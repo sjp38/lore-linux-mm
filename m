@@ -1,1593 +1,787 @@
-Message-Id: <200405222206.i4MM6kr12802@mail.osdl.org>
-Subject: [patch 20/57] numa api: Core NUMA API code
-From: akpm@osdl.org
-Date: Sat, 22 May 2004 15:06:13 -0700
+Received: from bix (build.pdx.osdl.net [172.20.1.2])
+	by mail.osdl.org (8.11.6/8.11.6) with SMTP id i4N9sSr05610
+	for <linux-mm@kvack.org>; Sun, 23 May 2004 02:54:28 -0700
+Date: Sun, 23 May 2004 02:53:58 -0700
+From: Andrew Morton <akpm@osdl.org>
+Subject: Fw: Re: current -linus tree dies on x86_64
+Message-Id: <20040523025358.72c9f8a9.akpm@osdl.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: torvalds@osdl.org
-Cc: linux-mm@kvack.org, akpm@osdl.org, ak@suse.de
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-From: Andi Kleen <ak@suse.de>
+hm, linux-mm seems to have dropped this.
 
-The following patches add support for configurable NUMA memory policy
-for user processes. It is based on the proposal from last kernel summit
-with feedback from various people.
+Begin forwarded message:
 
-This NUMA API doesn't not attempt to implement page migration or anything
-else complicated: all it does is to police the allocation when a page 
-is first allocation or when a page is reallocated after swapping. Currently
-only support for shared memory and anonymous memory is there; policy for 
-file based mappings is not implemented yet (although they get implicitely
-policied by the default process policy)
+Date: Sun, 23 May 2004 01:21:49 -0700
+From: Andrew Morton <akpm@osdl.org>
+To: ak@muc.de, linux-mm@kvack.org
+Subject: Re: current -linus tree dies on x86_64
 
-It adds three new system calls: mbind to change the policy of a VMA,
-set_mempolicy to change the policy of a process, get_mempolicy to retrieve
-memory policy. User tools (numactl, libnuma, test programs, manpages) can be 
-found in  ftp://ftp.suse.com/pub/people/ak/numa/numactl-0.6.tar.gz
 
-For details on the system calls see the manpages
-http://www.firstfloor.org/~andi/mbind.html
-http://www.firstfloor.org/~andi/set_mempolicy.html
-http://www.firstfloor.org/~andi/get_mempolicy.html
-Most user programs should actually not use the system calls directly,
-but use the higher level functions in libnuma 
-(http://www.firstfloor.org/~andi/numa.html) or the command line tools
-(http://www.firstfloor.org/~andi/numactl.html
+Andrew Morton <akpm@osdl.org> wrote:
+>
+> Andrew Morton <akpm@osdl.org> wrote:
+>  >
+>  > As soon as I put in enough memory pressure to start swapping it oopses in
+>  >  release_pages().
+> 
+>  I'm doing the bsearch on this.
 
-The system calls allow user programs and administors to set various NUMA memory 
-policies for putting memory on specific nodes. Here is a short description
-of the policies copied from the kernel patch:
+The crash is caused by the below changeset.  I was using my own .config so
+the defconfig update is not the cause.  I guess either the pageattr.c
+changes or the instruction replacements.  The lesson here is to split dem
+patches up a bit!
 
- * NUMA policy allows the user to give hints in which node(s) memory should
- * be allocated.
- *
- * Support four policies per VMA and per process:
- *
- * The VMA policy has priority over the process policy for a page fault.
- *
- * interleave     Allocate memory interleaved over a set of nodes,
- *                with normal fallback if it fails.
- *                For VMA based allocations this interleaves based on the
- *                offset into the backing object or offset into the mapping
- *                for anonymous memory. For process policy an process counter
- *                is used.
- * bind           Only allocate memory on a specific set of nodes,
- *                no fallback.
- * preferred      Try a specific node first before normal fallback.
- *                As a special case node -1 here means do the allocation
- *                on the local CPU. This is normally identical to default,
- *                but useful to set in a VMA when you have a non default
- *                process policy.
- * default        Allocate on the local node first, or when on a VMA
- *                use the process policy. This is what Linux always did
- *                in a NUMA aware kernel and still does by, ahem, default.
- *
- * The process policy is applied for most non interrupt memory allocations
- * in that process' context. Interrupts ignore the policies and always
- * try to allocate on the local CPU. The VMA policy is only applied for memory
- * allocations for a VMA in the VM.
- *
- * Currently there are a few corner cases in swapping where the policy
- * is not applied, but the majority should be handled. When process policy
- * is used it is not remembered over swap outs/swap ins.
- *
- * Only the highest zone in the zone hierarchy gets policied. Allocations
- * requesting a lower zone just use default policy. This implies that
- * on systems with highmem kernel lowmem allocation don't get policied.
- * Same with GFP_DMA allocations.
- *
- * For shmfs/tmpfs/hugetlbfs shared memory the policy is shared between
- * all users and remembered even when nobody has memory mapped.
+Anyway.  Over to you, Andi.
 
 
 
 
-This patch:
-
-This is the core NUMA API code. This includes NUMA policy aware 
-wrappers for get_free_pages and alloc_page_vma(). On non NUMA kernels
-these are defined away.
-
-The system calls mbind (see http://www.firstfloor.org/~andi/mbind.html),
-get_mempolicy (http://www.firstfloor.org/~andi/get_mempolicy.html) and
-set_mempolicy (http://www.firstfloor.org/~andi/set_mempolicy.html) are
-implemented here.
-
-Adds a vm_policy field to the VMA and to the process. The process
-also has field for interleaving. VMA interleaving uses the offset
-into the VMA, but that's not possible for process allocations.
-
-From: Andi Kleen <ak@muc.de>
-
-  > Andi, how come policy_vma() calls ->set_policy under i_shared_sem?
-
-  I think this can be actually dropped now.  In an earlier version I did
-  walk the vma shared list to change the policies of other mappings to the
-  same shared memory region.  This turned out too complicated with all the
-  corner cases, so I eventually gave in and added ->get_policy to the fast
-  path.  Also there is still the mmap_sem which prevents races in the same MM.
-   
-
-  Patch to remove it attached.  Also adds documentation and removes the
-  bogus __alloc_page_vma() prototype noticed by hch.
-
-From: Andi Kleen <ak@suse.de>
-
-  A few incremental fixes for NUMA API. 
-
-  - Fix a few comments
-
-  - Add a compat_ function for get_mem_policy I considered changing the
-    ABI to avoid this, but that would have made the API too ugly.  I put it
-    directly into the file because a mm/compat.c didn't seem worth it just for
-    this.
-
-  - Fix the algorithm for VMA interleave.
-
-From: Matthew Dobson <colpatch@us.ibm.com>
-
-  1) Move the extern of alloc_pages_current() into #ifdef CONFIG_NUMA. 
-    The only references to the function are in NUMA code in mempolicy.c
-
-  2) Remove the definitions of __alloc_page_vma().  They aren't used.
-
-  3) Move forward declaration of struct vm_area_struct to top of file.
-
-
----
-
- 25-akpm/Documentation/numastat.txt |   22 
- 25-akpm/include/linux/gfp.h        |   33 +
- 25-akpm/include/linux/mempolicy.h  |  221 ++++++++
- 25-akpm/include/linux/mm.h         |   22 
- 25-akpm/include/linux/sched.h      |    4 
- 25-akpm/kernel/sys.c               |    3 
- 25-akpm/mm/Makefile                |    1 
- 25-akpm/mm/mempolicy.c             | 1017 +++++++++++++++++++++++++++++++++++++
- 8 files changed, 1318 insertions(+), 5 deletions(-)
-
-diff -puN include/linux/gfp.h~numa-api-core include/linux/gfp.h
---- 25/include/linux/gfp.h~numa-api-core	2004-05-22 14:56:24.643345168 -0700
-+++ 25-akpm/include/linux/gfp.h	2004-05-22 14:56:24.656343192 -0700
-@@ -4,6 +4,10 @@
- #include <linux/mmzone.h>
- #include <linux/stddef.h>
- #include <linux/linkage.h>
-+#include <linux/config.h>
+# This is a BitKeeper generated diff -Nru style patch.
+#
+# ChangeSet
+#   2004/05/15 10:40:53-07:00 ak@muc.de 
+#   [PATCH] x86-64 updates
+#   
+#   Various accumulated x86-64 patches and bug fixes.
+#   
+#   It fixes one nasty bug that has been there since NX is used by 
+#   default in the kernel. With heavy AGP memory allocation it would
+#   set NX on parts of the kernel mapping in some corner cases, which gave
+#   endless crash loops. Thanks goes to some wizards in AMD debug labs
+#   for getting a trace out of this.
+#   
+#   Also various other fixes. This patches only changes x86-64 specific
+#   files, i have some changes outside too that I am sending separately.
+#   
+#    - Fix help test for CONFIG_NUMA
+#    - Don't enable SMT nice on CMP
+#    - Move HT and MWAIT checks up to generic code
+#    - Update defconfig
+#    - Remove duplicated includes (Arthur Othieno)
+#    - Set up GSI entry for ACPI SCI correctly (from i386)
+#    - Fix some comments
+#    - Fix threadinfo printing in oopses
+#    - Set task alignment to 16 bytes
+#    - Handle NX bit for code pages correctly in change_page_attr()
+#    - Use generic nops for non amd specific kernel
+#    - Add __KERNEL__ checks in unistd.h (David Lee)
+# 
+# include/asm-x86_64/unistd.h
+#   2004/05/15 06:32:28-07:00 ak@muc.de +1 -1
+#   x86-64 updates
+# 
+# include/asm-x86_64/processor.h
+#   2004/05/15 06:32:28-07:00 ak@muc.de +24 -4
+#   x86-64 updates
+# 
+# arch/x86_64/mm/pageattr.c
+#   2004/05/15 06:41:06-07:00 ak@muc.de +22 -15
+#   x86-64 updates
+# 
+# arch/x86_64/kernel/traps.c
+#   2004/05/15 06:32:27-07:00 ak@muc.de +2 -2
+#   x86-64 updates
+# 
+# arch/x86_64/kernel/setup.c
+#   2004/05/15 06:32:27-07:00 ak@muc.de +7 -5
+#   x86-64 updates
+# 
+# arch/x86_64/kernel/reboot.c
+#   2004/05/15 06:32:27-07:00 ak@muc.de +2 -2
+#   x86-64 updates
+# 
+# arch/x86_64/kernel/pci-gart.c
+#   2004/05/15 06:32:27-07:00 ak@muc.de +0 -1
+#   x86-64 updates
+# 
+# arch/x86_64/kernel/mpparse.c
+#   2004/05/15 06:32:27-07:00 ak@muc.de +4 -1
+#   x86-64 updates
+# 
+# arch/x86_64/kernel/domain.c
+#   2004/05/15 06:40:13-07:00 ak@muc.de +4 -0
+#   x86-64 updates
+# 
+# arch/x86_64/ia32/ptrace32.c
+#   2004/05/15 06:32:26-07:00 ak@muc.de +1 -2
+#   x86-64 updates
+# 
+# arch/x86_64/defconfig
+#   2004/05/15 06:33:33-07:00 ak@muc.de +137 -40
+#   x86-64 updates
+# 
+# arch/x86_64/Kconfig
+#   2004/05/15 06:32:23-07:00 ak@muc.de +3 -4
+#   x86-64 updates
+# 
+diff -Nru a/arch/x86_64/Kconfig b/arch/x86_64/Kconfig
+--- a/arch/x86_64/Kconfig	2004-05-23 01:15:37 -07:00
++++ b/arch/x86_64/Kconfig	2004-05-23 01:15:37 -07:00
+@@ -249,7 +249,6 @@
+ 	  cost of slightly increased overhead in some places. If unsure say
+ 	  N here.
+ 
+-# someone write a better help text please.
+ config K8_NUMA
+        bool "K8 NUMA support"
+        depends on SMP
+@@ -257,9 +256,9 @@
+ 	  Enable NUMA (Non Unified Memory Architecture) support for
+ 	  AMD Opteron Multiprocessor systems. The kernel will try to allocate
+ 	  memory used by a CPU on the local memory controller of the CPU
+-	  and in the future do more optimizations. This may improve performance 
+-	  or it may not. Code is still experimental.
+-	  Say N if unsure.
++	  and add some more NUMA awareness to the kernel.
++	  This code is recommended on all multiprocessor Opteron systems
++	  and normally doesn't hurt on others.
+ 
+ config DISCONTIGMEM
+        bool
+diff -Nru a/arch/x86_64/defconfig b/arch/x86_64/defconfig
+--- a/arch/x86_64/defconfig	2004-05-23 01:15:37 -07:00
++++ b/arch/x86_64/defconfig	2004-05-23 01:15:37 -07:00
+@@ -72,6 +72,7 @@
+ CONFIG_MTRR=y
+ CONFIG_SMP=y
+ # CONFIG_PREEMPT is not set
++CONFIG_SCHED_SMT=y
+ CONFIG_K8_NUMA=y
+ CONFIG_DISCONTIGMEM=y
+ CONFIG_NUMA=y
+@@ -282,6 +283,7 @@
+ # CONFIG_SCSI_SATA_SVW is not set
+ CONFIG_SCSI_ATA_PIIX=y
+ # CONFIG_SCSI_SATA_PROMISE is not set
++# CONFIG_SCSI_SATA_SX4 is not set
+ # CONFIG_SCSI_SATA_SIL is not set
+ # CONFIG_SCSI_SATA_SIS is not set
+ CONFIG_SCSI_SATA_VIA=y
+@@ -296,6 +298,7 @@
+ # CONFIG_SCSI_IPS is not set
+ # CONFIG_SCSI_INIA100 is not set
+ # CONFIG_SCSI_SYM53C8XX_2 is not set
++# CONFIG_SCSI_IPR is not set
+ # CONFIG_SCSI_QLOGIC_ISP is not set
+ # CONFIG_SCSI_QLOGIC_FC is not set
+ # CONFIG_SCSI_QLOGIC_1280 is not set
+@@ -331,6 +334,7 @@
+ #
+ # I2O device support
+ #
++# CONFIG_I2O is not set
+ 
+ #
+ # Networking support
+@@ -363,8 +367,6 @@
+ # CONFIG_INET6_ESP is not set
+ # CONFIG_INET6_IPCOMP is not set
+ # CONFIG_IPV6_TUNNEL is not set
+-# CONFIG_DECNET is not set
+-# CONFIG_BRIDGE is not set
+ # CONFIG_NETFILTER is not set
+ 
+ #
+@@ -372,7 +374,9 @@
+ #
+ # CONFIG_IP_SCTP is not set
+ # CONFIG_ATM is not set
++# CONFIG_BRIDGE is not set
+ # CONFIG_VLAN_8021Q is not set
++# CONFIG_DECNET is not set
+ # CONFIG_LLC2 is not set
+ # CONFIG_IPX is not set
+ # CONFIG_ATALK is not set
+@@ -393,16 +397,23 @@
+ # Network testing
+ #
+ # CONFIG_NET_PKTGEN is not set
++CONFIG_NETPOLL=y
++# CONFIG_NETPOLL_RX is not set
++# CONFIG_NETPOLL_TRAP is not set
++CONFIG_NET_POLL_CONTROLLER=y
++# CONFIG_HAMRADIO is not set
++# CONFIG_IRDA is not set
++# CONFIG_BT is not set
+ CONFIG_NETDEVICES=y
++# CONFIG_DUMMY is not set
++# CONFIG_BONDING is not set
++# CONFIG_EQUALIZER is not set
++# CONFIG_TUN is not set
+ 
+ #
+ # ARCnet devices
+ #
+ # CONFIG_ARCNET is not set
+-# CONFIG_DUMMY is not set
+-# CONFIG_BONDING is not set
+-# CONFIG_EQUALIZER is not set
+-# CONFIG_TUN is not set
+ 
+ #
+ # Ethernet (10 or 100Mbit)
+@@ -421,6 +432,7 @@
+ CONFIG_NET_PCI=y
+ # CONFIG_PCNET32 is not set
+ CONFIG_AMD8111_ETH=y
++# CONFIG_AMD8111E_NAPI is not set
+ # CONFIG_ADAPTEC_STARFIRE is not set
+ # CONFIG_B44 is not set
+ CONFIG_FORCEDETH=y
+@@ -436,7 +448,6 @@
+ # CONFIG_8139TOO_TUNE_TWISTER is not set
+ # CONFIG_8139TOO_8129 is not set
+ # CONFIG_8139_OLD_RX_RESET is not set
+-CONFIG_8139_RXBUF_IDX=2
+ # CONFIG_SIS900 is not set
+ # CONFIG_EPIC100 is not set
+ # CONFIG_SUNDANCE is not set
+@@ -453,7 +464,6 @@
+ # CONFIG_HAMACHI is not set
+ # CONFIG_YELLOWFIN is not set
+ # CONFIG_R8169 is not set
+-# CONFIG_SIS190 is not set
+ # CONFIG_SK98LIN is not set
+ CONFIG_TIGON3=y
+ 
+@@ -461,47 +471,29 @@
+ # Ethernet (10000 Mbit)
+ #
+ # CONFIG_IXGB is not set
+-# CONFIG_FDDI is not set
+-# CONFIG_HIPPI is not set
+-# CONFIG_PPP is not set
+-# CONFIG_SLIP is not set
+-
+-#
+-# Wireless LAN (non-hamradio)
+-#
+-# CONFIG_NET_RADIO is not set
++# CONFIG_S2IO is not set
+ 
+ #
+ # Token Ring devices
+ #
+ # CONFIG_TR is not set
+-# CONFIG_NET_FC is not set
+-# CONFIG_SHAPER is not set
+-CONFIG_NETCONSOLE=y
+-
+-#
+-# Wan interfaces
+-#
+-# CONFIG_WAN is not set
+-
+-#
+-# Amateur Radio support
+-#
+-# CONFIG_HAMRADIO is not set
+ 
+ #
+-# IrDA (infrared) support
++# Wireless LAN (non-hamradio)
+ #
+-# CONFIG_IRDA is not set
++# CONFIG_NET_RADIO is not set
+ 
+ #
+-# Bluetooth support
++# Wan interfaces
+ #
+-# CONFIG_BT is not set
+-CONFIG_NETPOLL=y
+-# CONFIG_NETPOLL_RX is not set
+-# CONFIG_NETPOLL_TRAP is not set
+-CONFIG_NET_POLL_CONTROLLER=y
++# CONFIG_WAN is not set
++# CONFIG_FDDI is not set
++# CONFIG_HIPPI is not set
++# CONFIG_PPP is not set
++# CONFIG_SLIP is not set
++# CONFIG_NET_FC is not set
++# CONFIG_SHAPER is not set
++CONFIG_NETCONSOLE=y
+ 
+ #
+ # ISDN subsystem
+@@ -685,7 +677,108 @@
+ #
+ # USB support
+ #
+-# CONFIG_USB is not set
++CONFIG_USB=y
++# CONFIG_USB_DEBUG is not set
 +
-+struct vm_area_struct;
++#
++# Miscellaneous USB options
++#
++CONFIG_USB_DEVICEFS=y
++# CONFIG_USB_BANDWIDTH is not set
++# CONFIG_USB_DYNAMIC_MINORS is not set
 +
- /*
-  * GFP bitmasks..
-  */
-@@ -69,19 +73,38 @@
-  * For the normal case of non-DISCONTIGMEM systems the NODE_DATA() gets
-  * optimized to &contig_page_data at compile-time.
-  */
--extern struct page * FASTCALL(__alloc_pages(unsigned int, unsigned int, struct zonelist *));
--static inline struct page * alloc_pages_node(int nid, unsigned int gfp_mask, unsigned int order)
-+extern struct page *
-+FASTCALL(__alloc_pages(unsigned int, unsigned int, struct zonelist *));
++#
++# USB Host Controller Drivers
++#
++CONFIG_USB_EHCI_HCD=y
++# CONFIG_USB_EHCI_SPLIT_ISO is not set
++# CONFIG_USB_EHCI_ROOT_HUB_TT is not set
++CONFIG_USB_OHCI_HCD=y
++# CONFIG_USB_UHCI_HCD is not set
 +
-+static inline struct page *alloc_pages_node(int nid, unsigned int gfp_mask,
-+						unsigned int order)
++#
++# USB Device Class drivers
++#
++# CONFIG_USB_AUDIO is not set
++# CONFIG_USB_BLUETOOTH_TTY is not set
++# CONFIG_USB_MIDI is not set
++# CONFIG_USB_ACM is not set
++CONFIG_USB_PRINTER=y
++CONFIG_USB_STORAGE=y
++# CONFIG_USB_STORAGE_DEBUG is not set
++# CONFIG_USB_STORAGE_DATAFAB is not set
++# CONFIG_USB_STORAGE_FREECOM is not set
++# CONFIG_USB_STORAGE_ISD200 is not set
++# CONFIG_USB_STORAGE_DPCM is not set
++# CONFIG_USB_STORAGE_HP8200e is not set
++# CONFIG_USB_STORAGE_SDDR09 is not set
++# CONFIG_USB_STORAGE_SDDR55 is not set
++# CONFIG_USB_STORAGE_JUMPSHOT is not set
++
++#
++# USB Human Interface Devices (HID)
++#
++CONFIG_USB_HID=y
++CONFIG_USB_HIDINPUT=y
++# CONFIG_HID_FF is not set
++# CONFIG_USB_HIDDEV is not set
++# CONFIG_USB_AIPTEK is not set
++# CONFIG_USB_WACOM is not set
++# CONFIG_USB_KBTAB is not set
++# CONFIG_USB_POWERMATE is not set
++# CONFIG_USB_MTOUCH is not set
++# CONFIG_USB_EGALAX is not set
++# CONFIG_USB_XPAD is not set
++# CONFIG_USB_ATI_REMOTE is not set
++
++#
++# USB Imaging devices
++#
++# CONFIG_USB_MDC800 is not set
++# CONFIG_USB_MICROTEK is not set
++# CONFIG_USB_HPUSBSCSI is not set
++
++#
++# USB Multimedia devices
++#
++# CONFIG_USB_DABUSB is not set
++
++#
++# Video4Linux support is needed for USB Multimedia device support
++#
++
++#
++# USB Network adaptors
++#
++# CONFIG_USB_CATC is not set
++# CONFIG_USB_KAWETH is not set
++# CONFIG_USB_PEGASUS is not set
++# CONFIG_USB_RTL8150 is not set
++# CONFIG_USB_USBNET is not set
++
++#
++# USB port drivers
++#
++
++#
++# USB Serial Converter support
++#
++# CONFIG_USB_SERIAL is not set
++
++#
++# USB Miscellaneous drivers
++#
++# CONFIG_USB_EMI62 is not set
++# CONFIG_USB_EMI26 is not set
++# CONFIG_USB_TIGL is not set
++# CONFIG_USB_AUERSWALD is not set
++# CONFIG_USB_RIO500 is not set
++# CONFIG_USB_LEGOTOWER is not set
++# CONFIG_USB_LCD is not set
++# CONFIG_USB_LED is not set
++# CONFIG_USB_CYTHERM is not set
++# CONFIG_USB_PHIDGETSERVO is not set
++# CONFIG_USB_TEST is not set
+ 
+ #
+ # USB Gadget Support
+@@ -696,6 +789,7 @@
+ # Firmware Drivers
+ #
+ # CONFIG_EDD is not set
++# CONFIG_SMBIOS is not set
+ 
+ #
+ # File systems
+@@ -714,6 +808,9 @@
+ CONFIG_REISERFS_FS=y
+ # CONFIG_REISERFS_CHECK is not set
+ # CONFIG_REISERFS_PROC_INFO is not set
++CONFIG_REISERFS_FS_XATTR=y
++CONFIG_REISERFS_FS_POSIX_ACL=y
++# CONFIG_REISERFS_FS_SECURITY is not set
+ # CONFIG_JFS_FS is not set
+ CONFIG_FS_POSIX_ACL=y
+ # CONFIG_XFS_FS is not set
+@@ -787,7 +884,6 @@
+ # CONFIG_CIFS is not set
+ # CONFIG_NCP_FS is not set
+ # CONFIG_CODA_FS is not set
+-# CONFIG_INTERMEZZO_FS is not set
+ # CONFIG_AFS_FS is not set
+ 
+ #
+@@ -833,3 +929,4 @@
+ # Library routines
+ #
+ CONFIG_CRC32=y
++# CONFIG_LIBCRC32C is not set
+diff -Nru a/arch/x86_64/ia32/ptrace32.c b/arch/x86_64/ia32/ptrace32.c
+--- a/arch/x86_64/ia32/ptrace32.c	2004-05-23 01:15:37 -07:00
++++ b/arch/x86_64/ia32/ptrace32.c	2004-05-23 01:15:37 -07:00
+@@ -17,6 +17,7 @@
+ #include <linux/syscalls.h>
+ #include <linux/unistd.h>
+ #include <linux/mm.h>
++#include <linux/ptrace.h>
+ #include <asm/ptrace.h>
+ #include <asm/uaccess.h>
+ #include <asm/user32.h>
+@@ -25,8 +26,6 @@
+ #include <asm/debugreg.h>
+ #include <asm/i387.h>
+ #include <asm/fpu32.h>
+-#include <linux/ptrace.h>
+-#include <linux/mm.h>
+ 
+ /* determines which flags the user has access to. */
+ /* 1 = access 0 = no access */
+diff -Nru a/arch/x86_64/kernel/domain.c b/arch/x86_64/kernel/domain.c
+--- a/arch/x86_64/kernel/domain.c	2004-05-23 01:15:37 -07:00
++++ b/arch/x86_64/kernel/domain.c	2004-05-23 01:15:37 -07:00
+@@ -21,6 +21,10 @@
+ 		struct sched_domain *phys_domain = &per_cpu(phys_domains, i);
+ 
+ 		*cpu_domain = SD_SIBLING_INIT;
++		/* Disable SMT NICE for CMP */
++		/* RED-PEN use a generic flag */ 
++		if (cpu_data[i].x86_vendor == X86_VENDOR_AMD) 
++			cpu_domain->flags &= ~SD_SHARE_CPUPOWER; 
+ 		cpu_domain->span = cpu_sibling_map[i];
+ 		cpu_domain->parent = phys_domain;
+ 		cpu_domain->groups = &sched_group_cpus[i];
+diff -Nru a/arch/x86_64/kernel/mpparse.c b/arch/x86_64/kernel/mpparse.c
+--- a/arch/x86_64/kernel/mpparse.c	2004-05-23 01:15:37 -07:00
++++ b/arch/x86_64/kernel/mpparse.c	2004-05-23 01:15:37 -07:00
+@@ -920,8 +920,11 @@
+ 		}
+ 
+ 		/* Don't set up the ACPI SCI because it's already set up */
+-		if (acpi_fadt.sci_int == gsi)
++		if (acpi_fadt.sci_int == gsi) {
++			/* we still need to set up the entry's irq */
++			acpi_gsi_to_irq(gsi, &entry->irq);
+ 			continue;
++		}
+ 
+ 		ioapic = mp_find_ioapic(gsi);
+ 		if (ioapic < 0)
+diff -Nru a/arch/x86_64/kernel/pci-gart.c b/arch/x86_64/kernel/pci-gart.c
+--- a/arch/x86_64/kernel/pci-gart.c	2004-05-23 01:15:37 -07:00
++++ b/arch/x86_64/kernel/pci-gart.c	2004-05-23 01:15:37 -07:00
+@@ -30,7 +30,6 @@
+ #include <asm/proto.h>
+ #include <asm/cacheflush.h>
+ #include <asm/kdebug.h>
+-#include <asm/proto.h>
+ 
+ #ifdef CONFIG_PREEMPT
+ #define preempt_atomic() in_atomic()
+diff -Nru a/arch/x86_64/kernel/reboot.c b/arch/x86_64/kernel/reboot.c
+--- a/arch/x86_64/kernel/reboot.c	2004-05-23 01:15:37 -07:00
++++ b/arch/x86_64/kernel/reboot.c	2004-05-23 01:15:37 -07:00
+@@ -29,9 +29,9 @@
+ static int reboot_mode = 0;
+ 
+ /* reboot=b[ios] | t[riple] | k[bd] [, [w]arm | [c]old]
+-   bios	  Use the CPU reboto vector for warm reset
++   bios	  Use the CPU reboot vector for warm reset
+    warm   Don't set the cold reboot flag
+-   cold   Set the cold reboto flag
++   cold   Set the cold reboot flag
+    triple Force a triple fault (init)
+    kbd    Use the keyboard controller. cold reset (default)
+  */ 
+diff -Nru a/arch/x86_64/kernel/setup.c b/arch/x86_64/kernel/setup.c
+--- a/arch/x86_64/kernel/setup.c	2004-05-23 01:15:37 -07:00
++++ b/arch/x86_64/kernel/setup.c	2004-05-23 01:15:37 -07:00
+@@ -663,7 +663,7 @@
+ 	return r;
+ }
+ 
+-static void __init detect_ht(void)
++static void __init detect_ht(struct cpuinfo_x86 *c)
  {
- 	if (unlikely(order >= MAX_ORDER))
- 		return NULL;
+ #ifdef CONFIG_SMP
+ 	u32 	eax, ebx, ecx, edx;
+@@ -671,6 +671,9 @@
+ 	int	initial_apic_id;
+ 	int 	cpu = smp_processor_id();
+ 	
++	if (!cpu_has(c, X86_FEATURE_HT))
++		return;
++
+ 	cpuid(1, &eax, &ebx, &ecx, &edx);
+ 	smp_num_siblings = (ebx & 0xff0000) >> 16;
+ 	
+@@ -768,7 +771,6 @@
+ 	unsigned int trace = 0, l1i = 0, l1d = 0, l2 = 0, l3 = 0; 
+ 	unsigned n;
  
--	return __alloc_pages(gfp_mask, order, NODE_DATA(nid)->node_zonelists + (gfp_mask & GFP_ZONEMASK));
-+	return __alloc_pages(gfp_mask, order,
-+		NODE_DATA(nid)->node_zonelists + (gfp_mask & GFP_ZONEMASK));
- }
+-	select_idle_routine(c);
+ 	if (c->cpuid_level > 1) {
+ 		/* supports eax=2  call */
+ 		int i, j, n;
+@@ -837,9 +839,6 @@
+ 		c->x86_cache_size = l2 ? l2 : (l1i+l1d);
+ 	}
  
-+#ifdef CONFIG_NUMA
-+extern struct page *alloc_pages_current(unsigned gfp_mask, unsigned order);
-+
-+static inline struct page *
-+alloc_pages(unsigned int gfp_mask, unsigned int order)
-+{
-+	if (unlikely(order >= MAX_ORDER))
-+		return NULL;
-+
-+	return alloc_pages_current(gfp_mask, order);
-+}
-+extern struct page *alloc_page_vma(unsigned gfp_mask,
-+			struct vm_area_struct *vma, unsigned long addr);
-+#else
- #define alloc_pages(gfp_mask, order) \
- 		alloc_pages_node(numa_node_id(), gfp_mask, order)
--#define alloc_page(gfp_mask) \
--		alloc_pages_node(numa_node_id(), gfp_mask, 0)
-+#define alloc_page_vma(gfp_mask, vma, addr) alloc_pages(gfp_mask, 0)
-+#endif
-+#define alloc_page(gfp_mask) alloc_pages(gfp_mask, 0)
+-	if (cpu_has(c, X86_FEATURE_HT))
+-		detect_ht(); 
+-
+ 	n = cpuid_eax(0x80000000);
+ 	if (n >= 0x80000008) {
+ 		unsigned eax = cpuid_eax(0x80000008);
+@@ -969,6 +968,9 @@
+ 			break;
+ 	}
+ 	
++	select_idle_routine(c);
++	detect_ht(c); 
++		
+ 	/*
+ 	 * On SMP, boot_cpu_data holds the common feature set between
+ 	 * all CPUs; so make sure that we indicate which features are
+diff -Nru a/arch/x86_64/kernel/traps.c b/arch/x86_64/kernel/traps.c
+--- a/arch/x86_64/kernel/traps.c	2004-05-23 01:15:37 -07:00
++++ b/arch/x86_64/kernel/traps.c	2004-05-23 01:15:37 -07:00
+@@ -256,8 +256,8 @@
  
- extern unsigned long FASTCALL(__get_free_pages(unsigned int gfp_mask, unsigned int order));
- extern unsigned long FASTCALL(get_zeroed_page(unsigned int gfp_mask));
-diff -puN /dev/null include/linux/mempolicy.h
---- /dev/null	2003-09-15 06:40:47.000000000 -0700
-+++ 25-akpm/include/linux/mempolicy.h	2004-05-22 14:56:24.657343040 -0700
-@@ -0,0 +1,221 @@
-+#ifndef _LINUX_MEMPOLICY_H
-+#define _LINUX_MEMPOLICY_H 1
-+
-+#include <linux/errno.h>
-+
-+/*
-+ * NUMA memory policies for Linux.
-+ * Copyright 2003,2004 Andi Kleen SuSE Labs
-+ */
-+
-+/* Policies */
-+#define MPOL_DEFAULT	0
-+#define MPOL_PREFERRED	1
-+#define MPOL_BIND	2
-+#define MPOL_INTERLEAVE	3
-+
-+#define MPOL_MAX MPOL_INTERLEAVE
-+
-+/* Flags for get_mem_policy */
-+#define MPOL_F_NODE	(1<<0)	/* return next IL mode instead of node mask */
-+#define MPOL_F_ADDR	(1<<1)	/* look up vma using address */
-+
-+/* Flags for mbind */
-+#define MPOL_MF_STRICT	(1<<0)	/* Verify existing pages in the mapping */
-+
-+#ifdef __KERNEL__
-+
-+#include <linux/config.h>
-+#include <linux/mmzone.h>
-+#include <linux/bitmap.h>
-+#include <linux/slab.h>
-+#include <linux/rbtree.h>
-+#include <asm/semaphore.h>
-+
-+struct vm_area_struct;
-+
-+#ifdef CONFIG_NUMA
-+
-+/*
-+ * Describe a memory policy.
-+ *
-+ * A mempolicy can be either associated with a process or with a VMA.
-+ * For VMA related allocations the VMA policy is preferred, otherwise
-+ * the process policy is used. Interrupts ignore the memory policy
-+ * of the current process.
-+ *
-+ * Locking policy for interlave:
-+ * In process context there is no locking because only the process accesses
-+ * its own state. All vma manipulation is somewhat protected by a down_read on
-+ * mmap_sem. For allocating in the interleave policy the page_table_lock
-+ * must be also aquired to protect il_next.
-+ *
-+ * Freeing policy:
-+ * When policy is MPOL_BIND v.zonelist is kmalloc'ed and must be kfree'd.
-+ * All other policies don't have any external state. mpol_free() handles this.
-+ *
-+ * Copying policy objects:
-+ * For MPOL_BIND the zonelist must be always duplicated. mpol_clone() does this.
-+ */
-+struct mempolicy {
-+	atomic_t refcnt;
-+	short policy; 	/* See MPOL_* above */
-+	union {
-+		struct zonelist  *zonelist;	/* bind */
-+		short 		 preferred_node; /* preferred */
-+		DECLARE_BITMAP(nodes, MAX_NUMNODES); /* interleave */
-+		/* undefined for default */
-+	} v;
-+};
-+
-+/* An NULL mempolicy pointer is a synonym of &default_policy. */
-+extern struct mempolicy default_policy;
-+
-+/*
-+ * Support for managing mempolicy data objects (clone, copy, destroy)
-+ * The default fast path of a NULL MPOL_DEFAULT policy is always inlined.
-+ */
-+
-+extern void __mpol_free(struct mempolicy *pol);
-+static inline void mpol_free(struct mempolicy *pol)
-+{
-+	if (pol)
-+		__mpol_free(pol);
-+}
-+
-+extern struct mempolicy *__mpol_copy(struct mempolicy *pol);
-+static inline struct mempolicy *mpol_copy(struct mempolicy *pol)
-+{
-+	if (pol)
-+		pol = __mpol_copy(pol);
-+	return pol;
-+}
-+
-+#define vma_policy(vma) ((vma)->vm_policy)
-+#define vma_set_policy(vma, pol) ((vma)->vm_policy = (pol))
-+
-+static inline void mpol_get(struct mempolicy *pol)
-+{
-+	if (pol)
-+		atomic_inc(&pol->refcnt);
-+}
-+
-+extern int __mpol_equal(struct mempolicy *a, struct mempolicy *b);
-+static inline int mpol_equal(struct mempolicy *a, struct mempolicy *b)
-+{
-+	if (a == b)
-+		return 1;
-+	return __mpol_equal(a, b);
-+}
-+#define vma_mpol_equal(a,b) mpol_equal(vma_policy(a), vma_policy(b))
-+
-+/* Could later add inheritance of the process policy here. */
-+
-+#define mpol_set_vma_default(vma) ((vma)->vm_policy = NULL)
-+
-+/*
-+ * Hugetlb policy. i386 hugetlb so far works with node numbers
-+ * instead of zone lists, so give it special interfaces for now.
-+ */
-+extern int mpol_first_node(struct vm_area_struct *vma, unsigned long addr);
-+extern int mpol_node_valid(int nid, struct vm_area_struct *vma,
-+			unsigned long addr);
-+
-+/*
-+ * Tree of shared policies for a shared memory region.
-+ * Maintain the policies in a pseudo mm that contains vmas. The vmas
-+ * carry the policy. As a special twist the pseudo mm is indexed in pages, not
-+ * bytes, so that we can work with shared memory segments bigger than
-+ * unsigned long.
-+ */
-+
-+struct sp_node {
-+	struct rb_node nd;
-+	unsigned long start, end;
-+	struct mempolicy *policy;
-+};
-+
-+struct shared_policy {
-+	struct rb_root root;
-+	struct semaphore sem;
-+};
-+
-+static inline void mpol_shared_policy_init(struct shared_policy *info)
-+{
-+	info->root = RB_ROOT;
-+	init_MUTEX(&info->sem);
-+}
-+
-+int mpol_set_shared_policy(struct shared_policy *info,
-+				struct vm_area_struct *vma,
-+				struct mempolicy *new);
-+void mpol_free_shared_policy(struct shared_policy *p);
-+struct mempolicy *mpol_shared_policy_lookup(struct shared_policy *sp,
-+					    unsigned long idx);
-+
-+#else
-+
-+struct mempolicy {};
-+
-+static inline int mpol_equal(struct mempolicy *a, struct mempolicy *b)
-+{
-+	return 1;
-+}
-+#define vma_mpol_equal(a,b) 1
-+
-+#define mpol_set_vma_default(vma) do {} while(0)
-+
-+static inline void mpol_free(struct mempolicy *p)
-+{
-+}
-+
-+static inline void mpol_get(struct mempolicy *pol)
-+{
-+}
-+
-+static inline struct mempolicy *mpol_copy(struct mempolicy *old)
-+{
-+	return NULL;
-+}
-+
-+static inline int mpol_first_node(struct vm_area_struct *vma, unsigned long a)
-+{
-+	return numa_node_id();
-+}
-+
-+static inline int
-+mpol_node_valid(int nid, struct vm_area_struct *vma, unsigned long a)
-+{
-+	return 1;
-+}
-+
-+struct shared_policy {};
-+
-+static inline int mpol_set_shared_policy(struct shared_policy *info,
-+					struct vm_area_struct *vma,
-+					struct mempolicy *new)
-+{
-+	return -EINVAL;
-+}
-+
-+static inline void mpol_shared_policy_init(struct shared_policy *info)
-+{
-+}
-+
-+static inline void mpol_free_shared_policy(struct shared_policy *p)
-+{
-+}
-+
-+static inline struct mempolicy *
-+mpol_shared_policy_lookup(struct shared_policy *sp, unsigned long idx)
-+{
-+	return NULL;
-+}
-+
-+#define vma_policy(vma) NULL
-+#define vma_set_policy(vma, pol) do {} while(0)
-+
-+#endif /* CONFIG_NUMA */
-+#endif /* __KERNEL__ */
-+
-+#endif
-diff -puN include/linux/mm.h~numa-api-core include/linux/mm.h
---- 25/include/linux/mm.h~numa-api-core	2004-05-22 14:56:24.645344864 -0700
-+++ 25-akpm/include/linux/mm.h	2004-05-22 14:59:40.406584632 -0700
-@@ -12,6 +12,7 @@
- #include <linux/mmzone.h>
- #include <linux/rbtree.h>
- #include <linux/fs.h>
-+#include <linux/mempolicy.h>
+ 	printk("CPU %d ", cpu);
+ 	__show_regs(regs);
+-	printk("Process %s (pid: %d, stackpage=%08lx)\n",
+-		cur->comm, cur->pid, 4096+(unsigned long)cur);
++	printk("Process %s (pid: %d, threadinfo %p, task %p)\n",
++		cur->comm, cur->pid, cur->thread_info, cur);
  
- #ifndef CONFIG_DISCONTIGMEM          /* Don't use mapnrs, do it properly */
- extern unsigned long max_mapnr;
-@@ -47,6 +48,10 @@ extern int page_cluster;
-  *
-  * This structure is exactly 64 bytes on ia32.  Please think very, very hard
-  * before adding anything to it.
-+ * [Now 4 bytes more on 32bit NUMA machines. Sorry. -AK.
-+ * But if you want to recover the 4 bytes justr remove vm_next. It is redundant
-+ * with vm_rb. Will be a lot of editing work though. vm_rb.color is redundant
-+ * too.]
+ 	/*
+ 	 * When in-kernel, we also print out the stack and code at the
+diff -Nru a/arch/x86_64/mm/pageattr.c b/arch/x86_64/mm/pageattr.c
+--- a/arch/x86_64/mm/pageattr.c	2004-05-23 01:15:37 -07:00
++++ b/arch/x86_64/mm/pageattr.c	2004-05-23 01:15:37 -07:00
+@@ -32,7 +32,8 @@
+ 	return pte;
+ } 
+ 
+-static struct page *split_large_page(unsigned long address, pgprot_t prot)
++static struct page *split_large_page(unsigned long address, pgprot_t prot,
++				     pgprot_t ref_prot)
+ { 
+ 	int i; 
+ 	unsigned long addr;
+@@ -45,7 +46,7 @@
+ 	pbase = (pte_t *)page_address(base);
+ 	for (i = 0; i < PTRS_PER_PTE; i++, addr += PAGE_SIZE) {
+ 		pbase[i] = pfn_pte(addr >> PAGE_SHIFT, 
+-				   addr == address ? prot : PAGE_KERNEL);
++				   addr == address ? prot : ref_prot);
+ 	}
+ 	return base;
+ } 
+@@ -95,7 +96,8 @@
+  * No more special protections in this 2/4MB area - revert to a
+  * large page again. 
   */
- struct vm_area_struct {
- 	struct mm_struct * vm_mm;	/* The address space we belong to. */
-@@ -77,6 +82,10 @@ struct vm_area_struct {
- 					   units, *not* PAGE_CACHE_SIZE */
- 	struct file * vm_file;		/* File we map to (can be NULL). */
- 	void * vm_private_data;		/* was vm_pte (shared mem) */
-+
-+#ifdef CONFIG_NUMA
-+	struct mempolicy *vm_policy;	/* NUMA policy for the VMA */
-+#endif
- };
+-static void revert_page(struct page *kpte_page, unsigned long address)
++static void revert_page(struct page *kpte_page, unsigned long address, 
++			pgprot_t ref_prot)
+ {
+        pgd_t *pgd;
+        pmd_t *pmd; 
+@@ -104,12 +106,14 @@
+        pgd = pgd_offset_k(address); 
+        pmd = pmd_offset(pgd, address);
+        BUG_ON(pmd_val(*pmd) & _PAGE_PSE); 
+-       large_pte = mk_pte_phys(__pa(address) & LARGE_PAGE_MASK, PAGE_KERNEL_LARGE);
++       pgprot_val(ref_prot) |= _PAGE_PSE;
++       large_pte = mk_pte_phys(__pa(address) & LARGE_PAGE_MASK, ref_prot);
+        set_pte((pte_t *)pmd, large_pte);
+ }      
+ 
+ static int
+-__change_page_attr(unsigned long address, struct page *page, pgprot_t prot)
++__change_page_attr(unsigned long address, struct page *page, pgprot_t prot, 
++		   pgprot_t ref_prot)
+ { 
+ 	pte_t *kpte; 
+ 	struct page *kpte_page;
+@@ -119,29 +123,29 @@
+ 	if (!kpte) return 0;
+ 	kpte_page = virt_to_page(((unsigned long)kpte) & PAGE_MASK);
+ 	kpte_flags = pte_val(*kpte); 
+-	if (pgprot_val(prot) != pgprot_val(PAGE_KERNEL)) { 
++	if (pgprot_val(prot) != pgprot_val(ref_prot)) { 
+ 		if ((kpte_flags & _PAGE_PSE) == 0) { 
+ 			pte_t old = *kpte;
+-			pte_t standard = mk_pte(page, PAGE_KERNEL); 
++			pte_t standard = mk_pte(page, ref_prot); 
+ 
+ 			set_pte(kpte, mk_pte(page, prot)); 
+ 			if (pte_same(old,standard))
+ 				get_page(kpte_page);
+ 		} else {
+-			struct page *split = split_large_page(address, prot); 
++			struct page *split = split_large_page(address, prot, ref_prot); 
+ 			if (!split)
+ 				return -ENOMEM;
+ 			get_page(kpte_page);
+-			set_pte(kpte,mk_pte(split, PAGE_KERNEL));
++			set_pte(kpte,mk_pte(split, ref_prot));
+ 		}	
+ 	} else if ((kpte_flags & _PAGE_PSE) == 0) { 
+-		set_pte(kpte, mk_pte(page, PAGE_KERNEL));
++		set_pte(kpte, mk_pte(page, ref_prot));
+ 		__put_page(kpte_page);
+ 	}
+ 
+ 	if (page_count(kpte_page) == 1) {
+ 		save_page(address, kpte_page); 		     
+-		revert_page(kpte_page, address);
++		revert_page(kpte_page, address, ref_prot);
+ 	} 
+ 	return 0;
+ } 
+@@ -167,13 +171,16 @@
+ 	down_write(&init_mm.mmap_sem);
+ 	for (i = 0; i < numpages; !err && i++, page++) { 
+ 		unsigned long address = (unsigned long)page_address(page); 
+-		err = __change_page_attr(address, page, prot); 
++		err = __change_page_attr(address, page, prot, PAGE_KERNEL); 
+ 		if (err) 
+ 			break; 
+-		/* Handle kernel mapping too which aliases part of the lowmem */
++		/* Handle kernel mapping too which aliases part of the
++		 * lowmem */
+ 		if (page_to_phys(page) < KERNEL_TEXT_SIZE) {		
+-			unsigned long addr2 = __START_KERNEL_map + page_to_phys(page);
+-			err = __change_page_attr(addr2, page, prot);
++			unsigned long addr2;
++			addr2 = __START_KERNEL_map + page_to_phys(page);
++			err = __change_page_attr(addr2, page, prot, 
++						 PAGE_KERNEL_EXECUTABLE);
+ 		} 
+ 	} 	
+ 	up_write(&init_mm.mmap_sem); 
+diff -Nru a/include/asm-x86_64/processor.h b/include/asm-x86_64/processor.h
+--- a/include/asm-x86_64/processor.h	2004-05-23 01:15:37 -07:00
++++ b/include/asm-x86_64/processor.h	2004-05-23 01:15:37 -07:00
+@@ -44,8 +44,6 @@
  
  /*
-@@ -145,6 +154,11 @@ struct vm_operations_struct {
- 	void (*close)(struct vm_area_struct * area);
- 	struct page * (*nopage)(struct vm_area_struct * area, unsigned long address, int *type);
- 	int (*populate)(struct vm_area_struct * area, unsigned long address, unsigned long len, pgprot_t prot, unsigned long pgoff, int nonblock);
-+#ifdef CONFIG_NUMA
-+	int (*set_policy)(struct vm_area_struct *vma, struct mempolicy *new);
-+	struct mempolicy *(*get_policy)(struct vm_area_struct *vma,
-+					unsigned long addr);
+  *  CPU type and hardware bug flags. Kept separately for each CPU.
+- *  Members of this structure are referenced in head.S, so think twice
+- *  before touching them. [mj]
+  */
+ 
+ struct cpuinfo_x86 {
+@@ -229,6 +227,8 @@
+ 	unsigned long io_bitmap[IO_BITMAP_LONGS + 1];
+ } __attribute__((packed)) ____cacheline_aligned;
+ 
++#define ARCH_MIN_TASKALIGN	16
++
+ struct thread_struct {
+ 	unsigned long	rsp0;
+ 	unsigned long	rsp;
+@@ -246,14 +246,14 @@
+ /* fault info */
+ 	unsigned long	cr2, trap_no, error_code;
+ /* floating point info */
+-	union i387_union	i387;
++	union i387_union	i387  __attribute__((aligned(16)));
+ /* IO permissions. the bitmap could be moved into the GDT, that would make
+    switch faster for a limited number of ioperm using tasks. -AK */
+ 	int		ioperm;
+ 	unsigned long	*io_bitmap_ptr;
+ /* cached TLS descriptors. */
+ 	u64 tls_array[GDT_ENTRY_TLS_ENTRIES];
+-};
++} __attribute__((aligned(16)));
+ 
+ #define INIT_THREAD  {}
+ 
+@@ -345,7 +345,17 @@
+ /* '6' because it used to be for P6 only (but now covers Pentium 4 as well) */
+ #define MICROCODE_IOCFREE	_IO('6',0)
+ 
++/* generic versions from gas */
++#define GENERIC_NOP1	".byte 0x90\n"
++#define GENERIC_NOP2    	".byte 0x89,0xf6\n"
++#define GENERIC_NOP3        ".byte 0x8d,0x76,0x00\n"
++#define GENERIC_NOP4        ".byte 0x8d,0x74,0x26,0x00\n"
++#define GENERIC_NOP5        GENERIC_NOP1 GENERIC_NOP4
++#define GENERIC_NOP6	".byte 0x8d,0xb6,0x00,0x00,0x00,0x00\n"
++#define GENERIC_NOP7	".byte 0x8d,0xb4,0x26,0x00,0x00,0x00,0x00\n"
++#define GENERIC_NOP8	GENERIC_NOP1 GENERIC_NOP7
+ 
++#ifdef CONFIG_MK8
+ #define ASM_NOP1 K8_NOP1
+ #define ASM_NOP2 K8_NOP2
+ #define ASM_NOP3 K8_NOP3
+@@ -354,6 +364,16 @@
+ #define ASM_NOP6 K8_NOP6
+ #define ASM_NOP7 K8_NOP7
+ #define ASM_NOP8 K8_NOP8
++#else
++#define ASM_NOP1 GENERIC_NOP1
++#define ASM_NOP2 GENERIC_NOP2
++#define ASM_NOP3 GENERIC_NOP3
++#define ASM_NOP4 GENERIC_NOP4
++#define ASM_NOP5 GENERIC_NOP5
++#define ASM_NOP6 GENERIC_NOP6
++#define ASM_NOP7 GENERIC_NOP7
++#define ASM_NOP8 GENERIC_NOP8
 +#endif
- };
  
- struct mmu_gather;
-@@ -465,6 +479,9 @@ extern void show_free_areas(void);
+ /* Opteron nops */
+ #define K8_NOP1 ".byte 0x90\n"
+diff -Nru a/include/asm-x86_64/unistd.h b/include/asm-x86_64/unistd.h
+--- a/include/asm-x86_64/unistd.h	2004-05-23 01:15:37 -07:00
++++ b/include/asm-x86_64/unistd.h	2004-05-23 01:15:37 -07:00
+@@ -731,7 +731,7 @@
  
- struct page *shmem_nopage(struct vm_area_struct * vma,
- 			unsigned long address, int *type);
-+int shmem_set_policy(struct vm_area_struct *vma, struct mempolicy *new);
-+struct mempolicy *shmem_get_policy(struct vm_area_struct *vma,
-+					unsigned long addr);
- struct file *shmem_file_setup(char * name, loff_t size, unsigned long flags);
- void shmem_lock(struct file * file, int lock);
- int shmem_zero_setup(struct vm_area_struct *);
-@@ -667,6 +684,11 @@ static inline struct vm_area_struct * fi
- 	return vma;
- }
+ #endif /* __KERNEL_SYSCALLS__ */
  
-+static inline unsigned long vma_pages(struct vm_area_struct *vma)
-+{
-+	return (vma->vm_end - vma->vm_start) >> PAGE_SHIFT;
-+}
-+
- extern struct vm_area_struct *find_extend_vma(struct mm_struct *mm, unsigned long addr);
+-#ifndef __ASSEMBLY__
++#if !defined(__ASSEMBLY__) && defined(__KERNEL__)
  
- extern unsigned int nr_used_zone_pages(void);
-diff -puN include/linux/sched.h~numa-api-core include/linux/sched.h
---- 25/include/linux/sched.h~numa-api-core	2004-05-22 14:56:24.646344712 -0700
-+++ 25-akpm/include/linux/sched.h	2004-05-22 14:59:40.407584480 -0700
-@@ -29,6 +29,7 @@
- #include <linux/completion.h>
- #include <linux/pid.h>
- #include <linux/percpu.h>
-+#include <linux/mempolicy.h>
- 
- struct exec_domain;
- 
-@@ -508,6 +509,9 @@ struct task_struct {
- 
- 	unsigned long ptrace_message;
- 	siginfo_t *last_siginfo; /* For ptrace use.  */
-+
-+  	struct mempolicy *mempolicy;
-+  	short il_next;		/* could be shared with used_math */
- };
- 
- static inline pid_t process_group(struct task_struct *tsk)
-diff -puN kernel/sys.c~numa-api-core kernel/sys.c
---- 25/kernel/sys.c~numa-api-core	2004-05-22 14:56:24.647344560 -0700
-+++ 25-akpm/kernel/sys.c	2004-05-22 14:56:24.660342584 -0700
-@@ -271,6 +271,9 @@ cond_syscall(compat_sys_mq_timedsend)
- cond_syscall(compat_sys_mq_timedreceive)
- cond_syscall(compat_sys_mq_notify)
- cond_syscall(compat_sys_mq_getsetattr)
-+cond_syscall(sys_mbind)
-+cond_syscall(sys_get_mempolicy)
-+cond_syscall(sys_set_mempolicy)
- 
- /* arch-specific weak syscall entries */
- cond_syscall(sys_pciconfig_read)
-diff -puN mm/Makefile~numa-api-core mm/Makefile
---- 25/mm/Makefile~numa-api-core	2004-05-22 14:56:24.649344256 -0700
-+++ 25-akpm/mm/Makefile	2004-05-22 14:59:39.231763232 -0700
-@@ -13,3 +13,4 @@ obj-y			:= bootmem.o filemap.o mempool.o
- 
- obj-$(CONFIG_SWAP)	+= page_io.o swap_state.o swapfile.o
- obj-$(CONFIG_HUGETLBFS)	+= hugetlb.o
-+obj-$(CONFIG_NUMA) 	+= mempolicy.o
-diff -puN mm/mempolicy.c~numa-api-core mm/mempolicy.c
---- 25/mm/mempolicy.c~numa-api-core	2004-05-22 14:56:24.650344104 -0700
-+++ 25-akpm/mm/mempolicy.c	2004-05-22 14:59:41.060485224 -0700
-@@ -0,0 +1,1017 @@
-+/*
-+ * Simple NUMA memory policy for the Linux kernel.
-+ *
-+ * Copyright 2003,2004 Andi Kleen, SuSE Labs.
-+ * Subject to the GNU Public License, version 2.
-+ *
-+ * NUMA policy allows the user to give hints in which node(s) memory should
-+ * be allocated.
-+ *
-+ * Support four policies per VMA and per process:
-+ *
-+ * The VMA policy has priority over the process policy for a page fault.
-+ *
-+ * interleave     Allocate memory interleaved over a set of nodes,
-+ *                with normal fallback if it fails.
-+ *                For VMA based allocations this interleaves based on the
-+ *                offset into the backing object or offset into the mapping
-+ *                for anonymous memory. For process policy an process counter
-+ *                is used.
-+ * bind           Only allocate memory on a specific set of nodes,
-+ *                no fallback.
-+ * preferred       Try a specific node first before normal fallback.
-+ *                As a special case node -1 here means do the allocation
-+ *                on the local CPU. This is normally identical to default,
-+ *                but useful to set in a VMA when you have a non default
-+ *                process policy.
-+ * default        Allocate on the local node first, or when on a VMA
-+ *                use the process policy. This is what Linux always did
-+ *				   in a NUMA aware kernel and still does by, ahem, default.
-+ *
-+ * The process policy is applied for most non interrupt memory allocations
-+ * in that process' context. Interrupts ignore the policies and always
-+ * try to allocate on the local CPU. The VMA policy is only applied for memory
-+ * allocations for a VMA in the VM.
-+ *
-+ * Currently there are a few corner cases in swapping where the policy
-+ * is not applied, but the majority should be handled. When process policy
-+ * is used it is not remembered over swap outs/swap ins.
-+ *
-+ * Only the highest zone in the zone hierarchy gets policied. Allocations
-+ * requesting a lower zone just use default policy. This implies that
-+ * on systems with highmem kernel lowmem allocation don't get policied.
-+ * Same with GFP_DMA allocations.
-+ *
-+ * For shmfs/tmpfs/hugetlbfs shared memory the policy is shared between
-+ * all users and remembered even when nobody has memory mapped.
-+ */
-+
-+/* Notebook:
-+   fix mmap readahead to honour policy and enable policy for any page cache
-+   object
-+   statistics for bigpages
-+   global policy for page cache? currently it uses process policy. Requires
-+   first item above.
-+   handle mremap for shared memory (currently ignored for the policy)
-+   grows down?
-+   make bind policy root only? It can trigger oom much faster and the
-+   kernel is not always grateful with that.
-+   could replace all the switch()es with a mempolicy_ops structure.
-+*/
-+
-+#include <linux/mempolicy.h>
-+#include <linux/mm.h>
-+#include <linux/hugetlb.h>
-+#include <linux/kernel.h>
-+#include <linux/sched.h>
-+#include <linux/mm.h>
-+#include <linux/gfp.h>
-+#include <linux/slab.h>
-+#include <linux/string.h>
-+#include <linux/module.h>
-+#include <linux/interrupt.h>
-+#include <linux/init.h>
-+#include <linux/compat.h>
-+#include <asm/uaccess.h>
-+
-+static kmem_cache_t *policy_cache;
-+static kmem_cache_t *sn_cache;
-+
-+#define PDprintk(fmt...)
-+
-+/* Highest zone. An specific allocation for a zone below that is not
-+   policied. */
-+static int policy_zone;
-+
-+static struct mempolicy default_policy = {
-+	.refcnt = ATOMIC_INIT(1), /* never free it */
-+	.policy = MPOL_DEFAULT,
-+};
-+
-+/* Check if all specified nodes are online */
-+static int nodes_online(unsigned long *nodes)
-+{
-+	DECLARE_BITMAP(offline, MAX_NUMNODES);
-+
-+	bitmap_copy(offline, node_online_map, MAX_NUMNODES);
-+	if (bitmap_empty(offline, MAX_NUMNODES))
-+		set_bit(0, offline);
-+	bitmap_complement(offline, MAX_NUMNODES);
-+	bitmap_and(offline, offline, nodes, MAX_NUMNODES);
-+	if (!bitmap_empty(offline, MAX_NUMNODES))
-+		return -EINVAL;
-+	return 0;
-+}
-+
-+/* Do sanity checking on a policy */
-+static int mpol_check_policy(int mode, unsigned long *nodes)
-+{
-+	int empty = bitmap_empty(nodes, MAX_NUMNODES);
-+
-+	switch (mode) {
-+	case MPOL_DEFAULT:
-+		if (!empty)
-+			return -EINVAL;
-+		break;
-+	case MPOL_BIND:
-+	case MPOL_INTERLEAVE:
-+		/* Preferred will only use the first bit, but allow
-+		   more for now. */
-+		if (empty)
-+			return -EINVAL;
-+		break;
-+	}
-+	return nodes_online(nodes);
-+}
-+
-+/* Copy a node mask from user space. */
-+static int get_nodes(unsigned long *nodes, unsigned long *nmask,
-+		     unsigned long maxnode, int mode)
-+{
-+	unsigned long k;
-+	unsigned long nlongs;
-+	unsigned long endmask;
-+
-+	--maxnode;
-+	nlongs = BITS_TO_LONGS(maxnode);
-+	if ((maxnode % BITS_PER_LONG) == 0)
-+		endmask = ~0UL;
-+	else
-+		endmask = (1UL << (maxnode % BITS_PER_LONG)) - 1;
-+
-+	/* When the user specified more nodes than supported just check
-+	   if the non supported part is all zero. */
-+	if (nmask && nlongs > BITS_TO_LONGS(MAX_NUMNODES)) {
-+		for (k = BITS_TO_LONGS(MAX_NUMNODES); k < nlongs; k++) {
-+			unsigned long t;
-+			if (get_user(t,  nmask + k))
-+				return -EFAULT;
-+			if (k == nlongs - 1) {
-+				if (t & endmask)
-+					return -EINVAL;
-+			} else if (t)
-+				return -EINVAL;
-+		}
-+		nlongs = BITS_TO_LONGS(MAX_NUMNODES);
-+		endmask = ~0UL;
-+	}
-+
-+	bitmap_zero(nodes, MAX_NUMNODES);
-+	if (nmask && copy_from_user(nodes, nmask, nlongs*sizeof(unsigned long)))
-+		return -EFAULT;
-+	nodes[nlongs-1] &= endmask;
-+	return mpol_check_policy(mode, nodes);
-+}
-+
-+/* Generate a custom zonelist for the BIND policy. */
-+static struct zonelist *bind_zonelist(unsigned long *nodes)
-+{
-+	struct zonelist *zl;
-+	int num, max, nd;
-+
-+	max = 1 + MAX_NR_ZONES * bitmap_weight(nodes, MAX_NUMNODES);
-+	zl = kmalloc(sizeof(void *) * max, GFP_KERNEL);
-+	if (!zl)
-+		return NULL;
-+	num = 0;
-+	for (nd = find_first_bit(nodes, MAX_NUMNODES);
-+	     nd < MAX_NUMNODES;
-+	     nd = find_next_bit(nodes, MAX_NUMNODES, 1+nd)) {
-+		int k;
-+		for (k = MAX_NR_ZONES-1; k >= 0; k--) {
-+			struct zone *z = &NODE_DATA(nd)->node_zones[k];
-+			if (!z->present_pages)
-+				continue;
-+			zl->zones[num++] = z;
-+			if (k > policy_zone)
-+				policy_zone = k;
-+		}
-+	}
-+	BUG_ON(num >= max);
-+	zl->zones[num] = NULL;
-+	return zl;
-+}
-+
-+/* Create a new policy */
-+static struct mempolicy *mpol_new(int mode, unsigned long *nodes)
-+{
-+	struct mempolicy *policy;
-+
-+	PDprintk("setting mode %d nodes[0] %lx\n", mode, nodes[0]);
-+	if (mode == MPOL_DEFAULT)
-+		return NULL;
-+	policy = kmem_cache_alloc(policy_cache, GFP_KERNEL);
-+	if (!policy)
-+		return ERR_PTR(-ENOMEM);
-+	atomic_set(&policy->refcnt, 1);
-+	switch (mode) {
-+	case MPOL_INTERLEAVE:
-+		bitmap_copy(policy->v.nodes, nodes, MAX_NUMNODES);
-+		break;
-+	case MPOL_PREFERRED:
-+		policy->v.preferred_node = find_first_bit(nodes, MAX_NUMNODES);
-+		if (policy->v.preferred_node >= MAX_NUMNODES)
-+			policy->v.preferred_node = -1;
-+		break;
-+	case MPOL_BIND:
-+		policy->v.zonelist = bind_zonelist(nodes);
-+		if (policy->v.zonelist == NULL) {
-+			kmem_cache_free(policy_cache, policy);
-+			return ERR_PTR(-ENOMEM);
-+		}
-+		break;
-+	}
-+	policy->policy = mode;
-+	return policy;
-+}
-+
-+/* Ensure all existing pages follow the policy. */
-+static int
-+verify_pages(unsigned long addr, unsigned long end, unsigned long *nodes)
-+{
-+	while (addr < end) {
-+		struct page *p;
-+		pte_t *pte;
-+		pmd_t *pmd;
-+		pgd_t *pgd = pgd_offset_k(addr);
-+		if (pgd_none(*pgd)) {
-+			addr = (addr + PGDIR_SIZE) & PGDIR_MASK;
-+			continue;
-+		}
-+		pmd = pmd_offset(pgd, addr);
-+		if (pmd_none(*pmd)) {
-+			addr = (addr + PMD_SIZE) & PMD_MASK;
-+			continue;
-+		}
-+		p = NULL;
-+		pte = pte_offset_map(pmd, addr);
-+		if (pte_present(*pte))
-+			p = pte_page(*pte);
-+		pte_unmap(pte);
-+		if (p) {
-+			unsigned nid = page_to_nid(p);
-+			if (!test_bit(nid, nodes))
-+				return -EIO;
-+		}
-+		addr += PAGE_SIZE;
-+	}
-+	return 0;
-+}
-+
-+/* Step 1: check the range */
-+static struct vm_area_struct *
-+check_range(struct mm_struct *mm, unsigned long start, unsigned long end,
-+	    unsigned long *nodes, unsigned long flags)
-+{
-+	int err;
-+	struct vm_area_struct *first, *vma, *prev;
-+
-+	first = find_vma(mm, start);
-+	if (!first)
-+		return ERR_PTR(-EFAULT);
-+	prev = NULL;
-+	for (vma = first; vma->vm_start < end; vma = vma->vm_next) {
-+		if (!vma->vm_next && vma->vm_end < end)
-+			return ERR_PTR(-EFAULT);
-+		if (prev && prev->vm_end < vma->vm_start)
-+			return ERR_PTR(-EFAULT);
-+		if ((flags & MPOL_MF_STRICT) && !is_vm_hugetlb_page(vma)) {
-+			err = verify_pages(vma->vm_start, vma->vm_end, nodes);
-+			if (err) {
-+				first = ERR_PTR(err);
-+				break;
-+			}
-+		}
-+		prev = vma;
-+	}
-+	return first;
-+}
-+
-+/* Apply policy to a single VMA */
-+static int policy_vma(struct vm_area_struct *vma, struct mempolicy *new)
-+{
-+	int err = 0;
-+	struct mempolicy *old = vma->vm_policy;
-+
-+	PDprintk("vma %lx-%lx/%lx vm_ops %p vm_file %p set_policy %p\n",
-+		 vma->vm_start, vma->vm_end, vma->vm_pgoff,
-+		 vma->vm_ops, vma->vm_file,
-+		 vma->vm_ops ? vma->vm_ops->set_policy : NULL);
-+
-+	if (vma->vm_ops && vma->vm_ops->set_policy)
-+		err = vma->vm_ops->set_policy(vma, new);
-+	if (!err) {
-+		mpol_get(new);
-+		vma->vm_policy = new;
-+		mpol_free(old);
-+	}
-+	return err;
-+}
-+
-+/* Step 2: apply policy to a range and do splits. */
-+static int mbind_range(struct vm_area_struct *vma, unsigned long start,
-+		       unsigned long end, struct mempolicy *new)
-+{
-+	struct vm_area_struct *next;
-+	int err;
-+
-+	err = 0;
-+	for (; vma->vm_start < end; vma = next) {
-+		next = vma->vm_next;
-+		if (vma->vm_start < start)
-+			err = split_vma(vma->vm_mm, vma, start, 1);
-+		if (!err && vma->vm_end > end)
-+			err = split_vma(vma->vm_mm, vma, end, 0);
-+		if (!err)
-+			err = policy_vma(vma, new);
-+		if (err)
-+			break;
-+	}
-+	return err;
-+}
-+
-+/* Change policy for a memory range */
-+asmlinkage long sys_mbind(unsigned long start, unsigned long len,
-+			  unsigned long mode,
-+			  unsigned long *nmask, unsigned long maxnode,
-+			  unsigned flags)
-+{
-+	struct vm_area_struct *vma;
-+	struct mm_struct *mm = current->mm;
-+	struct mempolicy *new;
-+	unsigned long end;
-+	DECLARE_BITMAP(nodes, MAX_NUMNODES);
-+	int err;
-+
-+	if ((flags & ~(unsigned long)(MPOL_MF_STRICT)) || mode > MPOL_MAX)
-+		return -EINVAL;
-+	if (start & ~PAGE_MASK)
-+		return -EINVAL;
-+	if (mode == MPOL_DEFAULT)
-+		flags &= ~MPOL_MF_STRICT;
-+	len = (len + PAGE_SIZE - 1) & PAGE_MASK;
-+	end = start + len;
-+	if (end < start)
-+		return -EINVAL;
-+	if (end == start)
-+		return 0;
-+
-+	err = get_nodes(nodes, nmask, maxnode, mode);
-+	if (err)
-+		return err;
-+
-+	new = mpol_new(mode, nodes);
-+	if (IS_ERR(new))
-+		return PTR_ERR(new);
-+
-+	PDprintk("mbind %lx-%lx mode:%ld nodes:%lx\n",start,start+len,
-+			mode,nodes[0]);
-+
-+	down_write(&mm->mmap_sem);
-+	vma = check_range(mm, start, end, nodes, flags);
-+	err = PTR_ERR(vma);
-+	if (!IS_ERR(vma))
-+		err = mbind_range(vma, start, end, new);
-+	up_write(&mm->mmap_sem);
-+	mpol_free(new);
-+	return err;
-+}
-+
-+/* Set the process memory policy */
-+asmlinkage long sys_set_mempolicy(int mode, unsigned long *nmask,
-+				   unsigned long maxnode)
-+{
-+	int err;
-+	struct mempolicy *new;
-+	DECLARE_BITMAP(nodes, MAX_NUMNODES);
-+
-+	if (mode > MPOL_MAX)
-+		return -EINVAL;
-+	err = get_nodes(nodes, nmask, maxnode, mode);
-+	if (err)
-+		return err;
-+	new = mpol_new(mode, nodes);
-+	if (IS_ERR(new))
-+		return PTR_ERR(new);
-+	mpol_free(current->mempolicy);
-+	current->mempolicy = new;
-+	if (new && new->policy == MPOL_INTERLEAVE)
-+		current->il_next = find_first_bit(new->v.nodes, MAX_NUMNODES);
-+	return 0;
-+}
-+
-+/* Fill a zone bitmap for a policy */
-+static void get_zonemask(struct mempolicy *p, unsigned long *nodes)
-+{
-+	int i;
-+
-+	bitmap_zero(nodes, MAX_NUMNODES);
-+	switch (p->policy) {
-+	case MPOL_BIND:
-+		for (i = 0; p->v.zonelist->zones[i]; i++)
-+			__set_bit(p->v.zonelist->zones[i]->zone_pgdat->node_id, nodes);
-+		break;
-+	case MPOL_DEFAULT:
-+		break;
-+	case MPOL_INTERLEAVE:
-+		bitmap_copy(nodes, p->v.nodes, MAX_NUMNODES);
-+		break;
-+	case MPOL_PREFERRED:
-+		/* or use current node instead of online map? */
-+		if (p->v.preferred_node < 0)
-+			bitmap_copy(nodes, node_online_map, MAX_NUMNODES);
-+		else
-+			__set_bit(p->v.preferred_node, nodes);
-+		break;
-+	default:
-+		BUG();
-+	}
-+}
-+
-+static int lookup_node(struct mm_struct *mm, unsigned long addr)
-+{
-+	struct page *p;
-+	int err;
-+
-+	err = get_user_pages(current, mm, addr & PAGE_MASK, 1, 0, 0, &p, NULL);
-+	if (err >= 0) {
-+		err = page_zone(p)->zone_pgdat->node_id;
-+		put_page(p);
-+	}
-+	return err;
-+}
-+
-+/* Copy a kernel node mask to user space */
-+static int copy_nodes_to_user(unsigned long *user_mask, unsigned long maxnode,
-+			      unsigned long *nodes)
-+{
-+	unsigned long copy = ALIGN(maxnode-1, 64) / 8;
-+
-+	if (copy > sizeof(nodes)) {
-+		if (copy > PAGE_SIZE)
-+			return -EINVAL;
-+		if (clear_user((char*)user_mask + sizeof(nodes),
-+				copy - sizeof(nodes)))
-+			return -EFAULT;
-+		copy = sizeof(nodes);
-+	}
-+	return copy_to_user(user_mask, nodes, copy) ? -EFAULT : 0;
-+}
-+
-+/* Retrieve NUMA policy */
-+asmlinkage long sys_get_mempolicy(int *policy,
-+				  unsigned long *nmask, unsigned long maxnode,
-+				  unsigned long addr, unsigned long flags)
-+{
-+	int err, pval;
-+	struct mm_struct *mm = current->mm;
-+	struct vm_area_struct *vma = NULL;
-+	struct mempolicy *pol = current->mempolicy;
-+
-+	if (flags & ~(unsigned long)(MPOL_F_NODE|MPOL_F_ADDR))
-+		return -EINVAL;
-+	if (nmask != NULL && maxnode < numnodes)
-+		return -EINVAL;
-+	if (flags & MPOL_F_ADDR) {
-+		down_read(&mm->mmap_sem);
-+		vma = find_vma_intersection(mm, addr, addr+1);
-+		if (!vma) {
-+			up_read(&mm->mmap_sem);
-+			return -EFAULT;
-+		}
-+		if (vma->vm_ops && vma->vm_ops->get_policy)
-+			pol = vma->vm_ops->get_policy(vma, addr);
-+		else
-+			pol = vma->vm_policy;
-+	} else if (addr)
-+		return -EINVAL;
-+
-+	if (!pol)
-+		pol = &default_policy;
-+
-+	if (flags & MPOL_F_NODE) {
-+		if (flags & MPOL_F_ADDR) {
-+			err = lookup_node(mm, addr);
-+			if (err < 0)
-+				goto out;
-+			pval = err;
-+		} else if (pol == current->mempolicy &&
-+				pol->policy == MPOL_INTERLEAVE) {
-+			pval = current->il_next;
-+		} else {
-+			err = -EINVAL;
-+			goto out;
-+		}
-+	} else
-+		pval = pol->policy;
-+
-+	err = -EFAULT;
-+	if (policy && put_user(pval, policy))
-+		goto out;
-+
-+	err = 0;
-+	if (nmask) {
-+		DECLARE_BITMAP(nodes, MAX_NUMNODES);
-+		get_zonemask(pol, nodes);
-+		err = copy_nodes_to_user(nmask, maxnode, nodes);
-+	}
-+
-+ out:
-+	if (vma)
-+		up_read(&current->mm->mmap_sem);
-+	return err;
-+}
-+
-+#ifdef CONFIG_COMPAT
-+/* The other functions are compatible */
-+asmlinkage long compat_get_mempolicy(int *policy,
-+				  unsigned  *nmask, unsigned  maxnode,
-+				  unsigned addr, unsigned  flags)
-+{
-+	long err;
-+	unsigned long *nm = NULL;
-+	if (nmask)
-+		nm = compat_alloc_user_space(ALIGN(maxnode-1, 64) / 8);
-+	err = sys_get_mempolicy(policy, nm, maxnode, addr, flags);
-+	if (!err && copy_in_user(nmask, nm, ALIGN(maxnode-1, 32)/8))
-+		err = -EFAULT;
-+	return err;
-+}
-+#endif
-+
-+/* Return effective policy for a VMA */
-+static struct mempolicy *
-+get_vma_policy(struct vm_area_struct *vma, unsigned long addr)
-+{
-+	struct mempolicy *pol = current->mempolicy;
-+
-+	if (vma) {
-+		if (vma->vm_ops && vma->vm_ops->get_policy)
-+		        pol = vma->vm_ops->get_policy(vma, addr);
-+		else if (vma->vm_policy &&
-+				vma->vm_policy->policy != MPOL_DEFAULT)
-+			pol = vma->vm_policy;
-+	}
-+	if (!pol)
-+		pol = &default_policy;
-+	return pol;
-+}
-+
-+/* Return a zonelist representing a mempolicy */
-+static struct zonelist *zonelist_policy(unsigned gfp, struct mempolicy *policy)
-+{
-+	int nd;
-+
-+	switch (policy->policy) {
-+	case MPOL_PREFERRED:
-+		nd = policy->v.preferred_node;
-+		if (nd < 0)
-+			nd = numa_node_id();
-+		break;
-+	case MPOL_BIND:
-+		/* Lower zones don't get a policy applied */
-+		if (gfp >= policy_zone)
-+			return policy->v.zonelist;
-+		/*FALL THROUGH*/
-+	case MPOL_INTERLEAVE: /* should not happen */
-+	case MPOL_DEFAULT:
-+		nd = numa_node_id();
-+		break;
-+	default:
-+		nd = 0;
-+		BUG();
-+	}
-+	return NODE_DATA(nd)->node_zonelists + (gfp & GFP_ZONEMASK);
-+}
-+
-+/* Do dynamic interleaving for a process */
-+static unsigned interleave_nodes(struct mempolicy *policy)
-+{
-+	unsigned nid, next;
-+	struct task_struct *me = current;
-+
-+	nid = me->il_next;
-+	BUG_ON(nid >= MAX_NUMNODES);
-+	next = find_next_bit(policy->v.nodes, MAX_NUMNODES, 1+nid);
-+	if (next >= MAX_NUMNODES)
-+		next = find_first_bit(policy->v.nodes, MAX_NUMNODES);
-+	me->il_next = next;
-+	return nid;
-+}
-+
-+/* Do static interleaving for a VMA with known offset. */
-+static unsigned offset_il_node(struct mempolicy *pol,
-+		struct vm_area_struct *vma, unsigned long off)
-+{
-+	unsigned nnodes = bitmap_weight(pol->v.nodes, MAX_NUMNODES);
-+	unsigned target = (unsigned)off % nnodes;
-+	int c;
-+	int nid = -1;
-+
-+	c = 0;
-+	do {
-+		nid = find_next_bit(pol->v.nodes, MAX_NUMNODES, nid+1);
-+		c++;
-+	} while (c <= target);
-+	BUG_ON(nid >= MAX_NUMNODES);
-+	BUG_ON(!test_bit(nid, pol->v.nodes));
-+	return nid;
-+}
-+
-+/* Allocate a page in interleaved policy.
-+   Own path because it needs to do special accounting. */
-+static struct page *alloc_page_interleave(unsigned gfp, unsigned nid)
-+{
-+	struct zonelist *zl;
-+	struct page *page;
-+
-+	BUG_ON(!test_bit(nid, node_online_map));
-+	zl = NODE_DATA(nid)->node_zonelists + (gfp & GFP_ZONEMASK);
-+	page = __alloc_pages(gfp, 0, zl);
-+	if (page && page_zone(page) == zl->zones[0]) {
-+		zl->zones[0]->pageset[get_cpu()].interleave_hit++;
-+		put_cpu();
-+	}
-+	return page;
-+}
-+
-+/**
-+ * 	alloc_page_vma	- Allocate a page for a VMA.
-+ *
-+ * 	@gfp:
-+ *      %GFP_USER    user allocation.
-+ *      %GFP_KERNEL  kernel allocations,
-+ *      %GFP_HIGHMEM highmem/user allocations,
-+ *      %GFP_FS      allocation should not call back into a file system.
-+ *      %GFP_ATOMIC  don't sleep.
-+ *
-+ * 	@vma:  Pointer to VMA or NULL if not available.
-+ *	@addr: Virtual Address of the allocation. Must be inside the VMA.
-+ *
-+ * 	This function allocates a page from the kernel page pool and applies
-+ *	a NUMA policy associated with the VMA or the current process.
-+ *	When VMA is not NULL caller must hold down_read on the mmap_sem of the
-+ *	mm_struct of the VMA to prevent it from going away. Should be used for
-+ *	all allocations for pages that will be mapped into
-+ * 	user space. Returns NULL when no page can be allocated.
-+ *
-+ *	Should be called with the mm_sem of the vma hold.
-+ */
-+struct page *
-+alloc_page_vma(unsigned gfp, struct vm_area_struct *vma, unsigned long addr)
-+{
-+	struct mempolicy *pol = get_vma_policy(vma, addr);
-+
-+	if (unlikely(pol->policy == MPOL_INTERLEAVE)) {
-+		unsigned nid;
-+		if (vma) {
-+			unsigned long off;
-+			BUG_ON(addr >= vma->vm_end);
-+			BUG_ON(addr < vma->vm_start);
-+			off = vma->vm_pgoff;
-+			off += (addr - vma->vm_start) >> PAGE_SHIFT;
-+			nid = offset_il_node(pol, vma, off);
-+		} else {
-+			/* fall back to process interleaving */
-+			nid = interleave_nodes(pol);
-+		}
-+		return alloc_page_interleave(gfp, nid);
-+	}
-+	return __alloc_pages(gfp, 0, zonelist_policy(gfp, pol));
-+}
-+
-+/**
-+ * 	alloc_pages_current - Allocate pages.
-+ *
-+ *	@gfp:
-+ *			%GFP_USER   user allocation,
-+ *      	%GFP_KERNEL kernel allocation,
-+ *      	%GFP_HIGHMEM highmem allocation,
-+ *      	%GFP_FS     don't call back into a file system.
-+ *      	%GFP_ATOMIC don't sleep.
-+ *	@order: Power of two of allocation size in pages. 0 is a single page.
-+ *
-+ *	Allocate a page from the kernel page pool.  When not in
-+ *	interrupt context and apply the current process NUMA policy.
-+ *	Returns NULL when no page can be allocated.
-+ */
-+struct page *alloc_pages_current(unsigned gfp, unsigned order)
-+{
-+	struct mempolicy *pol = current->mempolicy;
-+
-+	if (!pol || in_interrupt())
-+		pol = &default_policy;
-+	if (pol->policy == MPOL_INTERLEAVE && order == 0)
-+		return alloc_page_interleave(gfp, interleave_nodes(pol));
-+	return __alloc_pages(gfp, order, zonelist_policy(gfp, pol));
-+}
-+EXPORT_SYMBOL(alloc_pages_current);
-+
-+/* Slow path of a mempolicy copy */
-+struct mempolicy *__mpol_copy(struct mempolicy *old)
-+{
-+	struct mempolicy *new = kmem_cache_alloc(policy_cache, GFP_KERNEL);
-+
-+	if (!new)
-+		return ERR_PTR(-ENOMEM);
-+	*new = *old;
-+	atomic_set(&new->refcnt, 1);
-+	if (new->policy == MPOL_BIND) {
-+		int sz = ksize(old->v.zonelist);
-+		new->v.zonelist = kmalloc(sz, SLAB_KERNEL);
-+		if (!new->v.zonelist) {
-+			kmem_cache_free(policy_cache, new);
-+			return ERR_PTR(-ENOMEM);
-+		}
-+		memcpy(new->v.zonelist, old->v.zonelist, sz);
-+	}
-+	return new;
-+}
-+
-+/* Slow path of a mempolicy comparison */
-+int __mpol_equal(struct mempolicy *a, struct mempolicy *b)
-+{
-+	if (!a || !b)
-+		return 0;
-+	if (a->policy != b->policy)
-+		return 0;
-+	switch (a->policy) {
-+	case MPOL_DEFAULT:
-+		return 1;
-+	case MPOL_INTERLEAVE:
-+		return bitmap_equal(a->v.nodes, b->v.nodes, MAX_NUMNODES);
-+	case MPOL_PREFERRED:
-+		return a->v.preferred_node == b->v.preferred_node;
-+	case MPOL_BIND: {
-+		int i;
-+		for (i = 0; a->v.zonelist->zones[i]; i++)
-+			if (a->v.zonelist->zones[i] != b->v.zonelist->zones[i])
-+				return 0;
-+		return b->v.zonelist->zones[i] == NULL;
-+	}
-+	default:
-+		BUG();
-+		return 0;
-+	}
-+}
-+
-+/* Slow path of a mpol destructor. */
-+extern void __mpol_free(struct mempolicy *p)
-+{
-+	if (!atomic_dec_and_test(&p->refcnt))
-+		return;
-+	if (p->policy == MPOL_BIND)
-+		kfree(p->v.zonelist);
-+	p->policy = MPOL_DEFAULT;
-+	kmem_cache_free(policy_cache, p);
-+}
-+
-+/*
-+ * Hugetlb policy. Same as above, just works with node numbers instead of
-+ * zonelists.
-+ */
-+
-+/* Find first node suitable for an allocation */
-+int mpol_first_node(struct vm_area_struct *vma, unsigned long addr)
-+{
-+	struct mempolicy *pol = get_vma_policy(vma, addr);
-+
-+	switch (pol->policy) {
-+	case MPOL_DEFAULT:
-+		return numa_node_id();
-+	case MPOL_BIND:
-+		return pol->v.zonelist->zones[0]->zone_pgdat->node_id;
-+	case MPOL_INTERLEAVE:
-+		return interleave_nodes(pol);
-+	case MPOL_PREFERRED:
-+		return pol->v.preferred_node >= 0 ?
-+				pol->v.preferred_node : numa_node_id();
-+	}
-+	BUG();
-+	return 0;
-+}
-+
-+/* Find secondary valid nodes for an allocation */
-+int mpol_node_valid(int nid, struct vm_area_struct *vma, unsigned long addr)
-+{
-+	struct mempolicy *pol = get_vma_policy(vma, addr);
-+
-+	switch (pol->policy) {
-+	case MPOL_PREFERRED:
-+	case MPOL_DEFAULT:
-+	case MPOL_INTERLEAVE:
-+		return 1;
-+	case MPOL_BIND: {
-+		struct zone **z;
-+		for (z = pol->v.zonelist->zones; *z; z++)
-+			if ((*z)->zone_pgdat->node_id == nid)
-+				return 1;
-+		return 0;
-+	}
-+	default:
-+		BUG();
-+		return 0;
-+	}
-+}
-+
-+/*
-+ * Shared memory backing store policy support.
-+ *
-+ * Remember policies even when nobody has shared memory mapped.
-+ * The policies are kept in Red-Black tree linked from the inode.
-+ * They are protected by the sp->sem semaphore, which should be held
-+ * for any accesses to the tree.
-+ */
-+
-+/* lookup first element intersecting start-end */
-+/* Caller holds sp->sem */
-+static struct sp_node *
-+sp_lookup(struct shared_policy *sp, unsigned long start, unsigned long end)
-+{
-+	struct rb_node *n = sp->root.rb_node;
-+
-+	while (n) {
-+		struct sp_node *p = rb_entry(n, struct sp_node, nd);
-+		if (start >= p->end) {
-+			n = n->rb_right;
-+		} else if (end < p->start) {
-+			n = n->rb_left;
-+		} else {
-+			break;
-+		}
-+	}
-+	if (!n)
-+		return NULL;
-+	for (;;) {
-+		struct sp_node *w = NULL;
-+		struct rb_node *prev = rb_prev(n);
-+		if (!prev)
-+			break;
-+		w = rb_entry(prev, struct sp_node, nd);
-+		if (w->end <= start)
-+			break;
-+		n = prev;
-+	}
-+	return rb_entry(n, struct sp_node, nd);
-+}
-+
-+/* Insert a new shared policy into the list. */
-+/* Caller holds sp->sem */
-+static void sp_insert(struct shared_policy *sp, struct sp_node *new)
-+{
-+	struct rb_node **p = &sp->root.rb_node;
-+	struct rb_node *parent = NULL;
-+	struct sp_node *nd;
-+
-+	while (*p) {
-+		parent = *p;
-+		nd = rb_entry(parent, struct sp_node, nd);
-+		if (new->start < nd->start)
-+			p = &(*p)->rb_left;
-+		else if (new->end > nd->end)
-+			p = &(*p)->rb_right;
-+		else
-+			BUG();
-+	}
-+	rb_link_node(&new->nd, parent, p);
-+	rb_insert_color(&new->nd, &sp->root);
-+	PDprintk("inserting %lx-%lx: %d\n", new->start, new->end,
-+		 new->policy ? new->policy->policy : 0);
-+}
-+
-+/* Find shared policy intersecting idx */
-+struct mempolicy *
-+mpol_shared_policy_lookup(struct shared_policy *sp, unsigned long idx)
-+{
-+	struct mempolicy *pol = NULL;
-+	struct sp_node *sn;
-+
-+	down(&sp->sem);
-+	sn = sp_lookup(sp, idx, idx+1);
-+	if (sn) {
-+		mpol_get(sn->policy);
-+		pol = sn->policy;
-+	}
-+	up(&sp->sem);
-+	return pol;
-+}
-+
-+static void sp_delete(struct shared_policy *sp, struct sp_node *n)
-+{
-+	PDprintk("deleting %lx-l%x\n", n->start, n->end);
-+	rb_erase(&n->nd, &sp->root);
-+	mpol_free(n->policy);
-+	kmem_cache_free(sn_cache, n);
-+}
-+
-+struct sp_node *
-+sp_alloc(unsigned long start, unsigned long end, struct mempolicy *pol)
-+{
-+	struct sp_node *n = kmem_cache_alloc(sn_cache, GFP_KERNEL);
-+
-+	if (!n)
-+		return NULL;
-+	n->start = start;
-+	n->end = end;
-+	mpol_get(pol);
-+	n->policy = pol;
-+	return n;
-+}
-+
-+/* Replace a policy range. */
-+static int shared_policy_replace(struct shared_policy *sp, unsigned long start,
-+				 unsigned long end, struct sp_node *new)
-+{
-+	struct sp_node *n, *new2;
-+
-+	down(&sp->sem);
-+	n = sp_lookup(sp, start, end);
-+	/* Take care of old policies in the same range. */
-+	while (n && n->start < end) {
-+		struct rb_node *next = rb_next(&n->nd);
-+		if (n->start >= start) {
-+			if (n->end <= end)
-+				sp_delete(sp, n);
-+			else
-+				n->start = end;
-+		} else {
-+			/* Old policy spanning whole new range. */
-+			if (n->end > end) {
-+				new2 = sp_alloc(end, n->end, n->policy);
-+				if (!new2) {
-+					up(&sp->sem);
-+					return -ENOMEM;
-+				}
-+				n->end = end;
-+				sp_insert(sp, new2);
-+			}
-+			/* Old crossing beginning, but not end (easy) */
-+			if (n->start < start && n->end > start)
-+				n->end = start;
-+		}
-+		if (!next)
-+			break;
-+		n = rb_entry(next, struct sp_node, nd);
-+	}
-+	if (new)
-+		sp_insert(sp, new);
-+	up(&sp->sem);
-+	return 0;
-+}
-+
-+int mpol_set_shared_policy(struct shared_policy *info,
-+			struct vm_area_struct *vma, struct mempolicy *npol)
-+{
-+	int err;
-+	struct sp_node *new = NULL;
-+	unsigned long sz = vma_pages(vma);
-+
-+	PDprintk("set_shared_policy %lx sz %lu %d %lx\n",
-+		 vma->vm_pgoff,
-+		 sz, npol? npol->policy : -1,
-+		npol ? npol->v.nodes[0] : -1);
-+
-+	if (npol) {
-+		new = sp_alloc(vma->vm_pgoff, vma->vm_pgoff + sz, npol);
-+		if (!new)
-+			return -ENOMEM;
-+	}
-+	err = shared_policy_replace(info, vma->vm_pgoff, vma->vm_pgoff+sz, new);
-+	if (err && new)
-+		kmem_cache_free(sn_cache, new);
-+	return err;
-+}
-+
-+/* Free a backing policy store on inode delete. */
-+void mpol_free_shared_policy(struct shared_policy *p)
-+{
-+	struct sp_node *n;
-+	struct rb_node *next;
-+
-+	down(&p->sem);
-+	next = rb_first(&p->root);
-+	while (next) {
-+		n = rb_entry(next, struct sp_node, nd);
-+		next = rb_next(&n->nd);
-+		rb_erase(&n->nd, &p->root);
-+		mpol_free(n->policy);
-+		kmem_cache_free(sn_cache, n);
-+	}
-+	up(&p->sem);
-+}
-+
-+static __init int numa_policy_init(void)
-+{
-+	policy_cache = kmem_cache_create("numa_policy",
-+					 sizeof(struct mempolicy),
-+					 0, 0, NULL, NULL);
-+
-+	sn_cache = kmem_cache_create("shared_policy_node",
-+				     sizeof(struct sp_node),
-+				     0, 0, NULL, NULL);
-+
-+	if (!policy_cache || !sn_cache)
-+		panic("Cannot create NUMA policy cache");
-+	return 0;
-+}
-+module_init(numa_policy_init);
-diff -puN Documentation/numastat.txt~numa-api-core Documentation/numastat.txt
---- 25/Documentation/numastat.txt~numa-api-core	2004-05-22 14:56:24.652343800 -0700
-+++ 25-akpm/Documentation/numastat.txt	2004-05-22 14:56:24.665341824 -0700
-@@ -0,0 +1,22 @@
-+
-+Numa policy hit/miss statistics
-+
-+/sys/devices/system/node/node*/numastat
-+
-+All units are pages. Hugepages have separate counters.
-+
-+numa_hit			A process wanted to allocate memory from this node,
-+					and succeeded.
-+numa_miss			A process wanted to allocate memory from this node,
-+					but ended up with memory from another.
-+numa_foreign		A process wanted to allocate on another node,
-+				    but ended up with memory from this one.
-+local_node			A process ran on this node and got memory from it.
-+other_node			A process ran on this node and got memory from another node.
-+interleave_hit 		Interleaving wanted to allocate from this node
-+					and succeeded.
-+
-+For easier reading you can use the numastat utility from the numactl package
-+(ftp://ftp.suse.com/pub/people/ak/numa/numactl*). Note that it only works
-+well right now on machines with a small number of CPUs.
-+
-
-_
+ #include <linux/linkage.h>
+ #include <linux/compiler.h>
 
 
 --
