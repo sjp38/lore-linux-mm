@@ -1,29 +1,47 @@
-Date: Tue, 26 Jun 2001 17:02:55 +0200
-From: Andrea Arcangeli <andrea@suse.de>
-Subject: Re: all processes waiting in TASK_UNINTERRUPTIBLE state
-Message-ID: <20010626170255.A554@athlon.random>
-References: <OF29D2C834.F627AA03-ON85256A77.0050F2F6@pok.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <OF29D2C834.F627AA03-ON85256A77.0050F2F6@pok.ibm.com>; from abali@us.ibm.com on Tue, Jun 26, 2001 at 10:47:12AM -0400
+Date: Tue, 26 Jun 2001 10:52:16 -0300 (BRT)
+From: Marcelo Tosatti <marcelo@conectiva.com.br>
+Subject: Re: VM tuning through fault trace gathering [with actual code]
+In-Reply-To: <m2n16vcsft.fsf@boreas.yi.org.>
+Message-ID: <Pine.LNX.4.21.0106261031150.850-100000@freak.distro.conectiva>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Bulent Abali <abali@us.ibm.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, mingo@elte.hu
+To: John Fremlin <vii@users.sourceforge.net>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jun 26, 2001 at 10:47:12AM -0400, Bulent Abali wrote:
-> Andrea,
-> I would like try your patch but so far I can trigger the bug only when
-> running TUX 2.0-B6 which runs on 2.4.5-ac4.  /bulent
+
+On 26 Jun 2001, John Fremlin wrote:
+
+> Marcelo Tosatti <marcelo@conectiva.com.br> writes:
 > 
+> > On 25 Jun 2001, John Fremlin wrote:
+> > 
+> > > 
+> > > Last year I had the idea of tracing the memory accesses of the system
+> > > to improve the VM - the traces could be used to test algorithms in
+> > > userspace. The difficulty is of course making all memory accesses
+> > > fault without destroying system performance.
+> 
+> [...]
+> 
+> > Linux Trace Toolkit (http://www.opersys.com/LTT) does that. 
+> 
+> I dld the ltt-usenix paper and skim read it. It didn't seem to talk
+> about page faults much. Where should I look?
 
-to run tux you can apply those patches in `ls` order to 2.4.6pre5aa1:
+Grab the source and try it out?
 
-	ftp://ftp.us.kernel.org/pub/linux/kernel/people/andrea/kernels/v2.4/2.4.6pre5aa1/30_tux/*
+Example page fault trace: 
 
-Andrea
+####################################################################
+Event     	          Time                   PID     Length Description
+####################################################################
+
+Trap entry              991,299,585,597,016     678     12      TRAP: page fault; EIP : 0x40067785
+
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
