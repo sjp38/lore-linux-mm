@@ -1,52 +1,32 @@
-Date: Mon, 17 Jul 2000 11:44:23 -0300 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
-Subject: Re: [PATCH] test5-1 vm fix
-In-Reply-To: <Pine.Linu.4.10.10007170742550.445-100000@mikeg.weiden.de>
-Message-ID: <Pine.LNX.4.21.0007171143100.30603-100000@duckman.distro.conectiva>
+From: Alan Cox <alan@redhat.com>
+Message-Id: <200007171446.KAA07554@devserv.devel.redhat.com>
+Subject: Re: [PATCH] 2.2.17pre7 VM enhancement Re: I/O performance on
+Date: Mon, 17 Jul 2000 10:46:11 -0400 (EDT)
+In-Reply-To: <200007170709.DAA27512@ocelot.cc.gatech.edu> from "Yannis Smaragdakis" at Jul 17, 2000 03:09:06 AM
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mike Galbraith <mikeg@weiden.de>
-Cc: Roger Larsson <roger.larsson@norran.net>, Linus Torvalds <torvalds@transmeta.com>, "linux-kernel@vger.rutgers.edu" <linux-kernel@vger.rutgers.edu>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Yannis Smaragdakis <yannis@cc.gatech.edu>
+Cc: Rik van Riel <riel@conectiva.com.br>, Andrea Arcangeli <andrea@suse.de>, "Stephen C. Tweedie" <sct@redhat.com>, Marcelo Tosatti <marcelo@conectiva.com.br>, Jens Axboe <axboe@suse.de>, Alan Cox <alan@redhat.com>, Derek Martin <derek@cerberus.ne.mediaone.net>, davem@redhat.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 17 Jul 2000, Mike Galbraith wrote:
-> On Sun, 16 Jul 2000, Rik van Riel wrote:
-> > On Sun, 16 Jul 2000, Mike Galbraith wrote:
-> > > Unfortunately, this didn't improve anything here.
-> > 
-> > As was to be expected ...
+> Both will cause exactly one page fault. Also, one should be cautious of
+> pages that are brought in RAM, touched many times, but then stay untouched
+> for a long time. Frequency should never outweigh recency--the latter is
+> a better predictor, as OS designers have found since the early 70s.
+
+Modern OS designers are consistently seeing LFU work better. In our case this
+is partly theory in the FreeBSD case its proven by trying it.
+
+> pages we recently evicted), we adapt it by evicting more recently 
+> touched pages (sounds hacky, but it is actually very clean).
 > 
-> one can only hope and test.
+> The results are very good (even better than in the paper, as we have
+> improved the algorithm since).
 
-Alternatively, one can learn from the patches and
-mistakes of others and try to understand how stuff
-works.
-
-> > (and no, I'm not interested in trying to fix 2.4 VM right now
-> > since I'll be going to OLS and last time it took only two weeks
-> > for VM to be fucked up while I was away)
-> 
-> darn.
-> 
-> Do you already know what it's up to during one of these nasty
-> stalls?
-
-There's nothing wrong with the current VM that wasn't
-fixed in one of my patches the last 8 weeks.
-
-(except for the fundamental design flaws, which I will
-fix in the *next* N+1 weeks)
-
-regards,
-
-Rik
---
-"What you're running that piece of shit Gnome?!?!"
-       -- Miguel de Icaza, UKUUG 2000
-
-http://www.conectiva.com/		http://www.surriel.com/
+Interesting
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
