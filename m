@@ -1,48 +1,40 @@
-Date: Fri, 8 Oct 2004 12:36:46 -0300
+Date: Fri, 8 Oct 2004 13:53:27 -0300
 From: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
-Subject: Re: [RFC] memory defragmentation to satisfy high order allocations
-Message-ID: <20041008153646.GJ16028@logos.cnet>
-References: <20041008100010.GB16028@logos.cnet> <20041008.212319.19886370.taka@valinux.co.jp> <20041008124149.GI16028@logos.cnet> <20041009.015239.74741436.taka@valinux.co.jp>
+Subject: [PATCH] remove redundant AND from swp_type
+Message-ID: <20041008165327.GK16028@logos.cnet>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20041009.015239.74741436.taka@valinux.co.jp>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hirokazu Takahashi <taka@valinux.co.jp>
-Cc: iwamoto@valinux.co.jp, haveblue@us.ibm.com, linux-mm@kvack.org
+To: akpm@osdl.org, linux-mm@kvack.org
+Cc: hugh@veritas.com
 List-ID: <linux-mm.kvack.org>
 
-On Sat, Oct 09, 2004 at 01:52:39AM +0900, Hirokazu Takahashi wrote:
-> Hi, Marcelo.
-> 
-> > > > > > That is, if we can't migrate the page, try to write it out?
-> > > > 
-> > > > I just didnt understand the logic very well, maybe I should just 
-> > > > go reread the code.
-> > > > 
-> > > > Thanks!
-> > 
-> > I'm thinking about how to implement a nonblocking version of generic_migrate_page().
-> > 
-> > For this purpose its really bad to allocate swap space to anonymous pages, well
-> > need to figure out someother way of blocking the users via pagetablefault.
-> > 
-> > Like a "virtual" swap space but without allocating swap map space. 
-> 
-> I've also ever thought to implement such a device.
-> It would be nice if you can design it simple.
-> 
-> Mr.Iwamoto thought otherwise and posted another opinion on the lhms
-> list, though. I felt it also has a point.
-> 
-> iwamoto> I don't think requiring swap is a big deal.  If you don't have a
-> iwamoto> dedicated swap device, which case I think unusual, you can swapon a
-> iwamoto> regular file.
+Hi, 
 
-Sure its not a big deal, but nicer if it doesnt require swap.
+There is a useless AND in swp_type() function.
 
-For memory defragmentation it is a big deal.
+We just shifted right SWP_TYPE_SHIFT() bits the value from the swp_entry_t,
+and then we AND it with "(1 << 5) - 1" (which is a mask corresponding to the
+number of bits used by "type").  
+
+Remove it since its redundant.
+
+This is probably some leftover from old code.
+
+--- linux-2.6.9-rc1-mm5.orig/include/linux/swapops.h	2004-09-13 17:34:33.000000000 -0300
++++ linux-2.6.9-rc1-mm5/include/linux/swapops.h	2004-10-08 15:53:39.248697816 -0300
+@@ -30,8 +30,7 @@
+  */
+ static inline unsigned swp_type(swp_entry_t entry)
+ {
+-	return (entry.val >> SWP_TYPE_SHIFT(entry)) &
+-			((1 << MAX_SWAPFILES_SHIFT) - 1);
++	return (entry.val >> SWP_TYPE_SHIFT(entry));
+ }
+ 
+ /*
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
