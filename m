@@ -1,42 +1,52 @@
-Reply-To: <martin.frey@compaq.com>
-From: "Martin Frey" <frey@scs.ch>
-Subject: RE: Kernel Debugger
-Date: Wed, 16 May 2001 07:42:53 -0400
-Message-ID: <009701c0ddfd$5817c0f0$bd56d2d0@SCHLEPPDOWN>
-MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="us-ascii"
+Message-ID: <XFMail.20010516140423.R.Oehler@GDImbH.com>
+Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
-In-Reply-To: <3B02007A.E9257BA2@wipro.com>
+MIME-Version: 1.0
+In-Reply-To: <009701c0ddfd$5817c0f0$bd56d2d0@SCHLEPPDOWN>
+Date: Wed, 16 May 2001 14:04:23 +0200 (MEST)
+Reply-To: R.Oehler@GDImbH.com
+From: R.Oehler@GDImbH.com
+Subject: RE: Kernel Debugger
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: amarnath.jolad@wipro.com
+To: Martin Frey <frey@scs.ch>
 Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi
->Is there any kernel debugger for linux like 
->adb/crash/kadb. If so,  from
->where can I get them.
->
-http://oss.missioncriticallinux.com
+On 16-May-2001 Martin Frey wrote:
+> Hi
+>>Is there any kernel debugger for linux like 
+>>adb/crash/kadb. If so,  from
+>>where can I get them.
+>>
 
-mcore and crash work fine for me. I used it on
-Alpha, but is is supposed to work on Intel and
-PowerPC as well.
-The patches are against 2.2.16 and 2.4.0testX,
-but applying it on 2.4.2 is easy.
-I can send you a diff for 2.4.2 if you need.
+SGI is kind enough to provide many excellent tools around 
+the linux kernel. There is also a very handy kernel debugger
+("kdb", as patch to the kernel source tree, which means really 
+native). It's usable also as remote debugger over a serial line.
+SGI keeps this debugger very up-to-date, so there are patches
+even for the leading-edge-pre-versions of the kernel.
+
+See
+        http://oss.sgi.com/projects/
+and
+        ftp://oss.sgi.com/www/projects/kdb/download/ix86/
+
 
 Regards,
+        Ralf Oehler
 
-Martin Frey
 
--- 
-Supercomputing Systems AG       email: frey@scs.ch
-Martin Frey                     web:   http://www.scs.ch/~frey/
-at Compaq Computer Corporation  phone: +1 603 884 4266
-ZKO2-3P09, 110 Spit Brook Road, Nashua, NH 03062
+ -----------------------------------------------------------------
+|  Ralf Oehler
+|  GDI - Gesellschaft fuer Digitale Informationstechnik mbH
+|
+|  E-Mail:      R.Oehler@GDImbH.com
+|  Tel.:        +49 6182-9271-23 
+|  Fax.:        +49 6182-25035           
+|  Mail:        GDI, Bensbruchstra_e 11, D-63533 Mainhausen
+|  HTTP:        www.GDImbH.com
+ -----------------------------------------------------------------
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
