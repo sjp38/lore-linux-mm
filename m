@@ -1,31 +1,51 @@
-Date: Thu, 26 Aug 2004 17:18:40 -0700
-From: Andrew Morton <akpm@osdl.org>
-Subject: Re: [Lhms-devel] [RFC] buddy allocator without bitmap  [2/4]
-Message-Id: <20040826171840.4a61e80d.akpm@osdl.org>
-In-Reply-To: <412E6CC3.8060908@jp.fujitsu.com>
-References: <412DD1AA.8080408@jp.fujitsu.com>
-	<1093535402.2984.11.camel@nighthawk>
-	<412E6CC3.8060908@jp.fujitsu.com>
+Subject: Re: [Lhms-devel] Re: [RFC] buddy allocator without bitmap [3/4]
+From: Dave Hansen <haveblue@us.ibm.com>
+In-Reply-To: <412E7AB6.8020707@jp.fujitsu.com>
+References: <412DD34A.70802@jp.fujitsu.com>
+	 <1093535709.2984.24.camel@nighthawk>  <412E7AB6.8020707@jp.fujitsu.com>
+Content-Type: text/plain
+Message-Id: <1093565707.2984.394.camel@nighthawk>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Date: Thu, 26 Aug 2004 17:15:08 -0700
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Hiroyuki KAMEZAWA <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: haveblue@us.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, lhms-devel@lists.sourceforge.net, wli@holomorphy.com
+Cc: Linux Kernel ML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, lhms <lhms-devel@lists.sourceforge.net>, William Lee Irwin III <wli@holomorphy.com>
 List-ID: <linux-mm.kvack.org>
 
-Hiroyuki KAMEZAWA <kamezawa.hiroyu@jp.fujitsu.com> wrote:
->
-> In the previous version, I used SetPagePrivate()/ClearPagePrivate()/PagePrivate().
-> But these are "atomic" operation and looks very slow.
-> This is why I doesn't used these macros in this version.
+On Thu, 2004-08-26 at 17:05, Hiroyuki KAMEZAWA wrote:
+> Currently, I think zone->nr_mem_map itself is very vague.
+> I'm now looking for another way to remove this part entirely.
 > 
-> My previous version, which used set_bit/test_bit/clear_bit, shows very bad performance
-> on my test, and I replaced it.
+> I think mem_section approarch may be helpful to remove this part,
+> but to implement full feature of CONFIG_NONLINEAR,
+> I'll need lots of different kind of patches.
+> (If mem_map is guaranteed to be contiguous in one mem_section)
 
-That's surprising.  But if you do intend to use non-atomic bitops then
-please add __SetPagePrivate() and __ClearPagePrivate()
+This is definitely a true assumption right now.  
+
+> 1. Now, I think some small parts, some essence of mem_section which
+>    makes pfn_valid() faster may be good.
+
+The only question is what it will take when there's a partially populate
+mem_section.  We'll almost certainly have to allow it, but the real
+question is whether or not we will ever have a partially populated one
+that's not at the end of memory.  
+
+> And another way,
+> 
+> 2. A method which enables page -> page's max_order calculation
+>    may be good and consistent way in this no-bitmap approach.
+> 
+> But this problem would be my week-end homework :).
+
+Instead of adding more stuff to the mem_section, we might be able to
+(ab)use more stuff in the mem_map's mem_map, like I am with
+page->section right now.  
+
+-- Dave
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
