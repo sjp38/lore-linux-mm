@@ -1,30 +1,42 @@
-Date: Mon, 9 Sep 2002 16:32:11 -0700
+Date: Mon, 9 Sep 2002 16:40:44 -0700
 From: William Lee Irwin III <wli@holomorphy.com>
 Subject: Re: [PATCH] modified segq for 2.5
-Message-ID: <20020909233211.GI18800@holomorphy.com>
-References: <20020909224928.GH18800@holomorphy.com> <Pine.LNX.4.44L.0209091953550.1857-100000@imladris.surriel.com>
+Message-ID: <20020909234044.GJ18800@holomorphy.com>
+References: <Pine.LNX.4.44L.0208151119190.23404-100000@imladris.surriel.com> <3D7C6C0A.1BBEBB2D@digeo.com> <E17oXIx-0006vb-00@starship> <3D7D277E.7E179FA0@digeo.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Description: brief message
 Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.44L.0209091953550.1857-100000@imladris.surriel.com>
+In-Reply-To: <3D7D277E.7E179FA0@digeo.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@conectiva.com.br>
-Cc: Andrew Morton <akpm@digeo.com>, sfkaplan@cs.amherst.edu, linux-mm@kvack.org
+To: Andrew Morton <akpm@digeo.com>
+Cc: Daniel Phillips <phillips@arcor.de>, Rik van Riel <riel@conectiva.com.br>, sfkaplan@cs.amherst.edu, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 9 Sep 2002, William Lee Irwin III wrote:
->> Ideally some distinction would be nice, even if only to distinguish I/O
->> demanded to be done directly by the workload from background writeback
->> and/or readahead.
+On Mon, Sep 09, 2002 at 03:58:06PM -0700, Andrew Morton wrote:
+> This logic is too global at present.  It really needs to be per-zone,
+> to fix an oom problem which you-know-who managed to trigger.  All
+> ZONE_NORMAL is dirty, we keep on getting woken up by IO completion in
+> ZONE_HIGHMEM, we end up scanning enough ZONE_NORMAL pages to conclude
+> that we're oom.  (Plus I reduced the maximum-scan-before-oom by 2.5x)
+> Then again, Bill had twiddled the dirty memory thresholds
+> to permit 12G of dirty ZONE_HIGHMEM.
 
-On Mon, Sep 09, 2002 at 07:54:29PM -0300, Rik van Riel wrote:
-> OK, are we talking about page replacement or does queue scanning
-> have priority over the quality of page replacement ? ;)
+This seemed to work fine when I just tweaked problem areas to use
+__GFP_NOKILL. mempool was fixed by the __GFP_FS checks, but
+generic_file_read(), generic_file_write(), the rest of filemap.c,
+slab allocations, and allocating file descriptor tables for poll() and
+select() appeared to generate OOM when it appeared to me that failing
+system calls with -ENOMEM was a better alternative than shooting tasks.
 
-This is relatively tangential. The concern expressed has more to do
-with VM writeback starving workload-issued I/O than page replacement.
+After doing that, the system was able to do just fine until the disk
+driver oopsed. Given the lack of forward progress on the driver front
+due to basically nobody we know knowing or caring about that device
+and the mempool issue triggered by bounce buffering already being fixed
+I've obtained a replacement and am just chucking the isp1020 out the
+window. I'm also hunting for a (non-Emulex!) FC adapter so I can get
+more interesting dbench results from non-clockwork disks. =)
 
 
 Cheers,
