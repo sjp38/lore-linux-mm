@@ -1,34 +1,39 @@
-Message-ID: <3E56D954.90803@cyberone.com.au>
-Date: Sat, 22 Feb 2003 12:58:44 +1100
-From: Nick Piggin <piggin@cyberone.com.au>
-MIME-Version: 1.0
+Received: from digeo-nav01.digeo.com (digeo-nav01.digeo.com [192.168.1.233])
+	by packet.digeo.com (8.9.3+Sun/8.9.3) with SMTP id SAA14135
+	for <linux-mm@kvack.org>; Fri, 21 Feb 2003 18:09:22 -0800 (PST)
+Date: Fri, 21 Feb 2003 18:09:29 -0800
+From: Andrew Morton <akpm@digeo.com>
 Subject: Re: 2.5.62-mm2
-References: <20030220234733.3d4c5e6d.akpm@digeo.com> <200302212048.09802.tomlins@cam.org>
+Message-Id: <20030221180929.37ba5f57.akpm@digeo.com>
 In-Reply-To: <200302212048.09802.tomlins@cam.org>
-Content-Type: text/plain; charset=us-ascii; format=flowed
+References: <20030220234733.3d4c5e6d.akpm@digeo.com>
+	<200302212048.09802.tomlins@cam.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Ed Tomlinson <tomlins@cam.org>
-Cc: Andrew Morton <akpm@digeo.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Ed Tomlinson wrote:
+Ed Tomlinson <tomlins@cam.org> wrote:
+>
+> On February 21, 2003 02:47 am, Andrew Morton wrote:
+> > So this tree has three elevators (apart from the no-op elevator).  You can
+> > select between them via the kernel boot commandline:
+> >
+> >         elevator=as
+> >         elevator=cfq
+> >         elevator=deadline
+> 
+> Has anyone been having problems booting with 'as'?  It hangs here at the point
+> root gets mounted readonly.  cfq works ok.
 
->On February 21, 2003 02:47 am, Andrew Morton wrote:
->
->>So this tree has three elevators (apart from the no-op elevator).  You can
->>select between them via the kernel boot commandline:
->>
->>        elevator=as
->>        elevator=cfq
->>        elevator=deadline
->>
->
->Has anyone been having problems booting with 'as'?  It hangs here at the point
->root gets mounted readonly.  cfq works ok.
->
-What sort of disk controller arrangement and drivers are you using?
+Might be another jiffy handling problem.  Would be appreciated if you could
+retest with a patch -R of
+
+http://www.kernel.org/pub/linux/kernel/people/akpm/patches/2.5/2.5.62/2.5.62-mm2/broken-out/initial-jiffies.patch
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
