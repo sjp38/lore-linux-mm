@@ -1,69 +1,59 @@
-Received: from digeo-nav01.digeo.com (digeo-nav01.digeo.com [192.168.1.233])
-	by packet.digeo.com (8.9.3+Sun/8.9.3) with SMTP id JAA23411
-	for <linux-mm@kvack.org>; Thu, 3 Oct 2002 09:43:52 -0700 (PDT)
-Message-ID: <3D9C73C7.1E237551@digeo.com>
-Date: Thu, 03 Oct 2002 09:43:51 -0700
-From: Andrew Morton <akpm@digeo.com>
-MIME-Version: 1.0
-Subject: Re: [Lse-tech] Re: VolanoMark Benchmark results for 2.5.26, 2.5.26+
- rmap, 2.5.35 + mm1, and 2.5.38 + mm3
-References: <Pine.LNX.4.44L.0209172219200.1857-100000@imladris.surriel.com> <3D948EA6.A6EFC26B@austin.ibm.com> <3D94A43B.49C65AE8@digeo.com> <3D9B402D.601E52B6@austin.ibm.com> <3D9B5E1D.2000301@us.ibm.com> <3D9C4D33.CCF781C1@austin.ibm.com>
+Date: Thu, 3 Oct 2002 14:13:13 -0700
+From: William Lee Irwin III <wli@holomorphy.com>
+Subject: alloc_hugetlb_page() fails to kmap() memory while zeroing
+Message-ID: <20021003211313.GB12432@holomorphy.com>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Content-Description: brief message
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Bill Hartner <hartner@austin.ibm.com>
-Cc: Dave Hansen <haveblue@us.ibm.com>, Rik van Riel <riel@conectiva.com.br>, linux-mm@kvack.org, lse-tech@lists.sourceforge.net, mbligh@aracnet.com
+To: linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, akpm@zip.com.au, rohit.seth@intel.com
 List-ID: <linux-mm.kvack.org>
 
-Bill Hartner wrote:
-> 
-> Dave Hansen wrote:
-> >
-> > Bill Hartner wrote:
-> > > Andrew Morton wrote:
-> > >
-> > >>Bill Hartner wrote:
-> > >>
-> > >>>...
-> > >>>2.5.35       44693  86.1 1.45        1,982,236 KB  5,393,152 KB  7,375,388 KB
-> > >>>2.5.35mm1    39679  99.6 1.50       *2,720,600 KB *6,154,512 KB *8,875,112 KB
-> > >>>
-> > >>
-> > >>2.5.35 was fairly wretched from the swapout point of view.
-> > >>Would be interesting to retest on 2.5.38-mm/2.5.39 sometime.
-> > >>
-> > >
-> > > Here are VolanoMark results for 2.5.38 and 2.5.38-mm3 for both
-> > > 3GB (memory pressure) and 4GB.  I will repeat for 2.5.40 mm1 or
-> > > what ever is the latest and greatest on Friday.
-> >
-> > Could you possibly include profiling data as well?  oprofile would be
-> > preferred, but readprofile would be fine if you can get it.  We can
-> > guess what is causing the degredation, but profiles will offer some
-> > hard proof.
-> 
-> I will get 2.5.40 mm1 results and then get a profile before and after the
-> point that we start swapping.
-> 
-> I think that the ips driver may be bouncing here - so I would like to
-> resolve that 1st - could change results - possibly quite a bit.
-> 
+This patch makes alloc_hugetlb_page() kmap() the memory it's zeroing,
+and cleans up a tiny bit of list handling on the side. Without this
+fix, it oopses every time it's called.
 
-Profiles will tell.
 
-Bill, I'd recommend that you simply *always* generate a kernel profile.
-Just make it a part of the routine.  They tell us so much.
+Bill
 
-It's a matter of replacing
-
-	test
-
-with
-
-	readprofile -r
-	test
-	readprofile -v -m /boot/System.map | sort -n +2
+diff -Nur --exclude=SCCS --exclude=BitKeeper --exclude=ChangeSet linux-2.5/arch/i386/mm/hugetlbpage.c hugetlbfs/arch/i386/mm/hugetlbpage.c
+--- linux-2.5/arch/i386/mm/hugetlbpage.c	Wed Oct  2 20:14:31 2002
++++ hugetlbfs/arch/i386/mm/hugetlbpage.c	Wed Oct  2 22:00:54 2002
+@@ -44,24 +44,22 @@
+ static struct page *
+ alloc_hugetlb_page(void)
+ {
+-	struct list_head *curr, *head;
++	int i;
+ 	struct page *page;
+ 
+ 	spin_lock(&htlbpage_lock);
+-
+-	head = &htlbpage_freelist;
+-	curr = head->next;
+-
+-	if (curr == head) {
++	if (list_empty(&htlbpage_freelist)) {
+ 		spin_unlock(&htlbpage_lock);
+ 		return NULL;
+ 	}
+-	page = list_entry(curr, struct page, list);
+-	list_del(curr);
++
++	page = list_entry(htlbpage_freelist.next, struct page, list);
++	list_del(&page->list);
+ 	htlbpagemem--;
+ 	spin_unlock(&htlbpage_lock);
+ 	set_page_count(page, 1);
+-	memset(page_address(page), 0, HPAGE_SIZE);
++	for (i = 0; i < (HPAGE_SIZE/PAGE_SIZE); ++i)
++		clear_highpage(&page[i]);
+ 	return page;
+ }
+ 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
