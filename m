@@ -1,14 +1,13 @@
-Message-ID: <55E277B99171E041ABF5F4B1C6DDCA0683E8AC@haritha.hclt.com>
+Message-ID: <55E277B99171E041ABF5F4B1C6DDCA0683E8B4@haritha.hclt.com>
 From: "Somshekar. C. Kadam - CTD, Chennai." <som_kadam@ctd.hcltech.com>
-Subject: RE: meminfo or Rephrased helping the Programmer's help themselves
-	...
-Date: Fri, 13 Sep 2002 13:30:13 +0530
+Subject: bootmem ?
+Date: Fri, 13 Sep 2002 13:33:58 +0530
 MIME-Version: 1.0
 Content-Type: text/plain;
 	charset="iso-8859-1"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: John Carter <john.carter@tait.co.nz>, "M. Edward Borasky" <znmeb@aracnet.com>
+To: "Somshekar. C. Kadam - CTD, Chennai." <som_kadam@ctd.hcltech.com>, John Carter <john.carter@tait.co.nz>, "M. Edward Borasky" <znmeb@aracnet.com>
 Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
@@ -36,10 +35,15 @@ which is end of kernel
 storing bitmap after the end of the kernel
 
 what should be the value given to node_boot_start
+whre should it be i am not clear 
 
  any idea pls 
 thanks in advnce 
 
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
