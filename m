@@ -1,60 +1,57 @@
-Date: Thu, 10 Oct 2002 12:40:08 +0100 (BST)
-From: Hugh Dickins <hugh@veritas.com>
+Date: Thu, 10 Oct 2002 04:55:18 -0700
+From: William Lee Irwin III <wli@holomorphy.com>
 Subject: Re: Meaning of the dirty bit
-In-Reply-To: <3DA5306C.7B63584@scs.ch>
-Message-ID: <Pine.LNX.4.44.0210101209140.1510-100000@localhost.localdomain>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
+Message-ID: <20021010115518.GX12432@holomorphy.com>
+References: <3DA5306C.7B63584@scs.ch> <Pine.LNX.4.44.0210101209140.1510-100000@localhost.localdomain>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.44.0210101209140.1510-100000@localhost.localdomain>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Martin Maletinsky <maletinsky@scs.ch>
-Cc: Stephen Tweedie <sct@redhat.com>, kernelnewbies@nl.linux.org, linux-mm@kvack.org
+To: Hugh Dickins <hugh@veritas.com>
+Cc: Martin Maletinsky <maletinsky@scs.ch>, Stephen Tweedie <sct@redhat.com>, kernelnewbies@nl.linux.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 10 Oct 2002, Martin Maletinsky wrote:
-> 
-> While studying the follow_page() function (the version of the function
-> that is in place since 2.4.4, i.e. with the write argument), I noticed,
-> that for an address that > should be written to (i.e. write != 0), the
-> function checks not only the writeable flag (with pte_write()), but also
-> the dirty flag (with pte_dirty()) of the page > containing this address.
-> From what I thought to understand from general paging theory, the dirty
-> flag of a page is set, when its content in physical memory differs from
-> its backing on the permanent storage system (file or swap space). Based
-> on this understanding I do not understand why it is necessary to check
-> the dirty flag, in order to ensure that a page is writable
-> - what am I missing here?
+On Thu, Oct 10, 2002 at 12:40:08PM +0100, Hugh Dickins wrote:
+> Originally (pre-2.4.4), as you've noticed, there was no write argument
+> to follow_page, and map_user_kiobuf made one call to handle_mm_fault
+> per page.  Experience with races under memory pressure will have shown
+> that to be inadequate, it needed to loop until it could hold down the
+> page, with the writable bit in the pte guaranteeing it good to write to.
 
-Good question (and I don't see the answer in Dharmender's replies).
-I expect Stephen can give the definitive answer, but here's my guess.
+Could you explain what race occurred?
 
-follow_page() was introduced for kiobufs, so despite its general name,
-it's doing what map_user_kiobuf() needed (or thought it needed).
 
-Originally (pre-2.4.4), as you've noticed, there was no write argument
-to follow_page, and map_user_kiobuf made one call to handle_mm_fault
-per page.  Experience with races under memory pressure will have shown
-that to be inadequate, it needed to loop until it could hold down the
-page, with the writable bit in the pte guaranteeing it good to write to.
+On Thu, Oct 10, 2002 at 12:40:08PM +0100, Hugh Dickins wrote:
+> But why dirty too, you ask?  I think, because writing to page via kiobuf
+> happens directly, not via pte, so the pte dirty bit would not be set
+> that way; but if it's not set, then the modification to the page may
+> be lost later.  Hence map_user_kiobuf used handle_mm_fault to set
+> that dirty bit too, and used follow_page to check that it is set.
 
-But why dirty too, you ask?  I think, because writing to page via kiobuf
-happens directly, not via pte, so the pte dirty bit would not be set
-that way; but if it's not set, then the modification to the page may
-be lost later.  Hence map_user_kiobuf used handle_mm_fault to set
-that dirty bit too, and used follow_page to check that it is set.
+Some of the mechanics of how the PTE dirty bit relate to the software
+notion of a page being dirty are escaping me here. How does follow_page()
+enter the equation? The PTE's of other processes cannot be resolved this
+way so it does not seem clear to me at all that follow_page() taking an
+extra argument can actually get something useful done here.
 
-Except that's racy too, and so mark_dirty_kiobuf() was added to
-SetPageDirty on the pages after kio done, before unmapping the kiobuf.
-mark_dirty_kiobuf appeared in the main kernel tree at the same time
-as the pte_dirty test in follow_page, but I'm guessing the pte_dirty
-test was an earlier failed attempt to solve the problems fixed by
-mark_dirty_kiobuf, which got left in place (and also helped a bit
-if kiobuf users weren't updated to call mark_dirty_kiobuf).
 
-Apologies in advance if my guesses are wild.
+On Thu, Oct 10, 2002 at 12:40:08PM +0100, Hugh Dickins wrote:
+> Except that's racy too, and so mark_dirty_kiobuf() was added to
+> SetPageDirty on the pages after kio done, before unmapping the kiobuf.
+> mark_dirty_kiobuf appeared in the main kernel tree at the same time
+> as the pte_dirty test in follow_page, but I'm guessing the pte_dirty
+> test was an earlier failed attempt to solve the problems fixed by
+> mark_dirty_kiobuf, which got left in place (and also helped a bit
+> if kiobuf users weren't updated to call mark_dirty_kiobuf).
+> Apologies in advance if my guesses are wild.
 
-Hugh
+Hrm, I'm going to have to dig up a tree with kiobuf stuff in it, I've
+largely ignored that path for various reasons.
 
+
+Bill
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
