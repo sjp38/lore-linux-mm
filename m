@@ -1,58 +1,33 @@
 Received: from max.fys.ruu.nl (max.fys.ruu.nl [131.211.32.73])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id UAA14208
-	for <linux-mm@kvack.org>; Wed, 11 Mar 1998 20:02:16 -0500
-Date: Thu, 12 Mar 1998 00:11:38 +0100 (MET)
+	by kvack.org (8.8.7/8.8.7) with ESMTP id MAA17955
+	for <linux-mm@kvack.org>; Thu, 12 Mar 1998 12:02:57 -0500
+Date: Thu, 12 Mar 1998 17:37:12 +0100 (MET)
 From: Rik van Riel <H.H.vanRiel@fys.ruu.nl>
 Reply-To: Rik van Riel <H.H.vanRiel@fys.ruu.nl>
-Subject: Re: 2.1.89 broken?
-In-Reply-To: <199803112237.WAA04217@dax.dcs.ed.ac.uk>
-Message-ID: <Pine.LNX.3.91.980312000536.14217A-100000@mirkwood.dummy.home>
+Subject: report [PATCH] buffermem limit
+Message-ID: <Pine.LNX.3.91.980312173402.664A-100000@mirkwood.dummy.home>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: "Stephen C. Tweedie" <sct@dcs.ed.ac.uk>
-Cc: Trond Eivind Glomsrod <teg@pvv.ntnu.no>, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
+To: linux-mm <linux-mm@kvack.org>
+Cc: linux-kernel <linux-kernel@vger.rutgers.edu>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 11 Mar 1998, Stephen C. Tweedie wrote:
+Hi,
 
-> No, it's not necessarily doing the Right Thing.  The trouble is that
-> there is no balancing between swapping and emptying the page cache.
+I've done some tests with the patch I've just posted,
+and results are encouraging indeed.
+I managed to do 18 (!) diffs on /usr/src/linux without
+much trouble. During that period, all kinds of memory
+maps from other programs were paged out and things
+kinda thrashed, but WorkMan was able to update it's
+slidebars at least once every 2 seconds and even Netscape
+(version 3) was usable, as long as you kept moving the
+mouse :-)
 
-I've still got some Digital Unix-like balancing code
-lying around...
-Basically, you can set 3 values for the buffer/page
-cache, a minimum value, a maximum value and a steal
-value. When the buffer/page memory is above steal
-level and the system needs memory, it'll steal memory
-from the page cache first. A good default would be
-25% of main memory. Of course, these values will be
-sysctl controllable (we still got 8 unused variables
-in swap_control ;-).
-
-> Now, once we've got a single pass which can scavenge BOTH page cache
-> and swap pages, then we're really going to be cooking on gas. :)  For
-
-I think we should just copy DU's scheme:
-- when buffer/page cache is above steal level, we steal that memory
-- otherwise, we steal in a round-robin fashion from both
-
-> now, however, all we're doing is tweaking what is a very very delicate
-> balance, and as we proved in the 1.2.4 and 1.2.5 swapping disasters,
-> getting such a change done in a way which doesn't make at least
-> somebody's performance very much worse is really quite hard to do in
-> the current way of managing memory.  When I was doing the first round
-> of work on kswap, it was this balance between cache and swap which was
-> the biggest problem, not the aging of individual pages from either
-> source.
-
-That's why we have sysctl controllable swapping. And now
-we're talking about it, the sysctl really needs updating
-too...
-
-You can expect these patches RSN (maybe even tomorrow).
-
-grtz,
+Maybe it's time for implementing minimum RSS limits
+for processes, but this needs to go hand in hand with
+process suspension and other things...
 
 Rik.
 +-------------------------------------------+--------------------------+
