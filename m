@@ -1,51 +1,65 @@
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e2.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id j2INGaLN003132
-	for <linux-mm@kvack.org>; Fri, 18 Mar 2005 18:16:36 -0500
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay02.pok.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id j2INGaXZ093778
-	for <linux-mm@kvack.org>; Fri, 18 Mar 2005 18:16:36 -0500
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.12.11/8.12.11) with ESMTP id j2INGabG015498
-	for <linux-mm@kvack.org>; Fri, 18 Mar 2005 18:16:36 -0500
-Subject: Re: [RFC][PATCH 5/6] sparsemem: more separation between NUMA and
-	DISCONTIG
-From: Dave Hansen <haveblue@us.ibm.com>
-In-Reply-To: <20050318150826.4ca3ad14.akpm@osdl.org>
-References: <E1DBisA-0000l4-00@kernel.beaverton.ibm.com>
-	 <20050318150826.4ca3ad14.akpm@osdl.org>
-Content-Type: text/plain
-Date: Fri, 18 Mar 2005 15:16:17 -0800
-Message-Id: <1111187778.9648.49.camel@localhost>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Message-ID: <423B6218.6010602@osdl.org>
+Date: Fri, 18 Mar 2005 15:19:52 -0800
+From: "Randy.Dunlap" <rddunlap@osdl.org>
+MIME-Version: 1.0
+Subject: Re: [PATCH 1/4] io_remap_pfn_range: add for all arch-es
+References: <20050318112545.6f5f7635.rddunlap@osdl.org>	<20050318113352.0baaaf5e.rddunlap@osdl.org> <16955.23669.792362.539790@cargo.ozlabs.ibm.com>
+In-Reply-To: <16955.23669.792362.539790@cargo.ozlabs.ibm.com>
+Content-Type: multipart/mixed;
+ boundary="------------000408070900090309060601"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andy Whitcroft <apw@shadowen.org>
+To: Paul Mackerras <paulus@samba.org>
+Cc: lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, akpm@osdl.org, davem@davemloft.net, wli@holomorphy.com, riel@redhat.com, kurt@garloff.de, Keir.Fraser@cl.cam.ac.uk, Ian.Pratt@cl.cam.ac.uk, Christian.Limpach@cl.cam.ac.uk
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2005-03-18 at 15:08 -0800, Andrew Morton wrote:
-> Dave Hansen <haveblue@us.ibm.com> wrote:
-> >
-> >  There is some confusion with the SPARSEMEM patch between what
-> >  is needed for DISCONTIG vs. NUMA.  For instance, the NODE_DATA()
-> >  macro needs to be switched on NUMA, but not on FLATMEM.
-> > 
-> >  This patch is required if the previous patch is applied.
+This is a multi-part message in MIME format.
+--------------000408070900090309060601
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
+
+Paul Mackerras wrote:
 > 
-> This patch breaks !CONFIG_NUMA ppc64:
+> Just by inspection, this looks like pfn should be changed to
+> paddr64 >> PAGE_SHIFT in that last line.
 > 
-> include/linux/mmzone.h:387:1: warning: "NODE_DATA" redefined
-> include/asm/mmzone.h:55:1: warning: this is the location of the previous definition
-> 
-> I'll hack around it for now.
+> Paul.
 
-I'll make sure to have it fixed properly in my copy.
+Agreed, thank you.  Patch is attached.
 
-Could I have a copy of your .config?  I'm keeping a growing collection.
+-- 
+~Randy
 
--- Dave
+--------------000408070900090309060601
+Content-Type: text/x-patch;
+ name="ioremap_ppc_shift.patch"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline;
+ filename="ioremap_ppc_shift.patch"
 
+
+Fix asm-ppc argument, spotted by Paul Mackerras.
+
+Signed-off-by: Randy Dunlap <rddunlap@osdl.org>
+
+diffstat:=
+ include/asm-ppc/pgtable.h |    2 +-
+ 1 files changed, 1 insertion(+), 1 deletion(-)
+
+diff -Naurp ./include/asm-ppc/pgtable.h~ioremap_ppc_shift ./include/asm-ppc/pgtable.h
+--- ./include/asm-ppc/pgtable.h~ioremap_ppc_shift	2005-03-18 10:20:47.000000000 -0800
++++ ./include/asm-ppc/pgtable.h	2005-03-18 15:15:56.000000000 -0800
+@@ -743,7 +743,7 @@ static inline int io_remap_pfn_range(str
+ 					pgprot_t prot)
+ {
+ 	phys_addr_t paddr64 = fixup_bigphys_addr(pfn << PAGE_SHIFT, size);
+-	return remap_pfn_range(vma, vaddr, pfn, size, prot);
++	return remap_pfn_range(vma, vaddr, paddr64 >> PAGE_SHIFT, size, prot);
+ }
+ #else
+ #define io_remap_page_range(vma, vaddr, paddr, size, prot)		\
+
+--------------000408070900090309060601--
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
