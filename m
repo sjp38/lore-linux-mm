@@ -1,25 +1,23 @@
-Date: Fri, 4 Jul 2003 02:50:04 -0700
+Date: Fri, 4 Jul 2003 03:02:17 -0700
 From: William Lee Irwin III <wli@holomorphy.com>
 Subject: Re: 2.5.74-mm1 fails to boot due to APIC trouble, 2.5.73mm3 works.
-Message-ID: <20030704095004.GB26348@holomorphy.com>
-References: <20030703023714.55d13934.akpm@osdl.org> <3F054109.2050100@aitel.hist.no> <20030704093531.GA26348@holomorphy.com>
+Message-ID: <20030704100217.GC26348@holomorphy.com>
+References: <20030703023714.55d13934.akpm@osdl.org> <3F054109.2050100@aitel.hist.no> <20030704093531.GA26348@holomorphy.com> <20030704095004.GB26348@holomorphy.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20030704093531.GA26348@holomorphy.com>
+In-Reply-To: <20030704095004.GB26348@holomorphy.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Helge Hafting <helgehaf@aitel.hist.no>, Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Jul 04, 2003 at 02:35:31AM -0700, William Lee Irwin III wrote:
-> Okay, now for the "final solution" wrt. sparse physical APIC ID's
-> in addition to what I hope is a fix for your bug. This uses a separate
-> bitmap type (of a NR_CPUS -independent width MAX_APICS) for physical
-> APIC ID bitmaps.
-> \begin{cross-fingers}
+On Fri, Jul 04, 2003 at 02:50:04AM -0700, William Lee Irwin III wrote:
+> This time diffed against the right tree:
 
-This time diffed against the right tree:
+And this time with a one-line typo fixed (it seemed to compile anyway):
+s/CPU_MASK_NONE/PHYSID_MASK_NONE/ somewhere in io_apic.c where a physid
+mask was being initialized.
 
 
 diff -prauN mm1-2.5.74-1/arch/i386/kernel/apic.c physid-2.5.74-1/arch/i386/kernel/apic.c
@@ -36,7 +34,7 @@ diff -prauN mm1-2.5.74-1/arch/i386/kernel/apic.c physid-2.5.74-1/arch/i386/kerne
  
 diff -prauN mm1-2.5.74-1/arch/i386/kernel/io_apic.c physid-2.5.74-1/arch/i386/kernel/io_apic.c
 --- mm1-2.5.74-1/arch/i386/kernel/io_apic.c	2003-07-03 12:23:55.000000000 -0700
-+++ physid-2.5.74-1/arch/i386/kernel/io_apic.c	2003-07-04 02:45:17.000000000 -0700
++++ physid-2.5.74-1/arch/i386/kernel/io_apic.c	2003-07-04 02:53:32.000000000 -0700
 @@ -1601,7 +1601,7 @@ void disable_IO_APIC(void)
  static void __init setup_ioapic_ids_from_mpc(void)
  {
@@ -89,7 +87,7 @@ diff -prauN mm1-2.5.74-1/arch/i386/kernel/io_apic.c physid-2.5.74-1/arch/i386/ke
  	union IO_APIC_reg_00 reg_00;
 -	static cpumask_t apic_id_map = CPU_MASK_NONE;
 -	cpumask_t tmp;
-+	static physid_mask_t apic_id_map = CPU_MASK_NONE;
++	static physid_mask_t apic_id_map = PHYSID_MASK_NONE;
 +	physid_mask_t tmp;
  	unsigned long flags;
  	int i = 0;
