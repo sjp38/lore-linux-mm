@@ -1,116 +1,64 @@
-Received: from atlas.CARNet.hr (zcalusic@atlas.CARNet.hr [161.53.123.163])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id UAA06902
-	for <linux-mm@kvack.org>; Mon, 16 Nov 1998 20:21:26 -0500
+Received: from max.phys.uu.nl (max.phys.uu.nl [131.211.32.73])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id CAA08606
+	for <linux-mm@kvack.org>; Tue, 17 Nov 1998 02:12:16 -0500
+Date: Tue, 17 Nov 1998 07:42:12 +0100 (CET)
+From: Rik van Riel <H.H.vanRiel@phys.uu.nl>
+Reply-To: Rik van Riel <H.H.vanRiel@phys.uu.nl>
 Subject: Re: unexpected paging during large file reads in 2.1.127
-References: <199811161959.TAA07259@dax.scot.redhat.com> <Pine.LNX.3.96.981116214348.26465A-100000@mirkwood.dummy.home> <199811162305.XAA07996@dax.scot.redhat.com>
-Reply-To: Zlatko.Calusic@CARNet.hr
-From: Zlatko Calusic <Zlatko.Calusic@CARNet.hr>
-Date: 17 Nov 1998 02:21:14 +0100
-In-Reply-To: "Stephen C. Tweedie"'s message of "Mon, 16 Nov 1998 23:05:56 GMT"
-Message-ID: <87lnlb5d2t.fsf@atlas.CARNet.hr>
-Mime-Version: 1.0
-Content-Type: text/plain; charset="iso-8859-1"
-Content-Transfer-Encoding: 8bit
+In-Reply-To: <199811162305.XAA07996@dax.scot.redhat.com>
+Message-ID: <Pine.LNX.3.96.981117073807.2352A-100000@mirkwood.dummy.home>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Linux-MM List <linux-mm@kvack.org>, Linux Kernel List <linux-kernel@vger.rutgers.edu>
-Cc: Rik van Riel <H.H.vanRiel@phys.uu.nl>, "David J. Fred" <djf@ic.net>, "Stephen C. Tweedie" <sct@redhat.com>
+To: "Stephen C. Tweedie" <sct@redhat.com>
+Cc: Zlatko Calusic <Zlatko.Calusic@CARNet.hr>, "David J. Fred" <djf@ic.net>, linux-kernel@vger.rutgers.edu, Linux-MM List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-
-"Stephen C. Tweedie" <sct@redhat.com> writes:
-
-> Hi,
-> 
+On Mon, 16 Nov 1998, Stephen C. Tweedie wrote:
 > On Mon, 16 Nov 1998 21:48:35 +0100 (CET), Rik van Riel
 > <H.H.vanRiel@phys.uu.nl> said:
-> 
 > > On Mon, 16 Nov 1998, Stephen C. Tweedie wrote:
 > >> The real cure is to disable page aging in the page cache completely.
 > >> Now that we have disabled it for swap, it makes absolutely no sense at
 > >> all to keep it in the page cache.
 > 
+> > This is not entirely true. There is a major difference
+> > between pages in the page cache and pages that can go
+> > into swap. The latter kind will always be mapped inside
+> > the address space of a program (where it gets proper
+> > aging and stuff)
+> 
+> No it doesn't, that's what I'm saying.  Linus removed swap page aging in
+> the recent kernels.  That throws the balance between swap and cache
+> completely out of the window: removing the page cache aging is necessary
+> to restore balance.  There are many many reports of massive cache growth
+> on the latest kernels as a result of this.
 
-[snip]
+I meant the page aging that occurs in vmscan.c, where we
+decide on which page to unmap from a program's address
+space. There we do aging while we don't age pages from
+files that are read().
 
+> > Now we can get severe problems with readahead when we
+> > are evicting just read-in data because it isn't mapped,
+> 
 > No, we don't.  We don't evict just-read-in data, because we mark such
 > pages as PG_Referenced.  It takes two complete shrink_mmap() passes
 > before we can evict such pages.
 
-I didn't find this in the source (in fact, add_to_page_cache clears
-PG_referenced bit, if I understood source correctly). But, see below.
+OK, I can (and have for quite a while) agree with this.
+Kernels with this feature and enough memory will run great,
+maybe small machines (<16M) will have a bit of trouble
+keeping up readahead performance (since kswapd will have
+made it's round a bit fast) but those machines will have
+sucky performance anyway :)
 
-> 
-> > resulting in us having to read it again and doing double
-> > I/O with a badly performing program.
-> 
-> The reason why this used to happen was because the readahead failed to
-> mark the new page as PG_Referenced.  I've been saying for _months_ that
-> the right fix was to mark them referenced rather than to do page aging
-> (and all of my benchmarks, without exception, back this up).  
-> 
+Rik -- slowly getting used to dvorak kbd layout...
++-------------------------------------------------------------------+
+| Linux memory management tour guide.        H.H.vanRiel@phys.uu.nl |
+| Scouting Vries cubscout leader.      http://www.phys.uu.nl/~riel/ |
++-------------------------------------------------------------------+
 
-I must agree entirely, because with small patch you can find below,
-performance is very very good. Thanks to marking readahead pages as
-referenced, I've been able to see exact behaviour that I wanted for a
-long time. And that is, if the page cache is too small, and we start
-doing lots of I/O, then it should expand slightly. Otherwise it should
-be quiet, I mean, we don't want any swapouts, since that would degrade
-our I/O performance.
-
-Everybody, try the attached patch (that Stephen was suggesting long
-ago, IIRC) and see for yourself. My machine is flying now. :)
-
-Index: 128.2/mm/filemap.c
---- 128.2/mm/filemap.c Mon, 16 Nov 1998 23:45:38 +0100 zcalusic (linux-2.1/y/b/29_filemap.c 1.2.4.1.1.1 644)
-+++ 128.3(w)/mm/filemap.c Tue, 17 Nov 1998 01:41:53 +0100 zcalusic (linux-2.1/y/b/29_filemap.c 1.2.4.1.1.2 644)
-@@ -172,20 +172,14 @@
- 				delete_from_swap_cache(page);
- 				return 1;
- 			}
--			if (test_and_clear_bit(PG_referenced, &page->flags)) {
--				touch_page(page);
--				break;
--			}
--			age_page(page);
--			if (page->age)
-+			if (test_and_clear_bit(PG_referenced, &page->flags))
- 				break;
- 			if (pgcache_under_min())
- 				break;
- 			remove_inode_page(page);
- 			return 1;
- 		}
--		/* It's not a cache page, so we don't do aging.
--		 * If it has been referenced recently, don't free it */
-+		/* if page has been referenced recently, don't free it */
- 		if (test_and_clear_bit(PG_referenced, &page->flags))
- 			break;
- 
-@@ -212,8 +206,8 @@
- 	struct page * page;
- 	int count_max, count_min;
- 
--	count_max = (limit<<2) >> (priority>>1);
--	count_min = (limit<<2) >> (priority);
-+	count_max = (limit<<1) >> (priority>>1);
-+	count_min = (limit<<1) >> (priority);
- 
- 	page = mem_map + clock;
- 	do {
-@@ -328,6 +322,7 @@
- 			 */
- 			page = mem_map + MAP_NR(page_cache);
- 			add_to_page_cache(page, inode, offset, hash);
-+			set_bit(PG_referenced, &page->flags);
- 			inode->i_op->readpage(file, page);
- 			page_cache = 0;
- 		}
-
-Regards,
--- 
-Posted by Zlatko Calusic           E-mail: <Zlatko.Calusic@CARNet.hr>
----------------------------------------------------------------------
-		 43% of all statistics are worthless.
 --
 This is a majordomo managed list.  To unsubscribe, send a message with
 the body 'unsubscribe linux-mm me@address' to: majordomo@kvack.org
