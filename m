@@ -1,53 +1,33 @@
-Date: Wed, 26 Apr 2000 16:23:53 +0100
-From: "Stephen C. Tweedie" <sct@redhat.com>
 Subject: Re: [PATCH] 2.3.99-pre6-3+  VM rebalancing
-Message-ID: <20000426162353.O3792@redhat.com>
-References: <Pine.LNX.4.21.0004251757360.9768-100000@alpha.random> <Pine.LNX.4.21.0004251418520.10408-100000@duckman.conectiva> <20000425113616.A7176@stormix.com> <3905EB26.8DBFD111@mandrakesoft.com> <20000425120657.B7176@stormix.com> <20000426120130.E3792@redhat.com> <200004261125.EAA12302@pizda.ninka.net> <20000426140031.L3792@redhat.com> <200004261311.GAA13838@pizda.ninka.net>
-Mime-Version: 1.0
+References: <Pine.LNX.4.21.0004261041420.16202-100000@duckman.conectiva> <200004261433.HAA13894@pizda.ninka.net>
+From: Andi Kleen <ak@suse.de>
+Date: 26 Apr 2000 18:31:50 +0200
+In-Reply-To: "David S. Miller"'s message of "26 Apr 2000 16:48:13 +0200"
+Message-ID: <oupbt2wombt.fsf@pigdrop.muc.suse.de>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-In-Reply-To: <200004261311.GAA13838@pizda.ninka.net>; from davem@redhat.com on Wed, Apr 26, 2000 at 06:11:15AM -0700
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: "David S. Miller" <davem@redhat.com>
-Cc: sct@redhat.com, sim@stormix.com, jgarzik@mandrakesoft.com, riel@nl.linux.org, andrea@suse.de, linux-mm@kvack.org, bcrl@redhat.com, linux-kernel@vger.rutgers.edu
+Cc: riel@conectiva.com.br, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
-
-On Wed, Apr 26, 2000 at 06:11:15AM -0700, David S. Miller wrote:
+"David S. Miller" <davem@redhat.com> writes:
 > 
->    Doing it isn't the problem.  Doing it efficiently is, if you have 
->    fork() and mremap() in the picture.  With mremap(), you cannot assume
->    that the virtual address of an anonymous page is the same in all
->    processes which have the page mapped.
-> 
-> Who makes that assumption?
+> See?  The global LRU scheme dynamically figures out what page usage is
+> like, it doesn't need to classify processes in a certain way, because
+> the per-page reference and dirty state will drive the page liberation
+> to just do the right thing.
 
-Nobody does --- that's the point.  If you _could_ make that assumption,
-then looking up the vma which maps a given page in a given mm would be
-easy.  But because the assumption doesn't hold, you have to walk all of
-the vmas.
+But is that still fair ? A memory hog could rapidly allocate and
+dirty pages, killing the small innocent daemon which just needs to
+get some work done.
+At least the FreeBSD code i have here has a way to limit maximum
+swapout per process and increase it based on the resident pages rlimit.
+Linux with your new dancing scheme will probably need this too.
 
-> In my implementation there is no linear scan, only VMA's which
-> can actually contain the anonymous page in question are scanned.
-> 
-> It's called an anonymous layer, and it provides pseudo backing objects
-> for VMA's which have at least one privatized anonymous page.
-...
 
-> Instead of talk, I'll show some code :-)  The following is the
-> anon layer I implemented for 2.3.x in my hacks.
-
-OK --- I'm assuming you allow all of these address spaces to act as 
-swapper address spaces for the purpose of the swap cache?  This looks
-good, do you have the rest of the VM changes in a usable (testable)
-state?
-
-On fork(), I assume you just leave multiple vmas attached to the same
-address space?  With things like mprotect, you'll still have a list
-of vmas to search for in this design, I'd think.
-
---Stephen
+-Andi
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
