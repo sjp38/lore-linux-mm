@@ -1,30 +1,47 @@
-Date: Sun, 13 Apr 2003 09:11:14 +0100
-From: Russell King <rmk@arm.linux.org.uk>
 Subject: Re: 2.5.67-mm2
-Message-ID: <20030413091113.A32089@flint.arm.linux.org.uk>
-References: <20030412180852.77b6c5e8.akpm@digeo.com> <1050198928.597.6.camel@teapot.felipe-alfaro.com>
+From: Felipe Alfaro Solana <felipe_alfaro@linuxmail.org>
+In-Reply-To: <200304130317.h3D3HprZ021939@turing-police.cc.vt.edu>
+References: <20030412180852.77b6c5e8.akpm@digeo.com>
+	 <1050198928.597.6.camel@teapot.felipe-alfaro.com>
+	 <200304130317.h3D3HprZ021939@turing-police.cc.vt.edu>
+Content-Type: text/plain
+Message-Id: <1050232513.593.2.camel@teapot.felipe-alfaro.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1050198928.597.6.camel@teapot.felipe-alfaro.com>; from felipe_alfaro@linuxmail.org on Sun, Apr 13, 2003 at 03:55:29AM +0200
+Date: 13 Apr 2003 13:15:13 +0200
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Felipe Alfaro Solana <felipe_alfaro@linuxmail.org>
+To: Valdis.Kletnieks@vt.edu
 Cc: Andrew Morton <akpm@digeo.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Apr 13, 2003 at 03:55:29AM +0200, Felipe Alfaro Solana wrote:
-> I have written to Russell King, but had no response from him. Maybe he
-> is too busy. I'm stuck at 2.5.66-mm1 on my laptop.
+On Sun, 2003-04-13 at 05:17, Valdis.Kletnieks@vt.edu wrote:
+> On Sun, 13 Apr 2003 03:55:29 +0200, Felipe Alfaro Solana said:
+> 
+> > Any patches for CardBus/PCMCIA support? It's broken for me since
+> > 2.5.66-mm2 (it works with 2.5.66-mm1) probably due to PCI changes or the
+> > new PCMCIA state machine: if I boot my machine with my 3Com CardBus NIC
+> > plugged in, the kernel deadlocks while checking the sockets, but it
+> > works when booting with the card unplugged, and then plugging it back
+> > once the system is stable (for example, init 1).
+> 
+> Also seeing this with a Xircom card under vanilla 2.5.67.
+> 
+> lspci reports this card as:
+> 
+> 03:00.0 Ethernet controller: Xircom Cardbus Ethernet 10/100 (rev 03)
+> 03:00.1 Serial controller: Xircom Cardbus Ethernet + 56k Modem (rev 03)
+> 
+> Russel King posted an analysis back on April 1, which indicated he knew
+> about the problem, understood it, and was working on it.
 
-I've been on holiday for the past week, and am currently playing the
-catch-up game.  People will have to wait a while longer until I can
-get back to PCMCIA - I also look after the ARM kernel, which is also
-requiring my attention at present.
+Yeah! I know, but I wrote him and didn't get a response, so I'm a little
+bit worried. I assume he'll be too busy.
 
 -- 
-Russell King (rmk@arm.linux.org.uk)                The developer of ARM Linux
-             http://www.arm.linux.org.uk/personal/aboutme.html
+Please AVOID sending me WORD, EXCEL or POWERPOINT attachments.
+See http://www.fsf.org/philosophy/no-word-attachments.html
+Linux Registered User #287198
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
