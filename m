@@ -1,194 +1,30 @@
-Received: from digeo-nav01.digeo.com (digeo-nav01.digeo.com [192.168.1.233])
-	by packet.digeo.com (8.9.3+Sun/8.9.3) with SMTP id XAA05845
-	for <linux-mm@kvack.org>; Sat, 7 Sep 2002 23:32:52 -0700 (PDT)
-Message-ID: <3D7AF270.BE4AFBEB@digeo.com>
-Date: Sat, 07 Sep 2002 23:47:12 -0700
-From: Andrew Morton <akpm@digeo.com>
-MIME-Version: 1.0
-Subject: 2.5.33-mm5
+Date: Sun, 8 Sep 2002 17:11:59 +0200
+From: Axel Siebenwirth <axel@hh59.org>
+Subject: Re: 2.5.33-mm5
+Message-ID: <20020908151159.GA5260@prester.freenet.de>
+References: <3D7AF270.BE4AFBEB@digeo.com>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+In-Reply-To: <3D7AF270.BE4AFBEB@digeo.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: lkml <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Andrew Morton <akpm@digeo.com>
+Cc: lkml <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-URL: http://www.zip.com.au/~akpm/linux/patches/2.5/2.5.33/2.5.33-mm5/
+Hi Andrew!
 
-+refill-rate-fix.patch
+On Sat, 07 Sep 2002, Andrew Morton wrote:
 
- Fix a problem in refill_inactive_zone() which could soak a lot of CPU.
+> I'd appreciate it if people could grab this one, be nasty to it
+> and send a report.
 
-+sleeping-release_page.patch
+What are your favorite tests to run? I'd like to send you some useful test
+results. But which do you like to see?
 
- Allow mapped->releasepage() to sleep again.  My passing in non-zero
- gfp_mask.
-
-+filemap-integration-fixes.patch
-
- Some fixes to the readv/writev rework.
-
-Plus a lot of stabilisation, tuning and testing of the new VM latency
-control code.  Including fixing one rarely-occurring infinite loop
-which might explain Steve Cole's reported failure.
-
-Some testing with no swap has been performed as well.  Works OK,
-and some speedups were made in this area (if there's no swap online,
-don't bring anon pages onto the inactive list).
-
-It's looking pretty good now - the system is quite responsive under
-all heavy writeout workloads.  It's still very latent under heavy
-swapout load; that is deliberate.  It is latent when overloaded by
-dirty MAP_SHARED data.  We can fix that.
-
-A side-effect of the VM rework is an improvement in many-spindle
-pagecache writeout. This is the first kernel which can keep four
-queues saturated.  I tested six disks - the LEDs never went out.
-
-I'd appreciate it if people could grab this one, be nasty to it
-and send a report.
-
-You will probably see increased CPU utilisation by kswapd.  I believe
-that this is not an efficiency problem - it's due to kswapd doing more
-work that it used to, rather than sleeping on request queues all the time.
-
-Also, pdflush appears to be taking more CPU, but profiling shows that it
-is not - this may be due to synchronisation with the CPU load accounting.
-
-
-linus.patch
-  cset-1.575-to-1.600.txt.gz
-
-scsi_hack.patch
-  Fix block-highmem for scsi
-
-ext3-htree.patch
-  Indexed directories for ext3
-
-zone-pages-reporting.patch
-  Fix the boot-time reporting of each zone's available pages
-
-enospc-recovery-fix.patch
-  Fix the __block_write_full_page() error path.
-
-fix-faults.patch
-  Back out the initial work for atomic copy_*_user()
-
-spin-lock-check.patch
-  spinlock/rwlock checking infrastructure
-
-refill-rate.patch
-  refill the inactive list more quickly
-
-refill-rate-fix.patch
-  Don't call shrink_zone with a negative nr_pages
-
-copy_user_atomic.patch
-
-kmap_atomic_reads.patch
-  Use kmap_atomic() for generic_file_read()
-
-kmap_atomic_writes.patch
-  Use kmap_atomic() for generic_file_write()
-
-throttling-fix.patch
-  Fix throttling of heavy write()rs.
-
-sleeping-release_page.patch
-  Allow a_ops->releasepage() to sleep again
-
-dirty-state-accounting.patch
-  Make the global dirty memory accounting more accurate
-
-rd-cleanup.patch
-  Cleanup and fix the ramdisk driver (doesn't work right yet)
-
-discontig-cleanup-1.patch
-  i386 discontigmem coding cleanups
-
-discontig-cleanup-2.patch
-  i386 discontigmem cleanups
-
-writeback-thresholds.patch
-  Downward adjustments to the default dirtymemory thresholds
-
-buffer-strip.patch
-  Limit the consumption of ZONE_NORMAL by buffer_heads
-
-rmap-speedup.patch
-  rmap pte_chain space and CPU reductions
-
-wli-highpte.patch
-  Resurrect CONFIG_HIGHPTE - ia32 pagetables in highmem
-
-readv-writev.patch
-  O_DIRECT support for readv/writev
-
-filemap-integration.patch
-  Clean up readv/writev
-
-filemap-integration-fixes.patch
-  More readv/writev fixes
-
-slablru.patch
-  age slab pages on the LRU
-
-slablru-speedup.patch
-  slablru optimisations
-
-llzpr.patch
-  Reduce scheduling latency across zap_page_range
-
-buffermem.patch
-  Resurrect buffermem accounting
-
-lpp.patch
-  ia32 huge tlb pages
-
-lpp2.patch
-  hugetlbpage fixes
-
-ext3-sb.patch
-  u.ext3_sb -> generic_sbp
-
-oom-fix.patch
-  Fix an OOM condition on big highmem machines
-
-tlb-cleanup.patch
-  Clean up the tlb gather code
-
-dump-stack.patch
-  arch-neutral dump_stack() function
-
-wli-cleanup.patch
-  random cleanups
-
-madvise-move.patch
-  move mdavise implementation into mm/madvise.c
-
-split-vma.patch
-  VMA splitting patch
-
-mmap-fixes.patch
-  mmap.c cleanup and lock ranking fixes
-
-buffer-ops-move.patch
-  Move submit_bh() and ll_rw_block() into fs/buffer.c
-
-writeback-control.patch
-  Cleanup and extension of the writeback paths
-
-queue-congestion.patch
-  Infrastructure for communicating request queue congestion to the VM
-
-nonblocking-ext2-preread.patch
-  avoid ext2 inode prereads if the queue is congested
-
-nonblocking-pdflush.patch
-  non-blocking writeback infrastructure, use it for pdflush
-
-nonblocking-vm.patch
-  Non-blocking page reclaim
+Best regards,
+Axel Siebenwirth
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
