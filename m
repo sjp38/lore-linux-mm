@@ -1,54 +1,23 @@
-Subject: Re: kernel BUG at rmap.c:409! with 2.5.31 and akpm patches.
-From: Steven Cole <elenstev@mesatop.com>
-In-Reply-To: <3D61615C.451C2B44@zip.com.au>
-References: <1029790457.14756.342.camel@spc9.esa.lanl.gov>
-	<3D61615C.451C2B44@zip.com.au>
-Content-Type: text/plain
-Content-Transfer-Encoding: 7bit
-Date: 19 Aug 2002 16:04:48 -0600
-Message-Id: <1029794688.14756.353.camel@spc9.esa.lanl.gov>
-Mime-Version: 1.0
+Received: from wildwood.eecs.umich.edu (haih@wildwood.eecs.umich.edu [141.213.4.68])
+	by smtp.eecs.umich.edu (8.12.3/8.12.3) with ESMTP id g7K21dYX012833
+	for <linux-mm@kvack.org>; Mon, 19 Aug 2002 22:01:39 -0400
+Date: Mon, 19 Aug 2002 22:09:50 -0400 (EDT)
+From: Hai Huang <haih@eecs.umich.edu>
+Subject: active_mm and mm
+Message-ID: <Pine.LNX.4.33.0208192207430.18993-100000@wildwood.eecs.umich.edu>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@zip.com.au>
-Cc: linux-mm@kvack.org, Rik van Riel <riel@conectiva.com.br>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2002-08-19 at 15:21, Andrew Morton wrote:
-> Steven Cole wrote:
-> > 
-> > Here's a new one.
-> > 
-> > With this patch applied to 2.5.31,
-> > http://www.zip.com.au/~akpm/linux/patches/2.5/2.5.31/stuff-sent-to-linus/everything.gz
-> > 
-> > I got this BUG:
-> > kernel BUG at rmap.c:409!
-> > while running dbench 40 as a stress test.
-> > 
-> 
-> OK, ext3's habit of leaving buffers attached to truncated pages
-> seems to have tripped us up:
-> 
-> 	if (page->pte.chain && !page->mapping && !PagePrivate(page)) {
-> 		...
-> 	}
-> 
-> 	if (page->pte.chain) {
-> 		switch (try_to_unmap(page)) {
-> 
-> So if the page has a pte_chain, and no ->mapping, but has buffers
-> we go blam.
+In struct task_struct, what's the difference between active_mm and mm?  I
+vaguely remembers it's used for reducing cache overhead during context
+switch, is this right or I'm totally off.  Thanks
 
-[patch snipped]
-
-Patch applied, running dbench 1..128.  Up to 52 clients so far, and no
-blam yet.  I'll run this test several times overnight and let you know
-if anything else falls out.
-
-Thanks,
-Steven
-
+-
+Hai
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
