@@ -1,36 +1,28 @@
-From: "David S. Miller" <davem@redhat.com>
+Subject: Re: page_launder() bug
+Date: Mon, 7 May 2001 11:52:26 +0100 (BST)
+In-Reply-To: <Pine.LNX.4.33.0105070823060.24073-100000@svea.tellus> from "Tobias Ringstrom" at May 07, 2001 08:26:58 AM
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
-Message-ID: <15094.25285.410379.109719@pizda.ninka.net>
-Date: Mon, 7 May 2001 01:54:29 -0700 (PDT)
-Subject: Re: page_launder() bug
-In-Reply-To: <Pine.LNX.4.33.0105070823060.24073-100000@svea.tellus>
-References: <15094.10942.592911.70443@pizda.ninka.net>
-	<Pine.LNX.4.33.0105070823060.24073-100000@svea.tellus>
+Message-Id: <E14wicu-0003L5-00@the-village.bc.nu>
+From: Alan Cox <alan@lxorguk.ukuu.org.uk>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Tobias Ringstrom <tori@tellus.mine.nu>
-Cc: Jonathan Morton <chromi@cyberspace.org>, BERECZ Szabolcs <szabi@inf.elte.hu>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: "David S. Miller" <davem@redhat.com>, Jonathan Morton <chromi@cyberspace.org>, BERECZ Szabolcs <szabi@inf.elte.hu>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Tobias Ringstrom writes:
- > But is it really specified in the C "standards" to be exctly zero or one,
- > and not zero and non-zero?
+> > It is the most straightforward way to make a '1' or '0'
+> > integer from the NULL state of a pointer.
+> 
+> But is it really specified in the C "standards" to be exctly zero or one,
+> and not zero and non-zero?
 
-I'm pretty sure it does.
+Yes. (Fortunately since when this argument occurred Linus said he would eat
+his underpants if he was wrong)
 
- > IMHO, the ?: construct is way more readable and reliable.
+Alan
 
-Well identical code has been there for several months just a few lines
-away.
-
-I've seen this idiom used in many places (even the GCC sources :-),
-so I'm rather surprised people are seeing it for the first time.
-
-Later,
-David S. Miller
-davem@redhat.com
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
