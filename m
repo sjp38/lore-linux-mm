@@ -1,48 +1,47 @@
-Date: Wed, 22 Mar 2000 22:58:58 +0000
-From: "Stephen C. Tweedie" <sct@redhat.com>
-Subject: Re: Q. about swap-cache orphans
-Message-ID: <20000322225858.K2850@redhat.com>
-References: <20000322190532.A7212@pcep-jamie.cern.ch> <Pine.BSO.4.10.10003221554170.17378-100000@funky.monkey.org> <20000322223351.G2850@redhat.com> <20000322234531.C31795@pcep-jamie.cern.ch> <20000322224818.J2850@redhat.com> <20000322235545.F31795@pcep-jamie.cern.ch>
-Mime-Version: 1.0
+Subject: Re: madvise (MADV_FREE)
+References: <Pine.BSO.4.10.10003221106150.16476-100000@funky.monkey.org> <qwwk8iuna5i.fsf@sap.com> <20000322193016.A7368@pcep-jamie.cern.ch>
+From: Christoph Rohland <hans-christoph.rohland@sap.com>
+Date: 23 Mar 2000 17:56:12 +0100
+In-Reply-To: Jamie Lokier's message of "Wed, 22 Mar 2000 19:30:16 +0100"
+Message-ID: <qwwaejplj6b.fsf@sap.com>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-In-Reply-To: <20000322235545.F31795@pcep-jamie.cern.ch>; from jamie.lokier@cern.ch on Wed, Mar 22, 2000 at 11:55:45PM +0100
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Jamie Lokier <jamie.lokier@cern.ch>
-Cc: Chuck Lever <cel@monkey.org>, linux-mm@kvack.org, "Stephen C. Tweedie" <sct@redhat.com>
+Cc: Christoph Rohland <hans-christoph.rohland@sap.com>, Chuck Lever <cel@monkey.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
-
-On Wed, Mar 22, 2000 at 11:55:45PM +0100, Jamie Lokier wrote:
-> [This is just a question to help my understanding, not relevant to madvise]
+Jamie Lokier <jamie.lokier@cern.ch> writes:
+> Christoph Rohland wrote:
+> > > ok, so you're asking for a lite(TM) version of DONTNEED that
+> > > provides the following hint to the kernel: "i may be finished
+> > > with this page, but i may also want to reuse it immediately."
+> > 
+> > I would say "... reuse this address space immediately and you can
+> > give me _any_ data the next time". "Any data" means probably
+> > either the old or a zero page.
 > 
-> Stephen C. Tweedie wrote:
-> > If it is the last user of the page --- ie. if PG_SwapCache is set and
-> > the refcount of the page is one --- then it will do so anyway, because
-> > when I added that swap cache code I made sure that zap_page_range()
-> > does a free_page_and_swap_cache() when freeing pages.
+> For maximum performance that's right.  But Linux normally has to
+> provide some minimal security, so an application should only see its
+> own data or zeros, not an arbitrary page.
+
+That was the reason for "...probably either the old or a zero page"
+
+> Zeroing has another advantage: you can efficiently detect it.  So
+> you can use it for cached memory objects too in a number of cases,
+> not just free memory.  (A bit from mincore would also allow
+> detection, but not nearly as efficiently).
 > 
-> I.e., zap_page_range makes sure that MADV_DONTNEED won't leave orphan
-> swap-cache pages.
-
-Not quite, but very nearly.  There are a few minor places where the 
-refcount on a page is bumped up temporarily, so zap_page_range is
-theoretically able to be confused into thinking that there are extra
-references, and that the swap cache should remain.  However, that is
-still correct behaviour, because the shrink_mmap() code will seek and
-destroy the remaining swap cache references if that happens.
-
-> > The shrink_mmap() page cache reclaimer is able to pick up any orphaned 
-> > swap cache pages.
+> > That's the optimal strategy for the memory management modules of
+> > SAP R/3.
 > 
-> But there won't be any orphans, will there?
-> Or do they appear due to async. swapping situations?
+> Excellent!  A hard core recommendation :-)
 
-Yes, but it's harmless.
+:-)
 
---Stephen
-
+Greetings
+		Christoph
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
