@@ -1,25 +1,29 @@
-Date: Wed, 15 Aug 2001 18:41:03 -0400 (EDT)
-From: Ben LaHaise <bcrl@redhat.com>
-Subject: [PATCH] mmap tail merging
-In-Reply-To: <Pine.LNX.4.33.0108151539240.28240-100000@touchme.toronto.redhat.com>
-Message-ID: <Pine.LNX.4.33.0108151837050.12167-100000@touchme.toronto.redhat.com>
+Date: Wed, 15 Aug 2001 20:04:55 -0300 (BRST)
+From: Rik van Riel <riel@conectiva.com.br>
+Subject: Re: [PATCH] mmap tail merging
+In-Reply-To: <Pine.LNX.4.33.0108151837050.12167-100000@touchme.toronto.redhat.com>
+Message-ID: <Pine.LNX.4.33L.0108152004380.5646-100000@imladris.rielhome.conectiva>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@transmeta.com>
-Cc: alan@redhat.com, linux-mm@kvack.org
+To: Ben LaHaise <bcrl@redhat.com>
+Cc: Linus Torvalds <torvalds@transmeta.com>, alan@redhat.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hello,
+On Wed, 15 Aug 2001, Ben LaHaise wrote:
 
-Here's a patch to mmap.c that performs tail merging on mmap.  In testing,
-ld tends to hit it a few times during linking, and mozilla hit it a couple
-of dozen times.  This probably comes from larger blocks of memory that
-were malloc'd and later free'd with the following memory segment still in
-use.  Alas, that doesn't solve all of the excess vma's in mozilla.
+> Here's a patch to mmap.c that performs tail merging on mmap.
 
-		-ben
+This patch sure is compact ;)
+
+Rik
+--
+IA64: a worthy successor to i860.
+
+http://www.surriel.com/		http://distro.conectiva.com/
+
+Send all your spam to aardvark@nl.linux.org (spam digging piggy)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
