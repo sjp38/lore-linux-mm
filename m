@@ -1,33 +1,69 @@
-From: Badari Pulavarty <pbadari@us.ibm.com>
-Message-Id: <200210031621.g93GLJb12018@eng2.beaverton.ibm.com>
-Subject: Re: [Lse-tech] 2.5.40-mm1 - runalltests - 95.89% pass
-Date: Thu, 3 Oct 2002 09:21:19 -0700 (PDT)
-In-Reply-To: <1033661465.14606.13.camel@plars> from "Paul Larson" at Oct 03, 2002 10:11:02 AM PST
+Received: from digeo-nav01.digeo.com (digeo-nav01.digeo.com [192.168.1.233])
+	by packet.digeo.com (8.9.3+Sun/8.9.3) with SMTP id JAA23411
+	for <linux-mm@kvack.org>; Thu, 3 Oct 2002 09:43:52 -0700 (PDT)
+Message-ID: <3D9C73C7.1E237551@digeo.com>
+Date: Thu, 03 Oct 2002 09:43:51 -0700
+From: Andrew Morton <akpm@digeo.com>
 MIME-Version: 1.0
+Subject: Re: [Lse-tech] Re: VolanoMark Benchmark results for 2.5.26, 2.5.26+
+ rmap, 2.5.35 + mm1, and 2.5.38 + mm3
+References: <Pine.LNX.4.44L.0209172219200.1857-100000@imladris.surriel.com> <3D948EA6.A6EFC26B@austin.ibm.com> <3D94A43B.49C65AE8@digeo.com> <3D9B402D.601E52B6@austin.ibm.com> <3D9B5E1D.2000301@us.ibm.com> <3D9C4D33.CCF781C1@austin.ibm.com>
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Paul Larson <plars@linuxtestproject.org>
-Cc: linux-mm <linux-mm@kvack.org>, lse-tech <lse-tech@lists.sourceforge.net>, ltp-results <ltp-results@lists.sourceforge.net>
+To: Bill Hartner <hartner@austin.ibm.com>
+Cc: Dave Hansen <haveblue@us.ibm.com>, Rik van Riel <riel@conectiva.com.br>, linux-mm@kvack.org, lse-tech@lists.sourceforge.net, mbligh@aracnet.com
 List-ID: <linux-mm.kvack.org>
 
+Bill Hartner wrote:
 > 
-> Sorry I havn't had time to look at the -mm kernels in a while, I'll try
-> to keep up with them better.
+> Dave Hansen wrote:
+> >
+> > Bill Hartner wrote:
+> > > Andrew Morton wrote:
+> > >
+> > >>Bill Hartner wrote:
+> > >>
+> > >>>...
+> > >>>2.5.35       44693  86.1 1.45        1,982,236 KB  5,393,152 KB  7,375,388 KB
+> > >>>2.5.35mm1    39679  99.6 1.50       *2,720,600 KB *6,154,512 KB *8,875,112 KB
+> > >>>
+> > >>
+> > >>2.5.35 was fairly wretched from the swapout point of view.
+> > >>Would be interesting to retest on 2.5.38-mm/2.5.39 sometime.
+> > >>
+> > >
+> > > Here are VolanoMark results for 2.5.38 and 2.5.38-mm3 for both
+> > > 3GB (memory pressure) and 4GB.  I will repeat for 2.5.40 mm1 or
+> > > what ever is the latest and greatest on Friday.
+> >
+> > Could you possibly include profiling data as well?  oprofile would be
+> > preferred, but readprofile would be fine if you can get it.  We can
+> > guess what is causing the degredation, but profiles will offer some
+> > hard proof.
 > 
-> Attached are a list of LTP failures for 2.5.40-mm1 with ltp-20020910. 
-> All are known issues such as the pread/pwrite glibc stuff and the
-> readv/writev new behaviour (the ltp release next month will address that
-> for new kernels).  The dio tests failed of course, since the fs was
-> ext3.  It's my understanding that dio isn't supported in ext3 yet but
-> please correct me if this is not true.
+> I will get 2.5.40 mm1 results and then get a profile before and after the
+> point that we start swapping.
+> 
+> I think that the ips driver may be bouncing here - so I would like to
+> resolve that 1st - could change results - possibly quite a bit.
 > 
 
-No !! DIO is supported on ext3 (in 2.5.40-mm1).
+Profiles will tell.
 
+Bill, I'd recommend that you simply *always* generate a kernel profile.
+Just make it a part of the routine.  They tell us so much.
 
-- Badari
+It's a matter of replacing
+
+	test
+
+with
+
+	readprofile -r
+	test
+	readprofile -v -m /boot/System.map | sort -n +2
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
