@@ -1,29 +1,41 @@
-Date: Thu, 7 Jun 2001 13:59:26 -0300 (BRT)
-From: Marcelo Tosatti <marcelo@conectiva.com.br>
+Message-Id: <l0313031bb7457c3ad660@[192.168.239.105]>
+In-Reply-To: 
+        <Pine.LNX.4.21.0106071357460.1156-100000@freak.distro.conectiva>
+References: <l03130318b74568171b40@[192.168.239.105]>
+Mime-Version: 1.0
+Content-Type: text/plain; charset="us-ascii"
+Date: Thu, 7 Jun 2001 19:47:26 +0100
+From: Jonathan Morton <chromi@cyberspace.org>
 Subject: Re: VM tuning patch, take 2
-In-Reply-To: <l03130318b74568171b40@[192.168.239.105]>
-Message-ID: <Pine.LNX.4.21.0106071357460.1156-100000@freak.distro.conectiva>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jonathan Morton <chromi@cyberspace.org>
+To: Marcelo Tosatti <marcelo@conectiva.com.br>
 Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+>> - new pages are still given an age of PAGE_AGE_START, which is 2.
+>> PAGE_AGE_ADV has been increased to 4, and PAGE_AGE_MAX to 128.  Pages which
+>> are demand-paged in from swap are given an initial age of PAGE_AGE_MAX/2,
+>> or 64 - this should help to keep these (expensive) pages around for as long
+>> as possible.  Ageing down is now done using a decrement instead of a
+>> division by 2, preserving the age information for longer.
+>
+>Just one comment about this specific change. I would not like to tweak the
+>PAGE_AGE_* values until we have centralized page aging. (ie only kswapd
+>doing the aging)
 
-On Thu, 7 Jun 2001, Jonathan Morton wrote:
+I forgot to mention, I also have applied the patch which causes allocations
+to wait on kswapd.  As far as I can tell, the actual numbers attached to
+the ageing matter far less than how they are applied.
 
-> - new pages are still given an age of PAGE_AGE_START, which is 2.
-> PAGE_AGE_ADV has been increased to 4, and PAGE_AGE_MAX to 128.  Pages which
-> are demand-paged in from swap are given an initial age of PAGE_AGE_MAX/2,
-> or 64 - this should help to keep these (expensive) pages around for as long
-> as possible.  Ageing down is now done using a decrement instead of a
-> division by 2, preserving the age information for longer.
+--------------------------------------------------------------
+from:     Jonathan "Chromatix" Morton
+mail:     chromi@cyberspace.org  (not for attachments)
 
-Just one comment about this specific change. I would not like to tweak the
-PAGE_AGE_* values until we have centralized page aging. (ie only kswapd
-doing the aging) 
+The key to knowledge is not to rely on people to teach you it.
+
+GCS$/E/S dpu(!) s:- a20 C+++ UL++ P L+++ E W+ N- o? K? w--- O-- M++$ V? PS
+PE- Y+ PGP++ t- 5- X- R !tv b++ DI+++ D G e+ h+ r++ y+(*)
 
 
 --
