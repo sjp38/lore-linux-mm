@@ -1,52 +1,66 @@
-Received: from hermes.rz.uni-sb.de (hermes.rz.uni-sb.de [134.96.7.3])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id QAA03378
-	for <linux-mm@kvack.org>; Mon, 1 Feb 1999 16:29:59 -0500
-Received: from sbustd.stud.uni-sb.de (V6MmrBZq1AFNnjwKd5TnZszaSKO66+mw@eris.rz.uni-sb.de [134.96.7.8])
-	by hermes.rz.uni-sb.de (8.8.8/8.8.7/8.7.7) with ESMTP id WAA13739
-	for <linux-mm@kvack.org>; Mon, 1 Feb 1999 22:29:53 +0100 (CET)
-Received: from clmsdev (acc3-75.telip.uni-sb.de [134.96.127.75])
-          by sbustd.stud.uni-sb.de (8.8.8/8.8.5) with SMTP
-	  id WAA15885 for <linux-mm@kvack.org>; Mon, 1 Feb 1999 22:29:51 +0100 (CET)
-Message-ID: <004401be4e29$fb998300$c80c17ac@clmsdev>
-From: "Manfred Spraul" <masp0008@stud.uni-sb.de>
-Subject: Ramdisk for > 1GB / >2 GB
-Date: Mon, 1 Feb 1999 22:25:54 +0100
-MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
+Received: from mail.ccr.net (ccr@alogconduit1at.ccr.net [208.130.159.20])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id QAA03528
+	for <linux-mm@kvack.org>; Mon, 1 Feb 1999 16:42:02 -0500
+Subject: Re: [patch] fixed both processes in D state and the /proc/ oopses [Re: [patch] Fixed the race that was oopsing Linux-2.2.0]
+References: <Pine.LNX.3.96.990131200828.1971E-100000@laser.bogus>
+From: ebiederm+eric@ccr.net (Eric W. Biederman)
+Date: 31 Jan 1999 15:56:57 -0600
+In-Reply-To: Andrea Arcangeli's message of "Sun, 31 Jan 1999 20:16:03 +0100 (CET)"
+Message-ID: <m1btjft8ba.fsf@flinx.ccr.net>
 Sender: owner-linux-mm@kvack.org
-To: linux-mm@kvack.org
+To: Andrea Arcangeli <andrea@e-mind.com>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-I've written a ramdisk driver that can use physical, unmapped memory. I've
-posted a beta version this morning to linux-kernel.
-Basically, it is a kernel patch that manages the memory (alloc_hugemem(),
-free_hugemem()), and a block device driver that can use this memory.
+>>>>> "AA" == Andrea Arcangeli <andrea@e-mind.com> writes:
 
-I'm new in the Linux MM, perhaps you could help me on these questions:
+AA> On 31 Jan 1999, Eric W. Biederman wrote:
+>> The check may be needed if someone is decrementing the count while you are
+>> incrementing.   To remove the need for the check would require a lock
 
-1) SMP:
-I use a spinlock for every ramdisk, and one page for each drive as a window
-to the physical memory. Since only 1 processor uses this page, I can use
-__flush_tlb_one( == INVLPG only on the local processor) without any further
-synchronization.
-Is that stable on SMP, and do you think that this parallel enough?
-Linus suggested using one 4MB pte for each processor, but I think that this
-would be to much overhead.
-Another idea would be using a hash table (eg. 32 spinlocks, 32 pages) that
-is shared by all processors.
+AA> No. When you are incrementing it you _must_ be sure that mm->count was
+AA> just >= 1 and that it will remains >=1 while you are incrementing it.
 
-2) I can't make the driver a module because I use 'pgt_offset_k()' to
-traverse the page tables, but init_mm is not exported.
-Is there any other way how I can find the pte_t that belongs to my page?
+It's possible to do without this.  Not smart terribly smart or portable, but possible.
 
-3) Is more than 2 GB memory a problem that only applies to the i386
-architecture, or is there demand for that on PowerPC, Sparc32?
+>> on the task struct.  (So a new pointer isn't written, and subsequently
 
-Regards,
-    Manfred
+AA> No you can't lock on the task struct. Other processes won't share your
+AA> lock otherwise. If other processes doesn't share your lock the lock is
+AA> useless.
 
+You must lock on the task whose mm you are incrementing, or aquire a more general lock.
+What you want to keep is the valid pointer from the tsk struct, valid
+until you release the count.
+
+>> Furthermore I am perfectly aware, the race existed in my code, and that
+
+AA> Which code? ;)
+
+The snippet for just using the atomic count, several emails ago in this
+thread.  I believe I called the sketched subroutine fetch_mm.
+
+>> it relied on fast code paths (not the best).  But since it cleared
+>> the interrupts I could if need be garantee on a given machine the code would
+>> always work.
+
+AA> You usually don't release a mm inside an irq (so __cli() can't help you to
+AA> avoid the race). And it's _only_ a SMP race issue. UP is safe because
+AA> do_exit() run outside irq handlers.
+
+But cli() will allow you to have a bounded execution time on a single CPU,
+so you can know that another cpu won't have time to deallocate the memory.
+
+AA> I hope to have understood well your email (I had some problem with my
+AA> not very good English ;). If not let me know.
+
+Go back and read through the thread slowly.  The trouble seems more
+to do with missed points then miscomprehension of english.
+
+I believe my last message was quite clear, though the ones before
+it may have been a little muddled.
+
+Eric
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm my@address'
 in the body to majordomo@kvack.org.  For more info on Linux MM,
