@@ -1,62 +1,63 @@
-From: Daniel Phillips <phillips@innominate.de>
-Subject: Re: MM/VM todo list
-Date: Fri, 5 Jan 2001 18:58:22 +0100
-Content-Type: text/plain
-References: <Pine.LNX.4.21.0101051505430.1295-100000@duckman.distro.conectiva>
-In-Reply-To: <Pine.LNX.4.21.0101051505430.1295-100000@duckman.distro.conectiva>
-MIME-Version: 1.0
-Message-Id: <01010519042301.00517@gimli>
-Content-Transfer-Encoding: 8bit
+Date: Fri, 5 Jan 2001 12:08:01 -0600
+From: Timur Tabi <ttabi@interactivesi.com>
+Subject: Oops with iounmap
+Message-Id: <20010105180534Z131193-222+74@kanga.kvack.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@conectiva.com.br>, linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org
+To: Linux Kernel Mailing list <linux-kernel@vger.kernel.org>, Linux MM mailing list <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 05 Jan 2001, Rik van Riel wrote:
-> Hi,
-> 
-> here is a TODO list for the memory management area of the
-> Linux kernel, with both trivial things that could be done
-> for later 2.4 releases and more complex things that really
-> have to be 2.5 things.
-> 
-> Most of these can be found on http://linux24.sourceforge.net/ too
-> 
-> Trivial stuff:
-> * VM: better IO clustering for swap (and filesystem) IO
->   * Marcelo's swapin/out clustering code
->   * ->writepage() IO clustering support
->   * page_launder()/->writepage() working together in avoiding
->     low-yield (small cluster) IO at first, ...
-> * VM: include Ben LaHaise's code, which moves readahead to the
->   VMA level, this way we can do streaming swap IO, complete with
->   drop_behind()
-> * VM: enforce RSS ulimit
-> 
-> 
-> Probably 2.5 era:
-> * VM: physical->virtual reverse mapping, so we can do much
->   better page aging with less CPU usage spikes 
-> * VM: move all the global VM variables, lists, etc. into the
->   pgdat struct for better NUMA scalability
-> * VM: per-node kswapd for NUMA
-> * VM: thrashing control, maybe process suspension with some
->   forced swapping ?             (trivial only in theory)
-> * VM: experiment with different active lists / aging pages
->   of different ages at different rates + other page replacement
->   improvements
-> * VM: Quality of Service / fairness / ... improvements
-> 
-> 
-> Additions to this list are always welcome, I'll put it online
-> on the Linux-MM pages (http://www.linux.eu.org/Linux-MM/) soon.
+I'm using 2.2.18pre15 on an i386, and the following code causes my system to be
+very unstable:
 
-I'd like to suggest variable sized pages as a research topic.  It's not
-clear whether we're talking 2.5 or 2.7 here.
+unsigned long phys = virt_to_phys(high_memory) - (2 * PAGE_SIZE);
+mem_map_t *mm = mem_map + MAP_NR(phys);
+unsigned long flags = mm->flags;
+
+mm->flags |= PG_reserved;
+p = ioremap_nocache(phys, PAGE_SIZE);
+mm->flags = flags;
+ASSERT(p);
+if (p) iounmap(p);
+
+
+The code is located in the init_module section of my driver.  It executes
+without any problems.  However, after the driver is loaded (it doesn't do
+anything but run this code), the system rapidly becomes unstable.  Symptoms are
+random and include:
+
+1. Inability to log in (login prompt doesn't respond after I type in a userid)
+2. Attempting to shut down always causes an oops
+3. Various kernel panics, including the "Aieee" kind.
+
+I must be forgetting to do something critical, probably because what I'm trying
+to do is not well documented but apparently supported by the kernel.  I make
+that assumption because of this code fragment in function __ioremap of
+arch/i386/mm/ioremap.c:
+
+	if (phys_addr < virt_to_phys(high_memory))
+           {
+		char *temp_addr, *temp_end;
+		int i;
+
+		temp_addr = __va(phys_addr);
+		temp_end = temp_addr + (size - 1);
+	      
+		for(i = MAP_NR(temp_addr); i < MAP_NR(temp_end); i++) {
+			if(!PageReserved(mem_map + i))
+				return NULL;
+		}
+	   }
+
+As long as every page is marked as reserved, ioremap_nocache() will map the
+page.  So what am I doing wrong?
+
 
 -- 
-Daniel
+Timur Tabi - ttabi@interactivesi.com
+Interactive Silicon - http://www.interactivesi.com
+
+When replying to a mailing-list message, please direct the reply to the mailing list only.  Don't send another copy to me.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
