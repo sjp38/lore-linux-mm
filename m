@@ -1,48 +1,47 @@
 Subject: Re: Comment on patch to remove nr_async_pages limit
-References: <Pine.LNX.4.33.0106050820540.867-100000@mikeg.weiden.de>
+References: <Pine.LNX.4.21.0106050307250.2846-100000@freak.distro.conectiva>
 Reply-To: zlatko.calusic@iskon.hr
 From: Zlatko Calusic <zlatko.calusic@iskon.hr>
-Date: 05 Jun 2001 17:57:45 +0200
-In-Reply-To: <Pine.LNX.4.33.0106050820540.867-100000@mikeg.weiden.de> (Mike Galbraith's message of "Tue, 5 Jun 2001 09:38:08 +0200 (CEST)")
-Message-ID: <873d9ezzpi.fsf@atlas.iskon.hr>
+Date: 05 Jun 2001 18:05:04 +0200
+In-Reply-To: <Pine.LNX.4.21.0106050307250.2846-100000@freak.distro.conectiva> (Marcelo Tosatti's message of "Tue, 5 Jun 2001 03:18:58 -0300 (BRT)")
+Message-ID: <87y9r6yksv.fsf@atlas.iskon.hr>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mike Galbraith <mikeg@wen-online.de>
-Cc: Marcelo Tosatti <marcelo@conectiva.com.br>, lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Marcelo Tosatti <marcelo@conectiva.com.br>
+Cc: Mike Galbraith <mikeg@wen-online.de>, lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Mike Galbraith <mikeg@wen-online.de> writes:
+Marcelo Tosatti <marcelo@conectiva.com.br> writes:
 
-> On Mon, 4 Jun 2001, Marcelo Tosatti wrote:
+[snip]
+> Exactly. And when we reach a low watermark of memory, we start writting
+> out the anonymous memory.
+>
+
+Hm, my observations are a little bit different. I find that writeouts
+happen sooner than the moment we reach low watermark, and many times
+just in time to interact badly with some read I/O workload that made a
+virtual shortage of memory in the first place. Net effect is poor
+performance and too much stuff in the swap.
+
+> > In experiments, speeding swapcache pages on their way helps.  Special
+> > handling (swapcache bean counting) also helps. (was _really ugly_ code..
+> > putting them on a seperate list would be a lot easier on the stomach:)
 > 
-> > Zlatko,
-> >
-> > I've read your patch to remove nr_async_pages limit while reading an
-> > archive on the web. (I have to figure out why lkml is not being delivered
-> > correctly to me...)
-> >
-> > Quoting your message:
-> >
-> > "That artificial limit hurts both swap out and swap in path as it
-> > introduces synchronization points (and/or weakens swapin readahead),
-> > which I think are not necessary."
-> >
-> > If we are under low memory, we cannot simply writeout a whole bunch of
-> > swap data. Remember the writeout operations will potentially allocate
-> > buffer_head's for the swapcache pages before doing real IO, which takes
-> > _more memory_: OOM deadlock.
+> I agree that the current way of limiting on-flight swapout can be changed
+> to perform better. 
 > 
-> What's the point of creating swapcache pages, and then avoiding doing
-> the IO until it becomes _dangerous_ to do so?  That's what we're doing
-> right now.  This is a problem because we guarantee it will become one.
-> We guarantee that the pagecache will become almost pure swapcache by
-> delaying the writeout so long that everything else is consumed.
+> Removing the amount of data being written to disk when we have a memory
+> shortage is not nice. 
 > 
 
-Huh, this looks just like my argument, just put in different words. I
-should have read this sooner. :)
+OK, then we basically agree that there is a place for improvement, and
+you also agree that we must be careful while trying to achieve that.
+
+I'll admit that my patch is mostly experimental, and its best effect
+is this discussion, which I enjoy very much. :)
 -- 
 Zlatko
 --
