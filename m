@@ -1,675 +1,659 @@
-Date: Mon, 13 Oct 2003 16:59:35 -0700
-From: William Lee Irwin III <wli@holomorphy.com>
-Subject: Re: [RFC] State of ru_majflt
-Message-ID: <20031013235935.GF765@holomorphy.com>
-References: <20031013165104.GA14720@k3.hellgate.ch>
+Date: Wed, 15 Oct 2003 01:36:49 -0700
+From: Andrew Morton <akpm@osdl.org>
+Subject: 2.6.0-test7-mm1
+Message-Id: <20031015013649.4aebc910.akpm@osdl.org>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20031013165104.GA14720@k3.hellgate.ch>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Oct 13, 2003 at 06:51:04PM +0200, Roger Luethi wrote:
-> The ru_majflt field of struct rusage doesn't return major page faults --
-> pages retrieved from cache are counted as well. POSIX and Linux man pages
-> don't seem to cover that particular field, but the values returned are
-> neither what BSD (where Linux got its copy of the struct from) does nor
-> what the field name suggests.
-> A proper solution would probably have filemap_nopage tell its caller the
-> correct return code. Is this considered a bug or is it a documentation
-> issue? How much do we care?
+ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.6/2.6.0-test7/2.6.0-test7-mm1
 
-Not sure. It does say "FIXME". A quick grep for "nopage" turns up
-something like this, which hijacks the currently-unused arguemnt.
-Untested (not even compiletested). vs. 2.6.0-test7-bkrecent
-
-I tried to straighten out the do_page_cache_readahead() vs. pgmajfault
-business in mm/filemap.c too. I have to wonder if hoisting the increment
-to do_no_page() would be in order. do_file_page() probably needs a
-similar treatment. filemap_nopage. If anyone calls ->nopage() explicitly
-in non-fault c it'll increment pgmajfault when it shouldn't; that would
-be automatically resolved by hoisting it into do_no_page().
+Nothing major here; mainly small fixes.
 
 
--- wli
+ linus.patch
+
+ Latest Linus BK
+
+-selectable-logbuf-size.patch
+-8139too-edimax.patch
+-futex_refs_and_lock_fix.patch
+-futex-locking-fix-fix.patch
+-node-enumeration-cleanup-01.patch
+-node-enumeration-cleanup-02.patch
+-node-enumeration-cleanup-03.patch
+-node-enumeration-cleanup-04.patch
+-node-enumeration-cleanup-05.patch
+-node-enumeration-cleanup-fix-01.patch
+-compat-ioctl-consolidation.patch
+-compat-ioctl-consolidation-job-control-update.patch
+-alsa-gameport-fix.patch
+-sizeof-in-ioctl-fix.patch
+-ax25-timer-cleanup.patch
+-calc_vm_trans-commentary.patch
+-proc-sys-auxv.patch
+-kernel-doc-fixes.patch
+-kill-CONFIG_EISA_ALWAYS.patch
+-ext3-concurrent-alloc-locking-fix.patch
+-dscc4-fixes.patch
+-cpufreq-sysfs-oops-fix.patch
+-move-job-control-fields.patch
+-move-job-control-fields-ia64-fix.patch
+-do_no_page-pte_chain_leak-fix.patch
+-20-odirect_enable.patch
+-21-odirect_cruft.patch
+-22-read_proc.patch
+-23-write_proc.patch
+-24-commit_proc.patch
+-25-odirect.patch
+-athlon-prefetch-handling.patch
+-athlon-prefetch-handling-fix.patch
+
+ Merged
+
++8139too-poll_controller.patch
+
+ 8139too kgb support.
+
+-io-refcount-debugging.patch
+
+ Dropped, too noisy.
+
++sjcd-usercopy-checks.patch
+
+ copy_*_user retval checks.
+
++might_sleep-vs-jiffies-wrap.patch
+
+ might_sleep() was broken by the jiffywrap detector.
+
++selinux-add-policyvers.patch
+
+ SELinux things.
+
++mandocs-case-fix.patch
+
+ Kernel doc generation fix
+
++pcibios_test_irq-fix.patch
+
+ Fix an "unhandled interrupt" problem.
+
++fixmap-in-proc-pid-maps.patch
+
+ Make the special ia32 fixmap area appear in /proc/pid/maps
+
++ajdtimex-vs-gettimeofday.patch
+
+ Stop gettimeofday() from going backwards due to adjtimex activity.
+
++i82365-sysfs-ordering-fix.patch
+
+ Fix an oops due to i82365 sysfs handling
+
++swapon-handle-no-readpage.patch
+
+ Don't swapon files which have no readpage a_op.
+
++pci_set_power_state-might-sleep.patch
+
+ Debug check.
+
++reiserfs-url-fixes.patch
+
+ Documentation update.
+
++numaq-mpc-warning-fix.patch
+
+ NUMAQ compile warning fix
+
++invalidate_inodes-speedup.patch
++invalidate_inodes-speedup-fixes.patch
+
+ Speed up unmount when there are lots of inodes.
+
++ide-piix-fallback-fix.patch
+
+ Fix PIIX fallback-to-PIO code
+
++ext3-i_disksize-locking-fix.patch
+
+ Missed ext3 locking.
+
++applicom-fixes.patch
+
+ Resource handling fixes
+
++compat_ioctl-cleanup.patch
+
+ Consolidate the compat code.
+
++acl-signedness-fix.patch
+
+ Don't do "if (unsigned < 0)"
+
++saa7134-build-fix.patch
+
+ Fix compile for gcc-2.9x
+
++ide-write-barrier-support.patch
+
+ IDE write barriers
+
++jbd-barrier-selection.patch
+
+ Enable the barrier code in ext3.  Use
+
+	mount -o barrier=1
+	mount -o barrier=0
+	mount -o remount,barrier=1
+	mount -o remount,barrier=0
+
++scale-min_free_kbytes.patch
+
+ Scale min_free_kbytes according to machine size.
+
++sym-2.1.18f.patch
+
+ Sym driver update.
+
++CONFIG_STANDALONE-default-to-n.patch
+
+ Make CONFIG_STANDALONE default to "n".
+
++nosysfs.patch
+
+ Add "nosysfs" boot parameter to nobble sysfs, and save some RAM.
+
+-nfs-O_DIRECT-always-enabled.patch
+
+ Dropped, it was debug.
+
++4g4g-athlon-prefetch-handling-fix.patch
+
+ Fix 4g/4g for athlon prefetch stuff.
+
++4g4g-aio-hang-fix.patch
+
+ Fix AIO for the 4g/4g split.
+
++aio-splice-runlist.patch
+
+ AIO I/O fairness tweak.
 
 
-===== Documentation/filesystems/Locking 1.45 vs edited =====
---- 1.45/Documentation/filesystems/Locking	Wed Aug 20 22:31:59 2003
-+++ edited/Documentation/filesystems/Locking	Mon Oct 13 15:13:40 2003
-@@ -420,7 +420,7 @@
- prototypes:
- 	void (*open)(struct vm_area_struct*);
- 	void (*close)(struct vm_area_struct*);
--	struct page *(*nopage)(struct vm_area_struct*, unsigned long, int);
-+	struct page *(*nopage)(struct vm_area_struct*, unsigned long, int *);
- 
- locking rules:
- 		BKL	mmap_sem
-===== arch/i386/mm/hugetlbpage.c 1.38 vs edited =====
---- 1.38/arch/i386/mm/hugetlbpage.c	Tue Sep 23 23:15:29 2003
-+++ edited/arch/i386/mm/hugetlbpage.c	Mon Oct 13 15:14:10 2003
-@@ -529,7 +529,7 @@
-  * this far.
-  */
- static struct page *hugetlb_nopage(struct vm_area_struct *vma,
--				unsigned long address, int unused)
-+				unsigned long address, int *unused)
- {
- 	BUG();
- 	return NULL;
-===== arch/ia64/ia32/binfmt_elf32.c 1.15 vs edited =====
---- 1.15/arch/ia64/ia32/binfmt_elf32.c	Mon Jul 21 07:39:59 2003
-+++ edited/arch/ia64/ia32/binfmt_elf32.c	Mon Oct 13 15:15:42 2003
-@@ -60,11 +60,13 @@
- extern unsigned long *ia32_gdt;
- 
- struct page *
--ia32_install_shared_page (struct vm_area_struct *vma, unsigned long address, int no_share)
-+ia32_install_shared_page (struct vm_area_struct *vma, unsigned long address, int *type)
- {
- 	struct page *pg = ia32_shared_page[(address - vma->vm_start)/PAGE_SIZE];
- 
- 	get_page(pg);
-+	if (type)
-+		*type = VM_FAULT_MINOR;
- 	return pg;
- }
- 
-===== arch/ia64/mm/hugetlbpage.c 1.15 vs edited =====
---- 1.15/arch/ia64/mm/hugetlbpage.c	Thu Oct  9 16:09:37 2003
-+++ edited/arch/ia64/mm/hugetlbpage.c	Mon Oct 13 15:15:53 2003
-@@ -518,7 +518,7 @@
- 	return 1;
- }
- 
--static struct page *hugetlb_nopage(struct vm_area_struct * area, unsigned long address, int unused)
-+static struct page *hugetlb_nopage(struct vm_area_struct * area, unsigned long address, int *unused)
- {
- 	BUG();
- 	return NULL;
-===== arch/ppc64/mm/hugetlbpage.c 1.2 vs edited =====
---- 1.2/arch/ppc64/mm/hugetlbpage.c	Sat Sep  6 18:40:37 2003
-+++ edited/arch/ppc64/mm/hugetlbpage.c	Mon Oct 13 16:16:04 2003
-@@ -914,7 +914,7 @@
-  * this far.
-  */
- static struct page *hugetlb_nopage(struct vm_area_struct *vma,
--				unsigned long address, int unused)
-+				unsigned long address, int *unused)
- {
- 	BUG();
- 	return NULL;
-===== arch/sparc64/mm/hugetlbpage.c 1.8 vs edited =====
---- 1.8/arch/sparc64/mm/hugetlbpage.c	Tue Aug 26 09:41:27 2003
-+++ edited/arch/sparc64/mm/hugetlbpage.c	Mon Oct 13 15:16:38 2003
-@@ -433,7 +433,7 @@
- }
- 
- static struct page *
--hugetlb_nopage(struct vm_area_struct *vma, unsigned long address, int unused)
-+hugetlb_nopage(struct vm_area_struct *vma, unsigned long address, int *unused)
- {
- 	BUG();
- 	return NULL;
-===== drivers/char/agp/alpha-agp.c 1.9 vs edited =====
---- 1.9/drivers/char/agp/alpha-agp.c	Mon Sep 15 17:03:51 2003
-+++ edited/drivers/char/agp/alpha-agp.c	Mon Oct 13 15:17:14 2003
-@@ -13,7 +13,7 @@
- 
- static struct page *alpha_core_agp_vm_nopage(struct vm_area_struct *vma,
- 					     unsigned long address,
--					     int write_access)
-+					     int *type)
- {
- 	alpha_agp_info *agp = agp_bridge->dev_private_data;
- 	dma_addr_t dma_addr;
-@@ -30,6 +30,8 @@
- 	 */
- 	page = virt_to_page(__va(pa));
- 	get_page(page);
-+	if (type)
-+		*type = VM_FAULT_MINOR;
- 	return page;
- }
- 
-===== drivers/char/drm/drmP.h 1.29 vs edited =====
---- 1.29/drivers/char/drm/drmP.h	Thu Sep 25 08:56:58 2003
-+++ edited/drivers/char/drm/drmP.h	Mon Oct 13 15:17:38 2003
-@@ -760,16 +760,16 @@
- 				/* Mapping support (drm_vm.h) */
- extern struct page *DRM(vm_nopage)(struct vm_area_struct *vma,
- 				   unsigned long address,
--				   int write_access);
-+				   int *type);
- extern struct page *DRM(vm_shm_nopage)(struct vm_area_struct *vma,
- 				       unsigned long address,
--				       int write_access);
-+				       int *type);
- extern struct page *DRM(vm_dma_nopage)(struct vm_area_struct *vma,
- 				       unsigned long address,
--				       int write_access);
-+				       int *type);
- extern struct page *DRM(vm_sg_nopage)(struct vm_area_struct *vma,
- 				      unsigned long address,
--				      int write_access);
-+				      int *type);
- extern void	     DRM(vm_open)(struct vm_area_struct *vma);
- extern void	     DRM(vm_close)(struct vm_area_struct *vma);
- extern void	     DRM(vm_shm_close)(struct vm_area_struct *vma);
-===== drivers/char/drm/drm_vm.h 1.25 vs edited =====
---- 1.25/drivers/char/drm/drm_vm.h	Thu Jul 10 23:18:01 2003
-+++ edited/drivers/char/drm/drm_vm.h	Mon Oct 13 16:48:08 2003
-@@ -76,7 +76,7 @@
-  */
- struct page *DRM(vm_nopage)(struct vm_area_struct *vma,
- 			    unsigned long address,
--			    int write_access)
-+			    int *type)
- {
- #if __REALLY_HAVE_AGP
- 	drm_file_t *priv  = vma->vm_file->private_data;
-@@ -133,6 +133,8 @@
- 			  baddr, __va(agpmem->memory->memory[offset]), offset,
- 			  atomic_read(&page->count));
- 
-+		if (type)
-+			*type = VM_FAULT_MINOR;
- 		return page;
-         }
- vm_nopage_error:
-@@ -154,7 +156,7 @@
-  */
- struct page *DRM(vm_shm_nopage)(struct vm_area_struct *vma,
- 				unsigned long address,
--				int write_access)
-+				int *type)
- {
- 	drm_map_t	 *map	 = (drm_map_t *)vma->vm_private_data;
- 	unsigned long	 offset;
-@@ -170,6 +172,8 @@
- 	if (!page)
- 		return NOPAGE_OOM;
- 	get_page(page);
-+	if (type)
-+		*type = VM_FAULT_MINOR;
- 
- 	DRM_DEBUG("shm_nopage 0x%lx\n", address);
- 	return page;
-@@ -268,7 +272,7 @@
-  */
- struct page *DRM(vm_dma_nopage)(struct vm_area_struct *vma,
- 				unsigned long address,
--				int write_access)
-+				int *type)
- {
- 	drm_file_t	 *priv	 = vma->vm_file->private_data;
- 	drm_device_t	 *dev	 = priv->dev;
-@@ -287,6 +291,8 @@
- 			     (offset & (~PAGE_MASK))));
- 
- 	get_page(page);
-+	if (type)
-+		*type = VM_FAULT_MINOR;
- 
- 	DRM_DEBUG("dma_nopage 0x%lx (page %lu)\n", address, page_nr);
- 	return page;
-@@ -304,7 +310,7 @@
-  */
- struct page *DRM(vm_sg_nopage)(struct vm_area_struct *vma,
- 			       unsigned long address,
--			       int write_access)
-+			       int *type)
- {
- 	drm_map_t        *map    = (drm_map_t *)vma->vm_private_data;
- 	drm_file_t *priv = vma->vm_file->private_data;
-@@ -325,6 +331,8 @@
- 	page_offset = (offset >> PAGE_SHIFT) + (map_offset >> PAGE_SHIFT);
- 	page = entry->pagelist[page_offset];
- 	get_page(page);
-+	if (type)
-+		*type = VM_FAULT_MINOR;
- 
- 	return page;
- }
-===== drivers/ieee1394/dma.c 1.5 vs edited =====
---- 1.5/drivers/ieee1394/dma.c	Thu Jul 24 17:00:00 2003
-+++ edited/drivers/ieee1394/dma.c	Mon Oct 13 15:19:12 2003
-@@ -187,7 +187,7 @@
- /* nopage() handler for mmap access */
- 
- static struct page*
--dma_region_pagefault(struct vm_area_struct *area, unsigned long address, int write_access)
-+dma_region_pagefault(struct vm_area_struct *area, unsigned long address, int *type)
- {
- 	unsigned long offset;
- 	unsigned long kernel_virt_addr;
-@@ -202,6 +202,8 @@
- 	    (address > (unsigned long) area->vm_start + (PAGE_SIZE * dma->n_pages)) )
- 		goto out;
- 
-+	if (type)
-+		*type = VM_FAULT_MINOR;
- 	offset = address - area->vm_start;
- 	kernel_virt_addr = (unsigned long) dma->kvirt + offset;
- 	ret = vmalloc_to_page((void*) kernel_virt_addr);
-===== drivers/media/video/video-buf.c 1.11 vs edited =====
---- 1.11/drivers/media/video/video-buf.c	Mon Oct  6 08:48:02 2003
-+++ edited/drivers/media/video/video-buf.c	Mon Oct 13 15:19:52 2003
-@@ -1076,7 +1076,7 @@
-  */
- static struct page*
- videobuf_vm_nopage(struct vm_area_struct *vma, unsigned long vaddr,
--		  int write_access)
-+		  int *type)
- {
- 	struct page *page;
- 
-@@ -1088,6 +1088,8 @@
- 	if (!page)
- 		return NOPAGE_OOM;
- 	clear_user_page(page_address(page), vaddr, page);
-+	if (type)
-+		*type = VM_FAULT_MINOR;
- 	return page;
- }
- 
-===== drivers/scsi/sg.c 1.69 vs edited =====
---- 1.69/drivers/scsi/sg.c	Sat Sep 20 02:35:07 2003
-+++ edited/drivers/scsi/sg.c	Mon Oct 13 15:21:16 2003
-@@ -1115,7 +1115,7 @@
- }
- 
- static struct page *
--sg_vma_nopage(struct vm_area_struct *vma, unsigned long addr, int unused)
-+sg_vma_nopage(struct vm_area_struct *vma, unsigned long addr, int *type)
- {
- 	Sg_fd *sfp;
- 	struct page *page = NOPAGE_SIGBUS;
-@@ -1155,6 +1155,8 @@
- 		page = virt_to_page(page_ptr);
- 		get_page(page);	/* increment page count */
- 	}
-+	if (type)
-+		*type = VM_FAULT_MINOR;
- 	return page;
- }
- 
-===== fs/ncpfs/mmap.c 1.7 vs edited =====
---- 1.7/fs/ncpfs/mmap.c	Sat Aug 10 20:07:55 2002
-+++ edited/fs/ncpfs/mmap.c	Mon Oct 13 16:23:56 2003
-@@ -26,7 +26,7 @@
-  * Fill in the supplied page for mmap
-  */
- static struct page* ncp_file_mmap_nopage(struct vm_area_struct *area,
--				     unsigned long address, int write_access)
-+				     unsigned long address, int *type)
- {
- 	struct file *file = area->vm_file;
- 	struct dentry *dentry = file->f_dentry;
-@@ -85,6 +85,15 @@
- 		memset(pg_addr + already_read, 0, PAGE_SIZE - already_read);
- 	flush_dcache_page(page);
- 	kunmap(page);
-+
-+	/*
-+	 * If I understand ncp_read_kernel() properly, the above always
-+	 * fetches from the network, here the analogue of disk.
-+	 * -- wli
-+	 */
-+	if (type)
-+		*type = VM_FAULT_MAJOR;
-+	inc_page_state(pgmajfault);
- 	return page;
- }
- 
-===== include/linux/mm.h 1.133 vs edited =====
---- 1.133/include/linux/mm.h	Sun Oct  5 01:07:49 2003
-+++ edited/include/linux/mm.h	Mon Oct 13 16:31:00 2003
-@@ -143,7 +143,7 @@
- struct vm_operations_struct {
- 	void (*open)(struct vm_area_struct * area);
- 	void (*close)(struct vm_area_struct * area);
--	struct page * (*nopage)(struct vm_area_struct * area, unsigned long address, int unused);
-+	struct page * (*nopage)(struct vm_area_struct * area, unsigned long address, int *type);
- 	int (*populate)(struct vm_area_struct * area, unsigned long address, unsigned long len, pgprot_t prot, unsigned long pgoff, int nonblock);
- };
- 
-@@ -405,7 +405,7 @@
- extern void show_free_areas(void);
- 
- struct page *shmem_nopage(struct vm_area_struct * vma,
--			unsigned long address, int unused);
-+			unsigned long address, int *type);
- struct file *shmem_file_setup(char * name, loff_t size, unsigned long flags);
- void shmem_lock(struct file * file, int lock);
- int shmem_zero_setup(struct vm_area_struct *);
-@@ -563,7 +563,7 @@
- extern void truncate_inode_pages(struct address_space *, loff_t);
- 
- /* generic vm_area_ops exported for stackable file systems */
--extern struct page *filemap_nopage(struct vm_area_struct *, unsigned long, int);
-+struct page *filemap_nopage(struct vm_area_struct *, unsigned long, int *);
- 
- /* mm/page-writeback.c */
- int write_one_page(struct page *page, int wait);
-===== kernel/sys.c 1.66 vs edited =====
---- 1.66/kernel/sys.c	Thu Oct  9 15:13:54 2003
-+++ edited/kernel/sys.c	Mon Oct 13 16:02:41 2003
-@@ -1325,8 +1325,6 @@
-  * either stopped or zombied.  In the zombied case the task won't get
-  * reaped till shortly after the call to getrusage(), in both cases the
-  * task being examined is in a frozen state so the counters won't change.
-- *
-- * FIXME! Get the fault counts properly!
-  */
- int getrusage(struct task_struct *p, int who, struct rusage __user *ru)
- {
-===== mm/filemap.c 1.210 vs edited =====
---- 1.210/mm/filemap.c	Tue Oct  7 19:53:43 2003
-+++ edited/mm/filemap.c	Mon Oct 13 16:25:46 2003
-@@ -984,7 +984,7 @@
-  * it in the page cache, and handles the special cases reasonably without
-  * having a lot of duplicated code.
-  */
--struct page * filemap_nopage(struct vm_area_struct * area, unsigned long address, int unused)
-+struct page * filemap_nopage(struct vm_area_struct * area, unsigned long address, int *type)
- {
- 	int error;
- 	struct file *file = area->vm_file;
-@@ -993,7 +993,7 @@
- 	struct inode *inode = mapping->host;
- 	struct page *page;
- 	unsigned long size, pgoff, endoff;
--	int did_readaround = 0;
-+	int did_readaround = 0, majmin = VM_FAULT_MINOR;
- 
- 	pgoff = ((address - area->vm_start) >> PAGE_CACHE_SHIFT) + area->vm_pgoff;
- 	endoff = ((area->vm_end - area->vm_start) >> PAGE_CACHE_SHIFT) + area->vm_pgoff;
-@@ -1042,6 +1042,14 @@
- 		if (ra->mmap_miss > ra->mmap_hit + MMAP_LOTSAMISS)
- 			goto no_cached_page;
- 
-+		/*
-+		 * To keep the pgmajfault counter straight, we need to
-+		 * check did_readaround, as this is an inner loop.
-+		 */
-+		if (!did_readaround) {
-+			majmin = VM_FAULT_MAJOR;
-+			inc_page_state(pgmajfault);
-+		}
- 		did_readaround = 1;
- 		do_page_cache_readahead(mapping, file,
- 				pgoff & ~(MMAP_READAROUND-1), MMAP_READAROUND);
-@@ -1063,6 +1071,8 @@
- 	 * Found the page and have a reference on it.
- 	 */
- 	mark_page_accessed(page);
-+	if (type)
-+		*type = majmin;
- 	return page;
- 
- outside_data_content:
-@@ -1098,7 +1108,10 @@
- 	return NULL;
- 
- page_not_uptodate:
--	inc_page_state(pgmajfault);
-+	if (!did_readaround) {
-+		majmin = VM_FAULT_MAJOR;
-+		inc_page_state(pgmajfault);
-+	}
- 	lock_page(page);
- 
- 	/* Did it get unhashed while we waited for it? */
-===== mm/memory.c 1.139 vs edited =====
---- 1.139/mm/memory.c	Wed Oct  8 08:59:27 2003
-+++ edited/mm/memory.c	Mon Oct 13 15:44:10 2003
-@@ -1416,7 +1416,7 @@
- 	}
- 	smp_rmb();  /* Prevent CPU from reordering lock-free ->nopage() */
- retry:
--	new_page = vma->vm_ops->nopage(vma, address & PAGE_MASK, 0);
-+	new_page = vma->vm_ops->nopage(vma, address & PAGE_MASK, &ret);
- 
- 	/* no page was available -- either SIGBUS or OOM */
- 	if (new_page == NOPAGE_SIGBUS)
-@@ -1485,14 +1485,12 @@
- 		pte_unmap(page_table);
- 		page_cache_release(new_page);
- 		spin_unlock(&mm->page_table_lock);
--		ret = VM_FAULT_MINOR;
- 		goto out;
- 	}
- 
- 	/* no need to invalidate: a not-present page shouldn't be cached */
- 	update_mmu_cache(vma, address, entry);
- 	spin_unlock(&mm->page_table_lock);
--	ret = VM_FAULT_MAJOR;
- 	goto out;
- oom:
- 	ret = VM_FAULT_OOM;
-===== mm/shmem.c 1.135 vs edited =====
---- 1.135/mm/shmem.c	Tue Sep  9 23:41:41 2003
-+++ edited/mm/shmem.c	Mon Oct 13 16:30:00 2003
-@@ -67,7 +67,7 @@
- };
- 
- static int shmem_getpage(struct inode *inode, unsigned long idx,
--			 struct page **pagep, enum sgp_type sgp);
-+			 struct page **pagep, enum sgp_type sgp, int *type);
- 
- static inline struct page *shmem_dir_alloc(unsigned int gfp_mask)
- {
-@@ -522,7 +522,7 @@
- 			if (attr->ia_size & (PAGE_CACHE_SIZE-1)) {
- 				(void) shmem_getpage(inode,
- 					attr->ia_size>>PAGE_CACHE_SHIFT,
--						&page, SGP_READ);
-+						&page, SGP_READ, NULL);
- 			}
- 		}
- 	}
-@@ -734,7 +734,7 @@
-  * vm. If we swap it in we mark it dirty since we also free the swap
-  * entry since a page cannot live in both the swap and page cache
-  */
--static int shmem_getpage(struct inode *inode, unsigned long idx, struct page **pagep, enum sgp_type sgp)
-+static int shmem_getpage(struct inode *inode, unsigned long idx, struct page **pagep, enum sgp_type sgp, int *type)
- {
- 	struct address_space *mapping = inode->i_mapping;
- 	struct shmem_inode_info *info = SHMEM_I(inode);
-@@ -743,7 +743,7 @@
- 	struct page *swappage;
- 	swp_entry_t *entry;
- 	swp_entry_t swap;
--	int error;
-+	int error, majmin = VM_FAULT_MINOR;
- 
- 	if (idx >= SHMEM_MAX_INDEX)
- 		return -EFBIG;
-@@ -780,6 +780,10 @@
- 		if (!swappage) {
- 			shmem_swp_unmap(entry);
- 			spin_unlock(&info->lock);
-+			/* here we actually do the io */
-+			if (majmin == VM_FAULT_MINOR && type)
-+				inc_page_state(pgmajfault);
-+			majmin = VM_FAULT_MAJOR;
- 			swapin_readahead(swap);
- 			swappage = read_swap_cache_async(swap);
- 			if (!swappage) {
-@@ -926,6 +930,8 @@
- 		} else
- 			*pagep = ZERO_PAGE(0);
- 	}
-+	if (type)
-+		*type = majmin;
- 	return 0;
- 
- failed:
-@@ -936,7 +942,7 @@
- 	return error;
- }
- 
--struct page *shmem_nopage(struct vm_area_struct *vma, unsigned long address, int unused)
-+struct page *shmem_nopage(struct vm_area_struct *vma, unsigned long address, int *type)
- {
- 	struct inode *inode = vma->vm_file->f_dentry->d_inode;
- 	struct page *page = NULL;
-@@ -947,7 +953,7 @@
- 	idx += vma->vm_pgoff;
- 	idx >>= PAGE_CACHE_SHIFT - PAGE_SHIFT;
- 
--	error = shmem_getpage(inode, idx, &page, SGP_CACHE);
-+	error = shmem_getpage(inode, idx, &page, SGP_CACHE, type);
- 	if (error)
- 		return (error == -ENOMEM)? NOPAGE_OOM: NOPAGE_SIGBUS;
- 
-@@ -974,7 +980,7 @@
- 		/*
- 		 * Will need changing if PAGE_CACHE_SIZE != PAGE_SIZE
- 		 */
--		err = shmem_getpage(inode, pgoff, &page, sgp);
-+		err = shmem_getpage(inode, pgoff, &page, sgp, NULL);
- 		if (err)
- 			return err;
- 		if (page) {
-@@ -1124,7 +1130,7 @@
- shmem_prepare_write(struct file *file, struct page *page, unsigned offset, unsigned to)
- {
- 	struct inode *inode = page->mapping->host;
--	return shmem_getpage(inode, page->index, &page, SGP_WRITE);
-+	return shmem_getpage(inode, page->index, &page, SGP_WRITE, NULL);
- }
- 
- static ssize_t
-@@ -1181,7 +1187,7 @@
- 		 * But it still may be a good idea to prefault below.
- 		 */
- 
--		err = shmem_getpage(inode, index, &page, SGP_WRITE);
-+		err = shmem_getpage(inode, index, &page, SGP_WRITE, NULL);
- 		if (err)
- 			break;
- 
-@@ -1264,7 +1270,7 @@
- 				break;
- 		}
- 
--		desc->error = shmem_getpage(inode, index, &page, SGP_READ);
-+		desc->error = shmem_getpage(inode, index, &page, SGP_READ, NULL);
- 		if (desc->error) {
- 			if (desc->error == -EINVAL)
- 				desc->error = 0;
-@@ -1515,7 +1521,7 @@
- 			iput(inode);
- 			return -ENOMEM;
- 		}
--		error = shmem_getpage(inode, 0, &page, SGP_WRITE);
-+		error = shmem_getpage(inode, 0, &page, SGP_WRITE, NULL);
- 		if (error) {
- 			vm_unacct_memory(VM_ACCT(1));
- 			iput(inode);
-@@ -1551,7 +1557,7 @@
- static int shmem_readlink(struct dentry *dentry, char __user *buffer, int buflen)
- {
- 	struct page *page = NULL;
--	int res = shmem_getpage(dentry->d_inode, 0, &page, SGP_READ);
-+	int res = shmem_getpage(dentry->d_inode, 0, &page, SGP_READ, NULL);
- 	if (res)
- 		return res;
- 	res = vfs_readlink(dentry, buffer, buflen, kmap(page));
-@@ -1564,7 +1570,7 @@
- static int shmem_follow_link(struct dentry *dentry, struct nameidata *nd)
- {
- 	struct page *page = NULL;
--	int res = shmem_getpage(dentry->d_inode, 0, &page, SGP_READ);
-+	int res = shmem_getpage(dentry->d_inode, 0, &page, SGP_READ, NULL);
- 	if (res)
- 		return res;
- 	res = vfs_follow_link(nd, kmap(page));
-===== sound/core/pcm_native.c 1.41 vs edited =====
---- 1.41/sound/core/pcm_native.c	Mon Sep 29 19:28:26 2003
-+++ edited/sound/core/pcm_native.c	Mon Oct 13 15:44:41 2003
-@@ -2779,7 +2779,7 @@
- 	return mask;
- }
- 
--static struct page * snd_pcm_mmap_status_nopage(struct vm_area_struct *area, unsigned long address, int no_share)
-+static struct page * snd_pcm_mmap_status_nopage(struct vm_area_struct *area, unsigned long address, int *type)
- {
- 	snd_pcm_substream_t *substream = (snd_pcm_substream_t *)area->vm_private_data;
- 	snd_pcm_runtime_t *runtime;
-@@ -2791,6 +2791,8 @@
- 	page = virt_to_page(runtime->status);
- 	if (!PageReserved(page))
- 		get_page(page);
-+	if (type)
-+		*type = VM_FAULT_MINOR;
- 	return page;
- }
- 
-===== sound/oss/via82cxxx_audio.c 1.34 vs edited =====
---- 1.34/sound/oss/via82cxxx_audio.c	Sun Oct  5 01:07:55 2003
-+++ edited/sound/oss/via82cxxx_audio.c	Mon Oct 13 15:53:34 2003
-@@ -2116,7 +2116,7 @@
- 
- 
- static struct page * via_mm_nopage (struct vm_area_struct * vma,
--				    unsigned long address, int write_access)
-+				    unsigned long address, int *type)
- {
- 	struct via_info *card = vma->vm_private_data;
- 	struct via_channel *chan = &card->ch_out;
-@@ -2124,12 +2124,11 @@
- 	unsigned long pgoff;
- 	int rd, wr;
- 
--	DPRINTK ("ENTER, start %lXh, ofs %lXh, pgoff %ld, addr %lXh, wr %d\n",
-+	DPRINTK ("ENTER, start %lXh, ofs %lXh, pgoff %ld, addr %lXh\n",
- 		 vma->vm_start,
- 		 address - vma->vm_start,
- 		 (address - vma->vm_start) >> PAGE_SHIFT,
--		 address,
--		 write_access);
-+		 address);
- 
-         if (address > vma->vm_end) {
- 		DPRINTK ("EXIT, returning NOPAGE_SIGBUS\n");
-@@ -2167,6 +2166,8 @@
- 	DPRINTK ("EXIT, returning page %p for cpuaddr %lXh\n",
- 		 dmapage, (unsigned long) chan->pgtbl[pgoff].cpuaddr);
- 	get_page (dmapage);
-+	if (type)
-+		*type = VM_FAULT_MINOR;
- 	return dmapage;
- }
- 
-===== sound/oss/emu10k1/audio.c 1.19 vs edited =====
---- 1.19/sound/oss/emu10k1/audio.c	Tue Aug 26 09:25:41 2003
-+++ edited/sound/oss/emu10k1/audio.c	Mon Oct 13 15:52:23 2003
-@@ -989,7 +989,7 @@
- 	return 0;
- }
- 
--static struct page *emu10k1_mm_nopage (struct vm_area_struct * vma, unsigned long address, int write_access)
-+static struct page *emu10k1_mm_nopage (struct vm_area_struct * vma, unsigned long address, int *type)
- {
- 	struct emu10k1_wavedevice *wave_dev = vma->vm_private_data;
- 	struct woinst *woinst = wave_dev->woinst;
-@@ -1032,6 +1032,8 @@
- 	get_page (dmapage);
- 
- 	DPD(3, "page: %#lx\n", (unsigned long) dmapage);
-+	if (type)
-+		*type = VM_FAULT_MINOR;
- 	return dmapage;
- }
- 
+
+
+
+
+All 150 patches
+
+
+linus.patch
+
+mm.patch
+  add -mmN to EXTRAVERSION
+
+kgdb-ga.patch
+  kgdb stub for ia32 (George Anzinger's one)
+  kgdbL warning fix
+
+kgdb-buff-too-big.patch
+  kgdb buffer overflow fix
+
+kgdb-warning-fix.patch
+  kgdbL warning fix
+
+kgdb-build-fix.patch
+
+kgdb-spinlock-fix.patch
+
+kgdb-fix-debug-info.patch
+  kgdb: CONFIG_DEBUG_INFO fix
+
+kgdb-cpumask_t.patch
+
+kgdb-x86_64-fixes.patch
+  x86_64 fixes
+
+kgdb-over-ethernet.patch
+  kgdb-over-ethernet patch
+
+kgdb-over-ethernet-fixes.patch
+  kgdb-over-ethernet fixlets
+
+kgdb-CONFIG_NET_POLL_CONTROLLER.patch
+  kgdb: replace CONFIG_KGDB with CONFIG_NET_RX_POLL in net drivers
+
+kgdb-handle-stopped-NICs.patch
+  kgdb: handle netif_stopped NICs
+
+eepro100-poll-controller.patch
+
+tlan-poll_controller.patch
+
+tulip-poll_controller.patch
+
+tg3-poll_controller.patch
+  kgdb: tg3 poll_controller
+
+8139too-poll_controller.patch
+  8139too poll controller
+
+kgdb-eth-smp-fix.patch
+  kgdb-over-ethernet: fix SMP
+
+kgdb-eth-reattach.patch
+
+kgdb-skb_reserve-fix.patch
+  kgdb-over-ethernet: skb_reserve() fix
+
+must-fix.patch
+
+should-fix.patch
+
+RD0-initrd-B6.patch
+
+RD1-cdrom_ioctl-B6.patch
+
+RD2-ioctl-B6.patch
+
+RD2-ioctl-B6-fix.patch
+  RD2-ioctl-B6 fixes
+
+RD3-cdrom_open-B6.patch
+
+RD4-open-B6.patch
+
+RD5-cdrom_release-B6.patch
+
+RD6-release-B6.patch
+
+RD7-presto_journal_close-B6.patch
+
+RD8-f_mapping-B6.patch
+
+RD9-f_mapping2-B6.patch
+
+RD10-i_sem-B6.patch
+
+RD11-f_mapping3-B6.patch
+
+RD12-generic_osync_inode-B6.patch
+
+RD13-bd_acquire-B6.patch
+
+RD14-generic_write_checks-B6.patch
+
+RD15-I_BDEV-B6.patch
+
+RD16-rest-B6.patch
+
+serio-01-renaming.patch
+  serio: rename serio_[un]register_slave_port to __serio_[un]register_port
+
+serio-02-race-fix.patch
+  serio: possible race between port removal and kseriod
+
+serio-03-blacklist.patch
+  Add black list to handler<->device matching
+
+serio-04-synaptics-cleanup.patch
+  Synaptics: code cleanup
+
+serio-05-reconnect-facility.patch
+  serio: reconnect facility
+
+serio-06-synaptics-use-reconnect.patch
+  Synaptics: use serio_reconnect
+
+acpi_off-fix.patch
+  fix acpi=off
+
+cfq-4.patch
+  CFQ io scheduler
+  CFQ fixes
+
+config_spinline.patch
+  uninline spinlocks for profiling accuracy.
+
+ppc64-bar-0-fix.patch
+  Allow PCI BARs that start at 0
+
+ppc64-reloc_hide.patch
+
+ppc64-semaphore-reimplementation.patch
+  ppc64: use the ia32 semaphore implementation
+
+ppc64-sym2-fix.patch
+  ppc64 sym2 fix
+
+sym-do-160.patch
+  make the SYM driver do 160 MB/sec
+
+input-use-after-free-checks.patch
+  input layer debug checks
+
+fbdev.patch
+  framebbuffer driver update
+
+cursor-flashing-fix.patch
+  fbdev: fix cursor letovers
+
+radeonfb-line_length-fix.patch
+  Radeon framebuffer line length fix
+
+aic7xxx-parallel-build-fix.patch
+  fix parallel builds for aic7xxx
+
+ramdisk-cleanup.patch
+
+intel8x0-cleanup.patch
+  intel8x0 cleanups
+
+uml-update.patch
+  Update UML to 2.6.0-test5
+
+pdflush-diag.patch
+
+kobject-oops-fixes.patch
+  fix oopses is kobject parent is removed before child
+
+futex-uninlinings.patch
+  futex uninlining
+
+zap_page_range-debug.patch
+  zap_page_range() debug
+
+acpi-thinkpad-fix.patch
+  APCI fix for thinkpads
+
+scsi-handle-zero-length-requests.patch
+  scsi: handle zero-length requests
+
+call_usermodehelper-retval-fix-3.patch
+  Make call_usermodehelper report exit status
+
+asus-L5-fix.patch
+  Asus L5 framebuffer fix
+
+jffs-use-daemonize.patch
+
+tulip-NAPI-support.patch
+  tulip NAPI support
+
+tulip-napi-disable.patch
+  tulip NAPI: disable poll in close
+
+get_user_pages-handle-VM_IO.patch
+
+ia32-MSI-support.patch
+  Updated ia32 MSI Patches
+
+ia32-MSI-support-tweaks.patch
+
+ia32-efi-support.patch
+  EFI support for ia32
+
+CONFIG_ACPI_EFI-defaults-off.patch
+
+ia32-efi-support-warning-fixes.patch
+
+ia32-efi-support-tidy.patch
+
+ia32-efi-other-arch-fix.patch
+  fix EFI for ppc64, ia64
+
+support-zillions-of-scsi-disks.patch
+  support many SCSI disks
+
+dynamic-irq_vector-allocation.patch
+  dynamic irq_vector allocation for ia32
+
+SGI-IOC4-IDE-chipset-support.patch
+  Add support for SGI's IOC4 chipset
+
+vma-split-truncate-race-fix.patch
+  fix split_vma vs. invalidate_mmap_range_list race
+
+vma-split-truncate-race-fix-tweaks.patch
+
+sparc32-sched_clock.patch
+
+unmap_vmas-warning-fix.patch
+  Fix unmap_vmas() compile warning
+
+sjcd-usercopy-checks.patch
+  Add missing sjcd uaccess checks
+
+might_sleep-vs-jiffies-wrap.patch
+  Fix early __might_sleep() calls
+
+selinux-add-policyvers.patch
+  SELINUX: add policyvers to selinuxfs
+
+mandocs-case-fix.patch
+  Correct case sensitivity in make mandocs
+
+pcibios_test_irq-fix.patch
+  Fix pcibios test IRQ handler return
+
+fixmap-in-proc-pid-maps.patch
+  report user-readable fixmap area in /proc/PID/maps
+
+ajdtimex-vs-gettimeofday.patch
+  Time precision, adjtime(x) vs. gettimeofday
+
+i82365-sysfs-ordering-fix.patch
+  Fix init_i82365 sysfs ordering oops
+
+swapon-handle-no-readpage.patch
+  Don't swap to files which do not implement readpage
+
+pci_set_power_state-might-sleep.patch
+
+reiserfs-url-fixes.patch
+  reiserfs documentation URL fixes
+
+numaq-mpc-warning-fix.patch
+  silence smp_read_mpc_oem() declared static but never defined warning
+
+invalidate_inodes-speedup.patch
+  invalidate_inodes speedup
+
+invalidate_inodes-speedup-fixes.patch
+
+ide-piix-fallback-fix.patch
+  IDE: PIIX DMA fallback fix
+
+ext3-i_disksize-locking-fix.patch
+  ext3: i_disksize locking fix
+
+applicom-fixes.patch
+  applicom: fix LEAK, unwind on errors;
+
+compat_ioctl-cleanup.patch
+  cleanup of compat_ioctl functions
+
+acl-signedness-fix.patch
+  ext2/ext3 acl signeness fixes
+
+saa7134-build-fix.patch
+  saa7134-core.c compile fix for old gcc
+
+ide-write-barrier-support.patch
+  ide write barrier support
+
+jbd-barrier-selection.patch
+
+scale-min_free_kbytes.patch
+  scale the initial value of min_free_kbytes
+
+sym-2.1.18f.patch
+
+CONFIG_STANDALONE-default-to-n.patch
+  Make CONFIG_STANDALONE default to N
+
+nosysfs.patch
+
+keyboard-repeat-rate-setting-fix.patch
+  keyboard repeat rate setting fix
+
+list_del-debug.patch
+  list_del debug check
+
+print-build-options-on-oops.patch
+  print a few config options on oops
+
+show_task-free-stack-fix.patch
+  show_task() fix and cleanup
+
+oops-dump-preceding-code.patch
+  i386 oops output: dump preceding code
+
+lockmeter.patch
+
+printk-oops-mangle-fix.patch
+  disentangle printk's whilst oopsing on SMP
+
+4g-2.6.0-test2-mm2-A5.patch
+  4G/4G split patch
+  4G/4G: remove debug code
+  4g4g: pmd fix
+  4g/4g: fixes from Bill
+  4g4g: fpu emulation fix
+  4g/4g usercopy atomicity fix
+  4G/4G: remove debug code
+  4g4g: pmd fix
+  4g/4g: fixes from Bill
+  4g4g: fpu emulation fix
+  4g/4g usercopy atomicity fix
+  4G/4G preempt on vstack
+  4G/4G: even number of kmap types
+  4g4g: fix __get_user in slab
+  4g4g: Remove extra .data.idt section definition
+  4g/4g linker error (overlapping sections)
+  4G/4G: remove debug code
+  4g4g: pmd fix
+  4g/4g: fixes from Bill
+  4g4g: fpu emulation fix
+  4g4g: show_registers() fix
+  4g/4g usercopy atomicity fix
+  4g4g: debug flags fix
+  4g4g: Fix wrong asm-offsets entry
+  cyclone time fixmap fix
+  4G/4G preempt on vstack
+  4G/4G: even number of kmap types
+  4g4g: fix __get_user in slab
+  4g4g: Remove extra .data.idt section definition
+  4g/4g linker error (overlapping sections)
+  4G/4G: remove debug code
+  4g4g: pmd fix
+  4g/4g: fixes from Bill
+  4g4g: fpu emulation fix
+  4g4g: show_registers() fix
+  4g/4g usercopy atomicity fix
+  4g4g: debug flags fix
+  4g4g: Fix wrong asm-offsets entry
+  cyclone time fixmap fix
+  use direct_copy_{to,from}_user for kernel access in mm/usercopy.c
+  4G/4G might_sleep warning fix
+  4g/4g pagetable accounting fix
+
+4g4g-athlon-prefetch-handling-fix.patch
+
+ppc-fixes.patch
+  make mm4 compile on ppc
+
+aic7xxx_old-oops-fix.patch
+
+O_DIRECT-race-fixes-rollup.patch
+  DIO fixes forward port and AIO-DIO fix
+  O_DIRECT race fixes comments
+  O_DRIECT race fixes fix fix fix
+  DIO locking rework
+
+O_DIRECT-race-fixes-rework-XFS-fix.patch
+  O_DIRECT XFS fix
+
+aio-01-retry.patch
+  AIO: Core retry infrastructure
+  Fix aio process hang on EINVAL
+  AIO: flush workqueues before destroying ioctx'es
+  AIO: hold the context lock across unuse_mm
+  task task_lock in use_mm()
+
+4g4g-aio-hang-fix.patch
+  Fix AIO and 4G-4G hang
+
+aio-refcounting-fix.patch
+  aio ref count in io_submit_one
+
+aio-retry-elevated-refcount.patch
+  aio: extra ref count during retry
+
+aio-splice-runlist.patch
+  Splice AIO runlist for fairer handling of multiple io contexts
+
+aio-02-lockpage_wq.patch
+  AIO: Async page wait
+
+aio-03-fs_read.patch
+  AIO: Filesystem aio read
+
+aio-04-buffer_wq.patch
+  AIO: Async buffer wait
+  lock_buffer_wq fix
+
+aio-05-fs_write.patch
+  AIO: Filesystem aio write
+
+aio-06-bread_wq.patch
+  AIO: Async block read
+
+aio-07-ext2getblk_wq.patch
+  AIO: Async get block for ext2
+
+O_SYNC-speedup-2.patch
+  speed up O_SYNC writes
+
+O_SYNC-speedup-2-f_mapping-fixes.patch
+
+aio-09-o_sync.patch
+  aio O_SYNC
+  AIO: fix a BUG
+  Unify o_sync changes for aio and regular writes
+  aio-O_SYNC-fix bits got lost
+  aio: writev nr_segs fix
+  More AIO O_SYNC related fixes
+
+aio-09-o_sync-f_mapping-fixes.patch
+
+gang_lookup_next.patch
+  Change the page gang lookup API
+
+aio-gang_lookup-fix.patch
+  AIO gang lookup fixes
+
+aio-O_SYNC-short-write-fix.patch
+  Fix for O_SYNC short writes
+
+aio-12-readahead.patch
+  AIO: readahead fixes
+  aio O_DIRECT no readahead
+  Unified page range readahead for aio and regular reads
+
+aio-12-readahead-f_mapping-fix.patch
+
+aio-readahead-speedup.patch
+  Readahead issues and AIO read speedup
+
+
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
