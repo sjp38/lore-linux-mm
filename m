@@ -1,9 +1,9 @@
-Message-ID: <3912522E.7D1212C8@sgi.com>
-Date: Thu, 04 May 2000 21:46:38 -0700
+Message-ID: <391129F8.366659D4@sgi.com>
+Date: Thu, 04 May 2000 00:42:48 -0700
 From: Rajagopal Ananthanarayanan <ananth@sgi.com>
 MIME-Version: 1.0
 Subject: Re: Oops in __free_pages_ok (pre7-1) (Long) (backtrace)
-References: <Pine.LNX.4.10.10005032108080.765-100000@penguin.transmeta.com>
+References: <Pine.LNX.4.10.10005031828520.950-100000@penguin.transmeta.com>
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -14,26 +14,22 @@ List-ID: <linux-mm.kvack.org>
 
 Linus Torvalds wrote:
 > 
-> On Wed, 3 May 2000, Rajagopal Ananthanarayanan wrote:
-> >
-> > One other problem with having the page locked in
-> > try_to_swapout() is in the call to
-> > prepare_highmem_swapout() when the incoming
-> > page is in highmem.
-> 
-> Look at how I handled this in pre7-4.
-> 
-> Just unlocking the old page and returning with the new page locked is
-> quite acceptable. The "prepare_highmem_swapout()" thing breaks the
-> association with the pages anyway, and as such there is no race (and this
-> is allowable only exactly because of the anonymous and non-shared nature
-> of a private COW-mapping - which is the only thing we accept in that
-> code-path anyway).
-> 
-> Doing it that way means that there are no special cases in vmscan.c.
+> Ok,
+>  there's a pre7-4 out there that does the swapout with the page locked.
 
-Yep, now I see it after having actually applied the patch ;-)
-I missed it in the original patch file with just the diffs, sorry.
+I did some testing of this patch with dbench.
+The kernel starts shooting processes down pretty quickly
+("VM: killing process XXX") on a 2 CPU 64MB system,
+with nothing but dbench (8 clients). A concurrently
+running vmstat shows very low free memory with some swapping,
+and the buffer space remaining around 50MB.
+
+I had applied the 7-4 patch on top of pre6.
+When the patch was reversed (leaving just pre6),
+the resulting kernel did not have any problems
+running dbench in several tries.
+
+Will try some more tomorrow after hearing others experience.
 
 ananth.
 --
