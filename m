@@ -1,58 +1,124 @@
-From: kanoj@google.engr.sgi.com (Kanoj Sarcar)
-Message-Id: <200006212303.QAA60182@google.engr.sgi.com>
-Subject: Re: Questions on pg_data_t structure
-Date: Wed, 21 Jun 2000 16:03:53 -0700 (PDT)
-In-Reply-To: <20000621225539Z131176-21002+39@kanga.kvack.org> from "Timur Tabi" at Jun 21, 2000 05:49:11 PM
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+From: frankeh@us.ibm.com
+Message-ID: <85256906.005108A2.00@D51MTA03.pok.ibm.com>
+Date: Thu, 22 Jun 2000 10:41:44 -0400
+Subject: Re: [RFC] RSS guarantees and limits
+Mime-Version: 1.0
+Content-type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Timur Tabi <ttabi@interactivesi.com>
-Cc: Linux MM mailing list <linux-mm@kvack.org>
+To: Rik van Riel <riel@conectiva.com.br>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> 
-> Ok, I've been trying to figure this stuff out over the past two weeks, and I
-> need help.
-> 
-> Here's what I think I know so far:
-> 
-> In a non-NUMA system, there is a single master pg_data_t structure called
-> contig_page_data.
+Seems like a good idea, for ensuring some decent response time.
+This seems similar to what WinNT is doing.
 
-In a non-DISCONTIGMEM system, not in a non-NUMA system ... This stuff
-is still evolving, I think NUMA may be a subset of DISCONTIGMEM.
+Do you envision that the "RSS guarantees" decay over time. I am concerned
+that some daemons hanging out there and which might be executed very rarely
+(e.g. inetd) might hug to much memory (cummulatively speaking).  I think NT
+at some point pages the entire working set for such apps.
 
-You are best off thinking about multiple pg_data_t structures in the
-system - the contig_page_data is just a degenerate case of DISCONTIGMEM
-that allows just some more optimizations.
 
-> 
-> contig_page_data contains two arrays, node_zonelists and node_zones.  There are
-> MAX_NR_ZONES (3) elements in node_zones, and there are 256 elements (of which
-> only the first 16 in non-CONFIG_HIGHMEM kernels are supposed to be used.)
-> 
-> Here's where I get confused:
-> 
-> node_zones is an array of zone_t structures.  node_zonelists is an array of
-> zonelist_t structures.  The zonelist_t structure also contains an array of
-> zone_t structures.  
-> 
-> My question is: what is the difference between the zone_t's in node_zones and
-> the zone_t's in each node_zonelists element?
-> 
->
 
-For each pg_data_t, there are MAX_NR_ZONES=3 zone_t structures. 
-For each pg_data_t, there are NR_GFPINDEX=0x100 zonelist_t structures.
-Each zonelist_t structure has a list of MAX_NR_ZONES+1=4 _pointers_
-to zones, and all these pointers point to one of the 3 zones in the
-pg_data_t. These pointers are set up in build_zonelists(), to make
-searches for specific types of pages follow a deterministic order
-depending on memory types present in the system.
 
-Kanoj 
+-- Hubertus Franke
+IBM T.J.Watson Research Center
+
+
+Rik van Riel <riel@conectiva.com.br>@kvack.org on 06/21/2000 06:59:44 PM
+
+Sent by:  owner-linux-mm@kvack.org
+
+
+To:   linux-mm@kvack.org
+cc:   "Stephen C. Tweedie" <sct@redhat.com>
+Subject:  [RFC] RSS guarantees and limits
+
+
+
+Hi,
+
+I think I have an idea to solve the following two problems:
+- RSS guarantees and limits to protect applications from
+  each other
+- make sure streaming IO doesn't cause the RSS of the application
+  to grow too large
+- protect smaller apps from bigger memory hogs
+
+
+The idea revolves around two concepts. The first idea is to
+have an RSS guarantee and an RSS limit per application, which
+is recalculated periodically. A process' RSS will not be shrunk
+to under the guarantee and cannot be grown to over the limit.
+The ratio between the guarantee and the limit is fixed (eg.
+limit = 4 x guarantee).
+
+The second concept is the keeping of statistics per mm. We will
+keep statistics of both the number of page steals per mm and the
+number of re-faults per mm. A page steal is when we forcefully
+shrink the RSS of the mm, by swap_out. A re-fault is pretty similar
+to a page fault, with the difference that re-faults only count the
+pages that are 1) faulted in  and 2) were just stolen from the
+application (and are still in the lru cache).
+
+
+Every second (??) we walk the list of all tasks (mms?) and do
+something very much like this:
+
+if (mm->refaults * 2 > mm->steals) {
+     mm->rss_guarantee += (mm->rss_guarantee >> 4 + 1);
+} else {
+     mm->rss_guarantee -= (mm->rss_guarantee >> 4 + 1);
+}
+mm->refaults >>= 1;
+mm->steals >>= 1;
+
+
+This will have different effects on different kinds of tasks.
+For example, an application which has a fixed working set will
+fault *all* its pages back in and get a big rss_guarantee (and
+rss_limit).
+
+However, an application which is streaming tons of data (and
+using the data only once) will find itself in the situation
+where it does not reclaim most of the pages that get stolen from
+it. This means that the RSS of a data streaming application will
+remain limited to its working set. This should reduce the bad
+effects this app has on the rest of the system. Also, when the
+app hits its RSS limit and the page it releases from its VM is
+dirty, we can apply write throttling.
+
+
+One extra protection is needed in this scheme. We must make sure
+that the RSS guarantees combined never get too big. We can do this
+by simply making sure that all the RSS guarantees combined never
+get bigger than 1/2 of physical memory. If we "need" more than that,
+we can simply decrease the biggest RSS guarantees until we get below
+1/2 of physical memory.
+
+
+regards,
+
+Rik
+--
+The Internet is not a network of computers. It is a network
+of people. That is its real strength.
+
+Wanna talk about the kernel?  irc.openprojects.net / #kernelnewbies
+http://www.conectiva.com/          http://www.surriel.com/
+
+
+
+
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux.eu.org/Linux-MM/
+
+
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
