@@ -1,40 +1,59 @@
-Date: Fri, 27 Aug 2004 16:01:46 -0300
+Received: from [127.0.0.1] (helo=logos.cnet)
+	by www.linux.org.uk with esmtp (Exim 4.33)
+	id 1C0ntV-0006bO-Us
+	for linux-mm@kvack.org; Fri, 27 Aug 2004 22:04:22 +0100
+Date: Fri, 27 Aug 2004 16:07:14 -0300
 From: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
-Subject: Re: OOM-killer for zone DMA?
-Message-ID: <20040827190146.GA3332@logos.cnet>
-References: <s5hoekwjz00.wl@alsa2.suse.de>
+Subject: refill_inactive_zone question
+Message-ID: <20040827190714.GB3332@logos.cnet>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <s5hoekwjz00.wl@alsa2.suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Takashi Iwai <tiwai@suse.de>
-Cc: linux-mm@kvack.org, akpm@osdl.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Aug 27, 2004 at 07:02:07PM +0200, Takashi Iwai wrote:
-> Hi,
-> 
-> In the primary version of my DMA allocation patch, I tried to allocate
-> pages with GFP_DMA as much as possible, then allocate with GFP_KERNEL
-> as fallback.  But this doesn't work.  When the zone DMA is exhausted,
-> I oberseved endless OOM-killer.
-> 
-> Is this a desired behavior?  I don't think triggering OOM-killer for
-> zone DMA makes sense, because apps don't allocate pages in this
-> area...
-> 
-> Note that the driver tried to allocate bunch of single pages with
-> GFP_DMA, not big pages, by calling dma_alloc_coherent with GFP_DMA
-> only (no __GFP_REPEAT or such modifiers).
+Hi MM gurus, 
 
-Takashi, 
+Reading refill_inactive_zone(), while looping on pages grabbed from the inactive list (l_hold), 
+refill_inactive_zone() it does:
 
-The OOM killer heuristics seems to be pretty screwed up in current v2.6. 
+                                                                                                                                                                                  
+        while (!list_empty(&l_hold)) {
+                page = lru_to_page(&l_hold);
+                list_del(&page->lru);
+                if (page_mapped(page)) {
+                        if (!reclaim_mapped) {
+                                list_add(&page->lru, &l_active);
+                                continue;
+                        }
+                        page_map_lock(page);
+                        if (page_referenced(page)) {
+                                page_map_unlock(page);
+                                list_add(&page->lru, &l_active);
+                                continue;
+                        }
+                        page_map_unlock(page);
+                }
+                /*
+                 * FIXME: need to consider page_count(page) here if/when we
+                 * reap orphaned pages via the LRU (Daniel's locking stuff)
+                 */
+                if (total_swap_pages == 0 && PageAnon(page)) { 
+                        list_add(&page->lru, &l_active);
+                        continue;
+                }
+                list_add(&page->lru, &l_inactive);
+        }
 
-Must be fixed ASAP.
 
+Is it possible to have AnonPages without a mapping to them? I dont think so.
+
+Can't the check "if (total_swap_pages == 0 && PageAnon(page))" be moved
+inside "if (page_mapped(page))" ? 
+
+TIA!
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
