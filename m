@@ -1,42 +1,25 @@
-Message-ID: <3C058970.4050109@zytor.com>
-Date: Wed, 28 Nov 2001 17:03:44 -0800
-From: "H. Peter Anvin" <hpa@zytor.com>
+Message-ID: <3C05954B.9AC5B6BA@zip.com.au>
+Date: Wed, 28 Nov 2001 17:54:19 -0800
+From: Andrew Morton <akpm@zip.com.au>
 MIME-Version: 1.0
 Subject: Re: Status of sendfile() + HIGHMEM
-References: <3C0577FF.3040209@zytor.com> <3C058875.1392B3AC@mandrakesoft.com>
-Content-Type: text/plain; charset=us-ascii; format=flowed
+References: <3C0577FF.3040209@zytor.com>
+Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jeff Garzik <jgarzik@mandrakesoft.com>
+To: "H. Peter Anvin" <hpa@zytor.com>
 Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Jeff Garzik wrote:
-
-> "H. Peter Anvin" wrote:
+"H. Peter Anvin" wrote:
 > 
->>zeus.kernel.org is currently running with HIGHMEM turned off, since it
->>crashed due to an unfortunate interaction between sendfile() and HIGHMEM
->>-- this was using 2.4.10-ac4 or thereabouts.
->>
->>The current zeus.kernel.org has 1 GB of RAM, however, it looks like we're
->>going to get a 6 GB machine donated.  Clearly HIGHMEM is going to be
->>necessary (still an x86 machine, unfortunately), and I wanted to ask if it
->>was believed that these problems had been worked out...
->>
-> 
-> Get a 64-bit machine and forget about doing >32bits on a 32-bit machine
-> :)
+> zeus.kernel.org is currently running with HIGHMEM turned off, since it
+> crashed due to an unfortunate interaction between sendfile() and HIGHMEM
+> -- this was using 2.4.10-ac4 or thereabouts.
 > 
 
-
-You're right, of course.  Unfortunately, beggars can't be choosers.  :(
-
-	-hpa
-
-
-
+What sort of NIC is it using?
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
