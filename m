@@ -1,58 +1,47 @@
-From: <john@gtlaser.com>
-Subject: GTTS Re: Business Inquiry.
-Date: Fri, 14 Jan 2005 11:08:57
-Message-Id: <647.412829.634964@gtlaser.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
+Date: Fri, 14 Jan 2005 08:37:15 -0800 (PST)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: page table lock patch V15 [0/7]: overview
+In-Reply-To: <41E73EE4.50200@linux-m68k.org>
+Message-ID: <Pine.LNX.4.58.0501140836450.27382@schroedinger.engr.sgi.com>
+References: <Pine.LNX.4.44.0411221457240.2970-100000@localhost.localdomain>
+ <Pine.LNX.4.58.0411221343410.22895@schroedinger.engr.sgi.com>
+ <Pine.LNX.4.58.0411221419440.20993@ppc970.osdl.org>
+ <Pine.LNX.4.58.0411221424580.22895@schroedinger.engr.sgi.com>
+ <Pine.LNX.4.58.0411221429050.20993@ppc970.osdl.org>
+ <Pine.LNX.4.58.0412011539170.5721@schroedinger.engr.sgi.com>
+ <Pine.LNX.4.58.0412011545060.5721@schroedinger.engr.sgi.com>
+ <Pine.LNX.4.58.0501041129030.805@schroedinger.engr.sgi.com>
+ <Pine.LNX.4.58.0501041137410.805@schroedinger.engr.sgi.com> <m1652ddljp.fsf@muc.de>
+ <Pine.LNX.4.58.0501110937450.32744@schroedinger.engr.sgi.com>
+ <41E4BCBE.2010001@yahoo.com.au> <20050112014235.7095dcf4.akpm@osdl.org>
+ <Pine.LNX.4.58.0501120833060.10380@schroedinger.engr.sgi.com>
+ <20050112104326.69b99298.akpm@osdl.org> <Pine.LNX.4.58.0501121055490.11169@schroedinger.engr.sgi.com>
+ <41E73EE4.50200@linux-m68k.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Roman Zippel <zippel@linux-m68k.org>
+Cc: Andrew Morton <akpm@osdl.org>, nickpiggin@yahoo.com.au, torvalds@osdl.org, ak@muc.de, hugh@veritas.com, linux-mm@kvack.org, benh@kernel.crashing.org
 List-ID: <linux-mm.kvack.org>
 
-Hello,
+On Fri, 14 Jan 2005, Roman Zippel wrote:
 
-I was wondering if you were interested in our products. We supply new OEM printer cartridges at wholesale prices. I am sure we can save you money on your printer supplies.
+> Hi,
+>
+> Christoph Lameter wrote:
+>
+> > Introduction of the cmpxchg is one atomic operations that replaces the two
+> > spinlock ops typically necessary in an unpatched kernel. Obtaining the
+> > spinlock requires an spinlock (which is an atomic operation) and then the
+> > release involves a barrier. So there is a net win for all SMP cases as far
+> > as I can see.
+>
+> But there might be a loss in the UP case. Spinlocks are optimized away,
+> but your cmpxchg emulation enables/disables interrupts with every access.
 
-Should you have any questions please feel free to contact me. I have included a brief product price list.
- 
-Sincerely,
-John Smirley
-Sales Manager
-770-416-6214
-888-662-2256
-john@gtlaser.com
-www.gtlaser.com
+The cmpxchg could become a store in the UP case.
 
-
- 
-HP Laser Toner Description & Price per unit 
-1 HP C3906A US$51.50 
-2 HP C4092A US$51.75 
-3 HP C3903A US$62.75 
-4 HP 92274A US$70.75 
-5 HP 92298A US$73.95 
-6 HP C4096A US$76.25 
-7 HP 4127X US$96.50 
-8 HP 4129X US$126.75 
-9 HP C3900A US$109.00 
-10 HP 3909A  US$135.50 
-11 HP 7115A US$54.50 
-12 HP 8061X US$96.75 
-13 HP Q series 2612 US$54.75 
-14 HP Q series 2613 US$59.95 
-15 HP Q series 2610 US$93.75 
-
-HP Inkjet Cartridge Description & Price per unit 
-1 HP C6625A (Color) US$23.79 
-2 HP 51645A (Black) US$22.70 
-3 HP 51649A (Color) US$23.50 
-4 HP C1823D (Color) US$25.45 
-5 HP C6614D (Black) US$21.65 
-6 HP C6615D (Black) US$21.60 
-7 HP C6578D (Color) US$46.95 
-8 HP 51626A (Black) US$22.90 
-9 HP 51629A (Black) US$22.90 
-14 HP 6657A (Color) US$25.65 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
