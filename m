@@ -1,46 +1,49 @@
-From: "Jason" <123321@mail.runan.ha.cn>
-Subject: Valid Marketing
+Date: Sat, 19 Mar 2005 22:58:55 -0800
+From: Andrew Morton <akpm@osdl.org>
+Subject: Re: [Patch] cpusets policy kill no swap
+Message-Id: <20050319225855.475e4167.akpm@osdl.org>
+In-Reply-To: <20050320014847.16310.53697.sendpatchset@sam.engr.sgi.com>
+References: <20050320014847.16310.53697.sendpatchset@sam.engr.sgi.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset="ISO-8859-1"
-Date: Mon, 21 Mar 2005 16:09:55 +0800
-Reply-To: "Jason" <sales@dns5588.com>
-Content-Transfer-Encoding: 8bit
-Message-Id: <20050321080950Z26585-20891+4308@kvack.org>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Paul Jackson <pj@sgi.com>
+Cc: mort@sgi.com, linux-mm@kvack.org, emery@sgi.com, bron@sgi.com, Simon.Derr@bull.net, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-To linux-mm@kvack.org:
+Paul Jackson <pj@sgi.com> wrote:
+>
+> This mechanisms differs from a general purpose out-of-memory
+>  killer in various ways, including:
+> 
+>   * An oom-killer tries to score the bad buy, to avoid shooting
+>     the innocent little task that just happened to ask for one
+>     page too many.
+>   * The policy_kill_no_swap hook kills the current requester.
+>   * It takes severe memory pressure to wake up an oom-killer.
+>   * The policy_kill_no_swap hook triggers on the slightest
+>     pressure that exceeds readily free memory.
+>   * The oom-killer can be useful on a general purpose system.
+>   * The policy_kill_no_swap hook is only useful for carefully
+>     tuned apps running on dedicated nodes on large systems.
+> 
 
-Email is the best promote tool.
+There are a lot of reasons why we would wake kswapd apart from starting
+swapout.  Such as to reclaim clean pagecache or some dcache+icache.
 
-We offer Online Marketing with quality service.
+>  In short - simple enough, but quite specialized.
 
-1. Target Email list
+Way too specialised, I suspect.  Is it not possible to have a little
+userspace daemon which monitors the long-running applications's rss and
+whacks it if the rss gets too large?
 
-We can provide target email list you need, which are compiled 
-only on your order. We will customize your client email list.
+The patch you have simply kills the process when all the eligible zones
+reach their upper watermark.  Again, we can probably determine that state
+from userspace right now.  If not, it would be simple enough to add the
+required info to /proc somewhere.
 
-* We have millions of lists in a wide variety of categories.
-
-2. Send out Target list for you
-
-We can send your email message to your target clients! We will
-customize your email list and send your message for you.
-
-Our site: www.promotecompany.com
-
-* We also offer Web Hosting & mail server.
-
-
-Regards!
-
-Jason
-Marketing Support
-Sales@promotecompany.com
-
-No.Thanks: Bye@MSN.com?subject=linux-mm@kvack.org
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
