@@ -1,45 +1,39 @@
-Message-ID: <42014605.4060707@sgi.com>
-Date: Wed, 02 Feb 2005 15:28:37 -0600
-From: Ray Bryant <raybry@sgi.com>
+Date: Wed, 2 Feb 2005 13:31:42 -0800 (PST)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: A scrub daemon (prezeroing)
+In-Reply-To: <20050202163110.GB23132@logos.cnet>
+Message-ID: <Pine.LNX.4.58.0502021328290.13966@schroedinger.engr.sgi.com>
+References: <Pine.LNX.4.58.0501211228430.26068@schroedinger.engr.sgi.com>
+ <1106828124.19262.45.camel@hades.cambridge.redhat.com> <20050202153256.GA19615@logos.cnet>
+ <Pine.LNX.4.58.0502021103410.12695@schroedinger.engr.sgi.com>
+ <20050202163110.GB23132@logos.cnet>
 MIME-Version: 1.0
-Subject: Re: migration cache, updated
-References: <20041123121447.GE4524@logos.cnet> <20041124.192156.73388074.taka@valinux.co.jp> <20041201202101.GB5459@dmt.cyclades> <20041208.222307.64517559.taka@valinux.co.jp> <20050117095955.GC18785@logos.cnet> <41FE79EF.8040204@sgi.com> <20050131184422.GD15694@logos.cnet>
-In-Reply-To: <20050131184422.GD15694@logos.cnet>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
-Cc: Hirokazu Takahashi <taka@valinux.co.jp>, linux-mm@kvack.org, iwamoto@valinux.co.jp, haveblue@us.ibm.com, hugh@veritas.com
+Cc: David Woodhouse <dwmw2@infradead.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@osdl.org
 List-ID: <linux-mm.kvack.org>
 
-Marcelo Tosatti wrote:
-> 
->>
->>(This message comes from ia64_do_page_fault() and appears to because
->>handle_mm_fault() returned FAULT_OOM....)
->>
->>I haven't looked into this further, but was wondering if perhaps one of
->>you would understand why the migrate cache patch would fail in this way?
-> 
-> 
-> I can't think of anything right now - probably do_wp_page() is returning FAULT_OOM,
-> can you confirm that?
-> 
-No, it doesn't appear to be do_wp_page().  It looks like get_swap_page() 
-returns FAULT_OOM followed by get_user_pages() returning FAULT_OOM.
-For the page that causes the VM to kill the process, there is no return
-from get_user_pages() that returns FAULT_OOM.  Not sure yet what is going
-on here.
+On Wed, 2 Feb 2005, Marcelo Tosatti wrote:
 
--- 
------------------------------------------------
-Ray Bryant
-512-453-9679 (work)         512-507-7807 (cell)
-raybry@sgi.com             raybry@austin.rr.com
-The box said: "Requires Windows 98 or better",
-	 so I installed Linux.
------------------------------------------------
+> > Nope the BTE is a block transfer engine. Its an inter numa node DMA thing
+> > that is being abused to zero blocks.
+> Ah, OK.
+> Is there a driver for normal BTE operation or is not kernel-controlled ?
+
+There is a function bte_copy in the ia64 arch. See
+
+arch/ia64/sn/kernel/bte.c
+
+> I wonder what has to be done to have active DMA engines be abused for zeroing
+> when idle and what are the implications of that. Some kind of notification mechanism
+> is necessary to inform idleness ?
+>
+> Someone should try implementing the zeroing driver for a fast x86 PCI device. :)
+
+Sure but I am on ia64 not i386. Find your own means to abuse your own
+chips ... ;-)
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
