@@ -1,194 +1,77 @@
-Date: Fri, 1 Nov 2002 23:56:20 +0100
-From: Ingo Oeser <ingo.oeser@informatik.tu-chemnitz.de>
-Subject: Huge TLB pages always physically continious?
-Message-ID: <20021101235620.A5263@nightmaster.csn.tu-chemnitz.de>
-Mime-Version: 1.0
-Content-Type: multipart/mixed; boundary="6TrnltStXW4iwmi0"
-Content-Disposition: inline
+Received: from digeo-nav01.digeo.com (digeo-nav01.digeo.com [192.168.1.233])
+	by packet.digeo.com (8.9.3+Sun/8.9.3) with SMTP id PAA28863
+	for <linux-mm@kvack.org>; Fri, 1 Nov 2002 15:23:53 -0800 (PST)
+Message-ID: <3DC30CD6.D92D0F9F@digeo.com>
+Date: Fri, 01 Nov 2002 15:23:02 -0800
+From: Andrew Morton <akpm@digeo.com>
+MIME-Version: 1.0
+Subject: Re: Huge TLB pages always physically continious?
+References: <20021101235620.A5263@nightmaster.csn.tu-chemnitz.de>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org
+To: Ingo Oeser <ingo.oeser@informatik.tu-chemnitz.de>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
---6TrnltStXW4iwmi0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Ingo Oeser wrote:
+> 
+> Hi there,
+> 
+> are huge TLB pages always physically continous in memory?
 
-Hi there,
+Yes.
 
-are huge TLB pages always physically continous in memory?
+> What does follow_hugetlb_page do exactly? I simply don't
+> understand what the code does.
 
-What does follow_hugetlb_page do exactly? I simply don't
-understand what the code does.
+It allows get_user_pages() to work correctly across hugepage
+regions.  It walks a chunk of memory which is covered by
+hugepages and installs (at *pages) the list of 4k-pages which
+are covered by the hugepage.  So
 
-I would like to build up a simplified get_user_pages_sgl() to
-build a scatter gather list from user space adresses.
+ |--------------------------------------------------|  <- hugepage
+ |--|--|--|--|--|--|--|--|--|--|--|--|--|--|--|--|--|  <- 4k pages
 
-If I want to coalesce physically continous pages (if they are
-also virtually continious) anyway, can I write up a simplified
-follow_hugetlb_page_sgl() function which handles the huge page
-really as only one page?
+ get_user_pages(   ^here                   ^to here)
 
-Motivation:
-
-Currently doing scatter gather DMA of user pages requires THREE
-runs over the pages and I would like to save at least the second
-one and possibly shorten the third one.
-
-The three steps required:
-
-   1) get_user_pages() to obtain the pages and lock them in page_cache
-   2) translate the vector of pointers to struct page to a vector
-      of struct scatterlist
-   3) pci_map_sg() a decent amount[1], DMA it, wait for completion 
-      or abortion, pci_unmap_sg() it and start again with the remainder
-
-Step 2) could be eliminated completely and also the allocation of
-the temporary vector of struct page.
-
-Step 3) could be shortend, if I coalesce physically continous
-ranges into a single scatterlist entry with just a ->length
-bigger than PAGE_SIZE. I know that this is only worth it on
-architectures, where physical address == bus address.
-
-As each step is a for() loop and should be considered running on
-more than 1MB worth of memory, I see significant improvements.
-
-Without supporting huge TLB pages, I only add 700 bytes to the
-kernel while simply copying get_user_pages() into a function,
-which takes an vector of struct scatterlist instead of struct
-page.
-
-This sounds a promising tradeoff for a first time implementation.
-
-Patch attached. No users yet, but they will follow. First
-candidate is the v4l DMA stuff.
-
-Regards
-
-Ingo Oeser
-
-[1] How much can I safely map on the strange architectures, where
-   this is a limited? AFAIK there is no value or function telling
-   me how far I can go.
--- 
-Science is what we can tell a computer. Art is everything else. --- D.E.Knuth
-
---6TrnltStXW4iwmi0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: attachment; filename="get_user_pages_sgl.patch"
-
-diff -Naur linux-2.5.44/kernel/ksyms.c linux-2.5.44-ioe/kernel/ksyms.c
---- linux-2.5.44/kernel/ksyms.c	Sat Oct 19 06:01:08 2002
-+++ linux-2.5.44-ioe/kernel/ksyms.c	Fri Nov  1 23:12:48 2002
-@@ -136,6 +136,7 @@
- EXPORT_SYMBOL(page_address);
- #endif
- EXPORT_SYMBOL(get_user_pages);
-+EXPORT_SYMBOL(get_user_pages_sgl);
+ will install the spanned 4k pages into the caller's pages[]
+ array.
  
- /* filesystem internal functions */
- EXPORT_SYMBOL(def_blk_fops);
-diff -Naur linux-2.5.44/mm/memory.c linux-2.5.44-ioe/mm/memory.c
---- linux-2.5.44/mm/memory.c	Sat Oct 19 06:01:52 2002
-+++ linux-2.5.44-ioe/mm/memory.c	Fri Nov  1 23:48:42 2002
-@@ -49,6 +49,7 @@
- #include <asm/uaccess.h>
- #include <asm/tlb.h>
- #include <asm/tlbflush.h>
-+#include <asm/scatterlist.h>
- 
- #include <linux/swapops.h>
- 
-@@ -514,6 +515,85 @@
- }
- 
- 
-+int get_user_pages_sgl(struct task_struct *tsk, struct mm_struct *mm,
-+		unsigned long start, int len, int write,
-+		struct scatterlist **sgl)
-+{
-+	int i;
-+	unsigned int flags;
-+
-+	/* Without this structure, it makes no sense to call this */
-+	BUG_ON(!sgl);
-+
-+	/* 
-+	 * Require read or write permissions.
-+	 */
-+	flags = write ? VM_WRITE : VM_READ;
-+	i = 0;
-+
-+	do {
-+		struct vm_area_struct *	vma;
-+
-+		vma = find_extend_vma(mm, start);
-+
-+		if (!vma || (vma->vm_flags & VM_IO)
-+				|| !(flags & vma->vm_flags))
-+			return i ? : -EFAULT;
-+
-+		/* Doesn't work with huge pages! */
-+		BUG_ON(is_vm_hugetlb_page(vma));
-+		
-+		spin_lock(&mm->page_table_lock);
-+		do {
-+			struct page *map;
-+			while (!(map = follow_page(mm, start, write))) {
-+				spin_unlock(&mm->page_table_lock);
-+				switch (handle_mm_fault(mm,vma,start,write)) {
-+				case VM_FAULT_MINOR:
-+					tsk->min_flt++;
-+					break;
-+				case VM_FAULT_MAJOR:
-+					tsk->maj_flt++;
-+					break;
-+				case VM_FAULT_SIGBUS:
-+					return i ? i : -EFAULT;
-+				case VM_FAULT_OOM:
-+					return i ? i : -ENOMEM;
-+				default:
-+					BUG();
-+				}
-+				spin_lock(&mm->page_table_lock);
-+			}
-+			sgl[i]->page = get_page_map(map);
-+			if (!sgl[i]->page) {
-+				spin_unlock(&mm->page_table_lock);
-+				while (i--)
-+					page_cache_release(sgl[i]->page);
-+				i = -EFAULT;
-+				goto out;
-+			}
-+			if (!PageReserved(sgl[i]->page))
-+				page_cache_get(sgl[i]->page);
-+			
-+			/* TODO: Do coalescing of physically continious pages
-+			 * here
-+			 */
-+			sgl[i]->offset=0;
-+			sgl[i]->length=PAGE_SIZE;
-+
-+			i++;
-+			start += PAGE_SIZE;
-+			len--;
-+		} while(len && start < vma->vm_end);
-+		spin_unlock(&mm->page_table_lock);
-+	} while(len);
-+	
-+	/* This might be pointless, if start is always aligned to pages */
-+	sgl[0]->offset=start & ~PAGE_MASK;
-+	sgl[0]->length=PAGE_SIZE - (start & ~PAGE_MASK);
-+out:
-+	return i;
-+}
- int get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
- 		unsigned long start, int len, int write, int force,
- 		struct page **pages, struct vm_area_struct **vmas)
+> I would like to build up a simplified get_user_pages_sgl() to
+> build a scatter gather list from user space adresses.
+> 
+> If I want to coalesce physically continous pages (if they are
+> also virtually continious) anyway, can I write up a simplified
+> follow_hugetlb_page_sgl() function which handles the huge page
+> really as only one page?
 
---6TrnltStXW4iwmi0--
+I suggest that you restructure get_user_pages thusly:
+
+1: Write a simplified get_user_page().  Most callers of get_user_pages()
+   only want a single page anyway, and don't need to concoct all those
+   arguments.
+
+2: Split get_user_pages up into a pagetable walker and a callback function.
+   So it walks the pages, calling back to the caller's callback function
+   for each page with
+
+	(*callback)(struct page *page, <other stuff>, void *callerdata);
+
+   You'll need to extend follow_hugetlb_page() to take the callback
+   info and to perform the callbacks for its pages as well.
+
+3: Reimplement the current get_user_pages() using the core engine from 2
+   (ie: write the callback for it)
+
+4: Implement your sg engine using the walker+callback arrangement.  This
+   way, you can do your coalescing on-the-fly, and you only take one
+   pass across the pages list and you do not need to know about hugepages
+   at all.   Sure you'll do a *little* more work than you need to,  but
+   not having that special case is nicer.
+
+5: Fix up the ia64 follow_hugetlb_page too.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
