@@ -1,45 +1,45 @@
-Reply-To: Gerrit Huizenga <gh@us.ibm.com>
-From: Gerrit Huizenga <gh@us.ibm.com>
-Subject: Re: [PATCH 2.5.43-mm2] New shared page table patch 
-In-reply-to: Your message of Tue, 22 Oct 2002 12:11:34 PDT.
-             <3DB5A2E6.6000305@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-ID: <8499.1035314994.1@us.ibm.com>
-Date: Tue, 22 Oct 2002 12:29:54 -0700
-Message-Id: <E1844iw-0002D9-00@w-gerrit2>
+Subject: Re: [PATCH 2.5.43-mm2] New shared page table patch
+From: Arjan van de Ven <arjanv@redhat.com>
+In-Reply-To: <E1844h3-0002Bt-00@w-gerrit2>
+References: <E1844h3-0002Bt-00@w-gerrit2>
+Content-Type: multipart/signed; micalg=pgp-sha1; protocol="application/pgp-signature";
+	boundary="=-GKyZ6V7vR9aKSA43Rb9d"
+Date: 22 Oct 2002 21:56:25 +0200
+Message-Id: <1035316645.4690.8.camel@localhost.localdomain>
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ulrich Drepper <drepper@redhat.com>
-Cc: Dave McCracken <dmccr@us.ibm.com>, Rik van Riel <riel@conectiva.com.br>, Andrew Morton <akpm@digeo.com>, "Eric W. Biederman" <ebiederm@xmission.com>, "Martin J. Bligh" <mbligh@aracnet.com>, Bill Davidsen <davidsen@tmr.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>
+To: Gerrit Huizenga <gh@us.ibm.com>
+Cc: Benjamin LaHaise <bcrl@redhat.com>, Alan Cox <alan@lxorguk.ukuu.org.uk>, "Martin J. Bligh" <mbligh@aracnet.com>, Rik van Riel <riel@conectiva.com.br>, "Eric W. Biederman" <ebiederm@xmission.com>, Bill Davidsen <davidsen@tmr.com>, Dave McCracken <dmccr@us.ibm.com>, Andrew Morton <akpm@digeo.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-In message <3DB5A2E6.6000305@redhat.com>, > : Ulrich Drepper writes:
-> -----BEGIN PGP SIGNED MESSAGE-----
-> Hash: SHA1
-> 
-> Dave McCracken wrote:
-> 
-> >   3) The current large page implementation is only for applications
-> >      that want anonymous *non-pageable* shared memory.  Shared page
-> >      tables reduce resource usage for any shared area that's mapped
-> >      at a common address and is large enough to span entire pte pages.
-> 
-> 
-> Does this happen automatically (i.e., without modifying th emmap call)?
-> 
-> In any case, a system using prelinking will likely have all users of a
-> DSO mapping the DSO at the same address.  Will a system benefit in this
-> case?  If not directly, perhaps with some help from ld.so since we do
-> know when we expect the same is used everywhere.
+--=-GKyZ6V7vR9aKSA43Rb9d
+Content-Type: text/plain
+Content-Transfer-Encoding: quoted-printable
 
-One important thing to watch out for is to make sure that the PLT
-and GOT fixups (where typically pages are mprotected to RW, modified,
-then back to RO) are not in the range of pages that are shared.
-And, it helps if everything that is shared read-only is 4 MB aligned.
-If ld.so could do that under linux, we'd have the biggest win.
+On Tue, 2002-10-22 at 21:27, Gerrit Huizenga wrote:
+ be fine with me - we are only planning on people using
+> flags to shm*() or mmap(), not on the syscalls.  I thought Oracle
+> was the one heavily dependent on the icky syscalls.
 
-gerrit
+the icky syscalls are unusable for databases.. I'd be *really* surprised
+if oracle could use them at all on x86....
+
+
+--=-GKyZ6V7vR9aKSA43Rb9d
+Content-Type: application/pgp-signature; name=signature.asc
+Content-Description: This is a digitally signed message part
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.0.7 (GNU/Linux)
+
+iD8DBQA9ta1pxULwo51rQBIRAjPyAJ4pxKSVXHr4VTh2jlxXSRvp7zzEfQCeNlcB
+Pd76DiFz8SX1wRaQUubJZzE=
+=Ul4s
+-----END PGP SIGNATURE-----
+
+--=-GKyZ6V7vR9aKSA43Rb9d--
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
