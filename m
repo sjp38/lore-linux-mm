@@ -1,22 +1,33 @@
-Received: from wildwood.eecs.umich.edu (haih@wildwood.eecs.umich.edu [141.213.4.68])
-	by smtp.eecs.umich.edu (8.12.3/8.12.3) with ESMTP id gAEGxxVW003944
-	for <linux-mm@kvack.org>; Thu, 14 Nov 2002 12:00:04 -0500
-Date: Thu, 14 Nov 2002 12:08:28 -0500 (EST)
-From: Hai Huang <haih@eecs.umich.edu>
-Subject: buddy system inventor
-Message-ID: <Pine.LNX.4.33.0211141207050.18370-100000@wildwood.eecs.umich.edu>
+From: Nikita Danilov <Nikita@Namesys.COM>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Message-ID: <15827.56145.430393.208400@laputa.namesys.com>
+Date: Thu, 14 Nov 2002 20:20:17 +0300
+Subject: Re: buddy system inventor
+In-Reply-To: <Pine.LNX.4.33.0211141207050.18370-100000@wildwood.eecs.umich.edu>
+References: <Pine.LNX.4.33.0211141207050.18370-100000@wildwood.eecs.umich.edu>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Hai Huang <haih@eecs.umich.edu>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Who is its inventor?  Any knows?
+Hai Huang writes:
+ > Who is its inventor?  Any knows?
 
--
-Hai
+"Unix Internals" gives a reference to
 
+Peterson J.L., and Norman T.A., "Buddy Systems," Communications of the
+ACM, Vol. 20, No. 6, Jun. 1977, pp. 421-431
+
+ > 
+ > -
+ > Hai
+
+Nikita.
+
+ > 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
