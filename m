@@ -1,21 +1,38 @@
-Message-ID: <A33AEFDC2EC0D411851900D0B73EBEF766E1A7@NAPA>
+Message-ID: <B162270C965FD511AB9600B0D0B0AB42063DE4@NAPA>
 From: Hua Ji <hji@netscreen.com>
-Subject: PPC Page Table Bug or Patch
-Date: Mon, 11 Jun 2001 21:18:45 -0700
+Subject: RE: PPC Page Table Bug or Patch
+Date: Tue, 12 Jun 2001 20:06:21 -0700
 MIME-Version: 1.0
 Content-Type: text/plain;
 	charset="iso-8859-1"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linuxppc-embedded@lists.linuxppc.org, linux-mm@kvack.org, linuxppc-user@lists.linuxppc.org
-Cc: Hua Ji <hji@netscreen.com>
+To: linuxppc-embedded@lists.linuxppc.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
+
+Hi, folks,
+
+My email server went down whole day and lost all emails. I am wondering if
+any feedbacks from this lists during
+today. If happen to have, would you please forward it to me?
+
+Thanks,
+
+
+-----Original Message-----
+From: Hua Ji [mailto:hji@netscreen.com]
+Sent: Monday, June 11, 2001 9:19 PM
+To: linuxppc-embedded@lists.linuxppc.org; linux-mm@kvack.org
+Cc: Hua Ji
+Subject: PPC Page Table Bug or Patch
+
+
 
 Folks,
 
 I personally think,after some testing, there is a bug with current 2.4
 linx-ppc hashed pag table part. Raise here for discussion and confirmation
-in case I am wrong. 
+in case I am wrong.
 
 In one word, the codes for page table hashing function won't support large
 page table with size of 8M, 16M or 32M, even if you change the corresponding
@@ -28,7 +45,7 @@ Please see below descriptions. Thanks for the patience.
 --------------------------------
 Which files related to?
 --------------------------------
-File: ./kernel/hashtable.S 
+File: ./kernel/hashtable.S
 Function: hash_page_patch_A in hash_page() for 32bit ppc cpu.
 
 .globl	hash_page_patch_A
@@ -62,13 +79,13 @@ example, 0xF0100000
 When execute the aboe rlwinm, the following things happen
 Bits: 0-----------------------------------------------------------31
 r3: 	 1111  0000 0001 0000 0000 0000 0000 0000
-				
+
 r0:    0000 0011 1100 0000 0100 0000 0000 0000
 		         ^-----|--API--|-----10 bits-----^
 Bits:0-------------7----------------------------------25--------31
-				     Total 19 bits   
+				     Total 19 bits
 As we can see, the first 3 bits(value of 111) of those 19 bits are not zero,
-which is requried to be so (Refer to : Page 7-55, PowerPC TM Microprocessor 
+which is requried to be so (Refer to : Page 7-55, PowerPC TM Microprocessor
 Family: The Programming Environments for 32-Bit Microprocessors)
 The reason why this happen is simple: The first 4 bits of the r3 register is
 rotated to those position. In other words, the index of segment register
@@ -121,6 +138,8 @@ Hash_bits
 Thanks,
 
 Mike
+
+** Sent via the linuxppc-embedded mail list. See http://lists.linuxppc.org/
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
