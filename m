@@ -1,62 +1,52 @@
+From: Rudmer van Dijk <rudmer@legolas.dynup.net>
 Subject: Re: 2.5.69-mm8
-From: Paul Larson <plars@linuxtestproject.org>
-In-Reply-To: <20030522131434.710a0c7d.akpm@digeo.com>
-References: <20030522021652.6601ed2b.akpm@digeo.com>
-	<1053629620.596.1.camel@teapot.felipe-alfaro.com>
-	<1053631843.2648.3248.camel@plars>  <20030522131434.710a0c7d.akpm@digeo.com>
-Content-Type: multipart/signed; micalg=pgp-sha1; protocol="application/pgp-signature";
-	boundary="=-5CkkLvCYSVkIlJfIr2yh"
-Date: 22 May 2003 16:19:49 -0500
-Message-Id: <1053638390.599.3318.camel@plars>
-Mime-Version: 1.0
+Date: Thu, 22 May 2003 23:21:15 +0200
+References: <20030522021652.6601ed2b.akpm@digeo.com> <3ECCBD6B.9070807@aitel.hist.no>
+In-Reply-To: <3ECCBD6B.9070807@aitel.hist.no>
+MIME-Version: 1.0
+Content-Type: Text/Plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 8BIT
+Content-Description: clearsigned data
+Content-Disposition: inline
+Message-Id: <200305222321.26880.rudmer@legolas.dynup.net>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@digeo.com>
-Cc: felipe_alfaro@linuxmail.org, lkml <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: Helge Hafting <helgehaf@aitel.hist.no>, Andrew Morton <akpm@digeo.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
---=-5CkkLvCYSVkIlJfIr2yh
-Content-Type: text/plain
-Content-Transfer-Encoding: quoted-printable
+-----BEGIN PGP SIGNED MESSAGE-----
+Hash: SHA1
 
-On Thu, 2003-05-22 at 15:14, Andrew Morton wrote:
-> Paul Larson <plars@linuxtestproject.org> wrote:
+On Thursday 22 May 2003 14:07, Helge Hafting wrote:
+> Andrew Morton wrote:
+> > ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.5/2.5.69/2.5.
+> >69-mm8/
 > >
-> > 2.5.69-mm8 is bleeding for me. :)  See bugs #738 and #739.
->=20
-> #739 seems to be the b_committed_data race.  Alex is cooking up a fix for
-> that.  Sorry, I didn't realise it was that easy to trigger.
->=20
-> I'm fairly amazed about #738.  The asertion at fs/jbd/transaction.c:2023
-> (J_ASSERT_JH(jh, kernel_locked())) is bogus and should be removed.
-Yep, a few quick tests suggest that #739 looks to be fixed by Alex's
-patch, and it removes the assert from 2023, so if that's bogus then his
-patch fixes that too.  I did see a hang with his patch and I wasn't able
-to get any output or sysrq, so I'm going to go back and try with
-nmi_watchdog to see if it'll tell me anything new.  I'm not sure if I
-just didn't get far enough to see this without his patch, or if it comes
-in the door with it though.  Also a few extra "sleeping function called
-from illegal context" goodies on boot with it.  I'm going to get this
-test kicked of right now but I'll be out until Tuesday so if it doesn't
-show up again quickly I won't be seeing it until then.
+> > . One anticipatory scheduler patch, but it's a big one.  I have not
+> > stress tested it a lot.  If it explodes please report it and then boot
+> > with elevator=deadline.
+> >
+> > . The slab magazine layer code is in its hopefully-final state.
+> >
+> > . Some VFS locking scalability work - stress testing of this would be
+> >   useful.
+>
+> It seems to work fine for UP and survives a kernel compile.
 
-Thanks,
-Paul Larson
+also for me, UP no preempt and it is running for 11 hours now without 
+problems. It survived a kernel compile, compilation of the kde-network 
+package and every other normal desktop-system usage. 
 
---=-5CkkLvCYSVkIlJfIr2yh
-Content-Type: application/pgp-signature; name=signature.asc
-Content-Description: This is a digitally signed message part
-
+	Rudmer
 -----BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.0.6 (GNU/Linux)
-Comment: For info see http://www.gnupg.org
+Version: GnuPG v1.2.2 (GNU/Linux)
 
-iEYEABECAAYFAj7NPvQACgkQbkpggQiFDqdw8QCeOq2CQR5KTri6a2Q3mxQxSUsL
-CScAn3opAXr7X+mh3Oykygmj6VKJBJOI
-=SxW5
+iD8DBQE+zT9ShvANkaSdp/IRAh/IAJ4wuUoONk96noYpbLJOBbhvDsmNwwCeKsNa
+S9VGQ6HCiwrlQJv2rEjOBMA=
+=386g
 -----END PGP SIGNATURE-----
-
---=-5CkkLvCYSVkIlJfIr2yh--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
