@@ -1,8 +1,8 @@
-Date: Thu, 20 Mar 2003 23:15:51 +0000 (GMT)
+Date: Thu, 20 Mar 2003 23:16:35 +0000 (GMT)
 From: Hugh Dickins <hugh@veritas.com>
-Subject: [PATCH] anobjrmap 4/6 anonmm
+Subject: [PATCH] anobjrmap 5/6 rechained
 In-Reply-To: <Pine.LNX.4.44.0303202310440.2743-100000@localhost.localdomain>
-Message-ID: <Pine.LNX.4.44.0303202315191.2743-100000@localhost.localdomain>
+Message-ID: <Pine.LNX.4.44.0303202316020.2743-100000@localhost.localdomain>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="us-ascii"
 Sender: owner-linux-mm@kvack.org
@@ -11,699 +11,618 @@ To: Andrew Morton <akpm@digeo.com>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-anobjrmap 4/6 add anonmm to track anonymous pages
+anonjrmap 5/6 virtual address chains for odd cases
 
-Introduce struct anonmm per mm to track anonymous pages,
-all forks from one exec share same bundle of linked anonmms:
-anonymous pages may start out in one mm but get forked into
-another later.  Callouts from fork.c to rmap.c to allocate,
-dup and exit anonmm.
+Two exceptions remain to be handled.  The nonlinear file-backed
+pages (mapped into a vma at a different location than implied by
+by page->index and vm_pgoff) from Ingo's sys_remap_file_pages,
+and anonymous pages sys_mremap'ed to a different location while
+shared (copy-on-write) with another mm.
 
-page_add_rmap now takes page*, vma*, uvaddr, anon args.
-In file-backed case, vma will be used to check whether uvaddr
-matches vma_address from page->index and vm_pgoff: nonlinear
-handled in next the patch.  In anonymous case, vma used to find
-vma->vm_mm->anonmm to save in page->mapping, uvaddr in index.
+Bring back chains to handle these, but list user virtual addresses
+not pte addresses: user virtual addresses are invariant across fork,
+just bump the count, no need to allocate any memory.
 
-page_referenced and try_to_unmap call _anon or _obj variants
-to process lists, which call _one for each vma or anonmm.
+And since copy_page_range won't need to allocate such buffers,
+we can do a much simpler implementation than before: "rmap_get_cpu"
+called just before taking page_table_lock allocates one rmap_chain
+for the cpu (if not already there) in case subsequent page_add_rmap
+might need it.  These chains too rare for kmem_cache, just kmalloc.
 
-put_dirty_page (put_dirty_page? odd, let's call it put_stack_page)
-in exec.c take vma* instead of tsk*, it's always on current anyway.
-Make a habit of raising rss before page_add_rmap, the loops skip
-rss 0, partly to save time, but also to avoid catching child mm
-when inconsistent between dup_rmap and dup_mmap.
+The other awkward case before was swapoff's unuse_pte.  But an
+anonymous page cannot appear in two places in the same mm (until
+Ingo adds sys_remap_anon_pages_in_several_places_at_once), so
+only one rmap_chain needed as elsewhere - make that explicit by
+returning as soon as found.  And try_to_unuse desist at last from
+holding the mmlist_lock across the whole search of mms: we can't
+rmap_get_cpu (may kmalloc non-atomically) while holding that lock.
 
- fs/exec.c             |   27 +--
- include/linux/mm.h    |    7 
- include/linux/rmap.h  |   16 +-
- include/linux/sched.h |    1 
- kernel/fork.c         |   21 ++
- mm/fremap.c           |    2 
- mm/memory.c           |    9 -
- mm/mremap.c           |    7 
- mm/rmap.c             |  380 +++++++++++++++++++++++++++++++++++++++++---------
- mm/swapfile.c         |    7 
- 10 files changed, 381 insertions(+), 96 deletions(-)
+There may well be some better data structure to deal with these
+cases, but both are very rare - though the nonlinear presumably
+will become more common.  Perhaps when we see how it gets used,
+someone can propose a better structure, this will do for now.
 
---- anobjrmap3/fs/exec.c	Thu Mar 20 17:10:12 2003
-+++ anobjrmap4/fs/exec.c	Thu Mar 20 17:10:23 2003
-@@ -286,10 +286,12 @@
-  * This routine is used to map in a page into an address space: needed by
-  * execve() for the initial stack and environment pages.
-  *
-- * tsk->mmap_sem is held for writing.
-+ * mm->mmap_sem is held for writing.
+ include/linux/mm.h         |    7 
+ include/linux/page-flags.h |    5 
+ include/linux/rmap.h       |    4 
+ mm/fremap.c                |    4 
+ mm/memory.c                |   21 ++
+ mm/mremap.c                |   13 +
+ mm/page_alloc.c            |    3 
+ mm/rmap.c                  |  351 +++++++++++++++++++++++++++++++++++++--------
+ mm/swapfile.c              |   83 ++++++----
+ 9 files changed, 393 insertions(+), 98 deletions(-)
+
+--- anobjrmap4/include/linux/mm.h	Thu Mar 20 17:10:23 2003
++++ anobjrmap5/include/linux/mm.h	Thu Mar 20 17:10:34 2003
+@@ -165,7 +165,10 @@
+ 	unsigned long index;		/* Our offset within mapping. */
+ 	struct list_head lru;		/* Pageout list, eg. active_list;
+ 					   protected by zone->lru_lock !! */
+-	unsigned long rmap_count;	/* Count mappings in mms */
++	union {				/* Depending on PG_chained */
++		unsigned long count;	/* Count mappings in mms, or */
++		struct rmap_chain *chain;/* Scattered mappings pointer */
++	} rmap;				/* Protected by PG_rmaplock */
+ 	unsigned long private;		/* mapping-private opaque data */
+ 
+ 	/*
+@@ -364,7 +367,7 @@
+  * refers to user virtual address space into which the page is mapped.
   */
--void put_dirty_page(struct task_struct * tsk, struct page *page, unsigned long address)
-+void put_stack_page(struct vm_area_struct *mpnt,
-+	struct page *page, unsigned long address)
- {
-+	struct mm_struct *mm = mpnt->vm_mm;
- 	pgd_t * pgd;
- 	pmd_t * pmd;
- 	pte_t * pte;
-@@ -297,33 +299,33 @@
- 	if (page_count(page) != 1)
- 		printk(KERN_ERR "mem_map disagrees with %p at %08lx\n", page, address);
+ #define page_mapping(page) (PageAnon(page)? NULL: (page)->mapping)
+-#define page_mapped(page)  ((page)->rmap_count != 0)
++#define page_mapped(page)  ((page)->rmap.count != 0)
  
--	pgd = pgd_offset(tsk->mm, address);
--	spin_lock(&tsk->mm->page_table_lock);
--	pmd = pmd_alloc(tsk->mm, pgd, address);
-+	pgd = pgd_offset(mm, address);
-+	spin_lock(&mm->page_table_lock);
-+	pmd = pmd_alloc(mm, pgd, address);
- 	if (!pmd)
- 		goto out;
--	pte = pte_alloc_map(tsk->mm, pmd, address);
-+	pte = pte_alloc_map(mm, pmd, address);
- 	if (!pte)
- 		goto out;
- 	if (!pte_none(*pte)) {
- 		pte_unmap(pte);
- 		goto out;
- 	}
-+	mm->rss++;
- 	lru_cache_add_active(page);
- 	flush_dcache_page(page);
- 	flush_page_to_ram(page);
- 	set_pte(pte, pte_mkdirty(pte_mkwrite(mk_pte(page, PAGE_COPY))));
--	page_add_rmap(page, 1);
-+	page_add_rmap(page, mpnt, address, 1);
- 	pte_unmap(pte);
--	tsk->mm->rss++;
--	spin_unlock(&tsk->mm->page_table_lock);
-+	spin_unlock(&mm->page_table_lock);
+ /*
+  * Error return values for the *_nopage functions
+--- anobjrmap4/include/linux/page-flags.h	Thu Mar 20 17:10:12 2003
++++ anobjrmap5/include/linux/page-flags.h	Thu Mar 20 17:10:34 2003
+@@ -70,6 +70,7 @@
+ #define PG_nosave		14	/* Used for system suspend/resume */
+ #define PG_rmaplock		15	/* Lock bit for reversing to ptes */
  
- 	/* no need for flush_tlb */
- 	return;
- out:
--	spin_unlock(&tsk->mm->page_table_lock);
-+	spin_unlock(&mm->page_table_lock);
- 	__free_page(page);
--	force_sig(SIGKILL, tsk);
-+	force_sig(SIGKILL, current);
- 	return;
- }
++#define PG_chained		16	/* Has rmap chain of scattered maps */
+ #define PG_mappedtodisk		17	/* Has blocks allocated on-disk */
+ #define PG_reclaim		18	/* To be reclaimed asap */
+ #define PG_compound		19	/* Part of a compound page */
+@@ -239,6 +240,10 @@
+ #define ClearPageNosave(page)		clear_bit(PG_nosave, &(page)->flags)
+ #define TestClearPageNosave(page)	test_and_clear_bit(PG_nosave, &(page)->flags)
  
-@@ -416,7 +418,7 @@
- 		struct page *page = bprm->page[i];
- 		if (page) {
- 			bprm->page[i] = NULL;
--			put_dirty_page(current,page,stack_base);
-+			put_stack_page(mpnt,page,stack_base);
- 		}
- 		stack_base += PAGE_SIZE;
- 	}
-@@ -429,7 +431,6 @@
- 
- #else
- 
--#define put_dirty_page(tsk, page, address)
- #define setup_arg_pages(bprm)			(0)
- static inline void free_arg_pages(struct linux_binprm *bprm)
- {
---- anobjrmap3/include/linux/mm.h	Thu Mar 20 17:10:12 2003
-+++ anobjrmap4/include/linux/mm.h	Thu Mar 20 17:10:23 2003
-@@ -577,12 +577,19 @@
- extern unsigned int nr_used_zone_pages(void);
- 
- #ifdef CONFIG_MMU
-+extern void put_stack_page(struct vm_area_struct *,
-+		struct page *, unsigned long);
- extern struct page * vmalloc_to_page(void *addr);
- extern struct page * follow_page(struct mm_struct *mm, unsigned long address,
- 		int write);
- extern int remap_page_range(struct vm_area_struct *vma, unsigned long from,
- 		unsigned long to, unsigned long size, pgprot_t prot);
- #else
-+static inline void put_stack_page(struct vm_area_struct *,
-+		struct page *, unsigned long)
-+{
-+	return;
-+}
- static inline struct page * vmalloc_to_page(void *addr)
- {
- 	return NULL;
---- anobjrmap3/include/linux/rmap.h	Thu Mar 20 17:10:12 2003
-+++ anobjrmap4/include/linux/rmap.h	Thu Mar 20 17:10:23 2003
-@@ -8,7 +8,9 @@
++#define PageChained(page)	test_bit(PG_chained, &(page)->flags)
++#define SetPageChained(page)	set_bit(PG_chained, &(page)->flags)
++#define ClearPageChained(page)	clear_bit(PG_chained, &(page)->flags)
++
+ #define PageMappedToDisk(page)	test_bit(PG_mappedtodisk, &(page)->flags)
+ #define SetPageMappedToDisk(page) set_bit(PG_mappedtodisk, &(page)->flags)
+ #define ClearPageMappedToDisk(page) clear_bit(PG_mappedtodisk, &(page)->flags)
+--- anobjrmap4/include/linux/rmap.h	Thu Mar 20 17:10:23 2003
++++ anobjrmap5/include/linux/rmap.h	Thu Mar 20 17:10:34 2003
+@@ -8,9 +8,13 @@
  #include <linux/linkage.h>
  
  #ifdef CONFIG_MMU
--void FASTCALL(page_add_rmap(struct page *, int anon));
-+void page_add_rmap(struct page *, struct vm_area_struct *,
-+			unsigned long addr, int anon);
-+void page_turn_rmap(struct page *, struct vm_area_struct *);
++int rmap_get_cpu(void);
++
+ void page_add_rmap(struct page *, struct vm_area_struct *,
+ 			unsigned long addr, int anon);
+ void page_turn_rmap(struct page *, struct vm_area_struct *);
++void page_move_rmap(struct page *, struct vm_area_struct *,
++			unsigned long oaddr, unsigned long naddr);
  void FASTCALL(page_dup_rmap(struct page *));
  void FASTCALL(page_remove_rmap(struct page *));
  
-@@ -18,10 +20,22 @@
- int FASTCALL(page_referenced(struct page *));
- int FASTCALL(try_to_unmap(struct page *));
+--- anobjrmap4/mm/fremap.c	Thu Mar 20 17:10:23 2003
++++ anobjrmap5/mm/fremap.c	Thu Mar 20 17:10:34 2003
+@@ -58,7 +58,10 @@
+ 	pmd_t *pmd;
  
-+/*
-+ * Called from kernel/fork.c to manage anonymous memory
-+ */
-+void init_rmap(void);
-+int exec_rmap(struct mm_struct *);
-+int dup_rmap(struct mm_struct *, struct mm_struct *oldmm);
-+void exit_rmap(struct mm_struct *);
-+
- #else	/* !CONFIG_MMU */
+ 	pgd = pgd_offset(mm, addr);
++	if (!rmap_get_cpu())
++		goto err;
+ 	spin_lock(&mm->page_table_lock);
++	put_cpu();
  
- #define page_referenced(page)	TestClearPageReferenced(page)
- #define try_to_unmap(page)	SWAP_FAIL
-+#define init_rmap()		do {} while (0)
-+#define exec_rmap(mm)		(0)
-+#define dup_rmap(mm, oldmm)	(0)
-+#define exit_rmap(mm)		do {} while (0)
- 
- #endif /* CONFIG_MMU */
- 
---- anobjrmap3/include/linux/sched.h	Wed Mar 19 11:05:16 2003
-+++ anobjrmap4/include/linux/sched.h	Thu Mar 20 17:10:23 2003
-@@ -198,6 +198,7 @@
- 						 * together off init_mm.mmlist, and are protected
- 						 * by mmlist_lock
- 						 */
-+	struct anonmm *anonmm;			/* For rmap to track anon mem */
- 
- 	unsigned long start_code, end_code, start_data, end_data;
- 	unsigned long start_brk, brk, start_stack;
---- anobjrmap3/kernel/fork.c	Wed Mar 19 11:05:16 2003
-+++ anobjrmap4/kernel/fork.c	Thu Mar 20 17:10:23 2003
-@@ -30,6 +30,7 @@
- #include <linux/futex.h>
- #include <linux/ptrace.h>
- #include <linux/mount.h>
-+#include <linux/rmap.h>
- 
- #include <asm/pgtable.h>
- #include <asm/pgalloc.h>
-@@ -333,6 +334,7 @@
- 	vm_unacct_memory(charge);
- 	goto out;
- }
-+
- static inline int mm_alloc_pgd(struct mm_struct * mm)
- {
- 	mm->pgd = pgd_alloc(mm);
-@@ -377,7 +379,6 @@
- 	free_mm(mm);
- 	return NULL;
- }
--	
- 
- /*
-  * Allocate and initialize an mm_struct.
-@@ -389,9 +390,14 @@
- 	mm = allocate_mm();
- 	if (mm) {
- 		memset(mm, 0, sizeof(*mm));
--		return mm_init(mm);
-+		mm = mm_init(mm);
-+		if (mm && exec_rmap(mm)) {
-+			mm_free_pgd(mm);
-+			free_mm(mm);
-+			mm = NULL;
-+		}
- 	}
--	return NULL;
-+	return mm;
+ 	pmd = pmd_alloc(mm, pgd, addr);
+ 	if (!pmd)
+@@ -83,6 +86,7 @@
+ 	err = 0;
+ err_unlock:
+ 	spin_unlock(&mm->page_table_lock);
++err:
+ 	return err;
  }
  
- /*
-@@ -418,6 +424,7 @@
- 		spin_unlock(&mmlist_lock);
- 		exit_aio(mm);
- 		exit_mmap(mm);
-+		exit_rmap(mm);
- 		mmdrop(mm);
- 	}
- }
-@@ -504,6 +511,12 @@
- 	if (!mm_init(mm))
- 		goto fail_nomem;
+--- anobjrmap4/mm/memory.c	Thu Mar 20 17:10:23 2003
++++ anobjrmap5/mm/memory.c	Thu Mar 20 17:10:34 2003
+@@ -1141,19 +1141,23 @@
+ 	mark_page_accessed(page);
+ 	lock_page(page);
  
-+	if (dup_rmap(mm, oldmm)) {
-+		mm_free_pgd(mm);
-+		free_mm(mm);
-+		goto fail_nomem;
++	if (!rmap_get_cpu()) {
++		ret = VM_FAULT_OOM;
++		goto outrel;
 +	}
++	spin_lock(&mm->page_table_lock);
++	put_cpu();
++	page_table = pte_offset_map(pmd, address);
 +
- 	if (init_new_context(tsk,mm))
- 		goto free_pt;
- 
-@@ -1177,4 +1190,6 @@
- 			SLAB_HWCACHE_ALIGN, NULL, NULL);
- 	if(!mm_cachep)
- 		panic("vma_init: Cannot alloc mm_struct SLAB cache");
-+
-+	init_rmap();
- }
---- anobjrmap3/mm/fremap.c	Thu Mar 20 17:10:12 2003
-+++ anobjrmap4/mm/fremap.c	Thu Mar 20 17:10:23 2003
-@@ -75,7 +75,7 @@
- 	flush_icache_page(vma, page);
- 	entry = mk_pte(page, prot);
- 	set_pte(pte, entry);
--	page_add_rmap(page, 0);
-+	page_add_rmap(page, vma, addr, 0);
- 	pte_unmap(pte);
- 	if (flush)
- 		flush_tlb_page(vma, addr);
---- anobjrmap3/mm/memory.c	Thu Mar 20 17:10:12 2003
-+++ anobjrmap4/mm/memory.c	Thu Mar 20 17:10:23 2003
-@@ -940,6 +940,7 @@
- 			flush_cache_page(vma, address);
- 			establish_pte(vma, address, page_table,
- 				pte_mkyoung(pte_mkdirty(pte_mkwrite(pte))));
-+			page_turn_rmap(old_page, vma);
- 			pte_unmap(page_table);
- 			ret = VM_FAULT_MINOR;
- 			goto out;
-@@ -969,7 +970,7 @@
- 		else
- 			page_remove_rmap(old_page);
- 		break_cow(vma, new_page, address, page_table);
--		page_add_rmap(new_page, 1);
-+		page_add_rmap(new_page, vma, address, 1);
- 		lru_cache_add_active(new_page);
- 
- 		/* Free the old page.. */
-@@ -1170,7 +1171,7 @@
- 	flush_page_to_ram(page);
- 	flush_icache_page(vma, page);
- 	set_pte(page_table, pte);
--	page_add_rmap(page, 1);
-+	page_add_rmap(page, vma, address, 1);
- 
- 	/* No need to invalidate - it was non-present before */
- 	update_mmu_cache(vma, address, pte);
-@@ -1227,7 +1228,7 @@
- 
- 	set_pte(page_table, entry);
- 	/* ignores ZERO_PAGE */
--	page_add_rmap(page, 1);
-+	page_add_rmap(page, vma, addr, 1);
- 	pte_unmap(page_table);
- 
- 	/* No need to invalidate - it was non-present before */
-@@ -1312,7 +1313,7 @@
- 		if (write_access)
- 			entry = pte_mkwrite(pte_mkdirty(entry));
- 		set_pte(page_table, entry);
--		page_add_rmap(new_page, anon);
-+		page_add_rmap(new_page, vma, address, anon);
+ 	/*
+ 	 * Back out if somebody else faulted in this pte while we
+ 	 * released the page table lock.
+ 	 */
+-	spin_lock(&mm->page_table_lock);
+-	page_table = pte_offset_map(pmd, address);
+ 	if (!pte_same(*page_table, orig_pte)) {
  		pte_unmap(page_table);
- 	} else {
- 		/* One of our sibling threads was faster, back out. */
---- anobjrmap3/mm/mremap.c	Thu Mar 20 17:10:12 2003
-+++ anobjrmap4/mm/mremap.c	Thu Mar 20 17:10:23 2003
-@@ -83,7 +83,8 @@
+ 		spin_unlock(&mm->page_table_lock);
+-		unlock_page(page);
+-		page_cache_release(page);
+ 		ret = VM_FAULT_MINOR;
+-		goto out;
++		goto outrel;
+ 	}
+ 
+ 	/* The page isn't present yet, go ahead with the fault. */
+@@ -1179,6 +1183,10 @@
+ 	spin_unlock(&mm->page_table_lock);
+ out:
+ 	return ret;
++outrel:
++	unlock_page(page);
++	page_cache_release(page);
++	goto out;
  }
  
- static int
--copy_one_pte(struct mm_struct *mm, pte_t *src, pte_t *dst)
-+copy_one_pte(struct vm_area_struct *vma, pte_t *src, pte_t *dst,
-+	unsigned long old_addr, unsigned long new_addr)
- {
- 	pte_t pte;
- 	struct page *page = NULL;
-@@ -98,7 +99,7 @@
- 		if (page) {
- 			int anon = PageAnon(page);
- 			page_remove_rmap(page);
--			page_add_rmap(page, anon);
-+			page_add_rmap(page, vma, new_addr, anon);
- 		}
+ /*
+@@ -1291,7 +1299,10 @@
+ 		anon = 1;
+ 	}
+ 
++	if (!rmap_get_cpu())
++		goto oom;
+ 	spin_lock(&mm->page_table_lock);
++	put_cpu();
+ 	page_table = pte_offset_map(pmd, address);
+ 
+ 	/*
+--- anobjrmap4/mm/mremap.c	Thu Mar 20 17:10:23 2003
++++ anobjrmap5/mm/mremap.c	Thu Mar 20 17:10:34 2003
+@@ -96,11 +96,8 @@
+ 			page = pte_page(*src);
+ 		pte = ptep_get_and_clear(src);
+ 		set_pte(dst, pte);
+-		if (page) {
+-			int anon = PageAnon(page);
+-			page_remove_rmap(page);
+-			page_add_rmap(page, vma, new_addr, anon);
+-		}
++		if (page)
++			page_move_rmap(page, vma, old_addr, new_addr);
  	}
  	return 0;
-@@ -127,7 +128,7 @@
- 		dst = alloc_one_pte_map(mm, new_addr);
- 		if (src == NULL)
- 			src = get_one_pte_map_nested(mm, old_addr);
--		error = copy_one_pte(mm, src, dst);
-+		error = copy_one_pte(vma, src, dst, old_addr, new_addr);
- 		pte_unmap_nested(src);
- 		pte_unmap(dst);
+ }
+@@ -113,7 +110,12 @@
+ 	int error = 0;
+ 	pte_t *src, *dst;
+ 
++	if (!rmap_get_cpu()) {
++		error = -ENOMEM;
++		goto out;
++	}
+ 	spin_lock(&mm->page_table_lock);
++	put_cpu();
+ 	src = get_one_pte_map_nested(mm, old_addr);
+ 	if (src) {
+ 		/*
+@@ -134,6 +136,7 @@
  	}
---- anobjrmap3/mm/rmap.c	Thu Mar 20 17:10:12 2003
-+++ anobjrmap4/mm/rmap.c	Thu Mar 20 17:10:23 2003
-@@ -29,45 +29,165 @@
+ 	flush_tlb_page(vma, old_addr);
+ 	spin_unlock(&mm->page_table_lock);
++out:
+ 	return error;
+ }
  
- #define page_mapcount(page)	((page)->rmap_count)
+--- anobjrmap4/mm/page_alloc.c	Thu Mar 20 17:10:12 2003
++++ anobjrmap5/mm/page_alloc.c	Thu Mar 20 17:10:34 2003
+@@ -81,6 +81,7 @@
+ 			1 << PG_active	|
+ 			1 << PG_dirty	|
+ 			1 << PG_rmaplock  |
++			1 << PG_chained   |
+ 			1 << PG_anon      |
+ 			1 << PG_swapcache |
+ 			1 << PG_writeback);
+@@ -220,6 +221,7 @@
+ 			1 << PG_active	|
+ 			1 << PG_reclaim	|
+ 			1 << PG_rmaplock  |
++			1 << PG_chained   |
+ 			1 << PG_anon      |
+ 			1 << PG_swapcache |
+ 			1 << PG_writeback )))
+@@ -327,6 +329,7 @@
+ 			1 << PG_dirty	|
+ 			1 << PG_reclaim	|
+ 			1 << PG_rmaplock  |
++			1 << PG_chained   |
+ 			1 << PG_anon      |
+ 			1 << PG_swapcache |
+ 			1 << PG_writeback )))
+--- anobjrmap4/mm/rmap.c	Thu Mar 20 17:10:23 2003
++++ anobjrmap5/mm/rmap.c	Thu Mar 20 17:10:34 2003
+@@ -27,11 +27,35 @@
+ #include <linux/percpu.h>
+ #include <asm/tlbflush.h>
  
-+#define NOADDR	(~0UL)		/* impossible user virtual address */
+-#define page_mapcount(page)	((page)->rmap_count)
++/*
++ * struct rmap_chain: extension of struct page, to track scattered
++ * mappings originating from sys_mremap of anonymous cow pages, or
++ * sys_remap_file_pages.  Each cpu caches one to grab while locked.
++ */
++struct rmap_chain {
++#define NRSLOT	7			/* first contains count, then */
++	unsigned long slot[NRSLOT];	/* user virtual addresses */
++	struct rmap_chain *next;
++};
++static DEFINE_PER_CPU(struct rmap_chain *, rmap_chain) = 0;
++
++#define page_mapcount(page) (unlikely(PageChained(page))? \
++	(page)->rmap.chain->slot[0]: (page)->rmap.count)
+ 
+ #define NOADDR	(~0UL)		/* impossible user virtual address */
+ 
+ /*
++ * struct addresser: for next_rmap_address to dole out user
++ * addresses one by one to page_referenced or to try_to_unmap.
++ */
++struct addresser {
++	unsigned long address;
++	unsigned long count;
++	struct rmap_chain *chain;
++	int index;
++};
 +
 +/*
-+ * struct anonmm: to track a bundle of anonymous memory mappings.
-+ *
-+ * Could be embedded in mm_struct, but mm_struct is rather heavyweight,
-+ * and we may need the anonmm to stay around long after the mm_struct
-+ * and its pgd have been freed: because pages originally faulted into
-+ * that mm have been duped into forked mms, and still need tracking.
-+ */
-+struct anonmm {
-+	atomic_t	 count;	/* ref count, incl. 1 per page */
-+	spinlock_t	 lock;	/* head's locks list; others unused */
-+	struct mm_struct *mm;	/* assoc mm_struct, NULL when gone */
-+	struct anonmm	 *head;	/* exec starts new chain from head */
-+	struct list_head list;	/* chain of associated anonmms */
-+};
-+static kmem_cache_t *anonmm_cachep;
-+
- /*
-- * Something oopsable to put for now in the page->mapping
-- * of an anonymous page, to test that it is ignored.
-+ * At what user virtual address is page expected in file-backed vma?
-  */
--#define ANON_MAPPING_DEBUG	((struct address_space *) 1)
-+static inline unsigned long
-+vma_address(struct page *page, struct vm_area_struct *vma)
-+{
-+	unsigned long pgoff;
-+	unsigned long address;
-+
-+	pgoff = page->index << (PAGE_CACHE_SHIFT - PAGE_SHIFT);
-+	address = vma->vm_start + ((pgoff - vma->vm_pgoff) << PAGE_SHIFT);
-+	return (address >= vma->vm_start && address < vma->vm_end)?
-+		address: NOADDR;
-+}
-+
-+/**
-+ ** Functions for creating and destroying struct anonmm.
+  * struct anonmm: to track a bundle of anonymous memory mappings.
+  *
+  * Could be embedded in mm_struct, but mm_struct is rather heavyweight,
+@@ -64,6 +88,147 @@
+ }
+ 
+ /**
++ ** Functions for manipulating struct rmap_chain.
 + **/
 +
-+void __init
-+init_rmap(void)
++/*
++ * Boolean rmap_get_cpu ensures that the cpu has an rmap_chain
++ * cached in case it is needed later while lock is held; it is never
++ * needed when page_add_rmap is adding a freshly allocated anon page.
++ * Caller does put_cpu() once page_table_lock prevents preemption.
++ */
++int
++rmap_get_cpu(void)
 +{
-+	anonmm_cachep = kmem_cache_create("anonmm",
-+			sizeof(struct anonmm), 0,
-+			SLAB_HWCACHE_ALIGN, NULL, NULL);
-+	if (!anonmm_cachep)
-+		panic("init_rmap: Cannot alloc anonmm SLAB cache");
++	struct rmap_chain **cache;
++
++	might_sleep();
++	cache = &per_cpu(rmap_chain, get_cpu());
++	if (unlikely(!*cache)) {
++		struct rmap_chain *chain;
++
++		put_cpu();
++		chain = kmalloc(sizeof(*chain), GFP_KERNEL);
++		cache = &per_cpu(rmap_chain, get_cpu());
++		if (*cache)
++			kfree(chain);
++		else if (chain)
++			*cache = chain;
++		else {
++			put_cpu();
++			return 0;
++		}
++	}
++	return 1;
 +}
 +
-+int
-+exec_rmap(struct mm_struct *mm)
++static struct rmap_chain *
++get_rmap_chain(void)
 +{
-+	struct anonmm *anonmm;
-+
-+	anonmm = kmem_cache_alloc(anonmm_cachep, SLAB_KERNEL);
-+	if (unlikely(!anonmm))
-+		return -ENOMEM;
-+
-+	atomic_set(&anonmm->count, 2);		/* ref by mm and head */
-+	anonmm->lock = SPIN_LOCK_UNLOCKED;	/* this lock is used */
-+	anonmm->mm = mm;
-+	anonmm->head = anonmm;
-+	INIT_LIST_HEAD(&anonmm->list);
-+	mm->anonmm = anonmm;
-+	return 0;
-+}
-+
-+int
-+dup_rmap(struct mm_struct *mm, struct mm_struct *oldmm)
-+{
-+	struct anonmm *anonmm;
-+	struct anonmm *anonhd = oldmm->anonmm->head;
-+
-+	anonmm = kmem_cache_alloc(anonmm_cachep, SLAB_KERNEL);
-+	if (unlikely(!anonmm))
-+		return -ENOMEM;
++	struct rmap_chain **cache;
++	struct rmap_chain *chain;
++	int i;
 +
 +	/*
-+	 * copy_mm calls us before dup_mmap has reset the mm fields,
-+	 * so reset rss ourselves before adding to anonhd's list,
-+	 * to keep away from this mm until it's worth examining.
++	 * page_table_lock and rmap_lock are held, no need to get_cpu
 +	 */
-+	mm->rss = 0;
-+
-+	atomic_set(&anonmm->count, 1);		/* ref by mm */
-+	anonmm->lock = SPIN_LOCK_UNLOCKED;	/* this lock is not used */
-+	anonmm->mm = mm;
-+	anonmm->head = anonhd;
-+	spin_lock(&anonhd->lock);
-+	atomic_inc(&anonhd->count);		/* ref by anonmm's head */
-+	list_add_tail(&anonmm->list, &anonhd->list);
-+	spin_unlock(&anonhd->lock);
-+	mm->anonmm = anonmm;
-+	return 0;
-+}
-+
-+void
-+exit_rmap(struct mm_struct *mm)
-+{
-+	struct anonmm *anonmm = mm->anonmm;
-+	struct anonmm *anonhd = anonmm->head;
-+
-+	mm->anonmm = NULL;
-+	spin_lock(&anonhd->lock);
-+	anonmm->mm = NULL;
-+	if (atomic_dec_and_test(&anonmm->count)) {
-+		BUG_ON(anonmm == anonhd);
-+		list_del(&anonmm->list);
-+		kmem_cache_free(anonmm_cachep, anonmm);
-+		if (atomic_dec_and_test(&anonhd->count))
-+			BUG();
-+	}
-+	spin_unlock(&anonhd->lock);
-+	if (atomic_read(&anonhd->count) == 1) {
-+		BUG_ON(anonhd->mm);
-+		BUG_ON(!list_empty(&anonhd->list));
-+		kmem_cache_free(anonmm_cachep, anonhd);
-+	}
++	cache = &per_cpu(rmap_chain, smp_processor_id());
++	chain = *cache;
++	*cache = NULL;
++	BUG_ON(!chain);
++	for (i = 0; i < NRSLOT; i++)
++		chain->slot[i] = NOADDR;
++	chain->next = NULL;
++	return chain;
 +}
 +
 +static void
-+free_anonmm(struct anonmm *anonmm)
++add_rmap_address(struct page *page, unsigned long address)
 +{
-+	struct anonmm *anonhd = anonmm->head;
++	struct rmap_chain *chain;
++	int i = 1;
 +
-+	BUG_ON(anonmm->mm);
-+	BUG_ON(anonmm == anonhd);
-+	spin_lock(&anonhd->lock);
-+	list_del(&anonmm->list);
-+	if (atomic_dec_and_test(&anonhd->count))
-+		BUG();
-+	spin_unlock(&anonhd->lock);
-+	kmem_cache_free(anonmm_cachep, anonmm);
++	if (PageChained(page)) {
++		/*
++		 * Check lest duplicate, and find free slot at end
++		 */
++		for (chain = page->rmap.chain; ; chain = chain->next, i = 0) {
++			for (; i < NRSLOT; i++) {
++				if (chain->slot[i] == NOADDR)
++					goto set;
++				if (chain->slot[i] == address)
++					return;
++			}
++			if (!chain->next)
++				chain->next = get_rmap_chain();
++		}
++	} else {
++		SetPageChained(page);
++		chain = get_rmap_chain();
++		chain->slot[0] = page->rmap.count;
++		page->rmap.chain = chain;
++	}
++set:
++	chain->slot[i] = address;
 +}
- 
- static inline void
- clear_page_anon(struct page *page)
- {
--	BUG_ON(page->mapping != ANON_MAPPING_DEBUG);
-+	struct anonmm *anonmm = (struct anonmm *) page->mapping;
 +
- 	page->mapping = NULL;
- 	ClearPageAnon(page);
-+	if (atomic_dec_and_test(&anonmm->count))
-+		free_anonmm(anonmm);
- }
- 
- /**
-  ** Subfunctions of page_referenced: page_referenced_one called
-- ** repeatedly from page_referenced_obj.
-+ ** repeatedly from either page_referenced_anon or page_referenced_obj.
++static int
++next_rmap_address(struct page *page,
++	struct vm_area_struct *vma, struct addresser *addresser)
++{
++	if (addresser->index == 0) {
++		/* set chain and index for next call */
++		addresser->chain =
++			PageChained(page)? page->rmap.chain: NULL;
++		addresser->index = 1;
++		if (vma) {
++			addresser->address = vma_address(page, vma);
++			if (addresser->address != NOADDR)
++				return 1;
++		} else {
++			addresser->address = page->index;
++			return 1;
++		}
++	}
++	while (addresser->chain) {
++		if (addresser->index >= NRSLOT)
++			addresser->index = 0;
++		addresser->address =
++			addresser->chain->slot[addresser->index];
++		if (addresser->address == NOADDR)
++			break;
++		addresser->index++;
++		if (addresser->index >= NRSLOT)
++			addresser->chain = addresser->chain->next;
++		if (!vma || addresser->address != vma_address(page, vma))
++			return 1;
++	}
++	return 0;
++}
++
++static void
++clear_page_chained(struct page *page)
++{
++	struct rmap_chain *chain = page->rmap.chain;
++
++	/*
++	 * At present this is only called when mapcount goes to 0, which
++	 * leaves open the possibility that a page might accumulate a
++	 * large chain of stale addresses, slowing page_referenced and
++	 * wasting memory on the chain; but normally try_to_unmap_one
++	 * will bring the count down to 0 and free them all here.
++	 */
++
++	page->rmap.count = chain->slot[0];
++	ClearPageChained(page);
++	do {
++		struct rmap_chain *next = chain->next;
++		kfree(chain);
++		chain = next;
++	} while (chain);
++}
++
++/**
+  ** Functions for creating and destroying struct anonmm.
   **/
  
+@@ -181,8 +346,9 @@
+ 
  static int
--page_referenced_one(struct page *page, struct vm_area_struct *vma)
-+page_referenced_one(struct page *page, struct mm_struct *mm,
-+	unsigned long address, unsigned long *mapcount)
+ page_referenced_one(struct page *page, struct mm_struct *mm,
+-	unsigned long address, unsigned long *mapcount)
++		    struct addresser *addresser)
  {
--	struct mm_struct *mm = vma->vm_mm;
++	unsigned long address = addresser->address;
  	pgd_t *pgd;
  	pmd_t *pmd;
  	pte_t *pte;
--	unsigned long loffset;
--	unsigned long address;
- 	int referenced = 0;
- 
--	loffset = (page->index << (PAGE_CACHE_SHIFT - PAGE_SHIFT));
--	if (loffset < vma->vm_pgoff)
--		goto out;
--
--	address = vma->vm_start + ((loffset - vma->vm_pgoff) << PAGE_SHIFT);
--
--	if (address >= vma->vm_end)
--		goto out;
--
- 	if (!spin_trylock(&mm->page_table_lock)) {
- 		referenced = 1;
- 		goto out;
-@@ -91,6 +211,8 @@
+@@ -211,7 +377,7 @@
  	if (ptep_test_and_clear_young(pte))
  		referenced++;
  
-+	(*mapcount)--;
-+
+-	(*mapcount)--;
++	addresser->count--;
+ 
  out_unmap:
  	pte_unmap(pte);
- 
-@@ -102,21 +224,69 @@
+@@ -224,7 +390,7 @@
  }
  
  static inline int
--page_referenced_obj(struct page *page)
-+page_referenced_anon(struct page *page, unsigned long *mapcount)
-+{
-+	struct anonmm *anonmm = (struct anonmm *) page->mapping;
-+	struct anonmm *anonhd = anonmm->head;
-+	struct list_head *seek_head;
-+	int referenced = 0;
-+
-+	spin_lock(&anonhd->lock);
-+	if (anonmm->mm && anonmm->mm->rss) {
-+		referenced += page_referenced_one(
-+			page, anonmm->mm, page->index, mapcount);
-+		if (!*mapcount)
-+			goto out;
-+	}
-+	seek_head = &anonmm->list;
-+	list_for_each_entry(anonmm, seek_head, list) {
-+		if (!anonmm->mm || !anonmm->mm->rss)
-+			continue;
-+		referenced += page_referenced_one(
-+			page, anonmm->mm, page->index, mapcount);
-+		if (!*mapcount)
-+			goto out;
-+	}
-+out:
-+	spin_unlock(&anonhd->lock);
-+	return referenced;
-+}
-+
-+static inline int
-+page_referenced_obj(struct page *page, unsigned long *mapcount)
+-page_referenced_anon(struct page *page, unsigned long *mapcount)
++page_referenced_anon(struct page *page, struct addresser *addresser)
+ {
+ 	struct anonmm *anonmm = (struct anonmm *) page->mapping;
+ 	struct anonmm *anonhd = anonmm->head;
+@@ -233,19 +399,25 @@
+ 
+ 	spin_lock(&anonhd->lock);
+ 	if (anonmm->mm && anonmm->mm->rss) {
+-		referenced += page_referenced_one(
+-			page, anonmm->mm, page->index, mapcount);
+-		if (!*mapcount)
+-			goto out;
++		addresser->index = 0;
++		while (next_rmap_address(page, NULL, addresser)) {
++			referenced += page_referenced_one(
++				page, anonmm->mm, addresser);
++			if (!addresser->count)
++				goto out;
++		}
+ 	}
+ 	seek_head = &anonmm->list;
+ 	list_for_each_entry(anonmm, seek_head, list) {
+ 		if (!anonmm->mm || !anonmm->mm->rss)
+ 			continue;
+-		referenced += page_referenced_one(
+-			page, anonmm->mm, page->index, mapcount);
+-		if (!*mapcount)
+-			goto out;
++		addresser->index = 0;
++		while (next_rmap_address(page, NULL, addresser)) {
++			referenced += page_referenced_one(
++				page, anonmm->mm, addresser);
++			if (!addresser->count)
++				goto out;
++		}
+ 	}
+ out:
+ 	spin_unlock(&anonhd->lock);
+@@ -253,11 +425,10 @@
+ }
+ 
+ static inline int
+-page_referenced_obj(struct page *page, unsigned long *mapcount)
++page_referenced_obj(struct page *page, struct addresser *addresser)
  {
  	struct address_space *mapping = page->mapping;
  	struct vm_area_struct *vma;
-+	unsigned long address;
+-	unsigned long address;
  	int referenced = 0;
  
  	if (down_trylock(&mapping->i_shared_sem))
- 		return 1;
- 
--	list_for_each_entry(vma, &mapping->i_mmap, shared)
--		referenced += page_referenced_one(page, vma);
--
--	list_for_each_entry(vma, &mapping->i_mmap_shared, shared)
--		referenced += page_referenced_one(page, vma);
-+	list_for_each_entry(vma, &mapping->i_mmap, shared) {
-+		if (!vma->vm_mm->rss)
-+			continue;
-+		address = vma_address(page, vma);
-+		if (address != NOADDR) {
-+			referenced += page_referenced_one(
-+				page, vma->vm_mm, address, mapcount);
-+			if (!*mapcount)
-+				goto out;
-+		}
-+	}
- 
-+	list_for_each_entry(vma, &mapping->i_mmap_shared, shared) {
-+		if (!vma->vm_mm->rss)
-+			continue;
-+		address = vma_address(page, vma);
-+		if (address != NOADDR) {
-+			referenced += page_referenced_one(
-+				page, vma->vm_mm, address, mapcount);
-+			if (!*mapcount)
-+				goto out;
-+		}
-+	}
-+out:
- 	up(&mapping->i_shared_sem);
- 	return referenced;
- }
-@@ -132,28 +302,38 @@
+@@ -266,11 +437,11 @@
+ 	list_for_each_entry(vma, &mapping->i_mmap, shared) {
+ 		if (!vma->vm_mm->rss)
+ 			continue;
+-		address = vma_address(page, vma);
+-		if (address != NOADDR) {
++		addresser->index = 0;
++		while (next_rmap_address(page, vma, addresser)) {
+ 			referenced += page_referenced_one(
+-				page, vma->vm_mm, address, mapcount);
+-			if (!*mapcount)
++				page, vma->vm_mm, addresser);
++			if (!addresser->count)
+ 				goto out;
+ 		}
+ 	}
+@@ -278,11 +449,11 @@
+ 	list_for_each_entry(vma, &mapping->i_mmap_shared, shared) {
+ 		if (!vma->vm_mm->rss)
+ 			continue;
+-		address = vma_address(page, vma);
+-		if (address != NOADDR) {
++		addresser->index = 0;
++		while (next_rmap_address(page, vma, addresser)) {
+ 			referenced += page_referenced_one(
+-				page, vma->vm_mm, address, mapcount);
+-			if (!*mapcount)
++				page, vma->vm_mm, addresser);
++			if (!addresser->count)
+ 				goto out;
+ 		}
+ 	}
+@@ -302,15 +473,15 @@
  int
  page_referenced(struct page *page)
  {
-+	unsigned long mapcount;
+-	unsigned long mapcount;
++	struct addresser addresser;
  	int referenced;
  
  	referenced = !!TestClearPageReferenced(page);
--	if (page_mapcount(page) && page->mapping && !PageAnon(page))
--		referenced += page_referenced_obj(page);
-+	mapcount = page_mapcount(page);
-+	if (mapcount && page->mapping) {
-+		referenced += PageAnon(page)?
-+			page_referenced_anon(page, &mapcount):
-+			page_referenced_obj(page, &mapcount);
-+	}
+-	mapcount = page_mapcount(page);
+-	if (mapcount && page->mapping) {
++	addresser.count = page_mapcount(page);
++	if (addresser.count && page->mapping) {
+ 		referenced += PageAnon(page)?
+-			page_referenced_anon(page, &mapcount):
+-			page_referenced_obj(page, &mapcount);
++			page_referenced_anon(page, &addresser):
++			page_referenced_obj(page, &addresser);
+ 	}
  	return referenced;
  }
- 
- /**
-  * page_add_rmap - add reverse mapping entry to a page
-  * @page:	the page to add the mapping to
-+ * @vma:	the vma into which this page is being mapped
-+ * @address:	the virtual address at which page is mapped
-  * @anon:	is this an anonymous (not file-backed) page?
-  *
-  * For general use: Add a new reverse mapping to a page.
-  * The caller needs to hold the mm->page_table_lock.
-  */
- void
--page_add_rmap(struct page *page, int anon)
-+page_add_rmap(struct page *page, struct vm_area_struct *vma,
-+	unsigned long address, int anon)
- {
- 	if (!pfn_valid(page_to_pfn(page)) || PageReserved(page))
- 		return;
- 
-+	address &= PAGE_MASK;
-+
- 	rmap_lock(page);
- 
- 	if (!page_mapped(page))
-@@ -168,8 +348,11 @@
+@@ -343,8 +514,12 @@
+ 	if (page->mapping) {
+ 		if (anon) {
+ 			BUG_ON(!PageAnon(page));
++			if (unlikely(address != page->index))
++				add_rmap_address(page, address);
+ 		} else {
+ 			BUG_ON(PageAnon(page));
++			if (unlikely(address != vma_address(page, vma)))
++				add_rmap_address(page, address);
  		}
  	} else {
  		if (anon) {
-+			struct anonmm *anonmm = vma->vm_mm->anonmm;
- 			SetPageAnon(page);
--			page->mapping = ANON_MAPPING_DEBUG;
-+			page->index = address;
-+			page->mapping = (struct address_space *) anonmm;
-+			atomic_inc(&anonmm->count);
- 		} else {
- 			/*
- 			 * Driver did not assign page->mapping,
-@@ -198,6 +381,35 @@
+@@ -410,6 +585,50 @@
  }
  
  /**
-+ * page_turn_rmap - turn reverse mapping from one mm to another.
-+ * @page:	the anonymous page originally mapped into some vma
-+ * @vma:	the new vma into which this page is now being mapped
++ * page_move_rmap - move address in reverse mapping entry.
++ * @page:	the page originally mapped into some vma
++ * @vma:	that old vma into which this page is mapped
++ * @old_address: old virtual address at which page was mapped
++ * @new_address: new virtual address at which page will be mapped
 + *
-+ * For do_wp_page only: update exclusive page with new mm,
-+ * so that it can be located more quickly later on.
++ * For sys_remap's copy_one_pte: move address in reverse mapping.
++ * Cannot use page_remove_rmap followed by page_add_rmap since
++ * the new vma into which to add has not yet been set up.
 + */
 +void
-+page_turn_rmap(struct page *page, struct vm_area_struct *vma)
++page_move_rmap(struct page *page, struct vm_area_struct *vma,
++	unsigned long old_address, unsigned long new_address)
 +{
-+	struct anonmm *old_anonmm = (struct anonmm *) page->mapping;
-+	struct anonmm *new_anonmm = vma->vm_mm->anonmm;
-+
-+	BUG_ON(!PageAnon(page));
-+	BUG_ON(page_mapcount(page) != 1);
-+	if (new_anonmm == old_anonmm)
++	if (!page_mapped(page) || !page->mapping)
 +		return;
-+	/*
-+	 * Take rmap_lock since we don't hold old mm's page_table_lock.
-+	 */
++
 +	rmap_lock(page);
-+	clear_page_anon(page);
-+	SetPageAnon(page);
-+	page->mapping = (struct address_space *) new_anonmm;
-+	atomic_inc(&new_anonmm->count);
++
++	if (PageAnon(page)) {
++		/*
++		 * We don't check page_mapcount(page) == 1 here
++		 * because the mapcount could be 1 yet the page
++		 * still have a chain, and our new_address be in
++		 * that chain: if the same address goes in twice,
++		 * try_to_unmap would give up too early.
++		 */
++		if (page->rmap.count == 1)
++			page->index = new_address;
++		else if (new_address != page->index)
++			add_rmap_address(page, new_address);
++	} else {
++		/*
++		 * We must chain the new address if the old
++		 * address was nonlinear in its original vma.
++		 */
++		if (old_address != vma_address(page, vma))
++			add_rmap_address(page, new_address);
++	}
++
 +	rmap_unlock(page);
 +}
 +
@@ -711,225 +630,388 @@ when inconsistent between dup_rmap and dup_mmap.
   * page_remove_rmap - take down reverse mapping to a page
   * @page: page to remove mapping from
   *
-@@ -227,30 +439,20 @@
+@@ -420,13 +639,22 @@
+ void
+ page_remove_rmap(struct page *page)
+ {
++#if 0	/* All its callers have already checked these conditions */
+ 	if (!pfn_valid(page_to_pfn(page)) || PageReserved(page))
+ 		return;
++#endif
  
- /**
-  ** Subfunctions of try_to_unmap: try_to_unmap_one called
-- ** repeatedly from try_to_unmap_obj.
-+ ** repeatedly from either try_to_unmap_anon or try_to_unmap_obj.
-  **/
+ 	rmap_lock(page);
+ 
+-	BUG_ON(!page_mapcount(page));
+-	page_mapcount(page)--;
++	if (unlikely(PageChained(page))) {
++		BUG_ON(!page->rmap.chain->slot[0]);
++		page->rmap.chain->slot[0]--;
++		if (!page->rmap.chain->slot[0])
++			clear_page_chained(page);
++	} else {
++		BUG_ON(!page->rmap.count);
++		page->rmap.count--;
++	}
+ 
+ 	if (!page_mapped(page)) {
+ 		dec_page_state(nr_mapped);
+@@ -444,9 +672,9 @@
  
  static int
--try_to_unmap_one(struct page *page, struct vm_area_struct *vma)
-+try_to_unmap_one(struct page *page, struct mm_struct *mm,
-+	unsigned long address, unsigned long *mapcount,
-+	struct vm_area_struct *vma)
+ try_to_unmap_one(struct page *page, struct mm_struct *mm,
+-	unsigned long address, unsigned long *mapcount,
+-	struct vm_area_struct *vma)
++	struct addresser *addresser, struct vm_area_struct *vma)
  {
--	struct mm_struct *mm = vma->vm_mm;
++	unsigned long address = addresser->address;
  	pgd_t *pgd;
  	pmd_t *pmd;
  	pte_t *pte;
- 	pte_t pteval;
--	unsigned long loffset;
--	unsigned long address;
- 	int ret = SWAP_AGAIN;
- 
--	loffset = (page->index << (PAGE_CACHE_SHIFT - PAGE_SHIFT));
--	if (loffset < vma->vm_pgoff)
--		goto out;
--
--	address = vma->vm_start + ((loffset - vma->vm_pgoff) << PAGE_SHIFT);
--
--	if (address >= vma->vm_end)
--		goto out;
--
- 	/*
- 	 * We need the page_table_lock to protect us from page faults,
- 	 * munmap, fork, etc...
-@@ -273,8 +475,15 @@
+@@ -475,7 +703,7 @@
  	if (page_to_pfn(page) != pte_pfn(*pte))
  		goto out_unmap;
  
--	/* If the page is mlock()d, we cannot swap it out. */
--	if (vma->vm_flags & VM_LOCKED) {
-+	(*mapcount)--;
-+
-+	/*
-+	 * If the page is mlock()d, we cannot swap it out.
-+	 * During mremap, it's possible pages are not in a VMA.
-+	 */
-+	if (!vma)
-+		vma = find_vma(mm, address);
-+	if (!vma || (vma->vm_flags & VM_LOCKED)) {
- 		ret =  SWAP_FAIL;
- 		goto out_unmap;
- 	}
-@@ -284,11 +493,6 @@
- 	pteval = ptep_get_and_clear(pte);
- 	flush_tlb_page(vma, address);
+-	(*mapcount)--;
++	addresser->count--;
  
--	/*
--	 * This block makes no sense in this subpatch: neither anon
--	 * pages nor nonlinear pages get here.  But we want to hold on
--	 * to this code, to use in later patches which correct that.
--	 */
- 	if (PageAnon(page)) {
- 		swp_entry_t entry = { .val = page->private };
- 		/*
-@@ -300,15 +504,12 @@
- 		set_pte(pte, swp_entry_to_pte(entry));
+ 	/*
+ 	 * If the page is mlock()d, we cannot swap it out.
+@@ -505,7 +733,6 @@
  		BUG_ON(pte_file(*pte));
  	} else {
--		unsigned long pgidx;
  		/*
--		 * If a nonlinear mapping from sys_remap_file_pages,
--		 * then store the file page offset in the pte.
-+		 * This only comes into play with the next patch...
-+		 * If a nonlinear mapping then store
-+		 * the file page offset in the pte.
+-		 * This only comes into play with the next patch...
+ 		 * If a nonlinear mapping then store
+ 		 * the file page offset in the pte.
  		 */
--		pgidx = (address - vma->vm_start) >> PAGE_SHIFT;
--		pgidx += vma->vm_pgoff;
--		pgidx >>= PAGE_CACHE_SHIFT - PAGE_SHIFT;
--		if (page->index != pgidx) {
-+		if (address != vma_address(page, vma)) {
- 			set_pte(pte, pgoff_to_pte(page->index));
- 			BUG_ON(!pte_file(*pte));
- 		}
-@@ -318,10 +519,10 @@
- 	if (pte_dirty(pteval))
+@@ -520,7 +747,12 @@
  		set_page_dirty(page);
  
--	mm->rss--;
  	BUG_ON(!page_mapcount(page));
- 	page_mapcount(page)--;
+-	page_mapcount(page)--;
++	if (unlikely(PageChained(page))) {
++		page->rmap.chain->slot[0]--;
++		if (!page->rmap.chain->slot[0])
++			clear_page_chained(page);
++	} else
++		page->rmap.count--;
  	page_cache_release(page);
-+	mm->rss--;
+ 	mm->rss--;
  
- out_unmap:
- 	pte_unmap(pte);
-@@ -334,25 +535,67 @@
+@@ -535,7 +767,7 @@
  }
  
  static inline int
--try_to_unmap_obj(struct page *page)
-+try_to_unmap_anon(struct page *page, unsigned long *mapcount)
-+{
-+	struct anonmm *anonmm = (struct anonmm *) page->mapping;
-+	struct anonmm *anonhd = anonmm->head;
-+	struct list_head *seek_head;
-+	int ret = SWAP_AGAIN;
-+
-+	spin_lock(&anonhd->lock);
-+	if (anonmm->mm && anonmm->mm->rss) {
-+		ret = try_to_unmap_one(
-+			page, anonmm->mm, page->index, mapcount, NULL);
-+		if (ret == SWAP_FAIL || !*mapcount)
-+			goto out;
-+	}
-+	seek_head = &anonmm->list;
-+	list_for_each_entry(anonmm, seek_head, list) {
-+		if (!anonmm->mm || !anonmm->mm->rss)
-+			continue;
-+		ret = try_to_unmap_one(
-+			page, anonmm->mm, page->index, mapcount, NULL);
-+		if (ret == SWAP_FAIL || !*mapcount)
-+			goto out;
-+	}
-+out:
-+	spin_unlock(&anonhd->lock);
-+	return ret;
-+}
-+
-+static inline int
-+try_to_unmap_obj(struct page *page, unsigned long *mapcount)
+-try_to_unmap_anon(struct page *page, unsigned long *mapcount)
++try_to_unmap_anon(struct page *page, struct addresser *addresser)
+ {
+ 	struct anonmm *anonmm = (struct anonmm *) page->mapping;
+ 	struct anonmm *anonhd = anonmm->head;
+@@ -544,19 +776,25 @@
+ 
+ 	spin_lock(&anonhd->lock);
+ 	if (anonmm->mm && anonmm->mm->rss) {
+-		ret = try_to_unmap_one(
+-			page, anonmm->mm, page->index, mapcount, NULL);
+-		if (ret == SWAP_FAIL || !*mapcount)
+-			goto out;
++		addresser->index = 0;
++		while (next_rmap_address(page, NULL, addresser)) {
++			ret = try_to_unmap_one(
++				page, anonmm->mm, addresser, NULL);
++			if (ret == SWAP_FAIL || !addresser->count)
++				goto out;
++		}
+ 	}
+ 	seek_head = &anonmm->list;
+ 	list_for_each_entry(anonmm, seek_head, list) {
+ 		if (!anonmm->mm || !anonmm->mm->rss)
+ 			continue;
+-		ret = try_to_unmap_one(
+-			page, anonmm->mm, page->index, mapcount, NULL);
+-		if (ret == SWAP_FAIL || !*mapcount)
+-			goto out;
++		addresser->index = 0;
++		while (next_rmap_address(page, NULL, addresser)) {
++			ret = try_to_unmap_one(
++				page, anonmm->mm, addresser, NULL);
++			if (ret == SWAP_FAIL || !addresser->count)
++				goto out;
++		}
+ 	}
+ out:
+ 	spin_unlock(&anonhd->lock);
+@@ -564,11 +802,10 @@
+ }
+ 
+ static inline int
+-try_to_unmap_obj(struct page *page, unsigned long *mapcount)
++try_to_unmap_obj(struct page *page, struct addresser *addresser)
  {
  	struct address_space *mapping = page->mapping;
  	struct vm_area_struct *vma;
-+	unsigned long address;
+-	unsigned long address;
  	int ret = SWAP_AGAIN;
  
  	if (down_trylock(&mapping->i_shared_sem))
- 		return ret;
- 
+@@ -577,11 +814,11 @@
  	list_for_each_entry(vma, &mapping->i_mmap, shared) {
--		ret = try_to_unmap_one(page, vma);
--		if (ret == SWAP_FAIL)
--			goto out;
-+		if (!vma->vm_mm->rss)
-+			continue;
-+		address = vma_address(page, vma);
-+		if (address != NOADDR) {
-+			ret = try_to_unmap_one(
-+				page, vma->vm_mm, address, mapcount, vma);
-+			if (ret == SWAP_FAIL || !*mapcount)
-+				goto out;
-+		}
+ 		if (!vma->vm_mm->rss)
+ 			continue;
+-		address = vma_address(page, vma);
+-		if (address != NOADDR) {
++		addresser->index = 0;
++		while (next_rmap_address(page, vma, addresser)) {
+ 			ret = try_to_unmap_one(
+-				page, vma->vm_mm, address, mapcount, vma);
+-			if (ret == SWAP_FAIL || !*mapcount)
++				page, vma->vm_mm, addresser, vma);
++			if (ret == SWAP_FAIL || !addresser->count)
+ 				goto out;
+ 		}
  	}
- 
+@@ -589,11 +826,11 @@
  	list_for_each_entry(vma, &mapping->i_mmap_shared, shared) {
--		ret = try_to_unmap_one(page, vma);
--		if (ret == SWAP_FAIL)
--			goto out;
-+		if (!vma->vm_mm->rss)
-+			continue;
-+		address = vma_address(page, vma);
-+		if (address != NOADDR) {
-+			ret = try_to_unmap_one(
-+				page, vma->vm_mm, address, mapcount, vma);
-+			if (ret == SWAP_FAIL || !*mapcount)
-+				goto out;
-+		}
+ 		if (!vma->vm_mm->rss)
+ 			continue;
+-		address = vma_address(page, vma);
+-		if (address != NOADDR) {
++		addresser->index = 0;
++		while (next_rmap_address(page, vma, addresser)) {
+ 			ret = try_to_unmap_one(
+-				page, vma->vm_mm, address, mapcount, vma);
+-			if (ret == SWAP_FAIL || !*mapcount)
++				page, vma->vm_mm, addresser, vma);
++			if (ret == SWAP_FAIL || !addresser->count)
+ 				goto out;
+ 		}
  	}
- 
- out:
-@@ -375,14 +618,17 @@
+@@ -618,17 +855,17 @@
  int
  try_to_unmap(struct page *page)
  {
--	int ret = SWAP_FAIL;
-+	unsigned long mapcount;
-+	int ret;
+-	unsigned long mapcount;
++	struct addresser addresser;
+ 	int ret;
  
  	BUG_ON(PageReserved(page));
  	BUG_ON(!PageLocked(page));
  	BUG_ON(!page_mapped(page));
  
--	if (!PageAnon(page))
--		ret = try_to_unmap_obj(page);
-+	mapcount = page_mapcount(page);
-+	ret = PageAnon(page)?
-+		try_to_unmap_anon(page, &mapcount):
-+		try_to_unmap_obj(page, &mapcount);
+-	mapcount = page_mapcount(page);
++	addresser.count = page_mapcount(page);
+ 	ret = PageAnon(page)?
+-		try_to_unmap_anon(page, &mapcount):
+-		try_to_unmap_obj(page, &mapcount);
++		try_to_unmap_anon(page, &addresser):
++		try_to_unmap_obj(page, &addresser);
  
  	if (!page_mapped(page)) {
  		dec_page_state(nr_mapped);
---- anobjrmap3/mm/swapfile.c	Thu Mar 20 17:10:12 2003
-+++ anobjrmap4/mm/swapfile.c	Thu Mar 20 17:10:23 2003
-@@ -396,11 +396,11 @@
- 		return;
+--- anobjrmap4/mm/swapfile.c	Thu Mar 20 17:10:23 2003
++++ anobjrmap5/mm/swapfile.c	Thu Mar 20 17:10:34 2003
+@@ -383,28 +383,29 @@
+  * share this swap entry, so be cautious and let do_wp_page work out
+  * what to do if a write is requested later.
+  */
+-/* mmlist_lock and vma->vm_mm->page_table_lock are held */
+-static void
++/* vma->vm_mm->page_table_lock is held */
++static int
+ unuse_pte(struct vm_area_struct *vma, unsigned long address, pte_t *dir,
+ 	swp_entry_t entry, struct page *page)
+ {
+ 	pte_t pte = *dir;
+ 
+ 	if (pte_file(pte))
+-		return;
++		return 0;
+ 	if (likely(pte_to_swp_entry(pte).val != entry.val))
+-		return;
++		return 0;
  	if (unlikely(pte_none(pte) || pte_present(pte)))
- 		return;
-+	vma->vm_mm->rss++;
+-		return;
++		return 0;
+ 	vma->vm_mm->rss++;
  	get_page(page);
  	set_pte(dir, pte_mkold(mk_pte(page, vma->vm_page_prot)));
--	page_add_rmap(page, 1);
-+	page_add_rmap(page, vma, address, 1);
+ 	page_add_rmap(page, vma, address, 1);
  	swap_free(entry);
--	++vma->vm_mm->rss;
++	return 1;
  }
  
- /* mmlist_lock and vma->vm_mm->page_table_lock are held */
-@@ -425,8 +425,7 @@
+-/* mmlist_lock and vma->vm_mm->page_table_lock are held */
+-static void unuse_pmd(struct vm_area_struct * vma, pmd_t *dir,
++/* vma->vm_mm->page_table_lock is held */
++static int unuse_pmd(struct vm_area_struct * vma, pmd_t *dir,
+ 	unsigned long address, unsigned long size, unsigned long offset,
+ 	swp_entry_t entry, struct page* page)
+ {
+@@ -412,11 +413,11 @@
+ 	unsigned long end;
+ 
+ 	if (pmd_none(*dir))
+-		return;
++		return 0;
+ 	if (pmd_bad(*dir)) {
+ 		pmd_ERROR(*dir);
+ 		pmd_clear(dir);
+-		return;
++		return 0;
+ 	}
+ 	pte = pte_offset_map(dir, address);
+ 	offset += address & PMD_MASK;
+@@ -425,15 +426,19 @@
  	if (end > PMD_SIZE)
  		end = PMD_SIZE;
  	do {
--		unuse_pte(vma, offset+address-vma->vm_start,
--				pte, entry, page);
-+		unuse_pte(vma, offset + address, pte, entry, page);
+-		unuse_pte(vma, offset + address, pte, entry, page);
++		if (unuse_pte(vma, offset + address, pte, entry, page)) {
++			pte_unmap(pte);
++			return 1;
++		}
  		address += PAGE_SIZE;
  		pte++;
  	} while (address && (address < end));
+ 	pte_unmap(pte - 1);
++	return 0;
+ }
+ 
+-/* mmlist_lock and vma->vm_mm->page_table_lock are held */
+-static void unuse_pgd(struct vm_area_struct * vma, pgd_t *dir,
++/* vma->vm_mm->page_table_lock is held */
++static int unuse_pgd(struct vm_area_struct * vma, pgd_t *dir,
+ 	unsigned long address, unsigned long size,
+ 	swp_entry_t entry, struct page* page)
+ {
+@@ -441,11 +446,11 @@
+ 	unsigned long offset, end;
+ 
+ 	if (pgd_none(*dir))
+-		return;
++		return 0;
+ 	if (pgd_bad(*dir)) {
+ 		pgd_ERROR(*dir);
+ 		pgd_clear(dir);
+-		return;
++		return 0;
+ 	}
+ 	pmd = pmd_offset(dir, address);
+ 	offset = address & PGDIR_MASK;
+@@ -456,15 +461,17 @@
+ 	if (address >= end)
+ 		BUG();
+ 	do {
+-		unuse_pmd(vma, pmd, address, end - address, offset, entry,
+-			  page);
++		if (unuse_pmd(vma, pmd, address, end - address,
++				offset, entry, page))
++			return 1;
+ 		address = (address + PMD_SIZE) & PMD_MASK;
+ 		pmd++;
+ 	} while (address && (address < end));
++	return 0;
+ }
+ 
+-/* mmlist_lock and vma->vm_mm->page_table_lock are held */
+-static void unuse_vma(struct vm_area_struct * vma, pgd_t *pgdir,
++/* vma->vm_mm->page_table_lock is held */
++static int unuse_vma(struct vm_area_struct * vma, pgd_t *pgdir,
+ 			swp_entry_t entry, struct page* page)
+ {
+ 	unsigned long start = vma->vm_start, end = vma->vm_end;
+@@ -472,13 +479,15 @@
+ 	if (start >= end)
+ 		BUG();
+ 	do {
+-		unuse_pgd(vma, pgdir, start, end - start, entry, page);
++		if (unuse_pgd(vma, pgdir, start, end - start, entry, page))
++			return 1;
+ 		start = (start + PGDIR_SIZE) & PGDIR_MASK;
+ 		pgdir++;
+ 	} while (start && (start < end));
++	return 0;
+ }
+ 
+-static void unuse_process(struct mm_struct * mm,
++static int unuse_process(struct mm_struct * mm,
+ 			swp_entry_t entry, struct page* page)
+ {
+ 	struct vm_area_struct* vma;
+@@ -486,13 +495,17 @@
+ 	/*
+ 	 * Go through process' page directory.
+ 	 */
++	if (!rmap_get_cpu())
++		return -ENOMEM;
+ 	spin_lock(&mm->page_table_lock);
++	put_cpu();
+ 	for (vma = mm->mmap; vma; vma = vma->vm_next) {
+ 		pgd_t * pgd = pgd_offset(mm, vma->vm_start);
+-		unuse_vma(vma, pgd, entry, page);
++		if (unuse_vma(vma, pgd, entry, page))
++			break;
+ 	}
+ 	spin_unlock(&mm->page_table_lock);
+-	return;
++	return 0;
+ }
+ 
+ /*
+@@ -635,34 +648,46 @@
+ 			flush_page_to_ram(page);
+ 			if (start_mm == &init_mm)
+ 				shmem = shmem_unuse(entry, page);
+-			else
+-				unuse_process(start_mm, entry, page);
++			else {
++				retval = unuse_process(start_mm, entry, page);
++				if (retval)
++					break;
++			}
+ 		}
+ 		if (*swap_map > 1) {
+ 			int set_start_mm = (*swap_map >= swcount);
+ 			struct list_head *p = &start_mm->mmlist;
+ 			struct mm_struct *new_start_mm = start_mm;
++			struct mm_struct *prev_mm = start_mm;
+ 			struct mm_struct *mm;
+ 
++			atomic_inc(&new_start_mm->mm_users);
++			atomic_inc(&prev_mm->mm_users);
+ 			spin_lock(&mmlist_lock);
+-			while (*swap_map > 1 &&
++			while (*swap_map > 1 && !retval &&
+ 					(p = p->next) != &start_mm->mmlist) {
+ 				mm = list_entry(p, struct mm_struct, mmlist);
++				atomic_inc(&mm->mm_users);
++				spin_unlock(&mmlist_lock);
++				mmput(prev_mm);
++				prev_mm = mm;
++
+ 				swcount = *swap_map;
+ 				if (mm == &init_mm) {
+ 					set_start_mm = 1;
+-					spin_unlock(&mmlist_lock);
+ 					shmem = shmem_unuse(entry, page);
+-					spin_lock(&mmlist_lock);
+ 				} else
+-					unuse_process(mm, entry, page);
++					retval = unuse_process(mm, entry, page);
+ 				if (set_start_mm && *swap_map < swcount) {
++					mmput(new_start_mm);
++					atomic_inc(&mm->mm_users);
+ 					new_start_mm = mm;
+ 					set_start_mm = 0;
+ 				}
++				spin_lock(&mmlist_lock);
+ 			}
+-			atomic_inc(&new_start_mm->mm_users);
+ 			spin_unlock(&mmlist_lock);
++			mmput(prev_mm);
+ 			mmput(start_mm);
+ 			start_mm = new_start_mm;
+ 		}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
