@@ -1,38 +1,35 @@
-Message-ID: <4036C782.9070204@movaris.com>
-Date: Fri, 20 Feb 2004 18:50:42 -0800
-From: Kirk True <ktrue@movaris.com>
+From: Daniel Phillips <phillips@arcor.de>
+Subject: Re: Non-GPL export of invalidate_mmap_range
+Date: Fri, 20 Feb 2004 22:19:17 -0500
+References: <20040216190927.GA2969@us.ibm.com> <200402201800.12077.phillips@arcor.de> <20040220161738.GF1269@us.ibm.com>
+In-Reply-To: <20040220161738.GF1269@us.ibm.com>
 MIME-Version: 1.0
-Subject: Re: LTP VM test slower under 2.6.3 than 2.4.20
-References: <40363778.20900@movaris.com> <40368E00.3000505@cyberone.com.au> <4036C75E.1020407@movaris.com>
-In-Reply-To: <4036C75E.1020407@movaris.com>
-Content-Type: multipart/mixed;
- boundary="------------050100080208010604080903"
+Content-Disposition: inline
+Message-Id: <200402202158.41140.phillips@arcor.de>
+Content-Type: text/plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <piggin@cyberone.com.au>
-Cc: kernelnewbies <kernelnewbies@nl.linux.org>, Linux-MM@kvack.org
+To: paulmck@us.ibm.com
+Cc: "Stephen C. Tweedie" <sct@redhat.com>, Andrew Morton <akpm@osdl.org>, Christoph Hellwig <hch@infradead.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-This is a multi-part message in MIME format.
---------------050100080208010604080903
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+On Friday 20 February 2004 11:17, Paul E. McKenney wrote:
+> Your earlier patch has a call to invalidate_mmap_range() within
+> vmtruncate(), which passes "1" to the last arg, so as to get
+> rid of all mappings to the truncated portion of the file.
+> So either invalidate_mmap_range() needs to keep the fourth arg
+> or needs to be a wrapper for an underlying function that
+> vmtruncate() can call, or some such.
+>
+> The latter may be what you intended to do.
 
-OK, here's the attachment...
+Yes, modulo nobody coming up with a legitimate use for the fourth argument.
 
---------------050100080208010604080903
-Content-Type: text/plain;
- name="vmstat.2.4.20"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline;
- filename="vmstat.2.4.20"
+Regards,
 
-  procs                  memory   swap    io    system         cpu
-r  b  w swpd   free buff  cache si  so bi bo  in    cs  us  sy  id
-0  0  0    0 886072 9132  66152  0   0  6  2 101    23   0   0 100
-
---------------050100080208010604080903--
-
+Daniel
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
