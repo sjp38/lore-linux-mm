@@ -1,73 +1,29 @@
+Date: Tue, 19 Feb 2002 11:02:29 +0100 (CET)
+From: Roman Zippel <zippel@linux-m68k.org>
 Subject: Re: [RFC] Page table sharing
-References: <Pine.LNX.4.21.0202182358190.1021-100000@localhost.localdomain>
-	<E16cy8E-0000xp-00@starship.berlin>
-From: ebiederm@xmission.com (Eric W. Biederman)
-Date: 18 Feb 2002 21:27:11 -0700
-In-Reply-To: <E16cy8E-0000xp-00@starship.berlin>
-Message-ID: <m1heoe3xls.fsf@frodo.biederman.org>
+In-Reply-To: <Pine.LNX.4.33.0202181822470.24671-100000@home.transmeta.com>
+Message-ID: <Pine.LNX.4.33.0202191059530.22010-100000@serv>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Daniel Phillips <phillips@bonn-fries.net>
-Cc: Hugh Dickins <hugh@veritas.com>, Linus Torvalds <torvalds@transmeta.com>, dmccr@us.ibm.com, Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Robert Love <rml@tech9.net>, Rik van Riel <riel@conectiva.com.br>, mingo@redhat.com, Andrew Morton <akpm@zip.com.au>, manfred@colorfullife.com, wli@holomorphy.com
+To: Linus Torvalds <torvalds@transmeta.com>
+Cc: Daniel Phillips <phillips@bonn-fries.net>, Rik van Riel <riel@conectiva.com.br>, Hugh Dickins <hugh@veritas.com>, dmccr@us.ibm.com, Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Robert Love <rml@tech9.net>, mingo@redhat.co, Andrew Morton <akpm@zip.com.au>, manfred@colorfullife.com, wli@holomorphy.com
 List-ID: <linux-mm.kvack.org>
 
-Daniel Phillips <phillips@bonn-fries.net> writes:
+Hi,
 
-> On February 19, 2002 01:03 am, Hugh Dickins wrote:
-> > On Tue, 19 Feb 2002, Daniel Phillips wrote:
-> > > On February 18, 2002 08:04 pm, Hugh Dickins wrote:
-> > > > On Mon, 18 Feb 2002, Daniel Phillips wrote:
-> > > > > On February 18, 2002 09:09 am, Hugh Dickins wrote:
-> > > > > > Since copy_page_range would not copy shared page tables, I'm wrong to
-> > > > > > point there.  But __pte_alloc does copy shared page tables (to unshare
-> 
-> > > > > > them), and needs them to be stable while it does so: so locking
-> against
-> 
-> > > > > > swap_out really is required.  It also needs locking against read
-> faults,
-> 
-> > > > > > and they against each other: but there I imagine it's just a matter of
-> 
-> > > > > > dropping the write arg to __pte_alloc, going back to pte_alloc again.
-> > > 
-> > > I'm not sure what you mean here, you're not suggesting we should unshare the
-> 
-> > > page table on read fault are you?
-> > 
-> > I am.  But I can understand that you'd prefer not to do it that way.
-> > Hugh
-> 
-> No, that's not nearly studly enough ;-)
-> 
-> Since we have gone to all the trouble of sharing the page table, we should
-> swap in/out for all sharers at the same time.  That is, keep it shared, saving
-> memory and cpu.
-> 
-> Now I finally see what you were driving at: before, we could count on the
-> mm->page_table_lock for exclusion on read fault, now we can't, at least not
-> when ptb->count is great than one[1].  So let's come up with something nice as
-> a substitute, any suggestions?
-> 
-> [1] I think that's a big, broad hint.
+On Mon, 18 Feb 2002, Linus Torvalds wrote:
 
-Something like:
-struct mm_share {
-        spinlock_t page_table_lock;
-        struct list_head mm_list;
-};
+> We can, of course, introduce a "pmd-rmap" thing, with a pointer to a
+> circular list of all mm's using that pmd inside the "struct page *" of the
+> pmd.
 
-struct mm {
-	struct list_head mm_list;
-        struct mm_share *mm_share;
-        .....
-};
+Isn't that information basically already available via
+vma->vm_(pprev|next)_share?
 
-So we have an overarching structure for all of the shared mm's.  
+bye, Roman
 
-Eric
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
