@@ -1,50 +1,32 @@
-Date: Mon, 15 May 2000 11:36:03 -0700 (PDT)
-From: Linus Torvalds <torvalds@transmeta.com>
+Date: Mon, 15 May 2000 20:01:16 +0100
+From: "Stephen C. Tweedie" <sct@redhat.com>
 Subject: Re: [patch] VM stable again?
-In-Reply-To: <Pine.LNX.4.10.10005151729430.6248-100000@elte.hu>
-Message-ID: <Pine.LNX.4.10.10005151132360.3637-100000@penguin.transmeta.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Message-ID: <20000515200116.E24812@redhat.com>
+References: <Pine.LNX.4.21.0005151157240.20410-100000@duckman.distro.conectiva>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+In-Reply-To: <Pine.LNX.4.21.0005151157240.20410-100000@duckman.distro.conectiva>; from riel@conectiva.com.br on Mon, May 15, 2000 at 12:12:03PM -0300
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ingo Molnar <mingo@elte.hu>
-Cc: Rik van Riel <riel@conectiva.com.br>, linux-mm@kvack.org
+To: Rik van Riel <riel@conectiva.com.br>
+Cc: Linus Torvalds <torvalds@transmeta.com>, linux-mm@kvack.org, Stephen Tweedie <sct@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
+Hi,
 
-On Mon, 15 May 2000, Ingo Molnar wrote:
+On Mon, May 15, 2000 at 12:12:03PM -0300, Rik van Riel wrote:
 > 
-> yep, this should work. A minor comment:
-> 
-> > +		if (atomic_read(&free_before_allocate))
-> 
-> i believe this needs to be per-zone and should preferably be read within
-> the zone spinlock - not atomic operations. Updating a global counter is a
-> big time problem on SMP.
+> the patch below makes sure processes won't "eat" the pages
+> another process is freeing and seems to avoid the nasty
+> out of memory situations that people have seen.
 
-Nope.
+One other thought here --- there is another way to achieve this.
+Make try_to_free_pages() return a struct page *.  That will not
+only achieve some measure of SMP locality, it also guarantees that
+the page freed will be reacquired by the task which did the work to
+free it.
 
-It can't be per zone, because there is no "zone". There is only a generic
-balance between different zones.
-
-And the critical path actually only reads the counter, which is fine on
-SMP: most of the time the counter should be quiescent, with every CPU just
-having a shared copy in their caches. 
-
-However, I do think that it might make sense to make this per-zonelist, so
-that if a DMA request (or a request on another node in a NUMA environment)
-causes another zone-list to be low-on-memory, that should not affect the
-other zone-lists.
-
-(The per-zonelist version should have pretty much the same behaviour as a
-global one in the normal cases, it's just that it doesn't have the bad
-behaviour in the uncommon cases).
-
-Rik, mind cleaning that up, and fixing the leak? After that it looks
-fine..
-
-		Linus
-
+--Stephen
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
