@@ -1,93 +1,47 @@
-Date: Thu, 18 Jul 2002 18:54:21 -0700
-From: William Lee Irwin III <wli@holomorphy.com>
-Subject: nr_active_pte_chains
-Message-ID: <20020719015421.GE1022@holomorphy.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Description: brief message
-Content-Disposition: inline
+Date: Fri, 19 Jul 2002 07:52:49 +0200 (MEST)
+From: Szakacsits Szabolcs <szaka@sienet.hu>
+Subject: Re: [PATCH] strict VM overcommit for stock 2.4
+In-Reply-To: <15671.5657.312779.438143@gargle.gargle.HOWL>
+Message-ID: <Pine.LNX.4.30.0207190708260.30902-100000@divine.city.tvnet.hu>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, akpm@zip.com.au
+To: stoffel@lucent.com
+Cc: Robert Love <rml@tech9.net>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Dave McCracken's optimization of storing the pte's address directly in
-the struct page defeats measuring pagetable occupancy by means of
-measuring the space consumed by pte_chains. This patch reports a new
-statistic independent of the allocated space for pte_chains describing
-the number of reverse mappings performed.
+On Thu, 18 Jul 2002 stoffel@lucent.com wrote:
+> Szakacsits> About 99% of the people don't know about, don't understand
+> Szakacsits> or don't care about resource limits. But they do care
+> Szakacsits> about cleaning up when mess comes. Adding reserved root
+> Szakacsits> memory would be a couple of lines
+>
+> So what does this buy you when root itself runs the box into the
+> ground?  Or if a dumb user decides to run his process as root, and it
+> takes down the system?
 
-Patch against 2.5.26 + akpm's pending patch series.
+You would be able to point out them running stuffs as root is the
+worst scenario from security and reliability point of view. You can
+argue about security now but not reliability because it doesn't matter
+who owns the "runaway" processes, the end result is either uncontrolled
+process killing (default kernel) or livelock (strict overcommit patch).
 
+You can't solve everybody's problems of course but you can educate
+them however at present the kernel misses the features to do so [and
+for a moment *please* ignore the resource control/accounting with all
+its benefits and deficients on Linux, there are lot's of way to do
+resource control and Linux is quite infant at present].
 
+> You're arguing for the wrong thing here.
 
-diff -Nur --exclude=SCCS --exclude=BitKeeper --exclude=ChangeSet linux-2.5.26-virgin/fs/proc/proc_misc.c linux-2.5.26/fs/proc/proc_misc.c
---- linux-2.5.26-virgin/fs/proc/proc_misc.c	Thu Jul 18 18:45:25 2002
-+++ linux-2.5.26/fs/proc/proc_misc.c	Thu Jul 18 20:05:48 2002
-@@ -162,7 +162,8 @@
- 		"Writeback:    %8lu kB\n"
- 		"PageTables:   %8lu kB\n"
- 		"PteChainTot:  %8lu kB\n"
--		"PteChainUsed: %8lu kB\n",
-+		"PteChainUsed: %8lu kB\n"
-+		"PteChainActv: %8lu\n",
- 		K(i.totalram),
- 		K(i.freeram),
- 		K(i.sharedram),
-@@ -180,7 +181,8 @@
- 		K(ps.nr_writeback),
- 		K(ps.nr_page_table_pages),
- 		K(ps.nr_pte_chain_pages),
--		ps.used_pte_chains_bytes >> 10
-+		ps.used_pte_chains_bytes >> 10,
-+		ps.nr_active_pte_chains
- 		);
- 
- 	return proc_calc_metrics(page, start, off, count, eof, len);
-diff -Nur --exclude=SCCS --exclude=BitKeeper --exclude=ChangeSet linux-2.5.26-virgin/include/linux/page-flags.h linux-2.5.26/include/linux/page-flags.h
---- linux-2.5.26-virgin/include/linux/page-flags.h	Thu Jul 18 18:45:25 2002
-+++ linux-2.5.26/include/linux/page-flags.h	Thu Jul 18 20:03:12 2002
-@@ -81,6 +81,7 @@
- 	unsigned long nr_page_table_pages;
- 	unsigned long nr_pte_chain_pages;
- 	unsigned long used_pte_chains_bytes;
-+	unsigned long nr_active_pte_chains;
- } ____cacheline_aligned_in_smp page_states[NR_CPUS];
- 
- extern void get_page_state(struct page_state *ret);
-diff -Nur --exclude=SCCS --exclude=BitKeeper --exclude=ChangeSet linux-2.5.26-virgin/mm/page_alloc.c linux-2.5.26/mm/page_alloc.c
---- linux-2.5.26-virgin/mm/page_alloc.c	Thu Jul 18 18:45:25 2002
-+++ linux-2.5.26/mm/page_alloc.c	Thu Jul 18 18:00:26 2002
-@@ -568,6 +568,7 @@
- 		ret->nr_page_table_pages += ps->nr_page_table_pages;
- 		ret->nr_pte_chain_pages += ps->nr_pte_chain_pages;
- 		ret->used_pte_chains_bytes += ps->used_pte_chains_bytes;
-+		ret->nr_active_pte_chains += ps->nr_active_pte_chains;
- 	}
- }
- 
-diff -Nur --exclude=SCCS --exclude=BitKeeper --exclude=ChangeSet linux-2.5.26-virgin/mm/rmap.c linux-2.5.26/mm/rmap.c
---- linux-2.5.26-virgin/mm/rmap.c	Thu Jul 18 18:45:25 2002
-+++ linux-2.5.26/mm/rmap.c	Thu Jul 18 17:52:30 2002
-@@ -148,6 +148,7 @@
- 	}
- 
- 	pte_chain_unlock(page);
-+	inc_page_state(nr_active_pte_chains);
- }
- 
- /**
-@@ -209,8 +210,8 @@
- 
- out:
- 	pte_chain_unlock(page);
-+	dec_page_state(nr_active_pte_chains);
- 	return;
--			
- }
- 
- /**
+How about consulting with some Sun or ex-Dec engineers why they have
+this feature for (internet) decades? Because at default they use
+strict overcommit and that's shooting yourself in the foot without
+reserved root vm on a general purposes system.
+
+	Szaka
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
