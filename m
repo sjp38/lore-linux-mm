@@ -1,45 +1,60 @@
-From: Jesse Barnes <jbarnes@engr.sgi.com>
 Subject: Re: [PATCH]: Option to run cache reap in thread mode
-Date: Wed, 16 Jun 2004 12:25:11 -0400
-References: <20040616142413.GA5588@sgi.com> <20040616160355.GA5963@sgi.com> <20040616160714.GA14413@infradead.org>
-In-Reply-To: <20040616160714.GA14413@infradead.org>
+Message-ID: <OF8BFC6C05.81791687-ON86256EB5.005A7A6C@raytheon.com>
+From: Mark_H_Johnson@raytheon.com
+Date: Wed, 16 Jun 2004 11:43:48 -0500
 MIME-Version: 1.0
-Content-Disposition: inline
-Content-Type: text/plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
-Message-Id: <200406161225.11946.jbarnes@engr.sgi.com>
+Content-type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Christoph Hellwig <hch@infradead.org>
-Cc: Dimitri Sivanich <sivanich@sgi.com>, Andrew Morton <akpm@osdl.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Dimitri Sivanich <sivanich@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wednesday, June 16, 2004 12:07 pm, Christoph Hellwig wrote:
-> Well, if you want deterministic interrupt latencies you should go for a
-> realtime OS.
 
-Although I don't want to see another kernel thread added as much as the next 
-guy, I think that minimizing the amount of time that irqs are turned off is 
-probably a good thing in general.  For example, the patch to allow interrupts 
-in spin_lock_irq if the lock is already taken is generally a really good 
-thing, because even though reducing lock contention should be a goal, locks 
-by their very nature are taken sometimes, and allowing other CPUs to get 
-useful work done while they're waiting for it is obviously desirable.
 
-> I know Linux is the big thing in the industry, but you're 
-> really better off looking for a small Hard RT OS. 
 
-Sure, for some applications, an RTOS is necessary.  But it seems like keeping 
-latencies down in Linux is a good thing to do nonetheless.
+>Well, if you want deterministic interrupt latencies you should go for a
+realtime OS.
+>I know Linux is the big thing in the industry, but you're really better
+off looking
+>for a small Hard RT OS.  From the OpenSource world eCOS or RTEMS come to
+mind.  Or even
+>rtlinux/rtai if you want to run a full linux kernel as idle task.
 
-Can you think of other ways to reduce the length of time that interrupts are 
-disabled during cache reaping?  It seems like the cache_reap loop might be a 
-candidate for reorganization (though that would probably imply other 
-changes).
+I don't think the OP wants to run RT on Linux but has customers who want to
+do so. Customers of course, are a pretty stubborn bunch and will demand to
+use the system in ways you consider inappropriate. You may be arguing with
+the wrong guy.
 
-Thanks,
-Jesse
+Getting back to the previous comment as well
+>YAKT, sigh..  I don't quite understand what you mean with a "holdoff" so
+>maybe you could explain what problem you see?  You don't like cache_reap
+>beeing called from timer context?
+
+Are you concerned so much about the proliferation of kernel threads or the
+fact that this function is getting moved from the timer context to a
+thread?
+
+If the first case - one could argue that we don't need separate threads
+titled
+ - migration
+ - ksoftirq
+ - events
+ - kblockd
+ - aio
+and so on [and now cache_reap], one per CPU if there was a mechanism to
+schedule work to be done on a regular basis on each CPU. Perhaps this patch
+should be modified to work with one of these existing kernel threads
+instead (or collapse a few of these into a "janitor thread" per CPU).
+
+If the second case, can you explain the rationale for the concern more
+fully. I would expect moving stuff out of the timer context would be a
+"good thing" for most if not all systems - not just those wanting good real
+time response.
+
+--Mark H Johnson
+  <mailto:Mark_H_Johnson@raytheon.com>
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
