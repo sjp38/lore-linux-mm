@@ -1,97 +1,42 @@
-Date: Tue, 5 Oct 2004 13:46:27 -0300
-From: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
-Subject: [PATCH] mhp: transfer dirty tag at radix_tree_replace 
-Message-ID: <20041005164627.GB3462@logos.cnet>
-References: <20041001234200.GA4635@logos.cnet> <20041002.183015.41630389.taka@valinux.co.jp> <20041002183349.GA7986@logos.cnet> <20041003.131338.41636688.taka@valinux.co.jp>
+Subject: Re: [PATCH] mhp: transfer dirty tag at radix_tree_replace
+From: Dave Hansen <haveblue@us.ibm.com>
+In-Reply-To: <20041005164627.GB3462@logos.cnet>
+References: <20041001234200.GA4635@logos.cnet>
+	 <20041002.183015.41630389.taka@valinux.co.jp>
+	 <20041002183349.GA7986@logos.cnet>
+	 <20041003.131338.41636688.taka@valinux.co.jp>
+	 <20041005164627.GB3462@logos.cnet>
+Content-Type: text/plain
+Message-Id: <1097001326.30531.54.camel@localhost>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20041003.131338.41636688.taka@valinux.co.jp>
+Date: Tue, 05 Oct 2004 11:35:26 -0700
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hirokazu Takahashi <taka@valinux.co.jp>
-Cc: iwamoto@valinux.co.jp, haveblue@us.ibm.com, linux-mm@kvack.org
+To: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
+Cc: Hirokazu Takahashi <taka@valinux.co.jp>, iwamoto@valinux.co.jp, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Oct 03, 2004 at 01:13:38PM +0900, Hirokazu Takahashi wrote:
-> Hi,
-> 
-> > > > Cool. I'll take a closer look at the relevant parts of memory hotplug patches 
-> > > > this weekend, hopefully. See if I can help with testing of these patches too.
-> > > 
-> > > Any comments are very welcome.
-> > 
-> > 
-> > I have a few comments about the code:
-> > 
-> > 1) 
-> > I'm pretty sure you should transfer the radix tree tag at radix_tree_replace().
-> > If for example you transfer a dirty tagged page to another zone, an mpage_writepages()
-> > will miss it (because it uses pagevec_lookup_tag(PAGECACHE_DIRTY_TAG)). 
-> > 
-> > Should be quite trivial to do (save tags before deleting and set to new entry, 
-> > all in radix_tree_replace).
-> > 
-> > My implementation also contained the same bug.
-> 
-> Yes, it's one of the issues to do. The tag should be transferred in
-> radix_tree_replace() as you pointed out. The current implementation
-> sets the tag in set_page_dirty(newpage).
+On Tue, 2004-10-05 at 09:46, Marcelo Tosatti wrote:
+> I still need to figure out how to use Iwamoto's patch to add/remove 
+> zone's on the fly (for testing the migration process).
 
-OK, guys, can you test this please?
+What I do (on my machine with 4G of RAM) is boot with mem=2G, then
 
-This transfer the dirty radix tree tag at radix_tree_replace, avoiding 
-a potential miss on tag-lookup.  We could also copy all bits representing 
-the valid tags for this node in the radix tree. 
+	echo 0x8000000 > /sys/devices/system/memory/probe
 
-But this uses the available interfaces from radix-lib.c. In case 
-a new tag gets added, radix_tree_replace() will have to know about it.
+which onlines 128MB more at 2GB.  Then, I allocate about 2GB of memory
+with some app.  And this:
+	
+	echo offline > /sys/devices/system/memory/memory16/state
 
-Pretty straightforward.
+starts the migration process.  
 
-I still need to figure out how to use Iwamoto's patch to add/remove 
-zone's on the fly (for testing the migration process).
+Hirokazu, if you want to send me your latest patch set against the tree
+that I just posted, I'll start to merge it up for real.
 
-diff -Nur linux-2.6.9-rc2-mm4.mhp.orig/include/linux/radix-tree.h linux-2.6.9-rc2-mm4/include/linux/radix-tree.h
---- linux-2.6.9-rc2-mm4.mhp.orig/include/linux/radix-tree.h	2004-10-05 15:09:39.198873072 -0300
-+++ linux-2.6.9-rc2-mm4/include/linux/radix-tree.h	2004-10-05 15:23:42.441680680 -0300
-@@ -68,9 +68,17 @@
- radix_tree_replace(struct radix_tree_root *root,
- 				unsigned long index, void *item)
- {
-+	int dirty;
-+
-+	dirty = radix_tree_tag_get(root, index, PAGECACHE_TAG_DIRTY);
-+
- 	if (radix_tree_delete(root, index) == NULL)
- 		return -1;
- 	radix_tree_insert(root, index, item);
-+
-+	if (dirty)
-+		radix_tree_tag_set(root, index, PAGECACHE_TAG_DIRTY);
-+
- 	return 0;
- }
- 
-diff -Nur linux-2.6.9-rc2-mm4.mhp.orig/lib/radix-tree.c linux-2.6.9-rc2-mm4/lib/radix-tree.c
---- linux-2.6.9-rc2-mm4.mhp.orig/lib/radix-tree.c	2004-10-05 15:09:29.442356288 -0300
-+++ linux-2.6.9-rc2-mm4/lib/radix-tree.c	2004-10-05 15:24:16.961432880 -0300
-@@ -443,7 +443,6 @@
- }
- EXPORT_SYMBOL(radix_tree_tag_clear);
- 
--#ifndef __KERNEL__	/* Only the test harness uses this at present */
- /**
-  *	radix_tree_tag_get - get a tag on a radix tree node
-  *	@root:		radix tree root
-@@ -495,7 +494,6 @@
- 	}
- }
- EXPORT_SYMBOL(radix_tree_tag_get);
--#endif
- 
- static unsigned int
- __lookup(struct radix_tree_root *root, void **results, unsigned long index,
+-- Dave
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
