@@ -1,40 +1,49 @@
-Date: Tue, 6 Feb 2001 13:48:21 +0100
-From: Ingo Oeser <ingo.oeser@informatik.tu-chemnitz.de>
-Subject: address_space: Theory of operation?
-Message-ID: <20010206134821.Q849@nightmaster.csn.tu-chemnitz.de>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Date: Tue, 6 Feb 2001 10:51:05 -0200 (BRDT)
+From: Rik van Riel <riel@conectiva.com.br>
+Subject: Re: [PATCH] thinko in mm/filemap.c (242p1)
+In-Reply-To: <20010206130718.F18574@jaquet.dk>
+Message-ID: <Pine.LNX.4.21.0102061049450.1535-100000@duckman.distro.conectiva>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-fsdevel@vger.redhat.com
+To: Rasmus Andersen <rasmus@jaquet.dk>
 Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi there,
+On Tue, 6 Feb 2001, Rasmus Andersen wrote:
 
-is there any description of what address_space is supposed to to?
+> The following patch fixes what I think is a cut'n'paste slipup
+> in mm/filemap.c::generic_buffer_fdatasync. It applies against
+> 242p1 and 241-ac3. Comments?
 
-What are the address_space_operations expected to handle?
+> -       retval |= do_buffer_fdatasync(&inode->i_mapping->dirty_pages, start_idx,
+>  end_idx, writeout_one_page);
+> +       retval |= do_buffer_fdatasync(&inode->i_mapping->dirty_pages, start_idx,
 
-Sure, I could look into the sources to find out (and I did
-already), but how could I distinguish between a proper
-implementation and a BUG?
+>         retval |= do_buffer_fdatasync(&inode->i_mapping->locked_pages, start_idx
+> , end_idx, waitfor_one_page);
 
-I searched the archives already (but using address_space as
-primary keyword, so I wouldn't get renames) without any luck.
+I guess the writeout_one_page schedules the dirty pages for IO
+and puts them on the list of locked pages. The last call then
+waits on those same pages until they've been flushed to disk.
 
-So could somebody please point me to some documentation about it
-or comment it, if there is none?
+Your change would wait on the pages but never submit them for
+IO (again, a guess, I haven't looked at the code in too much
+detail).
 
-Many thanks!
+regards,
 
-Regards
+Rik
+--
+Linux MM bugzilla: http://linux-mm.org/bugzilla.shtml
 
-Ingo Oeser
--- 
-10.+11.03.2001 - 3. Chemnitzer LinuxTag <http://www.tu-chemnitz.de/linux/tag>
-         <<<<<<<<<<<<       come and join the fun       >>>>>>>>>>>>
+Virtual memory is like a game you can't win;
+However, without VM there's truly nothing to lose...
+
+		http://www.surriel.com/
+http://www.conectiva.com/	http://distro.conectiva.com/
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
