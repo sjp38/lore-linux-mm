@@ -1,41 +1,37 @@
-Date: Wed, 29 Mar 2000 14:49:45 +0100
-From: "Stephen C. Tweedie" <sct@redhat.com>
-Subject: Re: how text page of executable are shared ?
-Message-ID: <20000329144945.B21920@redhat.com>
-References: <CA2568B1.002BB512.00@d73mta05.au.ibm.com>
+Received: from f03n07e.au.ibm.com
+	by ausmtp01.au.ibm.com (IBM AP 1.0) with ESMTP id OAA203874
+	for <linux-mm@kvack.org>; Thu, 30 Mar 2000 14:42:58 +1000
+From: pnilesh@in.ibm.com
+Received: from d73mta05.au.ibm.com (f06n05s [9.185.166.67])
+	by f03n07e.au.ibm.com (8.8.8m2/8.8.7) with SMTP id OAA58936
+	for <linux-mm@kvack.org>; Thu, 30 Mar 2000 14:45:22 +1000
+Message-ID: <CA2568B2.001A16BB.00@d73mta05.au.ibm.com>
+Date: Thu, 30 Mar 2000 10:07:09 +0530
+Subject: page fault in cli / sti safe or not
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-In-Reply-To: <CA2568B1.002BB512.00@d73mta05.au.ibm.com>; from pnilesh@in.ibm.com on Wed, Mar 29, 2000 at 01:16:37PM +0530
+Content-type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: pnilesh@in.ibm.com
-Cc: "Stephen C. Tweedie" <sct@redhat.com>, linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+     I tried to page fault in cli () / sti() , but there was no deadlock. I
+had perception that a deadlock would occur. However what might have I now
+believe is that age fault always ocuur in any processes context , they will
+panic in interrupt handler. So when a page fault occurs the page fault
+handler is called and if the page is not found in the memory then a disk
+read is scheduled the faulting process is put to sleep and  schedule() is
+called to run new process. The schedule () implicitly calls sti() and hence
+there is no deadlock.
 
-On Wed, Mar 29, 2000 at 01:16:37PM +0530, pnilesh@in.ibm.com wrote:
-> 
-> So when no process is pointing to a page in page cache the count will be
-> one.
-> But what is the difference if we have this to zero any way it is not being
-> refernced by any process.
-> Or can we have a page cache entry with page count as zero ?
+     Please correct me if I am wrong.
 
-Pages are returned to the system free list as soon as the count reaches
-zero.  The swapper does not do that, though: swapped pages are always
-entered into the page cache through the swap cache mechanism, and are
-finally freed from there.
 
-> Also all the pages which are present in the memory for any process will
-> also be part of the page hash queue and if they belong to a file then they
-> will also be on the inode queue.
+Nilesh Patel
+IBM Global Services India Pvt. Ltd.
 
-No, anonymous data pages are not usually in the page cache at all.  They
-only ever lie in the page cache if there is swapping going on (the VM
-effectively treats swapping as a forced mmap() of a page of swap).
 
---Stephen
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
