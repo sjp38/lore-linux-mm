@@ -1,62 +1,43 @@
-Date: Wed, 24 May 2000 20:32:39 -0300 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
+Date: Thu, 25 May 2000 11:52:02 +0200
+From: Jamie Lokier <lk@tantalophile.demon.co.uk>
 Subject: Re: [RFC] 2.3/4 VM queues idea
-In-Reply-To: <ytt66s3muva.fsf@serpe.mitica>
-Message-ID: <Pine.LNX.4.21.0005242010080.24993-100000@duckman.distro.conectiva>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Message-ID: <20000525115202.A19969@pcep-jamie.cern.ch>
+References: <Pine.LNX.4.21.0005241458250.24993-100000@duckman.distro.conectiva> <200005242057.NAA77059@apollo.backplane.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+In-Reply-To: <200005242057.NAA77059@apollo.backplane.com>; from dillon@apollo.backplane.com on Wed, May 24, 2000 at 01:57:19PM -0700
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Juan J. Quintela" <quintela@fi.udc.es>
-Cc: linux-mm@kvack.org, Matthew Dillon <dillon@apollo.backplane.com>, "Stephen C. Tweedie" <sct@redhat.com>, Arnaldo Carvalho de Melo <acme@conectiva.com.br>
+To: Matthew Dillon <dillon@apollo.backplane.com>
+Cc: Rik van Riel <riel@conectiva.com.br>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 25 May 2000, Juan J. Quintela wrote:
+Matthew Dillon wrote:
+>     Virtual
+>     page scanning has severe scaleability problems over physical page
+>     scanning.  For example, what happens when you have an oracle database
+>     running with a hundred independant (non-threaded) processes mapping
+>     300MB+ of shared memory?
 
-> we need to be able to write pages syncronously to disk if they are
-> dirty, there are no free pages around, and we can sleep.
+Actually you can make this scalable quite easily.   I think it's
+asymptotically equivalent to physical page scanning.
 
-Indeed. Luckily this is covered in my design ;)
+First, ensure the async. unmapper can limit the number of mapped
+ptes.  Method: whenever the number of established ptes increases
+above a high water mark (e.g. due to a page fault), invoke the unmapper
+synchronously to push the number below a low water mark.  (Both marks
+can be the same).
 
-> Other question, who do you write the pages from the laundry disk to
-> disk if they are dirty pages, not dirty buffers.  You need to look at
-> the ptes to be able to do a swap_entry.  Or I am loosing something
-> evident here?
+Second, make the scanner scale independently of the virtual addresses
+used.  Method: store boundary tags in the /unused/ ptes so that
+scanning skips unused ptes.  Ok, this can have fiddly interactions with
+not-present swap entries.
 
-The swap entry is allocated at swap_out (page unmapping) time and
-put in the page struct.
+In this way, the work required to scan _all_ mapped pages can be
+strictly bounded.
 
-> I continue with my problem, how do you write one page for the dirty
-> page that has not a swap_entry defined.
-
-The solution is to not have such pages around. Allocating a swap
-entry when we unmap the page is easy...
-
-> I think that the desing is quite right, but I have that problem
-> just now with the current design, we jump over dirty pages in
-> shrink_mmap due to the fact that we don't know what to do with
-> them, I see the same problem here.
-
-No we don't. We will move pages from the active list to the
-inactive list regardless of whether they're clean or dirty.
-And pages will stay on the inactive list either until they're
-referenced by something or until they're reclaimed for something
-else.
-
-Once we end up with an inactive queue full of dirty pages,
-we'll be syncing stuff to disk instead of putting memory pressure
-on the active pages.
-
-regards,
-
-Rik
---
-The Internet is not a network of computers. It is a network
-of people. That is its real strength.
-
-Wanna talk about the kernel?  irc.openprojects.net / #kernelnewbies
-http://www.conectiva.com/		http://www.surriel.com/
-
+cheers,
+-- Jamie
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
