@@ -1,100 +1,46 @@
-Date: Fri, 8 Oct 2004 17:36:10 -0300
-From: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
-Subject: Re: [PATCH] mhp: transfer dirty tag at radix_tree_replace
-Message-ID: <20041008203610.GA20716@logos.cnet>
-References: <20041003.131338.41636688.taka@valinux.co.jp> <20041005164627.GB3462@logos.cnet> <20041006.163914.48665150.taka@valinux.co.jp> <20041008.171525.17587512.taka@valinux.co.jp>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20041008.171525.17587512.taka@valinux.co.jp>
+Message-ID: <BDJZJVEPOPCALUXGORENHF@yahoo.com>
+From: "Concetta Tran" <nbbliypkzoivi@yahoo.com>
+Reply-To: "Concetta Tran" <nbbliypkzoivi@yahoo.com>
+Subject: C0unt Me In sh
+Date: Fri, 08 Oct 2004 23:42:39 -0100
+MIME-Version: 1.0
+Content-Type: multipart/alternative;
+	boundary="--3834194047476837"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hirokazu Takahashi <taka@valinux.co.jp>
-Cc: iwamoto@valinux.co.jp, haveblue@us.ibm.com, linux-mm@kvack.org
+To: aart@kvack.org, blah@kvack.org, fool@kvack.org, linux-mm@kvack.org, owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Oct 08, 2004 at 05:15:25PM +0900, Hirokazu Takahashi wrote:
-> Hi, Marcelo.
-> 
-> > > > > 1) 
-> > > > > I'm pretty sure you should transfer the radix tree tag at radix_tree_replace().
-> > > > > If for example you transfer a dirty tagged page to another zone, an mpage_writepages()
-> > > > > will miss it (because it uses pagevec_lookup_tag(PAGECACHE_DIRTY_TAG)). 
-> > > > > 
-> > > > > Should be quite trivial to do (save tags before deleting and set to new entry, 
-> > > > > all in radix_tree_replace).
-> > > > > 
-> > > > > My implementation also contained the same bug.
-> > > > 
-> > > > Yes, it's one of the issues to do. The tag should be transferred in
-> > > > radix_tree_replace() as you pointed out. The current implementation
-> > > > sets the tag in set_page_dirty(newpage).
-> > > 
-> > > OK, guys, can you test this please?
-> > 
-> > Ok, I'll test it. 
-> 
-> It was sad that the patch couldn't be compiled because
-> PAGECACHE_TAG_DIRTY macro depended on the filesystem code.
-> I think radix_tree library shouldn't use it.
-> 
-> So that it would be better to make radix_tree_replace() accept tags
-> to be inherited or make the function from scratch.
-> So I decided to re-implement it and I'm testing it now.
-> 
-> > > This transfer the dirty radix tree tag at radix_tree_replace, avoiding 
-> > > a potential miss on tag-lookup.  We could also copy all bits representing 
-> > > the valid tags for this node in the radix tree. 
-> > > 
-> > > But this uses the available interfaces from radix-lib.c. In case 
-> > > a new tag gets added, radix_tree_replace() will have to know about it.
-> > 
-> > Yeah. I guess it would be better to copy the radix_tree_delete()
-> > code to radix_tree_replace() and modify it to replace items directly
-> > in the future.
-> 
-> 
-> 
-> void *radix_tree_replace(struct radix_tree_root *root,
->                                         unsigned long index, void *item)
-> {
->         struct radix_tree_path path[RADIX_TREE_MAX_PATH], *pathp = path;
->         unsigned int height, shift;
->         void *ret = NULL;
-> 
->         height = root->height;
->         if (index > radix_tree_maxindex(height))
->                 goto out;
-> 
->         shift = (height - 1) * RADIX_TREE_MAP_SHIFT;
->         pathp->node = NULL;
->         pathp->slot = &root->rnode;
-> 
->         while (height > 0) {
->                 int offset;
-> 
->                 if (*pathp->slot == NULL)
->                         goto out;
-> 
->                 offset = (index >> shift) & RADIX_TREE_MAP_MASK;
->                 pathp[1].offset = offset;
->                 pathp[1].node = *pathp[0].slot;
->                 pathp[1].slot = (struct radix_tree_node **)
->                                 (pathp[1].node->slots + offset);
->                 pathp++;
->                 shift -= RADIX_TREE_MAP_SHIFT;
->                 height--;
->         }
-> 
->         if ((ret = *pathp[0].slot))
->                 *pathp[0].slot = item;
-> out:
->         return ret;
-> }
+----3834194047476837
+Content-Type: text/plain;
+Content-Transfer-Encoding: 7Bit
 
-I'm not too familiar with the radix internals, but this looks fine to me.
+Aart
 
-Thanks Hirokazu!
+Why pay more when you can enjoy the best and cheapest pills online? 
+Nearly 80 types to choose which makes ours pharmacy the largest and the best available.
+
+No Appointments.
+No Waiting Rooms.
+No Prior Prescription Required.
+
+See why our customers re-order more than any competitor!
+
+http://www.uytrets.net/2/?wid=200007
+
+
+
+
+
+
+
+This is one-time mai|ing. No rem0val are required.
+DDFoTE09KUdN3d1GikHj1c9kUxemtZIQzi0lp5JAKUohcESz0cMXoVk
+
+
+----3834194047476837--
+
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
