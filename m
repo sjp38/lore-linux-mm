@@ -1,49 +1,48 @@
-Date: Mon, 1 Oct 2001 08:37:26 -0300 (BRT)
-From: Marcelo Tosatti <marcelo@conectiva.com.br>
-Subject: Re: broken VM in 2.4.10-pre9
-In-Reply-To: <20010927014431.C2164@bug.ucw.cz>
-Message-ID: <Pine.LNX.4.21.0110010835500.4491-100000@freak.distro.conectiva>
+Date: Mon, 1 Oct 2001 10:57:05 -0300 (BRST)
+From: Rik van Riel <riel@conectiva.com.br>
+Subject: Load control  (was: Re: 2.4.9-ac16 good perfomer?)
+In-Reply-To: <20011001111435Z16281-2757+2605@humbolt.nl.linux.org>
+Message-ID: <Pine.LNX.4.33L.0110011031050.4835-100000@imladris.rielhome.conectiva>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Pavel Machek <pavel@suse.cz>
-Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, "Eric W. Biederman" <ebiederm@xmission.com>, Daniel Phillips <phillips@bonn-fries.net>, Rob Fuller <rfuller@nsisoftware.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Daniel Phillips <phillips@bonn-fries.net>
+Cc: Mike Fedyk <mfedyk@matchmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On Mon, 1 Oct 2001, Daniel Phillips wrote:
 
-On Thu, 27 Sep 2001, Pavel Machek wrote:
+> Nice.  With this under control, another feature of his memory manager
+> you could look at is the variable deactivation threshold, which makes
+> a whole lot more sense now that the aging is linear.
 
-> Hi!
->
-> > > > > So my suggestion was to look at getting anonymous pages backed by what
-> > > > > amounts to a shared memory segment.  In that vein.  By using an extent
-> > > > > based data structure we can get the cost down under the current 8 bits
-> > > > > per page that we have for the swap counts, and make allocating swap
-> > > > > pages faster.  And we want to cluster related swap pages anyway so
-> > > > > an extent based system is a natural fit.
-> > > >
-> > > > Much of this goes away if you get rid of both the swap and anonymous page
-> > > > special cases. Back anonymous pages with the "whoops everything I write here
-> > > > vanishes mysteriously" file system and swap with a swapfs
-> > >
-> > > What exactly is anonymous memory? I thought it is what you do when you
-> > > want to malloc(), but you want to back that up by swap, not /dev/null.
-> >
-> > Anonymous memory is memory which is not backed by a filesystem or a
-> > device. eg: malloc()ed memory, shmem, mmap(MAP_PRIVATE) on a file (which
-> > will create anonymous memory as soon as the program which did the mmap
-> > writes to the mapped memory (COW)), etc.
->
-> So... how can alan propose to back anonymous memory with /dev/null?
+Actually, when we get to the point where deactivating enough
+pages is hard, we know the working set is large and we should
+be _more careful_ in chosing what to page out...
 
-I guess he means anonymous memory backed up by /dev/null means anonymous
-memory backep up by nothing.
+When we go one step further, where the working set approaches
+the size of physical memory, we should probably start doing
+load control FreeBSD-style ... pick a process and deactivate
+as many of its pages as possible. By introducing unfairness
+like this we'll be sure that only one or two processes will
+slow down on the next VM load spike, instead of all processes.
 
-> [see above] It should be backed by swap, no?
+Once we reach permanent heavy overload, we should start doing
+process scheduling, restricting the active processes to a
+subset of all processes in such a way that the active processes
+are able to make progress. After a while, give other processes
+their chance to run.
 
-Not necessarily. As soon as we need to swapout anon memory, we have to
-back it up by swap. (mm/vmscan.c:try_to_swap_out() job)
+regards,
+
+Rik
+-- 
+IA64: a worthy successor to i860.
+
+http://www.surriel.com/		http://distro.conectiva.com/
+
+Send all your spam to aardvark@nl.linux.org (spam digging piggy)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
