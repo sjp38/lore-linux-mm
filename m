@@ -1,78 +1,43 @@
-Message-ID: <3D2F2DE2.93D327F8@zip.com.au>
-Date: Fri, 12 Jul 2002 12:28:34 -0700
-From: Andrew Morton <akpm@zip.com.au>
+From: "LUCAS  ZIZI" <zilucas303@mail.com>
+Reply-To: zilucas303@mail.com
+Date: Sat, 13 Jul 2002 06:22:38 -0700
+Subject: REPLY SOON!
 MIME-Version: 1.0
-Subject: Re: [PATCH] Optimize out pte_chain take three
-References: <3D2E08DE.3C0D619@zip.com.au> <Pine.LNX.4.44L.0207112011150.14432-100000@imladris.surriel.com>
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: 8BIT
+Message-Id: <20020713051448Z26539-18766+14@kvack.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@conectiva.com.br>
-Cc: William Lee Irwin III <wli@holomorphy.com>, Dave McCracken <dmccr@us.ibm.com>, Linux Memory Management <linux-mm@kvack.org>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Rik van Riel wrote:
-> 
-> On Thu, 11 Jul 2002, Andrew Morton wrote:
-> 
-> > > generic_file_write() calls deactivate_page() if it crosses
-> > > the page boundary (ie. if it is done writing this page)
-> >
-> > Ah, OK.  I tried lots of those sorts of things.  But fact is
-> > that moving the unwanted pages to the far of the inactive list
-> > just isn't effective: pagecache which will be used at some time
-> > in the future always ends up getting evicted.
-> 
-> There's no way around that, unless you know your application
-> workload well enough to be able to predict the future.
+MR.  LUCAS  ZIZI
+TEL:  +873 - 762 - 864 - 170
+FAX:  +873 - 762 - 864 - 172						  Date:  13 /07/ 2002
+Email:  zilucas303@mail.com
 
-Well, we do know that.  In fact probably most applications know
-their buffering requirements better than the kernel does.
-(soapbox: default open() mode should be unbuffered, and the
-application developer should be forced to specify what caching
-behaviour [s]he wants.  Ah well).
 
-> ...
-> > mm.  Well we do want processes to go in and reclaim their own
-> > pages normally, to avoid a context switch (I guess.  No numbers
-> > to back this up).
-> 
-> Falling from __alloc_pages into the pageout path shouldn't be
-> part of the fast path.  If it is we have bigger problems...
+Dear Sir,
 
-Oh, direct reclaim is the common case when the system is working
-hard (and when it's not, we don't care about anything).
+I am Mr. Lucas Zizi, Bank Manager of Standard Bank of South Africa.  I have urgent and very confidential business proposition for you.
 
-It's the common case because, yup, kswapd is asleep on request
-queues all the time.
- 
-> > But I think killing batch_requests may make all this rather better.
-> 
-> Probably.
+On June 6, 1999, an American Mining Consultant/Contractor with the South African Mining Corporation, Mr. Ken Power made a numbered time (Fixed) Deposit for twelve (12) calendar months, valued at US$28,000,000.00 (Twenty-Eight Million Dollars) in my branch.  Upon maturity, I sent a routine notification to his forwarding address but got no reply.  After a month, we sent a reminder and finally we discovered from his contract employers, the South African Mining Corporation that Mr. Ken Power died from an automobile accident.  On further investigation, I found out that he died without making a WILL and all attempts to trace his next of kin was fruitless.
 
-It does.  Still testing what ended up being a pretty broad
-patch.  Frankly, I'd rather not finish the patch - it's
-a workaround for a basic design mistake.  This is one of the
-biggest performance bugs in linux.  The biggest, actually.  Don't
-underestimate it.  In 2.4 it is halving our multi-spindle
-writeback throughput.  It makes machines unusable during heavy
-writeback loads.
+I therefore made further investigation and discovered that Mr. Ken Power did not declare any kin or relations in all his official documents, including his Bank Deposit paper work in my Bank.  This sum of $28,000,000.00 USD is still sitting in my Bank and the interest is being rolled over with the principal sum at the end of each year.  No one will ever come forward to claim it.  According to South African Law, at the expiration of 5 (five) years, the money will revert to the ownership of the South African Government if nobody applies to claim the funds.
 
-Anyway.  I've uploaded my current patchset to
-http://www.zip.com.au/~akpm/linux/patches/2.5/2.5.25/
+Consequently, my proposal is that I would like you to stand in as the next of kin to Mr. Ken Power so that the fruits of this old man's labour will not get into the hands of some corrupt government officials.  This is simple, I will like you to provide immediately your full names and address so that the Attorney will prepare the necessary documents and affidavits which will put you in place as the next of kin.  We shall employ the service of an Accredited Attorney for drafting and notarization of the WILL and to obtain the necessary documents and letter of Probate/Administration in your favour for the transfer.  A bank Account in any part of the world which you will provide will then facilitate the transfer of this money to you as the beneficiary/next of kin.  The money will be paid into your Account for us to share in the ration of  60% for me and 40% for you.
 
-What I tend to do is to keep a FIFO of patches.  Every now and
-then I flush out the code which is 1-2 weeks old.  This way it has
-had a good amount of testing by the time I submit it.
+There is no risk at all as the paper work for this transaction will be done by the Attorney and my position as the Branch Manager guarantees the successful execution of this transaction.  If you are interested, please reply immediately via telephone or fax number above. Upon your response, I shall then provide you with more details and relevant documents that will help you understand the transaction.
 
-So anytime anyone has anything else which is reasonably close to
-ready and which needs stability testing,  I'd be happy to add
-it to the mix.
+Please observe utmost confidentiality, and rest assured that this transaction would be most profitable for both of us because I shall require your assistance to invest my share in your country.
 
-Not much of that code is ready to go at present.  kmap stuff needs
-confirmation against more hardware and I still have many filesystems
-to hack away at.  O_DIRECT rework is awaiting Ben's kvecs.
+Awaiting your urgent reply through telephone & fax numbers/e-mail address above.
+
+Best regard and God bless.
+
+Mr. Lucas Zizi.
+
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
