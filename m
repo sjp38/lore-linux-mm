@@ -1,78 +1,55 @@
-Received: from haymarket.ed.ac.uk (haymarket.ed.ac.uk [129.215.128.53])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id PAA07871
-	for <linux-mm@kvack.org>; Wed, 19 Aug 1998 15:28:09 -0400
-Date: Wed, 19 Aug 1998 16:19:47 +0100
-Message-Id: <199808191519.QAA07314@dax.dcs.ed.ac.uk>
-From: "Stephen C. Tweedie" <sct@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Subject: Re: Page cache ageing: yae or nae? (fwd)
-In-Reply-To: <Pine.LNX.3.96.980817213852.335A-100000@dragon.bogus>
-References: <199808171401.PAA03007@dax.dcs.ed.ac.uk>
-	<Pine.LNX.3.96.980817213852.335A-100000@dragon.bogus>
+Received: from flinx.npwt.net (inetnebr@oma-pm1-030.inetnebr.com [206.222.220.74])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id KAA12907
+	for <linux-mm@kvack.org>; Thu, 20 Aug 1998 10:30:47 -0400
+Subject: Re: More info: 2.1.108 page cache performance on low memory
+References: <199807271102.MAA00713@dax.dcs.ed.ac.uk>
+	<Pine.LNX.4.02.9808020002110.424-100000@iddi.npwt.net>
+	<199808171535.QAA03051@dax.dcs.ed.ac.uk>
+From: ebiederm@inetnebr.com (Eric W. Biederman)
+Date: 20 Aug 1998 07:40:13 -0500
+In-Reply-To: "Stephen C. Tweedie"'s message of Mon, 17 Aug 1998 16:35:48 +0100
+Message-ID: <m1soirj07m.fsf@flinx.npwt.net>
 Sender: owner-linux-mm@kvack.org
-To: Andrea Arcangeli <arcangeli@mbox.queen.it>
-Cc: "Stephen C. Tweedie" <sct@redhat.com>, Zlatko.Calusic@CARNet.hr, Rik van Riel <H.H.vanRiel@phys.uu.nl>, linux-mm@kvack.org
+To: "Stephen C. Tweedie" <sct@redhat.com>
+Cc: Zlatko Calusic <Zlatko.Calusic@CARNet.hr>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+>>>>> "ST" == Stephen C Tweedie <sct@redhat.com> writes:
 
-On Mon, 17 Aug 1998 21:51:33 +0200 (CEST), Andrea Arcangeli
-<arcangeli@mbox.queen.it> said:
+ST> Hi,
+ST> On Sun, 2 Aug 1998 00:19:52 -0500 (CDT), Eric W Biederman
+ST> <eric@flinx.npwt.net> said:
 
->> It _does_ throw unused pages out, by making it far easier to age pages.
->> I thought that was what we wanted: is 2.0 performing badly for you?  Is
->> this behaviour that bad?
+>> What I was envisioning is using a single write-out daemon 
+>> instead of 2 (one for buffer cache, one for page cache).  Using the same
+>> tests in shrink_mmap.  Reducing the size of a buffer_head by a lot because
+>> consolidating the two would reduce the number of lists needed.  
+>> To sit the buffer cache upon a single pseudo inode, and keep it's current
+>> hashing scheme.
 
-> Bingo! After some minutes of testing seems work very well! I think we need
-> this patch. The swapin/swapout seems avoided. Please Stephen forward your
-> patch to Linus. I rediffed it since it doesn' t apply clean to 115.
+ST> The only reason we currently have two daemons 
+But I have 3.
+One for writing dirty data in the buffer cache. bdflush
+One for writing dirty data in the page cache.   pgflush
+One for reclaiming clean memory                 kswapd
 
-Any other comments?  Please?  We are getting VERY close to 2.2, and we
-need to have this resolved one way or the other.  This patch works well
-for me in all cases, but I really need to know if there are other cases
-where the page cache ageing wins other than the readahead streaming.
+I would like to merge bdflush and pgflush in the long run if I can. 
+Since pgflush is more generic than bdflush it should be doable.
+This happens to give a degree of page cache and buffer cache unification
+as a side effect, of setting up the buffer cache to use pgflush.
 
---Stephen
+ST> is that we need one for
+ST> writing dirty memory and another for reclaiming clean memory.  That way,
+ST> even when we stall for disk writes, we are still able to reclaim free
+ST> memory via shrink_mmap().  The kswapd daemon and the shrink_mmap() code
+ST> already treat the page cache and buffer cache both the same.
 
+I was talking of integrating my ``dirty data in the page cache'' code,
+in with the rest of the kernel.  Hopefully for early 2.3.
 
-----------------------------------------------------------------
---- linux/mm/filemap.c.orig	Sat Aug  8 15:23:11 1998
-+++ linux/mm/filemap.c	Mon Aug 17 18:46:19 1998
-@@ -172,10 +172,12 @@
- 				break;
- 			}
- 			age_page(page);
-+#if 0
- 			if (page->age)
- 				break;
- 			if (page_cache_size * 100 < (page_cache.min_percent * num_physpages))
- 				break;
-+#endif
- 			if (PageSwapCache(page)) {
- 				delete_from_swap_cache(page);
- 				return 1;
-@@ -211,8 +213,8 @@
- 	struct page * page;
- 	int count_max, count_min;
- 
--	count_max = (limit<<2) >> (priority>>1);
--	count_min = (limit<<2) >> (priority);
-+	count_max = (limit<<1) >> (priority>>1);
-+	count_min = (limit<<1) >> (priority);
- 
- 	page = mem_map + clock;
- 	do {
-@@ -327,6 +329,7 @@
- 			 */
- 			page = mem_map + MAP_NR(page_cache);
- 			add_to_page_cache(page, inode, offset, hash);
-+			set_bit(PG_referenced, &page->flags);
- 			inode->i_op->readpage(file, page);
- 			page_cache = 0;
- 		}
-----------------------------------------------------------------
+My apologies for being so unclear  you totally missed what I was talking about.
+
+Eric
 --
 This is a majordomo managed list.  To unsubscribe, send a message with
 the body 'unsubscribe linux-mm me@address' to: majordomo@kvack.org
