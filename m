@@ -1,46 +1,40 @@
 Subject: Re: PATCH: Bug in invalidate_inode_pages()?
-References: <Pine.LNX.4.10.10005081648230.5411-100000@penguin.transmeta.com>
-From: "Juan J. Quintela" <quintela@fi.udc.es>
-In-Reply-To: Linus Torvalds's message of "Mon, 8 May 2000 16:51:44 -0700 (PDT)"
-Date: 09 May 2000 01:55:52 +0200
-Message-ID: <yttem7cvbp3.fsf@vexeta.dc.fi.udc.es>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+References: <yttk8h4vcgp.fsf@vexeta.dc.fi.udc.es>
+From: Trond Myklebust <trond.myklebust@fys.uio.no>
+Date: 09 May 2000 02:29:32 +0200
+In-Reply-To: "Juan J. Quintela"'s message of "09 May 2000 01:39:18 +0200"
+Message-ID: <shsbt2gh8gj.fsf@charged.uio.no>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@transmeta.com>
+To: "Juan J. Quintela" <quintela@fi.udc.es>
 Cc: linux-mm@kvack.org, linux-kernel@vger.rutgers.edu
 List-ID: <linux-mm.kvack.org>
 
->>>>> "linus" == Linus Torvalds <torvalds@transmeta.com> writes:
+>>>>> " " == Juan J Quintela <quintela@fi.udc.es> writes:
 
+     > Hi
+     >         I think that I have found a bug in
+     >         invalidate_inode_pages.
+     > It results that we don't remove the pages from the
+     > &inode->i_mapping->pages list, then when we return te do the
+     > next loop through all the pages, we can try to free a page that
+     > we have freed in the previous pass.  Once here I have also
+     > removed the goto
 
-Hi
+     > Comments, have I lost something obvious?
 
-linus> On 9 May 2000, Juan J. Quintela wrote:
->> I think that I have found a bug in invalidate_inode_pages.
->> It results that we don't remove the pages from the
->> &inode->i_mapping->pages list, then when we return te do the next loop
->> through all the pages, we can try to free a page that we have freed in
->> the previous pass.
+Unfortunately, yes...
 
-linus> This is what "remove_inode_page()" does. Maybe that's not quite clear
-linus> enough, so this function may certainly need some comments or something
-linus> like that, but your patch is wrong (it will now delete the thing twice,
-linus> which can and will result in list corruption).
+  Firstly, you're removing the wrong page (viz. curr = curr->next).
 
-Then there is the same inode->i_mapping_>pages list and page->list?
-If that is the case I think that I would make one comment there
-indicating that.
+  Secondly, we're already removing the page from the mapping using the
+  inlined function remove_page_from_inode_queue() which is again
+  called by remove_inode_page(). This also updates mapping->nrpages.
 
-Later, Juan.
+So invalidate_inode_pages() is correct as it stands.
 
-
-
-
--- 
-In theory, practice and theory are the same, but in practice they 
-are different -- Larry McVoy
+Cheers,
+  Trond
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
