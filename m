@@ -1,68 +1,79 @@
-Date: Thu, 17 Aug 2000 02:08:57 +0200
-From: Jakob Oestergaard <joe@solit.dk>
-Subject: Re: Oops - riel vm
-Message-ID: <20000817020857.A17604@solit.dk>
-References: <20000817015013.A17459@solit.dk>
-Mime-Version: 1.0
-Content-Type: multipart/mixed; boundary="ZGiS0Q5IWpPtfppv"
-Content-Disposition: inline
-In-Reply-To: <20000817015013.A17459@solit.dk>; from joe@solit.dk on Thu, Aug 17, 2000 at 01:50:13AM +0200
+Date: Wed, 16 Aug 2000 21:18:21 -0300 (BRST)
+From: Rik van Riel <riel@conectiva.com.br>
+Subject: Re: some silly things
+In-Reply-To: <00081702242301.00670@localhost.localdomain>
+Message-ID: <Pine.LNX.4.21.0008162111130.11513-100000@duckman.distro.conectiva>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: root <mumismo@wanadoo.es>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
---ZGiS0Q5IWpPtfppv
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+On Thu, 17 Aug 2000, root wrote:
 
-Duh !
+>  - it seems to me that you don't do nr_inactive_clear_pages++
+> when you get a new inactive_clear page
 
-I sent the wrong oops just before  :*(
+That's because there is no global counter for the number
+of inactive_clean pages. We only count these per zone.
 
-The dates fit very bad with test7-pre3...  This is
-the right oops.
+>  - I don't know why you have to test if a page is dirty in
+> reclaim_page(), there isn't the place, it is supposed that when
+> the page is written, in other place must be allocated in
+> inactive_dirty. Here we can expect inactive_clean pages are
+> really inactive clean pages.
 
-It seems strangely related to the other one though,
-way before we tried riel-vm...
+Unless somebody does something with the page _after_ it is
+added to the inactive_clean list. Granted, __find_page_nolock
+should have moved the page to the active list by then, but
+that is only valid in the _current_ VM and I would like to
+have the code resistant against some future VM modifications
+too.
 
-This mail hopefully clears up any mess I left with
-the last post, and now I'll promise to shut up until
-tomorrow when I can get some better testing done.
+Defensive programming is important if you want to avoid (or
+detect) bugs. Both bugs in your own code and in other code.
 
-Sorry for the confusion, 
--- 
--------------------+----------------------------------
- Jakob Oestergaard | Software design & implementation
-  joe@solit.dk     | { It compiles, therefore it is }
--------------------+---+------------------------------
- Solit Solutions ApS.  |  http://www.sysorb.com/
------------------------+------------------------------
+>  - what do you think of 4 lists, active_clean active_dirty
+> inactive_clean inactive_dirty. When a write operation occurs in
+> a page this will go to active_dirty, from active_dirty to
+> inactive_dirty , from active_clean to inactive_clean directly
+> without need to test if it's dirty or not.
 
---ZGiS0Q5IWpPtfppv
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: attachment; filename="oops.text"
+Doesn't make any sense. Checking for dirty state will have to
+be done somewhere, so why not do it just before we actually
+plan on writing the page to disk?
 
-Aug 16 13:59:27 hawk kernel: memory : c7ca2ce0 
-Aug 16 14:28:07 hawk kernel: Unable to handle kernel paging request at virtual address f72b5eb8 
-Aug 16 14:28:07 hawk kernel:  printing eip: 
-Aug 16 14:28:07 hawk kernel: c016252d 
-Aug 16 14:28:07 hawk kernel: *pde = 00000000 
-Aug 16 14:28:07 hawk kernel: Oops: 0000 
-Aug 16 14:28:07 hawk kernel: CPU:    0 
-Aug 16 14:28:08 hawk kernel: EIP:    0010:[ipcperms+45/176] 
-Aug 16 14:28:08 hawk kernel: EFLAGS: 00013202 
-Aug 16 14:28:08 hawk kernel: eax: 000001b6   ebx: 00000001   ecx: 00000036   edx: 000001b6 
-Aug 16 14:28:08 hawk kernel: esi: c643e000   edi: 00000000   ebp: f72b5ea4   esp: c643ff3c 
-Aug 16 14:28:08 hawk kernel: ds: 0018   es: 0018   ss: 0018 
-Aug 16 14:28:08 hawk kernel: Process XFree86 (pid: 979, stackpage=c643f000) 
-Aug 16 14:28:08 hawk kernel: Stack: 00000001 000001b6 00000000 00000002 000001b6 00000000 c0166e9c f72b5ea4  
-Aug 16 14:28:08 hawk kernel:        000001b6 00000000 00000000 00000001 bffff894 00000000 00000003 00000001  
-Aug 16 14:28:08 hawk kernel:        00000fec 00000000 00000000 c643ff78 c010d5dd 00000001 00000000 00000000  
-Aug 16 14:28:08 hawk kernel: Call Trace: [sys_shmat+216/620] [<f72b5ea4>] [sys_ipc+337/500] [system_call+51/56]  
-Aug 16 14:28:08 hawk kernel: Code: 0f b7 5d 14 89 74 24 14 8b 86 14 01 00 00 3b 45 0c 74 05 3b  
+>  In fact is the same but with 4 list you can make a state
+> machine and you can track exactly a page trought the states,
 
---ZGiS0Q5IWpPtfppv--
+Wooohoooo, fun!  ;)
+
+> > if ((PageActiveClear(page)) && (page->age < MINIM )){
+> > deactivate_page(page); //this page will go to inactive_clear
+> > }
+> > else if ((PageActiveDirty(page)) && (!page->age )){
+> > deactivate_page(page); // this will go to inactive_dirty 
+> > }
+
+NOOOOOOO!  The whole idea is to have -page aging- and
+-page flushing- SEPARATE, so that we always make the
+right decision in flushing pages.
+
+Whether a page is dirty or clean should not make any
+difference in how "important" we think it is to keep
+the page in memory.
+
+regards,
+
+Rik
+--
+"What you're running that piece of shit Gnome?!?!"
+       -- Miguel de Icaza, UKUUG 2000
+
+http://www.conectiva.com/		http://www.surriel.com/
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
