@@ -1,54 +1,76 @@
-Date: Tue, 4 Apr 2000 17:06:42 +0200 (CEST)
-From: Andrea Arcangeli <andrea@suse.de>
+Date: Tue, 4 Apr 2000 12:46:30 -0300 (BRST)
+From: Rik van Riel <riel@conectiva.com.br>
+Reply-To: riel@nl.linux.org
 Subject: Re: PG_swap_entry bug in recent kernels
-In-Reply-To: <Pine.LNX.4.21.0004031817420.3672-100000@devserv.devel.redhat.com>
-Message-ID: <Pine.LNX.4.21.0004041647150.921-100000@alpha.random>
+In-Reply-To: <Pine.LNX.4.21.0004041647150.921-100000@alpha.random>
+Message-ID: <Pine.LNX.4.21.0004041230200.23401-100000@duckman.conectiva>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ben LaHaise <bcrl@redhat.com>
-Cc: torvalds@transmeta.com, linux-mm@kvack.org
+To: Andrea Arcangeli <andrea@suse.de>
+Cc: Ben LaHaise <bcrl@redhat.com>, torvalds@transmeta.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 3 Apr 2000, Ben LaHaise wrote:
+On Tue, 4 Apr 2000, Andrea Arcangeli wrote:
+> On Mon, 3 Apr 2000, Ben LaHaise wrote:
+> 
+> >The following one-liner is a painful bug present in recent kernels: swap
+> >cache pages left in the LRU lists and subsequently reclaimed by
+> >shrink_mmap were resulting in new pages having the PG_swap_entry bit set.  
+> 
+> The patch is obviously wrong and shouldn't be applied. You missed the
+> semantics of the PG_swap_entry bitflage enterely.
 
->The following one-liner is a painful bug present in recent kernels: swap
->cache pages left in the LRU lists and subsequently reclaimed by
->shrink_mmap were resulting in new pages having the PG_swap_entry bit set.  
+[snip]
 
-The patch is obviously wrong and shouldn't be applied. You missed the
-semantics of the PG_swap_entry bitflage enterely.
+> Said the above, I obviously agree free pages shouldn't have such
+> bit set, since they aren't mapped anymore and so it make no
+> sense to provide persistence on the swap space to not allocated
+> pages :). I seen where we have a problem in not clearing such
+> bit, but the fix definitely isn't to clear the bit in the
+> swapin-modify path.
 
-Such bit is meant _only_ to allow the swapping out the same page in the
-same swap place across write-pagein faults (to avoid swap fragmentation
-upon write-page-faults). If you clear such bit within
-remove_from_swap_cache (that gets recalled upon a write swapin fault) you
-can as well drop such bitflag completly.
+You might want to have read _where_ Ben's patch applies.
 
-The PG_swap_entry is meant to give persistence to pages in the swap space.
+void __delete_from_swap_cache(struct page *page)
+{
+        swp_entry_t entry;
 
->This leads to invalid swap entries being put into users page tables if the
->page is eventually swapped out.  This was nasty to track down.
+        entry.val = page->index;
 
-That's obviously not the case. If you have that problem you'd better
-continue to debug it.
+#ifdef SWAP_CACHE_INFO
+        swap_cache_del_total++;
+#endif
+        remove_from_swap_cache(page);
+        swap_free(entry);
++	clear_bit(PG_swap_entry, &page->flags);
+}
 
-The PG_swap_entry can _only_ deal with performance (not with stability).
-You can set modify such bit as you want at any time everywhere and the
-system will remains rock solid, only performance can change. You can
-trivially verify that. The bitflag is read _only_ in acquire_swap_entry,
-and such function will run succesfully an safely despite of the
-PG_swap_entry bitflag settings.
+When we remove a page from the swap cache, it seems fair to me
+that we _really_ remove it from the swap cache.
+If __delete_from_swap_cache() is called from a wrong code path,
+that's something that should be fixed, of course (but that's
+orthogonal to this).
 
+To quote from memory.c::do_swap_page() :
 
-Said the above, I obviously agree free pages shouldn't have such bit set,
-since they aren't mapped anymore and so it make no sense to provide
-persistence on the swap space to not allocated pages :). I seen where we
-have a problem in not clearing such bit, but the fix definitely isn't to
-clear the bit in the swapin-modify path.
+        if (write_access && !is_page_shared(page)) {
+                delete_from_swap_cache_nolock(page);
+                UnlockPage(page);
 
-Andrea
+If you think this is a bug, please fix it here...
+
+cheers,
+
+Rik
+--
+The Internet is not a network of computers. It is a network
+of people. That is its real strength.
+
+Wanna talk about the kernel?  irc.openprojects.net / #kernelnewbies
+http://www.conectiva.com/		http://www.surriel.com/
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
