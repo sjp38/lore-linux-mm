@@ -1,49 +1,99 @@
-Date: Sat, 11 Dec 2004 09:23:20 +0000 (GMT)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: page fault scalability patch V12 [0/7]: Overview and performance
-    tests
-In-Reply-To: <20041210165745.38c1930e.akpm@osdl.org>
-Message-ID: <Pine.LNX.4.44.0412110914280.1535-100000@localhost.localdomain>
+Date: Sat, 11 Dec 2004 14:24:15 -0500 (EST)
+From: Rik van Riel <riel@redhat.com>
+Subject: PATCH: automatic tuning of swap token timeout
+Message-ID: <Pine.LNX.4.61.0412111420400.9560@chimarrao.boston.redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
+Content-Type: TEXT/PLAIN; charset=US-ASCII; format=flowed
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: clameter@sgi.com, torvalds@osdl.org, benh@kernel.crashing.org, nickpiggin@yahoo.com.au, linux-mm@kvack.org, linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 10 Dec 2004, Andrew Morton wrote:
-> Hugh Dickins <hugh@veritas.com> wrote:
-> > 
-> > My inclination would be simply to remove the mark_page_accessed
-> > from do_anonymous_page; but I have no numbers to back that hunch.
-> 
-> With the current implementation of page_referenced() the
-> software-referenced bit doesn't matter anyway, as long as the pte's
-> referenced bit got set.  So as long as the thing is on the active list, we
-> can simply remove the mark_page_accessed() call.
+At Marcelo's request.  I made this patch a while ago so I'm
+not sure if it will still apply to the recent kernel, but it
+should give you an idea of what I tried to achieve.
 
-Yes, you're right.  So we don't need numbers, can just delete that line.
+The idea is to keep the swap token timeout short on a system
+with mostly small tasks, even if there is one big hog running
+in the background.  The big thrashing program should not hold
+the swap token for unfair amounts of time.
 
-> Except one day the VM might get smarter about pages which are both
-> software-referenced and pte-referenced.
+The swap token timeout should be the minimum required to keep
+most of the processes in the system from thrashing, while
+keeping some amount of fairness.
 
-And on that day, we'd be making other changes, which might well
-involve restoring the mark_page_accessed to do_anonymous_page
-and adding it in the similar places which currently lack it.
+This patch is untested.  Have fun.
 
-But for now...
+===== mm/thrash.c 1.2 vs edited =====
+--- 1.2/mm/thrash.c	Wed Oct 20 04:37:11 2004
++++ edited/mm/thrash.c	Mon Nov  1 22:35:01 2004
+@@ -19,10 +19,44 @@
+  struct mm_struct * swap_token_mm = &init_mm;
 
---- 2.6.10-rc3/mm/memory.c	2004-12-05 12:56:12.000000000 +0000
-+++ linux/mm/memory.c	2004-12-11 09:18:39.000000000 +0000
-@@ -1464,7 +1464,6 @@ do_anonymous_page(struct mm_struct *mm, 
- 							 vma->vm_page_prot)),
- 				      vma);
- 		lru_cache_add_active(page);
--		mark_page_accessed(page);
- 		page_add_anon_rmap(page, vma, addr);
- 	}
- 
+  #define SWAP_TOKEN_CHECK_INTERVAL (HZ * 2)
+-#define SWAP_TOKEN_TIMEOUT (HZ * 300)
++#define MIN_SWAP_TOKEN_TIMEOUT (2 * SWAP_TOKEN_CHECK_INTERVAL)
++#define SWAP_TOKEN_TIMEOUT (HZ * 30)
++#define MAX_SWAP_TOKEN_TIMEOUT (HZ * 300)
+  unsigned long swap_token_default_timeout = SWAP_TOKEN_TIMEOUT;
+
+  /*
++ * We count how often the swap token times out, and how often the
++ * swap token hold time is long enough for processes to regain their
++ * working set and make progress.
++ *
++ * The goal is to have processes in the system make progress, with the
++ * lowest possible latency.  If the token times out too often, processes
++ * are not making progress and the timeout needs to be increased.  If
++ * processes are making progress, we can decrease the timeout and improve
++ * system latency.
++ */
++#define SWAP_TOKEN_RECALC 32
++#define SWAP_TOKEN_TOO_LONG 1
++static int swap_token_timed_out;
++static int swap_token_enough_rss;
++
++static void recalculate_swap_token_timeout(void)
++{
++	unsigned long delta = (swap_token_default_timeout / 4) + 1;
++	if (swap_token_timed_out > SWAP_TOKEN_TOO_LONG) {
++		swap_token_default_timeout += delta;
++		if (swap_token_default_timeout > MAX_SWAP_TOKEN_TIMEOUT)
++			swap_token_default_timeout = MAX_SWAP_TOKEN_TIMEOUT;
++	} else {
++		swap_token_default_timeout -= delta;
++		if (swap_token_default_timeout < MIN_SWAP_TOKEN_TIMEOUT)
++			swap_token_default_timeout = MIN_SWAP_TOKEN_TIMEOUT;
++	}
++	swap_token_enough_rss /= 2;
++	swap_token_timed_out /= 2;
++}
++
++/*
+   * Take the token away if the process had no page faults
+   * in the last interval, or if it has held the token for
+   * too long.
+@@ -32,11 +66,18 @@
+  static int should_release_swap_token(struct mm_struct *mm)
+  {
+  	int ret = 0;
+-	if (!mm->recent_pagein)
++	if (!mm->recent_pagein) {
++		swap_token_enough_rss++;
+  		ret = SWAP_TOKEN_ENOUGH_RSS;
+-	else if (time_after(jiffies, swap_token_timeout))
++	} else if (time_after(jiffies, swap_token_timeout)) {
++		swap_token_timed_out++;
+  		ret = SWAP_TOKEN_TIMED_OUT;
++	}
+  	mm->recent_pagein = 0;
++
++	if (swap_token_timed_out + swap_token_enough_rss > SWAP_TOKEN_RECALC)
++		recalculate_swap_token_timeout();
++
+  	return ret;
+  }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
