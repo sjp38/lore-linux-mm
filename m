@@ -1,75 +1,57 @@
+Date: Tue, 21 Dec 2004 02:55:25 +0000 (GMT)
+From: Hugh Dickins <hugh@veritas.com>
 Subject: Re: [RFC][PATCH 0/10] alternate 4-level page tables patches
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-In-Reply-To: <20041221002201.GA21986@wotan.suse.de>
-References: <41C3D453.4040208@yahoo.com.au>
-	 <Pine.LNX.4.44.0412182338040.13356-100000@localhost.localdomain>
-	 <20041220180435.GG4316@wotan.suse.de>
-	 <Pine.LNX.4.58.0412201016260.4112@ppc970.osdl.org>
-	 <20041220185308.GA24493@wotan.suse.de>
-	 <Pine.LNX.4.58.0412201600400.4112@ppc970.osdl.org>
-	 <20041221002201.GA21986@wotan.suse.de>
-Content-Type: text/plain
-Date: Tue, 21 Dec 2004 11:47:58 +1100
-Message-Id: <1103590078.5121.15.camel@npiggin-nld.site>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <1103590078.5121.15.camel@npiggin-nld.site>
+Message-ID: <Pine.LNX.4.44.0412210230500.24496-100000@localhost.localdomain>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="us-ascii"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <ak@suse.de>
-Cc: Linus Torvalds <torvalds@osdl.org>, Hugh Dickins <hugh@veritas.com>, Linux Memory Management <linux-mm@kvack.org>, Andrew Morton <akpm@osdl.org>
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Andi Kleen <ak@suse.de>, Linus Torvalds <torvalds@osdl.org>, Linux Memory Management <linux-mm@kvack.org>, Andrew Morton <akpm@osdl.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2004-12-21 at 01:22 +0100, Andi Kleen wrote:
-
-> I repeat again: the differences on what code needs
-> to be changed between my patchkit and Nick's are quite minor.
+On Tue, 21 Dec 2004, Nick Piggin wrote:
 > 
+> Anyway, I'll continue to try to get more architecture support,
 
-The thing I prefer about the pud is that the folding method is identical
-to pmd. If you have a look at asm-generic/pgtable-nopmd.h and -nopud.h,
-they are the same file, with a few things renamed.
+Sorry for being dense: despite your earlier explanation,
+I've yet again lost track of why pud needs any flag day through
+the architectures - beyond the inclusion of some generic nopud.h,
+but different from the one you're rightly aiming for.
 
-> The main difference is just the naming. And that mine is actually
-> tested on many architectures and and has been in -mm* for some time
-> and is ready for merging, while Nick's is still in the early stages.
-> 
+Good as they are, imagine setting aside your nopmd.h mods as a cleanup
+for some other occasion.  Then wouldn't a generic nopud.h something like
 
-True it will need more testing than yours would, which would almost be
-able to go in as soon as 2.6.10 was released... but considering most of
-the hard stuff _is_ your work, then hopefully most problems should be
-resolved already.
+#define pud_t				pgd_t
+#define pud_alloc(mm, pgd, address)	(pgd)
+#define pud_offset(pgd, start)		(pgd)
+#define pud_none(pud)			0
+#define pud_bad(pud)			0
+#define pud_ERROR(pud)
+#define pud_clear(pud)
+#define PUD_SIZE			PGDIR_SIZE
+#define PUD_MASK			PGDIR_MASK
 
-I understand you'd like the 4-levels patch to be present in 2.6.11... I
-don't think that going with the "pud" version would necessarily prevent
-that from happening.
+get your kernel with common patch 6/10 compiling and working correctly
+on all architectures?  with just a one-line mod to each architecture
+to include it?
 
-> > 
-> > >>   It's just that once you conceptually do it in the middle, a
-> > >> numbered name like "pml4_t" just doesn't make any sense (
-> > >
-> > > Sorry I didn't invent it, just copied it from the x86-64 architecture
-> > > manuals because I didn't see any reason to be different.
-> > 
-> > The thing is, I doubt the x86-64 architecture manuals use "pgd", "pmd" and 
-> > "pte", do they? So regardless, there's no consitent naming.
-> 
-> There is consistent naming for the highest level at least. 
-> 
-> They use pte, pde, pdpe, pml4e (for the entries, the levels are
-> called pte, pde, pdp, pml4) 
-> 
+Your answer seems to be no, so I guess there's a place in the code
+you can point to, which shows up the nonsense of this suggestion:
+please humiliate me!
 
-Well I won't argue about naming, because I don't think anyone cares
-enough for it to be a problem. But pud is consistent with _Linux_
-naming, at least (ie. p?d)...
+Certainly x86_64 then needs to use other definitions to get its 4levels
+working.  And it'd be highly advisable to convert i386 and some other
+common architectures (as you have already done) to use more typesafe
+declarations in which a pud_t is distinct from a pgd_t, so that people
+building mods to the common pagetable code cannot mix levels by mistake.
 
-Anyway, I'll continue to try to get more architecture support, and
-let someone else decide between pud and pml4 ;) Although if it looks
-like it is going to really slow down progress for you, then I am
-happy to abandon it.
+But I don't see why the pagetable code in each arch subdirectory needs
+to have a pud level inserted all at once (whereas a flag day was needed
+for the pml4 patch, because mm->pgd got replaced by mm->pml4).
 
-Nick
-
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
