@@ -1,61 +1,58 @@
-Date: Sun, 20 Feb 2005 22:49:23 +0100
-From: Andi Kleen <ak@suse.de>
-Subject: Re: [RFC 2.6.11-rc2-mm2 0/7] mm: manual page migration -- overview II
-Message-ID: <20050220214922.GA14486@wotan.suse.de>
-References: <m1vf8yf2nu.fsf@muc.de> <42114279.5070202@sgi.com> <20050215121404.GB25815@muc.de> <421241A2.8040407@sgi.com> <20050215214831.GC7345@wotan.suse.de> <4212C1A9.1050903@sgi.com> <20050217235437.GA31591@wotan.suse.de> <4215A992.80400@sgi.com> <20050218130232.GB13953@wotan.suse.de> <42168FF0.30700@sgi.com>
+Date: Sun, 20 Feb 2005 14:30:23 -0800
+From: Paul Jackson <pj@sgi.com>
+Subject: Re: [RFC 2.6.11-rc2-mm2 0/7] mm: manual page migration -- overview
+ II
+Message-Id: <20050220143023.3d64252b.pj@sgi.com>
+In-Reply-To: <20050220214922.GA14486@wotan.suse.de>
+References: <m1vf8yf2nu.fsf@muc.de>
+	<42114279.5070202@sgi.com>
+	<20050215121404.GB25815@muc.de>
+	<421241A2.8040407@sgi.com>
+	<20050215214831.GC7345@wotan.suse.de>
+	<4212C1A9.1050903@sgi.com>
+	<20050217235437.GA31591@wotan.suse.de>
+	<4215A992.80400@sgi.com>
+	<20050218130232.GB13953@wotan.suse.de>
+	<42168FF0.30700@sgi.com>
+	<20050220214922.GA14486@wotan.suse.de>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <42168FF0.30700@sgi.com>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ray Bryant <raybry@sgi.com>
-Cc: Andi Kleen <ak@suse.de>, Andi Kleen <ak@muc.de>, Ray Bryant <raybry@austin.rr.com>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
+To: Andi Kleen <ak@suse.de>
+Cc: raybry@sgi.com, ak@muc.de, raybry@austin.rr.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-> >Perhaps node masks would be better and teaching the kernel to handle
-> >relative distances inside the masks transparently while migrating?
-> >Not sure how complicated this would be to implement though.
-> >
-> >Supporting interleaving on the new nodes may be also useful, that would
-> >need a policy argument at least too and masks.
-> >
-> 
-> The worry I have about using node masks is that it is not as general as
-> old_node,new_node mappings (or preferably, the original proposal I made
-> of old_node_list, new_node_list).  One can't differentiate between the
+Andi wrote:
+> I still think it's fundamentally unclean and racy. External processes
+> shouldn't mess with virtual addresses of other processes.
 
-I agree that the node arrays are better for this case.
+It's not really messing with (changing) the virtual addresses of
+another process.  It's messing with the physical placement.  It's
+using the virtual addresses to help choose which pages to move.
 
-> >>and the majority of the memory is shared, then we only need to make
-> >>one system call and one page table scan.  (We just "migrate" the
-> >>shared object once.) So the time to do the page table scans disappears
-> >
-> >
-> >I don't like this because it makes it much more complicated
-> >to use for user space. And you can set separate policies for
-> >shared objects anyways.
-> 
-> Yes, but only programs that care have to use the va_start and
-> va_end.  Programs who want to move everything can specify
-> 0 and MAX_INT there and they are done.
+Do you have any better way to suggest, Andi, for a batch manager to
+relocate a job?  The typical scenario, as Ray explained it to me, is
+thus.  A lower priority job, after running a while, is displaced by a
+higher priority job that needs a large number of nodes.  Later on enough
+nodes to run the lower priority job become available elsewhere.  The
+lower priority job can either continue to wait for its original nodes to
+come free (after the high priority job finishes) or it can be relocated
+to the nodes available now.
 
-I still think it's fundamentally unclean and racy. External processes
-shouldn't mess with virtual addresses of other processes.
+How would you recommend that the batch manager move that job to the
+nodes that can run it?  The layout of allocated memory pages and tasks
+for that job must be preserved in order to keep the same performance.
+The migration method needs to scale to hundreds, or more, of nodes.
 
-> >-Andi
-> 
-> But we are least at the level of agreeing that the new system
-> call looks something like the following:
-> 
-> migrate_pages(pid, count, old_list, new_list);
-> 
-> right?
+(I'm starting to have visions of vma's having externally visible id's,
+in a per-task namespace.)
 
-For the external case probably yes. For internal (process does this
-on its own address space) it should be hooked into mbind() too.
-
--Andi
+-- 
+                  I won't rest till it's the best ...
+                  Programmer, Linux Scalability
+                  Paul Jackson <pj@sgi.com> 1.650.933.1373, 1.925.600.0401
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
