@@ -1,98 +1,58 @@
-Message-ID: <3911E03A.D33BB657@norran.net>
-Date: Thu, 04 May 2000 22:40:26 +0200
+Message-ID: <3911E111.DE0B5CFB@norran.net>
+Date: Thu, 04 May 2000 22:44:01 +0200
 From: Roger Larsson <roger.larsson@norran.net>
 MIME-Version: 1.0
-Subject: Re: Oops in __free_pages_ok (pre7-1) (Long) (backtrace)
-References: <Pine.LNX.4.10.10005040808490.1137-100000@penguin.transmeta.com>
+Subject: Re: [PATCH][RFC] Alternate shrink_mmap
+References: <Pine.LNX.4.21.0005041524220.23740-100000@duckman.conectiva>
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@transmeta.com>
-Cc: linux-mm@kvack.org, Rik van Riel <riel@nl.linux.org>
+To: riel@nl.linux.org
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Oh,
+Yes, I start scanning in the beginning every time - but I do not think
+that is so bad here, why?
 
-This moves the need_resched test out of the inner loop.
-Not good if you like low latencies (I like them).
-(The do_try_to_free_pages can take quite some time...)
+a) It releases more than one page of the required zone before returning.
+b) It should be rather fast to scan.
 
->                         if (tsk->need_resched)
->                                 schedule();
-
-Please move it back into the inner loop!
+I have been trying to handle the lockup(!), my best idea is to put in
+an artificial page that serves as a cursor...
 
 /RogerL
 
-Linus Torvalds wrote:
+
+Rik van Riel wrote:
 > 
-> On Thu, 4 May 2000, Rajagopal Ananthanarayanan wrote:
-> >
-> > I did some testing of this patch with dbench.
-> > The kernel starts shooting processes down pretty quickly
-> > ("VM: killing process XXX") on a 2 CPU 64MB system,
-> > with nothing but dbench (8 clients). A concurrently
-> > running vmstat shows very low free memory with some swapping,
-> > and the buffer space remaining around 50MB.
+> On Thu, 4 May 2000, Roger Larsson wrote:
 > 
-> Ok. The page locking patch should not change any swap behaviour at all, so
-> this behaviour is likely to be due to the pageout changes by Rik.
+> > I have noticed (not by running - lucky me) that I break this
+> > assumption....
+> > /*
+> >  * NOTE: to avoid deadlocking you must never acquire the pagecache_lock
+> > with
+> >  *       the pagemap_lru_lock held.
+> >  */
 > 
-> (Oh, the page locking might cause another part of the vmscanning logic to
-> temporarily ignore a page because it is locked, but that should be a very
-> small second-order effect compared to the "big picture" changes in how
-> much to page out).
+> Also, you seem to start scanning at the beginning of the
+> list every time, instead of moving the list head around
+> so you scan all pages in the list evenly...
 > 
-> Rik, I think the kswapd logic is wrong, and I suspect you made it
-> worsewhen you added the while-loop. The problem looks like that while
-> kswapd is working on one zone, it will entirely ignore any other zones. I
-> think the logic should be more like
+> Anyway, I'll use something like your code, but have two
+> lists (an active and an inactive list, like the BSD's
+> seem to have).
 > 
->         for (;;) {
->                 int something_to_do = 0;
->                 pgdat = pgdat_list;
->                 while (pgdat) {
->                         for(i = 0; i < MAX_NR_ZONES; i++) {
->                                 zone = pgdat->node_zones+ i;
->                                 if (!zone->size || !zone->zone_wake_kswapd)
->                                         continue;
->                                 something_to_do = 1;
->                                 do_try_to_free_pages(GFP_KSWAPD, zone);
->                         }
->                         run_task_queue(&tq_disk);
->                         pgdat = pgdat->node_next;
->                 }
->                 if (something_to_do) {
->                         if (tsk->need_resched)
->                                 schedule();
->                         continue;
->                 }
->                 tsk->state = TASK_INTERRUPTIBLE;
->                 interruptible_sleep_on(&kswapd_wait);
->         }
+> regards,
 > 
-> See? This has two changes to the current logic:
->  - it is more "balanced" on the do_try_to_free_pages(), ie it calls it for
->    different zones instead of repeating one zone until no longer needed.
->  - it continues to do this until no zone needs balancing any more, unlike
->    the old one that could easily lose kswapd wakeup-requests and just do
->    one zone.
-> 
-> What do you think? I suspect that the added do-loop in pre7 just made the
-> "lost wakeups" problem worse by concentrating on one zone for a longer
-> while and thus more likely to lose wakeups for lower zones (because it
-> already looked at those).
-> 
-> There might be other details like this lurking, but this looks like a good
-> first try. Ananth, willing to give it a whirl?
-> 
->                         Linus
-> 
+> Rik
 > --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux.eu.org/Linux-MM/
+> The Internet is not a network of computers. It is a network
+> of people. That is its real strength.
+> 
+> Wanna talk about the kernel?  irc.openprojects.net / #kernelnewbies
+> http://www.conectiva.com/               http://www.surriel.com/
 
 --
 Home page:
