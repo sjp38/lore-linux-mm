@@ -1,71 +1,28 @@
-Date: Sun, 12 Jan 2003 02:11:37 +0000 (GMT)
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Linux VM Documentation - Draft 1
-Message-ID: <Pine.LNX.4.44.0301120210580.32623-100000@skynet>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Sun, 12 Jan 2003 03:49:16 +0100
+From: Willy Tarreau <willy@w.ods.org>
+Subject: Re: Linux VM Documentation - Draft 1
+Message-ID: <20030112024916.GA12998@alpha.home.local>
+References: <Pine.LNX.4.44.0301120210580.32623-100000@skynet>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.44.0301120210580.32623-100000@skynet>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Well, despite numerous setbacks, disasters and various panic-attacks, I've
-finally got a first draft together for documentation of the Linux VM. This
-is still incomplete but will hopefully still be a valuable resource to
-those wishing to understand the VM.
+On Sun, Jan 12, 2003 at 02:11:37AM +0000, Mel Gorman wrote:
+ 
+> Any feedback, comments or suggestions are welcome from anyone with a VM
 
-It is based on 2.4.20 as the 2.5.x one still changes too much too
-regularly to make documenting it feasible. I do believe though that having
-a good understanding of the 2.4.20 VM is 80% of the work to understanding
-the 2.5.x one at least. There is a few notable areas not covered yet but
-will be over the next month or two but I am releasing this early so I can
-start getting feedback and correcting any errors or poor assumptions now
-rather than later. The areas are;
+one feedback : Thanks a lot !!! This is invaluable work. I don't have the
+skills to tell you if/where you let mistakes, but your documents will help me
+(and probably many people) understanding this important kernel part.
 
-o Swap area management   (swap.c, swapfile.c etc)
-o High memory management (highmem.c)
-o Memory locking         (mlock.c)
-o Mem init (May not cover as it's very arch specific and there is docs out
-            there on the subject already)
-o Shared memory (May not cover this at all as it is really an IPC field)
-o Buffer management (Same, except it's of more importance to IO)
-
-The documentation comes in two parts. The first is "Understanding the
-Linux Virtual Memory Manager" and it does pretty much as described. It is
-available in three formats, PDF, HTML and plain text.
-
-Understanding the Linux Virtual Memory Manager
-PDF:  http://www.csn.ul.ie/~mel/projects/vm/guide/pdf/understand.pdf
-HTML: http://www.csn.ul.ie/~mel/projects/vm/guide/html/understand/
-Text: http://www.csn.ul.ie/~mel/projects/vm/guide/text/understand.txt
-
-The second part is a code commentary which is literally a guided tour
-through the code. It is intended to help decipher the more cryptic
-sections as well as identify the code patterns that are prevalent through
-the code. I decided to have the code separate from the first document as
-maintaining the code in the document would be too painful
-
-Code Commentary on the Linux Virtual Memory Manager
-PDF:  http://www.csn.ul.ie/~mel/projects/vm/guide/pdf/code.pdf
-HTML: http://www.csn.ul.ie/~mel/projects/vm/guide/html/code
-Text: http://www.csn.ul.ie/~mel/projects/vm/guide/text/code.txt
-
-Any feedback, comments or suggestions are welcome from anyone with a VM
-interest but I would appreciate if people already familiar with the VM
-would even give a brief read to check for technical accuracy. There was
-rarely an authoritative source to check to make sure I was right and I
-didn't want to be asking questions every 5 minutes on IRC or mailing
-lists :-)
-
-Enjoy...
-
--- 
-Mel Gorman
-MSc Student, University of Limerick
-http://www.csn.ul.ie/~mel
-
-
+Congratulations, really !
+Willy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
