@@ -1,46 +1,40 @@
+Received: by fenrus.demon.nl
+	via sendmail from stdin
+	id <m12qjP0-000OVtC@amadeus.home.nl> (Debian Smail3.2.0.102)
+	for linux-mm@kvack.org; Sat, 13 May 2000 23:24:50 +0200 (CEST)
+Message-Id: <m12qjP0-000OVtC@amadeus.home.nl>
+Date: Sat, 13 May 2000 23:24:50 +0200 (CEST)
+From: arjan@fenrus.demon.nl (Arjan van de Ven)
 Subject: Re: pre8: where has the anti-hog code gone?
-References: <Pine.LNX.4.10.10005130819330.1721-100000@penguin.transmeta.com>
-From: "Juan J. Quintela" <quintela@fi.udc.es>
-In-Reply-To: Linus Torvalds's message of "Sat, 13 May 2000 08:28:40 -0700 (PDT)"
-Date: 13 May 2000 20:14:26 +0200
-Message-ID: <yttg0rm48sd.fsf@vexeta.dc.fi.udc.es>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+In-Reply-To: <Pine.LNX.4.21.0005122031500.28943-100000@duckman.distro.conectiva> <Pine.LNX.4.10.10005130819330.1721-100000@penguin.transmeta.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Linus Torvalds <torvalds@transmeta.com>
-Cc: Rik van Riel <riel@conectiva.com.br>, linux-mm@kvack.org
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
->>>>> "linus" == Linus Torvalds <torvalds@transmeta.com> writes:
+[snip stuff about "first make it work, then make it nice/fast"]
 
-Hi
+> So pre-8 with your suggested for for kswapd() looks pretty good, actually,
+> but still has this issue that try_to_free_pages() seems to give up too
+> easily and return failure when it shouldn't. 
 
-linus> So pre-8 with your suggested for for kswapd() looks pretty good, actually,
-linus> but still has this issue that try_to_free_pages() seems to give up too
-linus> easily and return failure when it shouldn't. I'll happily apply patches
-linus> that make for nicer behaviour once this is clearly fixed, but not before
-linus> (unless the "nicer behaviour" patch _also_ fixes the "pathological
-linus> behaviour" case ;)
+I have been looking at it right now, and I think there are a few issues:
 
-Here pre8, pre8 with any of the Rik patchs and pre9-1 looks bad.  If I
-ran mmap002 in that machines it will be killed allways, now a lot of
-times in around 30 seconds (in previous kernels the tests lasts around
-3 min before being killed).  The system continues doing kills until
-init dies, then all the system freezes, no net, no ping answer, no
-keyboard answer (sysrq didn't work).  No information in logs, except
-that some processes have been killed, no messages in the console
-either.  If you need to reproduce the efect is easy, here in less than
-5 min mmap002 test, the system is frozen.
+1) shrink_[id]node_memory always return 0, even if they free memory
+2) shrink_inode_memory is broken for priority == 0
 
-If you need more information, let me know.
+2) is easily fixable, but even with that fixed, my traces show that, for the
+mmap002 test, shrink_mmap fails just before the OOM.
 
-Later, Juan.
+My idea is (but I have not tested this) that for priority == 0 (aka "Uh oh")
+shrink_mmap or do_try_to_free_pages have to block while waiting for pages to
+be commited to disk. As far as I can see, shrink_mmap just skips pages that
+are being commited to disk, while these could be freed when they are waited
+upon. 
 
-
--- 
-In theory, practice and theory are the same, but in practice they 
-are different -- Larry McVoy
+Greetings,
+    Arjan van de Ven
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
