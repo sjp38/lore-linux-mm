@@ -1,67 +1,239 @@
-Message-ID: <3D6BD0A8.74509205@zip.com.au>
-Date: Tue, 27 Aug 2002 12:19:04 -0700
-From: Andrew Morton <akpm@zip.com.au>
-MIME-Version: 1.0
-Subject: Re: MM patches against 2.5.31
-References: <3D644C70.6D100EA5@zip.com.au> <E17jKlX-0001i0-00@starship> <20020826152950.9929.qmail@thales.mathematik.uni-ulm.de> <E17jO6g-0002XU-00@starship> <3D6A8082.3775C5AB@zip.com.au> <20020827092219.27495.qmail@thales.mathematik.uni-ulm.de>
+Date: Tue, 27 Aug 2002 14:31:16 +0000
+From: Pavel Machek <pavel@suse.cz>
+Subject: Re: [patch] SImple Topology API v0.3 (1/2)
+Message-ID: <20020827143115.B39@toy.ucw.cz>
+References: <3D6537D3.3080905@us.ibm.com>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <3D6537D3.3080905@us.ibm.com>; from colpatch@us.ibm.com on Thu, Aug 22, 2002 at 12:13:23PM -0700
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christian Ehrhardt <ehrhardt@mathematik.uni-ulm.de>
-Cc: Daniel Phillips <phillips@arcor.de>, lkml <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Matthew Dobson <colpatch@us.ibm.com>
+Cc: Andrew Morton <akpm@zip.com.au>, Linus Torvalds <torvalds@transmeta.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Martin Bligh <mjbligh@us.ibm.com>, Andrea Arcangeli <andrea@suse.de>, Michael Hohnbaum <hohnbaum@us.ibm.com>, lse-tech <lse-tech@lists.sourceforge.net>
 List-ID: <linux-mm.kvack.org>
 
-Christian Ehrhardt wrote:
-> 
-> ...
-> So what we want CPUB do instead is
-> 
->         spin_lock(lru_lock);
->         page = list_entry(lru)
-> 
->         START ATOMIC
->                 page_cache_get(page);
->                 res = (page_count (page) == 1)
->         END ATOMIC
-> 
->         if (res) {
->                 atomic_dec (&page->count);
->                 continue;  /* with next page */
->         }
->         ...
->         page_cache_release (page);
-> 
-> I.e. we want to detect _atomically_ that we just raised the page count
-> from zero to one. My patch actually has a solution that implements the
-> needed atomic operation above by means of the atomic functions that we
-> currently have on all archs (it's called get_page_testzero and
-> should probably called get_page_testone).
-> The more I think about this the more I think this is the way to go.
-> 
+Hi!
 
-Yes, I think that would provide a minimal fix to the problem.
-(I'd prefer a solution in which presence on the LRU contributes
-to page->count, because that means I can dump a load of expensive
-page_cache_get-inside-lru-lock instances, but whatever)
+> Andrew, Linus, et al:
+> 	Here's the latest version of the Simple Topology API.  I've broken the patches 
+> into a solely in-kernel portion, and a portion that exposes the API to 
+> userspace via syscalls and prctl.  This patch (part 1) is the in-kernel part. 
+> I hope that the smaller versions of these patches will draw more feedback, 
+> comments, flames, etc.  Other than that, the patch remains relatively unchanged 
+> from the last posting.
 
-You had:
+> -   bool 'Multiquad NUMA system' CONFIG_MULTIQUAD
+> +   bool 'Multi-node NUMA system support' CONFIG_X86_NUMA
 
--#define put_page_testzero(p)   atomic_dec_and_test(&(p)->count)
--#define page_count(p)          atomic_read(&(p)->count)
--#define set_page_count(p,v)    atomic_set(&(p)->count, v)
-+#define put_page_testzero(p)   atomic_add_negative(-1, &(p)->count)
-+#define page_count(p)          (1+atomic_read(&(p)->count))
-+#define set_page_count(p,v)    atomic_set(&(p)->count, v-1)
-+#define get_page_testzero(p)   atomic_inc_and_test(&(p)->count)
+Why not simply CONFIG_NUMA?
+								Pavel
 
-So the page count is actually offset by -1, and that is hidden by
-the macros.  Fair enough.
+> +   if [ "" = "y" ]; then
+> +      #Platform Choices
+> +      bool 'Multiquad (IBM/Sequent) NUMAQ support' CONFIG_X86_NUMAQ
+> +      if [ "" = "y" ]; then
+> +         define_bool CONFIG_MULTIQUAD y
+> +         define_bool CONFIG_X86_TSC_DISABLE y
+> +      fi
+> +   fi
+>  fi
+>  
+>  bool 'Machine Check Exception' CONFIG_X86_MCE
+> diff -Nur linux-2.5.27-vanilla/arch/i386/kernel/smpboot.c linux-2.5.27-api/arch/i386/kernel/smpboot.c
+> --- linux-2.5.27-vanilla/arch/i386/kernel/smpboot.c	Sat Jul 20 12:11:18 2002
+> +++ linux-2.5.27-api/arch/i386/kernel/smpboot.c	Wed Jul 24 17:33:41 2002
+> @@ -60,6 +60,9 @@
+>  /* Bitmask of currently online CPUs */
+>  unsigned long cpu_online_map;
+>  
+> +/* Bitmask of currently online memory blocks */
+> +unsigned long memblk_online_map;
+> +
+>  static volatile unsigned long cpu_callin_map;
+>  volatile unsigned long cpu_callout_map;
+>  static unsigned long smp_commenced_mask;
+> diff -Nur linux-2.5.27-vanilla/include/asm-i386/mmzone.h linux-2.5.27-api/include/asm-i386/mmzone.h
+> --- linux-2.5.27-vanilla/include/asm-i386/mmzone.h	Wed Dec 31 16:00:00 1969
+> +++ linux-2.5.27-api/include/asm-i386/mmzone.h	Wed Jul 24 17:33:41 2002
+> @@ -0,0 +1,53 @@
+> +/*
+> + * linux/include/asm-i386/mmzone.h
+> + *
+> + * Written by: Matthew Dobson, IBM Corporation
+> + *
+> + * Copyright (C) 2002, IBM Corp.
+> + *
+> + * All rights reserved.          
+> + *
+> + * This program is free software; you can redistribute it and/or modify
+> + * it under the terms of the GNU General Public License as published by
+> + * the Free Software Foundation; either version 2 of the License, or
+> + * (at your option) any later version.
+> + *
+> + * This program is distributed in the hope that it will be useful, but
+> + * WITHOUT ANY WARRANTY; without even the implied warranty of
+> + * MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, GOOD TITLE or
+> + * NON INFRINGEMENT.  See the GNU General Public License for more
+> + * details.
+> + *
+> + * You should have received a copy of the GNU General Public License
+> + * along with this program; if not, write to the Free Software
+> + * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+> + *
+> + * Send feedback to <colpatch@us.ibm.com>
+> + */
+> +#ifndef _ASM_MMZONE_H_
+> +#define _ASM_MMZONE_H_
+> +
+> +#ifdef CONFIG_X86_NUMAQ
+> +
+> +#define NR_MEMBLKS	32 /* Max number of Memory Blocks */
+> +
+> +#include <asm/numaq.h>
+> +
+> +#else /* !CONFIG_X86_NUMAQ */
+> +
+> +#define NR_MEMBLKS	1
+> +
+> +/* Other architectures wishing to use this simple topology API should fill
+> +   in the below functions as appropriate in their own <arch>.h file. */
+> +#define _cpu_to_node(cpu)	(0)
+> +#define _memblk_to_node(memblk)	(0)
+> +#define _node_to_node(nid)	(0)
+> +#define _node_to_cpu(node)	(0)
+> +#define _node_to_memblk(node)	(0)
+> +
+> +#endif /* CONFIG_X86_NUMAQ */
+> +
+> +/* Returns the number of the current Node. */
+> +#define numa_node_id()		(_cpu_to_node(smp_processor_id()))
+> +
+> +#endif /* _ASM_MMZONE_H_ */
+> diff -Nur linux-2.5.27-vanilla/include/asm-i386/numaq.h linux-2.5.27-api/include/asm-i386/numaq.h
+> --- linux-2.5.27-vanilla/include/asm-i386/numaq.h	Wed Dec 31 16:00:00 1969
+> +++ linux-2.5.27-api/include/asm-i386/numaq.h	Wed Jul 24 17:33:41 2002
+> @@ -0,0 +1,60 @@
+> +/*
+> + * linux/include/asm-i386/numaq.h
+> + *
+> + * Written by: Matthew Dobson, IBM Corporation
+> + *
+> + * Copyright (C) 2002, IBM Corp.
+> + *
+> + * All rights reserved.          
+> + *
+> + * This program is free software; you can redistribute it and/or modify
+> + * it under the terms of the GNU General Public License as published by
+> + * the Free Software Foundation; either version 2 of the License, or
+> + * (at your option) any later version.
+> + *
+> + * This program is distributed in the hope that it will be useful, but
+> + * WITHOUT ANY WARRANTY; without even the implied warranty of
+> + * MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, GOOD TITLE or
+> + * NON INFRINGEMENT.  See the GNU General Public License for more
+> + * details.
+> + *
+> + * You should have received a copy of the GNU General Public License
+> + * along with this program; if not, write to the Free Software
+> + * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+> + *
+> + * Send feedback to <colpatch@us.ibm.com>
+> + */
+> +#ifndef _I386_NUMAQ_H
+> +#define _I386_NUMAQ_H
+> +
+> +#ifdef CONFIG_X86_NUMAQ
+> +
+> +#include <asm/smpboot.h>
+> +
+> +/* Returns the number of the node containing CPU 'cpu' */
+> +#define _cpu_to_node(cpu) (cpu_to_logical_apicid(cpu) >> 4)
+> +
+> +/* Returns the number of the node containing MemBlk 'memblk' */
+> +#define _memblk_to_node(memblk) (memblk)
+> +
+> +/* Returns the number of the node containing Node 'nid'.  This architecture is flat, 
+> +   so it is a pretty simple function! */
+> +#define _node_to_node(nid) (nid)
+> +
+> +/* Returns the number of the first CPU on Node 'node' */
+> +static inline int _node_to_cpu(int node)
+> +{
+> +	int i, cpu, logical_apicid = node << 4;
+> +
+> +	for(i = 1; i < 16; i <<= 1)
+> +		if ((cpu = logical_apicid_to_cpu(logical_apicid | i)) >= 0)
+> +			return cpu;
+> +
+> +	return 0;
+> +}
+> +
+> +/* Returns the number of the first MemBlk on Node 'node' */
+> +#define _node_to_memblk(node) (node)
+> +
+> +#endif /* CONFIG_X86_NUMAQ */
+> +#endif /* _I386_NUMAQ_H */
+> diff -Nur linux-2.5.27-vanilla/include/asm-i386/smp.h linux-2.5.27-api/include/asm-i386/smp.h
+> --- linux-2.5.27-vanilla/include/asm-i386/smp.h	Sat Jul 20 12:11:06 2002
+> +++ linux-2.5.27-api/include/asm-i386/smp.h	Wed Jul 24 17:33:41 2002
+> @@ -55,6 +55,7 @@
+>  extern void smp_alloc_memory(void);
+>  extern unsigned long phys_cpu_present_map;
+>  extern unsigned long cpu_online_map;
+> +extern unsigned long memblk_online_map;
+>  extern volatile unsigned long smp_invalidate_needed;
+>  extern int pic_mode;
+>  extern int smp_num_siblings;
+> @@ -95,6 +96,11 @@
+>  	return hweight32(cpu_online_map);
+>  }
+>  
+> +extern inline unsigned int num_online_memblks(void)
+> +{
+> +	return hweight32(memblk_online_map);
+> +}
+> +
+>  extern inline int any_online_cpu(unsigned int mask)
+>  {
+>  	if (mask & cpu_online_map)
+> diff -Nur linux-2.5.27-vanilla/include/linux/mmzone.h linux-2.5.27-api/include/linux/mmzone.h
+> --- linux-2.5.27-vanilla/include/linux/mmzone.h	Sat Jul 20 12:11:05 2002
+> +++ linux-2.5.27-api/include/linux/mmzone.h	Wed Jul 24 17:33:41 2002
+> @@ -220,15 +20,15 @@
+>  #define NODE_MEM_MAP(nid)	mem_map
+>  #define MAX_NR_NODES		1
+>  
+> -#else /* !CONFIG_DISCONTIGMEM */
+> -
+> -#include <asm/mmzone.h>
+> +#else /* CONFIG_DISCONTIGMEM */
+>  
+>  /* page->zone is currently 8 bits ... */
+>  #define MAX_NR_NODES		(255 / MAX_NR_ZONES)
+>  
+>  #endif /* !CONFIG_DISCONTIGMEM */
+>  
+> +#include <asm/mmzone.h>
+> +
+>  #define MAP_ALIGN(x)	((((x) % sizeof(struct page)) == 0) ? (x) : ((x) + >  		sizeof(struct page) - ((x) % sizeof(struct page))))
+>  
+> diff -Nur linux-2.5.27-vanilla/include/linux/smp.h linux-2.5.27-api/include/linux/smp.h
+> --- linux-2.5.27-vanilla/include/linux/smp.h	Sat Jul 20 12:11:22 2002
+> +++ linux-2.5.27-api/include/linux/smp.h	Wed Jul 24 17:33:41 2002
+> @@ -93,6 +93,7 @@
+>  #define smp_call_function(func,info,retry,wait)	({ 0; })
+>  static inline void smp_send_reschedule(int cpu) { }
+>  static inline void smp_send_reschedule_all(void) { }
+> +#define memblk_online_map			1
+>  #define cpu_online_map				1
+>  #define cpu_online(cpu)				({ cpu; 1; })
+>  #define num_online_cpus()			1
 
-atomic_add_negative() is not implemented on quite a number of
-architectures (sparc64, mips, ppc, sh, cris, 68k, alpha..), so
-some legwork is needed there.  Looks to be pretty simple though;
-alpha, ppc and others already have atomic_add_return().
+
+-- 
+Philips Velo 1: 1"x4"x8", 300gram, 60, 12MB, 40bogomips, linux, mutt,
+details at http://atrey.karlin.mff.cuni.cz/~pavel/velo/index.html.
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
