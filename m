@@ -1,43 +1,47 @@
+Date: Wed, 4 Jun 2003 23:12:16 +0200
 Subject: Re: 2.5.70-mm4
-From: Felipe Alfaro Solana <felipe_alfaro@linuxmail.org>
-In-Reply-To: <1054741940.8438.175.camel@plars>
+Message-ID: <20030604211216.GA2436@hh.idb.hist.no>
 References: <20030603231827.0e635332.akpm@digeo.com>
-	 <1054741940.8438.175.camel@plars>
-Content-Type: text/plain
-Message-Id: <1054749653.699.3.camel@teapot.felipe-alfaro.com>
 Mime-Version: 1.0
-Date: 04 Jun 2003 20:00:53 +0200
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20030603231827.0e635332.akpm@digeo.com>
+From: Helge Hafting <helgehaf@aitel.hist.no>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Paul Larson <plars@linuxtestproject.org>
-Cc: Andrew Morton <akpm@digeo.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: Andrew Morton <akpm@digeo.com>, neilb@cse.unsw.edu.au
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2003-06-04 at 17:52, Paul Larson wrote:
-> On Wed, 2003-06-04 at 01:18, Andrew Morton wrote:
-> > ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.5/2.5.70/2.5.70-mm4/
-> A couple of issues:
-> 
-> Hangs on boot unless I use acpi=off, but I don't believe this is unique
-> to -mm.  I've seen this on plain 2.5 kernels on and off before with this
-> 8-way and others like it.  AFAIK the acpi issues are ongoing and still
-> being worked, but please let me know if there's any information I can
-> gather other than what's already out there that would assist in fixing
-> these.
+Raid-1 seems to work in 2.5.70-mm4, but raid-0 still fail.
 
-This remembers me of a pretty strange issue I'm having with ACPI on my
-NEC/Packard Bell Chrom@ laptop: if I plug my 3Com CardBus NIC in the
-second PCMCIA slot, the kernel hangs during boot just at the time the
-NIC generates an interrupt (for example, by sending a ping or some
-traffic). However, if I plug the NIC into the first slot, it works
-perfectly.
+Trying to boot with raid-0 autodetect yields a long string of:
+Slab error in cache_free_debugcheck
+cache 'size-32' double free or
+memory after object overwritten.
+(Is this something "Page alloc debugging"may be used for?)
+kfree+0xfc/0x330
+raid0_run
+raid0_run
+printk
+blk_queue_make_request
+do_md_run
+md_ioctl
+dput
+blkdev_ioctl
+sys_ioctl
+syscall_call
 
-Curious, isn't it? I think it's related to ACPI IRQ routing: the NIC
-uses IRQ10 when plugged into the first slot, but it uses IRQ5 when
-plugged into the second one (which causes the mentioned hang). IRQ5 is
-being shared with my YMFPCI sound card. Don't know if this is related to
-the hangs, but I thought it was worth saying.
+I get a ton of these, in between normal
+initialization messages.  Then the thing
+dies with a panic due to exception in interrupt.
+
+This is a monolithic smp preempt kernel on a dual celeron.
+The disks are scsi, the filesystems ext2.  There is one
+raid-0 array and two raid-1 arrays, as well as some
+ordinary partitions.  Root is on raid-1.
+
+Helge Hafting
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
