@@ -1,68 +1,85 @@
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by e5.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id j1CL4bcO020419
-	for <linux-mm@kvack.org>; Sat, 12 Feb 2005 16:04:37 -0500
-Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
-	by d01relay04.pok.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id j1CL4bC1146538
-	for <linux-mm@kvack.org>; Sat, 12 Feb 2005 16:04:37 -0500
-Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
-	by d01av04.pok.ibm.com (8.12.11/8.12.11) with ESMTP id j1CL4bVC018308
-	for <linux-mm@kvack.org>; Sat, 12 Feb 2005 16:04:37 -0500
-Subject: Re: [RFC 2.6.11-rc2-mm2 7/7] mm: manual page migration --
-	sys_page_migrate
-From: Dave Hansen <haveblue@us.ibm.com>
-In-Reply-To: <20050212032620.18524.15178.29731@tomahawk.engr.sgi.com>
-References: <20050212032535.18524.12046.26397@tomahawk.engr.sgi.com>
-	 <20050212032620.18524.15178.29731@tomahawk.engr.sgi.com>
-Content-Type: text/plain
-Date: Sat, 12 Feb 2005 13:04:22 -0800
-Message-Id: <1108242262.6154.39.camel@localhost>
+Date: 12 Feb 2005 22:29:14 +0100
+Date: Sat, 12 Feb 2005 22:29:14 +0100
+From: Andi Kleen <ak@muc.de>
+Subject: Re: [RFC 2.6.11-rc2-mm2 0/7] mm: manual page migration -- overview
+Message-ID: <20050212212914.GA51971@muc.de>
+References: <20050212032535.18524.12046.26397@tomahawk.engr.sgi.com> <m1vf8yf2nu.fsf@muc.de> <20050212155426.GA26714@logos.cnet>
 Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20050212155426.GA26714@logos.cnet>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ray Bryant <raybry@sgi.com>
-Cc: Hirokazu Takahashi <taka@valinux.co.jp>, Hugh DIckins <hugh@veritas.com>, Andrew Morton <akpm@osdl.org>, Marcello Tosatti <marcello@cyclades.com>, Ray Bryant <raybry@austin.rr.com>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
+To: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
+Cc: Ray Bryant <raybry@sgi.com>, Ray Bryant <raybry@austin.rr.com>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2005-02-11 at 19:26 -0800, Ray Bryant wrote:
-> This patch introduces the sys_page_migrate() system call:
+On Sat, Feb 12, 2005 at 01:54:26PM -0200, Marcelo Tosatti wrote:
+> On Sat, Feb 12, 2005 at 12:17:25PM +0100, Andi Kleen wrote:
+> > Ray Bryant <raybry@sgi.com> writes:
+> > > set of pages associated with a particular process need to be moved.
+> > > The kernel interface that we are proposing is the following:
+> > >
+> > > page_migrate(pid, va_start, va_end, count, old_nodes, new_nodes);
+> > 
+> > [Only commenting on the interface, haven't read your patches at all]
+> > 
+> > This is basically mbind() with MPOL_F_STRICT, except that it has a pid 
+> > argument. I assume that's for the benefit of your batch scheduler.
 > 
-> sys_page_migrate(pid, va_start, va_end, count, old_nodes, new_nodes);
+> As far as I understand mbind() is used to set policies to given memory 
+> regions, not move memory regions?
+
+There is a MPOL_F_STRICT flag. Currently it fails when the memory
+is not on the right node(s) and the flag is set, but it could as well move. 
+
+In fact Steve Longerbeam already did a patch to move in this case,
+but it hasn't been merged yet for some reasons.
+
+
+> > mmap in parallel. The only way I can think of to do this would be to
+> > check for changes in maps after a full move and loop, but then you risk
+> > livelock.
 > 
-> Its intent is to cause the pages in the range given that are found on
-> old_nodes[i] to be moved to new_nodes[i].  Count is the the number of
-> entries in these two arrays of short.
+> True. 
+> 
+> There is no problem, however, if all threads beloging to the process are stopped, 
+> as Ray mentions. 
+> 
+> So, there wont be memory mapping changes happening at the same time. 
 
-Might it be useful to use nodemasks instead of those arrays?  That's
-already the interface that the mbind() interfaces use, and it probably
-pays to be consistent with all of the numa syscalls.
+Ok. But it's still quite ugly to read /proc/*/maps for this.
 
-There also probably needs to be a bit more coordination between the
-other NUMA API and this one.  I noticed that, for now, the migration
-loop only makes a limited number of passes.  It appears that either you
-don't require that, once the syscall returns, that *all* pages have been
-migrated (there could have been allocations done behind the loop) or you
-have some way of keeping the process from doing any more allocations.
+> 
+> > And you cannot also just specify va_start=0, va_end=~0UL because that
+> > would make the node arrays grow infinitely. 
+> > 
+> > Also is there a good use case why the batch scheduler should only
+> > move individual areas in a process around, not the full process?
+> 
+> Quoting him:
+> 
+> "In addition to its use by batch schedulers, we also envision that
+> this facility could be used by a program to re-arrange the allocation
+> of its own pages on various nodes of the NUMA system, most likely
+> to optimize performance of the application during different phases
+> of its computation."
+> 
+> Seems doable. 
 
-There might also be some use to making sure that the NUMA binding API
-and the migration code agree what is in the affected VMA.  Otherwise,
-there might be some interesting situations where kswapd is swapping
-pages out behind a migration call, and the NUMA API is refilling those
-pages with ones that the migration call doesn't agree with.
+That is what mbind() already supports, just someone needs to hook up
+the page moving code with MPOL_F_STRICT.
+ 
+> Are there any good xamples of optimizations that could be made by 
+> moving pages around except for NUMA?
 
-That's one reason I was looking at the loop to make sure it's only one
-pass.  I think doing passes until all pages are migrated gives you a
-livelock, so the limited number obviously makes sense. 
+It's all fundamentally a NUMA thing.
 
-Will you need other APIs to tell how successful the migration request
-was?  Simply returning how many pages were migrated back from the
-syscall doesn't really tell you anything concrete because there could be
-kswapd activity or other migration calls that could be messing up the
-work from the previous call.  Are all of these VMAs meant to be
-mlock()ed?
+There was some talk to define fake nodes as fall back pools
+to get low latency multimedia allocation, with that it may be useful
+too at some point.
 
--- Dave
-
+-Andi
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
