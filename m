@@ -1,21 +1,42 @@
-Subject: Documentation/vm/locking: why not hold two PT locks?
-From: Ed L Cashin <ecashin@uga.edu>
-Date: Sun, 08 Feb 2004 16:18:41 -0500
-Message-ID: <8765ehe0cu.fsf@uga.edu>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Subject: Re: Documentation/vm/locking: why not hold two PT locks?
+From: Robert Love <rml@ximian.com>
+In-Reply-To: <8765ehe0cu.fsf@uga.edu>
+References: <8765ehe0cu.fsf@uga.edu>
+Content-Type: text/plain
+Message-Id: <1076275778.5608.1.camel@localhost>
+Mime-Version: 1.0
+Date: Sun, 08 Feb 2004 16:29:38 -0500
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Ed L Cashin <ecashin@uga.edu>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi.  Documentation/vm/locking says one must not simultaneously hold
-the page table lock on mm A and mm B.  Is that true?  Where is the
-danger?
+On Sun, 2004-02-08 at 16:18 -0500, Ed L Cashin wrote:
 
--- 
---Ed L Cashin            |   PGP public key:
-  ecashin@uga.edu        |   http://noserose.net/e/pgp/
+> Hi.  Documentation/vm/locking says one must not simultaneously hold
+> the page table lock on mm A and mm B.  Is that true?  Where is the
+> danger?
+
+There isn't a proscribed lock ordering hierarchy, so you can deadlock.
+
+Assume thread 1 obtains the lock on mm A.
+
+Assume thread 2 obtains the lock on mm B.
+
+Assume thread 1 now obtains the lock on mm B - it is taken, so spin
+waiting.
+
+Assume thread 2 now obtains the lock on mm A - it too is taken, so spin
+waiting.
+
+Boom..
+
+	Robert Love
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
