@@ -1,27 +1,23 @@
-Date: Sat, 15 Jul 2000 14:56:37 -0300 (BRST)
+Date: Sat, 15 Jul 2000 15:35:21 -0300 (BRST)
 From: Rik van Riel <riel@conectiva.com.br>
-Subject: [PATCH] 2.4.0-test4 kswapd rebalancing fix
-Message-ID: <Pine.LNX.4.21.0007151453200.17208-100000@duckman.distro.conectiva>
+Reply-To: linux-mm@kvack.org
+Subject: [patch] 2.4.0-test4 filemap.c
+Message-ID: <Pine.LNX.4.21.0007151534260.17208-100000@duckman.distro.conectiva>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Arjan van de Ven <arjan@fenrus.demon.nl>
-Cc: linux-mm@kvack.org, linux-kernel@vger.rutgers.edu, ttb@tentacle.dhis.org
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 Hi,
 
-the attached patch should fix the following things in
-2.4.0-test4:
-- kswapd keeping too much memory free
-- bad performance in some cases because kswapd doesn't
-  have the ability to properly balance between zones
+the patch below could make filemap.c better behaved.
 
-(this patch was created in 1 minute in response to a complaint
-from some people on #kernelnewbies, I'm working on the new VM
-myself and won't take any time to defend or talk about this patch
-if it turns out people for some reason don't like it)
+this stuff is untested and since I don't really care
+about tweaks to the old VM you shouldn't bother me
+about it...
 
 regards,
 
@@ -34,45 +30,23 @@ http://www.conectiva.com/		http://www.surriel.com/
 
 
 
---- linux-2.4.0-test4/mm/vmscan.c.orig	Sat Jul 15 14:48:38 2000
-+++ linux-2.4.0-test4/mm/vmscan.c	Sat Jul 15 14:49:49 2000
-@@ -440,27 +440,6 @@
- }
+--- filemap.c.orig	Sat Jul 15 15:31:38 2000
++++ filemap.c	Sat Jul 15 15:33:26 2000
+@@ -318,6 +318,14 @@
+ 			goto cache_unlock_continue;
  
- /*
-- * Check if there recently has been memory pressure (zone_wake_kswapd)
-- */
--static inline int keep_kswapd_awake(void)
--{
--	pg_data_t *pgdat = pgdat_list;
--
--	do {
--		int i;
--		for(i = 0; i < MAX_NR_ZONES; i++) {
--			zone_t *zone = pgdat->node_zones+ i;
--			if (zone->size &&
--			    zone->zone_wake_kswapd)
--				return 1;
--		}
--		pgdat = pgdat->node_next;
--	} while (pgdat);
--
--	return 0;
--}
--
--/*
-  * We need to make the locks finer granularity, but right
-  * now we need this so that we can do page allocations
-  * without holding the kernel lock etc.
-@@ -595,7 +574,7 @@
- 	tsk->flags |= PF_MEMALLOC;
- 
- 	for (;;) {
--		if (!keep_kswapd_awake()) {
-+		if (!memory_pressure()) {
- 			/* wake up regulary to do an early attempt too free
- 			 * pages - pages will not actually be freed.
- 			 */
+ 		/*
++		 * If we *really* have too much memory free in a zone,
++		 * we even won't drop the swap cache memory. We should
++		 * keep this limit high though, because that way balancing
++		 * between zones is faster.
++		 */
++		if (page->zone->free_pages > page->zone->pages_high * 2)
++			goto cache_unlock_continue;
++		/*
+ 		 * Is it a page swap page? If so, we want to
+ 		 * drop it if it is no longer used, even if it
+ 		 * were to be marked referenced..
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
