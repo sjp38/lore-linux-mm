@@ -1,26 +1,28 @@
-Date: Sun, 24 Sep 2000 22:26:11 +0200 (CEST)
-From: Ingo Molnar <mingo@elte.hu>
-Reply-To: mingo@elte.hu
+Date: Sun, 24 Sep 2000 21:20:16 +0100 (WEST)
+From: Rui Sousa <rsousa@grad.physics.sunysb.edu>
 Subject: Re: [patch] vmfixes-2.4.0-test9-B2
-In-Reply-To: <20000924222431.C5571@athlon.random>
-Message-ID: <Pine.LNX.4.21.0009242225300.8705-100000@elte.hu>
+In-Reply-To: <Pine.LNX.4.21.0009242103390.7843-200000@elte.hu>
+Message-ID: <Pine.LNX.4.21.0009242118520.888-100000@localhost.localdomain>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrea Arcangeli <andrea@suse.de>
+To: Ingo Molnar <mingo@elte.hu>
 Cc: Linus Torvalds <torvalds@transmeta.com>, Rik van Riel <riel@conectiva.com.br>, Roger Larsson <roger.larsson@norran.net>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 24 Sep 2000, Andrea Arcangeli wrote:
+On Sun, 24 Sep 2000, Ingo Molnar wrote:
 
-> >  - do shrink_[d|i]cache_memory() even if !__GFP_IO. This improves balance.
+Hi,
+
+Did any of these lead to an infinite loop in swap_out()?
+
 > 
-> It will deadlock. (that same mistake was dealdocking early 2.2.x too btw)
+> the attached vmfixes-B2 patch adds the following fixes/cleanups:
+> 
 
-where will it deadlock?
 
-	Ingo
+Rui Sousa
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
