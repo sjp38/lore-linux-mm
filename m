@@ -1,31 +1,33 @@
-Date: Thu, 25 Mar 2004 11:17:00 -0800
-From: Andrew Morton <akpm@osdl.org>
-Subject: Re: 2.6.5-rc2-mm3 blizzard of "bad: scheduling while atomic" with
- PREEMPT
-Message-Id: <20040325111700.432aff4a.akpm@osdl.org>
-In-Reply-To: <20040325190612.GA12383@elte.hu>
-References: <1080237733.2269.31.camel@spc0.esa.lanl.gov>
-	<20040325103506.19129deb.akpm@osdl.org>
-	<20040325190612.GA12383@elte.hu>
+Date: Thu, 25 Mar 2004 23:23:40 +0100
+From: Pavel Machek <pavel@suse.cz>
+Subject: Re: [PATCH] RSS limit enforcement for 2.6
+Message-ID: <20040325222340.GD2179@elf.ucw.cz>
+References: <20040318220432.GB1505@openzaurus.ucw.cz> <Pine.LNX.4.44.0403250944250.11915-100000@chimarrao.boston.redhat.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.44.0403250944250.11915-100000@chimarrao.boston.redhat.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ingo Molnar <mingo@elte.hu>
-Cc: elenstev@mesatop.com, linux-mm@kvack.org, nickpiggin@yahoo.com.au
+To: Rik van Riel <riel@redhat.com>
+Cc: Nick Piggin <piggin@cyberone.com.au>, Andrew Morton <akpm@osdl.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hugh@veritas.com>
 List-ID: <linux-mm.kvack.org>
 
-Ingo Molnar <mingo@elte.hu> wrote:
->
->  ok, this replacement patch should fix it:
+Hi!
+
+> > When running lingvistics computation, machine got completely
+> > unusable due to bad memory pressure. nice -n 19 was
+> > useless. Memory limit should help.
 > 
->    http://redhat.com/~mingo/scheduler-patches/sched-2.6.5-rc2-mm2-A5
+> Is this with the new patch, with the old patch or
+> without any RSS limiting patch ?
 
-Thanks, I swapped out the old one for this.
-
-There are rejects against ppc64 files.  But I dropped the ppc64
-sched-domain patches from rc2-mm2, so I'm not sure what's going on there.
+That was without any RSS limiting patch. I'm sorry, I have no time for
+lingvistics just now.
+								Pavel
+-- 
+When do you have a heart between your knees?
+[Johanka's followup: and *two* hearts?]
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
