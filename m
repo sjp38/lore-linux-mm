@@ -1,249 +1,123 @@
-Received: from digeo-nav01.digeo.com (digeo-nav01.digeo.com [192.168.1.233])
-	by packet.digeo.com (8.9.3+Sun/8.9.3) with SMTP id AAA24485
-	for <linux-mm@kvack.org>; Tue, 8 Oct 2002 00:07:41 -0700 (PDT)
-Message-ID: <3DA2843B.D33EEA08@digeo.com>
-Date: Tue, 08 Oct 2002 00:07:39 -0700
-From: Andrew Morton <akpm@digeo.com>
+Date: Tue, 8 Oct 2002 13:05:40 +0200 (CEST)
+From: Ingo Molnar <mingo@elte.hu>
+Reply-To: Ingo Molnar <mingo@elte.hu>
+Subject: Re: 2.5.40-mm2
+In-Reply-To: <3DA0A144.8070301@us.ibm.com>
+Message-ID: <Pine.LNX.4.44.0210081303090.29540-100000@localhost.localdomain>
 MIME-Version: 1.0
-Subject: 2.5.41-mm1
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: lkml <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Dave Hansen <haveblue@us.ibm.com>
+Cc: Andrew Morton <akpm@digeo.com>, lkml <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-url: http://www.zip.com.au/~akpm/linux/patches/2.5/2.5.41/2.5.41-mm1/
+On Sun, 6 Oct 2002, Dave Hansen wrote:
+
+> cc'ing Ingo, because I think this might be related to the timer bh
+> removal.
+
+could you try the attached patch against 2.5.41, does it help? It fixes
+the bugs found so far plus makes del_timer_sync() a bit more robust by
+re-checking timer pending-ness before exiting. There is one type of code
+that might have relied on this kind of behavior of the old timer code.
+
+	Ingo
+
+--- linux/kernel/timer.c.orig	2002-10-08 12:39:46.000000000 +0200
++++ linux/kernel/timer.c	2002-10-08 12:49:50.000000000 +0200
+@@ -266,29 +266,31 @@
+ int del_timer_sync(timer_t *timer)
+ {
+ 	tvec_base_t *base = tvec_bases;
+-	int i, ret;
++	int i, ret = 0;
+ 
+-	ret = del_timer(timer);
++del_again:
++	ret += del_timer(timer);
+ 
+-	for (i = 0; i < NR_CPUS; i++) {
++	for (i = 0; i < NR_CPUS; i++, base++) {
+ 		if (!cpu_online(i))
+ 			continue;
+ 		if (base->running_timer == timer) {
+ 			while (base->running_timer == timer) {
+ 				cpu_relax();
+-				preempt_disable();
+-				preempt_enable();
++				preempt_check_resched();
+ 			}
+ 			break;
+ 		}
+-		base++;
+ 	}
++	if (timer_pending(timer))
++		goto del_again;
++
+ 	return ret;
+ }
+ #endif
+ 
+ 
+-static void cascade(tvec_base_t *base, tvec_t *tv)
++static int cascade(tvec_base_t *base, tvec_t *tv)
+ {
+ 	/* cascade all the timers from tv up one level */
+ 	struct list_head *head, *curr, *next;
+@@ -310,7 +312,8 @@
+ 		curr = next;
+ 	}
+ 	INIT_LIST_HEAD(head);
+-	tv->index = (tv->index + 1) & TVN_MASK;
++
++	return tv->index = (tv->index + 1) & TVN_MASK;
+ }
+ 
+ /***
+@@ -322,26 +325,18 @@
+  */
+ static inline void __run_timers(tvec_base_t *base)
+ {
+-	unsigned long flags;
+-
+-	spin_lock_irqsave(&base->lock, flags);
++	spin_lock_irq(&base->lock);
+ 	while ((long)(jiffies - base->timer_jiffies) >= 0) {
+ 		struct list_head *head, *curr;
+ 
+ 		/*
+ 		 * Cascade timers:
+ 		 */
+-		if (!base->tv1.index) {
+-			cascade(base, &base->tv2);
+-			if (base->tv2.index == 1) {
+-				cascade(base, &base->tv3);
+-				if (base->tv3.index == 1) {
+-					cascade(base, &base->tv4);
+-					if (base->tv4.index == 1)
+-						cascade(base, &base->tv5);
+-				}
+-			}
+-		}
++		if (!base->tv1.index &&
++			(cascade(base, &base->tv2) == 1) &&
++				(cascade(base, &base->tv3) == 1) &&
++					cascade(base, &base->tv4) == 1)
++			cascade(base, &base->tv5);
+ repeat:
+ 		head = base->tv1.vec + base->tv1.index;
+ 		curr = head->next;
+@@ -370,7 +365,7 @@
+ #if CONFIG_SMP
+ 	base->running_timer = NULL;
+ #endif
+-	spin_unlock_irqrestore(&base->lock, flags);
++	spin_unlock_irq(&base->lock);
+ }
+ 
+ /******************************************************************/
 
-- Some new work on the swap control algorithms. Most notably some
-  code to dynamically clamp down on memory dirtiers if it appears
-  likely that their activity will cause paging activity.
-
-- Added Bill Irwin's hugetlb filesytem.  It exposes the hugetlb code
-  via a mmap() interface.  Also Bill has enhanced sysv shared memory
-  to allow that to be backed by hugetlbfs files.
-
-- Included Al Viro's Orlov block allocator for ext2.  It speeds up
-  operations against many-small-files-in-many-directories by just heaps.
-
-
-+misc.patch
-
- Tiny bugfix
-
-+get_bios_geometry.patch
-
- Some more 64-bit sector_t work from Peter.
-
-+orlov-allocator.patch
-
- The Orlov block allocator.  Needs to be done for ext3 as well...
-
-+hugetlb-prefault.patch
-+ramfs-aops.patch
-+hugetlb-header-split.patch
-+hugetlbfs.patch
-+hugetlb-shm.patch
-
- hugetlbfs and hugetlbfs-for-shm.
-
-+remove-radix_tree_reserve.patch
-
- Remove radix_tree_reserve() - we don't actually need it (Hugh)
-
-+raw-use-o_direct.patch
-
- Convert the raw driver to simply subvert the passed file* into using
- O_DIRECT reads and writes against the backing blockdev.  This
- unbreaks the raw driver.
-
-+mapped-start-active.patch
-
- Start mapped pages on the active list, not the inactive list.
- They're going to go there anyway, and adding great blobs of
- mapped pages to the inactive list upsets things.
-
-+rename-dirty_async_ratio.patch
-
- Rename /proc/sys/vm/dirty_async_ratio to just dirty_ratio
-
-+auto-dirty-memory.patch
-
- Dynamically decrease the writer throttling threshold if there's
- a lot of mapped memory around -> prevents heavy writers from
- forcing paging activity - make them clean their own pagecache
- earlier instead.
-
-
-
-
-
-misc.patch
-  mmisc fixes
-
-discontig-setup-fix.patch
-  discontigmem compile fix
-
-discontig-no-contig_page_data.patch
-  undefine contif_page_data for discontigmem
-
-per-node-mem_map.patch
-  ia32 NUMA: per-node ZONE_NORMAL
-
-remove-get_free_page.patch
-  remove get_free_page()
-
-alloc_pages_node-cleanup.patch
-  alloc_pages_node cleanup
-
-free_area_init-cleanup.patch
-  free_area_init_node cleanup
-
-wli-libfs.patch
-  Move dentry library functions from ramfs to libfs
-
-ext3-dxdir.patch
-  ext3 htree
-
-lbd1.patch
-  64-bit sector_t 1/5 - various driver changes
-
-lbd2.patch
-  64-bit sector_t 2/5 - printk changes and sector_t cleanup
-
-lbd3.patch
-  64-bit sector_t 3/5 - driver changes
-
-lbd4.patch
-  64-bit sector_t 4/5 - filesystems
-
-lbd5.patch
-  64-bit sector_t 5/5 - md fixes
-
-lbd6.patch
-  64-bit sector_t 6/5 - remove udivdi3, use sector_div()
-
-get_bios_geometry.patch
-  Fix xxx_get_biosgeometry --- avoid useless 64-bit division.
-
-64-bit-sector_t.patch
-  Hardwire CONFIG_LBD to "on"
-
-orlov-allocator.patch
-
-dio-fine-alignment.patch
-  Allow O_DIRECT to use 512-byte alignment
-
-lseek-ext2_readdir.patch
-  remove lock_kernel() from ext2_readdir()
-
-write-deadlock.patch
-  Fix the generic_file_write-from-same-mmapped-page deadlock
-
-batched-slab-asap.patch
-  batched slab shrinking
-
-swsusp-feature.patch
-  add shrink_all_memory() for swsusp
-
-rd-cleanup.patch
-  Cleanup and fix the ramdisk driver (doesn't work right yet)
-
-spin-lock-check.patch
-  spinlock/rwlock checking infrastructure
-
-hugetlb-prefault.patch
-  hugetlbpages: factor out some code for hugetlbfs
-
-ramfs-aops.patch
-
-hugetlb-header-split.patch
-
-hugetlbfs.patch
-
-hugetlb-shm.patch
-
-akpm-deadline.patch
-  deadline scheduler tweaks
-
-rmqueue_bulk.patch
-  bulk page allocator
-
-free_pages_bulk.patch
-  Bulk page freeing function
-
-hot_cold_pages.patch
-  Hot/Cold pages and zone->lock amortisation
-
-readahead-cold-pages.patch
-  Use cache-cold pages for pagecache reads.
-
-pagevec-hot-cold-hint.patch
-  hot/cold hints for truncate and page reclaim
-
-page-reservation.patch
-  Page reservation API
-
-remove-radix_tree_reserve.patch
-  remove radix_tree_reserve()
-
-raw-use-o_direct.patch
-
-intel-user-copy.patch
-  Faster copt_*_user for Intel ia32 CPUs
-
-slab-split-01-rename.patch
-  slab cleanup: rename static functions
-
-slab-split-02-SMP.patch
-  slab: enable the cpu arrays on uniprocessor
-
-slab-split-03-tail.patch
-  slab: reduced internal fragmentation
-
-slab-split-04-drain.patch
-  slab: take the spinlock in the drain function.
-
-slab-split-05-name.patch
-  slab: remove spaces from /proc identifiers
-
-slab-split-06-mand-cpuarray.patch
-  slab: cleanups and speedups
-
-slab-split-07-inline.patch
-  slab: uninline poisoning checks
-
-slab-split-08-reap.patch
-  slab: reap timers
-
-cpucache_init-fix.patch
-  cpucache_init fix
-
-large-queue-throttle.patch
-  Improve writer throttling for small machines
-
-exit-page-referenced.patch
-  Propagate pte referenced bit into pagecache during unmap
-
-swappiness.patch
-  swappiness control
-
-mapped-start-active.patch
-
-rename-dirty_async_ratio.patch
-  rename dirty_async_ratio to dirty_ratio
-
-auto-dirty-memory.patch
-  adaptive dirty-memory thresholding
-
-read_barrier_depends.patch
-  extended barrier primitives
-
-rcu_ltimer.patch
-  RCU core
-
-dcache_rcu.patch
-  Use RCU for dcache
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
