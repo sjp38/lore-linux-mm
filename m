@@ -1,54 +1,51 @@
-Date: Fri, 6 Feb 2004 09:47:30 -0500
-From: Ben Collins <bcollins@debian.org>
-Subject: Re: 2.6.2-mm1 aka "Geriatric Wombat"
-Message-ID: <20040206144729.GJ1042@phunnypharm.org>
-References: <fa.h1qu7q8.n6mopi@ifi.uio.no> <402240F9.3050607@gadsdon.giointernet.co.uk> <20040205182614.GG13075@kroah.com>
-Mime-Version: 1.0
+Date: Fri, 06 Feb 2004 07:49:38 -0800
+From: "Martin J. Bligh" <mbligh@aracnet.com>
+Subject: Re: [Bugme-new] [Bug 2019] New: Bug from the mm subsystem	involving X  (fwd)
+Message-ID: <5450000.1076082574@[10.10.2.4]>
+In-Reply-To: <1076061476.27855.1144.camel@nighthawk>
+References: <51080000.1075936626@flay> <Pine.LNX.4.58.0402041539470.2086@home.osdl.org><60330000.1075939958@flay> <64260000.1075941399@flay><Pine.LNX.4.58.0402041639420.2086@home.osdl.org> <20040204165620.3d608798.akpm@osdl.org> <Pine.LNX.4.58.0402041719300.2086@home.osdl.org> <1075946211.13163.18962.camel@dyn318004bld.beaverton.ibm.com> <Pine.LNX.4.58.0402041800320.2086@home.osdl.org> <98220000.1076051821@[10.10.2.4]> <1076061476.27855.1144.camel@nighthawk>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <20040205182614.GG13075@kroah.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Greg KH <greg@kroah.com>
-Cc: Robert Gadsdon <robert@gadsdon.giointernet.co.uk>, Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Dave Hansen <haveblue@us.ibm.com>
+Cc: Linus Torvalds <torvalds@osdl.org>, Keith Mannthey <kmannth@us.ibm.com>, Andrew Morton <akpm@osdl.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Feb 05, 2004 at 10:26:14AM -0800, Greg KH wrote:
-> On Thu, Feb 05, 2004 at 01:11:21PM +0000, Robert Gadsdon wrote:
-> > 2.6.2-mm1 tombstone "Badness in kobject_get....." when booting:
+>> +#ifdef CONFIG_NUMA
+>> +	#ifdef CONFIG_X86_NUMAQ
+>> +		#include <asm/numaq.h>
+>> +	#else	/* summit or generic arch */
+>> +		#include <asm/srat.h>
+>> +	#endif
+>> +#else /* !CONFIG_NUMA */
+>> +	#define get_memcfg_numa get_memcfg_numa_flat
+>> +	#define get_zholes_size(n) (0)
+>> +#endif /* CONFIG_NUMA */
 > 
-> Oooh, not nice.  That means a kobject is being used before it has been
-> initialized.  Glad to see that check finally helps out...
+> We ran into a bug with #ifdefs like this before.  It was fixed in some
+> of the code that you're trying to remove.
 
-Doesn't sound like a bug in ieee1394. This bus for each is done on the
-ieee1394_bus_type, which is registered way ahead of time. Nothing is in
-that device list that didn't come from device_register(). Has something
-new changed to where I need to prep the device more before passing it to
-device_register()?
+What bug?
+ 
+> It's not safe to assume that NUMA && !NUMAQ means SUMMIT.  Remember the
+> linking errors we got when we turned CONFIG_NUMA on with the regular PC
+> config?  The generic arch wasn't a problem because it sets
+> CONFIG_X86_SUMMIT and compiles in the summit code, but the regular PC
+> code doesn't.  
+> 
+> Also, I don't think we need the #ifdef CONFIG_NUMA around the whole
+> block.  How about something like this?
 
-> > ieee1394: Host added: ID:BUS[0-00:1023]  GUID[090050c50000046f]
-> > Badness in kobject_get at lib/kobject.c:431
-> > Call Trace:
-> >  [<c0239966>] kobject_get+0x36/0x40
-> >  [<c027cc73>] get_device+0x13/0x20
-> >  [<c027d899>] bus_for_each_dev+0x59/0xc0
-> >  [<d0939355>] nodemgr_node_probe+0x55/0x120 [ieee1394]
-> >  [<d0939200>] nodemgr_probe_ne_cb+0x0/0x90 [ieee1394]
-> >  [<d0939748>] nodemgr_host_thread+0x168/0x190 [ieee1394]
-> >  [<d09395e0>] nodemgr_host_thread+0x0/0x190 [ieee1394]
-> >  [<c010ac15>] kernel_thread_helper+0x5/0x10
-> 
-> Looks like one of the ieee1394 patches causes this.  Ben?
-> 
-> thanks,
-> 
-> greg k-h
+If you want to go change it, and test the crap out of it for 3 months on
+a variety of platforms, then go for it. What's here works, and is well
+tested - I'm sticking with it, unless you can point out a specific case
+where it's wrong.
 
--- 
-Debian     - http://www.debian.org/
-Linux 1394 - http://www.linux1394.org/
-Subversion - http://subversion.tigris.org/
-WatchGuard - http://www.watchguard.com/
+M.
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
