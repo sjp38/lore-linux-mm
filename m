@@ -11,9 +11,9 @@ References: <20030516015407.2768b570.akpm@digeo.com>
 	<873cjbjp0b.fsf@lapper.ihatent.com>
 	<Pine.LNX.4.50.0305190452460.28750-100000@montezuma.mastecende.com>
 From: Alexander Hoogerhuis <alexh@ihatent.com>
-Date: 19 May 2003 11:23:01 +0200
+Date: 19 May 2003 12:18:11 +0200
 In-Reply-To: <Pine.LNX.4.50.0305190452460.28750-100000@montezuma.mastecende.com>
-Message-ID: <87wugni93e.fsf@lapper.ihatent.com>
+Message-ID: <87he7r2qak.fsf@lapper.ihatent.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
@@ -25,7 +25,17 @@ List-ID: <linux-mm.kvack.org>
 -----BEGIN PGP SIGNED MESSAGE-----
 Hash: SHA1
 
-Give me half an hour and Ill apply and recompile :)
+The oops is gone, and I'm now left with this one:
+
+Linux agpgart interface v0.100 (c) Dave Jones
+[drm] Initialized radeon 1.8.0 20020828 on minor 0
+[drm:radeon_cp_init] *ERROR* radeon_cp_init called without lock held
+[drm:radeon_unlock] *ERROR* Process 4421 using kernel context 0
+
+This one only seems to appear when I'm compiling it modular.
+
+mvh,
+A
 
 Zwane Mwaikambo <zwane@linuxpower.ca> writes:
 
@@ -195,7 +205,6 @@ Zwane Mwaikambo <zwane@linuxpower.ca> writes:
 > 
 > -- 
 > function.linuxpower.ca
-> 
 
 - -- 
 Alexander Hoogerhuis                               | alexh@ihatent.com
@@ -205,9 +214,9 @@ CCNP - CCDP - MCNE - CCSE                          | +47 908 21 485
 Version: GnuPG v1.2.2 (GNU/Linux)
 Comment: Processed by Mailcrypt 3.5.8 <http://mailcrypt.sourceforge.net/>
 
-iD8DBQE+yKJxCQ1pa+gRoggRAvJHAJwNQGMuKUEKEBAHh/VHYeLuJK2N4ACdHxe7
-TwVxx1AJsnTcWFCStswLd4c=
-=2bDA
+iD8DBQE+yK9gCQ1pa+gRoggRAkSVAJ46yUoSc/FmRzhdxOYqIru/ztslVQCgkiI+
+uEbQyyQAALefm3elind1odU=
+=Y+yP
 -----END PGP SIGNATURE-----
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
