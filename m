@@ -1,54 +1,55 @@
-Date: Tue, 30 Jul 2002 09:21:57 -0700
-From: "Martin J. Bligh" <Martin.Bligh@us.ibm.com>
-Reply-To: "Martin J. Bligh" <Martin.Bligh@us.ibm.com>
+Date: Tue, 30 Jul 2002 12:38:52 -0400
 Subject: Re: [RFC] start_aggressive_readahead
-Message-ID: <644994853.1028020916@[10.10.2.3]>
-In-Reply-To: <F245ABF4-A3D6-11D6-9922-000393829FA4@cs.amherst.edu>
-References: <F245ABF4-A3D6-11D6-9922-000393829FA4@cs.amherst.edu>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=US-ASCII; format=flowed
+Mime-Version: 1.0 (Apple Message framework v482)
+From: Scott Kaplan <sfkaplan@cs.amherst.edu>
+In-Reply-To: <644994853.1028020916@[10.10.2.3]>
+Message-Id: <D4FAAB57-A3DA-11D6-9922-000393829FA4@cs.amherst.edu>
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Scott Kaplan <sfkaplan@cs.amherst.edu>, Andrew Morton <akpm@zip.com.au>
-Cc: Rik van Riel <riel@conectiva.com.br>, Christoph Hellwig <hch@lst.de>, linux-mm@kvack.org
+To: "Martin J. Bligh" <Martin.Bligh@us.ibm.com>
+Cc: Andrew Morton <akpm@zip.com.au>, Rik van Riel <riel@conectiva.com.br>, Christoph Hellwig <hch@lst.de>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
- 
->> Ah, but if we're not getting hits in the readahead window
->> then we're getting misses.  And misses shrink the window.
-> 
-> Yes, and that's the wrong thing to do.  If you are getting hits, 
-> you should try *skrinking* the window to see if there is a 
-> reduction in hits.  If there is no reduction, you can capture 
-> just as many hits with a smaller window -- the extra space was
-> superfluous.  If you're getting misses, you should try to *grow* 
-> the window (to commit an awful case of verbing) in an attempt to 
-> turn such misses into hits.  If growing the window doesn't decrease 
-> the misses, then you may need too large of an increase to cache 
-> those pages successfully.  If growing the window does decrease 
-> the misses, then keep growing until you don't see a decrease.
+-----BEGIN PGP SIGNED MESSAGE-----
+Hash: SHA1
 
-Would it not be easier to actually calculate (statistically) the 
-read-ahead window, rather than actually tweaking it empirically?
-If we're getting misses, there could be at least two causes - 
+On Tuesday, July 30, 2002, at 12:21 PM, Martin J. Bligh wrote:
 
-1. We're doing random, not sequential IO. Shrinking the window
-would be most sensible.
+> Thus I'd contend that either growing or shrinking in straight
+> response to just a hit/miss rate is not correct. We need to actually
+> look at the access pattern of the application, surely?
 
-2. We're reading ahead really fast, or skip-reading ahead. 
-Growing the window would probably be most sensible.
+I agree.  I probably should have made it clear that what I was suggesting 
+wasn't the right way to go about it, but rather an argument against the 
+heuristics that seemed backwards to me.
 
-Thus I'd contend that either growing or shrinking in straight 
-response to just a hit/miss rate is not correct. We need to actually 
-look at the access pattern of the application, surely? Perhaps I'm 
-being naive, but I would have thought it would be possible
-to calculate what the hit/miss rate with a given readahead window
-would be without actually going to the pain of shrinking it up
-and down.
+The causes for misses are necessarily as clear cut as you mentioned, as 
+there are a lot of behaviors that are neither fully random nor fully 
+sequential.  So, while it is ideal to have some foresight before resizing 
+the window -- some calculation that determines whether or not growth will 
+help or shrinkage will hurt -- it will require the VM system to gather hit 
+distributions.  I'm trying to make that happen right now, although for all 
+VM pages, and not for the specific purpose of read-ahead calculations.  
+However, the paper for which I gave a pointer (in a shameless act of self 
+promotion) proposes exactly that:  Keeping reference distributions for 
+read-ahead and non-read-ahead pages, and then balancing the two against 
+each other in an attempt to determine what the best read-ahead window size 
+would be given recent reference behavior.
 
-M.
+There may be simpler, kruftier, and/or more effective versions of what I 
+proposed, but what you said above is, I think, the right idea.
+
+Scott
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.0.6 (Darwin)
+Comment: For info see http://www.gnupg.org
+
+iD8DBQE9RsEf8eFdWQtoOmgRAp+vAJoCF6mUgAI42x6Bac4A2/u+7oZXIwCdHVqZ
+AQCPlqTF+84udI5xSWqYWas=
+=swZ6
+-----END PGP SIGNATURE-----
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
