@@ -1,43 +1,55 @@
-Subject: Re: [PATCH] Remove nr_async_pages limit
-References: <E156o18-00059a-00@the-village.bc.nu>
-Reply-To: zlatko.calusic@iskon.hr
-From: Zlatko Calusic <zlatko.calusic@iskon.hr>
-Date: 04 Jun 2001 10:21:32 +0200
-In-Reply-To: <E156o18-00059a-00@the-village.bc.nu> (Alan Cox's message of "Mon, 4 Jun 2001 07:39:10 +0100 (BST)")
-Message-ID: <87iticfyer.fsf@atlas.iskon.hr>
-MIME-Version: 1.0
+Date: Mon, 4 Jun 2001 11:45:16 +0100
+From: "Stephen C. Tweedie" <sct@redhat.com>
+Subject: Re: Some VM tweaks (against 2.4.5)
+Message-ID: <20010604114516.C1955@redhat.com>
+References: <l03130301b73f486b8acb@[192.168.239.105]>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <l03130301b73f486b8acb@[192.168.239.105]>; from chromi@cyberspace.org on Sun, Jun 03, 2001 at 03:06:22AM +0100
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Alan Cox <alan@lxorguk.ukuu.org.uk>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Jonathan Morton <chromi@cyberspace.org>
+Cc: Rik van Riel <riel@conectiva.com.br>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Alan Cox <alan@lxorguk.ukuu.org.uk> writes:
+Hi,
 
-> > This patch removes the limit on the number of async pages in the
-> > flight.
-> 
-> I have this in all  2.4.5-ac. It does help a little but there are some other
-> bits you have to deal with too, in paticular wrong aging. See the -ac version
-> 
+On Sun, Jun 03, 2001 at 03:06:22AM +0100, Jonathan Morton wrote:
 
-Yes, I'll check -ac to see your changes. Although, I can't see what is
-the impact of the unlimited number of the async pages on the aging, I
-don't see a connection?!
+> - Increased PAGE_AGE_MAX and PAGE_AGE_START to help newly-created and
+> frequently-accessed pages remain in physical RAM.
+ 
+> - Changed age_page_down() and family to use a decrement instead of divide
+> (gives frequently-accessed pages a longer lease of life).
 
-In the mean time I tested the patch even more thoroughly under various
-loads and I can't find any problem with it. Performance is same or
-better a little bit, as you say. :)
+We've tried this and the main problem is that something like "grep
+foo /usr/bin/*" causes a whole pile of filesystem data to be
+maintained in cache for a long time because it is so recent.  Reducing
+the initial age of new pages is essential if you want to allow
+read-once data to get flushed out again quickly.
 
-My other patch (enlarging inactive dirty list) has a much bigger
-impact on the aging process, but I also see only improvement with
-it. I think that swap_out path should be tweaked a little bit (it is
-too aggressive now), and then things will come up even better.
+> - In try_to_swap_out(), take page->age into account and age it down rather
+> than swapping it out immediately.
 
-Regards,
--- 
-Zlatko
+Bad for shared pages if you have got some tasks still referencing a
+page and other tasks which are pretty much idle.  The point of
+ignoring the age is that sleeping tasks can get their working set
+paged out even if they use library pages which are still in use by
+other processes.  That way, if the only active user of a page dies, we
+can reclaim the pages without having to wade through the working set
+of every other sleeping task which might ever have used the same
+shared library.
+
+> - In swap_out_mm(), don't allow large processes to force out processes
+> which have smaller RSS than them.  kswapd can still cause any process to be
+> paged out.  This replaces my earlier "enforce minimum RSS" hack.
+
+Good idea.  I'd be interested in seeing the effect of this measured in
+isolation.
+
+Cheers,
+ Stephen
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
