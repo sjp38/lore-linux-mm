@@ -1,128 +1,57 @@
-Received: from pneumatic-tube.sgi.com (pneumatic-tube.sgi.com [204.94.214.22])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id PAA02120
-	for <linux-mm@kvack.org>; Tue, 1 Jun 1999 15:45:56 -0400
+Received: from sgi.com (sgi.SGI.COM [192.48.153.1])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id RAA03244
+	for <linux-mm@kvack.org>; Tue, 1 Jun 1999 17:25:12 -0400
+Received: from cthulhu.engr.sgi.com (cthulhu.engr.sgi.com [192.26.80.2])
+	by sgi.com (980327.SGI.8.8.8-aspam/980304.SGI-aspam:
+       SGI does not authorize the use of its proprietary
+       systems or networks for unsolicited or bulk email
+       from the Internet.)
+	via ESMTP id OAA06991
+	for <@external-mail-relay.sgi.com:linux-mm@kvack.org>; Tue, 1 Jun 1999 14:25:06 -0700 (PDT)
+	mail_from (kanoj@google.engr.sgi.com)
+Received: from google.engr.sgi.com (google.engr.sgi.com [192.48.174.30])
+	by cthulhu.engr.sgi.com (980427.SGI.8.8.8/970903.SGI.AUTOCF)
+	via ESMTP id OAA17005
+	for <@cthulhu.engr.sgi.com:linux-mm@kvack.org>;
+	Tue, 1 Jun 1999 14:25:05 -0700 (PDT)
+	mail_from (kanoj@google.engr.sgi.com)
+Received: (from kanoj@localhost) by google.engr.sgi.com (980427.SGI.8.8.8/970903.SGI.AUTOCF) id OAA94606 for linux-mm@kvack.org; Tue, 1 Jun 1999 14:25:05 -0700 (PDT)
 From: kanoj@google.engr.sgi.com (Kanoj Sarcar)
-Message-Id: <199906011945.MAA02908@google.engr.sgi.com>
-Subject: [RFC] [PATCH] kanoj-mm6.0-2.2.9 get_unmapped_area needs to search more
-Date: Tue, 1 Jun 1999 12:45:36 -0700 (PDT)
+Message-Id: <199906012125.OAA94606@google.engr.sgi.com>
+Subject: Is expand_stack buggy wrt locked_vm?
+Date: Tue, 1 Jun 1999 14:25:05 -0700 (PDT)
 MIME-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org
-Cc: torvalds@transmeta.com
 List-ID: <linux-mm.kvack.org>
 
-When MAP_FIXED is not specified, and the user provides a hint to mmap,
-it seems to me that get_unmapped_area does not search the entire 
-allocatable range. Whereas the code does search the range [addr ..
-TASK_SIZE], it does not check whether an allocatable area exists in
-the range [TASK_UNMAPPED_BASE .. addr]. I am not sure if Linux 
-mmap claims to be 100% POSIX compliant, if it does, I do not think
-this is the right POSIX behavior.
+I think there might be a problem with the way expand_stack
+updates locked_vm. 
 
-This patch adds in the code to search the range [TASK_UNMAPPED_BASE .. 
-addr] when needed. 
+Assume the kernel is trying to copyout some amount(512b) of 
+data into the user's stack, and the underlying pages are not 
+yet allocated, and the stack is marked VM_LOCKED. The page 
+fault will trigger an expand_stack, which will update the 
+locked_vm by an amount depending on where the kernel is trying 
+to write out the data. Back in the fault handling code, 
+handle_mm_fault will allocate just one page and be done. So,
+although the process has incremented its number of locked pages
+by 1, expand_stack has updated locked_vm by a possibly bigger
+amount.
 
-As a side effect, the shm.c code also needs to change slightly (else
-it can get into an infinite loop), since it assumes that 
-get_unmapped_area does not search below the input hint.
+I think the right fix is for expand_stack to fault in all the
+intermediate pages, by something like
+
+	if (vma->vm_flags & VM_LOCKED) {
+		make_pages_present(address, old vma->vm_start);
+	}
+
+Comments?
 
 Kanoj
 kanoj@engr.sgi.com
-
-
---- /usr/tmp/p_rdiff_a00B-1/mmap.c	Tue Jun  1 12:31:24 1999
-+++ mm/mmap.c	Tue Jun  1 12:00:23 1999
-@@ -182,7 +182,8 @@
- 	if ((len = PAGE_ALIGN(len)) == 0)
- 		return addr;
- 
--	if (len > TASK_SIZE || addr > TASK_SIZE-len)
-+	if ((len > TASK_SIZE) || ((addr > TASK_SIZE-len) &&
-+						(flags & MAP_FIXED)))
- 		return -EINVAL;
- 
- 	/* offset overflow? */
-@@ -352,10 +353,14 @@
- /* Get an address range which is currently unmapped.
-  * For mmap() without MAP_FIXED and shmat() with addr=0.
-  * Return value 0 means ENOMEM.
-+ * Allocates an addr range over PAGE_ALIGN(TASK_UNMAPPED_BASE)
-+ * unless caller hints otherwise. When a hint is provided,
-+ * may need two passes to search the allocatable range.
-  */
- unsigned long get_unmapped_area(unsigned long addr, unsigned long len)
- {
--	struct vm_area_struct * vmm;
-+	struct vm_area_struct *vmm, *startvma;
-+	int searchback = 0;
- 
- 	if (len > TASK_SIZE)
- 		return 0;
-@@ -362,15 +367,39 @@
- 	if (!addr)
- 		addr = TASK_UNMAPPED_BASE;
- 	addr = PAGE_ALIGN(addr);
-+	if (addr > PAGE_ALIGN(TASK_UNMAPPED_BASE))
-+		searchback = 1;
- 
--	for (vmm = find_vma(current->mm, addr); ; vmm = vmm->vm_next) {
-+	for (startvma = vmm = find_vma(current->mm, addr); ;
-+						vmm = vmm->vm_next) {
- 		/* At this point:  (!vmm || addr < vmm->vm_end). */
- 		if (TASK_SIZE - len < addr)
--			return 0;
-+			break;
- 		if (!vmm || addr + len <= vmm->vm_start)
- 			return addr;
- 		addr = vmm->vm_end;
- 	}
-+	if (searchback == 0)
-+		return(0);
-+	addr = PAGE_ALIGN(TASK_UNMAPPED_BASE);
-+	for (vmm = find_vma(current->mm, addr); vmm != startvma;
-+						vmm = vmm->vm_next) {
-+		if (TASK_SIZE - len < addr)
-+			return(0);
-+		if (addr + len <= vmm->vm_start)
-+			return addr;
-+		addr = vmm->vm_end;
-+	}
-+	if (startvma) {
-+		if (TASK_SIZE - len < addr)
-+			return(0);
-+		if (addr + len <= startvma->vm_start)
-+			return addr;
-+	} else {
-+		if (len <= (TASK_SIZE - addr))
-+			return addr;
-+	}
-+	return(0);
- }
- 
- #define vm_avl_empty	(struct vm_area_struct *) NULL
---- /usr/tmp/p_rdiff_a00GZ_/shm.c	Tue Jun  1 12:31:58 1999
-+++ ipc/shm.c	Tue Jun  1 12:23:01 1999
-@@ -437,14 +437,17 @@
- 	}
- 
- 	if (!(addr = (ulong) shmaddr)) {
-+		unsigned long addr0 = 0;
-+
- 		if (shmflg & SHM_REMAP)
- 			goto out;
- 		err = -ENOMEM;
--		addr = 0;
- 	again:
- 		if (!(addr = get_unmapped_area(addr, shp->u.shm_segsz)))
- 			goto out;
- 		if(addr & (SHMLBA - 1)) {
-+			if (addr <= addr0) goto out;
-+			addr0 = addr;
- 			addr = (addr + (SHMLBA - 1)) & ~(SHMLBA - 1);
- 			goto again;
- 		}
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm my@address'
 in the body to majordomo@kvack.org.  For more info on Linux MM,
