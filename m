@@ -1,26 +1,23 @@
-Date: Sat, 30 Jun 2001 16:30:29 -0300 (BRT)
-From: Marcelo Tosatti <marcelo@conectiva.com.br>
-Subject: Removal of PG_marker scheme from 2.4.6-pre
-Message-ID: <Pine.LNX.4.21.0106301628570.3394-100000@freak.distro.conectiva>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Sun, 1 Jul 2001 02:47:23 +0200
+From: bert hubert <ahu@ds9a.nl>
+Subject: cinfo
+Message-ID: <20010701024723.A27744@home.ds9a.nl>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@transmeta.com>
-Cc: lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Linus, 
+Of mild interest may be http://ds9a.nl/cinfo which uses mincore() to query
+the kernel pagecache. Supports Linux, FreeBSD, OpenBSD, Solaris and Mac OS
+X.
 
-In pre7:
-
-"me: undo page_launder() LRU changes, they have nasty side effects"
-
-
-Can you be more verbose about this ? 
-
-Thanks 
-
+-- 
+http://www.PowerDNS.com      Versatile DNS Services  
+Trilab                       The Technology People   
+'SYN! .. SYN|ACK! .. ACK!' - the mating call of the internet
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
