@@ -1,55 +1,50 @@
-Received: from dax.scot.redhat.com (sct@dax.scot.redhat.com [195.89.149.242])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id KAA07362
-	for <linux-mm@kvack.ORG>; Thu, 28 Jan 1999 10:09:53 -0500
-Date: Thu, 28 Jan 1999 15:09:19 GMT
-Message-Id: <199901281509.PAA02883@dax.scot.redhat.com>
-From: "Stephen C. Tweedie" <sct@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Received: from neon.transmeta.com (neon-best.transmeta.com [206.184.214.10])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id MAA08828
+	for <linux-mm@kvack.org>; Thu, 28 Jan 1999 12:42:25 -0500
+Date: Thu, 28 Jan 1999 09:36:11 -0800 (PST)
+From: Linus Torvalds <torvalds@transmeta.com>
 Subject: Re: [patch] fixed both processes in D state and the /proc/ oopses [Re: [patch] Fixed the race that was oopsing Linux-2.2.0]
 In-Reply-To: <Pine.LNX.3.96.990128023440.8338A-100000@laser.bogus>
-References: <Pine.LNX.3.96.990128001800.399A-100000@laser.bogus>
-	<Pine.LNX.3.96.990128023440.8338A-100000@laser.bogus>
+Message-ID: <Pine.LNX.3.95.990128093033.32418B-100000@penguin.transmeta.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 To: Andrea Arcangeli <andrea@e-mind.com>
-Cc: "Stephen C. Tweedie" <sct@redhat.com>, Linus Torvalds <torvalds@transmeta.com>, linux-kernel@vger.rutgers.edu, werner@suse.de, mlord@pobox.com, "David S. Miller" <davem@dm.COBALTMICRO.COM>, gandalf@szene.CH, adamk@3net.net.pl, kiracofe.8@osu.edu, ksi@ksi-linux.COM, djf-lists@ic.NET, tomh@taz.ccs.fau.edu, Alan Cox <alan@lxorguk.ukuu.org.uk>, linux-mm@kvack.org
+Cc: "Stephen C. Tweedie" <sct@redhat.com>, linux-kernel@vger.rutgers.edu, werner@suse.de, mlord@pobox.com, "David S. Miller" <davem@dm.cobaltmicro.com>, gandalf@szene.ch, adamk@3net.net.pl, kiracofe.8@osu.edu, ksi@ksi-linux.com, djf-lists@ic.net, tomh@taz.ccs.fau.edu, Alan Cox <alan@lxorguk.ukuu.org.uk>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
 
-On Thu, 28 Jan 1999 03:50:39 +0100 (CET), Andrea Arcangeli
-<andrea@e-mind.com> said:
-
+On Thu, 28 Jan 1999, Andrea Arcangeli wrote:
+>
 > Do you want to know why last night I added a spinlock around mmget/mmput
 > without thinking twice?  Simply because mm->count was an atomic_t while it
 > doesn't need to be an atomic_t in first place.
 
-Agreed.
+No. Your argument does not make any sense at all.
 
-> So you don't buy my code, but now, I don't buy both all /proc mmget/mmput
-> sutff and the mm->count atomic_t.
+Go away, this is not the time to use magic to make kernel patches.
 
-Agreed.  mm->count might as well remain atomic because that will help
-when we come to apply finer grained locking to the mm, but as far as I
-am concerned we may as well drop pretty much all of the mmget/mmput
-stuff.  The only race I can still see is the possibility of sys_wait*
-removing the task struct while we run on SMP.
+A "atomic_t" _often_ makes sense without having any spinlocks,
+_especially_ when used as a reference count. Let me count the ways:
 
-> I also removed all the memcpy, we only need the read_lock(tasklist_lock)
-> held in SMP because otherwise wait4() could remove the stack of the
-> process under our eyes as just pointed out in the last email.
+ - when you increase the count because you make a copy, you know that
+   you're already a holder of the count, so you don't need any spinlocks
+   to protect anything else: you _know_ the area is there.
 
-Yep, fine, as long as we keep the tasklist_lock right until the end of
-our use of the task struct.
+ - when you decrease the count, you use "atomic_dec_and_test()" because
+   you know that the count was > 0, and you know that only _one_ such
+   decrementer will get a positive reply for the atomic_dec_and_test. The
+   one that is successful doesn't need any locking, because he's now the
+   only owner, and should just release everything. 
 
-> Not doing in 2.2.1 the mm->count s/atomic_t/int/ due worry of races will
-> mean that array.c in 2.2.1 will be not safe enough without my mm_lock
-> spinlock. Do you understand my point?
+In short, it has to be atomic, and spinlocks never enter the picture at
+all.
 
-No, because we already have a sufficient spinlock to protect us.
+Your patches do not make sense. Period. The only thing that makes sense is
+to revert the array.c thing to the old one that didn't try to be clever.
 
---Stephen
+		Linus 
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm my@address'
 in the body to majordomo@kvack.org.  For more info on Linux MM,
