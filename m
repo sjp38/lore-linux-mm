@@ -1,43 +1,37 @@
-Date: Mon, 19 May 2003 07:03:35 -0400 (EDT)
-From: Zwane Mwaikambo <zwane@linuxpower.ca>
-Subject: Re: [OOPS] 2.5.69-mm6
-In-Reply-To: <87he7r2qak.fsf@lapper.ihatent.com>
-Message-ID: <Pine.LNX.4.50.0305190627450.28750-100000@montezuma.mastecende.com>
-References: <20030516015407.2768b570.akpm@digeo.com> <87fznfku8z.fsf@lapper.ihatent.com>
- <20030516180848.GW8978@holomorphy.com> <20030516185638.GA19669@suse.de>
- <20030516191711.GX8978@holomorphy.com> <Pine.LNX.4.50.0305162322360.2023-100000@montezuma.mastecende.com>
- <Pine.LNX.4.50.0305170937350.1910-100000@montezuma.mastecende.com>
- <87u1brbazl.fsf@lapper.ihatent.com> <Pine.LNX.4.50.0305190431130.28750-100000@montezuma.mastecende.com>
- <873cjbjp0b.fsf@lapper.ihatent.com> <Pine.LNX.4.50.0305190452460.28750-100000@montezuma.mastecende.com>
- <87he7r2qak.fsf@lapper.ihatent.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from starmedia.com.com (unknown [209.207.185.47])
+	by smtp.latinmail.com (Postfix) with SMTP id 5FF033BA845
+	for <linux-mm@kvack.org>; Mon, 19 May 2003 07:36:30 -0400 (EDT)
+From: Aziz Ahmed <a_ahmed1@starmedia.com>
+Date: Mon, 19 May 2003 07:36:34 -0400
+Subject: confidencial
+Content-Type: text/plain; charset=us-ascii
+Message-Id: <20030519113630.5FF033BA845@smtp.latinmail.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Alexander Hoogerhuis <alexh@ihatent.com>
-Cc: William Lee Irwin III <wli@holomorphy.com>, Dave Jones <davej@codemonkey.org.uk>, Andrew Morton <akpm@digeo.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 19 May 2003, Alexander Hoogerhuis wrote:
+Dear sir,
 
-> --[PinePGP]--------------------------------------------------[begin]--
-> The oops is gone, and I'm now left with this one:
+            Let me introduce myself , I am brother to Tariq Aziz , the deputy prime minister of Iraq , before the us led coalition war against my country. 
+            I have been working for my brother for past 15 years. My brother have the sum of [46 million Dollars] with me ,which to be send to Europe which has been done 
+already.
+            I have decided to find somebody who can help me to
+secure the money or establish the money in Europe.Actually my brother has more than that with me. 
+            I don't want my identity to be exposed to outside the world, I am now hiding in Kuwait. 
+            Please if you are interested in this deal or to be my partner please contact my lawyer through his E-mail address. 
+            I know nothing goes for nothing we will be negotiating after 
+you contact my lawyer This is my lawyer E-mail address.... mattarozzi_mirco@rediffmail.com
 
-Ultra Cool
+Thanks.
+  
+  Aziz.
 
-> Linux agpgart interface v0.100 (c) Dave Jones
-> [drm] Initialized radeon 1.8.0 20020828 on minor 0
-> [drm:radeon_cp_init] *ERROR* radeon_cp_init called without lock held
-> [drm:radeon_unlock] *ERROR* Process 4421 using kernel context 0
-> 
-> This one only seems to appear when I'm compiling it modular.
 
-Wading through that code isn't something to undertake at this hour, i'll 
-have a look a bit later.
 
-	Zwane
--- 
-function.linuxpower.ca
+_______________________________________________________________________________________________________
+Obten gratis tu cuenta de correo en StarMedia Email. !Registrate hoy mismo!. http://www.starmedia.com/email
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
