@@ -1,15 +1,17 @@
-Date: Sat, 17 Aug 2002 20:03:08 +0200
+Date: Sat, 17 Aug 2002 20:05:00 +0200
 From: Christoph Hellwig <hch@lst.de>
 Subject: [PATCH] VM docs from -ac
-Message-ID: <20020817200308.A17200@lst.de>
+Message-ID: <20020817200500.A17270@lst.de>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: macelo@conectiva.com.br
+To: marcelo@conectiva.com.br
 Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
+
+[grr, I mis-spelled marcelo again..]
 
 I'm not entirely sure who wrote them, but I think it was wli.
 I've made sure they're correct for the mainline VM - they're not
