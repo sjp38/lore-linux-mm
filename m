@@ -1,81 +1,63 @@
-From: "Stephen C. Tweedie" <sct@redhat.com>
+Date: Tue, 21 Dec 1999 20:21:05 -0500 (EST)
+From: "Benjamin C.R. LaHaise" <blah@kvack.org>
+Subject: Re: RFC: Re: journal ports for 2.3?
+In-Reply-To: <Pine.LNX.4.21.9912211056520.24670-100000@Fibonacci.suse.de>
+Message-ID: <Pine.LNX.3.96.991221200955.16115B-100000@kanga.kvack.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Message-ID: <14432.6983.669104.707472@dukat.scot.redhat.com>
-Date: Wed, 22 Dec 1999 00:28:55 +0000 (GMT)
-Subject: Re: (reiserfs) Re: RFC: Re: journal ports for 2.3?
-In-Reply-To: <Pine.LNX.4.21.9912211434320.26889-100000@Fibonacci.suse.de>
-References: <14431.32449.832594.222614@dukat.scot.redhat.com>
-	<Pine.LNX.4.21.9912211434320.26889-100000@Fibonacci.suse.de>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrea Arcangeli <andrea@suse.de>
 Cc: "Stephen C. Tweedie" <sct@redhat.com>, Chris Mason <clmsys@osfmail.isc.rit.edu>, reiserfs@devlinux.com, linux-fsdevel@vger.rutgers.edu, linux-mm@kvack.org, Ingo Molnar <mingo@redhat.com>, Linus Torvalds <torvalds@transmeta.com>
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+On Tue, 21 Dec 1999, Andrea Arcangeli wrote:
 
-On Tue, 21 Dec 1999 14:57:29 +0100 (CET), Andrea Arcangeli
-<andrea@suse.de> said:
+> On Tue, 21 Dec 1999, Stephen C. Tweedie wrote:
+> 
+> >    refile_buffer() checks in buffer.c.  Ideally there should be a
+> >    system-wide upper bound on dirty data: if each different filesystem
+> >    starts to throttle writes at 50% of physical memory then you only
+> >    need two different filesystems to overcommit your memory badly.
+> 
+> If all FSes shares the dirty list of buffer.c that's not true. All normal
+> filesystems are using the mark_buffer_dirty() in buffer.c so currently the
+> 40% setting of bdflush is a system-wide number and not a per-fs number.
 
-> So you are talking about replacing this line:
-> 	dirty = size_buffers_type[BUF_DIRTY] >> PAGE_SHIFT;
-> with:
-> 	dirty = (size_buffers_type[BUF_DIRTY]+size_buffers_type[BUF_PINNED]) >> PAGE_SHIFT;
+The buffer dirty lists are the wrong place to be dealing with this.  We
+need a lightweight, fast way of monitoring the system's dirty buffer/page
+thresholds -- one that can be called for every write to a page or on the
+write faults for cow pages.
 
-Basically yes, but I was envisaging something slightly different from
-the above.
+> >    same time.  Making the refile_buffer() checks honour that global
+> >    threshold would be trivial.  
+> 
+> If both ext3 and reiserfs are using refile_buffer and both are using
+> balance_dirty in the right places as Linus wants, all seems just fine to
+> me.
+> 
+> I disagree since 2.3.10 (or similar) about mark_buffer_dirty not including
+> the balance_dirty() check (and I just provided patches to fix that some
+> month ago IIRC). Last time I checked ext2 was harmed by this, and we'll
+> have to add the proper balance_dirty() in the ext2 mknod path and check
+> the rest.
 
-There may well be data which is simply not in the buffer cache at all
-but which needs to be accounted for as pinned memory.  A good example
-would be if some filesystem wants to implement deferred allocation of
-disk blocks: the corresponding pages in the page cache obviously cannot
-be flushed to disk without generating extra filesystem activity for the
-allocation of disk blocks to pages.  The pages must therefore be pinned,
-but as they don't yet have disk mappings we can't assume that they are
-in the buffer cache.
+> I completly agree to change mark_buffer_dirty() to call balance_dirty()
+> before returning. But if you add the balance_dirty() calls all over the
+> right places all should be _just_ fine as far I can tell.
 
-So we really need a pinned page threshold which can apply to general
-pages, not necessarily to the buffer cache.
+I don't agree, both for the reasons above and because doing a
+balance_dirty in mark_buffer_dirty tends to result in stalls in the
+*wrong* place, because it tends to stall in the middle of an operation,
+not before it has begun.  You end up stalling on metadata operations that
+shouldn't stall.  The stall thresholds for data vs metadata have to be
+different in order to make the system 'feel' right.  This is easily
+accomplished by trying to "allocate" the dirty buffers before you actually
+dirty them (by checking if there's enough slack in the dirty buffer
+margins before doing the operation).
 
+		-ben
 
-There's another issue, though.  BUF_DIRTY buffers do not necessarily
-count as pinned in this context: they can always be flushed to disk
-without generating any significant new memory allocation pressure.  We
-still need to do write-throttling, so we need a threshold on dirty data
-for that reason.  However, deferred allocation and transactions actually
-have a more subtle and nastier property: you cannot necessarily flush
-the pages from memory without first allocating more memory.
-
-In the transaction case this is because you have to allow transactions
-which are already in progress to complete before you can commit the
-transaction (you cannot commit incomplete transactions because that
-would defeat the entire point of a transactional system!).  In the case
-of deferred disk block allocation, the problem is that flushing the
-dirty data requires extra filesystem operations as we allocate disk
-blocks to pages.
-
-In these cases we need to be able to make sure that not only does pinned
-memory never exceed a threshold, we also have to ensure that the
-*future* allocations required to flush the existing allocated memory can
-also be satisfied.  We need to allow filesystems to "reserve" such extra
-memory, and we need a system-wide threshold on all such reservations.
-
-The ext3 journaling code already has support for reservations, but
-that's currently a per-filesystem parameter.  We still have need for a
-global VM reservation to prevent memory starvation if multiple different
-filesystems have this behaviour.
-
-
-Note that what we need here isn't complex: it's no more than exporting
-atomic_t counts of the number of dirty and reserved pages in the system
-and supporting a maximum threshold on these values via /proc.  The
-mechanism for observing these limits can be local to each filesystem: as
-long as there is an agreed counter in the VM where they can register
-their use of memory.
-
---Stephen
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
