@@ -1,10 +1,10 @@
 Received: from wli by holomorphy with local (Exim 3.34 #1 (Debian))
-	id 17uRPu-0002jb-00
-	for <linux-mm@kvack.org>; Wed, 25 Sep 2002 22:42:26 -0700
-Date: Wed, 25 Sep 2002 22:42:26 -0700
+	id 17uRPp-0002jE-00
+	for <linux-mm@kvack.org>; Wed, 25 Sep 2002 22:42:21 -0700
+Date: Wed, 25 Sep 2002 22:42:20 -0700
 From: William Lee Irwin III <wli@holomorphy.com>
-Subject: [2/13] honor __GFP_NOKILL
-Message-ID: <20020926054226.GI22942@holomorphy.com>
+Subject: [1/13] add __GFP_NOKILL
+Message-ID: <20020926054220.GH22942@holomorphy.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Description: brief message
@@ -14,23 +14,26 @@ Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-In order to honor __GFP_NOKILL, the OOM killer should not be invoked
-when the __GFP_NOKILL flag is set. try_to_free_pages() is the sole
-caller of out_of_memory().
+__GFP_NOKILL has the semantics that OOM killing should never result
+from the given allocation. Instead, the allocation should be failed,
+as it's not indicative of the system being truly out of memory, only
+that the given call cannot be serviced.
+
+The series of patches using this flag to prevent spurious OOM killing
+were all done in response to specific OOM's observed during testing.
 
 
-diff -urN linux-2.5.33/mm/vmscan.c linux-2.5.33-mm5/mm/vmscan.c
---- linux-2.5.33/mm/vmscan.c	2002-09-04 04:02:00.000000000 -0700
-+++ linux-2.5.33-mm5/mm/vmscan.c	2002-09-08 19:57:30.000000000 -0700
-@@ -688,7 +688,7 @@
- 		blk_congestion_wait(WRITE, HZ/4);
- 		shrink_slab(total_scanned, gfp_mask);
- 	}
--	if (gfp_mask & __GFP_FS)
-+	if ((gfp_mask & __GFP_FS) && !(gfp_mask & __GFP_NOKILL))
- 		out_of_memory();
- 	return 0;
- }
+diff -urN linux-2.5.33/include/linux/gfp.h linux-2.5.33-mm5/include/linux/gfp.h
+--- linux-2.5.33/include/linux/gfp.h	2002-08-31 15:04:53.000000000 -0700
++++ linux-2.5.33-mm5/include/linux/gfp.h	2002-09-08 19:52:51.000000000 -0700
+@@ -17,6 +17,7 @@
+ #define __GFP_IO	0x40	/* Can start low memory physical IO? */
+ #define __GFP_HIGHIO	0x80	/* Can start high mem physical IO? */
+ #define __GFP_FS	0x100	/* Can call down to low-level FS? */
++#define __GFP_NOKILL	0x200	/* Should not OOM kill */
+ 
+ #define GFP_NOHIGHIO	(             __GFP_WAIT | __GFP_IO)
+ #define GFP_NOIO	(             __GFP_WAIT)
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
