@@ -1,36 +1,40 @@
-Received: from penguin.e-mind.com (penguin.e-mind.com [195.223.140.120])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id NAA19611
-	for <linux-mm@kvack.org>; Sun, 24 Jan 1999 13:41:34 -0500
-Date: Sun, 24 Jan 1999 19:40:22 +0100 (CET)
-From: Andrea Arcangeli <andrea@e-mind.com>
-Subject: [patch] arca-vm-29, nr_freeable_pages working now
-Message-ID: <Pine.LNX.3.96.990124192824.208A-100000@laser.bogus>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail.ccr.net (ccr@alogconduit1ar.ccr.net [208.130.159.18])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id NAA19662
+	for <linux-mm@kvack.org>; Sun, 24 Jan 1999 13:44:18 -0500
+Subject: Re: 2.2.0-final
+References: <Pine.LNX.3.96.990124141300.222A-100000@laser.bogus>
+From: ebiederm+eric@ccr.net (Eric W. Biederman)
+Date: 24 Jan 1999 12:41:25 -0600
+In-Reply-To: Andrea Arcangeli's message of "Sun, 24 Jan 1999 14:16:35 +0100 (CET)"
+Message-ID: <m1iudwo6nd.fsf@flinx.ccr.net>
 Sender: owner-linux-mm@kvack.org
-To: linux@billabong.demon.co.uk, zimerman@deskmail.com, mauelsha@ez-darmstadt.telekom.de, gerritse@wnet.bos.nl, dlux@dlux.sch.bme.hu, jalvo@cloud9.net, ebiederm+eric@ccr.net, steve@netplus.net, "Stephen C. Tweedie" <sct@redhat.com>, Rik van Riel <H.H.vanRiel@phys.uu.nl>
-Cc: linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
+To: Andrea Arcangeli <andrea@e-mind.com>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-I have a new VM patch. Unfortunately it's impossible for me to extract it
-clean from my tree without waste tons of time. So to try it you'll have to
-apply my new whole 2.2.0-pre9_arca-1 patch (that include also some other
-new stuff).
+>>>>> "AA" == Andrea Arcangeli <andrea@e-mind.com> writes:
 
-ftp://e-mind.com/pub/linux/arca-tree/2.2.0-pre9_arca-1.gz
+AA> On Sat, 23 Jan 1999, Andrea Arcangeli wrote:
+>> On Wed, 20 Jan 1999, Linus Torvalds wrote:
+>> 
+>> > In short, before you post a bug-report about 2.2.0-final, I'd like you to
+>> 
+>> There are three things from me I think should go in before 2.2.0 real
 
-I am interested about benchmark results and comments if you'll try it. I
-am interested also about the low memory feeling. It seems rock solid here
-and I had a > x2 improvement against previous code (with 128Mbyte of RAM). 
-Iteractive feel seems still quite good. 
+AA> There's a fourth thing I forget to tell yesterday. If all pte are young we
+AA> could not be able to swapout while with priority == 0 we must not care
+AA> about CPU aging. I hope to have pointed out right and needed things, I
+AA> don't want to spam you while you are busy... 
 
-With this patch you'll have a /proc/sys/vm/pager with one number into it. 
-Such value is the percentage of freeable pages you want during heavy swap. 
-The most this percentage is high the most your system will run smoother,
-but the applications that needs memory will run slower. As default it's
-set to 5%. 
+I don't think this is an issue.  Before we get to calling
+swap_out with priority == 0 we have called it with priorities.
+6,5,4,3,2,1  Which will have travelled a little over 1.5 times over
+the page tables (assuming they can't find anything either).
 
-Andrea Arcangeli
+So it looks doubtful to me that all pte's could be young.
+
+Eric
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm my@address'
