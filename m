@@ -1,77 +1,42 @@
-Received: from m6.gw.fujitsu.co.jp ([10.0.50.76]) by fgwmail6.fujitsu.co.jp (8.12.10/Fujitsu Gateway)
-	id i7OCGUwH010182 for <linux-mm@kvack.org>; Tue, 24 Aug 2004 21:16:30 +0900
+Received: from m1.gw.fujitsu.co.jp ([10.0.50.71]) by fgwmail5.fujitsu.co.jp (8.12.10/Fujitsu Gateway)
+	id i7OCMxJB017947 for <linux-mm@kvack.org>; Tue, 24 Aug 2004 21:22:59 +0900
 	(envelope-from kamezawa.hiroyu@jp.fujitsu.com)
-Received: from s4.gw.fujitsu.co.jp by m6.gw.fujitsu.co.jp (8.12.10/Fujitsu Domain Master)
-	id i7OCGUqA011600 for <linux-mm@kvack.org>; Tue, 24 Aug 2004 21:16:30 +0900
+Received: from s7.gw.fujitsu.co.jp by m1.gw.fujitsu.co.jp (8.12.10/Fujitsu Domain Master)
+	id i7OCMwPV028126 for <linux-mm@kvack.org>; Tue, 24 Aug 2004 21:22:58 +0900
 	(envelope-from kamezawa.hiroyu@jp.fujitsu.com)
-Received: from fjmail505.fjmail.jp.fujitsu.com (fjmail505-0.fjmail.jp.fujitsu.com [10.59.80.104]) by s4.gw.fujitsu.co.jp (8.12.11)
-	id i7OCGUmV003247 for <linux-mm@kvack.org>; Tue, 24 Aug 2004 21:16:30 +0900
+Received: from fjmail505.fjmail.jp.fujitsu.com (fjmail505-0.fjmail.jp.fujitsu.com [10.59.80.104]) by s7.gw.fujitsu.co.jp (8.12.11)
+	id i7OCMwX7032744 for <linux-mm@kvack.org>; Tue, 24 Aug 2004 21:22:58 +0900
 	(envelope-from kamezawa.hiroyu@jp.fujitsu.com)
 Received: from jp.fujitsu.com
- (fjscan503-0.fjmail.jp.fujitsu.com [10.59.80.124]) by
+ (fjscan502-0.fjmail.jp.fujitsu.com [10.59.80.122]) by
  fjmail505.fjmail.jp.fujitsu.com
  (Sun Internet Mail Server sims.4.0.2001.07.26.11.50.p9)
- with ESMTP id <0I2Y00DK0A3G9P@fjmail505.fjmail.jp.fujitsu.com> for
- linux-mm@kvack.org; Tue, 24 Aug 2004 21:16:29 +0900 (JST)
-Date: Tue, 24 Aug 2004 21:21:37 +0900
+ with ESMTP id <0I2Y00GV2AE94S@fjmail505.fjmail.jp.fujitsu.com> for
+ linux-mm@kvack.org; Tue, 24 Aug 2004 21:22:58 +0900 (JST)
+Date: Tue, 24 Aug 2004 21:28:05 +0900
 From: Hiroyuki KAMEZAWA <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [RFC/PATCH] free_area[] bitmap elimination[0/3]
-Message-id: <412B32D1.10005@jp.fujitsu.com>
+Subject: [RFC/PATCH] free_area[] bitmap elimination[1/3]
+Message-id: <412B3455.1000604@jp.fujitsu.com>
 MIME-version: 1.0
-Content-type: multipart/mixed; boundary="------------020201060005010808000006"
+Content-type: multipart/mixed; boundary="------------040104080105010000000000"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm <linux-mm@kvack.org>, LHMS <lhms-devel@lists.sourceforge.net>
-Cc: William Lee Irwin III <wli@holomorphy.com>, Dave Hansen <haveblue@us.ibm.com>, Hirokazu Takahashi <taka@valinux.co.jp>, ncunningham@linuxmail.org
+To: linux-mm <linux-mm@kvack.org>, LHMS <lhms-devel@lists.sourceforge.net>, William Lee Irwin III <wli@holomorphy.com>
+Cc: Dave Hansen <haveblue@us.ibm.com>, Hirokazu Takahashi <taka@valinux.co.jp>, ncunningham@linuxmail.org
 List-ID: <linux-mm.kvack.org>
 
 This is a multi-part message in MIME format.
---------------020201060005010808000006
+--------------040104080105010000000000
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 
-Thanks for many comments on previous RFC.
+this is 2nd part.
+code for intialization .
 
-This is an updated version of free_area[] bitmap elimination patch.
-Many advices are reflected.
-I tested this on Xeon x 2 server and Itanium2 x 2 server.
+calculation of zone->alinged_order is newly added.
 
-This removes bitmaps from the buddy allocator.
-Instead of using bitmap, this patch records a free page's order to
-page struct itself.
-
-Most important point I changed in this version is that tricky usage of
-page->private is removed.Instead of doing so,I use PG_private bit now.
-
-If a page is page_count(page)== 0 && PagePrivate(page), it is a head of
-contiguous free page on the buddy allocator and its order is page->private.
-
-Propriety of using PG_private is guaranteed by these facts:
-(1) Before calling free_pages(), PG_private must be cleared.(see free_pages_check())
-(2) Swap calls, which directly call put_page_testzero(), does not uses PG_private bit.
-    Because they calls free_hot_cold_page() directly, PG_private bit is not set when
-    page_count(page) becomes zero.
-(3) All operation of set and clear PG_private bit of a free page for buddy allocator
-    is done only while zone->lock() is acquired.
-
-I added zone->aligned_order member in zone struct for avoiding range check to some extent.
-This member guarantees a page has a buddy in an order <= zone->aligned_order and
-we can skip some checks.
-
-In this version, a problem of pfn_valid() for ia64 is not fixed.
-I think I'll need some different kind of patch to fix this.
-
-I added detailed description but complexity is unchaned.
-
-How to patch :
-1) patch -p1 < eliminate-bitmap-includes.patch
-2) patch -p1 < eliminate-bitmap-init.patch
-3) patch -p1 < eliminate-bitmap-alloc.patch
-4) patch -p1 < eliminate-bitmap-free.patch
-
-
-Thanks
---Kame
+-- Kame
+==
 
 -- 
 --the clue is these footmarks leading to the door.--
@@ -79,124 +44,164 @@ KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
 
 
---------------020201060005010808000006
+--------------040104080105010000000000
 Content-Type: text/x-patch;
- name="eliminate-bitmap-includes.patch"
+ name="eliminate-bitmap-init.patch"
 Content-Transfer-Encoding: 7bit
 Content-Disposition: inline;
- filename="eliminate-bitmap-includes.patch"
+ filename="eliminate-bitmap-init.patch"
 
 
-This patch removes bitmap from buddy allocator, 
-removes free_area_t's bitmap in include/linux/mmzone.h
-and adds some definition in include/linux/mm.h
+This patch removes bitmap allocation in zone_init_free_lists() and
+page_to_bitmap_size();
 
-Currently,Linux's page allocator uses buddy algorithm and codes for buddy 
-allocator uses bitmap. For what is bitmap is used ?
+And new added member zone->aligned_order is initialized.
 
-(*) for recording "a page is free" and its order.
+zone->alined_order guarantees "zone is aligned to (1 << zone->aligned_order) 
+contiguous pages"
 
-If a page is free and is a head of contiguous free pages of order 'X',
-we can record it by
-set_bit(free_area[X]->bitmap, index_of_page)
+If zone->alined_order == MAX_ORDER, zone is completely aligned, and
+every page is guaranteed to have its buddy page in any order.
 
-For coalescing, when there is a chunk of free pages of order 'X', 
-we can test whether we can coalesce or not by, 
-test_bit(free_aera[X]->bitmap,index_of_buddy) 
-index_of_buddy can be calculated by (index_of_page ^ (1 << order))
+zone->aligned_order is used in free_pages_bulk() to skip range checking.
+By using this, if order < zone->aligned_order,
+we do not have to worry about "a page can have its buddy in an order or not?"
 
-This patch removes bitmap and recording a free page's order 
-in its page->private field. If a page is free and it is a head of a free
-memory chunk, page->private indicates the order of the page.
-and PG_private bit is used to show propriety of information.
+This would work well in several architectures.
 
-For coalescing, when there is a page which is a chunk of free pages of order 'X',
-we can test whether we can coalesce or not by
-(page_is_free(buddy) && PagePrivate(buddy) && page_order(buddy) == 'X')
-address of buddy can be calculated by the same way in bitmap case.
-
-If page is free and on the buddy system, PG_private bit is set and has its order 
-in page->private. This scheme is safe because...
-(a) when page is being freed, PG_private is not set. (see free_pages_check())
-(b) when page is free and on the buddy system, PG_private is set.
-These facts are guaranteed by zone->lock.
-Only one thread can change a free page's PG_private bit and private field 
-at anytime.
-
-in mmzone.h, zone->aligned_order is added. this is explained in next patch.
+But my ia64 box shows zone->aligned_order=0 .....this aligned_order would not 
+be helpful in some environment.
 
 -- Kame
 
 
 ---
 
- linux-2.6.8.1-mm4-kame-kamezawa/include/linux/mm.h     |   20 +++++++++++++++++
- linux-2.6.8.1-mm4-kame-kamezawa/include/linux/mmzone.h |    4 ++-
- 2 files changed, 23 insertions(+), 1 deletion(-)
+ linux-2.6.8.1-mm4-kame-kamezawa/mm/page_alloc.c |   72 +++++++++---------------
+ 1 files changed, 28 insertions(+), 44 deletions(-)
 
-diff -puN include/linux/mm.h~eliminate-bitmap-includes include/linux/mm.h
---- linux-2.6.8.1-mm4-kame/include/linux/mm.h~eliminate-bitmap-includes	2004-08-23 11:06:43.000000000 +0900
-+++ linux-2.6.8.1-mm4-kame-kamezawa/include/linux/mm.h	2004-08-24 18:25:03.351544872 +0900
-@@ -209,6 +209,9 @@ struct page {
- 					 * usually used for buffer_heads
- 					 * if PagePrivate set; used for
- 					 * swp_entry_t if PageSwapCache
-+					 * When page is free:  
-+					 * this indicates order of page
-+					 * in buddy allocator.
- 					 */
- 	struct address_space *mapping;	/* If low bit clear, points to
- 					 * inode address_space, or NULL.
-@@ -322,6 +325,23 @@ static inline void put_page(struct page 
- #endif		/* CONFIG_HUGETLB_PAGE */
+diff -puN mm/page_alloc.c~eliminate-bitmap-init mm/page_alloc.c
+--- linux-2.6.8.1-mm4-kame/mm/page_alloc.c~eliminate-bitmap-init	2004-08-24 18:25:14.000000000 +0900
++++ linux-2.6.8.1-mm4-kame-kamezawa/mm/page_alloc.c	2004-08-24 20:32:14.640312608 +0900
+@@ -301,7 +301,7 @@ void __free_pages_ok(struct page *page, 
+  * subsystem according to empirical testing, and this is also justified
+  * by considering the behavior of a buddy system containing a single
+  * large block of memory acted on by a series of small allocations.
+- * This behavior is a critical factor in sglist merging's success.
++ * This behavior is a critical factor in s merging's success.
+  *
+  * -- wli
+  */
+@@ -1499,6 +1499,25 @@ static void __init calculate_zone_totalp
+ 	printk(KERN_DEBUG "On node %d totalpages: %lu\n", pgdat->node_id, realtotalpages);
+ }
+ 
++/*   
++ *    calculate_aligned_order()
++ *    this function calculates an upper bound order of alignment of buddy pages.
++ *    if order < zone->aligned_order, every page are guaranteed to have its buddy.
++ */
++void __init calculate_aligned_order(int nid, int zone, unsigned long start_pfn, 
++				    unsigned long size)
++{
++	int order;
++	unsigned long mask;
++	struct zone *zonep = zone_table[NODEZONE(nid, zone)];
++	for (order = 0 ; order < MAX_ORDER; order++) {
++		mask = (unsigned long)1 << order;
++		if ((start_pfn & mask) || (size & mask))
++			break;
++	}
++	if (order < zonep->aligned_order)
++		zonep->aligned_order = order;
++}
  
  /*
-+ * These macros are used in alloc_pages()/free_pages(), buddy allocator.
-+ * page_order(page) returns an order of a free page in buddy allocator.
-+ * set_page_order(page, order) sets an order of a free page in buddy allocator.
-+ * Invalidate_page_order() invalidates order information for avoiding
-+ * conflicts of pages in transition state.
-+ *
-+ * this is used with PG_private flag
-+ */ 
-+#define set_page_order(page,order)\
-+        do {\
-+            (page)->private = (order);\
-+            SetPagePrivate((page));\
-+        } while(0)
-+#define invalidate_page_order(page) ClearPagePrivate((page))
-+#define page_order(page) ((page)->private)
-+
-+/*
-  * Multiple processes may "see" the same page. E.g. for untouched
-  * mappings of /dev/null, all processes see the same page full of
-  * zeroes, and text pages of executables and shared libraries have
-diff -puN include/linux/mmzone.h~eliminate-bitmap-includes include/linux/mmzone.h
---- linux-2.6.8.1-mm4-kame/include/linux/mmzone.h~eliminate-bitmap-includes	2004-08-23 11:47:01.000000000 +0900
-+++ linux-2.6.8.1-mm4-kame-kamezawa/include/linux/mmzone.h	2004-08-24 13:07:28.000000000 +0900
-@@ -22,7 +22,6 @@
+  * Initially all pages are reserved - free ones are freed
+@@ -1510,7 +1529,7 @@ void __init memmap_init_zone(unsigned lo
+ {
+ 	struct page *start = pfn_to_page(start_pfn);
+ 	struct page *page;
+-
++	unsigned long saved_start_pfn = start_pfn;
+ 	for (page = start; page < (start + size); page++) {
+ 		set_page_zone(page, NODEZONE(nid, zone));
+ 		set_page_count(page, 0);
+@@ -1524,51 +1543,18 @@ void __init memmap_init_zone(unsigned lo
+ #endif
+ 		start_pfn++;
+ 	}
+-}
+-
+-/*
+- * Page buddy system uses "index >> (i+1)", where "index" is
+- * at most "size-1".
+- *
+- * The extra "+3" is to round down to byte size (8 bits per byte
+- * assumption). Thus we get "(size-1) >> (i+4)" as the last byte
+- * we can access.
+- *
+- * The "+1" is because we want to round the byte allocation up
+- * rather than down. So we should have had a "+7" before we shifted
+- * down by three. Also, we have to add one as we actually _use_ the
+- * last bit (it's [0,n] inclusive, not [0,n[).
+- *
+- * So we actually had +7+1 before we shift down by 3. But
+- * (n+8) >> 3 == (n >> 3) + 1 (modulo overflows, which we do not have).
+- *
+- * Finally, we LONG_ALIGN because all bitmap operations are on longs.
+- */
+-unsigned long pages_to_bitmap_size(unsigned long order, unsigned long nr_pages)
+-{
+-	unsigned long bitmap_size;
+-
+-	bitmap_size = (nr_pages-1) >> (order+4);
+-	bitmap_size = LONG_ALIGN(bitmap_size+1);
+-
+-	return bitmap_size;
++	/* Because memmap_init_zone() is called in suitable way 
++	 * even if zone has memory hole,
++	 * calling calculate_aligned_order(zone) here is reasonable 
++	 */
++	calculate_aligned_order(nid, zone, saved_start_pfn, size);
+ }
  
- struct free_area {
- 	struct list_head	free_list;
--	unsigned long		*map;
- };
+ void zone_init_free_lists(struct pglist_data *pgdat, struct zone *zone, unsigned long size)
+ {
+ 	int order;
+-	for (order = 0; ; order++) {
+-		unsigned long bitmap_size;
+-
++	for (order = 0 ; order < MAX_ORDER ; order++) {
+ 		INIT_LIST_HEAD(&zone->free_area[order].free_list);
+-		if (order == MAX_ORDER-1) {
+-			zone->free_area[order].map = NULL;
+-			break;
+-		}
+-
+-		bitmap_size = pages_to_bitmap_size(order, size);
+-		zone->free_area[order].map =
+-		  (unsigned long *) alloc_bootmem_node(pgdat, bitmap_size);
+ 	}
+ }
  
- struct pglist_data;
-@@ -163,7 +162,10 @@ struct zone {
+@@ -1681,11 +1667,9 @@ static void __init free_area_init_core(s
  
- 	/*
- 	 * free areas of different sizes
-+	 * aligned_order shows the upper bound of aligned order,
-+	 * aligned_order means every page below it has a buddy.
- 	 */
-+	int			aligned_order; 
- 	struct free_area	free_area[MAX_ORDER];
- 
- 	/*
+ 		if ((zone_start_pfn) & (zone_required_alignment-1))
+ 			printk("BUG: wrong zone alignment, it will crash\n");
+-
++		zone->aligned_order = MAX_ORDER;
+ 		memmap_init(size, nid, j, zone_start_pfn);
+-
+ 		zone_start_pfn += size;
+-
+ 		zone_init_free_lists(pgdat, zone, zone->spanned_pages);
+ 	}
+ }
 
 _
 
---------------020201060005010808000006--
+--------------040104080105010000000000--
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
