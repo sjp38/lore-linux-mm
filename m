@@ -1,26 +1,44 @@
-Date: Wed, 26 Apr 2000 12:43:07 +0100
+Date: Wed, 26 Apr 2000 13:29:15 +0100
 From: "Stephen C. Tweedie" <sct@redhat.com>
-Subject: Re: pressuring dirty pages (2.3.99-pre6)
-Message-ID: <20000426124307.I3792@redhat.com>
-References: <m1snwadmcp.fsf@flinx.biederman.org> <Pine.LNX.4.21.0004251642500.10408-100000@duckman.conectiva>
+Subject: Re: [PATCH] 2.3.99-pre6-3+  VM rebalancing
+Message-ID: <20000426132915.J3792@redhat.com>
+References: <20000426120130.E3792@redhat.com> <Pine.LNX.4.21.0004260814130.16202-100000@duckman.conectiva>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-In-Reply-To: <Pine.LNX.4.21.0004251642500.10408-100000@duckman.conectiva>; from riel@conectiva.com.br on Tue, Apr 25, 2000 at 04:47:52PM -0300
+In-Reply-To: <Pine.LNX.4.21.0004260814130.16202-100000@duckman.conectiva>; from riel@conectiva.com.br on Wed, Apr 26, 2000 at 08:15:14AM -0300
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: riel@nl.linux.org
-Cc: "Eric W. Biederman" <ebiederman@uswest.net>, "Stephen C. Tweedie" <sct@redhat.com>, Mark_H_Johnson.RTS@raytheon.com, linux-mm@kvack.org
+Cc: "Stephen C. Tweedie" <sct@redhat.com>, Simon Kirby <sim@stormix.com>, Jeff Garzik <jgarzik@mandrakesoft.com>, Andrea Arcangeli <andrea@suse.de>, linux-mm@kvack.org, Ben LaHaise <bcrl@redhat.com>, linux-kernel@vger.rutgers.edu
 List-ID: <linux-mm.kvack.org>
 
 Hi,
 
-On Tue, Apr 25, 2000 at 04:47:52PM -0300, Rik van Riel wrote:
+On Wed, Apr 26, 2000 at 08:15:14AM -0300, Rik van Riel wrote:
+> On Wed, 26 Apr 2000, Stephen C. Tweedie wrote:
+> > On Tue, Apr 25, 2000 at 12:06:58PM -0700, Simon Kirby wrote:
+> > > 
+> > > Sorry, I made a mistake there while writing..I was going to give an
+> > > example and wrote 60 seconds, but I didn't actually mean to limit
+> > > anything to 60 seconds.  I just meant to make a really big global lru
+> > > that contains everything including page cache and swap. :)
+> > 
+> > Doesn't work.  If you do that, a "find / | grep ..." swaps out 
+> > everything in your entire system.
+> > 
+> > Getting the VM to respond properly in a way which doesn't freak out
+> > in the mass-filescan case is non-trivial.  Simple LRU over all pages
+> > simply doesn't cut it.
 > 
-> My current anti-hog code already looks at what the biggest
-> process is. Any process which is in the same size class will
-> get a special bit set
+> It seems to work pretty well, because pages "belonging to" processes
+> are mapped into the address space of each process and will never go
+> through swap_out() if shrink_mmap() will succeed.
 
-What clears the bit?
+I know.  The post wasn't talking about what we do now.  It was talking
+about a hypothetical LRU which covers "everything including page cache
+and swap."  LRU over just the page cache pages works fine.  If you 
+start treating swap exactly the same, on a page-by-page LRU, then a
+filesystem "find" scan will swap out most of your VM.  Bad news.
 
 --Stephen
 --
