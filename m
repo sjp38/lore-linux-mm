@@ -1,77 +1,54 @@
-Date: Mon, 2 Oct 2000 20:01:42 -0300 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
+Date: Mon, 2 Oct 2000 16:06:25 -0700 (PDT)
+From: Linus Torvalds <torvalds@transmeta.com>
 Subject: Re: [highmem bug report against -test5 and -test6] Re: [PATCH] Re:
  simple FS application that hangs 2.4-test5, mem mgmt problem or FS buffer
  cache mgmt problem? (fwd)
-In-Reply-To: <Pine.LNX.4.21.0010030038370.16056-100000@elte.hu>
-Message-ID: <Pine.LNX.4.21.0010021956410.1067-100000@duckman.distro.conectiva>
+In-Reply-To: <20001003001834.A25467@athlon.random>
+Message-ID: <Pine.LNX.4.10.10010021559120.2206-100000@penguin.transmeta.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ingo Molnar <mingo@elte.hu>
-Cc: Linus Torvalds <torvalds@transmeta.com>, Andrea Arcangeli <andrea@suse.de>, MM mailing list <linux-mm@kvack.org>, "Stephen C. Tweedie" <sct@redhat.com>
+To: Andrea Arcangeli <andrea@suse.de>
+Cc: Rik van Riel <riel@conectiva.com.br>, Ingo Molnar <mingo@elte.hu>, linux-mm@kvack.org, "Stephen C. Tweedie" <sct@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 3 Oct 2000, Ingo Molnar wrote:
-> On Mon, 2 Oct 2000, Rik van Riel wrote:
+
+On Tue, 3 Oct 2000, Andrea Arcangeli wrote:
+
+> On Mon, Oct 02, 2000 at 07:08:20PM -0300, Rik van Riel wrote:
+> > Yes it has. The write order in flush_dirty_buffers() is the order
+> > in which the pages were written. This may be different from the
+> > LRU order and could give us slightly better IO performance.
 > 
-> > > yep, this would be nice, but i think it will be quite tough to
-> > > balance this properly. There are two kinds of bhs in this aging
-> > > scheme: 'normal' bhs (metadata), and 'virtual' bhs (aliased to a
-> > > page). Freeing a 'normal' bh will get rid of the bh, and will
-> 
-> > This is easy. Normal page aging will take care of the buffermem pages.
-> > Freeing the buffer heads on pagecache pages is the only thing we need
-> > to do in refill_inactive_scan.
-> 
-> to do some sort of aging is of course easy. But to treat a
-> 4kbyte 'metadata bh' the same way as a 80 bytes worth 'cached
-> mapping bh' is IMO a stretch. This is what i ment by 'tough to
-> balance properly'.
+> And it will forbid us to use barriers in software elevator and in SCSI hardware
+> to avoid having to wait I/O completation every time a journaling fs needs to do
+> ordered writes. The write ordering must remain irrelevant to the page-LRU
+> order.
 
-To do that, you'd need to keep track of whether the buffer
-heads (and icache/dcache entries, etc) have been accessed.
-In essence an emulated accessed bit on these structures.
+Note that ordered writes are going to change how we do things _anyway_,
+regardless of whether we have flush_dirty_buffers() or use the LRU list.
 
-(and suddenly balancing is easy ... but is it worth the cost
-for these small objects?)
+So that's a non-argument: neither of the two routines can handle ordered
+writes at this point.
 
-> > > another thing is the complexity of marking a page dirty - right
-> > > now we can assume that page->buffers holds all the blocks. With
-> > > aging we must check wether a bh is there or not,
-> > 
-> > The code must already be able to handle this. This is nothing new.
-> 
-> sure this is new. The page->buffers list right now is assumed to
-> stay constant after being created.
+You could argue that the simple single ordered queue that is currently in
+use by flush_dirty_buffers() might be easier to adopt to ordering. 
 
-Eeeeeek. So pages /cannot/ lose their buffer heads ???
+I can tell you already that you'd be wrong to argue that. Exactly because
+of the fact that we _need_ the page-oriented flushing regardless of what
+we do. So we need to solve the page case anyway. Which means that it will
+obviously be easiest to solve just _one_ problem (the page case) than to
+solve two problems (the page case _and_ the flush_dirty_buffers() case).
 
-(I guess that explains why my buffer-head stealing code
-is making trouble for the system ;))
+Basically the ordered write case will need extra logic, and we might as
+well put the effort in just one place anyway. Note that the page case
+isn't necessarily any harder in the end - the simple solution might be
+something like just adding a generation count to the buffer head, and
+having try_to_free_buffers() just refuse to write stuff out before that
+generation has come to pass.
 
-> > > i'd love to have all the cached objects within the system on a
-> > > global, size-neutral LRU list. (or at least attach a
-> > > last-accessed timestamp to them.) This way we could synchronize
-> > > the pagecache, inode/dentry and buffer-cache LRU lists.
-> > 
-> > s/LRU/page aging/   ;)
-> 
-> no - how does this handle the inode/dentry cache? Making
-> everything a page is a mistake.
-
-Indeed, you're right here... I'll have to think about this a
-bit more (but we have the time for 2.5).
-
-regards,
-
-Rik
---
-"What you're running that piece of shit Gnome?!?!"
-       -- Miguel de Icaza, UKUUG 2000
-
-http://www.conectiva.com/		http://www.surriel.com/
+			Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
