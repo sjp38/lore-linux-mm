@@ -1,21 +1,21 @@
 Received: from westrelay02.boulder.ibm.com (westrelay02.boulder.ibm.com [9.17.195.11])
-	by e35.co.us.ibm.com (8.12.10/8.12.9) with ESMTP id i9SHvvNX264900
-	for <linux-mm@kvack.org>; Thu, 28 Oct 2004 13:57:57 -0400
+	by e32.co.us.ibm.com (8.12.10/8.12.9) with ESMTP id i9SHwaEx564640
+	for <linux-mm@kvack.org>; Thu, 28 Oct 2004 13:58:36 -0400
 Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by westrelay02.boulder.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id i9SHvvQU446492
-	for <linux-mm@kvack.org>; Thu, 28 Oct 2004 11:57:57 -0600
+	by westrelay02.boulder.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id i9SHwaQU448704
+	for <linux-mm@kvack.org>; Thu, 28 Oct 2004 11:58:36 -0600
 Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.12.11/8.12.11) with ESMTP id i9SHvu6e028988
-	for <linux-mm@kvack.org>; Thu, 28 Oct 2004 11:57:56 -0600
-Message-ID: <41813323.4090208@us.ibm.com>
-Date: Thu, 28 Oct 2004 10:57:55 -0700
+	by d03av02.boulder.ibm.com (8.12.11/8.12.11) with ESMTP id i9SHwZLm030635
+	for <linux-mm@kvack.org>; Thu, 28 Oct 2004 11:58:35 -0600
+Message-ID: <4181334B.8030703@us.ibm.com>
+Date: Thu, 28 Oct 2004 10:58:35 -0700
 From: Dave Hansen <haveblue@us.ibm.com>
 MIME-Version: 1.0
-Subject: Re: [Lhms-devel] [2/7] 060 refactor setup_memory i386
-References: <E1CNBE0-0006bV-ML@ladymac.shadowen.org> <41811566.2070200@us.ibm.com> <4181168B.3060209@shadowen.org>
-In-Reply-To: <4181168B.3060209@shadowen.org>
+Subject: Re: [3/7] 080 alloc_remap i386
+References: <E1CNBE6-0006bd-0j@ladymac.shadowen.org>
+In-Reply-To: <E1CNBE6-0006bd-0j@ladymac.shadowen.org>
 Content-Type: multipart/mixed;
- boundary="------------000801080308050901070409"
+ boundary="------------070806060801030205090804"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andy Whitcroft <apw@shadowen.org>
@@ -23,106 +23,55 @@ Cc: lhms-devel@lists.sourceforge.net, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 This is a multi-part message in MIME format.
---------------000801080308050901070409
+--------------070806060801030205090804
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 
-There's no reason not to just move setup_bootmem_allocator() above the
-first call to it, except for code churn.  This saves a predeclaration.
+Removes whitespace damage.
 
---------------000801080308050901070409
+--------------070806060801030205090804
 Content-Type: text/plain;
- name="2_7_060_refactor_setup_memory_i386-cleanup.patch"
+ name="3_7_080_alloc_remap_i386-whitespace.patch"
 Content-Transfer-Encoding: 7bit
 Content-Disposition: inline;
- filename="2_7_060_refactor_setup_memory_i386-cleanup.patch"
+ filename="3_7_080_alloc_remap_i386-whitespace.patch"
 
 
 
 ---
 
- sparsemem-dave/arch/i386/kernel/setup.c |   59 +++++++++++++++-----------------
- 1 files changed, 29 insertions(+), 30 deletions(-)
+ sparsemem-dave/arch/i386/mm/discontig.c |    2 +-
+ sparsemem-dave/mm/page_alloc.c          |    2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
 
-diff -puN arch/i386/kernel/setup.c~2_7_060_refactor_setup_memory_i386-cleanup arch/i386/kernel/setup.c
---- sparsemem/arch/i386/kernel/setup.c~2_7_060_refactor_setup_memory_i386-cleanup	2004-10-28 10:23:29.000000000 -0700
-+++ sparsemem-dave/arch/i386/kernel/setup.c	2004-10-28 10:24:27.000000000 -0700
-@@ -1014,36 +1014,6 @@ static void __init reserve_ebda_region(v
- 		reserve_bootmem(addr, PAGE_SIZE);	
- }
- 
--#ifndef CONFIG_DISCONTIGMEM
--void __init setup_bootmem_allocator(void);
--static unsigned long __init setup_memory(void)
--{
--	/*
--	 * partially used pages are not usable - thus
--	 * we are rounding upwards:
--	 */
--	min_low_pfn = PFN_UP(init_pg_tables_end);
--
--	find_max_pfn();
--
--	max_low_pfn = find_max_low_pfn();
--
--#ifdef CONFIG_HIGHMEM
--	highstart_pfn = highend_pfn = max_pfn;
--	if (max_pfn > max_low_pfn) {
--		highstart_pfn = max_low_pfn;
--	}
--	printk(KERN_NOTICE "%ldMB HIGHMEM available.\n",
--		pages_to_mb(highend_pfn - highstart_pfn));
--#endif
--	printk(KERN_NOTICE "%ldMB LOWMEM available.\n",
--			pages_to_mb(max_low_pfn));
--
--	setup_bootmem_allocator();
--	return max_low_pfn;
--}
--#endif /* !CONFIG_DISCONTIGMEM */
--
- void __init setup_bootmem_allocator(void)
- {
- 	unsigned long bootmap_size;
-@@ -1119,6 +1089,35 @@ void __init setup_bootmem_allocator(void
+diff -puN arch/i386/mm/discontig.c~3_7_080_alloc_remap_i386-whitespace arch/i386/mm/discontig.c
+--- sparsemem/arch/i386/mm/discontig.c~3_7_080_alloc_remap_i386-whitespace	2004-10-28 10:28:26.000000000 -0700
++++ sparsemem-dave/arch/i386/mm/discontig.c	2004-10-28 10:30:22.000000000 -0700
+@@ -278,7 +278,7 @@ unsigned long __init setup_memory(void)
+ 		allocate_pgdat(nid);
+ 		printk ("node %d will remap to vaddr %08lx - %08lx\n", nid,
+ 			(ulong) node_remap_start_vaddr[nid],
+-			(ulong) pfn_to_kaddr(highstart_pfn 
++			(ulong) pfn_to_kaddr(highstart_pfn
+ 			    + node_remap_offset[nid] + node_remap_size[nid]));
+ 	}
+ 	printk("High memory starts at vaddr %08lx\n",
+diff -puN include/asm-i386/mmzone.h~3_7_080_alloc_remap_i386-whitespace include/asm-i386/mmzone.h
+diff -puN mm/page_alloc.c~3_7_080_alloc_remap_i386-whitespace mm/page_alloc.c
+--- sparsemem/mm/page_alloc.c~3_7_080_alloc_remap_i386-whitespace	2004-10-28 10:28:26.000000000 -0700
++++ sparsemem-dave/mm/page_alloc.c	2004-10-28 10:30:53.000000000 -0700
+@@ -1474,7 +1474,7 @@ void zone_init_free_lists(struct pglist_
+ #ifdef HAVE_ARCH_ALLOC_REMAP
+ 		map = (unsigned long *) alloc_remap(pgdat->node_id,
+ 			bitmap_size);
+-		if (!map) 
++		if (!map)
  #endif
- }
- 
-+#ifndef CONFIG_DISCONTIGMEM
-+static unsigned long __init setup_memory(void)
-+{
-+	/*
-+	 * partially used pages are not usable - thus
-+	 * we are rounding upwards:
-+	 */
-+	min_low_pfn = PFN_UP(init_pg_tables_end);
-+
-+	find_max_pfn();
-+
-+	max_low_pfn = find_max_low_pfn();
-+
-+#ifdef CONFIG_HIGHMEM
-+	highstart_pfn = highend_pfn = max_pfn;
-+	if (max_pfn > max_low_pfn) {
-+		highstart_pfn = max_low_pfn;
-+	}
-+	printk(KERN_NOTICE "%ldMB HIGHMEM available.\n",
-+		pages_to_mb(highend_pfn - highstart_pfn));
-+#endif
-+	printk(KERN_NOTICE "%ldMB LOWMEM available.\n",
-+			pages_to_mb(max_low_pfn));
-+
-+	setup_bootmem_allocator();
-+	return max_low_pfn;
-+}
-+#endif /* !CONFIG_DISCONTIGMEM */
-+
- /*
-  * Request address space for all standard RAM and ROM resources
-  * and also for regions reported as reserved by the e820.
+ 			map = (unsigned long *) alloc_bootmem_node(pgdat,
+ 				bitmap_size);
 _
 
---------------000801080308050901070409--
+--------------070806060801030205090804--
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
