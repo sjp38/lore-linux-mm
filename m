@@ -1,52 +1,33 @@
-Date: Tue, 27 Jun 2000 04:26:42 +0100
-From: "Stephen C. Tweedie" <sct@redhat.com>
-Subject: Re: RSS guarantees and limits
-Message-ID: <20000627042642.D1065@redhat.com>
-References: <Pine.LNX.4.21.0006211059410.5195-100000@duckman.distro.conectiva> <m2lmzx38a1.fsf@boreas.southchinaseas> <20000622221923.A8744@redhat.com> <m2og4t9w7j.fsf@boreas.southchinaseas> <20000624192245.A6617@saw.sw.com.sg>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20000624192245.A6617@saw.sw.com.sg>; from saw@saw.sw.com.sg on Sat, Jun 24, 2000 at 07:22:45PM +0800
+Date: Tue, 27 Jun 2000 03:27:15 +0200 (CEST)
+From: Andrea Arcangeli <andrea@suse.de>
+Subject: Re: Why is the free_list not null-terminated?
+In-Reply-To: <20000623193609Z131187-21004+54@kanga.kvack.org>
+Message-ID: <Pine.LNX.4.21.0006270323540.2591-100000@inspiron.random>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrey Savochkin <saw@saw.sw.com.sg>
-Cc: John Fremlin <vii@penguinpowered.com>, linux-mm@kvack.org, Stephen Tweedie <sct@redhat.com>
+To: Timur Tabi <ttabi@interactivesi.com>
+Cc: Linux MM mailing list <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+On Fri, 23 Jun 2000, Timur Tabi wrote:
 
-On Sat, Jun 24, 2000 at 07:22:45PM +0800, Andrey Savochkin wrote:
-> 
-> Small applications are not always good, as well as big are not bad.
-> We just want good memory service for those applications which we want to have
-> it :-)  It hears like tautology, but that it.  It's completely administrator
-> policy decision.
+>Question #1: Does this mean that there are no free zones of Order 2 (16KB)?
 
-Somewhat, but not entirely.
+It means there are no free contigous chunks of memory of order 2 in such
+zone.
 
-Remember that we were talking about both RSS limits and RSS guarantees
-being dymamic.  RSS guarantees for small processes (based on their
-fault activity, of course, so that idle small tasks can still be
-swapped out) are perhaps dependent on what those tasks are actually
-doing if the object is to have them compete against each other more
-fairly.
+>Question #2: Why are prev and next not set to null?  Why do they point
 
-However, RSS limits on the largest tasks in the system have an
-entirely different effect --- they prevent swap storms from
-overwhelming small tasks entirely, by placing more of the burden of
-the swapping on the large task.
+because of linux/include/list.h ;), more seriously that avoids a path in
+the list insert/remove code but the head of the list is double size (and
+this is not an issue except for large hashtables).
 
-If a task is so large that it is thrashing, then removing a few 100K
-from its RSS doesn't usually have all that a dramatic effect on its
-performance.  Remember, we'll only be doing this pruning if there is
-continuing memory pressure.  If that large task becomes the only task
-wanting more memory again, we can let its RSS limit creep up again.
-That way, processes which just fit into memory on an idle system will
-continue to work just fine, but once we get memory contention, they
-won't stop the rest of the system from getting going again.
+(btw give a try also to SYSRQ+M if you are interested about similar info)
 
-Cheers,
- Stephen
+Andrea
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
