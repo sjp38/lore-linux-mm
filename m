@@ -1,23 +1,51 @@
-Date: Sat, 5 Jul 2003 02:08:37 +0200
-From: Andrea Arcangeli <andrea@suse.de>
-Subject: Re: What to expect with the 2.6 VM
-Message-ID: <20030705000837.GD23578@dualathlon.random>
-References: <20030703192750.GM23578@dualathlon.random> <20030703201607.GK20413@holomorphy.com> <20030704004000.GQ23578@dualathlon.random> <20030704014624.GN20413@holomorphy.com> <20030704023414.GV23578@dualathlon.random> <20030704041048.GO20413@holomorphy.com> <20030704055426.GW23578@dualathlon.random> <20030704081522.GP20413@holomorphy.com> <20030704234432.GY23578@dualathlon.random> <20030705000518.GJ955@holomorphy.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+From: Daniel Phillips <phillips@arcor.de>
+Subject: Re: 2.5.74-mm1
+Date: Sat, 5 Jul 2003 02:16:27 +0200
+References: <20030703023714.55d13934.akpm@osdl.org>
+In-Reply-To: <20030703023714.55d13934.akpm@osdl.org>
+MIME-Version: 1.0
+Content-Type: text/plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <20030705000518.GJ955@holomorphy.com>
+Message-Id: <200307050216.27850.phillips@arcor.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: William Lee Irwin III <wli@holomorphy.com>, Rik van Riel <riel@redhat.com>, "Martin J. Bligh" <mbligh@aracnet.com>, Mel Gorman <mel@csn.ul.ie>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Jul 04, 2003 at 05:05:18PM -0700, William Lee Irwin III wrote:
-> The feeling on this thread is mutual. Best to cut it off. If I try to
+On Thursday 03 July 2003 11:37, Andrew Morton wrote:
+> . Included Con's CPU scheduler changes.  Feedback on the effectiveness of
+>   this and the usual benchmarks would be interesting.
+>
+>   Changes to the CPU scheduler tend to cause surprising and subtle problems
+>   in areas where you least expect it, and these do take a long time to
+>   materialise.  Alterations in there need to be made carefully and
+>   cautiously. We shall see...
 
-well, at least we agree on this ;)
+It now tolerates window dragging on this unaccelerated moderately high 
+resolution VGA without any sound dropouts.  There are still dropouts while 
+scrolling in Mozilla, so it acts much like 2.5.73+Con's patch, as expected. 
 
-Andrea
+I had 2.5.74 freeze up a couple of times yesterday, resulting in a totally 
+dead, unpingable system, so now I'm running 2.5.74-mm1 with kgdb and hoping 
+to catch one of those beasts in the wild.  The most recent incident occurred 
+while switching from X to text console, which did not complete, leaving me 
+with no debugging data whatsover.  That was with sound running.  Switching to 
+the text console always results in a massive sound skip, so there is a clue.  
+XFree is running generic VGA, so I don't seriously suspect the driver, and 
+even so, it should not be able to kill the system completely dead.
+
+System details are as I reported earlier:
+
+   AMD K7 1666 (actual) MHz, 512 MB, VIA VTxxx chipset.  Video hardware is
+   S3 ProSavage K4M266, unaccelerated VGA mode, 1280x1024x16.  Software is
+   2.5.73+Gnome+Metacity+ALSA+Zinf.  Running UP, no preempt.
+
+Regards,
+
+Daniel
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
