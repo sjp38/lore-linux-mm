@@ -1,37 +1,70 @@
-From: Ed Tomlinson <tomlins@cam.org>
+Date: Tue, 8 Apr 2003 18:43:06 +0200
 Subject: Re: 2.5.67-mm1
-Date: Tue, 8 Apr 2003 12:18:22 -0400
-References: <20030408042239.053e1d23.akpm@digeo.com> <200304080917.15648.tomlins@cam.org> <20030408083153.5dec0d0e.rddunlap@osdl.org>
-In-Reply-To: <20030408083153.5dec0d0e.rddunlap@osdl.org>
-MIME-Version: 1.0
+Message-ID: <20030408164306.GB568@hh.idb.hist.no>
+References: <20030408042239.053e1d23.akpm@digeo.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Type: text/plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
-Message-Id: <200304081218.22598.tomlins@cam.org>
+In-Reply-To: <20030408042239.053e1d23.akpm@digeo.com>
+From: Helge Hafting <helgehaf@aitel.hist.no>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Randy.Dunlap" <rddunlap@osdl.org>
-Cc: akpm@digeo.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@digeo.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On April 8, 2003 11:31 am, Randy.Dunlap wrote:
-> | This does not boot here.  I loop with the following message.
-> |
-> | i8042.c: Can't get irq 12 for AUX, unregistering the port.
-> |
-> | irq 12 is used (correctly) by my 20267 ide card.  My mouse is
-> | usb and AUX is not used.
-> |
-> | Ideas?
->
-> I guess that's due to my early kbd init patch.
+Devfs fails to find all partitions with 2.5.67-mm1, plain 2.5.67 is fine
 
-Just to confirm, removing the above patch lets me 
-boot just fine.
+I have 2 scsi disks, and 2.5.67-mm1 find only some of the partitions
+when I boot.  Below is ls -l listings for /dev/discs/disc0 and
+/dev/discs/disc1.  Note the missing stuff - linux wasn't at all 
+happy when the device for /usr couldn't be found at boot time.
+Running cfdisk showed that the partitions were there though.
 
-Thanks
-Ed
+Helge Hafting
+
+2.5.67-mm1: ls -l /dev/discs/disc0/ 
+total 0
+brw-rw----    1 root     disk       8,   0 Jan  1  1970 disc
+crw-------    1 root     root      21,   0 Jan  1  1970 generic
+brw-rw----    1 root     disk       8,   1 Jan  1  1970 part1
+brw-rw----    1 root     disk       8,   8 Jan  1  1970 part8
+
+2.5.67:  ls -l /dev/discs/disc0/
+totalt 0
+brw-rw----    1 root     disk       8,   0 1970-01-01 01:00 disc
+crw-------    1 root     root      21,   0 1970-01-01 01:00 generic
+brw-rw----    1 root     disk       8,   1 1970-01-01 01:00 part1
+brw-rw----    1 root     disk       8,   2 1970-01-01 01:00 part2
+brw-rw----    1 root     disk       8,   3 1970-01-01 01:00 part3
+brw-rw----    1 root     disk       8,   5 1970-01-01 01:00 part5
+brw-rw----    1 root     disk       8,   6 1970-01-01 01:00 part6
+brw-rw----    1 root     disk       8,   7 1970-01-01 01:00 part7
+brw-rw----    1 root     disk       8,   8 1970-01-01 01:00 part8
+
+And the second disk:
+2.5.67-mm1: ls -l /dev/discs/disc1/
+total 0
+brw-rw----    1 root     disk       8,  16 Jan  1  1970 disc
+crw-------    1 root     root      21,   1 Jan  1  1970 generic
+brw-rw----    1 root     disk       8,  17 Jan  1  1970 part1
+brw-rw----    1 root     disk       8,  18 Jan  1  1970 part2
+brw-rw----    1 root     disk       8,  22 Jan  1  1970 part6
+brw-rw----    1 root     disk       8,  23 Jan  1  1970 part7
+brw-rw----    1 root     disk       8,  24 Jan  1  1970 part8
+
+2.5.67:  ls -l /dev/discs/disc1/
+totalt 0
+brw-rw----    1 root     disk       8,  16 1970-01-01 01:00 disc
+crw-------    1 root     root      21,   1 1970-01-01 01:00 generic
+brw-rw----    1 root     disk       8,  17 1970-01-01 01:00 part1
+brw-rw----    1 root     disk       8,  18 1970-01-01 01:00 part2
+brw-rw----    1 root     disk       8,  21 1970-01-01 01:00 part5
+brw-rw----    1 root     disk       8,  22 1970-01-01 01:00 part6
+brw-rw----    1 root     disk       8,  23 1970-01-01 01:00 part7
+brw-rw----    1 root     disk       8,  24 1970-01-01 01:00 part8
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
