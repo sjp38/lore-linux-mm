@@ -1,62 +1,43 @@
-Message-ID: <39D8FC19.CD089EB6@mountain.net>
-Date: Mon, 02 Oct 2000 17:20:25 -0400
-From: Tom Leete <tleete@mountain.net>
+Date: Mon, 2 Oct 2000 14:31:31 -0700 (PDT)
+From: Linus Torvalds <torvalds@transmeta.com>
+Subject: Re: [highmem bug report against -test5 and -test6] Re: [PATCH] Re:
+ simple FS application that hangs 2.4-test5, mem mgmt problem or FS buffer
+ cache mgmt problem? (fwd)
+In-Reply-To: <Pine.LNX.4.21.0010021821210.1067-100000@duckman.distro.conectiva>
+Message-ID: <Pine.LNX.4.10.10010021429230.826-100000@penguin.transmeta.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] fix for VM  test9-pre7
-References: <Pine.LNX.4.21.0010021250180.22539-100000@duckman.distro.conectiva>
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Rik van Riel <riel@conectiva.com.br>
-Cc: linux-mm@kvack.org
+Cc: Ingo Molnar <mingo@elte.hu>, Andrea Arcangeli <andrea@suse.de>, linux-mm@kvack.org, "Stephen C. Tweedie" <sct@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-[Linus removed from CC]
-Rik van Riel wrote:
-> 
-> On Mon, 2 Oct 2000, Tom Leete wrote:
-> 
-> > I ran lmbench on test9-pre7 with and without the patch.
-> >
-> > Test machine was a slow medium memory UP box:
-> > Cx586@120Mhz, no optimizations, 56M
-> >
-> > I still experience instability on this machine with both the
-> > patched and vanilla kernel. It usually takes the form of
-> > sudden total lockups, but on occasion I have seen oops +
-> > panic at boot.
-> 
-> If you could decode the oops or mail us the panic, we
-> might find out if this is a VM related problem or not...
 
-I posted one to l-k recently. Time pressure prevented me
-getting these.
-No guarantee they are the same.
-
-The lockups are clearly from irq handlers. They seem
-associated with ide and net.
-
+On Mon, 2 Oct 2000, Rik van Riel wrote:
 > 
-> > This summary doesn't show any performance advantage to the
-> > patch, but the detailed plots show that memory access
-> > latency degrades more gracefully wrt array size.
+> OK, so we want something like the following in
+> refill_inactive_scan() ?
 > 
-> That's because this benchmark has a very artificial page
-> access pattern, that doesn't really benefit from any kind
-> of page replacement. ;)
-> 
+> if (free_shortage() && inactive_shortage() && page->mapping &&
+> 			page->buffers)
+> 	try_to_free_buffers(page, 0);
 
-The memory access latency issue showed up clearly. Without
-the patch it is a step function at 16k array size. It looks
-like vanilla always page faults for allocations bigger than
-that. Your patch knocks the corner off that.
+That's just nasty.
 
-It's supposed to be easy to add tests to lmbench, but I've
-never done it.
+Why not just do it unconditionally whenever we do the
+age_page_down_ageonly(page) too? Simply something like
 
-Cheers,
-Tom
+	if (page->buffers)
+		try_to_free_buffers(page, 1);
+
+(and yes, I think it should also start background writing - we probably
+need the gfp_mask to know whether we can do that).
+
+I hate code that tries to be clever. 
+
+		Linus
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
