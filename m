@@ -1,37 +1,33 @@
-Date: Wed, 19 Jan 2005 13:39:53 -0800
-From: Andrew Morton <akpm@osdl.org>
-Subject: Re: BUG in shared_policy_replace() ?
-Message-Id: <20050119133953.667630f5.akpm@osdl.org>
-In-Reply-To: <20050119192955.GC26170@wotan.suse.de>
-References: <Pine.LNX.4.44.0501191221400.4795-100000@localhost.localdomain>
-	<41EE9991.6090606@mvista.com>
-	<20050119174506.GH7445@wotan.suse.de>
-	<41EEA575.9040007@mvista.com>
-	<20050119183430.GK7445@wotan.suse.de>
-	<41EEAE04.3050505@mvista.com>
-	<20050119190927.GM7445@wotan.suse.de>
-	<41EEB440.8010108@mvista.com>
-	<20050119192955.GC26170@wotan.suse.de>
+From: "RendaExtra" <dotinhopressmz@interlace.com.br>
+Subject: RendaExtra com Internet - linux-mm@kvack.org
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset="ISO-8859-1"
+Date: Thu, 20 Jan 2005 05:09:18 -0200
+Content-Transfer-Encoding: 8bit
+Message-Id: <20050120070921Z26580-20891+589@kvack.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <ak@suse.de>
-Cc: stevel@mvista.com, hugh@veritas.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, andrea@suse.de
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Andi Kleen <ak@suse.de> wrote:
->
->  > -				new2 = NULL;
-> 
->  Ah, I agree. Yes, it looks like a merging error when merging
->  with Hugh's changes. Thanks for catching this.
-> 
->  The line should not be removed. Andrew should I submit a new patch or can 
->  you just fix it up?
+Renda-Extra, Trabalho e Negocio, com uso da Internet e demais ferramentas,
+em tempo parcial ou integral e com Altos Ganhos.
+Pegue seu Ebook GRATIS!
 
-I'll fix it up, thanks.
+Visite: http://www.rendaforte.com 
+
+Duvidas - KRDCorp
+http://www.rendaforte.com/contato/
+
+
+
+
+Essa mensagem foi enviada para o email: linux-mm@kvack.org
+
+
+
+Para ser removido de futuros correios, por favor, envie email para
+ngtcad@ibest.com.br, com o assunto REMOVER. Obrigado.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
