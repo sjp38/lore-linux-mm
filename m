@@ -1,62 +1,31 @@
-From: Jeremy Hall <jhall@maoz.com>
-Message-Id: <200304130354.h3D3slbp031124@sith.maoz.com>
+Date: Sat, 12 Apr 2003 21:32:05 -0700
+From: Andrew Morton <akpm@digeo.com>
 Subject: Re: 2.5.67-mm2
-In-Reply-To: <20030412201011.0d3dfa62.akpm@digeo.com> from Andrew Morton at "Apr
- 12, 2003 08:10:11 pm"
-Date: Sat, 12 Apr 2003 23:54:47 -0400 (EDT)
-MIME-Version: 1.0
+Message-Id: <20030412213205.4bcbe1d8.akpm@digeo.com>
+In-Reply-To: <200304130422.h3D4M6XY031187@sith.maoz.com>
+References: <200304130354.h3D3slbp031124@sith.maoz.com>
+	<200304130422.h3D4M6XY031187@sith.maoz.com>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@digeo.com>
-Cc: Jeremy Hall <jhall@maoz.com>, felipe_alfaro@linuxmail.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Jeremy Hall <jhall@maoz.com>
+Cc: felipe_alfaro@linuxmail.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-mm1 worked.
-
-to be clear, my append line looks like
-
-append="gdb console=gdb pci=biosirq" and maybe some other stuff on there
-
-to get my machine to boot in single processor mode, I have to add nosmp 
-and acpi=off
-
-if I don't add acpi=off I get apic errors on my cpus, as well as if I say 
-noapic like the boot process says to, it says
-
-amd errata #22 may be present.  in the event of instability boot with the 
-noapic option
-
-dual athlon 1900 palamino's on a tyan 2462ung
-
-_J
-
-In the new year, Andrew Morton wrote:
-> Jeremy Hall <jhall@maoz.com> wrote:
-> >
-> > I dunno about that, but mm2 locks in the boot process and doesn't display 
-> > anything to me through gdb even though it is supposed to.  I have gdb 
-> > console=gdb but that doesn't make the messages flow.
-> > 
+Jeremy Hall <jhall@maoz.com> wrote:
+>
+> ah, here we go
 > 
-> You want "gdb console=gdb".  It changed.
+> BUG(); line 907 of mm/slab.c
 > 
-> What CPU type?
-> 
-> Try just 2.5.67 plus 
-> ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.5/2.5.67/2.5.67-mm2/broken-out/linus.patch
-> 
-> try disabling kgdb in config.
-> 
-> etcetera.
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"aart@kvack.org">aart@kvack.org</a>
-> 
+
+Yup, it looks like the lockmeter patch has borked the preempt_count when
+CONFIG_LOCKMETER=n.  Sorry, I didn't test it with preempt enabled.
+
+I'll fix that up.  Meanwhile you can revert the lockmeter patch or disable
+preemption.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
