@@ -1,262 +1,87 @@
-Date: Thu, 16 Dec 2004 19:39:03 -0800 (PST)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: page fault scalability patch V13 [8/8]: Prefaulting using ptep_cmpxchg
-In-Reply-To: <Pine.LNX.4.58.0412161931460.11341@schroedinger.engr.sgi.com>
-Message-ID: <Pine.LNX.4.58.0412161938250.11341@schroedinger.engr.sgi.com>
-References: <41BBF923.6040207@yahoo.com.au>
- <Pine.LNX.4.44.0412120914190.3476-100000@localhost.localdomain>
- <20041212212456.GB2714@holomorphy.com> <Pine.LNX.4.58.0412161931460.11341@schroedinger.engr.sgi.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e3.ny.us.ibm.com (8.12.10/8.12.10) with ESMTP id iBH4OlV8023280
+	for <linux-mm@kvack.org>; Thu, 16 Dec 2004 23:24:47 -0500
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay04.pok.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id iBH4OlXa273090
+	for <linux-mm@kvack.org>; Thu, 16 Dec 2004 23:24:47 -0500
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.12.11/8.12.11) with ESMTP id iBH4OlOr017665
+	for <linux-mm@kvack.org>; Thu, 16 Dec 2004 23:24:47 -0500
+Subject: Re: [patch] [RFC] make WANT_PAGE_VIRTUAL a config option
+From: Dave Hansen <haveblue@us.ibm.com>
+In-Reply-To: <Pine.LNX.4.61.0412170256500.793@scrub.home>
+References: <E1Cf3bP-0002el-00@kernel.beaverton.ibm.com>
+	 <Pine.LNX.4.61.0412170133560.793@scrub.home>
+	 <1103244171.13614.2525.camel@localhost>
+	 <Pine.LNX.4.61.0412170150080.793@scrub.home>
+	 <1103246050.13614.2571.camel@localhost>
+	 <Pine.LNX.4.61.0412170256500.793@scrub.home>
+Content-Type: text/plain
+Message-Id: <1103257482.13614.2817.camel@localhost>
+Mime-Version: 1.0
+Date: Thu, 16 Dec 2004 20:24:42 -0800
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: William Lee Irwin III <wli@holomorphy.com>
-Cc: Hugh Dickins <hugh@veritas.com>, Nick Piggin <nickpiggin@yahoo.com.au>, Linus Torvalds <torvalds@osdl.org>, Andrew Morton <akpm@osdl.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, linux-mm@kvack.org, linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Roman Zippel <zippel@linux-m68k.org>
+Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, geert@linux-m68k.org, ralf@linux-mips.org, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-The page fault handler for anonymous pages can generate significant overhead
-apart from its essential function which is to clear and setup a new page
-table entry for a never accessed memory location. This overhead increases
-significantly in an SMP environment.
+On Thu, 2004-12-16 at 18:50, Roman Zippel wrote:
+> On Thu, 16 Dec 2004, Dave Hansen wrote:
+> > > Could you explain a bit more, what exactly the problem is?
+> > The symptom is that you'll add some new function to a header, say
+> > mmzone.h.  You get some kind of compile error that a structure that you
+> > need is not fully defined (usually because it is predeclared "struct
+> > foo;").  This happens when you do either a structure dereference on a
+> > pointer, or do some other kind of pointer arithmetic on it outside of a
+> > macro.
+> 
+> I know this problem and I hoped you would provide a complete header 
+> dependency example.
 
-If a fault occurred for page x and is then followed by page x+1 then it may
-be reasonable to expect another page fault at x+2 in the future. If page
-table entries for x+1 and x+2 would be prepared in the fault handling for
-page x+1 then the overhead of taking a fault for x+2 is avoided. However
-page x+2 may never be used and thus we may have increased the rss
-of an application unnecessarily. The swapper will take care of removing
-that page if memory should get tight.
+Sorry I didn't provide this.  My recent effort started to clean up some
+ugliness in some current patches that worked around this actually
+happening a few months ago.  The original example didn't survive :)
 
-The following patch makes the anonymous fault handler anticipate future
-faults. For each fault a prediction is made where the fault would occur
-(assuming linear acccess by the application). If the prediction turns out to
-be right (next fault is where expected) then a number of pages is
-preallocated in order to avoid a series of future faults. The order of the
-preallocation increases by the power of two for each success in sequence.
+> Anyway, I'm not against fixing this, I think that 
+> you're starting somewhere in the middle.
 
-The first successful prediction leads to an additional page being allocated.
-Second successful prediction leads to 2 additional pages being allocated.
-Third to 4 pages and so on. The max order is 3 by default. In a large
-continous allocation the number of faults is reduced by a factor of 8.
+I don't disagree.  But, I do think that getting the core
+(include/linux/*) files to stop depending on architecture-specific ones
+is a step.  Most other cleanups aren't as obviously correct, or have
+such obviously limited impact.  So, I'm starting by patches that have
+the least impact rather than actual bottom or top of the problem.
 
-The order of preallocation may be controlled through setting the maximum order
-in /proc/sys/vm/max_prealloc_order. Setting it to zero will disable
-preallocations.
+> I'd prefer to fix this problem at the core first, some time ago I posted a 
+> few patches to separate out core data structures from the functions.
 
-Signed_off_by: Christoph Lameter <clameter@sgi.com>
+Especially with the vm headers, I have also seen quite a few
+dependencies on simple macro variables.  I'd also like to see some
+constant macro only files. 
 
-Index: linux-2.6.9/include/linux/sched.h
-===================================================================
---- linux-2.6.9.orig/include/linux/sched.h	2004-12-16 10:59:26.000000000 -0800
-+++ linux-2.6.9/include/linux/sched.h	2004-12-16 11:06:37.000000000 -0800
-@@ -548,6 +548,9 @@
- 	struct list_head ptrace_list;
+> This 
+> allows further cleanups, I just did a quick check with linux/mm.h and 
+> easily reduced the dependencies by half. I need to update the patches 
+> soon, so there are ready once 2.6.10 is out.
 
- 	struct mm_struct *mm, *active_mm;
-+	/* Prefaulting */
-+	unsigned long anon_fault_next_addr;
-+	int anon_fault_order;
- 	/* Split counters from mm */
- 	long rss;
- 	long anon_rss;
-Index: linux-2.6.9/mm/memory.c
-===================================================================
---- linux-2.6.9.orig/mm/memory.c	2004-12-16 10:59:26.000000000 -0800
-+++ linux-2.6.9/mm/memory.c	2004-12-16 11:06:37.000000000 -0800
-@@ -1437,6 +1437,8 @@
- 	return ret;
- }
+I'll eagerly await your post :)
 
-+int sysctl_max_prealloc_order = 3;
-+
- /*
-  * We are called with the MM semaphore held.
-  */
-@@ -1445,57 +1447,103 @@
- 		pte_t *page_table, pmd_t *pmd, int write_access,
- 		unsigned long addr, pte_t orig_entry)
- {
--	pte_t entry;
--	struct page * page = ZERO_PAGE(addr);
-+	unsigned long end_addr;
-+
-+	addr &= PAGE_MASK;
-+
-+	/* Check if there is a sequential allocation of pages */
-+	if (likely((vma->vm_flags & VM_RAND_READ) || current->anon_fault_next_addr != addr)) {
-+
-+		/* Single page */
-+		current->anon_fault_order = 0;
-+		end_addr = addr + PAGE_SIZE;
-+
-+	} else {
-+		int order = ++current->anon_fault_order;
-+
-+		/*
-+		 * Calculate the number of pages to preallocate. The order of preallocations
-+		 * increases with each successful prediction
-+		 */
-+		if (unlikely(order > sysctl_max_prealloc_order))
-+			order = current->anon_fault_order = sysctl_max_prealloc_order;
+> If you change the header dependencies, there is a big risk you break some 
+> architecture, the current system is rather fragile. Moving a random 
+> structure into a new header file doesn't always fix the problem, this 
+> structure might still need some other definitions and so can pull in 
+> different headers on every arch. Splitting a header is easy, getting the 
+> whole thing working again in the end is the hard part.
 
--	/* Read-only mapping of ZERO_PAGE. */
--	entry = pte_wrprotect(mk_pte(ZERO_PAGE(addr), vma->vm_page_prot));
-+		end_addr = addr + (PAGE_SIZE << order);
-+
-+		/* Do not prefault beyond vm limits */
-+		if (end_addr > vma->vm_end)
-+			end_addr = vma->vm_end;
-+
-+		/* Stay in pmd */
-+		if ((addr & PMD_MASK) != (end_addr & PMD_MASK))
-+		end_addr &= PMD_MASK;
-+	}
+The nice part about detecting and fixing these kinds of changes is that
+they're not very subtle.  I'd much rather fix an include problem than an
+SMP race any day :)
 
--	/* ..except if it's a write access */
- 	if (write_access) {
--		/* Allocate our own private page. */
--		pte_unmap(page_table);
-+		int count = 0;
+I certainly agree that their correct place for anything pervasive is in
+the beginning of a development series.
 
- 		if (unlikely(anon_vma_prepare(vma)))
--			goto no_mem;
--		page = alloc_page_vma(GFP_HIGHUSER, vma, addr);
--		if (!page)
--			goto no_mem;
--		clear_user_highpage(page, addr);
-+			return VM_FAULT_OOM;
-
--		page_table = pte_offset_map(pmd, addr);
-+		do {
-+			pte_t entry;
-+			struct page *page = alloc_page_vma(GFP_HIGHUSER, vma, addr);
-+
-+			if (unlikely(!page)) {
-+				if (!count)
-+					return VM_FAULT_OOM;
-+				else
-+					break;
-+			}
-+
-+			clear_user_highpage(page, addr);
-+
-+			entry = maybe_mkwrite(pte_mkdirty(mk_pte(page,
-+							vma->vm_page_prot)),
-+						vma);
-+
-+			/* update the entry */
-+			if (unlikely(!ptep_cmpxchg(vma, addr, page_table, orig_entry, entry))) {
-+				pte_unmap(page_table);
-+				page_cache_release(page);
-+				break;
-+			}
-+
-+			page_add_anon_rmap(page, vma, addr);
-+			lru_cache_add_active(page);
-+			count++;
-
--		entry = maybe_mkwrite(pte_mkdirty(mk_pte(page,
--							 vma->vm_page_prot)),
--				      vma);
--	}
-+			pte_unmap(page_table);
-+			addr += PAGE_SIZE;
-+			if (addr >= end_addr)
-+				break;
-+			page_table = pte_offset_map(pmd, addr);
-+			orig_entry = *page_table;
-+
-+		} while (pte_none(orig_entry));
-+
-+		current->rss += count;
-+		current->anon_rss += count;
-+
-+	} else {
-+		pte_t entry = pte_wrprotect(mk_pte(ZERO_PAGE(addr), vma->vm_page_prot));
-+		/* Read */
-+		do {
-+			if (unlikely(!ptep_cmpxchg(vma, addr, page_table, orig_entry, entry)))
-+			break;
-
--	/* update the entry */
--	if (!ptep_cmpxchg(vma, addr, page_table, orig_entry, entry)) {
--		if (write_access) {
- 			pte_unmap(page_table);
--			page_cache_release(page);
--		}
--		goto out;
--	}
--	if (write_access) {
--		/*
--		 * These two functions must come after the cmpxchg
--		 * because if the page is on the LRU then try_to_unmap may come
--		 * in and unmap the pte.
--		 */
--		page_add_anon_rmap(page, vma, addr);
--		lru_cache_add_active(page);
--		mm->rss++;
--		mm->anon_rss++;
--
-+			addr += PAGE_SIZE;
-+
-+			if (addr >= end_addr)
-+				break;
-+			page_table = pte_offset_map(pmd, addr);
-+			orig_entry = *page_table;
-+		} while (pte_none(orig_entry));
- 	}
--	pte_unmap(page_table);
-
--out:
--	return VM_FAULT_MINOR;
--no_mem:
--	return VM_FAULT_OOM;
-+	current->anon_fault_next_addr = addr;
-+        return VM_FAULT_MINOR;
- }
-
- /*
-Index: linux-2.6.9/kernel/sysctl.c
-===================================================================
---- linux-2.6.9.orig/kernel/sysctl.c	2004-12-15 15:00:22.000000000 -0800
-+++ linux-2.6.9/kernel/sysctl.c	2004-12-16 11:06:37.000000000 -0800
-@@ -56,6 +56,7 @@
- extern int C_A_D;
- extern int sysctl_overcommit_memory;
- extern int sysctl_overcommit_ratio;
-+extern int sysctl_max_prealloc_order;
- extern int max_threads;
- extern int sysrq_enabled;
- extern int core_uses_pid;
-@@ -816,6 +817,16 @@
- 		.strategy	= &sysctl_jiffies,
- 	},
- #endif
-+	{
-+		.ctl_name	= VM_MAX_PREFAULT_ORDER,
-+		.procname	= "max_prealloc_order",
-+		.data		= &sysctl_max_prealloc_order,
-+		.maxlen		= sizeof(sysctl_max_prealloc_order),
-+		.mode		= 0644,
-+		.proc_handler	= &proc_dointvec,
-+		.strategy	= &sysctl_intvec,
-+		.extra1		= &zero,
-+	},
- 	{ .ctl_name = 0 }
- };
-
-Index: linux-2.6.9/include/linux/sysctl.h
-===================================================================
---- linux-2.6.9.orig/include/linux/sysctl.h	2004-12-15 15:00:22.000000000 -0800
-+++ linux-2.6.9/include/linux/sysctl.h	2004-12-16 11:06:37.000000000 -0800
-@@ -168,6 +168,7 @@
- 	VM_VFS_CACHE_PRESSURE=26, /* dcache/icache reclaim pressure */
- 	VM_LEGACY_VA_LAYOUT=27, /* legacy/compatibility virtual address space layout */
- 	VM_SWAP_TOKEN_TIMEOUT=28, /* default time for token time out */
-+	VM_MAX_PREFAULT_ORDER=29, /* max prefault order during anonymous page faults */
- };
-
-
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
