@@ -1,55 +1,94 @@
-Date: Wed, 6 Jun 2001 09:23:58 +0100
-From: "Stephen C. Tweedie" <sct@redhat.com>
-Subject: Re: temp. mem mappings
-Message-ID: <20010606092358.R26756@redhat.com>
-References: <3B581215@MailAndNews.com>
+Message-Id: <l03130308b7439bb9f187@[192.168.239.105]>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <3B581215@MailAndNews.com>; from cohutta@MailAndNews.com on Tue, Jun 05, 2001 at 04:42:52PM -0400
+Content-Type: text/plain; charset="us-ascii"
+Date: Wed, 6 Jun 2001 09:39:39 +0100
+From: Jonathan Morton <chromi@cyberspace.org>
+Subject: Re: [PATCH] reapswap for 2.4.5-ac10
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: cohutta <cohutta@MailAndNews.com>
-Cc: linux-mm@kvack.org
+To: Marcelo Tosatti <marcelo@conectiva.com.br>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+>> > I'm resending the reapswap patch for inclusion into -ac series.
+>>
+>> Isn't it broken in this state?  Checking page_count, page->buffers and
+>> PageSwapCache without the appropriate locks is dangerous.
+>
+>We hold the pagemap_lru_lock, so there will be no one doing lookups on
+>this swap page (get_swapcache_page() locks pagemap_lru_lock).
+>
+>Am I overlooking something here?
 
-On Tue, Jun 05, 2001 at 04:42:52PM -0400, cohutta wrote:
+Probably a good idea to hold the individual page's lock anyway.
 
->   Normal memory is identity-mapped very early in boot anyway (except for
->   highmem on large Intel boxes, that is, and kmap() works for that.)
-> 
-> I don't really want to play with the page tables if i can help it.
-> I didn't use ioremap() because it's real system memory, not IO bus
-> memory.
-> 
-> How much normal memory is identity-mapped at boot on x86?
-> Is it more than 8 MB?
+BTW, does this clear out an area of allocated swap which all processes have
+finished using?  For example, if a large process dies and leaves part of
+itself in the swapcache, the swap space covered by this is currently not
+retrieved until the swapcache is given enough pressure.  I *think* this is
+what you're trying to address here, just want to be sure.
 
-> I'm trying to read some ACPI tables, like the FACP.
-> On my system, this is at physical address 0x3fffd7d7 (e.g.).
+This is particularly relevant because I now have code which gives "new"
+pages a low initial age, but swapped-in pages get a high initial age.
+Since the dead process's swapcache pages have likely been swapped in
+shortly before it's demise, they get very high ages and a new process
+replacing the old one has an uphill struggle to force out the old pagecache
+entries.  This hurts the MySQL compilation a lot with 32Mb or 48Mb physical
+- but even without the "high age on swapin" patch, it must surely hurt
+performance (albeit to a lesser degree).
 
-It depends at what time during boot.  Some ACPI memory is reusable
-once the system boots: the kernel parses the table then frees up the
-memory which the BIOS initialised.
+*** UPDATE *** : I applied the patch, and it really does help.  Compile
+time for MySQL is down to ~6m30s from ~8m30s with 48Mb physical, and the
+behaviour after the monster file is finished is much improved.  For
+reference, the MySQL compile takes ~5min on this box with all 256Mb
+available.  It's a 1GHz Athlon.
 
-VERY early in boot, while the VM is still getting itself set up, there
-is only a minimal mapping set up by the boot loader code.  However,
-once the VM is initialised far enough to let you play with page
-tables, all memory will be identity-mapped up to just below the 1GB
-watermark.
+>I've been saying for sometime now that I think only kswapd should do
+>the page aging part. If we don't do it this way, heavy VM loads will make
+>each memory intensive task age down other processes pages, so we see
+>ourselves in a "unmapping/faulting" storm. Imagine what happens to
+>interactivity in such a case.
 
-> kmap() ends up calling set_pte(), which is close to what i am
-> already doing.  i'm having a problem on the unmap side when i
-> am done with the temporary mapping.
+Interesting observation.  Something else though, which kswapd is guilty of
+as well: consider a page shared among many processes, eg. part of a
+library.  As kswapd scans, the page is aged down for each process that uses
+it.  So glibc gets aged down many times more quickly than a non-shared
+page, precisely the opposite of what we really want to happen.  With
+exponential-decay aging, and multiple processes doing the aging in this
+manner, highly important things like glibc get muscled out in very short
+order...
 
-kunmap().  :-)  But kmap only works on CONFIG_HIGHMEM kernel builds.
-On kernels built without high memory support, kmap will not allow you
-to access memory beyond the normal physical memory boundary.
+Maybe aging up/down needs to be done on a linear page scan, rather than a
+per-process scan, and reserve the per-process scan for choosing process
+pages to move into the swap arena.
 
-Cheers,
- Stephen
+Another point - when a page is earmarked for swapping out (allocated space,
+moved into the swapcache area, etc) and is then re-referenced before it is
+completely deallocated, it remains in the swapcache and is still allocated
+in the swap region.  This seems backwards to me, and appears to be the
+reason why "cache bloat" is visible on 2.4.5 systems - it isn't really
+cache, but pages which are used by processes yet are still given space they
+don't need, on disk.  It also neatly explains the large swap usage of 2.4
+systems in general.  I fiddled temporarily with attempting to fix this, but
+I couldn't figure out the correct way to deallocate a page from swap and
+move it out of swapcache.
+
+--------------------------------------------------------------
+from:     Jonathan "Chromatix" Morton
+mail:     chromi@cyberspace.org  (not for attachments)
+big-mail: chromatix@penguinpowered.com
+uni-mail: j.d.morton@lancaster.ac.uk
+
+The key to knowledge is not to rely on people to teach you it.
+
+Get VNC Server for Macintosh from http://www.chromatix.uklinux.net/vnc/
+
+-----BEGIN GEEK CODE BLOCK-----
+Version 3.12
+GCS$/E/S dpu(!) s:- a20 C+++ UL++ P L+++ E W+ N- o? K? w--- O-- M++$ V? PS
+PE- Y+ PGP++ t- 5- X- R !tv b++ DI+++ D G e+ h+ r++ y+(*)
+-----END GEEK CODE BLOCK-----
+
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
