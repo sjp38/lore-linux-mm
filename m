@@ -1,85 +1,63 @@
-Date: Tue, 01 Jul 2003 15:06:52 -0700
-From: "Martin J. Bligh" <mbligh@aracnet.com>
+Date: Wed, 2 Jul 2003 05:04:43 +0200
+From: Andrea Arcangeli <andrea@suse.de>
 Subject: Re: What to expect with the 2.6 VM
-Message-ID: <4860000.1057097211@[10.10.2.4]>
-In-Reply-To: <Pine.LNX.4.53.0307012243030.16265@skynet>
-References: <Pine.LNX.4.53.0307010238210.22576@skynet><20030701022516.GL3040@dualathlon.random> <20030701032531.GC20413@holomorphy.com> <Pine.LNX.4.53.0307012243030.16265@skynet>
-MIME-Version: 1.0
+Message-ID: <20030702030443.GW3040@dualathlon.random>
+References: <Pine.LNX.4.53.0307010238210.22576@skynet> <20030701022516.GL3040@dualathlon.random> <20030701032531.GC20413@holomorphy.com> <20030701043902.GP3040@dualathlon.random> <20030701063317.GF20413@holomorphy.com> <20030701074915.GQ3040@dualathlon.random> <20030701085939.GG20413@holomorphy.com> <7950000.1057069435@[10.10.2.4]> <20030701162204.GV29000@holomorphy.com> <437540000.1057082096@flay>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
+In-Reply-To: <437540000.1057082096@flay>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>, William Lee Irwin III <wli@holomorphy.com>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: "Martin J. Bligh" <mbligh@aracnet.com>
+Cc: William Lee Irwin III <wli@holomorphy.com>, Joel.Becker@oracle.com, Mel Gorman <mel@csn.ul.ie>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-> On delayed coalescing, I was seeing things that weren't there. I've this
-> section removed and changed to;
-
-Heh. I was wondering about that ...
- 
-> --Begin Extract--
->    Per-CPU Page Lists
->    ==================
+On Tue, Jul 01, 2003 at 10:54:56AM -0700, Martin J. Bligh wrote:
+> --On Tuesday, July 01, 2003 09:22:04 -0700 William Lee Irwin III <wli@holomorphy.com> wrote:
 > 
->    The most frequent type of allocation or free is an order-0 (i.e. one page)
->    allocation or free. In 2.4, each page allocation or free requires the
->    acquisition of an interrupt safe spinlock to protect the lists of free
->    pages which is an expensive operation. To reduce lock contention, kernel
->    2.6 has per-cpu page lists of order-0 pages called pagesets.
+> > At some point in the past, I wrote:
+> >>> First I ask, "What is this exercising?" That answer is largely process
+> >>> creation and destruction and SMP scheduling latency when there are very
+> >>> rapidly fluctuating imbalances.
+> >>> After observing that, the benchmark is flawed because
+> >>> (a) it doesn't run long enough to produce stable numbers
+> >>> (b) the results are apparently measured with gettimeofday(), which is
+> >>> 	wildly inaccurate for such short-lived phenomena
+> > 
+> > On Tue, Jul 01, 2003 at 07:24:03AM -0700, Martin J. Bligh wrote:
+> >> Bullshit. Use a maximal config file, and run it multiple times. I have
+> >> sub 0.5% variance. 
+> > 
+> > My thought here had more to do with the measurements becoming dominated
+> > by ramp-up and ramp-down and than the thing literally producing unreliable
+> > timings. "Instability" was almost certainly the wrong word.
+> > 
+> > I'm also skeptical of its usefulness for scalability comparisons with a
+> > single-threaded phase like the linking phase and the otherwise large
+> > variations in concurrency. It seems much more like a binary test of
+> > "does it get slower when I add more cpus?" than a measure of scalability.
+> > 
+> > For instance, if you were to devise some throughput measure say per
+> > gigacycle based on this and compare efficiencies on various systems
+> > with it so as to measure scaling factors, what would it be? Would you
+> > feel comfortable using it for scalability comparisons given the
+> > concurrency limitations for a single compile as a benchmark?
 > 
->    These pagesets contain two lists for hot and cold pages where hot pages
->    have been recently used and can still be expected to be present in the CPU
->    cache. For an allocation, the pageset for the running CPU will be first
->    checked and if pages are available, they will be allocated. To determine
->    when the pageset should be emptied or filled, two watermarks are in place.
->    When the low watermark is reached, a batch of pages will be allocated and
->    placed on the list. When the high watermark is reached, a batch of pages
->    will be freed at the same time. Higher order allocations still require the
->    interrupt safe spinlock to be held and there is no delay in the splits or
->    coalescing.
-> 
->    While coalescing of order-0 pages is delayed, this is not a lazy buddy
->    algorithm [BL89]. While pagesets introduce a merging delay for order-0
->    allocations, it is a side-effect rather than an intended feature and there
->    is no method available to drain the pagesets and merge the buddies. In
->    other words, despite the per-cpu and new accounting code bulking up the
->    amount of code in mm/page_alloc.c, the core of the buddy algorithm remains
->    the same as it was in 2.4.
-> 
->    The implication of this change is straight forward; the number of times
->    the spinlock protecting the buddy lists must be acquired is reduced.
->    Higher order allocations are relatively rare in Linux so the optimisation
->    is for the common case. This change will be noticeable on large number of
->    CPU machines but will make little difference to single CPUs. There is some
->    issues with the idea though although they are not considered a serious
->    problem. The first item of note is that high order allocations may fail of
->    many of the pagesets are just below the high watermark. The second is that
->    when memory is low and the current CPU pageset is empty, an allocation may
->    fail as there is no means of draining remote pagesets. The last problem is
->    that buddies of newly freed pages may exist in other pagesets leading to
->    possible fragmentation problems.
+> I'm not convinced it's that limited. I'm getting about 1460% cpu out
+> of 16 processors - that's pretty well parallelized in my mind.
 
+yes, especially considering what William said above.
 
-Looks good. Might be useful to distinguish more carefully between the hot
-and cold lists - what you've described is basically just the cold list.
+But the point here is not to measure scalability in absolute terms, the
+point IMHO is the scalability regression introduced by rmap (w/o
+objrmap).
 
-The hot list is similar, except it's also used as a LIFO stack, so the
-the most recently freed page is assumed to be cache-warm, and is reallocated
-first. This reduces the overall number of cacheline misses in the system,
-by reusing cachelines that are already present in that CPU's cache.
+The fact the kernel workload isn't the most scalable thing on earth,
+simply means other workloads doing the same thing that make+gcc does - but
+never serializing in linking - will be hurted even more.
 
-Moreover, the cold list tries to use pages that are NOT in another CPUs
-cache. The main thing that allocates from the cold list is DMA operations,
-and the main thing that populates it is page-reclaim. Other things are
-generally assumed to be hot (this is one of the areas where more work
-could probably be done ...)
-
-M.
-
-
-M.
+Andrea
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
