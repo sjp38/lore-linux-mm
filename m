@@ -1,45 +1,154 @@
-Date: Tue, 12 Nov 2002 18:53:45 +0000
-From: "Stephen C. Tweedie" <sct@redhat.com>
-Subject: Re: [patch/2.4] ll_rw_blk stomping on bh state [Re: kernel BUG at journal.c:1732! (2.4.19)]
-Message-ID: <20021112185345.H2837@redhat.com>
-References: <20021028111357.78197071.nutts@penguinmail.com> <20021112150711.F2837@redhat.com> <3DD140F1.F4AED387@digeo.com>
+Date: Tue, 12 Nov 2002 20:58:48 +0100
+From: Ingo Oeser <ingo.oeser@informatik.tu-chemnitz.de>
+Subject: get_user_pages rewrite rediffed against 2.5.47-mm1
+Message-ID: <20021112205848.B5263@nightmaster.csn.tu-chemnitz.de>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: multipart/mixed; boundary="wzJLGUyc3ArbnUjN"
 Content-Disposition: inline
-In-Reply-To: <3DD140F1.F4AED387@digeo.com>; from akpm@digeo.com on Tue, Nov 12, 2002 at 09:57:05AM -0800
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@digeo.com>
-Cc: "Stephen C. Tweedie" <sct@redhat.com>, Mark Hazell <nutts@penguinmail.com>, adilger@clusterfs.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+--wzJLGUyc3ArbnUjN
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 
-On Tue, Nov 12, 2002 at 09:57:05AM -0800, Andrew Morton wrote:
-> "Stephen C. Tweedie" wrote:
-> > 
-> >                 if (maxsector < count || maxsector - count < sector) {
-> >                         /* Yecch */
-> >                         bh->b_state &= (1 << BH_Lock) | (1 << BH_Mapped);
-> > ...
-> > Folks, just which buffer flags do we want to preserve in this case?
+Hi Andrew,
 
-> Why do we want to clear any flags in there at all?  To prevent
-> a storm of error messages from a buffer which has a silly block
-> number?
+the get_user_pages rewrite has been rediffed against 2.5.47-mm1
+to make it as painless as possible for you and others reviewing
+and applying it.
 
-That's the only reason I can think of.  Simply scrubbing all the state
-bits is totally the wrong way of going about that, of course.
- 
-> If so, how about setting a new state bit which causes subsequent
-> IO attempts to silently drop the IO on the floor?
+bzip2ed patch attached, because it's 25K uncompressed.
 
-The only problem I could think of there would be weird interactions
-with LVM if somebody lvextends a volume and the buffer suddenly
-becomes valid again.  I can't bring myself to care about breaking that
-situation. :-)
+Regards
 
---Stephen
+Ingo Oeser
+-- 
+Science is what we can tell a computer. Art is everything else. --- D.E.Knuth
+
+--wzJLGUyc3ArbnUjN
+Content-Type: application/octet-stream
+Content-Disposition: attachment; filename="page-walk-api-2.5.47-mm1-simple_locking.patch.bz2"
+Content-Transfer-Encoding: base64
+
+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
+u2B0gA==
+
+--wzJLGUyc3ArbnUjN--
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
