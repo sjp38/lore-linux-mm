@@ -1,78 +1,46 @@
-Received: from flinx.npwt.net (npwt@flinx.npwt.net [208.236.161.237])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id EAA32405
-	for <linux-mm@kvack.org>; Sun, 2 Aug 1998 04:18:03 -0400
-Date: Sun, 2 Aug 1998 00:19:52 -0500 (CDT)
-From: Eric W Biederman <eric@flinx.npwt.net>
-Reply-To: ebiederm+eric@npwt.net
-Subject: Re: More info: 2.1.108 page cache performance on low memory
-In-Reply-To: <199807271102.MAA00713@dax.dcs.ed.ac.uk>
-Message-ID: <Pine.LNX.4.02.9808020002110.424-100000@iddi.npwt.net>
+Received: from max.phys.uu.nl (max.phys.uu.nl [131.211.32.73])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id RAA08011
+	for <linux-mm@kvack.org>; Mon, 3 Aug 1998 17:31:24 -0400
+Date: Mon, 3 Aug 1998 19:16:14 +0200 (CEST)
+From: Rik van Riel <H.H.vanRiel@phys.uu.nl>
+Reply-To: Rik van Riel <H.H.vanRiel@phys.uu.nl>
+Subject: Re: S3trio framebuffer on Intel?
+In-Reply-To: <Pine.LNX.3.96.980803072540.18271D-100000@flashy.is.co.za>
+Message-ID: <Pine.LNX.3.96.980803190939.3185A-100000@mirkwood.dummy.home>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: "Stephen C. Tweedie" <sct@redhat.com>
-Cc: Zlatko Calusic <Zlatko.Calusic@CARNet.hr>, linux-mm@kvack.org
+To: Craig Schlenter <craig@is.co.za>
+Cc: "Jon M. Taylor" <taylorj@ecs.csus.edu>, Linux MM <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-
-
-On Mon, 27 Jul 1998, Stephen C. Tweedie wrote:
-
-> Hi,
+On Mon, 3 Aug 1998, Craig Schlenter wrote:
+> On Sun, 2 Aug 1998, Rik van Riel wrote:
 > 
-> On Sun, 26 Jul 1998 09:49:02 -0500 (CDT), Eric W Biederman
-> <eric@flinx.npwt.net> said:
+> > It sure would be cool to have native S3trio support
+> > from the kernel :)
 > 
-> > From where I sit it looks completly possible to give the buffer cache a
-> > fake inode, and have it use the same mechanisms that I have developed for
-> > handling other dirty data in the page cache.  It should also be possible
-> > in this effort to simplify the buffer_head structure as well.
-> 
-> > As time permits I'll move in that direction.
-> 
-> You'd still have to persuade people that it's a good idea.  I'm not
-> convinced.
-> 
-> The reason for having things in the page cache is for fast lookup.
-> For this to make sense for the buffer cache, you'd have to align the
-> buffer cache on page boundaries, but buffers on disk are not naturally
-> aligned this way.  You'd end up wasting a lot of space as perhaps only
-> a few of the buffers in any page were useful, and you'd also have to
-> keep track of which buffers within the page were valid/dirty.
-> 
+> Agreed. I asked this a week or two back. It seems as if the s3 stuff in
+> the kernel is ppc specific (but maybe someone can tune it a little) and
 
-That wasn't actually how I was envisioning it.  Though it is a possibility
-I have kicked around.  For direct device I/O and mmaping of devices it is
-exactly how we should do it.  
+According to Geert, the S3triofb driver needs the video
+mode setup to by some other code;
+According to Jon, the KGI S3 driver works without prior
+setup stuff.
 
-What I was envisioning is using a single write-out daemon 
-instead of 2 (one for buffer cache, one for page cache).  Using the same
-tests in shrink_mmap.  Reducing the size of a buffer_head by a lot because
-consolidating the two would reduce the number of lists needed.  
-To sit the buffer cache upon a single pseudo inode, and keep it's current
-hashing scheme.
+Maybe the KGI S3 setup code could be ported into the
+S3triofb driver?    [preferably by someone with both
+intimate knowledge of the video code and free time]
 
-In general allowing the management to be consolidated between the two, but
-nothing more.
+After that, the S3trio driver might still need some
+endianness porting, but possibly that's just a minor
+nuisance instead of real trouble.
 
-At this point it is not a major point, but the buffer cache is
-quite likely to shrink into something barely noticeable, assuming
-regular files will write buffer themselves in the page cache preventing
-double buffering.
-
-When the buffer cache becomes a shrunken appendage then we will know what
-we really need it for, and how much a performance hit we will take, and
-we can worry about it then.
-
-> We *need* a mechanism which is block-aligned, not page-aligned.  The
-> buffer cache is a good way of doing it.  Forcing block device caching
-> into a page-aligned cache is not necessarily going to simplify things.
-
-The page-aligned property is only a matter of the inode,offset hash
-table, and virtually nothing else really cares.  Shrink_mmap, or
-pgflush, the most universall parts of the page cache do not.
-
-Eric
+Rik.
++-------------------------------------------------------------------+
+| Linux memory management tour guide.        H.H.vanRiel@phys.uu.nl |
+| Scouting Vries cubscout leader.      http://www.phys.uu.nl/~riel/ |
++-------------------------------------------------------------------+
 
 
 --
