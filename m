@@ -1,41 +1,47 @@
-Date: Thu, 5 Feb 2004 10:26:14 -0800
-From: Greg KH <greg@kroah.com>
+Date: Thu, 5 Feb 2004 13:29:28 -0500
+From: Ben Collins <bcollins@debian.org>
 Subject: Re: 2.6.2-mm1 aka "Geriatric Wombat"
-Message-ID: <20040205182614.GG13075@kroah.com>
-References: <fa.h1qu7q8.n6mopi@ifi.uio.no> <402240F9.3050607@gadsdon.giointernet.co.uk>
+Message-ID: <20040205182928.GA1042@phunnypharm.org>
+References: <fa.h1qu7q8.n6mopi@ifi.uio.no> <402240F9.3050607@gadsdon.giointernet.co.uk> <20040205182614.GG13075@kroah.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <402240F9.3050607@gadsdon.giointernet.co.uk>
+In-Reply-To: <20040205182614.GG13075@kroah.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Robert Gadsdon <robert@gadsdon.giointernet.co.uk>, bcollins@debian.org
-Cc: Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Greg KH <greg@kroah.com>
+Cc: Robert Gadsdon <robert@gadsdon.giointernet.co.uk>, Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Feb 05, 2004 at 01:11:21PM +0000, Robert Gadsdon wrote:
-> 2.6.2-mm1 tombstone "Badness in kobject_get....." when booting:
+On Thu, Feb 05, 2004 at 10:26:14AM -0800, Greg KH wrote:
+> On Thu, Feb 05, 2004 at 01:11:21PM +0000, Robert Gadsdon wrote:
+> > 2.6.2-mm1 tombstone "Badness in kobject_get....." when booting:
+> 
+> Oooh, not nice.  That means a kobject is being used before it has been
+> initialized.  Glad to see that check finally helps out...
+> 
+> > ieee1394: Host added: ID:BUS[0-00:1023]  GUID[090050c50000046f]
+> > Badness in kobject_get at lib/kobject.c:431
+> > Call Trace:
+> >  [<c0239966>] kobject_get+0x36/0x40
+> >  [<c027cc73>] get_device+0x13/0x20
+> >  [<c027d899>] bus_for_each_dev+0x59/0xc0
+> >  [<d0939355>] nodemgr_node_probe+0x55/0x120 [ieee1394]
+> >  [<d0939200>] nodemgr_probe_ne_cb+0x0/0x90 [ieee1394]
+> >  [<d0939748>] nodemgr_host_thread+0x168/0x190 [ieee1394]
+> >  [<d09395e0>] nodemgr_host_thread+0x0/0x190 [ieee1394]
+> >  [<c010ac15>] kernel_thread_helper+0x5/0x10
+> 
+> Looks like one of the ieee1394 patches causes this.  Ben?
 
-Oooh, not nice.  That means a kobject is being used before it has been
-initialized.  Glad to see that check finally helps out...
+Andrew, does 2.6.2-mm1 have that big ieee1394 patch, or is this the same
+as stock 2.6.2?
 
-> ieee1394: Host added: ID:BUS[0-00:1023]  GUID[090050c50000046f]
-> Badness in kobject_get at lib/kobject.c:431
-> Call Trace:
->  [<c0239966>] kobject_get+0x36/0x40
->  [<c027cc73>] get_device+0x13/0x20
->  [<c027d899>] bus_for_each_dev+0x59/0xc0
->  [<d0939355>] nodemgr_node_probe+0x55/0x120 [ieee1394]
->  [<d0939200>] nodemgr_probe_ne_cb+0x0/0x90 [ieee1394]
->  [<d0939748>] nodemgr_host_thread+0x168/0x190 [ieee1394]
->  [<d09395e0>] nodemgr_host_thread+0x0/0x190 [ieee1394]
->  [<c010ac15>] kernel_thread_helper+0x5/0x10
-
-Looks like one of the ieee1394 patches causes this.  Ben?
-
-thanks,
-
-greg k-h
+-- 
+Debian     - http://www.debian.org/
+Linux 1394 - http://www.linux1394.org/
+Subversion - http://subversion.tigris.org/
+WatchGuard - http://www.watchguard.com/
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
