@@ -1,35 +1,41 @@
-From: "Shen Haiying" <shen_haiying@hotmail.com>
-Subject: thanks
-Date: Tue, 26 Feb 2002 10:18:27 +0800
+Date: Mon, 25 Feb 2002 18:46:12 -0800
+From: William Lee Irwin III <wli@holomorphy.com>
+Subject: Re: [PATCH] struct page shrinkage
+Message-ID: <20020226024612.GO3511@holomorphy.com>
+References: <Pine.LNX.4.33L.0202252245460.7820-100000@imladris.surriel.com> <3C7AF011.8B6ECCF0@zip.com.au>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=gb2312; format=flowed
-Message-ID: <F193xCZPs6AvbEPDjQh0000c5bd@hotmail.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Description: brief message
+Content-Disposition: inline
+In-Reply-To: <3C7AF011.8B6ECCF0@zip.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org, raz@mailhost.directlink.net, owner-linux-mm@kvack.org, kanoj@google.engr.sgi.com
+To: Andrew Morton <akpm@zip.com.au>
+Cc: Rik van Riel <riel@conectiva.com.br>, "Marcelo W. Tosatti" <marcelo@conectiva.com.br>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Dear Sir/Madam:
+Rik van Riel wrote:
+>> 
+>> +               clear_bit(PG_locked, &p->flags);
 
-I am a student of Wayne State university. I take the course of "advanced 
-operating system" this semester. In order to finish my assignment, I need 
-to know the source code of "shmget, shmat, shmdt, shmctl" in linux. I 
-searched them on the internet in this whole afternoon and night, but I 
-could not find it. Now, I am very depressed. I think this is my last hope 
-to ask you for help. Could you please send me the Linux OS source code 
-about the "shmget, shmat, shmdt, shmctl"? 
+On Mon, Feb 25, 2002 at 06:16:49PM -0800, Andrew Morton wrote:
+> Please don't do this.  Please use the macros.  If they're not
+> there, please create them.
+> 
+> Bypassing the abstractions in this manner confounds people
+> who are implementing global locked-page accounting.
+> 
+> In fact, I think I'll go rename all the page flags...
 
-Your help will be greatly appreciated!!!
+This is lingering context from the driver... it's ugly, I didn't
+go after cleaning that up when I had to touch this function because
+of the usual minimal-impact / only do one thing principle.
 
-Best wishes for you!
+Perhaps others were similarly (un)motivated.
 
-Sincerely yours,
-Haiying Shen
 
-_________________________________________________________________
-IiOAEA 1/2 cEIxi'ouA Web ucxOOE 1/4 thIuI3 !a!a MSN Hotmail!GBP
-http://www.hotmail.com/cn
-
+Cheers,
+Bill
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
