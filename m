@@ -1,44 +1,28 @@
+Date: Mon, 15 Sep 2003 13:59:28 -0300
+From: Arnaldo Carvalho de Melo <acme@conectiva.com.br>
 Subject: Re: 2.6.0-test5-mm2
-From: Luiz Capitulino <lcapitulino@prefeitura.sp.gov.br>
-In-Reply-To: <20030914234843.20cea5b3.akpm@osdl.org>
-References: <20030914234843.20cea5b3.akpm@osdl.org>
-Content-Type: text/plain; charset=ISO-8859-1
-Message-Id: <1063636490.5588.10.camel@lorien>
+Message-ID: <20030915165928.GC1142@conectiva.com.br>
+References: <20030914234843.20cea5b3.akpm@osdl.org> <1063636490.5588.10.camel@lorien>
 Mime-Version: 1.0
-Date: Mon, 15 Sep 2003 11:34:51 -0300
-Content-Transfer-Encoding: 8BIT
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1063636490.5588.10.camel@lorien>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, rusty@rustcorp.com.au
+To: Luiz Capitulino <lcapitulino@prefeitura.sp.gov.br>
+Cc: Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, rusty@rustcorp.com.au
 List-ID: <linux-mm.kvack.org>
 
-Em Seg, 2003-09-15 as 03:48, Andrew Morton escreveu:
-> ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.6/2.6.0-test5/2.6.0-test5-mm2/
+Em Mon, Sep 15, 2003 at 11:34:51AM -0300, Luiz Capitulino escreveu:
+> #ifdef CONFIG_NETFILTER_DEBUG
+>         nf_debug_ip_local_deliver(skb);
+>         skb->nf_debug =3D 0;
+                         ^^
 
-net/ipv4/ip_input.c: In function `ip_local_deliver_finish':
-net/ipv4/ip_input.c:204: invalid suffix on integer constant
-net/ipv4/ip_input.c:204: syntax error before numeric constant
-make[2]: ** [net/ipv4/ip_input.o] Error 1
-make[1]: ** [net/ipv4] Error 2
-make: ** [net] Error 2
+Fixed in DaveM's tree, this kind of messages should be posted to the netfilter
+and/or netdev mailing lists.
 
- this happens when CONFIG_NETFILTER_DEBUG is set. The line with
-the problem are here:
-
-#ifdef CONFIG_NETFILTER_DEBUG
-        nf_debug_ip_local_deliver(skb);
-        skb->nf_debug =3D 0;
-#endif /*CONFIG_NETFILTER_DEBUG*/
-
- in the skb->nf_debug.
-
--- 
-Luiz Fernando N. Capitulino
-
-<lcapitulino@prefeitura.sp.gov.br>
-<http://www.telecentros.sp.gov.br>
-
+- Arnaldo
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
