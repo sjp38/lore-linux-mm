@@ -1,76 +1,59 @@
-Received: from northrelay02.pok.ibm.com (northrelay02.pok.ibm.com [9.117.200.22])
-	by e3.ny.us.ibm.com (8.9.3/8.9.3) with ESMTP id LAA18236
-	for <linux-mm@kvack.org>; Thu, 22 Jun 2000 11:46:58 -0400
-From: frankeh@us.ibm.com
-Received: from D51MTA03.pok.ibm.com (d51mta03.pok.ibm.com [9.117.200.31])
-	by northrelay02.pok.ibm.com (8.8.8m3/NCO v4.9) with SMTP id LAA219374
-	for <linux-mm@kvack.org>; Thu, 22 Jun 2000 11:48:49 -0400
-Message-ID: <85256906.0056DB76.00@D51MTA03.pok.ibm.com>
-Date: Thu, 22 Jun 2000 11:49:51 -0400
+Date: Thu, 22 Jun 2000 13:05:06 -0300 (BRST)
+From: Rik van Riel <riel@conectiva.com.br>
 Subject: Re: [RFC] RSS guarantees and limits
-Mime-Version: 1.0
-Content-type: text/plain; charset=us-ascii
-Content-Disposition: inline
+In-Reply-To: <85256906.0056DB76.00@D51MTA03.pok.ibm.com>
+Message-ID: <Pine.LNX.4.21.0006221252420.10785-100000@duckman.distro.conectiva>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: frankeh@us.ibm.com
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-
-I assume that in the <workstation> scenario, where there are limited number
-of processes, your approach will work just fine.
-
-In a server scenario where you might have lots of processes (with limited
-resource requirements) this might have different effects
-This inevidably will happen when we move Linux to NUMA or large scale SMP
-systems and we apply images like that to webhosting.
-
-Do you think that the resulting RSS guarantees (function of
-<mem_size/2*process_count>) will  be sufficient ? Or is your assumption,
-that for this kind of server apps with lots of running processes, you
-better don't overextent your memory and start paging (acceptable
-assumption)..
-
-
-
--- Hubertus
-
-
-Rik van Riel <riel@conectiva.com.br> on 06/22/2000 12:01:18 PM
-
-To:   Hubertus Franke/Watson/IBM@IBMUS
-cc:   linux-mm@kvack.org
-Subject:  Re: [RFC] RSS guarantees and limits
-
-
 
 On Thu, 22 Jun 2000 frankeh@us.ibm.com wrote:
 
-> Seems like a good idea, for ensuring some decent response time.
-> This seems similar to what WinNT is doing.
+> I assume that in the <workstation> scenario, where there are
+> limited number of processes, your approach will work just fine.
+> 
+> In a server scenario where you might have lots of processes
+> (with limited resource requirements) this might have different
+> effects This inevidably will happen when we move Linux to NUMA
+> or large scale SMP systems and we apply images like that to
+> webhosting.
 
-There's a big difference here. I plan on making the RSS limit system
-such that most applications should be somewhere between their limit
-and their guarantee when the system is under "normal" levels of
-memory pressure.
+This is exactly why I want to have the RSS guarantees and
+limits auto-tune themselves, depending on the ratio between
+re-faults (where we have stolen a page from the working set
+of a process) and page steals (these pages were not from the
+working set).
 
-That is, I want to keep global page replacement the primary page
-replacement strategy and only use the RSS guarantees and limits to
-guide global page replacement and limit the system from impact by
-memory hogs.
+If we steal a lot of pages from a process and the process
+doesn't take these same pages back, we should continue stealing
+from that process since obviously it isn't using all its pages.
+(or it only uses the pages once)
 
-> Do you envision that the "RSS guarantees" decay over time. I am
-> concerned that some daemons hanging out there and which might be
-> executed very rarely (e.g. inetd) might hug to much memory
-> (cummulatively speaking).  I think NT at some point pages the
-> entire working set for such apps.
+Also, stolen pages will stay around in memory, outside of the
+working set of the process, but in one of the various caches.
+If they are faulted back very quickly no disk IO is needed at
+all ... and faulting them back quickly is an indication that
+we're stealing too many pages from the process.
 
-This is what I want to avoid. Of course if a task is really
-sleeping it should of course be completely removed from
-memory, but a _periodic_ task like top or atd may as well be
-protected a bit if memory pressure is low enough.
+> Do you think that the resulting RSS guarantees (function of
+> <mem_size/2*process_count>) will be sufficient ?
 
-I know I will have to adjust my rough draft quite a bit to
-achieve the wanted effects...
+The RSS guarantee is just that, a guarantee. We guarantee that
+the RSS of the process will not be shrunk below its guarantee,
+but that doesn't stop any process from having a larger RSS (up
+to its RSS limit).
+
+> Or is your assumption, that for this kind of server apps with
+> lots of running processes, you better don't overextent your
+> memory and start paging (acceptable assumption)..
+
+If we recycle memory pages _before_ the application can re-fault
+them in from the page/swap cache, it won't be able to make the
+re-fault and its RSS guarantee and limit will be shrunk...
 
 regards,
 
@@ -80,10 +63,7 @@ The Internet is not a network of computers. It is a network
 of people. That is its real strength.
 
 Wanna talk about the kernel?  irc.openprojects.net / #kernelnewbies
-http://www.conectiva.com/          http://www.surriel.com/
-
-
-
+http://www.conectiva.com/		http://www.surriel.com/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
