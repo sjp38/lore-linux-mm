@@ -1,205 +1,35 @@
-Received: from burns.conectiva (burns.conectiva [10.0.0.4])
-	by perninha.conectiva.com.br (Postfix) with SMTP id 76B0B3B7A5
-	for <linux-mm@kvack.org>; Wed, 10 Oct 2001 17:25:36 -0300 (EST)
-Date: Wed, 10 Oct 2001 17:25:30 -0300 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
-Subject: [CFT][PATCH] smoother VM for -ac
-Message-ID: <Pine.LNX.4.33L.0110101710150.26495-100000@duckman.distro.conectiva>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Wed, 10 Oct 2001 16:48:23 -0400
+From: Benjamin LaHaise <bcrl@redhat.com>
+Subject: Re: [CFT][PATCH] smoother VM for -ac
+Message-ID: <20011010164823.A17860@redhat.com>
+References: <Pine.LNX.4.33L.0110101710150.26495-100000@duckman.distro.conectiva>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.33L.0110101710150.26495-100000@duckman.distro.conectiva>; from riel@conectiva.com.br on Wed, Oct 10, 2001 at 05:25:30PM -0300
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: kernelnewbies@nl.linux.org
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Alan Cox <alan@lxorguk.ukuu.org.uk>
+To: Rik van Riel <riel@conectiva.com.br>
+Cc: kernelnewbies@nl.linux.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Alan Cox <alan@lxorguk.ukuu.org.uk>
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+On Wed, Oct 10, 2001 at 05:25:30PM -0300, Rik van Riel wrote:
+> 4) in page_alloc.c, the "slowdown" reschedule has been
+>    made stronger by turning it into a try_to_free_pages(),
+>    under memory load, this results in allocators calling
+>    try_to_free_pages() when the amount of work to be done
+>    isn't too bad yet and pretty much guarantees them they'll
+>    get to do their allocation immediately afterwards ...
+>    statistics make sure that the memory hogs are slowed down
+>    much more than well-behaved programs
 
-over the last week I've created a small patch which seems
-to drastically improve VM performance and interactivity for
-2.4.10-ac{9,10}. Initial test results mostly seem to suggest
-that the system runs lots smoother for desktop use and doesn't
-get into thrashing until the working set _really_ exceeds the
-size of RAM.
+There's a small problem with this one: I know that during testing of 
+earlier 2.4 kernels we saw a livelock which was caused by the vm 
+subsystem spinning without scheduling.  This can happen in a couple of 
+cases like NFS where another task has to be allowed to run in order to 
+make progress in clearing pages.
 
-People have already asked to have this patch integrated into
-the -ac kernel, but it would be nice to have a few more test
-results from this combined eatcache + stophog patch before
-having it integrated ...
-
-The patch implements the following things:
-1) bypass page aging entirely for unused objects in
-   the cache
-2) increase the distance between inactive_shortage
-   and inactive_plenty, so kswapd should spend less
-   time shuffling random pages around  ...  shouldn't
-   make a difference for most loads, but should add
-   some robustness in worst cases
-3) does page aging _before_ the zone_inactive_plenty()
-   test, so old referenced bits get cleared
-   [not a big cpu eater, since the code won't run unless
-   we have a free or inactive shortage somewhere]
-4) in page_alloc.c, the "slowdown" reschedule has been
-   made stronger by turning it into a try_to_free_pages(),
-   under memory load, this results in allocators calling
-   try_to_free_pages() when the amount of work to be done
-   isn't too bad yet and pretty much guarantees them they'll
-   get to do their allocation immediately afterwards ...
-   statistics make sure that the memory hogs are slowed down
-   much more than well-behaved programs
-
-
-Please test this patch and tell Alan and me how it works for
-you and whether there are loads where the system performs
-worse with this patch than without...
-
-regards,
-
-Rik
--- 
-DMCA, SSSCA, W3C?  Who cares?  http://thefreeworld.net/  (volunteers needed)
-
-http://www.surriel.com/		http://distro.conectiva.com/
-
-
-
---- linux-2.4.10-ac10/mm/page_alloc.c.orig	Mon Oct  8 18:22:51 2001
-+++ linux-2.4.10-ac10/mm/page_alloc.c	Wed Oct 10 14:08:54 2001
-@@ -346,22 +346,15 @@
- 	 * We wake up kswapd, in the hope that kswapd will
- 	 * resolve this situation before memory gets tight.
- 	 *
--	 * We also yield the CPU, because that:
--	 * - gives kswapd a chance to do something
--	 * - slows down allocations, in particular the
--	 *   allocations from the fast allocator that's
--	 *   causing the problems ...
--	 * - ... which minimises the impact the "bad guys"
--	 *   have on the rest of the system
--	 * - if we don't have __GFP_IO set, kswapd may be
--	 *   able to free some memory we can't free ourselves
-+	 * We'll also help a bit trying to free pages, this
-+	 * way statistics will make sure really fast allocators
-+	 * are slowed down more than slow allocators and other
-+	 * programs in the system shouldn't be impacted as much
-+	 * by the hogs.
- 	 */
- 	wakeup_kswapd();
--	if (gfp_mask & __GFP_WAIT) {
--		__set_current_state(TASK_RUNNING);
--		current->policy |= SCHED_YIELD;
--		schedule();
--	}
-+	if (gfp_mask & __GFP_WAIT)
-+		try_to_free_pages(gfp_mask);
-
- 	/*
- 	 * After waking up kswapd, we try to allocate a page
---- linux-2.4.10-ac10/mm/vmscan.c.orig	Mon Oct  8 18:22:51 2001
-+++ linux-2.4.10-ac10/mm/vmscan.c	Mon Oct  8 19:18:12 2001
-@@ -50,7 +50,7 @@
- 	inactive += zone->inactive_clean_pages;
- 	inactive += zone->free_pages;
-
--	return (inactive > (zone->size / 3));
-+	return (inactive > (zone->size * 2 / 5));
- }
-
- #define FREE_PLENTY_FACTOR 2
-@@ -97,6 +97,24 @@
- 	return pagecache > limit;
- }
-
-+static inline int page_mapping_notused(struct page * page)
-+{
-+	struct address_space * mapping = page->mapping;
-+
-+	if (!mapping)
-+		return 0;
-+
-+	/* This mapping is really large and would monopolise the pagecache. */
-+	if (mapping->nrpages > atomic_read(&page_cache_size) / 20);
-+		return 0;
-+
-+	/* File is mmaped by somebody */
-+	if (mapping->i_mmap || mapping->i_mmap_shared)
-+		return 1;
-+
-+	return 0;
-+}
-+
- /*
-  * The swap-out function returns 1 if it successfully
-  * scanned all the pages it was asked to (`count').
-@@ -826,14 +844,14 @@
- 		}
-
- 		/*
--		 * Don't deactivate pages from zones which have
--		 * plenty inactive pages.
-+		 * Do aging on the pages.  Every time a page is referenced,
-+		 * page->age gets incremented.  If it wasn't referenced, we
-+		 * decrement page->age.  The page gets moved to the inactive
-+		 * list when one of the following is true:
-+		 * - the page age reaches 0
-+		 * - the object the page belongs to isn't in active use
-+		 * - the object the page belongs to is hogging the cache
- 		 */
--		if (zone_inactive_plenty(page->zone)) {
--			goto skip_page;
--		}
--
--		/* Do aging on the pages. */
- 		if (PageTestandClearReferenced(page)) {
- 			age_page_up(page);
- 		} else {
-@@ -843,20 +861,26 @@
- 		}
-
- 		/*
--		 * If the amount of buffer cache pages is too
--		 * high we just move every buffer cache page we
--		 * find to the inactive list. Eventually they'll
--		 * be reclaimed there...
-+		 * Don't deactivate pages from zones which have
-+		 * plenty inactive pages.
-+		 */
-+		if (zone_inactive_plenty(page->zone)) {
-+			goto skip_page;
-+		}
-+
-+		/*
-+		 * If the buffer cache is large, don't do page aging.
-+		 * If this page really is used, it'll be referenced
-+		 * again while on the inactive list.
- 		 */
- 		if (page->buffers && !page->mapping && too_many_buffers())
- 			deactivate_page_nolock(page);
-
- 		/*
--		 * If the page cache is too large, we deactivate all
--		 * page cache pages which are not in use by a process.
-+		 * Deactivate pages from files which aren't in use, busy
-+		 * pages will be referenced while on the inactive list.
- 		 */
--		if (pagecache_too_large() && page->mapping &&
--				page_count(page) <= (page->buffers ? 2 : 1))
-+		if (page_mapping_notused(page))
- 			deactivate_page_nolock(page);
-
- 		/*
---- linux-2.4.10-ac10/include/linux/swap.h.orig	Mon Oct  8 18:23:03 2001
-+++ linux-2.4.10-ac10/include/linux/swap.h	Mon Oct  8 19:15:09 2001
-@@ -261,7 +261,7 @@
- 	if (vm_static_inactive_target)
- 		return vm_static_inactive_target;
-
--	return num_physpages / 4;
-+	return num_physpages / 5;
- }
-
- /*
-
+		-ben
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
