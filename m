@@ -1,64 +1,73 @@
-Subject: Re: [PATCH] Add freezer call in
-From: Nigel Cunningham <ncunningham@cyclades.com>
-Reply-To: ncunningham@cyclades.com
-In-Reply-To: <20050315233740.GE21292@elf.ucw.cz>
-References: <1110925280.6454.143.camel@desktop.cunningham.myip.net.au>
-	 <20050315233740.GE21292@elf.ucw.cz>
-Content-Type: text/plain
-Message-Id: <1110935361.6454.197.camel@desktop.cunningham.myip.net.au>
-Mime-Version: 1.0
-Date: Wed, 16 Mar 2005 12:09:21 +1100
-Content-Transfer-Encoding: 7bit
+Received: from smtp3.akamai.com (vwall2.sanmateo.corp.akamai.com [172.23.1.72])
+	by smtp3.akamai.com (8.12.10/8.12.10) with ESMTP id j2G1T46O007978
+	for <linux-mm@kvack.org>; Tue, 15 Mar 2005 17:29:04 -0800 (PST)
+From: pmeda@akamai.com
+Date: Tue, 15 Mar 2005 17:37:57 -0800
+Message-Id: <200503160137.RAA19604@allur.sanmateo.akamai.com>
+Subject: [PATCH] pipe: save one pipe page
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Pavel Machek <pavel@ucw.cz>
-Cc: Andrew Morton <akpm@digeo.com>, Linux Memory Management <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: akpm@osdl.org
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi.
+Save one page in pipe writev without incuring additional
+cost(just that ampersand operator).
 
-On Wed, 2005-03-16 at 10:37, Pavel Machek wrote:
-> Hi!
-> 
-> > This patch adds a freezer call to the slow path in __alloc_pages. It
-> > thus avoids freezing failures in low memory situations. Like the other
-> > patches, it has been in Suspend2 for longer than I can remember.
-> 
-> This one seems wrong.
-> 
-> What if someone does
-> 
-> 	down(&some_lock_needed_during_suspend);
-> 	kmalloc()
-> 
-> ? If you freeze him during that allocation, you'll deadlock later...
+Signed-off-by: Prasanna Meda <pmeda@akamai.com>
 
-I suppose you're right. I'll see if I can look into this situation some
-more. (Longer todo!).
-
-Nigel
-
-> > Signed-of-by: Nigel Cunningham <ncunningham@cyclades.com>
-> > 
-> > diff -ruNp 213-missing-refrigerator-calls-old/mm/page_alloc.c 213-missing-refrigerator-calls-new/mm/page_alloc.c
-> > --- 213-missing-refrigerator-calls-old/mm/page_alloc.c	2005-02-03 22:33:50.000000000 +1100
-> > +++ 213-missing-refrigerator-calls-new/mm/page_alloc.c	2005-03-16 09:01:28.000000000 +1100
-> > @@ -838,6 +838,7 @@ rebalance:
-> >  			do_retry = 1;
-> >  	}
-> >  	if (do_retry) {
-> > +		try_to_freeze(0);
-> >  		blk_congestion_wait(WRITE, HZ/50);
-> >  		goto rebalance;
-> >  	}
--- 
-Nigel Cunningham
-Software Engineer, Canberra, Australia
-http://www.cyclades.com
-Bus: +61 (2) 6291 9554; Hme: +61 (2) 6292 8028;  Mob: +61 (417) 100 574
-
-Maintainer of Suspend2 Kernel Patches http://suspend2.net
-
+--- a/fs/pipe.c Sun Mar 13 11:01:45 2005
++++ b/fs/pipe.c	Sun Mar 13 11:55:00 2005
+@@ -224,6 +224,7 @@
+ 	int do_wakeup;
+ 	struct iovec *iov = (struct iovec *)_iov;
+ 	size_t total_len;
++	ssize_t chars;
+ 
+ 	total_len = iov_length(iov, nr_segs);
+ 	/* Null write succeeds. */
+@@ -242,24 +243,26 @@
+ 	}
+ 
+ 	/* We try to merge small writes */
+-	if (info->nrbufs && total_len < PAGE_SIZE) {
++	chars = total_len & (PAGE_SIZE-1); /* size of the last buffer */
++	if (info->nrbufs && chars != 0) {
+ 		int lastbuf = (info->curbuf + info->nrbufs - 1) & (PIPE_BUFFERS-1);
+ 		struct pipe_buffer *buf = info->bufs + lastbuf;
+ 		struct pipe_buf_operations *ops = buf->ops;
+ 		int offset = buf->offset + buf->len;
+-		if (ops->can_merge && offset + total_len <= PAGE_SIZE) {
++		if (ops->can_merge && offset + chars <= PAGE_SIZE) {
+ 			void *addr = ops->map(filp, info, buf);
+-			int error = pipe_iov_copy_from_user(offset + addr, iov, total_len);
++			int error = pipe_iov_copy_from_user(offset + addr, iov, chars);
+ 			ops->unmap(info, buf);
+ 			ret = error;
+ 			do_wakeup = 1;
+ 			if (error)
+ 				goto out;
+-			buf->len += total_len;
+-			ret = total_len;
+-			goto out;
++			buf->len += chars;
++			total_len -= chars;
++			ret = chars;
++			if (!total_len)
++				goto out;
+ 		}
+-			
+ 	}
+ 
+ 	for (;;) {
+@@ -271,7 +274,6 @@
+ 		}
+ 		bufs = info->nrbufs;
+ 		if (bufs < PIPE_BUFFERS) {
+-			ssize_t chars;
+ 			int newbuf = (info->curbuf + bufs) & (PIPE_BUFFERS-1);
+ 			struct pipe_buffer *buf = info->bufs + newbuf;
+ 			struct page *page = info->tmp_page;
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
