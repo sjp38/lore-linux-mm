@@ -1,39 +1,62 @@
-Date: 25 Jan 2005 15:49:32 +0100
-Date: Tue, 25 Jan 2005 15:49:32 +0100
+Date: 25 Jan 2005 15:56:02 +0100
+Date: Tue, 25 Jan 2005 15:56:02 +0100
 From: Andi Kleen <ak@muc.de>
 Subject: Re: [PATCH] Avoiding fragmentation through different allocator
-Message-ID: <20050125144932.GA75109@muc.de>
-References: <0E3FA95632D6D047BA649F95DAB60E5705A70E61@exa-atlanta> <41F65514.3040707@xfs.org> <20050125142757.GA20442@infradead.org>
+Message-ID: <20050125145602.GB75109@muc.de>
+References: <0E3FA95632D6D047BA649F95DAB60E5705A70E61@exa-atlanta>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20050125142757.GA20442@infradead.org>
+In-Reply-To: <0E3FA95632D6D047BA649F95DAB60E5705A70E61@exa-atlanta>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Hellwig <hch@infradead.org>, Steve Lord <lord@xfs.org>, "Mukker, Atul" <Atulm@lsil.com>, 'Marcelo Tosatti' <marcelo.tosatti@cyclades.com>, 'Mel Gorman' <mel@csn.ul.ie>, 'William Lee Irwin III' <wli@holomorphy.com>, 'Linux Memory Management List' <linux-mm@kvack.org>, 'Linux Kernel' <linux-kernel@vger.kernel.org>, 'Grant Grundler' <grundler@parisc-linux.org>
+To: "Mukker, Atul" <Atulm@lsil.com>
+Cc: 'Steve Lord' <lord@xfs.org>, 'Marcelo Tosatti' <marcelo.tosatti@cyclades.com>, 'Mel Gorman' <mel@csn.ul.ie>, 'William Lee Irwin III' <wli@holomorphy.com>, 'Linux Memory Management List' <linux-mm@kvack.org>, 'Linux Kernel' <linux-kernel@vger.kernel.org>, 'Grant Grundler' <grundler@parisc-linux.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jan 25, 2005 at 02:27:57PM +0000, Christoph Hellwig wrote:
-> > It is not the driver per se, but the way the memory which is the I/O
-> > source/target is presented to the driver. In linux there is a good
-> > chance it will have to use more scatter gather elements to represent
-> > the same amount of data.
+On Tue, Jan 25, 2005 at 09:02:34AM -0500, Mukker, Atul wrote:
+>  
+> > e.g. performance on megaraid controllers (very popular 
+> > because a big PC vendor ships them) was always quite bad on 
+> > Linux. Up to the point that specific IO workloads run half as 
+> > fast on a megaraid compared to other controllers. I heard 
+> > they do work better on Windows.
+> > 
+> <snip>
+> > Ideally the Linux IO patterns would look similar to the 
+> > Windows IO patterns, then we could reuse all the 
+> > optimizations the controller vendors did for Windows :)
 > 
-> Note that a change made a few month ago after seeing issues with
-> aacraid means it's much more likely to see contingous memory,
-> there were some numbers on linux-scsi and/or linux-kernel.
+> LSI would leave no stone unturned to make the performance better for
+> megaraid controllers under Linux. If you have some hard data in relation to
+> comparison of performance for adapters from other vendors, please share with
+> us. We would definitely strive to better it.
 
-But only at the beginning. iirc after a few days of uptime 
-and memory fragmentation it degenerates back to the old numbers.
+Sorry for being vague on this. I don't have much hard data on this,
+just telling an annecdote. The issue we saw was over a year ago
+and on a machine running an IO intensive multi process stress test
+(I believe it was an AIM7 variant with some tweaked workfile). When the test
+was moved to a machine with megaraid controller it ran significantly
+lower, compared to the old setup with a non RAID SCSI controller from
+a different vendor. I unfortunately don't know anymore the exact
+type/firmware revision etc. of the megaraid that showed the problem.
 
-Perhaps the recent anti defragmentation work will help more.
+If you have already fixed the issues then please accept my apologies.
+
+> The megaraid driver is open source, do you see anything that driver can do
+> to improve performance. We would greatly appreciate any feedback in this
+> regard and definitely incorporate in the driver. The FW under Linux and
+> windows is same, so I do not see how the megaraid stack should perform
+> differently under Linux and windows?
+
+My understanding (may be incomplete) of the issue is basically what
+Steve said: something in the stack doesn't like the Linux IO patterns
+with often relatively long SG lists, which are longer than in some
+other popular OS. This is unlikely to be the Linux driver
+(drivers tend to just pass the SG lists through without too much processing),
+more likely it was the firmware or something below.
 
 -Andi
-
-P.S.: on a AMD x86-64 box the theory can be relatively easily tested:
-just run with iommu=force,biomerge that will use the IOMMU to merge
-SG elements.  I just don't recommend it for production because some errors 
-are not well handled.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
