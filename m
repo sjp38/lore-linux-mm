@@ -1,45 +1,38 @@
-Date: Thu, 17 Jun 2004 12:50:45 +0200
-From: Miquel van Smoorenburg <miquels@cistron.nl>
-Subject: Re: Keeping mmap'ed files in core regression in 2.6.7-rc
-Message-ID: <20040617105045.GA30742@traveler.cistron.net>
-References: <20040608142918.GA7311@traveler.cistron.net> <40CAA904.8080305@yahoo.com.au> <20040614140642.GE13422@traveler.cistron.net> <40CE66EE.8090903@yahoo.com.au> <20040615143159.GQ19271@traveler.cistron.net> <40CFBB75.1010702@yahoo.com.au>
+Date: Thu, 17 Jun 2004 08:10:31 -0500
+From: Dimitri Sivanich <sivanich@sgi.com>
+Subject: Re: [PATCH]: Option to run cache reap in thread mode
+Message-ID: <20040617131031.GB8473@sgi.com>
+References: <40D08225.6060900@colorfullife.com> <20040616180208.GD6069@sgi.com> <40D09872.4090107@colorfullife.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <40CFBB75.1010702@yahoo.com.au> (from nickpiggin@yahoo.com.au on Wed, Jun 16, 2004 at 05:16:05 +0200)
+In-Reply-To: <40D09872.4090107@colorfullife.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Miquel van Smoorenburg <miquels@cistron.nl>, Andrew Morton <akpm@osdl.org>, linux-mm@kvack.org
+To: Manfred Spraul <manfred@colorfullife.com>
+Cc: linux-kernel@vger.kernel.org, lse-tech <lse-tech@lists.sourceforge.net>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 2004.06.16 05:16, Nick Piggin wrote:
-> Miquel van Smoorenburg wrote:
-> > According to Nick Piggin:
-> > 
-> >>Miquel van Smoorenburg wrote:
-> >>
-> >>>
-> >>>The patch below indeed fixes this problem. Now most of the mmap'ed files
-> >>>are actually kept in memory and RSS is around 600 MB again:
-> >>
-> >>OK good. Cc'ing Andrew.
-> > 
-> > 
-> > I've built a small test app that creates the same I/O pattern and ran it
-> > on 2.6.6, 2.6.7-rc3 and 2.6.7-rc3+patch and running that confirms it,
-> > though not as dramatically as the real-life application.
-> > 
+Manfred,
+
+On Wed, Jun 16, 2004 at 08:58:58PM +0200, Manfred Spraul wrote:
+> Could you try to reduce them? Something like (as root)
 > 
-> Can you send the test app over?
-> Andrew, do you have any ideas about how to fix this so far?
+> # cd /proc
+> # cat slabinfo | gawk '{printf("echo \"%s %d %d %d\" > 
+> /proc/slabinfo\n", $1,$9,4,2);}' | bash
+> 
+> If this doesn't help then perhaps the timer should run more frequently 
+> and scan only a part of the list of slab caches.
 
-I'll have to come back on this later - I'm about to go on
-vacation, and there's some other stuff that needs to be
-taken care of first.
+I tried the modification you suggested and it had little effect.  On a 4 cpu
+(otherwise idle) system I saw the characteristic 30+ usec interruptions
+(holdoffs) every 2 seconds.
 
-Mike.
+Since it's running in timer context, this of course includes all of the
+timer_interrupt logic, but I've verified no other timers running during those
+times (and I see only very short holdoffs during other timer interrupts).
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
