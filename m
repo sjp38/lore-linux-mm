@@ -1,42 +1,37 @@
-Subject: Re: linux vm page sharing
-Message-ID: <OFA2C1FE71.61EAC8D1-ON86256DDA.005005B4@raytheon.com>
-From: Mark_H_Johnson@Raytheon.com
-Date: Mon, 10 Nov 2003 08:45:42 -0600
-MIME-Version: 1.0
-Content-type: text/plain; charset=US-ASCII
+Subject: Re: 2.6.0-test9-mm2 - AIO tests still gets slab corruption
+From: Daniel McNeil <daniel@osdl.org>
+In-Reply-To: <20031104225544.0773904f.akpm@osdl.org>
+References: <20031104225544.0773904f.akpm@osdl.org>
+Content-Type: text/plain
+Message-Id: <1068505605.2042.11.camel@ibm-c.pdx.osdl.net>
+Mime-Version: 1.0
+Date: 10 Nov 2003 15:06:45 -0800
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Sharath Kodi Udupa <sku@CS.Arizona.EDU>
-Cc: linux-mm@kvack.org
+To: Andrew Morton <akpm@osdl.org>, Suparna Bhattacharya <suparna@in.ibm.com>
+Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, "linux-aio@kvack.org" <linux-aio@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
+Andrew,
 
+test9-mm2 is still getting slab corruption with AIO:
 
+Maximal retry count.  Bytes done 0
+Slab corruption: start=dc70f91c, expend=dc70f9eb, problemat=dc70f91c
+Last user: [<c0192fa3>](__aio_put_req+0xbf/0x200)
+Data: 00 01 10 00 00 02 20 00 *********6C ******************************A5
+Next: 71 F0 2C .A3 2F 19 C0 71 F0 2C .********************
+slab error in check_poison_obj(): cache `kiocb': object was modified after freeing
 
->i am trying to implement a system where different processes can share
->pages, this means that not only same executables, but different
->executables , but when the pages required are same.
+With suparna's retry-based-aio-dio patch, there are no kernel messages
+and the tests do not see any uninitialized data.
 
-Why not use one of the existing memory management functions such as:
- - mmap, munmap to map a file into memory (this also provides persistence)
- - shmget, shmat, shmdt, shmctl to create, attach, detach, and control
-shared memory segments. The status of these is also available through the
-ipcs command line program. Also look at "man 5 ipc" to get a summary of
-interprocess communications methods (semaphores, shared memory, message
-queues).
-Note that the base address of the memory segments are not necessarily the
-same in each executable. This means you should always use offsets (relative
-to the base of shared memory) to locate items within the shared memory
-area. For example, you code would compute the "real address" as the "base
-address" plus "offset" before dereferencing pointers. Trying to force the
-base address of the shared memory is "hard" and prone to problems due to
-the relative size of the executables.
+Any reason not to add suparna's patch to -mm to fix these problems?
 
->[snip - looking at page structure]
-I would use just the documented interfaces for shared memory.
+Thanks,
 
---Mark H Johnson
-  <mailto:Mark_H_Johnson@raytheon.com>
+Daniel
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
