@@ -1,45 +1,25 @@
-Subject: Re: [PATCH] get_user_pages shortcut for anonymous pages.
-Message-ID: <OF6EF57E85.22D55C5C-ONC1256E6E.0027D264-C1256E6E.0028A85B@de.ibm.com>
-From: Martin Schwidefsky <schwidefsky@de.ibm.com>
-Date: Tue, 6 Apr 2004 09:24:05 +0200
-MIME-Version: 1.0
-Content-type: text/plain; charset=ISO-8859-1
-Content-transfer-encoding: 8BIT
+Date: Tue, 6 Apr 2004 18:01:41 +0200
+From: Andrea Arcangeli <andrea@suse.de>
+Subject: Re: [RFC][PATCH 1/3] radix priority search tree - objrmap complexity fix
+Message-ID: <20040406160141.GX2234@dualathlon.random>
+References: <20040402205410.A7194@infradead.org> <20040402203514.GR21341@dualathlon.random> <20040403094058.A13091@infradead.org> <20040403152026.GE2307@dualathlon.random> <20040403155958.GF2307@dualathlon.random> <20040403170258.GH2307@dualathlon.random> <20040405105912.A3896@infradead.org> <20040405131113.A5094@infradead.org> <20040406042222.GP2234@dualathlon.random> <20040406061646.B14800@infradead.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20040406061646.B14800@infradead.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: linux-mm@kvack.org
+To: Christoph Hellwig <hch@infradead.org>, Andrew Morton <akpm@osdl.org>, hugh@veritas.com, vrajesh@umich.edu, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On Tue, Apr 06, 2004 at 06:16:46AM +0100, Christoph Hellwig wrote:
+> Can you try the patch below (testing it now, but I'm pretty sure it'll fix it)
+> instead of all the kmalloc changes?:
 
+I'm having some email dealy so I don't know if you sent me more recent
+emails, did it work fine as expected or should I keep my kmalloc change?
 
-
-> OK..  I'm not sure that this patch makes sense though.  I mean, if your
-> test had gone and dirtied all these pages rather than forcing the
-coredump
-> code to do it, we'd still exhaust all physical memory with pagetables,
-> assuming you have enough swapspace.  So I don't see we're gaining much?
-
-Well, it the test would have tried to dirty all these pages it would have
-run out of memory long before the available real memory is filled up with
-page tables. After bigcore has finished I had a core file of 2 terabyte.
-What we are gaining with the patch is that a system can't be "crashed"
-any more by a wild store of a process to a memory location below the
-stack. Consider a store to current stack - 1TB. The stack vma is extended
-to include this address because of VM_GROWSDOWN. If such a process dies
-(which is likely for a defunc process) then the elf core dumper will
-cause the system to hang because of too many page tables. I known that
-this can easily be circumvented with ulimit. This is why I asked the
-question if I am wasting my time with this.
-
-blue skies,
-   Martin
-
-Linux/390 Design & Development, IBM Deutschland Entwicklung GmbH
-Schonaicherstr. 220, D-71032 Boblingen, Telefon: 49 - (0)7031 - 16-2247
-E-Mail: schwidefsky@de.ibm.com
-
-
+thanks
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
