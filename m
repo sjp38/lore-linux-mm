@@ -1,36 +1,41 @@
-Received: from 202.5.159.99 (ISDN-Dialup-99.One.Net.pk [202.5.159.99])
-	by mail.one.net.pk (8.11.6/8.11.6) with SMTP id i297JfL07224
-	for <linux-mm@kvack.org>; Tue, 9 Mar 2004 12:19:43 +0500 (PKT)
-Message-Id: <200403090719.i297JfL07224@mail.one.net.pk>
-From: "SAR" <020301004688@one.net.pk>
-Subject: Stop Spreading Hatred
-Date: Tue, 09 Mar 2004 12:26:45 +0500
-Reply-To: 020301004688@one.net.pk
-MIME-Version: 1.0
-Content-Type: multipart/mixed;
-	boundary="----000000000000000000000"
+Date: Mon, 8 Mar 2004 23:37:20 -0800
+From: William Lee Irwin III <wli@holomorphy.com>
+Subject: Re: [RFC][PATCH 4/4] vm-mapped-x-active-lists
+Message-ID: <20040309073720.GJ655@holomorphy.com>
+References: <404D56D8.2000008@cyberone.com.au> <404D5784.9080004@cyberone.com.au> <404D5A6F.4070300@matchmail.com> <404D5EED.80105@cyberone.com.au> <20040309070246.GI655@holomorphy.com> <404D7109.10902@cyberone.com.au>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <404D7109.10902@cyberone.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Nick Piggin <piggin@cyberone.com.au>
+Cc: Mike Fedyk <mfedyk@matchmail.com>, linux-kernel <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-------000000000000000000000
-Content-Type: text/plain;
-	charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
+William Lee Irwin III wrote:
+>> Current efforts are now a background/spare time affair centering around
+>> non-i386 architectures and driver audits.
 
-Subject: Stop Spreading Hatred
+On Tue, Mar 09, 2004 at 06:23:53PM +1100, Nick Piggin wrote:
+> OK. I had just noticed that the people complaining about rmap most
+> are the ones using 4K page size (x86-64 uses 4K, doesn't it?). Not
+> that this fact means it is OK to ignore them problem, but I thought
+> maybe pgcl might solve it in a more general way.
+> I wonder how much you gain with objrmap / anobjrmap on say a 64K page
+> architecture?
 
+pgcl doesn't reduce userspace's mapping granularity. The current
+implementation has the same pte_chain overhead as mainline for the same
+virtualspace mapped. It's unclear how feasible it is to reduce this
+overhead, though various proposals have gone around. I've ignored the
+potential pte_chain reduction issue entirely in favor of concentrating
+on more basic correctness and functionality. The removal of the 1:1 pte
+page : struct page assumption is the vastly more important aspect of
+anobjrmap in relation to pgcl, since removing that assumption would
+remove a significant piece of complexity.
 
-I think being a Muslim you are not working for peace. You are misguided, mistaken and spreading hatred through disinformation and false accusations, which is resulting in death and miseries for number of innocent people living around the world at the hands of merciless KILLER MUSLIMS and also bringing bad name to MOHAMMED as Founder Of Islam.
-
-Try and work for peace and reconciliation, and prove to the WORLD through your deeds that MOHAMMED teaches "love & peace" and not Cruelty, Inhumanity and "Hatred & Killing" of the innocent civilians.
-
-S.A.R
-
-
-
-------000000000000000000000--
+-- wli
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
