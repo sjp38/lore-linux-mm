@@ -1,47 +1,45 @@
-From: "Abdul Hall" <szmsfwwou@yahoo.com>
-Subject: RE: I saw your profile
-Date: Sun, 09 May 2004 08:22:21 -0500
+Subject: Re: [PATCH] ppc64: Fix possible race with set_pte on a present PTE
+Message-ID: <OF283CD009.20B7561C-ONC1256EA6.003BBE8A-C1256EA6.00424F81@de.ibm.com>
+From: Martin Schwidefsky <schwidefsky@de.ibm.com>
+Date: Tue, 1 Jun 2004 14:04:17 +0200
+MIME-Version: 1.0
+Content-type: text/plain; charset=ISO-8859-1
+Content-transfer-encoding: 8BIT
 Sender: owner-linux-mm@kvack.org
-Message-ID: <MWZOUQHXXUVVXRKHQOYGSF__28132.5973607183$1084109250@yahoo.com>
-Reply-To: "Abdul Hall" <ppqggud@yahoo.com>
-Mime-Version: 1.0
-Content-Type: multipart/alternative;
-	boundary="--07841164216929166406"
-Return-path: <owner-linux-mm@kvack.org>
-To: linux-aio@kvack.org, owner-linux-aio@kvack.org, linux-mm@kvack.org, owner-linux-mm@kvack.orglinux-mm@kvack.orgowner-linux-mm@kvack.org, aart@kvack.orglinux-mm@kvack.org
-List-Id: linux-mm.kvack.org
-
-----07841164216929166406
-Content-Type: text/plain;
-Content-Transfer-Encoding: quoted-printable
-
-Message [TGXXSMZITA]
- 
-Hey my name is Kara and I just got out of a long term
-relationship. I read your profile and you sound like
-the kind of man I am looking for. Just so you know 
-I am not really looking for anything serious but
-rather for someone who doesn=92t mind being a rebound,
-which by the way does require some hot physical action...
-so if you don=92t mind...
- 
-http://matchnoid.com/alg/lgs.htm
- 
- 
- 
-
-no more
-http://matchnoid.com/alg/o/
- 
- 
- 
-
-runty craw clientele kim lummox blackstone oleander nettle alveolar turkis=
-h butadiene indeterminate parcel winnipesaukee monetarism jovial waylaid m=
-inestrone patristic encyclopedic=20
+Return-Path: <owner-linux-mm@kvack.org>
+To: Andrea Arcangeli <andrea@suse.de>
+Cc: Andrew Morton <akpm@osdl.org>, Ben LaHaise <bcrl@kvack.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Architectures Group <linux-arch@vger.kernel.org>, Linux Kernel list <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Ingo Molnar <mingo@elte.hu>, Linus Torvalds <torvalds@osdl.org>, Matthew Wilcox <willy@debian.org>
+List-ID: <linux-mm.kvack.org>
 
 
-----07841164216929166406--
+
+
+> The last issue is ptep_establish, we're flushing the pte in do_wp_page
+> inside ptep_establish again for no good reason. Those suprious tlb
+> flushes may even trigger IPIs (this time in x86 smp too even with
+> processes), so I'd really like to remove the explicit flush in
+> do_wp_page, however this will likely break s390 but I don't understand
+> s390 so I'll leave it broken for now (at least to show you this
+> alternative and to hear comments if it's as broken as the previous one).
+
+No, this shouldn't break s390 in any way, removing superfluous tlb flushes
+will benefit s390 just like any other architecture.
+
+> The really scary thing about this patch is the s390 ptep_establish.
+
+The s390 version of ptep_establish isn't scary at all, it's just an
+optimization. s390 can use the generic set_pte & flush_tlb_page sequence
+for ptep_establish without a problem but there is a better way to do it.
+We use the ipte instruction because it only flushes the tlb entries for
+a single page and not all of them. Don't worry too much about breaking
+s390, if you do I will complain.
+
+blue skies,
+   Martin
+
+Linux/390 Design & Development, IBM Deutschland Entwicklung GmbH
+Schonaicherstr. 220, D-71032 Boblingen, Telefon: 49 - (0)7031 - 16-2247
+E-Mail: schwidefsky@de.ibm.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
