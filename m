@@ -1,44 +1,36 @@
-Received: from max.phys.uu.nl (max.phys.uu.nl [131.211.32.73])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id SAA12872
-	for <linux-mm@kvack.org>; Tue, 17 Nov 1998 18:01:10 -0500
-Date: Tue, 17 Nov 1998 21:18:39 +0100 (CET)
-From: Rik van Riel <H.H.vanRiel@phys.uu.nl>
-Reply-To: Rik van Riel <H.H.vanRiel@phys.uu.nl>
+Received: from neon.transmeta.com (neon-best.transmeta.com [206.184.214.10])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id SAA13026
+	for <linux-mm@kvack.org>; Tue, 17 Nov 1998 18:14:58 -0500
+Date: Tue, 17 Nov 1998 15:14:10 -0800 (PST)
+From: Linus Torvalds <torvalds@transmeta.com>
 Subject: Re: useless report -- perhaps memory allocation problems in 2.1.12[678]
-In-Reply-To: <199811171121.LAA00897@dax.scot.redhat.com>
-Message-ID: <Pine.LNX.3.96.981117211632.12547C-100000@mirkwood.dummy.home>
+In-Reply-To: <Pine.LNX.3.96.981117211632.12547C-100000@mirkwood.dummy.home>
+Message-ID: <Pine.LNX.3.95.981117151133.1077O-100000@penguin.transmeta.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: "Stephen C. Tweedie" <sct@redhat.com>
-Cc: Jeffrey Hundstad <jeffrey.hundstad@mankato.msus.edu>, Linux MM <linux-mm@kvack.org>, Linus Torvalds <torvalds@transmeta.com>
+To: Rik van Riel <H.H.vanRiel@phys.uu.nl>
+Cc: "Stephen C. Tweedie" <sct@redhat.com>, Jeffrey Hundstad <jeffrey.hundstad@mankato.msus.edu>, Linux MM <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 17 Nov 1998, Stephen C. Tweedie wrote:
-> Rik van Riel <H.H.vanRiel@phys.uu.nl> writes:
+
+
+On Tue, 17 Nov 1998, Rik van Riel wrote:
 > 
-> > and the whole system is busy freeing memory. This means that the
-> > kswapd-loop has now been migrated into other contexts as well. This,
-> > together with the fact that kswapd never blocks on disk access any
-> > more,
-> 
-> Yes it does.  We don't pass GFP_WAIT to swap_out(), but that just
-> means that the swapout will be done asynchronously.  We are still
-> free to write stuff out to swap, and in fact once we hit the limit
-> on outstanding IOs we may well block in the write. 
+> Whoops, I saw that run_task_queue(&tq_disk) had dissapeared
+> from it's original position but I couldn't find it in it's
+> new place... /usr/bin/grep has been a real help now you pointed
+> it out, thanks to you both :)
 
-Whoops, I saw that run_task_queue(&tq_disk) had dissapeared
-from it's original position but I couldn't find it in it's
-new place... /usr/bin/grep has been a real help now you pointed
-it out, thanks to you both :)
+I think it should be in the original position (inside the kswapd loop), I
+think removing it was probably a mistake. I prefer Stephens test there
+rather than in page_io (setting "wait" in page_io.c has more ramifications
+than just getting the IO started, I'm not sure we really actually want to
+wait on the page). 
 
-cheers,
+Hmm.. I could go either way on this. Arguments from all sides?
 
-Rik -- slowly getting used to dvorak kbd layout...
-+-------------------------------------------------------------------+
-| Linux memory management tour guide.        H.H.vanRiel@phys.uu.nl |
-| Scouting Vries cubscout leader.      http://www.phys.uu.nl/~riel/ |
-+-------------------------------------------------------------------+
+		Linus
 
 --
 This is a majordomo managed list.  To unsubscribe, send a message with
