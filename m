@@ -1,100 +1,72 @@
-Date: Fri, 22 Oct 2004 02:30:04 +0200
+Date: Fri, 22 Oct 2004 02:41:59 +0200
 From: Andrea Arcangeli <andrea@novell.com>
 Subject: Re: [PATCH] zap_pte_range should not mark non-uptodate pages dirty
-Message-ID: <20041022003004.GA14325@dualathlon.random>
-References: <1098393346.7157.112.camel@localhost> <20041021144531.22dd0d54.akpm@osdl.org> <20041021223613.GA8756@dualathlon.random> <20041021160233.68a84971.akpm@osdl.org> <20041021232059.GE8756@dualathlon.random> <20041021164245.4abec5d2.akpm@osdl.org>
+Message-ID: <20041022004159.GB14325@dualathlon.random>
+References: <1098393346.7157.112.camel@localhost> <20041021144531.22dd0d54.akpm@osdl.org> <20041021223613.GA8756@dualathlon.random> <20041021160233.68a84971.akpm@osdl.org> <20041021232059.GE8756@dualathlon.random> <20041021164245.4abec5d2.akpm@osdl.org> <20041021171558.3214cea4.akpm@osdl.org>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20041021164245.4abec5d2.akpm@osdl.org>
+In-Reply-To: <20041021171558.3214cea4.akpm@osdl.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@osdl.org>
 Cc: shaggy@austin.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Oct 21, 2004 at 04:42:45PM -0700, Andrew Morton wrote:
-> Andrea Arcangeli <andrea@novell.com> wrote:
+On Thu, Oct 21, 2004 at 05:15:58PM -0700, Andrew Morton wrote:
+> Andrew Morton <akpm@osdl.org> wrote:
 > >
-> > On Thu, Oct 21, 2004 at 04:02:33PM -0700, Andrew Morton wrote:
-> > > Andrea Arcangeli <andrea@novell.com> wrote:
-> > > >
-> > > > On Thu, Oct 21, 2004 at 02:45:31PM -0700, Andrew Morton wrote:
-> > > > > Maybe we should revisit invalidate_inode_pages2().  It used to be an
-> > > > > invariant that "pages which are mapped into process address space are
-> > > > > always uptodate".  We broke that (good) invariant and we're now seeing
-> > > > > some fallout.  There may be more.
-> > > > 
-> > > > such invariant doesn't exists since 2.4.10. There's no way to get mmaps
-> > > > reload data from disk without breaking such an invariant.
-> > > 
-> > > There are at least two ways:
-> > > 
-> > > a) Set a new page flag in invalidate, test+clear that at fault time
-> > 
-> > What's the point of adding a new page flag when the invariant
-> > !PageUptodate && page_mapcount(page) already provides the information?
+> > I don't get it.  invalidate has the pageframe.  All it need to do is to
+> > lock the page, examine mapcount and if it's non-zero, do the shootdown. 
 > 
-> Step back and think about this.  What earthly sense is there in permitting
-> userspace access to non uptodate pages?
+> unmap_mapping_range() will do that - can call it one page at a time, or
+> batch up runs of pages.  It's not fast, but presumably not frequent either.
 
-this is exactly why new page faults re-read from disk. Istantiating not
-uptodate pages is definitely a mistake. But after the pte is istantiated
-the uptodate information becomes pointless. It's up to the page fault to
-make sure the page is uptodate before mapping it into userspace.
+That would shootdown the ptes to add completely coherency to the mmaps, right.
 
-> None.  It's completely wrong and the invariant was a good one.  We
-> broke it
-> by introducing some kluge to force new I/O when someone does a new fault
-> against the page.
+Still we could shootdown the ptes after clearing the uptodate bitflag,
+allowing the mapped page to be not uptodate for a short while, since it
+makes sense and it's harmless. The pte shootdown from my point of view
+is just an additional coherency feature, but it cannot provide full
+coherency anyways, since the invalidate arrives after the I/O hit the
+disk, so the page will be out of sync with the disk if it's dirty, and
+no coherency can be provided anyways, because no locking happens to get
+max scalability.
 
-the invariant that is important, is that the page fault must never map
-not uptodate pages into userspace. That invariant is still obeyed, it's
-just after the page is mapped that we start making good use of the
-uptodate bit again.
+> The bigger problem is shooting down the buffer_heads.  It's certainly the
+> case that mpage_readpage() will call block_read_full_page() which will then
+> bring the page uptodate without performing any I/O.
 
-> (A new PG_needs_rereading flag isn't sufficient btw - we'd also need
-> BH_Needs_Rereading and associated code.  ug.)
+yes, this is actually the only bug I can see in this whole affair
+(besdies the BUG that goes away with the patch already posted, and that
+patch still makes perfect sense to me since we could use it even for a
+more relaxed pte shootdown as described above, plus it doesn't worth to
+mark not-uptodate pages as dirty, that is really what makes no sense and
+needs fixing).
 
-clearing uptodate bits for bh too would fix it. Anyways I doubt in
-practice the lack of bh clearing could ever trigger thanks to
-mpage_readpages and the page aligned API. Peraphs the 2.6 more relaxed
-API could expose the problem, and that's why we need to address it in
-2.6.
-
-> I don't get it.  invalidate has the pageframe.  All it need to do is to
-> lock the page, examine mapcount and if it's non-zero, do the shootdown. 
-> The only way in which we would be performing the shootdown a significant
-> number of times would be if someone was repeatedly faulting the thing back
-> in anyway, and in that case the physical I/O cost would dominate.  Where's
-> the performance overhead??
+> And invalidating the buffer_heads in invalidate_inode_pages2() is tricky -
+> we need to enter the filesystem and I'm not sure that either
+> ->invalidatepage() or ->releasepage() are quite suitable.  For a start,
+> they're best-effort and may fail.  If we just go and mark the buffers not
+> uptodate we'll probably give ext3 a heart attack, so careful work would be
+> needed there.
 > 
-> Plus it makes the currently incorrect code correct for existing mmaps.
-> 
-> Plus it avoids the idiotic situation of having non uptodate pages
-> accessible to user processes.
+> Let's go back to why we needed all of this.  Was it just for the NFS
+> something-changed-on-the-server code?  If so, would it be sufficient to add
+> a new invalidate_inode_pages3() just for NFS, which clears the uptodate
+> bit?  Or something along those lines?
 
-peraphs we can implement it for 2.6, but for 2.4 it was not doable, and
-clearing PG_uptodate in 2.4 is what made O_DIRECT possible at all, so I
-wouldn't call it idiotic situation. It was a big new feature and it
-still is, since your new bitflag is not needed: what the VM asks for is
-to clear such uptodate bit because the page in the pagecache is not
-uptodate anymore. What happens is that the disk has changed under you so
-it's idotic to set another bitflag and to leave the uptodate bit set,
-when the page is obviously not uptodate anymore.
-
-If you want to shootdown ptes before clearing the bitflag, that's fine
-with me, but you will still have to clear the uptodate bitflag on the
-page after that, and the mmap coherency has never been provided by
-O_DIRECT in linux, this would be a new feature, sure not a bugfix. the
-mmap case is a controlled race by design that can cause no harm. btw,
-nfs is doing it too in some 2.4 tree, we've got complains that mmaps
-weren't refreshed.  If you change invalidate_inode_pages2 to shootdown
-ptes then they'll get much better refreshing for nfs too, but again, not
-doable in the 2.4 backport: in 2.4 all I could do is to clear uptodate
-on mapped pages, since after the page is mapped the uptodate bit becomes
-useless and we can re-use it. Adding a new bitflag wouldn't change a
-thing except to make it more complicated than it already is.
+nfs is a case here too. But this is mostly needed for O_DIRECT write
+happening on a file that is mmapped and read in buffered mode at the
+same time. The API totally ignores the mapping, but we must guarantee
+buffered read to see the written data on disk, and in turn the uptodate
+bitflag must be clared because the page is not uptodate anymore. This 
+just describes what has happened on disk and it tells to _future_ page
+faults (or buffered read syscalls) they've to re-read from disk. The
+only issue seems to be the bhs. Peraphs te bhs requires a new bitflag if
+the fs risks an hearth attack, but the VM can do the natural thing of
+clearing the uptodate bitflag reflecting the fact the cache is
+out-of-date, since the VM can deal with that just fine.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
