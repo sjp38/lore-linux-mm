@@ -1,28 +1,29 @@
-Date: Sat, 21 Aug 1999 14:57:54 +0200
-From: Andi Kleen <ak@muc.de>
-Subject: Re: the page size in linux
-Message-ID: <19990821145754.A7609@fred.muc.de>
-References: <003801beebcc$a9770d40$0601a8c0@honey.cs.tsinghua.edu.cn>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-In-Reply-To: <003801beebcc$a9770d40$0601a8c0@honey.cs.tsinghua.edu.cn>; from Wang Yong on Sat, Aug 21, 1999 at 01:59:44PM +0200
+Subject: Re: [bigmem-patch] 4GB with Linux on IA32
+Date: Fri, 20 Aug 1999 10:55:38 +0100 (BST)
+In-Reply-To: <37BD0559.99C5E320@mandrakesoft.com> from "Thierry Vignaud" at Aug 20, 99 07:35:53 am
+Content-Type: text
+Message-Id: <E11HlOe-0007cg-00@the-village.bc.nu>
+From: Alan Cox <alan@lxorguk.ukuu.org.uk>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Wang Yong <wung_y@263.net>
-Cc: linux-mm mail list <linux-mm@kvack.org>
+To: Thierry Vignaud <tvignaud@mandrakesoft.com>
+Cc: sct@redhat.com, andrea@suse.de, alan@lxorguk.ukuu.org.uk, kanoj@google.engr.sgi.com, torvalds@transmeta.com, Gerhard.Wichert@pdb.siemens.de, Winfried.Gerhard@pdb.siemens.de, x-linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, Aug 21, 1999 at 01:59:44PM +0200, Wang Yong wrote:
-> Hi,
->   does anyone know the page size in linux, 4k or 4M or mix? As recommended
-> in x86 user manual from intel, 4M page should be used by kernel and 4k page
-> should be used by user programs. is this trun for linux?
+> Yes, but we do can use 24:32 referencse (as
+> pse36_extended_selectors:offset). Each process may own a ldt that allow
+> him to own several 4Gb segment : code, data, stack, kernel mem mapped,
+> librairies, shared mem (X11/dga -> fb mem and IPC shm).
 
-Yes.
+32bit large mode. 
 
--Andi
--- 
-This is like TV. I don't like TV.
+> We may have to hack gcc & binutils so they generate references against
+> new selectors. We may put the kernel mem region that the process see in
+
+Thats probably four years work. You also need to do a large mode glibc port
+so budget another year. And maybe a couple of man years for the kernel.
+
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
