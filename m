@@ -1,45 +1,43 @@
-Subject: Re: VM tuning through fault trace gathering [with actual code]
-References: <Pine.LNX.4.21.0106251456130.7419-100000@imladris.rielhome.conectiva>
-From: John Fremlin <vii@users.sourceforge.net>
-Date: 25 Jun 2001 22:15:31 +0100
-In-Reply-To: <Pine.LNX.4.21.0106251456130.7419-100000@imladris.rielhome.conectiva> (Rik van Riel's message of "Mon, 25 Jun 2001 14:57:39 -0300 (BRST)")
-Message-ID: <m28zigi7m4.fsf@boreas.yi.org.>
+Message-ID: <F341E03C8ED6D311805E00902761278C07EFA68B@xfc04.fc.hp.com>
+From: "ZINKEVICIUS,MATT (HP-Loveland,ex1)" <matt_zinkevicius@hp.com>
+Subject: RE: 2.4.6pre3: kswapd dominating CPU
+Date: Mon, 25 Jun 2001 15:02:02 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain;
+	charset="iso-8859-1"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@conectiva.com.br>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: 'Jens Axboe' <axboe@suse.de>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Rik van Riel <riel@conectiva.com.br> writes:
-
-> On 25 Jun 2001, John Fremlin wrote:
+> WIth a machine spec'ed like that, you might want to try with the
+> zero-bounce patches for highmem machines. Running out of memory and
+> still requiring low mem bounce buffers can get ugly -- the 
+> patches won't
+> solve any vm issues, but they should solve the problem for you (and
+> boost your specsfs performance a good deal).
 > 
-> > Last year I had the idea of tracing the memory accesses of the
-> > system to improve the VM - the traces could be used to test
-> > algorithms in userspace. The difficulty is of course making all
-> > memory accesses fault without destroying system performance.
+> Haven't had time to update to 2.4.6-pre3 yet, if these don't apply let
+> me know:
 > 
-> Sounds like a cool idea.  One thing you should keep in mind though
-> is to gather traces of the WHOLE SYSTEM and not of individual
-> applications.
+> *.kernel.org/pub/linux/kernel/people/axboe/patches/2.4.5/block
+> -highmem-all-4.bz2
 
-In the current patch all pagefaults are recorded from all sources. I'd
-like to be able to catch read(2) and write(2) (buffer cache stuff) as
-well but I don't know how . . . .
+We tried your block-highmem patch for 2.4.6pre1 (the 2.4.5 one you suggested
+didn't patch cleanly). Sadly the kernel is unbootable (stops at
+"uncompressing kernel..."). If you give as an updated patch for 2.4.6pre3 we
+will be happy to try it!
 
-> There has to be a way to balance the eviction of pages from
-> applications against those of other applications.
+> Dunno what I/O controller you used...
 
-Of course! It is important not to regard each thread group as an
-independent entity IMHO (had a big old argument about this).
+Qlogic fibre channel card (kernel's qlogicfc driver)
 
-[...]
+--Matt
 
--- 
-
-	http://ape.n3.net
+PS: We also have tried Andrea's 2.4.6pre3aa2 patch. kswapd/kupdated still
+runs but at much less CPU utilization (30%-70%) but for much longer periods
+having an overall worsening effect. It also breaks fsync which in turn
+breaks lots of things (lilo, etc).
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
