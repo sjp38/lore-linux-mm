@@ -1,47 +1,60 @@
-Date: Sun, 5 Sep 2004 10:58:07 -0700 (PDT)
-From: Linus Torvalds <torvalds@osdl.org>
+Date: Sun, 5 Sep 2004 20:41:46 +0200
+From: Arjan van de Ven <arjanv@redhat.com>
 Subject: Re: [RFC][PATCH 0/3] beat kswapd with the proverbial clue-bat
-In-Reply-To: <1094405830.2809.8.camel@laptop.fenrus.com>
-Message-ID: <Pine.LNX.4.58.0409051051120.2331@ppc970.osdl.org>
-References: <413AA7B2.4000907@yahoo.com.au>  <20040904230210.03fe3c11.davem@davemloft.net>
-  <413AAF49.5070600@yahoo.com.au> <413AE6E7.5070103@yahoo.com.au>
- <Pine.LNX.4.58.0409051021290.2331@ppc970.osdl.org> <1094405830.2809.8.camel@laptop.fenrus.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Message-ID: <20040905184146.GA6849@devserv.devel.redhat.com>
+References: <413AA7B2.4000907@yahoo.com.au> <20040904230210.03fe3c11.davem@davemloft.net> <413AAF49.5070600@yahoo.com.au> <413AE6E7.5070103@yahoo.com.au> <Pine.LNX.4.58.0409051021290.2331@ppc970.osdl.org> <1094405830.2809.8.camel@laptop.fenrus.com> <Pine.LNX.4.58.0409051051120.2331@ppc970.osdl.org>
+Mime-Version: 1.0
+Content-Type: multipart/signed; micalg=pgp-sha1;
+	protocol="application/pgp-signature"; boundary="UlVJffcvxoiEqYs2"
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.58.0409051051120.2331@ppc970.osdl.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Arjan van de Ven <arjanv@redhat.com>
+To: Linus Torvalds <torvalds@osdl.org>
 Cc: Nick Piggin <nickpiggin@yahoo.com.au>, "David S. Miller" <davem@davemloft.net>, akpm@osdl.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
+--UlVJffcvxoiEqYs2
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 
-On Sun, 5 Sep 2004, Arjan van de Ven wrote:
+On Sun, Sep 05, 2004 at 10:58:07AM -0700, Linus Torvalds wrote:
 > 
-> well... we have a reverse mapping now. What is stopping us from doing
-> physical defragmentation ?
+> 
+> On Sun, 5 Sep 2004, Arjan van de Ven wrote:
+> > 
+> > well... we have a reverse mapping now. What is stopping us from doing
+> > physical defragmentation ?
+> 
+> Nothing but replacement policy, really, and the fact that not everything
+> is rmappable.
+> 
+> I think we should _normally_ honor replacement policy, the way we do now.  
 
-Nothing but replacement policy, really, and the fact that not everything
-is rmappable.
+yes it absolutely is quite a heavy hammer. 
+However right now the alternative (free a LOT of memory and hope it
+collapses into higher order ones) is even heavier, freeing the wrong 8 pages
+is less of a disturbance than freeing 8000 of the mostly wrong pages ;) 
 
-I think we should _normally_ honor replacement policy, the way we do now.  
-Only if we are in the situation "we have enough memory, but not enough
-high-order-pages" should we go to a separate physical defrag algorithm.
+I absolutely agree this heavy hammer only should trigger if there is a
+request for a higher order page that isn't there. Doing it from a special
+thread does make sense, makes it relatively easy to keep track of such
+wakeups and more importantly rate limit them etc.
 
-So either kswapd should have a totally different mode, or there should be
-a separate "kdefragd". It would potentially also be good if it is user-
-triggerable, so that you could, for example, have a heavier defragd run
-from the daily "cron" runs - something that doesn't seem to make much
-sense from a traditional kswapd standpoint.
 
-In other words, I don't think the physical thing should be triggered at 
-all by normal memory pressure. A large-order allocation failure would 
-trigger it "somewhat", and maybe it might run very slowly in the 
-background (wake up every five minutes or so to see if it is worth doing 
-anything), and then some user-triggerable way to make it more aggressive.
+--UlVJffcvxoiEqYs2
+Content-Type: application/pgp-signature
+Content-Disposition: inline
 
-Does that sound sane to people?
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.2.1 (GNU/Linux)
 
-		Linus
+iD8DBQFBO13qxULwo51rQBIRAh29AJ9G+qbI1kjC+mlEAT/Puc1a6fBTXACeMEaB
+6PTpaCS/kHTID9QBijMFhZM=
+=aGN8
+-----END PGP SIGNATURE-----
+
+--UlVJffcvxoiEqYs2--
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
