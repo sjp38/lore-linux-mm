@@ -1,66 +1,46 @@
-Message-ID: <4194EA45.90800@tebibyte.org>
-Date: Fri, 12 Nov 2004 17:52:21 +0100
-From: Chris Ross <chris@tebibyte.org>
+Received: from cthulhu.engr.sgi.com (cthulhu.engr.sgi.com [192.26.80.2])
+	by omx2.sgi.com (8.12.11/8.12.9/linux-outbound_gateway-1.1) with ESMTP id iAD12hFK026384
+	for <linux-mm@kvack.org>; Fri, 12 Nov 2004 17:02:45 -0800
+Message-ID: <41954B1F.5060900@sgi.com>
+Date: Fri, 12 Nov 2004 17:45:35 -0600
+From: Ray Bryant <raybry@sgi.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] fix spurious OOM kills
-References: <20041111112922.GA15948@logos.cnet> <4193E056.6070100@tebibyte.org>
-In-Reply-To: <4193E056.6070100@tebibyte.org>
+Subject: Re: removing mm->rss and mm->anon_rss from kernel?
+References: <200411081547.iA8FlH90124208@ben.americas.sgi.com> <41919EA5.7030200@yahoo.com.au>
+In-Reply-To: <41919EA5.7030200@yahoo.com.au>
 Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Nick Piggin <piggin@cyberone.com.au>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <andrea@novell.com>, Martin MOKREJ? <mmokrejs@ribosome.natur.cuni.cz>, tglx@linutronix.de
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Russ Anderson <rja@sgi.com>, Matthew Wilcox <matthew@wil.cx>, "Martin J. Bligh" <mbligh@aracnet.com>, Christoph Lameter <clameter@sgi.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Hugh Dickins <hugh@veritas.com>, linux-mm@kvack.org, linux-ia64@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
+Nick Piggin wrote:
 
-Chris Ross escreveu:
-> It seems good.
+> 
+> Also, are you using 2.6 kernels on these 512 CPU systems? or are your
+> 2.4 kernels still holding together at that many CPUs?
 
-Sorry Marcelo, I spoke to soon. The oom killer still goes haywire even 
-with your new patch. I even got this one whilst the machine was booting!
+Nick,
 
-Ignore the big numbers, they are cured by Kame's patch. I haven't 
-applied that to this kernel. This tree is pure 2.6.10-rc1-mm2 with only 
-your recent oom patch applied.
+My response to your email was (unfortunately) overly broad.  While the
+NASA 512P systems are running a kernel based on 2.4.x, SLES 9, which is 
+2.6.5-based, has been certified on a 64p SGI Altix
+system (cf. http://developer.novell.com/yes/78980.htm).
 
-Regards,
-Chris R.
-
-
-Nov 12 17:32:21 sleepy Free pages:         268kB (0kB HighMem)
-Nov 12 17:32:21 sleepy Active:7853 inactive:4921 dirty:0 writeback:0 
-unstable:0
-free:67 slab:1243 mapped:5773 pagetables:103
-Nov 12 17:32:21 sleepy DMA free:60kB min:60kB low:120kB high:180kB 
-active:6436kB
-  inactive:5624kB present:16384kB pages_scanned:7108 all_unreclaimable? no
-Nov 12 17:32:21 sleepy protections[]: 0 0 0
-Nov 12 17:32:21 sleepy Normal free:208kB min:188kB low:376kB high:564kB 
-active:2
-4976kB inactive:14060kB present:49144kB pages_scanned:19668 
-all_unreclaimable? n
-o
-Nov 12 17:32:21 sleepy protections[]: 0 0 0
-Nov 12 17:32:21 sleepy HighMem free:0kB min:128kB low:256kB high:384kB 
-active:0k
-B inactive:0kB present:0kB pages_scanned:0 all_unreclaimable? no
-Nov 12 17:32:21 sleepy protections[]: 0 0 0
-Nov 12 17:32:21 sleepy DMA: 4294944789*4kB 4294964727*8kB 
-4294966668*16kB 429496
-7076*32kB 4294967238*64kB 4294967233*128kB 4294967253*256kB 
-4294967284*512kB 429
-4967290*1024kB 4294967293*2048kB 4294967294*4096kB = 4294790220kB
-Nov 12 17:32:21 sleepy Normal: 4294803738*4kB 4294928464*8kB 
-4294957447*16kB 429
-4964898*32kB 4294966867*64kB 4294967050*128kB 4294967186*256kB 
-4294967246*512kB
-4294967268*1024kB 4294967283*2048kB 4294967286*4096kB = 4293559128kB
-Nov 12 17:32:21 sleepy HighMem: empty
-Nov 12 17:32:21 sleepy Swap cache: add 13796, delete 10099, find 
-2839/3488, race
-  0+0
-Nov 12 17:32:21 sleepy Out of Memory: Killed process 6806 (qmgr).
+So it is possible to buy a supported 2.6 kernel from SuSE that will run your
+(up to) 64P Altix.
+-- 
+Best Regards,
+Ray
+-----------------------------------------------
+                   Ray Bryant
+512-453-9679 (work)         512-507-7807 (cell)
+raybry@sgi.com             raybry@austin.rr.com
+The box said: "Requires Windows 98 or better",
+            so I installed Linux.
+-----------------------------------------------
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
