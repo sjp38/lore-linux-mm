@@ -1,45 +1,38 @@
-Message-ID: <402128D0.2020509@tmr.com>
-Date: Wed, 04 Feb 2004 12:16:00 -0500
-From: Bill Davidsen <davidsen@tmr.com>
-MIME-Version: 1.0
+Date: Wed, 4 Feb 2004 12:40:48 -0500 (EST)
+From: Rik van Riel <riel@redhat.com>
 Subject: Re: VM patches (please review)
-References: <402065DE.9090902@cyberone.com.au>
-In-Reply-To: <402065DE.9090902@cyberone.com.au>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <402128D0.2020509@tmr.com>
+Message-ID: <Pine.LNX.4.44.0402041239311.24515-100000@chimarrao.boston.redhat.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <piggin@cyberone.com.au>
-Cc: Andrew Morton <akpm@osdl.org>, Andrea Arcangeli <andrea@suse.de>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Bill Davidsen <davidsen@tmr.com>
+Cc: Nick Piggin <piggin@cyberone.com.au>, Andrew Morton <akpm@osdl.org>, Andrea Arcangeli <andrea@suse.de>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Nick Piggin wrote:
-> http://www.kerneltrap.org/~npiggin/vm/
-> (may need to reload)
-> 
-> Here are the patches to go with my earlier post.
-> kernel is 2.6.2-rc3-mm1.
-> 
-> I'm suire I've upset at least one uncommented^Wdivine
-> balance so if anyone has time to review and comment
-> it would be appreciated.
-> 
-> I can email the patches to the lists if anyone would
-> like?
+On Wed, 4 Feb 2004, Bill Davidsen wrote:
 
-Since this is broken down nicely, a line or two about what each patch 
-does or doesn't address would be useful. In particular, having just 
-gotten a working RSS I'm suspicious of the patch named vm-no-rss-limit 
-being desirable ;-)
+> Since this is broken down nicely, a line or two about what each patch 
+> does or doesn't address would be useful. In particular, having just 
+> gotten a working RSS I'm suspicious of the patch named vm-no-rss-limit 
+> being desirable ;-)
 
-Nice work, but it would be nice to see what problem a patch addresses to 
-check for blowback under some other load.
+The bug with the RSS limit patch is that I forgot to
+change the exec() code, so when init is exec()d it
+gets an RSS limit of zero, which is inherited by all
+its children --> always over the RSS limit, no page
+aging, etc.
 
+I need to find the cleanest way to add the inheriting
+of RSS limit at exec time and send a patchlet for that
+to akpm...
 
 -- 
-bill davidsen <davidsen@tmr.com>
-   CTO TMR Associates, Inc
-   Doing interesting things with small computers since 1979
+"Debugging is twice as hard as writing the code in the first place.
+Therefore, if you write the code as cleverly as possible, you are,
+by definition, not smart enough to debug it." - Brian W. Kernighan
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
