@@ -2,55 +2,45 @@ From: "Stephen C. Tweedie" <sct@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
-Message-ID: <14337.64909.191024.839302@dukat.scot.redhat.com>
-Date: Mon, 11 Oct 1999 16:09:01 +0100 (BST)
+Message-ID: <14338.1300.124586.764594@dukat.scot.redhat.com>
+Date: Mon, 11 Oct 1999 16:41:08 +0100 (BST)
 Subject: Re: locking question: do_mmap(), do_munmap()
-In-Reply-To: <38008F28.76CD7B4D@colorfullife.com>
-References: <Pine.LNX.4.10.9910091758380.5808-100000@alpha.random>
-	<38008F28.76CD7B4D@colorfullife.com>
+In-Reply-To: <Pine.GSO.4.10.9910101202240.16317-100000@weyl.math.psu.edu>
+References: <3800B629.209B7A22@colorfullife.com>
+	<Pine.GSO.4.10.9910101202240.16317-100000@weyl.math.psu.edu>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Manfred Spraul <manfreds@colorfullife.com>
-Cc: Andrea Arcangeli <andrea@suse.de>, linux-kernel@vger.rutgers.edu, "linux-mm@kvack.org" <linux-mm@kvack.org>, Stephen Tweedie <sct@redhat.com>
+To: Alexander Viro <viro@math.psu.edu>
+Cc: Manfred Spraul <manfreds@colorfullife.com>, Andrea Arcangeli <andrea@suse.de>, linux-kernel@vger.rutgers.edu, Ingo Molnar <mingo@chiara.csoma.elte.hu>, linux-mm@kvack.org, Stephen Tweedie <sct@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
 Hi,
 
-On Sun, 10 Oct 1999 15:05:44 +0200, Manfred Spraul <manfreds@colorfullife.com> said:
+On Sun, 10 Oct 1999 12:07:38 -0400 (EDT), Alexander Viro
+<viro@math.psu.edu> said:
 
-> Andrea Arcangeli wrote:
->> Look the swapout path. Without the big kernel lock you'll free vmas under
->> swap_out().
+>> eg. sys_mprotect calls merge_segments without lock_kernel().
 
-> I checked to code in mm/*.c, and it seems that reading the vma-list is
-> protected by either lock_kernel() [eg: swapper] or down(&mm->mmap_sem)
-> [eg: do_mlock].
+> Manfred, Andrea - please stop it. Yes, it does and yes, it should.
+> Plonking the big lock around every access to VM is _not_ a solution. If
+> swapper doesn't use mmap_sem - _swapper_ should be fixed. How the hell
+> does lock_kernel() have smaller deadlock potential than
+> down(&mm->mmap_sem)?
 
-The swapper relies on it being protected by the big lock.  The mm
-semaphore is required when you need additional protection: specifically,
-if you need to sleep while manipulating the vma lists (eg. in page
-faults). 
+The swapout code cannot claim the mmap semaphore.  There are just too
+many deadlock possibilities.  For example, the whole VM assumes that it
+is safe to try to allocate memory while holding the mmap semaphore.  How
+are you going to make that work if we are short of immediately free
+pages and the allocation request recurses into the swapper?
 
-> But this means that both locks are required if you modify the vma list.
-> Single reader, multiple writer synchronization. Unusual, but interesting
-> :-)
+The swapper has very strict requirements: to avoid blocking it requires
+the big lock and the page table spinlocks, so that it can survive
+without the mm semaphore.  Adding the mm semaphore to the swapout loop
+is not really an option.  That means that you need the kernel lock when
+modifying vma lists.
 
-Correct, but you only need the one lock --- the big lock --- to read the
-vma list, which is what the swapper does.  The swapper only needs write
-access to the page tables, not to the vma list.
-
-> How should we fix it?
-
-> a) the swapper calls down(&mm->mmap_sem), but I guess that would
-> lock-up.
-
-Massive deadlock, indeed.  We've looked at this but it is soooo painful.
-
-> b) everyone who changes the vma list calls lock_kernel().
-
-... or an equivalent lock.  The big lock itself isn't needed if we have
-a per-mm spinlock, but we do need something lighter weight than the mmap
-semaphore to let the swapper read-protect the vma lists.
+We can, however, improve things by using a per-mm spinlock instead of
+using the kernel lock to provide that guarantee.
 
 --Stephen
 --
