@@ -1,58 +1,41 @@
-Date: Fri, 19 Nov 2004 18:06:52 -0800 (PST)
-From: Linus Torvalds <torvalds@osdl.org>
-Subject: Re: page fault scalability patch V11 [0/7]: overview
-In-Reply-To: <Pine.LNX.4.58.0411191757250.2222@ppc970.osdl.org>
-Message-ID: <Pine.LNX.4.58.0411191759490.2222@ppc970.osdl.org>
-References: <Pine.LNX.4.44.0411061527440.3567-100000@localhost.localdomain>
-  <Pine.LNX.4.58.0411181126440.30385@schroedinger.engr.sgi.com>
- <Pine.LNX.4.58.0411181715280.834@schroedinger.engr.sgi.com>
- <419D581F.2080302@yahoo.com.au>  <Pine.LNX.4.58.0411181835540.1421@schroedinger.engr.sgi.com>
-  <419D5E09.20805@yahoo.com.au>  <Pine.LNX.4.58.0411181921001.1674@schroedinger.engr.sgi.com>
- <1100848068.25520.49.camel@gaston> <Pine.LNX.4.58.0411190704330.5145@schroedinger.engr.sgi.com>
- <Pine.LNX.4.58.0411191155180.2222@ppc970.osdl.org> <419E98E7.1080402@yahoo.com.au>
- <Pine.LNX.4.58.0411191726001.1719@schroedinger.engr.sgi.com>
- <Pine.LNX.4.58.0411191757250.2222@ppc970.osdl.org>
+Message-ID: <419EA96E.9030206@yahoo.com.au>
+Date: Sat, 20 Nov 2004 13:18:22 +1100
+From: Nick Piggin <nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: page fault scalability patch V11 [0/7]: overview
+References: <Pine.LNX.4.44.0411061527440.3567-100000@localhost.localdomain> <Pine.LNX.4.58.0411181126440.30385@schroedinger.engr.sgi.com> <Pine.LNX.4.58.0411181715280.834@schroedinger.engr.sgi.com> <419D581F.2080302@yahoo.com.au> <Pine.LNX.4.58.0411181835540.1421@schroedinger.engr.sgi.com> <419D5E09.20805@yahoo.com.au> <Pine.LNX.4.58.0411181921001.1674@schroedinger.engr.sgi.com> <1100848068.25520.49.camel@gaston> <Pine.LNX.4.58.0411190704330.5145@schroedinger.engr.sgi.com> <20041120020401.GC2714@holomorphy.com>
+In-Reply-To: <20041120020401.GC2714@holomorphy.com>
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Nick Piggin <nickpiggin@yahoo.com.au>, akpm@osdl.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Hugh Dickins <hugh@veritas.com>, linux-mm@kvack.org, linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org
+To: William Lee Irwin III <wli@holomorphy.com>
+Cc: Christoph Lameter <clameter@sgi.com>, torvalds@osdl.org, akpm@osdl.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Hugh Dickins <hugh@veritas.com>, linux-mm@kvack.org, linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-
-On Fri, 19 Nov 2004, Linus Torvalds wrote:
+William Lee Irwin III wrote:
+> On Fri, Nov 19, 2004 at 11:42:39AM -0800, Christoph Lameter wrote:
 > 
-> Not that I really see any overwhelming evidence of anybody ever really 
-> caring, but it's nice to know that you have the option.
+>>A. make_rss_atomic. The earlier releases contained that patch but
+>>then another variable (such as anon_rss) was introduced that would
+>>   have required additional atomic operations. Atomic rss operations
+>>   are also causing slowdowns on machines with a high number of cpus
+>>   due to memory contention.
+>>B. remove_rss. Replace rss with a periodic scan over the vm to
+>>   determine rss and additional numbers. This was also discussed on
+>>   linux-mm and linux-ia64. The scans while displaying /proc data
+>>   were undesirable.
+> 
+> 
+> Split counters easily resolve the issues with both these approaches
+> (and apparently your co-workers are suggesting it too, and have
+> performance results backing it).
+> 
 
-Btw, if you are going to look at doing this rss thing, you need to make 
-sure that thread exit ends up adding its rss to _some_ remaining sibling. 
-
-I guess that was obvious, but it's worth pointing out. That may actually
-be the only case where we do _not_ have a nice SMP-safe access: we do have
-a stable sibling (tsk->thread_leader), but we don't have any good
-serialization _except_ for taking mmap_sem for writing. Which we currently
-don't do: we take it for reading (and then we possibly upgrade it to a
-write lock if we notice that there is a core-dump starting).
-
-We can avoid this too by having a per-mm atomic rss "spill" counter. So 
-exit_mm() would basically do:
-
-	...
-	tsk->mm = NULL;
-	atomic_add(tsk->rss, &mm->rss_spill);
-	...
-
-and then the algorithm for getting rss would be:
-
-	rss = atomic_read(mm->rss_spill);
-	for_each_thread(..)
-		rss += tsk->rss;
-
-Or does anybody see any better approaches?
-
-		Linus
+Split counters still require atomic operations though. This is what
+Christoph's latest effort is directed at removing. And they'll still
+bounce cachelines around. (I assume we've reached the conclusion
+that per-cpu split counters per-mm won't fly?).
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
