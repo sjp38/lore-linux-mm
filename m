@@ -1,62 +1,41 @@
-Message-Id: <3.0.6.32.20030104233111.007ed3c0@boo.net>
-Date: Sat, 04 Jan 2003 23:31:11 -0500
-From: Jason Papadopoulos <jasonp@boo.net>
-Subject: [PATCH] rewritten page coloring for 2.4.20 kernel
+Date: Sat, 4 Jan 2003 21:07:55 -0800
+From: William Lee Irwin III <wli@holomorphy.com>
+Subject: Re: [PATCH] rewritten page coloring for 2.4.20 kernel
+Message-ID: <20030105050755.GH9704@holomorphy.com>
+References: <3.0.6.32.20030104233111.007ed3c0@boo.net>
 Mime-Version: 1.0
-Content-Type: text/plain; charset="iso-8859-1"
-Content-Transfer-Encoding: 8BIT
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <3.0.6.32.20030104233111.007ed3c0@boo.net>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org
+To: Jason Papadopoulos <jasonp@boo.net>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Hello. After a year in stasis, I've completely rebuilt my kernel
-patch that implements page coloring. Improvements include:
+On Sat, Jan 04, 2003 at 11:31:11PM -0500, Jason Papadopoulos wrote:
+> Hello. After a year in stasis, I've completely rebuilt my kernel
+> patch that implements page coloring. Improvements include:
+> - Page coloring is now hardwired into the kernel. The hash
+>   queues now use bootmem, and page coloring is always on. The
+>   patch still creates /proc/page_color for statistics, but that
+>   will go away in time.
+> - Automatic detection of external cache size on many architectures.
+>   I have no idea if any of this code works, since I don't have any
+>   of the target machines. The preferred way to initialize the coloring
+>   is by passing "page_color=<external cache size in kB>" as a boot 
+>   argument.
+> - NUMA-safe, discontig-safe
+> Right now the actual page coloring algorithm is the same as in previous
+> patches, and performs the same. In the next few weeks I'll be trying new
+> ideas that will hopefully reduce fragmentation and increase performance.
+> This is an early attempt to get some feedback on mistakes I may have made.
 
-- Page coloring is now hardwired into the kernel. The hash
-  queues now use bootmem, and page coloring is always on. The
-  patch still creates /proc/page_color for statistics, but that
-  will go away in time.
+Any chance for a 2.5.x-mm port? This is a bit feature-ish for 2.4.x.
 
-- Automatic detection of external cache size on many architectures.
-  I have no idea if any of this code works, since I don't have any
-  of the target machines. The preferred way to initialize the coloring
-  is by passing "page_color=<external cache size in kB>" as a boot 
-  argument.
 
-- NUMA-safe, discontig-safe
-
-Right now the actual page coloring algorithm is the same as in previous
-patches, and performs the same. In the next few weeks I'll be trying new
-ideas that will hopefully reduce fragmentation and increase performance.
-This is an early attempt to get some feedback on mistakes I may have made.
-
-lmbench shows no real gains or losses compared to an unpatched kernel; 
-some of the page fault and protection fault times are slightly slower, but
-it's close to the rounding error over five lmbench runs. 
-
-Here are all the performance results I have for the patch:
-
-1. Compile of 2.4.20 kernel with gcc 3.1.1 on 466MHz DS10 Alphaserver with
-   2MB cache: repeatable 1% speedup (573 sec vs. 579 sec)
-
-2. 1000x1000 matrix multiply: 10% speedup on Athlon II with 512kB cache
-   (Dieter Nutzel)
-
-3. Without page coloring, the alpha gets 80% of max theoretical bandwidth
-   for working sets at most 1/8 the size of its L2 cache. For larger working
-   sets than that the achieved bandwidth is only 30%-50% of max. With page
-   coloring, the 80% figure applies to the entire L2 cache.
-
-4. FFTW (alpha): 30% speedup for 64k-point FFTs, 20% speedup for 1M-point FFTs 
-
-Patch is available at
-
-www.boo.net/~jasonp/page_color-2.4.20-20030104.patch
-
-Thanks in advance for any feedback.
-jasonp
+Thanks,
+Bill
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
