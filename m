@@ -1,40 +1,38 @@
-Date: Thu, 16 Jan 2003 07:22:33 -0800
-From: "Martin J. Bligh" <mbligh@aracnet.com>
-Subject: Re: [PATCH] make vm_enough_memory more efficient
-Message-ID: <75430000.1042730552@titus>
-In-Reply-To: <20030116001447.07337e9e.akpm@digeo.com>
-References: <66360000.1042703224@titus> <20030116001447.07337e9e.akpm@digeo.com>
-MIME-Version: 1.0
+Date: Thu, 16 Jan 2003 21:51:28 -0800
+From: William Lee Irwin III <wli@holomorphy.com>
+Subject: i386 pgd_index() doesn't parenthesize its arg
+Message-ID: <20030117055128.GP919@holomorphy.com>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@digeo.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: akpm@zip.com.au
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
->> vm_enough_memory seems to call si_meminfo just to get the total 
->> RAM, which seems far too expensive. This replaces the comment
->> saying "this is crap" with some code that's less crap.
->> 
->> Not heavily tested (compiles and boots), but seems pretty obvious.
-> 
-> Yup, obviously correct.
+pgd_index() doesn't parenthesize its argument. This is a bad idea for
+macros, since it's legitimate to pass expressions to them that will
+get misinterpreted given operator precedence and the shift.
 
-Cool.
+vs. 2.5.59
+
+
+-- wli
+
+
+===== include/asm-i386/pgtable.h 1.22 vs edited =====
+--- 1.22/include/asm-i386/pgtable.h	Mon Nov 25 14:41:15 2002
++++ edited/include/asm-i386/pgtable.h	Thu Jan 16 21:08:06 2003
+@@ -242,7 +242,7 @@
+ 	((pmd_val(pmd) & (_PAGE_PSE|_PAGE_PRESENT)) == (_PAGE_PSE|_PAGE_PRESENT))
  
-> The really hurtful part of vm_enough_memory() is the call to
-> get_page_cache_size(), which has to go over every CPU's local VM statistics
-> in get_page_state().
-> 
-> But I guess you're running with sysctl_overcommit_memory != 0.
-
-Yup, I manually disable that because it's so expensive. I'll see if
-I can make the default case cheaper as well.
-
-M.
-
+ /* to find an entry in a page-table-directory. */
+-#define pgd_index(address) ((address >> PGDIR_SHIFT) & (PTRS_PER_PGD-1))
++#define pgd_index(address) (((address) >> PGDIR_SHIFT) & (PTRS_PER_PGD-1))
+ 
+ #define __pgd_offset(address) pgd_index(address)
+ 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
