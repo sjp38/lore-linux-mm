@@ -1,69 +1,39 @@
-Date: Mon, 10 Apr 2000 16:12:18 -0700
-Message-Id: <200004102312.QAA05115@pizda.ninka.net>
-From: "David S. Miller" <davem@redhat.com>
-In-reply-to: <20000410232149.M17648@redhat.com> (sct@redhat.com)
-Subject: Re: zap_page_range(): TLB flush race
-References: <200004082331.QAA78522@google.engr.sgi.com> <E12e4mo-0003Pn-00@the-village.bc.nu> <20000410232149.M17648@redhat.com>
+Received: from ledzep.cray.com (ledzep.cray.com [137.38.226.97]) by timbuk.cray.com (8.8.8/CRI-gate-news-1.3) with ESMTP id SAA13033 for <linux-mm@kvack.org>; Mon, 10 Apr 2000 18:41:49 -0500 (CDT)
+Received: from ironwood-e185.americas.sgi.com (ironwood.cray.com [128.162.185.212]) by ledzep.cray.com (SGI-SGI-8.9.3/craymail-smart-nospam1.0) with ESMTP id SAA80311 for <linux-mm@kvack.org>; Mon, 10 Apr 2000 18:41:49 -0500 (CDT)
+Received: from fsgi344.americas.sgi.com (fsgi344.americas.sgi.com [128.162.184.15]) by ironwood-e185.americas.sgi.com (8.8.4/SGI-ironwood-e1.4) with ESMTP id SAA25634 for <linux-mm@kvack.org>; Mon, 10 Apr 2000 18:41:42 -0500 (CDT)
+From: Jim Mostek <mostek@sgi.com>
+Message-Id: <200004102341.SAA49583@fsgi344.americas.sgi.com>
+Subject: lock_page/LockPage/UnlockPage
+Date: Mon, 10 Apr 2000 18:41:47 -0500 (CDT)
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: sct@redhat.com
-Cc: alan@lxorguk.ukuu.org.uk, kanoj@google.engr.sgi.com, manfreds@colorfullife.com, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org, torvalds@transmeta.com
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-   On Sun, Apr 09, 2000 at 12:37:05AM +0100, Alan Cox wrote:
-   > 
-   > Basically establish_pte() has to be architecture specific, as some processors
-   > need different orders either to avoid races or to handle cpu specific
-   > limitations.
+Just a minor nit, but it seems to me that if UnlockPage wakes up
+sleepers, LockPage should go to sleep.
 
-   What exactly do different architectures need which set_pte() doesn't 
-   already allow them to do magic in?  
+The interface:
 
-Doing a properly synchronized PTE update and Cache/TLB flush when the
-mapping can exist on multiple processors is not most efficiently done
-if we take some generic setup.
+	LockPage
+	UnlockPage
+	TryLockPage(page)
 
-The idea is that if we encapsulate the "flush_cache; set_pte;
-flush_tlb" operations into a single arch-specific routine, the
-implementation can then implement the most efficient solution possible
-to this SMP problem.
+should all be bit operators and then:
 
-For example, the fastest way to atomically update an existing PTE on
-an SMP system using a software TLB miss scheme is wildly different
-from that on an SMP system using a hardware replaced TLB.
+	lock_page
+	unlock_page
+	trylock_page
 
-For example, with a software TLB miss scheme it might be something
-like this:
+should be the ones that actually sleep/wakeup.
 
-	establish_pte() {
-		capture_cpus(mm->cpu_vm_mask);
-		everybody_flush_cache_page(mm->cpu_vm_mask, ...);
-		atomic_set_pte(ptep, entry);
-		everybody_flush_tlb_page(mm->cpu_vm_mask, ...);
-		release_cpus(mm->cpu_vm_mask);
-	}
 
-With the obvious important optimizations for when mm->count is one,
-etc.
+Not a big deal, but ....
 
-The other case is when we are checking the dirty status of a pte
-in vmscan, something similar is needed there as well:
-
-	pte_t atomic_pte_check_dirty() {
-		capture_cpus(mm->cpu_vm_mask);
-		entry = *ptep;
-		if (pte_dirty(entry)) {
-			everybody_flush_cache_page(mm->cpu_vm_mask, ...);
-			pte_clear(ptep);
-			everybody_flush_tlb_page(mm->cpu_vm_mask, ...);
-		}
-		release_cpus(mm->cpu_vm_mask);
-		return entry;
-	}
-
-Later,
-David S. Miller
-davem@redhat.com
+Jim
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
