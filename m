@@ -1,62 +1,119 @@
-Received: from aloha.cc.columbia.edu (localhost [127.0.0.1])
-	by aloha.cc.columbia.edu (8.12.8/8.12.8) with ESMTP id h5QHLQEX026393
-	for <linux-mm@kvack.org>; Thu, 26 Jun 2003 13:21:26 -0400 (EDT)
-Received: from localhost by aloha.cc.columbia.edu (8.12.8/8.12.8/Submit) with ESMTP id h5QHLQ0s026387
-	for <linux-mm@kvack.org>; Thu, 26 Jun 2003 13:21:26 -0400 (EDT)
-Date: Thu, 26 Jun 2003 13:21:26 -0400 (EDT)
-From: Raghu R Arur <rra2002@columbia.edu>
-Subject: shrink_caches() 
-Message-ID: <Pine.GSO.4.50.0306261315060.26256-100000@aloha.cc.columbia.edu>
+From: Daniel Phillips <phillips@arcor.de>
+Subject: Re: [RFC] My research agenda for 2.7
+Date: Thu, 26 Jun 2003 21:00:40 +0200
+References: <200306250111.01498.phillips@arcor.de> <20030625092938.GA13771@skynet.ie>
+In-Reply-To: <20030625092938.GA13771@skynet.ie>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; CHARSET=US-ASCII
-Content-ID: <Pine.LNX.4.44.0306261314382.5752@delhi.clic.cs.columbia.edu>
+Content-Type: text/plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200306262100.40707.phillips@arcor.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-I was going thru the code of shrink_caches(). it returns the difference
-between the number of pages requested to be freed and the number of pages
-that were actually freed. What i see over here is that the nr_pages which
-is the return value, is decremented only when the pages are freed from
-slab cache and page cache. The value is not decremented when the pages get
-freed from dentry cache, inode cache or the quota cache, which are freed
-at high memory pressure times. So when no pages get freed from page cache,
-but get freed from dentry/inode caches we will be returning a value which
-says that no pages were freed. Why is this done? can you PLEASE explain me
-this.
+On Wednesday 25 June 2003 11:29, Mel Gorman wrote:
+> > 1) Active memory defragmentation
+> >
+> > I doubt anyone will deny that this is desirable.  Active defragmentation
+> > will eliminate higher order allocation failures for non-atomic
+> > allocations, and I hope, generally improve the efficiency and
+> > transparency of the kernel memory allocator.
+>
+> It might be just me, but this scheme sounds a bit complicated (I'm still
+> absorbing the other two).
 
-559 static int FASTCALL(shrink_caches(zone_t * classzone, int priority,
-unsigned int gfp_mask, int nr_pages));
-560 static int shrink_caches(zone_t* classzone, int priority, unsigned int
-gfp_mask, int nr_pages)
-561 {
-562 int chunk_size = nr_pages;
-563 unsigned long ratio;
-564
-565 nr_pages -= kmem_cache_reap(gfp_mask);
-566 if (nr_pages <= 0)
-567 return 0;
-568
-569 nr_pages = chunk_size;
-570 /* try to keep the active list 2/3 of the size of the cache */
-571 ratio = (unsigned long) nr_pages * nr_active_pages /((nr_inactive_pages + 1) * 2);
-572 refill_inactive(ratio);
-573
-574 nr_pages = shrink_cache(nr_pages,classzone, gfp_mask, priority);
-576 return 0;
-577
-578 shrink_dcache_memory(priority, gfp_mask);
-579 shrink_icache_memory(priority, gfp_mask);
-580 #ifdef CONFIG_QUOTA
-581 shrink_dqcache_memory(DEF_PRIORITY, gfp_mask);
-582 #endif
-583
-584 return nr_pages;
-585 }
+Mel,
 
+I probably spent too much time dwelling on the hard cases of page moving, and 
+didn't sufficiently emphasize that handling a few easy cases would do a 
+pretty good job, certainly better than we do now.  For example:
 
-  thanks , Raghu.
+  * Most process pages are easily movable, since usually only page tables
+    will hold references.
+
+  * Most page cache pages are easily movable, likewise
+
+  * Similarly, page table pages are not too hard to move 
+
+Most slab pages are hard to move.  We could try to fix that for certain common 
+object types, or we could just tell slab to use its own biggish chunks of 
+memory, which it can play in as it sees fit.
+
+> I find it difficult to see what happens when a
+> page used by a kernel pointer changes for any case other than vmalloc()
+> but I probably am missing something.
+
+The point you apparently missed is that the defragger will identify and update 
+those kernel pointers, being careful about races of course.
+
+> How about: Move order-0 allocations to slab (ignoring bootstrap issues for
+> now but shouldn't be hard anyway)
+
+That sounds like radical surgery to me, but to each his own experiments.
+
+> Each cache slab is 2^MAX_GFP_ORDER large and there is three caches
+>   o order0-user
+>   o order0-kreclaim
+>   o order0-knoreclaim
+>
+> order0-user is for any userspace allocation. These pages should be
+> trivially reclaimable with rmap available. If a large order block is
+> necessary, select one slab and reclaim it. This will break LRU ordering
+> something rotten but I am guessing that LRU ordering is not the prime
+> concern here. If a defrag daemon exists, scan MAX_DEFRAG_SCAN slabs and
+> pick the one with the most clean filesystem backed pages to chuck out
+> (least IO involved in reclaim).
+
+Defragmentation by selective eviction is possible, but isn't necessarily 
+optimal.  In the case of memory that isn't swap or file-backed, it isn't even 
+possible.  On the other hand, you may think of the page move case as simply 
+an optimized evict-and-reload, if that helps understand where I'm going.
+
+Regardless, it would be good to teach vmscan to evict pages that will help 
+build higher order allocation units, when these are in short supply.  This 
+would be an optimization heuristic; it would still necessary to handle the 
+general case of data moving in order to make any guarantee re fragmentation 
+control.
+
+> order0-kreclaim is for kernel allocations which are trivially reclaimable
+> and that can be safely discared knowing that no pointer exists to them.
+> This is most likely to be usable for slab allocations of caches like
+> dentry's which can be safely thrown out. A quick look of /proc/slabinfo
+> shows that most slabs are just 1 page large. Slabs already have a
+> set_shrinker() callback for the removal of objects so it is likely that
+> this could be extended for telling caches to clear all objects and discard
+> a particular slab.
+>
+> order0-knoreclaim is for kernel allocations which cannot be easily
+> reclaimed and have pointers to the allocation which are difficult to
+> reclaim. For all intents and purposes, these are not reclaimable without
+> impementing swapping in kernel space.
+>
+> This has a couple of things going for it
+>
+> o Reclaimable pages are in easy to search globs
+> o Gets nifty per-cpu alloc and caching that comes with slab automatically
+> o Freeing high order pages is a case of discarding pages in one slab
+> o Doesn't require fancy pants updating of pointers or page tables
+
+Without updating pointers, active defragmentation is not possible.  But 
+perhaps you meant to say that active defragmentation is not needed?
+
+> o Possible ditch the mempool interface as slab already has similar
+> functionality
+> o Seems simple
+>
+> Opinions?
+
+Yes :-)
+
+Regards,
+
+Daniel
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
