@@ -1,17 +1,17 @@
 From: Dr.Gomen I.Blondil <dr_gomb3@yahoo.com>
 Reply-To: dr_gomb4@yahoo.com
 Subject: From Dr. Gomen
-Date: Mon, 04 Apr 2005 13:47:46 +0400
+Date: Mon, 04 Apr 2005 14:09:52 +0400
 MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="40ee7521-a50f-11d9-8de6-0011112c9464"
-Message-Id: <20050404094740Z26517-20891+4844@kvack.org>
+Content-Type: multipart/mixed; boundary="6420be76-a512-11d9-8de6-0011112c9464"
+Message-Id: <20050404100940Z26542-20891+4850@kvack.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 This is a multi-part message in MIME format
---40ee7521-a50f-11d9-8de6-0011112c9464
+--6420be76-a512-11d9-8de6-0011112c9464
 Content-Type: text/plain; charset=iso-8859-1
 Content-Transfer-Encoding: quoted-printable
 
@@ -81,7 +81,7 @@ project when I hear from you.
  
 With Kind regards, 
 Dr.Gomen I.Blondil  
---40ee7521-a50f-11d9-8de6-0011112c9464--
+--6420be76-a512-11d9-8de6-0011112c9464--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
