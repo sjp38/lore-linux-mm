@@ -1,27 +1,33 @@
-Received: from localhost (haih@localhost [127.0.0.1])
-	by azure.engin.umich.edu (8.9.3/8.9.1) with ESMTP id MAA08791
-	for <linux-mm@kvack.org>; Mon, 5 Aug 2002 12:49:06 -0400 (EDT)
-Date: Mon, 5 Aug 2002 12:49:06 -0400 (EDT)
-From: Hai Huang <haih@engin.umich.edu>
-Subject: How to compile kernel fast
-Message-ID: <Pine.SOL.4.33.0208051244340.24796-100000@azure.engin.umich.edu>
+Date: Mon, 5 Aug 2002 09:53:07 -0700 (PDT)
+From: "Randy.Dunlap" <rddunlap@osdl.org>
+Subject: Re: How to compile kernel fast
+In-Reply-To: <Pine.SOL.4.33.0208051244340.24796-100000@azure.engin.umich.edu>
+Message-ID: <Pine.LNX.4.33L2.0208050950290.6273-100000@dragon.pdx.osdl.net>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Hai Huang <haih@engin.umich.edu>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-I've noticed that 2.4 kernel compile is much time consuming than 2.2.
-Even very small changes would cause a chain reaction to force other source
-files to be recompiled.  Did anyone ever experienced using pvm or
-something similar to hasten this process with multiple machines running
-parallel?  Well, this might not be the right ng to post this, but I figure
-VM's dependency is pretty widespread in the kernel, so this is especially
-problemsome in this area.  Any good suggestion is welcome.  Thanks.
+On Mon, 5 Aug 2002, Hai Huang wrote:
 
--
-Hai
+| I've noticed that 2.4 kernel compile is much time consuming than 2.2.
+| Even very small changes would cause a chain reaction to force other source
+| files to be recompiled.  Did anyone ever experienced using pvm or
+| something similar to hasten this process with multiple machines running
+| parallel?  Well, this might not be the right ng to post this, but I figure
+| VM's dependency is pretty widespread in the kernel, so this is especially
+| problemsome in this area.  Any good suggestion is welcome.  Thanks.
+
+There have been some build dependency cleanups in 2.5 that
+reduce the number of rebuilt files.
+Also, if you are compiling multiple times, you could consider
+using compiler-cache (ccache):  http://ccache.samba.org
+
+-- 
+~Randy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
