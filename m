@@ -1,69 +1,41 @@
-Message-ID: <20040825204621.74650.qmail@web14305.mail.yahoo.com>
-Date: Wed, 25 Aug 2004 13:46:21 -0700 (PDT)
-From: Kanoj Sarcar <kanojsarcar@yahoo.com>
+Date: Wed, 25 Aug 2004 13:54:57 -0700
+From: William Lee Irwin III <wli@holomorphy.com>
 Subject: Re: Documentation/vm/balance really outdated
-In-Reply-To: <20040825184520.GA23878@logos.cnet>
-MIME-Version: 1.0
+Message-ID: <20040825205457.GJ2793@holomorphy.com>
+References: <20040825184520.GA23878@logos.cnet>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20040825184520.GA23878@logos.cnet>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Marcelo Tosatti <marcelo.tosatti@cyclades.com>, linux-mm@kvack.org, akpm@osdl.org
+To: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
+Cc: linux-mm@kvack.org, akpm@osdl.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
-
---- Marcelo Tosatti <marcelo.tosatti@cyclades.com>
-wrote:
-
-> Hi guys,
-> 
-> The file Documentation/vm/balance was written by
-> Kanoj in 2000, and is completly outdated 
-> to what we have now.
-> 
+On Wed, Aug 25, 2004 at 03:45:20PM -0300, Marcelo Tosatti wrote:
+> The file Documentation/vm/balance was written by Kanoj in 2000, and
+> is completly outdated to what we have now.
 > Last paragraph:
-> 
->
-pages_min/pages_low/pages_high/low_on_memory/zone_wake_kswapd:
-> These are
-> per-zone fields, used to determine when a zone needs
-> to be balanced. When
-> the number of pages falls below pages_min, the
-> hysteric field low_on_memory
-> gets set. This stays set till the number of free
-> pages becomes pages_high.
-> When low_on_memory is set, page allocation requests
-> will try to free some
-> pages in the zone (providing GFP_WAIT is set in the
-> request). Orthogonal
-> to this, is the decision to poke kswapd to free some
-> zone pages. That
-> decision is not hysteresis based, and is done when
-> the number of free
-> pages is below pages_low; in which case
-> zone_wake_kswapd is also set.
-> 
+> pages_min/pages_low/pages_high/low_on_memory/zone_wake_kswapd: These are
+> per-zone fields, used to determine when a zone needs to be balanced. When
+> the number of pages falls below pages_min, the hysteric field low_on_memory
+> gets set. This stays set till the number of free pages becomes pages_high.
+> When low_on_memory is set, page allocation requests will try to free some
+> pages in the zone (providing GFP_WAIT is set in the request). Orthogonal
+> to this, is the decision to poke kswapd to free some zone pages. That
+> decision is not hysteresis based, and is done when the number of free
+> pages is below pages_low; in which case zone_wake_kswapd is also set.
 > Should we just remove it? 
-> 
 
-Thats the easy solution; a better one would be if 
-some (one | people) volunteer(s) to update that file.
-
-If you do remove it, also consider the files "numa"
-and "locking" for removal/updates, I know they are 
-also quite out of date.
-
-Thanks.
-
-Kanoj
+pages_min, pages_low, and pages_high are still in use, but with more
+precisely-defined semantics. low_on_memory is gone, and min_free_kb,
+overcommit_memory, and swappiness have arrived for different purposes.
+I find the value of this documentation rather unclear particularly given
+that it's not been examined in so long. Maybe kerneldoc is the way.
 
 
-
-		
-__________________________________
-Do you Yahoo!?
-Yahoo! Mail Address AutoComplete - You start. We finish.
-http://promotions.yahoo.com/new_mail 
+-- wli
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
