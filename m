@@ -1,42 +1,35 @@
-Date: Mon, 25 Sep 2000 14:35:23 -0600
-From: yodaiken@fsmlabs.com
+Date: Mon, 25 Sep 2000 16:47:21 -0400 (EDT)
+From: "Benjamin C.R. LaHaise" <blah@kvack.org>
 Subject: Re: the new VMt
-Message-ID: <20000925143523.B19257@hq.fsmlabs.com>
-References: <20000925140419.A18243@hq.fsmlabs.com> <E13den0-0005YM-00@the-village.bc.nu>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-In-Reply-To: <E13den0-0005YM-00@the-village.bc.nu>; from Alan Cox on Mon, Sep 25, 2000 at 09:23:48PM +0100
+In-Reply-To: <20000925143523.B19257@hq.fsmlabs.com>
+Message-ID: <Pine.LNX.3.96.1000925164556.9644A-100000@kanga.kvack.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Alan Cox <alan@lxorguk.ukuu.org.uk>
-Cc: yodaiken@fsmlabs.com, "Stephen C. Tweedie" <sct@redhat.com>, Jamie Lokier <lk@tantalophile.demon.co.uk>, mingo@elte.hu, Andrea Arcangeli <andrea@suse.de>, Marcelo Tosatti <marcelo@conectiva.com.br>, Linus Torvalds <torvalds@transmeta.com>, Rik van Riel <riel@conectiva.com.br>, Roger Larsson <roger.larsson@norran.net>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
+To: yodaiken@fsmlabs.com
+Cc: "Stephen C. Tweedie" <sct@redhat.com>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Sep 25, 2000 at 09:23:48PM +0100, Alan Cox wrote:
-> > my prediction is that if you show me an example of 
-> > DoS vulnerability,  I can show you fix that does not require bean counting.
-> > Am I wrong?
-> 
-> I think so. Page tables are a good example
+On Mon, 25 Sep 2000 yodaiken@fsmlabs.com wrote:
 
-I'm not too sure of what you have in mind, but if it is
-     "process creates vast virtual space to generate many page table
-      entries -- using mmap"
-the answer is, virtual address space quotas and mmap should kill 
-the process on low mem for page tables.
-
+> On Mon, Sep 25, 2000 at 09:23:48PM +0100, Alan Cox wrote:
+> > > my prediction is that if you show me an example of 
+> > > DoS vulnerability,  I can show you fix that does not require bean counting.
+> > > Am I wrong?
+> > 
+> > I think so. Page tables are a good example
 > 
-> 
-> -
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> Please read the FAQ at http://www.tux.org/lkml/
+> I'm not too sure of what you have in mind, but if it is
+>      "process creates vast virtual space to generate many page table
+>       entries -- using mmap"
+> the answer is, virtual address space quotas and mmap should kill 
+> the process on low mem for page tables.
 
--- 
----------------------------------------------------------
-Victor Yodaiken 
-Finite State Machine Labs: The RTLinux Company.
- www.fsmlabs.com  www.rtlinux.com
+No.  Page tables are not freed after munmap (and for good reason).  The
+counting of page table "beans" is critical.
+
+		-ben
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
