@@ -1,27 +1,37 @@
-Received: from Tandem.com (suntan.tandem.com [192.216.221.8])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id IAA11142
-	for <linux-mm@kvack.org>; Sun, 22 Mar 1998 08:26:37 -0500
-Date: Sun, 22 Mar 1998 18:57:28 +0530 (GMT+0530)
-From: Chirayu Patel <chirayu@wipro.tcpn.com>
-Subject: __free_page() and free_pages() - Differences?
-Message-Id: <Pine.SUN.3.95.980322184553.3977Z-100000@Kabini>
-Mime-Version: 1.0
+Received: from max.fys.ruu.nl (max.fys.ruu.nl [131.211.32.73])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id PAA18166
+	for <linux-mm@kvack.org>; Mon, 23 Mar 1998 15:40:25 -0500
+Date: Mon, 23 Mar 1998 20:08:17 +0100 (MET)
+From: Rik van Riel <H.H.vanRiel@fys.ruu.nl>
+Reply-To: Rik van Riel <H.H.vanRiel@fys.ruu.nl>
+Subject: BIG FAT BUG with free_memory_available()
+Message-ID: <Pine.LNX.3.91.980323200337.771B-100000@mirkwood.dummy.home>
+MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.rutgers.edu
+To: Linus Torvalds <torvalds@transmeta.com>
+Cc: linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi ,
+Hi Linus,
 
-I am having trouble understanding the difference between 
-the __free_page function and free_pages function in page_alloc.c
+it seems like I ran into some big fat bug with
+the free_memory_available() test in kswapd.
 
-The only difference which I can see is that free_pages decrement map->count
-while __free_page decrements the page->count. Both of them eventually make
-a call to free_pages_ok with identical parametrs. 
+My system turned into a swap loop with no change
+in the amount of free memory and no 128k area free.
+Probably this is because there's not one single
+128k area without an unswappable page in it.
 
-Can anyone shed some light on this?
+The only way I see around this is to disallow kernel
+memory allocation and locked pages in a certain part
+of physical memory, but maybe there's another way...
 
-yet-another-mm-hacker,
-Chirayu
+grtz,
+
+Rik.
++-------------------------------------------+--------------------------+
+| Linux: - LinuxHQ MM-patches page          | Scouting       webmaster |
+|        - kswapd ask-him & complain-to guy | Vries    cubscout leader |
+|     http://www.fys.ruu.nl/~riel/          | <H.H.vanRiel@fys.ruu.nl> |
++-------------------------------------------+--------------------------+
