@@ -1,56 +1,43 @@
-Received: from NigelLaptop
- (203-167-153-172.dialup.clear.net.nz [203.167.153.172])
- by smtp2.clear.net.nz (CLEAR Net Mail)
- with SMTP id <0H6Y00F8F05GNM@smtp2.clear.net.nz> for linux-mm@kvack.org; Wed,
- 11 Dec 2002 19:46:29 +1300 (NZDT)
-Date: Wed, 11 Dec 2002 19:44:29 +1300
-From: Nigel Cunningham <ncunningham@clear.net.nz>
-Subject: Using reverse mapping in 2.5.51 for suspend-to-disk.
-Message-id: <000101c2a0e0$c5743140$ac99a7cb@NigelLaptop>
-MIME-version: 1.0
-Content-type: text/plain; charset=iso-8859-1
-Content-transfer-encoding: 7bit
+Date: Wed, 11 Dec 2002 09:01:02 +0100
+From: Jan Hudec <bulb@ucw.cz>
+Subject: Re: Question on set_page_dirty()
+Message-ID: <20021211080102.GG20525@vagabond>
+References: <3DF5BB06.A6F6AFFD@scs.ch>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <3DF5BB06.A6F6AFFD@scs.ch>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Linux Memory Management List (E-mail)" <linux-mm@kvack.org>
+To: Martin Maletinsky <maletinsky@scs.ch>
+Cc: linux-mm@kvack.org, kernelnewbies@nl.linux.org
 List-ID: <linux-mm.kvack.org>
 
-Hi all.
+On Tue, Dec 10, 2002 at 10:59:34AM +0100, Martin Maletinsky wrote:
+> Hello,
+> 
+> Looking at the function set_page_dirty() (in linux 2.4.18-3 - see
+> below) I noticed, that it not only sets the pages PG_dirty bit (as the
+> SetPageDirty() macro does), but additionnally may link the page onto
+> a queue (more precisely the dirty queue of it's 'mapping').
 
-Let me begin by saying I'm quite new to kernel hacking, and will freely
-admit that I've lots still to learn. Please, therefore, cut me some slack if
-I show previously unsurpassed ignorance!
+That's the most important bit of it all. All dirty pages must at some
+point be cleaned. The list keeps track of which pages need to be
+cleaned, so kernel can do it quickly either when it needs to free the
+mapping (close the file, terminate process, exec) or when it's just time
+to flush some pages (in kflushd).
 
-First, some background:
+> What is the meaning of this dirty queue, what is the effect of linking
+> a page onto that queue, and when should the set_page_dirty() function
+> be used rather than the
+> SetPageDirty() macro?
 
-I've done some work on the suspend-to-disk code in the 2.4 series kernels.
-The mainstream suspend-to-disk code in 2.4 essentially eats all the memory
-it can, makes a copy of the remainder, and writes that copy to disk. I
-prepared a version that eats far less memory and writes a bigger image,
-thereby resulting in a more responsive system on resume (although it takes
-longer to read). The target, of course is to eat [virtually] no memory at
-all and store as close to a perfect image as possible. To get closer to
-that, I implemented a crude reverse mapping (assuming I understand the term
-correctly) which makes a bitmap of pages ('pageset 1') that are only used by
-processes which have been stopped (ie processes not needed for writing the
-image), writes the contents of those pages to disk and then copies and saves
-the remaining pages ('pageset 2') using pageset1 pages and free memory. It
-works well, and will probably work better once I put it in a kernel where
-drivers are properly quiesced!
+If you use the SetPageDirty macro, then the page is marked dirty, but
+kernel can't find it when it should clean it. Thus it eventualy won't
+flush the data (it won't call writepage on it).
 
-Which brings me to my question. I want to start trying to get this going in
-a 2.5 kernel, and have seen people talking about reverse-mapping patches for
-a while now. I'm wondering if you have managed or are preparing to merge
-such patches into the 2.5 series, whether they would be helpful to me in
-identifying those pageset1 pages. If so, how I use them.
-
-Of course you might want to bag the whole method in general :> I'll happily
-try to implement a better method if you suggestion one!
-
-Regards and thanks in advance,
-
-Nigel
-
+-------------------------------------------------------------------------------
+						 Jan 'Bulb' Hudec <bulb@ucw.cz>
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
