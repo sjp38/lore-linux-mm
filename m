@@ -1,68 +1,44 @@
-From: felix mendes <felixmendes@fsmail.net>
-Subject: cry for help
-Reply-To: felix mendes <felixmendes@fsmail.net>
-mime-version: 1.0
-content-type: multipart/mixed;
-	boundary="qzsoft_directmail_seperator"
-Message-Id: <20041220223148Z26582-766+3648@kvack.org>
-Date: Mon, 20 Dec 2004 17:31:41 -0500
+Date: Mon, 20 Dec 2004 16:04:49 -0800 (PST)
+From: Linus Torvalds <torvalds@osdl.org>
+Subject: Re: [RFC][PATCH 0/10] alternate 4-level page tables patches
+In-Reply-To: <20041220185308.GA24493@wotan.suse.de>
+Message-ID: <Pine.LNX.4.58.0412201600400.4112@ppc970.osdl.org>
+References: <41C3D453.4040208@yahoo.com.au>
+ <Pine.LNX.4.44.0412182338040.13356-100000@localhost.localdomain>
+ <20041220180435.GG4316@wotan.suse.de> <Pine.LNX.4.58.0412201016260.4112@ppc970.osdl.org>
+ <20041220185308.GA24493@wotan.suse.de>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm <linux-mm@kvack.org>
+To: Andi Kleen <ak@suse.de>
+Cc: Hugh Dickins <hugh@veritas.com>, Nick Piggin <nickpiggin@yahoo.com.au>, Linux Memory Management <linux-mm@kvack.org>, Andrew Morton <akpm@osdl.org>
 List-ID: <linux-mm.kvack.org>
 
---qzsoft_directmail_seperator
-Content-Type: text/plain;
-	charset="DEFAULT"
-Content-Transfer-Encoding: base64
 
-R29vZCBEYXksCgpJIGhvcGUgdGhpcyBtYWlsIG1lZXRzIHlvdSBpbiBnb29kIGhlYWx0aCBhbmQg
-c3Bpcml0OyBpIGFtLCBGZWxpeCAgTWVuZGVzLAphIHNpZXJyYSBMZW9uaWEuIFByZXNlbnRseSwg
-SSBsaXZlIGFzIGEgcmVmdWdlZSBpbiByZXB1YmxpYyBvZiBJcmVsYW5kLAp3aXRoIG15IHlvdW5n
-ZXIgc2lzdGVyLCBDbGFyaXMuIEkgYW0gYSB2aWN0aW0gb2Ygd2FyIGFuZCB0aGUgc29uIG9mIGxh
-dGUKQ2hpZWYgRHIuIEFsZnJlZCBicmlnaHQgTWVuZGVzLCB0aGUgYXNzYXNzaW5hdGVkIGZvcm1l
-ciBhc3Npc3RhbnQgZGlyZWN0b3IKT2YgU2llcnJhIExlb25lIGdvbGQgYW5kIGRpYW1vbmQtbWlu
-aW5nIGNvcnBvcmF0aW9uLgoKTXkgZmF0aGVyIHdhcyBraWxsZWQgd2l0aCBvdGhlciBnb3Zlcm5t
-ZW50IG9mZmljaWFscyBkdXJpbmcgoCBvZmZpY2lhbApob3VycyB3aGVuIHRoZSByZWJlbCB0cm9v
-cHMgc3Rvcm1lZCBhbmQgcmFpZGVkIHRoZSBtaW5pbmcgoCBjb3Jwb3JhdGlvbgpvZmZpY2UgYXQg
-dGhlIGhlYXQgb2YgdGhlIGNyaXNpcyBpbiBteSBjb3VudHJ5LiBBIGZldyB3ZWVrcyBsYXRlciwg
-dGhlCnJlYmVscyBhbHNvIGludmFkZWQgb3VyIHJlc2lkZW50aWFsIGJ1aWxkaW5nIGluIHdoaWNo
-IG15IG1vdGhlciBhbmQgdHdvCm9mIG91ciBzZWN1cml0eSBtZW4gd2VyZSBraWxsZWQgaW4gdGhl
-IGNvbXBvdW5kIHdoaWxlIEkgd2FzIG91dCBmb3IgYQpzcGVjaWFsIHJlc2VhcmNoIHByb2dyYW0g
-YW5kIG15IHlvdW5nZXIgc2lzdGVyIHdhcyBpbiBzY2hvb2wuCgpJIGhhZCBhIHNpbmd1bGFyIHNo
-b2NrIGFuZCB0cmF1bWEsIHdoaWNoIGNvbXBlbGxlZCB1cyB0byBmbGVlIGZyb20gdGhlCmNvdW50
-cnkgdG8gcmVwdWJsaWMgb2YgSXJlbGFuZCBieSB0aGUgaGVscCBvZiBhbiBhcm15IGNvbG9uZWws
-IHdobyBpcyBhCmNsb3NlIGZyaWVuZCBvZiBteSBsYXRlIGZhdGhlciwgSSBoYXZlIGZpcnN0IGxl
-YXZpbmcgY2VydGlmaWNhdGUgYW5kIGkKd291bGQgaGF2ZSBmdXJ0aGVyIG15IGVkdWNhdGlvbiBp
-ZiBub3QgZm9yIHRoZSBkZWF0aCBvZiBteSBwYXJlbnRzLiBJCmhhdmUgbmV2ZXIgd29ya2VkIHRv
-IGVhcm4gbXkgbGl2aW5nIHNpbmNlIG15IGxhdGUgcGFyZW50cyBoYWQgZW5vdWdoIHdlYWx0aApm
-b3IgdXMuCgpJIGFtIGNvbnRhY3RpbmcgeW91IG5vdyBiZWNhdXNlIG9mIHRoZSBwcmVzZW50IGRp
-ZmZpY3VsdHkgaSBhbSBmYWNpbmcuClVuZm9ydHVuYXRlbHkgbXkgZmF0aGVyJ3MgdHdvIGFjY291
-bnRzIGluIFdlc3QgQWZyaWNhIGhhdmUgcmVjZW50bHkgYmVlbgpmcm96ZW4sIGhvd2V2ZXIgdGhp
-cyBkaWQgbm90IGFmZmVjdCB0aGUgdHdlbnR5IGVpZ2h0eSAgbWlsbGlvbiBzaXggaHVuZHJlZAp0
-aG91c2FuZCB1cyBkb2xsYXJzICh1cyQgMjgsNjAwLDAwMC4wMCksIHdoaWNoIGhlIGRlcG9zaXRl
-ZCB3aXRoIGEgc2VjdXJpdHkKY29tcGFueSBpbiBJcmVsYW5kCgpGb3Igbm93LCBJIGFtIGhhdmlu
-ZyBldmVyeSBpbmZvcm1hdGlvbiBhbmQgZG9jdW1lbnQgbmVlZGVkIGZvciB0aGUKY29sbGVjdGlv
-biBvZiB0aGUgZGVwb3NpdCB3aXRoIHRoZSBzZWN1cml0eSBjb21wYW55IGFuZCBpIHdhbnQgeW91
-IHRvCmFjdCBhcyB0aGUgYmVuZWZpY2lhcnkgb2YgdGhlIGRlcG9zaXQgZm9yIGVhc3kgYW5kIHNt
-b290aCBjb2xsZWN0aW9uIHRvIAp5b3VyIGFjY291bnQgYWJyb2FkIGZvciBpbnZlc3RtZW50IHB1
-cnBvc2VzLgoKWW91IHdpbGwgbm8gZG91YnQgYmUgYWRlcXVhdGVseSBjb21wZW5zYXRlZCB3aXRo
-IGFzIHdlbGwgYXMgYQpwZXJjZW50YWdlIG9mIHRoZSBwcm9maXQgZnJvbSBpbnZlc3RtZW50IG9m
-IHRoZSBmdW5kLiBBbHNvIHlvdSB3aWxsIHNlZQp0byBpdCB0aGF0IG15IHNpc3RlciBhbmQgSSBj
-b21lIG92ZXIgdG8gSXJlbGFuZCBhdCB0aGUgZWFybGllc3QKcG9zc2libGUgdGltZS4gSSBhbSBt
-YWtpbmcgdGhpcyByZXF1ZXN0IHRvIHlvdSB3aXRoIHRlYXJzIGluIG15IGV5ZXMKYW5kIEkgZmVl
-bCB0aGF0IEdvZCBhbG1pZ2h0eSB3aWxsIHRvdWNoIHlvdSB3aXRoIGhpcyBzcGlyaXQgdG8gbGlz
-dGVuIHRvIG15CkNyeSBmb3IgaGVscCBhbmQgYW5zd2VyIG1lIHdpdGhvdXQgZGVsYXkuCgpTaW5j
-ZSBvdXIgYnJlYWR3aW5uZXIgaXMgbm8gbW9yZSBhbmQgdGhpcyBpcyB0aGUgb25seSBob3BlIGZv
-ciBsaWZlLgpZb3VyIHBvc2l0aXZlIHJlc3BvbnNlIHdpbGwgZ2l2ZSBtZSB0aGUgZ3JlYXRlc3Qg
-am95IGFuZCByZWxpZWYuIEdvZApibGVzcyB5b3UgZm9yIHlvdXIga2luZCBhc3Npc3RhbmNlIHdl
-IGhhdmUgYWdyZWVkIHRvIG9mZmVyIHlvdSAyMCUgb2YKdGhlIHRvdGFsIHN1bS4gIFNlcmlvdXNs
-eSB3YWl0aW5nIGZvciB5b3VyIHVyZ2VudCByZXBseS4gUGxlYXNlIHJlcGx5IG1lIG9uIHRoaXMg
-RW1haWwgYWRkOiAKRmVsaXhtZW5kZXNAZnNtYWlsLm5ldAoKQmVzdCByZWdhcmQuCkZlbGl4IE1l
-bmRlcw==
+On Mon, 20 Dec 2004, Andi Kleen wrote:
+> 
+> I'm not sure what you mean with that. You have to convert the architectures,
+> otherwise they won't compile. That's true for my patch and true for
+> Nick's (except that he didn't do all the work of converting the archs yet)
 
---qzsoft_directmail_seperator--
+Well, you do have to convert the architectures, in the sense that you need 
+to fix up the types for the "pmd_offset()" etc functions.
 
+But you shouldn't have to fix up anything else. Especially if "pgd_t" 
+doesn't change, the _only_ things that need fixing up is anything that 
+walks the page tables. Nothing else.
+
+>>   It's just that once you conceptually do it in the middle, a
+>> numbered name like "pml4_t" just doesn't make any sense (
+>
+> Sorry I didn't invent it, just copied it from the x86-64 architecture
+> manuals because I didn't see any reason to be different.
+
+The thing is, I doubt the x86-64 architecture manuals use "pgd", "pmd" and 
+"pte", do they? So regardless, there's no consitent naming.
+
+		Linus
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
