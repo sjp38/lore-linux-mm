@@ -1,33 +1,29 @@
-Date: Mon, 26 Aug 2002 21:13:38 -0300 (BRT)
-From: Rik van Riel <riel@conectiva.com.br>
+Date: Mon, 26 Aug 2002 23:42:30 -0400
+From: Benjamin LaHaise <bcrl@redhat.com>
 Subject: Re: MM patches against 2.5.31
-In-Reply-To: <3D6AC0BB.FE65D5F7@zip.com.au>
-Message-ID: <Pine.LNX.4.44L.0208262113070.1857-100000@imladris.surriel.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Message-ID: <20020826234230.B21820@redhat.com>
+References: <3D644C70.6D100EA5@zip.com.au> <E17jO6g-0002XU-00@starship> <20020826200048.3952.qmail@thales.mathematik.uni-ulm.de> <E17jQB8-0002Zi-00@starship> <3D6A9E4D.DBCC5D0A@zip.com.au>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <3D6A9E4D.DBCC5D0A@zip.com.au>; from akpm@zip.com.au on Mon, Aug 26, 2002 at 02:31:57PM -0700
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@zip.com.au>
-Cc: Ed Tomlinson <tomlins@cam.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Christian Ehrhardt <ehrhardt@mathematik.uni-ulm.de>, Daniel Phillips <phillips@arcor.de>
+Cc: Daniel Phillips <phillips@arcor.de>, Christian Ehrhardt <ehrhardt@mathematik.uni-ulm.de>, lkml <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 26 Aug 2002, Andrew Morton wrote:
+On Mon, Aug 26, 2002 at 02:31:57PM -0700, Andrew Morton wrote:
+> I like the magical-removal-just-before-free, and my gut feel is that
+> it'll provide a cleaner end result.
 
-> Well we wouldn't want to leave tons of free pages on the LRU - the VM
-> would needlessly reclaim pagecache before finding the free pages.  And
-> higher-order page allocations could suffer.
+For the record, I'd rather see explicite removal everwhere.  We received 
+a number of complaints along the lines of "I run my app immediately after 
+system startup, and it's fast, but the second time it's slower" due to 
+the lazy page reclaim in early 2.4.  Until there's a way to make LRU 
+scanning faster than page allocation, it can't be lazy.
 
-We did this with the swap cache in 2.4.<7 and it was an
-absolute disaster.
-
-regards,
-
-Rik
--- 
-Bravely reimplemented by the knights who say "NIH".
-
-http://www.surriel.com/		http://distro.conectiva.com/
-
+		-ben
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
