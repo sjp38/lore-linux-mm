@@ -1,26 +1,34 @@
-Date: Mon, 25 Sep 2000 16:53:05 +0200 (CEST)
-From: Ingo Molnar <mingo@elte.hu>
-Reply-To: mingo@elte.hu
-Subject: Re: [patch] vmfixes-2.4.0-test9-B2
-In-Reply-To: <20000925164635.P22882@athlon.random>
-Message-ID: <Pine.LNX.4.21.0009251647090.9122-100000@elte.hu>
+Subject: Re: the new VM
+Date: Mon, 25 Sep 2000 15:47:03 +0100 (BST)
+In-Reply-To: <Pine.LNX.4.21.0009251511050.6224-100000@elte.hu> from "Ingo Molnar" at Sep 25, 2000 03:12:58 PM
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Message-Id: <E13dZX7-00055f-00@the-village.bc.nu>
+From: Alan Cox <alan@lxorguk.ukuu.org.uk>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrea Arcangeli <andrea@suse.de>
-Cc: Linus Torvalds <torvalds@transmeta.com>, Rik van Riel <riel@conectiva.com.br>, Roger Larsson <roger.larsson@norran.net>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
+To: mingo@elte.hu
+Cc: Andrea Arcangeli <andrea@suse.de>, Marcelo Tosatti <marcelo@conectiva.com.br>, Linus Torvalds <torvalds@transmeta.com>, Rik van Riel <riel@conectiva.com.br>, Roger Larsson <roger.larsson@norran.net>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 25 Sep 2000, Andrea Arcangeli wrote:
-
-> > the EXCLUSIVE thing was noticed by Dimitris i think, and it makes tons of
+> > Because as you said the machine can lockup when you run out of memory.
 > 
-> Actually I'm the one who introduced the EXCLUSIVE thing there and I audited
+> well, i think all kernel-space allocations have to be limited carefully,
+> denying succeeding allocations is not a solution against over-allocation,
+> especially in a multi-user environment.
 
-sorry - i said it was *noticed* by Dimitris. (and sent to l-k IIRC)
+GFP_KERNEL has to be able to fail for 2.4. Otherwise you can get everything
+jammed in kernel space waiting on GFP_KERNEL and if the swapper cannot make
+space you die.
 
-	Ingo
+The alternative approach where it cannot fail has to be at higher levels so
+you can release other resources that might need freeing for deadlock avoidance
+before you retry
+
+
+Alan
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
