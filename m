@@ -1,29 +1,53 @@
-Date: Thu, 21 Aug 2003 22:59:03 -0400 (EDT)
-From: Rik van Riel <riel@redhat.com>
-Subject: Re: What isthe memory management scheme of  Redhat Linux
-In-Reply-To: <Law15-DAV13Dw48qpKI0002cfc3@hotmail.com>
-Message-ID: <Pine.LNX.4.44.0308212258240.27186-100000@chimarrao.boston.redhat.com>
+Message-ID: <3F45B417.6010507@lanil.mine.nu>
+Date: Fri, 22 Aug 2003 08:11:35 +0200
+From: Christian Axelsson <smiler@lanil.mine.nu>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [2.6.0-test3-mm3] irda compile error
+References: <Pine.LNX.4.44.0308212120380.3006-100000@notebook.home.mdiehl.de>
+In-Reply-To: <Pine.LNX.4.44.0308212120380.3006-100000@notebook.home.mdiehl.de>
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Joy Ananyi <prettylorretar@hotmail.com>
-Cc: linux-mm@kvack.org
+To: Martin Diehl <lists@mdiehl.de>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 21 Aug 2003, Joy Ananyi wrote:
+Martin Diehl wrote:
 
-> Pls i need this answer soonest.
+>On Thu, 21 Aug 2003, Christian Axelsson wrote:
+>
+>  
+>
+>>Got this while doing  make. Config attached.
+>>Same config compiles fine under mm2
+>>
+>> CC      drivers/net/irda/vlsi_ir.o
+>>drivers/net/irda/vlsi_ir.c: In function `vlsi_proc_pdev':
+>>drivers/net/irda/vlsi_ir.c:167: structure has no member named `name'
+>>    
+>>
+>
+>Yep, Thanks. I'm aware of the problem which is due to the recent 
+>device->name removal. In fact a fix for this was already included in the 
+>latest resent of my big vlsi update patch pending since long.
+>
+>Anyway, it was pointed out now the patch is too big so I'm currently 
+>working on splitting it up. Bunch of patches will follow soon :-)
+>
+>Btw., are you actually using this driver? I'm always looking for testers 
+>with 2.6 to give better real life coverage...
+>  
+>
 
-Which version ?
+No, not until I get a cellphone or similar that I can use it with :)
+I smiply have it for eventual cases like this as I want to find as much 
+bugs as possible before the actual 2.6 release.
 
-If it is a homework assignment, why not look at the source
-code and patches on http://kernelnewbies.org/kernels ?
+--
+Christian Axelsson
+smiler@lanil.mine.nu
 
--- 
-"Debugging is twice as hard as writing the code in the first place.
-Therefore, if you write the code as cleverly as possible, you are,
-by definition, not smart enough to debug it." - Brian W. Kernighan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
