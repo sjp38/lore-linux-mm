@@ -1,69 +1,43 @@
-Date: Sun, 12 Nov 2000 21:30:10 +0100
-From: Andrea Arcangeli <andrea@suse.de>
-Subject: Re: problems with sync_all_inode() in prune_icache() and kupdate()
-Message-ID: <20001112213010.B11857@athlon.random>
-References: <OFF8FB6856.584FAA00-ON88256994.0064C480@LocalDomain>
+From: aprasad@in.ibm.com
+Message-ID: <CA256996.004352F8.00@d73mta05.au.ibm.com>
+Date: Mon, 13 Nov 2000 17:29:48 +0530
+Subject: reliability of linux-vm subsystem
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <OFF8FB6856.584FAA00-ON88256994.0064C480@LocalDomain>; from ying@almaden.ibm.com on Sat, Nov 11, 2000 at 11:01:25AM -0800
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ying Chen/Almaden/IBM <ying@almaden.ibm.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, Nov 11, 2000 at 11:01:25AM -0800, Ying Chen/Almaden/IBM wrote:
-> try to sync_inodes periodically anyway, but I don't know if this has other
-> implications or not. I don't see a problem with this myself. In fact, I
+Hi,
 
-Not running sync_all_inodes() from prune_icache() has the only implication of
-swapping out more stuff instead of freeing the icache (no risk to crash I
-mean).
+When i run following code many times.
+System becomes useless till all of the instance of this programming are
+killed by vmm.
+Till that time linux doesn't accept any command though it switches from one
+VT to another but its useless.
+The above programme is run as normal user previleges.
+Theoretically load should increase but system should services other users
+too.
+but this is not behaving in that way.
+___________________________________________________________________
+main()
+{
+     char *x[1000];
+     int count=1000,i=0;
+     for(i=0; i <count; i++)
+          x[i] = (char*)malloc(1024*1024*10); /*10MB each time*/
 
-However I'm wondering what this SPEC SFS benchmark is doing to trigger
-the icache shrink often.
+}
+_______________________________________________________________________
+If i run above programm for 10 times , then system is useless for around
+5-7minutes on PIII/128MB.
 
-> prune_icache(). Actually if sync_all_inodes() is called, SPEC SFS sometimes
-> simply fails due to the long response time on the I/O requests.
+regards,
+Anil
 
-Hmm, what do you mean with "fails"?
 
-> The similar theory goes with kupdate() daemon. That is, since there is only
-> a single thread that does the inode and buffer flushing, under high load,
-> kupdate() would not get a chance to call flush_dirty_buffers() until after
-> sync_inodes() is completed. But sync_inodes() can take forever since inodes
-> are flushed serially to disk. Imagine how long it might take if each inode
-
-inodes are not flushed serially to disk. Inodes are flushed to dirty buffer
-cache.
-
-the problem here isn't the flush, but it's the read that we need to do before
-we can write to the buffer. The machine is probably writing heavily to disk
-when that stall happens, and so the read latency is huge (even with the right
-elevator latency numbers) while the I/O queue is full of writes.
-
-> Again, the solution can be simple, one can create multiple
-> dirty_buffer_flushing daemon threads that calls flush_dirty_buffer()
-> without sync_super or sync_inode stuff. I have done so in my own test9
-> kernel, and the results with SPEC SFS is much more pleasant.
-
-kflushd should keep care to do the other work (flushing buffers) while the
-machine is under write load so I'm a little surprised it makes much difference
-to move the sync_inodes in a separate kernel thread (because from a certain
-prospective it's _just_ in a separate kthread :).
-
-That leads me to think kflushd may not be working properly but I've not yet
-checked if something is changed in that area recently.
-
-Or maybe you're writing to more than one disk at the same time and by having
-two threads flushing buffers all the time in parallel allows you to keep both
-disks busy (in that case that's sure not the right fix, but one possible right
-fix is instead to have a per-blockdevice list of dirty buffers and to have one
-kflushd per queue cloned at blkdev registration, I was discussing this
-problematic with Jens a few weeks ago).
-
-Andrea
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
