@@ -1,38 +1,41 @@
-Date: Fri, 13 Feb 2004 01:46:53 +1100
-From: Anton Blanchard <anton@samba.org>
 Subject: Re: 2.6.3-rc2-mm1
-Message-ID: <20040212144653.GH25922@krispykreme>
-References: <20040212015710.3b0dee67.akpm@osdl.org> <20040212031322.742b29e7.akpm@osdl.org> <20040212115718.GF25922@krispykreme> <20040212040910.3de346d4.akpm@osdl.org> <Pine.LNX.4.58.0402120937460.32441@montezuma.fsmlabs.com>
+From: Mark Haverkamp <markh@osdl.org>
+In-Reply-To: <402B6251.2060909@cyberone.com.au>
+References: <20040212015710.3b0dee67.akpm@osdl.org>
+	 <402B6251.2060909@cyberone.com.au>
+Content-Type: text/plain
+Message-Id: <1076600437.22976.3.camel@markh1.pdx.osdl.net>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.58.0402120937460.32441@montezuma.fsmlabs.com>
+Date: Thu, 12 Feb 2004 07:40:38 -0800
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Zwane Mwaikambo <zwane@arm.linux.org.uk>
-Cc: Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Nick Piggin <piggin@cyberone.com.au>
+Cc: Andrew Morton <akpm@osdl.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Christine Moore <cem@osdl.org>
 List-ID: <linux-mm.kvack.org>
 
- 
-> I've not managed to trigger this one
+On Thu, 2004-02-12 at 03:24, Nick Piggin wrote:
+> Andrew Morton wrote:
 > 
-> CONFIG_DEBUG_KERNEL=y
-> CONFIG_DEBUG_STACKOVERFLOW=y
-> # CONFIG_DEBUG_SLAB is not set
-> CONFIG_DEBUG_IOVIRT=y
-> CONFIG_DEBUG_SPINLOCK=y
-> CONFIG_DEBUG_PAGEALLOC=y
-> CONFIG_DEBUG_HIGHMEM=y
-> CONFIG_DEBUG_INFO=y
-> CONFIG_DEBUG_SPINLOCK_SLEEP=y
+> >ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.6/2.6.3-rc2/2.6.3-rc2-mm1/
+> >
+> >
+> 
+> Nether this nor the previous one boots on the NUMAQ at osdl.
+> Not sure which is the last -mm that did. 2.6.3-rc2 boots.
+> 
+> I turned early_printk on and nothing. It stops at
+> Loading linux..............
 
-Im guessing Andrews bug is my fault:
+I saw this behavior with the last mm kernel on my 8-way with
+CONFIG_HIGHMEM64G.  The problem went away when I backed out the
+highmem-equals-user-friendliness.patch
 
-http://www.kernel.org/pub/linux/kernel/people/akpm/patches/2.6/2.6.3-rc2/2.6.3-rc2-mm1/broken-out/ppc64-spinlock-sleep-debugging.patch
+Mark.
 
-If you have preempt on you wont see it.
+-- 
+Mark Haverkamp <markh@osdl.org>
 
-Anton
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
