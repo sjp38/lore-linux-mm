@@ -1,82 +1,48 @@
-Received: from fmsmsxvs041.fm.intel.com (fmsmsxvs041.fm.intel.com [132.233.42.126])
-	by mail2.hd.intel.com (8.11.6/8.11.6/d: solo.mc,v 1.42 2002/05/23 22:21:11 root Exp $) with SMTP id g72JWCt00867
-	for <linux-mm@kvack.org>; Fri, 2 Aug 2002 19:32:12 GMT
-Message-ID: <25282B06EFB8D31198BF00508B66D4FA03EA56C0@fmsmsx114.fm.intel.com>
-From: "Seth, Rohit" <rohit.seth@intel.com>
-Subject: RE: large page patch 
-Date: Fri, 2 Aug 2002 12:31:58 -0700 
-MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="iso-8859-1"
+Date: Fri, 2 Aug 2002 16:40:49 -0700
+From: Chris Wedgwood <cw@f00f.org>
+Subject: Re: large page patch
+Message-ID: <20020802234049.GA28755@tapu.f00f.org>
+References: <3D49D45A.D68CCFB4@zip.com.au>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <3D49D45A.D68CCFB4@zip.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: gh@us.ibm.com, riel@conectiva.com.br, akpm@zip.com.au, "Seth, Rohit" <rohit.seth@intel.com>, "Saxena, Sunil" <sunil.saxena@intel.com>, "Mallick, Asit K" <asit.k.mallick@intel.com>, "David S. Miller" <davem@redhat.com>, "'davidm@hpl.hp.com'" <davidm@hpl.hp.com>
+To: Andrew Morton <akpm@zip.com.au>
+Cc: lkml <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "Seth, Rohit" <rohit.seth@intel.com>, "Saxena, Sunil" <sunil.saxena@intel.com>, "Mallick, Asit K" <asit.k.mallick@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-We agree that there are few different ways to get this support implemented
-in base kernel.  Also, the extent to which this support needs to go is also
-debatable (like whether the large_pages could be made swapable etc.)  Just
-to give little history, we also started with prototyping changes in kernel
-that would get the large page support transparent to end user (as we wanted
-to see the benefit of large apps like databases, spec benchmark and HPC
-applications using different page sizes on IA-64).  And under some
-conditions automagically user start using large pages for shm and private
-anonymous pages.  But we would call this at best a kludge because there are
-quite a number of conditions in these execution paths that one has to do
-differently for large_pages.  For example,
-make_pages_present/handle_mm_fault for anonymous or shmem type of pages need
-to be modified to embed the knowledge of different page size in generic
-kernel. Also, there are places where semantics of changes may not completely
-match.  For example, doing a shm_lock/unlock on these segments were not
-exactly doing the expected.  All those extra changes add cost in the normal
-execution path (severity could differ from app to app). 
+On Thu, Aug 01, 2002 at 05:37:46PM -0700, Andrew Morton wrote:
 
-So, we needed to treat the large pages as a special case and want to make
-sure that the application that will be using the large pages understand that
-these pages are special (avoid transperent usage model until the large pages
-are treated the same way as normal pages). This led to cleaner solution
-(input for which also came from Linus himself).  The new APIs enable the
-kernel to contain the changes to be architecture specific and limited to
-very few kernel changes.  And above all it looks so much portable. Fact is,
-the initial implementation was done for IA-64 and porting to x86 took couple
-of hours. One of the other key advantage is that this design does not tie
-the supported large_page size(s) to any specific size in the generic mm
-code.  It supports all the underlying architecture supported page sizes
-quite independent of generic code.  And architecture dependent code could
-support multiple large_page sizes in the same kernel.
-
-We presented our work to Oracle and they were acceptable to the new APIs
-(not saying Oracle is the only DB in world that one has to worry about, but
-it clearly indicates that the move from shm apis to this new APIs is easy.
-Obviously the input from other big app vendors will be highly appreciated.).
+    diff -Naru linux.org/arch/i386/kernel/entry.S linux.lp/arch/i386/kernel/entry.S
+    --- linux.org/arch/i386/kernel/entry.S	Mon Feb 25 11:37:53 2002
+    +++ linux.lp/arch/i386/kernel/entry.S	Tue Jul  2 15:12:23 2002
+    @@ -634,6 +634,10 @@
+     	.long SYMBOL_NAME(sys_ni_syscall)	/* 235 reserved for removexattr */
+     	.long SYMBOL_NAME(sys_ni_syscall)	/* reserved for lremovexattr */
+     	.long SYMBOL_NAME(sys_ni_syscall)	/* reserved for fremovexattr */
+    +	.long SYMBOL_NAME(sys_get_large_pages)	/* Get large_page pages */
+    +	.long SYMBOL_NAME(sys_free_large_pages)	/* Free large_page pages */
+    +	.long SYMBOL_NAME(sys_share_large_pages)/* Share large_page pages */
+    +	.long SYMBOL_NAME(sys_unshare_large_pages)/* UnShare large_page pages */
 
 
-Sceintific apps people who have the sources should also like this approach,
-as there changes will be even more trivial (changes to malloc).  And above
-all, for those people who really want to get this extra buck transparently,
-the changes could be done to user land libraries to selectively map to these
-new APIs.  LD_PRELOAD could be another way to do.  Ofcourse, there will be
-changes that need to be done in user land.  But they are self contained
-changes.  And one of the key point is that application knows what it is
-demanding/getting form kernel.
+Must large pages be allocated this way?
 
-Now to the point where the large_pages themselves could be made swapable. In
-our opinion (and this may not be this API dependent), it is not a good idea
-to look at these pages as swapable candidates.  Most of the big apps who are
-going to use this feature will use them for the data that they really need
-available all the time (prefereably in RAM if not on caches :-)).  And the
-sysadm could easily configure the amount of large mem pool as per the needs
-for a specific environment.
+At some point I would like to see code that mmap's large amounts of
+data (over 1GB) and have it take advantage of this once the kernel is
+potentially extended to deal with mapping of large and/or variable
+sized pages backed to disk.
 
-To the point where the whole kernel starts supporting (as David Mosberger
-refered) superpages where support is built in kernel to basically treat
-superpages as just another size the whole kernel supports will be great too.
-But those need quite a lot of exhaustive changes in kernel layers as weill
-as lot of tuning.....may be a little further away in future.
+Also, some scientific applications will malloc(3) gobs of ram, again
+in excess of 1GB, is it unreasonable to expect that the kernel will
+notice large allocations and try to provide large pages sbrk in
+invoked with suitable high values?
 
-thanks,
-asit & rohit
+
+
+  --cw
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
