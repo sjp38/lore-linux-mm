@@ -1,50 +1,52 @@
-Received: from bolivar.varner.com (root@bolivar.varner.com [208.236.160.18])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id NAA22752
-	for <linux-mm@kvack.org>; Tue, 30 Jun 1998 13:47:13 -0400
-Received: from flinx.npwt.net (eric@flinx.npwt.net [208.236.161.237])
-	by bolivar.varner.com (8.8.5/8.8.5) with ESMTP id MAA00606
-	for <linux-mm@kvack.org>; Tue, 30 Jun 1998 12:47:15 -0500 (CDT)
-Subject: Re: Linux wppage patch (fwd)
-References: <Pine.LNX.3.96.980626073357.2529L-100000@mirkwood.dummy.home>
-From: ebiederm+eric@npwt.net (Eric W. Biederman)
-Date: 30 Jun 1998 12:59:11 -0500
-In-Reply-To: Rik van Riel's message of Fri, 26 Jun 1998 07:34:10 +0200 (CEST)
-Message-ID: <m1ww9y7ouo.fsf@flinx.npwt.net>
+Received: from renko.ucs.ed.ac.uk (renko.ucs.ed.ac.uk [129.215.13.3])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id PAA23174
+	for <linux-mm@kvack.org>; Tue, 30 Jun 1998 15:09:05 -0400
+Date: Tue, 30 Jun 1998 17:10:46 +0100
+Message-Id: <199806301610.RAA00957@dax.dcs.ed.ac.uk>
+From: "Stephen C. Tweedie" <sct@dcs.ed.ac.uk>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Subject: Re: (reiserfs) Re: More on Re: (reiserfs) Reiserfs and ext2fs (was Re: (reiserfs) Sum Benchmarks (these look typical?))
+In-Reply-To: <m1u354dlna.fsf@flinx.npwt.net>
+References: <Pine.HPP.3.96.980617035608.29950A-100000@ixion.honeywell.com>
+	<199806221138.MAA00852@dax.dcs.ed.ac.uk>
+	<358F4FBE.821B333C@ricochet.net>
+	<m11zsgrvnf.fsf@flinx.npwt.net>
+	<199806241154.MAA03544@dax.dcs.ed.ac.uk>
+	<m11zse6ecw.fsf@flinx.npwt.net>
+	<199806251100.MAA00835@dax.dcs.ed.ac.uk>
+	<m1emwcf97d.fsf@flinx.npwt.net>
+	<199806291035.LAA00733@dax.dcs.ed.ac.uk>
+	<m1u354dlna.fsf@flinx.npwt.net>
 Sender: owner-linux-mm@kvack.org
-To: Jason Crawford <jasonc@cacr.caltech.edu>
-Cc: Linux MM <linux-mm@kvack.org>
+To: "Eric W. Biederman" <ebiederm+eric@npwt.net>
+Cc: "Stephen C. Tweedie" <sct@dcs.ed.ac.uk>, Hans Reiser <reiser@ricochet.net>, Shawn Leas <sleas@ixion.honeywell.com>, Reiserfs <reiserfs@devlinux.com>, Ken Tetrick <ktetrick@ixion.honeywell.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
->>>>> "JC" == Rik van Riel <H.H.vanRiel@phys.uu.nl> writes:
+Hi,
 
-JC> ---------- Forwarded message ----------
-JC> Date: Thu, 25 Jun 1998 21:10:00 -0700 (PDT)
-JC> From: Jason Crawford <jasonc@cacr.caltech.edu>
-JC> To: h.h.vanriel@phys.uu.nl
-JC> Subject: Linux wppage patch
+On 29 Jun 1998 14:59:37 -0500, ebiederm+eric@npwt.net (Eric
+W. Biederman) said:
 
-JC> 2. Make a slight change to the way the custom nopage routine is called.
-JC> The third argument to nopage is declared as "write_access" in the
-JC> definition of the VM operations struct in mm.h. But when it's called, it
-JC> is actually "no_share", computed as:
+> There are two problems I see.  
 
-JC> 	(vma->vm_flags & VM_SHARED) ? 0 : write_access
+> 1) A DMA controller actively access the same memory the CPU is
+> accessing could be a problem.  Recall video flicker on old video
+> cards.
 
-JC> My code, however, needs to know whether the access was a write even
-JC> though it is shared memory, so I would like to change this argument to
-JC> just "write_access". Since the VMA is passed in to the routine anyway,
-JC> the VM flags will be available, and any routine which wants to calculate
-JC> "no_share" can do so. Again, I searched the Linux source tree, and only
-JC> the generic filemap_nopage routine uses the no_share argument. It can
-JC> easily be changed to accept "write_access" instead of "no_share" and
-JC> calculate "no_share" before it does any work.
+Shouldn't be a problem.
 
-Your code basically looks reasonable but there is a potential gotcha
-in the works.
+> 2) More importantly the cpu writes to the _cache_, and the DMA
+> controller reads from the RAM.  I don't see any consistency garnatees
+> there.  We may be able solve these problems on a per architecture or
+> device basis however.
 
-Shared pages are never write protected by the nopage routine so you
-will never discover if a shared page has been written too...
+Again, not important.  If we ever modify a page which is already being
+written out to a device, then we mark that page dirty.  On write, we
+mark it clean (but locked) _before_ starting the IO, not after.  So, if
+there is ever an overlap of a filesystem/mmap write with an IO to disk,
+we will always schedule another IO later to clean the re-dirtied
+buffers.
 
-Which could cause all kinds of havoc for distrubuted shared memory.
-
-Eric
+--Stephen
