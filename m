@@ -1,86 +1,75 @@
-Message-ID: <20050113232214.84887.qmail@web14303.mail.yahoo.com>
-Date: Thu, 13 Jan 2005 15:22:14 -0800 (PST)
-From: Kanoj Sarcar <kanojsarcar@yahoo.com>
-Subject: Re: smp_rmb in mm/memory.c in 2.6.10
-In-Reply-To: <20050113215955.GB6309@krispykreme.ozlabs.ibm.com>
+Date: Thu, 13 Jan 2005 17:09:04 -0800 (PST)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: page table lock patch V15 [0/7]: overview
+In-Reply-To: <20050113180205.GA17600@muc.de>
+Message-ID: <Pine.LNX.4.58.0501131701150.21743@schroedinger.engr.sgi.com>
+References: <Pine.LNX.4.58.0501120833060.10380@schroedinger.engr.sgi.com>
+ <20050112104326.69b99298.akpm@osdl.org> <41E5AFE6.6000509@yahoo.com.au>
+ <20050112153033.6e2e4c6e.akpm@osdl.org> <41E5B7AD.40304@yahoo.com.au>
+ <Pine.LNX.4.58.0501121552170.12669@schroedinger.engr.sgi.com>
+ <41E5BC60.3090309@yahoo.com.au> <Pine.LNX.4.58.0501121611590.12872@schroedinger.engr.sgi.com>
+ <20050113031807.GA97340@muc.de> <Pine.LNX.4.58.0501130907050.18742@schroedinger.engr.sgi.com>
+ <20050113180205.GA17600@muc.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Anton Blanchard <anton@samba.org>
-Cc: Andi Kleen <ak@suse.de>, William Lee Irwin III <wli@holomorphy.com>, linux-mm@kvack.org, davem@redhat.com
+To: Andi Kleen <ak@muc.de>
+Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Andrew Morton <akpm@osdl.org>, torvalds@osdl.org, hugh@veritas.com, linux-mm@kvack.org, linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org, benh@kernel.crashing.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Anton,
+On Thu, 13 Jan 2005, Andi Kleen wrote:
 
-Thanks, I think this explains it. IE, if do_no_page()
-reads truncate_count, and then later goes on to
-acquire a lock in nopage(), the smp_rmb() is
-guaranteeing that the read of truncate_count completes
-before nopage() starts executing. 
+> On Thu, Jan 13, 2005 at 09:11:29AM -0800, Christoph Lameter wrote:
+> > On Wed, 13 Jan 2005, Andi Kleen wrote:
+> >
+> > > Alternatively you can use a lazy load, checking for changes.
+> > > (untested)
+> > >
+> > > pte_t read_pte(volatile pte_t *pte)
+> > > {
+> > > 	pte_t n;
+> > > 	do {
+> > > 		n.pte_low = pte->pte_low;
+> > > 		rmb();
+> > > 		n.pte_high = pte->pte_high;
+> > > 		rmb();
+> > > 	} while (n.pte_low != pte->pte_low);
+> > > 	return pte;
 
-For x86 at least, it seems to me that since the
-spin_lock (in nopage()) uses a "lock" instruction,
-that itself guarantees that the truncate_count read is
-completed, even without the smp_rmb(). (Refer to IA32
-SDM Vol 3 section 7.2.4 last para page 7-11). Thus for
-x86, the smp_rmb is superfluous.
+I think this is not necessary. Most IA32 processors do 64
+bit operations in an atomic way in the same way as IA64. We can cut out
+all the stuff we put in to simulate 64 bit atomicity for i386 PAE mode if
+we just use convince the compiler to use 64 bit fetches and stores. 486
+cpus and earlier are the only ones unable to do 64 bit atomic ops but
+those wont be able to use PAE mode anyhow.
 
-See below also.
+Page 231 of Volume 3 of the Intel IA32 manual states regarding atomicity
+of operations:
 
---- Anton Blanchard <anton@samba.org> wrote:
+7.1.1. Guaranteed Atomic Operations
 
->  
-> Hi Kanoj,
-> 
-> > Okay, I think I see what you and wli meant. But
-> the assumption that
-> > spin_lock will order memory operations is still
-> correct, right?
-> 
-> A spin_lock will only guarantee loads and stores
-> inside the locked
-> region dont leak outside. Loads and stores before
-> the spin_lock may leak
-> into the critical region. Likewise loads and stores
-> after the
-> spin_unlock may leak into the critical region.
+The Pentium 4, Intel Xeon, P6 family, Pentium, and Intel486 processors
+guarantee that the following basic memory operations will always be
+carried out atomically:
 
-Looking at the membars in
-include/asm-sparc64/spinlock.h, what the sparc port
-seems to be doing is guranteeing that no stores prior
-to the spinlock() can leak into the critical region,
-and no stores in the critical region can leak outside
-the spinunlock.
+o reading or writing a byte
+o reading or writing a word aligned on a 16-bit boundary
+o reading or writing a doubleword aligned on a 32-bit boundary
 
-Thanks.
+The Pentium 4, Intel Xeon, and P6 family, and Pentium processors guarantee
+that the following additional memory operations will always be carried out
+atomically:
 
-Kanoj
+o reading or writing a quadword aligned on a 64-bit boundary
+o 16-bit accesses to uncached memory locations that fit within a 32-bit data bus
+o The P6 family processors guarantee that the following additional memory
+operation will always be carried out atomically:
+o unaligned 16-, 32-, and 64-bit accesses to cached memory that fit
+within a 32-byte cache
 
-> 
-> Also they dont guarantee ordering for cache
-> inhibited loads and stores.
-> 
-> Anton
-> --
-> To unsubscribe, send a message with 'unsubscribe
-> linux-mm' in
-> the body to majordomo@kvack.org.  For more info on
-> Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"aart@kvack.org">
-> aart@kvack.org </a>
-> 
-
-
-
-		
-__________________________________ 
-Do you Yahoo!? 
-The all-new My Yahoo! - Get yours free! 
-http://my.yahoo.com 
- 
-
+.... off to look for 64bit store and load instructions in the intel
+manuals. I feel much better about keeping the existing approach.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
