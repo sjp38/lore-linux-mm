@@ -1,27 +1,28 @@
-Date: Wed, 28 Jun 2000 19:06:12 +0100
+Date: Wed, 28 Jun 2000 19:07:03 +0100
 From: "Stephen C. Tweedie" <sct@redhat.com>
 Subject: Re: kmap_kiobuf()
-Message-ID: <20000628190612.E2392@redhat.com>
-References: <200006281652.LAA19162@jen.americas.sgi.com>
+Message-ID: <20000628190703.F2392@redhat.com>
+References: <200006281554.KAA19007@jen.americas.sgi.com> <13214.962208390@cygnus.co.uk>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <200006281652.LAA19162@jen.americas.sgi.com>; from lord@sgi.com on Wed, Jun 28, 2000 at 11:52:40AM -0500
+In-Reply-To: <13214.962208390@cygnus.co.uk>; from dwmw2@infradead.org on Wed, Jun 28, 2000 at 05:06:30PM +0100
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: lord@sgi.com
-Cc: "Benjamin C.R. LaHaise" <blah@kvack.org>, David Woodhouse <dwmw2@infradead.org>, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
+To: David Woodhouse <dwmw2@infradead.org>
+Cc: lord@sgi.com, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org, sct@redhat.com, riel@conectiva.com.br
 List-ID: <linux-mm.kvack.org>
 
 Hi,
 
-On Wed, Jun 28, 2000 at 11:52:40AM -0500, lord@sgi.com wrote:
+On Wed, Jun 28, 2000 at 05:06:30PM +0100, David Woodhouse wrote:
 > 
-> I am not a VM guy either, Ben, is the cost of the TLB flush mostly in
-> the synchronization between CPUs, or is it just expensive anyway you
-> look at it?
+> MM is not exactly my field - I just know I want to be able to lock down a 
+> user's buffer and treat it as if it were in kernel-space, passing its 
+> address to functions which expect kernel buffers.
 
-The TLB IPI is by far the biggest factor here.
+The pinning of user buffers is part of the reason we have kiobufs.
+But why do you need to pass it to functions expecting kernel buffers?  
 
 --Stephen
 --
