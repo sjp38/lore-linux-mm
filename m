@@ -1,43 +1,57 @@
-Date: Sat, 3 May 2003 08:08:48 +0100 (BST)
-From: Matt Bernstein <mb--lkml@dcs.qmul.ac.uk>
 Subject: Re: 2.5.68-mm4
-In-Reply-To: <20030503025307.GB1541@averell>
-Message-ID: <Pine.LNX.4.55.0305030800140.1304@jester.mews>
-References: <20030502020149.1ec3e54f.akpm@digeo.com> <1051905879.2166.34.camel@spc9.esa.lanl.gov>
- <20030502133405.57207c48.akpm@digeo.com> <1051908541.2166.40.camel@spc9.esa.lanl.gov>
- <20030502140508.02d13449.akpm@digeo.com> <1051910420.2166.55.camel@spc9.esa.lanl.gov>
- <Pine.LNX.4.55.0305030014130.1304@jester.mews> <20030502164159.4434e5f1.akpm@digeo.com>
- <20030503025307.GB1541@averell>
+References: <20030502020149.1ec3e54f.akpm@digeo.com>
+	<20030502153525.GA11939@krispykreme>
+From: ebiederm@xmission.com (Eric W. Biederman)
+Date: 03 May 2003 08:12:11 -0600
+In-Reply-To: <20030502153525.GA11939@krispykreme>
+Message-ID: <m1el3gce6c.fsf@frodo.biederman.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <ak@muc.de>
-Cc: Andrew Morton <akpm@digeo.com>, elenstev@mesatop.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Anton Blanchard <anton@samba.org>
+Cc: Andrew Morton <akpm@digeo.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-At 04:53 +0200 Andi Kleen wrote:
->> > 
->> > Bizarrely I have a nasty crash on modprobing e100 *without* kexec (having
->> > previously modprobed unix, af_packet and mii) and then trying to modprobe
->> > serio (which then deadlocks the machine).
->> > 
->> > 	http://www.dcs.qmul.ac.uk/~mb/oops/
->> 
->> Andi, it died in the middle of modprobe->apply_alternatives()
->
->The important part of the oops - the first lines are missing in the .png.
->
->What is the failing address? And can you send me your e100.o ?
+Anton Blanchard <anton@samba.org> writes:
 
-I'm sorry I can't get to the machine now till Tuesday. I'll try to get it 
-into a smaller font, or failing that a serial console if you like.
+> Hi,
+> 
+> > . Included the `kexec' patch - load Linux from Linux.  Various people want
+> >   this for various reasons.  I like the idea of going from a login prompt to
+> >   "Calibrating delay loop" in 0.5 seconds.
+> 
+> One thing that bothers me about kexec is how we grab low pages in
+> kimage_alloc_page(). On a partitioned ppc64 box I will need to grab
+> memory in the low 256MB and the machine might have 500GB of memory
+> free. Thats going to take some time :)
 
-I've posted e100.{,k}o, vmlinux and System.map to the above URL. FWIW, 
-they both give "c010e840 T apply_alternatives". I've also posted ".config" 
-which Apache elects not to list :)
+Could you explain to me the need to allocate memory in the low 256MB.
+Generally the design is that you can allocate the memory anywhere
+and then relocate_kernel.S will move where it needs to be kept.
 
-Does any of the above help?
+I have had people wanting to use 300MB initial ramdisks and the like.  
+If you have 500GB of memory what is the point of keeping anything on a disk?
+
+When you have 4TB on a cluster or a NUMA machine I can understand
+wanting to keep things local to a node.  But in those cases you want
+to have local node zones so the problem does not come up.
+
+In general I hate restricting the memory you can use, because kexec is
+not just about booting linux.  But it is about booting anything that
+we reasonably can.  The only case I have seen so far that makes sense
+is when your physical memory is larger than your virtual memory.
+
+> Id hate to introduce a separate zone just for this sort of stuff (we
+> currently throw all memory in the DMA zone). Could we add a hint to
+> the page allocator where it makes a best effort to grab memory below
+> a threshold?
+
+I suspect so.  And I can't imagine it would be that hard to implement.
+
+But I think I would like to see why you need that.
+
+Eric
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
