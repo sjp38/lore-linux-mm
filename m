@@ -1,34 +1,48 @@
-Date: Sat, 18 Dec 2004 10:48:32 +0100
+Date: Sat, 18 Dec 2004 10:50:50 +0100
 From: Andi Kleen <ak@suse.de>
-Subject: Re: [PATCH 10/10] alternate 4-level page tables patches
-Message-ID: <20041218094832.GB338@wotan.suse.de>
-References: <41C3D4AE.7010502@yahoo.com.au> <41C3D4C8.1000508@yahoo.com.au> <41C3D4F9.9040803@yahoo.com.au> <41C3D516.9060306@yahoo.com.au> <41C3D548.6080209@yahoo.com.au> <41C3D57C.5020005@yahoo.com.au> <41C3D594.4020108@yahoo.com.au> <41C3D5B1.3040200@yahoo.com.au> <20041218073100.GA338@wotan.suse.de> <20041218000841.1a2e83f3.akpm@osdl.org>
+Subject: Re: [PATCH 4/10] alternate 4-level page tables patches
+Message-ID: <20041218095050.GC338@wotan.suse.de>
+References: <41C3D453.4040208@yahoo.com.au> <41C3D479.40708@yahoo.com.au> <41C3D48F.8080006@yahoo.com.au> <41C3D4AE.7010502@yahoo.com.au> <41C3D4C8.1000508@yahoo.com.au> <41C3F2D6.6060107@yahoo.com.au>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20041218000841.1a2e83f3.akpm@osdl.org>
+In-Reply-To: <41C3F2D6.6060107@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: Andi Kleen <ak@suse.de>, nickpiggin@yahoo.com.au, linux-mm@kvack.org, hugh@veritas.com, torvalds@osdl.org
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Linux Memory Management <linux-mm@kvack.org>, Andi Kleen <ak@suse.de>, Hugh Dickins <hugh@veritas.com>, Linus Torvalds <torvalds@osdl.org>, Andrew Morton <akpm@osdl.org>
 List-ID: <linux-mm.kvack.org>
 
-On Sat, Dec 18, 2004 at 12:08:41AM -0800, Andrew Morton wrote:
-> Andi Kleen <ak@suse.de> wrote:
+On Sat, Dec 18, 2004 at 08:05:26PM +1100, Nick Piggin wrote:
+> Nick Piggin wrote:
+> >4/10
 > >
-> >  Enable unit-at-a-time by default. At least with 3.3-hammer and 3.4 
-> >  it seems to work just fine. Has been tested with 3.3-hammer over
-> >  several suse releases.
+> >
+> >------------------------------------------------------------------------
+> >
+> >
+> >
+> >Rename clear_page_tables to clear_page_range. clear_page_range takes byte
+> >ranges, and aggressively frees page table pages. Maybe useful to control
+> >page table memory consumption on 4-level architectures (and even 3 level
+> >ones).
+> >
 > 
-> iirc, we turned this off because the compiler would go nuts inlining things
-> and would consume too much stack:
+> I maybe didn't do this patch justice by hiding it away in this series.
+> It may be worthy of its own thread - surely there must be some significant
+> downsides if nobody had implemented it in the past (or maybe just a fact
+> of "that doesn't happen much").
 
-I haven't had any report where this really happened with 3.3-hammer.
+Yes, more could be done in this area. When I did 4level I just tried
+to keep the same semantics without optimizing anything.
 
-And in general in case it happens in one or two places only then it should
-be fixed there with a few strategic "noinlines"
+Another way I thought about was to have a reference count of the used
+ptes/pmds per page table page in struct page and free the page when it goes 
+to zero. That would give perfect garbage collection. Drawback is that
+it may be a bit intrusive again.
 
 -Andi
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
