@@ -1,43 +1,47 @@
 Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e1.ny.us.ibm.com (8.12.10/8.12.10) with ESMTP id iAHHCMDi005680
-	for <linux-mm@kvack.org>; Wed, 17 Nov 2004 12:12:22 -0500
+	by e1.ny.us.ibm.com (8.12.10/8.12.10) with ESMTP id iAHLIlDi006181
+	for <linux-mm@kvack.org>; Wed, 17 Nov 2004 16:18:47 -0500
 Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay02.pok.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id iAHHCJOd267098
-	for <linux-mm@kvack.org>; Wed, 17 Nov 2004 12:12:22 -0500
+	by d01relay02.pok.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id iAHLIhOd283268
+	for <linux-mm@kvack.org>; Wed, 17 Nov 2004 16:18:47 -0500
 Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.12.11/8.12.11) with ESMTP id iAHHCIRR024749
-	for <linux-mm@kvack.org>; Wed, 17 Nov 2004 12:12:18 -0500
-Subject: Re: [Lhms-devel] [RFC] fix for hot-add enabled SRAT/BIOS and numa
-	KVA areas
+	by d01av02.pok.ibm.com (8.12.11/8.12.11) with ESMTP id iAHLIhsK026539
+	for <linux-mm@kvack.org>; Wed, 17 Nov 2004 16:18:43 -0500
+Subject: [patch 2/2] kill off highmem_start_page (in -mm)
 From: Dave Hansen <haveblue@us.ibm.com>
-In-Reply-To: <1100659057.26335.125.camel@knk>
-References: <1100659057.26335.125.camel@knk>
-Content-Type: text/plain
-Message-Id: <1100711519.5838.2.camel@localhost>
-Mime-Version: 1.0
-Date: Wed, 17 Nov 2004 09:11:59 -0800
-Content-Transfer-Encoding: 7bit
+Date: Wed, 17 Nov 2004 13:18:40 -0800
+Message-Id: <E1CUXCL-0006YD-00@kernel.beaverton.ibm.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: keith <kmannth@us.ibm.com>
-Cc: external hotplug mem list <lhms-devel@lists.sourceforge.net>, linux-mm <linux-mm@kvack.org>, Chris McDermott <lcm@us.ibm.com>
+To: akpm@osdl.org
+Cc: george@mvista.com, linux-mm@kvack.org, Dave Hansen <haveblue@us.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2004-11-16 at 18:37, keith wrote:
->   The numa KVA code used the node_start and node_end values (obtained
-> from the above memory ranges) to make it's lowmem reservations.  The
-> problem is that the lowmem area reserved is quite large.  It reserves
-> the entire a lmem_map large enough for 0x1000000 address space.  I don't
-> feel this is a great use of lowmem on my system :)
+This patch should fix kgdb to work without highmem_start_page. 
+However, I don't have a kgdb setup, and I'd appreciate someone
+testing this to make sure my selection of a new variable is OK.
 
-It does seem silly to waste all of that lowmem for memory that *might*
-be there, but what do you plan to do for contiguous address space (for
-mem_map) once the memory addition occurs?  We've always talked about
-having to preallocate mem_map space on 32-bit platforms and by your
-patch it appears that this isn't what you want to do.  
+Also, should this function possibly be using system_state, instead?
 
--- Dave
+Signed-off-by: Dave Hansen <haveblue@us.ibm.com>
+---
 
+ memhotplug-dave/arch/i386/lib/kgdb_serial.c |    2 +-
+ 1 files changed, 1 insertion(+), 1 deletion(-)
+
+diff -puN arch/i386/lib/kgdb_serial.c~A1-no-highmem_start_page-kgdb arch/i386/lib/kgdb_serial.c
+--- memhotplug/arch/i386/lib/kgdb_serial.c~A1-no-highmem_start_page-kgdb	2004-11-17 13:10:33.000000000 -0800
++++ memhotplug-dave/arch/i386/lib/kgdb_serial.c	2004-11-17 13:10:33.000000000 -0800
+@@ -407,7 +407,7 @@ void shutdown_for_kgdb(struct async_stru
+ #ifdef CONFIG_DISCONTIGMEM
+ static inline int kgdb_mem_init_done(void)
+ {
+-	return highmem_start_page != NULL;
++	return totalram_pages != 0;
+ }
+ #else
+ static inline int kgdb_mem_init_done(void)
+_
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
