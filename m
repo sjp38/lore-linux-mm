@@ -1,30 +1,58 @@
-Message-ID: <3ABA11F3.60004@missioncriticallinux.com>
-Date: Thu, 22 Mar 2001 09:53:39 -0500
-From: "Patrick O'Rourke" <orourke@missioncriticallinux.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH] Prevent OOM from killing init
-References: <Pine.LNX.4.21.0103212047590.19934-100000@imladris.rielhome.conectiva>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+Date: Thu, 22 Mar 2001 14:58:10 +0000
+From: "Stephen C. Tweedie" <sct@redhat.com>
+Subject: Thinko in kswapd?
+Message-ID: <20010322145810.A7296@redhat.com>
+Mime-Version: 1.0
+Content-Type: multipart/mixed; boundary="Kj7319i9nmIyA2yE"
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@conectiva.com.br>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, Stephen Tweedie <sct@redhat.com>, arjanv@redhat.com, Linus Torvalds <torvalds@transmeta.com>
 List-ID: <linux-mm.kvack.org>
 
-Rik van Riel wrote:
+--Kj7319i9nmIyA2yE
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+
+Hi,
+
+There is what appears to be a simple thinko in kswapd.  We really
+ought to keep kswapd running as long as there is either a free space
+or an inactive page shortfall; but right now we only keep going if
+_both_ are short.
+
+Diff below.  With this change, I've got a 64MB box running Applix and
+Star Office with multiple open documents plus a few other big apps
+running, and switching desktops or going between documents is once
+more nice and snappy.  Running a normal heavily populated desktop in
+256MB used to be painful, with much apparently unnecessary swapping,
+if we had background page-cache intensive operations (eg find|wc)
+going on: the patched kernel feels much better interactively,
+presumably because kswapd is now doing the work it is supposed to do,
+instead of forcing normal apps to go into page stealing mode
+themselves.
+
+--Stephen
 
 
-> One question ... has the OOM killer ever selected init on
-> anybody's system ?
+--Kj7319i9nmIyA2yE
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: attachment; filename="2.4.2-ac20.kswap.diff"
 
-Yes, which is why I created the patch.
+--- mm/vmscan.c.~1~	Fri Mar 16 15:39:24 2001
++++ mm/vmscan.c	Thu Mar 22 13:05:37 2001
+@@ -1010,7 +1010,7 @@
+ 		 * We go to sleep for one second, but if it's needed
+ 		 * we'll be woken up earlier...
+ 		 */
+-		if (!free_shortage() || !inactive_shortage()) {
++		if (!free_shortage() && !inactive_shortage()) {
+ 			interruptible_sleep_on_timeout(&kswapd_wait, HZ);
+ 		/*
+ 		 * If we couldn't free enough memory, we see if it was
 
--- 
-Patrick O'Rourke
-978.606.0236
-orourke@missioncriticallinux.com
-
+--Kj7319i9nmIyA2yE--
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
