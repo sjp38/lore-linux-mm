@@ -1,32 +1,36 @@
-Date: Thu, 18 Nov 2004 18:35:25 -0800 (PST)
+Date: Thu, 18 Nov 2004 18:38:47 -0800 (PST)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: another approach to rss : sloppy rss
-In-Reply-To: <419D4EC7.6020100@yahoo.com.au>
-Message-ID: <Pine.LNX.4.58.0411181834260.1421@schroedinger.engr.sgi.com>
+Subject: Re: fast path for anonymous memory allocation
+In-Reply-To: <419D581F.2080302@yahoo.com.au>
+Message-ID: <Pine.LNX.4.58.0411181835540.1421@schroedinger.engr.sgi.com>
 References: <Pine.LNX.4.44.0411061527440.3567-100000@localhost.localdomain>
  <Pine.LNX.4.58.0411181126440.30385@schroedinger.engr.sgi.com>
- <419D47E6.8010409@yahoo.com.au> <Pine.LNX.4.58.0411181711130.834@schroedinger.engr.sgi.com>
- <419D4EC7.6020100@yahoo.com.au>
+ <Pine.LNX.4.58.0411181715280.834@schroedinger.engr.sgi.com>
+ <419D581F.2080302@yahoo.com.au>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Hugh Dickins <hugh@veritas.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, linux-mm@kvack.org, linux-ia64@kernel.vger.org
+Cc: Hugh Dickins <hugh@veritas.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, linux-mm@kvack.org, linux-ia64@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
 On Fri, 19 Nov 2004, Nick Piggin wrote:
 
-> What do you think a per-mm flag to switch between realtime and lazy rss?
+> Ahh, you're doing clear_user_highpage after the pte is already set up?
 
-Yes thats what the patch has.
+The huge page code also has that optimization. Clearing of pages
+may take some time which is one reason the kernel drops the page table
+lock for anonymous page allocation and then reacquires it. The patch does
+not relinquish the lock on the fast path thus the move outside of the
+lock.
 
-> The only code it would really _add_ would be your mm counting function...
-> I guess another couple of branches in the fault handlers too, but I don't
-> know if they'd be very significant.
+> Won't that be racy? I guess that would be an advantage of my approach,
+> the clear_user_highpage can be done first (although that is more likely
+> to be wasteful of cache).
 
-You would need to add hooks to all uses of rss. That adds additional code
-to the critical paths.
+If you do the clearing with the page table lock held then performance will
+suffer.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
