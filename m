@@ -1,77 +1,59 @@
-Received: from edt.com (IDENT:root@calapooia [198.107.47.151])
-	by jones.edt.com (8.9.3/8.9.3) with ESMTP id NAA06365
-	for <linux-mm@kvack.org>; Thu, 5 Oct 2000 13:55:54 -0700 (PDT)
-Message-ID: <39DCEAE9.BDEA23BD@edt.com>
-Date: Thu, 05 Oct 2000 13:56:09 -0700
-From: Steve Case <steve@edt.com>
+Date: Fri, 6 Oct 2000 13:14:37 -0300 (BRST)
+From: Rik van Riel <riel@conectiva.com.br>
+Subject: Re: the new VM
+In-Reply-To: <qwwlmwgjjng.fsf@sap.com>
+Message-ID: <Pine.LNX.4.21.0010061310290.13585-100000@duckman.distro.conectiva>
 MIME-Version: 1.0
-Subject: map_user_kiobuf and 1 Gb (2.4-test8)
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Christoph Rohland <cr@sap.com>
+Cc: MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-I'm working on a device driver module for our PCI interface cards which
-attempts to map user memory for DMA. I was pleased to find the
-map_user_kiobuf function and its allies, since this appears to do
-exactly what I need. Everything worked fine, until I sent it to a
-customer who has a system w/  1 Gb of memory - it locked up real good as
-soon as he tried DMA. After making sure we had the same software -
-2.4-test8, with the CONFIG_HIGHMEM4G flag set, two pentium IIIs, etc. we
-discovered that everything worked if he pulled a DIMM and went to 768M.
-The actual amount of memory used by his test remained fairly small.
+[replying to a really old email now that I've started work
+ on integrating the OOM handler]
 
-In the driver I use map_user_iobuf with the user space address, then
-cycle through the maplist filling in a scatter-gather list:
+On 25 Sep 2000, Christoph Rohland wrote:
+> Rik van Riel <riel@conectiva.com.br> writes:
+> 
+> > > Because as you said the machine can lockup when you run out of memory.
+> > 
+> > The fix for this is to kill a user process when you're OOM
+> > (you need to do this anyway).
+> > 
+> > The last few allocations of the "condemned" process can come
+> > frome the reserved pages and the process we killed will exit just
+> > fine.
+> 
+> It's slightly offtopic, but you should think about detached shm
+> segments in yout OOM killer. As many of the high end
+> applications like databases and e.g. SAP have most of the memory
+> in shm segments you easily end up killing a lot of processes
+> without freeing a lot of memory. I see this often in my shm
+> tests.
 
-/* scatter - gather list */
-struct {
-    u_int addr;
-    u_int size;
-} sg;
+Hmmm, could you help me with drawing up a selection algorithm
+on how to choose which SHM segment to destroy when we run OOM?
 
-size=0;
-while (size < xfersize)
-    {
+The criteria would be about the same as with normal programs:
 
-                 sg.addr =
-virt_to_bus(page_address(iobuf.maplist[entrys]));
+1) minimise the amount of work lost
+2) try to protect 'innocent' stuff
+3) try to kill only one thing
+4) don't surprise the user, but chose something that
+   the user will expect to be killed/destroyed
 
-/* deal with page crossings */
+regards,
 
-                 if ((u_int)sg.addr & (PAGE_SIZE - 1))
-                    thissize = PAGE_SIZE - ((u_int)sg.addr & (PAGE_SIZE
-- 1)) ;
-                else
-                    thissize= PAGE_SIZE;
+regards,
 
-                if (size + thissize > xfersize)
-                        thissize = xfersize - size ;
+Rik
+--
+"What you're running that piece of shit Gnome?!?!"
+       -- Miguel de Icaza, UKUUG 2000
 
-/* set scatter-gather element size */
-                   sg.size = thissize;
-
-                    size += thissize;
-
-    }
-
-The scatter-gather list itself is allocated using kmalloc(); the bus
-address is retrieved using virt_to_bus(). We present our card with the
-bus address of the scatter-gather list, from which it does DMA to get
-the address/size pairs. This works fine for < 1Gb. So, either the
-map_user_iobuf function is giving me a bad (unmapped) address, or
-kmalloc/virt_to_bus is breaking down at 1Gb.
-
-Are there any obvious gotchas about using kiobuf in systems >= 1 GB?
-
-Thanks,
-
-Steve Case
-Engineering Design Team
-steve@edt.com
-
+http://www.conectiva.com/		http://www.surriel.com/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
