@@ -1,363 +1,60 @@
-Received: from digeo-nav01.digeo.com (digeo-nav01.digeo.com [192.168.1.233])
-	by packet.digeo.com (8.9.3+Sun/8.9.3) with SMTP id XAA05917
-	for <linux-mm@kvack.org>; Mon, 3 Feb 2003 23:31:45 -0800 (PST)
-Date: Mon, 3 Feb 2003 23:31:56 -0800
-From: Andrew Morton <akpm@digeo.com>
-Subject: 2.5.59-mm8
-Message-Id: <20030203233156.39be7770.akpm@digeo.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Date: Tue, 04 Feb 2003 00:09:34 -0800
+From: "Martin J. Bligh" <mbligh@aracnet.com>
+Subject: Re: 2.5.59-mm8
+Message-ID: <167540000.1044346173@[10.10.2.4]>
+In-Reply-To: <20030203233156.39be7770.akpm@digeo.com>
+References: <20030203233156.39be7770.akpm@digeo.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@digeo.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-http://www.zip.com.au/~akpm/linux/patches/2.5/2.5.59/2.5.59-mm8/
-
-. Various tweaks and fixes, and some hugetlbpage work.
-
-. There is an updated anticipatory scheduler patch from Nick over in
-  experimental/ which addresses the large-read-starves-everything problem.
-
-. The reworked ia32 balancing patch from Nitin Kamble is stable, and is
-  consistently showing benefit for heavy networking loads on large SMP
-  machines.  Even though everyone seems to agree that a userspace solution to
-  this is smarter, that's no reason to hold back on improving the
-  kernel-based solution so I shall be submitting that patch.
-
-. Ingo's latest scheduler changes are here.  I held off on that because it
-  appeared that there was some interaction with the I/O scheduler.  Whatever
-  that was has gone away without any CPU scheduler changes, so...
-
-. frlocks have been renamed to seqlocks, and that code is now converging
-  onto something stable.
-
-
-
-Changes since 2.5.59-mm7:
-
-
-+linus.patch
-
- Latest drop from Linus
-
--sync-fix.patch
--direct-io-ENOSPC-fix.patch
--inode-accounting-race-fix.patch
--vmlinux-fix.patch
--maestro-fix.patch
--setuid-exec-no-lock_kernel.patch
--ext3-scheduling-storm.patch
--quota-lockfix.patch
--quota-offsem.patch
--slab-poisoning-fix.patch
--preempt-locking.patch
--stack-overflow-fix.patch
--ext2-allocation-failure-fix.patch
--ext2_new_block-fixes.patch
--slab-irq-fix.patch
--Richard_Henderson_for_President.patch
--parenthesise-pgd_index.patch
--kernel-commandline-fix.patch
--macro-double-eval-fix.patch
--blkdev-fixes.patch
--modversions.patch
--pcmcia_timer_init.patch
--buffer-io-accounting.patch
--aic79xx-linux-2.5.59-20030122.patch
--discarded-section-fix.patch
--atyfb-compile-fix.patch
--floppy-locking-fix.patch
--sound-firmware-load-fix.patch
--generic_file_readonly_mmap-fix.patch
--exit_mmap-fix-47.patch
--show_task-fix.patch
-
- Merged
-
-+mark_inode_dirty-race.patch
-
- SMP barriers in __mark_inode_dirty()
-
-+pin_page-pmd.patch
-
- Optimisation for follow_page() for some architectures.  For futexes in huge
- pages.
-
-+seqlock.patch
-
- Rename frlocks, fixes.
-
-+default_idle-speedup.patch
-
- Speed up the idle task!
-
-+hugetlbfs-get_unmapped_area.patch
-+hugetlbfs-truncate-fix.patch
-+hugetlbfs-i_size-fix.patch
-+hugetlbfs-cleanup.patch
-+hugetlbfs-nopage-cleanup.patch
-+hugetlbfs-fault-fix.patch
-+hugetlbpage-cleanup.patch
-+hugetlb_vmtruncate-fixes.patch
-+hugetlb-mremap-fix.patch
-
- hugetlb fixes/cleanups
-
-+mremap-cleanup.patch
-
- Random edits
-
-+up-spinlock-debugging.patch
-
- spinlock debugging for uniprocessor builds
-
-+scheduler-update.patch
-
- Ingo's latest.
-
-+rml-scheduler-update.patch
-
- scheduler tweaks from Robert
-
-
-
-
-All 80 patches:
-
-linus.patch
-  cset-1.879.1.145-to-1.950.txt.gz
-
-kgdb.patch
-
-devfs-fix.patch
-
-deadline-np-42.patch
-  (undescribed patch)
-
-deadline-np-43.patch
-  (undescribed patch)
-
-batch-tuning.patch
-  I/O scheduler tuning
-
-starvation-by-read-fix.patch
-  fix starvation-by-readers in the IO scheduler
-
-buffer-debug.patch
-  buffer.c debugging
-
-warn-null-wakeup.patch
-
-reiserfs-readpages.patch
-  reiserfs v3 readpages support
-
-fadvise.patch
-  implement posix_fadvise64()
-
-auto-unplug.patch
-  self-unplugging request queues
-
-less-unplugging.patch
-  Remove most of the blk_run_queues() calls
-
-scheduler-tunables.patch
-  scheduler tunables
-
-htlb-2.patch
-  hugetlb: fix MAP_FIXED handling
-
-kirq.patch
-  ia32 IRQ distribution rework
-
-kirq-up-fix.patch
-  Subject: Re: 2.5.59-mm1
-
-agp-warning-fix.patch
-  fix agp compile warning
-
-ext3-truncate-ordered-pages.patch
-  ext3: explicitly free truncated pages
-
-prune-icache-stats.patch
-  add stats for page reclaim via inode freeing
-
-vma-file-merge.patch
-  file-backed vma merging mergnig
-
-mmap-whitespace.patch
-
-read_cache_pages-cleanup.patch
-  cleanup in read_cache_pages()
-
-remove-GFP_HIGHIO.patch
-  remove __GFP_HIGHIO
-
-oprofile-p4.patch
-
-oprofile_cpu-as-string.patch
-  oprofile cpu-as-string
-
-wli-11_pgd_ctor.patch
-  Use a slab cache for pgd and pmd pages
-
-wli-11_pgd_ctor-update.patch
-  pgd_ctor update
-
-smaller-slab-batches.patch
-  Avoid losing timer ticks when slab debug is enabled.
-
-printk-locking.patch
-  remove unneeded locking in do_syslog()
-
-hangcheck-timer.patch
-  hangcheck-timer
-
-jbd-documentation.patch
-  JBD Documentation
-
-sendfile-security-hooks.patch
-  Subject: [RFC][PATCH] Restore LSM hook calls to sendfile
-
-mmzone-parens.patch
-  asm-i386/mmzone.h macro paren/eval fixes
-
-no_space_in_slabnames.patch
-  remove spaces from slab names
-
-remove-will_become_orphaned_pgrp.patch
-  remove will_become_orphaned_pgrp()
-
-MAX_IO_APICS-ifdef.patch
-  MAX_IO_APICS #ifdef'd wrongly
-
-dac960-error-retry.patch
-  Subject: [PATCH] linux2.5.56 patch to DAC960 driver for error retry
-
-epoll-update.patch
-  epoll timeout and syscall return types ...
-
-topology-remove-underbars.patch
-  Remove __ from topology macros
-
-mandlock-oops-fix.patch
-  ftruncate/truncate oopses with mandatory locking
-
-put_user-warning-fix.patch
-  Subject: Re: Linux 2.5.59
-
-hash-warnings.patch
-  fix #warning's
-
-mark_inode_dirty-race.patch
-  Fix SMP race betwen __sync_single_inode and __mark_inode_dirty
-
-reiserfs_file_write.patch
-  Subject: reiserfs file_write patch
-
-lost-tick.patch
-  Lost tick compensation
-
-seq_file-page-defn.patch
-  Include <asm/page.h> in fs/seq_file.c, as it uses PAGE_SIZE
-
-user-process-count-leak.patch
-  fix current->user->processes leak
-
-scsi-iothread.patch
-  scsi_eh_* needs to run even during suspend
-
-numaq-ioapic-fix2.patch
-  NUMAQ io_apic programming fix
-
-misc.patch
-  misc fixes
-
-writeback-sync-cleanup.patch
-  Remove unneeded code in fs/fs-writeback.c
-
-dont-wait-on-inode.patch
-  Fix latencies during writeback
-
-unlink-latency-fix.patch
-  fix i_sem contention in sys_unlink()
-
-pin_page-fix.patch
-  Fix futexes in huge pages
-
-pin_page-pmd.patch
-  Optimise follow_page() for page-table-based hugepages
-
-frlock-xtime.patch
-  fast reader locks for gettimeofday() and friends
-
-frlock-xtime-i386.patch
-
-frlock-xtime-ia64.patch
-
-frlock-xtime-other.patch
-
-seqlock.patch
-  Change frlock to seqlock
-
-do_gettimeofday-speedup.patch
-  do_gettimeofday() optimisations
-
-default_idle-speedup.patch
-  default_idle micro-optimisation
-
-pte_chain_alloc-fixes.patch
-
-hugetlbfs-set_page_dirty.patch
-  give hugetlbfs a set_page_dirty a_op
-
-compound-pages.patch
-  Infrastructure for correct hugepage refcounting
-
-compound-pages-hugetlb.patch
-  convert hugetlb code to use compound pages
-
-hugetlbfs-get_unmapped_area.patch
-  get_unmapped_area for hugetlbfs
-
-hugetlbfs-truncate-fix.patch
-  hugetlbfs: fix truncate
-
-hugetlbfs-i_size-fix.patch
-  hugetlbfs i_size fixes
-
-hugetlbfs-cleanup.patch
-  hugetlbfs cleanups
-
-hugetlbfs-nopage-cleanup.patch
-  Give all architectures a hugetlb_nopage().
-
-hugetlbfs-fault-fix.patch
-  Fix hugetlbfs faults
-
-hugetlbpage-cleanup.patch
-  ia32 hugetlb cleanup
-
-hugetlb_vmtruncate-fixes.patch
-  Fix hugetlb_vmtruncate_list()
-
-hugetlb-mremap-fix.patch
-  hugetlb mremap fix
-
-mremap-cleanup.patch
-  mm/mremap.c whitespace cleanup
-
-up-spinlock-debugging.patch
-  spinlock debugging on uniprocessors
-
-scheduler-update.patch
-  ingo's scheduler changes for 2.5.59-mm7
-
-rml-scheduler-update.patch
-  rml scheduler bits, 2.5.59-mm7
-
-
+> http://www.zip.com.au/~akpm/linux/patches/2.5/2.5.59/2.5.59-mm8/
+
+Booted to login prompt, then immediately oopsed 
+(16-way NUMA-Q, mm6 worked fine). At a wild guess, I'd suspect 
+irq_balance stuff.
+
+Unable to handle kernel NULL pointer dereference at virtual address 0000013c
+ printing eip:
+c01ed768
+*pde = 2ecb7001
+*pte = 00000000
+Oops: 0002
+CPU:    2
+EIP:    0060:[<c01ed768>]    Not tainted
+EFLAGS: 00010046
+EIP is at isp1020_intr_handler+0x1f8/0x330
+eax: 00000000   ebx: ef67f080   ecx: 00000000   edx: 00000000
+esi: 00000000   edi: 00000003   ebp: ef6c589c   esp: f0199efc
+ds: 007b   es: 007b   ss: 0068
+Process swapper (pid: 0, threadinfo=f0198000 task=f019cc40)
+Stack: ef67f080 c02c7fe0 0360db40 f0199f40 00000003 ef6c5800 00000086
+f0199f7c 
+       00000013 c01ed556 00000013 ef6c5800 f0199f7c f01ef7e0 24000001
+c010b7c5 
+       00000013 ef6c5800 f0199f7c c02c3a60 00000260 00000013 f01ef7e0
+c010b9bd 
+Call Trace:
+ [<c01ed556>] do_isp1020_intr_handler+0x36/0x50
+ [<c010b7c5>] handle_IRQ_event+0x45/0x70
+ [<c010b9bd>] do_IRQ+0x8d/0x100
+ [<c0107080>] default_idle+0x0/0x50
+ [<c0107080>] default_idle+0x0/0x50
+ [<c010a070>] common_interrupt+0x18/0x20
+ [<c0107080>] default_idle+0x0/0x50
+ [<c0107080>] default_idle+0x0/0x50
+ [<c01070aa>] default_idle+0x2a/0x50
+ [<c010714a>] cpu_idle+0x3a/0x50
+ [<c0120294>] printk+0x164/0x1a0
+
+Code: 89 86 3c 01 00 00 e9 5b ff ff ff c7 44 24 08 40 00 00 00 8d 
+ <0>Kernel panic: Aiee, killing interrupt handler!
+In interrupt handler - not syncing
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
