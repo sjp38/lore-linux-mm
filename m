@@ -1,43 +1,55 @@
-Received: from dukat.scot.redhat.com (sct@dukat.scot.redhat.com [195.89.149.246])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id RAA06174
-	for <linux-mm@kvack.org>; Tue, 25 May 1999 17:43:15 -0400
-From: "Stephen C. Tweedie" <sct@redhat.com>
+Received: from mea.tmt.tele.fi (mea.tmt.tele.fi [194.252.70.162])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id SAA06598
+	for <linux-mm@kvack.org>; Tue, 25 May 1999 18:18:44 -0400
+Subject: Re: Q: PAGE_CACHE_SIZE?
+In-Reply-To: <Pine.LNX.4.03.9905252213400.25857-100000@mirkwood.nl.linux.org> from Rik van Riel at "May 25, 99 10:16:34 pm"
+Date: Wed, 26 May 1999 01:17:53 +0300 (EEST)
+From: Matti Aarnio <matti.aarnio@sonera.fi>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Message-ID: <14155.6480.319372.615650@dukat.scot.redhat.com>
-Date: Tue, 25 May 1999 22:42:40 +0100 (BST)
-Subject: Re: DANGER: DONT apply it. Re: [patch] ext2nolock-2.2.8-A0
-In-Reply-To: <Pine.LNX.3.96.990517013337.2953A-100000@devserv.devel.redhat.com>
-References: <14142.57697.49520.664805@worf.scot.redhat.com>
-	<Pine.LNX.3.96.990517013337.2953A-100000@devserv.devel.redhat.com>
+Message-Id: <19990525221804Z92392-10847+102@mea.tmt.tele.fi>
 Sender: owner-linux-mm@kvack.org
-To: Ingo Molnar <mingo@redhat.com>
-Cc: "Stephen C. Tweedie" <sct@redhat.com>, linux-mm@kvack.org, "Eric W. Biederman" <ebiederm+eric@ccr.net>
+To: Rik van Riel <riel@nl.linux.org>
+Cc: alan@lxorguk.ukuu.org.uk, ak@muc.de, ebiederm+eric@ccr.net, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+Rik van Riel <riel@nl.linux.org> wrote:
+...
+> This sounds suspiciously like the 'larger-blocks-for-larger-FSes'
+> tactic other systems have been using to hide the bad scalability
+> of their algorithms.
+... (read-ahead comments cut away) ...
 
-On Mon, 17 May 1999 01:35:49 -0400 (EDT), Ingo Molnar
-<mingo@redhat.com> said:
+I have this following table about EXT2 (and UFS, and SysVfs, and..)
+filesystem maximum supported file size.  These limits stem from block
+addressability limitations in the classical tripply-indirection schemes:
 
->> > cool. i'm now working on the writepage stuff, i'll debug your patch (and
->> > maybe extend it to SMP) if that one is stable. 
->> 
->> You know that Eric Beiderman posted a page write patch for recent 2.2s
->> just recently on linux-mm?
+	Block Size   File Size
 
-> does it make ext2fs work on the page cache exclusively? Could you forward
-> that patch to me just in case you have it handy. I have my patch working
-> almost, i just have some small instabilities like kernel oopses and casual
-> filesystem corruption to sort out ;)
+	512        2 GB + epsilon
+	1k        16 GB + epsilon
+	2k       128 GB + epsilon
+	4k      1024 GB + epsilon
+	8k      8192 GB + epsilon  ( not without PAGE_SIZE >= 8 kB )
 
-Well, I'm just back from LE and it looks like Eric isn't hanging
-around.  Eric, thanks for liaising with Ingo on this, I know he's been
-itching to benchmark things with a decent page cache.  Do you know if
-these are likely to be accepted for 2.3 soon?
+And of course any single partition filesystem in Linux (all of the
+'local devices' filesystems right now) can't exceed  4G blocks of
+512 bytes which limit is at the block device layer.
+(This gives maximum physical filesystem size of 2 TB for EXT2.)
 
---Stephen
+
+So, in my opinnion any triply-indirected filesystem is at the end
+of its life when it comes to truly massive datasets.
+
+
+The EXT2FS family will soon get new ways to extend its life by having
+alternate block addressing structure to that of the classical triply-
+indirection scheme it now uses.  (Ted Ts'o is working at it.)
+
+> Rik -- Open Source: you deserve to be in control of your data.
+
+/Matti Aarnio <matti.aarnio@sonera.fi>
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm my@address'
 in the body to majordomo@kvack.org.  For more info on Linux MM,
