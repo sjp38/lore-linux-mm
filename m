@@ -1,56 +1,52 @@
-Date: Mon, 25 Sep 2000 13:41:02 -0300 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
-Subject: Re: the new VMt
-In-Reply-To: <Pine.LNX.4.10.10009250931570.1739-100000@penguin.transmeta.com>
-Message-ID: <Pine.LNX.4.21.0009251338340.14614-100000@duckman.distro.conectiva>
+Date: Mon, 25 Sep 2000 09:46:18 -0700 (PDT)
+From: Linus Torvalds <torvalds@transmeta.com>
+Subject: Re: [patch] vmfixes-2.4.0-test9-B2
+In-Reply-To: <Pine.LNX.4.21.0009251608570.9122-100000@elte.hu>
+Message-ID: <Pine.LNX.4.10.10009250940540.1739-100000@penguin.transmeta.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@transmeta.com>
-Cc: Andrea Arcangeli <andrea@suse.de>, Andi Kleen <ak@suse.de>, Ingo Molnar <mingo@elte.hu>, Alan Cox <alan@lxorguk.ukuu.org.uk>, Marcelo Tosatti <marcelo@conectiva.com.br>, Roger Larsson <roger.larsson@norran.net>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
+To: Ingo Molnar <mingo@elte.hu>
+Cc: Jens Axboe <axboe@suse.de>, Andrea Arcangeli <andrea@suse.de>, Rik van Riel <riel@conectiva.com.br>, Roger Larsson <roger.larsson@norran.net>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 25 Sep 2000, Linus Torvalds wrote:
-> On Mon, 25 Sep 2000, Andrea Arcangeli wrote:
+
+On Mon, 25 Sep 2000, Ingo Molnar wrote:
 > > 
-> > But I'd much prefer to pass not only the classzone from allocator
-> > to memory balancing, but _also_ the order of the allocation,
-> > and then shrink_mmap will know it doesn't worth to free anything 
-> > that isn't contigous on the order of the allocation that we need.
+> > And a new elevator was introduced some months ago to solve this.
 > 
-> I suspect that the proper way to do this is to just make another gfp_flag,
-> which is basically another hint to the mm layer that we're doing a multi-
-> page allocation and that the MM layer should not try forever to handle it.
-> 
-> In fact, that's independent of whether it is a multi-page
-> allocation or not. It might be something like __GFP_SOFT - you
-> could use it with single pages too.
-> 
-> Thinking about it, we do have it already. It's called
-> !__GFP_HIGH, and it used by all the GFP_USER allocations.
+> and these are still not solved in the vanilla kernel, as recent complaints
+> on l-k prove.
 
-Hmm, I think these two are orthagonal.
+THE ELEVATOR IS PROBABLY NOT THE PROBLEM.
 
-__GFP_HIGH means that we are allowed to eat deeper into
-the free list (maybe needed to avoid a deadlock freeing
-pages)
+People blame the elevator for bad IO performance. But the elevator is just
+doing what it's told to do - and if it is told to do something bad, it
+will do something bad.
 
-__GFP_SOFT would mean "don't bother waiting for free pages",
-which is something very different...
+The "something bad" is doing things like writing out 4 dicsontiguous
+pages, waiting a while, and then writing out 4 more discontiguous pages.
 
-(I wouldn't want a user process to get killed simply because
-kswapd is waiting for IO to finish on a swapout, in that case
-we really do want to sleep for a while)
+There's nothing the elevator can do for that case - except just ignore the
+write requests completely, and wait for more requests to come in. Which it
+certainly could do, but that's really a policy question and should be
+handled at a higher level. The elevator doesn't know if there is going to
+be more writes.
 
-regards,
+In short, I bet that the problem is at least partly that bdflush is
+broken, and doesn't do a good job of streaming writes. It's probably been
+broken to get low latencies, and in order to avoid "choppy" behaviour. But
+the elevator works _best_ with choppy behaviour, when there's a BIG stream
+of requests at a time.
 
-Rik
---
-"What you're running that piece of shit Gnome?!?!"
-       -- Miguel de Icaza, UKUUG 2000
+Blaming the elevator is unfair and unrealistic. Look at the performance
+reports - there was a good test-case that showed that read-performance was
+fine but that writes to different parts of the filesystem just suck. Which
+is _exactly_ what you'd expect if the elevator was fine but the writes
+were blocked up by higher levels.
 
-http://www.conectiva.com/		http://www.surriel.com/
+		Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
