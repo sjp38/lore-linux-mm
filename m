@@ -1,52 +1,58 @@
-Received: from burns.conectiva (burns.conectiva [10.0.0.4])
-	by perninha.conectiva.com.br (Postfix) with SMTP id 7730716B4E
-	for <linux-mm@kvack.org>; Wed, 16 May 2001 14:41:35 -0300 (EST)
-Date: Wed, 16 May 2001 14:41:35 -0300 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
+Date: Wed, 16 May 2001 10:54:12 -0700 (PDT)
+From: Matt Dillon <dillon@earth.backplane.com>
+Message-Id: <200105161754.f4GHsCd73025@earth.backplane.com>
 Subject: Re: RE: on load control / process swapping
-In-Reply-To: <200105161714.f4GHEFs72217@earth.backplane.com>
-Message-ID: <Pine.LNX.4.33.0105161439140.18102-100000@duckman.distro.conectiva>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+References: <Pine.LNX.4.33.0105161439140.18102-100000@duckman.distro.conectiva>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Matt Dillon <dillon@earth.backplane.com>
+To: Rik van Riel <riel@conectiva.com.br>
 Cc: Charles Randall <crandall@matchlogic.com>, Roger Larsson <roger.larsson@norran.net>, arch@FreeBSD.ORG, linux-mm@kvack.org, sfkaplan@cs.amherst.edu
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 16 May 2001, Matt Dillon wrote:
+    It's not dropping the data, it's dropping the priority.  And yes, it
+    does penalize the data somewhat.  On the otherhand if the data happens
+    to still be in the cache and you scan it a second time, the page priority
+    gets bumped up relative to what it already was so the net effect is
+    that the data becomes high priority after a few passes.
 
->     In regards to the particular case of scanning a huge multi-gigabyte
->     file, FreeBSD has a sequential detection heuristic which does a
->     pretty good job preventing cache blow-aways by depressing the priority
->     of the data as it is read or written.  FreeBSD will still try to cache
->     a good chunk, but it won't sacrifice all available memory.  If you
->     access the data via the VM system, through mmap, you get even more
->     control through the madvise() syscall.
+:Maybe it would be better to only do drop-behind when we're
+:actually allocating new memory for the vnode in question and
+:let re-use of already present memory go "unpunished" ?
 
-There's one thing "wrong" with the drop-behind idea though;
-it penalises data even when it's still in core and we're
-reading it for the second or third time.
+    You get an equivalent effect even without dropping the priority,
+    because you blow away prior pages when reading a file that is
+    larger then main memory so they don't exist at all when you re-read.
+    But you do not get the expected 'recycling' characteristics verses
+    the rest of the system if you do not make a distinction between
+    sequential and random access.  You want to slightly depress the priority
+    behind a sequential access because the 'cost' of re-reading the disk
+    sequentially is nothing compared to the cost of re-reading the disk
+    randomly (by about a 30:1 ratio!).  So keeping randomly seek/read data
+    is more important by degrees then keeping sequentially read data.
 
-Maybe it would be better to only do drop-behind when we're
-actually allocating new memory for the vnode in question and
-let re-use of already present memory go "unpunished" ?
+    This isn't to say that it isn't important to try to cache sequentially
+    read data, just that the cost of throwing away sequentially read data
+    is much lower then the cost of throwing away randomly read data on
+    a general purpose machine.
 
-Hmmm, now that I think about this more, it _could_ introduce
-some different fairness issues. Darn ;)
+    Terry's description of 'ld' mmap()ing and doing all sorts of random
+    seeking causing most UNIXes, including FreeBSD, to have a brainfart of
+    the dataset is too big to fit in the cache is true as far as it goes,
+    but there really isn't much we can do about that situation
+    'automatically'.  Without hints, the system can't predict the fact that
+    it should be trying to cache the whole of the object files being accessed
+    randomly.  A hint could make performance much better... a simple 
+    madvise(... MADV_SEQUENTIAL) on the mapped memory inside LD would 
+    probably be beneficial, as would madvise(... MADV_WILLNEED).
 
-regards,
+					-Matt
 
-Rik
---
-Linux MM bugzilla: http://linux-mm.org/bugzilla.shtml
-
-Virtual memory is like a game you can't win;
-However, without VM there's truly nothing to lose...
-
-		http://www.surriel.com/
-http://www.conectiva.com/	http://distro.conectiva.com/
-
+:Hmmm, now that I think about this more, it _could_ introduce
+:some different fairness issues. Darn ;)
+:
+:regards,
+:
+:Rik
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
