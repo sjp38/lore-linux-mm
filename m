@@ -1,118 +1,71 @@
-Date: Sat, 11 Sep 2004 02:08:16 -0700
-From: Andrew Morton <akpm@osdl.org>
-Subject: Fw: [Bugme-new] [Bug 3375] New: NUMA memory allocation issue:
+Date: Sun, 12 Sep 2004 21:46:41 -0700
+From: Paul Jackson <pj@sgi.com>
+Subject: Re: Fw: [Bugme-new] [Bug 3375] New: NUMA memory allocation issue:
  set_memorypolicy to MPOL_BIND do not work.
-Message-Id: <20040911020816.4ac226cd.akpm@osdl.org>
+Message-Id: <20040912214641.50c0be89.pj@sgi.com>
+In-Reply-To: <20040911020816.4ac226cd.akpm@osdl.org>
+References: <20040911020816.4ac226cd.akpm@osdl.org>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
-Cc: jean-marie.verdun@hp.com, Andi Kleen <ak@muc.de>
+To: Andrew Morton <akpm@osdl.org>
+Cc: linux-mm@kvack.org, jean-marie.verdun@hp.com, ak@muc.de
 List-ID: <linux-mm.kvack.org>
 
+I suspect, Jean-Marie, that if you change the line:
 
-Begin forwarded message:
-
-Date: Sat, 11 Sep 2004 02:01:13 -0700
-From: bugme-daemon@osdl.org
-To: bugme-new@lists.osdl.org
-Subject: [Bugme-new] [Bug 3375] New: NUMA memory allocation issue: set_memorypolicy to MPOL_BIND do not work. 
-
-
-http://bugme.osdl.org/show_bug.cgi?id=3375
-
-           Summary: NUMA memory allocation issue: set_memorypolicy to
-                    MPOL_BIND do not work.
-    Kernel Version: 2.6.8.1
-            Status: NEW
-          Severity: high
-             Owner: mm_numa-discontigmem@kernel-bugs.osdl.org
-         Submitter: jean-marie.verdun@hp.com
-
-
-Distribution: Suse 9.1 Pro
-Hardware Environment: 4P Opteron server running at 2.0 Ghz with 32 GB of main memory
-Software Environment: glibc library 2.3.4
-Problem Description:
-
-I am trying to use the most efficient NUMA features by forcing memory allocation
-of a compute process to the current node on which it runs. I would like that the
-process die in the case the cpu runs out of memory explain why I do want to use
-explicit binding.
-
-When setting the memory allocation policy inside wrapper which execute the
-target process through an excevp system call then after, if the policy is setup
-to MPOL_BIND, the execvp fails with an out of memory messages while the binary
-used is very small and the node still have plenty of memory.
-
-Steps to reproduce:
-
-Here is the small piece of code I use
-
-#include <stdio.h>
-#include <errno.h>
-#include <stdlib.h>
-#include <sched.h>
-#include <sys/types.h>
-#include "/root/linux-2.6.8.1/include/asm-x86_64/unistd.h"
-#include "/root/glibc-2.3.3/sysdeps/unix/sysv/linux/x86_64/sysdep.h"
-# define __set_errno(val) (errno = (val))
-#ifndef __SYSCALL
-#define __SYSCALL(a,b)
-#endif
- 
-__SYSCALL(__NR_sched_setaffinity, sys_sched_setaffinity)
-int main(int argc, char * argv[])
-{
-        unsigned long *new_mask;
-        unsigned long cur_mask;
-        unsigned long processor;
         unsigned long value=1;
-        int value2=1;
-        int i;
-        unsigned int len = sizeof(new_mask);
-        pid_t pid;
-        pid_t mypid;
-        processor=atol(argv[1]);
-        new_mask=(unsigned long *)malloc(sizeof(unsigned long));
-        *new_mask=1;
-        for( i=0; i < processor ; i++ )
-                *new_mask=*new_mask*2;
-        printf("procesor %d Mask %d\n",processor,*new_mask);
-        mypid=getpid();
-                mypid=getpid();
-                printf("coucou %d %d\n",mypid,getpid());
-                puts(argv[2]);
-                printf("%d\n",INLINE_SYSCALL (sched_setaffinity, 3, mypid,
-sizeof (unsigned long),new_mask));
-                printf("%d %d %d %d %d\n",errno,EFAULT,ESRCH,EPERM,EINVAL);
-                printf("%d\n",INLINE_SYSCALL (set_mempolicy, 3, value2,
-new_mask,value));
-                printf("%d %d %d %d %d\n",errno,EFAULT,ESRCH,EPERM,EINVAL);
- 
-                printf("%d\n",execvp(argv[2],NULL));
-                printf("%d %d %d %d %d\n",errno,EFAULT,ESRCH,EPERM,EINVAL);
-                exit(0);
- 
- 
-}
 
-I do directly the system call wrapper inide the code as the glibc 2.3.4 provided
-by Suse contains bugs which avoid to use it for such task.
-To compile:
-cc -I/root/glibc-2.3.3/  -I . runon.c
- 
-You need as well kernel source code into /roo/linux-2.6.8.1
-and glibc-2.3.3 into root directory
+to be instead:
 
-To execute
+        unsigned long value=9;
 
-./a.out <processor_id> <myprogram_name>
+that it will work.  This 'value' in your code is what the man page for
+set_mempolicy calls 'maxnode'.  It should be one more than the number of
+bits in the nodemask being passed to set_mempolicy.  It looks to me like
+your kernel for x86_64 has MAX_NUMNODES equal to 8 (it is equal to (1 <<
+NODES_SHIFT), and NODES_SHIFT seems to be 3 on the x86_64 arch).  So you
+should pass in a nodemask of 8 bits, and set this maxnode argument (your
+variable named 'value') to one more than that, or 9.
 
-------- You are receiving this mail because: -------
-You are on the CC list for the bug, or are watching someone who is.
+More recent versions of Linus' bk tree might want 'value=8', not
+'value=9', since there seems to be some confusion with a patch that
+changes this maxnode parameter from being one more than the number of
+bits, to being exactly equal to the number of bits.  I predict that this
+will change soon, back to expecting one more than the number of bits.
+My prediction could be wrong - I am not the one to make the decision.
+
+So long as you aren't trying to actually use all 8 nodes, and so long as
+you actually pass a mask that is a full word, zero'd out except for the
+nodes you are trying to use, then passing either 8 or 9 should work
+fine, on any kernel.
+
+There seems to be a bug here that for some cases, such as the one you
+report, set_mempolicy can build a set of zonelists that is empty, and
+then be unable to allocate any memory.  I don't see the problem offhand,
+so I will leave that detail up to Andi, who is the real master of this
+code.  Your passing a maxnode of 1 (value=1) was an incorrect call, but
+it should have failed the set_mempolicy(2) call with EINVAL, rather than
+failing the exec call with ENOMEM.
+
+(Aside to Andi - when my cpuset patch is added, it masks this ENOMEM on
+exec bug, causing instead such invalid set_mempolicy calls to error out
+with EINVAL.)
+
+And, yes, Jean-Marie.  The set_mempolicy(2) man page is not yet sufficient
+in its explanation of what to pass for this maxnode parameter.
+
+Oh - you were passing "value2=1" as the 'policy' parameter to set_mempolicy.
+This will get MPOL_PREFERRED, I believe.  When testing your code, I changed
+that to 'value2=2' in order to get MPOL_BIND, which as you report is the
+policy required to demonstrate the "Cannot allocate memory" error.
+
+-- 
+                          I won't rest till it's the best ...
+                          Programmer, Linux Scalability
+                          Paul Jackson <pj@sgi.com> 1.650.933.1373
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
