@@ -1,40 +1,37 @@
-Subject: Re: limit on number of kmapped pages
-References: <y7rsnmav0cv.fsf@sytry.doc.ic.ac.uk>
-	<m1r91udt59.fsf@frodo.biederman.org>
-	<y7rofwxeqin.fsf@sytry.doc.ic.ac.uk>
-	<20010125181621.W11607@redhat.com>
-From: David Wragg <dpw@doc.ic.ac.uk>
-Date: 25 Jan 2001 23:53:16 +0000
-In-Reply-To: "Stephen C. Tweedie"'s message of "Thu, 25 Jan 2001 18:16:21 +0000"
-Message-ID: <y7rwvbjmbo3.fsf@sytry.doc.ic.ac.uk>
+Received: from hermes.copt.junta-andalucia.es ([10.229.128.13])
+          by dns1.junta-andalucia.es (Netscape Messaging Server 3.6)
+           with ESMTP id AAA9B for <linux-mm@kvack.org>;
+          Fri, 26 Jan 2001 09:11:27 +0100
+Received: from sgtor3 (sgt-or3.copt.junta-andalucia.es [10.229.128.202] (may be forged))
+	by hermes.copt.junta-andalucia.es (8.9.3/8.9.3) with SMTP id JAA20972
+	for <linux-mm@kvack.org>; Fri, 26 Jan 2001 09:13:16 +0100
+Message-ID: <001f01c0876f$a9b67300$ca80e50a@copt.juntaandalucia.es>
+From: "Antonio Vargas" <avargas@sadiel.es>
+Subject: 
+Date: Fri, 26 Jan 2001 09:12:01 +0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain;
+	charset="iso-8859-1"
+Content-Transfer-Encoding: 8BIT
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Stephen C. Tweedie" <sct@redhat.com>
-Cc: "Eric W. Biederman" <ebiederm@xmission.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-"Stephen C. Tweedie" <sct@redhat.com> writes:
-> On Wed, Jan 24, 2001 at 12:35:12AM +0000, David Wragg wrote:
-> > 
-> > > And why do the pages need to be kmapped? 
-> > 
-> > They only need to be kmapped while data is being copied into them.
-> 
-> But you only need to kmap one page at a time during the copy.  There
-> is absolutely no need to copy the whole chunk at once.
+Un saludo
+Antonio Vargas
+SADIEL, S.A.
+c/ Isaac Newton s/n Edificio Sadiel - Sodean, Isla de la Cartuja
+41092 SEVILLA - Spain
+Tel. +34955043600 Fax +34955043601
+http://www.sadiel.es
 
-The chunks I'm copying are always smaller than a page.  Usually they
-are a few hundred bytes.
-
-Though because I'm copying into the pages in a bottom half, I'll have
-to use kmap_atomic.  After a page is filled, it is put into the page
-cache.  So they have to be allocated with page_cache_alloc(), hence
-__GFP_HIGHMEM and the reason I'm bothering with kmap at all.
+e-mail:
+avargas@sadiel.es
+wind@dma4.com (casa, para mandar ficheros)
+http://synthesis.hn.org (offline hasta nuevo aviso)
 
 
-David Wragg
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
