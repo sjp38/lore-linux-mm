@@ -1,58 +1,90 @@
-From: Rik van Riel <riel@nl.linux.org>
-Subject: Re: [RFC] [RFT] [PATCH] memory zone balancing
-Message-ID: <Pine.LNX.4.10.10001042042090.654-100000@mirkwood.dummy.home>
+Message-ID: <387340D5.7DF8BEC2@idiom.com>
+Date: Wed, 05 Jan 2000 16:02:13 +0300
+From: Hans Reiser <reiser@idiom.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
-Date: Tue, 4 Jan 2000 20:42:29 +0100
+Subject: Re: (reiserfs) Re: RFC: Re: journal ports for 2.3? (resending because my
+ ISP probably lost it)
+References: <Pine.LNX.4.10.10001021506350.12799-100000@wolf.rockies.stelias.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linux MM <linux-mm@kvack.org>
+To: "Peter J. Braam" <braam@cs.cmu.edu>
+Cc: Andrea Arcangeli <andrea@suse.de>, "William J. Earl" <wje@cthulhu.engr.sgi.com>, Tan Pong Heng <pongheng@starnet.gov.sg>, "Stephen C. Tweedie" <sct@redhat.com>, "Benjamin C.R. LaHaise" <blah@kvack.org>, Chris Mason <clmsys@osfmail.isc.rit.edu>, reiserfs@devlinux.com, linux-fsdevel@vger.rutgers.edu, linux-mm@kvack.org, Ingo Molnar <mingo@redhat.com>, Linus Torvalds <torvalds@transmeta.com>, intermezzo-devel@stelias.com, simmonds@stelias.com
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 4 Jan 2000, Rik van Riel wrote:
+Is nesting really the term you mean to use here, or is joining the term you
+mean?
 
-> d+r+h > limit
-> d     > limit/2
-> r     > limit/4
-> h     > limit/8
+Do you really mean transactions within other transactions?
 
-Ehmmm, wait. I messed up on this one.
-We probably want to have a bit more freedom
-so the page freeing algorithm doesn't do too
-much scanning for nothing.
+Exactly what functionality do you need?
 
-d+r+h 	> limit
-d	> limit/4
-r	> limit/4
-h	don't care, even on a 1.5GB machine h will
-	be 1/3 of total memory, so we'll usually
-	have a few free pages in here
+Hans
 
-> DMA pages should always be present, regular pages for
-> storing pagetables and stuff need to be there too, higmem
-> pages we don't really care about.
-> 
-> Btw, I think we probably want to increase freepages.min
-> to 512 or even more on machines that have >1GB of memory.
-> The current limit of 256 was really intended for machines
-> with a single zone of memory...
-> 
-> (but on <1GB machines I don't know if it makes sense to
-> raise the limit much more ... maybe we should raise the
-> limit automagically if the page alloc/io rate is too
-> high?)
+"Peter J. Braam" wrote:
 
-Rik
+> Hi,
+>
+> I have one request for the journal API for use by network file systems -
+> it is a request of a slightly different nature than the ones discussed so
+> far.
+>
+> InterMezzo (www.inter-mezzo.org) exploits an existing disk file system as
+> a cache and wraps around it. (Any disk file system can be used, but so far
+> only Ext2 has been exploited.)  High availability file systems need update
+> logs of changes that were made to the cache so that these may be
+> propagated to peers when they come back online (to support "disconnected
+> operation").
+>
+> Requested feature:
+> ------------------------------------------------------------------------
+>
+> Stephen's journal API has a tremendously useful feature: it allows nesting
+> of transactions.   I don't know if Reiser has this (can you tell me
+> Chris?) but it is _incredibly_ useful.  So:
+>
+> - InterMezzo can start a journal transaction
+>  - execute the underlying Ext3 routine within that transaction
+>    (i.e. the Ext3 transaction becomes part of the one started
+>     by InterMezzo)
+> - InterMezzo finishes its routine (e.g. by noting that an update
+> took place in its update log) and commits or aborts the transaction
+>
+> -------------------------------------------------------------------------
+>
+> [So, in particular InterMezzo and Ext3 share the journal transaction log.]
+>
+> Why is this useful? There are at least two reasons:
+>
+>  - the update InterMezzo update log can be kept in sync with the Ext3 file
+> system as a cache
+>
+>  - InterMezzo will soon manage somewhat more metadata (e.g. it may want to
+> remmeber a global file identifier, similar to a Coda FID or NFS file
+> handle) and it can make updates to its metadata atomically with updates
+> made to Ext3 metadata.
+>
+> Both of these reasons touch the core architectural decisions of systems
+> like Coda/AFS/InterMezzo/DCE-DFS -- so there is some historical reason to
+> be so delighted with what one can do with Stephen's API.
+>
+> Presently, systems like Coda and AFS have a hell of a time keeping caches
+> in sync with the metadata and to a large extent Coda's really bad
+> performance is caused by this (an external transaction system is used in
+> conjunction with synchronous operations on the disk file system, ouch...).
+> InterMezzo will start using the kernel journal facility that should be
+> much lighter weight.
+>
+> Is this a reasonable thing to ask for?
+>
+> - Peter -
+
 --
-The Internet is not a network of computers. It is a network
-of people. That is its real strength.
-
-
--
-To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-the body of a message to majordomo@vger.rutgers.edu
-Please read the FAQ at http://www.tux.org/lkml/
-
+Get Linux (http://www.kernel.org) plus ReiserFS
+ (http://devlinux.org/namesys).  If you sell an OS or
+internet appliance, buy a port of ReiserFS!  If you
+need customizations and industrial grade support, we sell them.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
