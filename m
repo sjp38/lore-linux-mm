@@ -1,69 +1,39 @@
-Date: Wed, 8 Sep 2004 16:30:36 -0300
-From: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
+Date: Wed, 08 Sep 2004 14:10:32 -0700
+From: "Martin J. Bligh" <mbligh@aracnet.com>
 Subject: Re: swapping and the value of /proc/sys/vm/swappiness
-Message-ID: <20040908193036.GH4284@logos.cnet>
-References: <413CB661.6030303@sgi.com> <cone.1094512172.450816.6110.502@pc.kolivas.org> <20040906162740.54a5d6c9.akpm@osdl.org> <cone.1094513660.210107.6110.502@pc.kolivas.org> <20040907000304.GA8083@logos.cnet> <20040907212051.GC3492@logos.cnet> <413F1518.7050608@sgi.com> <20040908165412.GB4284@logos.cnet> <413F5EE7.6050705@sgi.com>
-Mime-Version: 1.0
+Message-ID: <36100000.1094677832@flay>
+In-Reply-To: <20040908215008.10a56e2b.diegocg@teleline.es>
+References: <5860000.1094664673@flay><Pine.LNX.4.44.0409081403500.23362-100000@chimarrao.boston.redhat.com> <20040908215008.10a56e2b.diegocg@teleline.es>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <413F5EE7.6050705@sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ray Bryant <raybry@sgi.com>
-Cc: Con Kolivas <kernel@kolivas.org>, Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, riel@redhat.com, piggin@cyberone.com.au, mbligh@aracnet.com
+To: Diego Calleja <diegocg@teleline.es>, Rik van Riel <riel@redhat.com>
+Cc: raybry@sgi.com, marcelo.tosatti@cyclades.com, kernel@kolivas.org, akpm@osdl.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, piggin@cyberone.com.au
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Sep 08, 2004 at 02:35:03PM -0500, Ray Bryant wrote:
+>> > For HPC, maybe. For a fileserver, it might be far too little. That's the
+>> > trouble ... it's all dependant on the workload. Personally, I'd prefer
+>> > to get rid of manual tweakables (which are a pain in the ass in the field
+>> > anyway), and try to have the kernel react to what the customer is doing.
+>> 
+>> Agreed.  Many of these things should be self-tunable pretty
+>> easily, too...
 > 
-> 
-> Marcelo Tosatti wrote:
-> 
-> >
-> >
-> >Huh, that changes the meaning of the dirty limits. Dont think its suitable
-> >for mainline.
-> >
-> >
-> 
-> The change is, in fact, not much different from what is already actually 
-> there.  The code in get_dirty_limits() adjusts the value of the user 
-> supplied parameters in /proc/sys/vm depending on how much mapped memory 
-> there is.  If you undo the convoluted arithmetic that is in there, one 
-> finds that if you are using the default dirty_ratio of 40%, then if the 
-> unmapped_ratio is between 80% and 10%, then
-> 
->    dirty_ratio = unmapped_ratio / 2;
-> 
-> and, a little bit of algebra later:
-> 
->    dirty = (total_pages - wbs->nr_mapped)/2
-> 
-> and
-> 
->    background = dirty_background_ratio/vm_background_ratio * (total_pages
-> 	- wbs->nr_mapped)
-> 
-> That is, for a wide range of memory usage, you are really running with an
-> dirty ratio of 50% stated in terms of the number of unmapped pages, and 
-> there is no direct way to override this.
+> I know this has been discussed before, but could a userspace daemon which
+> autotunes the tweakables do a better job wrt. to adapting the kernel
+> behaviour depending on the workload? Just like these days we have
+> irqbalance instead of a in-kernel "irq balancer". It's a alternative
+> worth of look at?
 
-OK I see, yes. 
+I really don't see any point in pushing the self-tuning of the kernel out
+into userspace. What are you hoping to achieve?
 
-> Of course, at the edges, the code changes these calculations.  It just 
-> seems to me that rather than continue the convoluted calculation that is in
-> get_dirty_limits(), we just make the outcome more explicit and tell the user
-> what is really going on.
-> 
-> We'd still have to figure out how to encourage a minimum page cache size of
-> some kind, which is what I understand the 5% min value for dirty_ratio is 
-> in there for.
- 
-For the user "dirty_ratio" and "dirty_background_ratio" means "percentage
-of total memory" (thats how it has been traditionally in Linux). And right now,
- as you noted, we dont do that way.
+M.
 
-There's probably a good reason for the "no more than half of unmapped memory".
-Andrew ?
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
