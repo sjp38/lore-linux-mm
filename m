@@ -1,38 +1,39 @@
-Subject: Re: 2.5.62-mm2
-From: Shawn <core@enodev.com>
-In-Reply-To: <20030221184459.0d010ba1.akpm@digeo.com>
-References: <20030220234733.3d4c5e6d.akpm@digeo.com>
-	 <200302212048.09802.tomlins@cam.org>
-	 <1045881657.27435.36.camel@localhost.localdomain>
-	 <20030221184459.0d010ba1.akpm@digeo.com>
-Content-Type: text/plain
-Content-Transfer-Encoding: 7bit
-Message-Id: <1045884393.3959.1.camel@localhost.localdomain>
+Message-Id: <3.0.6.32.20030223184931.00825e30@boo.net>
+Date: Sun, 23 Feb 2003 18:49:31 -0500
+From: Jason Papadopoulos <jasonp@boo.net>
+Subject: [PATCH] page coloring for 2.5.62 kernel, version 1
 Mime-Version: 1.0
-Date: 21 Feb 2003 21:26:33 -0600
+Content-Type: text/plain; charset="us-ascii"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@digeo.com>
-Cc: tomlins@cam.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-And now it works. root fs never got mounted r/w. At first, I though is
-was flaky h/w, and it may still be.
+Hello again. This version of the page coloring patch implements
+"stealth mode", i.e. is as minimal as possible. There are many
+cleanups, and a few mods for the 2.5 series kernel.
 
-I'll watch closer, now that there has been some sort of similar
-situation. That guy had two ctrlrs too.
+The biggest change is that the hot/cold per-cpu lists are individually
+colored now, and the patch has the effect of randomizing the cache
+colors of pages pumped into the per-cpu lists. The lists are still lifo
+and still favor pages just freed.
 
-On Fri, 2003-02-21 at 20:44, Andrew Morton wrote:
-> Shawn <core@enodev.com> wrote:
-> >
-> > For some reason, I had to boot single, then go to multi user.
-> > 
-> > Otherwise, I got some sort  of interrupt not free messages after my
-> > second ide ctrlr got recognized.
-> > 
-> 
-> You'll need to transcribe that message and send your full dmesg
-> output please.
+No difference in kernel compile time on the K7 system I have; I suspect
+that decoupling allocation of pages from allocation of pages to processes
+dilutes the effectiveness of page coloring, but all of the schemes I can
+think of to enforce page coloring to processes are much more complicated
+than the one used by this patch.
+
+Patch with /proc output:
+
+www.boo.net/~jasonp/page_color-2.5.62-20030223.patch
+
+and without:
+
+www.boo.net/~jasonp/page_color-2.5.62-20030223a.patch
+
+Feedback of any sort welcome.
+jasonp
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
