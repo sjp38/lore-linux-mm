@@ -1,45 +1,35 @@
-Message-ID: <391B2EB3.A79DFA63@timpanogas.com>
-Date: Thu, 11 May 2000 16:05:39 -0600
-From: "Jeff V. Merkey" <jmerkey@timpanogas.com>
-MIME-Version: 1.0
+Date: Thu, 11 May 2000 15:22:15 -0700 (PDT)
+From: Linus Torvalds <torvalds@transmeta.com>
 Subject: Re: PATCH: rewrite of invalidate_inode_pages
-References: <Pine.LNX.4.10.10005111445370.819-100000@penguin.transmeta.com>
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <yttya5ghhtr.fsf@vexeta.dc.fi.udc.es>
+Message-ID: <Pine.LNX.4.10.10005111519590.819-100000@penguin.transmeta.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@transmeta.com>
-Cc: "Juan J. Quintela" <quintela@fi.udc.es>, linux-mm@kvack.org, linux-kernel@vger.rutgers.edu
+To: "Juan J. Quintela" <quintela@fi.udc.es>
+Cc: linux-mm@kvack.org, linux-kernel@vger.rutgers.edu
 List-ID: <linux-mm.kvack.org>
 
-It should be expanded to support 64K pages.  Check
-/usr/src/linux/include/asm-ia64/page.h.  IA64 supports page sizes up to
-64K.  
 
-:-)
+On 11 May 2000, Juan J. Quintela wrote:
+> 
+> Linus, I agree with you here, but we do a get_page 5 lines before, I
+> think that if I do a get_page I should do a put_page to liberate it. 
 
-Jeff
+No, "get_page()" really means "increment the usage count by one", and the
+problem is that it is obviously completely neutral wrt the actual size of
+the page.
 
-Linus Torvalds wrote:
-> 
-> On 11 May 2000, Juan J. Quintela wrote:
-> > - we change one page_cache_release to put_page in truncate_inode_pages
-> >   (people find lost when they see a get_page without the correspondent
-> >   put_page, and put_page and page_cache_release are synonimops)
-> 
-> put_page() is _not_ synonymous with page_cache_release()!
-> 
-> Imagine a time in the not too distant future when the page cache
-> granularity is 8kB or 16kB due to better IO performance (possibly
-> controlled by a config option), and page_cache_release() will do an
-> "order=1" or "order=2" page free..
-> 
->                 Linus
-> 
-> -
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.rutgers.edu
-> Please read the FAQ at http://www.tux.org/lkml/
+What we _could_ do is to just for clarity have
+
+	#define page_cache_get()	get_page()
+
+and then pair up every "page_cache_get()" with "page_cache_release()".
+Which makes sense to me. So if you feel strongly about this issue..
+
+		Linus
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
