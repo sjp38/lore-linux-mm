@@ -1,85 +1,35 @@
-Message-ID: <4244D068.3080900@osdl.org>
-Date: Fri, 25 Mar 2005 19:00:56 -0800
-From: "Randy.Dunlap" <rddunlap@osdl.org>
-MIME-Version: 1.0
-Subject: Re: [RFC][PATCH 1/4] create mm/Kconfig for arch-independent memory
- options
-References: <E1DEwlP-0006BQ-00@kernel.beaverton.ibm.com>
-In-Reply-To: <E1DEwlP-0006BQ-00@kernel.beaverton.ibm.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Hansen <haveblue@us.ibm.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, apw@shadowen.org
+Date: Sat, 26 Mar 2005 13:34:21 +0100
+From: "Jaclyn Ladd" <lispms@didamail.com>
+Subject: Become a homeowner with low rates
+Message-ID: <BKELLDAGKABIOCHDFD363DGAA.danny366@virgilio.it>
+Return-Path: <lispms@didamail.com>
+To: io@kvack.org
+Cc: jordomo@kvack.org, kernel@kvack.org, lah@kvack.org, linux-aio@kvack.org, linux-mm@kvack.org, linux-mm-archive@kvack.orgm@kvack.org, mailer-daemon@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Dave Hansen wrote:
-> With sparsemem and memory hotplug there are quite a few options that
-> we kept adding identically in several different architectures.  This
-> new file allows some of these to be consolidated.
-> 
-> Signed-off-by: Andy Whitcroft <apw@shadowen.org>
-> Signed-off-by: Dave Hansen <haveblue@us.ibm.com>
-> ---
-> 
->  memhotplug-dave/mm/Kconfig |   41 +++++++++++++++++++++++++++++++++++++++++
->  1 files changed, 41 insertions(+)
-> 
-> diff -puN mm/Kconfig~A6-mm-Kconfig mm/Kconfig
-> --- memhotplug/mm/Kconfig~A6-mm-Kconfig	2005-03-25 08:08:22.000000000 -0800
-> +++ memhotplug-dave/mm/Kconfig	2005-03-25 08:08:22.000000000 -0800
-> @@ -0,0 +1,41 @@
-> +choice
-> +	prompt "Memory model"
-> +	default FLATMEM
-> +	default SPARSEMEM if ARCH_SPARSEMEM_DEFAULT
-> +	default DISCONTIGMEM if ARCH_DISCONTIGMEM_DEFAULT
-> +
-> +config FLATMEM
-> +	bool "Flat Memory"
-> +	depends on !ARCH_DISCONTIGMEM_ENABLE || ARCH_FLATMEM_ENABLE
-> +	help
-> +	  This option allows you to change some of the ways that
-> +	  Linux manages its memory internally.  Most users will
-> +	  only have one option here: FLATMEM.  This is normal
-> +	  and a correct option.
-> +
-> +	  Some users of more advanced features like NUMA and
-> +	  memory hotplug may have different options here.
-> +	  DISCONTIGMEM is an more mature, better tested system,
-> +	  but is incompatible with memory hotplug and may suffer
-> +	  decreased performance over SPARSEMEM.  If unsure between
-> +	  "Sparse Memory" and "Discontiguous Memory", choose
-Where is the "Sparse Memory" option?  I didn't find it.
+Hello,
 
-> +	  "Discontiguous Memory".
-> +
-> +	  If unsure, choose FLATMEM.
-> +
-> +config DISCONTIGMEM
-> +	bool "Discontigious Memory"
-> +	depends on ARCH_DISCONTIGMEM_ENABLE
-> +	help
-> +	  If unsure, choose this option over "Sparse Memory".
-Same question....
+ We tried contacting you awhile ago about your low interest morta(ge rate.
 
-> +endchoice
-> +
-> +#
-> +# Both the NUMA code and DISCONTIGMEM use arrays of pg_data_t's
-> +# to represent different areas of memory.  This variable allows
-> +# those dependencies to exist individually.
-> +#
-> +config NEED_MULTIPLE_NODES
-> +	def_bool y
-> +	depends on DISCONTIGMEM || NUMA
+ You have qualified for the lowest rate in years...
+
+ You could get over $380,000 for as little as $500 a month!
+
+ Ba(d credit? Doesn't matter, low rates are fixed no matter what!
+
+ 
+ To get a free, no obli,gation consultation click below:
+
+ http://www.ok-ref-yes.net/nowss.asp
 
 
--- 
-~Randy
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"aart@kvack.org"> aart@kvack.org </a>
+
+ Best Regards,
+
+ Christie Houser
+ 
+ to be remov(ed:	http://www.ok-ref-yes.net/gone.asp
+
+ this process takes one week, so please be patient. we do our 
+ best to take your email/s off but you have to fill out a rem/ove
+ or else you will continue to recieve email/s.
