@@ -1,55 +1,50 @@
+Reply-To: "Blue" <Evitahhh@yahoo.com>
+From: "Leopold " <Evitahhh@yahoo.com>
+Subject: re: when a deal on your presc like this comes along you dont pass it
+Date: Sat, 22 Jan 2005 00:26:48 -0500
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Message-ID: <16881.49191.918994.413281@cargo.ozlabs.ibm.com>
-Date: Sat, 22 Jan 2005 13:53:27 +1100
-From: Paul Mackerras <paulus@samba.org>
-Subject: Re: Extend clear_page by an order parameter
-In-Reply-To: <Pine.LNX.4.58.0501211749300.27677@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.58.0501041512450.1536@schroedinger.engr.sgi.com>
-	<Pine.LNX.4.44.0501082103120.5207-100000@localhost.localdomain>
-	<20050108135636.6796419a.davem@davemloft.net>
-	<Pine.LNX.4.58.0501211210220.25925@schroedinger.engr.sgi.com>
-	<16881.33367.660452.55933@cargo.ozlabs.ibm.com>
-	<Pine.LNX.4.58.0501211545080.27045@schroedinger.engr.sgi.com>
-	<16881.40893.35593.458777@cargo.ozlabs.ibm.com>
-	<20050121164353.6f205fbc.akpm@osdl.org>
-	<16881.43936.632734.780383@cargo.ozlabs.ibm.com>
-	<Pine.LNX.4.58.0501211749300.27677@schroedinger.engr.sgi.com>
+Content-Type: multipart/alternative;
+	boundary="--02-28908-2365-612-05937"
+Message-Id: <20050122052631Z26577-20891+801@kvack.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Andrew Morton <akpm@osdl.org>, davem@davemloft.net, hugh@veritas.com, linux-ia64@vger.kernel.org, torvalds@osdl.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Christoph Lameter writes:
+----02-28908-2365-612-05937
+Content-Type: text/plain;
+Content-Transfer-Encoding: quoted-printable
 
-> I had the name "zero_page" in V1 and V2 of the patch where it was
-> separate. Then someone complained about code duplication.
+Are you paying too much for your medication each month? Tired of getting r=
+ipped off?
 
-Well, if you duplicated each arch's clear_page implementation in
-zero_page, then yes, that would be unnecessary code duplication.  I
-would suggest that for architectures where the clear_page
-implementation can easily be extended, rename it to clear_page_order
-(or something) and #define clear_page(x) to be clear_page_order(x, 0).
-For architectures where it can't, leave clear_page as clear_page and
-define clear_page_order as an inline function that calls clear_page in
-a loop.
+Let us show you how to save and put cash in your pocket!
 
-> clear_page is called clear_page because it clears one page of *any* order
-> not just higher orders. zero-order pages are not segregated nor are they
-> intrisincally better just because they contain more memory ;-).
+http://spt217.yoramanustola.com
 
-You have missed my point, which was about address constraints, not a
-distinction between zero-order pages and higher-order pages.
+Yours,
 
-Anyway, I remain of the opinion that your naming is inconsistent with
-the naming of other functions that deal with zero-order and
-higher-order pages, such as get_free_pages, alloc_pages, free_pages,
-etc., and that your patch is unnecessarily intrusive.  I guess it's up
-to Andrew to decide which way we go.
+Clarice
 
-Paul.
+                                                                          =
+                                                                          =
+                                                                          =
+                                                                          =
+                                                                          =
+                                                                          =
+                                                                          =
+                                                                          =
+                                                                          =
+                                                                          =
+                                                                          =
+                                
+
+Not all conservatives are stupid, but most stupid people are conservative.=
+ John Stuart Mill=20
+Not interested?
+http://ez217.yoramanustola.com/bye/
+
+----02-28908-2365-612-05937--
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
