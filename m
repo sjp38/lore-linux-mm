@@ -1,34 +1,67 @@
-Date: Fri, 9 Jun 2000 00:03:54 +0100
-From: "Stephen C. Tweedie" <sct@redhat.com>
-Subject: Re: Allocating a page of memory with a given physical address
-Message-ID: <20000609000354.G3886@redhat.com>
-References: <yttd7lrq0ok.fsf@serpe.mitica> <20000608225108Z131165-245+107@kanga.kvack.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20000608225108Z131165-245+107@kanga.kvack.org>; from ttabi@interactivesi.com on Thu, Jun 08, 2000 at 05:27:42PM -0500
+Date: Thu, 8 Jun 2000 19:07:19 -0400 (EDT)
+From: Alexander Viro <viro@math.psu.edu>
+Subject: Re: Contention on ->i_shared_lock in dup_mmap()
+In-Reply-To: <393FC7F4.C8E4B4B6@colorfullife.com>
+Message-ID: <Pine.GSO.4.10.10006081855220.10800-100000@weyl.math.psu.edu>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Timur Tabi <ttabi@interactivesi.com>
-Cc: Linux MM mailing list <linux-mm@kvack.org>
+To: Manfred Spraul <manfreds@colorfullife.com>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
 
-On Thu, Jun 08, 2000 at 05:27:42PM -0500, Timur Tabi wrote:
+On Thu, 8 Jun 2000, Manfred Spraul wrote:
+
+> Alexander Viro wrote:
+> > 
+> > OK, do_syslog() is just plain silly - it's resetting the buffer and code
+> > in question looks so:
+> >                 spin_lock_irq(&console_lock);
+> >                 logged_chars = 0;
+> >                 spin_unlock_irq(&console_lock);
+> > ... which is for all purposes equivalent to
+> >                 if (logged_chars) {
+> >                         ...
+> >                 }
+> > so this one is easy (looks like a klogd silliness).
+> > 
+> cpu0: do_syslog
+> 	logged_chars = 0;
 > 
-> Unfortunately, that's not an option.  We need to be able to reserve/allocate
-> pages in a driver's init_module() function, and I don't mean drivers that are
-> compiled with the kernel.  We need to be able to ship a stand-alone driver that
-> can work with pretty much any Linux distro of a particular version (e.g. we can
-> say that only 2.4.14 and above is supported). 
+> cpu1: printk()
+> 	logged_chars++;
+> 
+> We really need the spinlock :-(
 
-About the only thing you could do would be to keep allocating pages until
-you get one with the desired properties.  The kernel won't make any
-guarantees about being able to free specific pages for you.
+And? With the current code:
 
-Cheers, 
- Stephen
+cpu0:					cpu1:
+	spin_lock_irq
+	logged_chars = 0
+	spin_unlock_irq
+					spin_lock_irq
+					...
+					logged_chars++;
+	break;
+
+IOW, you have no warranty that upon the exit from do_syslog() you will
+have logged_chars == 0 and that's precisely the same as you will get if
+you replace the code with
+	if (logged_chars) {
+		spin_lock_irq(&console_lock);
+		logged_chars = 0;
+		spin_unlock_irq(&console_lock);
+	}
+- if logged_chars was non-zero we are getting the same result anyway and
+if it was and something was in the middle of a changing it to non-zero -
+fine, we just act as if do_syslog() happened before that.
+
+As for the source of contention... beats me. _Probably_ weird mutated
+klogd, but I didn't look at the patches RH slapped on it. syslog(5,...) is
+damn silly anyway - it's an unavoidable race.
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
