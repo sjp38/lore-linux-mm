@@ -1,44 +1,51 @@
-Message-ID: <3B668629.34797B3F@zip.com.au>
-Date: Tue, 31 Jul 2001 20:19:21 +1000
-From: Andrew Morton <akpm@zip.com.au>
+Content-Type: text/plain; charset=US-ASCII
+From: Daniel Phillips <phillips@bonn-fries.net>
+Subject: Re: 2.4.8-pre1 and dbench -20% throughput
+Date: Tue, 31 Jul 2001 16:13:24 +0200
+References: <Pine.LNX.4.33L.0107292021480.11893-100000@imladris.rielhome.conectiva> <85vG$i31w-B@khms.westfalen.de>
+In-Reply-To: <85vG$i31w-B@khms.westfalen.de>
 MIME-Version: 1.0
-Subject: Re: strange locking __find_get_swapcache_page()
-References: <Pine.LNX.4.33L.0107301542230.5582-100000@duckman.distro.conectiva> <Pine.LNX.4.33.0107301839440.19638-100000@penguin.transmeta.com>
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Message-Id: <01073116132401.00303@starship>
+Content-Transfer-Encoding: 7BIT
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@transmeta.com>
-Cc: Rik van Riel <riel@conectiva.com.br>, linux-mm@kvack.org, Andrea Arcangeli <andrea@suse.de>, Marcelo Tosatti <marcelo@conectiva.com.br>
+To: Kai Henningsen <kaih@khms.westfalen.de>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Linus Torvalds wrote:
-> 
-> On Mon, 30 Jul 2001, Rik van Riel wrote:
+On Tuesday 31 July 2001 09:30, Kai Henningsen wrote:
+> riel@conectiva.com.br (Rik van Riel)  wrote on 29.07.01 in 
+<Pine.LNX.4.33L.0107292021480.11893-100000@imladris.rielhome.conectiva>:
+> > On Sun, 29 Jul 2001, Hugh Dickins wrote:
+> > > On Sun, 29 Jul 2001, Daniel Phillips wrote:
+> > > > "Age" is hugely misleading, I think everybody agrees,
 > >
-> > I've encountered a suspicious piece of code in filemap.c:
+> > Yup. I mainly kept it because we called things this way
+> > in the 1.2, 1.3, 2.0 and 2.1 kernels.
 > >
-> > struct page * __find_get_swapcache_page( ... )
-> 
-> Hmm. I thin the whole PageSwapCache() test is bogus - if we found it on
-> the swapper_space address space, then the page had better be a swap-cache
-> page, and testing for it explicitly is silly.
-> 
-> Also, it appears that the only caller of this is
-> find_get_swapcache_page(), which in itself really doesn't even care: it
-> just uses the lookup as a boolen on whether to add a new page to the swap
-> cache, and does even _that_ completely wrong. There's a big race there,
-> see if you can spot it.
+> > > > That said, I think BSD uses "weight".
+> > >
+> > > That's much _much_ better: I'd go for "warmth" myself,
+> >
+> > FreeBSD uses act_count, short for activation count.
+> >
+> > Showing how active a page is is probably a better analogy
+> > than the temperature one ... but that's just IMHO ;)
+>
+> Well, people do sometimes speak of "hot" pages (or spots) ... and
+> there are no good verbs associated with "activation count". Oh, and
+> you might say "the situation heats up" in case of increasing memory
+> pressure.
+>
+> And remember that in physics, temperature (at least in the cases
+> where it's used by non-physicists) does measure something
+> approximately like average particle velocity, which some
+> (non-physicist) people might well call "activity".
 
-read_swap_cache_async()?  All code paths in that area are
-under lock_kernel().
+Temperature also captures the idea of gradual decay.  Activity sounds 
+fine too, both are way better than age.
 
-> The fix, I suspect, is to pretty much get rid of the code altogether, and
-> make it use add_to_page_cache_unique() or whatever it is called that gets
-> the duplicate check _right_.
-
-The whole lot needed spring cleaning 1-2 years ago, but I see no
-bugs in there.
+--
+Daniel
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
