@@ -1,37 +1,41 @@
-Date: Tue, 7 Aug 2001 12:12:29 -0700 (PDT)
-From: Linus Torvalds <torvalds@transmeta.com>
+Received: from burns.conectiva (burns.conectiva [10.0.0.4])
+	by perninha.conectiva.com.br (Postfix) with SMTP id 9A99B38CD0
+	for <linux-mm@kvack.org>; Tue,  7 Aug 2001 16:21:53 -0300 (EST)
+Date: Tue, 7 Aug 2001 16:21:53 -0300 (BRST)
+From: Rik van Riel <riel@conectiva.com.br>
 Subject: Re: [RFC][DATA] re "ongoing vm suckage"
-In-Reply-To: <Pine.LNX.4.33L.0108071409540.1439-100000@duckman.distro.conectiva>
-Message-ID: <Pine.LNX.4.33.0108071206540.1060-100000@penguin.transmeta.com>
+In-Reply-To: <Pine.LNX.4.33.0108071206540.1060-100000@penguin.transmeta.com>
+Message-ID: <Pine.LNX.4.33L.0108071621180.1439-100000@duckman.distro.conectiva>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@conectiva.com.br>
+To: Linus Torvalds <torvalds@transmeta.com>
 Cc: Ben LaHaise <bcrl@redhat.com>, Daniel Phillips <phillips@bonn-fries.net>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 7 Aug 2001, Rik van Riel wrote:
->
-> Obvious, you introduced this when you decided to put
-> the following two things into the kernel:
+On Tue, 7 Aug 2001, Linus Torvalds wrote:
 
-Bzzt, wrong answer. It happens with earlier 2.4.x kernels too.
+> Lazy movement may give non-optimal heuristics, but if the
+> heuristics sometimes say "don't make progress", then those
+> things could have happened without the lazy code - by having the
+> _real_ conditions match the ones that the lazy one happened to
+> be.
 
-It may be easier to trigger now (although the data doesn't actually seem
-to support that very much either).
+Hmmmm, indeed.  All lazy movement can do is make it
+easier to run into a wall, but it should still be
+possible without it ...
 
-Regardless of any lazy movements or anything else, the VM should always
-make progress.  When you claim that reclaimd gets "effectively disabled"
-but the current setup, then explain how it couldn't have happened without
-lazy movement.
+regards,
 
-Lazy movement may give non-optimal heuristics, but if the heuristics
-sometimes say "don't make progress", then those things could have happened
-without the lazy code - by having the _real_ conditions match the ones
-that the lazy one happened to be.
+Rik
+--
+Executive summary of a recent Microsoft press release:
+   "we are concerned about the GNU General Public License (GPL)"
 
-		Linus
+
+		http://www.surriel.com/
+http://www.conectiva.com/	http://distro.conectiva.com/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
