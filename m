@@ -1,272 +1,173 @@
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e5.ny.us.ibm.com (8.12.10/8.12.10) with ESMTP id iBEFUkSn008415
-	for <linux-mm@kvack.org>; Tue, 14 Dec 2004 10:30:46 -0500
-Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
-	by d01relay02.pok.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id iBEFUkYQ289930
-	for <linux-mm@kvack.org>; Tue, 14 Dec 2004 10:30:46 -0500
-Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
-	by d01av01.pok.ibm.com (8.12.11/8.12.11) with ESMTP id iBEFUjUB019504
-	for <linux-mm@kvack.org>; Tue, 14 Dec 2004 10:30:46 -0500
-Subject: Re: Anticipatory prefaulting in the page fault handler V1
-From: Adam Litke <agl@us.ibm.com>
-In-Reply-To: <Pine.LNX.4.58.0412080920240.27156@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.44.0411221457240.2970-100000@localhost.localdomain>
-	 <Pine.LNX.4.58.0411221343410.22895@schroedinger.engr.sgi.com>
-	 <Pine.LNX.4.58.0411221419440.20993@ppc970.osdl.org>
-	 <Pine.LNX.4.58.0411221424580.22895@schroedinger.engr.sgi.com>
-	 <Pine.LNX.4.58.0411221429050.20993@ppc970.osdl.org>
-	 <Pine.LNX.4.58.0412011539170.5721@schroedinger.engr.sgi.com>
-	 <Pine.LNX.4.58.0412011608500.22796@ppc970.osdl.org>
-	 <41AEB44D.2040805@pobox.com> <20041201223441.3820fbc0.akpm@osdl.org>
-	 <41AEBAB9.3050705@pobox.com> <20041201230217.1d2071a8.akpm@osdl.org>
-	 <179540000.1101972418@[10.10.2.4]> <41AEC4D7.4060507@pobox.com>
-	 <20041202101029.7fe8b303.cliffw@osdl.org>
-	 <Pine.LNX.4.58.0412080920240.27156@schroedinger.engr.sgi.com>
-Content-Type: text/plain
-Message-Id: <1103038096.28318.404.camel@localhost.localdomain>
-Mime-Version: 1.0
-Date: Tue, 14 Dec 2004 09:28:16 -0600
-Content-Transfer-Encoding: 7bit
+Message-ID: <41BF0F0D.4000408@ribosome.natur.cuni.cz>
+Date: Tue, 14 Dec 2004 17:04:29 +0100
+From: =?UTF-8?B?TWFydGluIE1PS1JFSsWg?= <mmokrejs@ribosome.natur.cuni.cz>
+MIME-Version: 1.0
+Subject: Re: [PATCH] fix spurious OOM kills
+References: <20041111112922.GA15948@logos.cnet>	 <20041114094417.GC29267@logos.cnet>	 <20041114170339.GB13733@dualathlon.random>	 <20041114202155.GB2764@logos.cnet>	<419A2B3A.80702@tebibyte.org>	 <419B14F9.7080204@tebibyte.org>	<20041117012346.5bfdf7bc.akpm@osdl.org>	 <419CD8C1.4030506@ribosome.natur.cuni.cz>	 <20041118131655.6782108e.akpm@osdl.org>	 <419D25B5.1060504@ribosome.natur.cuni.cz>	 <419D2987.8010305@cyberone.com.au>	 <419D383D.4000901@ribosome.natur.cuni.cz>	 <20041118160824.3bfc961c.akpm@osdl.org>	 <419E821F.7010601@ribosome.natur.cuni.cz>	 <1100946207.2635.202.camel@thomas> <419F2AB4.30401@ribosome.natur.cuni.cz>	 <1100957349.2635.213.camel@thomas>	 <419FB4CD.7090601@ribosome.natur.cuni.cz> <1101037999.23692.5.camel@thomas>	 <41A08765.7030402@ribosome.natur.cuni.cz>	 <1101045469.23692.16.camel@thomas>	 <1101120922.19380.17.camel@tglx.tec.linutronix.de>	 <41A2E98E.7090109@ribosome.natur.cuni.cz> <1101205649.3888.6.camel@tglx.tec.linutronix.de>
+In-Reply-To: <1101205649.3888.6.camel@tglx.tec.linutronix.de>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: nickpiggin@yahoo.com.au, Jeff Garzik <jgarzik@pobox.com>, torvalds@osdl.org, hugh@veritas.com, benh@kernel.crashing.org, linux-mm@kvack.org, linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org
+To: tglx@linutronix.de
+Cc: Andrew Morton <akpm@osdl.org>, piggin@cyberone.com.au, chris@tebibyte.org, marcelo.tosatti@cyclades.com, andrea@novell.com, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-What benchmark are you using to generate the following results?  I'd
-like to run this on some of my hardware and see how the results compare.
+Thomas Gleixner wrote:
 
-On Wed, 2004-12-08 at 11:24, Christoph Lameter wrote:
-> Standard Kernel on a 512 Cpu machine allocating 32GB with an increasing
-> number of threads (and thus increasing parallellism of page faults):
+Hi,
+  I went to check what's the status of this. I tested 2.6.10-rc3-bk8
+on the same machine, and the parent process still get's killed.
+The last patch Thomas has posted to the list in this thread for 2.6.10-rc2-mm3
+killed only the application. Maybe it's still in -mm tree?
+Anyway, here are results for 2.6.10-rc3-bk8 as I've said:
+
+Free pages:        3924kB (112kB HighMem)
+Active:128410 inactive:125323 dirty:0 writeback:0 unstable:0 free:981 slab:1985 mapped:253497 pagetables:739
+DMA free:68kB min:68kB low:84kB high:100kB active:5436kB inactive:5512kB present:16384kB pages_scanned:11608 all_unreclaimable
+? yes
+protections[]: 0 0 0
+Normal free:3744kB min:3756kB low:4692kB high:5632kB active:443312kB inactive:430804kB present:901120kB pages_scanned:887679 all_unreclaimable? yes
+protections[]: 0 0 0
+HighMem free:112kB min:128kB low:160kB high:192kB active:64892kB inactive:64976kB present:131044kB pages_scanned:132923 all_unreclaimable? yes
+protections[]: 0 0 0
+DMA: 1*4kB 0*8kB 0*16kB 0*32kB 1*64kB 0*128kB 0*256kB 0*512kB 0*1024kB 0*2048kB 0*4096kB = 68kB
+Normal: 0*4kB 0*8kB 0*16kB 1*32kB 0*64kB 1*128kB 0*256kB 1*512kB 1*1024kB 1*2048kB 0*4096kB = 3744kB
+HighMem: 0*4kB 0*8kB 1*16kB 1*32kB 1*64kB 0*128kB 0*256kB 0*512kB 0*1024kB 0*2048kB 0*4096kB = 112kB
+Swap cache: add 294889, delete 294883, find 530/704, race 0+0
+Out of Memory: Killed process 6944 (RNAsubopt).
+oom-killer: gfp_mask=0xd0
+DMA per-cpu:
+cpu 0 hot: low 2, high 6, batch 1
+cpu 0 cold: low 0, high 2, batch 1
+Normal per-cpu:
+cpu 0 hot: low 32, high 96, batch 16
+cpu 0 cold: low 0, high 32, batch 16
+HighMem per-cpu:
+cpu 0 hot: low 14, high 42, batch 7
+cpu 0 cold: low 0, high 14, batch 7
+
+Free pages:        3924kB (112kB HighMem)
+Active:135050 inactive:118681 dirty:0 writeback:0 unstable:0 free:981 slab:1977 mapped:253498 pagetables:739
+DMA free:68kB min:68kB low:84kB high:100kB active:5572kB inactive:5368kB present:16384kB pages_scanned:13496 all_unreclaimable ? yes
+protections[]: 0 0 0
+Normal free:3744kB min:3756kB low:4692kB high:5632kB active:469736kB inactive:404380kB present:901120kB pages_scanned:941233 all_unreclaimable? yes
+protections[]: 0 0 0
+HighMem free:112kB min:128kB low:160kB high:192kB active:64892kB inactive:64976kB present:131044kB pages_scanned:137915 all_unreclaimable? yes
+protections[]: 0 0 0
+DMA: 1*4kB 0*8kB 0*16kB 0*32kB 1*64kB 0*128kB 0*256kB 0*512kB 0*1024kB 0*2048kB 0*4096kB = 68kB
+Normal: 0*4kB 0*8kB 0*16kB 1*32kB 0*64kB 1*128kB 0*256kB 1*512kB 1*1024kB 1*2048kB 0*4096kB = 3744kB
+HighMem: 0*4kB 0*8kB 1*16kB 1*32kB 1*64kB 0*128kB 0*256kB 0*512kB 0*1024kB 0*2048kB 0*4096kB = 112kB
+Swap cache: add 294889, delete 294883, find 530/704, race 0+0
+Out of Memory: Killed process 6863 (xterm).
+
+
+I see the machine a lot less responsive when it starts swapping
+compared to 2.6.10-rc2-mm3. For example, just moving mouse between
+windows takes some 10-12 seconds to fvwm2 to re-focus to another xterm
+window.
+
+Martin
+
+
+> On Tue, 2004-11-23 at 08:41 +0100, Martin MOKREJA  wrote: 
 > 
->  Gb Rep Threads   User      System     Wall flt/cpu/s fault/wsec
->  32   3    1    1.416s    138.165s 139.050s 45073.831  45097.498
->  32   3    2    1.397s    148.523s  78.044s 41965.149  80201.646
->  32   3    4    1.390s    152.618s  44.044s 40851.258 141545.239
->  32   3    8    1.500s    374.008s  53.001s 16754.519 118671.950
->  32   3   16    1.415s   1051.759s  73.094s  5973.803  85087.358
->  32   3   32    1.867s   3400.417s 117.003s  1849.186  53754.928
->  32   3   64    5.361s  11633.040s 197.034s   540.577  31881.112
->  32   3  128   23.387s  39386.390s 332.055s   159.642  18918.599
->  32   3  256   15.409s  20031.450s 168.095s   313.837  37237.918
->  32   3  512   18.720s  10338.511s  86.047s   607.446  72752.686
+>>>One big problem when killing the requesting process or just sending
+>>>ENOMEM to the requesting process is, that exactly this process might be
+>>>a ssh login, when you try to log into to machine after some application
+>>>went crazy and ate up most of the memory. The result is that you
+>>>_cannot_ log into the machine, because the login is either killed or
+>>>cannot start because it receives ENOMEM.
+>>
+>>I believe the application is _first_ who will get ENOMEM. It must be
+>>terrible luck that it would ask exactly for the size of remaining free
+>>memory. Most probably, it will ask for less or more. "Less" in not
+>>a problem in this case, so consider it asks for more. Then, OOM killer
+>>might well expect the application asking for memory is most probably
+>>exactly the application which caused the trouble.
 > 
-> Patched kernel:
 > 
-> Gb Rep Threads   User      System     Wall flt/cpu/s fault/wsec
->  32   3    1    1.098s    138.544s 139.063s 45053.657  45057.920
->  32   3    2    1.022s    127.770s  67.086s 48849.350  92707.085
->  32   3    4    0.995s    119.666s  37.045s 52141.503 167955.292
->  32   3    8    0.928s     87.400s  18.034s 71227.407 342934.242
->  32   3   16    1.067s     72.943s  11.035s 85007.293 553989.377
->  32   3   32    1.248s    133.753s  10.038s 46602.680 606062.151
->  32   3   64    5.557s    438.634s  13.093s 14163.802 451418.617
->  32   3  128   17.860s   1496.797s  19.048s  4153.714 322808.509
->  32   3  256   13.382s    766.063s  10.016s  8071.695 618816.838
->  32   3  512   17.067s    369.106s   5.041s 16291.764 1161285.521
+> For one application, which eats up all memory the 2.4 ENOMEM bahviour
+> works.
 > 
-> These number are roughly equal to what can be accomplished with the
-> page fault scalability patches.
+> The scenario which made one of my boxes unusable under 2.4 is a forking
+> server, which gets out of control. The last fork gets ENOMEM and does
+> not happen, but the other forked processes are still there and consuming
+> memory. The server application does the correct thing. It receives
+> ENOMEM on fork() and cancels the connection request. On the next request
+> the game starts again. Somebody notices that the box is not repsonding
+> anymore and tries to login via ssh. Guess what happens. ssh login cannot
+> fork due to ENOMEM. The same will happen on 2.6 if we make it behave
+> like 2.4. 
 > 
-> Kernel patches with both the page fault scalability patches and
-> prefaulting:
+> We have TWO problems in oom handling:
 > 
->  Gb Rep Threads   User      System     Wall flt/cpu/s fault/wsec
->  32  10    1    4.103s    456.384s 460.046s 45541.992  45544.369
->  32  10    2    4.005s    415.119s 221.095s 50036.407  94484.174
->  32  10    4    3.855s    371.317s 111.076s 55898.259 187635.724
->  32  10    8    3.902s    308.673s  67.094s 67092.476 308634.397
->  32  10   16    4.011s    224.213s  37.016s 91889.781 564241.062
->  32  10   32    5.483s    209.391s  27.046s 97598.647 763495.417
->  32  10   64   19.166s    219.925s  26.030s 87713.212 797286.395
->  32  10  128   53.482s    342.342s  27.024s 52981.744 769687.791
->  32  10  256   67.334s    180.321s  15.036s 84679.911 1364614.334
->  32  10  512   66.516s     93.098s   9.015s131387.893 2291548.865
+> 1. When do we trigger the out of memory killer
 > 
-> The fault rate doubles when both patches are applied.
+> As far as my test cases go, 2.6.10-rc2-mm3 does not longer trigger the
+> oom without reason.
 > 
-> And on the high end (512 processors allocating 256G) (No numbers
-> for regular kernels because they are extremely slow, also no
-> number for a low number of threads. Also very slow)
+> 2. Which process do we select to kill
 > 
-> With prefaulting:
+> The decision is screwed since the oom killer was introduced. Also the
+> reentrancy problem and some of the mechanisms in the out_of_memory
+> function have to be modified to make it work.
+> That's what my patch is addressing.
 > 
->  Gb Rep Threads   User      System     Wall flt/cpu/s fault/wsec
-> 256   3    4    8.241s   1414.348s 449.016s 35380.301 112056.239
-> 256   3    8    8.306s   1300.982s 247.025s 38441.977 203559.271
-> 256   3   16    8.368s   1223.853s 154.089s 40846.272 324940.924
-> 256   3   32    8.536s   1284.041s 110.097s 38938.970 453556.624
-> 256   3   64   13.025s   3587.203s 110.010s 13980.123 457131.492
-> 256   3  128   25.025s  11460.700s 145.071s  4382.104 345404.909
-> 256   3  256   26.150s   6061.649s  75.086s  8267.625 663414.482
-> 256   3  512   20.637s   3037.097s  38.062s 16460.435 1302993.019
 > 
-> Page fault scalability patch and prefaulting. Max prefault order
-> increased to 5 (max preallocation of 32 pages):
+>>>Putting hard coded decisions like "prefer sshd, xyz,...", " don't kill
+>>>a, b, c" are out of discussion.
+>>
+>>I'd go for it at least nowadays.
 > 
->  Gb Rep Threads   User      System     Wall flt/cpu/s fault/wsec
-> 256  10    8   33.571s   4516.293s 863.021s 36874.099 194356.930
-> 256  10   16   33.103s   3737.688s 461.028s 44492.553 363704.484
-> 256  10   32   35.094s   3436.561s 321.080s 48326.262 521352.840
-> 256  10   64   46.675s   2899.997s 245.020s 56936.124 684214.256
-> 256  10  128   85.493s   2890.198s 203.008s 56380.890 826122.524
-> 256  10  256   74.299s   1374.973s  99.088s115762.963 1679630.272
-> 256  10  512   62.760s    706.559s  53.027s218078.311 3149273.714
 > 
-> We are getting into an almost linear scalability in the high end with
-> both patches and end up with a fault rate > 3 mio faults per second.
+> Sure, you can do so on your box, but can you accept, that we _CANNOT_
+> hard code a list of do not kill apps, except init, into the kernel. I
+> don't want to see the mail thread on LKML, where the list of precious
+> application is discussed.
 > 
-> The one thing that takes up a lot of time is still be the zeroing
-> of pages in the page fault handler. There is a another
-> set of patches that I am working on which will prezero pages
-> and led to another an increase in performance by a factor of 2-4
-> (if prezeroed pages are available which may not always be the case).
-> Maybe we can reach 10 mio fault /sec that way.
 > 
-> Patch against 2.6.10-rc3-bk3:
+>>> 
+>>>The ideas which were proposed to have a possibility to set a "don't kill
+>>>me" or "yes, I'm a candidate" flag are likely to be a future way to go.
+>>>But at the moment we have no way to make this work in current userlands.
+>>
+>>Do you think login or sshd will ever use flag "yes, I'm a candidate"?
+>>I think exactly same bahaviour we get right now with those hard coded decisions
+>>you mention above. Otherwise the hard coded decision is programmed into
+>>every sshd, init instance anyway. I think it's not necessary to put
+>>login and shells on thsi ban list, user will re-login again. ;)
 > 
-> Index: linux-2.6.9/include/linux/sched.h
-> ===================================================================
-> --- linux-2.6.9.orig/include/linux/sched.h	2004-12-01 10:37:31.000000000 -0800
-> +++ linux-2.6.9/include/linux/sched.h	2004-12-01 10:38:15.000000000 -0800
-> @@ -537,6 +537,8 @@
->  #endif
 > 
->  	struct list_head tasks;
-> +	unsigned long anon_fault_next_addr;	/* Predicted sequential fault address */
-> +	int anon_fault_order;			/* Last order of allocation on fault */
->  	/*
->  	 * ptrace_list/ptrace_children forms the list of my children
->  	 * that were stolen by a ptracer.
-> Index: linux-2.6.9/mm/memory.c
-> ===================================================================
-> --- linux-2.6.9.orig/mm/memory.c	2004-12-01 10:38:11.000000000 -0800
-> +++ linux-2.6.9/mm/memory.c	2004-12-01 10:45:01.000000000 -0800
-> @@ -55,6 +55,7 @@
+> Having a generic interface to make this configurable is the only way to
+> go. So users can decide what is important in their environment. There is
+> more than a desktop PC environment and a lot of embedded boxes need to
+> protect special applications.
 > 
->  #include <linux/swapops.h>
->  #include <linux/elf.h>
-> +#include <linux/pagevec.h>
 > 
->  #ifndef CONFIG_DISCONTIGMEM
->  /* use the per-pgdat data instead for discontigmem - mbligh */
-> @@ -1432,8 +1433,106 @@
->  		unsigned long addr)
->  {
->  	pte_t entry;
-> -	struct page * page = ZERO_PAGE(addr);
-> +	struct page * page;
-> +
-> +	addr &= PAGE_MASK;
-> +
-> + 	if (current->anon_fault_next_addr == addr) {
-> + 		unsigned long end_addr;
-> + 		int order = current->anon_fault_order;
-> +
-> +		/* Sequence of page faults detected. Perform preallocation of pages */
+>>>I refined the decision, so it does not longer kill the parent, if there
+>>>were forked child processes available to kill. So it now should keep
+>>>your bash alive.
+>>
+>>Yes, it doesn't kill parent bash. I don't understand the _doubled_ output
+>>in syslog, but maybe you do. Is that related to hyperthreading? ;)
+>>Tested on 2.6.10-rc2-mm2.
 > 
-> +		/* The order of preallocations increases with each successful prediction */
-> + 		order++;
-> +
-> +		if ((1 << order) < PAGEVEC_SIZE)
-> +			end_addr = addr + (1 << (order + PAGE_SHIFT));
-> +		else
-> +			end_addr = addr + PAGEVEC_SIZE * PAGE_SIZE;
-> +
-> +		if (end_addr > vma->vm_end)
-> +			end_addr = vma->vm_end;
-> +		if ((addr & PMD_MASK) != (end_addr & PMD_MASK))
-> +			end_addr &= PMD_MASK;
-> +
-> +		current->anon_fault_next_addr = end_addr;
-> +	 	current->anon_fault_order = order;
-> +
-> +		if (write_access) {
-> +
-> +			struct pagevec pv;
-> +			unsigned long a;
-> +			struct page **p;
-> +
-> +			pte_unmap(page_table);
-> +			spin_unlock(&mm->page_table_lock);
-> +
-> +			pagevec_init(&pv, 0);
-> +
-> +			if (unlikely(anon_vma_prepare(vma)))
-> +				return VM_FAULT_OOM;
-> +
-> +			/* Allocate the necessary pages */
-> +			for(a = addr;a < end_addr ; a += PAGE_SIZE) {
-> +				struct page *p = alloc_page_vma(GFP_HIGHUSER, vma, a);
-> +
-> +				if (p) {
-> +					clear_user_highpage(p, a);
-> +					pagevec_add(&pv,p);
-> +				} else
-> +					break;
-> +			}
-> +			end_addr = a;
-> +
-> +			spin_lock(&mm->page_table_lock);
-> +
-> + 			for(p = pv.pages; addr < end_addr; addr += PAGE_SIZE, p++) {
-> +
-> +				page_table = pte_offset_map(pmd, addr);
-> +				if (!pte_none(*page_table)) {
-> +					/* Someone else got there first */
-> +					page_cache_release(*p);
-> +					pte_unmap(page_table);
-> +					continue;
-> +				}
-> +
-> + 				entry = maybe_mkwrite(pte_mkdirty(mk_pte(*p,
-> + 							 vma->vm_page_prot)),
-> + 						      vma);
-> +
-> +				mm->rss++;
-> +				lru_cache_add_active(*p);
-> +				mark_page_accessed(*p);
-> +				page_add_anon_rmap(*p, vma, addr);
-> +
-> +				set_pte(page_table, entry);
-> +				pte_unmap(page_table);
-> +
-> + 				/* No need to invalidate - it was non-present before */
-> + 				update_mmu_cache(vma, addr, entry);
-> +			}
-> + 		} else {
-> + 			/* Read */
-> + 			for(;addr < end_addr; addr += PAGE_SIZE) {
-> +				page_table = pte_offset_map(pmd, addr);
-> + 				entry = pte_wrprotect(mk_pte(ZERO_PAGE(addr), vma->vm_page_prot));
-> +				set_pte(page_table, entry);
-> +				pte_unmap(page_table);
-> +
-> + 				/* No need to invalidate - it was non-present before */
-> +				update_mmu_cache(vma, addr, entry);
-> +
-> +			};
-> +		}
-> +		spin_unlock(&mm->page_table_lock);
-> +		return VM_FAULT_MINOR;
-> +	}
-> +
-> +	current->anon_fault_next_addr = addr + PAGE_SIZE;
-> +	current->anon_fault_order = 0;
-> +
-> +	page = ZERO_PAGE(addr);
->  	/* Read-only mapping of ZERO_PAGE. */
->  	entry = pte_wrprotect(mk_pte(ZERO_PAGE(addr), vma->vm_page_prot));
 > 
-> -
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
--- 
-Adam Litke - (agl at us.ibm.com)
-IBM Linux Technology Center
+>>oom-killer: gfp_mask=0xd2
+>>Free pages:        3924kB (112kB HighMem)
+> 
+> 
+>>oom-killer: gfp_mask=0x1d2
+>>Free pages:        3924kB (112kB HighMem)
+> 
+> 
+> No, it's not related to hyperthreading. It's on the way out. 
+> 
+> I put an additional check into the page allocator. Does this help ?
+> 
+> tglx
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
