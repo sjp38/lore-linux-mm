@@ -1,47 +1,41 @@
-Received: from digeo-nav01.digeo.com (digeo-nav01.digeo.com [192.168.1.233])
-	by packet.digeo.com (8.9.3+Sun/8.9.3) with SMTP id UAA16477
-	for <linux-mm@kvack.org>; Wed, 9 Oct 2002 20:05:17 -0700 (PDT)
-Message-ID: <3DA4EE6C.6B4184CC@digeo.com>
-Date: Wed, 09 Oct 2002 20:05:16 -0700
-From: Andrew Morton <akpm@digeo.com>
+Content-Type: text/plain;
+  charset="iso-8859-1"
+From: Ed Tomlinson <tomlins@cam.org>
+Subject: Re: [PATCH 2.5.41-mm1] new snapshot of shared page tables
+Date: Wed, 9 Oct 2002 23:04:47 -0400
+References: <228900000.1034197657@baldur.austin.ibm.com>
+In-Reply-To: <228900000.1034197657@baldur.austin.ibm.com>
 MIME-Version: 1.0
-Subject: Re: [rfc][patch] Memory Binding API v0.3 2.5.41
-References: <3DA4D3E4.6080401@us.ibm.com>
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Content-Transfer-Encoding: 8bit
+Message-Id: <200210092304.47577.tomlins@cam.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: colpatch@us.ibm.com
-Cc: linux-kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, LSE <lse-tech@lists.sourceforge.net>, Martin Bligh <mjbligh@us.ibm.com>, Michael Hohnbaum <hohnbaum@us.ibm.com>
+To: Dave McCracken <dmccr@us.ibm.com>, Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Matthew Dobson wrote:
-> 
-> Greetings & Salutations,
->         Here's a wonderful patch that I know you're all dying for...  Memory
-> Binding!
+On October 9, 2002 05:07 pm, Dave McCracken wrote:
+> Here's the latest shared page table patch.  Changes are mostly cleanups,
+> with the added feature that shared page tables are now a config option.
+> This means the patch should build on other architectures (this is
+> untested).
+>
+> At Andrew Morton's request, I've moved my development base to the -mm line.
 
+After realizing (thanks Dave) that kmail 3.03 has a bug saving multipart/mixed 
+mime messages, I was able to use uudeview to extract a clean patch, and build
+kernel which boot fine.  Thats the good news.
 
-Seems reasonable to me.
+When I try to start kde 3.03 on an up to date debian sid (X 4.2 etc) kde fails to start.
+It complains that ksmserver cannot be started.  Same setup works with 41-mm1.
 
-Could you tell us a bit about the operator's view of this?
+Know this is not a meaty report.  With X4.2 I have not yet figgered out how to get 
+more debug messages (the log from xstart is anemic) nor is there anything in
+messages, kern.log or on the serial console.  The box is a K6-III 400 on a via MVP3
+chipset.
 
-I assume that a typical usage scenario would be to bind a process
-to a bunch of CPUs and to then bind that process to a bunch of
-memblks as well? 
+What other info can I gather?
 
-If so, then how does the operator know how to identify those
-memblks?  To perform the (cpu list) <-> (memblk list) mapping?
-
-Also, what advantage does this provide over the current node-local
-allocation policy?  I'd have thought that once you'd bound a 
-process to a CPU (or to a node's CPUs) that as long as the zone
-fallback list was right, that process would be getting local memory
-pretty much all the time anyway?
-
-Last but not least: you got some benchmark numbers for this?
-
-Thanks.
+Ed Tomlinson
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
