@@ -1,11 +1,11 @@
 Received: from digeo-nav01.digeo.com (digeo-nav01.digeo.com [192.168.1.233])
-	by packet.digeo.com (8.9.3+Sun/8.9.3) with SMTP id LAA20254
-	for <linux-mm@kvack.org>; Wed, 5 Feb 2003 11:57:59 -0800 (PST)
-Date: Wed, 5 Feb 2003 11:57:52 -0800
+	by packet.digeo.com (8.9.3+Sun/8.9.3) with SMTP id MAA20456
+	for <linux-mm@kvack.org>; Wed, 5 Feb 2003 12:00:46 -0800 (PST)
+Date: Wed, 5 Feb 2003 12:00:40 -0800
 From: Andrew Morton <akpm@digeo.com>
 Subject: Re: hugepage patches
-Message-Id: <20030205115752.2c416ad4.akpm@digeo.com>
-In-Reply-To: <m1r8amzzg6.fsf@frodo.biederman.org>
+Message-Id: <20030205120040.3d0b8d96.akpm@digeo.com>
+In-Reply-To: <20030205115752.2c416ad4.akpm@digeo.com>
 References: <20030131151501.7273a9bf.akpm@digeo.com>
 	<20030202025546.2a29db61.akpm@digeo.com>
 	<20030202195908.GD29981@holomorphy.com>
@@ -19,42 +19,32 @@ References: <20030131151501.7273a9bf.akpm@digeo.com>
 	<m1znpcz0ag.fsf@frodo.biederman.org>
 	<20030204131206.2b6c33fa.akpm@digeo.com>
 	<m1r8amzzg6.fsf@frodo.biederman.org>
+	<20030205115752.2c416ad4.akpm@digeo.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Eric W. Biederman" <ebiederm@xmission.com>
-Cc: mbligh@aracnet.com, wli@holomorphy.com, davem@redhat.com, rohit.seth@intel.com, davidm@napali.hpl.hp.com, anton@samba.org, linux-mm@kvack.org
+To: ebiederm@xmission.com, mbligh@aracnet.com, wli@holomorphy.com, davem@redhat.com, rohit.seth@intel.com, davidm@napali.hpl.hp.com, anton@samba.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-ebiederm@xmission.com (Eric W. Biederman) wrote:
+Andrew Morton <akpm@digeo.com> wrote:
 >
-> Andrew Morton <akpm@digeo.com> writes:
+> > - inode->i_sem is not taken to protect inode->i_size.
 > 
-> > ebiederm@xmission.com (Eric W. Biederman) wrote:
-> > >
-> > > I can't imagine it being useful to guys like oracle without MAP_SHARED
-> > > support....
-> > 
-> > MAP_SHARED is supported.  I haven't tested it much though.
+> OK, I'll fix that up.
 > 
-> Given that none of the standard kernel idioms to prevent races in
-> this kind of code are present, I would be very surprised if it
-> was not racy.
+> > - After successfully allocating a page, a test is not made to see if
+> >   another process with the same mapping has allocated the page first.
 > 
-> - inode->i_sem is not taken to protect inode->i_size.
+> In this case, add_to_page_cache() in hugetlb_prefault() will return -EEXIST,
+> and the page which lost the race will be freed again.
+> 
+> Uh, but we don't establish a pte against the page which got there first. 
+> I'll fix that up too.  Thanks.
 
-OK, I'll fix that up.
-
-> - After successfully allocating a page, a test is not made to see if
->   another process with the same mapping has allocated the page first.
-
-In this case, add_to_page_cache() in hugetlb_prefault() will return -EEXIST,
-and the page which lost the race will be freed again.
-
-Uh, but we don't establish a pte against the page which got there first. 
-I'll fix that up too.  Thanks.
+No, everything is OK isn't it?  The entire operation (i_size update and
+allocate/add_to_page_cache()) is serialised under i_sem.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
