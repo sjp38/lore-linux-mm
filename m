@@ -1,38 +1,32 @@
-Date: Wed, 26 Apr 2000 12:06:38 +0100
+Date: Wed, 26 Apr 2000 12:01:30 +0100
 From: "Stephen C. Tweedie" <sct@redhat.com>
-Subject: Re: pressuring dirty pages (2.3.99-pre6)
-Message-ID: <20000426120638.F3792@redhat.com>
-References: <852568CC.004F0BB1.00@raylex-gh01.eo.ray.com> <20000425173012.B1406@redhat.com> <m1snwadmcp.fsf@flinx.biederman.org>
+Subject: Re: [PATCH] 2.3.99-pre6-3+  VM rebalancing
+Message-ID: <20000426120130.E3792@redhat.com>
+References: <Pine.LNX.4.21.0004251757360.9768-100000@alpha.random> <Pine.LNX.4.21.0004251418520.10408-100000@duckman.conectiva> <20000425113616.A7176@stormix.com> <3905EB26.8DBFD111@mandrakesoft.com> <20000425120657.B7176@stormix.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-In-Reply-To: <m1snwadmcp.fsf@flinx.biederman.org>; from ebiederman@uswest.net on Tue, Apr 25, 2000 at 02:14:30PM -0500
+In-Reply-To: <20000425120657.B7176@stormix.com>; from sim@stormix.com on Tue, Apr 25, 2000 at 12:06:58PM -0700
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Eric W. Biederman" <ebiederman@uswest.net>
-Cc: "Stephen C. Tweedie" <sct@redhat.com>, Mark_H_Johnson.RTS@raytheon.com, linux-mm@kvack.org, riel@nl.linux.org
+To: Simon Kirby <sim@stormix.com>
+Cc: Jeff Garzik <jgarzik@mandrakesoft.com>, riel@nl.linux.org, Andrea Arcangeli <andrea@suse.de>, linux-mm@kvack.org, "Stephen C. Tweedie" <sct@redhat.com>, Ben LaHaise <bcrl@redhat.com>, linux-kernel@vger.rutgers.edu
 List-ID: <linux-mm.kvack.org>
 
 Hi,
 
-On Tue, Apr 25, 2000 at 02:14:30PM -0500, Eric W. Biederman wrote:
+On Tue, Apr 25, 2000 at 12:06:58PM -0700, Simon Kirby wrote:
+> 
+> Sorry, I made a mistake there while writing..I was going to give an
+> example and wrote 60 seconds, but I didn't actually mean to limit
+> anything to 60 seconds.  I just meant to make a really big global lru
+> that contains everything including page cache and swap. :)
 
-> Right.  A RSS guarantee sounds like it would make for easier tuning.
-> But a hard RSS max has the advantage of hitting a memory space hog
-> early, before it has a chance to get all of memory dirty, and simply
-> penalizes the hog.  
+Doesn't work.  If you do that, a "find / | grep ..." swaps out 
+everything in your entire system.
 
-Agreed --- RSS limits for the biggest processes in the system are
-definitely needed.
- 
-> Also under heave load a RSS garantee and a RSS hard limit are the
-> same.
-
-Not at all --- that's only the case if you only have one process 
-experiencing memory pressure, or if you are in equilibrium.  It's the
-bits in between, where we are under changing load, which are the most
-interesting, and in that case you still want your smallest processes to
-have the protection of the RSS guarantees while you start dynamically
-reducing the RSS limit on the biggest processes.
+Getting the VM to respond properly in a way which doesn't freak out
+in the mass-filescan case is non-trivial.  Simple LRU over all pages
+simply doesn't cut it.
 
 --Stephen
 --
