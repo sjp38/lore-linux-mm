@@ -1,219 +1,77 @@
-From: Nikita Danilov <nikita@clusterfs.com>
+Message-ID: <41A0CC68.8000405@namesys.com>
+Date: Sun, 21 Nov 2004 09:12:08 -0800
+From: Hans Reiser <reiser@namesys.com>
 MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="KRuiu7EswP"
+Subject: Re: [PATCH]: 4/4 cluster page-out in VM scanner
+References: <16800.47066.827146.370838@gargle.gargle.HOWL>
+In-Reply-To: <16800.47066.827146.370838@gargle.gargle.HOWL>
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
-Message-ID: <16800.48889.428100.518358@gargle.gargle.HOWL>
-Date: Sun, 21 Nov 2004 19:14:49 +0300
-Subject: Re: [PATCH]: 3/4 mm/rmap.c cleanup
-References: <16800.47063.386282.752478@gargle.gargle.HOWL>
-	<m1zn1bmbu3.fsf@clusterfs.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linux Kernel Mailing List <Linux-Kernel@Vger.Kernel.ORG>
-Cc: Andrew Morton <AKPM@Osdl.ORG>, Linux MM Mailing List <linux-mm@kvack.org>
+To: Nikita Danilov <nikita@clusterfs.com>
+Cc: Linux Kernel Mailing List <Linux-Kernel@Vger.Kernel.ORG>, Andrew Morton <AKPM@Osdl.ORG>, Linux MM Mailing List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
---KRuiu7EswP
-Content-Type: text/plain; charset=us-ascii
-Content-Description: message body text
-Content-Transfer-Encoding: 7bit
+How well does this integrate with reiser4.;-)
 
-Nikita Danilov <nikita@clusterfs.com> writes:
+Hans
 
-> Nikita Danilov <nikita@clusterfs.com> writes:
+Nikita Danilov wrote:
+
+>Implement pageout clustering at the VM level.
 >
->> identical code that
+>With this patch VM scanner calls pageout_cluster() instead of
+>->writepage(). pageout_cluster() tries to find a group of dirty pages around
+>target page, called "pivot" page of the cluster. If group of suitable size is
+>found, ->writepages() is called for it, otherwise, page_cluster() falls back
+>to ->writepage().
 >
-> Hmm... hungry grues everywhere. First lines should have been
+>This is supposed to help in work-loads with significant page-out of
+>file-system pages from tail of the inactive list (for example, heavy dirtying
+>through mmap), because file system usually writes multiple pages more
+>efficiently. Should also be advantageous for file-systems doing delayed
+>allocation, as in this case they will allocate whole extents at once.
 >
->     mm/rmap.c:page_referenced_one() and mm/rmap.c:try_to_unmap_one() contain
->     identical code that
+>Few points:
 >
-> Patch is also but. Try again, this time attached.
+> - swap-cache pages are not clustered (although they can be, but by
+>   page->private rather than page->index)
+>
+> - currently, kswapd clusters all the time, and direct reclaim only when
+>   device queue is not congested. Probably direct reclaim shouldn't cluster at
+>   all.
+>
+> - this patch adds new fields to struct writeback_control and expects
+>   ->writepages() to interpret them. This is needed, because pageout_cluster()
+>   calls ->writepages() with pivot page already locked, so that ->writepages()
+>   is allowed to only trylock other pages in the cluster.
+>
+>   Besides, rather rough plumbing (wbc->pivot_ret field) is added to check
+>   whether ->writepages() failed to write pivot page for any reason (in latter
+>   case page_cluster() falls back to ->writepage()).
+>
+>   Only mpage_writepages() was updated to honor these new fields, but
+>   all in-tree ->writepages() implementations seem to call
+>   mpage_writepages(). (Except reiser4, of course, for which I'll send a
+>   (trivial) patch, if necessary).
+>
+>Numbers that talk:
+>
+>Averaged number of microseconds it takes to dirty 1GB of
+>16-times-larger-than-RAM ext3 file mmaped in 1GB chunks:
+>
+>without-patch:   average:    74188417.156250
+>               deviation:    10538258.613280
+>
+>   with-patch:   average:    69449001.583333
+>               deviation:    12621756.615280
+>
+>(Patch is for 2.6.10-rc2)
+>
+>  
+>
 
-This time for sure, I promise.
-
-Nikita.
-
---KRuiu7EswP
-Content-Type: text/plain
-Content-Disposition: inline;
-	filename="rmap-cleanup.patch"
-Content-Transfer-Encoding: 7bit
-
-
-mm/rmap.c:page_referenced_one() and mm/rmap.c:try_to_unmap_one() contain
-identical code that
-
- - takes mm->page_table_lock;
-
- - drills through page tables;
-
- - checks that correct pte is reached.
-
-Coalesce this into page_check_address()
-
-
- mm/rmap.c |   95 +++++++++++++++++++++++++++-----------------------------------
- 1 files changed, 42 insertions(+), 53 deletions(-)
-
-diff -puN mm/rmap.c~rmap-cleanup mm/rmap.c
---- bk-linux/mm/rmap.c~rmap-cleanup	2004-11-21 18:59:59.759523776 +0300
-+++ bk-linux-nikita/mm/rmap.c	2004-11-21 18:59:59.761523472 +0300
-@@ -250,6 +250,34 @@ unsigned long page_address_in_vma(struct
- }
- 
- /*
-+ * Check that @page is mapped at @address into @mm.
-+ *
-+ * On success returns with mapped pte and locked mm->page_table_lock.
-+ */
-+static inline pte_t *page_check_address(struct page *page, struct mm_struct *mm,
-+					unsigned long address)
-+{
-+	pgd_t *pgd;
-+	pmd_t *pmd;
-+	pte_t *pte;
-+
-+	spin_lock(&mm->page_table_lock);
-+	pgd = pgd_offset(mm, address);
-+	if (likely(pgd_present(*pgd))) {
-+		pmd = pmd_offset(pgd, address);
-+		if (likely(pmd_present(*pmd))) {
-+			pte = pte_offset_map(pmd, address);
-+			if (likely(pte_present(*pte) &&
-+				   page_to_pfn(page) == pte_pfn(*pte)))
-+				return pte;
-+			pte_unmap(pte);
-+		}
-+	}
-+	spin_unlock(&mm->page_table_lock);
-+	return ERR_PTR(-ENOENT);
-+}
-+
-+/*
-  * Subfunctions of page_referenced: page_referenced_one called
-  * repeatedly from either page_referenced_anon or page_referenced_file.
-  */
-@@ -258,8 +286,6 @@ static int page_referenced_one(struct pa
- {
- 	struct mm_struct *mm = vma->vm_mm;
- 	unsigned long address;
--	pgd_t *pgd;
--	pmd_t *pmd;
- 	pte_t *pte;
- 	int referenced = 0;
- 
-@@ -269,35 +295,18 @@ static int page_referenced_one(struct pa
- 	if (address == -EFAULT)
- 		goto out;
- 
--	spin_lock(&mm->page_table_lock);
--
--	pgd = pgd_offset(mm, address);
--	if (!pgd_present(*pgd))
--		goto out_unlock;
--
--	pmd = pmd_offset(pgd, address);
--	if (!pmd_present(*pmd))
--		goto out_unlock;
--
--	pte = pte_offset_map(pmd, address);
--	if (!pte_present(*pte))
--		goto out_unmap;
--
--	if (page_to_pfn(page) != pte_pfn(*pte))
--		goto out_unmap;
--
--	if (ptep_clear_flush_young(vma, address, pte))
--		referenced++;
--
--	if (mm != current->mm && !ignore_token && has_swap_token(mm))
--		referenced++;
-+	pte = page_check_address(page, mm, address);
-+	if (!IS_ERR(pte)) {
-+		if (ptep_clear_flush_young(vma, address, pte))
-+			referenced++;
- 
--	(*mapcount)--;
-+		if (mm != current->mm && !ignore_token && has_swap_token(mm))
-+			referenced++;
- 
--out_unmap:
--	pte_unmap(pte);
--out_unlock:
--	spin_unlock(&mm->page_table_lock);
-+		(*mapcount)--;
-+		pte_unmap(pte);
-+		spin_unlock(&mm->page_table_lock);
-+	}
- out:
- 	return referenced;
- }
-@@ -501,8 +510,6 @@ static int try_to_unmap_one(struct page 
- {
- 	struct mm_struct *mm = vma->vm_mm;
- 	unsigned long address;
--	pgd_t *pgd;
--	pmd_t *pmd;
- 	pte_t *pte;
- 	pte_t pteval;
- 	int ret = SWAP_AGAIN;
-@@ -513,26 +520,9 @@ static int try_to_unmap_one(struct page 
- 	if (address == -EFAULT)
- 		goto out;
- 
--	/*
--	 * We need the page_table_lock to protect us from page faults,
--	 * munmap, fork, etc...
--	 */
--	spin_lock(&mm->page_table_lock);
--
--	pgd = pgd_offset(mm, address);
--	if (!pgd_present(*pgd))
--		goto out_unlock;
--
--	pmd = pmd_offset(pgd, address);
--	if (!pmd_present(*pmd))
--		goto out_unlock;
--
--	pte = pte_offset_map(pmd, address);
--	if (!pte_present(*pte))
--		goto out_unmap;
--
--	if (page_to_pfn(page) != pte_pfn(*pte))
--		goto out_unmap;
-+	pte = page_check_address(page, mm, address);
-+	if (IS_ERR(pte))
-+		goto out;
- 
- 	/*
- 	 * If the page is mlock()d, we cannot swap it out.
-@@ -598,7 +588,6 @@ static int try_to_unmap_one(struct page 
- 
- out_unmap:
- 	pte_unmap(pte);
--out_unlock:
- 	spin_unlock(&mm->page_table_lock);
- out:
- 	return ret;
-@@ -697,7 +686,6 @@ static void try_to_unmap_cluster(unsigne
- 	}
- 
- 	pte_unmap(pte);
--
- out_unlock:
- 	spin_unlock(&mm->page_table_lock);
- }
-@@ -849,3 +837,4 @@ int try_to_unmap(struct page *page)
- 		ret = SWAP_SUCCESS;
- 	return ret;
- }
-+
-
-_
-
---KRuiu7EswP--
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
