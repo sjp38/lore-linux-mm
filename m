@@ -1,46 +1,35 @@
-Date: Wed, 8 May 2002 14:50:01 -0700
+Received: from wli by holomorphy with local (Exim 3.34 #1 (Debian))
+	id 175ZiE-0007RJ-00
+	for <linux-mm@kvack.org>; Wed, 08 May 2002 15:15:06 -0700
+Date: Wed, 8 May 2002 15:15:06 -0700
 From: William Lee Irwin III <wli@holomorphy.com>
-Subject: Re: [PATCH] rmap 13a
-Message-ID: <20020508215001.GK15756@holomorphy.com>
-References: <Pine.LNX.4.44L.0205062316490.32261-100000@imladris.surriel.com> <20020507183741.A25245@infradead.org> <3CD96CB1.4630ED48@linux-m68k.org>
+Subject: [RFC] tabulating page->virtual on highmem
+Message-ID: <20020508221506.GL15756@holomorphy.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Description: brief message
 Content-Disposition: inline
-In-Reply-To: <3CD96CB1.4630ED48@linux-m68k.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Roman Zippel <zippel@linux-m68k.org>
-Cc: Christoph Hellwig <hch@infradead.org>, Rik van Riel <riel@conectiva.com.br>, Samuel Ortiz <sortiz@dbear.engr.sgi.com>, linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, May 08, 2002 at 08:21:37PM +0200, Roman Zippel wrote:
-> I'd suggest, we move page_address to asm/page.h (as counterpart of
-> virt_to_page). discontigmem configs can then use some more efficient
-> table lookup. Other config usually want to implement it better as:
-> #define page_address(page)	((((page) - mem_map) << PAGE_SHIFT) +
-> PAGE_OFFSET)
-> bye, Roman
+The size of the kmap pool appears to dictate the number of distinct
+values of page->virtual. Maintaining an index into the pool would
+seem to provide superior space behavior, as the index need not be
+of full machine word precision. Furthermore, no auxiliary lookup
+would appear to be required as the kmap pool is virtually contiguous
+and so the virtual address could be calculated from base virtual
+address of the kmap pool and the index into the pool.
 
-Sorry, I missed the part about table lookup.
+For architectures using page->virtual for page_address() calculation
+this technique does not apply, and so page->virtual would then need
+to be maintained as is, or at least retain enough precision for a full
+page frame number.
 
-If table lookup is wanted, I feel that should also be a generic option.
-There is nothing inherently architecture-specific about using a table-
-driven method of calculating page_address().
-
-But why isn't zone_table[] already an instance of such a table?
-
-An annotated description of the generic version is:
-
-/* the table lookup */    
-zone = zone_table[page->flags >> ZONE_SHIFT]
-
-     /* the phys offset of the table entry */
-__va(zone->zone_start_paddr
-         +
-/* calculating the offset within the table region */   /* scaling the offset */
-((page - zone->zone_mem_map)                                << PAGE_SHIFT))
-
+I don't have my heart set on this but I thought I'd at least throw the
+idea out where its desirability (and potential implementations) could
+be discussed.
 
 
 Cheers,
