@@ -1,40 +1,31 @@
-Message-ID: <39E22725.1F053820@kalifornia.com>
-Date: Mon, 09 Oct 2000 13:14:30 -0700
-From: David Ford <david@kalifornia.com>
-Reply-To: david+validemail@kalifornia.com
-MIME-Version: 1.0
+Date: Mon, 9 Oct 2000 22:24:51 +0200 (CEST)
+From: Ingo Molnar <mingo@elte.hu>
+Reply-To: mingo@elte.hu
 Subject: Re: [PATCH] VM fix for 2.4.0-test9 & OOM handler
-References: <Pine.LNX.4.21.0010092040300.6338-100000@elte.hu> <39E21CCB.61AC1EBE@kalifornia.com> <20001009215809.I19583@athlon.random>
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <Pine.LNX.4.21.0010091710380.1562-100000@duckman.distro.conectiva>
+Message-ID: <Pine.LNX.4.21.0010092223100.8045-100000@elte.hu>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrea Arcangeli <andrea@suse.de>
-Cc: mingo@elte.hu, Byron Stanoszek <gandalf@winds.org>, Rik van Riel <riel@conectiva.com.br>, Linus Torvalds <torvalds@transmeta.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Rik van Riel <riel@conectiva.com.br>
+Cc: Andi Kleen <ak@suse.de>, Andrea Arcangeli <andrea@suse.de>, Byron Stanoszek <gandalf@winds.org>, Linus Torvalds <torvalds@transmeta.com>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Andrea Arcangeli wrote:
+On Mon, 9 Oct 2000, Rik van Riel wrote:
 
-> On Mon, Oct 09, 2000 at 12:30:20PM -0700, David Ford wrote:
-> > Init should only get killed if it REALLY is taking a lot of memory.  On a 4 or 8meg
->
-> Init should never get killed. Killing init can be compared to destroy the TCP
-> stack. Some app can keep to run right for some minute until they run socket()
-> and then they will hang. Same with init, some task may still run right for
-> some time but the machine will die eventually. We simply must not pass the
-> point of not return or we're buggy and after the bug triggered we have to force
-> the user to reboot the machine as only way to recover.
+> > so dns helper is killed first, then netscape. (my idea might not
+> > make sense though.)
+> 
+> It makes some sense, but I don't think OOM is something that
+> occurs often enough to care about it /that/ much...
 
-After 1/2 a second of deep reflection, I concur.  Pretty much all interactive processes
-will die immediately.  That just doesn't make for happy penguins.
+i'm trying to handle Andrea's case, the init=/bin/bash manual-bootup case,
+with 4MB RAM and no swap, where the admin tries to exec a 2MB process. I
+think it's a legitimate concern - i cannot know in advance whether a
+freshly started process would trigger an OOM or not.
 
--d
-
---
-      "There is a natural aristocracy among men. The grounds of this are
-      virtue and talents", Thomas Jefferson [1742-1826], 3rd US President
-
-
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
