@@ -1,41 +1,52 @@
-Received: from ANDREW.CMU.EDU (WEBMAIL1.andrew.cmu.edu [128.2.10.91])
-	by smtp6.andrew.cmu.edu (8.12.9/8.12.3.Beta2) with SMTP id h8DG7Gik003934
-	for <linux-mm@kvack.org>; Sat, 13 Sep 2003 12:07:16 -0400
-Message-ID: <4939.128.2.216.53.1063469235.squirrel@webmail.andrew.cmu.edu>
-Date: Sat, 13 Sep 2003 12:07:15 -0400 (EDT)
-Subject: scan_swap_map
-From: "Anand Eswaran" <aeswaran@andrew.cmu.edu>
-MIME-Version: 1.0
-Content-Type: text/plain;charset=iso-8859-1
+Date: Sat, 13 Sep 2003 18:48:25 +0100
+From: Jamie Lokier <jamie@shareable.org>
+Subject: Re: [RFC] Enabling other oom schemes
+Message-ID: <20030913174825.GB7404@mail.jlokier.co.uk>
+References: <200309120219.h8C2JANc004514@penguin.co.intel.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <200309120219.h8C2JANc004514@penguin.co.intel.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: rusty@linux.co.intel.com
+Cc: riel@conectiva.com.br, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Hi :
+Rusty Lynch wrote:
+> Over the years I have encountered various usage needs where the standard
+> oom_kill.c version of memory recovery was not the most ideal approach.
+> For example, some times it is better to just restart the system and 
+> let a front end load balancer hand off the server load to another system.
+> Sometimes it might be worth the effort to write a very solution specific
+> oom handler.
 
-  Based on the scan_swap_map() code in swapfile.c in Linux 2.4, it seems
-to me that the swapmap cannot get fragmented ie there will *ALWAYS* be
-contiguous allocation within the swap device.
+I would like to reboot a remote server when it is overloaded, or a
+deterministic policy that kills off services starting with those
+deemed less essential, but what is the best way to detect overload?
 
-(1) Within a cluster, there is always contiguous allocation of free swap
-entries.
+IMHO, the server is overloaded when tasks are no longer responding in
+a reasonable time, due to excessive paging.
 
-(2) As soon as a cluster is filled with 1's, a new cluster is chosen
-HOWEVER, since lowest_bit is marked as the lowest free entry offset,
-and assuming that the system started aligned to SWAPFILE_CLUSTER, the new
-cluster will again be contigous to the previous cluster.
+It isn't feasible to work out in advance how much swap this
+corresponds to, because it depends how much swap is used by "idle"
+pages, and how much is likely to be filled with working sets.
 
-  If this is true, I dont understand the need for the "fine-grained" for
-loop in which a brute force scan is made to find any free entry - it
-seems to me like this code will never need to be executed.
+Too much swap, and it won't OOM even while it becomes totally
+unresponsive for days and needs a manual reset.  Too little swap, and
+valuable RAM is being wasted.
 
-  Am I missing something important here?
+What I'd really like is some way to observe task response times,
+and when they become too slow due to excessive paging, trigger the OOM
+policy whatever it is.
 
-Thanks,
------
-Anand.
+Also, when the OOM condition is triggered I'd like the system to
+reboot, but first try for a short while to unmount filesystems cleanly.
 
+Any chance of those things?
+
+Thanks in advance :)
+-- Jamie
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
