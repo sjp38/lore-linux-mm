@@ -1,62 +1,36 @@
-Date: Tue, 11 Feb 2003 16:08:03 +0530
-From: Dipankar Sarma <dipankar@in.ibm.com>
-Subject: Re: 2.5.60-mm1
-Message-ID: <20030211103802.GA2199@in.ibm.com>
-Reply-To: dipankar@in.ibm.com
-References: <20030211005516.03add509.akpm@digeo.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20030211005516.03add509.akpm@digeo.com>
+From: "Joseph D. Wagner" <wagnerjd@prodigy.net>
+Subject: RE: How to study memory leakage
+Date: Tue, 11 Feb 2003 10:10:14 -0600
+Message-ID: <000001c2d1e8$11409c20$b5425aa6@joe>
+MIME-Version: 1.0
+Content-Type: text/plain;
+	charset="utf-8"
+Content-Transfer-Encoding: 8BIT
+In-Reply-To: <200302110939.PAA09314@brahma.roc.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@digeo.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Maneesh Soni <maneesh@in.ibm.com>
+To: shajupt@qpackets.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Feb 11, 2003 at 08:55:53AM +0000, Andrew Morton wrote:
-> +dcache_rcu-fast_walk-revert.patch
-> +dcache_rcu-main.patch
-> +dcache_rcu-nfs-server-fix.patch
-> 
->  Maneesh fixed the knfsd problem.
-> 
+> System is becoming slow after some user space
+> programs are run and the memory usage displayed
+> also increasing
+>
+> is their any known procedure or tools to study
+> the memory leakage both in user-space and kernel-space
 
+1) Monitor current memory usage taking special care to note current memory statistics
+2) Start the suspect program
+3) Do stuff
+4) Quit the suspect
+5) Check back with memory statistics; they should be the same as when you started the program.  If you're missing memory, this is the confirmed leak.
 
-Andrew,
+Step 5 isn't as easy as it looks.  The memory leak may only be occurring in a particular part of the program.  For example, if you have a Word Processor, the leak may occur only after executing the Find/Replace functions, not simply from running the program.
 
-I think dcache_rcu-nfs-server-fix needs to be included irrespective of 
-dcache_rcu.  All fs should be using dcache APIs to manipulate dcache hash 
-lists.  This is in line with the dcache cleanup patch (dcache_rcu-1) from 
-Maneesh that Linus accepted. This seems like a reasonable cleanup. One
-change though, we don't need to grab dcache_lock while deleting
-dentries from the private list and __d_drop() should suffice here.
-Untested replacement patch included.
+Yeah, there are tools out there that make this a lot easier, but I don't know where these tools are on Linux.
 
-Thanks
-Dipankar 
+Joseph Wagner
 
-
---- linux-2.5.59-dc/net/sunrpc/~rpc_pipe.c	2003-02-11 15:49:18.000000000 +0530
-+++ linux-2.5.59-dc/net/sunrpc/rpc_pipe.c	2003-02-11 15:47:55.000000000 +0530
-@@ -488,14 +488,15 @@
- 		dentry = list_entry(pos, struct dentry, d_child);
- 		if (!d_unhashed(dentry)) {
- 			dget_locked(dentry);
--			list_del(&dentry->d_hash);
-+			__d_drop(dentry);
- 			list_add(&dentry->d_hash, &head);
- 		}
- 	}
- 	spin_unlock(&dcache_lock);
- 	while (!list_empty(&head)) {
- 		dentry = list_entry(head.next, struct dentry, d_hash);
--		list_del_init(&dentry->d_hash);
-+		/* Private list, so no dcache_lock needed and use __d_drop */
-+		__d_drop(dentry);
- 		if (dentry->d_inode) {
- 			rpc_inode_setowner(dentry->d_inode, NULL);
- 			simple_unlink(dir->d_inode, dentry);
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
