@@ -1,52 +1,34 @@
-Received: from dreambringer (znmeb.cust.aracnet.com [216.99.196.115])
-	by mail3.aracnet.com (8.12.1/8.12.1) with SMTP id g1DFbouJ017760
-	for <linux-mm@kvack.org>; Wed, 13 Feb 2002 07:37:51 -0800
-From: "M. Edward Borasky" <znmeb@aracnet.com>
-Subject: RE: VM changes documented?
-Date: Wed, 13 Feb 2002 07:38:51 -0800
-Message-ID: <HBEHIIBBKKNOBLMPKCBBEEPGEHAA.znmeb@aracnet.com>
+Message-ID: <3C6ACC76.6A3D3A36@scs.ch>
+Date: Wed, 13 Feb 2002 21:28:38 +0100
+From: Martin Maletinsky <maletinsky@scs.ch>
 MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="us-ascii"
+Subject: __pa() vs. virt_to_phys()
+Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
-In-Reply-To: <3C6A12A1.5449433A@zip.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: kernelnewbies@nl.linux.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This is a *great* paper! However, it strictly applied only to the "AA" tree;
-not all of the features went into the 2.4.1x mainline tree.
+Hi,
 
-M. Edward Borasky
-The COUGAR Project
+Is there any reason to use __pa() rather than virt_to_phys() or vice versa?
 
-znmeb@borasky-research.net
-http://www.borasky-research.com/Cougar.htm
+On i386 virt_to_phys() is just a function that returns the value returned by __pa(); on Alpha virt_to_phys() is a function that subtracts IDENT_ADDR from the argument,
+whereas __pa() is a macro that subtracts PAGE_OFFSET from its argument - however PAGE_OFFSET and IDENT_ADDR expand to the same value; on Sparc virt_to_phys() is a macro
+that expands to __pa().
 
-> -----Original Message-----
-> From: owner-linux-mm@kvack.org [mailto:owner-linux-mm@kvack.org]On
-> Behalf Of Andrew Morton
-> Sent: Tuesday, February 12, 2002 11:16 PM
-> To: Ravi
-> Cc: linux-mm@kvack.org; kernelnewbies@nl.linux.org
-> Subject: Re: VM changes documented?
->
->
-> Ravi wrote:
-> >
-> > Hi,
-> >   Is there any document describing Andrea's new VM that went into
-> > 2.4.10? I have searched in the obvious places, but couldn't find
-> > anything. There are some comments in the code, but an overview doc
-> > would have helped.
->
-> ftp://ftp.suse.com//pub/people/andrea/talks/english/2001/pluto-dec
--pub-0.tar.gz
+So the two things look to be pretty much the same on different platforms - is there any reason
+for having __pa() as well as virt_to_phys(), and which one is to be used by device drivers?
+
+thanks for your help
+regards
+Martin
 --
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/
+Supercomputing System AG          email: maletinsky@scs.ch
+Martin Maletinsky                 phone: +41 (0)1 445 16 05
+Technoparkstrasse 1               fax:   +41 (0)1 445 16 10
+CH-8005 Zurich
 
 
 --
