@@ -1,31 +1,46 @@
-Subject: Re: [patch] vmfixes-2.4.0-test9-B2 - fixing deadlocks
-References: <Pine.LNX.4.21.0009281704430.9445-100000@elte.hu>
-From: "Juan J. Quintela" <quintela@fi.udc.es>
-In-Reply-To: Ingo Molnar's message of "Thu, 28 Sep 2000 17:13:59 +0200 (CEST)"
-Date: 28 Sep 2000 18:16:03 +0200
-Message-ID: <yttsnqkfq64.fsf@serpe.mitica>
+Message-ID: <39D3B9DA.C4319407@sgi.com>
+Date: Thu, 28 Sep 2000 14:36:26 -0700
+From: Rajagopal Ananthanarayanan <ananth@sgi.com>
 MIME-Version: 1.0
+Subject: lru_cache_add() -> deactivate_page_nolock()?
 Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: mingo@elte.hu
-Cc: Andrea Arcangeli <andrea@suse.de>, Rik van Riel <riel@conectiva.com.br>, Christoph Rohland <cr@sap.com>, "Stephen C. Tweedie" <sct@redhat.com>, Linus Torvalds <torvalds@transmeta.com>, Roger Larsson <roger.larsson@norran.net>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
+To: riel@conectiva.com.br
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
->>>>> "ingo" == Ingo Molnar <mingo@elte.hu> writes:
+Few questions on aging & deactivation:
 
-Hi
+Suppose a page has to be freshly allocated 
+(no cache hit) in __grab_cache_page() in generic_file_write().
+What is the age of the page at the time of its lru_cache_add?
+Won't the age be zero?
+If so, won't it be the case that deactive_page_nolock() will be
+called _every_ time such a page is lru_cache_add'ed,
+and that this call will be the one from here:
 
-ingo> 2) introducing sys_flush(), which flushes pages from the pagecache.
+--------
+void lru_cache_add(struct page * page)
+{
+	[ ... ]
+	/* This should be relatively rare */
+        if (!page->age)
+                deactivate_page_nolock(page);
+	[ ... ]
+}
+----------
 
-It is not supposed that mincore can do that (yes, just now it is not
-implemented, but the interface is there to do that)?
+If so, I fail to understand the motivation behind
+the "relatively rare" comment ...
 
-Just curious.
 
--- 
-In theory, practice and theory are the same, but in practice they 
-are different -- Larry McVoy
+
+--------------------------------------------------------------------------
+Rajagopal Ananthanarayanan ("ananth")
+Member Technical Staff, SGI.
+--------------------------------------------------------------------------
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
