@@ -1,45 +1,31 @@
-Date: Tue, 22 Oct 2002 22:19:37 +0200 (CEST)
-From: Ingo Molnar <mingo@elte.hu>
-Reply-To: Ingo Molnar <mingo@elte.hu>
-Subject: Re: [patch] generic nonlinear mappings, 2.5.44-mm2-D0
-In-Reply-To: <20021022184938.A2395@infradead.org>
-Message-ID: <Pine.LNX.4.44.0210222204330.21530-100000@localhost.localdomain>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH 2.5.43-mm2] New shared page table patch
+From: Alan Cox <alan@lxorguk.ukuu.org.uk>
+In-Reply-To: <408130000.1035313435@flay>
+References: <2629464880.1035240956@[10.10.2.3]>
+	<Pine.LNX.4.44L.0210221405260.1648-100000@duckman.distro.conectiva>
+	<20021022131930.A20957@redhat.com> <396790000.1035308200@flay>
+	<20021022134501.C20957@redhat.com> <3DB59134.38AA41F6@digeo.com>
+	<20021022140155.E20957@redhat.com>  <408130000.1035313435@flay>
+Content-Type: text/plain
+Content-Transfer-Encoding: 7bit
+Date: 22 Oct 2002 21:23:59 +0100
+Message-Id: <1035318239.329.141.camel@irongate.swansea.linux.org.uk>
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Hellwig <hch@infradead.org>
-Cc: Andrew Morton <akpm@zip.com.au>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: "Martin J. Bligh" <mbligh@aracnet.com>
+Cc: Benjamin LaHaise <bcrl@redhat.com>, Andrew Morton <akpm@digeo.com>, Rik van Riel <riel@conectiva.com.br>, "Eric W. Biederman" <ebiederm@xmission.com>, Bill Davidsen <davidsen@tmr.com>, Dave McCracken <dmccr@us.ibm.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 22 Oct 2002, Christoph Hellwig wrote:
+On Tue, 2002-10-22 at 20:03, Martin J. Bligh wrote:
 
-> what is the reason for that interface?  It looks like a gross
-> performance hack for misdesigned applications to me, kindof windowsish..
+> > Can we delete the specialty syscalls now?
+> 
+> I was lead to believe that Linus designed them, so he may be emotionally attatched 
+> to them, but I think there would be few others that would cry over the loss ...
 
-there are a number of reasons why we very much want this extension to the
-Linux VM. Please catch up with the full email discussion, check out the
-first announcement of the interface to lkml, the subject of the email was:
-"[patch, feature] nonlinear mappings, prefaulting support, 2.5.42-F8".
-
-(and add one more application category to the list of beneficiaries,
-NPTL-style threading libraries, see the "[patch] mmap-speedup-2.5.42-C3"  
-discussion on lkml.)
-
-I think it is quite a bit architectural step for the Linux VM to have more
-generic vmas that 1) can be nonlinear 2) can have finegrained, non-uniform
-protection bits. It has been clearly established in the past few years
-empirically that the vma tree approach itself sucks performance-wise for
-applications that have many different mappings.
-
-And is it a big problem that RAM-windowing applications can make use of
-the new capabilities as well, to overcome the limits of 32 bits? Your
-response is a bit knee-jerk, what do you think the kernel itself does when
-it piggybacks to the highmem range and using kmap? There's no other way to
-overcome 32 bitness limits on a box that has much more than 32 bits worth
-of RAM, but to start mapping things in dynamically. So what's your point?
-
-	Ingo
+You mean like the wonderfully pointless sys_readahead. The sooner these
+calls go the better.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
