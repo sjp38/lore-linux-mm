@@ -1,37 +1,54 @@
-Date: Thu, 7 Sep 2000 12:39:37 +0300
-From: Matti Aarnio <matti.aarnio@zmailer.org>
-Subject: Re: Would you please send me the Linux OS source code !
-Message-ID: <20000907123937.K22907@mea-ext.zmailer.org>
-References: <0056890013895956000002L962*@MHS> <Pine.GSO.4.10.10009070450370.286-100000@weyl.math.psu.edu>
+Date: Thu, 7 Sep 2000 10:59:48 +0100
+From: "Stephen C. Tweedie" <sct@redhat.com>
+Subject: Re: rhosts does not work???
+Message-ID: <20000907105948.A1329@redhat.com>
+Reply-To: Stephen Tweedie <sct@redhat.com>,
+	  Sahil <aakgefce@rurkiu.ernet.in>
+References: <Pine.OSF.3.96.1000907132440.24544A-100000@isc.rurkiu.ernet.in>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <Pine.GSO.4.10.10009070450370.286-100000@weyl.math.psu.edu>; from viro@math.psu.edu on Thu, Sep 07, 2000 at 05:08:56AM -0400
+In-Reply-To: <Pine.OSF.3.96.1000907132440.24544A-100000@isc.rurkiu.ernet.in>; from aakgefce@rurkiu.ernet.in on Thu, Sep 07, 2000 at 01:27:51PM +0500
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Alexander Viro <viro@math.psu.edu>
-Cc: Linux-MM@kvack.org
+To: Sahil <aakgefce@rurkiu.ernet.in>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Sep 07, 2000 at 05:08:56AM -0400, Alexander Viro wrote:
-...
-> 	Dear Sir,
-> 
-> 	You have posted to mailing list with several dozens of subscribers
-> requesting them to send about a gigabyte of gzipped sources to address
-> sanjay.bh@philips.com. We regret to inform you that your request can
-> not be processed unless you use the proper form. Correct way is to put
+Hi,
 
-	Heh heh...   This chap is real (apparently).
-	(As much as I thought that somebody wanted to get somebody else
-	 mailbombed.)
+On Thu, Sep 07, 2000 at 01:27:51PM +0500, Sahil wrote:
 
-	In the end I just gave him(?) pointer from where to download
-	the kernel source via FTP.
+> I have been trying to put .rhosts with '+ +' in it but it does not work.
+> Can any body tell me the substitute??
 
-> 						The Management.
+FIrst, this is the wrong mailing list for this, so please take the
+rest of this topic off-list!
 
-/Matti Aarnio
+Second, .rhosts should work fine, but (just as for any unix) you need
+to be very careful with the permissions on both the .rhosts file and the
+directory containing it.  Both should have no group write, in
+particular, or else rsh will complain.
+ 
+> How to define the principles for .klogin (kerberos)??
+
+Do you already have a master KDC?  If so, you can just use kadmin to
+generate new principals.  If not, read the info pages on setting up
+the KDC.
+
+gkadmin is usually in /usr/kerberos/sbin/kadmin.  You need to have an
+admin principle set up to begin with --- you will already have done
+that if you have Kerberos running at all.  New principals are added
+with the "add_principal" command, and their passwords set with
+"change_password".  Once you have a principal set for your user ID,
+"kinit" to login (or "kinit -f", which I normally use, to obtain
+tickets which can be forwarded to other hosts).  Then all you need for
+kerberised login is a ~/.k5login (~/.klogin is only for Kerberos 4,
+and on Linux I assume you have krb5).  Just list the authorised
+principals in there.
+
+Cheers,
+ Stephen
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
