@@ -1,32 +1,82 @@
-Received: from digeo-nav01.digeo.com (digeo-nav01.digeo.com [192.168.1.233])
-	by packet.digeo.com (8.9.3+Sun/8.9.3) with SMTP id WAA01343
-	for <linux-mm@kvack.org>; Mon, 14 Oct 2002 22:20:24 -0700 (PDT)
-Message-ID: <3DABA596.39C9D782@digeo.com>
-Date: Mon, 14 Oct 2002 22:20:22 -0700
-From: Andrew Morton <akpm@digeo.com>
-MIME-Version: 1.0
-Subject: Re: 2.5.43-m3
+Date: Tue, 15 Oct 2002 00:57:33 -0500
+From: Matt Reppert <arashi@arashi.yi.org>
+Subject: [PATCH] Compile without xattrs
+Message-Id: <20021015005733.3bbde222.arashi@arashi.yi.org>
+In-Reply-To: <3DABA351.7E9C1CFB@digeo.com>
 References: <3DABA351.7E9C1CFB@digeo.com>
-Content-Type: text/plain; charset=us-ascii
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: lkml <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, ext2-devel@lists.sourceforge.net, "tytso@mit.edu" <tytso@mit.edu>
+To: Andrew Morton <akpm@digeo.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, ext2-devel@lists.sourceforge.net, tytso@mit.edu
 List-ID: <linux-mm.kvack.org>
 
-yeah, yeah.  off-by-one.
+On Mon, 14 Oct 2002 22:10:41 -0700
+Andrew Morton <akpm@digeo.com> wrote:
 
-Andrew Morton wrote:
-> 
-> ...
-> - Add Ingo's current remap_file_pages() patch.  I had to renumber his
->   syscall from 253 to 254 due to a clash with the oprofile syscall.
-> 
+> - merge up the ext2/3 extended attribute code, convert that to use
+>   the slab shrinking API in Linus's current tree.
 
-This will only work on ia32.  To test on other architectures, please
-do a patch -p1 -R of
+Trivial patch for the "too chicken to enable xattrs for now" case, but I
+need this to compile:
 
-http://www.zip.com.au/~akpm/linux/patches/2.5/2.5.42/2.5.42-mm3/broken-out/mpopulate.patch
+--- linux-2.5-orig/include/linux/ext2_xattr.h	2002-10-15 00:47:03 -0500
++++ linux-2.5/include/linux/ext2_xattr.h	2002-10-15 00:45:48 -0500
+@@ -92,20 +92,20 @@
+ ext2_xattr_get(struct inode *inode, int name_index,
+ 	       const char *name, void *buffer, size_t size)
+ {
+-	return -ENOTSUP;
++	return -ENOTSUPP;
+ }
+ 
+ static inline int
+ ext2_xattr_list(struct inode *inode, char *buffer, size_t size)
+ {
+-	return -ENOTSUP;
++	return -ENOTSUPP;
+ }
+ 
+ static inline int
+ ext2_xattr_set(struct inode *inode, int name_index, const char *name,
+ 	       const void *value, size_t size, int flags)
+ {
+-	return -ENOTSUP;
++	return -ENOTSUPP;
+ }
+ 
+ static inline void
+--- linux-2.5-orig/include/linux/ext3_xattr.h	2002-10-15 00:49:59.000000000 -0500
++++ linux-2.5/include/linux/ext3_xattr.h	2002-10-15 00:50:12.000000000 -0500
+@@ -92,20 +92,20 @@
+ ext3_xattr_get(struct inode *inode, int name_index, const char *name,
+ 	       void *buffer, size_t size, int flags)
+ {
+-	return -ENOTSUP;
++	return -ENOTSUPP;
+ }
+ 
+ static inline int
+ ext3_xattr_list(struct inode *inode, void *buffer, size_t size, int flags)
+ {
+-	return -ENOTSUP;
++	return -ENOTSUPP;
+ }
+ 
+ static inline int
+ ext3_xattr_set(handle_t *handle, struct inode *inode, int name_index,
+ 	       const char *name, const void *value, size_t size, int flags)
+ {
+-	return -ENOTSUP;
++	return -ENOTSUPP;
+ }
+ 
+ static inline void
+
+
+Matt
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
