@@ -1,82 +1,211 @@
-Subject: Re: [PATCH] a simple OOM killer to save me from Netscape
-References: <Pine.LNX.4.21.0104131317110.12164-100000@imladris.rielhome.conectiva>
-From: ebiederm@xmission.com (Eric W. Biederman)
-Date: 14 Apr 2001 01:00:20 -0600
-In-Reply-To: Rik van Riel's message of "Fri, 13 Apr 2001 13:20:07 -0300 (BRST)"
-Message-ID: <m1ofu0t18b.fsf@frodo.biederman.org>
+Date: Sat, 14 Apr 2001 04:04:51 -0300 (BRT)
+From: Marcelo Tosatti <marcelo@conectiva.com.br>
+Subject: [PATCH] prune_icache() changes 
+Message-ID: <Pine.LNX.4.21.0104121549340.3152-100000@freak.distro.conectiva>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@conectiva.com.br>
-Cc: Slats Grobnik <kannzas@excite.com>, linux-mm@kvack.org, Andrew Morton <andrewm@uow.edu.au>
+To: linux-mm@kvack.org
+Cc: lkml <linux-kernel@vger.kernel.org>, Daniel Phillips <phillips@innominate.de>, Rik van Riel <riel@conectiva.com.br>, Alexander Viro <viro@math.psu.edu>
 List-ID: <linux-mm.kvack.org>
 
-Rik van Riel <riel@conectiva.com.br> writes:
+Hi, 
 
-> On 13 Apr 2001, Eric W. Biederman wrote:
-> 
-> > > Any suggestions for making Slats' ideas more generic so they work
-> > > on every system ?
-> > 
-> > Well I don't see how thrashing is necessarily connected to oom
-> > at all.  You could have Gigs of swap not even touched and still
-> > thrash.  
-> 
-> OOM leads to thrashing, however.
-> 
-> If we run out of memory and swap, all we can evict are the
-> filesystem-backed parts of memory, which includes mapped
-> executables.  This is how OOM and thrashing are connected.
+The following patch should fix the OOM deadlock condition caused by
+prune_icache(), and improve its performance significantly.
 
-I agree.  I just said there wasn't necessarily a connection.
+The OOM deadlock can happen because prune_icache() tries to sync _all_
+dirty inodes (under PF_MEMALLOC) on the system before trying to free a
+portion of the clean unused inodes.
 
-> What we'd like to see is have the OOM killer act before the
-> system thrashes ... if only because this thrashing could mean
-> we never actually reach OOM because everything grinds to a
-> halt.
+The patch also changes prune_icache() to free clean inodes first, and then
+sync _unused_ ones if needed. In case (nr_free_pages < freepages.low) the
+code writes one inode synchronously and returns (to avoid the OOM
+deadlock).
 
-Seriously you could do this in user-space with a 16KB or so mlocked
-binary.  If you can detected OOM before thrashing I don't have a
-problem.  But acting before OOM hits can be a pain.  
+Patch against 2.4.4-pre1. 
 
-Suppose you have a computation that has been running for a month.  You
-failed to add enough swap for it to run comfortably, and you forgot to
-write check-pointing code.  It starts thrashing, but eventually it
-will complete in another week pushing the system to the edge of OOM
-the whole time (It will only use another hour of cpu in that time).
-The OOM killer is broken if it kills this application.
+Comments are welcome. 
 
-But assuming we have swap-cache reclaim going on.  The conditions for
-OOM are fairly simple.  
-- All-caches are shrunk to minimal.
-- We have no swap-cache pages.
-- We have no swap.
-- We have no mmaped pages in core.
-- We have no ram (except a very small portion reserved for the kernel).
 
-> Thrashing when we still have swap free is an entirely different
-> matter, which I want to solve with load control code. That is,
-> when the load gets too high, we temporarily suspend processes
-> to bring the load down to more acceptable levels.
+--- fs/inode.c~	Thu Apr 12 21:16:35 2001
++++ fs/inode.c	Thu Apr 12 21:49:56 2001
+@@ -13,6 +13,8 @@
+ #include <linux/quotaops.h>
+ #include <linux/slab.h>
+ #include <linux/cache.h>
++#include <linux/swap.h>
++#include <linux/swapctl.h>
+ 
+ /*
+  * New inode.c implementation.
+@@ -197,6 +199,34 @@
+ 	inodes_stat.nr_unused--;
+ }
+ 
++static inline void __sync_one(struct inode *inode, int sync)
++{
++	unsigned dirty;
++
++	list_del(&inode->i_list);
++	list_add(&inode->i_list, atomic_read(&inode->i_count)
++						? &inode_in_use
++						: &inode_unused);
++
++	/* Set I_LOCK, reset I_DIRTY */
++	dirty = inode->i_state & I_DIRTY;
++	inode->i_state |= I_LOCK;
++	inode->i_state &= ~I_DIRTY;
++	spin_unlock(&inode_lock);
++
++	filemap_fdatasync(inode->i_mapping);
++
++	/* Don't write the inode if only I_DIRTY_PAGES was set */
++	if (dirty & (I_DIRTY_SYNC | I_DIRTY_DATASYNC))
++		write_inode(inode, sync);
++
++	filemap_fdatawait(inode->i_mapping);
++
++	spin_lock(&inode_lock);
++	inode->i_state &= ~I_LOCK;
++	wake_up(&inode->i_wait);
++}
++
+ static inline void sync_one(struct inode *inode, int sync)
+ {
+ 	if (inode->i_state & I_LOCK) {
+@@ -206,29 +236,7 @@
+ 		iput(inode);
+ 		spin_lock(&inode_lock);
+ 	} else {
+-		unsigned dirty;
+-
+-		list_del(&inode->i_list);
+-		list_add(&inode->i_list, atomic_read(&inode->i_count)
+-							? &inode_in_use
+-							: &inode_unused);
+-		/* Set I_LOCK, reset I_DIRTY */
+-		dirty = inode->i_state & I_DIRTY;
+-		inode->i_state |= I_LOCK;
+-		inode->i_state &= ~I_DIRTY;
+-		spin_unlock(&inode_lock);
+-
+-		filemap_fdatasync(inode->i_mapping);
+-
+-		/* Don't write the inode if only I_DIRTY_PAGES was set */
+-		if (dirty & (I_DIRTY_SYNC | I_DIRTY_DATASYNC))
+-			write_inode(inode, sync);
+-
+-		filemap_fdatawait(inode->i_mapping);
+-
+-		spin_lock(&inode_lock);
+-		inode->i_state &= ~I_LOCK;
+-		wake_up(&inode->i_wait);
++		__sync_one(inode, sync);
+ 	}
+ }
+ 
+@@ -236,10 +244,42 @@
+ {
+ 	struct list_head * tmp;
+ 
+-	while ((tmp = head->prev) != head)
++	while ((tmp = head->prev) != head) 
+ 		sync_one(list_entry(tmp, struct inode, i_list), 0);
+ }
+ 
++static inline int try_to_sync_unused_list(struct list_head *head)
++{
++	struct list_head *tmp = head;
++	struct inode *inode;
++
++	while ((tmp = tmp->prev) != head) {
++		inode = list_entry(tmp, struct inode, i_list);
++
++		if (!(inode->i_state & I_LOCK) 
++				&& !atomic_read(&inode->i_count)) {
++			/* 
++			 * We're under PF_MEMALLOC here, and syncing the 
++			 * inode may have to allocate memory. To avoid
++			 * running into a OOM deadlock, we write one 
++			 * inode synchronously and stop syncing in case 
++			 * we're under freepages.low
++			 */
++
++			int sync = nr_free_pages() < freepages.low;
++			__sync_one(inode, sync);
++			if (sync) 
++				return 0;
++			/* 
++			 * __sync_one moved the inode to another list,
++			 * so we have to start looking from the list head.
++			 */
++			tmp = head;
++		}
++	}
++	return 1;
++}
++
+ /**
+  *	sync_inodes
+  *	@dev: device to sync the inodes from.
+@@ -273,13 +313,14 @@
+ /*
+  * Called with the spinlock already held..
+  */
+-static void sync_all_inodes(void)
++static void try_to_sync_unused_inodes(void)
+ {
+ 	struct super_block * sb = sb_entry(super_blocks.next);
+ 	for (; sb != sb_entry(&super_blocks); sb = sb_entry(sb->s_list.next)) {
+ 		if (!sb->s_dev)
+ 			continue;
+-		sync_list(&sb->s_dirty);
++		if (!try_to_sync_unused_list(&sb->s_dirty))
++			break;
+ 	}
+ }
+ 
+@@ -506,13 +547,12 @@
+ {
+ 	LIST_HEAD(list);
+ 	struct list_head *entry, *freeable = &list;
+-	int count = 0;
++	int count = 0, synced = 0;
+ 	struct inode * inode;
+ 
+ 	spin_lock(&inode_lock);
+-	/* go simple and safe syncing everything before starting */
+-	sync_all_inodes();
+ 
++free_unused:
+ 	entry = inode_unused.prev;
+ 	while (entry != &inode_unused)
+ 	{
+@@ -539,6 +579,20 @@
+ 	spin_unlock(&inode_lock);
+ 
+ 	dispose_list(freeable);
++
++	/* 
++	 * If we freed enough clean inodes, avoid writing 
++	 * dirty ones. Also giveup if we already tried to
++	 * sync dirty inodes.
++	 */
++	if (!goal || synced)
++		return;
++	
++	synced = 1;
++
++	spin_lock(&inode_lock);
++	try_to_sync_unused_inodes();
++	goto free_unused;
+ }
+ 
+ void shrink_icache_memory(int priority, int gfp_mask)
 
-That's not bad but when it starts coming to policy, the policy
-decisions are much more safely made in user space rather than the
-kernel.  And we just allow the kernel to completely swap-out suspended
-processes. 
 
-Hmm. The more I look at this the more I keep thinking we should have a
-process management daemon, enforcing some of these interesting
-policies.  This would have to be small so it could be mlocked, and it
-should take care of the following tasks. 
-
-- Suspending processes in a high load/thrashing situation
-- Creating swap files when we approach oom.
-- Killing processes when oom is close and we can't add swap.
-
-But since I can kill the daemon I don't have to use it.
-
-Eric
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
