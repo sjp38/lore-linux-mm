@@ -1,94 +1,64 @@
-Date: Tue, 13 May 2003 18:00:08 -0500
-From: Dave McCracken <dmccr@us.ibm.com>
-Subject: Re: Race between vmtruncate and mapped areas?
-Message-ID: <220550000.1052866808@baldur.austin.ibm.com>
-In-Reply-To: <20030513224929.GX8978@holomorphy.com>
-References: <154080000.1052858685@baldur.austin.ibm.com>
- <3EC15C6D.1040403@kolumbus.fi> <199610000.1052864784@baldur.austin.ibm.com>
- <20030513224929.GX8978@holomorphy.com>
-MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="==========2024839384=========="
+Date: Wed, 14 May 2003 01:05:00 +0200
+From: Andrea Arcangeli <andrea@suse.de>
+Subject: Re: [PATCH] Fix for vma merging refcounting bug
+Message-ID: <20030513230500.GA29246@dualathlon.random>
+References: <1052483661.3642.16.camel@sisko.scot.redhat.com> <20030510163336.GB15010@dualathlon.random> <1052683446.4609.29.camel@sisko.scot.redhat.com> <20030513225210.GK15316@dualathlon.random>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20030513225210.GK15316@dualathlon.random>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: William Lee Irwin III <wli@holomorphy.com>
-Cc: Mika Penttil? <mika.penttila@kolumbus.fi>, Linux Memory Management <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>
+To: "Stephen C. Tweedie" <sct@redhat.com>
+Cc: linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@digeo.com>
 List-ID: <linux-mm.kvack.org>
 
---==========2024839384==========
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
+On Wed, May 14, 2003 at 12:52:10AM +0200, Andrea Arcangeli wrote:
+> On Sun, May 11, 2003 at 09:04:06PM +0100, Stephen C. Tweedie wrote:
+> > Hi,
+> > 
+> > On Sat, 2003-05-10 at 17:33, Andrea Arcangeli wrote:
+> > > On Fri, May 09, 2003 at 01:34:21PM +0100, Stephen C. Tweedie wrote:
+> > > > When a new vma can be merged simultaneously with its two immediate
+> > > > neighbours in both directions, vma_merge() extends the predecessor vma
+> > > > and deletes the successor.  However, if the vma maps a file, it fails to
+> > > > fput() when doing the delete, leaving the file's refcount inconsistent.
+> > 
+> > > great catch! nobody could notice it in practice
+> > 
+> > Yep --- I only noticed it because I was running a quick-and-dirty vma
+> > merging test and wanted to test on a shmfs file, and noticed that the
+> > temporary shmfs filesystem became unmountable afterwards.  Test
+> > attached, in case anybody is interested (it's the third test, mapping a
+> > file page by page in two interleaved passes, which triggers this case.)
+> > 
+> > > I'm attaching for review what I'm applying to my -aa tree, to fix the
+> > > above and the other issue with the non-ram vma merging fixed in 2.5.
+> > 
+> > Looks OK.
+> 
+> actually I just noticed the fput is never been buggy in my tree:
+> 
+> 	if (!file || !rb_parent || !vma_merge(mm, prev, rb_parent, addr, addr + len, vma->vm_flags, file, pgoff)) {
+> 		vma_link(mm, vma, prev, rb_link, rb_parent);
+> 		if (correct_wcount)
+> 			atomic_inc(&file->f_dentry->d_inode->i_writecount);
+> 	} else {
+> 		if (file) {
+> 			if (correct_wcount)
+> 				atomic_inc(&file->f_dentry->d_inode->i_writecount);
+> 			fput(file);
+> 			^^^^^^^^^
+> 		}
+> 		kmem_cache_free(vm_area_cachep, vma);
+> 	}
+> 
+> so this was a merging bug in 2.5
 
+Apologies, I was on the laptop reading that code wrong and I sent the
+email too early, the patch I posted was correct for my tree too indeed.
 
---On Tuesday, May 13, 2003 15:49:29 -0700 William Lee Irwin III
-<wli@holomorphy.com> wrote:
-
-> That doesn't sound like it's going to help, there isn't a unique
-> mmap_sem to be taken and so we just get caught between acquisitions
-> with the same problem.
-
-Actually it does fix it.  I added code in vmtruncate_list() to do a
-down_write(&vma->vm_mm->mmap_sem) around the zap_page_range(), and the
-problem went away.  It serializes against any outstanding page faults on a
-particular page table.  New faults will see that the page is no longer in
-the file and fail with SIGBUS.  Andrew's test case stopped failing.
-
-I've attached the patch so you can see what I did.
-
-Can anyone think of any gotchas to this solution?
-
-Dave McCracken
-
-======================================================================
-Dave McCracken          IBM Linux Base Kernel Team      1-512-838-3059
-dmccr@us.ibm.com                                        T/L   678-3059
-
---==========2024839384==========
-Content-Type: text/plain; charset=us-ascii; name="vmtrunc-2.5.69-mm3-1.diff"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: attachment; filename="vmtrunc-2.5.69-mm3-1.diff";
- size=982
-
---- 2.5.69-mm3/mm/memory.c	2003-05-13 10:34:56.000000000 -0500
-+++ 2.5.69-mm3-test/mm/memory.c	2003-05-13 17:39:45.000000000 -0500
-@@ -1085,21 +1085,21 @@ static void vmtruncate_list(struct list_
- 		len = end - start;
- 
- 		/* mapping wholly truncated? */
--		if (vma->vm_pgoff >= pgoff) {
--			zap_page_range(vma, start, len);
--			continue;
--		}
-+		if (vma->vm_pgoff < pgoff) {
- 
--		/* mapping wholly unaffected? */
--		len = len >> PAGE_SHIFT;
--		diff = pgoff - vma->vm_pgoff;
--		if (diff >= len)
--			continue;
--
--		/* Ok, partially affected.. */
--		start += diff << PAGE_SHIFT;
--		len = (len - diff) << PAGE_SHIFT;
-+			/* mapping wholly unaffected? */
-+			len = len >> PAGE_SHIFT;
-+			diff = pgoff - vma->vm_pgoff;
-+			if (diff >= len)
-+				continue;
-+
-+			/* Ok, partially affected.. */
-+			start += diff << PAGE_SHIFT;
-+			len = (len - diff) << PAGE_SHIFT;
-+		}
-+		down_write(&vma->vm_mm->mmap_sem);
- 		zap_page_range(vma, start, len);
-+		up_write(&vma->vm_mm->mmap_sem);
- 	}
- }
- 
-
---==========2024839384==========--
-
+Andrea
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
