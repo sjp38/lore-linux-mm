@@ -1,46 +1,44 @@
-Date: Tue, 30 Jan 2001 09:23:27 -0200 (BRDT)
-From: Rik van Riel <riel@conectiva.com.br>
+Date: Tue, 30 Jan 2001 12:38:12 +0100
+From: Rasmus Andersen <rasmus@jaquet.dk>
 Subject: Re: [PATCH] guard mm->rss with page_table_lock (241p11)
-In-Reply-To: <20010131001737.C6620@metastasis.f00f.org>
-Message-ID: <Pine.LNX.4.21.0101300921480.1321-100000@duckman.distro.conectiva>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Message-ID: <20010130123812.O3298@jaquet.dk>
+References: <20010131001737.C6620@metastasis.f00f.org> <Pine.LNX.4.21.0101300921480.1321-100000@duckman.distro.conectiva>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.21.0101300921480.1321-100000@duckman.distro.conectiva>; from riel@conectiva.com.br on Tue, Jan 30, 2001 at 09:23:27AM -0200
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Chris Wedgwood <cw@f00f.org>
-Cc: "David S. Miller" <davem@redhat.com>, David Howells <dhowells@redhat.com>, Rasmus Andersen <rasmus@jaquet.dk>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Rik van Riel <riel@conectiva.com.br>
+Cc: Chris Wedgwood <cw@f00f.org>, "David S. Miller" <davem@redhat.com>, David Howells <dhowells@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 31 Jan 2001, Chris Wedgwood wrote:
-> On Tue, Jan 30, 2001 at 12:39:24AM -0800, David S. Miller wrote:
+On Tue, Jan 30, 2001 at 09:23:27AM -0200, Rik van Riel wrote:
+> Why bother ?
 > 
->     Please see older threads about this, it has been discussed to
->     death already (hint: sizeof(atomic_t), sizeof(unsigned long)).
+> In most places where we update mm->rss, we are *already*
+> holding the spinlock anyway, this correction is just for
+> a few places.
 > 
-> can we not define a macro so architectures that can do do atomically
-> inc/dec with unsigned long will? otherwise it uses the spinlock?
+> The big patch Rasmus made seems to contain spin_lock(&foo)
+> in places where we already have the lock, leading to
+> instant SMP deadlock. I suspect Rasmus' patch should be
+> about half the size it is currently...
 
-Why bother ?
+After donning my brown paper bag yesterday I looked at 
+the call-paths again and removed one more lock pair
+(the one in swapfile). The others seemed OK so I made 
+a SMP-on-UP kernel and ran my usual stuff (X, mozilla, 
+kernel compiles) alongside mmap001, mmap002 and misc001
+with no ill effects.
 
-In most places where we update mm->rss, we are *already*
-holding the spinlock anyway, this correction is just for
-a few places.
+I will beat on it some more today and tomorrow, but if
+real SMP is needed for testing I need some help to do
+that.
 
-The big patch Rasmus made seems to contain spin_lock(&foo)
-in places where we already have the lock, leading to
-instant SMP deadlock. I suspect Rasmus' patch should be
-about half the size it is currently...
 
-regards,
-
-Rik
---
-Virtual memory is like a game you can't win;
-However, without VM there's truly nothing to lose...
-
-		http://www.surriel.com/
-http://www.conectiva.com/	http://distro.conectiva.com.br/
-
+Regards,
+   Rasmus 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
