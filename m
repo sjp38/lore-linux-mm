@@ -1,44 +1,54 @@
+Date: Thu, 22 May 2003 14:05:02 +0200
+From: Philippe =?ISO-8859-15?Q?Gramoull=E9?=
+	<philippe.gramoulle@mmania.com>
 Subject: Re: 2.5.69-mm8
-References: <20030522021652.6601ed2b.akpm@digeo.com>
-From: Alexander Hoogerhuis <alexh@ihatent.com>
-Date: 22 May 2003 19:13:21 +0200
+Message-Id: <20030522140502.1ea09342.philippe.gramoulle@mmania.com>
 In-Reply-To: <20030522021652.6601ed2b.akpm@digeo.com>
-Message-ID: <87smr629ce.fsf@lapper.ihatent.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+References: <20030522021652.6601ed2b.akpm@digeo.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=ISO-8859-15
+Content-Transfer-Encoding: 8BIT
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@digeo.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@digeo.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
------BEGIN PGP SIGNED MESSAGE-----
-Hash: SHA1
+Hello Andrew,
 
-Andrew Morton <akpm@digeo.com> writes:
->
-> [SNIP]
->
+It works fine here on a Dell Inspiron 8000 using elevator=as
 
-Still some guff in the log on shutdown regarding the USB hub, but now
-it doesn't do instant improvisations of a doorstop :) Other than that,
-it's still alive after a few hours of banging on it, even toying with
-vmware 4.0 :)
+I have a minor warning for the i8k module though:
 
-mvh,
-A
-- -- 
-Alexander Hoogerhuis                               | alexh@ihatent.com
-CCNP - CCDP - MCNE - CCSE                          | +47 908 21 485
-"You have zero privacy anyway. Get over it."  --Scott McNealy
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.2.2 (GNU/Linux)
-Comment: Processed by Mailcrypt 3.5.8 <http://mailcrypt.sourceforge.net/>
+WARNING: /lib/modules/2.5.69-mm8/kernel/drivers/char/i8k.ko needs unknown symbol SET_MODULE_OWNER
 
-iD8DBQE+zQUrCQ1pa+gRoggRAjePAJ96nazhfgP2ZZXOH4rZFYfrI4IitACdHsWG
-xPJbUVuXJQ/r2iJA//q8/UI=
-=5hye
------END PGP SIGNATURE-----
+Thanks,
+
+Philippe
+
+--
+
+Philippe Gramoulle
+philippe.gramoulle@mmania.com
+Lycos Europe - NOC France
+
+
+
+On Thu, 22 May 2003 02:16:52 -0700
+Andrew Morton <akpm@digeo.com> wrote:
+
+  | 
+  | ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.5/2.5.69/2.5.69-mm8/
+  | 
+  | . One anticipatory scheduler patch, but it's a big one.  I have not stress
+  |   tested it a lot.  If it explodes please report it and then boot with
+  |   elevator=deadline.
+  | 
+  | . The slab magazine layer code is in its hopefully-final state.
+  | 
+  | . Some VFS locking scalability work - stress testing of this would be
+  |   useful.
+  | 
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
