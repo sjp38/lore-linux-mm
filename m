@@ -1,58 +1,78 @@
-Received: from renko.ucs.ed.ac.uk (renko.ucs.ed.ac.uk [129.215.13.3])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id QAA13660
-	for <linux-mm@kvack.org>; Tue, 14 Jul 1998 16:38:29 -0400
-Date: Tue, 14 Jul 1998 18:30:19 +0100
-Message-Id: <199807141730.SAA07239@dax.dcs.ed.ac.uk>
-From: "Stephen C. Tweedie" <sct@redhat.com>
-MIME-Version: 1.0
+Received: from Galois.suse.de (Galois.suse.de [195.125.217.193])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id MAA18817
+	for <linux-mm@kvack.org>; Wed, 15 Jul 1998 12:57:14 -0400
+Received: from boole.suse.de (Boole.suse.de [192.168.102.7])
+	by Galois.suse.de (8.8.8/8.8.8) with ESMTP id SAA15830
+	for <linux-mm@kvack.org>; Wed, 15 Jul 1998 18:56:20 +0200
+Message-ID: <19980715185619.49044@boole.suse.de>
+Date: Wed, 15 Jul 1998 18:56:19 +0200
+From: "Dr. Werner Fink" <werner@suse.de>
+Subject: Re: [PATCH] stricter pagecache pruning
+References: <Pine.LNX.3.96.980711092706.5292B-200000@mirkwood.dummy.home>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Subject: Re: More info: 2.1.108 page cache performance on low memory
-In-Reply-To: <m190lxmxmv.fsf@flinx.npwt.net>
-References: <199807131653.RAA06838@dax.dcs.ed.ac.uk>
-	<m190lxmxmv.fsf@flinx.npwt.net>
+In-Reply-To: <Pine.LNX.3.96.980711092706.5292B-200000@mirkwood.dummy.home>; from Rik van Riel on Sat, Jul 11, 1998 at 09:31:26AM +0200
 Sender: owner-linux-mm@kvack.org
-To: "Eric W. Biederman" <ebiederm+eric@npwt.net>
-Cc: "Stephen C. Tweedie" <sct@redhat.com>, linux-mm@kvack.org
+To: Linux MM <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+On Sat, Jul 11, 1998 at 09:31:26AM +0200, Rik van Riel wrote:
+> Hi,
+> 
+> I hope this patch will alleviate some of Andrea's
+> problems with the page cache growing out of bounds.
+> 
+> It makes sure that, when the cache uses too much,
+> shrink_mmap() is called continuously; only the
+> last thing tried can be something else.
+> 
+> I'd like to hear some results, as I haven't tried
+> it myself ... It seems obvious enough, so it would
+> probably be best if it's tried ASAP with as many
+> different machines/loads as possible.
 
-On 13 Jul 1998 13:08:56 -0500, ebiederm+eric@npwt.net (Eric
-W. Biederman) said:
+Your patch has one side effect ... it reduces the scans of the
+other possibilies, to be more precisely, the scanning of the dcache
+should also be forced.
 
->>>>>> "ST" == Stephen C Tweedie <sct@redhat.com> writes:
-> 1) We have a minimum size for the buffer cache in percent of physical pages.
->    Setting the minimum to 0% may help.
+A few weeks ago I've send a simple patch which may reduce
+the problem. The part in there was:
 
-...
+--------------------------------------------------------
+diff -urN linux-2.1.103/mm/vmscan.c linux/mm/vmscan.c
+--- linux-2.1.103/mm/vmscan.c	Sun May  3 02:44:59 1998
++++ linux/mm/vmscan.c	Mon Jun  8 15:46:11 1998
+@@ -28,6 +28,9 @@
+ #include <asm/bitops.h>
+ #include <asm/pgtable.h>
+ 
++extern int inodes_stat[];
++extern int dentry_stat[];
++
+ /* 
+  * When are we next due for a page scan? 
+  */
+@@ -446,11 +449,13 @@
+ 
+ 	/* We try harder if we are waiting .. */
+ 	stop = 3;
+-	if (gfp_mask & __GFP_WAIT)
++	if (gfp_mask & __GFP_WAIT || nr_free_pages <= freepages.min);
+ 		stop = 0;
+ 	if (((buffermem >> PAGE_SHIFT) * 100 > buffer_mem.borrow_percent * num_physpages)
+ 		   || (page_cache_size * 100 > page_cache.borrow_percent * num_physpages))
+ 		state = 0;
++	else if (dentry_stat[0] > 3*(inodes_stat[0] >> 1))
++		state = 3;
+ 
+ 	switch (state) {
+ 		do {
+--------------------------------------------------------
 
-> Personally I think it is broken to set the limits of cache sizes
-> (buffer & page) to anthing besides: max=100% min=0% by default.
+Let's combine this with yours :-)
 
-Yep; I disabled those limits for the benchmarks I announced.  Disabling
-the ageing but keeping the limits in place still resulted in a
-performance loss.
 
-> 2) If we play with LRU list it may be most practical use page->next
-> and page->prev fields for the list, and for truncate_inode_pages &&
-> invalidate_inode_pages
-
-Yikes --- for large files the proposal that we do
-
-> do something like:
-> for(i = 0; i < inode->i_size; i+= PAGE_SIZE) {
-> 	page = find_in_page_cache(inode, i);
-> 	if (page) 
-> 		/* remove it */
-> 		;
-> }
-
-will be disasterous.  No, I think we still need the per-inode page
-lists.  When we eventually get an fsync() which works through the page
-cache, this will become even more important.
-
---Stephen
+        Werner
 --
 This is a majordomo managed list.  To unsubscribe, send a message with
 the body 'unsubscribe linux-mm me@address' to: majordomo@kvack.org
