@@ -1,37 +1,106 @@
-Subject: Re: 2.6.0-test7-mm1 4G/4G hanging at boot
-From: Paul Larson <plars@linuxtestproject.org>
-In-Reply-To: <20031017111955.439d01c8.rddunlap@osdl.org>
-References: <20031017111955.439d01c8.rddunlap@osdl.org>
-Content-Type: text/plain
+From: Thomas Schlichter <schlicht@uni-mannheim.de>
+Subject: Re: 2.6.0-test7-mm1
+Date: Sat, 18 Oct 2003 19:43:38 +0200
+References: <20031015013649.4aebc910.akpm@osdl.org>
+In-Reply-To: <20031015013649.4aebc910.akpm@osdl.org>
+MIME-Version: 1.0
+Content-Type: multipart/signed;
+  protocol="application/pgp-signature";
+  micalg=pgp-sha1;
+  boundary="Boundary-03=_KvXk/gy9rHlF3p+";
+  charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
-Date: 17 Oct 2003 14:03:44 -0500
-Message-Id: <1066417426.19236.3316.camel@plars>
-Mime-Version: 1.0
+Message-Id: <200310181943.39148.schlicht@uni-mannheim.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Randy.Dunlap" <rddunlap@osdl.org>
-Cc: lkml <linux-kernel@vger.kernel.org>, mingo@redhat.com, linux-mm <linux-mm@kvack.org>
+To: Andrew Morton <akpm@osdl.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2003-10-17 at 13:19, Randy.Dunlap wrote:
-> I'm seeing this at boot:
-> 
-> Checking if this processor honours the WP bit even in supervisor mode...
-> 
-> then I wait for 1-2 minutes and hit the power button.
-> This is on an IBM dual-proc P4 (non-HT) with 1 GB of RAM.
-> 
-> Has anyone else seen this?  Suggestions or fixes?
-> 
-This was a problem a while back with a bad check fixed by this patch:
-http://www.kernel.org/pub/linux/kernel/people/akpm/patches/2.6/2.6.0-test3/2.6.0-test3-mm2/broken-out/4g4g-do_page_fault-cleanup.patch
-I can't seem to find that it slipped back in anywhere but the problem
-sounds identical (minus an error message about invalid kernel-mode
-pagefault before).
+--Boundary-03=_KvXk/gy9rHlF3p+
+Content-Type: multipart/mixed;
+  boundary="Boundary-01=_KvXk/u24jy83e6v"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 
--Paul Larson
+--Boundary-01=_KvXk/u24jy83e6v
+Content-Type: text/plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: quoted-printable
+Content-Disposition: inline
 
+Hi Andrew,
 
+On Wednesday 15 October 2003 10:36, Andrew Morton wrote:
+> ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.6/2.6.0-test7=
+/2
+>.6.0-test7-mm1
+  ~~ snip ~~
+> +scale-min_free_kbytes.patch
+>
+>  Scale min_free_kbytes according to machine size.
+
+This patch actually doesn't work, as is uses nr_free_buffer_pages() before =
+the=20
+zonelists are set up. So min_free_kbytes is always set to 128.
+
+The attached fix works here without a problem, but I'm not sure it doesn't=
+=20
+break anything...
+
+Regards
+   Thomas
+
+P.S.: 1. I've got a ported memsetup-fix from the 2.4 tree, if you want I co=
+uld=20
+send it to you.
+2. Should we consider replacing the bogus int_sqrt() with the fb_sqrt()=20
+version? (btw. it is always exact) We could place it somewhere central, so =
+it=20
+can be used from any place...
+
+--Boundary-01=_KvXk/u24jy83e6v
+Content-Type: text/x-diff;
+  charset="iso-8859-1";
+  name="fix-scale_min_free_pages.diff"
+Content-Transfer-Encoding: quoted-printable
+Content-Disposition: attachment;
+	filename="fix-scale_min_free_pages.diff"
+
+=2D-- linux-2.6.0-test7-mm1/init/main.c.orig	Sat Oct 18 19:20:14 2003
++++ linux-2.6.0-test7-mm1/init/main.c	Sat Oct 18 18:58:26 2003
+@@ -396,7 +396,6 @@
+ 	lock_kernel();
+ 	printk(linux_banner);
+ 	setup_arch(&command_line);
+=2D	init_per_zone_pages_min();
+ 	setup_per_cpu_areas();
+=20
+ 	/*
+@@ -406,6 +405,7 @@
+ 	smp_prepare_boot_cpu();
+=20
+ 	build_all_zonelists();
++	init_per_zone_pages_min();
+ 	page_alloc_init();
+ 	printk("Kernel command line: %s\n", saved_command_line);
+ 	parse_args("Booting kernel", command_line, __start___param,
+
+--Boundary-01=_KvXk/u24jy83e6v--
+
+--Boundary-03=_KvXk/gy9rHlF3p+
+Content-Type: application/pgp-signature
+Content-Description: signature
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.2.1 (GNU/Linux)
+
+iD8DBQA/kXvKYAiN+WRIZzQRAmAWAKCIjPiiaiz/91EdCE8Y78kZFz1yVACggAwb
+ZeIhB7ZnAYMIGCvOon1MwA0=
+=Dxoy
+-----END PGP SIGNATURE-----
+
+--Boundary-03=_KvXk/gy9rHlF3p+--
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
