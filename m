@@ -1,51 +1,52 @@
-Date: Tue, 15 Feb 2005 07:21:06 -0800
+Date: Tue, 15 Feb 2005 07:38:46 -0800
 From: Paul Jackson <pj@sgi.com>
-Subject: Re: [RFC 2.6.11-rc2-mm2 0/7] mm: manual page migration -- overview
-Message-Id: <20050215072106.508f65d2.pj@sgi.com>
-In-Reply-To: <4211BD88.70904@sgi.com>
+Subject: Re: [RFC 2.6.11-rc2-mm2 7/7] mm: manual page migration --
+ sys_page_migrate
+Message-Id: <20050215073846.435e5a0a.pj@sgi.com>
+In-Reply-To: <20050215105056.GC19658@lnx-holt.americas.sgi.com>
 References: <20050212032535.18524.12046.26397@tomahawk.engr.sgi.com>
-	<m1vf8yf2nu.fsf@muc.de>
-	<20050212155426.GA26714@logos.cnet>
-	<20050212212914.GA51971@muc.de>
-	<20050214163844.GB8576@lnx-holt.americas.sgi.com>
-	<20050214191509.GA56685@muc.de>
-	<42113921.7070807@sgi.com>
-	<20050214191651.64fc3347.pj@sgi.com>
-	<4211BD88.70904@sgi.com>
+	<20050212032620.18524.15178.29731@tomahawk.engr.sgi.com>
+	<1108242262.6154.39.camel@localhost>
+	<20050214135221.GA20511@lnx-holt.americas.sgi.com>
+	<1108407043.6154.49.camel@localhost>
+	<20050214220148.GA11832@lnx-holt.americas.sgi.com>
+	<1108419774.6154.58.camel@localhost>
+	<20050215105056.GC19658@lnx-holt.americas.sgi.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ray Bryant <raybry@sgi.com>
-Cc: ak@muc.de, holt@sgi.com, marcelo.tosatti@cyclades.com, raybry@austin.rr.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Robin Holt <holt@sgi.com>
+Cc: haveblue@us.ibm.com, raybry@sgi.com, taka@valinux.co.jp, hugh@veritas.com, akpm@osdl.org, marcello@cyclades.com, raybry@austin.rr.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Ray wrote:
-> The exact ordering of when a task is moved to a new cpuset and when the
-> migration occurs doesn't matter, AFAIK, if we accept the notion that
-> a migrated task is in suspended state until after everything associated
-> with it (including the new cpuset definition) is done.
+Robin wrote:
+> Given that the first user of this may place in onto a 256 node system,
+> the chances that they use the same node in the source and destination node
+> array are very good.
 
-The existance of _some_ sequence of system calls such that user space
-could, if it so chose, do the 'right' thing does not exonerate the
-kernel from enforcing its rules, on each call.
+Am I parsing this sentence correctly when I read it as stating that we
+need to handle the case where the source and destination node sets
+overlap (have non-empty intersection)?
 
-The kernel certainly does not have a crystal ball that lets it say "ok -
-let this violation of my rules pass - I know that the caller will
-straighten things out before it lets anything ontoward occur (before
-it removes the suspension, in this case.)
+> I can not see the node array as anything but the right way
+> when compared to multiple system calls.
 
-In other words, more directly, the kernel must return from each system
-call with everything in order, all its rules enforced.
+Variable length arrays across the system call boundary are a pain in the
+butt.  Especially ones that add what are essentially "new types", in this
+case, an array of MAX_NUMNODES node numbers.  Odds are well over 50% that
+there will be a bug in this area, in our lifetime.
 
-I still think that migration should honor cpusets, unless you can show
-me a good reason why that's too cumbersome.  At least a migration patch
-for *-mm should honor cpusets.  When the migration patch goes into
-Linus's main tree, then it should honor cpusets there too, if cpusets
-are already there.  Or if migration goes into Linus's tree before
-cpusets, the onus would be on cpusets to add the changes to the
-migration code honoring cpusets, when and if cpusets followed along.
+And simplicity is measured more, in my mind, by whether each specific
+system call does the essential minimum of work, with clear pre and post
+conditions, than by whether the caller is able to make the fewest number
+of such calls.  Such reduction to the smallest irreducible atoms of work
+both ensures that the kernel is best able to maintain order, and that it
+can be used in the most flexible, unforseeable patterns possible,
+without further kernel changes.
+
+Such a node array call may well make good sense as a library API.
 
 -- 
                   I won't rest till it's the best ...
