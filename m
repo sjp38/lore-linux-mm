@@ -1,42 +1,33 @@
-Date: Sat, 06 Nov 2004 07:17:38 -0800
-From: "Martin J. Bligh" <mbligh@aracnet.com>
-Subject: Re: removing mm->rss and mm->anon_rss from kernel?
-Message-ID: <204290000.1099754257@[10.10.2.4]>
-In-Reply-To: <Pine.LNX.4.58.0411060120190.22874@schroedinger.engr.sgi.com>
-References: <4189EC67.40601@yahoo.com.au>  <Pine.LNX.4.58.0411040820250.8211@schroedinger.engr.sgi.com> <418AD329.3000609@yahoo.com.au>  <Pine.LNX.4.58.0411041733270.11583@schroedinger.engr.sgi.com> <418AE0F0.5050908@yahoo.com.au>  <418AE9BB.1000602@yahoo.com.au><1099622957.29587.101.camel@gaston> <418C55A7.9030100@yahoo.com.au> <Pine.LNX.4.58.0411060120190.22874@schroedinger.engr.sgi.com>
-MIME-Version: 1.0
+Date: Sat, 6 Nov 2004 16:29:03 +0100
+From: Andrea Arcangeli <andrea@novell.com>
+Subject: Re: [PATCH] Remove OOM killer from try_to_free_pages / all_unreclaimable braindamage
+Message-ID: <20041106152903.GA3851@dualathlon.random>
+References: <20041106015051.GU8229@dualathlon.random> <Pine.LNX.4.44.0411060944150.2721-100000@localhost.localdomain>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.44.0411060944150.2721-100000@localhost.localdomain>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>, Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>, Hugh Dickins <hugh@veritas.com>, linux-mm@kvack.org, linux-ia64@kernel.vger.org
+To: Hugh Dickins <hugh@veritas.com>
+Cc: Nick Piggin <piggin@cyberone.com.au>, Jesse Barnes <jbarnes@sgi.com>, Marcelo Tosatti <marcelo.tosatti@cyclades.com>, Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> My page scalability patches need to make rss atomic and now with the
-> addition of anon_rss I would also have to make that atomic.
-> 
-> But when I looked at the code I found that the only significant use of
-> both is in for proc statistics. There are 3 other uses in mm/rmap.c where
-> the use of mm->rss may be replaced by mm->total_vm.
-> 
-> So I removed all uses of mm->rss and anon_rss from the kernel and
-> introduced a bean counter count_vm() that is only run when the
-> corresponding /proc file is used. count_vm then runs throught the vm
-> and counts all the page types. This could also add additional page types to our
-> statistics and solve some of the consistency issues.
+On Sat, Nov 06, 2004 at 09:47:56AM +0000, Hugh Dickins wrote:
+> Problematic, yes: don't overlook that GFP_REPEAT and GFP_NOFAIL _can_
+> fail, returning NULL: when the process is being OOM-killed (PF_MEMDIE).
 
-I would've thought SGI would be more worried about this kind of thing
-than anyone else ... what's going to happen when you type 'ps' on a large
-box, and it does this for 10,000 processes? 
+that looks weird, why that? The oom killer must be robust against a task
+not going anyway regardless of this (task can be stuck in nfs or
+similar). If a fail path ever existed, __GFP_NOFAIL should not have been
+used in the first place. I don't see many valid excuses to use
+__GFP_NOFAIL if we can return NULL without the caller running into an
+infinite loop.
 
-If you want to make it quicker, how about doing per-cpu stats, and totalling
-them at runtime, which'd be lockless, instead of all the atomic ops?
-
-M.
-
-
+btw, PF_MEMDIE has always been racy in the way it's being set, so it can
+corrupt the p->flags, but the race window is very small to trigger it
+(and even if it triggers, it probably wouldn't be fatal). That's why I
+don't use PF_MEMDIE in 2.4-aa.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
