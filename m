@@ -1,50 +1,81 @@
-Received: from lct5-remit9.O8sam.com (bijective4 [108.80.8.16])
-	by holland.s9.com (2.29.9/0.30.3) with ESMTP id y0HA1qm75214
-	for <linux-mm@kvack.org>; Thu, 26 Aug 2004 22:24:18 +0200 GMT
-MIME-Version: 1.0
-Date: Fri, 27 Aug 2004 02:24:18 +0600
-From: Marcus Hurley <WWFWCAXYOW@stalag13.com>
-Subject: Feel better
-Message-Id: <wcm2_huk1-7185773949-5668117832-23-36441.0422685938@durkee9>
-Content-Type: multipart/alternative;
-	boundary="--609246448093257"
+Received: from m3.gw.fujitsu.co.jp ([10.0.50.73]) by fgwmail6.fujitsu.co.jp (8.12.10/Fujitsu Gateway)
+	id i7QN0TwH028879 for <linux-mm@kvack.org>; Fri, 27 Aug 2004 08:00:29 +0900
+	(envelope-from kamezawa.hiroyu@jp.fujitsu.com)
+Received: from s7.gw.fujitsu.co.jp by m3.gw.fujitsu.co.jp (8.12.10/Fujitsu Domain Master)
+	id i7QN0S0B013443 for <linux-mm@kvack.org>; Fri, 27 Aug 2004 08:00:28 +0900
+	(envelope-from kamezawa.hiroyu@jp.fujitsu.com)
+Received: from fjmail502.fjmail.jp.fujitsu.com (fjmail502-0.fjmail.jp.fujitsu.com [10.59.80.98]) by s7.gw.fujitsu.co.jp (8.12.11)
+	id i7QN0SUh012296 for <linux-mm@kvack.org>; Fri, 27 Aug 2004 08:00:28 +0900
+	(envelope-from kamezawa.hiroyu@jp.fujitsu.com)
+Received: from jp.fujitsu.com
+ (fjscan502-0.fjmail.jp.fujitsu.com [10.59.80.122]) by
+ fjmail502.fjmail.jp.fujitsu.com
+ (Sun Internet Mail Server sims.4.0.2001.07.26.11.50.p9)
+ with ESMTP id <0I32003CET8R53@fjmail502.fjmail.jp.fujitsu.com> for
+ linux-mm@kvack.org; Fri, 27 Aug 2004 08:00:27 +0900 (JST)
+Date: Fri, 27 Aug 2004 08:05:39 +0900
+From: Hiroyuki KAMEZAWA <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [Lhms-devel] [RFC] buddy allocator without bitmap  [2/4]
+In-reply-to: <1093535402.2984.11.camel@nighthawk>
+Message-id: <412E6CC3.8060908@jp.fujitsu.com>
+MIME-version: 1.0
+Content-type: text/plain; charset=us-ascii
+Content-transfer-encoding: 7bit
+References: <412DD1AA.8080408@jp.fujitsu.com>
+ <1093535402.2984.11.camel@nighthawk>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Dave Hansen <haveblue@us.ibm.com>
+Cc: Linux Kernel ML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, lhms <lhms-devel@lists.sourceforge.net>, William Lee Irwin III <wli@holomorphy.com>
 List-ID: <linux-mm.kvack.org>
 
-----609246448093257
-Content-Type: text/plain;
-Content-Transfer-Encoding: quoted-printable
+Hi
 
-Howdy,
+I understand using these macros cleans up codes as I used them in my previous
+version.
 
-I represent the leading online offshore pharmacy on the net. 
-I was wondering if you might like to be able to get your medications for 
-70-percent less than what you are currently paying. 
+In the previous version, I used SetPagePrivate()/ClearPagePrivate()/PagePrivate().
+But these are "atomic" operation and looks very slow.
+This is why I doesn't used these macros in this version.
 
-Let us help you to save-thousands on your expensive meds & costly DR visit=
-s.
-We ship worldwide & have a full selection of meds that fall into 
-many different health catergories:
+My previous version, which used set_bit/test_bit/clear_bit, shows very bad performance
+on my test, and I replaced it.
 
-Angina, Arthritis, Antibiotic, Anxiety disorder, Allergy, 
-Blood Thinner, Breast Cancer, Diuretic, Epilepsy,
-Stroke / Heart Attack, Headaches, Men's Health, Osteoporosis, 
-Pain Relief, Diabetes, Stop Smoking, Sleeping Disorders, 
-Blood Pressure, Anti Depressant, Cholesterol, Weight Loss, 
-Upset Stomach, Muscle Relaxant, and more. 
+If I made a mistake on measuring the performance and set_bit/test_bit/clear_bit
+is faster than what I think, I'd like to replace them.
 
-Why not visit us and find out what your missing?
-http://II.allyourmeds.net/?wid=3D100014
+-- Kame
+
+Dave Hansen wrote:
+> On Thu, 2004-08-26 at 05:03, Hiroyuki KAMEZAWA wrote:
+> 
+>>-		MARK_USED(index + size, high, area);
+>>+		page[size].flags |= (1 << PG_private);
+>>+		page[size].private = high;
+>>  	}
+>>  	return page;
+>>  }
+> 
+> ...
+> 
+>>+		/* Atomic operation is needless here */
+>>+		page->flags &= ~(1 << PG_private);
+> 
+> 
+> See linux/page_flags.h:
+> 
+> #define SetPagePrivate(page)    set_bit(PG_private, &(page)->flags)
+> #define ClearPagePrivate(page)  clear_bit(PG_private, &(page)->flags)
+> #define PagePrivate(page)       test_bit(PG_private, &(page)->flags)
+> 
+> -- Dave
+> 
+> 
 
 
-Cordially yours,
-Marcus Hurley
-Contact-Preference:
-http://SHXG.allyourmeds.net/book/
-
-----609246448093257--
+-- 
+--the clue is these footmarks leading to the door.--
+KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
