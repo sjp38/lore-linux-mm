@@ -1,39 +1,39 @@
-Message-ID: <3AB93C02.5030109@missioncriticallinux.com>
-Date: Wed, 21 Mar 2001 18:40:50 -0500
-From: "Patrick O'Rourke" <orourke@missioncriticallinux.com>
-MIME-Version: 1.0
+Received: from burns.conectiva (burns.conectiva [10.0.0.4])
+	by postfix.conectiva.com.br (Postfix) with SMTP id 7ED1D16FAD
+	for <linux-mm@kvack.org>; Wed, 21 Mar 2001 20:53:15 -0300 (EST)
+Date: Wed, 21 Mar 2001 20:48:54 -0300 (BRST)
+From: Rik van Riel <riel@conectiva.com.br>
 Subject: Re: [PATCH] Prevent OOM from killing init
-References: <3AB9313C.1020909@missioncriticallinux.com> <3AB9352A.71E42C38@inet.com>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <3AB9313C.1020909@missioncriticallinux.com>
+Message-ID: <Pine.LNX.4.21.0103212047590.19934-100000@imladris.rielhome.conectiva>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Eli Carter <eli.carter@inet.com>
+To: Patrick O'Rourke <orourke@missioncriticallinux.com>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Eli Carter wrote:
+On Wed, 21 Mar 2001, Patrick O'Rourke wrote:
 
-> Having not looked at the code... Why not "if( p->pid > 1 )"?  (Or can
-> p->pid can be negative?!, um, typecast to unsigned...)
+> Since the system will panic if the init process is chosen by
+> the OOM killer, the following patch prevents select_bad_process()
+> from picking init.
 
-I simply mirrored the check done in do_exit():
+One question ... has the OOM killer ever selected init on
+anybody's system ?
 
-	if (tsk->pid == 1)
-		panic("Attempted to kill init!");
+I think that the scoring algorithm should make sure that
+we never pick init, unless the system is screwed so badly
+that init is broken or the only process left ;)
 
-Since PID_MAX is 32768 I do not believe pids can be negative.
+Rik
+--
+Virtual memory is like a game you can't win;
+However, without VM there's truly nothing to lose...
 
-I suppose one could make an argument for skipping "daemons", i.e.
-pids below 300 (see the get_pid() function in kernel/fork.c), but
-I think that is a larger issue.
-
-Pat
-
--- 
-Patrick O'Rourke
-978.606.0236
-orourke@missioncriticallinux.com
+		http://www.surriel.com/
+http://www.conectiva.com/	http://distro.conectiva.com.br/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
