@@ -1,39 +1,3877 @@
-Received: from 205-158-62-68.outblaze.com (205-158-62-68.outblaze.com [205.158.62.68])
-	by spf13.us4.outblaze.com (Postfix) with QMQP id 3F3091856739
-	for <linux-mm@kvack.org>; Mon, 23 Jun 2003 11:41:18 +0000 (GMT)
-Message-ID: <20030623114112.7477.qmail@linuxmail.org>
-Content-Type: text/plain; charset="iso-8859-1"
-Content-Disposition: inline
-Content-Transfer-Encoding: 7bit
+Received: from shaolinmicro.com (cm61-15-171-82.hkcable.com.hk [61.15.171.82])
+	by mail.shaolinmicro.com (8.12.8/8.12.5) with ESMTP id h5NF4pG0006651
+	for <linux-mm@kvack.org>; Mon, 23 Jun 2003 23:04:52 +0800
+Message-ID: <3EF71713.90706@shaolinmicro.com>
+Date: Mon, 23 Jun 2003 23:04:51 +0800
+From: David Chow <davidchow@shaolinmicro.com>
 MIME-Version: 1.0
-From: "Zero Damager" <hemical-ass@linuxmail.org>
-Date: Mon, 23 Jun 2003 12:41:12 +0100
-Subject: Alex_
+Subject: swap modules
+Content-Type: multipart/mixed;
+ boundary="------------080004000007040101030108"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Does any body can help me? I'm looking for a people
-who knows gas(gnu assemmbler) very good.
-I need some body who can explain me what this peace of code
-ripped with objdump program means --
-//---------------------------------------------------------
- 0xc8000412  ff fc ff ff ff ff  call <0xc8000400+13>
-//---------------------------------------------------------
+This is a multi-part message in MIME format.
+--------------080004000007040101030108
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 
-I have bit of experience with assemmbling, and byte code i understand to.
-After the call instruction the processor begins code execution at address
-0xc8000413, which is (fc) byte, it is some sort of clear-flag instruction,
-then the (ff) byte follows, which means call instruction.
-The question is -- where it jumps>? To (ff ff ff) address of the page>?
-....
--- 
-______________________________________________
-http://www.linuxmail.org/
-Now with e-mail forwarding for only US$5.95/yr
+Dear linux-mm team,
 
-Powered by Outblaze
+This patch is for patching the mm and fs stuff to make the Linux 2.4.21 
+swap code to allow a concept of modularized swap methods. This concept 
+and swap code is originally from Justus Heine who created the NFS swap 
+patch for 2.2 and 2.4 . I've extracted the code and modified to make it 
+as a generic swap module code. The vanilla kernel swap code is been 
+moved to a file fs/blkdev_swap.c which is for normal plain block device 
+swaps. Users can configure the kernel to include the local block device 
+swap code or compile it as a module. Developers can also develop their 
+own swap methods instead of using the plain swap code (may be some 
+crypto for security reasons) . I've been using this API to develop NFS 
+swap and netswap code for a year an more. This patch has been tested for 
+more than a year in a production environment on smp and non-smp (I think 
+it is quite stable though). Please find it useful.
+
+regards,
+David Chow
+
+
+--------------080004000007040101030108
+Content-Type: text/plain;
+ name="swap_module-2.4.21.diff"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline;
+ filename="swap_module-2.4.21.diff"
+
+diff -uaNr linux-2.4.21/Documentation/Configure.help linux-2.4.21-1APTUS/Documentation/Configure.help
+--- linux-2.4.21/Documentation/Configure.help	2003-06-22 18:34:45.000000000 +0800
++++ linux-2.4.21-1APTUS/Documentation/Configure.help	2003-06-22 19:57:04.000000000 +0800
+@@ -12784,6 +12784,16 @@
+   If you are running Linux on an IBM iSeries system and you want to
+   read a CD drive owned by OS/400, say Y here.
+ 
++Swapping to block device and local filesystems
++CONFIG_BLOCKDEV_SWAP
++  Say yes to enable virtual memory swap to block devices. If you have
++  a local disk drive and wish to use swap say 'Y', otherwise say 'N'.
++  
++  If local swaping is option to your system, say 'M' and compile it
++  as a module.
++
++  If unsure, choose 'M' to compile it as a module for safe.
++
+ Quota support
+ CONFIG_QUOTA
+   If you say Y here, you will be able to set per user limits for disk
+diff -uaNr linux-2.4.21/drivers/scsi/sim710_d.h linux-2.4.21-1APTUS/drivers/scsi/sim710_d.h
+--- linux-2.4.21/drivers/scsi/sim710_d.h	1999-12-09 07:17:55.000000000 +0800
++++ linux-2.4.21-1APTUS/drivers/scsi/sim710_d.h	2003-06-23 02:19:11.000000000 +0800
+@@ -18,15 +18,12 @@
+ 
+ ABSOLUTE reselected_identify = 0
+ ABSOLUTE msgin_buf = 0
++ABSOLUTE msg_reject = 0
++ABSOLUTE test1_src = 0
++ABSOLUTE test1_dst = 0
+ 
+ 
+ 
+-ABSOLUTE int_bad_extmsg1a	= 0xab930000
+-ABSOLUTE int_bad_extmsg1b	= 0xab930001
+-ABSOLUTE int_bad_extmsg2a	= 0xab930002
+-ABSOLUTE int_bad_extmsg2b	= 0xab930003
+-ABSOLUTE int_bad_extmsg3a	= 0xab930004
+-ABSOLUTE int_bad_extmsg3b	= 0xab930005
+ ABSOLUTE int_bad_msg1		= 0xab930006
+ ABSOLUTE int_bad_msg2		= 0xab930007
+ ABSOLUTE int_bad_msg3		= 0xab930008
+@@ -50,7 +47,7 @@
+ ABSOLUTE int_disc2		= 0xab93001a
+ ABSOLUTE int_disc3		= 0xab93001b
+ ABSOLUTE int_not_rej		= 0xab93001c
+-
++ABSOLUTE int_test1		= 0xab93001d
+ 
+ 
+ 
+@@ -65,6 +62,9 @@
+ 
+ 
+ 
++ABSOLUTE did_reject	= 0x01
++
++
+ 
+ 
+ 
+@@ -74,1641 +74,1709 @@
+ 
+ at 0x00000000 : */	0x60000200,0x00000000,
+ /*
+-	MOVE SCRATCH0 & 0 TO SCRATCH0
+-
+-at 0x00000002 : */	0x7c340000,0x00000000,
+-/*
+ 	; Enable selection timer
+ 	MOVE CTEST7 & 0xef TO CTEST7
+ 
+-at 0x00000004 : */	0x7c1bef00,0x00000000,
++at 0x00000002 : */	0x7c1bef00,0x00000000,
+ /*
+ 	SELECT ATN FROM dsa_select, reselect
+ 
+-at 0x00000006 : */	0x43000000,0x00000c48,
++at 0x00000004 : */	0x43000000,0x00000cd0,
+ /*
+ 	JUMP get_status, WHEN STATUS
+ 
+-at 0x00000008 : */	0x830b0000,0x000000a0,
++at 0x00000006 : */	0x830b0000,0x00000098,
+ /*
+ 	; Disable selection timer
+ 	MOVE CTEST7 | 0x10 TO CTEST7
+ 
+-at 0x0000000a : */	0x7a1b1000,0x00000000,
++at 0x00000008 : */	0x7a1b1000,0x00000000,
+ /*
+ 	MOVE SCRATCH0 | had_select TO SCRATCH0
+ 
+-at 0x0000000c : */	0x7a340100,0x00000000,
++at 0x0000000a : */	0x7a340100,0x00000000,
+ /*
+ 	INT int_sel_no_ident, IF NOT MSG_OUT
+ 
+-at 0x0000000e : */	0x9e020000,0xab930013,
++at 0x0000000c : */	0x9e020000,0xab930013,
+ /*
+ 	MOVE SCRATCH0 | had_msgout TO SCRATCH0
+ 
+-at 0x00000010 : */	0x7a340200,0x00000000,
++at 0x0000000e : */	0x7a340200,0x00000000,
+ /*
+ 	MOVE FROM dsa_msgout, when MSG_OUT
+ 
+-at 0x00000012 : */	0x1e000000,0x00000008,
++at 0x00000010 : */	0x1e000000,0x00000008,
+ /*
+ ENTRY done_ident
+ done_ident:
+ 	JUMP get_status, IF STATUS
+ 
+-at 0x00000014 : */	0x830a0000,0x000000a0,
++at 0x00000012 : */	0x830a0000,0x00000098,
+ /*
+ redo_msgin1:
+ 	JUMP get_msgin1, WHEN MSG_IN
+ 
+-at 0x00000016 : */	0x870b0000,0x00000920,
++at 0x00000014 : */	0x870b0000,0x00000918,
+ /*
+ 	INT int_sel_not_cmd, IF NOT CMD
+ 
+-at 0x00000018 : */	0x9a020000,0xab930014,
++at 0x00000016 : */	0x9a020000,0xab930014,
+ /*
+ ENTRY resume_cmd
+ resume_cmd:
+ 	MOVE SCRATCH0 | had_cmdout TO SCRATCH0
+ 
+-at 0x0000001a : */	0x7a340400,0x00000000,
++at 0x00000018 : */	0x7a340400,0x00000000,
+ /*
+ 	MOVE FROM dsa_cmnd, WHEN CMD
+ 
+-at 0x0000001c : */	0x1a000000,0x00000010,
++at 0x0000001a : */	0x1a000000,0x00000010,
+ /*
+ ENTRY resume_pmm
+ resume_pmm:
+ redo_msgin2:
+ 	JUMP get_msgin2, WHEN MSG_IN
+ 
+-at 0x0000001e : */	0x870b0000,0x00000a20,
++at 0x0000001c : */	0x870b0000,0x00000a48,
+ /*
+ 	JUMP get_status, IF STATUS
+ 
+-at 0x00000020 : */	0x830a0000,0x000000a0,
++at 0x0000001e : */	0x830a0000,0x00000098,
+ /*
+ 	JUMP input_data, IF DATA_IN
+ 
+-at 0x00000022 : */	0x810a0000,0x000000e0,
++at 0x00000020 : */	0x810a0000,0x000000d8,
+ /*
+ 	JUMP output_data, IF DATA_OUT
+ 
+-at 0x00000024 : */	0x800a0000,0x000004f8,
++at 0x00000022 : */	0x800a0000,0x000004f0,
+ /*
+ 	INT int_cmd_bad_phase
+ 
+-at 0x00000026 : */	0x98080000,0xab930009,
++at 0x00000024 : */	0x98080000,0xab930009,
+ /*
+ 
+ get_status:
+ 	; Disable selection timer
+ 	MOVE CTEST7 | 0x10 TO CTEST7
+ 
+-at 0x00000028 : */	0x7a1b1000,0x00000000,
++at 0x00000026 : */	0x7a1b1000,0x00000000,
+ /*
+ 	MOVE FROM dsa_status, WHEN STATUS
+ 
+-at 0x0000002a : */	0x1b000000,0x00000018,
++at 0x00000028 : */	0x1b000000,0x00000018,
+ /*
+ 	INT int_status_not_msgin, WHEN NOT MSG_IN
+ 
+-at 0x0000002c : */	0x9f030000,0xab930015,
++at 0x0000002a : */	0x9f030000,0xab930015,
+ /*
+ 	MOVE FROM dsa_msgin, WHEN MSG_IN
+ 
+-at 0x0000002e : */	0x1f000000,0x00000020,
++at 0x0000002c : */	0x1f000000,0x00000020,
+ /*
+ 	INT int_not_cmd_complete, IF NOT 0x00
+ 
+-at 0x00000030 : */	0x98040000,0xab930012,
++at 0x0000002e : */	0x98040000,0xab930012,
+ /*
+ 	CLEAR ACK
+ 
+-at 0x00000032 : */	0x60000040,0x00000000,
++at 0x00000030 : */	0x60000040,0x00000000,
+ /*
+ ENTRY wait_disc_complete
+ wait_disc_complete:
+ 	WAIT DISCONNECT
+ 
+-at 0x00000034 : */	0x48000000,0x00000000,
++at 0x00000032 : */	0x48000000,0x00000000,
+ /*
+ 	INT int_cmd_complete
+ 
+-at 0x00000036 : */	0x98080000,0xab93000a,
++at 0x00000034 : */	0x98080000,0xab93000a,
+ /*
+ 
+ input_data:
+ 	MOVE SCRATCH0 | had_datain TO SCRATCH0
+ 
+-at 0x00000038 : */	0x7a340800,0x00000000,
++at 0x00000036 : */	0x7a340800,0x00000000,
+ /*
+ ENTRY patch_input_data
+ patch_input_data:
+ 	JUMP 0
+ 
+-at 0x0000003a : */	0x80080000,0x00000000,
++at 0x00000038 : */	0x80080000,0x00000000,
+ /*
+ 	MOVE FROM dsa_datain+0x0000, WHEN DATA_IN
+ 
+-at 0x0000003c : */	0x19000000,0x00000028,
++at 0x0000003a : */	0x19000000,0x00000028,
+ /*
+ 	MOVE FROM dsa_datain+0x0008, WHEN DATA_IN
+ 
+-at 0x0000003e : */	0x19000000,0x00000030,
++at 0x0000003c : */	0x19000000,0x00000030,
+ /*
+ 	MOVE FROM dsa_datain+0x0010, WHEN DATA_IN
+ 
+-at 0x00000040 : */	0x19000000,0x00000038,
++at 0x0000003e : */	0x19000000,0x00000038,
+ /*
+ 	MOVE FROM dsa_datain+0x0018, WHEN DATA_IN
+ 
+-at 0x00000042 : */	0x19000000,0x00000040,
++at 0x00000040 : */	0x19000000,0x00000040,
+ /*
+ 	MOVE FROM dsa_datain+0x0020, WHEN DATA_IN
+ 
+-at 0x00000044 : */	0x19000000,0x00000048,
++at 0x00000042 : */	0x19000000,0x00000048,
+ /*
+ 	MOVE FROM dsa_datain+0x0028, WHEN DATA_IN
+ 
+-at 0x00000046 : */	0x19000000,0x00000050,
++at 0x00000044 : */	0x19000000,0x00000050,
+ /*
+ 	MOVE FROM dsa_datain+0x0030, WHEN DATA_IN
+ 
+-at 0x00000048 : */	0x19000000,0x00000058,
++at 0x00000046 : */	0x19000000,0x00000058,
+ /*
+ 	MOVE FROM dsa_datain+0x0038, WHEN DATA_IN
+ 
+-at 0x0000004a : */	0x19000000,0x00000060,
++at 0x00000048 : */	0x19000000,0x00000060,
+ /*
+ 	MOVE FROM dsa_datain+0x0040, WHEN DATA_IN
+ 
+-at 0x0000004c : */	0x19000000,0x00000068,
++at 0x0000004a : */	0x19000000,0x00000068,
+ /*
+ 	MOVE FROM dsa_datain+0x0048, WHEN DATA_IN
+ 
+-at 0x0000004e : */	0x19000000,0x00000070,
++at 0x0000004c : */	0x19000000,0x00000070,
+ /*
+ 	MOVE FROM dsa_datain+0x0050, WHEN DATA_IN
+ 
+-at 0x00000050 : */	0x19000000,0x00000078,
++at 0x0000004e : */	0x19000000,0x00000078,
+ /*
+ 	MOVE FROM dsa_datain+0x0058, WHEN DATA_IN
+ 
+-at 0x00000052 : */	0x19000000,0x00000080,
++at 0x00000050 : */	0x19000000,0x00000080,
+ /*
+ 	MOVE FROM dsa_datain+0x0060, WHEN DATA_IN
+ 
+-at 0x00000054 : */	0x19000000,0x00000088,
++at 0x00000052 : */	0x19000000,0x00000088,
+ /*
+ 	MOVE FROM dsa_datain+0x0068, WHEN DATA_IN
+ 
+-at 0x00000056 : */	0x19000000,0x00000090,
++at 0x00000054 : */	0x19000000,0x00000090,
+ /*
+ 	MOVE FROM dsa_datain+0x0070, WHEN DATA_IN
+ 
+-at 0x00000058 : */	0x19000000,0x00000098,
++at 0x00000056 : */	0x19000000,0x00000098,
+ /*
+ 	MOVE FROM dsa_datain+0x0078, WHEN DATA_IN
+ 
+-at 0x0000005a : */	0x19000000,0x000000a0,
++at 0x00000058 : */	0x19000000,0x000000a0,
+ /*
+ 	MOVE FROM dsa_datain+0x0080, WHEN DATA_IN
+ 
+-at 0x0000005c : */	0x19000000,0x000000a8,
++at 0x0000005a : */	0x19000000,0x000000a8,
+ /*
+ 	MOVE FROM dsa_datain+0x0088, WHEN DATA_IN
+ 
+-at 0x0000005e : */	0x19000000,0x000000b0,
++at 0x0000005c : */	0x19000000,0x000000b0,
+ /*
+ 	MOVE FROM dsa_datain+0x0090, WHEN DATA_IN
+ 
+-at 0x00000060 : */	0x19000000,0x000000b8,
++at 0x0000005e : */	0x19000000,0x000000b8,
+ /*
+ 	MOVE FROM dsa_datain+0x0098, WHEN DATA_IN
+ 
+-at 0x00000062 : */	0x19000000,0x000000c0,
++at 0x00000060 : */	0x19000000,0x000000c0,
+ /*
+ 	MOVE FROM dsa_datain+0x00a0, WHEN DATA_IN
+ 
+-at 0x00000064 : */	0x19000000,0x000000c8,
++at 0x00000062 : */	0x19000000,0x000000c8,
+ /*
+ 	MOVE FROM dsa_datain+0x00a8, WHEN DATA_IN
+ 
+-at 0x00000066 : */	0x19000000,0x000000d0,
++at 0x00000064 : */	0x19000000,0x000000d0,
+ /*
+ 	MOVE FROM dsa_datain+0x00b0, WHEN DATA_IN
+ 
+-at 0x00000068 : */	0x19000000,0x000000d8,
++at 0x00000066 : */	0x19000000,0x000000d8,
+ /*
+ 	MOVE FROM dsa_datain+0x00b8, WHEN DATA_IN
+ 
+-at 0x0000006a : */	0x19000000,0x000000e0,
++at 0x00000068 : */	0x19000000,0x000000e0,
+ /*
+ 	MOVE FROM dsa_datain+0x00c0, WHEN DATA_IN
+ 
+-at 0x0000006c : */	0x19000000,0x000000e8,
++at 0x0000006a : */	0x19000000,0x000000e8,
+ /*
+ 	MOVE FROM dsa_datain+0x00c8, WHEN DATA_IN
+ 
+-at 0x0000006e : */	0x19000000,0x000000f0,
++at 0x0000006c : */	0x19000000,0x000000f0,
+ /*
+ 	MOVE FROM dsa_datain+0x00d0, WHEN DATA_IN
+ 
+-at 0x00000070 : */	0x19000000,0x000000f8,
++at 0x0000006e : */	0x19000000,0x000000f8,
+ /*
+ 	MOVE FROM dsa_datain+0x00d8, WHEN DATA_IN
+ 
+-at 0x00000072 : */	0x19000000,0x00000100,
++at 0x00000070 : */	0x19000000,0x00000100,
+ /*
+ 	MOVE FROM dsa_datain+0x00e0, WHEN DATA_IN
+ 
+-at 0x00000074 : */	0x19000000,0x00000108,
++at 0x00000072 : */	0x19000000,0x00000108,
+ /*
+ 	MOVE FROM dsa_datain+0x00e8, WHEN DATA_IN
+ 
+-at 0x00000076 : */	0x19000000,0x00000110,
++at 0x00000074 : */	0x19000000,0x00000110,
+ /*
+ 	MOVE FROM dsa_datain+0x00f0, WHEN DATA_IN
+ 
+-at 0x00000078 : */	0x19000000,0x00000118,
++at 0x00000076 : */	0x19000000,0x00000118,
+ /*
+ 	MOVE FROM dsa_datain+0x00f8, WHEN DATA_IN
+ 
+-at 0x0000007a : */	0x19000000,0x00000120,
++at 0x00000078 : */	0x19000000,0x00000120,
+ /*
+ 	MOVE FROM dsa_datain+0x0100, WHEN DATA_IN
+ 
+-at 0x0000007c : */	0x19000000,0x00000128,
++at 0x0000007a : */	0x19000000,0x00000128,
+ /*
+ 	MOVE FROM dsa_datain+0x0108, WHEN DATA_IN
+ 
+-at 0x0000007e : */	0x19000000,0x00000130,
++at 0x0000007c : */	0x19000000,0x00000130,
+ /*
+ 	MOVE FROM dsa_datain+0x0110, WHEN DATA_IN
+ 
+-at 0x00000080 : */	0x19000000,0x00000138,
++at 0x0000007e : */	0x19000000,0x00000138,
+ /*
+ 	MOVE FROM dsa_datain+0x0118, WHEN DATA_IN
+ 
+-at 0x00000082 : */	0x19000000,0x00000140,
++at 0x00000080 : */	0x19000000,0x00000140,
+ /*
+ 	MOVE FROM dsa_datain+0x0120, WHEN DATA_IN
+ 
+-at 0x00000084 : */	0x19000000,0x00000148,
++at 0x00000082 : */	0x19000000,0x00000148,
+ /*
+ 	MOVE FROM dsa_datain+0x0128, WHEN DATA_IN
+ 
+-at 0x00000086 : */	0x19000000,0x00000150,
++at 0x00000084 : */	0x19000000,0x00000150,
+ /*
+ 	MOVE FROM dsa_datain+0x0130, WHEN DATA_IN
+ 
+-at 0x00000088 : */	0x19000000,0x00000158,
++at 0x00000086 : */	0x19000000,0x00000158,
+ /*
+ 	MOVE FROM dsa_datain+0x0138, WHEN DATA_IN
+ 
+-at 0x0000008a : */	0x19000000,0x00000160,
++at 0x00000088 : */	0x19000000,0x00000160,
+ /*
+ 	MOVE FROM dsa_datain+0x0140, WHEN DATA_IN
+ 
+-at 0x0000008c : */	0x19000000,0x00000168,
++at 0x0000008a : */	0x19000000,0x00000168,
+ /*
+ 	MOVE FROM dsa_datain+0x0148, WHEN DATA_IN
+ 
+-at 0x0000008e : */	0x19000000,0x00000170,
++at 0x0000008c : */	0x19000000,0x00000170,
+ /*
+ 	MOVE FROM dsa_datain+0x0150, WHEN DATA_IN
+ 
+-at 0x00000090 : */	0x19000000,0x00000178,
++at 0x0000008e : */	0x19000000,0x00000178,
+ /*
+ 	MOVE FROM dsa_datain+0x0158, WHEN DATA_IN
+ 
+-at 0x00000092 : */	0x19000000,0x00000180,
++at 0x00000090 : */	0x19000000,0x00000180,
+ /*
+ 	MOVE FROM dsa_datain+0x0160, WHEN DATA_IN
+ 
+-at 0x00000094 : */	0x19000000,0x00000188,
++at 0x00000092 : */	0x19000000,0x00000188,
+ /*
+ 	MOVE FROM dsa_datain+0x0168, WHEN DATA_IN
+ 
+-at 0x00000096 : */	0x19000000,0x00000190,
++at 0x00000094 : */	0x19000000,0x00000190,
+ /*
+ 	MOVE FROM dsa_datain+0x0170, WHEN DATA_IN
+ 
+-at 0x00000098 : */	0x19000000,0x00000198,
++at 0x00000096 : */	0x19000000,0x00000198,
+ /*
+ 	MOVE FROM dsa_datain+0x0178, WHEN DATA_IN
+ 
+-at 0x0000009a : */	0x19000000,0x000001a0,
++at 0x00000098 : */	0x19000000,0x000001a0,
+ /*
+ 	MOVE FROM dsa_datain+0x0180, WHEN DATA_IN
+ 
+-at 0x0000009c : */	0x19000000,0x000001a8,
++at 0x0000009a : */	0x19000000,0x000001a8,
+ /*
+ 	MOVE FROM dsa_datain+0x0188, WHEN DATA_IN
+ 
+-at 0x0000009e : */	0x19000000,0x000001b0,
++at 0x0000009c : */	0x19000000,0x000001b0,
+ /*
+ 	MOVE FROM dsa_datain+0x0190, WHEN DATA_IN
+ 
+-at 0x000000a0 : */	0x19000000,0x000001b8,
++at 0x0000009e : */	0x19000000,0x000001b8,
+ /*
+ 	MOVE FROM dsa_datain+0x0198, WHEN DATA_IN
+ 
+-at 0x000000a2 : */	0x19000000,0x000001c0,
++at 0x000000a0 : */	0x19000000,0x000001c0,
+ /*
+ 	MOVE FROM dsa_datain+0x01a0, WHEN DATA_IN
+ 
+-at 0x000000a4 : */	0x19000000,0x000001c8,
++at 0x000000a2 : */	0x19000000,0x000001c8,
+ /*
+ 	MOVE FROM dsa_datain+0x01a8, WHEN DATA_IN
+ 
+-at 0x000000a6 : */	0x19000000,0x000001d0,
++at 0x000000a4 : */	0x19000000,0x000001d0,
+ /*
+ 	MOVE FROM dsa_datain+0x01b0, WHEN DATA_IN
+ 
+-at 0x000000a8 : */	0x19000000,0x000001d8,
++at 0x000000a6 : */	0x19000000,0x000001d8,
+ /*
+ 	MOVE FROM dsa_datain+0x01b8, WHEN DATA_IN
+ 
+-at 0x000000aa : */	0x19000000,0x000001e0,
++at 0x000000a8 : */	0x19000000,0x000001e0,
+ /*
+ 	MOVE FROM dsa_datain+0x01c0, WHEN DATA_IN
+ 
+-at 0x000000ac : */	0x19000000,0x000001e8,
++at 0x000000aa : */	0x19000000,0x000001e8,
+ /*
+ 	MOVE FROM dsa_datain+0x01c8, WHEN DATA_IN
+ 
+-at 0x000000ae : */	0x19000000,0x000001f0,
++at 0x000000ac : */	0x19000000,0x000001f0,
+ /*
+ 	MOVE FROM dsa_datain+0x01d0, WHEN DATA_IN
+ 
+-at 0x000000b0 : */	0x19000000,0x000001f8,
++at 0x000000ae : */	0x19000000,0x000001f8,
+ /*
+ 	MOVE FROM dsa_datain+0x01d8, WHEN DATA_IN
+ 
+-at 0x000000b2 : */	0x19000000,0x00000200,
++at 0x000000b0 : */	0x19000000,0x00000200,
+ /*
+ 	MOVE FROM dsa_datain+0x01e0, WHEN DATA_IN
+ 
+-at 0x000000b4 : */	0x19000000,0x00000208,
++at 0x000000b2 : */	0x19000000,0x00000208,
+ /*
+ 	MOVE FROM dsa_datain+0x01e8, WHEN DATA_IN
+ 
+-at 0x000000b6 : */	0x19000000,0x00000210,
++at 0x000000b4 : */	0x19000000,0x00000210,
+ /*
+ 	MOVE FROM dsa_datain+0x01f0, WHEN DATA_IN
+ 
+-at 0x000000b8 : */	0x19000000,0x00000218,
++at 0x000000b6 : */	0x19000000,0x00000218,
+ /*
+ 	MOVE FROM dsa_datain+0x01f8, WHEN DATA_IN
+ 
+-at 0x000000ba : */	0x19000000,0x00000220,
++at 0x000000b8 : */	0x19000000,0x00000220,
+ /*
+ 	MOVE FROM dsa_datain+0x0200, WHEN DATA_IN
+ 
+-at 0x000000bc : */	0x19000000,0x00000228,
++at 0x000000ba : */	0x19000000,0x00000228,
+ /*
+ 	MOVE FROM dsa_datain+0x0208, WHEN DATA_IN
+ 
+-at 0x000000be : */	0x19000000,0x00000230,
++at 0x000000bc : */	0x19000000,0x00000230,
+ /*
+ 	MOVE FROM dsa_datain+0x0210, WHEN DATA_IN
+ 
+-at 0x000000c0 : */	0x19000000,0x00000238,
++at 0x000000be : */	0x19000000,0x00000238,
+ /*
+ 	MOVE FROM dsa_datain+0x0218, WHEN DATA_IN
+ 
+-at 0x000000c2 : */	0x19000000,0x00000240,
++at 0x000000c0 : */	0x19000000,0x00000240,
+ /*
+ 	MOVE FROM dsa_datain+0x0220, WHEN DATA_IN
+ 
+-at 0x000000c4 : */	0x19000000,0x00000248,
++at 0x000000c2 : */	0x19000000,0x00000248,
+ /*
+ 	MOVE FROM dsa_datain+0x0228, WHEN DATA_IN
+ 
+-at 0x000000c6 : */	0x19000000,0x00000250,
++at 0x000000c4 : */	0x19000000,0x00000250,
+ /*
+ 	MOVE FROM dsa_datain+0x0230, WHEN DATA_IN
+ 
+-at 0x000000c8 : */	0x19000000,0x00000258,
++at 0x000000c6 : */	0x19000000,0x00000258,
+ /*
+ 	MOVE FROM dsa_datain+0x0238, WHEN DATA_IN
+ 
+-at 0x000000ca : */	0x19000000,0x00000260,
++at 0x000000c8 : */	0x19000000,0x00000260,
+ /*
+ 	MOVE FROM dsa_datain+0x0240, WHEN DATA_IN
+ 
+-at 0x000000cc : */	0x19000000,0x00000268,
++at 0x000000ca : */	0x19000000,0x00000268,
+ /*
+ 	MOVE FROM dsa_datain+0x0248, WHEN DATA_IN
+ 
+-at 0x000000ce : */	0x19000000,0x00000270,
++at 0x000000cc : */	0x19000000,0x00000270,
+ /*
+ 	MOVE FROM dsa_datain+0x0250, WHEN DATA_IN
+ 
+-at 0x000000d0 : */	0x19000000,0x00000278,
++at 0x000000ce : */	0x19000000,0x00000278,
+ /*
+ 	MOVE FROM dsa_datain+0x0258, WHEN DATA_IN
+ 
+-at 0x000000d2 : */	0x19000000,0x00000280,
++at 0x000000d0 : */	0x19000000,0x00000280,
+ /*
+ 	MOVE FROM dsa_datain+0x0260, WHEN DATA_IN
+ 
+-at 0x000000d4 : */	0x19000000,0x00000288,
++at 0x000000d2 : */	0x19000000,0x00000288,
+ /*
+ 	MOVE FROM dsa_datain+0x0268, WHEN DATA_IN
+ 
+-at 0x000000d6 : */	0x19000000,0x00000290,
++at 0x000000d4 : */	0x19000000,0x00000290,
+ /*
+ 	MOVE FROM dsa_datain+0x0270, WHEN DATA_IN
+ 
+-at 0x000000d8 : */	0x19000000,0x00000298,
++at 0x000000d6 : */	0x19000000,0x00000298,
+ /*
+ 	MOVE FROM dsa_datain+0x0278, WHEN DATA_IN
+ 
+-at 0x000000da : */	0x19000000,0x000002a0,
++at 0x000000d8 : */	0x19000000,0x000002a0,
+ /*
+ 	MOVE FROM dsa_datain+0x0280, WHEN DATA_IN
+ 
+-at 0x000000dc : */	0x19000000,0x000002a8,
++at 0x000000da : */	0x19000000,0x000002a8,
+ /*
+ 	MOVE FROM dsa_datain+0x0288, WHEN DATA_IN
+ 
+-at 0x000000de : */	0x19000000,0x000002b0,
++at 0x000000dc : */	0x19000000,0x000002b0,
+ /*
+ 	MOVE FROM dsa_datain+0x0290, WHEN DATA_IN
+ 
+-at 0x000000e0 : */	0x19000000,0x000002b8,
++at 0x000000de : */	0x19000000,0x000002b8,
+ /*
+ 	MOVE FROM dsa_datain+0x0298, WHEN DATA_IN
+ 
+-at 0x000000e2 : */	0x19000000,0x000002c0,
++at 0x000000e0 : */	0x19000000,0x000002c0,
+ /*
+ 	MOVE FROM dsa_datain+0x02a0, WHEN DATA_IN
+ 
+-at 0x000000e4 : */	0x19000000,0x000002c8,
++at 0x000000e2 : */	0x19000000,0x000002c8,
+ /*
+ 	MOVE FROM dsa_datain+0x02a8, WHEN DATA_IN
+ 
+-at 0x000000e6 : */	0x19000000,0x000002d0,
++at 0x000000e4 : */	0x19000000,0x000002d0,
+ /*
+ 	MOVE FROM dsa_datain+0x02b0, WHEN DATA_IN
+ 
+-at 0x000000e8 : */	0x19000000,0x000002d8,
++at 0x000000e6 : */	0x19000000,0x000002d8,
+ /*
+ 	MOVE FROM dsa_datain+0x02b8, WHEN DATA_IN
+ 
+-at 0x000000ea : */	0x19000000,0x000002e0,
++at 0x000000e8 : */	0x19000000,0x000002e0,
+ /*
+ 	MOVE FROM dsa_datain+0x02c0, WHEN DATA_IN
+ 
+-at 0x000000ec : */	0x19000000,0x000002e8,
++at 0x000000ea : */	0x19000000,0x000002e8,
+ /*
+ 	MOVE FROM dsa_datain+0x02c8, WHEN DATA_IN
+ 
+-at 0x000000ee : */	0x19000000,0x000002f0,
++at 0x000000ec : */	0x19000000,0x000002f0,
+ /*
+ 	MOVE FROM dsa_datain+0x02d0, WHEN DATA_IN
+ 
+-at 0x000000f0 : */	0x19000000,0x000002f8,
++at 0x000000ee : */	0x19000000,0x000002f8,
+ /*
+ 	MOVE FROM dsa_datain+0x02d8, WHEN DATA_IN
+ 
+-at 0x000000f2 : */	0x19000000,0x00000300,
++at 0x000000f0 : */	0x19000000,0x00000300,
+ /*
+ 	MOVE FROM dsa_datain+0x02e0, WHEN DATA_IN
+ 
+-at 0x000000f4 : */	0x19000000,0x00000308,
++at 0x000000f2 : */	0x19000000,0x00000308,
+ /*
+ 	MOVE FROM dsa_datain+0x02e8, WHEN DATA_IN
+ 
+-at 0x000000f6 : */	0x19000000,0x00000310,
++at 0x000000f4 : */	0x19000000,0x00000310,
+ /*
+ 	MOVE FROM dsa_datain+0x02f0, WHEN DATA_IN
+ 
+-at 0x000000f8 : */	0x19000000,0x00000318,
++at 0x000000f6 : */	0x19000000,0x00000318,
+ /*
+ 	MOVE FROM dsa_datain+0x02f8, WHEN DATA_IN
+ 
+-at 0x000000fa : */	0x19000000,0x00000320,
++at 0x000000f8 : */	0x19000000,0x00000320,
+ /*
+ 	MOVE FROM dsa_datain+0x0300, WHEN DATA_IN
+ 
+-at 0x000000fc : */	0x19000000,0x00000328,
++at 0x000000fa : */	0x19000000,0x00000328,
+ /*
+ 	MOVE FROM dsa_datain+0x0308, WHEN DATA_IN
+ 
+-at 0x000000fe : */	0x19000000,0x00000330,
++at 0x000000fc : */	0x19000000,0x00000330,
+ /*
+ 	MOVE FROM dsa_datain+0x0310, WHEN DATA_IN
+ 
+-at 0x00000100 : */	0x19000000,0x00000338,
++at 0x000000fe : */	0x19000000,0x00000338,
+ /*
+ 	MOVE FROM dsa_datain+0x0318, WHEN DATA_IN
+ 
+-at 0x00000102 : */	0x19000000,0x00000340,
++at 0x00000100 : */	0x19000000,0x00000340,
+ /*
+ 	MOVE FROM dsa_datain+0x0320, WHEN DATA_IN
+ 
+-at 0x00000104 : */	0x19000000,0x00000348,
++at 0x00000102 : */	0x19000000,0x00000348,
+ /*
+ 	MOVE FROM dsa_datain+0x0328, WHEN DATA_IN
+ 
+-at 0x00000106 : */	0x19000000,0x00000350,
++at 0x00000104 : */	0x19000000,0x00000350,
+ /*
+ 	MOVE FROM dsa_datain+0x0330, WHEN DATA_IN
+ 
+-at 0x00000108 : */	0x19000000,0x00000358,
++at 0x00000106 : */	0x19000000,0x00000358,
+ /*
+ 	MOVE FROM dsa_datain+0x0338, WHEN DATA_IN
+ 
+-at 0x0000010a : */	0x19000000,0x00000360,
++at 0x00000108 : */	0x19000000,0x00000360,
+ /*
+ 	MOVE FROM dsa_datain+0x0340, WHEN DATA_IN
+ 
+-at 0x0000010c : */	0x19000000,0x00000368,
++at 0x0000010a : */	0x19000000,0x00000368,
+ /*
+ 	MOVE FROM dsa_datain+0x0348, WHEN DATA_IN
+ 
+-at 0x0000010e : */	0x19000000,0x00000370,
++at 0x0000010c : */	0x19000000,0x00000370,
+ /*
+ 	MOVE FROM dsa_datain+0x0350, WHEN DATA_IN
+ 
+-at 0x00000110 : */	0x19000000,0x00000378,
++at 0x0000010e : */	0x19000000,0x00000378,
+ /*
+ 	MOVE FROM dsa_datain+0x0358, WHEN DATA_IN
+ 
+-at 0x00000112 : */	0x19000000,0x00000380,
++at 0x00000110 : */	0x19000000,0x00000380,
+ /*
+ 	MOVE FROM dsa_datain+0x0360, WHEN DATA_IN
+ 
+-at 0x00000114 : */	0x19000000,0x00000388,
++at 0x00000112 : */	0x19000000,0x00000388,
+ /*
+ 	MOVE FROM dsa_datain+0x0368, WHEN DATA_IN
+ 
+-at 0x00000116 : */	0x19000000,0x00000390,
++at 0x00000114 : */	0x19000000,0x00000390,
+ /*
+ 	MOVE FROM dsa_datain+0x0370, WHEN DATA_IN
+ 
+-at 0x00000118 : */	0x19000000,0x00000398,
++at 0x00000116 : */	0x19000000,0x00000398,
+ /*
+ 	MOVE FROM dsa_datain+0x0378, WHEN DATA_IN
+ 
+-at 0x0000011a : */	0x19000000,0x000003a0,
++at 0x00000118 : */	0x19000000,0x000003a0,
+ /*
+ 	MOVE FROM dsa_datain+0x0380, WHEN DATA_IN
+ 
+-at 0x0000011c : */	0x19000000,0x000003a8,
++at 0x0000011a : */	0x19000000,0x000003a8,
+ /*
+ 	MOVE FROM dsa_datain+0x0388, WHEN DATA_IN
+ 
+-at 0x0000011e : */	0x19000000,0x000003b0,
++at 0x0000011c : */	0x19000000,0x000003b0,
+ /*
+ 	MOVE FROM dsa_datain+0x0390, WHEN DATA_IN
+ 
+-at 0x00000120 : */	0x19000000,0x000003b8,
++at 0x0000011e : */	0x19000000,0x000003b8,
+ /*
+ 	MOVE FROM dsa_datain+0x0398, WHEN DATA_IN
+ 
+-at 0x00000122 : */	0x19000000,0x000003c0,
++at 0x00000120 : */	0x19000000,0x000003c0,
+ /*
+ 	MOVE FROM dsa_datain+0x03a0, WHEN DATA_IN
+ 
+-at 0x00000124 : */	0x19000000,0x000003c8,
++at 0x00000122 : */	0x19000000,0x000003c8,
+ /*
+ 	MOVE FROM dsa_datain+0x03a8, WHEN DATA_IN
+ 
+-at 0x00000126 : */	0x19000000,0x000003d0,
++at 0x00000124 : */	0x19000000,0x000003d0,
+ /*
+ 	MOVE FROM dsa_datain+0x03b0, WHEN DATA_IN
+ 
+-at 0x00000128 : */	0x19000000,0x000003d8,
++at 0x00000126 : */	0x19000000,0x000003d8,
+ /*
+ 	MOVE FROM dsa_datain+0x03b8, WHEN DATA_IN
+ 
+-at 0x0000012a : */	0x19000000,0x000003e0,
++at 0x00000128 : */	0x19000000,0x000003e0,
+ /*
+ 	MOVE FROM dsa_datain+0x03c0, WHEN DATA_IN
+ 
+-at 0x0000012c : */	0x19000000,0x000003e8,
++at 0x0000012a : */	0x19000000,0x000003e8,
+ /*
+ 	MOVE FROM dsa_datain+0x03c8, WHEN DATA_IN
+ 
+-at 0x0000012e : */	0x19000000,0x000003f0,
++at 0x0000012c : */	0x19000000,0x000003f0,
+ /*
+ 	MOVE FROM dsa_datain+0x03d0, WHEN DATA_IN
+ 
+-at 0x00000130 : */	0x19000000,0x000003f8,
++at 0x0000012e : */	0x19000000,0x000003f8,
+ /*
+ 	MOVE FROM dsa_datain+0x03d8, WHEN DATA_IN
+ 
+-at 0x00000132 : */	0x19000000,0x00000400,
++at 0x00000130 : */	0x19000000,0x00000400,
+ /*
+ 	MOVE FROM dsa_datain+0x03e0, WHEN DATA_IN
+ 
+-at 0x00000134 : */	0x19000000,0x00000408,
++at 0x00000132 : */	0x19000000,0x00000408,
+ /*
+ 	MOVE FROM dsa_datain+0x03e8, WHEN DATA_IN
+ 
+-at 0x00000136 : */	0x19000000,0x00000410,
++at 0x00000134 : */	0x19000000,0x00000410,
+ /*
+ 	MOVE FROM dsa_datain+0x03f0, WHEN DATA_IN
+ 
+-at 0x00000138 : */	0x19000000,0x00000418,
++at 0x00000136 : */	0x19000000,0x00000418,
+ /*
+ 	MOVE FROM dsa_datain+0x03f8, WHEN DATA_IN
+ 
+-at 0x0000013a : */	0x19000000,0x00000420,
++at 0x00000138 : */	0x19000000,0x00000420,
+ /*
+ 	JUMP end_data_trans
+ 
+-at 0x0000013c : */	0x80080000,0x00000908,
++at 0x0000013a : */	0x80080000,0x00000900,
+ /*
+ 
+ output_data:
+ 	MOVE SCRATCH0 | had_dataout TO SCRATCH0
+ 
+-at 0x0000013e : */	0x7a341000,0x00000000,
++at 0x0000013c : */	0x7a341000,0x00000000,
+ /*
+ ENTRY patch_output_data
+ patch_output_data:
+ 	JUMP 0
+ 
+-at 0x00000140 : */	0x80080000,0x00000000,
++at 0x0000013e : */	0x80080000,0x00000000,
+ /*
+ 	MOVE FROM dsa_dataout+0x0000, WHEN DATA_OUT
+ 
+-at 0x00000142 : */	0x18000000,0x00000428,
++at 0x00000140 : */	0x18000000,0x00000428,
+ /*
+ 	MOVE FROM dsa_dataout+0x0008, WHEN DATA_OUT
+ 
+-at 0x00000144 : */	0x18000000,0x00000430,
++at 0x00000142 : */	0x18000000,0x00000430,
+ /*
+ 	MOVE FROM dsa_dataout+0x0010, WHEN DATA_OUT
+ 
+-at 0x00000146 : */	0x18000000,0x00000438,
++at 0x00000144 : */	0x18000000,0x00000438,
+ /*
+ 	MOVE FROM dsa_dataout+0x0018, WHEN DATA_OUT
+ 
+-at 0x00000148 : */	0x18000000,0x00000440,
++at 0x00000146 : */	0x18000000,0x00000440,
+ /*
+ 	MOVE FROM dsa_dataout+0x0020, WHEN DATA_OUT
+ 
+-at 0x0000014a : */	0x18000000,0x00000448,
++at 0x00000148 : */	0x18000000,0x00000448,
+ /*
+ 	MOVE FROM dsa_dataout+0x0028, WHEN DATA_OUT
+ 
+-at 0x0000014c : */	0x18000000,0x00000450,
++at 0x0000014a : */	0x18000000,0x00000450,
+ /*
+ 	MOVE FROM dsa_dataout+0x0030, WHEN DATA_OUT
+ 
+-at 0x0000014e : */	0x18000000,0x00000458,
++at 0x0000014c : */	0x18000000,0x00000458,
+ /*
+ 	MOVE FROM dsa_dataout+0x0038, WHEN DATA_OUT
+ 
+-at 0x00000150 : */	0x18000000,0x00000460,
++at 0x0000014e : */	0x18000000,0x00000460,
+ /*
+ 	MOVE FROM dsa_dataout+0x0040, WHEN DATA_OUT
+ 
+-at 0x00000152 : */	0x18000000,0x00000468,
++at 0x00000150 : */	0x18000000,0x00000468,
+ /*
+ 	MOVE FROM dsa_dataout+0x0048, WHEN DATA_OUT
+ 
+-at 0x00000154 : */	0x18000000,0x00000470,
++at 0x00000152 : */	0x18000000,0x00000470,
+ /*
+ 	MOVE FROM dsa_dataout+0x0050, WHEN DATA_OUT
+ 
+-at 0x00000156 : */	0x18000000,0x00000478,
++at 0x00000154 : */	0x18000000,0x00000478,
+ /*
+ 	MOVE FROM dsa_dataout+0x0058, WHEN DATA_OUT
+ 
+-at 0x00000158 : */	0x18000000,0x00000480,
++at 0x00000156 : */	0x18000000,0x00000480,
+ /*
+ 	MOVE FROM dsa_dataout+0x0060, WHEN DATA_OUT
+ 
+-at 0x0000015a : */	0x18000000,0x00000488,
++at 0x00000158 : */	0x18000000,0x00000488,
+ /*
+ 	MOVE FROM dsa_dataout+0x0068, WHEN DATA_OUT
+ 
+-at 0x0000015c : */	0x18000000,0x00000490,
++at 0x0000015a : */	0x18000000,0x00000490,
+ /*
+ 	MOVE FROM dsa_dataout+0x0070, WHEN DATA_OUT
+ 
+-at 0x0000015e : */	0x18000000,0x00000498,
++at 0x0000015c : */	0x18000000,0x00000498,
+ /*
+ 	MOVE FROM dsa_dataout+0x0078, WHEN DATA_OUT
+ 
+-at 0x00000160 : */	0x18000000,0x000004a0,
++at 0x0000015e : */	0x18000000,0x000004a0,
+ /*
+ 	MOVE FROM dsa_dataout+0x0080, WHEN DATA_OUT
+ 
+-at 0x00000162 : */	0x18000000,0x000004a8,
++at 0x00000160 : */	0x18000000,0x000004a8,
+ /*
+ 	MOVE FROM dsa_dataout+0x0088, WHEN DATA_OUT
+ 
+-at 0x00000164 : */	0x18000000,0x000004b0,
++at 0x00000162 : */	0x18000000,0x000004b0,
+ /*
+ 	MOVE FROM dsa_dataout+0x0090, WHEN DATA_OUT
+ 
+-at 0x00000166 : */	0x18000000,0x000004b8,
++at 0x00000164 : */	0x18000000,0x000004b8,
+ /*
+ 	MOVE FROM dsa_dataout+0x0098, WHEN DATA_OUT
+ 
+-at 0x00000168 : */	0x18000000,0x000004c0,
++at 0x00000166 : */	0x18000000,0x000004c0,
+ /*
+ 	MOVE FROM dsa_dataout+0x00a0, WHEN DATA_OUT
+ 
+-at 0x0000016a : */	0x18000000,0x000004c8,
++at 0x00000168 : */	0x18000000,0x000004c8,
+ /*
+ 	MOVE FROM dsa_dataout+0x00a8, WHEN DATA_OUT
+ 
+-at 0x0000016c : */	0x18000000,0x000004d0,
++at 0x0000016a : */	0x18000000,0x000004d0,
+ /*
+ 	MOVE FROM dsa_dataout+0x00b0, WHEN DATA_OUT
+ 
+-at 0x0000016e : */	0x18000000,0x000004d8,
++at 0x0000016c : */	0x18000000,0x000004d8,
+ /*
+ 	MOVE FROM dsa_dataout+0x00b8, WHEN DATA_OUT
+ 
+-at 0x00000170 : */	0x18000000,0x000004e0,
++at 0x0000016e : */	0x18000000,0x000004e0,
+ /*
+ 	MOVE FROM dsa_dataout+0x00c0, WHEN DATA_OUT
+ 
+-at 0x00000172 : */	0x18000000,0x000004e8,
++at 0x00000170 : */	0x18000000,0x000004e8,
+ /*
+ 	MOVE FROM dsa_dataout+0x00c8, WHEN DATA_OUT
+ 
+-at 0x00000174 : */	0x18000000,0x000004f0,
++at 0x00000172 : */	0x18000000,0x000004f0,
+ /*
+ 	MOVE FROM dsa_dataout+0x00d0, WHEN DATA_OUT
+ 
+-at 0x00000176 : */	0x18000000,0x000004f8,
++at 0x00000174 : */	0x18000000,0x000004f8,
+ /*
+ 	MOVE FROM dsa_dataout+0x00d8, WHEN DATA_OUT
+ 
+-at 0x00000178 : */	0x18000000,0x00000500,
++at 0x00000176 : */	0x18000000,0x00000500,
+ /*
+ 	MOVE FROM dsa_dataout+0x00e0, WHEN DATA_OUT
+ 
+-at 0x0000017a : */	0x18000000,0x00000508,
++at 0x00000178 : */	0x18000000,0x00000508,
+ /*
+ 	MOVE FROM dsa_dataout+0x00e8, WHEN DATA_OUT
+ 
+-at 0x0000017c : */	0x18000000,0x00000510,
++at 0x0000017a : */	0x18000000,0x00000510,
+ /*
+ 	MOVE FROM dsa_dataout+0x00f0, WHEN DATA_OUT
+ 
+-at 0x0000017e : */	0x18000000,0x00000518,
++at 0x0000017c : */	0x18000000,0x00000518,
+ /*
+ 	MOVE FROM dsa_dataout+0x00f8, WHEN DATA_OUT
+ 
+-at 0x00000180 : */	0x18000000,0x00000520,
++at 0x0000017e : */	0x18000000,0x00000520,
+ /*
+ 	MOVE FROM dsa_dataout+0x0100, WHEN DATA_OUT
+ 
+-at 0x00000182 : */	0x18000000,0x00000528,
++at 0x00000180 : */	0x18000000,0x00000528,
+ /*
+ 	MOVE FROM dsa_dataout+0x0108, WHEN DATA_OUT
+ 
+-at 0x00000184 : */	0x18000000,0x00000530,
++at 0x00000182 : */	0x18000000,0x00000530,
+ /*
+ 	MOVE FROM dsa_dataout+0x0110, WHEN DATA_OUT
+ 
+-at 0x00000186 : */	0x18000000,0x00000538,
++at 0x00000184 : */	0x18000000,0x00000538,
+ /*
+ 	MOVE FROM dsa_dataout+0x0118, WHEN DATA_OUT
+ 
+-at 0x00000188 : */	0x18000000,0x00000540,
++at 0x00000186 : */	0x18000000,0x00000540,
+ /*
+ 	MOVE FROM dsa_dataout+0x0120, WHEN DATA_OUT
+ 
+-at 0x0000018a : */	0x18000000,0x00000548,
++at 0x00000188 : */	0x18000000,0x00000548,
+ /*
+ 	MOVE FROM dsa_dataout+0x0128, WHEN DATA_OUT
+ 
+-at 0x0000018c : */	0x18000000,0x00000550,
++at 0x0000018a : */	0x18000000,0x00000550,
+ /*
+ 	MOVE FROM dsa_dataout+0x0130, WHEN DATA_OUT
+ 
+-at 0x0000018e : */	0x18000000,0x00000558,
++at 0x0000018c : */	0x18000000,0x00000558,
+ /*
+ 	MOVE FROM dsa_dataout+0x0138, WHEN DATA_OUT
+ 
+-at 0x00000190 : */	0x18000000,0x00000560,
++at 0x0000018e : */	0x18000000,0x00000560,
+ /*
+ 	MOVE FROM dsa_dataout+0x0140, WHEN DATA_OUT
+ 
+-at 0x00000192 : */	0x18000000,0x00000568,
++at 0x00000190 : */	0x18000000,0x00000568,
+ /*
+ 	MOVE FROM dsa_dataout+0x0148, WHEN DATA_OUT
+ 
+-at 0x00000194 : */	0x18000000,0x00000570,
++at 0x00000192 : */	0x18000000,0x00000570,
+ /*
+ 	MOVE FROM dsa_dataout+0x0150, WHEN DATA_OUT
+ 
+-at 0x00000196 : */	0x18000000,0x00000578,
++at 0x00000194 : */	0x18000000,0x00000578,
+ /*
+ 	MOVE FROM dsa_dataout+0x0158, WHEN DATA_OUT
+ 
+-at 0x00000198 : */	0x18000000,0x00000580,
++at 0x00000196 : */	0x18000000,0x00000580,
+ /*
+ 	MOVE FROM dsa_dataout+0x0160, WHEN DATA_OUT
+ 
+-at 0x0000019a : */	0x18000000,0x00000588,
++at 0x00000198 : */	0x18000000,0x00000588,
+ /*
+ 	MOVE FROM dsa_dataout+0x0168, WHEN DATA_OUT
+ 
+-at 0x0000019c : */	0x18000000,0x00000590,
++at 0x0000019a : */	0x18000000,0x00000590,
+ /*
+ 	MOVE FROM dsa_dataout+0x0170, WHEN DATA_OUT
+ 
+-at 0x0000019e : */	0x18000000,0x00000598,
++at 0x0000019c : */	0x18000000,0x00000598,
+ /*
+ 	MOVE FROM dsa_dataout+0x0178, WHEN DATA_OUT
+ 
+-at 0x000001a0 : */	0x18000000,0x000005a0,
++at 0x0000019e : */	0x18000000,0x000005a0,
+ /*
+ 	MOVE FROM dsa_dataout+0x0180, WHEN DATA_OUT
+ 
+-at 0x000001a2 : */	0x18000000,0x000005a8,
++at 0x000001a0 : */	0x18000000,0x000005a8,
+ /*
+ 	MOVE FROM dsa_dataout+0x0188, WHEN DATA_OUT
+ 
+-at 0x000001a4 : */	0x18000000,0x000005b0,
++at 0x000001a2 : */	0x18000000,0x000005b0,
+ /*
+ 	MOVE FROM dsa_dataout+0x0190, WHEN DATA_OUT
+ 
+-at 0x000001a6 : */	0x18000000,0x000005b8,
++at 0x000001a4 : */	0x18000000,0x000005b8,
+ /*
+ 	MOVE FROM dsa_dataout+0x0198, WHEN DATA_OUT
+ 
+-at 0x000001a8 : */	0x18000000,0x000005c0,
++at 0x000001a6 : */	0x18000000,0x000005c0,
+ /*
+ 	MOVE FROM dsa_dataout+0x01a0, WHEN DATA_OUT
+ 
+-at 0x000001aa : */	0x18000000,0x000005c8,
++at 0x000001a8 : */	0x18000000,0x000005c8,
+ /*
+ 	MOVE FROM dsa_dataout+0x01a8, WHEN DATA_OUT
+ 
+-at 0x000001ac : */	0x18000000,0x000005d0,
++at 0x000001aa : */	0x18000000,0x000005d0,
+ /*
+ 	MOVE FROM dsa_dataout+0x01b0, WHEN DATA_OUT
+ 
+-at 0x000001ae : */	0x18000000,0x000005d8,
++at 0x000001ac : */	0x18000000,0x000005d8,
+ /*
+ 	MOVE FROM dsa_dataout+0x01b8, WHEN DATA_OUT
+ 
+-at 0x000001b0 : */	0x18000000,0x000005e0,
++at 0x000001ae : */	0x18000000,0x000005e0,
+ /*
+ 	MOVE FROM dsa_dataout+0x01c0, WHEN DATA_OUT
+ 
+-at 0x000001b2 : */	0x18000000,0x000005e8,
++at 0x000001b0 : */	0x18000000,0x000005e8,
+ /*
+ 	MOVE FROM dsa_dataout+0x01c8, WHEN DATA_OUT
+ 
+-at 0x000001b4 : */	0x18000000,0x000005f0,
++at 0x000001b2 : */	0x18000000,0x000005f0,
+ /*
+ 	MOVE FROM dsa_dataout+0x01d0, WHEN DATA_OUT
+ 
+-at 0x000001b6 : */	0x18000000,0x000005f8,
++at 0x000001b4 : */	0x18000000,0x000005f8,
+ /*
+ 	MOVE FROM dsa_dataout+0x01d8, WHEN DATA_OUT
+ 
+-at 0x000001b8 : */	0x18000000,0x00000600,
++at 0x000001b6 : */	0x18000000,0x00000600,
+ /*
+ 	MOVE FROM dsa_dataout+0x01e0, WHEN DATA_OUT
+ 
+-at 0x000001ba : */	0x18000000,0x00000608,
++at 0x000001b8 : */	0x18000000,0x00000608,
+ /*
+ 	MOVE FROM dsa_dataout+0x01e8, WHEN DATA_OUT
+ 
+-at 0x000001bc : */	0x18000000,0x00000610,
++at 0x000001ba : */	0x18000000,0x00000610,
+ /*
+ 	MOVE FROM dsa_dataout+0x01f0, WHEN DATA_OUT
+ 
+-at 0x000001be : */	0x18000000,0x00000618,
++at 0x000001bc : */	0x18000000,0x00000618,
+ /*
+ 	MOVE FROM dsa_dataout+0x01f8, WHEN DATA_OUT
+ 
+-at 0x000001c0 : */	0x18000000,0x00000620,
++at 0x000001be : */	0x18000000,0x00000620,
+ /*
+ 	MOVE FROM dsa_dataout+0x0200, WHEN DATA_OUT
+ 
+-at 0x000001c2 : */	0x18000000,0x00000628,
++at 0x000001c0 : */	0x18000000,0x00000628,
+ /*
+ 	MOVE FROM dsa_dataout+0x0208, WHEN DATA_OUT
+ 
+-at 0x000001c4 : */	0x18000000,0x00000630,
++at 0x000001c2 : */	0x18000000,0x00000630,
+ /*
+ 	MOVE FROM dsa_dataout+0x0210, WHEN DATA_OUT
+ 
+-at 0x000001c6 : */	0x18000000,0x00000638,
++at 0x000001c4 : */	0x18000000,0x00000638,
+ /*
+ 	MOVE FROM dsa_dataout+0x0218, WHEN DATA_OUT
+ 
+-at 0x000001c8 : */	0x18000000,0x00000640,
++at 0x000001c6 : */	0x18000000,0x00000640,
+ /*
+ 	MOVE FROM dsa_dataout+0x0220, WHEN DATA_OUT
+ 
+-at 0x000001ca : */	0x18000000,0x00000648,
++at 0x000001c8 : */	0x18000000,0x00000648,
+ /*
+ 	MOVE FROM dsa_dataout+0x0228, WHEN DATA_OUT
+ 
+-at 0x000001cc : */	0x18000000,0x00000650,
++at 0x000001ca : */	0x18000000,0x00000650,
+ /*
+ 	MOVE FROM dsa_dataout+0x0230, WHEN DATA_OUT
+ 
+-at 0x000001ce : */	0x18000000,0x00000658,
++at 0x000001cc : */	0x18000000,0x00000658,
+ /*
+ 	MOVE FROM dsa_dataout+0x0238, WHEN DATA_OUT
+ 
+-at 0x000001d0 : */	0x18000000,0x00000660,
++at 0x000001ce : */	0x18000000,0x00000660,
+ /*
+ 	MOVE FROM dsa_dataout+0x0240, WHEN DATA_OUT
+ 
+-at 0x000001d2 : */	0x18000000,0x00000668,
++at 0x000001d0 : */	0x18000000,0x00000668,
+ /*
+ 	MOVE FROM dsa_dataout+0x0248, WHEN DATA_OUT
+ 
+-at 0x000001d4 : */	0x18000000,0x00000670,
++at 0x000001d2 : */	0x18000000,0x00000670,
+ /*
+ 	MOVE FROM dsa_dataout+0x0250, WHEN DATA_OUT
+ 
+-at 0x000001d6 : */	0x18000000,0x00000678,
++at 0x000001d4 : */	0x18000000,0x00000678,
+ /*
+ 	MOVE FROM dsa_dataout+0x0258, WHEN DATA_OUT
+ 
+-at 0x000001d8 : */	0x18000000,0x00000680,
++at 0x000001d6 : */	0x18000000,0x00000680,
+ /*
+ 	MOVE FROM dsa_dataout+0x0260, WHEN DATA_OUT
+ 
+-at 0x000001da : */	0x18000000,0x00000688,
++at 0x000001d8 : */	0x18000000,0x00000688,
+ /*
+ 	MOVE FROM dsa_dataout+0x0268, WHEN DATA_OUT
+ 
+-at 0x000001dc : */	0x18000000,0x00000690,
++at 0x000001da : */	0x18000000,0x00000690,
+ /*
+ 	MOVE FROM dsa_dataout+0x0270, WHEN DATA_OUT
+ 
+-at 0x000001de : */	0x18000000,0x00000698,
++at 0x000001dc : */	0x18000000,0x00000698,
+ /*
+ 	MOVE FROM dsa_dataout+0x0278, WHEN DATA_OUT
+ 
+-at 0x000001e0 : */	0x18000000,0x000006a0,
++at 0x000001de : */	0x18000000,0x000006a0,
+ /*
+ 	MOVE FROM dsa_dataout+0x0280, WHEN DATA_OUT
+ 
+-at 0x000001e2 : */	0x18000000,0x000006a8,
++at 0x000001e0 : */	0x18000000,0x000006a8,
+ /*
+ 	MOVE FROM dsa_dataout+0x0288, WHEN DATA_OUT
+ 
+-at 0x000001e4 : */	0x18000000,0x000006b0,
++at 0x000001e2 : */	0x18000000,0x000006b0,
+ /*
+ 	MOVE FROM dsa_dataout+0x0290, WHEN DATA_OUT
+ 
+-at 0x000001e6 : */	0x18000000,0x000006b8,
++at 0x000001e4 : */	0x18000000,0x000006b8,
+ /*
+ 	MOVE FROM dsa_dataout+0x0298, WHEN DATA_OUT
+ 
+-at 0x000001e8 : */	0x18000000,0x000006c0,
++at 0x000001e6 : */	0x18000000,0x000006c0,
+ /*
+ 	MOVE FROM dsa_dataout+0x02a0, WHEN DATA_OUT
+ 
+-at 0x000001ea : */	0x18000000,0x000006c8,
++at 0x000001e8 : */	0x18000000,0x000006c8,
+ /*
+ 	MOVE FROM dsa_dataout+0x02a8, WHEN DATA_OUT
+ 
+-at 0x000001ec : */	0x18000000,0x000006d0,
++at 0x000001ea : */	0x18000000,0x000006d0,
+ /*
+ 	MOVE FROM dsa_dataout+0x02b0, WHEN DATA_OUT
+ 
+-at 0x000001ee : */	0x18000000,0x000006d8,
++at 0x000001ec : */	0x18000000,0x000006d8,
+ /*
+ 	MOVE FROM dsa_dataout+0x02b8, WHEN DATA_OUT
+ 
+-at 0x000001f0 : */	0x18000000,0x000006e0,
++at 0x000001ee : */	0x18000000,0x000006e0,
+ /*
+ 	MOVE FROM dsa_dataout+0x02c0, WHEN DATA_OUT
+ 
+-at 0x000001f2 : */	0x18000000,0x000006e8,
++at 0x000001f0 : */	0x18000000,0x000006e8,
+ /*
+ 	MOVE FROM dsa_dataout+0x02c8, WHEN DATA_OUT
+ 
+-at 0x000001f4 : */	0x18000000,0x000006f0,
++at 0x000001f2 : */	0x18000000,0x000006f0,
+ /*
+ 	MOVE FROM dsa_dataout+0x02d0, WHEN DATA_OUT
+ 
+-at 0x000001f6 : */	0x18000000,0x000006f8,
++at 0x000001f4 : */	0x18000000,0x000006f8,
+ /*
+ 	MOVE FROM dsa_dataout+0x02d8, WHEN DATA_OUT
+ 
+-at 0x000001f8 : */	0x18000000,0x00000700,
++at 0x000001f6 : */	0x18000000,0x00000700,
+ /*
+ 	MOVE FROM dsa_dataout+0x02e0, WHEN DATA_OUT
+ 
+-at 0x000001fa : */	0x18000000,0x00000708,
++at 0x000001f8 : */	0x18000000,0x00000708,
+ /*
+ 	MOVE FROM dsa_dataout+0x02e8, WHEN DATA_OUT
+ 
+-at 0x000001fc : */	0x18000000,0x00000710,
++at 0x000001fa : */	0x18000000,0x00000710,
+ /*
+ 	MOVE FROM dsa_dataout+0x02f0, WHEN DATA_OUT
+ 
+-at 0x000001fe : */	0x18000000,0x00000718,
++at 0x000001fc : */	0x18000000,0x00000718,
+ /*
+ 	MOVE FROM dsa_dataout+0x02f8, WHEN DATA_OUT
+ 
+-at 0x00000200 : */	0x18000000,0x00000720,
++at 0x000001fe : */	0x18000000,0x00000720,
+ /*
+ 	MOVE FROM dsa_dataout+0x0300, WHEN DATA_OUT
+ 
+-at 0x00000202 : */	0x18000000,0x00000728,
++at 0x00000200 : */	0x18000000,0x00000728,
+ /*
+ 	MOVE FROM dsa_dataout+0x0308, WHEN DATA_OUT
+ 
+-at 0x00000204 : */	0x18000000,0x00000730,
++at 0x00000202 : */	0x18000000,0x00000730,
+ /*
+ 	MOVE FROM dsa_dataout+0x0310, WHEN DATA_OUT
+ 
+-at 0x00000206 : */	0x18000000,0x00000738,
++at 0x00000204 : */	0x18000000,0x00000738,
+ /*
+ 	MOVE FROM dsa_dataout+0x0318, WHEN DATA_OUT
+ 
+-at 0x00000208 : */	0x18000000,0x00000740,
++at 0x00000206 : */	0x18000000,0x00000740,
+ /*
+ 	MOVE FROM dsa_dataout+0x0320, WHEN DATA_OUT
+ 
+-at 0x0000020a : */	0x18000000,0x00000748,
++at 0x00000208 : */	0x18000000,0x00000748,
+ /*
+ 	MOVE FROM dsa_dataout+0x0328, WHEN DATA_OUT
+ 
+-at 0x0000020c : */	0x18000000,0x00000750,
++at 0x0000020a : */	0x18000000,0x00000750,
+ /*
+ 	MOVE FROM dsa_dataout+0x0330, WHEN DATA_OUT
+ 
+-at 0x0000020e : */	0x18000000,0x00000758,
++at 0x0000020c : */	0x18000000,0x00000758,
+ /*
+ 	MOVE FROM dsa_dataout+0x0338, WHEN DATA_OUT
+ 
+-at 0x00000210 : */	0x18000000,0x00000760,
++at 0x0000020e : */	0x18000000,0x00000760,
+ /*
+ 	MOVE FROM dsa_dataout+0x0340, WHEN DATA_OUT
+ 
+-at 0x00000212 : */	0x18000000,0x00000768,
++at 0x00000210 : */	0x18000000,0x00000768,
+ /*
+ 	MOVE FROM dsa_dataout+0x0348, WHEN DATA_OUT
+ 
+-at 0x00000214 : */	0x18000000,0x00000770,
++at 0x00000212 : */	0x18000000,0x00000770,
+ /*
+ 	MOVE FROM dsa_dataout+0x0350, WHEN DATA_OUT
+ 
+-at 0x00000216 : */	0x18000000,0x00000778,
++at 0x00000214 : */	0x18000000,0x00000778,
+ /*
+ 	MOVE FROM dsa_dataout+0x0358, WHEN DATA_OUT
+ 
+-at 0x00000218 : */	0x18000000,0x00000780,
++at 0x00000216 : */	0x18000000,0x00000780,
+ /*
+ 	MOVE FROM dsa_dataout+0x0360, WHEN DATA_OUT
+ 
+-at 0x0000021a : */	0x18000000,0x00000788,
++at 0x00000218 : */	0x18000000,0x00000788,
+ /*
+ 	MOVE FROM dsa_dataout+0x0368, WHEN DATA_OUT
+ 
+-at 0x0000021c : */	0x18000000,0x00000790,
++at 0x0000021a : */	0x18000000,0x00000790,
+ /*
+ 	MOVE FROM dsa_dataout+0x0370, WHEN DATA_OUT
+ 
+-at 0x0000021e : */	0x18000000,0x00000798,
++at 0x0000021c : */	0x18000000,0x00000798,
+ /*
+ 	MOVE FROM dsa_dataout+0x0378, WHEN DATA_OUT
+ 
+-at 0x00000220 : */	0x18000000,0x000007a0,
++at 0x0000021e : */	0x18000000,0x000007a0,
+ /*
+ 	MOVE FROM dsa_dataout+0x0380, WHEN DATA_OUT
+ 
+-at 0x00000222 : */	0x18000000,0x000007a8,
++at 0x00000220 : */	0x18000000,0x000007a8,
+ /*
+ 	MOVE FROM dsa_dataout+0x0388, WHEN DATA_OUT
+ 
+-at 0x00000224 : */	0x18000000,0x000007b0,
++at 0x00000222 : */	0x18000000,0x000007b0,
+ /*
+ 	MOVE FROM dsa_dataout+0x0390, WHEN DATA_OUT
+ 
+-at 0x00000226 : */	0x18000000,0x000007b8,
++at 0x00000224 : */	0x18000000,0x000007b8,
+ /*
+ 	MOVE FROM dsa_dataout+0x0398, WHEN DATA_OUT
+ 
+-at 0x00000228 : */	0x18000000,0x000007c0,
++at 0x00000226 : */	0x18000000,0x000007c0,
+ /*
+ 	MOVE FROM dsa_dataout+0x03a0, WHEN DATA_OUT
+ 
+-at 0x0000022a : */	0x18000000,0x000007c8,
++at 0x00000228 : */	0x18000000,0x000007c8,
+ /*
+ 	MOVE FROM dsa_dataout+0x03a8, WHEN DATA_OUT
+ 
+-at 0x0000022c : */	0x18000000,0x000007d0,
++at 0x0000022a : */	0x18000000,0x000007d0,
+ /*
+ 	MOVE FROM dsa_dataout+0x03b0, WHEN DATA_OUT
+ 
+-at 0x0000022e : */	0x18000000,0x000007d8,
++at 0x0000022c : */	0x18000000,0x000007d8,
+ /*
+ 	MOVE FROM dsa_dataout+0x03b8, WHEN DATA_OUT
+ 
+-at 0x00000230 : */	0x18000000,0x000007e0,
++at 0x0000022e : */	0x18000000,0x000007e0,
+ /*
+ 	MOVE FROM dsa_dataout+0x03c0, WHEN DATA_OUT
+ 
+-at 0x00000232 : */	0x18000000,0x000007e8,
++at 0x00000230 : */	0x18000000,0x000007e8,
+ /*
+ 	MOVE FROM dsa_dataout+0x03c8, WHEN DATA_OUT
+ 
+-at 0x00000234 : */	0x18000000,0x000007f0,
++at 0x00000232 : */	0x18000000,0x000007f0,
+ /*
+ 	MOVE FROM dsa_dataout+0x03d0, WHEN DATA_OUT
+ 
+-at 0x00000236 : */	0x18000000,0x000007f8,
++at 0x00000234 : */	0x18000000,0x000007f8,
+ /*
+ 	MOVE FROM dsa_dataout+0x03d8, WHEN DATA_OUT
+ 
+-at 0x00000238 : */	0x18000000,0x00000800,
++at 0x00000236 : */	0x18000000,0x00000800,
+ /*
+ 	MOVE FROM dsa_dataout+0x03e0, WHEN DATA_OUT
+ 
+-at 0x0000023a : */	0x18000000,0x00000808,
++at 0x00000238 : */	0x18000000,0x00000808,
+ /*
+ 	MOVE FROM dsa_dataout+0x03e8, WHEN DATA_OUT
+ 
+-at 0x0000023c : */	0x18000000,0x00000810,
++at 0x0000023a : */	0x18000000,0x00000810,
+ /*
+ 	MOVE FROM dsa_dataout+0x03f0, WHEN DATA_OUT
+ 
+-at 0x0000023e : */	0x18000000,0x00000818,
++at 0x0000023c : */	0x18000000,0x00000818,
+ /*
+ 	MOVE FROM dsa_dataout+0x03f8, WHEN DATA_OUT
+ 
+-at 0x00000240 : */	0x18000000,0x00000820,
++at 0x0000023e : */	0x18000000,0x00000820,
+ /*
+ ENTRY end_data_trans
+ end_data_trans:
+ redo_msgin3:
+ 	JUMP get_status, WHEN STATUS
+ 
+-at 0x00000242 : */	0x830b0000,0x000000a0,
++at 0x00000240 : */	0x830b0000,0x00000098,
+ /*
+ 	JUMP get_msgin3, WHEN MSG_IN
+ 
+-at 0x00000244 : */	0x870b0000,0x00000b20,
++at 0x00000242 : */	0x870b0000,0x00000b78,
+ /*
+ 	INT int_data_bad_phase
+ 
+-at 0x00000246 : */	0x98080000,0xab93000b,
++at 0x00000244 : */	0x98080000,0xab93000b,
+ /*
+ 
+ get_msgin1:
+ 	MOVE SCRATCH0 | had_msgin TO SCRATCH0
+ 
+-at 0x00000248 : */	0x7a344000,0x00000000,
++at 0x00000246 : */	0x7a344000,0x00000000,
+ /*
+ 	MOVE 1, msgin_buf, WHEN MSG_IN
+ 
+-at 0x0000024a : */	0x0f000001,0x00000000,
++at 0x00000248 : */	0x0f000001,0x00000000,
+ /*
+ 	JUMP ext_msg1, IF 0x01		; Extended Message
+ 
+-at 0x0000024c : */	0x800c0001,0x00000968,
++at 0x0000024a : */	0x800c0001,0x00000960,
+ /*
+ 	JUMP ignore_msg1, IF 0x02	; Save Data Pointers
+ 
+-at 0x0000024e : */	0x800c0002,0x00000958,
++at 0x0000024c : */	0x800c0002,0x00000950,
+ /*
+ 	JUMP ignore_msg1, IF 0x03	; Save Restore Pointers
+ 
+-at 0x00000250 : */	0x800c0003,0x00000958,
++at 0x0000024e : */	0x800c0003,0x00000950,
+ /*
+ 	JUMP disc1, IF 0x04		; Disconnect
+ 
+-at 0x00000252 : */	0x800c0004,0x000009c8,
++at 0x00000250 : */	0x800c0004,0x000009f0,
+ /*
+ 	INT int_bad_msg1
+ 
+-at 0x00000254 : */	0x98080000,0xab930006,
++at 0x00000252 : */	0x98080000,0xab930006,
+ /*
+ ignore_msg1:
+ 	CLEAR ACK
+ 
+-at 0x00000256 : */	0x60000040,0x00000000,
++at 0x00000254 : */	0x60000040,0x00000000,
+ /*
+ 	JUMP redo_msgin1
+ 
+-at 0x00000258 : */	0x80080000,0x00000058,
++at 0x00000256 : */	0x80080000,0x00000050,
+ /*
+ ext_msg1:
+ 	MOVE SCRATCH0 | had_extmsg TO SCRATCH0
+ 
+-at 0x0000025a : */	0x7a348000,0x00000000,
++at 0x00000258 : */	0x7a348000,0x00000000,
+ /*
+ 	CLEAR ACK
+ 
+-at 0x0000025c : */	0x60000040,0x00000000,
++at 0x0000025a : */	0x60000040,0x00000000,
+ /*
+ 	MOVE 1, msgin_buf + 1, WHEN MSG_IN
+ 
+-at 0x0000025e : */	0x0f000001,0x00000001,
++at 0x0000025c : */	0x0f000001,0x00000001,
+ /*
+-	JUMP ext_msg1a, IF 0x03
++	JUMP reject_msg1, IF NOT 0x03	; Only handle SDTR
+ 
+-at 0x00000260 : */	0x800c0003,0x00000990,
++at 0x0000025e : */	0x80040003,0x000009b0,
+ /*
+-	INT int_bad_extmsg1a
++	CLEAR ACK
+ 
+-at 0x00000262 : */	0x98080000,0xab930000,
++at 0x00000260 : */	0x60000040,0x00000000,
++/*
++	MOVE 1, msgin_buf + 2, WHEN MSG_IN
++
++at 0x00000262 : */	0x0f000001,0x00000002,
++/*
++	JUMP reject_msg1, IF NOT 0x01	; Only handle SDTR
++
++at 0x00000264 : */	0x80040001,0x000009b0,
+ /*
+-ext_msg1a:
+ 	CLEAR ACK
+ 
+-at 0x00000264 : */	0x60000040,0x00000000,
++at 0x00000266 : */	0x60000040,0x00000000,
+ /*
+-	MOVE 1, msgin_buf + 2, WHEN MSG_IN
++	MOVE 2, msgin_buf + 3, WHEN MSG_IN
+ 
+-at 0x00000266 : */	0x0f000001,0x00000002,
++at 0x00000268 : */	0x0f000002,0x00000003,
+ /*
+-	JUMP ext_msg1b, IF 0x01		; Must be SDTR
++	INT int_msg_sdtr1
++
++at 0x0000026a : */	0x98080000,0xab93000c,
++/*
++reject_msg1:
++	MOVE SCRATCH1 | did_reject TO SCRATCH1
+ 
+-at 0x00000268 : */	0x800c0001,0x000009b0,
++at 0x0000026c : */	0x7a350100,0x00000000,
+ /*
+-	INT int_bad_extmsg1b
++	SET ATN
+ 
+-at 0x0000026a : */	0x98080000,0xab930001,
++at 0x0000026e : */	0x58000008,0x00000000,
+ /*
+-ext_msg1b:
+ 	CLEAR ACK
+ 
+-at 0x0000026c : */	0x60000040,0x00000000,
++at 0x00000270 : */	0x60000040,0x00000000,
+ /*
+-	MOVE 2, msgin_buf + 3, WHEN MSG_IN
++	JUMP reject_msg1a, WHEN NOT MSG_IN
+ 
+-at 0x0000026e : */	0x0f000002,0x00000003,
++at 0x00000272 : */	0x87030000,0x000009e0,
+ /*
+-	INT int_msg_sdtr1
++	MOVE 1, msgin_buf + 7, WHEN MSG_IN
+ 
+-at 0x00000270 : */	0x98080000,0xab93000c,
++at 0x00000274 : */	0x0f000001,0x00000007,
++/*
++	JUMP reject_msg1
++
++at 0x00000276 : */	0x80080000,0x000009b0,
++/*
++reject_msg1a:
++	MOVE 1, msg_reject, WHEN MSG_OUT
++
++at 0x00000278 : */	0x0e000001,0x00000000,
++/*
++	JUMP redo_msgin1
++
++at 0x0000027a : */	0x80080000,0x00000050,
+ /*
+ disc1:
+ 	CLEAR ACK
+ 
+-at 0x00000272 : */	0x60000040,0x00000000,
++at 0x0000027c : */	0x60000040,0x00000000,
+ /*
+ ENTRY wait_disc1
+ wait_disc1:
+ 	WAIT DISCONNECT
+ 
+-at 0x00000274 : */	0x48000000,0x00000000,
++at 0x0000027e : */	0x48000000,0x00000000,
+ /*
+ 	INT int_disc1
+ 
+-at 0x00000276 : */	0x98080000,0xab930019,
++at 0x00000280 : */	0x98080000,0xab930019,
+ /*
+ ENTRY resume_msgin1a
+ resume_msgin1a:
+ 	CLEAR ACK
+ 
+-at 0x00000278 : */	0x60000040,0x00000000,
++at 0x00000282 : */	0x60000040,0x00000000,
+ /*
+ 	JUMP redo_msgin1
+ 
+-at 0x0000027a : */	0x80080000,0x00000058,
++at 0x00000284 : */	0x80080000,0x00000050,
+ /*
+ ENTRY resume_msgin1b
+ resume_msgin1b:
+ 	SET ATN
+ 
+-at 0x0000027c : */	0x58000008,0x00000000,
++at 0x00000286 : */	0x58000008,0x00000000,
+ /*
+ 	CLEAR ACK
+ 
+-at 0x0000027e : */	0x60000040,0x00000000,
++at 0x00000288 : */	0x60000040,0x00000000,
+ /*
+ 	INT int_no_msgout1, WHEN NOT MSG_OUT
+ 
+-at 0x00000280 : */	0x9e030000,0xab93000f,
++at 0x0000028a : */	0x9e030000,0xab93000f,
+ /*
+ 	MOVE SCRATCH0 | had_msgout TO SCRATCH0
+ 
+-at 0x00000282 : */	0x7a340200,0x00000000,
++at 0x0000028c : */	0x7a340200,0x00000000,
+ /*
+ 	MOVE FROM dsa_msgout, when MSG_OUT
+ 
+-at 0x00000284 : */	0x1e000000,0x00000008,
++at 0x0000028e : */	0x1e000000,0x00000008,
+ /*
+ 	JUMP redo_msgin1
+ 
+-at 0x00000286 : */	0x80080000,0x00000058,
++at 0x00000290 : */	0x80080000,0x00000050,
+ /*
+ 
+ get_msgin2:
+ 	MOVE SCRATCH0 | had_msgin TO SCRATCH0
+ 
+-at 0x00000288 : */	0x7a344000,0x00000000,
++at 0x00000292 : */	0x7a344000,0x00000000,
+ /*
+ 	MOVE 1, msgin_buf, WHEN MSG_IN
+ 
+-at 0x0000028a : */	0x0f000001,0x00000000,
++at 0x00000294 : */	0x0f000001,0x00000000,
+ /*
+ 	JUMP ext_msg2, IF 0x01		; Extended Message
+ 
+-at 0x0000028c : */	0x800c0001,0x00000a68,
++at 0x00000296 : */	0x800c0001,0x00000a90,
+ /*
+ 	JUMP ignore_msg2, IF 0x02	; Save Data Pointers
+ 
+-at 0x0000028e : */	0x800c0002,0x00000a58,
++at 0x00000298 : */	0x800c0002,0x00000a80,
+ /*
+ 	JUMP ignore_msg2, IF 0x03	; Save Restore Pointers
+ 
+-at 0x00000290 : */	0x800c0003,0x00000a58,
++at 0x0000029a : */	0x800c0003,0x00000a80,
+ /*
+ 	JUMP disc2, IF 0x04		; Disconnect
+ 
+-at 0x00000292 : */	0x800c0004,0x00000ac8,
++at 0x0000029c : */	0x800c0004,0x00000b20,
+ /*
+ 	INT int_bad_msg2
+ 
+-at 0x00000294 : */	0x98080000,0xab930007,
++at 0x0000029e : */	0x98080000,0xab930007,
+ /*
+ ignore_msg2:
+ 	CLEAR ACK
+ 
+-at 0x00000296 : */	0x60000040,0x00000000,
++at 0x000002a0 : */	0x60000040,0x00000000,
+ /*
+ 	JUMP redo_msgin2
+ 
+-at 0x00000298 : */	0x80080000,0x00000078,
++at 0x000002a2 : */	0x80080000,0x00000070,
+ /*
+ ext_msg2:
+ 	MOVE SCRATCH0 | had_extmsg TO SCRATCH0
+ 
+-at 0x0000029a : */	0x7a348000,0x00000000,
++at 0x000002a4 : */	0x7a348000,0x00000000,
+ /*
+ 	CLEAR ACK
+ 
+-at 0x0000029c : */	0x60000040,0x00000000,
++at 0x000002a6 : */	0x60000040,0x00000000,
+ /*
+ 	MOVE 1, msgin_buf + 1, WHEN MSG_IN
+ 
+-at 0x0000029e : */	0x0f000001,0x00000001,
++at 0x000002a8 : */	0x0f000001,0x00000001,
++/*
++	JUMP reject_msg2, IF NOT 0x03	; Only handle SDTR
++
++at 0x000002aa : */	0x80040003,0x00000ae0,
++/*
++	CLEAR ACK
++
++at 0x000002ac : */	0x60000040,0x00000000,
+ /*
+-	JUMP ext_msg2a, IF 0x03
++	MOVE 1, msgin_buf + 2, WHEN MSG_IN
+ 
+-at 0x000002a0 : */	0x800c0003,0x00000a90,
++at 0x000002ae : */	0x0f000001,0x00000002,
+ /*
+-	INT int_bad_extmsg2a
++	JUMP reject_msg2, IF NOT 0x01	; Only handle SDTR
+ 
+-at 0x000002a2 : */	0x98080000,0xab930002,
++at 0x000002b0 : */	0x80040001,0x00000ae0,
+ /*
+-ext_msg2a:
+ 	CLEAR ACK
+ 
+-at 0x000002a4 : */	0x60000040,0x00000000,
++at 0x000002b2 : */	0x60000040,0x00000000,
+ /*
+-	MOVE 1, msgin_buf + 2, WHEN MSG_IN
++	MOVE 2, msgin_buf + 3, WHEN MSG_IN
++
++at 0x000002b4 : */	0x0f000002,0x00000003,
++/*
++	INT int_msg_sdtr2
+ 
+-at 0x000002a6 : */	0x0f000001,0x00000002,
++at 0x000002b6 : */	0x98080000,0xab93000d,
+ /*
+-	JUMP ext_msg2b, IF 0x01		; Must be SDTR
++reject_msg2:
++	MOVE SCRATCH1 | did_reject TO SCRATCH1
+ 
+-at 0x000002a8 : */	0x800c0001,0x00000ab0,
++at 0x000002b8 : */	0x7a350100,0x00000000,
+ /*
+-	INT int_bad_extmsg2b
++	SET ATN
+ 
+-at 0x000002aa : */	0x98080000,0xab930003,
++at 0x000002ba : */	0x58000008,0x00000000,
+ /*
+-ext_msg2b:
+ 	CLEAR ACK
+ 
+-at 0x000002ac : */	0x60000040,0x00000000,
++at 0x000002bc : */	0x60000040,0x00000000,
+ /*
+-	MOVE 2, msgin_buf + 3, WHEN MSG_IN
++	JUMP reject_msg2a, WHEN NOT MSG_IN
+ 
+-at 0x000002ae : */	0x0f000002,0x00000003,
++at 0x000002be : */	0x87030000,0x00000b10,
+ /*
+-	INT int_msg_sdtr2
++	MOVE 1, msgin_buf + 7, WHEN MSG_IN
++
++at 0x000002c0 : */	0x0f000001,0x00000007,
++/*
++	JUMP reject_msg2
++
++at 0x000002c2 : */	0x80080000,0x00000ae0,
++/*
++reject_msg2a:
++	MOVE 1, msg_reject, WHEN MSG_OUT
++
++at 0x000002c4 : */	0x0e000001,0x00000000,
++/*
++	JUMP redo_msgin2
+ 
+-at 0x000002b0 : */	0x98080000,0xab93000d,
++at 0x000002c6 : */	0x80080000,0x00000070,
+ /*
+ disc2:
+ 	CLEAR ACK
+ 
+-at 0x000002b2 : */	0x60000040,0x00000000,
++at 0x000002c8 : */	0x60000040,0x00000000,
+ /*
+ ENTRY wait_disc2
+ wait_disc2:
+ 	WAIT DISCONNECT
+ 
+-at 0x000002b4 : */	0x48000000,0x00000000,
++at 0x000002ca : */	0x48000000,0x00000000,
+ /*
+ 	INT int_disc2
+ 
+-at 0x000002b6 : */	0x98080000,0xab93001a,
++at 0x000002cc : */	0x98080000,0xab93001a,
+ /*
+ ENTRY resume_msgin2a
+ resume_msgin2a:
+ 	CLEAR ACK
+ 
+-at 0x000002b8 : */	0x60000040,0x00000000,
++at 0x000002ce : */	0x60000040,0x00000000,
+ /*
+ 	JUMP redo_msgin2
+ 
+-at 0x000002ba : */	0x80080000,0x00000078,
++at 0x000002d0 : */	0x80080000,0x00000070,
+ /*
+ ENTRY resume_msgin2b
+ resume_msgin2b:
+ 	SET ATN
+ 
+-at 0x000002bc : */	0x58000008,0x00000000,
++at 0x000002d2 : */	0x58000008,0x00000000,
+ /*
+ 	CLEAR ACK
+ 
+-at 0x000002be : */	0x60000040,0x00000000,
++at 0x000002d4 : */	0x60000040,0x00000000,
+ /*
+ 	INT int_no_msgout2, WHEN NOT MSG_OUT
+ 
+-at 0x000002c0 : */	0x9e030000,0xab930010,
++at 0x000002d6 : */	0x9e030000,0xab930010,
+ /*
+ 	MOVE SCRATCH0 | had_msgout TO SCRATCH0
+ 
+-at 0x000002c2 : */	0x7a340200,0x00000000,
++at 0x000002d8 : */	0x7a340200,0x00000000,
+ /*
+ 	MOVE FROM dsa_msgout, when MSG_OUT
+ 
+-at 0x000002c4 : */	0x1e000000,0x00000008,
++at 0x000002da : */	0x1e000000,0x00000008,
+ /*
+ 	JUMP redo_msgin2
+ 
+-at 0x000002c6 : */	0x80080000,0x00000078,
++at 0x000002dc : */	0x80080000,0x00000070,
+ /*
+ 
+ get_msgin3:
+ 	MOVE SCRATCH0 | had_msgin TO SCRATCH0
+ 
+-at 0x000002c8 : */	0x7a344000,0x00000000,
++at 0x000002de : */	0x7a344000,0x00000000,
+ /*
+ 	MOVE 1, msgin_buf, WHEN MSG_IN
+ 
+-at 0x000002ca : */	0x0f000001,0x00000000,
++at 0x000002e0 : */	0x0f000001,0x00000000,
+ /*
+ 	JUMP ext_msg3, IF 0x01		; Extended Message
+ 
+-at 0x000002cc : */	0x800c0001,0x00000b68,
++at 0x000002e2 : */	0x800c0001,0x00000bc0,
+ /*
+ 	JUMP ignore_msg3, IF 0x02	; Save Data Pointers
+ 
+-at 0x000002ce : */	0x800c0002,0x00000b58,
++at 0x000002e4 : */	0x800c0002,0x00000bb0,
+ /*
+ 	JUMP ignore_msg3, IF 0x03	; Save Restore Pointers
+ 
+-at 0x000002d0 : */	0x800c0003,0x00000b58,
++at 0x000002e6 : */	0x800c0003,0x00000bb0,
+ /*
+ 	JUMP disc3, IF 0x04		; Disconnect
+ 
+-at 0x000002d2 : */	0x800c0004,0x00000bc8,
++at 0x000002e8 : */	0x800c0004,0x00000c50,
+ /*
+ 	INT int_bad_msg3
+ 
+-at 0x000002d4 : */	0x98080000,0xab930008,
++at 0x000002ea : */	0x98080000,0xab930008,
+ /*
+ ignore_msg3:
+ 	CLEAR ACK
+ 
+-at 0x000002d6 : */	0x60000040,0x00000000,
++at 0x000002ec : */	0x60000040,0x00000000,
+ /*
+ 	JUMP redo_msgin3
+ 
+-at 0x000002d8 : */	0x80080000,0x00000908,
++at 0x000002ee : */	0x80080000,0x00000900,
+ /*
+ ext_msg3:
+ 	MOVE SCRATCH0 | had_extmsg TO SCRATCH0
+ 
+-at 0x000002da : */	0x7a348000,0x00000000,
++at 0x000002f0 : */	0x7a348000,0x00000000,
+ /*
+ 	CLEAR ACK
+ 
+-at 0x000002dc : */	0x60000040,0x00000000,
++at 0x000002f2 : */	0x60000040,0x00000000,
+ /*
+ 	MOVE 1, msgin_buf + 1, WHEN MSG_IN
+ 
+-at 0x000002de : */	0x0f000001,0x00000001,
++at 0x000002f4 : */	0x0f000001,0x00000001,
+ /*
+-	JUMP ext_msg3a, IF 0x03
++	JUMP reject_msg3, IF NOT 0x03	; Only handle SDTR
+ 
+-at 0x000002e0 : */	0x800c0003,0x00000b90,
++at 0x000002f6 : */	0x80040003,0x00000c10,
+ /*
+-	INT int_bad_extmsg3a
++	CLEAR ACK
+ 
+-at 0x000002e2 : */	0x98080000,0xab930004,
++at 0x000002f8 : */	0x60000040,0x00000000,
++/*
++	MOVE 1, msgin_buf + 2, WHEN MSG_IN
++
++at 0x000002fa : */	0x0f000001,0x00000002,
++/*
++	JUMP reject_msg3, IF NOT 0x01	; Only handle  SDTR
++
++at 0x000002fc : */	0x80040001,0x00000c10,
+ /*
+-ext_msg3a:
+ 	CLEAR ACK
+ 
+-at 0x000002e4 : */	0x60000040,0x00000000,
++at 0x000002fe : */	0x60000040,0x00000000,
+ /*
+-	MOVE 1, msgin_buf + 2, WHEN MSG_IN
++	MOVE 2, msgin_buf + 3, WHEN MSG_IN
++
++at 0x00000300 : */	0x0f000002,0x00000003,
++/*
++	INT int_msg_sdtr3
+ 
+-at 0x000002e6 : */	0x0f000001,0x00000002,
++at 0x00000302 : */	0x98080000,0xab93000e,
+ /*
+-	JUMP ext_msg3b, IF 0x01		; Must be SDTR
++reject_msg3:
++	MOVE SCRATCH1 | did_reject TO SCRATCH1
+ 
+-at 0x000002e8 : */	0x800c0001,0x00000bb0,
++at 0x00000304 : */	0x7a350100,0x00000000,
+ /*
+-	INT int_bad_extmsg3b
++	SET ATN
+ 
+-at 0x000002ea : */	0x98080000,0xab930005,
++at 0x00000306 : */	0x58000008,0x00000000,
+ /*
+-ext_msg3b:
+ 	CLEAR ACK
+ 
+-at 0x000002ec : */	0x60000040,0x00000000,
++at 0x00000308 : */	0x60000040,0x00000000,
+ /*
+-	MOVE 2, msgin_buf + 3, WHEN MSG_IN
++	JUMP reject_msg3a, WHEN NOT MSG_IN
+ 
+-at 0x000002ee : */	0x0f000002,0x00000003,
++at 0x0000030a : */	0x87030000,0x00000c40,
+ /*
+-	INT int_msg_sdtr3
++	MOVE 1, msgin_buf + 7, WHEN MSG_IN
++
++at 0x0000030c : */	0x0f000001,0x00000007,
++/*
++	JUMP reject_msg3
++
++at 0x0000030e : */	0x80080000,0x00000c10,
++/*
++reject_msg3a:
++	MOVE 1, msg_reject, WHEN MSG_OUT
+ 
+-at 0x000002f0 : */	0x98080000,0xab93000e,
++at 0x00000310 : */	0x0e000001,0x00000000,
++/*
++	JUMP redo_msgin3
++
++at 0x00000312 : */	0x80080000,0x00000900,
+ /*
+ disc3:
+ 	CLEAR ACK
+ 
+-at 0x000002f2 : */	0x60000040,0x00000000,
++at 0x00000314 : */	0x60000040,0x00000000,
+ /*
+ ENTRY wait_disc3
+ wait_disc3:
+ 	WAIT DISCONNECT
+ 
+-at 0x000002f4 : */	0x48000000,0x00000000,
++at 0x00000316 : */	0x48000000,0x00000000,
+ /*
+ 	INT int_disc3
+ 
+-at 0x000002f6 : */	0x98080000,0xab93001b,
++at 0x00000318 : */	0x98080000,0xab93001b,
+ /*
+ ENTRY resume_msgin3a
+ resume_msgin3a:
+ 	CLEAR ACK
+ 
+-at 0x000002f8 : */	0x60000040,0x00000000,
++at 0x0000031a : */	0x60000040,0x00000000,
+ /*
+ 	JUMP redo_msgin3
+ 
+-at 0x000002fa : */	0x80080000,0x00000908,
++at 0x0000031c : */	0x80080000,0x00000900,
+ /*
+ ENTRY resume_msgin3b
+ resume_msgin3b:
+ 	SET ATN
+ 
+-at 0x000002fc : */	0x58000008,0x00000000,
++at 0x0000031e : */	0x58000008,0x00000000,
+ /*
+ 	CLEAR ACK
+ 
+-at 0x000002fe : */	0x60000040,0x00000000,
++at 0x00000320 : */	0x60000040,0x00000000,
+ /*
+ 	INT int_no_msgout3, WHEN NOT MSG_OUT
+ 
+-at 0x00000300 : */	0x9e030000,0xab930011,
++at 0x00000322 : */	0x9e030000,0xab930011,
+ /*
+ 	MOVE SCRATCH0 | had_msgout TO SCRATCH0
+ 
+-at 0x00000302 : */	0x7a340200,0x00000000,
++at 0x00000324 : */	0x7a340200,0x00000000,
+ /*
+ 	MOVE FROM dsa_msgout, when MSG_OUT
+ 
+-at 0x00000304 : */	0x1e000000,0x00000008,
++at 0x00000326 : */	0x1e000000,0x00000008,
+ /*
+ 	JUMP redo_msgin3
+ 
+-at 0x00000306 : */	0x80080000,0x00000908,
++at 0x00000328 : */	0x80080000,0x00000900,
+ /*
+ 
+ ENTRY resume_rej_ident
+ resume_rej_ident:
+ 	CLEAR ATN
+ 
+-at 0x00000308 : */	0x60000008,0x00000000,
++at 0x0000032a : */	0x60000008,0x00000000,
+ /*
+ 	MOVE 1, msgin_buf, WHEN MSG_IN
+ 
+-at 0x0000030a : */	0x0f000001,0x00000000,
++at 0x0000032c : */	0x0f000001,0x00000000,
+ /*
+ 	INT int_not_rej, IF NOT 0x07		; Reject
+ 
+-at 0x0000030c : */	0x98040007,0xab93001c,
++at 0x0000032e : */	0x98040007,0xab93001c,
+ /*
+ 	CLEAR ACK
+ 
+-at 0x0000030e : */	0x60000040,0x00000000,
++at 0x00000330 : */	0x60000040,0x00000000,
+ /*
+ 	JUMP done_ident
+ 
+-at 0x00000310 : */	0x80080000,0x00000050,
++at 0x00000332 : */	0x80080000,0x00000048,
+ /*
+ 
+ ENTRY reselect
+@@ -1716,73 +1784,92 @@
+ 	; Disable selection timer
+ 	MOVE CTEST7 | 0x10 TO CTEST7
+ 
+-at 0x00000312 : */	0x7a1b1000,0x00000000,
++at 0x00000334 : */	0x7a1b1000,0x00000000,
+ /*
+ 	WAIT RESELECT resel_err
+ 
+-at 0x00000314 : */	0x50000000,0x00000c70,
++at 0x00000336 : */	0x50000000,0x00000cf8,
+ /*
+ 	INT int_resel_not_msgin, WHEN NOT MSG_IN
+ 
+-at 0x00000316 : */	0x9f030000,0xab930016,
++at 0x00000338 : */	0x9f030000,0xab930016,
+ /*
+ 	MOVE 1, reselected_identify, WHEN MSG_IN
+ 
+-at 0x00000318 : */	0x0f000001,0x00000000,
++at 0x0000033a : */	0x0f000001,0x00000000,
+ /*
+ 	INT int_reselected
+ 
+-at 0x0000031a : */	0x98080000,0xab930017,
++at 0x0000033c : */	0x98080000,0xab930017,
+ /*
+ resel_err:
+ 	MOVE CTEST2 & 0x40 TO SFBR
+ 
+-at 0x0000031c : */	0x74164000,0x00000000,
++at 0x0000033e : */	0x74164000,0x00000000,
+ /*
+ 	JUMP selected, IF 0x00
+ 
+-at 0x0000031e : */	0x800c0000,0x00000cb0,
++at 0x00000340 : */	0x800c0000,0x00000d38,
+ /*
+ 	MOVE SFBR & 0 TO SFBR
+ 
+-at 0x00000320 : */	0x7c080000,0x00000000,
++at 0x00000342 : */	0x7c080000,0x00000000,
+ /*
+ ENTRY patch_new_dsa
+ patch_new_dsa:
+ 	MOVE SFBR | 0x11 TO DSA0
+ 
+-at 0x00000322 : */	0x6a101100,0x00000000,
++at 0x00000344 : */	0x6a101100,0x00000000,
+ /*
+ 	MOVE SFBR | 0x22 TO DSA1
+ 
+-at 0x00000324 : */	0x6a112200,0x00000000,
++at 0x00000346 : */	0x6a112200,0x00000000,
+ /*
+ 	MOVE SFBR | 0x33 TO DSA2
+ 
+-at 0x00000326 : */	0x6a123300,0x00000000,
++at 0x00000348 : */	0x6a123300,0x00000000,
+ /*
+ 	MOVE SFBR | 0x44 TO DSA3
+ 
+-at 0x00000328 : */	0x6a134400,0x00000000,
++at 0x0000034a : */	0x6a134400,0x00000000,
+ /*
+ 	JUMP do_select
+ 
+-at 0x0000032a : */	0x80080000,0x00000000,
++at 0x0000034c : */	0x80080000,0x00000000,
+ /*
+ 
+ selected:
+ 	INT int_selected
+ 
+-at 0x0000032c : */	0x98080000,0xab930018,
++at 0x0000034e : */	0x98080000,0xab930018,
++/*
++
++ENTRY test1
++test1:
++	MOVE MEMORY 4, test1_src, test1_dst
++
++at 0x00000350 : */	0xc0000004,0x00000000,0x00000000,
++/*
++	INT int_test1
++
++at 0x00000353 : */	0x98080000,0xab93001d,
++};
++
++#define A_did_reject	0x00000001
++static u32 A_did_reject_used[] __attribute((unused)) = {
++	0x0000026c,
++	0x000002b8,
++	0x00000304,
+ };
+ 
+ #define A_dsa_cmnd	0x00000010
+ static u32 A_dsa_cmnd_used[] __attribute((unused)) = {
+-	0x0000001d,
++	0x0000001b,
+ };
+ 
+ #define A_dsa_datain	0x00000028
+ static u32 A_dsa_datain_used[] __attribute((unused)) = {
++	0x0000003b,
+ 	0x0000003d,
+ 	0x0000003f,
+ 	0x00000041,
+@@ -1910,11 +1997,11 @@
+ 	0x00000135,
+ 	0x00000137,
+ 	0x00000139,
+-	0x0000013b,
+ };
+ 
+ #define A_dsa_dataout	0x00000428
+ static u32 A_dsa_dataout_used[] __attribute((unused)) = {
++	0x00000141,
+ 	0x00000143,
+ 	0x00000145,
+ 	0x00000147,
+@@ -2042,25 +2129,24 @@
+ 	0x0000023b,
+ 	0x0000023d,
+ 	0x0000023f,
+-	0x00000241,
+ };
+ 
+ #define A_dsa_msgin	0x00000020
+ static u32 A_dsa_msgin_used[] __attribute((unused)) = {
+-	0x0000002f,
++	0x0000002d,
+ };
+ 
+ #define A_dsa_msgout	0x00000008
+ static u32 A_dsa_msgout_used[] __attribute((unused)) = {
+-	0x00000013,
+-	0x00000285,
+-	0x000002c5,
+-	0x00000305,
++	0x00000011,
++	0x0000028f,
++	0x000002db,
++	0x00000327,
+ };
+ 
+ #define A_dsa_select	0x00000000
+ static u32 A_dsa_select_used[] __attribute((unused)) = {
+-	0x00000006,
++	0x00000004,
+ };
+ 
+ #define A_dsa_size	0x00000828
+@@ -2069,285 +2155,290 @@
+ 
+ #define A_dsa_status	0x00000018
+ static u32 A_dsa_status_used[] __attribute((unused)) = {
+-	0x0000002b,
++	0x00000029,
+ };
+ 
+ #define A_had_cmdout	0x00000004
+ static u32 A_had_cmdout_used[] __attribute((unused)) = {
+-	0x0000001a,
++	0x00000018,
+ };
+ 
+ #define A_had_datain	0x00000008
+ static u32 A_had_datain_used[] __attribute((unused)) = {
+-	0x00000038,
++	0x00000036,
+ };
+ 
+ #define A_had_dataout	0x00000010
+ static u32 A_had_dataout_used[] __attribute((unused)) = {
+-	0x0000013e,
++	0x0000013c,
+ };
+ 
+ #define A_had_extmsg	0x00000080
+ static u32 A_had_extmsg_used[] __attribute((unused)) = {
+-	0x0000025a,
+-	0x0000029a,
+-	0x000002da,
++	0x00000258,
++	0x000002a4,
++	0x000002f0,
+ };
+ 
+ #define A_had_msgin	0x00000040
+ static u32 A_had_msgin_used[] __attribute((unused)) = {
+-	0x00000248,
+-	0x00000288,
+-	0x000002c8,
++	0x00000246,
++	0x00000292,
++	0x000002de,
+ };
+ 
+ #define A_had_msgout	0x00000002
+ static u32 A_had_msgout_used[] __attribute((unused)) = {
+-	0x00000010,
+-	0x00000282,
+-	0x000002c2,
+-	0x00000302,
++	0x0000000e,
++	0x0000028c,
++	0x000002d8,
++	0x00000324,
+ };
+ 
+ #define A_had_select	0x00000001
+ static u32 A_had_select_used[] __attribute((unused)) = {
+-	0x0000000c,
++	0x0000000a,
+ };
+ 
+ #define A_had_status	0x00000020
+ static u32 A_had_status_used[] __attribute((unused)) = {
+ };
+ 
+-#define A_int_bad_extmsg1a	0xab930000
+-static u32 A_int_bad_extmsg1a_used[] __attribute((unused)) = {
+-	0x00000263,
+-};
+-
+-#define A_int_bad_extmsg1b	0xab930001
+-static u32 A_int_bad_extmsg1b_used[] __attribute((unused)) = {
+-	0x0000026b,
+-};
+-
+-#define A_int_bad_extmsg2a	0xab930002
+-static u32 A_int_bad_extmsg2a_used[] __attribute((unused)) = {
+-	0x000002a3,
+-};
+-
+-#define A_int_bad_extmsg2b	0xab930003
+-static u32 A_int_bad_extmsg2b_used[] __attribute((unused)) = {
+-	0x000002ab,
+-};
+-
+-#define A_int_bad_extmsg3a	0xab930004
+-static u32 A_int_bad_extmsg3a_used[] __attribute((unused)) = {
+-	0x000002e3,
+-};
+-
+-#define A_int_bad_extmsg3b	0xab930005
+-static u32 A_int_bad_extmsg3b_used[] __attribute((unused)) = {
+-	0x000002eb,
+-};
+-
+ #define A_int_bad_msg1	0xab930006
+ static u32 A_int_bad_msg1_used[] __attribute((unused)) = {
+-	0x00000255,
++	0x00000253,
+ };
+ 
+ #define A_int_bad_msg2	0xab930007
+ static u32 A_int_bad_msg2_used[] __attribute((unused)) = {
+-	0x00000295,
++	0x0000029f,
+ };
+ 
+ #define A_int_bad_msg3	0xab930008
+ static u32 A_int_bad_msg3_used[] __attribute((unused)) = {
+-	0x000002d5,
++	0x000002eb,
+ };
+ 
+ #define A_int_cmd_bad_phase	0xab930009
+ static u32 A_int_cmd_bad_phase_used[] __attribute((unused)) = {
+-	0x00000027,
++	0x00000025,
+ };
+ 
+ #define A_int_cmd_complete	0xab93000a
+ static u32 A_int_cmd_complete_used[] __attribute((unused)) = {
+-	0x00000037,
++	0x00000035,
+ };
+ 
+ #define A_int_data_bad_phase	0xab93000b
+ static u32 A_int_data_bad_phase_used[] __attribute((unused)) = {
+-	0x00000247,
++	0x00000245,
+ };
+ 
+ #define A_int_disc1	0xab930019
+ static u32 A_int_disc1_used[] __attribute((unused)) = {
+-	0x00000277,
++	0x00000281,
+ };
+ 
+ #define A_int_disc2	0xab93001a
+ static u32 A_int_disc2_used[] __attribute((unused)) = {
+-	0x000002b7,
++	0x000002cd,
+ };
+ 
+ #define A_int_disc3	0xab93001b
+ static u32 A_int_disc3_used[] __attribute((unused)) = {
+-	0x000002f7,
++	0x00000319,
+ };
+ 
+ #define A_int_msg_sdtr1	0xab93000c
+ static u32 A_int_msg_sdtr1_used[] __attribute((unused)) = {
+-	0x00000271,
++	0x0000026b,
+ };
+ 
+ #define A_int_msg_sdtr2	0xab93000d
+ static u32 A_int_msg_sdtr2_used[] __attribute((unused)) = {
+-	0x000002b1,
++	0x000002b7,
+ };
+ 
+ #define A_int_msg_sdtr3	0xab93000e
+ static u32 A_int_msg_sdtr3_used[] __attribute((unused)) = {
+-	0x000002f1,
++	0x00000303,
+ };
+ 
+ #define A_int_no_msgout1	0xab93000f
+ static u32 A_int_no_msgout1_used[] __attribute((unused)) = {
+-	0x00000281,
++	0x0000028b,
+ };
+ 
+ #define A_int_no_msgout2	0xab930010
+ static u32 A_int_no_msgout2_used[] __attribute((unused)) = {
+-	0x000002c1,
++	0x000002d7,
+ };
+ 
+ #define A_int_no_msgout3	0xab930011
+ static u32 A_int_no_msgout3_used[] __attribute((unused)) = {
+-	0x00000301,
++	0x00000323,
+ };
+ 
+ #define A_int_not_cmd_complete	0xab930012
+ static u32 A_int_not_cmd_complete_used[] __attribute((unused)) = {
+-	0x00000031,
++	0x0000002f,
+ };
+ 
+ #define A_int_not_rej	0xab93001c
+ static u32 A_int_not_rej_used[] __attribute((unused)) = {
+-	0x0000030d,
++	0x0000032f,
+ };
+ 
+ #define A_int_resel_not_msgin	0xab930016
+ static u32 A_int_resel_not_msgin_used[] __attribute((unused)) = {
+-	0x00000317,
++	0x00000339,
+ };
+ 
+ #define A_int_reselected	0xab930017
+ static u32 A_int_reselected_used[] __attribute((unused)) = {
+-	0x0000031b,
++	0x0000033d,
+ };
+ 
+ #define A_int_sel_no_ident	0xab930013
+ static u32 A_int_sel_no_ident_used[] __attribute((unused)) = {
+-	0x0000000f,
++	0x0000000d,
+ };
+ 
+ #define A_int_sel_not_cmd	0xab930014
+ static u32 A_int_sel_not_cmd_used[] __attribute((unused)) = {
+-	0x00000019,
++	0x00000017,
+ };
+ 
+ #define A_int_selected	0xab930018
+ static u32 A_int_selected_used[] __attribute((unused)) = {
+-	0x0000032d,
++	0x0000034f,
+ };
+ 
+ #define A_int_status_not_msgin	0xab930015
+ static u32 A_int_status_not_msgin_used[] __attribute((unused)) = {
+-	0x0000002d,
++	0x0000002b,
++};
++
++#define A_int_test1	0xab93001d
++static u32 A_int_test1_used[] __attribute((unused)) = {
++	0x00000354,
++};
++
++#define A_msg_reject	0x00000000
++static u32 A_msg_reject_used[] __attribute((unused)) = {
++	0x00000279,
++	0x000002c5,
++	0x00000311,
+ };
+ 
+ #define A_msgin_buf	0x00000000
+ static u32 A_msgin_buf_used[] __attribute((unused)) = {
+-	0x0000024b,
+-	0x0000025f,
+-	0x00000267,
+-	0x0000026f,
+-	0x0000028b,
+-	0x0000029f,
+-	0x000002a7,
++	0x00000249,
++	0x0000025d,
++	0x00000263,
++	0x00000269,
++	0x00000275,
++	0x00000295,
++	0x000002a9,
+ 	0x000002af,
+-	0x000002cb,
+-	0x000002df,
+-	0x000002e7,
+-	0x000002ef,
+-	0x0000030b,
++	0x000002b5,
++	0x000002c1,
++	0x000002e1,
++	0x000002f5,
++	0x000002fb,
++	0x00000301,
++	0x0000030d,
++	0x0000032d,
+ };
+ 
+ #define A_reselected_identify	0x00000000
+ static u32 A_reselected_identify_used[] __attribute((unused)) = {
+-	0x00000319,
++	0x0000033b,
++};
++
++#define A_test1_dst	0x00000000
++static u32 A_test1_dst_used[] __attribute((unused)) = {
++	0x00000352,
++};
++
++#define A_test1_src	0x00000000
++static u32 A_test1_src_used[] __attribute((unused)) = {
++	0x00000351,
+ };
+ 
+ #define Ent_do_select	0x00000000
+-#define Ent_done_ident	0x00000050
+-#define Ent_end_data_trans	0x00000908
+-#define Ent_patch_input_data	0x000000e8
+-#define Ent_patch_new_dsa	0x00000c88
+-#define Ent_patch_output_data	0x00000500
+-#define Ent_reselect	0x00000c48
+-#define Ent_resume_cmd	0x00000068
+-#define Ent_resume_msgin1a	0x000009e0
+-#define Ent_resume_msgin1b	0x000009f0
+-#define Ent_resume_msgin2a	0x00000ae0
+-#define Ent_resume_msgin2b	0x00000af0
+-#define Ent_resume_msgin3a	0x00000be0
+-#define Ent_resume_msgin3b	0x00000bf0
+-#define Ent_resume_pmm	0x00000078
+-#define Ent_resume_rej_ident	0x00000c20
+-#define Ent_wait_disc1	0x000009d0
+-#define Ent_wait_disc2	0x00000ad0
+-#define Ent_wait_disc3	0x00000bd0
+-#define Ent_wait_disc_complete	0x000000d0
++#define Ent_done_ident	0x00000048
++#define Ent_end_data_trans	0x00000900
++#define Ent_patch_input_data	0x000000e0
++#define Ent_patch_new_dsa	0x00000d10
++#define Ent_patch_output_data	0x000004f8
++#define Ent_reselect	0x00000cd0
++#define Ent_resume_cmd	0x00000060
++#define Ent_resume_msgin1a	0x00000a08
++#define Ent_resume_msgin1b	0x00000a18
++#define Ent_resume_msgin2a	0x00000b38
++#define Ent_resume_msgin2b	0x00000b48
++#define Ent_resume_msgin3a	0x00000c68
++#define Ent_resume_msgin3b	0x00000c78
++#define Ent_resume_pmm	0x00000070
++#define Ent_resume_rej_ident	0x00000ca8
++#define Ent_test1	0x00000d40
++#define Ent_wait_disc1	0x000009f8
++#define Ent_wait_disc2	0x00000b28
++#define Ent_wait_disc3	0x00000c58
++#define Ent_wait_disc_complete	0x000000c8
+ static u32 LABELPATCHES[] __attribute((unused)) = {
++	0x00000005,
+ 	0x00000007,
+-	0x00000009,
++	0x00000013,
+ 	0x00000015,
+-	0x00000017,
++	0x0000001d,
+ 	0x0000001f,
+ 	0x00000021,
+ 	0x00000023,
+-	0x00000025,
+-	0x0000013d,
++	0x0000013b,
++	0x00000241,
+ 	0x00000243,
+-	0x00000245,
++	0x0000024b,
+ 	0x0000024d,
+ 	0x0000024f,
+ 	0x00000251,
+-	0x00000253,
+-	0x00000259,
+-	0x00000261,
+-	0x00000269,
++	0x00000257,
++	0x0000025f,
++	0x00000265,
++	0x00000273,
++	0x00000277,
+ 	0x0000027b,
+-	0x00000287,
+-	0x0000028d,
+-	0x0000028f,
++	0x00000285,
+ 	0x00000291,
+-	0x00000293,
++	0x00000297,
+ 	0x00000299,
+-	0x000002a1,
+-	0x000002a9,
+-	0x000002bb,
++	0x0000029b,
++	0x0000029d,
++	0x000002a3,
++	0x000002ab,
++	0x000002b1,
++	0x000002bf,
++	0x000002c3,
+ 	0x000002c7,
+-	0x000002cd,
+-	0x000002cf,
+ 	0x000002d1,
+-	0x000002d3,
+-	0x000002d9,
+-	0x000002e1,
++	0x000002dd,
++	0x000002e3,
++	0x000002e5,
++	0x000002e7,
+ 	0x000002e9,
+-	0x000002fb,
+-	0x00000307,
+-	0x00000311,
+-	0x00000315,
+-	0x0000031f,
+-	0x0000032b,
++	0x000002ef,
++	0x000002f7,
++	0x000002fd,
++	0x0000030b,
++	0x0000030f,
++	0x00000313,
++	0x0000031d,
++	0x00000329,
++	0x00000333,
++	0x00000337,
++	0x00000341,
++	0x0000034d,
+ };
+ 
+ static struct {
+@@ -2356,6 +2447,6 @@
+ } EXTERNAL_PATCHES[] __attribute((unused)) = {
+ };
+ 
+-static u32 INSTRUCTIONS __attribute((unused))	= 407;
+-static u32 PATCHES __attribute((unused))	= 42;
++static u32 INSTRUCTIONS __attribute((unused))	= 426;
++static u32 PATCHES __attribute((unused))	= 51;
+ static u32 EXTERNAL_PATCHES_LEN __attribute((unused))	= 0;
+diff -uaNr linux-2.4.21/fs/blkdev_swap.c linux-2.4.21-1APTUS/fs/blkdev_swap.c
+--- linux-2.4.21/fs/blkdev_swap.c	1970-01-01 08:00:00.000000000 +0800
++++ linux-2.4.21-1APTUS/fs/blkdev_swap.c	2003-06-23 01:55:01.000000000 +0800
+@@ -0,0 +1,327 @@
++/*
++ *  Copyright (c) 2000-2002 Shaolin Microsystems Ltd.
++ *
++ * Swapping to partitions or files on local disk partitions.
++ * 
++ * David Chow <davidchow@shaolinmicro.com>
++ *
++ * Copied from the original fs/buffer.c
++ */
++
++#include <linux/config.h>
++#include <linux/module.h>
++#include <linux/init.h>
++#include <linux/slab.h>
++#include <linux/locks.h>
++#include <linux/blkdev.h>
++#include <linux/pagemap.h>
++#include <linux/swap.h>
++#include <linux/fs.h>
++
++#ifdef DEBUG_BLKDEV_SWAP
++# define dprintk(fmt...) printk(##fmt)
++#else
++# define dprintk(fmt...) do { /* */ } while (0)
++#endif
++
++#define BLKDEV_SWAP_ID  	"blockdev"
++#define BLKDEV_FILE_SWAP_ID "blockdev file"
++
++/*
++ * Helper function, copied here from buffer.c
++ */
++
++/*
++ * Start I/O on a page.
++ * This function expects the page to be locked and may return
++ * before I/O is complete. You then have to check page->locked,
++ * page->uptodate, and maybe wait on page->wait.
++ *
++ * brw_swap_page() is SMP-safe, although it's being called with the
++ * kernel lock held - but the code is ready.
++ *
++ * FIXME: we need a swapper_inode->get_block function to remove
++ *  	  some of the bmap kludges and interface ugliness here.
++ */
++int brw_swap_page(int rw, struct page *page, kdev_t dev, int b[], int size)
++{
++   struct buffer_head *head, *bh;
++
++   if (!PageLocked(page))
++	   panic("brw_swap_page: page not locked for I/O");
++
++   if (!page->buffers)
++	   create_empty_buffers(page, dev, size);
++   head = bh = page->buffers;
++
++   /* Stage 1: lock all the buffers */
++   do {
++	   lock_buffer(bh);
++	   bh->b_blocknr = *(b++);
++	   set_bit(BH_Mapped, &bh->b_state);
++	   set_buffer_async_io(bh);
++	   bh = bh->b_this_page;
++   } while (bh != head);
++
++   /* Stage 2: start the IO */
++   do {
++	   struct buffer_head *next = bh->b_this_page;
++	   submit_bh(rw, bh);
++	   bh = next;
++   } while (bh != head);
++   return 0;
++}
++
++/*
++ * We implement to methods: swapping to partitions, and swapping to files
++ * located on partitions.
++ */
++
++struct blkdev_swap_data {
++   kdev_t dev;
++};
++
++struct test_data {
++   struct file * filp;
++   kdev_t dev;
++};
++
++static int is_blkdev_swapping(unsigned int flags,
++				 struct file * swapf,
++				 void *data)
++{
++   struct test_data *testdata = (struct test_data *) data;
++   struct file * filp = testdata->filp;
++   kdev_t dev = testdata->dev;
++
++   /* Only check filp's that don't match the one already opened
++	* for us by sys_swapon(). Otherwise, we will always flag a
++	* busy swap file.
++	*/
++
++   if (swapf != filp) {
++	   if (dev == swapf->f_dentry->d_inode->i_rdev)
++		   return 1;
++   }
++   return 0;
++}
++
++static int blkdev_swap_open(struct file * filp, void **dptr)
++{
++	int swapfilesize;
++	kdev_t dev;
++	struct blkdev_swap_data *data;
++	int error;
++	struct test_data testdata;
++
++	MOD_INC_USE_COUNT;
++
++	if (!S_ISBLK(filp->f_dentry->d_inode->i_mode)) {
++	 	dprintk(__FUNCTION__": can't handle this swap file: %s\n",
++	 		   swapf->d_name.name);
++	 	error = 0; /* not for us */
++	 	goto bad_swap;
++	}
++
++	dev = filp->f_dentry->d_inode->i_rdev;
++	set_blocksize(dev, PAGE_SIZE);
++	error = -ENODEV;
++	if (!dev ||
++	 	(blk_size[MAJOR(dev)] && !blk_size[MAJOR(dev)][MINOR(dev)])) {
++	 	printk("blkdev_swap_open: blkdev weirdness for %s\n",
++	 		   filp->f_dentry->d_name.name);
++	 	goto bad_swap;
++	}
++	 	
++	error = -EBUSY;
++	/* Check to see if the device is mounted */
++	if (S_ISBLK(filp->f_dentry->d_inode->i_mode) && is_mounted(dev)) {
++	 	printk("blkdev_swap_open: device already mounted, please unmount %s\n",
++			filp->f_dentry->d_name.name);
++		goto bad_swap;
++	}
++	
++	/* Check to make sure that we aren't already swapping. */
++	testdata.filp = filp;
++	testdata.dev = dev;
++	if (swap_run_test(is_blkdev_swapping, &testdata)) {
++	 	printk("blkdev_swap_open: already swapping to %s\n",
++	 		   filp->f_dentry->d_name.name);
++	 	goto bad_swap;
++	}
++
++	/* Check to make sure that we aren't already swapping. */
++	testdata.filp = filp;
++	testdata.dev = dev;
++	if (swap_run_test(is_blkdev_swapping, &testdata)) {
++	 	printk("blkdev_swap_open: already swapping to %s\n",
++	 		   filp->f_dentry->d_name.name);
++	 	goto bad_swap;
++	}
++
++	swapfilesize = 0;
++	if (blk_size[MAJOR(dev)])
++	 	swapfilesize = blk_size[MAJOR(dev)][MINOR(dev)]
++	 		>> (PAGE_SHIFT - 10);
++
++	if ((data = kmalloc(sizeof(*data), GFP_KERNEL)) == NULL) {
++	 	printk("blkdev_swap_open: can't allocate data for %s\n",
++	 		   filp->f_dentry->d_name.name);
++	 	error = -ENOMEM;
++	 	goto bad_swap;
++	}
++	data->dev = dev;
++	*dptr = data;
++
++	dprintk("blkdev_swap_open: returning %d\n", swapfilesize);
++	return swapfilesize;
++
++ bad_swap:
++	MOD_DEC_USE_COUNT;
++	return error; /* this swap thing is not for us */   
++}
++
++static int blkdev_swap_release(struct file * filp, void *data)
++{
++   dprintk("blkdev_swap_release: releasing swap device %s\n",
++	   filp->f_dentry->d_name.name);
++   kfree(data);
++   MOD_DEC_USE_COUNT;
++   return 0;
++}
++
++static int blkdev_rw_page(int rw, struct page *page, unsigned long offset,
++			 void *ptr)
++{
++   struct blkdev_swap_data *data = (struct blkdev_swap_data *)ptr;
++   brw_swap_page(rw, page, data->dev, (int *)&offset, PAGE_SIZE);
++   return 1;
++}
++
++static struct swap_ops blkdev_swap_ops = {
++   blkdev_swap_open,
++   blkdev_swap_release,
++   blkdev_rw_page
++};
++
++struct blkdevfile_swap_data {
++   struct inode *swapf;
++};
++
++static int is_blkdevfile_swapping(unsigned int flags,
++				 struct file * swapf,
++				 void * data)
++{
++   struct file * filp = (struct file *) data;
++
++   /* Only check filp's that don't match the one already opened
++	* for us by sys_swapon(). Otherwise, we will always flag a
++	* busy swap file.
++	*/
++
++   if (swapf != filp) {
++	   if (filp->f_dentry->d_inode == swapf->f_dentry->d_inode)
++		   return 1;
++   }
++   return 0;
++}
++
++static int blkdevfile_swap_open(struct file *swapf, void **dptr)
++{
++   int error = 0;
++   int swapfilesize;
++   struct blkdevfile_swap_data *data;
++
++   MOD_INC_USE_COUNT;
++
++   /* first check whether this is a regular file located on a local 
++	* hard disk
++	*/
++   if (!S_ISREG(swapf->f_dentry->d_inode->i_mode)) {
++	   dprintk("blkdevfile_swap_open: "
++		   "can't handle this swap file: %s\n",
++		   swapf->d_name.name);
++	   error = 0; /* not for us */
++	   goto bad_swap;
++   }
++   if (!swapf->f_dentry->d_inode->i_mapping->a_ops->bmap) {
++	   dprintk("blkdevfile_swap_open: no bmap for file: %s\n",
++		   swapf->d_name.name);
++	   error = 0; /* not for us */
++	   goto bad_swap;
++   }
++
++   if (swap_run_test(is_blkdevfile_swapping, swapf)) {
++	   dprintk("blkdevfile_swap_open: already swapping to %s\n",
++		   swapf->d_name.name);
++	   error = -EBUSY;
++	   goto bad_swap;
++   }
++   swapfilesize = swapf->f_dentry->d_inode->i_size >> PAGE_SHIFT;
++   if ((data = kmalloc(sizeof(*data), GFP_KERNEL)) == NULL) {
++	   error = -ENOMEM;
++	   goto bad_swap;
++   }
++   data->swapf = swapf->f_dentry->d_inode;
++   *dptr = data;
++   return swapfilesize;
++
++ bad_swap:
++   MOD_DEC_USE_COUNT;
++   return error;
++}
++
++static int blkdevfile_swap_release(struct file *swapf, void *data)
++{
++   kfree(data);
++   MOD_DEC_USE_COUNT;
++   return 0;
++}
++
++static int blkdevfile_rw_page(int rw, struct page *page, unsigned long offset,
++				 void *ptr)
++{
++   struct blkdevfile_swap_data *data = (struct blkdevfile_swap_data *)ptr;
++   struct inode * swapf = data->swapf;
++   int i, j;
++   unsigned int block = offset
++	   << (PAGE_SHIFT - swapf->i_sb->s_blocksize_bits);
++   kdev_t dev = swapf->i_dev;
++   int block_size;
++   int zones[PAGE_SIZE/512];
++   int zones_used;
++
++   block_size = swapf->i_sb->s_blocksize;
++   for (i=0, j=0; j< PAGE_SIZE ; i++, j += block_size)
++	   if (!(zones[i] = bmap(swapf,block++))) {
++		   printk("blkdevfile_rw_page: bad swap file\n");
++		   return 0;
++		   }
++   zones_used = i;
++   
++   /* block_size == PAGE_SIZE/zones_used */
++   brw_swap_page(rw, page, dev, zones, block_size);
++   return 1;
++}
++
++static struct swap_ops blkdevfile_swap_ops = {
++   blkdevfile_swap_open,
++   blkdevfile_swap_release,
++   blkdevfile_rw_page
++ };
++
++int __init blkdev_swap_init(void)
++{
++   (void)register_swap_method(BLKDEV_SWAP_ID, &blkdev_swap_ops);
++   (void)register_swap_method(BLKDEV_FILE_SWAP_ID, &blkdevfile_swap_ops);
++   return 0;
++}
++
++void __exit blkdev_swap_exit(void)
++{
++   unregister_swap_method(BLKDEV_SWAP_ID);
++   unregister_swap_method(BLKDEV_FILE_SWAP_ID);
++}
++
++module_init(blkdev_swap_init)
++module_exit(blkdev_swap_exit)
+diff -uaNr linux-2.4.21/fs/buffer.c linux-2.4.21-1APTUS/fs/buffer.c
+--- linux-2.4.21/fs/buffer.c	2003-06-22 17:35:00.000000000 +0800
++++ linux-2.4.21-1APTUS/fs/buffer.c	2003-06-23 01:57:44.000000000 +0800
+@@ -737,7 +737,7 @@
+ 	bh->b_private = private;
+ }
+ 
+-static void end_buffer_io_async(struct buffer_head * bh, int uptodate)
++void end_buffer_io_async(struct buffer_head * bh, int uptodate)
+ {
+ 	static spinlock_t page_uptodate_lock = SPIN_LOCK_UNLOCKED;
+ 	unsigned long flags;
+diff -uaNr linux-2.4.21/fs/Config.in linux-2.4.21-1APTUS/fs/Config.in
+--- linux-2.4.21/fs/Config.in	2002-11-29 07:53:15.000000000 +0800
++++ linux-2.4.21-1APTUS/fs/Config.in	2003-06-23 11:08:34.000000000 +0800
+@@ -4,6 +4,8 @@
+ mainmenu_option next_comment
+ comment 'File systems'
+ 
++tristate 'Swapping to block devices and local filesystems' CONFIG_BLOCKDEV_SWAP
++
+ bool 'Quota support' CONFIG_QUOTA
+ tristate 'Kernel automounter support' CONFIG_AUTOFS_FS
+ tristate 'Kernel automounter version 4 support (also supports v3)' CONFIG_AUTOFS4_FS
+diff -uaNr linux-2.4.21/fs/Makefile linux-2.4.21-1APTUS/fs/Makefile
+--- linux-2.4.21/fs/Makefile	2002-11-29 07:53:15.000000000 +0800
++++ linux-2.4.21-1APTUS/fs/Makefile	2003-06-22 19:53:12.000000000 +0800
+@@ -82,5 +82,6 @@
+ # persistent filesystems
+ obj-y += $(join $(subdir-y),$(subdir-y:%=/%.o))
+ 
++obj-$(CONFIG_BLOCKDEV_SWAP)       += blkdev_swap.o
+ 
+ include $(TOPDIR)/Rules.make
+diff -uaNr linux-2.4.21/include/linux/fs.h linux-2.4.21-1APTUS/include/linux/fs.h
+--- linux-2.4.21/include/linux/fs.h	2003-06-22 17:35:06.000000000 +0800
++++ linux-2.4.21-1APTUS/include/linux/fs.h	2003-06-23 01:15:04.000000000 +0800
+@@ -1128,6 +1128,7 @@
+ extern void refile_buffer(struct buffer_head * buf);
+ extern void create_empty_buffers(struct page *, kdev_t, unsigned long);
+ extern void end_buffer_io_sync(struct buffer_head *bh, int uptodate);
++extern void end_buffer_io_async(struct buffer_head * bh, int uptodate);
+ 
+ /* reiserfs_writepage needs this */
+ extern void set_buffer_async_io(struct buffer_head *bh) ;
+diff -uaNr linux-2.4.21/include/linux/swap.h linux-2.4.21-1APTUS/include/linux/swap.h
+--- linux-2.4.21/include/linux/swap.h	2003-06-22 17:35:07.000000000 +0800
++++ linux-2.4.21-1APTUS/include/linux/swap.h	2003-06-23 01:38:41.000000000 +0800
+@@ -58,15 +58,29 @@
+ #define SWAP_MAP_MAX	0x7fff
+ #define SWAP_MAP_BAD	0x8000
+ 
++struct swap_ops {
++	int (*open)(struct file *swapf, void **data);
++	int (*release)(struct file *swapf, void *data);
++	int (*rw_page)(int rw,
++		       struct page *page, unsigned long offset, void *data);
++};
++
++struct swap_method {
++	struct swap_method *next;
++	char * name;
++	struct swap_ops *ops;
++	int use_count;
++};
++
+ /*
+  * The in-memory structure used to track swap areas.
+  */
+ struct swap_info_struct {
+ 	unsigned int flags;
+-	kdev_t swap_device;
++	struct file *swap_file;
++	struct swap_method *method;
++	void *data;
+ 	spinlock_t sdev_lock;
+-	struct dentry * swap_file;
+-	struct vfsmount *swap_vfsmnt;
+ 	unsigned short * swap_map;
+ 	unsigned int lowest_bit;
+ 	unsigned int highest_bit;
+@@ -142,10 +156,15 @@
+ extern unsigned int nr_swapfiles;
+ extern struct swap_info_struct swap_info[];
+ extern int is_swap_partition(kdev_t);
++extern int register_swap_method(char *name, struct swap_ops *ops);
++extern int unregister_swap_method(char *name);
++extern int swap_run_test(int (*test_fct)(unsigned int flags,
++					 struct file *swap_file,
++					 void *testdata), void *testdata);
+ extern void si_swapinfo(struct sysinfo *);
+ extern swp_entry_t get_swap_page(void);
+-extern void get_swaphandle_info(swp_entry_t, unsigned long *, kdev_t *, 
+-					struct inode **);
++struct swap_method *get_swaphandle_info(swp_entry_t entry,
++					unsigned long *offset, void **data);
+ extern int swap_duplicate(swp_entry_t);
+ extern int valid_swaphandles(swp_entry_t, unsigned long *);
+ extern void swap_free(swp_entry_t);
+diff -uaNr linux-2.4.21/kernel/ksyms.c linux-2.4.21-1APTUS/kernel/ksyms.c
+--- linux-2.4.21/kernel/ksyms.c	2003-06-22 18:34:45.000000000 +0800
++++ linux-2.4.21-1APTUS/kernel/ksyms.c	2003-06-23 01:02:29.000000000 +0800
+@@ -41,6 +41,7 @@
+ #include <linux/mm.h>
+ #include <linux/capability.h>
+ #include <linux/highuid.h>
++#include <linux/swapctl.h>
+ #include <linux/brlock.h>
+ #include <linux/fs.h>
+ #include <linux/tty.h>
+@@ -93,6 +94,10 @@
+ EXPORT_SYMBOL(kallsyms_symbol_to_address);
+ EXPORT_SYMBOL(kallsyms_address_to_symbol);
+ #endif
++EXPORT_SYMBOL(nr_free_pages);
++EXPORT_SYMBOL(register_swap_method);
++EXPORT_SYMBOL(unregister_swap_method);
++EXPORT_SYMBOL(swap_run_test);
+ 
+ /* process memory management */
+ EXPORT_SYMBOL(do_mmap_pgoff);
+diff -uaNr linux-2.4.21/mm/page_io.c linux-2.4.21-1APTUS/mm/page_io.c
+--- linux-2.4.21/mm/page_io.c	2002-11-29 07:53:15.000000000 +0800
++++ linux-2.4.21-1APTUS/mm/page_io.c	2003-06-23 00:32:31.000000000 +0800
+@@ -32,15 +32,15 @@
+  * atomic, which is particularly important when we are trying to ensure 
+  * that shared pages stay shared while being swapped.
+  */
+-
++/* David: Don't know is this is corrct or not, since 2.4.14, the rw never 
++ * checked for WRITE. Not sure will we cause a problem here if we check for
++ * WRITE and start I/O and wait for completion.
++ */
+ static int rw_swap_page_base(int rw, swp_entry_t entry, struct page *page)
+ {
+ 	unsigned long offset;
+-	int zones[PAGE_SIZE/512];
+-	int zones_used;
+-	kdev_t dev = 0;
+-	int block_size;
+-	struct inode *swapf = 0;
++	struct swap_method *method;
++	void *data;
+ 
+ 	if (rw == READ) {
+ 		ClearPageUptodate(page);
+@@ -48,31 +48,21 @@
+ 	} else
+ 		kstat.pswpout++;
+ 
+-	get_swaphandle_info(entry, &offset, &dev, &swapf);
+-	if (dev) {
+-		zones[0] = offset;
+-		zones_used = 1;
+-		block_size = PAGE_SIZE;
+-	} else if (swapf) {
+-		int i, j;
+-		unsigned int block = offset
+-			<< (PAGE_SHIFT - swapf->i_sb->s_blocksize_bits);
+-
+-		block_size = swapf->i_sb->s_blocksize;
+-		for (i=0, j=0; j< PAGE_SIZE ; i++, j += block_size)
+-			if (!(zones[i] = bmap(swapf,block++))) {
+-				printk("rw_swap_page: bad swap file\n");
+-				return 0;
+-			}
+-		zones_used = i;
+-		dev = swapf->i_dev;
+-	} else {
+-		return 0;
++	method = get_swaphandle_info(entry, &offset, &data);
++
++	if (method) {
++ 		if (!method->ops->rw_page(rw, page, offset, data)) {
++	 		return 0;
++	 	}
++	/* Note! For consistency we do all of the logic,
++	 * decrementing the page count, and unlocking the page in the
++	 * swap lock map - in the IO completion handler.
++	 */
++	 	return 1;
++
+ 	}
+ 
+- 	/* block_size == PAGE_SIZE/zones_used */
+- 	brw_page(rw, page, dev, zones, block_size);
+-	return 1;
++	return 0;
+ }
+ 
+ /*
+diff -uaNr linux-2.4.21/mm/swapfile.c linux-2.4.21-1APTUS/mm/swapfile.c
+--- linux-2.4.21/mm/swapfile.c	2003-06-22 17:35:08.000000000 +0800
++++ linux-2.4.21-1APTUS/mm/swapfile.c	2003-06-23 11:09:17.000000000 +0800
+@@ -14,9 +14,15 @@
+ #include <linux/vmalloc.h>
+ #include <linux/pagemap.h>
+ #include <linux/shm.h>
+-
++#include <linux/file.h>
++#include <linux/compiler.h>
++#include <linux/nfs_fs.h>
+ #include <asm/pgtable.h>
+ 
++#ifdef CONFIG_KMOD
++#include <linux/kmod.h>
++#endif
++
+ spinlock_t swaplock = SPIN_LOCK_UNLOCKED;
+ unsigned int nr_swapfiles;
+ int total_swap_pages;
+@@ -31,8 +37,78 @@
+ 
+ struct swap_info_struct swap_info[MAX_SWAPFILES];
+ 
++static struct swap_method *swap_methods = NULL;
++
+ #define SWAPFILE_CLUSTER 256
+ 
++int register_swap_method(char *name, struct swap_ops *ops)
++{
++	struct swap_method *pos;
++	struct swap_method *new;
++	int result = 0;
++
++	lock_kernel();
++
++	for (pos = swap_methods; pos; pos = pos->next) {
++		if (strcmp(pos->name, name) == 0) {
++			printk(KERN_ERR "register_swap_method: "
++			       "method %s already registered\n", name);
++			result = -EBUSY;
++			goto out;
++		}
++	}
++
++	if (!(new = kmalloc(sizeof(*new), GFP_KERNEL))) {
++		printk(KERN_ERR "register_swap_method: "
++		       "no memory for new method \"%s\"\n", name);
++		result = -ENOMEM;
++		goto out;
++	}
++
++	new->name      = name;
++	new->ops       = ops;
++	new->use_count = 0;
++
++	/* ok, insert at top of list */
++	printk("register_swap_method: method %s\n", name);
++	new->next    = swap_methods;
++	swap_methods = new;
++ out:
++	unlock_kernel();
++	return result;
++}
++
++int unregister_swap_method(char *name)
++{
++	struct swap_method **method, *next;
++	int result = 0;
++
++	lock_kernel();
++
++	for (method = &swap_methods; *method; method = &(*method)->next) {
++		if (strcmp((*method)->name, name) == 0) {
++			if ((*method)->use_count > 0) {
++				printk(KERN_ERR "unregister_swap_method: "
++				       "method \"%s\" is in use\n", name);
++				result = -EBUSY;
++				goto out;
++			}
++
++			next = (*method)->next;
++			kfree(*method);
++			*method = next;			
++			printk("unregister_swap_method: method %s\n", name);
++			goto out;
++		}
++	}
++	/* not found */
++	printk("unregister_swap_method: no such method %s\n", name);
++	result = -ENOENT;
++ out:
++	unlock_kernel();
++	return result;
++}
++
+ static inline int scan_swap_map(struct swap_info_struct *si)
+ {
+ 	unsigned long offset;
+@@ -717,7 +793,7 @@
+ 
+ 	err = user_path_walk(specialfile, &nd);
+ 	if (err)
+-		goto out;
++		return err;
+ 
+ 	lock_kernel();
+ 	prev = -1;
+@@ -725,15 +801,20 @@
+ 	for (type = swap_list.head; type >= 0; type = swap_info[type].next) {
+ 		p = swap_info + type;
+ 		if ((p->flags & SWP_WRITEOK) == SWP_WRITEOK) {
+-			if (p->swap_file == nd.dentry)
+-			  break;
++			if (p->swap_file &&
++			    p->swap_file->f_dentry == nd.dentry)
++				break;
+ 		}
+ 		prev = type;
+ 	}
+ 	err = -EINVAL;
++	/* p->swap_file contains all needed info, no need to keep nd, so
++	 * release it now.
++	 */
++	path_release(&nd);
+ 	if (type < 0) {
+ 		swap_list_unlock();
+-		goto out_dput;
++		goto out;
+ 	}
+ 
+ 	if (prev < 0) {
+@@ -767,19 +848,18 @@
+ 		total_swap_pages += p->pages;
+ 		p->flags = SWP_WRITEOK;
+ 		swap_list_unlock();
+-		goto out_dput;
++		goto out;
+ 	}
+-	if (p->swap_device)
+-		blkdev_put(p->swap_file->d_inode->i_bdev, BDEV_SWAP);
+-	path_release(&nd);
+ 
++	if (p->method->ops->release)
++		p->method->ops->release(p->swap_file, p->data);
+ 	swap_list_lock();
+ 	swap_device_lock(p);
+-	nd.mnt = p->swap_vfsmnt;
+-	nd.dentry = p->swap_file;
+-	p->swap_vfsmnt = NULL;
++	p->method->use_count --;
++	p->method = NULL;
++	p->data   = NULL;
++	filp_close(p->swap_file, NULL);
+ 	p->swap_file = NULL;
+-	p->swap_device = 0;
+ 	p->max = 0;
+ 	swap_map = p->swap_map;
+ 	p->swap_map = NULL;
+@@ -789,10 +869,8 @@
+ 	vfree(swap_map);
+ 	err = 0;
+ 
+-out_dput:
+-	unlock_kernel();
+-	path_release(&nd);
+ out:
++	unlock_kernel();
+ 	return err;
+ }
+ 
+@@ -805,18 +883,17 @@
+ 	if (!page)
+ 		return -ENOMEM;
+ 
+-	len += sprintf(buf, "Filename\t\t\tType\t\tSize\tUsed\tPriority\n");
++	len += sprintf(buf, "%-32s%-16s%-8s%-8sPriority\n",
++		       "Filename", "Type", "Size", "Used");
+ 	for (i = 0 ; i < nr_swapfiles ; i++, ptr++) {
+ 		if ((ptr->flags & SWP_USED) && ptr->swap_map) {
+-			char * path = d_path(ptr->swap_file, ptr->swap_vfsmnt,
+-						page, PAGE_SIZE);
++			char * path = d_path(ptr->swap_file->f_dentry,
++					     ptr->swap_file->f_vfsmnt,
++					     page, PAGE_SIZE);
+ 
+ 			len += sprintf(buf + len, "%-31s ", path);
+ 
+-			if (!ptr->swap_device)
+-				len += sprintf(buf + len, "file\t\t");
+-			else
+-				len += sprintf(buf + len, "partition\t");
++			len += sprintf(buf + len, "%-15s ", ptr->method->name);
+ 
+ 			usedswap = 0;
+ 			for (j = 0; j < ptr->max; ++j)
+@@ -827,7 +904,7 @@
+ 					default:
+ 						usedswap++;
+ 				}
+-			len += sprintf(buf + len, "%d\t%d\t%d\n", ptr->pages << (PAGE_SHIFT - 10), 
++			len += sprintf(buf + len, "%-8d%-8d%d\n", ptr->pages << (PAGE_SHIFT - 10), 
+ 				usedswap << (PAGE_SHIFT - 10), ptr->prio);
+ 		}
+ 	}
+@@ -835,28 +912,89 @@
+ 	return len;
+ }
+ 
+-int is_swap_partition(kdev_t dev) {
++/* apply a test function to all active swap objects. E.g. for checking
++ * whether a partition is used for swapping
++ */
++int swap_run_test(int (*test_fct)(unsigned int flags,
++				  struct file * swap_file,
++				  void *testdata), void *testdata)
++{
+ 	struct swap_info_struct *ptr = swap_info;
+ 	int i;
+ 
+ 	for (i = 0 ; i < nr_swapfiles ; i++, ptr++) {
+-		if (ptr->flags & SWP_USED)
+-			if (ptr->swap_device == dev)
+-				return 1;
++		if (ptr->swap_file && 
++		    test_fct(ptr->flags, ptr->swap_file, testdata))
++			return 1;
+ 	}
+ 	return 0;
+ }
+ 
++/* Walk through the list of known swap method until somebody wants to
++ * handle this file. Pick the first one which claims to be able to
++ * swap to this kind of file.
++ *
++ * return value: < 0: error, 0: not found, > 0: swapfilesize
++ */
++int find_swap_method(struct file *swap_file,
++		     struct swap_info_struct *p)
++{
++	int swapfilesize = 0;
++	struct swap_method *method;
++
++	p->method = NULL;
++	for (method = swap_methods; method; method = method->next) {
++		swapfilesize = method->ops->open(swap_file, &p->data);
++		if (swapfilesize == 0) {
++			continue;
++		}
++		if (swapfilesize > 0) {
++			p->method = method;
++			p->method->use_count ++;
++			p->swap_file = swap_file;
++			break;
++		}
++		if (swapfilesize < 0) {
++			break;
++		}
++	}
++	return swapfilesize;
++}
++
++/* swap_run_test() applies this hook to all swapfiles until it returns
++ * "1".  If it never return "1", the result of swap_run_test() is "0",
++ * otherwise "1".
++ */
++static int is_swap_partition_hook(unsigned int flags, struct file *swap_file,
++				  void *testdata)
++{
++	kdev_t swap_dev = S_ISBLK(swap_file->f_dentry->d_inode->i_mode)
++		? swap_file->f_dentry->d_inode->i_rdev : 0;
++	kdev_t dev = *((kdev_t *)testdata);
++	
++	if (flags & SWP_USED && dev == swap_dev) {
++		return 1;
++	} else {
++		return 0;
++	}
++}
++
++/* A wrapper to the swap_run_test() which test for swap methods
++ */
++int is_swap_partition(kdev_t dev) {
++	return swap_run_test(is_swap_partition_hook, &dev);
++}
++
+ /*
+  * Written 01/25/92 by Simmule Turner, heavily changed by Linus.
++ * 22nd June 2003 David Chow <davidchow@shaolinmicro.com>
++ * Modified to enable the swap method hooks
+  *
+  * The swapon system call
+  */
+ asmlinkage long sys_swapon(const char * specialfile, int swap_flags)
+ {
+ 	struct swap_info_struct * p;
+-	struct nameidata nd;
+-	struct inode * swap_inode;
+ 	unsigned int type;
+ 	int i, j, prev;
+ 	int error;
+@@ -866,9 +1004,9 @@
+ 	int nr_good_pages = 0;
+ 	unsigned long maxpages = 1;
+ 	int swapfilesize;
+-	struct block_device *bdev = NULL;
+ 	unsigned short *swap_map;
+-	
++	char * tmp_specialfile;
++
+ 	if (!capable(CAP_SYS_ADMIN))
+ 		return -EPERM;
+ 	lock_kernel();
+@@ -886,8 +1024,7 @@
+ 		nr_swapfiles = type+1;
+ 	p->flags = SWP_USED;
+ 	p->swap_file = NULL;
+-	p->swap_vfsmnt = NULL;
+-	p->swap_device = 0;
++	p->method = NULL;
+ 	p->swap_map = NULL;
+ 	p->lowest_bit = 0;
+ 	p->highest_bit = 0;
+@@ -901,58 +1038,69 @@
+ 		p->prio = --least_priority;
+ 	}
+ 	swap_list_unlock();
+-	error = user_path_walk(specialfile, &nd);
+-	if (error)
+-		goto bad_swap_2;
+-
+-	p->swap_file = nd.dentry;
+-	p->swap_vfsmnt = nd.mnt;
+-	swap_inode = nd.dentry->d_inode;
+-	error = -EINVAL;
++	/* Open the swap using filp_open. Bail out on any errors. */
++	tmp_specialfile = getname(specialfile);
++	if (IS_ERR(tmp_specialfile)) {
++	    error = PTR_ERR(tmp_specialfile);
++	    	goto bad_swap_2;
++	}
++	p->swap_file = filp_open(tmp_specialfile, O_RDWR, 0600);
++	putname(tmp_specialfile);
++	if (IS_ERR(p->swap_file)) {
++	    error = PTR_ERR(p->swap_file);
++	    goto bad_swap_1;
++	}
+ 
+-	if (S_ISBLK(swap_inode->i_mode)) {
+-		kdev_t dev = swap_inode->i_rdev;
+-		struct block_device_operations *bdops;
+-		devfs_handle_t de;
+-
+-		if (is_mounted(dev)) {
+-			error = -EBUSY;
+-			goto bad_swap_2;
+-		}
++	error = -EINVAL;
+ 
+-		p->swap_device = dev;
+-		set_blocksize(dev, PAGE_SIZE);
+-		
+-		bd_acquire(swap_inode);
+-		bdev = swap_inode->i_bdev;
+-		de = devfs_get_handle_from_inode(swap_inode);
+-		bdops = devfs_get_ops(de);  /*  Increments module use count  */
+-		if (bdops) bdev->bd_op = bdops;
+-
+-		error = blkdev_get(bdev, FMODE_READ|FMODE_WRITE, 0, BDEV_SWAP);
+-		devfs_put_ops(de);/*Decrement module use count now we're safe*/
+-		if (error)
+-			goto bad_swap_2;
+-		set_blocksize(dev, PAGE_SIZE);
+-		error = -ENODEV;
+-		if (!dev || (blk_size[MAJOR(dev)] &&
+-		     !blk_size[MAJOR(dev)][MINOR(dev)]))
+-			goto bad_swap;
+-		swapfilesize = 0;
+-		if (blk_size[MAJOR(dev)])
+-			swapfilesize = blk_size[MAJOR(dev)][MINOR(dev)]
+-				>> (PAGE_SHIFT - 10);
+-	} else if (S_ISREG(swap_inode->i_mode))
+-		swapfilesize = swap_inode->i_size >> PAGE_SHIFT;
+-	else
+-		goto bad_swap;
++	swapfilesize = find_swap_method(p->swap_file, p);
++	if (swapfilesize < 0) {
++	    error = swapfilesize;
++	    filp_close(p->swap_file, NULL);
++	    goto bad_swap_1;
++	}
++
++#ifdef CONFIG_KMOD
++	if (swapfilesize == 0) {
++		if ((p->swap_file->f_dentry->d_sb
++	    	&& (p->swap_file->f_dentry->d_sb->s_type->fs_flags & FS_REQUIRES_DEV)) 
++	    	|| (p->swap_file->f_dentry->d_inode 
++	    	&& S_ISBLK(p->swap_file->f_dentry->d_inode->i_mode))) {
++	    	/* It looks like a block device filesystem */
++	    	(void)request_module("blkdev_swap");
++	    } else {
++			/* User may specify which swap module it use */
++	    	(void)request_module("swapfile-mod");
++	    }
++	    
++	    swapfilesize = find_swap_method(p->swap_file, p);
++	    if (swapfilesize < 0) {
++	    	error = swapfilesize;
++	    	filp_close(p->swap_file, NULL);
++	    	goto bad_swap_1;
++	    }
++	}
++#endif  	  
++	if (swapfilesize == 0) {
++	    printk("Invalid swap file\n");
++	    filp_close(p->swap_file, NULL);
++	    goto bad_swap_1; /* free swap map */
++	}
++
++	/* After this point, the swap-file has been opened by the swap
++	 * method. We must make sure to use the bad_swap label for any
++	 * errors.
++	 */
+ 
+ 	error = -EBUSY;
++
+ 	for (i = 0 ; i < nr_swapfiles ; i++) {
+ 		struct swap_info_struct *q = &swap_info[i];
+ 		if (i == type || !q->swap_file)
+ 			continue;
+-		if (swap_inode->i_mapping == q->swap_file->d_inode->i_mapping)
++		if (p->swap_file->f_dentry->d_inode->i_mapping
++		    ==
++		    q->swap_file->f_dentry->d_inode->i_mapping)
+ 			goto bad_swap;
+ 	}
+ 
+@@ -1088,17 +1236,25 @@
+ 	swap_list_unlock();
+ 	error = 0;
+ 	goto out;
++
+ bad_swap:
+-	if (bdev)
+-		blkdev_put(bdev, BDEV_SWAP);
++	if (p->method->ops->release)
++		p->method->ops->release(p->swap_file, p->data);
++	swap_list_lock();
++	p->method->use_count --;
++	p->method = NULL;
++	p->data = NULL;
++	swap_list_unlock();
++
++bad_swap_1:
++	swap_list_lock();
++	p->swap_file = NULL;
++	swap_list_unlock();
++	
+ bad_swap_2:
++
+ 	swap_list_lock();
+ 	swap_map = p->swap_map;
+-	nd.mnt = p->swap_vfsmnt;
+-	nd.dentry = p->swap_file;
+-	p->swap_device = 0;
+-	p->swap_file = NULL;
+-	p->swap_vfsmnt = NULL;
+ 	p->swap_map = NULL;
+ 	p->flags = 0;
+ 	if (!(swap_flags & SWAP_FLAG_PREFER))
+@@ -1106,7 +1262,7 @@
+ 	swap_list_unlock();
+ 	if (swap_map)
+ 		vfree(swap_map);
+-	path_release(&nd);
++
+ out:
+ 	if (swap_header)
+ 		free_page((long) swap_header);
+@@ -1181,8 +1337,8 @@
+ /*
+  * Prior swap_duplicate protects against swap device deletion.
+  */
+-void get_swaphandle_info(swp_entry_t entry, unsigned long *offset, 
+-			kdev_t *dev, struct inode **swapf)
++struct swap_method *get_swaphandle_info(swp_entry_t entry,
++					unsigned long *offset, void **data)
+ {
+ 	unsigned long type;
+ 	struct swap_info_struct *p;
+@@ -1190,32 +1346,26 @@
+ 	type = SWP_TYPE(entry);
+ 	if (type >= nr_swapfiles) {
+ 		printk(KERN_ERR "rw_swap_page: %s%08lx\n", Bad_file, entry.val);
+-		return;
++		return NULL;
+ 	}
+ 
+ 	p = &swap_info[type];
+ 	*offset = SWP_OFFSET(entry);
+ 	if (*offset >= p->max && *offset != 0) {
+ 		printk(KERN_ERR "rw_swap_page: %s%08lx\n", Bad_offset, entry.val);
+-		return;
++		return NULL;
+ 	}
+ 	if (p->swap_map && !p->swap_map[*offset]) {
+ 		printk(KERN_ERR "rw_swap_page: %s%08lx\n", Unused_offset, entry.val);
+-		return;
++		return NULL;
+ 	}
+ 	if (!(p->flags & SWP_USED)) {
+ 		printk(KERN_ERR "rw_swap_page: %s%08lx\n", Unused_file, entry.val);
+-		return;
++		return NULL;
+ 	}
+ 
+-	if (p->swap_device) {
+-		*dev = p->swap_device;
+-	} else if (p->swap_file) {
+-		*swapf = p->swap_file->d_inode;
+-	} else {
+-		printk(KERN_ERR "rw_swap_page: no swap file or device\n");
+-	}
+-	return;
++	*data = p->data;
++	return p->method;
+ }
+ 
+ /*
+
+--------------080004000007040101030108--
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
