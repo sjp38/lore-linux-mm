@@ -1,50 +1,36 @@
-Date: Wed, 10 May 2000 11:10:36 +0100
-From: Steve Dodd <steved@loth.demon.co.uk>
-Subject: Re: [PATCH] remove_inode_page rewrite.
-Message-ID: <20000510111035.A685@loth.demon.co.uk>
-References: <Pine.LNX.4.21.0005092051120.911-100000@neo.local>
-Mime-Version: 1.0
+Subject: Re: PATCH: SHM Bug in Highmem machines
+References: <ytt4s87tam1.fsf@vexeta.dc.fi.udc.es>
+From: Christoph Rohland <cr@sap.com>
+Date: 10 May 2000 13:17:28 +0200
+In-Reply-To: "Juan J. Quintela"'s message of "10 May 2000 04:14:30 +0200"
+Message-ID: <qwwr9balkmv.fsf@sap.com>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-In-Reply-To: <Pine.LNX.4.21.0005092051120.911-100000@neo.local>; from Dave Jones on Tue, May 09, 2000 at 09:14:08PM +0100
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Jones <dave@denial.force9.co.uk>
-Cc: Linux Kernel Mailing List <linux-kernel@vger.rutgers.edu>, linux-mm@kvack.org
+To: "Juan J. Quintela" <quintela@fi.udc.es>
+Cc: linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, May 09, 2000 at 09:14:08PM +0100, Dave Jones wrote:
+Hi juan,
 
-> I believe that while after CPU0 drops the pagecache_lock, and starts
-> removing one page, CPU1 fails to lock the same page (as CPU0 grabbed it 
-> with the trylock) and moves to the next page in the list, succeeds,
-> removes it, and then rescans from the top.
+
+"Juan J. Quintela" <quintela@fi.udc.es> writes:
+>         I think that SHM can't work in recent kernels, due to the fact 
+> that We call prepare_highmem_swapout without locking the page (that is
+> necesary with the new semantics).  If we don't do that change, the
+> page returned by prepare_highmem_swapout will be already
+> locked and our call to lock will sleep forever.
 > 
-> With the current locking I believe it's then possible for CPU1 to
-> lock that page
-
-Which page? CPU1 should never find the page CPU0 is freeing because it will
-either be locked, or not on the list at all. By the time CPU0 unlocks the
-page, it's removed it from the list (and it grabs the spinlock while messing
-with the list structure).
-
-> (again in the TryLockPage(page) call) just before CPU0
-> calls page_cache_release(page)
+> Later, Juan.
 > 
-> This patch probably kills us latency-wise, but looks a lot more
-> sane in my eyes.
+> PD. Christoph, could you see if that helps your problems (you are the only
+> person that I know that use highmem & shm).
 
-Now that invalidate_inode_page isn't calling sync_page, there seems to be
-no reason to drop and retake the spinlock, I agree.
+Yes, your patch fixes the lockup.
 
-[..]
-> - repeat:
-> -	head = &inode->i_mapping->pages;
->  	spin_lock(&pagecache_lock);
-> +
-> +	head = &inode->i_mapping->pages;
-
-That shouldn't be necessary - nobody is likely to change the address of
-inode->i_mapping->pages under us :)
+Thanks
+		Christoph
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
