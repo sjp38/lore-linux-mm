@@ -1,29 +1,44 @@
-Date: Fri, 19 Nov 2004 20:01:10 -0800
-From: William Lee Irwin III <wli@holomorphy.com>
+Message-ID: <419EC205.5030604@yahoo.com.au>
+Date: Sat, 20 Nov 2004 15:03:17 +1100
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+MIME-Version: 1.0
 Subject: Re: page fault scalability patch V11 [0/7]: overview
-Message-ID: <20041120040110.GI2714@holomorphy.com>
-References: <1100848068.25520.49.camel@gaston> <Pine.LNX.4.58.0411190704330.5145@schroedinger.engr.sgi.com> <20041120020401.GC2714@holomorphy.com> <419EA96E.9030206@yahoo.com.au> <20041120023443.GD2714@holomorphy.com> <419EAEA8.2060204@yahoo.com.au> <20041120030425.GF2714@holomorphy.com> <419EB699.4050204@yahoo.com.au> <20041120034349.GG2714@holomorphy.com> <419EC0EC.9000106@yahoo.com.au>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <419EC0EC.9000106@yahoo.com.au>
+References: <Pine.LNX.4.58.0411181715280.834@schroedinger.engr.sgi.com> <419D581F.2080302@yahoo.com.au> <Pine.LNX.4.58.0411181835540.1421@schroedinger.engr.sgi.com> <419D5E09.20805@yahoo.com.au> <Pine.LNX.4.58.0411181921001.1674@schroedinger.engr.sgi.com> <1100848068.25520.49.camel@gaston> <Pine.LNX.4.58.0411190704330.5145@schroedinger.engr.sgi.com> <Pine.LNX.4.58.0411191155180.2222@ppc970.osdl.org> <20041120020306.GA2714@holomorphy.com> <419EBBE0.4010303@yahoo.com.au> <20041120035510.GH2714@holomorphy.com>
+In-Reply-To: <20041120035510.GH2714@holomorphy.com>
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Christoph Lameter <clameter@sgi.com>, torvalds@osdl.org, akpm@osdl.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Hugh Dickins <hugh@veritas.com>, linux-mm@kvack.org, linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org, Robin Holt <holt@sgi.com>
+To: William Lee Irwin III <wli@holomorphy.com>
+Cc: Linus Torvalds <torvalds@osdl.org>, Christoph Lameter <clameter@sgi.com>, akpm@osdl.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Hugh Dickins <hugh@veritas.com>, linux-mm@kvack.org, linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
 William Lee Irwin III wrote:
->> Please be more specific about the result, and cite the Message-Id.
+> William Lee Irwin III wrote:
+> 
+>>>Unprivileged triggers for full-tasklist scans are NMI oops material.
+> 
+> 
+> On Sat, Nov 20, 2004 at 02:37:04PM +1100, Nick Piggin wrote:
+> 
+>>Hang on, let's come back to this...
+>>We already have unprivileged do-for-each-thread triggers in the proc
+>>code. It's in do_task_stat, even. Rss reporting would basically just
+>>involve one extra addition within that loop.
+>>So... hmm, I can't see a problem with it.
+> 
+> 
+> /proc/ triggering NMI oopses was a persistent problem even before that
+> code was merged. I've not bothered testing it as it at best aggravates it.
+> 
 
-On Sat, Nov 20, 2004 at 02:58:36PM +1100, Nick Piggin wrote:
-> Start of this thread.
+It isn't a problem. If it ever became a problem then we can just
+touch the nmi oopser in the loop.
 
-Those do not have testing results of different RSS counter
-implementations in isolation.
+> And thread groups can share mm's. do_for_each_thread() won't suffice.
+> 
 
-
--- wli
+I think it will be just fine.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
