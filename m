@@ -1,34 +1,86 @@
-Date: Tue, 01 Jul 2003 13:10:39 -0700
-From: "Martin J. Bligh" <mbligh@aracnet.com>
+Date: Tue, 1 Jul 2003 22:41:25 +0100 (IST)
+From: Mel Gorman <mel@csn.ul.ie>
 Subject: Re: What to expect with the 2.6 VM
-Message-ID: <445820000.1057090239@flay>
 In-Reply-To: <200306301943.04326.phillips@arcor.de>
+Message-ID: <Pine.LNX.4.53.0307012202510.16265@skynet>
 References: <Pine.LNX.4.53.0307010238210.22576@skynet> <200306301943.04326.phillips@arcor.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Daniel Phillips <phillips@arcor.de>, Mel Gorman <mel@csn.ul.ie>, Linux Memory Management List <linux-mm@kvack.org>
-Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Daniel Phillips <phillips@arcor.de>
+Cc: Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
->>    In 2.4, Page Table Entries (PTEs) must be allocated from ZONE_ NORMAL as
->>    the kernel needs to address them directly for page table traversal. In a
->>    system with many tasks or with large mapped memory regions, this can
->>    place significant pressure on ZONE_ NORMAL so 2.6 has the option of
->>    allocating PTEs from high memory.
-> 
-> You probably ought to mention that this is only needed by 32 bit architectures 
-> with silly amounts of memory installed. 
+On Mon, 30 Jun 2003, Daniel Phillips wrote:
 
-Actually, it has more to do with the number of processes sharing data,
-than the amount of memory in the machine. And that's only because we 
-insist on making duplicates of identical pagetables all over the place ...
+> On Tuesday 01 July 2003 03:39, Mel Gorman wrote:
+> > I'm writing a small paper on the 2.6 VM for a conference.
+>
+> Nice stuff, and very timely.
+>
 
-M.
+I was hoping someone else would write it so I could read it but thats what
+I said about the 2.4 VM :-) . Yep, once again, my contributions are mainly
+documenting related, believe it or not, I actually do code a bit from time
+to time
 
+I was going to update the whole document based on this thread and repost
+it but it's looking like it'll take me a few days for a week before I work
+through it all (so I'm slow, sue me). This is especially true as there is
+a lot of old email threads I need to read before I understand 100% of the
+current discussion (which is also why I'm not replying to most posts in
+this thread). Instead, I'm going to post up the bits that are changed and
+hopefully get everything together.
+
+This is the first change....
+
+> You probably ought to mention that this is only needed by 32 bit architectures
+> with silly amounts of memory installed.
+
+Point... Taking into account what Martin said, the introduction to "PTEs
+in high memory" now reads;
+
+--Begin Extract--
+   PTEs in High Memory
+   ===================
+
+   In 2.4, Page Table Entries (PTEs) must be allocated from ZONE_NORMAL as
+   the kernel needs to address them directly for page table traversal. In a
+   system with many tasks or with large mapped memory regions, this can place
+   significant pressure on ZONE_NORMAL so 2.6 has the option of allocating
+   PTEs from high memory.
+
+   Allocating PTEs from high memory is a compile time option for two reasons.
+   First and foremost, this is only really needed by 32 bit architectures
+   with very large amounts of memory or when the workloads require many
+   processes to share pages. With lower memory machines or 64 bit
+   architectures, it is simply not required. Patches were submitted that
+   would allow page tables to be shared between processes in a Copy-On-Write
+   fashion which would mitigate the need for high memory PTEs but they were
+   never merged.
+--End Extract--
+
+> On that topic, you might mention
+> that the VM subsystem generally gets simpler and in some cases faster (i.e.,
+> no more highmem mapping cost) in the move to 64 bits.
+>
+
+I'm wary of making a statement like that. I'm not sure the code actually
+simpler with 64 bit but to me it looks about as complicated (or simple
+depending on your perspective). On the faster point, I understand that it
+is possible to have a net loss due to TLB and CPU cache misses. In this
+case, I think I'll just keep quiet
+
+> You also might want to mention pdflush.
+>
+
+Added to the todo list as well as object based rmap. I know object based
+rmap isn't merged but it is discussed enough that I'll put the time in to
+write about it.
+
+-- 
+Mel Gorman
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
