@@ -1,96 +1,47 @@
-Date: Mon, 14 Mar 2005 11:10:10 -0800
-From: Paul Jackson <pj@engr.sgi.com>
-Subject: Re: [PATCH] 0/2 Buddy allocator with placement policy (Version 9) +
- prezeroing (Version 4)
-Message-Id: <20050314111010.2137dcae.pj@engr.sgi.com>
-In-Reply-To: <Pine.LNX.4.58.0503141157330.12793@skynet>
-References: <20050307193938.0935EE594@skynet.csn.ul.ie>
-	<1110239966.6446.66.camel@localhost>
-	<Pine.LNX.4.58.0503101421260.2105@skynet>
-	<20050310092201.37bae9ba.pj@engr.sgi.com>
-	<1110478613.16432.36.camel@localhost>
-	<Pine.LNX.4.58.0503141157330.12793@skynet>
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e5.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id j2ELF0J9014573
+	for <linux-mm@kvack.org>; Mon, 14 Mar 2005 16:15:00 -0500
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay04.pok.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id j2ELEx9J243386
+	for <linux-mm@kvack.org>; Mon, 14 Mar 2005 16:14:59 -0500
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.12.11/8.12.11) with ESMTP id j2ELExlE014186
+	for <linux-mm@kvack.org>; Mon, 14 Mar 2005 16:14:59 -0500
+Subject: [PATCH 0/4] sparsemem intro patches
+From: Dave Hansen <haveblue@us.ibm.com>
+Content-Type: text/plain
+Date: Mon, 14 Mar 2005 13:14:43 -0800
+Message-Id: <1110834883.19340.47.camel@localhost>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: haveblue@us.ibm.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@osdl.org>
+Cc: linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Mel wrote:
-> I have not read up on cpuset before so I am assuming you are talking about
-> http://www.bullopensource.org/cpuset/ so correct me if I am wrong.
+The following four patches provide the last needed changes before the
+introduction of sparsemem.  For a more complete description of what this
+will do, please see this patch:
 
-Yes - that.  See also the kernel doc file:
+http://www.sr71.net/patches/2.6.11/2.6.11-bk7-mhp1/broken-out/B-sparse-150-sparsemem.patch
 
-	Documentation/cpusets.txt
+or previous posts on the subject:
+http://marc.theaimsgroup.com/?t=110868540700001&r=1&w=2
+http://marc.theaimsgroup.com/?l=linux-mm&m=109897373315016&w=2
 
-> I agree that if cpuset is not
-> widely used, it should not be the only way of setting policy.
+Three of these are i386-only, but one of them reorganizes the macros
+used to manage the space in page->flags, and will affect all platforms.
+There are analogous patches to the i386 ones for ppc64, ia64, and
+x86_64, but those will be submitted by the normal arch maintainers.
 
-Well ... cpusets just hit Linus tree four days ago, so I wouldn't expect
-them to have achieved world domination quite yet ;).
+The combination of the four patches has been test-booted on a variety of
+i386 hardware, and compiled for ppc64, i386, and x86-64 with about 17
+different .configs.  It's also been runtime-tested on ia64 configs (with
+more patches on top).
 
-Cpusets implement hardwall outer limits on cpu and memory usage.  The
-tasks assigned to a cpuset are only allowed to work within that cpuset.
+-- Dave
 
-Within a cpuset, a job may use sched_setaffinity, set_mempolicy, mbind
-and madvise to make fine grained placement and related policy choices
-however it chooses, subject to the broad, hard constraints of the cpuset.
-
-The imposition of a policy that says a task can't swap is usually, at
-least where I see it used, a hard constraint, imposed externally on an
-entire job, for the well being of the rest of the system:
-
-    Waking up swappers imposes a burden on the rest of the
-    system, which some jobs must not be allowed to do.
-
-    And wasting further cpu cycles on a job that has exceeded
-    its allowed memory when it wasn't supposed to (and hence
-    no longer has any chance of substaining the in-memory
-    performance required of it) is a waste of possibly expensive
-    compute resources.
-
-The natural place for such an externally imposed policy limiting overall
-processor or memory usage by a group of tasks is, in my admittedly
-biased view, the cpuset.
-
-I envision a per-cpuset file, "policy_kill_no_swap", containing a
-boolean "0" or "1" (actually, "0\n" or "1\n").  It defaults to "0".  If
-set to "1" (by writing "1" to that file) then if any task in that cpuset
-gets far enough in the mm/page_alloc.c:__alloc_pages() code to initiate
-swapping, that task is killed instead.
-
-I don't see any need to have any other way of specifying this policy
-preference by a per task call such as set_mempolicy(2).  However if
-others saw such a need, I'm open to considering it.
-
-I don't view this fallback stuff like I see Mel describing it. I don't
-see it as a passing a list of fallback alternatives to a single API.
-Rather, each API need only specify one policy.  The only place
-'fallback' comes into play is if there are multiple API's (such as both
-set_mempolicy and cpusets) that affect the same decision in the kernel
-(such as whether to let a task invoke swapping, or to kill it instead).
-The 'fallback' is the chose of what API takes precedence here.  For
-system wide imposed hardwall limitations, the cpuset should have its
-policy enforced.  Within those limits, finer grained calls such as
-set_mempolicy should prevail.
-
-So, if others did make the case for a second, per-task, way of
-specifying this 'kill_no_swap' policy, then:
- 1) If a tasks cpuset policy_kill_no_swap is true, that prevails.
- 2) Otherwise the per-task setting of kill_no_swap prevails.
-
-The choices of where migration is allowed is separate, in my view,
-and deserves its own policy flags.  I don't know what those flags
-should be.
-
--- 
-                  I won't rest till it's the best ...
-                  Programmer, Linux Scalability
-                  Paul Jackson <pj@engr.sgi.com> 1.650.933.1373, 1.925.600.0401
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
