@@ -1,62 +1,45 @@
-From: kanoj@google.engr.sgi.com (Kanoj Sarcar)
-Message-Id: <199906292201.PAA17715@google.engr.sgi.com>
-Subject: Re: filecache/swapcache questions [RFC] [RFT] [PATCH] kanoj-mm12-2.3.8 Fix swapoff races
-Date: Tue, 29 Jun 1999 15:01:24 -0700 (PDT)
-In-Reply-To: <14200.45499.255924.339550@dukat.scot.redhat.com> from "Stephen C. Tweedie" at Jun 29, 99 12:44:59 pm
+From: "Stephen C. Tweedie" <sct@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
+Message-ID: <14202.16095.714040.234720@dukat.scot.redhat.com>
+Date: Wed, 30 Jun 1999 16:59:27 +0100 (BST)
+Subject: Re: filecache/swapcache questions [RFC] [RFT] [PATCH] kanoj-mm12-2.3.8
+In-Reply-To: <Pine.LNX.4.10.9906291420110.13586-100000@laser.random>
+References: <14200.46476.994769.970340@dukat.scot.redhat.com>
+	<Pine.LNX.4.10.9906291420110.13586-100000@laser.random>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Stephen C. Tweedie" <sct@redhat.com>
-Cc: andrea@suse.de, torvalds@transmeta.com, linux-mm@kvack.org
+To: Andrea Arcangeli <andrea@suse.de>
+Cc: "Stephen C. Tweedie" <sct@redhat.com>, Chuck Lever <cel@monkey.org>, Kanoj Sarcar <kanoj@google.engr.sgi.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> 
-> Hi,
-> 
-> On Mon, 28 Jun 1999 16:43:59 -0700 (PDT), kanoj@google.engr.sgi.com
-> (Kanoj Sarcar) said:
-> 
-> > This will almost always work, except theoretically, you still can
-> > not guarantee forward progress, unless you can stop forks() from
-> > happening. That is, given a high enough rate of forking, swapoff
-> > is never going to terminate. 
-> 
-> Then repeat until it converges, ie. until you have no swap entries left.
-> No big deal.  Unless the swapoff sweep and the fork are running over pid
-> space at exactly the same rate forever (which we do not have to worry
-> about!), you will make progress.
->
+Hi,
 
-Stephen,
+On Tue, 29 Jun 1999 14:32:41 +0200 (CEST), Andrea Arcangeli
+<andrea@suse.de> said:
 
-Seeing that both of us devoted so much time to discussing this,
-I felt compelled to look at what is involved in doing what you 
-are suggesting. 
+> On Tue, 29 Jun 1999, Stephen C. Tweedie wrote:
+>> Absolutely.  The important thing is to do enough swapping to make sure
+>> that unused data is not kicking around in memory.  Maybe you don't want
 
-To know whether there are any more references left to be eliminated
-on a swap page, we can not tolerate a SWAP_MAP_MAX concept; else we
-can never determine whether there are processes still referencing the
-swap page. Removing SWAP_MAP_MAX is a good thing in itself. The 
-swap_map[] array needs to be declared as an array of elements of the 
-same size as the page->count field, ie an atomic_t (since there can be
-no more references to the swap page than there can be on the physical
-page).
+> I know that sometime is the right thing do to.
 
-Also, I am not sure why you say that fork can not keep ahead of
-the swapoff sweep forever. Are you saying it is okay not to guarantee
-forward progress of swapoff while a program that keeps on forking 
-(and the children exit almost immediately) is running? Then there's
-the complexity of clone(CLONE_PID), which creates task structures 
-with the same pid, so the pid fencepost algorithm would need to
-handle that too ...
+> But think also a difference scenario. You have a machine that only reads
+> all the time from a disk 10giga of data in loop. 
 
-Let me know what you think of these two issues, then I can try
-to create a patch that does this ... 
+Absolutely.  The find|grep workload, for example.  The point is that
+this memory load is different from the load imposed by a kernel build.
+If you are using file IO more, you need to be turning the cache over
+more.  
 
-Kanoj
-kanoj@engr.sgi.com
+The old buffer cache had this property, and it worked very well indeed.
+The buffer cache would try to recycle itself in preference to growing,
+so for file-intensive workloads we would naturally evict cached data in
+preference to swapping, but for memory-intensive compute workloads we
+would be more likely to swap unused VM pages out.
+
+--Stephen
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
