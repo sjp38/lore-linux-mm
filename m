@@ -1,56 +1,57 @@
-Received: from digeo-nav01.digeo.com (digeo-nav01.digeo.com [192.168.1.233])
-	by packet.digeo.com (8.9.3+Sun/8.9.3) with SMTP id OAA05766
-	for <linux-mm@kvack.org>; Mon, 3 Mar 2003 14:19:06 -0800 (PST)
-Date: Mon, 3 Mar 2003 14:15:18 -0800
-From: Andrew Morton <akpm@digeo.com>
-Subject: Re: [PATCH 2.5.63] Teach page_mapped about the anon flag
-Message-Id: <20030303141518.12d9ccd8.akpm@digeo.com>
-In-Reply-To: <117290000.1046728362@baldur.austin.ibm.com>
-References: <20030227025900.1205425a.akpm@digeo.com>
-	<200302280822.09409.kernel@kolivas.org>
-	<20030227134403.776bf2e3.akpm@digeo.com>
-	<118810000.1046383273@baldur.austin.ibm.com>
-	<20030227142450.1c6a6b72.akpm@digeo.com>
-	<103400000.1046725581@baldur.austin.ibm.com>
-	<20030303131210.36645af6.akpm@digeo.com>
-	<107610000.1046726685@baldur.austin.ibm.com>
-	<20030303133539.6594e0b6.akpm@digeo.com>
-	<117290000.1046728362@baldur.austin.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Message-ID: <3E646FB0.6040108@aitel.hist.no>
+Date: Tue, 04 Mar 2003 10:19:44 +0100
+From: Helge Hafting <helgehaf@aitel.hist.no>
+MIME-Version: 1.0
+Subject: Re: 2.5.63-mm2 slab corruption
+References: <20030302180959.3c9c437a.akpm@digeo.com>
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave McCracken <dmccr@us.ibm.com>
+To: Andrew Morton <akpm@digeo.com>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Dave McCracken <dmccr@us.ibm.com> wrote:
->
-> 
-> --On Monday, March 03, 2003 13:35:39 -0800 Andrew Morton <akpm@digeo.com>
-> wrote:
-> 
-> > We do need a patch I think.  page_mapped() is still assuming that an
-> > all-bits-zero atomic_t corresponds to a zero-value atomic_t.
-> > 
-> > This does appear to be true for all supported architectures, but it's a
-> > bit grubby.
-> 
-> If that's ever not true then we need extra code to initialize/rezero that
-> field, since we assume it's zero on alloc, and the pte_chain code also
-> assumes it's zero for a new page.
+2.5.63-mm2 seems to work fine, but I got this in my dmesg:
+Helge Hafting
 
-Well why not make mapcount an "int" and move the places where it is modified
-inside pte_chain_lock()?
+VFS: Mounted root (ext2 filesystem) readonly.
+Freeing unused kernel memory: 320k freed
+Adding 1999864k swap on /dev/hdb2.  Priority:-1 extents:1
+eth0: no IPv6 routers present
+Slab corruption: start=d714cfa4, expend=d714cfe3, problemat=d714cfba
+Data: **********************7B ****************************************A5
+Next: 71 F0 2C .B8 2F 18 08 14 00 00 00 F7 01 55 55 03 00 00 00 21 3D 00 
+03 00 0
+0 00 00 74 69 6D 65
+slab error in check_poison_obj(): cache `vm_area_struct': object was 
+modified af
+ter freeing
+Call Trace:
+  [<c0130711>] __slab_error+0x21/0x28
+  [<c01308db>] check_poison_obj+0x103/0x10c
+  [<c013197c>] kmem_cache_alloc+0x64/0xe8
+  [<c01393a4>] split_vma+0x2c/0xdc
+  [<c01394ea>] do_munmap+0x96/0x134
+  [<c01395bf>] sys_munmap+0x37/0x54
+  [<c0108b17>] syscall_call+0x7/0xb
 
-That does not increase the number of atomic operations, and it makes me stop
-wondering if this:
-
-                if (atomic_read(&page->pte.mapcount) == 0)
-                        inc_page_state(nr_mapped);
-
-is racy ;)
+Slab corruption: start=c3eca854, expend=c3eca893, problemat=c3eca86a
+Data: **********************7B ****************************************A5
+Next: 71 F0 2C .A5 C2 0F 17 F0 E7 29 D8 00 A0 D9 41 00 A0 DB 41 C4 A7 EC 
+C3 25 0
+0 00 00 77 00 10 00
+slab error in check_poison_obj(): cache `vm_area_struct': object was 
+modified af
+ter freeing
+Call Trace:
+  [<c0130711>] __slab_error+0x21/0x28
+  [<c01308db>] check_poison_obj+0x103/0x10c
+  [<c013197c>] kmem_cache_alloc+0x64/0xe8
+  [<c01393a4>] split_vma+0x2c/0xdc
+  [<c01394ea>] do_munmap+0x96/0x134
+  [<c01395bf>] sys_munmap+0x37/0x54
+  [<c0108b17>] syscall_call+0x7/0xb
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
