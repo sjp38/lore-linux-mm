@@ -1,153 +1,82 @@
-Message-ID: <3D644C70.6D100EA5@zip.com.au>
-Date: Wed, 21 Aug 2002 19:29:04 -0700
-From: Andrew Morton <akpm@zip.com.au>
-MIME-Version: 1.0
-Subject: MM patches against 2.5.31
+Message-ID: <20020822112806.28099.qmail@thales.mathematik.uni-ulm.de>
+From: "Christian Ehrhardt" <ehrhardt@mathematik.uni-ulm.de>
+Date: Thu, 22 Aug 2002 13:28:05 +0200
+Subject: Re: MM patches against 2.5.31
+References: <3D644C70.6D100EA5@zip.com.au>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+In-Reply-To: <3D644C70.6D100EA5@zip.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: lkml <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Andrew Morton <akpm@zip.com.au>
+Cc: lkml <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-I've uploaded a rollup of pending fixes and feature work
-against 2.5.31 to
+On Wed, Aug 21, 2002 at 07:29:04PM -0700, Andrew Morton wrote:
+> 
+> I've uploaded a rollup of pending fixes and feature work
+> against 2.5.31 to
+> 
+> http://www.zip.com.au/~akpm/linux/patches/2.5/2.5.31/2.5.31-mm1/
+> 
+> The rolled up patch there is suitable for ongoing testing and
+> development.  The individual patches are in the broken-out/
+> directory and should all be documented.
 
-http://www.zip.com.au/~akpm/linux/patches/2.5/2.5.31/2.5.31-mm1/
+Sorry, but we still have the page release race in multiple places.
+Look at the following (page starts with page_count == 1):
 
-The rolled up patch there is suitable for ongoing testing and
-development.  The individual patches are in the broken-out/
-directory and should all be documented.
+Processor 1                          Processor 2
+refill_inactive: lines 378-395
+   as page count == 1 we'll
+   continue with line 401
+
+                                     __pagevec_release: line 138
+				       calls release_pages
+				     release_pages: line 100-111
+				       put_page_test_zero brings the
+				       page count to 0 and we'll continue
+				       at line 114. Note that this may
+				       happen while another processor holds
+				       the lru lock, i.e. there is no
+				       point in checking for page count == 0
+				       with the lru lock held because
+				       the lru lock doesn't protect against
+				       decrements of page count after
+				       the check.
+  line 401: page_cache_get
+  resurrects the page, page
+  count is now 1.
+  lines 402-448.
+  line 448 calls __pagevec_release
+
+__pagevec_release: line 138
+  calls release_pages
+release_pages: lines 100-111
+  put_page_test_zero brings the
+  page count back to 0 (!!!)
+  i.e. we continue at line 114:
+
+  lines 114-123.
+  The page count == 0 check in line
+  123 is successful and the page
+  is returned to the buddy allocator
+  
+				       lines 114-123.
+				       The page count == 0 check in line
+				       123 is successful, i.e. the page
+				       is returned to the buddy allocator
+				       a second time. ===> BOOM
 
 
-broken-out/linus.patch
-  Incremental BK patch from Linus' tree
+Neither the lru lock nor any of the page count == 0 checks can
+prevent this from happening.
 
-broken-out/page_reserved.patch
-  Test PageReserved in pagevec_release()
+    regards   Christian
 
-broken-out/scsi_hack.patch
-  Fix block-highmem for scsi
-
-broken-out/page_cache_release_lru_fix.patch
-  Fix a race between __page_cache_release() and shrink_cache().
-
-broken-out/page_cache_release_fix.patch
-  Fix __page_cache_release() bugs
-
-broken-out/mvm.patch
-  Fix vmalloc bugs
-
-broken-out/pte-chain-fix.patch
-  Fix a VM lockup on uniprocessors
-
-broken-out/func-fix.patch
-  gcc-2.91.66 does not support __func__
-
-broken-out/ext3-htree.patch
-  Indexed directories for ext3
-
-broken-out/rmap-mapping-BUG.patch
-  Fix a BUG_ON(page->mapping == NULL) in try_to_unmap()
-
-broken-out/misc.patch
-  misc fixlets
-
-broken-out/tlb-speedup.patch
-  Reduce typical global TLB invalidation frequency by 35%
-
-broken-out/buffer-slab-align.patch
-  Don't align the buffer_head slab on hardware cacheline boundaries
-
-broken-out/zone-rename.patch
-  Rename zone_struct->zone, zonelist_struct->zonelist.  Remove zone_t,
-  zonelist_t.
-
-broken-out/per-zone-lru.patch
-  Per-zone page LRUs
-
-broken-out/per-zone-lock.patch
-  Per-zone LRU list locking
-
-broken-out/l1-max-size.patch
-  Infrastructure for determining the maximum L1 cache size which the kernel
-  may have to support.
-
-broken-out/zone-lock-alignment.patch
-  Pad struct zone to ensure that the lru and buddy locks are in separate
-  cachelines.
-
-broken-out/put_page_cleanup.patch
-  Clean up put_page() and page_cache_release().
-
-broken-out/anon-batch-free.patch
-  Batched freeing and de-LRUing of anonymous pages
-
-broken-out/writeback-sync.patch
-  Writeback fixes and tuneups
-
-broken-out/ext3-inode-allocation.patch
-  Fix an ext3 deadlock
-
-broken-out/ext3-o_direct.patch
-  O_DIRECT support for ext3.
-
-broken-out/jfs-bio.patch
-  Convert JFS to use direct-to-BIO I/O
-
-broken-out/discontig-paddr_to_pfn.patch
-  Convert page pointers into pfns for i386 NUMA
-
-broken-out/discontig-setup_arch.patch
-  Rework setup_arch() for i386 NUMA
-
-broken-out/discontig-mem_init.patch
-  Restructure mem_init for i386 NUMA
-
-broken-out/discontig-i386-numa.patch
-  discontigmem support for i386 NUMA
-
-broken-out/cleanup-mem_map-1.patch
-  Clean up lots of open-coded uese of mem_map[].  For ia32 NUMA
-
-broken-out/zone-pages-reporting.patch
-  Fix the boot-time reporting of each zone's available pages
-
-broken-out/enospc-recovery-fix.patch
-  Fix the __block_write_full_page() error path.
-
-broken-out/fix-faults.patch
-  Back out the initial work for atomic copy_*_user()
-
-broken-out/bkl-consolidate.patch
-  Consolidation per-arch lock_kenrel() implementations.
-
-broken-out/might_sleep.patch
-  Infrastructure to detect sleep-inside-spinlock bugs
-
-broken-out/spin-lock-check.patch
-  spinlock/rwlock checking infrastructure
-
-broken-out/atomic-copy_user.patch
-  Support for atomic copy_*_user()
-
-broken-out/kmap_atomic_reads.patch
-  Use kmap_atomic() for generic_file_read()
-
-broken-out/kmap_atomic_writes.patch
-  Use kmap_atomic() for generic_file_write()
-
-broken-out/config-PAGE_OFFSET.patch
-  Configurable kenrel/user memory split
-
-broken-out/throttling-fix.patch
-  Fix throttling of heavy write()rs.
-
-broken-out/dirty-state-accounting.patch
-  Make the global dirty memory accounting more accurate
-
-broken-out/rd-cleanup.patch
-  Cleanup and fix the ramdisk driver (doesn't work right yet)
+-- 
+THAT'S ALL FOLKS!
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
