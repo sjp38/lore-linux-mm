@@ -1,75 +1,52 @@
-Date: Wed, 10 May 2000 17:32:02 -0700 (PDT)
-From: Linus Torvalds <torvalds@transmeta.com>
 Subject: Re: [PATCH] Recent VM fiasco - fixed
-In-Reply-To: <Pine.LNX.4.10.10005101708590.1489-100000@penguin.transmeta.com>
-Message-ID: <Pine.LNX.4.10.10005101720050.1580-100000@penguin.transmeta.com>
+References: <Pine.LNX.4.10.10005101708590.1489-100000@penguin.transmeta.com>
+From: "Juan J. Quintela" <quintela@fi.udc.es>
+In-Reply-To: Linus Torvalds's message of "Wed, 10 May 2000 17:16:05 -0700 (PDT)"
+Date: 11 May 2000 03:04:37 +0200
+Message-ID: <yttog6doq1m.fsf@vexeta.dc.fi.udc.es>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rajagopal Ananthanarayanan <ananth@sgi.com>, "Juan J. Quintela" <quintela@fi.udc.es>, Rik van Riel <riel@conectiva.com.br>
-Cc: linux-mm@kvack.org
+To: Linus Torvalds <torvalds@transmeta.com>
+Cc: "James H. Cloos Jr." <cloos@jhcloos.com>, linux-mm@kvack.org, linux-kernel@vger.rutgers.edu
 List-ID: <linux-mm.kvack.org>
 
-Some more explanations on the differences between pre7-8 and pre7-9..
+>>>>> "linus" == Linus Torvalds <torvalds@transmeta.com> writes:
 
-Basically pre7-9 survives mmap002 quite gracefully, and I think it does so
-for all the right reasons. It's not tuned for that load at all, it's just
-that mmap002 was really good at showing two weak points of the mm layer:
+linus> Which makes the whole process much more streamlined, and makes the numbers
+linus> more repeatable. It also fixes the problem with dirty buffer cache data
+linus> much more efficiently than the kflushd approach, and mmap002 is not a
+linus> problem any more. At least for me.
 
- - try_to_free_pages() could actually return success without freeing a
-   single page (just moving pages around to the swap cache). This was bad,
-   because it could cause us to get into a situation where we
-   "successfully" free'd pages without ever adding any to the list. Which
-   would, for all the obvious reasons, cause problems later when we
-   couldn't allocate a page after all..
+linus> [ I noticed that mmap002 finishes a whole lot faster if I never actually
+linus> wait for the writes to complete, but that had some nasty behaviour under
+linus> low memory circumstances, so it's not what pre7-9 actually does. I
+linus> _suspect_ that I should start actually waiting for pages only when
+linus> priority reaches 0 - comments welcomed, see fs/buffer.c and the
+linus> sync_page_buffers() function ]
 
- - The "sync_page_buffers()" thing to sync pages directly to disk rather
-   than wait for bdflush to do it for us (and have people run out of
-   memory before bdflush got around to the right pages).
+Hi
+        I have done my normal mmap002 test and this goes slower than
+ever, it takes something like 3m50 seconds to complete, (pre7-8 2m50,
+andrea classzone 2m8, and 2.2.15 1m55 for reference).  I have no more
+time now to do more testing, I will continue tomorrow late.  My
+findings are:
 
-   Sadly, as it was set up, try_to_free_buffers() doesn't even get the
-   "urgency" flag, so right now it doesn't know whether it should wait for
-   previous write-outs or not. So it always does, even though for
-   non-critical allocations it should just ignore locked buffers.
+real    3m41.403s
+user    0m16.010s
+sys     0m36.890s
 
-Fixing these things suddenly made mmap002 behave quite well. I'll make the
-change to pass in the priority to sync_page_buffers() so that I'll get the
-increased performance from not waiting when I don't have to, but it starts
-to look like pre7 is getting in shape.
 
-		Linus
+It takes the same user time than anterior versions, but the system
+time has aumented a lot, it was ~10/12 seconds in pre7-8 and around 8
+in classzone and 2.2.15.
 
-On Wed, 10 May 2000, Linus Torvalds wrote:
-> 
-> Ok, there's a pre7-9 out there, and the biggest change versus pre7-8 is
-> actually how block fs dirty data is flushed out. Instead of just waking up
-> kflushd and hoping for the best, we actually just write it out (and even
-> wait on it, if absolutely required).
-> 
-> Which makes the whole process much more streamlined, and makes the numbers
-> more repeatable. It also fixes the problem with dirty buffer cache data
-> much more efficiently than the kflushd approach, and mmap002 is not a
-> problem any more. At least for me.
-> 
-> [ I noticed that mmap002 finishes a whole lot faster if I never actually
->   wait for the writes to complete, but that had some nasty behaviour under
->   low memory circumstances, so it's not what pre7-9 actually does. I
->   _suspect_ that I should start actually waiting for pages only when
->   priority reaches 0 - comments welcomed, see fs/buffer.c and the
->   sync_page_buffers() function ]
-> 
-> kswapd is still quite aggressive, and will show higher CPU time than
-> before. This is a tweaking issue - I suspect it is too aggressive right
-> now, but it needs more testing and feedback. 
-> 
-> Just the dirty buffer handling made quite an enormous difference, so
-> please do test this if you hated earlier pre7 kernels.
-> 
-> 		Linus
-> 
-> 
+Later, Juan.
 
+-- 
+In theory, practice and theory are the same, but in practice they 
+are different -- Larry McVoy
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
