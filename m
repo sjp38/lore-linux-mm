@@ -1,29 +1,40 @@
-Date: Wed, 26 Nov 2003 11:07:18 -0800
-From: Mike Fedyk <mfedyk@matchmail.com>
-Subject: Re: 2.6.0-test10-mm1
-Message-ID: <20031126190718.GB1566@mis-mike-wstn.matchmail.com>
-References: <20031125211518.6f656d73.akpm@osdl.org> <20031126085123.A1952@infradead.org> <20031126044251.3b8309c1.akpm@osdl.org> <20031126130936.A5275@infradead.org> <20031126052900.17542bb3.akpm@osdl.org> <20031126132505.C5477@infradead.org>
-Mime-Version: 1.0
+Date: Wed, 26 Nov 2003 12:13:45 -0800
+From: "Martin J. Bligh" <mbligh@aracnet.com>
+Subject: [PATCH] Clear dirty bits etc on compound frees
+Message-ID: <22420000.1069877625@[10.10.2.4]>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <20031126132505.C5477@infradead.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Hellwig <hch@infradead.org>, Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@osdl.org>
+Cc: linux-mm mailing list <linux-mm@kvack.org>, Guillaume Morin <guillaume@morinfr.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Nov 26, 2003 at 01:25:05PM +0000, Christoph Hellwig wrote:
-> On Wed, Nov 26, 2003 at 05:29:00AM -0800, Andrew Morton wrote:
-> > But I do not think that making a single kernel symbol inaccessible is an
-> > appropriate way of resolving a GPFS licensing dispute.
-> 
-> well, GFPS is a derived work with or without it.  It's just that I remember
-> we had that agreement about merging it only with the _GPL export.  In fact
-> I'm pretty sure Paul told something about GPLed distributed filesystems from
-> IBM in that context..
+Guillaume noticed this on s390 whilst writing a driver that used
+compound pages. Seems correct to me, I've tested it on i386 as
+well. The patch just makes us call free_pages_check for each element
+of a compound page.
 
-Are you trying to say that something that was ported from AIX is a derived
-work because it has to read kernel internals to get its job done?
+diff -purN -X /home/mbligh/.diff.exclude virgin/mm/page_alloc.c clear_dirty/mm/page_alloc.c
+--- virgin/mm/page_alloc.c	2003-10-14 15:50:36.000000000 -0700
++++ clear_dirty/mm/page_alloc.c	2003-11-26 10:36:04.000000000 -0800
+@@ -267,8 +267,11 @@ free_pages_bulk(struct zone *zone, int c
+ void __free_pages_ok(struct page *page, unsigned int order)
+ {
+ 	LIST_HEAD(list);
++	int i;
+ 
+ 	mod_page_state(pgfree, 1 << order);
++	for (i = 0 ; i < (1 << order) ; ++i)
++		free_pages_check(__FUNCTION__, page + i);
+ 	free_pages_check(__FUNCTION__, page);
+ 	list_add(&page->list, &list);
+ 	kernel_map_pages(page, 1<<order, 0);
+
+
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
