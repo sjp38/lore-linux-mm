@@ -1,8 +1,8 @@
-Date: Mon, 11 Oct 1999 11:52:16 -0400 (EDT)
+Date: Mon, 11 Oct 1999 12:05:23 -0400 (EDT)
 From: Alexander Viro <viro@math.psu.edu>
 Subject: Re: locking question: do_mmap(), do_munmap()
-In-Reply-To: <14338.1300.124586.764594@dukat.scot.redhat.com>
-Message-ID: <Pine.GSO.4.10.9910111148050.18777-100000@weyl.math.psu.edu>
+In-Reply-To: <14338.1859.507452.652164@dukat.scot.redhat.com>
+Message-ID: <Pine.GSO.4.10.9910111157310.18777-100000@weyl.math.psu.edu>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -14,24 +14,26 @@ List-ID: <linux-mm.kvack.org>
 
 On Mon, 11 Oct 1999, Stephen C. Tweedie wrote:
 
-> The swapper has very strict requirements: to avoid blocking it requires
-> the big lock and the page table spinlocks, so that it can survive
-> without the mm semaphore.  Adding the mm semaphore to the swapout loop
-> is not really an option.  That means that you need the kernel lock when
-> modifying vma lists.
+> Hi,
+> 
+> On Sun, 10 Oct 1999 15:03:45 -0400 (EDT), Alexander Viro
+> <viro@math.psu.edu> said:
+> 
+> > Hold on. In swap_out_mm() you have to protect find_vma() (OK, it doesn't
+> > block, but we'll have to take care of mm->mmap_cache) _and_ you'll have to
+> > protect vma from destruction all way down to try_to_swap_out(). And to
+> > vma->swapout(). Which can sleep, so spinlocks are out of question
+> > here.
+> 
+> No, spinlocks would be ideal.  The vma swapout codes _have_ to be
+> prepared for the vma to be destroyed as soon as we sleep.  In fact, the
+> entire mm may disappear if the process happens to exit.  Once we know
+> which page to write where, the swapout operation becomes a per-page
+> operation, not per-vma.
 
-Ouch...
-
-> We can, however, improve things by using a per-mm spinlock instead of
-> using the kernel lock to provide that guarantee.
-
-->swapout() may block. We have three areas here:
-1. vma accesses in swapper.
-2. vma list reads outside of swapper.
-3. vma modifications/destruction.
-
-Looks like we need exclusion between 1 and 3 (on per-mm basis, that is).
-
+Aha, so you propose to drop it in ->swapout(), right? (after get_file() in
+filemap_write_page()... Ouch. Probably we'ld better lambda-expand the call
+in filemap_swapout() - the thing is called from other places too)...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
