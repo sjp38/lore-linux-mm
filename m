@@ -1,58 +1,32 @@
-From: Fabian Fenaut <fabian.fenaut@free.fr>
-Subject: Re: 2.6.1-mm4
-Date: Fri, 16 Jan 2004 15:49:51 +0100
-Sender: linux-kernel-owner@vger.kernel.org
-Message-ID: <S265351AbUAPOtx/20040116144953Z+7697@vger.kernel.org>
-References: <20040115225948.6b994a48.akpm@osdl.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1;
-	format=flowed
-Content-Transfer-Encoding: QUOTED-PRINTABLE
-Return-path: <linux-kernel-owner+linux-kernel=40quimby.gnus.org@vger.kernel.org>
-In-Reply-To: <20040115225948.6b994a48.akpm@osdl.org>
+Message-ID: <401D8D64.8010605@cyberone.com.au>
+Date: Mon, 02 Feb 2004 10:36:04 +1100
+From: Nick Piggin <piggin@cyberone.com.au>
+MIME-Version: 1.0
+Subject: VM benchmarks
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@osdl.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
-List-Id: linux-mm.kvack.org
+Cc: linux-mm@kvack.org
+List-ID: <linux-mm.kvack.org>
 
-Hi,
+After playing with the active / inactive list balancing a bit,
+I found I can very consistently take 2-3 seconds off a non
+swapping kbuild, and the light swapping case is closer to 2.4.
+Heavy swapping case is better again. Lost a bit in the middle
+though.
 
-I got an error compiling -mm4 :
+http://www.kerneltrap.org/~npiggin/vm/4/
 
-   [...]
-   CC [M]  drivers/media/video/ir-kbd-gpio.o
-drivers/media/video/ir-kbd-gpio.c:185: unknown field `name' specified i=
-n
-initializer
-drivers/media/video/ir-kbd-gpio.c:185: warning: missing braces around
-initializer
-drivers/media/video/ir-kbd-gpio.c:185: warning: (near initialization fo=
-r
-`driver.drv')
-drivers/media/video/ir-kbd-gpio.c:186: unknown field `drv' specified in
-initializer
-drivers/media/video/ir-kbd-gpio.c:187: unknown field `drv' specified in
-initializer
-drivers/media/video/ir-kbd-gpio.c:188: unknown field `gpio_irq'
-specified in initializer
-drivers/media/video/ir-kbd-gpio.c:188: warning: initialization from
-incompatible pointer type
-make[4]: *** [drivers/media/video/ir-kbd-gpio.o] Erreur 1
-make[3]: *** [drivers/media/video] Erreur 2
-make[2]: *** [drivers/media] Erreur 2
-make[1]: *** [drivers] Erreur 2
-make[1]: Leaving directory `/usr/src/linux-2.6.1'
-make: *** [stamp-build] Erreur 2
+At the end of this I might come up with something that is very
+suited to kbuild and no good at anything else. Do you have any
+other ideas of what I should test?
 
+Nick
 
-Complete log : http://fabian.fenaut.free.fr/compile_error
-=2Econfig : http://fabian.fenaut.free.fr/config-2.6.1-mm4
-
-Any hint ?
-
-Thank you
-=46abian
-
-
-Andrew Morton a =E9crit le 16.01.2004 07:59:
-> ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.6/2.6.1/2=
-=2E6.1-mm4/
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"aart@kvack.org"> aart@kvack.org </a>
