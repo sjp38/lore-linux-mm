@@ -1,50 +1,29 @@
-Date: Tue, 20 Jun 2000 13:18:38 -0300 (BRST)
+Date: Tue, 20 Jun 2000 13:27:26 -0300 (BRST)
 From: Rik van Riel <riel@conectiva.com.br>
-Subject: Re: shrink_mmap() change in ac-21
-In-Reply-To: <Pine.LNX.4.21.0006200043550.988-100000@inspiron.random>
-Message-ID: <Pine.LNX.4.21.0006201258190.12944-100000@duckman.distro.conectiva>
+Subject: [PATCH] -ac22-riel++
+Message-ID: <Pine.LNX.4.21.0006201321560.12944-100000@duckman.distro.conectiva>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrea Arcangeli <andrea@suse.de>
-Cc: Jamie Lokier <lk@tantalophile.demon.co.uk>, Zlatko Calusic <zlatko@iskon.hr>, alan@redhat.com, linux-mm@kvack.org, linux-kernel@vger.rutgers.edu
+To: linux-kernel@vger.rutgers.edu
+Cc: linux-mm@kvack.org, Alan Cox <alan@lxorguk.ukuu.org.uk>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 20 Jun 2000, Andrea Arcangeli wrote:
-> On Mon, 19 Jun 2000, Jamie Lokier wrote:
-> 
-> >if those wrong zones are quite full.  If the DMA zone desparately needs
-> >free pages and keeps needing them, isn't it good to encourage future
-> >non-DMA allocations to use another zone?  Removing pages from other
-> 
-> After some time the DMA zone will be full again anyway and you
-> payed a cost that consists in throwing away unrelated innocent
-> pages. I'm not convinced it's the right thing to do.
+Hi,
 
-I didn't know for sure either until I tested -ac21 on my
-192MB workstation. The bursts kswapd went through when
-it was freeing DMA memory (and 8MB of other memory) have
-convinced me that this is not a good idea.
+the patch below fixes the problem introduced in -ac21 (freeing
+too many pages from a "wrong" zone) and at the same time should
+increase interactive performance a bit.
 
-Also, since kswapd stops when all zones have free_pages
-above pages_low and we'll free up to pages_high pages of
-one zone, it means that we'll:
+The patch also fixes the situation where unneeded CPU time is
+wasted and the potential for an infinite loop in shrink_mmap().
+I've tested this patch in various circumstances with various
+amounts of memory and it seems to work quite well...
 
-- allocate the next series of pages from that one zone
-  with tons of unused pages
-- wake up kswapd so we'll free the *next* unused pages
-  from that zone when we run out of the current batch
-- rinse and repeat
-
-This means we'll do a *lot* more allocations from the
-less loaded zones than from the other zone, with a few
-(short) interruptions by kswapd. Also, there's no need
-to throw away data early.
-
-Of course, once we have a scavenge list (in the active
-inactive scavenge list VM) this whole point will be moot
-and we just want to avoid doing too much IO at once).
+The only situation where stalls still occur is when memory is
+completely filled with dirty pages, but as we determined earlier
+there is no good fix for this without write throttling...
 
 regards,
 
@@ -55,6 +34,240 @@ of people. That is its real strength.
 
 Wanna talk about the kernel?  irc.openprojects.net / #kernelnewbies
 http://www.conectiva.com/		http://www.surriel.com/
+
+
+
+--- linux-2.4.0-t1-ac22-riel/fs/buffer.c.orig	Mon Jun 19 18:24:09 2000
++++ linux-2.4.0-t1-ac22-riel/fs/buffer.c	Mon Jun 19 21:37:26 2000
+@@ -2387,6 +2387,11 @@
+  * NOTE: There are quite a number of ways that threads of control can
+  *       obtain a reference to a buffer head within a page.  So we must
+  *	 lock out all of these paths to cleanly toss the page.
++ *
++ * Different values for wait:
++ * -1:  don't do IO to free the buffers associated with page
++ *  0:  start asynchronous IO to free the buffers
++ *  1:  wait until the buffers have been freed
+  */
+ int try_to_free_buffers(struct page * page, int wait)
+ {
+@@ -2441,7 +2446,7 @@
+ 	spin_unlock(&free_list[index].lock);
+ 	write_unlock(&hash_table_lock);
+ 	spin_unlock(&lru_list_lock);	
+-	if (sync_page_buffers(bh, wait))
++	if (wait >= 0 && sync_page_buffers(bh, wait))
+ 		goto again;
+ 	return 0;
+ }
+--- linux-2.4.0-t1-ac22-riel/mm/filemap.c.orig	Mon Jun 19 18:27:05 2000
++++ linux-2.4.0-t1-ac22-riel/mm/filemap.c	Tue Jun 20 13:19:36 2000
+@@ -301,16 +301,19 @@
+  */
+ int shrink_mmap(int priority, int gfp_mask)
+ {
+-	int ret = 0, count, nr_dirty;
++	int ret = 0, count, maxscan, nr_dirty, loop = 0;
+ 	struct list_head * page_lru;
+ 	struct page * page = NULL;
+ 	
++shrink_again:
+ 	count = nr_lru_pages / (priority + 1);
+-	nr_dirty = priority;
++	maxscan = nr_lru_pages;
++	nr_dirty = 0;
+ 
+ 	/* we need pagemap_lru_lock for list_del() ... subtle code below */
+ 	spin_lock(&pagemap_lru_lock);
+-	while (count > 0 && (page_lru = lru_cache.prev) != &lru_cache) {
++	while ((count > 0) && (maxscan-- > 0) && 
++			(page_lru = lru_cache.prev) != &lru_cache) {
+ 		page = list_entry(page_lru, struct page, lru);
+ 		list_del(page_lru);
+ 
+@@ -351,9 +354,12 @@
+ 		 * of zone - it's old.
+ 		 */
+ 		if (page->buffers) {
+-			int wait = ((gfp_mask & __GFP_IO) && (nr_dirty-- < 0));
++			int wait = ((gfp_mask & __GFP_IO) ? 0 : -1);
++			nr_dirty++;
+ 			if (!try_to_free_buffers(page, wait))
+ 				goto unlock_continue;
++			/* We freed the buffers so it wasn't dirty */
++			nr_dirty--;
+ 			/* page was locked, inode can't go away under us */
+ 			if (!page->mapping) {
+ 				atomic_dec(&buffermem_pages);
+@@ -361,6 +367,15 @@
+ 			}
+ 		}
+ 
++		/*
++		 * Are there more than enough free pages in this zone?
++		 * Don't drop the page since it contains useful data.
++		 */
++		if (page->zone->free_pages > page->zone->pages_high) {
++			count++;
++			goto unlock_continue;
++		}
++
+ 		/* Take the pagecache_lock spinlock held to avoid
+ 		   other tasks to notice the page while we are looking at its
+ 		   page count. If it's a pagecache-page we'll free it
+@@ -387,6 +402,7 @@
+ 			}
+ 			/* PageDeferswap -> we swap out the page now. */
+ 			if (gfp_mask & __GFP_IO) {
++				nr_dirty++;
+ 				spin_unlock(&pagecache_lock);
+ 				/* Do NOT unlock the page ... brw_page does. */
+ 				ClearPageDirty(page);
+@@ -433,6 +449,17 @@
+ 
+ out:
+ 	spin_unlock(&pagemap_lru_lock);
++
++	/* We scheduled pages for IO? Wake up kflushd. */
++	if (nr_dirty) {
++		if (!loop && !ret && (gfp_mask & __GFP_IO)) {
++			loop = 1;
++			wakeup_bdflush(1);
++			goto shrink_again;
++		} else {
++			wakeup_bdflush(0);
++		}
++	}
+ 
+ 	return ret;
+ }
+--- linux-2.4.0-t1-ac22-riel/mm/vmscan.c.orig	Mon Jun 19 18:27:05 2000
++++ linux-2.4.0-t1-ac22-riel/mm/vmscan.c	Mon Jun 19 19:02:28 2000
+@@ -186,9 +186,7 @@
+ 	flush_tlb_page(vma, address);
+ 	vmlist_access_unlock(vma->vm_mm);
+ 
+-	/* OK, do a physical asynchronous write to swap.  */
+-	// rw_swap_page(WRITE, page, 0);
+-	/* Let shrink_mmap handle this swapout. */
++	/* Mark the page for swapout. Shrink_mmap does the hard work. */
+ 	SetPageDirty(page);
+ 	UnlockPage(page);
+ 
+@@ -427,6 +425,32 @@
+ 	return __ret;
+ }
+ 
++/**
++ * memory_pressure - check if the system is under memory pressure
++ *
++ * Returns 1 if the system is low on memory in at least one zone,
++ * 0 otherwise
++ */
++int memory_pressure(void)
++{
++	pg_data_t *pgdat = pgdat_list;
++
++	do {
++		int i;
++		for(i = 0; i < MAX_NR_ZONES; i++) {
++			zone_t *zone = pgdat->node_zones + i;
++			if (!zone->size || !zone->zone_wake_kswapd)
++				continue;
++			if (zone->free_pages < zone->pages_low)
++				return 1;
++		}
++		pgdat = pgdat->node_next;
++	} while (pgdat);
++
++	/* Found no zone with memory pressure? */
++	return 0;
++}
++
+ /*
+  * We need to make the locks finer granularity, but right
+  * now we need this so that we can do page allocations
+@@ -458,6 +482,8 @@
+ 				goto done;
+ 		}
+ 
++		if (!memory_pressure())
++			return 1;
+ 
+ 		/* Try to get rid of some shared memory pages.. */
+ 		if (gfp_mask & __GFP_IO) {
+@@ -512,7 +538,7 @@
+ 		} else {
+ 			priority--;
+ 		}
+-	} while (priority >= 0);
++	} while (priority >= 0 && memory_pressure());
+ 
+ 	/* Always end on a shrink_mmap.. */
+ 	while (shrink_mmap(0, gfp_mask)) {
+@@ -521,6 +547,9 @@
+ 			goto done;
+ 	}
+ 
++	if (!memory_pressure())
++		ret = 1;
++
+ done:
+ 	return ret;
+ }
+@@ -563,30 +592,22 @@
+ 	 */
+ 	tsk->flags |= PF_MEMALLOC;
+ 
++	/*
++	 * Kswapd needs to run for the entire lifetime of the system...
++	 */
+ 	for (;;) {
+-		pg_data_t *pgdat;
+-		int something_to_do = 0;
+-
+-		pgdat = pgdat_list;
+-		do {
+-			int i;
+-			for(i = 0; i < MAX_NR_ZONES; i++) {
+-				zone_t *zone = pgdat->node_zones+ i;
+-				if (tsk->need_resched)
+-					schedule();
+-				if (!zone->size || !zone->zone_wake_kswapd)
+-					continue;
+-				if (zone->free_pages < zone->pages_low)
+-					something_to_do = 1;
+-				do_try_to_free_pages(GFP_KSWAPD);
+-			}
+-			pgdat = pgdat->node_next;
+-		} while (pgdat);
+-
+-		if (!something_to_do) {
++		if (memory_pressure()) {
++			/* If there is memory pressure, try to free pages. */
++			do_try_to_free_pages(GFP_KSWAPD);
++		} else {
++			/* Else, we sleep and wait for somebody to wake us. */
+ 			tsk->state = TASK_INTERRUPTIBLE;
+ 			interruptible_sleep_on(&kswapd_wait);
+ 		}
++
++		/* Yield if something more important needs to run. */
++		if (tsk->need_resched)
++			schedule();
+ 	}
+ }
+ 
+--- linux-2.4.0-t1-ac22-riel/include/linux/swap.h.orig	Mon Jun 19 19:03:56 2000
++++ linux-2.4.0-t1-ac22-riel/include/linux/swap.h	Mon Jun 19 19:08:00 2000
+@@ -87,6 +87,7 @@
+ 
+ /* linux/mm/vmscan.c */
+ extern int try_to_free_pages(unsigned int gfp_mask);
++extern int memory_pressure(void);
+ 
+ /* linux/mm/page_io.c */
+ extern void rw_swap_page(int, struct page *, int);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
