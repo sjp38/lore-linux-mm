@@ -1,67 +1,54 @@
-Date: Sat, 17 Jun 2000 20:12:32 -0300 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
-Subject: Re: PATCH: Improvements in shrink_mmap and kswapd
-In-Reply-To: <ytt3dmcyli7.fsf@serpe.mitica>
-Message-ID: <Pine.LNX.4.21.0006172002370.31955-100000@duckman.distro.conectiva>
+Message-ID: <394C0A09.CD2CBF62@norran.net>
+Date: Sun, 18 Jun 2000 01:30:17 +0200
+From: Roger Larsson <roger.larsson@norran.net>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: PATCH: Improvements in shrink_mmap and kswapd
+References: <ytt3dmcyli7.fsf@serpe.mitica>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: "Juan J. Quintela" <quintela@fi.udc.es>
 Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, lkml <linux-kernel@vger.rutgers.edu>, linux-mm@kvack.org, linux-fsdevel@vger.rutgers.edu
 List-ID: <linux-mm.kvack.org>
 
-On 18 Jun 2000, Juan J. Quintela wrote:
+> diff -urN --exclude-from=/home/lfcia/quintela/work/kernel/exclude base/include/asm-i386/bitops.h working/include/asm-i386/bitops.h
+> --- base/include/asm-i386/bitops.h      Sat Jun 17 23:37:03 2000
+> +++ working/include/asm-i386/bitops.h   Sat Jun 17 23:52:49 2000
+> @@ -29,6 +29,7 @@
+>  extern void change_bit(int nr, volatile void * addr);
+>  extern int test_and_set_bit(int nr, volatile void * addr);
+>  extern int test_and_clear_bit(int nr, volatile void * addr);
+> +extern int test_and_test_and_clear_bit(int nr, volatile void * addr);
+>  extern int test_and_change_bit(int nr, volatile void * addr);
+>  extern int __constant_test_bit(int nr, const volatile void * addr);
+>  extern int __test_bit(int nr, volatile void * addr);
+> @@ -87,6 +88,13 @@
+>                 :"=r" (oldbit),"=m" (ADDR)
+>                 :"Ir" (nr));
+>         return oldbit;
+> +}
+> +
+> +extern __inline__ int test_and_test_and_clear_bit(int nr, volatile void *addr)
+> +{
+> +       if(!(((unsigned long)addr) & (1<<nr)))
+> +               return 0;
+> +       return test_and_clear_bit(nr,addr);
+>  }
 
-> Reports of success/failure are welcome.  Comments are also welcome.
 
-I have a few comments on the patch. They have mostly to do
-with the maxlaunder logic.
+This does not look correct. It basically tests if the ADDRESS has bit
+#nr set...
 
-A few days ago I sent you the buffer.c patch where
-try_to_free_buffers was modified so that it would never try
-to do IO on pages if the 'wait' argument has a value of -1.
+Shouldn't it be
++       if(!(((unsigned long)*addr) & (1<<nr)))
 
-This can be combined with maxlaunder in a nice way. Firstly
-we need to wakeup_bdflush() if we queued some buffers or swap
-pages for IO, that way bdflush will flush dirty and IO queued
-pages to disk.
 
-Secondly we need to try try_to_free_buffers(page, -1) first,
-currently you count freeing buffers without doing IO as an
-IO operation (and also, you're starting IO operations when
-__GFP_IO isn't set). If that fails and maxlaunder isn't reached
-yet, we can try to start asynchronous IO on the page.
+/RogerL
 
-When we reach the end of shrink_mmap, we can do something like
-this:
-
-wait = 0;
-if (nr_writes && (gfp_mask & __GFP_IO))
-	wait = 1;
-wake_up_bdflush(wait);
-if (wait && !ret) {
-	goto again;  /* bdflush just made pages available, roll again */
-}
-
-This will give us something like write throttling where apps
-will be waiting for bdflush to have done IO on pages so we'll
-have freeable pages around. If __GFP_IO isn't set we'll still
-fail, of course, but this will at least keep applications from
-failing needlessly.
-
-regards,
-
-Rik
 --
-The Internet is not a network of computers. It is a network
-of people. That is its real strength.
-
-Wanna talk about the kernel?  irc.openprojects.net / #kernelnewbies
-http://www.conectiva.com/		http://www.surriel.com/
-
-
-
+Home page:
+  http://www.norran.net/nra02596/
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
