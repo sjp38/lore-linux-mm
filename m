@@ -1,55 +1,50 @@
-Received: from digeo-nav01.digeo.com (digeo-nav01.digeo.com [192.168.1.233])
-	by packet.digeo.com (8.9.3+Sun/8.9.3) with SMTP id SAA13987
-	for <linux-mm@kvack.org>; Sat, 21 Sep 2002 18:49:55 -0700 (PDT)
-Message-ID: <3D8D21C2.FFE42453@digeo.com>
-Date: Sat, 21 Sep 2002 18:49:54 -0700
-From: Andrew Morton <akpm@digeo.com>
+From: Paul Mackerras <paulus@samba.org>
 MIME-Version: 1.0
-Subject: Re: overcommit stuff
-References: <3D8D17B6.D4E1ECAE@digeo.com> <Pine.LNX.4.44.0209220238560.2497-100000@localhost.localdomain>
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
+Message-ID: <15757.18495.802801.215286@argo.ozlabs.ibm.com>
+Date: Sun, 22 Sep 2002 14:34:07 +1000 (EST)
+Subject: Bug in sys_mprotect
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: hch@infradead.org, torvalds@transmeta.com
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Hugh Dickins wrote:
-> 
-> On Sat, 21 Sep 2002, Andrew Morton wrote:
-> > Hugh Dickins wrote:
-> > > ...
-> > > > It seems very unlikely (impossible?) that those pages will
-> > > > ever become unshared.
-> > >
-> > > I expect it's very unlikely (short of application bugs) that
-> > > those pages would become unshared; but they have been mapped
-> > > in such a way that the process is entitled to unshare them,
-> > > therefore they have been counted.  A good example of why
-> > > Linux does not impose strict commit accounting, and why
-> > > you may choose not to use Alan's strict accounting policy.
-> >
-> > OK, thanks.   Just checking.
-> >
-> > Is glibc mapping executables with PROT_WRITE?  If so,
-> > doesn't that rather devalue the whole overcommit thing?
-> 
-> No, it looks like glibc is doing the right thing (mapping the code
-> readonly and the data+bss readwrite).  And I was wrong to say it's
-> unlikely those pages would ever become unshared: the four 0.5MB
-> areas look like typical readwrite private anon allocations.
-> 
+There is a bug in sys_mprotect in the current 2.5 kernel where it can
+dereference `prev' when it is NULL.  After the main loop we have the
+statement (line 284):
 
-hm.  That would be two megs of real memory per task?  So maybe
-I wasn't running 10000 tasks.  It's hard to say - running ps
-with that many processes in the machine appears to take longer
-than I have left on this earth.
+	if (next && prev->vm_end == next->vm_start &&
+			can_vma_merge(next, prev->vm_flags) &&
+			!prev->vm_file && !(prev->vm_flags & VM_SHARED)) {
 
-Maybe an `ls /proc | wc' would tell me.  Dunno; I've moved onto
-other bugs for today.  Bill seems to be into this stuff.  Hopefully
-he'll retest on the next -mm, which should be a bit nicer to
-those-who-run-too-many-tiobenches.
+If you mprotect a region which is in the first VMA, the find_vma_prev
+call (line 236) will set prev = NULL, and it is possible to get
+through the main loop without changing prev.  When this happens, we
+get a NULL dereference and the process then hangs at the down_read in
+do_page_fault since sys_mprotect has downed the mm->mmap_sem for
+writing.
+
+This bites badly on PPC since ld.so maps the shared libraries below
+the main executable, and uses mprotect on the regions it has mapped.
+Consequently, init hangs with no visible indication of what is wrong.
+
+Anyway, looking at the old mprotect code, it is clear that all of
+mprotect_fixup_{start,middle,end,all} set *pprev to something non-NULL
+(unless an error occurs).  The new mprotect_fixup doesn't do this.
+It's not clear to me what the old code set *pprev to.  I thought it
+was the VMA which now comes immediately before the VMA which came
+after the original VMA before we split it, but mprotect_fixup_start
+and mprotect_fixup_end don't seem to set it this way.  Some comments
+in the code would have been helpful.
+
+For now I have changed the if statement at line 284 to test prev !=
+NULL as well as the existing conditions, and that works, but I don't
+think it fixes the real problem.  Perhaps someone who knows exactly
+what prev is supposed to be can post a proper fix.
+
+Paul.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
