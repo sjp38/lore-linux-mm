@@ -1,38 +1,41 @@
-Date: Sun, 7 Jul 2002 17:59:20 -0700
-From: William Lee Irwin III <wli@holomorphy.com>
-Subject: Re: vm lock contention reduction
-Message-ID: <20020708005920.GD25360@holomorphy.com>
-References: <3D26304C.51FAE560@zip.com.au> <Pine.LNX.4.44L.0207052110590.8346-100000@imladris.surriel.com> <3D263E70.7B8F5307@zip.com.au>
+Date: Mon, 8 Jul 2002 09:00:15 +0200
+From: Andrea Arcangeli <andrea@suse.de>
+Subject: Re: scalable kmap (was Re: vm lock contention reduction)
+Message-ID: <20020708070015.GA1350@dualathlon.random>
+References: <Pine.LNX.4.44.0207070041260.2262-100000@home.transmeta.com> <1083506661.1026032427@[10.10.2.3]>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Description: brief message
 Content-Disposition: inline
-In-Reply-To: <3D263E70.7B8F5307@zip.com.au>
+In-Reply-To: <1083506661.1026032427@[10.10.2.3]>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@zip.com.au>
-Cc: Rik van Riel <riel@conectiva.com.br>, Andrea Arcangeli <andrea@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linus Torvalds <torvalds@transmeta.com>
+To: "Martin J. Bligh" <fletch@aracnet.com>
+Cc: Linus Torvalds <torvalds@transmeta.com>, Andrew Morton <akpm@zip.com.au>, Rik van Riel <riel@conectiva.com.br>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Rik van Riel wrote:
->> But it is, mmap() and anonymous memory don't trigger writeback.
+On Sun, Jul 07, 2002 at 09:00:27AM -0700, Martin J. Bligh wrote:
+> clustered apic mode. Whilst trying to switch this back, he found it ran
+> faster as the sequenced unicast, not only for NUMA-Q, but also for
+> standard SMP boxes!!! I'm guessing the timing offset generated helps
+> cacheline or lock contention ... interesting anyway.
 
-On Fri, Jul 05, 2002 at 05:48:48PM -0700, Andrew Morton wrote:
-> That's different.  Bill hit a problem just running tiobench.
-> We can run balance_dirty_pages() when a COW copyout is performed,
-> which will approximately improve things.
-> But the whole idea of the dirty memory thresholds just seems bust,
-> really.  Because how do you pick the thresholds?  40%.  Bah.
+makes sense. but it sounds like it should be fixed in the way we
+synchronize with the ipis, rather than by executing them in sequence. We
+should just have the smp_call_function poll (read-only) a list of
+per-cpu data, and have all the other cpus inside the ipi modifying their
+own per-cpu cachelines. Right now the ipi callback works on a shared
+cacheline, that is call_data->started/finished, that could be probably
+per-cpu without much problems, just having the smp_call_function reading
+all the per-cpu fields rather than only the current global ones. things
+like tlb flushing are all per-cpu, with per-cpu tlbdata informations,
+the only bottleneck really only seems the smp_call_function_interrupt
+implementation that uses global counter instead of a per-cpu counters.
 
-I don't know what the answer should be, but I can certainly demonstrate
-this in a rather uninteresting situation (4GB, 4cpu's, 1 disk, 16 tasks).
+it will be a bit similar to the big-reader-lock algorithm, the writer
+polling the per-cpu counters here is the smp_call_function, and the
+reader modifying its per-cpu counter is smp_call_function_interrupt.
 
-But I can concur with that evaluation. In my esteem fixed fractions of
-memory don't have a very direct relationship to what's going on.
-
-
-Cheers,
-Bill
+Andrea
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
