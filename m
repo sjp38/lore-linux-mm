@@ -1,35 +1,43 @@
-Received: from m2vwall2.wipro.com (m2vwall2.wipro.com [164.164.27.52])
-	by wiprom2mx1.wipro.com (8.11.3/8.11.3) with SMTP id f54Ca5Z18657
-	for <linux-mm@kvack.org>; Mon, 4 Jun 2001 12:36:07 GMT
-From: "Chandrashekar Nagaraj" <chandrashekar.nag@wipro.com>
-Subject: How to redirect a task's o/p to different xterms ???
-Date: Mon, 4 Jun 2001 12:19:57 +0530
-Message-ID: <002601c0ecc2$9178d680$4433a8c0@wipro.com>
+Subject: Re: [PATCH] Remove nr_async_pages limit
+References: <E156o18-00059a-00@the-village.bc.nu>
+Reply-To: zlatko.calusic@iskon.hr
+From: Zlatko Calusic <zlatko.calusic@iskon.hr>
+Date: 04 Jun 2001 10:21:32 +0200
+In-Reply-To: <E156o18-00059a-00@the-village.bc.nu> (Alan Cox's message of "Mon, 4 Jun 2001 07:39:10 +0100 (BST)")
+Message-ID: <87iticfyer.fsf@atlas.iskon.hr>
 MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Alan Cox <alan@lxorguk.ukuu.org.uk>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-hi,
-	We r working on a ISP( Internet service provider ). We have a board
-for the client side running on Vxworks and for the server we r using a 
-simulator running on Linux. The simulator has a menu based interface,
-and supports operations such as ftp,telnet,logging and so on.
-	We have an option for multiple file copy. But when the copy is
-going on, we get output for each copy operation. But since the o/p appears
-on a single terminal, the o/p becomes crowdy. So, we are planning
-to redirect the o/p of each copy operation a different xterm. Any help
-in this regard will be very helpful...
+Alan Cox <alan@lxorguk.ukuu.org.uk> writes:
 
-Thankx in advance.
+> > This patch removes the limit on the number of async pages in the
+> > flight.
+> 
+> I have this in all  2.4.5-ac. It does help a little but there are some other
+> bits you have to deal with too, in paticular wrong aging. See the -ac version
+> 
 
-bye,
-chandra.
+Yes, I'll check -ac to see your changes. Although, I can't see what is
+the impact of the unlimited number of the async pages on the aging, I
+don't see a connection?!
 
+In the mean time I tested the patch even more thoroughly under various
+loads and I can't find any problem with it. Performance is same or
+better a little bit, as you say. :)
+
+My other patch (enlarging inactive dirty list) has a much bigger
+impact on the aging process, but I also see only improvement with
+it. I think that swap_out path should be tweaked a little bit (it is
+too aggressive now), and then things will come up even better.
+
+Regards,
+-- 
+Zlatko
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
