@@ -1,42 +1,35 @@
-Received: from mail.wol.dk (mail01s.image.dk [212.54.64.152])
-	by kvack.org (8.8.7/8.8.7) with SMTP id LAA18439
-	for <linux-mm@kvack.org>; Fri, 21 May 1999 11:14:12 -0400
-Message-ID: <19990521165432.A13600@arbat.com>
-Date: Fri, 21 May 1999 16:54:32 +0200
-From: Erik Corry <erik@arbat.com>
+Date: Fri, 21 May 1999 12:02:07 -0400 (EDT)
+From: "Benjamin C.R. LaHaise" <blah@kvack.org>
 Subject: Re: Assumed Failure rates in Various o.s's ?
-References: <19990521120725.A581384@daimi.au.dk> <Pine.LNX.3.95.990521101041.17710A-100000@as200.spellcast.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-In-Reply-To: <Pine.LNX.3.95.990521101041.17710A-100000@as200.spellcast.com>; from Benjamin C.R. LaHaise on Fri, May 21, 1999 at 10:25:42AM -0400
+In-Reply-To: <19990521165432.A13600@arbat.com>
+Message-ID: <Pine.LNX.3.95.990521114528.18804A-100000@as200.spellcast.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: "Benjamin C.R. LaHaise" <blah@kvack.org>
+To: Erik Corry <erik@arbat.com>
 Cc: Kanoj Sarcar <kanoj@google.engr.sgi.com>, ak-uu@muc.de, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, May 21, 1999 at 10:25:42AM -0400, Benjamin C.R. LaHaise wrote:
-> On Fri, 21 May 1999, Erik Corry wrote:
+On Fri, 21 May 1999, Erik Corry wrote:
+
+> Actually, isn't it just munmap that is problematic?
 > 
-> > According to Andi you already fixed this with a read lock that
-> > prevents mmap and mmunmap from doing anything while the copy
-> > is running.  This makes sense, since if you do it right with a
-> > readers/writers lock you can keep out mmap without serialising
-> > copy_to_user or copy_from_user.
-> 
-> I really like the cleanliness of this approach, but it's troublesome:
-> memory allocations in other threads would then get blocked during large
-> IOs -- very bad.
+> After the access_ok you can't map a read-only file into the
+> path of an oncoming copy_to_user without first unmapping
+> what was there before (this is assuming a version of
+> access_ok that checks whether something was mapped).
+> So mmaps can safely happen in parallel with copy_to_user.
 
-Actually, isn't it just munmap that is problematic?
+Both mmap and munmap are safe -- the i386 bug is that writes to read-only
+pages succeed while in the kernel.  Mmap needs to lock the vma during
+initialization in case the driver has to sleep.  To avoid the bug, we just
+need to protect against making any pages readonly in the vma after the vma
+is in a safe state: fork, read mappings of non-present pages, swapout --
+just about anything that can modify the page table can put a read only
+page.
 
-After the access_ok you can't map a read-only file into the
-path of an oncoming copy_to_user without first unmapping
-what was there before (this is assuming a version of
-access_ok that checks whether something was mapped).
-So mmaps can safely happen in parallel with copy_to_user.
+		-ben
 
--- 
-Erik Corry erik@arbat.com           Ceterum censeo, Microsoftem esse delendam!
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm my@address'
 in the body to majordomo@kvack.org.  For more info on Linux MM,
