@@ -1,76 +1,109 @@
-Message-ID: <20041210034848.4490.qmail@web53909.mail.yahoo.com>
-Date: Thu, 9 Dec 2004 19:48:48 -0800 (PST)
-From: Fawad Lateef <fawad_lateef@yahoo.com>
-Subject: Re: Re: Plzz help me regarding HIGHMEM (PAE) confusion in Linux-2.4 ???
+Message-ID: <41B92567.8070809@yahoo.com.au>
+Date: Fri, 10 Dec 2004 15:26:15 +1100
+From: Nick Piggin <nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Subject: Re: page fault scalability patch V12 [0/7]: Overview and performance
+    tests
+References: <Pine.LNX.4.44.0412091830580.17648-300000@localhost.localdomain>
+In-Reply-To: <Pine.LNX.4.44.0412091830580.17648-300000@localhost.localdomain>
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: wli@holomorphy.com
-Cc: linux-mm@kvack.org
+To: Hugh Dickins <hugh@veritas.com>
+Cc: Christoph Lameter <clameter@sgi.com>, Linus Torvalds <torvalds@osdl.org>, Andrew Morton <akpm@osdl.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, linux-mm@kvack.org, linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
---- William Lee Irwin III <wli@holomorphy.com> wrote:
-
-> The pgd is not loaded into %cr3, only its address.
+Hugh Dickins wrote:
+> On Wed, 1 Dec 2004, Christoph Lameter wrote:
+> 
+>>Changes from V11->V12 of this patch:
+>>- dump sloppy_rss in favor of list_rss (Linus' proposal)
+>>- keep up against current Linus tree (patch is based on 2.6.10-rc2-bk14)
+>>
+>>This is a series of patches that increases the scalability of
+>>the page fault handler for SMP. Here are some performance results
+>>on a machine with 512 processors allocating 32 GB with an increasing
+>>number of threads (that are assigned a processor each).
+> 
+> 
+> Your V12 patches would apply well to 2.6.10-rc3, except that (as noted
+> before) your mailer or whatever is eating trailing whitespace: trivial
+> patch attached to apply before yours, removing that whitespace so yours
+> apply.  But what your patches need to apply to would be 2.6.10-mm.
+> 
+> Your i386 HIGHMEM64G 3level ptep_cmpxchg forgets to use cmpxchg8b, would
+> have tested out okay up to 4GB but not above: trivial patch attached.
 > 
 
-Ya, right, Actually I mis-understood that. Thanks for
-clearing.
+That looks obviously correct. Probably the reason why Martin was
+getting crashes.
 
-> 
-> There is only one kernel address space. You are
-> probably actually
-> trying to write blkdev-highmem, but it would be far
-> easier to populate
-> a ramfs at boot instead of using a ramdisk.
-> 
+[snip]
 
-Is the kmap_atomic fails due to a single address space
-of kernel ??? If not then y kmap is failing in my
-case. I m actually writing a simple RAMDISK but the
-RAM it is using is the HIGHMEM and I already reserved
-all the HIGHMEM for me by changing in
-arch/i386/mm/init.c in one_highpage_init function, I
-wrote 
-
-if((unsigned long)(page-mem_map) >= 0x100000) (
-      SetPageReserved(page);
-      set_bit(PG_highmem, &page->flags);
-      atomic_set(&page->count, 1);
-      totalhigh_pages++;
-      return;
-}
-
-Is reserving mem through this way is wrong ??? And is
-it creating problem ??
-
-
-
-> The ramdisk block driver is crusty and probably
-> qualifies as broken
-> on 32-bit due to the resource scalability issues. It
-> would be much
-> easier (and you'd encounter much less negative
-> feedback) using ramfs or
-> a 64-bit architecture.
+> Moving to the main patch, 1/7, the major issue I see there is the way
+> do_anonymous_page does update_mmu_cache after setting the pte, without
+> any page_table_lock to bracket them together.  Obviously no problem on
+> architectures where update_mmu_cache is a no-op!  But although there's
+> been plenty of discussion, particularly with Ben and Nick, I've not
+> noticed anything to guarantee that as safe on all architectures.  I do
+> think it's fine for you to post your patches before completing hooks in
+> all the arches, but isn't this a significant issue which needs to be
+> sorted before your patches go into -mm?  You hazily refer to such issues
+> in 0/7, but now you need to work with arch maintainers to settle them
+> and show the patches.
 > 
 
-Ok, I will try that through ramfs. but using 64bit
-machine is not feasible for me. 
+Yep, the update_mmu_cache issue is real. There is a parallel problem
+that is update_mmu_cache can be called on a pte who's page has since
+been evicted and reused. Again, that looks safe on IA64, but maybe
+not on other architectures.
 
+It can be solved by moving lru_cache_add to after update_mmu_cache in
+all cases but the "update accessed bit" type fault. I solved that by
+simply defining that out for architectures that don't need it - a raced
+fault will simply get repeated if need be.
 
-Thanks
+> A lesser issue with the reordering in do_anonymous_page: don't you need
+> to move the lru_cache_add_active after the page_add_anon_rmap, to avoid
+> the very slight chance that vmscan will pick the page off the LRU and
+> unmap it before you've counted it in, hitting page_remove_rmap's
+> BUG_ON(page_mapcount(page) < 0)?
+> 
 
-Fawad Lateef
+That's what I had been doing too. Seems to be the right way to go.
 
+> (I do wonder why do_anonymous_page calls mark_page_accessed as well as
+> lru_cache_add_active.  The other instances of lru_cache_add_active for
+> an anonymous page don't mark_page_accessed i.e. SetPageReferenced too,
+> why here?  But that's nothing new with your patch, and although you've
+> reordered the calls, the final page state is the same as before.)
+> 
+> Where handle_pte_fault does "entry = *pte" without page_table_lock:
+> you're quite right to passing down precisely that entry to the fault
+> handlers below, but there's still a problem on the 32bit architectures
+> supporting 64bit ptes (i386, mips, ppc), that the upper and lower ints
+> of entry may be out of synch.  Not a problem for do_anonymous_page, or
+> anything else relying on ptep_cmpxchg to check; but a problem for
+> do_wp_page (which could find !pfn_valid and kill the process) and
+> probably others (harder to think through).  Your 4/7 patch for i386 has
+> an unused atomic get_64bit function from Nick, I think you'll have to
+> define a get_pte_atomic macro and use get_64bit in its 64-on-32 cases.
+> 
 
-	
-		
-__________________________________ 
-Do you Yahoo!? 
-Yahoo! Mail - You care about security. So do we. 
-http://promotions.yahoo.com/new_mail
+Indeed. This was a real problem for my patch, definitely.
+
+> Hmm, that will only work if you're using atomic set_64bit rather than
+> relying on page_table_lock in the complementary places which matter.
+> Which I believe you are indeed doing in your 3level set_pte.  Shouldn't
+> __set_64bit be using LOCK_PREFIX like __get_64bit, instead of lock?
+> 
+
+That's what I was wondering. It could be that the actual 64-bit store is
+still atomic without the lock prefix (just not the entire rmw), which I
+think would be sufficient.
+
+In that case, get_64bit may be able to drop the lock prefix as well.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
