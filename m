@@ -1,37 +1,59 @@
-Message-ID: <3DA5306C.7B63584@scs.ch>
-Date: Thu, 10 Oct 2002 09:46:52 +0200
-From: Martin Maletinsky <maletinsky@scs.ch>
-MIME-Version: 1.0
-Subject: Meaning of the dirty bit
+Date: Thu, 10 Oct 2002 01:18:50 -0700
+From: William Lee Irwin III <wli@holomorphy.com>
+Subject: Re: 2.5.41-mm2
+Message-ID: <20021010081850.GO10722@holomorphy.com>
+References: <3DA512B1.63287C02@digeo.com>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+In-Reply-To: <3DA512B1.63287C02@digeo.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: kernelnewbies@nl.linux.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@digeo.com>
+Cc: lkml <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+On Wed, Oct 09, 2002 at 10:40:01PM -0700, Andrew Morton wrote:
+> url: http://www.zip.com.au/~akpm/linux/patches/2.5/2.5.41/2.5.41-mm2/
 
-While studying the follow_page() function (the version of the function that is in place since 2.4.4, i.e. with the write argument), I noticed, that for an address that
-should be written to (i.e. write != 0), the function checks not only the writeable flag (with pte_write()), but also the dirty flag (with pte_dirty()) of the page
-containing this address.
->From what I thought to understand from general paging theory, the dirty flag of a page is set, when its content in physical memory differs from its backing on the permanent
-storage system (file or swap space). Based on this understanding I do not understand why it is necessary to check the dirty flag, in order to ensure that a page is writable
-- what am I missing here?
+hugetlbfs update:
 
-Thanks in advance for any answers
-with best regards
-Martin Maletinsky
+CAP_IPC_LOCK is required to utilize hugetlb shm segments, memory
+allocation, and other facilities. The following patch does three things:
 
-P.S. Pls. put me on cc: in your reply, since I am not on the mailing list.
+(1) check capable(CAP_IPC_LOCK) in ->f_ops->mmap
+	This may be redundant but it errors out with less state to
+	clean up and at least clarifies the fact that checks are
+	being performed at the relevant entry points.
 
---
-Supercomputing System AG          email: maletinsky@scs.ch
-Martin Maletinsky                 phone: +41 (0)1 445 16 05
-Technoparkstrasse 1               fax:   +41 (0)1 445 16 10
-CH-8005 Zurich
+(2) check capable(CAP_IPC_LOCK) in hugetlbfs_zero_setup()
+	This is called at shmget() time and is an actual potential
+	security hole. hugetlb_prefault() does not perform this
+	check itself, so it must be done here.
 
 
+--- akpm-2.5.41/fs/hugetlbfs/inode.c	2002-10-08 18:43:39.000000000 -0700
++++ wli-2.5.41/fs/hugetlbfs/inode.c	2002-10-10 00:30:15.000000000 -0700
+@@ -56,6 +56,9 @@
+ 	struct address_space *mapping = inode->i_mapping;
+ 	int ret;
+ 
++	if (!capable(CAP_IPC_LOCK))
++		return -EPERM;
++
+ 	if (vma->vm_start & ~HPAGE_MASK)
+ 		return -EINVAL;
+ 
+@@ -259,6 +262,9 @@
+ 	struct qstr quick_string;
+ 	char buf[16];
+ 
++	if (!capable(CAP_IPC_LOCK))
++		return ERR_PTR(-EPERM);
++
+ 	n = atomic_read(&hugetlbfs_counter);
+ 	atomic_inc(&hugetlbfs_counter);
+ 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
