@@ -1,35 +1,63 @@
-Date: Mon, 24 Apr 2000 22:27:02 +0100
-From: "Stephen C. Tweedie" <sct@redhat.com>
+Date: Mon, 24 Apr 2000 19:42:12 -0300 (BRST)
+From: Rik van Riel <riel@conectiva.com.br>
+Reply-To: riel@nl.linux.org
 Subject: Re: pressuring dirty pages (2.3.99-pre6)
-Message-ID: <20000424222702.C3389@redhat.com>
-References: <Pine.LNX.4.21.0004241650140.5572-200000@duckman.conectiva>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-In-Reply-To: <Pine.LNX.4.21.0004241650140.5572-200000@duckman.conectiva>; from riel@conectiva.com.br on Mon, Apr 24, 2000 at 04:54:38PM -0300
+In-Reply-To: <20000424222702.C3389@redhat.com>
+Message-ID: <Pine.LNX.4.21.0004241922270.5572-100000@duckman.conectiva>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: riel@nl.linux.org
+To: "Stephen C. Tweedie" <sct@redhat.com>
 Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
-
-On Mon, Apr 24, 2000 at 04:54:38PM -0300, Rik van Riel wrote:
+On Mon, 24 Apr 2000, Stephen C. Tweedie wrote:
+> On Mon, Apr 24, 2000 at 04:54:38PM -0300, Rik van Riel wrote:
+> > 
+> > I've been trying to fix the VM balance for a week or so now,
+> > and things are mostly fixed except for one situation.
+> > 
+> > If there is a *heavy* write going on and the data is in the
+> > page cache only .. ie. no buffer heads available, then the
+> > page cache will grow almost without bounds and kswapd and
+> > the rest of the system will basically spin in shrink_mmap()...
 > 
-> I've been trying to fix the VM balance for a week or so now,
-> and things are mostly fixed except for one situation.
-> 
-> If there is a *heavy* write going on and the data is in the
-> page cache only .. ie. no buffer heads available, then the
-> page cache will grow almost without bounds and kswapd and
-> the rest of the system will basically spin in shrink_mmap()...
+> shrink_mmap is the problem then -- it should be giving up sooner
+> and letting try_to_swap_out() deal with the pages.  mmap()ed
+> dirty pages can only be freed through swapper activity, not via
+> shrink_mmap().
 
-shrink_mmap is the problem then -- it should be giving up
-sooner and letting try_to_swap_out() deal with the pages.  mmap()ed
-dirty pages can only be freed through swapper activity, not via
-shrink_mmap().
+That will not work. The problem isn't that kswapd eats cpu,
+but the problem is that the dirty pages completely dominate
+physical memory.
 
---Stephen
+I've tried the "giving up earlier" option in shrink_mmap(),
+but that leads to memory filling up just as badly and giving
+us the same kind of trouble.
+
+I guess what we want is the kind of callback that we do in
+the direction of the buffer cache, using something like the
+bdflush wakeup call done in try_to_free_buffers() ...
+
+Maybe a "special" return value from shrink_mmap() telling
+do_try_to_free_pages() to run swap_out() unconditionally
+after this succesful shrink_mmap() call?  Maybe even with
+severity levels?
+
+Eg. more calls to swap_out() if we encountered a lot of
+dirty pages in shrink_mmap() ???
+
+regards,
+
+Rik
+--
+The Internet is not a network of computers. It is a network
+of people. That is its real strength.
+
+Wanna talk about the kernel?  irc.openprojects.net / #kernelnewbies
+http://www.conectiva.com/		http://www.surriel.com/
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
