@@ -1,86 +1,55 @@
-Date: Thu, 18 May 2000 15:29:03 +0100
-From: "Stephen C. Tweedie" <sct@redhat.com>
-Subject: [PATCHES] New kiobuf diffs for 2.3.99-pre9-2
-Message-ID: <20000518152903.F5672@redhat.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Date: Thu, 18 May 2000 18:58:00 -0700 (PDT)
+From: Andrea Arcangeli <andrea@suse.de>
+Subject: Re: [patch] balanced highmem subsystem under pre7-9
+In-Reply-To: <Pine.LNX.4.10.10005121839370.3348-100000@elte.hu>
+Message-ID: <Pine.LNX.4.21.0005181848360.3896-100000@inspiron.random>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-kernel@vger.rutgers.edu
-Cc: Stephen Tweedie <sct@redhat.com>, "David S . Miller" <davem@redhat.com>, Alan Cox <alan@lxorguk.ukuu.org.uk>, Kanoj Sarcar <kanoj@google.engr.sgi.com>, Prasanna Narayana <prasanna@veritas.com>, linux-mm@kvack.org
+To: Ingo Molnar <mingo@elte.hu>
+Cc: Rik van Riel <riel@conectiva.com.br>, Linus Torvalds <torvalds@transmeta.com>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.rutgers.edu
 List-ID: <linux-mm.kvack.org>
 
-Hi all,
+[ sorry for the late reply ]
 
-I've batched the current kiobuf code up at
+On Fri, 12 May 2000, Ingo Molnar wrote:
 
-  ftp://ftp.uk.linux.org/pub/linux/sct/fs/raw-io/kiobuf.2.3.99.pre9-2.tar.gz
+>On Fri, 12 May 2000, Rik van Riel wrote:
+>
+>> But we *can* split the HIGHMEM zone into a bunch of smaller
+>> ones without affecting performance. Just set zone->pages_min
+>> and zone->pages_low to 0 and zone->pages_high to some smallish
+>> value. Then we can teach the allocator to skip the zone if:
+>> 1) no obscenely large amount of free pages
+>> 2) zone is locked by somebody else (TryLock(zone->lock))
+>
+>whats the point of this splitup? (i suspect there is a point, i just
+>cannot see it now. thanks.)
 
-There are a couple of new things in here since the last version.  In
-particular, it includes Kanoj Sarcar's fork fixes and Dave Miller's
-pipe speedup code, as well as a few minor bug fixes and fixes to error
-return codes.
+I quote email from Rik of 25 Apr 2000 23:10:56 on linux-mm:
 
-I'll wait for feedback and then file those bits which are clearly 
-bugfixes on to Linus.  The more significant changes will probably 
-be post-2.4 items.
+-- Message-ID: <Pine.LNX.4.21.0004252240280.14340-100000@duckman.conectiva> --
+We can do this just fine. Splitting a box into a dozen more
+zones than what we have currently should work just fine,
+except for (as you say) higher cpu use by kwapd.
 
->From the README:
+If I get my balancing patch right, most of that disadvantage
+should be gone as well. Maybe we *do* want to do this on
+bigger SMP boxes so each processor can start out with a
+separate zone and check the other zone later to avoid lock
+contention?
+--------------------------------------------------------------
 
-This tarball contains the following patches, to be applied in order:
+I still strongly think that the current zone strict mem balancing design
+is very broken (and I also think to be right since I believe to see
+the whole picture) but I don't think I can explain my arguments
+better and/or more extensively of how I just did in linux-mm some week ago.
 
- 01-mapfix.diff
+If you see anything wrong in my reasoning please let me know. The interesting
+thread was "Re: 2.3.x mem balancing" (the start were off list) in linux-mm.
 
-	map_user_kiobuf() retries failed maps to cover a race in which
-	the swapper steals a page before the kiobuf has grabbed and 
-	locked it.
-
- 02-iocount.diff
-
-	Kanoj Sarcar's fixes to allow kiobufs to work properly over
-	fork(), even on threaded applications.
-
- 03-davem-pipe.diff
-
-	Dave Miller's rocking pipe code using kiobufs for a 2*
-	throughput improvement on simple streaming pipe I/O.
-
- 04-eiofix.diff
-
-	Fix to return -EIO instead of 0 if a raw I/O read or write
-	encounters an error in the first block.
-
- 05-kvmap.diff
-
-	New code to allow:
-
-	1) map_kernel_kiobuf: 	the analogue of map_user_kiobuf,
-	   except that it works on kernel virtual addresses instead.
- 	   Even vmalloc()ed regions work.
-
-	2) Add a "flags" argument to map_*_kiobuf.  The only flag
-	   honoured is
-
-	   MAP_PRIVATE: any mappings of the kiobuf will be kept
-			process-local over forks.  Without this,
-			the pages will remain shared over fork 
-			(which will cause real problems if you 
-			map the pages into a MAP_PRIVATE vma in
-			user space).
-
-	   MAP_PRIVATE is used by the raw character device.
-
-	3) Add kvmap infrastructure to allow mmap() of any kiobuf.
-	   Includes a sample driver in Documentation/kiobuf.sample.c
-	   to show how it can work.
-
- 06-enxio.diff
-
-	Return ENXIO on read/write at or beyond the end of the device
-	for raw I/O
-
---Stephen Tweedie <sct@redhat.com>
+Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
