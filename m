@@ -1,149 +1,36 @@
-Received: from mail.diginsite.com (warden.digitalinsight.com [208.29.163.2])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id SAA17769
-	for <linux-mm@kvack.org>; Tue, 26 Jan 1999 18:32:03 -0500
-Date: Tue, 26 Jan 1999 16:25:27 -0800 (PST)
-From: David Lang <dlang@diginsite.com>
+Received: from chelm.cs.nmt.edu (yodaiken@chelm.cs.nmt.edu [129.138.6.50])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id FAA24112
+	for <linux-mm@kvack.org>; Wed, 27 Jan 1999 05:45:09 -0500
+From: yodaiken@chelm.cs.nmt.edu
+Message-Id: <199901271031.DAA02948@chelm.cs.nmt.edu>
 Subject: Re: MM deadlock [was: Re: arca-vm-8...]
-In-Reply-To: <Pine.LNX.3.95.990126210417.374A-100000@localhost>
-Message-ID: <Pine.LNX.4.03.9901261623560.4691-100000@dlang>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Wed, 27 Jan 1999 03:31:17 -0700 (MST)
+In-Reply-To: <Pine.LNX.3.96.990126161041.11981C-100000@chiara.csoma.elte.hu> from "MOLNAR Ingo" at Jan 26, 99 04:21:30 pm
+Content-Type: text
 Sender: owner-linux-mm@kvack.org
-To: Gerard Roudier <groudier@club-internet.fr>
-Cc: Thomas Sailer <sailer@ife.ee.ethz.ch>, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
+To: mingo@chiara.csoma.elte.hu
+Cc: alan@lxorguk.ukuu.org.uk, sct@redhat.com, groudier@club-internet.fr, torvalds@transmeta.com, werner@suse.de, andrea@e-mind.com, riel@humbolt.geo.uu.nl, Zlatko.Calusic@CARNet.hr, ebiederm+eric@ccr.net, saw@msu.ru, steve@netplus.net, damonbrent@earthlink.net, reese@isn.net, kalle.andersson@mbox303.swipnet.se, bmccann@indusriver.com, bredelin@ucsd.edu, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
------BEGIN PGP SIGNED MESSAGE-----
+> i dont think it's correct to say: 'anything that cannot be segmented in
+> the physical memory space with page granularity, is considered to be
+> broken in this regard and is not guaranteed to be 100% supported by the
+> Linux architecture'. 
 
-why don'y you spin off your own verion of Linux that only supports that
-hardware that you consider "good enough" and let the rest of us go back to
-making the system work in the real world where lots of things are not
-"good enough" by someones definition.
+Sure. But let's keep in mind that paging is designed to avoid memory
+fragmentation, and big chunks mean you don't care about some minor loss
+of usable memory. If you have a 4G phys memory and need big linear pieces,
+it is far better to waste 3.9 meg by aligning end of data, then to complicate
+all memory allocation techniques in kernel so you don't waste it. In fact
+you'd probably want a simplified slab
+         kmalloc:
+               if size is 4meg allocate a 4meg chunk from 4meg list
+               else if size< 4 meg
+                    either allocate a new 4 meg chunk and take space from it
+                    or find partially used 4 meg chunk with enough space in it.
 
-David Lang
-
-"If users are made to understand that the system administrator's job is to
-make computers run, and not to make them happy, they can, in fact, be made
-happy most of the time. If users are allowed to believe that the system
-administrator's job is to make them happy, they can, in fact, never be made
-happy." 
-- -Paul Evans (as quoted by Barb Dijker in "Managing Support Staff", LISA '97)
-
-On Tue, 26 Jan 1999, Gerard Roudier wrote:
-
-> Date: Tue, 26 Jan 1999 21:48:59 +0100 (MET)
-> From: Gerard Roudier <groudier@club-internet.fr>
-> To: Thomas Sailer <sailer@ife.ee.ethz.ch>
-> Cc: linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
-> Subject: Re: MM deadlock [was: Re: arca-vm-8...]
-> 
-> 
-> 
-> On Tue, 26 Jan 1999, Thomas Sailer wrote:
-> 
-> > Gerard Roudier wrote:
-> > 
-> > > If you tell me that some system XXX is able to quickly free Mega-Bytes of
-> > > physical contiguous memory at any time when it is asked for such a
-> > 
-> > Noone said it has to happen quickly, it's entirely useful even if
-> > the calling process (and possibly others) will sleep for 10secs.
-> > These allocations are very uncommon, but nevertheless sometimes
-> > necessary for some device (drivers).
-> 
-> I suggest to allow some application program to decide what stuff to
-> victimize and to be able to tell the kernel about, but not to ask the
-> kernel for doing the bad work for you and then critisize it.
-> 
-> > > brain-deaded allocation, then for sure, I will never use system XXX,
-> > > because this magic behaviour seems not to be possible without some
-> > > paranoid VM policy that may affect badly performances for normal stuff.
-> > 
-> > You may well call the devices that need this broken, the problem
-> > is that they are in rather widespread use.
-> 
-> There are bunches of things that are widespread used nowadays and that 
-> should have disappeard since years if people were a bit more concerned 
-> by technical and progress considerations.
-> 
-> For example, it seems that 32 bits systems are not enough to provide a
-> flat virtual addressing space far larger than the physical address space
-> needed for applications (that was the primary goal of virtual memory
-> invention). If we were powered a bit more by technical considerations, we
-> should drop support of 32 bits systems immediately since as you know 64
-> bits systems are available since years and Linux supports them quite well.
-> 
-> Each time we add support or maintain support of crap, we just encourage
-> crap and allow the mediocrity to last longer that it really deserves. 
-> 
-> A device that requires more contiguous space than 1 PAGE for its 
-> support is crap. Because designers spared peanuts by not implementing 
-> address translation tables, we just have to complete their work by 
-> complexifying O/Ses. The win is 0.02 euro of silicium for them but 
-> lots of time wasted by O/Ses guys to support the crap.
-> 
-> > If we don't find an algorithm that doesn't affect preformance for
-> > the normal stuff, (why would something like selecting
-> > a memory region and forcing everything that's currently in the
-> > way to be swapped out not work?), then we should probably have
-> > a special pool for these "perverse" mappings.
-> > 
-> > But I think there's a rather generic problem: how are you going
-> > to support 32bit PCI busmasters in machines with more than
-> > 4Gig main memory? It's conceptually the same as how are you
-> > going to support ISA DMA with more than 16Meg main memory.
-> 
-> What the ratio of machines that need 4 GB of more for doing their 
-> work?
-> How much does they cost?
-> What can we do, if some people that have such machines want to use 
-> IO controllers that are not able to DMA the whole physical space?
-> We just may suggest them to learn or to get help from a psychiatric, 
-> but we should not accept to waste time trying to make the crap work 
-> less worse.
-> 
-> > 32bit only PCI busmasters are very common these days, I don't
-> > know a single PCI soundcard that can do 64bit master (or even slave)
-> > cycles. Also, all PCI soundcards I know which have a hardware
-> > wavetable synth (without sample ROM) require ridiculously
-> > large contiguous allocations (>= 1M) for the synth to work.
-> 
-> Are you sure a soundcard is really required for systems that run 
-> with GBs of memory?
-> 
-> > > Anything that requires more that 1 PAGE of physical memory at a time on
-> > > running systems is a very bad thing in my opinion. The PAGE is the only
-> > 
-> > Ok, then remove any soundcard from your system. That might be acceptable
-> > for you, but probably not for 90% of the Linux users.
-> 
-> A real Linux user is able to make a custom kernel that incorporates some
-> driver at boot-up, and can live with that. The ones that are whining about
-> their PinkSocket O/S having problem to load the sound driver module at 
-> run-time is another busyness in my opinion.
-> 
-> Regards,
->    Gerard.
-> 
-> 
-> -
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.rutgers.edu
-> Please read the FAQ at http://www.tux.org/lkml/
-> 
-
------BEGIN PGP SIGNATURE-----
-Version: PGP for Personal Privacy 5.0
-Charset: noconv
-
-iQEVAwUBNq5c+T7msCGEppcbAQGiwQf9FwZmLH7ZItRrlqz/uijqbH8xDdyZW8QG
-bQ/t57UMRhsfnBprs1AT3Iy+3MEZ7oUiUkeDnH5vYm1HvKwYGBW9Derf3Fk4GMZk
-S86V1q/kYS3JKN+kXtRz4IOjqgZXzajPCKF8IQhGmD+mBO1gFMomFSqb62161HJj
-reHwBt6bbHrP/P7RzKh4SjvZ7vMZy2aZdSCzEWunn5oj9Bazj98fAsluCEwzbgcj
-hgfR4DJLUgbqDMM1ewWjnBAqwQrf9hcjblZQrEMGwvtt/ZAQ/Xjba0Akx9NoxIU8
-ZYqy2j7AgiYpT/cVArhoLyJIoes1FqtOrcqjKVHgLSRZPgzQUpzBCQ==
-=eN9Y
------END PGP SIGNATURE-----
+so you might have a list of partially used 4meg chunks lying about wasting
+some space, but ...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm my@address'
