@@ -1,51 +1,58 @@
+Date: Mon, 8 Jan 2001 19:12:15 -0800 (PST)
+From: Linus Torvalds <torvalds@transmeta.com>
 Subject: Re: Subtle MM bug
-References: <Pine.LNX.4.21.0101071919120.21675-100000@duckman.distro.conectiva>
-Reply-To: zlatko@iskon.hr
-From: Zlatko Calusic <zlatko@iskon.hr>
-Date: 09 Jan 2001 03:01:52 +0100
-In-Reply-To: Rik van Riel's message of "Sun, 7 Jan 2001 19:37:06 -0200 (BRDT)"
-Message-ID: <87y9wlh4a7.fsf@atlas.iskon.hr>
+In-Reply-To: <Pine.LNX.4.21.0101082120220.6280-100000@freak.distro.conectiva>
+Message-ID: <Pine.LNX.4.10.10101081903450.1371-100000@penguin.transmeta.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: TEXT/PLAIN; charset=ISO-8859-1
+Content-Transfer-Encoding: 8BIT
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@conectiva.com.br>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Marcelo Tosatti <marcelo@conectiva.com.br>
+Cc: "Stephen C. Tweedie" <sct@redhat.com>, "David S. Miller" <davem@redhat.com>, Rik van Riel <riel@conectiva.com.br>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Rik van Riel <riel@conectiva.com.br> writes:
 
-> Now if 2.4 has worse _performance_ than 2.2 due to one
-> reason or another, that I'd like to hear about ;)
+On Mon, 8 Jan 2001, Marcelo Tosatti wrote:
 > 
+> Your lazy enough to ask me to regenerate a patch or you can by
+> yourself? :) 
 
-Oh, well, it seems that I was wrong. :)
+Try out 2.4.1-pre1 in testing.
 
+It does three things: 
 
-First test: hogmem 180 5 = allocate 180MB and dirty it 5 times (on a
-192MB machine)
+ - gets rid of the complex "best mm" logic and replaces it with the
+   round-robin thing as discussed. I have this suspicion that we
+   eventually want to make this based on fault rates etc in an effort to
+   more aggressively control big RSS processes, but I also suspect that
+   this is tied in to the the RSS limiting patches, so this will simmer
+   for a while.
 
-kernel | swap usage | speed
--------------------------------
-2.2.17 |  48 MB     | 11.8 MB/s
--------------------------------
-2.4.0  | 206 MB     | 11.1 MB/s
--------------------------------
+ - it cleans up the unnecessary dcache/icache shrink that is already done
+   more properly elsewhere.
 
-So 2.2 is only marginally faster. Also it can be seen that 2.4 uses 4
-times more swap space. If Linus says it's ok... :)
+ - it cleans up and simplifies the MM "priority" thing. In fact, right now
+   only one priority is ever used, and I suspect strongly that all the
+   "made_progress" logic was really there because that's how we want to do
+   it (and just having one priority made "made_progress" unnecessary).
 
+(It also has some non-VM patches, of course, but for this discussion the
+VM ones are the only interesting ones).
 
-Second test: kernel compile make -j32 (empirically this puts the VM
-under load, but not excessively!)
+As far as I can tell, the non-priority version is every bit as good as the
+one that counts down priorities, and if nobody can argue against it I'll
+just remove the priority argument altogether at some point. Right now it
+still exists, it just doesn't change.
 
-2.2.17 -> make -j32  392.49s user 47.87s system 168% cpu 4:21.13 total
-2.4.0  -> make -j32  389.59s user 31.29s system 182% cpu 3:50.24 total
+That kmem_cache_reap() thing still looks completely bogus, but I didn't
+touch it. It looks _so_ bogus that there must be some reason for doing it
+that ass-backwards way. Why should anybody have does a kmem_cache_reap()
+when we're _not_ short of free pages? That code just makes me very
+confused, so I'm not touching it.
 
-Now, is this great news or what, 2.4.0 is definitely faster.
+		Linus
 
--- 
-Zlatko
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
