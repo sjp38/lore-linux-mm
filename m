@@ -1,48 +1,68 @@
-Subject: Re: VM Requirement Document - v0.0
-References: <20010626155838.A23098@jmcmullan.resilience.com>
-From: John Fremlin <vii@users.sourceforge.net>
-Date: 28 Jun 2001 23:47:53 +0100
-In-Reply-To: <20010626155838.A23098@jmcmullan.resilience.com> (Jason McMullan's message of "Tue, 26 Jun 2001 15:58:38 -0400")
-Message-ID: <m24rt0gr1i.fsf@boreas.yi.org.>
-MIME-Version: 1.0
+Message-Id: <200106292040.PAA03583@ccure.karaya.com>
+Subject: Re: all processes waiting in TASK_UNINTERRUPTIBLE state 
+In-Reply-To: Your message of "Mon, 25 Jun 2001 20:33:17 GMT."
+             <Pine.LNX.4.30.0106252031240.25982-100000@cyrix.stev.org>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Date: Fri, 29 Jun 2001 15:40:16 -0500
+From: Jeff Dike <jdike@karaya.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jason McMullan <jmcmullan@linuxcare.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: linux-kernel@vger.kernel.org
+Cc: mistral@stev.org, linux-mm@kvack.org, rcastro@ime.usp.br, abali@us.ibm.com, riel@conectiva.com.br, phillips@bonn-fries.net, viro@math.psu.edu
 List-ID: <linux-mm.kvack.org>
 
-[...]
+To recap the story so far, a number of people have reported seeing processes 
+hang indefinitely in TASK_UNINTERRUPTIBLE in __wait_on_buffer or __lock_page, 
+both on physical boxes and under UML.  It was found to be reproducable under 
+UML, but not on a native kernel as far as I know.
 
-> 	immediate: RAM, on-chip cache, etc. 
-> 	fast:	   Flash reads, ROMs, etc.
-> 	medium:    Hard drives, CD-ROMs, 100Mb ethernet, etc.
-> 	slow:	   Flash writes, floppy disks,  CD-WR burners
-> 	packeted:  Reads/write should be in as large a packet as possible
-> 
-> Embedded Case
+I've fixed this problem in UML.
 
-[...]
+The short story :
 
-> Desktop Case
+The bug was UML-specific and specific in such a way that I don't think it's 
+possible to find the bug in the native kernel by making analogies from the UML 
+bug.
 
-I'm not sure there's any point in separating the cases like this.  The
-complex part of the VM is the caching part => to be a good cache you
-must take into account the speed of accesses to the cached medium,
-including warm up times for sleepy drives etc.
+The long story :
 
-It would be really cool if the VM could do that, so e.g. in the ideal
-world you could connect up a slow harddrive and have its contents
-cached as swap on your fast harddrive(!) (not a new idea btw and
-already implemented elsewhere). I.e. from the point of view of the VM a
-computer is just a group of data storage units and it's allowed to use
-up certain parts of each one to do stuff
+First, two pieces of background information
+	- UML's ubd block driver performs asynchronous I/O by using a separate thread 
+to perform the I/O.  The driver's request routine writes the request to the 
+I/O thread over a file descriptor.  The thread performs the request by calling 
+either read() or write() on the host.  When that call returns, it writes the 
+results back to UML, causing a SIGIO.  That goes through the normal IRQ system 
+and ends up in the ubd interrupt handler, which finishes the request, and, if 
+the device request queue isn't empty, starts the next request.
+	- A couple of weeks ago, I made a change to reduce the number of clock ticks 
+that UML loses under load.  The clock is implemented with SIGALRM and 
+SIGVTALRM.  The change involved leaving those signals enabled all the time, 
+and having the handler decide whether it was safe to invoke the timer irq.  If 
+not, it bumped a missing_ticks counter and returned.  The missing ticks are 
+fully accounted for the next time the handler finds that it can call into the 
+irq system.
 
-[...]
+The ubd request routine runs with interrupts off, but now, the alarms could at 
+least fire, even if they didn't do anything but increment a counter.  This 
+occasionally caused the write of the I/O request from the request routine to 
+the I/O thread to return -EINTR.  The return value wasn't checked, so the I/O 
+thread didn't get the request and the request routine had no idea that 
+anything was wrong.  This caused disk I/O to permanently shut down, so pending 
+requests stayed pending, and processes waiting on them waited forever.
 
--- 
+The key piece of this bug was a signal causing a crucial communication between 
+two UML threads to be lost.  I don't see any analogies between this and 
+anything that happens on a physical system, so it looks to me like the problem 
+that people are seeing there is completely different.
 
-	http://ape.n3.net
+Thanks to James Stevenson for figuring out how to reproduce the bug under UML, 
+and to Daniel Phillips and Al Viro for help in tracking this problem from the 
+fs and mm systems into the block and driver layers.
+
+				Jeff
+
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
