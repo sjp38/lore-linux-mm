@@ -1,38 +1,39 @@
-Date: Fri, 19 Oct 2001 11:03:12 -0200 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
-Subject: Re: [RFC][PATCH] free more swap space on exit()
-In-Reply-To: <Pine.LNX.4.21.0110191157110.939-100000@localhost.localdomain>
-Message-ID: <Pine.LNX.4.33L.0110191100570.3690-100000@imladris.surriel.com>
+Subject: Re: mmap and raw disk devices...
+References: <3BCEFC46.9E8FEF7A@htec.demon.co.uk>
+From: ebiederm@xmission.com (Eric W. Biederman)
+Date: 19 Oct 2001 08:46:05 -0600
+In-Reply-To: <3BCEFC46.9E8FEF7A@htec.demon.co.uk>
+Message-ID: <m1ofn3ofgy.fsf@frodo.biederman.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Christopher Quinn <cq@htec.demon.co.uk>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 19 Oct 2001, Hugh Dickins wrote:
+Christopher Quinn <cq@htec.demon.co.uk> writes:
 
-> Please just find_get_page and TryLockPage within
-> free_swap_and_swap_cache?
+> Hello list,
+> 
+> I tried to mmap a disk partition raw device which failed.
+> Can anyone tell me the reason mmap does not support such a
+> device? 
+> I would have thought a mmap/raw-device combination to be ideal as
+> a basis for a high performance database system.
+>
+> I know there is the option of managing memory<->disk movements
+> oneself, but my understanding is that handling page-faults via
+> signal trap handling is *very* expensive. Far better to leave
+> such matters in the hands of the OS.
+> 
+> I suspect there is some fundamental reason for not mmap'ing raw
+> devices that is patently obvious to everyone but me! 
 
-I really don't like the idea of sprinkling the magic all
-around the VM subsystem, but prefer to keep the code
-easier to maintain instead.
+mmap goes through the page cache.  It should work in 2.4.10+
+though someone might not have enabled it.
 
-About the "undoes some inlining", I guess we might as
-well mark __find_get_page() inline then so it gets
-included into __find_lock_page(), after all it's the
-equivalent code so it should end up the same as before.
-
-regards,
-
-Rik
--- 
-DMCA, SSSCA, W3C?  Who cares?  http://thefreeworld.net/  (volunteers needed)
-
-http://www.surriel.com/		http://distro.conectiva.com/
-
+Eric
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
