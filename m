@@ -1,34 +1,45 @@
-Date: Mon, 25 Sep 2000 15:08:58 +0200
-From: Andrea Arcangeli <andrea@suse.de>
-Subject: Re: the new VM
-Message-ID: <20000925150858.A22882@athlon.random>
-References: <20000925150258.B13011@athlon.random> <Pine.LNX.4.21.0009251501020.6224-100000@elte.hu>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.21.0009251501020.6224-100000@elte.hu>; from mingo@elte.hu on Mon, Sep 25, 2000 at 03:02:58PM +0200
+Date: Mon, 25 Sep 2000 15:10:51 +0200 (CEST)
+From: Ingo Molnar <mingo@elte.hu>
+Reply-To: mingo@elte.hu
+Subject: Re: [patch] vmfixes-2.4.0-test9-B2
+In-Reply-To: <20000925145856.A13011@athlon.random>
+Message-ID: <Pine.LNX.4.21.0009251504220.6224-100000@elte.hu>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ingo Molnar <mingo@elte.hu>
-Cc: Marcelo Tosatti <marcelo@conectiva.com.br>, Linus Torvalds <torvalds@transmeta.com>, Rik van Riel <riel@conectiva.com.br>, Roger Larsson <roger.larsson@norran.net>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
+To: Andrea Arcangeli <andrea@suse.de>
+Cc: Linus Torvalds <torvalds@transmeta.com>, Rik van Riel <riel@conectiva.com.br>, Roger Larsson <roger.larsson@norran.net>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Sep 25, 2000 at 03:02:58PM +0200, Ingo Molnar wrote:
+On Mon, 25 Sep 2000, Andrea Arcangeli wrote:
+
+> > yet another elevator algorithm we need a squeaky clean VM balancer above
 > 
-> On Mon, 25 Sep 2000, Andrea Arcangeli wrote:
-> 
-> > Sorry I totally disagree. If GFP_KERNEL are garanteeded to succeed
-> > that is a showstopper bug. [...]
-> 
-> why?
+> FYI: My current tree (based on 2.4.0-test8-pre5) delivers 16mbyte/sec
+> in the tiobench write test compared to clean 2.4.0-test8-pre5 that
+> delivers 8mbyte/sec
 
-Because as you said the machine can lockup when you run out of memory.
+great! I'm happy we have a fine-tuned elevator again.
 
-> FYI, i havent put it there.
+> Also I I found the reason of your hang, it's the TASK_EXCLUSIVE in
+> wait_for_request. The high part of the queue is reserved for reads.
+> Now if a read completes and it wakeups a write you'll hang.
 
-Ok.
+yep. But i dont understand why this makes any difference - the waitqueue
+wakeup is FIFO, so any other request will eventually arrive. Could you
+explain this bug a bit better?
 
-Andrea
+> If you think I should delay those fixes to do something else I don't
+> agree sorry.
+
+no, i never ment it. I find it very good that those half-done changes are
+cleaned up and the remaining bugs / performance problems are eliminated -
+the first reports about bad write performance came right after the
+original elevator patches went in, about 6 months ago.
+
+	Ingo
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
