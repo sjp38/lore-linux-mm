@@ -1,40 +1,61 @@
-Received: from localhost (localhost [127.0.0.1])
-	by relay.inway.cz (Postfix) with ESMTP id 69430BE148
-	for <linux-mm@kvack.org>; Fri, 16 Jan 2004 17:06:15 +0100 (CET)
-Received: from jan2 (unknown [213.151.94.198])
-	by relay.inway.cz (Postfix) with SMTP id 2CD34BE115
-	for <linux-mm@kvack.org>; Fri, 16 Jan 2004 17:06:15 +0100 (CET)
-Reply-To: <azmat@krakow-hotels.net>
-From: "Azmat Toigonbaev" <azmat@krakow-hotels.net>
-Subject: Vacacion familia
-Date: Fri, 16 Jan 2004 17:07:17 +0100
-Message-ID: <GGEOKEPNICIEHHHAOGCAEEAOCFAA.azmat@krakow-hotels.net>
-MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="iso-8859-1"
-Content-Transfer-Encoding: 8bit
+Date: Fri, 16 Jan 2004 09:03:49 -0800
+From: Andrew Morton <akpm@osdl.org>
+Subject: Re: 2.6.1-mm4
+Message-Id: <20040116090349.73b1fad4.akpm@osdl.org>
+In-Reply-To: <200401161449.i0GEnoAv026627@fire-1.osdl.org>
+References: <20040115225948.6b994a48.akpm@osdl.org>
+	<200401161449.i0GEnoAv026627@fire-1.osdl.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Fabian Fenaut <fabian.fenaut@free.fr>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Gerd Knorr <kraxel@bytesex.org>
 List-ID: <linux-mm.kvack.org>
 
-Hola,
+Fabian Fenaut <fabian.fenaut@free.fr> wrote:
+>
+> I got an error compiling -mm4 :
+> 
+>     [...]
+>     CC [M]  drivers/media/video/ir-kbd-gpio.o
+>  drivers/media/video/ir-kbd-gpio.c:185: unknown field `name' specified in
+>  initializer
+>  drivers/media/video/ir-kbd-gpio.c:185: warning: missing braces around
+>  initializer
+>  drivers/media/video/ir-kbd-gpio.c:185: warning: (near initialization for
+>  `driver.drv')
+>  drivers/media/video/ir-kbd-gpio.c:186: unknown field `drv' specified in
+>  initializer
+>  drivers/media/video/ir-kbd-gpio.c:187: unknown field `drv' specified in
+>  initializer
+>  drivers/media/video/ir-kbd-gpio.c:188: unknown field `gpio_irq'
+>  specified in initializer
 
-Ofrecemos servicios de alojamiento y pense que usted puede ser que este
-interesado en intercambio de enlaces. Proporcionamos varios sitios
-relacionados con viajes, uno de ellos es
+You must be using an elderly gcc.
 
-http://www.barcelona-hotel.ws/index_es.htm
 
-We offer accommodation services and I thought you might be interested in
-link exchange. We provide several travel-related sites, one of them is
+diff -puN drivers/media/video/ir-kbd-gpio.c~ir-kbd-gpio-build-fix drivers/media/video/ir-kbd-gpio.c
+--- 25/drivers/media/video/ir-kbd-gpio.c~ir-kbd-gpio-build-fix	2004-01-16 09:01:59.000000000 -0800
++++ 25-akpm/drivers/media/video/ir-kbd-gpio.c	2004-01-16 09:02:17.000000000 -0800
+@@ -182,9 +182,11 @@ static int ir_probe(struct device *dev);
+ static int ir_remove(struct device *dev);
+ 
+ static struct bttv_sub_driver driver = {
+-	.drv.name	= DEVNAME,
+-	.drv.probe	= ir_probe,
+-	.drv.remove	= ir_remove,
++	.drv = {
++		.name	= DEVNAME,
++		.probe	= ir_probe,
++		.remove	= ir_remove,
++	},
+ 	.gpio_irq       = ir_irq,
+ };
+ 
 
-http://www.barcelona-hotel.ws
-
-Best regards,
-Azmat Toigonbaev
-azmat@krakow-hotels.net
-http://www.krakow-hotels.net
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
