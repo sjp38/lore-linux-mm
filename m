@@ -1,39 +1,55 @@
-Date: Sun, 9 Apr 2000 02:19:03 -0700
-Message-Id: <200004090919.CAA02908@pizda.ninka.net>
-From: "David S. Miller" <davem@redhat.com>
-In-reply-to: <38F048F5.1FABC033@colorfullife.com> (message from Manfred Spraul
-	on Sun, 09 Apr 2000 11:10:13 +0200)
-Subject: Re: zap_page_range(): TLB flush race
-References: <E12e4mo-0003Pn-00@the-village.bc.nu> <38F048F5.1FABC033@colorfullife.com>
+From: andrea@suse.de
+Date: Mon, 10 Apr 2000 10:55:32 +0200 (CEST)
+Subject: Re: [patch] take 2 Re: PG_swap_entry bug in recent kernels
+In-Reply-To: <200004090040.RAA49059@google.engr.sgi.com>
+Message-ID: <Pine.LNX.4.21.0004092326460.293-100000@vaio.random>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: manfreds@colorfullife.com
-Cc: alan@lxorguk.ukuu.org.uk, kanoj@google.engr.sgi.com, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org, torvalds@transmeta.com
+To: Kanoj Sarcar <kanoj@google.engr.sgi.com>
+Cc: Ben LaHaise <bcrl@redhat.com>, riel@nl.linux.org, Linus Torvalds <torvalds@transmeta.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-   I don't understand the purpose of flush_page_to_ram():
+On Sat, 8 Apr 2000, Kanoj Sarcar wrote:
 
-It's a (bad) attempt to deal with virtually indexed caches which
-are larger than the page size of the machine.  Generally, when
-the kernel writes to a page which potentially can subsequently
-accessed from user mappings, it must call flush_page_to_ram.
+>Btw, I am looking at your patch with message id
+><Pine.LNX.4.21.0004081924010.317-100000@alpha.random>, that does not
+>seem to be holding vmlist/pagetable lock in the swapdelete code (at
+>least at first blush). That was partly why I wanted to know what fixes 
+>are in your patch ...
 
-It flushes the kernel-view page out of the caches and thus
-makes main memory up to date, this way when the user accesses
-the page from his mapping he won't see stale data if he happens
-to have the page mapped at a bad "virtual alias" of what the
-kernel maps it at.
+The patch was against the earlier swapentry patch that was also fixing the
+vma/pte locking in swapoff. All the three patches I posted were
+incremental.
 
-It sucks, I'd like to kill it along with flush_icache_page.
+>Note: I prefer being able to hold mmap_sem in the swapdelete path, that
+>will provide protection against fork/exit races too. I will try to port
 
-I have been working a lot recently on something which is clean and
-hopefully can allow these things to die.  But I don't want to talk
-more about it until I am able to come up with an implementation which
-I am happy with, because until that time it may as well not exist.
+With my approch swapoff is serialized w.r.t. to fork/exit the same way as
+swap_out(). However I see the potential future problem in exit_mmap() that
+makes the entries not reachable before swapoff starts and that does the
+swap_free() after swapoff completed and after the swapdevice gone away (==
+too late). That's not an issue right now though, since both swapoff and
+do_exit() are holding the big kernel lock but it will become an issue
+eventually. Probably exit_mmap() should unlink and unmap the vmas bit by
+bit using locking to unlink and lefting them visible if they are not yet
+released. That should get rid of that future race.
 
-Later,
-David S. Miller
-davem@redhat.com
+About grabbing the mmap semaphore in unuse_process: we don't need to do
+that because we aren't changing vmas from swapoff. Swapoff only browses
+and changes pagetables so it only needs the vmalist-access read-spinlock
+that avoids vma to go away, and the pagtable exclusive spinlock because
+we'll change the pagetables (and the latter one is implied in the
+vmlist_access_lock as we know from the vmlist_access_lock implementation).
+
+swap_out() can't grab the mmap_sem for obvious reasons, so if you only
+grab the mmap_sem you'll have to rely only on the big kernel lock to avoid
+swap_out() to race with your swapoff, right? It doesn't look like a right
+long term solution.
+
+Andrea
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
