@@ -4,51 +4,56 @@ References: <20050103011113.6f6c8f44.akpm@osdl.org>
 	<1105019521.7074.79.camel@tribesman.namesys.com>
 	<20050107144644.GA9606@infradead.org>
 	<1105118217.3616.171.camel@tribesman.namesys.com>
-	<20050107104838.0eacd301.akpm@osdl.org>
+	<20050107190545.GA13898@infradead.org>
 From: Nikita Danilov <nikita@clusterfs.com>
-Date: Fri, 07 Jan 2005 23:21:19 +0300
-In-Reply-To: <20050107104838.0eacd301.akpm@osdl.org> (Andrew Morton's
- message of "Fri, 7 Jan 2005 10:48:38 -0800")
-Message-ID: <m1u0ptq9c0.fsf@clusterfs.com>
+Date: Fri, 07 Jan 2005 23:48:58 +0300
+In-Reply-To: <20050107190545.GA13898@infradead.org> (Christoph Hellwig's
+ message of "Fri, 7 Jan 2005 19:05:45 +0000")
+Message-ID: <m1pt0hq81x.fsf@clusterfs.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, hch@infradead.org
+To: Christoph Hellwig <hch@infradead.org>
+Cc: Vladimir Saveliev <vs@namesys.com>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@osdl.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Andrew Morton <akpm@osdl.org> writes:
+Christoph Hellwig <hch@infradead.org> writes:
 
-> Vladimir Saveliev <vs@namesys.com> wrote:
->>
->> +int perthread_pages_reserve(int nrpages, int gfp)
->>  +{
->>  +	int i;
->>  +	struct list_head  accumulator;
->>  +	struct list_head *per_thread;
->>  +
->>  +	per_thread = get_per_thread_pages();
->>  +	INIT_LIST_HEAD(&accumulator);
->>  +	list_splice_init(per_thread, &accumulator);
->>  +	for (i = 0; i < nrpages; ++i) {
+>> diff -puN include/linux/gfp.h~reiser4-perthread-pages include/linux/gfp.h
+>> --- linux-2.6.10-rc3/include/linux/gfp.h~reiser4-perthread-pages	2004-12-22 20:09:44.153164276 +0300
+
+[...]
+
 >
-> This will end up reserving more pages than were asked for, if
-> current->private_pages_count is non-zero.  Deliberate?
+>> +int perthread_pages_count(void)
+>> +{
+>> +	return current->private_pages_count;
+>> +}
+>> +EXPORT_SYMBOL(perthread_pages_count);
+>
+> Again a completely useless wrapper.
 
-Yes. This is to make modular usage possible, so that
+I disagree. Patch introduces explicit API
 
+int  perthread_pages_reserve(int nrpages, int gfp);
+void perthread_pages_release(int nrpages);
+int  perthread_pages_count(void);
 
-        perthread_pages_reserve(nrpages, gfp_mask);
+sufficient to create and use per-thread reservations. Using
+current->private_pages_count directly
 
-        /* call some other code... */
+ - makes API less uniform, not contained within single namespace
+   (perthread_pages_*), and worse,
 
-        perthread_pages_release(unused_pages);
+ - exhibits internal implementation detail to the user.
 
-works correctly if "some other code" does per-thread reservations
-too.
+>
+
+[...]
 
 Nikita.
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
