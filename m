@@ -1,38 +1,49 @@
-Date: Fri, 9 May 2003 21:44:28 -0400 (EDT)
-From: Rik van Riel <riel@imladris.surriel.com>
-Subject: Re: Extended Pagins on IA32
-In-Reply-To: <Pine.LNX.4.53.0305091157180.23419@picard.science-computing.de>
-Message-ID: <Pine.LNX.4.50L.0305092143150.31019-100000@imladris.surriel.com>
-References: <Pine.GHP.4.02.10302121019090.19866-100000@alderaan.science-computing.de>
- <Pine.LNX.4.53.0305071628130.3486@picard.science-computing.de>
- <Pine.LNX.4.53.0305091157180.23419@picard.science-computing.de>
+From: Ed Tomlinson <tomlins@cam.org>
+Subject: Re: 2.5.69-mm2 Kernel panic, possibly network related
+Reply-To: tomlins@cam.org
+Date: Sat, 10 May 2003 08:18:23 -0400
+References: <fa.f4fihqc.4kq986@ifi.uio.no> <fa.clherio.l2of82@ifi.uio.no>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7Bit
+Message-Id: <20030510121823.7C67EAE6@oscar.casa.dyndns.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Oliver Tennert <tennert@science-computing.de>
-Cc: linux-mm@kvack.org
+To: wli@holomorphy.com, helgehaf@aitel.hist.no, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@digeo.com
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 9 May 2003, Oliver Tennert wrote:
+Hi,
 
-> Does Linux make use of 4M page sizes (or 2M if PAE is enabled)? If yes,
-> under which circumstances are large pages used?
+I reported one of the bugs.  I now am running mm3 with the rusty fix  
+backed out and the two davem fixes applied.  Uptime is over one day.  Looks
+to be fixed here.
 
-In 2.4 mainline the large pages are only used for the kernel
-itself, for mapping ZONE_DMA and ZONE_NORMAL memory into the
-kernel virtual address space.
+Thanks
+Ed
 
-In 2.5 (and some 2.4 distro kernels) large pages can also be
-used for special purpose things in userland, mostly Oracle
-shared memory segments.
+Jens Axboe wrote:
 
-regards,
+> On Sat, May 10 2003, William Lee Irwin III wrote:
+>> On Thu, May 08 2003, Helge Hafting wrote:
+>> >> Much fuzz and two rejects.  Seems there is ongoing netfilter
+>> >> work in mm3.
+>> 
+>> On Thu, May 08, 2003 at 03:37:44PM +0200, Jens Axboe wrote:
+>> > akpm applied the patch rusty sent, you'd surely want to back that out
+>> > first.
+>> > dunno what else is in -mm, the patch reversed without incident on
+>> > 2.5-bk as of right now.
+>> 
+>> It looks like rusty's patch only caught one of two bugs of the same
+>> flavor and davem cleaned up the second. It looks like we're in good
+>> shape on both fronts from where I'm standing but we should probably
+>> wait for all of the original bugreporters to get back to use to
+>> declare success on all fronts.
+> 
+> As I wrote yesterday, bk-current has the fix from Davem that works for
+> me.
+> 
 
-Rik
--- 
-Engineers don't grow up, they grow sideways.
-http://www.surriel.com/		http://kernelnewbies.org/
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
