@@ -1,172 +1,127 @@
-Date: Thu, 19 Dec 2002 17:02:59 +0000 (GMT)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: mremap use-after-free [was Re: 2.5.52-mm2]
-In-Reply-To: <3E01943B.4170B911@digeo.com>
-Message-ID: <Pine.LNX.4.44.0212191602190.1893-100000@localhost.localdomain>
+Received: from digeo-nav01.digeo.com (digeo-nav01.digeo.com [192.168.1.233])
+	by packet.digeo.com (8.9.3+Sun/8.9.3) with SMTP id KAA22497
+	for <linux-mm@kvack.org>; Thu, 19 Dec 2002 10:18:23 -0800 (PST)
+Message-ID: <3E020D6E.429D4107@digeo.com>
+Date: Thu, 19 Dec 2002 10:18:23 -0800
+From: Andrew Morton <akpm@digeo.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
+Subject: Re: mremap use-after-free [was Re: 2.5.52-mm2]
+References: <3E01943B.4170B911@digeo.com> <Pine.LNX.4.44.0212191602190.1893-100000@localhost.localdomain>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@digeo.com>
+To: Hugh Dickins <hugh@veritas.com>
 Cc: lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 19 Dec 2002, Andrew Morton wrote:
-> Andrew Morton wrote:
-> > ...
-> > slab-poisoning.patch
-> >   more informative slab poisoning
+Hugh Dickins wrote:
 > 
-> This patch has exposed a quite long-standing use-after-free bug in
-> mremap().  It make the machine go BUG when starting the X server if
-> memory debugging is turned on.
+> ...
+> I doubt that (but may be wrong, I haven't time right now to think as
+> twistedly as mremap demands).
 
-Good catch, shame about the patch!
-Please don't apply this, or its 2.4 sister, as is.
+Maybe, maybe not.  Think about it - because VM_LOCKED is cleared
+by slab poisoning, the chances of anyone noticing it are very small.
+ 
+> The code (patently!) expects new_vma
+> to be good at the end, it certainly wasn't intending to unmap it;
+> but 2.5 split_vma has been through a couple of convulsions, either
+> of which might have resulted in the potential for new_vma to be
+> freed where before it was guaranteed to remain.
 
-> The bug might be present in 2.4 as well..
+I see no "guarantees" around do_munmap() at all.  The whole thing
+is foul; no wonder it keeps blowing up.
 
-I doubt that (but may be wrong, I haven't time right now to think as
-twistedly as mremap demands).  The code (patently!) expects new_vma
-to be good at the end, it certainly wasn't intending to unmap it;
-but 2.5 split_vma has been through a couple of convulsions, either
-of which might have resulted in the potential for new_vma to be
-freed where before it was guaranteed to remain.
+It died partway into kde startup.  It was in fact the first mremap
+call.
 
-Do you know the vmas before and after, and the mremap which did this?
-I couldn't reproduce it starting X here, and an example would help to
-uncloud my mind.  But you can reasonably answer that one example won't
-prove anything, and where there's doubt, the code must be defensive.
-(Besides, I'll be offline shortly.)
+> Do you know the vmas before and after, and the mremap which did this?
 
-On to the patch...
+Breakpoint 1, move_vma (vma=0xcf1ed734, addr=1077805056, old_len=36864, new_len=204800, new_addr=1078050816) at mm/mremap.c:176
+176     {
+(gdb) n
+183             next = find_vma_prev(mm, new_addr, &prev);
+(gdb) 
+177             struct mm_struct * mm = vma->vm_mm;
+(gdb) 
+180             int split = 0;
+(gdb) 
+182             new_vma = NULL;
+(gdb) 
+183             next = find_vma_prev(mm, new_addr, &prev);
+(gdb) 
+184             if (next) {
+(gdb) p/x next
+$1 = 0xce3bee84
+(gdb) p/x *next
+$2 = {vm_mm = 0xcf7cc624, vm_start = 0xbffcd000, vm_end = 0xc0000000, vm_next = 0x0, vm_page_prot = {pgprot = 0x25}, 
+  vm_flags = 0x100177, vm_rb = {rb_parent = 0xcf1ed74c, rb_color = 0x1, rb_right = 0x0, rb_left = 0x0}, shared = {next = 0xce3beeac, 
+    prev = 0xce3beeac}, vm_ops = 0x0, vm_pgoff = 0xffffffce, vm_file = 0x0, vm_private_data = 0x0}
+(gdb) p prev
+$3 = (struct vm_area_struct *) 0xcf1ed734
+(gdb) p/x *prev
+$4 = {vm_mm = 0xcf7cc624, vm_start = 0x403e0000, vm_end = 0x4041c000, vm_next = 0xce3bee84, vm_page_prot = {pgprot = 0x25}, 
+  vm_flags = 0x100073, vm_rb = {rb_parent = 0xce3be4c4, rb_color = 0x0, rb_right = 0xce3bee9c, rb_left = 0xce3be1ac}, shared = {
+    next = 0xcf1ed75c, prev = 0xcf1ed75c}, vm_ops = 0x0, vm_pgoff = 0x0, vm_file = 0x0, vm_private_data = 0x0}
 
-> --- 25/mm/mremap.c~move_vma-use-after-free	Thu Dec 19 00:51:49 2002
-> +++ 25-akpm/mm/mremap.c	Thu Dec 19 01:08:45 2002
-> @@ -183,14 +183,16 @@ static unsigned long move_vma(struct vm_
->  	next = find_vma_prev(mm, new_addr, &prev);
->  	if (next) {
->  		if (prev && prev->vm_end == new_addr &&
-> -		    can_vma_merge(prev, vma->vm_flags) && !vma->vm_file && !(vma->vm_flags & VM_SHARED)) {
-> +				can_vma_merge(prev, vma->vm_flags) &&
-> +				!(vma->vm_flags & VM_SHARED)) {
->  			spin_lock(&mm->page_table_lock);
->  			prev->vm_end = new_addr + new_len;
->  			spin_unlock(&mm->page_table_lock);
->  			new_vma = prev;
->  			if (next != prev->vm_next)
->  				BUG();
-> -			if (prev->vm_end == next->vm_start && can_vma_merge(next, prev->vm_flags)) {
-> +			if (prev->vm_end == next->vm_start &&
-> +					can_vma_merge(next, prev->vm_flags)) {
->  				spin_lock(&mm->page_table_lock);
->  				prev->vm_end = next->vm_end;
->  				__vma_unlink(mm, next, prev);
-> @@ -201,7 +203,8 @@ static unsigned long move_vma(struct vm_
->  				kmem_cache_free(vm_area_cachep, next);
->  			}
->  		} else if (next->vm_start == new_addr + new_len &&
-> -			   can_vma_merge(next, vma->vm_flags) && !vma->vm_file && !(vma->vm_flags & VM_SHARED)) {
-> +					can_vma_merge(next, vma->vm_flags) &&
-> +					!(vma->vm_flags & VM_SHARED)) {
->  			spin_lock(&mm->page_table_lock);
->  			next->vm_start = new_addr;
->  			spin_unlock(&mm->page_table_lock);
-> @@ -210,7 +213,8 @@ static unsigned long move_vma(struct vm_
->  	} else {
->  		prev = find_vma(mm, new_addr-1);
->  		if (prev && prev->vm_end == new_addr &&
-> -		    can_vma_merge(prev, vma->vm_flags) && !vma->vm_file && !(vma->vm_flags & VM_SHARED)) {
-> +				can_vma_merge(prev, vma->vm_flags) &&
-> +				!(vma->vm_flags & VM_SHARED)) {
->  			spin_lock(&mm->page_table_lock);
->  			prev->vm_end = new_addr + new_len;
->  			spin_unlock(&mm->page_table_lock);
 
-Hmmm.  Am I right to suppose that all the changes above are "cleanup"
-which you couldn't resist making while you looked through this code,
-but entirely irrelevant to the bug in question?  If those mods above
-were right, they should be the subject of a separate patch.
+> ...
+> 
+> Hmmm.  Am I right to suppose that all the changes above are "cleanup"
+> which you couldn't resist making while you looked through this code,
+> but entirely irrelevant to the bug in question?
 
-There's certainly room for cleanup there, but my preference would be
-to remove "can_vma_merge" completely, or at least its use in mremap.c,
-using its explicit tests instead.  It looks like it was originally
-quite appropriate for a use or two in mmap.c, but obscurely unhelpful
-here - because in itself it is testing a bizarre asymmetric subset of
-what's needed (that subset which remained to be tested in its original
-use in mmap.c).
+to make the code readable so I could work on the bug, it then "accidentally"
+got left in.
 
-The problem with your changes above is, you've removed the !vma->vm_file
-tests, presumably because you noticed that can_vma_merge already tests
-!vma->vm_file.  But "vma" within can_vma_merge is "prev" or "next" here:
-they are distinct tests, and you're now liable to merge an anonymous
-mapping with a private file mapping - nice if it's from /dev/zero,
-but otherwise not.  Please just cut those hunks out.
+>  If those mods above
+> were right, they should be the subject of a separate patch.
 
-(Of course, I wouldn't have spotted this if I hadn't embarked on,
-then retreated from, a similar cleanup myself a few months back.)
+well yes it would be nice to clean that code up.  Like, documenting
+it and working out what the locking rules are.
 
-> @@ -227,12 +231,16 @@ static unsigned long move_vma(struct vm_
->  	}
->  
->  	if (!move_page_tables(vma, new_addr, addr, old_len)) {
-> +		unsigned long must_fault_in;
-> +		unsigned long fault_in_start;
-> +		unsigned long fault_in_end;
-> +
->  		if (allocated_vma) {
->  			*new_vma = *vma;
->  			INIT_LIST_HEAD(&new_vma->shared);
->  			new_vma->vm_start = new_addr;
->  			new_vma->vm_end = new_addr+new_len;
-> -			new_vma->vm_pgoff += (addr - vma->vm_start) >> PAGE_SHIFT;
-> +			new_vma->vm_pgoff += (addr-vma->vm_start) >> PAGE_SHIFT;
+What does this do?
+                        spin_lock(&mm->page_table_lock);
+                        prev->vm_end = new_addr + new_len;
+                        spin_unlock(&mm->page_table_lock);
+and this?
+                        spin_lock(&mm->page_table_lock);
+                        next->vm_start = new_addr;
+                        spin_unlock(&mm->page_table_lock);
 
-Hrrmph.
+clearly nothing.  OK, but is this effectively-unlocked code safe?
 
->  			if (new_vma->vm_file)
->  				get_file(new_vma->vm_file);
->  			if (new_vma->vm_ops && new_vma->vm_ops->open)
-> @@ -251,19 +259,25 @@ static unsigned long move_vma(struct vm_
->  		} else
->  			vma = NULL;		/* nothing more to do */
->  
-> -		do_munmap(current->mm, addr, old_len);
-> -
+> There's certainly room for cleanup there, but my preference would be
+> to remove "can_vma_merge" completely, or at least its use in mremap.c,
+> using its explicit tests instead.  It looks like it was originally
+> quite appropriate for a use or two in mmap.c, but obscurely unhelpful
+> here - because in itself it is testing a bizarre asymmetric subset of
+> what's needed (that subset which remained to be tested in its original
+> use in mmap.c).
 
-Anguished cry!  There was careful manipulation of VM_ACCOUNT before and
-after do_munmap, now you've for no reason moved do_munmap down outside.
+yes
+ 
+> The problem with your changes above is, you've removed the !vma->vm_file
+> tests, presumably because you noticed that can_vma_merge already tests
+> !vma->vm_file.  But "vma" within can_vma_merge is "prev" or "next" here:
+> they are distinct tests, and you're now liable to merge an anonymous
+> mapping with a private file mapping - nice if it's from /dev/zero,
+> but otherwise not.  Please just cut those hunks out.
 
->  		/* Restore VM_ACCOUNT if one or two pieces of vma left */
->  		if (vma) {
->  			vma->vm_flags |= VM_ACCOUNT;
->  			if (split)
->  				vma->vm_next->vm_flags |= VM_ACCOUNT;
->  		}
-> +
-> +		must_fault_in = new_vma->vm_flags & VM_LOCKED;
-> +		fault_in_start = new_vma->vm_start;
-> +		fault_in_end = new_vma->vm_end;
-> +
-> +		do_munmap(current->mm, addr, old_len);
-> +
-> +		/* new_vma could have been invalidated by do_munmap */
-> +
->  		current->mm->total_vm += new_len >> PAGE_SHIFT;
-> -		if (new_vma->vm_flags & VM_LOCKED) {
-> +		if (must_fault_in) {
->  			current->mm->locked_vm += new_len >> PAGE_SHIFT;
-> -			make_pages_present(new_vma->vm_start,
-> -					   new_vma->vm_end);
-> +			make_pages_present(fault_in_start, fault_in_end);
->  		}
->  		return new_addr;
->  	}
+ok
+ 
+> ...
+> > -             do_munmap(current->mm, addr, old_len);
+> > -
+> 
+> Anguished cry!  There was careful manipulation of VM_ACCOUNT before and
+> after do_munmap, now you've for no reason moved do_munmap down outside.
 
-But the bugfix part of it looks good.
+How do we know that *vma was not altered by the do_munmap() call?
 
-Hugh
-
+With this change, nobody will touch any locally-cached vma*'s from
+the do_munmap() right through to syscall exit.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
