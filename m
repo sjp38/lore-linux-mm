@@ -1,60 +1,57 @@
-Subject: Re: Hangs in 2.5.41-mm1
-From: Paul Larson <plars@linuxtestproject.org>
-In-Reply-To: <3DA4A06A.B84D4C05@digeo.com>
-References: <3DA48EEA.8100302C@digeo.com> <1034195372.30973.64.camel@plars>
-	 <3DA4A06A.B84D4C05@digeo.com>
-Content-Type: text/plain
-Content-Transfer-Encoding: 7bit
-Date: 10 Oct 2002 10:45:49 -0500
-Message-Id: <1034264750.30975.83.camel@plars>
-Mime-Version: 1.0
+Message-ID: <20021010162211.15705.qmail@web40502.mail.yahoo.com>
+Date: Thu, 10 Oct 2002 09:22:11 -0700 (PDT)
+From: Sanjay Kumar <sankumar73@yahoo.com>
+Subject: memory reclaiming problem in 2.4.2
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@digeo.com>
-Cc: linux-mm <linux-mm@kvack.org>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2002-10-09 at 16:32, Andrew Morton wrote:
-> -mm2 will cure all ills ;)
+Hi,
 
-If only we could be so lucky! :)
+We are running applications on linux2.4.2 on our embedded box; Linux is being
+given around 8.25 MB of memory. At run time we are trying to get 
+free memory by killing some of the applications. But even after killing the 
+process, the free memory is not getting freed completely, instead it is getting 
+locked in form of inactive dirty pages and cache.
 
-Linux-2.5.41-mm2
-# echo 768 > /proc/sys/vm/nr_hugepages
-# echo 1610612736 > /proc/sys/kernel/shmmax
-# ./shmt01
-./shmt01: IPC Shared Memory TestSuite program
+Following is the dump of meminfo:
+# cat /proc/meminfo
+        total:    used:    free:  shared: buffers:  cached:
+Mem:   6447104  4931584  1515520        0    40960  2486272
+Swap:        0        0        0
+MemTotal:         6296 kB
+MemFree:          1480 kB
+MemShared:           0 kB
+Buffers:            40 kB
+Cached:           2428 kB
+Active:           1696 kB
+Inact_dirty:       504 kB
+Inact_clean:       268 kB
+Inact_target:        0 kB
+HighTotal:           0 kB
+HighFree:            0 kB
+LowTotal:         6296 kB
+LowFree:          1480 kB
+SwapTotal:           0 kB
+SwapFree:            0 kB
 
-        Get shared memory segment (67108864 bytes)
 
-        Attach shared memory segment to process
+>From user space we need to allocate a huge memory space of 3.5 MB; however
+allocation more than 2.5 MB fails.
 
-        Index through shared memory segment ...
+We wanted to know is there is some way to reclaim these dirty pages?
+There is a page laundering patch by Rik for 2.4.6; will this be useful for us?
 
-        Release shared memory
+Thanks and Regards,
+Sanjay
 
-successful!
-# ./shmt01 -s 1610612736./shmt01: IPC Shared Memory TestSuite program
-
-        Get shared memory segment (1610612736 bytes)
-
-        Attach shared memory segment to process
-
-        Index through shared memory segment ...
-
-        Release shared memory
-
-successful!
-#
-*HANG*
-
-I went back and tried to reproduce it.  I got through the first run of
-shmt01, then got half the command typed of the second run through it and
-it hang.  So if anything, it would appear that mm2 is easier to hang
-than mm1.
-
--Paul Larson
-
+__________________________________________________
+Do you Yahoo!?
+Faith Hill - Exclusive Performances, Videos & More
+http://faith.yahoo.com
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
