@@ -1,167 +1,115 @@
-Message-ID: <00d701c37786$1dcbbbc0$3600000a@infirewarrior>
-From: "Aleksi Asikainen" <aleksi.asikainen@infire.com>
-Subject: Buffer and cache sizes
-Date: Wed, 10 Sep 2003 13:27:19 +0300
-MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
+Date: Wed, 10 Sep 2003 11:53:38 -0700
+From: Mike Fedyk <mfedyk@matchmail.com>
+Subject: Re: 2.6.0-test4-mm3
+Message-ID: <20030910185338.GA1461@matchmail.com>
+References: <20030828235649.61074690.akpm@osdl.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20030828235649.61074690.akpm@osdl.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Andrew Morton <akpm@osdl.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hello all,
+Hi,
 
+I have another oops for you with 2.6.0-test4-mm3-1 and ide-scsi.  I've been
+using it for the last few days straight and I tried copying files from my
+ide cdrom using ide-scsi.  cp segfaults, I get this oops, and X hangs.
+Syslog was running long enough to capture it, and a sysrq SUB saved it to
+disk.
 
-I'm facing a confusing problem with the kernel's buffer and cache memory
-usage and was suggested in the usenet that this might interest you.
+I will be trying a newer kernel soon.  Has this been caught and fixed already?
 
-"I had 2GB in cache on 2.4.21 and the Out Of Memory killer struck."
-
-
-Our server is running on a double Xeon-processor machine with 3 GB of
-memory, kernel 2.4.21 installed, RH 8 distribution. We run mysql-server and
-roughly four hundred custom processes, which in total take about 800 MB of
-RAM. The rest of the free memory just sits there for the time being, and is
-slowly eaten to kernel's buffer / cache. Once there's no more to eat, or I
-suppose when we fall under some critical line and kernel considers it's time
-to free up some more memory, OOM-killer is launched and pop goes the server.
-(We have no swap drive, mind you, because kswapd seems to strangle the
-machine way too much and I thought that 800 MB of processes could be run
-with 3 GB of RAM...)
-
-This is really weird, I've been told by various people that, if I understood
-them right, the cache / buffer memory is considered somewhat free, so rather
-than OOM-killer appearing, kernel should offer some of the cache / buffer
-memory for the use if possible, shouldn't it?
-
-I'm afraid I'm not sure what details to offer about this, below are listings
-of some programs and files provided. I guess what I'm trying to find out is,
-is there any way to prevent the cache from growing so high? Is there
-anything I can do about this? And would buying more memory solve it?
-
-Someone in the usenet asked also why do I have 2 GB in cache. I don't know,
-I'm no expert on VM stuff and if I could, I wouldn't have 2 GB in cache. It
-just seems that 2.4.21 doesn't contain /proc/sys/vm/buffermem file to limit
-this with. Can I force clearing the cache somehow?
-
-
-Thanks for listening and sorry for any factual errors, this is not my field,
-
-
-Aleksi Asikainen
-
-
-
-free:
-             total       used       free     shared    buffers     cached
-Mem:       3104344    3060668      43676          0     487024    1698224
--/+ buffers/cache:     875420    2228924
-Swap:            0          0          0
-
-
-/proc/meminfo:
-        total:    used:    free:  shared: buffers:  cached:
-Mem:  3178848256 3157012480 21835776        0 541364224 1740095488
-Swap:        0        0        0
-MemTotal:      3104344 kB
-MemFree:         21324 kB
-MemShared:           0 kB
-Buffers:        528676 kB
-Cached:        1699312 kB
-SwapCached:          0 kB
-Active:        1409988 kB
-Inactive:      1414960 kB
-HighTotal:     2228224 kB
-HighFree:        16656 kB
-LowTotal:       876120 kB
-LowFree:          4668 kB
-SwapTotal:           0 kB
-SwapFree:            0 kB
-
-
-top:
-  4:09am  up 1 day, 11 min,  2 users,  load average: 27.82, 11.19, 8.16
-523 processes: 354 sleeping, 169 running, 0 zombie, 0 stopped
-CPU0 states:  2.18% user, 97.17% system,  0.0% nice,  0.5% idle
-CPU1 states:  2.29% user, 96.23% system,  0.0% nice,  0.29% idle
-CPU2 states:  3.0% user, 94.30% system,  0.0% nice,  2.9% idle
-CPU3 states:  3.25% user, 95.23% system,  0.0% nice,  0.32% idle
-Mem:  3104344K av, 3004900K used,   99444K free,       0K shrd,  419884K
-buff
-Swap:       0K av,       0K used,       0K free                 1719352K
-cached
-
-
-proc/slabinfo:
-slabinfo - version: 1.1 (SMP)
-kmem_cache            96     96    244    6    6    1 :  252  126
-ip_conntrack        4300   6540    384  654  654    1 :  124   62
-tcp_tw_bucket         90     90    128    3    3    1 :  252  126
-tcp_bind_bucket     3212   3360     32   30   30    1 :  252  126
-tcp_open_request     116    116     64    2    2    1 :  252  126
-inet_peer_cache       58     58     64    1    1    1 :  252  126
-ip_fib_hash           17    336     32    3    3    1 :  252  126
-ip_dst_cache        1141   1410    256   94   94    1 :  252  126
-arp_cache             19    150    128    5    5    1 :  252  126
-uhci_urb_priv          0      0     60    0    0    1 :  252  126
-blkdev_requests      384    450    128   15   15    1 :  252  126
-nfs_write_data         0      0    384    0    0    1 :  124   62
-nfs_read_data          0      0    384    0    0    1 :  124   62
-nfs_page               0      0    128    0    0    1 :  252  126
-journal_head        1655   2387     48   29   31    1 :  252  126
-revoke_table          13    250     12    1    1    1 :  252  126
-revoke_record        112    112     32    1    1    1 :  252  126
-dnotify_cache          0      0     20    0    0    1 :  252  126
-file_lock_cache      200    200     96    5    5    1 :  252  126
-fasync_cache           0      0     16    0    0    1 :  252  126
-uid_cache              3    112     32    1    1    1 :  252  126
-skbuff_head_cache  12076  35415    256 2361 2361    1 :  252  126
-sock                6019   6484    896 1620 1621    1 :  124   62
-sigqueue             203    203    132    7    7    1 :  252  126
-kiobuf                 0      0     64    0    0    1 :  252  126
-cdev_cache            13    116     64    2    2    1 :  252  126
-bdev_cache            13    116     64    2    2    1 :  252  126
-mnt_cache             24    116     64    2    2    1 :  252  126
-inode_cache        84886  92505    512 13214 13215    1 :  124   62
-dentry_cache       41896  51780    128 1726 1726    1 :  252  126
-dquot                  0      0    128    0    0    1 :  252  126
-filp               15332  15360    128  512  512    1 :  252  126
-names_cache           63     63   4096   63   63    1 :   60   30
-buffer_head       667847 672390    128 22413 22413    1 :  252  126
-mm_struct            875    915    256   59   61    1 :  252  126
-vm_area_struct     13584  14070    128  468  469    1 :  252  126
-fs_cache             877   1044     64   18   18    1 :  252  126
-files_cache          623    735    512  103  105    1 :  124   62
-signal_act           575    627   1408   56   57    4 :   60   30
-size-131072(DMA)       0      0 131072    0    0   32 :    0    0
-size-131072            0      0 131072    0    0   32 :    0    0
-size-65536(DMA)        0      0  65536    0    0   16 :    0    0
-size-65536             0      0  65536    0    0   16 :    0    0
-size-32768(DMA)        0      0  32768    0    0    8 :    0    0
-size-32768             2      2  32768    2    2    8 :    0    0
-size-16384(DMA)        0      0  16384    0    0    4 :    0    0
-size-16384             0      1  16384    0    1    4 :    0    0
-size-8192(DMA)         0      0   8192    0    0    2 :    0    0
-size-8192           2374   2926   8192 2374 2926    2 :    0    0
-size-4096(DMA)         0      0   4096    0    0    1 :   60   30
-size-4096           2159   2159   4096 2159 2159    1 :   60   30
-size-2048(DMA)         0      0   2048    0    0    1 :   60   30
-size-2048           7226   8570   2048 4285 4285    1 :   60   30
-size-1024(DMA)         0      0   1024    0    0    1 :  124   62
-size-1024            946   1008   1024  252  252    1 :  124   62
-size-512(DMA)          0      0    512    0    0    1 :  124   62
-size-512             360    648    512   81   81    1 :  124   62
-size-256(DMA)          0      0    256    0    0    1 :  252  126
-size-256             684    810    256   53   54    1 :  252  126
-size-128(DMA)          0      0    128    0    0    1 :  252  126
-size-128           10667  15330    128  511  511    1 :  252  126
-size-64(DMA)           0      0    128    0    0    1 :  252  126
-size-64              630    630    128   21   21    1 :  252  126
-size-32(DMA)           0      0     64    0    0    1 :  252  126
-size-32             3855   4524     64   78   78    1 :  252  126
-
+Sep 10 11:23:27 mis-mike-wstn kernel: sr0: scsi-1 drive
+Sep 10 11:23:27 mis-mike-wstn kernel: Uniform CD-ROM driver Revision: 3.12
+Sep 10 11:23:27 mis-mike-wstn kernel: Attached scsi CD-ROM sr0 at scsi0, channel 0, id 0, lun 0
+Sep 10 11:24:45 mis-mike-wstn kernel: nfs: server fs not responding, still trying
+Sep 10 11:24:47 mis-mike-wstn last message repeated 2 times
+Sep 10 11:24:47 mis-mike-wstn kernel: nfs: server fs OK
+Sep 10 11:24:47 mis-mike-wstn last message repeated 2 times
+Sep 10 11:29:39 mis-mike-wstn kernel: Unable to handle kernel paging request at virtual address 6b6b6b7b
+Sep 10 11:29:39 mis-mike-wstn kernel:  printing eip:
+Sep 10 11:29:39 mis-mike-wstn kernel: d48894dc
+Sep 10 11:29:39 mis-mike-wstn kernel: *pde = 00000000
+Sep 10 11:29:39 mis-mike-wstn kernel: Oops: 0000 [#1]
+Sep 10 11:29:39 mis-mike-wstn kernel: PREEMPT SMP 
+Sep 10 11:29:39 mis-mike-wstn kernel: CPU:    0
+Sep 10 11:29:39 mis-mike-wstn kernel: EIP:    0060:[_end+339697948/1068932160]    Not tainted VLI
+Sep 10 11:29:39 mis-mike-wstn kernel: EFLAGS: 00010002
+Sep 10 11:29:39 mis-mike-wstn kernel: EIP is at idescsi_queue+0x59c/0x614 [ide_scsi]
+Sep 10 11:29:39 mis-mike-wstn kernel: eax: 6b6b6b6b   ebx: c2050000   ecx: c2050000   edx: d3357864
+Sep 10 11:29:39 mis-mike-wstn kernel: esi: d3357864   edi: c410629c   ebp: c2051d18   esp: c2051ce0
+Sep 10 11:29:39 mis-mike-wstn kernel: ds: 007b   es: 007b   ss: 0068
+Sep 10 11:29:39 mis-mike-wstn kernel: Process cp (pid: 29140, threadinfo=c2050000 task=ca90e000)
+Sep 10 11:29:39 mis-mike-wstn kernel: Stack: d3a94540 00000293 d3a9451c d3a9451c c9e92c00 d33578b8 c461c18c c13cdca0 
+Sep 10 11:29:39 mis-mike-wstn kernel:        ffffffff 00000000 d3a946d8 c9e92c00 c410629c c0487b58 c2051d38 c026cf08 
+Sep 10 11:29:39 mis-mike-wstn kernel:        d3357864 c026d0d0 c2050000 d3357864 d3680304 00000000 c2051d58 c02724dd 
+Sep 10 11:29:39 mis-mike-wstn kernel: Call Trace:
+Sep 10 11:29:39 mis-mike-wstn kernel:  [scsi_dispatch_cmd+556/676] scsi_dispatch_cmd+0x22c/0x2a4
+Sep 10 11:29:39 mis-mike-wstn kernel:  [scsi_done+0/108] scsi_done+0x0/0x6c
+Sep 10 11:29:39 mis-mike-wstn kernel:  [scsi_request_fn+713/1036] scsi_request_fn+0x2c9/0x40c
+Sep 10 11:29:39 mis-mike-wstn kernel:  [generic_unplug_device+132/216] generic_unplug_device+0x84/0xd8
+Sep 10 11:29:39 mis-mike-wstn kernel:  [blk_run_queues+270/424] blk_run_queues+0x10e/0x1a8
+Sep 10 11:29:39 mis-mike-wstn kernel:  [block_sync_page+8/16] block_sync_page+0x8/0x10
+Sep 10 11:29:39 mis-mike-wstn kernel:  [wait_on_page_bit_wq+169/228] wait_on_page_bit_wq+0xa9/0xe4
+Sep 10 11:29:39 mis-mike-wstn kernel:  [autoremove_wake_function+0/64] autoremove_wake_function+0x0/0x40
+Sep 10 11:29:39 mis-mike-wstn kernel:  [autoremove_wake_function+0/64] autoremove_wake_function+0x0/0x40
+Sep 10 11:29:39 mis-mike-wstn kernel:  [do_generic_mapping_read+770/1156] do_generic_mapping_read+0x302/0x484
+Sep 10 11:29:39 mis-mike-wstn kernel:  [__generic_file_aio_read+478/508] __generic_file_aio_read+0x1de/0x1fc
+Sep 10 11:29:39 mis-mike-wstn kernel:  [file_read_actor+0/224] file_read_actor+0x0/0xe0
+Sep 10 11:29:39 mis-mike-wstn kernel:  [generic_file_read+171/200] generic_file_read+0xab/0xc8
+Sep 10 11:29:39 mis-mike-wstn kernel:  [_end+341016069/1068932160] rpcauth_lookupcred+0x75/0x80 [sunrpc]
+Sep 10 11:29:39 mis-mike-wstn kernel:  [cp_new_stat64+224/248] cp_new_stat64+0xe0/0xf8
+Sep 10 11:29:39 mis-mike-wstn kernel:  [autoremove_wake_function+0/64] autoremove_wake_function+0x0/0x40
+Sep 10 11:29:39 mis-mike-wstn kernel:  [sys_fstat64+37/44] sys_fstat64+0x25/0x2c
+Sep 10 11:29:39 mis-mike-wstn kernel:  [vfs_read+183/240] vfs_read+0xb7/0xf0
+Sep 10 11:29:39 mis-mike-wstn kernel:  [sys_read+48/80] sys_read+0x30/0x50
+Sep 10 11:29:39 mis-mike-wstn kernel:  [syscall_call+7/11] syscall_call+0x7/0xb
+Sep 10 11:29:39 mis-mike-wstn kernel:  [ip_mc_source+583/892] ip_mc_source+0x247/0x37c
+Sep 10 11:29:39 mis-mike-wstn kernel: 
+Sep 10 11:29:39 mis-mike-wstn kernel: Code: 08 00 00 00 74 09 e8 a8 6e 89 eb 8d 74 26 00 6a 04 8b 7d f8 57 8b 45 fc 50 e8 01 39 9d eb 83 c4 0c fa ff 43 14 8b 55 08 8b 42 04 <8b> 40 10 8b 58 2c 81 7b 04 ad 4e ad de 74 17 68 e2 94 88 d4 68 
+Sep 10 11:29:39 mis-mike-wstn kernel:  <6>note: cp[29140] exited with preempt_count 1
+Sep 10 11:29:39 mis-mike-wstn kernel: Debug: sleeping function called from invalid context at include/asm/semaphore.h:119
+Sep 10 11:29:39 mis-mike-wstn kernel: Call Trace:
+Sep 10 11:29:39 mis-mike-wstn kernel:  [__might_sleep+99/104] __might_sleep+0x63/0x68
+Sep 10 11:29:39 mis-mike-wstn kernel:  [remove_shared_vm_struct+43/132] remove_shared_vm_struct+0x2b/0x84
+Sep 10 11:29:39 mis-mike-wstn kernel:  [exit_mmap+485/552] exit_mmap+0x1e5/0x228
+Sep 10 11:29:39 mis-mike-wstn kernel:  [mmput+174/204] mmput+0xae/0xcc
+Sep 10 11:29:39 mis-mike-wstn kernel:  [do_exit+498/1332] do_exit+0x1f2/0x534
+Sep 10 11:29:39 mis-mike-wstn kernel:  [die+351/352] die+0x15f/0x160
+Sep 10 11:29:39 mis-mike-wstn kernel:  [do_page_fault+733/1045] do_page_fault+0x2dd/0x415
+Sep 10 11:29:39 mis-mike-wstn kernel:  [_end+339697948/1068932160] idescsi_queue+0x59c/0x614 [ide_scsi]
+Sep 10 11:29:39 mis-mike-wstn kernel:  [do_page_fault+0/1045] do_page_fault+0x0/0x415
+Sep 10 11:29:40 mis-mike-wstn kernel:  [recalc_task_prio+377/392] recalc_task_prio+0x179/0x188
+Sep 10 11:29:40 mis-mike-wstn kernel:  [schedule+1404/1760] schedule+0x57c/0x6e0
+Sep 10 11:29:40 mis-mike-wstn kernel:  [preempt_schedule+43/72] preempt_schedule+0x2b/0x48
+Sep 10 11:29:40 mis-mike-wstn kernel:  [ide_do_drive_cmd+354/399] ide_do_drive_cmd+0x162/0x18f
+Sep 10 11:29:40 mis-mike-wstn kernel:  [error_code+47/64] error_code+0x2f/0x40
+Sep 10 11:29:40 mis-mike-wstn kernel:  [_end+339697948/1068932160] idescsi_queue+0x59c/0x614 [ide_scsi]
+Sep 10 11:29:40 mis-mike-wstn kernel:  [scsi_dispatch_cmd+556/676] scsi_dispatch_cmd+0x22c/0x2a4
+Sep 10 11:29:40 mis-mike-wstn kernel:  [scsi_done+0/108] scsi_done+0x0/0x6c
+Sep 10 11:29:40 mis-mike-wstn kernel:  [scsi_request_fn+713/1036] scsi_request_fn+0x2c9/0x40c
+Sep 10 11:29:40 mis-mike-wstn kernel:  [generic_unplug_device+132/216] generic_unplug_device+0x84/0xd8
+Sep 10 11:29:40 mis-mike-wstn kernel:  [blk_run_queues+270/424] blk_run_queues+0x10e/0x1a8
+Sep 10 11:29:40 mis-mike-wstn kernel:  [block_sync_page+8/16] block_sync_page+0x8/0x10
+Sep 10 11:29:40 mis-mike-wstn kernel:  [wait_on_page_bit_wq+169/228] wait_on_page_bit_wq+0xa9/0xe4
+Sep 10 11:29:40 mis-mike-wstn kernel:  [autoremove_wake_function+0/64] autoremove_wake_function+0x0/0x40
+Sep 10 11:29:40 mis-mike-wstn kernel:  [autoremove_wake_function+0/64] autoremove_wake_function+0x0/0x40
+Sep 10 11:29:40 mis-mike-wstn kernel:  [do_generic_mapping_read+770/1156] do_generic_mapping_read+0x302/0x484
+Sep 10 11:29:40 mis-mike-wstn kernel:  [__generic_file_aio_read+478/508] __generic_file_aio_read+0x1de/0x1fc
+Sep 10 11:29:40 mis-mike-wstn kernel:  [file_read_actor+0/224] file_read_actor+0x0/0xe0
+Sep 10 11:29:40 mis-mike-wstn kernel:  [generic_file_read+171/200] generic_file_read+0xab/0xc8
+Sep 10 11:29:40 mis-mike-wstn kernel:  [_end+341016069/1068932160] rpcauth_lookupcred+0x75/0x80 [sunrpc]
+Sep 10 11:29:40 mis-mike-wstn kernel:  [cp_new_stat64+224/248] cp_new_stat64+0xe0/0xf8
+Sep 10 11:29:40 mis-mike-wstn kernel:  [autoremove_wake_function+0/64] autoremove_wake_function+0x0/0x40
+Sep 10 11:29:40 mis-mike-wstn kernel:  [sys_fstat64+37/44] sys_fstat64+0x25/0x2c
+Sep 10 11:29:40 mis-mike-wstn kernel:  [vfs_read+183/240] vfs_read+0xb7/0xf0
+Sep 10 11:29:40 mis-mike-wstn kernel:  [sys_read+48/80] sys_read+0x30/0x50
+Sep 10 11:29:40 mis-mike-wstn kernel:  [syscall_call+7/11] syscall_call+0x7/0xb
+Sep 10 11:29:40 mis-mike-wstn kernel:  [ip_mc_source+583/892] ip_mc_source+0x247/0x37c
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
