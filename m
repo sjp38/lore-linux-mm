@@ -1,41 +1,70 @@
-Date: Mon, 24 Jan 2000 23:38:47 +0100 (CET)
+Date: Tue, 25 Jan 2000 01:01:34 +0100 (CET)
 From: Rik van Riel <riel@nl.linux.org>
-Subject: Re: [PATCH] 2.2.14 VM fix #3
-In-Reply-To: <14476.42622.777454.521474@dukat.scot.redhat.com>
-Message-ID: <Pine.LNX.4.10.10001242335450.467-100000@mirkwood.dummy.home>
+Subject: Re: GFP_XXX semantics (was: Re: [PATCH] 2.2.1{3,4,5} VM fix)
+In-Reply-To: <Pine.LNX.4.10.10001241428440.11695-100000@Wotan.suse.de>
+Message-ID: <Pine.LNX.4.10.10001250053470.467-100000@mirkwood.dummy.home>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Stephen C. Tweedie" <sct@redhat.com>
-Cc: Andrea Arcangeli <andrea@suse.de>, Alan Cox <alan@lxorguk.ukuu.org.uk>, Linux MM <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.rutgers.edu>
+To: Andrea Arcangeli <andrea@suse.de>
+Cc: Ingo Oeser <ingo.oeser@informatik.tu-chemnitz.de>, Linux Kernel <linux-kernel@vger.rutgers.edu>, Linux MM <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 24 Jan 2000, Stephen C. Tweedie wrote:
-> On Fri, 21 Jan 2000 14:34:14 +0100 (CET), Andrea Arcangeli
-> <andrea@suse.de> said:
-> 
-> > Sorry but I will never agree with your patch. The GFP_KERNEL change is not
-> > something for 2.2.x. We have major deadlocks in getblk for example and you
-> > may trigger tham more easily forbidding GFP_MID allocations to
-> > succeed. 
-> 
-> Agreed, definitely.
+On Mon, 24 Jan 2000, Andrea Arcangeli wrote:
 
-OTOH, 2.2.1{3,4} have seen deadlocks because GFP_KERNEL
-allocations had eaten up all of memory and a PF_MEMALLOC
-allocation couldn't get through. It has also DoSed some
-servers where the network driver got temporarily confused
-when a GFP_ATOMIC allocation failed.
-
-> > Also killing the low_on_memory will harm performance. You doesn't seems to
-> > see what such bit (that should be a per-process thing) is good for.
+> >GFP_KERNEL
 > 
-> Also agreed --- removing the per-process flag will just penalise
-> _all_ processes when we enter thrashing.
+> GFP kernel should be used for all normal kernel allocations where you can
+> sleep.
+> 
+> >GFP_NFS
+> 
+> Equal to GFP_KERNEL but supposed to have more priority (actually they have
+> the same prio).
 
-Except that it never was a per-process flag...
-(so we didn't lose anything there)
+Do I smell a deadlock here? :)
+
+HINT: deadlocks of this kind have been observed in 2.2.13
+and 2.2.14. GFP_KERNEL allocations had eaten into the last
+free pages (below freepages.min) and seriously confused
+some algorithms that depend on the emergency pages.
+
+(yeah, I know that's broken but it's all we've got)
+
+> I understood that the argument for the 2.2.15pre4 differences is
+> that they want to disallow GFP_BUFFER and GFP_KERNEL to eat all
+> the free memory to left such memory for the PF_MEMALLOC path.
+
+Indeed. If you cannot rely on PF_MEMALLOC any more, you're
+bust.
+
+> But the whole point is that during the PF_MEMALLOC path everybody
+> can ping flood the machine and eat such last memory from
+> interrupts anyway (or GFP_NFS could be used as well).
+
+Of course it can. Now think about likelyhood...
+
+> If the machine deadlocks inside the PG_MEMALLOC path that's plain
+> a bug in the PF_MEMALLOC path and not something that can be fixed
+> inside GFP in any way.
+
+Indeed, the real solution is to fix the buggy code.
+
+> And during OOM it make sense to me that we allow the system to use
+> the last memory available (unless it's an USER allocation that we
+> want to kill immediatly before nr_free_pages goes to zero so we'll
+> have more changes that the kernel-stuff won't be affected by the
+> temporary memory shortage).
+
+I'm now running my system (and NL.linux.org) with a
+temporary kludge. I only allow __GFP_MED allocations
+to eat into the first half of freepages.min.
+
+I hope this will (for now) avoid the worst crashes
+from both sides. Again, this is not the solution. We
+should search for the buggy code and try to fix as
+much as possible before 2.2.15...
 
 regards,
 
