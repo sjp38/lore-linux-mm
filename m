@@ -1,79 +1,134 @@
-Received: from ttb by golbez with local (Exim 3.32 #1 (Debian))
-	id 164EA9-0000Ca-00
-	for <linux-mm@kvack.org>; Wed, 14 Nov 2001 23:30:05 -0500
-Date: Wed, 14 Nov 2001 23:30:05 -0500
-Subject: Re: kupdated high load with heavy disk I/O
-Message-ID: <20011114233005.A762@tentacle.dhs.org>
-References: <35F52ABC3317D511A55300D0B73EB8056FCC19@cinshrexc01.shermfin.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <35F52ABC3317D511A55300D0B73EB8056FCC19@cinshrexc01.shermfin.com>
-From: John McCutchan <ttb@tentacle.dhs.org>
+Message-Id: <200111160730.AAA18774@puffin.external.hp.com>
+Subject: parisc scatterlist doesn't want page/offset
+Date: Fri, 16 Nov 2001 00:30:32 -0700
+From: Grant Grundler <grundler@puffin.external.hp.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: "David S. Miller" <davem@redhat.com>
+Cc: linux-mm@kvack.org, parisc-linux@lists.parisc-linux.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+Hi all,
+Could someone point me to any discussion about adding
+page/offset to struct scatterlist?
 
-I also have the exact same behaviour when running mkisofs. During the 
-creation of the ISO the interactive feel is sluggish and after mkisofs
-is complete the box is sluggish and appears to lock up. During
-this sluggish period there is alot of disk activity. This is under
-2.4.14
+To me, it looks like a half-assed step to support DMA to HIGHMEM
+on 32-bit arches.  TBH, I'd like to see page/offset replace
+address in the pci_map* interfaces and struct scatterlist.
+But then replace it across the board so the DMA mapping code
+doesn't have to decide which field to use (KISS). This really
+belongs in 2.5 kernel.
 
-John
-On Wed, Nov 14, 2001 at 06:01:23PM -0500, Rechenberg, Andrew wrote:
-> Hello,
-> 
-> I have read some previous threads about kupdated consuming 99% of CPU under
-> intense disk I/O in kernel 2.4.x on the archives of linux-kernel (April
-> 2001), and some issues about I/O problems on linux-mm, but have yet to find
-> any suggestions or fixes.  I am currently experiencing the same issue and
-> was wondering if anyone has any thoughts or suggestions on the issue.  I am
-> not subscribed to the list so would you please CC: me directly on any
-> responses?  I can also check out the archives at theaimsgroup.com if a CC:
-> would not be appropriate.  Thank you.
-> 
-> The issue that I am having is that when there is a heavy amount a disk I/O,
-> the box becomes slightly unresponsive and kupdated is using 99.9% in 'top.'
-> Sometimes the box appears to totally lock up.  If one waits several seconds
-> to a couple of minutes the system appears to 'unlock' and runs sluggishly
-> for a while.  This cycle will repeat itself until the I/O subsides.  The
-> memory usage goes up to the full capacity of the box and then about 10MB of
-> swap is used while this problem is occurring.  Memory and swap does not get
-> relinquished afer the incident.
-> 
-> The issue appears in kernel 2.4.14 compiled directly from source from
-> kernel.org with no patches.  These problems manifest themselves with only
-> one user doing heavy disk I/O.  The normal user load on the box can run
-> between 350-450 users so this behavior would be unacceptable because the
-> application that is being run is interactive.  With 450 users, and the same
-> process running on a 2.2.20 kernel the performance of the box is great, with
-> only a very slightly noticeable slow down.
-> 
-> I am running the Informix database UniVerse version 9.6.2.4 on a 4 processor
-> 700MHz Xeon Dell PowerEdge 6400.  The disk subsystem is controlled by a PERC
-> 2/DC RAID card with 128MB on-board cache (megaraid driver compiled directly
-> in to the kernel).  Data array is on 5 36GB 10K Ultra160 disks in a RAID5
-> configuration.  The box has 4GB RAM, but is only using 2GB due to the move
-> back to the 2.2 kernel.  The only kernel paramters that have been modified
-> are in /proc/sys/kernel/sem.  All filesystems are ext2.
-> 
-> If you need any more detailed info, please let me know.  Any help on this
-> problem would be immensely appreciated.  Thank you in advance.
-> 
-> Regards,
-> Andrew Rechenberg
-> Network Team, Sherman Financial Group
-> arechenberg@shermanfinancialgroup.com
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/
-> 
+parisc has just merged up to 2.4.14 and picked up the following
+macros from arch/sparc:
+/* No highmem on parisc, plus we have an IOMMU, so mapping pages is easy. */
+#define pci_map_page(dev, page, off, size, dir) \
+        pci_map_single(dev, (page_address(page) + (off)), size, dir) 
+#define pci_unmap_page(dev,addr,sz,dir) pci_unmap_single(dev,addr,sz,dir)
+
+afaict, parisc doesn't need page/offset in struct scatterlist.
+As an interim solution, I've appended a patch that I'm hoping
+is acceptable (or at least a starting point).
+Thoughts?
+
+thanks,
+grant
+
+ps. I'm trying to be constructive - it's a bit difficult after
+  putting up with davem ranting about how the DMA mapping interface
+  in 2.4 was frozen.
+
+Index: drivers/scsi/scsi_merge.c
+===================================================================
+RCS file: /var/cvs/linux/drivers/scsi/scsi_merge.c,v
+retrieving revision 1.10
+diff -u -p -r1.10 scsi_merge.c
+--- drivers/scsi/scsi_merge.c	2001/11/09 23:36:24	1.10
++++ drivers/scsi/scsi_merge.c	2001/11/16 07:26:36
+@@ -943,7 +943,9 @@ __inline static int __init_io(Scsi_Cmnd 
+ 		}
+ 		count++;
+ 		sgpnt[count - 1].address = bh->b_data;
++#ifdef CONFIG_HIGHMEM
+ 		sgpnt[count - 1].page = NULL;
++#endif
+ 		sgpnt[count - 1].length += bh->b_size;
+ 		if (!dma_host) {
+ 			SCpnt->request_bufflen += bh->b_size;
+Index: drivers/scsi/sg.c
+===================================================================
+RCS file: /var/cvs/linux/drivers/scsi/sg.c,v
+retrieving revision 1.12
+diff -u -p -r1.12 sg.c
+--- drivers/scsi/sg.c	2001/11/09 23:36:24	1.12
++++ drivers/scsi/sg.c	2001/11/16 07:26:37
+@@ -1544,7 +1544,9 @@ static int sg_build_dir(Sg_request * srp
+ 	num = (rem_sz > (PAGE_SIZE - offset)) ? (PAGE_SIZE - offset) :
+ 						rem_sz;
+ 	sclp->address = page_address(kp->maplist[k]) + offset;
++#ifdef CONFIG_HIGHMEM
+ 	sclp->page = NULL;
++#endif
+ 	sclp->length = num;
+ 	mem_src_arr[k] = SG_USER_MEM;
+ 	rem_sz -= num;
+@@ -1631,7 +1633,9 @@ static int sg_build_indi(Sg_scatter_hold
+                     break;
+             }
+             sclp->address = p;
++#ifdef CONFIG_HIGHMEM
+ 	    sclp->page = NULL;
++#endif
+             sclp->length = ret_sz;
+ 	    mem_src_arr[k] = mem_src;
+ 
+@@ -1789,7 +1793,9 @@ static void sg_remove_scat(Sg_scatter_ho
+                        k, sclp->address, sclp->length, mem_src));
+             sg_free(sclp->address, sclp->length, mem_src);
+             sclp->address = NULL;
++#ifdef CONFIG_HIGHMEM
+ 	    sclp->page = NULL;
++#endif
+             sclp->length = 0;
+         }
+ 	sg_free(schp->buffer, schp->sglist_len, schp->buffer_mem_src);
+Index: drivers/scsi/st.c
+===================================================================
+RCS file: /var/cvs/linux/drivers/scsi/st.c,v
+retrieving revision 1.10
+diff -u -p -r1.10 st.c
+--- drivers/scsi/st.c	2001/11/09 23:36:24	1.10
++++ drivers/scsi/st.c	2001/11/16 07:26:39
+@@ -3233,7 +3233,9 @@ static ST_buffer *
+ 				break;
+ 			}
+ 		}
++#ifdef CONFIG_HIGHMEM
+ 		tb->sg[0].page = NULL;
++#endif
+ 		if (tb->sg[segs].address == NULL) {
+ 			kfree(tb);
+ 			tb = NULL;
+@@ -3265,7 +3267,9 @@ static ST_buffer *
+ 					tb = NULL;
+ 					break;
+ 				}
++#ifdef CONFIG_HIGHMEM
+ 				tb->sg[segs].page = NULL;
++#endif
+ 				tb->sg[segs].length = b_size;
+ 				got += b_size;
+ 				segs++;
+@@ -3339,7 +3343,9 @@ static int enlarge_buffer(ST_buffer * ST
+ 			normalize_buffer(STbuffer);
+ 			return FALSE;
+ 		}
++#ifdef CONFIG_HIGHMEM
+ 		STbuffer->sg[segs].page = NULL;
++#endif
+ 		STbuffer->sg[segs].length = b_size;
+ 		STbuffer->sg_segs += 1;
+ 		got += b_size;
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
