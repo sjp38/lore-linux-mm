@@ -1,49 +1,32 @@
 Received: from burns.conectiva (burns.conectiva [10.0.0.4])
-	by postfix.conectiva.com.br (Postfix) with SMTP id CAAC616B31
-	for <linux-mm@kvack.org>; Sat, 24 Mar 2001 03:39:57 -0300 (EST)
-Date: Sat, 24 Mar 2001 02:54:55 -0300 (BRST)
+	by postfix.conectiva.com.br (Postfix) with SMTP id 8C82A16B19
+	for <linux-mm@kvack.org>; Sat, 24 Mar 2001 03:39:47 -0300 (EST)
+Date: Sat, 24 Mar 2001 02:55:59 -0300 (BRST)
 From: Rik van Riel <riel@conectiva.com.br>
 Subject: Re: [PATCH] Prevent OOM from killing init
-In-Reply-To: <Pine.LNX.4.30.0103231854470.13864-100000@fs131-224.f-secure.com>
-Message-ID: <Pine.LNX.4.21.0103240252080.1863-100000@imladris.rielhome.conectiva>
+In-Reply-To: <3ABBC702.AC9C3C92@mvista.com>
+Message-ID: <Pine.LNX.4.21.0103240255090.1863-100000@imladris.rielhome.conectiva>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Szabolcs Szakacsits <szaka@f-secure.com>
-Cc: Patrick O'Rourke <orourke@missioncriticallinux.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: george anzinger <george@mvista.com>
+Cc: Paul Jakma <paulj@itg.ie>, Szabolcs Szakacsits <szaka@f-secure.com>, Alan Cox <alan@lxorguk.ukuu.org.uk>, Stephen Clouse <stephenc@theiqgroup.com>, Guest section DW <dwguest@win.tue.nl>, Patrick O'Rourke <orourke@missioncriticallinux.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 23 Mar 2001, Szabolcs Szakacsits wrote:
+On Fri, 23 Mar 2001, george anzinger wrote:
 
-> When I ported your OOM killer to 2.2.x and integrated it into the
-> 'reserved root memory' [*] patch, during intensive testing I found two
-> cases when init was killed. It happened on low-end machines and when
-> OOM killer wasn't triggered so init was killed in the page fault
-> handler. The later was also one of the reasons I replaced the "random"
-> OOM killer in page fault handler with yours [so there is only one OOM
-> killer].
+> What happens if you just make swap VERY large?  Does the system thrash
+> it self to a virtual standstill?
 
-Good idea, we should do this for 2.4.  I cannot remember
-reading an email from you about this, it's quite possible
-I just missed it and didn't answer because I never read
-it ...
+It does.  I need to implement load control code (so we suspend
+processes in turn to keep the load low enough so we can avoid
+thrashing).
 
-> Other things that bothered me,
->  - niced processes are penalized
+> Is this a possible answer?  Supposedly you could then sneak in and
+> blow away the bad guys manually ...
 
-This can be considered a bug and should be fixed...
-
->  - trying to kill a task that is permanently in TASK_UNINTERRUPTIBLE
->    will probably deadlock the machine [or the random OOM killer will
->    kill the box].
-
-This could indeed be a problem, though I cannot really see any
-case where a task would be in TASK_UNINTERRUPTIBLE permanently.
-OTOH, a 1GB read() will take a (much) too long time to finish.
-
-Your ideas sound really good, would you have the time to implement
-them for 2.4 ?
+This certainly works.
 
 regards,
 
