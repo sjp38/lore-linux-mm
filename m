@@ -1,41 +1,110 @@
 Subject: Re: 2.5.70-mm4
-From: Paul Larson <plars@linuxtestproject.org>
-In-Reply-To: <20030603231827.0e635332.akpm@digeo.com>
 References: <20030603231827.0e635332.akpm@digeo.com>
-Content-Type: text/plain
-Content-Transfer-Encoding: 7bit
-Date: 04 Jun 2003 10:52:19 -0500
-Message-Id: <1054741940.8438.175.camel@plars>
-Mime-Version: 1.0
+From: Alexander Hoogerhuis <alexh@ihatent.com>
+Date: 04 Jun 2003 19:14:42 +0200
+In-Reply-To: <20030603231827.0e635332.akpm@digeo.com>
+Message-ID: <871xy9hiil.fsf@lapper.ihatent.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@digeo.com>
-Cc: lkml <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2003-06-04 at 01:18, Andrew Morton wrote:
-> ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.5/2.5.70/2.5.70-mm4/
-A couple of issues:
+Andrew Morton <akpm@digeo.com> writes:
+> 
+> . There have been one or two reports of -mm3 getting stuck in
+>   get_request_wait() against CDROMs.  If anyone sees that, or was seeing it
+>   in -mm3 and does not see it in -mm4, please let us know.
+> 
 
-Hangs on boot unless I use acpi=off, but I don't believe this is unique
-to -mm.  I've seen this on plain 2.5 kernels on and off before with this
-8-way and others like it.  AFAIK the acpi issues are ongoing and still
-being worked, but please let me know if there's any information I can
-gather other than what's already out there that would assist in fixing
-these.
+One of those came from me. Its better than what I've had before. I've
+tinkered a bit, with and without debugging and ide-scsi, and I still
+managed to get it to blow up. But I no longer see the insane loads
+I've had on earlier kernels.
 
-I pulled the latest cvs of LTP and started a make on it.  The make
-finished but when I tried to do anything I realized that it was
-completely hung.  NMI was on but no messages over the serial console. 
-I'll turn off preempt and turn on debug eventlog and see if that
-provides any other useful information.  Is anyone else seeing this
-happen?  I had seen similar hangs in -mm2 and was told that ext3 might
-be the cuplrit and to wait for -mm3.  I didn't get a chance to try -mm3.
+Attached is the output from a sesison with copying from CDs to the USB
+drive with no ide-scsi, and i've put a comment it where it seems to
+fall over:
 
-Thanks,
-Paul Larson
+usb-storage: Command WRITE_10 (10 bytes)
+usb-storage:  2a 00 1b c3 2f 4f 00 04 00 00
+usb-storage: Bulk command S 0x43425355 T 0x9a7 Trg 0 LUN 0 L 524288 F 0 CL 10
+usb-storage: usb_stor_bulk_transfer_buf: xfer 31 bytes
+usb-storage: Status code 0; transferred 31/31
+usb-storage: -- transfer complete
+usb-storage: Bulk command transfer result=0
+usb-storage: usb_stor_bulk_transfer_sglist: xfer 524288 bytes, 128 entries
+usb-storage: Status code 0; transferred 524288/524288
+usb-storage: -- transfer complete
+usb-storage: Bulk data transfer result 0x0
+usb-storage: Attempting to get CSW...
+usb-storage: usb_stor_bulk_transfer_buf: xfer 13 bytes
+usb-storage: Status code 0; transferred 13/13
+usb-storage: -- transfer complete
+usb-storage: Bulk status result = 0
+usb-storage: Bulk status Sig 0x53425355 T 0x9a7 R 0 Stat 0x0
+usb-storage: scsi cmd done, result=0x0
+usb-storage: *** thread sleeping.
+usb-storage: queuecommand() called
+usb-storage: *** thread awakened.
+usb-storage: Command WRITE_10 (10 bytes)
+usb-storage:  2a 00 1b c3 33 4f 00 04 00 00
+usb-storage: Bulk command S 0x43425355 T 0x9a8 Trg 0 LUN 0 L 524288 F 0 CL 10
+usb-storage: usb_stor_bulk_transfer_buf: xfer 31 bytes
+usb-storage: Status code 0; transferred 31/31
+usb-storage: -- transfer complete
+usb-storage: Bulk command transfer result=0
+usb-storage: usb_stor_bulk_transfer_sglist: xfer 524288 bytes, 127 entries
+usb-storage: Status code 0; transferred 524288/524288
+usb-storage: -- transfer complete
+usb-storage: Bulk data transfer result 0x0
+usb-storage: Attempting to get CSW...
+-- here
+usb-storage: usb_stor_bulk_transfer_buf: xfer 13 bytes
+usb-storage: usb_storage_command_abort called
+usb-storage: usb_stor_stop_transport called
+usb-storage: -- cancelling URB
+usb-storage: Status code -104; transferred 0/13
+usb-storage: -- transfer cancelled
+usb-storage: Bulk status result = 3
+usb-storage: -- command was aborted
+usb-storage: Bulk reset requested
+usb-storage: usb_stor_control_msg: rq=ff rqtype=21 value=0000 index=00 len=0
+usb-storage: Soft reset: clearing bulk-in endpoint halt
+usb-storage: usb_stor_control_msg: rq=01 rqtype=02 value=0000 index=88 len=0
+usb-storage: usb_stor_clear_halt: result = 0
+usb-storage: Soft reset: clearing bulk-out endpoint halt
+usb-storage: usb_stor_control_msg: rq=01 rqtype=02 value=0000 index=02 len=0
+usb-storage: usb_stor_clear_halt: result = 0
+usb-storage: Soft reset done
+usb-storage: scsi command aborted
+usb-storage: *** thread sleeping.
+usb-storage: queuecommand() called
+usb-storage: *** thread awakened.
+usb-storage: Command TEST_UNIT_READY (6 bytes)
+usb-storage:  00 00 00 00 00 00
+usb-storage: Bulk command S 0x43425355 T 0x9a8 Trg 0 LUN 0 L 0 F 0 CL 6
+usb-storage: usb_stor_bulk_transfer_buf: xfer 31 bytes
+usb-storage: Status code 0; transferred 31/31
+usb-storage: -- transfer complete
+usb-storage: Bulk command transfer result=0
+usb-storage: Attempting to get CSW...
+usb-storage: usb_stor_bulk_transfer_buf: xfer 13 bytes
+usb-storage: Status code 0; transferred 13/13
+usb-storage: -- transfer complete
+usb-storage: Bulk status result = 0
+usb-storage: Bulk status Sig 0x53425355 T 0x9a8 R 0 Stat 0x0
+usb-storage: scsi cmd done, result=0x0
+usb-storage: *** thread sleeping.
 
-
+mvh,
+A
+-- 
+Alexander Hoogerhuis                               | alexh@ihatent.com
+CCNP - CCDP - MCNE - CCSE                          | +47 908 21 485
+"You have zero privacy anyway. Get over it."  --Scott McNealy
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
