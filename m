@@ -1,12 +1,12 @@
-Message-ID: <41C3D4AE.7010502@yahoo.com.au>
-Date: Sat, 18 Dec 2004 17:56:46 +1100
+Message-ID: <41C3D4F9.9040803@yahoo.com.au>
+Date: Sat, 18 Dec 2004 17:58:01 +1100
 From: Nick Piggin <nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
-Subject: [PATCH 3/10] alternate 4-level page tables patches
-References: <41C3D453.4040208@yahoo.com.au> <41C3D479.40708@yahoo.com.au> <41C3D48F.8080006@yahoo.com.au>
-In-Reply-To: <41C3D48F.8080006@yahoo.com.au>
+Subject: [PATCH 5/10] alternate 4-level page tables patches
+References: <41C3D453.4040208@yahoo.com.au> <41C3D479.40708@yahoo.com.au> <41C3D48F.8080006@yahoo.com.au> <41C3D4AE.7010502@yahoo.com.au> <41C3D4C8.1000508@yahoo.com.au>
+In-Reply-To: <41C3D4C8.1000508@yahoo.com.au>
 Content-Type: multipart/mixed;
- boundary="------------050307000801090902060400"
+ boundary="------------010301020400030808090806"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Linux Memory Management <linux-mm@kvack.org>
@@ -14,359 +14,198 @@ Cc: Andi Kleen <ak@suse.de>, Hugh Dickins <hugh@veritas.com>, Linus Torvalds <to
 List-ID: <linux-mm.kvack.org>
 
 This is a multi-part message in MIME format.
---------------050307000801090902060400
+--------------010301020400030808090806
 Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 
-3/10
+5/10
 
---------------050307000801090902060400
+--------------010301020400030808090806
 Content-Type: text/plain;
- name="3level-split-copy_page_range.patch"
+ name="4level-compat.patch"
 Content-Transfer-Encoding: 7bit
 Content-Disposition: inline;
- filename="3level-split-copy_page_range.patch"
+ filename="4level-compat.patch"
 
 
 
-Split copy_page_range into the usual set of page table walking functions.
-Needed to handle the complexity when moving to 4 levels.
-
-Split out from Andi Kleen's 4level patch.
+Generic headers to fold the 4-level pagetable into 3 levels.
 
 Signed-off-by: Nick Piggin <nickpiggin@yahoo.com.au>
 
 
 ---
 
- linux-2.6-npiggin/mm/memory.c |  290 ++++++++++++++++++++++--------------------
- 1 files changed, 152 insertions(+), 138 deletions(-)
+ linux-2.6-npiggin/include/asm-generic/pgtable-nopmd.h |   46 +++++++------
+ linux-2.6-npiggin/include/asm-generic/pgtable-nopud.h |   61 ++++++++++++++++++
+ linux-2.6-npiggin/include/asm-generic/tlb.h           |    6 +
+ 3 files changed, 91 insertions(+), 22 deletions(-)
 
-diff -puN mm/memory.c~3level-split-copy_page_range mm/memory.c
---- linux-2.6/mm/memory.c~3level-split-copy_page_range	2004-12-18 16:48:55.000000000 +1100
-+++ linux-2.6-npiggin/mm/memory.c	2004-12-18 17:07:49.000000000 +1100
-@@ -204,165 +204,179 @@ pte_t fastcall * pte_alloc_kernel(struct
- out:
- 	return pte_offset_kernel(pmd, address);
- }
--#define PTE_TABLE_MASK	((PTRS_PER_PTE-1) * sizeof(pte_t))
--#define PMD_TABLE_MASK	((PTRS_PER_PMD-1) * sizeof(pmd_t))
+diff -puN /dev/null include/asm-generic/pgtable-nopud.h
+--- /dev/null	2004-09-06 19:38:39.000000000 +1000
++++ linux-2.6-npiggin/include/asm-generic/pgtable-nopud.h	2004-12-18 16:57:19.000000000 +1100
+@@ -0,0 +1,61 @@
++#ifndef _PGTABLE_NOPUD_H
++#define _PGTABLE_NOPUD_H
++
++#ifndef __ASSEMBLY__
++
++/*
++ * Having the pud type consist of a pgd gets the size right, and allows
++ * us to conceptually access the pgd entry that this pud is folded into
++ * without casting.
++ */
++typedef struct { pgd_t pgd; } pud_t;
++
++#define PUD_SHIFT	PGDIR_SHIFT
++#define PTRS_PER_PUD	1
++#define PUD_SIZE  	(1UL << PUD_SHIFT)
++#define PUD_MASK  	(~(PUD_SIZE-1))
++
++/*
++ * The "pgd_xxx()" functions here are trivial for a folded two-level
++ * setup: the pud is never bad, and a pud always exists (as it's folded
++ * into the pgd entry)
++ */
++static inline int pgd_none(pgd_t pgd)		{ return 0; }
++static inline int pgd_bad(pgd_t pgd)		{ return 0; }
++static inline int pgd_present(pgd_t pgd)	{ return 1; }
++static inline void pgd_clear(pgd_t *pgd)	{ }
++#define pud_ERROR(pud)				(pgd_ERROR((pud).pgd))
++
++#define pgd_populate(mm, pgd, pud)		do { } while (0)
++/*
++ * (puds are folded into pgds so this doesn't get actually called,
++ * but the define is needed for a generic inline function.)
++ */
++#define set_pgd(pgdptr, pgdval)			set_pud((pud_t *)(pgdptr), (pud_t) { pgdval })
++
++static inline pud_t * pud_offset(pgd_t * pgd, unsigned long address)
++{
++	return (pud_t *)pgd;
++}
++
++static inline pud_t * pud_offset_k(pgd_t * pgd, unsigned long address)
++{
++	return (pud_t *)pgd;
++}
++
++#define pud_val(x)				(pgd_val((x).pgd))
++#define __pud(x)				((pud_t) { __pgd(x) } )
++
++#define pgd_page(pgd)				(pud_page((pud_t){ pgd }))
++#define pgd_page_kernel(pgd)			(pud_page_kernel((pud_t){ pgd }))
++
++/*
++ * allocating and freeing a pud is trivial: the 1-entry pud is
++ * inside the pgd, so has no extra memory associated with it.
++ */
++#define pud_alloc_one(mm, address)		NULL
++#define pud_free(x)				do { } while (0)
++#define __pud_free_tlb(tlb, x)			do { } while (0)
++
++#endif /* __ASSEMBLY__ */
++#endif /* _PGTABLE_NOPUD_H */
+diff -puN include/asm-generic/pgtable-nopmd.h~4level-compat include/asm-generic/pgtable-nopmd.h
+--- linux-2.6/include/asm-generic/pgtable-nopmd.h~4level-compat	2004-12-18 16:57:19.000000000 +1100
++++ linux-2.6-npiggin/include/asm-generic/pgtable-nopmd.h	2004-12-18 16:57:19.000000000 +1100
+@@ -3,52 +3,54 @@
+ 
+ #ifndef __ASSEMBLY__
+ 
++#include <asm-generic/pgtable-nopud.h>
++
+ /*
+- * Having the pmd type consist of a pgd gets the size right, and allows
+- * us to conceptually access the pgd entry that this pmd is folded into
++ * Having the pmd type consist of a pud gets the size right, and allows
++ * us to conceptually access the pud entry that this pmd is folded into
+  * without casting.
+  */
+-typedef struct { pgd_t pgd; } pmd_t;
++typedef struct { pud_t pud; } pmd_t;
+ 
+-#define PMD_SHIFT	PGDIR_SHIFT
++#define PMD_SHIFT	PUD_SHIFT
+ #define PTRS_PER_PMD	1
+ #define PMD_SIZE  	(1UL << PMD_SHIFT)
+ #define PMD_MASK  	(~(PMD_SIZE-1))
  
  /*
-  * copy one vm_area from one task to the other. Assumes the page tables
-  * already present in the new task to be cleared in the whole range
-  * covered by this vma.
-  *
-- * 08Jan98 Merged into one routine from several inline routines to reduce
-- *         variable count and make things faster. -jj
-- *
-  * dst->page_table_lock is held on entry and exit,
-- * but may be dropped within pmd_alloc() and pte_alloc_map().
-+ * but may be dropped within p[mg]d_alloc() and pte_alloc_map().
+- * The "pgd_xxx()" functions here are trivial for a folded two-level
++ * The "pud_xxx()" functions here are trivial for a folded two-level
+  * setup: the pmd is never bad, and a pmd always exists (as it's folded
+- * into the pgd entry)
++ * into the pud entry)
   */
-+
-+static inline void
-+copy_swap_pte(struct mm_struct *dst_mm, struct mm_struct *src_mm, pte_t pte)
-+{
-+	if (pte_file(pte))
-+		return;
-+	swap_duplicate(pte_to_swp_entry(pte));
-+	if (list_empty(&dst_mm->mmlist)) {
-+		spin_lock(&mmlist_lock);
-+		list_add(&dst_mm->mmlist, &src_mm->mmlist);
-+		spin_unlock(&mmlist_lock);
-+	}
-+}
-+
-+static inline void
-+copy_one_pte(struct mm_struct *dst_mm,  struct mm_struct *src_mm,
-+		pte_t *dst_pte, pte_t *src_pte, unsigned long vm_flags,
-+		unsigned long addr)
-+{
-+	pte_t pte = *src_pte;
-+	struct page *page;
-+	unsigned long pfn;
-+
-+	/* pte contains position in swap, so copy. */
-+	if (!pte_present(pte)) {
-+		copy_swap_pte(dst_mm, src_mm, pte);
-+		set_pte(dst_pte, pte);
-+		return;
-+	}
-+	pfn = pte_pfn(pte);
-+	/* the pte points outside of valid memory, the
-+	 * mapping is assumed to be good, meaningful
-+	 * and not mapped via rmap - duplicate the
-+	 * mapping as is.
-+	 */
-+	page = NULL;
-+	if (pfn_valid(pfn))
-+		page = pfn_to_page(pfn);
-+
-+	if (!page || PageReserved(page)) {
-+		set_pte(dst_pte, pte);
-+		return;
-+	}
-+
-+	/*
-+	 * If it's a COW mapping, write protect it both
-+	 * in the parent and the child
-+	 */
-+	if ((vm_flags & (VM_SHARED | VM_MAYWRITE)) == VM_MAYWRITE) {
-+		ptep_set_wrprotect(src_pte);
-+		pte = *src_pte;
-+	}
-+
-+	/*
-+	 * If it's a shared mapping, mark it clean in
-+	 * the child
-+	 */
-+	if (vm_flags & VM_SHARED)
-+		pte = pte_mkclean(pte);
-+	pte = pte_mkold(pte);
-+	get_page(page);
-+	dst_mm->rss++;
-+	if (PageAnon(page))
-+		dst_mm->anon_rss++;
-+	set_pte(dst_pte, pte);
-+	page_dup_rmap(page);
-+}
-+
-+static int copy_pte_range(struct mm_struct *dst_mm,  struct mm_struct *src_mm,
-+		pmd_t *dst_pmd, pmd_t *src_pmd, struct vm_area_struct *vma,
-+		unsigned long addr, unsigned long end)
-+{
-+	pte_t *src_pte, *dst_pte;
-+	pte_t *s, *d;
-+	unsigned long vm_flags = vma->vm_flags;
-+
-+	d = dst_pte = pte_alloc_map(dst_mm, dst_pmd, addr);
-+	if (!dst_pte)
-+		return -ENOMEM;
-+
-+	spin_lock(&src_mm->page_table_lock);
-+	s = src_pte = pte_offset_map_nested(src_pmd, addr);
-+	for (; addr < end; addr += PAGE_SIZE, s++, d++) {
-+		if (pte_none(*s))
-+			continue;
-+		copy_one_pte(dst_mm, src_mm, d, s, vm_flags, addr);
-+	}
-+	pte_unmap_nested(src_pte);
-+	pte_unmap(dst_pte);
-+	spin_unlock(&src_mm->page_table_lock);
-+	cond_resched_lock(&dst_mm->page_table_lock);
-+	return 0;
-+}
-+
-+static int copy_pmd_range(struct mm_struct *dst_mm,  struct mm_struct *src_mm,
-+		pgd_t *dst_pgd, pgd_t *src_pgd, struct vm_area_struct *vma,
-+		unsigned long addr, unsigned long end)
-+{
-+	pmd_t *src_pmd, *dst_pmd;
-+	int err = 0;
-+	unsigned long next;
-+
-+	src_pmd = pmd_offset(src_pgd, addr);
-+	dst_pmd = pmd_alloc(dst_mm, dst_pgd, addr);
-+	if (!dst_pmd)
-+		return -ENOMEM;
-+
-+	for (; addr < end; addr = next, src_pmd++, dst_pmd++) {
-+		next = (addr + PMD_SIZE) & PMD_MASK;
-+		if (next > end)
-+			next = end;
-+		if (pmd_none(*src_pmd))
-+			continue;
-+		if (pmd_bad(*src_pmd)) {
-+			pmd_ERROR(*src_pmd);
-+			pmd_clear(src_pmd);
-+			continue;
-+		}
-+		err = copy_pte_range(dst_mm, src_mm, dst_pmd, src_pmd,
-+							vma, addr, next);
-+		if (err)
-+			break;
-+	}
-+	return err;
-+}
-+
- int copy_page_range(struct mm_struct *dst, struct mm_struct *src,
--			struct vm_area_struct *vma)
-+		struct vm_area_struct *vma)
+-static inline int pgd_none(pgd_t pgd)		{ return 0; }
+-static inline int pgd_bad(pgd_t pgd)		{ return 0; }
+-static inline int pgd_present(pgd_t pgd)	{ return 1; }
+-static inline void pgd_clear(pgd_t *pgd)	{ }
+-#define pmd_ERROR(pmd)				(pgd_ERROR((pmd).pgd))
++static inline int pud_none(pud_t pud)		{ return 0; }
++static inline int pud_bad(pud_t pud)		{ return 0; }
++static inline int pud_present(pud_t pud)	{ return 1; }
++static inline void pud_clear(pud_t *pud)	{ }
++#define pmd_ERROR(pmd)				(pud_ERROR((pmd).pud))
+ 
+-#define pgd_populate(mm, pmd, pte)		do { } while (0)
+-#define pgd_populate_kernel(mm, pmd, pte)	do { } while (0)
++#define pud_populate(mm, pmd, pte)		do { } while (0)
++#define pud_populate_kernel(mm, pmd, pte)	do { } while (0)
+ 
+ /*
+- * (pmds are folded into pgds so this doesn't get actually called,
++ * (pmds are folded into puds so this doesn't get actually called,
+  * but the define is needed for a generic inline function.)
+  */
+-#define set_pgd(pgdptr, pgdval)			set_pmd((pmd_t *)(pgdptr), (pmd_t) { pgdval })
++#define set_pud(pudptr, pudval)			set_pmd((pmd_t *)(pudptr), (pmd_t) { pudval })
+ 
+-static inline pmd_t * pmd_offset(pgd_t * pgd, unsigned long address)
++static inline pmd_t * pmd_offset(pud_t * pud, unsigned long address)
  {
--	pgd_t * src_pgd, * dst_pgd;
--	unsigned long address = vma->vm_start;
--	unsigned long end = vma->vm_end;
--	unsigned long cow;
-+	pgd_t *src_pgd, *dst_pgd;
-+	unsigned long addr, start, end, next;
-+	int err = 0;
- 
- 	if (is_vm_hugetlb_page(vma))
- 		return copy_hugetlb_page_range(dst, src, vma);
- 
--	cow = (vma->vm_flags & (VM_SHARED | VM_MAYWRITE)) == VM_MAYWRITE;
--	src_pgd = pgd_offset(src, address)-1;
--	dst_pgd = pgd_offset(dst, address)-1;
--
--	for (;;) {
--		pmd_t * src_pmd, * dst_pmd;
--
--		src_pgd++; dst_pgd++;
--		
--		/* copy_pmd_range */
--		
-+	start = vma->vm_start;
-+	src_pgd = pgd_offset(src, start);
-+	dst_pgd = pgd_offset(dst, start);
-+
-+	end = vma->vm_end;
-+	addr = start;
-+	while (addr && (addr < end-1)) {
-+		next = (addr + PGDIR_SIZE) & PGDIR_MASK;
-+		if (next > end || next <= addr)
-+			next = end;
- 		if (pgd_none(*src_pgd))
--			goto skip_copy_pmd_range;
--		if (unlikely(pgd_bad(*src_pgd))) {
-+			continue;
-+		if (pgd_bad(*src_pgd)) {
- 			pgd_ERROR(*src_pgd);
- 			pgd_clear(src_pgd);
--skip_copy_pmd_range:	address = (address + PGDIR_SIZE) & PGDIR_MASK;
--			if (!address || (address >= end))
--				goto out;
- 			continue;
- 		}
-+		err = copy_pmd_range(dst, src, dst_pgd, src_pgd,
-+							vma, addr, next);
-+		if (err)
-+			break;
- 
--		src_pmd = pmd_offset(src_pgd, address);
--		dst_pmd = pmd_alloc(dst, dst_pgd, address);
--		if (!dst_pmd)
--			goto nomem;
--
--		do {
--			pte_t * src_pte, * dst_pte;
--		
--			/* copy_pte_range */
--		
--			if (pmd_none(*src_pmd))
--				goto skip_copy_pte_range;
--			if (unlikely(pmd_bad(*src_pmd))) {
--				pmd_ERROR(*src_pmd);
--				pmd_clear(src_pmd);
--skip_copy_pte_range:
--				address = (address + PMD_SIZE) & PMD_MASK;
--				if (address >= end)
--					goto out;
--				goto cont_copy_pmd_range;
--			}
--
--			dst_pte = pte_alloc_map(dst, dst_pmd, address);
--			if (!dst_pte)
--				goto nomem;
--			spin_lock(&src->page_table_lock);	
--			src_pte = pte_offset_map_nested(src_pmd, address);
--			do {
--				pte_t pte = *src_pte;
--				struct page *page;
--				unsigned long pfn;
--
--				/* copy_one_pte */
--
--				if (pte_none(pte))
--					goto cont_copy_pte_range_noset;
--				/* pte contains position in swap, so copy. */
--				if (!pte_present(pte)) {
--					if (!pte_file(pte)) {
--						swap_duplicate(pte_to_swp_entry(pte));
--						if (list_empty(&dst->mmlist)) {
--							spin_lock(&mmlist_lock);
--							list_add(&dst->mmlist,
--								 &src->mmlist);
--							spin_unlock(&mmlist_lock);
--						}
--					}
--					set_pte(dst_pte, pte);
--					goto cont_copy_pte_range_noset;
--				}
--				pfn = pte_pfn(pte);
--				/* the pte points outside of valid memory, the
--				 * mapping is assumed to be good, meaningful
--				 * and not mapped via rmap - duplicate the
--				 * mapping as is.
--				 */
--				page = NULL;
--				if (pfn_valid(pfn)) 
--					page = pfn_to_page(pfn); 
--
--				if (!page || PageReserved(page)) {
--					set_pte(dst_pte, pte);
--					goto cont_copy_pte_range_noset;
--				}
--
--				/*
--				 * If it's a COW mapping, write protect it both
--				 * in the parent and the child
--				 */
--				if (cow) {
--					ptep_set_wrprotect(src_pte);
--					pte = *src_pte;
--				}
--
--				/*
--				 * If it's a shared mapping, mark it clean in
--				 * the child
--				 */
--				if (vma->vm_flags & VM_SHARED)
--					pte = pte_mkclean(pte);
--				pte = pte_mkold(pte);
--				get_page(page);
--				dst->rss++;
--				if (PageAnon(page))
--					dst->anon_rss++;
--				set_pte(dst_pte, pte);
--				page_dup_rmap(page);
--cont_copy_pte_range_noset:
--				address += PAGE_SIZE;
--				if (address >= end) {
--					pte_unmap_nested(src_pte);
--					pte_unmap(dst_pte);
--					goto out_unlock;
--				}
--				src_pte++;
--				dst_pte++;
--			} while ((unsigned long)src_pte & PTE_TABLE_MASK);
--			pte_unmap_nested(src_pte-1);
--			pte_unmap(dst_pte-1);
--			spin_unlock(&src->page_table_lock);
--			cond_resched_lock(&dst->page_table_lock);
--cont_copy_pmd_range:
--			src_pmd++;
--			dst_pmd++;
--		} while ((unsigned long)src_pmd & PMD_TABLE_MASK);
-+		src_pgd++;
-+		dst_pgd++;
-+		addr = next;
- 	}
--out_unlock:
--	spin_unlock(&src->page_table_lock);
--out:
--	return 0;
--nomem:
--	return -ENOMEM;
-+
-+	return err;
+-	return (pmd_t *)pgd;
++	return (pmd_t *)pud;
  }
  
- static void zap_pte_range(struct mmu_gather *tlb,
+-#define pmd_val(x)				(pgd_val((x).pgd))
+-#define __pmd(x)				((pmd_t) { __pgd(x) } )
++#define pmd_val(x)				(pud_val((x).pud))
++#define __pmd(x)				((pmd_t) { __pud(x) } )
+ 
+-#define pgd_page(pgd)				(pmd_page((pmd_t){ pgd }))
+-#define pgd_page_kernel(pgd)			(pmd_page_kernel((pmd_t){ pgd }))
++#define pud_page(pud)				(pmd_page((pmd_t){ pud }))
++#define pud_page_kernel(pud)			(pmd_page_kernel((pmd_t){ pud }))
+ 
+ /*
+  * allocating and freeing a pmd is trivial: the 1-entry pmd is
+- * inside the pgd, so has no extra memory associated with it.
++ * inside the pud, so has no extra memory associated with it.
+  */
+ #define pmd_alloc_one(mm, address)		NULL
+ #define pmd_free(x)				do { } while (0)
+diff -puN include/asm-generic/tlb.h~4level-compat include/asm-generic/tlb.h
+--- linux-2.6/include/asm-generic/tlb.h~4level-compat	2004-12-18 16:57:19.000000000 +1100
++++ linux-2.6-npiggin/include/asm-generic/tlb.h	2004-12-18 16:57:19.000000000 +1100
+@@ -141,6 +141,12 @@ static inline void tlb_remove_page(struc
+ 		__pte_free_tlb(tlb, ptep);			\
+ 	} while (0)
+ 
++#define pud_free_tlb(tlb, pudp)					\
++	do {							\
++		tlb->need_flush = 1;				\
++		__pud_free_tlb(tlb, pudp);			\
++	} while (0)
++
+ #define pmd_free_tlb(tlb, pmdp)					\
+ 	do {							\
+ 		tlb->need_flush = 1;				\
 
 _
 
---------------050307000801090902060400--
+--------------010301020400030808090806--
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
