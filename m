@@ -1,68 +1,133 @@
-Received: from talaria.fm.intel.com (talaria.fm.intel.com [10.1.192.39])
-	by hermes.fm.intel.com (8.11.6/8.11.6/d: outer.mc,v 1.51 2002/09/23 20:43:23 dmccart Exp $) with ESMTP id gAM3Nqq29671
-	for <linux-mm@kvack.org>; Fri, 22 Nov 2002 03:23:52 GMT
-Received: from fmsmsxv040-1.fm.intel.com (fmsmsxvs040.fm.intel.com [132.233.42.124])
-	by talaria.fm.intel.com (8.11.6/8.11.6/d: inner.mc,v 1.27 2002/10/16 23:46:59 dmccart Exp $) with SMTP id gAM3SHZ08976
-	for <linux-mm@kvack.org>; Fri, 22 Nov 2002 03:28:17 GMT
-Message-ID: <25282B06EFB8D31198BF00508B66D4FA03EA5B14@fmsmsx114.fm.intel.com>
-From: "Seth, Rohit" <rohit.seth@intel.com>
-Subject: RE: hugetlb page patch for 2.5.48-bug fixes
-Date: Thu, 21 Nov 2002 19:23:03 -0800
+Date: Fri, 22 Nov 2002 10:40:25 -0600
+From: Dave McCracken <dmccr@us.ibm.com>
+Subject: [PATCH 2.5.48-mm1] Break COW page tables on mmap
+Message-ID: <26960000.1037983225@baldur.austin.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: multipart/mixed; boundary="==========873890887=========="
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: 'William Lee Irwin III' <wli@holomorphy.com>, "Seth, Rohit" <rohit.seth@intel.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@digeo.com, torvalds@transmeta.com
+To: Andrew Morton <akpm@digeo.com>
+Cc: Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-> At some point in the past, I wrote:
-> >> Okay, first off why are you using a list linked through 
-> >> page->private?
-> >> page->list is fully available for such tasks.
-> 
-> On Thu, Nov 21, 2002 at 05:54:22PM -0800, Seth, Rohit wrote:
-> > Don't really need a list_head kind of thing for always inorder 
-> > complete traversal. list_head (slightly) adds fat in data 
-> structures 
-> > as well as insertaion/removal. Please le me know if anything that 
-> > prohibits the use of page_private field for internal use.
-> 
-> page->private is also available for internal use. The objection here
-> was about not using the standardized list macros. I'm not 
-> convinced about the fat since the keyspace is tightly bounded 
-> and the back pointers are in struct page regardless. (And we 
-> also just happen to know page->lru is also available though 
-> I'd not suggest using it.)
-> 
+--==========873890887==========
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 
-Either way. That is fine. I will make the change.
 
-> 
-> At some point in the past, I wrote:
-> >> Third, the hugetlb_release_key() in unmap_hugepage_range() is
-> >> the one that should be removed [along with its corresponding 
-> >> mark_key_busy()], not the one in sys_free_hugepages(). 
-> >> unmap_hugepage_range() is doing neither setup nor teardown of 
-> >> the key itself, only the pages and PTE's. I would say 
-> >> key-level refcounting belongs to sys_free_hugepages().
-> 
-> On Thu, Nov 21, 2002 at 05:54:22PM -0800, Seth, Rohit wrote:
-> > It is not mandatory that user app calls free_pages.  Or 
-> even in case 
-> > of app aborts this call will not be made.  The internal 
-> structures are 
-> > always released during the exit (with last ref count) along 
-> with free 
-> > of underlying physical pages.
-> 
-> Hmm, I can understand caution wrt. touching core. I suspect 
-> vma->close() should do hugetlb_key_release() instead of 
-> sys_free_hugepages()?
-> 
-That is a good option for 2.5. I will update the patch tomorrow.
+I found a fairly large hole in my unsharing logic.  Pte page COW behavior
+breaks down when new objects are mapped.  This patch makes sure there
+aren't any COW pte pages in the range of a new mapping at mmap time.
 
-rohit
+This should fix the KDE problem.  It fixed it on the test machine I've been
+using.
+
+Dave McCracken
+
+======================================================================
+Dave McCracken          IBM Linux Base Kernel Team      1-512-838-3059
+dmccr@us.ibm.com                                        T/L   678-3059
+
+--==========873890887==========
+Content-Type: text/plain; charset=iso-8859-1; name="shpte-2.5.48-mm1-2.diff"
+Content-Transfer-Encoding: quoted-printable
+Content-Disposition: attachment; filename="shpte-2.5.48-mm1-2.diff"; size=2233
+
+--- 2.5.48-mm1-shsent/./mm/memory.c	2002-11-21 11:26:32.000000000 -0600
++++ 2.5.48-mm1-shpte/./mm/memory.c	2002-11-22 10:27:39.000000000 -0600
+@@ -1080,6 +1080,65 @@
+ 	tlb_finish_mmu(tlb, 0, TASK_SIZE);
+ }
+=20
++#ifdef CONFIG_SHAREPTE
++void
++clear_share_range(struct mm_struct *mm, unsigned long address, unsigned =
+long len)
++{
++	pgd_t		*pgd;
++	pmd_t		*pmd;
++	struct page	*ptepage;
++	unsigned long	end =3D address + len;
++
++	spin_lock(&mm->page_table_lock);
++
++	pgd =3D pgd_offset(mm, address);
++	if (pgd_none(*pgd) || pgd_bad(*pgd))
++		goto skip_start;
++
++	pmd =3D pmd_offset(pgd, address);
++	if (pmd_none(*pmd) || pmd_bad(*pmd))
++		goto skip_start;
++
++	ptepage =3D pmd_page(*pmd);
++	pte_page_lock(ptepage);
++	if (page_count(ptepage) > 1) {
++		pte_t *pte;
++
++		pte =3D pte_unshare(mm, pmd, address);
++		pte_unmap(pte);
++		ptepage =3D pmd_page(*pmd);
++	}
++	pte_page_unlock(ptepage);
++
++skip_start:
++	/* This range is contained in one pte page.  We're done. */
++	if ((address >> PMD_SHIFT) =3D=3D (end >> PMD_SHIFT))
++		goto out;
++	
++	pgd =3D pgd_offset(mm, end);
++	if (pgd_none(*pgd) || pgd_bad(*pgd))
++		goto out;
++
++	pmd =3D pmd_offset(pgd, end);
++	if (pmd_none(*pmd) || pmd_bad(*pmd))
++		goto out;
++
++	ptepage =3D pmd_page(*pmd);
++	pte_page_lock(ptepage);
++	if (page_count(ptepage) > 1) {
++		pte_t *pte;
++
++		pte =3D pte_unshare(mm, pmd, end);
++		pte_unmap(pte);
++		ptepage =3D pmd_page(*pmd);
++	}
++	pte_page_unlock(ptepage);
++
++out:
++	spin_unlock(&mm->page_table_lock);
++}
++#endif
++
+ /*
+  * Do a quick page-table lookup for a single page.
+  * mm->page_table_lock must be held.
+--- 2.5.48-mm1-shsent/./mm/mmap.c	2002-11-19 09:17:36.000000000 -0600
++++ 2.5.48-mm1-shpte/./mm/mmap.c	2002-11-22 10:26:11.000000000 -0600
+@@ -57,6 +57,8 @@
+ pgprot_t protection_pmd[8] =3D {
+ 	__PMD000, __PMD001, __PMD010, __PMD011, __PMD100, __PMD101, __PMD110, =
+__PMD111
+ };
++extern void clear_share_range(struct mm_struct *mm, unsigned long address,
++			      unsigned long len);
+ #endif
+=20
+ int sysctl_overcommit_memory =3D 0;	/* default is heuristic overcommit */
+@@ -524,6 +526,9 @@
+ 			return -ENOMEM;
+ 		goto munmap_back;
+ 	}
++#ifdef CONFIG_SHAREPTE
++	clear_share_range(mm, addr, len);
++#endif
+=20
+ 	/* Check against address space limit. */
+ 	if ((mm->total_vm << PAGE_SHIFT) + len
+
+--==========873890887==========--
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
