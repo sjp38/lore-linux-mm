@@ -1,66 +1,31 @@
+Date: Wed, 19 Jun 2002 21:53:23 +0200 (CEST)
+From: Ingo Molnar <mingo@elte.hu>
+Reply-To: Ingo Molnar <mingo@elte.hu>
 Subject: Re: [PATCH] (1/2) reverse mapping VM for 2.5.23 (rmap-13b)
-From: Steven Cole <scole@lanl.gov>
-In-Reply-To: <Pine.LNX.4.44.0206181340380.3031-100000@loke.as.arizona.edu>
-References: <Pine.LNX.4.44.0206181340380.3031-100000@loke.as.arizona.edu>
-Content-Type: text/plain
-Content-Transfer-Encoding: 7bit
-Date: 19 Jun 2002 13:04:52 -0600
-Message-Id: <1024513492.13955.13.camel@spc9.esa.lanl.gov>
-Mime-Version: 1.0
+In-Reply-To: <Pine.LNX.4.44L.0206191429300.2598-100000@imladris.surriel.com>
+Message-ID: <Pine.LNX.4.44.0206192151390.20865-100000@e2>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Craig Kulesa <ckulesa@as.arizona.edu>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Rik van Riel <riel@conectiva.com.br>
+Cc: Dave Jones <davej@suse.de>, Daniel Phillips <phillips@bonn-fries.net>, Craig Kulesa <ckulesa@as.arizona.edu>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@transmeta.com>, rwhron@earthlink.net
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2002-06-19 at 05:18, Craig Kulesa wrote:
-> 
-> 
-> Where:  http://loke.as.arizona.edu/~ckulesa/kernel/rmap-vm/
-> 
-> This patch implements Rik van Riel's patches for a reverse mapping VM 
-> atop the 2.5.23 kernel infrastructure.  The principal sticky bits in 
-> the port are correct interoperability with Andrew Morton's patches to 
-> cleanup and extend the writeback and readahead code, among other things.  
-> This patch reinstates Rik's (active, inactive dirty, inactive clean) 
-> LRU list logic with the rmap information used for proper selection of pages 
-> for eviction and better page aging.  It seems to do a pretty good job even 
-> for a first porting attempt.  A simple, indicative test suite on a 192 MB 
-> PII machine (loading a large image in GIMP, loading other applications, 
-> heightening memory load to moderate swapout, then going back and 
-> manipulating the original Gimp image to test page aging, then closing all 
-> apps to the starting configuration) shows the following:
-> 
-> 2.5.22 vanilla:
-> Total kernel swapouts during test = 29068 kB
-> Total kernel swapins during test  = 16480 kB
-> Elapsed time for test: 141 seconds
-> 
-> 2.5.23-rmap13b:
-> Total kernel swapouts during test = 40696 kB
-> Total kernel swapins during test  =   380 kB
-> Elapsed time for test: 133 seconds
-> 
-> Although rmap's page_launder evicts a ton of pages under load, it seems to 
-> swap the 'right' pages, as it doesn't need to swap them back in again.
-> This is a good sign.  [recent 2.4-aa work pretty nicely too]
-> 
-> Various details for the curious or bored:
-> 
-> 	- Tested:   UP, 16 MB < mem < 256 MB, x86 arch. 
-> 	  Untested: SMP, highmem, other archs. 
-                    ^^^
-I tried to boot 2.5.23-rmap13b on a dual PIII without success.
+On Wed, 19 Jun 2002, Rik van Riel wrote:
 
-	Freeing unused kernel memory: 252k freed
-hung here with CONFIG_SMP=y
-	Adding 1052248k swap on /dev/sda6.  Priority:0 extents:1
-	Adding 1052248k swap on /dev/sdb1.  Priority:0 extents:1
+> I am encouraged by Craig's test results, which show that
+> rmap did a LOT less swapin IO and rmap with page aging even
+> less. The fact that it did too much swapout IO means one
+> part of the system needs tuning but doesn't say much about
+> the thing as a whole.
 
-The above is the edited dmesg output from booting 2.5.23-rmap13b as an
-UP kernel, which successfully booted on the same 2-way box.
+btw., isnt there a fair chance that by 'fixing' the aging+rmap code to
+swap out less, you'll ultimately swap in more? [because the extra swappout
+likely ended up freeing up RAM as well, which in turn decreases the amount
+of trashing.]
 
-Steven
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
