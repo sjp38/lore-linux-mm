@@ -1,36 +1,45 @@
-Received: from uow.edu.au (IDENT:akpm@localhost [127.0.0.1])
-          by pwold011.asiapac.nortel.com (8.9.3/8.9.3) with ESMTP id LAA14579
-          for <linux-mm@kvack.org>; Wed, 12 Jul 2000 11:53:45 +1000
-Message-ID: <396BCFA8.C033D94A@uow.edu.au>
-Date: Wed, 12 Jul 2000 01:53:44 +0000
-From: Andrew Morton <andrewm@uow.edu.au>
+Message-ID: <396C9188.523658B9@sangate.com>
+Date: Wed, 12 Jul 2000 18:40:56 +0300
+From: Mark Mokryn <mark@sangate.com>
 MIME-Version: 1.0
-Subject: vmtruncate question
+Subject: map_user_kiobuf problem in 2.4.0-test3
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: linux-kernel@vger.rutgers.edu, linux-scsi@vger.rutgers.edu, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-The flushes which surround the second call to zap_page_range()
-would appear to be flushing more memory than is to be
-zapped.  Is this correct, or should it be:
+Hi,
 
---- memory.c.orig	Wed Jul 12 11:49:08 2000
-+++ memory.c	Wed Jul 12 11:49:31 2000
-@@ -980,9 +980,9 @@
- 			partial_clear(mpnt, start);
- 			start = (start + ~PAGE_MASK) & PAGE_MASK;
- 		}
--		flush_cache_range(mm, start, end);
-+		flush_cache_range(mm, start, start + len);
- 		zap_page_range(mm, start, len);
--		flush_tlb_range(mm, start, end);
-+		flush_tlb_range(mm, start, start + len);
- 	} while ((mpnt = mpnt->vm_next_share) != NULL);
- out_unlock:
- 	spin_unlock(&mapping->i_shared_lock);
+Here's the scenario:
+2.4.0-test3 SMP build running on a single 800MHz PIII (Dell GX-300)
+After obtaining a mapping to a high memory region (i.e. either
+PCI memory or physical memory reserved by passing mem=XXX to the kernel
+at boot), I am trying to write a raw device with data in the mapped
+region.
+This fails, with map_user_kiobuf spitting out "Mapped page missing"
+The raw write works, of course, if the mapping is to a kmalloc'ed
+buffer.
+
+I have tried the above with 2.2.14 SMP, and it works, so something in
+2.4 is broken.
+On another interesting note: The raw devices I'm writing to are Fibre
+Channel drives controlled by a Qlogic 2200 adapter (in 2.2.14 I'm using
+the Qlogic driver). When writing large sequential blocks to a single
+drive, I reached 8MB/s when the memory was mapped to the high reserved
+region, while CPU utilization was down to about 5%. When the mapping was
+to PCI space, I was able to write at only 4MB/s, and CPU utilization was
+up to 60%! This is very strange, since if the transfer rate was for some
+unknown reason lower in the case of PCI (vs. high physical memory), then
+one would expect the CPU utilization to be even lower, since the adapter
+performs DMA. But instead, the CPU is sweating... So, it appears that
+there's a problem in 2.2.14 as well, when the mapping is to PCI space...
+Additionally, the max transfer rate of 8MB/s seems rather slow - don't
+know why yet...
+
+-Mark
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
