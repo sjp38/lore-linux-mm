@@ -1,29 +1,45 @@
-From: "Joshua Williams" <joshua6@o2.pl>
-Subject: Link Exchange
+Message-ID: <20041209105603.4725.qmail@web53908.mail.yahoo.com>
+Date: Thu, 9 Dec 2004 02:56:03 -0800 (PST)
+From: Fawad Lateef <fawad_lateef@yahoo.com>
+Subject: Plzz help me regarding HIGHMEM (PAE) confusion in Linux-2.4 ???
 MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="windows-1250"
-Content-Transfer-Encoding: base64
-Reply-To: joshua6@o2.pl
-Date: Thu, 9 Dec 2004 09:37:57 +0100
-Message-Id: <20041209083800Z26624-766+2552@kvack.org>
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-RGVhciBXZWJtYXN0ZXIsDQpXZSBydW4gc2V2ZXJhbCB3ZWJzaXRlcyBvZmZlcmluZyBhY2NvbW1v
-ZGF0aW9uIHNlcnZpY2VzIGluIEV1cm9wZSBhbmQgSSB0aG91Z2h0IHlvdSANCm1pZ2h0IGJlIGlu
-dGVyZXN0ZWQgaW4gRXhjaGFuZ2luZyBMaW5rcyB3aXRoIHVzLiBFeGNoYW5naW5nIExpbmtzIGNh
-biBicmluZyBib3RoIG9mIHVzIA0KbXV0dWFsIGJlbmVmaXRzIGkuZS4gSW5jcmVhc2VkIFRyYWZm
-aWMgdG8gb3VyIHdlYnNpdGVzLg0KDQpXZSBwcm92aWRlIHNldmVyYWwgdHJhdmVsLXJlbGF0ZWQg
-c2l0ZXMuIEFsbCBvZiB0aGVtIGFyZSBQYWdlIFJhbmsgNSBvciA2LiBPdXIgTGlua3MgDQpwYWdl
-cyBoYXZlIFBhZ2UgUmFuayBmcm9tIDIgdG8gNS4NCg0KSWYgeW91IGFyZSBpbnRlcmVzdGVkIHBs
-ZWFzZSBjb250YWN0IG1lLg0KDQpJZiB5b3UgZ290IHRoaXMgbWVzc2FnZSBpbiBlcnJvciBwbGVh
-c2UgZm9yd2FyZCB0aGlzIG1haWwgdG8geW91ciB3ZWJtYXN0ZXIuDQoNCkkgbG9vayBmb3J3YXJk
-IHRvIGhlYXJpbmcgZnJvbSB5b3UuDQpCZXN0IFJlZ2FyZHMsDQpKb3NodWEgV2lsbGlhbXMNCg0K
-DQpJZiB5b3UnZCBsaWtlIHRvIGJlIHJlbW92ZWQgZnJvbSBvdXIgbWFpbC1saXN0LCBwbGVhc2Ug
-c2VuZCBhbiBlbWFpbCB0byByZW1vdmVAbWVkaWEtDQpiZS5iaXoNCg==
+I m confused with that how the kernel access highmem
+through PAE. I know that kmap related functions do
+that but when I saw what they do, I got to know that
+they are just setting PTE according to already created
+slot of pagetable. 
+
+But as far as I understand from Intel's IA32 System
+Programmer manual, due to linear address limit of
+32bit we can't access more than 4GB from a single
+process, and for above 4GB cr3 must be loaded with the
+new PGD values so that the linear address of 32bits
+can then access the other 4GB (4GB to 8GB) and for
+every every 4GB till 64GB.
+
+Now the kernel is using the pagetables for kmaps hav
+PGD entry for accessing starting 4GB, but how it goes
+beyond that ? 
+
+Plzz explain me !!!!!
+
+
+Thanks 
+
+Fawad Lateef
+
+
+		
+__________________________________ 
+Do you Yahoo!? 
+Take Yahoo! Mail with you! Get it on your mobile phone. 
+http://mobile.yahoo.com/maildemo 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
