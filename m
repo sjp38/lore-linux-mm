@@ -1,42 +1,53 @@
-Received: from saturn.homenet([192.168.225.55]) (1170 bytes) by megami.veritas.com
-	via sendmail with P:esmtp/R:smart_host/T:smtp
-	(sender: <tigran@veritas.com>)
-	id <m13PKft-0000NYC@megami.veritas.com>
-	for <linux-mm@kvack.org>; Thu, 17 Aug 2000 01:05:17 -0700 (PDT)
-	(Smail-3.2.0.101 1997-Dec-17 #4 built 1999-Aug-24)
-Date: Thu, 17 Aug 2000 09:12:14 +0100 (BST)
-From: Tigran Aivazian <tigran@veritas.com>
-Subject: Re: 2.4.0-test7-pre4 oops in generic_make_request()
-In-Reply-To: <14747.7309.941683.168466@notabene.cse.unsw.edu.au>
-Message-ID: <Pine.LNX.4.21.0008170837360.1056-100000@saturn.homenet>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Thu, 17 Aug 2000 10:11:21 +0100
+From: "Stephen C. Tweedie" <sct@redhat.com>
+Subject: Re: pte_pagenr/MAP_NR deleted in pre6
+Message-ID: <20000817101121.G4037@redhat.com>
+References: <20000816192012.K19260@redhat.com> <200008162222.PAA95137@google.engr.sgi.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <200008162222.PAA95137@google.engr.sgi.com>; from kanoj@google.engr.sgi.com on Wed, Aug 16, 2000 at 03:22:07PM -0700
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Neil Brown <neilb@cse.unsw.edu.au>
-Cc: linux-mm@kvack.org
+To: Kanoj Sarcar <kanoj@google.engr.sgi.com>
+Cc: "Stephen C. Tweedie" <sct@redhat.com>, Roman Zippel <roman@augan.com>, linux-mm@kvack.org, linux-kernel@vger.rutgers.edu, rmk@arm.linux.org.uk, nico@cam.org, davem@redhat.com, davidm@hpl.hp.com, alan@lxorguk.ukuu.org.uk
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 17 Aug 2000, Neil Brown wrote:
+Hi,
+
+On Wed, Aug 16, 2000 at 03:22:07PM -0700, Kanoj Sarcar wrote:
+
+> > It's part of what is necessary if we want to push kiobufs into the
+> > driver layers.  page_to_pfn is needed to for PAE36 support so that
+> > PCI64 or dual-address-cycle drivers can handle physical addresses
+> > longer than 32 bits long.
 > 
-> But it looks like you are doing IO on a raw (drivers/char/raw.c)
-> device, rather than /dev/hdd1.  Is that right?
+> While we are on this topic, something like
 > 
+> #define page_to_phys(page) \
+> 	((((page)-(page)->zone->zone_mem_map) << PAGE_SHIFT) \
+> 	+ ((page)->zone->zone_start_paddr))
+> 
+> should work on all platforms on 2.4. (You might have to add in an
+> unsigned long long somewhere in there for PAE36).
 
-yes, you are right - I didn't know that myself ;) Of course I should have
-guessed - our mkfs on other UNIX flavours does access the character (raw)
-interface rather than buffered (block) one so the port to Linux had to do
-the RAW_SETBIND magic and do the same...
+The long long is exactly what we need to avoid: PAE36 still has
+pointers as 32-bit values.  Only ptes get the 64-bit treatment.
 
-Thanks for the patch - it works beautifully, added to my linux-vxfs chunk
-but I hope Linus takes it into pre5.
+Adding a BUG() test to detect illegal accesses to >4GB pages on PAE36
+would be fine.  If we have the appropriate bounce buffer support in
+place in pci_dma or wherever suits it, then by the time a driver is
+doing page_to_phys() it should already have created the appropriate
+bounce buffers and so the BUG() test is fine. 
 
-Regards,
-Tigran
+For DAC/PCI64 drivers, though, we need a separate macro like
+page_to_pfn so that we can identify the physical address via a 32-bit
+value.  The driver can then shift that into a 64-bit long long if it
+wants to --- there's no need to introduce new 64-bit macros into the
+mm just for this special case.
 
-
-
-
+Cheers,
+ Stephen
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
