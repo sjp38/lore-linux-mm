@@ -1,55 +1,56 @@
-Content-Type: text/plain; charset=US-ASCII
-From: Daniel Phillips <phillips@bonn-fries.net>
 Subject: Re: broken VM in 2.4.10-pre9
-Date: Fri, 21 Sep 2001 10:13:11 +0200
-References: <Pine.LNX.4.33L.0109200903100.19147-100000@imladris.rielhome.conectiva>
-In-Reply-To: <Pine.LNX.4.33L.0109200903100.19147-100000@imladris.rielhome.conectiva>
+References: <Pine.LNX.4.33L.0109192000050.19147-100000@imladris.rielhome.conectiva>
+From: ebiederm@xmission.com (Eric W. Biederman)
+Date: 21 Sep 2001 02:23:15 -0600
+In-Reply-To: <Pine.LNX.4.33L.0109192000050.19147-100000@imladris.rielhome.conectiva>
+Message-ID: <m1wv2t7y18.fsf@frodo.biederman.org>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 7BIT
-Message-Id: <20010921080549Z16344-2758+350@humbolt.nl.linux.org>
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Rik van Riel <riel@conectiva.com.br>
-Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, "Eric W. Biederman" <ebiederm@xmission.com>, Rob Fuller <rfuller@nsisoftware.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, Daniel Phillips <phillips@bonn-fries.net>, Rob Fuller <rfuller@nsisoftware.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> That still doesn't mean we can't _approximate_ aging in
-> another way. With linear page aging (3 up, 1 down) the
-> page ages of pages referenced only in the page tables
-> will still go up, albeit a tad slower than expected.
+Rik van Riel <riel@conectiva.com.br> writes:
+
+> On 19 Sep 2001, Eric W. Biederman wrote:
 >
-> It's exponential aging which makes the page age go into
-> the other direction, with linear aging things seem to
-> work again.
+> > That added to the fact that last time someone ran the numbers linux
+> > was considerably faster than the BSD for mm type operations when not
+> > swapping.  And this is the common case.
 >
-> I've done some experiments recently and found that (with
-> reverse mappings) exponential aging is faster when we have
-> a small inactive list and linear aging is faster when we
-> have a large inactive list.
+> Optimising the VM for not swapping sounds kind of like
+> optimising your system for doing empty fork()/exec()/exit()
+> loops ;)
 
-Have you tried making the down increment larger and the up increment smaller
-when the active list is larger?  This has a natural interpretation: when the
-active list is large the scanning period is longer.  During this longer scan
-period an active page *should* be more likely to have its ref bit set, so it
-gets a smaller boost if it is.  If not we should penalize it more heavily.
+Swapping is an important case.  But 9 times out of 10 you are managing
+memory in caches, and throwing unused pages into swap.  You aren't busily
+paging the data back an forth.  But if I have to make a choice in
+what kind of situation I want to take a performance hit, paging
+approaching thrashing or a system whose working set size is well
+within RAM.  I'd rather take the hit in the system that is paging.
 
-There are three points here:
+Further fast IPC + fork()/exec()/exit() that programmers can count on
+leads to more robust programs.  Because different pieces of the program
+can live in different processes.  One of the reasons for the stability
+of unix is that it has always had a firewall between it's processes so
+one bad pointer will not bring down the entire system.
 
-  - small inactive list really means large active list (and vice versa)
-  - aging increments need to depend on the size of the active list
-  - "exponential" aging may be completely bogus
+Besides I also like to run a lot of shell scripts, which again stress
+the fork()/exec()/exit() path.
 
-> This means we need linear page aging with a large inactive
-> list in order to let the page ages move into the right
-> direction when we run a system without reverse mapping,
-> the patch for that was sent to Alan yesterday.
+So no I don't think keeping those paths fast is silly.
 
-So, the question is, does my suggestion produce essentially the same
-beneficial effect?  And by the way, what are your test cases?  I'd like to
-see if I can your results here.
+I also think that being able to get good memory usage information is
+important.  I know that reverse maps make that job easier.  But just
+because the make an important case easier to get write I don't think
+reverse maps are a shoe in.
 
---
-Daniel
+Eric
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
