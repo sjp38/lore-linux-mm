@@ -1,39 +1,43 @@
-Message-Id: <3.0.6.32.20030223184931.00825e30@boo.net>
-Date: Sun, 23 Feb 2003 18:49:31 -0500
-From: Jason Papadopoulos <jasonp@boo.net>
-Subject: [PATCH] page coloring for 2.5.62 kernel, version 1
-Mime-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
+Received: from 203-167-144-189.dialup.clear.net.nz
+ (203-167-144-189.dialup.clear.net.nz [203.167.144.189])
+ by smtp1.clear.net.nz (CLEAR Net Mail)
+ with ESMTP id <0HAS00IWVFR2AD@smtp1.clear.net.nz> for linux-mm@kvack.org; Mon,
+ 24 Feb 2003 13:52:17 +1300 (NZDT)
+Date: Mon, 24 Feb 2003 13:47:10 +1300
+From: Nigel Cunningham <ncunningham@clear.net.nz>
+Subject: RFC: How to write a page to swap with [near] zero impact on memory?
+Message-id: <1046047118.9314.49.camel@laptop-linux.cunninghams>
+MIME-version: 1.0
+Content-type: text/plain
+Content-transfer-encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Hello again. This version of the page coloring patch implements
-"stealth mode", i.e. is as minimal as possible. There are many
-cleanups, and a few mods for the 2.5 series kernel.
+Hi all.
 
-The biggest change is that the hot/cold per-cpu lists are individually
-colored now, and the patch has the effect of randomizing the cache
-colors of pages pumped into the per-cpu lists. The lists are still lifo
-and still favor pages just freed.
+I'm beginning to port the 2.4 beta 18 version, which allows the user to
+suspend to disk what is pretty close to a complete image of RAM at the
+time the suspend is initiated. Since this implies working in conditions
+where there might be only a few hundred pages available, I carefully
+accounted for pages in use and worked to free buffers and swapcache
+pages that were added during the image-saving process. I'm wanting to
+implement the same thing under 2.5, and would like advice on the best
+way to do it. (Ideally, I'd like to write a page and have everything at
+the end exactly as it was at the start, except that a copy of the page
+is on disk as well as in memory).
 
-No difference in kernel compile time on the K7 system I have; I suspect
-that decoupling allocation of pages from allocation of pages to processes
-dilutes the effectiveness of page coloring, but all of the schemes I can
-think of to enforce page coloring to processes are much more complicated
-than the one used by this patch.
+I've spent some time looking at mm/*.c, but I won't pretend for a moment
+to have a fraction of the knowledge that you guys have. I thus thought
+I'd be wise to talk with you all before I submit any patches for
+comments. What suggestions would you provide about minimising the impact
+of writing a page to swap? 
 
-Patch with /proc output:
+Thanks in advance for any help and regards,
 
-www.boo.net/~jasonp/page_color-2.5.62-20030223.patch
+Nigel
 
-and without:
-
-www.boo.net/~jasonp/page_color-2.5.62-20030223a.patch
-
-Feedback of any sort welcome.
-jasonp
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
