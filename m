@@ -1,40 +1,41 @@
-Date: Fri, 14 Jan 2000 16:49:00 +0100 (CET)
-From: Andrea Arcangeli <andrea@suse.de>
-Subject: Re: 1+ GB support (fwd)
-In-Reply-To: <Pine.LNX.4.10.10001140256150.13454-100000@mirkwood.dummy.home>
-Message-ID: <Pine.LNX.4.21.0001141635030.240-100000@alpha.random>
+Message-ID: <387F8813.97293689@zk3.dec.com>
+Date: Fri, 14 Jan 2000 15:33:23 -0500
+From: Peter Rival <frival@zk3.dec.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [RFC] 2.3.39 zone balancing
+References: <Pine.LNX.4.10.10001140327570.7241-100000@chiara.csoma.elte.hu>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@nl.linux.org>, kelly@nvidia.com
-Cc: Linux MM <linux-mm@kvack.org>, linux-kernel@vger.rutgers.edu
+To: Ingo Molnar <mingo@chiara.csoma.elte.hu>
+Cc: Kanoj Sarcar <kanoj@google.engr.sgi.com>, Linus Torvalds <torvalds@transmeta.com>, Andrea Arcangeli <andrea@suse.de>, Alan Cox <alan@lxorguk.ukuu.org.uk>, Rik van Riel <riel@nl.linux.org>, linux-mm@kvack.org, linux-kernel@vger.rutgers.edu
 List-ID: <linux-mm.kvack.org>
 
+Sorry to be late on this thread...
+
+Ingo Molnar wrote:
+
+> On Thu, 13 Jan 2000, Kanoj Sarcar wrote:
 >
->	I've read a bunch of linux news that says that the later kernels
->such as 2.3.35 can support more than 1gb of memory.  I've put together a
->system with 4gb of RAM (dell 6300, 2x PIII 550 xeon CPUs) and can see that
+> > There's been some arguments against per-zone, or per-node kswapd's,
+> > so the other alternative is to pass the list of unbalanced zones to
+> > kswapd, which can then scan only the unbalanced ones. This is the
+> > best solution when there are fairly large number of nodes.
+>
+> the current kswapd is not quite suited to go per-zone and/or per-node, i
+> agree. But the swap_out() logic itself i believe has to be per-node in the
+> long term. Especially as we are already able to allocate from a given
+> node. Thus it would be natural to be able to do swap_out() from a given
+> node - both page tables and pages will likely be bound to a node. Per-node
+> kswapds are simple - they only have to take a look at p->node or
+> p->processor to pick up the right mm. This means that every kswapd would
+> pick up preferred mm's from it's own node.
+>
 
-2.2.14aa1 supports 4g of RAM on IA32 and 2Terabyte of RAM on alpha (wihout
-per-process limit on alpha) with production quality. Apply the below patch
-against 2.2.14 if you can't run an unstable tree.
+Just don't forget about memory-only nodes (i.e., don't use p->processor :)
 
-	ftp://ftp.*.kernel.org/pub/linux/kernel/people/andrea/kernels/v2.2/2.2.14aa1.gz
-
->processes.  However, I've been unable to malloc and use more than 1gb per
->process.  Is this a limitation or am I doing something wrong?  I've tried to
-
-If you use 2.2.14aa1 you can apply these two incremental patches (they
-should go on the top of 2.3.x as well) to allocate more ram per-process
-(something like 3.5G). The two incremental patches are _not_ a good idea
-if you need a large I/O cache (like for webservers). For scientific
-application that only needs lots of RAM they should be fine.
-
-	ftp://ftp.*.kernel.org/pub/linux/kernel/people/andrea/patches/v2.2/2.2.14/bigmem-large-mapping-1.gz
-	ftp://ftp.*.kernel.org/pub/linux/kernel/people/andrea/patches/v2.2/2.2.14/patches/v2.2/2.2.14/bigmem-large-task-1.gz
-
-Andrea
+ - Pete
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
