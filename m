@@ -1,29 +1,31 @@
-Date: Sat, 19 Mar 2005 23:09:52 -0800
-From: Paul Jackson <pj@engr.sgi.com>
-Subject: Re: [Patch] cpusets policy kill no swap
-Message-Id: <20050319230952.7da7e9e6.pj@engr.sgi.com>
-In-Reply-To: <20050319225855.475e4167.akpm@osdl.org>
-References: <20050320014847.16310.53697.sendpatchset@sam.engr.sgi.com>
-	<20050319225855.475e4167.akpm@osdl.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Date: Mon, 21 Mar 2005 01:09:51 -0200
+From: "Otto" <tgrahyrebecs@intellitactics.com>
+Message-ID: <341z7fzlsc.fsf@calle34.net>
+Subject: Trusted pharm
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: pj@sgi.com, mort@sgi.com, linux-mm@kvack.org, emery@sgi.com, bron@sgi.com, Simon.Derr@bull.net, linux-kernel@vger.kernel.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Interesting comments, Andrew.  Thanks
+Do you want inexpensive Soma?
 
-It will likely be a couple of days before
-I respond to them.  I suspect a couple
-of us SGI folks should powwow first.
+http://www.vz6.net/p/viks/16
 
--- 
-                  I won't rest till it's the best ...
-                  Programmer, Linux Scalability
-                  Paul Jackson <pj@engr.sgi.com> 1.650.933.1373, 1.925.600.0401
+or 160 other drugs:
+http://www.vz6.net/p/viks
+
+
+
+
+
+
+
+
+
+
+you adverbial me alberich me  you clarence me scrim me  you alcoholic me airpark me  you babylonian me annulled me  
+you rhubarb me codeposit me  you mann me perseverant me  you tyson me maybe me  you barnet me axolotl me  you recur me confute me  
+http://ru6.net/1.php
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
