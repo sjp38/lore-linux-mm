@@ -1,37 +1,37 @@
-Message-ID: <009201bfb5e6$a33b9600$0a1e17ac@local>
-From: "Manfred Spraul" <manfreds@colorfullife.com>
-References: <Pine.LNX.4.21.0005041702560.2512-100000@alpha.random>
 Subject: Re: classzone-VM + mapped pages out of lru_cache
-Date: Thu, 4 May 2000 18:34:23 +0200
+References: <Pine.LNX.4.21.0005031813040.489-100000@alpha.random>
+	<yttu2gel6p3.fsf@vexeta.dc.fi.udc.es>
+From: "Juan J. Quintela" <quintela@fi.udc.es>
+In-Reply-To: "Juan J. Quintela"'s message of "04 May 2000 16:40:24 +0200"
+Date: 04 May 2000 18:34:58 +0200
+Message-ID: <yttitwul1e5.fsf@vexeta.dc.fi.udc.es>
 MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
-From: "Andrea Arcangeli" <andrea@suse.de>
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrea Arcangeli <andrea@suse.de>, "Juan J. Quintela" <quintela@fi.udc.es>
-Cc: linux-mm@kvack.org, linux-kernel@vger.rutgers.edu, trond.myklebust@fys.uio.no
+To: Andrea Arcangeli <andrea@suse.de>
+Cc: linux-mm@kvack.org, linux-kernel@vger.rutgers.edu
 List-ID: <linux-mm.kvack.org>
 
->
-> Because it's not necessary as far I can tell. Only one
-> truncate_inode_pages() can run at once and none read or write can run
-> under truncate_inode_pages(). This should be enforced by the VFS, and if
-> that doesn't happen the truncate_inode_pages changes that gone into pre6
-> (and following) hides the real bug.
->
+>>>>> "juan" == Juan J Quintela <quintela@fi.udc.es> writes:
 
-truncate: VFS acquires inode->i_sem semaphore.[fs/open.c, do_truncate()]
-write: VFS doesn't acquire the semaphore [new in 2.3], but f_op->write()
-could acquire the semaphore.
-e.g. generic_file_write() acquires the semaphore. [mm/filemap.c]
-read: no locking. AFAICS read & truncate could run in parallel.
+Hi, 
+    I screwed the times with the copy& paste, the real ones are:
 
-[I'm reading 2.3.99-pre6]
---
-    Manfred
 
+juan> Vanilla pre7-3            pre7-3+classzone-18
+juan> real    3m29.926s         real    2m10.301s
+juan> user    0m15.280s         user    0m15.410s
+juan> sys     0m20.500s         sys     0m8.750s
+
+Sorry for the inconveniences.
+
+Later, Juan.
+
+
+-- 
+In theory, practice and theory are the same, but in practice they 
+are different -- Larry McVoy
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
