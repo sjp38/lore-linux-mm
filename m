@@ -1,98 +1,57 @@
-Date: Wed, 17 Dec 2003 08:56:34 -0500 (EST)
-From: Zwane Mwaikambo <zwane@arm.linux.org.uk>
-Subject: Re: 2.6.0-test11-mm1
-In-Reply-To: <20031217014350.028460b2.akpm@osdl.org>
-Message-ID: <Pine.LNX.4.58.0312170853370.2159@montezuma.fsmlabs.com>
-References: <20031217014350.028460b2.akpm@osdl.org>
+Message-ID: <55c0--7nwr-p8gryy5@w0bctt1v0>
+From: "Louie Rock" <d55hajq@msn.com>
+Reply-To: "Louie Rock" <d55hajq@msn.com>
+Subject: Put your computer to work today stf kxukptow v
+Date: Sat, 20 Dec 03 02:22:28 GMT
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: multipart/alternative;
+	boundary="D6EAF9AA.7F60.DF"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hullo Andrew,
-	I believe this was the intention;
+--D6EAF9AA.7F60.DF
+Content-Type: text/plain;
+Content-Transfer-Encoding: quoted-printable
 
-On Wed, 17 Dec 2003, Andrew Morton wrote:
-
-> mpparse_es7000.patch
->   mpparse: fix IRQ breakage from the es7000 merge
-
-For ES7000 add an offset of 16 to the irq in order to setup a mapping where
-ISA/legacy interrupts are in the 0-15 range and PCI 16 and above. This was
-a cleanup fix in order to facilitate easy differentiating between legacy
-and non legacy interrupt setup.
-
-===
-The ES7000 merge added a bit of code of offset the IRQ numbers.  We're not
-too sure why; it wasn't changelogged.
-
-But it broke other systems, so this patch arranges for that code to only be
-activated on es7000 machines.
+Are interested in Working Full time at home?
 
 
+If so just take one moment to see how you can start today.
 
- arch/i386/kernel/dmi_scan.c    |    1 +
- arch/i386/kernel/mpparse.c     |    7 +++++--
- arch/i386/mach-es7000/es7000.c |    2 --
- include/asm-i386/system.h      |    1 +
- 4 files changed, 7 insertions(+), 4 deletions(-)
+http://www.ecom-universe.net/splash1/FF.htm
 
-diff -puN arch/i386/kernel/dmi_scan.c~mpparse_es7000 arch/i386/kernel/dmi_scan.c
---- 25/arch/i386/kernel/dmi_scan.c~mpparse_es7000	2003-11-21 01:30:11.000000000 -0800
-+++ 25-akpm/arch/i386/kernel/dmi_scan.c	2003-11-21 01:30:11.000000000 -0800
-@@ -16,6 +16,7 @@ EXPORT_SYMBOL(dmi_broken);
+- No cold calling - No sales calls
+- Put your computer to work
+- No Boring Meetings to Attend.
+- A Simple Turnkey System.
+- You Can Earn Money Quickly.
+- You will GET RESIDUAL INCOME Over And Over.
+- Plus Great Support and Training.
 
- int is_sony_vaio_laptop;
- int is_unsafe_smbus;
-+int es7000_plat = 0;
+This system really works..thousands are cashing in and you can to.
 
- struct dmi_header
- {
-diff -puN arch/i386/kernel/mpparse.c~mpparse_es7000 arch/i386/kernel/mpparse.c
---- 25/arch/i386/kernel/mpparse.c~mpparse_es7000	2003-11-21 01:30:11.000000000 -0800
-+++ 25-akpm/arch/i386/kernel/mpparse.c	2003-11-21 01:30:11.000000000 -0800
-@@ -1129,8 +1129,11 @@ void __init mp_parse_prt (void)
- 			continue;
- 		ioapic_pin = irq - mp_ioapic_routing[ioapic].irq_start;
+If this is something you have been wanting to do just take the test drive.=
 
--		if (!ioapic && (irq < 16))
--			irq += 16;
-+		if (es7000_plat) {
-+			if (!ioapic && (irq < 16))
-+				irq += 16;
-+		}
-+
- 		/*
- 		 * Avoid pin reprogramming.  PRTs typically include entries
- 		 * with redundant pin->irq mappings (but unique PCI devices);
-diff -puN arch/i386/mach-es7000/es7000.c~mpparse_es7000 arch/i386/mach-es7000/es7000.c
---- 25/arch/i386/mach-es7000/es7000.c~mpparse_es7000	2003-11-21 01:30:11.000000000 -0800
-+++ 25-akpm/arch/i386/mach-es7000/es7000.c	2003-11-21 01:30:11.000000000 -0800
-@@ -51,8 +51,6 @@ struct mip_reg		*host_reg;
- int 			mip_port;
- unsigned long		mip_addr, host_addr;
 
--static int		es7000_plat;
--
- /*
-  * Parse the OEM Table
-  */
-diff -puN include/asm-i386/system.h~mpparse_es7000 include/asm-i386/system.h
---- 25/include/asm-i386/system.h~mpparse_es7000	2003-11-21 01:30:11.000000000 -0800
-+++ 25-akpm/include/asm-i386/system.h	2003-11-21 01:30:11.000000000 -0800
-@@ -470,6 +470,7 @@ void enable_hlt(void);
+http://www.ecom-universe.net/splash1/FF.htm
 
- extern unsigned long dmi_broken;
- extern int is_sony_vaio_laptop;
-+extern int es7000_plat;
+P.S. If I sent this to you by mistake just shoot me back an email and I wi=
+ll take you off the list...but please remember we only make money if you d=
+o and we NEED to make this work for you...let us know how we can help.
 
- #define BROKEN_ACPI_Sx		0x0001
- #define BROKEN_INIT_AFTER_S1	0x0002
+Best Regards,
 
-_
+Steve S.subspxcktw aop
+dirtfjwus tcy kwtosmsdknrxhh
+tmtlba  gqbd
+w nm b qdiuwsbg
+   jswd ncxm rz 
+kqi vw
+
+--D6EAF9AA.7F60.DF--
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
