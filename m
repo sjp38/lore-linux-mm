@@ -1,40 +1,31 @@
-Received: from burns.conectiva (burns.conectiva [10.0.0.4])
-	by postfix.conectiva.com.br (Postfix) with SMTP id ED22716BCC
-	for <linux-mm@kvack.org>; Fri,  6 Apr 2001 18:04:40 -0300 (EST)
-Date: Fri, 6 Apr 2001 18:04:58 -0300 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
-Subject: Re: [PATCH] swap_state.c thinko
-In-Reply-To: <20010406222256.C935@athlon.random>
-Message-ID: <Pine.LNX.4.33.0104061804400.7624-100000@duckman.distro.conectiva>
+Date: Fri, 6 Apr 2001 22:21:14 +0100 (BST)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: Re: memory allocation problems
+In-Reply-To: <Pine.LNX.4.30.0104061227240.25381-100000@mf1.private>
+Message-ID: <Pine.LNX.4.21.0104062211470.1572-100000@localhost.localdomain>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrea Arcangeli <andrea@suse.de>
-Cc: Linus Torvalds <torvalds@transmeta.com>, Hugh Dickins <hugh@veritas.com>, Ben LaHaise <bcrl@redhat.com>, Richard Jerrrell <jerrell@missioncriticallinux.com>, Stephen Tweedie <sct@redhat.com>, arjanv@redhat.com, alan@redhat.com, linux-mm@kvack.org
+To: Wayne Whitney <whitney@math.berkeley.edu>
+Cc: Mark Hahn <hahn@coffee.psychology.mcmaster.ca>, majer@endeca.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 6 Apr 2001, Andrea Arcangeli wrote:
-> On Fri, Apr 06, 2001 at 12:52:26PM -0700, Linus Torvalds wrote:
-> > vm_enough_memory() is a heuristic, nothing more. We want it to reflect
-> > _some_ view of reality, but the Linux VM is _fundamentally_ based on the
-> > notion of over-commit, and that won't change. vm_enough_memory() is only
-> > meant to give a first-order appearance of not overcommitting wildly. It
-> > has never been anything more than that.
->
-> 200% agreed.
+On Fri, 6 Apr 2001, Wayne Whitney wrote:
+> 
+> As was pointed out to me in January, another solution for i386 would be to
+> fix a maximum stack size and have the mmap() allocations grow downward
+> from the "top" of the stack (3GB - max stack size).  I'm not sure why that
+> is not currently done.
 
-I don't think we should approximate THAT roughly ;))
+I'd be interested in the answer to that too.  Typically, the memory
+layout has ELF text at the lowest address, starting at 0x08048000 -
+which is a curious place to put it, until you realize that if you
+place the stack below it, you can use (in a typical small program)
+just one page table for stack + text + data (then another for mmaps
+and shared libs from 3GB down): two page tables instead of present three.
 
-Rik
---
-Linux MM bugzilla: http://linux-mm.org/bugzilla.shtml
-
-Virtual memory is like a game you can't win;
-However, without VM there's truly nothing to lose...
-
-		http://www.surriel.com/
-http://www.conectiva.com/	http://distro.conectiva.com/
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
