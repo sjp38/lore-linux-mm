@@ -1,30 +1,35 @@
-Received: from penguin.e-mind.com (penguin.e-mind.com [195.223.140.120])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id JAA08099
-	for <linux-mm@kvack.org>; Tue, 12 Jan 1999 09:50:48 -0500
-Date: Tue, 12 Jan 1999 15:49:53 +0100 (CET)
-From: Andrea Arcangeli <andrea@e-mind.com>
-Subject: Re: Results: Zlatko's new vm patch
-In-Reply-To: <Pine.LNX.3.95.990111213013.15291A-100000@penguin.transmeta.com>
-Message-ID: <Pine.LNX.3.96.990112154822.315B-100000@laser.bogus>
+Received: from dax.scot.redhat.com (sct@dax.scot.redhat.com [195.89.149.242])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id LAA08573
+	for <linux-mm@kvack.org>; Tue, 12 Jan 1999 11:07:07 -0500
+Date: Tue, 12 Jan 1999 16:06:38 GMT
+Message-Id: <199901121606.QAA04800@dax.scot.redhat.com>
+From: "Stephen C. Tweedie" <sct@redhat.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Subject: Re: MM deadlock [was: Re: arca-vm-8...]
+In-Reply-To: <m1aezq4a78.fsf@flinx.ccr.net>
+References: <199901101659.QAA00922@dax.scot.redhat.com>
+	<Pine.LNX.3.95.990110103201.7668D-100000@penguin.transmeta.com>
+	<199901102249.WAA01684@dax.scot.redhat.com>
+	<m1aezq4a78.fsf@flinx.ccr.net>
 Sender: owner-linux-mm@kvack.org
-To: Linus Torvalds <torvalds@transmeta.com>
-Cc: Steve Bergman <steve@netplus.net>, brent verner <damonbrent@earthlink.net>, "Garst R. Reese" <reese@isn.net>, Kalle Andersson <kalle.andersson@mbox303.swipnet.se>, Zlatko Calusic <Zlatko.Calusic@CARNet.hr>, Ben McCann <bmccann@indusriver.com>, bredelin@ucsd.edu, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org, Alan Cox <alan@lxorguk.ukuu.org.uk>, "Stephen C. Tweedie" <sct@redhat.com>
+To: "Eric W. Biederman" <ebiederm+eric@ccr.net>
+Cc: "Stephen C. Tweedie" <sct@redhat.com>, Linus Torvalds <torvalds@transmeta.com>, Savochkin Andrey Vladimirovich <saw@msu.ru>, Andrea Arcangeli <andrea@e-mind.com>, steve@netplus.net, brent verner <damonbrent@earthlink.net>, "Garst R. Reese" <reese@isn.net>, Kalle Andersson <kalle.andersson@mbox303.swipnet.se>, Zlatko Calusic <Zlatko.Calusic@CARNet.hr>, Ben McCann <bmccann@indusriver.com>, Alan Cox <alan@lxorguk.ukuu.org.uk>, bredelin@ucsd.edu, linux-kernel@vger.rutgers.edu, Rik van Riel <H.H.vanRiel@phys.uu.nl>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 11 Jan 1999, Linus Torvalds wrote:
+Hi,
 
-> Note that there are very few people who are testing interactive feel. I'd
-> be happier with more people giving more subjective comments on how the
-> system feels under heavy memory load. 
+On 11 Jan 1999 00:04:11 -0600, ebiederm+eric@ccr.net (Eric W. Biederman)
+said:
 
-With my latest free_user_and_cache() (arca-vm >= 16) you can't get bad
-iteractive performances. Usually bad iteractive performances are due
-unbalaced algorithms in the big try_to_free_pages() path.
+> Oh, and just as a side note we are currently unfairly penalizing
+> threaded programs by doing for_each_task instead of for_each_mm in the
+> swapout code...
 
-Andrea Arcangeli
+I know, on my TODO list...
 
+--Stephen
 --
 This is a majordomo managed list.  To unsubscribe, send a message with
 the body 'unsubscribe linux-mm me@address' to: majordomo@kvack.org
