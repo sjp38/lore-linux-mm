@@ -1,50 +1,30 @@
-Date: Sat, 9 Jun 2001 07:07:00 +0200 (CEST)
+Date: Sat, 9 Jun 2001 07:09:05 +0200 (CEST)
 From: Mike Galbraith <mikeg@wen-online.de>
 Subject: Re: VM Report was:Re: Break 2.4 VM in five easy steps
-In-Reply-To: <Pine.LNX.4.21.0106081426010.2422-100000@freak.distro.conectiva>
-Message-ID: <Pine.LNX.4.33.0106090654570.480-100000@mikeg.weiden.de>
+In-Reply-To: <l0313032cb7475100fc4a@[192.168.239.105]>
+Message-ID: <Pine.LNX.4.33.0106090708170.670-100000@mikeg.weiden.de>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Marcelo Tosatti <marcelo@conectiva.com.br>
-Cc: John Stoffel <stoffel@casc.com>, Tobias Ringstrom <tori@unhappy.mine.nu>, Jonathan Morton <chromi@cyberspace.org>, Shane Nay <shane@minirl.com>, "Dr S.M. Huen" <smh1008@cus.cam.ac.uk>, Sean Hunter <sean@dev.sportingbet.com>, Xavier Bestel <xavier.bestel@free.fr>, lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Jonathan Morton <chromi@cyberspace.org>
+Cc: Marcelo Tosatti <marcelo@conectiva.com.br>, John Stoffel <stoffel@casc.com>, Tobias Ringstrom <tori@unhappy.mine.nu>, Shane Nay <shane@minirl.com>, "Dr S.M. Huen" <smh1008@cus.cam.ac.uk>, Sean Hunter <sean@dev.sportingbet.com>, Xavier Bestel <xavier.bestel@free.fr>, lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 8 Jun 2001, Marcelo Tosatti wrote:
+On Sat, 9 Jun 2001, Jonathan Morton wrote:
 
-> On Fri, 8 Jun 2001, John Stoffel wrote:
+> >> On the subject of Mike Galbraith's kernel compilation test, how much
+> >> physical RAM does he have for his machine, what type of CPU is it, and what
+> >> (approximate) type of device does he use for swap?  I'll see if I can
+> >> partially duplicate his results at this end.  So far all my tests have been
+> >> done with a fast CPU - perhaps I should try the P166/MMX or even try
+> >> loading linux-pmac onto my 8100.
+> >
+> >It's a PIII/500 with one ide disk.
 >
-> > More importantly, a *repeatable* set of tests is what is needed to
-> > test the VM and get consistent results from run to run, so you can see
-> > how your changes are impacting performance.  The kernel compile
-> > doesn't really have any one process grow to a large fraction of
-> > memory, so dropping in a compile which *does* is a good thing.
->
-> I agree with you.
->
-> Mike, I'm sure you have noticed that stock kernel gives much better
-> results than mine or Jonathan's patch.
+> ...with how much RAM?  That's the important bit.
 
-I noticed that Jonathan brought back waiting.. that (among others)
-made me veeeeery interested.
-
-> Now the stock kernel gives us crappy interactivity compared to my patch.
-> (Note: my patch still does not gives me the interactivity I want under
-> high VM loads, but I hope to get there soon).
-
-(And that's why)  Among other things (yes, I do love throughput) I've
-poked at the interactivity problem. I can't improve it anymore without
-doing some strategic waiting :(  I used to be able to help it a little
-by doing a careful roll-up in scrub size as load builds.. trying to
-smooth the transition from latency oriented to hammer down throughput.
-
-> BTW, we are talking with the OSDL (http://www.osdlab.org) guys about a
-> possibility to setup a test system which would run a different variety of
-> benchmarks to give us results of different kinds of workloads. If that
-> ever happens, we'll probably get rid of most of this testing problems.
-
-Excellent!
+Duh! :) I'm a dipstick.  128mb.
 
 	-Mike
 
