@@ -1,65 +1,100 @@
-Date: Thu, 1 Apr 2004 10:51:23 -0800
-From: Andrew Morton <akpm@osdl.org>
-Subject: Re: msync() behaviour broken for MS_ASYNC, revert patch?
-Message-Id: <20040401105123.3dd5e969.akpm@osdl.org>
-In-Reply-To: <1080834032.2626.94.camel@sisko.scot.redhat.com>
-References: <1080771361.1991.73.camel@sisko.scot.redhat.com>
-	<Pine.LNX.4.58.0403311433240.1116@ppc970.osdl.org>
-	<1080776487.1991.113.camel@sisko.scot.redhat.com>
-	<Pine.LNX.4.58.0403311550040.1116@ppc970.osdl.org>
-	<1080834032.2626.94.camel@sisko.scot.redhat.com>
+Date: Fri, 2 Apr 2004 02:15:35 +0200
+From: Andrea Arcangeli <andrea@suse.de>
+Subject: Re: [RFC][PATCH 1/3] radix priority search tree - objrmap complexity fix
+Message-ID: <20040402001535.GG18585@dualathlon.random>
+References: <20040401020126.GW2143@dualathlon.random> <Pine.LNX.4.44.0404010549540.28566-100000@localhost.localdomain> <20040401133555.GC18585@dualathlon.random> <20040401150911.GI18585@dualathlon.random> <20040401151534.GJ18585@dualathlon.random>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20040401151534.GJ18585@dualathlon.random>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Stephen C. Tweedie" <sct@redhat.com>
-Cc: torvalds@osdl.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, drepper@redhat.com
+To: Hugh Dickins <hugh@veritas.com>
+Cc: Andrew Morton <akpm@osdl.org>, vrajesh@umich.edu, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-"Stephen C. Tweedie" <sct@redhat.com> wrote:
->
-> > Tha advantage of the current MS_ASYNC is absolutely astoundingly HUGE: 
-> > because we don't wait for in-progress IO, it can be used to efficiently 
-> > synchronize multiple different areas, and then after that waiting for them 
-> > with _one_ single fsync().
+On Thu, Apr 01, 2004 at 05:15:34PM +0200, Andrea Arcangeli wrote:
+> > diff -urNp --exclude CVS --exclude BitKeeper --exclude {arch} --exclude .arch-ids x-ref/mm/page_io.c x/mm/page_io.c
+> > --- x-ref/mm/page_io.c	2004-04-01 17:07:10.231289760 +0200
+> > +++ x/mm/page_io.c	2004-04-01 17:07:33.182800600 +0200
+> > @@ -139,7 +139,7 @@ struct address_space_operations swap_aop
+> >  
+> >  /*
+> >   * A scruffy utility function to read or write an arbitrary swap page
+> > - * and wait on the I/O.
+> > + * and wait on the I/O.  The caller must have a ref on the page.
+> >   */
+> >  int rw_swap_page_sync(int rw, swp_entry_t entry, struct page *page)
+> >  {
+> > @@ -151,8 +151,16 @@ int rw_swap_page_sync(int rw, swp_entry_
+> >  	lock_page(page);
+> >  
+> >  	BUG_ON(page->mapping);
+> > -	page->mapping = &swapper_space;
+> > -	page->index = entry.val;
+> > +	ret = add_to_page_cache(page, &swapper_space, entry.val, GFP_KERNEL);
+> > +	if (unlikely(ret)) {
+> > +		unlock_page(page);
+> > +		return ret;
+> > +	}
+> > +	/*
+> > +	 * get one more reference to make page non-exclusive so
+> > +	 * remove_exclusive_swap_page won't mess with it.
+> > +	 */
+> > +	page_cache_get(page);
+> >  
+> >  	if (rw == READ) {
+> >  		ret = swap_readpage(NULL, page);
+> > @@ -161,7 +169,13 @@ int rw_swap_page_sync(int rw, swp_entry_
+> >  		ret = swap_writepage(page, &swap_wbc);
+> >  		wait_on_page_writeback(page);
+> >  	}
+> > -	page->mapping = NULL;
+> > +
+> > +	lock_page(page);
+> > +	remove_from_page_cache(page);
+> > +	unlock_page(page);
+> > +	page_cache_release(page);
+> > +	page_cache_release(page);	/* For add_to_page_cache() */
+> > +
+> >  	if (ret == 0 && (!PageUptodate(page) || PageError(page)))
+> >  		ret = -EIO;
+> >  	return ret;
 > 
-> The Solaris one manages to preserve those properties while still
-> scheduling the IO "soon".  I'm not sure how we could do that in the
-> current VFS, short of having a background thread scheduling deferred
-> writepage()s as soon as the existing page becomes unlocked.
-
-filemap_flush() will do exactly this.  So if you want the Solaris
-semantics, calling filemap_flush() intead of filemap_fdatawrite() should do
-it.
-
-> posix_fadvise() seems to do something a little like this already: the
-> FADV_DONTNEED handler tries
+> incrementally to the above I applied this hardness checks in the
+> anon-vma patch, so we're safe against the problem Andrew outlined
+> (somebody attempting to do swapin/swapouts of anonymous pages through
+> that interface, something that shouldn't happen since we want only the
+> VM to deal with userspace mapped pages).
 > 
-> 		if (!bdi_write_congested(mapping->backing_dev_info))
-> 			filemap_flush(mapping);
-> 
-> before going into the invalidate_mapping_pages() call.  Having that (a)
-> limited to the specific file range passed into the fadvise(), and (b)
-> available as a separate function independent of the DONTNEED page
-> invalidator, would seem like an entirely sensible extension.  
-> 
-> The obvious implementations would be somewhat inefficient in some cases,
-> though --- currently __filemap_fdatawrite simply list_splice()s the
-> inode dirty list into the io list.  Walking a long dirty list to flush
-> just a few pages from a narrow range could get slow, and walking the
-> radix tree would be inefficient if there are only a few dirty pages
-> hidden in a large cache of clean pages.
+> @@ -149,8 +149,14 @@ int rw_swap_page_sync(int rw, swp_entry_
+>  	};
+>  
+>  	lock_page(page);
+> -
+> +	/*
+> +	 * This library call can be only used to do I/O
+> +	 * on _private_ pages just allocated with alloc_pages().
+> +	 */
+>  	BUG_ON(page->mapping);
+> +	BUG_ON(PageSwapCache(page));
+> +	BUG_ON(PageAnon(page));
+> +	BUG_ON(PageLRU(page));
+>  	ret = add_to_page_cache(page, &swapper_space, entry.val, GFP_KERNEL);
+>  	if (unlikely(ret)) {
+>  		unlock_page(page);
 
-The patches I have queued in -mm allow us to do this.  We use
-find_get_pages_tag() to iterate over only the dirty pages in the tree.
 
-That still has the efficiency problem that when searching for dirty pages
-we also visit pages which are both dirty and under writeback (we're not
-interested in those pages if it is a non-blocking flush), although I've
-only observed that to be a problem when the queue size was bumped up to
-10,000 requests and I fixed that up for the common cases by other means.
-
+the good thing is that I believe this fix will make it work with the -mm
+writeback changes. However this fix now collides with anon-vma since
+swapsuspend passes compound pages to rw_swap_page_sync and
+add_to_page_cache overwrites page->private and the kernel crashes at the
+next page_cache_get() since page->private is now the swap entry and not
+a page_t pointer. So I guess I've a good reason now to giveup trying to
+add the page to the swapcache, and to just fake the radix tree like I
+did in my original fix. That way the page won't be swapcache either so I
+don't even need to use get_page to avoid remove_exclusive_swap_page to
+mess with it.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
