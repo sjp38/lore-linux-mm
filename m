@@ -1,37 +1,30 @@
-Received: from caramail.com (www57.caramail.com [213.193.13.67])
-	by mail4.caramail.com (8.8.8/8.8.8) with SMTP id RAA03779
-	for linux-mm@kvack.org; Mon, 17 Jun 2002 17:45:20 +0200 (DST)
-From: anya aitali <tiziri00@caramail.com>
-Message-ID: <1024325907014473@caramail.com>
+Date: Mon, 17 Jun 2002 16:19:38 -0700
+From: William Lee Irwin III <wli@holomorphy.com>
+Subject: Re: linux page table
+Message-ID: <20020617231938.GA25360@holomorphy.com>
+References: <1024325907014473@caramail.com>
 Mime-Version: 1.0
-Subject: linux page table
-Date: Mon, 17 Jun 2002 16:58:27 GMT+1
-Content-Type: multipart/mixed; boundary="=_NextPart_Caramail_0144731024325907_ID"
+Content-Type: text/plain; charset=us-ascii
+Content-Description: brief message
+Content-Disposition: inline
+In-Reply-To: <1024325907014473@caramail.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: anya aitali <tiziri00@caramail.com>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This message is in MIME format. Since your mail reader does not understand
-this format, some or all of this message may not be legible.
+On Mon, Jun 17, 2002 at 04:58:27PM +0000, anya aitali wrote:
+> Can you oriented me. I had a PFN (page frame number) for 
+> one page and I want assign it to a entry for a pte_page.
+> What are the LINUX kernel functions should I use.
+> Thanks. 
 
---=_NextPart_Caramail_0144731024325907_ID
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: 7bit
-
-Hi 
-Can you oriented me. I had a PFN (page frame number) for 
-one page and I want assign it to a entry for a pte_page.
-What are the LINUX kernel functions should I use.
-Thanks. 
-
-_________________________________________________________ 
-Envoyez des messages musicaux sur le portable de vos amis 
- http://mobile.lycos.fr/mobile/local/sms_musicaux/
+What kernel version is this for?
 
 
---=_NextPart_Caramail_0144731024325907_ID--
-
+Cheers,
+Bill
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
