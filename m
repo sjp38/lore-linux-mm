@@ -1,83 +1,51 @@
-Date: Mon, 19 May 2003 18:23:05 -0700
-From: "Paul E. McKenney" <paulmck@us.ibm.com>
-Subject: Re: [RFC][PATCH] vm_operation to avoid pagefault/inval race
-Message-ID: <20030519182305.C1813@us.ibm.com>
-Reply-To: paulmck@us.ibm.com
-References: <200305172021.56773.phillips@arcor.de> <20030517124948.6394ded6.akpm@digeo.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20030517124948.6394ded6.akpm@digeo.com>
+Message-Id: <200305200731.h4K7Vcu03263@Port.imtp.ilyichevsk.odessa.ua>
+Content-Type: text/plain;
+  charset="koi8-r"
+From: Denis Vlasenko <vda@port.imtp.ilyichevsk.odessa.ua>
+Reply-To: vda@port.imtp.ilyichevsk.odessa.ua
+Subject: Re: Finalised 2.4 VM Documentation
+Date: Tue, 20 May 2003 10:37:39 +0300
+References: <Pine.LNX.4.53.0305191329310.24249@skynet>
+In-Reply-To: <Pine.LNX.4.53.0305191329310.24249@skynet>
+MIME-Version: 1.0
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@digeo.com>
-Cc: Daniel Phillips <phillips@arcor.de>, hch@infradead.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Mel Gorman <mel@csn.ul.ie>, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Sat, May 17, 2003 at 12:49:48PM -0700, Andrew Morton wrote:
-> Daniel Phillips <phillips@arcor.de> wrote:
-> >
-> > and the only problem is, we have to change pretty well every 
-> >  filesystem in and out of tree.
-> 
-> But it's only a one-liner per fs.
+On 19 May 2003 15:53, Mel Gorman wrote:
+> I've finalised all the documentation that I'm going to do for the 2.4
+> VM and no further updates will be posted on the web site to this
+> version. At this stage it has been heavily read by a number of people
+> and there hasn't been a complaint or correction in a few weeks now. 
+> I'm happy to say it is now complete (and more importantly correct)
+> and acts as a detailed description of the 2.4 VM, the algorithms that
+> it is based on and comprehensive coverage of the code. People who are
+> only interested in the 2.5.x VMs will still find it much easier to
+> follow when they clearly know how 2.4 is put together.
+>
+> As always, it comes in two parts. The first part is the actual
+> documentation and gives a description of the whole VM. The second is
+> a code commentary which covers a significant percentage of the VM for
+> guiding through the messier parts. They are available in PDF, HTML
+> and plain text formats.
+>
+> Main site: http://www.csn.ul.ie/~mel/projects/vm/
+>
+> Understanding the Linux Virtual Memory Manager
+> PDF:  http://www.csn.ul.ie/~mel/projects/vm/guide/pdf/understand.pdf
+> HTML: http://www.csn.ul.ie/~mel/projects/vm/guide/html/understand/
+> Text: http://www.csn.ul.ie/~mel/projects/vm/guide/text/understand.txt
+>
+> Code Commentary on the Linux Virtual Memory Manager
+> PDF:  http://www.csn.ul.ie/~mel/projects/vm/guide/pdf/code.pdf
+> HTML: http://www.csn.ul.ie/~mel/projects/vm/guide/html/code
+> Text: http://www.csn.ul.ie/~mel/projects/vm/guide/text/code.txt
 
-So the general idea is to do something as follows, right?
-(Sorry for not just putting together a patch -- I want
-to make sure I understand all of your advice first!)
-
-o	Make all callers to do_no_page() instead call
-	vma->vm_ops->nopage().
-
-o	Make a function, perhaps named something like
-	install_new_page(), that does the PTE-installation
-	and RSS-adjustment tasks currently performed by
-	both do_no_page() and by do_anonymous_page().
-	(Not clear to me yet whether a full merge of
-	these two functions is the right approach, more
-	thought needed.  Note that the nopage function
-	is implicitly aware of whether it is handling
-	an anonymous page or not, so a pair of functions
-	that both call another function containing the
-	common code is reasonable, if warranted.)
-
-	The install_new_page() function needs an additional
-	argument to accept the new_page value that used
-	to be returned by the nopage() function.
-
-o	Add arguments to nopage() to allow it to invoke
-	install_new_page().
-
-o	Change all nopage() functions to invoke install_new_page(),
-	but only in cases where they would -not- return
-	VM_FAULT_OOM or VM_FAULT_SIGBUS.  In these cases,
-	these two return codes must be handed back to the
-	caller without invoking install_new_page().
-
-o	Otherwise, the value that these nopage() functions
-	would normally return must be passed to
-	install_new_page(), and the value returned by
-	install_new_page() must be returned to the nopage()
-	function's caller.
-
-o	Replace all occurrences of "->vm_ops = NULL" with
-	"->vm_ops = anonymous_vm_ops" or some such.
-
-o	The anonymous_vm_ops would have the following members:
-
-	nopage: pointer to a function containing the page-allocation
-		code extracted from do_anonymous_page(), followed
-		by a call to install_new_page().
-
-	populate: NULL.
-
-	open: NULL.
-
-	close: NULL.
-
-Thoughts?
-
-					Thanx, Paul
+Wow! I'm going to sacrifice some dead wood media for that
+--
+vda
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
