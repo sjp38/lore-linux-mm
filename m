@@ -1,39 +1,41 @@
-Message-Id: <199912092332.AAA27593@cave.bitwizard.nl>
+Date: Fri, 10 Dec 1999 01:44:53 +0100 (CET)
+From: Ingo Molnar <mingo@chiara.csoma.elte.hu>
 Subject: Re: Getting big areas of memory, in 2.3.x?
-In-Reply-To: <Pine.LNX.4.10.9912100021250.10946-100000@chiara.csoma.elte.hu>
- from Ingo Molnar at "Dec 10, 1999 00:24:27 am"
-Date: Fri, 10 Dec 1999 00:32:01 +0100 (MET)
-From: R.E.Wolff@BitWizard.nl (Rogier Wolff)
+In-Reply-To: <Pine.LNX.3.96.991209180518.21542B-100000@kanga.kvack.org>
+Message-ID: <Pine.LNX.4.10.9912100139370.12148-100000@chiara.csoma.elte.hu>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ingo Molnar <mingo@chiara.csoma.elte.hu>
-Cc: "William J. Earl" <wje@cthulhu.engr.sgi.com>, Jeff Garzik <jgarzik@mandrakesoft.com>, Alan Cox <alan@lxorguk.ukuu.org.uk>, Linux Kernel List <linux-kernel@vger.rutgers.edu>, linux-mm@kvack.org
+To: "Benjamin C.R. LaHaise" <blah@kvack.org>
+Cc: Rik van Riel <riel@nl.linux.org>, Kanoj Sarcar <kanoj@google.engr.sgi.com>, Jeff Garzik <jgarzik@mandrakesoft.com>, alan@lxorguk.ukuu.org.uk, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Ingo Molnar wrote:
-> yep, if eg. an fsck happened before modules are loaded then RAM is filled
-> up with the buffer-cache. The best guarantee is to compile such drivers
-> into the kernel.
+On Thu, 9 Dec 1999, Benjamin C.R. LaHaise wrote:
 
-My ISDN drivers don't start up correctly after an fsck. 
+> The type of allocation determines what pool memory is allocated from.  
+> Ie nonpagable kernel allocations come from one zone, atomic
+> allocations from another and user from yet another.  It's basically
+> the same thing that the slab does, except for pages.  The key
+> advantage is that allocations of different types are not mixed, so the
+> lifetime of allocations in the same zone tends to be similar and
+> fragmentation tends to be lower.
 
-What I should do is:
+well, this is perfectly possible with the current zone allocator (check
+out how build_zonelists() builds dynamic allocation paths). I dont see
+much point in it though, it might prevent fragmentation to a certain
+degree, but i dont think it is a fair use of memory resources. (i'm pretty
+sure the atomic zone would stay unused most of the time) But you might
+want to try it out - just pass many small zones in free_area_init_core()
+and modify build_zonelists() to have private and isolated zones for
+GFP_ATOMIC, etc.
 
-hogmem 8 &
-sleep 5
-kill %1
+the SLAB is completely different as it has micro-units of a few pages. A
+zoned allocator must work on a larger scale, and cannot afford wasting
+memory on the order of those larger units.
 
-before trying to start the ISDN drivers. (This is on a 16M machine). 
+-- mingo
 
-				Roger.
-
--- 
-** R.E.Wolff@BitWizard.nl ** http://www.BitWizard.nl/ ** +31-15-2137555 **
-*-- BitWizard writes Linux device drivers for any device you may have! --*
- "I didn't say it was your fault. I said I was going to blame it on you."
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
