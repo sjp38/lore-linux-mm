@@ -1,56 +1,42 @@
-Message-ID: <3ED49EB8.1080506@aitel.hist.no>
-Date: Wed, 28 May 2003 13:34:16 +0200
-From: Helge Hafting <helgehaf@aitel.hist.no>
-MIME-Version: 1.0
+Date: Wed, 28 May 2003 04:35:44 -0700
+From: William Lee Irwin III <wli@holomorphy.com>
 Subject: Re: 2.5.70-mm1 bootcrash, possibly IDE or RAID
-References: <20030408042239.053e1d23.akpm@digeo.com> <3ED49A14.2020704@aitel.hist.no> <20030528111345.GU8978@holomorphy.com>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+Message-ID: <20030528113544.GV8978@holomorphy.com>
+References: <20030408042239.053e1d23.akpm@digeo.com> <3ED49A14.2020704@aitel.hist.no> <20030528111345.GU8978@holomorphy.com> <3ED49EB8.1080506@aitel.hist.no>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <3ED49EB8.1080506@aitel.hist.no>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: William Lee Irwin III <wli@holomorphy.com>
+To: Helge Hafting <helgehaf@aitel.hist.no>
 Cc: Andrew Morton <akpm@digeo.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-William Lee Irwin III wrote:
-> On Wed, May 28, 2003 at 01:14:28PM +0200, Helge Hafting wrote:
-> 
->>2.5.69-mm8 is fine, 2.5.67-mm1 dies before mounting anything read-write.
-Argh.  I meant 2.5.70-mm1.  Followup to the wrong message. :-(
+On Wed, May 28, 2003 at 01:34:16PM +0200, Helge Hafting wrote:
+> Here's the decoded crash, written down by hand:
+> <stuff scrolled off screen>
+> bio_endio
+> _end_that_request_first
+> ide_end_request
+> ide_dma_intr
+> ide_intr
+> ide_dma_intr
+> handle_IRQ_event
+> do_IRQ
+> default_idle
+> default_idle
+> common_interrupt
 
-The early kernel boot is fine, the penguin appear,
-a bunch of the usual messages scroll by too fast to read,
-and then it hangs.
-The kernel is UP, with preempt & devfs.  All filesystems
-are ext2. This kernel has no module support.
+This is unusual; I'm having trouble very close to this area. There is
+a remote chance it could be the same problem.
 
-Root is on raid-1, there are two
-ide disks connected to this controller on separate cables:
-00:02.5 IDE interface: Silicon Integrated Systems [SiS] 5513 [IDE]
+Could you log this to serial and get the rest of the oops/BUG? If it's
+where I think it is, I've been looking at end_page_writeback() and so
+might have an idea or two.
 
-Here's the decoded crash, written down by hand:
-<stuff scrolled off screen>
-bio_endio
-_end_that_request_first
-ide_end_request
-ide_dma_intr
-ide_intr
-ide_dma_intr
-handle_IRQ_event
-do_IRQ
-default_idle
-default_idle
-common_interrupt
-default_idle
-default_idle
-default_idle
-cpu_idle
-rest_init
-start_kernel
-unknown_bootoption
-<0>Kwrnel Panic fatal exception in interrupt
-in interrupt - not syncing
 
+-- wli
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
