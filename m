@@ -1,27 +1,30 @@
-Subject: Re: [PATCH] dirty bit clearing on s390.
-Message-ID: <OFD743E8B0.5C908A4A-ONC1256D32.0023029F@de.ibm.com>
-From: "Martin Schwidefsky" <schwidefsky@de.ibm.com>
-Date: Mon, 26 May 2003 08:24:09 +0200
+Content-Type: text/plain;
+  charset="iso-8859-1"
+From: Daniele Bellucci <bellucda@tiscali.it>
+Subject: Re: 2.5.69-mm9
+Date: Mon, 26 May 2003 20:30:23 +0200
+References: <20030525042759.6edacd62.akpm@digeo.com>
+In-Reply-To: <20030525042759.6edacd62.akpm@digeo.com>
 MIME-Version: 1.0
-Content-type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 8BIT
+Message-Id: <200305262030.23526.bellucda@tiscali.it>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@digeo.com>
-Cc: linux-mm@kvack.org, phillips@arcor.de
+To: Andrew Morton <akpm@digeo.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> Having thought long and hard about this, yes, I don't really see anything
-> saner than just hooking into SetPageUptodate as you have done.
->
-> Just to be sure that I understand the issues here I'll cook up a new
-> changelog for this and run it by you, then submit it.
+fixed missing sys_kexec_load entry in syscall table (i386 only).
 
-Good, so we haven't been too far off with our approach. Thanks for the
-review.
+--- linux-2.5.69-mm9/arch/i386/kernel/entry.S   2003-05-26 13:31:02.000000000 +0200
++++ linux-2.5.69-mm9-my/arch/i386/kernel/entry.S        2003-05-27 20:16:11.000000000 +0200
+@@ -892,6 +892,6 @@
+        .long sys_clock_getres
+        .long sys_clock_nanosleep
+        .long sys_mknod64
+-
++       .long sys_kexec_load
 
-blue skies,
-   Martin
-
+ nr_syscalls=(.-sys_call_table)/4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
