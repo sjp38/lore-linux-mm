@@ -1,44 +1,45 @@
-Date: Thu, 16 Nov 2000 15:37:28 +0100
-From: Ingo Oeser <ingo.oeser@informatik.tu-chemnitz.de>
-Subject: Re: Question about pte_alloc()
-Message-ID: <20001116153728.E703@nightmaster.csn.tu-chemnitz.de>
-References: <3A12363A.3B5395AF@cse.iitkgp.ernet.in> <20001115105639.C3186@redhat.com> <3A132470.4F93CFF5@cse.iitkgp.ernet.in> <20001115154729.H3186@redhat.com> <3A144453.D0724CC1@cse.iitkgp.ernet.in>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <3A144453.D0724CC1@cse.iitkgp.ernet.in>; from sganguly@cse.iitkgp.ernet.in on Thu, Nov 16, 2000 at 03:32:19PM -0500
+Date: Thu, 16 Nov 2000 16:01:07 +0100 (MET)
+From: Szabolcs Szakacsits <szaka@f-secure.com>
+Subject: RE: KPATCH] Reserve VM for root (was: Re: Looking for better VM)
+In-Reply-To: <200011142012.VAA00150@bug.ucw.cz>
+Message-ID: <Pine.LNX.4.30.0011161513480.20626-100000@fs129-190.f-secure.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Shuvabrata Ganguly <sganguly@cse.iitkgp.ernet.in>
-Cc: "Stephen C. Tweedie" <sct@redhat.com>, linux-mm@kvack.org
+To: pavel-velo@bug.ucw.cz
+Cc: Rik van Riel <riel@conectiva.com.br>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@transmeta.com>, Ingo Molnar <mingo@elte.hu>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Nov 16, 2000 at 03:32:19PM -0500, Shuvabrata Ganguly wrote:
-> i know that. but i dont want to wire the pages. i want the driver to allocate
-> pages, fill them up with data and then transfer them to the user, which would
-> enable the kernel to swap them  but then i cant touch page tables at interrupt
-> time.
+On Wed, 1 Jan 1997 pavel-velo@bug.ucw.cz wrote:
 
-Why don't you use an allocator/deliver thread, a ringbuffer and
-throw away the overflowing packets, while signalling the sender,
-that you are satiated for the moment? The overflowing packets
-will be resent later anyway.
+>    >main() { while(1) if (fork()) malloc(1); }
+>    >With the patch below I could ssh to the host and killall the offending
+>    >processes. To enable reserving VM space for root do
+> what about main() { while(1) system("ftp localhost &"); }
+> This. or so,ething similar should allow you to kill your machine
+> even with your patch from normal user account
 
-If you receive sth., you just put it into the deliver queue and
-wake the thread to deliver (==map) it.
+This or something similar didn't kill the box [I've tried all local
+DoS from Packetstorm that I could find]. Please send a working
+example. Of course probably it's possible to trigger root owned
+processes to eat memory eagerly by user apps but that's a problem in
+the process design running as root and not a kernel issue.
 
-BTW: Zero copy might become pointless if you use threads or play
-   VM-Tricks.
+Note, I'm not discussing "local user can kill the box without limits",
+I say Linux "deadlocks" [it starts its own autonom life and usually
+your only chance is to hit the reset button] when there is continuous
+VM pressure by user applications. If you think fork() kills the box
+then ulimit the maximum number of user processes (ulimit -u). This is
+a different issue and a bad design in the scheduler (see e.g. Tru64
+for a better one).
 
-BTW2: Are you aware of U-Net and VIA?
+BTW, I have a new version of the patch with that Linux behaves much
+better from root's point of view when the memory is more significantly
+overcommited. I'll post it if I have time [and there is interest].
 
-Regards
+	Szaka
 
-Ingo Oeser
--- 
-To the systems programmer, users and applications
-serve only to provide a test load.
-<esc>:x
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
