@@ -1,40 +1,77 @@
 From: Akinobu Mita <amgta@yacht.ocn.ne.jp>
 Subject: Re: Anticipatory prefaulting in the page fault handler V1
-Date: Tue, 14 Dec 2004 21:24:11 +0900
-References: <Pine.LNX.4.44.0411221457240.2970-100000@localhost.localdomain> <200412132330.23893.amgta@yacht.ocn.ne.jp> <Pine.LNX.4.58.0412130905140.360@schroedinger.engr.sgi.com>
-In-Reply-To: <Pine.LNX.4.58.0412130905140.360@schroedinger.engr.sgi.com>
+Date: Wed, 15 Dec 2004 00:25:34 +0900
+References: <Pine.LNX.4.44.0411221457240.2970-100000@localhost.localdomain> <Pine.LNX.4.58.0412130905140.360@schroedinger.engr.sgi.com> <200412142124.11685.amgta@yacht.ocn.ne.jp>
+In-Reply-To: <200412142124.11685.amgta@yacht.ocn.ne.jp>
 MIME-Version: 1.0
 Content-Type: text/plain;
   charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-Message-Id: <200412142124.11685.amgta@yacht.ocn.ne.jp>
+Message-Id: <200412150025.34368.amgta@yacht.ocn.ne.jp>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Christoph Lameter <clameter@sgi.com>
 Cc: "Martin J. Bligh" <mbligh@aracnet.com>, nickpiggin@yahoo.com.au, Jeff Garzik <jgarzik@pobox.com>, torvalds@osdl.org, hugh@veritas.com, benh@kernel.crashing.org, linux-mm@kvack.org, linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tuesday 14 December 2004 02:10, Christoph Lameter wrote:
-> On Mon, 13 Dec 2004, Akinobu Mita wrote:
+On Tuesday 14 December 2004 21:24, Akinobu Mita wrote:
 
-> > 3) don't set_pte() for the entry which already have been set
+> But there is not any guarantee that the page_tables for addr+PAGE_SIZE,
+> addr+2*PAGE_SIZE, ...  have not been mapped yet.
 >
-> Not sure how this could have happened in the patch.
+> Anyway, I will try your V2 patch.
+>
 
-This is why I inserted pte_none() for each page_table in case of
-read fault too.
+Below patch fixes V2 patch, and adds debug printk. 
+The output coincides with segfaulted processes.
 
-If read access fault occured for the address "addr".
-It is completely unnecessary to check by pte_none() to the page_table
-for "addr". Because page_table_lock has never been released until
-do_anonymous_page returns (in case of read access fault)
+# dmesg | grep ^comm:
 
-But there is not any guarantee that the page_tables for addr+PAGE_SIZE,
-addr+2*PAGE_SIZE, ...  have not been mapped yet.
+comm: xscreensaver, addr_orig: ccdc40, addr: cce000, pid: 2995
+comm: rhn-applet-gui, addr_orig: b6fd8020, addr: b6fd9000, pid: 3029
+comm: rhn-applet-gui, addr_orig: b6e95020, addr: b6e96000, pid: 3029
+comm: rhn-applet-gui, addr_orig: b6fd8020, addr: b6fd9000, pid: 3029
+comm: rhn-applet-gui, addr_orig: b6e95020, addr: b6e96000, pid: 3029
+comm: rhn-applet-gui, addr_orig: b6fd8020, addr: b6fd9000, pid: 3029
+comm: X, addr_orig: 87e8000, addr: 87e9000, pid: 2874
+comm: X, addr_orig: 87ea000, addr: 87eb000, pid: 2874
 
-Anyway, I will try your V2 patch.
+---
+The read access prefaulting may override the page_table which has been
+already mapped. this patch fixes it. and it shows which process might
+suffer this problem.
 
+
+--- 2.6-rc/mm/memory.c.orig	2004-12-14 22:06:08.000000000 +0900
++++ 2.6-rc/mm/memory.c	2004-12-14 23:42:34.000000000 +0900
+@@ -1434,6 +1434,7 @@ do_anonymous_page(struct mm_struct *mm, 
+ {
+ 	pte_t entry;
+  	unsigned long end_addr;
++ 	unsigned long addr_orig = addr;
+ 
+ 	addr &= PAGE_MASK;
+ 
+@@ -1517,9 +1518,15 @@ do_anonymous_page(struct mm_struct *mm, 
+  		/* Read */
+ 		entry = pte_wrprotect(mk_pte(ZERO_PAGE(addr), vma->vm_page_prot));
+ nextread:
+-		set_pte(page_table, entry);
+-		pte_unmap(page_table);
+-		update_mmu_cache(vma, addr, entry);
++		if (!pte_none(*page_table)) {
++			printk("comm: %s, addr_orig: %lx, addr: %lx, pid: %d\n",
++				current->comm, addr_orig, addr, current->pid);
++			pte_unmap(page_table);
++		} else {
++			set_pte(page_table, entry);
++			pte_unmap(page_table);
++			update_mmu_cache(vma, addr, entry);
++		}
+ 		addr += PAGE_SIZE;
+ 		if (unlikely(addr < end_addr)) {
+ 			pte_offset_map(pmd, addr);
 
 
 --
