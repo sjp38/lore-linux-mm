@@ -1,55 +1,42 @@
-Message-ID: <42114A1F.5070202@mvista.com>
-Date: Mon, 14 Feb 2005 17:02:23 -0800
-From: Steve Longerbeam <stevel@mvista.com>
-MIME-Version: 1.0
+Date: Mon, 14 Feb 2005 19:16:51 -0800
+From: Paul Jackson <pj@sgi.com>
 Subject: Re: [RFC 2.6.11-rc2-mm2 0/7] mm: manual page migration -- overview
-References: <20050212032535.18524.12046.26397@tomahawk.engr.sgi.com> <m1vf8yf2nu.fsf@muc.de> <20050212121228.GA15340@lnx-holt.americas.sgi.com> <20050214191840.GA57423@muc.de>
-In-Reply-To: <20050214191840.GA57423@muc.de>
-Content-Type: text/plain; charset=us-ascii; format=flowed
+Message-Id: <20050214191651.64fc3347.pj@sgi.com>
+In-Reply-To: <42113921.7070807@sgi.com>
+References: <20050212032535.18524.12046.26397@tomahawk.engr.sgi.com>
+	<m1vf8yf2nu.fsf@muc.de>
+	<20050212155426.GA26714@logos.cnet>
+	<20050212212914.GA51971@muc.de>
+	<20050214163844.GB8576@lnx-holt.americas.sgi.com>
+	<20050214191509.GA56685@muc.de>
+	<42113921.7070807@sgi.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <ak@muc.de>
-Cc: Robin Holt <holt@sgi.com>, Ray Bryant <raybry@sgi.com>, Ray Bryant <raybry@austin.rr.com>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
+To: Ray Bryant <raybry@sgi.com>
+Cc: ak@muc.de, holt@sgi.com, marcelo.tosatti@cyclades.com, raybry@austin.rr.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Andi Kleen wrote:
+Ray wrote:
+> [Thus the disclaimer in
+> the overview note that we have figured all the interaction with
+> memory policy stuff yet.]
 
->>For our use, the batch scheduler will give an intermediary program a
->>list of processes and a series of from-to node pairs.  That process would
->>then ensure all the processes are stopped, scan their VMAs to determine
->>what regions are mapped by more than one process, which are mapped
->>by additional processes not in the job, and make this system call for
->>each of the unique ranges in the job to migrate their pages from one
->>node to the next.  I believe Ray is working on a library and a standalone
->>program to do this from a command line.
->>    
->>
->
->Sounds quite ugly. 
->
->Do you have evidence that this is a common use case? (jobs having stuff
->mapped from programs not in the job). If not I think it's better
->to go with a simple interface, not one that is unusable without
->a complex user space library.
->
->If you mean glibc etc. only then the best solution for that would be probably
->to use the (currently unmerged) arbitary file mempolicy code for this and set
-> a suitable attribute that prevents moving.
->  
->
+Does the same disclaimer apply to cpusets?
 
-Hi Andi, Ray, et.al.,
+Unless it causes some undo pain, I would think that page migration
+should _not_ violate a tasks cpuset.  I guess this means that a typical
+batch manager would move a task to its new cpuset on the new nodes, or
+move the cpuset containing some tasks to their new nodes, before asking
+the page migrator to drag along the currently allocated pages from the
+old location.
 
-Just want to let you know that I'm still planning to push
-my patches to NUMA mempolicy for filemap support and
-page migration. I've been swamped with another task at work,
-but later this week I will post the latest patches for review.
-I haven't been following Ray's manual page migration thread
-but will get up-to-speed also, and see how it impacts my patchset
-to mempolicy.
-
-Steve
+-- 
+                  I won't rest till it's the best ...
+                  Programmer, Linux Scalability
+                  Paul Jackson <pj@sgi.com> 1.650.933.1373, 1.925.600.0401
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
