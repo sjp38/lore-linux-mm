@@ -1,99 +1,93 @@
-Received: from hpfcla.fc.hp.com (hpfcla.fc.hp.com [15.254.48.2])
-	by atlrel1.hp.com (Postfix) with ESMTP id 0056F5F0
-	for <linux-mm@kvack.org>; Thu, 17 May 2001 13:14:05 -0400 (EDT)
-Received: from gplmail.fc.hp.com (nsmail@wslmail.fc.hp.com [15.1.92.20])
-	by hpfcla.fc.hp.com (8.9.3 (PHNE_22672)/8.9.3 SMKit7.01) with ESMTP id LAA03028
-	for <linux-mm@kvack.org>; Thu, 17 May 2001 11:14:04 -0600 (MDT)
-Received: from fc.hp.com (dome.fc.hp.com [15.1.89.118])
-          by gplmail.fc.hp.com (Netscape Messaging Server 3.6)  with ESMTP
-          id AAA1CC8 for <linux-mm@kvack.org>;
-          Thu, 17 May 2001 11:14:00 -0600
-Message-ID: <3B04069C.49787EC2@fc.hp.com>
-Date: Thu, 17 May 2001 11:13:00 -0600
-From: David Pinedo <dp@fc.hp.com>
-MIME-Version: 1.0
-Subject: Running out of vmalloc space
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Date: Thu, 17 May 2001 20:39:33 +0200
+From: =?iso-8859-1?Q?Ragnar_Kj=F8rstad?= <kernel@ragnark.vestdata.no>
+Subject: SMP/highmem problem
+Message-ID: <20010517203933.F6360@vestdata.no>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
+Cc: tlan@stud.ntnu.no
 List-ID: <linux-mm.kvack.org>
 
-Hello.  My name is David Pinedo and I subscribed to this list a few days
-ago.  I work for Hewlett-Packard, and am in the process of porting the
-drivers for the FX10 graphics boards from Red Hat 6.2 to Red Hat 7.1.
-Our customers are begging us to support the FX10 on RH7.1, primarily
-because of the large memory capabilities in the 2.4.2 kernel.
- 
-I only have minimal knowledge of the Linux kernel, enough to be able to
-create the kernel module driver for the FX10.  My apologies for jumping
-into this email list and the inevitable newbie mistakes I may make.  I
-have a strong business need to get these graphics boards working
-correctly in the 2.4.2 kernel, and I think this email list may be the
-only place I can get some help. If I should be using some other forum
-for my questions, I would appreciate if someone would point me to it.
- 
-Porting the driver to 2.4.2 was not terribly difficult.  Most of the
-changes were in code that translates to and from physical addresses and
-virtual addresses.  There were a few changes I had to make due to
-difference in the gcc compiler on RH7.1 vs RH6.2.
- 
-The FX10 has a very large frame buffer and control space (the control
-space is where the registers to control the device reside).  The frame
-buffer is 16Mbytes and the control space is 32Mbytes.  The address space
-for the frame buffer and control space is allocated from the kernel vm
-address space, using get_vm_area() in mm/vmalloc.c.
- 
-On Linux, HP supports up to two FX10 boards in the system.  In order to
-use two FX10 boards, the kernel driver needs to map the frame buffer and
-control space for both of the boards.  That's a lot of address space,
-2*(16M+32M)=96M to be exact.  Using this much virtual address space on a
-stock RH7.1 smp kernel on a system with 0.5G of memory didn't seem to
-be a problem.  However, a colleague reported a problem to me on his
-system with 1.0G of memory -- the X server was exiting with an error
-message indicating that it couldn't map both devices.
- 
-On investigating the problem, I found that a call to get_vm_area was
-failing because the kernel was running out of vmalloc space.  It seems
-that the vmalloc space is smaller when more memory was installed on the
-system:
- 
-                        .5G RAM           1.0G RAM
-                       ----------        ---------
-        VMALLOC_END    0xfdffe000        0xfdffe000
-        VMALLOC_START  0xe0800000        0xf8800000
-                       ----------        ---------
-        space avail    0x1d7fe000(471M)  0x057FE000(87M)
- 
- 
-I found that if I reconfigure the kernel with Maximum Virtual Memory set
-to 2G (sets CONFIG_2GB), the vmalloc space is larger and the problem
-goes away.  I couldn't quite figure out what the implications of
-changing Maximum Virtual Memory really are.  The Help button when using
-"make xconfig" says there is no help available.  Could someone enlighten
-me?  Will this fix also work when I add more memory to the system?
- 
-Another method of fixing this problem that seems to work is to change
-the constant VMALLOC_RESERVE in arch/i386/kernel/setup.c.  I changed the
-line that defines it from:
- 
-   #define VMALLOC_RESERVE (unsigned long)(128 << 20)
- 
-to:
- 
-   #define VMALLOC_RESERVE (unsigned long)(256 << 20)
- 
-What are the implications of making such a change?  Will it work when
-there is less or more memory in the system?  Should this be a
-configurable kernel parameter?
- 
-Thanks for any information anyone can provide.
- 
-David Pinedo
-Hewlett-Packard Company
-Fort Collins, Colorado
-dp@fc.hp.com
+I've run into a performance issue.
+
+I'm testing SMP performance on a 4 CPU Xeon box with 8 GB RAM. 
+No swap. Standard linux 2.4.4, configured with CONFIG_HIGHMEM64G
+enabled.
+
+I use a single process, bonnie++, that creates 16 1 GB files.
+However, after a while, the machine gets really unresponsive (ls -l
+/root takes literally several minutes when /root is not in the
+cache) and the load gets really high. According to top, all CPU 
+power is spent in the kernel, mainly on kswapd, bdflush and 
+kupdated.
+
+  7:19pm  up  2:11,  6 users,  load average: 8.58, 9.34, 7.34
+48 processes: 42 sleeping, 5 running, 1 zombie, 0 stopped
+CPU0 states:  0.1% user, 99.10% system,  0.0% nice,  0.0% idle
+CPU1 states:  0.0% user, 100.0% system,  0.0% nice,  0.0% idle
+CPU2 states:  0.0% user, 100.0% system,  0.0% nice,  0.0% idle
+CPU3 states:  0.1% user, 99.10% system,  0.0% nice,  0.0% idle
+Mem:  7721928K av, 7719308K used,    2620K free,       0K shrd,    3612K buff
+Swap:       0K av,       0K used,       0K free                 7597616K cached
+
+  PID USER     PRI  NI  SIZE  RSS SHARE STAT %CPU %MEM   TIME COMMAND
+    3 root      14   0     0    0     0 SW   99.9  0.0  56:36 kswapd
+    5 root      14   0     0    0     0 RW   99.9  0.0  56:50 bdflush
+    6 root      14   0     0    0     0 RW   99.9  0.0  54:44 kupdated
+ 1712 nobody    15   0   192  192    44 R    99.9  0.0   9:12 bonnie++
+ 1825 root      11   0  1064 1064   864 R     0.2  0.0   7:02 top
+
+
+/proc/meminfo:
+        total:    used:    free:  shared: buffers:  cached:
+Mem:  3612286976 3609559040  2727936        0  3461120 3490426880
+Swap:        0        0        0
+MemTotal:      7721928 kB
+MemFree:          2664 kB
+MemShared:           0 kB
+Buffers:          3380 kB
+Cached:        7602924 kB
+Active:          56604 kB
+Inact_dirty:   3251412 kB
+Inact_clean:   4298285 kB
+Inact_target:    51752 kB
+HighTotal:     6946808 kB
+HighFree:         1048 kB
+LowTotal:       775120 kB
+LowFree:          1616 kB
+SwapTotal:           0 kB
+SwapFree:            0 kB
+
+
+There are messages in the log about the kernel running out of
+bounce-buffers. 
+
+It seems related to swapping / pageing algorithms?
+
+We've tried both 2.4.4ac6, 2.4.4ac9 and 2.4.5pre1 + Andreia's
+highmem-patches. Possible the newer kernels work a little better, but
+it's hard to tell because we don't have a way of actually messuring
+this.
+
+Any hints about what can be done to fix this?
+
+This is not a production server - we're just running theese tests to see
+how well linux will scale on this hardware - so, if you have any patches
+you want us to try out please let us know. If you want to play around
+with the machine, we can probably provide an account. Let us know.
+
+
+Thanks
+
+(please CC - I'm not subscribed to the list)
+
+
+
+-- 
+Ragnar Kjorstad
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
