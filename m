@@ -1,102 +1,79 @@
-Message-ID: <41C4C5C2.5000607@yahoo.com.au>
-Date: Sun, 19 Dec 2004 11:05:22 +1100
-From: Nick Piggin <nickpiggin@yahoo.com.au>
+Date: Sun, 19 Dec 2004 00:07:34 +0000 (GMT)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: Re: [RFC][PATCH 0/10] alternate 4-level page tables patches
+In-Reply-To: <41C3D453.4040208@yahoo.com.au>
+Message-ID: <Pine.LNX.4.44.0412182338040.13356-100000@localhost.localdomain>
 MIME-Version: 1.0
-Subject: Re: [PATCH 4/10] alternate 4-level page tables patches
-References: <41C3D48F.8080006@yahoo.com.au> <41C3D4AE.7010502@yahoo.com.au> <41C3D4C8.1000508@yahoo.com.au> <41C3F2D6.6060107@yahoo.com.au> <20041218095050.GC338@wotan.suse.de> <41C40125.3060405@yahoo.com.au> <20041218110608.GJ771@holomorphy.com> <41C411BD.6090901@yahoo.com.au> <20041218113252.GK771@holomorphy.com> <41C41ACE.7060002@yahoo.com.au> <20041218124635.GL771@holomorphy.com>
-In-Reply-To: <20041218124635.GL771@holomorphy.com>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset="us-ascii"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: William Lee Irwin III <wli@holomorphy.com>
-Cc: Andi Kleen <ak@suse.de>, Linux Memory Management <linux-mm@kvack.org>, Hugh Dickins <hugh@veritas.com>, Linus Torvalds <torvalds@osdl.org>, Andrew Morton <akpm@osdl.org>
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Linux Memory Management <linux-mm@kvack.org>, Andi Kleen <ak@suse.de>, Linus Torvalds <torvalds@osdl.org>, Andrew Morton <akpm@osdl.org>
 List-ID: <linux-mm.kvack.org>
 
-William Lee Irwin III wrote:
-> William Lee Irwin III wrote:
+On Sat, 18 Dec 2004, Nick Piggin wrote:
 > 
->>>If clear_page_tables() implemented perfect GC.
+> Apologies for not making progress on this done sooner, but better late than never.
 > 
+> First off - don't let all the signed-off-by: things fool you, I'm only intending
+> this for comments, not merging. I just spent a bit of time getting the descriptions
+> in better shape.
 > 
-> On Sat, Dec 18, 2004 at 10:55:58PM +1100, Nick Piggin wrote:
-> 
->>Oh... well it does perfectly free memory in the context of what ranges
->>have been previously cleared with clear_page_tables. So that doesn't
->>free you from the requirement of calling clear_page_tables at some
->>point.
->>I suspect though, you are referring to refcounting, in which case yes,
->>GC could probably be performed at unmap time, and clear_page_tables
->>could disappear. I still think it would be too costly to refcount down
->>to the pte_t level, especially SMP-wise.... but I'm just basing that
->>on a few minutes of thought, so - I don't really know.
+> Second - much of it is Andi's code (especially 4 level core, and x86-64 stuff).
+> If any attributions aren't quite accurate at this stage, don't worry too much!
 > 
 > 
-> vmas are unmapped one-by-one during process destruction.
+> Anyway, although we have a working 4-level page tables implementation, I am keeping
+> with this because my personal taste preference. Not that it is anything against
+> Andi's taste or technical implementation... but I wouldn't like progress to be held
+> up on account of me, so I wouldn't be too upset to forget about this until 2.7 (or
+> for ever)... /end disclaimer
 > 
+> Well, the patches follow. Tested lightly on i386 32 and 36 bits, ia64, and x86-64
+> with full 4 levels.
+> 
+> Comments?
 
-Yeah but clear_page_tables isn't called for each vma that is unmapped
-at exit time. Rather, one big one is called at the end - I suspect
-this is usually more efficient.
+I had been sceptical whether it's now worth a revised implementation.
+But these look like good tasteful patches to me, nicely split up.
 
-> 
-> William Lee Irwin III wrote:
-> 
->>>Counterexamples would be illustrative.
-> 
-> 
-> On Sat, Dec 18, 2004 at 10:55:58PM +1100, Nick Piggin wrote:
-> 
->>Oh, just workloads where memory is fairly dense in virtual space, and
->>not shared (much). Non-oracle workloads, perhaps? :)
->>Seriously? On my typical desktop, I have 250MB used, of which 1MB is
->>page tables, I suspect this is a pretty typical ratio on desktops,
->>but I have less experience with high end database servers and that type
->>of stuff.
->>I was hoping you could provide an example rather than me a counter ;)
-> 
-> 
-> Page replacement is largely irrelevant to databases. Administrators
-> etc. rather go through pains to avoid page replacement and at some
-> cost. They rather reclaim when page replacement occurs. More beneficial
-> for databases would be increasing the multiprogramming level a system
-> can maintain without page replacement or background data structure
-> reclamation.  This is, of course, not to say that databases can
-> tolerate leaks or effective leaks of kernel memory or data structures.
-> 
+In all they will amount to more change than Andi's original version -
+partly because of the de-pml4-ing in x86_64, but more because of the
+genericizing of nopmd and then nopud - but that's worthwhile.
+The changes seem to be the ones which ought to be in there.
 
-OK. Well with the simple patch I've shown, we no longer 'leak' pagetables
-(although the unmap-time cost may require moving to a partially refcounted
-approach).
+I think Andi's work has benefitted from having
+your eye and hand go over it for a second round.
 
-Does anyone know of workloads that have significant clear_page_tables
-cost?
-
-> Effective eviction of process data is far more pertinent to laptops and
-> desktops, where every wasted pagetable page is another page of
-> userspace program data that has to be swapped out and another write to
-> a disk spun by a battery with a limited lifetime (though the timer is
-> probably a larger concern wrt. battery life). Idle processes are likely
-> to be the largest concern there. The kernel's memory footprint
-> is always pure overhead, and pagetables are a very large part of it.
+> A bit of an aside: I was hoping to have a page table folding implementation that is
+> basically transparent to architectures. That is, a 3-level arch could just include
+> some generic header to fold the 4th level, and call it a day (without any other mods
+> to arch/?/* or include/asm-?/*).
 > 
-> (a) idle bloatzilla
-> (b) idle mutt
-> (c) idle shells
-> (d) numerous daemons started up by initscripts and rarely ever invoked
+> The reality is, this isn't going to happen with our current semantics. It probably
+> isn't a really big deal though, because I don't expect we'd have to support a 5
+> level implementation any time soon. But it is something I'd like to explore further.
 > 
+> I'll illustrate with an example: in the current setup, if the pmd is folded into
+> the pgd, pgd_present is always true, and pmd_present is what actually examines the
+> entry in the pgd. Now clearly, the architecture has to implement pmd_present, which
+> is pgd_present in a 2-level setup.
+> 
+> I would like to change that so pgd_present really does check the actual pgd entry,
+> and pmd_present is unconditionally true. IMO this would work better and be less
+> confusing than the current setup... but that's getting off topic...
 
-Oh sure, but in those cases, the pagetables aren't such a big waste
-of space, because memory access isn't too sparse, and you don't have
-a huge amount of sharing (even executables, shared libraries - there
-just aren't that many processes running to make page tables a large
-fraction of resident memory).
+Thanks for going into that.  Of course I'm disappointed, I had
+been hoping that pud would obviate the need for immediate change
+in all the arches.  But I trust your explanation for why not, and
+after several readings I think I'm beginning to understand it!
 
-So I'm not saying there are no savings to be had at all, but just that
-maybe they aren't worth it (I don't know - maybe it is possible to do
-a full refcounting implementation without adding fastpath overhead).
+My vote is for you (with arch assistants) to extend this work to the
+other arches, and these patches to replace the current 4level patches
+in -mm.  But what does Andi think - are those "inline"s his only dissent?
 
-I mean, I've got 250MB used and only 1/250th of that is in pagetables.
+Hugh
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
