@@ -1,53 +1,35 @@
-Received: from flecktone.americas.sgi.com (flecktone.americas.sgi.com [198.149.16.15])
-	by omx1.americas.sgi.com (8.12.10/8.12.9/linux-outbound_gateway-1.1) with ESMTP id j1GBVuxT017101
-	for <linux-mm@kvack.org>; Wed, 16 Feb 2005 05:32:16 -0600
-Date: Wed, 16 Feb 2005 05:30:47 -0600
-From: Robin Holt <holt@SGI.com>
-Subject: Re: manual page migration -- issue list
-Message-ID: <20050216113047.GA8388@lnx-holt.americas.sgi.com>
-References: <42128B25.9030206@sgi.com> <20050215165106.61fd4954.pj@sgi.com> <20050216015622.GB28354@lnx-holt.americas.sgi.com> <20050215202214.4b833bf3.pj@sgi.com> <20050216092011.GA6616@lnx-holt.americas.sgi.com> <20050216022009.7afb2e6d.pj@sgi.com>
-Mime-Version: 1.0
+Date: Wed, 16 Feb 2005 07:21:39 -0800
+From: "Martin J. Bligh" <mbligh@aracnet.com>
+Subject: Re: [RFC 2.6.11-rc2-mm2 7/7] mm: manual page migration -- sys_page_migrate
+Message-ID: <232990000.1108567298@[10.10.2.4]>
+In-Reply-To: <20050216100229.GB14545@wotan.suse.de>
+References: <20050215074906.01439d4e.pj@sgi.com> <20050215162135.GA22646@lnx-holt.americas.sgi.com> <20050215083529.2f80c294.pj@sgi.com> <20050215185943.GA24401@lnx-holt.americas.sgi.com> <16914.28795.316835.291470@wombat.chubb.wattle.id.au> <421283E6.9030707@sgi.com> <31650000.1108511464@flay> <421295FB.3050005@sgi.com> <20050216004401.GB8237@wotan.suse.de> <51210000.1108515262@flay> <20050216100229.GB14545@wotan.suse.de>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <20050216022009.7afb2e6d.pj@sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Paul Jackson <pj@SGI.com>
-Cc: Robin Holt <holt@SGI.com>, raybry@SGI.com, linux-mm@kvack.org, ak@muc.de, haveblue@us.ibm.com, marcello@cyclades.com, stevel@mwwireless.net, peterc@gelato.unsw.edu.au
+To: Andi Kleen <ak@suse.de>
+Cc: Ray Bryant <raybry@sgi.com>, Peter Chubb <peterc@gelato.unsw.edu.au>, raybry@austin.rr.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Feb 16, 2005 at 02:20:09AM -0800, Paul Jackson wrote:
-> The next concern that rises to the top for me was best expressed by Andi:
-> >
-> > The main reasons for that is that I don't think external
-> > processes should mess with virtual addresses of another process.
-> > It just feels unclean and has many drawbacks (parsing /proc/*/maps
-> > needs complicated user code, racy, locking difficult).  
-> > 
-> > In kernel space handling full VMs is much easier and safer due to better 
-> > locking facilities.
+--Andi Kleen <ak@suse.de> wrote (on Wednesday, February 16, 2005 11:02:29 +0100):
+
+>> I'm talking about doing it the other way around though - just allocating
+>> the memory local to the task, not bringing the task to the memory.
 > 
-> I share Andi's concerns, but I don't see what to do about this.  Andi's
-> recommendations seem to be about memory policies (which guide future
-> allocations), and not about migration of already allocated physical
-> pages.  So for now at least, his recommendations don't seem like answers
-> to me.
+> That is already how it works. If you take a look at the numastat
+> statistics, it does also work pretty work pretty well. I don't think
+> we have a problem in this area.
 
-If we had the ability to change the vendor provided software to meet
-our needs, that would be wonderful.
+>From reading the code (not actual experiments, yet), it seems like we won't
+even wake up the local kswapd until all the nodes are full. And all of the
+most recently allocated stuff will end up remote, which seems like a poor
+choice.
 
-Unfortunately, most of this type code runs on _MANY_ different OSs and
-architectures.  If you could get the NUMA api into everything from AIX
-to Windows XP, I think you would have a very good chance of convincing
-ISVs to start converting.  Until then, there is no clear win over first
-touch for their type of application.
+M.
 
-With that in mind, we are left with doing things from the outside in.
-Heck, if we could get them to change their code, cpusets would be
-irrelavent as well ;)
-
-Thanks,
-Robin
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
