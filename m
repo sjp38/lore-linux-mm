@@ -1,165 +1,113 @@
-Date: Thu, 3 Aug 2000 18:50:22 -0300 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
+Date: Thu, 3 Aug 2000 23:56:22 +0200
+From: Ingo Oeser <ingo.oeser@informatik.tu-chemnitz.de>
 Subject: Re: RFC: design for new VM
-In-Reply-To: <3989C752.DFA26462@norran.net>
-Message-ID: <Pine.LNX.4.21.0008031703250.24022-100000@duckman.distro.conectiva>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Message-ID: <20000803235622.D759@nightmaster.csn.tu-chemnitz.de>
+References: <20000803213705.C759@nightmaster.csn.tu-chemnitz.de> <Pine.LNX.4.10.10008031324490.6528-100000@penguin.transmeta.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.10.10008031324490.6528-100000@penguin.transmeta.com>; from torvalds@transmeta.com on Thu, Aug 03, 2000 at 01:40:59PM -0700
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Roger Larsson <roger.larsson@norran.net>
-Cc: linux-mm@kvack.org, "Scott F. Kaplan" <sfkaplan@cs.amherst.edu>
+To: Linus Torvalds <torvalds@transmeta.com>
+Cc: Rik van Riel <riel@conectiva.com.br>, linux-mm@kvack.org, linux-kernel@vger.rutgers.edu
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 3 Aug 2000, Roger Larsson wrote:
-
-> > - data structures (page lists)
-> >     - active list
-> >         - per node/pgdat
-> >         - contains pages with page->age > 0
-> >         - pages may be mapped into processes
-> >         - scanned and aged whenever we are short
-> >           on free + inactive pages
-> >         - maybe multiple lists for different ages,
-> >           to be better resistant against streaming IO
-> >           (and for lower overhead)
+On Thu, Aug 03, 2000 at 01:40:59PM -0700, Linus Torvalds wrote:
+> >    -  state transistions _require_ reordering, which will affect
+> >       all scanners
 > 
-> Does this really need to be a list? Since most pages should
-> be on this list can't it be virtual - pages on no other list
-> are on active list. All pages are scanned all the time...
-
-It doesn't have to be a list per se, but since we have the
-list head in the page struct anyway we might as well make
-it one.
-
-> >     - inactive_dirty list
-> >         - per zone
-> >         - contains dirty, old pages (page->age == 0)
-> >         - pages are not mapped in any process
-> >     - inactive_clean list
-> >         - per zone
-> >         - contains clean, old pages
-> >         - can be reused by __alloc_pages, like free pages
-> >         - pages are not mapped in any process
+> NO.
 > 
-> What will happen to pages on these lists if pages gets referenced?
-> * Move them back to the active list? Then it is hard to know how 
->   many free able pages there really are...
+> All your arguments are wrong.
+ 
+Hmm, so I think I use wrong assumptions then...
 
-Indeed, we will move such a page back to the active list.
-"Luckily" the inactive pages are not mapped, so we have to
-locate them through find_page_nolock() and friends, which
-allows us to move the page back to the active list, adjust
-statistics and maybe even wake up kswapd as needed.
+I assumed all lists we talk about are circular and double chained
+(either your single list or Riks state lists).
 
-> > - other data structures
-> >     - int memory_pressure
-> >         - on page allocation or reclaim, memory_pressure++
-> >         - on page freeing, memory_pressure--  (keep it >= 0, though)
-> >         - decayed on a regular basis (eg. every second x -= x>>6)
-> >         - used to determine inactive_target
-> >     - inactive_target == one (two?) second(s) worth of memory_pressure,
-> >       which is the amount of page reclaims we'll do in one second
-> >         - free + inactive_clean >= zone->pages_high
-> >         - free + inactive_clean + inactive_dirty >= zone->pages_high \
-> >                 + one_second_of_memory_pressure * (zone_size / memory_size)
+I also assumed your markers are nothing but a normal element of
+the list, that is just skipped, but don't cause a wraparound of
+each of the scanners.
+
+What happens, if one scanner decides to remove an element and
+insert it elsewhere (to achieve it's special ordering)?
+
+Or are all elements only touched but the ordering is only changed
+by removing in the middle and appending only to either head or
+tail of this list?
+
+> Think about it _another_ way instead:
+>  - the "multiple lists" case is provably a sub-case of the "one list,
+>    scanners only care about their type of entries".
+
+Got this concept (I think).
+
+>  - the "one list" _allows_ for (but does not require) "mixing metaphors",
+>    ie a scanner _can_ see and _can_ modify an entry that wouldn't be on
+>    "it's list".
+
+That's what I would like to avoid. I don't like to idea of
+multiple "states" per page. I would like to scan all pages, that
+are *guaranteed* to have a special state and catch their
+transistions. I prefer clean automata design for this.
+
+To get back to my encrypted swap example:
+
+   -  I only have to catch the transistions to "inactive_dirty" for
+      encryption (if the page is considered for real swap) and
+      mark it "PG_Encrypted".
+
+   -  I only have to catch the transition to "active" and only
+      have to check for "PG_Encrypted", decrypt and clear this
+      flag.
+      
+   -  Or I use a new list "encrypted" and do a transistion from
+      "encryped" to "active" and "inactive_dirty" to "encrypted"
+      including right points in the VM, which would be more like
+      adding a layer instead of creating a kludge.
+      
+I still couldn't figure out, how to do it for our kernels
+floating around, since I don't get a clean state transition
+diagram :-(
+
+> In it's purest case you can think of the list as multiple independent 
+> lists. But you can also allow the entries to interact if you wish. 
+ 
+> And that's my beef with this: I can see a direct mapping from the multiple
+> list case to the single list case. Which means that the multiple list case
+> simply _cannot_ do something that the single-list case couldn't do.
+ 
+Agree. There ist just a bit more atomicy between the scanners,
+thats all I think. And of course states are exlusive instead of
+possibly inclusive.
+
+> (The reverse is also true: the single list can have the list entries
+> interact. That's logically equivalent to the case of the multi-list
+> implementation moving an entry from one list to another)
 > 
-> One of the most interesting aspects (IMHO) of Scott F. Kaplands
-> "Compressed Cache and Virtual Memory Simulation" was the use of
-> VM time instead of wall time. One second could be too long of a
-> reaction time - relative to X allocations/sec etc.
+> So a single list is basically equivalent to multi-list, as long as the
+> decisions to move and re-order entries are equivalent.
 
-It's just the inactive target. Trying to keep one second of
-unmapped pages with page->age==0 around is mainly done to:
-- make sure we can flush all of them on time
-- put an "appropriate" amount of pressure on the
-  pages in the active list, so page aging is smoothed
-  out a little bit
+Agreed.
 
-> >     - inactive_target will be limited to some sane maximum
-> >       (like, num_physpages / 4)
-> 
-> Question: Why is this needed?
-> Answer: Due to high memory_pressure can only exist momentarily.
-> And can pollute our statistics.
+> Let me re-iterate: I'm not arguing against multi-lists. I'm arguing about
+> people being apparently dishonest and saying that the multi-lists are
+> somehow able to do things that the current VM wouldn't be able to do.
 
-Indeed. Imagine Netscape starting on a 32MB machine. 10MB
-allocated within the second, but there's no way we want the
-inactive list to grow to that size...
+Got that.
 
-> > The idea is that when we have enough old (inactive + free)
-> > pages, we will NEVER move pages from the active list to the
-> > inactive lists. We do that because we'd rather wait for some
-> > IO completion than evict the wrong page.
-> 
-> So, will the scanning stop then??? And referenced builds up.
-> Or will there be pages with age == 0 on the active list?
+Its the features, that multiple lists *lack* , what makes them
+attractive to _my_ eyes. You are the one, that has the last
+word, I just want to make sure, you've seen all the implications
+and I'm only stupid to assume, you didn't do that ;-)
 
-Active scanning goes on only when we have a shortage of
-inactive pages. Also, when aren't scanning, the page
-age of no page will magically change to 0 ;)
+Regards
 
-> This contradicts "very light background ageing" earlier.
-
-Nope. If the system does no scanning of pages for some
-time (say 1 minute), we will simply scan some fraction
-of the inactive list. That way we can guarantee that
-we'll not have OLD referenced bits lingering around and
-messing up page aging when we start running out of memory.
-
-> > If memory_pressure is high and we're doing a lot of dirty
-> > disk writes, the bdflush percentage will kick in and we'll
-> > be doing extra-agressive cleaning. In that case bdflush
-> > will automatically become more agressive the more page
-> > replacement is going on, which is a good thing.
-> 
-> I think that one of the omissions in Kaplands report is the
-> time it takes to clean dirty pages. (Or have I missed
-> something... Need to select the pages earlier)
-
-Page replacement (select which page to replace) should always
-be independant from page flushing. You can make pretty decent
-decisions on which page(s) to free and the last thing you want
-is having them messed up by page flushing.
-
-> >                 Misc
-> > 
-> > Page aging and flushing are completely separated in this
-> > scheme. We'll never end up aging and freeing a "wrong" clean
-> > page because we're waiting for IO completion of old and
-> > to-be-freed pages.
-> 
-> Is page ageing modification of LRU enough?
-
-It seems to work fine for FreeBSD. Also, we can always change
-the "aging" of the active pages with something else. The
-system is modular enough that we can do that.
-
-> In many cases it will probably behave worse than plain LRU
-> (slower phase adaptions).
-
-We can change that by using exponential decay for the page
-age, or by using some different aging technique...
-
-> The access pattern diagrams in Kaplans report are very
-> enlightening...
-
-They are very interesting indeed, but I miss one very
-common workload in their report. A lot of systems do
-(multimedia) streaming IO these days, where a lot of
-data passes through the cache quickly, but all of the
-data is only touched once (or maybe twice).
-
-regards,
-
-Rik
---
-"What you're running that piece of shit Gnome?!?!"
-       -- Miguel de Icaza, UKUUG 2000
-
-http://www.conectiva.com/		http://www.surriel.com/
-
-
+Ingo Oeser
+-- 
+Feel the power of the penguin - run linux@your.pc
+<esc>:x
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
