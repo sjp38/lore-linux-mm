@@ -1,51 +1,55 @@
-Date: Mon, 13 Jul 1998 14:23:56 +0100
-Message-Id: <199807131323.OAA06205@dax.dcs.ed.ac.uk>
+Received: from haymarket.ed.ac.uk (haymarket.ed.ac.uk [129.215.128.53])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id MAA04815
+	for <linux-mm@kvack.org>; Mon, 13 Jul 1998 12:57:20 -0400
+Date: Mon, 13 Jul 1998 17:53:55 +0100
+Message-Id: <199807131653.RAA06838@dax.dcs.ed.ac.uk>
 From: "Stephen C. Tweedie" <sct@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Subject: Re: cp file /dev/zero <-> cache [was Re: increasing page size]
-In-Reply-To: <Pine.LNX.3.96.980712002155.8107D-100000@mirkwood.dummy.home>
-References: <199807112123.WAA03437@dax.dcs.ed.ac.uk>
-	<Pine.LNX.3.96.980712002155.8107D-100000@mirkwood.dummy.home>
+Subject: More info: 2.1.108 page cache performance on low memory
 Sender: owner-linux-mm@kvack.org
-To: Rik van Riel <H.H.vanRiel@phys.uu.nl>
-Cc: "Stephen C. Tweedie" <sct@redhat.com>, "Benjamin C.R. LaHaise" <blah@kvack.org>, Linux MM <linux-mm@kvack.org>
+To: linux-mm@kvack.org
+Cc: Rik van Riel <H.H.vanRiel@fys.ruu.nl>, Ingo Molnar <mingo@valerie.inf.elte.hu>, Benjamin LaHaise <bcrlahai@calum.csclub.uwaterloo.ca>, Alan Cox <number6@the-village.bc.nu>, Linus Torvalds <torvalds@transmeta.com>, Stephen Tweedie <sct@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+Hi all,
 
-On Sun, 12 Jul 1998 00:25:20 +0200 (CEST), Rik van Riel
-<H.H.vanRiel@phys.uu.nl> said:
+OK, a bit more benchmarking is showing bad problems with page ageing.
+I've been running 2.1 with a big ramdisk and without, with page ageing
+and without.  The results for a simple compile job (make a few
+dependency files then compile four .c files) look like this:
 
-> On Sat, 11 Jul 1998, Stephen C. Tweedie wrote:
->> On Sat, 11 Jul 1998 16:14:26 +0200 (CEST), Rik van Riel
->> <H.H.vanRiel@phys.uu.nl> said:
->> 
->> > I'd think we'll want 4 levels, with each 'lower'
->> > level having 30% to 70% more pages than the level
->> 
->> Personally, I think just a two-level LRU ought to be adequat.   Yes, I
->> know this implies getting rid of some of the page ageing from 2.1 again,
->> but frankly, that code seems to be more painful than it's worth.  The
->> "solution" of calling shrink_mmap multiple times just makes the
->> algorithm hideously expensive to execute.
+	2.0.34, 6m ram:			1:22
 
-> This could be adequat, but then we will want to maintain
-> an active:inactive ratio of 1:2, in order to get a somewhat
-> realistic aging effect on the LRU inactive pages.
+	2.1.108, 16m ram, 10m ramdisk:
+		With page cache ageing:	Not usable (swap death during boot.)
+		Without cache ageing:	8:47
 
-Aging is not a good thing in the cache, in general.  We _want_ to be
-able to empty the cache at short notice.  LRU works for that.  The
-existing physical scan is definitely suboptimal without ageing, but that
-doesn't mean that aging is the right answer.  (I tried doing buffer
-ageing in the original kswap.  It sucked.)
+	2.1.108, 6m ram:
+		With page cache ageing:	4:14
+		Without cache ageing:	3:22
 
-> Or maybe we want to do a 3-level thingy, inactive in LRU
-> order and active and hyperactive (wired?) with aging.
+So we can see that on these low memory configurations, the page cache
+ageing is a definite performance loss.  The situation with the ramdisk
+is VERY markedly worse, which I think we can attribute to an
+overly-large page cache due to the %age-physical-memory tuning
+parameters; I'll be following this up to check (that's easy, since those
+parameters are sysctl-able).  This is not an artificial situation:
+having the page cache limits fixed in terms of %age of physical pages is
+just not going to work if you can have large numbers of those pages
+locked down for particular purposes.  Effectively we're reducing the
+size of the page pool without the vm taking it into account.
 
-If we have more than 2 levels, then we definitely don't want ageing:
-just let migration of pages between the levels do the ageing for us.
+Performance sucks overall compared to 2.0.  That may well be due to the
+extra memory lost to the inode and dirent caches on 2.1, which tend to
+grow much more than they did before; it may be that we can address that
+without too much pain.  It is certainly possible to trim back the
+kernel's ability to stop caching unused inodes/dirents, and although a
+self-tuning system will be necessary in the long term, putting bounds on
+these caches will at least let us see if this is where things are going
+wrong.
+
+I'll be experimenting a bit more to try to identify just where the
+performance is disappearing here.  However you look at it, things look
+pretty grim on 2.1 right now on low memory machines.
 
 --Stephen
 --
