@@ -1,46 +1,72 @@
-From: "William J. Earl" <wje@cthulhu.engr.sgi.com>
+Date: Wed, 22 Dec 1999 23:00:40 -0500 (EST)
+From: Chuck Lever <cel@monkey.org>
+Subject: Re: [patch] mmap<->write deadlock fix, plus bug in block_write_zero_range
+In-Reply-To: <Pine.LNX.3.96.991222103000.22064A-100000@kanga.kvack.org>
+Message-ID: <Pine.BSO.4.10.9912222254540.25860-100000@funky.monkey.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Message-ID: <14433.38570.874925.968449@liveoak.engr.sgi.com>
-Date: Wed, 22 Dec 1999 19:27:38 -0800 (PST)
-Subject: Re: (reiserfs) Re: RFC: Re: journal ports for 2.3?
-In-Reply-To: <386153A8.C8366F70@starnet.gov.sg>
-References: <Pine.LNX.4.21.9912211056520.24670-100000@Fibonacci.suse.de>
-	<Pine.LNX.3.96.991221200955.16115B-100000@kanga.kvack.org>
-	<14433.20097.10335.102803@dukat.scot.redhat.com>
-	<386153A8.C8366F70@starnet.gov.sg>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Tan Pong Heng <pongheng@starnet.gov.sg>
-Cc: "Stephen C. Tweedie" <sct@redhat.com>, "Benjamin C.R. LaHaise" <blah@kvack.org>, Andrea Arcangeli <andrea@suse.de>, Chris Mason <clmsys@osfmail.isc.rit.edu>, reiserfs@devlinux.com, linux-fsdevel@vger.rutgers.edu, linux-mm@kvack.org, Ingo Molnar <mingo@redhat.com>, Linus Torvalds <torvalds@transmeta.com>
+To: "Benjamin C.R. LaHaise" <blah@kvack.org>
+Cc: Linus Torvalds <torvalds@transmeta.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Tan Pong Heng writes:
-...
- > I was thinking that, unless you want to have FS specific buffer/page cache,
- > there is alway a gain for a unified cache for all fs. I think the one piece
- > of functionality missing from the 2.3 implementation is the dependency
- > between the various pages. If you could specify a tree relations between
- > the various subset of the buffer/page and the reclaim machanism honor
- > that everything should be fine. For FS that does not care about ordering,
- > they could simply ignore this capability and the machanism could assume
- > that everything is in one big set and could be reclaimed in any order.
-...
+On Wed, 22 Dec 1999, Benjamin C.R. LaHaise wrote:
+> On Wed, 22 Dec 1999, Chuck Lever wrote:
+> > On Wed, 22 Dec 1999, Benjamin C.R. LaHaise wrote:
+> > i've tried this before several times.  i could never get the system to
+> > perform as well under benchmark load using find_page_nolock as when using
+> > find_get_page. the throughput difference was about 5%, if i recall.  i
+> > haven't explained this to myself yet.
+>
+> Here's my hypothesis about why find_page_nolock vs find_get_page makes a
+> difference: using find_page_nolock means that we'll never do a
+> run_task_queue(&tq_disk); to get our async readahead requests run.  So, in
+> theory, doing that in filemap_nopage will restore performance.  Isn't
+> there a way that the choice of when to run tq_disk could be made a bit
+> less arbitrary?
 
-      For the XFS port, we have been working on this, since XFS very much
-wants to cluster logically adjacent delayed-allocation (and delayed-write) pages
-together to optimize writes.  That is, if the someone who wants to write
-back a dirty page to disk asks the file system to do so, then the file
-system wants to find all nearby pages (nearby in the file, not necessarily
-in memory).   The file system looks up the extent in which the page resides,
-or allocates an extent if the page is part of a delayed allocation, and
-then writes all of the pages in the extent at once.  Given the present
-data structures, this is done by probing the page cache for each page
-in the extent.  If the page cache were indexed by a per-inode AVL tree
-(or other ordered index), then collecting adjacent pages would be cheaper.
-Compared to a disk I/O, hash table probes are still relatively low in cost,
-but it would be possible to do a bit better with some ordered index.
+this patch appears to have negligible effect on benchmark throughput
+measurements, whereas, without the run_task_queue, throughput drops.
+
+btw, i notice that a "read_cache_page" function has appeared that looks
+similar to "page_cache_read" -- is there necessity for both?
+
+--- linux-2.3.34-ref/mm/filemap.c	Wed Dec 22 21:23:03 1999
++++ linux/mm/filemap.c	Wed Dec 22 22:53:19 1999
+@@ -1325,9 +1325,13 @@
+ 	 */
+ 	hash = page_hash(&inode->i_data, pgoff);
+ retry_find:
+-	page = __find_get_page(&inode->i_data, pgoff, hash);
++	spin_lock(&pagecache_lock);
++	page = __find_page_nolock(&inode->i_data, pgoff, *hash);
+ 	if (!page)
+ 		goto no_cached_page;
++	get_page(page);
++	spin_unlock(&pagecache_lock);
++	run_task_queue(&tq_disk);
+ 
+ 	/*
+ 	 * Ok, found a page in the page cache, now we need to check
+@@ -1358,6 +1362,8 @@
+ 	return old_page;
+ 
+ no_cached_page:
++	spin_unlock(&pagecache_lock);
++
+ 	/*
+ 	 * If the requested offset is within our file, try to read a whole 
+ 	 * cluster of pages at once.
+
+	- Chuck Lever
+--
+corporate:	<chuckl@netscape.com>
+personal:	<chucklever@netscape.net> or <cel@monkey.org>
+
+The Linux Scalability project:
+	http://www.citi.umich.edu/projects/linux-scalability/
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
