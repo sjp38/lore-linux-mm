@@ -1,50 +1,37 @@
-Date: 14 Jan 2005 12:11:21 +0100
-Date: Fri, 14 Jan 2005 12:11:21 +0100
-From: Andi Kleen <ak@muc.de>
-Subject: Re: page table lock patch V15 [0/7]: overview II
-Message-ID: <20050114111121.GA81555@muc.de>
-References: <Pine.LNX.4.58.0501121611590.12872@schroedinger.engr.sgi.com> <20050113031807.GA97340@muc.de> <Pine.LNX.4.58.0501130907050.18742@schroedinger.engr.sgi.com> <20050113180205.GA17600@muc.de> <Pine.LNX.4.58.0501131701150.21743@schroedinger.engr.sgi.com> <20050114043944.GB41559@muc.de> <m14qhkr4sd.fsf_-_@muc.de> <1105678742.5402.109.camel@npiggin-nld.site> <20050114104732.GB72915@muc.de> <41E7A58C.5010805@yahoo.com.au>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <41E7A58C.5010805@yahoo.com.au>
+Date: Fri, 14 Jan 2005 13:02:28 +0100 (CET)
+From: Roman Zippel <zippel@linux-m68k.org>
+Subject: Re: page table lock patch V15 [0/7]: overview
+In-Reply-To: <20050114041421.GA41559@muc.de>
+Message-ID: <Pine.LNX.4.61.0501141255130.30794@scrub.home>
+References: <Pine.LNX.4.58.0501041129030.805@schroedinger.engr.sgi.com>
+ <Pine.LNX.4.58.0501041137410.805@schroedinger.engr.sgi.com> <m1652ddljp.fsf@muc.de>
+ <Pine.LNX.4.58.0501110937450.32744@schroedinger.engr.sgi.com>
+ <41E4BCBE.2010001@yahoo.com.au> <20050112014235.7095dcf4.akpm@osdl.org>
+ <Pine.LNX.4.58.0501120833060.10380@schroedinger.engr.sgi.com>
+ <20050112104326.69b99298.akpm@osdl.org> <Pine.LNX.4.58.0501121055490.11169@schroedinger.engr.sgi.com>
+ <41E73EE4.50200@linux-m68k.org> <20050114041421.GA41559@muc.de>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: clameter@sgi.com, Andrew Morton <akpm@osdl.org>, torvalds@osdl.org, hugh@veritas.com, linux-mm@kvack.org, linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org, benh@kernel.crashing.org
+To: Andi Kleen <ak@muc.de>
+Cc: Christoph Lameter <clameter@sgi.com>, Andrew Morton <akpm@osdl.org>, nickpiggin@yahoo.com.au, torvalds@osdl.org, hugh@veritas.com, linux-mm@kvack.org, linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org, benh@kernel.crashing.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Jan 14, 2005 at 09:57:16PM +1100, Nick Piggin wrote:
-> Andi Kleen wrote:
-> >>I have a question for the x86 gurus. We're currently using the lock
-> >>prefix for set_64bit. This will lock the bus for the RMW cycle, but
-> >>is it a prerequisite for the atomic 64-bit store? Even on UP?
-> >
-> >
-> >An atomic 64bit store doesn't need a lock prefix. A cmpxchg will
-> >need to though.
+Hi,
+
+On Fri, 14 Jan 2005, Andi Kleen wrote:
+
+> > But there might be a loss in the UP case. Spinlocks are optimized away, 
+> > but your cmpxchg emulation enables/disables interrupts with every access.
 > 
-> Are you sure the cmpxchg8b need a lock prefix? Sure it does to
+> Only for 386s and STI/CLI is quite cheap there.
 
-If you want it to be atomic on SMP then yes.
+But it's still not free and what about other archs? Why not just check 
+__HAVE_ARCH_CMPXCHG and provide a replacement, which is guaranteed cheaper 
+if no interrupt synchronisation is needed. 
 
-> get the proper "atomic cmpxchg" semantics, but what about a
-> simple 64-bit store... If it boils down to 8 byte load, 8 byte
-
-A 64bit store with a 64bit store instruction is atomic. But 
-to do that on 32bit x86 you need SSE/MMX (not an option in the kernel)
-or cmpxchg8 
-
-> store on the memory bus, and that store is atomic, then maybe
-> a lock isn't needed at all?
-
-More complex operations than store or load are not atomic without
-LOCK (and not all operations can have a lock prefix). There are a few 
-instructions with implicit lock. If you want the gory details read 
-chapter 7 in the IA32 Software Developer's Manual Volume 3.
-
--Andi
-
+bye, Roman
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
