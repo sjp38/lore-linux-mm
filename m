@@ -1,135 +1,57 @@
-Date: Sun, 25 Aug 2002 23:22:54 +0100 (IST)
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: 2.4.19 Vs 2.4.19-rmap14a with anonymous mmaped memory
-Message-ID: <Pine.LNX.4.44.0208252220030.31523-100000@skynet>
+Message-ID: <3D6989F7.9ED1948A@zip.com.au>
+Date: Sun, 25 Aug 2002 18:52:55 -0700
+From: Andrew Morton <akpm@zip.com.au>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: MM patches against 2.5.31
+References: <3D644C70.6D100EA5@zip.com.au> <20020822112806.28099.qmail@thales.mathematik.uni-ulm.de>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org
+To: Christian Ehrhardt <ehrhardt@mathematik.uni-ulm.de>
+Cc: lkml <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-I ran a brief series of tests on a small crash box. the intention was to
-see what sort of figures and conclusions could be gathered with VM Regress
-in it's current public release. VM Regress is the beginnings of a tool
-that ultimatly aims to answer questions about the VM by testing and
-benchmarking individual parts of it. The conclusions drawn here are
-extremly ad-hoc so take them with a very large grain of salt.
+Christian Ehrhardt wrote:
+> 
+> On Wed, Aug 21, 2002 at 07:29:04PM -0700, Andrew Morton wrote:
+> >
+> > I've uploaded a rollup of pending fixes and feature work
+> > against 2.5.31 to
+> >
+> > http://www.zip.com.au/~akpm/linux/patches/2.5/2.5.31/2.5.31-mm1/
+> >
+> > The rolled up patch there is suitable for ongoing testing and
+> > development.  The individual patches are in the broken-out/
+> > directory and should all be documented.
+> 
+> Sorry, but we still have the page release race in multiple places.
+> Look at the following (page starts with page_count == 1):
+> 
 
-4 tests were run on each machine each related to anonymous memory used in
-a mmaped region. Two reference patterns were used. smooth_sin and
-smooth_sin-random . Both sets show a sin curve when the number of times
-each page is referenced is graphed (See the green line in the graph Pages
-Present/Swapped). With smooth_sin, the pages are reffered to in order.
-With smooth_sin-random, the pages are referenced in a random order but the
-amount of times a page is referenced.
+So we do.  It's a hugely improbable race, so there's no huge rush
+to fix it.  Looks like the same race is present in -ac kernels,
+actually, if add_to_swap() fails.  Also perhaps 2.4 is exposed if
+swap_writepage() is synchronous, and page reclaim races with 
+zap_page_range.  ho-hum.
 
-Both patterns are tested with 2,000,000 page references made to a mmaped
-region. The first memory mapped region is 25000 pages large, about the
-size of physical memory on the machine. The second was with 50000.
-Unfortunatly detailed statistical information is unavailable, but some
-conclusions can still be drawn. Statistical information is aimed to be
-available at least by 0.9
 
-Test 1 - smooth-sin_25000
-http://www.csn.ul.ie/~mel/vmr/2.4.19/smooth_sin_25000/mapanon.html
-http://www.csn.ul.ie/~mel/vmr/2.4.19-rmap14a/smooth_sin_25000/mapanon.html
+What I'm inclined to do there is to change __page_cache_release()
+to not attempt to free the page at all.  Just let it sit on the
+LRU until page reclaim encounters it.  With the anon-free-via-pagevec
+patch, very, very, very few pages actually get their final release in
+__page_cache_release() - zero on uniprocessor, I expect.
 
-Behaviour is pretty much comparable. The average page access times look
-roughly the same so at the very least the performance is similiar. rmap14a
-did perform faster but hte test wasn't long enough to be conclusive. All
-in all, when enough physical memory is avilable, rmap14a and stock will
-perform roughly the same with a linear reference pattern and enough memory
-is available.
+And change pagevec_release() to take the LRU lock before dropping
+the refcount on the pages.
 
-Test 2 - smooth-sin-random_25000
-http://www.csn.ul.ie/~mel/vmr/2.4.19/smooth_sin-random_25000/mapanon.html
-http://www.csn.ul.ie/~mel/vmr/2.4.19-rmap14a/smooth_sin-random_25000/mapanon.html
+That means there will need to be two flavours of pagevec_release():
+one which expects the pages to become freeable (and takes the LRU
+lock in anticipation of this).  And one which doesn't expect the
+pages to become freeable.  The latter will leave the occasional
+zero-count page on the LRU, as above.
 
-here, the average performanceremains roughly the same. It is interesting
-to note that rmap14a had periodic large access times to pages and it's
-unclea. Despite this, rmap14a still completed the test faster. So again,
-with enough memory available, the performance remains roughly the same
-even with a relatively random page reference pattern
-
-Test 3 - smooth_sin_50000
-http://www.csn.ul.ie/~mel/vmr/2.4.19/smooth_sin_50000/mapanon.html
-http://www.csn.ul.ie/~mel/vmr/2.4.19-rmap14a/smooth_sin_50000/mapanon.html
-
-This test is interesting. Remember that the references are linear in
-memory. At about the 1,000,000 page reference, physical memory is
-exhausted. Both tests completed in the same time so in "raw performance"
-they would appear the same but not so. The time access graph shows that
-for most of the test, rmap14a performed much better on average except
-for the occasional large spikes. At the end, it degrades very quickly but
-is still faster than the stock kernel about about 300000 microseconds to
-access a page which the unscaled graphs show
-
-http://www.csn.ul.ie/~mel/vmr/2.4.19/smooth_sin_50000/mapanon-time-unscaled.png
-http://www.csn.ul.ie/~mel/vmr/2.4.19-rmap14a/smooth_sin_50000/mapanon-time-unscaled.png
-
-This would appear consistent with reports that the stock kernel degrades
-slowly where rmap seems to fall apart really quickly in some situations.
-
-It is suspected that the large periodic spikes are where the proper page
-to select out is found but it's pure guesswork and VM Regress is not at
-the point where it can investigate more.
-
-The second point of note is the present pages at the end of the test.
-stock makes no attempt to keep certain pages in memory. When physical
-memory is out, it swaps out enitre processes unconditionally. rmap14a
-tries to keep the proper pages in memory and the page reference vs
-presense graph shows that it did. stock has a large block of pages
-present, rmap14a had swapped out some pages from the beginning of the
-test.
-
-In this case, stock just happened to swap out correctly because the pages
-remove were not going to be used again in this particular case
-
-Test 4 - smooth_sin-random
-http://www.csn.ul.ie/~mel/vmr/2.4.19/smooth_sin-random_50000/mapanon.html
-http://www.csn.ul.ie/~mel/vmr/2.4.19-rmap14a/smooth_sin-random_50000/mapanon.html
-
-With this test, the page references are in random order so determining
-which page to remove is much more difficult. rmap14a completed this test
-almost 10 minutes quicker than stock.
-
-The average time for the stock kernel is consistently bad. I am guessing
-that this is because the kernel consistently ends up swapping out the
-entire process. rmap has periods of quick accesses with unfortunatly large
-spikes because it is trying to keep the right pages in memory and a lot of
-the time gets it right. This is better than stock kernel which never keeps
-the right pages in memory.
-
-Conclusion
-
-It is hard to draw solid conclusions because large gaps still exist in the
-data but some can be drawn. I am sure an experienced VM developer will be
-able to draw much more reliable conclusions :-)
-
-First, when enough physical memory is available, rmap and stock perform
-more or less the same so appreciatable overhead is not introduced for
-normal anonymous memory use.
-
-Second, when memory is tight, the type of memory reference behaviour will
-determine how good or bad the two will perform. With a strictly linear
-pattern, stock will perform better because it just dumps all the old pages
-en-mass. I seriously doubt this reference is common.
-
-For other patterns with large anonymous page use, rmap is more likely to
-perform better because it tries to keep anonymous pages in memory. Even
-with a totally random pattern, it'll perform reasonably well.
-
-Lastly, it is obvious from the tests that for deciding which page to swap,
-age is more important than frequency but that is already known. The page
-age graphs are on the way and will be available in VM Regress 0.7
-
--- 
-Mel Gorman
-MSc Student, University of Limerick
-http://www.csn.ul.ie/~mel
-
+Sound sane?
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
