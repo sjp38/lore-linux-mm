@@ -1,40 +1,68 @@
-Content-class: urn:content-classes:message
-MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="iso-8859-1"
-Content-Transfer-Encoding: 8BIT
-Subject: RE: Which is the proper way to bring in the backing store behindan inode as an struct page?
-Date: Fri, 2 Jul 2004 12:42:26 -0700
-Message-ID: <F989B1573A3A644BAB3920FBECA4D25A6EBEE1@orsmsx407>
-From: "Perez-Gonzalez, Inaky" <inaky.perez-gonzalez@intel.com>
+Date: Fri, 2 Jul 2004 14:42:47 -0700
+From: Andrew Morton <akpm@osdl.org>
+Subject: Re: [Bug 2995] New: madvise runs sucessfully for non-file mapped
+ pages
+Message-Id: <20040702144247.21233498.akpm@osdl.org>
+In-Reply-To: <200407011338.i61DcD1B011203@fire-2.osdl.org>
+References: <200407011338.i61DcD1B011203@fire-2.osdl.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Hansen <haveblue@us.ibm.com>
-Cc: linux-mm <linux-mm@kvack.org>
+To: susharma@in.ibm.com
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> From: Dave Hansen [mailto:haveblue@us.ibm.com]
-> On Thu, 2004-07-01 at 23:34, Perez-Gonzalez, Inaky wrote:
-> > Thus, what I need is a way that given the pair (inode,pgoff)
-> > returns to me the 'struct page *' if the thing is cached in memory or
-> > pulls it up from swap/file into memory and gets me a 'struct page *'.
-> >
-> > Is there a way to do this?
+Unless this is very new behaviour, I don't think we can fix this until 2.7.  Changing
+madvise's behaviour against anonymous memory addresses could break existing
+applications.
+
+bugme-daemon@osdl.org wrote:
+>
+> http://bugme.osdl.org/show_bug.cgi?id=2995
 > 
-> Do you have the VMA?  Why not just use the user mapping, and something
-> like copy_to_user()?  It already handles all of the mess getting the
-> page into memory and pulling it out of swap if necessary.
+>            Summary: madvise runs sucessfully for non-file mapped pages.
+>     Kernel Version: 2.6.5-7.81
+>             Status: NEW
+>           Severity: high
+>              Owner: akpm@digeo.com
+>          Submitter: susharma@in.ibm.com
 > 
-> If you go into the page cache yourself, you'll have to deal with all of
-> the usual !PageUptodate() and so forth.
-
-No, I don't have the VMA :(; I can't really do copy_to_user() as
-I just need to modify a word. I have gotten a suggestion to use
-find_get_page() -- I am exploring that right now.
-
-Thanks,
-
-Inaky Perez-Gonzalez -- Not speaking for Intel -- all opinions are my own (and my fault)
+> 
+> Distribution: SLES-9 [RC-2] 
+> Hardware Environment: x330, 2-Way, 1.0 GHz, 1.2 GB RAM 
+> Software Environment: SLES-9 [RC-2], Kernel - 2.6.5-7.81 
+> Problem Description: When you call madvise for a memory mapped area (allocated using 
+> malloc) which is not part of any file, it gets PASSED without giving EBADF error. 
+>  
+> Steps to reproduce: 
+> 1. Write a small program, in which allocate some memory (eg. 5 pages) like this :- 
+>  
+> 	char *ptr=NULL; 
+> 	ptr = (char *) malloc(5 * PAGE_SIZE); 
+>  
+>   Now, call madvise for this malloced memory area (which is a part of any file) :- 
+>  
+> 	ptr = (char *)(((int) ptr + PAGE_SIZE-1) & ~(PAGE_SIZE-1)); // Alignment 
+> 	if (madvise(ptr, 5 * PAGE_SIZE, MADV_NORMAL) < 0) 
+> 	{ 
+> 		perror("madvise failed"); 
+> 	} 
+> 	else 
+> 	{ 
+> 		printf("madvise passed\n"); 
+> 	} 
+>  
+> Here, if you run this code you will find that madvise is getting PASSED even when you have 
+> passed a memory area which is nowhere a part of file-mapped area. Actually, it should give 
+> error with error code EBADF. 
+>  
+> Additional Information : Please refer to the manpage of madvise for the condition when EBADF 
+> error code should be generated.
+> 
+> ------- You are receiving this mail because: -------
+> You are the assignee for the bug, or are watching the assignee.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
