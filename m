@@ -1,49 +1,38 @@
-Date: Mon, 4 Sep 2000 14:03:25 +0300
-From: Matti Aarnio <matti.aarnio@zmailer.org>
+Date: Mon, 4 Sep 2000 12:23:00 +0100 (BST)
+From: Tigran Aivazian <tigran@veritas.com>
 Subject: Re: stack overflow
-Message-ID: <20000904140325.Y22907@mea-ext.zmailer.org>
-References: <20000904104744.2259.qmail@web6402.mail.yahoo.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20000904104744.2259.qmail@web6402.mail.yahoo.com>; from zeshan_uet@yahoo.com on Mon, Sep 04, 2000 at 03:47:44AM -0700
+In-Reply-To: <20000904140325.Y22907@mea-ext.zmailer.org>
+Message-ID: <Pine.LNX.4.21.0009041219241.1639-100000@saturn.homenet>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Zeshan Ahmad <zeshan_uet@yahoo.com>
-Cc: linux-mm@kvack.org
+To: Matti Aarnio <matti.aarnio@zmailer.org>
+Cc: Zeshan Ahmad <zeshan_uet@yahoo.com>, linux-mm@kvack.org, Mark Hemment <markhe@veritas.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Sep 04, 2000 at 03:47:44AM -0700, Zeshan Ahmad wrote:
-> Hi
+On Mon, 4 Sep 2000, Matti Aarnio wrote:
+> > when the function kmem_cache_sizes_init is called in
+> > /init/main.c The exact place where the stack overflow
+> > occurs is in the function kmem_cache_slabmgmt in
+> > /mm/slab.c
+> > 
+> > Is there any way to change the stack size in Kernel?
+> > Can the change in stack size simply solve this Kernel
+> > stack overflow problem?
 > 
-> Can any1 tell me how can the stack size be changed in
-> the Kernel. i am experiencing a stack overflow problem
+> 	That is indicative that somewhere along the path
+> 	you are:  a) recursin
 
-	In kernel ?  DON'T!
+looking at the code, it seems in theory possible to recurse via
+kmem_cache_alloc()->kmem_cache_grow()->kmem_cache_slabmgmt()->kmem_cache_alloc() but
+I thought Mark invented offslab_limit to prevent this.
 
-> when the function kmem_cache_sizes_init is called in
-> /init/main.c The exact place where the stack overflow
-> occurs is in the function kmem_cache_slabmgmt in
-> /mm/slab.c
-> 
-> Is there any way to change the stack size in Kernel?
-> Can the change in stack size simply solve this Kernel
-> stack overflow problem?
+Maybe decreasing offslab_limit can help? Defer to Mark...
 
-	That is indicative that somewhere along the path
-	you are:  a) recursin, b) otherwise wasting stack
-	with too large local allocations (e.g. "auto"
-	variables).
+Regards,
+Tigran
 
-	In the kernel space: NEVER use stack-based buffers,
-	always  kmalloc().  (If they are more than 8-16 bytes
-	in size, that is.)  Similarly, NEVER use alloca() !
-
-> Urgent help is needed.
-> 
-> ZEESHAN
-
-/Matti Aarnio
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
