@@ -1,108 +1,88 @@
-Date: Thu, 10 Feb 2005 14:41:47 -0200
-From: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
+Message-ID: <420C4FEF.7040600@sgi.com>
+Date: Fri, 11 Feb 2005 00:25:51 -0600
+From: Ray Bryant <raybry@sgi.com>
+MIME-Version: 1.0
 Subject: Re: migration cache bug?
-Message-ID: <20050210164147.GA19877@logos.cnet>
-References: <420BB9E6.90303@sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <420BB9E6.90303@sgi.com>
+References: <420BB9E6.90303@sgi.com> <20050210164147.GA19877@logos.cnet>
+In-Reply-To: <20050210164147.GA19877@logos.cnet>
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ray Bryant <raybry@sgi.com>
+To: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
 Cc: Hirokazu Takahashi <taka@valinux.co.jp>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Ray, 
+Hi Marcelo,
 
-On Thu, Feb 10, 2005 at 01:45:42PM -0600, Ray Bryant wrote:
-> (Resending so this gets posted to linux-mm):
+Marcelo Tosatti wrote:
+
 > 
-> Hirokazu and Marcello,
+> Thing is the PTE should have been remapped by touch_unmapped_address() at
+> the end of generic_migrate_page() during the migration syscall.
+>
+
+It appears that get_user_pages() is returning -ENOMEM in 
+touch_unmapped_address(), so I'm assuming the page is not remapped
+by touch_umapped_address() for this reason.  My debug output looks like this
+for the first page to be migrated:
+
+touch_unmapped_address: mm=e00000b003de9b80 mm_users=3 addr=0x6000000000004000
+touch_unmapped_address: find_vma() returned e00001b03a8d9210
+do_swap_page: line 1369 file mm/memory.c returns VM_FAULT_OOM for pid 1995
+      addr=0x6000000000004000
+handle_pte_fault: line 1745 file mm/memory.c returns VM_FAULT_OOM for pid 1995
+      addr=0x6000000000004000
+get_user_pages: line 813 file mm/memory.c returns VM_FAULT_OOM for pid 1995
+      addr=0x6000000000004000
+touch_unmapped_address: get_user_pages() returned -12
+generic_migrate_page: newpage=a0007fffffce74e0 is PageMigration 1
+detach_from_migration_cache: page=a0007fffffce74e0
+try_to_migrate_pages: pass: 0 1st try migrated page a0007ffeafdd75b0 to 
+newpage a0007fffffce74e0 newnode 3
+. . .
+
+So I'm running into the same problem that will eventually cause the program
+to be killed during the call to get_user_pages() from 
+touch_unmapped_address().  (line 1369 in do_swap_page() is the same line
+as the one I described in my previous email.)
+
 > 
-> Here's some more information on this problem I am having with the
-> migration cache.
+> Can you find you why is touch_unmapped_address() failing to work? 
+>
+
+As discussed above.
+
+> To confirm this hypothesis, please comment the call to "detach_from_migration_cache(newpage)"
+> at the end of generic_migrate_pages().
 > 
-> (The problem is that the test application is failing after it returns
-> from the system call that migrated some of its address space from node
-> 0 to node 3 on my test box.  When the program touches the first page
-> in the range that was migrated, the process gets killed because
-> do_swap_page() returns VM_FAULT_OOM.  The test works fine if I remove
-> the migration cache patch.)
-
-Thing is the PTE should have been remapped by touch_unmapped_address() at
-the end of generic_migrate_page() during the migration syscall.
-
-Hirokazu implemented the set of changes which saves mm_struct,address pairs of corresponding
-page mappings on a list of "page_va_list" structures:
-
-struct page_va_list {
-        struct mm_struct *mm;
-        unsigned long addr;
-        struct list_head list;
-};
-
-To later on be able to redo the mapping (touch_unmapped_address).
-
-generic_migrate_pages() {
-	LIST_HEAD(vlist);
-...
-	if (page_mapped(page)) {
-                while ((ret = try_to_unmap(page, &vlist)) == SWAP_AGAIN)
-                        msleep(1);
-                if (ret != SWAP_SUCCESS) {
-                        ret = -EBUSY;
-                        goto out_busy;
-                }
-        }
-...
-        /* map the newpage where the old page have been mapped. */
-        touch_unmapped_address(&vlist);
-	if (PageMigration(newpage))
-		detach_from_migration_cache(newpage);       <---- comment it out to confirm
-	else if (PageSwapCache(newpage)) {
-		lock_page(newpage);
-		__remove_exclusive_swap_page(newpage, 1);
-		unlock_page(newpage);
-        }
-}
-
-Can you find you why is touch_unmapped_address() failing to work? 
-
-To confirm this hypothesis, please comment the call to "detach_from_migration_cache(newpage)"
-at the end of generic_migrate_pages().
-
-This should cause lookup_migration_cache() to succeed and remap the pte.
-
-Hope that helps.
-
-> It looks like the page is flagged as being a migration pte, the page
-> is found in the migration cache, but then the test
+> This should cause lookup_migration_cache() to succeed and remap the pte.
 > 
->            "likely(pte_same(*page_table, orig_pte))"
-> 
-> succeeds.  It's not obvious to me, at the moment, what this is supposed
-> to be doing.
-> 
-> Here is the code segment from do_swap_page(), with the debug printout
-> that was triggered:
-> 
-> again:
->         if (pte_is_migration(orig_pte)) {
->                 page = lookup_migration_cache(entry.val);
->                 if (!page) {
->                         spin_lock(&mm->page_table_lock);
->                         page_table = pte_offset_map(pmd, address);
->                         if (likely(pte_same(*page_table, orig_pte))) {
-> ==========================>     DEBUG_VM_KILL(address);
->                                 ret = VM_FAULT_OOM;
->                         }
->                         else
->                                 ret = VM_FAULT_MINOR;
->                         pte_unmap(page_table);
->                         spin_unlock(&mm->page_table_lock);
->                         goto out;
->                 }
+Unfortunately, it doesn't matter whether we call detach_from_migration_cache()
+or not.  The above trace does call it, but I've run it without that call as 
+well and the result is the same.  That is, the calling program is still
+getting killed after trying to touch the first migrated page after returning
+from the system call that initiates all of this.
+
+I'm starting to wonder if I am missing some crucial bit of code in the patches
+that I have applied to my tree.  Could you take a quick look at the migration
+cache patch that I sent you to see if it looks complete?  I'm guessing that
+lookup_migration_cache() is failing for some reason.  I did verify that
+add_to_migration_cache() is getting called and that it returns 0.
+
+I'm going to be out of the office for a week starting early Sat morning, so
+I may not be able to respond on this topic until the week of Feb 21st.
+
+-- 
+Best Regards,
+Ray
+-----------------------------------------------
+                   Ray Bryant
+512-453-9679 (work)         512-507-7807 (cell)
+raybry@sgi.com             raybry@austin.rr.com
+The box said: "Requires Windows 98 or better",
+            so I installed Linux.
+-----------------------------------------------
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
