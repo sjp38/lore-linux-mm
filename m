@@ -1,135 +1,51 @@
-Content-Type: text/plain;
-  charset="iso-8859-1"
-From: Ed Tomlinson <tomlins@cam.org>
-Subject: Re: 2.5.46-mm2 - oops
-Date: Sun, 10 Nov 2002 13:14:58 -0500
-References: <3DCDD9AC.C3FB30D9@digeo.com>
-In-Reply-To: <3DCDD9AC.C3FB30D9@digeo.com>
+Received: from digeo-nav01.digeo.com (digeo-nav01.digeo.com [192.168.1.233])
+	by packet.digeo.com (8.9.3+Sun/8.9.3) with SMTP id KAA19838
+	for <linux-mm@kvack.org>; Sun, 10 Nov 2002 10:52:19 -0800 (PST)
+Message-ID: <3DCEAAE3.C6EE63EF@digeo.com>
+Date: Sun, 10 Nov 2002 10:52:19 -0800
+From: Andrew Morton <akpm@digeo.com>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
-Message-Id: <200211101309.21447.tomlins@cam.org>
+Subject: Re: 2.5.46-mm2 - oops
+References: <3DCDD9AC.C3FB30D9@digeo.com> <200211101309.21447.tomlins@cam.org>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@digeo.com>, lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
-Cc: Chris Mason <mason@suse.com>
+To: Ed Tomlinson <tomlins@cam.org>
+Cc: lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Chris Mason <mason@suse.com>
 List-ID: <linux-mm.kvack.org>
 
-On November 9, 2002 10:59 pm, Andrew Morton wrote:
+Ed Tomlinson wrote:
+> 
+> On November 9, 2002 10:59 pm, Andrew Morton wrote:
+> 
+> > Of note in -mm2 is a patch from Chris Mason which teaches reiserfs to
+> > use the mpage code for reads - it should show a nice reduction in CPU
+> > load under reiserfs reads.
+> 
+> Booting into mm2 I get:
+> 
+> ...
+> Unable to handle kernel NULL pointer dereference at virtual address 00000004
+> 
+> ...
+> EIP is at mpage_readpages+0x47/0x140
 
-> Of note in -mm2 is a patch from Chris Mason which teaches reiserfs to
-> use the mpage code for reads - it should show a nice reduction in CPU
-> load under reiserfs reads.
+whoops.  The ->readpages API was changed...
 
-Booting into mm2 I get:
+--- 25/fs/reiserfs/inode.c~reiserfs-readpages-fix	Sun Nov 10 10:44:28 2002
++++ 25-akpm/fs/reiserfs/inode.c	Sun Nov 10 10:44:39 2002
+@@ -2081,7 +2081,7 @@ static int reiserfs_readpage (struct fil
+ }
+ 
+ static int
+-reiserfs_readpages(struct address_space *mapping,
++reiserfs_readpages(struct file *file, struct address_space *mapping,
+                struct list_head *pages, unsigned nr_pages)
+ {
+     return mpage_readpages(mapping, pages, nr_pages, reiserfs_get_block);
 
-
-VFS: Mounted root (reiserfs filesystem) readonly.
-Freeing unused kernel memory: 96k freed
-Unable to handle kernel NULL pointer dereference at virtual address 00000004
- printing eip:
-c015f967
-*pde = 00000000
-Oops: 0000
-
-CPU:    0
-EIP:    0060:[<c015f967>]    Not tainted
-EFLAGS: 00010203
-EIP is at mpage_readpages+0x47/0x140
-eax: df8db954   ebx: 00000000   ecx: dff89c30   edx: dff89c30
-esi: 00000007   edi: 00000000   ebp: dff89c30   esp: dff89b1c
-ds: 0068   es: 0068   ss: 0068
-Process swapper (pid: 1, threadinfo=dff88000 task=c151e040)
-Stack: 00000000 00000000 00000000 00000000 00000000 c0325760 dfb62cd4 c0145054
-       c0325740 c0145078 df90e6bc df90e6bc dfb62cd4 df90e654 df9577f4 df90e6f0
-       df90e688 dfb18620 c172f654 dfa33348 dfb62cd4 00002e7c 00000000 00000007
-Call Trace:
- [<c0145054>] bh_lru_install+0x94/0x100
- [<c0145078>] bh_lru_install+0xb8/0x100
- [<c0187716>] reiserfs_readpages+0x16/0x20
- [<c01847e0>] reiserfs_get_block+0x0/0x1000
- [<c013b9ac>] read_pages+0xec/0x100
- [<c0135d2c>] buffered_rmqueue+0xcc/0x180
- [<c01360a1>] __alloc_pages+0x81/0x220
- [<c013ba91>] do_page_cache_readahead+0xd1/0x160
- [<c013bb78>] page_cache_readahead+0x58/0x160
- [<c012dc4d>] do_generic_mapping_read+0x8d/0x3c0
- [<c012dfc0>] file_read_actor+0x0/0xe0
- [<c012e23f>] __generic_file_aio_read+0x19f/0x1e0
- [<c012dfc0>] file_read_actor+0x0/0xe0
- [<c012e358>] generic_file_read+0x78/0xa0
- [<c011609e>] mm_init+0xbe/0x100
- [<c0142546>] vfs_read+0xa6/0x100
- [<c014bbf8>] kernel_read+0x38/0x60
- [<c014bfed>] prepare_binprm+0xad/0xc0
- [<c014c570>] do_execve+0x1b0/0x260
- [<c0107833>] sys_execve+0x33/0x60
- [<c0109057>] syscall_call+0x7/0xb
- [<c010511f>] init+0xdf/0x160
- [<c0105040>] init+0x0/0x160
- [<c01070a1>] kernel_thread_helper+0x5/0x24
-
-Code: 8b 43 04 8d 73 f8 8b 13 89 42 04 89 10 ff 76 14 ff 74 24 74
- <0>Kernel panic: Attempted to kill init!
-
-or trying a second time:
-
-found reiserfs format "3.6" with standard journal
-Reiserfs journal params: device ide2(33,3), size 8192, journal first block 18, max trans len 1024, max batch 900, max
- commit age 30, max trans age 30
-reiserfs: checking transaction log (ide2(33,3)) for (ide2(33,3))
-Using r5 hash to sort names
-VFS: Mounted root (reiserfs filesystem) readonly.
-Freeing unused kernel memory: 96k freed
-Unable to handle kernel NULL pointer dereference at virtual address 00000004
- printing eip:
-c015f967
-*pde = 00000000
-Oops: 0000
-
-CPU:    0
-EIP:    0060:[<c015f967>]    Not tainted
-EFLAGS: 00010203
-EIP is at mpage_readpages+0x47/0x140
-eax: c17d5954   ebx: 00000000   ecx: dff89c30   edx: dff89c30
-esi: 00000007   edi: 00000000   ebp: dff89c30   esp: dff89b1c
-ds: 0068   es: 0068   ss: 0068
-Process swapper (pid: 1, threadinfo=dff88000 task=c151e040)
-Stack: 00000000 00000000 00000000 00000000 00000000 c151e040 c0320400 00000000
-       c01145a6 dff89b60 00000000 c151e040 00000004 00000004 dffe8b34 dffe8b34
-       dff89b88 c03a5b20 c0143d6d 00000000 c151e040 c0115ec0 dff89b94 00000007
-Call Trace:
- [<c01145a6>] do_schedule+0x186/0x300
- [<c0143d6d>] __wait_on_buffer+0xad/0xc0
- [<c0115ec0>] autoremove_wake_function+0x0/0x40
- [<c0187716>] reiserfs_readpages+0x16/0x20
- [<c01847e0>] reiserfs_get_block+0x0/0x1000
- [<c013b9ac>] read_pages+0xec/0x100
- [<c0135d2c>] buffered_rmqueue+0xcc/0x180
- [<c01360a1>] __alloc_pages+0x81/0x220
- [<c013ba91>] do_page_cache_readahead+0xd1/0x160
- [<c013bb78>] page_cache_readahead+0x58/0x160
- [<c012dc4d>] do_generic_mapping_read+0x8d/0x3c0
- [<c012dfc0>] file_read_actor+0x0/0xe0
- [<c012e23f>] __generic_file_aio_read+0x19f/0x1e0
- [<c012dfc0>] file_read_actor+0x0/0xe0
- [<c012e358>] generic_file_read+0x78/0xa0
- [<c011609e>] mm_init+0xbe/0x100
- [<c0142546>] vfs_read+0xa6/0x100
- [<c014bbf8>] kernel_read+0x38/0x60
- [<c014bfed>] prepare_binprm+0xad/0xc0
- [<c014c570>] do_execve+0x1b0/0x260
- [<c0107833>] sys_execve+0x33/0x60
- [<c0109057>] syscall_call+0x7/0xb
- [<c010511f>] init+0xdf/0x160
- [<c0105040>] init+0x0/0x160
- [<c01070a1>] kernel_thread_helper+0x5/0x24
-
-Code: 8b 43 04 8d 73 f8 8b 13 89 42 04 89 10 ff 76 14 ff 74 24 74
- <0>Kernel panic: Attempted to kill init!
-
-Hope this helps
-Ed Tomlinson
-
+_
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
