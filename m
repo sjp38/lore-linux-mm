@@ -1,36 +1,44 @@
 Received: from renko.ucs.ed.ac.uk (renko.ucs.ed.ac.uk [129.215.13.3])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id JAA05881
-	for <linux-mm@kvack.org>; Wed, 19 Aug 1998 09:50:53 -0400
-Date: Wed, 19 Aug 1998 13:01:41 +0100
-Message-Id: <199808191201.NAA00882@dax.dcs.ed.ac.uk>
+	by kvack.org (8.8.7/8.8.7) with ESMTP id JAA05895
+	for <linux-mm@kvack.org>; Wed, 19 Aug 1998 09:51:07 -0400
+Date: Wed, 19 Aug 1998 13:08:29 +0100
+Message-Id: <199808191208.NAA00888@dax.dcs.ed.ac.uk>
 From: "Stephen C. Tweedie" <sct@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
-Subject: Re: VFS buffer monitoring 
-In-Reply-To: <199808181530.LAA23097@blue.seas.upenn.edu>
-References: <199808181530.LAA23097@blue.seas.upenn.edu>
+Subject: Re: memory overcommitment
+In-Reply-To: <Pine.LNX.4.00.9808181124250.6395-100000@chris.atenasio.net>
+References: <199808171833.TAA03492@dax.dcs.ed.ac.uk>
+	<Pine.LNX.4.00.9808181124250.6395-100000@chris.atenasio.net>
 Sender: owner-linux-mm@kvack.org
-To: Vladimir Dergachev <vladimid@seas.upenn.edu>
-Cc: linux-mm@kvack.org
+To: chrisa@ultranet.com
+Cc: "Stephen C. Tweedie" <sct@redhat.com>, Nicolas Devillard <ndevilla@mygale.org>, linux-mm@kvack.org, Alan Cox <number6@the-village.bc.nu>
 List-ID: <linux-mm.kvack.org>
 
 Hi,
 
-On Tue, 18 Aug 1998 11:30:59 -0400 (EDT), "Vladimir Dergachev"
-<vladimid@seas.upenn.edu> said:
+On Tue, 18 Aug 1998 11:52:06 -0400 (EDT), Chris Atenasio
+<root@lilo.dyn.ml.org> said:
 
->       2) I looked around in the kernel source and it looks to me that 
->          this stuff isn't visible outside of kernel.. 
+>> If you can suggest a good algorithm for selecting processes to kill,
+>> we'd love to hear about it.  The best algorithm will not be the same for
+>> all users.
 
-Yep.
+> How bout: if(no_more_ram) kill(process_using_most_ram());
 
->          So should I just go and change kernel directly or can I still
->          get by with writing a module ? (or maybe even better , just
->          an ordinary program ? )
+Very simplistic: on many systems, that will mean starting gcc takes out
+the X server. :-(
 
-You'll need to modify the kernel (linux/fs/buffer.c); the buffer lookup
-information is not exported to modules.
+> Of course to be useful it would have to add together the usage of
+> multiple instances of a program of the same uid(and then kill all of
+> them too!).  Furthermore you might even want to kill uid 0 progs last.
+
+Certainly.
+
+One thing on the agenda for consideration in 2.3 is resident set size
+limits and quotas, which will allow us to cleanly reserve enough swap
+and physical memory for specific uses.
 
 --Stephen
 --
