@@ -1,54 +1,46 @@
 Received: from penguin.e-mind.com (penguin.e-mind.com [195.223.140.120])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id VAA05276
-	for <linux-mm@kvack.org>; Mon, 25 Jan 1999 21:19:22 -0500
-Date: Tue, 26 Jan 1999 02:57:41 +0100 (CET)
+	by kvack.org (8.8.7/8.8.7) with ESMTP id VAA05351
+	for <linux-mm@kvack.org>; Mon, 25 Jan 1999 21:25:36 -0500
+Date: Tue, 26 Jan 1999 03:22:56 +0100 (CET)
 From: Andrea Arcangeli <andrea@e-mind.com>
-Subject: Re: MM deadlock [was: Re: arca-vm-8...]
-In-Reply-To: <199901251625.QAA04452@dax.scot.redhat.com>
-Message-ID: <Pine.LNX.3.96.990126025518.3579A-100000@laser.bogus>
+Reply-To: Andrea Arcangeli <andrea@e-mind.com>
+Subject: Re: [patch] arca-vm-28 - new nr_freeable_pages
+In-Reply-To: <Pine.LNX.3.96.990121210148.2760B-100000@laser.bogus>
+Message-ID: <Pine.LNX.3.96.990126024536.199A-100000@laser.bogus>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: "Stephen C. Tweedie" <sct@redhat.com>
-Cc: Linus Torvalds <torvalds@transmeta.com>, Alan Cox <alan@lxorguk.ukuu.org.uk>, werner@suse.de, riel@humbolt.geo.uu.nl, Zlatko.Calusic@CARNet.hr, ebiederm+eric@ccr.net, saw@msu.ru, steve@netplus.net, damonbrent@earthlink.net, reese@isn.net, kalle.andersson@mbox303.swipnet.se, bmccann@indusriver.com, bredelin@ucsd.edu, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
+To: linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
+Cc: Nimrod Zimerman <zimerman@deskmail.com>, John Alvord <jalvo@cloud9.net>, "Stephen C. Tweedie" <sct@redhat.com>, Steve Bergman <steve@netplus.net>, dlux@dlux.sch.bme.hu, "Nicholas J. Leon" <nicholas@binary9.net>, Kalle Andersson <kalle@sslug.dk>, Heinz Mauelshagen <mauelsha@ez-darmstadt.telekom.de>, Ben McCann <bmccann@indusriver.com>"Stephen C. Tweedie" <sct@redhat.com>, Rik van Riel <H.H.vanRiel@phys.uu.nl>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 25 Jan 1999, Stephen C. Tweedie wrote:
+On Thu, 21 Jan 1999, Andrea Arcangeli wrote:
 
-> --- mm/filemap.c.~1~	Thu Jan 21 10:26:41 1999
-> +++ mm/filemap.c	Mon Jan 25 12:59:38 1999
-> @@ -125,7 +125,7 @@
->  	struct page * page;
->  	int count;
->  
-> -	count = (limit << 1) >> priority;
-> +	count = limit >> priority;
->  
->  	page = mem_map + clock;
->  	do {
-> @@ -147,7 +147,6 @@
->  			clock = page - mem_map;
->  		}
->  		
-> -		count--;
+> I have a new arca-vm-28. I don't have time to comment the changes right
+> now, but I would like if you could try it and feedback. This is not
+> intended to be good in low memory system, it _could_ work fine also with
+> low mem, but I don't know...
 
-OK to remove the << 1 and to move count-- after checking referenced.
+I've done some further changes. nr_freeable_pages is still there (since
+worked fine so far). But the new code should be far more friendly in low
+memory. I am doing everything in 32 Mbyte (as some month ago by default
+btw ;) to force me to test the new code ;).
 
->  		referenced = test_and_clear_bit(PG_referenced, &page->flags);
->  
->  		if (PageLocked(page))
-> @@ -159,6 +158,8 @@
->  		/* We can't free pages unless there's just one user */
->  		if (atomic_read(&page->count) != 1)
->  			continue;
-> +
-> +		count--;
+This new code will not give a swapout raw speed as the previous one but
+looks far more sane for low memory conditions. The old code was extreme,
+the best to half the swapout time and to get the best numbers, but too
+much aggressive to use the machine for doing other tasks at the same time
+in low memory.
 
-but this is plain bogus. When your machine will reach 0 freeable pages
-(and that happens a bit before to kill the process because OOM) you'll get
-an infinite loop in shrink_mmap().
+I would like to hear comments if somebody will try it. If you care about
+low memory machines please try it and let me know.
 
-Andrea Arcangeli
+ftp://e-mind.com/pub/linux/arca-tree/2.2.0-pre9_arca-3.gz
+
+Now it's really time to sleep for me...
+
+Ah forget to tell, if the size of the cache looks too high or too low,
+feel free to decrease or increase the first value of /proc/sys/vm/pager
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm my@address'
