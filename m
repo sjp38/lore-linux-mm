@@ -1,60 +1,68 @@
-From: "htr@hotmail.com" <htr@hotmail.com>
-Subject: Endspurt WICHTIG U.S.-Green-Card  Leben in USA, auf der
- Sonnenseite...
-Content-Type: text/plain;charset="US-ASCII"
-Content-Transfer-Encoding: 8bit
-Reply-To: htr@hotmail.com
-Date: Tue, 21 Dec 2004 14:20:11 +0800
-Message-Id: <20041221062012Z26620-766+3676@kvack.org>
+Date: Tue, 21 Dec 2004 10:36:28 +0100
+From: Andi Kleen <ak@suse.de>
+Subject: Re: [RFC][PATCH 0/10] alternate 4-level page tables patches
+Message-ID: <20041221093628.GA6231@wotan.suse.de>
+References: <Pine.LNX.4.44.0412210230500.24496-100000@localhost.localdomain> <Pine.LNX.4.58.0412201940270.4112@ppc970.osdl.org> <Pine.LNX.4.58.0412201953040.4112@ppc970.osdl.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.58.0412201953040.4112@ppc970.osdl.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Linus Torvalds <torvalds@osdl.org>
+Cc: Hugh Dickins <hugh@veritas.com>, Nick Piggin <nickpiggin@yahoo.com.au>, Andi Kleen <ak@suse.de>, Linux Memory Management <linux-mm@kvack.org>, Andrew Morton <akpm@osdl.org>
 List-ID: <linux-mm.kvack.org>
 
-WICHTIG !  Einsendeschluss fuer die US Green-Card rueckt naeher  Leben in USA... 
-Bewerben Sie sich jetzt fuer die US GreenCard ! 
+On Mon, Dec 20, 2004 at 07:56:36PM -0800, Linus Torvalds wrote:
+> 
+> 
+> On Mon, 20 Dec 2004, Linus Torvalds wrote:
+> > 
+> > (It may be _possible_ to avoid the warnings by just making "pud_t" and
+> > "pmd_t" be the same type for such architectures, and just allowing
+> > _mixing_ of three-level and four-level accesses.  I have to say that I 
+> > consider that pretty borderline programming practice though).
+> 
+> Actually, I notice that this is exactly what you did, sorry for not being 
+> more careful about reading your defines.
+> 
+> Thinking some more about it, I don't much like the "mixing" of 3-level and
+> 4-level things, but since the only downside is a lack of type-safety for
+> the 4-level case (ie you can get it wrong without getting any warning),
+> and since that type safety _does_ exist in the case where the four levels 
+> are actually used, I think it's ok. 
 
-http://www.greencard.3322.org/de/application.htm 
 
-Die US Regierung vergibt im Jahr 2004 insgesamt 55.000 Greencards. 
-Nur mit der Green Card koennen Sie In Zukunft in den USA leben - gleich ob f?1r immer oder fuer einige Monate. Alle Chancen f?1r Ihre Karriere, Studium oder einfach ein Leben in Sonne , Freiheit, netten Menschen stehen Ihnen offen. 
+Sorry, but I don't.
 
-Sie muessen nicht auswandern, die US GreenCard gibt ihnen vielmehr die Moeglichkeit jederzeit ungehindert in die USA einzureisen 
+> 
+> It would be bad if the architecture that supported 4level page tables was
+> really rare and broken (so that mistakes would happen and not get noticed
+> for a while), but I suspect x86-64 by now is probably the second- or
+> third-most used architecture, so it's not like the lack of type safety on 
+> other architectures where it doesn't matter would be a huge maintenance 
+> problem.
 
-sei es zum Urlaub in der Sonne oder fuer einen Business Trip. 
-Insbesondere infoge der neuen strengen EINREISEBESTIMMUNGEN in die USA die ab 2005 gelten. (siehe News Section auf Webseite) 
-Hier klicken 
-http://www.greencard.3322.org/de/application.htm 
+Sorry, but I think that's a very bad approach. If the i386 users
+don't get warnings I will need to spend a lot of time just patching
+behind them. While x86-64 is getting more and more popular most
+hacking still happens on i386.
 
-Wir wuenschen Ihnen noch einen schoenen Tag. 
+Please use a type safe approach that causes warnings
+and errors on i386 too. Otherwise it'll cause me much additional
+work longer term. Having the small advantage of a perhaps
+slightly easier migration for long term maintenance hazzle
+is a bad tradeoff IMHO.
 
-Mit den besten Gruessen 
-USAGreenCard-Registration 
-Department Europe / Germany 
-2020 Pennsylvania AVE 
-Washington DC, 20006 
-United States 
-http://www.greencard.3322.org/de 
+Also is the flag day really that bad? I already did near all the work
+IMHO (with the help of some architecture maintainers, thanks guys!)
+and the patches are really not *that* bad. Linus can you please
+at least take a second look at them before going with the non
+typesafe hack? 
 
-PS Beachten Sie die neuen Einreisevorschriften in die USA fuer Personen OHNE GreenCard auf der Website News Section. 
+Thanks,
 
-http://www.greencard.3322.org/de/news.htm 
-
---------------------------------------------------------------------------- 
-
-Dies ist eine einmalige Informations email. Sie erhalten keine weiteren emails mehr. Wenn Sie sich dennoch abmelden moechten einfach 
-eine email an support@greencard.3322.org mit unsubscribe im subject. 
----------------------------------------------------------------------------- 
-Sie koennen die Webseite nicht lesen? hier klicken
---------------------------------------------------------------------------- 
-English Registration: 
-
-http://www.greencard.3322.org/onlineapplstep1.htm 
-
-German Registration/ Deutsche Bewerbung: 
-
-http://www.greencard.3322.org/de/application.htm 
-
+-Andi
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
