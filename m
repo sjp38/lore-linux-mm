@@ -1,37 +1,67 @@
-Received: from penguin.e-mind.com (penguin.e-mind.com [195.223.140.120])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id VAA08462
-	for <linux-mm@kvack.org>; Fri, 8 Jan 1999 21:35:43 -0500
-Date: Sat, 9 Jan 1999 03:34:56 +0100 (CET)
-From: Andrea Arcangeli <andrea@e-mind.com>
-Subject: Re: arca-vm-8 [Re: [patch] arca-vm-6, killed kswapd [Re: [patch] new-vm , improvement , [Re: 2.2.0 Bug summary]]]
-In-Reply-To: <199901090213.CAA05306@dax.scot.redhat.com>
-Message-ID: <Pine.LNX.3.96.990109032305.805C-100000@laser.bogus>
+Received: from mail.inconnect.com (mail.inconnect.com [209.140.64.7])
+	by kvack.org (8.8.7/8.8.7) with SMTP id BAA09598
+	for <linux-mm@kvack.org>; Sat, 9 Jan 1999 01:28:29 -0500
+Date: Fri, 8 Jan 1999 23:28:16 -0700 (MST)
+From: Dax Kelson <dkelson@inconnect.com>
+Subject: 2.2.0-pre[56] swap performance poor with > 1 thrashing task
+In-Reply-To: <87iueiudml.fsf@atlas.CARNet.hr>
+Message-ID: <Pine.LNX.4.04.9901082246490.1183-100000@brookie.inconnect.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: "Stephen C. Tweedie" <sct@redhat.com>
-Cc: Linus Torvalds <torvalds@transmeta.com>, "Eric W. Biederman" <ebiederm+eric@ccr.net>, Zlatko Calusic <Zlatko.Calusic@CARNet.hr>, Alan Cox <alan@lxorguk.ukuu.org.uk>, bredelin@ucsd.edu, linux-kernel@vger.rutgers.edu, Rik van Riel <H.H.vanRiel@phys.uu.nl>, linux-mm@kvack.org
+To: Zlatko Calusic <Zlatko.Calusic@CARNet.hr>
+Cc: Linus Torvalds <torvalds@transmeta.com>, Steve Bergman <steve@netplus.net>, Andrea Arcangeli <andrea@e-mind.com>, brent verner <damonbrent@earthlink.net>, "Garst R. Reese" <reese@isn.net>, Kalle Andersson <kalle.andersson@mbox303.swipnet.se>, Ben McCann <bmccann@indusriver.com>, bredelin@ucsd.edu, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org, Alan Cox <alan@lxorguk.ukuu.org.uk>, "Stephen C. Tweedie" <sct@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-Hi Stephen!
 
-On Sat, 9 Jan 1999, Stephen C. Tweedie wrote:
+On 7 Jan 1999, Zlatko Calusic wrote:
 
-> deadlock.  The easiest way I can see of achieving something like this is
-> to set current->flags |= PF_MEMALLOC while we hold the superblock lock,
+> 2.2.0-pre5 works very good, indeed, but it still has some not
+> sufficiently explored nuisances:
+> 
+> 1) Swap performance in pre-5 is much worse compared to pre-4 in
+> *certain* circumstances. I'm using quite stupid and unintelligent
+> program to check for raw swap speed (attached below). With 64 MB of
+> RAM I usually run it as 'hogmem 100 3' and watch for result which is
+> recently around 6 MB/sec. But when I lately decided to start two
+> instances of it like "hogmem 50 3 & hogmem 50 3 &" in pre-4 I got 2 x
+> 2.5 MB/sec and in pre-5 it is only 2 x 1 MB/sec and disk is making
+> very weird and frightening sounds. My conclusion is that now (pre-5)
+> system behaves much poorer when we have more than one thrashing
+> task. *Please*, check this, it is a quite serious problem.
 
-Hmm, we must not avoid shrink_mmap() to run. So I see plain wrong to set
-the PF_MEMALLOC before call __get_free_pages(). Very cleaner to use
-GFP_ATOMIC to achieve the same effect btw ;).
+I just tried this on 2.2.0-pre6 PentiumII 412Mhz, 128MB SDRAM, one IDE
+disk (/ & swap).
 
-Now I am too tired to follow the other part of your email (I'll read
-tomorrow, now it's time to sleep for me... ;).
+./hogmem 100 3  (no swapping)
+Memory speed: 167.60 MB/sec
 
-Forget to tell, did you have comments about the FreeAfter() stuff? It made
-sense to me (looking at page_io if I remeber well) but I have not
-carefully reread it yet after Linus's comments on it. 
+./hogmem 200 3
+Memory speed: 9.01 MB/sec
 
-Andrea Arcangeli
+./hogmem 100 3 & ./hogmem 100 3
+Memory speed: 0.96 MB/sec
+Memory speed: 0.96 MB/sec
+
+./hogmem 100 3 (no swap)
+Memory speed: 180.18 MB/sec
+
+./hogmem 200 3
+Memory speed: 8.68 MB/sec
+
+I then tried 
+
+./hogmem 200 3 &
+
+find / (on about 1.5GB of data on ext2 and vfat and nfs repeatedly) 
+
+And launched netscape.  After 45 mins, I didn't restart the find, and
+about 3 mins later the hogmem completed at 0.75MB/sec.  Netscape was
+surprisingly responsive however.
+
+Dax Kelson
+
+
 
 --
 This is a majordomo managed list.  To unsubscribe, send a message with
