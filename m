@@ -1,56 +1,57 @@
-Subject: Re: page fault scalability patch V16 [3/4]: Drop page_table_lock
-	in handle_mm_fault
+Subject: Re: A scrub daemon (prezeroing)
 From: Nick Piggin <nickpiggin@yahoo.com.au>
-In-Reply-To: <1107313778.5131.32.camel@npiggin-nld.site>
-References: <41E5B7AD.40304@yahoo.com.au>
-	 <Pine.LNX.4.58.0501121552170.12669@schroedinger.engr.sgi.com>
-	 <41E5BC60.3090309@yahoo.com.au>
-	 <Pine.LNX.4.58.0501121611590.12872@schroedinger.engr.sgi.com>
-	 <20050113031807.GA97340@muc.de>
-	 <Pine.LNX.4.58.0501130907050.18742@schroedinger.engr.sgi.com>
-	 <20050113180205.GA17600@muc.de>
-	 <Pine.LNX.4.58.0501131701150.21743@schroedinger.engr.sgi.com>
-	 <20050114043944.GB41559@muc.de>
-	 <Pine.LNX.4.58.0501140838240.27382@schroedinger.engr.sgi.com>
-	 <20050114170140.GB4634@muc.de>
-	 <Pine.LNX.4.58.0501281233560.19266@schroedinger.engr.sgi.com>
-	 <Pine.LNX.4.58.0501281237010.19266@schroedinger.engr.sgi.com>
-	 <41FF00CE.8060904@yahoo.com.au>
-	 <Pine.LNX.4.58.0502011047330.3205@schroedinger.engr.sgi.com>
-	 <1107304296.5131.13.camel@npiggin-nld.site>
-	 <Pine.LNX.4.58.0502011718240.5549@schroedinger.engr.sgi.com>
-	 <1107308498.5131.28.camel@npiggin-nld.site>
-	 <Pine.LNX.4.58.0502011843570.6511@schroedinger.engr.sgi.com>
-	 <1107313778.5131.32.camel@npiggin-nld.site>
+In-Reply-To: <Pine.LNX.4.58.0502032220430.28851@schroedinger.engr.sgi.com>
+References: <Pine.LNX.4.58.0501211228430.26068@schroedinger.engr.sgi.com>
+	 <1106828124.19262.45.camel@hades.cambridge.redhat.com>
+	 <20050202153256.GA19615@logos.cnet>
+	 <Pine.LNX.4.58.0502021103410.12695@schroedinger.engr.sgi.com>
+	 <20050202163110.GB23132@logos.cnet>
+	 <Pine.LNX.4.61.0502022204140.2678@chimarrao.boston.redhat.com>
+	 <16898.46622.108835.631425@cargo.ozlabs.ibm.com>
+	 <Pine.LNX.4.58.0502031650590.26551@schroedinger.engr.sgi.com>
+	 <16899.2175.599702.827882@cargo.ozlabs.ibm.com>
+	 <Pine.LNX.4.58.0502032220430.28851@schroedinger.engr.sgi.com>
 Content-Type: text/plain
-Date: Fri, 04 Feb 2005 17:27:10 +1100
-Message-Id: <1107498430.5461.17.camel@npiggin-nld.site>
+Date: Fri, 04 Feb 2005 17:43:23 +1100
+Message-Id: <1107499403.5461.32.camel@npiggin-nld.site>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Christoph Lameter <clameter@sgi.com>
-Cc: Andi Kleen <ak@muc.de>, Andrew Morton <akpm@osdl.org>, torvalds@osdl.org, hugh@veritas.com, linux-mm@kvack.org, linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org, benh@kernel.crashing.org
+Cc: Paul Mackerras <paulus@samba.org>, Rik van Riel <riel@redhat.com>, Marcelo Tosatti <marcelo.tosatti@cyclades.com>, David Woodhouse <dwmw2@infradead.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@osdl.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2005-02-02 at 14:09 +1100, Nick Piggin wrote:
-> On Tue, 2005-02-01 at 18:49 -0800, Christoph Lameter wrote:
-> > On Wed, 2 Feb 2005, Nick Piggin wrote:
-
-> > I mean we could just speculatively copy, risk copying crap and
-> > discard that later when we find that the pte has changed. This would
-> > simplify the function:
-> > 
+On Thu, 2005-02-03 at 22:26 -0800, Christoph Lameter wrote:
+> On Fri, 4 Feb 2005, Paul Mackerras wrote:
 > 
-> I think this may be the better approach. Anyone else?
+> > As has my scepticism about pre-zeroing actually providing any benefit
+> > on ppc64.  Nevertheless, the only definitive answer is to actually
+> > measure the performance both ways.
 > 
+> Of course. The optimization depends on the type of load. If you use a
+> benchmark that writes to all pages in a page then you will see no benefit
+> at all. For a kernel compile you will see a slight benefit. For processing
+> of a sparse matrix (page tables are one example) a significant benefit can
+> be obtained.
 
-Not to say it is perfect either. Normal semantics say not to touch
-a page if it is not somehow pinned. So this may cause problems in
-corner cases (DEBUG_PAGEALLOC comes to mind... hopefully nothing else).
+If you have got to the stage of doing "real world" tests, I'd be
+interested to see results of tests that best highlight the improvements.
 
-But I think a plain read of the page when it isn't pinned is less
-yucky than writing into the non-pinned struct page.
+I imagine many general purpose server things wouldn't be helped much,
+because they'll typically have little free memory, and will be
+continually working and turning things over.
+
+A kernel compile on a newly booted system? Well that is a valid test.
+It is great that performance doesn't *decrease* in that case :P
+
+Of course HPC things may be a different story. It would be good to
+see your gross improvement on typical types of workloads that can best
+leverage this - and not just initial ramp up phases while memory is
+being faulted in, but the the full run time.
+
+Thanks,
+Nick
 
 
 
