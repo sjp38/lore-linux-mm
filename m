@@ -1,69 +1,64 @@
-Subject: Re: page fault scalability patch V16 [3/4]: Drop page_table_lock
-	in handle_mm_fault
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-In-Reply-To: <Pine.LNX.4.58.0502011047330.3205@schroedinger.engr.sgi.com>
-References: <41E5B7AD.40304@yahoo.com.au>
-	 <Pine.LNX.4.58.0501121552170.12669@schroedinger.engr.sgi.com>
-	 <41E5BC60.3090309@yahoo.com.au>
-	 <Pine.LNX.4.58.0501121611590.12872@schroedinger.engr.sgi.com>
-	 <20050113031807.GA97340@muc.de>
-	 <Pine.LNX.4.58.0501130907050.18742@schroedinger.engr.sgi.com>
-	 <20050113180205.GA17600@muc.de>
-	 <Pine.LNX.4.58.0501131701150.21743@schroedinger.engr.sgi.com>
-	 <20050114043944.GB41559@muc.de>
-	 <Pine.LNX.4.58.0501140838240.27382@schroedinger.engr.sgi.com>
-	 <20050114170140.GB4634@muc.de>
-	 <Pine.LNX.4.58.0501281233560.19266@schroedinger.engr.sgi.com>
-	 <Pine.LNX.4.58.0501281237010.19266@schroedinger.engr.sgi.com>
-	 <41FF00CE.8060904@yahoo.com.au>
-	 <Pine.LNX.4.58.0502011047330.3205@schroedinger.engr.sgi.com>
-Content-Type: text/plain
-Date: Wed, 02 Feb 2005 11:31:36 +1100
-Message-Id: <1107304296.5131.13.camel@npiggin-nld.site>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Date: Tue, 1 Feb 2005 17:20:17 -0800 (PST)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: page fault scalability patch V16 [3/4]: Drop page_table_lock in
+ handle_mm_fault
+In-Reply-To: <1107304296.5131.13.camel@npiggin-nld.site>
+Message-ID: <Pine.LNX.4.58.0502011718240.5549@schroedinger.engr.sgi.com>
+References: <41E5B7AD.40304@yahoo.com.au>  <Pine.LNX.4.58.0501121552170.12669@schroedinger.engr.sgi.com>
+  <41E5BC60.3090309@yahoo.com.au>  <Pine.LNX.4.58.0501121611590.12872@schroedinger.engr.sgi.com>
+  <20050113031807.GA97340@muc.de>  <Pine.LNX.4.58.0501130907050.18742@schroedinger.engr.sgi.com>
+  <20050113180205.GA17600@muc.de>  <Pine.LNX.4.58.0501131701150.21743@schroedinger.engr.sgi.com>
+  <20050114043944.GB41559@muc.de>  <Pine.LNX.4.58.0501140838240.27382@schroedinger.engr.sgi.com>
+  <20050114170140.GB4634@muc.de>  <Pine.LNX.4.58.0501281233560.19266@schroedinger.engr.sgi.com>
+  <Pine.LNX.4.58.0501281237010.19266@schroedinger.engr.sgi.com>
+ <41FF00CE.8060904@yahoo.com.au>  <Pine.LNX.4.58.0502011047330.3205@schroedinger.engr.sgi.com>
+ <1107304296.5131.13.camel@npiggin-nld.site>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
+To: Nick Piggin <nickpiggin@yahoo.com.au>
 Cc: Andi Kleen <ak@muc.de>, Andrew Morton <akpm@osdl.org>, torvalds@osdl.org, hugh@veritas.com, linux-mm@kvack.org, linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org, benh@kernel.crashing.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2005-02-01 at 11:01 -0800, Christoph Lameter wrote:
-> On Tue, 1 Feb 2005, Nick Piggin wrote:
+On Wed, 2 Feb 2005, Nick Piggin wrote:
 
-> > A per-pte lock is sufficient for this case, of course, which is why the
-> > pte-locked system is completely free of the page table lock.
-> 
-> Introducing pte locking would allow us to go further with parallelizing
-> this but its another invasive procedure. I think parallelizing COW is only
-> possible to do reliable with some pte locking scheme. But then the
-> question is if the pte locking is really faster than obtaining a spinlock.
-> I suspect this may not be the case.
-> 
+> > The unmapping in rmap.c would change the pte. This would be discovered
+> > after acquiring the spinlock later in do_wp_page. Which would then lead to
+> > the operation being abandoned.
+> Oh yes, but suppose your page_cache_get is happening at the same time
+> as free_pages_check, after the page gets freed by the scanner? I can't
+> actually think of anything that would cause a real problem (ie. not a
+> debug check), off the top of my head. But can you say there _isn't_
+> anything?
+>
+> Regardless, it seems pretty dirty to me. But could possibly be made
+> workable, of course.
 
-Well most likely not although I haven't been able to detect much
-difference. But in your case you would probably be happy to live
-with that if it meant better parallelising of an important
-function... but we'll leave future discussion to another thread ;)
+Would it make you feel better if we would move the spin_unlock back to the
+prior position? This would ensure that the fallback case is exactly the
+same.
 
-> > Although I may have some fact fundamentally wrong?
-> 
-> The unmapping in rmap.c would change the pte. This would be discovered
-> after acquiring the spinlock later in do_wp_page. Which would then lead to
-> the operation being abandoned.
-> 
+Index: linux-2.6.10/mm/memory.c
+===================================================================
+--- linux-2.6.10.orig/mm/memory.c	2005-01-31 08:59:07.000000000 -0800
++++ linux-2.6.10/mm/memory.c	2005-02-01 10:55:30.000000000 -0800
+@@ -1318,7 +1318,6 @@ static int do_wp_page(struct mm_struct *
+ 		}
+ 	}
+ 	pte_unmap(page_table);
+-	page_table_atomic_stop(mm);
 
-Oh yes, but suppose your page_cache_get is happening at the same time
-as free_pages_check, after the page gets freed by the scanner? I can't
-actually think of anything that would cause a real problem (ie. not a
-debug check), off the top of my head. But can you say there _isn't_
-anything?
+ 	/*
+ 	 * Ok, we need to copy. Oh, well..
+@@ -1326,6 +1325,7 @@ static int do_wp_page(struct mm_struct *
+ 	if (!PageReserved(old_page))
+ 		page_cache_get(old_page);
 
-Regardless, it seems pretty dirty to me. But could possibly be made
-workable, of course.
-
-
-
++	page_table_atomic_stop(mm);
+ 	if (unlikely(anon_vma_prepare(vma)))
+ 		goto no_new_page;
+ 	if (old_page == ZERO_PAGE(address)) {
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
