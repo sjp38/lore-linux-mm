@@ -1,37 +1,41 @@
-Received: from penguin.e-mind.com ([195.223.140.120])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id LAA25373
-	for <linux-mm@kvack.org>; Sat, 11 Jul 1998 11:12:52 -0400
-Date: Sat, 11 Jul 1998 17:11:37 +0200 (CEST)
-From: Andrea Arcangeli <arcangeli@mbox.queen.it>
-Subject: Re: [PATCH] stricter pagecache pruning
-In-Reply-To: <Pine.LNX.3.96.980711092706.5292B-200000@mirkwood.dummy.home>
-Message-ID: <Pine.LNX.3.96.980711170623.4602A-100000@dragon.bogus>
+Date: Sat, 11 Jul 1998 16:14:26 +0200 (CEST)
+From: Rik van Riel <H.H.vanRiel@phys.uu.nl>
+Reply-To: Rik van Riel <H.H.vanRiel@phys.uu.nl>
+Subject: Re: cp file /dev/zero <-> cache [was Re: increasing page size]
+In-Reply-To: <199807091442.PAA01020@dax.dcs.ed.ac.uk>
+Message-ID: <Pine.LNX.3.96.980711161041.6711A-100000@mirkwood.dummy.home>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Rik van Riel <H.H.vanRiel@phys.uu.nl>
-Cc: Linux MM <linux-mm@kvack.org>
+To: "Stephen C. Tweedie" <sct@redhat.com>
+Cc: "Benjamin C.R. LaHaise" <blah@kvack.org>, Linux MM <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 11 Jul 1998, Rik van Riel wrote:
+On Thu, 9 Jul 1998, Stephen C. Tweedie wrote:
 
->Hi,
->
->I hope this patch will alleviate some of Andrea's
->problems with the page cache growing out of bounds.
+> There's a fundamentally nice property about the multi-level cache
+> which we _cannot_ easily emulate with page aging, and that is the
+> ability to avoid aging any hot pages at all while we are just
+> consuming cold pages.  For example, a large "find|xargs grep" can be
+> satisfied without staling any of the existing hot cached pages.
 
-Yes it seems really to help. Anyway I think that we could do something of
-more clever. Now it happens more rarely that kswapd has to swapout things.
-But when this happen the machine stall as usual.
+Thinking over this design, I wonder how many levels
+we'll need for normal operation, and how many pages
+are allowed in each level.
 
-For example if I run `free` a lot of times while cp file /dev/zero is
-running, `free` stall only when free' s output will show that the swap is
-been increased of a bit (and that some kbyte really don' t help in
-function of increased free memory, they only cause a stall sometimes). 
+I'd think we'll want 4 levels, with each 'lower'
+level having 30% to 70% more pages than the level
+above. This should be enough to cater to the needs
+of both rc5des-like programs and multi-megabyte
+tiled image processing.
 
-The patch helps though, thanks. No other problems so far.
+Then again, I could be completely wrong :) Anyone?
 
-Andrea[s] Arcangeli
+Rik.
++-------------------------------------------------------------------+
+| Linux memory management tour guide.        H.H.vanRiel@phys.uu.nl |
+| Scouting Vries cubscout leader.      http://www.phys.uu.nl/~riel/ |
++-------------------------------------------------------------------+
 
 --
 This is a majordomo managed list.  To unsubscribe, send a message with
