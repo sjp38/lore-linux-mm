@@ -1,43 +1,65 @@
-Content-Type: text/plain; charset=US-ASCII
-From: Daniel Phillips <phillips@bonn-fries.net>
-Subject: Re: broken VM in 2.4.10-pre9
-Date: Thu, 20 Sep 2001 15:40:55 +0200
-References: <E15k3O2-0005Fr-00@the-village.bc.nu>
-In-Reply-To: <E15k3O2-0005Fr-00@the-village.bc.nu>
-MIME-Version: 1.0
-Content-Transfer-Encoding: 7BIT
-Message-Id: <20010920133330Z16274-2757+894@humbolt.nl.linux.org>
+Received: from exch-staff1.ul.ie ([136.201.1.64])
+ by ul.ie (PMDF V5.2-32 #41949) with ESMTP id <0GJZ00J1J726OJ@ul.ie> for
+ linux-mm@kvack.org; Thu, 20 Sep 2001 20:20:30 +0100 (BST)
+Content-return: allowed
+Date: Thu, 20 Sep 2001 20:25:37 +0100
+From: "Gabriel.Leen" <Gabriel.Leen@ul.ie>
+Subject: Process not given >890MB on a 4MB machine ?????????
+Message-id: <5D2F375D116BD111844C00609763076E050D164D@exch-staff1.ul.ie>
+MIME-version: 1.0
+Content-type: text/plain
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Alan Cox <alan@lxorguk.ukuu.org.uk>
-Cc: "Eric W. Biederman" <ebiederm@xmission.com>, Rob Fuller <rfuller@nsisoftware.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: "'linux-mm@kvack.org'" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On September 20, 2001 02:57 pm, Alan Cox wrote:
-> > On September 20, 2001 12:04 am, Alan Cox wrote:
-> > > Reverse mappings make linear aging easier to do but are not critical (we
-> > > can walk all physical pages via the page map array).
-> >
-> > But you can't pick up the referenced bit that way, so no up aging, only
-> > down.
->
-> #1 If you really wanted to you could update a referenced bit in the page
-> struct in the fault handling path.
+Hello,
+The problem in a nutshell is:
 
-Right, we probably should do that.  But consider that any time this happens a
-reverse map would have eliminated the fault because we wouldn't need to unmap
-the page until we're actually going to free it.
+a) I have a 4GB ram 1.7Gh Xeon box
+b) I'm running a process which requires around 3GB of ram
+c) RedHat 2.4.9 will only give it 890MB, then core dumps with the warning
+"segmentation fault"
+when it reaches this memory usage and "asks for more"
 
-> #2 If a page is referenced multiple times by different processes is the
-> behaviour of multiple upward aging actually wrong.
++++++++++++++++++
+Details:
 
-With rmap it's easy to do it either way: either treat the ref bits as if
-they're all or'd together or, perhaps more sensibly, age up by an amount that
-depends on the number of ref bits set, but not as much as UP_AGE * refs.
+System/OS:
+I'm running RedHat 2.4.9, with the 4GB memory support selected 
+and the latest patch from
+www.kernel.org/pub/linux/kernel/people/alan/linux-2.4/2.4.9 
+4GB RAM, slightly less seen by system, (Top, XOSVIEW, etc)
+Running as root with the bash shell ulimit command returning: "unlimited"
 
---
-Daniel
 
+When it crashes:
+according to top): for the process: SIZE 893 MB ,RSS 893 MB, 
+"segmentation fault" (core dumped)
+
++++++++++++++++++
+Other Info:
+
+I don't know if the problem has something to do with PAGE_OFFSET in page.h
+it is currently set at C0000000
+I tried changing this but the machine would not boot then.
+
+I can run 2 or 3 processes using 1 GB at a time but one process using >1GB
+is not possible ??
+
++++++++++++++++++
+
+Any suggestions / advice is very much appreciated, Thanx in advance,
+
+Gabriel
+
+*********************************************************************
+Gabriel Leen                        Tel:        00353  61  20 2677
+PEI  Technologies               Fax:       00353  61  33 4925
+Foundation Building             E-mail:   gabriel.leen@ul.ie
+University of Limerick
+Limerick
+Ireland
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
