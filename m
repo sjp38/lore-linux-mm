@@ -1,42 +1,43 @@
-Message-ID: <41926313.6010808@sgi.com>
-Date: Wed, 10 Nov 2004 12:50:59 -0600
-From: Ray Bryant <raybry@sgi.com>
-MIME-Version: 1.0
-Subject: Re: removing mm->rss and mm->anon_rss from kernel?
-References: <200411081547.iA8FlH90124208@ben.americas.sgi.com> <41919EA5.7030200@yahoo.com.au>
-In-Reply-To: <41919EA5.7030200@yahoo.com.au>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+Date: Wed, 10 Nov 2004 14:23:11 -0200
+From: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
+Subject: Re: [PATCH 2/3] higher order watermarks
+Message-ID: <20041110162311.GA12696@logos.cnet>
+References: <417F5584.2070400@yahoo.com.au> <417F55B9.7090306@yahoo.com.au> <417F5604.3000908@yahoo.com.au> <20041104085745.GA7186@logos.cnet>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20041104085745.GA7186@logos.cnet>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Russ Anderson <rja@sgi.com>, Matthew Wilcox <matthew@wil.cx>, "Martin J. Bligh" <mbligh@aracnet.com>, Christoph Lameter <clameter@sgi.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Hugh Dickins <hugh@veritas.com>, linux-mm@kvack.org, linux-ia64@vger.kernel.org
+Cc: Andrew Morton <akpm@osdl.org>, Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Nick Piggin wrote:
+On Thu, Nov 04, 2004 at 06:57:45AM -0200, Marcelo Tosatti wrote:
 
+> The original code didnt had the can_try_harder/gfp_high decrease 
+> which is now on zone_watermark_ok. 
 > 
-> Also, are you using 2.6 kernels on these 512 CPU systems? or are your
-> 2.4 kernels still holding together at that many CPUs?
-> -
-> To unsubscribe from this list: send the line "unsubscribe linux-ia64" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Means that those allocations will now be successful earlier, instead
+> of going to the next zonelist iteration. kswapd will not be awake
+> when it used to be.
 > 
+> Hopefully it doesnt matter that much. You did this by intention?
 
-We aren't supporting customers with 2.6 kernels yet.  NASA's systems are
-all running kernels based on 2.4.x.
+Another thing Nick is that now balance_pgdat uses zone_watermark_ok, 
+and that sums "z->protection[alloc_type]".
 
--- 
-Best Regards,
-Ray
------------------------------------------------
-                   Ray Bryant
-512-453-9679 (work)         512-507-7807 (cell)
-raybry@sgi.com             raybry@austin.rr.com
-The box said: "Requires Windows 98 or better",
-            so I installed Linux.
------------------------------------------------
+        if (free_pages <= min + z->protection[alloc_type])
+                return 0;
+
+Since balance_pgdat calls with alloc_type=0, the code will sum ZONE_DMA
+(alloc_type = 0) protection, and it should not.
+
+kswapd should be working on the bare min/low/high watermarks AFAICT, 
+without the protections.
+
+Comments?
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
