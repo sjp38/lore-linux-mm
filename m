@@ -1,47 +1,31 @@
-Received: from flying.demon.nl (flying.demon.nl [195.173.241.9])
-	by kvack.org (8.8.7/8.8.7) with SMTP id NAA21242
-	for <linux-mm@kvack.org>; Sun, 10 Jan 1999 13:22:13 -0500
-Date: Sun, 10 Jan 1999 18:13:38 +0100 (CET)
-From: Jelle Foks <jelle@flying.demon.nl>
-Subject: I/O and MM question
-Message-ID: <Pine.LNX.4.03.9901101752050.13236-100000@zap.zap>
+Received: from penguin.e-mind.com (penguin.e-mind.com [195.223.140.120])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id NAA21325
+	for <linux-mm@kvack.org>; Sun, 10 Jan 1999 13:26:26 -0500
+Date: Sun, 10 Jan 1999 19:11:01 +0100 (CET)
+From: Andrea Arcangeli <andrea@e-mind.com>
+Subject: Re: tiny patch, reduces kernel memory usage (memory_save patch)
+In-Reply-To: <Pine.LNX.3.96.990110174423.15469A-100000@Linuz.sns.it>
+Message-ID: <Pine.LNX.3.96.990110190804.327F-100000@laser.bogus>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: linux-mm@kvack.org
+To: Max <max@Linuz.sns.it>
+Cc: Linus Torvalds <torvalds@transmeta.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+On Sun, 10 Jan 1999, Max wrote:
 
-I have a question about memory management in Linux and low-overhead I/O
-between devices and the file system.
+> This patch reduces kernel memory usage of 4kb for every 2Mb of physical RAM.
+> On my 16Mb box this means the kernel uses 32kb less memory, and on a typical
+> 64Mb Intel you save 128kb.
 
-I have a device that has memory-mapped access. In a system with 8MB of RAM
-(where the kernel reports and uses only 8MB of RAM), the device responds
-to memory read and write accesses in the region 8-16MB. What I need to do
-is fast I/O between the device the hard drive. Currently, I access the
-device from a module that has mapped the device's I/O RAM addresses to a
-pointer with vremap(). This way, I should be able to make a character
-device that allows a user space process to fread() from the device and
-fwrite() to the hard drive (and vice versa). However, I'd like to
-eliminate the memory copy to/from the user-space process's buffer, and do
-something like an fwrite() directly from the simulated-RAM provided by the
-device (or probably better a memcpy() from the device to a mmap()ped file
-from disk).
+The unused field is been killed here since the first time it's appared
+(when sct killed aging). Forget to remove map_nr though because it should
+be a win in performances and is producing cleaner code. If you can show me
+that it's not a win in performances I' ll produce a macro to still have
+clean code.
 
-Can I give a user process read/write access to the RAM from the device?
-(how/which function to use?). Does the mm/paging system of Linux allow me
-this? Or does the mm/paging code already somehow eliminate the memory-copy
-of the fread()->fwrite() combo (how?)? Or should/could I use a scheme
-where the user space process gives the pointer of a mmap()ed file to the
-device driver, and let the device driver itself do a memcpy() to the
-mmap()ped file?
-
-Does anybody have any hints, ideas, etc?
-
-Greetings,
-Jelle.
-
+Andrea Arcangeli
 
 --
 This is a majordomo managed list.  To unsubscribe, send a message with
