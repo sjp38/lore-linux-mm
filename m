@@ -1,35 +1,46 @@
-Received: from mail.ccr.net (ccr@alogconduit1ag.ccr.net [208.130.159.7])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id CAA28401
-	for <linux-mm@kvack.org>; Mon, 11 Jan 1999 02:20:59 -0500
+Received: from neon.transmeta.com (neon-best.transmeta.com [206.184.214.10])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id CAA28533
+	for <linux-mm@kvack.org>; Mon, 11 Jan 1999 02:31:53 -0500
+Date: Sun, 10 Jan 1999 23:31:34 -0800 (PST)
+From: Linus Torvalds <torvalds@transmeta.com>
 Subject: Re: vfork & co bugfix
-References: <Pine.LNX.3.95.990110223325.1997E-100000@penguin.transmeta.com>
-From: ebiederm+eric@ccr.net (Eric W. Biederman)
-Date: 11 Jan 1999 00:59:27 -0600
-In-Reply-To: Linus Torvalds's message of "Sun, 10 Jan 1999 22:35:44 -0800 (PST)"
-Message-ID: <m13e5i47n4.fsf@flinx.ccr.net>
+In-Reply-To: <m13e5i47n4.fsf@flinx.ccr.net>
+Message-ID: <Pine.LNX.3.95.990110232846.1997K-100000@penguin.transmeta.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Linus Torvalds <torvalds@transmeta.com>
+To: "Eric W. Biederman" <ebiederm+eric@ccr.net>
 Cc: linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
->>>>> "LT" == Linus Torvalds <torvalds@transmeta.com> writes:
 
-LT> I missed it too, until I started thinking about all the possible
-LT> combinations.
 
->> Question.  Why don't we let CLONE_VFORK be a standard clone flag?
+On 11 Jan 1999, Eric W. Biederman wrote:
+> 
+> >> Question.  Why don't we let CLONE_VFORK be a standard clone flag?
+> 
+> LT> Because then we're back to the old problem: before doing a vfork(),
+> LT> somebody could do a "clone(CLONE_VFORK)" (which would _not_ wait on the
+> LT> semaphore like a real vfork() would), and now the wrong child can wake up
+> LT> the parent and mess up the real vfork(). 
+> 
+> Sorry.  I had the implicit assumption that if CLONE_VFORK was a
+> standard clone flag, do_fork would include the five lines of semaphore
+> code.
 
-LT> Because then we're back to the old problem: before doing a vfork(),
-LT> somebody could do a "clone(CLONE_VFORK)" (which would _not_ wait on the
-LT> semaphore like a real vfork() would), and now the wrong child can wake up
-LT> the parent and mess up the real vfork(). 
+Oh, ok.
 
-Sorry.  I had the implicit assumption that if CLONE_VFORK was a
-standard clone flag, do_fork would include the five lines of semaphore
-code.
+Sure, makes sense, and is probably the right thing to do - that way you
+can (if you really want to) do some strange half-way vfork(), half-way
+clone() thing where you share your file descriptors in a vfork(). 
 
-Eric
+I don't know how useful it would be, but it would be no uglier than doing
+it any other way, and I see some advantages (no need for a separate
+vfork()  system call - clone() can do it directly). 
 
+I thus remove all my objections,
+
+		Linus
 
 --
 This is a majordomo managed list.  To unsubscribe, send a message with
