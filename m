@@ -1,60 +1,73 @@
-From: yannis@cc.gatech.edu (Yannis Smaragdakis)
-Message-Id: <200007171856.OAA28852@ocelot.cc.gatech.edu>
-Subject: Re: [PATCH] 2.2.17pre7 VM enhancement Re: I/O performance on
-Date: Mon, 17 Jul 2000 14:55:59 -0400 (EDT)
-In-Reply-To: <Pine.LNX.4.21.0007171149440.30603-100000@duckman.distro.conectiva> from "Rik van Riel" at Jul 17, 2000 11:53:48 AM
+Date: Mon, 17 Jul 2000 22:22:23 +0200 (CEST)
+From: Mike Galbraith <mikeg@weiden.de>
+Subject: Re: [PATCH] test5-1 vm fix
+In-Reply-To: <Pine.LNX.4.10.10007171308190.13324-100000@coffee.psychology.mcmaster.ca>
+Message-ID: <Pine.Linu.4.10.10007172115180.428-100000@mikeg.weiden.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@conectiva.com.br>
-Cc: sct@redhat.com, andrea@suse.de, marcelo@conectiva.com.br, axboe@suse.de, alan@redhat.com, derek@cerberus.ne.mediaone.net, Yannis Smaragdakis <yannis@cc.gatech.edu>, davem@redhat.com, linux-mm@kvack.org
+To: Mark Hahn <hahn@coffee.psychology.mcmaster.ca>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Unfortunately, it sounded like I was arguing in favor of LRU, while
-I was not. Also, I agree that a good algorithm should never swap out
-program pages in favor of transient data. But I think it is 
-overgeneralizing to go from "often pages are accessed only *once*"
-to "frequency is good". The problem with frequency is that it's
-very sensitive to phase behavior and may keep old pages around for
-too long, just because they were accessed often some time ago.
+On Mon, 17 Jul 2000, Mark Hahn wrote:
 
+> > RFC concerning make -j30 bzImage as basic VM test:
+> > Rik called this an 'odd' workload.  IMHO it is an excellent basic VM test
+> > (IFF the size of the job is adjusted to _not quite_ fit in ram).  In my
+> 
+> and do you know whether "make -j30" just barely exceeds ram?
 
-Rik wrote:
-> Both LRU and LFU break down on linear accesses to an array
-> that doesn't fit in memory. In that case you really want
-> MRU replacement, with some simple code that "detects the
-> window size" you need to keep in memory. This seems to be
+On my box, yes.  It peaks higher than I like, though only briefly.
 
-I agree and this is partly the point in our paper, only we argue that
-this strategy can be generalized cleanly (instead of being a special
-case hack).
+> > time make -j30 bzImage on 128mb PIII/500 w. single ide drive.
+> 
+> hmm I presume the disk is some reasonable mode (udma), but this 
+> means that swapping will destructively interfere with any real IO.
 
+Yes to both.  Swap is always destructive to other io unless you use
+dedicated controllers/drives for swap.
 
-> Since *both* recency and frequency are important, we can
-> simply use an algorithm which keeps both into account.
-> Page aging nicely fits the bill here.
+My poor io system is exactly why I don't push hard.  I flat don't
+have much bandwidth, and never want to reach max throughput.  When
+I test VM, I'm generally looking to see how _little_ disk io is used.
+This workload doesn't saturate disk when vm is working well.
 
-Proposal:
-Why not define "frequency" as "references over *normalized* time"
-instead of "references over time"? If you touch a page twice
-and in the meantime you have touched a million other pages,
-this is important. If you touch a page twice and
-in the meantime you have only touched one other page, this should not
-affect "page age". In short, the way the page's age is updated should
-be a function of how many other pages were found to be recently
-referenced.
+(solid disk lite means you're trying to do the impossible.. I don't)
 
-Say you call the code that reads/resets the reference bits and you
-find that n pages were referenced in total. Then each of those
-gets its age incremented by a factor proportional to n. For efficiency,
-one could use the "n" that was computed during the last scan.
+> I guess I don't see why this is a sane workload: it doesn't resemble
+> basic workstation load (which never has 30 runnable processes),
+> and it doesn't resemble "server" load (which might have 30, but would
+> certainly have more than a single disk.)
 
+I do this because it is cpu intensive with many jobs competing for
+memory services.  I see it only as 30 cpu/memory hungry mouths to
+feed, with the added benefit of having some (.h) cachable data to
+see how well VM decides when/what to keep/toss.  It's certainly
+overloaded.. the only time swap ever gets any real exercise.  My
+only choice in testing is to do it with data or tasks.  It's easier
+to use many tasks than just a couple with massive data and ensure
+that io saturation isn't reached.
 
-I think that this would get the effect you want and would alleviate
-my concerns about "frequency".
-	Yannis.
+Sane?  My box could be a classroom box with thirty students with
+an assignment to compile a program.. a kernel is a program ;-)
+
+> > 31  7  0  18132  18856    768  18728   4   0   207     0  193   240  89  11   0
+> > 30 10  0  18096   9680    792  19164 132   0   324     0  191   422  92   8   0
+> > 37  3  0  15556   6968    788  12092 424   0   325    19  165   353  88  12   0
+> > 27  3  1  18940  23724    640  12624 11008 8948  9705  3006 5284  7710  63  10  28
+> 
+> hmm, clearly going over 30 several times.  and in this case, the forkbomb
+> is causing the machine to thrash.  unsurprising eh?
+
+It goes over thirty, but is not forkbombing the box.  Old make, you had
+to be very very careful with.. new make throttles itself pretty well.
+
+	Thanks for your comments.
+
+	-Mike
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
