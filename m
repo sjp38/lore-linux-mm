@@ -1,89 +1,34 @@
-Message-ID: <20010824163807.94927.qmail@web14311.mail.yahoo.com>
-Date: Fri, 24 Aug 2001 09:38:07 -0700 (PDT)
-From: Kanoj Sarcar <kanojsarcar@yahoo.com>
-Subject: Re: copy_to_user problem
-In-Reply-To: <20010824054133.61424.qmail@web14204.mail.yahoo.com>
+Message-ID: <3B868D81.2ADA3AD2@pp.inet.fi>
+Date: Fri, 24 Aug 2001 20:23:13 +0300
+From: Jari Ruusu <jari.ruusu@pp.inet.fi>
 MIME-Version: 1.0
+Subject: Re: VM problem with 2.4.8-ac9 (fwd)
+References: <Pine.LNX.4.21.0108232049530.1020-100000@localhost.localdomain>
 Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: PRASENJIT CHAKRABORTY <pras_chakra@yahoo.com>, linux-mm@kvack.org
-Cc: arund@bellatlantic.net
+To: Hugh Dickins <hugh@veritas.com>
+Cc: Marcelo Tosatti <marcelo@conectiva.com.br>, Rik van Riel <riel@conectiva.com.br>, Alan Cox <alan@lxorguk.ukuu.org.uk>, Jeremy Linton <jlinton@interactivesi.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Can you try copy_to_user(), and not __copy_to_user().
+Hugh Dickins wrote:
+> 1. lock_kiovec page unwind fix (velizarb@pirincom.com)
+> 2. copy_cow_page & clear_user_highpage can block in kmap
+>    (Anton Blanchard, Ingo Molnar, Linus Torvalds, Hugh Dickins)
+> 3. do_swap_page recheck pte before failing (Jeremy Linton, Linus Torvalds)
+> 4. do_swap_page don't mkwrite when deleting from swap cache (Linus Torvalds)
 
-Kanoj
+VM torture results of 2.4.8-ac9 + Hugh's patch (version 23 Aug 2001
+21:24:50), 8 hours of torture. 1 incident where a process died with SIGSEGV.
+No "swap offset" messages.
 
---- PRASENJIT CHAKRABORTY <pras_chakra@yahoo.com>
-wrote:
-> Hello All,
-> 
->    I posted this problem some days back but still
-> have
-> not received any solution.
-> 
-> So sorry for the resend again.
-> 
-> I am developing a driver. Though the driver is
-> functioning well but I am stuck up at the point of
-> transferring something from kernel to user space.
-> 
-> I am using __copy_to_user() and before calling this
-> I
-> am checking the validity of user address with
-> verify_area().
-> 
-> Now the problem is that __copy_to_user() sometimes
-> return value > 0 which indicates a failure. This
-> happens everytime the user address is not currently
-> present in the Physical Page i.e the when
-> __copy_to_user tries to copy to a page which is not
-> currently paged in then it fails.
-> 
-> Moreover if I access the user buffer from my user
-> program before passing it to the kernel for transfer
-> then __copy_to_user performs it happily or if I lock
-> that page through mlock() system call. I read the
-> documentation but nowhere I found that I need to do
-> something before __copy_to_user().
-> 
-> The problem for the time being has been workarounded
-> by putting __verify_write() before __copy_to_user.
-> 
-> So I would like to know what is wrong with my
-> approach
-> or is it due to some other issue which is unknown to
-> me (e.g corruption etc).
-> 
-> I shall be grateful to you all if you kindly help me
-> out of this.
-> 
-> Thanks n Regards,
-> 
-> Prasenjit
-> 
-> 
-> 
-> 
-> 
-> __________________________________________________
-> Do You Yahoo!?
-> Make international calls for as low as $.04/minute
-> with Yahoo! Messenger
-> http://phonecard.yahoo.com/
-> --
-> To unsubscribe, send a message with 'unsubscribe
-> linux-mm' in
-> the body to majordomo@kvack.org.  For more info on
-> Linux MM,
-> see: http://www.linux-mm.org/
+glibc compile failed:
+make[2]: *** [math/subdir_lib] Segmentation fault
 
+Regards,
+Jari Ruusu <jari.ruusu@pp.inet.fi>
 
-__________________________________________________
-Do You Yahoo!?
-Make international calls for as low as $.04/minute with Yahoo! Messenger
-http://phonecard.yahoo.com/
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
