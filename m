@@ -1,33 +1,29 @@
-From: "Raz.Doty@usa.net" <Dvy.Cannon@usa.net>
-Subject: Pre-approved Application for linux-aio@kvack.org Wed, 09 Mar 2005 03:44:39 -0800
-Date: Wed, 09 Mar 2005 03:44:39 -0800
-Message-ID: <AVT498OTU71.XUX602XIQVV9-VFN3753NRNCR5.CVKZ25BWSEA7-HL293KSJ99.VP4061ASX78__6773.7944577404$1110368746$gmane$org@axolotl.org>
-Mime-Version: 1.0
-Content-Type: text; charset="us-ascii"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
+From: "Jacklyn Prather" <idhapui@hotmail.com>
+Subject: King of Pharmacy XL05FU
+Date: Thu, 10 Mar 2005 13:32:09 -0300
+Message-ID: <13076.1766959496$1110472737@news.gmane.org>
 Sender: owner-linux-mm@kvack.org
-To: linux-aio@kvack.org
-Cc: linux-mm@kvack.org
+To: aart@kvack.org
+Cc: adrian@kvack.org, linux-mm@kvack.org
 List-Id: linux-mm.kvack.org
 
-Hello,
+Biggest stores of on'line pharmacies.
+Over than 150 major meds
+Highest qualities assured on our online generic meds
+at the most competitive prices.
 
-We sent you an email a while ago, because you now qualify
-for a much lower rate based on the biggest rate drop in years.
+Vi'sit us today's!
 
-You can now get $327,000 for as little as $617 a month!
-Bad credit? Doesn't matter, low rates are fixed no matter what!
-
-Follow this link to process your application and a 24 hour approval:
-
-http://www.qklenders.com/x/loan.php?id=d17
-
-Best Regards,
-Arnulfo Babb
+http://fior9333.com/_fd5977142df59d3662baa654773c6a8e/
 
 
-http://www.qklenders.com/x/st.html
+
+
+
+
+
+This is 1 -time mailing. N0-re m0val are re'qui-red
+    
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
