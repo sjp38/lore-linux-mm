@@ -1,39 +1,47 @@
-Date: Tue, 15 Mar 2005 22:37:17 -0800
-From: Andrew Morton <akpm@osdl.org>
-Subject: Re: [PATCH] Move code to isolate LRU pages into separate function
-Message-Id: <20050315223717.2a0f80e6.akpm@osdl.org>
-In-Reply-To: <20050315195452.GE19113@localhost>
-References: <20050314214941.GP3286@localhost>
-	<20050315195452.GE19113@localhost>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from bellsouth.net (YahooBB219019012091.bbtec.net [219.19.12.91]) by l-daemon (Sun ONE Messaging Server 6.0 HotFix 1.01 (built Mar 15 2004)) with SMTP id <182C6A03D6E57B28@l-daemon> for linux-mm@kvack.org; Wed, 16 Mar 2005 17:41:31 -0600
+Date: Thu, 17 Mar 2005 04:44:31 +0500
+From: Swiss Stuff <stghbxppxxhrzs@bellsouth.net>
+Subject: Affordable pharmaceuticals
+Message-ID: <Pine.LNX.4.44.4508829739793.15166-100000@netcom.com>
+MIME-version: 1.0
+Content-type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Martin Hicks <mort@sgi.com>
-Cc: linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Martin Hicks <mort@sgi.com> wrote:
->
-> On Mon, Mar 14, 2005 at 04:49:41PM -0500, Martin Hicks wrote:
->  > Hi,
->  > 
->  > I noticed that the loop to pull pages out of the LRU lists for
->  > processing occurred twice.  This just sticks that code into a separate
->  > function to improve readability.
->  > 
->  > The patch is against 2.6.11-mm2 but should apply to anything recent.
->  > Build and boot tested on sn2.
-> 
->  Whoops.  I was double-incrementing scanned, so only half the pages that
->  you asked for were being scanned.
-> 
->  This version fixes that and also allows passing in a NULL scanned
->  argument if you don't care how many pages were scanned.
-> 
+Hi
+Swiss Pharm, did this ring a bell in your mind?
+Curious? - read on..
 
-But neither caller passes in a NULL argument.
+In the heart of Switzerland since 1931. Our online store 
+carries a wide assortment of medicines. 
+With laxed laws we ask no questions & leave the discretion 
+up to the individual. 
+Iron-clad Swiss privacy & security laws allow for complete 
+safety of personal information.
+ 
+Weekly specials include: All Pain-klllers(Hyd/Vic), 
+sleep-aids(Amb/Val), & sexx-aids(Ci/Vi).
+ 
+We ship around the world, quickly & discretley. 
+We hope you enjoy our products. 
+Bulk discounts on mid-large orders
+
+We shall be glad to show you our website
+http://Maria.0bese.com/p/864/Maria
+
+
+thank you
+Maria Hope
+Swiss Pharm
+Trusted, Tried, & Proven
+
+
+Did this reach you in error?
+please let us know and your contact email will be discarded
+http://Maria.6mg.net/z.php
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
