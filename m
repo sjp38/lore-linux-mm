@@ -1,113 +1,93 @@
-Received: from westrelay04.boulder.ibm.com (westrelay04.boulder.ibm.com [9.17.193.32])
-	by e31.co.us.ibm.com (8.12.10/8.12.9) with ESMTP id iA2MjgLv252842
-	for <linux-mm@kvack.org>; Tue, 2 Nov 2004 17:45:53 -0500
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by westrelay04.boulder.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id iA2MjXF9121714
-	for <linux-mm@kvack.org>; Tue, 2 Nov 2004 15:45:33 -0700
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.12.11/8.12.11) with ESMTP id iA2MjW9P021758
-	for <linux-mm@kvack.org>; Tue, 2 Nov 2004 15:45:32 -0700
-Message-ID: <41880E0A.3000805@us.ibm.com>
-Date: Tue, 02 Nov 2004 14:45:30 -0800
-From: Dave Hansen <haveblue@us.ibm.com>
+Date: Tue, 02 Nov 2004 14:51:59 -0800
+From: "Martin J. Bligh" <mbligh@aracnet.com>
+Subject: Re: [PATCH] Use MPOL_INTERLEAVE for tmpfs files
+Message-ID: <239530000.1099435919@flay>
+In-Reply-To: <Pine.SGI.4.58.0411021613300.79056@kzerza.americas.sgi.com>
+References: <Pine.SGI.4.58.0411011901540.77038@kzerza.americas.sgi.com><14340000.1099410418@[10.10.2.4]> <20041102155507.GA323@wotan.suse.de><40740000.1099414515@[10.10.2.4]> <Pine.SGI.4.58.0411021613300.79056@kzerza.americas.sgi.com>
 MIME-Version: 1.0
-Subject: Re: fix iounmap and a pageattr memleak (x86 and x86-64)
-References: <4187FA6D.3070604@us.ibm.com> <20041102220720.GV3571@dualathlon.random>
-In-Reply-To: <20041102220720.GV3571@dualathlon.random>
-Content-Type: multipart/mixed;
- boundary="------------040507060905090305070404"
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrea Arcangeli <andrea@novell.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andi Kleen <ak@suse.de>, Andrew Morton <akpm@osdl.org>
+To: Brent Casavant <bcasavan@sgi.com>
+Cc: Andi Kleen <ak@suse.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, hugh@veritas.com
 List-ID: <linux-mm.kvack.org>
 
-This is a multi-part message in MIME format.
---------------040507060905090305070404
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+> I fully agree with Martin's statement "You WANT your data to be local."
+> However, it can become non-local in two different manners, each of
+> which wants tmpfs to behave differently.  (The next two paragraphs are
+> simply to summarize, no position is being taken.)
+> 
+> The manner I'm concerned about is when a long-lived file (long-lived
+> meaning at least for the duration of the run of a large multithreaded app)
+> is placed in memory as an accidental artifact of the CPU which happened
+> to create the file.
 
-Andrea Arcangeli wrote:
-> Still I recommend investigating _why_ debug_pagealloc is violating the
-> API. It might not be necessary to wait for the pageattr universal
-> feature to make DEBUG_PAGEALLOC work safe.
+Agreed, I see that point - if it's a globally accessed file that's
+created by one CPU, you want it spread around. However ... how the hell
+is the VM meant to distinguish that? The correct way is for the application
+to tell us that - ie use the NUMA API.
 
-This makes the DEBUG_PAGEALLOC stuff symmetric enough to boot for me, 
-and it's pretty damn simple.  Any ideas for doing this without bloating 
-'struct page', even in the debugging case?
+> Imagine, for instance, an application startup
+> script copying a large file into a tmpfs filesystem before spawning
+> the actual computation application itself.  There is a large class of
+> HPC applications which are tightly synchronized, and which require nearly
+> all of the system memory (i.e. almost all the memory on each node).
+> In this case the "victim" node will be forced to go off-node for the
+> bulk of its memory accesses, destroying locality, and slowing down
+> the entire application.  This problem is alleviated if the tmpfs file
+> is fairly well distributed across the nodes.
 
---------------040507060905090305070404
-Content-Type: text/plain;
- name="Z3-page_debugging.patch"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline;
- filename="Z3-page_debugging.patch"
+There are definitely situations where you'd want both, I'd agree.
 
+> But I do understand the opposite situation.  If a lightly-threaded
+> application wants to access the file data, or the application does
+> not require large amounts of additional memory (i.e. nearly all the
+> memory on each node) getting the file itself allocated close to the
+> processor is more beneficial.  In this case the distribution of tmpfs
+> pages is non-ideal (though I'm not sure it's worst-case).
 
+Well, it's not quite worst case  ... you'll only get (n-1)/n of your pages
+off node (where n is number of nodes). I guess we could deliberately
+force ALL of them off-node just to make sure ;-)
 
----
+>> > But that's a big ugly to distingush, that is why I suggested the sysctl.
+>> 
+>> As long as it defaults to off, I guess I don't really care. Though I'm still
+>> wholly unconvinced it makes much sense. I think we're just papering over the
+>> underlying problem - that we don't do good balancing between nodes under
+>> mem pressure.
+> 
+> It's a tough situation, as shown above.  The HPC workload I mentioned
+> would much prefer the tmpfs file to be distributed.  A non-HPC workload
+> would prefer the tmpfs files be local.  Short of a sysctl I'm not sure
+> how the system could make an intelligent decision about what to do under
+> memory pressure -- it simply isn't knowledge the kernel can have.
 
- memhotplug1-dave/arch/i386/mm/pageattr.c |    7 +++++--
- memhotplug1-dave/include/linux/mm.h      |    3 +++
- memhotplug1-dave/mm/page_alloc.c         |    5 ++++-
- 3 files changed, 12 insertions(+), 3 deletions(-)
-
-diff -puN include/linux/mm.h~Z3-page_debugging include/linux/mm.h
---- memhotplug1/include/linux/mm.h~Z3-page_debugging	2004-11-02 14:29:51.000000000 -0800
-+++ memhotplug1-dave/include/linux/mm.h	2004-11-02 14:37:08.000000000 -0800
-@@ -245,6 +245,9 @@ struct page {
- 	void *virtual;			/* Kernel virtual address (NULL if
- 					   not kmapped, ie. highmem) */
- #endif /* WANT_PAGE_VIRTUAL */
-+#ifdef CONFIG_DEBUG_PAGEALLOC
-+	int mapped;
-+#endif
- };
+It is if you tell it from the app ;-) But otherwise yes, I'd agree.
  
- #ifdef CONFIG_MEMORY_HOTPLUG
-diff -puN arch/i386/mm/pageattr.c~Z3-page_debugging arch/i386/mm/pageattr.c
---- memhotplug1/arch/i386/mm/pageattr.c~Z3-page_debugging	2004-11-02 14:31:07.000000000 -0800
-+++ memhotplug1-dave/arch/i386/mm/pageattr.c	2004-11-02 14:41:00.000000000 -0800
-@@ -153,7 +153,7 @@ __change_page_attr(struct page *page, pg
- 		printk("pgprot_val(PAGE_KERNEL): %08lx\n", pgprot_val(PAGE_KERNEL));
- 		printk("(pte_val(*kpte) & _PAGE_PSE): %08lx\n", (pte_val(*kpte) & _PAGE_PSE)); 
- 		printk("path: %d\n", path);
--		BUG();
-+		WARN_ON(1);
- 	}
- 
- 	if (cpu_has_pse && (page_count(kpte_page) == 1)) {
-@@ -224,7 +224,10 @@ void kernel_map_pages(struct page *page,
- 	/* the return value is ignored - the calls cannot fail,
- 	 * large pages are disabled at boot time.
- 	 */
--	change_page_attr(page, numpages, enable ? PAGE_KERNEL : __pgprot(0));
-+	if (enable && !page->mapped)
-+		change_page_attr(page, numpages, PAGE_KERNEL);
-+	else if (!enable && page->mapped)
-+		change_page_attr(page, numpages, __pgprot(0));
- 	/* we should perform an IPI and flush all tlbs,
- 	 * but that can deadlock->flush only current cpu.
- 	 */
-diff -puN mm/page_alloc.c~Z3-page_debugging mm/page_alloc.c
---- memhotplug1/mm/page_alloc.c~Z3-page_debugging	2004-11-02 14:37:53.000000000 -0800
-+++ memhotplug1-dave/mm/page_alloc.c	2004-11-02 14:42:56.000000000 -0800
-@@ -1840,8 +1840,11 @@ void __devinit memmap_init_zone(unsigned
- 		INIT_LIST_HEAD(&page->lru);
- #ifdef WANT_PAGE_VIRTUAL
- 		/* The shift won't overflow because ZONE_NORMAL is below 4G. */
--		if (!is_highmem_idx(zone))
-+		if (!is_highmem_idx(zone)) {
- 			set_page_address(page, __va(start_pfn << PAGE_SHIFT));
-+			page->mapped = 1;
-+		} else
-+			page->mapped = 0;
- #endif
- 		start_pfn++;
- 	}
-_
+> I've got a new patch including Andi's suggested sysctl ready to go.
+> But I've seen one vote for defaulting to on, and one for defaulting
+> to off.  I'd vote for on, but then again I'm biased. :)  Who arbitrates
+> this one, Hugh Dickins (it's a tmpfs change, after all)?  From SGI's
+> perspective we can live with it either way; we'll simply need to
+> document our recommendations for our customers.
 
---------------040507060905090305070404--
+I guess Hugh or Andrew. But I'm very relucant to see the current default
+changed to benefit one particular set of workloads ... unless there's
+overwhelming evidence that those workloads are massively predominant.
+A per-arch thing might make sense I suppose if you're convinced that
+all ia64 NUMA machines will ever run is HPC apps.
+
+> As soon as I know whether this should default on or off, I'll post
+> the new patch, including the sysctl.
+
+Another way might be a tmpfs mount option ... I'd prefer that to a sysctl
+personally, but maybe others wouldn't. Hugh, is that nuts?
+
+M.
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
