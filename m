@@ -1,41 +1,29 @@
-Subject: Re: NUMA is bust with CONFIG_PREEMPT=y
-From: Robert Love <rml@tech9.net>
-In-Reply-To: <384860000.1033595383@flay>
-References: <3D9B6939.397DB9EA@digeo.com>  <384860000.1033595383@flay>
-Content-Type: text/plain
-Message-Id: <1033596139.27343.14.camel@phantasy>
-Mime-Version: 1.0
-Date: 02 Oct 2002 18:02:19 -0400
+Date: Wed, 02 Oct 2002 15:02:56 -0700
+From: "Martin J. Bligh" <mbligh@aracnet.com>
+Subject: Re: [RFC][PATCH]  4KB stack + irq stack for x86
+Message-ID: <388830000.1033596176@flay>
+In-Reply-To: <20021002215649.GY3000@clusterfs.com>
+References: <3D9B62AC.30607@us.ibm.com> <20021002215649.GY3000@clusterfs.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Martin J. Bligh" <mbligh@aracnet.com>
-Cc: Andrew Morton <akpm@digeo.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Andreas Dilger <adilger@clusterfs.com>, Dave Hansen <haveblue@us.ibm.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2002-10-02 at 17:49, Martin J. Bligh wrote:
+> I'm a little bit worried about this patch.  Have you tried something
+> like NFS-over-ext3-over-LVM-over-MD or so, which can have a deep stack?
 
-> I'd favour the latter. It doesn't seem that useful on big machines like this,
-> and adds significant complication ... anyone really want it on a NUMA box? If
-> not, I'll make a patch to disable it for NUMA machines ...
+No, I don't think we're that twisted. 
+But feel free ... and have fun getting LVM to work first ;-)
 
-I am not one of the 12 people in the world with a NUMA-Q, but I would
-not like to see you disable kernel preemption.
+IMHO, bugfixing arcane corner-case bloat issues can come later, if all normal
+configs work.
 
-I would really like to see it work on every architecture in every
-configuration.  Is it that hard to make the requisite changes to fix it
-up?
-
-If nothing else, I think you guys can _infinitely_ benefit from the
-atomicity checking infrastructure that is now in place.
-
-Besides, why screw yourself over from the day when preemption is a
-requirement? </semi-kidding> ;-)
-
-just my two bits,
-
-	Robert Love
-
+M.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
