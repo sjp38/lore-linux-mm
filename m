@@ -1,95 +1,61 @@
-Date: Thu, 2 Nov 2000 12:34:00 +0000
+Date: Thu, 2 Nov 2000 12:29:59 +0000
 From: "Stephen C. Tweedie" <sct@redhat.com>
-Subject: PATCH [2.4.0test10]: Kiobuf#01, expand IO return codes from iobufs
-Message-ID: <20001102123400.A1876@redhat.com>
+Subject: Re: [PATCH] Re: 2.4 VM & refill_inactive_scan()
+Message-ID: <20001102122959.Y1876@redhat.com>
+References: <Pine.LNX.4.21.0010271643050.25174-100000@duckman.distro.conectiva> <Pine.LNX.4.10.10010271147160.1850-100000@penguin.transmeta.com>
 Mime-Version: 1.0
-Content-Type: multipart/mixed; boundary="YToU2i3Vx8H2dn7O"
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.10.10010271147160.1850-100000@penguin.transmeta.com>; from torvalds@transmeta.com on Fri, Oct 27, 2000 at 11:52:35AM -0700
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Linus Torvalds <torvalds@transmeta.com>
-Cc: Rik van Riel <riel@nl.linux.org>, Ingo Molnar <mingo@redhat.com>, Stephen Tweedie <sct@redhat.com>, linux-mm@kvack.org
+Cc: Rik van Riel <riel@conectiva.com.br>, Ingo Molnar <mingo@elte.hu>, linux-mm@kvack.org, Stephen Tweedie <sct@redhat.com>
 List-ID: <linux-mm.kvack.org>
-
---YToU2i3Vx8H2dn7O
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
 
 Hi,
 
-Kiobuf diff 01: allow for both the errno and the number of bytes
-transferred to be returned in a kiobuf after IO.  We need both in
-order to know how many pages have been dirtied after a failed IO.
+On Fri, Oct 27, 2000 at 11:52:35AM -0700, Linus Torvalds wrote:
+> 
+> On Fri, 27 Oct 2000, Rik van Riel wrote:
+> > 
+> > There is one big point left though...
+> > 
+> > Raw IO into a page which just gets unmapped by a process.
+> > For NFS we'll somehow need to get the credentials for that
+> > page so we can write back the data after it is detached from
+> > the process...
+> 
+> I really think that you should just add "struct file" to the kiobuf array,
+> and expand "maplist".
 
-Also includes a fix to the brw_kiovec code to make sure that EIO is
-returned if no bytes were transferred successfully.
+OK, done.  I've broken the diff into chunks, because there are a
+couple of other kiobuf fixes to go in at the same time.  The kiobuf
+user-land mapping code can now map the struct file and propagate
+dirty flags into it once a read operation into the memory completes.
 
---Stephen
+> In fact, you should expand "maplist" anyway, because right now kiobuf's
+> cannot handle the case of multiple partial pages: you can be partial only
+> at the beginning or the end, which means that kiobuf's are worthless for
+> stuff like "sendmsg()" that can do scatter-gather.
 
---YToU2i3Vx8H2dn7O
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: attachment; filename="01-retval.diff"
+That's why the IO functions themselves take a kiovec, not a kiobuf, as
+input, and why the iobuf.c code has utility functions for dealing with
+entire kiovecs at once.  The iovec is the scatter-gather unit for IO,
+but the individual kiobuf is the unit for mapping of pages.  That way,
+you can take two different kiobufs, owned by different system
+components, and do a single IO on them (eg. take an mmap()ed kiobuf
+containing an http header that an application just wrote, and a kiobuf
+mapped over the page cache containing a file, and send them over the
+wire as a single network packet).
 
-diff -ru linux-2.4.0-test10.kio.00/drivers/char/raw.c linux-2.4.0-test10.kio.01/drivers/char/raw.c
---- linux-2.4.0-test10.kio.00/drivers/char/raw.c	Wed Nov  1 22:25:30 2000
-+++ linux-2.4.0-test10.kio.01/drivers/char/raw.c	Thu Nov  2 12:00:35 2000
-@@ -321,10 +321,10 @@
- 		
- 		err = brw_kiovec(rw, 1, &iobuf, dev, b, sector_size);
- 
-+		transferred += iobuf->retval;
- 		if (err >= 0) {
--			transferred += err;
--			size -= err;
--			buf += err;
-+			size -= iobuf->retval;
-+			buf += iobuf->retval;
- 		}
- 
- 		unmap_kiobuf(iobuf); /* The unlock_kiobuf is implicit here */
-diff -ru linux-2.4.0-test10.kio.00/fs/buffer.c linux-2.4.0-test10.kio.01/fs/buffer.c
---- linux-2.4.0-test10.kio.00/fs/buffer.c	Wed Nov  1 22:25:34 2000
-+++ linux-2.4.0-test10.kio.01/fs/buffer.c	Thu Nov  2 12:01:14 2000
-@@ -1924,6 +1924,8 @@
- 	
- 	spin_unlock(&unused_list_lock);
- 
-+	if (!iosize)
-+		return -EIO;
- 	return iosize;
- }
- 
-@@ -2049,6 +2051,11 @@
- 	}
- 
-  finished:
-+
-+	iobuf->retval = transferred;
-+	if (err < 0)
-+		iobuf->errno = err;
-+	
- 	if (transferred)
- 		return transferred;
- 	return err;
-diff -ru linux-2.4.0-test10.kio.00/include/linux/iobuf.h linux-2.4.0-test10.kio.01/include/linux/iobuf.h
---- linux-2.4.0-test10.kio.00/include/linux/iobuf.h	Thu Nov  2 12:02:43 2000
-+++ linux-2.4.0-test10.kio.01/include/linux/iobuf.h	Thu Nov  2 12:07:27 2000
-@@ -52,7 +52,12 @@
- 
- 	/* Dynamic state for IO completion: */
- 	atomic_t	io_count;	/* IOs still in progress */
--	int		errno;		/* Status of completed IO */
-+
-+	/* Equivalent to the return value and "errno" after a syscall: */
-+	int		errno;		/* Error from completed IO (usual
-+					   kernel negative values) */
-+	int		retval;		/* Return value of completed IO */
-+
- 	void		(*end_io) (struct kiobuf *); /* Completion callback */
- 	wait_queue_head_t wait_queue;
- };
+I've considered adding support for a real struct kiovec to allow
+passing of kiovec structs as first-class data objects, but for now I
+haven't come across anything in the implementation which can't be
+handled cleanly enough by a counted vector of kiobufs.
 
---YToU2i3Vx8H2dn7O--
+Cheers,
+ Stephen
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
