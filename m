@@ -1,65 +1,65 @@
-Content-Type: text/plain;
-  charset="iso-8859-1"
-From: Daniel Phillips <phillips@arcor.de>
-Subject: Re: MM patches against 2.5.31
-Date: Thu, 29 Aug 2002 00:04:46 +0200
-References: <3D644C70.6D100EA5@zip.com.au> <E17k9dO-0002tR-00@starship> <3D6D3AA4.31A4AD3A@zip.com.au>
-In-Reply-To: <3D6D3AA4.31A4AD3A@zip.com.au>
-MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
-Message-Id: <E17kAvf-0002tx-00@starship>
+Subject: Re: [Lse-tech] Re: [patch] SImple Topology API v0.3 (1/2)
+From: "Timothy D. Witham" <wookie@osdl.org>
+In-Reply-To: <20020828192917.GC10487@atrey.karlin.mff.cuni.cz>
+References: <20020827143115.B39@toy.ucw.cz>
+	<Pine.LNX.4.44.0208280711390.3234-100000@hawkeye.luckynet.adm>
+	<20020828192917.GC10487@atrey.karlin.mff.cuni.cz>
+Content-Type: text/plain
+Content-Transfer-Encoding: 7bit
+Date: 28 Aug 2002 15:31:55 -0700
+Message-Id: <1030573915.3178.128.camel@wookie-t23.pdx.osdl.net>
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@zip.com.au>
-Cc: Christian Ehrhardt <ehrhardt@mathematik.uni-ulm.de>, lkml <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Pavel Machek <pavel@suse.cz>
+Cc: Thunder from the hill <thunder@lightweight.ods.org>, Matthew Dobson <colpatch@us.ibm.com>, Andrew Morton <akpm@zip.com.au>, Linus Torvalds <torvalds@transmeta.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Martin Bligh <mjbligh@us.ibm.com>, Andrea Arcangeli <andrea@suse.de>, Michael Hohnbaum <hohnbaum@us.ibm.com>, lse-tech <lse-tech@lists.sourceforge.net>
 List-ID: <linux-mm.kvack.org>
 
-On Wednesday 28 August 2002 23:03, Andrew Morton wrote:
-> Daniel Phillips wrote:
+How about the old Marketing name CONFIG_CCNUMA?
+
+
+
+Tim
+
+On Wed, 2002-08-28 at 12:29, Pavel Machek wrote:
+> Hi!
+> 
+> > > > -   bool 'Multiquad NUMA system' CONFIG_MULTIQUAD
+> > > > +   bool 'Multi-node NUMA system support' CONFIG_X86_NUMA
+> > > 
+> > > Why not simply CONFIG_NUMA?
 > > 
-> > Going right back to basics, what do you suppose is wrong with the 2.4
-> > strategy of always doing the lru removal in free_pages_ok?
+> > Because NUMA is subordinate to X86, and another technology named NUMA 
+> > might appear? Nano-uplinked micro-array... No Ugliness Munched Archive? 
+> > Whatever...
 > 
-> That's equivalent to what we have at present, which is:
+> NUMA means non-uniform memory access. At least IBM, AMD and SGI do
+> NUMA; and I guess anyone with 100+ nodes *has* numa machine. (BUt as
+> andrea already explained, CONFIG_NUMA is already taken for generic
+> NUMA support.)
 > 
-> 	if (put_page_testzero(page)) {
-> 		/* window here */
-> 		lru_cache_del(page);
-> 		__free_pages_ok(page, 0);
-> 	}
+> 							Pavel
 > 
-> versus:
+> -- 
+> Casualities in World Trade Center: ~3k dead inside the building,
+> cryptography in U.S.A. and free speech in Czech Republic.
 > 
-> 	spin_lock(lru lock);
-> 	page = list_entry(lru, ...);
-> 	if (page_count(page) == 0)
-> 		continue;
-> 	/* window here */
-> 	page_cache_get(page);
-> 	page_cache_release(page);	/* double-free */
-
-Indeed it is.  In 2.4.19 we have:
-
-(vmscan.c: shrink_cache)                        (page_alloc.c: __free_pages)
-
-365       if (unlikely(!page_count(page)))
-366               continue;
-					        444         if (!PageReserved(page) && put_page_testzero(page))
-          [many twisty paths, all different]
-511       /* effectively free the page here */
-512       page_cache_release(page);
-					        445                 __free_pages_ok(page, order);
-                                                [free it again just to make sure]
-
-So there's no question that the race is lurking in 2.4.  I noticed several
-more paths besides the one above that look suspicious as well.  The bottom
-line is, 2.4 needs a fix along the lines of my suggestion or Christian's,
-something that can actually be proved.
-
-It's a wonder that this problem manifests so rarely in practice.
-
+> 
+> -------------------------------------------------------
+> This sf.net email is sponsored by: Jabber - The world's fastest growing 
+> real-time communications platform! Don't just IM. Build it in! 
+> http://www.jabber.com/osdn/xim
+> _______________________________________________
+> Lse-tech mailing list
+> Lse-tech@lists.sourceforge.net
+> https://lists.sourceforge.net/lists/listinfo/lse-tech
 -- 
-Daniel
+Timothy D. Witham - Lab Director - wookie@osdlab.org
+Open Source Development Lab Inc - A non-profit corporation
+15275 SW Koll Parkway - Suite H - Beaverton OR, 97006
+(503)-626-2455 x11 (office)    (503)-702-2871     (cell)
+(503)-626-2436     (fax)
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
