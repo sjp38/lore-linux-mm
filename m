@@ -1,125 +1,54 @@
+Date: Sat, 13 May 2000 20:41:24 -0700 (PDT)
+From: Linus Torvalds <torvalds@transmeta.com>
 Subject: Re: pre8: where has the anti-hog code gone?
-References: <m12qjP0-000OVtC@amadeus.home.nl>
-From: "Juan J. Quintela" <quintela@fi.udc.es>
-In-Reply-To: arjan@fenrus.demon.nl's message of "Sat, 13 May 2000 23:24:50 +0200 (CEST)"
-Date: 13 May 2000 23:59:42 +0200
-Message-ID: <yttn1lu2jsh.fsf@vexeta.dc.fi.udc.es>
+In-Reply-To: <m12qjP0-000OVtC@amadeus.home.nl>
+Message-ID: <Pine.LNX.4.10.10005132035370.2422-100000@penguin.transmeta.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Arjan van de Ven <arjan@fenrus.demon.nl>
-Cc: Linus Torvalds <torvalds@transmeta.com>, linux-mm@kvack.org
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
->>>>> "arjan" == Arjan van de Ven <arjan@fenrus.demon.nl> writes:
+[ Thanks for looking at this., ]
 
-Hi
+On Sat, 13 May 2000, Arjan van de Ven wrote:
+> 
+> My idea is (but I have not tested this) that for priority == 0 (aka "Uh oh")
+> shrink_mmap or do_try_to_free_pages have to block while waiting for pages to
+> be commited to disk. As far as I can see, shrink_mmap just skips pages that
+> are being commited to disk, while these could be freed when they are waited
+> upon. 
 
-arjan> I have been looking at it right now, and I think there are a few issues:
+That's what I did in one ofthe pre-7's, and it ended up being quite bad
+for performance. But that was before I put sync-out pages at the head of
+the LRU queue, so what ended up happening is that that particular pre-7
+tried to write out the block, and then next time around when shrink_mmap()
+rolled around, because the page was still at the end of the LRU queue, so
+we immediately ended up synchronously waiting for it.
 
-arjan> 1) shrink_[id]node_memory always return 0, even if they free memory
-arjan> 2) shrink_inode_memory is broken for priority == 0
+With the current behaviour, which always moves a page to the front of the
+LRU list if it cannot be free'd, the synchronous wait in shrink_mmap() is
+probably fine, and you could try to just change "sync_page_buffers()" back
+to the code that did 
 
-arjan> 2) is easily fixable, but even with that fixed, my traces show that, for the
-arjan> mmap002 test, shrink_mmap fails just before the OOM.
+	if (buffer_locked(p))
+		__wait_on_buffer(p);
+	else if (buffer_dirty(p))
+		ll_rw_block(WRITE, 1, &p);
 
-After discussing with Arjan that changes. And later discussing with riel
-about that we _need_ to swap_out more pages that we scan, because some
-of the pages can be reclaimed, I made the following patch.  Now things
-go better, not well, but better.
+(instead of the current "buffer_dirty(p) && !buffer_locked(p)" test that
+only starts the IO).
 
-Now mmap002 finish sometimes, (where some is a low number).
+It's clear that at some point we _have_ to wait for pages to actually get
+written out, whether they were written for paging or just because they
+were dirty data buffers.
 
-The important part of the patch is the change in SWAP_COUNT, only
-changing that number, I get better behaviour (thanks riel for
-suggesting that).
+Does the above make it ok? How does it feel performance-wise?
 
-The other patch is to make shrink_[di]cache to behave like the rest of
-the shrink* functions and do the *maximum* effort when priority = 0,
-not when priority = 1.  This last change improves things only a bit.
+		Linus
 
-Comments?
-
-Later, Juan.
-
-diff -u -urN --exclude-from=/home/lfcia/quintela/work/kernel/exclude pre9-1/fs/dcache.c testing/fs/dcache.c
---- pre9-1/fs/dcache.c	Fri May 12 01:11:40 2000
-+++ testing/fs/dcache.c	Sat May 13 21:58:41 2000
-@@ -497,10 +497,8 @@
-  */
- int shrink_dcache_memory(int priority, unsigned int gfp_mask)
- {
--	int count = 0;
-+	int count = dentry_stat.nr_unused / (priority + 1);
- 	lock_kernel();
--	if (priority)
--		count = dentry_stat.nr_unused / priority;
- 	prune_dcache(count);
- 	unlock_kernel();
- 	/* FIXME: kmem_cache_shrink here should tell us
-diff -u -urN --exclude-from=/home/lfcia/quintela/work/kernel/exclude pre9-1/fs/inode.c testing/fs/inode.c
---- pre9-1/fs/inode.c	Fri May 12 01:11:40 2000
-+++ testing/fs/inode.c	Sat May 13 22:35:51 2000
-@@ -411,11 +411,10 @@
- 	(((inode)->i_state | (inode)->i_data.nrpages) == 0)
- #define INODE(entry)	(list_entry(entry, struct inode, i_list))
- 
--void prune_icache(int goal)
-+void prune_icache(int count)
- {
- 	LIST_HEAD(list);
- 	struct list_head *entry, *freeable = &list;
--	int count = 0;
- 	struct inode * inode;
- 
- 	spin_lock(&inode_lock);
-@@ -440,11 +439,10 @@
- 		INIT_LIST_HEAD(&inode->i_hash);
- 		list_add(tmp, freeable);
- 		inode->i_state |= I_FREEING;
--		count++;
--		if (!--goal)
-+		inodes_stat.nr_unused--;
-+		if (!--count)
- 			break;
- 	}
--	inodes_stat.nr_unused -= count;
- 	spin_unlock(&inode_lock);
- 
- 	dispose_list(freeable);
-@@ -452,10 +450,7 @@
- 
- int shrink_icache_memory(int priority, int gfp_mask)
- {
--	int count = 0;
--		
--	if (priority)
--		count = inodes_stat.nr_unused / priority;
-+	int count = inodes_stat.nr_unused / (priority + 1);
- 	prune_icache(count);
- 	/* FIXME: kmem_cache_shrink here should tell us
- 	   the number of pages freed, and it should
-diff -u -urN --exclude-from=/home/lfcia/quintela/work/kernel/exclude pre9-1/mm/vmscan.c testing/mm/vmscan.c
---- pre9-1/mm/vmscan.c	Sat May 13 19:30:06 2000
-+++ testing/mm/vmscan.c	Sat May 13 23:17:22 2000
-@@ -430,7 +430,7 @@
-  * latency.
-  */
- #define FREE_COUNT	8
--#define SWAP_COUNT	8
-+#define SWAP_COUNT	16
- static int do_try_to_free_pages(unsigned int gfp_mask)
- {
- 	int priority;
-
-
-
-
-
--- 
-In theory, practice and theory are the same, but in practice they 
-are different -- Larry McVoy
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
