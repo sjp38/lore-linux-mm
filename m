@@ -1,55 +1,37 @@
-Date: Thu, 5 Feb 2004 15:29:01 -0500
-From: Ben Collins <bcollins@debian.org>
-Subject: Re: 2.6.2-mm1 aka "Geriatric Wombat"
-Message-ID: <20040205202901.GC1042@phunnypharm.org>
-References: <fa.h1qu7q8.n6mopi@ifi.uio.no> <402240F9.3050607@gadsdon.giointernet.co.uk> <20040205182614.GG13075@kroah.com> <20040205182928.GA1042@phunnypharm.org> <20040205121457.50d2be05.akpm@osdl.org>
+Subject: Re: 2.6.2-mm1 aka "Geriatric Wombat" DIO read race still fails
+From: Daniel McNeil <daniel@osdl.org>
+In-Reply-To: <20040205014405.5a2cf529.akpm@osdl.org>
+References: <20040205014405.5a2cf529.akpm@osdl.org>
+Content-Type: text/plain
+Message-Id: <1076023899.7182.97.camel@ibm-c.pdx.osdl.net>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20040205121457.50d2be05.akpm@osdl.org>
+Date: 05 Feb 2004 15:31:39 -0800
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@osdl.org>
-Cc: greg@kroah.com, robert@gadsdon.giointernet.co.uk, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, "linux-aio@kvack.org" <linux-aio@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Feb 05, 2004 at 12:14:57PM -0800, Andrew Morton wrote:
-> Ben Collins <bcollins@debian.org> wrote:
-> >
-> > On Thu, Feb 05, 2004 at 10:26:14AM -0800, Greg KH wrote:
-> > > On Thu, Feb 05, 2004 at 01:11:21PM +0000, Robert Gadsdon wrote:
-> > > > 2.6.2-mm1 tombstone "Badness in kobject_get....." when booting:
-> > > 
-> > > Oooh, not nice.  That means a kobject is being used before it has been
-> > > initialized.  Glad to see that check finally helps out...
-> > > 
-> > > > ieee1394: Host added: ID:BUS[0-00:1023]  GUID[090050c50000046f]
-> > > > Badness in kobject_get at lib/kobject.c:431
-> > > > Call Trace:
-> > > >  [<c0239966>] kobject_get+0x36/0x40
-> > > >  [<c027cc73>] get_device+0x13/0x20
-> > > >  [<c027d899>] bus_for_each_dev+0x59/0xc0
-> > > >  [<d0939355>] nodemgr_node_probe+0x55/0x120 [ieee1394]
-> > > >  [<d0939200>] nodemgr_probe_ne_cb+0x0/0x90 [ieee1394]
-> > > >  [<d0939748>] nodemgr_host_thread+0x168/0x190 [ieee1394]
-> > > >  [<d09395e0>] nodemgr_host_thread+0x0/0x190 [ieee1394]
-> > > >  [<c010ac15>] kernel_thread_helper+0x5/0x10
-> > > 
-> > > Looks like one of the ieee1394 patches causes this.  Ben?
-> > 
-> > Andrew, does 2.6.2-mm1 have that big ieee1394 patch, or is this the same
-> > as stock 2.6.2?
+Andrew,
+
+I tested 2.6.2-mm1 on an 8-proc running 6 copies of the read_under
+test and all 6 read_under tests saw uninitialized data in less than 5
+minutes. :(
+
+Daniel
+
+
+
+On Thu, 2004-02-05 at 01:44, Andrew Morton wrote:
+> ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.6/2.6.2/2.6.2-mm1/
+
 > 
-> 2.6.2-mm1 has no ieee1394 patch - it's the same as 2.6.2, apart from some
-> tweaks to eth1394.c from Jeff.
+> O_DIRECT-ll_rw_block-vs-block_write_full_page-fix.patch
+>   Fix race between ll_rw_block() and block_write_full_page()
+> 
 
-Can you send me these "tweaks"?
 
--- 
-Debian     - http://www.debian.org/
-Linux 1394 - http://www.linux1394.org/
-Subversion - http://subversion.tigris.org/
-WatchGuard - http://www.watchguard.com/
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
