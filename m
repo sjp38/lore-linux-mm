@@ -1,162 +1,36 @@
-Message-ID: <3D77143F.E441133D@zip.com.au>
-Date: Thu, 05 Sep 2002 01:22:23 -0700
-From: Andrew Morton <akpm@zip.com.au>
+Date: Thu, 5 Sep 2002 09:35:49 -0300 (BRT)
+From: Rik van Riel <riel@conectiva.com.br>
+Subject: Re: MAP_SHARED handling
+In-Reply-To: <3D7705C5.E41B5D5F@zip.com.au>
+Message-ID: <Pine.LNX.4.44L.0209050934290.1857-100000@imladris.surriel.com>
 MIME-Version: 1.0
-Subject: 2.5.33-mm3
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: lkml <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Andrew Morton <akpm@zip.com.au>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-+filemap-integration.patch
+On Thu, 5 Sep 2002, Andrew Morton wrote:
 
-  Cleanup and code consolidation for readv and writev: generic_file_read()
-  and generic_file_write() take an iovec, and tons of code goes away.
+> One thing bugs me a little bit.
 
-  A work in progress.
+> - We'll be calling ->vm_writeback() once per page, and it'll only
+>   discover a single dirty page on swapper_space.dirty_pages.
 
-+direct-io-alignment.patch
+> So....  Could we do something like: if the try_to_unmap() call turned
+> the page from !PageDirty to PageDirty, give it another go around the
+> list?
 
-  Allow finer-than-fs-blocksize alignment for O_DIRECT.
+FreeBSD is doing this and seems to be getting good results
+with it, so I guess it'll improve our VM too ;)
 
-  A work in progress, which has a bit of a correctness problem, actually.
+Rik
+-- 
+Bravely reimplemented by the knights who say "NIH".
 
-+mmap-fixes.patch
+http://www.surriel.com/		http://distro.conectiva.com/
 
-  Some cleanups and fixes from Christoph.
-
-
-Also quite a lot of fiddling with the new non-blocking page reclaim
-code.  This works well.
-
-
-
-linus.patch
-  cset-1.575-to-1.600.txt.gz
-
-scsi_hack.patch
-  Fix block-highmem for scsi
-
-ext3-htree.patch
-  Indexed directories for ext3
-
-zone-pages-reporting.patch
-  Fix the boot-time reporting of each zone's available pages
-
-enospc-recovery-fix.patch
-  Fix the __block_write_full_page() error path.
-
-fix-faults.patch
-  Back out the initial work for atomic copy_*_user()
-
-spin-lock-check.patch
-  spinlock/rwlock checking infrastructure
-
-refill-rate.patch
-  refill the inactive list more quickly
-
-copy_user_atomic.patch
-
-kmap_atomic_reads.patch
-  Use kmap_atomic() for generic_file_read()
-
-kmap_atomic_writes.patch
-  Use kmap_atomic() for generic_file_write()
-
-throttling-fix.patch
-  Fix throttling of heavy write()rs.
-
-dirty-state-accounting.patch
-  Make the global dirty memory accounting more accurate
-
-rd-cleanup.patch
-  Cleanup and fix the ramdisk driver (doesn't work right yet)
-
-discontig-cleanup-1.patch
-  i386 discontigmem coding cleanups
-
-discontig-cleanup-2.patch
-  i386 discontigmem cleanups
-
-writeback-thresholds.patch
-  Downward adjustments to the default dirtymemory thresholds
-
-buffer-strip.patch
-  Limit the consumption of ZONE_NORMAL by buffer_heads
-
-rmap-speedup.patch
-  rmap pte_chain space and CPU reductions
-
-wli-highpte.patch
-  Resurrect CONFIG_HIGHPTE - ia32 pagetables in highmem
-
-readv-writev.patch
-  O_DIRECT support for readv/writev
-
-filemap-integration.patch
-  Clean up readv/writev
-
-direct-io-alignment.patch
-  Reduced direct-IO alignment requirements
-
-slablru.patch
-  age slab pages on the LRU
-
-slablru-speedup.patch
-  slablru optimisations
-
-llzpr.patch
-  Reduce scheduling latency across zap_page_range
-
-buffermem.patch
-  Resurrect buffermem accounting
-
-config-PAGE_OFFSET.patch
-  Configurable kenrel/user memory split
-
-lpp.patch
-  ia32 huge tlb pages
-
-ext3-sb.patch
-  u.ext3_sb -> generic_sbp
-
-oom-fix.patch
-  Fix an OOM condition on big highmem machines
-
-tlb-cleanup.patch
-  Clean up the tlb gather code
-
-dump-stack.patch
-  arch-neutral dump_stack() function
-
-wli-cleanup.patch
-  random cleanups
-
-madvise-move.patch
-  move mdavise implementation into mm/madvise.c
-
-split-vma.patch
-  VMA splitting patch
-
-mmap-fixes.patch
-  mmap.c cleanup and lock ranking fixes
-
-buffer-ops-move.patch
-  Move submit_bh() and ll_rw_block() into fs/buffer.c
-
-writeback-control.patch
-  Cleanup and extension of the writeback paths
-
-queue-congestion.patch
-  Infrastructure for communicating request queue congestion to the VM
-
-nonblocking-pdflush.patch
-  non-blocking writeback infrastructure, use it for pdflush
-
-nonblocking-vm.patch
-  Non-blocking page reclaim
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
