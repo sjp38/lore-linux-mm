@@ -1,421 +1,223 @@
-Date: Sat, 15 Jan 2005 19:46:31 +0000 (GMT)
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: [PATCH] 2/2 Satisify high-order allocations with linear scan
-In-Reply-To: <Pine.LNX.4.58.0501151942020.17278@skynet>
-Message-ID: <Pine.LNX.4.58.0501151945450.17278@skynet>
-References: <Pine.LNX.4.58.0501151942020.17278@skynet>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Sat, 15 Jan 2005 15:10:06 -0200
+From: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
+Subject: Re: [PATCH] Avoiding fragmentation through different allocator V2
+Message-ID: <20050115171006.GD7397@logos.cnet>
+References: <Pine.LNX.4.58.0501131552400.31154@skynet> <20050114213619.GA3336@logos.cnet> <Pine.LNX.4.58.0501151858360.17278@skynet>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.58.0501151858360.17278@skynet>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linux Memory Management List <linux-mm@kvack.org>
-Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-This patch must be applied on top of the modified allocator patch.
+On Sat, Jan 15, 2005 at 07:18:42PM +0000, Mel Gorman wrote:
+> On Fri, 14 Jan 2005, Marcelo Tosatti wrote:
+> 
+> > On Thu, Jan 13, 2005 at 03:56:46PM +0000, Mel Gorman wrote:
+> > > The patch is against 2.6.11-rc1 and I'm willing to stand by it's
+> > > stability. I'm also confident it does it's job pretty well so I'd like it
+> > > to be considered for inclusion.
+> >
+> > This is very interesting!
+> >
+> 
+> Thanks
+> 
+> > Other than the advantage of decreased fragmentation which you aim, by
+> > providing clustering of different types of allocations you might have a
+> > performance gain (or loss :))  due to changes in cache colouring
+> > effects.
+> >
+> 
+> That is possible but it I haven't thought of a way of measuring the cache
+> colouring effects (if any). There is also the problem that the additional
+> complexity of the allocator will offset this benefit. The two main loss
+> points of the allocator are increased complexity and the increased size of
+> the zone struct.
 
-The purpose of this patch is to linearly scan the address space when a high-order
-allocation cannot be satisfied. It takes the same parameters are try_to_free_pages()
-and introduced try_to_free_highorder_pages().
+We should be able to measure that too...
 
-The concept is quiet simple. Once a process enters here, it is given a
-struct reclaim_task to record it's progress and prevent multiple processes
-reclaiming the same memory. It scans the zones in the usual fallback list
-and finds a block of memory that is being used for UserRclm or KernRclm
-allocations. Once a block is found, it finds all LRU pages in that block,
-removes them from the LRU lists and asks shrink_list() to reclaim them.
+If you look at the performance numbers of applications which do data crunching,
+reading/writing data to disk (scientific applications). Or even databases,
+plus standard set of IO benchmarks...
 
-Once enough pages have been freed, it returns and tries to allocate the high-order
-block again. Statistics are maintained on the number of successful or failed linear
-scans and printed in /proc/buddyinfo
+Of course you're not able to measure the change in cache hits/misses (which would be nice),
+but you can get an idea how measurable is the final performance impact, including
+the page allocator overhead and the increase zone struct size (I dont think the struct zone 
+size increase makes much difference).
 
-This patch is *highly* experimental and there is all sorts of checks that
-I should be making and don't. For example, this patch does not account for
-"holes" in the zone when it is scanning so this could break architectures
-that have holes in the middle of the mem_map. Hence, this is proof-of-concept
-only.
+We should be able to use the CPU performance counters to get exact miss/hit numbers, 
+but it seems its not yet possible to use Mikael's Pettersson pmc inside the kernel, I asked him
+sometime ago but never got along to trying anything:
 
-Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: Measuring kernel-level code cache hits/misses with perfctr     
 
-diff -rup -X /usr/src/patchset-0.5/bin//dontdiff linux-2.6.11-rc1-mbuddy/include/linux/swap.h linux-2.6.11-rc1-lnscan/include/linux/swap.h
---- linux-2.6.11-rc1-mbuddy/include/linux/swap.h	2005-01-13 10:53:56.000000000 +0000
-+++ linux-2.6.11-rc1-lnscan/include/linux/swap.h	2005-01-15 18:33:14.000000000 +0000
-@@ -173,6 +173,7 @@ extern void swap_setup(void);
+ > Hi Mikael,                                                                                                                                                     
+ >                                                                                                                                                                
+ > I've been wondering if its possible to use PMC's                                                                                                               
+ > to monitor L1 and/or L2 cache hits from kernel code? 
 
- /* linux/mm/vmscan.c */
- extern int try_to_free_pages(struct zone **, unsigned int, unsigned int);
-+extern int try_to_free_highorder_pages(struct zone **, unsigned int, unsigned int);
- extern int shrink_all_memory(int);
- extern int vm_swappiness;
+You can count them by using the global-mode counters interface
+(present in the perfctr-2.6 package but not in the 2.6-mm kernel
+unfortunately) and restricting the counters to CPL 0.
 
-diff -rup -X /usr/src/patchset-0.5/bin//dontdiff linux-2.6.11-rc1-mbuddy/mm/page_alloc.c linux-2.6.11-rc1-lnscan/mm/page_alloc.c
---- linux-2.6.11-rc1-mbuddy/mm/page_alloc.c	2005-01-15 18:10:54.000000000 +0000
-+++ linux-2.6.11-rc1-lnscan/mm/page_alloc.c	2005-01-15 18:33:14.000000000 +0000
-@@ -53,6 +53,8 @@ int global_refill=0;
- int kernnorclm_count=0;
- int kernrclm_count=0;
- int userrclm_count=0;
-+int lnscan_success=0;
-+int lnscan_fail=0;
+However, for profiling purposes you probably want to catch overflow
+interrupts, and that's not supported for global-mode counters.
+I simply haven't had time to implement that feature.
 
- EXPORT_SYMBOL(totalram_pages);
- EXPORT_SYMBOL(nr_swap_pages);
-@@ -850,6 +852,7 @@ __alloc_pages(unsigned int gfp_mask, uns
- 	int alloc_type;
- 	int do_retry;
- 	int can_try_harder;
-+	int tried_highorder=0;
 
- 	might_sleep_if(wait);
+> > It depends on the workload/application mix and type of cache of course,
+> > but I think there will be a significant measurable difference on most
+> > common workloads.
+> >
+> 
+> If I could only measure it :/
+> 
+> > Have you done any investigation with that respect? IMHO such
+> > verification is really important before attempting to merge it.
+> >
+> 
+> No unfortunately. Do you know of a test I can use?
 
-@@ -926,6 +929,7 @@ rebalance:
- 	p->flags &= ~PF_MEMALLOC;
+I think some CPU/memory intensive benchmarks should give us a hint of the total
+impact ?
 
- 	/* go through the zonelist yet one more time */
-+realloc:
- 	for (i = 0; (z = zones[i]) != NULL; i++) {
- 		if (!zone_watermark_ok(z, order, z->pages_min,
- 				alloc_type, can_try_harder,
-@@ -933,8 +937,17 @@ rebalance:
- 			continue;
+> > BTW talking about cache colouring, I this is an area which has a HUGE
+> > space for improvement. The allocator is completly unaware of colouring
+> > (except the SLAB) - we should try to come up with a light per-process
+> > allocation colouring optimizer. But thats another history.
+> >
+> 
+> This also was tried and dropped. The allocator was a lot more complex and
+> the implementor was unable to measure it. IIRC, the patch was not accepted
+> with a comment along the lines of "If you can't measure it, it doesn't
+> exist". Before I walk down the page coloring path again, I'll need some
+> scheme that measures the cache-effect.
 
- 		page = buffered_rmqueue(z, order, gfp_mask);
--		if (page)
-+		if (page) {
-+			if (tried_highorder) lnscan_success++;
- 			goto got_pg;
-+		}
-+		if (tried_highorder) lnscan_fail++;
-+	}
-+
-+	if (!tried_highorder && order > 0) {
-+		try_to_free_highorder_pages(zones, gfp_mask, order);
-+		tried_highorder=1;
-+		goto realloc;
- 	}
+Someone needs to write the helper functions to use the PMC's and test that.
 
- 	/*
-@@ -1962,6 +1975,9 @@ static int frag_show(struct seq_file *m,
-  	seq_printf(m, "KernNoRclm allocs: %d\n", kernnorclm_count);
-  	seq_printf(m, "KernRclm allocs:   %d\n", kernrclm_count);
-  	seq_printf(m, "UserRclm allocs:   %d\n", userrclm_count);
-+ 	seq_printf(m, "lnscan success:    %d\n", lnscan_success);
-+ 	seq_printf(m, "lnscan fail:       %d\n", lnscan_fail);
-+
-  	seq_printf(m, "%-10s Fallback count: %d\n", type_names[0],
- 						    fallback_count[0]);
-  	seq_printf(m, "%-10s Fallback count: %d\n", type_names[1],
-diff -rup -X /usr/src/patchset-0.5/bin//dontdiff linux-2.6.11-rc1-mbuddy/mm/vmscan.c linux-2.6.11-rc1-lnscan/mm/vmscan.c
---- linux-2.6.11-rc1-mbuddy/mm/vmscan.c	2005-01-13 10:54:05.000000000 +0000
-+++ linux-2.6.11-rc1-lnscan/mm/vmscan.c	2005-01-15 18:54:14.000000000 +0000
-@@ -372,6 +372,7 @@ static int shrink_list(struct list_head
- 		BUG_ON(PageActive(page));
+> Totally aside, I'm doing this work because I've started a PhD on
+> developing solid metrics for measuring VM performance and then devising
+> new or modified algorithms using the metrics to see if the changes are any
+> good.
 
- 		sc->nr_scanned++;
-+
- 		/* Double the slab pressure for mapped and swapcache pages */
- 		if (page_mapped(page) || PageSwapCache(page))
- 			sc->nr_scanned++;
-@@ -1271,4 +1272,299 @@ static int __init kswapd_init(void)
- 	return 0;
- }
+Nice! Make your work public! I'm personally very interested in this area.
 
-+/***
-+ * Below this point is a different type of scanner. It is a linear scanner
-+ * that tries to find large blocks of pages to be freed. Very experimental
-+ * at the moment
-+ *
-+ * --mel
-+ */
-+
-+/*
-+ * Describes a single reclaim task. Only one process is allowed to scan
-+ * a single 2^MAX_ORDER block of pages at a time. The active relcimas are
-+ * kept on a reclaim_task linked list protected by reclaims_lock
-+ */
-+struct reclaim_task {
-+	struct zone* zone;
-+	struct list_head list;
-+	int index;
-+};
-+
-+struct list_head active_reclaims;
-+spinlock_t reclaims_lock;
-+
-+/*
-+ * Remember the last index scanned in a zone so the same zones do not get
-+ * scanned repeatadly. This is not perfect at all as the index used is the
-+ * zone index of the fallback list, not the real zone or node ID. Needs
-+ * a better solution but will do for this proof of concept
-+ */
-+int last_reclaim_index[MAX_NR_ZONES];
-+
-+/*
-+ * Find a block to start reclaiming pages from. Returns 1 when a suitable
-+ * block is found
-+ */
-+int find_startblock(int zoneid, struct reclaim_task *rtask) {
-+	int startindex;
-+	int retval=1;
-+
-+	/* rtask->index will be -1 the first time a reclaim task is created */
-+ 	if (rtask->index == -1) {
-+		startindex = last_reclaim_index[zoneid];
-+		rtask->index = startindex;
-+	} else {
-+		startindex = rtask->index;
-+	}
-+
-+	/* Be sure we do not start past the zone boundary */
-+	if (rtask->index >= (rtask->zone->present_pages >> MAX_ORDER)-1) {
-+		rtask->index=startindex=0;
-+	}
-+
-+
-+	do {
-+		int bitidx = rtask->index*2;
-+
-+		/* Test if this region is for UserRclm or KernRclm pages */
-+		if (test_bit(bitidx, rtask->zone->free_area_usemap) ||
-+		    test_bit(bitidx+1,rtask->zone->free_area_usemap)) {
-+			struct list_head *curr;
-+			struct reclaim_task *ltask;
-+			int success=1;
-+
-+			/* Make sure no other task is scanning here */
-+			spin_lock(&reclaims_lock);
-+			list_for_each(curr, &active_reclaims) {
-+				ltask = list_entry(curr,
-+						struct reclaim_task,
-+						list);
-+				if (ltask->index == rtask->index &&
-+				    ltask != rtask) {
-+					success=0;
-+					break;
-+				}
-+			}
-+			spin_unlock(&reclaims_lock);
-+
-+			if (success) {
-+				last_reclaim_index[zoneid] = rtask->index;
-+				goto out;
-+			}
-+		}
-+
-+		/* Wrap around when we reach the end of the zone */
-+		if (++rtask->index >=
-+				(rtask->zone->present_pages >> MAX_ORDER)-1)
-+			rtask->index=0;
-+
-+	} while (rtask->index != startindex);
-+
-+	/* Failed to find a suitable block */
-+	retval = 0;
-+out:
-+	return retval;
-+}
-+
-+/*
-+ * Tries to free 2^MAX_ORDER blocks of pages starting from page
-+ */
-+int try_to_free_highorder_block(struct reclaim_task *rtask,
-+				unsigned int order, int gfp_mask) {
-+	struct page *page;
-+	struct page *endpage;
-+	struct page *endpageblock;
-+	LIST_HEAD(free_canditates);
-+	int nr_freed=0;
-+	struct scan_control sc;
-+	struct pagevec pvec;
-+	int tryfree;
-+	struct zone* zone = rtask->zone;
-+
-+	page = zone->zone_mem_map + (rtask->index * (1 << MAX_ORDER));
-+	endpageblock = page + (1 << MAX_ORDER);
-+	if (endpageblock >
-+		zone->zone_mem_map + zone->present_pages)
-+		endpageblock =
-+			zone->zone_mem_map + zone->present_pages;
-+
-+retry:
-+	endpage = page + (1 << order);
-+	if (endpage > endpageblock) endpage = endpageblock;
-+
-+	/* Scan the whole block of pages */
-+	tryfree=0;
-+	spin_lock_irq(&zone->lru_lock);
-+	while (page <= endpage && page <= endpageblock) {
-+
-+		/*
-+		 * Only free LRU pages for now. In the future, we would also
-+		 * want to scan slab pages here. The problem with slab pages
-+		 * is that the lru list cannot be used as it is already used
-+		 * to track what slab and cache it belongs to
-+		 */
-+		if (PageLRU(page)) {
-+			list_del(&page->lru);
-+			if (!TestClearPageLRU(page)) BUG();
-+
-+			/*
-+			 * This will disrupt LRU ordering but in this path,
-+			 * we don't really care
-+			 */
-+			ClearPageActive(page);
-+
-+			if (get_page_testone(page)) {
-+				/*
-+				 * It is being freed elsewhere. Put back on
-+				 * LRU, move to next page
-+				 */
-+				__put_page(page);
-+				SetPageLRU(page);
-+				list_add(&page->lru,
-+					&page_zone(page)->inactive_list);
-+				page++;
-+				continue;
-+			}
-+
-+			list_add(&page->lru, &free_canditates);
-+			tryfree++;
-+		}
-+
-+		/* Move to next page to test */
-+		page++;
-+	}
-+	spin_unlock_irq(&zone->lru_lock);
-+
-+	/* Make sure pages were found */
-+	if (list_empty(&free_canditates)) {
-+		/* See if it is worth going back again */
-+		if (endpageblock - endpage > (1 << order)) goto retry;
-+		return nr_freed;
-+	}
-+
-+	/* Construct a scan_control for shrink_list */
-+	sc.gfp_mask = gfp_mask;
-+	sc.may_writepage = 1;
-+	sc.nr_scanned = 0;
-+	sc.nr_reclaimed = 0;
-+	sc.priority = 0;
-+
-+	nr_freed += shrink_list(&free_canditates, &sc);
-+	if (list_empty(&free_canditates)) {
-+		int tofree;
-+		if (nr_freed >= (1 << order)) return nr_freed;
-+
-+		/* Not enough free, worth going back? */
-+		tofree = (1 << order) - nr_freed;
-+		if (endpageblock - endpage > tofree) goto retry;
-+		return nr_freed;
-+	}
-+
-+	/*
-+	 * Free up leftover pages
-+	 */
-+	tryfree=0;
-+	pagevec_init(&pvec, 1);
-+	spin_lock_irq(&zone->lru_lock);
-+	while (!list_empty(&free_canditates)) {
-+		page = lru_to_page(&free_canditates);
-+		tryfree++;
-+		if (TestSetPageLRU(page))
-+			BUG();
-+		list_del(&page->lru);
-+		if (PageActive(page))
-+			add_page_to_active_list(rtask->zone, page);
-+		else
-+			add_page_to_inactive_list(rtask->zone, page);
-+		if (!pagevec_add(&pvec, page)) {
-+			spin_unlock_irq(&rtask->zone->lru_lock);
-+			__pagevec_release(&pvec);
-+			spin_lock_irq(&rtask->zone->lru_lock);
-+		}
-+	}
-+	spin_unlock_irq(&zone->lru_lock);
-+	pagevec_release(&pvec);
-+	return nr_freed;
-+
-+}
-+
-+/**
-+ * try_to_free_highorder_pages - Linearaly scan and reclaim for high orders
-+ * zones - Fallback list of zones to scan
-+ * gfp_flags - Flags used for the allocation
-+ * order - The order-size block of pages to free
-+ *
-+ * Warning, this is potentially a very long running function that has no
-+ * guarentee of success.
-+ */
-+int try_to_free_highorder_pages(struct zone** zones,
-+					  unsigned int gfp_flags,
-+					  unsigned int order) {
-+
-+	int i, nr_freed;
-+	struct reclaim_task *rtask = NULL;
-+
-+	/* Make sure the right flags are set to do the required work */
-+	if (! gfp_flags & __GFP_WAIT ||
-+	    ! gfp_flags & __GFP_IO   ||
-+	    ! gfp_flags & __GFP_FS) return 0;
-+
-+	/*
-+	 * Create a reclaim task to track our progress. The reclaim task
-+	 * is added now before we start to make sure there is exclusively
-+	 * one task scanning a 2^MAX_ORDER block
-+	 */
-+	rtask = kmalloc(sizeof(struct reclaim_task), gfp_flags);
-+	memset(rtask, 0, sizeof(struct reclaim_task));
-+	spin_lock(&reclaims_lock);
-+	list_add(&rtask->list, &active_reclaims);
-+	spin_unlock(&reclaims_lock);
-+	nr_freed=0;
-+
-+	for (i = 0; zones[i] != NULL && nr_freed < (1 << order); i++) {
-+		int scanblocks;
-+
-+		/* Reset the index for a new zone */
-+		rtask->index=-1;
-+		rtask->zone = zones[i];
-+
-+		/*
-+		 * Try scan at least 16 blocks before changing zones. There
-+		 * is no significance to the number 16
-+		 */
-+		for (scanblocks=16;
-+			scanblocks >= 0 && nr_freed<(1 << order) ;
-+			scanblocks--) {
-+
-+			if (!find_startblock(i, rtask)) break;
-+
-+			/* Try and free the block found by find_startblock */
-+			nr_freed += try_to_free_highorder_block(rtask,
-+								order,
-+								gfp_flags);
-+
-+			rtask->index++;
-+
-+		}
-+
-+	}
-+
-+	spin_lock(&reclaims_lock);
-+	list_del(&rtask->list);
-+	spin_unlock(&reclaims_lock);
-+	kfree(rtask);
-+	return nr_freed;
-+
-+}
-+
-+static int __init lnscan_init(void) {
-+	printk("Initialising lnscan\n");
-+	spin_lock_init(&reclaims_lock);
-+	INIT_LIST_HEAD(&active_reclaims);
-+	memset(last_reclaim_index, 0, sizeof(last_reclaim_index));
-+	return 0;
-+}
-+
- module_init(kswapd_init)
-+module_init(lnscan_init);
+> > > For me, the next stage is to write a linear scanner that goes through the
+> > > address space to free up a high-order block of pages on demand. This will
+> > > be a tricky job so it'll take me quite a while.
+> >
+> > We're paving the road to implement a generic "weak" migration function on top
+> > of the current page migration infrastructure. With "weak" I mean that it bails
+> > out easily if the page cannot be migrated, unlike the "strong" version which
+> > _has_ to migrate the page(s) (for memory hotplug purpose).
+> >
+> > With such function in place its easier to have different implementations of defragmentation
+> > logic - we might want to coolaborate on that.
+> >
+> 
+> I've also started something like this although I think you'll find my
+> first approach childishly simple. I implemented a linear scanner that
+> finds the KernRclm and UserRclm areas. It then makes a list of the PageLRU
+> pages and sends them to shrink_list(). I ran a test which put the machine
+> under heavy stress and then tried to allocate 75% of ZONE_NORMAL with
+> 2^_MAX_ORDER pages (allocations done via a kernel module). I found that
+> the standard allocator was only able to successfully allocate 1% of the
+> allocations (3 blocks), my modified allocator managed 50% (81 blocks) and
+> with linear scanning in place, it was 76% (122 blocks). I figure I could
+> get the linear scanning figures even higher if I taught the allocator to
+> reserve the pages it frees for the process performing the linear scanning.
+
+Cool.
+
+> However, I also know the linear scanner trashed the LRU lists and probably
+> comes with all sorts of performance regressions just to make the
+> high-order allocations.
+
+Migrating pages instead of freeing them can greatly reduce the overhead I believe 
+and might be a low impact way of defragmenting memory. 
+
+> The new patches for the allocator (last patch I posted has a serious bug
+> in it), the linear scanner and the results will be posted as another mail.
+>
+> 
+> > Your bitmap also allows a hint for the "defragmentator" to know the type
+> > of pages, and possibly size of the block, so it can avoid earlier trying
+> > to migrate non reclaimable memory. It possibly makes the scanning
+> > procedure much lightweight.
+> >
+> 
+> Potentially. I need to catch up more on the existing schemes. I've been
+> out of the VM loop for a long time now so I'm still playing the Catch-Up
+> game.
+> 
+> > > <SNIP>
+> >
+> > You want to do
+> > 		free_pages -= (z->free_area_lists[0][o].nr_free + z->free_area_lists[2][o].nr_free +
+> >                 		z->free_area_lists[2][o].nr_free) << o;
+> >
+> > So not to interfere with the "min" decay (and remove the allocation type loop).
+> >
+> 
+> Agreed. New patch has this in place
+> 
+> > >
+> > > -		/* Require fewer higher order pages to be free */
+> > > -		min >>= 1;
+> > > +			/* Require fewer higher order pages to be free */
+> > > +			min >>= 1;
+> > >
+> > > -		if (free_pages <= min)
+> > > -			return 0;
+> > > +			if (free_pages <= min)
+> > > +				return 0;
+> > > +		}
+> >
+> > I'll play with your patch during the weekend, run some benchmarks (STP
+> > is our friend), try to measure the overhead, etc.
+> >
+> 
+> I'll also look at STP again and start trying to move some of my tests to
+> it (I have a fairly involved testing scheme right now). I recall that STP
+> was very easy to get setup with, I was just pressed for time.
+
+:)
+
+> > Congrats, this is very cool!
+> >
+> 
+> Thanks a lot :)
+
+I've added your patch to STP but:
+
+[STP 300030]Kernel Patch Error  Kernel: mel-three-type-allocator-v2 PLM # 4073
+
+patching file usr/gen_init_cpio.c
+patching file fs/buffer.c
+Hunk #2 succeeded at 2998 with fuzz 1.
+patching file fs/dcache.c
+Hunk #1 FAILED at 715.
+1 out of 1 hunk FAILED -- saving rejects to file fs/dcache.c.rej
+patching file fs/ext2/super.c
+patching file fs/ext3/super.c
+patching file fs/ntfs/inode.c
+patching file include/linux/gfp.h
+patching file include/linux/mmzone.h
+patching file mm/page_alloc.c
+Hunk #10 FAILED at 581.
+Hunk #11 succeeded at 591 with fuzz 1.
+1 out of 22 hunks FAILED -- saving rejects to file mm/page_alloc.c.rej
+
+It failed to apply to 2.6.10-rc1 - I'll work the rejects and rerun the tests.
+
+Can you send me your last patch please?
+
+
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
