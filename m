@@ -1,25 +1,28 @@
-Date: Mon, 27 Mar 2000 11:54:11 -0500 (EST)
-From: Mark Hahn <hahn@coffee.psychology.mcmaster.ca>
+Date: Mon, 27 Mar 2000 09:36:26 -0800 (PST)
+From: Linus Torvalds <torvalds@transmeta.com>
 Subject: Re: [PATCH] Re: kswapd
-In-Reply-To: <Pine.LNX.4.10.10003270807260.1745-100000@penguin.transmeta.com>
-Message-ID: <Pine.LNX.4.10.10003271152350.2650-100000@coffee.psychology.mcmaster.ca>
+In-Reply-To: <Pine.LNX.4.10.10003271152350.2650-100000@coffee.psychology.mcmaster.ca>
+Message-ID: <Pine.LNX.4.10.10003270935480.1949-100000@penguin.transmeta.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@transmeta.com>
+To: Mark Hahn <hahn@coffee.psychology.mcmaster.ca>
 Cc: Kanoj Sarcar <kanoj@google.engr.sgi.com>, riel@nl.linux.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> So think of the bug as "kswapd will waste the final part of its timeslice
-> doing nothing useful".
 
-yes!  should it not look at the return from try_to_free_pages 
-to find out whether further looping is needed?  or something based
-on the current free pages level, hopefully with hysteresis like 
-Rik mentioned?
+On Mon, 27 Mar 2000, Mark Hahn wrote:
+> 
+> yes!  should it not look at the return from try_to_free_pages 
+> to find out whether further looping is needed?  or something based
+> on the current free pages level, hopefully with hysteresis like 
+> Rik mentioned?
 
-regards, mark hahn.
+It does do that - that's what the "kswapd_wake_up" flag does for the loop.
+The problem was that the loop termination logic was a bit topsy-turvy.
+
+		Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
