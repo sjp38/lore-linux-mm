@@ -1,70 +1,185 @@
-Content-Type: text/plain;
-  charset="iso-8859-1"
-From: Daniel Phillips <phillips@arcor.de>
-Subject: Re: 2.4.19 Vs 2.4.19-rmap14a with anonymous mmaped memory
-Date: Thu, 29 Aug 2002 21:34:47 +0200
-References: <Pine.LNX.4.44.0208261525570.31523-100000@skynet>
-In-Reply-To: <Pine.LNX.4.44.0208261525570.31523-100000@skynet>
+Message-ID: <3D6E844C.4E756D10@zip.com.au>
+Date: Thu, 29 Aug 2002 13:30:04 -0700
+From: Andrew Morton <akpm@zip.com.au>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
-Message-Id: <E17kV44-00035H-00@starship>
+Subject: Re: [PATCH] low-latency zap_page_range()
+References: <1030635100.939.2551.camel@phantasy>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Robert Love <rml@tech9.net>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Monday 26 August 2002 17:13, Mel Gorman wrote:
-> On Mon, 26 Aug 2002, Daniel Phillips wrote:
+Robert Love wrote:
 > 
-> > Could you please provide pseudocode, to specify these reference patterns
-> > more precisely?
-> >
+> Andrew,
 > 
-> Rather than providing pseudo code, here is a link to the actual function
-> that generates the smooth_sin references
+> Attached patch implements a low latency version of "zap_page_range()".
 > 
-> http://www.csn.ul.ie/~mel/vmr/smooth_sin.html
-> 
-> It is really crude and written to generate any type of data until I
-> found the time to generate more realistic data which is a project in
-> itself. Anyone who wants to generate better data only has to edit the
-> References.pm file.
-> 
-> It takes there inputs
-> 
-> references - number of references to generate
-> range - the size in pages of the region to reference
-> output - the output filename
-> 
-> the function has three parts
-> 
-> part 1: Plot a sin wave so that the sum of all the integer values of each
-> 	part of it would generate enough references to satisify at least
-> 	half of the requessted number
-> part 2: Starting at the beginning of the range, reference each page in a
->         linear pattern until all the required references are generated
-> part 3: Dump all references to disk
-> 
-> now that I think of it, it would have made more sense to begin with the
-> linear reference pattern and then generate the sin curve but seeing as
-> this pattern is nothing resembling real life, I didn't worry about it too
-> much. It is probably something I should change as it would illustrate
-> better what pages are kept in memory.
 
-The perl script that writes tables isn't too informative without knowing
-how the tables are used.  Pseudocode that says exactly what your final
-reference pattern is would be a lot more useful.  Just leave out the part
-about generating the tables and express it as if you were computing the
-distribution at the same time as generating the references, unless it's
-really impossible to do that.  I don't think it's impossible to do that
-in this case.
+This doesn't quite do the right thing on SMP.
 
-It would also be useful to state what you define as a reference.  A user
-space program read-accesses a single byte from some address?
+Note that pages which are to be torn down are buffered in the
+mmu_gather_t array.  The kernel throws away 507 pages at a
+time - this is to reduce the frequency of global TLB invalidations.
+(The 507 is, I assume, designed to make the mmu_gather_t be
+2048 bytes in size.  I recently broke that math, and need to fix
+it up).
 
--- 
-Daniel
+However with your change, we'll only ever put 256 pages into the
+mmu_gather_t.  Half of that thing's buffer is unused and the
+invalidation rate will be doubled during teardown of large
+address ranges.
+
+I suggest that you make ZAP_BLOCK_SIZE be equal to FREE_PTE_NR on
+SMP, and 256 on UP.
+
+(We could get fancier and do something like:
+
+	tlb = tlb_gather_mmu(mm, 0):
+	while (size) {
+		...
+		unmap_page_range(ZAP_BLOCK_SIZE pages);
+		tlb_flush_mmu(...);
+		cond_resched_lock();
+	}
+	tlb_finish_mmu(..);
+	spin_unlock(page_table_lock);
+
+but I don't think that passes the benefit-versus-complexity test.)
+
+Also, if the kernel is not compiled for preemption then we're
+doing a little bit of extra work to no advantage, yes?  We can
+avoid doing that by setting ZAP_BLOCK_SIZE to infinity.
+
+How does this altered version look?  All I changed was the ZAP_BLOCK_SIZE
+initialisation.
+
+
+--- 2.5.32/include/linux/sched.h~llzpr	Thu Aug 29 13:01:01 2002
++++ 2.5.32-akpm/include/linux/sched.h	Thu Aug 29 13:01:01 2002
+@@ -907,6 +907,34 @@ static inline void cond_resched(void)
+ 		__cond_resched();
+ }
+ 
++#ifdef CONFIG_PREEMPT
++
++/*
++ * cond_resched_lock() - if a reschedule is pending, drop the given lock,
++ * call schedule, and on return reacquire the lock.
++ *
++ * Note: this does not assume the given lock is the _only_ lock held.
++ * The kernel preemption counter gives us "free" checking that we are
++ * atomic -- let's use it.
++ */
++static inline void cond_resched_lock(spinlock_t * lock)
++{
++	if (need_resched() && preempt_count() == 1) {
++		_raw_spin_unlock(lock);
++		preempt_enable_no_resched();
++		__cond_resched();
++		spin_lock(lock);
++	}
++}
++
++#else
++
++static inline void cond_resched_lock(spinlock_t * lock)
++{
++}
++
++#endif
++
+ /* Reevaluate whether the task has signals pending delivery.
+    This is required every time the blocked sigset_t changes.
+    Athread cathreaders should have t->sigmask_lock.  */
+--- 2.5.32/mm/memory.c~llzpr	Thu Aug 29 13:01:01 2002
++++ 2.5.32-akpm/mm/memory.c	Thu Aug 29 13:26:21 2002
+@@ -389,8 +389,8 @@ void unmap_page_range(mmu_gather_t *tlb,
+ {
+ 	pgd_t * dir;
+ 
+-	if (address >= end)
+-		BUG();
++	BUG_ON(address >= end);
++
+ 	dir = pgd_offset(vma->vm_mm, address);
+ 	tlb_start_vma(tlb, vma);
+ 	do {
+@@ -401,30 +401,53 @@ void unmap_page_range(mmu_gather_t *tlb,
+ 	tlb_end_vma(tlb, vma);
+ }
+ 
+-/*
+- * remove user pages in a given range.
++#if defined(CONFIG_SMP) && defined(CONFIG_PREEMPT)
++#define ZAP_BLOCK_SIZE	(FREE_PTE_NR * PAGE_SIZE)
++#endif
++
++#if !defined(CONFIG_SMP) && defined(CONFIG_PREEMPT)
++#define ZAP_BLOCK_SIZE	(256 * PAGE_SIZE)
++#endif
++
++#if !defined(CONFIG_PREEMPT)
++#define ZAP_BLOCK_SIZE	(~(0UL))
++#endif
++
++/**
++ * zap_page_range - remove user pages in a given range
++ * @vma: vm_area_struct holding the applicable pages
++ * @address: starting address of pages to zap
++ * @size: number of bytes to zap
+  */
+ void zap_page_range(struct vm_area_struct *vma, unsigned long address, unsigned long size)
+ {
+ 	struct mm_struct *mm = vma->vm_mm;
+ 	mmu_gather_t *tlb;
+-	unsigned long start = address, end = address + size;
++	unsigned long end, block;
+ 
+-	/*
+-	 * This is a long-lived spinlock. That's fine.
+-	 * There's no contention, because the page table
+-	 * lock only protects against kswapd anyway, and
+-	 * even if kswapd happened to be looking at this
+-	 * process we _want_ it to get stuck.
+-	 */
+-	if (address >= end)
+-		BUG();
+ 	spin_lock(&mm->page_table_lock);
+-	flush_cache_range(vma, address, end);
+ 
+-	tlb = tlb_gather_mmu(mm, 0);
+-	unmap_page_range(tlb, vma, address, end);
+-	tlb_finish_mmu(tlb, start, end);
++  	/*
++ 	 * This was once a long-held spinlock.  Now we break the
++ 	 * work up into ZAP_BLOCK_SIZE units and relinquish the
++ 	 * lock after each interation.  This drastically lowers
++ 	 * lock contention and allows for a preemption point.
++  	 */
++	while (size) {
++		block = (size > ZAP_BLOCK_SIZE) ? ZAP_BLOCK_SIZE : size;
++ 		end = address + block;
++ 
++ 		flush_cache_range(vma, address, end);
++ 		tlb = tlb_gather_mmu(mm, 0);
++ 		unmap_page_range(tlb, vma, address, end);
++ 		tlb_finish_mmu(tlb, address, end);
++ 
++ 		cond_resched_lock(&mm->page_table_lock);
++ 
++ 		address += block;
++ 		size -= block;
++ 	}
++
+ 	spin_unlock(&mm->page_table_lock);
+ }
+ 
+
+.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
