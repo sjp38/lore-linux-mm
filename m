@@ -1,77 +1,70 @@
-Date: Wed, 2 Jul 2003 16:57:27 +0100 (IST)
-From: Mel Gorman <mel@csn.ul.ie>
+Date: Wed, 2 Jul 2003 19:11:59 +0200
+From: Andrea Arcangeli <andrea@suse.de>
 Subject: Re: What to expect with the 2.6 VM
-In-Reply-To: <20030701022516.GL3040@dualathlon.random>
-Message-ID: <Pine.LNX.4.53.0307021641560.11264@skynet>
-References: <Pine.LNX.4.53.0307010238210.22576@skynet>
- <20030701022516.GL3040@dualathlon.random>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Message-ID: <20030702171159.GG23578@dualathlon.random>
+References: <Pine.LNX.4.53.0307010238210.22576@skynet> <20030701022516.GL3040@dualathlon.random> <Pine.LNX.4.53.0307021641560.11264@skynet>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.53.0307021641560.11264@skynet>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrea Arcangeli <andrea@suse.de>
+To: Mel Gorman <mel@csn.ul.ie>
 Cc: Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 1 Jul 2003, Andrea Arcangeli wrote:
+On Wed, Jul 02, 2003 at 04:57:27PM +0100, Mel Gorman wrote:
+>    The second reason is avoiding the poor linear search algorithm used by
+>    get_unmapped_area() when looking for a large free virtual area. With a
+>    large number of mappings, this search is very expensive. It has been
 
-> >    Non-Linear Populating of Virtual Areas
-> >    ======================================
-> >
-> and it was used to break truncate, furthmore the API doesn't look good
-> to me, the vma should have a special VM_NONLINEAR created with a
-> MAP_NONLINEAR so the vm will skip it enterely and it should be possible
-> to put multiple files in the same vma IMHO.
+this is true too. however get_unmapped_area never need to find a new
+place for the granular usages since mmap is always called with MAP_FIXED for
+those.
 
-OK, I think I absorbed most of this and read through most of the old
-threads on the subject that I could find. It is very difficult to express
-all the viewpoints in any type of concise manner so I'm settling for
-getting about 70% of it.
+>    proposed to alter the function to perform a tree based search. This could
+>    be a tree of free areas ordered by size for example but none has yet been
 
-The discussions on what API to use instead are all over the place and I
-got lost in a twisty maze of emails, all similar. Below is the summary of
-what I found that could be made into something coherent.
+it can't be trivially a tree of free areas or (if naturally indexed with
+the size of the hole) it would return the smallest-fitting hole, not the
+leftmost-smallest-fitting-hole ;). A better solution is possible. Then
+everybody will benefit w/o need of userspace changes. It's still pretty
+orthogonal with remap_file_pages though.
 
---Begin Extract--
-   Whether this feature should remain is still being argued but it is likely
-   to remain until an acceptable alternative is implemented. The main
-   benefits only apply to applications such as database servers or
-   virtualising applications such as emulators. There is a small number of
-   reasons why it was introduced.
+>    implemented. In the meantime, non-linear mappings are being used to bypass
+>    the VM.
+> 
+>    The third reason is related to frequent page faults associated with linear
+>    mappings. A non-linear mapping is able to prefault in all pages that are
+>    required by the mapping as it is presumed they will be needed very soon.
+>    To some extent, this can be addressed by specifying the MAP_POPULATE when
+>    calling mmap() for a normal mapping.
 
-   The first is space requirements for large numbers of mappings. For every
-   mapped region a process needs, a VMA has to be allocated to it which
-   becomes a considerable space commitment when a process needs a large
-   number of mappings. At worst case, there will be one VMA for every
-   file-backed page mapped by the process.
+mlock already does it too.
 
-   The second reason is avoiding the poor linear search algorithm used by
-   get_unmapped_area() when looking for a large free virtual area. With a
-   large number of mappings, this search is very expensive. It has been
-   proposed to alter the function to perform a tree based search. This could
-   be a tree of free areas ordered by size for example but none has yet been
-   implemented. In the meantime, non-linear mappings are being used to bypass
-   the VM.
+>    This feature has a very serious drawback. The system calls truncate() and
+>    mincore() are broken with respect to non-linear mappings. Both calls
+>    depend on vm_area_struct>vm_pgoff, which is the offset within
+>    the mapped file, but the field is meaningless within a non-linear mapping.
+>    This means that truncated files will still have mapped pages that no
+>    longer have a physical backing. A number of possible solutions, such as
+>    allowing the pages to exist but be anonymous and private to the process,
+>    have been suggested but none implemented.
 
-   The third reason is related to frequent page faults associated with linear
-   mappings. A non-linear mapping is able to prefault in all pages that are
-   required by the mapping as it is presumed they will be needed very soon.
-   To some extent, this can be addressed by specifying the MAP_POPULATE when
-   calling mmap() for a normal mapping.
+the major reason you didn't mention for remap_file_pages is the rmap
+avoidance. There's no rmap backing the remap_file_pages regions, so the
+overhead per task is reduced greatly and the box stops running oom
+(actually deadlocking for mainline thanks to the oom killer and NOFAIL
+default behaviour). since there's no rmap, this in turn means either
+this nonlinear vma will swap badly, or it means rmap is totally useless
+to swap well. Which in short means either rmap has to go in its current
+form (and the usefulness of remap_file_pages would be greatly reduced),
+or nonlinear mappings would better stay pinned in ram since they'd
+better not be used for the emaulator with 63G of highmem into swap on a
+1G host anyways (the sysctl would fix the security detail in pinning
+into ram like we're doing today with the largepages in 2.4).
 
-   This feature has a very serious drawback. The system calls truncate() and
-   mincore() are broken with respect to non-linear mappings. Both calls
-   depend on vm_area_struct>vm_pgoff, which is the offset within
-   the mapped file, but the field is meaningless within a non-linear mapping.
-   This means that truncated files will still have mapped pages that no
-   longer have a physical backing. A number of possible solutions, such as
-   allowing the pages to exist but be anonymous and private to the process,
-   have been suggested but none implemented.
-
---End Extract--
-
--- 
-Mel Gorman
+Andrea
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
