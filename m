@@ -1,51 +1,39 @@
-Date: Fri, 7 Apr 2000 15:14:55 +0200 (CEST)
-From: Andrea Arcangeli <andrea@suse.de>
-Subject: Re: [patch] take 2 Re: PG_swap_entry bug in recent kernels
-In-Reply-To: <Pine.LNX.4.21.0004070950570.23401-100000@duckman.conectiva>
-Message-ID: <Pine.LNX.4.21.0004071507030.1367-100000@alpha.random>
+Subject: Re: Is Linux kernel 2.2.x Pageable?
+References: <Pine.LNX.4.21.0004040826030.16987-100000@duckman.conectiva> <38EDDB4D.F2C210B1@irisa.fr>
+From: ebiederm+eric@ccr.net (Eric W. Biederman)
+Date: 07 Apr 2000 09:48:07 -0500
+In-Reply-To: Renaud Lottiaux's message of "Fri, 07 Apr 2000 14:57:49 +0200"
+Message-ID: <m1zor6ufvc.fsf@flinx.biederman.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: riel@nl.linux.org
-Cc: Ben LaHaise <bcrl@redhat.com>, Linus Torvalds <torvalds@transmeta.com>, linux-mm@kvack.org
+To: Renaud Lottiaux <Renaud.Lottiaux@irisa.fr>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 7 Apr 2000, Rik van Riel wrote:
+Renaud Lottiaux <Renaud.Lottiaux@irisa.fr> writes:
 
->Won't this screw up when another processor is atomically
->setting the bit just after we removed it and we still have
->it in the store queue?
->
->from include/asm-i386/spinlock.h
->/*
-> * Sadly, some early PPro chips require the locked access,
-> * otherwise we could just always simply do
-> *
-> *      #define spin_unlock_string \
-> *              "movb $0,%0"
-> *
-> * Which is noticeably faster.
-> */
->
->I don't know if it is relevant here, but would like to
->be sure ...
+> Rik van Riel wrote:
+> > 
+> > On Tue, 4 Apr 2000 pnilesh@in.ibm.com wrote:
+> > 
+> > > Is Linux kernel 2.2.x pageable ?
+> > >
+> > > Is Linux kernel 2.3.x pageable ?
+> > 
+> > no
+> 
+> May you be a bit more specific about this ?
+> Can not any part of the kernel be swapped ? Even Modules ?
+> Why ? Just an implementation problem or a deeper reason ?
 
-The spin_unlock case is actually not relevant, I wasn't relying on it in
-first place since I was using C (which can implement the
-read/change/modify in multiple instruction playing with registers).
+Modules can be removed.
+Pageable kernels are stupid, slow, & dangerous.
 
-The reason we can use C before putting the page into the freelist, is
-because we know we don't risk to race with other processors. We are
-putting the page into the freelist and if another processor would be
-playing someway with the page we couldn't put it on the freelist in first
-place.
+If you need a pageable kernel you have other problems.
 
-If some other processor/task is referencing the page while we call
-free_pages_ok, then that would be a major MM bug.
-
-Andrea
-
+Eric
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
