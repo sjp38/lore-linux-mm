@@ -1,58 +1,41 @@
-Date: Mon, 25 Sep 2000 10:47:07 -0300 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
-Subject: Re: test9-pre5+t9p2-vmpatch VM deadlock during write-intensive
- workload
-In-Reply-To: <Pine.LNX.4.10.10009221037560.1647-100000@penguin.transmeta.com>
-Message-ID: <Pine.LNX.4.21.0009251040270.14614-100000@duckman.distro.conectiva>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Mon, 25 Sep 2000 15:49:52 +0200
+From: Jens Axboe <axboe@suse.de>
+Subject: Re: [patch] vmfixes-2.4.0-test9-B2
+Message-ID: <20000925154952.O26339@suse.de>
+References: <20000925145856.A13011@athlon.random> <Pine.LNX.4.21.0009251504220.6224-100000@elte.hu>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.21.0009251504220.6224-100000@elte.hu>; from mingo@elte.hu on Mon, Sep 25, 2000 at 03:10:51PM +0200
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@transmeta.com>
-Cc: Molnar Ingo <mingo@debella.ikk.sztaki.hu>, "David S. Miller" <davem@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Ingo Molnar <mingo@elte.hu>
+Cc: Andrea Arcangeli <andrea@suse.de>, Linus Torvalds <torvalds@transmeta.com>, Rik van Riel <riel@conectiva.com.br>, Roger Larsson <roger.larsson@norran.net>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 22 Sep 2000, Linus Torvalds wrote:
-> On Fri, 22 Sep 2000, Molnar Ingo wrote:
-> > 
-> > i'm still getting VM related lockups during heavy write load, in
-> > test9-pre5 + your 2.4.0-t9p2-vmpatch (which i understand as being your
-> > last VM related fix-patch, correct?). Here is a histogram of such a
-> > lockup:
+On Mon, Sep 25 2000, Ingo Molnar wrote:
+> > If you think I should delay those fixes to do something else I don't
+> > agree sorry.
 > 
->  those VM patches are going away RSN if these issues do not get
-> fixed. I'm really disappointed, and suspect that it would be
-> easier to go back to the old VM with just page aging added, not
-> your new code that seems to be full of deadlocks everywhere.
+> no, i never ment it. I find it very good that those half-done changes are
 
-I've been away on a conference last week, so I haven't
-had much chance to take a look at the code after you
-integrated it and the test base got increased ;(
+The changes made were never half-done. The recent bug fixes have
+mainly been to remove cruft from the earlier elevator and fixing a bug
+where the elevator insert would screw up a bit. So I'd call that fine
+tuning or adjusting, not fixing half-done stuff.
 
-One thing I discovered are some UP-only deadlocks and
-the page ping-pong thing, which I am fixing right now.
+> cleaned up and the remaining bugs / performance problems are eliminated -
 
-If I had a choice, I'd have chosen /next/ week as the
-time to integrate the code ... doing this while I'm 
-away at a conference was really inconvenient ;)
+Of course
 
-I'm looking into the email backlog and the bug reports
-right now (today, tuesday and wednesday I'm at /another/
-conferenc and thursday will be the next opportunity).
+> the first reports about bad write performance came right after the
+> original elevator patches went in, about 6 months ago.
 
-It looks like ther are no fundamental issues left, just
-a bunch of small thinkos that can be fixed in a (few?)
-week(s).
+And a new elevator was introduced some months ago to solve this.
 
-regards,
-
-Rik
---
-"What you're running that piece of shit Gnome?!?!"
-       -- Miguel de Icaza, UKUUG 2000
-
-http://www.conectiva.com/		http://www.surriel.com/
-
+-- 
+* Jens Axboe <axboe@suse.de>
+* SuSE Labs
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
