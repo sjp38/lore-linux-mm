@@ -1,44 +1,58 @@
-Date: Thu, 3 Feb 2005 16:59:40 -0800 (PST)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: A scrub daemon (prezeroing)
-In-Reply-To: <16898.46622.108835.631425@cargo.ozlabs.ibm.com>
-Message-ID: <Pine.LNX.4.58.0502031650590.26551@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.58.0501211228430.26068@schroedinger.engr.sgi.com>
- <1106828124.19262.45.camel@hades.cambridge.redhat.com> <20050202153256.GA19615@logos.cnet>
- <Pine.LNX.4.58.0502021103410.12695@schroedinger.engr.sgi.com>
- <20050202163110.GB23132@logos.cnet> <Pine.LNX.4.61.0502022204140.2678@chimarrao.boston.redhat.com>
- <16898.46622.108835.631425@cargo.ozlabs.ibm.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Message-ID: <16899.2175.599702.827882@cargo.ozlabs.ibm.com>
+Date: Fri, 4 Feb 2005 16:30:39 +1100
+From: Paul Mackerras <paulus@samba.org>
+Subject: Re: A scrub daemon (prezeroing)
+In-Reply-To: <Pine.LNX.4.58.0502031650590.26551@schroedinger.engr.sgi.com>
+References: <Pine.LNX.4.58.0501211228430.26068@schroedinger.engr.sgi.com>
+	<1106828124.19262.45.camel@hades.cambridge.redhat.com>
+	<20050202153256.GA19615@logos.cnet>
+	<Pine.LNX.4.58.0502021103410.12695@schroedinger.engr.sgi.com>
+	<20050202163110.GB23132@logos.cnet>
+	<Pine.LNX.4.61.0502022204140.2678@chimarrao.boston.redhat.com>
+	<16898.46622.108835.631425@cargo.ozlabs.ibm.com>
+	<Pine.LNX.4.58.0502031650590.26551@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Paul Mackerras <paulus@samba.org>
+To: Christoph Lameter <clameter@sgi.com>
 Cc: Rik van Riel <riel@redhat.com>, Marcelo Tosatti <marcelo.tosatti@cyclades.com>, David Woodhouse <dwmw2@infradead.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@osdl.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 4 Feb 2005, Paul Mackerras wrote:
+Christoph Lameter writes:
 
-> On my G5 it takes ~200 cycles to zero a whole page.  In other words it
-> takes about the same time to zero a page as to bring in a single cache
-> line from memory.  (PPC has an instruction to establish a whole cache
-> line of zeroes in modified state without reading anything from
-> memory.)
->
-> Thus I can't see how prezeroing can ever be a win on ppc64.
+> You need to think about this in a different way. Prezeroing only makes
+> sense if it can avoid using cache lines that the zeroing in the
+> hot paths would have to use since it touches all cachelines on
+> the page (the ppc instruction is certainly nice and avoids a cacheline
+> read but it still uses a cacheline!). The zeroing in itself (within the
 
-You need to think about this in a different way. Prezeroing only makes
-sense if it can avoid using cache lines that the zeroing in the
-hot paths would have to use since it touches all cachelines on
-the page (the ppc instruction is certainly nice and avoids a cacheline
-read but it still uses a cacheline!). The zeroing in itself (within the
-cpu caches) is extraordinarily fast and the zeroing of large portions of
-memory is so too. That is why the impact of scrubd is negligible since
-its extremely fast.
+The dcbz instruction on the G5 (PPC970) establishes the new cache line
+in the L2 cache and doesn't disturb the L1 cache (except to invalidate
+the line in the L1 data cache if it is present there).  The L2 cache
+is 512kB and 8-way set associative (LRU).  So zeroing a page is
+unlikely to disturb the cache lines that the page fault handler is
+using.  Then, when the page fault handler returns to the user program,
+any cache lines that the program wants to touch are available in 12
+cycles (L2 hit latency) instead of 200 - 300 (memory access latency).
 
-The point is to save activating cachelines not the time zeroing in itself
-takes. This only works if only parts of the page are needed immediately
-after the page fault. All of that has been documented in earlier posts on
-the subject.
+> cpu caches) is extraordinarily fast and the zeroing of large portions of
+> memory is so too. That is why the impact of scrubd is negligible since
+> its extremely fast.
+
+But that also disturbs cache lines that may well otherwise be useful.
+
+> The point is to save activating cachelines not the time zeroing in itself
+> takes. This only works if only parts of the page are needed immediately
+> after the page fault. All of that has been documented in earlier posts on
+> the subject.
+
+As has my scepticism about pre-zeroing actually providing any benefit
+on ppc64.  Nevertheless, the only definitive answer is to actually
+measure the performance both ways.
+
+Paul.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
