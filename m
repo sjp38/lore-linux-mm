@@ -1,70 +1,113 @@
-Received: from westrelay01.boulder.ibm.com (westrelay01.boulder.ibm.com [9.17.195.10])
-	by e31.co.us.ibm.com (8.12.10/8.12.9) with ESMTP id j1SNUKua478738
-	for <linux-mm@kvack.org>; Mon, 28 Feb 2005 18:30:20 -0500
-Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
-	by westrelay01.boulder.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id j1SNUJe1167058
-	for <linux-mm@kvack.org>; Mon, 28 Feb 2005 16:30:20 -0700
-Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av03.boulder.ibm.com (8.12.11/8.12.11) with ESMTP id j1SNUJ56002135
-	for <linux-mm@kvack.org>; Mon, 28 Feb 2005 16:30:19 -0700
-Subject: Re: [PATCH 3/5] abstract discontigmem setup
-From: Dave Hansen <haveblue@us.ibm.com>
-In-Reply-To: <E1D5q2Q-0007eV-00@kernel.beaverton.ibm.com>
-References: <E1D5q2Q-0007eV-00@kernel.beaverton.ibm.com>
-Content-Type: multipart/mixed; boundary="=-E0c7nWu8qtH6CsSR5UHX"
-Date: Mon, 28 Feb 2005 15:30:14 -0800
-Message-Id: <1109633414.6921.69.camel@localhost>
-Mime-Version: 1.0
+Message-ID: <3751128766.72579@attorney.Manuel@msn.com>
+Reply-To: "Clinton Hines" <attorney.Manuel@msn.com>
+From: "Clinton Hines" <attorney.Manuel@msn.com>
+Subject: rally in a great featured monthly profile.
+Date: Mon, 28 Feb 2005 20:42:21 -0300
+MIME-Version: 1.0
+Content-Type: multipart/alternative;
+	boundary="--12778946824154935"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm <linux-mm@kvack.org>
-Cc: Andrew Morton <akpm@osdl.org>, kmannth@us.ibm.com, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andy Whitcroft <apw@shadowen.org>
+To: linux-aio@kvack.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
---=-E0c7nWu8qtH6CsSR5UHX
-Content-Type: text/plain
-Content-Transfer-Encoding: 7bit
+----12778946824154935
+Content-Type: text/plain;
+	charset="iso-6823-8"
+Content-Transfer-Encoding: quoted-printable
 
-The $SUBJECT patch has a small, obvious, compile bug in it on the
-NUMA-Q, which I introduced while cleaning it up.  Please apply this
-patch on top of that one.
+Small-Cap Homerun Newsletter
+High-Priority Status: Immediate Triple Predicted
+CDYV Profits Soaring, Company Forecasts
+They Will Be Acquired in Takeover
 
--- Dave
+Exciting New Issue - Get In Now
+Unknown and Undervalued Publishing/
+Advertising Leader Projecting '05-'06
+Sales of 30 Million, .42 EPS
 
---=-E0c7nWu8qtH6CsSR5UHX
-Content-Disposition: attachment; filename=A3.2.1-fix-numaq.patch
-Content-Type: text/x-patch; name=A3.2.1-fix-numaq.patch; charset=ANSI_X3.4-1968
-Content-Transfer-Encoding: 7bit
+Cody Ventures Corp. OTC - CDYV
+Price Range: .35 - .45
+10-Day Target: 1.20
 
-The "abstract discontigmem setup" patch has a small compile bug in
-it on the NUMA-Q, which I introduced while "cleaning it up."
+Major Breaking News: CDYV Expands Publication into the 
+Dallas/Ft.Worth, Texas Metroplex Area Resulting in 
+Circulation of 3 Million Copies Monthly. Revenues to 
+Exceed 30 Mill Annually with nearly 
+15 Mill Bottom-Line Profit.
 
-Please apply after that patch.
+CDYV positioned as likely takeover candidate by the 
+always acquisition-minded leaders of the publishing 
+industry capturing sales of 20 Billion. 
 
-Signed-off-by: Dave Hansen <haveblue@us.ibm.com>
----
+CDYV is the leading advertising, printing, and publishing 
+Company in Texas specializing in the very high-profit 
+sector of community-based weekly publications. As Master 
+Publisher for the State of Texas, CDYV reaches 22 million 
+people, 254 counties, and over 3,100 towns and cities 
+with their "Tidbits" publication featuring local 
+advertising in dozens of areas including entertainment, 
+real estate/housing, consumer goods and services, and 
+major retailers like Walgreens and Dollar General.
 
- memhotplug-dave/arch/i386/kernel/numaq.c |    4 +++-
- 1 files changed, 3 insertions(+), 1 deletion(-)
+CDYV has been in business 4 years and has grown quickly, 
+now it is time for them to explode in the public markets. 
+CDYV is new to the stock market, having gone public in a 
+very quiet manner. So you have a very brief period to 
+get in at or near the bottom before share prices soar on 
+increased investor awareness. There are very few companies 
+that have perfected this niche of advertising platform 
+with none being publicly offered starting out at less than 
+50 cents per share.
 
-diff -puN arch/i386/kernel/numaq.c~A3.2.1-fix-numaq arch/i386/kernel/numaq.c
---- memhotplug/arch/i386/kernel/numaq.c~A3.2.1-fix-numaq	2005-02-28 14:16:23.000000000 -0800
-+++ memhotplug-dave/arch/i386/kernel/numaq.c	2005-02-28 14:16:59.000000000 -0800
-@@ -62,7 +62,9 @@ static void __init smp_dump_qct(void)
- 
- 			memory_present(node,
- 				node_start_pfn[node], node_end_pfn[node]);
--			node_remap_size[node] = node_memmap_size_bytes(node);
-+			node_remap_size[node] = node_memmap_size_bytes(node,
-+							node_start_pfn[node],
-+							node_end_pfn[node]);
- 		}
- 	}
- }
-_
+Monthly circulation has jumped from 500,000 to 3 million 
+with the additional expansion into Dallas/Ft.Worth, 
+translating into over 9 million readers monthly and 
+achieving an additional 17 million in annual revenues 
+from the Metroplex Area alone. CDYV will also provide the 
+necessary printing services for 150 other national 
+publishers in their respective states resulting in another 
+9.5 million in yearly sales, with 50% to the bottom-line, 
+on top of their already explosive, record-shattering figures.
 
---=-E0c7nWu8qtH6CsSR5UHX--
+The publishing industry has always been an active leader in 
+mergers, takeovers, and acquisitions. Dow Jones (DJ, 37.00, 
+PE 32), Gannett (GCI, 79.00, PE 16), Knight-Ridder 
+(KRI, 65.00, PE 16), and Tribune Co. (TRB, 40.00, PE 24) 
+are just a few examples of industry leaders that have spent 
+Billions over the last few years acquiring aggressive and 
+profitable newspaper chains and publishing companies. CDYV 
+represents the epitome of an attractive buyout target as 
+their PE is 1 based on 12 - 18 month sales and earnings 
+figures. The industry average PE is 20, indicating that a 
+share price of 5.00 for CDYV would be a very conservative 
+valuation.
 
+It is only a matter of time before detailed information is 
+released out into the investment community. By receiving 
+this Email, you are among the first public investors to 
+know about CDYV. Get in now before the crowds take it to 
+the moon.
+
+Please Read- The information and opinions in this featured 
+profile are based on sources believed to be reliable but no 
+representation is made to its accuracy or completeness. Past 
+performance is not an indicator of future results. This 
+report is a paid profile for information purposes only and 
+should not be used as the basis for any investment decision. 
+This newsletter has been compensated ten thousand dollars 
+for the preparation of this profile and for continuing cover
+age of the featured company. Newsletter publishers are not 
+investment advisors and this profile is not to be considered 
+investment advice. This information is neither a solicitation 
+to buy nor an offer to sell securities. Information herein 
+contains future-looking statements that are subject to 
+significant risks and uncertainties. There are no shares 
+presently held and no participation will occur in the 
+trading of shares in any profiled company.
+
+
+----12778946824154935--
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
