@@ -1,36 +1,43 @@
-From: James A. Sutherland <jas88@cam.ac.uk>
+Date: Thu, 19 Apr 2001 18:46:00 +0200 (MEST)
+From: Simon Derr <Simon.Derr@imag.fr>
 Subject: Re: Want to allocate almost all the memory with no swap
-Date: Thu, 19 Apr 2001 17:11:34 +0100
-Message-ID: <0g3udt09u4dmcvhh11q6mnm7ithcjmbup4@4ax.com>
-References: <Pine.LNX.4.21.0104191755240.10028-100000@guarani.imag.fr> <200104191557.LAA28201@multics.mit.edu>
-In-Reply-To: <200104191557.LAA28201@multics.mit.edu>
+In-Reply-To: <de3udt4pee8l6lrr2k33h65m1b4srb74ek@4ax.com>
+Message-ID: <Pine.LNX.4.21.0104191833070.10083-100000@guarani.imag.fr>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 8BIT
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Kev <klmitch@MIT.EDU>
+To: "James A. Sutherland" <jas88@cam.ac.uk>
 Cc: Simon Derr <Simon.Derr@imag.fr>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 19 Apr 2001 11:57:45 -0400, you wrote:
+> >Well, I have removed as many processes deamons as I could, and there are
+> >not many left.
+> >But under both 2.4.2 and 2.2.17 (with swap on)I get, when I run my
+> >program:
+> >
+> >mlockall: Cannot allocate memory
+> 
+> Hrm? Can you trim the consumption a bit - try cutting a big chunk out,
+> like 64 Mb, and see if it works then?
+> 
+If I ask much less memory it works.. but has no interest.
 
->> Well, I have removed as many processes deamons as I could, and there are
->> not many left.
->> But under both 2.4.2 and 2.2.17 (with swap on)I get, when I run my
->> program:
->> 
->> mlockall: Cannot allocate memory
->
->mlockall() requires root priviledges.
+In fact I a call mlockall() _before_ doing my big malloc, it works even
+when I ask 240 megs, but:
+-Under 2.2.17, quickly the kernel kills my process
+-Under 2.4.2, kswapd again eats the CPU:
 
-Uh... if calling mlockall() as a non-root user gives that error,
-someone should fix the error returned...
+Mem:   254692K av,  252868K used,    1824K free,       0K shrd,  88K buff
+Swap:  313256K av,    5476K used,  307780K free             4204K cached
 
-Sorry, I should have mentioned that it required you to be root!
+  PID USER     PRI  NI  SIZE  RSS SHARE STAT  LIB %CPU %MEM   TIME COMMAND
+    3 root      14   0     0    0     0 RW      0 47.4  0.0  20:50 kswapd
+ 1277 root      14   0  241M 241M   968 R       0 46.8 96.8   0:12 loop
+    5 root       9   0     0    0     0 SW      0  5.3  0.0   0:23 bdflush
+ 1278 root      10   0   468  404   404 R       0  0.3  0.1   0:00 top
 
 
-James.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
