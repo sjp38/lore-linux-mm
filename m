@@ -1,56 +1,45 @@
-Date: Thu, 23 Sep 1999 14:55:01 -0700 (PDT)
-From: "H. Peter Anvin" <hpa@transmeta.com>
-Subject: Re: syslinux-1.43 bug [and possible PATCH]
-In-Reply-To: <199909232109.OAA13866@google.engr.sgi.com>
-Message-ID: <Pine.LNX.3.95.990923145424.6856A-100000@cesium.transmeta.com>
+From: "Stephen C. Tweedie" <sct@redhat.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Message-ID: <14314.49322.671097.451248@dukat.scot.redhat.com>
+Date: Fri, 24 Sep 1999 01:07:06 +0100 (BST)
+Subject: Re: mm->mmap_sem
+In-Reply-To: <Pine.LNX.4.10.9909221454320.26444-100000@imperial.edgeglobal.com>
+References: <Pine.LNX.4.10.9909221454320.26444-100000@imperial.edgeglobal.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Kanoj Sarcar <kanoj@google.engr.sgi.com>
-Cc: syslinux@linux.kernel.org, linux-mm@kvack.org, linux-kernel@vger.rutgers.edu
+To: James Simmons <jsimmons@edgeglobal.com>
+Cc: linux-mm@kvack.org, Stephen Tweedie <sct@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-This is an old bug; it has been fixed since 1.44 or 1.45.  The current
-version is 1.47.
+Hi,
 
-	-hpa
+On Wed, 22 Sep 1999 17:02:07 -0400 (EDT), James Simmons <jsimmons@edgeglobal.com> said:
 
-On Thu, 23 Sep 1999, Kanoj Sarcar wrote:
+> I noticed that mm_struct has a semaphore in it. How go is it protecting
+> the memory region? Say we have teh following case. I have a process
+> that mmaps a chunk of memory and this memory can be sharded with other 
+> processes. What if the process does a mlock which does a
+> down(mm->mmap_sem). Now the process goes to sleep and another process
+> tries to modify the memory region. 
 
-> I have a possible problem to report with syslinux, and a suggested
-> fix. Please send me comments and feedback at kanoj@engr.sgi.com, 
-> since I am not subscribed to the syslinux or kernel lists.
-> 
-> While installing linux (RedHat6.0, SuSe, Mandrake etc) on a ia32
-> Compaq box with 1.5Gb memory, I have observed kernel panics from 
-> mount_root. On further investigation, syslinux decides to put initrd 
-> at a high physical address, which the Linux kernel, compiled with 
-> PAGE_OFFSET=0xc0000000 can not access. The kernel can access at
-> the most physical address 0x3c000000, whereas syslinux/ldlinux.asm
-> can put initrd as high as HIGHMEM_MAX=0x3f000000. This leads
-> setup_arch() to decide it can not use initrd, thus causing the
-> kernel panic. 
-> 
-> The easy fix to me seems to be to change HIGHMEM_MAX in
-> syslinux/ldlinux.asm to 0x3c000000. In fact, I have verified on
-> a couple of machines that this will let the installation proceed.
-> 
-> Have other people run into this problem and worked around it some
-> other way? (One way would be to specify mem= at the boot: prompt
-> from syslinux. Yet another way seems to be to specify mem= in
-> the syslinux.cfg file. Changing HIGHMEM_MAX seems to be the cleanest,
-> although I am not sure whether this will impact the capability of
-> syslinux to install other os'es).
-> 
-> Thanks.
-> 
-> Kanoj
-> kanoj@engr.sgi.com
-> 
+You have missed the point of the semaphore.  mmap_sem only protects the
+vm list against being modified temporarily.  For example, it makes sure
+that you don't unmap a VM region while doing a page fault on the same
+region.  
 
-<hpa@transmeta.com> at work, <hpa@zytor.com> in private!
+An mlock() system call will take the semaphore while it performs the
+locking operation and page faults all of the locked data into memory,
+but when the mlock call returns, the semaphore will have been released.
 
+> Will this semaphore protect this region? In a SMP machine same
+> thing. What kind of protect does this semaphore provide? Does it
+> prevent other process from doing anything to the memory. 
+
+No.
+
+--Stephen
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
