@@ -1,62 +1,71 @@
-Date: Tue, 28 Dec 2004 09:53:48 -0200
-From: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
-Subject: Re: Prezeroing V2 [0/3]: Why and When it works
-Message-ID: <20041228115348.GB25253@logos.cnet>
-References: <B8E391BBE9FE384DAA4C5C003888BE6F02900FBD@scsmsx401.amr.corp.intel.com> <41C20E3E.3070209@yahoo.com.au> <Pine.LNX.4.58.0412211154100.1313@schroedinger.engr.sgi.com> <Pine.LNX.4.58.0412231119540.31791@schroedinger.engr.sgi.com> <16843.13418.630413.64809@cargo.ozlabs.ibm.com> <Pine.LNX.4.58.0412231325420.2654@ppc970.osdl.org> <1103879668.4131.15.camel@laptopd505.fenrus.org> <Pine.LNX.4.58.0412241018430.2654@ppc970.osdl.org> <20041227145057.4c5cd651.davem@davemloft.net>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20041227145057.4c5cd651.davem@davemloft.net>
+Message-ID: <41D471FB.1060805@yahoo.com.au>
+Date: Fri, 31 Dec 2004 08:24:11 +1100
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+MIME-Version: 1.0
+Subject: Re: [RFC][PATCH 0/10] alternate 4-level page tables patches
+References: <Pine.LNX.4.44.0412210230500.24496-100000@localhost.localdomain> <Pine.LNX.4.58.0412201940270.4112@ppc970.osdl.org> <Pine.LNX.4.58.0412201953040.4112@ppc970.osdl.org> <20041221093628.GA6231@wotan.suse.de> <Pine.LNX.4.58.0412210925370.4112@ppc970.osdl.org> <20041221201927.GD15643@wotan.suse.de> <41C8B678.40007@yahoo.com.au> <20041222103800.GC15894@wotan.suse.de> <41C9582D.5020201@yahoo.com.au> <20041222180748.GB9339@wotan.suse.de>
+In-Reply-To: <20041222180748.GB9339@wotan.suse.de>
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "David S. Miller" <davem@davemloft.net>
-Cc: Linus Torvalds <torvalds@osdl.org>, arjan@infradead.org, paulus@samba.org, clameter@sgi.com, akpm@osdl.org, linux-ia64@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andi Kleen <ak@suse.de>
+Cc: Linus Torvalds <torvalds@osdl.org>, Hugh Dickins <hugh@veritas.com>, Linux Memory Management <linux-mm@kvack.org>, Andrew Morton <akpm@osdl.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Dec 27, 2004 at 02:50:57PM -0800, David S. Miller wrote:
-> On Fri, 24 Dec 2004 10:21:24 -0800 (PST)
-> Linus Torvalds <torvalds@osdl.org> wrote:
+Andi Kleen wrote:
+> On Wed, Dec 22, 2004 at 10:19:09PM +1100, Nick Piggin wrote:
 > 
-> > Absolutely. I would want to see some real benchmarks before we do this.  
-> > Not just some microbenchmark of "how many page faults can we take without
-> > _using_ the page at all".
+>>But the advantages I see in the source code are a) pud folding matches 
+>>exactly
+>>how pmd folding was done on 2 level architectures, and b) it doesn't touch
+>>either of the "business ends" of the page table structure (ie. top most or
+>>bottom most levels).  I think these two points give some (if only slight)
+>>advantage in maintainability and consistency.
 > 
-> Here's my small contribution.  I did three "make -j3 vmlinux" timed
-> runs, one running a kernel without the pre-zeroing stuff applied,
-> one with it applied.  It did shave a few seconds off the build
-> consistently.  Here is the before:
 > 
-> real	8m35.248s
-> user	15m54.132s
-> sys	1m1.098s
+> Sure, but when it's merged then pml4_t (or p<whatever>_t) would be 
+> the "business end", so it doesn't make much difference longer term.
+> After all future linux coders will not really care what was in the
+> past, just what is in the code at the time they hack on it.
 > 
-> real	8m32.202s
-> user	15m54.329s
-> sys	1m0.229s
-> 
-> real	8m31.932s
-> user	15m54.160s
-> sys	1m0.245s
-> 
-> and here is the after:
-> 
-> real	8m29.375s
-> user	15m43.296s
-> sys	0m59.549s
-> 
-> real	8m28.213s
-> user	15m39.819s
-> sys	0m58.790s
-> 
-> real	8m26.140s
-> user	15m44.145s
-> sys	0m58.872s
 
-Christopher and other SGI fellows,
+Yeah OK, raw-code wise the pml4 patch isn't much different. But the
+conceptual intrusiveness of having the folding 'magic' in the top
+level page table is a bit higher.
 
-Get your patch into STP, once its there we can do some wider x86 benchmarking 
-easily.
+Also, pml4 does have some implementation intrusiveness by introducing
+a new _way_ of folding the table, whereas pud folds in the same manner
+as pmd.
 
+> 
+> 
+>>If I can get the bulk of the architectures changed and tested, the arch
+>>maintainers don't kick up too much fuss, it has a relatively trouble free 
+>>run
+>>in -mm, and Andrew and Linus are still happy to merge before 2.6.11, would 
+>>you
+>>be OK with the pud version (in principle)?
+> 
+> 
+> I can't say I'm very enthusiastic about it (but more due to scheduling
+> issues than technical issues). I don't see anything wrong with them by itself,
+> but I also don't think they have any particular advantages over the
+> pml4 version. But in the end the main thing I care about is that
+> 4 level pagetables get in in some form, where exactly the
+> new level is added and how it is named is secondary.
+> 
+
+So long as you are not completely against it, that is a good start ;)
+
+> I would prefer if it happened sooner though because the work
+> is not finished (the optimized walking is still needed),
+> and i've been just waiting for getting merged and settled
+> down a bit before continuing. 
+> 
+
+Yeah sure. I can also try to help with that (regardless of which patch
+is merged).
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
