@@ -1,171 +1,436 @@
-Received: from westrelay02.boulder.ibm.com (westrelay02.boulder.ibm.com [9.17.195.11])
-	by e35.co.us.ibm.com (8.12.10/8.12.9) with ESMTP id j2PKi5Lg308154
-	for <linux-mm@kvack.org>; Fri, 25 Mar 2005 15:44:05 -0500
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by westrelay02.boulder.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id j2PKi5bK248320
-	for <linux-mm@kvack.org>; Fri, 25 Mar 2005 13:44:05 -0700
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.12.11/8.12.11) with ESMTP id j2PKi5sA017303
-	for <linux-mm@kvack.org>; Fri, 25 Mar 2005 13:44:05 -0700
-Subject: resubmit - [PATCH 3/4] sparsemem base: reorganize page->flags bit operations
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by e5.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id j2PLsnqX029222
+	for <linux-mm@kvack.org>; Fri, 25 Mar 2005 16:54:49 -0500
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay02.pok.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id j2PLsngv096798
+	for <linux-mm@kvack.org>; Fri, 25 Mar 2005 16:54:49 -0500
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.12.11/8.12.11) with ESMTP id j2PLsmXZ023512
+	for <linux-mm@kvack.org>; Fri, 25 Mar 2005 16:54:49 -0500
+Subject: [RFC][PATCH 2/4] make each arch use mm/Kconfig
 From: Dave Hansen <haveblue@us.ibm.com>
-Date: Fri, 25 Mar 2005 12:44:03 -0800
-Message-Id: <E1DEvf2-0004ay-00@kernel.beaverton.ibm.com>
+Date: Fri, 25 Mar 2005 13:54:46 -0800
+Message-Id: <E1DEwlT-0006K4-00@kernel.beaverton.ibm.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: akpm@osdl.org
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Dave Hansen <haveblue@us.ibm.com>, apw@shadowen.org
+To: linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, Dave Hansen <haveblue@us.ibm.com>, apw@shadowen.org
 List-ID: <linux-mm.kvack.org>
 
-Generify the value fields in the page_flags.  The aim is to allow
-the location and size of these fields to be varied.  Additionally we
-want to move away from fixed allocations per field whilst still
-enforcing the overall bit utilisation limits.  We rely on the
-compiler to spot and optimise the accessor functions.
+With sparsemem being introduced, we need a central place for new
+memory-related .config options: mm/Kconfig.
 
-Signed-off-by: Andy Whitcroft <apw@shadowen.org>
+For all architectures, this just means that you'll see a
+"Memory Model" choice in your architecture menu. For those that
+implement DISCONTIGMEM, you may eventually want to make your
+ARCH_DISCONTIGMEM_ENABLE a "def_bool y" and make your users
+select DISCONTIGMEM right out of the new choice menu.  The only
+disadvantage might be if you have some specific things that you
+need in your help option for DISCONTIGMEM.  
+
+The new option, CONFIG_FLATMEM, is there to enable us to detangle
+NUMA and DISCONTIGMEM.  This is a requirement for sparsemem
+because sparsemem uses the NUMA code without the presence of
+DISCONTIGMEM. The sparsemem patches use CONFIG_FLATMEM in generic
+code, so this patch is a requirement before applying them.
+
+Almost all places that used to do '#ifndef CONFIG_DISCONTIGMEM'
+should use '#ifdef CONFIG_FLATMEM' instead.
 Signed-off-by: Dave Hansen <haveblue@us.ibm.com>
 ---
 
- memhotplug-dave/include/linux/mm.h     |   53 +++++++++++++++++++++++++++------
- memhotplug-dave/include/linux/mmzone.h |   19 ++++-------
- memhotplug-dave/mm/page_alloc.c        |    2 -
- 3 files changed, 52 insertions(+), 22 deletions(-)
+ memhotplug-dave/arch/alpha/Kconfig     |    4 +++-
+ memhotplug-dave/arch/arm/Kconfig       |    4 +++-
+ memhotplug-dave/arch/arm26/Kconfig     |    2 ++
+ memhotplug-dave/arch/cris/Kconfig      |    2 ++
+ memhotplug-dave/arch/frv/Kconfig       |    2 ++
+ memhotplug-dave/arch/h8300/Kconfig.cpu |    3 +++
+ memhotplug-dave/arch/i386/Kconfig      |    4 +++-
+ memhotplug-dave/arch/ia64/Kconfig      |    4 +++-
+ memhotplug-dave/arch/m32r/Kconfig      |    4 +++-
+ memhotplug-dave/arch/m68k/Kconfig      |    2 ++
+ memhotplug-dave/arch/m68knommu/Kconfig |    2 ++
+ memhotplug-dave/arch/mips/Kconfig      |    6 +++++-
+ memhotplug-dave/arch/parisc/Kconfig    |    8 +++++++-
+ memhotplug-dave/arch/ppc/Kconfig       |    2 ++
+ memhotplug-dave/arch/ppc64/Kconfig     |    4 +++-
+ memhotplug-dave/arch/s390/Kconfig      |    2 ++
+ memhotplug-dave/arch/sh/Kconfig        |    8 +++++++-
+ memhotplug-dave/arch/sh64/Kconfig      |    2 ++
+ memhotplug-dave/arch/sparc/Kconfig     |    2 ++
+ memhotplug-dave/arch/sparc64/Kconfig   |    2 ++
+ memhotplug-dave/arch/um/Kconfig        |    1 +
+ memhotplug-dave/arch/v850/Kconfig      |    2 ++
+ memhotplug-dave/arch/x86_64/Kconfig    |    4 +++-
+ 23 files changed, 66 insertions(+), 10 deletions(-)
 
-diff -puN include/linux/mm.h~FROM-MM-cleanup-node-zone include/linux/mm.h
---- memhotplug/include/linux/mm.h~FROM-MM-cleanup-node-zone	2005-03-25 08:17:11.000000000 -0800
-+++ memhotplug-dave/include/linux/mm.h	2005-03-25 08:17:11.000000000 -0800
-@@ -404,19 +404,41 @@ static inline void put_page(struct page 
- /*
-  * The zone field is never updated after free_area_init_core()
-  * sets it, so none of the operations on it need to be atomic.
-- * We'll have up to (MAX_NUMNODES * MAX_NR_ZONES) zones total,
-- * so we use (MAX_NODES_SHIFT + MAX_ZONES_SHIFT) here to get enough bits.
-  */
--#define NODEZONE_SHIFT (sizeof(page_flags_t)*8 - MAX_NODES_SHIFT - MAX_ZONES_SHIFT)
+diff -puN arch/alpha/Kconfig~A7-make-each-arch-use-mm-Kconfig arch/alpha/Kconfig
+--- memhotplug/arch/alpha/Kconfig~A7-make-each-arch-use-mm-Kconfig	2005-03-25 08:08:22.000000000 -0800
++++ memhotplug-dave/arch/alpha/Kconfig	2005-03-25 08:08:22.000000000 -0800
+@@ -505,7 +505,7 @@ config NR_CPUS
+ 	depends on SMP
+ 	default "64"
+ 
+-config DISCONTIGMEM
++config ARCH_DISCONTIGMEM_ENABLE
+ 	bool "Discontiguous Memory Support (EXPERIMENTAL)"
+ 	depends on EXPERIMENTAL
+ 	help
+@@ -514,6 +514,8 @@ config DISCONTIGMEM
+ 	  or have huge holes in the physical address space for other reasons.
+ 	  See <file:Documentation/vm/numa> for more.
+ 
++source "mm/Kconfig"
 +
-+/* Page flags: | NODE | ZONE | ... | FLAGS | */
-+#define NODES_PGOFF		((sizeof(page_flags_t)*8) - NODES_SHIFT)
-+#define ZONES_PGOFF		(NODES_PGOFF - ZONES_SHIFT)
+ config NUMA
+ 	bool "NUMA Support (EXPERIMENTAL)"
+ 	depends on DISCONTIGMEM
+diff -puN arch/arm/Kconfig~A7-make-each-arch-use-mm-Kconfig arch/arm/Kconfig
+--- memhotplug/arch/arm/Kconfig~A7-make-each-arch-use-mm-Kconfig	2005-03-25 08:08:22.000000000 -0800
++++ memhotplug-dave/arch/arm/Kconfig	2005-03-25 08:08:22.000000000 -0800
+@@ -289,7 +289,7 @@ config NR_CPUS
+ 	depends on SMP
+ 	default "4"
+ 
+-config DISCONTIGMEM
++config ARCH_DISCONTIGMEM_ENABLE
+ 	bool
+ 	depends on ARCH_EDB7211 || ARCH_SA1100 || (ARCH_LH7A40X && !LH7A40X_CONTIGMEM)
+ 	default y
+@@ -299,6 +299,8 @@ config DISCONTIGMEM
+ 	  or have huge holes in the physical address space for other reasons.
+ 	  See <file:Documentation/vm/numa> for more.
+ 
++source "mm/Kconfig"
 +
-+/*
-+ * Define the bit shifts to access each section.  For non-existant
-+ * sections we define the shift as 0; that plus a 0 mask ensures
-+ * the compiler will optimise away reference to them.
-+ */
-+#define NODES_PGSHIFT		(NODES_PGOFF * (NODES_SHIFT != 0))
-+#define ZONES_PGSHIFT		(ZONES_PGOFF * (ZONES_SHIFT != 0))
+ # Now handle the bus types
+ config PCI
+ 	bool "PCI support" if ARCH_INTEGRATOR_AP
+diff -puN arch/arm26/Kconfig~A7-make-each-arch-use-mm-Kconfig arch/arm26/Kconfig
+--- memhotplug/arch/arm26/Kconfig~A7-make-each-arch-use-mm-Kconfig	2005-03-25 08:08:22.000000000 -0800
++++ memhotplug-dave/arch/arm26/Kconfig	2005-03-25 08:08:22.000000000 -0800
+@@ -175,6 +175,8 @@ config CMDLINE
+ 	  time by entering them here. As a minimum, you should specify the
+ 	  memory size and the root device (e.g., mem=64M root=/dev/nfs).
+ 
++source "mm/Kconfig"
 +
-+/* NODE:ZONE is used to lookup the zone from a page. */
-+#define ZONETABLE_SHIFT		(NODES_SHIFT + ZONES_SHIFT)
-+#define ZONETABLE_PGSHIFT	ZONES_PGSHIFT
+ endmenu
+ 
+ source "drivers/base/Kconfig"
+diff -puN arch/cris/Kconfig~A7-make-each-arch-use-mm-Kconfig arch/cris/Kconfig
+--- memhotplug/arch/cris/Kconfig~A7-make-each-arch-use-mm-Kconfig	2005-03-25 08:08:22.000000000 -0800
++++ memhotplug-dave/arch/cris/Kconfig	2005-03-25 08:08:22.000000000 -0800
+@@ -74,6 +74,8 @@ config PREEMPT
+ 	  Say Y here if you are building a kernel for a desktop, embedded
+ 	  or real-time system.  Say N if you are unsure.
+ 
++source mm/Kconfig
 +
-+#if NODES_SHIFT+ZONES_SHIFT > FLAGS_RESERVED
-+#error NODES_SHIFT+ZONES_SHIFT > FLAGS_RESERVED
-+#endif
+ endmenu
+ 
+ menu "Hardware setup"
+diff -puN arch/frv/Kconfig~A7-make-each-arch-use-mm-Kconfig arch/frv/Kconfig
+--- memhotplug/arch/frv/Kconfig~A7-make-each-arch-use-mm-Kconfig	2005-03-25 08:08:22.000000000 -0800
++++ memhotplug-dave/arch/frv/Kconfig	2005-03-25 08:08:22.000000000 -0800
+@@ -74,6 +74,8 @@ config HIGHPTE
+ 	  with a lot of RAM, this can be wasteful of precious low memory.
+ 	  Setting this option will put user-space page tables in high memory.
+ 
++source "mm/Kconfig"
 +
- #define NODEZONE(node, zone)	((node << ZONES_SHIFT) | zone)
- 
-+#define ZONES_MASK		((1UL << ZONES_SHIFT) - 1)
-+#define NODES_MASK		((1UL << NODES_SHIFT) - 1)
-+#define ZONETABLE_MASK		((1UL << ZONETABLE_SHIFT) - 1)
+ choice
+ 	prompt "uClinux kernel load address"
+ 	depends on !MMU
+diff -puN arch/h8300/Kconfig.cpu~A7-make-each-arch-use-mm-Kconfig arch/h8300/Kconfig.cpu
+--- memhotplug/arch/h8300/Kconfig.cpu~A7-make-each-arch-use-mm-Kconfig	2005-03-25 08:08:22.000000000 -0800
++++ memhotplug-dave/arch/h8300/Kconfig.cpu	2005-03-25 08:08:22.000000000 -0800
+@@ -180,4 +180,7 @@ config CPU_H8S
+ config PREEMPT
+ 	bool "Preemptible Kernel"
+ 	default n
 +
- static inline unsigned long page_zonenum(struct page *page)
- {
--	return (page->flags >> NODEZONE_SHIFT) & (~(~0UL << ZONES_SHIFT));
-+	return (page->flags >> ZONES_PGSHIFT) & ZONES_MASK;
- }
- static inline unsigned long page_to_nid(struct page *page)
- {
--	return (page->flags >> (NODEZONE_SHIFT + ZONES_SHIFT));
-+	return (page->flags >> NODES_PGSHIFT) & NODES_MASK;
- }
- 
- struct zone;
-@@ -424,13 +446,26 @@ extern struct zone *zone_table[];
- 
- static inline struct zone *page_zone(struct page *page)
- {
--	return zone_table[page->flags >> NODEZONE_SHIFT];
-+	return zone_table[(page->flags >> ZONETABLE_PGSHIFT) &
-+			ZONETABLE_MASK];
-+}
++source "mm/Kconfig'
 +
-+static inline void set_page_zone(struct page *page, unsigned long zone)
-+{
-+	page->flags &= ~(ZONES_MASK << ZONES_PGSHIFT);
-+	page->flags |= (zone & ZONES_MASK) << ZONES_PGSHIFT;
-+}
-+static inline void set_page_node(struct page *page, unsigned long node)
-+{
-+	page->flags &= ~(NODES_MASK << NODES_PGSHIFT);
-+	page->flags |= (node & NODES_MASK) << NODES_PGSHIFT;
- }
+ endmenu
+diff -puN arch/i386/Kconfig~A7-make-each-arch-use-mm-Kconfig arch/i386/Kconfig
+--- memhotplug/arch/i386/Kconfig~A7-make-each-arch-use-mm-Kconfig	2005-03-25 08:08:22.000000000 -0800
++++ memhotplug-dave/arch/i386/Kconfig	2005-03-25 08:08:22.000000000 -0800
+@@ -767,7 +767,7 @@ comment "NUMA (NUMA-Q) requires SMP, 64G
+ comment "NUMA (Summit) requires SMP, 64GB highmem support, ACPI"
+ 	depends on X86_SUMMIT && (!HIGHMEM64G || !ACPI)
  
--static inline void set_page_zone(struct page *page, unsigned long nodezone_num)
-+static inline void set_page_links(struct page *page, unsigned long zone,
-+	unsigned long node)
- {
--	page->flags &= ~(~0UL << NODEZONE_SHIFT);
--	page->flags |= nodezone_num << NODEZONE_SHIFT;
-+	set_page_zone(page, zone);
-+	set_page_node(page, node);
- }
+-config DISCONTIGMEM
++config ARCH_DISCONTIGMEM_ENABLE
+ 	bool
+ 	depends on NUMA
+ 	default y
+@@ -792,6 +792,8 @@ config HAVE_ARCH_ALLOC_REMAP
+ 	depends on NUMA
+ 	default y
  
- #ifndef CONFIG_DISCONTIGMEM
-diff -puN include/linux/mmzone.h~FROM-MM-cleanup-node-zone include/linux/mmzone.h
---- memhotplug/include/linux/mmzone.h~FROM-MM-cleanup-node-zone	2005-03-25 08:17:11.000000000 -0800
-+++ memhotplug-dave/include/linux/mmzone.h	2005-03-25 08:17:11.000000000 -0800
-@@ -395,30 +395,25 @@ extern struct pglist_data contig_page_da
- 
- #include <asm/mmzone.h>
- 
-+#endif /* !CONFIG_DISCONTIGMEM */
++source "mm/Kconfig"
 +
- #if BITS_PER_LONG == 32 || defined(ARCH_HAS_ATOMIC_UNSIGNED)
- /*
-  * with 32 bit page->flags field, we reserve 8 bits for node/zone info.
-  * there are 3 zones (2 bits) and this leaves 8-2=6 bits for nodes.
-  */
--#define MAX_NODES_SHIFT		6
-+#define FLAGS_RESERVED		8
+ config HIGHPTE
+ 	bool "Allocate 3rd-level pagetables from highmem"
+ 	depends on HIGHMEM4G || HIGHMEM64G
+diff -puN arch/ia64/Kconfig~A7-make-each-arch-use-mm-Kconfig arch/ia64/Kconfig
+--- memhotplug/arch/ia64/Kconfig~A7-make-each-arch-use-mm-Kconfig	2005-03-25 08:08:22.000000000 -0800
++++ memhotplug-dave/arch/ia64/Kconfig	2005-03-25 08:08:22.000000000 -0800
+@@ -188,7 +188,7 @@ config HOLES_IN_ZONE
+ 	bool
+ 	default y if VIRTUAL_MEM_MAP
+ 
+-config DISCONTIGMEM
++config ARCH_DISCONTIGMEM_ENABLE
+ 	bool "Discontiguous memory support"
+ 	depends on (IA64_DIG || IA64_SGI_SN2 || IA64_GENERIC || IA64_HP_ZX1 || IA64_HP_ZX1_SWIOTLB) && NUMA && VIRTUAL_MEM_MAP
+ 	default y if (IA64_SGI_SN2 || IA64_GENERIC) && NUMA
+@@ -272,6 +272,8 @@ config PREEMPT
+           Say Y here if you are building a kernel for a desktop, embedded
+           or real-time system.  Say N if you are unsure.
+ 
++source "mm/Kconfig"
 +
- #elif BITS_PER_LONG == 64
- /*
-  * with 64 bit flags field, there's plenty of room.
-  */
--#define MAX_NODES_SHIFT		10
--#endif
-+#define FLAGS_RESERVED		32
+ config HAVE_DEC_LOCK
+ 	bool
+ 	depends on (SMP || PREEMPT)
+diff -puN arch/m32r/Kconfig~A7-make-each-arch-use-mm-Kconfig arch/m32r/Kconfig
+--- memhotplug/arch/m32r/Kconfig~A7-make-each-arch-use-mm-Kconfig	2005-03-25 08:08:22.000000000 -0800
++++ memhotplug-dave/arch/m32r/Kconfig	2005-03-25 08:08:22.000000000 -0800
+@@ -167,11 +167,13 @@ config NOHIGHMEM
+ 	bool
+ 	default y
  
--#endif /* !CONFIG_DISCONTIGMEM */
--
--#if NODES_SHIFT > MAX_NODES_SHIFT
--#error NODES_SHIFT > MAX_NODES_SHIFT
--#endif
-+#else
+-config DISCONTIGMEM
++config ARCH_DISCONTIGMEM_ENABLE
+ 	bool "Internal RAM Support"
+ 	depends on CHIP_M32700 || CHIP_M32102 || CHIP_VDEC2 || CHIP_OPSP
+ 	default y
  
--/* There are currently 3 zones: DMA, Normal & Highmem, thus we need 2 bits */
--#define MAX_ZONES_SHIFT		2
-+#error BITS_PER_LONG not defined
++source "mm/Kconfig"
++
+ config IRAM_START
+ 	hex "Internal memory start address (hex)"
+ 	default "00f00000"
+diff -puN arch/m68k/Kconfig~A7-make-each-arch-use-mm-Kconfig arch/m68k/Kconfig
+--- memhotplug/arch/m68k/Kconfig~A7-make-each-arch-use-mm-Kconfig	2005-03-25 08:08:22.000000000 -0800
++++ memhotplug-dave/arch/m68k/Kconfig	2005-03-25 08:08:22.000000000 -0800
+@@ -357,6 +357,8 @@ config 060_WRITETHROUGH
+ 	  is hardwired on.  The 53c710 SCSI driver is known to suffer from
+ 	  this problem.
  
--#if ZONES_SHIFT > MAX_ZONES_SHIFT
--#error ZONES_SHIFT > MAX_ZONES_SHIFT
- #endif
++source "mm/Kconfig"
++
+ endmenu
  
- #endif /* !__ASSEMBLY__ */
-diff -puN mm/page_alloc.c~FROM-MM-cleanup-node-zone mm/page_alloc.c
---- memhotplug/mm/page_alloc.c~FROM-MM-cleanup-node-zone	2005-03-25 08:17:11.000000000 -0800
-+++ memhotplug-dave/mm/page_alloc.c	2005-03-25 08:17:11.000000000 -0800
-@@ -1583,7 +1583,7 @@ void __init memmap_init_zone(unsigned lo
- 	struct page *page;
+ menu "General setup"
+diff -puN arch/m68knommu/Kconfig~A7-make-each-arch-use-mm-Kconfig arch/m68knommu/Kconfig
+--- memhotplug/arch/m68knommu/Kconfig~A7-make-each-arch-use-mm-Kconfig	2005-03-25 08:08:22.000000000 -0800
++++ memhotplug-dave/arch/m68knommu/Kconfig	2005-03-25 08:08:22.000000000 -0800
+@@ -532,6 +532,8 @@ config ROMKERNEL
  
- 	for (page = start; page < (start + size); page++) {
--		set_page_zone(page, NODEZONE(nid, zone));
-+		set_page_links(page, zone, nid);
- 		set_page_count(page, 0);
- 		reset_page_mapcount(page);
- 		SetPageReserved(page);
+ endchoice
+ 
++source "mm/Kconfig"
++
+ endmenu
+ 
+ menu "Bus options (PCI, PCMCIA, EISA, MCA, ISA)"
+diff -puN arch/mips/Kconfig~A7-make-each-arch-use-mm-Kconfig arch/mips/Kconfig
+--- memhotplug/arch/mips/Kconfig~A7-make-each-arch-use-mm-Kconfig	2005-03-25 08:08:22.000000000 -0800
++++ memhotplug-dave/arch/mips/Kconfig	2005-03-25 08:08:23.000000000 -0800
+@@ -492,7 +492,7 @@ config SGI_SN0_N_MODE
+ 	  which allows for more memory.  Your system is most probably
+ 	  running in M-Mode, so you should say N here.
+ 
+-config DISCONTIGMEM
++config ARCH_DISCONTIGMEM_ENABLE
+ 	bool
+ 	default y if SGI_IP27
+ 	help
+@@ -501,6 +501,10 @@ config DISCONTIGMEM
+ 	  or have huge holes in the physical address space for other reasons.
+ 	  See <file:Documentation/vm/numa> for more.
+ 
++config ARCH_FLATMEM_DISABLE
++	def_bool y
++	depends on ARCH_DISCONTIGMEM_ENABLE
++
+ config NUMA
+ 	bool "NUMA Support"
+ 	depends on SGI_IP27
+diff -puN arch/parisc/Kconfig~A7-make-each-arch-use-mm-Kconfig arch/parisc/Kconfig
+--- memhotplug/arch/parisc/Kconfig~A7-make-each-arch-use-mm-Kconfig	2005-03-25 08:08:22.000000000 -0800
++++ memhotplug-dave/arch/parisc/Kconfig	2005-03-25 08:08:23.000000000 -0800
+@@ -144,7 +144,7 @@ config HOTPLUG_CPU
+ 	default y if SMP
+ 	select HOTPLUG
+ 
+-config DISCONTIGMEM
++config ARCH_DISCONTIGMEM_ENABLE
+ 	bool "Discontiguous memory support (EXPERIMENTAL)"
+ 	depends on EXPERIMENTAL
+ 	help
+@@ -153,6 +153,12 @@ config DISCONTIGMEM
+ 	  or have huge holes in the physical address space for other reasons.
+ 	  See <file:Documentation/vm/numa> for more.
+ 
++config ARCH_FLATMEM_DISABLE
++	def_bool y
++	depends on ARCH_DISCONTIGMEM_ENABLE
++
++source "mm/Kconfig"
++
+ config PREEMPT
+ 	bool
+ #	bool "Preemptible Kernel"
+diff -puN arch/ppc/Kconfig~A7-make-each-arch-use-mm-Kconfig arch/ppc/Kconfig
+--- memhotplug/arch/ppc/Kconfig~A7-make-each-arch-use-mm-Kconfig	2005-03-25 08:08:22.000000000 -0800
++++ memhotplug-dave/arch/ppc/Kconfig	2005-03-25 08:08:23.000000000 -0800
+@@ -893,6 +893,8 @@ config PREEMPT
+ config HIGHMEM
+ 	bool "High memory support"
+ 
++source "mm/Kconfig"
++
+ source "fs/Kconfig.binfmt"
+ 
+ config PROC_DEVICETREE
+diff -puN arch/ppc64/Kconfig~A7-make-each-arch-use-mm-Kconfig arch/ppc64/Kconfig
+--- memhotplug/arch/ppc64/Kconfig~A7-make-each-arch-use-mm-Kconfig	2005-03-25 08:08:22.000000000 -0800
++++ memhotplug-dave/arch/ppc64/Kconfig	2005-03-25 08:08:23.000000000 -0800
+@@ -198,10 +198,12 @@ config HMT
+ 	  This option enables hardware multithreading on RS64 cpus.
+ 	  pSeries systems p620 and p660 have such a cpu type.
+ 
+-config DISCONTIGMEM
++config ARCH_DISCONTIGMEM_ENABLE
+ 	bool "Discontiguous Memory Support"
+ 	depends on SMP && PPC_PSERIES
+ 
++source "mm/Kconfig"
++
+ config NUMA
+ 	bool "NUMA support"
+ 	depends on DISCONTIGMEM
+diff -puN arch/s390/Kconfig~A7-make-each-arch-use-mm-Kconfig arch/s390/Kconfig
+--- memhotplug/arch/s390/Kconfig~A7-make-each-arch-use-mm-Kconfig	2005-03-25 08:08:22.000000000 -0800
++++ memhotplug-dave/arch/s390/Kconfig	2005-03-25 08:08:23.000000000 -0800
+@@ -226,6 +226,8 @@ config WARN_STACK_SIZE
+ 	  This allows you to specify the maximum frame size a function may
+ 	  have without the compiler complaining about it.
+ 
++source "mm/Kconfig"
++
+ comment "I/O subsystem configuration"
+ 
+ config MACHCHK_WARNING
+diff -puN arch/sh/Kconfig~A7-make-each-arch-use-mm-Kconfig arch/sh/Kconfig
+--- memhotplug/arch/sh/Kconfig~A7-make-each-arch-use-mm-Kconfig	2005-03-25 08:08:22.000000000 -0800
++++ memhotplug-dave/arch/sh/Kconfig	2005-03-25 08:08:23.000000000 -0800
+@@ -486,7 +486,7 @@ config CPU_SUBTYPE_ST40
+        depends on CPU_SUBTYPE_ST40STB1 || CPU_SUBTYPE_ST40GX1
+        default y
+ 
+-config DISCONTIGMEM
++config ARCH_DISCONTIGMEM_ENABLE
+ 	bool
+ 	depends on SH_HP690
+ 	default y
+@@ -496,6 +496,12 @@ config DISCONTIGMEM
+ 	  or have huge holes in the physical address space for other reasons.
+ 	  See <file:Documentation/vm/numa> for more.
+ 
++config ARCH_FLATMEM_DISABLE
++	def_bool y
++	depends on ARCH_DISCONTIGMEM_ENABLE
++
++source "mm/Kconfig"
++
+ config ZERO_PAGE_OFFSET
+ 	hex "Zero page offset"
+ 	default "0x00001000" if !(SH_MPC1211 || SH_SH03)
+diff -puN arch/sh64/Kconfig~A7-make-each-arch-use-mm-Kconfig arch/sh64/Kconfig
+--- memhotplug/arch/sh64/Kconfig~A7-make-each-arch-use-mm-Kconfig	2005-03-25 08:08:22.000000000 -0800
++++ memhotplug-dave/arch/sh64/Kconfig	2005-03-25 08:08:23.000000000 -0800
+@@ -217,6 +217,8 @@ config PREEMPT
+ 	bool "Preemptible Kernel (EXPERIMENTAL)"
+ 	depends on EXPERIMENTAL
+ 
++source "mm/Kconfig"
++
+ endmenu
+ 
+ menu "Bus options (PCI, PCMCIA, EISA, MCA, ISA)"
+diff -puN arch/sparc/Kconfig~A7-make-each-arch-use-mm-Kconfig arch/sparc/Kconfig
+--- memhotplug/arch/sparc/Kconfig~A7-make-each-arch-use-mm-Kconfig	2005-03-25 08:08:22.000000000 -0800
++++ memhotplug-dave/arch/sparc/Kconfig	2005-03-25 08:08:23.000000000 -0800
+@@ -291,6 +291,8 @@ config PRINTER
+ 	  If you have more than 8 printers, you need to increase the LP_NO
+ 	  macro in lp.c and the PARPORT_MAX macro in parport.h.
+ 
++source "mm/Kconfig"
++
+ endmenu
+ 
+ source "drivers/base/Kconfig"
+diff -puN arch/sparc64/Kconfig~A7-make-each-arch-use-mm-Kconfig arch/sparc64/Kconfig
+--- memhotplug/arch/sparc64/Kconfig~A7-make-each-arch-use-mm-Kconfig	2005-03-25 08:08:22.000000000 -0800
++++ memhotplug-dave/arch/sparc64/Kconfig	2005-03-25 08:08:23.000000000 -0800
+@@ -462,6 +462,8 @@ config CMDLINE
+ 
+ 	  NOTE: This option WILL override the PROM bootargs setting!
+ 
++source "mm/Kconfig"
++
+ endmenu
+ 
+ source "drivers/base/Kconfig"
+diff -puN arch/um/Kconfig~A7-make-each-arch-use-mm-Kconfig arch/um/Kconfig
+--- memhotplug/arch/um/Kconfig~A7-make-each-arch-use-mm-Kconfig	2005-03-25 08:08:22.000000000 -0800
++++ memhotplug-dave/arch/um/Kconfig	2005-03-25 08:08:23.000000000 -0800
+@@ -69,6 +69,7 @@ config MODE_SKAS
+ 	option will shrink the UML binary slightly.
+ 
+ source "arch/um/Kconfig_arch"
++source "mm/Kconfig"
+ 
+ config LD_SCRIPT_STATIC
+ 	bool
+diff -puN arch/v850/Kconfig~A7-make-each-arch-use-mm-Kconfig arch/v850/Kconfig
+--- memhotplug/arch/v850/Kconfig~A7-make-each-arch-use-mm-Kconfig	2005-03-25 08:08:22.000000000 -0800
++++ memhotplug-dave/arch/v850/Kconfig	2005-03-25 08:08:23.000000000 -0800
+@@ -218,6 +218,8 @@ menu "Processor type and features"
+ 	     a lot of RAM, and you need to able to allocate very large
+ 	     contiguous chunks. If unsure, say N.
+ 
++source "mm/Kconfig"
++
+ endmenu
+ 
+ 
+diff -puN arch/x86_64/Kconfig~A7-make-each-arch-use-mm-Kconfig arch/x86_64/Kconfig
+--- memhotplug/arch/x86_64/Kconfig~A7-make-each-arch-use-mm-Kconfig	2005-03-25 08:08:22.000000000 -0800
++++ memhotplug-dave/arch/x86_64/Kconfig	2005-03-25 08:08:23.000000000 -0800
+@@ -282,7 +282,7 @@ config NUMA_EMU
+ 	  into virtual nodes when booted with "numa=fake=N", where N is the
+ 	  number of nodes. This is only useful for debugging.
+ 
+-config DISCONTIGMEM
++config ARCH_DISCONTIGMEM_ENABLE
+        bool
+        depends on NUMA
+        default y
+@@ -291,6 +291,8 @@ config NUMA
+        bool
+        default n
+ 
++source "mm/Kconfig"
++
+ config HAVE_DEC_LOCK
+ 	bool
+ 	depends on SMP
 _
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
