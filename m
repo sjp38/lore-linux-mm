@@ -1,35 +1,26 @@
-Date: Mon, 25 Sep 2000 17:10:43 +0200 (CEST)
+Date: Mon, 25 Sep 2000 17:16:06 +0200 (CEST)
 From: Ingo Molnar <mingo@elte.hu>
 Reply-To: mingo@elte.hu
 Subject: Re: the new VM
-In-Reply-To: <20000925170113.S22882@athlon.random>
-Message-ID: <Pine.LNX.4.21.0009251702090.9122-100000@elte.hu>
+In-Reply-To: <E13dZX7-00055f-00@the-village.bc.nu>
+Message-ID: <Pine.LNX.4.21.0009251714480.9122-100000@elte.hu>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrea Arcangeli <andrea@suse.de>
-Cc: Marcelo Tosatti <marcelo@conectiva.com.br>, Linus Torvalds <torvalds@transmeta.com>, Rik van Riel <riel@conectiva.com.br>, Roger Larsson <roger.larsson@norran.net>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
+To: Alan Cox <alan@lxorguk.ukuu.org.uk>
+Cc: Andrea Arcangeli <andrea@suse.de>, Marcelo Tosatti <marcelo@conectiva.com.br>, Linus Torvalds <torvalds@transmeta.com>, Rik van Riel <riel@conectiva.com.br>, Roger Larsson <roger.larsson@norran.net>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 25 Sep 2000, Andrea Arcangeli wrote:
+On Mon, 25 Sep 2000, Alan Cox wrote:
 
-> Signal can be trapped and ignored by malicious task. [...]
+> GFP_KERNEL has to be able to fail for 2.4. Otherwise you can get
+> everything jammed in kernel space waiting on GFP_KERNEL and if the
+> swapper cannot make space you die.
 
-a SIGKILL? i agree with the 2.2 solution - first a soft signal, and if
-it's being ignored then a SIGKILL.
-
-> But my question isn't what you do when you're OOM, but is _how_ do you
-> notice that you're OOM?
-
-good question :-)
-
-> In the GFP_USER case simply checking when GFP fails looks right to me.
-
-i think the GFP_USER case should do the oom logic within __alloc_pages(),
-by SIGTERM/SIGKILL-ing off abusive processes. Ie. it's *still* an infinite
-loop (barring the case where *this* process is abusive, but thats a
-detail).
+if one can get everything jammed waiting for GFP_KERNEL, and not being
+able to deallocate anything, thats a VM or resource-limit bug. This
+situation is just 1% RAM away from the 'root cannot log in', situation.
 
 	Ingo
 
