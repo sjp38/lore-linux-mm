@@ -1,62 +1,32 @@
-Message-ID: <000c01bedf24$5aaa9ce0$2b2389c0@1>
-From: "jiaiguo" <jiaiguo@hisense.qd.sd.cn>
-Subject: Would you please send me the Linux OS source code !
-Date: Thu, 5 Aug 1999 17:24:42 +0800
+Date: Thu, 5 Aug 1999 12:41:08 +0200 (CEST)
+From: Rik van Riel <rik@reseau.nl>
+Reply-To: riel@humbolt.nl.linux.org
+Subject: Re: Would you please send me the Linux OS source code !
+In-Reply-To: <000c01bedf24$5aaa9ce0$2b2389c0@1>
+Message-ID: <Pine.LNX.4.10.9908051239030.1445-100000@rik.campus-party.org>
 MIME-Version: 1.0
-Content-Type: multipart/alternative;
-	boundary="----=_NextPart_000_0009_01BEDF67.675E2040"
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linux-MM@kvack.org
+To: jiaiguo <jiaiguo@hisense.qd.sd.cn>
+Cc: Linux-MM@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This is a multi-part message in MIME format.
+On Thu, 5 Aug 1999, jiaiguo wrote:
 
-------=_NextPart_000_0009_01BEDF67.675E2040
-Content-Type: text/plain;
-	charset="gb2312"
-Content-Transfer-Encoding: base64
+>    Would you please send me the source code of the linux operating
+> system ?
 
-RGVhciBTaXI6DQpIb3cgRG8gWW91IERvICENCiAgIFdvdWxkIHlvdSBwbGVhc2Ugc2VuZCBtZSB0
-aGUgc291cmNlIGNvZGUgb2YgdGhlIGxpbnV4IG9wZXJhdGluZyBzeXN0ZW0gPw0KICAgSSBhbSBp
-bnRlcmVzdGluZyBpbiB0aGUgbGludXggb3BlcmF0aW5nIHN5c3RlbSwgdGhlIGhlbHAgZnJvbSB5
-b3UgaXMgaW1wb3J0YW50IHRvIG1lLg0KICAgVGhhbmsgeW91ICENCiAgIG15IG1haWwgaXM6IGpp
-YWlndW9AaGlzZW5zZS5xZC5zZC5jbg0KICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg
-ICAgICAgICAgIA0KICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICBEci4g
-SmkgQWlndW8gDQo=
+We could do that, but remember it's 14 MB large -- and that's
+only for the kernel. It would be far cheaper to order a CD at
+www.cheapbytes.com and get everything by mail.
 
-------=_NextPart_000_0009_01BEDF67.675E2040
-Content-Type: text/html;
-	charset="gb2312"
-Content-Transfer-Encoding: base64
+If you're still interested, just let me know. I'm at a LAN
+party so it doesn't really matter for me :)
 
-PCFET0NUWVBFIEhUTUwgUFVCTElDICItLy9XM0MvL0RURCBIVE1MIDQuMCBUcmFuc2l0aW9uYWwv
-L0VOIj4NCjxIVE1MPjxIRUFEPg0KPE1FVEEgY29udGVudD0idGV4dC9odG1sOyBjaGFyc2V0PWdi
-MjMxMiIgaHR0cC1lcXVpdj1Db250ZW50LVR5cGU+DQo8TUVUQSBjb250ZW50PSJNU0hUTUwgNS4w
-MC4yMDE0LjIxMCIgbmFtZT1HRU5FUkFUT1I+DQo8U1RZTEU+PC9TVFlMRT4NCjwvSEVBRD4NCjxC
-T0RZIGJnQ29sb3I9I2ZmZmZmZj4NCjxESVY+PEZPTlQgc2l6ZT0yPkRlYXIgU2lyOjwvRk9OVD48
-L0RJVj4NCjxESVY+PEZPTlQgc2l6ZT0yPkhvdyBEbyBZb3UgRG8gITwvRk9OVD48L0RJVj4NCjxE
-SVY+PEZPTlQgc2l6ZT0yPiZuYnNwOyZuYnNwOyBXb3VsZCB5b3UgcGxlYXNlIHNlbmQgbWUgdGhl
-IHNvdXJjZSBjb2RlIG9mIHRoZSANCmxpbnV4IG9wZXJhdGluZyBzeXN0ZW0gPzwvRk9OVD48L0RJ
-Vj4NCjxESVY+PEZPTlQgc2l6ZT0yPiZuYnNwOyZuYnNwOyBJIGFtIGludGVyZXN0aW5nIGluIHRo
-ZSBsaW51eCBvcGVyYXRpbmcgc3lzdGVtLCANCnRoZSBoZWxwIGZyb20geW91IGlzIGltcG9ydGFu
-dCB0byBtZS48L0ZPTlQ+PC9ESVY+DQo8RElWPjxGT05UIHNpemU9Mj4mbmJzcDsmbmJzcDsgVGhh
-bmsgeW91ICE8L0ZPTlQ+PC9ESVY+DQo8RElWPjxGT05UIHNpemU9Mj4mbmJzcDsmbmJzcDsgbXkg
-bWFpbCBpczogPEEgDQpocmVmPSJtYWlsdG86amlhaWd1b0BoaXNlbnNlLnFkLnNkLmNuIj5qaWFp
-Z3VvQGhpc2Vuc2UucWQuc2QuY248L0E+PC9GT05UPjwvRElWPg0KPERJVj48Rk9OVCANCnNpemU9
-Mj4mbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsm
-bmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJz
-cDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsm
-bmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJz
-cDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsgDQo8L0ZPTlQ+PC9ESVY+DQo8RElWPjxGT05UIA0K
-c2l6ZT0yPiZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZu
-YnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNw
-OyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZu
-YnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNw
-OyZuYnNwOyZuYnNwOyZuYnNwOyANCkRyLiBKaSZuYnNwO0FpZ3VvPC9GT05UPiZuYnNwOzwvRElW
-PjwvQk9EWT48L0hUTUw+DQo=
+regards,
 
-------=_NextPart_000_0009_01BEDF67.675E2040--
+Rik
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
