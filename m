@@ -1,14 +1,14 @@
-Date: Fri, 14 Jan 2005 08:52:46 -0800 (PST)
+Date: Fri, 14 Jan 2005 08:57:46 -0800 (PST)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: page table lock patch V15 [0/7]: overview
-In-Reply-To: <20050114043944.GB41559@muc.de>
-Message-ID: <Pine.LNX.4.58.0501140838240.27382@schroedinger.engr.sgi.com>
-References: <41E5AFE6.6000509@yahoo.com.au> <20050112153033.6e2e4c6e.akpm@osdl.org>
- <41E5B7AD.40304@yahoo.com.au> <Pine.LNX.4.58.0501121552170.12669@schroedinger.engr.sgi.com>
- <41E5BC60.3090309@yahoo.com.au> <Pine.LNX.4.58.0501121611590.12872@schroedinger.engr.sgi.com>
+Subject: Re: page table lock patch V15 [0/7]: overview II
+In-Reply-To: <20050114111121.GA81555@muc.de>
+Message-ID: <Pine.LNX.4.58.0501140855530.27382@schroedinger.engr.sgi.com>
+References: <Pine.LNX.4.58.0501121611590.12872@schroedinger.engr.sgi.com>
  <20050113031807.GA97340@muc.de> <Pine.LNX.4.58.0501130907050.18742@schroedinger.engr.sgi.com>
  <20050113180205.GA17600@muc.de> <Pine.LNX.4.58.0501131701150.21743@schroedinger.engr.sgi.com>
- <20050114043944.GB41559@muc.de>
+ <20050114043944.GB41559@muc.de> <m14qhkr4sd.fsf_-_@muc.de>
+ <1105678742.5402.109.camel@npiggin-nld.site> <20050114104732.GB72915@muc.de>
+ <41E7A58C.5010805@yahoo.com.au> <20050114111121.GA81555@muc.de>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -17,28 +17,39 @@ To: Andi Kleen <ak@muc.de>
 Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Andrew Morton <akpm@osdl.org>, torvalds@osdl.org, hugh@veritas.com, linux-mm@kvack.org, linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org, benh@kernel.crashing.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 14 Jan 2005, Andi Kleen wrote:
+On Fri, 14 Jan 2005, Andi Kleen wrote:
 
-> > I think this is not necessary. Most IA32 processors do 64
-> > bit operations in an atomic way in the same way as IA64. We can cut out
-> > all the stuff we put in to simulate 64 bit atomicity for i386 PAE mode if
-> > we just use convince the compiler to use 64 bit fetches and stores. 486
+> > Are you sure the cmpxchg8b need a lock prefix? Sure it does to
 >
-> That would mean either cmpxchg8 (slow) or using MMX/SSE (even slower
-> because you would need to save FPU stable and disable
-> exceptions).
+> If you want it to be atomic on SMP then yes.
+>
+> > get the proper "atomic cmpxchg" semantics, but what about a
+> > simple 64-bit store... If it boils down to 8 byte load, 8 byte
+>
+> A 64bit store with a 64bit store instruction is atomic. But
+> to do that on 32bit x86 you need SSE/MMX (not an option in the kernel)
+> or cmpxchg8
+>
+> > store on the memory bus, and that store is atomic, then maybe
+> > a lock isn't needed at all?
+>
+> More complex operations than store or load are not atomic without
+> LOCK (and not all operations can have a lock prefix). There are a few
+> instructions with implicit lock. If you want the gory details read
+> chapter 7 in the IA32 Software Developer's Manual Volume 3.
 
-It strange that the instruction set does not contain some simple 64bit
-store or load and the FPU state seems to be complex to manage...sigh.
+It needs a lock prefix. Volume 2 of the IA32 manual states on page 150
+regarding cmpxchg (Note that the atomicity mentioned here seems to apply
+to the complete instruction not the 64 bit fetches and stores):
 
-Looked at  arch/i386/lib/mmx.c. It avoids the mmx ops in an interrupt
-context but the rest of the prep for mmx only saves the fpu state if its
-in use. So that code would only be used rarely. The mmx 64 bit
-instructions seem to be quite fast according to the manual. Double the
-cycles than the 32 bit instructions on Pentium M (somewhat higher on Pentium 4).
 
-One could simply do a movq.
-
+This instruction can be used with a LOCK prefix to allow the instruction
+to be executed atomically. To simplify the interface to the processor's
+bus, the destination operand receives a write cycle without regard to the
+result of the comparison. The destination operand is written back ifthe
+comparison fails; otherwise, the source operand is written into the
+destination. (The processor never produces a locked read without also
+producing a locked write.)
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
