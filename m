@@ -1,47 +1,40 @@
-Reply-To: "Carmeln" <RobertavfpijChalfin@msn.com>
-From: "Duplechainhz" <PaulataflGelder@hotmail.com>
-Subject: Want a PSP but cant afford one? MQY B
-Date: Mon, 07 Mar 2005 22:04:00 -0600
+Message-ID: <422D42BF.4060506@jp.fujitsu.com>
+Date: Tue, 08 Mar 2005 15:14:23 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: multipart/alternative;
-	boundary="--02-42223-3597-477-04388"
-Message-Id: <20050308040221Z26676-23302+718@kvack.org>
+Subject: Re: [PATCH] 2/2 Prezeroing large blocks of pages during allocation
+ Version 4
+References: <20050307194021.E6A86E594@skynet.csn.ul.ie>
+In-Reply-To: <20050307194021.E6A86E594@skynet.csn.ul.ie>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, clameter@sgi.com
 List-ID: <linux-mm.kvack.org>
 
-----02-42223-3597-477-04388
-Content-Type: text/plain;
-Content-Transfer-Encoding: quoted-printable
+Hi,
 
-Get a FREE PlayStation 2 or PlayStation Portable!
+Mel Gorman wrote:
 
-You decide! It's your choice! Think I'm kidding? Check the link below:
+>+#define BITS_PER_ALLOC_TYPE 5
+> #define ALLOC_KERNNORCLM 0
+> #define ALLOC_KERNRCLM 1
+> #define ALLOC_USERRCLM 2
+> #define ALLOC_FALLBACK 3
+>+#define ALLOC_USERZERO 4
+>+#define ALLOC_KERNZERO 5
+>
 
-http://www.c-u-i.com/offer.php?45PV69 
+Now, 5bits per  MAX_ORDER pages.
+I think it is simpler to use "char[]" for representing type of  memory 
+alloc type than bitmap.
+
+Thanks
+-- Kame <kamezawa.hiroyu@jp.fujitsu.com>
 
 
-P.S. The page might load slow at times. This is due to the huge demand cre=
-ated by our offer. Don't worry though. Your PS2 or PSP will be waiting for=
- you!
-
-
-
-
-
-
-
-When I'm not c my right mwd, my left mqd gets pretty crowded.=20 Do, or do=
- not. There is no try. Yoda=20 I have a weight problem: I can't wait to ea=
-t! (Daniel L. Worona) You don't have to swim faster than the shark, just f=
-aster than the person next to you. Never say what time you will be home  t=
-hen you will never be late. You feel stuck with your debt if you can't bud=
-ge it.
-no gone
-http://www.c-u-i.com/e/
-
-----02-42223-3597-477-04388--
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
