@@ -1,87 +1,80 @@
-Received: from localhost.localdomain (groudier@ppp-104-238.villette.club-internet.fr [194.158.104.238])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id PAA29551
-	for <linux-mm@kvack.org>; Wed, 27 Jan 1999 15:07:30 -0500
-Date: Wed, 27 Jan 1999 21:11:45 +0100 (MET)
-From: Gerard Roudier <groudier@club-internet.fr>
-Subject: Re: MM deadlock [was: Re: arca-vm-8...]
-In-Reply-To: <199901271605.QAA05048@dax.scot.redhat.com>
-Message-ID: <Pine.LNX.3.95.990127204123.386B-100000@localhost>
+Received: from dax.scot.redhat.com (sct@dax.scot.redhat.com [195.89.149.242])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id QAA30490
+	for <linux-mm@kvack.org>; Wed, 27 Jan 1999 16:39:27 -0500
+Date: Wed, 27 Jan 1999 21:38:58 GMT
+Message-Id: <199901272138.VAA12114@dax.scot.redhat.com>
+From: "Stephen C. Tweedie" <sct@redhat.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=ISO-8859-1
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Subject: Re: [patch] fixed both processes in D state and the /proc/ oopses [Re: [patch] Fixed the race that was oopsing Linux-2.2.0]
+In-Reply-To: <Pine.LNX.3.96.990127131315.19147A-100000@laser.bogus>
+References: <Pine.LNX.3.96.990127123207.15486A-100000@laser.bogus>
+	<Pine.LNX.3.96.990127131315.19147A-100000@laser.bogus>
 Sender: owner-linux-mm@kvack.org
-To: "Stephen C. Tweedie" <sct@redhat.com>
-Cc: Thomas Sailer <sailer@ife.ee.ethz.ch>, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
+To: Andrea Arcangeli <andrea@e-mind.com>
+Cc: Linus Torvalds <torvalds@transmeta.com>, linux-kernel@vger.rutgers.edu, werner@suse.de, mlord@pobox.com, "David S. Miller" <davem@dm.cobaltmicro.com>, gandalf@szene.ch, adamk@3net.net.pl, kiracofe.8@osu.edu, ksi@ksi-linux.com, djf-lists@ic.net, tomh@taz.ccs.fau.edu, Alan Cox <alan@lxorguk.ukuu.org.uk>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+Hi,
 
-On Wed, 27 Jan 1999, Stephen C. Tweedie wrote:
+On Wed, 27 Jan 1999 13:15:25 +0100 (CET), Andrea Arcangeli
+<andrea@e-mind.com> said:
 
-> Hi,
-> 
-> On Tue, 26 Jan 1999 21:48:59 +0100 (MET), Gerard Roudier
-> <groudier@club-internet.fr> said:
-> 
+> - * Fixed a race between mmget() and mmput(): added the mm_lock spinlock in
+> - * the task_struct to serialize accesses to the tsk->mm field.
+> + * Fixed a race between mmget() and mmput(): added the mm_lock spinlock
+> + * to serialize accesses to the tsk->mm field.
 
-[ ... ]
+I don't buy it, because we've seen these on UP machines too.  Besides,
+in all of the fork/exit/procfs code paths which look to be relevant to
+the reported oopses, we already hold the global kernel lock by the time
+we start fiddling with the mm references.  Adding yet another spinlock
+should make no difference at all to the locking.
 
-> > There are bunches of things that are widespread used nowadays and that 
-> > should have disappeard since years if people were a bit more concerned 
-> > by technical and progress considerations.
-> 
-> Yes.  I see what you mean.  We should immediately remove Linux support
-> for FAT filesystems, the ISA bus and 8086 virtual mode.
-> 
-> Not.
+I think the real problem is in the new procfs code in fs/proc/array.c
+calling mmget()/mmput() the way it does.  The get_mm_and_lock() function
+tries to be safe, but in a couple of places we do not use it, instead
+doing something like:
 
-AFAIK, it is what M$$ is intending to do. If the Linux strategy is to be 
-the greatest O/S for obsolete hardware, we can support that stuff years
-after M$$ has dropped the support of it.
+	get_status() {
+		tsk = grab_task(pid);
+		task_mem() {
+			down(&mm->mmap_sem);
+			/* Walk the vma tree */
+			up(&mm->mmap_sem);
+		}
+		release_task(tsk);
+	}
 
-> > For example, it seems that 32 bits systems are not enough to provide a
-> > flat virtual addressing space far larger than the physical address space
-> > needed for applications (that was the primary goal of virtual memory
-> > invention).
-> 
-> *One* of the primary goals.  The other was protected multitasking.  The
-> x86 architecture today is perfectly well capable of supporting mutliple
-> 32-bit address spaces within a 36 bit (64GB) physical address space, and
-> large multiuser environments would benefit enormously from such an
-> environment.
+grab_task() includes
 
-64 GB of memory needs 36 address lines. It is obvious to handle that on 64
-bit machines that exists since _years_, but very painfull on 32 bit
-addressing machines. Implementing complex algorithms for handling this
-stupidity is stupidity by itself.  32 bit VM architecture is a 25 years
-old technology. The fact that it still exists nowadays is because the
-market place was more concerned by $$ than by real progress.  If the PC
-market had started in 1980, then it might have happen that modern PCs
-would use rather Z80s type processors at something like 1 GHZ that 32 bit
-PII at 400 MHz.
+	if (tsk && tsk->mm && tsk->mm != &init_mm)
+		mmget(tsk->mm);
 
-Just thinking of the ridiculous price fast 32 bits processors are sold
-today is the proof, in my opinion, that 32 bit is definitely _dead_.
-People that still want to make efforts for that stuff are just stupid, in
-my opinion. 
+and release_task does
 
-> > A device that requires more contiguous space than 1 PAGE for its 
-> > support is crap. 
-> 
-> So?  IDE is crap because it doesn't support multiple outstanding
+	if (tsk != current && tsk->mm && tsk->mm != &init_mm)
+		mmput(tsk->mm);
 
-Indeed.
+In other words, we are grabbing a task, pinning the mm_struct, blocking
+for the mm semaphore and releasing the task's *current* mm_struct, which
+is not necessarily the same as it was before we blocked.  In particular,
+if we catch the process during a fork+exec, then it is perfectly
+possible for tsk->mm to change here.
 
-> commands.  If you honestly believe that this means we should remove IDE
-> support from the kernel, then you are living on another planet where
-> getting real work done by real users doesn't matter.  Fact is, we _can_
-> support this stuff, and users want us to.
+Note that this was not a problem in the original version of this patch
+which just copied the task_struct in grab_task(), because that way we
+would always be releasing the same mm that we grabbed.
 
-I live on the euro-planet and yours is just a satellit. :-))
+Can anybody give a good reason why we need to block in array.c at all?
+I don't see why we need the down/up(&mm->mmap_sem) code, since we should
+already hold the global kernel lock and the vma tree should remain
+intact while we inspect it as long as we do not drop that lock.  If we
+do keep that lock intact from beginning to end then we cannot run the
+risk of tsk->mm changing out from under our feet.
 
-Regards,
-   Gerard.
-
-
+--Stephen
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm my@address'
 in the body to majordomo@kvack.org.  For more info on Linux MM,
