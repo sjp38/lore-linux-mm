@@ -1,11 +1,11 @@
 Received: from digeo-nav01.digeo.com (digeo-nav01.digeo.com [192.168.1.233])
-	by packet.digeo.com (8.9.3+Sun/8.9.3) with SMTP id WAA01872
-	for <linux-mm@kvack.org>; Fri, 11 Oct 2002 22:28:58 -0700 (PDT)
-Message-ID: <3DA7B316.F1E49105@digeo.com>
-Date: Fri, 11 Oct 2002 22:28:54 -0700
+	by packet.digeo.com (8.9.3+Sun/8.9.3) with SMTP id XAA02857
+	for <linux-mm@kvack.org>; Fri, 11 Oct 2002 23:39:33 -0700 (PDT)
+Message-ID: <3DA7C3A5.98FCC13E@digeo.com>
+Date: Fri, 11 Oct 2002 23:39:33 -0700
 From: Andrew Morton <akpm@digeo.com>
 MIME-Version: 1.0
-Subject: 2.5.42-mm1
+Subject: 2.5.42-mm2
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -13,26 +13,27 @@ Return-Path: <owner-linux-mm@kvack.org>
 To: lkml <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-url: http://www.zip.com.au/~akpm/linux/patches/2.5/2.5.42/2.5.42-mm1/
+url: http://www.zip.com.au/~akpm/linux/patches/2.5/2.5.42/2.5.42-mm2/
 
-Just a resync.  Added O_STREAMING support.
+mm1 had a little problem in the compilation department - missing chunk
+from fs/fcntl.c.
 
++fix-pgpgout.patch
 
-+blk-queue-bounce.patch
+ Fix /proc/vmstat:pgpgin/pgpgout accounting for 512-byte IOs
 
- Inline blk_queue_bounce().
++dio-fine-alignment.patch
 
-+o_streaming.patch
+ Bring back the 512-byte alignment patch
 
- O_STREAMING for 2.5.  100% untested.
++sard.patch
 
-+shpte-unmap-fix.patch
+ Keep sard ticking over
 
- A shared-pte bugfix
++remove-kiobufs.patch
 
-+shmmap.patch
+ Remove the kiobuf infrastructure.
 
- Proactive pagetable sharing for mmap()
 
 
 
@@ -81,6 +82,9 @@ batched-slab-asap.patch
 blkdev-o_direct-short-read.patch
   Fix O_DIRECT blockdev reads at end-of-device
 
+fix-pgpgout.patch
+  Fix block IO accounting for 512-byte requests
+
 orlov-allocator.patch
 
 blk-queue-bounce.patch
@@ -91,6 +95,12 @@ lseek-ext2_readdir.patch
 
 msync-correctness.patch
   msync correctness fix
+
+dio-fine-alignment.patch
+  Allow O_DIRECT to use 512-byte alignment
+
+sard.patch
+  SARD disk accounting
 
 write-deadlock.patch
   Fix the generic_file_write-from-same-mmapped-page deadlock
@@ -154,6 +164,9 @@ page-reservation.patch
 
 o_streaming.patch
   O_STREAMING support
+
+remove-kiobufs.patch
+  Remove kiobufs and kiovecs
 
 slab-split-01-rename.patch
   slab cleanup: rename static functions
