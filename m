@@ -1,60 +1,36 @@
-Message-ID: <405120FD.1030807@cyberone.com.au>
-Date: Fri, 12 Mar 2004 13:31:25 +1100
-From: Nick Piggin <piggin@cyberone.com.au>
+From: Marc-Christian Petersen <m.c.p@wolk-project.de>
+Subject: Re: [PATCH] 2.6.4-rc2-mm1: vm-split-active-lists
+Date: Thu, 11 Mar 2004 18:25:22 +0100
+References: <404FACF4.3030601@cyberone.com.au>
+In-Reply-To: <404FACF4.3030601@cyberone.com.au>
 MIME-Version: 1.0
-Subject: Re: blk_congestion_wait racy?
-References: <OFF79FE9F7.73A1504E-ONC1256E54.006825BF-C1256E54.0068C4F9@de.ibm.com>
-In-Reply-To: <OFF79FE9F7.73A1504E-ONC1256E54.006825BF-C1256E54.0068C4F9@de.ibm.com>
-Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Disposition: inline
+Content-Type: text/plain;
+  charset="iso-8859-15"
 Content-Transfer-Encoding: 7bit
+Message-Id: <200403111825.22674@WOLK>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Martin Schwidefsky <schwidefsky@de.ibm.com>
-Cc: Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: linux-kernel@vger.kernel.org
+Cc: Nick Piggin <piggin@cyberone.com.au>, linux-mm@kvack.org, Mike Fedyk <mfedyk@matchmail.com>, plate@gmx.tm
 List-ID: <linux-mm.kvack.org>
 
+On Thursday 11 March 2004 01:04, Nick Piggin wrote:
 
-Martin Schwidefsky wrote:
+Hi Nick,
 
->
->
->
->>Yes, sorry, all the world's an x86 :( Could you please send me whatever
->>diffs were needed to get it all going?
->>
->
->I am just preparing that mail :-)
->
->
->>I thought you were running a 256MB machine?  Two seconds for 400 megs of
->>swapout?  What's up?
->>
->
->Roughly 400 MB of swapout. And two seconds isn't that bad ;-)
->
->
->>An ouch-per-second sounds reasonable.  It could simply be that the CPUs
->>were off running other tasks - those timeout are less than scheduling
->>quanta.
->>
->
->I don't understand why an ouch-per-second is reasonable. The mempig is
->the only process that runs on the machine and the blk_congestion_wait
->uses HZ/10 as timeout value. I'd expect about 100 ouches for the 10
->seconds the test runs.
->
->The 4x performance difference remains not understood.
->
->
+> Here is my updated patches rolled into one.
 
-It would still be blk_congestion_wait slowing things down, wouldn't
-it? Performance was good when you took that out, wasn't it?
+hmm, using this in 2.6.4-rc2-mm1 my machine starts to swap very very soon. 
+Machine has squid, bind, apache running, X 4.3.0, Windowmaker, so nothing 
+special.
 
-And it would not unusual for you to be waiting needlessly without
-seeing the ouch.
+Swap grows very easily starting to untar'gunzip a kernel tree. About + 
+150-200MB goes to swap. Everything is very smooth though, but I just wondered 
+because w/o your patches swap isn't used at all, even after some days of 
+uptime.
 
-I think I will try doing a non-racy blk_congestion_wait after Jens'
-unplugging patch gets put into -mm. That should solve your problem.
+ciao, Marc
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
