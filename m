@@ -1,51 +1,38 @@
-Date: Wed, 11 Oct 2000 01:06:11 +0100 (BST)
-From: Chris Evans <chris@scary.beasts.org>
-Subject: 2.4.0test9 vm: disappointing streaming i/o under load
-In-Reply-To: <Pine.LNX.4.21.0010101738110.11122-100000@duckman.distro.conectiva>
-Message-ID: <Pine.LNX.4.21.0010110056230.7853-100000@ferret.lmh.ox.ac.uk>
+Received: from localhost (elowe@localhost)
+	by myrile.madriver.k12.oh.us (8.9.3/8.9.3) with ESMTP id HAA39040
+	for <linux-mm@kvack.org>; Wed, 11 Oct 2000 07:34:08 -0400 (EDT)
+	(envelope-from elowe@myrile.madriver.k12.oh.us)
+Date: Wed, 11 Oct 2000 07:34:08 -0400 (EDT)
+From: Eric Lowe <elowe@myrile.madriver.k12.oh.us>
+Subject: page-cluster tuning
+Message-ID: <Pine.BSF.4.10.10010110729380.38557-100000@myrile.madriver.k12.oh.us>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@conectiva.com.br>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 Hi,
 
-Finally got round to checking out 2.4.0test9.
+Over the weekend I played with page-cluster after booting my
+box with mem=8M.  I ran a kernel build and updatedb simultaneously
+driving it into the swap rather heavily during I/O and found that
+_both_ processes made much more progress with page-cluster set
+to 8 than to 4, and the default of 2 was painfully slow because
+it didn't swap agressively enough.
 
-Unfortunately, 2.4.0test9 exhibits poor streaming i/o performance when
-under a bit of memory pressure.
+I have yet to do any streaming I/O while swapping tests, but
+should get to it later in the week.  Would anybody like to
+confirm my results that 8 appears to be an optimum value for
+page-cluster in 8MB?
 
-The test is this: boot with mem=32M, log onto GNOME and start xmms playing
-a big .wav ripped from a CD (this requires 100-200k read i/o per second).
+More to come..
 
-Then, I start then kill netscape. I then started a find / and started
-gnumeric firing up at the same time.
-
-Results
-=======
-
-2.2 RH7.0: the music skipped maybe twice briefly during the test.
-
-2.4.0test9: music stuttered repeatedly while netscape started. Worse, when
-firing up gnumeric with the find / on the go, there were big pauses in
-sound output. On pause was over 5 seconds!!!
-
-
-So not so hot.
-
-Could this perhaps be related to the drop_behind magic penalizing
-streaming i/o pages too much? Perhaps the greater ago on the i/o pages
-means that when there is a little memory pressure, they are getting thrown
-out the page cache before the app (xmms) gets a chance to use them!
-
-Might it be useful for me to try pre10-1, I note it has more "balancing
-fixes".
-
-Cheers
-Chris
+--
+Eric Lowe
+Software Engineer, Systran Corporation
+elowe@systran.com
 
 
 --
