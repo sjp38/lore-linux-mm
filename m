@@ -1,62 +1,40 @@
-Date: Tue, 07 Aug 2001 14:40:19 -0400
-From: Chris Mason <mason@suse.com>
+Date: Tue, 7 Aug 2001 14:40:57 -0400 (EDT)
+From: Ben LaHaise <bcrl@redhat.com>
 Subject: Re: [RFC][DATA] re "ongoing vm suckage"
-Message-ID: <359550000.997209619@tiny>
-In-Reply-To: <0108072013590B.02365@starship>
+In-Reply-To: <3B7030B3.9F2E8E67@zip.com.au>
+Message-ID: <Pine.LNX.4.33.0108071426380.30280-100000@touchme.toronto.redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Daniel Phillips <phillips@bonn-fries.net>, Linus Torvalds <torvalds@transmeta.com>, Ben LaHaise <bcrl@redhat.com>
-Cc: Rik van Riel <riel@conectiva.com.br>, linux-mm@kvack.org
+To: Andrew Morton <akpm@zip.com.au>
+Cc: Linus Torvalds <torvalds@transmeta.com>, Daniel Phillips <phillips@bonn-fries.net>, Rik van Riel <riel@conectiva.com.br>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On Tue, 7 Aug 2001, Andrew Morton wrote:
 
-On Tuesday, August 07, 2001 08:13:59 PM +0200 Daniel Phillips
-<phillips@bonn-fries.net> wrote:
+> Ben, are you using software RAID?
+>
+> The throughput problems which Mike Black has been seeing with
+> ext3 seem to be specific to an interaction with software RAID5
+> and possibly highmem.  I've never been able to reproduce them.
 
-> On Tuesday 07 August 2001 19:26, Chris Mason wrote:
->> On Tuesday, August 07, 2001 10:04:05 AM -0700 Linus Torvalds
->> 
->> <torvalds@transmeta.com> wrote:
->> > On Tue, 7 Aug 2001, Linus Torvalds wrote:
->> >> Sorry, I should have warned people: pre5 is a test-release that was
->> >> intended solely for Leonard Zubkoff who has been helping with
->> >> trying to debug a FS livelock condition.
->> > 
->> > So I _think_ that what happens is:
->> >  - alloc_pages() itself isn't making any progress, because it's
->> > called with GFP_NOFS and thus cannot touch a lot of the pages.
->> >  - we wake up kswapd to try to help, but kswapd doesn't do anything
->> >    because it thinks things are fine.
->> 
->> Which filesystem?  If its one of the journaled ones, other processes
->> might be waiting on the log trying to flush things out.
-> 
-> xfs.
+Yes, but I'm using raid 0.  The ratio of highmem to normal memory is
+~3.25:1, and it would seem that this is breaking write throttling somehow.
+The interaction between vm and io throttling is not at all predictable.
+Certainly, pulling highmem out of the equation results in writes
+proceeding at the speed of the disk, which makes me wonder if the bounce
+buffer allocation is triggering the vm code to attempt to free more
+memory.... Ah, and that would explain why shorter io queues makes things
+smoother: less memory pressure is occuring on the normal memory zone from
+bounce buffers.  The original state of things was allowing several hundred
+MB of ram to be allocated for bounce buffers, which lead to a continuous
+shortage, causing kswapd et al to spin in a loop making no progress.
 
-Well, then my guess is this:
+Hmmm, how to make kswapd/bdflush/kreclaimd all back off until progress is
+made in cleaning the io queue?
 
-bunch of processes waiting on ram, doing a GFP_NOFS allocation, effectively
-spinning through various lists.
-
-bdflush acting normally, has written everything but the pinned buffers.
-
-kswapd deadlocked somewhere in xfs, either trying to write a dirty inode or
-a dirty page.
-
-kswapd can't get out of the FS until one of the GFP_NOFS allocation
-succeeds due to some FS lock. 
-
-Linus seemed pretty sure kswapd wasn't deadlocked, but though I would
-mention this anyway....
-
--chris
-
-
-
+		-ben
 
 
 --
