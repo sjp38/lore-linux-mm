@@ -1,37 +1,62 @@
-Date: 11 Oct 2004 16:40:34 -0000
-Message-ID: <20041011164034.17383.qmail@science.horizon.com>
-From: linux@horizon.com
-Subject: Re: [RFC] memory defragmentation to satisfy high order allocations
+Subject: Re: [PATCH] reduce fragmentation due to kmem_cache_alloc_node
+From: Badari Pulavarty <pbadari@us.ibm.com>
+In-Reply-To: <41684BF3.5070108@colorfullife.com>
+References: <41684BF3.5070108@colorfullife.com>
+Content-Type: text/plain
+Message-Id: <1097514734.12861.366.camel@dyn318077bld.beaverton.ibm.com>
+Mime-Version: 1.0
+Date: 11 Oct 2004 10:12:24 -0700
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Manfred Spraul <manfred@colorfullife.com>
+Cc: Andrew Morton <akpm@osdl.org>, linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-I just thought I'd mention something that Doug Lea found Very
-Important when designing dlmalloc to reduce fragmentation:
+Manfred,
 
-- Maintain the free lists in FIFO order.  LIFO has severe problems.
-- When a free block is merged into a larger block, it goes back on
-  the end of the appropriate list.
+This patch seems to work fine on my AMD machine.
+I tested your patch on 2.6.9-rc2-mm3. 
 
-If you maintain free blocks as a LIFO stack (something that occurs to
-people thinking about cache effects), then you end up with a steady
-state where the top few blocks are allocated very rapidly and never get
-a chance to merge, while the bottom is made up of blocks whose neighbours
-are permanently allocated and never get merged.
+It seemed to have fixed fragmentation problem I was
+observing, but I don't think it fixed the problem
+completely. I still see some fragmentation, with
+repeated tests of scsi-debug, but it could be due
+to the test. I will collect more numbers..
 
-What you *want* to do is make small (low-order) allocations from blocks
-which will never grow any larger (the ones on the bottom of the stack),
-and keep other blocks on the free list until they've been combined with
-their neighbours.
+Thanks,
+Badari
 
-FIFO ordering works best for this, giving everything an equal chance to
-be merged, and allocating the blocks that have had their chance and not
-been merged.
+On Sat, 2004-10-09 at 13:37, Manfred Spraul wrote:
+> Hi Andrew,
+> 
+> attached is a patch that fixes the fragmentation that Badri noticed with 
+> kmem_cache_alloc_node. Could you add it to the mm tree? The patch is 
+> against 2.6.9-rc3-mm3.
+> 
+> Description:
+> kmem_cache_alloc_node tries to allocate memory from a given node. The 
+> current implementation contains two bugs:
+> - the node aware code was used even for !CONFIG_NUMA systems. Fix: 
+> inline function that redefines kmem_cache_alloc_node as kmem_cache_alloc 
+> for !CONFIG_NUMA.
+> - the code always allocated a new slab for each new allocation. This 
+> caused severe fragmentation. Fix: walk the slabp lists and search for a 
+> matching page instead of allocating a new page.
+> - the patch also adds a new statistics field for node-local allocs. They 
+> should be rare - the codepath is quite slow, especially compared to the 
+> normal kmem_cache_alloc.
+> 
+> Badri: Could you test it?
+> Andrew, could you add the patch to the next -mm kernel? I'm running it 
+> right now, no obvious problems.
+> 
+> Signed-Off-By: Manfred Spraul <manfred@colorfullife.com>
+> 
+> 
+> ______________________________________________________________________
 
-I haven't grovelled through the Linux code to figure out what it does
-do exactly, but if you're trying to reduce external fragmentation,
-that's a proven technique.
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
