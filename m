@@ -1,66 +1,440 @@
-Received: From
-	notabene.cse.unsw.edu.au ([129.94.242.45] == bartok.orchestra.cse.unsw.EDU.AU)
-	(for <akpm@digeo.com>) (for <helgehaf@aitel.hist.no>)
-	(for <linux-kernel@vger.kernel.org>) (for <linux-mm@kvack.org>) By
-	tone With Smtp ; Sun, 16 Mar 2003 07:43:03 +1100
-From: Neil Brown <neilb@cse.unsw.edu.au>
-Date: Sun, 16 Mar 2003 07:42:34 +1100
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Received: from digeo-nav01.digeo.com (digeo-nav01 [192.168.1.233])
+	by packet.digeo.com (8.12.8/8.12.8) with SMTP id h2GAgePu009910
+	for <linux-mm@kvack.org>; Sun, 16 Mar 2003 02:42:40 -0800 (PST)
+Date: Sun, 16 Mar 2003 02:42:39 -0800
+From: Andrew Morton <akpm@digeo.com>
+Subject: 2.5.64-mm8
+Message-Id: <20030316024239.484f8bda.akpm@digeo.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Message-ID: <15987.36922.848433.245061@notabene.cse.unsw.edu.au>
-Subject: Re: 2.5.64-mm7 - dies on smp with raid
-In-Reply-To: message from Andrew Morton on Saturday March 15
-References: <20030315011758.7098b006.akpm@digeo.com>
-	<3E736505.2000106@aitel.hist.no>
-	<20030315120343.71faf732.akpm@digeo.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@digeo.com>
-Cc: Helge Hafting <helgehaf@aitel.hist.no>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Saturday March 15, akpm@digeo.com wrote:
-> 
-> A lot of md updates went into Linus's tree overnight.  Can you get some more
-> details for Neil?
-> 
-> Here is a wild guess:
-> 
-> diff -puN drivers/md/md.c~a drivers/md/md.c
-> --- 25/drivers/md/md.c~a	2003-03-15 12:02:04.000000000 -0800
-> +++ 25-akpm/drivers/md/md.c	2003-03-15 12:02:14.000000000 -0800
-> @@ -2818,6 +2818,8 @@ int md_thread(void * arg)
->  
->  void md_wakeup_thread(mdk_thread_t *thread)
->  {
-> +	if (!thread)
-> +		return;
->  	dprintk("md: waking up MD thread %p.\n", thread);
->  	set_bit(THREAD_WAKEUP, &thread->flags);
->  	wake_up(&thread->wqueue);
-> 
+ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.5/2.5.64/2.5.64-mm8/
 
-Looks like a good guess to me.
+. Several fixes to the anticipatory scheduler.  It is the default IO
+  scheduler again.
 
-I hadn't considered raid0/linear properly in that last change suite.
-They don't have a thread so there is nothing to wake up.
+  The main thing which was fixed here was an interesting deadlock involving
+  keventd, the I/O scheduler, vfork and request_module().
 
-There are two places where the wrong thing will happen:
-  do_md_run where it also calls md_update_sb which doesn't
-    hurt but isn't really needed (there is never any point
-    updating the superblock metadata for raid0/linear).
-  restart_array where we switch back to read/write and wakeup
-    the thread to see if there is anything to do.
+. I should have mentioned that 2.5.64-mm7 included a CPU scheduler tweak
+  from Mike Galbraith which apparently fixes up the various starvation
+  problems which people have been experiencing.  That is also in 2.5.64-mm8.
 
-We either need this "if(!thread)" test inside md_wakeup_thread
-or at those two call sites, in which case we can avoid md_update_sb
-as well.
 
-I send one to Linus later...
 
-Thanks,
-NeilBrown
+Changes since 2.5.64-mm7:
+
+
+-ppc64-compat-flock.patch
+-ppc64-eeh-fix.patch
+-ppc64-socketcall-fix.patch
+-register-tty_devclass.patch
+
+ Merged
+
++proc-sys-debug.patch
+
+ Create /proc/sys/debug/0 ...  /proc/sys/debug/5.  These appear in the
+ kernel as 
+
+	int proc_sys_debug[8];
+
+ These are not used for anyting - it is for ah-hoc debugging convenience.
+
++as-jumbo-fix.patch
++as-request_fn-in-timer.patch
++as-remove-request-fix.patch
+
+ Anticipatory scheduler fixes
+
+-deadline-default.patch
+
+ Make the anticipatory scheduler the default again.
+
++unplug-from-timer.patch
+
+ Call q->unplug_fn direct from timer context rather than via
+ schedule_work().
+
++ext2-no-lock_super-set-s_dirt.patch
++ext2-ialloc-no-lock_super.patch
++ext2-ialloc-no-lock_super-fixes.patch
+
+ Avoid lock_super() in the ext2 inode allocator
+
++pci-update-1.patch
+
+ Update for Russell's PCI rework.
+
++affs-lock_kernel-fix.patch
+
+ Missing an unlock_kernel().  (Why didn't any of the checkers notice this?)
+
++lseek-ext2_readdir.patch
+
+ Remove the lock_kernel()s in ext2_readdir/ext3_readdir
+
++inode_setattr-lock_kernel-removal.patch
+
+ Remove the lock_kernel() around inode_setattr's vmtruncate() call.
+
++raid0-oops-fix.patch
+
+ Fix oops in RAID0.
+
+
+
+All 124 patches:
+
+linus.patch
+  Latest from Linus
+
+mm.patch
+  add -mmN to EXTRAVERSION
+
+kgdb.patch
+
+proc-sys-debug.patch
+  create /proc/sys/debug/0 ... 7
+
+noirqbalance-fix.patch
+  Fix noirqbalance
+
+config_spinline.patch
+  uninline spinlocks for profiling accuracy.
+
+ppc64-reloc_hide.patch
+
+ppc64-pci-patch.patch
+  Subject: pci patch
+
+ppc64-aio-32bit-emulation.patch
+  32/64bit emulation for aio
+
+ppc64-64-bit-exec-fix.patch
+  Pass the load address into ELF_PLAT_INIT()
+
+ppc64-scruffiness.patch
+  Fix some PPC64 compile warnings
+
+sym-do-160.patch
+  make the SYM driver do 160 MB/sec
+
+config-PAGE_OFFSET.patch
+  Configurable kenrel/user memory split
+
+ptrace-flush.patch
+  cache flushing in the ptrace code
+
+buffer-debug.patch
+  buffer.c debugging
+
+warn-null-wakeup.patch
+
+ext3-truncate-ordered-pages.patch
+  ext3: explicitly free truncated pages
+
+reiserfs_file_write-5.patch
+
+tcp-wakeups.patch
+  Use fast wakeups in TCP/IPV4
+
+rcu-stats.patch
+  RCU statistics reporting
+
+ext3-journalled-data-assertion-fix.patch
+  Remove incorrect assertion from ext3
+
+nfs-speedup.patch
+
+nfs-oom-fix.patch
+  nfs oom fix
+
+sk-allocation.patch
+  Subject: Re: nfs oom
+
+nfs-more-oom-fix.patch
+
+rpciod-atomic-allocations.patch
+  Make rcpiod use atomic allocations
+
+linux-isp.patch
+
+isp-update-1.patch
+
+remove-unused-congestion-stuff.patch
+  Subject: [PATCH] remove unused congestion stuff
+
+as-iosched.patch
+  anticipatory I/O scheduler
+
+as-debug-BUG-fix.patch
+
+as-eject-BUG-fix.patch
+  AS: don't go BUG during cdrom eject
+
+as-jumbo-fix.patch
+  AS: OSDL fixes
+
+as-request_fn-in-timer.patch
+  Remove the scheduled_work thing
+
+as-remove-request-fix.patch
+
+cfq-2.patch
+  CFQ scheduler, #2
+
+unplug-from-timer.patch
+
+smalldevfs.patch
+  smalldevfs
+
+remap-file-pages-2.5.63-a1.patch
+  Subject: [patch] remap-file-pages-2.5.63-A1
+
+hugh-remap-fix.patch
+  hugh's file-offset-in-pte fix
+
+fremap-limit-offsets.patch
+  fremap: limit remap_file_pages() file offsets
+
+fremap-all-mappings.patch
+  Make all executable mappings be nonlinear
+
+filemap_populate-speedup.patch
+  filemap_populate speedup
+
+file-offset-in-pte-x86_64.patch
+  x86_64: support for file offsets in pte's
+
+file-offset-in-pte-ppc64.patch
+
+objrmap-2.5.62-5.patch
+  object-based rmap
+
+objrmap-nonlinear-fixes.patch
+  objrmap fix for nonlinear
+
+scheduler-tunables.patch
+  scheduler tunables
+
+scheduler-starvation-fixes.patch
+  CPU scheduler starvation fixes
+
+timer-cleanup.patch
+  timer code cleanup
+
+timer-readdition-fix.patch
+  timer re-addition lockup fix
+
+show_task-free-stack-fix.patch
+  show_task() fix and cleanup
+
+yellowfin-set_bit-fix.patch
+  yellowfin driver set_bit fix
+
+htree-nfs-fix.patch
+  Fix ext3 htree / NFS compatibility problems
+
+update_atime-ng.patch
+  inode a/c/mtime modification speedup
+
+one-sec-times.patch
+  Implement a/c/time speedup in ext2 & ext3
+
+task_prio-fix.patch
+  simple task_prio() fix
+
+set_current_state-fs.patch
+  use set_current_state in fs
+
+set_current_state-mm.patch
+  use set_current_state in mm
+
+copy_thread-leak-fix.patch
+  Fix memory leak in copy_thread
+
+slab_store_user-large-objects.patch
+  slab debug: perform redzoning against larger objects
+
+file_list_lock-contention-fix.patch
+  file_list_lock contention fixes
+
+tty_files-fixes.patch
+  file->f_list locking in tty_io.c
+
+file_list_cleanup.patch
+  file_list cleanup
+
+file_list-remove-free_list.patch
+  file_table: remove the private freelist
+
+file-list-less-locking.patch
+  file_list: less locking
+
+vt_ioctl-stack-use.patch
+  stack reduction in drivers/char/vt_ioctl.c
+
+fix-mem-equals.patch
+  Fix mem= options
+
+no-mmu-stubs.patch
+  a few missing stubs for !CONFIG_MMU
+
+nommu-slab.patch
+  slab changes for !CONFIG_MMU
+
+nfs-memleak-fix.patch
+  memleak in fs/nfs/inode.c::nfs_get_sb()
+
+ufs-memleak-fix.patch
+  Memleak in fs/ufs/util.c
+
+hugetlb-unmap_vmas-fix.patch
+  fix the fix for unmap_vmas & hugepages
+
+early-writeback-init.patch
+  Early writeback initialisation
+
+posix-timers-update.patch
+  posix timers update
+
+e100-memleak-fix.patch
+  Memleak in e100 driver
+
+pcmcia-1-kill-get_foo_map.patch
+  pcmcia: 1/6 kill get_*_map
+
+pcmcia-2-remove-bus_foo-abstractions.patch
+  pcmcia: 2/6: Remove bus_* abstractions
+
+pcmcia-3-add-SOCKET_CARDBUS_CONFIG.patch
+  pcmcia: 3/6: add SOCKET_CARDBUS_CONFIG flag
+
+pcmcia-4-add-locking.patch
+  pcmcia: 4/6: Add some locking to rsrc_mgr.c
+
+pcmcia-5-add-CONFIG_PCMCIA_PROBE.patch
+  pcmcia 5/6: Introduce CONFIG_PCMCIA_PROBE
+
+pcmcia-6-remove-old-cardbus-clients.patch
+  pcmcia: 6/6: Remove support for old cardbus clients
+
+oops-counters.patch
+  OOPS instance counters
+
+io_apic-DO_ACTION-cleanup.patch
+  io-apic.c: DO_ACTION cleanup
+
+ext2-ext3-noatime-fix.patch
+  Ext2/3 noatime and dirsync sometimes ignored
+
+oprofile-timer-fix.patch
+  fix oprofile timer race
+
+htree-nfs-fix-2.patch
+  htree nfs fix
+
+ext2-balloc-fix.patch
+  ext2: block allocation fix
+
+ext2-no-lock_super.patch
+  concurrent block allocation for ext2
+
+ext2-no-lock-super-whitespace-fixes.patch
+
+ext2-no-lock_super-fix-1.patch
+
+ext2-no-lock_super-fix-2.patch
+
+ext2-no-lock_super-fix-3.patch
+
+ext2-no-lock_super-fix-4.patch
+
+ext2-no-lock_super-fix-5.patch
+
+ext2-no-lock_super-fix-6.patch
+
+ext2-no-lock_super-fix-7.patch
+
+ext2-no-lock_super-set-s_dirt.patch
+  ext2 block allocator: set s_dirt
+
+ext2-ialloc-no-lock_super.patch
+  concurrent inode allocation for ext2
+
+ext2-ialloc-no-lock_super-fixes.patch
+  ext2: concurrent ialloc fixes
+
+brlock-removal-1.patch
+  Brlock removal 1/5 - core
+
+brlock-removal-2.patch
+  brlock removal 2/5: remove brlock from snap and vlan
+
+brlock-removal-3.patch
+  brlock removal 3/5: remove brlock from bridge
+
+brlock-removal-4.patch
+  brlock removal 4/5: removal from ipv4/ipv6
+
+brlock-removal-5.patch
+  brlock removal 5/5: remove brlock code
+
+pgd_index-comments.patch
+  pgd_index/pmd_index/pte_index commentary
+
+pci-6.patch
+
+pci-7.patch
+
+pci-8.patch
+
+pci-9.patch
+
+pci-10.patch
+
+pci-11.patch
+
+pci-12.patch
+
+pci-13.patch
+
+pci-14.patch
+
+pci-15.patch
+
+pci-update-1.patch
+  PCI patches: update
+
+proc-sysrq-trigger.patch
+  /proc/sysrq-trigger: trigger sysrq functions via /proc
+
+aio-bits-fix.patch
+  kiocbClear should use clear_bit instead of set_bit
+
+clean-inode-fix.patch
+  initialise inode->i_rdev
+
+affs-lock_kernel-fix.patch
+  affs unlock_kernel() fix
+
+lseek-ext2_readdir.patch
+  remove lock_kernel() from readdir implementations.
+
+inode_setattr-lock_kernel-removal.patch
+  remove lock_kernel() from inode_setattr's vmtruncate() call
+
+raid0-oops-fix.patch
+  fix raid0 oops
+
+
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
