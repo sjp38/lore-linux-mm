@@ -1,45 +1,32 @@
-Subject: Re: 2.6.0-test6-mm2 (compile statistics)
-From: John Cherry <cherry@osdl.org>
+From: Nikita Danilov <Nikita@Namesys.COM>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Message-ID: <16252.23200.511369.466054@laputa.namesys.com>
+Date: Thu, 2 Oct 2003 21:04:32 +0400
+Subject: Re: 2.6.0-test6-mm2
 In-Reply-To: <20031002022341.797361bc.akpm@osdl.org>
 References: <20031002022341.797361bc.akpm@osdl.org>
-Content-Type: text/plain
-Message-Id: <1065113020.15172.35.camel@cherrytest.pdx.osdl.net>
-Mime-Version: 1.0
-Date: 02 Oct 2003 09:43:40 -0700
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@osdl.org>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, viro@parcelfarce.linux.theplanet.co.uk
 List-ID: <linux-mm.kvack.org>
 
-I added the mm builds to the compile regressions.  The full set of
-compile data can be found at:
+Andrew Morton writes:
+ > ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.6/2.6.0-test6/2.6.0-test6-mm2/
+ > 
+ > . A large series of VFS patches from Al Viro which replace usage of
+ >   file->f_dentry->d_inode->i_mapping with the new file->f_mapping.
+ > 
+ >   This is mainly so we can get disk hot removal right.
 
-   http://developer.osdl.org/cherry/compile/mm/index.html
+What consequences does this have for (out-of-the-tree) file systems,
+beyond s/->f_dentry->d_inode->i_mapping/->f_mapping/g ?
 
-For the -test6 mm builds, the compile regress summary is...
+ > 
 
-Kernel version: 2.6.0-test6-mm2
-Kernel build: 
-   Making bzImage (defconfig): 0 warnings, 0 errors
-   Making modules (defconfig): 0 warnings, 0 errors
-   Making bzImage (allyesconfig): 179 warnings, 13 errors
-   Making modules (allyesconfig): 9 warnings, 0 errors
-   Making bzImage (allmodconfig): 3 warnings, 0 errors
-   Making modules (allmodconfig): 252 warnings, 4 errors
-
-Kernel version: 2.6.0-test6-mm1
-Kernel build: 
-   Making bzImage (defconfig): 0 warnings, 0 errors
-   Making modules (defconfig): 0 warnings, 0 errors
-   Making bzImage (allyesconfig): 179 warnings, 11 errors
-   Making modules (allyesconfig): 9 warnings, 0 errors
-   Making bzImage (allmodconfig): 3 warnings, 0 errors
-   Making modules (allmodconfig): 252 warnings, 2 errors
-
-John
-
+Nikita.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
