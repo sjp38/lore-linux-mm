@@ -1,40 +1,65 @@
-Date: Mon, 29 Sep 2003 10:20:21 -0700
-From: Andrew Morton <akpm@osdl.org>
-Subject: Re: 2.6.0-test6-mm1
-Message-Id: <20030929102021.76e96730.akpm@osdl.org>
-In-Reply-To: <1064855347.23108.5.camel@ibm-c.pdx.osdl.net>
-References: <20030928191038.394b98b4.akpm@osdl.org>
-	<1064855347.23108.5.camel@ibm-c.pdx.osdl.net>
+Message-Id: <200309291750.h8THojfr001310@turing-police.cc.vt.edu>
+Subject: Re: zombies 
+In-Reply-To: Your message of "Mon, 29 Sep 2003 09:43:30 PDT."
+             <20030929094330.15485106.akpm@osdl.org>
+From: Valdis.Kletnieks@vt.edu
+References: <32F7E536759ED611BBA9001083CFB165C07333@savion.cc.huji.ac.il>
+            <20030929094330.15485106.akpm@osdl.org>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Content-Type: multipart/signed; boundary="==_Exmh_660582116P";
+	 micalg=pgp-sha1; protocol="application/pgp-signature"
 Content-Transfer-Encoding: 7bit
+Date: Mon, 29 Sep 2003 13:50:42 -0400
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Daniel McNeil <daniel@osdl.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@osdl.org>
+Cc: Liviu Voicu <liviuv@savion.cc.huji.ac.il>, linux-mm@kvack.org, linux-kernel@osdl.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Daniel McNeil <daniel@osdl.org> wrote:
->
-> On Sun, 2003-09-28 at 19:10, Andrew Morton wrote:
-> > ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.6/2.6.0-test6/2.6.0-test6-mm1
-> > 
-> > 
-> > Lots of small things mainly.
-> > 
-> > The O_DIRECT-vs-buffers I/O locking changes appear to be complete, so testing
-> > attention on O_DIRECT workloads would be useful.
-> > 
-> 
-> OSDL's STP automatically ran dbt2 tests against 2.6.0-test6-mm1 this
-> morning (PLM patch #2174).
-> 
-> The dbt2 test uses raw devices and all the runs completed successfully.
+--==_Exmh_660582116P
+Content-Type: text/plain; charset=us-ascii
 
-Well that's good, thanks.
+On Mon, 29 Sep 2003 09:43:30 PDT, Andrew Morton said:
 
-Actually, it is O_DIRECT against regular files which needs the extra testing.
+> ah, OK.  What happens if you do a `patch -R -p1' using
+> ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.6/2.6.0-test6/2.6
+.0-test6-mm1/broken-out/call_usermodehelper-retval-fix-2.patch ?
 
+That fixes up the problem here as well.  Also, note that it wasn't just
+the Synaptics driver:
+
+ps alwx|grep Z
+F   UID   PID  PPID PRI  NI   VSZ  RSS WCHAN  STAT TTY        TIME COMMAND
+1     0   290     3   6 -10     0    0 t>     Z<   ?          0:00 [events/0 <defunct>]
+1     0   292     3   5 -10     0    0 t>     Z<   ?          0:00 [events/0 <defunct>]
+1     0   294     3   5 -10     0    0 t>     Z<   ?          0:00 [events/0 <defunct>]
+1     0   296     3   5 -10     0    0 t>     Z<   ?          0:00 [events/0 <defunct>]
+1     0   298     3   6 -10     0    0 t>     Z<   ?          0:00 [events/0 <defunct>]
+1     0   300     3   6 -10     0    0 t>     Z<   ?          0:00 [events/0 <defunct>]
+0     0   578     3   6 -10     0    0 do_exi Z<   ?          0:00 [ifup <defunct>]
+1     0  1029     3   6 -10     0    0 t>     Z<   ?          0:00 [events/0 <defunct>]
+0     0  1216     3   5 -10     0    0 ct>    Z<   ?          0:00 [net.agent <defunct>]
+1     0  1227     3   5 -10     0    0 t>     Z<   ?          0:00 [events/0 <defunct>]
+1     0  1229     3   6 -10     0    0 t>     Z<   ?          0:00 [events/0 <defunct>]
+
+The ifup was probably attached to either a wireless or Xircom ethernet card,
+the net.agent was probably from a PPP connection starting up (based on the PID
+of the process).
+
+
+--==_Exmh_660582116P
+Content-Type: application/pgp-signature
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.2.2 (GNU/Linux)
+Comment: Exmh version 2.5 07/13/2001
+
+iD8DBQE/eHDycC3lWbTT17ARArXSAJ95d4hlQDCkcG/ekMQBFBagDGos4QCg56y/
+gXaq86DP7nrs34q0x3TfRDY=
+=p1SJ
+-----END PGP SIGNATURE-----
+
+--==_Exmh_660582116P--
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
