@@ -1,89 +1,181 @@
-Content-Type: text/plain;
-  charset="iso-8859-1"
-From: Ed Tomlinson <tomlins@cam.org>
-Subject: Re: 2.5.39 kmem_cache bug
-Date: Sun, 29 Sep 2002 20:20:40 -0400
-References: <20020928201308.GA59189@compsoc.man.ac.uk> <200209291137.48483.tomlins@cam.org> <3D972828.6010807@colorfullife.com>
-In-Reply-To: <3D972828.6010807@colorfullife.com>
+Received: from digeo-nav01.digeo.com (digeo-nav01.digeo.com [192.168.1.233])
+	by packet.digeo.com (8.9.3+Sun/8.9.3) with SMTP id SAA15933
+	for <linux-mm@kvack.org>; Sun, 29 Sep 2002 18:35:48 -0700 (PDT)
+Message-ID: <3D97AA72.ED585E24@digeo.com>
+Date: Sun, 29 Sep 2002 18:35:46 -0700
+From: Andrew Morton <akpm@digeo.com>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
-Message-Id: <200209292020.40824.tomlins@cam.org>
+Subject: Re: 2.5.39-mm1
+References: <3D976206.B2C6A5B8@digeo.com> <200209292124.12696.tomlins@cam.org>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Manfred Spraul <manfred@colorfullife.com>
-Cc: linux-mm@kvack.org
+To: Ed Tomlinson <tomlins@cam.org>
+Cc: lkml <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Ingo Molnar <mingo@elte.hu>
 List-ID: <linux-mm.kvack.org>
 
-On September 29, 2002 12:19 pm, Manfred Spraul wrote:
-> Ed Tomlinson wrote:
-> > On September 29, 2002 09:52 am, Manfred Spraul wrote:
-> >>Ed Tomlinson wrote:
-> >>>-	if (__kmem_cache_shrink(cachep)) {
-> >>>+	/* remove any empty partial pages */
-> >>>+	spin_lock_irq(&cachep->spinlock);
-> >>>+	while (!cachep->growing) {
-> >>>+		struct list_head *p;
-> >>>+		slab_t *slabp;
-> >>>+
-> >>
-> >>growing is guaranteed to be false - loop is not necessary.
-> >
-> > Sort of.  Guess since the lock is not dropped if we see !growing
-> > it will stay that way as long as we stay locked.  So we do need
-> > to test growing but only once.  Have I understood this correctly?
->
-> No. Much simpler:
-> There is no synchonization between kmem_cache_destroy and
-> kmem_cache_{alloc,free}. The caller must do that.
->
-> Both
-> 	x = kmem_cache_create();
-> 	kmem_cache_destroy(x);
-> 	kmem_cache_alloc(x);
->
-> and all variante where kmem_cache_alloc runs at the same time as
-> kmem_cache_destroy [smp, or just sleeping in gfp] are illegal.
+Ed Tomlinson wrote:
+> 
+> On September 29, 2002 04:26 pm, Andrew Morton wrote:
+> > There is a reiserfs compilation problem at present.
+> 
+> make[2]: Entering directory `/poole/src/39-mm1/fs/reiserfs'
+>   gcc -Wp,-MD,./.bitmap.o.d -D__KERNEL__ -I/poole/src/39-mm1/include -Wall -Wstrict-prototypes -Wno-trigraphs -O2 -fomit-frame-pointer -fno-strict-aliasing -fno-common -pipe -mpreferred-stack-boundary=2 -march=k6 -I/poole/src/39-mm1/arch/i386/mach-generic -nostdinc -iwithprefix include    -DKBUILD_BASENAME=bitmap   -c -o bitmap.o bitmap.c
+> In file included from bitmap.c:8:
+> /poole/src/39-mm1/include/linux/reiserfs_fs.h:1635: parse error before `reiserfs_commit_thread_tq'
 
-So if growing is set something is seriously wrong...
+Ingo sent me the below temp fix.  I let it out because it's
+probably better to leave the fs broken until we have a firm,
+tested solution.
 
-> > We do seem to agree on most issues.  Lets work with this and hopefully we
-> > can end up with a firsst class slab implementation that works hand in
-> > hand with the vm and helps the whole system perform effectivily.
->
-> Yes, lets work together. Implementing & debugging slab is simple [if it
-> boots, then it's correct], the design is difficult.
->
-> The first problem is the per-cpu array draining. It's needed, too many
-> objects can sit in the per-cpu arrays.
-> < 2.5.39, the per-cpu arrays can cause more list operations than no
-> batching, this is something that must be avoided.
->
-> Do you see an alternative to a timer/callback/hook? What's the simplest
-> approach to ensure that the callback runs on all cpus? I know Redhat has
-> a scalable timer patch, that one would fix the timer to the cpu that
-> called add_timer.
 
-Maybe.  If we treat the per cpu data as special form of cache we could
-use the shrinker callbacks to track how much we have to trim.  When the value
-exceeds a threshold (set when we setup the callback) we trim.  We could
-do the test in freeing path in slab.   
 
-> My proposal would be a 1 (or 2, or 5) seconds callback, that frees
-> 0.2*cc->limit, if there were no allocations from the slab during the
-> last interval.
-
-Using the above logic would tie the trimming to vm scanning pressure,
-which is probably a good idea.  
-
-The patch add shrinker callbacks was posted to linux-mm Sunday and
-to lkml on Thursday.
-
-My schedule lets me read and answer a little mail in the mornings (7-8am 
-EDT).  When I get home from work (5pm EDT) I usually have a few hours to 
-code etc.
-
-Ed
-
+--- linux/drivers/char/drm/radeon_irq.c.orig	Sun Sep 29 20:55:34 2002
++++ linux/drivers/char/drm/radeon_irq.c	Sun Sep 29 20:56:27 2002
+@@ -69,8 +69,7 @@
+ 
+ 	atomic_inc(&dev_priv->irq_received);
+ #ifdef __linux__
+-	queue_task(&dev->tq, &tq_immediate);  
+-	mark_bh(IMMEDIATE_BH);  
++	schedule_task(&dev->tq);
+ #endif /* __linux__ */
+ #ifdef __FreeBSD__
+ 	taskqueue_enqueue(taskqueue_swi, &dev->task);
+--- linux/fs/reiserfs/journal.c.orig	Sun Sep 29 21:03:48 2002
++++ linux/fs/reiserfs/journal.c	Sun Sep 29 21:04:49 2002
+@@ -65,13 +65,6 @@
+ */
+ static int reiserfs_mounted_fs_count = 0 ;
+ 
+-/* wake this up when you add something to the commit thread task queue */
+-DECLARE_WAIT_QUEUE_HEAD(reiserfs_commit_thread_wait) ;
+-
+-/* wait on this if you need to be sure you task queue entries have been run */
+-static DECLARE_WAIT_QUEUE_HEAD(reiserfs_commit_thread_done) ;
+-DECLARE_TASK_QUEUE(reiserfs_commit_thread_tq) ;
+-
+ #define JOURNAL_TRANS_HALF 1018   /* must be correct to keep the desc and commit
+ 				     structs at 4k */
+ #define BUFNR 64 /*read ahead */
+@@ -1339,12 +1332,9 @@
+     do_journal_end(&myth, p_s_sb,1, FLUSH_ALL) ;
+   }
+ 
+-  /* we decrement before we wake up, because the commit thread dies off
+-  ** when it has been woken up and the count is <= 0
+-  */
+   reiserfs_mounted_fs_count-- ;
+-  wake_up(&reiserfs_commit_thread_wait) ;
+-  sleep_on(&reiserfs_commit_thread_done) ;
++  /* wait for all commits to finish */
++  flush_scheduled_tasks();
+ 
+   release_journal_dev( p_s_sb, SB_JOURNAL( p_s_sb ) );
+   free_journal_ram(p_s_sb) ;
+@@ -1815,6 +1805,10 @@
+ static void reiserfs_journal_commit_task_func(struct reiserfs_journal_commit_task *ct) {
+ 
+   struct reiserfs_journal_list *jl ;
++
++  /* FIXMEL: is this needed? */
++  lock_kernel();
++
+   jl = SB_JOURNAL_LIST(ct->p_s_sb) + ct->jindex ;
+ 
+   flush_commit_list(ct->p_s_sb, SB_JOURNAL_LIST(ct->p_s_sb) + ct->jindex, 1) ; 
+@@ -1824,6 +1818,7 @@
+     kupdate_one_transaction(ct->p_s_sb, jl) ;
+   }
+   reiserfs_kfree(ct->self, sizeof(struct reiserfs_journal_commit_task), ct->p_s_sb) ;
++  unlock_kernel();
+ }
+ 
+ static void setup_commit_task_arg(struct reiserfs_journal_commit_task *ct,
+@@ -1850,8 +1845,7 @@
+   ct = reiserfs_kmalloc(sizeof(struct reiserfs_journal_commit_task), GFP_NOFS, p_s_sb) ;
+   if (ct) {
+     setup_commit_task_arg(ct, p_s_sb, jindex) ;
+-    queue_task(&(ct->task), &reiserfs_commit_thread_tq);
+-    wake_up(&reiserfs_commit_thread_wait) ;
++    schedule_task(&ct->task) ;
+   } else {
+ #ifdef CONFIG_REISERFS_CHECK
+     reiserfs_warning("journal-1540: kmalloc failed, doing sync commit\n") ;
+@@ -1860,49 +1854,6 @@
+   }
+ }
+ 
+-/*
+-** this is the commit thread.  It is started with kernel_thread on
+-** FS mount, and journal_release() waits for it to exit.
+-**
+-** It could do a periodic commit, but there is a lot code for that
+-** elsewhere right now, and I only wanted to implement this little
+-** piece for starters.
+-**
+-** All we do here is sleep on the j_commit_thread_wait wait queue, and
+-** then run the per filesystem commit task queue when we wakeup.
+-*/
+-static int reiserfs_journal_commit_thread(void *nullp) {
+-
+-  daemonize() ;
+-
+-  spin_lock_irq(&current->sigmask_lock);
+-  sigfillset(&current->blocked);
+-  recalc_sigpending();
+-  spin_unlock_irq(&current->sigmask_lock);
+-
+-  sprintf(current->comm, "kreiserfsd") ;
+-  lock_kernel() ;
+-  while(1) {
+-
+-    while(TQ_ACTIVE(reiserfs_commit_thread_tq)) {
+-      run_task_queue(&reiserfs_commit_thread_tq) ;
+-    }
+-
+-    /* if there aren't any more filesystems left, break */
+-    if (reiserfs_mounted_fs_count <= 0) {
+-      run_task_queue(&reiserfs_commit_thread_tq) ;
+-      break ;
+-    }
+-    wake_up(&reiserfs_commit_thread_done) ;
+-    if (current->flags & PF_FREEZE)
+-      refrigerator(PF_IOTHREAD);
+-    interruptible_sleep_on_timeout(&reiserfs_commit_thread_wait, 5 * HZ) ;
+-  }
+-  unlock_kernel() ;
+-  wake_up(&reiserfs_commit_thread_done) ;
+-  return 0 ;
+-}
+-
+ static void journal_list_init(struct super_block *p_s_sb) {
+   int i ;
+   for (i = 0 ; i < JOURNAL_LIST_COUNT ; i++) {
+@@ -2175,10 +2126,6 @@
+     return 0;
+ 
+   reiserfs_mounted_fs_count++ ;
+-  if (reiserfs_mounted_fs_count <= 1) {
+-    kernel_thread((void *)(void *)reiserfs_journal_commit_thread, NULL,
+-                  CLONE_FS | CLONE_FILES | CLONE_VM) ;
+-  }
+   return 0 ;
+ 
+ }
+--- linux/include/linux/reiserfs_fs.h.orig	Sun Sep 29 20:58:23 2002
++++ linux/include/linux/reiserfs_fs.h	Sun Sep 29 20:58:30 2002
+@@ -1632,9 +1632,6 @@
+   /* 12 */ struct journal_params jh_journal;
+ } ;
+ 
+-extern task_queue reiserfs_commit_thread_tq ;
+-extern wait_queue_head_t reiserfs_commit_thread_wait ;
+-
+ /* biggest tunable defines are right here */
+ #define JOURNAL_BLOCK_COUNT 8192 /* number of blocks in the journal */
+ #define JOURNAL_TRANS_MAX_DEFAULT 1024   /* biggest possible single transaction, don't change for now (8/3/99) */
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
