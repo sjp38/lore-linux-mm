@@ -1,37 +1,37 @@
-Received: from max.phys.uu.nl (max.phys.uu.nl [131.211.32.73])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id OAA04726
-	for <linux-mm@kvack.org>; Mon, 16 Nov 1998 14:00:29 -0500
-Date: Mon, 16 Nov 1998 19:43:41 +0100 (CET)
-From: Rik van Riel <H.H.vanRiel@phys.uu.nl>
-Reply-To: Rik van Riel <H.H.vanRiel@phys.uu.nl>
-Subject: Re: 4M kernel pages
-In-Reply-To: <364FE29E.2CF14EEA@varel.bg>
-Message-ID: <Pine.LNX.3.96.981116194249.23633A-100000@mirkwood.dummy.home>
+Received: from dax.scot.redhat.com (sct@dax.scot.redhat.com [195.89.149.242])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id OAA05050
+	for <linux-mm@kvack.org>; Mon, 16 Nov 1998 14:59:26 -0500
+Date: Mon, 16 Nov 1998 19:59:01 GMT
+Message-Id: <199811161959.TAA07259@dax.scot.redhat.com>
+From: "Stephen C. Tweedie" <sct@redhat.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Subject: Re: unexpected paging during large file reads in 2.1.127
+In-Reply-To: <87k910bkdl.fsf@atlas.CARNet.hr>
+References: <Pine.LNX.3.96.981112143712.20473B-100000@mirkwood.dummy.home>
+	<87k910bkdl.fsf@atlas.CARNet.hr>
 Sender: owner-linux-mm@kvack.org
-To: Petko Manolov <petkan@varel.bg>
-Cc: Linux MM <linux-mm@kvack.org>
+To: Zlatko.Calusic@CARNet.hr
+Cc: Rik van Riel <H.H.vanRiel@phys.uu.nl>, "David J. Fred" <djf@ic.net>, linux-kernel@vger.rutgers.edu, Linux-MM List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 16 Nov 1998, Petko Manolov wrote:
+Hi,
 
-> I red in the intel docs that it is possile to have mixed
-> 4K and 4M pages for pentium+ machines. Also we have less
-> TLB misses when the kernel is in 4M page. I know Linus 
-> don't like the idea of mixing different page sizes but
-> if this a improvemet...
+On 12 Nov 1998 23:45:42 +0100, Zlatko Calusic <Zlatko.Calusic@CARNet.hr>
+said:
 
-Been there, done that. Linux has had this implemented for
-ages, in fact it's such a long time ago that I don't
-remember when it was :)
+>> Agreed, we should do something about that.
+>> 
+>> > +			age_page(page);
+>> > +			age_page(page);
+>> >  			age_page(page);
 
-Rik -- slowly getting used to dvorak kbd layout...
-+-------------------------------------------------------------------+
-| Linux memory management tour guide.        H.H.vanRiel@phys.uu.nl |
-| Scouting Vries cubscout leader.      http://www.phys.uu.nl/~riel/ |
-+-------------------------------------------------------------------+
+The real cure is to disable page aging in the page cache completely.
+Now that we have disabled it for swap, it makes absolutely no sense at
+all to keep it in the page cache.
 
+--Stephen
 --
 This is a majordomo managed list.  To unsubscribe, send a message with
 the body 'unsubscribe linux-mm me@address' to: majordomo@kvack.org
