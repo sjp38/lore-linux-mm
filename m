@@ -1,61 +1,50 @@
-Received: from fujitsu3.fujitsu.com (localhost [127.0.0.1])
-	by fujitsu3.fujitsu.com (8.12.10/8.12.9) with ESMTP id iAHMY7pa000397
-	for <linux-mm@kvack.org>; Wed, 17 Nov 2004 14:34:07 -0800 (PST)
-Date: Wed, 17 Nov 2004 14:33:43 -0800
-From: Yasunori Goto <ygoto@us.fujitsu.com>
-Subject: Re: [Lhms-devel] [RFC] fix for hot-add enabled SRAT/BIOS and numa KVA areas
-In-Reply-To: <1100659057.26335.125.camel@knk>
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by e34.co.us.ibm.com (8.12.10/8.12.9) with ESMTP id iAHMgfAD128098
+	for <linux-mm@kvack.org>; Wed, 17 Nov 2004 17:42:41 -0500
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d03relay04.boulder.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id iAHMgfQC158954
+	for <linux-mm@kvack.org>; Wed, 17 Nov 2004 15:42:41 -0700
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.12.11/8.12.11) with ESMTP id iAHMgfI4029908
+	for <linux-mm@kvack.org>; Wed, 17 Nov 2004 15:42:41 -0700
+Subject: Re: [Lhms-devel] [RFC] fix for hot-add enabled SRAT/BIOS and numa
+	KVA areas
+From: Dave Hansen <haveblue@us.ibm.com>
+In-Reply-To: <20041117133315.92B7.YGOTO@us.fujitsu.com>
 References: <1100659057.26335.125.camel@knk>
-Message-Id: <20041117133315.92B7.YGOTO@us.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+	 <20041117133315.92B7.YGOTO@us.fujitsu.com>
+Content-Type: text/plain
+Message-Id: <1100731354.12373.224.camel@localhost>
+Mime-Version: 1.0
+Date: Wed, 17 Nov 2004 14:42:34 -0800
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: keith <kmannth@us.ibm.com>
-Cc: external hotplug mem list <lhms-devel@lists.sourceforge.net>, linux-mm <linux-mm@kvack.org>, Chris McDermott <lcm@us.ibm.com>
+To: Yasunori Goto <ygoto@us.fujitsu.com>
+Cc: keith <kmannth@us.ibm.com>, external hotplug mem list <lhms-devel@lists.sourceforge.net>, linux-mm <linux-mm@kvack.org>, Chris McDermott <lcm@us.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-Hello, Keith-san.
+On Wed, 2004-11-17 at 14:33, Yasunori Goto wrote:
+> But e820 probably indicates just memory areas which 
+> are already connected on the board, right?
 
->   This chunk extends from the end of physical memory to the end of the
-> i386 address space.  If the following my physical memory is 0x2C0000. 
-> 
-> (From the boot messages)
-> Memory range 0x80000 to 0xC0000 (type 0x0) in proximity domain 0x01 enabled
-> Memory range 0x100000 to 0x2C0000 (type 0x0) in proximity domain 0x01 enabled
-> Memory range 0x2C0000 to 0x1000000 (type 0x0) in proximity domain 0x01 enabled and removable
->   
->   These memory ranges I believe to be valid according to what I know
-> about the SRAT and the ACPI 2.0c specs.  (I am not an ACPI expert please
-> correct me if I am wrong!)
+It's more than that.  It indicates which were connected the first time
+that the machine was powered on.  If you suspend or hibernate the system
+for some reason, it has to always present the e820 as it initially
+appeared.  
 
-I also think this is valid. Probably the firmware of x445 thought, 
-if enabled bit of SRAT is off, any other information of its area
-will not be trusted.
-So, there is no way to distinguish the machine can't attach more memory
-from it can do it (just there is no memory AT BOOT TIME.)
-So, third area in this boot message just indicates "possibility" of hotadd
-memory.
-But e820 probably indicates just memory areas which 
-are already connected on the board, right?
+> BTW, I have a question.
+>   - Can x445 be attached memory without removing the node?
+>     In my concern machine, there is no physical space to
+>     hot add or exchange memory without physical removing
+>     the node. But, this SRAT table indicate that
+>     all of proximity is 0x01....
+>     Or is it just logical attachment?
 
-(IIRC, there is no mention about if enable bit of SRAT is off
- in SRAT spec.)
+You can't remove nodes, just DIMMs.  The x440 hotplug is more like the
+SMP case that I've always been concerned with.
 
-BTW, I have a question.
-  - Can x445 be attached memory without removing the node?
-    In my concern machine, there is no physical space to
-    hot add or exchange memory without physical removing
-    the node. But, this SRAT table indicate that
-    all of proximity is 0x01....
-    Or is it just logical attachment?
-
-Thanks.
-
--- 
-Yasunori Goto <ygoto at us.fujitsu.com>
-
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
