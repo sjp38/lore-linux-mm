@@ -1,29 +1,27 @@
-Date: Fri, 4 Oct 2002 01:03:17 -0700
-From: William Lee Irwin III <wli@holomorphy.com>
-Subject: Re: object based reverse mapping, fundamental problem
-Message-ID: <20021004080317.GM12432@holomorphy.com>
-References: <Pine.LNX.4.44L.0208091302570.23404-100000@imladris.surriel.com>
-Mime-Version: 1.0
+Message-ID: <20021004134259.41743.qmail@web12802.mail.yahoo.com>
+Date: Fri, 4 Oct 2002 06:42:59 -0700 (PDT)
+From: sreekanth reddy <reddy_cdi@yahoo.com>
+Subject: remap_page_range() beyond 4GB 
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Description: brief message
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.44L.0208091302570.23404-100000@imladris.surriel.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@conectiva.com.br>
-Cc: k42@watson.ibm.com, linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Aug 09, 2002 at 01:11:20PM -0300, Rik van Riel wrote:
-> How could we efficiently find all (start, length) mappings
-> of the file that have our particular (file, offset) page
-> covered ?
+How can I "remap_page_range()" for physical addresses
+beyond 4GB ? . remap_page_range()takes a 32 bit
+(unsigned long) value which cannot address > 4GB
+physical memory.
 
-K-d trees should suffice to efficiently answer this range query
-(since no one else has chimed in) in weeks.
+Thanks,
 
+Sreekanth Reddy
 
-Bill
+__________________________________________________
+Do you Yahoo!?
+New DSL Internet Access from SBC & Yahoo!
+http://sbc.yahoo.com
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
