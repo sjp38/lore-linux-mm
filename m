@@ -1,36 +1,36 @@
-Date: Mon, 22 Mar 2004 01:46:52 +0100
-From: Andrea Arcangeli <andrea@suse.de>
-Subject: Re: [RFC][PATCH 1/3] radix priority search tree - objrmap complexity fix
-Message-ID: <20040322004652.GF3649@dualathlon.random>
-References: <Pine.LNX.4.44.0403150527400.28579-100000@localhost.localdomain> <Pine.GSO.4.58.0403211634350.10248@azure.engin.umich.edu>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.GSO.4.58.0403211634350.10248@azure.engin.umich.edu>
+Date: Sun, 21 Mar 2004 21:32:46 -0500 (EST)
+From: Rik van Riel <riel@redhat.com>
+Subject: Re: [RFC][PATCH 1/3] radix priority search tree - objrmap complexity
+ fix
+In-Reply-To: <20040322004652.GF3649@dualathlon.random>
+Message-ID: <Pine.LNX.4.44.0403212131100.20045-100000@chimarrao.boston.redhat.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rajesh Venkatasubramanian <vrajesh@umich.edu>
-Cc: akpm@osdl.org, torvalds@osdl.org, hugh@veritas.com, mbligh@aracnet.com, riel@redhat.com, mingo@elte.hu, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrea Arcangeli <andrea@suse.de>
+Cc: Rajesh Venkatasubramanian <vrajesh@umich.edu>, akpm@osdl.org, torvalds@osdl.org, hugh@veritas.com, mbligh@aracnet.com, mingo@elte.hu, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Mar 21, 2004 at 05:10:45PM -0500, Rajesh Venkatasubramanian wrote:
-> 	http://marc.theaimsgroup.com/?l=linux-kernel&m=107966438414248
-> 
-> 	Andrea says the system may hang, however, in this case system
-> 	does not hang.
+On Mon, 22 Mar 2004, Andrea Arcangeli wrote:
 
-It's a live lock, not a deadlock. I didn't wait more than a few minutes
-every time before declaring the kernel broken and rebooting the machine.
-still if the prio_tree fixed my problem it means at the very least it
-reduced the contention on the locks a lot ;)
+> It would be curious to test it after changing the return 1 to return 0
+> in the page_referenced trylock failures?
 
-It would be curious to test it after changing the return 1 to return 0
-in the page_referenced trylock failures?
+In the case of a trylock failure, it should probably return a
+random value.  For heavily page faulting multithreaded apps,
+that would mean we'd tend towards random replacement, instead
+of FIFO.
 
-the results looks great, thanks.
+Then again, the locking problems shouldn't be too bad in most
+cases.  If you're swapping the program will be waiting on IO
+and if it's not waiting on IO there's no problem.
 
-what about the cost of a tree rebalance, is that O(log(N)) like with the
-rbtrees?
+-- 
+"Debugging is twice as hard as writing the code in the first place.
+Therefore, if you write the code as cleverly as possible, you are,
+by definition, not smart enough to debug it." - Brian W. Kernighan
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
