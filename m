@@ -1,5 +1,5 @@
-Message-ID: <42161FBF.70200@sgi.com>
-Date: Fri, 18 Feb 2005 11:02:55 -0600
+Message-ID: <421621C1.2020500@sgi.com>
+Date: Fri, 18 Feb 2005 11:11:29 -0600
 From: Ray Bryant <raybry@sgi.com>
 MIME-Version: 1.0
 Subject: Re: [RFC 2.6.11-rc2-mm2 0/7] mm: manual page migration -- overview
@@ -14,29 +14,12 @@ To: Andi Kleen <ak@suse.de>
 Cc: Andi Kleen <ak@muc.de>, Ray Bryant <raybry@austin.rr.com>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Andi Kleen wrote:
+Andi, et al:
 
-> You and Robin mentioned some problems with "double migration"
-> with that, but it's still not completely clear to me what
-> problem you're solving here. Perhaps that needs to be reexamined.
-> 
-> 
-There is one other case where Robin and I have talked about double
-migration.  That is the case where the set of old nodes and new
-nodes overlap.  If one is not careful, and the system call interface
-is assumed to be something like:
-
-page_migrate(pid, old_node, new_node);
-
-then if one is not careful (and depending on what the complete list
-of old_nodes and new_nodes are), then if one does something like:
-
-page_migrate(pid, 1, 2);
-page_migrate(pid, 2, 3);
-
-then you can end up actually moving pages from node 1 to node 2,
-only to move them again from node 2 to node 3.  This is another
-form of double migration that we have worried about avoiding.
+I see that  several messages have been sent in the interim.
+I apologize for being "out of sync", but today is my last
+day to go skiing and it is gorgeous outside.  I'll try
+to catch up and digest everthing later.
 
 -- 
 -----------------------------------------------
@@ -46,7 +29,6 @@ raybry@sgi.com             raybry@austin.rr.com
 The box said: "Requires Windows 98 or better",
 	 so I installed Linux.
 -----------------------------------------------
-
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
