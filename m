@@ -1,55 +1,81 @@
+Date: Fri, 12 May 2000 02:08:19 +0200 (CEST)
+From: Ingo Molnar <mingo@elte.hu>
+Reply-To: mingo@elte.hu
+Subject: Re: [patch] balanced highmem subsystem under pre7-9
+In-Reply-To: <Pine.LNX.4.10.10005111638260.1319-100000@penguin.transmeta.com>
+Message-ID: <Pine.LNX.4.10.10005120156350.10429-100000@elte.hu>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Message-ID: <14619.18530.763458.871696@charged.uio.no>
-Date: Fri, 12 May 2000 01:55:14 +0200 (CEST)
-Subject: Re: PATCH: rewrite of invalidate_inode_pages
-In-Reply-To: <ytt1z38acqg.fsf@vexeta.dc.fi.udc.es>
-References: <Pine.LNX.4.10.10005111445370.819-100000@penguin.transmeta.com>
-	<yttya5ghhtr.fsf@vexeta.dc.fi.udc.es>
-	<shsd7msemwu.fsf@charged.uio.no>
-	<yttbt2chf46.fsf@vexeta.dc.fi.udc.es>
-	<14619.16278.813629.967654@charged.uio.no>
-	<ytt1z38acqg.fsf@vexeta.dc.fi.udc.es>
-Reply-To: trond.myklebust@fys.uio.no
-From: Trond Myklebust <trond.myklebust@fys.uio.no>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Juan J. Quintela" <quintela@fi.udc.es>
-Cc: Linus Torvalds <torvalds@transmeta.com>, linux-mm@kvack.org, linux-kernel@vger.rutgers.edu
+To: Linus Torvalds <torvalds@transmeta.com>
+Cc: MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.rutgers.edu, Alan Cox <alan@lxorguk.ukuu.org.uk>
 List-ID: <linux-mm.kvack.org>
 
->>>>> " " == Juan J Quintela <quintela@fi.udc.es> writes:
+On Thu, 11 May 2000, Linus Torvalds wrote:
 
-     > Trond, I have not an SMP machine (yet), and I can not tell you
-     > numbers now.  I put the counter there to show that we *may*
-     > want to limit the latency there.  I am thinking in the write of
-     > a big file, that can take a lot to free all the pages, but I
+> > IMO high memory should not be balanced. Stock pre7-9 tried to balance high
+> > memory once it got below the treshold (causing very bad VM behavior and
+> > high kswapd usage) - this is incorrect because there is nothing special
+> > about the highmem zone, it's more like an 'extension' of the normal zone,
+> > from which specific caches can turn. (patch attached)
+> 
+> Hmm.. I think the patch is wrong. It's much easier to make
 
-I'm pretty SMP-less myself at the moment (I'm visiting in Strasbourg
-again), so I'm afraid I cannot run the test for you.
+yep, it does work (and fixes the 'kswapd storm'), but it's wrong.
 
-     > By the way, while we are here, the only difference between
-     > truncate_inode_pages and invalidate_inode_pages is the one that
-     > you told here before?  I am documenting some of the MM stuff,
-     > and your comments in that aspect are really wellcome.  (You
-     > will have noted now that I am quite newbie here).
+> 	zone_balance_max[HIGHMEM] = 0;
+> 
+> and that will do the same thing, no?
 
-Well. As far as NFS and other non-disk based systems are concerned
-that is the functional difference between the two. That and the fact
-that truncate_inode_pages() takes an offset as an argument.
+yep - or in fact just changing the constant initialization to ', 0 } ',
+right?
 
-For disk-based systems, they are very different beasts, since
-truncate_inode_pages() will also attempt to invalidate and/or wait on
-any pending buffers on the pages it clears out.
+> > another problem is that even during a mild test the DMA zone gets emptied
+> > easily - but on a big RAM box kswapd has to work _alot_ to fill it up. In
+> > fact on an 8GB box it's completely futile to fill up the DMA zone. What
+> > worked for me is this zone-chainlist trick in the zone setup code:
+> 
+> Ok. This is a real problem. My inclination would be to say that your patch
+> is right, but only for large-memory configurations. Ie just say that if
+> the dang machine has more than half a gig of memory, we shouldn't touch
+> the 16 low megs at all unless explicitly asked for.
 
-Strictly speaking therefore, one should not confuse the two, however
-truncate_inode_pages() is (ab)used as a sleeping substitute for
-invalidate_inode_pages() by some of the icache pruning code in
-fs/inode.c.
+i think there are two fundamental problems here:
 
-Cheers,
-  Trond
+	1) highmem should not be balanced (period)
+
+	2) once all easily allocatable RAM is gone to some high-flux
+	   allocator, the DMA zone is emptied at last and is never
+	   refilled effectively, causing a pointless 'kswapd storm' again.
+
+1) is more or less trivially solved by fixing zone_balance_max[]
+initialization. 2):
+
+> > allocate 5% of total RAM or 16MB to the DMA zone (via fixing up zone sizes
+> > on bootup), whichever is smaller, in 2MB increments. Disadvantage of this
+> > method: eg. it wastes 2MB RAM on a 8MB box.
+> 
+> This may be part of the solution - make it more gradual than a complete
+> cut-off at some random point (eg half a gig).
+> 
+> After all, this is why we zoned memory in the first place, so I think it
+> makes sense to be much more dynamic with the zones.
+
+ok, so the rule would be to put:
+
+	zone_dma_size := max(total_pages/32,16MB) &~(64k-1) + 64k
+
+pages into the DMA zone, do the normal zone from this point up to highmem.
+This gradually (linearly) increases the DMA zone's size from 64k on 1MB
+boxes to 16MB on 512MB boxes and up. (in steps of 64k) This not only
+serves as a DMA pool, but as an atomic allocation pool as well (which was
+an ever burning problem on low memory NFS boxes).
+
+i hope nothing relies on getting better than 64k physically aligned pages?
+
+	Ingo
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
