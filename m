@@ -1,37 +1,26 @@
-Message-ID: <3F559579.1020306@lanil.mine.nu>
-Date: Wed, 03 Sep 2003 09:17:13 +0200
-From: Christian Axelsson <smiler@lanil.mine.nu>
+Date: Wed, 3 Sep 2003 10:24:32 -0400 (EDT)
+From: "Raghu R. Arur" <rra2002@aria.ncl.cs.columbia.edu>
+Subject: removing clean anonymous pages
+Message-ID: <Pine.GSO.4.51.0309031020290.21545@aria.ncl.cs.columbia.edu>
 MIME-Version: 1.0
-Subject: Re: 2.6.0-test4-mm5
-References: <20030902231812.03fae13f.akpm@osdl.org>
-In-Reply-To: <20030902231812.03fae13f.akpm@osdl.org>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: kernelnewbies@nl.linux.org
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
------BEGIN PGP SIGNED MESSAGE-----
-Hash: SHA1
+ Hi,
 
-How is the work on CPU scheduler selection coming along? It would be a
-Good Thing (TM) to have in this one imho.
+   I see in try_to_swap_out() (linux 2.4.19), that when we remove a clean
+anonymous page, we clear the pte entries. So when a page is swapped out to
+the disk and then brought back to the memory. If that page is again
+selected for removal during page replacement, then if we just clear the
+pte entries wont we be losing the data. I think I have understood it
+wrong. Can you please try to explain me this.
 
-- --
-Christan Axelsson
-smiler@lanil.mine.nu
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.2.3 (GNU/Linux)
-Comment: Using GnuPG with Thunderbird - http://enigmail.mozdev.org
-
-iD8DBQE/VZV5yqbmAWw8VdkRAvr1AJ4mEWvJJg2S8jIMk5OOBx+/kHmgtACg4CG2
-YLVDbf13vBtm6uFNoQUZG3M=
-=81tT
------END PGP SIGNATURE-----
-
+ Thanks,
+ Raghu
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
