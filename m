@@ -1,104 +1,140 @@
-Received: from digeo-nav01.digeo.com (digeo-nav01.digeo.com [192.168.1.233])
-	by packet.digeo.com (8.9.3+Sun/8.9.3) with SMTP id NAA14009
-	for <linux-mm@kvack.org>; Fri, 6 Sep 2002 13:42:16 -0700 (PDT)
-Message-ID: <3D79131E.837F08B3@digeo.com>
-Date: Fri, 06 Sep 2002 13:42:06 -0700
-From: Andrew Morton <akpm@digeo.com>
+Date: Fri, 6 Sep 2002 18:03:45 -0300 (BRT)
+From: Rik van Riel <riel@conectiva.com.br>
+Subject: Re: inactive_dirty list
+In-Reply-To: <3D79131E.837F08B3@digeo.com>
+Message-ID: <Pine.LNX.4.44L.0209061746230.1857-100000@imladris.surriel.com>
 MIME-Version: 1.0
-Subject: inactive_dirty list
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@conectiva.com.br>
+To: Andrew Morton <akpm@digeo.com>
 Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Rik, it seems that the time has come...
+On Fri, 6 Sep 2002, Andrew Morton wrote:
 
-I was doing some testing overnight with mem=1024m.  Page reclaim
-was pretty inefficient at that level: kswapd consumed 6% of CPU
-on a permanent basis (workload was heavy dbench plus looping
-make -j6 bzImage).  kswapd was reclaiming only 3% of the pages
-which it was looking at.
+> What is happening here is that the logic which clamps dirty+writeback
+> pagecache at 40% of memory is working nicely, and the allocate-from-
+> highmem-first logic is ensuring that all of ZONE_HIGHMEM is dirty
+> or under writeback all the time.
 
-This doesn't happen at mem=768m, and I'm sure it won't happen at
-mem=1.5G.
+Does this mean that your 1024MB machine can degrade into the
+situation where userspace has an effective 128MB memory available
+for its working set ?
 
-What is happening here is that the logic which clamps dirty+writeback
-pagecache at 40% of memory is working nicely, and the allocate-from-
-highmem-first logic is ensuring that all of ZONE_HIGHMEM is dirty
-or under writeback all the time.  kswapd isn't allowed to block
-against that pagecache, so it's scanning zillions of pages.
+Or is balancing between the zones still happening ?
 
-This is a fundamental problem when the size of the highmem zone is
-approximately equal to 40% of total memory.
+> We could fix it by changing the page allocator to balance its
+> allocations across zones, but I don't think we want to do that.
 
-We could fix it by changing the page allocator to balance its
-allocations across zones, but I don't think we want to do that.
+Some balancing is needed, otherwise you'll have 800 MB of
+old data sitting in ZONE_NORMAL and userspace getting its
+hot data evicted from ZONE_HIGHMEM all the time.
 
-I think it's best to split the inactive list into reclaimable
-and unreclaimable.  (inactive_clean/inactive_dirty).
+OTOH, you don't want to overdo things of course ;)
 
-I'll code that tonight; please let me run some thoughts by you:
+> I think it's best to split the inactive list into reclaimable
+> and unreclaimable.  (inactive_clean/inactive_dirty).
+>
+> I'll code that tonight; please let me run some thoughts by you:
 
-- inactive_dirty holds pages which are dirty or under writeback.
+Sounds like you're reinventing the whole 2.4.0 -> 2.4.7 -> 2.4.9-ac
+-> 2.4.13-rmap -> 2.4.19-rmap evolution ;)
 
-- end_page_writeback() will move the page onto inactive_clean.
+> - inactive_dirty holds pages which are dirty or under writeback.
 
-- everywhere where we add a page to the inactive list will now
-  add it to either inactive_clean or inactive_dirty, based on
-  its PageDirty || PageWriteback state.
+> - everywhere where we add a page to the inactive list will now
+>   add it to either inactive_clean or inactive_dirty, based on
+>   its PageDirty || PageWriteback state.
 
-- the inactive target logic will remain the same.  So
-  zone->nr_inactive_pages will be the sum of the pages on
-  zone->inactive_clean and zone->inactive_dirty.
+If I had veto power I'd use it here ;)
 
-- swapcache pages don't go on inactive_dirty(!).  They remain on
-  inactive_clean, so if a page allocator or kswapd hits a swapcache
-  page, they block on it (swapout throttling).
+We did this in early 2.4 kernels and it was a disaster. The
+reason it was a disaster was that in many workloads we'd
+always have some clean pages and we'd end up always reclaiming
+those before even starting writeout on any of the dirty pages.
 
-  A result of this is that we never need to scan inactive_dirty.
-  Those pages will always be written out in balance_dirty_pages
-  by the write(2) caller, or by pdflush.
+It also meant we could have dirty (or formerly dirty) inactive
+pages eating up memory and never being recycled for more active
+data.
 
-  (Hence: we don't need inactive_dirty at all.  We could just cut
-  those pages off the LRU altogether.  But let's not do that).
+What you need to do instead is:
 
-- Hence: the only pages which are written out from within the VM
-  are swapcache.
+- inactive_dirty contains pages from which we're not sure whether
+  they're dirty or clean
 
-- So the only real source of throttling for tasks which aren't
-  running generic_file_write() is the call to blk_congestion_wait()
-  in try_to_free_pages().  Which seems sane to me - this will wake
-  up after 1/4 of a second, or after someone frees a write request
-  against *any* queue.  We know that the pages which were covered
-  by that request were just placed onto inactive_clean, so off
-  we go again.  Should work (heh).
+- everywhere we add a page to the inactive list now, we add
+  the page to the inactive_dirty list
 
-- with this scheme, we don't actually need zone->nr_inactive_dirty_pages
-  and zone->nr_inactive_clean_pages, but I may as well do that - it's
-  easy enough.
+This means we'll have a fairer scan and eviction rate between
+clean and dirty pages.
 
-- MAP_SHARED pages will be on inactive_clean, but if we change the
-  logic in there to give these pages a second round on the LRU then
-  the apges will automatically be added to inactive_dirty on the
-  way out of shrink_zone().
+> - swapcache pages don't go on inactive_dirty(!).  They remain on
+>   inactive_clean, so if a page allocator or kswapd hits a swapcache
+>   page, they block on it (swapout throttling).
 
-How does that all sound?
+We can also get rid of this logic. There is no difference between
+swap pages and mmap'd file pages. If blk_congestion_wait() works
+we can get rid of this special magic and just use it. If it doesn't
+work, we need to fix blk_congestion_wait() since otherwise the VM
+would fall over under heavy mmap() usage.
 
-btw, it is approximately the case that the pages will come clean
-in LRU order (oldest-first) because of the writeback logic.  fs-writeback.c
-walks the inodes in oldest-dirtied to newest-dirtied order, and
-it walks the inode pages in oldest-dirtied to newest-dirtied
-order.   But I think that end_page_writeback() should still move
-cleaned pages onto the far (hot) end of inactive_clean?
+> - So the only real source of throttling for tasks which aren't
+>   running generic_file_write() is the call to blk_congestion_wait()
+>   in try_to_free_pages().  Which seems sane to me - this will wake
+>   up after 1/4 of a second, or after someone frees a write request
+>   against *any* queue.  We know that the pages which were covered
+>   by that request were just placed onto inactive_clean, so off
+>   we go again.  Should work (heh).
 
-I think all of this will not result in the zone balancing logic
-going into a tailspin.  I'm just a bit worried about corner cases
-when the number of reclaimable pages in highmem is getting low - the
-classzone balancing code may keep on trying to refill that zone's free
-memory pools too much.   We'll see...
+With this scheme, we can restrict tasks to scanning only the
+inactive_clean list.
+
+Kswapd's scanning of the inactive_dirty list is always asynchronous
+so we don't need to worry about latency.  No need to waste CPU by
+having other tasks also scan this very same list and submit IO.
+
+> - with this scheme, we don't actually need zone->nr_inactive_dirty_pages
+>   and zone->nr_inactive_clean_pages, but I may as well do that - it's
+>   easy enough.
+
+Agreed, good statistics are essential when you're trying to
+balance a VM.
+
+> How does that all sound?
+
+Most of the plan sounds good, but your dirty/clean split is a
+tried and tested recipy for disaster. ;)
+
+> order.   But I think that end_page_writeback() should still move
+> cleaned pages onto the far (hot) end of inactive_clean?
+
+IMHO inactive_clean should just contain KNOWN FREEABLE pages,
+as an area beyond the inactive_dirty list.
+
+> I think all of this will not result in the zone balancing logic
+> going into a tailspin.  I'm just a bit worried about corner cases
+> when the number of reclaimable pages in highmem is getting low - the
+> classzone balancing code may keep on trying to refill that zone's free
+> memory pools too much.   We'll see...
+
+There's a simple trick we can use here. If we _known_ that all
+the inactive_clean pages can be immediately reclaimed, we can
+count those as free pages for balancing purposes.
+
+This should make life easier when one of the zones is under
+heavy writeback pressure.
+
+kind regards,
+
+Rik
+-- 
+Bravely reimplemented by the knights who say "NIH".
+
+http://www.surriel.com/		http://distro.conectiva.com/
+
+Spamtraps of the month:  september@surriel.com trac@trac.org
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
