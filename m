@@ -1,137 +1,98 @@
-From: Steve Dodd <steved@loth.demon.co.uk>
-Date: Fri, 14 Apr 2000 00:17:35 +0100
-Subject: [PATCH] 2.3.99x: SMP race in getblk()?
-Message-ID: <20000414001735.U831@loth.demon.co.uk>
-Mime-Version: 1.0
-Content-Type: multipart/mixed; boundary="GpGaEY17fSl8rd50"
+Date: Fri, 14 Apr 2000 16:10:43 +0300 (EEST)
+From: Stelios Xanthakis <root@ppp-pat132.tee.gr>
+Reply-To: axanth@tee.gr
+Subject: Re: Stack & policy
+In-Reply-To: <20000413023528.D27244@pcep-jamie.cern.ch>
+Message-ID: <Pine.LNX.3.95.1000414160418.421A-100000@ppp-pat132.tee.gr>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Stephen C. Tweedie" <sct@redhat.com>
-Cc: linux-kernel@vger.rutgers.edu, Linux-MM@kvack.org
+To: Jamie Lokier <lk@tantalophile.demon.co.uk>
+Cc: James Antill <james@and.org>, axanth@tee.gr, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
---GpGaEY17fSl8rd50
-Content-Type: text/plain; charset=us-ascii
 
-[CC'd to linux-mm at Rik's suggestion]
+On Thu, 13 Apr 2000, Jamie Lokier wrote:
 
-This is a first attempt at a fix for what I /think/ is a potential race
-condition in getblk. There seems to be a small window where multiple
-buffer_heads could be added to the hash table for the same block. The patch
-compiles, but I've not tried running it yet. Any thoughts?
+> You'd use MADV_FREE, as it allows the app to reuse stack pages
+> immediately without the overhead of them being unmapped, remapped and
+> rezeroed -- if it reuses them before the kernel finds another use for
+> them.  The most efficiently place to put this call is probably in a
+> timer signal handler.
+> 
+> You still need to get the base of the mapped region though.  You can
+> parse /proc/self/maps for this :-)
 
--- 
-The very concept of PNP is a lovely dream that simply does not translate to
-reality. The confusion of manually doing stuff is nothing compared to the
-confusion of computers trying to do stuff and getting it wrong, which they
-gleefully do with great enthusiasm. -- Jinx Tigr in the SDM
 
---GpGaEY17fSl8rd50
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: attachment; filename="buffer.c.diff"
+/proc/self/maps might not be the best solution because:
+ - too slow. Need to fopen the file, read all the lines up to the last,
+   parse and strtoul.
+ - most important, the format of proc info tends to change:) I think
+   /proc/net/dev is an example..
 
---- buffer.c~	Thu Apr 13 23:08:06 2000
-+++ buffer.c	Thu Apr 13 23:38:55 2000
-@@ -494,17 +494,6 @@
- 	__remove_from_lru_list(bh, bh->b_list);
- }
- 
--static void insert_into_queues(struct buffer_head *bh)
--{
--	struct buffer_head **head = &hash(bh->b_dev, bh->b_blocknr);
--
--	spin_lock(&lru_list_lock);
--	write_lock(&hash_table_lock);
--	__hash_link(bh, head);
--	__insert_into_lru_list(bh, bh->b_list);
--	write_unlock(&hash_table_lock);
--	spin_unlock(&lru_list_lock);
--}
- 
- /* This function must only run if there are no other
-  * references _anywhere_ to this buffer head.
-@@ -536,24 +525,56 @@
-  * will force it bad). This shouldn't really happen currently, but
-  * the code is ready.
-  */
--struct buffer_head * get_hash_table(kdev_t dev, int block, int size)
-+static struct buffer_head * __get_hash_table(kdev_t dev, int block, int size,
-+						struct buffer_head **head)
- {
--	struct buffer_head **head = &hash(dev, block);
- 	struct buffer_head *bh;
- 
--	read_lock(&hash_table_lock);
- 	for(bh = *head; bh; bh = bh->b_next)
- 		if (bh->b_blocknr == block	&&
--		    bh->b_size    == size	&&
-+		    bh->b_size    == size	&&	/* is this required? */
- 		    bh->b_dev     == dev)
- 			break;
- 	if (bh)
- 		atomic_inc(&bh->b_count);
-+
-+	return bh;
-+}
-+
-+struct buffer_head * get_hash_table(kdev_t dev, int block, int size)
-+{
-+	struct buffer_head **head = &hash(dev, block);
-+	struct buffer_head *bh;
-+
-+	read_lock(&hash_table_lock);
-+	bh = __get_hash_table(dev, block, size, head);
- 	read_unlock(&hash_table_lock);
- 
- 	return bh;
- }
- 
-+static int insert_into_queues_unique(struct buffer_head *bh)
-+{
-+	struct buffer_head **head = &hash(bh->b_dev, bh->b_blocknr);
-+	struct buffer_head *alias;
-+	int err = 0;
-+
-+	spin_lock(&lru_list_lock);
-+	write_lock(&hash_table_lock);
-+
-+	alias = __get_hash_table(bh->b_dev, bh->b_blocknr, bh->b_size, head);
-+	if (!alias) {
-+		__hash_link(bh, head);
-+		__insert_into_lru_list(bh, bh->b_list);
-+	} else
-+		err = 1;
-+
-+	write_unlock(&hash_table_lock);
-+	spin_unlock(&lru_list_lock);
-+
-+	return err;
-+}
-+
- unsigned int get_hardblocksize(kdev_t dev)
- {
- 	/*
-@@ -840,8 +861,16 @@
- 		bh->b_blocknr = block;
- 		bh->b_state = 1 << BH_Mapped;
- 
--		/* Insert the buffer into the regular lists */
--		insert_into_queues(bh);
-+		/* Insert the buffer into the regular lists; check noone
-+		   else added it first */
-+		
-+		if (!insert_into_queues_unique(bh))
-+			goto out;
-+
-+		/* someone added it after we last check the hash table */
-+		put_last_free(bh);
-+		goto repeat;
-+	
- 	out:
- 		touch_buffer(bh);
- 		return bh;
+On the other hand the whole `unmap something maitnained by the kernel' is
+very hackerish anyway.
 
---GpGaEY17fSl8rd50--
+
+It would be possible to have a specific system call, say prune_stack(),
+which will be taking as argument a pointer that represents a stack pointer;
+when called, prune_stack would walk through the memory mapped areas for the
+one which (VM_GROWSDOWN && vm_start <= sp <= vm_end).
+If such an area is found and the base address of this virtual memory area
+is `too far' from what the caller passed as stack pointer madvise() is called
+with MADV_FREE to release what what is supposed to be unused stack.
+
+That would also work in the case of multiple stack segments.
+
+Passing the desired minimum unused stack is also a good hint to the
+procedure.
+
+/* Sample Prototype */
+prune_stack (void *stack_pointer, unsigned int min_unused)
+
+
+
+When apps should use prune_stack()
+
+An optimum location for prune_stack would be on the main loop of an
+application and provided two conditions are met.
+ 1. Right after prune_stack a function that may block is called.
+ 2. The functions called in the main loop have unpredictable stack
+requirements (a Rayleigh distribution comes in mind:)
+
+For example:
+
+	while (1) {
+		fgets (/*command from client*/);
+		process_command ();    /* No blocking up here */
+		__asm__("mov %%esp,%0"::"m"(sp));
+		prune_stack (sp, 8*PAGE_SIZE);
+	}
+
+The min_unused is yet important because the processing functions may have
+standard stack requirements plus the upredictable ones.
+
+
+Normally, prune_stack() in the wrong location and/or with wrong min_unused
+might introduce a slowdown.
+madvise protects us against this; it would be better to release bottom pages
+first though? Should this be passed as desired MADV_policy or is it the
+default behaviour?
+
+
+
+
+There seem to be 3 alternatives:
+ 1. Write a prune_stack() generic stack segment pruning system call.
+ 2. Provide the base address of the std stack segment through prctl() and
+   call madvise.
+ 3. Parse /proc/self/maps and call madvise (no kernel changes).
+
+
+Stelios
+<sxanth@ceid.upatras.gr>
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
