@@ -1,114 +1,133 @@
-Message-ID: <3E9459E6.5040702@us.ibm.com>
-Date: Wed, 09 Apr 2003 10:35:34 -0700
-From: Dave Hansen <haveblue@us.ibm.com>
-MIME-Version: 1.0
-Subject: meminfo documentation take 2
-Content-Type: text/plain; charset=us-ascii
+Date: Wed, 9 Apr 2003 13:30:59 -0700
+From: "Randy.Dunlap" <rddunlap@osdl.org>
+Subject: Re: 2.5.67-mm1 cause framebuffer crash at bootup
+Message-Id: <20030409133059.338c47ad.rddunlap@osdl.org>
+In-Reply-To: <PAO-EX01DJb0LxA56iY0000151b@pao-ex01.pao.digeo.com>
+References: <20030408042239.053e1d23.akpm@digeo.com>
+	<3E93EB0E.4030609@aitel.hist.no>
+	<PAO-EX01DJb0LxA56iY0000151b@pao-ex01.pao.digeo.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org, Arjan van de Ven <arjanv@redhat.com>
+To: Andrew Morton <akpm@digeo.com>
+Cc: helgehaf@aitel.hist.no, linux-kernel@vger.kernel.org, linux-mm@kvack.org, vandrove@vc.cvut.cz
 List-ID: <linux-mm.kvack.org>
 
-Arjan pointed me to a lovely RedHat page which goes through some of this
-as well: http://www.redhat.com/advice/tips/
+On Wed, 9 Apr 2003 03:18:45 -0700 Andrew Morton <akpm@digeo.com> wrote:
 
-I integrated some of it, and took Bill Irwin's suggestion about the
-ReverseMaps:
+| 
+| Helge Hafting <helgehaf@aitel.hist.no> wrote:
+| >
+| > 2.5.67 works with framebuffer console, 2.5.67-mm1 dies before activating
+| > graphichs mode on two different machines:
+| > 
+| > smp with matroxfb, also using a patch that makes matroxfb work in 2.5
+| > up with radeonfb, also using patches that fixes the broken devfs in mm1.
+| > 
+| > I use devfs and preempt in both cases, and monolithic kernels without module
+| > support.
+| > 
+| > 2.5.67-mm1 works if I drop framebuffer support completely.
+| >
+| > Here is the printed backtrace for the radeon case, the matrox case was 
+| > similiar:
+| 
+| Well I tried to reproduce this with an
+| 
+| 	nVidia Corporation NV17 [GeForce4 MX440] (rev a3)
+| 
+| and the screen came up in a strange mixture of penguins and obviously uninitialised
+| video RAM overlayed on top of text.  I can't read a thing.
+| 
+| But there is no oops.
+| 
+| The Cirrus drivers still do not compile, so scrub that test box.
+| 
+| We have some compilation scruffies:
+| drivers/video/aty/mach64_gx.c:194: warning: initialization from incompatible pointer type
+....
+| 
+| Another machine here uses
+| 
+| 	ATI Technologies Inc Rage Mobility M3 AGP 2x (rev 02)
+| 
+| and..... it oopses!   Backing out 
+| 
+| ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.5/2.5.67/2.5.67-mm1/broken-out/earlier-keyboard-init.patch
+| 
+| prevents it oopsing.  Can you please try that?
+| 
+| 
+| Despite the lack of oopses, framebuffer support is sick on this machine also.
+| The LCD alternates between blackness and a strange smeary set of flickering
+| lines.
 
-----------------------------------------------------------------------
+Argh.  This is ridiculous.... OK, I'm over it.  I'll look into this more.
+I'd settle for Vojtech making an appearance.  :)
 
-meminfo:
-
-Provides information about distribution and utilization of memory.  This
-varies by architecture and compile options.  The following is from a
-16GB PIII, which has highmem enabled.  You may not have all of these fields.
-
-> cat /proc/meminfo
-
-MemTotal:     16344972 kB
-MemFree:      13634064 kB
-Buffers:          3656 kB
-Cached:        1195708 kB
-SwapCached:          0 kB
-Active:         891636 kB
-Inactive:      1077224 kB
-HighTotal:    15597528 kB
-HighFree:     13629632 kB
-LowTotal:       747444 kB
-LowFree:          4432 kB
-SwapTotal:           0 kB
-SwapFree:            0 kB
-Dirty:             968 kB
-Writeback:           0 kB
-Mapped:         280372 kB
-Slab:           684068 kB
-Committed_AS:  1576424 kB
-PageTables:      24448 kB
-ReverseMaps:   1080904
-VmallocTotal:   112216 kB
-VmallocUsed:       428 kB
-VmallocChunk:   111088 kB
-
-    MemTotal: Total usable ram (i.e. physical ram minus a few reserved
-              bits and the kernel binary code)
-     MemFree: The sum of LowFree+HighFree
-     Buffers: Relatively temporary storage for raw disk blocks
-              shouldn't get tremendously large (20MB or so)
-      Cached: in-memory cache for files read from the disk (the
-              pagecache).  Doesn't include SwapCached
-  SwapCached: Memory that once was swapped out, is swapped back in but
-              still also is in the swapfile (if memory is needed it
-              doesn't need to be swapped out AGAIN because it is already
-              in the swapfile. This saves I/O)
-      Active: Memory that has been used more recently and usually not
-              reclaimed unless absolutely necessary.
-    Inactive: Memory which has been less recently used.  It is more
-              eligible to be reclaimed for other purposes
-   HighTotal:
-    HighFree: Highmem is all memory above ~860MB of physical memory
-              Highmem areas are for use by userspace programs, or
-              for the pagecache.  The kernel must use tricks to access
-              this memory, making it slower to access than lowmem.
-    LowTotal:
-     LowFree: Lowmem is memory which can be used for everything that
-              highmem can be used for, but it is also availble for the
-              kernel's use for its own data structures.  Among many
-              other things, it is where everything from the Slab is
-              allocated.  Bad things happen when you're out of lowmem.
-   SwapTotal: total amount of swap space available
-    SwapFree: Memory which has been evicted from RAM, and is temporarily
-              on the disk
-       Dirty: Memory which is waiting to get written back to the disk
-   Writeback: Memory which is actively being written back to the disk
-      Mapped: files which have been mmaped, such as libraries
-        Slab: in-kernel data structures cache
-Committed_AS: An estimate of how much RAM you would need to make a
-              99.99% guarantee that there never is OOM (out of memory)
-              for this workload. Normally the kernel will overcommit
-              memory. That means, say you do a 1GB malloc, nothing
-              happens, really. Only when you start USING that malloc
-              memory you will get real memory on demand, and just as
-              much as you use. So you sort of take a mortgage and hope
-              the bank doesn't go bust. Other cases might include when
-              you mmap a file that's shared only when you write to it
-              and you get a private copy of that data. While it normally
-              is shared between processes. The Committed_AS is a
-              guesstimate of how much RAM/swap you would need
-              worst-case.
-  PageTables: amount of memory dedicated to the lowest level of page
-              tables.
- ReverseMaps: number of reverse mappings performed
-VmallocTotal: total size of vmalloc memory area
- VmallocUsed: amount of vmalloc area which is used
-VmallocChunk: largest contigious block of vmalloc area which is free
+I can reproduce the problem with the earlier-keyboard-init.patch, but if
+I reverse it, I get this [using Petr's 2.5.66-bk12 mga patch].  Is that the
+right one to use?  do I need to use any kernel command line options with it?
+Matrox G400 dual-head capable, but only using one of them.
 
 
--- 
-Dave Hansen
-haveblue@us.ibm.com
+matroxfb: Matrox G450 detected
+matroxfb: MTRR's turned on
+matroxfb: 640x480x8bpp (virtual: 640x26208)
+matroxfb: framebuffer at 0xEC000000, mapped to 0xf8805000, size 16777216
+<1>Unable to handle kernel NULL pointer dereference at virtual address 00000000
+ printing eip:
+00000000
+*pde = 00000000
+Oops: 0000 [#1]
+CPU:    0
+EIP:    0060:[<00000000>]    Not tainted
+EFLAGS: 00010246
+EIP is at 0x0
+eax: c04b77c8   ebx: f7f9fccc   ecx: c1ada17f   edx: c04b6f40
+esi: ffffffff   edi: 00000030   ebp: 00000030   esp: f7f9fc78
+ds: 007b   es: 007b   ss: 0068
+Process swapper (pid: 1, threadinfo=f7f9e000 task=f7f9c080)
+Stack: c0292c1e c04b6f40 f7f9fccc ffffffff ffffffff 00000000 00000000 00000400 
+       00000008 00000001 000000ff 0000000c c04b6f40 00000030 c1a41480 c0292e65 
+       c1a41480 c04b6f40 f7f9fccc 00000030 c00bb1c0 00000000 00000108 00000180 
+Call Trace:
+ [<c0292c1e>] putcs_aligned+0x16e/0x1b0
+ [<c0292e65>] accel_putcs+0xc5/0xf0
+ [<c02939ce>] fbcon_putcs+0x7e/0x90
+ [<c01feb73>] vt_console_print+0x103/0x2b0
+ [<c011f616>] __call_console_drivers+0x46/0x60
+ [<c011f762>] call_console_drivers+0xc2/0xf0
+ [<c011fb23>] release_console_sem+0xa3/0x140
+ [<c011f9d8>] printk+0x1d8/0x230
+ [<c029367a>] fbcon_set_display+0x33a/0x4c0
+ [<c01f8031>] set_inverse_transl+0x41/0xa0
+ [<c013ecad>] kmalloc+0xdd/0x190
+ [<c010b592>] do_IRQ+0x112/0x1f0
+ [<c02930cd>] fbcon_init+0xdd/0xf0
+ [<c01fba0f>] visual_init+0x9f/0x100
+ [<c01ff3bd>] take_over_console+0xad/0x180
+ [<c02981f5>] register_framebuffer+0x175/0x1a0
+ [<c029be10>] initMatrox2+0x8e0/0x990
+ [<c02d07ad>] pcibios_enable_device+0x1d/0x20
+ [<c029c3c2>] matroxfb_probe+0x2c2/0x2f0
+ [<c01e320f>] pci_device_probe+0x3f/0x60
+ [<c021d4c4>] bus_match+0x34/0x60
+ [<c021d594>] driver_attach+0x34/0x60
+ [<c021d847>] bus_add_driver+0x97/0xd0
+ [<c01e3326>] pci_register_driver+0x46/0x60
+ [<c01050fb>] init+0x7b/0x220
+ [<c0105080>] init+0x0/0x220
+ [<c0107165>] kernel_thread_helper+0x5/0x10
+
+Code:  Bad EIP value.
+ <0>Kernel panic: Attempted to kill init!
 
 
+--
+~Randy
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
