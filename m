@@ -1,31 +1,73 @@
-Date: Fri, 26 May 2000 14:15:26 +0100
-From: "Stephen C. Tweedie" <sct@redhat.com>
-Subject: Re: [RFC] 2.3/4 VM queues idea
-Message-ID: <20000526141526.E10082@redhat.com>
-References: <Pine.LNX.4.21.0005241458250.24993-100000@duckman.distro.conectiva> <200005242057.NAA77059@apollo.backplane.com> <20000525115202.A19969@pcep-jamie.cern.ch> <200005251618.JAA82894@apollo.backplane.com> <20000525185059.A20563@pcep-jamie.cern.ch> <20000526120805.C10082@redhat.com> <20000526132219.C21510@pcep-jamie.cern.ch>
-Mime-Version: 1.0
+Message-ID: <392E7CFD.C9017833@norran.net>
+Date: Fri, 26 May 2000 15:32:45 +0200
+From: Roger Larsson <roger.larsson@norran.net>
+MIME-Version: 1.0
+Subject: Re: [patch] page aging and deferred swapping for 2.4.0-test1
+References: <Pine.LNX.4.21.0005251936390.7453-100000@duckman.distro.conectiva>
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20000526132219.C21510@pcep-jamie.cern.ch>; from lk@tantalophile.demon.co.uk on Fri, May 26, 2000 at 01:22:19PM +0200
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jamie Lokier <lk@tantalophile.demon.co.uk>
-Cc: "Stephen C. Tweedie" <sct@redhat.com>, Matthew Dillon <dillon@apollo.backplane.com>, Rik van Riel <riel@conectiva.com.br>, linux-mm@kvack.org
+To: Rik van Riel <riel@conectiva.com.br>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
-
-On Fri, May 26, 2000 at 01:22:19PM +0200, Jamie Lokier wrote:
+Rik van Riel wrote:
 > 
-> Agreed.  I looked at that code though and it seemed very... large.
-> I think COW address_space gets the same results with less code.  Fast, too.
-> I know what I've got to do to prove it :-)
+> Hi,
+> 
+> the attached patch attempts to implement the following two
+> things (which we'll probably want in the active/inactive
+> design later on):
+> - page aging (for active pages)
+> - deferred swap IO, with only unmapping in try_to_swap_out()
+> 
+> The patch still crashes, but maybe one of you has an idea
+> on what's wrong and/or even how to fix it ;)
+> 
+> regards,
+> 
+> Rik
+> --
+> The Internet is not a network of computers. It is a network
+> of people. That is its real strength.
+> 
+> Wanna talk about the kernel?  irc.openprojects.net / #kernelnewbies
+> http://www.conectiva.com/               http://www.surriel.com/
+> 
 
-How will it deal with fork() cases where the child starts mprotecting
-arbitrary regions, so that you have completely independent vmas all
-sharing the same private pages?
 
---Stephen
+The aging code can not be correct.
+		if (PageTestandClearReferenced(page)) {
+			page->age += 3;
+			if (page->age > 10)
+				page->age = 0;
+			goto dispose_continue;
+		}
+		page->age--;
+
+		if (page->age)
+			goto dispose_continue;
+
+I would say it should be:
+
+		if (PageTestandClearReferenced(page)) {
+			page->age += 3;
+			if (page->age > 10)
+				page->age = 10;
+			goto dispose_continue;
+		}
+
+		if (page->age && priority)  // at zero priority ignore age
+			goto dispose_continue;
+
+		page->age--;
+
+/RogerL
+
+
+Home page:
+  http://www.norran.net/nra02596/
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
