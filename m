@@ -1,48 +1,68 @@
-From: James A. Sutherland <jas88@cam.ac.uk>
-Subject: Re: suspend processes at load (was Re: a simple OOM ...)
-Date: Sun, 22 Apr 2001 20:41:42 +0100
-Message-ID: <usc6etgvdlapakkeh57lcr8qu5ji7ca142@4ax.com>
-References: <l03130312b708cf8a37bf@[192.168.239.105]> <Pine.LNX.4.21.0104221555090.1685-100000@imladris.rielhome.conectiva>
-In-Reply-To: <Pine.LNX.4.21.0104221555090.1685-100000@imladris.rielhome.conectiva>
+Received: from localhost (rbxlyl@localhost [127.0.0.1])
+	by surriel.ddts.net (8.11.2/8.11.2) with ESMTP id f3MJaNs29630
+	for <linux-mm@kvack.org>; Sun, 22 Apr 2001 16:36:33 -0300
+Date: Sun, 22 Apr 2001 16:36:23 -0300 (BRST)
+From: Rik van Riel <riel@conectiva.com.br>
+Subject: no mail to jas88 or jknapka
+Message-ID: <Pine.LNX.4.21.0104221634370.1685-100000@imladris.rielhome.conectiva>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 8BIT
+Content-Type: TEXT/PLAIN; CHARSET=US-ASCII
+Content-ID: <Pine.LNX.4.21.0104221634372.1685@imladris.rielhome.conectiva>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@conectiva.com.br>
-Cc: Jonathan Morton <chromi@cyberspace.org>, "Joseph A. Knapka" <jknapka@earthlink.net>, linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 22 Apr 2001 15:57:32 -0300 (BRST), you wrote:
+Hi,
 
->On Sun, 22 Apr 2001, Jonathan Morton wrote:
->
->> I think we're approaching the problem from opposite viewpoints.  
->> Don't get me wrong here - I think process suspension could be a
->> valuable "feature" under extreme load, but I think that the
->> working-set idea will perform better and more consistently under "mild
->> overloads", which the current system handles extremely poorly.  
->
->Could this mean that we might want _both_ ?
+my ISPs smarthost is unreachable (in fact, my whole ISP seems
+unreachable at the moment ... good thing my ADSL doesn't need
+them for anything) so I'm now sending out email directly.
 
-Absolutely, as I said elsewhere.
+This means DUL comes into action and I will no longer be able
+to send email to jas88 or jknapka.  They can still mail me with
+things, but shouldn't expect an answer.
 
->1) a minimal guaranteed working set for small processes, so root
->   can login and large hogs don't penalize good guys
->   (simpler than the working set idea, should work just as good)
+Rik
+--
+Virtual memory is like a game you can't win;
+However, without VM there's truly nothing to lose...
 
-Yep - this will help us under heavy load conditions, when the system
-starts getting "sluggish"...
+		http://www.surriel.com/
+http://www.conectiva.com/	http://distro.conectiva.com.br/
 
->2) load control through process suspension when the load gets
->   too high to handle, this is also good to let the hogs (which
->   would thrash with the working set idea) make some progress
->   in turns
+---------- Forwarded message ----------
+Date: Sun, 22 Apr 2001 16:25:00 -0300
+From: Mail Delivery Subsystem <MAILER-DAEMON@conectiva.com.br>
+To: riel@conectiva.com.br
+Subject: Returned mail: see transcript for details
 
-Exactly!
+The original message was received at Sun, 22 Apr 2001 16:11:46 -0300
+from mikams@localhost [127.0.0.1]
 
+   ----- The following addresses had permanent fatal errors -----
+<jas88@cam.ac.uk>
+    (reason: 550-See <URL:http://mail-abuse.org/dul/>)
+<jknapka@earthlink.net>
+    (reason: 550-EarthLink's inbound mail servers do not allow mail from your site.)
 
-James.
+   ----- Transcript of session follows -----
+... while talking to puce.csi.cam.ac.uk.:
+>>> RCPT To:<jas88@cam.ac.uk>
+<<< 550-See <URL:http://mail-abuse.org/dul/>
+<<< 550 mail from 200.193.160.10 rejected: administrative prohibition (host is blacklisted)
+550 5.1.1 <jas88@cam.ac.uk>... User unknown
+... while talking to mx03.earthlink.net.:
+>>> MAIL From:<riel@conectiva.com.br> SIZE=801
+<<< 550-EarthLink's inbound mail servers do not allow mail from your site.
+<<< 550-Please contact your ISP to find out how to send e-mail using a
+<<< 550-proper mail server.  If you are an EarthLink customer, and need
+<<< 550-assistance configuring your e-mail software, please contact
+<<< 550-EarthLink's technical support department at 1-800-EARTHLINK.
+<<< 550-Server administrators that feel they are being blocked in error
+<<< 550 may send e-mail to OpenRelay@Corp.EarthLink.Net for assistance.
+554 5.0.0 <jknapka@earthlink.net>... Service unavailable
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
