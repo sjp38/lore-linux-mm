@@ -1,12 +1,12 @@
-Received: from flinx.ccr.net (ccr@alogconduit1ae.ccr.net [208.130.159.5])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id GAA22546
-	for <linux-mm@kvack.org>; Wed, 24 Mar 1999 06:43:01 -0500
+Received: from alogconduit1ah.ccr.net (ccr@alogconduit1ae.ccr.net [208.130.159.5])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id GAA22702
+	for <linux-mm@kvack.org>; Wed, 24 Mar 1999 06:55:19 -0500
 Subject: Re: [Fwd: LINUX-MM]
 References: <36F8974A.D4EB4BAD@imsid.uni-jena.de>
 From: ebiederm+eric@ccr.net (Eric W. Biederman)
-Date: 24 Mar 1999 05:49:08 -0600
 In-Reply-To: Matthias Arnold's message of "Wed, 24 Mar 1999 08:42:02 +0100"
-Message-ID: <m1emmfxg3v.fsf@flinx.ccr.net>
+Date: 24 Mar 1999 06:04:25 -0600
+Message-ID: <m1emmfum9i.fsf@flinx.ccr.net>
 Sender: owner-linux-mm@kvack.org
 To: Matthias Arnold <Matthias.Arnold@edda.imsid.uni-jena.de>
 Cc: linux-mm@kvack.org
