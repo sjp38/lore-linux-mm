@@ -1,66 +1,40 @@
-Received: from daisy.net ([213.129.29.129]) by mail.daisy.dk
-          (Netscape Messaging Server 3.62)  with ESMTP id 1827
-          for <linux-mm@kvack.org>; Sat, 30 Dec 2000 15:30:50 +0100
-Message-ID: <3A4DEDBA.2214FB06@daisy.net>
-Date: Sat, 30 Dec 2000 15:14:18 +0100
-From: Henrik Witt-Hansen <bean@daisy.net>
-MIME-Version: 1.0
-Subject: Problem on AMD Elan SC520 CDP
-Content-Type: text/plain; charset=iso-8859-1
-Content-Transfer-Encoding: 8bit
+Date: Sat, 30 Dec 2000 19:16:39 +0100
+From: Andrea Arcangeli <andrea@suse.de>
+Subject: Re: 2.2.19pre3 and poor reponse to RT-scheduled processes?
+Message-ID: <20001230191639.E9332@athlon.random>
+References: <20001229161927.A560@xi.linuxpower.cx> <200012292154.QAA17527@ninigret.metatel.office>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <200012292154.QAA17527@ninigret.metatel.office>; from rafal.boni@eDial.com on Fri, Dec 29, 2000 at 04:54:23PM -0500
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Rafal Boni <rafal.boni@eDial.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Gregory Maxwell <greg@linuxpower.cx>
 List-ID: <linux-mm.kvack.org>
 
-Hi..  
+On Fri, Dec 29, 2000 at 04:54:23PM -0500, Rafal Boni wrote:
+> Now my box behaves much more reasonably... I'll just have to beat harder
+> on it and see what happens.
 
-This seems to be the best place to ask this..??
+Another thing: while writing to disk if you want low latency readers you can
+do:
 
+	elvtune -r 1 /dev/hd[abcd]
 
-I am currently working on the AMD Elan SC520 dev. board. Had Linux
-2.2.14-2.2.17 running without any problems the last 5 month.
+The 1/2 seconds stalls you see could be just because of applications that waits
+I/O synchronously while the elevator is reodering I/O requests (and even if the
+elevator wouldn't reorder anything the new requests would go to the end of the
+I/O queue so they would have some higher latency anyways). That's normal and if
+it's the case to avoid those stalls you can only decrease the I/O load or
+increase disk throughput ;). The important thing is that the kernel is
+not sitting in a tight kernel loop without reschedule in it during such 2
+seconds.
 
-We now need to migrate to linux 2.4.x (allthough still a test-kernel,
-_i_know_, please do not bug me, but my boss!). And the 2.4.0-test12
-kernel hangs, right after the "uncompressing linux.....ok" message..
+However 2.2.19pre3aa4 includes also the lowlatency bugfixes in case you have
+tons of ram and you're sending huge buffers to syscalls.
 
-I have traced the problem to the first lines in 'start_kernel()' in
-init/main.c. It happens randomly and is not directly linked to printk or
-other instructions..   Seems to happen when doing a 'mov..' with an
-address as source (f.ex. the linux_banner string), but if that
-instruction is removed, the hang just happens a little bit later on..  I
-have used a big delay before any instructions in start_kernel (done in
-assembler source, not the c file..) and even after 30 sec. execution
-continues, so it seems that it is not a timing related problem, or some
-interrupt 'thing'.
-
-The bug seems to be introduced between 2.3.22 (works allmost fine, pci
-detect crach and burn, but no hang) and 2.3.23 where all the new mm
-stuff made it into the kernel. (this is why i ask this here...)
-Could it be some pagefault related issue, possible a need for
-adjustments to initialize a slightly buggy sc520 processor ??  (is aware
-of other such 'features')
-
-
-Does anybody have an idea to what might be the problem, any suggestions
-of where to start looking (besides AMD errata's which i am still waiting
-for..!).
-
-AMD claims that the sc520 processor is an 5x86, but it seems to be more
-like Intel 486 on the inside.. ??
-
-
-
-	Thanks in advance for any helpfull advice..
-
-
-		Henrik
-
--- 
-  ***      Henrik Witt-Hansen  -  System developer     ***
-  ****      (+45) 2840 8502  or  (+45) 3395 2983      ****
-  Daisy Net A/S, Hulgardsvej 133, DK-2400, (+45) 3395 2980
+Andrea
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
