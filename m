@@ -1,17 +1,22 @@
-Message-ID: <419F2062.8080401@ribosome.natur.cuni.cz>
-Date: Sat, 20 Nov 2004 11:45:54 +0100
+Message-ID: <419F2AB4.30401@ribosome.natur.cuni.cz>
+Date: Sat, 20 Nov 2004 12:29:56 +0100
 From: =?ISO-8859-2?Q?Martin_MOKREJ=A9?= <mmokrejs@ribosome.natur.cuni.cz>
 MIME-Version: 1.0
 Subject: Re: [PATCH] fix spurious OOM kills
 References: <20041111112922.GA15948@logos.cnet>	 <4193E056.6070100@tebibyte.org>	<4194EA45.90800@tebibyte.org>	 <20041113233740.GA4121@x30.random>	<20041114094417.GC29267@logos.cnet>	 <20041114170339.GB13733@dualathlon.random>	 <20041114202155.GB2764@logos.cnet>	<419A2B3A.80702@tebibyte.org>	 <419B14F9.7080204@tebibyte.org>	<20041117012346.5bfdf7bc.akpm@osdl.org>	 <419CD8C1.4030506@ribosome.natur.cuni.cz>	 <20041118131655.6782108e.akpm@osdl.org>	 <419D25B5.1060504@ribosome.natur.cuni.cz>	 <419D2987.8010305@cyberone.com.au>	 <419D383D.4000901@ribosome.natur.cuni.cz>	 <20041118160824.3bfc961c.akpm@osdl.org>	 <419E821F.7010601@ribosome.natur.cuni.cz> <1100946207.2635.202.camel@thomas>
 In-Reply-To: <1100946207.2635.202.camel@thomas>
-Content-Type: text/plain; charset=ISO-8859-2; format=flowed
-Content-Transfer-Encoding: 8bit
+Content-Type: multipart/mixed;
+ boundary="------------070007020602080303050503"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: tglx@linutronix.de
 Cc: Andrew Morton <akpm@osdl.org>, piggin@cyberone.com.au, chris@tebibyte.org, marcelo.tosatti@cyclades.com, andrea@novell.com, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
+
+This is a multi-part message in MIME format.
+--------------070007020602080303050503
+Content-Type: text/plain; charset=ISO-8859-2; format=flowed
+Content-Transfer-Encoding: 8bit
 
 Thomas Gleixner wrote:
 > On Sat, 2004-11-20 at 00:30 +0100, Martin MOKREJ(C) wrote:
@@ -35,72 +40,73 @@ Thomas Gleixner wrote:
 > It will still kill RNAsubopt, but it should not longer touch the xterm,
 > which runs vmstat.
 
-Will do in a minute.
+No, it doesn't help at all! See attached file.
 
-> 
-> 
->>Second problem with 2.6 tree is that I think application should receive 
->>some errocode when asking for more memory, so it can exit itself.
->>This used to work well under 2.4 tree and was demostrated in my
->>previous reports where you see application exist with "not enough memory"
->>rather than with "Killed". ;-)
-> 
-> 
-> One good reason might be that in the out of memory situation the system
-> has no idea, whether the requester will gracefully shutdown when
-> recieving ENOMEM or keep trying to get some more memory. 
-> 
-> The decision to return ENOMEM or finally calling the oom-killer depends
-> on the flags for this allocation request. The criteria are __GFP_FS set
-> and not __GFP_NORETRY set.
-> 
-> So all allocations GFP_KERNEL, GFP_USER and GFP_HIGHUSER are candidates
-> to end up in the oom_killer. The only caller which ever sets the
-> __GFP_NORETRY flag is fs/xfs.
 
-I don't understand ansi C ;) ... so just tell me why the kernel doesn't
-try the "old" way as on 2.4 kernel, and if teh appliation wouldn't get killed,
-I don't care I have to wait another 10 seconds to het it killed.
-The application wil close it's files, remove tempfiles etc.
+--------------070007020602080303050503
+Content-Type: text/plain;
+ name="dm"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline;
+ filename="dm"
 
-The sources of the program are available. Can you have a brif look into
-the code and tell me if this application does or does not treat those
-memory allocation in whatever that *GFP* thing is? ;-) In other words,
-is this application written correctly or not? Does it have to be killed
-ro should it exit weel also on 2.6 kernel (note, it does exit on 2.4 ...).
+oom-killer: gfp_mask=0xd2
+DMA per-cpu:
+cpu 0 hot: low 2, high 6, batch 1
+cpu 0 cold: low 0, high 2, batch 1
+Normal per-cpu:
+cpu 0 hot: low 32, high 96, batch 16
+cpu 0 cold: low 0, high 32, batch 16
+HighMem per-cpu:
+cpu 0 hot: low 14, high 42, batch 7
+cpu 0 cold: low 0, high 14, batch 7
 
-Thanks for help!
-Martin
+Free pages:        3916kB (112kB HighMem)
+Active:131900 inactive:121851 dirty:0 writeback:0 unstable:0 free:979 slab:1918 mapped:253638 pagetables:794
+DMA free:68kB min:68kB low:84kB high:100kB active:5388kB inactive:5432kB present:16384kB pages_scanned:12292 all_unreclaimable? yes
+protections[]: 0 0 0
+Normal free:3736kB min:3756kB low:4692kB high:5632kB active:457320kB inactive:416944kB present:901120kB pages_scanned:906311 all_unreclaimable? yes
+protections[]: 0 0 0
+HighMem free:112kB min:128kB low:160kB high:192kB active:64892kB inactive:65028kB present:131044kB pages_scanned:134185 all_unreclaimable? yes
+protections[]: 0 0 0
+DMA: 1*4kB 0*8kB 0*16kB 0*32kB 1*64kB 0*128kB 0*256kB 0*512kB 0*1024kB 0*2048kB 0*4096kB = 68kB
+Normal: 0*4kB 1*8kB 1*16kB 0*32kB 0*64kB 1*128kB 0*256kB 1*512kB 1*1024kB 1*2048kB 0*4096kB = 3736kB
+HighMem: 0*4kB 0*8kB 1*16kB 1*32kB 1*64kB 0*128kB 0*256kB 0*512kB 0*1024kB 0*2048kB 0*4096kB = 112kB
+Swap cache: add 293354, delete 293354, find 65/84, race 0+0
+Out of Memory: Killed process 6612 (RNAsubopt).
+Out of Memory: Killed process 6603 (bash).
+oom-killer: gfp_mask=0x1d2
+DMA per-cpu:
+cpu 0 hot: low 2, high 6, batch 1
+cpu 0 cold: low 0, high 2, batch 1
+Normal per-cpu:
+cpu 0 hot: low 32, high 96, batch 16
+cpu 0 cold: low 0, high 32, batch 16
+HighMem per-cpu:
+cpu 0 hot: low 14, high 42, batch 7
+cpu 0 cold: low 0, high 14, batch 7
 
-BTW: my last 2 relies got lost on the way through lkml. :((
-My SMTPserver said:
-@40000000419f13a321bbf6a4 status: local 0/10 remote 9/20
-@40000000419f13a41cea7d1c delivery 9: success: (tglx@linutronix.de)_213.239.205.147_accepted_message./Remote_host_said:_250_Ok
-:_queued_as_1D47365C044/
-@40000000419f13a41cebadcc status: local 0/10 remote 8/20
-@40000000419f13a504926324 delivery 3: success: (chris@tebibyte.org)_82.161.9.107_accepted_message./Remote_host_said:_250_Ok:_q
-ueued_as_A38AD684/
-@40000000419f13a504937c64 status: local 0/10 remote 7/20
-@40000000419f13a508f3214c delivery 5: failure: 130.57.1.11_does_not_like_recipient./Remote_host_said:_550_5.1.1_<andrea@novell
-.com>_is_not_a_valid_mailbox._550_No_such_recipient/Giving_up_on_130.57.1.11./
-@40000000419f13a508f8bae4 status: local 0/10 remote 6/20
-@40000000419f13a602653a54 delivery 8: success: (riel@redhat.com)_66.187.233.32_accepted_message./Remote_host_said:_250_2.0.0_i
-AK9pMqT000648_Message_accepted_for_delivery/
-@40000000419f13a602666b04 status: local 0/10 remote 5/20
-@40000000419f13a63041b8bc delivery 6: success: (linux-kernel@vger.kernel.org)_12.107.209.244_accepted_message./Remote_host_sai
-d:_250_2.7.0_nothing_apparently_wrong_in_the_message.;_S261490AbUKTJvY/
-@40000000419f13a63042ddb4 status: local 0/10 remote 4/20
-@40000000419f13a8042341ec delivery 7: success: (linux-mm@kvack.org)_66.96.29.28_accepted_message./Remote_host_said:_250_2.6.0_
-S26517AbUKTJvQ_message_accepted/
-@40000000419f13a804248a0c status: local 0/10 remote 3/20
-@40000000419f13a8181adc3c delivery 1: success: (akpm@osdl.org)_65.172.181.4_accepted_message./Remote_host_said:_250_2.0.0_iAK9
-pMPE008452_Message_accepted_for_delivery/
-@40000000419f13a8181af794 status: local 0/10 remote 2/20
-@40000000419f13aa22abd8cc delivery 2: success: (piggin@cyberone.com.au)_203.29.91.92_accepted_message./Remote_host_said:_250_O
-K_id=1CVRtv-0003cD-LZ/
-@40000000419f13aa22ad191c status: local 0/10 remote 1/20
-@40000000419f13ac38f1240c delivery 4: success: (marcelo.tosatti@cyclades.com)_64.186.161.6_accepted_message./Remote_host_said:
-_250_Ok:_queued_as_041F080041B/
+Free pages:        3916kB (112kB HighMem)
+Active:131832 inactive:121892 dirty:0 writeback:38 unstable:0 free:979 slab:1918 mapped:253573 pagetables:790
+DMA free:68kB min:68kB low:84kB high:100kB active:5388kB inactive:5432kB present:16384kB pages_scanned:12292 all_unreclaimable? yes
+protections[]: 0 0 0
+Normal free:3736kB min:3756kB low:4692kB high:5632kB active:457080kB inactive:417076kB present:901120kB pages_scanned:906479 all_unreclaimable? yes
+protections[]: 0 0 0
+HighMem free:112kB min:128kB low:160kB high:192kB active:64860kB inactive:65060kB present:131044kB pages_scanned:134217 all_unreclaimable? yes
+protections[]: 0 0 0
+DMA: 1*4kB 0*8kB 0*16kB 0*32kB 1*64kB 0*128kB 0*256kB 0*512kB 0*1024kB 0*2048kB 0*4096kB = 68kB
+Normal: 0*4kB 1*8kB 1*16kB 0*32kB 0*64kB 1*128kB 0*256kB 1*512kB 1*1024kB 1*2048kB 0*4096kB = 3736kB
+HighMem: 0*4kB 0*8kB 1*16kB 1*32kB 1*64kB 0*128kB 0*256kB 0*512kB 0*1024kB 0*2048kB 0*4096kB = 112kB
+Swap cache: add 293419, delete 293381, find 65/84, race 0+0
+Out of Memory: Killed process 6598 (FvwmPager).
+Out of Memory: Killed process 6599 (xterm).
+Out of Memory: Killed process 6606 (xterm).
+Out of Memory: Killed process 6564 (fvwm2).
+mtrr: no MTRR for d8000000,2000000 found
+[drm:radeon_cp_init] *ERROR* radeon_cp_init called without lock held
+[drm:drm_unlock] *ERROR* Process 6536 using kernel context 0
+
+--------------070007020602080303050503--
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
