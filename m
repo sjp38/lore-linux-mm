@@ -1,7 +1,7 @@
-Date: Sat, 20 Apr 2002 16:29:38 -0700
+Date: Sun, 21 Apr 2002 01:27:40 -0700
 From: William Lee Irwin III <wli@holomorphy.com>
 Subject: Re: [PATCH] rmap 13
-Message-ID: <20020420232938.GH21206@holomorphy.com>
+Message-ID: <20020421082740.GJ21206@holomorphy.com>
 References: <Pine.LNX.4.44L.0204201731220.1960-100000@imladris.surriel.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
@@ -11,27 +11,18 @@ In-Reply-To: <Pine.LNX.4.44L.0204201731220.1960-100000@imladris.surriel.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Rik van Riel <riel@conectiva.com.br>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, lse-tech@lists.sourceforge.net, Martin.Bligh@us.ibm.com
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 On Sat, Apr 20, 2002 at 05:32:19PM -0300, Rik van Riel wrote:
 > Better SMP scalability, first batch of lock breakup work. Still
 > experimental, but testing is very much welcome...
-...
-[general comments]
-> My big TODO items for a next release are:
->   - O(1) page launder - currently functional but slow, needs to be tuned
->   - pte-highmem
 
-If I can clarify a bit, I'm deferring submission of the subsequent bits
-of the lock breakups in order to to expose the various stages of it to
-wider testing individually. One can't be too careful with these changes.
-
-Also, Martin Bligh is the original author of the per-page pte_chain
-locking patch.
+I've racked up 20 hours of Cerberus time before getting impatient
+and wanting to use the machine grinding away at it for other things.
 
 
-More to come,
+Cheers,
 Bill
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
