@@ -1,87 +1,168 @@
-Date: Wed, 16 Jun 2004 10:42:36 +0200
-From: Martin Schwidefsky <schwidefsky@de.ibm.com>
-Subject: Re: [PATCH] s390: lost dirty bits.
-Message-ID: <20040616084236.GA2738@mschwid3.boeblingen.de.ibm.com>
+Date: Wed, 16 Jun 2004 09:24:13 -0500
+From: Dimitri Sivanich <sivanich@sgi.com>
+Subject: [PATCH]: Option to run cache reap in thread mode
+Message-ID: <20040616142413.GA5588@sgi.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>, Christoph Hellwig <hch@infradead.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@osdl.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-> This patch still has a little race - it'd be better to override _all_ of
-> SetPageUptodate() in page-flags.h and do:
+Hi,
 
-This is even better because it really makes a race impossible. I think it
-is correct with the simple if as well because a page which isn't up to date
-isn't mapped anywhere and while a page is read from the backing store it
-is locked. The end io function first does SetPageUptodate and then unlocks
-the page.
-Combining the test_and_set_bit idea with Christophs valid objection I
-created a new patch.
+In the process of testing per/cpu interrupt response times and CPU availability,
+I've found that running cache_reap() as a timer as is done currently results
+in some fairly long CPU holdoffs.
 
-blue skies,
-   Martin
+I would like to know what others think about running cache_reap() as a low
+priority realtime kthread, at least on certain cpus that would be configured
+that way (probably configured at boottime initially).  I've been doing some
+testing running it this way on CPU's whose activity is mostly restricted to
+realtime work (requiring rapid response times).
 
----
+Here's my first cut at an initial patch for this (there will be other changes
+later to set the configuration and to optimize locking in cache_reap()).
 
-[PATCH] s390: lost dirty bits.
+Dimitri Sivanich <sivanich@sgi.com>
 
-The SetPageUptodate function is called for pages that are already
-up to date. The arch_set_page_uptodate function of s390 may not
-clear the dirty bit in that case otherwise a dirty bit which is set
-between the start of an i/o for a writeback and a following call
-to SetPageUptodate is lost.
 
-Signed-off-by: Martin Schwidefsky <schwidefsky@de.ibm.com>
-
-diffstat:
- include/asm-s390/pgtable.h |    6 ++++--
- include/linux/page-flags.h |   12 +++---------
- 2 files changed, 7 insertions(+), 11 deletions(-)
-
-diff -urN linux-2.6/include/asm-s390/pgtable.h linux-2.6-s390/include/asm-s390/pgtable.h
---- linux-2.6/include/asm-s390/pgtable.h	Wed Jun 16 10:39:37 2004
-+++ linux-2.6-s390/include/asm-s390/pgtable.h	Wed Jun 16 10:39:49 2004
-@@ -654,9 +654,11 @@
- 	__pte;                                                            \
- })
+--- linux/mm/slab.c.orig	2004-06-16 09:09:09.000000000 -0500
++++ linux/mm/slab.c	2004-06-16 09:10:03.000000000 -0500
+@@ -91,6 +91,9 @@
+ #include	<linux/cpu.h>
+ #include	<linux/sysctl.h>
+ #include	<linux/module.h>
++#include	<linux/kthread.h>
++#include	<linux/stop_machine.h>
++#include	<linux/syscalls.h>
  
--#define arch_set_page_uptodate(__page)					  \
-+#define SetPageUptodate(_page) \
- 	do {								  \
--		asm volatile ("sske %0,%1" : : "d" (0),			  \
-+		struct page *__page = (_page);				  \
-+		if (!test_and_set_bit(PG_uptodate, &__page->flags))	  \
-+			asm volatile ("sske %0,%1" : : "d" (0),		  \
- 			      "a" (__pa((__page-mem_map) << PAGE_SHIFT)));\
- 	} while (0)
+ #include	<asm/uaccess.h>
+ #include	<asm/cacheflush.h>
+@@ -530,8 +533,15 @@ enum {
+ 	FULL
+ } g_cpucache_up;
  
-diff -urN linux-2.6/include/linux/page-flags.h linux-2.6-s390/include/linux/page-flags.h
---- linux-2.6/include/linux/page-flags.h	Wed Jun 16 10:39:37 2004
-+++ linux-2.6-s390/include/linux/page-flags.h	Wed Jun 16 10:39:49 2004
-@@ -194,16 +194,10 @@
- #define ClearPageReferenced(page)	clear_bit(PG_referenced, &(page)->flags)
- #define TestClearPageReferenced(page) test_and_clear_bit(PG_referenced, &(page)->flags)
++cpumask_t threaded_reap;	/* CPUs configured to run reap in thread mode */
++
++static DEFINE_PER_CPU(task_t *, reap_thread);
+ static DEFINE_PER_CPU(struct timer_list, reap_timers);
  
--#ifndef arch_set_page_uptodate
--#define arch_set_page_uptodate(page) do { } while (0)
--#endif
--
- #define PageUptodate(page)	test_bit(PG_uptodate, &(page)->flags)
--#define SetPageUptodate(page) \
--	do {								\
--		arch_set_page_uptodate(page);				\
--		set_bit(PG_uptodate, &(page)->flags);			\
--	} while (0)
-+#ifndef SetPageUptodate
-+#define SetPageUptodate(page)	set_bit(PG_uptodate, &(page)->flags)
++static void start_reap_thread(unsigned long cpu);
++#ifdef CONFIG_HOTPLUG_CPU
++static void stop_reap_thread(unsigned long cpu);
 +#endif
- #define ClearPageUptodate(page)	clear_bit(PG_uptodate, &(page)->flags)
+ static void reap_timer_fnc(unsigned long data);
+ static void free_block(kmem_cache_t* cachep, void** objpp, int len);
+ static void enable_cpucache (kmem_cache_t *cachep);
+@@ -661,11 +671,13 @@ static int __devinit cpuup_callback(stru
+ 		up(&cache_chain_sem);
+ 		break;
+ 	case CPU_ONLINE:
++		start_reap_thread(cpu);
+ 		start_cpu_timer(cpu);
+ 		break;
+ #ifdef CONFIG_HOTPLUG_CPU
+ 	case CPU_DEAD:
+ 		stop_cpu_timer(cpu);
++		stop_reap_thread(cpu);
+ 		/* fall thru */
+ 	case CPU_UP_CANCELED:
+ 		down(&cache_chain_sem);
+@@ -802,6 +814,9 @@ void __init kmem_cache_init(void)
+ 		up(&cache_chain_sem);
+ 	}
  
- #define PageDirty(page)		test_bit(PG_dirty, &(page)->flags)
++	/* Initialize to run cache_reap as a timer on all cpus. */
++	cpus_clear(threaded_reap);
++
+ 	/* Done! */
+ 	g_cpucache_up = FULL;
+ 
+@@ -2762,6 +2777,63 @@ next:
+ 	up(&cache_chain_sem);
+ }
+ 
++/**
++ * If cache reap is run in thread mode, we run it from here.
++ */
++static int reap_thread(void * data)
++{
++	set_current_state(TASK_INTERRUPTIBLE);
++	while (!kthread_should_stop()) {
++		cache_reap();
++		schedule();
++		set_current_state(TASK_INTERRUPTIBLE);
++	}
++	__set_current_state(TASK_RUNNING);
++	return 0;
++}
++
++/**
++ * If the cpu is configured to run in thread mode, start the reap
++ * thread here.
++ */
++static void start_reap_thread(unsigned long cpu)
++{
++	task_t * p;
++	task_t ** rthread = &per_cpu(reap_thread, cpu);
++	struct sched_param param;
++
++	if (!cpu_isset(cpu, threaded_reap)) {
++		*rthread = NULL;
++		return;
++	}
++
++	param.sched_priority = sys_sched_get_priority_min(SCHED_FIFO); 
++
++	p = kthread_create(reap_thread, NULL, "cache_reap/%d",cpu);
++	if (IS_ERR(p))
++		return;
++	*rthread = p;
++	kthread_bind(p, cpu);
++	sys_sched_setscheduler(p->pid, SCHED_FIFO, &param);
++	wake_up_process(p);
++}
++
++/**
++ * If the cpu is running a reap thread, stop it here.
++ */
++#ifdef CONFIG_HOTPLUG_CPU
++static void stop_reap_thread(unsigned long cpu)
++{
++	task_t ** rthread = &per_cpu(reap_thread, cpu);
++
++	if (*rthread != NULL) {
++		kthread_stop(*rthread);
++		*rthread = NULL;
++	}
++
++}
++#endif
++
+ /*
+  * This is a timer handler.  There is one per CPU.  It is called periodially
+  * to shrink this CPU's caches.  Otherwise there could be memory tied up
+@@ -2770,10 +2842,16 @@ next:
+ static void reap_timer_fnc(unsigned long cpu)
+ {
+ 	struct timer_list *rt = &__get_cpu_var(reap_timers);
++	task_t *rthread = __get_cpu_var(reap_thread);
+ 
+ 	/* CPU hotplug can drag us off cpu: don't run on wrong CPU */
+ 	if (!cpu_is_offline(cpu)) {
+-		cache_reap();
++		/* If we're not running in thread mode, simply run cache reap */
++		if (likely(rthread == NULL)) {
++			cache_reap();
++		} else {
++			wake_up_process(rthread);
++		}
+ 		mod_timer(rt, jiffies + REAPTIMEOUT_CPUC + cpu);
+ 	}
+ }
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
