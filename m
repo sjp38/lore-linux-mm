@@ -1,248 +1,767 @@
-Subject: [2/7] 060 refactor setup_memory i386
+Subject: [5/7] 150 sparsemem
 In-Reply-To: <1098973549.shadowen.org
-Message-Id: <E1CNBE0-0006bV-ML@ladymac.shadowen.org>
+Message-Id: <E1CNBEG-0006bs-Q7@ladymac.shadowen.org>
 From: Andy Whitcroft <apw@shadowen.org>
-Date: Thu, 28 Oct 2004 15:26:00 +0100
+Date: Thu, 28 Oct 2004 15:26:16 +0100
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: haveblue@us.ibm.com, lhms-devel@lists.sourceforge.net
 Cc: linux-mm@kvack.org, apw@shadowen.org
 List-ID: <linux-mm.kvack.org>
 
-Refactor the i386 default and CONFIG_DISCONTIG_MEM setup_memory()
-functions to share the common bootmem initialisation code.  This code
-is intended to be identical, but there are currently some fixes
-applied to one and not the other.  This patch extracts this common
-initialisation code.
+CONFIG_NONLINEAR memory model.
 
 Revision: $Rev$
 
 Signed-off-by: Andy Whitcroft <apw@shadowen.org>
 
-diffstat 060-refactor-setup_memory-i386
+diffstat 150-sparsemem
 ---
- kernel/setup.c |   25 ++++++------
- mm/discontig.c |  117 +--------------------------------------------------------
- 2 files changed, 18 insertions(+), 124 deletions(-)
+ include/linux/mm.h     |  103 +++++++++++++++++++++++++++++++++---
+ include/linux/mmzone.h |  140 +++++++++++++++++++++++++++++++++++++++++++++++--
+ include/linux/numa.h   |    2 
+ init/main.c            |    1 
+ mm/Makefile            |    2 
+ mm/bootmem.c           |   15 ++++-
+ mm/memory.c            |    2 
+ mm/page_alloc.c        |   87 +++++++++++++++++++++++++++++-
+ mm/sparse.c            |  137 +++++++++++++++++++++++++++++++++++++++++++++++
+ 9 files changed, 469 insertions(+), 20 deletions(-)
 
-diff -upN reference/arch/i386/kernel/setup.c current/arch/i386/kernel/setup.c
---- reference/arch/i386/kernel/setup.c
-+++ current/arch/i386/kernel/setup.c
-@@ -941,8 +941,6 @@ unsigned long __init find_max_low_pfn(vo
- 	return max_low_pfn;
+diff -X /home/apw/brief/lib/vdiff.excl -rupN reference/include/linux/mm.h current/include/linux/mm.h
+--- reference/include/linux/mm.h
++++ current/include/linux/mm.h
+@@ -379,24 +379,76 @@ static inline void put_page(struct page 
+ 
+ #define FLAGS_SHIFT	(sizeof(page_flags_t)*8)
+ 
+-/* 32bit: NODE:ZONE */
++/*
++ * CONFIG_SPARSEMEM:
++ *   If there is room for SECTIONS, NODES AND ZONES then:
++ *     NODE:ZONE:SECTION
++ *   else:
++ *     SECTION:ZONE
++ *
++ * Otherwise:
++ *   NODE:ZONE
++ */
++#ifdef CONFIG_SPARSEMEM
++
++#if FLAGS_TOTAL_SHIFT >= SECTIONS_SHIFT + NODES_SHIFT + ZONES_SHIFT
++
++/* NODE:ZONE:SECTION */
+ #define PGFLAGS_NODES_SHIFT	(FLAGS_SHIFT - NODES_SHIFT)
+ #define PGFLAGS_ZONES_SHIFT	(PGFLAGS_NODES_SHIFT - ZONES_SHIFT)
++#define PGFLAGS_SECTIONS_SHIFT	(PGFLAGS_ZONES_SHIFT - SECTIONS_SHIFT)
++
++#define FLAGS_USED_SHIFT	(NODES_SHIFT + ZONES_SHIFT + SECTIONS_SHIFT)
+ 
+ #define ZONETABLE_SHIFT		(NODES_SHIFT + ZONES_SHIFT)
+ #define PGFLAGS_ZONETABLE_SHIFT	(FLAGS_SHIFT - ZONETABLE_SHIFT)
+ 
+-#if NODES_SHIFT+ZONES_SHIFT > FLAGS_TOTAL_SHIFT
+-#error NODES_SHIFT+ZONES_SHIFT > FLAGS_TOTAL_SHIFT
++#define ZONETABLE(section, node, zone) \
++			((node << ZONES_SHIFT) | zone)
++
++#else
++
++/* SECTION:ZONE */
++#define PGFLAGS_SECTIONS_SHIFT	(FLAGS_SHIFT - SECTIONS_SHIFT)
++#define PGFLAGS_ZONES_SHIFT	(PGFLAGS_SECTIONS_SHIFT - ZONES_SHIFT)
++
++#define FLAGS_USED_SHIFT	(SECTIONS_SHIFT + ZONES_SHIFT)
++
++#define ZONETABLE_SHIFT		(SECTIONS_SHIFT + ZONES_SHIFT)
++#define PGFLAGS_ZONETABLE_SHIFT	(FLAGS_SHIFT - ZONETABLE_SHIFT)
++
++#define ZONETABLE(section, node, zone) \
++			((section << ZONES_SHIFT) | zone)
++
++#endif
++
++#else /* !CONFIG_SPARSEMEM */
++
++/* NODE:ZONE */
++#define PGFLAGS_NODES_SHIFT	(FLAGS_SHIFT - NODES_SHIFT)
++#define PGFLAGS_ZONES_SHIFT	(PGFLAGS_NODES_SHIFT - ZONES_SHIFT)
++
++#define ZONETABLE_SHIFT		(NODES_SHIFT + ZONES_SHIFT)
++#define PGFLAGS_ZONETABLE_SHIFT	(FLAGS_SHIFT - ZONETABLE_SHIFT)
++
++#define FLAGS_USED_SHIFT	(NODES_SHIFT + ZONES_SHIFT)
++
++#endif /* !CONFIG_SPARSEMEM */
++
++#if FLAGS_USED_SHIFT > FLAGS_TOTAL_SHIFT
++#error SECTIONS_SHIFT+NODES_SHIFT+ZONES_SHIFT > FLAGS_TOTAL_SHIFT
+ #endif
+ 
+ #define NODEZONE(node, zone)		((node << ZONES_SHIFT) | zone)
+ 
+ #define ZONES_MASK		(~((~0UL) << ZONES_SHIFT))
+ #define NODES_MASK		(~((~0UL) << NODES_SHIFT))
++#define SECTIONS_MASK		(~((~0UL) << SECTIONS_SHIFT))
+ #define ZONETABLE_MASK		(~((~0UL) << ZONETABLE_SHIFT))
+ 
+-#define PGFLAGS_MASK		(~((~0UL) << PGFLAGS_ZONETABLE_SHIFT)
++#define ZONETABLE_SIZE  	(1 << ZONETABLE_SHIFT)
++
++#define PGFLAGS_MASK		(~((~0UL) << PGFLAGS_ZONETABLE_SHIFT))
+ 
+ static inline unsigned long page_zonenum(struct page *page)
+ {
+@@ -405,13 +457,34 @@ static inline unsigned long page_zonenum
+  	else
+  		return (page->flags >> PGFLAGS_ZONES_SHIFT) & ZONES_MASK;
+ }
++#ifdef PGFLAGS_NODES_SHIFT
+ static inline unsigned long page_to_nid(struct page *page)
+ {
++#if NODES_SHIFT == 0
++	return 0;
++#else 
+ 	if (FLAGS_SHIFT == (PGFLAGS_NODES_SHIFT + NODES_SHIFT))
+ 		return (page->flags >> PGFLAGS_NODES_SHIFT);
+ 	else
+ 		return (page->flags >> PGFLAGS_NODES_SHIFT) & NODES_MASK;
++#endif
+ }
++#else
++static inline struct zone *page_zone(struct page *page);
++static inline unsigned long page_to_nid(struct page *page)
++{
++	return page_zone(page)->zone_pgdat->node_id;
++}
++#endif
++#ifdef PGFLAGS_SECTIONS_SHIFT
++static inline unsigned long page_to_section(struct page *page)
++{
++	if (FLAGS_SHIFT == (PGFLAGS_SECTIONS_SHIFT + SECTIONS_SHIFT))
++ 		return (page->flags >> PGFLAGS_SECTIONS_SHIFT);
++ 	else
++ 		return (page->flags >> PGFLAGS_SECTIONS_SHIFT) & SECTIONS_MASK;
++}
++#endif
+ 
+ struct zone;
+ extern struct zone *zone_table[];
+@@ -425,13 +498,27 @@ static inline struct zone *page_zone(str
+ 			ZONETABLE_MASK];
+ }
+ 
+-static inline void set_page_zone(struct page *page, unsigned long nodezone_num)
++static inline void set_page_zone(struct page *page, unsigned long zone)
++{
++	page->flags &= ~(ZONES_MASK << PGFLAGS_ZONES_SHIFT);
++	page->flags |= zone << PGFLAGS_ZONES_SHIFT;
++}
++static inline void set_page_node(struct page *page, unsigned long node)
+ {
+-	page->flags &= PGFLAGS_MASK;
+-	page->flags |= nodezone_num << PGFLAGS_ZONETABLE_SHIFT;
++#if defined(PGFLAGS_NODES_SHIFT) && NODES_SHIFT != 0
++	page->flags &= ~(NODES_MASK << PGFLAGS_NODES_SHIFT);
++	page->flags |= node << PGFLAGS_NODES_SHIFT;
++#endif
++}
++static inline void set_page_section(struct page *page, unsigned long section)
++{
++#ifdef PGFLAGS_SECTIONS_SHIFT
++	page->flags &= ~(SECTIONS_MASK << PGFLAGS_SECTIONS_SHIFT);
++	page->flags |= section << PGFLAGS_SECTIONS_SHIFT;
++#endif
  }
  
 -#ifndef CONFIG_DISCONTIGMEM
--
++#ifdef CONFIG_FLATMEM
+ /* The array of struct pages - for discontigmem use pgdat->lmem_map */
+ extern struct page *mem_map;
+ #endif
+diff -X /home/apw/brief/lib/vdiff.excl -rupN reference/include/linux/mmzone.h current/include/linux/mmzone.h
+--- reference/include/linux/mmzone.h
++++ current/include/linux/mmzone.h
+@@ -372,7 +372,7 @@ int lower_zone_protection_sysctl_handler
+ /* Returns the number of the current Node. */
+ #define numa_node_id()		(cpu_to_node(smp_processor_id()))
+ 
+-#ifndef CONFIG_DISCONTIGMEM
++#ifdef CONFIG_FLATMEM
+ 
+ extern struct pglist_data contig_page_data;
+ #define NODE_DATA(nid)		(&contig_page_data)
+@@ -384,6 +384,8 @@ extern struct pglist_data contig_page_da
+ 
+ #include <asm/mmzone.h>
+ 
++#endif /* CONFIG_FLATMEM */
++
+ #if BITS_PER_LONG == 32 || defined(ARCH_HAS_ATOMIC_UNSIGNED)
  /*
-  * Free all available memory for boot time allocation.  Used
-  * as a callback function by efi_memory_walk()
-@@ -1016,15 +1014,15 @@ static void __init reserve_ebda_region(v
- 		reserve_bootmem(addr, PAGE_SIZE);	
- }
- 
-+#ifndef CONFIG_DISCONTIGMEM
-+void __init setup_bootmem_allocator(void);
- static unsigned long __init setup_memory(void)
- {
--	unsigned long bootmap_size, start_pfn, max_low_pfn;
--
- 	/*
- 	 * partially used pages are not usable - thus
- 	 * we are rounding upwards:
- 	 */
--	start_pfn = PFN_UP(init_pg_tables_end);
-+	min_low_pfn = PFN_UP(init_pg_tables_end);
- 
- 	find_max_pfn();
- 
-@@ -1040,10 +1038,19 @@ static unsigned long __init setup_memory
- #endif
- 	printk(KERN_NOTICE "%ldMB LOWMEM available.\n",
- 			pages_to_mb(max_low_pfn));
+  * with 32 bit page->flags field, we reserve 8 bits for node/zone info.
+@@ -395,10 +397,13 @@ extern struct pglist_data contig_page_da
+ /*
+  * with 64 bit flags field, there's plenty of room.
+  */
+-#define FLAGS_TOTAL_SHIFT	12
+-#endif
++#define FLAGS_TOTAL_SHIFT	32
 +
-+	setup_bootmem_allocator();
-+	return max_low_pfn;
-+}
-+#endif /* !CONFIG_DISCONTIGMEM */
-+
-+void __init setup_bootmem_allocator(void)
-+{
-+	unsigned long bootmap_size;
- 	/*
- 	 * Initialize the boot-time allocator (with low memory only):
- 	 */
--	bootmap_size = init_bootmem(start_pfn, max_low_pfn);
-+	bootmap_size = init_bootmem(min_low_pfn, max_low_pfn);
++#else
  
- 	register_bootmem_low_pages(max_low_pfn);
- 
-@@ -1053,7 +1060,7 @@ static unsigned long __init setup_memory
- 	 * the (very unlikely) case of us accidentally initializing the
- 	 * bootmem allocator with an invalid RAM area.
- 	 */
--	reserve_bootmem(HIGH_MEMORY, (PFN_PHYS(start_pfn) +
-+	reserve_bootmem(HIGH_MEMORY, (PFN_PHYS(min_low_pfn) +
- 			 bootmap_size + PAGE_SIZE-1) - (HIGH_MEMORY));
- 
- 	/*
-@@ -1110,11 +1117,7 @@ static unsigned long __init setup_memory
- 		}
- 	}
- #endif
--	return max_low_pfn;
- }
--#else
--extern unsigned long setup_memory(void);
 -#endif /* !CONFIG_DISCONTIGMEM */
++#error BITS_PER_LONG not set
++
++#endif
+ 
+ extern DECLARE_BITMAP(node_online_map, MAX_NUMNODES);
+ 
+@@ -429,6 +434,133 @@ static inline unsigned int num_online_no
+ #define num_online_nodes()	1
+ 
+ #endif /* CONFIG_DISCONTIGMEM || CONFIG_NUMA */
++
++#ifdef CONFIG_SPARSEMEM
++
++/*
++ * SECTION_SHIFT                #bits space required to store a section #
++ * PHYS_SECTION_SHIFT           #bits required to store a physical section #
++ *
++ * PA_SECTION_SHIFT             physical address to/from section number
++ * PFN_SECTION_SHIFT            pfn to/from section number
++ */
++#define SECTIONS_SHIFT          (MAX_PHYSMEM_BITS - SECTION_SIZE_BITS)
++#define PHYS_SECTION_SHIFT      (MAX_PHYSADDR_BITS - SECTION_SIZE_BITS)
++
++#define PA_SECTION_SHIFT        (SECTION_SIZE_BITS)
++#define PFN_SECTION_SHIFT       (SECTION_SIZE_BITS - PAGE_SHIFT)
++
++#define NR_MEM_SECTIONS        	(1 << SECTIONS_SHIFT)
++#define NR_PHYS_SECTIONS        (1 << PHYS_SECTION_SHIFT)
++
++#define PAGES_PER_SECTION       (1 << PFN_SECTION_SHIFT)
++#define PAGE_SECTION_MASK	(~(PAGES_PER_SECTION-1))
++
++#if NR_MEM_SECTIONS != NR_PHYS_SECTIONS
++#define SPARSEMEM_USE_PHYS_SECTION 1
++#endif
++
++struct page;
++struct mem_section {
++	short section_nid;
++	struct page *section_mem_map;
++};
++
++#ifdef SPARSEMEM_USE_PHYS_SECTION
++extern short phys_section[NR_PHYS_SECTIONS];
++#endif
++extern struct mem_section mem_section[NR_MEM_SECTIONS];
++
++/*
++ * Given a kernel address, find the home node of the underlying memory.
++ */
++#define kvaddr_to_nid(kaddr)	pfn_to_nid(__pa(kaddr) >> PAGE_SHIFT)
++
++#if 0
++#define node_mem_map(nid)	(NODE_DATA(nid)->node_mem_map)
++
++#define node_start_pfn(nid)	(NODE_DATA(nid)->node_start_pfn)
++#define node_end_pfn(nid)						\
++({									\
++	pg_data_t *__pgdat = NODE_DATA(nid);				\
++	__pgdat->node_start_pfn + __pgdat->node_spanned_pages;		\
++})
++
++#define local_mapnr(kvaddr)						\
++({									\
++	unsigned long __pfn = __pa(kvaddr) >> PAGE_SHIFT;		\
++	(__pfn - node_start_pfn(pfn_to_nid(__pfn)));			\
++})
++#endif
++
++#if 0
++/* XXX: FIXME -- wli */
++#define kern_addr_valid(kaddr)	(0)
++#endif
++
++static inline struct mem_section *__pfn_to_section(unsigned long pfn)
++{
++#ifndef SPARSEMEM_USE_PHYS_SECTION
++	return &mem_section[pfn >> PFN_SECTION_SHIFT];
++#else
++	return &mem_section[phys_section[pfn >> PFN_SECTION_SHIFT]];
++#endif
++}
++
++#define pfn_to_page(pfn) 						\
++({ 									\
++	unsigned long __pfn = (pfn);					\
++	__pfn_to_section(__pfn)->section_mem_map + __pfn;		\
++})
++#define page_to_pfn(page)						\
++({									\
++	page - mem_section[page_to_section(page)].section_mem_map;	\
++})
++
++/* APW/XXX: this is not generic??? */
++#if 0
++#define pmd_page(pmd)		(pfn_to_page(pmd_val(pmd) >> PAGE_SHIFT))
++#endif
++
++static inline int pfn_valid(unsigned long pfn)
++{
++	if ((pfn >> PFN_SECTION_SHIFT) >= NR_PHYS_SECTIONS) 
++		return 0;
++#ifndef SPARSEMEM_USE_PHYS_SECTION
++	return mem_section[pfn >> PFN_SECTION_SHIFT].section_mem_map != 0;
++#else
++	return phys_section[pfn >> PFN_SECTION_SHIFT] != -1;
++#endif
++}
++
++/*
++ * APW/XXX: these are _only_ used during initialisation, therefore they
++ * can use __initdata ... they should have names to indicate this
++ * restriction.
++ */
++#ifdef CONFIG_NUMA
++extern unsigned long phys_section_nid[NR_PHYS_SECTIONS];
++#define pfn_to_nid(pfn)							\
++({									\
++	unsigned long __pfn = (pfn);					\
++	phys_section_nid[__pfn >> PFN_SECTION_SHIFT];			\
++})
++#else
++	__pfn_to_section(__pfn)->section_nid;				\
++#define pfn_to_nid(pfn) 0
++#endif
++
++#define pfn_to_pgdat(pfn)						\
++({									\
++	NODE_DATA(pfn_to_nid(pfn));					\
++})
++
++int sparse_add(int nid, unsigned long start, unsigned long end);
++int sparse_calculate(int nid);
++void sparse_allocate(void);
++
++#endif /* CONFIG_SPARSEMEM */
++
+ #endif /* !__ASSEMBLY__ */
+ #endif /* __KERNEL__ */
+ #endif /* _LINUX_MMZONE_H */
+diff -X /home/apw/brief/lib/vdiff.excl -rupN reference/include/linux/numa.h current/include/linux/numa.h
+--- reference/include/linux/numa.h
++++ current/include/linux/numa.h
+@@ -3,7 +3,7 @@
+ 
+ #include <linux/config.h>
+ 
+-#ifdef CONFIG_DISCONTIGMEM
++#ifndef CONFIG_FLATMEM
+ #include <asm/numnodes.h>
+ #endif
+ 
+diff -X /home/apw/brief/lib/vdiff.excl -rupN reference/init/main.c current/init/main.c
+--- reference/init/main.c
++++ current/init/main.c
+@@ -480,6 +480,7 @@ asmlinkage void __init start_kernel(void
+ {
+ 	char * command_line;
+ 	extern struct kernel_param __start___param[], __stop___param[];
++
+ /*
+  * Interrupts are still disabled. Do necessary setups, then
+  * enable them
+diff -X /home/apw/brief/lib/vdiff.excl -rupN reference/mm/bootmem.c current/mm/bootmem.c
+--- reference/mm/bootmem.c
++++ current/mm/bootmem.c
+@@ -255,6 +255,7 @@ found:
+ static unsigned long __init free_all_bootmem_core(pg_data_t *pgdat)
+ {
+ 	struct page *page;
++	unsigned long pfn;
+ 	bootmem_data_t *bdata = pgdat->bdata;
+ 	unsigned long i, count, total = 0;
+ 	unsigned long idx;
+@@ -265,15 +266,26 @@ static unsigned long __init free_all_boo
+ 
+ 	count = 0;
+ 	/* first extant page of the node */
+-	page = virt_to_page(phys_to_virt(bdata->node_boot_start));
++	pfn = bdata->node_boot_start >> PAGE_SHIFT;
+ 	idx = bdata->node_low_pfn - (bdata->node_boot_start >> PAGE_SHIFT);
+ 	map = bdata->node_bootmem_map;
+ 	/* Check physaddr is O(LOG2(BITS_PER_LONG)) page aligned */
+ 	if (bdata->node_boot_start == 0 ||
+ 	    ffs(bdata->node_boot_start) - PAGE_SHIFT > ffs(BITS_PER_LONG))
+ 		gofast = 1;
++	page = pfn_to_page(pfn);
+ 	for (i = 0; i < idx; ) {
+ 		unsigned long v = ~map[i / BITS_PER_LONG];
++
++		/*
++		 * Makes use of the guarentee that *_mem_map will be
++		 * contigious in sections aligned at MAX_ORDER.
++		 * APW/XXX: we are making an assumption that our node_boot_start
++		 * is aligned to BITS_PER_LONG ... is this valid/enforced.
++		 */
++		if ((pfn & ((1 << MAX_ORDER) - 1)) == 0)
++			page = pfn_to_page(pfn);
++
+ 		if (gofast && v == ~0UL) {
+ 			int j;
+ 
+@@ -302,6 +314,7 @@ static unsigned long __init free_all_boo
+ 			i+=BITS_PER_LONG;
+ 			page += BITS_PER_LONG;
+ 		}
++		pfn += BITS_PER_LONG;
+ 	}
+ 	total += count;
+ 
+diff -X /home/apw/brief/lib/vdiff.excl -rupN reference/mm/Makefile current/mm/Makefile
+--- reference/mm/Makefile
++++ current/mm/Makefile
+@@ -15,6 +15,6 @@ obj-y			:= bootmem.o filemap.o mempool.o
+ obj-$(CONFIG_SWAP)	+= page_io.o swap_state.o swapfile.o thrash.o
+ obj-$(CONFIG_HUGETLBFS)	+= hugetlb.o
+ obj-$(CONFIG_NUMA) 	+= mempolicy.o
++obj-$(CONFIG_SPARSEMEM)       += sparse.o
+ obj-$(CONFIG_SHMEM) += shmem.o
+ obj-$(CONFIG_TINY_SHMEM) += tiny-shmem.o
+-
+diff -X /home/apw/brief/lib/vdiff.excl -rupN reference/mm/memory.c current/mm/memory.c
+--- reference/mm/memory.c
++++ current/mm/memory.c
+@@ -56,7 +56,7 @@
+ #include <linux/swapops.h>
+ #include <linux/elf.h>
+ 
+-#ifndef CONFIG_DISCONTIGMEM
++#ifdef CONFIG_FLATMEM
+ /* use the per-pgdat data instead for discontigmem - mbligh */
+ unsigned long max_mapnr;
+ struct page *mem_map;
+diff -X /home/apw/brief/lib/vdiff.excl -rupN reference/mm/sparse.c current/mm/sparse.c
+--- reference/mm/sparse.c
++++ current/mm/sparse.c
+@@ -0,0 +1,137 @@
++/*
++ * Non-linear memory mappings.
++ */
++#include <linux/config.h>
++#include <linux/mm.h>
++#include <linux/bootmem.h>
++#include <linux/module.h>
++#include <asm/dma.h>
++
++/*
++ * Permenant non-linear data:
++ *
++ * 1) phys_section	- valid physical memory sections (in mem_section)
++ * 2) mem_section	- memory sections, mem_map's for valid memory
++ */
++#ifdef SPARSEMEM_USE_PHYS_SECTION
++short phys_section[NR_PHYS_SECTIONS] = { [ 0 ... NR_PHYS_SECTIONS-1] = -1 };
++EXPORT_SYMBOL(phys_section);
++#endif
++struct mem_section mem_section[NR_MEM_SECTIONS];
++EXPORT_SYMBOL(mem_section);
++
++
++/*
++ * Initialisation time data:
++ *
++ * 1) phys_section_nid  - physical section node id
++ * 2) phys_section_pfn  - physical section base page frame
++ */
++unsigned long phys_section_nid[NR_PHYS_SECTIONS] __initdata =
++	{ [ 0 ... NR_PHYS_SECTIONS-1] = -1 };
++static unsigned long phys_section_pfn[NR_PHYS_SECTIONS] __initdata;
++
++/* Record a non-linear memory area for a node. */
++int sparse_add(int nid, unsigned long start, unsigned long end)
++{
++	unsigned long pfn = start;
++
++printk(KERN_WARNING "APW: sparse_add: nid<%d> start<%08lx:%ld> end<%08lx:%ld>\n",
++		nid, start, start >> PFN_SECTION_SHIFT, end, end >> PFN_SECTION_SHIFT);
++	start &= PAGE_SECTION_MASK;
++	for (pfn = start; pfn < end; pfn += PAGES_PER_SECTION) {
++/*printk(KERN_WARNING "  APW: sparse_add: section<%d> pfn<%08lx>\n", 
++	pfn >> PFN_SECTION_SHIFT, pfn);*/
++		phys_section_nid[pfn >> PFN_SECTION_SHIFT] = nid;
++		phys_section_pfn[pfn >> PFN_SECTION_SHIFT] = pfn;
++	}
++
++	return 1;
++}
++
++/*
++ * Calculate the space required on a per node basis for the mmap.
++ */
++int sparse_calculate(int nid)
++{
++	int pnum;
++	int sections = 0;
++
++	for (pnum = 0; pnum < NR_PHYS_SECTIONS; pnum++) {
++		if (phys_section_nid[pnum] == nid)
++			sections++;
++	}
++
++	return (sections * PAGES_PER_SECTION * sizeof(struct page));
++}
++
++
++/* XXX/APW: NO! */
++void *alloc_remap(int nid, unsigned long size);
++
++/*
++ * Allocate the accumulated non-linear sections, allocate a mem_map
++ * for each and record the physical to section mapping.
++ */
++void sparse_allocate(void)
++{
++	int snum = 0;
++	int pnum;
++	struct page *map;
++
++	for (pnum = 0; pnum < NR_PHYS_SECTIONS; pnum++) {
++		if (phys_section_nid[pnum] == -1)
++			continue;
++
++		/* APW/XXX: this is a dumbo name for this feature, should
++		 * be something like alloc_really_really_early. */
++#ifdef HAVE_ARCH_ALLOC_REMAP
++		map = alloc_remap(phys_section_nid[pnum],
++				sizeof(struct page) * PAGES_PER_SECTION);
++#else
++		map = 0;
++#endif
++		if (!map)
++			map = alloc_bootmem_node(NODE_DATA(phys_section_nid[pnum]),
++				sizeof(struct page) * PAGES_PER_SECTION);
++		if (!map)
++			continue;
++
++		/*
++		 * Subtle, we encode the real pfn into the mem_map such that
++		 * the identity pfn - section_mem_map will return the actual
++		 * physical page frame number.
++		 */
++#ifndef SPARSEMEM_USE_PHYS_SECTION
++		snum = pnum;
++#else
++		phys_section[pnum] = snum;
++#endif
++		mem_section[snum].section_mem_map = map -
++			phys_section_pfn[pnum];
++
++if ((pnum % 32) == 0)
++printk(KERN_WARNING "APW: sparse_allocate: section<%d> map<%p> ms<%p> pfn<%08lx>\n", pnum, map, mem_section[snum].section_mem_map,  phys_section_pfn[pnum]);
++
++
++		snum++;
++	}
++
++#if 0
++#define X(x)	printk(KERN_WARNING "APW: " #x "<%08lx>\n", x)
++	X(FLAGS_SHIFT);
++	X(SECTIONS_SHIFT);
++	X(ZONES_SHIFT);
++	X(PGFLAGS_SECTIONS_SHIFT);
++	X(PGFLAGS_ZONES_SHIFT);
++	X(ZONETABLE_SHIFT);
++	X(PGFLAGS_ZONETABLE_SHIFT);
++	X(FLAGS_USED_SHIFT);
++	X(ZONES_MASK);
++	X(NODES_MASK);
++	X(SECTIONS_MASK);
++	X(ZONETABLE_MASK);
++	X(ZONETABLE_SIZE);
++	X(PGFLAGS_MASK);
++#endif
++}
+diff -X /home/apw/brief/lib/vdiff.excl -rupN reference/mm/page_alloc.c current/mm/page_alloc.c
+--- reference/mm/page_alloc.c
++++ current/mm/page_alloc.c
+@@ -49,7 +49,7 @@ EXPORT_SYMBOL(nr_swap_pages);
+  * Used by page_zone() to look up the address of the struct zone whose
+  * id is encoded in the upper bits of page->flags
+  */
+-struct zone *zone_table[1 << (ZONES_SHIFT + NODES_SHIFT)];
++struct zone *zone_table[ZONETABLE_SIZE];
+ EXPORT_SYMBOL(zone_table);
+ 
+ static char *zone_names[MAX_NR_ZONES] = { "DMA", "Normal", "HighMem" };
+@@ -63,6 +63,7 @@ unsigned long __initdata nr_all_pages;
+  */
+ static int bad_range(struct zone *zone, struct page *page)
+ {
++	/* printk(KERN_WARNING "bad_range: page<%p> pfn<%08lx> s<%08lx> e<%08lx> zone<%p><%p>\n", page, page_to_pfn(page), zone->zone_start_pfn,  zone->zone_start_pfn + zone->spanned_pages, zone, page_zone(page)); */
+ 	if (page_to_pfn(page) >= zone->zone_start_pfn + zone->spanned_pages)
+ 		return 1;
+ 	if (page_to_pfn(page) < zone->zone_start_pfn)
+@@ -187,7 +188,11 @@ static inline void __free_pages_bulk (st
+ 	if (order)
+ 		destroy_compound_page(page, order);
+ 	mask = (~0UL) << order;
++#ifdef CONFIG_SPARSEMEM
++	page_idx = page_to_pfn(page) - zone->zone_start_pfn;
++#else
+ 	page_idx = page - base;
++#endif
+ 	if (page_idx & ~mask)
+ 		BUG();
+ 	index = page_idx >> (1 + order);
+@@ -204,8 +209,35 @@ static inline void __free_pages_bulk (st
+ 			break;
+ 
+ 		/* Move the buddy up one level. */
++#ifdef CONFIG_SPARSEMEM
++		/*
++		 * Locate the struct page for both the matching buddy in our
++		 * pair (buddy1) and the combined O(n+1) page they form (page).
++		 * 
++		 * 1) Any buddy B1 will have an order O twin B2 which satisfies
++		 * the following equasion:
++		 *     B2 = B1 ^ (1 << O)
++		 * For example, if the starting buddy (buddy2) is #8 its order
++		 * 1 buddy is #10:
++		 *     B2 = 8 ^ (1 << 1) = 8 ^ 2 = 10
++		 *
++		 * 2) Any buddy B will have an order O+1 parent P which
++		 * satisfies the following equasion:
++		 *     P = B & ~(1 << O)
++		 *
++		 * Assumption: *_mem_map is contigious at least up to MAX_ORDER
++		 */
++		buddy1 = page + ((page_idx ^ (1 << order)) - page_idx);
++		buddy2 = page;
++
++		page = page - (page_idx - (page_idx & ~(1 << order)));
++
++		if (bad_range(zone, buddy1))
++		printk(KERN_WARNING "__free_pages_bulk: buddy1<%p> buddy2<%p> page<%p> page_idx<%ld> off<%ld>\n", buddy1, buddy2, page, page_idx, (page_idx - (page_idx & ~(1 << order)))); 
++#else
+ 		buddy1 = base + (page_idx ^ (1 << order));
+ 		buddy2 = base + page_idx;
++#endif
+ 		BUG_ON(bad_range(zone, buddy1));
+ 		BUG_ON(bad_range(zone, buddy2));
+ 		list_del(&buddy1->lru);
+@@ -215,7 +247,11 @@ static inline void __free_pages_bulk (st
+ 		index >>= 1;
+ 		page_idx &= mask;
+ 	}
++#ifdef CONFIG_SPARSEMEM
++	list_add(&page->lru, &area->free_list);
++#else
+ 	list_add(&(base + page_idx)->lru, &area->free_list);
++#endif
+ }
+ 
+ static inline void free_pages_check(const char *function, struct page *page)
+@@ -380,7 +416,11 @@ static struct page *__rmqueue(struct zon
+ 
+ 		page = list_entry(area->free_list.next, struct page, lru);
+ 		list_del(&page->lru);
++#ifdef CONFIG_SPARSEMEM
++		index = page_to_pfn(page) - zone->zone_start_pfn;
++#else
+ 		index = page - zone->zone_mem_map;
++#endif
+ 		if (current_order != MAX_ORDER-1)
+ 			MARK_USED(index, current_order, area);
+ 		zone->free_pages -= 1UL << order;
+@@ -1401,9 +1441,39 @@ void __init memmap_init_zone(unsigned lo
+ {
+ 	struct page *start = pfn_to_page(start_pfn);
+ 	struct page *page;
++	struct zone *zonep = &NODE_DATA(nid)->node_zones[zone];
++#ifdef CONFIG_SPARSEMEM
++	int pfn;
++#endif
++
++	/* APW/XXX: this is the place to both allocate the memory for the
++	 * section; scan the range offered relative to the zone and
++	 * instantiate the page's.
++	 */
++	printk(KERN_WARNING "APW: zone<%p> start<%08lx> pgdat<%p>\n",
++			zonep, start_pfn, zonep->zone_pgdat);
+ 
++#ifdef CONFIG_SPARSEMEM
++	for (pfn = start_pfn; pfn < (start_pfn + size); pfn++) {
++		if (!pfn_valid(pfn))
++			continue;
++		page = pfn_to_page(pfn);
++
++		/*
++		 * Record the CHUNKZONE for this page and the install the
++		 * zone_table link for it also.
++		 */
++		set_page_node(page, nid);
++		set_page_zone(page, zone);
++		set_page_section(page, pfn >> PFN_SECTION_SHIFT);
++		zone_table[ZONETABLE(pfn >> PFN_SECTION_SHIFT, nid, zone)] =
++			zonep;
++#else
+ 	for (page = start; page < (start + size); page++) {
+-		set_page_zone(page, NODEZONE(nid, zone));
++		set_page_node(page, nid);
++		set_page_zone(page, zone);
++#endif
++
+ 		set_page_count(page, 0);
+ 		reset_page_mapcount(page);
+ 		SetPageReserved(page);
+@@ -1413,8 +1483,15 @@ void __init memmap_init_zone(unsigned lo
+ 		if (!is_highmem_idx(zone))
+ 			set_page_address(page, __va(start_pfn << PAGE_SHIFT));
+ #endif
++		
++#ifdef CONFIG_SPARSEMEM
++	}
++#else
+ 		start_pfn++;
+ 	}
++#endif
++	printk(KERN_WARNING "APW: zone<%p> start<%08lx> pgdat<%p>\n",
++			zonep, start_pfn, zonep->zone_pgdat);
+ }
  
  /*
-  * Request address space for all standard RAM and ROM resources
-diff -upN reference/arch/i386/mm/discontig.c current/arch/i386/mm/discontig.c
---- reference/arch/i386/mm/discontig.c
-+++ current/arch/i386/mm/discontig.c
-@@ -136,46 +136,6 @@ static void __init allocate_pgdat(int ni
- 	}
+@@ -1509,7 +1586,9 @@ static void __init free_area_init_core(s
+ 		unsigned long size, realsize;
+ 		unsigned long batch;
+ 
++#ifndef CONFIG_SPARSEMEM
+ 		zone_table[NODEZONE(nid, j)] = zone;
++#endif
+ 		realsize = size = zones_size[j];
+ 		if (zholes_size)
+ 			realsize -= zholes_size[j];
+@@ -1613,7 +1692,7 @@ void __init node_alloc_mem_map(struct pg
+ #endif
+ 		map = alloc_bootmem_node(pgdat, size);
+ 	pgdat->node_mem_map = map;
+-#ifndef CONFIG_DISCONTIGMEM
++#ifdef CONFIG_FLATMEM
+ 	mem_map = contig_page_data.node_mem_map;
+ #endif
+ }
+@@ -1632,7 +1711,7 @@ void __init free_area_init_node(int nid,
+ 	free_area_init_core(pgdat, zones_size, zholes_size);
  }
  
--/*
-- * Register fully available low RAM pages with the bootmem allocator.
-- */
--static void __init register_bootmem_low_pages(unsigned long system_max_low_pfn)
--{
--	int i;
--
--	for (i = 0; i < e820.nr_map; i++) {
--		unsigned long curr_pfn, last_pfn, size;
--		/*
--		 * Reserve usable low memory
--		 */
--		if (e820.map[i].type != E820_RAM)
--			continue;
--		/*
--		 * We are rounding up the start address of usable memory:
--		 */
--		curr_pfn = PFN_UP(e820.map[i].addr);
--		if (curr_pfn >= system_max_low_pfn)
--			continue;
--		/*
--		 * ... and at the end of the usable range downwards:
--		 */
--		last_pfn = PFN_DOWN(e820.map[i].addr + e820.map[i].size);
--
--		if (last_pfn > system_max_low_pfn)
--			last_pfn = system_max_low_pfn;
--
--		/*
--		 * .. finally, did all the rounding and playing
--		 * around just make the area go away?
--		 */
--		if (last_pfn <= curr_pfn)
--			continue;
--
--		size = last_pfn - curr_pfn;
--		free_bootmem_node(NODE_DATA(0), PFN_PHYS(curr_pfn), PFN_PHYS(size));
--	}
--}
--
- void __init remap_numa_kva(void)
- {
- 	void *vaddr;
-@@ -220,21 +180,11 @@ static unsigned long calculate_numa_rema
- 	return reserve_pages;
- }
+-#ifndef CONFIG_DISCONTIGMEM
++#ifdef CONFIG_FLATMEM
+ static bootmem_data_t contig_bootmem_data;
+ struct pglist_data contig_page_data = { .bdata = &contig_bootmem_data };
  
--/*
-- * workaround for Dell systems that neglect to reserve EBDA
-- */
--static void __init reserve_ebda_region_node(void)
--{
--	unsigned int addr;
--	addr = get_bios_ebda();
--	if (addr)
--		reserve_bootmem_node(NODE_DATA(0), addr, PAGE_SIZE);
--}
--
-+extern void setup_bootmem_allocator(void);
- unsigned long __init setup_memory(void)
- {
- 	int nid;
--	unsigned long bootmap_size, system_start_pfn, system_max_low_pfn;
-+	unsigned long system_start_pfn, system_max_low_pfn;
- 	unsigned long reserve_pages, pfn;
- 
- 	/*
-@@ -301,68 +251,9 @@ unsigned long __init setup_memory(void)
- 
- 	NODE_DATA(0)->bdata = &node0_bdata;
- 
--	/*
--	 * Initialize the boot-time allocator (with low memory only):
--	 */
--	bootmap_size = init_bootmem_node(NODE_DATA(0), min_low_pfn, 0, system_max_low_pfn);
-+	setup_bootmem_allocator();
- 
--	register_bootmem_low_pages(system_max_low_pfn);
--
--	/*
--	 * Reserve the bootmem bitmap itself as well. We do this in two
--	 * steps (first step was init_bootmem()) because this catches
--	 * the (very unlikely) case of us accidentally initializing the
--	 * bootmem allocator with an invalid RAM area.
--	 */
--	reserve_bootmem_node(NODE_DATA(0), HIGH_MEMORY, (PFN_PHYS(min_low_pfn) +
--		 bootmap_size + PAGE_SIZE-1) - (HIGH_MEMORY));
--
--	/*
--	 * reserve physical page 0 - it's a special BIOS page on many boxes,
--	 * enabling clean reboots, SMP operation, laptop functions.
--	 */
--	reserve_bootmem_node(NODE_DATA(0), 0, PAGE_SIZE);
--
--	/*
--	 * But first pinch a few for the stack/trampoline stuff
--	 * FIXME: Don't need the extra page at 4K, but need to fix
--	 * trampoline before removing it. (see the GDT stuff)
--	 */
--	reserve_bootmem_node(NODE_DATA(0), PAGE_SIZE, PAGE_SIZE);
--
--	/* reserve EBDA region, it's a 4K region */
--	reserve_ebda_region_node();
--
--#ifdef CONFIG_ACPI_SLEEP
--	/*
--	 * Reserve low memory region for sleep support.
--	 */
--	acpi_reserve_bootmem();
--#endif
--
--	/*
--	 * Find and reserve possible boot-time SMP configuration:
--	 */
--	find_smp_config();
--
--#ifdef CONFIG_BLK_DEV_INITRD
--	if (LOADER_TYPE && INITRD_START) {
--		if (INITRD_START + INITRD_SIZE <= (system_max_low_pfn << PAGE_SHIFT)) {
--			reserve_bootmem_node(NODE_DATA(0), INITRD_START, INITRD_SIZE);
--			initrd_start =
--				INITRD_START ? INITRD_START + PAGE_OFFSET : 0;
--			initrd_end = initrd_start+INITRD_SIZE;
--		}
--		else {
--			printk(KERN_ERR "initrd extends beyond end of memory "
--			    "(0x%08lx > 0x%08lx)\ndisabling initrd\n",
--			    INITRD_START + INITRD_SIZE,
--			    system_max_low_pfn << PAGE_SHIFT);
--			initrd_start = 0;
--		}
--	}
--#endif
--	return system_max_low_pfn;
-+	return max_low_pfn;
- }
- 
- void __init zone_sizes_init(void)
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
