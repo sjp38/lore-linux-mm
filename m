@@ -1,103 +1,57 @@
-Received: from roman (localhost [127.0.0.1])
-	by michael.checkpoint.com (8.9.3/8.9.1) with SMTP id LAA11849
-	for <linux-mm@kvack.org>; Mon, 24 Jul 2000 11:15:16 +0300 (IDT)
-Message-ID: <00df01bff54f$280d1230$398d96d4@checkpoint.com>
-From: "Roman Mitnitski" <roman@checkpoint.com>
-Subject: Allocating large chunks of mem from net-bh
-Date: Mon, 24 Jul 2000 11:11:26 +0200
+From: Kanoj Sarcar <kanoj@google.engr.sgi.com>
+Message-Id: <200007241610.JAA33950@google.engr.sgi.com>
+Subject: Re: flush_icache_range
+Date: Mon, 24 Jul 2000 09:10:30 -0700 (PDT)
+In-Reply-To: <20000723203609.A903@bacchus.dhis.org> from "Ralf Baechle" at Jul 23, 2000 08:36:09 PM
 MIME-Version: 1.0
-Content-Type: multipart/alternative;
-	boundary="----=_NextPart_000_00DC_01BFF55F.E8860A20"
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Ralf Baechle <ralf@oss.sgi.com>
+Cc: linux-kernel@vger.rutgers.edu, linux-mm@kvack.org, alan@lxorguk.ukuu.org.uk, torvalds@transmeta.com
 List-ID: <linux-mm.kvack.org>
 
-This is a multi-part message in MIME format.
+> 
+> On Sat, Jul 22, 2000 at 06:07:08PM -0700, Kanoj Sarcar wrote:
+> 
+> > Can anyone point out the logic of continued existance of flush_icache_range
+> > after the introduction of flush_icache_page()? I admit that 
+> > flush_icache_range is still needed in the module loading code, but do we
+> > need it anymore in the a.out loading code? That code should be incurring
+> > page faults, which will do the flush_icache_page anyway. Seems like
+> > double work to me to do flush_icache_range again after the loading has
+> > been done.
+> 
+> binfmt_elf.c:load_aout_interp() uses file->f_op->read to read the interpreter
+> from disk, so actually need to use something else to flush the cache.
+> Similar for two of three cases in binfmt_aout.c.  For these the page
+> fault won't sufficiently flush cashes.
 
-------=_NextPart_000_00DC_01BFF55F.E8860A20
-Content-Type: text/plain;
-	charset="iso-8859-1"
-Content-Transfer-Encoding: quoted-printable
+Okay, got it. flush_icache_page() can flush the icache, then 
+flush_icache_range() can writeback-invalidate the dcache (for the a.out
+section loading code), and things should work. AFAICS, this would be
+the most optimal way to do things (ie, you don't have to writeback-invalidate
+dcache, and invalidate icache in flush_icache_range(), you can optimize
+out the icache flush relying on flush_icache_page to do the work).
 
+> 
+> > This argument to delete the flush_icache_range calls from the a.out
+> > loading code assumes that the f_op->read() code behaves sanely, ie does
+> > not do unexpected things like touch the user address (thus allocating
+> > the page, and doing the icache flush via the page fault handler much
+> > earlier) before it starts reading the a.out sections in ...
+> 
+> There is another MIPS specific problem with this routine.  Originally
+> introduced for kernel modules the various incarnations of flush_icache_range
+> are not protected against access from userspace.  Unable to handle kernel
+> paging request ahead ...
 
+Could you elaborate? Use mips as an example. Note: for the a.out code,
+there will be one thread, and for the module loading, userspace access 
+to the vmalloced area is not possible.
 
- Hi.
-
-I need to allocate (dynamically, as the need arises) large memory areas
-from the bottom-half context (net-bh, to be exact) in Linux 2.2.x.=20
-
-kmalloc does not let me allocate as much memory as I need, and
-vmalloc refuses to work in bottom-half context.=20
-
-I don't need anything special from the allocated memory, (like physical =
-continuity,
-or DMA area). I even don't care much how long
-it takes to allocate, sice it really does not happen that much often.
-
-Is there any reasonable workaround that would let me solve this problem?
-Is the situation in 2.4 any better (because my code will have to move on =
-to 2.4
-eventually)
-
- Roman
-
-
-------=_NextPart_000_00DC_01BFF55F.E8860A20
-Content-Type: text/html;
-	charset="iso-8859-1"
-Content-Transfer-Encoding: quoted-printable
-
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
-<HTML><HEAD>
-<META http-equiv=3DContent-Type content=3D"text/html; =
-charset=3Diso-8859-1">
-<META content=3D"MSHTML 5.50.4134.600" name=3DGENERATOR>
-<STYLE></STYLE>
-</HEAD>
-<BODY bgColor=3D#ffffff>
-<DIV><FONT face=3DArial size=3D2></FONT>&nbsp;</DIV>
-<DIV><FONT face=3DArial size=3D2></FONT>&nbsp;</DIV>
-<DIV><FONT face=3DArial size=3D2>&nbsp;Hi.</FONT></DIV>
-<DIV><FONT face=3DArial size=3D2></FONT>&nbsp;</DIV>
-<DIV><FONT face=3DArial size=3D2>I need to allocate (dynamically, as the =
-need=20
-arises) large memory areas</FONT></DIV>
-<DIV><FONT face=3DArial size=3D2>from the bottom-half context (net-bh, =
-to be exact)=20
-in Linux 2.2.x. </FONT></DIV>
-<DIV><FONT face=3DArial size=3D2></FONT>&nbsp;</DIV>
-<DIV><FONT face=3DArial size=3D2>kmalloc does not let me&nbsp;allocate =
-as much=20
-memory as I need, and</FONT></DIV>
-<DIV><FONT face=3DArial size=3D2>vmalloc refuses to work =
-in&nbsp;bottom-half=20
-context. </FONT></DIV>
-<DIV><FONT face=3DArial size=3D2></FONT>&nbsp;</DIV>
-<DIV><FONT face=3DArial size=3D2>I don't need anything </FONT><FONT =
-face=3DArial=20
-size=3D2>special from the allocated memory, (like physical=20
-continuity,</FONT></DIV>
-<DIV><FONT face=3DArial size=3D2>or DMA area). </FONT><FONT face=3DArial =
-size=3D2>I even=20
-don't care much how long</FONT></DIV>
-<DIV><FONT face=3DArial size=3D2>it takes to allocate, sice it really =
-does not=20
-happen that much often.</FONT></DIV>
-<DIV><FONT face=3DArial size=3D2></FONT>&nbsp;</DIV>
-<DIV><FONT face=3DArial size=3D2>Is there any reasonable workaround that =
-would let=20
-me solve this problem?</FONT></DIV>
-<DIV><FONT face=3DArial size=3D2>Is the situation in 2.4 any better =
-(because my code=20
-will have to move on to 2.4</FONT></DIV>
-<DIV><FONT face=3DArial size=3D2>eventually)</FONT></DIV>
-<DIV><FONT face=3DArial size=3D2></FONT>&nbsp;</DIV>
-<DIV><FONT face=3DArial size=3D2>&nbsp;Roman</FONT></DIV>
-<DIV>&nbsp;</DIV></BODY></HTML>
-
-------=_NextPart_000_00DC_01BFF55F.E8860A20--
-
+Kanoj
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
