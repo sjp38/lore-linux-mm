@@ -1,37 +1,45 @@
-Date: Sun, 16 Dec 2001 16:09:55 +0100
-From: Christoph Hellwig <hch@caldera.de>
-Subject: Re: Thread specific data
-Message-ID: <20011216160955.A21103@caldera.de>
-References: <20011216125219.1450.qmail@web12004.mail.yahoo.com>
+Received: from cnode1.sys ([172.16.10.10])
+	by gate.sys with esmtp (Exim 3.12 #1 (Debian))
+	id 16FeEZ-0000BH-00
+	for <linux-mm@kvack.org>; Sun, 16 Dec 2001 17:33:51 +0100
+Received: from cnode1.sys (localhost [127.0.0.1])
+	by cnode1.sys (8.12.1/8.12.1/Debian -2) with ESMTP id fBGGjj3C000791
+	for <linux-mm@kvack.org>; Sun, 16 Dec 2001 17:45:45 +0100
+Received: (from volker@localhost)
+	by cnode1.sys (8.12.1/8.12.1/Debian -2) id fBGGjj02000789
+	for linux-mm@kvack.org; Sun, 16 Dec 2001 17:45:45 +0100
+From: V.Dormeyer@t-online.de (Volker Dormeyer)
+Date: Sun, 16 Dec 2001 17:45:40 +0100
+Subject: VM questions
+Message-ID: <20011216164540.GA766@t-online.de>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20011216125219.1450.qmail@web12004.mail.yahoo.com>; from anumulavenkat@yahoo.com on Sun, Dec 16, 2001 at 04:52:19AM -0800
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Anumula Venkat <anumulavenkat@yahoo.com>
-Cc: linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Dec 16, 2001 at 04:52:19AM -0800, Anumula Venkat wrote:
-> Hello Friends,
-> 
->     Can somebody help in knowing how to access thread
-> data structures on kernel side.i.e accessing thread
-> specific data in stack segment.
+Hi,
 
-The Linux kernel has a unified process/thread concept so there isn't
-really a 'thread data structure' in the kernel.  See linux/sched.h
-for details.
+last week I asked the following questions on the kernelnewbies
+mailinglist. I haven't got any response, yet. Perhaps somebody
+on this list can help me.
 
-For userspace stack this is handle by glibc/linuxthreads.  On i686
-it uses sys_modify_ldt to get per-thread segments, not sure how it
-is handled on older CPUs / other architectures.
+What are the /proc/sys/vm/max-readahead and /proc/sys/vm/min-readahead
+are for? I find some mails about it in the kernel-mailinglist archive.
+But I didn't understand the concept behind these parameters.
 
-	Christoph
+/proc/sys/vm/pagetable_cache is described in the kernel documentation.
+I don't understand, why do we have/need a per processor cache? Can
+someone explain more about that?
+
+Thanks,
+Volker
 
 -- 
-Of course it doesn't work. We've performed a software upgrade.
+ Volker Dormeyer # V.Dormeyer@t-online.de
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
