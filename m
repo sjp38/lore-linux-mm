@@ -1,7 +1,7 @@
-Message-Id: <200405222209.i4MM9Ur13686@mail.osdl.org>
-Subject: [patch 32/57] rmap 17: real prio_tree
+Message-Id: <200405222209.i4MM9cr13711@mail.osdl.org>
+Subject: [patch 33/57] rmap 18: i_mmap_nonlinear
 From: akpm@osdl.org
-Date: Sat, 22 May 2004 15:08:55 -0700
+Date: Sat, 22 May 2004 15:09:08 -0700
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: torvalds@osdl.org
@@ -10,907 +10,284 @@ List-ID: <linux-mm.kvack.org>
 
 From: Hugh Dickins <hugh@veritas.com>
 
-Rajesh Venkatasubramanian's implementation of a radix priority search tree of
-vmas, to handle object-based reverse mapping corner cases well.
-
-Amongst the objections to object-based rmap were test cases by akpm and by
-mingo, in which large numbers of vmas mapping disjoint or overlapping parts of
-a file showed strikingly poor performance of the i_mmap lists.  Perhaps those
-tests are irrelevant in the real world?  We cannot be too sure: the prio_tree
-is well-suited to solving precisely that problem, so unless it turns out to
-bring too much overhead, let's include it.
-
-Why is this prio_tree.c placed in mm rather than lib?  See GET_INDEX: this
-implementation is geared throughout to use with vmas, though the first half of
-the file appears more general than the second half.
-
-Each node of the prio_tree is itself (contained within) a vma: might save
-memory by allocating distinct nodes from which to hang vmas, but wouldn't save
-much, and would complicate the usage with preallocations.  Off each node of
-the prio_tree itself hangs a list of like vmas, if any.
-
-The connection from node to list is a little awkward, but probably the best
-compromise: it would be more straightforward to list likes directly from the
-tree node, but that would use more memory per vma, for the list_head and to
-identify that head.  Instead, node's shared.vm_set.head points to next vma
-(whose shared.vm_set.head points back to node vma), and that next contains the
-list_head from which the rest hang - reusing fields already used in the
-prio_tree node itself.
-
-Currently lacks prefetch: Rajesh hopes to add some soon.
+The prio_tree is of no use to nonlinear vmas: currently we're having to search
+the tree in the most inefficient way to find all its nonlinears.  At the very
+least we need an indication of the unlikely case when there are some
+nonlinears; but really, we'd do best to take them out of the prio_tree
+altogether, into a list of their own - i_mmap_nonlinear.
 
 
 ---
 
- 25-akpm/include/linux/mm.h        |   37 --
- 25-akpm/include/linux/prio_tree.h |   57 ++-
- 25-akpm/init/main.c               |    2 
- 25-akpm/mm/Makefile               |    5 
- 25-akpm/mm/mmap.c                 |   25 -
- 25-akpm/mm/prio_tree.c            |  654 ++++++++++++++++++++++++++++++++++++++
- 6 files changed, 723 insertions(+), 57 deletions(-)
+ 25-akpm/fs/inode.c         |    1 +
+ 25-akpm/include/linux/fs.h |    7 +++++--
+ 25-akpm/mm/fremap.c        |   12 +++++++++++-
+ 25-akpm/mm/memory.c        |   31 ++++++++++---------------------
+ 25-akpm/mm/mmap.c          |   15 ++++++++++-----
+ 25-akpm/mm/prio_tree.c     |    1 +
+ 25-akpm/mm/rmap.c          |   35 ++++++++++++++---------------------
+ 7 files changed, 52 insertions(+), 50 deletions(-)
 
-diff -puN include/linux/mm.h~rmap-17-real-prio_tree include/linux/mm.h
---- 25/include/linux/mm.h~rmap-17-real-prio_tree	2004-05-22 14:56:26.665037824 -0700
-+++ 25-akpm/include/linux/mm.h	2004-05-22 14:59:38.583861728 -0700
-@@ -73,7 +73,15 @@ struct vm_area_struct {
- 	 * For areas with an address space and backing store,
- 	 * one of the address_space->i_mmap{,shared} trees.
- 	 */
--	struct list_head shared;
-+	union {
-+		struct {
-+			struct list_head list;
-+			void *parent;	/* aligns with prio_tree_node parent */
-+			struct vm_area_struct *head;
-+		} vm_set;
-+
-+		struct prio_tree_node prio_tree_node;
-+	} shared;
- 
- 	/* Function pointers to deal with this struct. */
- 	struct vm_operations_struct * vm_ops;
-@@ -589,27 +597,16 @@ extern void si_meminfo_node(struct sysin
- 
- static inline void vma_prio_tree_init(struct vm_area_struct *vma)
- {
--	INIT_LIST_HEAD(&vma->shared);
--}
--
--static inline void vma_prio_tree_add(struct vm_area_struct *vma,
--				     struct vm_area_struct *old)
--{
--	list_add(&vma->shared, &old->shared);
--}
--
--static inline void vma_prio_tree_insert(struct vm_area_struct *vma,
--					struct prio_tree_root *root)
--{
--	list_add_tail(&vma->shared, &root->list);
--}
--
--static inline void vma_prio_tree_remove(struct vm_area_struct *vma,
--					struct prio_tree_root *root)
--{
--	list_del_init(&vma->shared);
-+	vma->shared.vm_set.list.next = NULL;
-+	vma->shared.vm_set.list.prev = NULL;
-+	vma->shared.vm_set.parent = NULL;
-+	vma->shared.vm_set.head = NULL;
+diff -puN fs/inode.c~rmap-18-i_mmap_nonlinear fs/inode.c
+--- 25/fs/inode.c~rmap-18-i_mmap_nonlinear	2004-05-22 14:56:26.831012592 -0700
++++ 25-akpm/fs/inode.c	2004-05-22 14:59:38.315902464 -0700
+@@ -202,6 +202,7 @@ void inode_init_once(struct inode *inode
+ 	spin_lock_init(&inode->i_data.private_lock);
+ 	INIT_PRIO_TREE_ROOT(&inode->i_data.i_mmap);
+ 	INIT_PRIO_TREE_ROOT(&inode->i_data.i_mmap_shared);
++	INIT_LIST_HEAD(&inode->i_data.i_mmap_nonlinear);
+ 	spin_lock_init(&inode->i_lock);
+ 	i_size_ordered_init(inode);
  }
- 
-+/* prio_tree.c */
-+void vma_prio_tree_add(struct vm_area_struct *, struct vm_area_struct *old);
-+void vma_prio_tree_insert(struct vm_area_struct *, struct prio_tree_root *);
-+void vma_prio_tree_remove(struct vm_area_struct *, struct prio_tree_root *);
- struct vm_area_struct *vma_prio_tree_next(
- 	struct vm_area_struct *, struct prio_tree_root *,
- 	struct prio_tree_iter *, pgoff_t begin, pgoff_t end);
-diff -puN include/linux/prio_tree.h~rmap-17-real-prio_tree include/linux/prio_tree.h
---- 25/include/linux/prio_tree.h~rmap-17-real-prio_tree	2004-05-22 14:56:26.666037672 -0700
-+++ 25-akpm/include/linux/prio_tree.h	2004-05-22 14:56:26.675036304 -0700
-@@ -1,27 +1,64 @@
- #ifndef _LINUX_PRIO_TREE_H
- #define _LINUX_PRIO_TREE_H
--/*
-- * Dummy version of include/linux/prio_tree.h, just for this patch:
-- * no radix priority search tree whatsoever, just implement interfaces
-- * using the old lists.
-- */
-+
-+struct prio_tree_node {
-+	struct prio_tree_node	*left;
-+	struct prio_tree_node	*right;
-+	struct prio_tree_node	*parent;
-+};
- 
- struct prio_tree_root {
--	struct list_head	list;
-+	struct prio_tree_node	*prio_tree_node;
-+	unsigned int 		index_bits;
- };
- 
- struct prio_tree_iter {
--	int			not_used_yet;
-+	struct prio_tree_node	*cur;
-+	unsigned long		mask;
-+	unsigned long		value;
-+	int			size_level;
- };
- 
- #define INIT_PRIO_TREE_ROOT(ptr)	\
- do {					\
--	INIT_LIST_HEAD(&(ptr)->list);	\
--} while (0)				\
-+	(ptr)->prio_tree_node = NULL;	\
-+	(ptr)->index_bits = 1;		\
-+} while (0)
-+
-+#define INIT_PRIO_TREE_NODE(ptr)				\
-+do {								\
-+	(ptr)->left = (ptr)->right = (ptr)->parent = (ptr);	\
-+} while (0)
-+
-+#define INIT_PRIO_TREE_ITER(ptr)	\
-+do {					\
-+	(ptr)->cur = NULL;		\
-+	(ptr)->mask = 0UL;		\
-+	(ptr)->value = 0UL;		\
-+	(ptr)->size_level = 0;		\
-+} while (0)
-+
-+#define prio_tree_entry(ptr, type, member) \
-+       ((type *)((char *)(ptr)-(unsigned long)(&((type *)0)->member)))
- 
- static inline int prio_tree_empty(const struct prio_tree_root *root)
+diff -puN include/linux/fs.h~rmap-18-i_mmap_nonlinear include/linux/fs.h
+--- 25/include/linux/fs.h~rmap-18-i_mmap_nonlinear	2004-05-22 14:56:26.833012288 -0700
++++ 25-akpm/include/linux/fs.h	2004-05-22 14:59:38.316902312 -0700
+@@ -332,6 +332,7 @@ struct address_space {
+ 	struct address_space_operations *a_ops;	/* methods */
+ 	struct prio_tree_root	i_mmap;		/* tree of private mappings */
+ 	struct prio_tree_root	i_mmap_shared;	/* tree of shared mappings */
++	struct list_head	i_mmap_nonlinear;/*list of nonlinear mappings */
+ 	spinlock_t		i_mmap_lock;	/* protect trees & list above */
+ 	atomic_t		truncate_count;	/* Cover race condition with truncate */
+ 	unsigned long		flags;		/* error bits/gfp mask */
+@@ -382,7 +383,8 @@ int mapping_tagged(struct address_space 
+ static inline int mapping_mapped(struct address_space *mapping)
  {
--	return list_empty(&root->list);
-+	return root->prio_tree_node == NULL;
-+}
-+
-+static inline int prio_tree_root(const struct prio_tree_node *node)
-+{
-+	return node->parent == node;
-+}
-+
-+static inline int prio_tree_left_empty(const struct prio_tree_node *node)
-+{
-+	return node->left == node;
-+}
-+
-+static inline int prio_tree_right_empty(const struct prio_tree_node *node)
-+{
-+	return node->right == node;
- }
- 
- #endif /* _LINUX_PRIO_TREE_H */
-diff -puN init/main.c~rmap-17-real-prio_tree init/main.c
---- 25/init/main.c~rmap-17-real-prio_tree	2004-05-22 14:56:26.668037368 -0700
-+++ 25-akpm/init/main.c	2004-05-22 14:59:35.607314232 -0700
-@@ -84,6 +84,7 @@ extern void signals_init(void);
- extern void buffer_init(void);
- extern void pidhash_init(void);
- extern void pidmap_init(void);
-+extern void prio_tree_init(void);
- extern void radix_tree_init(void);
- extern void free_initmem(void);
- extern void populate_rootfs(void);
-@@ -459,6 +460,7 @@ asmlinkage void __init start_kernel(void
- 	calibrate_delay();
- 	pidmap_init();
- 	pgtable_cache_init();
-+	prio_tree_init();
- #ifdef CONFIG_X86
- 	if (efi_enabled)
- 		efi_enter_virtual_mode();
-diff -puN mm/Makefile~rmap-17-real-prio_tree mm/Makefile
---- 25/mm/Makefile~rmap-17-real-prio_tree	2004-05-22 14:56:26.669037216 -0700
-+++ 25-akpm/mm/Makefile	2004-05-22 14:56:26.676036152 -0700
-@@ -8,8 +8,9 @@ mmu-$(CONFIG_MMU)	:= fremap.o highmem.o 
- 			   shmem.o vmalloc.o
- 
- obj-y			:= bootmem.o filemap.o mempool.o oom_kill.o fadvise.o \
--			   page_alloc.o page-writeback.o pdflush.o readahead.o \
--			   slab.o swap.o truncate.o vmscan.o $(mmu-y)
-+			   page_alloc.o page-writeback.o pdflush.o prio_tree.o \
-+			   readahead.o slab.o swap.o truncate.o vmscan.o \
-+			   $(mmu-y)
- 
- obj-$(CONFIG_SWAP)	+= page_io.o swap_state.o swapfile.o
- obj-$(CONFIG_HUGETLBFS)	+= hugetlb.o
-diff -puN mm/mmap.c~rmap-17-real-prio_tree mm/mmap.c
---- 25/mm/mmap.c~rmap-17-real-prio_tree	2004-05-22 14:56:26.671036912 -0700
-+++ 25-akpm/mm/mmap.c	2004-05-22 14:59:39.047791200 -0700
-@@ -323,31 +323,6 @@ __insert_vm_struct(struct mm_struct * mm
+ 	return	!prio_tree_empty(&mapping->i_mmap) ||
+-		!prio_tree_empty(&mapping->i_mmap_shared);
++		!prio_tree_empty(&mapping->i_mmap_shared) ||
++		!list_empty(&mapping->i_mmap_nonlinear);
  }
  
  /*
-- * Dummy version of vma_prio_tree_next, just for this patch:
-- * no radix priority search tree whatsoever, just implement interface
-- * using the old lists: return the next vma overlapping [begin,end].
-- */
--struct vm_area_struct *vma_prio_tree_next(
--	struct vm_area_struct *vma, struct prio_tree_root *root,
--	struct prio_tree_iter *iter, pgoff_t begin, pgoff_t end)
+@@ -393,7 +395,8 @@ static inline int mapping_mapped(struct 
+  */
+ static inline int mapping_writably_mapped(struct address_space *mapping)
+ {
+-	return	!prio_tree_empty(&mapping->i_mmap_shared);
++	return	!prio_tree_empty(&mapping->i_mmap_shared) ||
++		!list_empty(&mapping->i_mmap_nonlinear);
+ }
+ 
+ /*
+diff -puN mm/fremap.c~rmap-18-i_mmap_nonlinear mm/fremap.c
+--- 25/mm/fremap.c~rmap-18-i_mmap_nonlinear	2004-05-22 14:56:26.834012136 -0700
++++ 25-akpm/mm/fremap.c	2004-05-22 14:59:38.318902008 -0700
+@@ -157,6 +157,7 @@ asmlinkage long sys_remap_file_pages(uns
+ 	unsigned long __prot, unsigned long pgoff, unsigned long flags)
+ {
+ 	struct mm_struct *mm = current->mm;
++	struct address_space *mapping;
+ 	unsigned long end = start + size;
+ 	struct vm_area_struct *vma;
+ 	int err = -EINVAL;
+@@ -197,8 +198,17 @@ asmlinkage long sys_remap_file_pages(uns
+ 				end <= vma->vm_end) {
+ 
+ 		/* Must set VM_NONLINEAR before any pages are populated. */
+-		if (pgoff != linear_page_index(vma, start))
++		if (pgoff != linear_page_index(vma, start) &&
++		    !(vma->vm_flags & VM_NONLINEAR)) {
++			mapping = vma->vm_file->f_mapping;
++			spin_lock(&mapping->i_mmap_lock);
+ 			vma->vm_flags |= VM_NONLINEAR;
++			vma_prio_tree_remove(vma, &mapping->i_mmap_shared);
++			vma_prio_tree_init(vma);
++			list_add_tail(&vma->shared.vm_set.list,
++					&mapping->i_mmap_nonlinear);
++			spin_unlock(&mapping->i_mmap_lock);
++		}
+ 
+ 		/* ->populate can take a long time, so downgrade the lock. */
+ 		downgrade_write(&mm->mmap_sem);
+diff -puN mm/memory.c~rmap-18-i_mmap_nonlinear mm/memory.c
+--- 25/mm/memory.c~rmap-18-i_mmap_nonlinear	2004-05-22 14:56:26.836011832 -0700
++++ 25-akpm/mm/memory.c	2004-05-22 14:59:38.874817496 -0700
+@@ -1116,8 +1116,6 @@ static void unmap_mapping_range_list(str
+ 
+ 	while ((vma = vma_prio_tree_next(vma, root, &iter,
+ 			details->first_index, details->last_index)) != NULL) {
+-		if (unlikely(vma->vm_flags & VM_NONLINEAR))
+-			continue;
+ 		vba = vma->vm_pgoff;
+ 		vea = vba + ((vma->vm_end - vma->vm_start) >> PAGE_SHIFT) - 1;
+ 		/* Assume for now that PAGE_CACHE_SHIFT == PAGE_SHIFT */
+@@ -1133,22 +1131,6 @@ static void unmap_mapping_range_list(str
+ 	}
+ }
+ 
+-static void unmap_nonlinear_range_list(struct prio_tree_root *root,
+-				       struct zap_details *details)
 -{
--	struct list_head *next;
--	pgoff_t vba, vea;
+-	struct vm_area_struct *vma = NULL;
+-	struct prio_tree_iter iter;
 -
--	next = vma? vma->shared.next: root->list.next;
--	while (next != &root->list) {
--		vma = list_entry(next, struct vm_area_struct, shared);
--		vba = vma->vm_pgoff;
--		vea = vba + ((vma->vm_end - vma->vm_start) >> PAGE_SHIFT) - 1;
--		/* Return vma if it overlaps [begin,end] */
--		if (vba <= end && vea >= begin)
--			return vma;
--		next = next->next;
+-	while ((vma = vma_prio_tree_next(vma, root, &iter,
+-						0, ULONG_MAX)) != NULL) {
+-		if (!(vma->vm_flags & VM_NONLINEAR))
+-			continue;
+-		details->nonlinear_vma = vma;
+-		zap_page_range(vma, vma->vm_start,
+-				vma->vm_end - vma->vm_start, details);
 -	}
--	return NULL;
 -}
 -
--/*
-  * We cannot adjust vm_start, vm_end, vm_pgoff fields of a vma that is
-  * already present in an i_mmap{_shared} tree without adjusting the tree.
-  * The following helper function should be used when such adjustments
-diff -puN /dev/null mm/prio_tree.c
---- /dev/null	2003-09-15 06:40:47.000000000 -0700
-+++ 25-akpm/mm/prio_tree.c	2004-05-22 14:59:39.048791048 -0700
-@@ -0,0 +1,654 @@
-+/*
-+ * mm/prio_tree.c - priority search tree for mapping->i_mmap{,_shared}
-+ *
-+ * Copyright (C) 2004, Rajesh Venkatasubramanian <vrajesh@umich.edu>
-+ *
-+ * This file is released under the GPL v2.
-+ *
-+ * Based on the radix priority search tree proposed by Edward M. McCreight
-+ * SIAM Journal of Computing, vol. 14, no.2, pages 257-276, May 1985
-+ *
-+ * 02Feb2004	Initial version
-+ */
-+
-+#include <linux/init.h>
-+#include <linux/module.h>
-+#include <linux/mm.h>
-+#include <linux/prio_tree.h>
-+
-+/*
-+ * A clever mix of heap and radix trees forms a radix priority search tree (PST)
-+ * which is useful for storing intervals, e.g, we can consider a vma as a closed
-+ * interval of file pages [offset_begin, offset_end], and store all vmas that
-+ * map a file in a PST. Then, using the PST, we can answer a stabbing query,
-+ * i.e., selecting a set of stored intervals (vmas) that overlap with (map) a
-+ * given input interval X (a set of consecutive file pages), in "O(log n + m)"
-+ * time where 'log n' is the height of the PST, and 'm' is the number of stored
-+ * intervals (vmas) that overlap (map) with the input interval X (the set of
-+ * consecutive file pages).
-+ *
-+ * In our implementation, we store closed intervals of the form [radix_index,
-+ * heap_index]. We assume that always radix_index <= heap_index. McCreight's PST
-+ * is designed for storing intervals with unique radix indices, i.e., each
-+ * interval have different radix_index. However, this limitation can be easily
-+ * overcome by using the size, i.e., heap_index - radix_index, as part of the
-+ * index, so we index the tree using [(radix_index,size), heap_index].
-+ *
-+ * When the above-mentioned indexing scheme is used, theoretically, in a 32 bit
-+ * machine, the maximum height of a PST can be 64. We can use a balanced version
-+ * of the priority search tree to optimize the tree height, but the balanced
-+ * tree proposed by McCreight is too complex and memory-hungry for our purpose.
-+ */
-+
-+/*
-+ * The following macros are used for implementing prio_tree for i_mmap{_shared}
-+ */
-+
-+#define RADIX_INDEX(vma)  ((vma)->vm_pgoff)
-+#define VMA_SIZE(vma)	  (((vma)->vm_end - (vma)->vm_start) >> PAGE_SHIFT)
-+/* avoid overflow */
-+#define HEAP_INDEX(vma)	  ((vma)->vm_pgoff + (VMA_SIZE(vma) - 1))
-+
-+#define GET_INDEX_VMA(vma, radix, heap)		\
-+do {						\
-+	radix = RADIX_INDEX(vma);		\
-+	heap = HEAP_INDEX(vma);			\
-+} while (0)
-+
-+#define GET_INDEX(node, radix, heap)		\
-+do { 						\
-+	struct vm_area_struct *__tmp = 		\
-+	  prio_tree_entry(node, struct vm_area_struct, shared.prio_tree_node);\
-+	GET_INDEX_VMA(__tmp, radix, heap); 	\
-+} while (0)
-+
-+static unsigned long index_bits_to_maxindex[BITS_PER_LONG];
-+
-+void __init prio_tree_init(void)
-+{
-+	unsigned int i;
-+
-+	for (i = 0; i < ARRAY_SIZE(index_bits_to_maxindex) - 1; i++)
-+		index_bits_to_maxindex[i] = (1UL << (i + 1)) - 1;
-+	index_bits_to_maxindex[ARRAY_SIZE(index_bits_to_maxindex) - 1] = ~0UL;
-+}
-+
-+/*
-+ * Maximum heap_index that can be stored in a PST with index_bits bits
-+ */
-+static inline unsigned long prio_tree_maxindex(unsigned int bits)
-+{
-+	return index_bits_to_maxindex[bits - 1];
-+}
-+
-+/*
-+ * Extend a priority search tree so that it can store a node with heap_index
-+ * max_heap_index. In the worst case, this algorithm takes O((log n)^2).
-+ * However, this function is used rarely and the common case performance is
-+ * not bad.
-+ */
-+static struct prio_tree_node *prio_tree_expand(struct prio_tree_root *root,
-+		struct prio_tree_node *node, unsigned long max_heap_index)
-+{
-+	static void prio_tree_remove(struct prio_tree_root *,
-+					struct prio_tree_node *);
-+	struct prio_tree_node *first = NULL, *prev, *last = NULL;
-+
-+	if (max_heap_index > prio_tree_maxindex(root->index_bits))
-+		root->index_bits++;
-+
-+	while (max_heap_index > prio_tree_maxindex(root->index_bits)) {
-+		root->index_bits++;
-+
-+		if (prio_tree_empty(root))
-+			continue;
-+
-+		if (first == NULL) {
-+			first = root->prio_tree_node;
-+			prio_tree_remove(root, root->prio_tree_node);
-+			INIT_PRIO_TREE_NODE(first);
-+			last = first;
-+		} else {
-+			prev = last;
-+			last = root->prio_tree_node;
-+			prio_tree_remove(root, root->prio_tree_node);
-+			INIT_PRIO_TREE_NODE(last);
-+			prev->left = last;
-+			last->parent = prev;
+ /**
+  * unmap_mapping_range - unmap the portion of all mmaps
+  * in the specified address_space corresponding to the specified
+@@ -1198,11 +1180,18 @@ void unmap_mapping_range(struct address_
+ 	/* Don't waste time to check mapping on fully shared vmas */
+ 	details.check_mapping = NULL;
+ 
+-	if (unlikely(!prio_tree_empty(&mapping->i_mmap_shared))) {
++	if (unlikely(!prio_tree_empty(&mapping->i_mmap_shared)))
+ 		unmap_mapping_range_list(&mapping->i_mmap_shared, &details);
+-		unmap_nonlinear_range_list(&mapping->i_mmap_shared, &details);
+-	}
+ 
++	if (unlikely(!list_empty(&mapping->i_mmap_nonlinear))) {
++		struct vm_area_struct *vma;
++		list_for_each_entry(vma, &mapping->i_mmap_nonlinear,
++						shared.vm_set.list) {
++			details.nonlinear_vma = vma;
++			zap_page_range(vma, vma->vm_start,
++				vma->vm_end - vma->vm_start, &details);
 +		}
 +	}
-+
-+	INIT_PRIO_TREE_NODE(node);
-+
-+	if (first) {
-+		node->left = first;
-+		first->parent = node;
-+	} else
-+		last = node;
-+
-+	if (!prio_tree_empty(root)) {
-+		last->left = root->prio_tree_node;
-+		last->left->parent = last;
-+	}
-+
-+	root->prio_tree_node = node;
-+	return node;
-+}
-+
-+/*
-+ * Replace a prio_tree_node with a new node and return the old node
-+ */
-+static struct prio_tree_node *prio_tree_replace(struct prio_tree_root *root,
-+		struct prio_tree_node *old, struct prio_tree_node *node)
-+{
-+	INIT_PRIO_TREE_NODE(node);
-+
-+	if (prio_tree_root(old)) {
-+		BUG_ON(root->prio_tree_node != old);
-+		/*
-+		 * We can reduce root->index_bits here. However, it is complex
-+		 * and does not help much to improve performance (IMO).
-+		 */
-+		node->parent = node;
-+		root->prio_tree_node = node;
-+	} else {
-+		node->parent = old->parent;
-+		if (old->parent->left == old)
-+			old->parent->left = node;
-+		else
-+			old->parent->right = node;
-+	}
-+
-+	if (!prio_tree_left_empty(old)) {
-+		node->left = old->left;
-+		old->left->parent = node;
-+	}
-+
-+	if (!prio_tree_right_empty(old)) {
-+		node->right = old->right;
-+		old->right->parent = node;
-+	}
-+
-+	return old;
-+}
-+
-+/*
-+ * Insert a prio_tree_node @node into a radix priority search tree @root. The
-+ * algorithm typically takes O(log n) time where 'log n' is the number of bits
-+ * required to represent the maximum heap_index. In the worst case, the algo
-+ * can take O((log n)^2) - check prio_tree_expand.
-+ *
-+ * If a prior node with same radix_index and heap_index is already found in
-+ * the tree, then returns the address of the prior node. Otherwise, inserts
-+ * @node into the tree and returns @node.
-+ */
-+static struct prio_tree_node *prio_tree_insert(struct prio_tree_root *root,
-+		struct prio_tree_node *node)
-+{
-+	struct prio_tree_node *cur, *res = node;
-+	unsigned long radix_index, heap_index;
-+	unsigned long r_index, h_index, index, mask;
-+	int size_flag = 0;
-+
-+	GET_INDEX(node, radix_index, heap_index);
-+
-+	if (prio_tree_empty(root) ||
-+			heap_index > prio_tree_maxindex(root->index_bits))
-+		return prio_tree_expand(root, node, heap_index);
-+
-+	cur = root->prio_tree_node;
-+	mask = 1UL << (root->index_bits - 1);
-+
-+	while (mask) {
-+		GET_INDEX(cur, r_index, h_index);
-+
-+		if (r_index == radix_index && h_index == heap_index)
-+			return cur;
-+
-+                if (h_index < heap_index ||
-+		    (h_index == heap_index && r_index > radix_index)) {
-+			struct prio_tree_node *tmp = node;
-+			node = prio_tree_replace(root, cur, node);
-+			cur = tmp;
-+			/* swap indices */
-+			index = r_index;
-+			r_index = radix_index;
-+			radix_index = index;
-+			index = h_index;
-+			h_index = heap_index;
-+			heap_index = index;
-+		}
-+
-+		if (size_flag)
-+			index = heap_index - radix_index;
-+		else
-+			index = radix_index;
-+
-+		if (index & mask) {
-+			if (prio_tree_right_empty(cur)) {
-+				INIT_PRIO_TREE_NODE(node);
-+				cur->right = node;
-+				node->parent = cur;
-+				return res;
-+			} else
-+				cur = cur->right;
-+		} else {
-+			if (prio_tree_left_empty(cur)) {
-+				INIT_PRIO_TREE_NODE(node);
-+				cur->left = node;
-+				node->parent = cur;
-+				return res;
-+			} else
-+				cur = cur->left;
-+		}
-+
-+		mask >>= 1;
-+
-+		if (!mask) {
-+			mask = 1UL << (root->index_bits - 1);
-+			size_flag = 1;
-+		}
-+	}
-+	/* Should not reach here */
-+	BUG();
-+	return NULL;
-+}
-+
-+/*
-+ * Remove a prio_tree_node @node from a radix priority search tree @root. The
-+ * algorithm takes O(log n) time where 'log n' is the number of bits required
-+ * to represent the maximum heap_index.
-+ */
-+static void prio_tree_remove(struct prio_tree_root *root,
-+		struct prio_tree_node *node)
-+{
-+	struct prio_tree_node *cur;
-+	unsigned long r_index, h_index_right, h_index_left;
-+
-+	cur = node;
-+
-+	while (!prio_tree_left_empty(cur) || !prio_tree_right_empty(cur)) {
-+		if (!prio_tree_left_empty(cur))
-+			GET_INDEX(cur->left, r_index, h_index_left);
-+		else {
-+			cur = cur->right;
-+			continue;
-+		}
-+
-+		if (!prio_tree_right_empty(cur))
-+			GET_INDEX(cur->right, r_index, h_index_right);
-+		else {
-+			cur = cur->left;
-+			continue;
-+		}
-+
-+		/* both h_index_left and h_index_right cannot be 0 */
-+		if (h_index_left >= h_index_right)
-+			cur = cur->left;
-+		else
-+			cur = cur->right;
-+	}
-+
-+	if (prio_tree_root(cur)) {
-+		BUG_ON(root->prio_tree_node != cur);
-+		INIT_PRIO_TREE_ROOT(root);
-+		return;
-+	}
-+
-+	if (cur->parent->right == cur)
-+		cur->parent->right = cur->parent;
-+	else
-+		cur->parent->left = cur->parent;
-+
-+	while (cur != node)
-+		cur = prio_tree_replace(root, cur->parent, cur);
-+}
-+
-+/*
-+ * Following functions help to enumerate all prio_tree_nodes in the tree that
-+ * overlap with the input interval X [radix_index, heap_index]. The enumeration
-+ * takes O(log n + m) time where 'log n' is the height of the tree (which is
-+ * proportional to # of bits required to represent the maximum heap_index) and
-+ * 'm' is the number of prio_tree_nodes that overlap the interval X.
-+ */
-+
-+static struct prio_tree_node *prio_tree_left(
-+		struct prio_tree_root *root, struct prio_tree_iter *iter,
-+		unsigned long radix_index, unsigned long heap_index,
-+		unsigned long *r_index, unsigned long *h_index)
-+{
-+	if (prio_tree_left_empty(iter->cur))
-+		return NULL;
-+
-+	GET_INDEX(iter->cur->left, *r_index, *h_index);
-+
-+	if (radix_index <= *h_index) {
-+		iter->cur = iter->cur->left;
-+		iter->mask >>= 1;
-+		if (iter->mask) {
-+			if (iter->size_level)
-+				iter->size_level++;
-+		} else {
-+			if (iter->size_level) {
-+				BUG_ON(!prio_tree_left_empty(iter->cur));
-+				BUG_ON(!prio_tree_right_empty(iter->cur));
-+				iter->size_level++;
-+				iter->mask = ULONG_MAX;
-+			} else {
-+				iter->size_level = 1;
-+				iter->mask = 1UL << (root->index_bits - 1);
-+			}
-+		}
-+		return iter->cur;
-+	}
-+
-+	return NULL;
-+}
-+
-+static struct prio_tree_node *prio_tree_right(
-+		struct prio_tree_root *root, struct prio_tree_iter *iter,
-+		unsigned long radix_index, unsigned long heap_index,
-+		unsigned long *r_index, unsigned long *h_index)
-+{
-+	unsigned long value;
-+
-+	if (prio_tree_right_empty(iter->cur))
-+		return NULL;
-+
-+	if (iter->size_level)
-+		value = iter->value;
-+	else
-+		value = iter->value | iter->mask;
-+
-+	if (heap_index < value)
-+		return NULL;
-+
-+	GET_INDEX(iter->cur->right, *r_index, *h_index);
-+
-+	if (radix_index <= *h_index) {
-+		iter->cur = iter->cur->right;
-+		iter->mask >>= 1;
-+		iter->value = value;
-+		if (iter->mask) {
-+			if (iter->size_level)
-+				iter->size_level++;
-+		} else {
-+			if (iter->size_level) {
-+				BUG_ON(!prio_tree_left_empty(iter->cur));
-+				BUG_ON(!prio_tree_right_empty(iter->cur));
-+				iter->size_level++;
-+				iter->mask = ULONG_MAX;
-+			} else {
-+				iter->size_level = 1;
-+				iter->mask = 1UL << (root->index_bits - 1);
-+			}
-+		}
-+		return iter->cur;
-+	}
-+
-+	return NULL;
-+}
-+
-+static struct prio_tree_node *prio_tree_parent(struct prio_tree_iter *iter)
-+{
-+	iter->cur = iter->cur->parent;
-+	if (iter->mask == ULONG_MAX)
-+		iter->mask = 1UL;
-+	else if (iter->size_level == 1)
-+		iter->mask = 1UL;
-+	else
-+		iter->mask <<= 1;
-+	if (iter->size_level)
-+		iter->size_level--;
-+	if (!iter->size_level && (iter->value & iter->mask))
-+		iter->value ^= iter->mask;
-+	return iter->cur;
-+}
-+
-+static inline int overlap(unsigned long radix_index, unsigned long heap_index,
-+		unsigned long r_index, unsigned long h_index)
-+{
-+	return heap_index >= r_index && radix_index <= h_index;
-+}
-+
-+/*
-+ * prio_tree_first:
-+ *
-+ * Get the first prio_tree_node that overlaps with the interval [radix_index,
-+ * heap_index]. Note that always radix_index <= heap_index. We do a pre-order
-+ * traversal of the tree.
-+ */
-+static struct prio_tree_node *prio_tree_first(struct prio_tree_root *root,
-+		struct prio_tree_iter *iter, unsigned long radix_index,
-+		unsigned long heap_index)
-+{
-+	unsigned long r_index, h_index;
-+
-+	INIT_PRIO_TREE_ITER(iter);
-+
-+	if (prio_tree_empty(root))
-+		return NULL;
-+
-+	GET_INDEX(root->prio_tree_node, r_index, h_index);
-+
-+	if (radix_index > h_index)
-+		return NULL;
-+
-+	iter->mask = 1UL << (root->index_bits - 1);
-+	iter->cur = root->prio_tree_node;
-+
-+	while (1) {
-+		if (overlap(radix_index, heap_index, r_index, h_index))
-+			return iter->cur;
-+
-+		if (prio_tree_left(root, iter, radix_index, heap_index,
-+					&r_index, &h_index))
-+			continue;
-+
-+		if (prio_tree_right(root, iter, radix_index, heap_index,
-+					&r_index, &h_index))
-+			continue;
-+
-+		break;
-+	}
-+	return NULL;
-+}
-+
-+/*
-+ * prio_tree_next:
-+ *
-+ * Get the next prio_tree_node that overlaps with the input interval in iter
-+ */
-+static struct prio_tree_node *prio_tree_next(struct prio_tree_root *root,
-+		struct prio_tree_iter *iter, unsigned long radix_index,
-+		unsigned long heap_index)
-+{
-+	unsigned long r_index, h_index;
-+
-+repeat:
-+	while (prio_tree_left(root, iter, radix_index,
-+				heap_index, &r_index, &h_index)) {
-+		if (overlap(radix_index, heap_index, r_index, h_index))
-+			return iter->cur;
-+	}
-+
-+	while (!prio_tree_right(root, iter, radix_index,
-+				heap_index, &r_index, &h_index)) {
-+	    	while (!prio_tree_root(iter->cur) &&
-+				iter->cur->parent->right == iter->cur)
-+			prio_tree_parent(iter);
-+
-+		if (prio_tree_root(iter->cur))
-+			return NULL;
-+
-+		prio_tree_parent(iter);
-+	}
-+
-+	if (overlap(radix_index, heap_index, r_index, h_index))
-+		return iter->cur;
-+
-+	goto repeat;
-+}
-+
-+/*
-+ * Radix priority search tree for address_space->i_mmap_{_shared}
-+ *
-+ * For each vma that map a unique set of file pages i.e., unique [radix_index,
-+ * heap_index] value, we have a corresponing priority search tree node. If
-+ * multiple vmas have identical [radix_index, heap_index] value, then one of
-+ * them is used as a tree node and others are stored in a vm_set list. The tree
-+ * node points to the first vma (head) of the list using vm_set.head.
-+ *
-+ * prio_tree_root
-+ *      |
-+ *      A       vm_set.head
-+ *     / \      /
-+ *    L   R -> H-I-J-K-M-N-O-P-Q-S
-+ *    ^   ^    <-- vm_set.list -->
-+ *  tree nodes
-+ *
-+ * We need some way to identify whether a vma is a tree node, head of a vm_set
-+ * list, or just a member of a vm_set list. We cannot use vm_flags to store
-+ * such information. The reason is, in the above figure, it is possible that
-+ * vm_flags' of R and H are covered by the different mmap_sems. When R is
-+ * removed under R->mmap_sem, H replaces R as a tree node. Since we do not hold
-+ * H->mmap_sem, we cannot use H->vm_flags for marking that H is a tree node now.
-+ * That's why some trick involving shared.vm_set.parent is used for identifying
-+ * tree nodes and list head nodes.
-+ *
-+ * vma radix priority search tree node rules:
-+ *
-+ * vma->shared.vm_set.parent != NULL    ==> a tree node
-+ *      vma->shared.vm_set.head != NULL ==> list of others mapping same range
-+ *      vma->shared.vm_set.head == NULL ==> no others map the same range
-+ *
-+ * vma->shared.vm_set.parent == NULL
-+ * 	vma->shared.vm_set.head != NULL ==> list head of vmas mapping same range
-+ * 	vma->shared.vm_set.head == NULL ==> a list node
-+ */
-+
-+/*
-+ * Add a new vma known to map the same set of pages as the old vma:
-+ * useful for fork's dup_mmap as well as vma_prio_tree_insert below.
-+ */
-+void vma_prio_tree_add(struct vm_area_struct *vma, struct vm_area_struct *old)
-+{
-+	/* Leave these BUG_ONs till prio_tree patch stabilizes */
-+	BUG_ON(RADIX_INDEX(vma) != RADIX_INDEX(old));
-+	BUG_ON(HEAP_INDEX(vma) != HEAP_INDEX(old));
-+
-+	if (!old->shared.vm_set.parent)
-+		list_add(&vma->shared.vm_set.list,
-+				&old->shared.vm_set.list);
-+	else if (old->shared.vm_set.head)
-+		list_add_tail(&vma->shared.vm_set.list,
-+				&old->shared.vm_set.head->shared.vm_set.list);
-+	else {
-+		INIT_LIST_HEAD(&vma->shared.vm_set.list);
-+		vma->shared.vm_set.head = old;
-+		old->shared.vm_set.head = vma;
-+	}
-+}
-+
-+void vma_prio_tree_insert(struct vm_area_struct *vma,
-+			  struct prio_tree_root *root)
-+{
-+	struct prio_tree_node *ptr;
-+	struct vm_area_struct *old;
-+
-+	ptr = prio_tree_insert(root, &vma->shared.prio_tree_node);
-+	if (ptr != &vma->shared.prio_tree_node) {
-+		old = prio_tree_entry(ptr, struct vm_area_struct,
-+					shared.prio_tree_node);
-+		vma_prio_tree_add(vma, old);
-+	}
-+}
-+
-+void vma_prio_tree_remove(struct vm_area_struct *vma,
-+			  struct prio_tree_root *root)
-+{
-+	struct vm_area_struct *node, *head, *new_head;
-+
-+	if (!vma->shared.vm_set.head) {
-+		if (!vma->shared.vm_set.parent)
-+			list_del_init(&vma->shared.vm_set.list);
-+		else
-+			prio_tree_remove(root, &vma->shared.prio_tree_node);
-+	} else {
-+		/* Leave this BUG_ON till prio_tree patch stabilizes */
-+		BUG_ON(vma->shared.vm_set.head->shared.vm_set.head != vma);
-+		if (vma->shared.vm_set.parent) {
-+			head = vma->shared.vm_set.head;
-+			if (!list_empty(&head->shared.vm_set.list)) {
-+				new_head = list_entry(
-+					head->shared.vm_set.list.next,
-+					struct vm_area_struct,
-+					shared.vm_set.list);
-+				list_del_init(&head->shared.vm_set.list);
-+			} else
-+				new_head = NULL;
-+
-+			prio_tree_replace(root, &vma->shared.prio_tree_node,
-+					&head->shared.prio_tree_node);
-+			head->shared.vm_set.head = new_head;
-+			if (new_head)
-+				new_head->shared.vm_set.head = head;
-+
-+		} else {
-+			node = vma->shared.vm_set.head;
-+			if (!list_empty(&vma->shared.vm_set.list)) {
-+				new_head = list_entry(
-+					vma->shared.vm_set.list.next,
-+					struct vm_area_struct,
-+					shared.vm_set.list);
-+				list_del_init(&vma->shared.vm_set.list);
-+				node->shared.vm_set.head = new_head;
-+				new_head->shared.vm_set.head = node;
-+			} else
-+				node->shared.vm_set.head = NULL;
-+		}
-+	}
-+}
-+
-+/*
-+ * Helper function to enumerate vmas that map a given file page or a set of
-+ * contiguous file pages. The function returns vmas that at least map a single
-+ * page in the given range of contiguous file pages.
-+ */
-+struct vm_area_struct *vma_prio_tree_next(struct vm_area_struct *vma,
-+		struct prio_tree_root *root, struct prio_tree_iter *iter,
-+		pgoff_t begin, pgoff_t end)
-+{
-+	struct prio_tree_node *ptr;
-+	struct vm_area_struct *next;
-+
-+	if (!vma) {
-+		/*
-+		 * First call is with NULL vma
-+		 */
-+		ptr = prio_tree_first(root, iter, begin, end);
-+		if (ptr)
-+			return prio_tree_entry(ptr, struct vm_area_struct,
-+						shared.prio_tree_node);
-+		else
-+			return NULL;
-+	}
-+
-+	if (vma->shared.vm_set.parent) {
-+		if (vma->shared.vm_set.head)
-+			return vma->shared.vm_set.head;
-+	} else {
-+		next = list_entry(vma->shared.vm_set.list.next,
-+				struct vm_area_struct, shared.vm_set.list);
-+		if (!next->shared.vm_set.head)
-+			return next;
-+	}
-+
-+	ptr = prio_tree_next(root, iter, begin, end);
-+	if (ptr)
-+		return prio_tree_entry(ptr, struct vm_area_struct,
-+					shared.prio_tree_node);
-+	else
-+		return NULL;
-+}
-+EXPORT_SYMBOL(vma_prio_tree_next);
+ 	spin_unlock(&mapping->i_mmap_lock);
+ }
+ EXPORT_SYMBOL(unmap_mapping_range);
+diff -puN mm/mmap.c~rmap-18-i_mmap_nonlinear mm/mmap.c
+--- 25/mm/mmap.c~rmap-18-i_mmap_nonlinear	2004-05-22 14:56:26.838011528 -0700
++++ 25-akpm/mm/mmap.c	2004-05-22 14:59:38.321901552 -0700
+@@ -72,7 +72,9 @@ static inline void __remove_shared_vm_st
+ 	if (vma->vm_flags & VM_DENYWRITE)
+ 		atomic_inc(&file->f_dentry->d_inode->i_writecount);
+ 
+-	if (vma->vm_flags & VM_SHARED)
++	if (unlikely(vma->vm_flags & VM_NONLINEAR))
++		list_del_init(&vma->shared.vm_set.list);
++	else if (vma->vm_flags & VM_SHARED)
+ 		vma_prio_tree_remove(vma, &mapping->i_mmap_shared);
+ 	else
+ 		vma_prio_tree_remove(vma, &mapping->i_mmap);
+@@ -262,7 +264,10 @@ static inline void __vma_link_file(struc
+ 		if (vma->vm_flags & VM_DENYWRITE)
+ 			atomic_dec(&file->f_dentry->d_inode->i_writecount);
+ 
+-		if (vma->vm_flags & VM_SHARED)
++		if (unlikely(vma->vm_flags & VM_NONLINEAR))
++			list_add_tail(&vma->shared.vm_set.list,
++					&mapping->i_mmap_nonlinear);
++		else if (vma->vm_flags & VM_SHARED)
+ 			vma_prio_tree_insert(vma, &mapping->i_mmap_shared);
+ 		else
+ 			vma_prio_tree_insert(vma, &mapping->i_mmap);
+@@ -339,10 +344,10 @@ void vma_adjust(struct vm_area_struct *v
+ 
+ 	if (file) {
+ 		mapping = file->f_mapping;
+-		if (vma->vm_flags & VM_SHARED)
+-			root = &mapping->i_mmap_shared;
+-		else
++		if (!(vma->vm_flags & VM_SHARED))
+ 			root = &mapping->i_mmap;
++		else if (!(vma->vm_flags & VM_NONLINEAR))
++			root = &mapping->i_mmap_shared;
+ 		spin_lock(&mapping->i_mmap_lock);
+ 	}
+ 	spin_lock(&mm->page_table_lock);
+diff -puN mm/prio_tree.c~rmap-18-i_mmap_nonlinear mm/prio_tree.c
+--- 25/mm/prio_tree.c~rmap-18-i_mmap_nonlinear	2004-05-22 14:56:26.839011376 -0700
++++ 25-akpm/mm/prio_tree.c	2004-05-22 14:59:38.321901552 -0700
+@@ -530,6 +530,7 @@ repeat:
+ /*
+  * Add a new vma known to map the same set of pages as the old vma:
+  * useful for fork's dup_mmap as well as vma_prio_tree_insert below.
++ * Note that it just happens to work correctly on i_mmap_nonlinear too.
+  */
+ void vma_prio_tree_add(struct vm_area_struct *vma, struct vm_area_struct *old)
+ {
+diff -puN mm/rmap.c~rmap-18-i_mmap_nonlinear mm/rmap.c
+--- 25/mm/rmap.c~rmap-18-i_mmap_nonlinear	2004-05-22 14:56:26.841011072 -0700
++++ 25-akpm/mm/rmap.c	2004-05-22 14:59:38.459880576 -0700
+@@ -335,10 +335,6 @@ static inline int page_referenced_file(s
+ 
+ 	while ((vma = vma_prio_tree_next(vma, &mapping->i_mmap_shared,
+ 					&iter, pgoff, pgoff)) != NULL) {
+-		if (unlikely(vma->vm_flags & VM_NONLINEAR)) {
+-			failed++;
+-			continue;
+-		}
+ 		if (vma->vm_flags & (VM_LOCKED|VM_RESERVED)) {
+ 			referenced++;
+ 			goto out;
+@@ -352,8 +348,8 @@ static inline int page_referenced_file(s
+ 		}
+ 	}
+ 
+-	/* Hmm, but what of the nonlinears which pgoff,pgoff skipped? */
+-	WARN_ON(!failed);
++	if (list_empty(&mapping->i_mmap_nonlinear))
++		WARN_ON(!failed);
+ out:
+ 	spin_unlock(&mapping->i_mmap_lock);
+ 	return referenced;
+@@ -757,8 +753,6 @@ static inline int try_to_unmap_file(stru
+ 
+ 	while ((vma = vma_prio_tree_next(vma, &mapping->i_mmap_shared,
+ 					&iter, pgoff, pgoff)) != NULL) {
+-		if (unlikely(vma->vm_flags & VM_NONLINEAR))
+-			continue;
+ 		if (vma->vm_mm->rss) {
+ 			address = vma_address(vma, pgoff);
+ 			ret = try_to_unmap_one(page,
+@@ -768,10 +762,12 @@ static inline int try_to_unmap_file(stru
+ 		}
+ 	}
+ 
+-	while ((vma = vma_prio_tree_next(vma, &mapping->i_mmap_shared,
+-					&iter, 0, ULONG_MAX)) != NULL) {
+-		if (VM_NONLINEAR != (vma->vm_flags &
+-		     (VM_NONLINEAR|VM_LOCKED|VM_RESERVED)))
++	if (list_empty(&mapping->i_mmap_nonlinear))
++		goto out;
++
++	list_for_each_entry(vma, &mapping->i_mmap_nonlinear,
++						shared.vm_set.list) {
++		if (vma->vm_flags & (VM_LOCKED|VM_RESERVED))
+ 			continue;
+ 		cursor = (unsigned long) vma->vm_private_data;
+ 		if (cursor > max_nl_cursor)
+@@ -799,10 +795,9 @@ static inline int try_to_unmap_file(stru
+ 		max_nl_cursor = CLUSTER_SIZE;
+ 
+ 	do {
+-		while ((vma = vma_prio_tree_next(vma, &mapping->i_mmap_shared,
+-					&iter, 0, ULONG_MAX)) != NULL) {
+-			if (VM_NONLINEAR != (vma->vm_flags &
+-		    	     (VM_NONLINEAR|VM_LOCKED|VM_RESERVED)))
++		list_for_each_entry(vma, &mapping->i_mmap_nonlinear,
++						shared.vm_set.list) {
++			if (vma->vm_flags & (VM_LOCKED|VM_RESERVED))
+ 				continue;
+ 			cursor = (unsigned long) vma->vm_private_data;
+ 			while (vma->vm_mm->rss &&
+@@ -831,11 +826,9 @@ static inline int try_to_unmap_file(stru
+ 	 * in locked vmas).  Reset cursor on all unreserved nonlinear
+ 	 * vmas, now forgetting on which ones it had fallen behind.
+ 	 */
+-	vma = NULL;	/* it is already, but above loop might change */
+-	while ((vma = vma_prio_tree_next(vma, &mapping->i_mmap_shared,
+-					&iter, 0, ULONG_MAX)) != NULL) {
+-		if ((vma->vm_flags & (VM_NONLINEAR|VM_RESERVED)) ==
+-				VM_NONLINEAR)
++	list_for_each_entry(vma, &mapping->i_mmap_nonlinear,
++						shared.vm_set.list) {
++		if (!(vma->vm_flags & VM_RESERVED))
+ 			vma->vm_private_data = 0;
+ 	}
+ relock:
 
 _
 --
