@@ -1,125 +1,97 @@
-Subject: Re: blk_congestion_wait racy?
-Message-ID: <OF335311D8.7BCE1E48-ONC1256E51.0049DBF1-C1256E51.004AEA2A@de.ibm.com>
-From: Martin Schwidefsky <schwidefsky@de.ibm.com>
-Date: Mon, 8 Mar 2004 14:38:16 +0100
-MIME-Version: 1.0
-Content-type: text/plain; charset=US-ASCII
+Date: Thu, 4 Mar 2004 10:55:01 -0800
+From: "Paul E. McKenney" <paulmck@us.ibm.com>
+Subject: Re: [RFC] Distributed mmap API
+Message-ID: <20040304185501.GH1384@us.ibm.com>
+Reply-To: paulmck@us.ibm.com
+References: <20040216190927.GA2969@us.ibm.com> <200403022200.39633.phillips@arcor.de> <20040302191539.6bffc687.akpm@osdl.org> <200403030800.35612.phillips@arcor.de>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <200403030800.35612.phillips@arcor.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Daniel Phillips <phillips@arcor.de>
+Cc: Andrew Morton <akpm@osdl.org>, sct@redhat.com, hch@infradead.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+This matches what we are after here!
 
+						Thanx, Paul
 
-
-> Gad, that'll make the VM scan its guts out.
-Yes, I expected something like this.
-
-> > 2.6.4-rc2 + "fix" with 1 cpu
-> > sys     0m0.880s
+On Wed, Mar 03, 2004 at 08:06:20AM -0500, Daniel Phillips wrote:
+> On Tuesday 02 March 2004 22:15, Andrew Morton wrote:
+> > Daniel Phillips <phillips@arcor.de> wrote:
+> > > Here is a rearranged zap_pte_range that avoids any operations for
+> > > out-of-range pfns.
 > >
-> > 2.6.4-rc2 + "fix" with 2 cpu
-> > sys     0m1.560s
->
-> system time was doubled though.
-That would be the additional cost for not waiting.
-
-> Nope, something is obviously broken.   I'll take a look.
-That would be very much appreciated.
-
-> Perhaps with two CPUs you are able to get kswapd and mempig running page
-> reclaim at the same time, which causes seekier swap I/O patterns than with
-> one CPU, where we only run one app or the other at any time.
->
-> Serialising balance_pgdat() and try_to_free_pages() with a global semaphore
-> would be a way of testing that theory.
-
-Just tried the following patch:
-
-Index: mm/vmscan.c
-===================================================================
-RCS file: /home/cvs/linux-2.5/mm/vmscan.c,v
-retrieving revision 1.45
-diff -u -r1.45 vmscan.c
---- mm/vmscan.c   18 Feb 2004 17:45:28 -0000    1.45
-+++ mm/vmscan.c   8 Mar 2004 13:30:56 -0000
-@@ -848,6 +848,7 @@
-  * excessive rotation of the inactive list, which is _supposed_ to be an LRU,
-  * yes?
-  */
-+static DECLARE_MUTEX(reclaim_sem);
- int try_to_free_pages(struct zone **zones,
-            unsigned int gfp_mask, unsigned int order)
- {
-@@ -858,6 +859,8 @@
-      struct reclaim_state *reclaim_state = current->reclaim_state;
-      int i;
-
-+     down(&reclaim_sem);
-+
-      inc_page_state(allocstall);
-
-      for (i = 0; zones[i] != 0; i++)
-@@ -884,7 +887,10 @@
-            wakeup_bdflush(total_scanned);
-
-            /* Take a nap, wait for some writeback to complete */
-+           up(&reclaim_sem);
-            blk_congestion_wait(WRITE, HZ/10);
-+           down(&reclaim_sem);
-+
-            if (zones[0] - zones[0]->zone_pgdat->node_zones < ZONE_HIGHMEM) {
-                  shrink_slab(total_scanned, gfp_mask);
-                  if (reclaim_state) {
-@@ -898,6 +904,9 @@
- out:
-      for (i = 0; zones[i] != 0; i++)
-            zones[i]->prev_priority = zones[i]->temp_priority;
-+
-+     up(&reclaim_sem);
-+
-      return ret;
- }
-
-@@ -926,6 +935,8 @@
-      int i;
-      struct reclaim_state *reclaim_state = current->reclaim_state;
-
-+     down(&reclaim_sem);
-+
-      inc_page_state(pageoutrun);
-
-      for (i = 0; i < pgdat->nr_zones; i++) {
-@@ -974,8 +985,11 @@
-            }
-            if (all_zones_ok)
-                  break;
--           if (to_free > 0)
-+           if (to_free > 0) {
-+                 up(&reclaim_sem);
-                  blk_congestion_wait(WRITE, HZ/10);
-+                 down(&reclaim_sem);
-+           }
-      }
-
-      for (i = 0; i < pgdat->nr_zones; i++) {
-@@ -983,6 +997,9 @@
-
-            zone->prev_priority = zone->temp_priority;
-      }
-+
-+     up(&reclaim_sem);
-+
-      return nr_pages - to_free;
- }
-
-
-It didn't help. Still needs almost a minute.
-
-blue skies,
-   Martin
-
+> > Please remind us why Linux needs this patch?
+> 
+> The is purely to support mmap, including MAP_PRIVATE, accurately on 
+> distributed filesystems, where "accurately" is defined as "with local 
+> filesystem semantics".
+> 
+> If the same file region is mmapped by more than one node, only one of them is 
+> allowed to have a given page of the mmap valid in the page tables at any 
+> time.  When a memory write occurs on one of the other nodes, it must fault so 
+> that the distributed filesystem can arrange for exclusive ownership of the 
+> file page (or as GFS currently implements it, the whole file) to change from 
+> one node to the other.  At this time, any pages already faulted in must be 
+> unmapped so that future memory accesses will properly fault.  This unmapping 
+> is done by zap_page_range, which has nearly the semantics we want except that 
+> it will also unmap private pages of a MAP_PRIVATE mapping, destroying the 
+> only copy of that data.  A user would observe the privately written data 
+> spontaneously revert to the current file contents.  The purpose of this patch 
+> is to fix that.
+> 
+> This patch allows a distributed filesystem to unmap file-backed memory without 
+> unmapping anonymous pages or deleting swap cache, avoiding the above data 
+> destruction.  Since zap_page_range is the only function that knows how to 
+> unmap memory, it needs to be taught how to skip anonymous pages.
+> 
+> An alternative to this patch is simply to export zap_page_range, then the 
+> distributed filesystem can walk the lists of mmapped vmas itself, skipping 
+> any that are MAP_PRIVATE.  This achieves Posix local filesystem semantics, 
+> but not Linux local filesystem semantics, because updates to the mmap from 
+> other nodes become visible unpredictably.  Earlier this year, Linus said that 
+> he wants tighter semantics for distributed MAP_PRIVATE.
+> 
+> This patch presses zap_page_range into service in a way that was not 
+> originally intended, that is, for invalidation as opposed to destruction of 
+> memory regions.  The requirements are identical except for the MAP_PRIVATE 
+> detail.  Forking the whole zap_ chain would be even more distasteful than 
+> grafting on this option flag.  It's also impractical to implement a zap_ 
+> variant within a dfs module because of the heavy use of per-arch APIs.  As
+> far I can see, this patch is the minimum cost of having accurate semantics
+> for distributed MAP_PRIVATE mmap.
+> 
+> I'll take the opportunity to beat my chest a once again about the fact that 
+> this doesn't benefit anything other than distributed filesystems.  On the 
+> other hand, the cost is  miniscule: 54 bytes, a little stack and likely no 
+> measureable cpu.
+> 
+> > I forget what `all' does?  anon+swapcache as well as pagecache?
+> 
+> Yes
+> 
+> > A bit of API documentation here would be appropriate.
+> 
+> Oops, sorry:
+> 
+> /**
+>  * zap_page_range - remove user pages in a given range
+>  * @vma: vm_area_struct holding the applicable pages
+>  * @address: starting address of pages to zap
+>  * @size: number of bytes to zap
+>  * @all: also unmap anonymous pages
+>  */
+> void zap_page_range(struct vm_area_struct *vma,
+>                     unsigned long address, unsigned long size, int all)
+> 
+> Regards,
+> 
+> Daniel
+> 
+> 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
