@@ -1,37 +1,58 @@
-Message-ID: <3DA41346.186CE3A6@scs.ch>
-Date: Wed, 09 Oct 2002 13:30:14 +0200
-From: Martin Maletinsky <maletinsky@scs.ch>
-MIME-Version: 1.0
-Subject: VM_MAY... flags
-Content-Type: text/plain; charset=us-ascii
+Subject: [BUG] NULL pointer dereference
+From: Paul Larson <plars@linuxtestproject.org>
+Content-Type: text/plain
 Content-Transfer-Encoding: 7bit
+Date: 09 Oct 2002 09:01:47 -0500
+Message-Id: <1034172108.29084.96.camel@plars>
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: kernelnewbies@nl.linux.org, linux-mm@kvack.org
+To: lkml <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, lse-tech <lse-tech@lists.sourceforge.net>
 List-ID: <linux-mm.kvack.org>
 
-Hello,
+During some testing I was doing on linux-2.5.41-mm1 I came across the
+NULL pointer dereference below.  I suspect it is also in 2.5.41 vanilla,
+but I have not been able to reproduce it so far.  It was on an 8-way
+PIII-700, 16 GB ram.  I had been running ltp at the time and it had
+completed.  I was hitting tab at the time it happened to get a command
+line completion in bash.
 
-What is the meaning of the VM_MAY.. flags? I.e. what does it mean for example, if the VM_MAYWRITE flag for a vmarea is set, while the VM_WRITE flag is clear (based on the
-naming I assume the opposite is not possible)? Where are the VM_MAYWRITE flags set/checked?
+Unable to handle kernel NULL pointer dereference at virtual address
+0000002c
+ printing eip:
+c01525b5
+*pde = 00104001
+Oops: 0000
 
-The reason for my question is, that I use the get_user_pages() function (exists from kernel 2.4.17), which has a 'force flag' as an argument. In the 2.4.18 version, if the
-force flag is set, the function will consider the VM_MAY(READ/WRITE) rather than the VM_(READ/WRITE) flags, to validate the vmarea. Thus I should know the syntax of the
-VM_MAY... flags, to decide wether or not to set the force flag.
+CPU:    0
+EIP:    0060:[<c01525b5>]    Not tainted
+EFLAGS: 00010046
+EIP is at fasync_helper+0x75/0xf0
+eax: c0359198   ebx: 00000000   ecx: 0000002c   edx: 0000007e
+esi: 0000002c   edi: 00000000   ebp: cc2682c0   esp: f637bec4
+ds: 0068   es: 0068   ss: 0068
+Process python (pid: 1253, threadinfo=f637a000 task=f6c8f1a0)
+Stack: 00000000 f7c0c9bc f7c0c960 ffffffff 00000000 c014dc45 ffffffff
+cc2682c0
+       00000000 0000002c f7c0c960 f7ff5620 f7c0c960 f63b8ca0 c014dd83
+ffffffff
+       cc2682c0 00000000 cc2682c0 c014453b f7c0c960 cc2682c0 f7ff5760
+00000286
+Call Trace:
+ [<c014dc45>] pipe_read_fasync+0x45/0x70
+ [<c014dd83>] pipe_read_release+0x13/0x30
+ [<c014453b>] __fput+0x2b/0xd0
+ [<c0142cd9>] filp_close+0x99/0xb0
+ [<c011c3eb>] put_files_struct+0x4b/0xd0
+ [<c011cd69>] do_exit+0x109/0x2e0
+ [<c011e16b>] do_softirq+0x5b/0xc0
+ [<c01111df>] smp_apic_timer_interrupt+0x10f/0x120
+ [<c01071d3>] syscall_call+0x7/0xb
 
-Thanks in advance for any help
-with best regards
-Martin Maletinsky
+Code: 8b 16 85 d2 74 36 90 8d 74 26 00 39 6a 0c 75 22 85 ff 75 ba
 
-
-P.S. Please put me on cc: in the reply, since I am not on the mailing list.
-
---
-Supercomputing System AG          email: maletinsky@scs.ch
-Martin Maletinsky                 phone: +41 (0)1 445 16 05
-Technoparkstrasse 1               fax:   +41 (0)1 445 16 10
-CH-8005 Zurich
-
+Thanks,
+Paul Larson
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
