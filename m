@@ -1,51 +1,28 @@
-Message-ID: <4019C729.8050505@cyberone.com.au>
-Date: Fri, 30 Jan 2004 13:53:29 +1100
+Message-ID: <4019D3F8.4090808@cyberone.com.au>
+Date: Fri, 30 Jan 2004 14:48:08 +1100
 From: Nick Piggin <piggin@cyberone.com.au>
 MIME-Version: 1.0
-Subject: [BENCHMARKS] 2.6 kbuild results (with add_to_swap patch)
-References: <16407.59031.17836.961587@laputa.namesys.com> <20040128134425.0c00fb2f.akpm@osdl.org>
-In-Reply-To: <20040128134425.0c00fb2f.akpm@osdl.org>
-Content-Type: text/plain; charset=us-ascii; format=flowed
+Subject: Re: [BENCHMARKS] Namesys VM patches improve kbuild
+References: <400F630F.80205@cyberone.com.au>	<20040121223608.1ea30097.akpm@osdl.org>	<16399.42863.159456.646624@laputa.namesys.com>	<40105633.4000800@cyberone.com.au>	<16400.63379.453282.283117@laputa.namesys.com>	<4011392D.1090600@cyberone.com.au>	<16401.16474.881069.437933@laputa.namesys.com>	<4011C537.8040104@cyberone.com.au>	<16404.63446.649110.348477@laputa.namesys.com>	<4014F915.7060300@cyberone.com.au> <16405.1185.973874.89638@laputa.namesys.com>
+In-Reply-To: <16405.1185.973874.89638@laputa.namesys.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: Nikita Danilov <Nikita@Namesys.COM>, linux-mm@kvack.org
+To: Nikita Danilov <Nikita@Namesys.COM>
+Cc: Andrew Morton <akpm@osdl.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+Hi Nikita,
 
-Andrew Morton wrote:
+Just having a look at your patch. I think maybe this array
+should be in a seperate cacheline per node?
 
->Nikita Danilov <Nikita@Namesys.COM> wrote:
->
->>Hello,
->>
->>shrink_list() checks PageSwapCache() before calling add_to_swap(), this
->>means that anonymous page that is going to be added to the swap right
->>now these checks return false and:
->>
->> (*) it will be unaccounted for in nr_mapped, and
->>
->> (*) it won't be written to the swap if gfp_flags include __GFP_IO but
->>     not __GFP_FS.
->>
->>(Both will happen only on the next round of scanning.)
->>
->
->OK.  Does it make a measurable change in any benchmarks?
->
->
++/* dummy pages used to scan active lists */
++static struct page scan_pages[MAX_NUMNODES][MAX_NR_ZONES];
++
 
-Small big significantly better on kbuild when tested on top of the other
-two patches (dont-rotate-active-list and my mapped-fair).
-
-With this patch as well, we are now as good or better than 2.4 on
-medium and heavy swapping kbuilds and much better than stock 2.6
-with light swapping loads (not as good as 2.4 but close).
-
-http://www.kerneltrap.org/~npiggin/vm/3/
-
-
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
