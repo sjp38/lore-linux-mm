@@ -1,90 +1,144 @@
-Date: Mon, 22 Nov 2004 12:50:22 -0800
-From: "Martin J. Bligh" <mbligh@aracnet.com>
-Subject: [PATCH] Assign PKMAP_BASE dynamically
-Message-ID: <73380000.1101156622@[10.10.2.4]>
+Date: Mon, 22 Nov 2004 13:50:55 -0800 (PST)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: deferred rss update instead of sloppy rss
+In-Reply-To: <Pine.LNX.4.44.0411221457240.2970-100000@localhost.localdomain>
+Message-ID: <Pine.LNX.4.58.0411221343410.22895@schroedinger.engr.sgi.com>
+References: <Pine.LNX.4.44.0411221457240.2970-100000@localhost.localdomain>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>, pbadari@us.ibm.com
-Cc: linux-kernel <linux-kernel@vger.kernel.org>, linux-mm mailing list <linux-mm@kvack.org>
+To: Hugh Dickins <hugh@veritas.com>
+Cc: torvalds@osdl.org, akpm@osdl.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Nick Piggin <nickpiggin@yahoo.com.au>, linux-mm@kvack.org, linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Badari hit a problem when configuring PAE off (ie CONFIG_4G) where
-the pkmap area could end up overlapping the fixmap area. For some
-reason, PKMAP_BASE was defined statically, which seems rather pointless,
-and asking for trouble. Patch below definines it dynamically, under the
-fixmap area. The ordering of the VMALLOC_RESERVE space is:
+One way to solve the rss issues is--as discussed--to put rss into the
+task structure and then have the page fault increment that rss.
 
-FIXADDR_TOP
-			fixed_addresses
-FIXADDR_START
-			temp fixed addresses
-FIXADDR_BOOT_START
-			Persistent kmap area
-PKMAP_BASE
-VMALLOC_END
-			Vmalloc area
-VMALLOC_START
-high_memory
+The problem is then that the proc filesystem must do an extensive scan
+over all threads to find users of a certain mm_struct.
 
-Could you give this a spin in -mm? I've tested it on the afflicted box,
-and confirmed it fixes the problem.
+The following patch does put the rss into task_struct. The page fault
+handler is then incrementing current->rss if the page_table_lock is not
+held.
 
-M.
+The timer interrupt checks if task->rss is non zero (when doing
+stime/utime updates. rss is defined near those so its hopefully on the
+same cacheline and has a minimal impact).
 
-diff -purN -X /home/mbligh/.diff.exclude /home/linux/views/linux-2.6.10-rc1-mm2/include/asm-i386/fixmap.h 2.6.10-rc1-mm2-badari/include/asm-i386/fixmap.h
---- /home/linux/views/linux-2.6.10-rc1-mm2/include/asm-i386/fixmap.h	2004-10-18 15:51:09.000000000 -0700
-+++ 2.6.10-rc1-mm2-badari/include/asm-i386/fixmap.h	2004-11-22 10:24:27.000000000 -0800
-@@ -109,7 +109,9 @@ extern void __set_fixmap (enum fixed_add
- #define FIXADDR_TOP	((unsigned long)__FIXADDR_TOP)
- 
- #define __FIXADDR_SIZE	(__end_of_permanent_fixed_addresses << PAGE_SHIFT)
--#define FIXADDR_START	(FIXADDR_TOP - __FIXADDR_SIZE)
-+#define __FIXADDR_BOOT_SIZE	(__end_of_fixed_addresses << PAGE_SHIFT)
-+#define FIXADDR_START		(FIXADDR_TOP - __FIXADDR_SIZE)
-+#define FIXADDR_BOOT_START	(FIXADDR_TOP - __FIXADDR_BOOT_SIZE)
- 
- #define __fix_to_virt(x)	(FIXADDR_TOP - ((x) << PAGE_SHIFT))
- #define __virt_to_fix(x)	((FIXADDR_TOP - ((x)&PAGE_MASK)) >> PAGE_SHIFT)
-diff -purN -X /home/mbligh/.diff.exclude /home/linux/views/linux-2.6.10-rc1-mm2/include/asm-i386/highmem.h 2.6.10-rc1-mm2-badari/include/asm-i386/highmem.h
---- /home/linux/views/linux-2.6.10-rc1-mm2/include/asm-i386/highmem.h	2004-10-29 01:52:51.000000000 -0700
-+++ 2.6.10-rc1-mm2-badari/include/asm-i386/highmem.h	2004-11-22 10:28:17.000000000 -0800
-@@ -40,16 +40,27 @@ extern void kmap_init(void);
-  * easily, subsequent pte tables have to be allocated in one physical
-  * chunk of RAM.
-  */
--#if NR_CPUS <= 32
--#define PKMAP_BASE (0xff800000UL)
--#else
--#define PKMAP_BASE (0xff600000UL)
--#endif
- #ifdef CONFIG_X86_PAE
- #define LAST_PKMAP 512
- #else
- #define LAST_PKMAP 1024
- #endif
-+/*
-+ * Ordering is:
-+ *
-+ * FIXADDR_TOP
-+ * 			fixed_addresses
-+ * FIXADDR_START
-+ * 			temp fixed addresses
-+ * FIXADDR_BOOT_START
-+ * 			Persistent kmap area
-+ * PKMAP_BASE
-+ * VMALLOC_END
-+ * 			Vmalloc area
-+ * VMALLOC_START
-+ * high_memory
-+ */
-+#define PKMAP_BASE ( (FIXADDR_BOOT_START - PAGE_SIZE*(LAST_PKMAP + 1)) & PMD_MASK )
- #define LAST_PKMAP_MASK (LAST_PKMAP-1)
- #define PKMAP_NR(virt)  ((virt-PKMAP_BASE) >> PAGE_SHIFT)
- #define PKMAP_ADDR(nr)  (PKMAP_BASE + ((nr) << PAGE_SHIFT))
+If rss is non zero and the page_table_lock and the mmap_sem can be taken
+then the mm->rss will be updated by the value of the task->rss and
+task->rss will be zeroed. This avoids all proc issues. The only
+disadvantage is that rss may be inaccurate for a couple of clock ticks.
+
+This also adds some performance (sorry only a 4p system):
+
+sloppy rss:
+
+Gb Rep Threads   User      System     Wall flt/cpu/s fault/wsec
+  4  10    1    0.593s     29.897s  30.050s 85973.585  85948.565
+  4  10    2    0.616s     42.184s  22.045s 61247.450 116719.558
+  4  10    4    0.559s     44.918s  14.076s 57641.255 177553.945
+
+deferred rss:
+ Gb Rep Threads   User      System     Wall flt/cpu/s fault/wsec
+  4  10    1    0.565s     29.429s  30.000s 87395.518  87366.580
+  4  10    2    0.500s     33.514s  18.002s 77067.935 145426.659
+  4  10    4    0.533s     44.455s  14.085s 58269.368 176413.196
+
+Index: linux-2.6.9/include/linux/sched.h
+===================================================================
+--- linux-2.6.9.orig/include/linux/sched.h	2004-11-15 11:13:39.000000000 -0800
++++ linux-2.6.9/include/linux/sched.h	2004-11-22 13:18:58.000000000 -0800
+@@ -584,6 +584,10 @@
+ 	unsigned long it_real_incr, it_prof_incr, it_virt_incr;
+ 	struct timer_list real_timer;
+ 	unsigned long utime, stime;
++	long rss;	/* rss counter when mm->rss is not usable. mm->page_table_lock
++			 * not held but mm->mmap_sem must be held for sync with
++			 * the timer interrupt which clears rss and updates mm->rss.
++			 */
+ 	unsigned long nvcsw, nivcsw; /* context switch counts */
+ 	struct timespec start_time;
+ /* mm fault and swap info: this can arguably be seen as either mm-specific or thread-specific */
+Index: linux-2.6.9/mm/rmap.c
+===================================================================
+--- linux-2.6.9.orig/mm/rmap.c	2004-11-22 09:51:58.000000000 -0800
++++ linux-2.6.9/mm/rmap.c	2004-11-22 11:16:02.000000000 -0800
+@@ -263,8 +263,6 @@
+ 	pte_t *pte;
+ 	int referenced = 0;
+
+-	if (!mm->rss)
+-		goto out;
+ 	address = vma_address(page, vma);
+ 	if (address == -EFAULT)
+ 		goto out;
+@@ -507,8 +505,6 @@
+ 	pte_t pteval;
+ 	int ret = SWAP_AGAIN;
+
+-	if (!mm->rss)
+-		goto out;
+ 	address = vma_address(page, vma);
+ 	if (address == -EFAULT)
+ 		goto out;
+@@ -791,8 +787,7 @@
+ 			if (vma->vm_flags & (VM_LOCKED|VM_RESERVED))
+ 				continue;
+ 			cursor = (unsigned long) vma->vm_private_data;
+-			while (vma->vm_mm->rss &&
+-				cursor < max_nl_cursor &&
++			while (cursor < max_nl_cursor &&
+ 				cursor < vma->vm_end - vma->vm_start) {
+ 				try_to_unmap_cluster(cursor, &mapcount, vma);
+ 				cursor += CLUSTER_SIZE;
+Index: linux-2.6.9/kernel/fork.c
+===================================================================
+--- linux-2.6.9.orig/kernel/fork.c	2004-11-22 09:51:58.000000000 -0800
++++ linux-2.6.9/kernel/fork.c	2004-11-22 11:16:02.000000000 -0800
+@@ -876,6 +876,7 @@
+ 	p->io_context = NULL;
+ 	p->io_wait = NULL;
+ 	p->audit_context = NULL;
++	p->rss = 0;
+ #ifdef CONFIG_NUMA
+  	p->mempolicy = mpol_copy(p->mempolicy);
+  	if (IS_ERR(p->mempolicy)) {
+Index: linux-2.6.9/kernel/exit.c
+===================================================================
+--- linux-2.6.9.orig/kernel/exit.c	2004-11-22 09:51:58.000000000 -0800
++++ linux-2.6.9/kernel/exit.c	2004-11-22 11:16:02.000000000 -0800
+@@ -501,6 +501,9 @@
+ 	/* more a memory barrier than a real lock */
+ 	task_lock(tsk);
+ 	tsk->mm = NULL;
++	/* only holding mmap_sem here maybe get page_table_lock too? */
++	mm->rss += tsk->rss;
++	tsk->rss = 0;
+ 	up_read(&mm->mmap_sem);
+ 	enter_lazy_tlb(mm, current);
+ 	task_unlock(tsk);
+Index: linux-2.6.9/kernel/timer.c
+===================================================================
+--- linux-2.6.9.orig/kernel/timer.c	2004-11-22 09:51:58.000000000 -0800
++++ linux-2.6.9/kernel/timer.c	2004-11-22 11:42:12.000000000 -0800
+@@ -815,6 +815,15 @@
+ 		if (psecs / HZ >= p->signal->rlim[RLIMIT_CPU].rlim_max)
+ 			send_sig(SIGKILL, p, 1);
+ 	}
++	/* Update mm->rss if necessary */
++	if (p->rss && p->mm && down_write_trylock(&p->mm->mmap_sem)) {
++		if (spin_trylock(&p->mm->page_table_lock)) {
++			p->mm->rss += p->rss;
++			p->rss = 0;
++			spin_unlock(&p->mm->page_table_lock);
++		}
++		up_write(&p->mm->mmap_sem);
++	}
+ }
+
+ static inline void do_it_virt(struct task_struct * p, unsigned long ticks)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
