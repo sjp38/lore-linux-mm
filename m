@@ -1,50 +1,63 @@
-Date: Sat, 26 Apr 2003 06:34:07 -0400 (EDT)
-From: Bill Davidsen <davidsen@tmr.com>
-Subject: Re: 2.5.68-mm2
-In-Reply-To: <1051295252.9767.143.camel@localhost>
-Message-ID: <Pine.LNX.3.96.1030426062917.20200A-100000@gatekeeper.tmr.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Sat, 26 Apr 2003 09:11:59 +0200
+From: Ingo Oeser <ingo.oeser@informatik.tu-chemnitz.de>
+Subject: Re: maximum possible memory limit ..
+Message-ID: <20030426091158.O626@nightmaster.csn.tu-chemnitz.de>
+References: <20030424200524.5030a86b.bain@tcsn.co.za> <200304241835.h3OIZxvj006418@turing-police.cc.vt.edu>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <200304241835.h3OIZxvj006418@turing-police.cc.vt.edu>; from Valdis.Kletnieks@vt.edu on Thu, Apr 24, 2003 at 02:35:59PM -0400
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Robert Love <rml@tech9.net>
-Cc: "Randy.Dunlap" <rddunlap@osdl.org>, bcrl@redhat.com, akpm@digeo.com, mbligh@aracnet.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Valdis.Kletnieks@vt.edu
+Cc: Henti Smith <bain@tcsn.co.za>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 25 Apr 2003, Robert Love wrote:
+Hi,
 
-> On Fri, 2003-04-25 at 14:20, Randy.Dunlap wrote:
-> >  
-> > | The point is that even if bash is fixed it's desirable to address the
-> > | issue in the kernel, other applications may well misbehave as well.
-> > 
-> > So when would this ever end?
+On Thu, Apr 24, 2003 at 02:35:59PM -0400, Valdis.Kletnieks@vt.edu wrote:
+> On Thu, 24 Apr 2003 20:05:24 +0200, Henti Smith <bain@tcsn.co.za>  said:
+> > I had a discussion with somebody watching the whole M$ server launch and
+> > mentioned then new systems supports up to a terabyte of ram. 
+
+> Well.. sure.. it's easy enough to write something that supports plugging in
+> a terabyte.  The *tricky* part is supporting it well - you have page table
+> issues, you have swapping/thrashing issues (if you *do* have to page something
+> out, you're in trouble.. ;), you have process scheduling issues (how many
+> Apache processes does it take to use up a terabyte?  What's your load average
+> at that point?), you have multi-processor scaling issues (you're gonna want
+> to have 64+ processors, etc..)
+
+This is all a kind of DSW[1]. Consider the ordinal limits of the
+data structures used to represent memory and cpus.
+
+Since Linux uses bitmaps to represent CPUs, we can support as
+much CPUs, as much of such bitmaps (there are many of them) into
+memory.
+
+numphyspages is unsigned long. That means on 64-Bit platforms you
+can support up to 2^(64+PAGE_SHIFT)-1 bytes of memory.
+
+So I think, we've won this time, but the mm-people might know even
+more limiting factors to show the real theoretical limits.
+
+> Consider - the number of machines with over a terabyte of RAM is limited:
 > 
-> Exactly what I was thinking.
+> http://www.llnl.gov/asci/platforms/platforms.html
 > 
-> The kernel cannot be expected to cater to applications or make
-> concessions (read: hacks) for certain behavior.  If we offer a cleaner,
-> improved interface which offers the performance improvement, we are
-> done.  Applications need to start using it.
-> 
-> Of course, I am not arguing against optimizing the old interfaces or
-> anything of that nature.  I just believe we should not introduce hacks
-> for application behavior.  It is their job to do the right thing.
+> That's the sort of box that has a terabyte.  Do you *really* think that
+> M$ 2003 has all the stuff needed to scale to THAT size?
 
-I don't care much if the kernel does something to make an application run
-better, that's an application problem. But if an application can do
-something which hurts the performance of the system as a whole, then the
-kernel should protect itself and the rest of the system.
+The nice thing about DSWs is, that sanity doesn't matter ;-)
+And yes, this is important, as people continue to buy useless and
+oversized things to compensate for something.
 
-So I'm not advocating that the kernel cater to bash, just that doing
-legitimate things with bash not have a disproportionate impact on the rest
-of the system.
+PS: CC'ed to linux-mm instead of linux-kernel.
 
--- 
-bill davidsen <davidsen@tmr.com>
-  CTO, TMR Associates, Inc
-Doing interesting things with little computers since 1979.
+Regards
 
+Ingo Oeser
+[1] Dick Size War
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
