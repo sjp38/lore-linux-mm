@@ -1,7 +1,7 @@
-Message-Id: <200405222205.i4MM5Sr12689@mail.osdl.org>
-Subject: [patch 17/57] numa api: x86_64 support
+Message-Id: <200405222205.i4MM5kr12722@mail.osdl.org>
+Subject: [patch 18/57] numa api: Add i386 support
 From: akpm@osdl.org
-Date: Sat, 22 May 2004 15:04:57 -0700
+Date: Sat, 22 May 2004 15:05:11 -0700
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: torvalds@osdl.org
@@ -10,51 +10,30 @@ List-ID: <linux-mm.kvack.org>
 
 From: Andi Kleen <ak@suse.de>
 
-Add NUMA API system calls on x86-64
-
-This includes a bugfix to prevent miscompilation on gcc 3.2 of bitmap.h
+Add NUMA API system calls for i386
 
 
 ---
 
- 25-akpm/include/asm-x86_64/unistd.h |    4 ++--
- 25-akpm/include/linux/bitmap.h      |    3 ++-
- 2 files changed, 4 insertions(+), 3 deletions(-)
+ 25-akpm/arch/i386/kernel/entry.S |    6 +++---
+ 1 files changed, 3 insertions(+), 3 deletions(-)
 
-diff -puN include/asm-x86_64/unistd.h~numa-api-x86_64 include/asm-x86_64/unistd.h
---- 25/include/asm-x86_64/unistd.h~numa-api-x86_64	2004-05-22 14:56:24.245405664 -0700
-+++ 25-akpm/include/asm-x86_64/unistd.h	2004-05-22 14:56:24.251404752 -0700
-@@ -534,7 +534,7 @@ __SYSCALL(__NR_utimes, sys_utimes)
- __SYSCALL(__NR_vserver, sys_ni_syscall)
- #define __NR_vserver		236
- __SYSCALL(__NR_vserver, sys_ni_syscall)
--#define __NR_mbind 			237
-+#define __NR_mbind 		237
- __SYSCALL(__NR_mbind, sys_ni_syscall)
- #define __NR_set_mempolicy 	238
- __SYSCALL(__NR_set_mempolicy, sys_ni_syscall)
-@@ -546,7 +546,7 @@ __SYSCALL(__NR_mq_open, sys_mq_open)
- __SYSCALL(__NR_mq_unlink, sys_mq_unlink)
- #define __NR_mq_timedsend 	242
- __SYSCALL(__NR_mq_timedsend, sys_mq_timedsend)
--#define __NR_mq_timedreceive 243
-+#define __NR_mq_timedreceive	243
- __SYSCALL(__NR_mq_timedreceive, sys_mq_timedreceive)
- #define __NR_mq_notify 		244
- __SYSCALL(__NR_mq_notify, sys_mq_notify)
-diff -puN include/linux/bitmap.h~numa-api-x86_64 include/linux/bitmap.h
---- 25/include/linux/bitmap.h~numa-api-x86_64	2004-05-22 14:56:24.246405512 -0700
-+++ 25-akpm/include/linux/bitmap.h	2004-05-22 14:56:24.251404752 -0700
-@@ -29,7 +29,8 @@ static inline void bitmap_fill(unsigned 
- static inline void bitmap_copy(unsigned long *dst,
- 			const unsigned long *src, int bits)
- {
--	memcpy(dst, src, BITS_TO_LONGS(bits)*sizeof(unsigned long));
-+	int len = BITS_TO_LONGS(bits)*sizeof(unsigned long);
-+	memcpy(dst, src, len);
- }
- 
- void bitmap_shift_right(unsigned long *dst,
+diff -puN arch/i386/kernel/entry.S~numa-api-i386 arch/i386/kernel/entry.S
+--- 25/arch/i386/kernel/entry.S~numa-api-i386	2004-05-22 14:56:24.374386056 -0700
++++ 25-akpm/arch/i386/kernel/entry.S	2004-05-22 14:56:24.377385600 -0700
+@@ -876,9 +876,9 @@ ENTRY(sys_call_table)
+ 	.long sys_utimes
+  	.long sys_fadvise64_64
+ 	.long sys_ni_syscall	/* sys_vserver */
+-	.long sys_ni_syscall	/* sys_mbind */
+-	.long sys_ni_syscall	/* 275 sys_get_mempolicy */
+-	.long sys_ni_syscall	/* sys_set_mempolicy */
++	.long sys_mbind
++	.long sys_get_mempolicy
++	.long sys_set_mempolicy
+ 	.long sys_mq_open
+ 	.long sys_mq_unlink
+ 	.long sys_mq_timedsend
 
 _
 
