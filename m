@@ -1,198 +1,133 @@
-Received: from digeo-nav01.digeo.com (digeo-nav01.digeo.com [192.168.1.233])
-	by packet.digeo.com (8.9.3+Sun/8.9.3) with SMTP id TAA10130
-	for <linux-mm@kvack.org>; Sat, 9 Nov 2002 19:59:41 -0800 (PST)
-Message-ID: <3DCDD9AC.C3FB30D9@digeo.com>
-Date: Sat, 09 Nov 2002 19:59:40 -0800
-From: Andrew Morton <akpm@digeo.com>
-MIME-Version: 1.0
-Subject: 2.5.46-mm2
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Date: Sun, 10 Nov 2002 15:32:08 +0100
+From: Jens Axboe <axboe@suse.de>
+Subject: Re: 2.5.46-mm2
+Message-ID: <20021110143208.GJ31134@suse.de>
+References: <3DCDD9AC.C3FB30D9@digeo.com>
+Mime-Version: 1.0
+Content-Type: multipart/mixed; boundary="wac7ysb48OaltWcw"
+Content-Disposition: inline
+In-Reply-To: <3DCDD9AC.C3FB30D9@digeo.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Andrew Morton <akpm@digeo.com>
+Cc: lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-url: http://www.zip.com.au/~akpm/linux/patches/2.5/2.5.46/2.5.46-mm2/
+--wac7ysb48OaltWcw
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 
-There's some work here to address some of the whacky corner cases
-which have traditionally knocked the VM over.  Some are fixed, some
-still need work.  My latest party trick is to run a 4G highmem machine
-with 800 megabytes of ZONE_NORMAL under mlock.  Can't say that it
-completely works yet...
+On Sat, Nov 09 2002, Andrew Morton wrote:
+> And Jens's rbtree-based insertion code for the request queue.  Which
+> means that the queues can be grown a *lot* if people want to play with
+> that.  The VM should be able to cope with it fine.
 
-Of note in -mm2 is a patch from Chris Mason which teaches reiserfs to
-use the mpage code for reads - it should show a nice reduction in CPU
-load under reiserfs reads.
+I've attached a small document describing the deadline io scheduler
+tunables. stream_unit is not in Andrew's version, yet, it uses a hard
+defined 128KiB. Also, Andrew didn't apply the rbtree patch only the
+tunable patch. So it uses the same insertion algorithm as the default
+kernel, two linked lists.
 
-And Jens's rbtree-based insertion code for the request queue.  Which
-means that the queues can be grown a *lot* if people want to play with
-that.  The VM should be able to cope with it fine.
+-- 
+Jens Axboe
 
-And a new set of block a_ops which never, ever, ever attach buffer_heads
-to file pagecache.  Implemented for ext2 - use `mount -o nobh'.
 
-And several VM tuning and stability tweaks.
+--wac7ysb48OaltWcw
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: attachment; filename="deadline-iosched.txt"
 
+Deadline IO scheduler tunables
+==============================
 
-Changes since 2.5.46-mm1:
+This little file attempts to document how the deadline io scheduler works.
+In particular, it will clarify the meaning of the exposed tunables that may be
+of interest to power users.
 
--net-timer-init.patch
+Each io queue has a set of io scheduler tunables associated with it. These
+tunables control how the io scheduler works. You can find these entries
+in:
 
- Merged
+/sys/block/<device>/iosched
 
-+rcu-stats.patch
+assuming that you have sysfs mounted on /sys. If you don't have sysfs mounted,
+you can do so by typing:
 
- Stats in /proc/rcu
+# mount none /sys -t sysfs
 
--mbcache-atomicity-fix.patch
--htree-fix.patch
 
- Merged
+********************************************************************************
 
-+nuke-disk-stats.patch
 
- Remove the disk stats from /proc/stat: they're in /sys now.
+read_expire	(in ms)
+-----------
 
--akpm-deadline.patch
 
- The IO scheduler can now be tuned via /sys/block/hda/iosched
+The goal of the deadline io scheduler is to attempt to guarentee a start
+service time for a request. As we focus mainly on read latencies, this is
+tunable. When a read request first enters the io scheduler, it is assigned
+a deadline that is the current time + the read_expire value in units of
+miliseconds.
 
-+aio-direct-io-infrastructure.patch
-+aio-direct-io.patch
 
- AIO support for direct-io
+fifo_batch
+----------
 
-+reiserfs-readpages.patch
+When a read request expires its deadline, we must move some requests from
+the sorted io scheduler list to the block device dispatch queue. fifo_batch
+controls how many requests we move, based on the cost of each request. A
+request is either qualified as a seek or a stream. The io scheduler knows
+the last request that was serviced by the drive (or will be serviced right
+before this one). See seek_cost and stream_unit.
 
- Use mpage in reiserfs3
 
-+remove-inode-buffers.patch
+seek_cost
+---------
 
- Drop clean metadata buffers from inodes when we're trying to reclaim them.
+The cost of a seek compared to a stream_unit (see below).
 
-+unfreeable-zones.patch
 
- Handle weird situations where all of a zone's pages are pinned by something.
+stream_unit	(in KiB)
+-----------
 
-+mpage-kmap.patch
+How many KiB we qualify as a single stream unit. A stream unit has a cost of
+1, so if a request is X KiB big, it has a cost of
 
- s/kmap/kmap_atomic/ in the mpage code
+	cost = (X + stream_unit - 1) / stream_unit
 
-+nobh.patch
+stream_unit, seek_cost, and fifo_batch control how many requests we
+potentially move to the dispatch queue when a request expires.
 
- Don't attached buffer_heads to pagecache for writes.
 
-+inode-reclaim-balancing.patch
+write_starved	(number of dispatches)
+-------------
 
- Fix some overeager reclaim of dentries and hence inodes.
+When we have to move requests from the io scheduler queue to the block
+device dispatch queue, we always give a preference to reads. However, we
+don't want to starve writes indefinitely either. So writes_starved controls
+how many times we give preference to reads over writes. When that has been
+done writes_starved number of times, we dispatch some writes based on the
+same criteria as reads.
 
-+rbtree-iosched.patch
 
- Tree-based IO scheduler insertion, and /sys/block/XXX/iosched tunables
+front_merges	(bool)
+------------
 
+Sometimes it happens that a request enters the io scheduler that is contigious
+with a request that is already on the queue. Either it fits in the back of that
+request, or it fits at the front. That is called either a back merge candidate
+or a front merge candidate. Due to the way files are typically laid out,
+back merges are much more common than front merges. For some work loads, you
+may even know that it is a waste of time to spend any time attempting to
+front merge requests. Setting front_merges to 0 disables this functionality.
+Front merges may still occur due to the cached last_merge hint, but since
+that comes at basically 0 cost we leave that on. We simply disable the
+rbtree front sector lookup when the io scheduler merge function is called.
 
 
+Nov 11 2002, Jens Axboe <axboe@suse.de>
 
-All patches:
 
-linus.patch
-  cset-1.786.157.7-to-1.801.txt.gz
-
-kgdb.patch
-
-genksyms-hurts.patch
-  fix exporting of per-cpu symbols for modversions
-
-misc.patch
-  misc fixes
-
-writev-bad-seg-fix.patch
-  Fix readv/writev return value
-
-wli-01-iowait.patch
-  SMP iowait stats
-
-wli-02-zap_hugetlb_resources.patch
-  hugetlb: fix zap_hugetlb_resources()
-
-wli-03-remove-unlink_vma.patch
-  hugetlb: remove unlink_vma()
-
-wli-04-internalize-hugetlb-init.patch
-  hugetlb: internalize hugetlb init
-
-wli-05-sysctl-cleanup.patch
-  hugetlb: remove sysctl.c intrusion
-
-wli-06-cleanup-proc.patch
-  hugetlb: remove /proc/ intrusion
-
-wli-07-hugetlb-static.patch
-  hugetlb: make private functions static
-
-rcu-stats.patch
-  RCU statistics reporting
-
-msec-fix.patch
-  Fix math underflow in disk accounting
-
-touch_buffer-fix.patch
-  buffer_head refcounting fixes and cleanup
-
-pgalloc-accounting-fix.patch
-  fix page alloc/free accounting
-
-nuke-disk-stats.patch
-  duplicate statistics being gathered
-
-irq-save-vm-locks.patch
-  make mapping->page_lock irq-safe
-
-irq-safe-private-lock.patch
-  make mapping->private_lock irq-safe
-
-aio-direct-io-infrastructure.patch
-  AIO support for raw/O_DIRECT
-
-aio-direct-io.patch
-  AIO support for raw/O_DIRECT
-
-reiserfs-readpages.patch
-  reiserfs v3 readpages support
-
-remove-inode-buffers.patch
-  try to remove buffer_heads from to-be-reaped inodes
-
-resurrect-incremental-min.patch
-  strengthen the `incremental min' logic in the page allocator
-
-unfreeable-zones.patch
-  VM: handle zones which are ful of unreclaimable pages
-
-mpage-kmap.patch
-  kmap->kmap_atomic in mpage.c
-
-nobh.patch
-  no-buffer-head ext2 option
-
-inode-reclaim-balancing.patch
-  better inode reclaim balancing
-
-rbtree-iosched.patch
-  Subject: Re: 2.5.46: ide-cd cdrecord success report
-
-page-reservation.patch
-  Page reservation API
-
-wli-show_free_areas.patch
-  show_free_areas extensions
-
-dcache_rcu.patch
-  Use RCU for dcache
-
-shpte-ng.patch
-  pagetable sharing for ia32
+--wac7ysb48OaltWcw--
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
