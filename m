@@ -1,11 +1,11 @@
-Subject: Re: 2.6.1-mm1 (compile stats)
-From: John Cherry <cherry@osdl.org>
-In-Reply-To: <20040109014003.3d925e54.akpm@osdl.org>
+Message-ID: <3FFED73D.8020502@gmx.de>
+Date: Fri, 09 Jan 2004 17:30:53 +0100
+From: "Prakash K. Cheemplavam" <PrakashKC@gmx.de>
+MIME-Version: 1.0
+Subject: Re: 2.6.1-mm1
 References: <20040109014003.3d925e54.akpm@osdl.org>
-Content-Type: text/plain
-Message-Id: <1073661847.2709.3.camel@lightning>
-Mime-Version: 1.0
-Date: 09 Jan 2004 07:24:07 -0800
+In-Reply-To: <20040109014003.3d925e54.akpm@osdl.org>
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
@@ -13,27 +13,16 @@ To: Andrew Morton <akpm@osdl.org>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Linux 2.6 (mm tree) Compile Statistics (gcc 3.2.2)
-Warnings/Errors Summary
+Hi,
 
-Kernel            bzImage   bzImage  bzImage  modules  bzImage  modules
-                (defconfig) (allno) (allyes) (allyes) (allmod) (allmod)
---------------- ---------- -------- -------- -------- -------- --------
-2.6.1-mm1         0w/0e     0w/0e   146w/ 9e  12w/0e   6w/0e    171w/0e
-2.6.1-rc2-mm1     0w/0e     0w/0e   149w/ 0e  12w/0e   6w/0e    171w/4e
-2.6.1-rc1-mm2     0w/0e     0w/0e   157w/15e  12w/0e   3w/0e    185w/4e
-2.6.1-rc1-mm1     0w/0e     0w/0e   156w/10e  12w/0e   3w/0e    184w/2e
-2.6.0-mm2         0w/0e     0w/0e   161w/ 0e  12w/0e   3w/0e    189w/0e
-2.6.0-mm1         0w/0e     0w/0e   173w/ 0e  12w/0e   3w/0e    212w/0e
+could it be that you took out /or forgot to insterst the work-around for 
+nforce2+apic? At least I did a test with cpu disconnect on and booted 
+kernel and it hang. (I also couldn't find the work-around in the 
+sources.) I remember an earlier mm kernel had that workaround inside.
 
-Web page with links to complete details:
-   http://developer.osdl.org/cherry/compile/
+bye,
 
-John
-
-
-
-
+Prakash
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
