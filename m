@@ -1,115 +1,102 @@
-Date: Mon, 7 May 2001 18:16:57 -0300 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
-Subject: on load control / process swapping
-Message-ID: <Pine.LNX.4.21.0105061924160.582-100000@imladris.rielhome.conectiva>
+Received: from nmu.edu (googee.NMU.EDU [198.110.193.121])
+	by euclid.nmu.edu (8.11.0/8.11.0) with ESMTP id f47LcMt06990
+	for <linux-mm@kvack.org>; Mon, 7 May 2001 17:38:22 -0400
+Message-ID: <3AF71B81.F60D2904@nmu.edu>
+Date: Mon, 07 May 2001 18:02:41 -0400
+From: Randy Appleton <rappleto@nmu.edu>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: MM performance benchmark
+Content-Type: multipart/mixed;
+ boundary="------------0E1F67C7945FC39693272FE4"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: arch@freebsd.org
-Cc: linux-mm@kvack.org, Matt Dillon <dillon@earth.backplane.com>, sfkaplan@cs.amherst.edu
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
-
-after staring at the code for a long long time, I finally
-figured out exactly why FreeBSD's load control code (the
-process swapping in vm_glue.c) can never work in many
-scenarios.
-
-In short, the process suspension / wake up code only does
-load control in the sense that system load is reduced, but
-absolutely no effort is made to ensure that individual
-programs can run without thrashing. This, of course, kind of
-defeats the purpose of doing load control in the first place.
+This is a multi-part message in MIME format.
+--------------0E1F67C7945FC39693272FE4
+Content-Type: multipart/alternative;
+ boundary="------------5A8D32379B1D9B5CD547D371"
 
 
-To see this situation in some more detail, lets first look
-at how the current process suspension code has evolved over
-time.  Early paging Unixes, including earlier BSDs, had a
-rate-limited clock algorithm for the pageout code, where
-the VM subsystem would only scan (and page) memory out at
-a rate of fastscan pages per second.
+--------------5A8D32379B1D9B5CD547D371
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 
-Whenever the paging system wasn't able to keep up, free
-memory would get below a certain threshold and memory load
-control (in the form of process suspension) kicked in.  As
-soon as free memory (averaged over a few seconds) got over
-this threshold, processes get swapped in again.  Because of
-the exact "speed limit" for the paging code, this would give
-a slow rotation of memory-resident progesses at a paging rate
-well below the thashing threshold.
+Hi!
 
+I'm a professor of computer science at Northern Michigan University.
+Three students and myself
+have been benchmarking the Linux kernel.  At
+http://euclid.nmu.edu/~benchmark you will see
+graphs describing performance for mmap() and page faults.
 
-More modern Unixes, like FreeBSD, NetBSD or Linux, however,
-don't have the artificial speed limit on pageout.  This means
-the pageout code can go on freeing memory until well beyond
-the trashing point of the system.  It also means that the
-amount of free memory is no longer any indication of whether
-the system is thrashing or not.
+Both graphs show a huge improvement between 2.2 and 2.3.  We see a 100x
+performance
+gain.  My questions is ... Why has performance improved so much?  What
+changed between
+2.2 and 2.3 to account for a 100x performance improvement?
 
-Add to that the fact that the classical load control in BSD
-resumes a suspended task whenever the system is above the
-(now not very meaningful) free memory threshold, regardless
-of whether the resident tasks have had the opportunity to
-make any progress ... which of course only encourages more
-thrashing instead of letting the system work itself out of
-the overload situation.
+-Much Thanks
+-Randy
 
-
-Any solution will have to address the following points:
-
-1) allow the resident processes to stay resident long
-   enough to make progess
-2) make sure the resident processes aren't thrashing,
-   that is, don't let new processes back in memory if
-   none of the currently resident processes is "ready"
-   to be suspended
-3) have a mechanism to detect thrashing in a VM
-   subsystem which isn't rate-limited  (hard?)
-
-and, for extra brownie points:
-4) fairness, small processes can be paged in and out
-   faster, so we can suspend&resume them faster; this
-   has the side effect of leaving the proverbial root
-   shell more usable
-5) make sure already resident processes cannot create
-   a situation that'll keep the swapped out tasks out
-   of memory forever ... but don't kill performance either,
-   since bad performance means we cannot get out of the
-   bad situation we're in
-
-
-Points 1), 2) and 4) are relatively easy to address by simply
-keeping resident tasks unswappable for a long enough time that
-they've been able to do real work in an environment where
-3) indicates we're not thrashing.
-
-
-3) is the hard part. We know we're not thrashing when we don't
-have ongoing page faults all the time, but (say) only 50% of the
-time. However, I still have no idea to determine when we _are_
-thrashing, since a system which always has 10 ongoing page faults
-may still be functioning without thrashing...  This is the part
-where I cannot hand a ready solution but where we have to figure
-out a solution together.
-
-(and it's also the reason I cannot "send a patch" ... I know the
-current scheme cannot possibly work all the time, I understand why,
-but I just don't have a solution to the problem ... yet)
-
-regards,
-
-Rik
 --
-Virtual memory is like a game you can't win;
-However, without VM there's truly nothing to lose...
-
-http://www.surriel.com/		http://distro.conectiva.com/
-
-Send all your spam to aardvark@nl.linux.org (spam digging piggy)
+========================================================================
+|| Randy Appleton, Professor of Computer Science at Northern Michigan ||
+|| University.  And a big fan of Linux!                               ||
+================= mailto:randy@euclid.nmu.edu ==========================
 
 
+
+--------------5A8D32379B1D9B5CD547D371
+Content-Type: text/html; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+
+<!doctype html public "-//w3c//dtd html 4.0 transitional//en">
+<html>
+Hi!
+<p>I'm a professor of computer science at Northern Michigan University.&nbsp;
+Three students and myself
+<br>have been benchmarking the Linux kernel.&nbsp; At <A HREF="http://euclid.nmu.edu/~benchmark">http://euclid.nmu.edu/~benchmark</A>
+you will see
+<br>graphs describing performance for mmap() and page faults.
+<p>Both graphs show a huge improvement between 2.2 and 2.3.&nbsp; We see
+a 100x performance
+<br>gain.&nbsp; My questions is ... Why has performance improved so much?&nbsp;
+What changed between
+<br>2.2 and 2.3 to account for a 100x performance improvement?
+<p>-Much Thanks
+<br>-Randy
+<pre>--&nbsp;
+========================================================================
+|| Randy Appleton, Professor of Computer Science at Northern Michigan ||
+|| University.&nbsp; And a big fan of Linux!&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ||
+================= <A HREF="mailto:randy@euclid.nmu.edu">mailto:randy@euclid.nmu.edu</A> ==========================</pre>
+&nbsp;</html>
+
+--------------5A8D32379B1D9B5CD547D371--
+
+--------------0E1F67C7945FC39693272FE4
+Content-Type: text/x-vcard; charset=us-ascii;
+ name="rappleto.vcf"
+Content-Transfer-Encoding: 7bit
+Content-Description: Card for Randy Appleton
+Content-Disposition: attachment;
+ filename="rappleto.vcf"
+
+begin:vcard 
+n:Appleton;Randy
+x-mozilla-html:TRUE
+org:Northern Michigan University
+adr:;;;;;;
+version:2.1
+email;internet:rappleto@nmu.edu
+title:Dr.
+x-mozilla-cpt:;0
+fn:Randy Appleton
+end:vcard
+
+--------------0E1F67C7945FC39693272FE4--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
