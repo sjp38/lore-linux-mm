@@ -1,60 +1,56 @@
-From: Sidney Stone <admin@bankcommonwealth.com>
-Subject: Please Read and Reply
-Reply-To: Sidney Stone <admin@bankcommonwealth.com>
-mime-version: 1.0
-content-type: multipart/mixed;
-	boundary="qzsoft_directmail_seperator"
-Message-Id: <20041224101454Z26529-766+4015@kvack.org>
-Date: Fri, 24 Dec 2004 05:14:48 -0500
+Date: Fri, 24 Dec 2004 08:17:07 -0800 (PST)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: Prezeroing V2 [0/3]: Why and When it works
+In-Reply-To: <Pine.LNX.4.58.0412231325420.2654@ppc970.osdl.org>
+Message-ID: <Pine.LNX.4.58.0412240812190.6505@schroedinger.engr.sgi.com>
+References: <B8E391BBE9FE384DAA4C5C003888BE6F02900FBD@scsmsx401.amr.corp.intel.com>
+ <41C20E3E.3070209@yahoo.com.au> <Pine.LNX.4.58.0412211154100.1313@schroedinger.engr.sgi.com>
+ <Pine.LNX.4.58.0412231119540.31791@schroedinger.engr.sgi.com>
+ <16843.13418.630413.64809@cargo.ozlabs.ibm.com> <Pine.LNX.4.58.0412231325420.2654@ppc970.osdl.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm <linux-mm@kvack.org>
+To: Linus Torvalds <torvalds@osdl.org>
+Cc: Paul Mackerras <paulus@samba.org>, Andrew Morton <akpm@osdl.org>, linux-ia64@vger.kernel.org, linux-mm@kvack.org, Kernel Mailing List <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
---qzsoft_directmail_seperator
-Content-Type: text/plain;
-	charset="DEFAULT"
-Content-Transfer-Encoding: base64
+On Thu, 23 Dec 2004, Linus Torvalds wrote:
 
-ICBGcm9tOiA5OSBRdWVlbiBTdHJlZXQsIE1lbGJvdXJuZQogIFZJQyAzMDAwLCBBdXN0cmFsaWEu
-CiAgRGF0ZTogRGVjZW1iZXIgMjQsIDIwMDQKICAKICAKICBBVFRFTlRJT046CiAgCk15IG5hbWUg
-aXMgTXIuIFNpZG5leSBTdG9uZSwgSGVhZCBvZiBTZWN1cml0aWVzLCAgQ29tbW9ud2VhbHRoIEJh
-bmsgb2YgQXVzdHJhbGlhLCBNZWxib3VybmUgCkkgYW0gY29udGFjdGluZyB5b3Ugb24gYnVzaW5l
-c3MgdHJhbnNmZXIgb2YgYSBodWdlICBzdW0gIG9mIG1vbmV5IGZyb20gYSBkZWNlYXNlZCBhY2Nv
-dW50LgpUaG91Z2ggSSBrbm93IHRoYXQgYSAgIHRyYW5zYWN0aW9uIG9mIHRoaXMgbWFnbml0dWRl
-IHdpbGwgbWFrZSBhbnkgb25lIGFwcHJlaGVuc2l2ZSBhbmQgd29ycmllZCwgYnV0IEkgYW0gYXNz
-dXJpbmcgeW91IHRoYXQgICBhbGwgd2lsbCBiZSB3ZWxsIGF0IHRoZSBlbmQgb2YgdGhlIGRheS4g
-V2UgZGVjaWRlZCB0byBjb250YWN0IHlvdSBkdWUgdG8gdGhlIHVyZ2VuY3kgb2YgdGhpcyB0cmFu
-c2FjdGlvbi4KICAKV2UgZGlzY292ZXJlZCBhIGh1Z2UgYWJhbmRvbmVkIHN1bSBpbiBhbiBhY2Nv
-dW50IHRoYXQgYmVsb25ncyB0byBvbmUgb2Ygb3VyIGZvcmVpZ24gY3VzdG9tZXJzIHdobyBkaWVk
-CmFsb25nIHdpdGggaGlzIGVudGlyZSBmYW1pbHkuIFNpbmNlIGhpcyBkZWF0aCwgbm9uZSBvZiBo
-aXMgbmV4dC1vZi1raW4gb3IgcmVsYXRpb25zIGhhcyBjb21lIGZvcndhcmQgdG8gbGF5CmNsYWlt
-cyBmb3IgdGhpcyBtb25leSBhcyB0aGUgaGVpci4KV2UgY2Fubm90IHJlbGVhc2UgdGhlIGZ1bmQg
-ZnJvbSBoaXMgYWNjb3VudCB1bmxlc3Mgc29tZW9uZSBhcHBsaWVzIGZvciBjbGFpbSBhcyB0aGUg
-bmV4dC1vZi1raW4gdG8gdGhlCmRlY2Vhc2VkIGFzIGluZGljYXRlZCBpbiBvdXIgYmFua2luZyBn
-dWlkZWxpbmVzLgogIApVcG9uIHRoaXMgZGlzY292ZXJ5LCB3ZSBub3cgc2VlayB5b3VyIHBlcm1p
-c3Npb24gdG8gaGF2ZSB5b3Ugc3RhbmQgYXMgYSBuZXh0IG9mIGtpbiB0byB0aGUgZGVjZWFzZWQg
-YXMKYWxsIGRvY3VtZW50YXRpb25zIHdpbGwgYmUgY2FyZWZ1bGx5IHdvcmtlZCBvdXQgYnkgbWUg
-Zm9yIHRoZSBmdW5kcyB0byBiZSByZWxlYXNlZCBpbiB5b3VyIGZhdm9yIGFzIHRoZQpiZW5lZmlj
-aWFyeSBuZXh0IG9mIGtpbi4gSXQgbWF5IGludGVyZXN0IHlvdSB0byBrbm93IHRoYXQgd2UgaGF2
-ZSBzZWN1cmVkIGZyb20gdGhlIHByb2JhdGUgYW4gb3JkZXIgb2YKbWFuZGFtdXMgdG8gbG9jYXRl
-IGFueSBvZiBkZWNlYXNlZCBiZW5lZmljaWFyaWVzLgpQbGVhc2UgYWNrbm93bGVkZ2UgcmVjZWlw
-dCBvZiB0aGlzIG1lc3NhZ2UgaW4gYWNjZXB0YW5jZSBvZiBvdXIgbXV0dWFsIGJ1c2luZXNzIGVu
-ZGVhdm9yIGJ5IGZ1cm5pc2hpbmcgbWUgd2l0aCB5b3VyIGZ1bGwgbmFtZXMsIGFkZHJlc3MgYW5k
-IGRpcmVjdCBjb250YWN0IG51bWJlcnMuCiAgClRoZXNlIHJlcXVpcmVtZW50cyB3aWxsIGVuYWJs
-ZSB1cyBmaWxlIGxldHRlciBvZiBjbGFpbSB0byB0aGUgYXBwcm9wcmlhdGUgZGVwYXJ0bWVudHMg
-Zm9yIG5lY2Vzc2FyeQphcHByb3ZhbHMgaW4geW91ciBmYXZvciBiZWZvcmUgdGhlIHRyYW5zZmVy
-IGNhbiBiZSBtYWRlLiBXZSAgIHNoYWxsIGJlIGNvbXBlbnNhdGluZyB5b3Ugd2l0aCBhIG1pbGxp
-b24gZG9sbGFycyBvbiBmaW5hbCBjb25jbHVzaW9uIG9mIHRoaXMgcHJvamVjdCwgd2hpbGUgdGhl
-IHJlc3Qgc2hhbGwgYmUgZm9yIHVzLiBZb3VyIHNoYXJlIHN0YXlzIHdoaWxlIHRoZSByZXN0IHNo
-YWxsIGJlIGZvciB1cyBmb3IgaW52ZXN0bWVudCBwdXJwb3Nlcy4gCklmIHRoaXMgcHJvcG9zYWwg
-aXMgYWNjZXB0YWJsZSBieSB5b3UsIGRvIG5vdCB0YWtlIHVuZHVlIGFkdmFudGFnZSBvZiAgIHRo
-ZSB0cnVzdCB3ZSBoYXZlIGJlc3Rvd2VkIGluIHlvdSwgSSBhd2FpdCB5b3VyIHVyZ2VudCAgbWFp
-bC4KICAKSSB3aWxsIGludHJvZHVjZSBteXNlbGYgZnVsbHkgcGVuZGluZyB5b3VyIHJlc3BvbnNl
-LgogIAogIFJlZ2FyZHMsCiAgU2lkbmV5IFN0b25lLgo=
+> So if we make the "what load is considered low" tunable, a system
+> administrator can use that to make it more aggressive. And indeed, you
+> might have a cron-job that says "be more aggressive at clearing pages
+> between 2AM and 4AM in the morning" or something - if you have so much
+> memory that it actually matters if you clear the memory just occasionally.
+>
+> And the tunable load-average check has another advantage: if you want to
+> benchmark it, you can first set it to true zero (basically never), and run
+> the benchmark, and then you can set it to something very agressive ("clear
+> pages every five seconds regardless of load") and re-run.
+>
+> Does this sound sane? Christoph - can you try making the "scrub deamon" do
+> that? Instead of the "scrub-low" and "scrub-high" (or in _addition_ to
+> them), do a "scub-load" thing that takes a scaled integer, and compares it
+> with "avenrun[0]" in kernel/timer.c: calc_load() when the average is
+> updated every five seconds..
 
---qzsoft_directmail_seperator--
+Sure V3 will have that. So far the impact of zeroing is quite minimal
+on IA64 (even without using hardware), the big zeroing happens immediately
+after activating it anyways. I have not seen any measurable effect on
+benchmarks even with 4G allocations on a 6G machine.
 
+> Personally, at least for a desktop usage, I think that the load average
+> would work wonderfully well. I know my machines are often at basically
+> zero load, and then having low-latency zero-pages when I sit down sounds
+> like a good idea. Whether there is _enough_ free memory around for a
+> 5-second thing to work out well, I have no idea..
+
+The CPU can do a couple of Gigs of zeroing per second per CPU and the
+zeroing zeros local RAM. On my 6G machine with 8 Cpus it can only
+take a fraction of a second to zero all RAM.
+
+Merry Christmas, I am off till now next year. SGI mandatory holiday
+shutdown so all addicts have to go cold turkey ;-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
