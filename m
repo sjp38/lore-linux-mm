@@ -1,45 +1,63 @@
-Date: Sun, 27 May 2001 22:20:20 +0200
-From: bert hubert <ahu@ds9a.nl>
-Subject: http://ds9a.nl/cacheinfo project - please comment & improve
-Message-ID: <20010527222020.A25390@home.ds9a.nl>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Date: Mon, 28 May 2001 14:29:28 -0300 (BRT)
+From: Marcelo Tosatti <marcelo@conectiva.com.br>
+Subject: Re: [PATCH] modified memory_pressure calculation
+In-Reply-To: <3B10F351.6DDEC59@colorfullife.com>
+Message-ID: <Pine.LNX.4.21.0105281425450.1204-100000@freak.distro.conectiva>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Manfred Spraul <manfred@colorfullife.com>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hello mm people!
 
-I've written a module plus a tiny userspace program to query the page
-cache. In short:
+On Sun, 27 May 2001, Manfred Spraul wrote:
 
-$ cinfo /lib/libc.so.6
-/lib/libc.so.6: 182 of 272 (66.91%) pages in the cache, of which 0 (0.00%)
-are dirty
+> I think the current memory_pressure calculation is broken - at least
+> memory_pressure does not contain the number of pages necessary in the
+> inactive_clean_list to handle 1 second of allocations.
+> 
+> * if reclaim_page() finds a page that is Referenced, Dirty or Locked
+> then it must increase memory_pressure.
+> * I don't understand the purpose of the second ++ in alloc_pages().
+> 
+> What about the attached patch [vs. 2.4.5]? It's just an idea, untested.
+> 
+> If the behaviour is worse then we must figure out what memory_pressure
+> actually is under the various workloads. AFAICS it has nothing to do
+> with the number of memory allocations per second.
 
-Now, I'm a complete and utter beginner when it comes to kernelcoding. Also,
-this is very much a 'release early, release often'-release. In other words,
-it sucks & I know.
+Pasting a part of your patch: 
 
-So I would like to ask you to look at it and send comments/patches to me.
-I'm especially interested in architectural decisions - I currently export
-data over a filesystem (cinfofs), which may or not be right.
+@@ -363,6 +364,7 @@
+                                (!page->buffers && page_count(page) >
+1)) {
+                        del_page_from_inactive_clean_list(page);
+                        add_page_to_active_list(page);
++                       memory_pressure++;
+                        continue;
+                }
+ 
+@@ -370,6 +372,7 @@
+                if (page->buffers || PageDirty(page) || TryLockPage(page)) {
+                        del_page_from_inactive_clean_list(page);
+                        add_page_to_inactive_dirty_list(page);
++                       memory_pressure++;
+                        continue;
+                }
+ 
 
-The tarball (http://ds9a.nl/cacheinfo/cinfo-0.1.tar.gz) contains 2 manpages
-which very lightly document how it works.
 
-Thanks for your time!
+I disagree with the second hunk. 
 
-Regards,
+memory_pressure is used to calculate the size of _both_ the inactive dirty
+and clean lists. 
 
-bert hubert
+Since you're adding the page back to the inactive dirty list, you should
+not increase memory_pressure.
 
--- 
-http://www.PowerDNS.com      Versatile DNS Services  
-Trilab                       The Technology People   
-'SYN! .. SYN|ACK! .. ACK!' - the mating call of the internet
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
