@@ -1,71 +1,39 @@
-Message-Id: <200106260114.f5Q1EVg27737@mailg.telia.com>
-Content-Type: text/plain;
-  charset="iso-8859-1"
-From: Roger Larsson <roger.larsson@norran.net>
-Subject: Re: [RFC] VM statistics to gather
-Date: Tue, 26 Jun 2001 03:11:03 +0200
-References: <Pine.LNX.4.33L.0106252048230.23373-100000@duckman.distro.conectiva>
-In-Reply-To: <Pine.LNX.4.33L.0106252048230.23373-100000@duckman.distro.conectiva>
+Date: Mon, 25 Jun 2001 21:53:33 -0300 (BRT)
+From: Marcelo Tosatti <marcelo@conectiva.com.br>
+Subject: Re: VM tuning through fault trace gathering [with actual code]
+In-Reply-To: <m2d77s4m34.fsf@boreas.yi.org.>
+Message-ID: <Pine.LNX.4.21.0106252152580.941-100000@freak.distro.conectiva>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@conectiva.com.br>
-Cc: linux-mm@kvack.org
+To: John Fremlin <vii@users.sourceforge.net>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tuesday 26 June 2001 01:59, Rik van Riel wrote:
-> On Tue, 26 Jun 2001, Roger Larsson wrote:
-> > What about
-> >
-> >    unsigned int vm_pgfails /* failed alloc attempts, in pages (not calls)
-> > */
->
-> What would that represent ?
->
-> How often __alloc_pages() exits without allocating anything?
 
-Yes, failed allocs  [Call it vm_pgalloc_fails ?]
+On 25 Jun 2001, John Fremlin wrote:
 
->
-> > maybe even a
-> >
-> >    unsigned int vm_pgallocs /* alloc attempts, in pages */
-> >
-> > for sanity checking - should be the sum of several other combinations...
->
-> Sounds like a nice idea.
->
+> 
+> Last year I had the idea of tracing the memory accesses of the system
+> to improve the VM - the traces could be used to test algorithms in
+> userspace. The difficulty is of course making all memory accesses
+> fault without destroying system performance.
+> 
+> The following patch (i386 only) will dump all page faults to
+> /dev/biglog (you need devfs for this node to appear). If you echo 1 >
+> /proc/sys/vm/trace then *almost all* userspace memory accesses will
+> take a soft fault. Note that this is a bit suicidal at the moment
+> because of the staggeringly inefficient way its implemented, on my box
+> (K6-2 300MHz) only processes which do very little (e.g. /usr/bin/yes)
+> running at highest priority are able to print anything to the console.
+> 
+> I think the best way would be to have only one valid l2 pte per
+> process. I'll have a go at doing that in a day or two unless someone
+> has a better idea?
 
-Let this and vm_pgalloc_fails work together,
+Linux Trace Toolkit (http://www.opersys.com/LTT) does that. 
 
-at __alloc_pages entry (always done) account in vm_pgallocs
-at failed exit account in vm_pgallocs_failed
-
-> > Should memory zone be used as dimension?
->
-> Useful for allocations I guess, but it may be too confusing
-> if we do this for all statistics... OTOH...
-
-Using order as another dimension could also be interesting...
-Something like this?
-
-vm_pgallocs[
-	order < MAX_ACCOUNT_ORDER ? order : MAX_ACCOUNT_ORDER][
-	gfp_mask & GFP_ZONEMASK] += (1 << order)
-
-Or even simpler (assuming MAX_ACCOUNT_ORDER == 1)
-
-vm_pgallocs[!!order][gfp_mask & GFP_ZONEMASK] += (1 << order)
-
-BTW, why is GFP_ZONEMASK 0xf when MAX_NR_ZONES is 3 ? (i.e. 0..2)
-
-/RogerL
-
--- 
-Roger Larsson
-Skelleftea
-Sweden
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
