@@ -1,40 +1,50 @@
-Message-Id: <200102062322.AAA14557@front9.grolier.fr>
-Content-Type: text/plain; charset="iso-8859-1"
-Content-Disposition: inline
-Content-Transfer-Encoding: 7bit
-MIME-Version: 1.0
-From: Jean Francois Martinez <jfm2@club-internet.fr>
+Date: Tue, 6 Feb 2001 21:22:45 -0200 (BRDT)
+From: Rik van Riel <riel@conectiva.com.br>
 Subject: Re: Another Mindcradt case?
-Date: 07 Feb 2001 00:23:54 CET
-Reply-To: Jean Francois Martinez <jfm2@club-internet.fr>
-In-Reply-To: <20010206212704.A5882@caldera.de>
-References: <200102062024.VAA15550@front3.grolier.fr>
-    <20010206212704.A5882@caldera.de>
+In-Reply-To: <200102062258.XAA01582@front7.grolier.fr>
+Message-ID: <Pine.LNX.4.21.0102062120520.1535-100000@duckman.distro.conectiva>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Hellwig <hch@ns.caldera.de>
-Cc: linux-mm@kvack.org
+To: Jean Francois Martinez <jfm2@club-internet.fr>
+Cc: Roger Larsson <roger.larsson@norran.net>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 6 Feb 2001 21:27:04 +0100, Christoph Hellwig said:
+On 6 Feb 2001, Jean Francois Martinez wrote:
+> On Tue, 6 Feb 2001 23:02:01 +0100, Roger Larsson said:
+> 
+> >  Please note that Moshe is (usually) very pro Linux (read his earlier columns).
+> >  I guess that he had expected Linux 2.4 to really beat FreeBSD - it did not...
+> 
+> I was speaking about the reaction of pride Linux developpers had
+> after the Mindcraft "benchamrks" pointed to design flaws in
+> Linux.  Here it is a BSD who could be beating the pants of Linux
 
-> On Tue, Feb 06, 2001 at 09:25:10PM +0100, Jean Francois Martinez wrote:
->  > Moshe Barr is claiming on Byte that sendmail and mysql are 30% faster on
->  > FreeBSD than Linux 2.4.   Now given that I don't think that mysql is spending
->  > 30% of its time in kernel mode there are not many ways FreeBSD can be 30%
->  > faster.
->  
->  As he has not even documented all the parameters:  Ignore him.
->  
+In some areas FreeBSD is certainly better than Linux.
+In other areas, Linux is better than FreeBSD.
 
-The fact he doesn't give all parms doesn't mean Linux could not have a
-performance problem.	And  one thing is sure we have a propaganda problem
-since the BSD people will mention this for ten years.  So better to solve both
-problems than ignoring them.
+At the moment both systems mostly seem to be on par
+with each other and in some subsystems there's even a
+friendly coopetition between the developers on both
+OSes.
 
-							JF Martinez
+(and yes, I'm sure they can do better on MySQL benchmarks
+than Linux at the moment ... but this is something we are
+working on)
 
-                        
+regards,
+
+Rik
+--
+Linux MM bugzilla: http://linux-mm.org/bugzilla.shtml
+
+Virtual memory is like a game you can't win;
+However, without VM there's truly nothing to lose...
+
+		http://www.surriel.com/
+http://www.conectiva.com/	http://distro.conectiva.com/
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
