@@ -1,44 +1,30 @@
-Message-ID: <3B50A7ED.7A8A1BF0@rentec.com>
-Date: Sat, 14 Jul 2001 16:13:33 -0400
-From: Dirk <dirkw@rentec.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH] Separate global/perzone inactive/free shortage
-References: <Pine.LNX.4.21.0107140204110.4153-100000@freak.distro.conectiva>
+Date: Sun, 15 Jul 2001 15:42:19 +1200
+From: Chris Wedgwood <cw@f00f.org>
+Subject: Re: RFC: Remove swap file support
+Message-ID: <20010715154219.C7624@weta.f00f.org>
+References: <3B472C06.78A9530C@mandrakesoft.com> <m1elrk3uxh.fsf@frodo.biederman.org> <20010715032528.E6722@weta.f00f.org> <m13d7z4dmv.fsf@frodo.biederman.org>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+In-Reply-To: <m13d7z4dmv.fsf@frodo.biederman.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Marcelo Tosatti <marcelo@conectiva.com.br>
-Cc: lkml <linux-kernel@vger.kernel.org>, Rik van Riel <riel@conectiva.com.br>, Mike Galbraith <mikeg@wen-online.de>, linux-mm@kvack.org, "Stephen C. Tweedie" <sct@redhat.com>
+To: "Eric W. Biederman" <ebiederm@xmission.com>
+Cc: Jeff Garzik <jgarzik@mandrakesoft.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, viro@math.psu.edu, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Marcelo Tosatti wrote:
+On Sat, Jul 14, 2001 at 11:35:52AM -0600, Eric W. Biederman wrote:
 
-> Hi,
->
-> As well known, the VM does not make a distiction between global and
-> per-zone shortages when trying to free memory. That means if only a given
-> memory zone is under shortage, the kernel will scan pages from all zones.
->
-> The following patch (against 2.4.6-ac2), changes the kernel behaviour to
-> avoid freeing pages from zones which do not have an inactive and/or
-> free shortage.
->
-> Now I'm able to run memory hogs allocating 4GB of memory (on 4GB machine)
-> without getting real long hangs on my ssh session. (which used to happen
-> on stock -ac2 due to exhaustion of DMA pages for networking).
->
-> Comments ?
->
-> Dirk, Can you please try the patch and tell us if it fixes your problem ?
->
+    I can't see how any device that doesn't support read or writing
+    just a byte can be a character device.
 
-great!! that is definitely better, the machine talks to me again. there are some
-small "but"s. however. i write them up and let you know.
-
-    ~dirkw
+For requests smaller than the natural block size, you buffer and throw
+away... this will surely suck for writing do a hd byte-by-byte though
+:)
 
 
+
+  --cw
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
