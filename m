@@ -1,47 +1,80 @@
-Received: from komlan ([202.75.184.252]) by sun1.help.edu.my
-          (Netscape Messaging Server 3.6)  with SMTP id AAA62F6
-          for <linux-mm@kvack.org>; Mon, 23 Jul 2001 12:32:37 -0800
-Message-ID: <000d01c1132e$e7c3d980$fcb84bca@komlan>
-From: komlan_k@help.edu.my (Komlan Mawuena K Ponvi)
-Subject: ECC Memory dectetion
-Date: Mon, 23 Jul 2001 12:21:10 +0800
-MIME-Version: 1.0
-Content-Type: multipart/alternative;
-	boundary="----=_NextPart_000_000A_01C11371.F4DD4AA0"
+Received: (from arjanv@localhost)
+	by devserv.devel.redhat.com (8.11.0/8.11.0) id f6NAFDL21908
+	for linux-mm@kvack.org; Mon, 23 Jul 2001 06:15:13 -0400
+Date: Mon, 23 Jul 2001 06:15:12 -0400
+From: Arjan van de Ven <arjanv@redhat.com>
+Subject: Swap progress accounting
+Message-ID: <20010723061512.A21588@devserv.devel.redhat.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This is a multi-part message in MIME format.
+Hi,
 
-------=_NextPart_000_000A_01C11371.F4DD4AA0
-Content-Type: text/plain;
-	charset="iso-8859-1"
-Content-Transfer-Encoding: quoted-printable
+Currently, calling swap_out() on a zone doesn't count progress, and the
+result can be that you swap_out() a lot of pages, and still return "no
+progress possible" to try_to_free_pages(), which in turn makes a GFP_KERNEL
+allocation fail (and that can kill init).
 
-Hello,
-I want to now if RedHat 7.0 have bug with the ecc memory?
+The patch below makes it count as progress, so at least the page allocator
+will keep trying harder in this case (and more importantly, will start the
+io on the swappage if needed etc) 
 
-------=_NextPart_000_000A_01C11371.F4DD4AA0
-Content-Type: text/html;
-	charset="iso-8859-1"
-Content-Transfer-Encoding: quoted-printable
+Comments? 
 
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
-<HTML><HEAD>
-<META content=3D"text/html; charset=3Diso-8859-1" =
-http-equiv=3DContent-Type>
-<META content=3D"MSHTML 5.00.2920.0" name=3DGENERATOR>
-<STYLE></STYLE>
-</HEAD>
-<BODY bgColor=3D#ffffff>
-<DIV><FONT face=3DArial size=3D2>Hello,</FONT></DIV>
-<DIV><FONT face=3DArial size=3D2>I want to now if RedHat 7.0 have bug =
-with the ecc=20
-memory?</FONT></DIV></BODY></HTML>
+Greetings,
+   Arjan van de Ven
 
-------=_NextPart_000_000A_01C11371.F4DD4AA0--
+
+
+--- linux/mm/vmscan.c.org	Sun Jul 22 21:06:21 2001
++++ linux/mm/vmscan.c	Sun Jul 22 21:16:41 2001
+@@ -288,7 +288,7 @@
+ 	return nr;
+ }
+ 
+-static void swap_out(zone_t *zone, unsigned int priority, int gfp_mask)
++static int swap_out(zone_t *zone, unsigned int priority, int gfp_mask)
+ {
+ 	int counter;
+ 	int retval = 0;
+@@ -321,10 +321,11 @@
+ 		retval |= swap_out_mm(zone, mm, swap_amount(mm));
+ 		mmput(mm);
+ 	} while (--counter >= 0);
+-	return;
++	return retval;
+ 
+ empty:
+ 	spin_unlock(&mmlist_lock);
++	return retval;
+ }
+ 
+ 
+@@ -949,7 +950,8 @@
+ 		}
+ 
+ 		/* Walk the VM space for a bit.. */
+-		swap_out(NULL, DEF_PRIORITY, gfp_mask);
++		if (swap_out(NULL, DEF_PRIORITY, gfp_mask))
++			count--; /* count swap progress as progress */
+ 
+ 		count -= refill_inactive_scan(NULL, DEF_PRIORITY, count);
+ 		if (count <= 0)
+@@ -973,7 +975,8 @@
+ 	maxtry = (1 << DEF_PRIORITY);
+ 
+ 	do {
+-		swap_out(zone, DEF_PRIORITY, gfp_mask);
++		if (swap_out(zone, DEF_PRIORITY, gfp_mask))
++			count--; /* count swap progress as progress */
+ 
+ 		count -= refill_inactive_scan(zone, DEF_PRIORITY, count);
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
