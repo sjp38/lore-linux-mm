@@ -1,33 +1,30 @@
-Date: Mon, 7 Jul 2003 01:24:26 -0400 (EDT)
-From: Zwane Mwaikambo <zwane@arm.linux.org.uk>
+Date: Sun, 6 Jul 2003 22:47:20 -0700
+From: William Lee Irwin III <wli@holomorphy.com>
 Subject: Re: 2.5.74-mm1 (p4-clockmod does not compile)
-In-Reply-To: <20030703112026.GO26348@holomorphy.com>
-Message-ID: <Pine.LNX.4.53.0307070124050.15575@montezuma.mastecende.com>
-References: <20030703023714.55d13934.akpm@osdl.org> <1057229141.1479.16.camel@LNX.iNES.RO>
- <20030703110713.GN26348@holomorphy.com> <1057231068.1479.18.camel@LNX.iNES.RO>
- <20030703112026.GO26348@holomorphy.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Message-ID: <20030707054720.GD15452@holomorphy.com>
+References: <20030703023714.55d13934.akpm@osdl.org> <1057229141.1479.16.camel@LNX.iNES.RO> <20030703110713.GN26348@holomorphy.com> <1057231068.1479.18.camel@LNX.iNES.RO> <20030703112026.GO26348@holomorphy.com> <Pine.LNX.4.53.0307070124050.15575@montezuma.mastecende.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.53.0307070124050.15575@montezuma.mastecende.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: William Lee Irwin III <wli@holomorphy.com>
+To: Zwane Mwaikambo <zwane@arm.linux.org.uk>
 Cc: Dumitru Ciobarcianu <Dumitru.Ciobarcianu@iNES.RO>, Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 On Thu, 3 Jul 2003, William Lee Irwin III wrote:
+>> Great! Could you send back the diff? (or alternatively, the file
+>> contents if you didn't preserve the old contents) so I can send the
+>> proper diff upstream?
 
-> On Thu, Jul 03, 2003 at 02:17:48PM +0300, Dumitru Ciobarcianu wrote:
-> > I had to mannually change the file (the patch was giving rejects), but
-> > it compiles now.
-> 
-> Great! Could you send back the diff? (or alternatively, the file
-> contents if you didn't preserve the old contents) so I can send the
-> proper diff upstream?
+On Mon, Jul 07, 2003 at 01:24:26AM -0400, Zwane Mwaikambo wrote:
+> Didn't -mm get something for this?
 
-Didn't -mm get something for this?
+That's a very mysterious resend of a message that's several days old.
 
--- 
-function.linuxpower.ca
+
+-- wli
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
