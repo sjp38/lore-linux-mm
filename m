@@ -1,29 +1,33 @@
+Date: Fri, 23 Mar 2001 14:37:21 -0800 (PST)
+From: Linus Torvalds <torvalds@transmeta.com>
 Subject: Re: [PATCH] Fix races in 2.4.2-ac22 SysV shared memory
-Date: Fri, 23 Mar 2001 22:35:21 +0000 (GMT)
-In-Reply-To: <Pine.LNX.4.31.0103231424230.766-100000@penguin.transmeta.com> from "Linus Torvalds" at Mar 23, 2001 02:27:12 PM
+In-Reply-To: <E14ga9U-0005aa-00@the-village.bc.nu>
+Message-ID: <Pine.LNX.4.31.0103231435000.766-100000@penguin.transmeta.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Message-Id: <E14ga9U-0005aa-00@the-village.bc.nu>
-From: Alan Cox <alan@lxorguk.ukuu.org.uk>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@transmeta.com>
-Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, "Stephen C. Tweedie" <sct@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Ben LaHaise <bcrl@redhat.com>, Christoph Rohland <cr@sap.com>
+To: Alan Cox <alan@lxorguk.ukuu.org.uk>
+Cc: "Stephen C. Tweedie" <sct@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Ben LaHaise <bcrl@redhat.com>, Christoph Rohland <cr@sap.com>
 List-ID: <linux-mm.kvack.org>
 
-> If you don't want to sleep, you need to use one of the wrappers for
-> "__find_page_nolock()". Something like "find_get_page()", which only
-> "gets" the page.
 
- * a rather lightweight function, finding and getting a reference to a
- * hashed page atomically, waiting for it if it's locked.
+On Fri, 23 Mar 2001, Alan Cox wrote:
+>
+> __find_get_page has I think a misleading comment ?
 
-__find_get_page has I think a misleading comment ?
+Ehh..
 
-> The naming actually does make sense in this area.
+I only said the _naming_ makes sense. [ Wild hand-waving ]
 
-Yep
+I suspect that what happened was that we split off the functions (one to
+just get the page, one to lock it), and the comment that was associated
+with the original "find_page()" never got removed, and just happens to sit
+above one of the helper functions now - the one that didn't lock.
+
+I'll fix the comment.
+
+		Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
