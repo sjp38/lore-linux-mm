@@ -1,78 +1,55 @@
-From: Bartlomiej Zolnierkiewicz <B.Zolnierkiewicz@elka.pw.edu.pl>
+From: Alistair John Strachan <s0348365@sms.ed.ac.uk>
+Reply-To: s0348365@sms.ed.ac.uk
 Subject: Re: 2.6.2-rc3-mm1
-Date: Wed, 4 Feb 2004 01:35:56 +0100
-References: <20040202235817.5c3feaf3.akpm@osdl.org> <200402040100.40682.bzolnier@elka.pw.edu.pl> <200402040017.43787.s0348365@sms.ed.ac.uk>
-In-Reply-To: <200402040017.43787.s0348365@sms.ed.ac.uk>
+Date: Wed, 4 Feb 2004 01:03:36 +0000
+References: <20040202235817.5c3feaf3.akpm@osdl.org> <200402040017.43787.s0348365@sms.ed.ac.uk> <200402040135.56602.bzolnier@elka.pw.edu.pl>
+In-Reply-To: <200402040135.56602.bzolnier@elka.pw.edu.pl>
 MIME-Version: 1.0
+Content-Disposition: inline
 Content-Type: text/plain;
   charset="iso-8859-2"
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200402040135.56602.bzolnier@elka.pw.edu.pl>
+Message-Id: <200402040103.36504.s0348365@sms.ed.ac.uk>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: s0348365@sms.ed.ac.uk, linux-kernel@vger.kernel.org
-Cc: Andrew Morton <akpm@osdl.org>, linux-mm@kvack.org
+To: linux-kernel@vger.kernel.org
+Cc: Bartlomiej Zolnierkiewicz <B.Zolnierkiewicz@elka.pw.edu.pl>, Andrew Morton <akpm@osdl.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wednesday 04 of February 2004 01:17, Alistair John Strachan wrote:
-> On Wednesday 04 February 2004 00:00, Bartlomiej Zolnierkiewicz wrote:
-> [snip]
+On Wednesday 04 February 2004 00:35, Bartlomiej Zolnierkiewicz wrote:
+[snip]
 >
-> > > > > UDMA(133) /dev/ide/host0/bus0/target0/lun0: p1 p2 p3
-> > > > > hde: max request size: 128KiB
-> > > > >
-> > > > > 30 seconds later, I get something like:
-> > > > >
-> > > > > hde: lost interrupt
-> > > > > hde: lost interrupt
-> > > >
-> > > > It seems kernel hangs in ide-disk.c,
-> > > > idedisk_setup()->write_cache()->...
-> > > >
-> > > > > The kernel does not recover. Presumably it is a problem specific to
-> > > > > my PDC IDE controller.
-> > > >
-> > > > Do you run with Promise BIOS disabled?  If so please try booting
-> > > > kernel with "hde=autotune hdg=autotune" parameters.  If still no-go,
-> > > > try this patch:
-> > >
-> > > Neither suggestion changes the behaviour. I've got the BIOS enabled,
-> > > but in the past it's made no difference. I still see lost interrupts.
-> >
-> > Please try this debugging patch to see it hangs on
-> > idedisk_setup()->write_cache().
-> >
-> > --- linux/drivers/ide/ide-disk.c	2004-02-04 00:57:49.000000000 +0100
-> > +++ linux-2.6.2-rc3-bk3/drivers/ide/ide-disk.c	2004-02-04
-> > 00:58:58.571025744 +0100 @@ -1668,8 +1668,10 @@
-> >  #endif	/* CONFIG_IDEDISK_MULTI_MODE */
-> >  	}
-> >  	drive->no_io_32bit = id->dword_io ? 1 : 0;
-> > +	printk(KERN_INFO "%s: before write_cache()\n", drive->name);
-> >  	if (drive->id->cfs_enable_2 & 0x3000)
-> >  		write_cache(drive, (id->cfs_enable_2 & 0x3000));
-> > +	printk(KERN_INFO "%s: after write_cache()\n", drive->name);
-> >
-> >  #ifdef CONFIG_BLK_DEV_IDE_TCQ_DEFAULT
-> >  	if (drive->using_dma)
+> Oh yes, I am stupid^Wtired.  Maybe it is init_idedisk_capacity()?.
+> Can you add some more printks to idedisk_setup() to see where it hangs?
 >
-> Tried the patch. I see both before and after messages for hda, but when hde
-> is probed I see neither. Briefly looking at the IDE code, I see the max
-> request size: printk comes before either of those lines, as as nothing else
-> is printed after that line (see original bug report), I can only assume the
-> problem is somewhere before the write_cache().
 
-Oh yes, I am stupid^Wtired.  Maybe it is init_idedisk_capacity()?.
-Can you add some more printks to idedisk_setup() to see where it hangs?
+I did this, and it appears to hang where you suspected, 
+init_idedisk_capacity(). If this a useful datapoint, I haven't boot-tested a 
+kernel since 2.6.2-rc1-mm1. I can test 2.6.2-rc3 if you're puzzled by this 
+result.
 
-> I applied the patch on top of your previous changes, as they seemed
-> innocuous enough.
+> > I applied the patch on top of your previous changes, as they seemed
+> > innocuous enough.
+>
+> OK.
+>
+> --bart
+>
+> -
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
 
-OK.
+-- 
+Cheers,
+Alistair.
 
---bart
-
+personal:   alistair()devzero!co!uk
+university: s0348365()sms!ed!ac!uk
+student:    CS/AI Undergraduate
+contact:    7/10 Darroch Court,
+            University of Edinburgh.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
