@@ -1,30 +1,26 @@
-Subject: Re: 2.6.1-rc2-mm1
-From: Robert Love <rml@ximian.com>
-In-Reply-To: <3FFDFEB3.3010301@yahoo.es>
-References: <20040107232831.13261f76.akpm@osdl.org>
-	 <1073593346.1618.3.camel@moria.arnor.net>
-	 <1073594795.1738.2.camel@moria.arnor.net>  <3FFDFEB3.3010301@yahoo.es>
-Content-Type: text/plain
-Message-Id: <1073610855.1228.23.camel@localhost>
-Mime-Version: 1.0
-Date: Thu, 08 Jan 2004 20:14:16 -0500
-Content-Transfer-Encoding: 7bit
+From: Rusty Russell <rusty@rustcorp.com.au>
+Subject: Re: [PATCH] dynamic allocation of huge continuous pages 
+In-reply-to: Your message of "Thu, 08 Jan 2004 20:37:34 +0900."
+             <20040108.203734.122074391.taka@valinux.co.jp>
+Date: Fri, 09 Jan 2004 14:56:18 +1100
+Message-Id: <20040109041546.5F2B82C071@lists.samba.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Roberto Sanchez <rcsanchez97@yahoo.es>
-Cc: Andrew Morton <akpm@osdl.org>, Linux-Kernel List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Hirokazu Takahashi <taka@valinux.co.jp>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2004-01-08 at 20:06, Roberto Sanchez wrote:
+In message <20040108.203734.122074391.taka@valinux.co.jp> you write:
+> +		list_for_each(p, &area->free_list) {
+> +			page = list_entry(p, struct page, list);
 
-> I get hard lockups during boot up, in X, and when starting big apps
-> (mozilla, OOo, Neverwinter Nights, etc).  I reverted to -rc1-mm1.
+Just FYI, "list_for_each_entry(page, &area->free_list, list)" is
+shorter and neater.
 
-There is a nasty bug in the poll code, I think.
-
-	Robert Love
-
-
+Cheers,
+Rusty.
+--
+  Anyone who quotes me in their sig is an idiot. -- Rusty Russell.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
