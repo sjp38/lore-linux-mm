@@ -1,33 +1,36 @@
-Date: Thu, 28 Sep 2000 13:31:40 +0200 (CEST)
-From: Ingo Molnar <mingo@elte.hu>
-Reply-To: mingo@elte.hu
+Date: Thu, 28 Sep 2000 16:31:05 +0200
+From: Andrea Arcangeli <andrea@suse.de>
 Subject: Re: [patch] vmfixes-2.4.0-test9-B2 - fixing deadlocks
-In-Reply-To: <Pine.LNX.4.21.0009280702460.1814-100000@duckman.distro.conectiva>
-Message-ID: <Pine.LNX.4.21.0009281329270.5655-100000@elte.hu>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Message-ID: <20000928163105.H17518@athlon.random>
+References: <20000927155608.D27898@athlon.random> <Pine.LNX.4.21.0009280702460.1814-100000@duckman.distro.conectiva>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.21.0009280702460.1814-100000@duckman.distro.conectiva>; from riel@conectiva.com.br on Thu, Sep 28, 2000 at 07:08:51AM -0300
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Rik van Riel <riel@conectiva.com.br>
-Cc: Andrea Arcangeli <andrea@suse.de>, Christoph Rohland <cr@sap.com>, "Stephen C. Tweedie" <sct@redhat.com>, Linus Torvalds <torvalds@transmeta.com>, Roger Larsson <roger.larsson@norran.net>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
+Cc: Christoph Rohland <cr@sap.com>, "Stephen C. Tweedie" <sct@redhat.com>, Ingo Molnar <mingo@elte.hu>, Linus Torvalds <torvalds@transmeta.com>, Roger Larsson <roger.larsson@norran.net>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 28 Sep 2000, Rik van Riel wrote:
+On Thu, Sep 28, 2000 at 07:08:51AM -0300, Rik van Riel wrote:
+> taking care of this itself. But this is not something the OS
+> should prescribe to the application.
 
-> The OS has no business knowing what's inside that SHM page.
+Agreed.
 
-exactly.
+> (unless the SHM users tell you that this is the normal way
+> they use SHM ... but as Christoph just told us, it isn't)
 
-> IF the shm contains I/O cache, maybe you're right. However,
-> until you know that this is the case, optimising for that
-> situation just doesn't make any sense.
+shm is not used as I/O cache from 90% of the apps out there because normal apps
+uses the OS cache functionality (90% of those apps doesn't use rawio to share a
+black box that looks like a scsi disk via SCSI bus connected to other hosts as
+well).
 
-if the shm contains raw I/O data, then thats flawed application design -
-an mmap()-ed file should be used instead. Shm is equivalent to shared
-anonymous pages.
+I for sure agree shm swapin/swapout is very important. (we moved shm
+swapout/swapin to swap cache with readaround for that reason)
 
-	Ingo
-
+Andrea
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
