@@ -1,52 +1,34 @@
-Date: Thu, 14 Sep 2000 14:49:11 -0300 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
-Subject: Re: [PATCH *] VM patch for 2.4.0-test8
-In-Reply-To: <Pine.LNX.4.21.0009141351510.10822-100000@duckman.distro.conectiva>
-Message-ID: <Pine.LNX.4.21.0009141446570.1354-100000@duckman.distro.conectiva>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Thu, 14 Sep 2000 20:43:25 +0200
+From: Andi Kleen <ak@muc.de>
+Subject: Re: Running out of memory in 1 easy step
+Message-ID: <20000914204325.A6015@fred.muc.de>
+References: <20000914145904.B18741@liacs.nl> <20000914175633.A7675@fred.muc.de> <20000914180825.B19822@liacs.nl>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+In-Reply-To: <20000914180825.B19822@liacs.nl>; from wichert@soil.nl on Thu, Sep 14, 2000 at 06:08:28PM +0200
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "David S. Miller" <davem@redhat.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, torvalds@transmeta.com
+To: Wichert Akkerman <wichert@soil.nl>
+Cc: Andi Kleen <ak@muc.de>, linux-mm@kvack.org, riel@conectiva.com.br
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 14 Sep 2000, Rik van Riel wrote:
-> On Wed, 13 Sep 2000, David S. Miller wrote:
+On Thu, Sep 14, 2000 at 06:08:28PM +0200, Wichert Akkerman wrote:
+> Previously Andi Kleen wrote:
+> > There is a hardwired limit of 1024 vmas/process. This is to avoid denial
+> > of service attacks with attackers using up all memory with vmas.
 > 
-> > In page_launder() about halfway down there is this sequence of tests
-> > on LRU pages:
-> > 
-> > } else if (page_count(page) > 1) {
-> > } else /* page->mapping && page_count(page) == 1 */ {
-> 
-> Indeed, you're right. This bug certainly explains some
-> of the performance things I've seen in the stress test
-> last night...
+> That's trivial to circumvent using multiple processes or even threads which
+> makes it a useless and possibly damaging protection imho..
 
-A new patch with Davem's bugfix has been uploaded and
-performance seems to be quite a bit better now...
+The limit is actually 65536 I misremembered it. 
+The main purpose is probably to avoid the counter wrapping. 
+When get_unmapped_area failed you likely just ran out of virtual address space.
 
-	http://www.surriel.com/patches/
 
-Unless somebody else manages to find a bug in this patch,
-this will be the last patch at this feature level and the
-next patch will contain a new feature. The new feature in
-question will be either the out of memory killer, or Ben
-LaHaise's readahead-on-VMA-level code.
+-Andi
 
-(probably the OOM killer since that is a stability-related
-thing and the other is "just" a performance tweak)
-
-regards,
-
-Rik
---
-"What you're running that piece of shit Gnome?!?!"
-       -- Miguel de Icaza, UKUUG 2000
-
-http://www.conectiva.com/		http://www.surriel.com/
-
+-- 
+This is like TV. I don't like TV.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
