@@ -1,7 +1,7 @@
 From: Kanoj Sarcar <kanoj@google.engr.sgi.com>
-Message-Id: <200102151805.KAA74840@google.engr.sgi.com>
+Message-Id: <200102151823.KAA00802@google.engr.sgi.com>
 Subject: Re: x86 ptep_get_and_clear question
-Date: Thu, 15 Feb 2001 10:05:48 -0800 (PST)
+Date: Thu, 15 Feb 2001 10:23:38 -0800 (PST)
 In-Reply-To: <20010215184729.A2247@pcep-jamie.cern.ch> from "Jamie Lokier" at Feb 15, 2001 06:47:29 PM
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
@@ -34,9 +34,6 @@ List-ID: <linux-mm.kvack.org>
 > > set_pte(). For an example of how this can happen, look at my previous 
 > > postings.
 > 
-
-Now you are talking my language!
-
 > Let's see.  We'll assume processor 2 does a write between the
 > ptep_get_and_clear and the set_pte, which are done on processor 1.
 > 
@@ -57,17 +54,30 @@ Now you are talking my language!
 > 
 > That is how I read Ben LaHaise's description, and his test program tests
 > exactly this.
+
+Okay, I will quote from Intel Architecture Software Developer's Manual
+Volume 3: System Programming Guide (1997 print), section 3.7, page 3-27:
+
+"Bus cycles to the page directory and page tables in memory are performed
+only when the TLBs do not contain the translation information for a 
+requested page."
+
+And on the same page:
+
+"Whenever a page directory or page table entry is changed (including when 
+the present flag is set to zero), the operating system must immediately
+invalidate the corresponding entry in the TLB so that it can be updated
+the next time the entry is referenced."
+
+So, it looks highly unlikely to me that the basic assumption about how
+x86 works wrt tlb/ptes in the ptep_get_and_clear() solution is correct.
+
+Kanoj
+
 > 
-
-Okay, I asked Ben, he couldn't point me at specs and shut me up.
-
 > If the processor worked by atomically setting the dirty bit in the pte
 > without rechecking the permissions when it reads that pte bit, then this
 > scheme would fail and you'd be right about the lost dirty bits.  I would
-
-Exactly. This is why I did not implement this scheme earlier when Alan
-and I talked about this scenario, almost a couple of years back.
-
 > have thought it would be simpler to implement a CPU this way, but
 > clearly it is not as efficient for SMP OS design so perhaps CPU
 > designers thought about this.
@@ -75,16 +85,6 @@ and I talked about this scenario, almost a couple of years back.
 > The only remaining question is: is the observed behaviour defined for
 > x86 CPUs in general, or are we depending on the results of testing a few
 > particular CPUs?
-
-Exactly!
-
-So my claim still stands: ptep_get_and_clear() doesn't do what it claims
-to do. I would be more than happy if someone can give me logic to break
-this claim ... which would mean one longstanding data integrity problem
-on Linux has been fixed satisfactorily.
-
-Kanoj
-
 > 
 > -- Jamie
 > 
