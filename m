@@ -1,42 +1,43 @@
-Date: Wed, 24 Apr 2002 11:31:18 -0700
-From: William Lee Irwin III <wli@holomorphy.com>
-Subject: Re: Why *not* rmap, anyway?
-Message-ID: <20020424183118.GF26092@holomorphy.com>
-References: <Pine.LNX.4.44L.0204241152100.7447-100000@duckman.distro.conectiva> <873cxlunym.fsf@fadata.bg>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Description: brief message
-Content-Disposition: inline
-In-Reply-To: <873cxlunym.fsf@fadata.bg>
+Date: Wed, 24 Apr 2002 23:19:50 -0300 (BRT)
+From: Rik van Riel <riel@conectiva.com.br>
+Subject: Re: memory exhausted
+In-Reply-To: <5.1.0.14.2.20020424145006.00b17cb0@notes.tcindex.com>
+Message-ID: <Pine.LNX.4.44L.0204242318240.1960-100000@imladris.surriel.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Momchil Velikov <velco@fadata.bg>
-Cc: Rik van Riel <riel@conectiva.com.br>, Christian Smith <csmith@micromuse.com>, Joseph A Knapka <jknapka@earthlink.net>, "Martin J. Bligh" <Martin.Bligh@us.ibm.com>, linux-mm@kvack.org
+To: Vivian Wang <vivianwang@tcindex.com>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
->>>>> "Rik" == Rik van Riel <riel@conectiva.com.br> writes:
-> Rik> So how do you run a pmap VM without duplicating the data from
-> Rik> the pmap layer into the page tables ?
-> Rik> Remember that for VM info the page tables -are- the radix tree.
+[mailing list address corrected ... won't people ever learn to read ?]
 
-On Wed, Apr 24, 2002 at 06:16:01PM +0300, Momchil Velikov wrote:
-> And the page tables -are- the pmap layer :)
+On Wed, 24 Apr 2002, Vivian Wang wrote:
 
-Yes and no; pagetables-as-ADT normally hides the structure and provides
-a canned set of operations on them. Linux just standardizes the data
-structure and open-codes access to them in generic code.
+> I try to sort my 11 GB file, but I got message about memory exhausted.
+> I used the command like this:
+> sort -u file1 -o file2
+> Is this correct?
 
-One could conceive of a pmap/HAT/whatever -like layer that did little
-more than break off copy_page_range(), zap_page_range(), and a few
-others into their own file and rename them. At that point it's too
-minor of a change to warrant actually carrying it through, unless
-one is particularly concerned about radix tree walking obscuring
-other operations with actual semantic content. (And it's unclear that
-it would get very good coverage on that front anyway.)
+Yes, sort only has a maximum of 3 GB of virtual address space so
+it will never be able to load the whole 11 GB file into memory.
 
+> What I should do?
 
-Cheers,
-Bill
+You could either write your own sort program that doesn't need
+to have the whole file loaded or you could use a 64 bit machine
+with at least 11 GB of available virtual memory, probably the
+double...
+
+regards,
+
+Rik
+-- 
+Bravely reimplemented by the knights who say "NIH".
+
+http://www.surriel.com/		http://distro.conectiva.com/
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
