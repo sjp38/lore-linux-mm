@@ -1,31 +1,45 @@
-Subject: Re: RFC: vmalloc improvements
-Date: Sat, 24 Feb 2001 01:09:28 +0000 (GMT)
-In-Reply-To: <200102240026.QAA09446@k2.llnl.gov> from "Reto Baettig" at Feb 23, 2001 04:26:56 PM
+Date: Fri, 23 Feb 2001 21:38:11 -0500 (EST)
+From: Rik van Riel <riel@conectiva.com.br>
+Subject: Re: large mem, heavy paging issues (256M VmStk on Athlon)
+In-Reply-To: <3A96C430.C028E954@amis.com>
+Message-ID: <Pine.LNX.4.31.0102232136210.8568-100000@localhost.localdomain>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Message-Id: <E14WTDH-0007UQ-00@the-village.bc.nu>
-From: Alan Cox <alan@lxorguk.ukuu.org.uk>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: baettig@scs.ch
-Cc: MM Linux <linux-mm@kvack.org>, Kernel Linux <linux-kernel@vger.kernel.org>, Martin Frey <frey@scs.ch>
+To: Eric Whiting <ewhiting@amis.com>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> We have an application that makes extensive use of vmalloc (we need
-> lots of large virtual contiguous buffers. The buffers don't have to be
-> physically contiguous).
+On Fri, 23 Feb 2001, Eric Whiting wrote:
 
-So you could actually code around that. If you have them virtually contiguous
-for mmap for example then you can actually mmap arbitary page arrays
+> Thanks for the info -- but I'm not sure I understand what the fix is
+> to be. Does my lisp engine need to be recompiled with a newer glibc?
+> Do I need to change something else?
 
-> We would volounteer to improve vmalloc if there is any chance of
-> getting it into the main kernel tree. We also have an idea how we
-> Could do that (quite similar to the process address space management):
+If your lisp engine is dynamically linked to glibc, a simple
+glibc upgrade should do the trick (if this thing is fixed in
+newer glibcs).
 
-Im not the one to call the shots, but it seems if you need an AVL for the
-vmalloc tables then vmalloc is possibly being overused, or people are not
-allocating buffers just occasionally as anticipated
+> I think the strace showed the process is using mainly malloc (mmap)
+> for memory allocation. I do see some brk() calls at the first. (these
+> appear to be returning a 2G number not a 1G number like you suggested)
+
+> brk(0x805a000)                          = 0x805a000
+
+Actually, this would be 0x0805a000 if you wrote out the leading
+0 ... this is more like 128 MB ;)
+
+regards,
+
+Rik
+--
+Virtual memory is like a game you can't win;
+However, without VM there's truly nothing to lose...
+
+		http://www.surriel.com/
+http://www.conectiva.com/	http://distro.conectiva.com.br/
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
