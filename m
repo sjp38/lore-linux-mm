@@ -1,8 +1,8 @@
-Date: Wed, 16 Aug 2000 00:40:47 -0300 (BRST)
+Date: Wed, 16 Aug 2000 01:09:07 -0300 (BRST)
 From: Rik van Riel <riel@conectiva.com.br>
 Subject: Re: filemap.c SMP bug in 2.4.0-test*
-In-Reply-To: <Pine.LNX.4.10.10008152018100.3600-100000@penguin.transmeta.com>
-Message-ID: <Pine.LNX.4.21.0008160031330.3400-100000@duckman.distro.conectiva>
+In-Reply-To: <Pine.LNX.4.21.0008160031330.3400-100000@duckman.distro.conectiva>
+Message-ID: <Pine.LNX.4.21.0008160046270.3400-100000@duckman.distro.conectiva>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -11,55 +11,49 @@ To: Linus Torvalds <torvalds@transmeta.com>
 Cc: linux-mm@kvack.org, "Stephen C. Tweedie" <sct@redhat.com>, Andrea Arcangeli <andrea@suse.de>, Marcelo Tosatti <marcelo@conectiva.com.br>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 15 Aug 2000, Linus Torvalds wrote:
-> On Tue, 15 Aug 2000, Rik van Riel wrote:
-> > 
-> > The backtrace I got points to some place deep inside
-> > mm/filemap.c, in code I really didn't touch and I
-> > wouldn't want to touch if this bug wasn't here ;)
-> > 
-> > >>EIP; c012e370 <lru_cache_add+5c/d4>   <=====
-> > Trace; c021b33e <tvecs+1dde/19f60>
-> > Trace; c021b579 <tvecs+2019/19f60>
-> > Trace; c0127823 <add_to_page_cache_locked+cb/dc>
-> > Trace; c0130a3c <add_to_swap_cache+84/8c>
-> > Trace; c0130d00 <read_swap_cache_async+68/98>
-> > Trace; c0125c8b <handle_mm_fault+143/1c0>
-> > Trace; c0113d33 <do_page_fault+143/3f0>
+On Wed, 16 Aug 2000, Rik van Riel wrote:
+> On Tue, 15 Aug 2000, Linus Torvalds wrote:
+
+> > In particular, look at which page read_swap_cache_async() adds
+> > to the swap cache.
 > 
-> Look at this back-trace again.
+> > *****   new_page_addr = __get_free_page(GFP_USER);		*******
 > 
-> In particular, look at which page read_swap_cache_async() adds
-> to the swap cache.
+> > In short, read_swap_cache_async() allocates a new page that
+> > nobody else has access to. There's no way in hell that page is
+> > going to be on any LRU lists.
 
-> *****   new_page_addr = __get_free_page(GFP_USER);		*******
+> Question is, how did that thing get on the free list
+> in the first place?  __free_pages_ok() checks for the
+> flags and reclaim_page() also checks for all of the
+> flags
 
-> In short, read_swap_cache_async() allocates a new page that
-> nobody else has access to. There's no way in hell that page is
-> going to be on any LRU lists.
+OK, I have a vague and highly improbable idea about
+this (but no clue about some of the subsystems I'm
+going to assume things about).
 
-*nod*
+What if the page we barf on was part of a multi-page
+contiguous allocation?
 
-> The bug pretty much has to be in the new page flag handling. No,
-> I don't see anything wrong in your patch, but we're talking
-> about a code-path that has it's own very private page that
-> cannot be shared unless there are some pretty major bugs (if
-> __get_free_page() returns a page that is still in use somewhere,
-> we're _soo_ screwed).
+Suppose some subsystem (like nfs) allocates an 8kB
+contiguous area, which gets filled with data and mmap()ed
+by a user process.
 
-I've seen the call trace with sys_write and sys_read
-too, so I assume that it's indeed __alloc_pages() which
-hands over a page with one of the flags still set.
+At that moment, _both_ pages are put into the lru list and
+flagged as such. Now if the "lower" of the two pages gets
+released and the upper is still in the list, a hypothetical
+buggy driver (maybe even nfs) would do a __free_pages_ok()
+on the DOUBLE page, even though the "higher" page is still
+in use (and has the bit set).
 
-Question is, how did that thing get on the free list
-in the first place?  __free_pages_ok() checks for the
-flags and reclaim_page() also checks for all of the
-flags (inside the del_page_from_inactive_clean_list
-macro)...
+That way a page with one of the page list flags set could
+slip by the check in __free_pages_ok. I know this is an
+improbable theory, but it's the only way I can see which
+would bypass the checks in __free_pages_ok (and the one
+in reclaim_page)...
 
-I've been looking at this code very closely over the
-last week and fail to see any possibility for this
-to happen, but where there's a bug there's a way ;)
+[yes, I know I must get some sleep and look at this
+stuff when I'm awake ;)]
 
 regards,
 
