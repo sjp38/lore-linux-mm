@@ -1,63 +1,84 @@
-Received: from max.phys.uu.nl (max.phys.uu.nl [131.211.32.73])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id IAA26549
-	for <linux-mm@kvack.org>; Wed, 25 Nov 1998 08:25:23 -0500
-Date: Wed, 25 Nov 1998 14:08:47 +0100 (CET)
-From: Rik van Riel <H.H.vanRiel@phys.uu.nl>
-Reply-To: Rik van Riel <H.H.vanRiel@phys.uu.nl>
-Subject: Re: Two naive questions and a suggestion
-In-Reply-To: <199811251227.MAA00808@dax.scot.redhat.com>
-Message-ID: <Pine.LNX.3.96.981125140245.8544A-100000@mirkwood.dummy.home>
+Received: from dax.scot.redhat.com (sct@dax.scot.redhat.com [195.89.149.242])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id JAA26804
+	for <linux-mm@kvack.org>; Wed, 25 Nov 1998 09:19:39 -0500
+Date: Wed, 25 Nov 1998 14:19:28 GMT
+Message-Id: <199811251419.OAA00990@dax.scot.redhat.com>
+From: "Stephen C. Tweedie" <sct@redhat.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Subject: Re: Linux-2.1.129..
+In-Reply-To: <Pine.LNX.3.95.981124092641.10767A-100000@penguin.transmeta.com>
+References: <199811241525.PAA00862@dax.scot.redhat.com>
+	<Pine.LNX.3.95.981124092641.10767A-100000@penguin.transmeta.com>
 Sender: owner-linux-mm@kvack.org
-To: "Stephen C. Tweedie" <sct@redhat.com>
-Cc: Rik van Riel <H.H.vanRiel@phys.uu.nl>, jfm2@club-internet.fr, linux-mm@kvack.org
+To: Linus Torvalds <torvalds@transmeta.com>
+Cc: "Stephen C. Tweedie" <sct@redhat.com>, "Eric W. Biederman" <ebiederm+eric@ccr.net>, Rik van Riel <H.H.vanRiel@phys.uu.nl>, "Dr. Werner Fink" <werner@suse.de>, Kernel Mailing List <linux-kernel@vger.rutgers.edu>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 25 Nov 1998, Stephen C. Tweedie wrote:
-> On Wed, 25 Nov 1998 07:41:41 +0100 (CET), Rik van Riel
-> <H.H.vanRiel@phys.uu.nl> said:
-> 
-> > I do have a few ideas for the scheduling stuff though, with
-> > RSS limits (we can safely implement those when the swap cache
-> > trick is implemented) and the keeping of a few statistics,
-> > we will be able to implement the swapping tricks.
-> 
-> Rick, get real: when will you work out how the VM works?  We can
-> safely implement RSS limits *today*, and have been able to since
-> 2.1.89.  <grin> It's just a matter of doing a vmscan on the current
-> process whenever it exceeds its own RSS limit.  The mechanism is all
-> there. 
+Hi,
 
-If we tried to implement RSS limits now, it would mean that
-the large task(s) we limited would be continuously thrashing
-and keep the I/O subsystem busy -- this impacts the rest of
-the system a lot.
+On Tue, 24 Nov 1998 09:33:11 -0800 (PST), Linus Torvalds
+<torvalds@transmeta.com> said:
 
-With the new scheme, we can implement the RSS limit, but the
-truly busily used pages would simply stay inside the swap cache,
-freeing up I/O bandwidth (at the cost of some memory) for the
-rest of the system.
+> On Tue, 24 Nov 1998, Stephen C. Tweedie wrote:
+>> 
+>> Indeed.  However, I think it misses the real advantage, which is that
+>> the mechanism would be inherently self-tuning (much more so than the
+>> existing code).
 
-I think that with the new scheme the balancing will be so
-much better that we can implement RSS limits without a
-negative impact on the rest of the system. With the current
-VM system RSS limits would probably hamper the performance
-the rest of the system gets.
+> Yes, that's one of the reasons I like it.
 
-We might want to perform the scheduling tricks for over-RSS
-processes however. Without swap readahead I really don't see
-any way we could run them without keeping back the rest of
-the system too much...
+> The other reason I like it is that right now it is extremely hard to share
+> swapped out pages unless you share them due to a fork(). The problem is
+> that the swap cache supports the notion of sharing, but out swap-out
+> routines do not - they swap things out on a per-virtual-page basis, and
+> that results in various nasty things - we page out the same page to
+> multiple places, and lose the sharing. 
 
-cheers,
+No, I fixed that in 2.1.89.  Shared anonymous pages _must_ be COW and
+therefore readonly (this is why moving to MAP_SHARED anonymous regions
+is so hard).  So, the first process which tries to swap such a shared
+page will write it to disk and set up a swap cache entry.  Because the
+page is necessarily readonly, we can safely assume it is OK to write it
+at this point and not at the point of the last unmapping.
 
-Rik -- slowly getting used to dvorak kbd layout...
-+-------------------------------------------------------------------+
-| Linux memory management tour guide.        H.H.vanRiel@phys.uu.nl |
-| Scouting Vries cubscout leader.      http://www.phys.uu.nl/~riel/ |
-+-------------------------------------------------------------------+
+Subsequent processes which pageout the same page will find it in the
+swap cache already and will just free the page.  I've tested this with a
+program which sets up large anonymous region, forks, and then thrashes
+the memory.  On prior kernels we lose the sharing, but on 2.1.89 and
+later, that sharing is maintained perfectly even after fork and we never
+grow the amount of swap which is used.
 
+> The VM policy changes weren't stability issues, they were only "timing". 
+> As such, if they broke something, it was really broken before too. 
+
+Absolutely.
+
+> And I agree that the mechanism is already there, however as it stands we
+> really populate the swap cache at page-in rather than page-out, and
+> changing that is fairly fundamental. It would be good, no question about
+> it, but it's still fairly fundamental. 
+
+We still have to populate the swap cache at page-in time.  The initial
+reason for the early swap cache implementation was to prevent us from
+having to re-write to disk pages which are still clean in memory.  For
+that to work we need to cache the page-in.
+
+However, for pages which become dirty in memory, we _do_ populate the
+swap cache only at page-out time.  That's why the sharing still works.
+I think that the real change we need is to cleanly support PG_dirty
+flags per page.  Once we do that, not only do all of the dirty inode
+pageouts get fixed, but we also automatically get MAP_SHARED |
+MAP_ANONYMOUS.
+
+While we're on that subject, Linus, do you still have Andrea's patch to
+propogate page writes around all shared ptes?  I noticed that Zlatko
+Calusic recently re-posted it, and it looks like the sort of short-term
+fix we need for this issue in 2.2 (assuming we don't have time to do a
+proper PG_dirty fix).
+
+--Stephen
 --
 This is a majordomo managed list.  To unsubscribe, send a message with
 the body 'unsubscribe linux-mm me@address' to: majordomo@kvack.org
