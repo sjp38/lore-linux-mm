@@ -1,33 +1,39 @@
-Message-ID: <20030623091214.5259.qmail@web13608.mail.yahoo.com>
-Date: Mon, 23 Jun 2003 02:12:14 -0700 (PDT)
-From: Anthony Nicholson <nicholson_anthony@yahoo.com>
-Subject: matching pages with their owner process(es)
+Received: from 205-158-62-68.outblaze.com (205-158-62-68.outblaze.com [205.158.62.68])
+	by spf13.us4.outblaze.com (Postfix) with QMQP id 3F3091856739
+	for <linux-mm@kvack.org>; Mon, 23 Jun 2003 11:41:18 +0000 (GMT)
+Message-ID: <20030623114112.7477.qmail@linuxmail.org>
+Content-Type: text/plain; charset="iso-8859-1"
+Content-Disposition: inline
+Content-Transfer-Encoding: 7bit
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+From: "Zero Damager" <hemical-ass@linuxmail.org>
+Date: Mon, 23 Jun 2003 12:41:12 +0100
+Subject: Alex_
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-anyone know how to determine, from a struct page *, which
-process is the owner of the data in that frame? it doesn't
-seem from what i've seen in the source, and from what i've
-read that there's any easy way to do it.
+Does any body can help me? I'm looking for a people
+who knows gas(gnu assemmbler) very good.
+I need some body who can explain me what this peace of code
+ripped with objdump program means --
+//---------------------------------------------------------
+ 0xc8000412  ff fc ff ff ff ff  call <0xc8000400+13>
+//---------------------------------------------------------
 
-i'm working on swap space encryption, but need to not 
-encrypt/decrypt the swap for a few special processes that
-i'm ignoring.
+I have bit of experience with assemmbling, and byte code i understand to.
+After the call instruction the processor begins code execution at address
+0xc8000413, which is (fc) byte, it is some sort of clear-flag instruction,
+then the (ff) byte follows, which means call instruction.
+The question is -- where it jumps>? To (ff ff ff) address of the page>?
+....
+-- 
+______________________________________________
+http://www.linuxmail.org/
+Now with e-mail forwarding for only US$5.95/yr
 
-basically i want to be able to tell in rw_swap_page()
-from the page* which processes' memory this is. any idea?
-
-thanks
-anthony
-
-__________________________________
-Do you Yahoo!?
-SBC Yahoo! DSL - Now only $29.95 per month!
-http://sbc.yahoo.com
+Powered by Outblaze
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
