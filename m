@@ -1,78 +1,62 @@
-Date: Fri, 14 Jan 2005 23:51:59 +0100
+Date: Sat, 15 Jan 2005 00:01:18 +0100
 From: Andrea Arcangeli <andrea@suse.de>
 Subject: Re: smp_rmb in mm/memory.c in 2.6.10
-Message-ID: <20050114225159.GO8709@dualathlon.random>
-References: <20050114213207.GK8709@dualathlon.random> <20050114222210.51725.qmail@web14324.mail.yahoo.com>
+Message-ID: <20050114230118.GP8709@dualathlon.random>
+References: <20050114213207.GK8709@dualathlon.random> <Pine.LNX.4.44.0501142217590.3109-100000@localhost.localdomain>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20050114222210.51725.qmail@web14324.mail.yahoo.com>
+In-Reply-To: <Pine.LNX.4.44.0501142217590.3109-100000@localhost.localdomain>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Kanoj Sarcar <kanojsarcar@yahoo.com>
-Cc: Hugh Dickins <hugh@veritas.com>, Anton Blanchard <anton@samba.org>, Andi Kleen <ak@suse.de>, William Lee Irwin III <wli@holomorphy.com>, linux-mm@kvack.org, davem@redhat.com, Andrew Morton <akpm@osdl.org>, Linus Torvalds <torvalds@osdl.org>
+To: Hugh Dickins <hugh@veritas.com>
+Cc: Kanoj Sarcar <kanojsarcar@yahoo.com>, Anton Blanchard <anton@samba.org>, Andi Kleen <ak@suse.de>, William Lee Irwin III <wli@holomorphy.com>, linux-mm@kvack.org, davem@redhat.com, Andrew Morton <akpm@osdl.org>, Linus Torvalds <torvalds@osdl.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Jan 14, 2005 at 02:22:10PM -0800, Kanoj Sarcar wrote:
-> handled. No? (Btw, I did not look at i_size_write() in
-> the case of !CONFIG_SMP and CONFIG_PREEMPT, there
-> might need to be some barriers put in there, not
-> sure).
+On Fri, Jan 14, 2005 at 10:36:17PM +0000, Hugh Dickins wrote:
+> On Fri, 14 Jan 2005, Andrea Arcangeli wrote:
+> > > 
+> > > You could have asked even before breaking mainline ;).
+> 
+> Sorry (but check your mailbox for 3rd October -
+> I'd hoped the patch would be more provocative than a question!)
 
-i_size_write is inode->i_size = i_size in common code terms, that's the
-64bit case, and it's the one with the weaker semantics (in turn it's the
-only one we can consider in terms of common code correctness). So it has
-no barriers at all (nor cpu barriers, nor compiler barriers).
+Hmm I thought it was more recent, so I guess it could have been when I
+got the @novell.com email downtime. I lost email for several days, then
+I got back to @suse.de. Sorry anyway!
 
-> But, based on what you said, yes, I believe an
-> smp_wmb() is required _after_
-> atomic_inc(truncate_count) in unmap_mapping_range() to
-> ensure that the write happens before  it does the TLB
-> shootdown. Right?
+> I don't follow your argument for atomic there - "just in case"?
+> I still see its atomic ops as serving no point (and it was
+> tiresome to extend their use in the patches that followed).
 
-The smp_wmb() I mean should be put _before_ the truncate_count incrase.
-It is mean to avoid the i_size_write to pass the truncate_count
-increase (which can happen with spin_lock having inclusive semantics).
+Actually see the last email I posted, seems like we need both a
+smp_wmb() before the increase and a smp_mb() after it. The reason is
+that it must be done in that very order. And on x86 doing it with
+atomic_inc would enforce it.
 
-The order we must enforce at the cpu level to be correct is this: first
-we set i_size, then we increase truncate_count to restart the page
-fault, and finally we zap the ptes (and the zap starts by reading the
-old contents set by the page fault). And it must be enforced with cpu
-and compiler memory barries.
+I definitely agree truncate_count can be done in C _after_ we add
+smp_wmb() before the increase and smp_mb() after the increase.
 
-It seems you're right that we need an additional smp_mb() (not just
-smp_wmb(), because the pte shootdown does reads first) even after the
-truncate_count increase, but I thought the locking inside
-unmap_mapping_range_list would avoid us to do that, sounds like it's not
-the case.
+Infact now that I think about this will also avoid us to implement
+smp_wmb__before_atomic_add.
 
-I can only see the page_table_lock in there, so in theory the
-truncate_write could enter the page_table_lock critical section on ia64.
+> That's interesting, and I'm glad my screwup has borne some good fruit.
 
-So I guess we need both an explicit smp_wmb() before atomic_inc (to
-serialize with i_size_write on ia64 which is 64bit and doesn't have any
-implcit locking there) and smp_mb() after atomic_inc to fix this on ia64
-too. But it really should be a smp_mb__after_atomic_inc kind of thing,
-or we'll bite on x86 performance (in theory even the smp_wmb should be a
-smp_wmb__before_atomic_inc, though smp_wmb is zerocost on x86 so it has
-less impact ... ;).
+Indeed ;). Me too.
 
-As said in practice x86 and x86-64 are already rock solid with 2.6.10,
-because atomic_add is an implicit smp_mb() before and after the
-atomic_inc there.
+> And an smp_rmb() in one place makes more sense to me if there's an
+> smp_wmb() in the complementary place (though I've a suspicion that
 
-> I am sure there might be other ways to clean up this
-> code. Some documentation could not hurt, it could save
-> everyone's head hurting when they look at this code!
+Hmm, I assume you meant "there's _not_ an", otherwise I don't get it.
 
-Indeed.
+> Will do, though not today.
 
-> Btw, do all callers of vmtruncate() guarantee they do
-> not concurrently invoke vmtruncate() on the same file?
-> Seems like they could be stepping on each other while
-> updating i_size ...
+Thanks! The only problem here is ia64, few people runs test kernels in
+production so it's not an hurry.
 
-i_sem for that (and i_truncate_sem in 2.4), no problem.
+I also need to rediff my pending VM stuff for Andrew but I've been
+extremely busy with other kernel stuff in the last few days, so I had no
+time for that yet.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
