@@ -1,102 +1,35 @@
-Date: Mon, 9 Oct 2000 21:38:37 +0200 (CEST)
-From: Marco Colombo <marco@esi.it>
+Date: Mon, 9 Oct 2000 21:42:14 +0200
+From: Andrea Arcangeli <andrea@suse.de>
 Subject: Re: [PATCH] VM fix for 2.4.0-test9 & OOM handler
-In-Reply-To: <Pine.LNX.4.21.0010091510060.1562-100000@duckman.distro.conectiva>
-Message-ID: <Pine.LNX.4.21.0010092118590.970-100000@Megathlon.ESI>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Message-ID: <20001009214214.G19583@athlon.random>
+References: <20001009210503.C19583@athlon.random> <Pine.LNX.4.21.0010091606420.1562-100000@duckman.distro.conectiva>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.21.0010091606420.1562-100000@duckman.distro.conectiva>; from riel@conectiva.com.br on Mon, Oct 09, 2000 at 04:07:32PM -0300
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Rik van Riel <riel@conectiva.com.br>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Ingo Molnar <mingo@elte.hu>, Byron Stanoszek <gandalf@winds.org>, Linus Torvalds <torvalds@transmeta.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 9 Oct 2000, Rik van Riel wrote:
+On Mon, Oct 09, 2000 at 04:07:32PM -0300, Rik van Riel wrote:
+> No. It's only needed if your OOM algorithm is so crappy that
+> it might end up killing init by mistake.
 
-> On Mon, 9 Oct 2000, Marco Colombo wrote:
-> > On Fri, 6 Oct 2000, Rik van Riel wrote:
-> > 
-> > [...]
-> > > They are niced because the user thinks them a bit less
-> > > important. 
-> > 
-> > Please don't, this assumption is quite wrong. I use nice just to
-> > be 'nice' to other users. I can run my *important* CPU hog
-> > simulation nice +10 in order to let other people get more CPU
-> > when the need it.
-> 
-> In that case the time the process has been running and the
-> CPU time used will save the process if it's been running for
-> a long time.
-> 
-> Please read the /entire/ algorithm before making rash
-> conclusions like this.
+The algorithm you posted on the list in this thread will kill init if on 4Mbyte
+machine without swap init is large 3 Mbytes and you execute a task that grows
+over 1M.
 
-<flame level=+1>
-What "conclusions"? YOU stated that "They are niced because the user
-thinks them a bit less important", and I was only commenting on that.
-I've never said your /entire/ algorithm is failing, the point was on
-the purpose of the 'nice' level. Users don't use nice to mark less 
-important processes. It's completely orthogonal. And if you really
-want to correlate nice level and importance, I'd rather say that
-niced processes tend to be more important that "normal" processes,
-on average.
-</flame>
+So I repeat again: for correctness you should either fix the oom algorithm and
+demonstrate with math that it can't kill init or fix the bug using a magic
+check.
 
-> If nice is used for important, long-running tasks, the fact
-> that they are long-running will save them (and be honest,
-> would you really care if a simulation would be killed after
-> 5 minutes?  it's only inconvenient if it gets killed after
-> a few hours...)
+Since it's not going to be possible to proof that an oom algorithm won't kill
+init (also considering init isn't always /sbin/init) the magic check is going
+to be the only bugfix possible.
 
-Ok. Now tell me what's the purpose to run your 'ls' at nice +5 at all.
-You nice processes that are going to take a while, otherwise nicing
-them has hardly a measurable effect, if any.
-
-> > But if you put the logic "niced == not important" somewhere into
-> > the kernel, nobody will use nice anymore. I'd rather give a
-> > bonus to niced processes.
-> 
-> This doesn't make ANY sense at all. The objective is to destroy
-> the least amount of work, which means giving a bonus to processes
-> which have used a lot of CPU time already ... regardless of nice
-> value.
-
-'regardless of nice value' is the part I like.
-
-> > all. But my point here is that you do, and you take it as an hint for
-> > process importance as percieved by the user that run it, and I believe
-> > it's just wrong guessing).
-> 
-> If you have a better algorithm, feel free to send patches.
-
-No need. Either reverse the weight you give to nice level or just
-ignore it, which probably is easier. I agree that giving a bonus to
-niced processed it's nearly useless.
-As I've written in my previous message, I don't think it's a big
-issue. OOM should not happen, full stop. OOM killer is a last resort
-measure, so it needs not to be *too* careful.
-
-> 
-> regards,
-> 
-> Rik
-> --
-> "What you're running that piece of shit Gnome?!?!"
->        -- Miguel de Icaza, UKUUG 2000
-> 
-> http://www.conectiva.com/		http://www.surriel.com/
-> 
-> 
-
-.TM.
--- 
-      ____/  ____/   /
-     /      /       /			Marco Colombo
-    ___/  ___  /   /		      Technical Manager
-   /          /   /			 ESI s.r.l.
- _____/ _____/  _/		       Colombo@ESI.it
-
+Andrea
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
