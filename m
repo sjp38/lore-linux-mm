@@ -1,26 +1,40 @@
 Received: from localhost (bcrl@localhost)
-	by kvack.org (8.8.7/8.8.7) with SMTP id BAA08009
-	for <linux-mm@kvack.org>; Thu, 18 Dec 1997 01:01:26 -0500
-Date: Thu, 18 Dec 1997 01:01:25 -0500 (EST)
+	by kvack.org (8.8.7/8.8.7) with SMTP id BAA08071
+	for <linux-mm@kvack.org>; Thu, 18 Dec 1997 01:02:28 -0500
+Date: Thu, 18 Dec 1997 01:02:27 -0500 (EST)
 From: Benjamin LaHaise <bcrl@kvack.org>
-Subject: Re: pageable page tables
-Message-ID: <Pine.LNX.3.95.971218010023.7940B-100000@as200.spellcast.com>
+Subject: memory priorities
+Message-ID: <Pine.LNX.3.95.971218010132.7940C-100000@as200.spellcast.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
----Forwarded---
-Date: Thu, 18 Dec 1997 00:02:43 +0100 (MET)
+Grr... I should 'fix' this ;-)
+---------- Forwarded message ----------
+Date: Thu, 18 Dec 1997 00:51:42 -0500
+From: owner-linux-mm@kvack.org
+To: owner-linux-mm@kvack.org
+Subject: BOUNCE linux-mm: Invalid 'Approved:' header
+
+>From owner-linux-mm@kvack.org  Thu Dec 18 00:51:40 1997
+Received: from max.fys.ruu.nl (max.fys.ruu.nl [131.211.32.73])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id AAA07896
+	for <linux-mm@kvack.org>; Thu, 18 Dec 1997 00:51:38 -0500
+Received: from mirkwood.dummy.home (root@anx1p8.fys.ruu.nl [131.211.33.97])
+	by max.fys.ruu.nl (8.8.7/8.8.7/hjm) with ESMTP id GAA14312;
+	Thu, 18 Dec 1997 06:45:51 +0100 (MET)
+Received: (from riel@localhost) by mirkwood.dummy.home (8.6.12/8.6.9) id AAA01388; Thu, 18 Dec 1997 00:12:55 +0100
+Date: Thu, 18 Dec 1997 00:12:53 +0100 (MET)
 From: Rik van Riel <H.H.vanRiel@fys.ruu.nl>
 X-Sender: riel@mirkwood.dummy.home
 Reply-To: H.H.vanRiel@fys.ruu.nl
 To: Pavel Machek <pavel@Elf.mj.gts.cz>
-cc: linux-mm@kvack.org
-Subject: Re: pageable page tables
-In-Reply-To: <19971217221425.30735@Elf.mj.gts.cz>
-Message-ID: <Pine.LNX.3.91.971218000000.887A-100000@mirkwood.dummy.home>
+cc: linux-mm <linux-mm@kvack.org>
+Subject: memory priorities
+In-Reply-To: <19971217221100.40232@Elf.mj.gts.cz>
+Message-ID: <Pine.LNX.3.91.971218001014.887C-100000@mirkwood.dummy.home>
 Approved: ObHack@localhost
 Organization: none
 MIME-Version: 1.0
@@ -28,25 +42,33 @@ Content-Type: TEXT/PLAIN; charset=US-ASCII
 
 On Wed, 17 Dec 1997, Pavel Machek wrote:
 
-> No, it would not fail, as no single process eats 5 minutes. And even
-> with SCHED_BG you would load rest of the system: you would load disk
-> subsystem. Often, disk subsystem is more important than CPU.
-
-This is exactly the place where SCHED_BG works. By
-suspending all but one of the jobs, a heavy multi-user
-machine only has to worry about the interactive jobs,
-and the disk I/O of _one_ SCHED_BG job...
-
-> > > > And when free memory stays below free_pages_low for more
-> > > > than 5 seconds, we can choose to have even normal processes
-> > > > queued for some time (in order to reduce paging)
+[snip Pavel (?) implemented memory priorities]
+> > > But proved to be pretty ineffective. I came to this idea when I
+> > > realized that to cook machine, running 100 processes will not hurt too
+> > > much. But running 10 processes, 50 megabytes each will cook almost
+> > > anything...
+> > 
+> > what about:
+> > 
+> > if (page->age - p->mem_priority)
+> > 	exit 0 / goto next;
+> > else {
+> > 	get_rid_of(page);
+> > 	and_dont_show_your_face_again_for_some_time(page);
+> > }
 > 
-> Too many heuristics?
+> I tried only manipulating comparasion, and not putting in into
+> sleep. I did not find benchmark where it does any performance
+> gain. ;-) Seems like it does nearly nothing.
 
-That doesn't really matter if they aren't used very
-often... We only have to check the free memory from
-swap_tick (we already do) and call a special routine
-for suspending / waking up the SCHED_BG jobs
+Well, if you only swap out the page, it will be swapped
+in quite soon and the only effect is that your system
+will have more pagefaults...
+
+If there is some free field in the page-table (once the
+page gets swapped out) we could use it to indicate that
+the system should wait some time with swapping this one
+in again...
 
 Rik.
 +-----------------------------+------------------------------+
