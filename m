@@ -1,91 +1,153 @@
-Date: Wed, 21 Aug 2002 22:44:19 +0100 (IST)
-From: Mel <mel@csn.ul.ie>
-Subject: VM Regress 0.6
-Message-ID: <Pine.LNX.4.44.0208212238050.29496-100000@skynet>
+Message-ID: <3D644C70.6D100EA5@zip.com.au>
+Date: Wed, 21 Aug 2002 19:29:04 -0700
+From: Andrew Morton <akpm@zip.com.au>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: MM patches against 2.5.31
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: lkml <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Project page: http://www.csn.ul.ie/~mel/projects/vmregress/
-Download:     http://www.csn.ul.ie/~mel/projects/vmregress/vmregress-0.6.tar.gz
+I've uploaded a rollup of pending fixes and feature work
+against 2.5.31 to
 
-This is the third public release of VM Regress. It is the beginnings of a
-regression, benchmarking and test tool for the Linux VM. The web page has
-an introduction and the project itself has quiet comprehensive
-documentation and commentary. It is still in it's very early days but
-there is a lot more in here than there was in 0.5.
+http://www.zip.com.au/~akpm/linux/patches/2.5/2.5.31/2.5.31-mm1/
 
-This release had a lot of minor bug fixes in it including building with
-highmem support and late 2.5 kernels. It has been heavily tested with both
-2.4.19 and 2.4.19-rmap14a .
+The rolled up patch there is suitable for ongoing testing and
+development.  The individual patches are in the broken-out/
+directory and should all be documented.
 
-The first item feature of note is that multiple instances of the same test can
-now run but only one will output information to the proc entry. This will
-allow 100 small instances of a test to run rather than one very large
-instance.
 
-Second item is the pagemap.o module. When read, it will print out all VMA's
-of the reading process and print what pages are present/swapped in that region
-in encoded format. A perl library is provided for decoding the information.
+broken-out/linus.patch
+  Incremental BK patch from Linus' tree
 
-Third item is the introduction of the mapanon.o module. It exports four
-proc interfaces for open, reading, writing and closing memory mapped
-regions. It is designed to be used by a benchmarking perl script
-(bin/bench_mapanon.pl --man for details) for testing how quickly anonymous
-pages are used within an mmaped region and illustrates what pages the
-kernel decides to swap out. The report from the benchmark will show how
-quickly pages were accessed, what pages were present/swapped in comparison
-to how often a page was referenced and a graph of vmstat output. Tests are
-running currently measuring the performance of 2.4.19 and 2.4.19-rmap14a.
-They will be posted up when they complete running.
+broken-out/page_reserved.patch
+  Test PageReserved in pagevec_release()
 
-Fourth item is several perl libraries made available that are aimed at making
-developing of new tests very easy. They cover a lot of the drudge work a test
-has to do such as graphing, reading proc entries, decoding information and so
-on. The manual has most of the details. All of VM Regress is designed to
-be very easy to interface with so other tests can be easily developed.
+broken-out/scsi_hack.patch
+  Fix block-highmem for scsi
 
-The next step is to update mapanon to cover mmaped files as well as anonymous
-memory. This is so a simulation web server will be run complete with bots
-browsing web pages similar to what Rik Van Riel outlined in an email sent
-to the list. This will help the tool be both a micro analysis and
-overall performance testing and benchmark tool.
+broken-out/page_cache_release_lru_fix.patch
+  Fix a race between __page_cache_release() and shrink_cache().
 
-Further down the line is the development of statistical analysis tools for
-examining different data sets, in particular the timing information the
-bench_mapanon.pl script produces.
+broken-out/page_cache_release_fix.patch
+  Fix __page_cache_release() bugs
 
-This is still very much in it's early days and is expected to take a long time
-to develop fully but it's at the point where it can produce useful figures.
-Reasonably comprehensive documentation is available with the package and from
-the webpage. Any feedback is appreciated.
+broken-out/mvm.patch
+  Fix vmalloc bugs
 
-Full changelog for 0.6
+broken-out/pte-chain-fix.patch
+  Fix a VM lockup on uniprocessors
 
-Version 0.6
------------
-  o Allow multiple instances of tests to run. Only one will print to proc
-  o pagemap.o module will dump out address space with pages swapped/present
-  o mapanon.o benchmark, creates and references mmaped areas so that a script
-    can simulate program behavior and see what the process space looks like
-    after
-  o Created various benchmark perl scripts.
-  o Created various support perl modules for running tests in bin/lib/VMR
-  o Print out kernel messages
-  o Moved the pagemap decode perl routines to a library
-  o Fixed CONFIG_HIGHMEM compile error
-  o Fixed spinlock redefine errors
-  o Fixed use of KERNEL_VERSION macro
-  o Fixed various deadlocks
+broken-out/func-fix.patch
+  gcc-2.91.66 does not support __func__
 
--- 
-Mel Gorman
-MSc Student, University of Limerick
-http://www.csn.ul.ie/~mel
+broken-out/ext3-htree.patch
+  Indexed directories for ext3
 
+broken-out/rmap-mapping-BUG.patch
+  Fix a BUG_ON(page->mapping == NULL) in try_to_unmap()
+
+broken-out/misc.patch
+  misc fixlets
+
+broken-out/tlb-speedup.patch
+  Reduce typical global TLB invalidation frequency by 35%
+
+broken-out/buffer-slab-align.patch
+  Don't align the buffer_head slab on hardware cacheline boundaries
+
+broken-out/zone-rename.patch
+  Rename zone_struct->zone, zonelist_struct->zonelist.  Remove zone_t,
+  zonelist_t.
+
+broken-out/per-zone-lru.patch
+  Per-zone page LRUs
+
+broken-out/per-zone-lock.patch
+  Per-zone LRU list locking
+
+broken-out/l1-max-size.patch
+  Infrastructure for determining the maximum L1 cache size which the kernel
+  may have to support.
+
+broken-out/zone-lock-alignment.patch
+  Pad struct zone to ensure that the lru and buddy locks are in separate
+  cachelines.
+
+broken-out/put_page_cleanup.patch
+  Clean up put_page() and page_cache_release().
+
+broken-out/anon-batch-free.patch
+  Batched freeing and de-LRUing of anonymous pages
+
+broken-out/writeback-sync.patch
+  Writeback fixes and tuneups
+
+broken-out/ext3-inode-allocation.patch
+  Fix an ext3 deadlock
+
+broken-out/ext3-o_direct.patch
+  O_DIRECT support for ext3.
+
+broken-out/jfs-bio.patch
+  Convert JFS to use direct-to-BIO I/O
+
+broken-out/discontig-paddr_to_pfn.patch
+  Convert page pointers into pfns for i386 NUMA
+
+broken-out/discontig-setup_arch.patch
+  Rework setup_arch() for i386 NUMA
+
+broken-out/discontig-mem_init.patch
+  Restructure mem_init for i386 NUMA
+
+broken-out/discontig-i386-numa.patch
+  discontigmem support for i386 NUMA
+
+broken-out/cleanup-mem_map-1.patch
+  Clean up lots of open-coded uese of mem_map[].  For ia32 NUMA
+
+broken-out/zone-pages-reporting.patch
+  Fix the boot-time reporting of each zone's available pages
+
+broken-out/enospc-recovery-fix.patch
+  Fix the __block_write_full_page() error path.
+
+broken-out/fix-faults.patch
+  Back out the initial work for atomic copy_*_user()
+
+broken-out/bkl-consolidate.patch
+  Consolidation per-arch lock_kenrel() implementations.
+
+broken-out/might_sleep.patch
+  Infrastructure to detect sleep-inside-spinlock bugs
+
+broken-out/spin-lock-check.patch
+  spinlock/rwlock checking infrastructure
+
+broken-out/atomic-copy_user.patch
+  Support for atomic copy_*_user()
+
+broken-out/kmap_atomic_reads.patch
+  Use kmap_atomic() for generic_file_read()
+
+broken-out/kmap_atomic_writes.patch
+  Use kmap_atomic() for generic_file_write()
+
+broken-out/config-PAGE_OFFSET.patch
+  Configurable kenrel/user memory split
+
+broken-out/throttling-fix.patch
+  Fix throttling of heavy write()rs.
+
+broken-out/dirty-state-accounting.patch
+  Make the global dirty memory accounting more accurate
+
+broken-out/rd-cleanup.patch
+  Cleanup and fix the ramdisk driver (doesn't work right yet)
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
