@@ -1,80 +1,158 @@
-Date: Thu, 29 Aug 2002 16:15:28 +0100 (IST)
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: VM Regress 0.7
-Message-ID: <Pine.LNX.4.44.0208291605410.31984-100000@skynet>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: [PATCH] low-latency zap_page_range()
+From: Robert Love <rml@tech9.net>
+Content-Type: text/plain
+Content-Transfer-Encoding: 7bit
+Date: 29 Aug 2002 11:31:39 -0400
+Message-Id: <1030635100.939.2551.camel@phantasy>
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
-Subject: VM Regress 0.7
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: akpm@zip.com.au
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Project page: http://www.csn.ul.ie/~mel/projects/vmregress/
-Download:     http://www.csn.ul.ie/~mel/projects/vmregress/vmregress-0.7.tar.gz
+Andrew,
 
-This is the fourth release of VM Regress. It is a regression, benchmarking
-and test tool for the Linux VM in it's early stages. This will be the last
-release for a while as funding in my University is a bit tight these days.
-Mine is due to run out in a few months and I have to re-prioritise
-what I'm doing unfortunately. I hope to get back working on this once I
-have secured external funding to work full time on VM management in
-general and Linux in particular.
+Attached patch implements a low latency version of "zap_page_range()".
 
-This release has at least one major bug fix. It would have been triggered by
-an SMP machine running an alloc or page faulting validation test. I haven't
-heard any reports and I haven't triggered it myself but I'm pretty sure it
-would deadlock. The project will now compile cleanly against late 2.5.32
-which is the first 2.5 kernel since 2.5.28 it compiled against.  I haven't
-managed to test with a 2.5.x kernel but there is no reason it shouldn't
-work. I'd be interested in hearing any success/failure stories with 2.5.x
+Calls with even moderately large page ranges result in very long lock
+held times and consequently very long periods of non-preemptibility. 
+This function is in my list of the top 3 worst offenders.  It is gross.
 
-Perl scripts are now provided to run each test and benchmark, produce a
-report, graph vmstat output etc so running tests is a lot easier. It will
-load/unload modules as necessary to run the test. This reduces a lot of the
-drudge work involved with setting up a test. There is also scripts
-available for replotting graphs to a given scale so comparing vm's is a
-bit easier. man pages and online help is available for each of them.
+This new version reimplements zap_page_range() as a loop over
+ZAP_BLOCK_SIZE chunks.  After each iteration, if a reschedule is
+pending, we drop page_table_lock and automagically preempt.  Note we can
+not blindly drop the locks and reschedule (e.g. for the non-preempt
+case) since there is a possibility to enter this codepath holding other
+locks.
 
-The mmap module will now run read or write benchmarks on either anonymous or
-file backed maps. It produces graphs showing age of pages, reference counts,
-page present/swapped, what pages were referenced over time, vmstat output
-and some timing information. It still doesn't do statistical analysis but
-that was in the works for 0.9 . the data files are all preserved as .data
-files so any stats tool that can import space separated files can be used.
-Links to sample test output is on the webpage.
+... I am sure you are familar with all this, its the same deal as your
+low-latency work.  This patch implements the "cond_resched_lock()" as we
+discussed sometime back.  I think this solution should be acceptable to
+you and Linus.
 
-If I get back working on this, 0.8 will have the simulated webserver originally
-outlined by Rik Van Riel. Most of what is needed is already there with the
-mmap module bench_mmap.pl uses.
+There are other misc. cleanups, too.
 
-Documentation is reasonably up to data and provided with the package. If
-people have suggestions or reports, send them on and I'll add them to the
-ToDo list. I'll continue to work on this periodically.
+This new zap_page_range() yields latency too-low-to-benchmark: <<1ms.
 
-Full changelog for 0.7
+Please, Andrew, add this to your ever-growing list.
 
-Version 0.7
------------
-  o Updated bench_mapanon.pl to perform read/write tests
-  o Adapted mapanon.o and changed to mmap.o so it can map file descriptors
-  o Adapted bench_mapanon.pl to bench_mmap.pl to be a generate mmap benchmark
-  o Told benchmark to preserve sampling data
-  o Time.pm exports new timing functions
-  o mapanon.o changed to mmap.o, handles files or anonymous memory
-  o Added graph to show page age vs page presence
-  o Added graph to show reference pattern
-  o Added replot.pl for easy replotting of time data
-  o Fixed access permissions to alloc and fault tests
-  o Removed stupid deadlock with alloc and fault modules
-  o Various perl lib updates
-  o Will now compile against late 2.5.x kernels (untested)
-  o Automatically load and unload kernel modules
+	Robert Love
 
--- 
-Mel Gorman
-MSc Student, University of Limerick
-http://www.csn.ul.ie/~mel
+diff -urN linux-2.5.32/include/linux/sched.h linux/include/linux/sched.h
+--- linux-2.5.32/include/linux/sched.h	Tue Aug 27 15:26:34 2002
++++ linux/include/linux/sched.h	Wed Aug 28 18:04:41 2002
+@@ -898,6 +898,34 @@
+ 		__cond_resched();
+ }
+ 
++#ifdef CONFIG_PREEMPT
++
++/*
++ * cond_resched_lock() - if a reschedule is pending, drop the given lock,
++ * call schedule, and on return reacquire the lock.
++ *
++ * Note: this does not assume the given lock is the _only_ lock held.
++ * The kernel preemption counter gives us "free" checking that we are
++ * atomic -- let's use it.
++ */
++static inline void cond_resched_lock(spinlock_t * lock)
++{
++	if (need_resched() && preempt_count() == 1) {
++		_raw_spin_unlock(lock);
++		preempt_enable_no_resched();
++		__cond_resched();
++		spin_lock(lock);
++	}
++}
++
++#else
++
++static inline void cond_resched_lock(spinlock_t * lock)
++{
++}
++
++#endif
++
+ /* Reevaluate whether the task has signals pending delivery.
+    This is required every time the blocked sigset_t changes.
+    Athread cathreaders should have t->sigmask_lock.  */
+diff -urN linux-2.5.32/mm/memory.c linux/mm/memory.c
+--- linux-2.5.32/mm/memory.c	Tue Aug 27 15:26:42 2002
++++ linux/mm/memory.c	Wed Aug 28 18:03:11 2002
+@@ -389,8 +389,8 @@
+ {
+ 	pgd_t * dir;
+ 
+-	if (address >= end)
+-		BUG();
++	BUG_ON(address >= end);
++
+ 	dir = pgd_offset(vma->vm_mm, address);
+ 	tlb_start_vma(tlb, vma);
+ 	do {
+@@ -401,30 +401,43 @@
+ 	tlb_end_vma(tlb, vma);
+ }
+ 
+-/*
+- * remove user pages in a given range.
++#define ZAP_BLOCK_SIZE	(256 * PAGE_SIZE) /* how big a chunk we loop over */
++ 
++/**
++ * zap_page_range - remove user pages in a given range
++ * @vma: vm_area_struct holding the applicable pages
++ * @address: starting address of pages to zap
++ * @size: number of bytes to zap
+  */
+ void zap_page_range(struct vm_area_struct *vma, unsigned long address, unsigned long size)
+ {
+ 	struct mm_struct *mm = vma->vm_mm;
+ 	mmu_gather_t *tlb;
+-	unsigned long start = address, end = address + size;
++	unsigned long end, block;
+ 
+-	/*
+-	 * This is a long-lived spinlock. That's fine.
+-	 * There's no contention, because the page table
+-	 * lock only protects against kswapd anyway, and
+-	 * even if kswapd happened to be looking at this
+-	 * process we _want_ it to get stuck.
+-	 */
+-	if (address >= end)
+-		BUG();
+ 	spin_lock(&mm->page_table_lock);
+-	flush_cache_range(vma, address, end);
+ 
+-	tlb = tlb_gather_mmu(mm, 0);
+-	unmap_page_range(tlb, vma, address, end);
+-	tlb_finish_mmu(tlb, start, end);
++  	/*
++ 	 * This was once a long-held spinlock.  Now we break the
++ 	 * work up into ZAP_BLOCK_SIZE units and relinquish the
++ 	 * lock after each interation.  This drastically lowers
++ 	 * lock contention and allows for a preemption point.
++  	 */
++	while (size) {
++		block = (size > ZAP_BLOCK_SIZE) ? ZAP_BLOCK_SIZE : size;
++ 		end = address + block;
++ 
++ 		flush_cache_range(vma, address, end);
++ 		tlb = tlb_gather_mmu(mm, 0);
++ 		unmap_page_range(tlb, vma, address, end);
++ 		tlb_finish_mmu(tlb, address, end);
++ 
++ 		cond_resched_lock(&mm->page_table_lock);
++ 
++ 		address += block;
++ 		size -= block;
++ 	}
++
+ 	spin_unlock(&mm->page_table_lock);
+ }
+ 
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
