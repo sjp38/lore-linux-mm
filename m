@@ -1,47 +1,42 @@
-Date: Wed, 14 May 2003 10:25:26 -0500
-From: Dave McCracken <dmccr@us.ibm.com>
-Subject: Re: Race between vmtruncate and mapped areas?
-Message-ID: <51020000.1052925926@baldur.austin.ibm.com>
-In-Reply-To: <20030514150653.GM8978@holomorphy.com>
-References: <154080000.1052858685@baldur.austin.ibm.com>
- <20030513181018.4cbff906.akpm@digeo.com>
- <18240000.1052924530@baldur.austin.ibm.com>
- <20030514150653.GM8978@holomorphy.com>
-MIME-Version: 1.0
+Date: Wed, 14 May 2003 09:30:51 -0700
+From: Greg KH <greg@kroah.com>
+Subject: Re: 2.5.69-mm5
+Message-ID: <20030514163051.GA2250@kroah.com>
+References: <CDD2FA891602624BB024E1662BC678ED843F91@mbi-00.mbi.ufl.edu>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
+In-Reply-To: <CDD2FA891602624BB024E1662BC678ED843F91@mbi-00.mbi.ufl.edu>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: William Lee Irwin III <wli@holomorphy.com>
-Cc: Andrew Morton <akpm@digeo.com>, mika.penttila@kolumbus.fi, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: "Jon K. Akers" <jka@mbi.ufl.edu>
+Cc: Andrew Morton <akpm@digeo.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
---On Wednesday, May 14, 2003 08:06:53 -0700 William Lee Irwin III
-<wli@holomorphy.com> wrote:
-
->> Which the application thinks is still part of the file, and will expect
->> its changes to be written back.  Granted, if the page fault occurred
->> just after the truncate it'd get SIGBUS, so it's clearly not a robust
->> assumption, but it will result in unexpected behavior.  Note that if the
->> application later extends the file to include this page it could result
->> in a corrupted file, since all the pages around it will be written
->> properly.
+On Wed, May 14, 2003 at 10:33:43AM -0400, Jon K. Akers wrote:
+> I like to at least build the new stuff that comes out with Andrew's
+> patches, and building the new gadget code that came out in -mm4 I got
+> this when building as a module:
 > 
-> Well, for this one I'd say the app loses; it was its own failure to
-> synchronize truncation vs. access, at least given that the kernel
-> doesn't oops.
+> make -f scripts/Makefile.build obj=drivers/serial
+> make -f scripts/Makefile.build obj=drivers/usb/gadget
+>   gcc -Wp,-MD,drivers/usb/gadget/.net2280.o.d -D__KERNEL__ -Iinclude
+> -Wall -Wstrict-prototypes -Wno-trigraphs -O2 -fno-strict-aliasing
+> -fno-common -pipe -mpreferred-stack-boundary=2 -march=i686
+> -Iinclude/asm-i386/mach-default -fomit-frame-pointer -nostdinc
+> -iwithprefix include -DMODULE   -DKBUILD_BASENAME=net2280
+> -DKBUILD_MODNAME=net2280 -c -o drivers/usb/gadget/net2280.o
+> drivers/usb/gadget/net2280.c
+> drivers/usb/gadget/net2280.c:2623: pci_ids causes a section type
+> conflict
 
-I think allowing a race condition that can randomly leave corrupted files
-is a really bad idea, even if the app is doing something stupid.  We know
-what the race is.  We should be able to prevent it.
+Do you get the same error on the latest -bk patch from Linus's tree?
 
-Dave
+And what CONFIG_USB_GADGET_* .config options do you have enabled?
 
-======================================================================
-Dave McCracken          IBM Linux Base Kernel Team      1-512-838-3059
-dmccr@us.ibm.com                                        T/L   678-3059
+thanks,
 
+greg k-h
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
