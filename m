@@ -1,28 +1,45 @@
-Message-ID: <4007B03C.4090106@gmx.de>
-Date: Fri, 16 Jan 2004 10:34:52 +0100
-From: "Prakash K. Cheemplavam" <PrakashKC@gmx.de>
-MIME-Version: 1.0
+From: Ed Tomlinson <edt@aei.ca>
 Subject: Re: 2.6.1-mm4
+Date: Fri, 16 Jan 2004 08:45:16 -0500
 References: <20040115225948.6b994a48.akpm@osdl.org>
 In-Reply-To: <20040115225948.6b994a48.akpm@osdl.org>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+MIME-Version: 1.0
+Content-Disposition: inline
+Content-Type: text/plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 8BIT
+Message-Id: <200401160845.17199.edt@aei.ca>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: Andrew Morton <akpm@osdl.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+On January 16, 2004 01:59 am, Andrew Morton wrote:
+> - There's a patch here which changes the ia32 CPU type selection.  Make
+>   sure you go in there and select the right CPU type(s), else the kernel
+>   won't compile.   We might need to set a default here.
+>
+> - Kernel NFS server update
+>
+> - MD update
+>
+> - V4L update
+>
+> - A string of fixes against the parport, paride and associated drivers
+>
+> - Update to the latest UML
+>
+> - Patches to support gcc-3.4 on ia32.  There is more to do here - more
+>   warnings need to be fixed and the exception tables need to be sorted.  I
+>   didn't add the `-Winline' patch because it's way too noisy at present.
 
-I just gave it a try and the locking-up issue went worse with this 
-kernel. Now even without APIC the kernel locks up quite fast on my 
-nforce2. Very easy method (for me) was to copy a large file from CD-ROM 
-(at least now mounting CDs works again, in contrast to mm2) to HD and 
-machine locks-up. Sorry, no stack backtrace yet and no log entry, but 
-I'll try to do what I can.
+Hi Andrew,
 
-Prakash
+Doing a modules install with mm4 gets a nfsd.ko needs unknown symbol dnotify_parent
+
+Ideas?
+Ed Tomlinson
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
