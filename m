@@ -1,164 +1,91 @@
-Date: Fri, 21 Jan 2000 23:20:05 +0100 (CET)
-From: Rik van Riel <riel@nl.linux.org>
-Subject: [PATCH] VM fix + performance boost
-Message-ID: <Pine.LNX.4.10.10001212317120.268-100000@mirkwood.dummy.home>
+Date: Sat, 22 Jan 2000 03:43:56 +0100 (CET)
+From: Andrea Arcangeli <andrea@suse.de>
+Subject: Re: [PATCH] 2.2.1{3,4,5} VM fix
+In-Reply-To: <Pine.LNX.4.10.10001212016180.301-100000@mirkwood.dummy.home>
+Message-ID: <Pine.LNX.4.21.0001220309310.2341-100000@alpha.random>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linux MM <linux-mm@kvack.org>
-Cc: Linux Kernel <linux-kernel@vger.rutgers.edu>, Alan Cox <alan@lxorguk.ukuu.org.uk>
+To: Rik van Riel <riel@nl.linux.org>
+Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, Linux Kernel <linux-kernel@vger.rutgers.edu>, Linux MM <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi Alan,
+On Fri, 21 Jan 2000, Rik van Riel wrote:
 
-here's the latest version of my VM improvement patch.
-I suspect this will be the final version since I have
-not been able to crash a machine with this patch and
-neither have a bunch of other people. If nobody manages
-to crash it, could you please include it in 2.2.15?
+>On Fri, 21 Jan 2000, Andrea Arcangeli wrote:
+>
+>> Since 2.1.x all GFP_KERNEL allocations (not atomic) succeed too.
+>
+>Alan, I think we've located the bug that made 2.2 kernels
+>run completely out of memory :)
 
-Other people:  this thing might get included in 2.2.15,
-could you please please test it and try if you can break
-it? If it still is breakable, I'll fix the bug before
-2.2.15 is shipped...
+Yes, the fix is to kill the meaningless 1 second polling loop and to
+replace it with a proper wakeup. It has definitely nothing to do with
+GFP_KERNEL semantics.
 
-The patch is against 2.2.15-pre3.
+	ftp://ftp.*.kernel.org/pub/linux/kernel/people/andrea/patches/v2.2/2.2.14/atomic-allocations-2.gz
 
-regards,
+>Andrea, the last few pages are meant for ATOMIC and
+>PF_MEMALLOC allocations only, otherwise you'll get
+>deadlock situations.
 
-Rik
---
-The Internet is not a network of computers. It is a network
-of people. That is its real strength.
+Deadlock happens only due a bug in the caller. That has nothing to do with
+failed atomic allocations or with the MM core.
 
+About your proposed change (as I just said), the semantic you want to
+change whith your diff that I am quoting here:
 
---- linux-2.2.15-pre3/mm/vmscan.c.orig	Wed Jan 19 21:18:54 2000
-+++ linux-2.2.15-pre3/mm/vmscan.c	Fri Jan 21 16:30:55 2000
-@@ -64,6 +64,14 @@
- 		return 0;
- 
- 	/*
-+	 * By setting this bit shrink_mmap() will do
-+	 * second-chance page replacement, only do this
-+	 * when we are the only (non-pagecache) user.
-+	 */
-+	if (atomic_read(&page_map->count) <= 2)
-+		set_bit(PG_referenced, &page_map->flags);
-+
-+	/*
- 	 * Is the page already in the swap cache? If so, then
- 	 * we can just drop our reference to it without doing
- 	 * any IO - it's already up-to-date on disk.
-@@ -437,7 +445,7 @@
-        printk ("Starting kswapd v%.*s\n", i, s);
- }
- 
--static struct wait_queue * kswapd_wait = NULL;
-+struct wait_queue * kswapd_wait = NULL;
- 
- /*
-  * The background pageout daemon, started as a kernel thread
-@@ -485,41 +493,26 @@
- 		 * the processes needing more memory will wake us
- 		 * up on a more timely basis.
- 		 */
--		interruptible_sleep_on_timeout(&kswapd_wait, HZ);
- 		while (nr_free_pages < freepages.high)
- 		{
--			if (do_try_to_free_pages(GFP_KSWAPD))
--			{
--				if (tsk->need_resched)
--					schedule();
--				continue;
--			}
--			tsk->state = TASK_INTERRUPTIBLE;
--			schedule_timeout(10*HZ);
-+			if (!do_try_to_free_pages(GFP_KSWAPD))
-+				break;
-+			if (tsk->need_resched)
-+				schedule();
- 		}
-+		run_task_queue(&tq_disk);
-+		interruptible_sleep_on_timeout(&kswapd_wait, HZ);
- 	}
- }
- 
- /*
-- * Called by non-kswapd processes when they want more
-- * memory.
-- *
-- * In a perfect world, this should just wake up kswapd
-- * and return. We don't actually want to swap stuff out
-- * from user processes, because the locking issues are
-- * nasty to the extreme (file write locks, and MM locking)
-- *
-- * One option might be to let kswapd do all the page-out
-- * and VM page table scanning that needs locking, and this
-- * process thread could do just the mmap shrink stage that
-- * can be done by just dropping cached pages without having
-- * any deadlock issues.
-+ * Called by non-kswapd processes when kswapd really cannot
-+ * keep up with the demand for free memory.
-  */
- int try_to_free_pages(unsigned int gfp_mask)
- {
- 	int retval = 1;
- 
--	wake_up_interruptible(&kswapd_wait);
- 	if (gfp_mask & __GFP_WAIT)
- 		retval = do_try_to_free_pages(gfp_mask);
- 	return retval;
---- linux-2.2.15-pre3/mm/page_alloc.c.orig	Wed Jan 19 21:32:05 2000
-+++ linux-2.2.15-pre3/mm/page_alloc.c	Fri Jan 21 05:02:13 2000
-@@ -20,6 +20,7 @@
- 
- int nr_swap_pages = 0;
- int nr_free_pages = 0;
-+extern struct wait_queue * kswapd_wait;
- 
- /*
-  * Free area management
-@@ -184,8 +185,6 @@
- 	atomic_set(&map->count, 1); \
- } while (0)
- 
--int low_on_memory = 0;
--
- unsigned long __get_free_pages(int gfp_mask, unsigned long order)
- {
- 	unsigned long flags;
-@@ -212,21 +211,21 @@
- 	if (!(current->flags & PF_MEMALLOC)) {
- 		int freed;
- 
--		if (nr_free_pages > freepages.min) {
--			if (!low_on_memory)
--				goto ok_to_allocate;
--			if (nr_free_pages >= freepages.high) {
--				low_on_memory = 0;
--				goto ok_to_allocate;
--			}
-+		if (nr_free_pages <= freepages.low) {
-+			wake_up_interruptible(&kswapd_wait);
-+			/* a bit of defensive programming */
-+			if (gfp_mask & __GFP_WAIT)
-+				schedule();
- 		}
-+		if (nr_free_pages > freepages.min)
-+			goto ok_to_allocate;
- 
--		low_on_memory = 1;
-+		/* Danger, danger! Do something or fail */
- 		current->flags |= PF_MEMALLOC;
- 		freed = try_to_free_pages(gfp_mask);
- 		current->flags &= ~PF_MEMALLOC;
- 
--		if (!freed && !(gfp_mask & (__GFP_MED | __GFP_HIGH)))
-+		if (!freed && !(gfp_mask & __GFP_HIGH))
- 			goto nopage;
- 	}
- ok_to_allocate:
+>-               if (!freed && !(gfp_mask & (__GFP_MED | __GFP_HIGH)))
+>+               if (!freed && !(gfp_mask & __GFP_HIGH))
+
+makes a difference _only_ if the machine goes _OOM_ (so when
+try_to_free_pages fails) and that's completly _unrelated_ with the
+failed-atomic-allocation case we are talking about. If the machine is OOM
+it's perfectly normal that atomic allocations fails. That's expected.
+
+You are basically making GFP_KERNEL equal to GFP_USER and that's wrong. It
+makes sense that allocation triggered by the kernel have access to the
+whole free memory available: kernel allocations have the same privilegies
+of atomic allocations. The reason atomic allocations are atomic is that
+they can't sleep, that's all. If they could sleep they would be GFP_KERNEL
+allocations instead. The only difference between the two, is that the
+non-atomic allocations will free memory themselfs before accessing _all_
+the free memory because they _can_ do that.
+
+The reason GFP_USER allocations won't access the whole free memory is
+_only_ that we want to kill userspace as soon as we detect OOM. It's not
+because we want to reserve some memory for atomic allocations _during_
+oom. During OOM we must try to kill userspace or eat the last memory free
+if possible.
+
+The problem we have now with atomic allcations is instead that they can
+fail even if there's plenty of _freeable_unused_ cache allocated (_not_
+during oom).
+
+IMHO the problem we have is that atomic allocations only rely on the way
+too slow 1 sec polling of kswapd, while they should wakeup kswapd
+immediatly and my patch will address exactly that.
+
+>GFP_KERNEL allocation fails. That same code would
+>also crash if it were allowed to fill up freepages.min
+>and then run really out of memory...
+
+If something crashes when an allocation fails that's a caller bug and it's
+unrelated with the VM core. If nr_free_pages == 0 the system must remains
+stable. If the system crashes it's not an MM bug. Having nr_free_pages ==
+0 is an expected condition.
+
+NOTE: we actually have getblk a bit deadlock prone so getblk very much
+prefer to succeed if possible. Fixing it it's not a 2.2.x thing IMHO also
+considering I never succeed to reproduce that in RL. So we have to take in
+mind this getblk thing while playing with the MM in 2.2.x. That's why I
+said that your change could also harm getblk during oom, but nevertheless
+it wasn't your change the source of the problem. Without your proposed
+change instead getblk may get in troubles only if nr_free_pages == 0 that
+rarely happens, but again: that's a getblk problem, and not an MM one.
+
+Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
