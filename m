@@ -1,57 +1,41 @@
-Subject: [PATCH] don't align initmem poisoning
+Subject: Re: memory hotplug and mem=
 From: Dave Hansen <haveblue@us.ibm.com>
-Content-Type: multipart/mixed; boundary="=-yBhWk7MNapqSGxwQDfV6"
-Message-Id: <1097174067.22025.37.camel@localhost>
+In-Reply-To: <20041007155854.GC14614@logos.cnet>
+References: <20041001182221.GA3191@logos.cnet>
+	 <4160F483.3000309@jp.fujitsu.com>  <20041007155854.GC14614@logos.cnet>
+Content-Type: text/plain
+Message-Id: <1097172146.22025.29.camel@localhost>
 Mime-Version: 1.0
-Date: Thu, 07 Oct 2004 11:36:23 -0700
+Date: Thu, 07 Oct 2004 11:36:19 -0700
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: linux-mm <linux-mm@kvack.org>
+To: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
+Cc: Hiroyuki KAMEZAWA <kamezawa.hiroyu@jp.fujitsu.com>, IWAMOTO Toshihiro <iwamoto@valinux.co.jp>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
---=-yBhWk7MNapqSGxwQDfV6
-Content-Type: text/plain
-Content-Transfer-Encoding: 7bit
+On Thu, 2004-10-07 at 08:58, Marcelo Tosatti wrote:
+> Hi memory hotplug fellows,
+> 
+> Just in case you dont know, trying to pass "mem=" 
+> causes the -test2 tree to oops on boot.
+> 
+> Any ideas of what is going on wrong?
 
-The recent initmem poison patch tries to page-align the address that it
-memsets.  I think this is unnecessary because __init_begin is
-page-aligned already in the linker script:
+Nope.  That's my normal mode of operation.  What kind of system?  How
+much RAM?  
 
-  /* will be freed after init */
-  . = ALIGN(4096);              /* Init code and data */
-  __init_begin = .;
-  .init.text : {
+I've only tried it where the machine has 4G of ram, and I restrict it
+down to 2.  I can imagine some funny stuff happening if the mem= causes
+it to cross the highmem boundary.
+
+> Haven't captured the oops, but can 
+> if needed.
+
+Let me do a bit of testing after I find out what your configuration is. 
+I'm hopeful I can reproduce it.
 
 -- Dave
-
---=-yBhWk7MNapqSGxwQDfV6
-Content-Disposition: attachment; filename=A1-no-page-align-init-poison.patch
-Content-Type: text/x-patch; name=A1-no-page-align-init-poison.patch; charset=ANSI_X3.4-1968
-Content-Transfer-Encoding: 7bit
-
-
-Signed-off-by: Dave Hansen <haveblue@us.ibm.com>
----
-
- memhotplug-dave/arch/i386/mm/init.c |    2 +-
- 1 files changed, 1 insertion(+), 1 deletion(-)
-
-diff -puN arch/i386/mm/init.c~A1-no-page-align-init-poison arch/i386/mm/init.c
---- memhotplug/arch/i386/mm/init.c~A1-no-page-align-init-poison	2004-10-07 11:28:46.000000000 -0700
-+++ memhotplug-dave/arch/i386/mm/init.c	2004-10-07 11:30:05.000000000 -0700
-@@ -723,7 +723,7 @@ void free_initmem(void)
- 	for (; addr < (unsigned long)(&__init_end); addr += PAGE_SIZE) {
- 		ClearPageReserved(virt_to_page(addr));
- 		set_page_count(virt_to_page(addr), 1);
--		memset((void *)(addr & ~(PAGE_SIZE-1)), 0xcc, PAGE_SIZE);
-+		memset((void *)addr, 0xcc, PAGE_SIZE);
- 		free_page(addr);
- 		totalram_pages++;
- 	}
-_
-
---=-yBhWk7MNapqSGxwQDfV6--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
