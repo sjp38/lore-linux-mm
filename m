@@ -1,126 +1,134 @@
-From: "David =?ISO-8859-1?Q?G=F3mez" ?= <davidge@jazzfree.com>
-Date: Sun, 10 Jun 2001 21:08:23 +0200 (CEST)
-Subject: madvise man page
-Message-ID: <Pine.LNX.4.21.0106102050190.2817-200000@fargo>
+From: "George Bonser" <george@gator.com>
+Subject: RE: [PATCH] 2.4.6-pre2 page_launder() improvements
+Date: Sun, 10 Jun 2001 12:30:15 -0700
+Message-ID: <CHEKKPICCNOGICGMDODJIEKGDEAA.george@gator.com>
 MIME-Version: 1.0
-Content-Type: MULTIPART/MIXED; BOUNDARY="-1463794332-629272005-992199184=:2817"
-Content-ID: <Pine.LNX.4.21.0106102053180.2817@fargo>
+Content-Type: text/plain;
+	charset="us-ascii"
+Content-Transfer-Encoding: 7bit
+In-Reply-To: <Pine.LNX.4.33.0106100541200.1742-100000@duckman.distro.conectiva>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Rik van Riel <riel@conectiva.com.br>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
----1463794332-629272005-992199184=:2817
-Content-Type: TEXT/PLAIN; CHARSET=iso-8859-1
-Content-Transfer-Encoding: QUOTED-PRINTABLE
-Content-ID: <Pine.LNX.4.21.0106102053181.2817@fargo>
+Ok, new test.  Apache, no keepalives. 85 requests/sec for a 10K file
+128MB of RAM Processor is UP 700MHz Intel
 
+vanilla 2.4.6-pre2
 
-Hi,=20
+After everything settles down I have about 230-250 apache process running.
+about 4% of CPU in user and roughly 6% in system.
 
-I've written a first version of madvise system call man page, based on
-the comments in filemap.c. I've already sent it to Andries Brouwer, but
-please take a look it and tell me if there is something wrong or i forgot
-something. By the way, what standards ,besides posix.1b, is madvise
-conforming to, SuS maybe?
+Top shows:
 
+ 18:12:47 up 59 min,  2 users,  load average: 1.36, 3.26, 12.76 <- from a
+previous test,
+240 processes: 239 sleeping, 1 running, 0 zombie, 0 stopped
+CPU states:   3.7% user,   6.8% system,   0.0% nice,  89.5% idle
+Mem:    127184K total,    95308K used,    31876K free,    14300K buffers
+Swap:   498004K total,     5032K used,   492972K free,    14244K cached
 
-David G=F3mez
+I have about 5MB in swap.
 
+Now kick off make -j8 in the linux kernel tree.  CPU goes to about 80/20
+user/system
+Top looks like this:
 
+ 18:21:46 up  1:08,  2 users,  load average: 17.71, 12.19, 12.55
+299 processes: 290 sleeping, 9 running, 0 zombie, 0 stopped
+CPU states:  77.4% user,  22.6% system,   0.0% nice,   0.0% idle
+Mem:    127184K total,   124664K used,     2520K free,     2644K buffers
+Swap:   498004K total,    20160K used,   477844K free,    11612K cached
 
----1463794332-629272005-992199184=:2817
-Content-Type: TEXT/PLAIN; CHARSET=iso-8859-1; NAME="madvise.2"
-Content-Transfer-Encoding: BASE64
-Content-ID: <Pine.LNX.4.21.0106102053040.2817@fargo>
-Content-Description: 
-Content-Disposition: ATTACHMENT; FILENAME="madvise.2"
+So I have pushed about 20M into swap with a really busy system (SCSI ext2)
 
-LlwiIEhleSBFbWFjcyEgVGhpcyBmaWxlIGlzIC0qLSBucm9mZiAtKi0gc291
-cmNlLg0KLlwiDQouXCIgQ29weXJpZ2h0IChDKSAyMDAxIERhdmlkIEfzbWV6
-IDxkYXZpZGdlQGphenpmcmVlLmNvbT4NCi5cIg0KLlwiIFBlcm1pc3Npb24g
-aXMgZ3JhbnRlZCB0byBtYWtlIGFuZCBkaXN0cmlidXRlIHZlcmJhdGltIGNv
-cGllcyBvZiB0aGlzDQouXCIgbWFudWFsIHByb3ZpZGVkIHRoZSBjb3B5cmln
-aHQgbm90aWNlIGFuZCB0aGlzIHBlcm1pc3Npb24gbm90aWNlIGFyZQ0KLlwi
-IHByZXNlcnZlZCBvbiBhbGwgY29waWVzLg0KLlwiDQouXCIgUGVybWlzc2lv
-biBpcyBncmFudGVkIHRvIGNvcHkgYW5kIGRpc3RyaWJ1dGUgbW9kaWZpZWQg
-dmVyc2lvbnMgb2YgdGhpcw0KLlwiIG1hbnVhbCB1bmRlciB0aGUgY29uZGl0
-aW9ucyBmb3IgdmVyYmF0aW0gY29weWluZywgcHJvdmlkZWQgdGhhdCB0aGUN
-Ci5cIiBlbnRpcmUgcmVzdWx0aW5nIGRlcml2ZWQgd29yayBpcyBkaXN0cmli
-dXRlZCB1bmRlciB0aGUgdGVybXMgb2YgYQ0KLlwiIHBlcm1pc3Npb24gbm90
-aWNlIGlkZW50aWNhbCB0byB0aGlzIG9uZQ0KLlwiIA0KLlwiIFNpbmNlIHRo
-ZSBMaW51eCBrZXJuZWwgYW5kIGxpYnJhcmllcyBhcmUgY29uc3RhbnRseSBj
-aGFuZ2luZywgdGhpcw0KLlwiIG1hbnVhbCBwYWdlIG1heSBiZSBpbmNvcnJl
-Y3Qgb3Igb3V0LW9mLWRhdGUuICBUaGUgYXV0aG9yKHMpIGFzc3VtZSBubw0K
-LlwiIHJlc3BvbnNpYmlsaXR5IGZvciBlcnJvcnMgb3Igb21pc3Npb25zLCBv
-ciBmb3IgZGFtYWdlcyByZXN1bHRpbmcgZnJvbQ0KLlwiIHRoZSB1c2Ugb2Yg
-dGhlIGluZm9ybWF0aW9uIGNvbnRhaW5lZCBoZXJlaW4uICBUaGUgYXV0aG9y
-KHMpIG1heSBub3QNCi5cIiBoYXZlIHRha2VuIHRoZSBzYW1lIGxldmVsIG9m
-IGNhcmUgaW4gdGhlIHByb2R1Y3Rpb24gb2YgdGhpcyBtYW51YWwsDQouXCIg
-d2hpY2ggaXMgbGljZW5zZWQgZnJlZSBvZiBjaGFyZ2UsIGFzIHRoZXkgbWln
-aHQgd2hlbiB3b3JraW5nDQouXCIgcHJvZmVzc2lvbmFsbHkuDQouXCIgDQou
-XCIgRm9ybWF0dGVkIG9yIHByb2Nlc3NlZCB2ZXJzaW9ucyBvZiB0aGlzIG1h
-bnVhbCwgaWYgdW5hY2NvbXBhbmllZCBieQ0KLlwiIHRoZSBzb3VyY2UsIG11
-c3QgYWNrbm93bGVkZ2UgdGhlIGNvcHlyaWdodCBhbmQgYXV0aG9ycyBvZiB0
-aGlzIHdvcmsuDQouXCINCi5cIiBCYXNlZCBvbiBjb21tZW50cyBmcm9tIG1t
-L2ZpbGVtYXAuYy4gTGFzdCBtb2RpZmllZCBvbiAxMC0wNi0yMDAxDQouXCIN
-Ci5USCBNQURWSVNFIDIgMjAwMS0wNi0xMCAiTGludXggMi40LjUiICJMaW51
-eCBQcm9ncmFtbWVyJ3MgTWFudWFsIg0KLlNIIE5BTUUNCm1hZHZpc2UgXC0g
-YWR2aXNlIGFib3V0IGhvdyB0byBoYW5kbGUgcGFnZSBJL08gaW4gYSBWTSBh
-cmVhDQouU0ggU1lOT1BTSVMNCi5icg0KLkIgI2luY2x1ZGUgPHN5cy9tbWFu
-Lmg+DQouc3ANCi5CSSAiaW50IG1hZHZpc2Uodm9pZCAqIiBzdGFydCAiLCBz
-aXplX3QgIiBsZW5ndGggIiwgaW50ICIgYmVoYXZpb3IgIiApOw0KLlNIIERF
-U0NSSVBUSU9ODQpUaGUNCi5JIG1hZHZpc2UNCnN5c3RlbSBjYWxsIGFkdmlz
-ZXMgdGhlIGtlcm5lbCBhYm91dCBob3cgdG8gaGFuZGxlIHBhZ2luZyBpbnB1
-dC9vdXRwdXQgaW4gYW4gDQphZGRyZXNzIHJhbmdlIGJlZ2dpbmluZyBhdCBh
-ZGRyZXNzDQouSSBzdGFydA0KYW5kIHdpdGggc2l6ZQ0KLkkgbGVuZ3RoDQpi
-eXRlcywgYWxsb3dpbmcgYW4gYXBwbGljYXRpb24gdG8gaW5mb3JtIGFib3V0
-IGhvdyB3aWxsIHVzZSBpbiB0aGUgZnV0dXJlDQpzb21lIG1hcHBlZCBvciBz
-aGFyZWQgbWVtb3J5IGFyZWFzLiBUaGlzIGNhbGwgb25seSBhZHZpc2VzIHRo
-ZSBrZXJuZWwNCnRvIGNob29zZSBhcHByb3BpYXRlIHJlYWQtYWhlYWQgYW5k
-IGNhY2hpbmcgdGVjaG5pcXVlcywgYnV0IGl0J3MgdXAgdG8gdGhlDQprZXJu
-ZWwgdG8gZm9sbG93IHRoZSBhZHZpc2Ugb3IgdG8gaWdub3JlIGl0LCB3aXRo
-b3V0IGFmZmVjdGluZyB0aGUgY3VycmVudA0KcnVubmluZyBhcHBsaWNhdGlv
-bi4NCi5zcA0KQWRkcmVzcw0KLkkgc3RhcnQNCm11c3QgYmUgcGFnZS1hbGln
-bmVkIHRvIHN1Y2Nlc3Mgb24gdGhlIGNhbGwgdG8NCi5JIG1hZHZpc2UuDQpJ
-ZiB0aGVyZSBhcmUgc29tZSBwYXJ0cyBvZiB0aGUgc3BlY2lmaWVkIGFkZHJl
-c3MgcmFuZ2UgdGhhdCBhcmUgbm90IG1hcHBlZCwNCi5JIG1hZHZpc2UNCmln
-bm9yZSB0aGVtIGJ1dCByZXR1cm5zIA0KLkIgRU5PTUVNIA0KYXQgdGhlIGVu
-ZC4NClRoZSBhZHZpc2UgaXMgaW5kaWNhdGVkIGluIHRoZSANCi5JIGJlaGF2
-aW9yDQpwYXJhbWV0ZXIgd2hpY2ggY2FuIGJlDQoNCi5UUA0KLkIgTUFEVl9O
-T1JNQUwgDQp0aGUgZGVmYXVsdCBiZWhhdmlvciBpcyB0byByZWFkIGNsdXN0
-ZXJzLiAgVGhpcw0KcmVzdWx0cyBpbiBzb21lIHJlYWQtYWhlYWQgYW5kIHJl
-YWQtYmVoaW5kLg0KLlRQDQouQiBNQURWX1JBTkRPTSANCnRoZSBzeXN0ZW0g
-c2hvdWxkIHJlYWQgdGhlIG1pbmltdW0gYW1vdW50IG9mIGRhdGENCm9uIGFu
-eSBhY2Nlc3MsIHNpbmNlIGl0IGlzIHVubGlrZWx5IHRoYXQgdGhlIGFwcGxp
-LQ0KY2F0aW9uIHdpbGwgbmVlZCBtb3JlIHRoYW4gd2hhdCBpdCBhc2tzIGZv
-ci4NCi5UUA0KLkIgTUFEVl9TRVFVRU5USUFMIA0KcGFnZXMgaW4gdGhlIGdp
-dmVuIHJhbmdlIHdpbGwgcHJvYmFibHkgYmUgYWNjZXNzZWQNCm9uY2UsIHNv
-IHRoZXkgY2FuIGJlIGFnZ3Jlc3NpdmVseSByZWFkIGFoZWFkLCBhbmQNCmNh
-biBiZSBmcmVlZCBzb29uIGFmdGVyIHRoZXkgYXJlIGFjY2Vzc2VkLg0KLlRQ
-DQouQiBNQURWX1dJTExORUVEIA0KdGhlIGFwcGxpY2F0aW9uIGlzIG5vdGlm
-eWluZyB0aGUgc3lzdGVtIHRvIHJlYWQNCnNvbWUgcGFnZXMgYWhlYWQuDQou
-VFAgDQouQiBNQURWX0RPTlRORUVEIA0KdGhlIGFwcGxpY2F0aW9uIGlzIGZp
-bmlzaGVkIHdpdGggdGhlIGdpdmVuIHJhbmdlLA0Kc28gdGhlIGtlcm5lbCBj
-YW4gZnJlZSByZXNvdXJjZXMgYXNzb2NpYXRlZCB3aXRoIGl0Lg0KIA0KDQou
-U0ggIlJFVFVSTiBWQUxVRSINCk9uIHN1Y2VzcyANCi5CIG1hZHZpc2UNCnJl
-dHVybiB6ZXJvLiBPbiBlcnJvciAsIGl0IHJldHVybnMgLTEgYW5kDQouQiBl
-cnJubw0KaXMgc2V0IGFwcHJvcGlhdGVseS4NCi5TSCAiRVJST1JTIg0KLlRQ
-DQouQiBFSU5WQUwgDQp0aGUgdmFsdWUgDQouQiBzdGFydA0KKw0KLkIgbGVu
-DQppcyBuZWdhdGl2ZSwgc3RhcnQgaXMgbm90IHBhZ2UtYWxpZ25lZCwNCi5C
-IGJlaGF2aW9yIA0KaXMgbm90IGEgdmFsaWQgdmFsdWUsIG9yIGFwcGxpY2F0
-aW9uDQppcyBhdHRlbXB0aW5nIHRvIHJlbGVhc2UgbG9ja2VkIG9yIHNoYXJl
-ZCBwYWdlcy4NCi5UUCANCi5CIEVOT01FTSANCmFkZHJlc3NlcyBpbiB0aGUg
-c3BlY2lmaWVkIHJhbmdlIGFyZSBub3QgY3VycmVudGx5DQptYXBwZWQsIG9y
-IGFyZSBvdXRzaWRlIHRoZSBhZGRyZXNzIHNwYWNlIG9mIHRoZSBwcm9jZXNz
-Lg0KLlRQDQouQiBFSU8gDQphbiBJL08gZXJyb3Igb2NjdXJyZWQgd2hpbGUg
-cGFnaW5nIGluIGRhdGEuDQouVFANCi5CIEVCQURGDQptYXAgZXhpc3RzLCBi
-dXQgYXJlYSBtYXBzIHNvbWV0aGluZyB0aGF0IGlzbid0IGEgZmlsZS4NCi5U
-UA0KLkIgRUFHQUlOIA0KYSBrZXJuZWwgcmVzb3VyY2Ugd2FzIHRlbXBvcmFy
-aWx5IHVuYXZhaWxhYmxlLg0KDQouU0ggIkNPTkZPUk1JTkcgVE8iDQpQT1NJ
-WC4xYiAoUE9TSVguNCkNCi5TSCAiU0VFIEFMU08iDQouQlIgbW1hcCAoMikN
-Ci5CUiBtaW5jb3JlICgyKQ0KDQo=
----1463794332-629272005-992199184=:2817--
+I run make -j8 in the source tree and am able to get the machine in a state
+where it is no longer interactive at the terminal, it seems to be hung, the
+make is generating nothing, top is not refreshing, machine responds to pings
+fine.  Last top refresh shows:
+
+ 18:26:41 up  1:13,  3 users,  load average: 39.39, 19.70, 14.99
+393 processes: 383 sleeping, 10 running, 0 zombie, 0 stopped
+CPU states:  39.6% user,  35.7% system,   0.0% nice,  24.7% idle
+Mem:    127184K total,   123244K used,     3940K free,     2880K buffers
+Swap:   498004K total,    34504K used,   463500K free,    26332K cached
+
+I wait about 5 mintes to be sure I am not going to get anything back any
+time soon.
+Send cntl-c to the make, it takes abot a minute to quit. top starts
+refreshing and
+looks like this:
+
+ 18:31:55 up  1:19,  3 users,  load average: 228.76, 167.10, 80.71
+331 processes: 330 sleeping, 1 running, 0 zombie, 0 stopped
+CPU states:   1.3% user,  27.7% system,   0.0% nice,  71.0% idle
+Mem:    127184K total,    87804K used,    39380K free,     3184K buffers
+Swap:   498004K total,    31776K used,   466228K free,    24856K cached
+
+If I try again to run the make -j8 I can not seem to get it to "hang" again.
+Figuring it now has something cached that it can get to, I move to a
+different source tree and run another make -j and it hangs again in a
+different spot but with the same symptoms.
+
+So much for vanilla 2.4.6-pre2. I shut down and reboot into 2.4.6-pre2+Rik's
+patch.
+After everything settles down top shows:
+
+ 19:07:32 up 12 min,  2 users,  load average: 0.08, 0.05, 0.00
+300 processes: 297 sleeping, 1 running, 2 zombie, 0 stopped
+CPU states:   5.3% user,   6.7% system,   0.0% nice,  88.0% idle
+Mem:    127028K total,   106788K used,    20240K free,     1144K buffers
+Swap:   498004K total,        0K used,   498004K free,    27408K cached
+
+Hmmm, not in swap at all. Ok ... now lets kick off a make -j8
+
+CPU goes to 85/15 user/system  about a 5% difference from the vanilla
+kernel.
+About 20MB into swap and the compile is progressing well.
+Compile finishes with no hangup top looks like:
+
+ 19:13:19 up 18 min,  2 users,  load average: 2.80, 3.89, 1.85
+259 processes: 258 sleeping, 1 running, 0 zombie, 0 stopped
+CPU states:   3.7% user,   6.3% system,   0.0% nice,  90.0% idle
+Mem:    127028K total,    87368K used,    39660K free,     1276K buffers
+Swap:   498004K total,    17424K used,   480580K free,    34064K cached
+
+So I pushed it about 17M into swap. Now let me move over to the other tree
+and
+build it just so it won't find anything cached that it can use :-) I am not
+timing the compiles but they run faster under Rik's patch.
+
+Second compile the system looks like this:
+
+ 19:18:28 up 23 min,  2 users,  load average: 8.21, 6.06, 3.23
+257 processes: 251 sleeping, 6 running, 0 zombie, 0 stopped
+CPU states:  24.1% user,   7.6% system,   0.0% nice,  68.2% idle
+Mem:    127028K total,    78384K used,    48644K free,      976K buffers
+Swap:   498004K total,    19760K used,   478244K free,    28992K cached
+
+And it completes normally, no hangs. I can pretty much cause 2.4.6-pre2 to
+"wedge"
+(for lack of a better description) by just making it busy and having it do
+something
+that takes up swap. With Rik's patch everything stayed usable, interactive
+response
+was good and I could log in while the compile was running and got good
+response
+to the login prompts.
+
+Several minutes after the last compile, things are pretty much back to
+normal:
+
+ 19:26:14 up 30 min,  2 users,  load average: 0.02, 1.27, 1.94
+266 processes: 265 sleeping, 1 running, 0 zombie, 0 stopped
+CPU states:   3.7% user,   8.1% system,   0.0% nice,  88.2% idle
+Mem:    127028K total,   103512K used,    23516K free,     1168K buffers
+Swap:   498004K total,     7768K used,   490236K free,    38784K cached
+
+I am going to run it a few days and see if anything breaks.
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
