@@ -1,32 +1,43 @@
-Received: from velma.ittc.ukans.edu (velma.ittc.ku.edu [129.237.127.164])
-	by stephens.ittc.ku.edu (8.11.2/8.11.2/ITTC-NOSPAM-NOVIRUS-2.2) with ESMTP id g0F6lEt23844
-	for <linux-mm@kvack.org>; Tue, 15 Jan 2002 00:47:14 -0600
-Date: Tue, 15 Jan 2002 00:47:13 -0600 (CST)
-From: Subhash Induri <subhashiv@ittc.ku.edu>
-Subject: How to increase a processes memory
-Message-ID: <Pine.LNX.4.21.0201150040020.22980-100000@velma.ittc.ukans.edu>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Tue, 15 Jan 2002 11:22:44 +0000
+From: "Stephen C. Tweedie" <sct@redhat.com>
+Subject: Re: [PATCH] page coloring for 2.4.17 kernel
+Message-ID: <20020115112244.C2595@redhat.com>
+References: <3.0.6.32.20020113204610.007c7a60@boo.net> <3.0.6.32.20020113204610.007c7a60@boo.net> <20020114224603.N5057@redhat.com> <3.0.6.32.20020114235555.007bfac0@boo.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <3.0.6.32.20020114235555.007bfac0@boo.net>; from jasonp@boo.net on Mon, Jan 14, 2002 at 11:55:55PM -0500
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Jason Papadopoulos <jasonp@boo.net>
+Cc: "Stephen C. Tweedie" <sct@redhat.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hello,
-  I need a small help regarding increasing the amount of memory allocated
-to a process.
-  My system has 4Gb of RAM.. my process needs about 3GB of memory..Is
-there in any way i can increase the memory allocated by the system..So
-that my process's data may not be frequently swapped in and out.. As of
-now the process runs very slow... I figure this to be cos of the amount of
-swapping that would take place..If anyone could help me out, it would be
-really great..
-  An additional information about my process is that it uses memory-mapped
-files, .. files which are mapped to the processes memory.. and thats the
-only reason my process consumes that much of memory..
-Thanks a lot
-subhash
+Hi,
 
+On Mon, Jan 14, 2002 at 11:55:55PM -0500, Jason Papadopoulos wrote:
+> At 10:46 PM 1/14/02 +0000, you wrote:
+> 
+> >> Hello. Please be patient with this, my first post to linux-mm.
+> >> The included patch modifies the free list in the 2.4.17 kernel
+> >> to support round-robin page coloring. It seems to work okay
+> >> on an Alpha and speeds up a lot of number-crunching code I
+> >> have lying around (lmbench reports some higher bandwidths too).
+> >> The patch is a port of the 2.2.20 version that I recently posted
+> >> to the linux kernelmailing list.
+> >
+> >Do you have numbers to show the sort of performance difference it
+> >makes?
+> 
+> It's a little difficult to tell with lmbench, since results can vary 
+> slightly from run to run.
+
+That's an important aspect.  Page colouring can often drastically
+reduce the variance in run times for cache-intensive tasks.  Average
+and variance are both very much worth reporting.
+
+Cheers,
+ Stephen
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
