@@ -1,29 +1,47 @@
-Date: Thu, 23 May 2002 15:33:21 -0700
+Received: from wli by holomorphy with local (Exim 3.34 #1 (Debian))
+	id 17BChl-0005Uq-00
+	for <linux-mm@kvack.org>; Fri, 24 May 2002 03:53:53 -0700
+Date: Fri, 24 May 2002 03:53:53 -0700
 From: William Lee Irwin III <wli@holomorphy.com>
-Subject: Re: [bcrl@redhat.com: [PATCH] 2.4.19-pre8 vm86 smp locking fix]
-Message-ID: <20020523223321.GB2035@holomorphy.com>
-References: <20020523165736.B27881@redhat.com>
+Subject: treap bootmem update
+Message-ID: <20020524105353.GH2035@holomorphy.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Description: brief message
 Content-Disposition: inline
-In-Reply-To: <20020523165736.B27881@redhat.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Benjamin LaHaise <bcrl@redhat.com>
-Cc: linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, May 23, 2002 at 04:57:36PM -0400, Benjamin LaHaise wrote:
-> arch/i386/kernel/vm86.c performs page table operations without obtaining 
-> any locks.  This patch obtains page_table_lock around the the table walk 
-> and modification.
+This is an update to the treap-based bootmem patch. Very lightly tested
+(UP i386 laptop with 256MB of RAM). As the patch is too lengthy to post
+directly, I give only pointers to it. It features two new features:
 
-Looks correct to me; IMHO it should be applied.
+(1) dynamic page stealing
+(2) free_pages() of higher-order pages for bulk marking of free pages
+	in the buddy allocator bitmap in free_all_bootmem_core().
+and a cleanup:
+(3) various cleanups including codesize reduction and elimination of
+	dozens of include/asm-*/bootmem.h droppings around the tree.
 
+Available from:
+	bk://linux-wli.bkbits.net/bootmem/
+	ftp://ftp.kernel.org/pub/linux/kernel/wli/bootmem/bootmem-2.5.17-1
+
+Remaining TODO items to follow up on are:
+(1) The ability to mark memory as available at runtime but unusable for
+	bootmem allocations. (rmk)
+(2) Implement queries for automatic determination of ->node_start_paddr
+	and ->node_low_pfn. (wli)
 
 Cheers,
 Bill
+-
+To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+the body of a message to majordomo@vger.kernel.org
+More majordomo info at  http://vger.kernel.org/majordomo-info.html
+Please read the FAQ at  http://www.tux.org/lkml/
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
