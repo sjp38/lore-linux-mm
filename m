@@ -1,80 +1,43 @@
-From: bsuparna@in.ibm.com
-Message-ID: <CA256A55.0030926D.00@d73mta02.au.ibm.com>
-Date: Wed, 23 May 2001 14:06:10 +0530
-Subject: Re: About swapper_page_dir and processes' page directory
-Mime-Version: 1.0
-Content-type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Content-Type: text/plain; charset=US-ASCII
+From: Daniel Phillips <phillips@bonn-fries.net>
+Subject: Re: write drop behind effect on active scanning
+Date: Wed, 23 May 2001 16:33:44 +0200
+References: <Pine.LNX.4.21.0105221910361.864-100000@freak.distro.conectiva>
+In-Reply-To: <Pine.LNX.4.21.0105221910361.864-100000@freak.distro.conectiva>
+MIME-Version: 1.0
+Message-Id: <0105231633440L.06233@starship>
+Content-Transfer-Encoding: 7BIT
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: hji@netscreen.com
-Cc: linux-mm@kvack.org
+To: Marcelo Tosatti <marcelo@conectiva.com.br>, Rik van Riel <riel@conectiva.com.br>, "Stephen C. Tweedie" <sct@redhat.com>
+Cc: lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-I didn't notice any replies to this post on the mailing list, so just
-mentioning the rough idea I have ...
-In earlier versions of the kernel, when vmalloc made changes to the
-page_dir (in the init_mm reference pgd), it used to propagate the changes
-to the page_dir entries for the tasks in the task list (traversing the
-entire list).
-However, this approach has now given way to a lazy updation technique,
-where the page_dir entries for tasks get refereshed from the reference mm
-structure only on demand. In this case, whenever a vmalloced area is
-accessed, and the current task's corresponding page_dir entry hasn't been
-updated, a page fault would occur. The kernel would recognize this as a
-vmalloc related fault and refresh the entry from the reference page table
-at this point. Thus, it is sufficient for vmalloc to update the reference
-page dir entry.
-Does this answer your question ?
-
-Regards
-Suparna
-
->List:     linux-mm
->Subject:  About swapper_page_dir and processes' page directory
->From:     Hua Ji <hji@netscreen.com>
->Date:     2001-05-18 17:47:48
->[Download message RAW]
+On Wednesday 23 May 2001 09:33, Marcelo Tosatti wrote:
+> Hi,
 >
->Folks,
+> I just noticed a "bad" effect of write drop behind yesterday during
+> some tests.
 >
->Get a question today. Thanks in advance.
+> The problem is that we deactivate written pages, thus making the
+> inactive list become pretty big (full of unfreeable pages) under
+> write intensive IO workloads.
 >
->As we know, vmalloc and other memory allocation/de-allocation will
->change/update
->the swapper_page_dir maintain by the kernel.
+> So what happens is that we don't do _any_ aging on the active list,
+> and in the meantime the inactive list (which should have "easily"
+> freeable pages) is full of locked pages.
 >
->I am wondering when/how the kernel synchronzie the change to user level
->processes' page
->directory entries from the 768th to the 1023th.
+> I'm going to fix this one by replacing "deactivate_page(page)" to
+> "ClearPageReferenced(page)" in generic_file_write(). This way the
+> written pages are aged faster but we avoid the bad effect just
+> described.
 >
->Those entries get copied from swapper_page_dir when a user process get
->forked/created. Does the kernel
->frequently update this information every time when the swapper_page_dir
-get
->changed?
->
+> Any comments on the fix ?
 
+  page->age = 0 ?
 
-
->Regards,
->
->Mike
-
->--
->To unsubscribe, send a message with 'unsubscribe linux-mm' in
->the body to majordomo@kvack.org.  For more info on Linux MM,
->see: http://www.linux.eu.org/Linux-MM/
-
-[prev in list] [next in list] [prev in thread] [next in thread]
-
-
-  Suparna Bhattacharya
-  IBM Software Lab, India
-  E-mail : bsuparna@in.ibm.com
-  Phone : 91-80-5267117, Extn : 2525
-
-
+--
+Daniel
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
