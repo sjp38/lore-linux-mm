@@ -1,72 +1,29 @@
-Date: Thu, 24 Aug 2000 13:04:35 -0500
+Date: Thu, 24 Aug 2000 18:21:11 -0500
 From: Timur Tabi <ttabi@interactivesi.com>
-Subject: ioremap_nocache() doesn't work
-Message-Id: <20000824181451Z131170-249+6@kanga.kvack.org>
+Subject: pgd/pmd/pte and x86 kernel virtual addresses
+Message-Id: <20000824233129Z131177-247+8@kanga.kvack.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linux MM mailing list <linux-mm@kvack.org>, Linux Kernel Mailing list <linux-kernel@vger.kernel.org>
+To: Linux MM mailing list <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-I've written the following function which is supposed to make a physical page
-uncacheable.  It doesn't appear to be working, however.
+On x86, when running the kernel, all memory is mapped with a simple offset. 
+The virtual address is merely an offset from the physical address.
 
-void *uncache_pages(unsigned long phys, unsigned long num_pages)
-{
-    mem_map_t *mm = phys_to_mem_map(phys & PAGE_MASK);
-    unsigned i;
-    unsigned long flags[num_pages];
-    void *v;
-    u32 reg_flags;
+Does that mean that the pgd/pmd/pte tables are still used?  Basically, what I'm
+trying to do is find the pte for a given physical page.  That is, I'm looking
+for a function that looks like this:
 
-    save_flags(reg_flags);
-    cli();
+pte_t *find_pte(mem_map_t *mm);
 
-    for (i=0; i<num_pages; i++)
-    {
-        flags[i] = mm[i].flags;
-	SetPageReserved(mm+i);
-    }
+Given a pointer to a mem_map_t, it returns the pointer to the pte_t for that
+physical page.  Is there such a function?  I've found things like this:
 
-    restore_flags(reg_flags);
+#define pte_offset(dir, address) ((pte_t *) pmd_page(*(dir)) + \
+			__pte_offset(address))
 
-    v = ioremap_nocache(phys, num_pages * PAGE_SIZE);
-    if (!v)
-        printk("uncache_pages() failed!\n");
+but what value do I use for "dir"?
 
-    save_flags(reg_flags);
-    cli();
-
-    for (i=0; i<num_pages; i++)
-        mm[i].flags = flags[i];
-
-    restore_flags(reg_flags);
-
-    return v;
-}
-
-The problem is, I'm no expert on the page tables, so I don't know how pages are
-supposed to be marked uncacheable in the first place.
-
->From what I can tell, this function marks a bunch of pages as uncacheable and
-then remaps them to virtual space.  But it doesn't appear to work.  When I
-perform a write, it is not immediately sent over the bus.  This is on an x86
-platform, using kernel 2.4.0-test2.
-
-So I have a few questions:
-
-1) As I understand it, only physical pages, not virtual pages, can be cacheable
-or uncacheable.  That is, if two virtual addresses point to the same physical
-address, then it's impossible for one virtual address to be "cacheable" and the
-other to be "uncacheable".  Correct?
-
-2) Once I map/mark a page, how do I unmap it?  I don't see an iounmap_nocache()
-function anywhere.
-
-3) I know my routine is a bad way of doing this, but all my previous attempts
-to get the question, "How do I mark a page as uncacheable" have gone UNANSWERED.
-This IS a linux kernel [memory manager] mailing list, isn't it?  Someone MUST
-know the answer to the question.  How is anyone supposed to learn anything if
-knowledgeable people refuse to answer questions they know?
 
 
 
