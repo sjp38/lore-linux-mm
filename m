@@ -1,19 +1,54 @@
-Date: Wed, 02 Jul 2003 14:48:14 -0700
-From: "Martin J. Bligh" <mbligh@aracnet.com>
+Date: Thu, 3 Jul 2003 00:02:46 +0200
+From: Andrea Arcangeli <andrea@suse.de>
 Subject: Re: What to expect with the 2.6 VM
-Message-ID: <563510000.1057182494@flay>
-In-Reply-To: <20030702214032.GH20413@holomorphy.com>
+Message-ID: <20030702220246.GS23578@dualathlon.random>
 References: <Pine.LNX.4.53.0307010238210.22576@skynet> <20030701022516.GL3040@dualathlon.random> <Pine.LNX.4.53.0307021641560.11264@skynet> <20030702171159.GG23578@dualathlon.random> <461030000.1057165809@flay> <20030702174700.GJ23578@dualathlon.random> <20030702214032.GH20413@holomorphy.com>
-MIME-Version: 1.0
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
+In-Reply-To: <20030702214032.GH20413@holomorphy.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: William Lee Irwin III <wli@holomorphy.com>, Andrea Arcangeli <andrea@suse.de>
-Cc: Mel Gorman <mel@csn.ul.ie>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: William Lee Irwin III <wli@holomorphy.com>, "Martin J. Bligh" <mbligh@aracnet.com>, Mel Gorman <mel@csn.ul.ie>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
+On Wed, Jul 02, 2003 at 02:40:32PM -0700, William Lee Irwin III wrote:
+> On Wed, Jul 02, 2003 at 07:47:00PM +0200, Andrea Arcangeli wrote:
+> > actually other more invasive ways could be to move rmap into highmem.
+> > Also the page clustering could also hide part of the mem overhead by
+> > assuming the pagetables to be contiguos, but page clustering isn't part
+> > of mainline yet either.
+> 
+> BSD-style page clustering preserves virtual contiguity of a software
+> page, but the new things don't; for ABI preservation, virtually
+> discontiguous, partial, and misaligned mappings of pages are handled.
+> 
+> The desired behavior can in principle be partially recovered by
+> scanning within a software page size -sized "blast radius" for each
+> chain element and only chaining enough elements to find the relevant
+> ptes that way.
+> 
+> As for remap_file_pages(), either people are misunderstanding or
+> ignoring me. There is a lovely three-step method to handling it:
+> 
+> (a) fix the truncate() bug; it is just a literal bug. There are at
+> 	least 3 different ways to fix it:
+> 	(i) tag vmas touched by remap_file_pages() for exhaustive search
+> 	(ii) do a cleanup pass after the current vmtruncate() doing
+> 		try_to_unmap() on any still-mapped pages
+> 	(iii) drop the current vmtruncate() entirely and do try_to_unmap()
+> 		on each truncated page
+> 	(ii) and (iii) do the locks in the wrong order, so some still-
+> 	mapped but truncated page could be out there; this could be
+> 	handed by Yet Another Cleanup Pass that does (i) or by tolerating
+> 	the new state elsewhere in the VM. There's plenty of ways to
+> 	code this and a couple choices of semantics (i.e make it
+> 	failable or reliable).
+> 
+> (b) implement the bits omitting pte_chains for mlock()'d mappings
+> 	This is obvious. Yank them off the LRU, set a bitflag, and
+> 	reuse page->lru for a counter.
+> 
 > (c) redo the logic around page_convert_anon() and incrementally build
 > 	pte_chains for remap_file_pages().
 > 	The anobjrmap code did exactly this, but it was chaining
@@ -37,13 +72,28 @@ List-ID: <linux-mm.kvack.org>
 > 
 > Does anyone get it _now_?
 
-If you have (anon) object based rmap, I don't see why you want to build
-a pte_chain on a per-page basis - keeping this info on a per linear
-area seems much more efficient. We still have a reverse mapping for
-everything this way.
+the problem with the above is that it is an order of magnitude more
+complicated than just providing the feature remap_file_pages is been
+written for. Removing the pte_chains via mlock is trivial, but then go
+ahead and rebuild it synchronously in O(N) scanning the whole 1T of
+virtual address space when I munlock.
 
-M.
+In turn I still prefer the simplest possible approch. I see no strong
+reason why we should complicate the kernel like that to make
+remap_file_pages generic.
 
+IMHO remap_file_pages wouldn't exist today in the kernel if 32bit archs
+would be limited to 4G of ram. It's primarly a 32bit hack and as such we
+should try to get away with it with the minimal damage to the rest of
+the kernel (in a way that emulator can use too though, via a sysctl or
+similar).
+
+Now releasing the pte_chain during mlock would be a generic feature
+orthogonal with the above I know, but I doubt you really care about it
+for all other usages (also given the nearly unfixable complexity it
+would introduce in munlock).
+
+Andrea
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
