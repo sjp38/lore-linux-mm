@@ -1,37 +1,42 @@
-Date: Wed, 2 Feb 2005 11:05:14 -0800 (PST)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: A scrub daemon (prezeroing)
-In-Reply-To: <20050202153256.GA19615@logos.cnet>
-Message-ID: <Pine.LNX.4.58.0502021103410.12695@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.58.0501211228430.26068@schroedinger.engr.sgi.com>
- <1106828124.19262.45.camel@hades.cambridge.redhat.com> <20050202153256.GA19615@logos.cnet>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: by rproxy.gmail.com with SMTP id a36so119962rnf
+        for <linux-mm@kvack.org>; Wed, 02 Feb 2005 11:13:16 -0800 (PST)
+Message-ID: <89c400ad05020211131c62ccc6@mail.gmail.com>
+Date: Thu, 3 Feb 2005 00:43:16 +0530
+From: Krishnakumar R <rkrishnakumar@gmail.com>
+Reply-To: Krishnakumar R <rkrishnakumar@gmail.com>
+Subject: Query on vma and User mode Stack
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
-Cc: David Woodhouse <dwmw2@infradead.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@osdl.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2 Feb 2005, Marcelo Tosatti wrote:
+Hi All,
 
-> Sounds very interesting idea to me. Guess it depends on whether the cost of
-> DMA write for memory zeroing, which is memory architecture/DMA engine dependant,
-> offsets the cost of CPU zeroing.
->
-> Do you have any thoughts on that?
->
-> I wonder if such thing (using unrelated devices DMA engine's for zeroing) ever been
-> done on other OS'es?
->
-> AFAIK SGI's BTE is special purpose hardware for memory zeroing.
+I was trying to figure out the connections between vma's and user stack
+segment.
 
-Nope the BTE is a block transfer engine. Its an inter numa node DMA thing
-that is being abused to zero blocks.
+I compiled  a C program in which I printed the address of a local variable
+(under the assumption that it fall into the stack segment address).
+The address which got printed was '0x9ffffc74'. (this is 386 based machine).
 
-The same can be done with most DMA chips (I have done so on some other
-platforms not on i386)
+I printed out the start_stack from the mm_struct of the process.
+I got the value: '0x9ffffec0'. There were 5 vmas for the process of which
+the 5th vma started at 0x9ffff000 and ended at 0xa0000000.
 
+Considering the vma address, I feel that stack segment falls into
+this area. Also 0x9ffffec0 >0x9ffffc74, means that the stack grew down.
+But then shouldn't the stack segment start from the end of the vma (near
+0xa0000000 ?
+
+I have heard that user stack growth happens dynamically. Is this the 
+manifestation of such a case (when the the space fully is required
+stack will start from the end of the vma) ?
+
+Thanks and Regards,
+KK.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
