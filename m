@@ -1,39 +1,51 @@
-Received: from max.phys.uu.nl (max.phys.uu.nl [131.211.32.73])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id UAA05649
-	for <linux-mm@kvack.org>; Mon, 1 Feb 1999 20:03:12 -0500
-Received: from mirkwood.dummy.home (root@anx1p5.phys.uu.nl [131.211.33.94])
-	by max.phys.uu.nl (8.9.1/8.9.1/hjm) with ESMTP id CAA15996
-	for <linux-mm@kvack.org>; Tue, 2 Feb 1999 02:03:09 +0100 (MET)
-Received: from localhost (riel@localhost) by mirkwood.dummy.home (8.9.0/8.8.3) with ESMTP id CAA10630 for <linux-mm@kvack.org>; Tue, 2 Feb 1999 02:02:50 +0100
-Date: Tue, 2 Feb 1999 02:02:50 +0100 (CET)
-From: Rik van Riel <riel@nl.linux.org>
-Subject: WANTED: Linux-MM co-maintainer
-Message-ID: <Pine.LNX.4.03.9902020159120.8000-100000@mirkwood.dummy.home>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail.ccr.net (ccr@alogconduit1ag.ccr.net [208.130.159.7])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id EAA09938
+	for <linux-mm@kvack.org>; Tue, 2 Feb 1999 04:42:04 -0500
+Subject: Re: Ramdisk for > 1GB / >2 GB
+References: <004401be4e29$fb998300$c80c17ac@clmsdev>
+From: ebiederm+eric@ccr.net (Eric W. Biederman)
+Date: 02 Feb 1999 01:54:33 -0600
+In-Reply-To: "Manfred Spraul"'s message of "Mon, 1 Feb 1999 22:25:54 +0100"
+Message-ID: <m1n22xqlza.fsf@flinx.ccr.net>
 Sender: owner-linux-mm@kvack.org
-To: Linux MM <linux-mm@kvack.org>
+To: Manfred Spraul <masp0008@stud.uni-sb.de>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+>>>>> "MS" == Manfred Spraul <masp0008@stud.uni-sb.de> writes:
 
-Now that the rest of my WWW sites are taking up a lot of
-time, I think I could really use a bit of help in maintaining
-the Linux-MM website.
+MS> I've written a ramdisk driver that can use physical, unmapped memory. I've
+MS> posted a beta version this morning to linux-kernel.
+MS> Basically, it is a kernel patch that manages the memory (alloc_hugemem(),
+MS> free_hugemem()), and a block device driver that can use this memory.
 
-Some spare time and MM knowledge are needed if you want to
-get the job done. Interest{ing,ed} people can apply be
-e-mail, to which I will react by placing the Linux-MM site
-under CVS and giving them an account (CVS-only).
+MS> I'm new in the Linux MM, perhaps you could help me on these questions:
 
-cheers,
+MS> 1) SMP:
+MS> I use a spinlock for every ramdisk, and one page for each drive as a window
+MS> to the physical memory. Since only 1 processor uses this page, I can use
+MS> __flush_tlb_one( == INVLPG only on the local processor) without any further
+MS> synchronization.
 
-Rik -- If a Microsoft product fails, who do you sue?
-+-------------------------------------------------------------------+
-| Linux Memory Management site:  http://humbolt.geo.uu.nl/Linux-MM/ |
-| Nederlandse Linux documentatie:          http://www.nl.linux.org/ |
-+-------------------------------------------------------------------+
+Sounds good.  But it's not my area of expertise.
 
+MS> Is that stable on SMP, and do you think that this parallel enough?
+
+MS> Linus suggested using one 4MB pte for each processor, but I think that this
+MS> would be to much overhead.
+MS> Another idea would be using a hash table (eg. 32 spinlocks, 32 pages) that
+MS> is shared by all processors.
+
+Except for quantity of address space consumed a 4MB pte should be equal to a
+4k pte.
+
+MS> 3) Is more than 2 GB memory a problem that only applies to the i386
+MS> architecture, or is there demand for that on PowerPC, Sparc32?
+
+It's a problem for 32bit architectures.  Most of the RISC processors (I believe)
+have 64bit extensions so it's less of an issue there.
+
+Eric
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm my@address'
 in the body to majordomo@kvack.org.  For more info on Linux MM,
