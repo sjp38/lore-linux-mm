@@ -1,63 +1,32 @@
-Date: Fri, 5 Jan 2001 12:08:01 -0600
-From: Timur Tabi <ttabi@interactivesi.com>
-Subject: Oops with iounmap
-Message-Id: <20010105180534Z131193-222+74@kanga.kvack.org>
+Date: Fri, 5 Jan 2001 14:56:40 -0200 (BRST)
+From: Marcelo Tosatti <marcelo@conectiva.com.br>
+Subject: Re: MM/VM todo list
+In-Reply-To: <Pine.LNX.4.21.0101051505430.1295-100000@duckman.distro.conectiva>
+Message-ID: <Pine.LNX.4.21.0101051454230.2859-100000@freak.distro.conectiva>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linux Kernel Mailing list <linux-kernel@vger.kernel.org>, Linux MM mailing list <linux-mm@kvack.org>
+To: Rik van Riel <riel@conectiva.com.br>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-I'm using 2.2.18pre15 on an i386, and the following code causes my system to be
-very unstable:
+On Fri, 5 Jan 2001, Rik van Riel wrote:
 
-unsigned long phys = virt_to_phys(high_memory) - (2 * PAGE_SIZE);
-mem_map_t *mm = mem_map + MAP_NR(phys);
-unsigned long flags = mm->flags;
+> Probably 2.5 era:
+> * VM: physical->virtual reverse mapping, so we can do much
+>   better page aging with less CPU usage spikes 
+> * VM: move all the global VM variables, lists, etc. into the
+>   pgdat struct for better NUMA scalability
+> * VM: per-node kswapd for NUMA
+> * VM: thrashing control, maybe process suspension with some
+>   forced swapping ?             (trivial only in theory)
+> * VM: experiment with different active lists / aging pages
+>   of different ages at different rates + other page replacement
+>   improvements
+> * VM: Quality of Service / fairness / ... improvements
+  * VM: Use kiobuf IO in VM instead buffer_head IO. 
 
-mm->flags |= PG_reserved;
-p = ioremap_nocache(phys, PAGE_SIZE);
-mm->flags = flags;
-ASSERT(p);
-if (p) iounmap(p);
-
-
-The code is located in the init_module section of my driver.  It executes
-without any problems.  However, after the driver is loaded (it doesn't do
-anything but run this code), the system rapidly becomes unstable.  Symptoms are
-random and include:
-
-1. Inability to log in (login prompt doesn't respond after I type in a userid)
-2. Attempting to shut down always causes an oops
-3. Various kernel panics, including the "Aieee" kind.
-
-I must be forgetting to do something critical, probably because what I'm trying
-to do is not well documented but apparently supported by the kernel.  I make
-that assumption because of this code fragment in function __ioremap of
-arch/i386/mm/ioremap.c:
-
-	if (phys_addr < virt_to_phys(high_memory))
-           {
-		char *temp_addr, *temp_end;
-		int i;
-
-		temp_addr = __va(phys_addr);
-		temp_end = temp_addr + (size - 1);
-	      
-		for(i = MAP_NR(temp_addr); i < MAP_NR(temp_end); i++) {
-			if(!PageReserved(mem_map + i))
-				return NULL;
-		}
-	   }
-
-As long as every page is marked as reserved, ioremap_nocache() will map the
-page.  So what am I doing wrong?
-
-
--- 
-Timur Tabi - ttabi@interactivesi.com
-Interactive Silicon - http://www.interactivesi.com
-
-When replying to a mailing-list message, please direct the reply to the mailing list only.  Don't send another copy to me.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
