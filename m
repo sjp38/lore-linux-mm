@@ -1,60 +1,43 @@
-Message-ID: <XFMail.20011121125211.R.Oehler@GDImbH.com>
-Content-Type: text/plain; charset=iso-8859-1
-Content-Transfer-Encoding: 8bit
+Date: Wed, 21 Nov 2001 10:13:52 -0200 (BRST)
+From: Rik van Riel <riel@conectiva.com.br>
+Subject: Re: 2.4.14 + Bug in swap_out.
+In-Reply-To: <m1vgg41x3x.fsf@frodo.biederman.org>
+Message-ID: <Pine.LNX.4.33L.0111211013020.4079-100000@imladris.surriel.com>
 MIME-Version: 1.0
-In-Reply-To: <20011121105631.B2500@redhat.com>
-Date: Wed, 21 Nov 2001 12:52:11 +0100 (MET)
-Reply-To: R.Oehler@GDImbH.com
-From: R.Oehler@GDImbH.com
-Subject: Re: recursive lock-enter-deadlock
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Stephen C. Tweedie" <sct@redhat.com>
-Cc: linux-mm@kvack.org
+To: "Eric W. Biederman" <ebiederm@xmission.com>
+Cc: Linus Torvalds <torvalds@transmeta.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On 21-Nov-2001 Stephen C. Tweedie wrote:
-> Hi,
-> 
-> On Wed, Nov 21, 2001 at 11:19:13AM +0100, R.Oehler@GDImbH.com wrote:
->> A short question (I don't have a recent 2.4.x at hand, currently):
->> Is this recursive lock-enter-deadlock (2.4.0) fixed in newer kernels?
-> 
-> Yes.  Seriously, 2.4.0 is so old and so full of bugs like this that
-> it's really not worth spending any effort looking for problems like
-> that in it.
-> 
-Well, maybe, but it's the one distributed in SuSE-71. And it supports
-block media with sectorsizes >1k. SuSE-73 shipped 2.4.10, which seems
-to have a bug in the block layer which prevents me (and out commercial
-product) from using 2k-sector and 4k-sector SCSI-media. 
-I have to use a kernel from a SuSE-distribution.
+On 20 Nov 2001, Eric W. Biederman wrote:
 
-The bug is easy to trigger with 
-"dd if=/dev/zero of=/dev/sda bs=1M count=1" 
-and an MO-drive with 2k-sector-medium.
-The symptom is, that sd.c gets misaligned (only 1k-aligned) 
-requests and complains loudly to the syslog.)
+> 	/* Make sure the mm doesn't disappear when we drop the lock.. */
+> 	atomic_inc(&mm->mm_users);
+> 	spin_unlock(&mmlist_lock);
+>
+> 	nr_pages = swap_out_mm(mm, nr_pages, &counter, classzone);
+>
+> 	mmput(mm);
+>
+>
+> And looking in fork.c mmput under with right circumstances becomes.
+> kmem_cache_free(mm_cachep, (mm)))
+>
+> So it appears that there is nothing that keeps the mm_struct that
+> swap_mm points to as being valid.
 
-By the way: 2.4.10-ac works, as Alan says, so what changed in the linus'
-kernel and didn't change in the -ac kernel between 2.4.0 and 2.4.10 ?
+The atomic_inc(&mm->mm_users) above should make sure this
+mm_struct stays valid.
 
-Regards,
-        Ralf
+regards,
 
+Rik
+-- 
+Shortwave goes a long way:  irc.starchat.net  #swl
 
- -----------------------------------------------------------------
-|  Ralf Oehler
-|  GDI - Gesellschaft fuer Digitale Informationstechnik mbH
-|
-|  E-Mail:      R.Oehler@GDImbH.com
-|  Tel.:        +49 6182-9271-23 
-|  Fax.:        +49 6182-25035           
-|  Mail:        GDI, Bensbruchstrasse 11, D-63533 Mainhausen
-|  HTTP:        www.GDImbH.com
- -----------------------------------------------------------------
-
-time is a funny concept
+http://www.surriel.com/		http://distro.conectiva.com/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
