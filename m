@@ -1,28 +1,38 @@
-Date: Wed, 4 Mar 1998 15:00:24 +0100
-Message-Id: <199803041400.PAA06227@boole.fs100.suse.de>
-From: "Dr. Werner Fink" <werner@suse.de>
-In-reply-to: <Pine.LNX.3.91.980304005820.5443F-100000@mirkwood.dummy.home>
-	(message from Rik van Riel on Wed, 4 Mar 1998 00:59:33 +0100 (MET))
-Subject: Re: [uPATCH] small kswapd improvement ???
+Received: from max.fys.ruu.nl (max.fys.ruu.nl [131.211.32.73])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id MAA17954
+	for <linux-mm@kvack.org>; Wed, 4 Mar 1998 12:01:01 -0500
+Received: from mirkwood.dummy.home (root@anx1p6.fys.ruu.nl [131.211.33.95])
+	by max.fys.ruu.nl (8.8.7/8.8.7/hjm) with ESMTP id SAA24937
+	for <linux-mm@kvack.org>; Wed, 4 Mar 1998 18:00:55 +0100 (MET)
+Date: Wed, 4 Mar 1998 17:26:26 +0100 (MET)
+From: Rik van Riel <H.H.vanRiel@fys.ruu.nl>
+Reply-To: Rik van Riel <H.H.vanRiel@fys.ruu.nl>
+Subject: sideeffect of my uPATCH
+Message-ID: <Pine.LNX.3.91.980304172206.25705A-100000@mirkwood.dummy.home>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: H.H.vanRiel@fys.ruu.nl
-Cc: sct@dcs.ed.ac.uk, torvalds@transmeta.com, blah@kvack.org, linux-mm@kvack.org
+To: linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
+Hi,
 
-> > > vmscan.c. Back then a simple bug was encountered and 'fixed'
-> > > by always starting the memory scan at adress 0, which gives
-> > > a highly unfair and inefficient aging process.
-> > 
-> > Ouch --- I wonder how much this is hurting 2.0.33.  I think I'll have
-> > to try that, and perhaps look at this for 2.0.34/LMP... 
-> 
-> It doesn't hurt _that_ much... Otherwise we wouldn't
-> have left it in the swapper code for three years :-)
+I just noticed a sideeffect of the small patch
+to vmscan.c that I submitted yesterday.
 
-Maybe that's the reason why the bigger initial age for swapped in pages gives
-an improvement in 2.0.33 ... it's a ``better protection'' for often needed
-pages.
+As was to be expected, linear swapping has gotten
+a lot worse than it used to be, mainly because we
+now continue our pageout scan where we left, so
+it's more likely that we page out something we'll
+need again soon (in a linearly swapping program).
 
+I think we should try the linear swap patch (from
+Ingo ?) from some time ago. Does anybody know where
+it is??? 
 
-          Werner
+Rik.
++-----------------------------+------------------------------+
+| For Linux mm-patches, go to | "I'm busy managing memory.." |
+| my homepage (via LinuxHQ).  | H.H.vanRiel@fys.ruu.nl       |
+| ...submissions welcome...   | http://www.fys.ruu.nl/~riel/ |
++-----------------------------+------------------------------+
