@@ -1,51 +1,56 @@
-Subject: Re: removing mm->rss and mm->anon_rss from kernel?
-From: Magnus Damm <damm@opensource.se>
-In-Reply-To: <Pine.LNX.4.58.0411080800020.7996@schroedinger.engr.sgi.com>
-References: <4189EC67.40601@yahoo.com.au>
-	 <Pine.LNX.4.58.0411040820250.8211@schroedinger.engr.sgi.com>
-	 <418AD329.3000609@yahoo.com.au>
-	 <Pine.LNX.4.58.0411041733270.11583@schroedinger.engr.sgi.com>
-	 <418AE0F0.5050908@yahoo.com.au> <418AE9BB.1000602@yahoo.com.au>
-	 <1099622957.29587.101.camel@gaston><418C55A7.9030100@yahoo.com.au>
-	 <Pine.LNX.4.58.0411060120190.22874@schroedinger.engr.sgi.com>
-	 <204290000.1099754257@[10.10.2.4]>
-	 <Pine.LNX.4.58.0411060812390.25369@schroedinger.engr.sgi.com>
-	 <226170000.1099843883@[10.10.2.4]>
-	 <Pine.LNX.4.58.0411080800020.7996@schroedinger.engr.sgi.com>
-Content-Type: text/plain
-Message-Id: <1100087871.8656.59.camel@localhost>
-Mime-Version: 1.0
-Date: Wed, 10 Nov 2004 12:57:51 +0100
-Content-Transfer-Encoding: 7bit
+Date: Wed, 10 Nov 2004 14:20:42 +0000 (GMT)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: Re: [PATCH] Use MPOL_INTERLEAVE for tmpfs files
+In-Reply-To: <Pine.SGI.4.58.0411092020550.101942@kzerza.americas.sgi.com>
+Message-ID: <Pine.LNX.4.44.0411101406360.2806-100000@localhost.localdomain>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="us-ascii"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: "Martin J. Bligh" <mbligh@aracnet.com>, Nick Piggin <nickpiggin@yahoo.com.au>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Hugh Dickins <hugh@veritas.com>, linux-mm@kvack.org, linux-ia64@vger.kernel.org
+To: Brent Casavant <bcasavan@sgi.com>
+Cc: "Martin J. Bligh" <mbligh@aracnet.com>, Andi Kleen <ak@suse.de>, "Adam J. Richter" <adam@yggdrasil.com>, colpatch@us.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2004-11-08 at 17:04, Christoph Lameter wrote:
-> On Sun, 7 Nov 2004, Martin J. Bligh wrote:
+On Tue, 9 Nov 2004, Brent Casavant wrote:
+> On Tue, 9 Nov 2004, Hugh Dickins wrote:
 > 
-> > Doing ps or top is not unusual at all, and the sysadmins should be able
-> > to monitor their system in a reasonable way without crippling it, or even
-> > effecting it significantly.
+> > Doesn't quite play right with what was my "NULL sbinfo" convention.
 > 
-> Hmm.. What would you think about a pointer to a stats structure in mm,
-> which would only be allocated if stats are requested by /proc actions? The
-> struct would contain a timestamp which would insure that the stats are
-> only generated in certain intervals and not over and over again. This
-> would also make it possible to force a regeneration of the numbers.
+> Howso?  I thought it played quite nicely with it.  We've been using
+> NULL sbinfo as an indicator that an inode is from tmpfs rather than
+> from SysV or /dev/zero.  Or at least that's the way my brain was
+> wrapped around it.
 
-I assume you mean that the mm->rss and mm->rss_anon counters have been
-replaced with stat calculation on demand. Maybe it is possible to keep a
-needs_update-flag with each vma instead. Then only the vma:s with that
-flag set needs to be recalculated. 
+That was the case you cared about, but remember I extended yours so
+that tmpfs mounts could also suppress limiting, and get NULL sbinfo.
 
-A nice feature would be to be able to assign each process/mm a stat
-gathering mode - choose between no statistics, statistics updated every
-N jiffy and real time statistics. Yeah, dream on.
+> The NULL sbinfo scheme worked perfectly for me, with very little hassle.
 
-/ magnus
+Yes, it would have worked just right for the important cases.
+
+> > but they're two hints that I should rework that to get out of people's
+> > way.  I'll do a patch for that, then another something like yours on
+> > top, for you to go back and check.
+> 
+> Is this something imminent, or on the "someday" queue?  Just asking
+> because I'd like to avoid doing additional work that might get thrown
+> away soon.
+
+I understand your concern ;)  I'm working on it, today or tomorrow.
+
+> > I'm irritated to realize that we can't change the default for SysV
+> > shared memory or /dev/zero this way, because that mount is internal.
+> 
+> Well, the only thing preventing this is that I stuck the flag into
+> sbinfo, since it's an filesystem-wide setting.  I don't see any reason
+> we couldn't add a new flag in the inode info flag field instead.  I
+> think there would also be some work to set pvma.vm_end more precisely
+> (in mpol_shared_policy_init()) in the SysV case.
+
+It's not a matter of where to store the info, it's that we don't have
+a user interface for remounting something that's not mounted anywhere.
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
