@@ -1,31 +1,46 @@
-Date: Mon, 11 Aug 2003 11:02:13 +0200
-From: Roger Luethi <rl@hellgate.ch>
-Subject: Is /proc/#/statm worth fixing?
-Message-ID: <20030811090213.GA11939@k3.hellgate.ch>
+Subject: Re: 2.6.0-test3-mm1
+From: Luiz Capitulino <lcapitulino@prefeitura.sp.gov.br>
+In-Reply-To: <20030809203943.3b925a0e.akpm@osdl.org>
+References: <20030809203943.3b925a0e.akpm@osdl.org>
+Content-Type: text/plain; charset=iso-8859-1
+Message-Id: <1060610602.6452.3.camel@lorien>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Date: 11 Aug 2003 11:03:23 -0300
+Content-Transfer-Encoding: 8BIT
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Andrew Morton <akpm@osdl.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-/proc/#/statm is a joke. Out of 7 columns, 2 are always zero in 2.6. Of
-the remaining columns, at least one more is incorrect. You can most
-certainly get all the intended values off /proc/#/status anyway [1].
+Andrew,
 
-In 2.4, more columns show actual data, but also more of them are wrong.
-To top it off, 2.4 and 2.6 show vastly different numbers for several
-colums (where they clearly shouldn't).
+Em Dom, 2003-08-10 as 00:39, Andrew Morton escreveu:
+> ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.6/2.6.0-test3/2.6.0-test3-mm1
 
-/proc/#/statm is bust and any tool relying on it is broken. Can we just
-remove that file? Maybe print poisoned values in 2.6 to prevent the odd
-program from crashing (if there are any), and remove it in 2.7.
+ I'm getting this warning with gcc-3.3.1:
 
-Roger
+drivers/char/keyboard.c: In function `k_fn':
+drivers/char/keyboard.c:665: warning: comparison is always true due
+to limited range of data type
 
-[1] Mind you it's tricky to find out what correct behaviour would be if the
-    only documentation you can find has obviously been wrong forever.
+ gcc seems right, because the ``value'' variable only go to
+255 and the size of ``func_table'' in my system is 256.
+
+ Even if gcc transforms unsigned char to a higher in this case, its
+not solve the problem, because the value in ``value'' will use only
+8 bits (this is made by the K_VAL() macro).
+
+ thanks,
+
+PS: I'm getting this with 2.6.0-test3 too.
+
+-- 
+Luiz Fernando N. Capitulino
+
+<lcapitulino@prefeitura.sp.gov.br>
+<http://www.telecentros.sp.gov.br>
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
