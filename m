@@ -1,51 +1,327 @@
-Date: Tue, 15 Oct 2002 02:18:07 +0100
-From: Jamie Lokier <lk@tantalophile.demon.co.uk>
-Subject: Re: [patch, feature] nonlinear mappings, prefaulting support, 2.5.42-F8
-Message-ID: <20021015011807.GA27718@bjl1.asuk.net>
-References: <Pine.LNX.4.44.0210141334100.17808-100000@localhost.localdomain>
-Mime-Version: 1.0
+Received: from digeo-nav01.digeo.com (digeo-nav01.digeo.com [192.168.1.233])
+	by packet.digeo.com (8.9.3+Sun/8.9.3) with SMTP id WAA16041
+	for <linux-mm@kvack.org>; Wed, 16 Oct 2002 22:18:56 -0700 (PDT)
+Message-ID: <3DAE483F.D20EFAC6@digeo.com>
+Date: Wed, 16 Oct 2002 22:18:55 -0700
+From: Andrew Morton <akpm@digeo.com>
+MIME-Version: 1.0
+Subject: 2.5.43-mm2
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.44.0210141334100.17808-100000@localhost.localdomain>
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ingo Molnar <mingo@elte.hu>
-Cc: Linus Torvalds <torvalds@transmeta.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: lkml <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-I have a couple of suggestions/questions that may make this syscall
-more generally useful.
+url: http://www.zip.com.au/~akpm/linux/patches/2.5/2.5.43/2.5.43-mm2/
 
-Ingo Molnar wrote:
->  * @prot: new protection bits of the range
 
-So, you can change the protection per page without thousands of vmas?
-Some garbage collectors could take advantage of that.
+. I've pretty much dropped the per-cpu pages patches which Martin and
+  I developed.
 
-> Since all the mapping information of nonlinear vmas lives in the
-> pagetables, they either have to be MAP_LOCKED (for databases or
-> virtualization software) or need a special SIGBUS handler to
-> reinstall mappings across swapping (for more complex uses such as
-> memory debuggers).
+  These patches gave a 1-2% benefit in kernel compiles, up to 4% in
+  Randy Hron's testing of the autoconf build tests.  2.2% in specweb. 
+  And a 60% speedup in a little app which just looped writing 80k to a
+  file and truncating it off again.
 
-I like the SIGBUS.  Am I correct to assume that, when there is memory
-pressure, some pages are evicted from memory and all accesses to those
-pages from userspace will raise SIBUS until the mapping is
-reastablished?  Am I correct to assume this works fine on /dev/shm files?
+  All the above came from the cache-warmth effect.  The patches would
+  give an overall 15% speedup due to reduced lock contention in Anton's
+  testing on the big PPC64 machines, but he fixed that anyway by
+  getting NUMA working properly.
 
-This has uses in programs that cache data that is faster to
-recalculate than to swap.  For example, a vector image displayer might
-prefer to re-render parts of an image than to wait for parts of a
-large cached image to page in.  A JIT run-time compiler might prefer
-to regenerate code fragments on demand than to wait for paged out,
-cached code fragments to page back in.
+  In my opinion, all the above is just too thin to justify throwing a
+  bunch of new stuff into the page allocator.
 
-I think that the above two features are already supported by your
-patch, by simply using a /dev/shm file as the backing store.  Ingo,
-can you confirm this?
+  I shall continue to distribute these patches.  Maybe someone will
+  find them sufficiently beneficial for something at a future time.
 
-Thanks,
--- Jamie
+  But it simply seems to be the case that no interesting workloads
+  repeatedly allocate and free small numbers of pages (in the 10-50
+  range).
+
+. The shared pagetable code is not in the main diff - it has a few
+  problems at present.  The patches are over in the experimental/
+  directory.  order of application is:
+
+	shpte.patch
+	shpte-lock-ranking-fix.patch
+	shmmap.patch
+	handle-mm-fault-locking.patch
+	mremap-shared-pagetable-fix.patch
+	shpte-unmap_all_pages_fix.patch
+	unmap_page_range-fix.patch
+
+. The slab rework is stable now and Manfred has some good
+  microbenchmark numbers from that.  But we're still not quite ready
+  with that code because the hotplug CPU APIs have, shall we say, a few
+  shortcomings.
+
+
+Since 2.5.43-mm1:
+
+-disable-ppc-lbd.patch
+-fs-inlines.patch
+-md-fix.patch
+-mpparse-fix.patch
+-no-reclaim-throttle.patch
+-refill-inactive-lockup-fix.patch
+-reiserfs-kmap-fix.patch
+-simple_rename-link-count.patch
+-static-filemap_sync.patch
+-uninline-highmem.patch
+-vmalloc-overalloc.patch
+
+ Merged
+
+-meminfo-numa.patch
+
+ Dropped.  To be moved from procfs into the NUMA preentation in
+ driverfs.
+
++3c59x-udp-csum.patch
+
+ Make the 3c59x driver work with UDP in Linus's current tree
+
++dmi-warning.patch
++ide-warnings.patch
+
+ Stomp some compilation warnings
+
++dhowells-readahead.patch
++file_ra_state_init.patch
+
+ Expose some finer-grained readahead facilities.
+
++less-unlikelies.patch
+
+ Less buslocked traffic in the page allocator
+
++running-iowait.patch
+
+ Expose nr_running and nr_iowait task counts in /proc
+
++uaccess-uninline.patch
+
+ Uninline the ia32 copy_*_user functions.  (Now showing a 33kbyte
+ shrink from this work)
+
++slab-cleanup.patch
+
+ Less typedefs and macros in slab.c
+
++mm1-incr1.patch
++mm1-incr2.patch
+
+ POSIX ACL and EA updates
+
+
+
+All patches:
+
+
+linus.patch
+  cset-1.781.24.13-to-1.793.txt.gz
+
+3c59x-udp-csum.patch
+  Enable UDP checksums in 3c59x
+
+ide-warnings.patch
+  Fix some IDE compile warnings
+
+dmi-warning.patch
+  fix a compile warning in dmi_scan.c
+
+kgdb.patch
+
+ramfs-aops.patch
+  Move ramfs address_space ops into libfs
+
+ramfs-prepare-write-speedup.patch
+  correctness fixes in libfs address_space ops
+
+dio-fine-alignment.patch
+  Allow O_DIRECT to use 512-byte alignment
+
+dhowells-readahead.patch
+  readahead generalisations
+
+file_ra_state_init.patch
+  Add a function to initialise file readahead state
+
+less-unlikelies.patch
+  reduced buslocked traffic in the page allocator
+
+running-iowait.patch
+  expose nr_running and nr_iowait task counts in /proc
+
+intel-user-copy-taka.patch
+  Faster copy_*_user for Intel ia32 CPUs
+
+uaccess-uninline.patch
+
+ingo-oom-kill.patch
+  oom-killer changes for threaded apps
+
+add_timer_on.patch
+  add_timer_on(): function to start a timer on a particular CPU
+
+slab-split-01-rename.patch
+  slab cleanup: rename static functions
+
+slab-split-02-SMP.patch
+  slab: enable the cpu arrays on uniprocessor
+
+slab-split-03-tail.patch
+  slab: reduced internal fragmentation
+
+slab-split-04-drain.patch
+  slab: take the spinlock in the drain function.
+
+slab-split-05-name.patch
+  slab: remove spaces from /proc identifiers
+
+slab-split-06-mand-cpuarray.patch
+  slab: cleanups and speedups
+
+slab-split-07-inline.patch
+  slab: uninline poisoning checks
+
+slab-split-08-reap.patch
+  slab: reap timers
+
+slab-timer.patch
+
+slab-use-sem.patch
+
+slab-cleanup.patch
+  Slab cleanup
+
+ingo-mmap-speedup.patch
+  Ingo's mmap speedup
+
+mm-inlines.patch
+  remove some inlines from mm/*
+
+o_streaming.patch
+  O_STREAMING support
+
+page_reserved-accounting.patch
+  Global PageReserved accounting
+
+use-page_reserved_accounting.patch
+  Use PG_reserved accounting in the VM
+
+mod_timer-race.patch
+
+net-loopback.patch
+  Disable second copy in the network loopback driver
+
+blkdev-o_direct-short-read.patch
+  Fix O_DIRECT blockdev reads at end-of-device
+
+orlov-allocator.patch
+
+blk-queue-bounce.patch
+  inline blk_queue_bounce
+
+lseek-ext2_readdir.patch
+  remove lock_kernel() from ext2_readdir()
+
+write-deadlock.patch
+  Fix the generic_file_write-from-same-mmapped-page deadlock
+
+rd-cleanup.patch
+  Cleanup and fix the ramdisk driver (doesn't work right yet)
+
+spin-lock-check.patch
+  spinlock/rwlock checking infrastructure
+
+hugetlb-prefault.patch
+  hugetlbpages: factor out some code for hugetlbfs
+
+hugetlb-header-split.patch
+  Move hugetlb declarations into their own header
+
+hugetlbfs.patch
+  hugetlbfs file system
+
+hugetlb-shm.patch
+  hugetlbfs backing for SYSV shared memory
+
+truncate-bkl.patch
+  don't take the BKL in inode_setattr
+
+akpm-deadline.patch
+  deadline scheduler tweaks
+
+xattr-01-metablock-cache.patch
+  EA: meta block cache
+
+xattr-02-ext3.patch
+  EA: ext3 support
+
+xattr-03-ext2.patch
+  EA: ext2 support
+
+fix-xattr.patch
+  EA: compile warning fix
+
+posix-acl-01-core.patch
+  posixacl: core support
+
+posix-acl-02-umask.patch
+  posixacl: umask support
+
+posix-acl-03-user-api.patch
+  posixacl: user API
+
+posix-acl-04-ext3.patch
+  posixacl: ext3 support
+
+acl-ext3-fix-tree.patch
+
+acl-ext3-inode.patch
+
+posix-acl-05-ext2.patch
+  posixacl: ext2 support
+
+mm1-incr1.patch
+
+mm1-incr2.patch
+  posixacl: use getxattr in nfsd_get_posix_acl()
+
+ext23-mount-options.patch
+  ext2/3 mount option processing cleanup
+
+read_barrier_depends.patch
+  extended barrier primitives
+
+dcache_rcu.patch
+  Use RCU for dcache
+
+mpopulate.patch
+  remap_file_pages
+
+rmqueue_bulk.patch
+  bulk page allocator
+
+free_pages_bulk.patch
+  Bulk page freeing function
+
+hot_cold_pages.patch
+  Hot/Cold pages and zone->lock amortisation
+
+readahead-cold-pages.patch
+  Use cache-cold pages for pagecache reads.
+
+pagevec-hot-cold-hint.patch
+  hot/cold hints for truncate and page reclaim
+
+page-reservation.patch
+  Page reservation API
+
+wli-show_free_areas.patch
+  show_free_areas extensions
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
