@@ -1,104 +1,55 @@
-Message-ID: <20010717020702.19729.qmail@web14304.mail.yahoo.com>
-Date: Mon, 16 Jul 2001 19:07:02 -0700 (PDT)
-From: Kanoj Sarcar <kanojsarcar@yahoo.com>
-Subject: Re: [PATCH] Separate global/perzone inactive/free shortage 
-In-Reply-To: <Pine.LNX.4.21.0107162125190.6689-100000@freak.distro.conectiva>
+Date: Tue, 17 Jul 2001 04:55:34 +0200 (CEST)
+From: Mike Galbraith <mikeg@wen-online.de>
+Subject: Re: [PATCH] Separate global/perzone inactive/free shortage
+In-Reply-To: <20010716193033.H28023@redhat.com>
+Message-ID: <Pine.LNX.4.33.0107170450360.486-100000@mikeg.weiden.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Marcelo Tosatti <marcelo@conectiva.com.br>, Rik van Riel <riel@conectiva.com.br>
-Cc: Kanoj Sarcar <kanojsarcar@yahoo.com>, lkml <linux-kernel@vger.kernel.org>, Dirk Wetter <dirkw@rentec.com>, Mike Galbraith <mikeg@wen-online.de>, linux-mm@kvack.org, "Stephen C. Tweedie" <sct@redhat.com>
+To: "Stephen C. Tweedie" <sct@redhat.com>
+Cc: Marcelo Tosatti <marcelo@conectiva.com.br>, Rik van Riel <riel@conectiva.com.br>, Dirk Wetter <dirkw@rentec.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
---- Marcelo Tosatti <marcelo@conectiva.com.br> wrote:
-> 
-> On Mon, 16 Jul 2001, Rik van Riel wrote:
-> 
-> > On Mon, 16 Jul 2001, Kanoj Sarcar wrote:
-> > 
-> > > Just a quick note. A per-zone page reclamation
-> > > method like this was what I had advocated and
-> sent
-> > > patches to Linus for in the 2.3.43 time frame or
-> so.
-> > > I think later performance work ripped out that
-> work.
-> > 
-> > Yes, the system ended up swapping as soon as the
-> first zone
-> > was filled up and after that would fill up the
-> other zones;
-> > the way the system stabilised was cycling through
-> the pages
-> > of one zone and leaving the lower zones alone.
-> > 
-> > This reduced the amount of available VM of a 1GB
-> system
-> > to 128MB, which is somewhat suboptimal ;)
-> > 
-> > What we learned from that is that we need to have
-> some
-> > way to auto-balance the reclaiming, keeping the
-> objective
-> > of evicting the least used page from RAM in mind.
-> > 
-> > > I guess the problem is that a lot of the
-> different
-> > > page reclamation schemes first of all do not
-> know
-> > > how to reclaim pages for a specific zone,
-> > 
-> > > try_to_swap_out is a good example, which can be
-> solved
-> > > by rmaps.
-> > 
-> > Indeed. Most of the time things go right, but the
-> current
-> > system cannot cope at all when things go wrong. I
-> think we
-> > really want things like rmaps and more sturdy
-> reclaiming
-> > mechanisms to cope with these worst cases (and
-> also to make
-> > the common case easier to get right).
-> 
-> As I said to Kanoj, I agree that we really want
-> rmaps to fix that thing
-> right.
-> 
-> Now I don't see any other way for fixing that on
-> _2.4_ except something
-> similar to the patch I posted. That patch can still
-> have problems in
-> practice, but fundamentally _it is the right thing_,
-> IMO.
+On Mon, 16 Jul 2001, Stephen C. Tweedie wrote:
 
-Yes, I agree with you, and that is why I had sent the
-patch to Linus during 2.3 in the first place.  
+> Hi,
+>
+> On Mon, Jul 16, 2001 at 05:44:17PM +0200, Mike Galbraith wrote:
+>
+> > > Why not just round-robin between the eligible zones when allocating,
+> > > biasing each zone based on size?
+>
+> > What prevents this from happening, and lets make ZONE_DINKY _really_
+> > dinky just for the sake of argument.  ZONE_DINKY will have say 4 pages,
+> > one for active, dirty, clean and free.  Balanced is 2 dirty and 2 free,
+> > or 1 free, 1 clean and 1 dirty.  2 tasks are running, and both are giant
+> > economy size, with very nearly 2gig of vm allocated each.
+> >
+> > ZONE_DINKY, ZONE_BIG, and ZONE_MONDO are all fully engaged and under
+> > pressure.  ZONE_DINKY gets aged/laundered such that it is in balance.
+> > Task A is using 1 ZONE_DINKY page.  Task B requests a page to do pagein,
+> > and reclaims a page from ZONE_DINKY because there's only 1 free page.
+> > We are back to inactive shortage instantly, so we have to walk 4gig of
+> > vm looking for one ZONE_DINKY page to activate/age/deactivate.  During
+> > the aging process, any other in use page from that zone is fair game.
+>
+> Agreed, but in that sort of case, if we have (say) close 1GB in
+> ZONE_NORMAL and 16MB in ZONE_DMA, then only one allocation in 64 will
+> even _try_ to allocate from the DMA zone.  Replace the DMA zone with a
+> hypothetical DINKY 4-page zone and it goes down to one allocation in
+> 65536.  You don't reduce the cost of a DINKY allocation, but you
+> reduce the change that such an allocation will happen.
+>
+> The balanced round-robin still seems like a helpful next step here
+> even if it doesn't cure all the balance problems immediately.
 
-What I am trying to point out is that you should talk
-to Rik, and understand why it was removed previously.
-Rik  obviously had his reasons at that point, but some
-of those might not apply anymore, given that 2.4 is
-quite different from 2.3.43.
+Yes, this should mitigate the effect.  I think something will still
+end up having to be done about the search time though.  Dirk's case
+seems to be the pathalogical one.
 
-Kanoj
- 
-> 
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe
-> linux-mm' in
-> the body to majordomo@kvack.org.  For more info on
-> Linux MM,
-> see: http://www.linux-mm.org/
+	-Mike
 
-
-__________________________________________________
-Do You Yahoo!?
-Get personalized email addresses from Yahoo! Mail
-http://personal.mail.yahoo.com/
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
