@@ -1,88 +1,87 @@
-Message-ID: <20040619031536.61508.qmail@web10902.mail.yahoo.com>
-Date: Fri, 18 Jun 2004 20:15:36 -0700 (PDT)
-From: Ashwin Rao <ashwin_s_rao@yahoo.com>
-Subject: Atomic operation for physically moving a page (for memory defragmentation)
-In-Reply-To: <200406190103.i5J13WWr010687@turing-police.cc.vt.edu>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Message-Id: <200406190334.i5J3Y6D1015854@turing-police.cc.vt.edu>
+Subject: Re: Atomic operation for physically moving a page (for memory defragmentation) 
+In-Reply-To: Your message of "Fri, 18 Jun 2004 20:15:36 PDT."
+             <20040619031536.61508.qmail@web10902.mail.yahoo.com>
+From: Valdis.Kletnieks@vt.edu
+References: <20040619031536.61508.qmail@web10902.mail.yahoo.com>
+Mime-Version: 1.0
+Content-Type: multipart/signed; boundary="==_Exmh_-1974871443P";
+	 micalg=pgp-sha1; protocol="application/pgp-signature"
+Content-Transfer-Encoding: 7bit
+Date: Fri, 18 Jun 2004 23:34:06 -0400
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Valdis.Kletnieks@vt.edu, haveblue@us.ibm.com
-Cc: linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: Ashwin Rao <ashwin_s_rao@yahoo.com>
+Cc: haveblue@us.ibm.com, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
---- Valdis.Kletnieks@vt.edu wrote:
-> On Fri, 18 Jun 2004 17:37:12 PDT, Ashwin Rao
->said:
-> > I want to copy a page from one physical location
-> to
-> > another (taking the appr. locks).
+--==_Exmh_-1974871443P
+Content-Type: text/plain; charset=us-ascii
+
+On Fri, 18 Jun 2004 20:15:36 PDT, Ashwin Rao said:
+
+> The problem is the memory fragmentation. The code i am
+> writing is for the memory defragmentation as proposed
+> by Daniel Phillips, my project partner Alok mooley has
+> given mailed a simple prototype in the mid of feb.
+
+OK.. Now we're getting somewhere. ;)  (Feel free to ignore
+the rest - I'm *not* a memory management expert, but
+a few thoughts come to mind - things that might help the
+real experts answer the question..)
+
+> > (*) Yes, I know the BKL isn't something you want to
+> > grab if you can help it.
 > 
-> At the risk of sounding stupid, what problem are you
-> trying to solve by copying
-> a page? Not only (as you note) could the page be
-> referenced by multiple
-> processes, it could (conceivably) belong to a kernel
-> slab or something, or be a
-> buffer for an in-flight I/O request, or any number
-> of other possibly-racy
-> situations.
-> 
+> Isnt it a bad idea to take the BKL, the performance of
+> SMP systems will drastically be hampered.
 
-The problem is the memory fragmentation. The code i am
-writing is for the memory defragmentation as proposed
-by Daniel Phillips, my project partner Alok mooley has
-given mailed a simple prototype in the mid of feb.
+As I noted - not something you *want* to grab.  But sometimes,
+especially when it's in error recovery, code may want to be able
+to tell *everything* else to stay put for a moment while it figures
+out what it needs to do next...
 
-> If it's only a specific *type* of page, or
-> explaining why you're trying to do
-> it, or what timing/etc constraints you have (if it's
-> a sufficiently rare(*) case,
-> it might make sense to just grab the BKL and copy
-> the page with a memcpy().)
-> 
+> The way we work is as follows
+> Initially a block is selected which can be moved i.e
+> pages on lru or free and the pages are moved to a
 
-The pages in the LRU list are selected. As these pages
-can be swapped they can moved to another location in
-the memory.
+Out of curiosity, have you done any modeling to see how often
+you need to move a page to coalesce holes and keep fragmentation
+down?  The "best" solution will quite likely be vastly different if it's
+something that needs to be done only as a "last resort" (i.e. order-N
+allocations are failing for non-large N), or if it's something that
+works best if it's being done several times a second during normal
+system operation, etc....
 
-> (*) Yes, I know the BKL isn't something you want to
-> grab if you can help it.
+> suitable free pages. The main problem arises during
+> the copying and updation process. All the ptes are to
+> updates. a method similar to try_to_unmap_one  is used
+> to identify the ptes and the physical address is
+> updated.
 
-Isnt it a bad idea to take the BKL, the performance of
-SMP systems will drastically be hampered.
+> The problem we are facing is to maintain the atomicity
+> of this operation on SMP boxes.
 
-> However, if we're on an unlikely error path or
-> similar and other options aren't suitable...
-The way we work is as follows
-Initially a block is selected which can be moved i.e
-pages on lru or free and the pages are moved to a
-suitable free pages. The main problem arises during
-the copying and updation process. All the ptes are to
-updates. a method similar to try_to_unmap_one  is used
-to identify the ptes and the physical address is
-updated.
-
-Maintaining atomicity in uniprocessor systems is easy
-by preempt_enable and preempt_disable during the
-operation. This implementation cannot be used for SMP
-systems. 
-Now during the time a page is copied/updatede if a
-page is accessed the copied contents become invalid,
-as updation is not done. Also during updation a
-similar situation might arise.
-The problem we are facing is to maintain the atomicity
-of this operation on SMP boxes.
-
-Ashwin
+Ahh..  Is there one thing in particular that causes the issues?
+It may make sense to grab whatever lock usually controls that,
+at least as a first-cut (what lock(s) are used by try_to_unmap_one,
+for instance).  There's probably already a suitable lock, already
+grabbed by whatever code is interfering with what your code is doing..
 
 
-	
-		
-__________________________________
-Do you Yahoo!?
-New and Improved Yahoo! Mail - 100MB free storage!
-http://promotions.yahoo.com/new_mail 
+--==_Exmh_-1974871443P
+Content-Type: application/pgp-signature
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.2.4 (GNU/Linux)
+Comment: Exmh version 2.5 07/13/2001
+
+iD8DBQFA07QtcC3lWbTT17ARAtDbAJ4oZxQq7W8ohAkwoq3PLtwASUMgLACgttUu
+w7zwFSrr6jgPcXtv/58Qojc=
+=yOwq
+-----END PGP SIGNATURE-----
+
+--==_Exmh_-1974871443P--
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
