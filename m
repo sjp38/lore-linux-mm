@@ -1,64 +1,42 @@
-Date: Thu, 14 Sep 2000 01:30:26 -0300 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
-Subject: [PATCH *] VM patch for 2.4.0-test8
-Message-ID: <Pine.LNX.4.21.0009140119560.1075-100000@duckman.distro.conectiva>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Wed, 13 Sep 2000 22:25:14 -0700
+Message-Id: <200009140525.WAA21446@pizda.ninka.net>
+From: "David S. Miller" <davem@redhat.com>
+In-reply-to: 
+	<Pine.LNX.4.21.0009140119560.1075-100000@duckman.distro.conectiva>
+	(message from Rik van Riel on Thu, 14 Sep 2000 01:30:26 -0300 (BRST))
+Subject: Re: [PATCH *] VM patch for 2.4.0-test8
+References: <Pine.LNX.4.21.0009140119560.1075-100000@duckman.distro.conectiva>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.redhat.com, Linus Torvalds <torvalds@transmeta.com>
+To: riel@conectiva.com.br
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, torvalds@transmeta.com
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+In page_launder() about halfway down there is this sequence of tests
+on LRU pages:
 
-The new VM patch seems has received a major amount of
-code cleanup, performance tuning and stability improvement
-over the last few days and is now almost production
-quality, with the following 4 items left for 2.4:
+if (!clearedbuf) {
+ ...
+} else if (!page->mapping) {
+ ...
+} else if (page_count(page) > 1) {
+} else /* page->mapping && page_count(page) == 1 */ {
+ ...
+}
 
-- improve streaming IO performance
-- out of memory handling
-- integrate Ben LaHaise's readahead on the VMA level
-  (and make drop_behind() work for that) .. fixes kswapd cpu eating
-- (maybe) make drop_behind() work better for some cases
-- testing, testing, testing, testing ...
+Above this sequence we've done a page_cache_get.  For the final case
+in the tests above (page->mapping != NULL && page_count(page) == 1)
+have you checked if this ever happens or is even possible?
 
-The post-2.4 TODO list contains these items:
-- physical page based aging  (reduce kswapd cpu use more and
-  do better/more fair page aging)
-- much much better IO clustering  (neatly abstracted away?)
-- page->mapping->flush() callback for journaling and network
-  filesystems   (maybe later in 2.4)
-- thrashing control (like process suspension?)
+If the page is a page cache page (ie. page->mapping != NULL) it
+should hold a reference.  Adding in our reference, the count should
+always thus be > 1.
 
+What did I miss?
 
-The new VM already seems to be more stable under load than the
-old VM and tuning has taken it so far that I'm already running
-into bottle necks in /other/ places (eg. the elevator code)
-when putting the system under rediculously heavy load...
-
-I haven't had much time to do things like dbench and tiobench
-testing though, which is why I'm sending this email and asking
-the enthousiast benchmarkers to give the patch a try and tell
-me about the results.
-
-Oh, and please don't restrict yourself to just the synthetic
-benchmarks. The VM is there to give the best results for
-applications that have something like a working set and has
-not been tuned yet to give good performance for benchmarks
-(which seem to run very much different from any application
-I've ever seen).
-
-regards,
-
-Rik
---
-"What you're running that piece of shit Gnome?!?!"
-       -- Miguel de Icaza, UKUUG 2000
-
-http://www.conectiva.com/		http://www.surriel.com/
-
+Later,
+David S. Miller
+davem@redhat.com
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
