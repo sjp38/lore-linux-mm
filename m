@@ -1,52 +1,42 @@
-Date: Sat, 13 Sep 2003 18:48:25 +0100
-From: Jamie Lokier <jamie@shareable.org>
 Subject: Re: [RFC] Enabling other oom schemes
-Message-ID: <20030913174825.GB7404@mail.jlokier.co.uk>
+From: Robert Love <rml@tech9.net>
+In-Reply-To: <20030913174825.GB7404@mail.jlokier.co.uk>
 References: <200309120219.h8C2JANc004514@penguin.co.intel.com>
+	 <20030913174825.GB7404@mail.jlokier.co.uk>
+Content-Type: text/plain
+Message-Id: <1063476152.24473.30.camel@localhost>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <200309120219.h8C2JANc004514@penguin.co.intel.com>
+Date: Sat, 13 Sep 2003 16:52:56 -0400
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: rusty@linux.co.intel.com
-Cc: riel@conectiva.com.br, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Jamie Lokier <jamie@shareable.org>
+Cc: rusty@linux.co.intel.com, riel@conectiva.com.br, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Rusty Lynch wrote:
-> Over the years I have encountered various usage needs where the standard
-> oom_kill.c version of memory recovery was not the most ideal approach.
-> For example, some times it is better to just restart the system and 
-> let a front end load balancer hand off the server load to another system.
-> Sometimes it might be worth the effort to write a very solution specific
-> oom handler.
+On Sat, 2003-09-13 at 13:48, Jamie Lokier wrote:
 
-I would like to reboot a remote server when it is overloaded, or a
-deterministic policy that kills off services starting with those
-deemed less essential, but what is the best way to detect overload?
+> Also, when the OOM condition is triggered I'd like the system to
+> reboot, but first try for a short while to unmount filesystems cleanly.
+> 
+> Any chance of those things?
 
-IMHO, the server is overloaded when tasks are no longer responding in
-a reasonable time, due to excessive paging.
+I like all of these ideas.
 
-It isn't feasible to work out in advance how much swap this
-corresponds to, because it depends how much swap is used by "idle"
-pages, and how much is likely to be filled with working sets.
+One thing to keep in mind is that during a real OOM condition, we cannot
+allocate _any_ memory.  None. Zilch.
 
-Too much swap, and it won't OOM even while it becomes totally
-unresponsive for days and needs a manual reset.  Too little swap, and
-valuable RAM is being wasted.
+And that makes some things very hard.  When we start getting into things
+such as complicated policies that kill nonessential services first, et
+cetera... there comes a time where a lot of communication is needed
+(probably with user-space).  Hard to do that with no memory.
 
-What I'd really like is some way to observe task response times,
-and when they become too slow due to excessive paging, trigger the OOM
-policy whatever it is.
+I do like all of this, however, and want to see some different OOM
+killers.
 
-Also, when the OOM condition is triggered I'd like the system to
-reboot, but first try for a short while to unmount filesystems cleanly.
+	Robert Love
 
-Any chance of those things?
 
-Thanks in advance :)
--- Jamie
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
