@@ -1,45 +1,37 @@
-From: kanoj@google.engr.sgi.com (Kanoj Sarcar)
-Message-Id: <199908170637.XAA81444@google.engr.sgi.com>
+Date: Mon, 16 Aug 1999 23:39:12 -0700 (PDT)
+From: Linus Torvalds <torvalds@transmeta.com>
 Subject: Re: [bigmem-patch] 4GB with Linux on IA32
-Date: Mon, 16 Aug 1999 23:37:20 -0700 (PDT)
-In-Reply-To: <Pine.LNX.4.10.9908170151190.14379-100000@laser.random> from "Andrea Arcangeli" at Aug 17, 99 02:10:43 am
+In-Reply-To: <Pine.LNX.4.10.9908170100030.13378-100000@laser.random>
+Message-ID: <Pine.LNX.4.10.9908162331400.1048-100000@penguin.transmeta.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrea Arcangeli <andrea@suse.de>
-Cc: alan@lxorguk.ukuu.org.uk, torvalds@transmeta.com, sct@redhat.com, Gerhard.Wichert@pdb.siemens.de, Winfried.Gerhard@pdb.siemens.de, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
+Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, Kanoj Sarcar <kanoj@google.engr.sgi.com>, sct@redhat.com, Gerhard.Wichert@pdb.siemens.de, Winfried.Gerhard@pdb.siemens.de, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> 
-> >way it is, is so that drivers don't break. I think 2.3 is the place to 
-> >teach the kernel and drivers that all of memory is not directly mappable.
-> 
-> I tried to avoid this (and I am been successfully until I noticed raw-io
-> in 2.3.13... sigh).
-> 
-> In the meantime I'll take raw-io disabled if CONFIG_BIGMEM is set .
+
+On Tue, 17 Aug 1999, Andrea Arcangeli wrote:
 >
+> This other incremental patch will make the bigmem code safe w.r.t. raw-io:
 
-Andrea,
+Well, it makes it safe, but doesn't actually make it _work_. As such, it's
+not very usable. I suspect it had better be our current fix, though.
 
-As I pointed out before, I don't think rawio is the only case which
-breaks.
+I also suspect that we can't just break all drivers, so for now I would
+just make this work for anonymous pages and ignore direct-IO. The driver
+issue is going to need some serious thinking, and doing it for anonymous
+pages only may be enough for many things. Especially if anonymous pages
+_prefer_ the high-memory pages.
 
-I will give you one example of the type of cases that I am talking about.
-In drivers/char/bttv.c, VIDIOCSFBUF ioctl seems to be setting the "vidadr"
-to a kernel virtual address from the physical address present in the 
-user's pte. This will not work for bigmem pages.
+Oh, and copied-on-write pages count as anonymous, I assume you did that
+already (ie when you allocate a new page and copy the old contents into
+it, you might as well consider the new page to be anonymous, even though
+it gets its initial data from a potentially non-anonymous page).
 
-Now, you might claim that this driver is never used on ia32, or analyze
-the way "vidadr" is used and show that the kernel never access the 
-kernel v/a stored in "vidadr". What I am pointing out is that this kind
-of analysis needs to be made for all drivers (that uses macros that are
-dependent on PAGE_OFFSET) ... unless you can claim that you have already 
-done this analysis ...
+			Linus
 
-Kanoj
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
