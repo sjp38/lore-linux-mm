@@ -2,39 +2,37 @@ From: "Stephen C. Tweedie" <sct@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
-Message-ID: <14126.56728.207245.91983@dukat.scot.redhat.com>
-Date: Tue, 4 May 1999 12:44:24 +0100 (BST)
+Message-ID: <14126.56807.620332.813094@dukat.scot.redhat.com>
+Date: Tue, 4 May 1999 12:45:43 +0100 (BST)
 Subject: Re: Hello
-In-Reply-To: <003101be93da$75c98fd0$c80c17ac@clmsdev.local>
-References: <003101be93da$75c98fd0$c80c17ac@clmsdev.local>
+In-Reply-To: <19970101162919.58637@fred.muc.de>
+References: <001901be9324$66ddcbf0$c80c17ac@clmsdev.local>
+	<14120.65431.754233.47675@dukat.scot.redhat.com>
+	<19970101162919.58637@fred.muc.de>
 Sender: owner-linux-mm@kvack.org
-To: Manfred Spraul <masp0008@stud.uni-sb.de>
-Cc: "Stephen C. Tweedie" <sct@redhat.com>, "Benjamin C.R. LaHaise" <blah@kvack.org>, linux-mm@kvack.org
+To: ak@muc.de
+Cc: "Stephen C. Tweedie" <sct@redhat.com>, Manfred Spraul <masp0008@stud.uni-sb.de>, "Benjamin C.R. LaHaise" <blah@kvack.org>, "James E. King, III" <jking@ariessys.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 Hi,
 
-On Sat, 1 May 1999 15:56:46 +0200, "Manfred Spraul"
-<manfreds@colorfullife.com> said:
+On Wed, 1 Jan 1997 16:29:19 +0100, ak@muc.de said:
+   ^^^^^^^^^^^^^^^
 
-> Do you have any details about PSE-36?
+??? Check your clocks!
 
-Yes, the PDF docsets on Intel's developer pages cover it pretty well.
+> On Fri, Apr 30, 1999 at 02:55:51AM +0200, Stephen C. Tweedie wrote:
 
-> This seems to be a page table extention for the Xeon CPU's
-> AFAIK, this is not identical to PAE (available since PPro).
+>> NT's VLM support only gives you access to the high memory if you use a
+>> special API.  We plan on supporting clean access to all of physical
+>> memory quite transparently for Linux, without any such restrictions.
 
-There are two separate extensions.  Since PPro, the CPUs have
-supported large page tables.  Currently these can address 36 bits of
-physical memory, but given that you have to deal with it in 4MB or 2MB
-chunks, it is much less convenient than normal addressing and cannot
-easily be used to support transparently the existing kernel
-behaviour. 
+> Not even the restriction that a single process cannot use more than 
+> 4GB-something?
 
-The newer addressing mode is the 3-level page tables available in
-PIIIs (and in later stepping PIIs, I think), which allow transparent
-access to all of physical memory up to 64G.  That's what I'm aiming
-for.
+The high memory support will have no new restrictions visible to the
+user.  The existing 3GB virtual address space limit will not be
+changed.
 
 --Stephen
 --
