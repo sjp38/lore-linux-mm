@@ -1,25 +1,25 @@
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e6.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id j324Kx8K004998
-	for <linux-mm@kvack.org>; Fri, 1 Apr 2005 23:20:59 -0500
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay02.pok.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id j324KxZo087104
-	for <linux-mm@kvack.org>; Fri, 1 Apr 2005 23:20:59 -0500
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.12.11/8.12.11) with ESMTP id j324KwYn018197
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e3.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id j324Kw8u007985
 	for <linux-mm@kvack.org>; Fri, 1 Apr 2005 23:20:58 -0500
-Date: Fri, 1 Apr 2005 19:15:46 -0800
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay04.pok.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id j324Kwk4252882
+	for <linux-mm@kvack.org>; Fri, 1 Apr 2005 23:20:58 -0500
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.12.11/8.12.11) with ESMTP id j324KwEg018180
+	for <linux-mm@kvack.org>; Fri, 1 Apr 2005 23:20:58 -0500
+Date: Fri, 1 Apr 2005 19:12:06 -0800
 From: Chandra Seetharaman <sekharan@us.ibm.com>
-Subject: [PATCH 6/6] CKRM: Documentation for mem controller
-Message-ID: <20050402031546.GG23284@chandralinux.beaverton.ibm.com>
+Subject: [PATCH 1/6] CKRM: Basic changes to the core kernel
+Message-ID: <20050402031206.GB23284@chandralinux.beaverton.ibm.com>
 Mime-Version: 1.0
-Content-Type: multipart/mixed; boundary="s5/bjXLgkIwAv6Hi"
+Content-Type: multipart/mixed; boundary="NzB8fVQJ5HfG6fxh"
 Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: ckrm-tech@lists.sourceforge.net, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
---s5/bjXLgkIwAv6Hi
+--NzB8fVQJ5HfG6fxh
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
 
@@ -31,319 +31,343 @@ Content-Disposition: inline
               - sekharan@us.ibm.com   |      .......you may get it.
 ----------------------------------------------------------------------
 
---s5/bjXLgkIwAv6Hi
+--NzB8fVQJ5HfG6fxh
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: attachment; filename=11-06-mem_config-docs
+Content-Disposition: attachment; filename=11-01-mem_base_changes
 
-Patch 6 of 6 patches to support memory controller under CKRM framework.
-Documentaion for the memory controller.
+Patch 1 of 6 patches to support memory controller under CKRM framework.
+This patch has the basic changes needed to get the hooks in the appropriate
+kernel functions to get control in the controller.
 
- mem_rc.design |  178 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
- mem_rc.usage  |  112 ++++++++++++++++++++++++++++++++++++
- 2 files changed, 290 insertions(+)
+ fs/exec.c                       |    2 +
+ include/linux/ckrm_mem_inline.h |   67 ++++++++++++++++++++++++++++++++++++++++
+ include/linux/mm_inline.h       |    7 ++++
+ include/linux/page-flags.h      |    7 ++++
+ include/linux/sched.h           |    8 ++++
+ init/Kconfig                    |    9 +++++
+ kernel/exit.c                   |    2 +
+ kernel/fork.c                   |    6 +++
+ mm/page_alloc.c                 |    6 +++
+ 9 files changed, 114 insertions(+)
 
-Index: linux-2.6.12-rc1/Documentation/ckrm/mem_rc.design
+Index: linux-2.6.12-rc1/fs/exec.c
+===================================================================
+--- linux-2.6.12-rc1.orig/fs/exec.c
++++ linux-2.6.12-rc1/fs/exec.c
+@@ -49,6 +49,7 @@
+ #include <linux/rmap.h>
+ #include <linux/acct.h>
+ #include <linux/ckrm_events.h>
++#include <linux/ckrm_mem_inline.h>
+ 
+ #include <asm/uaccess.h>
+ #include <asm/mmu_context.h>
+@@ -574,6 +575,7 @@ static int exec_mmap(struct mm_struct *m
+ 	activate_mm(active_mm, mm);
+ 	task_unlock(tsk);
+ 	arch_pick_mmap_layout(mm);
++	ckrm_task_mm_change(tsk, old_mm, mm);
+ 	if (old_mm) {
+ 		up_read(&old_mm->mmap_sem);
+ 		if (active_mm != old_mm) BUG();
+Index: linux-2.6.12-rc1/include/linux/ckrm_mem_inline.h
 ===================================================================
 --- /dev/null
-+++ linux-2.6.12-rc1/Documentation/ckrm/mem_rc.design
-@@ -0,0 +1,178 @@
-+0. Lifecycle of a LRU Page:
-+----------------------------
-+These are the events in a page's lifecycle:
-+   - allocation of the page
-+     there are multiple high level page alloc functions; __alloc_pages()
-+	 is the lowest level function that does the real allocation.
-+   - get into LRU list (active list or inactive list)
-+   - get out of LRU list
-+   - freeing the page
-+     there are multiple high level page free functions; free_pages_bulk()
-+	 is the lowest level function that does the real free.
-+   
-+When the memory subsystem runs low on LRU pages, pages are reclaimed by
-+    - moving pages from active list to inactive list (refill_inactive_zone())
-+    - freeing pages from the inactive list (shrink_zone)
-+depending on the recent usage of the page(approximately).
++++ linux-2.6.12-rc1/include/linux/ckrm_mem_inline.h
+@@ -0,0 +1,67 @@
++/* include/linux/ckrm_mem_inline.h : memory control for CKRM
++ *
++ * Copyright (C) Jiantao Kong, IBM Corp. 2003
++ *           (C) Shailabh Nagar, IBM Corp. 2003
++ *           (C) Chandra Seetharaman, IBM Corp. 2004
++ *
++ *
++ * Memory control functions of the CKRM kernel API
++ *
++ * Latest version, more details at http://ckrm.sf.net
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation; either version 2 of the License, or
++ * (at your option) any later version.
++ *
++ */
 +
-+In the process of the life cycle a page can move from the lru list to swap
-+and back. For this document's purpose, we treat it same as freeing and
-+allocating the page, respectfully.
++#ifndef _LINUX_CKRM_MEM_INLINE_H_
++#define _LINUX_CKRM_MEM_INLINE_H_
 +
-+1. Introduction
-+---------------
-+Memory resource controller controls the number of lru physical pages
-+(active and inactive list) a class uses. It does not restrict any
-+other physical pages (slabs etc.,)
++#ifdef CONFIG_CKRM_RES_MEM
 +
-+For simplicity, this document will always refer lru physical pages as
-+physical pages or simply pages.
++#error "Memory controller for CKRM is not available."
 +
-+There are two parameters(that are set by the user) that affect the number
-+of pages a class is allowed to have in active/inactive list.
-+They are
-+  - guarantee - specifies the number of pages a class is
-+	guaranteed to get. In other words, if a class is using less than
-+	'guarantee' number of pages, its pages will not be freed when the
-+	memory subsystem tries to free some pages.
-+  - limit - specifies the maximum number of pages a class can get;
-+    'limit' in essence can be considered as the 'hard limit'
++#else
 +
-+Rest of this document details how these two parameters are used in the
-+memory allocation logic.
++static inline void
++ckrm_task_mm_init(struct task_struct *tsk)
++{
++}
 +
-+Note that the numbers that are specified in the shares file, doesn't
-+directly correspond to the number of pages. But, the user can make
-+it so by making the total_guarantee and max_limit of the default class
-+(/rcfs/taskclass) to be the total number of pages(given in stats file)
-+available in the system.
++static inline void
++ckrm_task_mm_set(struct mm_struct * mm, struct task_struct *task)
++{
++}
 +
-+  for example: 
-+   # cd /rcfs/taskclass
-+   # grep System stats
-+   System: tot_pages=257512,active=5897,inactive=2931,free=243991
-+   # cat shares
-+   res=mem,guarantee=-2,limit=-2,total_guarantee=100,max_limit=100
++static inline void
++ckrm_task_mm_change(struct task_struct *tsk,
++		struct mm_struct *oldmm, struct mm_struct *newmm)
++{
++}
 +
-+  "tot_pages=257512" above mean there are 257512 lru pages in
-+  the system.
-+  
-+  By making total_guarantee and max_limit to be same as this number at 
-+  this level (/rcfs/taskclass), one can make guarantee and limit in all 
-+  classes refer to the number of pages.
++static inline void
++ckrm_task_mm_clear(struct task_struct *tsk, struct mm_struct *mm)
++{
++}
 +
-+  # echo 'res=mem,total_guarantee=257512,max_limit=257512' > shares
-+  # cat shares
-+  res=mem,guarantee=-2,limit=-2,total_guarantee=257512,max_limit=257512
++static inline void
++ckrm_mm_init(struct mm_struct *mm)
++{
++}
 +
++/* using #define instead of static inline as the prototype requires   *
++ * data structures that is available only with the controller enabled */
++#define ckrm_mm_setclass(a, b) do { } while(0)
++#define ckrm_class_limit_ok(a)	(1)
 +
-+The number of pages a class can use be anywhere between its guarantee and
-+limit. CKRM memory controller springs into action when the system needs
-+to choose a victim page to swap out. While the number of pages a class can
-+have allocated may be anywhere between its guarantee and limit, victim
-+pages will be choosen from classes that are above their guarantee.
++static inline void ckrm_mem_inc_active(struct page *p)		{}
++static inline void ckrm_mem_dec_active(struct page *p)		{}
++static inline void ckrm_mem_inc_inactive(struct page *p)	{}
++static inline void ckrm_mem_dec_inactive(struct page *p)	{}
++static inline void ckrm_page_init(struct page *p)		{}
++static inline void ckrm_clear_page_class(struct page *p)	{}
 +
-+Victim class will be chosen by the number pages a class is using over its
-+guarantee. i.e a class that is using 10000 pages over its guarantee will be
-+chosen against a class that is using 1000 pages over its guarantee.
-+Pages belonging to classes that are below their guarantee will not be
-+chosen as a victim.
-+
-+2. Configuaration parameters
-+---------------------------
-+
-+Memory controller provides the following configuration parameters. Usage of
-+these parameters will be made clear in the following section.
-+
-+fail_over: When pages are being allocated, if the class is over fail_over % of
-+    its limit, then fail the memory allocation. Default is 110.
-+    ex: If limit of a class is 30000 and fail_over is 110, then memory
-+    allocations would start failing once the class is using more than 33000
-+    pages.
-+
-+shrink_at: When a class is using shrink_at % of its limit, then start
-+    shrinking the class, i.e start freeing the page to make more free pages
-+    available for this class. Default is 90.
-+    ex: If limit of a class is 30000 and shrink_at is 90, then pages from this
-+    class will start to get freed when the class's usage is above 27000
-+
-+shrink_to: When a class reached shrink_at % of its limit, ckrm will try to
-+    shrink the class's usage to shrink_to %. Defalut is 80.
-+    ex: If limit of a class is 30000 with shrink_at being 90 and shrink_to
-+    being 80, then ckrm will try to free pages from the class when its
-+    usage reaches 27000 and will try to bring it down to 24000.
-+
-+num_shrinks: Number of shrink attempts ckrm will do within shrink_interval
-+    seconds. After this many attempts in a period, ckrm will not attempt a
-+    shrink even if the class's usage goes over shrink_at %. Default is 10.
-+
-+shrink_interval: Number of seconds in a shrink period. Default is 10.
-+
-+3. Design
-+--------------------------
-+
-+CKRM memory resource controller taps at appropriate low level memory 
-+management functions to associate a page with a class and to charge
-+a class that brings the page to the LRU list.
-+
-+CKRM maintains lru lists per-class instead of keeping it system-wide, so
-+that reducing a class's usage doesn't involve going through the system-wide
-+lru lists.
-+
-+3.1 Changes in page allocation function(__alloc_pages())
-+--------------------------------------------------------
-+- If the class that the current task belong to is over 'fail_over' % of its
-+  'limit', allocation of page(s) fail. Otherwise, the page allocation will
-+  proceed as before.
-+- Note that the class is _not_ charged for the page(s) here.
-+
-+3.2 Changes in page free(free_pages_bulk())
-+-------------------------------------------
-+- If the page still belong to a class, the class will be credited for this
-+  page.
-+
-+3.3 Adding/Deleting page to active/inactive list
-+-------------------------------------------------
-+When a page is added to the active or inactive list, the class that the
-+task belongs to is charged for the page usage.
-+
-+When a page is deleted from the active or inactive list, the class that the
-+page belongs to is credited back.
-+
-+If a class uses 'shrink_at' % of its limit, attempt is made to shrink
-+the class's usage to 'shrink_to' % of its limit, in order to help the class
-+stay within its limit.
-+But, if the class is aggressive, and keep getting over the class's limit
-+often(more than such 'num_shrinks' events in 'shrink_interval' seconds),
-+then the memory resource controller gives up on the class and doesn't try
-+to shrink the class, which will eventually lead the class to reach
-+fail_over % and then the page allocations will start failing.
-+
-+3.4 Changes in the page reclaimation path (refill_inactive_zone and shrink_zone)
-+-------------------------------------------------------------------------------
-+Pages will be moved from active to inactive list(refill_inactive_zone) and
-+pages from inactive list by choosing victim classes. Victim classes are
-+chosen depending on their usage over their guarantee.
-+
-+Classes with DONT_CARE guarantee are assumed an implicit guarantee which is
-+based on the number of children(with DONT_CARE guarantee) its parent has
-+(including the default class) and the unused pages its parent still has.
-+ex1: If a default root class /rcfs/taskclass has 3 children c1, c2 and c3
-+and has 200000 pages, and all the classes have DONT_CARE guarantees, then
-+all the classes (c1, c2, c3 and the default class of /rcfs/taskclass) will 
-+get 50000 (200000 / 4) pages each.
-+ex2: If, in the above example c1 is set with a guarantee of 80000 pages,
-+then the other classes (c2, c3 and the default class of /rcfs/taskclass)
-+will get 40000 ((200000 - 80000) / 3) pages each.
-+
-+3.5 Handling of Shared pages
-+----------------------------
-+Even if a mm is shared by tasks, the pages that belong to the mm will be
-+charged against the individual tasks that bring the page into LRU. 
-+
-+But, when any task that is using a mm moves to a different class or exits,
-+then all pages that belong to the mm will be charged against the richest
-+class among the tasks that are using the mm.
-+
-+Note: Shared page handling need to be improved with a better policy.
-+
-Index: linux-2.6.12-rc1/Documentation/ckrm/mem_rc.usage
++#endif 
++#endif /* _LINUX_CKRM_MEM_INLINE_H_ */
+Index: linux-2.6.12-rc1/include/linux/mm_inline.h
 ===================================================================
---- /dev/null
-+++ linux-2.6.12-rc1/Documentation/ckrm/mem_rc.usage
-@@ -0,0 +1,112 @@
-+Installation
-+------------
+--- linux-2.6.12-rc1.orig/include/linux/mm_inline.h
++++ linux-2.6.12-rc1/include/linux/mm_inline.h
+@@ -1,9 +1,11 @@
++#include <linux/ckrm_mem_inline.h>
+ 
+ static inline void
+ add_page_to_active_list(struct zone *zone, struct page *page)
+ {
+ 	list_add(&page->lru, &zone->active_list);
+ 	zone->nr_active++;
++	ckrm_mem_inc_active(page);
+ }
+ 
+ static inline void
+@@ -11,6 +13,7 @@ add_page_to_inactive_list(struct zone *z
+ {
+ 	list_add(&page->lru, &zone->inactive_list);
+ 	zone->nr_inactive++;
++	ckrm_mem_inc_inactive(page);
+ }
+ 
+ static inline void
+@@ -18,6 +21,7 @@ del_page_from_active_list(struct zone *z
+ {
+ 	list_del(&page->lru);
+ 	zone->nr_active--;
++	ckrm_mem_dec_active(page);
+ }
+ 
+ static inline void
+@@ -25,6 +29,7 @@ del_page_from_inactive_list(struct zone 
+ {
+ 	list_del(&page->lru);
+ 	zone->nr_inactive--;
++	ckrm_mem_dec_inactive(page);
+ }
+ 
+ static inline void
+@@ -34,7 +39,9 @@ del_page_from_lru(struct zone *zone, str
+ 	if (PageActive(page)) {
+ 		ClearPageActive(page);
+ 		zone->nr_active--;
++		ckrm_mem_dec_active(page);
+ 	} else {
+ 		zone->nr_inactive--;
++		ckrm_mem_dec_inactive(page);
+ 	}
+ }
+Index: linux-2.6.12-rc1/include/linux/page-flags.h
+===================================================================
+--- linux-2.6.12-rc1.orig/include/linux/page-flags.h
++++ linux-2.6.12-rc1/include/linux/page-flags.h
+@@ -76,6 +76,7 @@
+ #define PG_reclaim		18	/* To be reclaimed asap */
+ #define PG_nosave_free		19	/* Free, should not be written */
+ #define PG_uncached		20	/* Page has been mapped as uncached */
++#define PG_ckrm_account		21	/* CKRM accounting */
+ 
+ /*
+  * Global page accounting.  One instance per CPU.  Only unsigned longs are
+@@ -305,6 +306,12 @@ extern void __mod_page_state(unsigned of
+ #define SetPageUncached(page)	set_bit(PG_uncached, &(page)->flags)
+ #define ClearPageUncached(page)	clear_bit(PG_uncached, &(page)->flags)
+ 
++#ifdef CONFIG_CKRM_RES_MEM
++#define PageCkrmAccount(page)		test_bit(PG_ckrm_account, &(page)->flags)
++#define SetPageCkrmAccount(page)	set_bit(PG_ckrm_account, &(page)->flags)
++#define ClearPageCkrmAccount(page) 	clear_bit(PG_ckrm_account, &(page)->flags)
++#endif
 +
-+1. Configure "Class based physical memory controller" under CKRM (see
-+      Documentation/ckrm/installation) 
+ struct page;	/* forward declaration */
+ 
+ int test_clear_page_dirty(struct page *page);
+Index: linux-2.6.12-rc1/include/linux/sched.h
+===================================================================
+--- linux-2.6.12-rc1.orig/include/linux/sched.h
++++ linux-2.6.12-rc1/include/linux/sched.h
+@@ -258,6 +258,11 @@ struct mm_struct {
+ 
+ 	unsigned long hiwater_rss;	/* High-water RSS usage */
+ 	unsigned long hiwater_vm;	/* High-water virtual memory usage */
++#ifdef CONFIG_CKRM_RES_MEM
++	struct ckrm_mem_res *memclass;
++	struct list_head tasklist;	/* tasks sharing this address space */
++	spinlock_t peertask_lock;	/* protect tasklist above */
++#endif
+ };
+ 
+ struct sighand_struct {
+@@ -735,6 +740,9 @@ struct task_struct {
+ 	struct ckrm_task_class *taskclass;
+ 	struct list_head taskclass_link;
+ #endif /* CONFIG_CKRM_TYPE_TASKCLASS */
++#ifdef CONFIG_CKRM_RES_MEM
++	struct list_head mm_peers; /* list of tasks using same mm_struct */
++#endif
+ #endif /* CONFIG_CKRM */
+ #ifdef CONFIG_DELAY_ACCT
+ 	struct task_delay_info delays;
+Index: linux-2.6.12-rc1/init/Kconfig
+===================================================================
+--- linux-2.6.12-rc1.orig/init/Kconfig
++++ linux-2.6.12-rc1/init/Kconfig
+@@ -174,6 +174,15 @@ config CKRM_TYPE_TASKCLASS
+ 	
+ 	  Say Y if unsure 
+ 
++config CKRM_RES_MEM
++	bool "Class based physical memory controller"
++	default y
++	depends on CKRM_TYPE_TASKCLASS
++	help
++	  Provide the basic support for collecting physical memory usage
++	  information among classes. Say Y if you want to know the memory
++	  usage of each class.
 +
-+2. Reboot the system with the new kernel.
+ config CKRM_TYPE_SOCKETCLASS
+ 	bool "Class Manager for socket groups"
+ 	depends on CKRM && RCFS_FS
+Index: linux-2.6.12-rc1/kernel/exit.c
+===================================================================
+--- linux-2.6.12-rc1.orig/kernel/exit.c
++++ linux-2.6.12-rc1/kernel/exit.c
+@@ -28,6 +28,7 @@
+ #include <linux/cpuset.h>
+ #include <linux/syscalls.h>
+ #include <linux/ckrm_events.h>
++#include <linux/ckrm_mem_inline.h>
+ 
+ #include <asm/uaccess.h>
+ #include <asm/unistd.h>
+@@ -505,6 +506,7 @@ void exit_mm(struct task_struct * tsk)
+ 	task_lock(tsk);
+ 	tsk->mm = NULL;
+ 	up_read(&mm->mmap_sem);
++	ckrm_task_mm_clear(tsk, mm);
+ 	enter_lazy_tlb(mm, current);
+ 	task_unlock(tsk);
+ 	mmput(mm);
+Index: linux-2.6.12-rc1/kernel/fork.c
+===================================================================
+--- linux-2.6.12-rc1.orig/kernel/fork.c
++++ linux-2.6.12-rc1/kernel/fork.c
+@@ -44,6 +44,7 @@
+ #include <linux/ckrm_events.h>
+ #include <linux/ckrm_tsk.h>
+ #include <linux/ckrm_tc.h>
++#include <linux/ckrm_mem_inline.h>
+ 
+ #include <asm/pgtable.h>
+ #include <asm/pgalloc.h>
+@@ -178,6 +179,7 @@ static struct task_struct *dup_task_stru
+ 	ti->task = tsk;
+ 
+ 	ckrm_cb_newtask(tsk);
++	ckrm_task_mm_init(tsk);
+ 	/* One for us, one for whoever does the "release_task()" (usually parent) */
+ 	atomic_set(&tsk->usage,2);
+ 	return tsk;
+@@ -326,6 +328,7 @@ static struct mm_struct * mm_init(struct
+ 	mm->ioctx_list = NULL;
+ 	mm->default_kioctx = (struct kioctx)INIT_KIOCTX(mm->default_kioctx, *mm);
+ 	mm->free_area_cache = TASK_UNMAPPED_BASE;
++	ckrm_mm_init(mm);
+ 
+ 	if (likely(!mm_alloc_pgd(mm))) {
+ 		mm->def_flags = 0;
+@@ -346,6 +349,7 @@ struct mm_struct * mm_alloc(void)
+ 	if (mm) {
+ 		memset(mm, 0, sizeof(*mm));
+ 		mm = mm_init(mm);
++		ckrm_mm_setclass(mm, ckrm_get_mem_class(current));
+ 	}
+ 	return mm;
+ }
+@@ -502,6 +506,8 @@ static int copy_mm(unsigned long clone_f
+ good_mm:
+ 	tsk->mm = mm;
+ 	tsk->active_mm = mm;
++	ckrm_mm_setclass(mm, oldmm->memclass);
++	ckrm_task_mm_set(mm, tsk);
+ 	return 0;
+ 
+ free_pt:
+Index: linux-2.6.12-rc1/mm/page_alloc.c
+===================================================================
+--- linux-2.6.12-rc1.orig/mm/page_alloc.c
++++ linux-2.6.12-rc1/mm/page_alloc.c
+@@ -34,6 +34,7 @@
+ #include <linux/cpuset.h>
+ #include <linux/nodemask.h>
+ #include <linux/vmalloc.h>
++#include <linux/ckrm_mem_inline.h>
+ 
+ #include <asm/tlbflush.h>
+ #include "internal.h"
+@@ -355,6 +356,7 @@ free_pages_bulk(struct zone *zone, int c
+ 		/* have to delete it as __free_pages_bulk list manipulates */
+ 		list_del(&page->lru);
+ 		__free_pages_bulk(page, zone, order);
++		ckrm_clear_page_class(page);
+ 		ret++;
+ 	}
+ 	spin_unlock_irqrestore(&zone->lock, flags);
+@@ -454,6 +456,7 @@ static void prep_new_page(struct page *p
+ 			1 << PG_referenced | 1 << PG_arch_1 |
+ 			1 << PG_checked | 1 << PG_mappedtodisk);
+ 	page->private = 0;
++	ckrm_page_init(page);
+ 	set_page_refs(page, order);
+ 	kernel_map_pages(page, 1 << order, 1);
+ }
+@@ -749,6 +752,9 @@ __alloc_pages(unsigned int gfp_mask, uns
+ 	 */
+ 	can_try_harder = (unlikely(rt_task(p)) && !in_interrupt()) || !wait;
+ 
++	if (!in_interrupt() && !ckrm_class_limit_ok(ckrm_get_mem_class(p)))
++		return NULL;
 +
-+3. Verify that the memory controller is present by reading the file
-+   /rcfs/taskclass/config (should show a line with res=mem)
-+
-+Usage
-+-----
-+
-+For brevity, unless otherwise specified all the following commands are
-+executed in the default class (/rcfs/taskclass).
-+
-+Initially, the systemwide default class gets 100% of the LRU pages, and the
-+stats file at the /rcfs/taskclass level displays the total number of
-+physical pages.
-+
-+   # cd /rcfs/taskclass
-+   # grep System stats
-+   System: tot_pages=239778,active=60473,inactive=135285,free=44555
-+   # cat shares
-+   res=mem,guarantee=-2,limit=-2,total_guarantee=100,max_limit=100
-+
-+   tot_pages - total number of pages
-+   active    - number of pages in the active list ( sum of all zones)
-+   inactive  - number of pages in the inactive list ( sum of all zones)
-+   free      - number of free pages (sum of all zones)
-+
-+   By making total_guarantee and max_limit to be same as tot_pages, one can 
-+   make the numbers in shares file be same as the number of pages for a
-+   class.
-+
-+   # echo 'res=mem,total_guarantee=239778,max_limit=239778' > shares
-+   # cat shares
-+   res=mem,guarantee=-2,limit=-2,total_guarantee=239778,max_limit=239778
-+
-+Changing configuration parameters:
-+----------------------------------
-+For description of the paramters read the file mem_rc.design in this same directory.
-+
-+Following is the default values for the configuration parameters:
-+
-+   localhost:~ # cd /rcfs/taskclass
-+   localhost:/rcfs/taskclass # cat config
-+   res=mem,fail_over=110,shrink_at=90,shrink_to=80,num_shrinks=10,shrink_interval=10
-+
-+Here is how to change a specific configuration parameter. Note that more than one 
-+configuration parameter can be changed in a single echo command though for simplicity
-+we show one per echo.
-+
-+ex: Changing fail_over: 
-+   localhost:/rcfs/taskclass # echo "res=mem,fail_over=120" > config
-+   localhost:/rcfs/taskclass # cat config
-+   res=mem,fail_over=120,shrink_at=90,shrink_to=80,num_shrinks=10,shrink_interval=10
-+
-+ex: Changing shrink_at: 
-+   localhost:/rcfs/taskclass # echo "res=mem,shrink_at=85" > config
-+   localhost:/rcfs/taskclass # cat config
-+   res=mem,fail_over=120,shrink_at=85,shrink_to=80,num_shrinks=10,shrink_interval=10
-+
-+ex: Changing shrink_to: 
-+   localhost:/rcfs/taskclass # echo "res=mem,shrink_to=75" > config
-+   localhost:/rcfs/taskclass # cat config
-+   res=mem,fail_over=120,shrink_at=85,shrink_to=75,num_shrinks=10,shrink_interval=10
-+
-+ex: Changing num_shrinks: 
-+   localhost:/rcfs/taskclass # echo "res=mem,num_shrinks=20" > config
-+   localhost:/rcfs/taskclass # cat config
-+   res=mem,fail_over=120,shrink_at=85,shrink_to=75,num_shrinks=20,shrink_interval=10
-+
-+ex: Changing shrink_interval: 
-+   localhost:/rcfs/taskclass # echo "res=mem,shrink_interval=15" > config
-+   localhost:/rcfs/taskclass # cat config
-+   res=mem,fail_over=120,shrink_at=85,shrink_to=75,num_shrinks=20,shrink_interval=15
-+
-+Class creation 
-+--------------
-+
-+   # mkdir c1
-+
-+Its initial share is DONT_CARE. The parent's share values will be unchanged.
-+
-+Setting a new class share
-+-------------------------
-+	
-+   # echo 'res=mem,guarantee=25000,limit=50000' > c1/shares
-+
-+   # cat c1/shares	
-+   res=mem,guarantee=25000,limit=50000,total_guarantee=100,max_limit=100
-+	
-+   'guarantee' specifies the number of pages this class entitled to get
-+   'limit' is the maximum number of pages this class can get.
-+
-+Monitoring
-+----------
-+
-+stats file shows statistics of the page usage of a class
-+   # cat stats
-+   ----------- Memory Resource stats start -----------
-+   System: tot_pages=239778,active=60473,inactive=135285,free=44555
-+   Number of pages used(including pages lent to children): 196654
-+   Number of pages guaranteed: 239778
-+   Maximum limit of pages: 239778
-+   Total number of pages available(after serving guarantees to children): 214778
-+   Number of pages lent to children: 0
-+   Number of pages borrowed from the parent: 0
-+   ----------- Memory Resource stats end -----------
-+
+ 	zones = zonelist->zones;  /* the list of zones suitable for gfp_mask */
+ 
+ 	if (unlikely(zones[0] == NULL)) {
 
---s5/bjXLgkIwAv6Hi--
+--NzB8fVQJ5HfG6fxh--
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
