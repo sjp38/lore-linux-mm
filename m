@@ -1,41 +1,61 @@
+Date: Thu, 22 Jun 2000 20:27:16 -0300 (BRST)
+From: Rik van Riel <riel@conectiva.com.br>
 Subject: Re: [RFC] RSS guarantees and limits
-References: <Pine.LNX.4.21.0006221834530.1137-100000@duckman.distro.conectiva>
-From: "John Fremlin" <vii@penguinpowered.com>
-Date: 22 Jun 2000 23:48:18 +0100
-In-Reply-To: Rik van Riel's message of "Thu, 22 Jun 2000 18:37:58 -0300 (BRST)"
-Message-ID: <m2itv19vt9.fsf@boreas.southchinaseas>
+In-Reply-To: <m2og4t9w7j.fsf@boreas.southchinaseas>
+Message-ID: <Pine.LNX.4.21.0006222022420.1137-100000@duckman.distro.conectiva>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@conectiva.com.br>
-Cc: Stephen Tweedie <sct@redhat.com>, linux-mm@kvack.org
+To: John Fremlin <vii@penguinpowered.com>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Rik van Riel <riel@conectiva.com.br> writes:
+On 22 Jun 2000, John Fremlin wrote:
+> Stephen Tweedie <sct@redhat.com> writes:
 
-> Also, the memory space used by these small apps is usually
-> negligable compared to the memory used by the big program.
+> > It is critically important that when under memory pressure, a
+> > system administrator can still log in and kill any runaway
+> > processes.  The smaller apps in question here are system daemons
+> > such as init, inetd and telnetd, and user apps such as bash and
+> > ps.  We _must_ be able to allow them to make at least some
+> > progress while the VM is under load.
 > 
-> What is 2% memory use for the big program can be the difference
-> between running and crawling for something like bash...
+> I agree completely. It was one of the reasons I suggested that a
+> syscall like nice but giving info to the mm layer would be
+> useful. In general, small apps (xeyes,biff,gpm) don't deserve
+> any special treatment.
 
-I agree that this is usually true. But that is only because the big
-program actually isn't using the memory; in that case the memory
-should be freed anyway. If a big program were to actually use all its
-memory, then this system would destroy its performance, as all the
-getty's on the system and silly luser tweaks which aren't actually
-being used at all would take away useful memory.
+Why not?  In scheduling processes which use less CPU get
+a better response time. Why not do the same for memory
+use? The less memory you use, the less agressive we'll be
+in trying to take it away from you.
 
-I booted up with mem=8M today, and found that even small things like
-bash were about 20% of system ram. By not letting a single big process
-(about the biggest that'd fit was emacs) get most all of the memory
-from the various junk that wasn't being used, the system would be
-completely unusable rather than merely a little slow.
+Of course a small app should be removed from memory when
+it's sleeping, but there's no reason to not apply some
+degree of fairness in memory allocation and memory stealing.
 
--- 
+> I also said that on a multiuser system it is important that one
+> user can't hog the system.
 
-	http://altern.org/vii
+*nod*
+
+> The only general solution I can see is to give some process
+> (groups) a higher MM priority, by analogy with nice.
+
+That you can't see anything better doesn't mean it
+isn't possible ;)
+
+regards,
+
+Rik
+--
+The Internet is not a network of computers. It is a network
+of people. That is its real strength.
+
+Wanna talk about the kernel?  irc.openprojects.net / #kernelnewbies
+http://www.conectiva.com/		http://www.surriel.com/
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
