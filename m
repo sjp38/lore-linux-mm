@@ -1,53 +1,30 @@
-Mime-Version: 1.0
-Message-Id: <a05100300b7f08800c756@[192.168.239.101]>
-In-Reply-To: <3BCA2015.5080306@ucla.edu>
-References: <3BCA2015.5080306@ucla.edu>
-Date: Mon, 15 Oct 2001 13:38:22 +0100
-From: Jonathan Morton <chromi@cyberspace.org>
-Subject: Re: VM question: side effect of not scanning Active pages?
-Content-Type: text/plain; charset="us-ascii" ; format="flowed"
+Message-ID: <3BCB55DD.60607@zytor.com>
+Date: Mon, 15 Oct 2001 14:32:13 -0700
+From: "H. Peter Anvin" <hpa@zytor.com>
+MIME-Version: 1.0
+Subject: Discardable mappings?
+Content-Type: text/plain; charset=ISO-8859-15
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Benjamin Redelings I <bredelin@ucla.edu>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
->	In both Andrea and Rik's VM, I have tried modifying try_to_swap_out so
->that a page would be skipped if it is "active".  For example, I have
->currently modified 2.4.13-pre2 by adding:
->
->          if (PageActive(page))
->                  return 0;
->
->after testing the hardware referenced bit.  This was motivated by
->sections of VM-improvement patches written by both Rik and Andrea.
->	This SEEMS to increase performance, but it has another side
->effect.  The
->RSS of unused daemons no longer EVER drops to 4k, which it does without
->this modification.  The RSS does decrease (usually) to the value of
->shared memory, but the amount of shared memory only gets down to about
->200-300k instead of decreasing to 4k.
->	Can anyone tell me why not scanning Active page for swapout would have
->this effect?  Thanks!
+I have been working on a user-space persistent memory system, and would
+like to bring up (again?) the possibility of a "discardable" class of
+mappings.  "Discardable" means that the system is free to throw away a
+page without storing it to swap, and return SIGSEGV on access, since the
+application can regenerate the data on that page if needed.
 
-The "active" pages in your inactive daemons are probably the glibc
-pages, which are generally in use by other applications.  It should
-not have any real effect on the system - in fact, keeping glibc in
-memory is probably a Good Thing, and may be partially responsible for
-your improvement in performance.
+My personal preference would be if this was a PROT_* flag that could be
+used with mprotect(), since my system, and probably most other systems
+which need this kind of functionality, use mprotect() on these pages
+already, and it'd be nice to avoid Yet Another System Call[TM] in a very
+performance-critical part of the system; furthermore, I tend to think of
+mprotect() as controlling when to raise SIGSEGV, so it's not *completely*
+out of place there...
 
-AFAICT, 'pinning' active pages in memory is a good thing, provided
-they are deactivated appropriately after a period of disuse.  This
-appears to be the case in current kernels and the new VM, so you're
-good to go in my view.
-
--- 
---------------------------------------------------------------
-from:     Jonathan "Chromatix" Morton
-mail:     chromi@cyberspace.org  (not for attachments)
-website:  http://www.chromatix.uklinux.net/vnc/
-geekcode: GCS$/E dpu(!) s:- a20 C+++ UL++ P L+++ E W+ N- o? K? w--- O-- M++$
-           V? PS PE- Y+ PGP++ t- 5- X- R !tv b++ DI+++ D G e+ h+ r++ y+(*)
-tagline:  The key to knowledge is not to rely on people to teach you it.
+	-hpa
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
