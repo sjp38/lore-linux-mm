@@ -1,50 +1,37 @@
-Date: Sun, 25 Mar 2001 17:50:52 +0100
-From: "Stephen C. Tweedie" <sct@redhat.com>
-Subject: Re: [PATCH] Fix races in 2.4.2-ac22 SysV shared memory
-Message-ID: <20010325175052.B18649@redhat.com>
-References: <20010325001338.C11686@redhat.com> <Pine.LNX.4.21.0103242203290.1863-100000@imladris.rielhome.conectiva>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.21.0103242203290.1863-100000@imladris.rielhome.conectiva>; from riel@conectiva.com.br on Sat, Mar 24, 2001 at 10:05:18PM -0300
+Received: from burns.conectiva (burns.conectiva [10.0.0.4])
+	by postfix.conectiva.com.br (Postfix) with SMTP id BF9B816B13
+	for <linux-mm@kvack.org>; Sun, 25 Mar 2001 14:59:56 -0300 (EST)
+Date: Sun, 25 Mar 2001 14:08:03 -0300 (BRST)
+From: Rik van Riel <riel@conectiva.com.br>
+Subject: Re: [PATCH] OOM handling
+In-Reply-To: <3ABE0CC2.268D8C3C@evision-ventures.com>
+Message-ID: <Pine.LNX.4.21.0103251407420.1863-100000@imladris.rielhome.conectiva>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@conectiva.com.br>
-Cc: "Stephen C. Tweedie" <sct@redhat.com>, Linus Torvalds <torvalds@transmeta.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Alan Cox <alan@lxorguk.ukuu.org.uk>, Ben LaHaise <bcrl@redhat.com>, Christoph Rohland <cr@sap.com>
+To: Martin Dalecki <dalecki@evision-ventures.com>
+Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, "James A. Sutherland" <jas88@cam.ac.uk>, Guest section DW <dwguest@win.tue.nl>, Patrick O'Rourke <orourke@missioncriticallinux.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+On Sun, 25 Mar 2001, Martin Dalecki wrote:
+> Rik van Riel wrote:
 
-On Sat, Mar 24, 2001 at 10:05:18PM -0300, Rik van Riel wrote:
-> On Sun, 25 Mar 2001, Stephen C. Tweedie wrote:
+> > - the AGE_FACTOR calculation will overflow after the system has
+> >   an uptime of just _3_ days
 > 
-> > Rik, do you think it is really necessary to take the page lock and
-> > release it inside lookup_swap_cache?  I may be overlooking something,
-> > but I can't see the benefit of it ---
-> 
-> I don't think we need to do this, except to protect us from
-> using a page which isn't up-to-date yet and locked because
-> of disk IO.
+> I esp. the behaviour will be predictable.
 
-But it doesn't --- page_launder can try to lock the page after it
-checks the refcount, without taking any locks which protect us against
-running lookup_swap_cache in parallel.  If we get our reference after
-page_launder checks the count, we can find the page getting locked out
-from underneath our feet.
+Ummmm ?
 
-> Reclaim_page() takes the pagecache_lock before trying to
-> free anything, so there's no reason to lock against that.
+Rik
+--
+Virtual memory is like a game you can't win;
+However, without VM there's truly nothing to lose...
 
-Exactly.  We're not in danger of _losing_ the page, because
-reclaim_page is locked more aggressively than page_launder.  We still
-risk having the page locked against us after lookup_swap_cache does
-its own UnlockPage.
+		http://www.surriel.com/
+http://www.conectiva.com/	http://distro.conectiva.com.br/
 
-So, if lookup_swap_cache doesn't actually ensure that the page is
-unlocked, are there any callers which implicitly rely on
-lookup_swap_cache() doing a wait_on_page?
-
---Stephen
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
