@@ -1,41 +1,43 @@
-Date: Thu, 29 Jun 2000 10:34:01 +0100
+Date: Thu, 29 Jun 2000 11:52:14 +0100
 From: "Stephen C. Tweedie" <sct@redhat.com>
 Subject: Re: kmap_kiobuf()
-Message-ID: <20000629103401.B3473@redhat.com>
-References: <200006282016.PAA19321@jen.americas.sgi.com>
+Message-ID: <20000629115214.B3914@redhat.com>
+References: <11270.962206915@cygnus.co.uk>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <200006282016.PAA19321@jen.americas.sgi.com>; from lord@sgi.com on Wed, Jun 28, 2000 at 03:16:42PM -0500
+In-Reply-To: <11270.962206915@cygnus.co.uk>; from dwmw2@infradead.org on Wed, Jun 28, 2000 at 04:41:55PM +0100
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: lord@sgi.com
-Cc: "Stephen C. Tweedie" <sct@redhat.com>, David Woodhouse <dwmw2@infradead.org>, linux-mm@kvack.org, riel@conectiva.com.br
+To: David Woodhouse <dwmw2@infradead.org>
+Cc: linux-kernel@vger.rutgers.edu, linux-mm@kvack.org, sct@redhat.com, riel@conectiva.com.br
 List-ID: <linux-mm.kvack.org>
 
 Hi,
 
-On Wed, Jun 28, 2000 at 03:16:42PM -0500, lord@sgi.com wrote:
+On Wed, Jun 28, 2000 at 04:41:55PM +0100, David Woodhouse wrote:
 
-> So we are currently using memory managed as an address space to do the
-> caching of metadata. Everything is built up out of single pages, and when we
-> need something bigger we glue it together into a larger chunk of address
-> space.
+> I think it would be useful to provide a function which can be used to 
+> obtain a virtually-contiguous VM mapping of the pages of an iobuf.
 
-What do you mean by "address space"?  If you mean kernel VA, then
-there's a clear risk of fragmenting the kernel's remappable area and
-ending up unable to find contiguous regions at all if you're not
-careful.
+Perhaps, but I really would rather resist this.  The whole point of
+kiobufs is to let you deal cleanly with thinks which are unaligned by
+doing page lookups.  They are specifically intended to _avoid_ nasty
+VM tricks.  
 
-> p.s. Woudn't the remapping of pages be a way to let modules etc get larger
-> arrays of memory after boot time - doing it a few times is not going to
-> kill the system.
+Adding kiobuf support for things like memcpy_to/from_kiobuf is
+something I will do, but kiobufs are there to help get people out of
+the mindset that all buffers are virtually contiguous in the first
+place!  
 
-That's what vmalloc does.  If you mean actually moving physical pages
-to clear space, it's really not so simple --- what happens if you
-encounter mlock()ed pages?  The kernel also mixes user pages with
-pinned kernel data structures which simply cannot be moved, so it's
-not straightforward to support that sort of thing.
+It would be fairly easy to add kiobuf support for this, but it would
+make it harder to get the diffs past Linus (who really wants vmalloc
+to go away as much as possible).
+
+I'm open to arguments, but "I coded this way in the past and I'd
+rather the kernel did ugly things to let me keep coding this way in
+the future" isn't the sort of reasoning that helps me to get new
+functionality past Linus's sanity filters.  :-)
 
 Cheers,
  Stephen
