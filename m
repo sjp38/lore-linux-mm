@@ -1,27 +1,29 @@
-Received: from Erock ([12.219.232.74])
-        by postini-mail.hcis.net (Merak 5.9.4) with SMTP id BIA74342
-        for <linux-mm@kvack.org>; Thu, 21 Aug 2003 19:56:51 -0500
-Message-ID: <4168-22003852205652453@Erock>
-From: "" <erock@hcis.net>
-Subject: Make money in your underwear!
-Date: Thu, 21 Aug 2003 19:56:52 -0500
+Date: Thu, 21 Aug 2003 22:59:03 -0400 (EDT)
+From: Rik van Riel <riel@redhat.com>
+Subject: Re: What isthe memory management scheme of  Redhat Linux
+In-Reply-To: <Law15-DAV13Dw48qpKI0002cfc3@hotmail.com>
+Message-ID: <Pine.LNX.4.44.0308212258240.27186-100000@chimarrao.boston.redhat.com>
 MIME-Version: 1.0
-Content-type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 8BIT
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Joy Ananyi <prettylorretar@hotmail.com>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Opportunity is knocking!  If you would like to be able earn thousands of dollars and be able to do all from computer at home.  Then, reply back with you name, phone number, address and the best time to contact you. Sorry, only US residents can qualify for this offer.
+On Thu, 21 Aug 2003, Joy Ananyi wrote:
 
-If you are not interested in recieving anymore emails, then reply back with "REMOVE" in the subject.
+> Pls i need this answer soonest.
 
-Thank you for you time and consideration!
+Which version ?
 
+If it is a homework assignment, why not look at the source
+code and patches on http://kernelnewbies.org/kernels ?
 
-
-
+-- 
+"Debugging is twice as hard as writing the code in the first place.
+Therefore, if you write the code as cleverly as possible, you are,
+by definition, not smart enough to debug it." - Brian W. Kernighan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
