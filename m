@@ -1,146 +1,36 @@
-Date: Wed, 28 Mar 2001 11:57:52 +0200 (CEST)
-From: Ingo Molnar <mingo@elte.hu>
-Reply-To: <mingo@elte.hu>
-Subject: [patch] pae-2.4.3-C3
-Message-ID: <Pine.LNX.4.30.0103281151020.3657-200000@elte.hu>
+Received: from linuxjedi.org (IDENT:root@localhost.localdomain [127.0.0.1])
+	by penguin.roanoke.edu (8.11.0/8.11.0) with ESMTP id f2SG8mn12727
+	for <linux-mm@kvack.org>; Wed, 28 Mar 2001 11:08:48 -0500
+Message-ID: <3AC20CB9.9053F8C8@linuxjedi.org>
+Date: Wed, 28 Mar 2001 11:09:29 -0500
+From: "David L. Parsley" <parsley@linuxjedi.org>
 MIME-Version: 1.0
-Content-Type: MULTIPART/MIXED; BOUNDARY="655616-1518987546-985773472=:3657"
+Subject: report on no-overcommit testing for diskless box
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@transmeta.com>
-Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, Linux Kernel List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
---655616-1518987546-985773472=:3657
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+So after lots of patching I got my terminal running with no-overcommit. 
+X wouldn't start at all - presumably it asks for more memory than is
+present and just doesn't use most of it normally.
 
+If the patch becomes available for a recent 2.4.2-ac, I'll try it on a
+larger terminal with more memory.  I can still crash a 64MB diskless x
+terminal by running xchat full screen (at 1152x900x16bit) - hopefully
+no-overcommit will indeed cure bigger machines like this one.
 
-the attached pae-2.4.3-C3 patch fixes the PAE code to work with SLAB
-FORCED_DEBUG (which enables redzoning) too.
+I guess small-mem embedded will need to both patch X _and_ run
+no-overcommit for stability.
 
-the problem is that redzoning is enabled unconditionally, and SLAB has no
-information about how crutial alignment is in the case of any particular
-SLAB cache. The CPU generates a general protection fault if in PAE mode a
-non-16-byte aligned pgd is loaded into %cr3.
-
-Redzoning is very useful and most caches use HWCACHE_ALIGN, so i didnt
-want to disable redzoning if SLAB_HWCACHE_ALIGN is set. The patch adds
-SLAB_MUST_HWCACHE_ALIGN, which makes the distinction.
-
-the patch is against 2.4.3-pre8 (applies cleanly to ac26 as well), and
-compiles & boot cleanly in PAE mode, with or without CONFIG_DEBUG_SLAB.
-The kernel also compiles cleanly in non-PAE mode.
-
-(the patch also introduces the pae_pgd SLAB cache, which is a tiny
-speedup.)
-
-	Ingo
-
---655616-1518987546-985773472=:3657
-Content-Type: TEXT/PLAIN; charset=US-ASCII; name="pae-2.4.3-C3"
-Content-Transfer-Encoding: BASE64
-Content-ID: <Pine.LNX.4.30.0103281157520.3657@elte.hu>
-Content-Description: 
-Content-Disposition: attachment; filename="pae-2.4.3-C3"
-
-LS0tIGxpbnV4L2luaXQvbWFpbi5jLm9yaWcJV2VkIE1hciAyOCAxNDo0MTo1
-OSAyMDAxDQorKysgbGludXgvaW5pdC9tYWluLmMJV2VkIE1hciAyOCAxNDo0
-MjowMiAyMDAxDQpAQCAtNTcwLDYgKzU3MCw5IEBADQogI2VuZGlmDQogCW1l
-bV9pbml0KCk7DQogCWttZW1fY2FjaGVfc2l6ZXNfaW5pdCgpOw0KKyNpZiBD
-T05GSUdfWDg2X1BBRQ0KKwlpbml0X3BhZV9wZ2RfY2FjaGUoKTsNCisjZW5k
-aWYNCiAjaWZkZWYgQ09ORklHXzMyMTVfQ09OU09MRQ0KICAgICAgICAgY29u
-MzIxNV9hY3RpdmF0ZSgpOw0KICNlbmRpZg0KLS0tIGxpbnV4L21tL3NsYWIu
-Yy5vcmlnCVdlZCBNYXIgMjggMTQ6NDE6NTkgMjAwMQ0KKysrIGxpbnV4L21t
-L3NsYWIuYwlXZWQgTWFyIDI4IDE0OjQyOjAyIDIwMDENCkBAIC0xMDIsOSAr
-MTAyLDExIEBADQogI2lmIERFQlVHDQogIyBkZWZpbmUgQ1JFQVRFX01BU0sJ
-KFNMQUJfREVCVUdfSU5JVElBTCB8IFNMQUJfUkVEX1pPTkUgfCBcDQogCQkJ
-IFNMQUJfUE9JU09OIHwgU0xBQl9IV0NBQ0hFX0FMSUdOIHwgXA0KLQkJCSBT
-TEFCX05PX1JFQVAgfCBTTEFCX0NBQ0hFX0RNQSkNCisJCQkgU0xBQl9OT19S
-RUFQIHwgU0xBQl9DQUNIRV9ETUEgfCBcDQorCQkJIFNMQUJfTVVTVF9IV0NB
-Q0hFX0FMSUdOKQ0KICNlbHNlDQotIyBkZWZpbmUgQ1JFQVRFX01BU0sJKFNM
-QUJfSFdDQUNIRV9BTElHTiB8IFNMQUJfTk9fUkVBUCB8IFNMQUJfQ0FDSEVf
-RE1BKQ0KKyMgZGVmaW5lIENSRUFURV9NQVNLCShTTEFCX0hXQ0FDSEVfQUxJ
-R04gfCBTTEFCX05PX1JFQVAgfCBcDQorCQkJIFNMQUJfQ0FDSEVfRE1BIHwg
-U0xBQl9NVVNUX0hXQ0FDSEVfQUxJR04pDQogI2VuZGlmDQogDQogLyoNCkBA
-IC02NDEsNyArNjQzLDcgQEANCiAJCWZsYWdzICY9IH5TTEFCX1BPSVNPTjsN
-CiAJfQ0KICNpZiBGT1JDRURfREVCVUcNCi0JaWYgKHNpemUgPCAoUEFHRV9T
-SVpFPj4zKSkNCisJaWYgKChzaXplIDwgKFBBR0VfU0laRT4+MykpICYmICEo
-ZmxhZ3MgJiBTTEFCX01VU1RfSFdDQUNIRV9BTElHTikpDQogCQkvKg0KIAkJ
-ICogZG8gbm90IHJlZCB6b25lIGxhcmdlIG9iamVjdCwgY2F1c2VzIHNldmVy
-ZQ0KIAkJICogZnJhZ21lbnRhdGlvbi4NCi0tLSBsaW51eC9pbmNsdWRlL2xp
-bnV4L3NsYWIuaC5vcmlnCVN1biBEZWMgMzEgMjA6MTA6MTcgMjAwMA0KKysr
-IGxpbnV4L2luY2x1ZGUvbGludXgvc2xhYi5oCVdlZCBNYXIgMjggMTQ6NDQ6
-MjUgMjAwMQ0KQEAgLTM2LDYgKzM2LDcgQEANCiAjZGVmaW5lCVNMQUJfTk9f
-UkVBUAkJMHgwMDAwMTAwMFVMCS8qIG5ldmVyIHJlYXAgZnJvbSB0aGUgY2Fj
-aGUgKi8NCiAjZGVmaW5lCVNMQUJfSFdDQUNIRV9BTElHTgkweDAwMDAyMDAw
-VUwJLyogYWxpZ24gb2JqcyBvbiBhIGgvdyBjYWNoZSBsaW5lcyAqLw0KICNk
-ZWZpbmUgU0xBQl9DQUNIRV9ETUEJCTB4MDAwMDQwMDBVTAkvKiB1c2UgR0ZQ
-X0RNQSBtZW1vcnkgKi8NCisjZGVmaW5lCVNMQUJfTVVTVF9IV0NBQ0hFX0FM
-SUdOCTB4MDAwMDgwMDBVTAkvKiBmb3JjZSBhbGlnbm1lbnQgKi8NCiANCiAv
-KiBmbGFncyBwYXNzZWQgdG8gYSBjb25zdHJ1Y3RvciBmdW5jICovDQogI2Rl
-ZmluZQlTTEFCX0NUT1JfQ09OU1RSVUNUT1IJMHgwMDFVTAkJLyogaWYgbm90
-IHNldCwgdGhlbiBkZWNvbnN0cnVjdG9yICovDQotLS0gbGludXgvaW5jbHVk
-ZS9hc20taTM4Ni9wZ2FsbG9jLmgub3JpZwlXZWQgTWFyIDI4IDE0OjQxOjU5
-IDIwMDENCisrKyBsaW51eC9pbmNsdWRlL2FzbS1pMzg2L3BnYWxsb2MuaAlX
-ZWQgTWFyIDI4IDE0OjQ0OjI1IDIwMDENCkBAIC0yMCwxMyArMjAsMTkgQEAN
-CiANCiAjaWYgQ09ORklHX1g4Nl9QQUUNCiANCi1leHRlcm4gdm9pZCAqa21h
-bGxvYyhzaXplX3QsIGludCk7DQotZXh0ZXJuIHZvaWQga2ZyZWUoY29uc3Qg
-dm9pZCAqKTsNCitzdHJ1Y3Qga21lbV9jYWNoZV9zOw0KKw0KK2V4dGVybiBz
-dHJ1Y3Qga21lbV9jYWNoZV9zICpwYWVfcGdkX2NhY2hlcDsNCisNCitleHRl
-cm4gdm9pZCAqa21lbV9jYWNoZV9hbGxvYyhzdHJ1Y3Qga21lbV9jYWNoZV9z
-ICosIGludCk7DQorZXh0ZXJuIHZvaWQga21lbV9jYWNoZV9mcmVlKHN0cnVj
-dCBrbWVtX2NhY2hlX3MgKiwgdm9pZCAqKTsNCisNCitleHRlcm4gdm9pZCBp
-bml0X3BhZV9wZ2RfY2FjaGUodm9pZCk7DQogDQogZXh0ZXJuIF9faW5saW5l
-X18gcGdkX3QgKmdldF9wZ2Rfc2xvdyh2b2lkKQ0KIHsNCiAJaW50IGk7DQot
-CXBnZF90ICpwZ2QgPSBrbWFsbG9jKFBUUlNfUEVSX1BHRCAqIHNpemVvZihw
-Z2RfdCksIEdGUF9LRVJORUwpOw0KKwlwZ2RfdCAqcGdkID0ga21lbV9jYWNo
-ZV9hbGxvYyhwYWVfcGdkX2NhY2hlcCwgR0ZQX0tFUk5FTCk7DQogDQogCWlm
-IChwZ2QpIHsNCiAJCWZvciAoaSA9IDA7IGkgPCBVU0VSX1BUUlNfUEVSX1BH
-RDsgaSsrKSB7DQpAQCAtNDIsNyArNDgsNyBAQA0KIG91dF9vb206DQogCWZv
-ciAoaS0tOyBpID49IDA7IGktLSkNCiAJCWZyZWVfcGFnZSgodW5zaWduZWQg
-bG9uZylfX3ZhKHBnZF92YWwocGdkW2ldKS0xKSk7DQotCWtmcmVlKHBnZCk7
-DQorCWttZW1fY2FjaGVfZnJlZShwYWVfcGdkX2NhY2hlcCwgcGdkKTsNCiAJ
-cmV0dXJuIE5VTEw7DQogfQ0KIA0KQEAgLTg4LDcgKzk0LDcgQEANCiANCiAJ
-Zm9yIChpID0gMDsgaSA8IFVTRVJfUFRSU19QRVJfUEdEOyBpKyspDQogCQlm
-cmVlX3BhZ2UoKHVuc2lnbmVkIGxvbmcpX192YShwZ2RfdmFsKHBnZFtpXSkt
-MSkpOw0KLQlrZnJlZShwZ2QpOw0KKwlrbWVtX2NhY2hlX2ZyZWUocGFlX3Bn
-ZF9jYWNoZXAsIHBnZCk7DQogI2Vsc2UNCiAJZnJlZV9wYWdlKCh1bnNpZ25l
-ZCBsb25nKXBnZCk7DQogI2VuZGlmDQotLS0gbGludXgvYXJjaC9pMzg2L21t
-L2luaXQuYy5vcmlnCVdlZCBNYXIgMjggMTQ6NDE6NTYgMjAwMQ0KKysrIGxp
-bnV4L2FyY2gvaTM4Ni9tbS9pbml0LmMJV2VkIE1hciAyOCAxNDo0MjowMiAy
-MDAxDQpAQCAtMTUsNiArMTUsOSBAQA0KICNpbmNsdWRlIDxsaW51eC90eXBl
-cy5oPg0KICNpbmNsdWRlIDxsaW51eC9wdHJhY2UuaD4NCiAjaW5jbHVkZSA8
-bGludXgvbW1hbi5oPg0KKyNpbmNsdWRlIDxsaW51eC9zbGFiLmg+DQorI2lu
-Y2x1ZGUgPGxpbnV4L3NjaGVkLmg+DQorI2luY2x1ZGUgPGxpbnV4L2ZzLmg+
-DQogI2luY2x1ZGUgPGxpbnV4L21tLmg+DQogI2luY2x1ZGUgPGxpbnV4L3N3
-YXAuaD4NCiAjaW5jbHVkZSA8bGludXgvc21wLmg+DQpAQCAtMTMxLDE1ICsx
-MzQsMTEgQEANCiAJcHRlX3QgKnB0ZTsNCiANCiAJcGdkID0gc3dhcHBlcl9w
-Z19kaXIgKyBfX3BnZF9vZmZzZXQodmFkZHIpOw0KLQlpZiAocGdkX25vbmUo
-KnBnZCkpIHsNCi0JCXByaW50aygiUEFFIEJVRyAjMDAhXG4iKTsNCi0JCXJl
-dHVybjsNCi0JfQ0KKwlpZiAocGdkX25vbmUoKnBnZCkpDQorCQlCVUcoKTsN
-CiAJcG1kID0gcG1kX29mZnNldChwZ2QsIHZhZGRyKTsNCi0JaWYgKHBtZF9u
-b25lKCpwbWQpKSB7DQotCQlwcmludGsoIlBBRSBCVUcgIzAxIVxuIik7DQot
-CQlyZXR1cm47DQotCX0NCisJaWYgKHBtZF9ub25lKCpwbWQpKQ0KKwkJQlVH
-KCk7DQogCXB0ZSA9IHB0ZV9vZmZzZXQocG1kLCB2YWRkcik7DQogCWlmIChw
-dGVfdmFsKCpwdGUpKQ0KIAkJcHRlX0VSUk9SKCpwdGUpOw0KQEAgLTE4Myw3
-ICsxODIsNyBAQA0KIAkJCXBtZCA9IChwbWRfdCAqKSBhbGxvY19ib290bWVt
-X2xvd19wYWdlcyhQQUdFX1NJWkUpOw0KIAkJCXNldF9wZ2QocGdkLCBfX3Bn
-ZChfX3BhKHBtZCkgKyAweDEpKTsNCiAJCQlpZiAocG1kICE9IHBtZF9vZmZz
-ZXQocGdkLCAwKSkNCi0JCQkJcHJpbnRrKCJQQUUgQlVHICMwMiFcbiIpOw0K
-KwkJCQlCVUcoKTsNCiAJCX0NCiAJCXBtZCA9IHBtZF9vZmZzZXQocGdkLCB2
-YWRkcik7DQogI2Vsc2UNCkBAIC01ODEsMyArNTgwLDIzIEBADQogCXZhbC0+
-bWVtX3VuaXQgPSBQQUdFX1NJWkU7DQogCXJldHVybjsNCiB9DQorDQorI2lm
-IENPTkZJR19YODZfUEFFDQorDQorI2luY2x1ZGUgPGxpbnV4L3NsYWIuaD4N
-CisNCitzdHJ1Y3Qga21lbV9jYWNoZV9zICpwYWVfcGdkX2NhY2hlcDsNCisN
-Cit2b2lkIF9faW5pdCBpbml0X3BhZV9wZ2RfY2FjaGUodm9pZCkNCit7DQor
-CS8qDQorCSAqIFBBRSBwZ2RzIG11c3QgYmUgMTYtYnl0ZSBhbGlnbmVkOg0K
-KwkgKi8NCisJcGFlX3BnZF9jYWNoZXAgPSBrbWVtX2NhY2hlX2NyZWF0ZSgi
-cGFlX3BnZCIsIDMyLCAwLA0KKwkJU0xBQl9IV0NBQ0hFX0FMSUdOIHwgU0xB
-Ql9NVVNUX0hXQ0FDSEVfQUxJR04sIE5VTEwsIE5VTEwpOw0KKwlpZiAoIXBh
-ZV9wZ2RfY2FjaGVwKQ0KKwkJcGFuaWMoImluaXRfcGFlKCk6IENhbm5vdCBh
-bGxvYyBwYWVfcGdkIFNMQUIgY2FjaGUiKTsNCit9DQorDQorI2VuZGlmDQor
-DQo=
---655616-1518987546-985773472=:3657--
+regards,
+	David
+-- 
+David L. Parsley
+Network Administrator
+Roanoke College
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
