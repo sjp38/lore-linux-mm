@@ -1,32 +1,29 @@
-Date: Sun, 12 Jan 2003 18:06:20 +0000 (GMT)
+Date: Sun, 12 Jan 2003 18:14:45 +0000 (GMT)
 From: Mel Gorman <mel@csn.ul.ie>
 Subject: Re: Linux VM Documentation - Draft 1
-In-Reply-To: <1042394092.3162.16.camel@RobsPC.RobertWilkens.com>
-Message-ID: <Pine.LNX.4.44.0301121804170.24444-100000@skynet>
+In-Reply-To: <87r8biw8ik.fsf@topo.binary-only.priv>
+Message-ID: <Pine.LNX.4.44.0301121806240.24444-100000@skynet>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rob Wilkens <robw@optonline.net>
+To: andrea.glorioso@binary-only.com
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 12 Jan 2003, Rob Wilkens wrote:
+On Sun, 12 Jan 2003 andrea.glorioso@binary-only.com wrote:
 
-> (labelled as page 9 on the top) which reads:
-> 	"the init code is quiet architecture dependent"
-> but should probably read
-> 	"the init code is quite architecture dependent"
-> It's a small thing, but whenever I read a technical document and see
-> small errors like that
+> If  the  license of  your work  allows,  you could   open a project on
+> Sourcerforge,  Berlios  or Savannah  (under non-GNU  projects ;) ) and
+> import your CVS tree there.
 
-A common complaint. I regret to say that even though English is my first
-language, my grammer and spelling leaves a lot to be desired at times so
-corrections are welcome. I've searched through both documents and have
-cleaned up all bad usage of quiet but I won't rerelease yet until I have a
-few significant changes together.
-
-Thanks
+There is a savannagh project called the Linux Kernel Documentation Project
+(LKDP) (http://savannah.nongnu.org/projects/lkdp) set up by Abhishek
+Nayani but it has been inactive for some time. I will eventually merge
+with it (I have made contributions to it in the past) but am waiting to
+get the last chapters finished first. It might be me being awkward but
+it's difficult to have a number of people working on one document and
+keeping the writing style consistent.
 
 -- 
 Mel Gorman
