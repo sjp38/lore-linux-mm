@@ -1,32 +1,31 @@
-Date: Fri, 6 Apr 2001 15:12:01 -0400 (EDT)
-From: Richard Jerrell <jerrell@missioncriticallinux.com>
+Date: Fri, 6 Apr 2001 11:57:20 -0700 (PDT)
+From: Linus Torvalds <torvalds@transmeta.com>
 Subject: Re: [PATCH] swap_state.c thinko
-In-Reply-To: <Pine.LNX.4.21.0104061932300.1374-100000@localhost.localdomain>
-Message-ID: <Pine.LNX.4.21.0104061503500.12558-100000@jerrell.lowell.mclinux.com>
+In-Reply-To: <Pine.LNX.4.21.0104061849290.1331-100000@localhost.localdomain>
+Message-ID: <Pine.LNX.4.31.0104061153350.12081-100000@penguin.transmeta.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Hugh Dickins <hugh@veritas.com>
-Cc: Andrea Arcangeli <andrea@suse.de>, Linus Torvalds <torvalds@transmeta.com>, Ben LaHaise <bcrl@redhat.com>, Rik van Riel <riel@conectiva.com.br>, Stephen Tweedie <sct@redhat.com>, arjanv@redhat.com, alan@redhat.com, linux-mm@kvack.org
+Cc: Ben LaHaise <bcrl@redhat.com>, Rik van Riel <riel@conectiva.com.br>, Richard Jerrrell <jerrell@missioncriticallinux.com>, Stephen Tweedie <sct@redhat.com>, arjanv@redhat.com, alan@redhat.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> swapper_space.nrpages, that's neat, but I insist it's not right.
-> You're then double counting into "free" all the swap cache pages
-> (already included in page_cache_size) which correspond to pages
-> of swap for running processes - erring in the opposite direction
-> to the present code.
 
-Right.  We still have the same problem.  If you count the swap cache pages
-once, you are underestimating the free memory.  If you count them twice,
-you are overcommitting memory.  What we would need is to check in
-swap_free for swap_map[i] count of 1 and a page->count of 1.  The cell
-references the page, and the page references the cell.  These pages are
-freeable _twice_ because they are sitting on twice as much memory as they
-should be.  I'd say that overestimating your memory is better than denying
-allocation when it's possible.
+On Fri, 6 Apr 2001, Hugh Dickins wrote:
+>
+> It is, of course, remotely conceivable that I'm confused, but...
+> I realize that the page cache pages (including those of swap)
+> are already added into "free" by vm_enough_memory().  But it's also
+> adding in nr_swap_pages
 
-Rich
+.. Ahh. Right you are. We did not just move it from the "free page" to the
+"swap cache", we also didn't release the space in the actual swap space
+bitmaps, and you're right, that certainly changes the accounting.
+
+Mea culpa. Ideas?
+
+		Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
