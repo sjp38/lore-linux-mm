@@ -1,74 +1,178 @@
-Date: Wed, 10 Nov 2004 14:08:40 -0800
-From: Andrew Morton <akpm@digeo.com>
-Subject: Re: [PATCH] kswapd shall not sleep during page shortage
-Message-Id: <20041110140840.7e1769c9.akpm@digeo.com>
-In-Reply-To: <20041110181450.GB12867@logos.cnet>
-References: <20041109164642.GE7632@logos.cnet>
-	<20041109121945.7f35d104.akpm@osdl.org>
-	<20041109174125.GF7632@logos.cnet>
-	<20041109133343.0b34896d.akpm@osdl.org>
-	<20041109182622.GA8300@logos.cnet>
-	<20041109142257.1d1411e1.akpm@osdl.org>
-	<20041109203143.GC8414@logos.cnet>
-	<20041109162801.7f7ca242.akpm@osdl.org>
-	<20041110181450.GB12867@logos.cnet>
+Date: Wed, 10 Nov 2004 16:41:34 -0200
+From: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
+Subject: Re: [PATCH] ignore referenced pages on reclaim when OOM
+Message-ID: <20041110184134.GC12867@logos.cnet>
+References: <16783.59834.7179.464876@thebsh.namesys.com> <Pine.LNX.4.44.0411081655410.8589-100000@chimarrao.boston.redhat.com> <20041108142837.307029fc.akpm@osdl.org>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20041108142837.307029fc.akpm@osdl.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
-Cc: linux-mm@kvack.org, piggin@cyberone.com.au
+To: Andrew Morton <akpm@osdl.org>
+Cc: Rik van Riel <riel@redhat.com>, nikita@clusterfs.com, linux-mm@kvack.org, Nick Piggin <piggin@cyberone.com.au>
 List-ID: <linux-mm.kvack.org>
 
-Marcelo Tosatti <marcelo.tosatti@cyclades.com> wrote:
->
-> On Tue, Nov 09, 2004 at 04:28:01PM -0800, Andrew Morton wrote:
-> > Marcelo Tosatti <marcelo.tosatti@cyclades.com> wrote:
-> > >
-> > > Back to arguing in favour of my patch - it seemed to me that kswapd could 
-> > >  go to sleep leaving allocators which can't reclaim pages themselves in a 
-> > >  bad situation. 
+On Mon, Nov 08, 2004 at 02:28:37PM -0800, Andrew Morton wrote:
+> Rik van Riel <riel@redhat.com> wrote:
+> >
+> > On Tue, 9 Nov 2004, Nikita Danilov wrote:
 > > 
-> > Yes, but those processes would be sleeping in blk_congestion_wait() during,
-> > say, a GFP_NOIO/GFP_NOFS allocation attempt.  And in that case, they may be
-> > holding locks whcih prevent kswapd from being able to do any work either.
-> > 
-> > >  It would have to be waken up by another instance of alloc_pages to then 
-> > >  execute and start doing its job, while if it was executing already (madly 
-> > >  scanning as you say), the chance it would find freeable pages quite
-> > >  earlier.
+> > >  > Speeds up extreme load performance on Rik's tests.
 > > > 
-> > >  Note that not only disk IO can cause pages to become freeable. A user
-> > >  can give up its reference on pagecache page for example (leaving
-> > >  the page on LRU to be found and freed by kswapd).
+> > > I recently tested quite similar thing, the only dfference being that in
+> > > my case references bit started being ignored when scanning priority
+> > > reached 2 rather than 0.
+> > > 
+> > > I found that it _degrades_ performance in the loads when there is a lot
+> > > of file system write-back going from tail of the inactive list (like
+> > > dirtying huge file through mmap in a loop).
 > > 
-> > yup.  Or munlock(), or direct-io completion.
+> > Well yeah, when you reach priority 2, you've only scanned
+> > 1/4 of memory.  On the other hand, when you reach priority
+> > 0, you've already scanned all pages once - beyond that point
+> > the referenced bit really doesn't buy you much any more.
+> > 
 > 
-> Andrew,
+> But we have to scan active, referenced pages two times to move them onto
+> the inactive list.  A bit more, really, because nowadays
+> refill_inactive_zone() doesn't even run page_referenced() until it starts
+> to reach higher scanning priorities.
 > 
-> Shouldnt the kernel ideally clear zone->all_unreclaimable in those 
-> situations? (munlock, direct-io completion, last reference on pagecache
-> page, etc).
+> So it could be that we're just not scanning enough.
 
-The design intent here is that a zone shouldn't enter the all-unreclaimable
-state until we've absolutely scanned the crap out of it.  So we assume that
-once a zone is all-unreclaimable then it will stay that way for a
-relatively long time.  We do little, short scans just to poll the status of
-the zone.  If one of those short scans ends up freeing a page then the zone
-is removed from the all_unreclaimable state.
+You know, all_unreclaimable has drawbacks.
 
-So if someone does one of the above things then we hope that a subsequent
-short-scan will free a page and will wake the zone up.  This has the obvious
-drawback that it might take us a number of scanning passes before we
-discover a reclaimable page.   1<<DEF_PRIORITY passes, worst-case.
+Its hard to know whether you have "scanned enough to consider the box OOM 
+and trigger OOM killer" when all_unreclaimable avoids the system 
+from "scanning enough".
 
-For munlock we'd need to actually examine the zone of each affected page,
-which is a bunch of new code - a full pte walk.  We don't want munlocks of
-ZONE_HIGHMEM to trigger these huge scans of a lower zone.
+I'm trying to improve the OOM-kill-from-kswapd patch but z->all_unreclaimable 
+is currently the bigger "rock on the shoe" - we need some way to detect that
+the zones have been scanned enough so to be able to say 
+"OK, I have scanned enough and no freeable pages appear, its time 
+to trigger the OOM killer".
 
-We could possibly put special-case code in the direct-io completion
-handler, but it's all a bit weird.
+So z->all_unreclaimable logic and "OOM detection" are conflicting goals.
+
+There must be some way to combine both effectively.
+
+This is my current patch - avoids spurious OOM kills but obviously 
+fails to set "worked_dma" - "worked_normal" due to all_unreclaimable logic,  
+resulting in livelock when swapspace exhauts. 
+
+Ideas are welcome.
+
+
+--- vmscan.c.orig	2004-11-09 16:38:04.000000000 -0200
++++ vmscan.c	2004-11-10 18:59:43.098090736 -0200
+@@ -878,6 +878,8 @@
+ 		shrink_zone(zone, sc);
+ 	}
+ }
++
++int task_looping_oom = 0;
+  
+ /*
+  * This is the main entry point to direct page reclaim.
+@@ -952,8 +954,8 @@
+ 		if (sc.nr_scanned && priority < DEF_PRIORITY - 2)
+ 			blk_congestion_wait(WRITE, HZ/10);
+ 	}
+-	if ((gfp_mask & __GFP_FS) && !(gfp_mask & __GFP_NORETRY))
+-		out_of_memory(gfp_mask);
++        if ((gfp_mask & __GFP_FS) && !(gfp_mask & __GFP_NORETRY))
++		task_looping_oom = 1;
+ out:
+ 	for (i = 0; zones[i] != 0; i++) {
+ 		struct zone *zone = zones[i];
+@@ -963,6 +965,8 @@
+ 
+ 		zone->prev_priority = zone->temp_priority;
+ 	}
++	if (ret)
++		task_looping_oom = 0;
+ 	return ret;
+ }
+ 
+@@ -997,13 +1001,17 @@
+ 	int all_zones_ok;
+ 	int priority;
+ 	int i;
+-	int total_scanned, total_reclaimed;
++	int total_scanned, total_reclaimed, low_reclaimed;
++	int worked_norm, worked_dma;
+ 	struct reclaim_state *reclaim_state = current->reclaim_state;
+ 	struct scan_control sc;
+ 
++
+ loop_again:
+ 	total_scanned = 0;
+ 	total_reclaimed = 0;
++	low_reclaimed = 0;
++	worked_norm = worked_dma = 0;
+ 	sc.gfp_mask = GFP_KERNEL;
+ 	sc.may_writepage = 0;
+ 	sc.nr_mapped = read_page_state(nr_mapped);
+@@ -1072,6 +1080,17 @@
+ 			if (zone->all_unreclaimable && priority != DEF_PRIORITY)
+ 				continue;
+ 
++			/* if we're scanning dma or normal, and priority 
++			 * reached zero, set "worked_dma" or "worked_norm" 
++			 * accordingly.
++			 */
++			if (i <= 1 && priority == 0) {
++				if (!i) 
++					worked_dma = 1;
++				else
++					worked_norm = 1;
++			}
++
+ 			if (nr_pages == 0) {	/* Not software suspend */
+ 				if (!zone_watermark_ok(zone, order,
+ 						zone->pages_high, end_zone, 0, 0))
+@@ -1088,6 +1107,10 @@
+ 			shrink_slab(sc.nr_scanned, GFP_KERNEL, lru_pages);
+ 			sc.nr_reclaimed += reclaim_state->reclaimed_slab;
+ 			total_reclaimed += sc.nr_reclaimed;
++
++			if (i <= 1)
++				low_reclaimed += sc.nr_reclaimed;
++
+ 			if (zone->all_unreclaimable)
+ 				continue;
+ 			if (zone->pages_scanned >= (zone->nr_active +
+@@ -1128,6 +1151,29 @@
+ 
+ 		zone->prev_priority = zone->temp_priority;
+ 	}
++
++
++	if (!low_reclaimed && worked_dma && worked_norm && task_looping_oom) {
++
++		printk(KERN_ERR "kswp: pri:%d tot_recl:%d wrkd_dma:%d"
++				"wrkd_norm:%d tsk_loop_oom:%d\n",
++			priority, total_reclaimed, worked_dma, worked_norm, 
++				task_looping_oom);
++
++		/* 
++		 * Only kill if ZONE_NORMAL/ZONE_DMA are both below
++		 * pages_min
++		 */
++		for (i = pgdat->nr_zones - 2; i >= 0; i--) {
++			struct zone *zone = pgdat->node_zones + i;
++
++			if (zone->free_pages > zone->pages_min)
++				return 0;
++		}
++		out_of_memory(GFP_KERNEL);
++		task_looping_oom = 0;
++	}
++
+ 	if (!all_zones_ok) {
+ 		cond_resched();
+ 		goto loop_again;
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
