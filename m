@@ -1,55 +1,35 @@
+Date: Wed, 19 Sep 2001 20:00:44 -0300 (BRST)
+From: Rik van Riel <riel@conectiva.com.br>
 Subject: Re: broken VM in 2.4.10-pre9
-References: <878A2048A35CD141AD5FC92C6B776E4907B7A5@xchgind02.nsisw.com>
-From: ebiederm@xmission.com (Eric W. Biederman)
-Date: 19 Sep 2001 16:48:44 -0600
-In-Reply-To: <878A2048A35CD141AD5FC92C6B776E4907B7A5@xchgind02.nsisw.com>
-Message-ID: <m11yl2g5kj.fsf@frodo.biederman.org>
+In-Reply-To: <m1iteegag6.fsf@frodo.biederman.org>
+Message-ID: <Pine.LNX.4.33L.0109192000050.19147-100000@imladris.rielhome.conectiva>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rob Fuller <rfuller@nsisoftware.com>
-Cc: "David S. Miller" <davem@redhat.com>, alan@lxorguk.ukuu.org.uk, phillips@bonn-fries.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: "Eric W. Biederman" <ebiederm@xmission.com>
+Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, Daniel Phillips <phillips@bonn-fries.net>, Rob Fuller <rfuller@nsisoftware.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-"Rob Fuller" <rfuller@nsisoftware.com> writes:
+On 19 Sep 2001, Eric W. Biederman wrote:
 
-> In my one contribution to this thread I wrote:
->
-> "One argument for reverse mappings is distributed shared memory or
-> distributed file systems and their interaction with memory mapped files.
-> For example, a distributed file system may need to invalidate a specific
-> page of a file that may be mapped multiple times on a node."
->
-> I believe reverse mappings are an essential feature for memory mapped
-> files in order for Linux to support sophisticated distributed file
-> systems or distributed shared memory.  In general, this memory is NOT
-> anonymous.  As such, it should not affect the performance of a
-> fork/exec/exit.
->
-> I suppose I confused the issue when I offered a supporting argument for
-> reverse mappings.  It's not reverse mappings for anonymous pages I'm
-> advocating, but reverse mappings for mapped file data.
+> That added to the fact that last time someone ran the numbers linux
+> was considerably faster than the BSD for mm type operations when not
+> swapping.  And this is the common case.
 
-The reverse mapping issue is not do we have a way to find where in the page
-tables a page is mapped.  But if we keep track of it in a data structure
-that allows us to do so extremely quickly.  The worst case for our current
-data structures to unmap one page is O(page mappings).
+Optimising the VM for not swapping sounds kind of like
+optimising your system for doing empty fork()/exec()/exit()
+loops ;)
 
-For distributed filesystems contention sucks.  No matter how you play it
-contention for file data will never be a fast case.  Not if you have
-very many people contending for the data.  So this isn't a fast case.
+cheers,
 
-Additionally our current data structures are optimized for unmapping
-page ranges.  Since if your contention case is sane you will be
-grabbing more than 4k at a time our looping through the vm_areas of
-a mapping should be more efficient than doing that loop once for
-each page that needs to be unmapped.
+Rik
+-- 
+IA64: a worthy successor to i860.
 
-Eric
+http://www.surriel.com/		http://distro.conectiva.com/
 
-
-
+Send all your spam to aardvark@nl.linux.org (spam digging piggy)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
