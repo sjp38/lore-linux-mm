@@ -1,79 +1,73 @@
 From: James A. Sutherland <jas88@cam.ac.uk>
-Subject: Re: suspend processes at load (was Re: a simple OOM ...)
-Date: Sat, 21 Apr 2001 06:49:44 +0100
-Message-ID: <sb72ets3sek2ncsjg08sk5tmj7v9hmt4p7@4ax.com>
-References: <mibudt848g9vrhaac88qjdpnaut4hajooa@4ax.com> <Pine.LNX.4.30.0104201203280.20939-100000@fs131-224.f-secure.com>
-In-Reply-To: <Pine.LNX.4.30.0104201203280.20939-100000@fs131-224.f-secure.com>
+Subject: Re: suspend processes at load (was Re: a simple OOM ...) 
+Date: Wed, 18 Apr 2001 21:38:26 +0100
+Message-ID: <0jurdtceqe39l7019vhckcgktk42m7bln1@4ax.com>
+References: <Pine.LNX.4.21.0104171648010.14442-100000@imladris.rielhome.conectiva> <Pine.LNX.4.30.0104182315010.20939-100000@fs131-224.f-secure.com>
+In-Reply-To: <Pine.LNX.4.30.0104182315010.20939-100000@fs131-224.f-secure.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 8BIT
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Szabolcs Szakacsits <szaka@f-secure.com>
-Cc: Dave McCracken <dmc@austin.ibm.com>, linux-mm@kvack.org
+Cc: Rik van Riel <riel@conectiva.com.br>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 20 Apr 2001 14:14:29 +0200 (MET DST), you wrote:
->On Thu, 19 Apr 2001, James A. Sutherland wrote:
+On Wed, 18 Apr 2001 23:32:25 +0200 (MET DST), you wrote:
+
+>On Tue, 17 Apr 2001, Rik van Riel wrote:
+>> On Mon, 16 Apr 2001, Szabolcs Szakacsits wrote:
+>> > Please don't. Or at least make it optional and not the default or user
+>> > controllable. Trashing is good.
+>> This sounds like you have no idea what thrashing is.
 >
->> That's my suspicion too: The "strangled" processes eat up system
->> resources and still get nowhere (no win there: might as well suspend
->> them until they can run properly!) and you are wasting resources which
->> could be put to good use by other processes.
->
->You assumes processes are completely equal or their goodnesses are based
->on their thrasing behavior. No. Processes are not like that from user
->point of view (admins, app developers) moreover they can have complex
->relationships between them.
+>Sorry, your comment isn't convincing enough ;) Why do you think
+>"arbitrarily" (decided exclusively by the kernel itself) suspending
+>processes (that can be done in user space anyway) would help?
 
-How do you think I am assuming this? The kernel already suspends and
-resumes processes all the time!
+Not "arbitrarily"; they will be frozen for increasing periods of time.
+Effectively just a huge increase in timeslice size.
 
->Kernel must give mechanisms to enforce policies, not to dictate them.
->And this can be done even at present. You want to create and solve a
->problem that doesn't exist because you don't want to RTFM.
+>Even if you block new process creation and memory allocations (that's
+>also not nice since it can be done by resource limits) why you think
+>situation will ever get better i.e. processes release memory?
 
-"RTFM" does not solve this problem. All the manual in question could
-say is "add more RAM" or "kill some processes". That's not very
-useful.
+Only a pathological workload will lead to indefinite thrashing; in
+this, worst case, scenario this approach makes no real difference. In
+any other scenario, it's a major improvement.
 
->> More to the point, though, what about the worst case, where every
->> process is thrashing?
->
->What about the simplest case when one process thrasing? 
+>How you want to avoid "deadlocks" when running processes have
+>dependencies on suspended processes?
 
-Tell me how one process can be starving ITSELF of resources?!
+If a process blocks waiting for another, the thrashing will be
+resolved.
 
->You suspend it
->continuously from time to time so it won't finish e.g. in 10 minutes but
->in 1 hour.
+>What control you plan for sysadmins who *want* to get feedback about bad
+>setups as soon as possible?
 
-No you don't. If you have TWO processes which are harming each other
-by fighting over memory, you start suspending them alternately: this
-makes both complete SOONER than otherwise!
+They will get this feedback, and more effectively than they do now:
+right now, they are left with a dead box they have to reboot. With
+this solution, a few resource hog processes get suspended briefly.
 
->> With my approach, some processes get suspended, others run to
->> completion freeing up resources for others.
->
->This is black magic also. Why do you think they will run to completion
->or/and free up memory?
+>How you plan to explain on comp.os.linux.development.applications
+>that your *perfect* programs can't only be SIGKILL'd by kernel at any
+>time but also suspended for indefinite time from now?
 
-If all your active processes are in infinite loops, nothing is going
-to help you here short of killing them - which my approach also makes
-easier/possible.
+IF you overload the system to extremes, then your processes will stop
+running for brief periods. Right now, they ALL stop running
+indefinitely!
 
->> With this approach, every process will still thrash indefinitely:
->> perhaps the effects on other processes will be reduced, but you
->> don't actually get out of the hole you're in!
->
->So both approach failed.
+>Sure it would help in cases and in others it would utterly fail. 
 
-Note that process suspension already happens, but with too fine a
-granularity (the scheduler) - that's what causes the problem. If one
-process were able to run uninterrupted for, say, a second, it would
-get useful work done, then you could switch to another. The current
-scheduling doesn't give enough time for that under thrashing
-conditions.
+Nope. Allowing the system to thrash IS the worst case scenario!
+
+>Just
+>like the thrasing case. So as such I see it an unnecessary bloat adding
+>complexity and no real functionality.
+
+You haven't thought it through, then. Thrashing is the worst-case
+endgame scenario: all bets are off. ANYTHING, including SIGKILLing
+RANDOM processes, is better than that.
 
 
 James.
