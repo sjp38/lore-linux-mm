@@ -1,33 +1,64 @@
+Mime-Version: 1.0
+Message-Id: <a05100316b80221a2f45f@[192.168.239.101]>
+In-Reply-To: <20011028191328.CCC828A6EA@pobox.com>
+References: <20011028191328.CCC828A6EA@pobox.com>
+Date: Sun, 28 Oct 2001 21:42:17 +0000
+From: Jonathan Morton <chromi@cyberspace.org>
 Subject: Re: xmm2 - monitor Linux MM active/inactive lists graphically
-Date: Sun, 28 Oct 2001 19:29:27 +0000 (GMT)
-In-Reply-To: <Pine.LNX.4.33.0110281014300.7438-100000@penguin.transmeta.com> from "Linus Torvalds" at Oct 28, 2001 10:46:19 AM
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Message-Id: <E15xvcd-0000FM-00@the-village.bc.nu>
-From: Alan Cox <alan@lxorguk.ukuu.org.uk>
+Content-Type: text/plain; charset="us-ascii" ; format="flowed"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@transmeta.com>
-Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, Zlatko Calusic <zlatko.calusic@iskon.hr>, Jens Axboe <axboe@suse.de>, Marcelo Tosatti <marcelo@conectiva.com.br>, linux-mm@kvack.org, lkml <linux-kernel@vger.kernel.org>
+To: barryn@pobox.com, zlatko.calusic@iskon.hr
+Cc: Linus Torvalds <torvalds@transmeta.com>, Jens Axboe <axboe@suse.de>, Marcelo Tosatti <marcelo@conectiva.com.br>, linux-mm@kvack.org, lkml <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-> Yes. My question is more: does the dpt366 thing limit the queueing some
-> way?
+>  > Unfortunately, things didn't change on my first disk (IBM 7200rpm
+>>  @home). I'm still getting low numbers, check the vmstat output at the
+>>  end of the email.
+>>
+>>  But, now I found something interesting, other two disk which are on
+>>  the standard IDE controller work correctly (writing is at 17-22
+>>  MB/sec). The disk which doesn't work well is on the HPT366 interface,
+>>  so that may be our culprit. Now I got the idea to check patches
+>  > retrogradely to see where it started behaving poorely.
 
-Nope. The HPT366 is a bog standard DMA IDE controller. At least unless Andre
-can point out something I've forgotten any behaviour seen on it should be
-the same as seen on any other IDE controller with DMA support.
+>This really reminds me of a problem I once had with a hard drive of
+>mine. It would usually go at 15-20MB/sec, but sometimes (under both
+>Linux and Windows) would slow down to maybe 350KB/sec. The slowdown, or
+>lack thereof, did seem to depend on the alignment of the stars. I lived
+>with it for a number of months, then started getting intermittent I/O
+>errors as well, as if the drive had bad sectors on disk.
+>
+>The problem turned out to be insufficient ventilation for the controller
+>board on the bottom of the drive
 
-In practical terms that should mean you can obsere the same HPT366 problem
-he does on whatever random IDE controller is on your desktop box
+As an extra datapoint, my IBM Deskstar 60GXP's (40Gb version) runs 
+slightly slower with writing than with reading.  This is on a VIA 
+686a controller, UDMA/66 active.  The drive also has plenty of air 
+around it, being in a 5.25" bracket with fans in front.
 
-> But notice how that actually doesn't have anything to do with memory size,
-> and makes your "scale by max memory" thing illogical.
+Writing 1GB from /dev/zero takes 34.27s = 29.88MB/sec, 19% CPU
+Reading 1GB from test file takes 29.64s = 34.58MB/sec, 18% CPU
 
-When you are dealing with the VM limit which the limiter was originally
-added for then it makes a lot of sense. When you want to use it solely for
-other purposes then it doesnt.
+Hmm, that's almost as fast as the 10000rpm Ultrastar sited just above 
+it, but with higher CPU usage.  Ultrastar gets 36MB/sec on reading 
+with hdparm, haven't tested write performance due to probable 
+fragmentation.
+
+Both tests conducted using 'dd bs=1k' on my 1GHz Athlon with 256Mb 
+RAM.  Test file is on a freshly-created ext2 filesystem starting at 
+10Gb into the 40Gb drive (knowing IBM's recent trend, this'll still 
+be fairly close to the outer rim).  Write test includes a sync at the 
+end.  Kernel is Linus 2.4.9, no relevant patches.
+
+-- 
+--------------------------------------------------------------
+from:     Jonathan "Chromatix" Morton
+mail:     chromi@cyberspace.org  (not for attachments)
+website:  http://www.chromatix.uklinux.net/vnc/
+geekcode: GCS$/E dpu(!) s:- a20 C+++ UL++ P L+++ E W+ N- o? K? w--- O-- M++$
+           V? PS PE- Y+ PGP++ t- 5- X- R !tv b++ DI+++ D G e+ h+ r++ y+(*)
+tagline:  The key to knowledge is not to rely on people to teach you it.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
