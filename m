@@ -1,68 +1,43 @@
-Date: Mon, 27 Mar 2000 19:48:52 -0500 (EST)
-From: Chuck Lever <cel@monkey.org>
-Subject: Re: /dev/recycle
-In-Reply-To: <20000324010031.B20140@pcep-jamie.cern.ch>
-Message-ID: <Pine.BSO.4.10.10003271940511.24561-100000@funky.monkey.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from f03n07e.au.ibm.com
+	by ausmtp01.au.ibm.com (IBM AP 1.0) with ESMTP id NAA76890
+	for <linux-mm@kvack.org>; Tue, 28 Mar 2000 13:54:05 +1000
+From: pnilesh@in.ibm.com
+Received: from d73mta05.au.ibm.com (f06n05s [9.185.166.67])
+	by f03n07e.au.ibm.com (8.8.8m2/8.8.7) with SMTP id NAA25152
+	for <linux-mm@kvack.org>; Tue, 28 Mar 2000 13:58:57 +1000
+Message-ID: <CA2568B0.0015D747.00@d73mta05.au.ibm.com>
+Date: Tue, 28 Mar 2000 09:20:57 +0530
+Mime-Version: 1.0
+Content-type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jamie Lokier <lk@tantalophile.demon.co.uk>
-Cc: linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 24 Mar 2000, Jamie Lokier wrote:
-> Chuck Lever wrote:
-> > > MADV_FREE only discards private modifications when there is paging
-> > > pressure to do so.  The decisions to do so are deferred, for
-> > > architectures that support this.  (Includes x86).
-> > 
-> > i still don't see a big difference.  the private modifications, in both
-> > cases, won't be written to swap.  in both cases, the application cannot
-> > rely on the contents of these pages after the madvise call.
-> 
-> Correct.  The difference is that with MADV_FREE, clear_page() operations
-> are skipped when there's no memory pressure from the kernel.
-> 
-> > for private mappings, pages are freed immediately by DONTNEED; FREE will
-> > cause the pages to be freed later if the system is low on memory.  that's
-> > six of one, half dozen of the other.  freeing later may mean the
-> > application saves a little time now,
-> 
-> It may save the time overall -- if the page is next reused by the
-> application before the kernel recycles it.  Note that nobody, neither
-> the application nor the kernel, knows in advance if this will be the
-> case.
-> 
-> > but freeing immediately could mean postponing a low memory scenario,
-> > and would allow the system to reuse a page that is still in hardware
-> > caches.
-> 
-> The system is free to reuse MADV_FREE pages immediately if it wishes --
-> the system doesn't lose here.  In fact if you're already low on memory
-> at the time madvise() is called, the kernel would reclaim as many pages
-> as it needs immediately, just as if you'd called MADV_DONTNEED for those
-> pages.  The remainder get marked reclaimable.
+     When a executable file runs there is only one copy of the text part in
+the memory. But I have some doubts as I am not able to figure how exactly
+this is done.
 
-ok, i just want to make sure we really are talking about the same thing,
-at least from the point of view of the semantics that the application will
-depend on.  the only difference is how/when the kernel disposes of the
-pages.
+Suppose a text page of an executable is mapped in the address space of 2
+processes. The page count will be one.
+The page table entries of both the process will have entry for this page.
+But when the page is discarded only the page entry of only one process get
+cleared , this is what I have understood from the swap_out () function .
+But the page table entry of the other process is still pointing to the page
+which has been discarded.
 
-reducing the number of clear_page() operations and reducing the amount of
-page table jiggling on SMP are both good goals.  is it your view that
-MADV_FREE is a better implementation of MADV_DONTNEED?  should we replace
-the current implementation of MADV_DONTNEED with one that behaves more
-like MADV_FREE?  is there a reason to have both behaviors available to
-applications?
 
-	- Chuck Lever
---
-corporate:	<chuckl@netscape.com>
-personal:	<chucklever@netscape.net> or <cel@monkey.org>
+Can any body please clear my doubt.
 
-The Linux Scalability project:
-	http://www.citi.umich.edu/projects/linux-scalability/
+
+Q    When a page of a file is in page hash queue, does this page have page
+table entry in any process ?
+Q     Can this be discarded right away , if the need arises?
+
+
+Nilesh Patel
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
