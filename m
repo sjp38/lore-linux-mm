@@ -1,47 +1,44 @@
+Received: from cthulhu.engr.sgi.com (cthulhu.engr.sgi.com [192.26.80.2]) by pneumatic-tube.sgi.com (980327.SGI.8.8.8-aspam/980310.SGI-aspam) via ESMTP id KAA06567
+	for <@external-mail-relay.sgi.com:linux-mm@kvack.org>; Mon, 25 Oct 1999 10:28:38 -0700 (PDT)
+	mail_from (wje@liveoak.engr.sgi.com)
+Received: from liveoak.engr.sgi.com (liveoak.engr.sgi.com [150.166.40.92])
+	by cthulhu.engr.sgi.com (980427.SGI.8.8.8/970903.SGI.AUTOCF)
+	via ESMTP id KAA03498
+	for <linux-mm@kvack.org>;
+	Mon, 25 Oct 1999 10:27:46 -0700 (PDT)
+	mail_from (wje@liveoak.engr.sgi.com)
+From: "William J. Earl" <wje@cthulhu.engr.sgi.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Message-ID: <14356.37630.420222.582735@liveoak.engr.sgi.com>
+Date: Mon, 25 Oct 1999 10:27:26 -0700 (PDT)
 Subject: Re: page faults
+In-Reply-To: <m1wvsc8ytq.fsf@flinx.hidden>
 References: <Pine.LNX.4.10.9910221930070.172-100000@imperial.edgeglobal.com>
-From: ebiederm+eric@ccr.net (Eric W. Biederman)
-Date: 24 Oct 1999 12:15:29 -0500
-In-Reply-To: James Simmons's message of "Fri, 22 Oct 1999 19:31:34 -0400 (EDT)"
-Message-ID: <m1wvsc8ytq.fsf@flinx.hidden>
+	<m1wvsc8ytq.fsf@flinx.hidden>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: James Simmons <jsimmons@edgeglobal.com>
-Cc: "Stephen C. Tweedie" <sct@redhat.com>, "Benjamin C.R. LaHaise" <blah@kvack.org>, Linux MM <linux-mm@kvack.org>
+To: Linux MM <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-James Simmons <jsimmons@edgeglobal.com> writes:
+Eric W. Biederman writes:
+...
+ > If the hardware cannot support two processors hitting the region simultaneously,
+ > (support would be worst case the graphics would look strange)
+ > you could have problems.
+...
+      One could reasonably take the view that a threads-aware graphics library
+should be thread-safe.  That is, if the hardware needs to have concurrent
+threads in a single process serialize access to the hardware, then the 
+library plugin for that hardware should do the required serialization.
 
-> On Fri, 22 Oct 1999, Stephen C. Tweedie wrote:
-> 
-> > Hi,
-> > 
-> > On Fri, 22 Oct 1999 10:59:25 -0400 (EDT), James Simmons
-> > <jsimmons@edgeglobal.com> said:
-> > 
-> > > Thank you for that answer. I remember you told me that threads under
-> > > linux is defined as two processes sharing the same memory. So when a
-> > > minor page fault happens by anyone one process will both process page
-> > > tables get updated? Or does the other process will have a minor page
-> > > itself independent of the other process?
-> > 
-> > Threads are a special case: there is only one set of page tables, and
-> > the pte will only be faulted in once.
-> 
-> 
-> Does this mean that linux/drivers/sgi/char/graphics.c page fault handler
-> not work for a threaded program? It works great switching between
-> different processes but if this is the case for threads this could be a
-> problem.
-
-It means it may not work as intended.
-Once the page is faulted in all threads will have access to it.
-
-If the hardware cannot support two processors hitting the region simultaneously,
-(support would be worst case the graphics would look strange)
-you could have problems.
-
-Eric
+      This of course the neglects the question of whether a broken
+user-mode program could damage the hardware, but then a broken
+single-threaded user-mode program, with no other programs using the
+hardware, could just as easily damage the hardware.  That is, if the
+hardware is not safe for direct access in general, threading does not
+make it any less safe.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
