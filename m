@@ -1,92 +1,66 @@
-Received: from d03relay05.boulder.ibm.com (d03relay05.boulder.ibm.com [9.17.195.107])
-	by e32.co.us.ibm.com (8.12.10/8.12.9) with ESMTP id j36Nvg5j371962
-	for <linux-mm@kvack.org>; Wed, 6 Apr 2005 19:57:43 -0400
-Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
-	by d03relay05.boulder.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id j36NvgcC160600
-	for <linux-mm@kvack.org>; Wed, 6 Apr 2005 17:57:42 -0600
-Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av03.boulder.ibm.com (8.12.11/8.12.11) with ESMTP id j36NvgLb022961
-	for <linux-mm@kvack.org>; Wed, 6 Apr 2005 17:57:42 -0600
-Subject: Re: [PATCH 1/4] create mm/Kconfig for arch-independent memory
-	options
-From: Dave Hansen <haveblue@us.ibm.com>
-In-Reply-To: <Pine.LNX.4.61.0504070133380.25131@scrub.home>
-References: <E1DIViE-0006Kf-00@kernel.beaverton.ibm.com>
-	 <42544D7E.1040907@linux-m68k.org> <1112821319.14584.28.camel@localhost>
-	 <Pine.LNX.4.61.0504070133380.25131@scrub.home>
-Content-Type: text/plain
-Date: Wed, 06 Apr 2005 16:57:36 -0700
-Message-Id: <1112831857.14584.43.camel@localhost>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Date: 6 Apr 2005 20:29:51 -0000
+Message-ID: <20050406202951.18977.qmail@nfly23.registerfly.com>
+Subject: Urgent Response
+Content-Type: text/plain; charset="iso-8859-1"
+From: "David Williams" <davidwilliamspvt@netscape.net>
+Reply-To: "David Williams" <davidwilliamspvt@netscape.net>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Roman Zippel <zippel@linux-m68k.org>
-Cc: Andrew Morton <akpm@osdl.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andy Whitcroft <apw@shadowen.org>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2005-04-07 at 01:40 +0200, Roman Zippel wrote:
-> On Wed, 6 Apr 2005, Dave Hansen wrote:
-> > On Wed, 2005-04-06 at 22:58 +0200, Roman Zippel wrote:
-> > > Dave Hansen wrote:
-> > > > --- memhotplug/mm/Kconfig~A6-mm-Kconfig	2005-04-04 09:04:48.000000000 -0700
-> > > > +++ memhotplug-dave/mm/Kconfig	2005-04-04 10:15:23.000000000 -0700
-> > > > @@ -0,0 +1,25 @@
-> > > > +choice
-> > > > +	prompt "Memory model"
-> > > > +	default FLATMEM
-> > > > +	default SPARSEMEM if ARCH_SPARSEMEM_DEFAULT
-> > > > +	default DISCONTIGMEM if ARCH_DISCONTIGMEM_DEFAULT
-> > > 
-> > > Does this really have to be a user visible option and can't it be
-> > > derived from other values? The help text entries are really no help at all.
-> > 
-> > I hope that this selection will replace the current DISCONTIGMEM prompts
-> > in the individual architectures.  That way, you won't get a net increase
-> > in the number of prompts.
-> 
-> Why is this choice needed at all? Why would one choose SPARSEMEM over 
-> DISCONTIGMEM?
+DAVID WILLIAMS
+DEH HARZZER 54-56
+1088DH AMSTERDAM-NETHERLANDS
 
-For now, it's only so people can test either one, and we don't have to
-try to toss DICONTIGMEM out of the kernel in fell swoop.  When the
-memory hotplug options are enabled, the DISCONTIG option goes away, and
-SPARSEMEM is selected as the only option.
+ATTN: SIR/MADAM,
 
-I hope to, in the future, make the options more like this:
+PERMIT ME TO INFORM YOU OF MY DESIRE OF GOING INTO
+BUSINESS RELATIONSHIP WITH YOU. I GOT YOUR  AND
+CONTACT FROM THE NETHERLANDS CHAMBER OF COMMERCE AND
+INDUSTRY. I PRAYED OVER IT AND SELECTED YOUR 
+AMONG OTHER S DUE TO IT'S ESTEEMING NATURE AND THE
+RECOMMENDATIONS GIVEN TO ME AS A REPUTABLE AND TRUST
+WORTHY PERSON I CAN CONFIDE ON AND BY THEIR
+RECOMMENDATIONS I MUST NOT HESITATE TO CONFIDE IN YOU
+FOR THIS SIMPLE AND SINCERE REQUEST.
 
-config MEMORY_HOTPLUG...
-config NUMA...
+I AM DAVID WILLIAMS,A 22YEARS OLD BOY, THE ONLY SON OF LATE CHIEF AND MRS CHRISTOPHER WILLIAMS. MY FATHER WAS A VERY WEALTHY COCOA MERCHANT BASED IN ABIDJAN, THE ECONOMIC CAPITAL OF IVORY COAST BEFORE HE WAS POISONED TO DEATH BY HIS BUSINESS ASSOCIATES ON ONE OF THEIR EVENING OUTING TO DISCUSSON A BUSINESS DEAL. 
 
-config DISCONTIGMEM
-	depends on NUMA && !MEMORY_HOTPLUG
+WHEN MY MOTHER DIED ON THE 21ST OCTOBER 1990, MY FATHER TOOK ME SO SPECIAL BECAUSE I AM MOTHERLESS. BEFORE THE DEATH OF MY FATHER ON 24TH APRIL 2002, IN A PRIVATE HOSPITAL IN ABIDJAN, HE SECRETLY CALLED ME ON HIS BED SIDE AND TOLD ME THAT HE HAS A SUM OF US$15M (FIFTHEN MILLION UNITED STATES DOLLARS) LEFT IN A BANK HERE IN AMSTERDAM NETHERLANDS.
 
-config SPARSEMEM
-	depends on MEMORY_HOTPLUG || OTHER_ARCH_THING
+THAT HE USED MY  AS HIS ONLY SON FOR THE NEXT OF KIN IN
+DEPOSIT OF THE FUND. HE ALSO EXPLAINED TO ME THAT IT
+WAS BECAUSE OF THIS WEALTH THAT HE WAS POISONED BY HIS
+BUSINESS ASSOCIATES, THAT I SHOULD SEEK FOR A FOREIGN
+PARTNER IN A COUNTRY OF MY CHOICE WHERE I WILL
+TRANSFER THIS MONEY AND USE IT FOR INVESTMENT PURPOSE.
 
-config FLATMEM
-	depends on !DISCONTIGMEM && !SPARSEMEM
+FOR THIS SIMPLE REASON, I ARRANGED WITH A TRAVEL AGENT, WHO HELPED ME TO TRAVEL TO AMSTERDAM-NETHERLANDS WHERE THE FUND IS DEPOSITED. I AM RIGHT NOW IN AMSTERDAM AS A REFUGEE. 
 
-So, if they enable NUMA, they get DISCONTIGMEM automatically.  If they
-enable MEMORY_HOTPLUG on top of that, they automatically get SPARSEMEM
-instead.  All of the complex "pick your memory model" stuff goes away,
-and you just select features.  However, I think the current situation is
-a reasonable intermediate step, as we need to be able to switch back and
-forth for now.
+I AM HONOURABLY SEEKING YOUR ASSISTANCE IN THE FOLLOWING WAYS. 
+1) TO HELP ME RETRIEVE THIS FUND AND HELP PROVIDE A BANK ACCOUNT WHERE THIS MONEY WOULD BE TRANSFERED INTO.
+2) TO SERVE AS THE GUARDIAN OF THIS FUND AND ME 
+3) TO MAKE ARRANGEMENT FOR ME TO COME OVER TO YOUR
+COUNTRY TO FURTHER MY EDUCATION AND TO SECURE A 
+RESIDENTIAL PERMIT FOR ME IN YOUR COUNTRY. 
 
-> Help texts such as "If unsure, choose <something else>" make 
-> the complete config option pretty useless.
+MOREOVER, SIR, I AM WILLING TO OFFER YOU 15% OF THE
+TOTAL SUM AS COMPENSATION FOR YOUR EFFORT/INPUT AFTER
+THE SUCCESSFUL TRANSFER OF THIS FUND TO YOUR NOMINATED
+ACCOUNT OVERSEA. FURTHERMORE, YOU CAN INDICATE YOUR
+OPTION TOWARDS ASSISTING ME AS I BELIEVE THAT THIS
+TRANSACTION WOULD BE CONCLUDED WITHIN SEVEN (7) DAYS,
+YOU SIGNIFY INTEREST TO ASSIST ME. 
 
-They don't make it useless, they just guide a clueless user to the right
-place, without them having to think about it at all.  Those of us that
-need to test the various configurations are quite sure of what we're
-doing, and can ignore the messages. :)
+ANTICIPATING HEARING FROM YOU SOON. 
 
-I'm not opposed to creating some better help text for those things, I'm
-just not sure that we really need it, or that it will help end users get
-to the right place.  I guess more explanation never hurt anyone.
+THANKS AND GOD BLESS. 
 
--- Dave
+EMAIL ME DIRECTLY ON davidwilliamspvt@netscape.net
+
+BEST REGARD 
+DAVID WILLIAMS
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
