@@ -1,127 +1,124 @@
-Date: Mon, 8 Mar 2004 04:24:11 -0800
-From: Andrew Morton <akpm@osdl.org>
 Subject: Re: blk_congestion_wait racy?
-Message-Id: <20040308042411.3b2cc9dd.akpm@osdl.org>
-In-Reply-To: <20040308095919.GA1117@mschwid3.boeblingen.de.ibm.com>
-References: <20040308095919.GA1117@mschwid3.boeblingen.de.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Message-ID: <OF335311D8.7BCE1E48-ONC1256E51.0049DBF1-C1256E51.004AEA2A@de.ibm.com>
+From: Martin Schwidefsky <schwidefsky@de.ibm.com>
+Date: Mon, 8 Mar 2004 14:38:16 +0100
+MIME-Version: 1.0
+Content-type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Martin Schwidefsky <schwidefsky@de.ibm.com>
+To: Andrew Morton <akpm@osdl.org>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Martin Schwidefsky <schwidefsky@de.ibm.com> wrote:
+
+
+
+> Gad, that'll make the VM scan its guts out.
+Yes, I expected something like this.
+
+> > 2.6.4-rc2 + "fix" with 1 cpu
+> > sys     0m0.880s
+> >
+> > 2.6.4-rc2 + "fix" with 2 cpu
+> > sys     0m1.560s
 >
-> Hi,
-> we have a stupid little program that linearly allocates and touches
-> memory. We use this to see how fast s390 can swap. If this is combined
-> with the fastest block device we have (xpram) we see a very strange
-> effect:
-> 
-> 2.6.4-rc2 with 1 cpu
-> # time ./mempig 600
-> Count (1Meg blocks) = 600
-> 600  of 600
-> Done.
-> 
-> real    0m2.516s
-> user    0m0.150s
-> sys     0m0.570s
-> #
-> 
-> 2.6.4-rc2 with 2 cpus
-> # time ./mempig 600
-> Count (1Meg blocks) = 600
-> 600  of 600
-> Done.
-> 
-> real    0m56.086s
-> user    0m0.110s
-> sys     0m0.630s
-> #
+> system time was doubled though.
+That would be the additional cost for not waiting.
 
-Interesting.
+> Nope, something is obviously broken.   I'll take a look.
+That would be very much appreciated.
 
-> I have the suspicion that the call to blk_congestion_wait in
-> try_to_free_pages is part of the problem. It initiates a wait for
-> a queue to exit congestion but this could already have happened
-> on another cpu before blk_congestion_wait has setup the wait
-> queue. In this case the process sleeps for 0.1 seconds.
+> Perhaps with two CPUs you are able to get kswapd and mempig running page
+> reclaim at the same time, which causes seekier swap I/O patterns than with
+> one CPU, where we only run one app or the other at any time.
+>
+> Serialising balance_pgdat() and try_to_free_pages() with a global semaphore
+> would be a way of testing that theory.
 
-The comment may be a bit stale.  The idea is that the VM needs to take a
-nap while the disk system retires some writes.  So we go to sleep until a
-write request gets put back.  We do this regardless of the queue's
-congestion state - the queue could have thousands of request slots and may
-never even become congested.
+Just tried the following patch:
 
-> the swap test setup this happens all the time. If I "fix"
-> blk_congestion_wait not to wait:
-> 
-> diff -urN linux-2.6/drivers/block/ll_rw_blk.c linux-2.6-fix/drivers/block/ll_rw_blk.c
-> --- linux-2.6/drivers/block/ll_rw_blk.c	Fri Mar  5 14:50:28 2004
-> +++ linux-2.6-fix/drivers/block/ll_rw_blk.c	Fri Mar  5 14:51:05 2004
-> @@ -1892,7 +1892,9 @@
->  
->  	blk_run_queues();
->  	prepare_to_wait(wqh, &wait, TASK_UNINTERRUPTIBLE);
-> +#if 0
->  	io_schedule_timeout(timeout);
-> +#endif
->  	finish_wait(wqh, &wait);
->  }
+Index: mm/vmscan.c
+===================================================================
+RCS file: /home/cvs/linux-2.5/mm/vmscan.c,v
+retrieving revision 1.45
+diff -u -r1.45 vmscan.c
+--- mm/vmscan.c   18 Feb 2004 17:45:28 -0000    1.45
++++ mm/vmscan.c   8 Mar 2004 13:30:56 -0000
+@@ -848,6 +848,7 @@
+  * excessive rotation of the inactive list, which is _supposed_ to be an LRU,
+  * yes?
+  */
++static DECLARE_MUTEX(reclaim_sem);
+ int try_to_free_pages(struct zone **zones,
+            unsigned int gfp_mask, unsigned int order)
+ {
+@@ -858,6 +859,8 @@
+      struct reclaim_state *reclaim_state = current->reclaim_state;
+      int i;
 
-Gad, that'll make the VM scan its guts out.
++     down(&reclaim_sem);
++
+      inc_page_state(allocstall);
 
-> then the system reacts normal again:
-> 
-> 2.6.4-rc2 + "fix" with 1 cpu
-> # time ./mempig 600
-> Count (1Meg blocks) = 600
-> 600  of 600
-> Done.
-> 
-> real    0m2.523s
-> user    0m0.200s
-> sys     0m0.880s
-> #
-> 
-> 2.6.4-rc2 + "fix" with 2 cpu
-> # time ./mempig 600
-> Count (1Meg blocks) = 600
-> 600  of 600
-> Done.
-> 
-> real    0m2.029s
-> user    0m0.250s
-> sys     0m1.560s
-> #
+      for (i = 0; zones[i] != 0; i++)
+@@ -884,7 +887,10 @@
+            wakeup_bdflush(total_scanned);
 
-system time was doubled though.
+            /* Take a nap, wait for some writeback to complete */
++           up(&reclaim_sem);
+            blk_congestion_wait(WRITE, HZ/10);
++           down(&reclaim_sem);
++
+            if (zones[0] - zones[0]->zone_pgdat->node_zones < ZONE_HIGHMEM) {
+                  shrink_slab(total_scanned, gfp_mask);
+                  if (reclaim_state) {
+@@ -898,6 +904,9 @@
+ out:
+      for (i = 0; zones[i] != 0; i++)
+            zones[i]->prev_priority = zones[i]->temp_priority;
++
++     up(&reclaim_sem);
++
+      return ret;
+ }
 
-> Since it isn't a solution to remove the call to io_schedule_timeout
-> I tried to understand what the event is, that blk_congestion_wait
-> is waiting for. The comment says it waits for a queue to exit congestion.
+@@ -926,6 +935,8 @@
+      int i;
+      struct reclaim_state *reclaim_state = current->reclaim_state;
 
-It's just waiting for a write request to complete.  It's a pretty crude way
-of throttling page reclaim to the I/O system's speed.
++     down(&reclaim_sem);
++
+      inc_page_state(pageoutrun);
 
-> That is starting from prepare_to_wait it waits for a call to
-> clear_queue_congested. In my test scenario NO queue is congested on
-> enter to blk_congestion_wait. I'd like to see a proper wait_event
-> there but it is non-trivial to define the event to wait for.
-> Any useful hints ?
+      for (i = 0; i < pgdat->nr_zones; i++) {
+@@ -974,8 +985,11 @@
+            }
+            if (all_zones_ok)
+                  break;
+-           if (to_free > 0)
++           if (to_free > 0) {
++                 up(&reclaim_sem);
+                  blk_congestion_wait(WRITE, HZ/10);
++                 down(&reclaim_sem);
++           }
+      }
 
-Nope, something is obviously broken.   I'll take a look.
+      for (i = 0; i < pgdat->nr_zones; i++) {
+@@ -983,6 +997,9 @@
 
-Perhaps with two CPUs you are able to get kswapd and mempig running page
-reclaim at the same time, which causes seekier swap I/O patterns than with
-one CPU, where we only run one app or the other at any time.
+            zone->prev_priority = zone->temp_priority;
+      }
++
++     up(&reclaim_sem);
++
+      return nr_pages - to_free;
+ }
 
-Serialising balance_pgdat() and try_to_free_pages() with a global semaphore
-would be a way of testing that theory.
+
+It didn't help. Still needs almost a minute.
+
+blue skies,
+   Martin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
