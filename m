@@ -1,37 +1,42 @@
-From: "Stephen C. Tweedie" <sct@redhat.com>
+Message-ID: <37F8DCD1.E726CBBC@switchboard.ericsson.se>
+Date: Mon, 04 Oct 1999 18:58:57 +0200
+From: Marcus Sundberg <erammsu@kieraypc01.p.y.ki.era.ericsson.se>
 MIME-Version: 1.0
+Subject: Re: MMIO regions
+References: <Pine.LNX.4.10.9910041028350.7066-100000@imperial.edgeglobal.com>
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
-Message-ID: <14328.53659.36975.874284@dukat.scot.redhat.com>
-Date: Mon, 4 Oct 1999 17:11:07 +0100 (BST)
-Subject: Re: MMIO regions
-In-Reply-To: <Pine.LNX.4.10.9910041146560.8080-100000@imperial.edgeglobal.com>
-References: <14328.51304.207897.182095@dukat.scot.redhat.com>
-	<Pine.LNX.4.10.9910041146560.8080-100000@imperial.edgeglobal.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: James Simmons <jsimmons@edgeglobal.com>
-Cc: "Stephen C. Tweedie" <sct@redhat.com>, Linux MM <linux-mm@kvack.org>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+James Simmons wrote:
+> 
+> Howdy again!!
+> 
+>    I noticed something for SMP machines with all the dicussion about
+> concurrent access to memory regions. What happens when you have two
+> processes that have both mmapped the same MMIO region for some card.
+> Doesn't have to be a video card,. On a SMP machine it is possible that
+> both processes could access the same region at the same time. This could
+> cause the card to go into a indeterminate state. Even lock the machine.
+> Does their exist a way to handle this? Also some cards have mulitple MMIO
+> regions. What if a process mmaps one MMIO region of this card and another
+> process mmaps another MMIO region of this card. Now process one could
+> alter the card in such a way it could effect the results that process two
+> is expecting. How is this dealt with? Is it dealt with? If not what would
+> be a good way to handle this?
 
-On Mon, 4 Oct 1999 11:52:50 -0400 (EDT), James Simmons
-<jsimmons@edgeglobal.com> said:
+AFAIK no drivers except fbcon drivers map any IO-region to userspace.
 
->> The kernel doesn't impose any limits against this.  If you want to make
->> this impossible, then you need to add locking to the driver itself to
->> prevent multiple processes from conflicting.
-
-> And if the process holding the locks dies then no other process can access
-> this resource. Also if the program forgets to release the lock you end up
-> with other process never being able to access this piece of hardware.   
-
-There are any number of ways to recover from this.  SysV semaphores, for
-example, allow you to specify UNDO when you down a semaphore, and the
-semaphore will be restored automatically on process death.
-
---Stephen
+//Marcus
+-- 
+-------------------------------+------------------------------------
+        Marcus Sundberg        | http://www.stacken.kth.se/~mackan/
+ Royal Institute of Technology |       Phone: +46 707 295404
+       Stockholm, Sweden       |   E-Mail: mackan@stacken.kth.se
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
