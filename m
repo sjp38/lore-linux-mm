@@ -1,8 +1,8 @@
-Date: Tue, 4 Jan 2005 11:38:20 -0800 (PST)
+Date: Tue, 4 Jan 2005 11:38:46 -0800 (PST)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: page fault scalability patch V14 [5/7]: x86_64 atomic pte operations
+Subject: page fault scalability patch V14 [6/7]: s390 atomic pte operationsw
 In-Reply-To: <Pine.LNX.4.58.0501041129030.805@schroedinger.engr.sgi.com>
-Message-ID: <Pine.LNX.4.58.0501041137410.805@schroedinger.engr.sgi.com>
+Message-ID: <Pine.LNX.4.58.0501041138200.805@schroedinger.engr.sgi.com>
 References: <Pine.LNX.4.44.0411221457240.2970-100000@localhost.localdomain>
  <Pine.LNX.4.58.0411221343410.22895@schroedinger.engr.sgi.com>
  <Pine.LNX.4.58.0411221419440.20993@ppc970.osdl.org>
@@ -20,65 +20,87 @@ Cc: Hugh Dickins <hugh@veritas.com>, akpm@osdl.org, Nick Piggin <nickpiggin@yaho
 List-ID: <linux-mm.kvack.org>
 
 Changelog
-        * Provide atomic pte operations for x86_64
+        * Provide atomic pte operations for s390
 
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
-Index: linux-2.6.10/include/asm-x86_64/pgalloc.h
+Index: linux-2.6.10/include/asm-s390/pgtable.h
 ===================================================================
---- linux-2.6.10.orig/include/asm-x86_64/pgalloc.h	2005-01-03 10:31:31.000000000 -0800
-+++ linux-2.6.10/include/asm-x86_64/pgalloc.h	2005-01-03 12:21:28.000000000 -0800
-@@ -7,6 +7,10 @@
- #include <linux/threads.h>
- #include <linux/mm.h>
-
-+#define PMD_NONE 0
-+#define PUD_NONE 0
-+#define PGD_NONE 0
-+
- #define pmd_populate_kernel(mm, pmd, pte) \
- 		set_pmd(pmd, __pmd(_PAGE_TABLE | __pa(pte)))
- #define pud_populate(mm, pud, pmd) \
-@@ -14,11 +18,24 @@
- #define pgd_populate(mm, pgd, pud) \
- 		set_pgd(pgd, __pgd(_PAGE_TABLE | __pa(pud)))
-
-+#define pmd_test_and_populate(mm, pmd, pte) \
-+		(cmpxchg((int *)pmd, PMD_NONE, _PAGE_TABLE | __pa(pte)) == PMD_NONE)
-+#define pud_test_and_populate(mm, pud, pmd) \
-+		(cmpxchg((int *)pgd, PUD_NONE, _PAGE_TABLE | __pa(pmd)) == PUD_NONE)
-+#define pgd_test_and_populate(mm, pgd, pud) \
-+		(cmpxchg((int *)pgd, PGD_NONE, _PAGE_TABLE | __pa(pud)) == PGD_NONE)
-+
-+
- static inline void pmd_populate(struct mm_struct *mm, pmd_t *pmd, struct page *pte)
- {
- 	set_pmd(pmd, __pmd(_PAGE_TABLE | (page_to_pfn(pte) << PAGE_SHIFT)));
+--- linux-2.6.10.orig/include/asm-s390/pgtable.h	2005-01-03 10:31:31.000000000 -0800
++++ linux-2.6.10/include/asm-s390/pgtable.h	2005-01-03 12:12:03.000000000 -0800
+@@ -569,6 +569,15 @@
+ 	return pte;
  }
 
-+static inline int pmd_test_and_populate(struct mm_struct *mm, pmd_t *pmd, struct page *pte)
-+{
-+	return cmpxchg((int *)pmd, PMD_NONE, _PAGE_TABLE | (page_to_pfn(pte) << PAGE_SHIFT)) == PMD_NONE;
-+}
++#define ptep_xchg_flush(__vma, __address, __ptep, __pteval)            \
++({                                                                     \
++	struct mm_struct *__mm = __vma->vm_mm;                          \
++	pte_t __pte;                                                    \
++	__pte = ptep_clear_flush(__vma, __address, __ptep);             \
++	set_pte(__ptep, __pteval);                                      \
++	__pte;                                                          \
++})
 +
- extern __inline__ pmd_t *get_pmd(void)
+ static inline void ptep_set_wrprotect(pte_t *ptep)
  {
- 	return (pmd_t *)get_zeroed_page(GFP_KERNEL);
-Index: linux-2.6.10/include/asm-x86_64/pgtable.h
-===================================================================
---- linux-2.6.10.orig/include/asm-x86_64/pgtable.h	2005-01-03 10:31:31.000000000 -0800
-+++ linux-2.6.10/include/asm-x86_64/pgtable.h	2005-01-03 12:13:17.000000000 -0800
-@@ -413,6 +413,10 @@
- #define	kc_offset_to_vaddr(o) \
-    (((o) & (1UL << (__VIRTUAL_MASK_SHIFT-1))) ? ((o) | (~__VIRTUAL_MASK)) : (o))
+ 	pte_t old_pte = *ptep;
+@@ -780,6 +789,14 @@
 
-+
-+#define ptep_cmpxchg(__vma,__addr,__xp,__oldval,__newval) (cmpxchg(&(__xp)->pte, pte_val(__oldval), pte_val(__newval)) == pte_val(__oldval))
+ #define kern_addr_valid(addr)   (1)
+
++/* Atomic PTE operations */
 +#define __HAVE_ARCH_ATOMIC_TABLE_OPS
 +
- #define __HAVE_ARCH_PTEP_TEST_AND_CLEAR_YOUNG
- #define __HAVE_ARCH_PTEP_TEST_AND_CLEAR_DIRTY
++static inline int ptep_cmpxchg (struct vm_area_struct *vma, unsigned long address, pte_t *ptep, pte_t oldval, pte_t newval)
++{
++	return cmpxchg(ptep, pte_val(oldval), pte_val(newval)) == pte_val(oldval);
++}
++
+ /*
+  * No page table caches to initialise
+  */
+@@ -793,6 +810,7 @@
+ #define __HAVE_ARCH_PTEP_CLEAR_DIRTY_FLUSH
  #define __HAVE_ARCH_PTEP_GET_AND_CLEAR
+ #define __HAVE_ARCH_PTEP_CLEAR_FLUSH
++#define __HAVE_ARCH_PTEP_XCHG_FLUSH
+ #define __HAVE_ARCH_PTEP_SET_WRPROTECT
+ #define __HAVE_ARCH_PTEP_MKDIRTY
+ #define __HAVE_ARCH_PTE_SAME
+Index: linux-2.6.10/include/asm-s390/pgalloc.h
+===================================================================
+--- linux-2.6.10.orig/include/asm-s390/pgalloc.h	2004-12-24 13:35:00.000000000 -0800
++++ linux-2.6.10/include/asm-s390/pgalloc.h	2005-01-03 12:12:03.000000000 -0800
+@@ -97,6 +97,10 @@
+ 	pgd_val(*pgd) = _PGD_ENTRY | __pa(pmd);
+ }
+
++static inline int pgd_test_and_populate(struct mm_struct *mm, pdg_t *pgd, pmd_t *pmd)
++{
++	return cmpxchg(pgd, _PAGE_TABLE_INV, _PGD_ENTRY | __pa(pmd)) == _PAGE_TABLE_INV;
++}
+ #endif /* __s390x__ */
+
+ static inline void
+@@ -119,6 +123,18 @@
+ 	pmd_populate_kernel(mm, pmd, (pte_t *)((page-mem_map) << PAGE_SHIFT));
+ }
+
++static inline int
++pmd_test_and_populate(struct mm_struct *mm, pmd_t *pmd, struct page *page)
++{
++	int rc;
++	spin_lock(&mm->page_table_lock);
++
++	rc=pte_same(*pmd, _PAGE_INVALID_EMPTY);
++	if (rc) pmd_populate(mm, pmd, page);
++	spin_unlock(&mm->page_table_lock);
++	return rc;
++}
++
+ /*
+  * page table entry allocation/free routines.
+  */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
