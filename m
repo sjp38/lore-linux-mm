@@ -1,42 +1,41 @@
-Received: from max.phys.uu.nl (max.phys.uu.nl [131.211.32.73])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id RAA11844
-	for <linux-mm@kvack.org>; Wed, 29 Jul 1998 17:30:53 -0400
-Received: from mirkwood.dummy.home (root@anx1p6.phys.uu.nl [131.211.33.95])
-	by max.phys.uu.nl (8.8.7/8.8.7/hjm) with ESMTP id XAA09352
-	for <linux-mm@kvack.org>; Wed, 29 Jul 1998 23:30:44 +0200 (MET DST)
-Received: from localhost (riel@localhost) by mirkwood.dummy.home (8.9.0/8.8.3) with SMTP id UAA12180 for <linux-mm@kvack.org>; Wed, 29 Jul 1998 20:00:48 +0200
-Date: Wed, 29 Jul 1998 20:00:48 +0200 (CEST)
-From: Rik van Riel <H.H.vanRiel@phys.uu.nl>
-Reply-To: Rik van Riel <H.H.vanRiel@phys.uu.nl>
-Subject: Re: Page cache ageing: yae or nae?
-Message-ID: <Pine.LNX.3.96.980729200036.12136H-100000@mirkwood.dummy.home>
+Date: Thu, 30 Jul 1998 15:20:20 -0400 (`eoyyyyp)
+From: "Benjamin C.R. LaHaise" <blah@kvack.org>
+Subject: Re: writable swap cache explained (it's weird)
+In-Reply-To: <35BF43AC.F0F0C14F@transmeta.com>
+Message-ID: <Pine.LNX.3.95.980730150740.17264B-100000@as200.spellcast.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Linux MM <linux-mm@kvack.org>
+To: Bill Hawes <whawes@transmeta.com>
+Cc: Linux-kernel <linux-kernel@vger.rutgers.edu>, Linus Torvalds <torvalds@transmeta.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 29 Jul 1998, Stephen C. Tweedie wrote:
+On Wed, 29 Jul 1998, Bill Hawes wrote:
 
-> Right, but we don't need page aging to address that.  Currently we don't
-> set the page referenced bit on a readahead IO; setting that bit will be
-> sufficient to guard the page for at least one full pass of the
-> shrink_mmap scan.
+> To fix this I think we need to mark the whole mess as unswappable. It
+> won't work to just test for a writable pte to a shared page -- in this
+> case one of the sharings is only readable. So if the readable one gets
+> swapped out first, the remaining mappings would still be a problem.
+> 
+> Anyone have any ideas for the best way to detect and handle this case?
 
-Hmm, one full pass of shrink_mmap will probably take quite a
-number of calls to that function, since without aging we are
-able to find far more freeable pages...
+There are two options:
 
-At the moment I'm super-busy with my (vacation) job, but I
-might be able to find some time this weekend. Maybe some
-folks on linux-mm have spare time?
+	a) disallow MAP_SHARED mappings of anonymous memory from
+/proc/self/mem
 
-Rik.
-+-------------------------------------------------------------------+
-| Linux memory management tour guide.        H.H.vanRiel@phys.uu.nl |
-| Scouting Vries cubscout leader.      http://www.phys.uu.nl/~riel/ |
-+-------------------------------------------------------------------+
+	b) implement shared anon mappings
 
+(a) sounds like the Obvious Thing To Do in the mmap method for /proc, but
+will break xdos.  Wtf were they thinking in writing that insane code?
+Hmmm, this bug probably applies to 2.0 too....  in a much more subtle
+fashion.
+
+As for (b), I'll try to present code by Saturday, as it is a nice feature
+to add to our cap. =)  (No, it's not going to be anything like the awful
+shm code.) 
+
+		-ben
 
 --
 This is a majordomo managed list.  To unsubscribe, send a message with
