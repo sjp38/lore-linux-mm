@@ -1,7 +1,7 @@
-Date: Thu, 25 Mar 2004 19:38:22 +0100
+Date: Thu, 25 Mar 2004 20:06:12 +0100
 From: Ingo Molnar <mingo@elte.hu>
 Subject: Re: 2.6.5-rc2-mm3 blizzard of "bad: scheduling while atomic" with PREEMPT
-Message-ID: <20040325183822.GA11088@elte.hu>
+Message-ID: <20040325190612.GA12383@elte.hu>
 References: <1080237733.2269.31.camel@spc0.esa.lanl.gov> <20040325103506.19129deb.akpm@osdl.org>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
@@ -19,7 +19,14 @@ List-ID: <linux-mm.kvack.org>
 > 
 > err, yes.  Ingo broke it ;)
 
-ugh. Checking it.
+ok, this replacement patch should fix it:
+
+  http://redhat.com/~mingo/scheduler-patches/sched-2.6.5-rc2-mm2-A5
+
+(i'll soon send a fix against -mm3 too.)
+
+the patch also includes prototype fixes for the NUMA fork() balancing
+problem.
 
 	Ingo
 --
