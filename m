@@ -1,37 +1,160 @@
-Date: Tue, 13 May 2003 13:10:09 -0700
-From: Andrew Morton <akpm@digeo.com>
+Date: Tue, 13 May 2003 13:17:34 -0700
+From: William Lee Irwin III <wli@holomorphy.com>
 Subject: Re: 2.5.69-mm4
-Message-Id: <20030513131009.5e80913a.akpm@digeo.com>
-In-Reply-To: <200305130843.20737.tomlins@cam.org>
+Message-ID: <20030513201734.GQ8978@holomorphy.com>
 References: <20030512225504.4baca409.akpm@digeo.com>
-	<20030513001135.2395860a.akpm@digeo.com>
-	<87n0hr8edh.fsf@lapper.ihatent.com>
-	<200305130843.20737.tomlins@cam.org>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20030512225504.4baca409.akpm@digeo.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ed Tomlinson <tomlins@cam.org>
-Cc: linux-mm@kvack.org
+To: Andrew Morton <akpm@digeo.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Ed Tomlinson <tomlins@cam.org> wrote:
->
-> > kernel/built-in.o(.text+0x1005): In function `schedule':
->  > : undefined reference to `active_load_balance'
->  >
->  > make: *** [.tmp_vmlinux1] Error 1
->  > alexh@lapper ~/src/linux/linux-2.5.69-mm4 $
-> 
->  This happens here too on a tree that was mrproper(ed).
+On Mon, May 12, 2003 at 10:55:04PM -0700, Andrew Morton wrote:
+> ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.5/2.5.69/2.5.69-mm4/
+> Lots of small things.
 
-Yeah, I screwed up, sorry.   One of the scheduler patches
-was doing kooky things with CONFIG variables.
+Nuke various warnings:
+(1) noreturn function does return all over i386 arch code
+(2) CONFIG_SHARE_RUNQUEUE bits, mostly Helge Hafting's thing, but also
+	handle some more arch code nailed by it
+(3) some kind of dmi_blacklist excess array initializer oddity
 
-You can revert sched_idle-typo-fix.patch and sched-2.5.68-B2.patch or build
-an SMP kernel or wait for mm5 or kick me.
+-- wli
 
+
+diff -prauN mm4-2.5.69-1/arch/i386/kernel/apic.c mm4-2.5.69-2/arch/i386/kernel/apic.c
+--- mm4-2.5.69-1/arch/i386/kernel/apic.c	2003-05-13 12:16:23.000000000 -0700
++++ mm4-2.5.69-2/arch/i386/kernel/apic.c	2003-05-13 12:32:08.000000000 -0700
+@@ -1204,6 +1204,9 @@ void stop_apics(NORET_TYPE void(*rest)(v
+ 		set_cpus_allowed(current, 1 << arg.reboot_cpu_id);
+ 	}
+ 	on_each_cpu(cpu_stop_apics, &arg, 1, 0);
++	while (1) {
++		;
++	}
+ }
+ 
+ /*
+diff -prauN mm4-2.5.69-1/arch/i386/kernel/cpu/proc.c mm4-2.5.69-2/arch/i386/kernel/cpu/proc.c
+--- mm4-2.5.69-1/arch/i386/kernel/cpu/proc.c	2003-05-13 12:16:24.000000000 -0700
++++ mm4-2.5.69-2/arch/i386/kernel/cpu/proc.c	2003-05-13 12:44:27.000000000 -0700
+@@ -115,7 +115,7 @@ static int show_cpuinfo(struct seq_file 
+ 		     fpu_exception ? "yes" : "no",
+ 		     c->cpuid_level,
+ 		     c->wp_works_ok ? "yes" : "no");
+-#ifdef CONFIG_SHARE_RUNQUEUE
++#if CONFIG_SHARE_RUNQUEUE
+ {
+ 	extern long __rq_idx[NR_CPUS];
+ 
+diff -prauN mm4-2.5.69-1/arch/i386/kernel/dmi_scan.c mm4-2.5.69-2/arch/i386/kernel/dmi_scan.c
+--- mm4-2.5.69-1/arch/i386/kernel/dmi_scan.c	2003-05-13 12:16:24.000000000 -0700
++++ mm4-2.5.69-2/arch/i386/kernel/dmi_scan.c	2003-05-13 12:47:01.000000000 -0700
+@@ -816,7 +816,8 @@ static __initdata struct dmi_blacklist d
+ 	{ acer_cpufreq_pst, "Acer Aspire", {
+ 			MATCH(DMI_SYS_VENDOR, "Insyde Software"),
+ 			MATCH(DMI_BIOS_VERSION, "3A71"),
+-			NO_MATCH, NO_MATCH, NO_MATCH
++			NO_MATCH,
++			NO_MATCH,
+ 			} },
+ 
+ 	{ NULL, }
+diff -prauN mm4-2.5.69-1/arch/i386/kernel/reboot.c mm4-2.5.69-2/arch/i386/kernel/reboot.c
+--- mm4-2.5.69-1/arch/i386/kernel/reboot.c	2003-05-13 12:16:24.000000000 -0700
++++ mm4-2.5.69-2/arch/i386/kernel/reboot.c	2003-05-13 12:53:05.000000000 -0700
+@@ -229,7 +229,8 @@ void machine_real_restart(unsigned char 
+ 				: "i" ((void *) (0x1000 - sizeof (real_mode_switch) - 100)));
+ }
+ 
+-static void machine_restart_1(void * __unused)
++static NORET_TYPE void machine_restart_1(void *) ATTRIB_NORET;
++static NORET_TYPE void machine_restart_1(void *__unused)
+ {
+ 	if(!reboot_thru_bios) {
+ 		/* rebooting needs to touch the page at absolute addr 0 */
+@@ -243,13 +244,17 @@ static void machine_restart_1(void * __u
+ 	}
+ 
+ 	machine_real_restart(jump_to_bios, sizeof(jump_to_bios));
++	while (1) {
++		;
++	}
+ }
+ void machine_restart(char * __unused)
+ {
+ 	stop_apics(machine_restart_1, 0);
+ }
+ 
+-static void machine_halt_1(void * __unused)
++static NORET_TYPE void machine_halt_1(void *) ATTRIB_NORET;
++static NORET_TYPE void machine_halt_1(void *__unused)
+ {
+ 	stop_this_cpu();
+ }
+@@ -258,11 +263,15 @@ void machine_halt(void)
+ 	stop_apics(machine_halt_1, 0);
+ }
+ 
+-static void machine_power_off_1(void * __unused)
++static NORET_TYPE void machine_power_off_1(void *) ATTRIB_NORET;
++static NORET_TYPE void machine_power_off_1(void *__unused)
+ {
+ 	if (pm_power_off)
+ 		pm_power_off();
+ 	stop_this_cpu();
++	while (1) {
++		;
++	}
+ }
+ void machine_power_off(void)
+ {
+diff -prauN mm4-2.5.69-1/include/linux/sched.h mm4-2.5.69-2/include/linux/sched.h
+--- mm4-2.5.69-1/include/linux/sched.h	2003-05-13 12:16:38.000000000 -0700
++++ mm4-2.5.69-2/include/linux/sched.h	2003-05-13 12:45:02.000000000 -0700
+@@ -158,7 +158,7 @@ extern void init_idle(task_t *idle, int 
+ # define CONFIG_NR_SIBLINGS 0
+ #endif
+ 
+-#ifdef CONFIG_NR_SIBLINGS
++#if CONFIG_NR_SIBLINGS
+ # define CONFIG_SHARE_RUNQUEUE 1
+ #else
+ # define CONFIG_SHARE_RUNQUEUE 0
+diff -prauN mm4-2.5.69-1/kernel/sched.c mm4-2.5.69-2/kernel/sched.c
+--- mm4-2.5.69-1/kernel/sched.c	2003-05-13 12:16:39.000000000 -0700
++++ mm4-2.5.69-2/kernel/sched.c	2003-05-13 12:44:05.000000000 -0700
+@@ -161,7 +161,7 @@ struct prio_array {
+  *  restrictions on the mappings - there can be 4 CPUs per
+  *  runqueue or even assymetric mappings.)
+  */
+-#ifdef CONFIG_SHARE_RUNQUEUE
++#if CONFIG_SHARE_RUNQUEUE
+ # define MAX_NR_SIBLINGS CONFIG_NR_SIBLINGS
+   long __rq_idx[NR_CPUS] __cacheline_aligned;
+   static long __cpu_idx[NR_CPUS] __cacheline_aligned;
+@@ -1188,7 +1188,7 @@ out:
+ 	;
+ }
+ 
+-#ifdef CONFIG_SHARE_RUNQUEUE
++#if CONFIG_SHARE_RUNQUEUE
+ static void active_load_balance(runqueue_t *this_rq, int this_cpu)
+ {
+ 	runqueue_t *rq;
+@@ -2789,7 +2789,7 @@ void __init sched_init(void)
+ 		/*
+ 		 * Start with a 1:1 mapping between CPUs and runqueues:
+ 		 */
+-#ifdef CONFIG_SHARE_RUNQUEUE
++#if CONFIG_SHARE_RUNQUEUE
+ 		rq_idx(i) = i;
+ 		cpu_idx(i) = 0;
+ #endif
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
