@@ -1,59 +1,50 @@
-Date: Sat, 28 Jun 2003 17:08:37 +0100
-From: Christoph Hellwig <hch@infradead.org>
-Subject: Re: 2.5.73-mm2
-Message-ID: <20030628170837.A10514@infradead.org>
-References: <20030627202130.066c183b.akpm@digeo.com> <20030628155436.GY20413@holomorphy.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20030628155436.GY20413@holomorphy.com>; from wli@holomorphy.com on Sat, Jun 28, 2003 at 08:54:36AM -0700
+Received: from delhi.clic.cs.columbia.edu (IDENT:BS2jUjiYmPW0Sw5cyov7o+px6mKm6FIw@delhi.clic.cs.columbia.edu [128.59.15.41])
+	by cs.columbia.edu (8.12.9/8.12.9) with ESMTP id h5SHsQkN020690
+	(version=TLSv1/SSLv3 cipher=EDH-RSA-DES-CBC3-SHA bits=168 verify=NOT)
+	for <linux-mm@kvack.org>; Sat, 28 Jun 2003 13:54:26 -0400 (EDT)
+Received: from delhi.clic.cs.columbia.edu (IDENT:KvPvAvXEd8jRHJ/EVA4TShksQSA/ImjO@localhost [127.0.0.1])
+	by delhi.clic.cs.columbia.edu (8.12.9/8.12.9) with ESMTP id h5SHsQEu010961
+	for <linux-mm@kvack.org>; Sat, 28 Jun 2003 13:54:26 -0400
+Received: from localhost (rra2002@localhost)
+	by delhi.clic.cs.columbia.edu (8.12.9/8.12.9/Submit) with ESMTP id h5SHsQf6010957
+	for <linux-mm@kvack.org>; Sat, 28 Jun 2003 13:54:26 -0400
+Date: Sat, 28 Jun 2003 13:54:26 -0400 (EDT)
+From: "Raghu R. Arur" <rra2002@cs.columbia.edu>
+Subject: i_writecount doubt
+Message-ID: <Pine.LNX.4.44.0306281353370.8819-100000@delhi.clic.cs.columbia.edu>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: William Lee Irwin III <wli@holomorphy.com>, Andrew Morton <akpm@digeo.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, Jun 28, 2003 at 08:54:36AM -0700, William Lee Irwin III wrote:
-> +config HIGHPMD
-> +	bool "Allocate 2nd-level pagetables from highmem"
-> +	depends on HIGHMEM64G
-> +	help
-> +	  The VM uses one pmd entry for each pagetable page of physical
-> +	  memory allocated. For systems with extreme amounts of highmem,
-> +	  this cannot be tolerated. Setting this option will put
-> +	  userspace 2nd-level pagetables in highmem.
 
-Does this make sense for !HIGHPTE?  In fact does it make sense to
-carry along HIGHPTE as an option still? ..
+182  if (file) {
+183  struct inode *inode = file->f_dentry->d_inode;
+184  get_file(file);
+185  if (tmp->vm_flags & VM_DENYWRITE)
+186  atomic_dec(&inode->i_writecount);
+187
 
-> +#ifndef CONFIG_HIGHPMD /* Oh boy. Error reporting is going to blow major goats. */
+  I was looking at the code of dup_mmap() in fork.c. I didnt understand
+something over here. The code above is checking whether the vm_area of the
+parent that the new process (child process)is copying, has read-only
+permission or read-write
+permission. If it has read-only permission then the inode's i_writecount
+is decremented. I saw in the vm documentation that if i_writecount is
+negative then it is read-only and if it is positive then it is positive.
+According to my understanding the inode data that we are accessing is
+global. So some processes might have read-only access
+to the file and some have read-write access to the file. So how can we
+decide whether the process has the correct access just by seeing the value
+of i_writecount of the inode. OR am i missing something over here.
 
-Any chance you can rearragne the code to avoid the ifndef in favour
-of an ifdef?
+  Can anyone please explain whats happening over here.
 
->  		set_pte(dst_pte, entry);
-> +		pmd_unmap(dst_pte);
-> +		pmd_unmap_nested(src_pte);
+ thanks,
+raghu
 
-<Lots more pmd_unmap* calls snipped>
-
-Looks like you changed some API so that pmds are now returned mapped?
-It might make sense to change their names into foo_map then so the
-breakage is at the API level if someone misses updates for the changes.
-
-> +#ifdef CONFIG_HIGHPMD
-> +#define	GFP_PMD		(__GFP_REPEAT|__GFP_HIGHMEM|GFP_KERNEL)
-> +#else
-> +#define GFP_PMD		(__GFP_REPEAT|GFP_KERNEL)
-> +#endif
-
-So what?  Do you want to use a space or tab after the #define? :)
-
-Also Given that GFP_PMD is used just once it's argueable whether it makes
-sense to get rid of the defintion and use the expanded values directly.
-
-
-Otherwise the patch looks fine to me and should allow to get some more
-free lowmem on those insanely big 32bit machines.. :)
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
