@@ -1,50 +1,30 @@
-Message-ID: <3B84BE0A.C9082E87@pp.inet.fi>
-Date: Thu, 23 Aug 2001 11:25:46 +0300
-From: Jari Ruusu <jari.ruusu@pp.inet.fi>
-MIME-Version: 1.0
 Subject: Re: VM problem with 2.4.8-ac9 (fwd)
-References: <Pine.LNX.4.21.0108221526170.2651-100000@freak.distro.conectiva>
+Date: Thu, 23 Aug 2001 13:53:22 +0100 (BST)
+In-Reply-To: <m1zo8rl2lt.fsf@frodo.biederman.org> from "Eric W. Biederman" at Aug 23, 2001 12:19:58 AM
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
+Message-Id: <E15Ztz8-0003mC-00@the-village.bc.nu>
+From: Alan Cox <alan@lxorguk.ukuu.org.uk>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Marcelo Tosatti <marcelo@conectiva.com.br>
-Cc: Rik van Riel <riel@conectiva.com.br>, Alan Cox <alan@lxorguk.ukuu.org.uk>, linux-mm@kvack.org
+To: "Eric W. Biederman" <ebiederm@xmission.com>
+Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Marcelo Tosatti wrote:
-> On Wed, 22 Aug 2001, Rik van Riel wrote:
-> 
-> > Hi Alan,
-> >
-> > Another report of tasks dying on recent 2.4 kernels.
-> > Suspect code would be:
-> > - tlb optimisations in recent -ac    (tasks dying with segfault)
-> > - swapfile.c, especially sys_swapoff (known race condition, marcelo?)
-> 
-> There are known races on swapoff, but Jari is not running swapoff...
+> Can I ask which tlb optimisations these are.  I have a couple
+> of reports of dosemu killing the kernel on 2.4.7-ac6 and 2.4.8-ac7 and
+> similiar kernels, on machines with slow processors.  It has been
 
-Correct, not running swapoff.
+Unrelated. The tlb shootdown fix is ages old and fixes a real bug in Linus
+tree.
 
-> >
-> > What would cause the swap map badness below I wouldn't know,
-> > maybe marcelo is more familiar with the swapfile.c code...
-> 
-> Jari,
-> 
-> 1) Are you using an SMP kernel?
+There are interactions between the segment reload patch and vm86() operation
+where segmnet registers happen to be left holding CS/DS values that make
+the kernel think its optimising a kernel->kernel transition when its seeing
+old vm86 mode selectors
 
-No.
-
-> 2) Did you tried with older kernels or 2.4.9?
-
-Linus' 2.4.9 survived about 7 hours of VM torture, and then I got ext2
-filesystem corruption (just once, dunno if it is repeatable). No "swap
-offset" problems with 2.4.9 so far. Haven't tortured older kernels yet.
-
-Regards,
-Jari Ruusu <jari.ruusu@pp.inet.fi>
-
+Andi Kleen is working on that one
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
