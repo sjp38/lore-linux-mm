@@ -1,49 +1,33 @@
-Date: Mon, 24 Jan 2005 12:55:18 -0700
-From: Grant Grundler <grundler@parisc-linux.org>
-Subject: Re: [PATCH] Avoiding fragmentation through different allocator
-Message-ID: <20050124195518.GA19747@colo.lackof.org>
-References: <20050120101300.26FA5E598@skynet.csn.ul.ie> <20050121142854.GH19973@logos.cnet> <Pine.LNX.4.58.0501222128380.18282@skynet> <20050122215949.GD26391@logos.cnet> <Pine.LNX.4.58.0501241141450.5286@skynet> <20050124122952.GA5739@logos.cnet>
+Date: Mon, 24 Jan 2005 12:23:50 -0800
+From: "David S. Miller" <davem@davemloft.net>
+Subject: Re: Extend clear_page by an order parameter
+Message-Id: <20050124122350.1142ee81.davem@davemloft.net>
+In-Reply-To: <Pine.LNX.4.58.0501240835041.15963@schroedinger.engr.sgi.com>
+References: <Pine.LNX.4.58.0501041512450.1536@schroedinger.engr.sgi.com>
+	<Pine.LNX.4.44.0501082103120.5207-100000@localhost.localdomain>
+	<20050108135636.6796419a.davem@davemloft.net>
+	<Pine.LNX.4.58.0501211210220.25925@schroedinger.engr.sgi.com>
+	<20050122234517.376ef3f8.akpm@osdl.org>
+	<Pine.LNX.4.58.0501240835041.15963@schroedinger.engr.sgi.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20050124122952.GA5739@logos.cnet>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
-Cc: Mel Gorman <mel@csn.ul.ie>, William Lee Irwin III <wli@holomorphy.com>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, grundler@parisc-linux.org, jejb@steeleye.com, awilliam@fc.hp.com
+To: Christoph Lameter <clameter@sgi.com>
+Cc: akpm@osdl.org, hugh@veritas.com, linux-ia64@vger.kernel.org, torvalds@osdl.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jan 24, 2005 at 10:29:52AM -0200, Marcelo Tosatti wrote:
-> Grant Grundler and James Bottomley have been working on this area,
-> they might want to add some comments to this discussion.
-> 
-> It seems HP (Grant et all) has pursued using big pages on IA64 (64K)
-> for this purpose.
+On Mon, 24 Jan 2005 08:37:15 -0800 (PST)
+Christoph Lameter <clameter@sgi.com> wrote:
 
-Marcello,
-That might have been Alex Williamson...but the reasons for 64K pages
-is to reduce TLB thrashing, not faster IO.
+> Then it may also be better to pass the page struct to clear_pages
+> instead of a memory address.
 
-On HP ZX1 boxes, SG performance is slightly better (max +5%) when going
-through the IOMMU than when bypassing it. The IOMMU can perfectly
-coalesce DMA pages but has a small CPU and DMA cost to do so as well.
+What is more generally available at the call sites at this time?
+Consider both HIGHMEM and non-HIGHMEM setups in your estimation
+please :-)
 
-Otherwise, I totally agree with James. IO devices do scatter-gather
-pretty well and IO subsystems are tuned for page-size chunk or
-smaller anyway.
-
-...
-> > I could keep digging, but I think the bottom line is that having large
-> > pages generally available rather than a fixed setting is desirable. 
-> 
-> Definately, yes. Thanks for the pointers. 
-
-Big pages are good for CPU TLB and that's where most of the
-research has been done. I think IO devices have learned to cope
-with the fact the alot less has been (or can be for many
-workloads) done to coalesce IO pages.
-
-grant
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
