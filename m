@@ -1,39 +1,39 @@
-Message-ID: <39F897AC.4A97EAD3@sgi.com>
-Date: Thu, 26 Oct 2000 13:44:28 -0700
-From: Rajagopal Ananthanarayanan <ananth@sgi.com>
+Date: Thu, 26 Oct 2000 13:47:55 -0700 (PDT)
+From: Linus Torvalds <torvalds@transmeta.com>
+Subject: Re: Discussion on my OOM killer API
+In-Reply-To: <Pine.LNX.4.21.0010191459320.19735-100000@duckman.distro.conectiva>
+Message-ID: <Pine.LNX.4.10.10010261345320.2575-100000@penguin.transmeta.com>
 MIME-Version: 1.0
-Subject: Re: page fault.
-References: <8ta1ir$358it$1@fido.engr.sgi.com>
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "M.Jagadish Kumar" <jagadish@rishi.serc.iisc.ernet.in>, linux-mm@kvack.org
+To: Rik van Riel <riel@conectiva.com.br>
+Cc: Ingo Oeser <ingo.oeser@informatik.tu-chemnitz.de>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-"M.Jagadish Kumar" wrote:
+
+On Thu, 19 Oct 2000, Rik van Riel wrote:
 > 
-> hello,
-> Is there any way in which i can know when the pagefault occured,
-> i mean at what instruction of my program execution.
-> Does OS provide any support. This would help me to improve my program.
+> > I'm also willing to maintain it ;-)
+> 
+> Linus, how would you feel about an interface that allows
+> people to insomd/rmmod their own OOM handler ?
 
+I hate the idea.
 
-Unless the test program is the only one on the system,
-there are other programs which will affect the pagefault
-of the test program,  since the pages of those other programs
-affect the resident pages of the test program.
+I dislike that kind of approach in general. I don't like plug-in
+schedulers, etc either. I think it's a cop-out, saying that we cannot do a
+good enough job, and claiming that it's such a difficult problem that we
+should let the user decide. And in the end it ends up just screwing
+everybody, because all the modules will do the wrong thing in some
+circumstances, and nobody ever bothers to test _their_ module for anything
+but the case they care about.
 
-AFAICT, there is no direct means of saying which instructions
-caused page faults ... things like /sbin/time can report
-total page faults only.
+In short, it's one of those things that sounds like a good idea, but that
+results in absolute crap in the end.
 
-Why are you specifically interested in page faults?
+		Linus
 
---------------------------------------------------------------------------
-Rajagopal Ananthanarayanan ("ananth")
-Member Technical Staff, SGI.
---------------------------------------------------------------------------
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
