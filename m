@@ -1,58 +1,57 @@
-Date: Tue, 04 Jan 2005 23:42:07 +0900 (JST)
-Message-Id: <20050104.234207.74734492.taka@valinux.co.jp>
-Subject: Re: page migration
+Date: Wed, 05 Jan 2005 00:42:21 +0900 (JST)
+Message-Id: <20050105.004221.41649018.taka@valinux.co.jp>
+Subject: Re: page migration\
 From: Hirokazu Takahashi <taka@valinux.co.jp>
-In-Reply-To: <41D9A7DB.2020306@sgi.com>
-References: <41D99743.5000601@sgi.com>
-	<1104781061.25994.19.camel@localhost>
-	<41D9A7DB.2020306@sgi.com>
+In-Reply-To: <20050103183811.GE14886@logos.cnet>
+References: <20050103171344.GD14886@logos.cnet>
+	<41D9AC2D.90409@sgi.com>
+	<20050103183811.GE14886@logos.cnet>
 Mime-Version: 1.0
 Content-Type: Text/Plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: raybry@sgi.com
-Cc: haveblue@us.ibm.com, marcelo.tosatti@cyclades.com, linux-mm@kvack.org
+To: marcelo.tosatti@cyclades.com
+Cc: raybry@sgi.com, haveblue@us.ibm.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Ray,
+Hi,
 
-> >>Of course, the "standalone" memory migration stuff makes most sense on NUMA, 
-> >>and there is some minor interface changes there to support that (i. e. consider:
-> >>
-> >>migrate_onepage(page);
-> >>
-> >>vs
-> >>
-> >>migrate_onepage_node(page, node);
-> >>
-> >>what the latter does is to call alloc_pages_node() instead of
-> >>page_cache_alloc() to get the new page.)
+> > Marcelo Tosatti wrote:
 > > 
+> > >Memory migration makes sense for defragmentation too.
+> > >
+> > >I think we enough arguments for merging the migration code first, as you 
+> > >suggest.
+> > >
+> > >Its also easier to merge part-by-part than everything in one bunch.
+> > >
+> > >Yes?
 > > 
-> > We might as well just change all of the users over to the NUMA version
-> > from the start.  Having 2 different functions just causes confusion.  
-> > 
+> > Absolutely.  I guess the only question is when to propose the merge with -mm
+> > etc.  Is your defragmentation code in a good enough state to be proposed as
+> > well, or should we wait a bit?
 > 
-> Yes, especially since alloc_pages_node() is defined regardless of whether
-> NUMA is defined (I've found out by some code inspection).  So in the
-> non-DISCONTIGMEM cases, the node argument would just be ignored.  I'll
-> put together a patch that moves the interface over to
+> No, we have to wait - its not ready yet.
 > 
-> migrate_onepage(page, node)
+> But it is really simple and small, as soon as the "asynchronous" memory migration is working.
+>
+> > I think we need at least one user of the code before we can propose that the
+> > memory migration code be merged, or do you think we the arguments are strong
+> > enough we can proceed with users "pending"?
 > 
-> and fixes up the callers in the memory hotplug patches.
+> IMO the arguments are strong enough that we can proceed with the current state.
+> I'm all for it.
+> 
+> Andrew knows the importance and the users of the memory migration infrastructure.
+> 
+> Dave, Hirokazu, what are your thoughts on this
 
-I also think we should rewrite page allocation in the memory migration
-code, as the latest -mm tree includes NUMA aware page allocator. I guess
-you should also care about mm/mempolicy.c and expand it for your purpose.
-If memory migration is called after moving a process, a new page would
-be allocated form a proper node automatically.
+Andrew is interested in our approach.
+With Ray's help, it will proceed faster and become stable soon:)
 
-Have you checked mm/mempolicy.c?
-
-Thanks,
-Hirokazu Takahashi.
+> Shall we CC Andrew?
+> 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
