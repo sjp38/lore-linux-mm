@@ -1,32 +1,56 @@
-Subject: Re: Swapping for diskless nodes
-Date: Tue, 14 Aug 2001 13:57:54 +0100 (BST)
-In-Reply-To: <20010811011329.C55@toy.ucw.cz> from "Pavel Machek" at Aug 11, 2001 01:13:29 AM
-MIME-Version: 1.0
+Date: Wed, 15 Aug 2001 07:06:22 -0400
+From: Marc Heckmann <heckmann@hbesoftware.com>
+Subject: Re: 2.4.8-pre7: still buffer cache problems[+2.4.9-pre3 comments]
+Message-ID: <20010815070622.A27813@hbe.ca>
+References: <Pine.LNX.4.33L.0108091749580.1439-100000@duckman.distro.conectiva> <32779.213.7.62.75.997402832.squirrel@webmail.hbesoftware.com>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Message-Id: <E15Wdla-00018V-00@the-village.bc.nu>
-From: Alan Cox <alan@lxorguk.ukuu.org.uk>
+Content-Disposition: inline
+In-Reply-To: <32779.213.7.62.75.997402832.squirrel@webmail.hbesoftware.com>; from heckmann@hbesoftware.com on Thu, Aug 09, 2001 at 08:20:32PM -0400
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Pavel Machek <pavel@suse.cz>
-Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, Bulent Abali <abali@us.ibm.com>, "Dirk W. Steinberg" <dws@dirksteinberg.de>, Ingo Oeser <ingo.oeser@informatik.tu-chemnitz.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: riel@conectiva.com.br
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> > Ultimately its an insoluble problem, neither SunOS, Solaris or NetBSD are
-> > infallible, they just never fail for any normal situation, and thats good
-> > enough for me as a solution
+On Thu, Aug 09, 2001 at 08:20:32PM -0400, marc heckmann wrote:
+> > 
+> > OK, there is no obvious way to do do drop-behind on
+> > buffer cache pages, but I think we can use a quick
+> > hack to make the system behave well under the presence
+> > of large amounts of buffer cache pages.
+> > 
+> > What we could do is, in refill_inactive_scan(), just
+> > moving buffer cache pages to the inactive list regardless
+> > of page aging when there are too many buffercache pages
+> > around in the system.
+> > 
+> > Does the patch below help you ?
 > 
-> Oops,  really? And if I can DoS such machine with ping -f (to eat atomic
-> ram)? And what are you going to tel your users? "It died so reboot"?
+> well, the buffer cache still got huge and the system still swapped out like
+> mad, but it seemed like the buffer cache grew _slower_ and that the vm was
+> more fair towards other vm users. so interactivity was better but still far
+> from 2.2. and then it oops'ed [I don't think it was because of your patch
+> though..]:
+> 
 
-For the simplistic case you can stop queueing data to user sockets but that
-isnt neccessarily a cure - it can lead to bogus OOM by preventing progress
-of apps that would otherwise read a packet then exit.
+I tried 2.4.8 final and it fixes the problem.... could it be the 
+fs/buffer.c changes? behaviour is now like 2.2 (good in this case). if I 
+have time I'll try 2.4.8-ac5 to se if it also fixes it. thanks to whoever 
+is responsible for the fix.
 
-The good example of the insoluble end of it is a box with no default route
-doing BGP4 routing with NFS swap. Now thats an extremely daft practical 
-proposition but it illustrates the fact the priority ordering is not known
-to the kernel
+also I tried 2.4.9-pre3 and it performs _much_ [I'd say 10 times better!]
+better under high VM load specifically when filling all ram+swap. Where
+2.4.8 used to thrash without making any progress what so ever [I'd have to
+reset], 2.4.9-pre3 will either oom_kill (the _right_ process) or manage to
+handle swap to let processes run without thrashing. this is all on PPC 
+without any highmem (192Mb + 200mb swap.).
+
+
+	Cheers,
+
+	-marc
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
