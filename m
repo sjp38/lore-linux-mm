@@ -1,56 +1,33 @@
-Date: Mon, 25 Sep 2000 14:58:56 +0200
+Date: Mon, 25 Sep 2000 15:02:58 +0200
 From: Andrea Arcangeli <andrea@suse.de>
-Subject: Re: [patch] vmfixes-2.4.0-test9-B2
-Message-ID: <20000925145856.A13011@athlon.random>
-References: <20000925033128.A10381@athlon.random> <Pine.LNX.4.21.0009251207590.1459-100000@elte.hu>
+Subject: Re: the new VM
+Message-ID: <20000925150258.B13011@athlon.random>
+References: <Pine.LNX.4.21.0009242143040.2029-100000@freak.distro.conectiva> <Pine.LNX.4.21.0009251229110.1459-100000@elte.hu>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.21.0009251207590.1459-100000@elte.hu>; from mingo@elte.hu on Mon, Sep 25, 2000 at 12:13:08PM +0200
+In-Reply-To: <Pine.LNX.4.21.0009251229110.1459-100000@elte.hu>; from mingo@elte.hu on Mon, Sep 25, 2000 at 12:42:09PM +0200
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Ingo Molnar <mingo@elte.hu>
-Cc: Linus Torvalds <torvalds@transmeta.com>, Rik van Riel <riel@conectiva.com.br>, Roger Larsson <roger.larsson@norran.net>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
+Cc: Marcelo Tosatti <marcelo@conectiva.com.br>, Linus Torvalds <torvalds@transmeta.com>, Rik van Riel <riel@conectiva.com.br>, Roger Larsson <roger.larsson@norran.net>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Sep 25, 2000 at 12:13:08PM +0200, Ingo Molnar wrote:
-> 
-> On Mon, 25 Sep 2000, Andrea Arcangeli wrote:
-> 
-> > Not sure if this is the right moment for those changes though, I'm not
-> > worried about ext2 but about the other non-netoworked fses that nobody
-> > uses regularly.
-> 
-> it *is* the right moment to clean these issues up. These kinds of things
+On Mon, Sep 25, 2000 at 12:42:09PM +0200, Ingo Molnar wrote:
+> believe could simplify unrelated kernel code significantly. Eg. no need to
+> check for NULL pointers on most allocations, a GFP_KERNEL allocation
+> always succeeds, end of story. This behavior also has the 'nice'
 
-I'm talking about the removal of the superblock lock from the filesystems.
+Sorry I totally disagree. If GFP_KERNEL are garanteeded to succeed that is a
+showstopper bug. We also have another showstopper bug in getblk that will be
+hard to fix because people was used to rely on it and they wrote dealdock prone
+code.
 
-Note: I don't have problems with the removal of the superblock lock even if
-done at this stage, I'm not the one who can choose those things, it's Linus's
-responsability to take the final decision for the official tree, but don't ask
-me to test patches that removes the superblock lock _at_this_stage_ before I
-can run a stable and fast 2.4.x because I won't do that. Period.
-
-> yet another elevator algorithm we need a squeaky clean VM balancer above
-
-FYI: My current tree (based on 2.4.0-test8-pre5) delivers 16mbyte/sec in the
-tiobench write test compared to clean 2.4.0-test8-pre5 that delivers 8mbyte/sec
-instead with only blkdev layer changes in between the two kernels (and no
-that's not a matter of the elevator since there are no seeks in the test
-and I've not changed the elevator sorting algorithm during the bench).
-
-Also I I found the reason of your hang, it's the TASK_EXCLUSIVE in
-wait_for_request. The high part of the queue is reserved for reads.
-Now if a read completes and it wakeups a write you'll hang.
-
-If you think I should delay those fixes to do something else I don't agree
-sorry. 
-
-> all. Please help identifying, fixing, debugging and testing these VM
-> balancing issues. This is tough work and it needs to be done.
-
-I had an alternative VM, that I prefer from a design standpoint, I'll improve
-it and I'll maintain it.
+You should know that people not running benchmarks and and using the machine
+power for simulations runs out of memory all the time. If you put this kind of
+obvious deadlock into the main kernel allocator you'll screwup the hard work to
+fix all the other deadlock problems during OOM that is been done so far. Please
+fix raid1 instead of making things worse.
 
 Andrea
 --
