@@ -1,83 +1,184 @@
-Received: from cthulhu.engr.sgi.com (cthulhu.engr.sgi.com [192.26.80.2])
-	by sgi.com (980327.SGI.8.8.8-aspam/980304.SGI-aspam:
-       SGI does not authorize the use of its proprietary
-       systems or networks for unsolicited or bulk email
-       from the Internet.)
-	via ESMTP id OAA08951
-	for <@external-mail-relay.sgi.com:linux-mm@kvack.org>; Mon, 17 Jul 2000 14:12:01 -0700 (PDT)
-	mail_from (ananth@sgi.com)
-Received: from madurai.engr.sgi.com (madurai.engr.sgi.com [163.154.5.75])
-	by cthulhu.engr.sgi.com (980427.SGI.8.8.8/970903.SGI.AUTOCF)
-	via ESMTP id OAA36109
-	for <@cthulhu.engr.sgi.com:linux-mm@kvack.org>;
-	Mon, 17 Jul 2000 14:12:00 -0700 (PDT)
-	mail_from (ananth@sgi.com)
-Received: from sgi.com (mango.engr.sgi.com [163.154.5.76]) by madurai.engr.sgi.com (980427.SGI.8.8.8/970903.SGI.AUTOCF) via ESMTP id OAA82634 for <linux-mm@kvack.org>; Mon, 17 Jul 2000 14:08:18 -0700 (PDT)
-Message-ID: <39737705.742B121C@sgi.com>
-Date: Mon, 17 Jul 2000 14:13:41 -0700
-From: Rajagopal Ananthanarayanan <ananth@sgi.com>
+Message-ID: <3973AF65.F3372E@norran.net>
+Date: Tue, 18 Jul 2000 03:14:13 +0200
+From: Roger Larsson <roger.larsson@norran.net>
 MIME-Version: 1.0
-Subject: Test4 performance numbers
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Subject: [PATCH] test5-pre1 vmfix (rev 8)
+Content-Type: multipart/mixed;
+ boundary="------------FDA74AD99A03F4965B626A7B"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Linus Torvalds <torvalds@transmeta.com>, "linux-kernel@vger.rutgers.edu" <linux-kernel@vger.rutgers.edu>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Rik van Riel <riel@conectiva.com.br>
 List-ID: <linux-mm.kvack.org>
 
-Since test4 came out I ran a bunch of tests
-again to gauge performance. As you'll see test4
-is a little slower in some cases as compared to
-test3 ... I also had some compile problems with test4
-in networking (pcnet32), but others have compiled
-without  problems. All the foll. tests were on EXT2,
-on a 2 CPU X86 box with 64MB memory. Test3 numbers
-were the best I've seen in a variety of kernels including
-2.3.42, 2.3.99pre2 and several intermediate "pre" versions.
+This is a multi-part message in MIME format.
+--------------FDA74AD99A03F4965B626A7B
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+
+Hi,
+
+Since I am responsible for messing up some aspects of vm
+(when fixing others)
+here is a patch that tries to solve the introduced problems.
+
+* no more periodic wake up of kswapd - not needed anymore
+* no more freeing all zones to (free_pages > pages_high)
+* always wakes kswapd up after try_to_free_pages
+* kswapd starts when all zones gets zone_wake_kswapd
+  (runs once for each zone that hits zone_wake_kswapd)
+* removed test for more than pages_high in alloc_pages,
+  zones will mostly be in the range [pages_high...pages_low]
+* I get 10% better throughput than 2.4.0-test4, YMMV
+
+Note: logic of function keep_kswapd_awake has changed.
+
+/RogerL
 
 
-------
-Bonnie
-------
-              -------Sequential Output-------- ---Sequential Input-- --Random--             
-              -Per Char- --Block--- -Rewrite-- -Per Char- --Block--- --Seeks---
- Machine    MB K/sec %CPU K/sec %CPU K/sec %CPU K/sec %CPU K/sec %CPU  /sec %CPU
+--
+Home page:
+  http://www.norran.net/nra02596/
+--------------FDA74AD99A03F4965B626A7B
+Content-Type: text/plain; charset=us-ascii;
+ name="patch-2.4.0-test5-1-vmfix.8"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline;
+ filename="patch-2.4.0-test5-1-vmfix.8"
 
-TEST4     256  3630 99.5   9915 14.7  6013 11.3  2894 86.0 18502 19.1 181.4  3.1
-TEST4     256  3110 85.5   9884 14.7  6098 11.1  1831 54.3 18554 17.6 183.8  3.0
-TEST4     256  3301 89.7   9857 15.3  6034 10.2  2772 82.7 18570 17.6 180.8  2.5
-
-TEST3     256  3628 99.5  10693 15.3  6084 10.7  3014 89.5 18533 17.7 182.6  3.2
-TEST3     256  3648 100.2 10456 15.2  6044 11.1  3031 89.7 18511 18.6 183.6  2.5
-TEST3     256  3650 99.9  10545 15.6  6046 10.8  3020 89.9 18518 19.8 181.6  2.6 
+--- linux/mm/vmscan.c.orig	Sat Jul 15 23:44:34 2000
++++ linux/mm/vmscan.c	Tue Jul 18 02:08:48 2000
+@@ -440,7 +440,7 @@ static inline int memory_pressure(void)
+ }
  
-TEST1     256  3434 94.8   6858 12.0  2949  6.1  3110 93.0 18713 21.3 174.9  3.3
-TEST1     256  3421 95.0   6933 11.2  2628  6.0  3052 91.2 18569 22.0 176.0  2.5
-TEST1     256  3474 96.5   6900 11.5  2824  6.1  3023 90.6 18103 24.4 173.5  2.9
+ /*
+- * Check if there recently has been memory pressure (zone_wake_kswapd)
++ * Check if all zones have recently had memory_pressure (zone_wake_kswapd)
+  */
+ static inline int keep_kswapd_awake(void)
+ {
+@@ -451,13 +451,13 @@ static inline int keep_kswapd_awake(void
+ 		for(i = 0; i < MAX_NR_ZONES; i++) {
+ 			zone_t *zone = pgdat->node_zones+ i;
+ 			if (zone->size &&
+-			    zone->zone_wake_kswapd)
+-				return 1;
++			    !zone->zone_wake_kswapd)
++				return 0;
+ 		}
+ 		pgdat = pgdat->node_next;
+ 	} while (pgdat);
+ 
+-	return 0;
++	return 1;
+ }
+ 
+ /*
+@@ -496,9 +496,7 @@ static int do_try_to_free_pages(unsigned
+ 				goto done;
+ 		}
+ 
+-		/* not (been) low on memory - it is
+-		 * pointless to try to swap out.
+-		 */
++		/* check if mission completed */
+ 		if (!keep_kswapd_awake())
+ 			goto done;
+ 
+@@ -596,10 +594,7 @@ int kswapd(void *unused)
+ 
+ 	for (;;) {
+ 		if (!keep_kswapd_awake()) {
+-			/* wake up regulary to do an early attempt too free
+-			 * pages - pages will not actually be freed.
+-			 */
+-			interruptible_sleep_on_timeout(&kswapd_wait, HZ);
++			interruptible_sleep_on(&kswapd_wait);
+ 		}
+ 
+ 		do_try_to_free_pages(GFP_KSWAPD);
+@@ -631,18 +626,18 @@ int try_to_free_pages(unsigned int gfp_m
+ 		retval = do_try_to_free_pages(gfp_mask);
+ 		current->flags &= ~PF_MEMALLOC;
+ 	}
+-	else {
+-		/* make sure kswapd runs */
+-		if (waitqueue_active(&kswapd_wait))
+-			wake_up_interruptible(&kswapd_wait);
+-	}
++
++	/* someone needed memory that kswapd had not provided
++	 * make sure kswapd runs, should not happen often */
++	if (waitqueue_active(&kswapd_wait))
++		wake_up_interruptible(&kswapd_wait);
+ 
+ 	return retval;
+ }
+ 
+ static int __init kswapd_init(void)
+ {
+-	printk("Starting kswapd v1.6\n");
++	printk("Starting kswapd v1.7\n");
+ 	swap_setup();
+ 	kernel_thread(kswapd, NULL, CLONE_FS | CLONE_FILES | CLONE_SIGHAND);
+ 	return 0;
+--- linux/mm/page_alloc.c.orig	Sat Jul 15 23:44:46 2000
++++ linux/mm/page_alloc.c	Tue Jul 18 02:19:30 2000
+@@ -217,7 +217,7 @@ static struct page * rmqueue(zone_t *zon
+  */
+ struct page * __alloc_pages(zonelist_t *zonelist, unsigned long order)
+ {
+-	zone_t **zone = zonelist->zones;
++	zone_t **zone;
+ 	extern wait_queue_head_t kswapd_wait;
+ 
+ 	/*
+@@ -228,21 +228,6 @@ struct page * __alloc_pages(zonelist_t *
+ 	 * in a higher zone fails.
+ 	 */
+ 
+-	for (;;) {
+-		zone_t *z = *(zone++);
+-		if (!z)
+-			break;
+-		if (!z->size)
+-			BUG();
+-
+-		/* If there are zones with a lot of free memory allocate from them */
+-		if (z->free_pages > z->pages_high) {
+-			struct page *page = rmqueue(z, order);
+-			if (page)
+-				return page;
+-		}
+-	}
+-
+ 	zone = zonelist->zones;
+ 	for (;;) {
+ 		zone_t *z = *(zone++);
+@@ -263,6 +248,21 @@ struct page * __alloc_pages(zonelist_t *
+ 				return page;
+ 		}
+ 	}
++
++	/* Three possibilities to get here
++	 * - Previous alloc_pages resulted in last zone set to have
++	 *   zone_wake_kswapd and start it. kswapd has not been able
++	 *   to release enough pages so that one zone does not have
++	 *   zone_wake_kswapd set.
++	 * - Different sets of zones (zonelist)
++	 *   previous did not have all zones with zone_wake_kswapd but
++	 *   this one has... should kswapd be woken up? it will run once.
++	 * - SMP race, kswapd went to sleep slightly after it as running
++	 *   in 'if (waitqueue_active(...))' above.
++	 * + anyway the test is very cheap to do...
++	 */
++	if (waitqueue_active(&kswapd_wait))
++		wake_up_interruptible(&kswapd_wait);
+ 
+ 	/*
+ 	 * Ok, we don't have any zones that don't need some
 
+--------------FDA74AD99A03F4965B626A7B--
 
------------------------------------
-lmdd (across blocksizes 1K to 1024K
-------------------------------------
-		Write		Read
-               ---------	--------
-TEST4 		10   MB/S      [ Didn't run this ]
-TEST3		10-11MB/s	~19MB/s
-TEST1		 6-7 MB/s	~18.5MB/s
-
--------------------
-DBENCH (48 clients)
--------------------
-TEST4 - 10-11MB/sec
-TEST3 - 10-11MB/sec
-TEST1 - 1.5-2MB/sec
-
-
--- 
---------------------------------------------------------------------------
-Rajagopal Ananthanarayanan ("ananth")
-Member Technical Staff, SGI.
---------------------------------------------------------------------------
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
