@@ -1,55 +1,49 @@
-Received: from mea.tmt.tele.fi (mea.tmt.tele.fi [194.252.70.162])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id SAA06598
-	for <linux-mm@kvack.org>; Tue, 25 May 1999 18:18:44 -0400
-Subject: Re: Q: PAGE_CACHE_SIZE?
-In-Reply-To: <Pine.LNX.4.03.9905252213400.25857-100000@mirkwood.nl.linux.org> from Rik van Riel at "May 25, 99 10:16:34 pm"
-Date: Wed, 26 May 1999 01:17:53 +0300 (EEST)
-From: Matti Aarnio <matti.aarnio@sonera.fi>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
-Message-Id: <19990525221804Z92392-10847+102@mea.tmt.tele.fi>
+Received: from sunsite.ms.mff.cuni.cz (sunsite.ms.mff.cuni.cz [195.113.19.66])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id DAA11611
+	for <linux-mm@kvack.org>; Wed, 26 May 1999 03:43:44 -0400
+Date: Wed, 26 May 1999 09:44:07 +0200
+From: Jakub Jelinek <jj@sunsite.ms.mff.cuni.cz>
+Subject: Re: [PATCH] cache large files in the page cache
+Message-ID: <19990526094407.J527@mff.cuni.cz>
+References: <m17lpzsi0h.fsf@flinx.ccr.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+In-Reply-To: <m17lpzsi0h.fsf@flinx.ccr.net>; from Eric W. Biederman on Sun, May 23, 1999 at 02:28:14PM -0500
 Sender: owner-linux-mm@kvack.org
-To: Rik van Riel <riel@nl.linux.org>
-Cc: alan@lxorguk.ukuu.org.uk, ak@muc.de, ebiederm+eric@ccr.net, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
+To: "Eric W. Biederman" <ebiederm+eric@ccr.net>
+Cc: Linus Torvalds <torvalds@transmeta.com>, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Rik van Riel <riel@nl.linux.org> wrote:
-...
-> This sounds suspiciously like the 'larger-blocks-for-larger-FSes'
-> tactic other systems have been using to hide the bad scalability
-> of their algorithms.
-... (read-ahead comments cut away) ...
+> Details:
+> 
+> This patch replaces vm_offset with vm_index, with the relationship:
+> vm_offset == (vm_index << PAGE_SHIFT).  Except vm_index can hold larger
+> offsets.
 
-I have this following table about EXT2 (and UFS, and SysVfs, and..)
-filesystem maximum supported file size.  These limits stem from block
-addressability limitations in the classical tripply-indirection schemes:
+I have minor suggestion to the patch. Instead of using vm_index <<
+PAGE_SHIFT and page->key << PAGE_CACHE_SHIFT shifts either choose different
+constant names for this shifting (VM_INDEX_SHIFT and PAGE_KEY_SHIFT) or hide
+these shifts by some pretty macros (you'll need two for each for both
+directions in that case - if you go the macro way, maybe it would be a good
+idea to make vm_index and key type some structure with a single member like
+mm_segment_t for more strict typechecking). This would have the advantage of
+avoiding shifting on 64bit archs, where it really is not necessary as no
+filesystem will support 16000EB filesizes in the near future. I know shifts
+are not expensive, on the other side count how many there will be and IMHO
+it should be considered. It could make the code more readable at the same
+time. VM_INDEX_SHIFT would be defined to 0 on alpha,sparc64
+(merced,mips64,ppc64) and PAGE_SHIFT on other platforms. The same with
+PAGE_KEY_SHIFT.
 
-	Block Size   File Size
-
-	512        2 GB + epsilon
-	1k        16 GB + epsilon
-	2k       128 GB + epsilon
-	4k      1024 GB + epsilon
-	8k      8192 GB + epsilon  ( not without PAGE_SIZE >= 8 kB )
-
-And of course any single partition filesystem in Linux (all of the
-'local devices' filesystems right now) can't exceed  4G blocks of
-512 bytes which limit is at the block device layer.
-(This gives maximum physical filesystem size of 2 TB for EXT2.)
-
-
-So, in my opinnion any triply-indirected filesystem is at the end
-of its life when it comes to truly massive datasets.
-
-
-The EXT2FS family will soon get new ways to extend its life by having
-alternate block addressing structure to that of the classical triply-
-indirection scheme it now uses.  (Ted Ts'o is working at it.)
-
-> Rik -- Open Source: you deserve to be in control of your data.
-
-/Matti Aarnio <matti.aarnio@sonera.fi>
+Cheers,
+    Jakub
+___________________________________________________________________
+Jakub Jelinek | jj@sunsite.mff.cuni.cz | http://sunsite.mff.cuni.cz
+Administrator of SunSITE Czech Republic, MFF, Charles University
+___________________________________________________________________
+UltraLinux  |  http://ultra.linux.cz/  |  http://ultra.penguin.cz/
+Linux version 2.3.3 on a sparc64 machine (1343.49 BogoMips)
+___________________________________________________________________
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm my@address'
 in the body to majordomo@kvack.org.  For more info on Linux MM,
