@@ -1,9 +1,9 @@
-Date: Thu, 24 Apr 2003 14:13:25 -0700
+Date: Thu, 24 Apr 2003 16:13:54 -0700
 From: "Martin J. Bligh" <mbligh@aracnet.com>
-Subject: Re: 2.5.68-mm2
-Message-ID: <1661460000.1051218805@flay>
-In-Reply-To: <20030423233954.D9036@redhat.com>
-References: <20030423012046.0535e4fd.akpm@digeo.com><18400000.1051109459@[10.10.2.4]> <20030423144648.5ce68d11.akpm@digeo.com> <1565150000.1051134452@flay> <20030423233954.D9036@redhat.com>
+Subject: Re: objrmap (was 2.5.68-mm2)
+Message-ID: <1675320000.1051226034@flay>
+In-Reply-To: <1661460000.1051218805@flay>
+References: <20030423012046.0535e4fd.akpm@digeo.com><18400000.1051109459@[10.10.2.4]> <20030423144648.5ce68d11.akpm@digeo.com> <1565150000.1051134452@flay> <20030423233954.D9036@redhat.com> <1661460000.1051218805@flay>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
@@ -14,73 +14,70 @@ To: Benjamin LaHaise <bcrl@redhat.com>
 Cc: Andrew Morton <akpm@digeo.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
->> The performance improvement was about 25% of systime according to my 
->> measurements - I don't call that insignificant.
-> 
-> Never, ever use changes in system time as a justification for a patch.  We 
-> all know that Linux's user/system time accounting is patently unreliable.  
+> OK, well then you need to look at something that's not totally dominated
+> by gcc anyway. I know everyone hates SDET as it's "closed" but I'll try
+> to rerun with aim7 at some point. A real 20% improvement in throughput
+> is not to be sniffed at ...
 
-Mmmm. I'm not particularly convinced by that ... I do 5 runs for every 
-benchmark and compare the results, and it seems very consistent to me. 
-For kernbench, it's interesting to look at system time - but obviously
-keeping an eye on elapsed time as well, particularly for things like
-scheduler patches.
+BTW, if you want to see the profile for this, it's obvious what's
+taking the time ...
 
-> Remember Nyquist?  Talk to me about differences in wall clock and your 
-> comments will be more interesting.
-
-OK, well then you need to look at something that's not totally dominated
-by gcc anyway. I know everyone hates SDET as it's "closed" but I'll try
-to rerun with aim7 at some point. A real 20% improvement in throughput
-is not to be sniffed at ...
-
-DISCLAIMER: SPEC(tm) and the benchmark name SDET(tm) are registered
-trademarks of the Standard Performance Evaluation Corporation. This 
-benchmarking was performed for research purposes only, and the run results
-are non-compliant and not-comparable with any published results.
-
-Results are shown as percentages of the first set displayed
-
-SDET 1  (see disclaimer)
-                           Throughput    Std. Dev
-                   2.5.68       100.0%         0.7%
-           2.5.68-objrmap       105.7%         0.4%
-
-SDET 2  (see disclaimer)
-                           Throughput    Std. Dev
-                   2.5.68       100.0%         2.8%
-           2.5.68-objrmap       108.2%         0.7%
-
-SDET 4  (see disclaimer)
-                           Throughput    Std. Dev
-                   2.5.68       100.0%         1.0%
-           2.5.68-objrmap       112.0%         1.4%
-
-SDET 8  (see disclaimer)
-                           Throughput    Std. Dev
-                   2.5.68       100.0%         0.6%
-           2.5.68-objrmap       122.8%         1.3%
-
-SDET 16  (see disclaimer)
-                           Throughput    Std. Dev
-                   2.5.68       100.0%         0.1%
-           2.5.68-objrmap       117.3%         0.8%
-
-SDET 32  (see disclaimer)
-                           Throughput    Std. Dev
-                   2.5.68       100.0%         0.4%
-           2.5.68-objrmap       118.5%         0.4%
-
-SDET 64  (see disclaimer)
-                           Throughput    Std. Dev
-                   2.5.68       100.0%         0.2%
-           2.5.68-objrmap       121.2%         0.3%
-
-SDET 128  (see disclaimer)
-                           Throughput    Std. Dev
-                   2.5.68       100.0%         0.1%
-           2.5.68-objrmap       118.6%         0.2%
-
+86159 page_remove_rmap
+38690 page_add_rmap
+17976 zap_pte_range
+14431 copy_page_range
+10953 __d_lookup
+9978 release_pages
+9369 find_get_page
+7483 atomic_dec_and_lock
+6924 __copy_to_user_ll
+6830 kmem_cache_free
+5848 path_lookup
+4687 follow_mount
+4430 clear_page_tables
+4214 remove_shared_vm_struct
+3907 do_wp_page
+3823 .text.lock.dec_and_lock
+3336 do_no_page
+3315 do_anonymous_page
+3294 copy_mm
+3279 free_pages_and_swap_cache
+3111 pte_alloc_one
+2709 .text.lock.dcache
+2625 .text.lock.filemap
+2573 filemap_nopage
+2564 copy_process
+2556 proc_pid_stat
+2358 link_path_walk
+2246 do_page_fault
+2202 file_move
+2189 buffered_rmqueue
+2141 free_hot_cold_page
+2140 schedule
+2114 path_release
+1879 current_kernel_time
+1825 .text.lock.namei
+1722 d_alloc
+1719 release_task
+1490 __set_page_dirty_buffers
+1464 number
+1350 kmalloc
+1343 __read_lock_failed
+1305 page_address
+1286 fd_install
+1255 __find_get_block
+1253 flush_signal_handlers
+1249 __fput
+1248 exit_notify
+1242 task_mem
+1221 grab_block
+1188 .text.lock.highmem
+1169 __block_prepare_write
+1123 __brelse
+1050 file_kill
+1026 .text.lock.file_table
+1013 ext2_new_inode
+1008 __mark_inode_dirty
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
