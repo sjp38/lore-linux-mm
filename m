@@ -1,225 +1,288 @@
-Date: Tue, 15 Oct 2002 15:11:39 +0200 (CEST)
-From: Ingo Molnar <mingo@elte.hu>
-Reply-To: Ingo Molnar <mingo@elte.hu>
-Subject: [patch] mmap-speedup-2.5.42-C3
-Message-ID: <Pine.LNX.4.44.0210151438440.10496-100000@localhost.localdomain>
+Received: from digeo-nav01.digeo.com (digeo-nav01.digeo.com [192.168.1.233])
+	by packet.digeo.com (8.9.3+Sun/8.9.3) with SMTP id WAA01119
+	for <linux-mm@kvack.org>; Mon, 14 Oct 2002 22:10:45 -0700 (PDT)
+Message-ID: <3DABA351.7E9C1CFB@digeo.com>
+Date: Mon, 14 Oct 2002 22:10:41 -0700
+From: Andrew Morton <akpm@digeo.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: 2.5.43-m3
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@transmeta.com>
-Cc: Andrew Morton <akpm@zip.com.au>, Saurabh Desai <sdesai@austin.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, NPT library mailing list <phil-list@redhat.com>
+To: lkml <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, ext2-devel@lists.sourceforge.net, "tytso@mit.edu" <tytso@mit.edu>
 List-ID: <linux-mm.kvack.org>
 
-the attached patch (against BK-curr) adds three new, threading related
-improvements to the VM.
+url: http://www.zip.com.au/~akpm/linux/patches/2.5/2.5.42/2.5.42-mm3/
 
-the first one is an mmap inefficiency that was reported by Saurabh Desai.  
-The test_str02 NPTL test-utility does the following: it tests the maximum
-number of threads by creating a new thread, which thread creates a new
-thread itself, etc. It basically creates thousands of parallel threads,
-which means thousands of thread stacks.
+- drop SARD again.  It broke RAID0.  Al is working on converting SARD
+  to a driverfs interface.
 
-NPTL uses mmap() to allocate new default thread stacks - and POSIX
-requires us to install a 'guard page' as well, which is done via
-mprotect(PROT_NONE) on the first page of the stack. This means that tons
-of NPTL threads means 2* tons of vmas per MM, all allocated in a forward
-fashion starting at the virtual address of 1 GB (TASK_UNMAPPED_BASE).
+- fix the crashing in the timer code.
 
-Saurabh reported a slowdown after the first couple of thousands of
-threads, which i can reproduce as well. The reason for this slowdown is
-the get_unmapped_area() implementation, which tries to achieve the most
-compact virtual memory allocation, by searching for the vma at
-TASK_UNMAPPED_BASE, and then linearly searching for a hole. With thousands
-of linearly allocated vmas this is an increasingly painful thing to do ...
+- went on an uninlining rampage and shrunk the kernel image by 10k or so.
 
-obviously, high-performance threaded applications will create stacks
-without the guard page, which triggers the anon-vma merging code so we end
-up with one large vma, not tons of small vmas.
+- merge up the ext2/3 extended attribute code, convert that to use
+  the slab shrinking API in Linus's current tree.
 
-it's also possible for userspace to be smarter by setting aside a stack
-space and keeping a bitmap of allocated stacks and using MAP_FIXED (this
-also enables it to do the guard page not via mprotect() but by keeping the
-stacks apart by 1 page - ie. half the number of vmas) - but this also
-decreases flexibility.
+- add a new timer API function:
 
-So i think that the default behavior nevertheless makes sense as well, so
-IMO we should optimize it in the kernel.
+	add_timer_on(struct timer_list *timer, int cpu);
 
-there are various solutions to this problem, none of which solve the
-problem in a 100% sufficient way, so i went for the simplest approach: i
-added code to cache the 'last known hole' address in mm->free_area_cache,
-which is used as a hint to get_unmapped_area().
+  to start a timer on a different CPU.
 
-this fixed the test_str02 testcase wonderfully, thread creation
-performance for this testcase is O(1) again, but this simpler solution
-obviously has a number of weak spots, and the (unlikely but possible)
-worst-case is quite close to the current situation. In any case, this
-approach does not sacrifice the perfect VM compactness out mmap()  
-implementation achieves, so it's a performance optimization with no
-externally visible consequences.
+- rework the slab shrinking code to use add_timer_on(), so we don't
+  need to launch a kernel thread just to get a timer onto another CPU.
 
-The most generic and still perfectly-compact VM allocation solution would
-be to have a vma tree for the 'inverse virtual memory space', ie. a tree
-of free virtual memory ranges, which could be searched and iterated like
-the space of allocated vmas. I think we could do this by extending vmas,
-but the drawback is larger vmas. This does not save us from having to scan
-vmas linearly still, because the size constraint is still present, but at
-least most of the anon-mmap activities are constant sized. (both malloc()
-and the thread-stack allocator uses mostly fixed sizes.)
+- Add Ingo's current remap_file_pages() patch.  I had to renumber his
+  syscall from 253 to 254 due to a clash with the oprofile syscall.
 
-plus the patch improves the OOM-kill mechanism with two new items,
-triggered by test_str02 as well:
 
-- performance optimization: do not kill threads in the same thread group
-  as the OOM-ing thread. (it's still necessery to scan over every thread
-  though, as it's possible to have CLONE_VM threads in a different thread
-  group - we do not want those to escape the OOM-kill.)
+-misc.patch
+-hugetlb-meminfo.patch
+-dio-bio-add-fix-1.patch
+-swsusp-feature.patch
+-large-queue-throttle.patch
+-exit-page-referenced.patch
+-swappiness.patch
+-mapped-start-active.patch
+-rename-dirty_async_ratio.patch
+-auto-dirty-memory.patch
+-batched-slab-asap.patch
+-fix-pgpgout.patch
+-msync-correctness.patch
+-remove-kiobufs.patch
 
-- to not let newly created child threads slip out of the group-kill. Note
-  that the 2.4 kernel's OOM handler has the same problem, and it could be
-  the reason why forkbombs occasionally slip out of the OOM kill.
+ Merged
 
-the patch was tested on x86 SMP and UP. Saurabh, can you confirm that this
-patch fixes the performance problem you saw in test_str02?
+-sard.patch
 
-	Ingo
+ Out again
 
---- linux/include/linux/sched.h.orig	2002-10-15 12:51:21.000000000 +0200
-+++ linux/include/linux/sched.h	2002-10-15 13:55:24.000000000 +0200
-@@ -183,6 +183,7 @@
- 	struct vm_area_struct * mmap;		/* list of VMAs */
- 	struct rb_root mm_rb;
- 	struct vm_area_struct * mmap_cache;	/* last find_vma result */
-+	unsigned long free_area_cache;		/* first hole */
- 	pgd_t * pgd;
- 	atomic_t mm_users;			/* How many users with user space? */
- 	atomic_t mm_count;			/* How many references to "struct mm_struct" (users count as 1) */
---- linux/include/linux/init_task.h.orig	2002-10-15 13:08:15.000000000 +0200
-+++ linux/include/linux/init_task.h	2002-10-15 13:57:57.000000000 +0200
-@@ -41,6 +41,7 @@
- 	.page_table_lock =  SPIN_LOCK_UNLOCKED, 		\
- 	.mmlist		= LIST_HEAD_INIT(name.mmlist),		\
- 	.default_kioctx = INIT_KIOCTX(name.default_kioctx, name),	\
-+	.free_area_cache= TASK_UNMAPPED_BASE,			\
- }
- 
- #define INIT_SIGNALS(sig) {	\
---- linux/include/asm-i386/processor.h.orig	2002-10-15 14:30:14.000000000 +0200
-+++ linux/include/asm-i386/processor.h	2002-10-15 14:30:25.000000000 +0200
-@@ -270,7 +270,7 @@
- /* This decides where the kernel will search for a free chunk of vm
-  * space during mmap's.
-  */
--#define TASK_UNMAPPED_BASE	(TASK_SIZE / 3)
-+#define TASK_UNMAPPED_BASE	(PAGE_ALIGN(TASK_SIZE / 3))
- 
- /*
-  * Size of io_bitmap in longwords: 32 is ports 0-0x3ff.
---- linux/kernel/fork.c.orig	2002-10-15 12:52:07.000000000 +0200
-+++ linux/kernel/fork.c	2002-10-15 14:18:53.000000000 +0200
-@@ -215,6 +215,7 @@
- 	mm->locked_vm = 0;
- 	mm->mmap = NULL;
- 	mm->mmap_cache = NULL;
-+	mm->free_area_cache = TASK_UNMAPPED_BASE;
- 	mm->map_count = 0;
- 	mm->rss = 0;
- 	mm->cpu_vm_mask = 0;
-@@ -308,6 +309,8 @@
- 	mm->page_table_lock = SPIN_LOCK_UNLOCKED;
- 	mm->ioctx_list_lock = RW_LOCK_UNLOCKED;
- 	mm->default_kioctx = (struct kioctx)INIT_KIOCTX(mm->default_kioctx, *mm);
-+	mm->free_area_cache = TASK_UNMAPPED_BASE;
-+
- 	mm->pgd = pgd_alloc(mm);
- 	if (mm->pgd)
- 		return mm;
-@@ -863,6 +866,14 @@
- 
- 	/* Need tasklist lock for parent etc handling! */
- 	write_lock_irq(&tasklist_lock);
-+	/*
-+	 * Check for pending SIGKILL! The new thread should not be allowed
-+	 * to slip out of an OOM kill. (or normal SIGKILL.)
-+	 */
-+	if (sigismember(&current->pending.signal, SIGKILL)) {
-+		write_unlock_irq(&tasklist_lock);
-+		goto bad_fork_cleanup_namespace;
-+	}
- 
- 	/* CLONE_PARENT re-uses the old parent */
- 	if (clone_flags & CLONE_PARENT)
---- linux/mm/mmap.c.orig	2002-10-15 12:53:32.000000000 +0200
-+++ linux/mm/mmap.c	2002-10-15 14:11:22.000000000 +0200
-@@ -633,24 +633,33 @@
- #ifndef HAVE_ARCH_UNMAPPED_AREA
- static inline unsigned long arch_get_unmapped_area(struct file *filp, unsigned long addr, unsigned long len, unsigned long pgoff, unsigned long flags)
- {
-+	struct mm_struct *mm = current->mm;
- 	struct vm_area_struct *vma;
-+	int found_hole = 0;
- 
- 	if (len > TASK_SIZE)
- 		return -ENOMEM;
- 
- 	if (addr) {
- 		addr = PAGE_ALIGN(addr);
--		vma = find_vma(current->mm, addr);
-+		vma = find_vma(mm, addr);
- 		if (TASK_SIZE - len >= addr &&
- 		    (!vma || addr + len <= vma->vm_start))
- 			return addr;
- 	}
--	addr = PAGE_ALIGN(TASK_UNMAPPED_BASE);
-+	addr = mm->free_area_cache;
- 
--	for (vma = find_vma(current->mm, addr); ; vma = vma->vm_next) {
-+	for (vma = find_vma(mm, addr); ; vma = vma->vm_next) {
- 		/* At this point:  (!vma || addr < vma->vm_end). */
- 		if (TASK_SIZE - len < addr)
- 			return -ENOMEM;
-+		/*
-+		 * Record the first available hole.
-+		 */
-+		if (!found_hole && (!vma || addr < vma->vm_start)) {
-+			mm->free_area_cache = addr;
-+			found_hole = 1;
-+		}
- 		if (!vma || addr + len <= vma->vm_start)
- 			return addr;
- 		addr = vma->vm_end;
-@@ -941,6 +950,12 @@
- 	area->vm_mm->total_vm -= len >> PAGE_SHIFT;
- 	if (area->vm_flags & VM_LOCKED)
- 		area->vm_mm->locked_vm -= len >> PAGE_SHIFT;
-+	/*
-+	 * Is this a new hole at the lowest possible address?
-+	 */
-+	if (area->vm_start >= TASK_UNMAPPED_BASE &&
-+				area->vm_start < area->vm_mm->free_area_cache)
-+	      area->vm_mm->free_area_cache = area->vm_start;
- 
- 	remove_shared_vm_struct(area);
- 
---- linux/mm/oom_kill.c.orig	2002-10-15 13:59:43.000000000 +0200
-+++ linux/mm/oom_kill.c	2002-10-15 14:00:05.000000000 +0200
-@@ -175,9 +175,13 @@
- 	if (p == NULL)
- 		panic("Out of memory and no killable processes...\n");
- 
--	/* kill all processes that share the ->mm (i.e. all threads) */
-+	oom_kill_task(p);
-+	/*
-+	 * kill all processes that share the ->mm (i.e. all threads),
-+	 * but are in a different thread group
-+	 */
- 	do_each_thread(g, q)
--		if (q->mm == p->mm)
-+		if (q->mm == p->mm && q->tgid != p->tgid)
- 			oom_kill_task(q);
- 	while_each_thread(g, q);
- 
++mod_timer-race.patch
+
+ Fix the timer crashes.
+
++truncate-bkl.patch
+
+ Random BKL removal
+
++fsync_buffers_list-fix.patch
+
+ fsync correctness
+
++wli-show_free_areas.patch
+
+ Show the memory states when the oom-killer strikes
+
++add_timer_on.patch
+
+ add_timer_on()
+
+-cpucache_init-fix.patch
+-slab-split-10-list_for_each_fix.patch
+
+ Folded into slab-split-08-reap.patch
+
++slab-timer.patch
+
+ Use add_timer_on() for the slab per-cpu cache reaping function.
+
++slab-use-sem.patch
+
+ Drop the new slab rwlock and just use down_trylock(&cache_chain_sem);
+
++fs-inlines.patch
++mm-inlines.patch
++uninline-highmem.patch
+
+ Uninline various things.
+
+-shpte-ifdef.patch
+-shpte-mprotect-fix.patch
+-shpte-unmap-fix.patch
+
+ Folded into shpte.patch
+
++xattr-2.patch
++xattr-3.patch
++xattr-4.patch
+
+ ext2/3 extended attributes
+
++xattr-shrinker.patch
+
+ Convert xattr to use set_shrinker/remove_shrinker
+
++mpopulate.patch
+
+ remap_file_pages()
+
+
+
+
+linus.patch
+  cset-1.782-to-1.848.txt.gz
+
+kgdb.patch
+
+oprofile-25.patch
+
+mod_timer-race.patch
+
+net-loopback.patch
+  Disable second copy in the network loopback driver
+
+blkdev-o_direct-short-read.patch
+  Fix O_DIRECT blockdev reads at end-of-device
+
+orlov-allocator.patch
+
+blk-queue-bounce.patch
+  inline blk_queue_bounce
+
+lseek-ext2_readdir.patch
+  remove lock_kernel() from ext2_readdir()
+
+dio-fine-alignment.patch
+  Allow O_DIRECT to use 512-byte alignment
+
+write-deadlock.patch
+  Fix the generic_file_write-from-same-mmapped-page deadlock
+
+rd-cleanup.patch
+  Cleanup and fix the ramdisk driver (doesn't work right yet)
+
+spin-lock-check.patch
+  spinlock/rwlock checking infrastructure
+
+hugetlb-prefault.patch
+  hugetlbpages: factor out some code for hugetlbfs
+
+ramfs-aops.patch
+  Move ramfs address_space ops into libfs
+
+hugetlb-header-split.patch
+  Move hugetlb declarations into their own header
+
+hugetlbfs.patch
+  hugetlbfs file system
+
+hugetlb-shm.patch
+  hugetlbfs backing for SYSV shared memory
+
+page_reserved-accounting.patch
+  Global PageReserved accounting
+
+use-page_reserved_accounting.patch
+  Use PG_reserved accounting in the VM
+
+ramfs-prepare-write-speedup.patch
+  correctness fixes in libfs address_space ops
+
+truncate-bkl.patch
+  don't take the BKL in inode_setattr
+
+akpm-deadline.patch
+  deadline scheduler tweaks
+
+intel-user-copy.patch
+  Faster copt_*_user for Intel ia32 CPUs
+
+raid0-fix.patch
+  RAID0 fix
+
+fsync_buffers_list-fix.patch
+  fsync_buffers_list fix
+
+rmqueue_bulk.patch
+  bulk page allocator
+
+free_pages_bulk.patch
+  Bulk page freeing function
+
+hot_cold_pages.patch
+  Hot/Cold pages and zone->lock amortisation
+
+readahead-cold-pages.patch
+  Use cache-cold pages for pagecache reads.
+
+pagevec-hot-cold-hint.patch
+  hot/cold hints for truncate and page reclaim
+
+page-reservation.patch
+  Page reservation API
+
+wli-show_free_areas.patch
+  show_free_areas extensions
+
+o_streaming.patch
+  O_STREAMING support
+
+add_timer_on.patch
+  add_timer_on(): function to start a timer on a particular CPU
+
+slab-split-01-rename.patch
+  slab cleanup: rename static functions
+
+slab-split-02-SMP.patch
+  slab: enable the cpu arrays on uniprocessor
+
+slab-split-03-tail.patch
+  slab: reduced internal fragmentation
+
+slab-split-04-drain.patch
+  slab: take the spinlock in the drain function.
+
+slab-split-05-name.patch
+  slab: remove spaces from /proc identifiers
+
+slab-split-06-mand-cpuarray.patch
+  slab: cleanups and speedups
+
+slab-split-07-inline.patch
+  slab: uninline poisoning checks
+
+slab-split-08-reap.patch
+  slab: reap timers
+
+slab-timer.patch
+
+slab-use-sem.patch
+
+fs-inlines.patch
+  Kill some inlining in fs/*
+
+mm-inlines.patch
+  remove some inlines from mm/*
+
+uninline-highmem.patch
+  uninline the highmem mapping functions
+
+shpte.patch
+
+shmmap.patch
+  Proactively share page tables for shared memory
+
+xattr-2.patch
+
+xattr-shrinker.patch
+
+xattr-3.patch
+
+xattr-4.patch
+
+read_barrier_depends.patch
+  extended barrier primitives
+
+rcu_ltimer.patch
+  RCU core
+
+dcache_rcu.patch
+  Use RCU for dcache
+
+mpopulate.patch
+  remap_file_pages
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
