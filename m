@@ -1,42 +1,47 @@
-Received: from max.phys.uu.nl (max.phys.uu.nl [131.211.32.73])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id IAA30305
-	for <linux-mm@kvack.org>; Mon, 7 Dec 1998 08:13:25 -0500
-Date: Mon, 7 Dec 1998 14:04:04 +0100 (CET)
-From: Rik van Riel <H.H.vanRiel@phys.uu.nl>
-Reply-To: Rik van Riel <H.H.vanRiel@phys.uu.nl>
-Subject: Re: [PATCH] VM improvements for 2.1.131
-In-Reply-To: <98Dec7.104648gmt.66310@gateway.ukaea.org.uk>
-Message-ID: <Pine.LNX.3.96.981207140223.23360K-100000@mirkwood.dummy.home>
+Received: from dax.scot.redhat.com (sct@dax.scot.redhat.com [195.89.149.242])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id LAA31309
+	for <linux-mm@kvack.org>; Mon, 7 Dec 1998 11:51:35 -0500
+Date: Mon, 7 Dec 1998 16:50:44 GMT
+Message-Id: <199812071650.QAA05697@dax.scot.redhat.com>
+From: "Stephen C. Tweedie" <sct@redhat.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Subject: Re: [PATCH] swapin readahead and fixes
+In-Reply-To: <Pine.LNX.3.95.981205102900.449A-100000@localhost>
+References: <199812041434.OAA04457@dax.scot.redhat.com>
+	<Pine.LNX.3.95.981205102900.449A-100000@localhost>
 Sender: owner-linux-mm@kvack.org
-To: Neil Conway <nconway.list@ukaea.org.uk>
-Cc: Linux MM <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.rutgers.edu>
+To: Gerard Roudier <groudier@club-internet.fr>
+Cc: "Stephen C. Tweedie" <sct@redhat.com>, Rik van Riel <H.H.vanRiel@phys.uu.nl>, Linux MM <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.rutgers.edu>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 7 Dec 1998, Neil Conway wrote:
+Hi,
 
-> Won't making the min_percent values (cache/buffers) equal to 1%
-> wreck performance on small memory machines? 
+On Sat, 5 Dec 1998 10:46:40 +0100 (MET), Gerard Roudier
+<groudier@club-internet.fr> said:
 
-No. When the caches are heavily used they will need to be
-freed anyway since we need the space for new data to be
-read in.
+> You may perform read-ahead when you really swap in a process that had been
+> swapped out. But about paging, you must consider that this mechanism is
+> not sequential but mostly ramdom in RL. So you just want to read more data
+> at the same time and near the location that faulted. Reading-ahead is
+> obviously candidate for this optimization, but reading behind must also be
+> considered in my opinion.
 
-Besides, we swap_out() doesn't free any memory any more,
-so we need to run shrink_mmap() regardless.
+Yep: one of the things which has been talked about, and which is on my
+list of things to start experimenting with in 2.3, is increasing the
+granularity of paging so that we automatically try to read in (say) 16K
+at a time when we start paging a binary.  Discarding unused pages can
+still work on a per-page granularity, so we don't bloat memory in the
+long term, but it has the potential to significantly improve loading
+times for some binaries.
 
-what we really need is somebody to try it out on 4M and
-8M machines...
+Of course, there are also a whole number of optimisations we can make
+explicitly for sequentially accessed mapped regions, but the granularity
+trick should be a pretty cheap way to wring a bit more performance out
+of the normal random paging.
 
-cheers,
-
-Rik -- the flu hits, the flu hits, the flu hits -- MORE
-+-------------------------------------------------------------------+
-| Linux memory management tour guide.        H.H.vanRiel@phys.uu.nl |
-| Scouting Vries cubscout leader.      http://www.phys.uu.nl/~riel/ |
-+-------------------------------------------------------------------+
-
+--Stephen
 --
 This is a majordomo managed list.  To unsubscribe, send a message with
 the body 'unsubscribe linux-mm me@address' to: majordomo@kvack.org
