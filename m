@@ -1,39 +1,38 @@
-Received: from crux.tip.CSIRO.AU (crux.tip.CSIRO.AU [130.155.194.32])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id SAA28838
-	for <linux-mm@kvack.org>; Thu, 25 Jun 1998 18:16:21 -0400
-Date: Fri, 26 Jun 1998 08:16:02 +1000
-Message-Id: <199806252216.IAA08401@vindaloo.atnf.CSIRO.AU>
-From: Richard Gooch <Richard.Gooch@atnf.CSIRO.AU>
-Subject: Re: Thread implementations...
-In-Reply-To: <199806251132.MAA00848@dax.dcs.ed.ac.uk>
-References: <m1u35a4fz8.fsf@flinx.npwt.net>
-	<Pine.LNX.3.96dg4.980624210745.18727h-100000@twinlark.arctic.org>
-	<199806250353.NAA17617@vindaloo.atnf.CSIRO.AU>
-	<199806251132.MAA00848@dax.dcs.ed.ac.uk>
+Received: from max.phys.uu.nl (max.phys.uu.nl [131.211.32.73])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id BAA30830
+	for <linux-mm@kvack.org>; Fri, 26 Jun 1998 01:34:04 -0400
+Date: Fri, 26 Jun 1998 06:32:50 +0200 (CEST)
+From: Rik van Riel <H.H.vanRiel@phys.uu.nl>
+Reply-To: Rik van Riel <H.H.vanRiel@phys.uu.nl>
+Subject: Re: glibc and kernel update
+In-Reply-To: <199806251634.RAA07815@dax.dcs.ed.ac.uk>
+Message-ID: <Pine.LNX.3.96.980626063111.2529A-100000@mirkwood.dummy.home>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 To: "Stephen C. Tweedie" <sct@dcs.ed.ac.uk>
-Cc: linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
+Cc: Rik van Riel <H.H.vanRiel@phys.uu.nl>, Linux MM <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Stephen C. Tweedie writes:
-> Hi,
+On Thu, 25 Jun 1998, Stephen C. Tweedie wrote:
+> On Thu, 25 Jun 1998 15:58:12 +0200 (CEST), Rik van Riel
+> <H.H.vanRiel@phys.uu.nl> said:
 > 
-> On Thu, 25 Jun 1998 13:53:36 +1000, Richard Gooch
-> <Richard.Gooch@atnf.CSIRO.AU> said:
+> > I still haven't resolved the problems between glibc, the
+> > 2.1 kernel series and pppd :(
 > 
-> > This may be true, but my point is that we *need* a decent madvise(2)
-> > implementation. It will be use to a greater range of applications than
-> > sendfile(2).
-> 
-> Not necessarily; we may be able to detect a lot of the relevant access
-> patterns ourselves.  Ingo has had a swap prediction algorithm for a
-> while, and we talked at Usenix about a number of other things we can do
-> to tune vm performance automatically.  2.3 ought to be a great deal
-> better.  madvise() may still have merit, but we really ought to be
-> aiming at making the vm system as self-tuning as possible.
+> What problems?
 
-Including when I access my tiled data?
+The glibc I have is compiled with a 2.0 kernel. I can
+recompile pppd-2.3.5 as much as I like, but it refuses
+to work with 2.1 kernels...
 
-				Regards,
+It says something like: "This kernel doesn't support ppp",
+while that exact same kernel works perfectly with libc5
+and the same pppd version :(
 
-					Richard....
+Rik.
++-------------------------------------------------------------------+
+| Linux memory management tour guide.        H.H.vanRiel@phys.uu.nl |
+| Scouting Vries cubscout leader.      http://www.phys.uu.nl/~riel/ |
++-------------------------------------------------------------------+
