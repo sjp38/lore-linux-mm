@@ -1,53 +1,38 @@
-Date: Wed, 21 Nov 2001 12:35:22 +0000
-From: "Stephen C. Tweedie" <sct@redhat.com>
-Subject: Re: recursive lock-enter-deadlock
-Message-ID: <20011121123522.G2500@redhat.com>
-References: <20011121105631.B2500@redhat.com> <XFMail.20011121125211.R.Oehler@GDImbH.com>
-Mime-Version: 1.0
+Subject: Re: 2.4.14 + Bug in swap_out.
+References: <Pine.LNX.4.33L.0111211016270.4079-100000@imladris.surriel.com>
+From: ebiederm@xmission.com (Eric W. Biederman)
+Date: 21 Nov 2001 06:31:51 -0700
+In-Reply-To: <Pine.LNX.4.33L.0111211016270.4079-100000@imladris.surriel.com>
+Message-ID: <m1hero1c8o.fsf@frodo.biederman.org>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <XFMail.20011121125211.R.Oehler@GDImbH.com>; from R.Oehler@GDImbH.com on Wed, Nov 21, 2001 at 12:52:11PM +0100
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: R.Oehler@GDImbH.com
-Cc: "Stephen C. Tweedie" <sct@redhat.com>, linux-mm@kvack.org
+To: Rik van Riel <riel@conectiva.com.br>
+Cc: "David S. Miller" <davem@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+Rik van Riel <riel@conectiva.com.br> writes:
 
-On Wed, Nov 21, 2001 at 12:52:11PM +0100, R.Oehler@GDImbH.com wrote:
- 
-> On 21-Nov-2001 Stephen C. Tweedie wrote:
-> > Hi,
-> > 
-> > On Wed, Nov 21, 2001 at 11:19:13AM +0100, R.Oehler@GDImbH.com wrote:
-> >> A short question (I don't have a recent 2.4.x at hand, currently):
-> >> Is this recursive lock-enter-deadlock (2.4.0) fixed in newer kernels?
-> > 
-> > Yes.  Seriously, 2.4.0 is so old and so full of bugs like this that
-> > it's really not worth spending any effort looking for problems like
-> > that in it.
+> On 20 Nov 2001, Eric W. Biederman wrote:
+> > "David S. Miller" <davem@redhat.com> writes:
+> >
+> > > I do not agree with your analysis.
+> >
+> > Neither do I now but not for your reasons :)
+> >
+> > I looked again we are o.k. but just barely.  mmput explicitly checks
+> > to see if it is freeing the swap_mm, and fixes if we are.  It is a
+> > nasty interplay with the swap_mm global, but the code is correct.
+> 
+> To be honest I don't see the reason for this subtle
+> playing with swap_mm in mmput(), since the refcounting
+> should mean we're safe.
 
-> Well, maybe, but it's the one distributed in SuSE-71.
+We only hold a ref count for the duration of swap_out_mm.
+Not for the duration of the value in swap_mm.
 
-Isn't that the one that only shipped 2.4 as a preview kernel?
-
-For production use, it's common for distributions to apply their own
-patches on top of the basic kernel --- mostly bugfixes back-ported
-from later official kernel releases.  I'd be enormously surprised if
-SuSE shipped a completely unpatched 2.4.0 as a production kernel, so
-it's quite possible that the SuSE kernel has that fix applied.
-
-> By the way: 2.4.10-ac works, as Alan says, so what changed in the linus'
-> kernel and didn't change in the -ac kernel between 2.4.0 and 2.4.10 ?
-
-2.4.10 had an absolute ton of block device layer changes which Alan
-didn't apply to 2.4.10-ac.  Your bug isn't the only nasty in 2.4.10:
-e2fsprogs gets bitten too, and things like tune2fs on mounted
-filesystems are broken in that kernel.
-
-Cheers,  
-  Stephen
+Eric
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
