@@ -1,65 +1,82 @@
 Received: from max.phys.uu.nl (max.phys.uu.nl [131.211.32.73])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id CAA31963
-	for <linux-mm@kvack.org>; Thu, 26 Nov 1998 02:35:18 -0500
-Date: Thu, 26 Nov 1998 08:30:20 +0100 (CET)
+	by kvack.org (8.8.7/8.8.7) with ESMTP id CAA31969
+	for <linux-mm@kvack.org>; Thu, 26 Nov 1998 02:35:21 -0500
+Date: Thu, 26 Nov 1998 08:16:04 +0100 (CET)
 From: Rik van Riel <H.H.vanRiel@phys.uu.nl>
 Reply-To: Rik van Riel <H.H.vanRiel@phys.uu.nl>
 Subject: Re: Two naive questions and a suggestion
-In-Reply-To: <199811252229.WAA05737@dax.scot.redhat.com>
-Message-ID: <Pine.LNX.3.96.981126082011.24048K-100000@mirkwood.dummy.home>
+In-Reply-To: <19981125200140.1226.qmail@sidney.remcomp.fr>
+Message-ID: <Pine.LNX.3.96.981126080204.24048J-100000@mirkwood.dummy.home>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: "Stephen C. Tweedie" <sct@redhat.com>
-Cc: jfm2@club-internet.fr, Linux MM <linux-mm@kvack.org>
+To: jfm2@club-internet.fr
+Cc: "Stephen C. Tweedie" <sct@redhat.com>, Linux MM <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 25 Nov 1998, Stephen C. Tweedie wrote:
-> On Wed, 25 Nov 1998 22:21:43 +0100 (CET), Rik van Riel
-> <H.H.vanRiel@phys.uu.nl> said:
+On 25 Nov 1998 jfm2@club-internet.fr wrote:
+
+> > I sounds remarkably like you want my Out Of Memory killer
+> > patch. This patch tries to remove the randomness in killing
+> > a process when you're OOM by carefully selecting a process
+> > based on a lot of different factors (size, age, CPU used,
+> > suid, root, IOPL, etc).
 > 
-> > Then I think it's time to do swapin readahead on the
-> > entire SWAP_CLUSTER
-> 
-> Yep, although I'm not sure that reading a whole SWAP_CLUSTER would
-> be a good idea.  Contrary to popular belief, disks are still quite
-> slow at sequential data transfer.
+> Your scheme is (IMHO) far too complicated and (IMHO) falls short. 
+> The problem is that the kernel has no way to know what is the really
+> important process in the box. 
 
-I have a better idea for a default limit:
-	swap_stream.max = num_physpages >> 9;
-	if (swap_stream.max > SWAP_CLUSTER_MAX)
-		swap_stream.max = SWAP_CLUSTER_MAX;
-	swap_stream.enabled = 0;
+In my (and other people's) experience, an educated guess is
+better than a random kill. Furthermore it is not possible to
+get out of the OOM situation without killing one or more
+processes, so we want to limit:
+- the number of processes we kill (reducing the chance of
+  killing something important)
+- the CPU time 'lost' when we kill something (so we don't
+  have to run that simulation for two weeks again)
+- the risk of killing something important and stable, we
+  try to avoid this by giving less hitpoints to older
+  processes (which presumably are stable and take a long
+  time to 'recreate' the state in which they are now)
+- the amount of work lost -- killing new processes that
+  haven't used much CPU is a way of doing this
+- the probability of the machine hanging -- don't kill
+  IOPL programs and limit the points for old daemons
+  and root/suid stuff
 
-> Non-sequential IO is obviously enormously slower still, but doing
-> readahead on a whole SWAP_CLUSTER (128k) is definitely _not_ free. 
-> It will increase the VM latency enormously if we start reading in a
-> lot of unnecessary data. 
+Granted, we can never make a perfect guess. It will be a
+lot better than a more or less random kill, however.
 
-We could simply increase the readahead if we were more
-than 50% succesful (ie. 80% of swap requests can be
-satisfied from the swap cache) and decrease it if we
-drop below 40% (or less than 50% of swap requests can
-be serviced from the swap cache).
+The large simulation that's taking 70% of your RAM and
+has run for 2 weeks is the most likely victim under our
+current scheme, but with my killer code it's priority
+will be far less that that of a newly-started and exploded
+GIMP or Netscape...
 
-One thing that helps us enormously is the way kswapd
-pages out stuff. If pages (within a process) have the
-same kind of usage pattern and are near eachother, they
-will be swapped out together. Now since they have the
-same usage pattern, it is likely that they are needed
-together as well.
+> Why not simply allow a root-owned process declare itself (and the
+> program it will exec into) as "guaranteed"? 
 
-Especially without page aging we are likely to store
-adjecant pages next to eachother in swap.
+If the guaranteed program explodes it will kill the machine.
+Even for single-purpose machines this will be bad since it
+will increase the downtime with a reboot&fsck cycle instead
+of just a program restart.
 
-Later on (when the simple code has been proven to
-work and Linus doesn't pay attention) we can introduce
-a really intelligent swapin readahead mechanism that
-will make Linux rock :)
+> Or a box used as a mail server using qmail: qmail starts sub-servers
+> each one for a different task. 
 
-It's just that we need something simple now because
-Linus wants the kernel to stay relatively unchanged
-at the moment...
+The children are younger and will be killed first. Starting
+the master server from init will make sure that it is
+restarted in the case of a real emergency or fluke.
+
+> Of course this is only a suugestion for a mechanism but the important
+> is allowing a human to have the final word.
+
+What? You have a person sitting around keeping an eye on
+your mailserver 24x7? Usually the most important servers
+are tucked away in a closet and crash at 03:40 AM when
+the sysadmin is in bed 20 miles away...
+
+The kernel is there to prevent Murphy from taking over :)
 
 cheers,
 
