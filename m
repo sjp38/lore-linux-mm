@@ -1,68 +1,28 @@
+Date: Fri, 2 May 2003 13:34:05 -0700
+From: Andrew Morton <akpm@digeo.com>
 Subject: Re: 2.5.68-mm4
-From: Steven Cole <elenstev@mesatop.com>
-In-Reply-To: <20030502020149.1ec3e54f.akpm@digeo.com>
+Message-Id: <20030502133405.57207c48.akpm@digeo.com>
+In-Reply-To: <1051905879.2166.34.camel@spc9.esa.lanl.gov>
 References: <20030502020149.1ec3e54f.akpm@digeo.com>
-Content-Type: text/plain
-Message-Id: <1051905879.2166.34.camel@spc9.esa.lanl.gov>
+	<1051905879.2166.34.camel@spc9.esa.lanl.gov>
 Mime-Version: 1.0
-Date: 02 May 2003 14:04:39 -0600
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@digeo.com>
+To: Steven Cole <elenstev@mesatop.com>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2003-05-02 at 03:01, Andrew Morton wrote:
-> ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.5/2.5.68/2.5.68-mm4/
-> 
-> . Much reworking of the disk IO scheduler patches due to the updated
->   dynamic-disk-request-allocation patch.  No real functional changes here.
-> 
-> . Included the `kexec' patch - load Linux from Linux.  Various people want
->   this for various reasons.  I like the idea of going from a login prompt to
->   "Calibrating delay loop" in 0.5 seconds.
-> 
->   I tried it on four machines and it worked with small glitches on three of
->   them, and wedged up the fourth.  So if it is to proceed this code needs
->   help with testing and careful bug reporting please.
-> 
+Steven Cole <elenstev@mesatop.com> wrote:
+>
+> For what it's worth, kexec has worked for me on the following
+> two systems.
+> ...
+> 00:03.0 Ethernet controller: Intel Corp. 82557/8/9 [Ethernet Pro 100] (rev 08)
 
-For what it's worth, kexec has worked for me on the following
-two systems.
-
-single P-III 933Mhz, 256MB, IDE (system 1)
-
-00:00.0 Host bridge: Intel Corp. 82810E DC-133 GMCH [Graphics Memory Controller Hub] (rev 03)
-00:01.0 VGA compatible controller: Intel Corp. 82810E DC-133 CGC [Chipset Graphics Controller] (rev 03)
-00:1e.0 PCI bridge: Intel Corp. 82801AA PCI Bridge (rev 02)
-00:1f.0 ISA bridge: Intel Corp. 82801AA ISA Bridge (LPC) (rev 02)
-00:1f.1 IDE interface: Intel Corp. 82801AA IDE (rev 02)
-00:1f.2 USB Controller: Intel Corp. 82801AA USB (rev 02)
-00:1f.3 SMBus: Intel Corp. 82801AA SMBus (rev 02)
-00:1f.5 Multimedia audio controller: Intel Corp. 82801AA AC'97 Audio (rev 02)
-01:0c.0 Ethernet controller: 3Com Corporation 3c905C-TX/TX-M [Tornado] (rev 78)
-
-
-dual P-III 1000Mhz, 1024MB, SCSI (system 2)
-
-00:00.0 Host bridge: ServerWorks CNB20LE Host Bridge (rev 06)
-00:00.1 Host bridge: ServerWorks CNB20LE Host Bridge (rev 06)
-00:02.0 VGA compatible controller: ATI Technologies Inc 3D Rage IIC 215IIC [Mach64 GT IIC] (rev 7a)
-00:03.0 Ethernet controller: Intel Corp. 82557/8/9 [Ethernet Pro 100] (rev 08)
-00:0f.0 ISA bridge: ServerWorks OSB4 South Bridge (rev 50)
-00:0f.1 IDE interface: ServerWorks OSB4 IDE Controller
-01:04.0 SCSI storage controller: Adaptec AIC-7899P U160/m (rev 01)
-01:04.1 SCSI storage controller: Adaptec AIC-7899P U160/m (rev 01)
-
-The times for reboot back to run level 3 are:
-
-		normal		kexec
-system 1	 69 seconds	35 seconds
-system 2	150 seconds	75 seconds
-
-Steven
-
+Are you using eepro100 or e100?  I found that e100 failed to bring up the
+interface on restart ("failed selftest"), but eepro100 was OK.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
