@@ -1,8 +1,8 @@
-Date: Wed, 15 Aug 2001 19:00:41 -0300 (BRST)
+Date: Wed, 15 Aug 2001 19:15:46 -0300 (BRST)
 From: Rik van Riel <riel@conectiva.com.br>
 Subject: Re: 0-order allocation problem 
 In-Reply-To: <Pine.LNX.4.33.0108151304340.2714-100000@penguin.transmeta.com>
-Message-ID: <Pine.LNX.4.33L.0108151854300.5646-100000@imladris.rielhome.conectiva>
+Message-ID: <Pine.LNX.4.33L.0108151908330.5646-100000@imladris.rielhome.conectiva>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -13,33 +13,30 @@ List-ID: <linux-mm.kvack.org>
 
 On Wed, 15 Aug 2001, Linus Torvalds wrote:
 
-> Btw, the whole comment around the fs/buffer.c braindamage is telling:
->
->         /* We're _really_ low on memory. Now we just
->          * wait for old buffer heads to become free due to
->          * finishing IO.  Since this is an async request and
->          * the reserve list is empty, we're sure there are
->          * async buffer heads in use.
->          */
->         run_task_queue(&tq_disk);
->
->         current->policy |= SCHED_YIELD;
->         __set_current_state(TASK_RUNNING);
->         schedule();
->         goto try_again;
->
-> It used to be correct, say about a few years ago.
+> diff -u --recursive --new-file pre4/linux/mm/page_alloc.c linux/mm/page_alloc.c
+> --- pre4/linux/mm/page_alloc.c	Wed Aug 15 02:39:44 2001
+> +++ linux/mm/page_alloc.c	Wed Aug 15 13:35:02 2001
+> @@ -450,7 +450,7 @@
+>  		if (gfp_mask & __GFP_WAIT) {
+>  			if (!order || free_shortage()) {
+>  				int progress = try_to_free_pages(gfp_mask);
+> -				if (progress || (gfp_mask & __GFP_FS))
+> +				if (progress || (gfp_mask & __GFP_IO))
+>  					goto try_again;
+>  				/*
+>  				 * Fail in case no progress was made and the
 
-IIRC this code was introduced less than two months ago
-due to a race condition in the old code, where the
-allocator just went to sleep waiting for things to
-improve. ;)
+Hmmm, thinking about it a bit more I'm not sure about
+this part. It could lead to us looping infinitely while
+not being able to free pages because we'd need __GFP_FS
+in order to call the various ->writepage() functions.
 
-It's good to see you've reversed your position that
-there would be nothing we could do in this situation.
-
-The patch looks good at first sight, lets hope there
-are no hidden locking issues in obscure situations...
+In case a GFP_BUFFER (or similar) allocation really cannot
+make any progress here, we need to exit instead of looping
+forever, so my intuition is that trying to let the allocation
+loop forever can cause system hangs whereas failing the
+allocation would the code path in buffer.c or one of the
+filesystems to bail out in another way...
 
 regards,
 
