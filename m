@@ -1,49 +1,61 @@
 Received: from max.fys.ruu.nl (max.fys.ruu.nl [131.211.32.73])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id PAA15543
-	for <linux-mm@kvack.org>; Thu, 21 May 1998 15:08:02 -0400
-Received: from mirkwood.dummy.home (root@anx1p2.fys.ruu.nl [131.211.33.91])
-	by max.fys.ruu.nl (8.8.7/8.8.7/hjm) with ESMTP id VAA12380
-	for <linux-mm@kvack.org>; Thu, 21 May 1998 21:07:53 +0200 (MET DST)
-Date: Thu, 21 May 1998 20:07:39 +0200 (MET DST)
+	by kvack.org (8.8.7/8.8.7) with ESMTP id XAA17671
+	for <linux-mm@kvack.org>; Thu, 21 May 1998 23:22:58 -0400
+Date: Fri, 22 May 1998 05:21:32 +0200 (MET DST)
 From: Rik van Riel <H.H.vanRiel@phys.uu.nl>
 Reply-To: Rik van Riel <H.H.vanRiel@phys.uu.nl>
-Subject: Out of memory killer almost ready
-Message-ID: <Pine.LNX.3.91.980521200258.18589A-100000@mirkwood.dummy.home>
+Subject: Re: Swapping in 2.1.103?
+In-Reply-To: <199805220256.TAA17716@mail.netwiz.net>
+Message-ID: <Pine.LNX.3.91.980522051257.32316B-100000@mirkwood.dummy.home>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: linux-mm <linux-mm@kvack.org>
+To: Jim Wilcoxson <jim@meritnet.com>
+Cc: linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+[CC:d to linux-mm because of the TODO list and because Jim
+ is generally suggesting to team up with us :) ]
 
-I've now finished most of the Out of memory
-killer, except for one thing.
+On Thu, 21 May 1998, Jim Wilcoxson wrote:
 
-I don't know what condition to test for for
-when to start the procedure. We could wait
-until kswapd truly fails, but wouldn't that
-be waiting _too_ long. OTOH, if we don't,
-we can kill a process when it isn't needed.
+> Hi Rik - I've been running Linux a few years now, but have only been on the
+> mailing list a few days and am not familiar with Linux internals.  I think
+> it's a great OS though, and would love to contribute.  I'd like to spend a
+> few days reviewing the current file system/paging algorithms and doing some
+> tests on my machine to make sure I understand before spouting off
+> suggestions.  Is it reasonable to review to 2.0.33 code, or should I look
+> at the 2.1.x stuff?
 
-in kswapd:
-	alive = 0;
-	while (tries--) {
-		cruft;
-		if (try_to_free_page())
-			alive = 1;	
-	}
-	if (!alive)
-		out_of_memory_killer();
+It depends. If you're mainly looking at the 'high-level'
+pageout daemon and the mmap() stuff, 2.0.33 will be fine.
+The low-level stuff (swapcache, locking, etc) have changed
+considerable, and are much more 'interesting' in 2.1.x...
 
-This has the disadvantage of:
-- taking things too far
-- kicking in when kswapd has just been very
-  unlucky
+Also, the 2.1 kernel is more interesting because any changes
+you make have a larger probability of being saved for
+future generations :)
 
-OTOH, testing for free swap space won't help a bit
-when we are killed by mlock(), pagetables and other
-nonswappable things...
+We have several things in the TODO list currently:
+- reverse pte lookup  -- being done by sct and blah
+- true swapping -- I have the designs next to me, NYI
+- out-of-memory process killing -- you can download the bulk
+				of the code from my homepage
+- swapin clustering -- I have some random thoughts, but NYI
+- a zone allocator, instead of the current buddy allocator
+		-- I have the design, but NYI
+- some minor kswapd fixes -- we know what to fix, just not
+			how, and it's minor anyway...
+- prepaging -- I have some ideas on how to do this, no
+			solid design and NYI
+
+In short, the Linux VM system is nice & fast, but
+far from perfect. I think there are still several
+man-years to be invested and we can always welcome
+a new person to the scene.
+
+There's also a mailing list:
+linux-mm@blah.kvack.org    (majordomo@blah.kvack.org)
 
 Rik.
 +-------------------------------------------+--------------------------+
