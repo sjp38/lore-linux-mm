@@ -1,44 +1,34 @@
-Message-ID: <39109A1B.FBF98FA0@mandrakesoft.com>
-Date: Wed, 03 May 2000 17:28:59 -0400
-From: Jeff Garzik <jgarzik@mandrakesoft.com>
-MIME-Version: 1.0
-Subject: Re: Oops in __free_pages_ok (pre7-1) (Long) (backtrace)
-References: <Pine.LNX.4.10.10005031110200.6180-100000@penguin.transmeta.com>
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Date: Wed, 3 May 2000 17:42:14 -0700
+Message-Id: <200005040042.RAA02046@pizda.ninka.net>
+From: "David S. Miller" <davem@redhat.com>
+In-reply-to: <Pine.LNX.4.21.0005031813040.489-100000@alpha.random> (message
+	from Andrea Arcangeli on Wed, 3 May 2000 18:26:19 +0200 (CEST))
+Subject: Re: classzone-VM + mapped pages out of lru_cache
+References: <Pine.LNX.4.21.0005031813040.489-100000@alpha.random>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@transmeta.com>
-Cc: Kanoj Sarcar <kanoj@google.engr.sgi.com>, Rajagopal Ananthanarayanan <ananth@sgi.com>, linux-mm@kvack.org
+To: andrea@suse.de
+Cc: linux-mm@kvack.org, linux-kernel@vger.rutgers.edu, quintela@fi.udc.es
 List-ID: <linux-mm.kvack.org>
 
-Linus Torvalds wrote:
-> We fixed one such bug in NFS. Maybe there are more lurking? How much
-> memory do the machines have that have problems?
+	   ftp://ftp.*.kernel.org/pub/linux/kernel/people/andrea/kernels/v2.3/2.3.99-pre7-pre3/classzone-18.gz
 
-FWIW
+Btw, the path seem to be incorrect.  It should be:
 
-Dual P-II w/ 128 MB of memory.  pre7-2 and pre7-3 (with #error removed)
-both boot up and let me login ok -- I have an NFS automounted home dir. 
-But... doing a lot of "netscaping" -- clicking around, opening new
-windows, making the machine do lots of mmap() and swap -- causes the box
-to lock hard.
+/pub/linux/kernel/people/andrea/patches/v2.3/2.3.99-pre7-pre3/classzone-18.gz
 
-I'm gonna hook up a serial console and see if I can get output.  Might
-try booting w/ CONFIG_SMP/num-cpus==1 to see if that triggers any ugly
-behavior too.
+:-)
 
-I'll also try to reproduce the problem without NFS in the picture.
+One note after initial study.  I wish we could get rid of the
+"map_count" thing you added to the page struct.  Currently, when
+we turn off wait queue debugging, the page struct is an exact power
+of 2 on both 64-bit and 32-bit architectures.  With the map_count
+there now, it will not be an exact power of two in size on 32-bit
+machines :-(
 
-	Jeff
-
-
-
-
--- 
-Jeff Garzik              | Nothing cures insomnia like the
-Building 1024            | realization that it's time to get up.
-MandrakeSoft, Inc.       |        -- random fortune
+Later,
+David S. Miller
+davem@redhat.com
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
