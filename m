@@ -1,155 +1,67 @@
-Received: from m3.gw.fujitsu.co.jp ([10.0.50.73]) by fgwmail6.fujitsu.co.jp (8.12.10/Fujitsu Gateway)
-	id i88C3Xtx028244 for <linux-mm@kvack.org>; Wed, 8 Sep 2004 21:03:33 +0900
+Received: from m5.gw.fujitsu.co.jp ([10.0.50.75]) by fgwmail6.fujitsu.co.jp (8.12.10/Fujitsu Gateway)
+	id i88CEmtx000647 for <linux-mm@kvack.org>; Wed, 8 Sep 2004 21:14:48 +0900
 	(envelope-from kamezawa.hiroyu@jp.fujitsu.com)
-Received: from s5.gw.fujitsu.co.jp by m3.gw.fujitsu.co.jp (8.12.10/Fujitsu Domain Master)
-	id i88C3WpQ008041 for <linux-mm@kvack.org>; Wed, 8 Sep 2004 21:03:32 +0900
+Received: from s3.gw.fujitsu.co.jp by m5.gw.fujitsu.co.jp (8.12.10/Fujitsu Domain Master)
+	id i88CElbS004905 for <linux-mm@kvack.org>; Wed, 8 Sep 2004 21:14:47 +0900
 	(envelope-from kamezawa.hiroyu@jp.fujitsu.com)
-Received: from s5.gw.fujitsu.co.jp (localhost [127.0.0.1])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 13BBC30029
-	for <linux-mm@kvack.org>; Wed,  8 Sep 2004 21:03:32 +0900 (JST)
-Received: from fjmail505.fjmail.jp.fujitsu.com (fjmail505-0.fjmail.jp.fujitsu.com [10.59.80.104])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 583CB30028
-	for <linux-mm@kvack.org>; Wed,  8 Sep 2004 21:03:27 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3 [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 3C6A243F02
+	for <linux-mm@kvack.org>; Wed,  8 Sep 2004 21:14:47 +0900 (JST)
+Received: from fjmail502.fjmail.jp.fujitsu.com (fjmail502-0.fjmail.jp.fujitsu.com [10.59.80.98])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id D706B43EFC
+	for <linux-mm@kvack.org>; Wed,  8 Sep 2004 21:14:46 +0900 (JST)
 Received: from jp.fujitsu.com
- (fjscan501-0.fjmail.jp.fujitsu.com [10.59.80.120]) by
- fjmail505.fjmail.jp.fujitsu.com
+ (fjscan503-0.fjmail.jp.fujitsu.com [10.59.80.124]) by
+ fjmail502.fjmail.jp.fujitsu.com
  (Sun Internet Mail Server sims.4.0.2001.07.26.11.50.p9)
- with ESMTP id <0I3Q00IBV1HPDL@fjmail505.fjmail.jp.fujitsu.com> for
- linux-mm@kvack.org; Wed,  8 Sep 2004 21:03:26 +0900 (JST)
-Date: Wed, 08 Sep 2004 21:08:43 +0900
+ with ESMTP id <0I3Q0040J20L81@fjmail502.fjmail.jp.fujitsu.com> for
+ linux-mm@kvack.org; Wed,  8 Sep 2004 21:14:46 +0900 (JST)
+Date: Wed, 08 Sep 2004 21:20:02 +0900
 From: Hiroyuki KAMEZAWA <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [RFC][PATCH] no bitmap buddy allocator : removing atomic ops (4/4)
-Message-id: <413EF64B.2060407@jp.fujitsu.com>
+Subject: Re: [RFC][PATCH] no bitmap buddy allocator:  remove free_area->map
+ (0/4)
+In-reply-to: <413EEFA9.9030007@jp.fujitsu.com>
+Message-id: <413EF8F2.5000904@jp.fujitsu.com>
 MIME-version: 1.0
 Content-type: text/plain; charset=us-ascii; format=flowed
 Content-transfer-encoding: 7bit
+References: <413EEFA9.9030007@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linux Kernel ML <linux-kernel@vger.kernel.org>
-Cc: linux-mm <linux-mm@kvack.org>, LHMS <lhms-devel@lists.sourceforge.net>, Andrew Morton <akpm@osdl.org>, William Lee Irwin III <wli@holomorphy.com>, Dave Hansen <haveblue@us.ibm.com>, Hirokazu Takahashi <taka@valinux.co.jp>
+To: Hiroyuki KAMEZAWA <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Linux Kernel ML <linux-kernel@vger.kernel.org>, LHMS <lhms-devel@lists.sourceforge.net>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@osdl.org>, William Lee Irwin III <wli@holomorphy.com>, Dave Hansen <haveblue@us.ibm.com>, Hirokazu Takahashi <taka@valinux.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-This part is part (4/4) and replaces atomic ops with non-atomic ops.
-This micro optimization can improve the performance of the no-bitmap
-buddy system.
+This is a quick change-log from "previous-version" for comparison.
 
-To check effects of this patch. I made a tiny test.
+Big difference from previous one is revival of bad_range() and reduced victim pages.
 
-************** test-program ********************
-for(i = 0; i < 1000; i++) {
-	mmap(16 Mega bytes, MAP_ANON);
-	touch all pages;
-	munmap(16 Mega bytes);
-}
-************************************************
-Results of this program.
-Host : Intex Xeon 1.8GHz x2, Memory 8Gbytes. Multi-user mode.
+   -- bad_range() is modified and bad_range_pfn() is added.
+   -- bad_range_pfn() uses zone->memmap_start_pfn/memmap_end_pfn instead of using
+      zone_start_pfn/spanned_pages. Because IA64's memmap's start is not equal to
+      zone->zone_start_pfn.
+   -- In most inner loop of __free_pages_bulk(), bad_range_pfn() is used.
+   -- this bad_range_pfn() enables me to reduce victim pages.
 
-Reference Kernel --- linux-2.6.9-rc1-mm4
-Total 0:35.79 System 33.89 User 1.88
-Total 0:35.44 System 33.58 User 1.85
-Total 0:35.75 System 33.81 User 1.91
-Total 0:35.89 System 34.03 User 1.82
-Total 0:35.93 System 34.03 User 1.84
+      In my IA64,
+Sep  8 18:59:38 casares kernel: calculate_buddy_range() 36e 129901
+Sep  8 18:59:38 casares kernel: victim end page 1feda
+Sep  8 18:59:38 casares kernel: calculate_buddy_range() 1fedc 292
+Sep  8 18:59:38 casares kernel: victim top page 1fedc
+Sep  8 18:59:38 casares kernel: victim top page 1fee0
+Sep  8 18:59:38 casares kernel: victim top page 1ff00
+Sep  8 18:59:38 casares kernel: victim end page 1ffff
+Sep  8 18:59:38 casares kernel: saved end victim page 1ffff
+Sep  8 18:59:38 casares kernel: calculate_buddy_range() 40000 262144
+Sep  8 18:59:38 casares kernel: calculate_buddy_range() a0000 131072
+Sep  8 18:59:38 casares kernel: victim top page a0000
+Sep  8 18:59:38 casares kernel: Built 1 zonelists
+       # of victim pages is 5. It was 19 in previous version.
 
-No-bitmap without this micro-optimization patch
-Total 0:37.58 System 35.69 User 1.89
-Total 0:37.52 System 35.66 User 1.86
-Total 0:37.56 System 35.68 User 1.88
-Total 0:37.64 System 35.76 User 1.88
-Total 0:37.72 System 35.89 User 1.82
+   -- ia64's virtual_memmap_init() can call memmap_init() several times for the same
+      memory range. It was fixed.
 
-No-bitmap with this micro-optimization patch.
-Total 0:35.28 System 33.45 User 1.81
-Total 0:35.38 System 33.62 User 1.75
-Total 0:35.44 System 33.58 User 1.84
-Total 0:35.52 System 33.58 User 1.90
-Total 0:35.79 System 33.92 User 1.81
-
-Single-user-mode.
-
-reference-kernel  linux-2.6.9-rc1-mm4:
-Total 0:35.20 System 33.32 User 1.88
-Total 0:35.23 System 33.37 User 1.85
-Total 0:35.58 System 33.77 User 1.81
-Total 0:35.49 System 33.60 User 1.90
-Total 0:35.79 System 33.80 User 1.99
-
-No-bitmap without this micro-optimization patch
-Total 0:36.83 System 35.16 User 1.67
-Total 0:36.45 System 34.66 User 1.79
-Total 0:36.81 System 35.10 User 1.70
-Total 0:36.89 System 35.24 User 1.65
-Total 0:36.82 System 35.14 User 1.68
-
-No-bitmap with this micor-optimization patch:
-Total 0:34.97 System 33.07 User 1.89
-Total 0:34.94 System 32.98 User 1.95
-Total 0:34.99 System 33.11 User 1.87
-Total 0:34.90 System 33.14 User 1.76
-Total 0:34.92 System 33.02 User 1.90
-
-
-Results with this patch is better than ones without this by 2 seconds.
-2/1000 = 2ms per 1 iteration (for 16 Megabytes alloc/free).
-
-Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-
----
-
-  test-kernel-kamezawa/include/linux/page-flags.h |    2 ++
-  test-kernel-kamezawa/mm/page_alloc.c            |    8 ++++----
-  2 files changed, 6 insertions(+), 4 deletions(-)
-
-diff -puN include/linux/page-flags.h~eliminate-bitmap-opt include/linux/page-flags.h
---- test-kernel/include/linux/page-flags.h~eliminate-bitmap-opt	2004-09-08 18:48:43.115922392 +0900
-+++ test-kernel-kamezawa/include/linux/page-flags.h	2004-09-08 18:48:43.120921632 +0900
-@@ -239,6 +239,8 @@ extern unsigned long __read_page_state(u
-  #define SetPagePrivate(page)	set_bit(PG_private, &(page)->flags)
-  #define ClearPagePrivate(page)	clear_bit(PG_private, &(page)->flags)
-  #define PagePrivate(page)	test_bit(PG_private, &(page)->flags)
-+#define __SetPagePrivate(page)  __set_bit(PG_private, &(page)->flags)
-+#define __ClearPagePrivate(page) __clear_bit(PG_private, &(page)->flags)
-
-  #define PageWriteback(page)	test_bit(PG_writeback, &(page)->flags)
-  #define SetPageWriteback(page)						\
-diff -puN mm/page_alloc.c~eliminate-bitmap-opt mm/page_alloc.c
---- test-kernel/mm/page_alloc.c~eliminate-bitmap-opt	2004-09-08 18:48:43.118921936 +0900
-+++ test-kernel-kamezawa/mm/page_alloc.c	2004-09-08 18:48:43.123921176 +0900
-@@ -242,11 +242,11 @@ static inline void __free_pages_bulk (st
-  		page_idx &= buddy_idx;
-  		list_del(&buddy->lru);
-  		/* for propriety of PG_private bit, we clear it */
--		ClearPagePrivate(buddy);
-+		__ClearPagePrivate(buddy);
-  	}
-  	/* record the final order of the page */
-  	coalesced_page = base + page_idx;
--	SetPagePrivate(coalesced_page);
-+	__SetPagePrivate(coalesced_page);
-  	set_page_order(coalesced_page,order);
-  	list_add(&coalesced_page->lru, &zone->free_area[order].free_list);
-  }
-@@ -347,7 +347,7 @@ expand(struct zone *zone, struct page *p
-  		list_add(&page[size].lru, &area->free_list);
-  		/* Note: already have lock, we don't need to use atomic ops */
-  		set_page_order(&page[size], high);
--		SetPagePrivate(&page[size]);
-+		__SetPagePrivate(&page[size]);
-  	}
-  	return page;
-  }
-@@ -410,7 +410,7 @@ static struct page *__rmqueue(struct zon
-  		page = list_entry(area->free_list.next, struct page, lru);
-  		list_del(&page->lru);
-  		/* Note: already have lock, we don't need to use atomic ops */
--		ClearPagePrivate(page);
-+		__ClearPagePrivate(page);
-  		zone->free_pages -= 1UL << order;
-  		return expand(zone, page, order, current_order, area);
-  	}
-
-_
+-- Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
