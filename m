@@ -1,80 +1,74 @@
-Date: 10 Aug 2004 12:45:47 +0200
-Date: Tue, 10 Aug 2004 12:45:47 +0200
-From: Andi Kleen <ak@muc.de>
+Date: Tue, 10 Aug 2004 09:54:08 -0500
+From: Brent Casavant <bcasavan@sgi.com>
+Reply-To: Brent Casavant <bcasavan@sgi.com>
 Subject: Re: [PATCH] get_nodes mask miscalculation
-Message-ID: <20040810104547.GA59597@muc.de>
-References: <2rr7U-5xT-11@gated-at.bofh.it> <m31xifu5pn.fsf@averell.firstfloor.org> <20040809222531.1d2d8d05.pj@sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20040809222531.1d2d8d05.pj@sgi.com>
+In-Reply-To: <m31xifu5pn.fsf@averell.firstfloor.org>
+Message-ID: <Pine.SGI.4.58.0408100936220.23966@kzerza.americas.sgi.com>
+References: <2rr7U-5xT-11@gated-at.bofh.it> <m31xifu5pn.fsf@averell.firstfloor.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Paul Jackson <pj@sgi.com>
-Cc: bcasavan@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andi Kleen <ak@muc.de>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Aug 09, 2004 at 10:25:31PM -0700, Paul Jackson wrote:
-> While I'm here, the statement that only the highest zone is policied
-> actually applies only to MPOL_BIND, right?  The comment that asserts
+On Tue, 10 Aug 2004, Andi Kleen wrote:
 
-That is correct. I can add a comment.
+> The idea behind this is was to make it behave like select.
+> And select passes highest valid value + 1.
 
->  1) Change the man page wording, for each of get_mempolicy(2), mbind(2),
->     and set_mempolicy(2), to boldly state:
-> 
-> 	Beware:
-> 		Pass in a value of maxnode that is * one more * than the
-> 		number of nodes represented in nodemask.  If for example,
-> 		nodemask represents 64 nodes, numbered 0 to 63, pass in a
-> 		value of 65 for maxnodes.
+Not that my opinion is worth much, but this seems a very peculiar
+interface to mimic.
 
-Yes, I will clarify the manpages.
+> In this case
+> valid value is not the highest bit number, but the length
+> of the bitmap.
+>
+> For some reason nobody except me seems to get it though,
+> probably because the description in the manpages is a bit confusing:
+>
+> get_mempolicy(2):
+>
+> "maxnode is the maximum bit number plus one that can be stored into
+> nodemask."
 
-I see no problem with hardcoding 8 bits per byte. 
+Actually, I worked from the following description:
 
-> 
->  2) Review, test, fix, and apply as fixed the following patch.  For extra
->     credit, get rid of the hard coded 8, 32 and 64 values in the compat stuff,
->     visible in the patch below.  I compiled the patch, once, on an ia64.
->     Otherwise totally untested.
-> 
->     This patch:
-> 	a) Notes the situation in a prominent "==> Beware <==".
-> 	b) Consistently decrements maxnode immediately on each system call
-> 	   entry (where someone reading the code might best notice).
-> 	c) Otherwise treats maxnode consistently within the code.
-> 	d) Addresses the MPOL_BIND max policy only comment.
-> 	e) Addresses the harcoded numbers 64 and 8 in copy_nodes_to_user().
+mbind(3)
+	. . .
+	nodemask is a bit field of nodes that contains up to
+	maxnode bits.
+	. . .
 
-Yes, the 64 should be addressed agreed. That came from a misguided
-attempt by me to not require compat_* functions (by making the 32bit
-and 64bit ABI be the same), but that didn't work out.
+This very clearly indicates that I should pass the number of bits
+in the nodemask field, not the number of bits plus one.
 
-> 
->     Yes - it's ugly.  The time that will be lost by those who try to use
->     this interface directly will be ugly too.
-> 
->  3) Could you propose a strategy for fixing this?  It might take a couple
+Granted, the man page makes it clear that I should use libnuma, but
+in this case I was working on implementing a new MPOL_ROUNDROBIN, and
+wanted to go directly to the system call for testing purposes.
 
-The only way would be to allocate new system call slots for the 
-two calls. But I'm not convinced it is worth it.
+And not to make things even more confusing, but the way things are
+designed now, the value I need to pass to mbind() is numa_max_node()+2.
+Very confusing.
 
-Sorry, but I don't want to break binary compatibility. 
+> Problem is that you'll break all existing libnuma binaries
+> which pass NUMA_MAX_NODES + 1. In your scheme the kernel
+> will access one bit beyond the bitmap that got passed,
+> and depending on its random value you may get a failure or not.
 
-If it was really that bad you should have complained earlier (the
-code was out long enough for review), now it is too late.
+Well, again, not that my opinion carries much weight (nor really should
+it), but this whole off-by-one (or two) interface seems unnecessarily
+confusing.  Is there no way we can get this fixed?  The temporary pain
+of breaking the relatively new libnuma seems worth the price of getting
+this forever cleaned up.
 
-> If
->    you have to tell me that SGI has to put in a workaround for a year, on
->    any machine with _exactly_ 2049 nodes, such as padding the user nodemask
->    up to 2050 nodes, I'm prepared to deal with that <grin>.
+Brent
 
-There are many more users of these calls than SGI. And most of them are
-using libnuma, which you are proposing to break. 
-
-
--Andi
+-- 
+Brent Casavant             bcasavan@sgi.com        Forget bright-eyed and
+Operating System Engineer  http://www.sgi.com/     bushy-tailed; I'm red-
+Silicon Graphics, Inc.     44.8562N 93.1355W 860F  eyed and bushy-haired.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
