@@ -1,50 +1,40 @@
-Date: Mon, 28 Aug 2000 14:25:10 -0300 (BRST)
+Date: Mon, 28 Aug 2000 14:40:43 -0300 (BRST)
 From: Rik van Riel <riel@conectiva.com.br>
 Subject: Re: Question: memory management and QoS
-In-Reply-To: <39AA30AF.14C17C50@tuke.sk>
-Message-ID: <Pine.LNX.4.21.0008281421180.18553-100000@duckman.distro.conectiva>
+In-Reply-To: <39AA56D1.EC5635D3@tuke.sk>
+Message-ID: <Pine.LNX.4.21.0008281432010.18553-100000@duckman.distro.conectiva>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Jan Astalos <astalos@tuke.sk>
-Cc: Andrey Savochkin <saw@saw.sw.com.sg>, linux-mm@kvack.org, Yuri Pudgorodsky <yur@asplinux.ru>
+Cc: Andrey Savochkin <saw@saw.sw.com.sg>, Yuri Pudgorodsky <yur@asplinux.ru>, Linux MM mailing list <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
 On Mon, 28 Aug 2000, Jan Astalos wrote:
 
-> I still claim that per user swapfiles will:
-> - be _much_ more efficient in the sense of wasting disk space (saving money)
->   because it will teach users efficiently use their memory resources (if
->   user will waste the space inside it's own disk quota it will be his own
->   problem)
-> - provide QoS on VM memory allocation to users (will guarantee amount of
->   available VM for user)
-> - be able to improve _per_user_ performance of system (localizing performance
->   problems to users that caused them and reducing disk seek times)
-> - shift the problem with OOM from system to user.
+> I wont repeat it again. With personal swapfiles _all_ users
+> would be guarantied to get the amount of virtual memory provided
+> by _themselves_.
 
-Do you have any reasons for this, or are you just asserting
-them as if they were fact? ;)
+This is STUPID.
 
-I think we can achieve the same thing, with higher over-all
-system performance, if we simply give each user a VM quota
-and do the bookkeeping on a central swap area.
+Suppose that one user has a 10MB swapfile and a 32MB physical
+memory quota (quite reasonable or even low nowadays).
 
-The reasons for this are multiple:
-1) having one swap partition will reduce disk seeks
-   (no matter how you put it, disk seeks are a _system_
-   thing, not a per user thing)
-2) not all users are logged in at the same time, so you
-   can do a minimal form of overcomitting here (if you want)
-3) you can easily give users _2_ VM quotas, a guaranteed one
-   and a maximum one ... if a user goes over the guaranteed
-   quota, processes can be killed in OOM situations
-   (this allows each user to make their own choices wrt.
-   overcommitment)
+Now suppose that user is away from the console (drinking coffee)
+and has 20MB of IDLE processes sitting around.
+
+In the mean time, another user is running something that could
+really need a bit more physical memory, but it CANNOT get the
+memory because the first (coffee drinking) user doesn't have
+the swap space available...
+
+This is a rediculously inefficient situation that should (and
+can) be easily avoided by simply having per-user VM and RSS
+_quotas_, but sharing one system-wide swap area.
 
 regards,
-
 
 Rik
 --
