@@ -1,70 +1,83 @@
-Date: Wed, 6 Jun 2001 17:14:26 -0400
-From: cohutta <cohutta@MailAndNews.com>
-Subject: RE: temp. mem mappings
-Message-ID: <3B2C3149@MailAndNews.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Date: Wed, 6 Jun 2001 17:07:41 -0300 (BRT)
+From: Marcelo Tosatti <marcelo@conectiva.com.br>
+Subject: [PATCH] Reap dead swap cache earlier v2
+Message-ID: <Pine.LNX.4.21.0106061705250.3769-100000@freak.distro.conectiva>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Stephen C. Tweedie" <sct@redhat.com>
-Cc: linux-mm <linux-mm@kvack.org>
+To: Linus Torvalds <torvalds@transmeta.com>
+Cc: lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
->===== Original Message From "Stephen C. Tweedie" <sct@redhat.com> =====
->Hi,
->
->On Tue, Jun 05, 2001 at 04:42:52PM -0400, cohutta wrote:
->
->> I don't really want to play with the page tables if i can help it.
->> I didn't use ioremap() because it's real system memory, not IO bus
->> memory.
->>
->> How much normal memory is identity-mapped at boot on x86?
->> Is it more than 8 MB?
->
->> I'm trying to read some ACPI tables, like the FACP.
->> On my system, this is at physical address 0x3fffd7d7 (e.g.).
->
->It depends at what time during boot.  Some ACPI memory is reusable
->once the system boots: the kernel parses the table then frees up the
->memory which the BIOS initialised.
->
->VERY early in boot, while the VM is still getting itself set up, there
->is only a minimal mapping set up by the boot loader code.  However,
->once the VM is initialised far enough to let you play with page
->tables, all memory will be identity-mapped up to just below the 1GB
->watermark.
+Hi, 
 
-I think this is part of the problem: on my 1 GB system, the
-ACPI tables are at physical 0x3fffxxxx == virtual 0xffffxxxx,
-which could conflict with the APIC and IOAPIC mappings
-(from fixmap.h).
-I removed 256 MB, but i still have a few problems.
+As suggested by Linus, I've cleaned the reapswap code to be contained
+inside an inline function. (yes, the if statement is really ugly) 
 
->> kmap() ends up calling set_pte(), which is close to what i am
->> already doing.  i'm having a problem on the unmap side when i
->> am done with the temporary mapping.
->
->kunmap().  :-)  But kmap only works on CONFIG_HIGHMEM kernel builds.
->On kernels built without high memory support, kmap will not allow you
->to access memory beyond the normal physical memory boundary.
+Tested and against 2.4.6pre1. 
 
-Well, i'm talking about physical memory, but it's marked as ACPI
-data.
 
-Another part of the problem is that I need to do this early in
-arch/i386/kernel/setup.c::setup_arch(), like between calls to
-paging_init() and init_apic_mappings().  I can't use ioremap()
-here can i?  ioremap() calls get_vm_area() which calls
-kmalloc(), and i don't think i can use kmalloc() just yet.
 
-methinks that i'm back to a modification of Timur's suggestion--
-a bunch of manual page dir/table changes.
-
-Any other suggestions or corrections to my comments?
-
-thanks.
+--- linux.orig/mm/vmscan.c	Wed Jun  6 18:16:45 2001
++++ linux/mm/vmscan.c	Wed Jun  6 18:28:26 2001
+@@ -407,6 +407,27 @@
+ 	memory_pressure++;
+ 	return page;
+ }
++/*
++ * Check for dead swap cache pages and clean them, forcing 
++ * those pages to be freed earlier.
++ */
++static inline int clean_dead_swap_page (struct page* page)
++{
++	int ret = 0;
++	if (!TryLockPage (page)) { 
++		if (PageSwapCache(page) && PageDirty(page) &&
++				(page_count(page) - !!page->buffers) == 1 &&
++				swap_count(page) == 1) { 
++			ClearPageDirty(page);
++			ClearPageReferenced(page);
++			page->age = 0;
++			ret = 1;
++		}
++		UnlockPage(page);
++	}
++	return ret;
++}
++
+ 
+ /**
+  * page_launder - clean dirty inactive pages, move to inactive_clean list
+@@ -456,6 +477,12 @@
+ 			continue;
+ 		}
+ 
++		/*
++		 * Check for dead swap cache pages 
++		 * before doing any other checks.
++		 */
++		clean_dead_swap_page(page);
++			
+ 		/* Page is or was in use?  Move it to the active list. */
+ 		if (PageReferenced(page) || page->age > 0 ||
+ 				page->zone->free_pages > page->zone->pages_high ||
+@@ -666,6 +693,15 @@
+ 			printk("VM: refill_inactive, wrong page on list.\n");
+ 			list_del(page_lru);
+ 			nr_active_pages--;
++			continue;
++		}
++		
++		/*
++		 * Special case for dead swap cache pages.
++		 */
++		if (clean_dead_swap_page(page)) {
++			deactivate_page_nolock(page);
++			nr_deactivated++;
+ 			continue;
+ 		}
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
