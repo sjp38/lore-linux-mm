@@ -1,40 +1,86 @@
-Date: Wed, 18 Feb 2004 10:36:05 -0800
-From: "Paul E. McKenney" <paulmck@us.ibm.com>
+Date: Thu, 19 Feb 2004 10:11:32 +0100
+From: David Weinehall <tao@acc.umu.se>
 Subject: Re: Non-GPL export of invalidate_mmap_range
-Message-ID: <20040218183605.GG1269@us.ibm.com>
-Reply-To: paulmck@us.ibm.com
-References: <20040217124001.GA1267@us.ibm.com> <20040217161929.7e6b2a61.akpm@osdl.org> <1077108694.4479.4.camel@laptop.fenrus.com> <20040218140021.GB1269@us.ibm.com> <20040218211035.A13866@infradead.org> <20040218150607.GE1269@us.ibm.com> <20040218222138.A14585@infradead.org> <20040218145132.460214b5.akpm@osdl.org> <20040218230055.A14889@infradead.org> <20040218162858.2a230401.akpm@osdl.org>
+Message-ID: <20040219091132.GE17140@khan.acc.umu.se>
+References: <20040216190927.GA2969@us.ibm.com> <20040217073522.A25921@infradead.org> <20040217124001.GA1267@us.ibm.com> <20040217161929.7e6b2a61.akpm@osdl.org> <1077108694.4479.4.camel@laptop.fenrus.com> <20040218140021.GB1269@us.ibm.com> <20040218211035.A13866@infradead.org> <20040218150607.GE1269@us.ibm.com> <20040218222138.A14585@infradead.org> <20040218145132.460214b5.akpm@osdl.org>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20040218162858.2a230401.akpm@osdl.org>
+In-Reply-To: <20040218145132.460214b5.akpm@osdl.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@osdl.org>
-Cc: Christoph Hellwig <hch@infradead.org>, arjanv@redhat.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: Christoph Hellwig <hch@infradead.org>, paulmck@us.ibm.com, arjanv@redhat.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Feb 18, 2004 at 04:28:58PM -0800, Andrew Morton wrote:
+On Wed, Feb 18, 2004 at 02:51:32PM -0800, Andrew Morton wrote:
 > Christoph Hellwig <hch@infradead.org> wrote:
 > >
-> > Yes.  Andrew, please read the GPL, it's very clear about derived works.
-> > Then please tell me why you think gpfs is not a derived work.
+> > I don't understand why IBM is pushing this dubious change right now,
 > 
-> OK, so I looked at the wrapper.  It wasn't a tremendously pleasant
-> experience.  It is huge, and uses fairly standard-looking filesytem
-> interfaces and locking primitives.  Also some awareness of NFSV4 for some
-> reason.
->
-> Still, the wrapper is GPL so this is not relevant.  Its only use is to tell
-> us whether or not the non-GPL bits are "derived" from Linux, and it
-> doesn't do that.
+> It isn't a dubious change, on technical grounds.  It is reasonable for a
+> distributed filesystem to want to be able to shoot down pte's which map
+> sections of pagecache.  Just as it is reasonable for the filesystem to be
+> able to shoot down the pagecache itself.
+> 
+> We've exported much lower-level stuff than this, because some in-kernel
+> module happened to use it.
 
-In the spirit of full disclosure, the wrapper is actually
-distributed under the BSD license.  The GPFS guys tell
-me that the "gpl" in the RPM name means "GPFS Portability
-Layer".
+Probably not always the right choice, though...  I highly suspect we
+far to much of our intestines are easily available.
 
-					Thanx, Paul
+[snip]
+
+> We need to give Paul a reasoned and logically consistent answer to his
+> request.  For that we need to establish some sort of framework against
+> which to make a decision and then make the decision.  
+> 
+> One approach is a fait-accomplis from the top-level maintainer.  Here,
+> we're trying to do it in a different way.
+> 
+> I have proposed two criteria upon which this should be judged:
+> 
+> a) Does the export make technical sense?  Do filesystems have
+>    legitimate need for access to this symbol?
+> 
+> (really, a) is sufficient grounds, but for real-world reasons:)
+> 
+> b) Does the IBM filsystem meet the kernel's licensing requirements?
+> 
+> 
+> It appears that the answers are a): yes and b) probably.
+
+a.) Definitely
+b.) Perhaps
+ 
+> Please, feel free to add additional criteria.  We could also ask "do we
+> want to withhold this symbols to encourage IBM to GPL the filesystem" or
+> "do we simply refuse to export any symbol which is not used by any GPL
+> software" (if so, why?).  Over to you.
+
+Well, I wasn't altogether joking when I suggested IBM should GPL gpfs.
+A couple of questions:
+
+* Is gpfs a commercial product in the sense that it's something IBM
+  earns revenue from?
+* Does gpfs contain third party "Intellectual Property" (no, I'm not
+  particularly fond of using that expression, but I digress)
+
+If the answer is NO to both of these questions, why _not_ GPL the code?
+If the answer is NO to only the second question, is the revenue from
+gpfs big enough to warrant keeping it proprietary?
+
+> But at the end of the day, if we decide to not export this symbol, we owe
+> Paul a good, solid reason, yes?
+
+Yup.  Silence isn't always golden, sometimes it's outright shitty.
+
+
+Regards: David Weinehall
+-- 
+ /) David Weinehall <tao@acc.umu.se> /) Northern lights wander      (\
+//  Maintainer of the v2.0 kernel   //  Dance across the winter sky //
+\)  http://www.acc.umu.se/~tao/    (/   Full colour fire           (/
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
