@@ -1,25 +1,26 @@
-Received: from m4.gw.fujitsu.co.jp ([10.0.50.74]) by fgwmail6.fujitsu.co.jp (8.12.10/Fujitsu Gateway)
-	id i88BkVtx019911 for <linux-mm@kvack.org>; Wed, 8 Sep 2004 20:46:31 +0900
+Received: from m3.gw.fujitsu.co.jp ([10.0.50.73]) by fgwmail5.fujitsu.co.jp (8.12.10/Fujitsu Gateway)
+	id i88BoY9B029072 for <linux-mm@kvack.org>; Wed, 8 Sep 2004 20:50:34 +0900
 	(envelope-from kamezawa.hiroyu@jp.fujitsu.com)
-Received: from s4.gw.fujitsu.co.jp by m4.gw.fujitsu.co.jp (8.12.10/Fujitsu Domain Master)
-	id i88BkVI6029820 for <linux-mm@kvack.org>; Wed, 8 Sep 2004 20:46:31 +0900
+Received: from s3.gw.fujitsu.co.jp by m3.gw.fujitsu.co.jp (8.12.10/Fujitsu Domain Master)
+	id i88BoYpQ032122 for <linux-mm@kvack.org>; Wed, 8 Sep 2004 20:50:34 +0900
 	(envelope-from kamezawa.hiroyu@jp.fujitsu.com)
-Received: from s4.gw.fujitsu.co.jp (localhost [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 53751153635
-	for <linux-mm@kvack.org>; Wed,  8 Sep 2004 20:46:31 +0900 (JST)
-Received: from fjmail501.fjmail.jp.fujitsu.com (fjmail501-0.fjmail.jp.fujitsu.com [10.59.80.96])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id D6C0815362F
-	for <linux-mm@kvack.org>; Wed,  8 Sep 2004 20:46:30 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3 [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 216CE43F01
+	for <linux-mm@kvack.org>; Wed,  8 Sep 2004 20:50:34 +0900 (JST)
+Received: from fjmail502.fjmail.jp.fujitsu.com (fjmail502-0.fjmail.jp.fujitsu.com [10.59.80.98])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 94F4943F03
+	for <linux-mm@kvack.org>; Wed,  8 Sep 2004 20:50:33 +0900 (JST)
 Received: from jp.fujitsu.com
- (fjscan501-0.fjmail.jp.fujitsu.com [10.59.80.120]) by
- fjmail501.fjmail.jp.fujitsu.com
+ (fjscan503-0.fjmail.jp.fujitsu.com [10.59.80.124]) by
+ fjmail502.fjmail.jp.fujitsu.com
  (Sun Internet Mail Server sims.4.0.2001.07.26.11.50.p9)
- with ESMTP id <0I3Q00J1Y0PHIV@fjmail501.fjmail.jp.fujitsu.com> for
- linux-mm@kvack.org; Wed,  8 Sep 2004 20:46:30 +0900 (JST)
-Date: Wed, 08 Sep 2004 20:51:46 +0900
+ with ESMTP id <0I3Q00F260W798@fjmail502.fjmail.jp.fujitsu.com> for
+ linux-mm@kvack.org; Wed,  8 Sep 2004 20:50:32 +0900 (JST)
+Date: Wed, 08 Sep 2004 20:55:49 +0900
 From: Hiroyuki KAMEZAWA <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [RFC][PATCH] no bitmap buddy allocator : modifies expand() (2/4)
-Message-id: <413EF252.8040808@jp.fujitsu.com>
+Subject: [RFC][PATCH] no bitmap buddy allocator : modifies __free_pages_bulk()
+ (3/4)
+Message-id: <413EF345.3080004@jp.fujitsu.com>
 MIME-version: 1.0
 Content-type: text/plain; charset=us-ascii; format=flowed
 Content-transfer-encoding: 7bit
@@ -29,83 +30,161 @@ To: Linux Kernel ML <linux-kernel@vger.kernel.org>
 Cc: linux-mm <linux-mm@kvack.org>, LHMS <lhms-devel@lists.sourceforge.net>, Andrew Morton <akpm@osdl.org>, William Lee Irwin III <wli@holomorphy.com>, Dave Hansen <haveblue@us.ibm.com>, Hirokazu Takahashi <taka@valinux.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-This is part (2/4) and modifies expand().
+This is part (3/4) and modifies __free_pages_bulk().
 
-This patch removes bitmap operation from alloc_pages().
+In main lopp of __free_pages_bulk(), we access a "buddy" page.
+validity of this "buddy" page is guaranteed by bad_range_pfn() and
+calculate_buddy_range() in (1/4). Out of range access cannot occur.
 
-Instead of using MARK_USED() bitmap operation,
-this patch records page's order in page struct itself, page->private field.
 
 Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
 
 ---
 
-  test-kernel-kamezawa/mm/page_alloc.c |   17 +++++++----------
-  1 files changed, 7 insertions(+), 10 deletions(-)
+  test-kernel-kamezawa/mm/page_alloc.c |   85 ++++++++++++++++++++++-------------
+  1 files changed, 54 insertions(+), 31 deletions(-)
 
-diff -puN mm/page_alloc.c~eliminate-bitmap-alloc mm/page_alloc.c
---- test-kernel/mm/page_alloc.c~eliminate-bitmap-alloc	2004-09-08 18:48:40.667294640 +0900
-+++ test-kernel-kamezawa/mm/page_alloc.c	2004-09-08 19:04:05.398714096 +0900
-@@ -296,9 +296,6 @@ void __free_pages_ok(struct page *page,
-  	free_pages_bulk(page_zone(page), 1, &list, order);
-  }
+diff -puN mm/page_alloc.c~eliminate-bitmap-free mm/page_alloc.c
+--- test-kernel/mm/page_alloc.c~eliminate-bitmap-free	2004-09-08 18:48:42.145069984 +0900
++++ test-kernel-kamezawa/mm/page_alloc.c	2004-09-08 19:04:04.479853784 +0900
+@@ -165,6 +165,27 @@ static void destroy_compound_page(struct
+  #endif		/* CONFIG_HUGETLB_PAGE */
 
--#define MARK_USED(index, order, area) \
--	__change_bit((index) >> (1+(order)), (area)->map)
--
   /*
-   * The order of subdivision here is critical for the IO subsystem.
-   * Please do not alter this order without good reasons and regression
-@@ -315,7 +312,7 @@ void __free_pages_ok(struct page *page,
++ * This function checks whether a page is free && is the buddy
++ * we can do coalesce if
++ * (a) the buddy is free and
++ * (b) the buddy is on the buddy system
++ * (c) the buddy has the same order.
++ * for recording page's order, we use private field and PG_private.
++ *
++ * Because page_count(page) == 0, and zone->lock is aquired.
++ * Atomic page->flags operation is needless here.
++ */
++static inline int page_is_buddy(struct page *page, int order)
++{
++	if (PagePrivate(page)           &&
++	    (page_order(page) == order) &&
++	    !PageReserved(page)         &&
++            page_count(page) == 0)
++		return 1;
++	return 0;
++}
++
++/*
+   * Freeing function for a buddy system allocator.
+   *
+   * The concept of a buddy system is to maintain direct-mapped table
+@@ -176,9 +197,12 @@ static void destroy_compound_page(struct
+   * at the bottom level available, and propagating the changes upward
+   * as necessary, plus some accounting needed to play nicely with other
+   * parts of the VM system.
+- * At each level, we keep one bit for each pair of blocks, which
+- * is set to 1 iff only one of the pair is allocated.  So when we
+- * are allocating or freeing one, we can derive the state of the
++ *
++ * At each level, we keep a list of pages, which are head of chunk of
++ * pages at the level. A page, which is a head of chunks, has its order
++ * in page structure itself and PG_private flag is set. we can get an
++ * order of a page by calling  page_order().
++ * So we are allocating or freeing one, we can derive the state of the
+   * other.  That is, if we allocate a small block, and both were
+   * free, the remainder of the region must be split into blocks.
+   * If a block is freed, and its buddy is also free, then this
+@@ -188,42 +212,43 @@ static void destroy_compound_page(struct
    */
-  static inline struct page *
-  expand(struct zone *zone, struct page *page,
--	 unsigned long index, int low, int high, struct free_area *area)
-+       int low, int high, struct free_area *area)
+
+  static inline void __free_pages_bulk (struct page *page, struct page *base,
+-		struct zone *zone, struct free_area *area, unsigned int order)
++		struct zone *zone, unsigned int order)
   {
-  	unsigned long size = 1 << high;
+-	unsigned long page_idx, index, mask;
+-
++	unsigned long page_idx;
++	struct page *coalesced_page;
++	int order_len = 1 << order;
+  	if (order)
+  		destroy_compound_page(page, order);
+-	mask = (~0UL) << order;
++
+  	page_idx = page - base;
+-	if (page_idx & ~mask)
+-		BUG();
+-	index = page_idx >> (1 + order);
++	BUG_ON(page_idx & (order_len - 1));
++	BUG_ON(bad_range(zone,page));
 
-@@ -325,7 +322,9 @@ expand(struct zone *zone, struct page *p
-  		size >>= 1;
-  		BUG_ON(bad_range(zone, &page[size]));
-  		list_add(&page[size].lru, &area->free_list);
--		MARK_USED(index + size, high, area);
-+		/* Note: already have lock, we don't need to use atomic ops */
-+		set_page_order(&page[size], high);
-+		SetPagePrivate(&page[size]);
-  	}
-  	return page;
+-	zone->free_pages += 1 << order;
+-	while (order < MAX_ORDER-1) {
+-		struct page *buddy1, *buddy2;
++	zone->free_pages += order_len;
+
+-		BUG_ON(area >= zone->free_area + MAX_ORDER);
+-		if (!__test_and_change_bit(index, area->map))
++	while (order < MAX_ORDER-1) {
++		struct page *buddy;
++		int buddy_idx;
++		buddy_idx = (page_idx ^ (1 << order));
++		if (bad_range_pfn(zone, zone->zone_start_pfn + buddy_idx))
++			break;
++		buddy = base + buddy_idx;
++		if (!page_is_buddy(buddy, order))
+  			/*
+  			 * the buddy page is still allocated.
+  			 */
+  			break;
+-
+-		/* Move the buddy up one level. */
+-		buddy1 = base + (page_idx ^ (1 << order));
+-		buddy2 = base + page_idx;
+-		BUG_ON(bad_range(zone, buddy1));
+-		BUG_ON(bad_range(zone, buddy2));
+-		list_del(&buddy1->lru);
+-		mask <<= 1;
+  		order++;
+-		area++;
+-		index >>= 1;
+-		page_idx &= mask;
+-	}
+-	list_add(&(base + page_idx)->lru, &area->free_list);
++		page_idx &= buddy_idx;
++		list_del(&buddy->lru);
++		/* for propriety of PG_private bit, we clear it */
++		ClearPagePrivate(buddy);
++	}
++	/* record the final order of the page */
++	coalesced_page = base + page_idx;
++	SetPagePrivate(coalesced_page);
++	set_page_order(coalesced_page,order);
++	list_add(&coalesced_page->lru, &zone->free_area[order].free_list);
   }
-@@ -379,7 +378,6 @@ static struct page *__rmqueue(struct zon
-  	struct free_area * area;
-  	unsigned int current_order;
-  	struct page *page;
--	unsigned int index;
 
-  	for (current_order = order; current_order < MAX_ORDER; ++current_order) {
-  		area = zone->free_area + current_order;
-@@ -388,11 +386,10 @@ static struct page *__rmqueue(struct zon
+  static inline void free_pages_check(const char *function, struct page *page)
+@@ -261,12 +286,10 @@ free_pages_bulk(struct zone *zone, int c
+  		struct list_head *list, unsigned int order)
+  {
+  	unsigned long flags;
+-	struct free_area *area;
+  	struct page *base, *page = NULL;
+  	int ret = 0;
 
-  		page = list_entry(area->free_list.next, struct page, lru);
+  	base = zone->zone_mem_map;
+-	area = zone->free_area + order;
+  	spin_lock_irqsave(&zone->lock, flags);
+  	zone->all_unreclaimable = 0;
+  	zone->pages_scanned = 0;
+@@ -274,7 +297,7 @@ free_pages_bulk(struct zone *zone, int c
+  		page = list_entry(list->prev, struct page, lru);
+  		/* have to delete it as __free_pages_bulk list manipulates */
   		list_del(&page->lru);
--		index = page - zone->zone_mem_map;
--		if (current_order != MAX_ORDER-1)
--			MARK_USED(index, current_order, area);
-+		/* Note: already have lock, we don't need to use atomic ops */
-+		ClearPagePrivate(page);
-  		zone->free_pages -= 1UL << order;
--		return expand(zone, page, index, order, current_order, area);
-+		return expand(zone, page, order, current_order, area);
+-		__free_pages_bulk(page, base, zone, area, order);
++		__free_pages_bulk(page, base, zone, order);
+  		ret++;
   	}
-
-  	return NULL;
+  	spin_unlock_irqrestore(&zone->lock, flags);
 
 _
-
-
-
--- 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
