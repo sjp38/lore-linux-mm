@@ -1,56 +1,69 @@
-Received: from oscar (localhost [127.0.0.1])
-	by oscar.casa.dyndns.org (Postfix) with SMTP id 9A8308198
-	for <linux-mm@kvack.org>; Mon,  5 Jun 2000 07:30:47 -0400 (EDT)
-From: Ed Tomlinson <tomlins@cam.org>
-Reply-To: tomlins@cam.org
-Subject: [RFC] pre-cleaning 
-Date: Sun, 4 Jun 2000 21:22:21 -0400
-Content-Type: text/plain
+Date: Mon, 5 Jun 2000 13:03:08 -0300 (BRST)
+From: Rik van Riel <riel@conectiva.com.br>
+Subject: [uPatch] Re: Graceful failure?
+In-Reply-To: <14651.49518.825666.298019@rhino.thrillseeker.net>
+Message-ID: <Pine.LNX.4.21.0006051258370.31069-100000@duckman.distro.conectiva>
 MIME-Version: 1.0
-Message-Id: <00060422052200.12375@oscar>
-Content-Transfer-Encoding: 8BIT
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Billy Harvey <Billy.Harvey@thrillseeker.net>
+Cc: Linux Kernel <linux-kernel@vger.rutgers.edu>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+On Mon, 5 Jun 2000, Billy Harvey wrote:
 
-Was chating with Rik on #kernelnewbies and cameup with the following idea:
+> A "make -j" slowly over the course of 5 minutes drives the load
+> to about 30.  At first the degradation is controlled, with
+> sendmail refusing service, but at about 160 process visible in
+> top, top quits updating (set a 8 second updates), showing about
+> 2 MB swap used.  At this point it sounds like the system is
+> thrashing.
 
-Assuming we have changes things to look a bit more like bsd and are scanning
-the mm array looking for pages to free.  Once we have our quota of free pages
-we save a pointer to the last scanned page (freed_to).  Then we continue
-scanning for N entries writing out dirty pages (can we cluster these writes?)
-we save a pointer to the last precleaned page in (cleaned_to) and record 
-the number of precleaned pages in (pre_clean).  Next scan time the
-idea is most of the precleaned pages will still be clean.  We check this 
-by recording the number of pages we have to reclean in (re_clean).  We set
-things up so N entires should free about the same number of pages as the last
-called required us to free.  We can use the re_clean/pre_clean ratio to 
-decide if we are doing any good, if not we reduce the number of pages we 
-preclean...  If everything is ok a normal scan should compelete, having freed
-enought pages, when freed_to = the old cleaned_to.  
+That probably means you're a lot more in swap now and top
+has stopped displaying before you really hit the swap...
 
-Thoughts it might be better to create an array for a stucture with three 
-counters in it
+> Is this failure process acceptable?  I'd think the system should
+> react differently to the thrashing, killing off the load
+> demanding user process(es), rather than degrading to a point of
+> freeze.
 
-precleaned	- number of pages precleaned in this segement
-recleaned	- number of pages relceaned (want this near zero)
-cleaned		- number of pages we had to clean during freeing (not recleaned)
+Please take into account that the system is quite a bit beyond
+where you could take previous kernels ... oh, and the attached
+patch should fix the problem somewhat ;)
 
-say i is the index in the mm array and j = i/2^k, 
-where j indexes the above stucture 
+regards,
 
-we use the sum of [(freed_to/2^k)-x, (freed_to/2^k)-1] numbers to autotune 
-the preclean logic
+Rik
+--
+The Internet is not a network of computers. It is a network
+of people. That is its real strength.
 
-if recleaned*100 div precleaned > threshold1 then n =/ 2
-else if cleaned*100 div precleaned > threshold2 then N =* 2
+Wanna talk about the kernel?  irc.openprojects.net / #kernelnewbies
+http://www.conectiva.com/		http://www.surriel.com/
 
--- 
 
-Ed Tomlinson (ontadata) <tomlins@cam.org>
+
+--- linux-2.4.0-t1-ac8/include/linux/mm.h.orig	Wed May 31 21:00:14 2000
++++ linux-2.4.0-t1-ac8/include/linux/mm.h	Sun Jun  4 16:21:31 2000
+@@ -202,6 +202,7 @@
+ #define ClearPageError(page)	clear_bit(PG_error, &(page)->flags)
+ #define PageReferenced(page)	test_bit(PG_referenced, &(page)->flags)
+ #define SetPageReferenced(page)	set_bit(PG_referenced, &(page)->flags)
++#define ClearPageReferenced(page)	clear_bit(PG_referenced, &(page)->flags)
+ #define PageTestandClearReferenced(page)	test_and_clear_bit(PG_referenced, &(page)->flags)
+ #define PageDecrAfter(page)	test_bit(PG_decr_after, &(page)->flags)
+ #define SetPageDecrAfter(page)	set_bit(PG_decr_after, &(page)->flags)
+--- linux-2.4.0-t1-ac8/include/linux/swap.h.orig	Wed May 31 21:00:06 2000
++++ linux-2.4.0-t1-ac8/include/linux/swap.h	Sun Jun  4 16:22:31 2000
+@@ -179,6 +179,7 @@
+ 	list_add(&(page)->lru, &lru_cache);	\
+ 	nr_lru_pages++;				\
+ 	page->age = PG_AGE_START;		\
++	ClearPageReferenced(page);		\
+ 	SetPageActive(page);			\
+ 	spin_unlock(&pagemap_lru_lock);		\
+ } while (0)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
