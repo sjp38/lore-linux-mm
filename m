@@ -1,171 +1,69 @@
-Subject: Re: [PATCH] don't pass mem_map into init functions
-From: Dave Hansen <haveblue@us.ibm.com>
-In-Reply-To: <200407281501.19181.jbarnes@engr.sgi.com>
-References: <1091048123.2871.435.camel@nighthawk>
-	 <200407281501.19181.jbarnes@engr.sgi.com>
-Content-Type: multipart/mixed; boundary="=-Wd2qRscPwwWpTcDHuEa7"
-Message-Id: <1091053187.2871.526.camel@nighthawk>
-Mime-Version: 1.0
-Date: Wed, 28 Jul 2004 15:19:47 -0700
+Date: Wed, 28 Jul 2004 17:21:58 -0500
+From: Brent Casavant <bcasavan@sgi.com>
+Reply-To: Brent Casavant <bcasavan@sgi.com>
+Subject: Re: Scaling problem with shmem_sb_info->stat_lock
+In-Reply-To: <20040728095925.GQ2334@holomorphy.com>
+Message-ID: <Pine.SGI.4.58.0407281707370.33392@kzerza.americas.sgi.com>
+References: <Pine.SGI.4.58.0407131449330.111843@kzerza.americas.sgi.com>
+ <Pine.LNX.4.44.0407132113350.8577-100000@localhost.localdomain>
+ <20040728022625.249c78da.akpm@osdl.org> <20040728095925.GQ2334@holomorphy.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jesse Barnes <jbarnes@engr.sgi.com>
-Cc: "Martin J. Bligh" <mbligh@aracnet.com>, linux-mm <linux-mm@kvack.org>, LSE <lse-tech@lists.sourceforge.net>, Anton Blanchard <anton@samba.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: William Lee Irwin III <wli@holomorphy.com>
+Cc: Andrew Morton <akpm@osdl.org>, Hugh Dickins <hugh@veritas.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
---=-Wd2qRscPwwWpTcDHuEa7
-Content-Type: text/plain
-Content-Transfer-Encoding: 7bit
+On Wed, 28 Jul 2004, William Lee Irwin III wrote:
 
-On Wed, 2004-07-28 at 15:01, Jesse Barnes wrote:
-> On Wednesday, July 28, 2004 1:55 pm, Dave Hansen wrote:
-> > Compile tested on SMP x86 and NUMAQ.  I plan to give it a run on ppc64
-> > in a bit.  I'd appreciate if one of the ia64 guys could make sure it's
-> > OK for them as well.
-> 
-> Which tree is this against?  It doesn't apply to the bk tree or 
-> linux-2.6.8-rc2-mm1.
+> Hugh Dickins <hugh@veritas.com> wrote:
+> >> Though wli's per-cpu idea was sensible enough, converting to that
+> >>  didn't appeal to me very much.  We only have a limited amount of
+> >>  per-cpu space, I think, but an indefinite number of tmpfs mounts.
+>
+> On Wed, Jul 28, 2004 at 02:26:25AM -0700, Andrew Morton wrote:
+> > What's wrong with <linux/percpu_counter.h>?
+>
+> One issue with using it for the specific cases in question is that the
+> maintenance of the statistics is entirely unnecessary for them.
 
-Put this one before it, and it should apply cleanly.  I posted this one
-earlier today, and didn't realize that the new one was dependent.  
+Yeah.  Hugh solved the stat_lock issue by getting rid of the superblock
+info for the internal superblock(s?) corresponding to /dev/zero and
+System V shared memory.  There was no way to get at that information
+anyway, so it wasn't useful to pay to keep it around.
 
--- Dave
+> For the general case it may still make sense to do this. SGI will have
+> to comment here, as the workloads I'm involved with are kernel intensive
+> enough in other areas and generally run on small enough systems to have
+> no visible issues in or around the areas described.
 
---=-Wd2qRscPwwWpTcDHuEa7
-Content-Disposition: attachment; filename=A-zoneinit_cleanup.patch
-Content-Type: text/x-patch; name=A-zoneinit_cleanup.patch; charset=ANSI_X3.4-1968
-Content-Transfer-Encoding: 7bit
+With Hugh's fix, the problem has now moved to other areas -- I consider
+the stat_lock issue solved.  Now I'm running up against the shmem_inode_info
+lock field.  A per-CPU structure isn't appropriate here because what it's
+mostly protecting is the inode swap entries, and that isn't at all amenable
+to a per-CPU breakdown (i.e. this is real data, not statistics).
 
-Only in A-zoneinit_cleanup/arch/i386/kernel: .semaphore.o.cmd
-Only in A-zoneinit_cleanup/arch/i386/kernel: semaphore.o
-Only in ../linux-2.6.8-rc2-mm1/arch/i386/mm: .init.o.d
-Only in ../linux-2.6.8-rc2-mm1/arch/i386/mm: .init.o.tmp
-diff -ur ../linux-2.6.8-rc2-mm1/include/linux/compile.h A-zoneinit_cleanup/include/linux/compile.h
---- ../linux-2.6.8-rc2-mm1/include/linux/compile.h	2004-07-28 13:15:16.000000000 -0700
-+++ A-zoneinit_cleanup/include/linux/compile.h	2004-07-28 13:14:34.000000000 -0700
-@@ -1,7 +1,7 @@
- /* This file is auto generated, version 0 */
- #define UTS_MACHINE "i386"
--#define UTS_VERSION "#0 SMP Wed Jul 28 13:15:16 PDT 2004"
--#define LINUX_COMPILE_TIME "13:15:16"
-+#define UTS_VERSION "#0 SMP Wed Jul 28 13:14:33 PDT 2004"
-+#define LINUX_COMPILE_TIME "13:14:33"
- #define LINUX_COMPILE_BY "root"
- #define LINUX_COMPILE_HOST "elm3b82"
- #define LINUX_COMPILE_DOMAIN "eng.beaverton.ibm.com"
-Only in ../linux-2.6.8-rc2-mm1/init: .do_mounts.o.cmd
-Only in ../linux-2.6.8-rc2-mm1/init: .initramfs.o.d
-Only in ../linux-2.6.8-rc2-mm1/init: .version.o.cmd
-Only in ../linux-2.6.8-rc2-mm1/init: do_mounts.o
-Only in ../linux-2.6.8-rc2-mm1/init: version.o
-diff -ur ../linux-2.6.8-rc2-mm1/mm/page_alloc.c A-zoneinit_cleanup/mm/page_alloc.c
---- ../linux-2.6.8-rc2-mm1/mm/page_alloc.c	2004-07-28 11:31:08.000000000 -0700
-+++ A-zoneinit_cleanup/mm/page_alloc.c	2004-07-28 11:32:38.000000000 -0700
-@@ -1415,6 +1415,52 @@
- 	}
- }
- 
-+/*
-+ * Page buddy system uses "index >> (i+1)", where "index" is 
-+ * at most "size-1".
-+ *
-+ * The extra "+3" is to round down to byte size (8 bits per byte
-+ * assumption). Thus we get "(size-1) >> (i+4)" as the last byte
-+ * we can access.
-+ *
-+ * The "+1" is because we want to round the byte allocation up 
-+ * rather than down. So we should have had a "+7" before we shifted
-+ * down by three. Also, we have to add one as we actually _use_ the
-+ * last bit (it's [0,n] inclusive, not [0,n[).
-+ *
-+ * So we actually had +7+1 before we shift down by 3. But 
-+ * (n+8) >> 3 == (n >> 3) + 1 (modulo overflows, which we do not have).
-+ *
-+ * Finally, we LONG_ALIGN because all bitmap operations are on longs.
-+ */
-+unsigned long pages_to_bitmap_size(unsigned long order, unsigned long nr_pages)
-+{
-+	unsigned long bitmap_size;
-+
-+	bitmap_size = (nr_pages-1) >> (order+4);
-+	bitmap_size = LONG_ALIGN(bitmap_size+1);
-+
-+	return bitmap_size;
-+}
-+
-+void zone_init_free_lists(struct pglist_data *pgdat, struct zone *zone, unsigned long size)
-+{
-+	int order;
-+	for (order = 0; ; order++) {
-+		unsigned long bitmap_size;
-+
-+		INIT_LIST_HEAD(&zone->free_area[order].free_list);
-+		if (order == MAX_ORDER-1) {
-+			zone->free_area[order].map = NULL;
-+			break;
-+		}
-+
-+		bitmap_size = pages_to_bitmap_size(order, size);
-+		zone->free_area[order].map = 
-+		  (unsigned long *) alloc_bootmem_node(pgdat, bitmap_size);
-+	}
-+}
-+
- #ifndef __HAVE_ARCH_MEMMAP_INIT
- #define memmap_init(start, size, nid, zone, start_pfn) \
- 	memmap_init_zone((start), (size), (nid), (zone), (start_pfn))
-@@ -1531,43 +1577,7 @@
- 		zone_start_pfn += size;
- 		lmem_map += size;
- 
--		for (i = 0; ; i++) {
--			unsigned long bitmap_size;
--
--			INIT_LIST_HEAD(&zone->free_area[i].free_list);
--			if (i == MAX_ORDER-1) {
--				zone->free_area[i].map = NULL;
--				break;
--			}
--
--			/*
--			 * Page buddy system uses "index >> (i+1)",
--			 * where "index" is at most "size-1".
--			 *
--			 * The extra "+3" is to round down to byte
--			 * size (8 bits per byte assumption). Thus
--			 * we get "(size-1) >> (i+4)" as the last byte
--			 * we can access.
--			 *
--			 * The "+1" is because we want to round the
--			 * byte allocation up rather than down. So
--			 * we should have had a "+7" before we shifted
--			 * down by three. Also, we have to add one as
--			 * we actually _use_ the last bit (it's [0,n]
--			 * inclusive, not [0,n[).
--			 *
--			 * So we actually had +7+1 before we shift
--			 * down by 3. But (n+8) >> 3 == (n >> 3) + 1
--			 * (modulo overflows, which we do not have).
--			 *
--			 * Finally, we LONG_ALIGN because all bitmap
--			 * operations are on longs.
--			 */
--			bitmap_size = (size-1) >> (i+4);
--			bitmap_size = LONG_ALIGN(bitmap_size+1);
--			zone->free_area[i].map = 
--			  (unsigned long *) alloc_bootmem_node(pgdat, bitmap_size);
--		}
-+		zone_init_free_lists(pgdat, zone, zone->spanned_pages);
- 	}
- }
- 
-Binary files ../linux-2.6.8-rc2-mm1/usr/built-in.o and A-zoneinit_cleanup/usr/built-in.o differ
-Binary files ../linux-2.6.8-rc2-mm1/usr/initramfs_data.cpio and A-zoneinit_cleanup/usr/initramfs_data.cpio differ
-Binary files ../linux-2.6.8-rc2-mm1/usr/initramfs_data.cpio.gz and A-zoneinit_cleanup/usr/initramfs_data.cpio.gz differ
-Binary files ../linux-2.6.8-rc2-mm1/usr/initramfs_data.o and A-zoneinit_cleanup/usr/initramfs_data.o differ
+The "obvious" fix is to morph the code so that the swap entries can be
+updated in parallel to eachother and in parallel to the other miscellaneous
+fields in the shmem_inode_info structure.  But this would be one *nasty*
+piece of work to accomplish, much less accomplish cleanly and correctly.
+I'm pretty sure my Linux skillset isn't up to the task, though it hasn't
+kept me from trying.  On the upside I don't think it would significantly
+impact performance on low processor-count systems, if we can manage to
+do it at all.
 
---=-Wd2qRscPwwWpTcDHuEa7--
+I'm kind of hoping for a fairy godmother to drop in, wave her magic wand,
+and say "Here's the quick and easy and obviously correct solution".  But
+what're the chances of that :).
 
+Thanks,
+Brent
+
+-- 
+Brent Casavant             bcasavan@sgi.com        Forget bright-eyed and
+Operating System Engineer  http://www.sgi.com/     bushy-tailed; I'm red-
+Silicon Graphics, Inc.     44.8562N 93.1355W 860F  eyed and bushy-haired.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
