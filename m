@@ -1,25 +1,80 @@
-Date: Mon, 10 Jan 2005 16:49:09 -0800
-From: Chris Wright <chrisw@osdl.org>
-Subject: Re: Prezeroing V4 [1/4]: Arch specific page zeroing during page fault
-Message-ID: <20050110164909.K2357@build.pdx.osdl.net>
-References: <Pine.LNX.4.44.0501082103120.5207-100000@localhost.localdomain> <Pine.LNX.4.58.0501100915200.19135@schroedinger.engr.sgi.com> <Pine.LNX.4.58.0501101004230.2373@ppc970.osdl.org> <Pine.LNX.4.58.0501101552100.25654@schroedinger.engr.sgi.com> <Pine.LNX.4.58.0501101553140.25654@schroedinger.engr.sgi.com> <20050110164157.R469@build.pdx.osdl.net> <Pine.LNX.4.58.0501101645250.25962@schroedinger.engr.sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.58.0501101645250.25962@schroedinger.engr.sgi.com>; from clameter@sgi.com on Mon, Jan 10, 2005 at 04:46:09PM -0800
+Message-ID: <41E3F2DA.5030900@sgi.com>
+Date: Tue, 11 Jan 2005 09:38:02 -0600
+From: Ray Bryant <raybry@sgi.com>
+MIME-Version: 1.0
+Subject: Re: page migration patchset
+References: <41DB35B8.1090803@sgi.com> <m1wtusd3y0.fsf@muc.de> <41DB5CE9.6090505@sgi.com> <41DC34EF.7010507@mvista.com>
+In-Reply-To: <41DC34EF.7010507@mvista.com>
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Chris Wright <chrisw@osdl.org>, Linus Torvalds <torvalds@osdl.org>, Hugh Dickins <hugh@veritas.com>, Andrew Morton <akpm@osdl.org>, "David S. Miller" <davem@davemloft.net>, linux-ia64@vger.kernel.org, linux-mm@kvack.org, Linux Kernel Development <linux-kernel@vger.kernel.org>
+To: Steve Longerbeam <stevel@mvista.com>
+Cc: Andi Kleen <ak@muc.de>, Hirokazu Takahashi <taka@valinux.co.jp>, Dave Hansen <haveblue@us.ibm.com>, Marcello Tosatti <marcelo.tosatti@cyclades.com>, Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, andrew morton <akpm@osdl.org>
 List-ID: <linux-mm.kvack.org>
 
-* Christoph Lameter (clameter@sgi.com) wrote:
-> Use bk13 as I indicated.
+Andi and Steve,
 
-Ah, so you did, thanks ;-)
--chris
---
-Linux Security Modules     http://lsm.immunix.org     http://lsm.bkbits.net
+Steve Longerbeam wrote:
+<snip>
+
+>>
+>> My personal preference would be to keep as much of this as possible
+>> under user space control; that is, rather than having a big autonomous
+>> system call that migrates pages and then updates policy information,
+>> I'd prefer to split the work into several smaller system calls that
+>> are issued by a user space program responsible for coordinating the
+>> process migration as a series of steps, e. g.:
+>>
+>> (1)  suspend the process via SIGSTOP
+>> (2)  update the mempolicy information
+>> (3)  migrate the process's pages
+>> (4)  migrate the process to the new cpu via set_schedaffinity()
+>> (5)  resume the process via SIGCONT
+>>
+> 
+> steps 2 and 3 can be accomplished by a call to mbind() and
+> specifying MPOL_MF_MOVE. And since mbind() takes an
+> address range, you could probably migrate pages and change
+> the policies for all of the process' mappings in a single mbind()
+> call.
+
+OK, I just got around to looking into this suggestion.  Unfortunately,
+it doesn't look as if this will do what I want.  I need to be able to
+conserve the topology of the application when it is migrated (required
+to give the application the same performance in its new location that
+it got in its old location).  So, I need to be able to say "take the
+pages on this node and move them to that node".  The sys_mbind() call
+doesn't have the necessry arguments to do this.  I'm thinking of
+something like:
+
+migrate_process_pages(pid, numnodes, oldnodelist, newnodelist);
+
+This would scan the address space of process pid, and each page that
+is found on oldnodelist[i] would be moved to node newnodelist[i].
+
+Pages that are found to be swapped out would be handled as follows:
+Add the original node id to either the swap pte or the swp_entry_t.
+Swap in will be modified to allocate the page on the same node it
+came from.  Then, as part of migrate_process_pages, all that would
+be done for swapped out pages would be to change the "original node"
+field to point at the new node.
+
+However, I could probably do both steps (2) and (3) as part of the
+migrate_process_pages() call.
+
+Does this all seem reasonable?
+
+-- 
+Best Regards,
+Ray
+-----------------------------------------------
+                   Ray Bryant
+512-453-9679 (work)         512-507-7807 (cell)
+raybry@sgi.com             raybry@austin.rr.com
+The box said: "Requires Windows 98 or better",
+            so I installed Linux.
+-----------------------------------------------
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
