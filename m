@@ -1,137 +1,51 @@
-Message-ID: <3D2D10BC.B9DC2165@opersys.com>
-Date: Thu, 11 Jul 2002 00:59:40 -0400
-From: Karim Yaghmour <karim@opersys.com>
-Reply-To: karim@opersys.com
-MIME-Version: 1.0
-Subject: Re: Enhanced profiling support (was Re: vm lock contention reduction)
-References: <OFF41DACAC.FEED90BA-ON80256BF2.004DC147@portsmouth.uk.ibm.com> <3D2C9972.BB3DA772@opersys.com> <20020710214157.GD1342@dualathlon.random> <3D2D0DE0.F9D75703@opersys.com>
-Content-Type: multipart/mixed;
- boundary="------------A2E70DCE1D3BB0BBB5822E59"
+Date: Thu, 11 Jul 2002 08:47:12 +0200
+From: Jens Axboe <axboe@suse.de>
+Subject: Re: [PATCH][RFT](2) minimal rmap for 2.5 - akpm tested
+Message-ID: <20020711064712.GE1059@suse.de>
+References: <Pine.LNX.4.44L.0207101741380.14432-100000@imladris.surriel.com> <E17SPS5-00028e-00@starship>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <E17SPS5-00028e-00@starship>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrea Arcangeli <andrea@suse.de>, Richard J Moore <richardj_moore@uk.ibm.com>, John Levon <movement@marcelothewonderpenguin.com>, Andrew Morton <akpm@zip.com.au>, bob <bob@watson.ibm.com>, linux-kernel@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, mjbligh@linux.ibm.com, John Levon <moz@compsoc.man.ac.uk>, Rik van Riel <riel@conectiva.com.br>, Linus Torvalds <torvalds@transmeta.com>
+To: Daniel Phillips <phillips@arcor.de>
+Cc: Rik van Riel <riel@conectiva.com.br>, Sebastian Droege <sebastian.droege@gmx.de>, linux-kernel@vger.kernel.org, akpm@zip.com.au, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This is a multi-part message in MIME format.
---------------A2E70DCE1D3BB0BBB5822E59
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+On Wed, Jul 10 2002, Daniel Phillips wrote:
+> On Wednesday 10 July 2002 22:42, Rik van Riel wrote:
+> > On Wed, 10 Jul 2002, Sebastian Droege wrote:
+> > > On Sat, 6 Jul 2002 02:31:38 -0300 (BRT)
+> > > Rik van Riel <riel@conectiva.com.br> wrote:
+> > >
+> > > > If you have some time left this weekend and feel brave,
+> > > > please test the patch which can be found at:
+> > > >
+> > > > 	http://surriel.com/patches/2.5/2.5.25-rmap-akpmtested
+> > 
+> > > after running your patch some time I have to say that the old VM
+> > > implementation and the full rmap patch (by Craig Kulesa) was better. The
+> > > system becomes very slow and has to swap in too much after some uptime
+> > > (4 hours - 2 days) and memory intensive tasks...
+> > > Maybe this happens only to me but it's fully reproducable
+> > 
+> > It's a known problem with use-once. Users of plain 2.4.18
+> > are complaining about it, too.
+> 
+> Hey, thanks Rik, I know something about that :-)  And I'd be testing right
+> now to see if you're right, if the DAC960 driver compiled successfully.
+> But it doesn't, and since my test machine won't boot without it... given a
+> choice between diving into the driver and going back to work on directory
+> hashing on 2.4...
 
+Leonard has promised me to convert DAC960 to the "new" pci dma api for
+years (or so it seems, actual date may vary, no purchase necessary). I
+do have a Mylex controller here myself these days, so it's not
+completely impossible that I may do it on a rainy day.
 
-Sorry, the attachment never made it ...
-
-===================================================
-                 Karim Yaghmour
-               karim@opersys.com
-      Embedded and Real-Time Linux Expert
-===================================================
---------------A2E70DCE1D3BB0BBB5822E59
-Content-Type: text/plain; charset=us-ascii;
- name="example.c"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline;
- filename="example.c"
-
-/* Example usage of custom event API */
-
-#define MODULE
-
-#if 0
-#define CONFIG_TRACE
-#endif
-
-#include <linux/config.h>
-#include <linux/module.h>
-#include <linux/trace.h>
-#include <asm/string.h>
-
-struct delta_event
-{
-  int   an_int;
-  char  a_char;
-};
-
-static int alpha_id, omega_id, theta_id, delta_id, rho_id;
-
-int init_module(void)
-{
-  uint8_t a_byte;
-  char a_char;
-  int an_int;
-  int a_hex;
-  char* a_string = "We are initializing the module";
-  struct delta_event a_delta_event;
-
-  /* Create events */
-  alpha_id = trace_create_event("Alpha",
-				"Number %d, String %s, Hex %08X",
-				CUSTOM_EVENT_FORMAT_TYPE_STR,
-				NULL);
-  omega_id = trace_create_event("Omega",
-				"Number %d, Char %c",
-				CUSTOM_EVENT_FORMAT_TYPE_STR,
-				NULL);
-  theta_id = trace_create_event("Theta",
-				"Plain string",
-				CUSTOM_EVENT_FORMAT_TYPE_STR,
-				NULL);
-  delta_id = trace_create_event("Delta",
-				NULL,
-				CUSTOM_EVENT_FORMAT_TYPE_HEX,
-				NULL);
-  rho_id = trace_create_event("Rho",
-			      NULL,
-			      CUSTOM_EVENT_FORMAT_TYPE_HEX,
-			      NULL);
-
-  /* Trace events */
-  an_int = 1;
-  a_hex = 0xFFFFAAAA;
-  trace_std_formatted_event(alpha_id, an_int, a_string, a_hex);
-  an_int = 25;
-  a_char = 'c';
-  trace_std_formatted_event(omega_id, an_int, a_char);
-  trace_std_formatted_event(theta_id);
-  memset(&a_delta_event, 0, sizeof(a_delta_event));
-  trace_raw_event(delta_id, sizeof(a_delta_event), &a_delta_event);
-  a_byte = 0x12;
-  trace_raw_event(rho_id, sizeof(a_byte), &a_byte);
-
-  return 0;
-}
-
-void cleanup_module(void)
-{
-  uint8_t a_byte;
-  char a_char;
-  int an_int;
-  int a_hex;
-  char* a_string = "We are initializing the module";
-  struct delta_event a_delta_event;
-
-  /* Trace events */
-  an_int = 324;
-  a_hex = 0xABCDEF10;
-  trace_std_formatted_event(alpha_id, an_int, a_string, a_hex);
-  an_int = 789;
-  a_char = 's';
-  trace_std_formatted_event(omega_id, an_int, a_char);
-  trace_std_formatted_event(theta_id);
-  memset(&a_delta_event, 0xFF, sizeof(a_delta_event));
-  trace_raw_event(delta_id, sizeof(a_delta_event), &a_delta_event);
-  a_byte = 0xA4;
-  trace_raw_event(rho_id, sizeof(a_byte), &a_byte);
-
-  /* Destroy the events created */
-  trace_destroy_event(alpha_id);
-  trace_destroy_event(omega_id);
-  trace_destroy_event(theta_id);
-  trace_destroy_event(delta_id);
-  trace_destroy_event(rho_id);
-}
-
-
---------------A2E70DCE1D3BB0BBB5822E59--
+-- 
+Jens Axboe
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
