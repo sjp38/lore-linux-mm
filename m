@@ -1,43 +1,50 @@
-Date: Wed, 13 Oct 2004 01:39:41 -0700
-From: Andrew Morton <akpm@osdl.org>
-Subject: Re: Page cache write performance issue
-Message-Id: <20041013013941.49693816.akpm@osdl.org>
-In-Reply-To: <416CE423.3000607@cyberone.com.au>
-References: <20041013054452.GB1618@frodo>
-	<20041012231945.2aff9a00.akpm@osdl.org>
-	<20041013063955.GA2079@frodo>
-	<20041013000206.680132ad.akpm@osdl.org>
-	<20041013172352.B4917536@wobbly.melbourne.sgi.com>
-	<416CE423.3000607@cyberone.com.au>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Message-ID: <416D0AA4.30701@yahoo.com.au>
+Date: Wed, 13 Oct 2004 20:59:48 +1000
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+MIME-Version: 1.0
+Subject: Re: NUMA: Patch for node based swapping
+References: <Pine.LNX.4.44.0410121151220.13693-100000@chimarrao.boston.redhat.com> <Pine.LNX.4.58.0410121319510.5785@schroedinger.engr.sgi.com>
+In-Reply-To: <Pine.LNX.4.58.0410121319510.5785@schroedinger.engr.sgi.com>
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <piggin@cyberone.com.au>
-Cc: nathans@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-xfs@oss.sgi.com
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Nick Piggin <piggin@cyberone.com.au> wrote:
->
->  Andrew probably has better ideas.
+Christoph Lameter wrote:
+> On Tue, 12 Oct 2004, Rik van Riel wrote:
+> 
+> 
+>>On Tue, 12 Oct 2004, Christoph Lameter wrote:
+>>
+>>
+>>>Any other suggestions?
+>>
+>>Since this is meant as a stop gap patch, waiting for a real
+>>solution, and is only relevant for big (and rare) systems,
+>>it would be an idea to at least leave it off by default.
+>>
+>>I think it would be safe to assume that a $100k system has
+>>a system administrator looking after it, while a $5k AMD64
+>>whitebox might not have somebody watching its performance.
+> 
+> 
+> Ok. Will do that then. Should I submit the patch to Andrew?
+> 
 
-uh, is this an ia32 highmem box?
+I can't see the harm in sending it after 2.6.9 if it defaults
+to off (maybe also make it CONFIG_NUMA).
 
-If so, you've hit the VM sour spot.  That 128M highmem zone gets 100%
-filled with dirty pages and we end up doing a ton of writeout off the page
-LRU.  And we do that while `dd' is cheerfully writing to a totally
-different part of the disk via balance_dirty_pages().  Seekstorm ensues. 
-Although last time I looked (a long time ago) the slowdown was only 2:1 -
-perhaps your disk is in writethrough mode??
+OTOH, if it is going to be painful to remove later on, then
+maybe leave it local to your tree.
 
-Basically, *any* other config is fine.  896MB and below, 1.5GB and above.
+It's true that I have something a bit more sophisticated in
+the pipe, but it is going to be an uphill battle to get it
+and everything it depends on merged - so don't count on it for
+2.6.10 :P
 
-I could well understand that a minor kswapd tweak would make this bad
-situation worse.  Making the dirty ratios really small (dirty_ratio less
-than the 128MB) should make it go away.
-
-If it's not ia32 then dunno.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
