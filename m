@@ -1,59 +1,80 @@
+Received: from digeo-nav01.digeo.com (digeo-nav01.digeo.com [192.168.1.233])
+	by packet.digeo.com (8.9.3+Sun/8.9.3) with SMTP id OAA08091
+	for <linux-mm@kvack.org>; Wed, 9 Oct 2002 14:29:30 -0700 (PDT)
+Message-ID: <3DA49FB9.5551F0D2@digeo.com>
+Date: Wed, 09 Oct 2002 14:29:29 -0700
+From: Andrew Morton <akpm@digeo.com>
+MIME-Version: 1.0
 Subject: Re: Hangs in 2.5.41-mm1
-From: Paul Larson <plars@linuxtestproject.org>
-In-Reply-To: <20021009210049.GH12432@holomorphy.com>
-References: <1034188573.30975.40.camel@plars> <3DA48EEA.8100302C@digeo.com>
-	<1034195372.30973.64.camel@plars>  <20021009210049.GH12432@holomorphy.com>
-Content-Type: text/plain
+References: <20021009210049.GH12432@holomorphy.com> <1034198228.30973.70.camel@plars>
+Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
-Date: 09 Oct 2002 16:17:07 -0500
-Message-Id: <1034198228.30973.70.camel@plars>
-Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: William Lee Irwin III <wli@holomorphy.com>
-Cc: Andrew Morton <akpm@digeo.com>, linux-mm <linux-mm@kvack.org>
+To: Paul Larson <plars@linuxtestproject.org>
+Cc: William Lee Irwin III <wli@holomorphy.com>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-I got an oops out of it this time, after running it that test several
-times, I retried case 2 and got this:
+Paul Larson wrote:
+> 
+> I got an oops out of it this time, after running it that test several
+> times, I retried case 2 and got this:
+> 
+> ...
+> EIP is at cache_alloc_refill+0xbb/0x170
 
-Unable to handle kernel paging request at virtual address 20b17050
- printing eip:
-c0133a5b
-*pde = 00000000
-Oops: 0000
+I seem to be giving this patch to everyone lately.  Hopefully
+it will fix that.
 
-CPU:    3
-EIP:    0060:[<c0133a5b>]    Not tainted
-EFLAGS: 00010017
-EIP is at cache_alloc_refill+0xbb/0x170
-eax: 0000000c   ebx: f7ffba88   ecx: 20b17040   edx: 00000000
-esi: 00000010   edi: cc16a800   ebp: f7ffba00   esp: f63a1ee4
-ds: 0068   es: 0068   ss: 0068
-Process crond (pid: 1239, threadinfo=f63a0000 task=f64d6100)
-Stack: f7ffba90 00000282 f6b63720 0804f797 cc1dae00 c0133dab f7ffba00
-000001d0
-       00000001 00000000 00000001 c04a368c f7ffba00 c0158721 f7ffba00
-000001d0
-       cc1dae00 f6b63720 0804f797 f6baa2c0 c0158e6a cc1dae00 c014dfcf
-cc1dae00
-Call Trace:
- [<c0133dab>] kmem_cache_alloc+0x3b/0x50
- [<c0158721>] alloc_inode+0x31/0x170
- [<c0158e6a>] new_inode+0xa/0x60
- [<c014dfcf>] get_pipe_inode+0xf/0x90
- [<c014e082>] do_pipe+0x32/0x1e0
- [<c01240d9>] sys_rt_sigaction+0x69/0x90
- [<c010c9dd>] sys_pipe+0xd/0x40
- [<c0112d20>] do_page_fault+0x0/0x4a5
- [<c01071d3>] syscall_call+0x7/0xb
 
-Code: 39 41 10 73 06 4e 83 fe ff 75 ba 8b 51 04 8b 01 89 50 04 89
 
-Hopefully that will help a little.
-Thanks,
-Paul Larson
+--- 2.5.41/mm/slab.c~slab-split-10-list_for_each_fix	Tue Oct  8 15:40:52 2002
++++ 2.5.41-akpm/mm/slab.c	Tue Oct  8 15:40:52 2002
+@@ -461,7 +461,7 @@ static kmem_cache_t cache_cache = {
+ static struct semaphore	cache_chain_sem;
+ static rwlock_t cache_chain_lock = RW_LOCK_UNLOCKED;
+ 
+-#define cache_chain (cache_cache.next)
++struct list_head cache_chain;
+ 
+ /*
+  * chicken and egg problem: delay the per-cpu array allocation
+@@ -617,6 +617,7 @@ void __init kmem_cache_init(void)
+ 
+ 	init_MUTEX(&cache_chain_sem);
+ 	INIT_LIST_HEAD(&cache_chain);
++	list_add(&cache_cache.next, &cache_chain);
+ 
+ 	cache_estimate(0, cache_cache.objsize, 0,
+ 			&left_over, &cache_cache.num);
+@@ -2093,10 +2094,10 @@ static void *s_start(struct seq_file *m,
+ 	down(&cache_chain_sem);
+ 	if (!n)
+ 		return (void *)1;
+-	p = &cache_cache.next;
++	p = cache_chain.next;
+ 	while (--n) {
+ 		p = p->next;
+-		if (p == &cache_cache.next)
++		if (p == &cache_chain)
+ 			return NULL;
+ 	}
+ 	return list_entry(p, kmem_cache_t, next);
+@@ -2107,9 +2108,9 @@ static void *s_next(struct seq_file *m, 
+ 	kmem_cache_t *cachep = p;
+ 	++*pos;
+ 	if (p == (void *)1)
+-		return &cache_cache;
+-	cachep = list_entry(cachep->next.next, kmem_cache_t, next);
+-	return cachep == &cache_cache ? NULL : cachep;
++		return list_entry(cache_chain.next, kmem_cache_t, next);
++	return cachep->next.next == &cache_chain ? NULL
++		: list_entry(cachep->next.next, kmem_cache_t, next);
+ }
+ 
+ static void s_stop(struct seq_file *m, void *p)
 
+.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
