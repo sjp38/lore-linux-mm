@@ -1,28 +1,31 @@
-Received: from dreambringer (znmeb.cust.aracnet.com [216.99.196.115])
-	by franka.aracnet.com (8.12.5/8.12.5) with SMTP id h0M2pAU3006962
-	for <linux-mm@kvack.org>; Tue, 21 Jan 2003 18:51:12 -0800
-From: "M. Edward Borasky" <znmeb@aracnet.com>
-Subject: Kernel panic with Red Hat 2-4-18 kernel
-Date: Tue, 21 Jan 2003 18:57:44 -0800
-Message-ID: <DEEBJHMCKLIHOCFBLNCCMEMGCDAA.znmeb@aracnet.com>
+Received: from skynet.csn.ul.ie (skynet [136.201.105.2])
+	by holly.csn.ul.ie (Postfix) with ESMTP id A09933F4DC
+	for <linux-mm@kvack.org>; Wed, 22 Jan 2003 17:51:44 +0000 (GMT)
+Received: from localhost (localhost [127.0.0.1])
+	by skynet.csn.ul.ie (Postfix) with ESMTP id 1B0E77779
+	for <linux-mm@kvack.org>; Wed, 22 Jan 2003 17:49:53 +0000 (GMT)
+Date: Wed, 22 Jan 2003 17:49:53 +0000 (GMT)
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: What does pkmap stand for?
+Message-ID: <Pine.LNX.4.44.0301221744080.2402-100000@skynet>
 MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="us-ascii"
-Content-Transfer-Encoding: 7bit
-In-Reply-To: <Pine.LNX.4.50L.0301201933360.18171-100000@imladris.surriel.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Is there a fix available for the following, generated on a 6 GB SMP P4 Xeon
-system with the Red Hat 2.4.18 kernel?
+Really stupid question I know. I'm writing the chapter on high memory
+management and so far it is making perfect sense except I can't find what
+pkmap or kmap stands for. I'm guessing kmap means Kernel Map but pkmap
+could be anything. current guesses are
 
-Kernel panic: Fix pte_chain allocation, you lazy bastard!
+Permanent Kernel Map
+Page Kernel Map
+PK Means Anything Pleasing
 
-I searched the web and found copious references in the context of 2.5, but
-nothing in 2.4, Red Hat or otherwise.
-
+Extensive google and mailing list searching showed up nothing :-( . Any
+help or plausible suggestions are welcome
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
