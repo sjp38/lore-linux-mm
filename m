@@ -1,34 +1,31 @@
-Received: from caffeine.ix.net.nz (caffeine.ix.net.nz [203.97.118.28])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id TAA30229
-	for <linux-mm@kvack.org>; Wed, 19 May 1999 19:29:20 -0400
-Date: Thu, 20 May 1999 11:29:12 +1200
-From: Chris Wedgwood <cw@ix.net.nz>
+Received: from penguin.e-mind.com (penguin.e-mind.com [195.223.140.120])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id NAA06941
+	for <linux-mm@kvack.org>; Thu, 20 May 1999 13:25:07 -0400
+Date: Thu, 20 May 1999 19:12:14 +0200 (CEST)
+From: Andrea Arcangeli <andrea@suse.de>
 Subject: Re: Q: PAGE_CACHE_SIZE?
-Message-ID: <19990520112912.A5473@caffeine.ix.net.nz>
-References: <m1yaimzd82.fsf@flinx.ccr.net> <19990518170401.A3966@fred.muc.de>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-In-Reply-To: <19990518170401.A3966@fred.muc.de>; from Andi Kleen on Tue, May 18, 1999 at 05:04:01PM +0200
+In-Reply-To: <19990518170401.A3966@fred.muc.de>
+Message-ID: <Pine.LNX.4.05.9905201904370.3038-100000@laser.random>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 To: Andi Kleen <ak@muc.de>
 Cc: "Eric W. Biederman" <ebiederm+eric@ccr.net>, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> I guess the main motivation comes from the ARM port, where some
-> versions have PAGE_SIZE=32k.
+On Tue, 18 May 1999, Andi Kleen wrote:
 
-I've often wondered if it wouldn't be a good idea to do this on Intel
-boxes sometimes, especially as many machines routinely have 512MB of
-ram, so we could probably get away with merge 4 pages into one and
-having pseudo-16k pages.
+>On Tue, May 18, 1999 at 04:03:57PM +0200, Eric W. Biederman wrote:
+>> Who's idea was it start the work to make the granularity of the page
+>> cache larger?
+>
+>I guess the main motivation comes from the ARM port, where some versions
+>have PAGE_SIZE=32k.
 
-Presumably this might/will break existing stuff though... I think
-many of these could be worked around though.
+Since they have a too much large PAGE_SIZE, they shouldn't be interested
+in enalrging the page-cache-size.
 
-
-
-
--Chris
+Andrea Arcangeli
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm my@address'
