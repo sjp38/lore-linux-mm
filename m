@@ -1,34 +1,56 @@
-Received: from haymarket.ed.ac.uk (haymarket.ed.ac.uk [129.215.128.53])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id FAA21624
-	for <linux-mm@kvack.org>; Fri, 31 Jul 1998 05:48:32 -0400
-Date: Fri, 31 Jul 1998 00:35:16 +0100
-Message-Id: <199807302335.AAA07710@dax.dcs.ed.ac.uk>
-From: "Stephen C. Tweedie" <sct@redhat.com>
+Date: Sat, 1 Aug 1998 23:54:03 -0500 (CDT)
+From: Eric W Biederman <eric@flinx.npwt.net>
+Reply-To: ebiederm+eric@npwt.net
+Subject: Re: writable swap cache explained (it's weird)
+In-Reply-To: <Pine.LNX.3.96.980730142318.6696A-100000@penguin.transmeta.com>
+Message-ID: <Pine.LNX.4.02.9808012342400.424-100000@iddi.npwt.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Subject: Re: de-luxe zone allocator, design 2
-In-Reply-To: <Pine.LNX.3.96.980729195814.12136G-100000@mirkwood.dummy.home>
-References: <199807291104.MAA01217@dax.dcs.ed.ac.uk>
-	<Pine.LNX.3.96.980729195814.12136G-100000@mirkwood.dummy.home>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Rik van Riel <H.H.vanRiel@phys.uu.nl>
-Cc: "Stephen C. Tweedie" <sct@redhat.com>, Linux MM <linux-mm@kvack.org>
+To: Linus Torvalds <torvalds@transmeta.com>
+Cc: "Benjamin C.R. LaHaise" <blah@kvack.org>, Bill Hawes <whawes@transmeta.com>, Linux-kernel <linux-kernel@vger.rutgers.edu>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
 
-On Wed, 29 Jul 1998 20:00:14 +0200 (CEST), Rik van Riel
-<H.H.vanRiel@phys.uu.nl> said:
 
-> Isn't packing locality _very_ important on machines where you
-> have no memory to spare? In that case 16k would probably be
-> better; PLUS 16k will allow for real DMA buffers and stuff.
+On Thu, 30 Jul 1998, Linus Torvalds wrote:
 
-Not for short-lived packets, where you don't want to reserve a whole 16k
-or more just for a single instance of an NFS packet.
+> 
+> 
+> On Thu, 30 Jul 1998, Benjamin C.R. LaHaise wrote:
+> > 
+> > (a) sounds like the Obvious Thing To Do in the mmap method for /proc, but
+> > will break xdos.  Wtf were they thinking in writing that insane code?
+> > Hmmm, this bug probably applies to 2.0 too....  in a much more subtle
+> > fashion.
+> 
+> The insane code is indeed insane, but I think I understand why they did
+> it: they didn't want to mess around with sysv shared memory regions.
 
---Stephen
+Good guess but no.  Dosemu already uses sysv shared memory regions
+where it can.  But for some applications it needs page level control, 
+and sysv doesn't give you that.
+
+Further the dosemu history states that when it was attempted to map a
+temporary file, and use the standard mmap functionality that way, the
+performance became unacceptable on nfs filesystems.
+
+So /proc/self/mem was the only solution open to dosemu, that provided
+the required level of performance and control.
+ 
+> I'd love to just completely get rid of mmap() on /proc/self/mem, because
+> it actually is a bad idea completely (not just the shared mappings - even
+> a private mapping of another mapping that is shared has simply completely
+> untenable logical problems). 
+
+I agree and this is why I have put a considerable amount of effort into
+implementing a posix shared memory interface. 
+
+Eric 
+
+
+
+
 --
 This is a majordomo managed list.  To unsubscribe, send a message with
 the body 'unsubscribe linux-mm me@address' to: majordomo@kvack.org
