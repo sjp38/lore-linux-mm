@@ -1,40 +1,29 @@
-Date: Wed, 7 Jun 2000 14:47:43 +0100
-From: "Stephen C. Tweedie" <sct@redhat.com>
-Subject: Re: journaling & VM  (was: Re: reiserfs being part of the kernel: it'snot just the code)
-Message-ID: <20000607144743.H30951@redhat.com>
-References: <20000607121555.G29432@redhat.com> <Pine.LNX.4.10.10006070629590.9710-100000@home.suse.com>
+Date: Wed, 7 Jun 2000 16:09:31 +0200
+From: Jamie Lokier <lk@tantalophile.demon.co.uk>
+Subject: Re: [PATCH] VM kswapd autotuning vs. -ac7
+Message-ID: <20000607160931.C22749@pcep-jamie.cern.ch>
+References: <Pine.LNX.4.21.0006050716160.31069-100000@duckman.distro.conectiva> <qww1z29ssbb.fsf@sap.com> <20000607143242.D30951@redhat.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.10.10006070629590.9710-100000@home.suse.com>; from mason@suse.com on Wed, Jun 07, 2000 at 06:40:24AM -0700
+In-Reply-To: <20000607143242.D30951@redhat.com>; from sct@redhat.com on Wed, Jun 07, 2000 at 02:32:42PM +0100
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Chris Mason <mason@suse.com>
-Cc: "Stephen C. Tweedie" <sct@redhat.com>, Hans Reiser <hans@reiser.to>, "Quintela Carreira Juan J." <quintela@fi.udc.es>, Rik van Riel <riel@conectiva.com.br>, bert hubert <ahu@ds9a.nl>, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org, Alexander Zarochentcev <zam@odintsovo.comcor.ru>
+To: "Stephen C. Tweedie" <sct@redhat.com>
+Cc: Christoph Rohland <cr@sap.com>, Rik van Riel <riel@conectiva.com.br>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+Stephen C. Tweedie wrote:
+> The main reason SHM needs its own swap code is that normal anonymous
+> pages are referred to only from ptes --- the ptes either point to
+> the physical page containing the page, or to the swap entry.  We
+> cannot use that for SHM, because SysV SHM segments must be persistent
+> even if there are no attachers, and hence no ptes to maintain the 
+> location of the pages.  
 
-On Wed, Jun 07, 2000 at 06:40:24AM -0700, Chris Mason wrote:
-> 
-> Right now, almost of the pinned pages will be buffer cache pages, and only
-> metadata is logged.  But, sometimes a data block must be flushed before
-> transaction commit, and those pages are pinned, but can be written at any
-> time.  I'm not sure I fully understand the issues with doing all the
-> balancing through the page cache...
+It might be possible to create MMs without tasks specifically to map the
+SHM segments.
 
-In 2.4, it's not a problem in principle to keep the buffer cache pages
-on the page cache LRUs, even if they are not on the page cache hash 
-lists.
-
-> Allocate on flush will be different, and the address_space->pressure()
-> method makes even more sense there.  Those pages will be on the LRU lists,
-> and you want the pressure function to be called on each page.
-
-Absolutely.
-
-Cheers,
- Stephen
+-- Jamie
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
