@@ -1,70 +1,69 @@
-Date: Mon, 2 Oct 2000 18:52:59 -0300 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
+Date: Mon, 2 Oct 2000 14:58:39 -0700 (PDT)
+From: Linus Torvalds <torvalds@transmeta.com>
 Subject: Re: [highmem bug report against -test5 and -test6] Re: [PATCH] Re:
  simple FS application that hangs 2.4-test5, mem mgmt problem or FS buffer
  cache mgmt problem? (fwd)
-In-Reply-To: <Pine.LNX.4.21.0010022337030.13733-100000@elte.hu>
-Message-ID: <Pine.LNX.4.21.0010021849120.1067-100000@duckman.distro.conectiva>
+In-Reply-To: <Pine.LNX.4.21.0010021836090.1067-100000@duckman.distro.conectiva>
+Message-ID: <Pine.LNX.4.10.10010021447310.2206-100000@penguin.transmeta.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ingo Molnar <mingo@elte.hu>
-Cc: Linus Torvalds <torvalds@transmeta.com>, Andrea Arcangeli <andrea@suse.de>, MM mailing list <linux-mm@kvack.org>, "Stephen C. Tweedie" <sct@redhat.com>
+To: Rik van Riel <riel@conectiva.com.br>
+Cc: Ingo Molnar <mingo@elte.hu>, Andrea Arcangeli <andrea@suse.de>, linux-mm@kvack.org, "Stephen C. Tweedie" <sct@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2 Oct 2000, Ingo Molnar wrote:
 
-> yep, this would be nice, but i think it will be quite tough to
-> balance this properly. There are two kinds of bhs in this aging
-> scheme: 'normal' bhs (metadata), and 'virtual' bhs (aliased to a
-> page). Freeing a 'normal' bh will get rid of the bh, and will
-> (statistically) free the data buffer behind. A 'virtual' bh on
-> the other hand has only sizeof(*bh) bytes worth of RAM
-> footprint.
-
-This is easy. Normal page aging will take care of the buffermem
-pages. Freeing the buffer heads on pagecache pages is the only
-thing we need to do in refill_inactive_scan.
-
-> another thing is the complexity of marking a page dirty - right
-> now we can assume that page->buffers holds all the blocks. With
-> aging we must check wether a bh is there or not,
-
-The code must already be able to handle this. This is nothing new.
-
-> Plus some sort of locking has to be added as well - right now we
-> dont have to care about anyone else accessing page->buffers if
-> the PG_lock held - with an aging mechanizm this could get
-> tougher.
-
-OK, so we'll have:
-
-	if (page->buffers && page->mapping && !TryLockPage(page)) {
-		try_to_free_buffers(page);
-		UnlockPage(page);
-	}
-
-> > So if we have "lots" of memory, we basically optimize for speed (leave
-> > the cached mapping around), while if we get low on memory we
-> > automatically optimize for space (get rid of bh's when we don't know
-> > that we'll need them).
+On Mon, 2 Oct 2000, Rik van Riel wrote:
 > 
-> i'd love to have all the cached objects within the system on a
-> global, size-neutral LRU list. (or at least attach a
-> last-accessed timestamp to them.) This way we could synchronize
-> the pagecache, inode/dentry and buffer-cache LRU lists.
+> You will want to add page->mapping too, so we won't be kicking
+> buffermem data out of memory when we don't need to.
 
-s/LRU/page aging/   ;)
+Fair enough.
 
-regards,
+> Also, you really want to free the bufferheads on the pages that
+> are in heavy use (say glibc shared ages) too...
 
-Rik
---
-"What you're running that piece of shit Gnome?!?!"
-       -- Miguel de Icaza, UKUUG 2000
+I don't think they matter that much, but yes, we could just do this all
+outside the whole test.
 
-http://www.conectiva.com/		http://www.surriel.com/
+> > (and yes, I think it should also start background writing - we
+> > probably need the gfp_mask to know whether we can do that).
+> 
+> Background writing is done by kupdate / kflushd.
+
+.. but there's no reason why we should not do it here.
+
+I'd MUCH rather work towards a setup where kupdate/kflushd goes away
+completely, and the work is done as a natural end result of just aging the
+pages.
+
+If you look at what kflushd does, you'll notice that it already has a lot
+of incestuous relationships with the VM layer. And the VM layer has a lot
+of the same with bdflush. That is what I call UGLY and bad design.
+
+Now, look at what bdflush actually _does_. Think about it.
+
+Yeah, it's really aging the pages and writing them out in the background.
+
+In short, it's something that kswapd might as well do.
+
+In fact, if you look at how the VM layer tries to wake up bdflush, you'll
+notice that the VM layer really wants to say "please flush more pages
+because I'm low on memory". Which is really another way of saying that
+kswapd should run more. 
+
+It all ties together, and we should make that explicit, instead of having
+the current incestuous relationships and saying "oh, the VM layer
+shouldn't write out dirty pages, because that's the job of kflushd (but
+the VM layer can wake it up because it knows that kflushd needs to be
+run)".
+
+Note that the current "flush_dirty_buffers()" should just go away. It has
+no advantages compared to having "try_to_free_buffers(x,1)" on the
+properly aged LRU queue..
+
+		Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
