@@ -1,8 +1,8 @@
-Date: Wed, 17 Jan 2001 17:58:39 +1100 (EST)
+Date: Wed, 17 Jan 2001 18:08:18 +1100 (EST)
 From: Rik van Riel <riel@conectiva.com.br>
-Subject: Re: Yet another bogus piece of do_try_to_free_pages()
-In-Reply-To: <87r92bq75w.fsf@atlas.iskon.hr>
-Message-ID: <Pine.LNX.4.31.0101171755540.30841-100000@localhost.localdomain>
+Subject: Re: pre2 swap_out() changes
+In-Reply-To: <873denhe6l.fsf@atlas.iskon.hr>
+Message-ID: <Pine.LNX.4.31.0101171807140.30841-100000@localhost.localdomain>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -11,31 +11,25 @@ To: Zlatko Calusic <zlatko@iskon.hr>
 Cc: Marcelo Tosatti <marcelo@conectiva.com.br>, Linus Torvalds <torvalds@transmeta.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 11 Jan 2001, Zlatko Calusic wrote:
+On 13 Jan 2001, Zlatko Calusic wrote:
 
-> I have tested it for you and results are great. On some tests I got
-> 20% to 30% better results which is amazing. I'll do some more tests
-> but I would vote for this to get in immediately. Yes, it's *so* good.
+> 2.2.17     -> make -j32  392.49s user 47.87s system 168% cpu 4:21.13 total
+> 2.4.0      -> make -j32  389.59s user 31.29s system 182% cpu 3:50.24 total
+> 2.4.0-pre2 -> make -j32  393.32s user 138.20s system 129% cpu 6:51.82 total
+> pre3-bgage -> make -j32  394.11s user 424.52s system 131% cpu 10:21.41 total
 
-Don't be so rash.
+Hmmm, could you try my quick&dirty patch on
+http://www.surriel.com/patches/  ?
 
-The patch hasn't been tested very thoroughly, otherwise
-people would have noticed the problem that PG_MEMALLOC
-isn't set around the page freeing code, possibly leading
-to deadlocks, triple faults and other nasties.
+Since I'm on linux.conf.au now, I don't have all
+that much time to test these things myself, but I
+have the idea this patch may be going in the right
+direction.
 
-(and yes, I'm sure there will be somebody able to trigger
-this bug)
+If it is, I'll clean up more code and split up things
+for Linus.
 
-Remember that we - officially - still are in the 2.4 BUGFIX
-period, it's time to be careful with the code now and we should
-IMHO not randomly introduce new bugs in the name of performance.
-
-Performance enhancements are perfectly fine, of course, but IMHO
-not after they've been posted 2 hours ago and haven't been
-reviewed and stresstested yet.
-
-regards,
+thanks,
 
 Rik
 --
