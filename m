@@ -1,59 +1,45 @@
-Message-ID: <40C3E80E.1030200@yahoo.com.au>
-Date: Mon, 07 Jun 2004 13:59:10 +1000
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-MIME-Version: 1.0
-Subject: Re: mmap() > phys mem problem
-References: <Pine.LNX.4.44.0406061925550.29273-100000@chimarrao.boston.redhat.com>
-In-Reply-To: <Pine.LNX.4.44.0406061925550.29273-100000@chimarrao.boston.redhat.com>
+Received: from root by main.gmane.org with local (Exim 3.35 #1 (Debian))
+	id 1BXIKj-0001Yn-00
+	for <linux-mm@kvack.org>; Mon, 07 Jun 2004 13:30:29 +0200
+Received: from 61.16.153.178 ([61.16.153.178])
+        by main.gmane.org with esmtp (Gmexim 0.1 (Debian))
+        id 1AlnuQ-0007hv-00
+        for <linux-mm@kvack.org>; Mon, 07 Jun 2004 13:30:29 +0200
+Received: from linux by 61.16.153.178 with local (Gmexim 0.1 (Debian))
+        id 1AlnuQ-0007hv-00
+        for <linux-mm@kvack.org>; Mon, 07 Jun 2004 13:30:29 +0200
+From: Nirendra Awasthi <linux@nirendra.net>
+Subject: Determining if process is having core dump
+Date: Mon, 07 Jun 2004 15:51:38 +0530
+Message-ID: <ca1fk9$92t$3@sea.gmane.org>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: Ron Maeder <rlm@orionmulti.com>, Rik van Riel <riel@surriel.com>, linux-mm@kvack.org, Andrew Morton <akpm@osdl.org>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Rik van Riel wrote:
-> On Sun, 6 Jun 2004, Nick Piggin wrote:
-> 
-> 
->>OK, NFS is getting stuck in nfs_flush_one => mempool_alloc presumably
->>waiting for some network IO. Unfortunately at this point, the system
->>is so clogged up that order 0 GFP_ATOMIC allocations are failing in
->>this path: netedev_rx => refill_rx => alloc_skb. ie. deadlock.
-> 
-> 
-> I wonder if there simply isn't enough memory available for
-> GFP_ATOMIC network allocations, or if a mempool would alleviate
-> the situation here.
-> 
+Hi,
+	Is there a way for a unrelated process to determine if another process 
+is exiting and is in the state of having core dump.
 
-Well, no there isn't enough memory available: order 0 allocations
-keep failing in the RX path (I assume each time the server retransmits)
-and the machine is absolutely deadlocked.
+		In solaris, this can be determined using libkvm(checking process flags 
+for SDOCORE and COREDUMP). Is there a way to do this in linux 2.6
 
-> 
->>Sadly this seems to happen pretty easily here. I don't know the
->>network layer, so I don't know what might be required to fix it or if
->>it is even possible.
-> 
-> 
-> The theoretically perfect fix is to have a little mempool for
-> every critical socket.  That is, every NFS mount, e/g/nbd block
-> device, etc...
-> 
+	One of the things I observed is flag in /proc/<pid>/stat (9th 
+attribute) is set to non-zero after process receives a signal to quit 
+after core dump (SIGABRT, SIGQUIT etc.). Is it an indication that 
+process is going to exit or what does it indicates.
+	
+	Is there some other way to determine this. I don't want to limit size 
+of core file to 0 using ulimit, as this file is required to be analyzed 
+later.
+	Also, while process is exiting and it receives another signal, it is 
+corrupting the core dump.
 
-Yes. I assume there is some maximum amount of memory you might
-have to allocate depending on things like fragmented and out of
-order packets.
+-Nirendra
 
-It would be cool if someone were able to come up with a formula
-to capture that, and allow sockets to be marked as MEMALLOC to
-enable mempool allocation.
-
-> Of course, chances are that having one mempool for the network
-> allocations might already do the trick for 95% 
-> 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
