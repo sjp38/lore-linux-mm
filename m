@@ -1,8 +1,8 @@
-Date: Sun, 15 Sep 2002 14:36:37 -0300 (BRT)
+Date: Sun, 15 Sep 2002 14:39:26 -0300 (BRT)
 From: Rik van Riel <riel@conectiva.com.br>
 Subject: Re: 2.5.34-mm4
 In-Reply-To: <3D84C63E.76526EDE@digeo.com>
-Message-ID: <Pine.LNX.4.44L.0209151436080.1857-100000@imladris.surriel.com>
+Message-ID: <Pine.LNX.4.44L.0209151438030.1857-100000@imladris.surriel.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -12,14 +12,20 @@ Cc: Axel Siebenwirth <axel@hh59.org>, Con Kolivas <conman@kolivas.net>, lkml <li
 List-ID: <linux-mm.kvack.org>
 
 On Sun, 15 Sep 2002, Andrew Morton wrote:
+> Axel Siebenwirth wrote:
 
-> Unfortunately, those updates cause odd-but-not-serious things to
-> happen to Red Hat initscripts.  This happens when you install standard
-> util-linux as well.  It is due to the initscripts passing in arguments
-> which the standard tools do not understand.
+> > I have seen that it used more swap that usual.
+>
+> 2.5 is much more swaphappy than 2.4.  I believe that this is actually
+> correct behaviour for optimum throughput.  But it just happens that
+> people (me included) hate it.
 
-I'm about to add all patches from the RH procps rpm to the
-procps cvs tree, so this should go away soon.
+Time for a corollary to "if you can't measure it, it doesn't exist":
+
+"If you can't measure desktop performance, our method of development
+ will ensure it won't exist"
+
+cheers,
 
 Rik
 -- 
