@@ -1,35 +1,47 @@
 Received: from burns.conectiva (burns.conectiva [10.0.0.4])
-	by perninha.conectiva.com.br (Postfix) with SMTP id 8EB3E16B63
-	for <linux-mm@kvack.org>; Wed, 23 May 2001 12:34:16 -0300 (EST)
-Date: Wed, 23 May 2001 12:34:04 -0300 (BRST)
+	by perninha.conectiva.com.br (Postfix) with SMTP id 516E216B6D
+	for <linux-mm@kvack.org>; Wed, 23 May 2001 12:39:32 -0300 (EST)
+Date: Wed, 23 May 2001 12:39:31 -0300 (BRST)
 From: Rik van Riel <riel@conectiva.com.br>
-Subject: Re: [RFC][PATCH] Re: Linux 2.4.4-ac10
-In-Reply-To: <20010521223212.C4934@khan.acc.umu.se>
-Message-ID: <Pine.LNX.4.33.0105231233070.311-100000@duckman.distro.conectiva>
+Subject: Re: write drop behind effect on active scanning 
+In-Reply-To: <Pine.LNX.4.21.0105221910361.864-100000@freak.distro.conectiva>
+Message-ID: <Pine.LNX.4.33.0105231237510.311-100000@duckman.distro.conectiva>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: David Weinehall <tao@acc.umu.se>
-Cc: Pavel Machek <pavel@suse.cz>, Mike Galbraith <mikeg@wen-online.de>, "Stephen C. Tweedie" <sct@redhat.com>, Ingo Oeser <ingo.oeser@informatik.tu-chemnitz.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Marcelo Tosatti <marcelo@conectiva.com.br>
+Cc: "Stephen C. Tweedie" <sct@redhat.com>, lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 21 May 2001, David Weinehall wrote:
+On Wed, 23 May 2001, Marcelo Tosatti wrote:
 
-> IMVHO every developer involved in memory-management (and indeed, any
-> software development; the authors of ntpd comes in mind here) should
-> have a 386 with 4MB of RAM and some 16MB of swap. Nowadays I have the
-> luxury of a 486 with 8MB of RAM and 32MB of swap as a firewall, but it's
-> still a pain to work with.
+> I just noticed a "bad" effect of write drop behind yesterday during some
+> tests.
+>
+> The problem is that we deactivate written pages, thus making the inactive
+> list become pretty big (full of unfreeable pages) under write intensive IO
+> workloads.
+>
+> So what happens is that we don't do _any_ aging on the active list, and in
+> the meantime the inactive list (which should have "easily" freeable
+> pages) is full of locked pages.
+>
+> I'm going to fix this one by replacing "deactivate_page(page)" to
+> "ClearPageReferenced(page)" in generic_file_write(). This way the written
+> pages are aged faster but we avoid the bad effect just described.
+>
+> Any comments on the fix ?
 
-You're absolutely right. The smallest thing I'm testing with
-on a regular basis is my dual pentium machine, booted with
-mem=8m or mem=16m.
+1) I agree with it, drop-behind should make the pages we write
+   very likely for eviction, but we don't want that to stop the
+   eviction of other not-used pages ...
 
-Time to hunt around for a 386 or 486 which is limited to such
-a small amount of RAM ;)
+2) OTOH, if writeout of dirty pages is a problem for the system,
+   I guess we will want to fix that problem somehow ;)
+   (but that's another issue)
 
-cheers,
+regards,
 
 Rik
 --
