@@ -1,64 +1,66 @@
-Date: Thu, 19 Feb 2004 01:11:29 -0800
-From: "Paul E. McKenney" <paulmck@us.ibm.com>
+Date: Thu, 19 Feb 2004 19:32:10 +0100
+From: Lars Marowsky-Bree <lmb@suse.de>
 Subject: Re: Non-GPL export of invalidate_mmap_range
-Message-ID: <20040219091129.GD1269@us.ibm.com>
-Reply-To: paulmck@us.ibm.com
-References: <20040217161929.7e6b2a61.akpm@osdl.org> <1077108694.4479.4.camel@laptop.fenrus.com> <20040218140021.GB1269@us.ibm.com> <20040218211035.A13866@infradead.org> <20040218150607.GE1269@us.ibm.com> <20040218222138.A14585@infradead.org> <20040218145132.460214b5.akpm@osdl.org> <20040218230055.A14889@infradead.org> <20040218162858.2a230401.akpm@osdl.org> <20040219123110.A22406@infradead.org>
+Message-ID: <20040219183210.GX14000@marowsky-bree.de>
+References: <1077108694.4479.4.camel@laptop.fenrus.com> <20040218140021.GB1269@us.ibm.com> <20040218211035.A13866@infradead.org> <20040218150607.GE1269@us.ibm.com> <20040218222138.A14585@infradead.org> <20040218145132.460214b5.akpm@osdl.org> <20040218230055.A14889@infradead.org> <20040218162858.2a230401.akpm@osdl.org> <20040219123110.A22406@infradead.org> <20040219091129.GD1269@us.ibm.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <20040219123110.A22406@infradead.org>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20040219091129.GD1269@us.ibm.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Hellwig <hch@infradead.org>, Andrew Morton <akpm@osdl.org>, torvalds@osd.org, arjanv@redhat.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: "Paul E. McKenney" <paulmck@us.ibm.com>, Christoph Hellwig <hch@infradead.org>, Andrew Morton <akpm@osdl.org>, torvalds@osd.org, arjanv@redhat.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Feb 19, 2004 at 12:31:10PM +0000, Christoph Hellwig wrote:
-> On Wed, Feb 18, 2004 at 04:28:58PM -0800, Andrew Morton wrote:
-> > OK, so I looked at the wrapper.  It wasn't a tremendously pleasant
-> > experience.  It is huge, and uses fairly standard-looking filesytem
-> > interfaces and locking primitives.  Also some awareness of NFSV4 for some
-> > reason.
-> 
-> And pokes deep into internal structures that it shouldn't.
+On 2004-02-19T01:11:29,
+   "Paul E. McKenney" <paulmck@us.ibm.com> said:
 
-Again, the point of the patch is to get rid of such poking.
+> > And pokes deep into internal structures that it shouldn't.
+> Again, the point of the patch is to get rid of such poking.
 
-> > Still, the wrapper is GPL so this is not relevant.
-> 
-> It's BSD licensed - they couldn't distribute it together with GPFS if
-> it was GPL.
+I think this fiddling about this particular exported symbol is hiding
+the real issue.
 
-Yep.
+It seems that Christoph believes that _inherently_, any filesystem
+kernel module on Linux must be a derived work, because it is intimately
+tied into the kernel core / VFS. I can certainly see the reasoning
+here, and it is a valid point of view.
 
-> > Its only use is to tell
-> > us whether or not the non-GPL bits are "derived" from Linux, and it
-> > doesn't do that.
-> 
-> Well, something that needs an almost one megabyte big wrapper per defintion
-> is not a standalone work but something that's deeply interwinded with
-> the kernel.  The tons of kernel version checks certainly show it's poking
-> deeper than it should.
+Do we want to allow non-OSS filesystems in kernel space at all? That's
+the entire question.
 
-On the size, I beg to differ.  One of the reasons the glue module is
-so large is because of the fact that GPFS was written to run in an AIX
-kernel rather than a Linux kernel.  I would guess that if GPFS had
-been instead been derived from Linux, the glue module would be much
-smaller.  On the kernel version checks, the point of the patch is
-to get rid of at least some of these.
+Personally, I would go with "No" and support the consequences of this,
+because I believe in Open Source; and that the value proposition of
+Linux is /not/ in binary-only modules, and I would /not/ sacrifice the
+OSS principles of the literal core of the Linux project for a short term
+pay-off.
 
-> > Why do you believe that GPFS represents a kernel licensing violation?
-> 
-> See above.  Something that pokes deep into internal structures and even
-> needs new exports certainly is a derived work.  There's a few different
-> interpretations of the derived works clause in the GPL around, the FSF
-> one wouldn't allow binary modules at all, and Linus' one is also pretty
-> strict.
+(But I'm personally trying to solve that by making them superfluous and
+putting them out of business by getting an OSS CFS, which seems to be
+more amiable ;-)
 
-So why are you coming out against something that you seem to believe
-allows -better- alignment with Linus's rules?
 
-						Thanx, Paul
+Only if we can settle this, we can answer this export question. If we
+want to allow them, the export is a perfectly reasonable thing to ask
+for. If not, we probably need to add a few more _GPL barriers.
+
+A rule of thumb might be whether any code in the tree uses a given
+export, and if not, prune it. Anything which even we don't use or export
+across the user-land boundary certainly qualifies as a kernel interna.
+
+Currently, no kernel module seems to use this export. So I'd think such
+a point could certainly be made.
+
+
+Sincerely,
+    Lars Marowsky-Bree <lmb@suse.de>
+
+-- 
+High Availability & Clustering	      \ ever tried. ever failed. no matter.
+SUSE Labs			      | try again. fail again. fail better.
+Research & Development, SUSE LINUX AG \ 	-- Samuel Beckett
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
