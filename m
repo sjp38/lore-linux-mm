@@ -1,239 +1,41 @@
-Date: Fri, 16 Jul 2004 17:35:33 -0500
-From: Brent Casavant <bcasavan@sgi.com>
-Reply-To: Brent Casavant <bcasavan@sgi.com>
-Subject: Re: [PATCH] /dev/zero page fault scaling
-In-Reply-To: <Pine.LNX.4.44.0407152038160.8010-100000@localhost.localdomain>
-Message-ID: <Pine.SGI.4.58.0407161639110.118146@kzerza.americas.sgi.com>
-References: <Pine.LNX.4.44.0407152038160.8010-100000@localhost.localdomain>
-MIME-Version: 1.0
-Content-Type: MULTIPART/MIXED; BOUNDARY="-2136807141-1754009874-1090017333=:118146"
+Received: from 200-161-3-230.insite.com.br ([200.161.3.230])
+ by posta2.selcuk.edu.tr
+ (Sun Java System Messaging Server 6.1 (built Apr 28 2004))
+ with SMTP id <0I12004G30SMZ010@posta2.selcuk.edu.tr> for linux-mm@kvack.org;
+ Sun, 18 Jul 2004 13:39:02 -0200 (GMT)
+Received: from (HELO re622hl) [148.135.185.232] by 200-161-3-230.insite.com.br
+ with ESMTP id 5D6C6BECF2C for <linux-mm@kvack.org>; Thu,
+ 22 Jul 2004 07:40:26 -0400
+Date: Thu, 22 Jul 2004 07:40:26 +0000 (GMT)
+From: Valentin Hodges <uosdqfq@iop.org>
+Subject: Popular software n at low low prices. theresa ddtaqjyt
+Reply-to: Valentin Hodges <uosdqfq@iop.org>
+Message-id: <y-2-dox-h48lp8r--4$0c3@bsm.74el3ke8>
+MIME-version: 1.0
+Content-type: multipart/alternative;
+ boundary="Boundary_(ID_tROcsoh35SYCW/C1ulKbFg)"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
----2136807141-1754009874-1090017333=:118146
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+--Boundary_(ID_tROcsoh35SYCW/C1ulKbFg)
+Content-type: text/plain
+Content-transfer-encoding: 7BIT
 
-On Thu, 15 Jul 2004, Hugh Dickins wrote:
-
-> I'm as likely to find a 512P machine as a basilisk, so scalability
-> testing I leave to you.
-
-OK, I managed to grab some time on the machine today.  Parallel
-page faulting for /dev/zero and SysV shared memory has definitely
-improved in the first few test cases I have.
-
-The test we have is a program which specifically targets page faulting.
-This test program was written after observing some of these issues on
-MPI and OpenMP applications.
-
-The test program does this:
-
-	1. Forks N child processes, or creates N Pthreads.
-	2. Each child/thread creates a memory object via malloc,
-	   mmap of /dev/zero, or shmget.
-	3. Each child/thread touches each page of the memory object
-	   by writing a single byte to the page.
-	4. Time to perform step 3 is measured.
-	5. The results are aggregated by the main process/thread
-	   and a report generated, including statistics such as
-	   pagefaults per CPU per wallclock second.
-
-Another variant has the main thread/process create the memory object
-and assign the range to be touched to each child/thread, which then
-omit the object creation stage and skip to step 3.  We call this
-the "preallocate" option.
-
-In our case we typically run with 100MB per child/thread, and run a
-sequence of powers of 2 number of CPUs, up to 512.  All of the work
-to this point has been on the fork without preallocation variants.
-
-I'm now looking at the fork with preallocation variants, and find
-that we're hammering *VERY* hard on the shmem_inode_info i_lock,
-mostly in shmem_getpage code.  In fact, performance drops off
-significantly even at 4P, and gets positively horrible by 32P
-(you don't even want to know about >32P -- but things get 2-4x
-worse with each doubling of CPUs).
-
-Just so you can see it, I've attached the most recent run output
-from the program.  Take a look at the next to last column of numbers.
-In the past few days the last few rows of the second two test cases
-have gone from 2-3 digit numbers to 5-digit numbers -- that's what
-we've been concentrating on.
-
-Note that due to hardware failures the machine is only running 510 CPUs
-in the attached output, and that things got so miserably slow that I
-didn't even let the runs finish.  The last column is meaningless, and
-always 0.  Also the label "shared" means "preallocate" from the
-discussion above.  Oh, and this is a 2.6.7 based kernel -- I'll change
-to 2.6.8 sometime soon.
-
-Anyway, the i_lock is my next vic^H^H^Hsubject of investigation.
-
-Cheers, and have a great weekend,
-Brent
-
--- 
-Brent Casavant             bcasavan@sgi.com        Forget bright-eyed and
-Operating System Engineer  http://www.sgi.com/     bushy-tailed; I'm red-
-Silicon Graphics, Inc.     44.8562N 93.1355W 860F  eyed and bushy-haired.
----2136807141-1754009874-1090017333=:118146
-Content-Type: TEXT/PLAIN; charset=US-ASCII; name="ascender.output"
-Content-Transfer-Encoding: BASE64
-Content-ID: <Pine.SGI.4.58.0407161735330.118146@kzerza.americas.sgi.com>
-Content-Description: shmem scaling test case results
-Content-Disposition: attachment; filename="ascender.output"
-
-ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg
-ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg
-ICAgICAgICAgICAgICAgICAgICAgICAgICAgUEYvDQogICAgICAgICAgICAg
-ICAgICAgICAgICAgICAgICAgIE1BWCAgICAgICAgTUlOICAgICAgICAgICAg
-ICAgICAgICAgICAgICAgICAgICAgIFRPVENQVS8gICAgICBUT1RfUEYvICAg
-VE9UX1BGLyAgICAgV1NFQy8NClRZUEU6ICAgICAgICAgICAgICAgQ1BVUyAg
-ICAgICBXQUxMICAgICAgIFdBTEwgICAgICAgIFNZUyAgICAgVVNFUiAgICAg
-VE9UQ1BVICAgICAgIENQVSAgICAgV0FMTF9TRUMgICBTWVNfU0VDICAgICAg
-IENQVSAgIE5PREVTDQpmb3JrICAgICAgICAgICAgICAgICAgIDEgICAgICAw
-LjA1OSAgICAgIDAuMDU5ICAgICAgMC4wNTkgICAgMC4wMDAgICAgICAwLjA1
-OSAgICAgMC4wNTkgICAgICAgMTA0MTc0ICAgIDEwNDE3NCAgICAxMDQxNzQg
-ICAgICAgMA0KZm9yayAgICAgICAgICAgICAgICAgICAyICAgICAgMC4wOTEg
-ICAgICAwLjA5MCAgICAgIDAuMTc4ICAgIDAuMDAzICAgICAgMC4xODEgICAg
-IDAuMDkwICAgICAgIDEzNDQxOSAgICAgNjg2ODYgICAgIDY3MjA5ICAgICAg
-IDANCmZvcmsgICAgICAgICAgICAgICAgICAgNCAgICAgIDAuMDkxICAgICAg
-MC4wODkgICAgICAwLjM1NCAgICAwLjAwNyAgICAgIDAuMzYwICAgICAwLjA5
-MCAgICAgICAyNjg4MzggICAgIDY5MDY2ICAgICA2NzIwOSAgICAgICAwDQpm
-b3JrICAgICAgICAgICAgICAgICAgIDggICAgICAwLjA5MSAgICAgIDAuMDg5
-ICAgICAgMC43MTAgICAgMC4wMTMgICAgICAwLjcyMyAgICAgMC4wOTAgICAg
-ICAgNTM3Njc3ICAgICA2ODc4MSAgICAgNjcyMDkgICAgICAgMA0KZm9yayAg
-ICAgICAgICAgICAgICAgIDE2ICAgICAgMC4wOTIgICAgICAwLjA4OSAgICAg
-IDEuNDIwICAgIDAuMDIxICAgICAgMS40NDAgICAgIDAuMDkwICAgICAgMTA2
-MzkxNCAgICAgNjg3ODEgICAgIDY2NDk0ICAgICAgIDANCmZvcmsgICAgICAg
-ICAgICAgICAgICAzMiAgICAgIDAuMDkyICAgICAgMC4wODkgICAgICAyLjgz
-NSAgICAwLjA0OCAgICAgIDIuODgzICAgICAwLjA5MCAgICAgIDIxMjc4Mjgg
-ICAgIDY4ODk5ICAgICA2NjQ5NCAgICAgICAwDQpmb3JrICAgICAgICAgICAg
-ICAgICAgNjQgICAgICAwLjA5MiAgICAgIDAuMDg4ICAgICAgNS42OTcgICAg
-MC4wNzMgICAgICA1Ljc3MSAgICAgMC4wOTAgICAgICA0MjU1NjU3ICAgICA2
-ODU2OSAgICAgNjY0OTQgICAgICAgMA0KZm9yayAgICAgICAgICAgICAgICAg
-MTI4ICAgICAgMC4wOTIgICAgICAwLjA4OSAgICAgMTEuMzgxICAgIDAuMTYz
-ICAgICAxMS41NDQgICAgIDAuMDkwICAgICAgODUxMTMxNCAgICAgNjg2NTEg
-ICAgIDY2NDk0ICAgICAgIDANCmZvcmsgICAgICAgICAgICAgICAgIDI1NiAg
-ICAgIDAuMTE3ICAgICAgMC4wNTggICAgIDIyLjc3MyAgICAwLjMxNCAgICAg
-MjMuMDg4ICAgICAwLjA5MCAgICAgMTMzMzQzOTEgICAgIDY4NjE2ICAgICA1
-MjA4NyAgICAgICAwDQpmb3JrICAgICAgICAgICAgICAgICA1MTAgICAgICAw
-LjA5NCAgICAgIDAuMDU3ICAgICA0NS40MDkgICAgMC42NTcgICAgIDQ2LjA2
-NiAgICAgMC4wOTAgICAgIDMzMjA1NzYwICAgICA2ODU1NSAgICAgNjUxMDkg
-ICAgICAgMA0KDQoNCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg
-ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg
-ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIFBGLw0K
-ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICBNQVggICAgICAgIE1J
-TiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICBUT1RDUFUvICAg
-ICAgVE9UX1BGLyAgIFRPVF9QRi8gICAgIFdTRUMvDQpUWVBFOiAgICAgICAg
-ICAgICAgIENQVVMgICAgICAgV0FMTCAgICAgICBXQUxMICAgICAgICBTWVMg
-ICAgIFVTRVIgICAgIFRPVENQVSAgICAgICBDUFUgICAgIFdBTExfU0VDICAg
-U1lTX1NFQyAgICAgICBDUFUgICBOT0RFUw0KZm9yazp6ZXJvICAgICAgICAg
-ICAgICAxICAgICAgMC4wNjQgICAgICAwLjA2NCAgICAgIDAuMDY0ICAgIDAu
-MDAwICAgICAgMC4wNjQgICAgIDAuMDY0ICAgICAgICA5NDcwNCAgICAgOTQ3
-MDQgICAgIDk0NzA0ICAgICAgIDANCmZvcms6emVybyAgICAgICAgICAgICAg
-MiAgICAgIDAuMDk0ICAgICAgMC4wOTQgICAgICAwLjE4NiAgICAwLjAwMSAg
-ICAgIDAuMTg3ICAgICAwLjA5MyAgICAgICAxMzAyMTggICAgIDY1Nzk0ICAg
-ICA2NTEwOSAgICAgICAwDQpmb3JrOnplcm8gICAgICAgICAgICAgIDQgICAg
-ICAwLjA5NCAgICAgIDAuMDkyICAgICAgMC4zNjggICAgMC4wMDMgICAgICAw
-LjM3MSAgICAgMC4wOTMgICAgICAgMjYwNDM3ICAgICA2NjMxOCAgICAgNjUx
-MDkgICAgICAgMA0KZm9yazp6ZXJvICAgICAgICAgICAgICA4ICAgICAgMC4w
-OTUgICAgICAwLjA5MiAgICAgIDAuNzI5ICAgIDAuMDEyICAgICAgMC43NDEg
-ICAgIDAuMDkzICAgICAgIDUxNTUwNCAgICAgNjY5MzkgICAgIDY0NDM4ICAg
-ICAgIDANCmZvcms6emVybyAgICAgICAgICAgICAxNiAgICAgIDAuMDk0ICAg
-ICAgMC4wOTEgICAgICAxLjQ1MCAgICAwLjAyNSAgICAgIDEuNDc2ICAgICAw
-LjA5MiAgICAgIDEwNDE3NDkgICAgIDY3MzQ1ICAgICA2NTEwOSAgICAgICAw
-DQpmb3JrOnplcm8gICAgICAgICAgICAgMzIgICAgICAwLjA5NSAgICAgIDAu
-MDkxICAgICAgMi45MjMgICAgMC4wMzcgICAgICAyLjk2MCAgICAgMC4wOTIg
-ICAgICAyMDYyMDE5ICAgICA2NjgyNyAgICAgNjQ0MzggICAgICAgMA0KZm9y
-azp6ZXJvICAgICAgICAgICAgIDY0ICAgICAgMC4wOTUgICAgICAwLjA5MSAg
-ICAgIDUuODE0ICAgIDAuMDkyICAgICAgNS45MDYgICAgIDAuMDkyICAgICAg
-NDEyNDAzOCAgICAgNjcxODcgICAgIDY0NDM4ICAgICAgIDANCmZvcms6emVy
-byAgICAgICAgICAgIDEyOCAgICAgIDAuMDk3ICAgICAgMC4wOTAgICAgIDEx
-LjgzMSAgICAwLjE4MSAgICAgMTIuMDEyICAgICAwLjA5NCAgICAgIDgwODE0
-NDkgICAgIDY2MDM5ICAgICA2MzEzNiAgICAgICAwDQpmb3JrOnplcm8gICAg
-ICAgICAgICAyNTYgICAgICAwLjEwNyAgICAgIDAuMDY4ICAgICAyNC4yMDgg
-ICAgMC4zMjYgICAgIDI0LjUzNCAgICAgMC4wOTYgICAgIDE0NTQ2NjA5ICAg
-ICA2NDU0OSAgICAgNTY4MjIgICAgICAgMA0KZm9yazp6ZXJvICAgICAgICAg
-ICAgNTEwICAgICAgMC40NzUgICAgICAwLjA1NCAgICAxNzMuNDY5ICAgIDAu
-NjgzICAgIDE3NC4xNTEgICAgIDAuMzQxICAgICAgNjU1OTE2MiAgICAgMTc5
-NDUgICAgIDEyODYxICAgICAgIDANCg0KDQogICAgICAgICAgICAgICAgICAg
-ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg
-ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg
-ICAgICAgICBQRi8NCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg
-TUFYICAgICAgICBNSU4gICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg
-ICAgVE9UQ1BVLyAgICAgIFRPVF9QRi8gICBUT1RfUEYvICAgICBXU0VDLw0K
-VFlQRTogICAgICAgICAgICAgICBDUFVTICAgICAgIFdBTEwgICAgICAgV0FM
-TCAgICAgICAgU1lTICAgICBVU0VSICAgICBUT1RDUFUgICAgICAgQ1BVICAg
-ICBXQUxMX1NFQyAgIFNZU19TRUMgICAgICAgQ1BVICAgTk9ERVMNCmZvcms6
-c2htZW0gICAgICAgICAgICAgMSAgICAgIDAuMDYzICAgICAgMC4wNjMgICAg
-ICAwLjA2MiAgICAwLjAwMiAgICAgIDAuMDYzICAgICAwLjA2MyAgICAgICAg
-OTYxNjEgICAgIDk5MjE0ICAgICA5NjE2MSAgICAgICAwDQpmb3JrOnNobWVt
-ICAgICAgICAgICAgIDIgICAgICAwLjA5NCAgICAgIDAuMDkzICAgICAgMC4x
-ODUgICAgMC4wMDIgICAgICAwLjE4NyAgICAgMC4wOTMgICAgICAgMTMwMjE4
-ICAgICA2NjE0MiAgICAgNjUxMDkgICAgICAgMA0KZm9yazpzaG1lbSAgICAg
-ICAgICAgICA0ICAgICAgMC4wOTQgICAgICAwLjA5MSAgICAgIDAuMzYzICAg
-IDAuMDA3ICAgICAgMC4zNzAgICAgIDAuMDkzICAgICAgIDI2MDQzNyAgICAg
-NjcyMDkgICAgIDY1MTA5ICAgICAgIDANCmZvcms6c2htZW0gICAgICAgICAg
-ICAgOCAgICAgIDAuMDk0ICAgICAgMC4wOTIgICAgICAwLjcyNiAgICAwLjAx
-MyAgICAgIDAuNzM4ICAgICAwLjA5MiAgICAgICA1MjA4NzQgICAgIDY3MzAw
-ICAgICA2NTEwOSAgICAgICAwDQpmb3JrOnNobWVtICAgICAgICAgICAgMTYg
-ICAgICAwLjA5NCAgICAgIDAuMDkyICAgICAgMS40NTIgICAgMC4wMjIgICAg
-ICAxLjQ3NSAgICAgMC4wOTIgICAgICAxMDQxNzQ5ICAgICA2NzI1NCAgICAg
-NjUxMDkgICAgICAgMA0KZm9yazpzaG1lbSAgICAgICAgICAgIDMyICAgICAg
-MC4wOTQgICAgICAwLjA5MSAgICAgIDIuOTA2ICAgIDAuMDQ1ICAgICAgMi45
-NTEgICAgIDAuMDkyICAgICAgMjA4MzQ5OCAgICAgNjcyMDkgICAgIDY1MTA5
-ICAgICAgIDANCmZvcms6c2htZW0gICAgICAgICAgICA2NCAgICAgIDAuMDk2
-ICAgICAgMC4wOTIgICAgICA1LjgyMyAgICAwLjA5MCAgICAgIDUuOTEzICAg
-ICAwLjA5MiAgICAgIDQwODE5NTYgICAgIDY3MDg1ICAgICA2Mzc4MCAgICAg
-ICAwDQpmb3JrOnNobWVtICAgICAgICAgICAxMjggICAgICAwLjA5NiAgICAg
-IDAuMDkxICAgICAxMS42NTkgICAgMC4xNzkgICAgIDExLjgzOCAgICAgMC4w
-OTIgICAgICA4MTYzOTEzICAgICA2NzAxMiAgICAgNjM3ODAgICAgICAgMA0K
-Zm9yazpzaG1lbSAgICAgICAgICAgMjU2ICAgICAgMC4wOTggICAgICAwLjA2
-MyAgICAgMjMuMzgwICAgIDAuMzQ4ICAgICAyMy43MjggICAgIDAuMDkzICAg
-ICAxNjAwMTI3MCAgICAgNjY4MzYgICAgIDYyNTA0ICAgICAgIDANCmZvcms6
-c2htZW0gICAgICAgICAgIDUxMCAgICAgIDAuNDg5ICAgICAgMC4wNDggICAg
-MTc3LjgwNCAgICAwLjY1NiAgICAxNzguNDYwICAgICAwLjM1MCAgICAgIDYz
-NjI3ODAgICAgIDE3NTA4ICAgICAxMjQ3NiAgICAgICAwDQoNCg0KICAgICAg
-ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg
-ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg
-ICAgICAgICAgICAgICAgICAgICAgUEYvDQogICAgICAgICAgICAgICAgICAg
-ICAgICAgICAgICAgIE1BWCAgICAgICAgTUlOICAgICAgICAgICAgICAgICAg
-ICAgICAgICAgICAgICAgIFRPVENQVS8gICAgICBUT1RfUEYvICAgVE9UX1BG
-LyAgICAgV1NFQy8NClRZUEU6ICAgICAgICAgICAgICAgQ1BVUyAgICAgICBX
-QUxMICAgICAgIFdBTEwgICAgICAgIFNZUyAgICAgVVNFUiAgICAgVE9UQ1BV
-ICAgICAgIENQVSAgICAgV0FMTF9TRUMgICBTWVNfU0VDICAgICAgIENQVSAg
-IE5PREVTDQpmb3JrOnplcm86c2hhcmVkICAgICAgIDEgICAgICAwLjA2NCAg
-ICAgIDAuMDY0ICAgICAgMC4wNjIgICAgMC4wMDIgICAgICAwLjA2NCAgICAg
-MC4wNjQgICAgICAgIDk0NzA0ICAgICA5NzY2NCAgICAgOTQ3MDQgICAgICAg
-MA0KZm9yazp6ZXJvOnNoYXJlZCAgICAgICAyICAgICAgMC4wOTYgICAgICAw
-LjA5NSAgICAgIDAuMTg5ICAgIDAuMDAxICAgICAgMC4xOTAgICAgIDAuMDk1
-ICAgICAgIDEyNzU2MSAgICAgNjQ0MzggICAgIDYzNzgwICAgICAgIDANCmZv
-cms6emVybzpzaGFyZWQgICAgICAgNCAgICAgIDAuMjEzICAgICAgMC4yMTAg
-ICAgICAwLjg0NSAgICAwLjAwMyAgICAgIDAuODQ4ICAgICAwLjIxMiAgICAg
-ICAxMTQ2ODggICAgIDI4OTA0ICAgICAyODY3MiAgICAgICAwDQpmb3JrOnpl
-cm86c2hhcmVkICAgICAgIDggICAgICAwLjk4NSAgICAgIDAuOTM1ICAgICAg
-NS4yMjAgICAgMC4wMDkgICAgICA1LjIyOSAgICAgMC42NTQgICAgICAgIDQ5
-NTU3ICAgICAgOTM1NSAgICAgIDYxOTQgICAgICAgMA0KZm9yazp6ZXJvOnNo
-YXJlZCAgICAgIDE2ICAgICAgMy4yMTMgICAgICAyLjgxMSAgICAgMTcuNDk0
-ICAgIDAuMDIxICAgICAxNy41MTYgICAgIDEuMDk1ICAgICAgICAzMDM5NyAg
-ICAgIDU1ODIgICAgICAxODk5ICAgICAgIDANCmZvcms6emVybzpzaGFyZWQg
-ICAgICAzMiAgICAgIDYuODMyICAgICAgNS43OTUgICAgIDQ0LjE4OCAgICAw
-LjA1MiAgICAgNDQuMjQwICAgICAxLjM4MyAgICAgICAgMjg1OTAgICAgICA0
-NDIwICAgICAgIDg5MyAgICAgICAwDQpmb3JrOnplcm86c2hhcmVkICAgICAg
-NjQgICAgIDE0LjY3NyAgICAgMTEuMTgxICAgIDEyOC4wNDEgICAgMC4wODIg
-ICAgMTI4LjEyMyAgICAgMi4wMDIgICAgICAgIDI2NjE3ICAgICAgMzA1MSAg
-ICAgICA0MTUgICAgICAgMA0KZm9yazp6ZXJvOnNoYXJlZCAgICAgMTI4ICAg
-ICAyOS4wMjYgICAgICAzLjU2MSAgICAyODIuMTgwICAgIDAuMTcyICAgIDI4
-Mi4zNTIgICAgIDIuMjA2ICAgICAgICAyNjkxNyAgICAgIDI3NjggICAgICAg
-MjEwICAgICAgIDANCg==
-
----2136807141-1754009874-1090017333=:118146--
+Loads of cool soft at incredibly low prices
+Windows XP Professional + Office XP Professional for as low as $80
+Order here:
+http://soap.sue.edwards.acdfiaj.info/?IrKheZIdMgPBucIindictdeputy
+The stock is limited
+The offer is valid till next 24 hours
+Hurry!
 
 
+
+nojsco    ubo wjor ayragtywykkhf  noue wyoiwmqibdj
+
+--Boundary_(ID_tROcsoh35SYCW/C1ulKbFg)--
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
