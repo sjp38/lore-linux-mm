@@ -1,49 +1,46 @@
-Date: Sun, 21 Mar 2004 22:49:58 -0500 (EST)
-From: Rajesh Venkatasubramanian <vrajesh@umich.edu>
+Date: Sun, 21 Mar 2004 23:02:03 -0500 (EST)
+From: Rik van Riel <riel@redhat.com>
 Subject: Re: [RFC][PATCH 1/3] radix priority search tree - objrmap complexity
  fix
-In-Reply-To: <20040322004652.GF3649@dualathlon.random>
-Message-ID: <Pine.LNX.4.58.0403212241120.8267@rust.engin.umich.edu>
-References: <Pine.LNX.4.44.0403150527400.28579-100000@localhost.localdomain>
- <Pine.GSO.4.58.0403211634350.10248@azure.engin.umich.edu>
- <20040322004652.GF3649@dualathlon.random>
+In-Reply-To: <Pine.LNX.4.58.0403212241120.8267@rust.engin.umich.edu>
+Message-ID: <Pine.LNX.4.44.0403212258530.20045-100000@chimarrao.boston.redhat.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrea Arcangeli <andrea@suse.de>
-Cc: akpm@osdl.org, torvalds@osdl.org, hugh@veritas.com, mbligh@aracnet.com, riel@redhat.com, mingo@elte.hu, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Rajesh Venkatasubramanian <vrajesh@umich.edu>
+Cc: Andrea Arcangeli <andrea@suse.de>, akpm@osdl.org, torvalds@osdl.org, hugh@veritas.com, mbligh@aracnet.com, mingo@elte.hu, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> what about the cost of a tree rebalance, is that O(log(N)) like with the
-> rbtrees?
+On Sun, 21 Mar 2004, Rajesh Venkatasubramanian wrote:
 
-Currently the tree is not balanced, so the tree can be totally skewed
-in some corner cases. However, the maximum height of the tree can be
-only 2 * BITS_PER_LONG.
+> > what about the cost of a tree rebalance, is that O(log(N)) like with the
+> > rbtrees?
+> 
+> Currently the tree is not balanced, so the tree can be totally skewed
+> in some corner cases. However, the maximum height of the tree can be
+> only 2 * BITS_PER_LONG.
 
-Moreover, I have added an optimization to increase the maximum height
-of the tree on demand. The tree height is controlled by keeping track
-of the maximum file offset mapped. If the number of bits required to
-represent the maximum file offset is B, then the height of the tree
-can be only 2 * B. Note that currently B can only increase gradually,
-it is not adjusted back to smaller value when vmas are removed from
-the prio_tree. That's bit tricky to do.
+Fair enough for a radix tree.  Andrea, remember that page
+tables don't need to be balanced either, for obvious reasons ;)
 
-There is a balanced version prio_tree proposed in the same McCreight's
-paper. However, it is not interesting because it requires more memory
-space in each vma and the balancing is too complex even though it is
-O(log(N)). I tried to understand the gist of the balanced version,
-but it was too hard to follow. So I left it in the middle. Even
-McCreight claims that the balanced version is just an academic (not
-too practical) excercise. If someone is really interested they can check
-the paper. But, it is not too interesting. I doubt whether it will
-improve the performance.
+> Moreover, I have added an optimization to increase the maximum height
+> of the tree on demand. The tree height is controlled by keeping track
+> of the maximum file offset mapped. If the number of bits required to
+> represent the maximum file offset is B, then the height of the tree
+> can be only 2 * B.
 
-Thanks,
-Rajesh
+Nice touch.  That should really help keep the cost of the
+prio_tree down in the common case.
+
+Your stuff is so much nicer than the kb-trees I was thinking
+about a year or two ago ... ;)
 
 
+-- 
+"Debugging is twice as hard as writing the code in the first place.
+Therefore, if you write the code as cleverly as possible, you are,
+by definition, not smart enough to debug it." - Brian W. Kernighan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
