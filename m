@@ -1,66 +1,47 @@
+Date: Sun, 5 Sep 2004 10:58:07 -0700 (PDT)
+From: Linus Torvalds <torvalds@osdl.org>
 Subject: Re: [RFC][PATCH 0/3] beat kswapd with the proverbial clue-bat
-From: Arjan van de Ven <arjanv@redhat.com>
-Reply-To: arjanv@redhat.com
-In-Reply-To: <Pine.LNX.4.58.0409051021290.2331@ppc970.osdl.org>
-References: <413AA7B2.4000907@yahoo.com.au>
-	 <20040904230210.03fe3c11.davem@davemloft.net>
-	 <413AAF49.5070600@yahoo.com.au> <413AE6E7.5070103@yahoo.com.au>
-	 <Pine.LNX.4.58.0409051021290.2331@ppc970.osdl.org>
-Content-Type: multipart/signed; micalg=pgp-sha1; protocol="application/pgp-signature"; boundary="=-gBFueCUhQyrMDSObYYqC"
-Message-Id: <1094405830.2809.8.camel@laptop.fenrus.com>
-Mime-Version: 1.0
-Date: Sun, 05 Sep 2004 19:37:10 +0200
+In-Reply-To: <1094405830.2809.8.camel@laptop.fenrus.com>
+Message-ID: <Pine.LNX.4.58.0409051051120.2331@ppc970.osdl.org>
+References: <413AA7B2.4000907@yahoo.com.au>  <20040904230210.03fe3c11.davem@davemloft.net>
+  <413AAF49.5070600@yahoo.com.au> <413AE6E7.5070103@yahoo.com.au>
+ <Pine.LNX.4.58.0409051021290.2331@ppc970.osdl.org> <1094405830.2809.8.camel@laptop.fenrus.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@osdl.org>
+To: Arjan van de Ven <arjanv@redhat.com>
 Cc: Nick Piggin <nickpiggin@yahoo.com.au>, "David S. Miller" <davem@davemloft.net>, akpm@osdl.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
---=-gBFueCUhQyrMDSObYYqC
-Content-Type: text/plain
-Content-Transfer-Encoding: quoted-printable
 
-On Sun, 2004-09-05 at 19:24, Linus Torvalds wrote:
-> On Sun, 5 Sep 2004, Nick Piggin wrote:
-> >=20
-> > Hmm, and the crowning argument for not stopping at order 3 is that if w=
-e
-> > never use higher order allocations, nothing will care about their water=
-marks
-> > anyway. I think I had myself confused when that question in the first p=
-lace.
-> >=20
-> > So yeah, stopping at a fixed number isn't required, and as you say it k=
-eeps
-> > things general and special cases minimal.
->=20
-> Hey, please refute my "you need 20% free" to get even to order-3 for most
-> cases first.
->=20
-> It's probably acceptable to have a _very_ backgrounded job that does
-> freeing if order-3 isn't available, but it had better be pretty
-> slow-moving, I suspect. On the order of "It's probably ok to try to aim
-> for up to 25% free 'overnight' if the machine is idle" but it's almost
-> certainly not ok to aggressively push things out to that degree..
+On Sun, 5 Sep 2004, Arjan van de Ven wrote:
+> 
+> well... we have a reverse mapping now. What is stopping us from doing
+> physical defragmentation ?
 
-well... we have a reverse mapping now. What is stopping us from doing
-physical defragmentation ?
+Nothing but replacement policy, really, and the fact that not everything
+is rmappable.
 
+I think we should _normally_ honor replacement policy, the way we do now.  
+Only if we are in the situation "we have enough memory, but not enough
+high-order-pages" should we go to a separate physical defrag algorithm.
 
---=-gBFueCUhQyrMDSObYYqC
-Content-Type: application/pgp-signature; name=signature.asc
-Content-Description: This is a digitally signed message part
+So either kswapd should have a totally different mode, or there should be
+a separate "kdefragd". It would potentially also be good if it is user-
+triggerable, so that you could, for example, have a heavier defragd run
+from the daily "cron" runs - something that doesn't seem to make much
+sense from a traditional kswapd standpoint.
 
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.2.4 (GNU/Linux)
+In other words, I don't think the physical thing should be triggered at 
+all by normal memory pressure. A large-order allocation failure would 
+trigger it "somewhat", and maybe it might run very slowly in the 
+background (wake up every five minutes or so to see if it is worth doing 
+anything), and then some user-triggerable way to make it more aggressive.
 
-iD8DBQBBO07FxULwo51rQBIRAkhTAKCRUI8TVsSPkr894h/GVNPCG1uR2ACeOrFx
-B27Xlikn4ADanXmjsAub4K8=
-=gNLr
------END PGP SIGNATURE-----
+Does that sound sane to people?
 
---=-gBFueCUhQyrMDSObYYqC--
-
+		Linus
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
