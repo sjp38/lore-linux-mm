@@ -1,99 +1,125 @@
-Date: Mon, 20 Sep 2004 13:22:50 -0700
-From: Paul Jackson <pj@sgi.com>
-Subject: Re: [PATCH 2.6.9-rc2-mm1 0/2] mm: memory policy for page cache
- allocation
-Message-Id: <20040920132250.251736d0.pj@sgi.com>
-In-Reply-To: <20040920190033.26965.64678.54625@tomahawk.engr.sgi.com>
+Date: Mon, 20 Sep 2004 22:55:09 +0200
+From: Andi Kleen <ak@suse.de>
+Subject: Re: [PATCH 2.6.9-rc2-mm1 0/2] mm: memory policy for page cache allocation
+Message-ID: <20040920205509.GF4242@wotan.suse.de>
 References: <20040920190033.26965.64678.54625@tomahawk.engr.sgi.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20040920190033.26965.64678.54625@tomahawk.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Ray Bryant <raybry@sgi.com>
-Cc: wli@holomorphy.com, mbligh@aracnet.com, akpm@osdl.org, ak@suse.de, raybry@austin.rr.com, linux-mm@kvack.org, jbarnes@sgi.com, djh@sgi.com, lse-tech@lists.sourceforge.net, bcasavan@sgi.com, piggin@cyberone.com.au, linux-kernel@vger.kernel.org, haveblue@us.ibm.com
+Cc: William Lee Irwin III <wli@holomorphy.com>, "Martin J. Bligh" <mbligh@aracnet.com>, Andrew Morton <akpm@osdl.org>, Andi Kleen <ak@suse.de>, Ray Bryant <raybry@austin.rr.com>, linux-mm <linux-mm@kvack.org>, Jesse Barnes <jbarnes@sgi.com>, Dan Higgins <djh@sgi.com>, lse-tech <lse-tech@lists.sourceforge.net>, Brent Casavant <bcasavan@sgi.com>, Nick Piggin <piggin@cyberone.com.au>, linux-kernel <linux-kernel@vger.kernel.org>, Paul Jackson <pj@sgi.com>, Dave Hansen <haveblue@us.ibm.com>, stevel@mwwireless.net
 List-ID: <linux-mm.kvack.org>
 
-Nits ... 
+On Mon, Sep 20, 2004 at 12:00:33PM -0700, Ray Bryant wrote:
+> Background
+> ----------
+> 
+> Last month, Jesse Barnes proposed a patch to do round robin
+> allocation of page cache pages on NUMA machines.  This got shot down
+> for a number of reasons (see
+>   http://marc.theaimsgroup.com/?l=linux-kernel&m=109235420329360&w=2
+> and the related thread), but it seemed to me that one of the most
+> significant issues was that this was a workload dependent optimization.
+> That is, for an Altix running an HPC workload, it was a good thing,
+> but for web servers or file servers it was not such a good idea.
+> 
+> So the idea of this patch is the following:  it creates a new memory
+> policy structure (default_pagecache_policy) that is used to control
+> how storage for page cache pages is allocated.  So, for a large Altix
+> running HPC workloads, we can specify a policy that does round robin
+> allocations, and for other workloads you can specify the default policy
+> (which results in page cache pages being allocated locally).
+> 
+> The default_pagecache_policy is overrideable on a per process basis, so
+> that if your application prefers to allocate page cache pages locally,
+> it can.
 
-1) better change this line in mempolicy.h
+I'm not sure this really makes sense. Do you have some clear use 
+case where having so much flexibility is needed? 
 
-	#define MPOL_MAX MPOL_INTERLEAVE
+I would prefer to have a global setting somewhere for the page
+cache (sysctl or sysfs or what you prefer) and some special handling for 
+text pages. 
 
-   to be instead
+This would keep the per thread bloat low. 
 
-	#define MPOL_MAX MPOL_ROUNDROBIN 
+Also I must say I got a patch submitted to do policy per
+file from Steve Longerbeam. 
 
-2) Why change the alloc_page_vma() code structure for
-   MPOL_INTERLEAVE from starting with:
+It so far only supports this for ELF executables, but
+it has most of the infrastructure to do individual policy
+per file. Maybe it would be better to go into this direction,
+only thing missing is a nice way to declare policy for 
+arbitary files. Even in this case a global default would be useful.
 
-	if (unlikely(pol->policy == MPOL_INTERLEAVE)) {
+I haven't done anything with this patch yet due to missing time 
+and there were a few small issues to resolve, but i hope it 
+can be eventually integrated.
 
-   to starting with:
+[Steve, perhaps you can repost the patch to lse-tech for more
+wider review?]
 
-	switch (pol->policy) {
-		case MPOL_INTERLEAVE:
 
-   Doesn't the original way work just as well (and keep the patch
-   smaller)?  Just add another 'if(...MPOL_ROUNDROBIN)' section
-   following the MPOL_INTERLEAVE section.  And the other switch
-   statements in this file don't indent the case lines a tab further.
+> MPOL_ROUNDROBIN.  We need this because there is no handy offset to use
+> when you get a call to allocate a page cache page in "page_cache_alloc()",
+> so MPOL_INTERLEAVE doesn't do what we need.
 
-3) The following line looks like it could trigger after a
-   hotplug node removal (not that I know how to do that yet):
+Well, you just have to change the callers to pass it in. I think
+computing the interleaving on a offset and perhaps another file
+identifier is better than having the global counter.
 
-	BUG_ON(!test_bit(nid, (const volatile void *) &node_online_map));
+> (It also appears to me that there is no mechanism to set the default
+> policies, but perhaps its there and I am just missing it.)
 
-   Should the '(const volatile void *)' cast be a nodes_addr() wrapper? 
+No sure what default policies you mean? 
 
-   Can this entire line be dropped, or turned into a test:
+> (3)  alloc_pages_current() is now an inline, but there is no easy way
+> to do that totally correclty with the current include file order (that I
+> could figure out at least...)  The problem is that alloc_pages_current()
+> wants to use the define constant POLICY_PAGE, but that is defined yet.
+> We know it is zero, so we just use zero.  A comment in mempolicy.h
+> suggests not to change the value of this constant to something other
+> than zero, and references the file gfp.h.
 
-	if (!node_isset(nid, node_online_map))
-		continue;
+I'm pretty sure the code I wrote didn't have a "POLICY_PAGE" ;-)
+Not sure where you got it from, but you could ask whoever 
+wrote that comment in your patch
 
-4) Patches done with the 'diff -p' option are slightly easier to
-   read, as they show the procedure the diff seems to appear in.
+> 
+> (4)  I've not thought a bit about locking issues related to changing a
+> mempolicy whilst the system is actually running. 
 
-5) I see no need for the 'else' in:
+You need some kind of lock. Normally mempolicies are either
+protected by being thread local or by the mmsem together
+with the atomic reference count.
+This only applies to modifications, for reading they are completely
+stateless and don't need any locking.
 
-	-	if (pol->policy == MPOL_INTERLEAVE)
-	+	if (pol->policy == MPOL_INTERLEAVE) {
-	 		return alloc_page_interleave(gfp, order, interleave_nodes(pol));
-	+	} else if (pol->policy == MPOL_ROUNDROBIN) {
-	+		return alloc_page_roundrobin(gfp, order, pol);
-	+	}
+Your new RR policy will break this though. It works for process
+policy, but for VMA policy it will either require a lock per 
+policy or some other complicated locking. Not nice.
 
-   Couldn't one just have this less intrusive patch instead:
+I think doing it stateless is much better because it will scale
+much better and should IMHO also have better behaviour longer term.
+I went over several design iterations with this and think the 
+current lockless design is very preferable.
 
-		if (pol->policy == MPOL_INTERLEAVE)
-			return alloc_page_interleave(gfp, order, interleave_nodes(pol));
-	+	if (pol->policy == MPOL_ROUNDROBIN)
-	+		return alloc_page_roundrobin(gfp, order, pol);
-		return __alloc_pages(gfp, order, zonelist_policy(gfp, pol));
-	 }
+> (5)  It seems there may be a potential conflict between the page cache
+> mempolicy and a mmap mempolicy (do those exist?).  Here's the concern:
 
-6) Can the added rr_next in task_struct be shared with il_next?
+They exist for tmpfs/shmfs/hugetlbfs pages.
 
-7) Why doesn't alloc_page_roundrobin() have its own accounting, like
-   alloc_page_interleave() does?
+With Steve's page cache patch it can exist for all pages.
 
-8) Could you explain the for loop in alloc_page_roundrobin()?  Won't
-   the first call to __alloc_pages() within the loop search down all
-   the nodes in the system, in a numa friendly order (closer nodes
-   first)?  Why then pick another node to search from, in the next
-   pass of the for loop, which will again search down the same nodes,
-   using a differently sorted zonelist.  Obviously I'm missing something
-   here.
+Normally NUMA API resolves this by prefering the more specific
+policy (VMA over process) or sharing policies (for shmfs) 
 
-9) Too bad there's not some pseudo-random value floating around somewhere,
-   such as a per-node clock or something, that could be used to drive a
-   pseudo-uniform distribution, without any need for the additional rr_next
-   state?
+Haven't read your patch in details yet, sorry, just design comments.
 
--- 
-                          I won't rest till it's the best ...
-                          Programmer, Linux Scalability
-                          Paul Jackson <pj@sgi.com> 1.650.933.1373
+-Andi
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
