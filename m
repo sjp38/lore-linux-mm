@@ -1,37 +1,43 @@
-Message-ID: <3AD22189.DD5B9657@linuxjedi.org>
-Date: Mon, 09 Apr 2001 16:54:33 -0400
-From: "David L. Parsley" <parsley@linuxjedi.org>
+Message-ID: <002b01c0c198$f50996d0$3ac9a8c0@techmas.hcltech.com>
+From: "anilk" <anilk@techmas.hcltech.com>
+Subject: 
+Date: Tue, 10 Apr 2001 14:03:29 +0530
 MIME-Version: 1.0
-Subject: Re: [PATCH] swap_state.c thinko
-References: <Pine.LNX.4.31.0104091316500.9383-100000@penguin.transmeta.com>
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Content-Type: multipart/alternative;
+	boundary="----=_NextPart_000_0028_01C0C1C7.05721870"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@transmeta.com>
-Cc: Alan Cox <alan@redhat.com>, Andrea Arcangeli <andrea@suse.de>, Hugh Dickins <hugh@veritas.com>, Ben LaHaise <bcrl@redhat.com>, Rik van Riel <riel@conectiva.com.br>, Richard Jerrrell <jerrell@missioncriticallinux.com>, Stephen Tweedie <sct@redhat.com>, arjanv@redhat.com, linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Linus Torvalds wrote:
-> 
-> On Mon, 9 Apr 2001, Alan Cox wrote:
-> >
-> > Given that strict address space management is not that hard would you
-> > accept patches to allow optional non-overcommit in 2.5
-> 
-> I really doubt anybody wants to use a truly non-overcommit system.
+This is a multi-part message in MIME format.
 
-Eh, how about embedded developers.  Like, say, Transmeta. ;-)  Things
-get real ugly when my X terminal runs out of RAM - I gotta think it
-would be better for mallocs to just fail in userspace.
+------=_NextPart_000_0028_01C0C1C7.05721870
+Content-Type: text/plain;
+	charset="iso-8859-1"
+Content-Transfer-Encoding: quoted-printable
 
-regards,
-	David
+subscribe  anilk@techmas.hcltech.com linux-mm
 
--- 
-David L. Parsley
-Network Administrator
-Roanoke College
+------=_NextPart_000_0028_01C0C1C7.05721870
+Content-Type: text/html;
+	charset="iso-8859-1"
+Content-Transfer-Encoding: quoted-printable
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML><HEAD>
+<META content=3D"text/html; charset=3Diso-8859-1" =
+http-equiv=3DContent-Type>
+<META content=3D"MSHTML 5.00.2314.1000" name=3DGENERATOR>
+<STYLE></STYLE>
+</HEAD>
+<BODY bgColor=3D#ffffff>
+<DIV><FONT face=3DArial size=3D2>subscribe&nbsp; <A=20
+href=3D"mailto:anilk@techmas.hcltech.com">anilk@techmas.hcltech.com</A>=20
+linux-mm</FONT></DIV></BODY></HTML>
+
+------=_NextPart_000_0028_01C0C1C7.05721870--
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
