@@ -1,49 +1,55 @@
-Subject: Re: BUG_ON in remap_pte_range: Why?
-From: Ed L Cashin <ecashin@uga.edu>
-Date: Wed, 21 May 2003 00:20:32 -0400
-In-Reply-To: <20030520202728.42626.qmail@web12308.mail.yahoo.com> (Ravi's
- message of "Tue, 20 May 2003 13:27:28 -0700 (PDT)")
-Message-ID: <873cj93p7z.fsf@cs.uga.edu>
-References: <20030520202728.42626.qmail@web12308.mail.yahoo.com>
+Message-Id: <200305210538.h4L5cPu08811@Port.imtp.ilyichevsk.odessa.ua>
+Content-Type: text/plain;
+  charset="koi8-r"
+From: Denis Vlasenko <vda@port.imtp.ilyichevsk.odessa.ua>
+Reply-To: vda@port.imtp.ilyichevsk.odessa.ua
+Subject: Re: Finalised 2.4 VM Documentation
+Date: Wed, 21 May 2003 08:44:43 +0300
+References: <Pine.LNX.4.53.0305191329310.24249@skynet>
+In-Reply-To: <Pine.LNX.4.53.0305191329310.24249@skynet>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Transfer-Encoding: 8BIT
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ravi <kravi26@yahoo.com>
-Cc: linux-mm@kvack.org, kernelnewbies@nl.linux.org
+To: Mel Gorman <mel@csn.ul.ie>, Linux Memory Management List <linux-mm@kvack.org>
+Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Ravi <kravi26@yahoo.com> writes:
-
-> Hi,
+On 19 May 2003 15:53, Mel Gorman wrote:
+> I've finalised all the documentation that I'm going to do for the 2.4
+> VM and no further updates will be posted on the web site to this
+> version. At this stage it has been heavily read by a number of people
+> and there hasn't been a complaint or correction in a few weeks now. 
+> I'm happy to say it is now complete (and more importantly correct)
+> and acts as a detailed description of the 2.4 VM, the algorithms that
+> it is based on and comprehensive coverage of the code. People who are
+> only interested in the 2.5.x VMs will still find it much easier to
+> follow when they clearly know how 2.4 is put together.
 >
-> I am looking at the latest mm/memory.c on Bitkeeper.
-> The comment for remap_pte_range() says "maps a range of 
-> physical memory into the requested pages. the old mappings
-> are removed". But the code has this check:
+> As always, it comes in two parts. The first part is the actual
+> documentation and gives a description of the whole VM. The second is
+> a code commentary which covers a significant percentage of the VM for
+> guiding through the messier parts. They are available in PDF, HTML
+> and plain text formats.
 >
-> BUG_ON(!pte_none(*pte));
+> Main site: http://www.csn.ul.ie/~mel/projects/vm/
 >
-> Why is it a bug to have a valid PTE when remap_pte_range()
-> is called? The 2.4 version of this fucntion cleared the
-> old PTE using ptep_get_and_clear() and then installed
-> a new one. Why was this changed?
+> Understanding the Linux Virtual Memory Manager
+> PDF:  http://www.csn.ul.ie/~mel/projects/vm/guide/pdf/understand.pdf
+> HTML: http://www.csn.ul.ie/~mel/projects/vm/guide/html/understand/
+> Text: http://www.csn.ul.ie/~mel/projects/vm/guide/text/understand.txt
+>
+> Code Commentary on the Linux Virtual Memory Manager
+> PDF:  http://www.csn.ul.ie/~mel/projects/vm/guide/pdf/code.pdf
+> HTML: http://www.csn.ul.ie/~mel/projects/vm/guide/html/code
+> Text: http://www.csn.ul.ie/~mel/projects/vm/guide/text/code.txt
+>
+> Thanks to all the people who read through it, helped me out and sent
+> encouragement. It's been fun.
 
-It used to be a call to forget_pte, and, as Flavio Bruno Leitner
-pointed out, wli changed it last year:
-
-  http://www.ussg.iu.edu/hypermail/linux/kernel/0206.0/0053.html
-
-... making forget_pte into a macro, which has since been completely
-inlined.  The comment that used to be above the macro was this:
-
-  bug check to be sure pte's are unmapped when no longer used 
-
-
--- 
---Ed L Cashin     PGP public key: http://noserose.net/e/pgp/
-
+Amazing stuff. Thank you.
+--
+vda
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
