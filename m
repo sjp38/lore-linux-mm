@@ -1,57 +1,42 @@
-Date: Sat, 6 May 2000 15:16:50 +0200 (CEST)
+Date: Sat, 6 May 2000 15:15:44 +0200 (CEST)
 From: Andrea Arcangeli <andrea@suse.de>
-Subject: Re: Helding the Kernel lock while doing IO???
-In-Reply-To: <yttpur0wjlk.fsf@vexeta.dc.fi.udc.es>
-Message-ID: <Pine.LNX.4.21.0005060509050.2332-100000@alpha.random>
+Subject: Re: Updates to /bin/bash
+In-Reply-To: <14610.29880.728540.947675@charged.uio.no>
+Message-ID: <Pine.LNX.4.21.0005060519310.2332-100000@alpha.random>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Juan J. Quintela" <quintela@fi.udc.es>
-Cc: linux-mm@kvack.org, linux-kernel@vger.rutgers.edu, Linus Torvalds <torvalds@transmeta.com>
+To: Trond Myklebust <trond.myklebust@fys.uio.no>
+Cc: Matthew Vanecek <linuxguy@directlink.net>, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 6 May 2000, Juan J. Quintela wrote:
+On Fri, 5 May 2000, Trond Myklebust wrote:
 
->I am losing some detail?
+>NO. This behaviour is exactly what Andreas patch would break. New
 
-kernel lock is released by schedule(). (the only problem of swapin are the
-races with swapoff)
+My patch won't hurt the bash update as far I can tell.
 
->diff -u -urN --exclude=CVS --exclude=*~ --exclude=.#* --exclude=TAGS pre7-6/ipc/shm.c testing2/ipc/shm.c
->--- pre7-6/ipc/shm.c	Fri May  5 23:58:56 2000
->+++ testing2/ipc/shm.c	Sat May  6 02:39:17 2000
->@@ -1379,10 +1379,11 @@
-> 			if (!page) {
-> 				lock_kernel();
-> 				swapin_readahead(entry);
->-				page = read_swap_cache(entry);
->+				page = read_swap_cache_async(entry, 0);
-> 				unlock_kernel();
-> 				if (!page)
-> 					goto oom;
->+                                wait_on_page(page);
-> 			}
-> 			delete_from_swap_cache(page);
-> 			page = replace_with_highmem(page);
->diff -u -urN --exclude=CVS --exclude=*~ --exclude=.#* --exclude=TAGS pre7-6/mm/memory.c testing2/mm/memory.c
->--- pre7-6/mm/memory.c	Fri May  5 23:58:56 2000
->+++ testing2/mm/memory.c	Sat May  6 02:02:53 2000
->@@ -1038,11 +1038,10 @@
-> 	if (!page) {
-> 		lock_kernel();
-> 		swapin_readahead(entry);
->-		page = read_swap_cache(entry);
->+		page = read_swap_cache_async(entry, 0);
-> 		unlock_kernel();
-> 		if (!page)
-> 			return -1;
->-
-> 		flush_page_to_ram(page);
-> 		flush_icache_page(vma, page);
-> 	}
+In clean 2.2.15 and clean 2.3.99-pre7-pre6 you don't unmap the page from
+the ptes, so if nfs doesn't keep to do the pageins from the inode pointed
+by the nfsfilehandle, then you'll get a mixture anyway even if you drop
+the mapped pages from the cache (and nfs probably can't keep do to the
+pageins from the old file if somebody replaced bash on the real fs but in
+the worst case nfs should notice that and it should abort the `bash`
+execution and to never do the silent mixture).
 
-The above patch would break swapin.
+New executed bash are not an issue since they will get a new inode present
+on the server and so they won't risk to do the mixture.
+
+All above thoughts assumes the admin correctly uses remove(2) to upgrade
+bash (otherwise the mixture would happen also on top of ext2).
+
+About the stability issue I looked some more and maybe the VM is not
+subject to stability issues by dropping a mapped cache-page from the cache
+(however the thing keeps to look not robust to me). Everything depends on
+the page->index that have to be not clobbered after dropping the page from
+the cache (while page->index is supposed to have a meaning only on
+pagecache or swapcache).
 
 Andrea
 
