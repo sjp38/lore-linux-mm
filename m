@@ -1,107 +1,53 @@
-Date: Tue, 15 Feb 2005 16:51:06 -0800
-From: Paul Jackson <pj@sgi.com>
-Subject: Re: manual page migration -- issue list
-Message-Id: <20050215165106.61fd4954.pj@sgi.com>
-In-Reply-To: <42128B25.9030206@sgi.com>
-References: <42128B25.9030206@sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e6.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id j1G0sOLL016257
+	for <linux-mm@kvack.org>; Tue, 15 Feb 2005 19:54:24 -0500
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay04.pok.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id j1G0sOfN225578
+	for <linux-mm@kvack.org>; Tue, 15 Feb 2005 19:54:24 -0500
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.12.11/8.12.11) with ESMTP id j1G0sOGZ027168
+	for <linux-mm@kvack.org>; Tue, 15 Feb 2005 19:54:24 -0500
+Date: Tue, 15 Feb 2005 16:54:23 -0800
+From: "Martin J. Bligh" <mbligh@aracnet.com>
+Subject: Re: [RFC 2.6.11-rc2-mm2 7/7] mm: manual page migration -- sys_page_migrate
+Message-ID: <51210000.1108515262@flay>
+In-Reply-To: <20050216004401.GB8237@wotan.suse.de>
+References: <1108407043.6154.49.camel@localhost> <20050214220148.GA11832@lnx-holt.americas.sgi.com> <20050215074906.01439d4e.pj@sgi.com> <20050215162135.GA22646@lnx-holt.americas.sgi.com> <20050215083529.2f80c294.pj@sgi.com> <20050215185943.GA24401@lnx-holt.americas.sgi.com> <16914.28795.316835.291470@wombat.chubb.wattle.id.au> <421283E6.9030707@sgi.com> <31650000.1108511464@flay> <421295FB.3050005@sgi.com> <20050216004401.GB8237@wotan.suse.de>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ray Bryant <raybry@sgi.com>
-Cc: linux-mm@kvack.org, holt@sgi.com, ak@muc.de, haveblue@us.ibm.com, marcello@cyclades.com, stevel@mwwireless.net, peterc@gelato.unsw.edu.au
+To: Andi Kleen <ak@suse.de>, Ray Bryant <raybry@sgi.com>
+Cc: Peter Chubb <peterc@gelato.unsw.edu.au>, raybry@austin.rr.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Robin, replying to pj, from the earlier thread also on lkml:
-> On Tue, Feb 15, 2005 at 08:35:29AM -0800, Paul Jackson wrote:
-> > What about ...
-> > 
-> >     sys_page_migrate(pid, va_start, va_end, count, old_nodes, new_nodes);
-> > 
-> > to:
-> > 
-> >     sys_page_migrate(pid, va_start, va_end, old_node, new_node);
-> > 
-> > ...
+--On Wednesday, February 16, 2005 01:44:01 +0100 Andi Kleen <ak@suse.de> wrote:
+
+>> SGI had code in IRIX to do that kind of thing (automatically move a page to
+>> the node where most of the references were coming from).  Never worked very 
+>> well, I have been told.   So our bias is away from such "automatic" page
+>> migration schemes and toward "manual" methods driven either by a user
+>> command or a user-level program such as a batch scheduler.
 > 
-> Migration could be done in most cases and would only fall apart when
-> there are overlapping node lists and no nodes available as temp space
-> and we are not moving large chunks of data.
+> I tried something similar too (scheduling a task to the node with most of 
+> its memory) and it also never worked very well.
 
-Given the <va_start, va_end>, which could be reduced to the granularity
-of a single page if need be, there should not be an issue with overlapping
-node lists.  My "node as temp space" suggestion was insane - nevermind
-that one.  If worse comes to worse, you can handle any combination of
-nodes, overlapping or not, with no extra or temporary copies, just by
-doing one page at a time.
+I'm talking about doing it the other way around though - just allocating
+the memory local to the task, not bringing the task to the memory.
 
-So this seems to boil down to whether it makes more sense to move
-several nodes worth of stuff to several corresponding nodes in a single
-call, or in several calls, roughly one call for each <to, from> node
-pair.
+If kswapd would keep up, we'd be OK - it should keep enough memory free
+on the local node that we'd always get local free pages for the new bits.
+If we go into fallback and immediate reclaim from __alloc_pages, then I
+think everything starts to fall apart.
 
-The working example I was carrying around in my mind was of a job that
-had one thread per cpu, and that had explicitly used some numa policy
-(mbind, mempolicy or cpusets) to place memory on the node local to its
-cpu.
+Perhaps we should just make sure most of the reclaim is being done from
+kswapd - we're trying to work out exactly how much of the reclaim happens
+where right at the moment.
 
-Earlier today on the lkml thread, Robin described how a typical MPI job
-works.  Seems that it relies on some startup code running in each
-thread, carefully touching each page that should be local to that cpu
-before any other thread touches said page, and requiring no particular
-memory policy facility beyond first touch.  Seems to me that the memory
-migration requirements here are the same as they were for the example I
-had in mind.  Each task has some currently allocated memory pages in its
-address space that are on the local node of that task, and that memory
-must stay local to that task, after the migration.
+M.
 
-Looking at such an MPI job as a whole, there seems to be pages scattered
-across several nodes, where the only place it is 'encoded' how to place
-them is in the job startup code that first touched each page.
-
-A successful migration must replicate that memory placement, page for
-page, just changing the nodes.  From that perspective, it makes sense to
-think of it as an array of old nodes, and a corresponding array of new
-nodes, where each page on an old node is to be migrated to the corresponding
-new node.
-
-However, since each thread allocated its memory locally, this factors into
-N separate migrations, each of one task, one old node, and one new node.
-Such a call doesn't migrate all physical pages in the target tasks memory,
-rather just the pages that are on the specified old node.
-
-The one thing not trivially covered in such a one task, one node pair at
-a time factoring is memory that is placed on a node that is remote from
-any of the tasks which map that memory.  Let me call this 'remote
-placement.'  Offhand, I don't know why anyone would do this.  If such
-were rare, the one task, one node pair at a time factoring can still
-migrate it easily enough, so long as it knows to do so, and issue
-another system call, for the necessary task and remote nodes (old and
-new).  If such remote placement were used in abundance, the one task,
-one node pair at a time factoring would become inefficient.  I don't
-anticipate that remote placement will be used in abundance.
-
-By the way, what happens if you're doing a move where the to and from
-node sets overlap, and the kernel scans in the wrong order, and ends up
-trying to put new pages onto a node that is in that overlap, before
-pulling the old pages off it, running out of memory on that node?
-Perhaps the smarts to avoid that should be in user space ;).  This can
-be avoided using the one task, one node pair at a time factored API,
-because user space can control the order in which memory is migrated, to
-avoid temporarilly overloading the memory on any one node.
-
-With this, I am now more convinced than I was earlier that passing a
-single old node, new node pair, rather than the array of old and new
-nodes, is just as good (hardly any more system calls in actual usage). 
-And it is better in one regard, that it avoids the kernel having to risk
-overloading the memory on some node during the migration if it scans in
-the wrong order when doing an overlapped migration.
-
--- 
-                  I won't rest till it's the best ...
-                  Programmer, Linux Scalability
-                  Paul Jackson <pj@sgi.com> 1.650.933.1373, 1.925.600.0401
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
