@@ -1,27 +1,30 @@
-Date: Wed, 19 Jun 2002 13:25:27 -0700 (MST)
-From: Craig Kulesa <ckulesa@as.arizona.edu>
-Subject: Re: [PATCH] (2/2) reverse mappings for current 2.5.23 VM
-In-Reply-To: <E17KjXH-0000vN-00@starship>
-Message-ID: <Pine.LNX.4.44.0206191322110.4292-100000@loke.as.arizona.edu>
+Date: Wed, 19 Jun 2002 13:24:55 -0700 (PDT)
+From: Linus Torvalds <torvalds@transmeta.com>
+Subject: Re: [PATCH] (1/2) reverse mapping VM for 2.5.23 (rmap-13b)
+In-Reply-To: <Pine.LNX.4.44.0206191310590.4292-100000@loke.as.arizona.edu>
+Message-ID: <Pine.LNX.4.33.0206191322480.2638-100000@penguin.transmeta.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Daniel Phillips <phillips@bonn-fries.net>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Craig Kulesa <ckulesa@as.arizona.edu>
+Cc: Ingo Molnar <mingo@elte.hu>, Rik van Riel <riel@conectiva.com.br>, Dave Jones <davej@suse.de>, Daniel Phillips <phillips@bonn-fries.net>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, rwhron@earthlink.net
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 19 Jun 2002, Daniel Phillips wrote:
+On Wed, 19 Jun 2002, Craig Kulesa wrote:
+> 
+> I'll try a more varied set of tests tonight, with cpu usage tabulated.
 
-> On Wednesday 19 June 2002 13:21, Craig Kulesa wrote:
-> > 2.5.22 vanilla:
->       ^^--- is this a typo?
+Please do a few non-swap tests too. 
 
-Good eye, but no.  I was indeed comparing 2.5.22 to the 2.5.23 rmap 
-patches.  I performed the same test on 2.5.23 later and its behavior is 
-similar. 
+Swapping is the thing that rmap is supposed to _help_, so improvements in
+that area are good (and had better happen!), but if you're only looking at
+the swap performance, you're ignoring the known problems with rmap, ie the
+cases where non-rmap kernels do really well.
 
--Craig
+Comparing one but not the other doesn't give a very balanced picture..
+
+		Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
