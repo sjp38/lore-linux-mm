@@ -1,54 +1,34 @@
-Date: 21 Sep 2002 15:46:35 -0000
-Message-ID: <20020921154635.22432.qmail@s17.route66.net>
-From: Information Services <trash@info-resource.com>
-Subject: FREE Downloads & Opportunities for you 
+Subject: Re: 2.5.37-mm1
+From: Robert Love <rml@tech9.net>
+In-Reply-To: <1032676152.967.959.camel@phantasy>
+References: <3D8D5559.AF112E57@digeo.com>
+	<1032676152.967.959.camel@phantasy>
+Content-Type: text/plain
+Content-Transfer-Encoding: 7bit
+Date: 22 Sep 2002 03:57:55 -0400
+Message-Id: <1032681476.967.974.camel@phantasy>
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Andrew Morton <akpm@digeo.com>
+Cc: lkml <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-his is NOT SPAM. You Agreed to receive email from PRO FFA
-Page owners when posting your link to the FFA System. All
-further transmissions to you from me may be stopped at NO
-COST to you when you use the link at the end of this email.
+On Sun, 2002-09-22 at 02:29, Robert Love wrote:
 
-      PAY ATTENTION! You DO NOT want to miss this!
+> FYI, for testers: I have a tarball and RPM available of CVS as of
+> yesterday, at:
+> 
+> 	http://tech9.net/rml/procps/
+> 
+> Rik and I have both been merging some neat code; take a look.
 
-FREE E-BOOKS! GET ALL the INFO YOU NEED! FREE/Low Cost sources
-of info cover a BIG variety of subjects, most from the U.S.
-Government - ALL in One Place! "Each" issue contains a Question
-of the Week, a Free E-Book, Weekly Wisdoms , 5 "selected" Info
-Sources, Articles + Special Offers. Subscribe to The Info-ReSource
-FREE! mailto:subscribe@info-resource.com
+Updated: some fixes for 2.5 users, care of Andrew Morton... plus a dump
+of tonight's CVS.
 
-------->>>    75,000 Email addresses every single Month!   <<<------
-http://www.insiderprofitsoptinleads.com/cgi-bin/paypal//main.cgi?infoserv
-                        Click here NOW!
+I feel like having some pizza.
 
-Visit http://info-resource.com for FREE Downloads!
-
-Check out the LOWEST cost E-Books on the internet
-E-Book Central -> http://info-resource.com/ebooks.htm
-
-~~~~~~~~~~>>> -  The $10 Money Machine - <<<~~~~~~~~~~
-----> http://www.info-resource.com/10dollar.htm
-                    Click here NOW
-
-
-Get your Research done by a Professional -
-Visit http://info-resource.com NOW
-
-                  FREE FFA Link posting
-http://info-resource.com and click on FFA Links Page on the left
-
-
-To unsubscribe from this list mailto:unsub@info-resource.com
-
-     Have a GREAT day!
-
-
-
-
+	Robert Love
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
