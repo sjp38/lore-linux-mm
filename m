@@ -1,47 +1,49 @@
-Message-ID: <3F449F69.9010200@lanil.mine.nu>
-Date: Thu, 21 Aug 2003 12:31:05 +0200
+Message-ID: <3F44A22D.6040005@lanil.mine.nu>
+Date: Thu, 21 Aug 2003 12:42:53 +0200
 From: Christian Axelsson <smiler@lanil.mine.nu>
 MIME-Version: 1.0
-Subject: Re: 2.6.0-test3-mm3
-References: <20030819013834.1fa487dc.akpm@osdl.org> <1061349342.8327.11.camel@localhost>
-In-Reply-To: <1061349342.8327.11.camel@localhost>
+Subject: [2.6.0-test3-mm3] irda compile error
 Content-Type: multipart/mixed;
- boundary="------------090709090205060503050000"
+ boundary="------------020903020507070601000502"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jonathan Brown <jbrown@emergence.uk.net>
-Cc: Andrew Morton <akpm@osdl.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 This is a multi-part message in MIME format.
---------------090709090205060503050000
-Content-Type: text/plain; charset=us-ascii; format=flowed
+--------------020903020507070601000502
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 
-Jonathan Brown wrote:
+Got this while doing  make. Config attached.
+Same config compiles fine under mm2
 
->  CC      arch/i386/kernel/mpparse.o
->arch/i386/kernel/mpparse.c: In function `mp_config_ioapic_for_sci':
->arch/i386/kernel/mpparse.c:1067: warning: implicit declaration of
->function `mp_find_ioapic'
->arch/i386/kernel/mpparse.c:1069: `mp_ioapic_routing' undeclared (first
->use in this function)
->arch/i386/kernel/mpparse.c:1069: (Each undeclared identifier is reported
->only once
->arch/i386/kernel/mpparse.c:1069: for each function it appears in.)
->arch/i386/kernel/mpparse.c:1071: warning: implicit declaration of
->function `io_apic_set_pci_routing'
->arch/i386/kernel/mpparse.c: In function `mp_parse_prt':
->arch/i386/kernel/mpparse.c:1115: `mp_ioapic_routing' undeclared (first
->use in this function)
->make[1]: *** [arch/i386/kernel/mpparse.o] Error 1
->make: *** [arch/i386/kernel] Error 2
->  
->
-I get same error on my laptop. Have you recived any fix?
-What is this message all about?
+ CC      drivers/net/irda/vlsi_ir.o
+drivers/net/irda/vlsi_ir.c: In function `vlsi_proc_pdev':
+drivers/net/irda/vlsi_ir.c:167: structure has no member named `name'
+drivers/net/irda/vlsi_ir.c: In function `vlsi_tx_timeout':
+drivers/net/irda/vlsi_ir.c:1525: structure has no member named `name'
+drivers/net/irda/vlsi_ir.c: In function `vlsi_irda_probe':
+drivers/net/irda/vlsi_ir.c:1775: structure has no member named `name'
+drivers/net/irda/vlsi_ir.c: In function `vlsi_irda_remove':
+drivers/net/irda/vlsi_ir.c:1870: structure has no member named `name'
+drivers/net/irda/vlsi_ir.c: In function `vlsi_irda_save_state':
+drivers/net/irda/vlsi_ir.c:1886: structure has no member named `name'
+drivers/net/irda/vlsi_ir.c: In function `vlsi_irda_suspend':
+drivers/net/irda/vlsi_ir.c:1899: structure has no member named `name'
+drivers/net/irda/vlsi_ir.c:1903: structure has no member named `name'
+drivers/net/irda/vlsi_ir.c:1915: structure has no member named `name'
+drivers/net/irda/vlsi_ir.c: In function `vlsi_irda_resume':
+drivers/net/irda/vlsi_ir.c:1942: structure has no member named `name'
+drivers/net/irda/vlsi_ir.c:1949: structure has no member named `name'
+make[3]: *** [drivers/net/irda/vlsi_ir.o] Error 1
+make[2]: *** [drivers/net/irda] Error 2
+make[1]: *** [drivers/net] Error 2
+make: *** [drivers] Error 2
 
---------------090709090205060503050000
+
+--------------020903020507070601000502
 Content-Type: text/plain;
  name=".config"
 Content-Transfer-Encoding: 7bit
@@ -140,13 +142,10 @@ CONFIG_X86_USE_PPRO_CHECKSUM=y
 # CONFIG_HUGETLB_PAGE is not set
 # CONFIG_SMP is not set
 CONFIG_PREEMPT=y
-CONFIG_X86_UP_APIC=y
-# CONFIG_X86_UP_IOAPIC is not set
-CONFIG_X86_LOCAL_APIC=y
+# CONFIG_X86_UP_APIC is not set
 CONFIG_X86_TSC=y
 CONFIG_X86_MCE=y
 CONFIG_X86_MCE_NONFATAL=y
-# CONFIG_X86_MCE_P4THERMAL is not set
 # CONFIG_TOSHIBA is not set
 # CONFIG_I8K is not set
 CONFIG_MICROCODE=y
@@ -169,7 +168,6 @@ CONFIG_SOFTWARE_SUSPEND=y
 #
 # ACPI (Advanced Configuration and Power Interface) Support
 #
-CONFIG_ACPI_HT=y
 CONFIG_ACPI=y
 CONFIG_ACPI_BOOT=y
 CONFIG_ACPI_SLEEP=y
@@ -213,7 +211,7 @@ CONFIG_CPU_FREQ_TABLE=y
 # CONFIG_X86_GX_SUSPMOD is not set
 # CONFIG_X86_SPEEDSTEP_ICH is not set
 CONFIG_X86_SPEEDSTEP_CENTRINO=y
-# CONFIG_X86_P4_CLOCKMOD is not set
+CONFIG_X86_P4_CLOCKMOD=y
 # CONFIG_X86_LONGRUN is not set
 # CONFIG_X86_LONGHAUL is not set
 
@@ -1241,9 +1239,6 @@ CONFIG_BT=y
 # CONFIG_DEBUG_KERNEL is not set
 CONFIG_DEBUG_SPINLOCK_SLEEP=y
 CONFIG_FRAME_POINTER=y
-CONFIG_X86_EXTRA_IRQS=y
-CONFIG_X86_FIND_SMP_CONFIG=y
-CONFIG_X86_MPPARSE=y
 
 #
 # Security options
@@ -1279,7 +1274,7 @@ CONFIG_ZLIB_INFLATE=y
 CONFIG_ZLIB_DEFLATE=y
 CONFIG_X86_BIOS_REBOOT=y
 
---------------090709090205060503050000--
+--------------020903020507070601000502--
 
 
 --
