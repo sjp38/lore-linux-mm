@@ -1,58 +1,35 @@
-Date: Wed, 7 Jun 2000 18:14:53 -0300 (BRST)
+Date: Wed, 7 Jun 2000 18:20:53 -0300 (BRST)
 From: Rik van Riel <riel@conectiva.com.br>
 Subject: Re: journaling & VM  (was: Re: reiserfs being part of the kernel:
  it'snot just the code)
-In-Reply-To: <ytt1z29dxce.fsf@serpe.mitica>
-Message-ID: <Pine.LNX.4.21.0006071808300.14304-100000@duckman.distro.conectiva>
+In-Reply-To: <393EADB0.54FB3633@reiser.to>
+Message-ID: <Pine.LNX.4.21.0006071818580.14304-100000@duckman.distro.conectiva>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Juan J. Quintela" <quintela@fi.udc.es>
-Cc: "Stephen C. Tweedie" <sct@redhat.com>, Hans Reiser <hans@reiser.to>, bert hubert <ahu@ds9a.nl>, linux-kernel@vger.rutgers.edu, Chris Mason <mason@suse.com>, linux-mm@kvack.org, Alexander Zarochentcev <zam@odintsovo.comcor.ru>
+To: Hans Reiser <hans@reiser.to>
+Cc: "Stephen C. Tweedie" <sct@redhat.com>, "Quintela Carreira Juan J." <quintela@fi.udc.es>, linux-kernel@vger.rutgers.edu, Chris Mason <mason@suse.com>, linux-mm@kvack.org, Alexander Zarochentcev <zam@odintsovo.comcor.ru>
 List-ID: <linux-mm.kvack.org>
 
-On 7 Jun 2000, Juan J. Quintela wrote:
-> >>>>> "sct" == Stephen C Tweedie <sct@redhat.com> writes:
-> 
-> >> I'd like to be able to keep stuff simple in the shrink_mmap
-> >> "equivalent" I'm working on. Something like:
-> >> 
-> >> if (PageDirty(page) && page->mapping && page->mapping->flush)
-> >> maxlaunder -= page->mapping->flush();
-> 
-> sct> That looks ideal.
-> 
-> But this is supposed to flush that _page_, at least in the
-> normal case.
+On Wed, 7 Jun 2000, Hans Reiser wrote:
 
-But not *just* that page ...
+> The new age one 64th of your objects scheme causes pressure to
+> be proportional.....
 
-In the ideal case the flush() function will search around
-memory for objects to cluster and write out together with
-this page.
+Which is wrong, unless the oldest pages from each zone happen
+to be the same age ;)
 
-I'll probably write an example page->mapping->flush()
-function for swap. The function will do the following:
-- find other swap pages to cluster with this page,
-  those must be:
-	- contiguous with this page
-	- inactive or seldomly used active pages
-	- dirty (duh)
-- flush out the collection of pages
-- return the number of INACTIVE pages we flushed,
-  ignoring the number of active pages
+Suppose a 5MB SHM segment gets deattached and not used for a
+long time. In this situation it makes little sense to round-robin
+free from the different caches if the other caches are under more
+pressure.
 
-That last point is very important because:
-- if we mainly flushed active pages, we should not give
-  shrink_mmap (or similar) the illusion that we cleared
-  up the inactive list ... don't pretend we made a lot
-  of progress cleaning inactive pages if we didn't
-- since we wrote the pages in the same disk seek, writing
-  the active pages was essentially for free so it doesn't
-  matter that we don't report having written them ...
-  (having written that page and potentially saving some IO
-  later, otoh, definately does matter)
+> I am looking forward to reading the new 2.4 mm code during my
+> next aeroflot experience this sunday....
+
+I'm working on it, but I can't promise to have all of the
+active/inactive/scavenge list framework ready by then ;)
 
 regards,
 
