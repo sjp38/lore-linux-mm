@@ -1,65 +1,48 @@
-Message-ID: <20010716155126.37887.qmail@web14306.mail.yahoo.com>
-Date: Mon, 16 Jul 2001 08:51:26 -0700 (PDT)
-From: Kanoj Sarcar <kanojsarcar@yahoo.com>
-Subject: Re: [PATCH] Separate global/perzone inactive/free shortage 
-In-Reply-To: <Pine.LNX.4.21.0107140204110.4153-100000@freak.distro.conectiva>
-MIME-Version: 1.0
+Date: Mon, 16 Jul 2001 16:56:55 +0100
+From: "Stephen C. Tweedie" <sct@redhat.com>
+Subject: Re: [PATCH] Separate global/perzone inactive/free shortage
+Message-ID: <20010716165655.D28023@redhat.com>
+References: <OF11D0664E.20E72543-ON85256A8B.004B248D@pok.ibm.com>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <OF11D0664E.20E72543-ON85256A8B.004B248D@pok.ibm.com>; from abali@us.ibm.com on Mon, Jul 16, 2001 at 09:56:58AM -0400
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Marcelo Tosatti <marcelo@conectiva.com.br>, lkml <linux-kernel@vger.kernel.org>
-Cc: Rik van Riel <riel@conectiva.com.br>, Dirk Wetter <dirkw@rentec.com>, Mike Galbraith <mikeg@wen-online.de>, linux-mm@kvack.org, "Stephen C. Tweedie" <sct@redhat.com>
+To: Bulent Abali <abali@us.ibm.com>
+Cc: "Stephen C. Tweedie" <sct@redhat.com>, Mike Galbraith <mikeg@wen-online.de>, Marcelo Tosatti <marcelo@conectiva.com.br>, Rik van Riel <riel@conectiva.com.br>, Dirk Wetter <dirkw@rentec.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
---- Marcelo Tosatti <marcelo@conectiva.com.br> wrote:
-> Hi,
+On Mon, Jul 16, 2001 at 09:56:58AM -0400, Bulent Abali wrote:
+> >
+> >Why not just round-robin between the eligible zones when allocating,
+> >biasing each zone based on size?  On a 4GB box you'd basically end up
+> >doing 3 times as many allocations from the highmem zone as the normal
+> >zone and only very occasionally would you try to dig into the dma
+> >zone.
+> >Cheers,
+> > Stephen
 > 
-> As well known, the VM does not make a distiction
-> between global and
-> per-zone shortages when trying to free memory. That
-> means if only a given
-> memory zone is under shortage, the kernel will scan
-> pages from all zones. 
-> 
-> The following patch (against 2.4.6-ac2), changes the
-> kernel behaviour to
-> avoid freeing pages from zones which do not have an
-> inactive and/or
-> free shortage.
-> 
-> Now I'm able to run memory hogs allocating 4GB of
-> memory (on 4GB machine)
-> without getting real long hangs on my ssh session.
-> (which used to happen
-> on stock -ac2 due to exhaustion of DMA pages for
-> networking).
-> 
-> Comments ? 
-> 
-> Dirk, Can you please try the patch and tell us if it
-> fixes your problem ? 
-> 
-> 
+> If I understood page_alloc.c:build_zonelists() correctly
+> ZONE_HIGHMEM includes ZONE_NORMAL which includes ZONE_DMA.
+> Memory allocators (other than ZONE_DMA) will dip in to the dma zone
+> only when there are no highmem and/or normal zone pages available.
+> So, the current method is more conservative (better) than round-robin
+> it seems to me.
 
-Just a quick note. A per-zone page reclamation
-method like this was what I had advocated and sent
-patches to Linus for in the 2.3.43 time frame or so.
-I think later performance work ripped out that work.
-I guess the problem is that a lot of the different
-page reclamation schemes first of all do not know
-how to reclaim pages for a specific zone, and secondly
-have to go thru a lot of work before they discover the
-page they are trying to reclaim does not belong to the
-shortage zone, hence wasting a lot of work/cputime.
-try_to_swap_out is a good example, which can be solved
-by rmaps. 
+On a 20MB box with 16MB DMA zone and 4MB NORMAL zone, a low rate of
+allocations will be continually satisfied from the NORMAL zone
+resulting in constant aging and pageout within that zone, but with no
+pressure at all on the larger 16MB DMA zone.  That's hardly fair.
 
-Kanoj
+Likewise for the small 100MB HIGHMEM zone you get at the top of memory
+on a 1GB box.
 
-__________________________________________________
-Do You Yahoo!?
-Get personalized email addresses from Yahoo! Mail
-http://personal.mail.yahoo.com/
+Weighted round-robin has the advantage of not needing to be
+special-cased for different sizes of machine.
+
+Cheers,
+ Stephen
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
