@@ -1,103 +1,63 @@
-Date: Fri, 19 Nov 2004 23:15:14 -0800
-From: William Lee Irwin III <wli@holomorphy.com>
+Message-ID: <419EF257.8010103@yahoo.com.au>
+Date: Sat, 20 Nov 2004 18:29:27 +1100
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+MIME-Version: 1.0
 Subject: Re: page fault scalability patch V11 [0/7]: overview
-Message-ID: <20041120071514.GO2714@holomorphy.com>
-References: <20041120020306.GA2714@holomorphy.com> <419EBBE0.4010303@yahoo.com.au> <20041120035510.GH2714@holomorphy.com> <419EC205.5030604@yahoo.com.au> <20041120042340.GJ2714@holomorphy.com> <419EC829.4040704@yahoo.com.au> <20041120053802.GL2714@holomorphy.com> <419EDB21.3070707@yahoo.com.au> <20041120062341.GM2714@holomorphy.com> <419EE911.20205@yahoo.com.au>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <419EE911.20205@yahoo.com.au>
+References: <20041120020306.GA2714@holomorphy.com> <419EBBE0.4010303@yahoo.com.au> <20041120035510.GH2714@holomorphy.com> <419EC205.5030604@yahoo.com.au> <20041120042340.GJ2714@holomorphy.com> <419EC829.4040704@yahoo.com.au> <20041120053802.GL2714@holomorphy.com> <419EDB21.3070707@yahoo.com.au> <20041120062341.GM2714@holomorphy.com> <419EE911.20205@yahoo.com.au> <20041120071514.GO2714@holomorphy.com>
+In-Reply-To: <20041120071514.GO2714@holomorphy.com>
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
+To: William Lee Irwin III <wli@holomorphy.com>
 Cc: Linus Torvalds <torvalds@osdl.org>, Christoph Lameter <clameter@sgi.com>, akpm@osdl.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Hugh Dickins <hugh@veritas.com>, linux-mm@kvack.org, linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
 William Lee Irwin III wrote:
->> touch_nmi_watchdog() is only "protection" against local interrupt
->> disablement triggering the NMI oopser because alert_counter[]
->> increments are not atomic. Yet even supposing they were made so, the
+> William Lee Irwin III wrote:
+> 
+>>>touch_nmi_watchdog() is only "protection" against local interrupt
+>>>disablement triggering the NMI oopser because alert_counter[]
+>>>increments are not atomic. Yet even supposing they were made so, the
+> 
+> 
+> On Sat, Nov 20, 2004 at 05:49:53PM +1100, Nick Piggin wrote:
+> 
+>>That would be a bug in touch_nmi_watchdog then, because you're
+>>racy against your own NMI too.
+>>So I'm actually not very very wrong at all. I'm technically wrong
+>>because touch_nmi_watchdog has a theoretical 'bug'. In practice,
+>>multiple races with the non atomic increments to the same counter,
+>>and in an unbroken sequence would be about as likely as hardware
+>>failure.
+>>Anyway, this touch nmi thing is going off topic, sorry list.
+> 
+> 
+> No, it's on-topic.
+> (1) The issue is not theoretical. e.g. sysrq t does trigger NMI oopses,
+> 	merely not every time, and not on every system. It is not
+> 	associated with hardware failure. It is, however, tolerable
+> 	because sysrq's require privilege to trigger and are primarly
+> 	used when the box is dying anyway.
 
-On Sat, Nov 20, 2004 at 05:49:53PM +1100, Nick Piggin wrote:
-> That would be a bug in touch_nmi_watchdog then, because you're
-> racy against your own NMI too.
-> So I'm actually not very very wrong at all. I'm technically wrong
-> because touch_nmi_watchdog has a theoretical 'bug'. In practice,
-> multiple races with the non atomic increments to the same counter,
-> and in an unbroken sequence would be about as likely as hardware
-> failure.
-> Anyway, this touch nmi thing is going off topic, sorry list.
+OK then put a touch_nmi_watchdog in there if you must.
 
-No, it's on-topic.
-(1) The issue is not theoretical. e.g. sysrq t does trigger NMI oopses,
-	merely not every time, and not on every system. It is not
-	associated with hardware failure. It is, however, tolerable
-	because sysrq's require privilege to trigger and are primarly
-	used when the box is dying anyway.
-(2) NMI's don't nest. There is no possibility of NMI's racing against
-	themselves while the data is per-cpu.
+> (2) NMI's don't nest. There is no possibility of NMI's racing against
+> 	themselves while the data is per-cpu.
+> 
 
+Your point was that touch_nmi_watchdog() which resets alert_counter,
+is racy when resetting the counter of other CPUs. Yes it is racy.
+It is also racy against the NMI on the _current_ CPU.
 
-William Lee Irwin III wrote:
->> net effect of "covering up" this gross deficiency is making the
->> user-observable problems it causes undiagnosable, as noted before.
+This has nothing whatsoever to do with NMIs racing against themselves,
+I don't know how you got that idea when you were the one to bring up
+this race anyway.
 
-On Sat, Nov 20, 2004 at 05:49:53PM +1100, Nick Piggin wrote:
-> Well the loops that are in there now aren't covered up, and they
-> don't seem to be causing problems. Ergo there is no problem (we're
-> being _practical_ here, right?)
+[ snip back-and-forth that is going nowhere ]
 
-They are causing problems. They never stopped causing problems. None
-of the above attempts to reduce rwlock starvation has been successful
-in reducing it to untriggerable-in-the-field levels, and empirical
-demonstrations of starvation recurring after those available at the
-time of testing were put into place did in fact happen. Reduction of
-frequency and making starvation more difficult to trigger are all that
-they've achieved thus far.
-
-
-William Lee Irwin III wrote:
->> Kevin Marin was the first to report this issue to lkml. I had seen
->> instances of it in internal corporate bugreports and it was one of
->> the motivators for the work I did on pidhashing (one of the causes
->> of the timeouts was worst cases in pid allocation). Manfred Spraul
->> and myself wrote patches attempting to reduce read-side hold time
->> in /proc/ algorithms, Ingo Molnar wrote patches to hierarchically
->> subdivide the /proc/ iterations, and Dipankar Sarma and Maneesh
->> Soni wrote patches to carry out the long iterations in /proc/ locklessly.
->> The last several of these affecting /proc/ have not gained acceptance,
->> though the work has not been halted in any sense, as this problem
->> recurs quite regularly. A considerable amount of sustained effort has
->> gone toward mitigating and resolving rwlock starvation.
-
-On Sat, Nov 20, 2004 at 05:49:53PM +1100, Nick Piggin wrote:
-> That's very nice. But there is no problem _now_, is there?
-
-There is and has always been. All of the above merely mitigate the
-issue, with the possible exception of the tasklist RCU patch, for
-which I know of no testing results. Also note that almost none of
-the work on /proc/ has been merged.
-
-
-William Lee Irwin III wrote:
->> Aggravating the rwlock starvation destabilizes, not pessimizes,
->> and performance is secondary to stability.
-
-On Sat, Nov 20, 2004 at 05:49:53PM +1100, Nick Piggin wrote:
-> Well luckily we're not going to be aggravating the rwlock stavation.
-> If you found a problem with, and fixed do_task_stat: ?time, ???_flt,
-> et al, then you would apply the same solution to per thread rss to
-> fix it in the same way.
-
-You are aggravating the rwlock starvation by introducing gratuitous
-full tasklist iterations. There is no solution to do_task_stat()
-because it was recently introduced. There will be one as part of a port
-of the usual mitigation patches when the perennial problem is reported
-against a sufficiently recent kernel version, as usual. The already-
-demonstrated problematic iterations have not been removed.
-
-
--- wli
+I'll bow out of the argument here. I grant you raise valid concens
+WRT the /proc issues, of course.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
