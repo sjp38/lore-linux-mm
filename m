@@ -1,46 +1,35 @@
-Date: Mon, 15 May 2000 09:01:03 -0700 (PDT)
-From: Linus Torvalds <torvalds@transmeta.com>
-Subject: Re: pre8: where has the anti-hog code gone?
-In-Reply-To: <852568E0.0056F0BB.00@raylex-gh01.eo.ray.com>
-Message-ID: <Pine.LNX.4.10.10005150858060.3588-100000@penguin.transmeta.com>
+Subject: Re: PATCH: Work in progress cleaning shrink_mmap
+References: <Pine.LNX.4.21.0005151619040.1156-100000@saturn.homenet>
+From: "Juan J. Quintela" <quintela@fi.udc.es>
+In-Reply-To: Tigran Aivazian's message of "Mon, 15 May 2000 16:21:03 +0100 (BST)"
+Date: 15 May 2000 18:00:36 +0200
+Message-ID: <yttaehrztuj.fsf@vexeta.dc.fi.udc.es>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mark_H_Johnson.RTS@raytheon.com
-Cc: "Juan J. Quintela" <quintela@fi.udc.es>, linux-mm@kvack.org, riel@conectiva.com.br
+To: Tigran Aivazian <tigran@veritas.com>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+>>>>> "tigran" == Tigran Aivazian <tigran@veritas.com> writes:
 
-On Mon, 15 May 2000 Mark_H_Johnson.RTS@raytheon.com wrote:
-> 
-> I guess I have a "philosophy question" - one where I can't quite understand the
-> situation that we are in.
->   What is the problem that killing processes is curing?
-> I understand that the code that [has been/still is?] killing processes is doing
-> so because there is no "free physical memory" - right now. Yet we have had code
-> to do a schedule() instead of killing the job, and gave the system the chance to
-> "fix" the lack of free physical memory problem (e.g., by writing dirty pages to
-> a mapped file or swap space on disk). From what I read from Juan's message
-> below, I guess this code has been lost or replaced by something more hostile to
-> user applications.
+tigran> On 15 May 2000, Juan J. Quintela wrote:
+>> -		 * were to be marked referenced..
+>> +		 * were to be marked referenced.
 
-This is actually how Linux _used_ to work, a long long time ago. It is
-very simple, and it actually worked very well indeed.
+tigran> I usually treat ".." at the end of a sentence as a hint that it probably
+tigran> was written by Linus. Removing such hints is removing
+tigran> potentially useful information...
 
-Until somebody _really_ starts to eat up memory, at which point it results
-in a machine that is completely dead to the world, doing nothing but
-swapping pages in and out again.
+Ok, thanks, I didn't know that convention, i thoughut that it was a
+typo.
 
-The "wait until memory is free" approach works very well under many loads,
-it's just that it has some rather unfortunate pathological behaviour that
-is completely unacceptable. At some point you just have to say "Enough!",
-and start killing something.
+Later, Juan.
 
-The bug, of course, is that wehave been quite a bit too eager to do so;)
-
-		Linus
-
+-- 
+In theory, practice and theory are the same, but in practice they 
+are different -- Larry McVoy
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
