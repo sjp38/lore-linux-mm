@@ -1,77 +1,68 @@
 Received: from atlas.CARNet.hr (zcalusic@atlas.CARNet.hr [161.53.123.163])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id UAA09742
-	for <linux-mm@kvack.org>; Mon, 18 Jan 1999 20:33:58 -0500
+	by kvack.org (8.8.7/8.8.7) with ESMTP id UAA09825
+	for <linux-mm@kvack.org>; Mon, 18 Jan 1999 20:38:03 -0500
 Subject: Re: Removing swap lockmap...
-References: <87iue47gy4.fsf@atlas.CARNet.hr> <199901182146.VAA09942@dax.scot.redhat.com>
+References: <87iue47gy4.fsf@atlas.CARNet.hr> <m11zksyuad.fsf@flinx.ccr.net>
 Reply-To: Zlatko.Calusic@CARNet.hr
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 From: Zlatko Calusic <Zlatko.Calusic@CARNet.hr>
-Date: 19 Jan 1999 02:33:42 +0100
-In-Reply-To: "Stephen C. Tweedie"'s message of "Mon, 18 Jan 1999 21:46:40 GMT"
-Message-ID: <874spoqc5l.fsf@atlas.CARNet.hr>
+Date: 19 Jan 1999 02:37:49 +0100
+In-Reply-To: ebiederm+eric@ccr.net's message of "18 Jan 1999 18:34:50 -0600"
+Message-ID: <871zksqbyq.fsf@atlas.CARNet.hr>
 Sender: owner-linux-mm@kvack.org
-To: "Stephen C. Tweedie" <sct@redhat.com>
+To: "Eric W. Biederman" <ebiederm+eric@ccr.net>
 Cc: Linux-MM List <linux-mm@kvack.org>, Linux Kernel List <linux-kernel@vger.rutgers.edu>
 List-ID: <linux-mm.kvack.org>
 
-"Stephen C. Tweedie" <sct@redhat.com> writes:
+ebiederm+eric@ccr.net (Eric W. Biederman) writes:
 
-> Hi,
+> >>>>> "ZC" == Zlatko Calusic <Zlatko.Calusic@CARNet.hr> writes:
 > 
-> In article <87iue47gy4.fsf@atlas.CARNet.hr>, Zlatko Calusic
-> <Zlatko.Calusic@CARNet.hr> writes:
 > 
-> > I removed swap lockmap all together and, to my surprise, I can't
-> > produce any ill behaviour on my system, not even under very heavy
-> > swapping (in low memory condition).
+> ZC> I removed swap lockmap all together and, to my surprise, I can't
+> ZC> produce any ill behaviour on my system, not even under very heavy
+> ZC> swapping (in low memory condition).
 > 
-> Just because you can't reproduce it doesn't mean it works perfectly.
-> There was a very good reason why the swap lock map was still required
-> until recently.  The race condition it fixed wass an obscure one but
-> still important.  However, very recent VM changes make me wonder if it
-> is still absolutely necessary.  
+> ZC> I remember there were some issues when swap lockmap was removed in
+> ZC> 2.1.89, so it was reintroduced later (processes were dying randomly).
 > 
-> The problem was that if we swapped out a page, we might sometimes remove
-> the swap cache for the page before the IO was complete.  If we can
-> _guarantee_ that the swap cache will persist until after the IO is
-> complete, then any future attempt to use that swap page will find that
-> the page is locked and will wait for the IO to complete.
 > 
-> However, if in fact the swap cache for the page _ever_ gets removed
-> before the IO completes, then a future read in of the page might start
-> before the current write had completed.  This has been observed in
-> practice.  The swap lock protects against this.
+> ZC> Question is, why is everything running so smoothly now, even without
+> ZC> swap lockmap?
+> 
+> For this patch to be safe we need to 
+> A) Fix sysv shm to use the swap cache.
 
-Yes, this is what I observed by reading some older articles from
-linux-mm list (mostly conversation between you and Eric). So, I
-decided to remove swap lockmap, reproduce problems and then try to fix
-them. There is even one Eric's useful comment (removed in my patch)
-that is useful in deciding what should be done to prevent problems.
+Yes, this case probably doesn't get enough testing with my current
+setup, so it is quite hard (for me) to prove removing lockmap is
+no-no. Problem is that I don't understand shm swapping very well, it
+is piggybacked on "regular" MM as a special case, and I didn't had
+time to go through it, yet.
 
-But, interesting thing is that whatever I do, I CAN'T get into trouble 
-and that is interesting part. :-)
+> B) garantee that shrink_mmap is the only place that
+>    removes a page from the swap cache, and that it never removes
+>    a page while I/O is in progress, (as Stephen said).
+> 
+> This means a lot of the current cases like delete_from_swap_cache,
+> and free_page_and_swap_cache need to be removed.
+
+Yes, I believe you on this one.
 
 > 
-> Now that we always keep the swap cache intact in mm/vmscan.c and only
-> reclaim it in mm/filemap.c, we might in fact be safe omiting the swap
-> lock.  I'd be nervous about it without a _thorough_ audit of the code,
-> though, as this particular race is hard to reproduce.
+> And we need to be very carefull when we break down the swap cache,
+> and make it an unshared page.
+> 
+> The change to normally remove pages with shrink_mmap is what makes it
+> mostly safe now.
+> 
+> For 2.3 it should go.  For 2.2 it should stay.
 > 
 
-Yes, I have the same worries now so close to real 2.2.0, that's why I
-see this patch strictly experimental (it is not sent to Linus,
-directly!). Maybe, someone of you could try it for yourself, and if
-enough people test it, and if we try hard to understand why it seems
-to not make thing worse, maybe there's a slight chance it could go in
-for 2.2, or at least as a first thing in 2.3.0, so it gets heavily
-tested and debugged.
+I'll still be testing it, nevertheless. Maybe after some time I get in 
+some trouble, and then at least I'll know what to do. :-)
 
-But, I'm also nervous about it...
-I rememeber there really were some nasty silent deaths while lockmap was
-removed in some revisions during 2.1.x. :-(
-
-Thanks for comments.
+Regards,
 -- 
 Zlatko
 --
