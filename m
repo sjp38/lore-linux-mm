@@ -1,52 +1,48 @@
-Date: Mon, 11 Aug 2003 07:35:31 -0700
-From: "Martin J. Bligh" <mbligh@aracnet.com>
+From: Con Kolivas <kernel@kolivas.org>
 Subject: Re: 2.6.0-test3-mm1
-Message-ID: <94490000.1060612530@[10.10.2.4]>
-In-Reply-To: <20030809203943.3b925a0e.akpm@osdl.org>
-References: <20030809203943.3b925a0e.akpm@osdl.org>
+Date: Tue, 12 Aug 2003 01:17:48 +1000
+References: <20030809203943.3b925a0e.akpm@osdl.org> <94490000.1060612530@[10.10.2.4]>
+In-Reply-To: <94490000.1060612530@[10.10.2.4]>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain;
+  charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
+Message-Id: <200308120117.48938.kernel@kolivas.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: "Martin J. Bligh" <mbligh@aracnet.com>, Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
---Andrew Morton <akpm@osdl.org> wrote (on Saturday, August 09, 2003 20:39:43 -0700):
+On Tue, 12 Aug 2003 00:35, Martin J. Bligh wrote:
+> Degredation on kernbench is still there:
+>
+> Kernbench: (make -j N vmlinux, where N = 16 x num_cpus)
+>                               Elapsed      System        User         CPU
+>               2.6.0-test3       45.97      115.83      571.93     1494.50
+>           2.6.0-test3-mm1       46.43      122.78      571.87     1496.00
+>
+> Quite a bit of extra sys time. I thought the suspected part of the sched
+> changes got backed out, but maybe I'm just not following it ...
 
-> . This kernel immediately triplefaults when compiled with gcc-2.95.3 and
->   CONFIG_KGDB.  It is due to compiling with "-ggdb" or "-gdwarf-2".  When
->   compiled with "-g" it works OK, but gdb screws that up.
-> 
->   Moral: use a later gcc if you're a kgdb user.
+It was plus and minus. I've improved my hacks, but the A3 patch nanosecond 
+timing will add extra overhead/locking. I'm not sure how you can compare 
+these to the last ones you posted:
 
-Well, on the upside, 2.95.4 (Debian Woody) seems to work fine, so you don't 
-have to drown yourself in the pit of slow treacle. However, after printing
-"kgdb <20030806.1101.35> : port =3f8, IRQ=4, divisor =1", it spews out 
-garbage to the serial console (looks like 8-bit data or something).
-I didn't enable it on the cmd line, just compiled it in ... does that 
-trigger it for you?
-
------
-
-Degredation on kernbench is still there:
-
-Kernbench: (make -j N vmlinux, where N = 16 x num_cpus)
                               Elapsed      System        User         CPU
-              2.6.0-test3       45.97      115.83      571.93     1494.50
-          2.6.0-test3-mm1       46.43      122.78      571.87     1496.00
+              2.6.0-test2       46.05      115.20      571.75     1491.25
+          2.6.0-test2-con       46.98      121.02      583.55     1498.75
+          2.6.0-test2-mm1       46.95      121.18      582.00     1497.50
 
-Quite a bit of extra sys time. I thought the suspected part of the sched
-changes got backed out, but maybe I'm just not following it ...
+I'll take a stab in the dark and say the nanosecond timing is a big part now. 
+Backing out all the O*int patches in broken-out of 2.6.0-test3-mm1 should 
+help identify that. 
 
-------
+I have an idea on how to trim the nanosecond overhead as well. The sched clock 
+should be called if the timing is less than say two jiffies only. That will 
+mean it will be called far less frequently.
 
-4/4 split is still being wierd for me (same pattern as before). I think
-it's just the rc script crapping out which causes the hostname not to
-get set, or the rootfs to get remounted r/w.
-
-M.
+Con
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
