@@ -1,47 +1,60 @@
-Date: Tue, 15 Feb 2005 08:35:29 -0800
-From: Paul Jackson <pj@sgi.com>
-Subject: Re: [RFC 2.6.11-rc2-mm2 7/7] mm: manual page migration --
- sys_page_migrate
-Message-Id: <20050215083529.2f80c294.pj@sgi.com>
-In-Reply-To: <20050215162135.GA22646@lnx-holt.americas.sgi.com>
-References: <20050212032535.18524.12046.26397@tomahawk.engr.sgi.com>
-	<20050212032620.18524.15178.29731@tomahawk.engr.sgi.com>
-	<1108242262.6154.39.camel@localhost>
-	<20050214135221.GA20511@lnx-holt.americas.sgi.com>
-	<1108407043.6154.49.camel@localhost>
-	<20050214220148.GA11832@lnx-holt.americas.sgi.com>
-	<20050215074906.01439d4e.pj@sgi.com>
-	<20050215162135.GA22646@lnx-holt.americas.sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Message-ID: <4212350D.3060501@sgi.com>
+Date: Tue, 15 Feb 2005 11:44:45 -0600
+From: Ray Bryant <raybry@sgi.com>
+MIME-Version: 1.0
+Subject: Re: [RFC 2.6.11-rc2-mm2 0/7] mm: manual page migration -- overview
+References: <20050212032535.18524.12046.26397@tomahawk.engr.sgi.com> <m1vf8yf2nu.fsf@muc.de> <42114279.5070202@sgi.com> <20050215110506.GD19658@lnx-holt.americas.sgi.com>
+In-Reply-To: <20050215110506.GD19658@lnx-holt.americas.sgi.com>
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Robin Holt <holt@sgi.com>
-Cc: haveblue@us.ibm.com, raybry@sgi.com, taka@valinux.co.jp, hugh@veritas.com, akpm@osdl.org, marcello@cyclades.com, raybry@austin.rr.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Andi Kleen <ak@muc.de>, Ray Bryant <raybry@austin.rr.com>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Robin wrote:
-> That seems like it is insane!
+Robin Holt wrote:
+> On Mon, Feb 14, 2005 at 06:29:45PM -0600, Ray Bryant wrote:
+> 
+>>which is what you are asking for, I think.  The library's job
+>>(in addition to suspending all of the processes in the list for
+>>the duration of the migration operation, plus do some other things
+>>that are specific to sn2 hardware) would be to examine the
+> 
+> 
+> You probably want the batch scheduler to do the suspend/resume as it
+> may be parking part of the job on nodes that have memory but running
+> processes of a different job while moving a job out of the way for a
+> big-mem app that wants to run on one of this jobs nodes.
+> 
 
-Thank-you, thank-you.  <blush>
+That works as well, and if we keep the majority of the work on
+deciding who to migrate where and what to do when in a user space
+library rather than in the kernel, then we have a lot more flexibility
+in, for example who suspends/resumes the jobs to be migrated.
 
-What about the suggestion I had that you sort of skipped over, which
-amounted to changing the system call from a node array to just one
-node:
+> 
+>>do memory placement by first touch, during initialization.  This is,
+>>in part, because most of our codes originate on non-NUMA systems,
+>>and we've typically done very just what is necessary to make them
+> 
+> 
+> Software Vendors tend to be very reluctant to do things for a single
+> architecture unless there are clear wins.
+> 
+> Thanks,
+> Robin
+> 
 
-    sys_page_migrate(pid, va_start, va_end, count, old_nodes, new_nodes);
-
-to:
-
-    sys_page_migrate(pid, va_start, va_end, old_node, new_node);
-
-Doesn't that let you do all you need to?  Is it insane too?
 
 -- 
-                  I won't rest till it's the best ...
-                  Programmer, Linux Scalability
-                  Paul Jackson <pj@sgi.com> 1.650.933.1373, 1.925.600.0401
+-----------------------------------------------
+Ray Bryant
+512-453-9679 (work)         512-507-7807 (cell)
+raybry@sgi.com             raybry@austin.rr.com
+The box said: "Requires Windows 98 or better",
+	 so I installed Linux.
+-----------------------------------------------
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
