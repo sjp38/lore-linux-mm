@@ -1,110 +1,99 @@
-Message-ID: <3D730A3E.98F7386E@zip.com.au>
-Date: Sun, 01 Sep 2002 23:50:38 -0700
-From: Andrew Morton <akpm@zip.com.au>
-MIME-Version: 1.0
+Content-Type: text/plain;
+  charset="iso-8859-1"
+From: Ed Tomlinson <tomlins@cam.org>
 Subject: Re: slablru for 2.5.32-mm1
-References: <200208261809.45568.tomlins@cam.org> <3D6AC0BB.FE65D5F7@zip.com.au> <200208281306.58776.tomlins@cam.org>
-Content-Type: multipart/mixed;
- boundary="------------1A7072530548B8FD810E060F"
+Date: Mon, 2 Sep 2002 11:00:47 -0400
+References: <200208261809.45568.tomlins@cam.org> <200208281306.58776.tomlins@cam.org> <3D72F675.920DC976@zip.com.au>
+In-Reply-To: <3D72F675.920DC976@zip.com.au>
+MIME-Version: 1.0
+Content-Transfer-Encoding: 8bit
+Message-Id: <200209021100.47508.tomlins@cam.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ed Tomlinson <tomlins@cam.org>
+To: Andrew Morton <akpm@zip.com.au>
 Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This is a multi-part message in MIME format.
---------------1A7072530548B8FD810E060F
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+On September 2, 2002 01:26 am, Andrew Morton wrote:
+> Ed, this code can be sped up a bit, I think.  We can make
+> kmem_count_page() return a boolean back to shrink_cache(), telling it
+> whether it needs to call kmem_do_prunes() at all.  Often, there won't
+> be any work to do in there, and taking that semaphore can be quite
+> costly.
+>
+> The code as-is will even run kmem_do_prunes() when we're examining
+> ZONE_HIGHMEM, which certainly won't have any slab pages.  This boolean
+> will fix that too.
 
-hm.  Doing a bit more testing...
+How about this?  I have modified things so we only try for the sem if there
+is work to do.  It also always uses a down_trylock - if we cannot do the prune
+now later is ok too...
 
-mem=512m, then build the inode and dentry caches up a bit:
+Lightly tested.
 
-  ext2_inode_cache:    20483KB    20483KB  100.0 
-       buffer_head:     6083KB     6441KB   94.43
-      dentry_cache:     4885KB     4885KB  100.0 
+Comments
+Ed
 
-(using wli's bloatmeter, attached here).
+-----------
+# This is a BitKeeper generated patch for the following project:
+# Project Name: Linux kernel tree
+# This patch format is intended for GNU patch command version 2.5 or higher.
+# This patch includes the following deltas:
+#	           ChangeSet	1.531   -> 1.533  
+#	           mm/slab.c	1.28    -> 1.30   
+#
+# The following is the BitKeeper ChangeSet Log
+# --------------------------------------------
+# 02/09/02	ed@oscar.et.ca	1.532
+# optimization.  lets only take the sem if we have work to do.
+# --------------------------------------------
+# 02/09/02	ed@oscar.et.ca	1.533
+# more optimizations and a correction
+# --------------------------------------------
+#
+diff -Nru a/mm/slab.c b/mm/slab.c
+--- a/mm/slab.c	Mon Sep  2 10:54:33 2002
++++ b/mm/slab.c	Mon Sep  2 10:54:33 2002
+@@ -403,6 +403,9 @@
+ /* Place maintainer for reaping. */
+ static kmem_cache_t *clock_searchp = &cache_cache;
+ 
++static int pruner_flag;
++#define	PRUNE_GATE	0
++
+ #define cache_chain (cache_cache.next)
+ 
+ #ifdef CONFIG_SMP
+@@ -427,6 +430,8 @@
+ 	spin_lock_irq(&cachep->spinlock);
+ 	if (cachep->pruner != NULL) {
+ 		cachep->count += slabp->inuse;
++		if (cachep->count)
++			set_bit(PRUNE_GATE, &pruner_flag);
+ 		ret = !slabp->inuse;
+ 	} else 
+ 		ret = !ref && !slabp->inuse;
+@@ -441,11 +446,13 @@
+ 	struct list_head *p;
+ 	int nr;
+ 
+-        if (gfp_mask & __GFP_WAIT)
+-                down(&cache_chain_sem);
+-        else
+-                if (down_trylock(&cache_chain_sem))
+-                        return 0;
++	if (!test_and_clear_bit(PRUNE_GATE, &pruner_flag))
++		return 0;
++
++	if (down_trylock(&cache_chain_sem)) {
++		set_bit(PRUNE_GATE, &pruner_flag);
++		return 0;
++	}
+ 
+         list_for_each(p,&cache_chain) {
+                 kmem_cache_t *cachep = list_entry(p, kmem_cache_t, next);
 
-Now,
-
-	dd if=/dev/zero of=foo bs=1M count=2000
-
-  ext2_inode_cache:     3789KB     8148KB   46.50
-       buffer_head:     6469KB     6503KB   99.47
-          size-512:     1450KB     1500KB   96.66
-
-this took quite a long time to start dropping, and the machine
-still has 27 megabytes in slab.
-
-Which kinda surprises me, given my (probably wrong) description of the
-algorithm.  I'd have expected the caches to be pruned a lot faster and
-further than this.  Not that it's necessarily a bad thing, but maybe we
-should be shrinking a little faster.  What are your thoughts on this?
-
-Also, I note that age_dcache_memory is being called for lots of
-tiny little shrinkings:
-
-Breakpoint 1, age_dcache_memory (cachep=0xc1911e48, entries=1, gfp_mask=464) at dcache.c:585
-Breakpoint 1, age_dcache_memory (cachep=0xc1911e48, entries=2, gfp_mask=464) at dcache.c:585
-Breakpoint 1, age_dcache_memory (cachep=0xc1911e48, entries=4, gfp_mask=464) at dcache.c:585
-Breakpoint 1, age_dcache_memory (cachep=0xc1911e48, entries=12, gfp_mask=464) at dcache.c:585
-Breakpoint 1, age_dcache_memory (cachep=0xc1911e48, entries=21, gfp_mask=464) at dcache.c:585
-Breakpoint 1, age_dcache_memory (cachep=0xc1911e48, entries=42, gfp_mask=464) at dcache.c:585
-Breakpoint 1, age_dcache_memory (cachep=0xc1911e48, entries=10, gfp_mask=464) at dcache.c:585
-
-I'd suggest that we batch these up a bit: call the pruner less
-frequently, but with larger request sizes, save a few cycles.
---------------1A7072530548B8FD810E060F
-Content-Type: text/plain; charset=us-ascii;
- name="bloatmeter"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline;
- filename="bloatmeter"
-
-#!/bin/sh
-while true
-do
-	clear
-	grep -v '^slabinfo' /proc/slabinfo	\
-		| bloatmon			\
-		| sort -r -n +2		\
-		| head -22
-	sleep 5
-done
-
---------------1A7072530548B8FD810E060F
-Content-Type: text/plain; charset=us-ascii;
- name="bloatmon"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline;
- filename="bloatmon"
-
-#!/usr/bin/awk -f
-BEGIN {
-	printf "%18s    %8s %8s %8s\n", "cache", "active", "alloc", "%util";
-}
-
-{
-	if ($3 != 0.0) {
-		pct  = 100.0 * $2 / $3;
-		frac = (10000.0 * $2 / $3) % 100;
-	} else {
-		pct  = 100.0;
-		frac = 0.0;
-	}
-	active = ($2 * $4)/1024;
-	alloc  = ($3 * $4)/1024;
-	if ((alloc - active) < 1.0) {
-		pct  = 100.0;
-		frac = 0.0;
-	}
-	printf "%18s: %8dKB %8dKB  %3d.%-2d\n", $1, active, alloc, pct, frac;
-}
-
---------------1A7072530548B8FD810E060F--
-
+-----------
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
