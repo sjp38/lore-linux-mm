@@ -1,45 +1,36 @@
-Date: Sat, 20 Jan 2001 17:58:48 +1100 (EST)
+Date: Sat, 20 Jan 2001 18:05:12 +1100 (EST)
 From: Rik van Riel <riel@conectiva.com.br>
 Subject: Re: [RFC] 2-pointer PTE chaining idea
-In-Reply-To: <Pine.LNX.4.10.10101182307340.9418-100000@penguin.transmeta.com>
-Message-ID: <Pine.LNX.4.31.0101201754110.1071-100000@localhost.localdomain>
+In-Reply-To: <14953.8856.982405.328564@pizda.ninka.net>
+Message-ID: <Pine.LNX.4.31.0101201802080.1071-100000@localhost.localdomain>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@transmeta.com>
-Cc: "David S. Miller" <davem@redhat.com>, linux-mm@kvack.org, "Stephen C. Tweedie" <sct@redhat.com>, Matthew Dillon <dillon@apollo.backplane.com>
+To: "David S. Miller" <davem@redhat.com>
+Cc: Linus Torvalds <torvalds@transmeta.com>, linux-mm@kvack.org, "Stephen C. Tweedie" <sct@redhat.com>, Matthew Dillon <dillon@apollo.backplane.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 18 Jan 2001, Linus Torvalds wrote:
+On Fri, 19 Jan 2001, David S. Miller wrote:
+> Linus Torvalds writes:
+>  >  - DO NOT WASTE TIME IF YOU HAVE MEMORY!
+	[snip]
+>  > This, btw, also implies: don't make the page tables more complex.
+>
+> I have to concur.
 
-> The only sane way I can think of to do the "implied pointer" is
-> to do an order-2 allocation when you allocate a page directory:
+> Basically, that would leave us with the issue of choosing anonymous
+> pages to tap out correctly.  I see nothing that prevents our page
+> table scanning from being fundamentally unable to do quite well in
+> this area.
 
-While this idea seemed the best one at first glance, after
-thinking about it a bit more I think your idea may actually
-have _higher_ overhead than my idea of keeping the pte chain
-structures external.
+I agree with this. However, having more uniform page aging
+could lead to better page replacement and this pte chaining
+thing is something I'd still like to try. ;)
 
-The reason for this is three-fold. Firstly, a lot of the page
-tables will only be "occupied" for a small percentage. I don't
-know the numbers, but I wouldn't be surprised if the page table
-"occupation" is well under 50% for programs that are fully
-resident ... probably less for programs which are partly swapped
-out.
-
-Secondly, if we do "dynamic" pte chaining, we can free up or
-re-use the pte_chain structure as soon as we unmap a page, so
-swapping out a page will free up the pte chain structure, which
-is a big improvement compared to the unswappable page tables.
-
-Thirdly, this idea doesn't suffer from memory fragmentation and
-also works efficiently on architectures where the page table size
-isn't equal to the page size.
-
-Ideas ?
-
-(btw, if I'm unlucky I won't be online again until the 26th)
+If it turns out to be a win (with no measurable losses) I
+may even submit a patch, but if it turns out to be a loss
+I'll just drop the idea...
 
 regards,
 
