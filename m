@@ -1,46 +1,57 @@
-Date: Sat, 28 Sep 2002 11:11:03 +0530
-From: Dipankar Sarma <dipankar@in.ibm.com>
-Subject: Re: 2.5.38-mm3
-Message-ID: <20020928111103.C32125@in.ibm.com>
-Reply-To: dipankar@in.ibm.com
-References: <20020927152833.D25021@in.ibm.com> <502559422.1033113869@[10.10.2.3]> <20020927224424.A28529@in.ibm.com> <20020927225455.GW22942@holomorphy.com>
-Mime-Version: 1.0
+Received: from digeo-nav01.digeo.com (digeo-nav01.digeo.com [192.168.1.233])
+	by packet.digeo.com (8.9.3+Sun/8.9.3) with SMTP id WAA18022
+	for <linux-mm@kvack.org>; Fri, 27 Sep 2002 22:54:54 -0700 (PDT)
+Message-ID: <3D95442E.C0959F4A@digeo.com>
+Date: Fri, 27 Sep 2002 22:54:54 -0700
+From: Andrew Morton <akpm@digeo.com>
+MIME-Version: 1.0
+Subject: Re: mremap() pte allocation atomicity error
+References: <20020928052813.GY22942@holomorphy.com>
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20020927225455.GW22942@holomorphy.com>; from wli@holomorphy.com on Fri, Sep 27, 2002 at 03:54:55PM -0700
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: William Lee Irwin III <wli@holomorphy.com>, "Martin J. Bligh" <mbligh@aracnet.com>, Zwane Mwaikambo <zwane@linuxpower.ca>, Andrew Morton <akpm@digeo.com>, lkml <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: William Lee Irwin III <wli@holomorphy.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Sep 27, 2002 at 03:54:55PM -0700, William Lee Irwin III wrote:
-> On Fri, Sep 27, 2002 at 10:44:24PM +0530, Dipankar Sarma wrote:
-> > Not sure why it shows up more in -mm, but likely because -mm has
-> > lot less contention on other locks like dcache_lock.
+William Lee Irwin III wrote:
 > 
-> Well, the profile I posted was an interactive UP workload, and it's
-> fairly high there. Trimming cycles off this is good for everyone.
-
-Oh, I was commenting on possible files_lock contention on mbligh's
-NUMA-Q.
-
+> I'm working on something else atm.
 > 
-> Small SMP boxen (dual?) used similarly will probably see additional
-> gains as the number of locked operations in fget() will be reduced.
-> There's clearly no contention or cacheline bouncing in my workloads as
-> none of them have tasks sharing file tables, nor is anything else
-> messing with the cachelines.
+>  [<c01187b3>]__might_sleep+0x43/0x47
+>  [<c013b6d4>]__alloc_pages+0x24/0x20c
+>  [<c0133650>]file_read_actor+0x0/0x1b0
+>  [<c01131ed>]pte_alloc_one+0x41/0x104
+>  [<c012d05d>]pte_alloc_map+0x4d/0x210
+>  [<c013bc73>]get_page_cache_size+0xf/0x18
+>  [<c0135f38>]move_one_page+0xe8/0x328
+>  [<c0136061>]move_one_page+0x211/0x328
+>  [<c0130644>]vm_enough_memory+0x34/0xc0
+>  [<c01361a9>]move_page_tables+0x31/0x7c
+>  [<c0136860>]do_mremap+0x66c/0x7ec
+>  [<c0136a30>]sys_mremap+0x50/0x73
+>  [<c010748f>]syscall_call+0x7/0xb
+> 
 
-I remember seeing fget() high up in specweb profiles. I suspect that
-fget profile count is high because it just happens to get called very 
-often for most workloads (all file syscalls) and the atomic 
-operations (SMP) and the function call overhead just adds to the cost. 
-If possible, we should try inlining it too.
+ooh, oww, ouch.   Look at move_one_page():
 
-Thanks
--- 
-Dipankar Sarma  <dipankar@in.ibm.com> http://lse.sourceforge.net
-Linux Technology Center, IBM Software Lab, Bangalore, India.
+        src = get_one_pte_map_nested(mm, old_addr);
+        if (src) {
+                dst = alloc_one_pte_map(mm, new_addr);
+                error = copy_one_pte(mm, src, dst);
+
+
+get_one_pte_map_nested() does a kmap_atomic(), and then we go and
+call alloc_one_pte_map->pte_alloc_map->pte_alloc_one->alloc_pages()
+inside that kmap_atomic().
+
+I guess that has been there since day one.
+
+A simple fix would be to drop the atomic kmap of the source pte
+and take it again after the alloc_one_pte_map() call.
+
+Can you think of a more efficient way?
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
