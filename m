@@ -2,31 +2,38 @@ From: "Stephen C. Tweedie" <sct@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
-Message-ID: <14185.33779.162152.95290@dukat.scot.redhat.com>
-Date: Fri, 18 Jun 1999 00:25:39 +0100 (BST)
-Subject: Re: process selection
-In-Reply-To: <4.1.19990615122732.00942160@box4.tin.it>
-References: <4.1.19990615122732.00942160@box4.tin.it>
+Message-ID: <14185.34250.163041.796165@dukat.scot.redhat.com>
+Date: Fri, 18 Jun 1999 00:33:30 +0100 (BST)
+Subject: Re: filecache/swapcache questions
+In-Reply-To: <Pine.LNX.4.05.9906150930310.13631-100000@humbolt.nl.linux.org>
+References: <199906150716.AAA88552@google.engr.sgi.com>
+	<Pine.LNX.4.05.9906150930310.13631-100000@humbolt.nl.linux.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Antonino Sabetta <copernico@tin.it>
-Cc: linux-mm@kvack.org, Stephen Tweedie <sct@redhat.com>
+To: Rik van Riel <riel@nl.linux.org>
+Cc: Kanoj Sarcar <kanoj@google.engr.sgi.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 15 Jun 1999 12:28:06 +0200, Antonino Sabetta <copernico@tin.it> said:
+Hi,
 
->> 2. Also, in swap_out, it might make sense to steal more than a
->> single page from a victim process, to balance the overhead of
->> scanning all the processes.
+On Tue, 15 Jun 1999 09:32:19 +0200 (CEST), Rik van Riel
+<riel@nl.linux.org> said:
 
-> Or at least, steal more that a single page if the process owns a "big"
-> number of pages.
+>> How will it be possible for a page to be in the swapcache, for its
+>> reference count to be 1 (which has been checked just before), and for
+>> its swap_count(page->offset) to also be 1? I can see this being
+>> possible only if an unmap/exit path might lazily leave a anonymous
+>> page in the swap cache, but I don't believe that happens.
 
-This is something we really, really need to do eventually, to reduce the
-overhead of the swapper.  Optimisations such as unmapping large chunks
-at once for sequentially accessed mmap()s are an example of obvious
-performance improvements, but by swapping multiple pages we also have
-opportunities for reducing swap fragmentation.
+> It does happen. We use a 'two-stage' reclamation process instead
+> of page aging. It seems to work wonderfully -- nice page aging
+> properties without the overhead. 
+
+Much more than that: if we take a write fault to a page which is shared
+on swap by two processes, then we bring it into cache and take a
+copy-on-write, leaving one copy in the swap cache (reference one: it is
+_only_ in use by the swap cache now), and the other copy being reference
+by the faulting process.
 
 --Stephen
 --
