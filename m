@@ -1,30 +1,40 @@
-Date: Sun, 2 Feb 2003 12:17:59 -0800
-From: William Lee Irwin III <wli@holomorphy.com>
+Received: from digeo-nav01.digeo.com (digeo-nav01.digeo.com [192.168.1.233])
+	by packet.digeo.com (8.9.3+Sun/8.9.3) with SMTP id MAA16295
+	for <linux-mm@kvack.org>; Sun, 2 Feb 2003 12:49:33 -0800 (PST)
+Date: Sun, 2 Feb 2003 12:49:43 -0800
+From: Andrew Morton <akpm@digeo.com>
 Subject: Re: hugepage patches
-Message-ID: <20030202201759.GF29981@holomorphy.com>
-References: <20030131151501.7273a9bf.akpm@digeo.com> <20030202025720.25bbf46d.akpm@digeo.com>
+Message-Id: <20030202124943.30ea43b7.akpm@digeo.com>
+In-Reply-To: <20030202195908.GD29981@holomorphy.com>
+References: <20030131151501.7273a9bf.akpm@digeo.com>
+	<20030202025546.2a29db61.akpm@digeo.com>
+	<20030202195908.GD29981@holomorphy.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20030202025720.25bbf46d.akpm@digeo.com>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@digeo.com>
+To: William Lee Irwin III <wli@holomorphy.com>
 Cc: davem@redhat.com, rohit.seth@intel.com, davidm@napali.hpl.hp.com, anton@samba.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Feb 02, 2003 at 02:57:20AM -0800, Andrew Morton wrote:
-> 12/4
-> Fix hugetlb_vmtruncate_list()
-> This function is quite wrong - has an "=" where it should have an "-" and
-> confuses PAGE_SIZE and HPAGE_SIZE in its address and file offset arithmetic.
+William Lee Irwin III <wli@holomorphy.com> wrote:
+>
+> On Sun, Feb 02, 2003 at 02:55:46AM -0800, Andrew Morton wrote:
+> > 6/4
+> > hugetlbfs: fix truncate
+> > - Opening a hugetlbfs file O_TRUNC calls the generic vmtruncate() functions
+> >   and nukes the kernel.
+> >   Give S_ISREG hugetlbfs files a inode_operations, and hence a setattr
+> >   which know how to handle these files.
+> > - Don't permit the user to truncate hugetlbfs files to sizes which are not
+> >   a multiple of HPAGE_SIZE.
+> > - We don't support expanding in ftruncate(), so remove that code.
+> 
+> erm, IIRC ftruncate() was the only way to expand the things;
 
-AFAICT the = typo and passing in a pgoff shifted the wrong amount were
-the bogons here; maybe there's another one somewhere else.
-Heavy-handed but correct.
-
-
--- wli
+Expanding ftruncate would be nice, but the current way of performing
+the page instantiation at mmap() time seems sufficient.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
