@@ -1,26 +1,35 @@
-Date: Mon, 15 May 2000 16:21:03 +0100 (BST)
-From: Tigran Aivazian <tigran@veritas.com>
-Subject: Re: PATCH: Work in progress cleaning shrink_mmap
-In-Reply-To: <yttln1czf3k.fsf@vexeta.dc.fi.udc.es>
-Message-ID: <Pine.LNX.4.21.0005151619040.1156-100000@saturn.homenet>
+Date: Mon, 15 May 2000 17:31:16 +0200 (CEST)
+From: Ingo Molnar <mingo@elte.hu>
+Reply-To: mingo@elte.hu
+Subject: Re: [patch] VM stable again?
+In-Reply-To: <Pine.LNX.4.21.0005151157240.20410-100000@duckman.distro.conectiva>
+Message-ID: <Pine.LNX.4.10.10005151729430.6248-100000@elte.hu>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Juan J. Quintela" <quintela@fi.udc.es>
-Cc: linux-mm@kvack.org
+To: Rik van Riel <riel@conectiva.com.br>
+Cc: Linus Torvalds <torvalds@transmeta.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 15 May 2000, Juan J. Quintela wrote:
-> -		 * were to be marked referenced..
-> +		 * were to be marked referenced.
+On Mon, 15 May 2000, Rik van Riel wrote:
 
-I usually treat ".." at the end of a sentence as a hint that it probably
-was written by Linus. Removing such hints is removing
-potentially useful information...
+> - keep track of whether some process is critically low on
+>   memory and needs to call try_to_free_pages()
+> - if another allocation starts while the other app is in
+>   try_to_free_pages(), free some memory ourselves
+> - (skip point 2 if there is enough free memory, but that's
+>   just a minor performance optimisation)
 
-Regards,
-Tigran
+yep, this should work. A minor comment:
+
+> +		if (atomic_read(&free_before_allocate))
+
+i believe this needs to be per-zone and should preferably be read within
+the zone spinlock - not atomic operations. Updating a global counter is a
+big time problem on SMP.
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
