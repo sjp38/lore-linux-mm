@@ -1,40 +1,37 @@
-Date: Wed, 02 Oct 2002 11:57:26 -0500
-From: Dave McCracken <dmccr@us.ibm.com>
+Content-Type: text/plain;
+  charset="iso-8859-1"
+From: Daniel Phillips <phillips@arcor.de>
 Subject: Re: [PATCH] Snapshot of shared page tables
-Message-ID: <83240000.1033577846@baldur.austin.ibm.com>
+Date: Wed, 2 Oct 2002 19:00:19 +0200
+References: <45850000.1033570655@baldur.austin.ibm.com> <E17wmit-0001bH-00@starship>
 In-Reply-To: <E17wmit-0001bH-00@starship>
-References: <45850000.1033570655@baldur.austin.ibm.com>
- <E17wmit-0001bH-00@starship>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+Message-Id: <E17wmrE-0001bS-00@starship>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Daniel Phillips <phillips@arcor.de>, Linux Memory Management <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>
+To: Dave McCracken <dmccr@us.ibm.com>, Linux Memory Management <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
---On Wednesday, October 02, 2002 18:51:41 +0200 Daniel Phillips
-<phillips@arcor.de> wrote:
+On Wednesday 02 October 2002 18:51, Daniel Phillips wrote:
+> On Wednesday 02 October 2002 16:57, Dave McCracken wrote:
+> > 
+> > Ok, here it is.  This patch works for my simple tests, both under UP and
+> > SMP, including under memory pressure.  I'd appreciate anyone who'd like to
+> > take it and beat on it.  Please let me know of any problems you find.
+> > 
+> > The patch is against this morning's 2.5 BK tree.
+> 
+> Interesting, you substituted pte_page_lock(ptepage) for mm->page_table_lock.
+> Could you wax poetic about that, please?
 
-> Interesting, you substituted pte_page_lock(ptepage) for
-> mm->page_table_lock. Could you wax poetic about that, please?
+Never mind, I see the logic.  This reflects the fact that page_table_lock
+is insufficient protection when pte pages are shared.  So you solved that
+problem and at the same time improved the scalability for the general case
+immensely, without adding any new overhead.  Very nice!
 
-Sure.  If a pte page is shared, the mm->page_table_lock is not sufficient
-to protect the rest of the page fault.  Therefore we need a lock at the pte
-page level.  The mm->page_table_lock is held during the page fault until we
-have a valid and locked pte page we're working on, then it's dropped for
-the rest of the fault.
-
-Feel free to poke holes in my logic, but I think it's the right locking
-model for shared pte pages.
-
-Dave McCracken
-
-======================================================================
-Dave McCracken          IBM Linux Base Kernel Team      1-512-838-3059
-dmccr@us.ibm.com                                        T/L   678-3059
-
+-- 
+Daniel
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
