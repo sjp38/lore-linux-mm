@@ -1,63 +1,49 @@
-Message-ID: <419D8C07.9040606@yahoo.com.au>
-Date: Fri, 19 Nov 2004 17:00:39 +1100
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-MIME-Version: 1.0
-Subject: Re: another approach to rss : sloppy rss
-References: <Pine.LNX.4.44.0411061527440.3567-100000@localhost.localdomain> <Pine.LNX.4.58.0411181126440.30385@schroedinger.engr.sgi.com> <419D47E6.8010409@yahoo.com.au> <Pine.LNX.4.58.0411181711130.834@schroedinger.engr.sgi.com> <419D4EC7.6020100@yahoo.com.au> <Pine.LNX.4.58.0411181834260.1421@schroedinger.engr.sgi.com>
-In-Reply-To: <Pine.LNX.4.58.0411181834260.1421@schroedinger.engr.sgi.com>
-Content-Type: text/plain; charset=us-ascii; format=flowed
+Subject: Re: fast path for anonymous memory allocation
+From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+In-Reply-To: <419D581F.2080302@yahoo.com.au>
+References: <Pine.LNX.4.44.0411061527440.3567-100000@localhost.localdomain>
+	 <Pine.LNX.4.58.0411181126440.30385@schroedinger.engr.sgi.com>
+	 <Pine.LNX.4.58.0411181715280.834@schroedinger.engr.sgi.com>
+	 <419D581F.2080302@yahoo.com.au>
+Content-Type: text/plain
+Date: Fri, 19 Nov 2004 18:05:20 +1100
+Message-Id: <1100847920.25497.46.camel@gaston>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Hugh Dickins <hugh@veritas.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, linux-mm@kvack.org, linux-ia64@kernel.vger.org
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Christoph Lameter <clameter@sgi.com>, Hugh Dickins <hugh@veritas.com>, linux-mm@kvack.org, linux-ia64@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Christoph Lameter wrote:
-> On Fri, 19 Nov 2004, Nick Piggin wrote:
+On Fri, 2004-11-19 at 13:19 +1100, Nick Piggin wrote:
+> Christoph Lameter wrote:
+> > This patch conflicts with the page fault scalability patch but I could not
+> > leave this stone unturned. No significant performance increases so
+> > this is just for the record in case someone else gets the same wild idea.
+> > 
 > 
+> I had a similar wild idea. Mine was to just make sure we have a spare
+> per-CPU page ready before taking any locks.
 > 
->>What do you think a per-mm flag to switch between realtime and lazy rss?
-> 
-> 
-> Yes thats what the patch has.
-> 
+> Ahh, you're doing clear_user_highpage after the pte is already set up?
+> Won't that be racy? I guess that would be an advantage of my approach,
+> the clear_user_highpage can be done first (although that is more likely
+> to be wasteful of cache).
 
-OK.
+Yah, doing clear_user_highpage() after setting the PTE is unfortunately
+unacceptable. It show interesting bugs... As soon as the PTE is setup,
+another thread on another CPU can hit the page, you'll then clear what
+it's writing... 
 
-> 
->>The only code it would really _add_ would be your mm counting function...
->>I guess another couple of branches in the fault handlers too, but I don't
->>know if they'd be very significant.
-> 
-> 
-> You would need to add hooks to all uses of rss. That adds additional code
-> to the critical paths.
-> 
-> 
+Take for example 2 threads writing to different structures in the same
+page of anonymous memory. The first one triggers the allocation, the
+second writes right away, "sees" the new PTE, and writes just before the
+first one does clear_user_highpage...
 
-It would be an extra branch for each use of rss, yes.
-
-I'm probably going to abstract out direct access to rss anyway (for the
-abstracted page table locking patch - so eg. the fully locked system needn't
-use atomics).
-
-So after that, you could do it without much intrusiveness. If it is any
-consolation, the flag would be read mostly and easily predictable. And you
-could make the lazy-rss a CONFIG option as well, which would remove the
-cost in the common case.
+Ben.
 
 
-
-Just coming back to your sloppy rss patch - this thing will of course allow
-unbounded error to build up. Well, it *will* be bounded by the actual RSS if
-we assume the races can only cause rss to be underestimated. However, such an
-assumption (I think it is a safe one?) also means that rss won't hover around
-the correct value, but tend to go increasingly downward.
-
-On your HPC codes that never reclaim memory, and don't do a lot of mapping /
-unmapping I guess this wouldn't matter... But a long running database or
-something?
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
