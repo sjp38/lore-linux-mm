@@ -1,159 +1,97 @@
-Subject: PATCH: Rewrite of truncate_inode_pages (take 3)
-References: <yttsnvk28jy.fsf@vexeta.dc.fi.udc.es>
+Subject: PATCH: Making the VM pressure consistent for dcache and icache
 From: "Juan J. Quintela" <quintela@fi.udc.es>
-In-Reply-To: "Juan J. Quintela"'s message of "14 May 2000 22:14:41 +0200"
-Date: 22 May 2000 14:33:36 +0200
-Message-ID: <yttog5y9333.fsf@serpe.mitica>
+Date: 22 May 2000 17:17:55 +0200
+Message-ID: <yttn1li7gws.fsf@serpe.mitica>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-fsdevel@vger.rutgers.edu, Linus Torvalds <torvalds@transmeta.com>
+To: linux-mm@kvack.org, Linus Torvalds <torvalds@transmeta.com>, alviro@redhat.com
 List-ID: <linux-mm.kvack.org>
 
 Hi
-        I have reworte the function truncate_inode_pages.  The version
-        in vanilla pre9-3 does busy waiting in the partial page, with
-        this version the locking for the partial page and from the
-        rest of the pages is the same.  This make that we have less
-        special cases.  For the rest of pages the function works the
-        same.  The only difference is that version is cleaner IMHO.
-        Or there are some corner case that I have failed to see?
+        I have made a patch to make the pressure for freeing pages
+consistent with the rest of the kernel for the dcache and the
+icache.  In the rest of the kernel we do:
 
-        Comments?
+         count = number allocated / (priority + 1)
 
-        Later, Juan.
+This also removes the need for the if's.  It is some reason to have the
+code this way, or it is better to make the same pressure to all the
+subsystems?
 
-        I have CC: the linux-fsdevel people, they are the users of
-        that function, could somebody give me some feedback against
-        the change?
+Comment?
 
+Later, Juan.
 
-diff -urN --exclude-from=/home/lfcia/quintela/work/kernel/exclude work/mm/filemap.c testing/mm/filemap.c
---- work/mm/filemap.c	Fri May 12 23:46:46 2000
-+++ testing/mm/filemap.c	Sun May 14 22:08:45 2000
-@@ -146,9 +146,39 @@
- 	spin_unlock(&pagecache_lock);
- }
- 
--/*
-+static inline void truncate_partial_page(struct page *page, unsigned partial)
-+{
-+	memclear_highpage_flush(page, partial, PAGE_CACHE_SIZE-partial);
-+				
-+	if (page->buffers)
-+		block_flushpage(page, partial);
-+
-+}
-+
-+static inline void truncate_complete_page(struct page *page)
-+{
-+	if (!page->buffers || block_flushpage(page, 0))
-+		lru_cache_del(page);
-+	
-+	/*
-+	 * We remove the page from the page cache _after_ we have
-+	 * destroyed all buffer-cache references to it. Otherwise some
-+	 * other process might think this inode page is not in the
-+	 * page cache and creates a buffer-cache alias to it causing
-+	 * all sorts of fun problems ...  
-+	 */
-+	remove_inode_page(page);
-+	page_cache_release(page);
-+}
-+
-+/**
-+ * truncate_inode_pages - truncate *all* the pages from an offset
-+ * @mapping: mapping to truncate
-+ * @lstart: offset from with to truncate
-+ *
-  * Truncate the page cache at a set offset, removing the pages
-  * that are beyond that offset (and zeroing out partial pages).
-+ * If any page is locked we wait for it to become unlocked.
+PD.  I have sent the patch also to Al Viro because I don't know if the
+     patches about the dcache, icache are sent through Al Viro or
+     directly to Linus.
+
+diff -urN --exclude-from=/home/lfcia/quintela/work/kernel/exclude base/fs/dcache.c testing/fs/dcache.c
+--- base/fs/dcache.c	Sun May 21 17:38:00 2000
++++ testing/fs/dcache.c	Mon May 22 16:59:23 2000
+@@ -494,10 +494,8 @@
   */
- void truncate_inode_pages(struct address_space * mapping, loff_t lstart)
+ int shrink_dcache_memory(int priority, unsigned int gfp_mask)
  {
-@@ -168,11 +198,10 @@
+-	int count = 0;
++	int count = dentry_stat.nr_unused / (priority + 1);
+ 	lock_kernel();
+-	if (priority)
+-		count = dentry_stat.nr_unused / priority;
+ 	prune_dcache(count);
+ 	unlock_kernel();
+ 	/* FIXME: kmem_cache_shrink here should tell us
+diff -urN --exclude-from=/home/lfcia/quintela/work/kernel/exclude base/fs/inode.c testing/fs/inode.c
+--- base/fs/inode.c	Sun May 21 17:38:00 2000
++++ testing/fs/inode.c	Mon May 22 16:59:23 2000
+@@ -411,11 +411,10 @@
+ 	(((inode)->i_state | (inode)->i_data.nrpages) == 0)
+ #define INODE(entry)	(list_entry(entry, struct inode, i_list))
  
- 		page = list_entry(curr, struct page, list);
- 		curr = curr->next;
--
- 		offset = page->index;
+-void prune_icache(int goal)
++void prune_icache(int count)
+ {
+ 	LIST_HEAD(list);
+ 	struct list_head *entry, *freeable = &list;
+-	int count = 0;
+ 	struct inode * inode;
  
--		/* page wholly truncated - free it */
--		if (offset >= start) {
-+		/* Is one of the pages to truncate? */
-+		if ((offset >= start) || (partial && (offset + 1) == start)) {
- 			if (TryLockPage(page)) {
- 				page_cache_get(page);
- 				spin_unlock(&pagecache_lock);
-@@ -183,22 +212,14 @@
- 			page_cache_get(page);
- 			spin_unlock(&pagecache_lock);
- 
--			if (!page->buffers || block_flushpage(page, 0))
--				lru_cache_del(page);
--
--			/*
--			 * We remove the page from the page cache
--			 * _after_ we have destroyed all buffer-cache
--			 * references to it. Otherwise some other process
--			 * might think this inode page is not in the
--			 * page cache and creates a buffer-cache alias
--			 * to it causing all sorts of fun problems ...
--			 */
--			remove_inode_page(page);
-+			if (partial && (offset + 1) == start) {
-+				truncate_partial_page(page, partial);
-+				partial = 0;
-+			} else 
-+				truncate_complete_page(page);
- 
- 			UnlockPage(page);
- 			page_cache_release(page);
--			page_cache_release(page);
- 
- 			/*
- 			 * We have done things without the pagecache lock,
-@@ -209,37 +230,6 @@
- 			 */
- 			goto repeat;
- 		}
--		/*
--		 * there is only one partial page possible.
--		 */
--		if (!partial)
--			continue;
--
--		/* and it's the one preceeding the first wholly truncated page */
--		if ((offset + 1) != start)
--			continue;
--
--		/* partial truncate, clear end of page */
--		if (TryLockPage(page)) {
--			spin_unlock(&pagecache_lock);
--			goto repeat;
--		}
--		page_cache_get(page);
--		spin_unlock(&pagecache_lock);
--
--		memclear_highpage_flush(page, partial, PAGE_CACHE_SIZE-partial);
--		if (page->buffers)
--			block_flushpage(page, partial);
--
--		partial = 0;
--
--		/*
--		 * we have dropped the spinlock so we have to
--		 * restart.
--		 */
--		UnlockPage(page);
--		page_cache_release(page);
--		goto repeat;
+ 	spin_lock(&inode_lock);
+@@ -440,11 +439,10 @@
+ 		INIT_LIST_HEAD(&inode->i_hash);
+ 		list_add(tmp, freeable);
+ 		inode->i_state |= I_FREEING;
+-		count++;
+-		if (!--goal)
++		inodes_stat.nr_unused--;
++		if (!--count)
+ 			break;
  	}
- 	spin_unlock(&pagecache_lock);
- }
+-	inodes_stat.nr_unused -= count;
+ 	spin_unlock(&inode_lock);
+ 
+ 	dispose_list(freeable);
+@@ -452,10 +450,7 @@
+ 
+ int shrink_icache_memory(int priority, int gfp_mask)
+ {
+-	int count = 0;
+-		
+-	if (priority)
+-		count = inodes_stat.nr_unused / priority;
++	int count = inodes_stat.nr_unused / (priority + 1);
+ 	prune_icache(count);
+ 	/* FIXME: kmem_cache_shrink here should tell us
+ 	   the number of pages freed, and it should
+
+
+
+
+
+
+
 
 
 -- 
