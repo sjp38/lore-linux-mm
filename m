@@ -1,77 +1,55 @@
-Message-ID: <3D2B7DF7.9528F0@zip.com.au>
-Date: Tue, 09 Jul 2002 17:21:11 -0700
-From: Andrew Morton <akpm@zip.com.au>
-MIME-Version: 1.0
-Subject: Re: [PATCH] Optimize out pte_chain take two
-References: <59590000.1026241454@baldur.austin.ibm.com>
+Date: Wed, 10 Jul 2002 03:22:08 +0100
+From: John Levon <movement@marcelothewonderpenguin.com>
+Subject: Re: Enhanced profiling support (was Re: vm lock contention reduction)
+Message-ID: <20020710022208.GA56823@compsoc.man.ac.uk>
+References: <Pine.LNX.4.44.0207081039390.2921-100000@home.transmeta.com> <3D29DCBC.5ADB7BE8@opersys.com>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+In-Reply-To: <3D29DCBC.5ADB7BE8@opersys.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave McCracken <dmccr@us.ibm.com>
-Cc: Linux Memory Management <linux-mm@kvack.org>
+To: Karim Yaghmour <karim@opersys.com>
+Cc: Linus Torvalds <torvalds@transmeta.com>, Andrew Morton <akpm@zip.com.au>, Andrea Arcangeli <andrea@suse.de>, Rik van Riel <riel@conectiva.com.br>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "Martin J. Bligh" <Martin.Bligh@us.ibm.com>, linux-kernel@vger.kernel.org, Richard Moore <richardj_moore@uk.ibm.com>, bob <bob@watson.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-Dave McCracken wrote:
-> 
-> Here's a version of my pte_chain removal patch that does not use anonymous
-> unions, so it'll compile with gcc 2.95.  Once again, it's based on Rik's
-> rmap-2.5.25-akpmtested.
+On Mon, Jul 08, 2002 at 02:41:00PM -0400, Karim Yaghmour wrote:
 
-Seems sane and simple, thanks.
+> dentry + offset: on a 32bit machine, this is 8 bytes total per event being
+> profiled. This is a lot of information if you are trying you have a high
+> volume throughput.
 
-This bit is icky:
+I haven't found that to be significant in profiling overhead, mainly
+because the hash table removes some of the "sting" of high sampling
+rates (and the interrupt handler dwarfs all other aspects). The
+situation is probably different for more general tracing purposes, but
+I'm dubious as to the utility of a general tracing mechanism.
 
-+       union {
-+               struct pte_chain * _pte_chain;  /* Reverse pte mapping pointer.
-                                         * protected by PG_chainlock */
-+               pte_t            * _pte_direct;
-+       } _pte_union;
-...
-+
-+#define        pte__chain      _pte_union._pte_chain
-+#define        pte_direct      _pte_union._pte_direct
+(besides, a profile buffer needs a sample context value too, for things
+like CPU number and perfctr event number).
 
+> You can almost always skip the dentry since you know scheduling
+> changes and since you can catch a system-state snapshot at the begining of
+> the profiling. After that, the eip is sufficient and can easily be correlated
+> to a meaningfull entry in a file in user-space.
 
-You could instead make it just a void * and have:
+But as I point out in my other post, dentry-offset alone is not as
+useful as it could be...
 
-static inline struct pte_chain *page_pte_chain(struct page *page)
-{
-#ifdef DEBUG_RMAP
-	BUG_ON(PageDirect(page));
-#endif
-	return page->rmap_thingy;
-}
+I just don't see a really good reason to introduce insidious tracing
+throughout. Both tracing and profiling are ugly ugly things to be doing
+by their very nature, and I'd much prefer to keep such intrusions to a
+bare minimum.
 
-static inline pte_t *page_pte_direct(struct page *page)
-{
-#ifdef DEBUG_RMAP
-	BUG_ON(!PageDirect(page));
-#endif
-	return page->rmap_thingy;
-}
+The entry.S examine-the-registers approach is simple enough, but it's
+not much more tasteful than sys_call_table hackery IMHO
 
-static inline void
-set_page_pte_chain(struct page *page, struct pte_chain *pte_chain)
-{
-#ifdef DEBUG_RMAP
-	BUG_ON(PageDirect(page));
-#endif
-	page->rmap_thingy = pte_chain;
-}
+regards
+john
 
-static inline void
-set_page_pte_direct(struct page *page, pte_t *ptep)
-{
-#ifdef DEBUG_RMAP
-	BUG_ON(!PageDirect(page));
-#endif
-	page->rmap_thingy = ptep;
-}
-
-I think it's neater.  But then, I'm a convicted C++ weenie.
-
--
+-- 
+"I know I believe in nothing but it is my nothing"
+	- Manic Street Preachers
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
