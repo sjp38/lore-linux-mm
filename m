@@ -1,65 +1,38 @@
-Received: from m5.gw.fujitsu.co.jp ([10.0.50.75]) by fgwmail6.fujitsu.co.jp (8.12.10/Fujitsu Gateway)
-	id i7L5WowH003653 for <linux-mm@kvack.org>; Sat, 21 Aug 2004 14:32:50 +0900
-	(envelope-from kamezawa.hiroyu@jp.fujitsu.com)
-Received: from s3.gw.fujitsu.co.jp by m5.gw.fujitsu.co.jp (8.12.10/Fujitsu Domain Master)
-	id i7L5WomZ013710 for <linux-mm@kvack.org>; Sat, 21 Aug 2004 14:32:50 +0900
-	(envelope-from kamezawa.hiroyu@jp.fujitsu.com)
-Received: from fjmail506.fjmail.jp.fujitsu.com (fjmail506-0.fjmail.jp.fujitsu.com [10.59.80.106]) by s3.gw.fujitsu.co.jp (8.12.10)
-	id i7L5WnkO025932 for <linux-mm@kvack.org>; Sat, 21 Aug 2004 14:32:49 +0900
-	(envelope-from kamezawa.hiroyu@jp.fujitsu.com)
-Received: from jp.fujitsu.com
- (fjscan502-0.fjmail.jp.fujitsu.com [10.59.80.122]) by
- fjmail506.fjmail.jp.fujitsu.com
- (Sun Internet Mail Server sims.4.0.2001.07.26.11.50.p9)
- with ESMTP id <0I2S0094F7EOBA@fjmail506.fjmail.jp.fujitsu.com> for
- linux-mm@kvack.org; Sat, 21 Aug 2004 14:32:49 +0900 (JST)
-Date: Sat, 21 Aug 2004 14:37:56 +0900
-From: Hiroyuki KAMEZAWA <kamezawa.hiroyu@jp.fujitsu.com>
+Date: Fri, 20 Aug 2004 22:37:35 -0700
+From: William Lee Irwin III <wli@holomorphy.com>
 Subject: Re: [Lhms-devel] Re: [RFC] free_area[] bitmap elimination [0/3]
-In-reply-to: <20040821052116.GU11200@holomorphy.com>
-Message-id: <4126DFB4.7070404@jp.fujitsu.com>
-MIME-version: 1.0
-Content-type: text/plain; charset=us-ascii; format=flowed
-Content-transfer-encoding: 7bit
-References: <4126B3F9.90706@jp.fujitsu.com>
- <20040821025543.GS11200@holomorphy.com>
- <20040821.135624.74737461.taka@valinux.co.jp>
- <20040821052116.GU11200@holomorphy.com>
+Message-ID: <20040821053735.GV11200@holomorphy.com>
+References: <4126B3F9.90706@jp.fujitsu.com> <20040821025543.GS11200@holomorphy.com> <20040821.135624.74737461.taka@valinux.co.jp> <20040821052116.GU11200@holomorphy.com> <4126DFB4.7070404@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4126DFB4.7070404@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: William Lee Irwin III <wli@holomorphy.com>
+To: Hiroyuki KAMEZAWA <kamezawa.hiroyu@jp.fujitsu.com>
 Cc: Hirokazu Takahashi <taka@valinux.co.jp>, linux-mm@kvack.org, lhms-devel@lists.sourceforge.net
 List-ID: <linux-mm.kvack.org>
 
 William Lee Irwin III wrote:
+>> In __free_pages_bulk() changing BUG_ON(bad_range(zone, buddy1)) to
+>> if (bad_range(zone, buddy1)) break; should fix this. The start of
+>> the zone must be aligned to MAX_ORDER so buddy2 doesn't need checks.
+>> It may be worthwhile to make a distinction the bounds checks and the
+>> zone check and to BUG_ON() the zone check in isolation and not repeat
+>> the bounds check for the validity check.
 
-> On Sat, Aug 21, 2004 at 01:56:24PM +0900, Hirokazu Takahashi wrote:
-> 
->>I also impressed by your patch.
->>In my understanding, the patch assumes that size of mem_map[] in each
->>zone must be multiple of 2^MAX_ORDER, right?
->>But it doesn't seem it's a big problem, as we can just allocate extra
->>mem_map[] to round up if it isn't.
-> 
-> 
-> In __free_pages_bulk() changing BUG_ON(bad_range(zone, buddy1)) to
-> if (bad_range(zone, buddy1)) break; should fix this. The start of
-> the zone must be aligned to MAX_ORDER so buddy2 doesn't need checks.
-> It may be worthwhile to make a distinction the bounds checks and the
-> zone check and to BUG_ON() the zone check in isolation and not repeat
-> the bounds check for the validity check.
-> 
-> 
-Okay, I understand several BUG_ON() are needless.
-I'll be more carefull to recognize what is checked.
+On Sat, Aug 21, 2004 at 02:37:56PM +0900, Hiroyuki KAMEZAWA wrote:
+> Okay, I understand several BUG_ON() are needless.
+> I'll be more carefull to recognize what is checked.
 
-Thank you.
-KAME
+It's not that it's needless, it's that beforehand the bitmap rounding
+up to an even number ensured the __test_and_change_bit() check would
+prevent the bounds check from ever failing, but after the bitmap is
+eliminated, the bounds check is needed to see if we're even examining
+a valid page structure for whether the page can be merged.
 
--- 
---the clue is these footmarks leading to the door.--
-KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
+-- wli
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
