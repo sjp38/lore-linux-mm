@@ -1,56 +1,79 @@
-Date: Wed, 10 Jul 2002 10:32:54 -0700
-From: William Lee Irwin III <wli@holomorphy.com>
-Subject: Re: [PATCH] Optimize out pte_chain take three
-Message-ID: <20020710173254.GS25360@holomorphy.com>
-References: <20810000.1026311617@baldur.austin.ibm.com> <Pine.LNX.4.44L.0207101213480.14432-100000@imladris.surriel.com>
+Date: Wed, 10 Jul 2002 19:35:45 +0200
+From: Sebastian Droege <sebastian.droege@gmx.de>
+Subject: Re: [PATCH][RFT](2) minimal rmap for 2.5 - akpm tested
+Message-Id: <20020710193545.272bedab.sebastian.droege@gmx.de>
+In-Reply-To: <Pine.LNX.4.44L.0207060228460.8346-100000@imladris.surriel.com>
+References: <Pine.LNX.4.44L.0207060228460.8346-100000@imladris.surriel.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Description: brief message
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.44L.0207101213480.14432-100000@imladris.surriel.com>
+Content-Type: multipart/signed; protocol="application/pgp-signature";
+ boundary="=.fQxYHH?+b_SyGa"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Rik van Riel <riel@conectiva.com.br>
-Cc: Dave McCracken <dmccr@us.ibm.com>, Linux Memory Management <linux-mm@kvack.org>
+Cc: linux-kernel@vger.kernel.org, akpm@zip.com.au, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jul 10, 2002 at 12:18:12PM -0300, Rik van Riel wrote:
-> I like it.  This patch seems ready for merging, as soon as
-> we've gotten rmap in.
-> Speaking of getting rmap in ... we might need some arguments
-> to get this thing past Linus, anyone ? ;)
+--=.fQxYHH?+b_SyGa
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 
-In no particular order:
+On Sat, 6 Jul 2002 02:31:38 -0300 (BRT)
+Rik van Riel <riel@conectiva.com.br> wrote:
 
-(1)  page replacement no longer goes around randomly unmapping things
-(2)  referenced bits are more accurate because there aren't several ms
-	or even seconds between find the multiple pte's mapping a page
-(3)  reduces page replacement from O(total virtually mapped) to O(physical)
-(4)  enables defragmentation of physical memory
-(5)  enables cooperative offlining of memory for friendly guest instance
-	behavior in UML and/or LPAR settings
-(6)  demonstrable benefit in performance of swapping which is common in
-	end-user interactive workstation workloads (I don't like the word
-	"desktop"). c.f. Craig Kulesa's post wrt. swapping performance
-(7)  evidence from 2.4-based rmap trees indicates approximate parity
-	with mainline in kernel compiles with appropriate locking bits
-(8)  partitioning of physical memory can reduce the complexity of page
-	replacement searches by scanning only the "interesting" zones
-	implemented and merged in 2.4-based rmap
-(9)  partitioning of physical memory can increase the parallelism of page
-	replacement searches by independently processing different zones
-	implemented, but not merged in 2.4-based rmap
-(10) the reverse mappings may be used for efficiently keeping pte cache
-	attributes coherent
-(11) they may be used for virtual cache invalidation (with changes)
-(12) the reverse mappings enable proper RSS limit enforcement
-	implemented and merged in 2.4-based rmap
+> Hi,
+> 
+> Almost the same patch as before, except this one has had
+> a few hours of testing by Andrew Morton and two bugs have
+> been ironed out, most notably the truncate_complete_page()
+> race.  This patch is probably safe since Andrew got bored
+> when no new bugs showed up ...
+> 
+> If you have some time left this weekend and feel brave,
+> please test the patch which can be found at:
+> 
+> 	http://surriel.com/patches/2.5/2.5.25-rmap-akpmtested
+> 
+> This patch is based on Craig Kulesa's minimal rmap patch
+> for 2.5.24, with a few changes:
+> - removed a few unrelated changes
+> - updated armv/rmap.h for new pagetable layout of linux/arm
+> - dropped per-zone pte_chain freelists, we want to make per-cpu
+>   ones for SMP scalability
+> - ported to 2.5.25 (PF_NOWARN instead of PF_RADIX_TREE)
+> - drop spelling and whitespace fixes (should be merged separately)
+> - fix truncate_complete_page race condition (akpm)
+> 
+> It should be mostly ready for being integrated into the 2.5 tree,
+> with the note that pte-highmem support still needs to be implemented
+> (some IBMers have been volunteered for this task, this functionality
+> can easily be added afterwards).
+> 
+> Right now this patch needs testing and careful scrutiny. If you can
+> find anything wrong with it, please let me know.
+> 
+> kind regards,
+> 
+> Rik
+Hi,
+after running your patch some time I have to say that the old VM implementation and the full rmap patch (by Craig Kulesa) was better.
+The system becomes very slow and has to swap in too much after some uptime (4 hours - 2 days) and memory intensive tasks...
+Maybe this happens only to me but it's fully reproducable
+If you need some more informations just ask
 
-Hmm, anything else?
+Bye
+--=.fQxYHH?+b_SyGa
+Content-Type: application/pgp-signature
 
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.0.7 (GNU/Linux)
 
-Cheers,
-Bill
+iD8DBQE9LHB1e9FFpVVDScsRAqYQAKDD5esAvWHe7O6iLlFLkicwO8tmhwCg3xIu
+tp8vedDfBrmW+ZfWguZRwYo=
+=HQ7s
+-----END PGP SIGNATURE-----
+
+--=.fQxYHH?+b_SyGa--
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
