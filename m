@@ -1,37 +1,35 @@
 Received: from dukat.scot.redhat.com (sct@dukat.scot.redhat.com [195.89.149.246])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id RAA17513
-	for <linux-mm@kvack.org>; Tue, 6 Apr 1999 17:11:38 -0400
+	by kvack.org (8.8.7/8.8.7) with ESMTP id RAA17762
+	for <linux-mm@kvack.org>; Tue, 6 Apr 1999 17:22:51 -0400
 From: "Stephen C. Tweedie" <sct@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
-Message-ID: <14090.30842.367364.230774@dukat.scot.redhat.com>
-Date: Tue, 6 Apr 1999 22:11:22 +0100 (BST)
+Message-ID: <14090.31508.740918.361855@dukat.scot.redhat.com>
+Date: Tue, 6 Apr 1999 22:22:28 +0100 (BST)
 Subject: Re: [patch] arca-vm-2.2.5
-In-Reply-To: <Pine.BSF.4.03.9904061644370.3406-100000@funky.monkey.org>
+In-Reply-To: <Pine.LNX.4.05.9904061934380.1017-100000@laser.random>
 References: <Pine.LNX.4.05.9904061831340.394-100000@laser.random>
-	<Pine.BSF.4.03.9904061644370.3406-100000@funky.monkey.org>
+	<Pine.LNX.4.05.9904061934380.1017-100000@laser.random>
 Sender: owner-linux-mm@kvack.org
-To: Chuck Lever <cel@monkey.org>
-Cc: Andrea Arcangeli <andrea@e-mind.com>, "Stephen C. Tweedie" <sct@redhat.com>, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
+To: Andrea Arcangeli <andrea@e-mind.com>
+Cc: Chuck Lever <cel@monkey.org>, "Stephen C. Tweedie" <sct@redhat.com>, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 Hi,
 
-On Tue, 6 Apr 1999 16:47:23 -0400 (EDT), Chuck Lever <cel@monkey.org>
-said:
+On Tue, 6 Apr 1999 20:07:57 +0200 (CEST), Andrea Arcangeli
+<andrea@e-mind.com> said:
 
->> but I was just assuming that the offset is always page-aligned.
->> I could write a simulation to check the hash function...
+> I was looking at the inode pointer part of the hash function and I think
+> something like this should be better.
 
-> i didn't realize that the "offset" argument would always be page-aligned.
-> but still, why does it help to add the unshifted "offset"?  doesn't seem
-> like there's any new information in that.
+> -#define i (((unsigned long) inode)/(sizeof(struct inode) & ~ (sizeof(struct inode) - 1)))
+> +#define i (((unsigned long) inode-PAGE_OFFSET)/(sizeof(struct inode) & ~ (sizeof(struct inode) - 1)))
 
-It is always aligned for the page cache (hence mixing in the lower bits
-to the hash function shouldn't change anything), but the swap cache uses
-the lower bits extensively, concentrating the swap cache into just a few
-hash buckets unless we make this change.
+This just ends up adding or subtracting a constant to the hash function,
+so won't have any effect at all on the occupancy distribution of the
+hash buckets.
 
 --Stephen
 --
