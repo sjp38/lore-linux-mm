@@ -1,58 +1,58 @@
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Message-ID: <16899.2175.599702.827882@cargo.ozlabs.ibm.com>
-Date: Fri, 4 Feb 2005 16:30:39 +1100
-From: Paul Mackerras <paulus@samba.org>
+Date: Thu, 3 Feb 2005 22:26:07 -0800 (PST)
+From: Christoph Lameter <clameter@sgi.com>
 Subject: Re: A scrub daemon (prezeroing)
-In-Reply-To: <Pine.LNX.4.58.0502031650590.26551@schroedinger.engr.sgi.com>
+In-Reply-To: <16899.2175.599702.827882@cargo.ozlabs.ibm.com>
+Message-ID: <Pine.LNX.4.58.0502032220430.28851@schroedinger.engr.sgi.com>
 References: <Pine.LNX.4.58.0501211228430.26068@schroedinger.engr.sgi.com>
-	<1106828124.19262.45.camel@hades.cambridge.redhat.com>
-	<20050202153256.GA19615@logos.cnet>
-	<Pine.LNX.4.58.0502021103410.12695@schroedinger.engr.sgi.com>
-	<20050202163110.GB23132@logos.cnet>
-	<Pine.LNX.4.61.0502022204140.2678@chimarrao.boston.redhat.com>
-	<16898.46622.108835.631425@cargo.ozlabs.ibm.com>
-	<Pine.LNX.4.58.0502031650590.26551@schroedinger.engr.sgi.com>
+ <1106828124.19262.45.camel@hades.cambridge.redhat.com> <20050202153256.GA19615@logos.cnet>
+ <Pine.LNX.4.58.0502021103410.12695@schroedinger.engr.sgi.com>
+ <20050202163110.GB23132@logos.cnet> <Pine.LNX.4.61.0502022204140.2678@chimarrao.boston.redhat.com>
+ <16898.46622.108835.631425@cargo.ozlabs.ibm.com>
+ <Pine.LNX.4.58.0502031650590.26551@schroedinger.engr.sgi.com>
+ <16899.2175.599702.827882@cargo.ozlabs.ibm.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
+To: Paul Mackerras <paulus@samba.org>
 Cc: Rik van Riel <riel@redhat.com>, Marcelo Tosatti <marcelo.tosatti@cyclades.com>, David Woodhouse <dwmw2@infradead.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@osdl.org
 List-ID: <linux-mm.kvack.org>
 
-Christoph Lameter writes:
+On Fri, 4 Feb 2005, Paul Mackerras wrote:
 
-> You need to think about this in a different way. Prezeroing only makes
-> sense if it can avoid using cache lines that the zeroing in the
-> hot paths would have to use since it touches all cachelines on
-> the page (the ppc instruction is certainly nice and avoids a cacheline
-> read but it still uses a cacheline!). The zeroing in itself (within the
+> The dcbz instruction on the G5 (PPC970) establishes the new cache line
+> in the L2 cache and doesn't disturb the L1 cache (except to invalidate
+> the line in the L1 data cache if it is present there).  The L2 cache
+> is 512kB and 8-way set associative (LRU).  So zeroing a page is
+> unlikely to disturb the cache lines that the page fault handler is
+> using.  Then, when the page fault handler returns to the user program,
+> any cache lines that the program wants to touch are available in 12
+> cycles (L2 hit latency) instead of 200 - 300 (memory access latency).
 
-The dcbz instruction on the G5 (PPC970) establishes the new cache line
-in the L2 cache and doesn't disturb the L1 cache (except to invalidate
-the line in the L1 data cache if it is present there).  The L2 cache
-is 512kB and 8-way set associative (LRU).  So zeroing a page is
-unlikely to disturb the cache lines that the page fault handler is
-using.  Then, when the page fault handler returns to the user program,
-any cache lines that the program wants to touch are available in 12
-cycles (L2 hit latency) instead of 200 - 300 (memory access latency).
+If the program does not use these cache lines then you have wasted time
+in the page fault handler allocating and handling them. That is what
+prezeroing does for you.
 
-> cpu caches) is extraordinarily fast and the zeroing of large portions of
-> memory is so too. That is why the impact of scrubd is negligible since
-> its extremely fast.
+> > cpu caches) is extraordinarily fast and the zeroing of large portions of
+> > memory is so too. That is why the impact of scrubd is negligible since
+> > its extremely fast.
+>
+> But that also disturbs cache lines that may well otherwise be useful.
 
-But that also disturbs cache lines that may well otherwise be useful.
+Yes but its a short burst that only occurs very infrequestly and it takes
+advantage of all the optimizations that modern memory subsystems have for
+linear accesses. And if hardware exists that can offload that from the cpu
+then the cpu caches are only minimally affected.
 
-> The point is to save activating cachelines not the time zeroing in itself
-> takes. This only works if only parts of the page are needed immediately
-> after the page fault. All of that has been documented in earlier posts on
-> the subject.
+> As has my scepticism about pre-zeroing actually providing any benefit
+> on ppc64.  Nevertheless, the only definitive answer is to actually
+> measure the performance both ways.
 
-As has my scepticism about pre-zeroing actually providing any benefit
-on ppc64.  Nevertheless, the only definitive answer is to actually
-measure the performance both ways.
-
-Paul.
+Of course. The optimization depends on the type of load. If you use a
+benchmark that writes to all pages in a page then you will see no benefit
+at all. For a kernel compile you will see a slight benefit. For processing
+of a sparse matrix (page tables are one example) a significant benefit can
+be obtained.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
