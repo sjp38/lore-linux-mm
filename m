@@ -1,31 +1,36 @@
-Received: from flinx.npwt.net (eric@flinx.npwt.net [208.236.161.237])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id RAA28459
-	for <linux-mm@kvack.org>; Thu, 25 Jun 1998 17:11:58 -0400
-Subject: Re: glibc and kernel update
-References: <Pine.LNX.3.96.980625155639.31988C-100000@mirkwood.dummy.home>
-	<m1g1gt4h7r.fsf@flinx.npwt.net>
-From: ebiederm+eric@npwt.net (Eric W. Biederman)
-Date: 25 Jun 1998 16:25:49 -0500
-In-Reply-To: ebiederm+eric@npwt.net's message of 25 Jun 1998 10:46:32 -0500
-Message-ID: <m1sokt2mxu.fsf@flinx.npwt.net>
+Received: from caffeine.ix.net.nz (caffeine.ix.net.nz [203.97.100.28])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id RAA28563
+	for <linux-mm@kvack.org>; Thu, 25 Jun 1998 17:25:52 -0400
+Message-ID: <19980626092430.C2759@caffeine.ix.net.nz>
+Date: Fri, 26 Jun 1998 09:24:30 +1200
+From: Chris Wedgwood <chris@cybernet.co.nz>
+Subject: Re: Thread implementations...
+References: <m1u35a4fz8.fsf@flinx.npwt.net> <Pine.LNX.3.96dg4.980624210745.18727h-100000@twinlark.arctic.org> <199806250353.NAA17617@vindaloo.atnf.CSIRO.AU> <199806251132.MAA00848@dax.dcs.ed.ac.uk>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+In-Reply-To: <199806251132.MAA00848@dax.dcs.ed.ac.uk>; from Stephen C. Tweedie on Thu, Jun 25, 1998 at 12:32:35PM +0100
 Sender: owner-linux-mm@kvack.org
-To: Rik van Riel <H.H.vanRiel@phys.uu.nl>
-Cc: Linux MM <linux-mm@kvack.org>
+To: "Stephen C. Tweedie" <sct@dcs.ed.ac.uk>, Richard Gooch <Richard.Gooch@atnf.CSIRO.AU>
+Cc: Dean Gaudet <dgaudet-list-linux-kernel@arctic.org>, "Eric W. Biederman" <ebiederm+eric@npwt.net>, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
->>>>> "EB" == Eric W Biederman <ebiederm> writes:
+> Not necessarily; we may be able to detect a lot of the relevant access
+> patterns ourselves.  Ingo has had a swap prediction algorithm for a
+> while, and we talked at Usenix about a number of other things we can do
+> to tune vm performance automatically.  2.3 ought to be a great deal
+> better.  madvise() may still have merit, but we really ought to be
+> aiming at making the vm system as self-tuning as possible.
 
->>>>> "RR" == Rik van Riel <H.H.vanRiel@phys.uu.nl> writes:
-RR> Hi,
-RR> I still haven't resolved the problems between glibc, the
-RR> 2.1 kernel series and pppd :(
+madvise(2) will _always_ have some uses.
 
-EB> Just what problem are you having?
+Large database applications and stuff can know in advance how to tune mmap
+regions and stuff. The kernel will always be second guessing here, and
+making sub optimal decisions, whereas the application can and probably does
+know better.
 
-EB> I just got 2.3.5 to compile with glibc, but I haven't had a chance to
-EB> test it yet..
+The same argument also applies to raw devices (but lets not start that
+thread again).
 
-Just tested it on 2.0 but compiled with 2.1.101 headers, and glibc.
-I don't see any problems.  Explain your problem or start writing code :)
 
-Eric
+
+-Chris
