@@ -1,8 +1,8 @@
-Date: Wed, 22 Mar 2000 11:24:51 -0500 (EST)
+Date: Wed, 22 Mar 2000 12:04:58 -0500 (EST)
 From: Chuck Lever <cel@monkey.org>
-Subject: Re: madvise (MADV_FREE)
-In-Reply-To: <20000321022053.A4271@pcep-jamie.cern.ch>
-Message-ID: <Pine.BSO.4.10.10003221106150.16476-100000@funky.monkey.org>
+Subject: Re: MADV_DONTNEED
+In-Reply-To: <20000321022937.B4271@pcep-jamie.cern.ch>
+Message-ID: <Pine.BSO.4.10.10003221125170.16476-100000@funky.monkey.org>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -13,65 +13,87 @@ List-ID: <linux-mm.kvack.org>
 
 hi jamie-
 
-ok, i think i'm getting a more clear picture of what you are thinking.
-
 On Tue, 21 Mar 2000, Jamie Lokier wrote:
-> > >    The principle here is very simple: MADV_FREE marks all the pages in
-> > >    the region as "discardable", and clears the accessed and dirty bits
-> > >    of those pages.
-> > > 
-> > >    Later when the kernel needs to free some memory, it is permitted to
-> > >    free "discardable" pages immediately provided they are still not
-> > >    accessed or dirty.  When vmscan is clearing the accessed and dirty
-> > >    bits on pages, if they were set it must clear the " discardable" bit.
-> > > 
-> > >    This allows malloc() and other user space allocators to free pages
-> > >    back to the system.  Unlike DU's MADV_DONTNEED, or mmapping
-> > >    /dev/zero, if the system does not need the page there is no
-> > >    inefficient zero-copy.  If there was, malloc() would be better off
-> > >    not bothering to return the pages.
+> > > In particular, using the name MADV_DONTNEED is a really bad idea.  It
+> > > means completely different things on different OSes.  For example your
+> > > meaning of MADV_DONTNEED is different to BSD's: a program that assumes
+> > > the BSD behaviour may well crash with your implementation and will
+> > > almost certainly give invalid results if it doesn't crash.
 > > 
-> > unless i've completely misunderstood what you are proposing, this is what
-> > MADV_DONTNEED does today,
+> > i'm more concerned about portability from operating systems like Solaris,
+> > because there are many more server applications there than on *BSD that
+> > have been designed to use these interfaces.
+> ...
+> > my preference is for the DU semantic of tossing dirty data instead of
+> > flushing onto backing store, simply because that's what so many
+> > applications expect DONTNEED to do.
 > 
-> No, your MADV_DONTNEED _always_ discards the data in those pages.  That
-> makes it too inefficient for application memory allocators, because they
-> will often want to reuse some of the pages soon after.  You don't want
-> redundant page zeroing, and you don't want to give up memory which is
-> still nice and warm in the CPU's cache.  Unless the kernel has a better
-> use for it than you.
+> That's interesting.  When I saw MADV_DONTNEED, I immediately assumed it
+> was the natural counterpoint to MADV_WILLNEED.
+
+yes, i did too.  but i realized later that "will" is *not* the opposite of
+"dont".
+
+> Useful even for
+> sequential accesses, to say "my streaming window has moved beyond this
+> point".  Do you agree that a counterpoint to MADV_WILLNEED is useful?
+
+if you look at the implementation of nopage_sequential_readahead, you'll
+see that it doesn't use MADV_DONTNEED, but the internal implementation of
+msync(MS_INVALIDATE).  i'm not completely confident in this
+implementation, but my intent was to release behind, not discard data.
+so, yes, a counterpoint to WILLNEED is a good idea.  perhaps that *was*
+the original intent of MADV_DONTNEED, but i don't see any documentation
+that ties WILLNEED and DONTNEED together, semantically.
+
+> > i'm not saying the *BSD way is wrong, but i think it would be a more
+> > useful compromise to make *BSD functionality available via some other
+> > interface (like MADV_ZERO).
 > 
-> MADV_FREE on the other hand simply permits the kernel to reclaim those
-> pages, if it is under memory pressure.
+> You got it the wrong way around.  MADV_ZERO is more like what your
+> implementation of MADV_DONTNEED does.  The BSD behaviour is nothing like
+> MADV_ZERO.  BSD simply means "increment the paging priority" -- the
+> page contents are unchanged.
 > 
-> If there is no pressure, the pages are reused by the application
-> unchanged.  In this way different subsystems competing for memory get to
-> share it out -- essentially the fairness mechanisms in the kernel are
-> extending to application page management.  And the application hardly
-> knows a think about it.
+> BSD's behaviour is the obvious counterpoint to MADV_WILLNEED afaict.
 
-ok, so you're asking for a lite(TM) version of DONTNEED that provides the
-following hint to the kernel: "i may be finished with this page, but i may
-also want to reuse it immediately."
+it is, but it's not the behavior that most applications expect.  i'd like
+to have something like this, but it should probably be named MADV_FREE, or
+how about MADV_WONTNEED ? :)
 
-memory allocation studies i've read show that dynamically allocated memory
-objects are often re-used immediately after they are freed.  even if the
-memory is being freed just before a process exits, it will be recycled
-immediately by the kernel, so why use MADV_FREE if you are about to
-munmap() it anyway?  finally, as you point out, the heap is generally too
-fragmented to return page-sized chunks of it to the kernel, especially if
-you consider that glibc uses *multiple* subheaps to reduce lock contention
-in multithreaded applications.  it seems to me that normal page aging will
-adequately identify these pages and flush them out.
+so we agree that both behaviors might be useful to expose to an
+application.  the only question is what to name them.
 
-if the application needs to recycle areas of a virtual address space
-immediately, why should the kernel be involved at all?  i think even doing
-an MADV_FREE during arbitrary free() operations would be more overhead
-then you really want. in other words, i don't think free() as it exists
-today harms performance in the ways you describe.
+function 1 (could be MADV_DISCARD; currently MADV_DONTNEED):
+  discard pages.  if they are referenced again, the process causes page
+  faults to read original data (zero page for anonymous maps).
 
-thus, either the application keeps the memory, or it is really completely
-finished with it -- MADV_DONTNEED.
+function 2 (could be MADV_FREE; currently msync(MS_INVALIDATE)):
+  release pages, syncing dirty data.  if they are referenced again, the
+  process causes page faults to read in latest data.
+
+function 3 (could be MADV_ZERO):
+  discard pages.  if they are referenced again, the process sees C-O-W 
+  zeroed pages.
+
+function 4 (for comparison; currently munmap):
+  release pages, syncing dirty data.  if they are referenced again, the
+  process causes invalid memory access faults.
+
+i'm interested to hear what big database folks have to say about this.
+
+> By the way, Linux MADV_DONTNEED does some of the things
+> msync(MS_INVALIDATE) does but not others (in the implementation --
+> ignore the man page).
+> 
+> Can you explain how the two things differ?  I.e., why does MS_INVALIDATE
+> fiddle with swap cache pages.  Does this indicate a bug in your
+> MADV_DONTNEED implementation?
+
+for MADV_DONTNEED, i re-used code.  i'm not convinced that it's correct,
+though, as i stated when i submitted the patch.  it may abandon swap cache
+pages, and there may be some undefined interaction between file truncation
+and MADV_DONTNEED.
 
 	- Chuck Lever
 --
