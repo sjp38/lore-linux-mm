@@ -1,37 +1,44 @@
-Date: Thu, 26 Sep 2002 06:17:40 -0700
-From: William Lee Irwin III <wli@holomorphy.com>
+Date: Thu, 26 Sep 2002 09:29:36 -0400 (EDT)
+From: Zwane Mwaikambo <zwane@linuxpower.ca>
 Subject: Re: 2.5.38-mm3
-Message-ID: <20020926131740.GP3530@holomorphy.com>
-References: <3D92BE07.B6CDFE54@digeo.com> <20020926175445.B18906@in.ibm.com> <20020926122909.GN3530@holomorphy.com> <20020926181052.C18906@in.ibm.com> <20020926124244.GO3530@holomorphy.com> <20020926183558.D18906@in.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Description: brief message
-Content-Disposition: inline
-In-Reply-To: <20020926183558.D18906@in.ibm.com>
+In-Reply-To: <20020926124244.GO3530@holomorphy.com>
+Message-ID: <Pine.LNX.4.44.0209260926480.1819-100000@montezuma.mastecende.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dipankar Sarma <dipankar@in.ibm.com>
-Cc: Andrew Morton <akpm@digeo.com>, lkml <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: William Lee Irwin III <wli@holomorphy.com>
+Cc: Dipankar Sarma <dipankar@in.ibm.com>, Andrew Morton <akpm@digeo.com>, lkml <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Sep 26, 2002 at 05:42:44AM -0700, William Lee Irwin III wrote:
->> This is only aggravated by cacheline bouncing on SMP. The reductions
->> of system cpu time will doubtless be beneficial for all.
+On Thu, 26 Sep 2002, William Lee Irwin III wrote:
 
-On Thu, Sep 26, 2002 at 06:35:58PM +0530, Dipankar Sarma wrote:
-> On SMP, I would have thought that only sharing the fd table
-> while cloning tasks (CLONE_FILES) affects performance by bouncing the rwlock
-> cache line. Are there a lot of common workloads where this happens ?
-> Anyway the files_struct_rcu patch for 2.5.38 is up at
-> http://sourceforge.net/project/showfiles.php?group_id=8875&release_id=112473
+> In my experience fget() is large even on UP kernels. For instance, a UP
+> profile from a long-running interactive load UP box (my home machine):
 
-It looks very unusual, but it is very real. Some of my prior profile
-results show this. I'll run a before/after profile with this either
-tonight or tomorrow night (it's 6:06AM PST here -- tonight is unlikely).
+I can affirmative that;
 
+6124639 total                                      4.1414
+4883005 default_idle                             101729.2708
+380218 ata_input_data                           1697.4018
+242647 ata_output_data                          1083.2455
+ 35989 do_select                                 60.7922
+ 34931 unix_poll                                218.3187
+ 33561 schedule                                  52.4391
+ 29823 do_softirq                               155.3281
+ 27021 fget                                     422.2031
+ 25270 sock_poll                                526.4583
+ 18224 preempt_schedule                         379.6667
+ 17895 sys_select                                15.5339
+ 17741 __generic_copy_from_user                 184.8021
+ 15397 __generic_copy_to_user                   240.5781
+ 13214 fput                                      55.0583
+ 13088 add_wait_queue                           163.6000
+ 12637 system_call                              225.6607
 
-Cheers,
-Bill
+-- 
+function.linuxpower.ca
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
