@@ -1,40 +1,48 @@
-Date: Wed, 1 Jan 2003 21:25:04 -0800
-From: William Lee Irwin III <wli@holomorphy.com>
-Subject: Re: 2.5.53-mm2
-Message-ID: <20030102052504.GQ9704@holomorphy.com>
-References: <3E0E4744.8EE126ED@digeo.com> <20030102045327.GC7644@holomorphy.com>
-Mime-Version: 1.0
+Received: from digeo-nav01.digeo.com (digeo-nav01.digeo.com [192.168.1.233])
+	by packet.digeo.com (8.9.3+Sun/8.9.3) with SMTP id EAA19869
+	for <linux-mm@kvack.org>; Thu, 2 Jan 2003 04:56:53 -0800 (PST)
+Message-ID: <3E143714.6C939689@digeo.com>
+Date: Thu, 02 Jan 2003 04:56:52 -0800
+From: Andrew Morton <akpm@digeo.com>
+MIME-Version: 1.0
+Subject: 2.5.54-mm2
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20030102045327.GC7644@holomorphy.com>
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@digeo.com>, lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, Dec 28, 2002 at 04:52:20PM -0800, Andrew Morton wrote:
->> wli-11_pgd_ctor.patch
+http://www.zip.com.au/~akpm/linux/patches/2.5/2.5.54/2.5.54-mm2/
 
-On Wed, Jan 01, 2003 at 08:53:27PM -0800, William Lee Irwin III wrote:
-> A moment's reflection on the subject suggests to me it's worthwhile to
-> generalize pgd_ctor support so it works (without #ifdefs!) on both PAE
-> and non-PAE. This tiny tweak is actually more noticeably beneficial
-> on non-PAE systems but only really because pgd_alloc() is more visible;
-> the most likely reason it's less visible on PAE is "other overhead".
-> It looks particularly nice since it removes more code than it adds.
-> Touch tested on NUMA-Q (PAE). OFTC #kn testers testing the non-PAE case.
+A couple of crash fixes here.
 
-For those needing more interpretation, this is essentially a reinstatement
-of the 2.4.x-style pgd/pmd cache optimization in a leak-free and accounted
-(in /proc/slabinfo) manner.
 
-The point of the optimizations is that these initializations are large
-cache hits to take in a single shot, and in the PAE case, amount to a
-full L1 cache flush as they traverse almost an entire 16K.
+Since 2.5.54-mm1:
 
-No rigorous benchmarking has been done yet.
++no-stem-compression.patch
 
-Bill
+ top(1) crashes for me.  Back out the stem compression code while
+ it's being sorted out.
+
+-quota-smp-locks.patch
+
+ Merged
+
+page_add_rmap-rework.patch
+
+ Was causing an oops in X startup.   Fixed.
+
+-teeny-mem-limits.patch
+-smaller-head-arrays.patch
++#teeny-mem-limits.patch
++#smaller-head-arrays.patch
+
+ Go back to the usual memory reserve levels.
+
++wli-11_pgd_ctor-update.patch
+
+ Use pgds-from-slab and pmds-from-slab on non-PAE machines too.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
