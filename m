@@ -1,40 +1,28 @@
-Message-ID: <017B1BB60535DF4285666089FA048AC2A2E45B@SONOMA.netscreen.com>
-From: Mike Ji <hji@netscreen.com>
-Subject: Thoughts about RTCore and RTLinux
-Date: Thu, 4 Mar 2004 08:48:10 -0800 
-MIME-Version: 1.0
-List-Help: kernelnewbies
-List-Subscribe: <mailto:kernelnewbies-request@nl.linux.org?Subject=subscribe>
-List-Unsubscribe: <mailto:kernelnewbies-request@nl.linux.org?Subject=unsubscribe>
-Content-Type: text/plain;
-	charset="iso-8859-1"
+Received: from talaria.sc.intel.com (talaria.sc.intel.com [10.3.253.5])
+	by caduceus.sc.intel.com (8.12.9-20030918-01/8.12.9/d: major-outer.mc,v 1.15 2004/01/30 18:16:28 root Exp $) with ESMTP id i25MnxuK020443
+	for <linux-mm@kvack.org>; Fri, 5 Mar 2004 22:50:00 GMT
+Received: from unix-os.sc.intel.com (unix-os.sc.intel.com [143.183.96.244])
+	by talaria.sc.intel.com (8.12.9-20030918-01/8.12.9/d: major-inner.mc,v 1.10 2004/03/01 19:21:36 root Exp $) with ESMTP id i25Mm8RN026397
+	for <linux-mm@kvack.org>; Fri, 5 Mar 2004 22:48:08 GMT
+Received: from kwchenmobl (kwchen-mobl.amr.corp.intel.com [143.183.251.135])
+	by unix-os.sc.intel.com (8.11.6/8.11.2) with ESMTP id i25Mjcm09548
+	for <linux-mm@kvack.org>; Fri, 5 Mar 2004 14:45:38 -0800
+Message-Id: <200403052245.i25Mjcm09548@unix-os.sc.intel.com>
+From: "Kenneth Chen" <kenneth.w.chen@intel.com>
+Subject: pointer to lockstat source
+Date: Fri, 5 Mar 2004 14:45:39 -0800
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "'linux-kernel@vger.kernel.org'" <linux-kernel@vger.kernel.org>, "'linux-mm@kvack.org'" <linux-mm@kvack.org>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi, folks,
+I would greatly appreciate if someone on this list can give me a
+pointer to the latest lockstat source repository.  I've looked
+on sourceforge.net and oss.sgi.com, but found nothing. Thanks.
 
-I happen to read some white papers related to RTLinux. Below is some of
-my personal thoughts/questions. 
+- Ken
 
-* RTLinux's so called realtime extension-RTCORE  **was* to address the
-previous issue--Linux is not realtime supported, for example, fully
-kernel-preemptive; posix realtime extension. 
 
-* After linux 2.6, I did not see any outstanding reason that people
-still need to use a RTLinux **patch** to achieve realtime applications.
-I mean, why not just linux itself? Not needed RTCORE anymore.
-
-* From os/kernel viewpoint, it is very hard for me to position RTCORE,
-but a realtime patch. I mean, RTCORE is not able to be identified into any
-well-known os architecture. 
-
-* If there is a very high performance micro-kernel, say, L4 or
-QNX/Neutrino, I personally think it is much better than the RTCORE stuff,
-which HAVE TO bind a secondary os as running time environment.
-
-Some personal thoughts,
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
