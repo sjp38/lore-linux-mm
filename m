@@ -1,37 +1,38 @@
-Date: Fri, 2 Aug 2002 09:52:19 -0300 (BRT)
-From: Rik van Riel <riel@conectiva.com.br>
-Subject: Re: large page patch
-In-Reply-To: <200208020205.47308.ryan@completely.kicks-ass.org>
-Message-ID: <Pine.LNX.4.44L.0208020951360.23404-100000@imladris.surriel.com>
+From: David Mosberger <davidm@napali.hpl.hp.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Message-ID: <15690.42180.82563.681075@napali.hpl.hp.com>
+Date: Fri, 2 Aug 2002 08:27:00 -0700
+Subject: Re: large page patch 
+In-Reply-To: <20020802.012040.105531210.davem@redhat.com>
+References: <15690.6005.624237.902152@napali.hpl.hp.com>
+	<20020801.222053.20302294.davem@redhat.com>
+	<15690.9727.831144.67179@napali.hpl.hp.com>
+	<20020802.012040.105531210.davem@redhat.com>
+Reply-To: davidm@hpl.hp.com
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ryan Cumming <ryan@completely.kicks-ass.org>
-Cc: "David S. Miller" <davem@redhat.com>, davidm@hpl.hp.com, davidm@napali.hpl.hp.com, gh@us.ibm.com, akpm@zip.com.au, linux-kernel@vger.kernel.org, linux-mm@kvack.org, rohit.seth@intel.com, sunil.saxena@intel.com, asit.k.mallick@intel.com
+To: "David S. Miller" <davem@redhat.com>
+Cc: davidm@hpl.hp.com, davidm@napali.hpl.hp.com, gh@us.ibm.com, riel@conectiva.com.br, akpm@zip.com.au, linux-kernel@vger.kernel.org, linux-mm@kvack.org, rohit.seth@intel.com, sunil.saxena@intel.com, asit.k.mallick@intel.com
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2 Aug 2002, Ryan Cumming wrote:
-> On August 2, 2002 01:20, David S. Miller wrote:
+>>>>> On Fri, 02 Aug 2002 01:20:40 -0700 (PDT), "David S. Miller" <davem@redhat.com> said:
 
-> > A "hint" to use superpages?  That's absurd.
->
-> What about applications that want fine-grained page aging? 4MB is a tad
-> on the course side for most desktop applications.
+  Dave.M> A "hint" to use superpages?  That's absurd.
 
-Of course we wouldn't want to use superpages for VMAs smaller
-than, say, 4 of these superpages.
+  Dave.M> Any time you are able to translate N pages instead of 1 page
+  Dave.M> with 1 TLB entry it's always preferable.
 
-That would fix this problem automagically.
+Yeah, right.  So you think a 256MB page-size is optimal for all apps?
 
-regards,
+What you're missing is how you *get* to the point where you can map N
+pages with a single TLB entry.  For that to happen, you need to
+allocate physically contiguous and properly aligned memory (at least
+given the hw that's common today).  Doing has certain costs, no matter
+what your approach is.
 
-Rik
--- 
-Bravely reimplemented by the knights who say "NIH".
-
-http://www.surriel.com/		http://distro.conectiva.com/
-
+	--david
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
