@@ -1,41 +1,43 @@
-Date: Wed, 14 Jun 2000 20:37:11 +0200 (CEST)
-From: Andrea Arcangeli <andrea@suse.de>
-Subject: Re: [patch] improve streaming I/O [bug in shrink_mmap()]
-In-Reply-To: <Pine.LNX.4.21.0006141424350.6887-100000@duckman.distro.conectiva>
-Message-ID: <Pine.LNX.4.21.0006142025290.377-100000@inspiron.random>
+Subject: PATCH: Improvement in shrink_mmap
+From: "Juan J. Quintela" <quintela@fi.udc.es>
+Date: 15 Jun 2000 00:19:41 +0200
+Message-ID: <yttg0qf7vnm.fsf@serpe.mitica>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@conectiva.com.br>
-Cc: "Juan J. Quintela" <quintela@fi.udc.es>, "Stephen C. Tweedie" <sct@redhat.com>, Zlatko Calusic <zlatko@iskon.hr>, alan@redhat.com, Linux MM List <linux-mm@kvack.org>, Linux Kernel List <linux-kernel@vger.rutgers.edu>, Linus Torvalds <torvalds@transmeta.com>
+To: ac@muc.de, Alan Cox <alan@lxorguk.ukuu.org.uk>, Dave Jones <dave@denial.force9.co.uk>, Rik van Riel <riel@conectiva.com.br>, linux-mm@kvack.org, lkml <linux-kernel@vger.rutgers.edu>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 14 Jun 2000, Rik van Riel wrote:
+Hi
+        The actual code in shrink mmap waits for all the pages after
+        we pass priority pages.  The idea is to wait only each
+        priority pages.  I have had such a patch for a while here, it
+        appears to work here.  I send it to Linus in the middle of a
+        bigger patch that was not accepted and I forgot to send only
+        this two-liner.
 
->Ermmm, I mean that trying to _balance_ the zone is the right
->thing to do. Consuming infinite CPU time when we can't succeed
->is a clear bug we want to fix.
+Later, Juan.
 
-Actually consuming CPU is the right thing to do. The other option is to
-understand the zone is all mlocked and that it doesn't worth to waste CPU
-there. If you're going to just break the kswapd loop after some time then
-you're inserting a bug and you're making the VM even less robust.
+diff -urN --exclude-from=/home/lfcia/quintela/work/kernel/exclude ac18/mm/filemap.c prueba/mm/filemap.c
+--- ac18/mm/filemap.c	Tue Jun 13 23:18:35 2000
++++ prueba/mm/filemap.c	Thu Jun 15 00:18:33 2000
+@@ -351,7 +351,9 @@
+ 		 * of zone - it's old.
+ 		 */
+ 		if (page->buffers) {
+-			int wait = ((gfp_mask & __GFP_IO) && (nr_dirty-- < 0));
++			int wait = ((gfp_mask & __GFP_IO) && (nr_dirty-- <= 0));
++			if(nr_dirty < 0)
++				nr_dirty = priority;
+ 			if (!try_to_free_buffers(page, wait))
+ 				goto unlock_continue;
+ 			/* page was locked, inode can't go away under us */
 
-What I was trying to explain is not how the VM reacts to too big mlocked
-regions, but just how much the current design doesn't see the whole
-picture about the property of the memory and how it ends doing something
-very stupid in my testcase (the one first mlocked and then cache). The
-fact it does something stupid is _only_ the sympthom. Whatever you do with
-mlocked accounting can only fix the sympthom.
 
-As soon as time permits I'll try to do another example of the current lack
-of knowledge of the VM with respect to the property of the VM (and how
-this ends doing yet other silly things). These emails are very expensive
-in terms of time and I need to do some more real coding now ;).
-
-Andrea
-
+-- 
+In theory, practice and theory are the same, but in practice they 
+are different -- Larry McVoy
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
