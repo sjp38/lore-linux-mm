@@ -1,57 +1,52 @@
-Received: from digeo-nav01.digeo.com (digeo-nav01.digeo.com [192.168.1.233])
-	by packet.digeo.com (8.9.3+Sun/8.9.3) with SMTP id NAA04843
-	for <linux-mm@kvack.org>; Wed, 9 Oct 2002 13:17:47 -0700 (PDT)
-Message-ID: <3DA48EEA.8100302C@digeo.com>
-Date: Wed, 09 Oct 2002 13:17:46 -0700
-From: Andrew Morton <akpm@digeo.com>
-MIME-Version: 1.0
 Subject: Re: Hangs in 2.5.41-mm1
-References: <1034188573.30975.40.camel@plars>
-Content-Type: text/plain; charset=us-ascii
+From: Paul Larson <plars@linuxtestproject.org>
+In-Reply-To: <3DA48EEA.8100302C@digeo.com>
+References: <1034188573.30975.40.camel@plars>  <3DA48EEA.8100302C@digeo.com>
+Content-Type: text/plain
 Content-Transfer-Encoding: 7bit
+Date: 09 Oct 2002 15:29:28 -0500
+Message-Id: <1034195372.30973.64.camel@plars>
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Paul Larson <plars@linuxtestproject.org>
+To: Andrew Morton <akpm@digeo.com>
 Cc: linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Paul Larson wrote:
+On Wed, 2002-10-09 at 15:17, Andrew Morton wrote:
+> Paul Larson wrote:
+> > echo 768 > /proc/sys/vm/nr_hugepages
 > 
-> I'm able to generate a lot of hangs with 2.5.41-mm1.
-> This is on a 8-way PIII-700, 16 GB ram (PAE enabled)
-> 
-> The first one, I got by running ltp for a while, then the attached test
-> for a bit, then, at the suggestion of Bill Irwin to increase the amount
-> of ram I could be using for huge pages:
-> echo 768 > /proc/sys/vm/nr_hugepages
+> Paul, this is not very clear to me, sorry.
+Sorry about that, let me try to restate it better.  First let me add
+though, these have been somewhat random and hard to reproduce the same
+way every time, but if I run this test enough though, I eventually get
+it to lock up cold.
 
-Paul, this is not very clear to me, sorry.
+Here are the situations where I saw it happen so far under 2.5.41-mm1:
 
-You don't state at which point it hung.  Could you please
-carefully spell out the precise sequence of steps which led to
-the hang?
+Case 1:
+from ltp, 'runalltests.sh -l /tmp/mm1.log |tee /tmp/mm1.out
+shmt01 (attached test from before)
+shmt01& (repeated 10 times)
+echo 768 > /proc/sys/vm/nr_hugepages
+*hang*
 
-> Doing that (and the corresponding echo 1610612736 >
-> /proc/sys/kernel/shmmax) after a cold boot gave me no problems though.
-> 
-> I also got it to hang after runnging the attached test with -s
-> 1610612736 and then running another one with no options.
+Case 2:
+cold boot
+echo 768 > /proc/sys/vm/nr_hugepages
+echo 1610612736 > /proc/sys/kernel/shmmax
+shmt01 -s 1610612736&
+shmt01 (immediately after starting the previous command)
+*hang*
 
-With what settings in /proc, etc?
+> There is a locks-up-for-ages bug in refill_inactive_zone() - could
+> be that.  Dunno.
+I'm not aware of that one, do you know of a reliable way to reproduce that?
 
- 
-> There was no output on the serial console when it hung, and it was
-> unresponsive to ping, vc switch, and sysrq.
-> 
-> The attached test is an ltp shmem test modified by Bill Irwin to support
-> the shm huge pages in 2.5.41-mm1.  Compile it with --static.
+Thanks,
+Paul Larson
 
-OK, great.  I'll try to reproduce this but I would appreciate
-some help in understanding what I need to do.  Usually it just
-ends up with "it works for me" :(
-
-There is a locks-up-for-ages bug in refill_inactive_zone() - could
-be that.  Dunno.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
