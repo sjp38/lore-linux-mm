@@ -1,35 +1,41 @@
-Date: Wed, 7 May 2003 14:35:08 +0200
-From: Andi Kleen <ak@muc.de>
-Subject: Re: 2.5.68-mm4
-Message-ID: <20030507123508.GA6060@averell>
-References: <1051908541.2166.40.camel@spc9.esa.lanl.gov> <20030502140508.02d13449.akpm@digeo.com> <1051910420.2166.55.camel@spc9.esa.lanl.gov> <Pine.LNX.4.55.0305030014130.1304@jester.mews> <20030502164159.4434e5f1.akpm@digeo.com> <20030503025307.GB1541@averell> <Pine.LNX.4.55.0305030800140.1304@jester.mews> <Pine.LNX.4.55.0305061511020.3237@r2-pc.dcs.qmul.ac.uk> <20030506143533.GA22907@averell> <Pine.LNX.4.55.0305071121220.6697@r2-pc.dcs.qmul.ac.uk>
+Date: Wed, 7 May 2003 07:41:00 -0700
+From: William Lee Irwin III <wli@holomorphy.com>
+Subject: Re: 2.5.69-mm2 Kernel panic, possibly network related
+Message-ID: <20030507144100.GD8978@holomorphy.com>
+References: <3EB8DBA0.7020305@aitel.hist.no> <1052304024.9817.3.camel@rth.ninka.net> <3EB8E4CC.8010409@aitel.hist.no> <20030507.025626.10317747.davem@redhat.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.55.0305071121220.6697@r2-pc.dcs.qmul.ac.uk>
+In-Reply-To: <20030507.025626.10317747.davem@redhat.com>
 Sender: owner-linux-mm@kvack.org
+From: Helge Hafting <helgehaf@aitel.hist.no>
+Date: Wed, 07 May 2003 12:49:48 +0200
 Return-Path: <owner-linux-mm@kvack.org>
-To: Matt Bernstein <mb/lkml@dcs.qmul.ac.uk>
-Cc: Andi Kleen <ak@muc.de>, Andrew Morton <akpm@digeo.com>, elenstev@mesatop.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: "David S. Miller" <davem@redhat.com>
+Cc: helgehaf@aitel.hist.no, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@digeo.com
 List-ID: <linux-mm.kvack.org>
 
-On Wed, May 07, 2003 at 12:27:02PM +0200, Matt Bernstein wrote:
-> 
-> Will do later today if the above isn't helpful. One other thing I did do 
-> was a make -j19 KBUILD_VERBOSE=0 but I've been told this is completely 
-> safe these days.
+>    No, I compile everything into a monolithic kernel.
+>    I don't even enable module support.
 
-It tries to patch an instruction past the kernel text.
+On Wed, May 07, 2003 at 02:56:26AM -0700, David S. Miller wrote:
+> Andrew, color me stumped.  mm2/linux.patch doesn't have anything
+> really interesting in the networking.  Maybe it's something in
+> the SLAB and/or pgd/pmg re-slabification changes?
 
-It could be in the discarded .exit.text/.text.exit. With new binutils you should
-get an link error when this happens, but perhaps yours are too old for that.
+The i810 bits would be a failure case of the original slabification.
+At first glance the re-slabification doesn't seem to conflict with the
+unmapping-based slab poisoning.
 
-When you comment these entries out from the DISCARD statement in 
-arch/i386/vmlinux.lds.S does it go away ? Alternatively use Andrew's
-latest 2.5.69-mm*, that has the patch too.
+In another thread, you mentioned that a certain netfilter cset had
+issues; I think it might be good to add that as a second possible cause.
 
--Andi
+I'm trying to track down testers with i810's to reproduce the issue,
+but the usual suspects and helpers aren't awake yet (most/all of my
+target systems are headless, though I regularly abuse my laptop, which
+appears to S3/Savage -based and so isn't useful for this).
 
+-- wli
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
