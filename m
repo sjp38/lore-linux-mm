@@ -1,43 +1,41 @@
-Date: Wed, 3 May 2000 00:08:11 +0200 (CEST)
+Date: Wed, 3 May 2000 00:26:10 +0200 (CEST)
 From: Andrea Arcangeli <andrea@suse.de>
 Subject: Re: Oops in __free_pages_ok (pre7-1) (Long)
-In-Reply-To: <yttg0s13gjx.fsf@vexeta.dc.fi.udc.es>
-Message-ID: <Pine.LNX.4.21.0005030004330.1677-100000@alpha.random>
+In-Reply-To: <Pine.LNX.4.10.10005021439320.12403-100000@penguin.transmeta.com>
+Message-ID: <Pine.LNX.4.21.0005030008150.1677-100000@alpha.random>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Juan J. Quintela" <quintela@fi.udc.es>
-Cc: linux-mm@kvack.org, Linus Torvalds <torvalds@transmeta.com>, Kanoj Sarcar <kanoj@google.engr.sgi.com>
+To: Linus Torvalds <torvalds@transmeta.com>
+Cc: "Juan J. Quintela" <quintela@fi.udc.es>, linux-mm@kvack.org, Kanoj Sarcar <kanoj@google.engr.sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-On 2 May 2000, Juan J. Quintela wrote:
+On Tue, 2 May 2000, Linus Torvalds wrote:
 
->swap_entry bit, but not agreement in which is the correct one.
+>I'd rather get rid of it entirely, yes, as I hate having "crud" around
 
-My latest one is the correct one but I would also use the atomic operation
-in shrink_mmap even if we hold the page lock to be fully safe. I have an
-assert that BUG if a page is freed with such bit set and it never triggers
-since I noticed the few problematic places thanks to Ben.
+We can get rid of it entirely if you want, it's only an optimization.
 
->diff -u -urN --exclude=CVS --exclude=*~ --exclude=.#* pre7-1plus/mm/memory.c lin
->ux/mm/memory.c
->--- pre7-1plus/mm/memory.c      Tue Apr 25 00:46:18 2000
->+++ linux/mm/memory.c   Tue May  2 00:36:13 2000
->@@ -1053,7 +1053,7 @@
-> 
->        pte = mk_pte(page, vma->vm_page_prot);
-> 
->-       SetPageSwapEntry(page);
->+       /*      SetPageSwapEntry(page);  */
-> 
->        /*
->         * Freeze the "shared"ness of the page, ie page_count + swap_count.
+The object of the swap entry bitflag is _only_ to swapout the same page in
+the same place across a swapin-write fault. It seems to do the trick to
+me.
 
-Are you sure it solves the problem? Could you try also the other patch I
-sent you in the email of 1 minute ago? that should be even more effective.
+Making swap cache dirty will take a swap entry locked indefinitely (well,
+really also swapin read fault take swap entry locked indefinitely...) and
+it have to be a kind of dirty swap cache that doesn't get written to disk
+in the usual behaviour but it have to be written to disk only when we go
+low on memory and we try to unmap it. The only advantage of dirty cache
+over swap-entry-logic is that we can do write-swapin/swapout without
+dropping the buffer headers from the page in between but the buffer
+headers could go away very fast anyway due memory pressure...
 
-I'll let you know what happens here...
+>that nobody realizes isn't really even active any more (and your one-liner
+
+The trick is still active (too much active since sometime we forget to
+clear the bitflag ;).
+
+If you want to drop it let me know.
 
 Andrea
 
