@@ -1,440 +1,216 @@
-Date: Sun, 23 Mar 2003 12:08:54 -0800
+Date: Sun, 23 Mar 2003 19:04:18 -0800
 From: "Martin J. Bligh" <mbligh@aracnet.com>
 Subject: Re: 2.5.65-mm4
-Message-ID: <401710000.1048450133@[10.10.2.4]>
-In-Reply-To: <394580000.1048443396@[10.10.2.4]>
-References: <20030323020646.0dfcc17b.akpm@digeo.com> <394580000.1048443396@[10.10.2.4]>
+Message-ID: <9590000.1048475057@[10.10.2.4]>
+In-Reply-To: <20030323020646.0dfcc17b.akpm@digeo.com>
+References: <20030323020646.0dfcc17b.akpm@digeo.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@digeo.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@digeo.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hmmmm .... well scp'ing something to the fs 15 minutes later kicked it 
-back into life ... and I just kicked it with 5 full SDET runs, with no
-problems.
+> . Several ext3 speedups here.  They reduce the overhead of a write() to
+>   ext3 by about 45%.
+> 
+> . Large locking changes to ext3.  lock_kernel() has been completely
+>   removed from ext3 and pushed down into the JBD layer, around those bits
+>   which actually need it.
+> 
+>   Lock contention is greatly reduced, but this change means that the
+>   front-line locking for ext3 is now two semaphores.  The context switch
+> rate   under load has gone through the roof.  So there is more work to be
+> done   here yet.
 
-Mmmm. sunspots. or a SCSI error. or something.
+Well, it shook things up a bit, but doesn't seem to have much effect for
+the workload I was looking at, at least:
+
+DISCLAIMER: SPEC(tm) and the benchmark name SDET(tm) are registered
+trademarks of the Standard Performance Evaluation Corporation. This 
+benchmarking was performed for research purposes only, and the run results
+are non-compliant and not-comparable with any published results.
+
+Results are shown as percentages of the first set displayed
+
+SDET 1  (see disclaimer)
+                           Throughput    Std. Dev
+               2.5.65-mm3       100.0%         2.0%
+               2.5.65-mm4        98.9%         1.8%
+          2.5.65-mm4-ext3        90.4%         4.1%
+
+SDET 2  (see disclaimer)
+                           Throughput    Std. Dev
+               2.5.65-mm3       100.0%         2.3%
+               2.5.65-mm4        98.3%         3.6%
+          2.5.65-mm4-ext3        93.4%         3.1%
+
+SDET 4  (see disclaimer)
+                           Throughput    Std. Dev
+               2.5.65-mm3       100.0%         1.3%
+               2.5.65-mm4        97.8%         0.3%
+          2.5.65-mm4-ext3        45.5%         7.1%
+
+SDET 8  (see disclaimer)
+                           Throughput    Std. Dev
+               2.5.65-mm3       100.0%         1.0%
+               2.5.65-mm4        98.7%         1.5%
+          2.5.65-mm4-ext3        13.7%         3.3%
+
+SDET 16  (see disclaimer)
+                           Throughput    Std. Dev
+               2.5.65-mm3       100.0%         1.0%
+               2.5.65-mm4        55.2%        57.2%
+          2.5.65-mm4-ext3         8.4%         2.5%
+
+SDET 32  (see disclaimer)
+                           Throughput    Std. Dev
+               2.5.65-mm3       100.0%         0.5%
+               2.5.65-mm4        98.2%         0.6%
+          2.5.65-mm4-ext3         8.5%         3.7%
+
+SDET 64  (see disclaimer)
+                           Throughput    Std. Dev
+               2.5.65-mm3       100.0%         0.4%
+               2.5.65-mm4        97.7%         0.4%
+          2.5.65-mm4-ext3         7.9%         2.2%
+
+SDET 128  (see disclaimer)
+                           Throughput    Std. Dev
+               2.5.65-mm3       100.0%         0.6%
+               2.5.65-mm4        98.0%         0.4%
+          2.5.65-mm4-ext3         8.3%         1.2%
+
+profile from SDET 64:
+
+82303 __down
+42835 schedule
+31323 __wake_up
+26435 .text.lock.sched
+15924 .text.lock.transaction
+6470 do_get_write_access
+5106 zap_pte_range
+4693 copy_page_range
+4522 journal_add_journal_head
+4491 __blk_queue_bounce
+4179 page_remove_rmap
+3859 find_get_page
+3687 journal_get_write_access
+2949 journal_dirty_metadata
+2769 cpu_idle
+2691 d_lookup
+2495 start_this_handle
+2220 __copy_to_user_ll
+2199 do_anonymous_page
+2168 __find_get_block
+2069 page_add_rmap
+2063 __find_get_block_slow
+1842 .text.lock.attr
+1650 do_wp_page
+1603 ext3_get_inode_loc
+1600 release_pages
+1405 journal_stop
+1237 find_next_usable_block
+1233 do_no_page
+1224 current_kernel_time
+1203 __brelse
+1143 ext3_do_update_inode
+1083 kmem_cache_free
+1030 kmap_atomic
+
+diffprofile with a spinlined version 
+(still on ext3, should just show who took the locks).
+
+     20618    48.1% schedule
+      6211    96.0% do_get_write_access
+      4485   609.4% journal_start
+      3559   253.3% journal_stop
+      1554   582.0% inode_change_ok
+       605  1680.6% sem_exit
+       589    13.0% journal_add_journal_head
+       421   825.5% proc_pid_readlink
+       301    13.9% __find_get_block
+       246  1366.7% sys_ioctl
+       186    15.0% find_next_usable_block
+       139   195.8% inode_setattr
+       122    13.2% atomic_dec_and_lock
+...
+      -101    -9.3% kmem_cache_free
+      -103   -34.0% journal_forget
+      -106   -20.7% __make_request
+      -117  -100.0% .text.lock.root
+      -118    -5.7% page_add_rmap
+      -123   -15.2% free_hot_cold_page
+      -126    -7.6% do_wp_page
+      -127    -3.0% page_remove_rmap
+      -130   -17.2% buffered_rmqueue
+      -133    -5.3% start_this_handle
+      -149   -24.8% scsi_queue_next_request
+      -181  -100.0% .text.lock.dec_and_lock
+      -209   -10.1% __find_get_block_slow
+      -210    -5.7% journal_get_write_access
+      -269   -12.1% __copy_to_user_ll
+      -318  -100.0% .text.lock.ioctl
+      -383    -8.5% __blk_queue_bounce
+      -438  -100.0% .text.lock.base
+      -736  -100.0% .text.lock.sem
+      -903  -100.0% .text.lock.journal
+     -1008    -3.2% __wake_up
+     -1842  -100.0% .text.lock.attr
+     -3472    -4.2% __down
+    -14325    -0.6% default_idle
+    -15908   -99.9% .text.lock.transaction
+    -26435  -100.0% .text.lock.sched
+    -30643    -1.2% total
+
+I'll need to put something else together for the semaphores, unless
+you already know who's taking them ...
+
+Just for reference, this is the profile from the -mjb1 run with ext3 I did:
+
+22660 .text.lock.inode
+2888 .text.lock.namei
+2570 .text.lock.sched
+2424 .text.lock.attr
+860 ext3_prepare_write
+498 unmap_all_pages
+468 .text.lock.dir
+464 ext3_commit_write
+448 page_remove_rmap
+427 copy_page_range
+411 .text.lock.sem
+356 schedule
+349 __down
+302 page_add_rmap
+252 find_get_page
+252 .text.lock.base
+246 d_lookup
+225 .text.lock.ioctl
+209 __copy_to_user_ll
+199 inode_change_ok
+196 journal_add_journal_head
+187 __wake_up
+176 start_this_handle
+176 __blk_queue_bounce
+175 ext3_setattr
+170 do_anonymous_page
+156 do_wp_page
+145 ext3_dirty_inode
+127 __find_get_block
+122 ext3_get_block_handle
+118 find_next_usable_block
+118 do_get_write_access
+117 do_no_page
+111 ext3_get_inode_loc
+107 kmap_atomic
+106 do_page_fault
+104 __block_prepare_write
+101 pte_alloc_one
 
 M.
-
-
---On Sunday, March 23, 2003 10:16:37 -0800 "Martin J. Bligh" <mbligh@aracnet.com> wrote:
-
-> Seems to hang SDET ... I use ext2 for root & benchmarking, but ext3
-> for my home dir, so there's a *tiny* bit of ext3 going on I guess.
-> 
-> the sdet script seems to be hung ...
-> 
-> larry:~# strace -p 5342
-> wait4(31314, 
-> 
-> larry:~# ps -ef | grep 31314
-> root     31314  5342  0 08:45 pts/0    00:00:00 sync
-> 
-> strace -p 31314 yields nothing.
-> 
-> That's probably not very helpful, is it ...
-> Let me know what else I can grab ...
-> 
-> M.
-> 
-> 
-> --On Sunday, March 23, 2003 02:06:46 -0800 Andrew Morton <akpm@digeo.com> wrote:
-> 
->> ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.5/2.5.65/2.5.65-mm4/
->> 
->> . Anyone who was having problems with knfsd exports should find them fixed
->>   here.  It was a 32-bit dev_t problem.
->> 
->> . Several ext3 speedups here.  They reduce the overhead of a write() to
->>   ext3 by about 45%.
->> 
->> . Large locking changes to ext3.  lock_kernel() has been completely
->>   removed from ext3 and pushed down into the JBD layer, around those bits
->>   which actually need it.
->> 
->>   Lock contention is greatly reduced, but this change means that the
->>   front-line locking for ext3 is now two semaphores.  The context switch rate
->>   under load has gone through the roof.  So there is more work to be done
->>   here yet.
->> 
->> . Managed to reduce the number of patches from 127 down to 74 by various
->>   means.  The major outstanding things here at present are the anticipatory
->>   scheduler, object-based-rmap and ext3 locking work.
->> 
->> 
->> 
->> 
->> Changes since 2.5.65-mm3:
->> 
->>  linus.patch
->> 
->>  Latest from -bk.
->> 
->> -posix-timers-fixes.patch
->> -tcp-wakeups.patch
->> -remap-file-pages-2.5.63-a1.patch
->> -hugh-remap-fix.patch
->> -fremap-limit-offsets.patch
->> -filemap_populate-speedup.patch
->> -file-offset-in-pte-x86_64.patch
->> -file-offset-in-pte-ppc64.patch
->> -update_atime-ng.patch
->> -one-sec-times.patch
->> -lseek-ext2_readdir.patch
->> -inode_setattr-lock_kernel-removal.patch
->> -ide_probe-init_irq-fix.patch
->> -raid1-fix.patch
->> -nmi-watchdog-fix.patch
->> -vm_enough_memory-speedup.patch
->> -nanosleep-accuracy-fix-2.patch
->> -dev_t-1-kill-cdev.patch
->> -dev_t-2-remove-MAX_CHRDEV.patch
->> -dev_t-3-major_h-cleanup.patch
->> -cpufreq-xtime-locking.patch
->> -cs46xx-fixes.patch
->> -tty-put_user-checks.patch
->> -fail-setup_irq-for-unconfigured-IRQs.patch
->> -raw-fix-address_space-rewriting.patch
->> -raw-cleanups-and-fixlets.patch
->> -timer-simplification.patch
->> -timer-lockup-fix-simplification.patch
->> -slab-large-obj-tuning.patch
->> -floppy-oops-fix.patch
->> -ext3_writepage-use-after-free-fix.patch
->> -list-barriers-on-smp-only.patch
->> -sync_filesystems-docco-lock.patch
->> -awe_wave-linkage-error-fix.patch
->> -syscalls-return-long.patch
->> -syscalls-return-long-2.patch
->> 
->>  Merged
->> 
->> -kgdb-cleanup.patch
->> 
->>  Folded into kgdb.patch
->> 
->> -proc-sys-debug.patch
->> 
->>  Lost interest in this.
->>  
->> -as-debug-BUG-fix.patch
->> -as-eject-BUG-fix.patch
->> -as-jumbo-fix.patch
->> -as-request_fn-in-timer.patch
->> -as-remove-request-fix.patch
->> -as-np-1.patch
->> -as-use-kblockd.patch
->> -as-cleanup-2.patch
->> -as-as_remove_request-simplification.patch
->> -as-dont-go-BUG-again.patch
->> -as-handle-non-block-requests.patch
->> 
->>  Folded into as-iosched.patch
->> 
->> -cfq-fix.patch
->> 
->>  Folded into cfq-2.patch
->> 
->> -objrmap-nonlinear-fixes.patch
->> 
->>  Folded into objrmap-2.5.62-5.patch
->> 
->> -anobjrmap-1-rmap_h.patch
->> -anobjrmap-2-mapping.patch
->> -anobjrmap-3-unchained.patch
->> -anobjrmap-4-anonmm.patch
->> -anobjrmap-5-rechained.patch
->> -anobjrmap-6-arches.patch
->> -anobjrmap-ttfb-no-BUG.patch
->> 
->>  Dropped.  Is currently a bit marginal and overlaps other patches.
->> 
->> -brlock-1b.patch
->> -brlock-removal-2.patch
->> -brlock-removal-3.patch
->> -brlock-removal-4.patch
->> -brlock-removal-5.patch
->> 
->>  Dropped.  A bit too invasive on the networking layer for this stage in the
->>  development cycle.
->> 
->> -dev_t-remove-B_FREE.patch
->> 
->>  The files it patches got moved around.  I need to fix this up.
->> 
->> -smalldevfs.patch
->> 
->>  This kept on getting broken by devfs changes and is outdated anyway.
->> 
->> -notsclock-option.patch
->> 
->>  Obsoleted by x86-clock-override-option.patch
->> 
->> +sg-dev_t-fix.patch
->> +nfsd-32-bit-dev_t-fixes.patch
->> 
->>  Fixes for 32-bit dev_t.
->> 
->> +x86-clock-override-option.patch
->> 
->>  Boot-time setting of the gettimeofday() source for ia32.
->> 
->> +VM_DONTEXPAND-fix.patch
->> 
->>  Fix VM_DONTEXPAND for drivers/media/video/video-buf.c
->> 
->> +i2c-fix.patch
->> 
->>  Fix an i2c oops
->> 
->> +ext3_mark_inode_dirty-speedup.patch
->> +ext3_mark_inode_dirty-less-calls.patch
->> +ext3-handle-cache.patch
->> 
->>  ext3 speedups
->> 
->> +ext3-no-bkl.patch
->> 
->>  Push lock_kernel() down from ext3 into JBD.
->> 
->> +journal_dirty_metadata-speedup.patch
->> +journal_get_write_access-speedup.patch
->> 
->>  JBD speedups
->> 
->> +cdevname-irq-safety-fix.patch
->> +register_chrdev_region-leak-fix.patch
->> 
->>  fs/char_dev.c fixes.
->> 
->> 
->> 
->> 
->> All 74 patches:
->> 
->> linus.patch
->>   Latest from Linus
->> 
->> mm.patch
->>   add -mmN to EXTRAVERSION
->> 
->> kgdb.patch
->> 
->> config_spinline.patch
->>   uninline spinlocks for profiling accuracy.
->> 
->> ppc64-reloc_hide.patch
->> 
->> ppc64-pci-patch.patch
->>   Subject: pci patch
->> 
->> ppc64-aio-32bit-emulation.patch
->>   32/64bit emulation for aio
->> 
->> ppc64-scruffiness.patch
->>   Fix some PPC64 compile warnings
->> 
->> sym-do-160.patch
->>   make the SYM driver do 160 MB/sec
->> 
->> config-PAGE_OFFSET.patch
->>   Configurable kenrel/user memory split
->> 
->> ptrace-flush.patch
->>   cache flushing in the ptrace code
->> 
->> buffer-debug.patch
->>   buffer.c debugging
->> 
->> warn-null-wakeup.patch
->> 
->> ext3-truncate-ordered-pages.patch
->>   ext3: explicitly free truncated pages
->> 
->> reiserfs_file_write-5.patch
->> 
->> rcu-stats.patch
->>   RCU statistics reporting
->> 
->> ext3-journalled-data-assertion-fix.patch
->>   Remove incorrect assertion from ext3
->> 
->> nfs-speedup.patch
->> 
->> nfs-oom-fix.patch
->>   nfs oom fix
->> 
->> sk-allocation.patch
->>   Subject: Re: nfs oom
->> 
->> nfs-more-oom-fix.patch
->> 
->> rpciod-atomic-allocations.patch
->>   Make rcpiod use atomic allocations
->> 
->> linux-isp.patch
->> 
->> isp-update-1.patch
->> 
->> kblockd.patch
->>   Create `kblockd' workqueue
->> 
->> as-iosched.patch
->>   anticipatory I/O scheduler
->> 
->> as-np-reads-1.patch
->>   AS: read-vs-read fixes
->> 
->> as-np-reads-2.patch
->>   AS: more read-vs-read fixes
->> 
->> as-predict-data-direction.patch
->>   as: predict direction of next IO
->> 
->> as-remove-frontmerge.patch
->>   AS: remove frontmerge tunable
->> 
->> as-misc-cleanups.patch
->>   AS: misc cleanups
->> 
->> cfq-2.patch
->>   CFQ scheduler, #2
->> 
->> unplug-use-kblockd.patch
->>   Use kblockd for running request queues
->> 
->> fremap-all-mappings.patch
->>   Make all executable mappings be nonlinear
->> 
->> objrmap-2.5.62-5.patch
->>   object-based rmap
->> 
->> sched-2.5.64-D3.patch
->>   sched-2.5.64-D3, more interactivity changes
->> 
->> scheduler-tunables.patch
->>   scheduler tunables
->> 
->> show_task-free-stack-fix.patch
->>   show_task() fix and cleanup
->> 
->> yellowfin-set_bit-fix.patch
->>   yellowfin driver set_bit fix
->> 
->> htree-nfs-fix.patch
->>   Fix ext3 htree / NFS compatibility problems
->> 
->> task_prio-fix.patch
->>   simple task_prio() fix
->> 
->> slab_store_user-large-objects.patch
->>   slab debug: perform redzoning against larger objects
->> 
->> pcmcia-2.patch
->> 
->> pcmcia-3b.patch
->> 
->> pcmcia-3.patch
->> 
->> pcmcia-4.patch
->> 
->> pcmcia-5.patch
->> 
->> pcmcia-6.patch
->> 
->> pcmcia-7b.patch
->> 
->> pcmcia-7.patch
->> 
->> pcmcia-8.patch
->> 
->> pcmcia-9.patch
->> 
->> pcmcia-10.patch
->> 
->> htree-nfs-fix-2.patch
->>   htree nfs fix
->> 
->> ext2-no-lock_super.patch
->>   concurrent block allocation for ext2
->> 
->> ext2-ialloc-no-lock_super.patch
->>   concurrent inode allocation for ext2
->> 
->> linear-oops-fix-1.patch
->>   md/linear oops fix
->> 
->> dev_t-32-bit.patch
->>   [for playing only] change type of dev_t
->> 
->> dev_t-drm-warnings.patch
->>   dev_t: fix drm printk warnings
->> 
->> sg-dev_t-fix.patch
->>   32-bit dev_t fix for sg
->> 
->> nfsd-32-bit-dev_t-fixes.patch
->>   nfsd fixes for 32-bit dev_t
->> 
->> oops-dump-preceding-code.patch
->>   i386 oops output: dump preceding code
->> 
->> x86-clock-override-option.patch
->>   x86 clock override boot option
->> 
->> conntrack-use-after-free-fix.patch
->>   fix use-after-free in ip_conntrack
->> 
->> VM_DONTEXPAND-fix.patch
->>   honour VM_DONTEXPAND in vma merging
->> 
->> i2c-fix.patch
->>   Subject: [PATCH] Fix kobject_get oopses triggered by i2c in 2.5.65-bk
->> 
->> ext3_mark_inode_dirty-speedup.patch
->>   ext3_mark_inode_dirty() speedup
->> 
->> ext3_mark_inode_dirty-less-calls.patch
->>   ext3_commit_write speedup
->> 
->> ext3-handle-cache.patch
->>   ext3: create a slab cache for transaction handles
->> 
->> ext3-no-bkl.patch
->> 
->> journal_dirty_metadata-speedup.patch
->> 
->> journal_get_write_access-speedup.patch
->> 
->> cdevname-irq-safety-fix.patch
->>   make cdevname() callable from interrupts
->> 
->> register_chrdev_region-leak-fix.patch
->>   register_chrdev_region() leak and race fix
->> 
->> 
->> 
->> --
->> To unsubscribe, send a message with 'unsubscribe linux-mm' in
->> the body to majordomo@kvack.org.  For more info on Linux MM,
->> see: http://www.linux-mm.org/ .
->> Don't email: <a href=mailto:"aart@kvack.org">aart@kvack.org</a>
->> 
->> 
-> 
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"aart@kvack.org">aart@kvack.org</a>
-> 
-> 
 
 
 --
