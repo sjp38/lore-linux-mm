@@ -1,52 +1,37 @@
-Content-Type: text/plain;
-  charset="iso-8859-1"
-From: Daniel Phillips <phillips@bonn-fries.net>
-Subject: Re: [PATCH] (2/2) reverse mappings for current 2.5.23 VM
-Date: Wed, 19 Jun 2002 19:01:23 +0200
-References: <Pine.LNX.4.44L.0206190853190.2598-100000@imladris.surriel.com>
-In-Reply-To: <Pine.LNX.4.44L.0206190853190.2598-100000@imladris.surriel.com>
-MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
-Message-Id: <E17Kipf-0000uu-00@starship>
+Date: Wed, 19 Jun 2002 19:11:36 +0200
+From: Dave Jones <davej@suse.de>
+Subject: Re: [PATCH] (1/2) reverse mapping VM for 2.5.23 (rmap-13b)
+Message-ID: <20020619191136.H29373@suse.de>
+References: <Pine.LNX.4.44.0206181340380.3031-100000@loke.as.arizona.edu> <E17KipF-0000up-00@starship>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <E17KipF-0000up-00@starship>; from phillips@bonn-fries.net on Wed, Jun 19, 2002 at 07:00:57PM +0200
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@conectiva.com.br>, Craig Kulesa <ckulesa@as.arizona.edu>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Daniel Phillips <phillips@bonn-fries.net>
+Cc: Craig Kulesa <ckulesa@as.arizona.edu>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@transmeta.com>, rwhron@earthlink.net
 List-ID: <linux-mm.kvack.org>
 
-On Wednesday 19 June 2002 13:58, Rik van Riel wrote:
-> > 2.5.22 vanilla:
-> > Total kernel swapouts during test = 29068 kB
-> > Total kernel swapins during test  = 16480 kB
-> > Elapsed time for test: 141 seconds
-> >
-> > 2.5.23-rmap (this patch -- "rmap-minimal"):
-> > Total kernel swapouts during test = 24068 kB
-> > Total kernel swapins during test  =  6480 kB
-> > Elapsed time for test: 133 seconds
-> >
-> > 2.5.23-rmap13b (Rik's "rmap-13b complete") :
-> > Total kernel swapouts during test = 40696 kB
-> > Total kernel swapins during test  =   380 kB
-> > Elapsed time for test: 133 seconds
-> 
-> Interesting to see that both rmap versions have the same
-> performance, it would seem that swapouts are much cheaper
-> than waiting for a pagefault to swap something in ...
+On Wed, Jun 19, 2002 at 07:00:57PM +0200, Daniel Phillips wrote:
+ > > ...Hope this is of use to someone!  It's certainly been a fun and 
+ > > instructive exercise for me so far.  ;)
+ > It's intensely useful.  It changes the whole character of the VM discussion 
+ > at the upcoming kernel summit from 'should we port rmap to mainline?' to 'how 
+ > well does it work' and 'what problems need fixing'.  Much more useful.
 
-You might conclude from the above that the lru+rmap is superior to 
-aging+rmap: while they show the same wall-clock time, lru+rmap consumes 
-considerably less disk bandwidth.  Naturally, it would be premature to 
-conclude this from one trial on one load.
+Absolutely.  Maybe Randy Hron (added to Cc) can find some spare time
+to benchmark these sometime before the summit too[1]. It'll be very
+interesting to see where it fits in with the other benchmark results
+he's collected on varying workloads.
 
-These patches need benchmarking - lots of it, and preferrably in the next few 
-days.
+        Dave
 
-We need to see cpu stats as well.
+[1] I am master of subtle hints.
 
 -- 
-Daniel
-
+| Dave Jones.        http://www.codemonkey.org.uk
+| SuSE Labs
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
