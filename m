@@ -1,36 +1,38 @@
-Message-ID: <3AB8F9A5.FC0095FB@mandrakesoft.com>
-Date: Wed, 21 Mar 2001 13:57:41 -0500
-From: Jeff Garzik <jgarzik@mandrakesoft.com>
+Message-ID: <3AB9313C.1020909@missioncriticallinux.com>
+Date: Wed, 21 Mar 2001 17:54:52 -0500
+From: "Patrick O'Rourke" <orourke@missioncriticallinux.com>
 MIME-Version: 1.0
-Subject: Re: kmalloc with GFP_DMA, or get_free_pages!!!
-References: <85256A16.0067FBE4.00@alpha2.storage.com>
-Content-Type: text/plain; charset=us-ascii
+Subject: [PATCH] Prevent OOM from killing init
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jalajadevi Ganapathy <jganapat@Storage.com>
-Cc: Linux-MM@kvack.org
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Jalajadevi Ganapathy wrote:
-> 
-> I could not find that file in the Documentation directory.
+Since the system will panic if the init process is chosen by
+the OOM killer, the following patch prevents select_bad_process()
+from picking init.
 
-It's in kernel 2.4:
-> [jgarzik@rum linux_2_4]$ ls -l Documentation/DM*
-> -rw-r--r--    1 jgarzik  jgarzik     15302 Mar  7 04:00 Documentation/DMA-mapping.txt
+Pat
 
-> I have one more question here. I read from a book that  virt_to_phy is same
-> as virt_to_bus for PCI devices. Is that True?
+--- xxx/linux-2.4.3-pre6/mm/oom_kill.c  Tue Nov 14 13:56:46 2000
++++ linux-2.4.3-pre6/mm/oom_kill.c      Wed Mar 21 15:25:03 2001
+@@ -123,7 +123,7 @@
 
-On some platforms yes, on some, no.  Nevertheless, in kernel 2.4.x at
-least, do not use virt_to_bus and virt_to_phys, use DMA mapping... 
-Using virt_to_bus will kill the link step on some platforms.
+         read_lock(&tasklist_lock);
+         for_each_task(p) {
+-               if (p->pid) {
++               if (p->pid && p->pid != 1) {
+                         int points = badness(p);
+                         if (points > maxpoints) {
+                                 chosen = p;
 
 -- 
-Jeff Garzik       | May you have warm words on a cold evening,
-Building 1024     | a full mooon on a dark night,
-MandrakeSoft      | and a smooth road all the way to your door.
+Patrick O'Rourke
+978.606.0236
+orourke@missioncriticallinux.com
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
