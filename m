@@ -1,39 +1,60 @@
 Received: from dax.scot.redhat.com (sct@dax.scot.redhat.com [195.89.149.242])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id JAA26433
-	for <linux-mm@kvack.org>; Wed, 27 Jan 1999 09:52:45 -0500
-Date: Wed, 27 Jan 1999 14:52:26 GMT
-Message-Id: <199901271452.OAA04778@dax.scot.redhat.com>
+	by kvack.org (8.8.7/8.8.7) with ESMTP id LAA27167
+	for <linux-mm@kvack.org>; Wed, 27 Jan 1999 11:06:20 -0500
+Date: Wed, 27 Jan 1999 16:05:43 GMT
+Message-Id: <199901271605.QAA05048@dax.scot.redhat.com>
 From: "Stephen C. Tweedie" <sct@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Subject: Re: MM deadlock [was: Re: arca-vm-8...]
-In-Reply-To: <19990125214929.A28382@Galois.suse.de>
-References: <19990125141409.A29248@boole.suse.de>
-	<Pine.LNX.3.96.990125193551.422A-100000@laser.bogus>
-	<19990125214929.A28382@Galois.suse.de>
+In-Reply-To: <Pine.LNX.3.95.990126210417.374A-100000@localhost>
+References: <36ADAAC4.82165F6E@ife.ee.ethz.ch>
+	<Pine.LNX.3.95.990126210417.374A-100000@localhost>
 Sender: owner-linux-mm@kvack.org
-To: "Dr. Werner Fink" <werner@suse.de>
-Cc: Andrea Arcangeli <andrea@e-mind.com>, "Eric W. Biederman" <ebiederm+eric@ccr.net>, "Stephen C. Tweedie" <sct@redhat.com>, Rik van Riel <riel@humbolt.geo.uu.nl>, Zlatko Calusic <Zlatko.Calusic@CARNet.hr>, Linus Torvalds <torvalds@transmeta.com>, Savochkin Andrey Vladimirovich <saw@msu.ru>, steve@netplus.net, brent verner <damonbrent@earthlink.net>, "Garst R. Reese" <reese@isn.net>, Kalle Andersson <kalle.andersson@mbox303.swipnet.se>, Ben McCann <bmccann@indusriver.com>, Alan Cox <alan@lxorguk.ukuu.org.uk>, bredelin@ucsd.edu, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
+To: Gerard Roudier <groudier@club-internet.fr>
+Cc: Thomas Sailer <sailer@ife.ee.ethz.ch>, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org, Stephen Tweedie <sct@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
 Hi,
 
-On Mon, 25 Jan 1999 21:49:29 +0100, "Dr. Werner Fink" <werner@suse.de>
-said:
+On Tue, 26 Jan 1999 21:48:59 +0100 (MET), Gerard Roudier
+<groudier@club-internet.fr> said:
 
-> Ok its a bit better than a single PII 400 MHz :-)
-> ... with less than 64MB the break downs are going to be the common state
-> whereas with 128MB the system is usable.  Nevertheless whenever both make
-> loops taking the filesystem tree at the same time, the system performance
-> slows down dramatically (a `break down').
+> I suggest to allow some application program to decide what stuff to
+> victimize and to be able to tell the kernel about, 
 
-Not for me.  That's probably just the advantage of having swap on a
-separate disk, but I've got both a "find /" and a "wc /usr/bin/*"
-running right now, and interactive performance is not noticeably
-degraded on 2.2.0-release with 64MB (and that is with two active users
-on the box right now).  Concurrent filesystem and swap IO on the same
-spindle is always going to suck.
+Yep, there is already a madvise() fuction in most modern unixen: it is
+especially useful for giving cache hints.  
+
+> There are bunches of things that are widespread used nowadays and that 
+> should have disappeard since years if people were a bit more concerned 
+> by technical and progress considerations.
+
+Yes.  I see what you mean.  We should immediately remove Linux support
+for FAT filesystems, the ISA bus and 8086 virtual mode.
+
+Not.
+
+> For example, it seems that 32 bits systems are not enough to provide a
+> flat virtual addressing space far larger than the physical address space
+> needed for applications (that was the primary goal of virtual memory
+> invention).
+
+*One* of the primary goals.  The other was protected multitasking.  The
+x86 architecture today is perfectly well capable of supporting mutliple
+32-bit address spaces within a 36 bit (64GB) physical address space, and
+large multiuser environments would benefit enormously from such an
+environment.
+
+> A device that requires more contiguous space than 1 PAGE for its 
+> support is crap. 
+
+So?  IDE is crap because it doesn't support multiple outstanding
+commands.  If you honestly believe that this means we should remove IDE
+support from the kernel, then you are living on another planet where
+getting real work done by real users doesn't matter.  Fact is, we _can_
+support this stuff, and users want us to.
 
 --Stephen
 --
