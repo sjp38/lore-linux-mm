@@ -1,44 +1,30 @@
-Date: Thu, 11 Sep 2003 23:52:16 +0200
+Date: Thu, 11 Sep 2003 23:52:38 +0200
 From: Jens Axboe <axboe@suse.de>
 Subject: Re: ide-scsi oops was: 2.6.0-test4-mm3
-Message-ID: <20030911215216.GM12021@suse.de>
-References: <20030911082057.GP1396@suse.de> <Pine.LNX.4.44.0309111111150.24179-100000@innerfire.net>
+Message-ID: <20030911215238.GN12021@suse.de>
+References: <20030910114346.025fdb59.akpm@osdl.org> <10720000.1063224243@flay> <20030911082057.GP1396@suse.de> <63090000.1063303982@flay>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.44.0309111111150.24179-100000@innerfire.net>
+In-Reply-To: <63090000.1063303982@flay>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Gerhard Mack <gmack@innerfire.net>
-Cc: "Martin J. Bligh" <mbligh@aracnet.com>, Andrew Morton <akpm@osdl.org>, Mike Fedyk <mfedyk@matchmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: "Martin J. Bligh" <mbligh@aracnet.com>
+Cc: Andrew Morton <akpm@osdl.org>, Mike Fedyk <mfedyk@matchmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Sep 11 2003, Gerhard Mack wrote:
-> On Thu, 11 Sep 2003, Jens Axboe wrote:
-> 
-> > On Wed, Sep 10 2003, Martin J. Bligh wrote:
-> > > That's a real shame ... it seemed to work fine until recently. Some
-> > > of the DVD writers (eg the one I have - Sony DRU500A or whatever)
-> >
+On Thu, Sep 11 2003, Martin J. Bligh wrote:
+> >> That's a real shame ... it seemed to work fine until recently. Some
+> >> of the DVD writers (eg the one I have - Sony DRU500A or whatever)
+> > 
 > > Then maybe it would be a really good idea to find out why it doesn't
 > > work with ide-cd. What are the symptoms?
-> >
-> > > need it. Is it unfixable? or just nobody's done it?
-> >
-> > It's not unfixable, there's just not a lot of motivation to fix it since
-> > it's basically dead.
-> >
 > 
-> What about backwards compatability with all of that cd burning software
-> out there that only knows to scan the SCSI devices?
+> Symptoms are that it required cdrecord-pro, which was a closed source
+> piece of turd I can't do much with ;-)
 
-That's basically impossible, I don't want to shoe horn atapi numbering
-into faked bus,id,lun type things.
-
-So people will just have to get used to the change. And I bet that Joe
-user with his cd-r thinks it's a lot more intuitive to use dev=/dev/hdc
-(which is his burner) rather than dev=1,0,0 for instance. The scanning
-basically helps that case alone, because noone can guess these numbers.
+Surely the pro version supports open-by-device as well? And then it
+should work fine.
 
 -- 
 Jens Axboe
