@@ -1,58 +1,96 @@
-From: Alistair John Strachan <s0348365@sms.ed.ac.uk>
+Date: Wed, 05 Nov 2003 15:07:58 -0800
+From: "Martin J. Bligh" <mbligh@aracnet.com>
 Subject: Re: 2.6.0-test9-mm2
-Date: Wed, 5 Nov 2003 17:02:00 +0000
-References: <20031104225544.0773904f.akpm@osdl.org>
+Message-ID: <225880000.1068073678@flay>
 In-Reply-To: <20031104225544.0773904f.akpm@osdl.org>
+References: <20031104225544.0773904f.akpm@osdl.org>
 MIME-Version: 1.0
-Content-Disposition: inline
-Content-Type: text/plain;
-  charset="iso-8859-1"
+Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
-Message-Id: <200311051702.00372.s0348365@sms.ed.ac.uk>
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@oss.sgi.com
+To: Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wednesday 05 November 2003 06:55, Andrew Morton wrote:
-> ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.6/2.6.0-test9/2
->.6.0-test9-mm2/
->
->
-> - Various random fixes.  Maybe about half of these are 2.6.0-worthy.
->
-> - Some improvements to the anticipatory IO scheduler and more readahead
->   tweaks should help some of those database benchmarks.
->
->   The anticipatory scheduler is still a bit behind the deadline scheduler
->   in these random seeky loads - it most likely always will be.
->
-> - "A new driver for the ethernet interface of the NVIDIA nForce chipset,
->   licensed under GPL."
->
->   Testing of this would be appreciated.  Send any reports to linux-kernel
->   or netdev@oss.sgi.com and Manfred will scoop them up, thanks.
->
+Seems to work fine on my box. Nothing very interesting from a performance
+perspective, but it does seem a touch faster than mainline on kernbench.
+NFI why ;-)
 
-I tried the force driver on my nForce2 machine and although it mostly works 
-(DHCP works, I can receive mail over the interface, etc..) it doesn't seem to 
-handle really bulky loads. For example, I'm running an FTP server on the 
-machine (proftpd), and although FTP navigation works just fine, transferring 
-large files just causes the transfer to hang indefinitely.
+Kernbench: (make -j N vmlinux, where N = 2 x num_cpus)
+                              Elapsed      System        User         CPU
+              2.6.0-test9       45.28      100.19      568.01     1474.75
+          2.6.0-test9-mm2       44.83      100.79      567.74     1491.00
+         2.6.0-test9-mjb1       43.73       80.19      559.91     1463.25
 
-Removing the driver and using NVIDIA's proprietary driver allows me to 
-transfer via FTP properly.
+Kernbench: (make -j N vmlinux, where N = 16 x num_cpus)
+                              Elapsed      System        User         CPU
+              2.6.0-test9       46.17      122.20      571.58     1501.00
+          2.6.0-test9-mm2       45.89      120.39      570.67     1504.75
+         2.6.0-test9-mjb1       43.52       89.98      562.91     1500.50
 
--- 
-Cheers,
-Alistair.
+Kernbench: (make -j vmlinux, maximal tasks)
+                              Elapsed      System        User         CPU
+              2.6.0-test9       45.84      120.14      570.93     1507.00
+          2.6.0-test9-mm2       44.21      118.81      571.28     1566.00
+         2.6.0-test9-mjb1       43.73       87.19      564.39     1488.50
 
-personal:   alistair()devzero!co!uk
-university: s0348365()sms!ed!ac!uk
-student:    CS/AI Undergraduate
-contact:    7/10 Darroch Court,
-            University of Edinburgh.
+
+DISCLAIMER: SPEC(tm) and the benchmark name SDET(tm) are registered
+trademarks of the Standard Performance Evaluation Corporation. This 
+benchmarking was performed for research purposes only, and the run results
+are non-compliant and not-comparable with any published results.
+
+Results are shown as percentages of the first set displayed
+
+SDET 1  (see disclaimer)
+                           Throughput    Std. Dev
+              2.6.0-test9       100.0%         1.2%
+          2.6.0-test9-mm2        98.3%         2.3%
+         2.6.0-test9-mjb1       112.2%         1.8%
+
+SDET 2  (see disclaimer)
+                           Throughput    Std. Dev
+              2.6.0-test9       100.0%         2.0%
+          2.6.0-test9-mm2       103.8%         1.8%
+         2.6.0-test9-mjb1       116.4%         0.6%
+
+SDET 4  (see disclaimer)
+                           Throughput    Std. Dev
+              2.6.0-test9       100.0%         0.9%
+          2.6.0-test9-mm2       102.6%         1.0%
+         2.6.0-test9-mjb1       120.5%         0.6%
+
+SDET 8  (see disclaimer)
+                           Throughput    Std. Dev
+              2.6.0-test9       100.0%         0.4%
+          2.6.0-test9-mm2        98.9%         0.4%
+         2.6.0-test9-mjb1       123.7%         0.2%
+
+SDET 16  (see disclaimer)
+                           Throughput    Std. Dev
+              2.6.0-test9       100.0%         0.8%
+          2.6.0-test9-mm2       100.6%         0.9%
+         2.6.0-test9-mjb1       127.6%         0.0%
+
+SDET 32  (see disclaimer)
+                           Throughput    Std. Dev
+              2.6.0-test9       100.0%         0.3%
+          2.6.0-test9-mm2        99.8%         0.3%
+         2.6.0-test9-mjb1       125.9%         0.5%
+
+SDET 64  (see disclaimer)
+                           Throughput    Std. Dev
+              2.6.0-test9       100.0%         0.4%
+          2.6.0-test9-mm2        99.7%         0.4%
+         2.6.0-test9-mjb1       127.6%         0.9%
+
+SDET 128  (see disclaimer)
+                           Throughput    Std. Dev
+              2.6.0-test9       100.0%         0.1%
+          2.6.0-test9-mm2        99.0%         0.3%
+         2.6.0-test9-mjb1       127.7%         0.2%
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
