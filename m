@@ -1,100 +1,48 @@
-From: Thomas Schlichter <schlicht@uni-mannheim.de>
 Subject: Re: 2.5.74-mm2 + nvidia (and others)
-Date: Mon, 7 Jul 2003 17:33:53 +0200
+From: Christian Axelsson <smiler@lanil.mine.nu>
+Reply-To: smiler@lanil.mine.nu
+In-Reply-To: <200307071734.01575.schlicht@uni-mannheim.de>
 References: <1057590519.12447.6.camel@sm-wks1.lan.irkk.nu>
-In-Reply-To: <1057590519.12447.6.camel@sm-wks1.lan.irkk.nu>
-MIME-Version: 1.0
-Content-Disposition: inline
-Content-Type: Multipart/Mixed;
-  boundary="Boundary-00=_pLZC/+/78wB9/mz"
-Message-Id: <200307071734.01575.schlicht@uni-mannheim.de>
+	 <200307071734.01575.schlicht@uni-mannheim.de>
+Content-Type: multipart/signed; micalg=pgp-sha1; protocol="application/pgp-signature"; boundary="=-holf9TlXk8wASZ0OCRgY"
+Message-Id: <1057597773.6857.1.camel@sm-wks1.lan.irkk.nu>
+Mime-Version: 1.0
+Date: 07 Jul 2003 19:09:33 +0200
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: smiler@lanil.mine.nu, linux-kernel@vger.kernel.org
+To: linux-kernel@vger.kernel.org
 Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
---Boundary-00=_pLZC/+/78wB9/mz
-Content-Type: text/plain;
-  charset="iso-8859-15"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
+--=-holf9TlXk8wASZ0OCRgY
+Content-Type: text/plain
+Content-Transfer-Encoding: quoted-printable
 
-Am Monday 07 July 2003 17:08 schrieb Christian Axelsson:
-> Ok, running fine with 2.5.74-mm2 but when I try to insert the nvidia
-> module (with patches from www.minion.de applied) it gives
->
-> nvidia: Unknown symbol pmd_offset
->
-> in dmesg. The vmware vmmon module gives the same error (the others wont
-> compile but thats a different story).
->
-> The nvidia module works fine under plain 2.5.74.
+On Mon, 2003-07-07 at 17:33, Thomas Schlichter wrote:
+> The problem is the highpmd patch in -mm2. There are two options:
+> 1. Revert the highpmd patch.
+> 2. Apply the attached patch to the NVIDIA kernel module sources.
 
-The problem is the highpmd patch in -mm2. There are two options:
-1. Revert the highpmd patch.
-2. Apply the attached patch to the NVIDIA kernel module sources.
+Thanks alot, applying the patch you supplied cured the problem.
 
-Best regards
-   Thomas Schlichter
+--=20
+Christian Axelsson
+smiler@lanil.mine.nu
 
---Boundary-00=_pLZC/+/78wB9/mz
-Content-Type: text/x-diff;
-  charset="iso-8859-15";
-  name="NVIDIA_kernel-1.0-4363-highpmd.diff"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline; filename="NVIDIA_kernel-1.0-4363-highpmd.diff"
+--=-holf9TlXk8wASZ0OCRgY
+Content-Type: application/pgp-signature; name=signature.asc
+Content-Description: This is a digitally signed message part
 
---- NVIDIA_kernel-1.0-4363/nv-linux.h.orig	Sun Jul  6 14:42:34 2003
-+++ NVIDIA_kernel-1.0-4363/nv-linux.h	Mon Jul  7 14:57:02 2003
-@@ -225,6 +225,18 @@
-     }
- #endif
- 
-+#if defined(pmd_offset_map)
-+#define NV_PMD_OFFSET(address, pg_dir, pg_mid_dir) \
-+    { \
-+        pmd_t *pg_mid_dir__ = pmd_offset_map(pg_dir, address); \
-+        pg_mid_dir = *pg_mid_dir__; \
-+        pmd_unmap(pg_mid_dir__); \
-+    }
-+#else
-+#define NV_PMD_OFFSET(address, pg_dir, pg_mid_dir) \
-+    pg_mid_dir = *pmd_offset(pg_dir, address)
-+#endif
-+
- #define NV_PAGE_ALIGN(addr)             ( ((addr) + PAGE_SIZE - 1) / PAGE_SIZE)
- #define NV_MASK_OFFSET(addr)            ( (addr) & (PAGE_SIZE - 1) )
- 
---- NVIDIA_kernel-1.0-4363/nv.c.orig	Sun Jul  6 14:45:36 2003
-+++ NVIDIA_kernel-1.0-4363/nv.c	Sun Jul  6 14:58:55 2003
-@@ -2084,7 +2084,7 @@
- nv_get_phys_address(unsigned long address)
- {
-     pgd_t *pg_dir;
--    pmd_t *pg_mid_dir;
-+    pmd_t pg_mid_dir;
-     pte_t pte;
- 
- #if defined(NVCPU_IA64)
-@@ -2105,11 +2105,12 @@
-     if (pgd_none(*pg_dir))
-         goto failed;
- 
--    pg_mid_dir = pmd_offset(pg_dir, address);
--    if (pmd_none(*pg_mid_dir))
-+    NV_PMD_OFFSET(address, pg_dir, pg_mid_dir);
-+
-+    if (pmd_none(pg_mid_dir))
-         goto failed;
- 
--    NV_PTE_OFFSET(address, pg_mid_dir, pte);
-+    NV_PTE_OFFSET(address, &pg_mid_dir, pte);
- 
-     if (!pte_present(pte))
-         goto failed;
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.2.2 (GNU/Linux)
 
---Boundary-00=_pLZC/+/78wB9/mz--
+iD8DBQA/CalNyqbmAWw8VdkRAoVnAJ9MS76dMjIi65suY8htmHFfdQUCDwCg3Hp9
+fg/uAwzD4lY7PkEVEUOrdDg=
+=6DVm
+-----END PGP SIGNATURE-----
+
+--=-holf9TlXk8wASZ0OCRgY--
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
