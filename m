@@ -1,44 +1,56 @@
-Message-ID: <3802531C.2596D0D9@colorfullife.com>
-Date: Mon, 11 Oct 1999 23:14:04 +0200
-From: Manfred Spraul <manfreds@colorfullife.com>
-MIME-Version: 1.0
+Date: Mon, 11 Oct 1999 17:37:40 -0400 (EDT)
+From: Alexander Viro <viro@math.psu.edu>
 Subject: Re: locking question: do_mmap(), do_munmap()
-References: <Pine.GSO.4.10.9910111157310.18777-100000@weyl.math.psu.edu>
-		<38022640.3447ECA6@colorfullife.com> <14338.17769.942609.464811@dukat.scot.redhat.com>
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <38022640.3447ECA6@colorfullife.com>
+Message-ID: <Pine.GSO.4.10.9910111733310.18777-100000@weyl.math.psu.edu>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Stephen C. Tweedie" <sct@redhat.com>
-Cc: Alexander Viro <viro@math.psu.edu>, Andrea Arcangeli <andrea@suse.de>, linux-kernel@vger.rutgers.edu, Ingo Molnar <mingo@chiara.csoma.elte.hu>, linux-mm@kvack.org
+To: Manfred Spraul <manfreds@colorfullife.com>
+Cc: "Stephen C. Tweedie" <sct@redhat.com>, Andrea Arcangeli <andrea@suse.de>, linux-kernel@vger.rutgers.edu, Ingo Molnar <mingo@chiara.csoma.elte.hu>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-"Stephen C. Tweedie" wrote:
-> The swapout method will need to drop the spinlock.  We need to preserve
-> the vma over the call into the swapout method, and the method will need
-> to be able to block.
 
-no spinlock, a rw-semaphore, ie a multiple-reader single-writer sync
-object which calls schedule() when the resource is busy.
+On Mon, 11 Oct 1999, Manfred Spraul wrote:
 
-IIRC, the vma-list is only modified by
-* insert_vma_struct(): never sleeps, doesn't allocate memory. No
-problems with swap-out.
-* merge_vm_area(): dito.
-* do_munmap(): the area which modifies the vma-list makes no memory
-allocations, should make no problems under low-memory.
---> everyone who needs an exclusive access is OOM safe.
+> Alexander Viro wrote:
+> > 
+> > On Mon, 11 Oct 1999, Stephen C. Tweedie wrote:
+> > 
+> > > Hi,
+> > >
+> > > On Sun, 10 Oct 1999 15:03:45 -0400 (EDT), Alexander Viro
+> > > <viro@math.psu.edu> said:
+> > >
+> > > > Hold on. In swap_out_mm() you have to protect find_vma() (OK, it doesn't
+> > > > block, but we'll have to take care of mm->mmap_cache) _and_ you'll have to
+> > > > protect vma from destruction all way down to try_to_swap_out(). And to
+> > > > vma->swapout(). Which can sleep, so spinlocks are out of question
+> > > > here.
+> > >
+> > > No, spinlocks would be ideal.  The vma swapout codes _have_ to be
+> > > prepared for the vma to be destroyed as soon as we sleep.  In fact, the
+> > > entire mm may disappear if the process happens to exit.  Once we know
+> > > which page to write where, the swapout operation becomes a per-page
+> > > operation, not per-vma.
+> > 
+> > Aha, so you propose to drop it in ->swapout(), right? (after get_file() in
+> > filemap_write_page()... Ouch. Probably we'ld better lambda-expand the call
+> > in filemap_swapout() - the thing is called from other places too)...
+> 
+> What about something like a rw-semaphore which protects the vma list:
+> vma-list modifiers [ie merge_segments(), insert_vm_struct() and
+> do_munmap()] grab it exclusive, swapper grabs it "shared, starve
+> exclusive".
+> All other vma-list readers are protected by mm->mmap_sem.
+> 
+> This should not dead-lock, and no changes are required in
+> vm_ops->swapout().
 
-Additionally, the swap-out should use a "starve writer"-policy, ie there
-will be no dead-locks with multiple concurrent swap-outs in the same
-"struct mm" [concurrent means overlapped io, still serialized by
-lock_kernel()].
-I think the result should be OOM safe without touching
-vm_ops->swapout().
+What does it buy you over the simple semaphore here? Do you really see a
+contention scenario?
 
-
---
-	Manfred
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
