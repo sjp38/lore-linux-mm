@@ -1,55 +1,38 @@
-Date: Mon, 11 Oct 1999 17:37:40 -0400 (EDT)
+Date: Mon, 11 Oct 1999 18:31:37 -0400 (EDT)
 From: Alexander Viro <viro@math.psu.edu>
 Subject: Re: locking question: do_mmap(), do_munmap()
-In-Reply-To: <38022640.3447ECA6@colorfullife.com>
-Message-ID: <Pine.GSO.4.10.9910111733310.18777-100000@weyl.math.psu.edu>
+In-Reply-To: <14338.25285.780802.755159@dukat.scot.redhat.com>
+Message-ID: <Pine.GSO.4.10.9910111823320.18777-100000@weyl.math.psu.edu>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Manfred Spraul <manfreds@colorfullife.com>
-Cc: "Stephen C. Tweedie" <sct@redhat.com>, Andrea Arcangeli <andrea@suse.de>, linux-kernel@vger.rutgers.edu, Ingo Molnar <mingo@chiara.csoma.elte.hu>, linux-mm@kvack.org
+To: "Stephen C. Tweedie" <sct@redhat.com>
+Cc: Manfred Spraul <manfreds@colorfullife.com>, Andrea Arcangeli <andrea@suse.de>, linux-kernel@vger.rutgers.edu, Ingo Molnar <mingo@chiara.csoma.elte.hu>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 
-On Mon, 11 Oct 1999, Manfred Spraul wrote:
+On Mon, 11 Oct 1999, Stephen C. Tweedie wrote:
 
-> Alexander Viro wrote:
-> > 
-> > On Mon, 11 Oct 1999, Stephen C. Tweedie wrote:
-> > 
-> > > Hi,
-> > >
-> > > On Sun, 10 Oct 1999 15:03:45 -0400 (EDT), Alexander Viro
-> > > <viro@math.psu.edu> said:
-> > >
-> > > > Hold on. In swap_out_mm() you have to protect find_vma() (OK, it doesn't
-> > > > block, but we'll have to take care of mm->mmap_cache) _and_ you'll have to
-> > > > protect vma from destruction all way down to try_to_swap_out(). And to
-> > > > vma->swapout(). Which can sleep, so spinlocks are out of question
-> > > > here.
-> > >
-> > > No, spinlocks would be ideal.  The vma swapout codes _have_ to be
-> > > prepared for the vma to be destroyed as soon as we sleep.  In fact, the
-> > > entire mm may disappear if the process happens to exit.  Once we know
-> > > which page to write where, the swapout operation becomes a per-page
-> > > operation, not per-vma.
-> > 
-> > Aha, so you propose to drop it in ->swapout(), right? (after get_file() in
-> > filemap_write_page()... Ouch. Probably we'ld better lambda-expand the call
-> > in filemap_swapout() - the thing is called from other places too)...
+> Hi,
 > 
-> What about something like a rw-semaphore which protects the vma list:
-> vma-list modifiers [ie merge_segments(), insert_vm_struct() and
-> do_munmap()] grab it exclusive, swapper grabs it "shared, starve
-> exclusive".
-> All other vma-list readers are protected by mm->mmap_sem.
+> On Mon, 11 Oct 1999 17:40:52 -0400 (EDT), Alexander Viro
+> <viro@math.psu.edu> said:
 > 
-> This should not dead-lock, and no changes are required in
-> vm_ops->swapout().
+> > Agreed, but the big lock does not (and IMHO should not) cover the vma list
+> > modifications.
+> 
+> Fine, but as I've said you need _something_.  It doesn't matter what,
+> but the fact that the kernel lock is no longer being held for vma
+> updates has introduced swapper races.  We can't fix those without either
+> restoring or replacing the big lock.
 
-What does it buy you over the simple semaphore here? Do you really see a
-contention scenario?
+And spinlock being released in the ->swapout() is outright ugly. OK, so
+we are adding to mm_struct a new semaphore (vma_sem) and getting it around
+the places where the list is modified + in the swapper (for scanning). In
+normal situation it will never give us contention - everyone except
+swapper uses it with mmap_sem already held. Are there any objections
+against it? If it's OK I'll go ahead and do it. Comments?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
