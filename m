@@ -1,170 +1,45 @@
-Received: from digeo-nav01.digeo.com (digeo-nav01.digeo.com [192.168.1.233])
-	by packet.digeo.com (8.9.3+Sun/8.9.3) with SMTP id AAA00215
-	for <linux-mm@kvack.org>; Fri, 13 Sep 2002 00:02:41 -0700 (PDT)
-Message-ID: <3D819132.C7171BD9@digeo.com>
-Date: Fri, 13 Sep 2002 00:18:10 -0700
-From: Andrew Morton <akpm@digeo.com>
+Message-ID: <55E277B99171E041ABF5F4B1C6DDCA0683E8AC@haritha.hclt.com>
+From: "Somshekar. C. Kadam - CTD, Chennai." <som_kadam@ctd.hcltech.com>
+Subject: RE: meminfo or Rephrased helping the Programmer's help themselves
+	...
+Date: Fri, 13 Sep 2002 13:30:13 +0530
 MIME-Version: 1.0
-Subject: 2.5.34-mm3
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain;
+	charset="iso-8859-1"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: lkml <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Rik van Riel <riel@conectiva.com.br>, Rick Lindsley <ricklind@us.ibm.com>
+To: John Carter <john.carter@tait.co.nz>, "M. Edward Borasky" <znmeb@aracnet.com>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-url: http://www.zip.com.au/~akpm/linux/patches/2.5/2.5.34/2.5.34-mm3/
+hi ,
+ i am newbie to linux mm trying to understand bootmem allocator
+struct bootmem_data
+unsigned long node_boot_start what for 
 
-+reversemaps-leak.patch
+
+
+void *node_bootmem_map what is this  for 
+
+ if i am right 
+           node_bootmem_map is apointer to beginig of bitmap that is the end
+of kernel
+
+
+   what should be the value of node_boot_start 
+
+ i am having 32 mb ram 
  
- Correct the /proc/meminfo:ReverseMaps accounting (Hugh)
+   my kernel is loaded from 0x400 after 1mb(including text data and bss)
+which is end of kernel 
+ i am setting node_boot_start as the pouinter to bit map 
+storing bitmap after the end of the kernel
 
-+proc_vmstat.patch
+what should be the value given to node_boot_start
 
- Take all the VM accounting out of kernel_stat, put it in the per-cpu
- VM accounting, publish it in the new /proc/vmstat
+ any idea pls 
+thanks in advnce 
 
-
-Rik, I didn't include the iowait patch because we don't seem to have
-a tarball of procps which supports it - the various diffs you have at
-http://surriel.com/procps/ appear to be in an intermediate state wrt
-cygnus CVS.
-
-The code is in experimental/iowait.patch.  Could we have a snapshot
-tarball of the support utilities please?
-
-
-The faster wakeup code seems to have shaved 50% off the wakeup cost
-in Badari's profiles, but negligible bottom line benefit.  Still
-poking at that one.
-
-
-
-linus.patch
-  cset-1.568.19.4-to-1.661.txt.gz
-
-scsi_hack.patch
-  Fix block-highmem for scsi
-
-ext3-htree.patch
-  Indexed directories for ext3
-
-spin-lock-check.patch
-  spinlock/rwlock checking infrastructure
-
-rd-cleanup.patch
-  Cleanup and fix the ramdisk driver (doesn't work right yet)
-
-readv-writev.patch
-  O_DIRECT support for readv/writev
-
-llzpr.patch
-  Reduce scheduling latency across zap_page_range
-
-buffermem.patch
-  Resurrect buffermem accounting
-
-lpp.patch
-  ia32 huge tlb pages
-
-lpp-update.patch
-  hugetlbpage fixes
-
-reversemaps-leak.patch
-  Fix reverse map accounting leak
-
-sharedmem.patch
-  Add /proc/meminfo:Mapped - tha amount of memory which is mapped into pagetables
-
-ext3-sb.patch
-  u.ext3_sb -> generic_sbp
-
-oom-fix.patch
-  Fix an OOM condition on big highmem machines
-
-tlb-cleanup.patch
-  Clean up the tlb gather code
-
-dump-stack.patch
-  arch-neutral dump_stack() function
-
-wli-cleanup.patch
-  random cleanups
-
-madvise-move.patch
-  move mdavise implementation into mm/madvise.c
-
-split-vma.patch
-  VMA splitting patch
-
-mmap-fixes.patch
-  mmap.c cleanup and lock ranking fixes
-
-buffer-ops-move.patch
-  Move submit_bh() and ll_rw_block() into fs/buffer.c
-
-slab-stats.patch
-  Display total slab memory in /proc/meminfo
-
-writeback-control.patch
-  Cleanup and extension of the writeback paths
-
-free_area_init-cleanup.patch
-  free_area_init() code cleanup
-
-alloc_pages-cleanup.patch
-  alloc_pages cleanup and optimisation
-
-statm_pgd_range-sucks.patch
-  Remove the pagetable walk from /proc/stat
-
-remove-sync_thresh.patch
-  Remove /proc/sys/vm/dirty_sync_thresh
-
-pf_nowarn.patch
-  Fix up the handling of PF_NOWARN
-
-jeremy.patch
-  Spel Jermy's naim wright
-
-queue-congestion.patch
-  Infrastructure for communicating request queue congestion to the VM
-
-nonblocking-ext2-preread.patch
-  avoid ext2 inode prereads if the queue is congested
-
-nonblocking-pdflush.patch
-  non-blocking writeback infrastructure, use it for pdflush
-
-nonblocking-vm.patch
-  Non-blocking page reclaim
-
-wake-speedup.patch
-  Faster wakeup code
-
-sync-helper.patch
-  Speed up sys_sync() against multiple spindles
-
-slabasap.patch
-  Early and smarter shrinking of slabs
-
-write-deadlock.patch
-  Fix the generic_file_write-from-same-mmapped-page deadlock
-
-buddyinfo.patch
-  Add /proc/buddyinfo - stats on the free pages pool
-
-free_area.patch
-  Remove struct free_area_struct and free_area_t, use `struct free_area'
-
-radix_tree_gang_lookup.patch
-  radix tree gang lookup
-
-truncate_inode_pages.patch
-  truncate/invalidate_inode_pages rewrite
-
-proc_vmstat.patch
-  Move the vm accounting out of /proc/stat
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
