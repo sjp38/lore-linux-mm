@@ -1,32 +1,36 @@
-Received: from zero.aec.at (qmailr@zero.aec.at [193.170.192.102])
-	by kvack.org (8.8.7/8.8.7) with SMTP id QAA20566
-	for <linux-mm@kvack.org>; Sun, 5 Jul 1998 16:08:56 -0400
+Received: from smtp2.erols.com (smtp2.erols.com [207.172.3.235])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id QAA20618
+	for <linux-mm@kvack.org>; Sun, 5 Jul 1998 16:12:18 -0400
+Date: Sun, 5 Jul 1998 16:06:04 -0400 (EDT)
+From: Alex Buell <alex.buell@tahallah.demon.co.uk>
+Reply-To: alex.buell@tahallah.demon.co.uk
 Subject: Re: current VM performance
-References: <Pine.LNX.3.96.980705205234.2186A-100000@mirkwood.dummy.home>
-From: Andi Kleen <ak@muc.de>
-Date: 05 Jul 1998 21:03:17 +0200
-In-Reply-To: Rik van Riel's message of Sun, 5 Jul 1998 21:00:18 +0200 (CEST)
-Message-ID: <k27m1sdssq.fsf@zero.aec.at>
+In-Reply-To: <Pine.LNX.3.96.980705205234.2186A-100000@mirkwood.dummy.home>
+Message-ID: <Pine.LNX.3.96.980705160543.140A-100000@tahallah.demon.co.uk>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 To: Rik van Riel <H.H.vanRiel@phys.uu.nl>
 Cc: Linux MM <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.rutgers.edu>
 List-ID: <linux-mm.kvack.org>
 
-Rik van Riel <H.H.vanRiel@phys.uu.nl> writes:
+On Sun, 5 Jul 1998, Rik van Riel wrote:
 
-> Hi,
-> 
-> While considering future VM improvements, I decided to do
-> some tests with the current VM subsystem.
-> 
-> I started with a 512x512 image (background of www.zip.com.au)
-> in GIMP. The first thing I did was increasing the image size
-> to 5120x5120, now I am 120M in swap on my 24M machine :-)
+> This looks quite acceptable to me, and together with swapin
+> readahead (yup, it's on it's way) even my 24M system should
+> rock again...
 
-I'm not sure if the gimp is a good vm tester, because it basically
-does its own VM with its tile based memory architecture. 
+Yay! Then I can get acceptable performance out of Netscape!
 
--Andi 
+Cheers,
+Alex
+--
+ /\_/\  Legalise cannabis now! 
+( o.o ) Smoke some cannabis today!
+ > ^ <  Peace, Love, Unity and Respect to all.
+
+http://www.tahallah.demon.co.uk
+
 --
 This is a majordomo managed list.  To unsubscribe, send a message with
 the body 'unsubscribe linux-mm me@address' to: majordomo@kvack.org
