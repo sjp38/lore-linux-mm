@@ -1,10 +1,10 @@
 Received: from digeo-nav01.digeo.com (digeo-nav01.digeo.com [192.168.1.233])
-	by packet.digeo.com (8.9.3+Sun/8.9.3) with SMTP id CAA09889
-	for <linux-mm@kvack.org>; Sun, 2 Feb 2003 02:55:39 -0800 (PST)
-Date: Sun, 2 Feb 2003 02:55:46 -0800
+	by packet.digeo.com (8.9.3+Sun/8.9.3) with SMTP id CAA09914
+	for <linux-mm@kvack.org>; Sun, 2 Feb 2003 02:55:51 -0800 (PST)
+Date: Sun, 2 Feb 2003 02:55:58 -0800
 From: Andrew Morton <akpm@digeo.com>
 Subject: Re: hugepage patches
-Message-Id: <20030202025546.2a29db61.akpm@digeo.com>
+Message-Id: <20030202025558.7bae8546.akpm@digeo.com>
 In-Reply-To: <20030131151501.7273a9bf.akpm@digeo.com>
 References: <20030131151501.7273a9bf.akpm@digeo.com>
 Mime-Version: 1.0
@@ -15,121 +15,113 @@ Return-Path: <owner-linux-mm@kvack.org>
 To: davem@redhat.com, rohit.seth@intel.com, davidm@napali.hpl.hp.com, anton@samba.org, wli@holomorphy.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-6/4
+7/4
 
-hugetlbfs: fix truncate
-
-
-- Opening a hugetlbfs file O_TRUNC calls the generic vmtruncate() functions
-  and nukes the kernel.
-
-  Give S_ISREG hugetlbfs files a inode_operations, and hence a setattr
-  which know how to handle these files.
-
-- Don't permit the user to truncate hugetlbfs files to sizes which are not
-  a multiple of HPAGE_SIZE.
-
-- We don't support expanding in ftruncate(), so remove that code.
+hugetlbfs i_size fixes
 
 
+We're expanding hugetlbfs i_size in the wrong place.  If someone attempts to
+mmap more pages than are available, i_size is updated to reflect the
+attempted mapping size.
+
+So set i_size only when pages are successfully added to the mapping.
+
+i_size handling at truncate time is still a bit wrong - if the mapping has
+pages at (say) page offset 100-200 and the mappng is truncated to (say_ page
+offset 50, i_size should be set to zero.  But it is instead set to
+50*HPAGE_SIZE.  That's harmless.
 
 
- hugetlbfs/inode.c |   39 ++++++++++++++++-----------------------
- 1 files changed, 16 insertions(+), 23 deletions(-)
+ i386/mm/hugetlbpage.c    |    5 +++++
+ ia64/mm/hugetlbpage.c    |    0 
+ sparc64/mm/hugetlbpage.c |    0 
+ x86_64/mm/hugetlbpage.c  |    6 ++++++
+ hugetlbfs/inode.c        |    5 -----
+ 5 files changed, 11 insertions(+), 5 deletions(-)
 
-diff -puN fs/hugetlbfs/inode.c~hugetlbfs-truncate-fix fs/hugetlbfs/inode.c
---- 25/fs/hugetlbfs/inode.c~hugetlbfs-truncate-fix	2003-02-02 01:17:04.000000000 -0800
-+++ 25-akpm/fs/hugetlbfs/inode.c	2003-02-02 01:17:04.000000000 -0800
-@@ -34,6 +34,7 @@ static struct super_operations hugetlbfs
- static struct address_space_operations hugetlbfs_aops;
- struct file_operations hugetlbfs_file_operations;
- static struct inode_operations hugetlbfs_dir_inode_operations;
-+static struct inode_operations hugetlbfs_inode_operations;
- 
- static struct backing_dev_info hugetlbfs_backing_dev_info = {
- 	.ra_pages	= 0,	/* No readahead */
-@@ -326,44 +327,29 @@ static void hugetlb_vmtruncate_list(stru
- 	}
- }
- 
-+/*
-+ * Expanding truncates are not allowed.
-+ */
- static int hugetlb_vmtruncate(struct inode *inode, loff_t offset)
+diff -puN fs/hugetlbfs/inode.c~hugetlbfs-i_size-fix fs/hugetlbfs/inode.c
+--- 25/fs/hugetlbfs/inode.c~hugetlbfs-i_size-fix	2003-02-01 02:07:22.000000000 -0800
++++ 25-akpm/fs/hugetlbfs/inode.c	2003-02-01 02:07:22.000000000 -0800
+@@ -45,7 +45,6 @@ static int hugetlbfs_file_mmap(struct fi
  {
- 	unsigned long pgoff;
+ 	struct inode *inode =file->f_dentry->d_inode;
  	struct address_space *mapping = inode->i_mapping;
--	unsigned long limit;
+-	size_t len;
+ 	int ret;
  
--	pgoff = (offset + HPAGE_SIZE - 1) >> HPAGE_SHIFT;
-+	if (offset > inode->i_size)
-+		return -EINVAL;
- 
--	if (inode->i_size < offset)
--		goto do_expand;
-+	BUG_ON(offset & ~HPAGE_MASK);
-+	pgoff = offset >> HPAGE_SHIFT;
- 
- 	inode->i_size = offset;
- 	down(&mapping->i_shared_sem);
--	if (list_empty(&mapping->i_mmap) && list_empty(&mapping->i_mmap_shared))
--		goto out_unlock;
- 	if (!list_empty(&mapping->i_mmap))
- 		hugetlb_vmtruncate_list(&mapping->i_mmap, pgoff);
- 	if (!list_empty(&mapping->i_mmap_shared))
- 		hugetlb_vmtruncate_list(&mapping->i_mmap_shared, pgoff);
+ 	if (!capable(CAP_IPC_LOCK))
+@@ -66,10 +65,6 @@ static int hugetlbfs_file_mmap(struct fi
+ 	vma->vm_flags |= VM_HUGETLB | VM_RESERVED;
+ 	vma->vm_ops = &hugetlb_vm_ops;
+ 	ret = hugetlb_prefault(mapping, vma);
+-	len = (vma->vm_end - vma->vm_start) + (vma->vm_pgoff << PAGE_SHIFT);
+-	if (inode->i_size < len)
+-		inode->i_size = len;
 -
--out_unlock:
- 	up(&mapping->i_shared_sem);
- 	truncate_hugepages(mapping, offset);
- 	return 0;
--
--do_expand:
--	limit = current->rlim[RLIMIT_FSIZE].rlim_cur;
--	if (limit != RLIM_INFINITY && offset > limit)
--		goto out_sig;
--	if (offset > inode->i_sb->s_maxbytes)
--		goto out;
--	inode->i_size = offset;
--	return 0;
--
--out_sig:
--	send_sig(SIGXFSZ, current, 0);
--out:
--	return -EFBIG;
+ 	up(&inode->i_sem);
+ 	return ret;
  }
+diff -puN arch/i386/mm/hugetlbpage.c~hugetlbfs-i_size-fix arch/i386/mm/hugetlbpage.c
+--- 25/arch/i386/mm/hugetlbpage.c~hugetlbfs-i_size-fix	2003-02-01 02:07:22.000000000 -0800
++++ 25-akpm/arch/i386/mm/hugetlbpage.c	2003-02-01 02:07:22.000000000 -0800
+@@ -284,6 +284,7 @@ void zap_hugepage_range(struct vm_area_s
+ int hugetlb_prefault(struct address_space *mapping, struct vm_area_struct *vma)
+ {
+ 	struct mm_struct *mm = current->mm;
++	struct inode *inode = mapping->host;
+ 	unsigned long addr;
+ 	int ret = 0;
  
- static int hugetlbfs_setattr(struct dentry *dentry, struct iattr *attr)
-@@ -390,7 +376,9 @@ static int hugetlbfs_setattr(struct dent
- 		goto out;
+@@ -307,6 +308,7 @@ int hugetlb_prefault(struct address_spac
+ 			+ (vma->vm_pgoff >> (HPAGE_SHIFT - PAGE_SHIFT));
+ 		page = find_get_page(mapping, idx);
+ 		if (!page) {
++			loff_t i_size;
+ 			page = alloc_hugetlb_page();
+ 			if (!page) {
+ 				ret = -ENOMEM;
+@@ -318,6 +320,9 @@ int hugetlb_prefault(struct address_spac
+ 				free_huge_page(page);
+ 				goto out;
+ 			}
++			i_size = (loff_t)(idx + 1) * HPAGE_SIZE;
++			if (i_size > inode->i_size)
++				inode->i_size = i_size;
+ 		}
+ 		set_huge_pte(mm, vma, page, pte, vma->vm_flags & VM_WRITE);
+ 	}
+diff -puN arch/ia64/mm/hugetlbpage.c~hugetlbfs-i_size-fix arch/ia64/mm/hugetlbpage.c
+diff -puN arch/sparc64/mm/hugetlbpage.c~hugetlbfs-i_size-fix arch/sparc64/mm/hugetlbpage.c
+diff -puN arch/x86_64/mm/hugetlbpage.c~hugetlbfs-i_size-fix arch/x86_64/mm/hugetlbpage.c
+--- 25/arch/x86_64/mm/hugetlbpage.c~hugetlbfs-i_size-fix	2003-02-01 02:07:22.000000000 -0800
++++ 25-akpm/arch/x86_64/mm/hugetlbpage.c	2003-02-01 02:07:22.000000000 -0800
+@@ -205,6 +205,7 @@ void zap_hugepage_range(struct vm_area_s
+ int hugetlb_prefault(struct address_space *mapping, struct vm_area_struct *vma)
+ {
+ 	struct mm_struct *mm = current->mm;
++	struct inode = mapping->host;
+ 	unsigned long addr;
+ 	int ret = 0;
  
- 	if (ia_valid & ATTR_SIZE) {
--		error = hugetlb_vmtruncate(inode, attr->ia_size);
-+		error = -EINVAL;
-+		if (!(attr->ia_size & ~HPAGE_MASK))
-+			error = hugetlb_vmtruncate(inode, attr->ia_size);
- 		if (error)
- 			goto out;
- 		attr->ia_valid &= ~ATTR_SIZE;
-@@ -425,6 +413,7 @@ hugetlbfs_get_inode(struct super_block *
- 			init_special_inode(inode, mode, dev);
- 			break;
- 		case S_IFREG:
-+			inode->i_op = &hugetlbfs_inode_operations;
- 			inode->i_fop = &hugetlbfs_file_operations;
- 			break;
- 		case S_IFDIR:
-@@ -525,6 +514,10 @@ static struct inode_operations hugetlbfs
- 	.setattr	= hugetlbfs_setattr,
- };
- 
-+static struct inode_operations hugetlbfs_inode_operations = {
-+	.setattr	= hugetlbfs_setattr,
-+};
+@@ -228,6 +229,8 @@ int hugetlb_prefault(struct address_spac
+ 			+ (vma->vm_pgoff >> (HPAGE_SHIFT - PAGE_SHIFT));
+ 		page = find_get_page(mapping, idx);
+ 		if (!page) {
++			loff_t i_size;
 +
- static struct super_operations hugetlbfs_ops = {
- 	.statfs		= simple_statfs,
- 	.drop_inode	= hugetlbfs_drop_inode,
+ 			page = alloc_hugetlb_page();
+ 			if (!page) {
+ 				ret = -ENOMEM;
+@@ -239,6 +242,9 @@ int hugetlb_prefault(struct address_spac
+ 				free_huge_page(page);
+ 				goto out;
+ 			}
++			i_size = (loff_t)(idx + 1) * HPAGE_SIZE;
++			if (i_size > inode->i_size)
++				inode->i_size = i_size;
+ 		}
+ 		set_huge_pte(mm, vma, page, pte, vma->vm_flags & VM_WRITE);
+ 	}
 
 _
 
