@@ -1,8 +1,8 @@
-Date: Wed, 31 May 2000 15:49:26 -0300 (BRST)
+Date: Wed, 31 May 2000 16:30:22 -0300 (BRST)
 From: Rik van Riel <riel@conectiva.com.br>
 Subject: Re: [PATCH] VM bugfix + rebalanced + code beauty
 In-Reply-To: <qww4s7e61ds.fsf@sap.com>
-Message-ID: <Pine.LNX.4.21.0005311548550.30221-100000@duckman.distro.conectiva>
+Message-ID: <Pine.LNX.4.21.0005311629160.30221-100000@duckman.distro.conectiva>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -22,7 +22,12 @@ On 31 May 2000, Christoph Rohland wrote:
 > Does this mean, that we can do anonymous shared maps in the page
 > cache?
 
-Ermmm, %s/pagecache/swapcache/g in my email. My mistake...
+I'm testing stuff now, but seem unable to reproduce your
+observation. However, I *am* seeing high cpu usage by
+kswapd ;)
+
+I guess we really want to integrate the SHM swapout routine
+with shrink_mmap...
 
 regards,
 
