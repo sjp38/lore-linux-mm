@@ -1,56 +1,130 @@
-Content-Type: text/plain; charset=US-ASCII
-From: Daniel Phillips <phillips@bonn-fries.net>
-Subject: Re: Brief introduction
-Date: Wed, 29 Aug 2001 13:47:22 +0200
-References: <Pine.LNX.4.32.0108291050010.1979-100000@skynet>
-In-Reply-To: <Pine.LNX.4.32.0108291050010.1979-100000@skynet>
+Received: from [129.179.161.11] by ns1.cdc.com with ESMTP for linux-mm@kvack.org; Wed, 29 Aug 2001 08:51:59 -0500
+Message-Id: <3B8CF2BA.5030506@syntegra.com>
+Date: Wed, 29 Aug 2001 08:48:42 -0500
+From: Andrew Kay <Andrew.J.Kay@syntegra.com>
+Subject: Re: kernel: __alloc_pages: 1-order allocation failed
+References: <Pine.LNX.4.21.0108271928250.7385-100000@freak.distro.conectiva> <20010828000128Z16263-32386+166@humbolt.nl.linux.org>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 7BIT
-Message-Id: <20010829114040Z16069-32383+2222@humbolt.nl.linux.org>
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel <mel@csn.ul.ie>, linux-mm@kvack.org
+To: Daniel Phillips <phillips@bonn-fries.net>
+Cc: Marcelo Tosatti <marcelo@conectiva.com.br>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On August 29, 2001 11:55 am, Mel wrote:
-> Hello Linux-MM,
+Here's some 'cut' output from /var/log/messages.  There is a lot more 
+from where this came from.  Some of it looks a bit different, I included 
+it below the first 3 errors.  I can post the 165k gzipped messages file 
+somewhere if someone wants to look at the whole thing.
+
+__alloc_pages: 1-order allocation failed (gfp=0x20/0).
+Call Trace: [<c012db70>] [<c012de1e>] [<c012a69e>] [<c012aa21>] 
+[<c0211032>]
+    [<c02392da>] [<c023669f>] [<c02355c1>] [<c02399a1>] [<c01b000f>] 
+[<c011c9bc>]
+    [<c01b000f>] [<c02158e6>] [<c021a714>] [<c02158e6>] [<c022173d>] 
+[<c0221638>]
+    [<c0221b5d>] [<c0211f53>] [<c0221638>] [<c023099a>] [<c0211f53>] 
+[<c0211f68>]
+    [<c02120b9>] [<c023698e>] [<c0236c65>] [<c023711d>] [<c021f07f>] 
+[<c021f40a>]
+    [<c01b0571>] [<c0215fae>] [<c0119533>] [<c0108785>] [<c0105230>] 
+[<c0105230>]
+    [<c0106e34>] [<c0105230>] [<c0105230>] [<c010525c>] [<c01052c2>] 
+[<c0105000>]
+    [<c010505f>]
+__alloc_pages: 1-order allocation failed (gfp=0x20/0).
+Call Trace: [<c012db70>] [<c012de1e>] [<c012a69e>] [<c012aa21>] 
+[<c0211032>]
+    [<c02392da>] [<c023669f>] [<c02399a1>] [<c01b000f>] [<c021a714>] 
+[<c02158e6>]
+    [<c022173d>] [<c022245d>] [<c0222a83>] [<c0222890>] [<c01e0c9a>] 
+[<c01e0e94>]
+    [<c01e10f4>] [<c023698e>] [<c0236c65>] [<c023711d>] [<c021f07f>] 
+[<c021f40a>]
+    [<c01b0571>] [<c0215fae>] [<c0119533>] [<c0108785>] [<c0105230>] 
+[<c0105230>]
+    [<c0106e34>] [<c0105230>] [<c0105230>] [<c010525c>] [<c01052c2>] 
+[<c0105000>]
+    [<c010505f>]
+__alloc_pages: 1-order allocation failed (gfp=0x20/0).
+Call Trace: [<c012db70>] [<c012de1e>] [<c012a69e>] [<c012aa21>] 
+[<c0211032>]
+    [<c02392da>] [<c023669f>] [<c02399a1>] [<c01b000f>] [<c01b000f>] 
+[<c02158e6>]
+    [<c021a714>] [<c02158e6>] [<c022173d>] [<c0221638>] [<c0221b5d>] 
+[<c0211f53>]
+    [<c0221638>] [<c023099a>] [<c0230a4a>] [<c0211dca>] [<c0233137>] 
+[<c023698e>]
+    [<c0236c65>] [<c023711d>] [<c021f07f>] [<c021f40a>] [<c01b0571>] 
+[<c0215fae>]
+    [<c0119533>] [<c0108785>] [<c0105230>] [<c0105230>] [<c0106e34>] 
+[<c0105230>]
+    [<c0105230>] [<c010525c>] [<c01052c2>] [<c01ffaf7>] [<c019266e>]
+__alloc_pages: 1-order allocation failed (gfp=0x20/0).
+
+
+
+__alloc_pages: 1-order allocation failed (gfp=0x20/0).
+Call Trace: [<c012db70>] [<c012de1e>] [<c012a69e>] [<c012aa21>] 
+[<c0211032>]
+    <3>__alloc_pages: 1-order allocation failed (gfp=0x20/1).
+[<c02392da>] Call Trace: [<c023669f>] [<c012db70>] [<c02399a1>] 
+[<c012de1e>] [<c01b000f>] [<c012a69e>] [<c021a714>] [<c012aa21>] 
+[<c02158e6>] [<c0211032>]
+
+    [<c022173d>] [<c02392da>] [<c0221638>] [<c023669f>] [<c0221b5d>] 
+[<c0211032>] [<c0221638>] [<c02399a1>] [<c01e0c9a>] [<c02399a1>] 
+[<c01e0e94>] [<c02399a1>]
+
+    [<c01e10f4>] [<c01b000f>] [<c022e9dc>] [<c0112437>] [<c023698e>] 
+[<c021a714>] [<c0236c65>] [<c02158e6>] [<c023711d>] [<c01e0c9a>] 
+[<c021f07f>] [<c0112437>]
+
+    [<c021f40a>] [<c0112437>] [<c01b0571>] [<c01e10f4>] [<c0215fae>] 
+[<c023698e>] [<c0119533>] [<c0236c65>] [<c0108785>] [<c023711d>] 
+[<c0105230>] [<c021f07f>]
+
+    [<c0105230>] [<c021f40a>] [<c0106e34>] [<c01b0571>] [<c0105230>] 
+[<c0215fae>] [<c0105230>] [<c0119533>] [<c010525c>] [<c0108785>] 
+[<c01052c2>] [<c0106e34>]
+
+    [<c01ffaf7>] [<c0120018>] [<c019266e>] [<c012bdfb>]
+[<c012beee>] [<c012bf73>] [<c012c04c>] [<c012cf85>]
+    [<c012d081>] [<c0105000>] [<c0105573>]
+
+
+Andy
+
+Daniel Phillips wrote:
+> On August 28, 2001 12:28 am, Marcelo Tosatti wrote:
 > 
-> As part of a larger project, I am to write a small paper describing how
-> the Linux MM works, including the algorithms used and the O(whatever)
-> running time each of them takes. This includes everything from the
-> different ways of allocating memory, to swapping, to the individual
-> optimisations such as use-once. I will be starting with kernel 2.4.9 but
-> will do my best to keep up to date with the various patches that affect
-> the memory manager and will be lurking here on the list.
+>>On Tue, 28 Aug 2001, Daniel Phillips wrote:
+>>
+>>>On August 27, 2001 10:14 pm, Andrew Kay wrote:
+>>>
+>>>>I am having some rather serious problems with the memory management (i 
+>>>>think) in the 2.4.x kernels.  I am currently on the 2.4.9 and get lots 
+>>>>of these errors in /var/log/messages.
+>>>>
+>>Its probably the bounce buffering thingie.
+>>
+>>I'll send a patch to Linus soon.
+>>
 > 
-> This in it's very early days so it'll be some time before I actually have
-> something to show, but if people have areas they would like to see
-> concentrated on or suggestions on what the most important sections to
-> highlight are, I would be glad to hear them.
+> That's what I thought too, but I thought, why not give him the patch and be 
+> sure.
 > 
-> As appaling as this may sound to some of you ;)
+> --
+> Daniel
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/
+> 
 
-I am quite sure nobody will find this appalling.
 
-> this is purely a
-> documentation effort and I don't intend to submit patches yet except in
-> the unlikely event I notice something blatently wrong. When I am finished,
-> I hope to have something that will help people get a grip on how the MM
-> functions that isn't just "read the source"
-
-When you have something to look at you should consider contacting Tigran 
-Aivazian <tigran@veritas.com> and offer up your work as a chapter for Linux 
-Kernel 2.4 Internals, which currently lacks any treatment of the subject at 
-all.  Not to mention getting the benefit of some of Tigran's customary 
-attention to detail.
-
-You might get some good ideas on style from Understanding the Linux Kernel.
-
-I doesn't matter whether it's brief or long.  You will probably find it's 
-hard to keep it brief once you get started.
-
---
-Daniel
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
