@@ -1,59 +1,44 @@
-From: Nikita Danilov <Nikita@Namesys.COM>
+From: David Mosberger <davidm@napali.hpl.hp.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
-Message-ID: <15927.45619.775222.504275@laputa.namesys.com>
-Date: Wed, 29 Jan 2003 13:51:31 +0300
-Subject: Re: dirty pages path in kernel
-In-Reply-To: <3E36F167.7FB37E6B@digeo.com>
-References: <3E36BD6B.6080000@shaolinmicro.com>
-	<20030128111353.3a104e3d.akpm@digeo.com>
-	<3E36F167.7FB37E6B@digeo.com>
+Message-ID: <15928.2469.865487.687367@napali.hpl.hp.com>
+Date: Wed, 29 Jan 2003 09:04:37 -0800
+Subject: Re: Linus rollup
+In-Reply-To: <20030129095949.A24161@flint.arm.linux.org.uk>
+References: <20030128220729.1f61edfe.akpm@digeo.com>
+	<20030129095949.A24161@flint.arm.linux.org.uk>
+Reply-To: davidm@hpl.hp.com
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@digeo.com>
-Cc: David Chow <davidchow@shaolinmicro.com>, linux-mm@kvack.org
+To: Russell King <rmk@arm.linux.org.uk>
+Cc: Andrew Morton <akpm@digeo.com>, Andi Kleen <ak@muc.de>, "David S. Miller" <davem@redhat.com>, David Mosberger <davidm@napali.hpl.hp.com>, Anton Blanchard <anton@samba.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Andrew Morton writes:
- > Andrew Morton wrote:
- > > 
- > > David Chow <davidchow@shaolinmicro.com> wrote:
- > > >
- > > > Hi,
- > > >
- > > > If I do the following to an inode mapping page .
- > > >
- > > > 1. Generate a "struct page" from read_cache_page()
- > > > 2. kmap() the page, do some memset() (Dirty the page)
- > > > 3. kunmap() and page_cache_release() the page.
- > > >
- > > 
- > > The VFS does not know that the page has changed.
- > > 
- > > You should do:
- > > 
- > >         lock_page(page);
- > >         memset()
- > >         set_page_dirty(page);
- > >         unlock_page(page);
- > > 
- > > the page will be written to disk on the next kupdate cycle.
- > 
- > Make that:
- > 
- > 	lock_page(page);
- > 	kaddr = kmap_atomic(page, KM_USER0);
- > 	memset(kaddr, ...);
- > 	flush_dcache_page(page)
- > 	kunmap_atomic(kaddr, KM_USER0);
- > 	set_page_dirty(page);
+>>>>> On Wed, 29 Jan 2003 09:59:49 +0000, Russell King <rmk@arm.linux.org.uk> said:
 
-Shouldn't mark_page_accessed() go here?
+  Russell> On Tue, Jan 28, 2003 at 10:07:29PM -0800, Andrew Morton
+  Russell> wrote:
 
- > 	unlock_page(page);
+  >> The frlock code is showing nice speedups, but I think the main
+  >> reason we want this is to fix the problem wherein an application
+  >> spinning on gettimeofday() can make time stop.
 
-Nikita.
+  Russell> I'm slightly concerned about this.  With this patch, we
+  Russell> generally seem to do:
+
+  Russell> [snip...]
+
+  Russell> The same is true for other architectures; their
+  Russell> gettimeoffset implementations need to be audited by the
+  Russell> architecture maintainers to ensure that they are safe to
+  Russell> run with (local) interrupts enabled.
+
+Should be fine as far as ia64 is concerned, since gettimeoffset()
+currently simply reads the cycle-counter (and I think even HPET-based
+interpolation would be lock-free).
+
+	--david
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
