@@ -1,39 +1,35 @@
-Date: Wed, 2 Feb 2005 13:31:42 -0800 (PST)
-From: Christoph Lameter <clameter@sgi.com>
 Subject: Re: A scrub daemon (prezeroing)
-In-Reply-To: <20050202163110.GB23132@logos.cnet>
-Message-ID: <Pine.LNX.4.58.0502021328290.13966@schroedinger.engr.sgi.com>
+From: David Woodhouse <dwmw2@infradead.org>
+In-Reply-To: <Pine.LNX.4.61L.0502022000470.9448@blysk.ds.pg.gda.pl>
 References: <Pine.LNX.4.58.0501211228430.26068@schroedinger.engr.sgi.com>
- <1106828124.19262.45.camel@hades.cambridge.redhat.com> <20050202153256.GA19615@logos.cnet>
- <Pine.LNX.4.58.0502021103410.12695@schroedinger.engr.sgi.com>
- <20050202163110.GB23132@logos.cnet>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+	 <1106828124.19262.45.camel@hades.cambridge.redhat.com>
+	 <20050202153256.GA19615@logos.cnet>
+	 <Pine.LNX.4.61L.0502022000470.9448@blysk.ds.pg.gda.pl>
+Content-Type: text/plain
+Date: Wed, 02 Feb 2005 21:33:45 +0000
+Message-Id: <1107380025.18239.30.camel@baythorne.infradead.org>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
-Cc: David Woodhouse <dwmw2@infradead.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@osdl.org
+To: "Maciej W. Rozycki" <macro@linux-mips.org>
+Cc: Marcelo Tosatti <marcelo.tosatti@cyclades.com>, Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@osdl.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2 Feb 2005, Marcelo Tosatti wrote:
+On Wed, 2005-02-02 at 21:00 +0000, Maciej W. Rozycki wrote:
+>  E.g. the Broadcom's MIPS64-based SOCs have four general purpose DMA 
+> engines onchip which can transfer data to/from the memory controller in 
+> 32-byte chunks over the 256-bit internal bus.  We have hardly any use for 
+> these devices and certainly not for all four of them.
 
-> > Nope the BTE is a block transfer engine. Its an inter numa node DMA thing
-> > that is being abused to zero blocks.
-> Ah, OK.
-> Is there a driver for normal BTE operation or is not kernel-controlled ?
+On machines like the Ocelot, I keep intending to abuse one of the DMA
+engines for access to the DiskOnChip. Really must dig the Ocelot out of
+the dusty pile of toys... :)
 
-There is a function bte_copy in the ia64 arch. See
+-- 
+dwmw2
 
-arch/ia64/sn/kernel/bte.c
 
-> I wonder what has to be done to have active DMA engines be abused for zeroing
-> when idle and what are the implications of that. Some kind of notification mechanism
-> is necessary to inform idleness ?
->
-> Someone should try implementing the zeroing driver for a fast x86 PCI device. :)
-
-Sure but I am on ia64 not i386. Find your own means to abuse your own
-chips ... ;-)
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
