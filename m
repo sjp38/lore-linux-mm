@@ -1,38 +1,52 @@
 From: James A. Sutherland <jas88@cam.ac.uk>
-Subject: Re: suspend processes at load (was Re: a simple OOM ...)
-Date: Sun, 22 Apr 2001 11:08:33 +0100
-Message-ID: <00b5et8fnosiic8ii723qjjnrp4k5ainml@4ax.com>
-References: <mibudt848g9vrhaac88qjdpnaut4hajooa@4ax.com> <Pine.LNX.4.30.0104201203280.20939-100000@fs131-224.f-secure.com> <sb72ets3sek2ncsjg08sk5tmj7v9hmt4p7@4ax.com> <3AE1DCA8.A6EF6802@earthlink.net>
-In-Reply-To: <3AE1DCA8.A6EF6802@earthlink.net>
+Subject: Re: suspend processes at load (was Re: a simple OOM ...) 
+Date: Sun, 22 Apr 2001 11:19:07 +0100
+Message-ID: <0tb5et46n2bqpos4qnhmqjvc5ni1vusv49@4ax.com>
+References: <11530000.987705299@baldur> <Pine.LNX.4.30.0104201223390.20939-100000@fs131-224.f-secure.com>
+In-Reply-To: <Pine.LNX.4.30.0104201223390.20939-100000@fs131-224.f-secure.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 8BIT
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Joseph A. Knapka" <jknapka@earthlink.net>
-Cc: linux-mm@kvack.org
+To: Szabolcs Szakacsits <szaka@f-secure.com>
+Cc: Dave McCracken <dmc@austin.ibm.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 21 Apr 2001 13:16:56 -0600, you wrote:
+On Fri, 20 Apr 2001 14:18:34 +0200 (MET DST), you wrote:
 
->"James A. Sutherland" wrote:
->> 
->> Note that process suspension already happens, but with too fine a
->> granularity (the scheduler) - that's what causes the problem. If one
->> process were able to run uninterrupted for, say, a second, it would
->> get useful work done, then you could switch to another. The current
->> scheduling doesn't give enough time for that under thrashing
->> conditions.
+>On Thu, 19 Apr 2001, Dave McCracken wrote:
+>> --On Wednesday, April 18, 2001 23:32:25 +0200 Szabolcs Szakacsits
+>> > How you want to avoid "deadlocks" when running processes have
+>> > dependencies on suspended processes?
+>> I think there's a semantic misunderstanding here.  If I understand Rik's
+>> proposal right, he's not talking about completely suspending a process ala
+>> SIGSTOP.  He's talking about removing it from the run queue for some small
+>> length of time (ie a few seconds, probably) during which all the other
+>> processes can make progress.
 >
->This suggests that a very simple approach might be to just increase
->the scheduling granularity as the machine begins to thrash. IOW,
->use the existing scheduler as the "suspension scheduler".
+>Yes, I also didn't mean deadlocks in its classical sense this is the
+>reason I put it in quote. The issue is the unexpected potentially huge
+>communication latencies between processes/threads or between user and
+>system. App developers do write code taking load/latency into account
+>but not in mind some of their processes/threads can get suspended for
+>indeterminated interval from time to time.
 
-That's effectively what this approach does - the problem is, we need
-to prevent this process being scheduled for some significant period of
-time. I think just SIGSTOPing each process to be suspended is a more
-elegant solution than trying to hack the scheduler to support "Don't
-schedule this process for the next 5 seconds", but I'm not certain?
+If some part of the multi-threaded/multi-process system overloads the
+system to the point of thrashing, it has already failed, and is likely
+to encounter a SIGKILL from the sysadmin - if and when the sysadmin is
+able to issue a SIGKILL...
+
+>> This kind of suspension won't be noticeable to users/administrators
+>> or permanently block dependent processes.  In fact, it should make
+>> the system appear more responsive than one in a thrashing state.
+>
+>With occasionally suspended X, sshd, etc, etc, etc ;)
+
+If sshd blows up to the point of getting suspended, it's already gone
+wrong... Suspending X could happen, and would be a *GOOD* thing under
+the circumstances: it would then enable you to kill the rogue
+process(es) on a virtual console or network login.
 
 
 James.
