@@ -1,52 +1,60 @@
-Date: Mon, 17 Jul 2000 21:01:18 +0200 (CEST)
-From: Mike Galbraith <mikeg@weiden.de>
-Subject: Re: [PATCH] test5-1 vm fix
-In-Reply-To: <Pine.LNX.4.21.0007171143100.30603-100000@duckman.distro.conectiva>
-Message-ID: <Pine.Linu.4.10.10007171948160.347-100000@mikeg.weiden.de>
+From: yannis@cc.gatech.edu (Yannis Smaragdakis)
+Message-Id: <200007171856.OAA28852@ocelot.cc.gatech.edu>
+Subject: Re: [PATCH] 2.2.17pre7 VM enhancement Re: I/O performance on
+Date: Mon, 17 Jul 2000 14:55:59 -0400 (EDT)
+In-Reply-To: <Pine.LNX.4.21.0007171149440.30603-100000@duckman.distro.conectiva> from "Rik van Riel" at Jul 17, 2000 11:53:48 AM
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Rik van Riel <riel@conectiva.com.br>
-Cc: Roger Larsson <roger.larsson@norran.net>, Linus Torvalds <torvalds@transmeta.com>, "linux-kernel@vger.rutgers.edu" <linux-kernel@vger.rutgers.edu>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: sct@redhat.com, andrea@suse.de, marcelo@conectiva.com.br, axboe@suse.de, alan@redhat.com, derek@cerberus.ne.mediaone.net, Yannis Smaragdakis <yannis@cc.gatech.edu>, davem@redhat.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 17 Jul 2000, Rik van Riel wrote:
+Unfortunately, it sounded like I was arguing in favor of LRU, while
+I was not. Also, I agree that a good algorithm should never swap out
+program pages in favor of transient data. But I think it is 
+overgeneralizing to go from "often pages are accessed only *once*"
+to "frequency is good". The problem with frequency is that it's
+very sensitive to phase behavior and may keep old pages around for
+too long, just because they were accessed often some time ago.
 
-> On Mon, 17 Jul 2000, Mike Galbraith wrote:
-> > On Sun, 16 Jul 2000, Rik van Riel wrote:
-> > > On Sun, 16 Jul 2000, Mike Galbraith wrote:
-> > > > Unfortunately, this didn't improve anything here.
-> > > 
-> > > As was to be expected ...
-> > 
-> > one can only hope and test.
-> 
-> Alternatively, one can learn from the patches and
-> mistakes of others and try to understand how stuff
-> works.
 
-I read them all from top to bottom, and listen at full volume.
+Rik wrote:
+> Both LRU and LFU break down on linear accesses to an array
+> that doesn't fit in memory. In that case you really want
+> MRU replacement, with some simple code that "detects the
+> window size" you need to keep in memory. This seems to be
 
-> > Do you already know what it's up to during one of these nasty
-> > stalls?
-> 
-> There's nothing wrong with the current VM that wasn't
-> fixed in one of my patches the last 8 weeks.
->
-> (except for the fundamental design flaws, which I will
-> fix in the *next* N+1 weeks)
+I agree and this is partly the point in our paper, only we argue that
+this strategy can be generalized cleanly (instead of being a special
+case hack).
 
-I look forward to trying out the result.
 
-> regards,
-> 
-> Rik
+> Since *both* recency and frequency are important, we can
+> simply use an algorithm which keeps both into account.
+> Page aging nicely fits the bill here.
 
-	Cheers,
+Proposal:
+Why not define "frequency" as "references over *normalized* time"
+instead of "references over time"? If you touch a page twice
+and in the meantime you have touched a million other pages,
+this is important. If you touch a page twice and
+in the meantime you have only touched one other page, this should not
+affect "page age". In short, the way the page's age is updated should
+be a function of how many other pages were found to be recently
+referenced.
 
-	-Mike
+Say you call the code that reads/resets the reference bits and you
+find that n pages were referenced in total. Then each of those
+gets its age incremented by a factor proportional to n. For efficiency,
+one could use the "n" that was computed during the last scan.
 
+
+I think that this would get the effect you want and would alleviate
+my concerns about "frequency".
+	Yannis.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
