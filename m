@@ -1,75 +1,66 @@
-From: "DR.SALISU JOHN" <salisujohn@mail.com>
-Date: Thu, 11 Jul 2002 01:19:44
-Subject: PROPOSAL
+Message-ID: <3D2CCF23.3AD6043@zip.com.au>
+Date: Wed, 10 Jul 2002 17:19:47 -0700
+From: Andrew Morton <akpm@zip.com.au>
 MIME-Version: 1.0
-Content-Type: text/plain;charset="iso-8859-1"
+Subject: Re: scalable kmap (was Re: vm lock contention reduction)
+References: <3D2CBE6A.53A720A0@zip.com.au> <167170000.1026343616@flay>
+Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
-Message-Id: <20020711002124Z26570-954+71@kvack.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: "Martin J. Bligh" <Martin.Bligh@us.ibm.com>
+Cc: Andrea Arcangeli <andrea@suse.de>, Linus Torvalds <torvalds@transmeta.com>, Rik van Riel <riel@conectiva.com.br>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Dear Sir/Madam,
+"Martin J. Bligh" wrote:
+> 
+> ...
+> > But NMI-based oprofile is bang-on target so I recommend you use that.
+> > I'll publish my oprofile-for-2.5 asap.
+> 
+> That'd be good, but I'm not sure my box likes NMIs too much ;-)
+> We'll see ....
 
-First,I must solicit your strictest confidence in this
-transaction. This is by virtue of its nature as being
-utterly confidential.I am the Secretary of the
-Cont-ract Review Panel instituted by His Excelency
-President Olusegun Obasanjo to probe/review all
-Contracts executed and payments made during the regime
-of late General Sani Abacha. I have been mandated by
-my colleagues on the Panel to seek your assistance in
-the transfer of the sum ofUS$32.4Million into your
-Bank Account.
+http://www.zip.com.au/~akpm/linux/patches/2.5/2.5.25/oprofile.patch.gz
 
-As you may know, the late General Abacha and members
-of his government embezzled billions of dollar
-sthrough spurious contracts and payments to foreigners
-between 1993 - 1998 and this is now the subject of
-probe by my Panel. In the course of our review, wehave
-discovered this sum of $32.4Million, which the former
-dictator could not transfer from the dedicatedaccount
-of the Central Bank of Nigeria before his sudden death
-in June 1998. It is this amount that my Colleagues and
-I have decided to acquire for ourselves through your
-assistance.
+Now, oprofile trick for young players: the most useful metric
+is CPU_CLK_UNHALTED.  And the example commandline at http://oprofile.sourceforge.net/doc.php3 works just fine.
 
-This assistance becomes crucial because we cannot
-acquire the funds in our names and as government
-officials we are not allowed to own or operate foreign
-bank accounts. We have thus developed a fullproof,
-legal and totally risk free scheme through which the
-fund can be transferred to your nominated bank account
-within a very short time. The scheme is to use our
-position and influence on the Panel to present you as
-a foreign Contractor beneficiary of the funds. We
-shall arrange all documentation to support this claim
-and get Approval for the transfer of the funds for
-your benefit on our behalf. The scheme is perfected to
-be 100% risk free and weare sure the funds can arrive
-your Account within 7 -10 working days from when you
-agree to assist us. 
+But the kernel halts the clock in default_idle, and the numbers
+you get out of the profiler only reflect the amount of time which
+was spent with the clock unhalted.
 
-You should acknowledge the receipt of my mail through
-the above e-mail address so we can further discuss the
-modalities of your cooperation and negotiate the
-charge for the usage of your Account. You definitely
-have a lot to benefit from this transaction as we have
-decided to give you 20% of the total sum as soon as
-you secure it in your account,and we have also set
-aside 5% of the total sum for all expenses incurred in
-the course of this transaction.Please, endeavor to
-give me a private telephone/faxnumber through which we
-can communicate with you inconfidence (in your
-response) as the need for secrecy is great to this
-transaction.
+So for example if you run oprofile against an idle machine,
+it looks like the machine is spending 40% of its cycles handling
+the clock timer.  Because it doesn't account for halted cycles.
 
-We expect your urgent response.
+I find this interpolation hurts my brain too much, so I always
+use the `idle=poll' kernel boot parameter so the clock is never
+halted.  This gives profiles which are comprehensible even to simple
+Australians.
 
-Yours faithfully,
+So.
 
-DR.SALISU JOHN.
+- Set NR_CPUS to 8.  Otherwise oprofile does kmalloc(256kbytes)
+  and won't start.  This is Rusty's fault.
+
+- patch, build, install kernel
+
+- oprofile keeps stuff in /var/opd, and I'm never sure whether
+  my profiles are fresh, or are a mixture of this one and the
+  previous one.  So I always blow away /var/opd first.
+
+	rm -rf /var/opd
+	<start benchmark>
+	op_start --vmlinux=/boot/vmlinux --map-file=/boot/System.map \
+			--ctr0-event=CPU_CLK_UNHALTED --ctr0-count=300000
+	op_stop
+	<benchmark ends>
+	oprofpp -dl -i /boot/vmlinux
+
+Easy.
+
+-
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
