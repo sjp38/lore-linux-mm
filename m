@@ -1,33 +1,79 @@
-Date: Fri, 16 May 2003 11:08:48 -0700
-From: William Lee Irwin III <wli@holomorphy.com>
-Subject: Re: [OOPS] 2.5.69-mm6
-Message-ID: <20030516180848.GW8978@holomorphy.com>
-References: <20030516015407.2768b570.akpm@digeo.com> <87fznfku8z.fsf@lapper.ihatent.com>
+Date: Fri, 16 May 2003 20:10:42 +0200
+From: Andreas Henriksson <andreas@fjortis.info>
+Subject: Re: 2.5.69-mm6
+Message-ID: <20030516181042.GA556@foo>
+References: <20030516015407.2768b570.akpm@digeo.com> <20030516172834.GA9774@foo> <20030516175539.GA16626@suse.de>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: multipart/signed; micalg=pgp-sha1;
+	protocol="application/pgp-signature"; boundary="0F1p//8PRICkK4MW"
 Content-Disposition: inline
-In-Reply-To: <87fznfku8z.fsf@lapper.ihatent.com>
+In-Reply-To: <20030516175539.GA16626@suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Alexander Hoogerhuis <alexh@ihatent.com>
-Cc: Andrew Morton <akpm@digeo.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Dave Jones <davej@codemonkey.org.uk>, Andreas Henriksson <andreas@fjortis.info>, Andrew Morton <akpm@digeo.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, May 16, 2003 at 01:26:20PM +0200, Alexander Hoogerhuis wrote:
-> This one goes in -mm5 as well, machine runs fine for a while in X, but
-> trying to switch to a vty send the machine into the tall weeds...
+--0F1p//8PRICkK4MW
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-Could you run with the radeon driver non-modular and kernel debugging
-on? Then when it oopses could you use addr2line(1) to resolve this to
-a line number?
+On Fri, May 16, 2003 at 06:55:39PM +0100, Dave Jones wrote:
+> On Fri, May 16, 2003 at 07:28:34PM +0200, Andreas Henriksson wrote:
+>=20
+>  > I had to remove "static" from the agp_init-function in
+>  > drivers/char/agp/backend.c to get the kernel to link (when building
+>  > Intel 810 Framebuffer into the kernel).
+>=20
+> wrong fix. nuke the agp_init() call from i810fb
+> note, it still won't actually work. i810fb still fails to init
+> the agpgart for some reason.
+> =20
 
-I'm at something of a loss with respect to dealing with DRM in general.
+Ok.. thanks for the quick reply .. I just booted the kernel and noticed
+that the console got stuck (but the it booted fine except from that).
 
+Though I find this weird:
+The last thing I saw on the console was the detection of hdb and it's
+partitions.... I tried unplugging hdb and it booted just fine...=20
+coinsidence?
 
-Thanks.
+And by the way.... the framebuffer flickers (is that the right word?)
+for me.... It looks like an old TV... (Has done with all the (2.5)
+kernels I've tried).. Is this a known problem and if so is there a
+solution?
+I'm using a TFT monitor and this is my append-line..
+append=3D"video=3Di810fb:xres:1280,yres:1024,bpp:16,hsync1:30,hsync2:82, \
+		vsync1:50,vsync2:75,accel"
+(... if it matters.)
 
+>  > I also got unresolved symbols for two modules.
+>  > arch/i386/kernel/suspend.ko: enable_sep_cpu, default_ldt, init_tss
+>  > arch/i386/kernel/apm.ko: save_processor_state, restore_processor_state
+>=20
+> Mikael's patch for these has been posted several times already in the
+> last few days.
+>=20
+Ok.. thanks again...
 
--- wli
+> 		Dave
+
+Regards,
+Andreas Henriksson
+
+--0F1p//8PRICkK4MW
+Content-Type: application/pgp-signature
+Content-Disposition: inline
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.2.2 (GNU/Linux)
+
+iD8DBQE+xSmiAO9glESeBDQRAkjlAKCaQ6SN14LoMd356w0ZTczGGo/2LQCeNq6F
+a2WlX5tgLc9TEo5YGVgLRY0=
+=O4s3
+-----END PGP SIGNATURE-----
+
+--0F1p//8PRICkK4MW--
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
