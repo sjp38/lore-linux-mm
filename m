@@ -1,49 +1,55 @@
-Date: Wed, 28 Jun 2000 17:22:09 -0400 (EDT)
-From: "Benjamin C.R. LaHaise" <blah@kvack.org>
-Subject: Re: kmap_kiobuf() 
-In-Reply-To: <200006282016.PAA19321@jen.americas.sgi.com>
-Message-ID: <Pine.LNX.3.96.1000628165811.22084F-100000@kanga.kvack.org>
+Subject: Re: 2.4 / 2.5 VM plans
+References: <Pine.LNX.4.21.0006242357020.15823-100000@duckman.distro.conectiva>
+From: "Juan J. Quintela" <quintela@fi.udc.es>
+In-Reply-To: Rik van Riel's message of "Sun, 25 Jun 2000 00:51:42 -0300 (BRST)"
+Date: 28 Jun 2000 23:17:57 +0200
+Message-ID: <yttitutwlmi.fsf@serpe.mitica>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: lord@sgi.com
-Cc: "Stephen C. Tweedie" <sct@redhat.com>, David Woodhouse <dwmw2@infradead.org>, linux-mm@kvack.org, riel@conectiva.com.br
+To: Rik van Riel <riel@conectiva.com.br>
+Cc: Linus Torvalds <torvalds@transmeta.com>, "Stephen C. Tweedie" <sct@redhat.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 28 Jun 2000 lord@sgi.com wrote:
+>>>>> "rik" == Rik van Riel <riel@conectiva.com.br> writes:
 
-...
-> Ben mentioned large page support as another way to get around this
-> problem. Where is that in the grand scheme of things?
-...
+Hi
 
-For filesystems, I meant increasing PAGE_CACHE_SIZE.  I'm planning on
-getting this working for 2.5.early.  Of course, this will put more
-pressure on the memory allocator which means that it will have to go along
-with zoning changes.
+rik> 2.4:
 
-Large page support will be a somewhat different beast: using 4MB pages (on
-x86) for mapping/io purposes.  The idea there is that the individual pages
-would still be put into the page cache, but they would be marked with a
-flag as part of a large page (should be fairly similar to how other unices
-implement it).  It's really only relevant to the mm subsystem and the
-tlb's on machines that support varying page sizes.
+6) Integrate the shm code in the page cache, to evict having Yet
+   another Cache to balance.
 
-> p.s. Woudn't the remapping of pages be a way to let modules etc get larger
-> arrays of memory after boot time - doing it a few times is not going to
-> kill the system.
+2.5:
 
-Hrm?  Allocating physically contiguous memory is a problem that requires
-big changes to the allocator and the swapper.  Sure, once we get these
-fixed, all sorts of things become possible.  But this doesn't help with
-the fact that kernel mappings for objects larger than a single page just
-aren't possible right now.  Hmm.  How bad would supporting a small number
-of fixed higher-order kmaps be?  (and what's Linus' opinion on such a
-change?)
+7) Make a ->flush method in the address_space operations, Rik
+   mentioned it in some previous mail, it should return the number of
+   pages that it has flushed.  That would make shrink_mmap code (or
+   its successor) more readable, as we don't have to add new code each
+   time that we add a new type of page to the page cache.
 
-		-ben
+8) This one is related with the FS, not MM specific, but FS people
+   want to be able to allocate MultiPage buffers (see pagebuf from
+   XFS) and people want similar functionality for other things.
+   Perhaps we need to find some solution/who to do that in a clean
+   way.  For instance, if the FS told us that he wants a buffer of 4
+   pages, it is quite obvious how to do write clustering for a page in
+   that buffer, we can use that information.
 
+9) We need also to implement write clustering for fs/page cache/swap.
+   Just now we have _not_ limit in the amount of IO that we start,
+   that means that if we have all the memory full of dirty pages, we
+   can have a _big_ stall while we wait for all the pages to be
+   written to disk, and yes that happens with the actual code.
+
+
+Later, Juan.
+
+
+-- 
+In theory, practice and theory are the same, but in practice they 
+are different -- Larry McVoy
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
