@@ -1,47 +1,57 @@
-Message-ID: <380FB40C.16662EDA@263.net>
-Date: Fri, 22 Oct 1999 08:47:08 +0800
+Message-ID: <380FB653.54B2F6FB@263.net>
+Date: Fri, 22 Oct 1999 08:56:51 +0800
 From: Wang Yong <wung_y@263.net>
 Reply-To: wung_y@263.net
 MIME-Version: 1.0
-Subject: Re: page faults
-References: <Pine.LNX.3.96.991021153709.3464D-100000@kanga.kvack.org>
+Subject: Re: [UCLINUX] Booting and Flashing
+References: <Pine.BSF.4.10.9910201745360.8530-100000@ipanema.usc.edu>
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: mail list linux-mm mail list <linux-mm@kvack.org>
+To: Xuan Chen <xuanchen@catarina.usc.edu>
+Cc: mail list linux-mm mail list <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-the page fault is an interrupt and do_page_fault is the handler, so no other
-page fault
-will be received in do_page_fault. this is true for linux because it's not
-preemptive.
-if the page fault is caused by a write to a shared page, do_wp_page will be
-called
-to copy this page to a new page(copy on write).
+do u know how to make a rom bootable image? what's the different between
+zImage of standard linux
+and the rom image of uclinux.
 
-"Benjamin C.R. LaHaise" wrote:
+Xuan Chen wrote:
 
-> On Thu, 21 Oct 1999, James Simmons wrote:
+> Running the rom image given by uClinux is ok, but we still have not try to
+> port uClinux to a real Plam. I got one question:
 >
-> > Quick question. If two processes are sharing the same memory but no page
-> > fault has happened. THen process A causes a page fault. If process B tries
-> > to access the page that process A already page fault will process B cause
-> > another page fault. Or do page faults only happen once no matter how many
-> > process access it.
+> Suppose I have ported the uClinux to palm already, how can I input the
+> commands? Say, I want to setup ppp, how to do that?
 >
-> Only the first time the page is accessed is there a fault to put the entry
-> into the page table, regardless of the processes sharing the page.  The
-> only time entries are removed from a process' page tables is on fork
-> (ie marking private pages read only so COW works), unmap or vmscan's page
-> reclaims.
+> comments..
 >
->                 -ben
+> -chen
 >
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://humbolt.geo.uu.nl/Linux-MM/
+> On Thu, 21 Oct 1999, Simon Cozens wrote:
+>
+> > On Wed, Oct 20, 1999 at 02:45:35PM -0400, John Mitchell wrote:
+> > > On Wed, 20 Oct 1999, Simon Cozens wrote:
+> > > > Well, I want to get Linux up and running on my Palm so I can
+> > > > start porting.
+> > > Have you tried the Palm Emulator (POSE) and/or xcopilot?
+> >
+> > Yep, I've got Linux booting under copilot; I'm told you can then mount
+> > up NFS shares, but I've yet to get ppp working.  I'm not sure of the
+> > incantation, or the way the ports fit together.
+> >
+> > Alternatively, I'd like to flash Linux onto the Palm V I have here,
+> > but the pilot and pilot-user archives as shipped on www.uclinux.org
+> > don't appear to build properly.
+> >
+> > Simon
+> >
+> > --
+> > "...and scantily clad females, of course.  Who cares if it's below zero
+> > outside"
+> > (By Linus Torvalds)
+> >
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
