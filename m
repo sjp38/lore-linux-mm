@@ -1,40 +1,38 @@
-From: lord@sgi.com
-Message-Id: <200006281652.LAA19162@jen.americas.sgi.com>
-Subject: Re: kmap_kiobuf() 
-In-reply-to: Your message of "Wed, 28 Jun 2000 12:24:06 EDT
-Date: Wed, 28 Jun 2000 11:52:40 -0500
+Date: Wed, 28 Jun 2000 18:46:46 +0100
+From: "Stephen C. Tweedie" <sct@redhat.com>
+Subject: Re: kmap_kiobuf()
+Message-ID: <20000628184646.C2392@redhat.com>
+References: <200006281554.KAA19007@jen.americas.sgi.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <200006281554.KAA19007@jen.americas.sgi.com>; from lord@sgi.com on Wed, Jun 28, 2000 at 10:54:40AM -0500
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Benjamin C.R. LaHaise" <blah@kvack.org>
-Cc: David Woodhouse <dwmw2@infradead.org>, lord@sgi.com, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
+To: lord@sgi.com
+Cc: David Woodhouse <dwmw2@infradead.org>, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org, sct@redhat.com, riel@conectiva.com.br
 List-ID: <linux-mm.kvack.org>
 
-> On Wed, 28 Jun 2000, David Woodhouse wrote:
-> 
-> > MM is not exactly my field - I just know I want to be able to lock down a 
-> > user's buffer and treat it as if it were in kernel-space, passing its 
-> > address to functions which expect kernel buffers.
-> 
-> Then pass in a kiovec (we're planning on adding a rw_kiovec file op!) and
-> use kmap/kmap_atomic on individual pages as required.  As to providing
-> larger kmaps, I have yet to be convinced that providing primatives for
-> dealing with objects larger than PAGE_SIZE is a Good Idea. 
-> 
-> 		-ben
+Hi,
 
-I agree with trying to minimize things which require TLB flushes, we just
-have 112 thousand lines of existing code (OK, lots of comments in that)
-which wants to use things bigger than a page, and use them in ways which
-are sometimes not going to be amenable to rewriting to use an array of pages,
-not to mention rewriting would destabilize the code base.
+On Wed, Jun 28, 2000 at 10:54:40AM -0500, lord@sgi.com wrote:
 
-I am not a VM guy either, Ben, is the cost of the TLB flush mostly in
-the synchronization between CPUs, or is it just expensive anyway you
-look at it?
+> I always knew it would go down like a ton of bricks, because of the TLB
+> flushing costs. As soon as you have a multi-cpu box this operation gets
+> expensive, the code could be changed to do lazy tlb flushes on unmapping
+> the pages, but you still have the cost every time you set a mapping up.
 
+That's exactly what kmap() is for --- it does all the lazy tlb
+flushing for you.  Of course, the kmap area can get fragmented so it's
+not a magic solution if you really need contiguous virtual mappings.
 
-Steve
+However, kmap caches the virtual mappings for you automatically, so it
+may well be fast enough for you that you can avoid the whole
+contiguous map thing and just kmap pages as you need them.  Is that
+impossible for your code?
 
+Cheers,
+ Stephen
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
