@@ -1,40 +1,91 @@
-Message-Id: <980.8@melbpc.org.au>
-Date: Fri, 18 Mar 2005 00:10:55 -0300
-From: "Angelina Dobson" <ydcsqtgpe@venturenetcomm.com>
-Subject: Extending Financing in 24 hours.
-In-Reply-To: <8669929.00b0a2630@designs.com>
+Received: from root by ciao.gmane.org with local (Exim 4.43)
+	id 1DCFDs-0005Xg-2X
+	for linux-mm@kvack.org; Fri, 18 Mar 2005 12:00:56 +0100
+Received: from 212.130.19.66 ([212.130.19.66])
+        by main.gmane.org with esmtp (Gmexim 0.1 (Debian))
+        id 1AlnuQ-0007hv-00
+        for <linux-mm@kvack.org>; Fri, 18 Mar 2005 12:00:56 +0100
+Received: from martin by 212.130.19.66 with local (Gmexim 0.1 (Debian))
+        id 1AlnuQ-0007hv-00
+        for <linux-mm@kvack.org>; Fri, 18 Mar 2005 12:00:56 +0100
+From: Martin Egholm Nielsen <martin@egholm-nielsen.dk>
+Subject: Overcommit problem on embedded device with no swap
+Date: Fri, 18 Mar 2005 11:29:42 +0100
+Message-ID: <d1eafk$fdh$1@sea.gmane.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-If you are paying more than 3.5% on your mortgage,
-you may be paying too much!
+Hi there,
 
-Our US Lenders will provide you with the absolute best rates possible.
+I don't know if this is the right place to go with this problem, but 
+having searched the web, I ended up here... Sorry if this is totally OT.
+
+Specs:
+I'm having an embedded Linux system running on a PPC405EP with 64 megs 
+of RAM, some flash, but _no_ swap space. It runs a 2.4.20 kernel patched 
+with drivers for my device.
+
+Problem:
+I have an application that is killed by the OOM (I guess) when it tries 
+to "use" more memory than present on the system.
+Bolied down, memory is allocated with "sbrk" and then touch'ed.
+
+With "/proc/sys/vm/overcommit_memory" set to 2, I expected that "sbrk" 
+would return "-1" (0xFFFFFFFF), but it doesn't, hence is 
+terminated/killed by the kernel.
+
+The same happens on another embedded Linux/2.4.17/i386, also without swap.
+
+However, both my desktop Linux/2.4.18/i386 and Linux/2.6.5/i386 with 
+swap does what I hoped:
+
+# ./exhaust_mem
+...
+ffffffff
+
+Out of memory
+# #Yeaaaah!
+
+Having searched the web, I see that this may be related with the fact 
+that there is no swap enabled on either of my embedded devices.
+Is this correct?
+Can I do anything in order to get it the way I expected?
+
+Best regards,
+  Martin Egholm
+
+=== exhaust_mem.c ===
+
+#include <unistd.h>
+#include <stdio.h>
+#define SIZE 1000000
+
+int main( int i )
+{
+   while ( 1 ) {
+     char *v = sbrk( SIZE );
+     char *p;
+
+     printf( "%x\n\n", v );
+
+     if ((long)v < 0) {
+       fprintf(stderr, "Out of memory\n");
+       exit(1);
+     } // if
+
+     for (p = v; p < v + SIZE; ++p) {
+       *p = 42;
+     } // for
+
+   } // while
+} // main
 
 
-Click the link below for an insta-quote and
-monthly savings calculation:
-
-http://www.mor-now.com/46.asp
-
-No other way to so quickly and easily
-lower your monthly bill payments
-while putting cash now in your pocket!
-
-
-
-
-
-
-
-
-
-
-
-
-pause my bin hb [2
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
