@@ -1,60 +1,42 @@
-Received: from mail.ccr.net (ccr@alogconduit1ag.ccr.net [208.130.159.7])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id QAA29017
-	for <linux-mm@kvack.org>; Wed, 25 Nov 1998 16:23:34 -0500
-Subject: Re: Linux-2.1.129..
-References: <199811241525.PAA00862@dax.scot.redhat.com> 	<Pine.LNX.3.95.981124092641.10767A-100000@penguin.transmeta.com> <199811251419.OAA00990@dax.scot.redhat.com>
-From: ebiederm+eric@ccr.net (Eric W. Biederman)
-Date: 25 Nov 1998 15:07:39 -0600
-In-Reply-To: "Stephen C. Tweedie"'s message of "Wed, 25 Nov 1998 14:19:28 GMT"
-Message-ID: <m1u2znbhwj.fsf@flinx.ccr.net>
+Received: from max.phys.uu.nl (max.phys.uu.nl [131.211.32.73])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id RAA29267
+	for <linux-mm@kvack.org>; Wed, 25 Nov 1998 17:10:13 -0500
+Date: Wed, 25 Nov 1998 23:02:30 +0100 (CET)
+From: Rik van Riel <H.H.vanRiel@phys.uu.nl>
+Reply-To: Rik van Riel <H.H.vanRiel@phys.uu.nl>
+Subject: rw_swap_page() and swapin readahead
+Message-ID: <Pine.LNX.3.96.981125225829.15920C-100000@mirkwood.dummy.home>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 To: "Stephen C. Tweedie" <sct@redhat.com>
-Cc: linux-mm <linux-mm@kvack.org>
+Cc: Linux MM <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
->>>>> "ST" == Stephen C Tweedie <sct@redhat.com> writes:
+Hi Stephen,
 
-ST> However, for pages which become dirty in memory, we _do_ populate the
-ST> swap cache only at page-out time.  That's why the sharing still works.
-ST> I think that the real change we need is to cleanly support PG_dirty
-ST> flags per page.  Once we do that, not only do all of the dirty inode
-ST> pageouts get fixed, but we also automatically get MAP_SHARED |
-ST> MAP_ANONYMOUS.
+it appears that rw_swap_page() needs a small change to be
+able to do asynchonous swapin.
 
+On line 128:
+		if (!wait) {
+			set_bit(PG_free_after, &page->flags);
+			...
+		}
+			
+We probably want to loose the line with PG_free_after, even
+on normal swapout (or is it already gone in 2.1.130-pre3?).
 
-ST> While we're on that subject, Linus, do you still have Andrea's patch to
-ST> propogate page writes around all shared ptes?  I noticed that Zlatko
-ST> Calusic recently re-posted it, and it looks like the sort of short-term
-ST> fix we need for this issue in 2.2 (assuming we don't have time to do a
-ST> proper PG_dirty fix).
+If I misunderstood the code, I'll happily learn a bit :)
 
-What do you consider a proper PG_dirty fix?
+cheers,
 
-I have been working on it (what I would call a PG_dirty fix) and have
-most thing working but my code has a lot of policy questions still to
-answer.
+Rik -- slowly getting used to dvorak kbd layout...
++-------------------------------------------------------------------+
+| Linux memory management tour guide.        H.H.vanRiel@phys.uu.nl |
+| Scouting Vries cubscout leader.      http://www.phys.uu.nl/~riel/ |
++-------------------------------------------------------------------+
 
-
-
-But as far as MAP_SHARED | MAP_ANONYMOUS to retain our current
-swapping model (of never rewriting a swap page), and for swapoff
-support we need the ability to change which swap page all of the pages
-are associated with.
-
-There are 2 ways to do this.  
-1) Implement it like SYSV shared mem.
-2) Just maintain vma structs for the memory, with vma_next_share used!
-   Then when we allocate a new swap page we can walk the
-   *vm_area_struct's to find the page_tables that need to be updated.
-
-   The real tricky case to get right is simulaneous COW & SOW.
-   SOW == Share On Write.
-
-  The question right now is where do we anchor the vma_next_share
-  linked list, as we don't have an inode.
-
-
-Eric
 --
 This is a majordomo managed list.  To unsubscribe, send a message with
 the body 'unsubscribe linux-mm me@address' to: majordomo@kvack.org
