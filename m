@@ -1,8 +1,8 @@
-Date: Wed, 22 Mar 2000 16:39:12 -0500 (EST)
+Date: Wed, 22 Mar 2000 16:54:09 -0500 (EST)
 From: Chuck Lever <cel@monkey.org>
-Subject: Re: madvise (MADV_FREE)
-In-Reply-To: <20000322190532.A7212@pcep-jamie.cern.ch>
-Message-ID: <Pine.BSO.4.10.10003221554170.17378-100000@funky.monkey.org>
+Subject: Re: MADV_DONTNEED
+In-Reply-To: <20000322184357.C7271@pcep-jamie.cern.ch>
+Message-ID: <Pine.BSO.4.10.10003221641400.17378-100000@funky.monkey.org>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -12,133 +12,53 @@ Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 On Wed, 22 Mar 2000, Jamie Lokier wrote:
-> Think of this scenario:
+> > if you look at the implementation of nopage_sequential_readahead, you'll
+> > see that it doesn't use MADV_DONTNEED, but the internal implementation of
+> > msync(MS_INVALIDATE).  i'm not completely confident in this
+> > implementation, but my intent was to release behind, not discard data.
 > 
->    Allocate 20 x 20k blocks for images.
->    Process images.
->    Free 20 x 20k blocks (-> 100 page sized holes)
->    Wait for user input.
->    ...
->    Allocate 20 x 20k blocks for images.
->    Process images.
->    Free 20 x 20k blocks.
+> If I knew what msync(MS_INVALIDATE) did I could think about this! :-)
+> But the msync documentation is unhelpful and possibly misleading.
+
+well, the doc's accurate, as far as i can tell.  but my use of it is a
+side-effect of the behavior described in the man page.
+
+> > function 2 (could be MADV_FREE; currently msync(MS_INVALIDATE)):
+> >   release pages, syncing dirty data.  if they are referenced again, the
+> >   process causes page faults to read in latest data.
 > 
-> Now, if the rest of your system (not just this app) is busy paging, the
-> best thing the app can do at "wait" is call MADV_DONTNEED.  But if the
-> rest of your system is not paging at all, the best thing the app can do
-> is _not_ call MADV_DONTNEED.
+> Oh, I see, this is what msync(MS_INVALIDATE) does :-)
+
+more or less.  it removes the mappings, but also schedules writes for any
+dirty pages it finds.
+
+> > function 4 (for comparison; currently munmap):
+> >   release pages, syncing dirty data.  if they are referenced again, the
+> >   process causes invalid memory access faults.
 > 
-> You see?  It doesn't matter whether you're going to reuse the pages soon.
+> > for MADV_DONTNEED, i re-used code.
 > 
-> The decision to use MADV_DONTNEED or not depends on overall system
-> behaviour, which the application doesn't know about.
+> From where?
+
+you can find logic that invokes zap_page_range throughout the mm code, but
+especially in do_munmap.  if my implementation is broken in this regard,
+then i'd bet do_munmap is broken too.
+
+> > i'm not convinced that it's correct, though, as i stated when i
+> > submitted the patch.  it may abandon swap cache pages, and there may
+> > be some undefined interaction between file truncation and
+> > MADV_DONTNEED.
 > 
-> > ok, so you're asking for a lite(TM) version of DONTNEED that provides the
-> > following hint to the kernel: "i may be finished with this page, but i may
-> > also want to reuse it immediately."
-> 
-> It does *not* mean "i may have finished with this page".
-> For free() it looks that way, but that is a special case.
-> 
-> It means "if you decide to swap this page out, you can skip the I/O".
-> 
-> The page age remains the same.  (You have MADV_WONTNEED if you want to
-> change the page age as well).
-> 
-> We let applications decide for themselves when it's best used.  It's for
-> long-lived holes after memory allocation, and cached objects such as
-> Netscapes in-memory image and document cache.
+> Oh dear -- because it's in pre2.4 already :-)
+> Better work out what it's supposed to do and fix it :-)
 
-we have several generic applications we are interested in optimizing:
+it's not too serious, i hope, since madvise is not used by any existing
+Linux apps.  this area of the kernel has been changing so much in the past
+6-9 months that it's been difficult to know what is the blessed way to get
+my implementation to work.
 
-1.  memory allocators can indicate pages that are not in use
-
-2.  applications that need to cache large files or big pieces of data that
-can be regenerated relatively cheaply
-
-3.  applications that need to buffer data to control precisely its
-movement to and from permanent storage.
-
-now, for 1:
-
-several studies i've read indicate that the average size of a dynamically
-allocated object is in the range of 40 bytes.  if an application is
-screwing with much bigger objects, it should probably manage the objects
-differently (use mmap explicitly, tweak malloc, or something like that).
-
-in fact, i'd say it is safe in general to lower DEFAULT_MMAP_THRESHOLD to
-the system page size.  that way you'd get closer to the behavior you're
-after, and you'd also win a much bigger effective heap size when
-allocating large objects, because you can only allocate up to 960M of a
-process's address space with sbrk().
-
-on Linux with glibc, you can use mallopt to do this. something like:
-
-	mallopt(M_MMAP_THRESHOLD, getpagesize());
-
-for 2:
-
-note carefully that my implementation of MADV_DONTNEED doesn't evict data
-from memory.  it simply tears down page mappings.  this will result in a
-minor fault if the application immediately reaccesses the address, or a
-major fault if the application accesses the address after the page
-contents have finally been evicted from physical memory.
-
-to say this another way, the page mapping binds a virtual address to a
-page in the page cache. MADV_DONTNEED simply removes that binding.  
-normal page aging will discover the unbound pages in the page cache and
-remove them.  so really, MADV_DONTNEED is actually disconnected from the
-mechanism of swapping or discarding the page's data.
-
-there are probably nicer ways to do this, but there it is.
-
-i think this is exactly what you want for cached files.  the application
-can say "DONTNEED" this data, and the system is free to reclaim it as
-necessary.  if the application accesses it again later, it will get the
-old data back.  just be sure that if you change data in the file, you
-explicitly sync it back to disk.
-
-for 3:
-
-this area of memory is probably going to be mapped from /dev/zero, and
-pinned.  it's a nice way to get a clear page if you just re-read /dev/zero
-into that page.
-
-> > it seems to me that normal page aging will adequately identify these
-> > pages and flush them out.
-> 
-> Exactly!  In fact page ageing is required for MADV_FREE to have any
-> effect.
-> 
-> The only effect of MADV_FREE is to eliminate the write to swap, after
-> page ageing has decided to flush a page.  It doesn't change the page
-> reclamation policy.
-
-ok, here is where i'm confused.  i don't think MADV_DONTNEED and MADV_FREE
-are different -- they both work this way.
-
-> > i think even doing an MADV_FREE during arbitrary free() operations
-> > would be more overhead then you really want. in other words, i don't
-> > think free() as it exists today harms performance in the ways you
-> > describe.
-> 
-> You're right, you wouldn't call MADV_FREE on every free().  Just when
-> you have a set of pages to free, every so often.  There are lots of
-> systems which can do that -- even a timer signal will do with a generic
-> malloc.
-
-nah, i still say a better way to handle this case is to lower malloc's
-"use an anon map instead of the heap" threshold to 4K or 8K.  right now
-it's 32K by default.  
-
-> At the moment, the kernel has a number of subsystems, and when memory is
-> required, it asks each subsystem to release some memory.  MADV_FREE is a
-> way for the kernel to include applications in memory balancing
-> decisions.
-
-like adding another separate call in do_try_to_free_pages that trolls
-applications for free-able pages; expect with MADV_FREE and MADV_DONTNEED,
-you're causing shrink_mmap to do this for you automatically.
+it now works in the simple cases.  i'm waiting to hear about real world
+usage.
 
 	- Chuck Lever
 --
