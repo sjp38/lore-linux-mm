@@ -1,60 +1,33 @@
-Date: Wed, 10 Dec 1997 13:38:49 -0500 (EST)
+Date: Wed, 10 Dec 1997 14:13:14 -0500 (EST)
 From: "Benjamin C.R. LaHaise" <blah@kvack.org>
-Subject: Re: how mm could work
-In-Reply-To: <Pine.LNX.3.91.971210124512.7823D-100000@mirkwood.dummy.home>
-Message-ID: <Pine.LNX.3.95.971210131331.5452B-100000@as200.spellcast.com>
+Reply-To: "Benjamin C.R. LaHaise" <blah@kvack.org>
+Subject: Re: Ideas for memory management hackers.
+In-Reply-To: <199712101521.QAA25114@boole.fs100.suse.de>
+Message-ID: <Pine.LNX.3.95.971210133924.5452C-100000@as200.spellcast.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Rik van Riel <H.H.vanRiel@fys.ruu.nl>
-Cc: "Albert D. Cahalan" <acahalan@cs.uml.edu>, linux-mm <linux-mm@kvack.org>
+To: "Dr. Werner Fink" <werner@suse.de>
+Cc: Zlatko.Calusic@CARNet.hr, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 10 Dec 1997, Rik van Riel wrote:
+On Wed, 10 Dec 1997, Dr. Werner Fink wrote:
 
-> On Wed, 10 Dec 1997, Albert D. Cahalan wrote:
-
-> [ the quoted part is from a _forwarded_ message, not from Albert!!!]
+> In other words a better memory defragmentation is needed for 2.2, isn't it?
+> A simple approach could be an addition address check during the scans
+> in shrink_mmap (mm/filemap.c) instead of a freeing the first unused
+> (random) page. This could be used in the first few priorities to free pages
+> mostly useful for defragmentation.
 > 
-> > FreeBSD's paging system is both simple and complex.  The basic premis,
-> > though, is that a page must go through several states before it is 
-> > actually unrecoverably freed.
-> > 
-> > In FreeBSD a page can be:
-> > 
-> > 	wired		most active state
-> > 	active		nominally active state
-> > 	inactive	dirty & inactive (can be reclaimed to active/wired)
-> > 	cache		clean & inactive (can be reclaimed to active/wired)
-> > 	free		truely free
+> An other approach is Ben's anonymous ageing of physical task pages
+> found in http://www.kvack.org/~blah/patches/v2_1_47_ben1.gz ... 
+> this approach gives a link of the pte of a page needed for ageing
+> the page.
 
-That's pretty close to how Linux is set up, except pages cannot be dirty
-and unmapped - so we lose out on some write-behind with shared mmappings
-right now - the last user triggers the write.  The model I'm slowly
-working towards is the above, plus an 'almost-free' state.  Almost free
-could essentially be the bottom X% of the cache pages - which could be
-reclaimed within interrupts if nescessary.
-
-Another idea lurking in the back of my head is to use a slab-like scheme
-for pages overall.  This idea is completely undeveloped, but the core to
-it is that unswappable kernel-used pages should sit together, and not
-spread around memory, resulting in fragmentation.
-
-> > paging against cache maintenance.  The larger the minimum 'cache' size,
-> > the more aggressive FreeBSD pages in order to maintain the larger
-> > 'cache'.  A smaller minimum 'cache' size results in less aggressive
-> > paging, but a higher chance of paging an active page out in a heavily
-> > loaded system.
-> 
-> This is 'wrong' IMO, the system should balance between swaps
-> and FS-pages... It keeps statistics of both of them, so it
-> could just adjust the minimum-size so swapping and FS-reads
-> are balanced (when in heavy load).
-
-One mechanism suggested for attacking this problem is to get rid of the
-buffer cache completely, and rely solely on the page cache.  This is
-something for 2.3, though.  My current development plans for the
-pte-linking and assorted stuff is to work on it from now though 2.2 and
-have something to submit for 2.3...
+The past few times this has come up, the general argument from a few core
+people is that if one *really* cares to find the pte's pointing to a page,
+traversing the list of vma's attached to the inode, for which a pointer
+already exists, would be sufficient.  Until I come up with something
+really kick-ass, I really doubt the pte-list stuff will be included.
 
 		-ben
