@@ -1,52 +1,31 @@
-Date: Thu, 20 Sep 2001 09:06:01 -0300 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
 Subject: Re: broken VM in 2.4.10-pre9
-In-Reply-To: <20010920112110Z16256-2757+869@humbolt.nl.linux.org>
-Message-ID: <Pine.LNX.4.33L.0109200903100.19147-100000@imladris.rielhome.conectiva>
+Date: Thu, 20 Sep 2001 13:57:02 +0100 (BST)
+In-Reply-To: <20010920112110Z16256-2757+869@humbolt.nl.linux.org> from "Daniel Phillips" at Sep 20, 2001 01:28:31 PM
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Message-Id: <E15k3O2-0005Fr-00@the-village.bc.nu>
+From: Alan Cox <alan@lxorguk.ukuu.org.uk>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Daniel Phillips <phillips@bonn-fries.net>
 Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, "Eric W. Biederman" <ebiederm@xmission.com>, Rob Fuller <rfuller@nsisoftware.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 20 Sep 2001, Daniel Phillips wrote:
 > On September 20, 2001 12:04 am, Alan Cox wrote:
 > > Reverse mappings make linear aging easier to do but are not critical (we
 > > can walk all physical pages via the page map array).
 >
-> But you can't pick up the referenced bit that way, so no up aging,
-> only down.
+> But you can't pick up the referenced bit that way, so no up aging, only
+> down.
 
-That still doesn't mean we can't _approximate_ aging in
-another way. With linear page aging (3 up, 1 down) the
-page ages of pages referenced only in the page tables
-will still go up, albeit a tad slower than expected.
+#1 If you really wanted to you could update a referenced bit in the page
+struct in the fault handling path.
 
-It's exponential aging which makes the page age go into
-the other direction, with linear aging things seem to
-work again.
+#2 If a page is referenced multiple times by different processes is the
+behaviour of multiple upward aging actually wrong.
 
-I've done some experiments recently and found that (with
-reverse mappings) exponential aging is faster when we have
-a small inactive list and linear aging is faster when we
-have a large inactive list.
-
-This means we need linear page aging with a large inactive
-list in order to let the page ages move into the right
-direction when we run a system without reverse mapping,
-the patch for that was sent to Alan yesterday.
-
-regards,
-
-Rik
--- 
-IA64: a worthy successor to i860.
-
-http://www.surriel.com/		http://distro.conectiva.com/
-
-Send all your spam to aardvark@nl.linux.org (spam digging piggy)
+Alan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
