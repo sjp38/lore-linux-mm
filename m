@@ -1,25 +1,56 @@
-Date: Tue, 3 Oct 2000 01:10:47 +0200
-From: Andrea Arcangeli <andrea@suse.de>
-Subject: Re: [highmem bug report against -test5 and -test6] Re: [PATCH] Re: simple FS application that hangs 2.4-test5, mem mgmt problem or FS buffer cache mgmt problem? (fwd)
-Message-ID: <20001003011047.A27493@athlon.random>
-References: <Pine.LNX.4.21.0010030038370.16056-100000@elte.hu> <Pine.LNX.4.21.0010021956410.1067-100000@duckman.distro.conectiva>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.21.0010021956410.1067-100000@duckman.distro.conectiva>; from riel@conectiva.com.br on Mon, Oct 02, 2000 at 08:01:42PM -0300
+Date: Mon, 2 Oct 2000 20:12:25 -0300 (BRST)
+From: Rik van Riel <riel@conectiva.com.br>
+Subject: Re: [highmem bug report against -test5 and -test6] Re: [PATCH] Re:
+ simple FS application that hangs 2.4-test5, mem mgmt problem or FS buffer
+ cache mgmt problem? (fwd)
+In-Reply-To: <Pine.LNX.4.10.10010021559120.2206-100000@penguin.transmeta.com>
+Message-ID: <Pine.LNX.4.21.0010022008270.1067-100000@duckman.distro.conectiva>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@conectiva.com.br>
-Cc: Ingo Molnar <mingo@elte.hu>, Linus Torvalds <torvalds@transmeta.com>, MM mailing list <linux-mm@kvack.org>, "Stephen C. Tweedie" <sct@redhat.com>
+To: Linus Torvalds <torvalds@transmeta.com>
+Cc: Andrea Arcangeli <andrea@suse.de>, Ingo Molnar <mingo@elte.hu>, linux-mm@kvack.org, "Stephen C. Tweedie" <sct@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Oct 02, 2000 at 08:01:42PM -0300, Rik van Riel wrote:
-> Eeeeeek. So pages /cannot/ lose their buffer heads ???
+On Mon, 2 Oct 2000, Linus Torvalds wrote:
 
-Page cache can definitely lose its page->buffers. page->buffers is protected by
-the per-page lock. The test8 locking is completly correct.
+> Basically the ordered write case will need extra logic, and we
+> might as well put the effort in just one place anyway. Note that
+> the page case isn't necessarily any harder in the end - the
+> simple solution might be something like just adding a generation
+> count to the buffer head, and having try_to_free_buffers() just
+> refuse to write stuff out before that generation has come to
+> pass.
 
-Andrea
+That is another one of the very wrong (im)possibilities ;)
+
+The VM is doing page aging and should, for page replacement
+efficiency, only write out OLD pages. This can conflict with
+the write ordering constraints in such a way that the system
+will never get around to flushing out the only writable page
+we have at that moment -> livelock.
+
+Also, you cannot do try_to_free_buffers() on delayed allocation
+pages, simply because these pages haven't been allocated yet
+and just don't have any buffer heads attached ...
+
+The idea Stephen and I have to solve this problem is to have
+a callback into the filesystem [page->mapping->flush(page)],
+so the filesystem can take care of filesystem-specific issues
+and the VM subsystem takes care of VM-specific issues.
+
+Without the need for any of the two to know much about each other.
+
+regards,
+
+Rik
+--
+"What you're running that piece of shit Gnome?!?!"
+       -- Miguel de Icaza, UKUUG 2000
+
+http://www.conectiva.com/		http://www.surriel.com/
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
