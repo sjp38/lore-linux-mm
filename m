@@ -1,37 +1,115 @@
-Date: Sat, 5 Jul 2003 22:44:13 +0100
-From: Jamie Lokier <jamie@shareable.org>
+Date: Sat, 5 Jul 2003 15:03:33 -0700
+From: William Lee Irwin III <wli@holomorphy.com>
 Subject: Re: 2.5.74-mm1
-Message-ID: <20030705214413.GA28824@mail.jlokier.co.uk>
-References: <20030703023714.55d13934.akpm@osdl.org> <200307051728.12891.phillips@arcor.de> <20030705121416.62afd279.akpm@osdl.org> <200307052309.12680.phillips@arcor.de>
+Message-ID: <20030705220333.GB15452@holomorphy.com>
+References: <20030703023714.55d13934.akpm@osdl.org> <20030704210737.GI955@holomorphy.com> <20030704181539.2be0762a.akpm@osdl.org> <20030705104433.GK955@holomorphy.com> <20030705114308.6dacb5a2.akpm@osdl.org> <20030705211740.GA15452@holomorphy.com> <20030705142752.37a3566a.akpm@osdl.org>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <200307052309.12680.phillips@arcor.de>
+In-Reply-To: <20030705142752.37a3566a.akpm@osdl.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Daniel Phillips <phillips@arcor.de>
-Cc: Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@osdl.org>
+Cc: anton@samba.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Daniel Phillips wrote:
-> Unfortunately, negative priority requires root privilege, at least
-> on Debian.
->
-> That's dumb.  By default, the root privilege requirement should kick
-> in at something like -5 or -10, so ordinary users can set priorities
-> higher than the default, as well as lower.  For the millions of
-> desktop users out there, sound ought to work by default, not be
-> broken by default.
+William Lee Irwin III <wli@holomorphy.com> wrote:
+>> Sorry, that was one hell of an oversight wrt. the initival value.
 
-The security problem, on a multi-user box, is that negative priority
-apps can easily take all of the CPU and effectively lock up the box.
+On Sat, Jul 05, 2003 at 02:27:52PM -0700, Andrew Morton wrote:
+> You made me read that code about 20 times ;)
+> Still.  Do we think we know what the actual bug is?  That tasklist_lock
+> doesn't pin tsk->mm?
+> If so then let's get that patch of yours happening, but please enhance it to
+> a) detect the situation where the mm went away, and tell us that it was
+>    fixed up.  Sufficient to confirm your theory.
+> b) put in an explicit check for a kill of an mm-less process.  print a
+>    warning, skip the process.
 
-Something I've often thought would fix this is to allow normal users
-to set negative priority which is limited to using X% of the CPU -
-i.e. those tasks would have their priority raised if they spent more
-than a small proportion of their time using the CPU.
+exit_mm() is excluded by the task_lock(), so p->mm (or any of the
+others) can vanish at any time (the callers don't hold the tasklist_lock
+either). So did you have in mind something like this?
 
--- Jamie
+
+-- wli
+
+
+===== mm/oom_kill.c 1.23 vs edited =====
+--- 1.23/mm/oom_kill.c	Wed Apr 23 03:15:53 2003
++++ edited/mm/oom_kill.c	Sat Jul  5 15:00:15 2003
+@@ -141,8 +141,16 @@
+  * CAP_SYS_RAW_IO set, send SIGTERM instead (but it's unlikely that
+  * we select a process with CAP_SYS_RAW_IO set).
+  */
+-void oom_kill_task(struct task_struct *p)
++static void __oom_kill_task(task_t *p)
+ {
++	task_lock(p);
++	if (!p->mm || p->mm == &init_mm) {
++		WARN_ON(1);
++		printk(KERN_WARNING "tried to kill an mm-less task!\n");
++		task_unlock(p);
++		return;
++	}
++	task_unlock(p);
+ 	printk(KERN_ERR "Out of Memory: Killed process %d (%s).\n", p->pid, p->comm);
+ 
+ 	/*
+@@ -161,6 +169,16 @@
+ 	}
+ }
+ 
++static struct mm_struct *oom_kill_task(task_t *p)
++{
++	struct mm_struct *mm = get_task_mm(p);
++	if (!mm || mm == &init_mm)
++		return NULL;
++	__oom_kill_task(p);
++	return mm;
++}
++
++
+ /**
+  * oom_kill - kill the "best" process when we run out of memory
+  *
+@@ -171,9 +189,11 @@
+  */
+ static void oom_kill(void)
+ {
++	struct mm_struct *mm;
+ 	struct task_struct *g, *p, *q;
+ 	
+ 	read_lock(&tasklist_lock);
++retry:
+ 	p = select_bad_process();
+ 
+ 	/* Found nothing?!?! Either we hang forever, or we panic. */
+@@ -182,17 +202,21 @@
+ 		panic("Out of memory and no killable processes...\n");
+ 	}
+ 
+-	oom_kill_task(p);
++	mm = oom_kill_task(p);
++	if (!mm)
++		goto retry;
+ 	/*
+ 	 * kill all processes that share the ->mm (i.e. all threads),
+ 	 * but are in a different thread group
+ 	 */
+ 	do_each_thread(g, q)
+-		if (q->mm == p->mm && q->tgid != p->tgid)
+-			oom_kill_task(q);
++		if (q->mm == mm && q->tgid != p->tgid)
++			__oom_kill_task(q);
+ 	while_each_thread(g, q);
+-
++	if (!p->mm)
++		printk(KERN_INFO "Fixed up OOM kill of mm-less task\n");
+ 	read_unlock(&tasklist_lock);
++	mmput(mm);
+ 
+ 	/*
+ 	 * Make kswapd go out of the way, so "p" has a good chance of
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
