@@ -1,66 +1,57 @@
-Received: from deliverator.sgi.com (deliverator.sgi.com [204.94.214.10])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id AAA23141
-	for <linux-mm@kvack.org>; Thu, 27 May 1999 00:45:12 -0400
-From: kanoj@google.engr.sgi.com (Kanoj Sarcar)
-Message-Id: <199905270444.VAA30288@google.engr.sgi.com>
-Subject: dso loading question
-Date: Wed, 26 May 1999 21:44:41 -0700 (PDT)
+Received: from dukat.scot.redhat.com (sct@dukat.scot.redhat.com [195.89.149.246])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id CAA24086
+	for <linux-mm@kvack.org>; Thu, 27 May 1999 02:24:53 -0400
+From: "Stephen C. Tweedie" <sct@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
+Message-ID: <14156.58667.141026.238904@dukat.scot.redhat.com>
+Date: Thu, 27 May 1999 07:24:43 +0100 (BST)
+Subject: Re: [PATCHES]
+In-Reply-To: <m1emk7skik.fsf@flinx.ccr.net>
+References: <Pine.LNX.3.96.990523171206.21583A-100000@chiara.csoma.elte.hu>
+	<m1emk7skik.fsf@flinx.ccr.net>
 Sender: owner-linux-mm@kvack.org
-To: linux-kernel@vger.rutgers.edu
-Cc: linux-mm@kvack.org
+To: "Eric W. Biederman" <ebiederm+eric@ccr.net>
+Cc: Ingo Molnar <mingo@chiara.csoma.elte.hu>, linux-mm@kvack.org, Stephen Tweedie <sct@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-I am trying to understand how the glibc ld-linux code works just after
-program startup. I have a small program
+Hi,
 
-main()
-{
-}
+On 23 May 1999 13:34:11 -0500, ebiederm+eric@ccr.net (Eric W. Biederman) said:
 
-on which I ran strace to get the following output:
+> My work on dirty pages sets up a bdflush like mechanism on top of the page
+> cache.  So for anything that can fit in the page cache the buffer cache
+> simply isn't needed.   Where the data goes when it is written simply doesn't
+> matter.
 
-[kanoj@entity /tmp]$ strace ./a.out
-execve("./a.out", ["./a.out"], [/* 18 vars */]) = 0
-brk(0)                                  = 0x8049558
-open("/etc/ld.so.preload", O_RDONLY)    = -1 ENOENT (No such file or directory)
-open("/etc/ld.so.cache", O_RDONLY)      = 3
-fstat(3, {st_mode=0, st_size=0, ...})   = 0
-mmap(0, 11908, PROT_READ, MAP_PRIVATE, 3, 0) = 0x4000b000
-close(3)                                = 0
-open("/lib/libc.so.6", O_RDONLY)        = 3
-mmap(0, 4096, PROT_READ, MAP_PRIVATE, 3, 0) = 0x4000e000
-munmap(0x4000e000, 4096)                = 0
-mmap(0, 670420, PROT_READ|PROT_EXEC, MAP_PRIVATE, 3, 0) = 0x4000e000
-mprotect(0x4009f000, 76500, PROT_NONE)  = 0
-mmap(0x4009f000, 28672, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_FIXED, 3, 0x90000) = 0x4009f000
-mmap(0x400a6000, 47828, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_FIXED|MAP_ANONYMOUS, -1, 0) = 0x400a6000
-close(3)                                = 0
-personality(PER_LINUX)                  = 0
-getpid()                                = 9822
-_exit(134513792)                        = ?
+One good reason for using buffers aliased into the page cache is
+precisely to avoid a new bdflush mechanism.  We have had enough deadlock
+and resource starvation issues with one bdflush that I get nervous about
+adding another one!
 
-Here are the questions I would like to get answers to:
-1. What is the purpose of the /etc/ld.so.cache? Where can I learn more
-about it?
-2. I assume the first 4K mmap of libc is to read section headers etc ...
-or is there something more going on there?
-3. How are the libc mmap/munmap calls made by the loading code? Basically,
-how does the code decide on the offset/length to mmap? Why is an mprotect
-being done?
-4. Are the .init sections of the dso's executed before the close() of
-the fd referencing the dso?
-5. At what point is the personality(PER_LINUX) call made?
+(IM == Ingo)
+IM> I'd like the page cache end up in a design where we can almost
+IM> completely avoid any filesystem overhead for quickly
+IM> created/destroyed and/or fully cached files. I'd like to have a very
+IM> simple unaliased pagecache and no filesystem overhead, on big RAM
+IM> boxes.  This was the orignal goal of the page cache as well, as far
+IM> as i remember.
 
-I am trying to understand how dso loading works in Linux, specially at
-program startup time.
+Actually the initial motivation of the page cache was to try to keep
+per-file dirty lists, to fix fsync.  We just never got round to that!
 
-Thanks for any input. Please CC me on any responses at kanoj@engr.sgi.com.
+However, this brings up another point: 
 
-Kanoj
-kanoj@engr.sgi.com
+	ftp://ftp.uk.linux.org/pub/linux/sct/fs/misc/fsync-2.2.8-v5.diff
+
+is a set of diffs to fix fsync performance on 2.2.  It fully implements
+fsync and fdatasync, and applies the same optimisations to O_SYNC.  It
+uses per-inode dirty buffer lists.  Please bear in mind that we still
+need such functionality even with the dirty-page-cache mechanism, to
+keep track of the indirect blocks if nothing else.
+
+--Stephen
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm my@address'
