@@ -1,39 +1,34 @@
-Date: Tue, 20 Jan 2004 10:36:49 -0800
-From: Andrew Morton <akpm@osdl.org>
-Subject: Re: 2.6.1-mm5
-Message-Id: <20040120103649.6b4ae959.akpm@osdl.org>
-In-Reply-To: <20040120183020.GD23765@srv-lnx2600.matchmail.com>
-References: <20040120000535.7fb8e683.akpm@osdl.org>
-	<20040120183020.GD23765@srv-lnx2600.matchmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Message-ID: <20040120195729.90088.qmail@web9706.mail.yahoo.com>
+Date: Tue, 20 Jan 2004 11:57:29 -0800 (PST)
+From: Alok Mooley <rangdi@yahoo.com>
+Subject: Anomaly in Buddy bitmaps?
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mike Fedyk <mfedyk@matchmail.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Mike Fedyk <mfedyk@matchmail.com> wrote:
->
-> What do these patches do?
-
-Trivial stuff.
-
-> > -ext2_new_inode-cleanup.patch
-
-Use a local variable rather than reevaluating EXT2_SB() all over the place.
-
-> > -ext2-s_next_generation-fix.patch
-> > -ext3-s_next_generation-fix.patch
-
-Initialisation and locking fixes for EXTx_SB()->s_next_generation.
-
-> > -ext3-journal-mode-fix.patch
-
-Correctly handle ext3's `chattr +j'
+I wrote a module in kernel 2.6.0 for scanning a higher
+order block from zone_mem_map for ZONE_NORMAL &
+checking the buddy bitmaps for the same.
+       In the case of order 4, while scanning on the
+order 4 block boundaries, I found an order 4 block
+with page state 0000000001111111,where 0s represent
+free pages & 1s represent order 0 allocations. The bit
+in the order 3 bitmap corresponding to this 4th order
+block was found to be a 0,whereas this bit should have
+been a 1 as one 3rd order buddy is completely free.
+I got the same result (a 0, where a 1 should have been
+found) in another case too.
+Is this an anomaly in the buddy bitmaps? Can the buddy
+bitmaps ever be inconsistent?
 
 
+__________________________________
+Do you Yahoo!?
+Yahoo! Hotjobs: Enter the "Signing Bonus" Sweepstakes
+http://hotjobs.sweepstakes.yahoo.com/signingbonus
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
