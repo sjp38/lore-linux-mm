@@ -1,26 +1,44 @@
-Date: Thu, 10 Oct 2002 17:21:30 -0400
-From: Benjamin LaHaise <bcrl@redhat.com>
-Subject: Re: Fork timing numbers for shared page tables
-Message-ID: <20021010172130.A11796@redhat.com>
-References: <167610000.1034278338@baldur.austin.ibm.com> <3DA5D893.CDD2407C@digeo.com> <175360000.1034279947@baldur.austin.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <175360000.1034279947@baldur.austin.ibm.com>; from dmccr@us.ibm.com on Thu, Oct 10, 2002 at 02:59:07PM -0500
+Content-Type: text/plain;
+  charset="iso-8859-1"
+From: Ed Tomlinson <tomlins@cam.org>
+Subject: Re: [PATCH 2.5.41-mm1] new snapshot of shared page tables
+Date: Thu, 10 Oct 2002 18:29:40 -0400
+References: <228900000.1034197657@baldur.austin.ibm.com> <200210092304.47577.tomlins@cam.org> <20021010031928.GT12432@holomorphy.com>
+In-Reply-To: <20021010031928.GT12432@holomorphy.com>
+MIME-Version: 1.0
+Content-Transfer-Encoding: 8bit
+Message-Id: <200210101829.40432.tomlins@cam.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave McCracken <dmccr@us.ibm.com>
-Cc: Andrew Morton <akpm@digeo.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>
+To: William Lee Irwin III <wli@holomorphy.com>
+Cc: Dave McCracken <dmccr@us.ibm.com>, Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Oct 10, 2002 at 02:59:07PM -0500, Dave McCracken wrote:
-> I don't know why exec introduces a small penalty for small tasks. I'm
-> working on some optimizations that might help.
+On October 9, 2002 11:19 pm, William Lee Irwin III wrote:
+> On Wed, Oct 09, 2002 at 11:04:47PM -0400, Ed Tomlinson wrote:
+> > After realizing (thanks Dave) that kmail 3.03 has a bug saving
+> > multipart/mixed mime messages, I was able to use uudeview to extract
+> > a clean patch, and build kernel which boot fine.  Thats the good news.
+> > When I try to start kde 3.03 on an up to date debian sid (X 4.2 etc)
+> > kde fails to start. It complains that ksmserver cannot be started.
+> > Same setup works with 41-mm1.
+> > Know this is not a meaty report.  With X4.2 I have not yet figgered
+> > out how to get more debug messages (the log from xstart is anemic)
+> > nor is there anything in messages, kern.log or on the serial console.
+> > The box is a K6-III 400 on a via MVP3 chipset.
+> > What other info can I gather?
+> > Ed Tomlinson
+>
+> Could you strace ksmserver on a working and non-working console and
+> (privately) send (probably large) logs to dmc & me? Please use
+> strace -f -ff or some equivalent that follows children.
 
-Compare against vfork() to see what kind of best case is possible, and 
-how much of the overhead in small tasks is just in non-vm overhead.
+Hope the straces helped...
 
-		-ben
+I tried again this evening with mm2 plus shpte-2.5.41-mm2-1.diff and 
+shpte-2.5.41-mm2-2.diff and still get the same error.
+
+Ed
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
