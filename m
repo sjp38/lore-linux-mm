@@ -1,48 +1,40 @@
-Message-Id: <200102062258.XAA01582@front7.grolier.fr>
+Message-Id: <200102062322.AAA14557@front9.grolier.fr>
 Content-Type: text/plain; charset="iso-8859-1"
 Content-Disposition: inline
 Content-Transfer-Encoding: 7bit
 MIME-Version: 1.0
 From: Jean Francois Martinez <jfm2@club-internet.fr>
 Subject: Re: Another Mindcradt case?
-Date: 06 Feb 2001 23:59:22 CET
+Date: 07 Feb 2001 00:23:54 CET
 Reply-To: Jean Francois Martinez <jfm2@club-internet.fr>
-In-Reply-To: <01020623020100.01503@dox>
+In-Reply-To: <20010206212704.A5882@caldera.de>
 References: <200102062024.VAA15550@front3.grolier.fr>
-    <01020623020100.01503@dox>
+    <20010206212704.A5882@caldera.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Roger Larsson <roger.larsson@norran.net>, linux-mm@kvack.org
+To: Christoph Hellwig <hch@ns.caldera.de>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 6 Feb 2001 23:02:01 +0100, Roger Larsson said:
+On Tue, 6 Feb 2001 21:27:04 +0100, Christoph Hellwig said:
 
-> Hi,
->  
->  Please note that Moshe is (usually) very pro Linux (read his earlier columns).
->  I guess that he had expected Linux 2.4 to really beat FreeBSD - it did not...
->  
-
-I was speaking about the reaction of pride Linux developpers had after the
-Mindcraft "benchamrks" pointed to design flaws in Linux.  Here it is a BSD who
-could be beating the pants of Linux
-
->  /RogerL 
->  
->  On Wednesday 07 February 2001 01:25, Jean Francois Martinez wrote:
+> On Tue, Feb 06, 2001 at 09:25:10PM +0100, Jean Francois Martinez wrote:
 >  > Moshe Barr is claiming on Byte that sendmail and mysql are 30% faster on
->  > FreeBSD than Linux 2.4.   Now given that I don't think that mysql is
->  > spending 30% of its time in kernel mode there are not many ways FreeBSD can
->  > be 30% faster.
->  >
->  > 1) Compiler issues.  Moshe Barr does not tell what distrib ha was using so
->  > we don't know what distribution was used and with what
->  >
+>  > FreeBSD than Linux 2.4.   Now given that I don't think that mysql is spending
+>  > 30% of its time in kernel mode there are not many ways FreeBSD can be 30%
+>  > faster.
+>  
+>  As he has not even documented all the parameters:  Ignore him.
+>  
 
-Here should have read "we don't know what compiler was used and with what
-compiler flags (like -O2 versus -O3)"
+The fact he doesn't give all parms doesn't mean Linux could not have a
+performance problem.	And  one thing is sure we have a propaganda problem
+since the BSD people will mention this for ten years.  So better to solve both
+problems than ignoring them.
 
-							JFM
+							JF Martinez
+
+                        
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
