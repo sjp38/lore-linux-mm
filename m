@@ -1,6 +1,6 @@
-Date: Sat, 19 Jul 2003 18:34:50 +0500
+Date: Sat, 19 Jul 2003 18:35:12 +0500
 From: "Vinay I K" <abcxyz1@lycos.com>
-Message-ID: <MEHFFGFJPAFEOBAA@mailcity.com>
+Message-ID: <GMEIMFMIEBFEOBAA@mailcity.com>
 Mime-Version: 1.0
 Reply-To: abcxyz1@lycos.com
 Subject: Linux free issue
@@ -20,7 +20,7 @@ http://mail.nl.linux.org/linux-mm/1998-08/msg00028.html
 I am a bit confused. When we call free in Linux, is the memory not given back to the system(just cached)? What is the state of the issue in the latest Linux Kernel?
 
 Thanks,
-Vishwas
+V
 
 
 ____________________________________________________________
