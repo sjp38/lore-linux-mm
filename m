@@ -1,63 +1,36 @@
-Date: Fri, 7 Apr 2000 23:44:13 +0200
-Message-Id: <200004072144.XAA00646@agnes.bagneux.maison>
-From: JF Martinez <jfm2@club-internet.fr>
-Subject: Re: Is Linux kernel 2.2.x Pageable?
+Date: Sat, 8 Apr 2000 01:54:02 +0200 (CEST)
+From: Andrea Arcangeli <andrea@suse.de>
+Subject: Re: [patch] take 2 Re: PG_swap_entry bug in recent kernels
+In-Reply-To: <200004072012.NAA10407@google.engr.sgi.com>
+Message-ID: <Pine.LNX.4.21.0004080142340.2121-100000@alpha.random>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Renaud.Lottiaux@irisa.fr, ebiederm+eric@ccr.net
-Cc: linux-mm@kvack.org
+To: Kanoj Sarcar <kanoj@google.engr.sgi.com>
+Cc: Ben LaHaise <bcrl@redhat.com>, riel@nl.linux.org, Linus Torvalds <torvalds@transmeta.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> Renaud Lottiaux <Renaud.Lottiaux@irisa.fr> writes:
-> 
-> > Rik van Riel wrote:
-> > > 
-> > > On Tue, 4 Apr 2000 pnilesh@in.ibm.com wrote:
-> > > 
-> > > > Is Linux kernel 2.2.x pageable ?
-> > > >
-> > > > Is Linux kernel 2.3.x pageable ?
-> > > 
-> > > no
-> > 
-> > May you be a bit more specific about this ?
-> > Can not any part of the kernel be swapped ? Even Modules ?
-> > Why ? Just an implementation problem or a deeper reason ?
-> 
-> Modules can be removed.
-> Pageable kernels are stupid, slow, & dangerous.
-> 
-> If you need a pageable kernel you have other problems.
-> 
+On Fri, 7 Apr 2000, Kanoj Sarcar wrote:
 
-This is silly.  To begin with one of those slow, stupid & dangerous
-kernels called VM was able to host 41400 Linux virtual machines on a
-single mainframe.  Second: one of those slow, stupid and dangerous
-kernels called MVS probably holds the world record for reliability and
-in the 60s/70s was already managing entire BIG companies on boxes who
-by today sxtandards are ridiculously underpowered.
+>[..] A bigger problem might
+>be that you are violating lock orders when you grab the vmlist_lock
+>from inside code that already has tasklist_lock in readmode [..]
 
-However paging the Linux kernel would not be a good idea.  The reason
-is that it is not big enough to give significant benefits so better
-keep it simple.  During the eighties your average MVS had to manege
-several hundred of interactive users plus some batch plus some
-databases plus transactional processing.  Just holding the data
-startuctures for all this load meant MVS grew until it used 8 Megs of
-RAM.  The box had only 16 Megs of it.  Thus being able to page out
-data structures associated with sleeping processes was mandatory.
+Conceptually it's the obviously right locking order. The mm exists in
+function of a task struct. So first grabbing the tasklist lock, finding
+the task_struct and then locking its mm before playing with it looks the
+natural ordering of things and how things should be done.
 
-Today on a 128 megs box a properly compiled and modularized Linux
-kernel will be about 2 megs.  That is 1.5% of the memory.  It will be
-bigger on bigger boxes (due to larger page tables) but it will still
-use only a tiny fraction of the RAM.  It will grow when you add
-processes but not enough to justify implementing a pageable kernel in
-our days when RAM is so cheap.
+BTW, swap_out() always used the same locking order that I added to swapoff
+so if my patch is wrong, swap_out() is always been wrong as well ;).
 
--- 
-			Jean Francois Martinez
+I had a fast look and it seems nobody is going to harm swap_out and
+swapoff but if somebody is using the inverse lock I'd much prefer to fix
+that path because the locking design of swapoff and swap_out looks the
+obviously right one to me.
 
-Project Independence: Linux for the Masses
-http://www.independence.seul.org
+Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
