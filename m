@@ -1,31 +1,48 @@
-Received: from oscar (localhost [127.0.0.1])
-	by oscar.casa.dyndns.org (Postfix) with SMTP id A635FD0D7
-	for <linux-mm@kvack.org>; Thu, 22 Jun 2000 20:52:19 -0400 (EDT)
-From: Ed Tomlinson <tomlins@cam.org>
-Reply-To: tomlins@cam.org
-Subject: Re: [RFC] RSS guarantees and limits
-Date: Thu, 22 Jun 2000 20:49:41 -0400
-Content-Type: text/plain
-References: <Pine.LNX.4.21.0006222022420.1137-100000@duckman.distro.conectiva>
-In-Reply-To: <Pine.LNX.4.21.0006222022420.1137-100000@duckman.distro.conectiva>
+Received: (from john@localhost)
+	by boreas.southchinaseas (8.9.3/8.9.3) id CAA00831
+	for <linux-mm@kvack.org>; Fri, 23 Jun 2000 02:09:14 +0100
+Subject: Re: [PATCH] Re: latancy test of -ac22-riel
+References: <Pine.LNX.4.21.0006221644310.1170-100000@duckman.distro.conectiva>
+From: "John Fremlin" <vii@penguinpowered.com>
+In-Reply-To: Rik van Riel's message of "Thu, 22 Jun 2000 16:47:50 -0300 (BRST)"
+Date: 23 Jun 2000 02:09:13 +0100
+Message-ID: <m2aegdqk3q.fsf@boreas.southchinaseas>
 MIME-Version: 1.0
-Message-Id: <00062220521900.11608@oscar>
-Content-Transfer-Encoding: 8BIT
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+Rik van Riel <riel@conectiva.com.br> writes:
 
-Just wondering what will happen with java applications?  These beasts
-typically have working sets of 16M or more and use 10-20 threads.  When
-using native threads linux sees each one as a process.  They all share 
-the same memory though.
+> You're confusing things here.
+
+It wouldn't come as great shock to me :-)
+
+But OTOH the patch does stop the annoying stalls so it must be doing
+something right.
+
+> If kswapd was too slow in freeing up memory, but there is
+> still more memory available, then we should NOT kill a
+> process but just stall the process until more memory is
+> available.
+
+Yes. What I was trying to get across was that we shouldn't waste a
+timeslice trying to find pages to evict which are going to be read
+back in next process switch (because most pages are impossible to swap
+out).
+
+[...]
+
+Your solution (which is what they do in FreeBSD?) would be ideal, but
+it wasn't in my kernel source (test1-ac22-riel).
+
+[...]
 
 -- 
-Ed Tomlinson <tomlins@cam.org>
-http://www.cam.org/~tomlins/njpipes.html
+
+	http://altern.org/vii
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
