@@ -1,60 +1,113 @@
-Message-ID: <41E5C3E6.90906@yahoo.com.au>
-Date: Thu, 13 Jan 2005 11:42:14 +1100
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-MIME-Version: 1.0
+Date: Thu, 13 Jan 2005 02:52:48 +0000 (GMT)
+From: Hugh Dickins <hugh@veritas.com>
 Subject: Re: page table lock patch V15 [0/7]: overview
-References: <Pine.LNX.4.44.0411221457240.2970-100000@localhost.localdomain> <Pine.LNX.4.58.0411221424580.22895@schroedinger.engr.sgi.com> <Pine.LNX.4.58.0411221429050.20993@ppc970.osdl.org> <Pine.LNX.4.58.0412011539170.5721@schroedinger.engr.sgi.com> <Pine.LNX.4.58.0412011545060.5721@schroedinger.engr.sgi.com> <Pine.LNX.4.58.0501041129030.805@schroedinger.engr.sgi.com> <Pine.LNX.4.58.0501041137410.805@schroedinger.engr.sgi.com> <m1652ddljp.fsf@muc.de> <Pine.LNX.4.58.0501110937450.32744@schroedinger.engr.sgi.com> <41E4BCBE.2010001@yahoo.com.au> <20050112014235.7095dcf4.akpm@osdl.org> <Pine.LNX.4.58.0501120833060.10380@schroedinger.engr.sgi.com> <20050112104326.69b99298.akpm@osdl.org> <41E5AFE6.6000509@yahoo.com.au> <20050112153033.6e2e4c6e.akpm@osdl.org> <41E5B7AD.40304@yahoo.com.au> <Pine.LNX.4.58.0501121552170.12669@schroedinger.engr.sgi.com> <41E5BC60.3090309@yahoo.com.au> <Pine.LNX.4.58.0501121611590.12872@schroedinger.engr.sgi.com>
-In-Reply-To: <Pine.LNX.4.58.0501121611590.12872@schroedinger.engr.sgi.com>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <Pine.LNX.4.58.0501121538110.12669@schroedinger.engr.sgi.com>
+Message-ID: <Pine.LNX.4.44.0501130222330.4577-100000@localhost.localdomain>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="us-ascii"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Christoph Lameter <clameter@sgi.com>
-Cc: Andrew Morton <akpm@osdl.org>, torvalds@osdl.org, ak@muc.de, hugh@veritas.com, linux-mm@kvack.org, linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org, benh@kernel.crashing.org
+Cc: Andrew Morton <akpm@osdl.org>, Nick Piggin <nickpiggin@yahoo.com.au>, Jay Lan <jlan@engr.sgi.com>, Linus Torvalds <torvalds@osdl.org>, Andi Kleen <ak@muc.de>, linux-mm@kvack.org, linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org, benh@kernel.crashing.org
 List-ID: <linux-mm.kvack.org>
 
-Christoph Lameter wrote:
-> On Thu, 13 Jan 2005, Nick Piggin wrote:
+On Wed, 12 Jan 2005, Christoph Lameter wrote:
+> On Wed, 12 Jan 2005, Hugh Dickins wrote:
 > 
+> > Well, I studied the patches a bit more, and wrote
+> > "That remark looks a bit unfair to me now I've looked closer."
+> > Sorry.  But I do still think it remains unsatisfactory."
 > 
->>>Pointer operations and word size operations are atomic. So this is mostly
->>>okay.
->>>
->>>The issue arises on architectures that have a large pte size than the
->>>wordsize. This is only on i386 PAE mode and S/390. S/390 falls back to
->>>the page table lock  for these operations. PAE mode should do the same and
->>>not use atomic ops if they cannot be made to work in a reasonable manner.
->>>
->>
->>Yep well you should be OK then. Your implementation has the advantage
->>that it only instantiates previously clear ptes... hmm, no I'm wrong,
->>your ptep_set_access_flags path modifies an existing pte. I think this
->>can cause subtle races in copy_page_range, and maybe other places,
->>can't it?
-> 
-> 
-> ptep_set_access_flags is only used after acquiring the page_table_lock and
-> does not clear a pte. That is safe. The only critical thing is if a pte
-> would be cleared while holding the page_table_lock. That used to occur in
-> the swapper code but we modified that.
-> 
+> Well then thanks for not ccing me on the initial rant but a whole bunch of
+> other people instead that you then did not send the following email too.
+> Is this standard behavior on linux-mm?
 
-I mean what used to be the ptep_set_access_flags path. Where you are
-now modifying a pte without the ptl. However after a second look, it
-seems like that won't be a problem.
+I did cc you.  What whole bunch of other people?  The list of recipients
+was the same, except (for obvious reasons) I added Jay the second time
+(and having more time, spelt out most names in full).
 
-> There is still an issue as Hugh rightly observed. One cannot rely on a
-> read of a pte/pud/pmd being atomic if the pte is > word size. This occurs
-> for all higher levels in handle_mm_fault. Thus we would need to either
-> acuire the page_table_lock for some architectures or provide primitives
-> get_pgd, get_pud etc that take the page_table_lock on PAE mode. ARGH.
+Perhaps we've a misunderstanding: when I say "and wrote..." above,
+I'm not quoting from some mail I sent others not you, I'm referring
+to an earlier draft of the mail I'm then sending.
+
+Or perhaps SGI has a spam filter which chose to gobble it up.
+I'll try forwarding it to you again.
+
+> > Might I save face by suggesting that it would be a lot clearer and
+> > better if 1/1 got split into two?  The first entirely concerned with
+> > removing the spin_lock(&mm->page_table_lock) from handle_mm_fault,
+> > and dealing with the consequences of that - moving the locking into
+> > the allocating blocks, atomic getting of pud and pmd and pte,
+> > passing the atomically-gotten orig_pte down to subfunctions
+> > (which no longer expect page_table_lock held on entry) etc.
 > 
+> That wont do any good since the pte's are not always updated in an atomic
+> way. One would have to change set_pte to always be atomic.
 
-Yes I know. I would say that having arch-definable accessors for the
-page tables wouldn't be a bad idea anyway, and the flexibility may
-come in handy for other things.
+You did have set_pte always atomic at one point, to the detriment of
+(PAE) set_page_range.  You rightly reverted that, but you've reminded
+me of what I confessed to forgetting, where you do need set_pte_atomic
+in various places, mainly (only?) the fault handlers in mm/memory.c.
+And yes, I think you're right, that needs to be in this first patch.
 
-It would be a big, annoying patch though :(
+> The reason
+> that I added get_pte_atomic was that you told me that this would fix the
+> PAE mode. I did not think too much about this but simply added it
+> according to your wish and it seemed to run fine.
+
+Please don't leave the thinking to me or anyone else.
+
+> If you have any complaints, complain to yourself.
+
+I'd better omit my response to that.
+
+> > If there's a slight increase in the number of atomic operations
+> > in each i386 PAE page fault, well, I think the superiority of
+> > x86_64 makes that now an acceptable tradeoff.
+> 
+> Could we have PAE mode drop back to using the page_table_lock?
+
+That sounds a simple and sensible alternative (to more atomics):
+haven't really thought it through, but if the default arch code is
+right, and not overhead, then why not use it for the PAE case instead
+of cluttering up with cleverness.  Yes, I think that's a good idea:
+anyone see why not?
+
+> > Dismiss those suggestions if they'd just waste everyone's time.
+> 
+> They dont fix the PAE mode issue.
+> 
+> > Christoph has made some strides in correcting for other architectures
+> > e.g. update_mmu_cache within default ptep_cmpxchg's page_table_lock
+> > (probably correct but I can't be sure myself), and get_pte_atomic to
+> > get even i386 PAE pte correctly without page_table_lock; and reverted
+> > the pessimization of set_pte being always atomic on i386 PAE (but now
+> > I've forgotten and can't find the case where it needed to be atomic).
+> 
+> Well this was another suggestion of yours that I followed. Turns out that
+> the set_pte must be atomic for this to work!
+
+I didn't say you never needed an atomic set_pte, I said that making
+set_pte always atomic (in the PAE case) unnecessarily slowed down
+copy_page_range and zap_pte_range.  Probably a misunderstanding.
+
+> Look I am no expert on the
+> i386 PAE mode and I rely on other for this to check up on it. And you were
+> the expert.
+
+Expert?  I was trying to help, but you seem to resent that.
+
+> > But no sign of get_pmd(atomic) or get_pud(atomic) to get the higher level
+> > entries - I thought we'd agreed they were also necessary on some arches?
+> 
+> I did not hear about that. Maybe you also sent that email to other people
+> instead?
+
+No, you were cc'ed on that one too (Sun, 12 Dec to Nick Piggin).
+The spam filter again.  Not that I have total recall of every
+exchange about these patches either.
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
