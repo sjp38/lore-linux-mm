@@ -1,39 +1,44 @@
-From: "George Bonser" <george@gator.com>
-Subject: RE: [PATCH] 2.4.6-pre2 page_launder() improvements
-Date: Mon, 11 Jun 2001 08:37:39 -0700
-Message-ID: <CHEKKPICCNOGICGMDODJOEMDDEAA.george@gator.com>
-MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="us-ascii"
+Date: Mon, 11 Jun 2001 12:32:35 -0400
+From: cohutta <cohutta@MailAndNews.com>
+Subject: RE: temp. mem mappings
+Message-ID: <3B289FA9@MailAndNews.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset="ISO-8859-1"
 Content-Transfer-Encoding: 7bit
-In-Reply-To: <Pine.LNX.3.96.1010611104335.15103B-100000@kanga.kvack.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: foo <blah@kvack.org>
-Cc: linux-mm@kvack.org
+To: "Joseph A. Knapka" <jknapka@earthlink.net>, "Stephen C. Tweedie" <sct@redhat.com>
+Cc: linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Yes, you are correct. My apologies and it will not happen again.
+>===== Original Message From "Joseph A. Knapka" <jknapka@earthlink.net> =====
+>"Stephen C. Tweedie" wrote:
+>>
+>> Hi,
+>>
+>> On Thu, Jun 07, 2001 at 09:38:06PM -0400, cohutta wrote:
+>>
+>> > >Right --- you can use alloc_pages but we haven't done the
+>> > >initialisation of the kmalloc slabsl by this point.
+>> >
+>> > My testing indicates that i can't use __get_free_page(GFP_KERNEL)
+>> > any time during setup_arch() [still x86].  It causes a BUG
+>> > in slab.c (line 920) [linux 2.4.5].
+>>
+>> After paging_init(), it should be OK --- as long as there is enough
+>> memory that you don't end up calling the VM try_to_free_page routines.
+>> Those will definitely choke this early in boot.
+>
+>But we don't actually give the zone allocator any free pages
+>until mem_init().
 
+Right, so what Stephen warned about is happening:
+__get_free_page() causes a BUG in slab.c via __alloc_pages()
+-> try_to_free_pages() -> do_try_to_free_pages()
+-> shrink_dcache_memory() -> kmem_cache_shrink() -> BUG().
 
-> -----Original Message-----
-> From: foo [mailto:blah@kvack.org]
-> Sent: Monday, June 11, 2001 7:46 AM
-> To: George Bonser
-> Cc: linux-mm@kvack.org
-> Subject: RE: [PATCH] 2.4.6-pre2 page_launder() improvements
-> 
-> 
-> On Sun, 10 Jun 2001, George Bonser wrote:
-> 
-> 	[snipped 158KB message]
-> 
-> Please send URLs or compress logfiles rather than sending them as
-> uncompressed attachments when posting to mailing lists.  Your single
-> message resulted in over 50MB of traffic being sent out.
-> 
-> 		-ben
-> 
+/c/
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
