@@ -1,33 +1,46 @@
-Content-Type: text/plain;
-  charset="iso-8859-1"
-From: Daniel Phillips <phillips@arcor.de>
-Subject: Re: 2.5.34-mm2
-Date: Sun, 15 Sep 2002 19:08:24 +0200
-References: <3D841C8A.682E6A5C@digeo.com> <Pine.LNX.4.44L.0209151156080.1857-100000@imladris.surriel.com> <3D84BFC8.2D8A7592@digeo.com>
-In-Reply-To: <3D84BFC8.2D8A7592@digeo.com>
+Date: Sun, 15 Sep 2002 10:23:24 -0700 (PDT)
+From: "M. Edward (Ed) Borasky" <znmeb@aracnet.com>
+Subject: Re: [PATCH] add vmalloc stats to meminfo
+In-Reply-To: <20020915071157.GH3530@holomorphy.com>
+Message-ID: <Pine.LNX.4.44.0209151021530.3517-100000@shell1.aracnet.com>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
-Message-Id: <E17qcsi-0000DE-00@starship>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@digeo.com>, Rik van Riel <riel@conectiva.com.br>
-Cc: lkml <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: William Lee Irwin III <wli@holomorphy.com>
+Cc: Andrew Morton <akpm@digeo.com>, Dave Hansen <haveblue@us.ibm.com>, "Martin J. Bligh" <Martin.Bligh@us.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sunday 15 September 2002 19:13, Andrew Morton wrote:
-> Yes, I'm not particularly fussed about (moderate) excess CPU use in these
-> situations, and nor about page replacement accuracy, really - pages
-> are being slushed through the system so fast that correct aging of the
-> ones on the inactive list probably just doesn't count.
+On Sun, 15 Sep 2002, William Lee Irwin III wrote:
 
-What you really mean is, it hasn't gotten to the top of the list
-of things that suck.  When we do get around to fashioning a really
-effective page ager (LRU-er, more likely) the further improvement
-will be obvious, especially under heavy streaming IO load, which
-is getting more important all the time.
+> Dave Hansen wrote:
+> >>  It is often hard to tell
+> >> whether this is because the area is too small, or just too fragmented.  This
+> LDT's were formerly allocated in vmallocspace. This presented difficulties
+> with many simultaneous threaded applications. Also, given that there is
+> zero vmallocspace OOM recovery now present in the kernel some method of
+> monitoring this aspect of system behavior up until the point of failure is
+> useful for detecting further problem areas (LDT's were addressed by using
+> non-vmalloc allocations).
+>
+> Also, dynamic vmalloc allocations may very well be starved by boot-time
+> allocations on systems where much vmallocspace is required for IO memory.
+> The failure mode of such is effectively deadlock, since they block
+> indefinitely waiting for permanent boot-time allocations to be freed up.
 
--- 
-Daniel
+
+Thank you!! How difficult would it be to back-port this to 2.4.18?
+
+--
+Take Your Trading to the Next Level!
+M. Edward Borasky, Meta-Trading Coach
+
+znmeb@borasky-research.net
+http://www.borasky-research.net/Meta-Trading-Coach.htm
+http://groups.yahoo.com/group/meta-trading-coach
+
+ransacked: participated in a sack race.
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
