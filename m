@@ -1,43 +1,45 @@
-Date: Thu, 12 Aug 1999 10:41:35 -0400 (EDT)
-From: "Benjamin C.R. LaHaise" <blah@kvack.org>
-Subject: Re: vremap question
-In-Reply-To: <199908121419.QAA16816@sphinx.cs.tu-berlin.de>
-Message-ID: <Pine.LNX.3.96.990812103330.17129A-100000@mole.spellcast.com>
+Received: from geocities.com (IDENT:roman@romix.kullen.RWTH-Aachen.DE [137.226.79.61])
+	by kullensrv.kullen.rwth-aachen.de (8.9.3/8.9.3/K20.07.99) with ESMTP id NAA29229
+	for <Linux-MM@kvack.org>; Fri, 13 Aug 1999 13:30:44 +0200
+Message-ID: <37B41E00.4D55F876@geocities.com>
+Date: Fri, 13 Aug 1999 13:30:40 +0000
+From: Roman Levenstein <romix@geocities.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Strange  memory allocation error in 2.2.11
+Content-Type: text/plain; charset=koi8-r
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Gilles Pokam <pokam@cs.tu-berlin.de>
-Cc: linux-mm@kvack.org
+To: Linux-MM@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 12 Aug 1999, Gilles Pokam wrote:
+Hi,
 
-> Are there some restrictions on the use of vremap ?
-> 
-> I am trying to map 1MB of my PCI-device memory into kernel space. Having the base
-> i/o address and the span of my device memory i use the ioremap function like this:
->  virt = ioremap_nocache(base_io,size);
+I've a very strange error on my RedHat 5.2 with 2.2.11 kernel.
 
-That sounds right so long as your base address and size are page aligned.
+I'm writing a program , which actively uses garbage collection,
+implemented in
+a separate library(it scans stack, heap, etc. and relies on the system,
+when trying to determine start and end addresses of these memory areas ,
+but doesn't contain any assembler low-level code).
+ 
+It works just fine for kernels <=2.2.9 , but since I've installed 2.2.11
+garbage collector behaves very strange:
+sometimes it crashes , sometimes it loops forever , sometimes it works
+Ok.
 
-> my device memory is subdivided like this: 216kb of unused memory,216kb of prom,128kb 
-> register,128kb fpga and 216kb of sram. After the ioremap call, i can access the prom
-> region, but any attempt to read or write the sram,register or fpga region yields 0x0!
-> 
-> can someone tell me what is wrong ?
+I think there's a problem with MM in this new kernel. To be sure , I
+reloaded my 
+computer with the old (2.2.3) version of kernel and everything works
+correctly.
 
-If ioremap returned non-NULL, then it is successful.  Are you certain
-about the memory mapping?  If this sounds like a new piece of hardware, I
-wouldn't bet the farm on it working properly at all.  The fact that you're
-reading 0's means that something is responding on the bus, but that
-doesn't mean the timing is right -- one device I worked on would randomly
-report 0s or garbage on reads of large blocks until the FPGA code was
-right.
+Are there any changes in MM for 2.2.11 , which require recompilation of
+user programs? 
 
-		-ben
+What other reasons can lead to such effect?
 
-
+Thanks in advance,
+ Roman Levenstein
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
