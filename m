@@ -1,47 +1,41 @@
-Date: Sat, 16 Sep 2000 15:22:36 -0300 (BRST)
+Date: Sat, 16 Sep 2000 21:20:57 -0300 (BRST)
 From: Rik van Riel <riel@conectiva.com.br>
-Subject: Re: Happiness with t8-vmpatch4 (was Re:  Does page-aging really
- work?)
-In-Reply-To: <39C3BA07.9525723F@ucla.edu>
-Message-ID: <Pine.LNX.4.21.0009161521020.1519-100000@duckman.distro.conectiva>
+Subject: [PATCH] update to new VM
+Message-ID: <Pine.LNX.4.21.0009162114080.1051-100000@duckman.distro.conectiva>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Benjamin Redelings I <bredelin@ucla.edu>
-Cc: linux-mm@kvack.org
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.redhat.com, Linus Torvalds <torvalds@transmeta.com>
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 16 Sep 2000, Benjamin Redelings I wrote:
+Hi Linus,
 
-> > This is indeed something to look at. Maybe we could give
-> > idle processes (sleeping for more than 20 seconds?) a
-> > "full" swap_cnt instead of swap_cnt = rss >> SWAP_SHIFT ?
->
->  This doesn't seem like it should be necessary.  Right now,
-> unused processes ARE swapped preferentially (and completely) -
-> its just that swapping happens all of a sudden.
+after increasing the test base, the following 2 problems have
+been noticed with the VM patch, and are (hopefully) fixed in
+this patch:
 
-We may be able to fix that by swapping long-idle processes
-before we have eaten all of the cache. 
+1)  if __alloc_pages() is called without __GFP_IO in the
+    gfp_mask, we cannot wait for kswapd
+        -> use try_to_free_pages() the oldfashioned way instead
+1b) while fixing up the other __GFP_IO problems, I noticed
+    programs at schedule points in the VM, sleeping in S state,
+    this is fixed by explicitly making them runnable
+2)  the VM was badly balanced for low-memory (8MB) machines,
+    this has been fixed by making it easier for kswapd to go
+    to sleep in refill_inactive() and by waking up kswapd earlier
+    at the top of __alloc_pages()
 
-> 	Evicting unused pages, either from the cache or from
-> process can have significant benefits on my machine (64Mb).  
-> Once swapping triggered, 20Mb were paged out, and stayed out.  
-> If these 20 Mb had been paged out before, then I would have had
-> 20Mb more cache to work with, which is 31% of my memory.  Go
-> figure :)
+I'm still not 100% sure if this patch is completely correct,
+but it fixes one serious bug in the current VM inside -test9-pre1
+and I'm leaving for Linux Kongress tomorrow so this is my last
+chance to post anything for the next few days ;(
 
-*nod*
-
-> BTW, with test8-vmpatch4, I am gettings zillions of "VM:
-> page_launder, found pre-cleaned page ?!" messages.
-
-No you're not. That's test8-vmpatch3.
-This is fixed in -vmpatch4...
-
-(and the comments in the code have been
-updated to explain how and what)
+If this patch proves stable for everyone and makes 8MB machines
+workable again with the new VM, please include this in the next
+pre-patch. If it doesn't work correctly, I'll somehow find it
+in my email while at Linux Kongress and I'll prepare a new fix.
 
 regards,
 
