@@ -1,11 +1,12 @@
 Received: from penguin.e-mind.com (penguin.e-mind.com [195.223.140.120])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id PAA29594
-	for <linux-mm@kvack.org>; Sat, 2 Jan 1999 15:53:53 -0500
-Date: Sat, 2 Jan 1999 21:52:17 +0100 (CET)
+	by kvack.org (8.8.7/8.8.7) with ESMTP id WAA31245
+	for <linux-mm@kvack.org>; Sat, 2 Jan 1999 22:01:15 -0500
+Date: Sun, 3 Jan 1999 03:59:51 +0100 (CET)
 From: Andrea Arcangeli <andrea@e-mind.com>
+Reply-To: Andrea Arcangeli <andrea@e-mind.com>
 Subject: Re: [patch] new-vm improvement [Re: 2.2.0 Bug summary]
-In-Reply-To: <Pine.LNX.3.96.990102162944.176A-100000@laser.bogus>
-Message-ID: <Pine.LNX.3.96.990102213351.344A-100000@laser.bogus>
+In-Reply-To: <Pine.LNX.3.96.990102213351.344A-100000@laser.bogus>
+Message-ID: <Pine.LNX.3.96.990103034429.312B-100000@laser.bogus>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -15,43 +16,63 @@ List-ID: <linux-mm.kvack.org>
 
 On Sat, 2 Jan 1999, Andrea Arcangeli wrote:
 
-> I rediffed my latest swapout stuff against your latest tree (I consider
-> your latest patch as test1-pre4, right?).
+> is the swapout smart weight code. Basing the priority on the number of
+> process to try to swapout was really ugly and not smart. 
 
-I developed new exiting stuff this afternoon! The most important thing is
-the swapout smart weight code. Basing the priority on the number of
-process to try to swapout was really ugly and not smart.
+But I done two mistakes in it. Benjamin pointed out after one msec that
+there was no need for putting the address on the stack, and looking a
+_bit_ more at swap_out_pmd() I noticed that the old code was just updating
+swap_address, woops ;).
 
-The second change is done over shrink_mmap(), this will cause
-shrink_mmap() to care very more about aging. We have only one bit and we
-must use it carefully to get not out of cache ;) 
+I noticed the second very more important mistakes running at 8Mbyte
+because the trashing memory proggy was segfaulting. The bug was to base
+the maximal weight of swap_out() on the total_rss and not on the sum of
+the total_vm of all processes. With 8Mbyte all my processes got swapped
+out and so swap_out stopped working ;). It's fixed now...
 
-I also added/removed some PG_referenced. But please, don't trust too much
-the pg_refernced changes since I have not thought about it too much (maybe
-they are not needed?). 
+> The second change is done over shrink_mmap(), this will cause
+> shrink_mmap() to care very more about aging. We have only one bit and we
+> must use it carefully to get not out of cache ;) 
 
-I returned to put the minimum of cache and buffer to 5%. This allow me to
-run every trashing memory proggy I can for every time but I still have all
-my last command run (free) and filesystem (ls -l) in cache (because the
-trashing memory _only_ play with its VM and asks nothing to the kernel of
-course). 
+This change is pretty buggy too. The only good thing was to not care
+about the pgcache min limits before to shrink the _swap_cache_. Now I also
+changed pgcache_under_min to don't care about the swapcache size (now the
+swap cache is a bit more fast-variable/crazy).
 
-Ah and woops, in the last patch I do a mistake and I forget to change
-max_cnt to unsigned long. This should be changed also in your tree, Linus. 
+> I also added/removed some PG_referenced. But please, don't trust too much
+> the pg_refernced changes since I have not thought about it too much (maybe
+> they are not needed?). 
 
-This new patch seems to really rocks here and seems _far_ better than
-anything I tried before! Steve, could try it and feedback? Thanks ;) 
+Hmm I guess at least the brw_page set_bit was not needed because before to
+run such function is been run or a __find_page() or an add_to_...cache().
 
-Please excuse me Linus if I have not yet cleanedup things, but my spare
-time is very small and I would _try_ to improve things a bit more
-before...
+> Ah and woops, in the last patch I do a mistake and I forget to change
+> max_cnt to unsigned long. This should be changed also in your tree, Linus. 
 
-This patch is against 2.2.0-pre4 (the lateest patch posted by Linus here).
+Also some count should be moved from int to unsigned long to handle huge
+RAM sizes.
+
+> This new patch seems to really rocks here and seems _far_ better than
+> anything I tried before! Steve, could try it and feedback? Thanks ;) 
+
+Here Steve's feedback:
+
+                      128MB       8MB
+                      -------     -------
+Your previous patch:  132 sec     218 sec
+This patch         :  118 sec     226 sec       
+
+Even if `This patch' was pretty buggy (as pointed out above) it was going
+sligtly _faster_. I guess the reason for the 8Mbyte slowdown was the
+s/rss/total_vm/ thing (but I am not 100% sure). 
+
+I fixed the bugs and so I repost the fixed diff against pre4. I also
+cleaned up a bit some thing...
 
 Index: linux/include/linux/mm.h
-diff -u linux/include/linux/mm.h:1.1.1.3 linux/include/linux/mm.h:1.1.1.1.2.11
+diff -u linux/include/linux/mm.h:1.1.1.3 linux/include/linux/mm.h:1.1.1.1.2.12
 --- linux/include/linux/mm.h:1.1.1.3	Sat Jan  2 15:24:18 1999
-+++ linux/include/linux/mm.h	Sat Jan  2 21:40:13 1999
++++ linux/include/linux/mm.h	Sun Jan  3 03:43:52 1999
 @@ -118,7 +118,6 @@
  	unsigned long offset;
  	struct page *next_hash;
@@ -70,6 +91,17 @@ diff -u linux/include/linux/mm.h:1.1.1.3 linux/include/linux/mm.h:1.1.1.1.2.11
  extern void truncate_inode_pages(struct inode *, unsigned long);
  extern unsigned long get_cached_page(struct inode *, unsigned long, int);
  extern void put_cached_page(unsigned long);
+@@ -379,8 +377,8 @@
+ 
+ #define buffer_under_min()	((buffermem >> PAGE_SHIFT) * 100 < \
+ 				buffer_mem.min_percent * num_physpages)
+-#define pgcache_under_min()	(page_cache_size * 100 < \
+-				page_cache.min_percent * num_physpages)
++#define pgcache_under_min()	((page_cache_size-swapper_inode.i_nrpages)*100\
++				< page_cache.min_percent * num_physpages)
+ 
+ #endif /* __KERNEL__ */
+ 
 Index: linux/include/linux/pagemap.h
 diff -u linux/include/linux/pagemap.h:1.1.1.1 linux/include/linux/pagemap.h:1.1.1.1.2.1
 --- linux/include/linux/pagemap.h:1.1.1.1	Fri Nov 20 00:01:16 1998
@@ -83,70 +115,47 @@ diff -u linux/include/linux/pagemap.h:1.1.1.1 linux/include/linux/pagemap.h:1.1.
  }
  
 Index: linux/mm/filemap.c
-diff -u linux/mm/filemap.c:1.1.1.8 linux/mm/filemap.c:1.1.1.1.2.35
+diff -u linux/mm/filemap.c:1.1.1.8 linux/mm/filemap.c:1.1.1.1.2.36
 --- linux/mm/filemap.c:1.1.1.8	Fri Jan  1 19:12:53 1999
-+++ linux/mm/filemap.c	Sat Jan  2 21:40:13 1999
-@@ -118,6 +122,10 @@
- 	__free_page(page);
- }
- 
-+#define HANDLE_AGING(page)					\
-+	if (test_and_clear_bit(PG_referenced, &(page)->flags))	\
-+		continue;
-+
- int shrink_mmap(int priority, int gfp_mask)
++++ linux/mm/filemap.c	Sun Jan  3 03:13:09 1999
+@@ -122,13 +126,14 @@
  {
  	static unsigned long clock = 0;
-@@ -140,12 +148,11 @@
- 			page = page->next_hash;
- 			clock = page->map_nr;
- 		}
--		
--		if (test_and_clear_bit(PG_referenced, &page->flags))
--			continue;
+ 	unsigned long limit = num_physpages;
++	unsigned long count;
+ 	struct page * page;
+-	int count;
  
- 		/* Decrement count only for non-referenced pages */
--		count--;
-+		if (!test_bit(PG_referenced, &page->flags))
-+			count--;
-+
- 		if (PageLocked(page))
- 			continue;
+ 	count = limit >> priority;
  
-@@ -160,6 +167,7 @@
- 		if (page->buffers) {
- 			if (buffer_under_min())
- 				continue;
-+			HANDLE_AGING(page);
- 			if (!try_to_free_buffers(page))
- 				continue;
- 			return 1;
-@@ -167,12 +175,14 @@
+ 	page = mem_map + clock;
+-	do {
++	while (count != 0)
++	{
+ 		page++;
+ 		clock++;
+ 		if (clock >= max_mapnr) {
+@@ -167,17 +172,17 @@
  
  		/* is it a swap-cache or page-cache page? */
  		if (page->inode) {
 -			if (pgcache_under_min())
 -				continue;
  			if (PageSwapCache(page)) {
-+				HANDLE_AGING(page);
  				delete_from_swap_cache(page);
  				return 1;
  			}
 +			if (pgcache_under_min())
 +				continue;
-+			HANDLE_AGING(page);
  			remove_inode_page(page);
  			return 1;
  		}
-@@ -181,6 +191,8 @@
+ 
+-	} while (count > 0);
++	}
  	return 0;
  }
  
-+#undef HANDLE_AGING
-+
- /*
-  * Update a page cache copy, when we're doing a "write()" system call
-  * See also "update_vm_cache()".
 Index: linux/mm/swap.c
 diff -u linux/mm/swap.c:1.1.1.5 linux/mm/swap.c:1.1.1.1.2.8
 --- linux/mm/swap.c:1.1.1.5	Sat Jan  2 15:24:40 1999
@@ -168,9 +177,9 @@ diff -u linux/mm/swap.c:1.1.1.5 linux/mm/swap.c:1.1.1.1.2.8
  	75	/* maximum */
  };
 Index: linux/mm/vmscan.c
-diff -u linux/mm/vmscan.c:1.1.1.9 linux/mm/vmscan.c:1.1.1.1.2.57
+diff -u linux/mm/vmscan.c:1.1.1.9 linux/mm/vmscan.c:1.1.1.1.2.59
 --- linux/mm/vmscan.c:1.1.1.9	Sat Jan  2 15:46:20 1999
-+++ linux/mm/vmscan.c	Sat Jan  2 21:45:22 1999
++++ linux/mm/vmscan.c	Sun Jan  3 03:43:54 1999
 @@ -10,6 +10,12 @@
   *  Version: $Id: vmscan.c,v 1.5 1998/02/23 22:14:28 sct Exp $
   */
@@ -184,67 +193,57 @@ diff -u linux/mm/vmscan.c:1.1.1.9 linux/mm/vmscan.c:1.1.1.1.2.57
  #include <linux/slab.h>
  #include <linux/kernel_stat.h>
  #include <linux/swap.h>
-@@ -162,8 +168,9 @@
- 			 * copy in memory, so we add it to the swap
+@@ -163,7 +169,7 @@
  			 * cache. */
  			if (PageSwapCache(page_map)) {
-+				entry = atomic_read(&page_map->count);
  				__free_page(page_map);
 -				return (atomic_read(&page_map->count) == 0);
-+				return entry;
++				return 1;
  			}
  			add_to_swap_cache(page_map, entry);
  			/* We checked we were unlocked way up above, and we
-@@ -180,8 +187,9 @@
- 		 * asynchronously.  That's no problem, shrink_mmap() can
- 		 * correctly clean up the occassional unshared page
- 		 * which gets left behind in the swap cache. */
-+		entry = atomic_read(&page_map->count);
- 		__free_page(page_map);
--		return 1;	/* we slept: the process may not exist any more */
-+		return entry;	/* we slept: the process may not exist any more */
- 	}
- 
- 	/* The page was _not_ dirty, but still has a zero age.  It must
-@@ -194,8 +202,9 @@
- 		set_pte(page_table, __pte(entry));
+@@ -195,7 +201,7 @@
  		flush_tlb_page(vma, address);
  		swap_duplicate(entry);
-+		entry = atomic_read(&page_map->count);
  		__free_page(page_map);
 -		return (atomic_read(&page_map->count) == 0);
-+		return entry;
++		return 1;
  	} 
  	/* 
  	 * A clean page to be discarded?  Must be mmap()ed from
-@@ -210,7 +219,7 @@
+@@ -210,9 +216,8 @@
  	flush_cache_page(vma, address);
  	pte_clear(page_table);
  	flush_tlb_page(vma, address);
 -	entry = (atomic_read(&page_map->count) == 1);
-+	entry = atomic_read(&page_map->count);
  	__free_page(page_map);
- 	return entry;
+-	return entry;
++	return 1;
  }
-@@ -230,7 +239,7 @@
+ 
+ /*
+@@ -230,7 +235,7 @@
   */
  
  static inline int swap_out_pmd(struct task_struct * tsk, struct vm_area_struct * vma,
 -	pmd_t *dir, unsigned long address, unsigned long end, int gfp_mask)
-+	pmd_t *dir, unsigned long address, unsigned long end, int gfp_mask, unsigned long * counter, unsigned long * next_addr)
++	pmd_t *dir, unsigned long address, unsigned long end, int gfp_mask, unsigned long * counter)
  {
  	pte_t * pte;
  	unsigned long pmd_end;
-@@ -256,13 +265,19 @@
+@@ -251,18 +256,20 @@
+ 
+ 	do {
+ 		int result;
+-		tsk->swap_address = address + PAGE_SIZE;
+ 		result = try_to_swap_out(tsk, vma, address, pte, gfp_mask);
++		address += PAGE_SIZE;
++		tsk->swap_address = address;
  		if (result)
  			return result;
- 		address += PAGE_SIZE;
-+		if (!*counter)
-+		{
-+			*next_addr = address;
+-		address += PAGE_SIZE;
++		if (!--*counter)
 +			return 0;
-+		} else
-+			(*counter)--;
  		pte++;
  	} while (address < end);
  	return 0;
@@ -252,16 +251,16 @@ diff -u linux/mm/vmscan.c:1.1.1.9 linux/mm/vmscan.c:1.1.1.1.2.57
  
  static inline int swap_out_pgd(struct task_struct * tsk, struct vm_area_struct * vma,
 -	pgd_t *dir, unsigned long address, unsigned long end, int gfp_mask)
-+	pgd_t *dir, unsigned long address, unsigned long end, int gfp_mask, unsigned long * counter, unsigned long * next_addr)
++	pgd_t *dir, unsigned long address, unsigned long end, int gfp_mask, unsigned long * counter)
  {
  	pmd_t * pmd;
  	unsigned long pgd_end;
-@@ -282,9 +297,11 @@
+@@ -282,9 +289,11 @@
  		end = pgd_end;
  	
  	do {
 -		int result = swap_out_pmd(tsk, vma, pmd, address, end, gfp_mask);
-+		int result = swap_out_pmd(tsk, vma, pmd, address, end, gfp_mask, counter, next_addr);
++		int result = swap_out_pmd(tsk, vma, pmd, address, end, gfp_mask, counter);
  		if (result)
  			return result;
 +		if (!*counter)
@@ -269,21 +268,21 @@ diff -u linux/mm/vmscan.c:1.1.1.9 linux/mm/vmscan.c:1.1.1.1.2.57
  		address = (address + PMD_SIZE) & PMD_MASK;
  		pmd++;
  	} while (address < end);
-@@ -292,7 +309,7 @@
+@@ -292,7 +301,7 @@
  }
  
  static int swap_out_vma(struct task_struct * tsk, struct vm_area_struct * vma,
 -	unsigned long address, int gfp_mask)
-+	unsigned long address, int gfp_mask, unsigned long * counter, unsigned long * next_addr)
++	unsigned long address, int gfp_mask, unsigned long * counter)
  {
  	pgd_t *pgdir;
  	unsigned long end;
-@@ -306,16 +323,19 @@
+@@ -306,16 +315,19 @@
  
  	end = vma->vm_end;
  	while (address < end) {
 -		int result = swap_out_pgd(tsk, vma, pgdir, address, end, gfp_mask);
-+		int result = swap_out_pgd(tsk, vma, pgdir, address, end, gfp_mask, counter, next_addr);
++		int result = swap_out_pgd(tsk, vma, pgdir, address, end, gfp_mask, counter);
  		if (result)
  			return result;
 +		if (!*counter)
@@ -300,57 +299,54 @@ diff -u linux/mm/vmscan.c:1.1.1.9 linux/mm/vmscan.c:1.1.1.1.2.57
  {
  	unsigned long address;
  	struct vm_area_struct* vma;
-@@ -334,9 +354,16 @@
+@@ -334,9 +346,12 @@
  			address = vma->vm_start;
  
  		for (;;) {
 -			int result = swap_out_vma(p, vma, address, gfp_mask);
-+			unsigned long next_addr;
 +			int result = swap_out_vma(p, vma, address, gfp_mask,
-+						  counter, &next_addr);
++						  counter);
  			if (result)
  				return result;
 +			if (!*counter)
-+			{
-+				p->swap_address = next_addr;
 +				return 0;
-+			}
  			vma = vma->vm_next;
  			if (!vma)
  				break;
-@@ -350,6 +377,19 @@
+@@ -350,6 +365,19 @@
  	return 0;
  }
  
-+static unsigned long total_rss(void)
++static unsigned long get_total_vm(void)
 +{
-+	unsigned long total_rss = 0;
++	unsigned long total_vm = 0;
 +	struct task_struct * p;
 +
 +	read_lock(&tasklist_lock);
-+	for (p = init_task.next_task; p != &init_task; p = p->next_task)
-+		total_rss += p->mm->rss;
++	for_each_task(p)
++		total_vm += p->mm->total_vm;
 +	read_unlock(&tasklist_lock);
 +
-+	return total_rss;
++	return total_vm;
 +}
 +
  /*
   * Select the task with maximal swap_cnt and try to swap out a page.
   * N.B. This function returns only 0 or 1.  Return values != 1 from
-@@ -358,7 +398,10 @@
+@@ -358,8 +386,11 @@
  static int swap_out(unsigned int priority, int gfp_mask)
  {
  	struct task_struct * p, * pbest;
 -	int counter, assign, max_cnt;
 +	int assign;
-+	unsigned long max_cnt, counter;
-+
-+	counter = total_rss() >> priority;
++	unsigned long counter, max_cnt;
  
++	counter = get_total_vm() >> priority;
++
  	/* 
  	 * We make one or two passes through the task list, indexed by 
-@@ -374,13 +417,8 @@
+ 	 * assign = {0, 1}:
+@@ -374,20 +405,14 @@
  	 * Think of swap_cnt as a "shadow rss" - it tells us which process
  	 * we want to page out (always try largest first).
  	 */
@@ -362,23 +358,34 @@ diff -u linux/mm/vmscan.c:1.1.1.9 linux/mm/vmscan.c:1.1.1.1.2.57
 -
 -	for (; counter >= 0; counter--) {
 +	while (counter > 0) {
-+		int retval;
  		assign = 0;
  		max_cnt = 0;
  		pbest = NULL;
-@@ -413,8 +451,9 @@
- 		 * Nonzero means we cleared out something, but only "1" means
- 		 * that we actually free'd up a page as a result.
+ 	select:
+ 		read_lock(&tasklist_lock);
+-		p = init_task.next_task;
+-		for (; p != &init_task; p = p->next_task) {
++		for_each_task(p)
++		{
+ 			if (!p->swappable)
+ 				continue;
+ 	 		if (p->mm->rss <= 0)
+@@ -410,10 +435,11 @@
+ 		}
+ 
+ 		/*
+-		 * Nonzero means we cleared out something, but only "1" means
+-		 * that we actually free'd up a page as a result.
++		 * Nonzero means we cleared out something, and "1" means
++		 * that we actually moved a page from the process memory
++		 * to the swap cache (it's not been freed yet).
  		 */
 -		if (swap_out_process(pbest, gfp_mask) == 1)
--			return 1;
-+		retval = swap_out_process(pbest, gfp_mask, &counter);
-+		if (retval)
-+			return retval;
++		if (swap_out_process(pbest, gfp_mask, &counter))
+ 			return 1;
  	}
  out:
- 	return 0;
-@@ -441,42 +480,63 @@
+@@ -441,42 +467,63 @@
         printk ("Starting kswapd v%.*s\n", i, s);
  }
  
@@ -417,14 +424,14 @@ diff -u linux/mm/vmscan.c:1.1.1.9 linux/mm/vmscan.c:1.1.1.1.2.57
 +			if (shm_swap(priority, gfp_mask))
 +				return 1;
 +			*state = 0;
- 
++
 +			shrink_dcache_memory(priority, gfp_mask);
 +			kmem_cache_reap(gfp_mask);
 +		} while (--priority >= 0);
 +	}
 +	return 0;
 +}
-+
+ 
 +static int kswapd_free_pages(int kswapd_state)
 +{
  	/* max one hundreth of a second */
@@ -467,7 +474,7 @@ diff -u linux/mm/vmscan.c:1.1.1.9 linux/mm/vmscan.c:1.1.1.1.2.57
  /*
   * The background pageout daemon.
   * Started as a kernel thread from the init process.
-@@ -524,6 +584,7 @@
+@@ -524,6 +571,7 @@
  		current->state = TASK_INTERRUPTIBLE;
  		flush_signals(current);
  		run_task_queue(&tq_disk);
@@ -475,7 +482,7 @@ diff -u linux/mm/vmscan.c:1.1.1.9 linux/mm/vmscan.c:1.1.1.1.2.57
  		schedule();
  		swapstats.wakeups++;
  		state = kswapd_free_pages(state);
-@@ -543,35 +604,23 @@
+@@ -543,35 +591,23 @@
   * if we need more memory as part of a swap-out effort we
   * will just silently return "success" to tell the page
   * allocator to accept the allocation.
@@ -521,7 +528,7 @@ diff -u linux/mm/vmscan.c:1.1.1.9 linux/mm/vmscan.c:1.1.1.1.2.57
  		current->flags &= ~PF_MEMALLOC;
  	}
  	unlock_kernel();
-@@ -594,7 +643,8 @@
+@@ -594,7 +630,8 @@
  	if (priority) {
  		p->counter = p->priority << priority;
  		wake_up_process(p);
@@ -531,7 +538,7 @@ diff -u linux/mm/vmscan.c:1.1.1.9 linux/mm/vmscan.c:1.1.1.1.2.57
  }
  
  /* 
-@@ -632,9 +682,8 @@
+@@ -632,9 +669,8 @@
  			want_wakeup = 3;
  	
  		kswapd_wakeup(p,want_wakeup);
@@ -543,7 +550,7 @@ diff -u linux/mm/vmscan.c:1.1.1.9 linux/mm/vmscan.c:1.1.1.1.2.57
  }
  
  /* 
-@@ -643,7 +692,6 @@
+@@ -643,7 +679,6 @@
  
  void init_swap_timer(void)
  {
@@ -552,19 +559,11 @@ diff -u linux/mm/vmscan.c:1.1.1.9 linux/mm/vmscan.c:1.1.1.1.2.57
 -	timer_active |= (1<<SWAP_TIMER);
 +	enable_swap_tick();
  }
-Index: linux/fs/buffer.c
-diff -u linux/fs/buffer.c:1.1.1.5 linux/fs/buffer.c:1.1.1.1.2.6
---- linux/fs/buffer.c:1.1.1.5	Fri Jan  1 19:10:20 1999
-+++ linux/fs/buffer.c	Sat Jan  2 21:40:07 1999
-@@ -1263,6 +1263,7 @@
- 		panic("brw_page: page not locked for I/O");
- 	clear_bit(PG_uptodate, &page->flags);
- 	clear_bit(PG_error, &page->flags);
-+	set_bit(PG_referenced, &page->flags);
- 	/*
- 	 * Allocate async buffer heads pointing to this page, just for I/O.
- 	 * They do _not_ show up in the buffer hash table!
 
+
+
+As usual if you Steve or other will try this I am interested about numbers
+;). Thanks.
 
 Andrea Arcangeli
 
