@@ -1,65 +1,91 @@
-Message-ID: <3B113CFB.B1ABAE0A@colorfullife.com>
-Date: Sun, 27 May 2001 19:44:27 +0200
+Message-ID: <3B114667.DCC8A2B7@colorfullife.com>
+Date: Sun, 27 May 2001 20:24:39 +0200
 From: Manfred Spraul <manfred@colorfullife.com>
 MIME-Version: 1.0
 Subject: Re: [PATCH] modified memory_pressure calculation
-References: <Pine.LNX.4.21.0105271256500.1907-100000@imladris.rielhome.conectiva>
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+References: <Pine.LNX.4.21.0105271451120.1907-100000@imladris.rielhome.conectiva>
+Content-Type: multipart/mixed;
+ boundary="------------138E36E92ECB2795D5D22D8C"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Rik van Riel <riel@conectiva.com.br>
 Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+This is a multi-part message in MIME format.
+--------------138E36E92ECB2795D5D22D8C
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+
 Rik van Riel wrote:
 > 
 > On Sun, 27 May 2001, Manfred Spraul wrote:
 > 
-> > * if reclaim_page() finds a page that is Referenced, Dirty or Locked
-> >   then it must increase memory_pressure.
+> > >          if (z->free_pages < z->pages_min / 4 &&
+> > > -           !(current->flags & PF_MEMALLOC))
+> > > +            (in_interrupt() || !(current->flags & PF_MEMALLOC)))
+> > >             continue;
+> >
+> > It's 'if (in_interrupt()) continue', not 'if (in_interrupt()) alloc'.
+> > Currently a network card can allocate the last few pages if the
+> > interrupt occurs in the context of the PF_MEMALLOC thread. I think
+> > PF_MEMALLOC memory should never be available to interrupt handlers.
 > 
-> Why ?
+> You're right, my mistake.
 >
-Because it means that a page that was not really unused was detected by
-reclaim_page.
-It's not really an increase of the memory pressure, it's a decrease of
-the efficiency of the inactive_clean_list.
+Ok, then the attached patch should be ok [SMP safe 'memory_pressure--' +
+the change above].
 
-I'll think about it again.
+I've moved the modified memory_pressure calculation into my 'not_now'
+folder - not enough time for proper testing, and the change definitively
+needs thorough testing.
 
-> > * I don't understand the purpose of the second ++ in alloc_pages().
-> 
-> It's broken and should be removed. Thanks for spotting
-> this one.
-> 
-> > What about the attached patch [vs. 2.4.5]? It's just an idea, untested.
-> 
-> Just remove the in_interrupt() check near PF_MEMALLOC, will you?
->
-Of course.
-I forgot to remove that line, it's unrelated to the memory_pressure
-calculation. But I think it's another problem I spotted.
+We should take into account that the current page owner can reactivage a
+page, i.e. nr_inactive_{dirty,clean}_pages overestimates the number of
+really inactive pages in these lists.
 
-> Adding that check makes it possible for a pingflood to deadlock
-> kswapd, as the network card can allocate the very last pages in
-> the system and kswapd needs those pages to free up memory.
->
-
-Are you sure? It should be the other way around:
-
->          if (z->free_pages < z->pages_min / 4 &&
-> -           !(current->flags & PF_MEMALLOC))
-> +            (in_interrupt() || !(current->flags & PF_MEMALLOC)))
->		continue;
-
-It's 'if (in_interrupt()) continue', not 'if (in_interrupt()) alloc'.
-Currently a network card can allocate the last few pages if the
-interrupt occurs in the context of the PF_MEMALLOC thread. I think
-PF_MEMALLOC memory should never be available to interrupt handlers.
+My modified memory_pressure calculation would be one way to implement
+that.
 
 --
 	Manfred
+--------------138E36E92ECB2795D5D22D8C
+Content-Type: text/plain; charset=us-ascii;
+ name="patch-PF"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline;
+ filename="patch-PF"
+
+diff -u 2.4/mm/page_alloc.c build-2.4/mm/page_alloc.c
+--- 2.4/mm/page_alloc.c	Sat May 26 10:06:29 2001
++++ build-2.4/mm/page_alloc.c	Sun May 27 20:12:23 2001
+@@ -141,8 +141,11 @@
+ 	 * since it's nothing important, but we do want to make sure
+ 	 * it never gets negative.
+ 	 */
+-	if (memory_pressure > NR_CPUS)
+-		memory_pressure--;
++	{
++		int mp = memory_pressure-1;
++		if (mp > 0)
++			memory_pressure = mp;
++	}
+ }
+ 
+ #define MARK_USED(index, order, area) \
+@@ -476,7 +479,7 @@
+ 
+ 		/* XXX: is pages_min/4 a good amount to reserve for this? */
+ 		if (z->free_pages < z->pages_min / 4 &&
+-				!(current->flags & PF_MEMALLOC))
++			(in_interrupt() || !(current->flags & PF_MEMALLOC)))
+ 			continue;
+ 		page = rmqueue(z, order);
+ 		if (page)
+
+--------------138E36E92ECB2795D5D22D8C--
+
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
