@@ -1,78 +1,51 @@
-Date: Mon, 28 Feb 2005 19:01:53 +0000 (GMT)
+Date: Mon, 28 Feb 2005 19:35:30 +0000 (GMT)
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH] 2/2 Prezeroing large blocks of pages during allocation
-In-Reply-To: <1109609180.6921.22.camel@localhost>
-Message-ID: <Pine.LNX.4.58.0502281858520.29288@skynet>
-References: <20050227134316.2D0F1ECE4@skynet.csn.ul.ie> <1109609180.6921.22.camel@localhost>
+Subject: Re: [PATCH] 0/2 Buddy allocator with placement policy + prezeroing
+In-Reply-To: <1109607127.6921.14.camel@localhost>
+Message-ID: <Pine.LNX.4.58.0502281930490.29288@skynet>
+References: <20050227134219.B4346ECE4@skynet.csn.ul.ie> <1109607127.6921.14.camel@localhost>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Dave Hansen <haveblue@us.ibm.com>
-Cc: linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, clameter@sgi.com
+Cc: linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
 On Mon, 28 Feb 2005, Dave Hansen wrote:
 
-> On Sun, 2005-02-27 at 13:43 +0000, Mel Gorman wrote:
-> > +		/*
-> > +		 * If this is a request for a zero page and the page was
-> > +		 * not taken from the USERZERO pool, zero it all
-> > +		 */
-> > +		if ((flags & __GFP_ZERO) && alloctype != ALLOC_USERZERO) {
-> > +			int zero_order=order;
-> > +
-> > +			/*
-> > +			 * This is important. We are about to zero a block
-> > +			 * which may be larger than we need so we have to
-> > +			 * determine do we zero just what we need or do
-> > +			 * we zero the whole block and put the pages in
-> > +			 * the zero page.
-> > +			 *
-> > +			 * We zero the whole block in the event we are taking
-> > +			 * from the KERNNORCLM pools and otherwise zero just
-> > +			 * what we need. The reason we do not always zero
-> > +			 * everything is because we do not want unreclaimable
-> > +			 * pages to leak into the USERRCLM and KERNRCLM
-> > +			 * pools
-> > +			 *
-> > +			 */
-> > +			if (alloctype != ALLOC_USERRCLM &&
-> > +			    alloctype != ALLOC_KERNRCLM) {
-> > +				area = zone->free_area_lists[ALLOC_USERZERO] +
-> > +					current_order;
-> > +				zero_order = current_order;
-> > +			}
-> > +
-> > +
-> > +			spin_unlock_irqrestore(&zone->lock, *irq_flags);
-> > +			prep_zero_page(page, zero_order, flags);
-> > +			inc_zeroblock_count(zone, zero_order, flags);
-> > +			spin_lock_irqsave(&zone->lock, *irq_flags);
-> > +
-> > +		}
-> > +
-> >  		return expand(zone, page, order, current_order, area);
-> >  	}
+> On Sun, 2005-02-27 at 13:42 +0000, Mel Gorman wrote:
+> > In the two following emails are the latest version of the placement policy
+> > for the binary buddy allocator to reduce fragmentation and the prezeroing
+> > patch. The changelogs are with the patches although the most significant change
+> > to the placement policy is a fix for a bug in the usemap size calculation
+> > (pointed out by Mike Kravetz).
 > >
+> > The placement policy is Even Better than previous versions and can allocate
+> > over 100 2**10 blocks of pages under loads in excess of 30 so I still
+> > consider it ready for inclusion to the mainline.
+> ...
 >
-> I think it would make sense to put that in its own helper function.
-> When comments get that big, they often reduce readability.  The only
-> outside variable that gets modified is "area", I think.
->
-> So, a static inline:
->
-> 	area = my_new_function_with_the_huge_comment(zone, ..., area);
->
-
-Will make that change in the next version. It makes perfect sense.
-
-> BTW, what kernel does this apply against?  Is linux-2.6.11-rc4-v18 the
-> same as bk18?
+> This patch does some important things for memory hotplug: it explicitly
+> marks the different types of kernel allocations, and it separates those
+> different types in the allocator.  When it comes to memory hot-remove
+> this is certainly something we were going to have to do anyway.  Plus, I
+> believe there are already at least two prototype patches that do this.
 >
 
-It applies on top of 2.6.11-rc4 with the latest version of the placement
-policy. Admittedly, the naming of the tree is not very obvious.
+I have read through Matt Tolentino's version at least and this version of
+the placement policy should be an easier merge for hotplug. Particularly,
+stuff from his patch like the removal of magic numbers (which I should
+have done anyway) are present in this version of the placement policy
+patch. I will also move how a MAX_ORDER-1 block of pages is removed from
+the global list and put it in it's own inline function.
+
+> Anything that makes future memory hotplug work easier is good in my
+> book. :)
+>
+
+If there are any other changes that might make hotplug's life easier, I'm
+sure someone will shout :)
 
 -- 
 Mel Gorman
