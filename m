@@ -1,36 +1,38 @@
-Received: from [194.5.49.5] (macsteph.grame.fr [194.5.49.5])
-	by rd.grame.fr (8.9.3/8.9.3) with ESMTP id NAA01469
-	for <linux-mm@kvack.org>; Wed, 24 May 2000 13:05:28 +0200
-Message-Id: <v03007801b55167f9bf16@[194.5.49.5]>
+Date: Wed, 24 May 2000 12:55:46 +0100
+From: "Stephen C. Tweedie" <sct@redhat.com>
+Subject: Re: Large shared memory segment in kernel
+Message-ID: <20000524125546.J31803@redhat.com>
+References: <v03007801b55167f9bf16@[194.5.49.5]>
 Mime-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Date: Wed, 24 May 2000 13:14:40 +0200
-From: Stephane Letz <letz@grame.fr>
-Subject: Large shared memory segment in kernel
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <v03007801b55167f9bf16@[194.5.49.5]>; from letz@grame.fr on Wed, May 24, 2000 at 01:14:40PM +0200
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Stephane Letz <letz@grame.fr>
+Cc: linux-mm@kvack.org, Stephen Tweedie <sct@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-We would like to allocate a large memory segment (several Mb) in a kernel
-module so that to access the memory in the kernel module and in user space
-application. (be implementing the mmap function in the kernel module)
-Is is something that could be done ?  Or kernel modules should only mmap
-small amount of memory?
+Hi,
 
-Thanks
+On Wed, May 24, 2000 at 01:14:40PM +0200, Stephane Letz wrote:
 
-Stephane Letz
+> We would like to allocate a large memory segment (several Mb) in a kernel
+> module so that to access the memory in the kernel module and in user space
+> application. (be implementing the mmap function in the kernel module)
+> Is is something that could be done ?  Or kernel modules should only mmap
+> small amount of memory?
 
+As long as you are happy for the memory to be non-contiguous, then
+it should be fine.  If you are using 2.3 kernels, the kiobuf code at
 
-Grame: Centre National de creation musicale
-9, Rue du Garet
-69001 Lyon
-Tel: 04-72-07-37-00
-Fax: 04-72-07-37-01
-Web: www.grame.fr
+    ftp.uk.linux.org:/pub/linux/sct/fs/raw-io/kiobuf.2.3.99.pre9-2.tar.gz
 
+has a set of helper functions which make it trivial to do this from 
+device drivers (and the patch includes a sample driver to show exactly
+how it works).
 
+--Stephen
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
