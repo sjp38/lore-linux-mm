@@ -1,101 +1,102 @@
 From: Thomas Schlichter <schlicht@uni-mannheim.de>
-Subject: Re: 2.5.70-mm8
-Date: Wed, 11 Jun 2003 11:31:42 +0200
-References: <20030611013325.355a6184.akpm@digeo.com> <3EE6F3B7.9040809@gts.it>
-In-Reply-To: <3EE6F3B7.9040809@gts.it>
+Subject: [PATCH] Compile fix for 2.5.70-mm8/drivers/usb/media/vicam.c
+Date: Wed, 11 Jun 2003 12:13:53 +0200
+References: <20030611013325.355a6184.akpm@digeo.com>
+In-Reply-To: <20030611013325.355a6184.akpm@digeo.com>
 MIME-Version: 1.0
 Content-Type: multipart/signed;
   protocol="application/pgp-signature";
   micalg=pgp-sha1;
-  boundary="Boundary-03=_/bv5+DzRm0GxNrU";
+  boundary="Boundary-03=_nDw5+MKwr93ulo4";
   charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
-Message-Id: <200306111131.43023.schlicht@uni-mannheim.de>
+Message-Id: <200306111213.59596.schlicht@uni-mannheim.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Stefano Rivoir <s.rivoir@gts.it>, Andrew Morton <akpm@digeo.com>
+To: Andrew Morton <akpm@digeo.com>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
---Boundary-03=_/bv5+DzRm0GxNrU
+--Boundary-03=_nDw5+MKwr93ulo4
 Content-Type: multipart/mixed;
-  boundary="Boundary-01=_+bv5+CkLkvSTAsl"
+  boundary="Boundary-01=_hDw5+GFuxJ6ay8u"
 Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
 
---Boundary-01=_+bv5+CkLkvSTAsl
+--Boundary-01=_hDw5+GFuxJ6ay8u
 Content-Type: text/plain;
   charset="iso-8859-1"
 Content-Transfer-Encoding: quoted-printable
 Content-Disposition: inline
 
-Hi!
+Hi,
 
-Stefano Rivoir wrote:
-> Andrew Morton wrote:
-> > ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.5/2.5.70/2.=
-5.
-> >70-mm8/
->
-> arch/i386/kernel/setup.c: In function 'setup_early_printk':
-> arch/i386/kernel/setup.c:919: error: invalid lvalue in unary '&'
-> make[1]: *** [arch/i386/kernel/setup.o] Error 1
->
-> Bye
-
-I had the same problem, it occours when the kernel is compiled without SMP=
+it seems a copy_from_user() cleanup for the file mentioned above introduced=
 =20
-support and EARLY_PRINTK is not explicitly disabled in the 'Kernel hacking'=
-=20
-config-section.
-
-The attached patch helps me with this error...
+compile errors. This cleanup is (not yet) present in linus' tree and I do n=
+ot=20
+know who was the author of it, so I send this patch to you...
 
 Best regards
-   Thomas Schlichter
+  Thomas Schlichter
 
---Boundary-01=_+bv5+CkLkvSTAsl
+--Boundary-01=_hDw5+GFuxJ6ay8u
 Content-Type: text/x-diff;
   charset="iso-8859-1";
-  name="early_printk_fix.diff"
+  name="vicam.diff"
 Content-Transfer-Encoding: quoted-printable
-Content-Disposition: inline; filename="early_printk_fix.diff"
+Content-Disposition: inline; filename="vicam.diff"
 
-=2D-- linux-2.5.70-mm8/arch/i386/kernel/setup.c.orig	Wed Jun 11 11:10:35 20=
-03
-+++ linux-2.5.70-mm8/arch/i386/kernel/setup.c	Wed Jun 11 11:11:36 2003
-@@ -910,6 +910,7 @@
- extern int __init serial8250_console_init(void);
- void setup_early_printk(void)
- {
-+#ifdef CONFIG_SMP
- 	/*=20
- 	 * printk currently checks cpu_online_map to make sure that
- 	 * we don't try to printk from a CPU which hasn't had resources
-@@ -917,6 +918,7 @@
- 	 * enable here don't require per-cpu resources.
- 	 */
- 	set_bit(smp_processor_id(), &cpu_online_map);
-+#endif
- #ifdef CONFIG_DEBUG_EP_SERIAL
- 	console_setup(CONFIG_DEBUG_SERIAL_OPTIONS);
- 	serial8250_console_init();
+=2D-- linux-2.5.70-mm8/drivers/usb/media/vicam.c.orig	Wed Jun 11 11:43:48 2=
+003
++++ linux-2.5.70-mm8/drivers/usb/media/vicam.c	Wed Jun 11 11:47:25 2003
+@@ -618,13 +618,13 @@
+ 				break;
+ 			}
+=20
+=2D			DBG("VIDIOCSPICT depth =3D %d, pal =3D %d\n", vp->depth,
+=2D			    vp->palette);
++			DBG("VIDIOCSPICT depth =3D %d, pal =3D %d\n", vp.depth,
++			    vp.palette);
+=20
+=2D			cam->gain =3D vp->brightness >> 8;
++			cam->gain =3D vp.brightness >> 8;
+=20
+=2D			if (vp->depth !=3D 24
+=2D			    || vp->palette !=3D VIDEO_PALETTE_RGB24)
++			if (vp.depth !=3D 24
++			    || vp.palette !=3D VIDEO_PALETTE_RGB24)
+ 				retval =3D -EINVAL;
+=20
+ 			break;
+@@ -663,9 +663,9 @@
+ 				retval =3D -EFAULT;
+ 				break;
+ 			}
+=2D			DBG("VIDIOCSWIN %d x %d\n", vw->width, vw->height);
++			DBG("VIDIOCSWIN %d x %d\n", vw.width, vw.height);
+=20
+=2D			if ( vw->width !=3D 320 || vw->height !=3D 240 )
++			if ( vw.width !=3D 320 || vw.height !=3D 240 )
+ 				retval =3D -EFAULT;
+ 		=09
+ 			break;
 
---Boundary-01=_+bv5+CkLkvSTAsl--
+--Boundary-01=_hDw5+GFuxJ6ay8u--
 
---Boundary-03=_/bv5+DzRm0GxNrU
+--Boundary-03=_nDw5+MKwr93ulo4
 Content-Type: application/pgp-signature
 Content-Description: signature
 
 -----BEGIN PGP SIGNATURE-----
 Version: GnuPG v1.2.1 (GNU/Linux)
 
-iD8DBQA+5vb+YAiN+WRIZzQRAoAyAJ9qjgtyNT8KcRd/R9J3wERn35JB8QCg/PDm
-u3wmw5i69c2gJ2An30g/+lY=
-=WAPt
+iD8DBQA+5wDnYAiN+WRIZzQRAulpAKCMpUVkkfhldZjiRn046EePImrLoQCg/dMv
+eFiqnld6Y9WbSVIgUHShEhk=
+=6ym4
 -----END PGP SIGNATURE-----
 
---Boundary-03=_/bv5+DzRm0GxNrU--
+--Boundary-03=_nDw5+MKwr93ulo4--
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
