@@ -1,60 +1,31 @@
-Message-ID: <001c01c4a5e9$114bf490$8200a8c0@RakeshJagota>
-From: "Rakesh Jagota" <j.rakesh@gdatech.co.in>
-References: <4159E85A.6080806@ammasso.com> <006001c4a5df$ad605c40$8200a8c0@RakeshJagota> <415A4151.7060301@pobox.com>
-Subject: Re: opening a file inside the kernel module
-Date: Wed, 29 Sep 2004 11:26:30 +0530
+Message-ID: <415ACB29.5000104@ammasso.com>
+Date: Wed, 29 Sep 2004 09:48:09 -0500
+From: Timur Tabi <timur.tabi@ammasso.com>
 MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="iso-8859-1"
+Subject: Re: get_user_pages() still broken in 2.6
+References: <4159E85A.6080806@ammasso.com> <20040929000325.A6758@infradead.org>
+In-Reply-To: <20040929000325.A6758@infradead.org>
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jeff Garzik <jgarzik@pobox.com>
+To: Christoph Hellwig <hch@infradead.org>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernelnewbies@nl.linux.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
-Thnx.
+Christoph Hellwig wrote:
 
-I want to implement socket from the module. I won't be having any user
-process running to handle the descriptors coming from socket. Could you pl
-tell me how to handle the socket descriptor from the kernel module.
+> get_user_pages locks the page in memory.  It doesn't do anything about ptes.
 
-Thanks,
-rakesh
------ Original Message -----
-From: "Jeff Garzik" <jgarzik@pobox.com>
-To: "Rakesh Jagota" <j.rakesh@gdatech.co.in>
-Cc: <linux-mm@kvack.org>; <linux-kernel@vger.kernel.org>;
-<kernelnewbies@nl.linux.org>
-Sent: Wednesday, September 29, 2004 10:30 AM
-Subject: Re: opening a file inside the kernel module
+I don't understand the difference.  I thought a locked page is one that 
+stays in memory (i.e. isn't swapped out) and whose physical address 
+never changes.  Is that wrong?  All I need to do is keep a page in 
+memory at the same physical address until I'm done with it.
 
-
-> Rakesh Jagota wrote:
-> > Hi all,
-> > I am working in linux, i would like to know abt whether can I open a
-file
-> > inside the kernel module without using any application. If so how how
-the
-> > files_struct will be maintained. Does a kernel module has this struct?
->
-> Don't do this.  It's incompatible with namespaces.
->
-> Instead, figure out some way to pass the file contents to the kernel
-module.
->
-> Jeff
->
->
->
-> --
-> Kernelnewbies: Help each other learn about the Linux kernel.
-> Archive:       http://mail.nl.linux.org/kernelnewbies/
-> FAQ:           http://kernelnewbies.org/faq/
->
->
-
+-- 
+Timur Tabi
+Staff Software Engineer
+timur.tabi@ammasso.com
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
