@@ -1,50 +1,49 @@
-From: Daniel Phillips <phillips@arcor.de>
+Date: Fri, 4 Jul 2003 18:15:39 -0700
+From: Andrew Morton <akpm@osdl.org>
 Subject: Re: 2.5.74-mm1
-Date: Sat, 5 Jul 2003 02:16:27 +0200
+Message-Id: <20030704181539.2be0762a.akpm@osdl.org>
+In-Reply-To: <20030704210737.GI955@holomorphy.com>
 References: <20030703023714.55d13934.akpm@osdl.org>
-In-Reply-To: <20030703023714.55d13934.akpm@osdl.org>
-MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
+	<20030704210737.GI955@holomorphy.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200307050216.27850.phillips@arcor.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: William Lee Irwin III <wli@holomorphy.com>
+Cc: anton@samba.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thursday 03 July 2003 11:37, Andrew Morton wrote:
-> . Included Con's CPU scheduler changes.  Feedback on the effectiveness of
->   this and the usual benchmarks would be interesting.
+William Lee Irwin III <wli@holomorphy.com> wrote:
 >
->   Changes to the CPU scheduler tend to cause surprising and subtle problems
->   in areas where you least expect it, and these do take a long time to
->   materialise.  Alterations in there need to be made carefully and
->   cautiously. We shall see...
+> On Thu, Jul 03, 2003 at 02:37:14AM -0700, Andrew Morton wrote:
+> > ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.5/2.5.74/2.5.74-mm1/
+> 
+> anton saw the OOM killer try to kill pdflush, causing tons of spurious
+> wakeups. This should avoid picking kernel threads in select_bad_process().
+> 
+> 
+> -- wli
+> 
+> 
+> ===== mm/oom_kill.c 1.23 vs edited =====
+> --- 1.23/mm/oom_kill.c	Wed Apr 23 03:15:53 2003
+> +++ edited/mm/oom_kill.c	Fri Jul  4 14:03:32 2003
+> @@ -123,7 +123,7 @@
+>  	struct task_struct *chosen = NULL;
+>  
+>  	do_each_thread(g, p)
+> -		if (p->pid) {
+> +		if (p->pid && p->mm) {
+>  			int points = badness(p);
+>  			if (points > maxpoints) {
+>  				chosen = p;
 
-It now tolerates window dragging on this unaccelerated moderately high 
-resolution VGA without any sound dropouts.  There are still dropouts while 
-scrolling in Mozilla, so it acts much like 2.5.73+Con's patch, as expected. 
+Look at select_bad_process(), and the ->mm test in badness().  pdflush
+can never be chosen.
 
-I had 2.5.74 freeze up a couple of times yesterday, resulting in a totally 
-dead, unpingable system, so now I'm running 2.5.74-mm1 with kgdb and hoping 
-to catch one of those beasts in the wild.  The most recent incident occurred 
-while switching from X to text console, which did not complete, leaving me 
-with no debugging data whatsover.  That was with sound running.  Switching to 
-the text console always results in a massive sound skip, so there is a clue.  
-XFree is running generic VGA, so I don't seriously suspect the driver, and 
-even so, it should not be able to kill the system completely dead.
-
-System details are as I reported earlier:
-
-   AMD K7 1666 (actual) MHz, 512 MB, VIA VTxxx chipset.  Video hardware is
-   S3 ProSavage K4M266, unaccelerated VGA mode, 1280x1024x16.  Software is
-   2.5.73+Gnome+Metacity+ALSA+Zinf.  Running UP, no preempt.
-
-Regards,
-
-Daniel
+Nevertheless, there have been several report where kernel threads _are_ 
+being hit my the oom killer.  Any idea why that is?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
