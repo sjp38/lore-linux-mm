@@ -1,54 +1,47 @@
 Received: from burns.conectiva (burns.conectiva [10.0.0.4])
-	by perninha.conectiva.com.br (Postfix) with SMTP id D106338C89
-	for <linux-mm@kvack.org>; Mon, 30 Jul 2001 16:10:16 -0300 (EST)
-Date: Mon, 30 Jul 2001 16:10:13 -0300 (BRST)
+	by perninha.conectiva.com.br (Postfix) with SMTP id 9A4FD38C5C
+	for <linux-mm@kvack.org>; Mon, 30 Jul 2001 16:10:09 -0300 (EST)
+Date: Mon, 30 Jul 2001 16:10:07 -0300 (BRST)
 From: Rik van Riel <riel@conectiva.com.br>
-Subject: strange locking __find_get_swapcache_page()
-Message-ID: <Pine.LNX.4.33L.0107301542230.5582-100000@duckman.distro.conectiva>
+Subject: Re: Can reverse VM locks?
+In-Reply-To: <Pine.LNX.4.33.0107022014190.9756-100000@alloc.wat.veritas.com>
+Message-ID: <Pine.LNX.4.33L.0107301603120.5582-100000@duckman.distro.conectiva>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@transmeta.com>
-Cc: linux-mm@kvack.org, Andrea Arcangeli <andrea@suse.de>, Andrew Morton <andrewm@uow.edu.au>, Marcelo Tosatti <marcelo@conectiva.com.br>
+To: markhe@veritas.com
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+OK, I've been looking at the lock order reversal too,
+though for different reasons ;)
 
-I've encountered a suspicious piece of code in filemap.c:
+On Mon, 2 Jul 2001 markhe@veritas.com wrote:
+> On Mon, 2 Jul 2001, Rik van Riel wrote:
+> > On Mon, 2 Jul 2001 markhe@veritas.com wrote:
+> >
+> > >   Anyone know of any places where reversing the lock ordering would break?
+> >
+> > Basically add_to_page_cache and remove_from_page cache and friends ;)
+>
+>   Hmm, does a page-cache page need to be on an LRU list?
+>
+>   If not, the 'add' case falls out OK; add it to the page-cache
+> first, then add it to an LRU list _after_ dropping the
+> pagecache_lock and taking the pagemap_lru_lock.  ie. no lock
+> overlap.
 
-struct page * __find_get_swapcache_page( ... )
-...
-        /*
-         * We need the LRU lock to protect against page_launder().
-         */
+Indeed, this would work. I've been looking at this too.
 
-        spin_lock(&pagecache_lock);
-        page = __find_page_nolock(mapping, offset, *hash);
-        if (page) {
-                spin_lock(&pagemap_lru_lock);
-                if (PageSwapCache(page))
-                        page_cache_get(page);
-                else
-                        page = NULL;
-                spin_unlock(&pagemap_lru_lock);
-        }
-        spin_unlock(&pagecache_lock);
+	[snip cool analysis]
+> True?
 
+Yes, very much true.  Now what I wanted to ask about:
+do you already have a patch which does this or should
+I write a patch which does the lock order reversal ?
 
-Question is ... WHY do we need the pagemap_lru_lock ?
-
-Page_launder() never removes the page from the swap
-cache, that is only done by reclaim_page(), and done
-while holding the pagecache_lock.
-
-The other places where pages are removed from the
-swap cache (tmpfs and free_page_and_swap_cache)
-also hold the pagecache_lock.
-
-Taking the pagemap_lru_lock seems unneeded to me...
-
-regards,
+cheers,
 
 Rik
 --
