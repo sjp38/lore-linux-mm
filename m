@@ -1,28 +1,31 @@
-Date: Sun, 10 Oct 1999 12:12:24 -0400 (EDT)
-From: Alexander Viro <viro@math.psu.edu>
-Subject: Re: execve-question
-In-Reply-To: <3800B13E.655140FE@colorfullife.com>
-Message-ID: <Pine.GSO.4.10.9910101207500.16317-100000@weyl.math.psu.edu>
+Date: Sun, 10 Oct 1999 20:21:15 -0400 (EDT)
+From: James Simmons <jsimmons@edgeglobal.com>
+Subject: Re: MMIO regions
+In-Reply-To: <14336.53971.896012.84699@light.alephnull.com>
+Message-ID: <Pine.LNX.4.10.9910102015030.4696-100000@imperial.edgeglobal.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Manfred Spraul <manfreds@colorfullife.com>
-Cc: linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
+To: Rik Faith <faith@precisioninsight.com>
+Cc: "Eric W. Biederman" <ebiederm+eric@ccr.net>, Linux MM <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
+> No.  The DRI assumes that direct-rendering clients are running as non-root
+> users.  A direct-rendering client, with an open connection to the X server,
+> is allowed to mmap the MMIO region via a special device (additional
+> restrictions also apply).  For more information, please see "A Security
+> Analysis of the Direct Rendering Infrastructure"
+> (http://precisioninsight.com/dr/security.html).
 
-On Sun, 10 Oct 1999, Manfred Spraul wrote:
+> Just to clarify, the DRI does _not_ require that clients be SUID.
 
-> what happens / should happen if I call execve() in a multi-threaded
-> application?
-> 
-> I don't see that the mm structure is copied, and obviously noone
-> acquires the mm->mmap_sem.
+Oh my. Non root and direct access to buggy hardware. 
 
-Check fs/exec.c::exec_mmap(). mmap_sem is _not_ needed here. We are not
-copying the mm - we are creating new one (exec drops all mappings). For
-$DEITY sake, stop applying band-aids.
+Yeah since your familar with SGI can you explain to me the use of 
+/dev/shmiq, /dev/qcntl and /dev/usemaclone. I have seen them used for the
+X server on IRIX and was just interested to see if they could be of use on
+other platforms. Yes SGI linux supports these.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
