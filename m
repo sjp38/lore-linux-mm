@@ -1,52 +1,100 @@
-From: Daniel Phillips <phillips@arcor.de>
-Subject: Re: 2.5.74-mm1
-Date: Mon, 7 Jul 2003 17:28:08 +0200
-References: <20030703023714.55d13934.akpm@osdl.org> <Pine.LNX.4.53.0307071408440.5007@skynet> <Pine.LNX.4.55.0307070745250.4428@bigblue.dev.mcafeelabs.com>
-In-Reply-To: <Pine.LNX.4.55.0307070745250.4428@bigblue.dev.mcafeelabs.com>
+From: Thomas Schlichter <schlicht@uni-mannheim.de>
+Subject: Re: 2.5.74-mm2 + nvidia (and others)
+Date: Mon, 7 Jul 2003 17:33:53 +0200
+References: <1057590519.12447.6.camel@sm-wks1.lan.irkk.nu>
+In-Reply-To: <1057590519.12447.6.camel@sm-wks1.lan.irkk.nu>
 MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-Message-Id: <200307071728.08753.phillips@arcor.de>
+Content-Type: Multipart/Mixed;
+  boundary="Boundary-00=_pLZC/+/78wB9/mz"
+Message-Id: <200307071734.01575.schlicht@uni-mannheim.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Davide Libenzi <davidel@xmailserver.org>, Mel Gorman <mel@csn.ul.ie>
-Cc: Jamie Lokier <jamie@shareable.org>, Andrew Morton <akpm@osdl.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: smiler@lanil.mine.nu, linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Monday 07 July 2003 16:47, Davide Libenzi wrote:
-> On Mon, 7 Jul 2003, Mel Gorman wrote:
-> > On Mon, 7 Jul 2003, Daniel Phillips wrote:
-> > > And set up distros to grant it by default.  Yes.
-> > >
-> > > The problem I see is that it lets user space priorities invade the
-> > > range of priorities used by root processes.
-> >
-> > That is the main drawback all right but it could be addressed by having a
-> > CAP_SYS_USERNICE capability which allows a user to renice only their own
-> > processes to a highest priority of -5, or some other reasonable value
-> > that wouldn't interfere with root processes. This capability would only
-> > be for applications like music players which need to give hints to the
-> > scheduler.
+--Boundary-00=_pLZC/+/78wB9/mz
+Content-Type: text/plain;
+  charset="iso-8859-15"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+
+Am Monday 07 July 2003 17:08 schrieb Christian Axelsson:
+> Ok, running fine with 2.5.74-mm2 but when I try to insert the nvidia
+> module (with patches from www.minion.de applied) it gives
 >
-> The scheduler has to work w/out external input, period. If it doesn't we
-> have to fix it and not to force the user to submit external hints.
+> nvidia: Unknown symbol pmd_offset
+>
+> in dmesg. The vmware vmmon module gives the same error (the others wont
+> compile but thats a different story).
+>
+> The nvidia module works fine under plain 2.5.74.
 
-That's not correct in this case, because the sound servicing routine is 
-realtime, which makes it special.  Furthermore, Zinf is already trying to 
-provide the kernel with the hint it needs via PThreads SetPriority but 
-because Linux has brain damage - both in the kernel and user space imho - the 
-hint isn't accomplishing what it's supposed to.
+The problem is the highpmd patch in -mm2. There are two options:
+1. Revert the highpmd patch.
+2. Apply the attached patch to the NVIDIA kernel module sources.
 
-As I said earlier: trying to detect automagically which threads are realtime 
-and which aren't is stupid.  Such policy decisions don't belong in the 
-kernel.
+Best regards
+   Thomas Schlichter
 
-Regards,
+--Boundary-00=_pLZC/+/78wB9/mz
+Content-Type: text/x-diff;
+  charset="iso-8859-15";
+  name="NVIDIA_kernel-1.0-4363-highpmd.diff"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline; filename="NVIDIA_kernel-1.0-4363-highpmd.diff"
 
-Daniel
+--- NVIDIA_kernel-1.0-4363/nv-linux.h.orig	Sun Jul  6 14:42:34 2003
++++ NVIDIA_kernel-1.0-4363/nv-linux.h	Mon Jul  7 14:57:02 2003
+@@ -225,6 +225,18 @@
+     }
+ #endif
+ 
++#if defined(pmd_offset_map)
++#define NV_PMD_OFFSET(address, pg_dir, pg_mid_dir) \
++    { \
++        pmd_t *pg_mid_dir__ = pmd_offset_map(pg_dir, address); \
++        pg_mid_dir = *pg_mid_dir__; \
++        pmd_unmap(pg_mid_dir__); \
++    }
++#else
++#define NV_PMD_OFFSET(address, pg_dir, pg_mid_dir) \
++    pg_mid_dir = *pmd_offset(pg_dir, address)
++#endif
++
+ #define NV_PAGE_ALIGN(addr)             ( ((addr) + PAGE_SIZE - 1) / PAGE_SIZE)
+ #define NV_MASK_OFFSET(addr)            ( (addr) & (PAGE_SIZE - 1) )
+ 
+--- NVIDIA_kernel-1.0-4363/nv.c.orig	Sun Jul  6 14:45:36 2003
++++ NVIDIA_kernel-1.0-4363/nv.c	Sun Jul  6 14:58:55 2003
+@@ -2084,7 +2084,7 @@
+ nv_get_phys_address(unsigned long address)
+ {
+     pgd_t *pg_dir;
+-    pmd_t *pg_mid_dir;
++    pmd_t pg_mid_dir;
+     pte_t pte;
+ 
+ #if defined(NVCPU_IA64)
+@@ -2105,11 +2105,12 @@
+     if (pgd_none(*pg_dir))
+         goto failed;
+ 
+-    pg_mid_dir = pmd_offset(pg_dir, address);
+-    if (pmd_none(*pg_mid_dir))
++    NV_PMD_OFFSET(address, pg_dir, pg_mid_dir);
++
++    if (pmd_none(pg_mid_dir))
+         goto failed;
+ 
+-    NV_PTE_OFFSET(address, pg_mid_dir, pte);
++    NV_PTE_OFFSET(address, &pg_mid_dir, pte);
+ 
+     if (!pte_present(pte))
+         goto failed;
 
+--Boundary-00=_pLZC/+/78wB9/mz--
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
