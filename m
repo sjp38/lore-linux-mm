@@ -1,156 +1,158 @@
-Date: Wed, 21 Jan 2004 22:36:08 -0800
-From: Andrew Morton <akpm@osdl.org>
+Message-ID: <400F738A.40505@cyberone.com.au>
+Date: Thu, 22 Jan 2004 17:54:02 +1100
+From: Nick Piggin <piggin@cyberone.com.au>
+MIME-Version: 1.0
 Subject: Re: [BENCHMARKS] Namesys VM patches improve kbuild
-Message-Id: <20040121223608.1ea30097.akpm@osdl.org>
-In-Reply-To: <400F630F.80205@cyberone.com.au>
-References: <400F630F.80205@cyberone.com.au>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+References: <400F630F.80205@cyberone.com.au> <20040121223608.1ea30097.akpm@osdl.org>
+In-Reply-To: <20040121223608.1ea30097.akpm@osdl.org>
+Content-Type: multipart/mixed;
+ boundary="------------040507030701090601050801"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <piggin@cyberone.com.au>
+To: Andrew Morton <akpm@osdl.org>
 Cc: linux-mm@kvack.org, Nikita@Namesys.COM
 List-ID: <linux-mm.kvack.org>
 
-Nick Piggin <piggin@cyberone.com.au> wrote:
+This is a multi-part message in MIME format.
+--------------040507030701090601050801
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
+
+
+
+Andrew Morton wrote:
+
+>Nick Piggin <piggin@cyberone.com.au> wrote:
 >
-> Hi,
-> 
-> The two namesys patches help kbuild quite a lot here.
-> http://www.kerneltrap.org/~npiggin/vm/1/
-> 
-> The patches can be found at
-> http://thebsh.namesys.com/snapshots/LATEST/extra/
+>>Hi,
+>>
+>>The two namesys patches help kbuild quite a lot here.
+>>http://www.kerneltrap.org/~npiggin/vm/1/
+>>
+>>The patches can be found at
+>>http://thebsh.namesys.com/snapshots/LATEST/extra/
+>>
+>
+>I played with these back in July.  Had a few stability problems then but
+>yes, they did speed up some workloads a lot.
+>
+>
+>
+>>I don't have much to comment on the patches. They do include
+>>some cleanup stuff which should be broken out.
+>>
+>
+>Yup.  <dig, dig>  See below - it's six months old though.
+>
+>
+>>I don't really understand the dont-rotate-active-list patch:
+>>I don't see why we're losing LRU information because the pages
+>>that go to the head of the active list get their referenced
+>>bits cleared.
+>>
+>
+>Yes, I do think that the "LRU" is a bit of a misnomer - it's very
+>approximate and only really suits simple workloads.  I suspect that once
+>things get hot and heavy the "lru" is only four-deep:
+>unreferenced/inactive, referenced/inactive, unreferenced/active and
+>referenced/active.
+>
 
-I played with these back in July.  Had a few stability problems then but
-yes, they did speed up some workloads a lot.
+Yep that was my thinking.
+
+>
+>Can you test the patches separately, see what bits are actually helping?
+>
 
 
-> I don't have much to comment on the patches. They do include
-> some cleanup stuff which should be broken out.
+OK, I'll see how the second chance one alone does. By the way, what
+do you think of this? Did I miss something non obvious?
 
-Yup.  <dig, dig>  See below - it's six months old though.
-
-> I don't really understand the dont-rotate-active-list patch:
-> I don't see why we're losing LRU information because the pages
-> that go to the head of the active list get their referenced
-> bits cleared.
-
-Yes, I do think that the "LRU" is a bit of a misnomer - it's very
-approximate and only really suits simple workloads.  I suspect that once
-things get hot and heavy the "lru" is only four-deep:
-unreferenced/inactive, referenced/inactive, unreferenced/active and
-referenced/active.
-
-Can you test the patches separately, see what bits are actually helping?
-
-Watch out for kswapd CPU utilisation as well - some of those changes have
-the potential to increase it.
+Seems to make little difference on the benchmarks. Without the patch,
+the active list would generally be attacked more aggressively.
 
 
+--------------040507030701090601050801
+Content-Type: text/plain;
+ name="vm-fix-shrink-zone.patch"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline;
+ filename="vm-fix-shrink-zone.patch"
 
 
- include/linux/page-flags.h |    7 +++++++
- mm/page_alloc.c            |    1 +
- mm/truncate.c              |    2 ++
- mm/vmscan.c                |   10 ++++++++--
- 5 files changed, 18 insertions(+), 2 deletions(-)
+Use the actual number of pages difference when trying to keep the inactive
+list 1/2 the size of the active list (1/3 the size of all pages) instead of
+a meaningless ratio.
 
-diff -puN include/linux/mm_inline.h~skip-writepage include/linux/mm_inline.h
-diff -puN include/linux/page-flags.h~skip-writepage include/linux/page-flags.h
---- 25/include/linux/page-flags.h~skip-writepage	2003-07-09 02:58:48.000000000 -0700
-+++ 25-akpm/include/linux/page-flags.h	2003-07-09 02:58:48.000000000 -0700
-@@ -75,6 +75,7 @@
- #define PG_mappedtodisk		17	/* Has blocks allocated on-disk */
- #define PG_reclaim		18	/* To be reclaimed asap */
- #define PG_compound		19	/* Part of a compound page */
-+#define PG_skipped		20	/* ->writepage() was skipped on this page */
+
+ linux-2.6-npiggin/mm/vmscan.c |   37 +++++++++++++++++++------------------
+ 1 files changed, 19 insertions(+), 18 deletions(-)
+
+diff -puN mm/vmscan.c~vm-fix-shrink-zone mm/vmscan.c
+--- linux-2.6/mm/vmscan.c~vm-fix-shrink-zone	2004-01-22 14:47:25.000000000 +1100
++++ linux-2.6-npiggin/mm/vmscan.c	2004-01-22 16:25:04.000000000 +1100
+@@ -745,38 +745,39 @@ static int
+ shrink_zone(struct zone *zone, int max_scan, unsigned int gfp_mask,
+ 	const int nr_pages, int *nr_mapped, struct page_state *ps, int priority)
+ {
+-	unsigned long ratio;
++	unsigned long imbalance;
++	unsigned long nr_refill_inact;
  
- 
- /*
-@@ -267,6 +268,12 @@ extern void get_full_page_state(struct p
- #define SetPageCompound(page)	set_bit(PG_compound, &(page)->flags)
- #define ClearPageCompound(page)	clear_bit(PG_compound, &(page)->flags)
- 
-+#define PageSkipped(page)	test_bit(PG_skipped, &(page)->flags)
-+#define SetPageSkipped(page)	set_bit(PG_skipped, &(page)->flags)
-+#define TestSetPageSkipped(page)	test_and_set_bit(PG_skipped, &(page)->flags)
-+#define ClearPageSkipped(page)		clear_bit(PG_skipped, &(page)->flags)
-+#define TestClearPageSkipped(page)	test_and_clear_bit(PG_skipped, &(page)->flags)
-+
- /*
-  * The PageSwapCache predicate doesn't use a PG_flag at this time,
-  * but it may again do so one day.
-diff -puN mm/vmscan.c~skip-writepage mm/vmscan.c
---- 25/mm/vmscan.c~skip-writepage	2003-07-09 02:58:48.000000000 -0700
-+++ 25-akpm/mm/vmscan.c	2003-07-09 03:05:43.000000000 -0700
-@@ -328,6 +328,8 @@ shrink_list(struct list_head *page_list,
- 		 * See swapfile.c:page_queue_congested().
+ 	/*
+ 	 * Try to keep the active list 2/3 of the size of the cache.  And
+ 	 * make sure that refill_inactive is given a decent number of pages.
+ 	 *
+-	 * The "ratio+1" here is important.  With pagecache-intensive workloads
+-	 * the inactive list is huge, and `ratio' evaluates to zero all the
+-	 * time.  Which pins the active list memory.  So we add one to `ratio'
+-	 * just to make sure that the kernel will slowly sift through the
+-	 * active list.
++	 * Keeping imbalance > 0 is important.  With pagecache-intensive loads
++	 * the inactive list is huge, and imbalance evaluates to zero all the
++	 * time which would pin the active list memory.
+ 	 */
+-	ratio = (unsigned long)nr_pages * zone->nr_active /
+-				((zone->nr_inactive | 1) * 2);
+-	atomic_add(ratio+1, &zone->refill_counter);
+-	if (atomic_read(&zone->refill_counter) > SWAP_CLUSTER_MAX) {
+-		int count;
+-
++	imbalance = zone->nr_active - (zone->nr_inactive*2);
++	if (imbalance <= 0)
++		imbalance = 1;
++	else {
+ 		/*
+ 		 * Don't try to bring down too many pages in one attempt.
+ 		 * If this fails, the caller will increase `priority' and
+ 		 * we'll try again, with an increased chance of reclaiming
+ 		 * mapped memory.
  		 */
- 		if (PageDirty(page)) {
-+			if (!TestSetPageSkipped(page))
-+				goto keep_locked;
- 			if (!is_page_cache_freeable(page))
- 				goto keep_locked;
- 			if (!mapping)
-@@ -351,6 +353,7 @@ shrink_list(struct list_head *page_list,
- 				list_move(&page->list, &mapping->locked_pages);
- 				spin_unlock(&mapping->page_lock);
- 
-+				ClearPageSkipped(page);
- 				SetPageReclaim(page);
- 				res = mapping->a_ops->writepage(page, &wbc);
- 
-@@ -533,10 +536,13 @@ shrink_cache(const int nr_pages, struct 
- 			if (TestSetPageLRU(page))
- 				BUG();
- 			list_del(&page->lru);
--			if (PageActive(page))
-+			if (PageActive(page)) {
-+				if (PageSkipped(page))
-+					ClearPageSkipped(page);
- 				add_page_to_active_list(zone, page);
--			else
-+			} else {
- 				add_page_to_inactive_list(zone, page);
-+			}
- 			if (!pagevec_add(&pvec, page)) {
- 				spin_unlock_irq(&zone->lru_lock);
- 				__pagevec_release(&pvec);
-diff -puN mm/truncate.c~skip-writepage mm/truncate.c
---- 25/mm/truncate.c~skip-writepage	2003-07-09 03:05:53.000000000 -0700
-+++ 25-akpm/mm/truncate.c	2003-07-09 03:06:37.000000000 -0700
-@@ -53,6 +53,7 @@ truncate_complete_page(struct address_sp
- 	clear_page_dirty(page);
- 	ClearPageUptodate(page);
- 	ClearPageMappedToDisk(page);
-+	ClearPageSkipped(page);
- 	remove_from_page_cache(page);
- 	page_cache_release(page);	/* pagecache ref */
+-		count = atomic_read(&zone->refill_counter);
+-		if (count > SWAP_CLUSTER_MAX * 4)
+-			count = SWAP_CLUSTER_MAX * 4;
++
++		imbalance >>= priority;
++	}
++
++	atomic_add(imbalance, &zone->refill_counter);
++	nr_refill_inact = atomic_read(&zone->refill_counter);
++	if (nr_refill_inact > SWAP_CLUSTER_MAX) {
+ 		atomic_set(&zone->refill_counter, 0);
+-		refill_inactive_zone(zone, count, ps, priority);
++		refill_inactive_zone(zone, nr_refill_inact, ps, priority);
+ 	}
+-	return shrink_cache(nr_pages, zone, gfp_mask,
+-				max_scan, nr_mapped);
++
++	return shrink_cache(nr_pages, zone, gfp_mask, max_scan, nr_mapped);
  }
-@@ -81,6 +82,7 @@ invalidate_complete_page(struct address_
- 	__remove_from_page_cache(page);
- 	spin_unlock(&mapping->page_lock);
- 	ClearPageUptodate(page);
-+	ClearPageSkipped(page);
- 	page_cache_release(page);	/* pagecache ref */
- 	return 1;
- }
-diff -puN mm/page_alloc.c~skip-writepage mm/page_alloc.c
---- 25/mm/page_alloc.c~skip-writepage	2003-07-09 03:06:33.000000000 -0700
-+++ 25-akpm/mm/page_alloc.c	2003-07-09 03:06:48.000000000 -0700
-@@ -220,6 +220,7 @@ static inline void free_pages_check(cons
- 			1 << PG_locked	|
- 			1 << PG_active	|
- 			1 << PG_reclaim	|
-+			1 << PG_skipped	|
- 			1 << PG_writeback )))
- 		bad_page(function, page);
- 	if (PageDirty(page))
+ 
+ /*
 
 _
 
+--------------040507030701090601050801--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
