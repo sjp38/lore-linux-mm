@@ -1,131 +1,35 @@
-Message-ID: <3D6D0B97.D1A40550@zip.com.au>
-Date: Wed, 28 Aug 2002 10:42:47 -0700
-From: Andrew Morton <akpm@zip.com.au>
-MIME-Version: 1.0
-Subject: Re: MM patches against 2.5.31
-References: <3D644C70.6D100EA5@zip.com.au> <E17jjWN-0002fo-00@starship> <20020828131445.25959.qmail@thales.mathematik.uni-ulm.de> <E17k6Sy-0002s6-00@starship>
+Date: Wed, 28 Aug 2002 21:27:39 +0200
+From: Pavel Machek <pavel@suse.cz>
+Subject: Re: [BUG] 2.5.30 swaps with no swap device mounted!!
+Message-ID: <20020828192739.GB10487@atrey.karlin.mff.cuni.cz>
+References: <20020827135421.A39@toy.ucw.cz> <Pine.LNX.4.44.0208280708020.3234-100000@hawkeye.luckynet.adm>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.44.0208280708020.3234-100000@hawkeye.luckynet.adm>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Daniel Phillips <phillips@arcor.de>
-Cc: Christian Ehrhardt <ehrhardt@mathematik.uni-ulm.de>, lkml <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Thunder from the hill <thunder@lightweight.ods.org>
+Cc: William Lee Irwin III <wli@holomorphy.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Daniel Phillips wrote:
+Hi!
+
+> > > It might be interesting to see what happens if you unplug the swap device 
+> > > after umounting.
+> > 
+> > In the same way it might be interesting to see what happens if you put
+> > cigarette into gasoline tank?
 > 
-> On Wednesday 28 August 2002 15:14, Christian Ehrhardt wrote:
-> > Side note: The BUG in __pagevec_lru_del seems strange. refill_inactive
-> > or shrink_cache could have removed the page from the lru before
-> > __pagevec_lru_del acquired the lru lock.
-> 
-> It's suspect all right.  If there's a chain of assumptions that proves
-> the page is always on the lru at the point, I haven't seen it yet.
+> Well, you never know what unregistering does. It might happen to be 
+> ignored for swap, once unregistered.
 
-Yeah.  __pagevec_lru_del is only used by invalidate_inode_pages.
-A very simple solution is to just delete it.
-
-untested code:
-
- include/linux/pagevec.h |    7 -------
- mm/filemap.c            |   10 +++++-----
- mm/swap.c               |   28 ----------------------------
- 3 files changed, 5 insertions(+), 40 deletions(-)
-
---- 2.5.32/mm/filemap.c~pagevec_lru_del	Wed Aug 28 09:51:51 2002
-+++ 2.5.32-akpm/mm/filemap.c	Wed Aug 28 09:51:51 2002
-@@ -116,10 +116,10 @@ void invalidate_inode_pages(struct inode
- 	struct list_head *head, *curr;
- 	struct page * page;
- 	struct address_space *mapping = inode->i_mapping;
--	struct pagevec lru_pvec;
-+	struct pagevec pvec;
- 
- 	head = &mapping->clean_pages;
--	pagevec_init(&lru_pvec);
-+	pagevec_init(&pvec);
- 	write_lock(&mapping->page_lock);
- 	curr = head->next;
- 
-@@ -143,8 +143,8 @@ void invalidate_inode_pages(struct inode
- 
- 		__remove_from_page_cache(page);
- 		unlock_page(page);
--		if (!pagevec_add(&lru_pvec, page))
--			__pagevec_lru_del(&lru_pvec);
-+		if (!pagevec_add(&pvec, page))
-+			__pagevec_release(&pvec);
- 		continue;
- unlock:
- 		unlock_page(page);
-@@ -152,7 +152,7 @@ unlock:
- 	}
- 
- 	write_unlock(&mapping->page_lock);
--	pagevec_lru_del(&lru_pvec);
-+	pagevec_release(&pvec);
- }
- 
- static int do_invalidatepage(struct page *page, unsigned long offset)
---- 2.5.32/include/linux/pagevec.h~pagevec_lru_del	Wed Aug 28 09:51:51 2002
-+++ 2.5.32-akpm/include/linux/pagevec.h	Wed Aug 28 09:51:51 2002
-@@ -18,7 +18,6 @@ void __pagevec_release(struct pagevec *p
- void __pagevec_release_nonlru(struct pagevec *pvec);
- void __pagevec_free(struct pagevec *pvec);
- void __pagevec_lru_add(struct pagevec *pvec);
--void __pagevec_lru_del(struct pagevec *pvec);
- void lru_add_drain(void);
- void pagevec_deactivate_inactive(struct pagevec *pvec);
- 
-@@ -69,9 +68,3 @@ static inline void pagevec_lru_add(struc
- 	if (pagevec_count(pvec))
- 		__pagevec_lru_add(pvec);
- }
--
--static inline void pagevec_lru_del(struct pagevec *pvec)
--{
--	if (pagevec_count(pvec))
--		__pagevec_lru_del(pvec);
--}
---- 2.5.32/mm/swap.c~pagevec_lru_del	Wed Aug 28 09:51:51 2002
-+++ 2.5.32-akpm/mm/swap.c	Wed Aug 28 09:51:58 2002
-@@ -214,34 +214,6 @@ void __pagevec_lru_add(struct pagevec *p
- }
- 
- /*
-- * Remove the passed pages from the LRU, then drop the caller's refcount on
-- * them.  Reinitialises the caller's pagevec.
-- */
--void __pagevec_lru_del(struct pagevec *pvec)
--{
--	int i;
--	struct zone *zone = NULL;
--
--	for (i = 0; i < pagevec_count(pvec); i++) {
--		struct page *page = pvec->pages[i];
--		struct zone *pagezone = page_zone(page);
--
--		if (pagezone != zone) {
--			if (zone)
--				spin_unlock_irq(&zone->lru_lock);
--			zone = pagezone;
--			spin_lock_irq(&zone->lru_lock);
--		}
--		if (!TestClearPageLRU(page))
--			BUG();
--		del_page_from_lru(zone, page);
--	}
--	if (zone)
--		spin_unlock_irq(&zone->lru_lock);
--	pagevec_release(pvec);
--}
--
--/*
-  * Perform any setup for the swap system
-  */
- void __init swap_setup(void)
-
-.
+I guess it will crash and burn, I'd suggest at least unmounting all
+filesystems prior to that test.
+								Pavel
+-- 
+Casualities in World Trade Center: ~3k dead inside the building,
+cryptography in U.S.A. and free speech in Czech Republic.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
