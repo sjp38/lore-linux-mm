@@ -1,33 +1,33 @@
-Date: Thu, 8 Jun 2000 20:04:58 +0100
-From: "Stephen C. Tweedie" <sct@redhat.com>
-Subject: Re: Heard about the 2Q algorithm?
-Message-ID: <20000608200458.P3886@redhat.com>
-References: <20000608175632.19821.qmail@science.horizon.com>
+Date: Thu, 8 Jun 2000 12:13:13 -0700
+From: Chip Salzenberg <chip@valinux.com>
+Subject: Re: raid0 and buffers larger than PAGE_SIZE
+Message-ID: <20000608121312.A601@perlsupport.com>
+References: <20000607204444.A453@perlsupport.com> <20000608150821.G3886@redhat.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20000608175632.19821.qmail@science.horizon.com>; from linux@horizon.com on Thu, Jun 08, 2000 at 05:56:32PM -0000
+In-Reply-To: <20000608150821.G3886@redhat.com>; from sct@redhat.com on Thu, Jun 08, 2000 at 03:08:21PM +0100
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux@horizon.com
-Cc: riel@conectiva.com.br, linux-mm@kvack.org
+To: "Stephen C. Tweedie" <sct@redhat.com>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+According to Stephen C. Tweedie:
+> getblk() with blocksize > PAGE_SIZE is completely illegal.
 
-On Thu, Jun 08, 2000 at 05:56:32PM -0000, linux@horizon.com wrote:
-> 
-> 
-> The idea is that the FIFO absorbs sequential scans and filters out the
-> initial burst of accesses.  Only if access to the page is *prolonged*
-> do we consider it for longer-term cacheing.
+Well, that answers _that_ question.
 
-Page aging does that.  The initial age of a page will be fairly low,
-relative to pages which are constantly being accessed, and so will 
-be evicted from the cache before they can accumulate a high age if we
-have a sequential access pattern.
+> Are you using a decent set of raid patches?
 
---Stephen
+No patches, and apparently not decent.  :-(  I looked around with
+google and on ftp.kernel.org, but I couldn't find anything current.
+
+Can you spare a URL for a fellow programmer down on his luck?
+-- 
+Chip Salzenberg              - a.k.a. -              <chip@valinux.com>
+"I wanted to play hopscotch with the impenetrable mystery of existence,
+    but he stepped in a wormhole and had to go in early."  // MST3K
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
