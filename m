@@ -1,62 +1,48 @@
-Date: Wed, 4 Oct 2000 18:46:25 -0300 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
-Subject: Re: Odd swap behavior
-In-Reply-To: <39DBA38F.B2607361@sgi.com>
-Message-ID: <Pine.LNX.4.21.0010041844510.1054-100000@duckman.distro.conectiva>
+Message-ID: <39DBA9AA.AA4DEB1C@sgi.com>
+Date: Wed, 04 Oct 2000 15:05:30 -0700
+From: Rajagopal Ananthanarayanan <ananth@sgi.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: Odd swap behavior
+References: <Pine.LNX.4.21.0010041844510.1054-100000@duckman.distro.conectiva>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rajagopal Ananthanarayanan <ananth@sgi.com>
+To: Rik van Riel <riel@conectiva.com.br>
 Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 4 Oct 2000, Rajagopal Ananthanarayanan wrote:
-> Rik van Riel wrote:
-> > On Tue, 3 Oct 2000, Rajagopal Ananthanarayanan wrote:
-> > 
-> > > I'm running fairly stressful tests like dbench with lots of
-> > > clients. Since the new VM changes (now in test9), I haven't
-> > > noticed _any_ swap activity, in spite of the enormous memory
-
-> > Small code changes in deactivate_page() have caused the
-> > drop_behind() code to actually WORK AS ADVERTISED right
-> > now, and because of that streaming IO doesn't put any
-> > memory pressure on the system.
+Rik van Riel wrote:
+	[ ... ]
 > 
-> Agreed. And since the introduction of drop_behind &
-> the deactivate_page() in generic_file_write, streaming I/O
-> performance has become pretty good.
+> Please take a look at vmscan.c::refill_inactive()
 > 
-> However, in the above I was particularly talking about
-> swap behaviour on running dbench. Dbench is write intensive,
-> and also has fair amount of re-writes. So, the I'm not
-> sure why we still do not swap out _really_ old processes.
+> Furthermore, we don't do background scanning on all
+> active pages, only on the unmapped ones.
 
-Please take a look at vmscan.c::refill_inactive()
+Does that mean stack pages of processes are not included?
+Non-aggressive swap can hurt performance.	
 
-Furthermore, we don't do background scanning on all
-active pages, only on the unmapped ones.
+> 
+> Agreed, but I don't see an "easy" solution for 2.4.
+> 
 
-This is one of the things we'll be able to fix in
-2.5...
+Ok, I have another suggestion. Suppose you had a situation
+where a page is read from disk. It has buffers. Initially
+the page is active, and then aged. Where does the page go at age = 0?
+In reading the current code it seems that it would go to
+inactive_dirty. See how deactivate_page() chooses the dirty list
+to add a page which has buffers. Of course, later page_launder()
+would do try_to_free_buffers() which discards (clean) buffer heads,
+and at that point the page is put on free_list/reclaimed.
+Would it not be more efficient to bung clean (read) pages directly
+to inactive_clean on age = 0?
 
-> If old pages are not swapped out, then dbench itself
-> will get less than optimal amount of the page-cache during
-> its run. I believe this is one of the reasons for
-> dbench's poor showing with the new VM.
 
-Agreed, but I don't see an "easy" solution for 2.4.
-
-regards,
-
-Rik
---
-"What you're running that piece of shit Gnome?!?!"
-       -- Miguel de Icaza, UKUUG 2000
-
-http://www.conectiva.com/		http://www.surriel.com/
-
+--------------------------------------------------------------------------
+Rajagopal Ananthanarayanan ("ananth")
+Member Technical Staff, SGI.
+--------------------------------------------------------------------------
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
