@@ -1,25 +1,25 @@
 Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e4.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id j324KwRi028662
-	for <linux-mm@kvack.org>; Fri, 1 Apr 2005 23:20:58 -0500
+	by e6.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id j324Kx8K004998
+	for <linux-mm@kvack.org>; Fri, 1 Apr 2005 23:20:59 -0500
 Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay02.pok.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id j324KwZo073736
-	for <linux-mm@kvack.org>; Fri, 1 Apr 2005 23:20:58 -0500
+	by d01relay02.pok.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id j324KxZo087104
+	for <linux-mm@kvack.org>; Fri, 1 Apr 2005 23:20:59 -0500
 Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.12.11/8.12.11) with ESMTP id j324KwWA018185
+	by d01av02.pok.ibm.com (8.12.11/8.12.11) with ESMTP id j324KwYn018197
 	for <linux-mm@kvack.org>; Fri, 1 Apr 2005 23:20:58 -0500
-Date: Fri, 1 Apr 2005 19:13:46 -0800
+Date: Fri, 1 Apr 2005 19:15:46 -0800
 From: Chandra Seetharaman <sekharan@us.ibm.com>
-Subject: [PATCH 3/6] CKRM: Add limit support for mem controller
-Message-ID: <20050402031346.GD23284@chandralinux.beaverton.ibm.com>
+Subject: [PATCH 6/6] CKRM: Documentation for mem controller
+Message-ID: <20050402031546.GG23284@chandralinux.beaverton.ibm.com>
 Mime-Version: 1.0
-Content-Type: multipart/mixed; boundary="aT9PWwzfKXlsBJM1"
+Content-Type: multipart/mixed; boundary="s5/bjXLgkIwAv6Hi"
 Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: ckrm-tech@lists.sourceforge.net, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
---aT9PWwzfKXlsBJM1
+--s5/bjXLgkIwAv6Hi
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
 
@@ -31,261 +31,319 @@ Content-Disposition: inline
               - sekharan@us.ibm.com   |      .......you may get it.
 ----------------------------------------------------------------------
 
---aT9PWwzfKXlsBJM1
+--s5/bjXLgkIwAv6Hi
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: attachment; filename=11-03-mem_core-limit
+Content-Disposition: attachment; filename=11-06-mem_config-docs
 
-Patch 3 of 6 patches to support memory controller under CKRM framework.
-This patch provides the limit support for teh controller.
+Patch 6 of 6 patches to support memory controller under CKRM framework.
+Documentaion for the memory controller.
 
- include/linux/ckrm_mem.h   |    2 
- kernel/ckrm/ckrm_memcore.c |  159 +++++++++++++++++++++++++++++++++++++++++++--
- kernel/ckrm/ckrm_memctlr.c |   16 ++++
- 3 files changed, 172 insertions(+), 5 deletions(-)
+ mem_rc.design |  178 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ mem_rc.usage  |  112 ++++++++++++++++++++++++++++++++++++
+ 2 files changed, 290 insertions(+)
 
-Index: linux-2.6.12-rc1/include/linux/ckrm_mem.h
+Index: linux-2.6.12-rc1/Documentation/ckrm/mem_rc.design
 ===================================================================
---- linux-2.6.12-rc1.orig/include/linux/ckrm_mem.h
-+++ linux-2.6.12-rc1/include/linux/ckrm_mem.h
-@@ -44,6 +44,8 @@ struct ckrm_mem_res {
- 					 * parent if more than this is needed.
- 					 */
- 	int hier;			/* hiearchy level, root = 0 */
-+	int impl_guar;			/* for classes with don't care guar */
-+	int nr_dontcare;		/* # of dont care children */
- };
- 
- extern atomic_t ckrm_mem_real_count;
-Index: linux-2.6.12-rc1/kernel/ckrm/ckrm_memcore.c
+--- /dev/null
++++ linux-2.6.12-rc1/Documentation/ckrm/mem_rc.design
+@@ -0,0 +1,178 @@
++0. Lifecycle of a LRU Page:
++----------------------------
++These are the events in a page's lifecycle:
++   - allocation of the page
++     there are multiple high level page alloc functions; __alloc_pages()
++	 is the lowest level function that does the real allocation.
++   - get into LRU list (active list or inactive list)
++   - get out of LRU list
++   - freeing the page
++     there are multiple high level page free functions; free_pages_bulk()
++	 is the lowest level function that does the real free.
++   
++When the memory subsystem runs low on LRU pages, pages are reclaimed by
++    - moving pages from active list to inactive list (refill_inactive_zone())
++    - freeing pages from the inactive list (shrink_zone)
++depending on the recent usage of the page(approximately).
++
++In the process of the life cycle a page can move from the lru list to swap
++and back. For this document's purpose, we treat it same as freeing and
++allocating the page, respectfully.
++
++1. Introduction
++---------------
++Memory resource controller controls the number of lru physical pages
++(active and inactive list) a class uses. It does not restrict any
++other physical pages (slabs etc.,)
++
++For simplicity, this document will always refer lru physical pages as
++physical pages or simply pages.
++
++There are two parameters(that are set by the user) that affect the number
++of pages a class is allowed to have in active/inactive list.
++They are
++  - guarantee - specifies the number of pages a class is
++	guaranteed to get. In other words, if a class is using less than
++	'guarantee' number of pages, its pages will not be freed when the
++	memory subsystem tries to free some pages.
++  - limit - specifies the maximum number of pages a class can get;
++    'limit' in essence can be considered as the 'hard limit'
++
++Rest of this document details how these two parameters are used in the
++memory allocation logic.
++
++Note that the numbers that are specified in the shares file, doesn't
++directly correspond to the number of pages. But, the user can make
++it so by making the total_guarantee and max_limit of the default class
++(/rcfs/taskclass) to be the total number of pages(given in stats file)
++available in the system.
++
++  for example: 
++   # cd /rcfs/taskclass
++   # grep System stats
++   System: tot_pages=257512,active=5897,inactive=2931,free=243991
++   # cat shares
++   res=mem,guarantee=-2,limit=-2,total_guarantee=100,max_limit=100
++
++  "tot_pages=257512" above mean there are 257512 lru pages in
++  the system.
++  
++  By making total_guarantee and max_limit to be same as this number at 
++  this level (/rcfs/taskclass), one can make guarantee and limit in all 
++  classes refer to the number of pages.
++
++  # echo 'res=mem,total_guarantee=257512,max_limit=257512' > shares
++  # cat shares
++  res=mem,guarantee=-2,limit=-2,total_guarantee=257512,max_limit=257512
++
++
++The number of pages a class can use be anywhere between its guarantee and
++limit. CKRM memory controller springs into action when the system needs
++to choose a victim page to swap out. While the number of pages a class can
++have allocated may be anywhere between its guarantee and limit, victim
++pages will be choosen from classes that are above their guarantee.
++
++Victim class will be chosen by the number pages a class is using over its
++guarantee. i.e a class that is using 10000 pages over its guarantee will be
++chosen against a class that is using 1000 pages over its guarantee.
++Pages belonging to classes that are below their guarantee will not be
++chosen as a victim.
++
++2. Configuaration parameters
++---------------------------
++
++Memory controller provides the following configuration parameters. Usage of
++these parameters will be made clear in the following section.
++
++fail_over: When pages are being allocated, if the class is over fail_over % of
++    its limit, then fail the memory allocation. Default is 110.
++    ex: If limit of a class is 30000 and fail_over is 110, then memory
++    allocations would start failing once the class is using more than 33000
++    pages.
++
++shrink_at: When a class is using shrink_at % of its limit, then start
++    shrinking the class, i.e start freeing the page to make more free pages
++    available for this class. Default is 90.
++    ex: If limit of a class is 30000 and shrink_at is 90, then pages from this
++    class will start to get freed when the class's usage is above 27000
++
++shrink_to: When a class reached shrink_at % of its limit, ckrm will try to
++    shrink the class's usage to shrink_to %. Defalut is 80.
++    ex: If limit of a class is 30000 with shrink_at being 90 and shrink_to
++    being 80, then ckrm will try to free pages from the class when its
++    usage reaches 27000 and will try to bring it down to 24000.
++
++num_shrinks: Number of shrink attempts ckrm will do within shrink_interval
++    seconds. After this many attempts in a period, ckrm will not attempt a
++    shrink even if the class's usage goes over shrink_at %. Default is 10.
++
++shrink_interval: Number of seconds in a shrink period. Default is 10.
++
++3. Design
++--------------------------
++
++CKRM memory resource controller taps at appropriate low level memory 
++management functions to associate a page with a class and to charge
++a class that brings the page to the LRU list.
++
++CKRM maintains lru lists per-class instead of keeping it system-wide, so
++that reducing a class's usage doesn't involve going through the system-wide
++lru lists.
++
++3.1 Changes in page allocation function(__alloc_pages())
++--------------------------------------------------------
++- If the class that the current task belong to is over 'fail_over' % of its
++  'limit', allocation of page(s) fail. Otherwise, the page allocation will
++  proceed as before.
++- Note that the class is _not_ charged for the page(s) here.
++
++3.2 Changes in page free(free_pages_bulk())
++-------------------------------------------
++- If the page still belong to a class, the class will be credited for this
++  page.
++
++3.3 Adding/Deleting page to active/inactive list
++-------------------------------------------------
++When a page is added to the active or inactive list, the class that the
++task belongs to is charged for the page usage.
++
++When a page is deleted from the active or inactive list, the class that the
++page belongs to is credited back.
++
++If a class uses 'shrink_at' % of its limit, attempt is made to shrink
++the class's usage to 'shrink_to' % of its limit, in order to help the class
++stay within its limit.
++But, if the class is aggressive, and keep getting over the class's limit
++often(more than such 'num_shrinks' events in 'shrink_interval' seconds),
++then the memory resource controller gives up on the class and doesn't try
++to shrink the class, which will eventually lead the class to reach
++fail_over % and then the page allocations will start failing.
++
++3.4 Changes in the page reclaimation path (refill_inactive_zone and shrink_zone)
++-------------------------------------------------------------------------------
++Pages will be moved from active to inactive list(refill_inactive_zone) and
++pages from inactive list by choosing victim classes. Victim classes are
++chosen depending on their usage over their guarantee.
++
++Classes with DONT_CARE guarantee are assumed an implicit guarantee which is
++based on the number of children(with DONT_CARE guarantee) its parent has
++(including the default class) and the unused pages its parent still has.
++ex1: If a default root class /rcfs/taskclass has 3 children c1, c2 and c3
++and has 200000 pages, and all the classes have DONT_CARE guarantees, then
++all the classes (c1, c2, c3 and the default class of /rcfs/taskclass) will 
++get 50000 (200000 / 4) pages each.
++ex2: If, in the above example c1 is set with a guarantee of 80000 pages,
++then the other classes (c2, c3 and the default class of /rcfs/taskclass)
++will get 40000 ((200000 - 80000) / 3) pages each.
++
++3.5 Handling of Shared pages
++----------------------------
++Even if a mm is shared by tasks, the pages that belong to the mm will be
++charged against the individual tasks that bring the page into LRU. 
++
++But, when any task that is using a mm moves to a different class or exits,
++then all pages that belong to the mm will be charged against the richest
++class among the tasks that are using the mm.
++
++Note: Shared page handling need to be improved with a better policy.
++
+Index: linux-2.6.12-rc1/Documentation/ckrm/mem_rc.usage
 ===================================================================
---- linux-2.6.12-rc1.orig/kernel/ckrm/ckrm_memcore.c
-+++ linux-2.6.12-rc1/kernel/ckrm/ckrm_memcore.c
-@@ -95,9 +95,46 @@ mem_res_initcls_one(struct ckrm_mem_res 
- 	INIT_LIST_HEAD(&res->mcls_list);
- 
- 	res->pg_unused = 0;
-+	res->nr_dontcare = 1; /* for default class */
- 	kref_init(&res->nr_users);
- }
- 
-+static void
-+set_impl_guar_children(struct ckrm_mem_res *parres)
-+{
-+	struct ckrm_core_class *child = NULL;
-+	struct ckrm_mem_res *cres;
-+	int nr_dontcare = 1; /* for defaultclass */
-+	int guar, impl_guar;
-+	int resid = mem_rcbs.resid;
+--- /dev/null
++++ linux-2.6.12-rc1/Documentation/ckrm/mem_rc.usage
+@@ -0,0 +1,112 @@
++Installation
++------------
 +
-+	ckrm_lock_hier(parres->core);
-+	while ((child = ckrm_get_next_child(parres->core, child)) != NULL) {
-+		cres = ckrm_get_res_class(child, resid, struct ckrm_mem_res);
-+		/* treat NULL cres as don't care as that child is just being
-+		 * created.
-+		 * FIXME: need a better way to handle this case.
-+		 */
-+		if (!cres || cres->pg_guar == CKRM_SHARE_DONTCARE)
-+			nr_dontcare++;
-+	}
++1. Configure "Class based physical memory controller" under CKRM (see
++      Documentation/ckrm/installation) 
 +
-+	parres->nr_dontcare = nr_dontcare;
-+	guar = (parres->pg_guar == CKRM_SHARE_DONTCARE) ?
-+			parres->impl_guar : parres->pg_unused;
-+	impl_guar = guar / parres->nr_dontcare;
++2. Reboot the system with the new kernel.
 +
-+	while ((child = ckrm_get_next_child(parres->core, child)) != NULL) {
-+		cres = ckrm_get_res_class(child, resid, struct ckrm_mem_res);
-+		if (cres && cres->pg_guar == CKRM_SHARE_DONTCARE) {
-+			cres->impl_guar = impl_guar;
-+			set_impl_guar_children(cres);
-+		}
-+	}
-+	ckrm_unlock_hier(parres->core);
++3. Verify that the memory controller is present by reading the file
++   /rcfs/taskclass/config (should show a line with res=mem)
 +
-+}
++Usage
++-----
 +
- static void *
- mem_res_alloc(struct ckrm_core_class *core, struct ckrm_core_class *parent)
- {
-@@ -139,14 +176,106 @@ mem_res_alloc(struct ckrm_core_class *co
- 			res->pg_limit = ckrm_tot_lru_pages;
- 			res->hier = 0;
- 			ckrm_mem_root_class = res;
--		} else
-+		} else {
-+			int guar;
- 			res->hier = pres->hier + 1;
-+			set_impl_guar_children(pres);
-+			guar = (pres->pg_guar == CKRM_SHARE_DONTCARE) ?
-+				pres->impl_guar : pres->pg_unused;
-+			res->impl_guar = guar / pres->nr_dontcare;
-+		}
- 		ckrm_nr_mem_classes++;
- 	} else
- 		printk(KERN_ERR "MEM_RC: alloc: GFP_ATOMIC failed\n");
- 	return res;
- }
- 
-+/*
-+ * It is the caller's responsibility to make sure that the parent only
-+ * has chilren that are to be accounted. i.e if a new child is added
-+ * this function should be called after it has been added, and if a
-+ * child is deleted this should be called after the child is removed.
-+ */
-+static void
-+child_maxlimit_changed_local(struct ckrm_mem_res *parres)
-+{
-+	int maxlimit = 0;
-+	struct ckrm_mem_res *childres;
-+	struct ckrm_core_class *child = NULL;
++For brevity, unless otherwise specified all the following commands are
++executed in the default class (/rcfs/taskclass).
 +
-+	/* run thru parent's children and get new max_limit of parent */
-+	ckrm_lock_hier(parres->core);
-+	while ((child = ckrm_get_next_child(parres->core, child)) != NULL) {
-+		childres = ckrm_get_res_class(child, mem_rcbs.resid,
-+				struct ckrm_mem_res);
-+		if (maxlimit < childres->shares.my_limit)
-+			maxlimit = childres->shares.my_limit;
-+	}
-+	ckrm_unlock_hier(parres->core);
-+	parres->shares.cur_max_limit = maxlimit;
-+}
++Initially, the systemwide default class gets 100% of the LRU pages, and the
++stats file at the /rcfs/taskclass level displays the total number of
++physical pages.
 +
-+/*
-+ * Recalculate the guarantee and limit in # of pages... and propagate the
-+ * same to children.
-+ * Caller is responsible for protecting res and for the integrity of parres
-+ */
-+static void
-+recalc_and_propagate(struct ckrm_mem_res * res, struct ckrm_mem_res * parres)
-+{
-+	struct ckrm_core_class *child = NULL;
-+	struct ckrm_mem_res *cres;
-+	int resid = mem_rcbs.resid;
-+	struct ckrm_shares *self = &res->shares;
++   # cd /rcfs/taskclass
++   # grep System stats
++   System: tot_pages=239778,active=60473,inactive=135285,free=44555
++   # cat shares
++   res=mem,guarantee=-2,limit=-2,total_guarantee=100,max_limit=100
 +
-+	if (parres) {
-+		struct ckrm_shares *par = &parres->shares;
++   tot_pages - total number of pages
++   active    - number of pages in the active list ( sum of all zones)
++   inactive  - number of pages in the inactive list ( sum of all zones)
++   free      - number of free pages (sum of all zones)
 +
-+		/* calculate pg_guar and pg_limit */
-+		if (parres->pg_guar == CKRM_SHARE_DONTCARE ||
-+				self->my_guarantee == CKRM_SHARE_DONTCARE) {
-+			res->pg_guar = CKRM_SHARE_DONTCARE;
-+		} else if (par->total_guarantee) {
-+			u64 temp = (u64) self->my_guarantee * parres->pg_guar;
-+			do_div(temp, par->total_guarantee);
-+			res->pg_guar = (int) temp;
-+			res->impl_guar = CKRM_SHARE_DONTCARE;
-+		} else {
-+			res->pg_guar = 0;
-+			res->impl_guar = CKRM_SHARE_DONTCARE;
-+		}
++   By making total_guarantee and max_limit to be same as tot_pages, one can 
++   make the numbers in shares file be same as the number of pages for a
++   class.
 +
-+		if (parres->pg_limit == CKRM_SHARE_DONTCARE ||
-+				self->my_limit == CKRM_SHARE_DONTCARE) {
-+			res->pg_limit = CKRM_SHARE_DONTCARE;
-+		} else if (par->max_limit) {
-+			u64 temp = (u64) self->my_limit * parres->pg_limit;
-+			do_div(temp, par->max_limit);
-+			res->pg_limit = (int) temp;
-+		} else
-+			res->pg_limit = 0;
-+	}
++   # echo 'res=mem,total_guarantee=239778,max_limit=239778' > shares
++   # cat shares
++   res=mem,guarantee=-2,limit=-2,total_guarantee=239778,max_limit=239778
 +
-+	/* Calculate unused units */
-+	if (res->pg_guar == CKRM_SHARE_DONTCARE)
-+		res->pg_unused = CKRM_SHARE_DONTCARE;
-+	else if (self->total_guarantee) {
-+		u64 temp = (u64) self->unused_guarantee * res->pg_guar;
-+		do_div(temp, self->total_guarantee);
-+		res->pg_unused = (int) temp;
-+	} else
-+		res->pg_unused = 0;
++Changing configuration parameters:
++----------------------------------
++For description of the paramters read the file mem_rc.design in this same directory.
 +
-+	/* propagate to children */
-+	ckrm_lock_hier(res->core);
-+	while ((child = ckrm_get_next_child(res->core, child)) != NULL) {
-+		cres = ckrm_get_res_class(child, resid, struct ckrm_mem_res);
-+		recalc_and_propagate(cres, res);
-+	}
-+	ckrm_unlock_hier(res->core);
-+	return;
-+}
++Following is the default values for the configuration parameters:
 +
- static void
- mem_res_free(void *my_res)
- {
-@@ -161,6 +290,14 @@ mem_res_free(void *my_res)
- 	pres = ckrm_get_res_class(res->parent, mem_rcbs.resid,
- 			struct ckrm_mem_res);
- 
-+	if (pres) {
-+		child_guarantee_changed(&pres->shares,
-+				res->shares.my_guarantee, 0);
-+		child_maxlimit_changed_local(pres);
-+		recalc_and_propagate(pres, NULL);
-+		set_impl_guar_children(pres);
-+	}
++   localhost:~ # cd /rcfs/taskclass
++   localhost:/rcfs/taskclass # cat config
++   res=mem,fail_over=110,shrink_at=90,shrink_to=80,num_shrinks=10,shrink_interval=10
 +
- 	/*
- 	 * Making it all zero as freeing of data structure could 
- 	 * happen later.
-@@ -186,13 +323,24 @@ static int
- mem_set_share_values(void *my_res, struct ckrm_shares *shares)
- {
- 	struct ckrm_mem_res *res = my_res;
-+	struct ckrm_mem_res *parres;
-+	int rc;
- 
- 	if (!res)
- 		return -EINVAL;
- 
--	printk(KERN_INFO "set_share called for %s resource of class %s\n",
--			MEM_RES_NAME, res->core->name);
--	return 0;
-+	parres = ckrm_get_res_class(res->parent, mem_rcbs.resid,
-+		struct ckrm_mem_res);
++Here is how to change a specific configuration parameter. Note that more than one 
++configuration parameter can be changed in a single echo command though for simplicity
++we show one per echo.
 +
-+	rc = set_shares(shares, &res->shares, parres ? &parres->shares : NULL);
++ex: Changing fail_over: 
++   localhost:/rcfs/taskclass # echo "res=mem,fail_over=120" > config
++   localhost:/rcfs/taskclass # cat config
++   res=mem,fail_over=120,shrink_at=90,shrink_to=80,num_shrinks=10,shrink_interval=10
 +
-+	if ((rc == 0) && (parres != NULL)) {
-+		child_maxlimit_changed_local(parres);
-+		recalc_and_propagate(parres, NULL);
-+		set_impl_guar_children(parres);
-+	}
++ex: Changing shrink_at: 
++   localhost:/rcfs/taskclass # echo "res=mem,shrink_at=85" > config
++   localhost:/rcfs/taskclass # cat config
++   res=mem,fail_over=120,shrink_at=85,shrink_to=80,num_shrinks=10,shrink_interval=10
 +
-+	return rc;
- }
- 
- static int
-Index: linux-2.6.12-rc1/kernel/ckrm/ckrm_memctlr.c
-===================================================================
---- linux-2.6.12-rc1.orig/kernel/ckrm/ckrm_memctlr.c
-+++ linux-2.6.12-rc1/kernel/ckrm/ckrm_memctlr.c
-@@ -66,7 +66,20 @@ decr_use_count(struct ckrm_mem_res *cls,
- int
- ckrm_class_limit_ok(struct ckrm_mem_res *cls)
- {
--	return 1; /* stub for now */
-+	int ret, i, pg_total = 0;
++ex: Changing shrink_to: 
++   localhost:/rcfs/taskclass # echo "res=mem,shrink_to=75" > config
++   localhost:/rcfs/taskclass # cat config
++   res=mem,fail_over=120,shrink_at=85,shrink_to=75,num_shrinks=10,shrink_interval=10
 +
-+	if ((mem_rcbs.resid == -1) || !cls)
-+		return 1;
-+	for (i = 0; i < MAX_NR_ZONES; i++)
-+		pg_total += cls->pg_total[i];
-+	if (cls->pg_limit == CKRM_SHARE_DONTCARE) {
-+		struct ckrm_mem_res *parcls = ckrm_get_res_class(cls->parent,
-+					mem_rcbs.resid, struct ckrm_mem_res);
-+		ret = (parcls ? ckrm_class_limit_ok(parcls) : 0);
-+	} else
-+		ret = (pg_total <= cls->pg_limit);
++ex: Changing num_shrinks: 
++   localhost:/rcfs/taskclass # echo "res=mem,num_shrinks=20" > config
++   localhost:/rcfs/taskclass # cat config
++   res=mem,fail_over=120,shrink_at=85,shrink_to=75,num_shrinks=20,shrink_interval=10
 +
-+	return ret;
- }
- 
- static void migrate_list(struct list_head *list,
++ex: Changing shrink_interval: 
++   localhost:/rcfs/taskclass # echo "res=mem,shrink_interval=15" > config
++   localhost:/rcfs/taskclass # cat config
++   res=mem,fail_over=120,shrink_at=85,shrink_to=75,num_shrinks=20,shrink_interval=15
++
++Class creation 
++--------------
++
++   # mkdir c1
++
++Its initial share is DONT_CARE. The parent's share values will be unchanged.
++
++Setting a new class share
++-------------------------
++	
++   # echo 'res=mem,guarantee=25000,limit=50000' > c1/shares
++
++   # cat c1/shares	
++   res=mem,guarantee=25000,limit=50000,total_guarantee=100,max_limit=100
++	
++   'guarantee' specifies the number of pages this class entitled to get
++   'limit' is the maximum number of pages this class can get.
++
++Monitoring
++----------
++
++stats file shows statistics of the page usage of a class
++   # cat stats
++   ----------- Memory Resource stats start -----------
++   System: tot_pages=239778,active=60473,inactive=135285,free=44555
++   Number of pages used(including pages lent to children): 196654
++   Number of pages guaranteed: 239778
++   Maximum limit of pages: 239778
++   Total number of pages available(after serving guarantees to children): 214778
++   Number of pages lent to children: 0
++   Number of pages borrowed from the parent: 0
++   ----------- Memory Resource stats end -----------
++
 
---aT9PWwzfKXlsBJM1--
+--s5/bjXLgkIwAv6Hi--
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
