@@ -1,35 +1,32 @@
-Received: (from uucp@localhost)
-	by annwfn.erfurt.thur.de (8.9.3/8.9.2) with UUCP id SAA29730
-	for linux-mm@kvack.org; Mon, 27 Mar 2000 18:06:01 +0200
-Received: from nibiru.pauls.erfurt.thur.de (uucp@localhost)
-	by pauls.erfurt.thur.de (8.9.3/8.9.3) with bsmtp id RAA04129
-	for linux-mm@kvack.org; Mon, 27 Mar 2000 17:55:27 +0200
-Received: from nibiru.pauls.erfurt.thur.de (localhost [127.0.0.1])
-	by nibiru.pauls.erfurt.thur.de (8.9.3/8.9.3) with ESMTP id OAA11790
-	for <linux-mm@kvack.org>; Mon, 27 Mar 2000 14:58:21 GMT
-Message-ID: <38DF770C.A5BD2999@nibiru.pauls.erfurt.thur.de>
-Date: Mon, 27 Mar 2000 14:58:21 +0000
+Message-ID: <38DF56FE.107E9D0E@nibiru.pauls.erfurt.thur.de>
+Date: Mon, 27 Mar 2000 12:41:34 +0000
 From: Enrico Weigelt <weigelt@nibiru.pauls.erfurt.thur.de>
 Reply-To: weigelt@nibiru.pauls.erfurt.thur.de
 MIME-Version: 1.0
-Subject: what's about /sbin/update ?
+Subject: kernel-config modules
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-kernel@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-hello folks,
+what do you think about configuration modules instead of
+big-fat configuration interfaces (especially for lowmem-machines).
 
-am i right - the work of bdflush is now kflushd ?
-(since we have kernel threads)
+imagine this: 
 
-but why do i still have an update(bdflush) running ?
+parts of the kernel (or modules) export the configurable structures
+and there are modules which take the params and configure the stuff.
+after doing it, they're killed again.
 
-correct me if i'm wrong, but isn't bdflush() now only used 
-to configure some parameters of the kflushd and should 
-always return ?
+with this concept drivers could be splitted in two parts: (modules)
+a resident and a non-resident one.
+
+the resident part is the real driver code. the non resident one
+does the initialization, detection, configuration, etc.
+after these things are done, the non-resident part is not needed
+anylonger and can be kicked away.
 
 bye,
 ew.
