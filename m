@@ -1,64 +1,56 @@
-Subject: Re: VM Report was:Re: Break 2.4 VM in five easy steps
-References: <Pine.LNX.4.33.0106082013500.672-100000@mikeg.weiden.de>
-Reply-To: zlatko.calusic@iskon.hr
-From: Zlatko Calusic <zlatko.calusic@iskon.hr>
-Date: 09 Jun 2001 14:31:49 +0200
-In-Reply-To: <Pine.LNX.4.33.0106082013500.672-100000@mikeg.weiden.de> (Mike Galbraith's message of "Fri, 8 Jun 2001 20:30:32 +0200 (CEST)")
-Message-ID: <87u21p3kcq.fsf@atlas.iskon.hr>
+Subject: Re: Please test: workaround to help swapoff behaviour
+Message-ID: <OF2FF3269C.90D4688C-ON85256A66.006DEAFA@pok.ibm.com>
+From: "Bulent Abali" <abali@us.ibm.com>
+Date: Sat, 9 Jun 2001 16:32:29 -0400
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mike Galbraith <mikeg@wen-online.de>
-Cc: John Stoffel <stoffel@casc.com>, Tobias Ringstrom <tori@unhappy.mine.nu>, Jonathan Morton <chromi@cyberspace.org>, Shane Nay <shane@minirl.com>, Marcelo Tosatti <marcelo@conectiva.com.br>, "Dr S.M. Huen" <smh1008@cus.cam.ac.uk>, Sean Hunter <sean@dev.sportingbet.com>, Xavier Bestel <xavier.bestel@free.fr>, lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Marcelo Tosatti <marcelo@conectiva.com.br>
+Cc: Mike Galbraith <mikeg@wen-online.de>, "Eric W. Biederman" <ebiederm@xmission.com>, Derek Glidden <dglidden@illusionary.com>, lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Stephen Tweedie <sct@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-Mike Galbraith <mikeg@wen-online.de> writes:
 
-> On Fri, 8 Jun 2001, John Stoffel wrote:
-> 
-> > Mike> OK, riddle me this.  If this test is a crummy test, just how is
-> > Mike> it that I was able to warn Rik in advance that when 2.4.5 was
-> > Mike> released, he should expect complaints?  How did I _know_ that?
-> > Mike> The answer is that I fiddle with Rik's code a lot, and I test
-> > Mike> with this test because it tells me a lot.  It may not tell you
-> > Mike> anything, but it does me.
-> >
-> > I never said it was a crummy test, please do not read more into my
-> > words than was written.  What I was trying to get across is that just
-> > one test (such as a compile of the kernel) isn't perfect at showing
-> > where the problems are with the VM sub-system.
-> 
-> Hmm...
-> 
-> Tobias> Could you please explain what is good about this test?  I
-> Tobias> understand that it will stress the VM, but will it do so in a
-> Tobias> realistic and relevant way?
-> 
-> I agree, this isn't really a good test case.  I'd rather see what
-> ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-> happens when you fire up a gimp session to edit an image which is
-> *almost* the size of RAM, or even just 50% the size of ram.  Then how
-> does that affect your other processes that are running at the same
-> time?
-> 
-> ...but anyway, yes it just one test from any number of possibles.
 
-One great test that I'm using regularly to see what's goin' on, is at
-http://lxr.linux.no/. It is a cool utility to cross reference your
-Linux kernel source tree, and in the mean time eat gobs of memory, do
-lots of I/O, and burn many CPU cycles (all at the same time). Ideal
-test, if you ask me and if anybody has the time, it would be nice to
-see different timing numbers when run on different kernels. Just make
-sure you run it on the same kernel tree to make reproducable results.
-It has three passes, and the third one is the most interesting one
-(use vmstat 1 to see why). When run with 64MB RAM configuration, it
-would swap heavily, with 128MB somewhat, and at 192MB maybe not
-(depending on the other applications running at the same time).
+>Bulent,
+>
+>Could you please check if 2.4.6-pre2+the schedule patch has better
+>swapoff behaviour for you?
 
-Try it, it is a nice utility, and a great test. :)
--- 
-Zlatko
+Marcelo,
+
+It works as expected.  Doesn't lockup the box however swapoff keeps burning
+the CPU cycles.  It took 4 1/2 minutes to swapoff about 256MB of swap
+content.  Shutdown took just as long.  I was hoping that shutdown would
+kill the swapoff process but it doesn't.  It just hangs there.  Shutdown
+is the common case.  Therefore, swapoff needs to be optimized for
+shutdowns.
+You could imagine users frustration waiting for a shutdown when there are
+gigabytes in the swap.
+
+So to summarize, schedule patch is better than nothing but falls far short.
+I would put it in 2.4.6.  Read on.
+
+----------
+
+The problem is with the try_to_unuse() algorithm which is very inefficient.
+I searched the linux-mm archives and Tweedie was on to this. This is what
+he wrote:  "it is much cheaper to find a swap entry for a given page than
+to find the swap cache page for a given swap entry." And he posted a
+patch http://mail.nl.linux.org/linux-mm/2001-03/msg00224.html
+His patch is in the Redhat 7.1 kernel 2.4.2-2 and not in 2.4.5.
+
+But in any case I believe the patch will not work as expected.
+It seems to me that he is calling the function check_orphaned_swap(page)
+in the wrong place.  He is calling the function while scanning the
+active_list in refill_inactive_scan().  The problem with that is if you
+wait
+60 seconds or longer the orphaned swap pages will move from active
+to inactive lists. Therefore the function will miss the orphans in inactive
+lists.  Any comments?
+
+
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
