@@ -1,28 +1,32 @@
-Subject: Re: page_launder() bug
-Date: Mon, 7 May 2001 11:52:26 +0100 (BST)
-In-Reply-To: <Pine.LNX.4.33.0105070823060.24073-100000@svea.tellus> from "Tobias Ringstrom" at May 07, 2001 08:26:58 AM
+Received: from ecvwall1.wipro.com (ecvwall1.wipro.com [192.168.181.23])
+	by wiproecmx2.wipro.com (8.9.3/8.9.3) with SMTP id RAA10311
+	for <linux-mm@kvack.org>; Mon, 7 May 2001 17:17:14 GMT
+Received: from ecvwall1.wipro.com ([192.168.181.23]) by
+          ecmail.mail.wipro.com (Netscape Messaging Server 4.15) with SMTP
+          id GCYQW200.FL9 for <linux-mm@kvack.org>; Mon, 7 May 2001 17:06:02 +0530
+Received: from chanshek ([192.168.51.68]) by
+          helium.mail.wipro.com (Netscape Messaging Server 4.15) with SMTP
+          id GCYQTG00.U5R for <linux-mm@kvack.org>; Mon, 7 May 2001 17:04:28 +0530
+From: "Chandrashekar Nagaraj" <chandrashekar.nag@wipro.com>
+Subject: 
+Date: Mon, 7 May 2001 17:08:43 +0530
+Message-ID: <004001c0d6ea$44c311e0$4433a8c0@wipro.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain;
+	charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
-Message-Id: <E14wicu-0003L5-00@the-village.bc.nu>
-From: Alan Cox <alan@lxorguk.ukuu.org.uk>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Tobias Ringstrom <tori@tellus.mine.nu>
-Cc: "David S. Miller" <davem@redhat.com>, Jonathan Morton <chromi@cyberspace.org>, BERECZ Szabolcs <szabi@inf.elte.hu>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> > It is the most straightforward way to make a '1' or '0'
-> > integer from the NULL state of a pointer.
-> 
-> But is it really specified in the C "standards" to be exctly zero or one,
-> and not zero and non-zero?
+hi,
+	i want to know how to read tab without a terminating character,
+ie., if i use getchar() i have to enter '\n' after tab to read tab,
+same is the case with read system call and scanf. 
 
-Yes. (Fortunately since when this argument occurred Linus said he would eat
-his underpants if he was wrong)
-
-Alan
-
+bye,
+chandra.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
