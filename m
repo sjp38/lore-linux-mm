@@ -1,42 +1,36 @@
-Received: from burns.conectiva (burns.conectiva [10.0.0.4])
-	by perninha.conectiva.com.br (Postfix) with SMTP id C0A6C38CF1
-	for <linux-mm@kvack.org>; Thu, 23 Aug 2001 15:55:50 -0300 (EST)
-Date: Thu, 23 Aug 2001 15:55:39 -0300 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
+Message-Id: <200108231856.f7NIuhv12558@mailg.telia.com>
+Content-Type: text/plain;
+  charset="iso-8859-1"
+From: Roger Larsson <roger.larsson@norran.net>
 Subject: Re: [PATCH NG] alloc_pages_limit & pages_min
-In-Reply-To: <200108231849.f7NIns005651@maila.telia.com>
-Message-ID: <Pine.LNX.4.33L.0108231554330.31410-100000@duckman.distro.conectiva>
+Date: Thu, 23 Aug 2001 20:52:20 +0200
+References: <Pine.LNX.4.33L.0108231544340.31410-100000@duckman.distro.conectiva>
+In-Reply-To: <Pine.LNX.4.33L.0108231544340.31410-100000@duckman.distro.conectiva>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Roger Larsson <roger.larsson@norran.net>
+To: Rik van Riel <riel@conectiva.com.br>
 Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 23 Aug 2001, Roger Larsson wrote:
-
-> > Why did you introduce this piece of code?
-> > What is it supposed to achieve ?
+On Thursdayen den 23 August 2001 20:44, Rik van Riel wrote:
+> On Thu, 23 Aug 2001, Roger Larsson wrote:
+> > f we did get one page => we are above pages_min
+> > try to reach pages_low too.
 >
-> A lighter alternative would be to reclaim just one extra page...
-> Then it will move in the right direction but not more, quite
-> nice actually!
+> Yeah, but WHY ?
+>
 
-Why ?
+* Historic reasons - I feel good at that limit... :-)
+ MIN the limit never crossed
+ LOW center, our target of free pages - when all zones time to free.
+ HIGH limit were to stop the freeing.
 
-Or, to be more specific, why would we want to throw away
-data from the cache all the way up to pages_min when we
-know we're running a workload with allocations which can
-eat directly from the cache ?
-
-Rik
---
-IA64: a worthy successor to the i860.
-
-		http://www.surriel.com/
-http://www.conectiva.com/	http://distro.conectiva.com/
-
+-- 
+Roger Larsson
+Skelleftea
+Sweden
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
