@@ -1,67 +1,29 @@
-Date: Wed, 16 Oct 2002 13:03:01 +0530
-From: Maneesh Soni <maneesh@in.ibm.com>
-Subject: Re: 2.5.43-mm1
-Message-ID: <20021016130301.A29405@in.ibm.com>
-Reply-To: maneesh@in.ibm.com
-References: <3DAD0F3D.39E5B5DC@digeo.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <3DAD0F3D.39E5B5DC@digeo.com>; from akpm@digeo.com on Wed, Oct 16, 2002 at 07:05:06AM +0000
+Date: Wed, 16 Oct 2002 10:14:55 +0200 (CEST)
+From: Ingo Molnar <mingo@elte.hu>
+Reply-To: Ingo Molnar <mingo@elte.hu>
+Subject: Re: [patch] mmap-speedup-2.5.42-C3
+In-Reply-To: <3DACBD58.AAD8F0A@austin.ibm.com>
+Message-ID: <Pine.LNX.4.44.0210161013050.4573-100000@localhost.localdomain>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@digeo.com>
-Cc: lkml <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: NPT library mailing list <phil-list@redhat.com>
+Cc: Linus Torvalds <torvalds@transmeta.com>, Andrew Morton <akpm@zip.com.au>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hello Andrew,
+On Tue, 15 Oct 2002, Saurabh Desai wrote:
 
-Few changes in dcache_rcu patch due to new intermezzo file system. Patch against
-2.5.43-mm1
+>   Yes, the test_str02 performance improved a lot using NPTL.
+>   However, on a side effect, I noticed that randomly my current telnet
+>   session was logged out after running this test. Not sure, why?
 
-Regards,
-Maneesh
+i think it should be unrelated to the mmap patch. In any case, Andrew
+added the mmap-speedup patch to 2.5.43-mm1, so we'll hear about this
+pretty soon.
 
+	Ingo
 
-diff -urN linux-2.5.43-mm1/fs/intermezzo/journal.c linux-2.5.43-mm1-dcache_rcu/fs/intermezzo/journal.c
---- linux-2.5.43-mm1/fs/intermezzo/journal.c	Wed Oct 16 12:30:03 2002
-+++ linux-2.5.43-mm1-dcache_rcu/fs/intermezzo/journal.c	Wed Oct 16 12:26:47 2002
-@@ -1518,7 +1518,7 @@
-         }
- 
-         if (!dentry->d_inode || (dentry->d_inode->i_nlink == 0) 
--            || ((dentry->d_parent != dentry) && list_empty(&dentry->d_hash))) {
-+            || ((dentry->d_parent != dentry) && d_unhashed(dentry))) {
-                 EXIT;
-                 return 0;
-         }
-@@ -2129,7 +2129,7 @@
-         }
- 
-         if (!dentry->d_inode || (dentry->d_inode->i_nlink == 0) 
--            || ((dentry->d_parent != dentry) && list_empty(&dentry->d_hash))) {
-+            || ((dentry->d_parent != dentry) && d_unhashed(dentry))) {
-                 EXIT;
-                 return 0;
-         }
-@@ -2391,7 +2391,7 @@
-         }
- 
-         if (!dentry->d_inode || (dentry->d_inode->i_nlink == 0) 
--            || ((dentry->d_parent != dentry) && list_empty(&dentry->d_hash))) {
-+            || ((dentry->d_parent != dentry) && d_unhashed(dentry))) {
-                 EXIT;
-                 return 0;
-         }
-
-
-
--- 
-Maneesh Soni
-IBM Linux Technology Center, 
-IBM India Software Lab, Bangalore.
-Phone: +91-80-5044999 email: maneesh@in.ibm.com
-http://lse.sourceforge.net/
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
