@@ -1,39 +1,28 @@
-Content-Type: text/plain; charset=US-ASCII
-From: Daniel Phillips <phillips@bonn-fries.net>
-Subject: Re: [PATCH] Avoid !__GFP_IO allocations to eat from memory reservations
-Date: Thu, 14 Jun 2001 19:17:48 +0200
-References: <20010614143441Z263016-17720+3764@vger.kernel.org>
-In-Reply-To: <20010614143441Z263016-17720+3764@vger.kernel.org>
+Date: Thu, 14 Jun 2001 13:42:15 -0300 (BRT)
+From: Marcelo Tosatti <marcelo@conectiva.com.br>
+Subject: [PATCH] "unlazy swapcache" patch from 2.4.6pre3 to 2.4.5ac13
+Message-ID: <Pine.LNX.4.21.0106141335510.8439-100000@freak.distro.conectiva>
 MIME-Version: 1.0
-Message-Id: <01061419174808.00879@starship>
-Content-Transfer-Encoding: 7BIT
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Marcelo Tosatti <marcelo@conectiva.com.br>
-Cc: linux-mm@kvack.org, lkml <linux-kernel@vger.kernel.org>
+To: Alan Cox <alan@lxorguk.ukuu.org.uk>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thursday 14 June 2001 14:59, Marcelo Tosatti wrote:
-> --- linux/mm/page_alloc.c.orig	Thu Jun 14 11:00:14 2001
-> +++ linux/mm/page_alloc.c	Thu Jun 14 11:32:56 2001
-> @@ -453,6 +453,12 @@
->  				int progress = try_to_free_pages(gfp_mask);
->  				if (progress || gfp_mask & __GFP_IO)
->  					goto try_again;
-> +				/*
-> +				 * Fail in case no progress was made and the
-> +				 * allocation may not be able to block on IO.
-> +				 */
-> +				else
-> +					return NULL;
->  			}
->  		}
->  	}
+Hi, 
 
-Nitpick dept: the 'else' is redundant.
+I'm starting to "port" a few VM changes from 2.4.6pre series to 2.4.5ac. 
 
---
-Daniel
+This is the first one: Unlazy the swapcache and remove the
+clean_dead_swap_page() stuff added in the -ac series before.
+
+http://bazar.conectiva.com.br/~marcelo/patches/v2.4/2.4.5ac13/free_page_and_swap.patch
+
+
+Alan, you may want to merge this. 
+ 
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
