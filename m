@@ -1,74 +1,97 @@
-Subject: Re: [PATCH] fix spurious OOM kills
-From: Thomas Gleixner <tglx@linutronix.de>
-Reply-To: tglx@linutronix.de
-In-Reply-To: <41A08765.7030402@ribosome.natur.cuni.cz>
-References: <20041111112922.GA15948@logos.cnet>
-	 <4193E056.6070100@tebibyte.org>	<4194EA45.90800@tebibyte.org>
-	 <20041113233740.GA4121@x30.random>	<20041114094417.GC29267@logos.cnet>
-	 <20041114170339.GB13733@dualathlon.random>
-	 <20041114202155.GB2764@logos.cnet>	<419A2B3A.80702@tebibyte.org>
-	 <419B14F9.7080204@tebibyte.org>	<20041117012346.5bfdf7bc.akpm@osdl.org>
-	 <419CD8C1.4030506@ribosome.natur.cuni.cz>
-	 <20041118131655.6782108e.akpm@osdl.org>
-	 <419D25B5.1060504@ribosome.natur.cuni.cz>
-	 <419D2987.8010305@cyberone.com.au>
-	 <419D383D.4000901@ribosome.natur.cuni.cz>
-	 <20041118160824.3bfc961c.akpm@osdl.org>
-	 <419E821F.7010601@ribosome.natur.cuni.cz>
-	 <1100946207.2635.202.camel@thomas> <419F2AB4.30401@ribosome.natur.cuni.cz>
-	 <1100957349.2635.213.camel@thomas>
-	 <419FB4CD.7090601@ribosome.natur.cuni.cz> <1101037999.23692.5.camel@thomas>
-	 <41A08765.7030402@ribosome.natur.cuni.cz>
-Content-Type: text/plain; charset=iso-8859-2
-Date: Sun, 21 Nov 2004 14:57:49 +0100
-Message-Id: <1101045469.23692.16.camel@thomas>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 8bit
+From: Nikita Danilov <nikita@clusterfs.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Message-ID: <16800.47044.75874.56255@gargle.gargle.HOWL>
+Date: Sun, 21 Nov 2004 18:44:04 +0300
+Subject: [PATCH]: 1/4 batch mark_page_accessed()
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Martin =?iso-8859-2?Q?MOKREJ=A9?= <mmokrejs@ribosome.natur.cuni.cz>
-Cc: Andrew Morton <akpm@osdl.org>, piggin@cyberone.com.au, chris@tebibyte.org, marcelo.tosatti@cyclades.com, andrea@novell.com, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>
+To: Linux Kernel Mailing List <Linux-Kernel@Vger.Kernel.ORG>
+Cc: Andrew Morton <AKPM@Osdl.ORG>, Linux MM Mailing List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 2004-11-21 at 13:17 +0100, Martin MOKREJ(C) wrote:
-> Why can't the algorithm first find the asking for memory now.
-> When found, kernel should kill first it's children, wait some time,
-> then kill this process if still exists (it might exit itself when children
-> get closed).
-> You have said it's safer to kill that to send ENOMEM as happens
-> in 2.4, but I still don't undertand why kernel first doesn't send
-> ENOMEM, and only if that doesn't help it can start after those 5 seconds
-> OOM killer, and try to kill the very same application.
-> I don't get the idea why to kill immediately.
+Batch mark_page_accessed() (a la lru_cache_add() and lru_cache_add_active()):
+page to be marked accessed is placed into per-cpu pagevec
+(page_accessed_pvec). When pagevec is filled up, all pages are processed in a
+batch.
 
-I see your concern. There are some more changes neccecary to make this
-reliably work. I'm not sure if it can be done without really big
-changes. I will look a bit deeper into this.
+This is supposed to decrease contention on zone->lru_lock.
 
-> As it has happened to me in the past, that random OOM selection has killed
-> sshd or init, I believe the algorithm should be improved to not to try
-> to kill these. First of all, sshd is well tested, so it will never
-> be source of memleaks. Second, if the algorithm would really insist on
-> killing either of these, I personally prefer it rather do clean reboot
-> than a system in a state without sshd. I have to get to the console.
-> Actually, it's several kilometers for me. :(
+(Patch is for 2.6.10-rc2)
 
-Yeah, I observed this too and therefor came up with the whom to kill and
-reentrancy patch.
+Signed-off-by: Nikita Danilov <nikita@clusterfs.com>
 
-> It's a pitty no-one has time to at least figure out why those changes have
-> exposed this stupid random part of the algorithm. Before 2.6.9-rc2
-> OOM killer was also started in my tests, but it worked deterministically.
-> I wouldn't prefer extra algorithm to check what we kill now, I'd rather look
-> why we kill randomly since -rc2.
+ mm/swap.c |   47 ++++++++++++++++++++++++++++++++++++++++-------
+ 1 files changed, 40 insertions(+), 7 deletions(-)
 
-As I said before the random behaviour was _not_ introduced in -rc2. It
-might have changed in -rc2. The random kill with overkill can also be
-triggered in 2.6.7 and 2.6.8. I have not tried elder versions though.
+diff -puN mm/swap.c~batch-mark_page_accessed mm/swap.c
+--- bk-linux/mm/swap.c~batch-mark_page_accessed	2004-11-21 17:01:02.061618792 +0300
++++ bk-linux-nikita/mm/swap.c	2004-11-21 17:01:02.063618488 +0300
+@@ -113,6 +113,39 @@ void fastcall activate_page(struct page 
+ 	spin_unlock_irq(&zone->lru_lock);
+ }
+ 
++static void __pagevec_mark_accessed(struct pagevec *pvec)
++{
++	int i;
++	struct zone *zone = NULL;
++
++	for (i = 0; i < pagevec_count(pvec); i++) {
++		struct page *page = pvec->pages[i];
++		struct zone *pagezone = page_zone(page);
++
++		if (pagezone != zone) {
++			if (zone)
++				local_unlock_irq(&zone->lru_lock);
++			zone = pagezone;
++			local_lock_irq(&zone->lru_lock);
++		}
++		if (!PageActive(page) && PageReferenced(page) && PageLRU(page)) {
++			del_page_from_inactive_list(zone, page);
++			SetPageActive(page);
++			add_page_to_active_list(zone, page);
++			inc_page_state(pgactivate);
++			ClearPageReferenced(page);
++		} else if (!PageReferenced(page)) {
++			SetPageReferenced(page);
++		}
++	}
++	if (zone)
++		local_unlock_irq(&zone->lru_lock);
++	release_pages(pvec->pages, pvec->nr, pvec->cold);
++	pagevec_reinit(pvec);
++}
++
++static DEFINE_PER_CPU(struct pagevec, page_accessed_pvec) = { 0, };
++
+ /*
+  * Mark a page as having seen activity.
+  *
+@@ -122,14 +155,14 @@ void fastcall activate_page(struct page 
+  */
+ void fastcall mark_page_accessed(struct page *page)
+ {
+-	if (!PageActive(page) && PageReferenced(page) && PageLRU(page)) {
+-		activate_page(page);
+-		ClearPageReferenced(page);
+-	} else if (!PageReferenced(page)) {
+-		SetPageReferenced(page);
+-	}
+-}
++	struct pagevec *pvec;
+ 
++	pvec = &get_cpu_var(page_accessed_pvec);
++	page_cache_get(page);
++	if (!pagevec_add(pvec, page))
++		__pagevec_mark_accessed(pvec);
++	put_cpu_var(page_accessed_pvec);
++}
+ EXPORT_SYMBOL(mark_page_accessed);
+ 
+ /**
 
-tglx
-
-
+_
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
