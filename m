@@ -1,34 +1,42 @@
-Date: Fri, 23 Mar 2001 14:37:21 -0800 (PST)
-From: Linus Torvalds <torvalds@transmeta.com>
-Subject: Re: [PATCH] Fix races in 2.4.2-ac22 SysV shared memory
-In-Reply-To: <E14ga9U-0005aa-00@the-village.bc.nu>
-Message-ID: <Pine.LNX.4.31.0103231435000.766-100000@penguin.transmeta.com>
+Subject: Re: [PATCH] Prevent OOM from killing init
+References: <E14gVQf-00056B-00@the-village.bc.nu> <l0313030eb6e156f24437@[192.168.239.101]>
+From: ebiederman@lnxi.com (Eric W. Biederman)
+Date: 23 Mar 2001 16:26:31 -0700
+In-Reply-To: Jonathan Morton's message of "Fri, 23 Mar 2001 19:45:26 +0000"
+Message-ID: <m3snk4gj88.fsf@DLT.linuxnetworx.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Alan Cox <alan@lxorguk.ukuu.org.uk>
-Cc: "Stephen C. Tweedie" <sct@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Ben LaHaise <bcrl@redhat.com>, Christoph Rohland <cr@sap.com>
+To: Jonathan Morton <chromi@cyberspace.org>
+Cc: Martin Dalecki <dalecki@evision-ventures.com>, Alan Cox <alan@lxorguk.ukuu.org.uk>, "James A. Sutherland" <jas88@cam.ac.uk>, Guest section DW <dwguest@win.tue.nl>, Rik van Riel <riel@conectiva.com.br>, Patrick O'Rourke <orourke@missioncriticallinux.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
+Jonathan Morton <chromi@cyberspace.org> writes:
 
-On Fri, 23 Mar 2001, Alan Cox wrote:
->
-> __find_get_page has I think a misleading comment ?
+> >It would make much sense to make the oom killer
+> >leave not just root processes alone but processes belonging to a UID
+> >lower
+> >then a certain value as well (500). This would be:
+> >
+> >1. Easly managable by the admin. Just let oracle/www and analogous users
+> >   have a UID lower then let's say 500.
+> 
+> That sounds vaguely sensible.  However, make it a "much less likely" rather
+> than an "impossible", otherwise we end up with an unkillable runaway root
+> process killing everything else in userland.
+> 
+> I'm still in favour of a failing malloc(), and I'm currently reading a bit
+> of source and docs to figure out where this should be done and why it isn't
+> done now.  So far I've found the overcommit_memory flag, which looks kinda
+> promising.
 
-Ehh..
+Lookup mlock & mlock_all they will handle the single process case.
 
-I only said the _naming_ makes sense. [ Wild hand-waving ]
+Of course if you OOM you still have problems but that should make
+them much harder to trigger.
 
-I suspect that what happened was that we split off the functions (one to
-just get the page, one to lock it), and the comment that was associated
-with the original "find_page()" never got removed, and just happens to sit
-above one of the helper functions now - the one that didn't lock.
-
-I'll fix the comment.
-
-		Linus
-
+Eric
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
