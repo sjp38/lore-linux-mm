@@ -1,43 +1,30 @@
-Date: Fri, 4 Jul 2003 02:35:31 -0700
+Date: Fri, 4 Jul 2003 02:50:04 -0700
 From: William Lee Irwin III <wli@holomorphy.com>
 Subject: Re: 2.5.74-mm1 fails to boot due to APIC trouble, 2.5.73mm3 works.
-Message-ID: <20030704093531.GA26348@holomorphy.com>
-References: <20030703023714.55d13934.akpm@osdl.org> <3F054109.2050100@aitel.hist.no>
+Message-ID: <20030704095004.GB26348@holomorphy.com>
+References: <20030703023714.55d13934.akpm@osdl.org> <3F054109.2050100@aitel.hist.no> <20030704093531.GA26348@holomorphy.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <3F054109.2050100@aitel.hist.no>
+In-Reply-To: <20030704093531.GA26348@holomorphy.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Helge Hafting <helgehaf@aitel.hist.no>
-Cc: Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Helge Hafting <helgehaf@aitel.hist.no>, Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Jul 04, 2003 at 10:55:37AM +0200, Helge Hafting wrote:
-> 2.5.74-mm1 dies very early during bootup due to some APIC trouble:
-> (written down by hand)
-> Posix conformance testing by UNIFIX
-> enabled Extint on cpu #0
-> ESR before enabling vector 00000000
-> ESR after enabling vector 00000000
-> Enabling IP-APIC IRQs
-> BIOS bug, IO-APIC #0 ID2 is already used!...
-> kernel panic: Max APIC ID exceeded!
+On Fri, Jul 04, 2003 at 02:35:31AM -0700, William Lee Irwin III wrote:
+> Okay, now for the "final solution" wrt. sparse physical APIC ID's
+> in addition to what I hope is a fix for your bug. This uses a separate
+> bitmap type (of a NR_CPUS -independent width MAX_APICS) for physical
+> APIC ID bitmaps.
+> \begin{cross-fingers}
 
-Okay, now for the "final solution" wrt. sparse physical APIC ID's
-in addition to what I hope is a fix for your bug. This uses a separate
-bitmap type (of a NR_CPUS -independent width MAX_APICS) for physical
-APIC ID bitmaps.
-
-\begin{cross-fingers}
+This time diffed against the right tree:
 
 
--- wli
-
-
-diff -prauN virgin_cpu-2.5.74-1/arch/i386/kernel/apic.c virgin_cpu-2.5.74-2/arch/i386/kernel/apic.c
---- virgin_cpu-2.5.74-1/arch/i386/kernel/apic.c	2003-07-04 02:27:26.000000000 -0700
-+++ virgin_cpu-2.5.74-2/arch/i386/kernel/apic.c	2003-07-04 02:29:01.000000000 -0700
+diff -prauN mm1-2.5.74-1/arch/i386/kernel/apic.c physid-2.5.74-1/arch/i386/kernel/apic.c
+--- mm1-2.5.74-1/arch/i386/kernel/apic.c	2003-07-03 12:23:55.000000000 -0700
++++ physid-2.5.74-1/arch/i386/kernel/apic.c	2003-07-04 02:45:17.000000000 -0700
 @@ -1137,7 +1137,7 @@ int __init APIC_init_uniprocessor (void)
  
  	connect_bsp_APIC();
@@ -47,10 +34,10 @@ diff -prauN virgin_cpu-2.5.74-1/arch/i386/kernel/apic.c virgin_cpu-2.5.74-2/arch
  
  	setup_local_APIC();
  
-diff -prauN virgin_cpu-2.5.74-1/arch/i386/kernel/io_apic.c virgin_cpu-2.5.74-2/arch/i386/kernel/io_apic.c
---- virgin_cpu-2.5.74-1/arch/i386/kernel/io_apic.c	2003-07-04 02:27:26.000000000 -0700
-+++ virgin_cpu-2.5.74-2/arch/i386/kernel/io_apic.c	2003-07-04 02:29:01.000000000 -0700
-@@ -1600,7 +1600,7 @@ void disable_IO_APIC(void)
+diff -prauN mm1-2.5.74-1/arch/i386/kernel/io_apic.c physid-2.5.74-1/arch/i386/kernel/io_apic.c
+--- mm1-2.5.74-1/arch/i386/kernel/io_apic.c	2003-07-03 12:23:55.000000000 -0700
++++ physid-2.5.74-1/arch/i386/kernel/io_apic.c	2003-07-04 02:45:17.000000000 -0700
+@@ -1601,7 +1601,7 @@ void disable_IO_APIC(void)
  static void __init setup_ioapic_ids_from_mpc(void)
  {
  	union IO_APIC_reg_00 reg_00;
@@ -59,7 +46,7 @@ diff -prauN virgin_cpu-2.5.74-1/arch/i386/kernel/io_apic.c virgin_cpu-2.5.74-2/a
  	int apic;
  	int i;
  	unsigned char old_id;
-@@ -1614,8 +1614,7 @@ static void __init setup_ioapic_ids_from
+@@ -1615,8 +1615,7 @@ static void __init setup_ioapic_ids_from
  	 * This is broken; anything with a real cpu count has to
  	 * circumvent this idiocy regardless.
  	 */
@@ -69,7 +56,7 @@ diff -prauN virgin_cpu-2.5.74-1/arch/i386/kernel/io_apic.c virgin_cpu-2.5.74-2/a
  
  	/*
  	 * Set the IOAPIC ID to the value stored in the MPC table.
-@@ -1646,20 +1645,20 @@ static void __init setup_ioapic_ids_from
+@@ -1647,20 +1646,20 @@ static void __init setup_ioapic_ids_from
  					mp_ioapics[apic].mpc_apicid)) {
  			printk(KERN_ERR "BIOS bug, IO-APIC#%d ID %d is already used!...\n",
  				apic, mp_ioapics[apic].mpc_apicid);
@@ -127,9 +114,9 @@ diff -prauN virgin_cpu-2.5.74-1/arch/i386/kernel/io_apic.c virgin_cpu-2.5.74-2/a
  
  	if (reg_00.bits.ID != apic_id) {
  		reg_00.bits.ID = apic_id;
-diff -prauN virgin_cpu-2.5.74-1/arch/i386/kernel/mpparse.c virgin_cpu-2.5.74-2/arch/i386/kernel/mpparse.c
---- virgin_cpu-2.5.74-1/arch/i386/kernel/mpparse.c	2003-07-04 02:27:26.000000000 -0700
-+++ virgin_cpu-2.5.74-2/arch/i386/kernel/mpparse.c	2003-07-04 02:29:01.000000000 -0700
+diff -prauN mm1-2.5.74-1/arch/i386/kernel/mpparse.c physid-2.5.74-1/arch/i386/kernel/mpparse.c
+--- mm1-2.5.74-1/arch/i386/kernel/mpparse.c	2003-07-03 12:23:55.000000000 -0700
++++ physid-2.5.74-1/arch/i386/kernel/mpparse.c	2003-07-04 02:45:17.000000000 -0700
 @@ -71,7 +71,7 @@ unsigned int boot_cpu_logical_apicid = -
  static unsigned int __initdata num_processors;
  
@@ -157,9 +144,9 @@ diff -prauN virgin_cpu-2.5.74-1/arch/i386/kernel/mpparse.c virgin_cpu-2.5.74-2/a
  	
  	/*
  	 * Validate version
-diff -prauN virgin_cpu-2.5.74-1/arch/i386/kernel/smpboot.c virgin_cpu-2.5.74-2/arch/i386/kernel/smpboot.c
---- virgin_cpu-2.5.74-1/arch/i386/kernel/smpboot.c	2003-07-04 02:27:26.000000000 -0700
-+++ virgin_cpu-2.5.74-2/arch/i386/kernel/smpboot.c	2003-07-04 02:31:37.000000000 -0700
+diff -prauN mm1-2.5.74-1/arch/i386/kernel/smpboot.c physid-2.5.74-1/arch/i386/kernel/smpboot.c
+--- mm1-2.5.74-1/arch/i386/kernel/smpboot.c	2003-07-03 12:23:55.000000000 -0700
++++ physid-2.5.74-1/arch/i386/kernel/smpboot.c	2003-07-04 02:45:17.000000000 -0700
 @@ -957,7 +957,7 @@ static void __init smp_boot_cpus(unsigne
  	if (!smp_found_config) {
  		printk(KERN_NOTICE "SMP motherboard not detected.\n");
@@ -196,42 +183,42 @@ diff -prauN virgin_cpu-2.5.74-1/arch/i386/kernel/smpboot.c virgin_cpu-2.5.74-2/a
  		apicid = cpu_present_to_apicid(bit);
  		/*
  		 * Don't even attempt to start the boot CPU!
-diff -prauN virgin_cpu-2.5.74-1/include/asm-i386/genapic.h virgin_cpu-2.5.74-2/include/asm-i386/genapic.h
---- virgin_cpu-2.5.74-1/include/asm-i386/genapic.h	2003-07-04 02:27:26.000000000 -0700
-+++ virgin_cpu-2.5.74-2/include/asm-i386/genapic.h	2003-07-04 02:29:01.000000000 -0700
+diff -prauN mm1-2.5.74-1/include/asm-i386/genapic.h physid-2.5.74-1/include/asm-i386/genapic.h
+--- mm1-2.5.74-1/include/asm-i386/genapic.h	2003-07-03 12:23:56.000000000 -0700
++++ physid-2.5.74-1/include/asm-i386/genapic.h	2003-07-04 02:48:52.000000000 -0700
 @@ -27,18 +27,18 @@ struct genapic { 
  	int int_dest_mode; 
  	int apic_broadcast_id; 
  	int esr_disable;
--	unsigned long (*check_apicid_used)(cpumask_const_t bitmap, int apicid); 
-+	unsigned long (*check_apicid_used)(physid_mask_t bitmap, int apicid); 
+-	unsigned long (*check_apicid_used)(cpumask_const_t bitmap, int apicid);
++	unsigned long (*check_apicid_used)(physid_mask_t bitmap, int apicid);
  	unsigned long (*check_apicid_present)(int apicid); 
  	int no_balance_irq;
  	void (*init_apic_ldr)(void);
--	cpumask_t (*ioapic_phys_id_map)(cpumask_const_t map); 
-+	physid_mask_t (*ioapic_phys_id_map)(cpumask_const_t map); 
+-	cpumask_t (*ioapic_phys_id_map)(cpumask_const_t map);
++	physid_mask_t (*ioapic_phys_id_map)(physid_mask_t map);
  
  	void (*clustered_apic_check)(void);
  	int (*multi_timer_check)(int apic, int irq);
  	int (*apicid_to_node)(int logical_apicid); 
  	int (*cpu_to_logical_apicid)(int cpu);
  	int (*cpu_present_to_apicid)(int mps_cpu);
--	cpumask_t (*apicid_to_cpu_present)(int phys_apicid); 
-+	physid_mask_t (*apicid_to_cpu_present)(int phys_apicid); 
+-	cpumask_t (*apicid_to_cpu_present)(int phys_apicid);
++	physid_mask_t (*apicid_to_cpu_present)(int phys_apicid);
  	int (*mpc_apic_id)(struct mpc_config_processor *m, 
  			   struct mpc_config_translation *t); 
  	void (*setup_portio_remap)(void); 
-diff -prauN virgin_cpu-2.5.74-1/include/asm-i386/mach-bigsmp/mach_apic.h virgin_cpu-2.5.74-2/include/asm-i386/mach-bigsmp/mach_apic.h
---- virgin_cpu-2.5.74-1/include/asm-i386/mach-bigsmp/mach_apic.h	2003-07-04 02:27:26.000000000 -0700
-+++ virgin_cpu-2.5.74-2/include/asm-i386/mach-bigsmp/mach_apic.h	2003-07-04 02:29:01.000000000 -0700
+diff -prauN mm1-2.5.74-1/include/asm-i386/mach-bigsmp/mach_apic.h physid-2.5.74-1/include/asm-i386/mach-bigsmp/mach_apic.h
+--- mm1-2.5.74-1/include/asm-i386/mach-bigsmp/mach_apic.h	2003-07-03 12:23:56.000000000 -0700
++++ physid-2.5.74-1/include/asm-i386/mach-bigsmp/mach_apic.h	2003-07-04 02:47:45.000000000 -0700
 @@ -29,15 +29,15 @@ static inline cpumask_t target_cpus(void
  #define INT_DELIVERY_MODE dest_LowestPrio
  #define INT_DEST_MODE 1     /* logical delivery broadcast to all procs */
  
 -#define APIC_BROADCAST_ID     (0x0f)
--static inline unsigned long check_apicid_used(cpumask_const_t bitmap, int apicid) 
+-static inline unsigned long check_apicid_used(cpumask_const_t bitmap, int apicid)
 +#define APIC_BROADCAST_ID     (0xff)
-+static inline unsigned long check_apicid_used(physid_mask_t bitmap, int apicid) 
++static inline unsigned long check_apicid_used(physid_mask_t bitmap, int apicid)
  {
  	return 0;
  }
@@ -268,9 +255,9 @@ diff -prauN virgin_cpu-2.5.74-1/include/asm-i386/mach-bigsmp/mach_apic.h virgin_
  }
  
  #define WAKE_SECONDARY_VIA_INIT
-diff -prauN virgin_cpu-2.5.74-1/include/asm-i386/mach-default/mach_apic.h virgin_cpu-2.5.74-2/include/asm-i386/mach-default/mach_apic.h
---- virgin_cpu-2.5.74-1/include/asm-i386/mach-default/mach_apic.h	2003-07-04 02:27:26.000000000 -0700
-+++ virgin_cpu-2.5.74-2/include/asm-i386/mach-default/mach_apic.h	2003-07-04 02:29:01.000000000 -0700
+diff -prauN mm1-2.5.74-1/include/asm-i386/mach-default/mach_apic.h physid-2.5.74-1/include/asm-i386/mach-default/mach_apic.h
+--- mm1-2.5.74-1/include/asm-i386/mach-default/mach_apic.h	2003-07-03 12:23:56.000000000 -0700
++++ physid-2.5.74-1/include/asm-i386/mach-default/mach_apic.h	2003-07-04 02:45:17.000000000 -0700
 @@ -21,16 +21,20 @@ static inline cpumask_t target_cpus(void
  #define INT_DELIVERY_MODE dest_LowestPrio
  #define INT_DEST_MODE 1     /* logical delivery broadcast to all procs */
@@ -336,15 +323,15 @@ diff -prauN virgin_cpu-2.5.74-1/include/asm-i386/mach-default/mach_apic.h virgin
  }
  
  static inline unsigned int cpu_mask_to_apicid(cpumask_const_t cpumask)
-diff -prauN virgin_cpu-2.5.74-1/include/asm-i386/mach-es7000/mach_apic.h virgin_cpu-2.5.74-2/include/asm-i386/mach-es7000/mach_apic.h
---- virgin_cpu-2.5.74-1/include/asm-i386/mach-es7000/mach_apic.h	2003-07-04 02:27:26.000000000 -0700
-+++ virgin_cpu-2.5.74-2/include/asm-i386/mach-es7000/mach_apic.h	2003-07-04 02:29:01.000000000 -0700
+diff -prauN mm1-2.5.74-1/include/asm-i386/mach-es7000/mach_apic.h physid-2.5.74-1/include/asm-i386/mach-es7000/mach_apic.h
+--- mm1-2.5.74-1/include/asm-i386/mach-es7000/mach_apic.h	2003-07-03 12:23:56.000000000 -0700
++++ physid-2.5.74-1/include/asm-i386/mach-es7000/mach_apic.h	2003-07-04 02:46:36.000000000 -0700
 @@ -40,13 +40,13 @@ static inline cpumask_t target_cpus(void
  
  #define APIC_BROADCAST_ID	(0xff)
  
--static inline unsigned long check_apicid_used(cpumask_const_t bitmap, int apicid) 
-+static inline unsigned long check_apicid_used(physid_mask_t bitmap, int apicid) 
+-static inline unsigned long check_apicid_used(cpumask_const_t bitmap, int apicid)
++static inline unsigned long check_apicid_used(physid_mask_t bitmap, int apicid)
  { 
  	return 0;
  } 
@@ -386,9 +373,9 @@ diff -prauN virgin_cpu-2.5.74-1/include/asm-i386/mach-es7000/mach_apic.h virgin_
  }
  
  
-diff -prauN virgin_cpu-2.5.74-1/include/asm-i386/mach-numaq/mach_apic.h virgin_cpu-2.5.74-2/include/asm-i386/mach-numaq/mach_apic.h
---- virgin_cpu-2.5.74-1/include/asm-i386/mach-numaq/mach_apic.h	2003-07-04 02:27:26.000000000 -0700
-+++ virgin_cpu-2.5.74-2/include/asm-i386/mach-numaq/mach_apic.h	2003-07-04 02:29:01.000000000 -0700
+diff -prauN mm1-2.5.74-1/include/asm-i386/mach-numaq/mach_apic.h physid-2.5.74-1/include/asm-i386/mach-numaq/mach_apic.h
+--- mm1-2.5.74-1/include/asm-i386/mach-numaq/mach_apic.h	2003-07-03 12:23:56.000000000 -0700
++++ physid-2.5.74-1/include/asm-i386/mach-numaq/mach_apic.h	2003-07-04 02:45:17.000000000 -0700
 @@ -21,8 +21,8 @@ static inline cpumask_t target_cpus(void
  #define INT_DEST_MODE 0     /* physical delivery on LOCAL quad */
   
@@ -428,17 +415,17 @@ diff -prauN virgin_cpu-2.5.74-1/include/asm-i386/mach-numaq/mach_apic.h virgin_c
  }
  
  static inline int mpc_apic_id(struct mpc_config_processor *m, 
-diff -prauN virgin_cpu-2.5.74-1/include/asm-i386/mach-summit/mach_apic.h virgin_cpu-2.5.74-2/include/asm-i386/mach-summit/mach_apic.h
---- virgin_cpu-2.5.74-1/include/asm-i386/mach-summit/mach_apic.h	2003-07-04 02:27:26.000000000 -0700
-+++ virgin_cpu-2.5.74-2/include/asm-i386/mach-summit/mach_apic.h	2003-07-04 02:29:01.000000000 -0700
+diff -prauN mm1-2.5.74-1/include/asm-i386/mach-summit/mach_apic.h physid-2.5.74-1/include/asm-i386/mach-summit/mach_apic.h
+--- mm1-2.5.74-1/include/asm-i386/mach-summit/mach_apic.h	2003-07-03 12:23:56.000000000 -0700
++++ physid-2.5.74-1/include/asm-i386/mach-summit/mach_apic.h	2003-07-04 02:47:00.000000000 -0700
 @@ -28,8 +28,8 @@ static inline cpumask_t target_cpus(void
  #define INT_DELIVERY_MODE (dest_Fixed)
  #define INT_DEST_MODE 1     /* logical delivery broadcast to all procs */
  
 -#define APIC_BROADCAST_ID     (0x0F)
--static inline unsigned long check_apicid_used(cpumask_const_t bitmap, int apicid) 
+-static inline unsigned long check_apicid_used(cpumask_const_t bitmap, int apicid)
 +#define APIC_BROADCAST_ID     (0xFF)
-+static inline unsigned long check_apicid_used(physid_mask_t bitmap, int apicid) 
++static inline unsigned long check_apicid_used(physid_mask_t bitmap, int apicid)
  {
  	return 0;
  } 
@@ -462,9 +449,9 @@ diff -prauN virgin_cpu-2.5.74-1/include/asm-i386/mach-summit/mach_apic.h virgin_
  }
  
  static inline int mpc_apic_id(struct mpc_config_processor *m, 
-diff -prauN virgin_cpu-2.5.74-1/include/asm-i386/mach-visws/mach_apic.h virgin_cpu-2.5.74-2/include/asm-i386/mach-visws/mach_apic.h
---- virgin_cpu-2.5.74-1/include/asm-i386/mach-visws/mach_apic.h	2003-07-04 02:27:26.000000000 -0700
-+++ virgin_cpu-2.5.74-2/include/asm-i386/mach-visws/mach_apic.h	2003-07-04 02:29:01.000000000 -0700
+diff -prauN mm1-2.5.74-1/include/asm-i386/mach-visws/mach_apic.h physid-2.5.74-1/include/asm-i386/mach-visws/mach_apic.h
+--- mm1-2.5.74-1/include/asm-i386/mach-visws/mach_apic.h	2003-07-03 12:23:56.000000000 -0700
++++ physid-2.5.74-1/include/asm-i386/mach-visws/mach_apic.h	2003-07-04 02:45:17.000000000 -0700
 @@ -16,12 +16,12 @@
  #endif
  
@@ -502,9 +489,9 @@ diff -prauN virgin_cpu-2.5.74-1/include/asm-i386/mach-visws/mach_apic.h virgin_c
  }
  
  static inline unsigned int cpu_mask_to_apicid(cpumask_const_t cpumask)
-diff -prauN virgin_cpu-2.5.74-1/include/asm-i386/mpspec.h virgin_cpu-2.5.74-2/include/asm-i386/mpspec.h
---- virgin_cpu-2.5.74-1/include/asm-i386/mpspec.h	2003-07-04 02:27:26.000000000 -0700
-+++ virgin_cpu-2.5.74-2/include/asm-i386/mpspec.h	2003-07-04 02:29:01.000000000 -0700
+diff -prauN mm1-2.5.74-1/include/asm-i386/mpspec.h physid-2.5.74-1/include/asm-i386/mpspec.h
+--- mm1-2.5.74-1/include/asm-i386/mpspec.h	2003-07-03 12:23:56.000000000 -0700
++++ physid-2.5.74-1/include/asm-i386/mpspec.h	2003-07-04 02:45:17.000000000 -0700
 @@ -12,7 +12,6 @@ extern int quad_local_to_mp_bus_id [NR_C
  extern int mp_bus_id_to_pci_bus [MAX_MP_BUSSES];
  
@@ -563,9 +550,9 @@ diff -prauN virgin_cpu-2.5.74-1/include/asm-i386/mpspec.h virgin_cpu-2.5.74-2/in
 +
  #endif
  
-diff -prauN virgin_cpu-2.5.74-1/include/asm-i386/smp.h virgin_cpu-2.5.74-2/include/asm-i386/smp.h
---- virgin_cpu-2.5.74-1/include/asm-i386/smp.h	2003-07-04 02:27:26.000000000 -0700
-+++ virgin_cpu-2.5.74-2/include/asm-i386/smp.h	2003-07-04 02:29:01.000000000 -0700
+diff -prauN mm1-2.5.74-1/include/asm-i386/smp.h physid-2.5.74-1/include/asm-i386/smp.h
+--- mm1-2.5.74-1/include/asm-i386/smp.h	2003-07-03 12:23:56.000000000 -0700
++++ physid-2.5.74-1/include/asm-i386/smp.h	2003-07-04 02:45:17.000000000 -0700
 @@ -32,7 +32,7 @@
   */
   
