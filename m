@@ -1,57 +1,53 @@
-Received: from haymarket.ed.ac.uk (haymarket.ed.ac.uk [129.215.128.53])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id JAA03635
-	for <linux-mm@kvack.org>; Mon, 13 Jul 1998 09:16:57 -0400
-Date: Mon, 13 Jul 1998 12:54:17 +0100
-Message-Id: <199807131154.MAA06026@dax.dcs.ed.ac.uk>
+Date: Mon, 13 Jul 1998 14:23:56 +0100
+Message-Id: <199807131323.OAA06205@dax.dcs.ed.ac.uk>
 From: "Stephen C. Tweedie" <sct@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Subject: Re: cp file /dev/zero <-> cache [was Re: increasing page size]
-In-Reply-To: <Pine.LNX.3.96.980709223502.29519A-100000@mirkwood.dummy.home>
-References: <199807082211.XAA14327@dax.dcs.ed.ac.uk>
-	<Pine.LNX.3.96.980709223502.29519A-100000@mirkwood.dummy.home>
+In-Reply-To: <Pine.LNX.3.96.980712002155.8107D-100000@mirkwood.dummy.home>
+References: <199807112123.WAA03437@dax.dcs.ed.ac.uk>
+	<Pine.LNX.3.96.980712002155.8107D-100000@mirkwood.dummy.home>
 Sender: owner-linux-mm@kvack.org
 To: Rik van Riel <H.H.vanRiel@phys.uu.nl>
-Cc: "Stephen C. Tweedie" <sct@redhat.com>, Andrea Arcangeli <arcangeli@mbox.queen.it>, Linux MM <linux-mm@kvack.org>
+Cc: "Stephen C. Tweedie" <sct@redhat.com>, "Benjamin C.R. LaHaise" <blah@kvack.org>, Linux MM <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
 Hi,
 
-On Thu, 9 Jul 1998 22:39:10 +0200 (CEST), Rik van Riel
+On Sun, 12 Jul 1998 00:25:20 +0200 (CEST), Rik van Riel
 <H.H.vanRiel@phys.uu.nl> said:
 
-> On Wed, 8 Jul 1998, Stephen C. Tweedie wrote:
+> On Sat, 11 Jul 1998, Stephen C. Tweedie wrote:
+>> On Sat, 11 Jul 1998 16:14:26 +0200 (CEST), Rik van Riel
 >> <H.H.vanRiel@phys.uu.nl> said:
 >> 
->> > When my zone allocator is finished, it'll be a piece of
->> > cake to implement lazy page reclamation.
+>> > I'd think we'll want 4 levels, with each 'lower'
+>> > level having 30% to 70% more pages than the level
 >> 
->> I've already got a working implementation.  The issue of lazy
->> reclamation is pretty much independent of the allocator underneath; I
+>> Personally, I think just a two-level LRU ought to be adequat.   Yes, I
+>> know this implies getting rid of some of the page ageing from 2.1 again,
+>> but frankly, that code seems to be more painful than it's worth.  The
+>> "solution" of calling shrink_mmap multiple times just makes the
+>> algorithm hideously expensive to execute.
 
-> We really should integrate this _now_, with the twist
-> that pages which could form a larger buddy should be
-> immediately deallocated.
+> This could be adequat, but then we will want to maintain
+> an active:inactive ratio of 1:2, in order to get a somewhat
+> realistic aging effect on the LRU inactive pages.
 
-Perhaps, but I don't think Linus will take it.  He's right, too, it's
-too near 2.2 for that.
+Aging is not a good thing in the cache, in general.  We _want_ to be
+able to empty the cache at short notice.  LRU works for that.  The
+existing physical scan is definitely suboptimal without ageing, but that
+doesn't mean that aging is the right answer.  (I tried doing buffer
+ageing in the original kswap.  It sucked.)
 
-> This can give us a cheap way to:
-> - create larger memory buddies
-> - remove some of the pressure on the buddy allocator
->   (no need to grab that last 64 kB area when 25% of
->   user pages are lazy reclaim)
+> Or maybe we want to do a 3-level thingy, inactive in LRU
+> order and active and hyperactive (wired?) with aging.
 
-All it can do is to reduce the pain of doing swapping too aggressively.
-It doesn't make it much easier to do true defragmentation; it just lets
-you hang on to the defragmented pages a bit longer, which is a different
-thing.  If you end up with non-pagable pages allocated to
-kmalloc/slab/page tables all over memory, then lazy reclaim is powerless
-to help defrag the memory.  We need something else for 2.2.
+If we have more than 2 levels, then we definitely don't want ageing:
+just let migration of pages between the levels do the ageing for us.
 
 --Stephen
-
 --
 This is a majordomo managed list.  To unsubscribe, send a message with
 the body 'unsubscribe linux-mm me@address' to: majordomo@kvack.org
