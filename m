@@ -1,33 +1,37 @@
-Date: Tue, 30 Nov 1999 15:14:07 +0100 (CET)
-From: Andrea Arcangeli <andrea@suse.de>
-Subject: Re: [patch] rbtrees [was Re: AVL trees vs. Red-Black trees]
-In-Reply-To: <19991130002755.A22847@armstrong.cse.Buffalo.EDU>
-Message-ID: <Pine.LNX.4.10.9911301506300.359-100000@alpha.random>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Thu, 2 Dec 1999 14:27:47 GMT
+Message-Id: <199912021427.OAA03199@dukat.scot.redhat.com>
+From: "Stephen C. Tweedie" <sct@redhat.com>
+Subject: set_pte() is no longer atomic with PAE36.
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Kevin O'Connor <koconnor@cse.Buffalo.EDU>
-Cc: Manfred Spraul <manfreds@colorfullife.com>, Oliver Xymoron <oxymoron@waste.org>, linux-mm@kvack.org, linux-kernel@vger.rutgers.edu, Marc Lehmann <pcg@opengroup.org>, Linus Torvalds <torvalds@transmeta.com>
+To: Ingo Molnar <mingo@redhat.com>, Linus Torvalds <torvalds@transmeta.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.rutgers.edu, Stephen Tweedie <sct@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 30 Nov 1999, Kevin O'Connor wrote:
+Hi,
 
->[..]  I've got inserts working, but
->removes are becoming a myriad of special cases..
+Ingo, do we not have a bit of a problem with set_pte() on PAE36-enabled
+builds now?
 
-removes are trivial with rbtrees as you never need to compare nodes. All
-the rebalancing is done in function of the node color (that is a private
-information of each node). The same is true also for the
-insert-rebalancing, but to do an insert you must first browse the tree to
-do a normal ordered O(log(n)) insert before calling the rebalance (thus a
-compare semantic on elements is necessary for the insert operation to
-work).
+	#define set_pte(pteptr, pteval) ((*(pteptr)) = (pteval))
 
-Andrea
+would seem to be a problem: the 64-bit write is not atomic.  When
+setting an unused pte, we want the word containing the page present bit
+to be the last word written.  When clearing a pte, though, we need the
+page present bit to be cleared before we invalidate the high order word,
+otherwise we're in trouble if another cpu populates its tlb whilte the
+pte is in an inconsistent (but valid, to the cpu) state.
 
+Modifying an existing pte (eg. for COW) is probably even harder: do we
+need to clear the page-present bit while we modify the high word?
+Simply setting the dirty or accessed bits should pose no such problem,
+but relocating a page looks as if it could bite here.
 
+Basically, as long as we can assume that another cpu will only ever see
+a pte with the page-present bit clear or a completely valid pte, all
+should be fine.  Or have I missed something fundamental?
 
+--Stephen
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
