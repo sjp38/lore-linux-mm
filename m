@@ -1,47 +1,95 @@
-Date: Fri, 5 May 2000 07:23:15 -0300 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
-Reply-To: riel@nl.linux.org
-Subject: Re: 7-4 VM killing (A solution)
-In-Reply-To: <Pine.LNX.4.10.10005042348560.870-100000@penguin.transmeta.com>
-Message-ID: <Pine.LNX.4.21.0005050722140.30843-100000@duckman.conectiva>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+From: Mark_H_Johnson.RTS@raytheon.com
+Message-ID: <852568D6.004A028D.00@raylex-gh01.eo.ray.com>
+Date: Fri, 5 May 2000 08:32:46 -0500
+Subject: Re: Updates to /bin/bash
+Mime-Version: 1.0
+Content-type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@transmeta.com>
-Cc: Rajagopal Ananthanarayanan <ananth@sgi.com>, Kanoj Sarcar <kanoj@google.engr.sgi.com>, linux-mm@kvack.org, "David S. Miller" <davem@redhat.com>
+To: trond.myklebust@fys.uio.no
+Cc: linux-kernel@vger.rutgers.edu, linux-mm@kvack.org, linuxguy@directlink.net
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 4 May 2000, Linus Torvalds wrote:
-> On Thu, 4 May 2000, Rajagopal Ananthanarayanan wrote:
-> > On another note, noticed your change to shrink_mmap in 7-5:
-> > 
-> > -------
-> > -       count = nr_lru_pages >> priority;
-> > +       count = (nr_lru_pages << 1) >> priority;
-> > -------
-> > 
-> > Is this to defeat aging? If so, I think its overly cautious:
-> > if all an iteration of shrink_mmap did was to flip the referenced bit,
-> > then that iteration shouldn't be included in count (and in the
-> > current code it isn't). So why double the effort?
-> 
-> It was indeed because I thought we should defeat aging. But
-> you're right, the reference bit flip doesn't get counted.
 
-Also, we'll be holding the pages on our local &young list, so
-we won't be able to see them again (but that's ok since the
-next call to shrink_mmap() can easily free them all).
+Just to recap & make sure I have this straight.
 
-regards,
+ (1) IF I'm dealing with local files & do NOT have the area NFS mounted, then
+the typical methods of updating files is OK.
 
-Rik
+ (2) IF I'm dealing with NFS mounted files, all bets are off. Please confirm
+that I should take some action (e.g., remount the volume) to make sure the state
+is purged after the updates are made.
+
+I can see that how the second situation works has an impact on diskless (or
+small disk) workstations [seems to cause lots of administrative headaches that I
+would like to avoid]. I'm in the middle of planning the deployment of a few
+clustered systems (head node w/ up to 40 compute nodes) as well as 100-200
+workstations for development. If I understand this right, I should spend a
+little more money to put bigger disks on each machine & have most of the OS and
+tools hosted on each machine. Then use rdist or similar method to keep the
+machines updated. Restrict the use of NFS mounting (with appropriate controls)
+for the items I just "have to share". [this may also explain why we've had
+problems on our currently deployed systems using NFS... Hmm.]
+
+Thanks for the explanations.
+--Mark H Johnson
+  <mailto:Mark_H_Johnson@raytheon.com>
+
+
+|--------+---------------------------->
+|        |          Trond Myklebust   |
+|        |          <trond.myklebust@f|
+|        |          ys.uio.no>        |
+|        |                            |
+|        |          05/05/00 02:14 AM |
+|        |          Please respond to |
+|        |          trond.myklebust   |
+|        |                            |
+|--------+---------------------------->
+  >----------------------------------------------------------------------------|
+  |                                                                            |
+  |       To:     Matthew Vanecek <linuxguy@directlink.net>                    |
+  |       cc:     linux-kernel@vger.rutgers.edu, linux-mm@kvack.org, (bcc: Mark|
+  |       H Johnson/RTS/Raytheon/US)                                           |
+  |       Subject:     Re: Updates to /bin/bash                                |
+  >----------------------------------------------------------------------------|
+
+
+
+>>>>> " " == Matthew Vanecek <linuxguy@directlink.net> writes:
+
+    >> On 4 May 2000, Trond Myklebust wrote:
+    >>
+    >> >Not good. If I'm running /bin/bash, and somebody on the server
+    >> >updates /bin/bash, then I don't want to reboot my
+    >> >machine. With the above
+    >>
+
+     > You wouldn't have to reboot.  Why would you think you need to
+     > reboot?  This isn't Winbloze, for god's sake.  All it means is
+     > that new bash processes will use the updated version, while old
+     > processes would still be using the old version--it's loaded in
+
+NO. This behaviour is exactly what Andreas patch would break. New
+processes would get a mixture of old and new versions because the page
+cache itself would be out of sync.
+
+     > memory, remember?  Hell, you can even overwrite the libc on a
+     > running system.
+
+That is only true of files on local storage. We are discussing NFS,
+which is a stateless file system.
+
+Cheers,
+  Trond
 --
-The Internet is not a network of computers. It is a network
-of people. That is its real strength.
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux.eu.org/Linux-MM/
 
-Wanna talk about the kernel?  irc.openprojects.net / #kernelnewbies
-http://www.conectiva.com/		http://www.surriel.com/
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
