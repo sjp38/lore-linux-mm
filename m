@@ -1,55 +1,43 @@
-Date: Wed, 11 Oct 2000 18:12:44 +0100
-From: Stephen Tweedie <sct@redhat.com>
-Subject: Re: map_user_kiobuf and 1 Gb (2.4-test8)
-Message-ID: <20001011181244.E1353@redhat.com>
-References: <39DCEAE9.BDEA23BD@edt.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <39DCEAE9.BDEA23BD@edt.com>; from steve@edt.com on Thu, Oct 05, 2000 at 01:56:09PM -0700
+Date: Wed, 11 Oct 2000 14:38:00 -0400
+Message-Id: <200010111838.e9BIc0M02456@trampoline.thunk.org>
+In-reply-to: 
+	<Pine.LNX.4.21.0010101738110.11122-100000@duckman.distro.conectiva>
+	(message from Rik van Riel on Tue, 10 Oct 2000 17:53:57 -0300 (BRST))
+Subject: Re: Updated 2.4 TODO List
+From: tytso@mit.edu
+References: <Pine.LNX.4.21.0010101738110.11122-100000@duckman.distro.conectiva>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Steve Case <steve@edt.com>
-Cc: linux-mm@kvack.org, Stephen Tweedie <sct@redhat.com>
+To: riel@conectiva.com.br
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+   > 2. Capable Of Corrupting Your FS/data
+   > 
+   >      * Non-atomic page-map operations can cause loss of dirty bit on
+   >        pages (sct, alan)
 
-On Thu, Oct 05, 2000 at 01:56:09PM -0700, Steve Case wrote:
-> I'm working on a device driver module for our PCI interface cards which
-> attempts to map user memory for DMA. I was pleased to find the
-> map_user_kiobuf function and its allies, since this appears to do
-> exactly what I need. Everything worked fine, until I sent it to a
-> customer who has a system w/  1 Gb of memory - it locked up real good as
-> soon as he tried DMA
+   Is anybody looking into fixing this bug ?
 
->       sg.addr = virt_to_bus(page_address(iobuf.maplist[entrys]));
+According to sct (who's sitting next to me in my hotel room at ALS) Ben
+LaHaise has a bugfix for this, but it hasn't been merged.
 
->From include/asm-i386/pgtable.h:
+   >      * VM: Fix the highmem deadlock, where the swapper cannot create low
+   >        memory bounce buffers OR swap out low memory because it has
+   >        consumed all resources {CRITICAL} (old bug, already reported in
+   >        2.4.0test6)
 
-  /*
-   * Permanent address of a page. Obviously must never be
-   * called on a highmem page.
-   */
-  #define page_address(page) ((page)->virtual)
+   Haven't been able to reproduce it on my 1GB test machine,
+   but it might still be there. Can anyone confirm if this
+   bug is still present ?
 
-The 2.4 kernel is able to deal with >=1GB physical memory in its VM,
-but the IO subsystem on i386 architectures is still not ready for such
-memory.  What happens today is that network IO is restricted to low
-memory (roughly speaking, below the 900MB mark) by simply ensuring
-that skbuff packet buffers are always allocated from low memory in the
-first place, and that disk IO is restricted to low memory by doing
-"bounce buffer" operations --- if you attempt disk IO to a high memory
-page, the kernel will allocate a temporary low-memory page for the IO
-and will copy the IO results to/from high memory as required.
+Note: all of the issues on the TODO list with the "VM:" prefix are from
+a VM todo list you posted a week or two ago; so I'm assuming that you
+know more about those issues than I do.....  (feel free to send me an
+updated list and I'll merge it into the 2.4 TODO list.)
 
-The easiest way to deal with this for now will be to special-case high
-memory pages with "if (PageHighMem(page)) {}" in a similar manner.
-You'll probably see much better support for IO to high mem pages in
-2.5, but in 2.4 doing a copy is the safest way to go.
+						- Ted
 
-Cheers,
- Stephen
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
