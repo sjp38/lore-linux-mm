@@ -1,61 +1,41 @@
-Date: Mon, 25 Sep 2000 19:42:09 -0300 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
+Date: Tue, 26 Sep 2000 01:00:32 +0200
+From: Andrea Arcangeli <andrea@suse.de>
 Subject: Re: [patch] vmfixes-2.4.0-test9-B2 - fixing deadlocks
-In-Reply-To: <20000926004429.D5010@athlon.random>
-Message-ID: <Pine.LNX.4.21.0009251937230.4997-100000@duckman.distro.conectiva>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Message-ID: <20000926010032.F5010@athlon.random>
+References: <20000925213242.A30832@athlon.random> <Pine.LNX.4.21.0009251622500.4997-100000@duckman.distro.conectiva> <20000926002812.C5010@athlon.random> <yttaecwksu3.fsf@serpe.mitica>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <yttaecwksu3.fsf@serpe.mitica>; from quintela@fi.udc.es on Tue, Sep 26, 2000 at 12:30:28AM +0200
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrea Arcangeli <andrea@suse.de>
-Cc: "Stephen C. Tweedie" <sct@redhat.com>, Ingo Molnar <mingo@elte.hu>, Linus Torvalds <torvalds@transmeta.com>, Roger Larsson <roger.larsson@norran.net>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
+To: "Juan J. Quintela" <quintela@fi.udc.es>
+Cc: Rik van Riel <riel@conectiva.com.br>, "Stephen C. Tweedie" <sct@redhat.com>, Ingo Molnar <mingo@elte.hu>, Linus Torvalds <torvalds@transmeta.com>, Roger Larsson <roger.larsson@norran.net>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 26 Sep 2000, Andrea Arcangeli wrote:
-> On Mon, Sep 25, 2000 at 08:54:57PM +0100, Stephen C. Tweedie wrote:
+On Tue, Sep 26, 2000 at 12:30:28AM +0200, Juan J. Quintela wrote:
+> Which is completely wrong if the program uses _any not completely_
+> unusual locality of reference.  Think twice about that, it is more
+> probable that you need more that 300MB of filesystem cache that you
+> have an aplication that references _randomly_ 1.5GB of data.  You need
+> to balance that _always_ :((((((
 
-> > basically the whole of memory is data cache, some of which is mapped
-> > and some of which is not?
-> 
-> As as said in the last email aging on the cache is supposed to that.
-> 
-> Wasting CPU and incrasing the complexity of the algorithm is a price
-> that I won't pay just to get the information on when it's time
-> to recall swap_out().
+The application doesn't references ramdonly 1.5GB of data. Assume
+there's a big executable large 2G (and yes I know there are) and I run it.
+After some hour its RSS it's 1.5G. Ok?
 
-You must be joking. Page replacement should be tuned to
-do good page replacement, not just to be easy on the CPU.
-(though a heavily thrashing system /is/ easy on the cpu,
-I'll have to admit that)
+So now this program also shmget a 300 Mbyte shm segment.
 
-> If the cache have no age it means I'd better throw it out instead
-> of swapping/unmapping out stuff, simple?
+Now this program starts reading and writing terabyte of data that
+wouldn't fit in cache even if there would be 300G of ram (and
+this is possible too). Or maybe the program itself uses rawio
+but then you at a certain point use the machine to run a tar somewhere.
 
-Simple, yes. But completely BOGUS if you don't age the cache
-and the mapped pages at the same rate!
+Now tell me why this program needs more than 200Mbyte of fs cache
+if the kernel doesn't waste time on the mapped pages (as in
+classzone).
 
-If I age your pages twice as much as my pages, is it still
-only fair that your pages will be swapped out first? ;)
-
-> > anything since last time.  Anything that only ages per-pte, not
-> > per-page, is simply going to die horribly under such load, and any
-> 
-> The aging on the fs cache is done per-page.
-
-And the same should be done for other pages as well.
-If you don't do that, you'll have big problems keeping
-page replacement balanced and making the system work well
-under various loads.
-
-regards,
-
-Rik
---
-"What you're running that piece of shit Gnome?!?!"
-       -- Miguel de Icaza, UKUUG 2000
-
-http://www.conectiva.com/		http://www.surriel.com/
-
+Andrea
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
