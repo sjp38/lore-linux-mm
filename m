@@ -1,53 +1,70 @@
-Message-ID: <4211BD88.70904@sgi.com>
-Date: Tue, 15 Feb 2005 03:14:48 -0600
-From: Ray Bryant <raybry@sgi.com>
-MIME-Version: 1.0
-Subject: Re: [RFC 2.6.11-rc2-mm2 0/7] mm: manual page migration -- overview
-References: <20050212032535.18524.12046.26397@tomahawk.engr.sgi.com>	<m1vf8yf2nu.fsf@muc.de>	<20050212155426.GA26714@logos.cnet>	<20050212212914.GA51971@muc.de>	<20050214163844.GB8576@lnx-holt.americas.sgi.com>	<20050214191509.GA56685@muc.de>	<42113921.7070807@sgi.com> <20050214191651.64fc3347.pj@sgi.com>
-In-Reply-To: <20050214191651.64fc3347.pj@sgi.com>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+Date: Tue, 15 Feb 2005 04:50:56 -0600
+From: Robin Holt <holt@sgi.com>
+Subject: Re: [RFC 2.6.11-rc2-mm2 7/7] mm: manual page migration -- sys_page_migrate
+Message-ID: <20050215105056.GC19658@lnx-holt.americas.sgi.com>
+References: <20050212032535.18524.12046.26397@tomahawk.engr.sgi.com> <20050212032620.18524.15178.29731@tomahawk.engr.sgi.com> <1108242262.6154.39.camel@localhost> <20050214135221.GA20511@lnx-holt.americas.sgi.com> <1108407043.6154.49.camel@localhost> <20050214220148.GA11832@lnx-holt.americas.sgi.com> <1108419774.6154.58.camel@localhost>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1108419774.6154.58.camel@localhost>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Paul Jackson <pj@sgi.com>
-Cc: ak@muc.de, holt@sgi.com, marcelo.tosatti@cyclades.com, raybry@austin.rr.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Dave Hansen <haveblue@us.ibm.com>
+Cc: Robin Holt <holt@sgi.com>, Ray Bryant <raybry@sgi.com>, Hirokazu Takahashi <taka@valinux.co.jp>, Hugh DIckins <hugh@veritas.com>, Andrew Morton <akpm@osdl.org>, Marcello Tosatti <marcello@cyclades.com>, Ray Bryant <raybry@austin.rr.com>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Paul Jackson wrote:
-> Ray wrote:
+On Mon, Feb 14, 2005 at 02:22:54PM -0800, Dave Hansen wrote:
+> On Mon, 2005-02-14 at 16:01 -0600, Robin Holt wrote:
+> > On Mon, Feb 14, 2005 at 10:50:42AM -0800, Dave Hansen wrote:
+> > > On Mon, 2005-02-14 at 07:52 -0600, Robin Holt wrote:
+> > > > The node mask is a list of allowed.  This is intended to be as near
+> > > > to a one-to-one migration path as possible.
+> > > 
+> > > If that's the case, it would make the kernel internals a bit simpler to
+> > > only take a "from" and "to" node, instead of those maps.  You'll end up
+> > > making multiple syscalls, but that shouldn't be a problem.  
+> > 
+> > Then how do you handle overlapping nodes.  If I am doing a 5->4, 4->3,
+> > 3->2, 2->1 shift in the memory placement and had only a from and to node,
+> > I would end up calling multiple times.  This would end up in memory shifting
+> > from 5->4 on the first, 4->3 on the second, ... with the end result of
+> > all memory shifting to a single node.
 > 
->>[Thus the disclaimer in
->>the overview note that we have figured all the interaction with
->>memory policy stuff yet.]
-> 
-> 
-> Does the same disclaimer apply to cpusets?
-> 
-> Unless it causes some undo pain, I would think that page migration
-> should _not_ violate a tasks cpuset.  I guess this means that a typical
-> batch manager would move a task to its new cpuset on the new nodes, or
-> move the cpuset containing some tasks to their new nodes, before asking
-> the page migrator to drag along the currently allocated pages from the
-> old location.
-> 
-No, I think we understand the interaction between manual page migration
-and cpusets.  We've tried to keep the discussion here disjoint from cpusets
-for tactical reasons -- we didn't want to tie acceptance of the manual
-page migration code to acceptance of cpusets.
+> Can you give an example of when you'd actually want to do this?
 
-The exact ordering of when a task is moved to a new cpuset and when the
-migration occurs doesn't matter, AFAIK, if we accept the notion that
-a migrated task is in suspended state until after everything associated
-with it (including the new cpuset definition) is done.
+Assume it is moving from a 4,5,6,7,8,9 to 2,3,4,5,6,7 because it
+wants to move jobs from nodes 8 and 9 which are topologically closer
+to 10-15 and the job that was running there did not care about node
+distances as much but nodes 2 and 3 were busy when the job was starting.
+Batch schedulers will use machine in very interesting ways that you
+would never have imagined.  Give it the freedom to move a job around,
+any you will get some really interesting new behavior
 
--- 
------------------------------------------------
-Ray Bryant
-512-453-9679 (work)         512-507-7807 (cell)
-raybry@sgi.com             raybry@austin.rr.com
-The box said: "Requires Windows 98 or better",
-	 so I installed Linux.
------------------------------------------------
+Given that the first user of this may place in onto a 256 node system,
+the chances that they use the same node in the source and destination node
+array are very good.  If I focus on the word "actually" from above,I
+can not give you a precise example of when this was asked for by a
+user because this is in the early design phase as opposed to the late
+troubleshooting phase.  Given the size of the machine we are dealing
+with, it is certainly plausible that they will, at some time, ask to
+migrate from and to an overlapping set of nodes.  I see this as even more
+likely given that the decision will be made by their batch scheduler.
+This example may be a bit simplistic, but there are certainly many times
+where a batch scheduler decides that because of topology, it wants to
+move stuff around some.
+
+What is the fundamental opposition to an array from from-to node mappings?
+They are not that difficult to follow.  They make the expensive traversal
+of ptes the single pass operation.  The time to scan the list of from nodes
+to locate the node this page belongs to is relatively quick when compared
+to the time to scan ptes and will result in probably no cache trashing
+like the long traversal of all ptes in the system required for multiple
+system calls.  I can not see the node array as anything but the right way
+when compared to multiple system calls.  What am I missing?
+
+
+Thanks,
+Robin
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
