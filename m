@@ -1,32 +1,33 @@
-Date: Fri, 6 Apr 2001 22:21:14 +0100 (BST)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: memory allocation problems
-In-Reply-To: <Pine.LNX.4.30.0104061227240.25381-100000@mf1.private>
-Message-ID: <Pine.LNX.4.21.0104062211470.1572-100000@localhost.localdomain>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Wed, 4 Apr 2001 22:59:01 +0100
+From: Stephen Tweedie <sct@redhat.com>
+Subject: Re: [PATCH] Reclaim orphaned swap pages
+Message-ID: <20010404225901.C1118@redhat.com>
+References: <20010328235958.A1724@redhat.com> <Pine.LNX.4.21.0103301915010.23093-100000@imladris.rielhome.conectiva>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.21.0103301915010.23093-100000@imladris.rielhome.conectiva>; from riel@conectiva.com.br on Fri, Mar 30, 2001 at 07:16:28PM -0300
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Wayne Whitney <whitney@math.berkeley.edu>
-Cc: Mark Hahn <hahn@coffee.psychology.mcmaster.ca>, majer@endeca.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Rik van Riel <riel@conectiva.com.br>
+Cc: Stephen Tweedie <sct@redhat.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 6 Apr 2001, Wayne Whitney wrote:
+Hi,
+
+On Fri, Mar 30, 2001 at 07:16:28PM -0300, Rik van Riel wrote:
 > 
-> As was pointed out to me in January, another solution for i386 would be to
-> fix a maximum stack size and have the mmap() allocations grow downward
-> from the "top" of the stack (3GB - max stack size).  I'm not sure why that
-> is not currently done.
+> It looks good and simple enough to just plug into the
+> kernel. I cannot see any problem with this patch, except
+> that the PAGECACHE_LOCK macro doesn't seem to exist (yet)
+> in my kernel tree ;))
 
-I'd be interested in the answer to that too.  Typically, the memory
-layout has ELF text at the lowest address, starting at 0x08048000 -
-which is a curious place to put it, until you realize that if you
-place the stack below it, you can use (in a typical small program)
-just one page table for stack + text + data (then another for mmaps
-and shared libs from 3GB down): two page tables instead of present three.
+Yep, I built this on a tree which had Ingo's Tux patches applied and
+I'd forgotten that he had added a fine-grained page cache lock to his
+code.  Will fix.
 
-Hugh
-
+Cheers,
+ Stephen
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
