@@ -1,75 +1,45 @@
-Date: Wed, 4 Jul 2001 01:24:25 -0300 (BRT)
-From: Marcelo Tosatti <marcelo@conectiva.com.br>
-Subject: [PATCH] initial detailed VM statistics code
-Message-ID: <Pine.LNX.4.21.0107040107320.3257-100000@freak.distro.conectiva>
+Message-ID: <3B42CAA7.507F599F@earthlink.net>
+Date: Wed, 04 Jul 2001 01:49:59 -0600
+From: "Joseph A. Knapka" <jknapka@earthlink.net>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH] initial detailed VM statistics code
+References: <Pine.LNX.4.21.0107040107320.3257-100000@freak.distro.conectiva>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: lkml <linux-kernel@vger.kernel.org>
-Cc: linux-mm@kvack.org, "Stephen C. Tweedie" <sct@redhat.com>, Rik van Riel <riel@conectiva.com.br>
+To: Marcelo Tosatti <marcelo@conectiva.com.br>
+Cc: linux-mm@kvack.org, Rik van Riel <riel@conectiva.com.br>
 List-ID: <linux-mm.kvack.org>
 
-Hi, 
+Marcelo Tosatti wrote:
+> 
+> Hi,
+> 
+> Well, I've started working on VM stats code for 2.4.
+> 
 
-Well, I've started working on VM stats code for 2.4. 
+Thanks.
 
-vmstat output: 
+It might be useful to have a count of the number of PTEs scanned
+by swap_out(), and the number of those that were unmapped. (I'm
+interested in the scan rate of swap_out() vs refill_inactive_scan()).
 
-# r  b  w   swpd   free   buff  cache   si   so    bi    bo   in    cs us sy id
-# 0  1  1 102624   1412    120  89472   90 9114   304  9160  336  1102  12 7 92
+I have a module that produces a histogram of pages-vs-age and
+pages-vs-references for pages on the active_list, as well as
+some other general VM stats; the code is available here:
 
-This is the already known part..
+<URL: http://home.earthlink.net/~jknapka/linux-mm/vmstatd1.c>
 
-# launder launder_w ref_inact alloc_r kswapd_w krec_w kflush_w
-#     33       11       147    1260       23    328      151
+I'm not sure how generally useful it is, but you can make some
+pretty pictures with it :-)
 
-First, the global statistics:
-
-launder: nr of page_launder() calls
-launder_w: nr of times page_launder() started writing out pages
-ref_inac: nr of refill_inactive_scan() calls
-alloc_r: number of reschedules on __alloc_pages()
-kswapd_w: kswapd wakeups
-krec_w: kreclaimd wakeups
-kflush_w: kflushd wakeups
-
-# Zone fshort ishort   scan  clean  skipl  skipd launder  react rescue deact recfail
-#    DMA      0    224   3915   1500    342   1406    531    153      0 452 636
-# Normal      0      0  28073  12490   2451   9295   2678    676      0 2654     947
-
-Then the perzone statistics:
-
-fshort: per-zone free shortage
-ishort: per-zone inactive shortage
-scan: number of pages scanned by page_launder
-clean: number of pages cleaned by page_launder
-skipl: number of locked pages skipped by page_launder
-skipd: number of unlocked but dirty pages skipped by page_launder
-launder: number of pages laundered by page_launder
-react: number of pages reactivated by page_launder
-rescue: number of pages reactivated by reclaim_page
-deat: number of pages deactivated by refill_inactive_scan
-recfail: number of reclaim_page failures
-
-
-The code: 
-
-Patch against 2.4.6pre9:
-http://bazar.conectiva.com.br/~marcelo/patches/v2.4/2.4.6pre9/vmstats.patch
-
-Patch against procps from Conectiva's srpm (which is not stock procps):
-http://bazar.conectiva.com.br/~marcelo/patches/v2.4/2.4.6pre9/procps.patch
-
-And full vmstat.c so people don't need to get Conectiva's srpm:
-http://bazar.conectiva.com.br/~marcelo/patches/v2.4/2.4.6pre9/vmstat.c
-
-The vmstat code is really crappy and new fields are painfull to add. If
-anyone is willing to help me to write a decent vmstat, tell me. 
-
-The hacked vmstat will coredump on a non-patched kernel.
-
-
+-- Joe Knapka
+"You know how many remote castles there are along the gorges? You
+ can't MOVE for remote castles!" -- Lu Tze re. Uberwald
+// Linux MM Documentation in progress:
+// http://home.earthlink.net/~jknapka/linux-mm/vmoutline.html
+* Evolution is an "unproven theory" in the same sense that gravity is. *
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
