@@ -1,44 +1,45 @@
-Message-ID: <38C5D132.8F4F5EDD@mandrakesoft.com>
-Date: Tue, 07 Mar 2000 23:04:02 -0500
-From: Jeff Garzik <jgarzik@mandrakesoft.com>
+Subject: Re: [RFC] [RFT] Shared /dev/zero mmaping feature
+References: <200003062301.PAA11473@google.engr.sgi.com>
+From: Christoph Rohland <hans-christoph.rohland@sap.com>
+Date: 08 Mar 2000 13:02:51 +0100
+In-Reply-To: kanoj@google.engr.sgi.com's message of "Mon, 6 Mar 2000 15:01:43 -0800 (PST)"
+Message-ID: <qww7lfdr7o4.fsf@sap.com>
 MIME-Version: 1.0
-Subject: Re: remap_page_range problem on 2.3.x
-References: <20000308020520.18155.qmail@web1306.mail.yahoo.com>
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andy Henroid <andy_henroid@yahoo.com>
-Cc: Linux-MM@kvack.org
+To: Kanoj Sarcar <kanoj@google.engr.sgi.com>
+Cc: "Stephen C. Tweedie" <sct@redhat.com>, Linus Torvalds <torvalds@transmeta.com>, linux-mm@kvack.org, Ingo Molnar <mingo@chiara.csoma.elte.hu>
 List-ID: <linux-mm.kvack.org>
 
-Andy Henroid wrote:
+Hi Kanoj,
+
+kanoj@google.engr.sgi.com (Kanoj Sarcar) writes:
+> > To make this work for shared anonymous pages, we need two changes
+> > to the swap cache.  We need to teach the swap cache about writable
+> > anonymous pages, and we need to be able to defer the physical
+> > writing of the page to swap until the last reference to the swap
+> > cache frees up the page.  Do that, and shared /dev/zero maps will
+> > Just Work.
 > 
->                        Name: mmtest.tar.gz
->    mmtest.tar.gz       Type: Unix Tape Archive (application/x-tar)
->                    Encoding: base64
->                 Description: mmtest.tar.gz
+> The current implementation of /dev/zero shared memory is to treat
+> the mapping as similarly as possible to a shared memory segment. The
+> common code handles the swap cache interactions, and both cases
+> qualify as shared anonymous mappings. While its not well tested, in
+> theory it should work. We are currently agonizing over how to
+> integrate the /dev/zero code with shmfs patch.
+  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Are these the correct test files?
+Since this is not as easy as you thought, wouldn't it be better to do 
+the /dev/zero shared maps in the swap cache instead of this workaround
+over shm? Thus we would get the mechanisms to redo all shm stuff wrt
+swap cache.
 
-rum:~/tmp/mmtest> grep -i remap *
-rum:~/tmp/mmtest> 
+At the same time we would not hinder the development of normal shm
+code to use file semantics (aka shm fs) which will give us posix shm.
 
-I think you'll need to do something like
-
-init():
-	dsdt = get_free_pages(...)
-
-chrdev mmap() op:
-	remap_page_range(dsdt, ...)
-
-If you are going to present data via /proc, you might as well simply
-dump the raw data out to whoever is reading /proc/driver/acpi/dsdt...
-
--- 
-Jeff Garzik              | My to-do list is a function
-Building 1024            | which approaches infinity.
-MandrakeSoft, Inc.       |
+Greetings
+		Christoph
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
