@@ -1,75 +1,35 @@
-Subject: Re: 2.5.64-mm2
-From: Shawn <core@enodev.com>
-In-Reply-To: <1047131942.3759.1.camel@localhost.localdomain>
-References: <20030307185116.0c53e442.akpm@digeo.com>
-	 <1047095352.3483.0.camel@localhost.localdomain>
-	 <1047096331.727.14.camel@phantasy.awol.org>
-	 <1047096093.3483.4.camel@localhost.localdomain>
-	 <1047097353.727.18.camel@phantasy.awol.org>
-	 <1047131942.3759.1.camel@localhost.localdomain>
-Content-Type: text/plain
+Received: from toughguy.net ([80.35.172.14]) by
+          tsmtppp2.teleline.es (terra.es) with ESMTP id HBFY7200.G2C for
+          <linux-mm@kvack.org>; Sat, 8 Mar 2003 18:35:26 +0100
+Message-ID: <3E6A2A76.5080405@toughguy.net>
+Date: Sat, 08 Mar 2003 18:37:58 +0100
+From: Roberto Sierra <mrwhite@toughguy.net>
+MIME-Version: 1.0
+Subject: VM_GROWSDOWN/VM_GROWSUP
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
-Message-Id: <1047134733.5968.3.camel@localhost.localdomain>
-Mime-Version: 1.0
-Date: 08 Mar 2003 08:45:34 -0600
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Robert Love <rml@tech9.net>
-Cc: Andrew Morton <akpm@digeo.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Eliminate initrd (eliminate using it, not support for it) and oops goes
-away. Weird.
+Hello to everyone,
 
-On Sat, 2003-03-08 at 07:59, Shawn wrote:
-> Now I oops on boot justt when it trys to mount root (reiserfs),
-> unfortunately, I cannot page up to see the oops text.
-> 
-> I'll try booting with vesa fbcon to see if I can't see more.
-> 
-> On Fri, 2003-03-07 at 22:22, Robert Love wrote:
-> > On Fri, 2003-03-07 at 23:01, Shawn wrote:
-> > > Here's my .config. I am not SMP.
-> > > 
-> > > I suspected the distclean thing, but I made "Mr. Proper" too just in
-> > > case.
-> > 
-> > Oh.  Its those damn modules.  The bane of my existence.
-> > 
-> > Problem is, ksyms.c is exporting kernel_flag under PREEMPT.  Now we just
-> > need it exported under SMP.
-> > 
-> > Andrew, would you mind appending this to the current patch? Sorry.
-> > 
-> > Everyone else, you need this if you are UP+PREEMPT+MODULES.
-> > 
-> > 	Robert Love
-> > 
-> > 
-> >  kernel/ksyms.c |    2 +-
-> >  1 files changed, 1 insertion(+), 1 deletion(-)
-> > 
-> > 
-> > diff -urN linux-2.5.64-mm2/kernel/ksyms.c linux/kernel/ksyms.c
-> > --- linux-2.5.64-mm2/kernel/ksyms.c	2003-03-07 22:08:04.000000000 -0500
-> > +++ linux/kernel/ksyms.c	2003-03-07 23:19:32.098500176 -0500
-> > @@ -488,7 +488,7 @@
-> >  #if CONFIG_SMP
-> >  EXPORT_SYMBOL_GPL(set_cpus_allowed);
-> >  #endif
-> > -#if CONFIG_SMP || CONFIG_PREEMPT
-> > +#if CONFIG_SMP
-> >  EXPORT_SYMBOL(kernel_flag);
-> >  #endif
-> >  EXPORT_SYMBOL(jiffies);
-> > 
-> > 
-> > 
-> -
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
+I'm playing around with mmap and threads, and sadly discovered 
+VM_GROWSUP doesn't work at all while VM_GROWSDOWN works ok (as far as i 
+have tested). I'm using a gentoo 2.4.19, but, apparently, it is known 
+behaviour since vanilla 2.4.9.
+
+I'd like to know if it is being worked on, or if otherwise it is 
+deprecated, or maybe 2.5.x actually has changed this behaviour, but I 
+haven't found any references. I have tried to ponder into the sources, 
+but I'm not really skilled enough ;-)
+
+Roberto
+
+-- 
+"There are 10 kinds of people in the world,
+  those who understand binary and those who don't."
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
