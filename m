@@ -1,27 +1,46 @@
 Subject: Re: 2.5.68-mm2
-From: Alex Tomas <bzzz@tmi.comex.ru>
-Date: Wed, 23 Apr 2003 19:14:32 +0400
-In-Reply-To: <18400000.1051109459@[10.10.2.4]> (Martin J. Bligh's message of
- "Wed, 23 Apr 2003 07:51:00 -0700")
-Message-ID: <m3r87t8cvb.fsf@tmi.comex.ru>
+From: Robert Love <rml@tech9.net>
+In-Reply-To: <20030423095926.GJ8931@holomorphy.com>
 References: <20030423012046.0535e4fd.akpm@digeo.com>
-	<18400000.1051109459@[10.10.2.4]>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+	 <20030423095926.GJ8931@holomorphy.com>
+Content-Type: text/plain
+Message-Id: <1051116646.2756.2.camel@localhost>
+Mime-Version: 1.0
+Date: 23 Apr 2003 12:50:46 -0400
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
+To: William Lee Irwin III <wli@holomorphy.com>
 Cc: Andrew Morton <akpm@digeo.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
->>>>> Martin J Bligh (MJB) writes:
+On Wed, 2003-04-23 at 05:59, William Lee Irwin III wrote:
 
- >> . I got tired of the objrmap code going BUG under stress, so it is now in
- >> disgrace in the experimental/ directory.
+> rml and I coordinated to put together a small patch (combining both
+> our own) for properly locking the static variables in out_of_memory().
+> There's not any evidence things are going wrong here now, but it at
+> least addresses the visible lack of locking in out_of_memory().
 
- MJB> Any chance of some more info on that? BUG at what point in the code,
- MJB> and with what test to reproduce?
+Thank you for posting this, wli.
 
-I've seen this running fsx-linux on ext3
+> -	first = now;
+> +	/*
+> +	 * We dropped the lock above, so check to be sure the variable
+> +	 * first only ever increases to prevent false OOM's.
+> +	 */
+> +	if (time_after(now, first))
+> +		first = now;
+
+Just thinking... this little bit is actually a bug even on UP sans
+kernel preemption, too, since oom_kill() can sleep.  If it sleeps, and
+another process enters out_of_memory(), 'now' and 'first' will be out of
+sync.
+
+So I think this patch is a Good Thing in more ways than the obvious SMP
+or kernel preemption issue.
+
+	Robert Love
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
