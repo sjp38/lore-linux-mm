@@ -1,70 +1,64 @@
-Subject: Re: Query on remap_pfn_range compatibility
-Message-ID: <OF0A92B996.F674A9A0-ON86256F93.0066BC3F@raytheon.com>
-From: Mark_H_Johnson@raytheon.com
-Date: Mon, 24 Jan 2005 13:05:44 -0600
-MIME-Version: 1.0
-Content-type: text/plain; charset=US-ASCII
+Date: Mon, 24 Jan 2005 13:49:27 -0200
+From: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
+Subject: Re: [PATCH] Avoiding fragmentation through different allocator
+Message-ID: <20050124154927.GJ5925@logos.cnet>
+References: <20050120101300.26FA5E598@skynet.csn.ul.ie> <20050121142854.GH19973@logos.cnet> <Pine.LNX.4.58.0501222128380.18282@skynet> <20050122215949.GD26391@logos.cnet> <Pine.LNX.4.58.0501241141450.5286@skynet> <20050124122952.GA5739@logos.cnet> <1106585052.5513.26.camel@mulgrave>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1106585052.5513.26.camel@mulgrave>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: William Lee Irwin III <wli@holomorphy.com>
-Cc: Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: James Bottomley <jejb@steeleye.com>
+Cc: Mel Gorman <mel@csn.ul.ie>, William Lee Irwin III <wli@holomorphy.com>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>, Grant Grundler <grundler@parisc-linux.org>
 List-ID: <linux-mm.kvack.org>
 
-wli wrote...
-> On Mon, Jan 24, 2005 at 10:54:22AM -0600, Mark_H_Johnson@raytheon.com
-wrote:
-> > I read the messages on lkml from September 2004 about the introduction
-of
-> > remap_pfn_range and have a question related to coding for it. What do
-you
-> > recommend for driver coding to be compatible with these functions
-> > (remap_page_range, remap_pfn_range)?
-> > For example, I see at least two (or three) combination I need to
-address:
-> >  - 2.4 (with remap_page_range) OR 2.6.x (with remap_page_range)
-> >  - 2.6.x-mm (with remap_pfn_range)
-> > Is there some symbol or #ifdef value I can depend on to determine which
-> > function I should be calling (and the value to pass in)?
+On Mon, Jan 24, 2005 at 10:44:12AM -0600, James Bottomley wrote:
+> On Mon, 2005-01-24 at 10:29 -0200, Marcelo Tosatti wrote:
+> > Since the pages which compose IO operations are most likely sparse (not physically contiguous),
+> > the driver+device has to perform scatter-gather IO on the pages. 
+> > 
+> > The idea is that if we can have larger memory blocks scatter-gather IO can use less SG list 
+> > elements (decreased CPU overhead, decreased device overhead, faster). 
+> > 
+> > Best scenario is where only one sg element is required (ie one huge physically contiguous block).
+> > 
+> > Old devices/unprepared drivers which are not able to perform SG/IO
+> > suffer with sequential small sized operations.
+> > 
+> > I'm far away from being a SCSI/ATA knowledgeable person, the storage people can 
+> > help with expertise here.
+> > 
+> > Grant Grundler and James Bottomley have been working on this area, they might want to 
+> > add some comments to this discussion.
+> > 
+> > It seems HP (Grant et all) has pursued using big pages on IA64 (64K) for this purpose.
+> 
+> Well, the basic advice would be not to worry too much about
+> fragmentation from the point of view of I/O devices.  They mostly all do
+> scatter gather (SG) onboard as an intelligent processing operation and
+> they're very good at it.
+
+So is it valid to affirm that on average an operation with one SG element pointing to a 1MB 
+region is similar in speed to an operation with 16 SG elements each pointing to a 64K 
+region due to the efficient onboard SG processing? 
+
+> No one has ever really measured an effect we can say "This is due to the
+> card's SG engine".  So, the rule we tend to follow is that if SG element
+> reduction comes for free, we take it.  The issue that actually causes
+> problems isn't the reduction in processing overhead, it's that the
+> device's SG list is usually finite in size and so it's worth conserving
+> if we can; however it's mostly not worth conserving at the expense of
+> processor cycles.
 >
-> Not sure. One on kernel version being <= 2.6.10 would probably serve
-> your purposes, though it's not particularly well thought of. I suspect
-> people would suggest splitting up the codebase instead of sharing it
-> between 2.4.x and 2.6.x, where I've no idea how well that sits with you.
+> The bottom line is that the I/O (block) subsystem is very efficient at
+> coalescing (both in block space and in physical memory space) and we've
+> got it to the point where it's about as efficient as it can be.  If
+> you're going to give us better physical contiguity properties, we'll
+> take them, but if you spend extra cycles doing it, the chances are
+> you'll slow down the I/O throughput path.
 
-I guess I could do that, but if a distribution picks up remap_pfn_range
-in an earlier kernel, that doesn't work either. If it gets back ported
-to 2.4 the conditional gets a little more complicated.
-
-Splitting the code base is a pretty harsh solution.
-
-I am also trying to avoid an ugly hack like the following:
-
-  VMA_PARAM_IN_REMAP=`grep remap_page_range
-$PATH_LINUX_INCLUDE/linux/mm.h|grep vma`
-  if [ -z "$VMA_PARAM_IN_REMAP" ]; then
-    export REMAP_PAGE_RANGE_PARAM="4"
-  else
-    export REMAP_PAGE_RANGE_PARAM="5"
-  endif
-
-in a build script which detects if remap_page_range() has 4 or 5 parameters
-and then pass an appropriate value into the code using gcc -D. [ugh]
-
-Would it be acceptable to add a symbol like
-  #define MM_VM_REMAP_PFN_RANGE
-in include/linux/mm.h or is that too much of a hack as well?
-
-> I vaguely suspected something like this would happen, but there were
-> serious and legitimate concerns about new usage of the 32-bit unsafe
-> methods being reintroduced, so at some point the old hook had to go.
-I don't doubt the need to remove the old interface. But I see possible
-problem areas on > 4 Gbyte machines, such as virt_to_phys defined in
-linux/asm-i386/io.h, that are not getting fixed or do I misread the
-way that code works.
-
---Mark H Johnson
-  <mailto:Mark_H_Johnson@raytheon.com>
-
+OK! thanks.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
