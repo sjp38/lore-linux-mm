@@ -1,30 +1,36 @@
-Date: Mon, 2 Jul 2001 16:02:42 -0300 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
+Date: Mon, 2 Jul 2001 20:22:19 +0100 (BST)
+From: <markhe@veritas.com>
 Subject: Re: Can reverse VM locks?
-In-Reply-To: <Pine.LNX.4.33.0107021917250.9756-100000@alloc.wat.veritas.com>
-Message-ID: <Pine.LNX.4.33L.0107021601240.14332-100000@imladris.rielhome.conectiva>
+In-Reply-To: <Pine.LNX.4.33L.0107021601240.14332-100000@imladris.rielhome.conectiva>
+Message-ID: <Pine.LNX.4.33.0107022014190.9756-100000@alloc.wat.veritas.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: markhe@veritas.com
+To: Rik van Riel <riel@conectiva.com.br>
 Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2 Jul 2001 markhe@veritas.com wrote:
+On Mon, 2 Jul 2001, Rik van Riel wrote:
+> On Mon, 2 Jul 2001 markhe@veritas.com wrote:
+>
+> >   Anyone know of any places where reversing the lock ordering would break?
+>
+> Basically add_to_page_cache and remove_from_page cache and friends ;)
 
->   Anyone know of any places where reversing the lock ordering would break?
+  Hmm, does a page-cache page need to be on an LRU list?
 
-Basically add_to_page_cache and remove_from_page cache and friends ;)
+  If not, the 'add' case falls out OK; add it to the page-cache first,
+then add it to an LRU list _after_ dropping the pagecache_lock and taking
+the pagemap_lru_lock.  ie. no lock overlap.
 
-Rik
---
-Virtual memory is like a game you can't win;
-However, without VM there's truly nothing to lose...
+  For the delete/remove case, aren't both the locks normally held for this
+anyway?  With the locks being reversed, they would still both be held (as
+in reclaim_page(), invalidate_inode_pages()).
+  For  truncate_complete_page(), there is no lock overlap so no problem.
+True?
 
-http://www.surriel.com/		http://distro.conectiva.com/
-
-Send all your spam to aardvark@nl.linux.org (spam digging piggy)
+Mark
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
