@@ -1,121 +1,76 @@
-Date: Sat, 3 Apr 2004 17:59:58 +0200
+Date: Sat, 3 Apr 2004 19:02:58 +0200
 From: Andrea Arcangeli <andrea@suse.de>
 Subject: Re: [RFC][PATCH 1/3] radix priority search tree - objrmap complexity fix
-Message-ID: <20040403155958.GF2307@dualathlon.random>
-References: <20040401173649.22f734cd.akpm@osdl.org> <20040402020022.GN18585@dualathlon.random> <20040402104334.A871@infradead.org> <20040402164634.GF21341@dualathlon.random> <20040402195927.A6659@infradead.org> <20040402192941.GP21341@dualathlon.random> <20040402205410.A7194@infradead.org> <20040402203514.GR21341@dualathlon.random> <20040403094058.A13091@infradead.org> <20040403152026.GE2307@dualathlon.random>
+Message-ID: <20040403170258.GH2307@dualathlon.random>
+References: <20040402020022.GN18585@dualathlon.random> <20040402104334.A871@infradead.org> <20040402164634.GF21341@dualathlon.random> <20040402195927.A6659@infradead.org> <20040402192941.GP21341@dualathlon.random> <20040402205410.A7194@infradead.org> <20040402203514.GR21341@dualathlon.random> <20040403094058.A13091@infradead.org> <20040403152026.GE2307@dualathlon.random> <20040403155958.GF2307@dualathlon.random>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20040403152026.GE2307@dualathlon.random>
+In-Reply-To: <20040403155958.GF2307@dualathlon.random>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Christoph Hellwig <hch@infradead.org>, Andrew Morton <akpm@osdl.org>, hugh@veritas.com, vrajesh@umich.edu, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, Apr 03, 2004 at 05:20:26PM +0200, Andrea Arcangeli wrote:
-> if you want you can give a spin to this patch. As far as the old code
-> worked (i.e. with hugetlbfs=n) this should work too, since it disables
-> the compound feature completely, but if it works it probably only hides
-> the real bug. You can use rc3-aa3 for this (it already has the latest
-> robustness fixes I posted to you)
-> 
-> --- x/mm/page_alloc.c.~1~	2004-04-02 20:37:14.000000000 +0200
-> +++ x/mm/page_alloc.c	2004-04-03 17:15:52.647449336 +0200
-> @@ -563,7 +563,9 @@ __alloc_pages(unsigned int gfp_mask, uns
->  	cold = 0;
->  	if (gfp_mask & __GFP_COLD)
->  		cold = __GFP_COLD;
-> +#if 0
->  	if (gfp_mask & __GFP_NO_COMP)
-> +#endif
->  		cold |= __GFP_NO_COMP;
->  
->  	zones = zonelist->zones;  /* the list of zones suitable for gfp_mask */
+can you try this potential fix too? (maybe you want to try this first
+thing)
 
-I've written another piece of debugging code for you, this is also to
-apply on top of rc3-aa3, but of course not at the same time as the above
-one. The above one disables compound compeltely, while the below one is
-trying to debug what's going wrong in compound.
+this is from Hugh's anobjramp patches.
 
-Basically I store a backup copy of page->private into page->mapping
-(arch is 32bit so they're the same size). we know for sure you're not
-going to map into userspace those order >0 pages since hugetlbfs is off,
-so reusing mapcount as a backup copy of page->private for compound pages
-should be ok.
+I merged it once, then I got a crash report, so I backed it out since it
+was working anyways, but it was due a merging error that it didn't work
+correctly, the below version should be fine and it seems really needed.
 
-this way when we get the screwed page->private we see what's going on,
-and if page->mapping is still pointing to 'page'. If page->mapping ==
-page at least we know it's only page->private being corrupt. I don't
-really see how can ppc32 corrupt page->private though.
+I'll upload a new kernel with this applied.
 
---- x-debug/mm/page_alloc.c.~1~	2004-04-02 20:37:14.000000000 +0200
-+++ x-debug/mm/page_alloc.c	2004-04-03 17:55:16.629069504 +0200
-@@ -122,6 +122,7 @@ static void prep_compound_page(struct pa
+--- x/arch/ppc/mm/pgtable.c.~1~	2004-02-20 17:26:33.000000000 +0100
++++ x/arch/ppc/mm/pgtable.c	2004-04-03 18:51:35.072468040 +0200
+@@ -86,9 +86,14 @@ pte_t *pte_alloc_one_kernel(struct mm_st
+ 	extern int mem_init_done;
+ 	extern void *early_get_page(void);
  
- 		SetPageCompound(p);
- 		p->private = (unsigned long)page;
-+		p->mapcount = (unsigned int)page; /* works 32bit only */
- 	}
- }
- 
-@@ -130,16 +131,30 @@ static void destroy_compound_page(struct
- 	int i;
- 	int nr_pages = 1 << order;
- 
--	if (page[1].index != order)
-+	if (page[1].index != order) {
-+		printk("Badness in %s at %s:%d\n", __FUNCTION__, __FILE__, __LINE__);
- 		bad_page(__FUNCTION__, page);
-+	}
-+	if ((unsigned long) page != page->private || page->private != page->mapcount) {
-+		printk("Badness in %s at %s:%d\n", __FUNCTION__, __FILE__, __LINE__);
-+		printk("private %lx real %x page %p\n", page->private, page->mapcount, page);
-+		bad_page(__FUNCTION__, page);
-+	}
- 
- 	for (i = 0; i < nr_pages; i++) {
- 		struct page *p = page + i;
- 
--		if (!PageCompound(p))
-+		if (!PageCompound(p)) {
-+			printk("Badness in %s at %s:%d\n", __FUNCTION__, __FILE__, __LINE__);
-+			printk("index %d\n", i);
- 			bad_page(__FUNCTION__, p);
--		if (p->private != (unsigned long)page)
+-	if (mem_init_done)
++	if (mem_init_done) {
+ 		pte = (pte_t *)__get_free_page(GFP_KERNEL|__GFP_REPEAT);
+-	else
++		if (pte) {
++			struct page *ptepage = virt_to_page(pte);
++			ptepage->mapping = (void *) mm;
++			ptepage->index = address & PMD_MASK;
 +		}
-+		if (p->private != (unsigned long)page || p->private != p->mapcount) {
-+			printk("Badness in %s at %s:%d\n", __FUNCTION__, __FILE__, __LINE__);
-+			printk("index %d private %lx real %x page %p\n", i, p->private, p->mapcount, page);
- 			bad_page(__FUNCTION__, p);
-+			
-+		}
- 		ClearPageCompound(p);
- 	}
- }
-@@ -211,7 +226,6 @@ static inline void __free_pages_bulk (st
- static inline void free_pages_check(const char *function, struct page *page)
- {
- 	if (	page->mapping != NULL ||
--		page->mapcount ||
- 		page_count(page) != 0 ||
- 		(page->flags & (
- 			1 << PG_lru	|
-@@ -316,7 +330,6 @@ static void prep_new_page(struct page * 
- 		struct page * page = _page + i;
++	} else
+ 		pte = (pte_t *)early_get_page();
+ 	if (pte)
+ 		clear_page(pte);
+@@ -106,8 +111,11 @@ struct page *pte_alloc_one(struct mm_str
+ #endif
  
- 		if (page->mapping ||
--		    page->mapcount ||
- 		    (page->flags & (
- 				    1 << PG_private	|
- 				    1 << PG_locked	|
-@@ -336,6 +349,7 @@ static void prep_new_page(struct page * 
- 				 1 << PG_checked | 1 << PG_mappedtodisk |
- 				 1 << PG_compound);
- 		page->private = 0;
-+		page->mapcount = 0;
- 		set_page_count(page, 1);
- 	}
+ 	pte = alloc_pages(flags, 0);
+-	if (pte)
++	if (pte) {
++		pte->mapping = (void *) mm;
++		pte->index = address & PMD_MASK;
+ 		clear_highpage(pte);
++	}
+ 	return pte;
  }
+ 
+@@ -116,6 +124,7 @@ void pte_free_kernel(pte_t *pte)
+ #ifdef CONFIG_SMP
+ 	hash_page_sync();
+ #endif
++	virt_to_page(pte)->mapping = NULL;
+ 	free_page((unsigned long)pte);
+ }
+ 
+@@ -124,6 +133,7 @@ void pte_free(struct page *pte)
+ #ifdef CONFIG_SMP
+ 	hash_page_sync();
+ #endif
++	pte->mapping = NULL;
+ 	__free_page(pte);
+ }
+ 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
