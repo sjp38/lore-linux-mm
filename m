@@ -1,47 +1,36 @@
-From: Jesse Barnes <jbarnes@sgi.com>
+Date: Sat, 6 Nov 2004 02:50:51 +0100
+From: Andrea Arcangeli <andrea@novell.com>
 Subject: Re: [PATCH] Remove OOM killer from try_to_free_pages / all_unreclaimable braindamage
-Date: Fri, 5 Nov 2004 17:36:24 -0800
-References: <20041105200118.GA20321@logos.cnet> <20041106012018.GT8229@dualathlon.random> <418C2861.6030501@cyberone.com.au>
-In-Reply-To: <418C2861.6030501@cyberone.com.au>
-MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
+Message-ID: <20041106015051.GU8229@dualathlon.random>
+References: <20041105200118.GA20321@logos.cnet> <200411051532.51150.jbarnes@sgi.com> <20041106012018.GT8229@dualathlon.random> <418C2861.6030501@cyberone.com.au>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Message-Id: <200411051736.24731.jbarnes@sgi.com>
+In-Reply-To: <418C2861.6030501@cyberone.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Nick Piggin <piggin@cyberone.com.au>
-Cc: Andrea Arcangeli <andrea@novell.com>, Marcelo Tosatti <marcelo.tosatti@cyclades.com>, Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: Jesse Barnes <jbarnes@sgi.com>, Marcelo Tosatti <marcelo.tosatti@cyclades.com>, Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Friday, November 05, 2004 5:26 pm, Nick Piggin wrote:
-> >If you move it in kswapd there's no way to prevent oom-killing from a
-> >syscall allocation (I guess even right now it would go wrong in this
-> >sense, but at least right now it's more fixable). I want to move the oom
-> >kill outside the alloc_page paths. The oom killing is all about the page
-> >faults not having a fail path, and in turn the oom killing should be
-> >moved in the page fault code, not in the allocator. Everything else
-> >should keep returning -ENOMEM to the caller.
->
-> Probably a good idea. OTOH, some kernel allocations might really
+On Sat, Nov 06, 2004 at 12:26:57PM +1100, Nick Piggin wrote:
 > need to be performed and have no failure path. For example __GFP_REPEAT.
 
-Ah, I see what you're saying, yes, that makes even more sense :)
+all allocations should have a failure path to avoid deadlocks. But in
+the meantime __GFP_REPEAT is at least localizing the problematic places ;)
 
 > I think maybe __GFP_REPEAT allocations at least should be able to
 > cause an OOM. Not sure though.
->
-> >So to me moving the oom killer into kswapd looks a regression.
->
+
+probably it should because this is also a case where no fail path exists.
+
+My point was only that when a fail path exists, it's more reliable not
+to invoke the oom killer and let userspace handle the failure.
+
 > Also, I think it would do the wrong thing on NUMA machines because
 > that has a per-node kswapd.
 
-Yep, Andrea's explaination is clear, I just had to read it a few times.  
-Anyway, the fixes I posted are still necessary I think.
-
-Thanks,
-Jesse
+yep.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
