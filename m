@@ -1,28 +1,84 @@
-Date: Wed, 9 Jul 2003 02:29:07 -0700
-From: William Lee Irwin III <wli@holomorphy.com>
+From: Marc-Christian Petersen <m.c.p@wolk-project.de>
 Subject: Re: 2.5.74-mm3
-Message-ID: <20030709092907.GO15452@holomorphy.com>
-References: <20030708223548.791247f5.akpm@osdl.org> <20030709092433.GA27280@waste.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20030709092433.GA27280@waste.org>
+Date: Wed, 9 Jul 2003 11:38:07 +0200
+References: <20030708223548.791247f5.akpm@osdl.org> <200307091106.00781.schlicht@uni-mannheim.de> <20030709021849.31eb3aec.akpm@osdl.org>
+In-Reply-To: <20030709021849.31eb3aec.akpm@osdl.org>
+MIME-Version: 1.0
+Content-Type: Multipart/Mixed;
+  boundary="Boundary-00=_/J+C/lr2RPX5B5R"
+Message-Id: <200307091138.07580.m.c.p@wolk-project.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Matt Mackall <mpm@selenic.com>
-Cc: Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@osdl.org>, Thomas Schlichter <schlicht@uni-mannheim.de>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jul 09, 2003 at 04:24:33AM -0500, Matt Mackall wrote:
+--Boundary-00=_/J+C/lr2RPX5B5R
+Content-Type: text/plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+
+On Wednesday 09 July 2003 11:18, Andrew Morton wrote:
+
+Hi Andrew,
+
+> >  arch/i386/kernel/apm.c: In function `apm_bios_call':
+> >  arch/i386/kernel/apm.c:600: error: incompatible types in assignment
+> >  arch/i386/kernel/apm.c: In function `apm_bios_call_simple':
+> >  arch/i386/kernel/apm.c:643: error: incompatible types in assignment
+> >  The attached patch fixes this...
+> Seems complex.  I just have this:
+>
+>
+> diff -puN arch/i386/kernel/apm.c~cpumask-apm-fix-2 arch/i386/kernel/apm.c
+> --- 25/arch/i386/kernel/apm.c~cpumask-apm-fix-2	2003-07-08
+> 23:09:23.000000000 -0700 +++ 25-akpm/arch/i386/kernel/apm.c	2003-07-08
+> 23:28:50.000000000 -0700 @@ -528,7 +528,7 @@ static inline void
+> apm_restore_cpus(cpum
+>   *	No CPU lockdown needed on a uniprocessor
+>   */
+>
 > -#define apm_save_cpus()	0
-> +#define apm_save_cpus()	(current->cpus_allowed)
+> +#define apm_save_cpus()		CPU_MASK_NONE
 >  #define apm_restore_cpus(x)	(void)(x)
+>
+>  #endif
+>
+better use the attached one ;)
 
-It's trying to describe an empty set of cpus. This is denoted by
-CPU_MASK_NONE in the cpumask_t bits.
+ciao, Marc
 
+--Boundary-00=_/J+C/lr2RPX5B5R
+Content-Type: text/x-diff;
+  charset="iso-8859-1";
+  name="15_fixup-apm-small.patch"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: attachment; filename="15_fixup-apm-small.patch"
 
--- wli
+diff -puN arch/i386/kernel/apm.c~cpumask-apm-fix-2 arch/i386/kernel/apm.c
+--- 25/arch/i386/kernel/apm.c~cpumask-apm-fix-2	2003-07-08 23:09:23.000000000 -0700
++++ 25-akpm/arch/i386/kernel/apm.c	2003-07-08 23:28:50.000000000 -0700
+@@ -222,6 +222,7 @@
+ #include <linux/kernel.h>
+ #include <linux/smp.h>
+ #include <linux/smp_lock.h>
++#include <linux/cpumask.h>
+ 
+ #include <asm/system.h>
+ #include <asm/uaccess.h>
+@@ -528,7 +529,7 @@ static inline void apm_restore_cpus(cpum
+  *	No CPU lockdown needed on a uniprocessor
+  */
+  
+-#define apm_save_cpus()	0
++#define apm_save_cpus()		CPU_MASK_NONE
+ #define apm_restore_cpus(x)	(void)(x)
+ 
+ #endif
+
+--Boundary-00=_/J+C/lr2RPX5B5R--
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
