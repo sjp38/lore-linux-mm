@@ -1,55 +1,61 @@
-From: Mark_H_Johnson@Raytheon.com
+Date: Fri, 15 Sep 2000 12:35:50 -0400 (EDT)
+From: Mark Hahn <hahn@coffee.psychology.mcmaster.ca>
 Subject: Re: Running out of memory in 1 easy step
-Message-ID: <OF197FE829.51802B4B-ON8625695B.0048CCDB@hou.us.ray.com>
-Date: Fri, 15 Sep 2000 08:22:48 -0500
+In-Reply-To: <OF197FE829.51802B4B-ON8625695B.0048CCDB@hou.us.ray.com>
+Message-ID: <Pine.LNX.4.10.10009151225420.25442-100000@coffee.psychology.mcmaster.ca>
 MIME-Version: 1.0
-Content-type: text/plain; charset=us-ascii
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: hahn@coffee.psychology.mcmaster.ca
+To: Mark_H_Johnson@Raytheon.com
 Cc: linux-mm@kvack.org, Wichert Akkerman <wichert@cistron.nl>
 List-ID: <linux-mm.kvack.org>
 
-I hate to ask, but where is this behavior described?  I can't find any hint
-of this behavior in the man page. I'm concerned because we would not have
-taken the "guard pages" into account when sizing our application's memory
-usage. We have a real time application where we will also lock the pages
-into memory - running out of physical memory in this case is "very bad".
-Thanks.
+> I hate to ask, but where is this behavior described?  I can't find any hint
 
---Mark H Johnson
-  <mailto:Mark_H_Johnson@raytheon.com>
+I was wrong, probably remembering something from old HPUX/etc.
+maybe even thinking of libefence.
 
+> of this behavior in the man page. I'm concerned because we would not have
+> taken the "guard pages" into account when sizing our application's memory
+> usage. We have a real time application where we will also lock the pages
 
-                                                                                                                                 
-                    Mark Hahn                                                                                                    
-                    <hahn@coffee.psychology.mc        To:     Wichert Akkerman <wichert@cistron.nl>                              
-                    master.ca>                        cc:     linux-mm@kvack.org, (bcc: Mark H Johnson/RTS/Raytheon/US)          
-                                                      Subject:     Re: Running out of memory in 1 easy step                      
-                    09/14/00 06:03 PM                                                                                            
-                                                                                                                                 
-                                                                                                                                 
+if Linux did guard pages, they would be irrelevant unless you were 
+astonishingly naive about using mmap.  glibc, for instance, will mmap
+large chunks, and for them, one virtual page is irrelevant.  you'd have
+to be making individual O(pagesize) mmaps for this to matter...
 
+> into memory - running out of physical memory in this case is "very bad".
 
+in any case, such (hypothetical on Linux) guard pages would be virtual,
+not backed by physical memory.
 
-> Not likely, there were still a couple hundreds of megabytes free and
-> the process had allocated about 1.5Gb of data.
+#include <stdio.h>
+#include <sys/mman.h>
 
-mmaping 1 to 4096 bytes consumes 8K from your address space:
-one for the mmaped page, and one (virtual) guard page (unless
-you use MAP_FIXED, of course.)  4G / 8K is approximately the 458878
-you reported.  actually, since maps begin at 1G, I would have
-expected you to run out sooner...
-
-regards, mark hahn.
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux.eu.org/Linux-MM/
-
-
-
+char *
+mmalloc(unsigned size) {
+    char *p = (char*) mmap(0, 
+			   size, 
+			   PROT_READ|PROT_WRITE, 
+			   MAP_PRIVATE|MAP_ANONYMOUS, 
+			   0, 
+			   0);
+    if (p == MAP_FAILED)
+	return 0;
+    return p;
+}
+int
+main() {
+    const unsigned size = 4096;
+    char *p = mmalloc(size);
+    for (unsigned i=0; i<20; i++) {
+	char *n = mmalloc(size);
+	printf("next at %p (del %d)\n",n,n-p);
+	p = n;
+    }
+    return 0;
+}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
