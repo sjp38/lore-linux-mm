@@ -1,43 +1,35 @@
-Date: Mon, 18 Nov 2002 15:13:53 -0800
-From: William Lee Irwin III <wli@holomorphy.com>
-Subject: Re: 2.5.47 bootmem crash
-Message-ID: <20021118231353.GS11776@holomorphy.com>
-References: <Pine.GSO.4.21.0211182324570.16079-100000@vervain.sonytel.be> <Pine.LNX.4.44.0211182345421.2113-100000@serv>
-Mime-Version: 1.0
+Message-ID: <20021118235409.85266.qmail@web12303.mail.yahoo.com>
+Date: Mon, 18 Nov 2002 15:54:09 -0800 (PST)
+From: Ravi <kravi26@yahoo.com>
+Subject: Re: Page size andFS blocksize
+In-Reply-To: <20021118102920.B2928@redhat.com>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.44.0211182345421.2113-100000@serv>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Roman Zippel <zippel@linux-m68k.org>
-Cc: Geert Uytterhoeven <geert@linux-m68k.org>, Linux/m68k <linux-m68k@lists.linux-m68k.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@zip.com.au
+To: "Stephen C. Tweedie" <sct@redhat.com>
+Cc: kernelnewbies@nl.linux.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Nov 18, 2002 at 11:47:15PM +0100, Roman Zippel wrote:
-Index: mm/page_alloc.c
-===================================================================
-RCS file: /home/linux-m68k/cvsroot/linux/mm/page_alloc.c,v
-retrieving revision 1.1.1.36
-diff -u -p -r1.1.1.36 page_alloc.c
---- mm/page_alloc.c	11 Nov 2002 19:12:51 -0000	1.1.1.36
-+++ mm/page_alloc.c	18 Nov 2002 22:45:34 -0000
-@@ -1181,7 +1181,7 @@ struct pglist_data contig_page_data = { 
- 
- void __init free_area_init(unsigned long *zones_size)
- {
--	free_area_init_node(0, &contig_page_data, NULL, zones_size, 0, NULL);
-+	free_area_init_node(0, &contig_page_data, NULL, zones_size, __pa(PAGE_OFFSET) >> PAGE_SHIFT, NULL);
- 	mem_map = contig_page_data.node_mem_map;
- }
- #endif
----------- Roman Zippel's patch ends here ------------
+> > I was browsing the block device read/write code 
+> > in fs/buffer.c (kernel version 2.4.18).
+> > From waht I understood,  there is an implicit
+> > assumption that filesystem block sizes
+> > are never more than the size of a single page.
+> 
+> Correct.
 
-This is a valid core fix for "memory doesn't start at zero", and will work
-properly on all "memory starts at zero" machines without any overhead.
+ Why is this so? Is it because filesystems cannot
+read/write parts of a block? Or is it just that
+there is no use for such a feature?
 
+-Thanks,
+ Ravi.
 
-Thanks,
-Bill
+__________________________________________________
+Do you Yahoo!?
+Yahoo! Web Hosting - Let the expert host your site
+http://webhosting.yahoo.com
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
