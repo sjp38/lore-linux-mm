@@ -1,53 +1,31 @@
-Date: Wed, 15 Sep 2004 15:29:04 +0200
-From: Arjan van de Ven <arjanv@redhat.com>
+Date: Wed, 15 Sep 2004 15:34:08 +0200
+From: =?iso-8859-1?Q?J=F6rn?= Engel <joern@wohnheim.fh-wedel.de>
 Subject: Re: [RFC][PATCH 0/3] beat kswapd with the proverbial clue-bat
-Message-ID: <20040915132904.GA30530@devserv.devel.redhat.com>
-References: <413AA7B2.4000907@yahoo.com.au> <20040904230210.03fe3c11.davem@davemloft.net> <413AAF49.5070600@yahoo.com.au> <413AE6E7.5070103@yahoo.com.au> <Pine.LNX.4.58.0409051021290.2331@ppc970.osdl.org> <1094405830.2809.8.camel@laptop.fenrus.com> <Pine.LNX.4.58.0409051051120.2331@ppc970.osdl.org> <20040915132712.GA6158@wohnheim.fh-wedel.de>
+Message-ID: <20040915133408.GB6158@wohnheim.fh-wedel.de>
+References: <413AA7B2.4000907@yahoo.com.au> <20040904230210.03fe3c11.davem@davemloft.net> <413AAF49.5070600@yahoo.com.au> <413AE6E7.5070103@yahoo.com.au> <Pine.LNX.4.58.0409051021290.2331@ppc970.osdl.org> <1094405830.2809.8.camel@laptop.fenrus.com> <Pine.LNX.4.58.0409051051120.2331@ppc970.osdl.org> <20040915132712.GA6158@wohnheim.fh-wedel.de> <20040915132904.GA30530@devserv.devel.redhat.com>
 Mime-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="FCuugMFkClbJLl1L"
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <20040915132712.GA6158@wohnheim.fh-wedel.de>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20040915132904.GA30530@devserv.devel.redhat.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: =?iso-8859-1?Q?J=F6rn?= Engel <joern@wohnheim.fh-wedel.de>
+To: Arjan van de Ven <arjanv@redhat.com>
 Cc: Linus Torvalds <torvalds@osdl.org>, Nick Piggin <nickpiggin@yahoo.com.au>, "David S. Miller" <davem@davemloft.net>, akpm@osdl.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
---FCuugMFkClbJLl1L
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+On Wed, 15 September 2004 15:29:04 +0200, Arjan van de Ven wrote:
+> 
+> if you haven't pinned those pages then you have lost already.
 
-On Wed, Sep 15, 2004 at 03:27:12PM +0200, J=F6rn Engel wrote:
-> On Sun, 5 September 2004 10:58:07 -0700, Linus Torvalds wrote:
-> > On Sun, 5 Sep 2004, Arjan van de Ven wrote:
-> > >=20
-> > > well... we have a reverse mapping now. What is stopping us from doing
-> > > physical defragmentation ?
-> >=20
-> > Nothing but replacement policy, really, and the fact that not everything
-> > is rmappable.
->=20
-> What about pointers?  I have an ethernet driver that hands pointers to
-> physical memory pages to hardware.  Would be fun if someone
-> defragmented those pages. ;)
+Bug reports say otherwise.  Could you explain "pinning" to a newbie
+like me?
 
-if you haven't pinned those pages then you have lost already.
+Jorn
 
---FCuugMFkClbJLl1L
-Content-Type: application/pgp-signature
-Content-Disposition: inline
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.2.1 (GNU/Linux)
-
-iD8DBQFBSEOgxULwo51rQBIRAmsAAJ0RClG9gZA53bBEKcicH9iJPgC20gCff2tE
-J31kS7uh6UKGQs3DKgnUiLA=
-=sCyb
------END PGP SIGNATURE-----
-
---FCuugMFkClbJLl1L--
+-- 
+Homo Sapiens is a goal, not a description.
+-- unknown
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
