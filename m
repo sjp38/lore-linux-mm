@@ -1,48 +1,36 @@
-Received: (from john@localhost)
-	by boreas.southchinaseas (8.9.3/8.9.3) id CAA00831
-	for <linux-mm@kvack.org>; Fri, 23 Jun 2000 02:09:14 +0100
-Subject: Re: [PATCH] Re: latancy test of -ac22-riel
-References: <Pine.LNX.4.21.0006221644310.1170-100000@duckman.distro.conectiva>
-From: "John Fremlin" <vii@penguinpowered.com>
-In-Reply-To: Rik van Riel's message of "Thu, 22 Jun 2000 16:47:50 -0300 (BRST)"
-Date: 23 Jun 2000 02:09:13 +0100
-Message-ID: <m2aegdqk3q.fsf@boreas.southchinaseas>
+Date: Fri, 23 Jun 2000 10:45:46 -0300 (BRST)
+From: Rik van Riel <riel@conectiva.com.br>
+Subject: Re: [RFC] RSS guarantees and limits
+In-Reply-To: <00062220521900.11608@oscar>
+Message-ID: <Pine.LNX.4.21.0006231045220.4551-100000@duckman.distro.conectiva>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Ed Tomlinson <tomlins@cam.org>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Rik van Riel <riel@conectiva.com.br> writes:
+On Thu, 22 Jun 2000, Ed Tomlinson wrote:
 
-> You're confusing things here.
+> Just wondering what will happen with java applications?  These
+> beasts typically have working sets of 16M or more and use 10-20
+> threads.  When using native threads linux sees each one as a
+> process.  They all share the same memory though.
 
-It wouldn't come as great shock to me :-)
+Ahh, but these limits are of course applied per _MM_, not
+per thread ;)
 
-But OTOH the patch does stop the annoying stalls so it must be doing
-something right.
+regards,
 
-> If kswapd was too slow in freeing up memory, but there is
-> still more memory available, then we should NOT kill a
-> process but just stall the process until more memory is
-> available.
+Rik
+--
+The Internet is not a network of computers. It is a network
+of people. That is its real strength.
 
-Yes. What I was trying to get across was that we shouldn't waste a
-timeslice trying to find pages to evict which are going to be read
-back in next process switch (because most pages are impossible to swap
-out).
+Wanna talk about the kernel?  irc.openprojects.net / #kernelnewbies
+http://www.conectiva.com/		http://www.surriel.com/
 
-[...]
-
-Your solution (which is what they do in FreeBSD?) would be ideal, but
-it wasn't in my kernel source (test1-ac22-riel).
-
-[...]
-
--- 
-
-	http://altern.org/vii
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
