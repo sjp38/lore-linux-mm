@@ -1,44 +1,42 @@
-Date: Mon, 14 Apr 2003 22:35:37 -0700
-From: Andrew Morton <akpm@digeo.com>
+Date: Tue, 15 Apr 2003 07:52:29 +0200
+From: Antonio Vargas <wind@cocodriloo.com>
 Subject: Re: 2.5.67-mm3
-Message-Id: <20030414223537.45808bd9.akpm@digeo.com>
-In-Reply-To: <20030415051534.GE706@holomorphy.com>
-References: <20030414015313.4f6333ad.akpm@digeo.com>
-	<20030415020057.GC706@holomorphy.com>
-	<20030415041759.GA12487@holomorphy.com>
-	<20030414213114.37dc7879.akpm@digeo.com>
-	<20030415043947.GD706@holomorphy.com>
-	<20030414215541.0aff47bc.akpm@digeo.com>
-	<20030415051534.GE706@holomorphy.com>
+Message-ID: <20030415055229.GJ14552@wind.cocodriloo.com>
+References: <20030414015313.4f6333ad.akpm@digeo.com> <20030415020057.GC706@holomorphy.com> <20030415041759.GA12487@holomorphy.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20030415041759.GA12487@holomorphy.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: William Lee Irwin III <wli@holomorphy.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: William Lee Irwin III <wli@holomorphy.com>, Andrew Morton <akpm@digeo.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-William Lee Irwin III <wli@holomorphy.com> wrote:
->
-> On Mon, Apr 14, 2003 at 09:55:41PM -0700, Andrew Morton wrote:
-> > Sort-of.  The code is doing two things.
-> > a) Make sure that all the relevant pte's are established in the correct
-> >    state so we don't take a fault while holding the subsequent atomic kmap.
-> >    This is just an optimisation.  If we _do_ take the fault while holding
-> >    an atomic kmap, we fall back to sleeping kmap, and do the whole copy
-> >    again.  It almost never happens.
+On Mon, Apr 14, 2003 at 09:17:59PM -0700, William Lee Irwin III wrote:
+> On Mon, Apr 14, 2003 at 07:00:57PM -0700, William Lee Irwin III wrote:
+> > Hence, this "FIXME: do not do for zone highmem". Presumably this is a
 > 
-> This is the easy part; we're basically just prefaulting.
+> Another FIXME patch:
+> 
+> 
+> It's a bit of an open question as to how much of a difference this one
+> makes now, but it says "FIXME". fault_in_pages_writeable() and 
+> fault_in_pages_readable() have a limited "range" with respect to the
+> size of the region they can prefault; as they are now, they are only
+> meant to handle spanning a page boundary. This converts them to iterate
+> over the virtual address range specified and so touch each virtual page
+> within it once as specified. As per the comment within the "FIXME",
+> this is only an issue if PAGE_SIZE < PAGE_CACHE_SIZE.
+> 
+> [patch snip]
 
-btw, this may sound like a lot of futzing about, but the other day I
-timed four concurrent instances of
+Page clustering? I did a simple patch yesterday called "cow-ahead", which
+may be related: on a write to a COW page, it breaks the COW from several pages
+at the same time. The implementation survived a complete debian 2.2 boot
+and a fork bomb. Please have a look. The idea came from a discussion with
+Martin J. Bligh... we liked the name too much not to implement it.
 
-	dd if=/dev/zero of=$i bs=1 count=1M
-
-on the four-way.  2.5 ran eight times faster than 2.4.  2.4's kmap_lock
-contention was astonishing.
-
+Greets, Antonio.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
