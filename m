@@ -1,29 +1,52 @@
-Date: Mon, 9 Oct 2000 20:42:26 +0200 (CEST)
+Date: Mon, 9 Oct 2000 20:47:51 +0200 (CEST)
 From: Ingo Molnar <mingo@elte.hu>
 Reply-To: mingo@elte.hu
 Subject: Re: [PATCH] VM fix for 2.4.0-test9 & OOM handler
-In-Reply-To: <20001009202844.A19583@athlon.random>
-Message-ID: <Pine.LNX.4.21.0010092040300.6338-100000@elte.hu>
+In-Reply-To: <Pine.LNX.4.21.0010091510060.1562-100000@duckman.distro.conectiva>
+Message-ID: <Pine.LNX.4.21.0010092042480.6338-100000@elte.hu>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrea Arcangeli <andrea@suse.de>
-Cc: Byron Stanoszek <gandalf@winds.org>, Rik van Riel <riel@conectiva.com.br>, Linus Torvalds <torvalds@transmeta.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Rik van Riel <riel@conectiva.com.br>
+Cc: Marco Colombo <marco@esi.it>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@transmeta.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 9 Oct 2000, Andrea Arcangeli wrote:
+On Mon, 9 Oct 2000, Rik van Riel wrote:
 
-> On Fri, Oct 06, 2000 at 04:19:55PM -0400, Byron Stanoszek wrote:
-> > In the OOM killer, shouldn't there be a check for PID 1 just to enforce that
-> 
-> Init can't be killed in 2.2.x latest, the same bugfix should be forward
-> ported to 2.4.x.
+> In that case the time the process has been running and the
+> CPU time used will save the process if it's been running for
+> a long time.
 
-I believe we should not special-case init in this case. If the OOM would
-kill init then we *want* to know about it ASAP, because it's either a bug
-in the OOM code or a memory leak in init. Both things are very bad, and
-ignoring the kill would just preserve those bugs artificially.
+'importance' is not something we can measure reliably within the kernel.
+And assuming that a niced, not long-running process is unimportant misses
+the bus as well. What if i just started an important simulation before
+going to vacation for two weeks?
+
+> would you really care if a simulation would be killed after
+> 5 minutes? [...]
+
+yes, i would. I would probably end up not using nice values. Please, Rik,
+dont penalize an unrelated kernel feature!
+
+> [...] The objective is to destroy the least amount of work, which
+> means giving a bonus to processes which have used a lot of CPU time
+> already ... regardless of nice value.
+
+your OOM code does not follow this objective:
+
++       /*
++        * Niced processes are most likely less important, so double
++        * their badness points.
++        */
++       if (p->nice > 0)
++               points *= 2;
+
+Niced processes *can be just as important*.
+
+> If you have a better algorithm, feel free to send patches.
+
+yes. Please remove the above part.
 
 	Ingo
 
