@@ -1,65 +1,58 @@
-Date: Thu, 29 May 2003 11:52:37 -0700
-From: Andrew Morton <akpm@digeo.com>
-Subject: Re: 2.5.70-mm1
-Message-Id: <20030529115237.33c9c09a.akpm@digeo.com>
-In-Reply-To: <18080000.1054233607@[10.10.2.4]>
-References: <20030527004255.5e32297b.akpm@digeo.com>
-	<1980000.1054189401@[10.10.2.4]>
-	<18080000.1054233607@[10.10.2.4]>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Message-ID: <170EBA504C3AD511A3FE00508BB89A920221E6EA@exnanycmbx4.ipc.com>
+From: "Downing, Thomas" <Thomas.Downing@ipc.com>
+Subject: RE: 2.5.70-mm2
+Date: Thu, 29 May 2003 15:08:35 -0400
+MIME-Version: 1.0
+Content-Type: text/plain;
+	charset="iso-8859-1"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Martin J. Bligh" <mbligh@aracnet.com>
+To: Andrew Morton <akpm@digeo.com>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-"Martin J. Bligh" <mbligh@aracnet.com> wrote:
+I use MySQL pretty extensively, so I'll excersize that as well as
+the day-to-day builds, etc.  I'm on day 4 of -mm1, no problems to date.
+
+By definition, I'm happy!
+
+-----Original Message-----
+From: Andrew Morton [mailto:akpm@digeo.com]
+Sent: Thursday, May 29, 2003 1:36 PM
+To: Downing, Thomas
+Cc: linux-kernel@vger.kernel.org; linux-mm@kvack.org
+Subject: Re: 2.5.70-mm2
+
+
+"Downing, Thomas" <Thomas.Downing@ipc.com> wrote:
 >
-> > SDET 128  (see disclaimer)
-> >                            Throughput    Std. Dev
-> >                2.5.66-mm2       100.0%         0.6%
-> >           2.5.66-mm2-ext3         3.9%         0.4%
-> > 
-> > SDET 128  (see disclaimer)
-> >                            Throughput    Std. Dev
-> >           2.5.70-mm1-ext2       100.0%         0.1%
-> >           2.5.70-mm1-ext3        22.7%         2.0%
+> -----Original Message-----
+> From: Andrew Morton [mailto:akpm@digeo.com]
 > 
-> Andrew pointed out I should turn off extended attributes, I reran
-> like this ... not much change (with error margins)
+> >
+>
+ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.5/2.5.70/2.5.70-
+> mm2/
+> [snip]
+> >  Needs lots of testing.
+> [snip]
 > 
->  SDET 32  (see disclaimer)
->                            Throughput    Std. Dev
->           2.5.70-mm1-ext2       100.0%         0.2%
->           2.5.70-mm1-ext3        30.9%         7.8%
->           2.5.70-mm1-noxa        34.6%         6.5%
-
-OK, a 10x improvement isn't too bad.  I'm hoping the gap between ext2 and
-ext3 is mainly idle time and not spinning-on-locks time.
-
-
+> I for one would like to help in that testing, as might others.
+> Could you point to/name some effective test tools/scripts/suites 
+> for testing your work?  As it is, my testing is just normal usage,
+> lots of builds.
 > 
->    2024927   267.3% total
->    1677960   472.8% default_idle
->     116350     0.0% .text.lock.transaction
->      42783     0.0% do_get_write_access
->      40293     0.0% journal_dirty_metadata
->      34251  6414.0% __down
->      27867  9166.8% .text.lock.attr
 
-Bah.  In inode_setattr(), move the mark_inode_dirty() outside
-lock_kernel().
+I was specifically referring to the O_SYNC changes there.  That means
+databases: postgresql, mysql, sapdb, etc.
 
->      20016  2619.9% __wake_up
->      19632   927.4% schedule
->      12204     0.0% .text.lock.sched
->      12128     0.0% start_this_handle
->      10011     0.0% journal_add_journal_head
+Some of these use fsync()-based synchronisation and won't benefit, but they
+may have compile-time or runtime options to use O_SYNC instead.
 
-hm, lots of context switches still.
 
+Apart from that, just using the kernel in day-to-day activity is the most
+important thing.  If everyone does that, and everyone is happy then by
+definition this kernel is a wrap.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
