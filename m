@@ -1,49 +1,45 @@
-Date: Thu, 8 Jun 2000 12:35:41 -0300 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
-Subject: Re: [PATCH,incomplete] shm integration into shrink_mmap
-In-Reply-To: <qwwg0qob4ef.fsf_-_@sap.com>
-Message-ID: <Pine.LNX.4.21.0006081229554.22665-100000@duckman.distro.conectiva>
+Message-ID: <393FC7F4.C8E4B4B6@colorfullife.com>
+Date: Thu, 08 Jun 2000 18:21:08 +0200
+From: Manfred Spraul <manfreds@colorfullife.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; CHARSET=US-ASCII
-Content-ID: <Pine.LNX.4.21.0006081229556.22665@duckman.distro.conectiva>
+Subject: Re: Contention on ->i_shared_lock in dup_mmap()
+References: <Pine.GSO.4.10.10006072235360.10800-100000@weyl.math.psu.edu>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Rohland <cr@sap.com>
+To: Alexander Viro <viro@math.psu.edu>
 Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 8 Jun 2000, Christoph Rohland wrote:
-
-> Here is my first proposal for changing shm to be integrated into
-> shrink_mmap.
+Alexander Viro wrote:
 > 
-> It gives you a function 'int shm_write_swap (struct page *page)'
-> to write out a page to swap and replace the pte in the shm
-> structures.
+> OK, do_syslog() is just plain silly - it's resetting the buffer and code
+> in question looks so:
+>                 spin_lock_irq(&console_lock);
+>                 logged_chars = 0;
+>                 spin_unlock_irq(&console_lock);
+> ... which is for all purposes equivalent to
+>                 if (logged_chars) {
+>                         ...
+>                 }
+> so this one is easy (looks like a klogd silliness).
+> 
+cpu0: do_syslog
+	logged_chars = 0;
 
-> What do you think?
+cpu1: printk()
+	logged_chars++;
 
-This is a great start. We probably want to make the
-shm_write_swap() function a function pointer in the
-page->mapping struct so the shrink_mmap() code can
-call the same function for every page, but other than
-that this is the direction I'd like VM to go.
+We really need the spinlock :-(
 
-I've seen Juan Quintela is already looking into your
-patch trying to write the missing part, so I guess
-I'll continue on the active/inactive/scavenge list
-code and not look at your patch in detail today ;)
+How many cpu's? How did you measure the contention?
+I cannot imagine that do_syslog is really the source for the contention,
+perhaps cpu0 was executing a slow console switch, and cpu1 called
+do_syslog?
 
-regards,
-
-Rik
 --
-The Internet is not a network of computers. It is a network
-of people. That is its real strength.
-
-Wanna talk about the kernel?  irc.openprojects.net / #kernelnewbies
-http://www.conectiva.com/		http://www.surriel.com/
-
+	Manfred
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
