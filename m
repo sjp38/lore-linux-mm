@@ -1,122 +1,131 @@
-Date: Fri, 28 Apr 2000 08:50:15 -0700 (PDT)
-From: Linus Torvalds <torvalds@transmeta.com>
-Subject: Re: [patch] 2.3.99-pre6-3 VM fixed
-In-Reply-To: <Pine.LNX.4.21.0004271647461.3919-100000@duckman.conectiva>
-Message-ID: <Pine.LNX.4.10.10004280832530.1834-100000@penguin.transmeta.com>
+Received: from raistlin.arm.linux.org.uk (root@raistlin [192.168.0.3])
+	by caramon.arm.linux.org.uk (8.9.3/8.9.3) with ESMTP id RAA00914
+	for <linux-mm@kvack.org>; Fri, 28 Apr 2000 17:47:20 +0100
+From: Russell King <rmk@arm.linux.org.uk>
+Received: (from rmk@localhost)
+	by raistlin.arm.linux.org.uk (8.7.4/8.7.3) id RAA01548
+	for linux-mm@kvack.org; Fri, 28 Apr 2000 17:41:44 +0100
+Message-Id: <200004281641.RAA01548@raistlin.arm.linux.org.uk>
+Subject: Re: Memory Test Suite v0.0.2
+Date: Fri, 28 Apr 2000 17:41:43 +0100 (BST)
+In-Reply-To: <yttitx3cgww.fsf@vexeta.dc.fi.udc.es> from "Juan J. Quintela" at Apr 28, 2000 12:34:07 AM
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: riel@nl.linux.org
-Cc: "Stephen C. Tweedie" <sct@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.rutgers.edu
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+Juan J. Quintela writes:
+> Memory test suite v0.0.2
 
-On Thu, 27 Apr 2000, Rik van Riel wrote:
-> 
-> After half a day of heavy abuse, I've gotten my machine into
-> a state where it's hanging in stext_lock and swap_out...
-> 
-> Both cpus are spinning in a very tight loop, suggesting a
-> deadlock. (/me points finger at other code, I didn't change
-> any locking stuff :))
-> 
-> This suggests a locking issue. Is there any place in the kernel
-> where we take a write lock on tasklist_lock and do a lock_kernel()
-> afterwards?
+I've just been trying this package out on a NetWinder, and I've just
+deadlocked 2.3.99-pre6 - I've got 0KB memory free!  I changed misc_lib.h
+to reflect the amount of RAM I have in this machine (32MB).
 
-Note that if you have an EIP, debugging these kinds of things is usually
-quite easy. You should not be discouraged at all by the fact that it is
-"somewhere in stext_lock" - with the EIP it is very easy to figure out
-exactly which lock it is, and which caller to the lock routine it is that
-failed.
+I ran ./mmap002 twice - the first time it got a bus error.  The second
+time it didn't even make it to the first msync() call.
 
-For example, if I knew that I had a lock-up, and the EIP I got was
-0xc024b5f9 on my machine, I'd do:
+Here is the mem and state info.  If there's anything other info you want,
+let me know - its extremely easy to cause this.
 
-	gdb vmlinux
-	(gdb) x/5i 0xc024b5f9
-	0xc024b5f9 <stext_lock+1833>:   jle    0xc024b5f0 <stext_lock+1824>
-	0xc024b5fb <stext_lock+1835>:   jmp    0xc0119164 <schedule+296>
-	0xc024b600 <stext_lock+1840>:   cmpb   $0x0,0xc02c46c0
-	0xc024b607 <stext_lock+1847>:   repz nop 
-	0xc024b609 <stext_lock+1849>:   jle    0xc024b600 <stext_lock+1840>
+<6>SysRq: Show Memory
+Mem-info:
+Free pages:           0kB (     0kB HighMem)
+( Free: 0, lru_cache: 6495 (64 128 192) )
+  DMA: 0*4kB 0*8kB 0*16kB 0*32kB 0*64kB 0*128kB 0*256kB 0*512kB 0*1024kB 0*2048kB = 0kB)
+  Normal: = 0kB)
+  HighMem: = 0kB)
+Swap cache: add 14628, delete 14453, find 4642/14916
+Free swap:        59724kB
+8192 pages of RAM
+195 free pages
+684 reserved pages
+7847 pages shared
+175 pages swap cached
+0 page tables cached
+Buffer memory:      120kB
 
-which tells me that yes, it seems to be in the stext_lock region, but more
-than that it also tells me that the lock stuff will exit to 0xc0119164, or
-in the middle of schedule. So then just disassemble that area:
+<6>SysRq: Show State
+                         free                        sibling
+  task             PC    stack   pid father child younger older
+init      D C003EC8C    16     1      0   623  (NOTLB)        
+   sig: 0 0000000000000000 0000000000000000 : X
+kswapd    D C003EC8C     0     2      1        (L-TLB)       3
+   sig: 0 0000000000000000 ffffffffffffffff : X
+kflushd   S C003EC8C     0     3      1        (L-TLB)       4     2
+   sig: 0 0000000000000000 ffffffffffffffff : X
+kupdate   S C003EC8C    12     4      1        (L-TLB)     127     3
+   sig: 0 0000000000000000 fffffffffff9ffff : X
+kerneld   S C003EC8C     0   127      1        (NOTLB)     227     4
+   sig: 0 0000000000000000 0000000000000000 : X
+pump      S C003EC8C     0   227      1        (NOTLB)     324   127
+   sig: 0 0000000000000000 0000000000000000 : X
+portmap   S C003EC8C     0   324      1        (NOTLB)     376   227
+   sig: 0 0000000000000000 0000000000000000 : X
+syslogd   D C003EC8C  1552   376      1        (NOTLB)     386   324
+   sig: 1 0000000000002000 0000000000000000 : X
+klogd     D C003EC8C  1356   386      1        (NOTLB)     401   376
+   sig: 0 0000000000000000 0000000000000000 : X
+atd       S C003EC8C     0   401      1        (NOTLB)     416   386
+   sig: 0 0000000000000000 0000000000010000 : X
+crond     D C003EC8C     0   416      1        (NOTLB)     431   401
+   sig: 0 0000000000000000 0000000000010000 : X
+inetd     S C003EC8C     4   431      1        (NOTLB)     440   416
+   sig: 0 0000000000000000 0000000000000000 : X
+sshd      S C003EC8C     0   440      1        (NOTLB)     455   431
+   sig: 0 0000000000000000 0000000000000000 : X
+xntpd     D C003EC8C     0   455      1        (NOTLB)     470   440
+   sig: 1 0000000000002000 0000000000000000 : X
+lpd       S C003EC8C     0   470      1        (NOTLB)     485   455
+   sig: 0 0000000000000000 0000000000000000 : X
+rpc.mountd  D C003EC8C     0   485      1        (NOTLB)     495   470
+   sig: 1 0000000000002000 0000000000000000 : X
+rpc.nfsd  D C003EC8C     0   495      1        (NOTLB)     535   485
+   sig: 1 0000000000002000 0000000000000000 : X
+automount  S C003EC8C     0   535      1        (NOTLB)     537   495
+   sig: 0 0000000000000000 0000000000000000 : X
+automount  S C003EC8C     0   537      1        (NOTLB)     565   535
+   sig: 0 0000000000000000 0000000000000000 : X
+sendmail  D C003EC8C     0   565      1        (NOTLB)     581   537
+   sig: 0 0000000000000000 0000000000000000 : X
+gpm       S C003EC8C     0   581      1        (NOTLB)     606   565
+   sig: 0 0000000000000000 0000000000000000 : X
+xfs       D C003EC8C  3044   606      1        (NOTLB)     618   581
+   sig: 0 0000000000000000 0000000000000000 : X
+login     S C003EC8C   180   618      1   626  (NOTLB)     619   606
+   sig: 0 0000000000000000 0000000000000000 : X
+login     S C003EC8C     0   619      1   647  (NOTLB)     620   618
+   sig: 0 0000000000000000 0000000000000000 : X
+mingetty  D C003EC8C     0   620      1        (NOTLB)     621   619
+   sig: 0 0000000000000000 0000000000000000 : X
+mingetty  S C003EC8C     0   621      1        (NOTLB)     622   620
+   sig: 0 0000000000000000 0000000000000000 : X
+mingetty  S C003EC8C     0   622      1        (NOTLB)     623   621
+   sig: 0 0000000000000000 0000000000000000 : X
+mingetty  S C003EC8C   480   623      1        (NOTLB)           622
+   sig: 0 0000000000000000 0000000000000000 : X
+bash      S C003EC8C   968   626    618   666  (NOTLB)        
+   sig: 0 0000000000000000 0000000000010000 : X
+bash      S C003EC8C     0   647    619   661  (NOTLB)        
+   sig: 0 0000000000000000 0000000000010000 : X
+top       D C003EC8C     8   661    647        (NOTLB)        
+   sig: 0 0000000000000000 0000000000000000 : X
+strace    S C003EC8C     0   666    626   667  (NOTLB)        
+   sig: 0 0000000000000000 0000000000000000 : X
+mmap002   D C003EC8C     0   667    666        (NOTLB)        
+   sig: 0 0000000000000000 0000000000000000 : X
 
-	(gdb) x/5i 0xc0119164
-	0xc0119164 <schedule+296>:      lock decb 0xc02c46c0
-	0xc011916b <schedule+303>:      js     0xc024b5f0 <stext_lock+1824>
-	0xc0119171 <schedule+309>:      mov    0xffffffc8(%ebp),%ebx
-	0xc0119174 <schedule+312>:      cmpl   $0x2,0x28(%ebx)
-	0xc0119178 <schedule+316>:      je     0xc0119b00 <schedule+2756>
 
-which tells us that it's a spinlock at address 0xc02c46c0, and the
-out-of-line code for the contention case starts at 0xc024b5f0 (which was
-roughly where we were: the whole sequence was
-
-	(gdb) x/4i 0xc024b5f0
-	0xc024b5f0 <stext_lock+1824>:   cmpb   $0x0,0xc02c46c0
-	0xc024b5f7 <stext_lock+1831>:   repz nop 
-	0xc024b5f9 <stext_lock+1833>:   jle    0xc024b5f0 <stext_lock+1824>
-	0xc024b5fb <stext_lock+1835>:   jmp    0xc0119164 <schedule+296>
-
-which includes the EIP that we were found looping at.
-
-More than that, you can then look at the spinlock (this only works for
-static spinlocks, but 99% of all spinlocks are of that kind):
-
-	(gdb) x/x 0xc02c46c0
-	0xc02c46c0 <runqueue_lock>:     0x00000001
-
-which shows us that the spinlock in question was the runqueue_lock in
-thismade up example. So this told us that somebody got stuck in schedule()
-waiting for the runqueue lock, and we know which lock it is that has
-problems. We do NOT know how that lock came to be locked forever, but by
-this time we have much better information... It is often useful to look at
-where the other CPU seems to be spinning at this point, because that will
-often show what lock _that_ CPU is waiting for, and that in turn often
-gives the deadlock sequence at which point you go "DUH!" and fix it.
-
-Now, this gets a bit more complex if you have semaphore trouble, because
-when a semaphore blocks forever you will just find the machine idle with
-processes blocked in "D" state, and it looks worse as a debugging issue
-because you have so little to go on. But semaphores can very easily be
-turned into "debugging semaphores" with this trivial change to __down() in
-arch/i386/kernel/semaphore.c:
-
-	-		schedule();
-	+		if (!schedule_timeout(20*HZ)) BUG();
-
-which is not actually 100% correct in the general case (having a semaphore
-that sleeps for more than 20 seconds is possible in theory, but in 99.9%
-of all cases it is indicative of a kernel bug and a deadlock on the
-semaphore).
-
-Now you'll get a nice Oops when the lockup happens (or rather, 20seconds
-after the lockup happened), with full stack-trace etc. Again, this way you
-can see exactly which semaphore and where it was that it blocked on.
-
-(Btw - careful here. You want to make sure you only check the first oops.
-Quite often you can get secondary oopses due to killing a process in the
-middle of a critical region, so it's usually the first oops that tells you
-the most. But sometimes the secondary oopses can give you more deadlock
-information - like who was the other process involved in the deadlock if
-it wasn't simply a recursive one)..
-
-Thus endeth this lesson on debugging deadlocks. I've done it often
-enough..
-
-		Linus
-
-PS. If the deadlock occurs with interrupts disabled, you won't get the EIP
-with the "alt+scroll-lock" method, so they used to be quite horrible to
-debug. These days those are the trivial cases, because the automatic irq
-deadlock detector will kick in and give you a nice oops when they happen
-without you having to do anything extra.
-
+   _____
+  |_____| ------------------------------------------------- ---+---+-
+  |   |         Russell King        rmk@arm.linux.org.uk      --- ---
+  | | | |   http://www.arm.linux.org.uk/~rmk/aboutme.html    /  /  |
+  | +-+-+                                                     --- -+-
+  /   |               THE developer of ARM Linux              |+| /|\
+ /  | | |                                                     ---  |
+    +-+-+ -------------------------------------------------  /\\\  |
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
