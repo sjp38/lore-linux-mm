@@ -1,14 +1,14 @@
 Received: from max.phys.uu.nl (max.phys.uu.nl [131.211.32.73])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id RAA04040
-	for <linux-mm@kvack.org>; Mon, 1 Feb 1999 17:09:23 -0500
+	by kvack.org (8.8.7/8.8.7) with ESMTP id UAA05649
+	for <linux-mm@kvack.org>; Mon, 1 Feb 1999 20:03:12 -0500
 Received: from mirkwood.dummy.home (root@anx1p5.phys.uu.nl [131.211.33.94])
-	by max.phys.uu.nl (8.9.1/8.9.1/hjm) with ESMTP id XAA10923
-	for <linux-mm@kvack.org>; Mon, 1 Feb 1999 23:09:20 +0100 (MET)
-Received: from localhost (riel@localhost) by mirkwood.dummy.home (8.9.0/8.8.3) with ESMTP id XAA07146 for <linux-mm@kvack.org>; Mon, 1 Feb 1999 23:09:08 +0100
-Date: Mon, 1 Feb 1999 23:09:08 +0100 (CET)
+	by max.phys.uu.nl (8.9.1/8.9.1/hjm) with ESMTP id CAA15996
+	for <linux-mm@kvack.org>; Tue, 2 Feb 1999 02:03:09 +0100 (MET)
+Received: from localhost (riel@localhost) by mirkwood.dummy.home (8.9.0/8.8.3) with ESMTP id CAA10630 for <linux-mm@kvack.org>; Tue, 2 Feb 1999 02:02:50 +0100
+Date: Tue, 2 Feb 1999 02:02:50 +0100 (CET)
 From: Rik van Riel <riel@nl.linux.org>
-Subject: WWW archive test (again)
-Message-ID: <Pine.LNX.4.03.9902012308110.5846-100000@mirkwood.dummy.home>
+Subject: WANTED: Linux-MM co-maintainer
+Message-ID: <Pine.LNX.4.03.9902020159120.8000-100000@mirkwood.dummy.home>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -17,8 +17,16 @@ List-ID: <linux-mm.kvack.org>
 
 Hi,
 
-I seem to have found the (somewhat subtle) problem. It
-could actually be fixed now... *sigh*
+Now that the rest of my WWW sites are taking up a lot of
+time, I think I could really use a bit of help in maintaining
+the Linux-MM website.
+
+Some spare time and MM knowledge are needed if you want to
+get the job done. Interest{ing,ed} people can apply be
+e-mail, to which I will react by placing the Linux-MM site
+under CVS and giving them an account (CVS-only).
+
+cheers,
 
 Rik -- If a Microsoft product fails, who do you sue?
 +-------------------------------------------------------------------+
