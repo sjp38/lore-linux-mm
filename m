@@ -1,42 +1,43 @@
-Date: Mon, 8 Jan 2001 13:57:00 +0000
+Date: Mon, 8 Jan 2001 14:18:23 +0000
 From: "Stephen C. Tweedie" <sct@redhat.com>
-Subject: Re: Subtle MM bug
-Message-ID: <20010108135700.O9321@redhat.com>
-References: <200101080602.WAA02132@pizda.ninka.net> <Pine.LNX.4.10.10101072223160.29065-100000@penguin.transmeta.com>
+Subject: Re: Call me crazy..
+Message-ID: <20010108141823.S9321@redhat.com>
+References: <Pine.LNX.4.10.10101072242340.29065-100000@penguin.transmeta.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.10.10101072223160.29065-100000@penguin.transmeta.com>; from torvalds@transmeta.com on Sun, Jan 07, 2001 at 10:42:11PM -0800
+In-Reply-To: <Pine.LNX.4.10.10101072242340.29065-100000@penguin.transmeta.com>; from torvalds@transmeta.com on Sun, Jan 07, 2001 at 10:51:04PM -0800
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Linus Torvalds <torvalds@transmeta.com>
-Cc: "David S. Miller" <davem@redhat.com>, Rik van Riel <riel@conectiva.com.br>, Marcelo Tosatti <marcelo@conectiva.com.br>, linux-mm@kvack.org
+Cc: linux-mm@kvack.org, "David S. Miller" <davem@redhat.com>, Alan Cox <alan@redhat.com>, Rik van Riel <riel@conectiva.com.br>
 List-ID: <linux-mm.kvack.org>
 
 Hi,
 
-On Sun, Jan 07, 2001 at 10:42:11PM -0800, Linus Torvalds wrote:
+On Sun, Jan 07, 2001 at 10:51:04PM -0800, Linus Torvalds wrote:
+> ..but there seems to be a huge gaping hole in copy_page_range().
 > 
-> and just get rid of all the logic to try to "find the best mm". It's bogus
-> anyway: we should get perfectly fair access patterns by just doing
-> everything in round-robin
+> It's called during fork(), and as far as I can tell it doesn't get the
+> page table lock at all when it copies the page table from the parent to
+> the child.
+> 
+> Now, just for fun, explain to me why some other process couldn't race with
+> copy_page_range() on another CPU, and decimate the parents page tables,
+> resulting in the child getting a page table entry that isn't valid any
+> more?
 
-Definitely.
+It looks like it is needed.  It's even worse on PAE36, where we are
+doing things like
 
-> Then, with something like the above, we just try to make sure that we scan
-> the whole virtual memory space every once in a while. Make the "every once
-> in a while" be some simple heuristic like "try to keep the active list to
-> less than 50% of all memory".
+				if (!pte_present(pte)) {
+					swap_duplicate(pte_to_swp_entry(pte));
+					goto cont_copy_pte_range;
+				}
 
-... which will produce an enormous storm of soft page faults for
-workloads involving mmaping large amounts of data or where we have
-a lot of space devoted to anonymous pages, such as static
-computational workloads.
-
-The idea of an inactive list target is sound, but it needs to be based
-on memory pressure: we don't need anything like 50% if we aren't under
-any pressure, so compute-bound workloads with large data sets can
-achieve stability.
+without the lock: other CPUs may be doing non-atomic operations such
+as ptep_get_and_clear() which leave a !pte_present() pte with invalid
+contents for a brief period.
 
 --Stephen
 --
