@@ -1,43 +1,42 @@
+Received: from burns.conectiva (burns.conectiva [10.0.0.4])
+	by perninha.conectiva.com.br (Postfix) with SMTP id E5ABA394B9
+	for <linux-mm@kvack.org>; Wed, 18 Sep 2002 16:40:05 -0300 (EST)
+Date: Wed, 18 Sep 2002 16:39:48 -0300 (BRT)
+From: Rik van Riel <riel@conectiva.com.br>
 Subject: Re: [PATCH] recognize MAP_LOCKED in mmap() call
-Message-ID: <OFC0C42F8D.E1325D58-ON86256C38.00695CD8@hou.us.ray.com>
-From: Mark_H_Johnson@raytheon.com
-Date: Wed, 18 Sep 2002 14:18:05 -0500
+In-Reply-To: <OFC0C42F8D.E1325D58-ON86256C38.00695CD8@hou.us.ray.com>
+Message-ID: <Pine.LNX.4.44L.0209181639260.1519-100000@duckman.distro.conectiva>
 MIME-Version: 1.0
-Content-type: text/plain; charset=us-ascii
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@digeo.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, owner-linux-mm@kvack.org
+To: Mark_H_Johnson@raytheon.com
+Cc: Andrew Morton <akpm@digeo.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Andrew Morton wrote:
->(SuS really only anticipates that mmap needs to look at prior mlocks
->in force against the address range.  It also says
+On Wed, 18 Sep 2002 Mark_H_Johnson@raytheon.com wrote:
+> Andrew Morton wrote:
+> >(SuS really only anticipates that mmap needs to look at prior mlocks
+> >in force against the address range.  It also says
+> >
+> >     Process memory locking does apply to shared memory regions,
+> >
+> >and we don't do that either.  I think we should; can't see why SuS
+> >requires this.)
 >
->     Process memory locking does apply to shared memory regions,
->
->and we don't do that either.  I think we should; can't see why SuS
->requires this.)
+> Let me make sure I read what you said correctly. Does this mean that
+> Linux 2.4 (or 2.5) kernels do not lock shared memory regions if a
+> process uses mlockall?
 
-Let me make sure I read what you said correctly. Does this mean that Linux
-2.4 (or 2.5) kernels do not lock shared memory regions if a process uses
-mlockall?
+But it does.  Linux won't evict memory that's MLOCKed...
 
-If not, that is *really bad* for our real time applications. We don't want
-to take a page fault while running some 80hz task, just because some
-non-real time application tried to use what little physical memory we allow
-for the kernel and all other applications.
+cheers,
 
-I asked a related question about a week ago on linux-mm and didn't get a
-response. Basically, I was concerned that top did not show RSS == Size when
-mlockall(MCL_CURRENT|MCL_FUTURE) was called. Could this explain the
-difference or is there something else that I'm missing here?
+Rik
+-- 
+Spamtrap of the month: september@surriel.com
 
-Thanks.
---Mark H Johnson
-  <mailto:Mark_H_Johnson@raytheon.com>
-
-
+http://www.surriel.com/		http://distro.conectiva.com/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
