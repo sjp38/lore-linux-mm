@@ -1,31 +1,31 @@
-From: "David S. Miller" <davem@redhat.com>
+Subject: Re: Locked memory questions
+References: <OF55A69DFC.F1913EBB-ON862569DC.00556518@hou.us.ray.com>
+From: Christoph Rohland <cr@sap.com>
+In-Reply-To: <OF55A69DFC.F1913EBB-ON862569DC.00556518@hou.us.ray.com>
+Message-ID: <m31ytmysf7.fsf@linux.local>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Message-ID: <14966.32188.408789.239466@pizda.ninka.net>
-Date: Tue, 30 Jan 2001 00:39:24 -0800 (PST)
-Subject: Re: [PATCH] guard mm->rss with page_table_lock (241p11) 
-In-Reply-To: <13240.980842736@warthog.cambridge.redhat.com>
-References: <rasmus@jaquet.dk>
-	<20010129224311.H603@jaquet.dk>
-	<13240.980842736@warthog.cambridge.redhat.com>
+Date: 30 Jan 2001 10:20:57 +0100
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: David Howells <dhowells@redhat.com>
-Cc: Rasmus Andersen <rasmus@jaquet.dk>, Rik van Riel <riel@conectiva.com.br>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Mark_H_Johnson@Raytheon.com
+Cc: linux-mm@kvack.org, Stanley_R_Allen-NR@Raytheon.com
 List-ID: <linux-mm.kvack.org>
 
-David Howells writes:
- > Would it not be better to use some sort of atomic add/subtract/clear operation
- > rather than a spinlock? (Which would also give you fewer atomic memory access
- > cycles).
+Mark_H_Johnson@Raytheon.com writes:
 
-Please see older threads about this, it has been discussed to death
-already (hint: sizeof(atomic_t), sizeof(unsigned long)).
+> I was surprised by a reference in the latest kernel traffic
+> (http://kt.linuxcare.com/kernel-traffic/latest.epl) to a VM problem with
+> large locked memory regions. I read linux-mm on a daily basis, but didn't
+> see this particular discussion go by. 
 
-Later,
-David S. Miller
-davem@redhat.com
+Was this the database lockup with locked SYSV shareed memory segments?
+This was not discussed a lot but fixed easily. It was a bad
+implementation in shmem.c
+
+Greetings
+                Christoph
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
