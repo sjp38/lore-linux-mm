@@ -1,49 +1,50 @@
-Date: Sat, 6 Nov 2004 08:19:55 -0800 (PST)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: removing mm->rss and mm->anon_rss from kernel?
-In-Reply-To: <204290000.1099754257@[10.10.2.4]>
-Message-ID: <Pine.LNX.4.58.0411060812390.25369@schroedinger.engr.sgi.com>
-References: <4189EC67.40601@yahoo.com.au>  <Pine.LNX.4.58.0411040820250.8211@schroedinger.engr.sgi.com>
- <418AD329.3000609@yahoo.com.au>  <Pine.LNX.4.58.0411041733270.11583@schroedinger.engr.sgi.com>
- <418AE0F0.5050908@yahoo.com.au>  <418AE9BB.1000602@yahoo.com.au><1099622957.29587.101.camel@gaston>
- <418C55A7.9030100@yahoo.com.au> <Pine.LNX.4.58.0411060120190.22874@schroedinger.engr.sgi.com>
- <204290000.1099754257@[10.10.2.4]>
+Date: Sat, 6 Nov 2004 16:21:33 +0000 (GMT)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: Re: [PATCH] Remove OOM killer from try_to_free_pages /
+    all_unreclaimable braindamage
+In-Reply-To: <20041106152903.GA3851@dualathlon.random>
+Message-ID: <Pine.LNX.4.44.0411061609520.3592-100000@localhost.localdomain>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset="us-ascii"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Martin J. Bligh" <mbligh@aracnet.com>
-Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Hugh Dickins <hugh@veritas.com>, linux-mm@kvack.org, linux-ia64@vger.kernel.org
+To: Andrea Arcangeli <andrea@novell.com>
+Cc: Nick Piggin <piggin@cyberone.com.au>, Jesse Barnes <jbarnes@sgi.com>, Marcelo Tosatti <marcelo.tosatti@cyclades.com>, Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 6 Nov 2004, Martin J. Bligh wrote:
+On Sat, 6 Nov 2004, Andrea Arcangeli wrote:
+> On Sat, Nov 06, 2004 at 09:47:56AM +0000, Hugh Dickins wrote:
+> > Problematic, yes: don't overlook that GFP_REPEAT and GFP_NOFAIL _can_
+> > fail, returning NULL: when the process is being OOM-killed (PF_MEMDIE).
+> 
+> that looks weird, why that? The oom killer must be robust against a task
+> not going anyway regardless of this (task can be stuck in nfs or
+> similar).
 
-> > So I removed all uses of mm->rss and anon_rss from the kernel and
-> > introduced a bean counter count_vm() that is only run when the
-> > corresponding /proc file is used. count_vm then runs throught the vm
-> > and counts all the page types. This could also add additional page types to our
-> > statistics and solve some of the consistency issues.
->
-> I would've thought SGI would be more worried about this kind of thing
-> than anyone else ... what's going to happen when you type 'ps' on a large
-> box, and it does this for 10,000 processes?
+Oh, sure, it is, that's not the problem.
 
-Yes but I think this is preferable because of the generally faster
-operations of the vm without having to continually update statistics. And
-these statistics seem to be quite difficult to properly generate (why else
-introduce anon_rss). Without the counters other optimizations are easier
-to do.
+> If a fail path ever existed, __GFP_NOFAIL should not have been
+> used in the first place. I don't see many valid excuses to use
+> __GFP_NOFAIL if we can return NULL without the caller running into an
+> infinite loop.
 
-Doing a ps is not a frequent event. Of course this may cause
-significant load if one does regularly access /proc entities then. Are
-there any threads from the past with some numbers of what the impact was
-when we calculated rss via proc?
+I took exception to the misleadingness of the name GFP_NOFAIL, and did
+send Andrew a patch to remove it once upon a time, but he didn't bite.
 
-> If you want to make it quicker, how about doing per-cpu stats, and totalling
-> them at runtime, which'd be lockless, instead of all the atomic ops?
+Your view, that it's better to hang repeating indefinitely than ever
+return a NULL when caller said not to, is probably the better view.
 
-That has its own complications and would require lots of memory with
-systems that already have up to 10k cpus.
+> btw, PF_MEMDIE has always been racy in the way it's being set, so it can
+> corrupt the p->flags, but the race window is very small to trigger it
+> (and even if it triggers, it probably wouldn't be fatal). That's why I
+> don't use PF_MEMDIE in 2.4-aa.
+
+I expect so, yes, the PF_ flags don't have proper locking.  Those
+places which set or clear PF_MEMALLOC are more likely to hit races,
+but last time I went there I don't think there was a real serious problem.
+
+Hugh
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
