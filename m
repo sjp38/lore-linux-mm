@@ -1,44 +1,53 @@
-Date: Sat, 15 Jan 2005 20:40:18 +0800
+Date: Sat, 15 Jan 2005 20:53:11 +0800
 From: Bernard Blackham <bernard@blackham.com.au>
 Subject: Re: Odd kswapd behaviour after suspending in 2.6.11-rc1
-Message-ID: <20050115124018.GA24653@blackham.com.au>
-References: <20050113061401.GA7404@blackham.com.au> <41E61479.5040704@yahoo.com.au> <20050113085626.GA5374@blackham.com.au> <20050113101426.GA4883@blackham.com.au> <41E8ED89.8090306@yahoo.com.au> <1105785254.13918.4.camel@desktop.cunninghams> <41E8F313.4030102@yahoo.com.au> <1105786115.13918.9.camel@desktop.cunninghams> <41E8F7F7.1010908@yahoo.com.au>
+Message-ID: <20050115125311.GA19055@blackham.com.au>
+References: <20050113061401.GA7404@blackham.com.au> <41E61479.5040704@yahoo.com.au> <20050113085626.GA5374@blackham.com.au> <20050113101426.GA4883@blackham.com.au> <41E8ED89.8090306@yahoo.com.au> <1105785254.13918.4.camel@desktop.cunninghams> <41E8F313.4030102@yahoo.com.au> <1105786115.13918.9.camel@desktop.cunninghams> <41E8F7F7.1010908@yahoo.com.au> <20050115124018.GA24653@blackham.com.au>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <41E8F7F7.1010908@yahoo.com.au>
+In-Reply-To: <20050115124018.GA24653@blackham.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Nick Piggin <nickpiggin@yahoo.com.au>
 Cc: ncunningham@linuxmail.org, Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Sat, Jan 15, 2005 at 10:01:11PM +1100, Nick Piggin wrote:
-> Also, Bernard, can you try running with the following patch and
-> see what output it gives when you reproduce the problem?
+On Sat, Jan 15, 2005 at 08:40:18PM +0800, Bernard Blackham wrote:
+> On Sat, Jan 15, 2005 at 10:01:11PM +1100, Nick Piggin wrote:
+> > Also, Bernard, can you try running with the following patch and
+> > see what output it gives when you reproduce the problem?
+> 
+> On resuming:
 
-On resuming:
+And now with higher debug info that may prove useful (balance_pgdat
+firing as soon as kswapd woken):
 
 *** Cleaning up...
-kswapd: balance_pgdat, order = 10
-Please include the following information in bug reports:
-- SUSPEND core   : 2.1.5.13
-- Kernel Version : 2.6.11-rc1
-- Compiler vers. : 3.4
-- Modules loaded :
-- Attempt number : 3
-- Pageset sizes  : 3561 (3561 low) and 60538 (60538 low).
-- Parameters     : 0 2049 0 9 0 5
-- Calculations   : Image size: 64103. Ram to suspend: 652.
-- Limits         : 65520 pages RAM. Initial boot: 63252.
-- Overall expected compression percentage: 0.
-- LZF Compressor enabled.
-  Compressed 262549504 bytes into 28599419 (89 percent compression).
-- Swapwriter active.
-- Swap available for image: 123165 pages.
-- Debugging compiled in.
-- Max extents used: 44 extents in 1 pages.
-- I/O speed: Write 59 MB/s, Read 52 MB/s.
+Free memory at 'out': 59157.
+Last free mem was 59157. Is now 59156. I/O info        value 0 now -1.
+Free memory at start of free_pagedir_data: 59156.
+Last free mem was 59156. Is now 60013. Checksum pages  value 1 now 857.
+Free memory at end of free_pagedir: 60013.
+Pageset size1 was 3057; size2 was 2330.
+Free memory after freeing pagedir data: 60013.
+Thawing tasks
+Waking     4: khelper.
+Waking     5: kthread.
+Waking     6: kacpid.
+Waking     8: pdflush.
+Waking    11: aio/0.
+Waking    10: kswapd0.
+Wakikswapd: balance_pgdat, order = 10
+ng    12: jfsIO.
+Waking    13: jfsCommit.
+Waking    14: jfsSync.
+Waking    15: kseriod.
+Last free mem was 60013. Is now 60012. Start one       value 0 now -1.
+Free memory at start of free_swap_pages_for_header: 60012.
+[...]
+
+HTH,
 
 Bernard.
 
