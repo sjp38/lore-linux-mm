@@ -1,44 +1,51 @@
-From: James A. Sutherland <jas88@cam.ac.uk>
+Message-Id: <l03130315b708f11d1b11@[192.168.239.105]>
+In-Reply-To: <l03130314b708ed272d09@[192.168.239.105]>
+References: 
+        <Pine.LNX.4.21.0104221555090.1685-100000@imladris.rielhome.conectiva>
+ <l03130312b708cf8a37bf@[192.168.239.105]>
+Mime-Version: 1.0
+Content-Type: text/plain; charset="us-ascii"
+Date: Sun, 22 Apr 2001 21:36:23 +0100
+From: Jonathan Morton <chromi@cyberspace.org>
 Subject: Re: suspend processes at load (was Re: a simple OOM ...)
-Date: Sun, 22 Apr 2001 21:36:09 +0100
-Message-ID: <i4g6etcda5nsrauuj8mrsme0mgf8bu1ein@4ax.com>
-References: <o7a6ets1pf548v51tu6d357ng1o0iu77ub@4ax.com> <Pine.LNX.4.21.0104221610190.1685-100000@imladris.rielhome.conectiva>
-In-Reply-To: <Pine.LNX.4.21.0104221610190.1685-100000@imladris.rielhome.conectiva>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 8BIT
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Rik van Riel <riel@conectiva.com.br>
-Cc: Jonathan Morton <chromi@cyberspace.org>, "Joseph A. Knapka" <jknapka@earthlink.net>, linux-mm@kvack.org
+Cc: "James A. Sutherland" <jas88@cam.ac.uk>, "Joseph A. Knapka" <jknapka@earthlink.net>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 22 Apr 2001 16:11:36 -0300 (BRST), you wrote:
-
->On Sun, 22 Apr 2001, James A.Sutherland wrote:
+>>1) a minimal guaranteed working set for small processes, so root
+>>   can login and large hogs don't penalize good guys
+>>   (simpler than the working set idea, should work just as good)
 >
->> >But login was suspended because of a page fault,
->> 
->> No, login was NOT *suspended*. It's sleeping on I/O, not suspended.
->> 
->> > so potentially it will
->> >*also* get suspended for just as long as the hogs.  
->> 
->> No, it will get CPU time a small fraction of a second later, once the
->> I/O completes.
+>This is also worth considering, perhaps as a subset of the working-set
+>algorithm.
 >
->You're assuming login won't have the rest of its memory (which
->it needs to do certain things) swapped out again in the time
->it waits for this page to be swapped in...
->
->... which is exactly what happens when the system is thrashing.
+>I'm looking at sources, trying to figure out how to implement this kind of
+>thing...  but is there an easy way to find out what process(es) is/are
+>using a given page?  I'm talking about the page-replacement policy, of
+>course, where (current) is no help in this matter.
 
-Except that we aren't thrashing, because the memory hog processes have
-been suspended by this point and so we do have enough memory free for
-login!
+Oh, never mind, I found vmscan.c and the scanning sequence works in just
+the way I need it to anyway.
+
+--------------------------------------------------------------
+from:     Jonathan "Chromatix" Morton
+mail:     chromi@cyberspace.org  (not for attachments)
+big-mail: chromatix@penguinpowered.com
+uni-mail: j.d.morton@lancaster.ac.uk
+
+The key to knowledge is not to rely on people to teach you it.
+
+Get VNC Server for Macintosh from http://www.chromatix.uklinux.net/vnc/
+
+-----BEGIN GEEK CODE BLOCK-----
+Version 3.12
+GCS$/E/S dpu(!) s:- a20 C+++ UL++ P L+++ E W+ N- o? K? w--- O-- M++$ V? PS
+PE- Y+ PGP++ t- 5- X- R !tv b++ DI+++ D G e+ h+ r++ y+(*)
+-----END GEEK CODE BLOCK-----
 
 
-James.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
