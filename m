@@ -1,66 +1,59 @@
-Date: Fri, 21 Nov 2003 18:49:47 +0100
-From: Martin Schwidefsky <schwidefsky@de.ibm.com>
-Subject: [PATCH] Comments about superflous flush_tlb_range calls.
-Message-ID: <20031121174947.GE1341@mschwid3.boeblingen.de.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Message-ID: <pzx8$8r8$o$088p2jj1c78960@1em.gs>
+From: "Cecil Guy" <s362kvi@yahoo.com>
+Reply-To: "Cecil Guy" <s362kvi@yahoo.com>
+Subject: Let the pill do the work for you while you sit back and look at the growth ztqirzlo fxv uoscq 
+Date: Fri, 21 Nov 03 17:56:01 GMT
+MIME-Version: 1.0
+Content-Type: multipart/alternative;
+	boundary="6..DF_.F0AA525D6B2.00"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org, linux-arch@vger.kernel.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
-while searching for a s390 tlb flush problem I noticed some superflous
-tlb flushes. One in zeromap_page_range, one in remap_page_range, and
-another one in filemap_sync. The patch just adds comments but I think
-these three flush_tlb_range calls can be removed. 
+--6..DF_.F0AA525D6B2.00
+Content-Type: text/plain;
+Content-Transfer-Encoding: quoted-printable
 
-blue skies,
-  Martin.
+spoonful
 
-diffstat:
- mm/memory.c |    6 ++++++
- mm/msync.c  |    4 ++++
- 2 files changed, 10 insertions(+)
 
-diff -urN linux-2.6/mm/memory.c linux-2.6-s390/mm/memory.c
---- linux-2.6/mm/memory.c	Fri Nov 21 16:18:48 2003
-+++ linux-2.6-s390/mm/memory.c	Fri Nov 21 16:20:25 2003
-@@ -863,6 +863,9 @@
- 		address = (address + PGDIR_SIZE) & PGDIR_MASK;
- 		dir++;
- 	} while (address && (address < end));
-+	/*
-+	 * Why flush? zeromap_pte_range has a BUG_ON for !pte_none()
-+	 */
- 	flush_tlb_range(vma, beg, end);
- 	spin_unlock(&mm->page_table_lock);
- 	return error;
-@@ -944,6 +947,9 @@
- 		from = (from + PGDIR_SIZE) & PGDIR_MASK;
- 		dir++;
- 	} while (from && (from < end));
-+	/*
-+	 * Why flush? remap_pte_range has a BUG_ON for !pte_none()
-+	 */
- 	flush_tlb_range(vma, beg, end);
- 	spin_unlock(&mm->page_table_lock);
- 	return error;
-diff -urN linux-2.6/mm/msync.c linux-2.6-s390/mm/msync.c
---- linux-2.6/mm/msync.c	Sat Oct 25 20:43:26 2003
-+++ linux-2.6-s390/mm/msync.c	Fri Nov 21 16:20:25 2003
-@@ -115,6 +115,10 @@
- 		address = (address + PGDIR_SIZE) & PGDIR_MASK;
- 		dir++;
- 	} while (address && (address < end));
-+	/*
-+	 * Why flush ? filemap_sync_pte already flushed the tlbs with the
-+	 * dirty bits.
-+	 */
- 	flush_tlb_range(vma, end - size, end);
- 
- 	spin_unlock(&vma->vm_mm->page_table_lock);
+Important Penis enlargement info/update
+
+Dear Member, We would like to tell you about the latest scientific breakth=
+ru!!
+
+VP-RX - Doctor approved penis enlargement pills! No hanging weights, or
+painfull excises. You will see results after only 2 month!
+
+Simply take VP-RX and your penis will become thicker and longer, within a
+matter of weeks!!
+
+100% MONEY BACK GAURANTEE!!
+
+for more info please check our website:
+
+http://www.twenty.com@www.m-e-d-z.biz/vp/?ang2003
+
+
+
+
+
+
+
+
+
+Take Off
+http://www.downdraft.com@www.m-e-d-z.biz/off.html
+
+
+
+pm  qcrdjgvczjfin ev ihnqd
+pqixbnlht
+ psopznazsswmbagbohdvx tv a  dhincqtw f l
+
+--6..DF_.F0AA525D6B2.00--
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
