@@ -1,201 +1,124 @@
-Received: from Cantor.suse.de (Cantor.suse.de [194.112.123.193])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id JAA20383
-	for <linux-mm@kvack.org>; Tue, 24 Nov 1998 09:25:09 -0500
-Message-ID: <19981124133820.46357@boole.suse.de>
-Date: Tue, 24 Nov 1998 13:38:20 +0100
-From: "Dr. Werner Fink" <werner@suse.de>
-Subject: Re: Running 2.1.129 at extrem load [patch] (Was: Linux-2.1.129..)
-References: <19981123215359.45625@boole.suse.de> <Pine.LNX.3.96.981123224942.6626B-100000@mirkwood.dummy.home> <19981123233550.34576@boole.suse.de>
-Mime-Version: 1.0
+Received: from dax.scot.redhat.com (sct@dax.scot.redhat.com [195.89.149.242])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id KAA20639
+	for <linux-mm@kvack.org>; Tue, 24 Nov 1998 10:25:13 -0500
+Date: Tue, 24 Nov 1998 15:25:03 GMT
+Message-Id: <199811241525.PAA00862@dax.scot.redhat.com>
+From: "Stephen C. Tweedie" <sct@redhat.com>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-In-Reply-To: <19981123233550.34576@boole.suse.de>; from Dr. Werner Fink on Mon, Nov 23, 1998 at 11:35:50PM +0100
+Content-Transfer-Encoding: 7bit
+Subject: Re: Linux-2.1.129..
+In-Reply-To: <Pine.LNX.3.95.981123120028.5712B-100000@penguin.transmeta.com>
+References: <m1r9uudxth.fsf@flinx.ccr.net>
+	<Pine.LNX.3.95.981123120028.5712B-100000@penguin.transmeta.com>
 Sender: owner-linux-mm@kvack.org
-To: Rik van Riel <H.H.vanRiel@phys.uu.nl>, "Stephen C. Tweedie" <sct@redhat.com>, Linus Torvalds <torvalds@transmeta.com>, linux-mm <linux-mm@kvack.org>, Kernel Mailing List <linux-kernel@vger.rutgers.edu>
+To: Linus Torvalds <torvalds@transmeta.com>
+Cc: "Eric W. Biederman" <ebiederm+eric@ccr.net>, "Stephen C. Tweedie" <sct@redhat.com>, Rik van Riel <H.H.vanRiel@phys.uu.nl>, "Dr. Werner Fink" <werner@suse.de>, Kernel Mailing List <linux-kernel@vger.rutgers.edu>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-> > Sorry Werner, but this is exactly the place where we need to
-> > remove any from of page aging. We can do some kind of aging
-> > in the swap cache, page cache and buffer cache, but doing
-> > aging here is just prohibitively expensive and needs to be
-> > removed.
-> > 
-> > IMHO a better construction be to have a page->fresh flag
-> > which would be set on unmapping from swap_out(). Then
-> > shrink_mmap() would free pages with page->fresh reset
-> > and reset page->fresh if it is set. This way we can
-> > free a page at it's second scan so we avoid freeing
-> > a page that was just unmapped (and giving each page a
-> > bit of a chance to undergo cheap aging).
+Hi,
 
-Comments on the enclosed patch please :-)
+On Mon, 23 Nov 1998 12:02:41 -0800 (PST), Linus Torvalds
+<torvalds@transmeta.com> said:
 
- * Without the old ageing scheme within try_to_swap_out any
-   bigger increase of the load causes a temporarily unusable system.
+> On 23 Nov 1998, Eric W. Biederman wrote:
+>> 
+ST> That would be true if we didn't do the free_page_and_swap_cache trick.
+ST> However, doing that would require two passes: once by the swapper, and
+ST> once by shrink_mmap(): before actually freeing a page. 
 
- * The `if (buffer_under_min()) break;' within shrink_one_page()
-   reduces the average system CPU time in comparison to the user
-   CPU time.
+> This is something I considered doing. It has various advantages, and it's
+> almost done already in a sense: the swap cache thing is what would act as
+> the buffer between the two passes. 
+
+Yes.  
+
+> Then the page table scanning would never really page anything out: it
+> would just move things into the swap cache. That makes the table scanner
+> simpler, actually. The real page-out would be when the swap-cache is
+> flushed to disk and then freed.
+
+Indeed.  However, I think it misses the real advantage, which is that
+the mechanism would be inherently self-tuning (much more so than the
+existing code).   The swapper would batch up pageouts from the page
+tables, leaving a number of recyclable pages in the swap cache, and
+those cached pages would be subject to fair removal from the cache:
+we would not start to ignore cache completely once we start swapping
+(which is important if we don't age the swap pages: the lack of aging
+makes it far to easy to keep finding free swap pages so we never go
+back to shrink_mmap() mode).
+
+> I'd like to see this, although I think it's way too late for 2.2
+
+The mechanism is all there, and we're just tuning policy.  Frankly,
+the changes we've seen in vm policy since 2.1.125 are pretty major
+already, and I think it's important to get it right before 2.2.0.
+
+The patch below is a very simple implementation of this concept.
+I have been running it on 2.1.130-pre2 on 8MB and on 64MB.  On 8, it
+gives the expected performance, roughly similar to previous
+incarnations of the page-cache-ageless kernels.  
+
+On 64MB, however, it feels rather different: subjectively I think it
+feels like the fastest kernel I've ever run on this box.  It happily
+swaps out unused code while refusing to touch used ptes, and seems to
+balance cache much better than before.  With a very large emacs
+(a couple of thousand-message mailboxes loaded in VM), netscape and xv
+running, switching between desktops is still zero-wait, and compiles
+still go fast.
+
+Unfortunately, 2.1.129 keeps hanging on me, so the testing on 64MB was
+cut short after a couple of hours (I think it's either audio CDs or
+Ingo's latest alpha-raid which causes the trouble).  No problems on
+the 8MB box though.
+
+Linus, is it really too late to look at adding this?
+
+--Stephen
 
 
-            Werner
-
---------------------------------------------------------------------------
-diff -urN linux-2.1.129/include/linux/mm.h linux/include/linux/mm.h
---- linux-2.1.129/include/linux/mm.h	Thu Nov 19 20:49:37 1998
-+++ linux/include/linux/mm.h	Tue Nov 24 00:09:29 1998
-@@ -117,7 +117,7 @@
- 	unsigned long offset;
- 	struct page *next_hash;
- 	atomic_t count;
--	unsigned int unused;
-+	unsigned int lifetime;
- 	unsigned long flags;	/* atomic flags, some possibly updated asynchronously */
- 	struct wait_queue *wait;
- 	struct page **pprev_hash;
-diff -urN linux-2.1.129/ipc/shm.c linux/ipc/shm.c
---- linux-2.1.129/ipc/shm.c	Sun Oct 18 00:52:18 1998
-+++ linux/ipc/shm.c	Tue Nov 24 12:38:07 1998
-@@ -15,6 +15,7 @@
- #include <linux/stat.h>
- #include <linux/malloc.h>
- #include <linux/swap.h>
-+#include <linux/swapctl.h>
- #include <linux/smp.h>
- #include <linux/smp_lock.h>
- #include <linux/init.h>
-@@ -677,6 +678,11 @@
- 			shm_swp--;
- 		}
- 		shm_rss++;
-+
-+		/* Increase life time of the page */
-+		if (mem_map[MAP_NR(page)].lifetime < 3 && pgcache_under_max())
-+			mem_map[MAP_NR(page)].lifetime++;
-+
- 		pte = pte_mkdirty(mk_pte(page, PAGE_SHARED));
- 		shp->shm_pages[idx] = pte_val(pte);
- 	} else
-diff -urN linux-2.1.129/mm/filemap.c linux/mm/filemap.c
---- linux-2.1.129/mm/filemap.c	Thu Nov 19 20:44:18 1998
-+++ linux/mm/filemap.c	Tue Nov 24 12:25:10 1998
-@@ -136,6 +136,8 @@
- 
- 	if (PageLocked(page))
- 		goto next;
-+	if (page->lifetime)
-+		page->lifetime--;
- 	if ((gfp_mask & __GFP_DMA) && !PageDMA(page))
- 		goto next;
- 	/* First of all, regenerate the page's referenced bit
-@@ -167,15 +169,16 @@
- 	case 1:
- 		/* is it a swap-cache or page-cache page? */
- 		if (page->inode) {
--			/* Throw swap-cache pages away more aggressively */
--			if (PageSwapCache(page)) {
--				delete_from_swap_cache(page);
--				return 1;
--			}
- 			if (test_and_clear_bit(PG_referenced, &page->flags))
- 				break;
- 			if (pgcache_under_min())
- 				break;
-+			if (PageSwapCache(page)) {
-+				if (page->lifetime && pgcache_under_borrow())
-+					break;
-+				delete_from_swap_cache(page);
-+				return 1;
-+			}
- 			remove_inode_page(page);
- 			return 1;
- 		}
-@@ -183,7 +186,8 @@
- 		 * If it has been referenced recently, don't free it */
- 		if (test_and_clear_bit(PG_referenced, &page->flags))
- 			break;
--
-+		if (buffer_under_min())
-+			break;
- 		/* is it a buffer cache page? */
- 		if (bh && try_to_free_buffer(bh, &bh, 6))
- 			return 1;
-diff -urN linux-2.1.129/mm/page_alloc.c linux/mm/page_alloc.c
---- linux-2.1.129/mm/page_alloc.c	Thu Nov 19 20:44:18 1998
-+++ linux/mm/page_alloc.c	Tue Nov 24 12:37:30 1998
-@@ -231,11 +231,13 @@
- 		map += size; \
- 	} \
- 	atomic_set(&map->count, 1); \
-+	map->lifetime = 0; \
- } while (0)
- 
- unsigned long __get_free_pages(int gfp_mask, unsigned long order)
- {
- 	unsigned long flags;
-+	int loop = 0;
- 
- 	if (order >= NR_MEM_LISTS)
- 		goto nopage;
-@@ -262,6 +264,7 @@
- 				goto nopage;
- 		}
- 	}
-+repeat:
- 	spin_lock_irqsave(&page_alloc_lock, flags);
- 	RMQUEUE(order, (gfp_mask & GFP_DMA));
- 	spin_unlock_irqrestore(&page_alloc_lock, flags);
-@@ -274,6 +277,8 @@
- 	if (gfp_mask & __GFP_WAIT) {
- 		current->policy |= SCHED_YIELD;
- 		schedule();
-+		if (!loop++ && nr_free_pages > freepages.low)
-+			goto repeat;
+----------------------------------------------------------------
+--- mm/vmscan.c~	Tue Nov 17 15:43:55 1998
++++ mm/vmscan.c	Mon Nov 23 17:05:33 1998
+@@ -170,7 +170,7 @@
+ 			 * copy in memory, so we add it to the swap
+ 			 * cache. */
+ 			if (PageSwapCache(page_map)) {
+-				free_page_and_swap_cache(page);
++				free_page(page);
+ 				return (atomic_read(&page_map->count) == 0);
+ 			}
+ 			add_to_swap_cache(page_map, entry);
+@@ -188,7 +188,7 @@
+ 		 * asynchronously.  That's no problem, shrink_mmap() can
+ 		 * correctly clean up the occassional unshared page
+ 		 * which gets left behind in the swap cache. */
+-		free_page_and_swap_cache(page);
++		free_page(page);
+ 		return 1;	/* we slept: the process may not exist any more */
  	}
  
- nopage:
-@@ -399,6 +404,10 @@
- 	vma->vm_mm->rss++;
- 	tsk->min_flt++;
- 	swap_free(entry);
-+
-+	/* Increase life time of the page */
-+	if (page_map->lifetime < 3 && pgcache_under_max())
-+		page_map->lifetime++;
- 
- 	if (!write_access || is_page_shared(page_map)) {
- 		set_pte(page_table, mk_pte(page, vma->vm_page_prot));
-diff -urN linux-2.1.129/mm/swap.c linux/mm/swap.c
---- linux-2.1.129/mm/swap.c	Wed Sep  9 17:56:59 1998
-+++ linux/mm/swap.c	Tue Nov 24 13:08:19 1998
-@@ -76,7 +76,7 @@
- 
- buffer_mem_t page_cache = {
- 	5,	/* minimum percent page cache */
--	30,	/* borrow percent page cache */
-+	25,	/* borrow percent page cache */
- 	75	/* maximum */
- };
- 
-diff -urN linux-2.1.129/mm/vmscan.c linux/mm/vmscan.c
---- linux-2.1.129/mm/vmscan.c	Thu Nov 19 20:44:18 1998
-+++ linux/mm/vmscan.c	Tue Nov 24 00:06:20 1998
-@@ -561,6 +561,7 @@
- int try_to_free_pages(unsigned int gfp_mask, int count)
- {
- 	int retval = 1;
-+	int is_dma = (gfp_mask & __GFP_DMA);
- 
- 	lock_kernel();
- 	if (!(current->flags & PF_MEMALLOC)) {
-@@ -568,6 +569,8 @@
- 		do {
- 			retval = do_try_to_free_page(gfp_mask);
- 			if (!retval)
-+				break;
-+			if (!is_dma && nr_free_pages > freepages.high + SWAP_CLUSTER_MAX)
- 				break;
- 			count--;
- 		} while (count > 0);
+@@ -202,7 +202,7 @@
+ 		set_pte(page_table, __pte(entry));
+ 		flush_tlb_page(vma, address);
+ 		swap_duplicate(entry);
+-		free_page_and_swap_cache(page);
++		free_page(page);
+ 		return (atomic_read(&page_map->count) == 0);
+ 	} 
+ 	/* 
+@@ -218,7 +218,11 @@
+ 	flush_cache_page(vma, address);
+ 	pte_clear(page_table);
+ 	flush_tlb_page(vma, address);
++#if 0
+ 	entry = page_unuse(page_map);
++#else
++	entry = (atomic_read(&page_map->count) == 1);
++#endif
+ 	__free_page(page_map);
+ 	return entry;
+ }
 --
 This is a majordomo managed list.  To unsubscribe, send a message with
 the body 'unsubscribe linux-mm me@address' to: majordomo@kvack.org
