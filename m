@@ -1,36 +1,44 @@
-Subject: Re: VM tuning through fault trace gathering [with actual code]
-References: <Pine.LNX.4.21.0106271050040.1331-100000@freak.distro.conectiva>
-From: John Fremlin <vii@users.sourceforge.net>
-Date: 27 Jun 2001 17:05:07 +0100
-In-Reply-To: <Pine.LNX.4.21.0106271050040.1331-100000@freak.distro.conectiva> (Marcelo Tosatti's message of "Wed, 27 Jun 2001 10:51:08 -0300 (BRT)")
-Message-ID: <m2k81x3o3w.fsf@boreas.yi.org.>
-MIME-Version: 1.0
+Date: Wed, 27 Jun 2001 18:27:45 +0200
+From: Jens Axboe <axboe@suse.de>
+Subject: Re: patch: highmem zero-bounce
+Message-ID: <20010627182745.D17905@suse.de>
+References: <20010626182215.C14460@suse.de> <20010627114155.A31910@athlon.random>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20010627114155.A31910@athlon.random>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Marcelo Tosatti <marcelo@conectiva.com.br>
-Cc: linux-mm@kvack.org
+To: Andrea Arcangeli <andrea@suse.de>
+Cc: Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, "ZINKEVICIUS,MATT (HP-Loveland,ex1)" <matt_zinkevicius@hp.com>
 List-ID: <linux-mm.kvack.org>
 
-[...]
-
-> > (I know, I need to read the LLT manual, as it may be able to do
-> > exactly what I'm describing.  However, I don't think that's the
-> > case.)
+On Wed, Jun 27 2001, Andrea Arcangeli wrote:
+> On Tue, Jun 26, 2001 at 06:22:15PM +0200, Jens Axboe wrote:
+> > Hi,
+> > 
+> > I updated the patches to 2.4.6-pre5, and removed the zone-dma32
+> > addition. This means that machines with > 4GB of RAM will need to go all
 > 
-> You are right here. 
-> 
-> But anyway, I think John can do what he wants without writting a
-> whole new tracing facility.
+> good, we can relax the ZONE_NORMAL later, that's a separate problem with
+> skipping the bounces.
 
-That is unfortunate because the tracing facility is already written.
-Oh well. I guess I should have asked again before restarting work on
-it a day or so ago. At least it didn't take very long so not too many
-man-hours wasted ;-)
+Exactly
+
+> I can see one mm corruption race condition in the patch, you missed
+> nested irq in the for kmap_irq_bh (PIO).  You must _always_
+> __cli/__save_flags before accessing the KMAP_IRQ_BH slot, in case the
+> remapping is required (so _only_ when the page is in the highmem zone).
+> Otherwise memory corruption will happen when the race triggers (for
+> example two ide disks in PIO mode doing I/O at the same time connected
+> to different irq sources).
+
+Ah yes, my bad. This requires some moving around, I'll post an updated
+patch later tonight. Thanks!
 
 -- 
+Jens Axboe
 
-	http://ape.n3.net
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
