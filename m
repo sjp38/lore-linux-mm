@@ -1,12 +1,12 @@
-Message-ID: <41C3D5B1.3040200@yahoo.com.au>
-Date: Sat, 18 Dec 2004 18:01:05 +1100
+Message-ID: <41C3D4C8.1000508@yahoo.com.au>
+Date: Sat, 18 Dec 2004 17:57:12 +1100
 From: Nick Piggin <nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
-Subject: [PATCH 10/10] alternate 4-level page tables patches
-References: <41C3D453.4040208@yahoo.com.au> <41C3D479.40708@yahoo.com.au> <41C3D48F.8080006@yahoo.com.au> <41C3D4AE.7010502@yahoo.com.au> <41C3D4C8.1000508@yahoo.com.au> <41C3D4F9.9040803@yahoo.com.au> <41C3D516.9060306@yahoo.com.au> <41C3D548.6080209@yahoo.com.au> <41C3D57C.5020005@yahoo.com.au> <41C3D594.4020108@yahoo.com.au>
-In-Reply-To: <41C3D594.4020108@yahoo.com.au>
+Subject: [PATCH 4/10] alternate 4-level page tables patches
+References: <41C3D453.4040208@yahoo.com.au> <41C3D479.40708@yahoo.com.au> <41C3D48F.8080006@yahoo.com.au> <41C3D4AE.7010502@yahoo.com.au>
+In-Reply-To: <41C3D4AE.7010502@yahoo.com.au>
 Content-Type: multipart/mixed;
- boundary="------------000607070602040409090209"
+ boundary="------------010701000307020502060506"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Linux Memory Management <linux-mm@kvack.org>
@@ -14,187 +14,224 @@ Cc: Andi Kleen <ak@suse.de>, Hugh Dickins <hugh@veritas.com>, Linus Torvalds <to
 List-ID: <linux-mm.kvack.org>
 
 This is a multi-part message in MIME format.
---------------000607070602040409090209
+--------------010701000307020502060506
 Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 
-10/10
+4/10
 
---------------000607070602040409090209
+--------------010701000307020502060506
 Content-Type: text/plain;
- name="mm-inline-ptbl-walkers.patch"
+ name="3level-clear_page_range.patch"
 Content-Transfer-Encoding: 7bit
 Content-Disposition: inline;
- filename="mm-inline-ptbl-walkers.patch"
+ filename="3level-clear_page_range.patch"
 
 
 
-Convert some pagetable walking functions over to be inline where
-they are only used once. This is worth a percent or so on lmbench
-fork.
+Rename clear_page_tables to clear_page_range. clear_page_range takes byte
+ranges, and aggressively frees page table pages. Maybe useful to control
+page table memory consumption on 4-level architectures (and even 3 level
+ones).
+
+Possible downsides are:
+- flush_tlb_pgtables gets called more often (only a problem for sparc64
+  AFAIKS).
+  
+- the opportunistic "expand to fill PGDIR_SIZE hole" logic that ensures
+  something actually gets done under the old system is still in place.
+  This could sometimes make unmapping small regions more inefficient. There
+  are some other solutions to look at if this is the case though.
 
 Signed-off-by: Nick Piggin <nickpiggin@yahoo.com.au>
 
 
 ---
 
- linux-2.6-npiggin/mm/memory.c   |    8 ++++----
- linux-2.6-npiggin/mm/msync.c    |    4 ++--
- linux-2.6-npiggin/mm/swapfile.c |    6 +++---
- linux-2.6-npiggin/mm/vmalloc.c  |   12 ++++++------
- 4 files changed, 15 insertions(+), 15 deletions(-)
+ linux-2.6-npiggin/include/linux/mm.h |    2 
+ linux-2.6-npiggin/mm/memory.c        |   80 +++++++++++++++++++++--------------
+ linux-2.6-npiggin/mm/mmap.c          |   23 +++-------
+ 3 files changed, 58 insertions(+), 47 deletions(-)
 
-diff -puN mm/memory.c~mm-inline-ptbl-walkers mm/memory.c
---- linux-2.6/mm/memory.c~mm-inline-ptbl-walkers	2004-12-18 17:47:33.000000000 +1100
-+++ linux-2.6-npiggin/mm/memory.c	2004-12-18 17:48:14.000000000 +1100
-@@ -462,7 +462,7 @@ int copy_page_range(struct mm_struct *ds
- 	return err;
- }
- 
--static void zap_pte_range(struct mmu_gather *tlb,
-+static inline void zap_pte_range(struct mmu_gather *tlb,
- 		pmd_t *pmd, unsigned long address,
- 		unsigned long size, struct zap_details *details)
- {
-@@ -545,7 +545,7 @@ static void zap_pte_range(struct mmu_gat
- 	pte_unmap(ptep-1);
- }
- 
--static void zap_pmd_range(struct mmu_gather *tlb,
-+static inline void zap_pmd_range(struct mmu_gather *tlb,
- 		pud_t *pud, unsigned long address,
- 		unsigned long size, struct zap_details *details)
- {
-@@ -570,7 +570,7 @@ static void zap_pmd_range(struct mmu_gat
- 	} while (address && (address < end));
- }
- 
--static void zap_pud_range(struct mmu_gather *tlb,
-+static inline void zap_pud_range(struct mmu_gather *tlb,
- 		pgd_t * pgd, unsigned long address,
- 		unsigned long end, struct zap_details *details)
- {
-@@ -973,7 +973,7 @@ out:
- 
- EXPORT_SYMBOL(get_user_pages);
- 
--static void zeromap_pte_range(pte_t * pte, unsigned long address,
-+static inline void zeromap_pte_range(pte_t * pte, unsigned long address,
-                                      unsigned long size, pgprot_t prot)
- {
- 	unsigned long end;
-diff -puN mm/msync.c~mm-inline-ptbl-walkers mm/msync.c
---- linux-2.6/mm/msync.c~mm-inline-ptbl-walkers	2004-12-18 17:47:33.000000000 +1100
-+++ linux-2.6-npiggin/mm/msync.c	2004-12-18 17:47:33.000000000 +1100
-@@ -21,7 +21,7 @@
-  * Called with mm->page_table_lock held to protect against other
-  * threads/the swapper from ripping pte's out from under us.
+diff -puN include/linux/mm.h~3level-clear_page_range include/linux/mm.h
+--- linux-2.6/include/linux/mm.h~3level-clear_page_range	2004-12-18 16:50:44.000000000 +1100
++++ linux-2.6-npiggin/include/linux/mm.h	2004-12-18 17:07:48.000000000 +1100
+@@ -566,7 +566,7 @@ int unmap_vmas(struct mmu_gather **tlbp,
+ 		struct vm_area_struct *start_vma, unsigned long start_addr,
+ 		unsigned long end_addr, unsigned long *nr_accounted,
+ 		struct zap_details *);
+-void clear_page_tables(struct mmu_gather *tlb, unsigned long first, int nr);
++void clear_page_range(struct mmu_gather *tlb, unsigned long addr, unsigned long end);
+ int copy_page_range(struct mm_struct *dst, struct mm_struct *src,
+ 			struct vm_area_struct *vma);
+ int zeromap_page_range(struct vm_area_struct *vma, unsigned long from,
+diff -puN mm/memory.c~3level-clear_page_range mm/memory.c
+--- linux-2.6/mm/memory.c~3level-clear_page_range	2004-12-18 16:50:44.000000000 +1100
++++ linux-2.6-npiggin/mm/memory.c	2004-12-18 17:07:48.000000000 +1100
+@@ -100,58 +100,76 @@ static inline void copy_cow_page(struct 
+  * Note: this doesn't free the actual pages themselves. That
+  * has been handled earlier when unmapping all the memory regions.
   */
--static int filemap_sync_pte(pte_t *ptep, struct vm_area_struct *vma,
-+static inline int filemap_sync_pte(pte_t *ptep, struct vm_area_struct *vma,
- 	unsigned long address, unsigned int flags)
+-static inline void free_one_pmd(struct mmu_gather *tlb, pmd_t * dir)
++static inline void clear_pmd_range(struct mmu_gather *tlb, pmd_t *pmd, unsigned long start, unsigned long end)
  {
- 	pte_t pte = *ptep;
-@@ -38,7 +38,7 @@ static int filemap_sync_pte(pte_t *ptep,
- 	return 0;
+ 	struct page *page;
+ 
+-	if (pmd_none(*dir))
++	if (pmd_none(*pmd))
+ 		return;
+-	if (unlikely(pmd_bad(*dir))) {
+-		pmd_ERROR(*dir);
+-		pmd_clear(dir);
++	if (unlikely(pmd_bad(*pmd))) {
++		pmd_ERROR(*pmd);
++		pmd_clear(pmd);
+ 		return;
+ 	}
+-	page = pmd_page(*dir);
+-	pmd_clear(dir);
+-	dec_page_state(nr_page_table_pages);
+-	tlb->mm->nr_ptes--;
+-	pte_free_tlb(tlb, page);
++	if (!(start & ~PMD_MASK) && !(end & ~PMD_MASK)) {
++		page = pmd_page(*pmd);
++		pmd_clear(pmd);
++		dec_page_state(nr_page_table_pages);
++		tlb->mm->nr_ptes--;
++		pte_free_tlb(tlb, page);
++	}
  }
  
--static int filemap_sync_pte_range(pmd_t * pmd,
-+static inline int filemap_sync_pte_range(pmd_t * pmd,
- 	unsigned long address, unsigned long end, 
- 	struct vm_area_struct *vma, unsigned int flags)
+-static inline void free_one_pgd(struct mmu_gather *tlb, pgd_t * dir)
++static inline void clear_pgd_range(struct mmu_gather *tlb, pgd_t *pgd, unsigned long start, unsigned long end)
  {
-diff -puN mm/swapfile.c~mm-inline-ptbl-walkers mm/swapfile.c
---- linux-2.6/mm/swapfile.c~mm-inline-ptbl-walkers	2004-12-18 17:47:33.000000000 +1100
-+++ linux-2.6-npiggin/mm/swapfile.c	2004-12-18 17:47:33.000000000 +1100
-@@ -427,7 +427,7 @@ void free_swap_and_cache(swp_entry_t ent
-  * what to do if a write is requested later.
+-	int j;
+-	pmd_t * pmd;
++	unsigned long addr = start, next;
++	pmd_t *pmd, *__pmd;
+ 
+-	if (pgd_none(*dir))
++	if (pgd_none(*pgd))
+ 		return;
+-	if (unlikely(pgd_bad(*dir))) {
+-		pgd_ERROR(*dir);
+-		pgd_clear(dir);
++	if (unlikely(pgd_bad(*pgd))) {
++		pgd_ERROR(*pgd);
++		pgd_clear(pgd);
+ 		return;
+ 	}
+-	pmd = pmd_offset(dir, 0);
+-	pgd_clear(dir);
+-	for (j = 0; j < PTRS_PER_PMD ; j++)
+-		free_one_pmd(tlb, pmd+j);
+-	pmd_free_tlb(tlb, pmd);
++
++	pmd = __pmd = pmd_offset(pgd, start);
++	do {
++		next = (addr + PMD_SIZE) & PMD_MASK;
++		if (next > end || next <= addr)
++			next = end;
++		
++		clear_pmd_range(tlb, pmd, addr, next);
++		pmd++;
++		addr = next;
++	} while (addr && (addr <= end - 1));
++
++	if (!(start & ~PGDIR_MASK) && !(end & ~PGDIR_MASK)) {
++		pgd_clear(pgd);
++		pmd_free_tlb(tlb, __pmd);
++	}
+ }
+ 
+ /*
+- * This function clears all user-level page tables of a process - this
+- * is needed by execve(), so that old pages aren't in the way.
++ * This function clears user-level page tables of a process.
+  *
+  * Must be called with pagetable lock held.
   */
- /* vma->vm_mm->page_table_lock is held */
--static void
-+static inline void
- unuse_pte(struct vm_area_struct *vma, unsigned long address, pte_t *dir,
- 	swp_entry_t entry, struct page *page)
+-void clear_page_tables(struct mmu_gather *tlb, unsigned long first, int nr)
++void clear_page_range(struct mmu_gather *tlb, unsigned long start, unsigned long end)
  {
-@@ -439,7 +439,7 @@ unuse_pte(struct vm_area_struct *vma, un
+-	pgd_t * page_dir = tlb->mm->pgd;
++	unsigned long addr = start, next;
++	unsigned long i, nr = pgd_index(end + PGDIR_SIZE-1) - pgd_index(start);
++	pgd_t * pgd = pgd_offset(tlb->mm, start);
+ 
+-	page_dir += first;
+-	do {
+-		free_one_pgd(tlb, page_dir);
+-		page_dir++;
+-	} while (--nr);
++	for (i = 0; i < nr; i++) {
++		next = (addr + PGDIR_SIZE) & PGDIR_MASK;
++		if (next > end || next <= addr)
++			next = end;
++		
++		clear_pgd_range(tlb, pgd, addr, next);
++		pgd++;
++		addr = next;
++	}
  }
  
- /* vma->vm_mm->page_table_lock is held */
--static unsigned long unuse_pmd(struct vm_area_struct * vma, pmd_t *dir,
-+static inline unsigned long unuse_pmd(struct vm_area_struct * vma, pmd_t *dir,
- 	unsigned long address, unsigned long size, unsigned long offset,
- 	swp_entry_t entry, struct page *page)
+ pte_t fastcall * pte_alloc_map(struct mm_struct *mm, pmd_t *pmd, unsigned long address)
+diff -puN mm/mmap.c~3level-clear_page_range mm/mmap.c
+--- linux-2.6/mm/mmap.c~3level-clear_page_range	2004-12-18 16:50:44.000000000 +1100
++++ linux-2.6-npiggin/mm/mmap.c	2004-12-18 16:50:44.000000000 +1100
+@@ -1474,7 +1474,6 @@ static void free_pgtables(struct mmu_gat
  {
-@@ -486,7 +486,7 @@ static unsigned long unuse_pmd(struct vm
+ 	unsigned long first = start & PGDIR_MASK;
+ 	unsigned long last = end + PGDIR_SIZE - 1;
+-	unsigned long start_index, end_index;
+ 	struct mm_struct *mm = tlb->mm;
+ 
+ 	if (!prev) {
+@@ -1499,24 +1498,16 @@ static void free_pgtables(struct mmu_gat
+ 				last = next->vm_start;
+ 		}
+ 		if (prev->vm_end > first)
+-			first = prev->vm_end + PGDIR_SIZE - 1;
++			first = prev->vm_end;
+ 		break;
+ 	}
+ no_mmaps:
+ 	if (last < first)	/* for arches with discontiguous pgd indices */
+ 		return;
+-	/*
+-	 * If the PGD bits are not consecutive in the virtual address, the
+-	 * old method of shifting the VA >> by PGDIR_SHIFT doesn't work.
+-	 */
+-	start_index = pgd_index(first);
+-	if (start_index < FIRST_USER_PGD_NR)
+-		start_index = FIRST_USER_PGD_NR;
+-	end_index = pgd_index(last);
+-	if (end_index > start_index) {
+-		clear_page_tables(tlb, start_index, end_index - start_index);
+-		flush_tlb_pgtables(mm, first & PGDIR_MASK, last & PGDIR_MASK);
+-	}
++	if (first < FIRST_USER_PGD_NR * PGDIR_SIZE)
++		first = FIRST_USER_PGD_NR * PGDIR_SIZE;
++	clear_page_range(tlb, first, last);
++	flush_tlb_pgtables(mm, first, last);
  }
  
- /* vma->vm_mm->page_table_lock is held */
--static unsigned long unuse_pud(struct vm_area_struct * vma, pud_t *pud,
-+static inline unsigned long unuse_pud(struct vm_area_struct * vma, pud_t *pud,
-         unsigned long address, unsigned long size, unsigned long offset,
- 	swp_entry_t entry, struct page *page)
- {
-diff -puN mm/vmalloc.c~mm-inline-ptbl-walkers mm/vmalloc.c
---- linux-2.6/mm/vmalloc.c~mm-inline-ptbl-walkers	2004-12-18 17:47:33.000000000 +1100
-+++ linux-2.6-npiggin/mm/vmalloc.c	2004-12-18 17:47:33.000000000 +1100
-@@ -23,7 +23,7 @@
- rwlock_t vmlist_lock = RW_LOCK_UNLOCKED;
- struct vm_struct *vmlist;
+ /* Normal function to fix up a mapping
+@@ -1844,7 +1835,9 @@ void exit_mmap(struct mm_struct *mm)
+ 					~0UL, &nr_accounted, NULL);
+ 	vm_unacct_memory(nr_accounted);
+ 	BUG_ON(mm->map_count);	/* This is just debugging */
+-	clear_page_tables(tlb, FIRST_USER_PGD_NR, USER_PTRS_PER_PGD);
++	clear_page_range(tlb, FIRST_USER_PGD_NR * PGDIR_SIZE,
++			(TASK_SIZE + PGDIR_SIZE - 1) & PGDIR_MASK);
++	
+ 	tlb_finish_mmu(tlb, 0, MM_VM_SIZE(mm));
  
--static void unmap_area_pte(pmd_t *pmd, unsigned long address,
-+static inline void unmap_area_pte(pmd_t *pmd, unsigned long address,
- 				  unsigned long size)
- {
- 	unsigned long end;
-@@ -56,7 +56,7 @@ static void unmap_area_pte(pmd_t *pmd, u
- 	} while (address < end);
- }
- 
--static void unmap_area_pmd(pud_t *pud, unsigned long address,
-+static inline void unmap_area_pmd(pud_t *pud, unsigned long address,
- 				  unsigned long size)
- {
- 	unsigned long end;
-@@ -83,7 +83,7 @@ static void unmap_area_pmd(pud_t *pud, u
- 	} while (address < end);
- }
- 
--static void unmap_area_pud(pgd_t *pgd, unsigned long address,
-+static inline void unmap_area_pud(pgd_t *pgd, unsigned long address,
- 			   unsigned long size)
- {
- 	pud_t *pud;
-@@ -110,7 +110,7 @@ static void unmap_area_pud(pgd_t *pgd, u
- 	} while (address && (address < end));
- }
- 
--static int map_area_pte(pte_t *pte, unsigned long address,
-+static inline int map_area_pte(pte_t *pte, unsigned long address,
- 			       unsigned long size, pgprot_t prot,
- 			       struct page ***pages)
- {
-@@ -135,7 +135,7 @@ static int map_area_pte(pte_t *pte, unsi
- 	return 0;
- }
- 
--static int map_area_pmd(pmd_t *pmd, unsigned long address,
-+static inline int map_area_pmd(pmd_t *pmd, unsigned long address,
- 			       unsigned long size, pgprot_t prot,
- 			       struct page ***pages)
- {
-@@ -160,7 +160,7 @@ static int map_area_pmd(pmd_t *pmd, unsi
- 	return 0;
- }
- 
--static int map_area_pud(pud_t *pud, unsigned long address,
-+static inline int map_area_pud(pud_t *pud, unsigned long address,
- 			       unsigned long end, pgprot_t prot,
- 			       struct page ***pages)
- {
+ 	vma = mm->mmap;
 
 _
 
---------------000607070602040409090209--
+--------------010701000307020502060506--
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
