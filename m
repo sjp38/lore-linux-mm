@@ -1,29 +1,47 @@
-Date: Tue, 3 Mar 1998 20:09:49 +0100 (MET)
-From: Rik van Riel <H.H.vanRiel@fys.ruu.nl>
-Reply-To: Rik van Riel <H.H.vanRiel@fys.ruu.nl>
-Subject: Re: [uPATCH] small kswapd improvement ???
-In-Reply-To: <Pine.LNX.3.91.980303180022.414A-100000@mirkwood.dummy.home>
-Message-ID: <Pine.LNX.3.91.980303200853.2575B-100000@mirkwood.dummy.home>
+Received: from renko.ucs.ed.ac.uk (renko.ucs.ed.ac.uk [129.215.13.3])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id SAA13562
+	for <linux-mm@kvack.org>; Tue, 3 Mar 1998 18:00:29 -0500
+Date: Tue, 3 Mar 1998 22:59:23 GMT
+Message-Id: <199803032259.WAA02410@dax.dcs.ed.ac.uk>
+From: "Stephen C. Tweedie" <sct@dcs.ed.ac.uk>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Subject: Re: Fairness in love and swapping
+In-Reply-To: <Pine.LNX.3.91.980303001242.3788D-100000@mirkwood.dummy.home>
+References: <199803022235.WAA03546@dax.dcs.ed.ac.uk>
+	<Pine.LNX.3.91.980303001242.3788D-100000@mirkwood.dummy.home>
 Sender: owner-linux-mm@kvack.org
 To: Rik van Riel <H.H.vanRiel@fys.ruu.nl>
-Cc: Linus Torvalds <torvalds@transmeta.com>, "Stephen C. Tweedie" <sct@dcs.ed.ac.uk>, "Benjamin C.R. LaHaise" <blah@kvack.org>, linux-mm <linux-mm@kvack.org>
+Cc: "Stephen C. Tweedie" <sct@dcs.ed.ac.uk>, "Dr. Werner Fink" <werner@suse.de>, torvalds@transmeta.com, nahshon@actcom.co.il, alan@lxorguk.ukuu.org.uk, paubert@iram.es, mingo@chiara.csoma.elte.hu, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 3 Mar 1998, Rik van Riel wrote:
+Hi,
 
-> I think I have 'corrected' the code. Not so much made a
-> large performance increase, but merely a 'correction' for
-> the sake of correctness and a small improvement.
+On Tue, 3 Mar 1998 00:14:43 +0100 (MET), Rik van Riel <H.H.vanRiel@fys.ruu.nl> said:
 
-I'm currenly running a way-too-large gnuchess next
-to my other applications, and I hardly notice it's
-running... The disk noise is the major givaway :-)
+>> I rather suspect with those patches that it's not simply the aging of
+>> page cache pages which helps performance, but also the tuning of the
+>> balance between page cache and data page reclamation.
 
-Rik.
-+-----------------------------+------------------------------+
-| For Linux mm-patches, go to | "I'm busy managing memory.." |
-| my homepage (via LinuxHQ).  | H.H.vanRiel@fys.ruu.nl       |
-| ...submissions welcome...   | http://www.fys.ruu.nl/~riel/ |
-+-----------------------------+------------------------------+
+> That's why I proposed the true LRU aging on those pages,
+> so they get a better chance of (re)usal before they're
+> really freed and forgotten about (and need to be reread
+> in the case of readahead pages).
+
+That's exactly what all the work on being able to look up ptes from
+the page address is about.  To get the balancing right, we really want
+a single vmscan routine which deals with every single page fairly,
+rather than skipping about between free page sources.  To do that, we
+need to be able to lookup the ptes from the physical address.
+
+Given that functionality, whole new worlds open up. :)
+
+There is one other big balancing problem right now --- if there are
+insufficient free pages to instantly grow the buffer cache, then getting
+a new buffer defaults to reusing the oldest buffer.  I'd like to nuke
+that breakage, because it leaves the buffer cache at the mercy of the
+other caches in a busy system, and stops us from caching useful stuff
+such as commonly used indirect blocks and directories.
+
+--Stephen
