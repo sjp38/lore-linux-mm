@@ -1,147 +1,110 @@
 Received: from atlas.CARNet.hr (zcalusic@atlas.CARNet.hr [161.53.123.163])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id NAA30195
-	for <linux-mm@kvack.org>; Thu, 7 Jan 1999 13:46:18 -0500
-Subject: Re: Results: 2.2.0-pre5 vs arcavm10 vs arcavm9 vs arcavm7
-References: <Pine.LNX.3.95.990107093240.4270F-100000@penguin.transmeta.com>
+	by kvack.org (8.8.7/8.8.7) with ESMTP id NAA30328
+	for <linux-mm@kvack.org>; Thu, 7 Jan 1999 13:55:32 -0500
+Subject: Re: arca-vm-8 [Re: [patch] arca-vm-6, killed kswapd [Re: [patch] new-vm , improvement , [Re: 2.2.0 Bug summary]]]
+References: <Pine.LNX.3.95.990107093746.4270H-100000@penguin.transmeta.com>
 Reply-To: Zlatko.Calusic@CARNet.hr
 MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="=-=-="
 From: Zlatko Calusic <Zlatko.Calusic@CARNet.hr>
-Date: 07 Jan 1999 19:44:18 +0100
-In-Reply-To: Linus Torvalds's message of "Thu, 7 Jan 1999 09:35:41 -0800 (PST)"
-Message-ID: <87iueiudml.fsf@atlas.CARNet.hr>
+Date: 07 Jan 1999 19:55:25 +0100
+In-Reply-To: Linus Torvalds's message of "Thu, 7 Jan 1999 09:56:03 -0800 (PST)"
+Message-ID: <87d84qud42.fsf@atlas.CARNet.hr>
 Sender: owner-linux-mm@kvack.org
 To: Linus Torvalds <torvalds@transmeta.com>
-Cc: Steve Bergman <steve@netplus.net>, Andrea Arcangeli <andrea@e-mind.com>, brent verner <damonbrent@earthlink.net>, "Garst R. Reese" <reese@isn.net>, Kalle Andersson <kalle.andersson@mbox303.swipnet.se>, Ben McCann <bmccann@indusriver.com>, bredelin@ucsd.edu, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org, Alan Cox <alan@lxorguk.ukuu.org.uk>, "Stephen C. Tweedie" <sct@redhat.com>
+Cc: "Eric W. Biederman" <ebiederm+eric@ccr.net>, Andrea Arcangeli <andrea@e-mind.com>, steve@netplus.net, brent verner <damonbrent@earthlink.net>, "Garst R. Reese" <reese@isn.net>, Kalle Andersson <kalle.andersson@mbox303.swipnet.se>, Ben McCann <bmccann@indusriver.com>, Alan Cox <alan@lxorguk.ukuu.org.uk>, bredelin@ucsd.edu, "Stephen C. Tweedie" <sct@redhat.com>, linux-kernel@vger.rutgers.edu, Rik van Riel <H.H.vanRiel@phys.uu.nl>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-
-This is a MIME multipart message.  If you are reading
-this, you shouldn't.
-
---=-=-=
 
 Linus Torvalds <torvalds@transmeta.com> writes:
 
-> On Wed, 6 Jan 1999, Steve Bergman wrote:
-> > 
-> > Here are my latest numbers.  This is timing a complete kernel compile  (make
-> > clean;make depend;make;make modules;make modules_install)  in 16MB memory with
-> > netscape, kde, and various daemons running.  I unknowningly had two more daemons
-> > running in the background this time than last so the numbers can't be compared
-> > directly with my last test (Which I think I only sent to Andrea).  But all of
-> > these numbers are consistent with *each other*.
-> > 
-> > 
-> > kernel		Time	Maj pf	Min pf  Swaps
-> > ----------	-----	------	------	-----
-> > 2.2.0-pre5		18:19	522333	493803	27984
-> > arcavm10		19:57	556299	494163	12035
-> > arcavm9		19:55	553783	494444	12077
-> > arcavm7		18:39	538520	493287	11526
+[snip]
 > 
-> Don't look too closely at the "swaps" number - I think pre-5 just changed
-> accounting a bit. A lot of the "swaps" are really just dropping a virtual
-> mapping (that is later picked up again from the page cache or the swap
-> cache). 
+> That way I can be reasonably hopeful that there are no new bugs introduced
+> even though performance is very different. I _do_ have some early data
+> that seems to say that this _has_ uncovered a very old deadlock condition: 
+> something that could happen before but was almost impossible to trigger. 
 > 
-> Basically, pre-5 uses the page cache and the swap cache more actively as a
-> "victim cache", and that inflates the "swaps" number simply due to the
-> accounting issues. 
+> The deadlock I suspect is:
+>  - we're low on memory
+>  - we allocate or look up a new block on the filesystem. This involves
+>    getting the ext2 superblock lock, and doing a "bread()" of the free
+>    block bitmap block.
+>  - this causes us to try to allocate a new buffer, and we are so low on
+>    memory that we go into try_to_free_pages() to find some more memory.
+>  - try_to_free_pages() finds a shared memory file to page out.
+>  - trying to page that out, it looks up the buffers on the filesystem it
+>    needs, but deadlocks on the superblock lock.
 > 
-> I guess I shouldn't count the simple "drop_pte" operation as a swap at
-> all, because it doesn't involve any IO.
+> Note that this could happen before too (I've not removed any of the
+> codepaths that could lead to it), but it was dynamically _much_ less
+> likely to happen.
+
+You could be very easily right. Look below.
+
+> 
+> I'm not even sure it really exists, but I have some really old reports
+> that _could_ be due to this, and a few more recent ones (that I never
+> could explain). And I have a few _really_ recent ones from here internally
+> at transmeta that looks like it's triggering more easily these days.
+> 
+> (Note that this is not actually pre5-related: I've been chasing this on
+> and off for some time, and it seems to have just gotten easier to trigger,
+> which is why I finally have a theory on what is going on - just a theory
+> though, and I may be completely off the mark). 
+> 
+> The positive news is that if I'm right in my suspicions it can only happen
+> with shared writable mappings or shared memory segments. The bad news is
+> that the bug appears rather old, and no immediate solution presents
+> itself. 
+
+Exactly. I was torture testing shared mapping when I got very weird
+deadlock. It happened only once, few days ago. Look at report and
+enjoy:
+
+Jan  5 03:49:14 atlas kernel: SysRq: Show Memory 
+Jan  5 03:49:14 atlas kernel: Mem-info: 
+Jan  5 03:49:14 atlas kernel: Free pages:         512kB 
+Jan  5 03:49:14 atlas kernel:  ( Free: 128 (128 256 384) 
+Jan  5 03:49:14 atlas kernel: 0*4kB 0*8kB 0*16kB 0*32kB 0*64kB 4*128kB = 512kB) 
+Jan  5 03:49:14 atlas kernel: Swap cache: add 131125/131125, delete 130652/13065
+2, find 0/0 
+Jan  5 03:49:14 atlas kernel: Free swap:       231632kB 
+Jan  5 03:49:14 atlas kernel: 16384 pages of RAM 
+Jan  5 03:49:14 atlas kernel: 956 reserved pages 
+Jan  5 03:49:14 atlas kernel: 17996 pages shared 
+Jan  5 03:49:14 atlas kernel: 473 pages swap cached 
+Jan  5 03:49:14 atlas kernel: 13 pages in page table cache 
+Jan  5 03:49:14 atlas kernel: Buffer memory:    14696kB 
+Jan  5 03:49:14 atlas kernel: Buffer heads:     14732 
+Jan  5 03:49:14 atlas kernel: Buffer blocks:    14696 
+Jan  5 03:49:14 atlas kernel:    CLEAN: 144 buffers, 18 used (last=122), 0 locke
+d, 0 protected, 0 dirty 
+
+This looks exactly like the problem you were describing, isn't it?
+
+[snip]
+> Basically, I think that the stuff we handle now with the swap-cache we do
+> well on already, and we'd only really want to handle the shared memory
+> case with PG_dirty. But I think this is a 2.3 issue, and I only added the
+> comment (and the PG_dirty define) for now. 
+
+Nice, thanks. That will make experimenting slightly easier and will
+give courage to people to actually experiment with PG_Dirty
+implementation. So far, only Eric did some work in this area.
+
+Of course, this is all 2.3 work.
+
+> 
+> > Linus is this a case you feel is important to tune for 2.2?
+> > If so I would be happy to play with it.
+> 
+> It might be something good to test out, but I really don't want patches at
+> this date (unless your patches also fix the above deadlock problem, which
+> I can't see them doing ;)
 > 
 
-2.2.0-pre5 works very good, indeed, but it still has some not
-sufficiently explored nuisances:
-
-1) Swap performance in pre-5 is much worse compared to pre-4 in
-*certain* circumstances. I'm using quite stupid and unintelligent
-program to check for raw swap speed (attached below). With 64 MB of
-RAM I usually run it as 'hogmem 100 3' and watch for result which is
-recently around 6 MB/sec. But when I lately decided to start two
-instances of it like "hogmem 50 3 & hogmem 50 3 &" in pre-4 I got 2 x
-2.5 MB/sec and in pre-5 it is only 2 x 1 MB/sec and disk is making
-very weird and frightening sounds. My conclusion is that now (pre-5)
-system behaves much poorer when we have more than one thrashing
-task. *Please*, check this, it is a quite serious problem.
-
-2) In pre-5, under heavy load, free memory is hovering around
-freepages.min instead of being somewhere between freepages.low &
-freepages.max. This could make trouble for bursts of atomic
-allocations (networking!).
-
-3) Nitpick #1: /proc/swapstats exist but is only filled with
-zeros. Probably it should go away. I believe Stephen added it
-recently, but only part of his patch got actually applied.
-
-4) Nitpick #2": "Swap cache:" line in report of Alt-SysRq-M is not
-useful as it is laid now. People have repeatedly sent patches (Rik,
-Andrea...) to fix this but it is still not fixed, as of pre-5.
-
-5) There is lots of #if 0 constructs in MM code, and also lots of
-structures are not anymore used but still take precious memory in
-compiled kernel and uncover itself under /proc (/proc/sys/vm/swapctl
-for instance). Do you want a patch to remove this cruft?
-
-6) Finally one suggestion of mine. In swapfile.c there is comment:
-
-         * We try to cluster swap pages by allocating them
-         * sequentially in swap.  Once we've allocated
-         * SWAP_CLUSTER_MAX pages this way, however, we resort to
-         * first-free allocation, starting a new cluster.  This
-         * prevents us from scattering swap pages all over the entire
-         * swap partition, so that we reduce overall disk seek times
-
-This is good, but clustering of only 32 (SWAP_CLUSTER_MAX) * 4KB =
-128KB is too small for today's disk and swap sizes. I tried to enlarge
-this value to something like 2 MB and got much much better results.
-This is very important now that we have swapin readahead to keep pages
-as adjacent as possible to each other so hit rate is big. It is
-trivial (one liner) and completely safe to make this constant much
-bigger, so I'm not even attaching a patch. 512 works very well and
-swapping is much faster than with default valuein place. Maybe this
-should even be sysctl controllable. If you agree with the last idea,
-I'll send you a patch, just confirm.
-
-I promised memory hogger:
-
-
---=-=-=
-Content-Type: application/octet-stream
-Content-Disposition: attachment
-Content-Description: Hogmem.c
-Content-Transfer-Encoding: base64
-
-I2luY2x1ZGUgPHN0ZGlvLmg+CiNpbmNsdWRlIDx1bmlzdGQuaD4KI2luY2x1ZGUgPHN0ZGxp
-Yi5oPgojaW5jbHVkZSA8bGltaXRzLmg+CiNpbmNsdWRlIDxzaWduYWwuaD4KI2luY2x1ZGUg
-PHRpbWUuaD4KI2luY2x1ZGUgPHN5cy90aW1lcy5oPgoKI2RlZmluZSBNQiAoMTAyNCAqIDEw
-MjQpCgppbnQgbnIsIGludHNpemUsIGksIHQ7CmNsb2NrX3Qgc3Q7CnN0cnVjdCB0bXMgZHVt
-bXk7Cgp2b2lkIGludHIoaW50IGludG51bSkKewogICAgY2xvY2tfdCBldCA9IHRpbWVzKCZk
-dW1teSk7CgogICAgcHJpbnRmKCJcbk1lbW9yeSBzcGVlZDogJS4yZiBNQi9zZWNcbiIsICgy
-ICogdCAqIENMS19UQ0sgKiBuciArIChkb3VibGUpIGkgKiBDTEtfVENLICogaW50c2l6ZSAv
-IE1CKSAvIChldCAtIHN0KSk7CiAgICBleGl0KEVYSVRfU1VDQ0VTUyk7Cn0KCmludCBtYWlu
-KGludCBhcmdjLCBjaGFyICoqYXJndikKewogICAgaW50IG1heCwgbnJfdGltZXMsICphcmVh
-LCBjOwoKICAgIHNldGJ1ZihzdGRvdXQsIDApOwogICAgc2lnbmFsKFNJR0lOVCwgaW50cik7
-CiAgICBzaWduYWwoU0lHVEVSTSwgaW50cik7CiAgICBpbnRzaXplID0gc2l6ZW9mKGludCk7
-CiAgICBpZiAoYXJnYyA8IDIgfHwgYXJnYyA+IDMpIHsKCWZwcmludGYoc3RkZXJyLCAiVXNh
-Z2U6IGhvZ21lbSA8TUI+IFt0aW1lc11cbiIpOwoJZXhpdChFWElUX0ZBSUxVUkUpOwogICAg
-fQogICAgbnIgPSBhdG9pKGFyZ3ZbMV0pOwogICAgaWYgKGFyZ2MgPT0gMykKCW5yX3RpbWVz
-ID0gYXRvaShhcmd2WzJdKTsKICAgIGVsc2UKCW5yX3RpbWVzID0gSU5UX01BWDsKICAgIGFy
-ZWEgPSBtYWxsb2MobnIgKiBNQik7CiAgICBtYXggPSBuciAqIE1CIC8gaW50c2l6ZTsKICAg
-IHN0ID0gdGltZXMoJmR1bW15KTsKICAgIGZvciAoYyA9IDA7IGMgPCBucl90aW1lczsgYysr
-KQogICAgewoJZm9yIChpID0gMDsgaSA8IG1heDsgaSsrKQoJICAgIGFyZWFbaV0rKzsKCXQr
-KzsKCXB1dGNoYXIoJy4nKTsKICAgIH0KICAgIGkgPSAwOwogICAgaW50cigwKTsKICAgIC8q
-IG5vdHJlYWNoZWQgKi8KICAgIGV4aXQoRVhJVF9TVUNDRVNTKTsKfQo=
-
---=-=-=
-
-
-OK, that's it for today. Don't bang heads too hard and enjoy!
+Sure!
 -- 
 Zlatko
-
---=-=-=--
 --
 This is a majordomo managed list.  To unsubscribe, send a message with
 the body 'unsubscribe linux-mm me@address' to: majordomo@kvack.org
