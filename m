@@ -1,21 +1,21 @@
-Received: from nc.com (localhost [127.0.0.1])
-	by tsuenwan.causality.com (8.9.3/8.9.2) with ESMTP id TAA23931
-	for <linux-mm@kvack.org>; Fri, 17 Sep 1999 19:53:47 -0700 (PDT)
-	(envelope-from neil@nc.com)
-Message-ID: <37E2FEBB.4ED76BF0@nc.com>
-Date: Fri, 17 Sep 1999 19:53:47 -0700
-From: "Neil A. Carson" <neil@nc.com>
-MIME-Version: 1.0
+Received: from lappi.waldorf-gmbh.de (cacc-18.uni-koblenz.de [141.26.131.18])
+	by mailhost.uni-koblenz.de (8.9.1/8.9.1) with ESMTP id TAA02369
+	for <linux-mm@kvack.org>; Sat, 18 Sep 1999 19:02:52 +0200 (MET DST)
+Date: Sat, 18 Sep 1999 13:57:55 +0200
+From: Ralf Baechle <ralf@uni-koblenz.de>
 Subject: Re: Need ammo against BSD Fud
+Message-ID: <19990918135755.B12208@uni-koblenz.de>
 References: <199909172159.XAA01101@agnes.faerie.monroyaume>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <199909172159.XAA01101@agnes.faerie.monroyaume>; from JF Martinez on Fri, Sep 17, 1999 at 11:59:21PM +0200
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: JF Martinez <jfm2@club-internet.fr>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-JF Martinez wrote:
+On Fri, Sep 17, 1999 at 11:59:21PM +0200, JF Martinez wrote:
 
 > BSD people are writing tons of articles saying how superior BSD is
 > respective to Linux.  There is a danger they will impregnate people
@@ -26,15 +26,11 @@ JF Martinez wrote:
 > features the Linux kernel has and BSDs haven't or about areas where
 > Linux outperforms BSDs.
 
-Maybe it does, maybe it doesn't. The best thing to do is end most of
-these silly advocacy wars, and neither 'side' retaliating is the best
-way to do this. As a regular user of many of both systems, the constant
-FUD from everyone and anyone is just pathetically annoying.
+Ignore them.  Saves alot of nerves.  The Linux market is so explosive
+that BSD is already more or less meaningless and it will become even
+more meaningless in the future.  This is not about technical arguments.
 
-The more ammo that gets sent, the more the other side will just send
-ammo back again. It's an endless cycle that will never end.
-
-        Neil
+  Ralf
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
