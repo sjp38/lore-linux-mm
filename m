@@ -1,113 +1,96 @@
-Message-Id: <4.3.2.7.0.20000825113602.00a9b520@192.168.1.9>
-Date: Fri, 25 Aug 2000 11:38:21 +0530
-From: Santosh Eraniose <santosh@sony.co.in>
-Subject: linux SH3 MMU queries
-Mime-Version: 1.0
-Content-Type: text/plain; charset="iso-8859-1"; format=flowed
-Content-Transfer-Encoding: 8BIT
+Message-ID: <39A672FD.CEEA798C@asplinux.ru>
+Date: Fri, 25 Aug 2000 17:22:05 +0400
+From: Yuri Pudgorodsky <yur@asplinux.ru>
+MIME-Version: 1.0
+Subject: Re: Question: memory management and QoS
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
+Cc: astalos@tuke.sk
 List-ID: <linux-mm.kvack.org>
 
-Hi,
-I have a few questions on the h/w interface part of memory mgmt in Linux.
-The example I have chosen is SH3. Its is similar to x86 in the sense, it is 
-a 32 bit
-address space and has the 3 level pg table folded into two.
-If any of u can can shed some light on the questions below(prefixed with 
-a >>>>Q)
-it will be most helpful.
-If any one can give an example as to how the address transaltion is done it 
-will be most helpful.
-Thanks a lot
+Hello,
 
-Memory Map of Linux on SH3
-[ P0/U0 (virtual) ]                     0x00000000<------ User space
-[ P1 (fixed)   cached ]               0x80000000<------ Kernel space
-[ P2 (fixed)  non-cachable]       0xA0000000<------ Physical access
-[ P3 (virtual) cached]                0xC0000000<------ not used
-[ P4 control   ]                           0xE0000000
+I suppose you missed some points or I do not understand you needs.
+For general computation (and for almost all other workloads),
+I think you do not need "reserved" memory - "reserved memory == wasted memory".
 
-SH3 provides 2MB for User space and 2 MB for kernel space
-Hence PAGE_OFFSET =0x80000000
-TASK_SIZE should be equal to PAGE_OFFSET but SH3 says we can't use
-0x7c000000--0x7fffffff ==>pg 209 SH h/w manual
-Hence TASK_SIZE= 0x7c000000UL
- >>>>>Q: Is this correct??
+With a single memory-hungry computing hog per node in cluster, you may be
+happy with current Linux MM. As long as working set for this process fits in RAM
+you'll get top performance, and the system will handle  sporadic memory allocations
+for other process more or less well. If application working set does not fit in RAM,
+you'll get huge (1000+ times) performance drop and no OS algorithms helps
+you.
 
-#define PAGE_SHIFT     12
-#define PAGE_SIZE        (1UL << PAGE_SHIFT) ==>4096
-Page size =4K
-On a 32 bit machine, the Linux kernel usually resides at virtual address 
-0xc0000000 and virtual addresses from 0xc0000000 to 0xffffffff are reserved 
-for kernel text/data and I/O space.
-CONFIG_MEMORY_START 0x0c000000
-#define __MEMORY_START          CONFIG_MEMORY_START
- >>>>>Q:In the map above this address range is shown as unused??
+If, additionally, you want guaranteed low latency on data  access (for example for doing
+real-time feed of audio/video/whatever samples), you may lock all process memory
+to be resident in RAM: mlock(), mlockall() interfaces calls in mind.
 
-As IX bit in MMUCR is 1, TLB index is computed by ex oring ASID bits 0-4 in 
-PTEH and VPN bits 16-12.
-VPN is upper 20 bits of virtual address for a 4K page
-TTB->base address of current page table
-bits 16-12 of VPN is exored with ASID and forms index into TLB. Hence these 
-are not stored in the TLB.
-This can be obtained by exoring with the ASID present in the PTEH register.
- >>>>Q:Where is this exoring done in Linux? I don?t see any mask to get the 
-VPN16-12 for indexing?
- >>>>Q:How is TLB "way" selection done in Linux?
- >>>>Q:Can a page overlap two sections eg P1 & P2?
+Other memory related points on performance gain lay into your application.
+You should really take into account hierarchical memory structure, and make
+your application cache-friendly and swap-friendly. For some of my work,
+I found cache simulator from http://www.cacheprof.org/ to be useful.
 
-#define PAGE_OFFSET             (0x80000000)
-#define __pa(x)                 ((unsigned long)(x)-PAGE_OFFSET)
-#define __va(x)                 ((void *)((unsigned long)(x)+PAGE_OFFSET))
-#define MAP_NR(addr)            ((__pa(addr)-__MEMORY_START) >> PAGE_SHIFT)
+QoS issues come to play, if multiple process instances fights with each other
+for memory resourse. Even when per-user swapfiles sounds overkill for me,
+fills with many drawbacks and a little benefits:
 
-pa/va =gives the physical address/virtual address.
- >>>>Q:Whats the math behind the -/+ PAGE_OFFSET.
- >>>>Does this mean that the address in Kernel space are the same as 
-physical address.
- >>>>What about the address in P2 and P3 area?
- >>>>Q:Does MAP_NR give the total number of pages?
+  What you actually suggest is an obscure and inefficient per-user limits
+  of VM usage (to the size of RAM + swapfile size).
+  Beancounters (or other counters) based implementation is both faster
+  and straightforward.
 
-PTRS_PER_PMD    1
-PTRS_PER_PGD    1024
-PTRS_PER_PTE    1024
+  Per-user OOM is again just a per-user VM / whatever resource limit.
+  System OOM can still be triggered in a number of not-so-trivially-to-fix ways:
+    - many small processes allocated multiple unswapable kernel memory for
+      kernel objects (sockets, signals, locks, descriptors, ...);
+    - large fragmented network traffic from a fast media.
+
+  There is no point in reserving RAM or swap for possible future
+  allocations: this memory will become wasted memory if no such allocation
+  occurs in near future, and we cannot predict this situation.
+  Additionally, memory reservation policy does not scale well, specifically
+  for systems with many idle users and a couple of active users, where active
+  set of users is often changed.
+
+What will the beancounter patch http://www.asplinux.com.sg/install/ubpatch.shtml
+trying to guarantee, is a _minimal_ resident memory for a group of processes.
+I.e.,  if some group of processes behaves "well" and do not overcome their limits,
+their pages are protected from being swapped out due to activity of over processes.
+This should at least protect from swap-out attacks while one user trashing
+all memory and other users suffer from heavy swapping.
+
+> Concept of personal swapfiles:
+>
+> The benefits (among others):
+> - there wouldn't be system OOM (only per user OOM)
+
+there will be, see above
+
+> - user would be able to check his available memory
+
+This buys nothing for users - users will be happy checking
+his limits/guaranties, and the system will be happy
+allocating *all* availiable memory to *any* user that need it
+with a beancounter / swapout guarantee approach while
+provides you quality of service for "well-behaved" objects.
+
+>  - no limits for VM address space
+
+?
+
+Your VM is limited by your hardware/software implementation only,
+and hard disk space. All other limits (per-process,
+per-users, per-system - the ammount of disk space allocated
+for swap) are actually administrative constraints.
+
+> - there could be more policies for sharing of physical memory
+>   by users (and system)
 
 
-Virtual address
-31 ?22 21 ?12 11?0
-DIR       TABLE  OFFSET
-1024 entries1024 entries
 
-
-Physical address is then computed as:
-CR3 + DIR  points to the table_base
-table_base + TABLE  points to the page_base
-physical_address  page_base + OFFSET
-
-DIR=swapper_pg_dir[1024]; This is the kernel pg table.
-There is only one kernel page table.
-Each user program have their own page tables.
-
-The register CR3 contains the physical base address of the page directory 
-and is stored as part of the TSS in the task_struct and is therefore loaded 
-on each task switch.
- >>>>Q:what is it on SH3?
-
-#define MMU_PAGE_ASSOC_BIT      0x80
-#define MMU_CONTEXT_VERSION_MASK        0xffffff00
-#define MMU_CONTEXT_FIRST_VERSION       0x00000100
- >>>>Q:What is the purpose of MMU_PAGE_ASSOC_BIT
- >>>>Q:What is this version referred to?
-
---
-Santosh Eraniose
------------------------------------------------
-Member Technical
-Sony Software Architecture Lab
-Bangalore
------------------------------------------------
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
