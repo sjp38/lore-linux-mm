@@ -1,66 +1,329 @@
-Date: Fri, 21 Jan 2005 12:28:54 -0200
-From: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
-Subject: Re: [PATCH] Avoiding fragmentation through different allocator
-Message-ID: <20050121142854.GH19973@logos.cnet>
-References: <20050120101300.26FA5E598@skynet.csn.ul.ie>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20050120101300.26FA5E598@skynet.csn.ul.ie>
+Date: Fri, 21 Jan 2005 10:22:36 -0800 (PST)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: [PATCH] Soft introduction of atomic pte operations to avoid the
+ clearing of ptes
+In-Reply-To: <Pine.LNX.4.58.0501140924480.2310@ppc970.osdl.org>
+Message-ID: <Pine.LNX.4.58.0501211020430.25346@schroedinger.engr.sgi.com>
+References: <41E5B7AD.40304@yahoo.com.au> <Pine.LNX.4.58.0501121552170.12669@schroedinger.engr.sgi.com>
+ <41E5BC60.3090309@yahoo.com.au> <Pine.LNX.4.58.0501121611590.12872@schroedinger.engr.sgi.com>
+ <20050113031807.GA97340@muc.de> <Pine.LNX.4.58.0501130907050.18742@schroedinger.engr.sgi.com>
+ <20050113180205.GA17600@muc.de> <Pine.LNX.4.58.0501131701150.21743@schroedinger.engr.sgi.com>
+ <20050114043944.GB41559@muc.de> <Pine.LNX.4.58.0501140838240.27382@schroedinger.engr.sgi.com>
+ <20050114170140.GB4634@muc.de> <Pine.LNX.4.58.0501140924480.2310@ppc970.osdl.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: William Lee Irwin III <wli@holomorphy.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: hugh@veritas.com
+Cc: Andi Kleen <ak@muc.de>, Nick Piggin <nickpiggin@yahoo.com.au>, linux-mm@kvack.org, linux-ia64@vger.kernel.org, Linus Torvalds <torvalds@osdl.org>, benh@kernel.crashing.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jan 20, 2005 at 10:13:00AM +0000, Mel Gorman wrote:
-> Changelog since V5
-> o Fixed up gcc-2.95 errors
-> o Fixed up whitespace damage
-> 
-> Changelog since V4
-> o No changes. Applies cleanly against 2.6.11-rc1 and 2.6.11-rc1-bk6. Applies
->   with offsets to 2.6.11-rc1-mm1
-> 
-> Changelog since V3
-> o inlined get_pageblock_type() and set_pageblock_type()
-> o set_pageblock_type() now takes a zone parameter to avoid a call to page_zone()
-> o When taking from the global pool, do not scan all the low-order lists
-> 
-> Changelog since V2
-> o Do not to interfere with the "min" decay
-> o Update the __GFP_BITS_SHIFT properly. Old value broke fsync and probably
->   anything to do with asynchronous IO
->   
-> Changelog since V1
-> o Update patch to 2.6.11-rc1
-> o Cleaned up bug where memory was wasted on a large bitmap
-> o Remove code that needed the binary buddy bitmaps
-> o Update flags to avoid colliding with __GFP_ZERO changes
-> o Extended fallback_count bean counters to show the fallback count for each
->   allocation type
-> o In-code documentation
+The current way of updating ptes in the Linux vm includes first clearing
+a pte before setting it to another value. The clearing is performed while
+holding the page_table_lock to insure that the entry will not be modified
+by the CPU directly, by an arch specific interrupt handler or another page
+fault handler running on another CPU. This approach is necessary for some
+architectures that cannot perform atomic updates of page table entries.
 
-Hi Mel,
+If a page table entry is cleared then a second CPUs may generate a page fault
+for that entry. The fault handler on the second CPU will then attempt to
+acquire the page_table_lock and wait until the first CPU has completed
+updating the page table entry. The fault handler on the second CPU will then
+discover that everything is ok and simply do nothing (apart from incrementing
+the counters for a minor fault).
 
-I was thinking that it would be nice to have a set of high-order intensive workloads, 
-and I wonder what are the most common high-order allocation paths which fail.
+However, most architectures actually support atomic operations on page
+table entries. The use of atomic operations on page table entries would
+allow the update of a page table entry in a single atomic operation instead
+of writing to the page table entry twice. There would also be no danger of
+generating a spurious page fault on other CPUs.
 
-It mostly depends on hardware because most high-order allocations happen inside
-device drivers? What are the kernel codepaths which try to do high-order allocations
-and fallback if failed? 
+The following patch introduces two new atomic operations ptep_xchg and
+ptep_cmpxchg that may be provided by an architecture. The fallback in
+include/asm-generic/pgtable.h is to simulate both operations through the
+existing ptep_get_and_clear function. So there is essentially no change if
+atomic operations on ptes have not been defined. Architectures that do
+not support atomic operations on ptes may continue to use the clearing of
+a pte for locking type purposes.
 
-To measure whether the cost of page migration offsets the ability to be able to deliver
-high-order allocations we want a set of meaningful performance tests?
+Definitions of ptep_xchg and ptep_cmpxchg have been provided for ia64,
+x86_64 and i386. The atomic operations for i386 are only valid for non PAE
+mode. ptep_cmpxchg is only provided if the cpu is capable of a cmpxchg
+(which excludes 386 or 486 cpus).
 
-Its quite possible that not all unsatisfiable high-order allocations want to 
-force page migration (which is quite expensive in terms of CPU/cache). Only migrate on 
-__GFP_NOFAIL ?
+My aim to reduce the use of the page_table_lock in the page fault handler
+rely on a pte never being clear if the pte is in use even when the
+page_table_lock is not held. Clearing a pte before setting it to another
+values could result in a situation in which a fault generated by
+another cpu could install a pte which is then immediately overwritten by
+the first cpus setting the pte to a valid value again. This patch is
+important for future work on reducing the use of spinlocks in the vm.
 
-William, that same tradeoff exists for the zone balancing through migration idea
-you propose...
+I just hope I did not miss anything again ....
 
+Index: linux-2.6.10/mm/rmap.c
+===================================================================
+--- linux-2.6.10.orig/mm/rmap.c	2005-01-21 07:39:42.000000000 -0800
++++ linux-2.6.10/mm/rmap.c	2005-01-21 10:03:24.000000000 -0800
+@@ -575,11 +575,6 @@ static int try_to_unmap_one(struct page
 
+ 	/* Nuke the page table entry. */
+ 	flush_cache_page(vma, address);
+-	pteval = ptep_clear_flush(vma, address, pte);
+-
+-	/* Move the dirty bit to the physical page now the pte is gone. */
+-	if (pte_dirty(pteval))
+-		set_page_dirty(page);
+
+ 	if (PageAnon(page)) {
+ 		swp_entry_t entry = { .val = page->private };
+@@ -594,11 +589,15 @@ static int try_to_unmap_one(struct page
+ 			list_add(&mm->mmlist, &init_mm.mmlist);
+ 			spin_unlock(&mmlist_lock);
+ 		}
+-		set_pte(pte, swp_entry_to_pte(entry));
++		pteval = ptep_xchg_flush(vma, address, pte, swp_entry_to_pte(entry));
+ 		BUG_ON(pte_file(*pte));
+ 		mm->anon_rss--;
+-	}
++	} else
++		pteval = ptep_clear_flush(vma, address, pte);
+
++	/* Move the dirty bit to the physical page now the pte is gone. */
++	if (pte_dirty(pteval))
++		set_page_dirty(page);
+ 	mm->rss--;
+ 	acct_update_integrals();
+ 	page_remove_rmap(page);
+@@ -691,15 +690,15 @@ static void try_to_unmap_cluster(unsigne
+ 		if (ptep_clear_flush_young(vma, address, pte))
+ 			continue;
+
+-		/* Nuke the page table entry. */
+ 		flush_cache_page(vma, address);
+-		pteval = ptep_clear_flush(vma, address, pte);
+
+ 		/* If nonlinear, store the file page offset in the pte. */
+ 		if (page->index != linear_page_index(vma, address))
+-			set_pte(pte, pgoff_to_pte(page->index));
++			pteval = ptep_xchg_flush(vma, address, pte, pgoff_to_pte(page->index));
++		else
++			pteval = ptep_clear_flush(vma, address, pte);
+
+-		/* Move the dirty bit to the physical page now the pte is gone. */
++		/* Move the dirty bit to the physical page now that the pte is gone. */
+ 		if (pte_dirty(pteval))
+ 			set_page_dirty(page);
+
+Index: linux-2.6.10/mm/memory.c
+===================================================================
+--- linux-2.6.10.orig/mm/memory.c	2005-01-21 07:39:42.000000000 -0800
++++ linux-2.6.10/mm/memory.c	2005-01-21 10:03:24.000000000 -0800
+@@ -512,14 +512,18 @@ static void zap_pte_range(struct mmu_gat
+ 				     page->index > details->last_index))
+ 					continue;
+ 			}
+-			pte = ptep_get_and_clear(ptep);
+-			tlb_remove_tlb_entry(tlb, ptep, address+offset);
+-			if (unlikely(!page))
++			if (unlikely(!page)) {
++				pte = ptep_get_and_clear(ptep);
++				tlb_remove_tlb_entry(tlb, ptep, address+offset);
+ 				continue;
++			}
+ 			if (unlikely(details) && details->nonlinear_vma
+ 			    && linear_page_index(details->nonlinear_vma,
+ 					address+offset) != page->index)
+-				set_pte(ptep, pgoff_to_pte(page->index));
++				pte = ptep_xchg(ptep, pgoff_to_pte(page->index));
++			else
++				pte = ptep_get_and_clear(ptep);
++			tlb_remove_tlb_entry(tlb, ptep, address+offset);
+ 			if (pte_dirty(pte))
+ 				set_page_dirty(page);
+ 			if (PageAnon(page))
+Index: linux-2.6.10/mm/mprotect.c
+===================================================================
+--- linux-2.6.10.orig/mm/mprotect.c	2005-01-21 07:39:42.000000000 -0800
++++ linux-2.6.10/mm/mprotect.c	2005-01-21 10:03:24.000000000 -0800
+@@ -48,12 +48,16 @@ change_pte_range(pmd_t *pmd, unsigned lo
+ 		if (pte_present(*pte)) {
+ 			pte_t entry;
+
+-			/* Avoid an SMP race with hardware updated dirty/clean
+-			 * bits by wiping the pte and then setting the new pte
+-			 * into place.
+-			 */
+-			entry = ptep_get_and_clear(pte);
+-			set_pte(pte, pte_modify(entry, newprot));
++			 /* Deal with a potential SMP race with hardware/arch
++			  * interrupt updating dirty/clean bits through the use
++			  * of ptep_cmpxchg.
++			  */
++			do {
++				entry = *pte;
++			} while (!ptep_cmpxchg(pte,
++					entry,
++					pte_modify(entry, newprot)
++				));
+ 		}
+ 		address += PAGE_SIZE;
+ 		pte++;
+Index: linux-2.6.10/include/asm-generic/pgtable.h
+===================================================================
+--- linux-2.6.10.orig/include/asm-generic/pgtable.h	2004-12-24 13:34:30.000000000 -0800
++++ linux-2.6.10/include/asm-generic/pgtable.h	2005-01-21 10:04:40.000000000 -0800
+@@ -102,6 +102,75 @@ static inline pte_t ptep_get_and_clear(p
+ })
+ #endif
+
++/*
++ * Exchanging of pte values is done by first swapping zeros into
++ * a pte and then putting new content into the pte entry.
++ * Some arches that do not support atomic operations on their page
++ * table entries rely on this form of pte locking for an update.
++ * However, the fallback function will generate an empty pte for a
++ * short time frame. This means that the page_table_lock must be held
++ * to avoid a page fault that would install a new entry.
++ *
++ * A good arch dependent definition for ptep_xchg may be
++ *
++ * #define ptep_xchg(__ptep, __pteval)					\
++ *	 _pte(xchg(&pte_val(*(__ptep)), pte_val(__pteval)))
++ *
++ * This will only work if xchg() is guaranteed to be atomic but will
++ * insure that there is no danger of generating a spurious page fault
++ */
++#ifndef __HAVE_ARCH_PTEP_XCHG
++#define ptep_xchg(__ptep, __pteval)					\
++({									\
++	pte_t __pte = ptep_get_and_clear(__ptep);			\
++	set_pte(__ptep, __pteval);					\
++	__pte;								\
++})
++#endif
++
++#ifndef __HAVE_ARCH_PTEP_XCHG_FLUSH
++#define ptep_xchg_flush(__vma, __address, __ptep, __pteval)		\
++({									\
++       pte_t __pte = ptep_clear_flush(__vma, __address, __ptep);	\
++       set_pte(__ptep, __pteval);					\
++       __pte;								\
++})
++#endif
++
++
++/*
++ * The fallback function for ptep_cmpxchg avoids any real use of cmpxchg
++ * since cmpxchg may not be available on certain architectures. Instead
++ * the clearing of a pte is used as a form of locking mechanism.
++ * This approach will only work if the page_table_lock is held to insure
++ * that the pte is not populated by a page fault generated on another
++ * CPU.
++ *
++ * However, an arch dependent definition would use a real cmpxchg
++ * (if the architecture is capable of atomic operations) on ptes which
++ * will then avoid having the pte cleared for a short period and with
++ * that the danger of another CPU generating a fault for the empty pte.
++ *
++ * A good definition may be:
++ *
++ * #define ptep_cmpxchg(__ptep,__oldval,__newval)			\
++ *	 (cmpxchg(&pte_val(*(__ptep)),					\
++ *			pte_val(__oldval),				\
++ *			pte_val(__newval)				\
++ *		) == pte_val(__oldval)					\
++ *	)
++ *
++ */
++#ifndef __HAVE_ARCH_PTEP_CMPXCHG
++#define ptep_cmpxchg(__ptep, __old, __new)				\
++({									\
++	pte_t prev = ptep_get_and_clear(__ptep);			\
++	int r = pte_val(prev) == pte_val(__old);			\
++	set_pte(__ptep, r ? (__new) : prev);				\
++	r;								\
++})
++#endif
++
+ #ifndef __HAVE_ARCH_PTEP_SET_WRPROTECT
+ static inline void ptep_set_wrprotect(pte_t *ptep)
+ {
+Index: linux-2.6.10/include/asm-ia64/pgtable.h
+===================================================================
+--- linux-2.6.10.orig/include/asm-ia64/pgtable.h	2005-01-21 07:39:40.000000000 -0800
++++ linux-2.6.10/include/asm-ia64/pgtable.h	2005-01-21 10:03:24.000000000 -0800
+@@ -554,6 +554,19 @@ do {											\
+ #define FIXADDR_USER_START	GATE_ADDR
+ #define FIXADDR_USER_END	(GATE_ADDR + 2*PERCPU_PAGE_SIZE)
+
++/* Atomic operations to avoid having to clear a pte before setting it to another value */
++#define ptep_xchg(__ptep, __pteval) \
++      __pte(xchg(&pte_val(*(__ptep)), pte_val(__pteval)))
++
++#define ptep_cmpxchg(__ptep,__oldval,__newval)					\
++	(cmpxchg(&pte_val(*(__ptep)),						\
++			pte_val(__oldval),					\
++			pte_val(__newval)					\
++			) == pte_val(__oldval)					\
++	)
++
++#define __HAVE_ARCH_PTEP_XCHG
++#define __HAVE_ARCH_PTEP_CMPXCHG
+ #define __HAVE_ARCH_PTEP_TEST_AND_CLEAR_YOUNG
+ #define __HAVE_ARCH_PTEP_TEST_AND_CLEAR_DIRTY
+ #define __HAVE_ARCH_PTEP_GET_AND_CLEAR
+Index: linux-2.6.10/include/asm-i386/pgtable-2level.h
+===================================================================
+--- linux-2.6.10.orig/include/asm-i386/pgtable-2level.h	2005-01-21 07:39:40.000000000 -0800
++++ linux-2.6.10/include/asm-i386/pgtable-2level.h	2005-01-21 10:03:24.000000000 -0800
+@@ -25,6 +25,21 @@
+ #define pfn_pte(pfn, prot)	__pte(((pfn) << PAGE_SHIFT) | pgprot_val(prot))
+ #define pfn_pmd(pfn, prot)	__pmd(((pfn) << PAGE_SHIFT) | pgprot_val(prot))
+
++/* Atomic operations to avoid having to clear a pte before setting it to another value */
++#define __HAVE_ARCH_PTEP_XCHG
++#define ptep_xchg(__ptep, __pteval) \
++      __pte(xchg(&pte_val(*(__ptep)), pte_val(__pteval)))
++
++#ifdef CONFIG_X86_CMPXCHG
++#define __HAVE_ARCH_PTEP_CMPXCHG
++#define ptep_cmpxchg(__ptep,__oldval,__newval)					\
++	(cmpxchg(&pte_val(*(__ptep)),						\
++			pte_val(__oldval),					\
++			pte_val(__newval)					\
++			) == pte_val(__oldval)					\
++	)
++#endif
++
+ #define pmd_page(pmd) (pfn_to_page(pmd_val(pmd) >> PAGE_SHIFT))
+
+ #define pmd_page_kernel(pmd) \
+Index: linux-2.6.10/include/asm-x86_64/pgtable.h
+===================================================================
+--- linux-2.6.10.orig/include/asm-x86_64/pgtable.h	2005-01-21 07:39:41.000000000 -0800
++++ linux-2.6.10/include/asm-x86_64/pgtable.h	2005-01-21 10:03:24.000000000 -0800
+@@ -415,6 +415,20 @@ extern int kern_addr_valid(unsigned long
+    (((o) & (1UL << (__VIRTUAL_MASK_SHIFT-1))) ? ((o) | (~__VIRTUAL_MASK)) : (o))
+
+ #define __HAVE_ARCH_PTEP_TEST_AND_CLEAR_YOUNG
++
++/* Atomic operations to avoid having to clear a pte before setting it to another value */
++#define ptep_xchg(__ptep, __pteval) \
++      __pte(xchg(&pte_val(*(__ptep)), pte_val(__pteval)))
++
++#define ptep_cmpxchg(__ptep,__oldval,__newval)					\
++	(cmpxchg(&pte_val(*(__ptep)),						\
++			pte_val(__oldval),					\
++			pte_val(__newval)					\
++			) == pte_val(__oldval)					\
++	)
++
++#define __HAVE_ARCH_PTEP_XCHG
++#define __HAVE_ARCH_PTEP_CMPXCHG
+ #define __HAVE_ARCH_PTEP_TEST_AND_CLEAR_DIRTY
+ #define __HAVE_ARCH_PTEP_GET_AND_CLEAR
+ #define __HAVE_ARCH_PTEP_SET_WRPROTECT
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
