@@ -1,40 +1,30 @@
-Message-ID: <39F1D06E.5327CCB9@norran.net>
-Date: Sat, 21 Oct 2000 19:20:46 +0200
-From: Roger Larsson <roger.larsson@norran.net>
-MIME-Version: 1.0
-Subject: [BUG?] kflushd launders without washing powder ???
+Date: Mon, 23 Oct 2000 17:54:02 +0100
+From: "Stephen C. Tweedie" <sct@redhat.com>
+Subject: Another wish item for your TODO list...
+Message-ID: <20001023175402.B2772@redhat.com>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@conectiva.com.br>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Rik van Riel <riel@nl.linux.org>
+Cc: linux-mm@kvack.org, Stephen Tweedie <sct@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
 Hi,
 
-I am still experimenting with the VM code.
-During this exploration I stumbled into this code,
-from kflushd in fs/buffer.c
+Just a quick thought --- at some point it would be good if we could
+add logic to the core VM so that for sequentially accessed files,
+reclaiming any page of the file from cache would evict the _whole_ of
+the file from cache.
 
-		flushed = flush_dirty_buffers(0);
-		if (free_shortage())
-			flushed += page_launder(GFP_BUFFER, 0);
+For large files, we're not going to try to cache the whole thing
+anyway.  For small files, reading the whole file back in later isn't
+much more expensive than reading back a few fragments if the rest
+still happens to be in cache.
 
-a) GFP_BUFFER is __GFP_HIGH and __GFP_WAIT but not __GFP_IO
-   Trying to launder without washing powder???
-   Or is it somehow guaranteed that flushed buffers are from
-   the same pages?
-   Should a GFP_KFLUSHD be introduced - like GFP_KSWAPD ?
-
-b) Where is no_of_inactive_dirty pages balanced against inactive_clean?
-   (I have to look some more at this - remove my own patches first...)
-
-
-/RogerL
-
---
-Home page:
-  http://www.norran.net/nra02596/
+Cheers,
+ Stephen
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
