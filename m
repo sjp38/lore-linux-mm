@@ -1,66 +1,51 @@
-Message-ID: <39C8AA93.2080001@SANgate.com>
-Date: Wed, 20 Sep 2000 15:16:19 +0300
-From: BenHanokh Gabriel <gabriel@SANgate.com>
+Message-ID: <39C91CC8.F8D27899@norran.net>
+Date: Wed, 20 Sep 2000 22:23:36 +0200
+From: Roger Larsson <roger.larsson@norran.net>
 MIME-Version: 1.0
-Subject: Re: how to translate virtual memory addresss into physical address ?
-References: <39C86AF6.1040200@SANgate.com> <20000920105308.K4608@redhat.com> <39C890BC.7070308@SANgate.com> <20000920122007.M4608@redhat.com>
-Content-Type: text/plain; charset=us-ascii; format=flowed
+Subject: 2.4.0-test9-pre4: __alloc_pages(...) try_again:
+Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Stephen C. Tweedie" <sct@redhat.com>
-Cc: Linux-MM mailing list <linux-mm@kvack.org>
+To: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Rik van Riel <riel@conectiva.com.br>, "Juan J. Quintela" <quintela@fi.udc.es>
 List-ID: <linux-mm.kvack.org>
 
-Stephen C. Tweedie wrote:
+Hi,
 
 
-> 
-> User space virtual addresses aren't necessarily mapped anywhere.  They
-> can be swapped out, or for mmap they might not yet be faulted in at
-> all.  You have to deal with all the complications of faulting the page
-> and pinning it in memory if you want to deal with user virtual
-> addresses.  I'd definitely use map_user_kiobuf for this, but that
-> cannot yet deal with pci device memory.
-how can i tell given a user-space virtual address, if that address is a "normal" 
-main-memory address( which i can pass to map_user_kiobuf ) or that it is a pci 
-mmaped address( which i have to deal with it myself ) ?
+Trying to find out why test9-pre4 freezes with mmap002
+I added a counter for try_again loops.
 
-> > >  You can do the translation backwards, but only by walking
-> > > page tables.
-> > how do i do this ? i tought that pci-memory is not pageable
-> 
-> It's not pageable, but the virtual-to-physical address translation
-> still uses page tables.
-can you explain please  with more details how to translate from virtual 
-user-space pci mmaped address to a physical address?
+... __alloc_pages(...)
 
->"Non-pageable" just means that the page table
-> entries cannot get paged out, not that they don't exist.
-does the kernel have a page emulation for pci-memory ?
+        int direct_reclaim = 0;
+        unsigned int gfp_mask = zonelist->gfp_mask;
+        struct page * page = NULL;
++       int try_again_loops = 0;
 
->> will the map_user_kiobuf handle pci-device memory correctly (AFAIK locking pci 
->> memory is meaningless and that its memory is not split into pages ) ?
+- - -
 
-> Not yet, no.  It can (and does) on the 2.2 version, but 2.4 encodes
-
->the kiobuf pages as "struct page *" pointers and we need to teach it
-
->how to generate such structs for dynamically-allocated memory regions
->such as PCI.
-when do you think we are going to see implemenation of the map_user_kiobuf supporting pci-memory ?
-will this be done for kernel 2.4 or only for the 2.5
++         printk("VM: sync kswapd (direct_reclaim: %d) try_again #
+%d\n",
++                direct_reclaim, ++try_again_loops);
+                        wakeup_kswapd(1);
+                        goto try_again;
 
 
-regards
-Benhanokh Gabriel
+Result was surprising:
+  direct_reclaim was 1.
+  try_again_loops did never stop increasing (note: it is not static,
+  and should restart from zero after each success)
 
------------------------------------------------------------------------------
-"If you think C++ is not overly complicated, just what is a
-protected abstract virtual base class with a pure virtual private destructor,
-and when was the last time you needed one?"
--- Tom Cargil, C++ Journal, Fall 1990. --
+Why does this happen?
+a) kswapd did not succeed in freeing a suitable page?
+b) __alloc_pages did not succeed in grabbing the page?
 
+/RogerL
+
+--
+Home page:
+  http://www.norran.net/nra02596/
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
