@@ -1,22 +1,65 @@
-From: =?ISO-8859-1?Q?=C2=E0=E8=F1=EB=E0=E2=E0?=
-	<fnpxxdyz@dup-200-64-170-194.prodigy.net.mx>
-Subject: re:[4]  =?ISO-8859-1?Q?=CF=EE=E4=E0=F0=EA=E8?= =?ISO-8859-1?Q?=EB=FE=E1=E8=EC=FB=EC!?= 
-Date: Fri, 4 Mar 2005 08:53:52 +0000
+Date: Fri, 4 Mar 2005 16:53:58 +0000 (GMT)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: Re: no page_cache_get in do_wp_page?
+In-Reply-To: <Pine.LNX.4.58.0503031104500.9773@schroedinger.engr.sgi.com>
+Message-ID: <Pine.LNX.4.61.0503041631580.4758@goblin.wat.veritas.com>
+References: <Pine.LNX.4.58.0503031104500.9773@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
-Content-Type: text/plain;
-        charset="Windows-1251"
-Content-Transfer-Encoding: 8bit
-Message-Id: <20050304165212Z26522-20891+3470@kvack.org>
+Content-Type: text/plain; charset="us-ascii"
 Sender: owner-linux-mm@kvack.org
-To: linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: linux-mm@kvack.org, akpm@osdl.org
 List-ID: <linux-mm.kvack.org>
 
-=?ISO-8859-1?Q?=CF=EE=F1=F2=E5=EB=FC=ED=EE=E5?= =?ISO-8859-1?Q?=E1=E5=EB=FC=E5?= =?ISO-8859-1?Q?=EC=EE=E6=E5=F2?= =?ISO-8859-1?Q?=E1=FB=F2=FC?= =?ISO-8859-1?Q?=F7=F3=E2=F1=F2=E2=E5=ED=ED=FB=EC,?= =?ISO-8859-1?Q?=EE=E1=E2=EE=EB=E0=EA=E8=E2=E0=FE=F9=E8=EC?= =?ISO-8859-1?Q?=E8?= =?ISO-8859-1?Q?=F0=EE=EC=E0=ED=F2=E8=F7=ED=FB=EC.?= =?ISO-8859-1?Q?=D3=E1=E5=E4=E8=F2=E5=F1=FC?= =?ISO-8859-1?Q?=E2?= =?ISO-8859-1?Q?=FD=F2=EE=EC?= =?ISO-8859-1?Q?=F1=E0=EC=E8.?= http://www.elitpresent.ru/list.php?showg=tac
-Return-Path: <owner-linux-mm@kvack.org>
-X-Envelope-To: <"|/home/majordomo/wrapper archive -f /home/ftp/pub/archives/linux-mm/linux-mm -m -a"> (uid 0)
-X-Orcpt: rfc822;linux-mm-outgoing
-Original-Recipient: rfc822;linux-mm-outgoing
+On Thu, 3 Mar 2005, Christoph Lameter wrote:
 
+> We do a page_cache_get in do_wp_page but we check the pte for changes later.
+
+I remember it well(ish) - end of July 2001, 2.4.8-pre - my change.
+
+> So why do a page_cache_get at all? Do the copy and maybe copy garbage and
+> if the pte was changed forget about it. This avoids having to keep state
+> for the page copied from.
+> 
+> Nick and I discussed this a few weeks ago and there were no further comments.
+
+Sorry, I seem to have missed that discussion.
+
+> Andrew thought that this need to be discussed in more detail.
+> 
+> So maybe there is a situation in which the pte
+> can go away and then be restored to exactly the
+> same value it had before?
+> 
+> The first action that would need to happen is that the swapper(?)
+> clears the pte (and puts the page on the free lists?).
+> 
+> Then the same page with the same pte flags would have to be mapped to
+> the same virtual address again but something significant about the page
+> must have changed.
+
+Exactly.  But for it to be a problem, there needs to be more.
+
+You have to imagine the page is reused for some other purpose after
+it's freed from here, gets unrelated data written into it, do_wp_page's
+copy_user_highpage picks up some or all of that unrelated data, then
+it's freed again and chosen for the very same pte slot as before,
+all while the original do_wp_pager has dropped the page_table_lock.
+
+Not your most likely race, and I'd find it hard to write an exploit ;)
+
+But possible - or it was back then.  I have the ghost of a memory that
+shortly afterwards some unrelated mod by bcrl independently fixed the
+hole; but I can't see it now, perhaps that was in the -ac tree only.
+
+> mmap and related stuff is all not possible because mmap_sem semaphore
+> is held but the page_table_lock is dropped for for the allocation and
+> the copy.
+> 
+> Signed-off-by: Christoph Lameter <clameter@sgi.com>
+
+Nacked-by: Hugh Dickins <hugh@veritas.com> !
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
