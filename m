@@ -1,33 +1,60 @@
-Message-ID: <007501bfdad3$26288e90$0a1e18ac@local>
-From: "Manfred Spraul" <manfred@colorfullife.com>
-References: <87r99t8m2r.fsf@atlas.iskon.hr> <000d01bfda37$f34c3ee0$0a1e18ac@local> <dnaeggn4o0.fsf@magla.iskon.hr>
+Date: Tue, 20 Jun 2000 13:18:38 -0300 (BRST)
+From: Rik van Riel <riel@conectiva.com.br>
 Subject: Re: shrink_mmap() change in ac-21
-Date: Tue, 20 Jun 2000 18:14:33 +0200
+In-Reply-To: <Pine.LNX.4.21.0006200043550.988-100000@inspiron.random>
+Message-ID: <Pine.LNX.4.21.0006201258190.12944-100000@duckman.distro.conectiva>
 MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-From: "Zlatko Calusic" <zlatko@iskon.hr>
 Return-Path: <owner-linux-mm@kvack.org>
-To: zlatko@iskon.hr
-Cc: alan@redhat.com, linux-mm@kvack.org, linux-kernel@vger.rutgers.edu
+To: Andrea Arcangeli <andrea@suse.de>
+Cc: Jamie Lokier <lk@tantalophile.demon.co.uk>, Zlatko Calusic <zlatko@iskon.hr>, alan@redhat.com, linux-mm@kvack.org, linux-kernel@vger.rutgers.edu
 List-ID: <linux-mm.kvack.org>
 
->
-> Simple mathematics: On a 128MB machine, DMA zone is 16MB, thus NORMAL
-> zone is 112MB. 112/16 = 7. So statistically, for every DMA page freed,
-> we free another SEVEN! pages from the NORMAL zone. And we won't stop
-> doing such a genocide until DMA zone recovers.
->
-I'm also concerned about 1GB boxes:
-the highmem zone only contains ~ 64 MB (or 128?), and so most allocations go
-into a tiny zone and are then "downgraded" to GFP_NORMAL.
+On Tue, 20 Jun 2000, Andrea Arcangeli wrote:
+> On Mon, 19 Jun 2000, Jamie Lokier wrote:
+> 
+> >if those wrong zones are quite full.  If the DMA zone desparately needs
+> >free pages and keeps needing them, isn't it good to encourage future
+> >non-DMA allocations to use another zone?  Removing pages from other
+> 
+> After some time the DMA zone will be full again anyway and you
+> payed a cost that consists in throwing away unrelated innocent
+> pages. I'm not convinced it's the right thing to do.
 
-Perhaps we should switch to per-zone lru lists?
+I didn't know for sure either until I tested -ac21 on my
+192MB workstation. The bursts kswapd went through when
+it was freeing DMA memory (and 8MB of other memory) have
+convinced me that this is not a good idea.
 
+Also, since kswapd stops when all zones have free_pages
+above pages_low and we'll free up to pages_high pages of
+one zone, it means that we'll:
+
+- allocate the next series of pages from that one zone
+  with tons of unused pages
+- wake up kswapd so we'll free the *next* unused pages
+  from that zone when we run out of the current batch
+- rinse and repeat
+
+This means we'll do a *lot* more allocations from the
+less loaded zones than from the other zone, with a few
+(short) interruptions by kswapd. Also, there's no need
+to throw away data early.
+
+Of course, once we have a scavenge list (in the active
+inactive scavenge list VM) this whole point will be moot
+and we just want to avoid doing too much IO at once).
+
+regards,
+
+Rik
 --
-    Manfred
+The Internet is not a network of computers. It is a network
+of people. That is its real strength.
+
+Wanna talk about the kernel?  irc.openprojects.net / #kernelnewbies
+http://www.conectiva.com/		http://www.surriel.com/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
