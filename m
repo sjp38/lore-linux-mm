@@ -1,39 +1,35 @@
-Message-ID: <3914264A.B6A660E@ucla.edu>
-Date: Sat, 06 May 2000 07:03:54 -0700
-From: Benjamin Redelings I <bredelin@ucla.edu>
-MIME-Version: 1.0
-Subject: Re: [DATAPOINT] pre7-6 will not swap
-References: <Pine.LNX.4.21.0005061844560.4627-100000@duckman.conectiva> <39149B81.B92C8741@sgi.com>
+Date: Sat, 6 May 2000 18:02:11 +0100
+From: Steve Dodd <steved@loth.demon.co.uk>
+Subject: Re: Updates to /bin/bash
+Message-ID: <20000506180210.A6381@loth.demon.co.uk>
+References: <852568D5.006DBD55.00@raylex-gh01.eo.ray.com> <39121254.F7F71DAC@directlink.net>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <39121254.F7F71DAC@directlink.net>; from Matthew Vanecek on Thu, May 04, 2000 at 07:14:12PM -0500
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rajagopal Ananthanarayanan <ananth@sgi.com>
-Cc: riel@nl.linux.org, Linus Torvalds <torvalds@transmeta.com>, linux-mm@kvack.org
+To: Matthew Vanecek <linuxguy@directlink.net>
+Cc: linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> Once again, I'm back to asking, should we be swapping at all?
-> Shouldn't shrink_mmap() be finding pages to throw out?
-> 
+[I don't seem to have the start of this thread..]
 
-Thats a good question.  However, it also misses part of the point.
+On Thu, May 04, 2000 at 07:14:12PM -0500, Matthew Vanecek wrote:
 
-The reason for the bad performance is not mainly that there is too
-little swapout.  The WRONG PAGES are swapped out!  The system spends
-most of its I/O bandwith doing page-in's.
+> Well, the executable is loaded into memory once started.  For the most
+> part, you can overwrite the executable (or other file) on the disk, as
+> long as you have permissions to do so. [..]
 
-Remember, on my system, the VM swapped out the quake ENGINE, which was
-running 100% of the time, in order to keep unused daemons blocking on
-select in core.
+Err, no, the executable is paged in and out as required. Updating a running
+executable simply means you must make sure to create a *different* inode
+for the new version, instead of scribbling over the existing one, i.e.:
 
-That is just wrong.  Right?
+cp /mnt/foo/bar /bin/bar.new
+rm /bin/bar
+mv /bin/bar.new /bin/bar
 
--benRI
--- 
-"I want to be in the light, as He is in the Light,
- I want to shine like the stars in the heavens." - DC Talk, "In the
-Light"
-Benjamin Redelings I      <><     http://www.bol.ucla.edu/~bredelin/
+When the last user of the old version goes away, the inode for it is deleted.
+New users see the new version.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
