@@ -1,59 +1,29 @@
-Date: Wed, 2 Feb 2005 14:49:36 -0200
-From: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
-Subject: Re: [PATCH 2/2] Helping prezoring with reduced fragmentation allocation
-Message-ID: <20050202164936.GA23718@logos.cnet>
-References: <20050201171641.CC15EE5E8@skynet.csn.ul.ie> <Pine.LNX.4.58.0502011110560.3436@schroedinger.engr.sgi.com> <Pine.LNX.4.58.0502011929020.16992@skynet> <Pine.LNX.4.58.0502011604130.5406@schroedinger.engr.sgi.com> <Pine.LNX.4.58.0502020026040.16992@skynet>
+Date: Wed, 2 Feb 2005 12:19:22 -0800
+From: Andrew Morton <akpm@osdl.org>
+Subject: Re: [PATCH 2/2] Helping prezoring with reduced fragmentation
+ allocation
+Message-Id: <20050202121922.1251c677.akpm@osdl.org>
+In-Reply-To: <20050202164936.GA23718@logos.cnet>
+References: <20050201171641.CC15EE5E8@skynet.csn.ul.ie>
+	<Pine.LNX.4.58.0502011110560.3436@schroedinger.engr.sgi.com>
+	<Pine.LNX.4.58.0502011929020.16992@skynet>
+	<Pine.LNX.4.58.0502011604130.5406@schroedinger.engr.sgi.com>
+	<Pine.LNX.4.58.0502020026040.16992@skynet>
+	<20050202164936.GA23718@logos.cnet>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.58.0502020026040.16992@skynet>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: akpm@osdl.org
-Cc: Christoph Lameter <clameter@sgi.com>, Mel Gorman <mel@csn.ul.ie>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
+Cc: clameter@sgi.com, mel@csn.ul.ie, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Andrew,
+Marcelo Tosatti <marcelo.tosatti@cyclades.com> wrote:
+>
+>  What are your thoughts about inclusion of Mel's allocator work on -mm ?
 
-What are your thoughts about inclusion of Mel's allocator work on -mm ?
-
-On Wed, Feb 02, 2005 at 12:31:36AM +0000, Mel Gorman wrote:
-> On Tue, 1 Feb 2005, Christoph Lameter wrote:
-> 
-> > On Tue, 1 Feb 2005, Mel Gorman wrote:
-> >
-> > > > Would it not be better to zero the global 2^MAX_ORDER pages by the scrub
-> > > > daemon and have a global zeroed page list? That way you may avoid zeroing
-> > > > when splitting pages?
-> > > >
-> > >
-> > > Maybe, but right now when there are no 2^MAX_ORDER pages, the scrub daemon
-> > > is going to be doing nothing which is why I think it needs to look at the
-> > > free pages of lower orders.
-> > >
-> > > That is solveable though in one of two ways. One, the scrub daemon can
-> > > zero pages from the global list and then add them to the USERZERO pool. It
-> > > has the advantage of requiring no more memory and is simple. The second is
-> > > to create a second global list. However, I think it only makes sense to
-> > > have this as part of the scrub daemon patch (I can write it if thats a
-> > > problem) rather than a standalone patch from me.
-> >
-> > Approach one is fine and I will do an update the remaining prezero patches
-> > to do just that.
-> 
-> There is another problem with approach one. Assuming all 2^MAX_ORDER pages
-> have been zeroed and in USERZERO pool and there are no other free pages,
-> an allocation for the USERRCLM pool would search all the other pools
-> before finding the zerod pages. This could really slow things up but it is
-> not a problem approach two suffers from.
-> 
-> > When will your patches be in Linus tree? ;-)
-> >
-> 
-> Your guess is as good as mine :) . I am fairly sure the allocator is
-> somewhere in Andrew's list of patches to look at to consider for inclusion
-> into -mm so I suppose it'll get a spin in that tree when he feels it's
-> ready.
+It's sitting in my to-do pile.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
