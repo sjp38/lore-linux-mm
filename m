@@ -1,46 +1,48 @@
-Date: Mon, 22 Sep 2003 14:48:13 +0100
-From: viro@parcelfarce.linux.theplanet.co.uk
+From: Alistair J Strachan <alistair@devzero.co.uk>
 Subject: Re: 2.6.0-test5-mm4
-Message-ID: <20030922134813.GF7665@parcelfarce.linux.theplanet.co.uk>
-References: <20030922013548.6e5a5dcf.akpm@osdl.org> <200309221317.42273.alistair@devzero.co.uk>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Date: Mon, 22 Sep 2003 14:49:37 +0100
+References: <20030922013548.6e5a5dcf.akpm@osdl.org> <200309221317.42273.alistair@devzero.co.uk> <20030922143605.GA9961@gemtek.lt>
+In-Reply-To: <20030922143605.GA9961@gemtek.lt>
+MIME-Version: 1.0
 Content-Disposition: inline
-In-Reply-To: <200309221317.42273.alistair@devzero.co.uk>
+Content-Type: text/plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
+Message-Id: <200309221449.37677.alistair@devzero.co.uk>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Alistair J Strachan <alistair@devzero.co.uk>
+To: Zilvinas Valinskas <zilvinas@gemtek.lt>
 Cc: Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Sep 22, 2003 at 01:17:42PM +0100, Alistair J Strachan wrote:
-> One possible explanation is that I have devfs compiled into my kernel. I do 
-> not, however, have it automatically mounting on boot. It overlays /dev (which 
-> is populated with original style device nodes) after INIT has loaded.
+On Monday 22 September 2003 15:36, Zilvinas Valinskas wrote:
+[snip]
+> >
+> > VFS: Cannot open root device "302" or hda2.
+> > Please append correct "root=" boot option.
+> > Kernel Panic: VFS: Unable to mount root fs on hda2.
+>
+> Do you use devfsd ?
+>
 
-Amazingly idiotic typo.  And yes, it gets hit only if devfs is configured.
+No. As I said, I mount /dev with mount -t devfs devfs /dev in a sysinit 
+bootscript. Whether it's in the kernel or not shouldn't make any difference. 
+Maybe I just need to reissue LILO after booting the 32bit dev_t kernel?
 
-diff -u B5-real32/init/do_mounts.h B5-current/init/do_mounts.h
---- B5-real32/init/do_mounts.h	Sun Sep 21 21:22:33 2003
-+++ B5-current/init/do_mounts.h	Mon Sep 22 09:41:21 2003
-@@ -53,7 +53,7 @@
- static inline u32 bstat(char *name)
- {
- 	struct stat64 stat;
--	if (!sys_stat64(name, &stat) != 0)
-+	if (sys_stat64(name, &stat) != 0)
- 		return 0;
- 	if (!S_ISBLK(stat.st_mode))
- 		return 0;
-@@ -65,7 +65,7 @@
- static inline u32 bstat(char *name)
- {
- 	struct stat stat;
--	if (!sys_newstat(name, &stat) != 0)
-+	if (sys_newstat(name, &stat) != 0)
- 		return 0;
- 	if (!S_ISBLK(stat.st_mode))
- 		return 0;
+> I had to specify root like this :
+> root=/dev/ide/host0/bus0/target0/lun0/part5  then it worked just fine.
+>
+
+I'll try that, thanks. But I have this in lilo.conf:
+
+boot=/dev/discs/disc0/disc
+root=/dev/discs/disc0/part2
+
+/dev/discs is indeed a symlink, but it should be resolved when LILO is 
+installed, i.e., prior to the reboot. Why has this behaviour changed?
+
+Cheers,
+Alistair.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
