@@ -1,45 +1,35 @@
-Subject: Re: [PATCH] dirty bit clearing on s390.
-From: Arjan van de Ven <arjanv@redhat.com>
-Reply-To: arjanv@redhat.com
-In-Reply-To: <20030522112000.GA2597@mschwid3.boeblingen.de.ibm.com>
-References: <20030522112000.GA2597@mschwid3.boeblingen.de.ibm.com>
-Content-Type: multipart/signed; micalg=pgp-sha1; protocol="application/pgp-signature"; boundary="=-eIYQvzJ2RzM2EzY3iBVw"
-Message-Id: <1053603729.2360.0.camel@laptop.fenrus.com>
-Mime-Version: 1.0
-Date: 22 May 2003 13:42:09 +0200
+Message-ID: <3ECCBD6B.9070807@aitel.hist.no>
+Date: Thu, 22 May 2003 14:07:07 +0200
+From: Helge Hafting <helgehaf@aitel.hist.no>
+MIME-Version: 1.0
+Subject: Re: 2.5.69-mm8
+References: <20030522021652.6601ed2b.akpm@digeo.com>
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Martin Schwidefsky <schwidefsky@de.ibm.com>
-Cc: linux-mm@kvack.org, akpm@digeo.com, phillips@arcor.de
+To: Andrew Morton <akpm@digeo.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
---=-eIYQvzJ2RzM2EzY3iBVw
-Content-Type: text/plain
-Content-Transfer-Encoding: quoted-printable
+Andrew Morton wrote:
+> ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.5/2.5.69/2.5.69-mm8/
+> 
+> . One anticipatory scheduler patch, but it's a big one.  I have not stress
+>   tested it a lot.  If it explodes please report it and then boot with
+>   elevator=deadline.
+> 
+> . The slab magazine layer code is in its hopefully-final state.
+> 
+> . Some VFS locking scalability work - stress testing of this would be
+>   useful.
 
-On Thu, 2003-05-22 at 13:20, Martin Schwidefsky wrote:
+
+It seems to work fine for UP and survives a kernel compile.
+
+Helge Hafting
 
 
-> Our solution is to move the clearing of the storage key (dirty bit)
-> from set_pte to SetPageUptodate. A patch that implements this is
-> attached. What do you think ?
-
-Is there anything that prevents a thread mmaping the page to redirty it
-before the kernel marks it uptodate ?=20
-
---=-eIYQvzJ2RzM2EzY3iBVw
-Content-Type: application/pgp-signature; name=signature.asc
-Content-Description: This is a digitally signed message part
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.2.2 (GNU/Linux)
-
-iD8DBQA+zLeRxULwo51rQBIRAnkRAJ4sYlnnpkkR1USZP5T1WrFCM3tquwCfc3FN
-qjXVRtN9xqsZXMvxNN3Bias=
-=Leyg
------END PGP SIGNATURE-----
-
---=-eIYQvzJ2RzM2EzY3iBVw--
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
