@@ -1,34 +1,32 @@
-Date: Wed, 4 Sep 2002 10:32:14 -0300 (BRT)
-From: Rik van Riel <riel@conectiva.com.br>
-Subject: Re: nonblocking-vm.patch
-In-Reply-To: <3D75E054.B341E067@zip.com.au>
-Message-ID: <Pine.LNX.4.44L.0209041030510.1857-100000@imladris.surriel.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Wed, 4 Sep 2002 11:48:04 -0400
+From: Adam Kropelin <akropel1@rochester.rr.com>
+Subject: Re: 2.5.33-mm2
+Message-ID: <20020904154804.GA29967@www.kroptech.com>
+References: <3D75CD24.AF9B769B@zip.com.au>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <3D75CD24.AF9B769B@zip.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@zip.com.au>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: lkml <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 4 Sep 2002, Andrew Morton wrote:
+Seems to need this patch to satisfy the compiler gremlins...
 
-> - If the page is dirty, and mapped into pagetables then write the
->   thing anyway (haven't tested this yet).  This is to get around the
->   problem of big dirty mmaps - everything stalls on request queues.
->   Oh well.
+--Adam
 
-I don't think we need this.  If the request queue is saturated, and
-free memory is low, the request queue is guaranteed to be full of
-writes, which will result in memory becoming freeable soon.
-
-regards,
-
-Rik
--- 
-Bravely reimplemented by the knights who say "NIH".
-
-http://www.surriel.com/		http://distro.conectiva.com/
+--- linux-2.5.33-mm2.orig/mm/vmalloc.c	Wed Sep  4 11:42:50 2002
++++ linux-2.5.33-mm2/mm/vmalloc.c	Wed Sep  4 11:38:53 2002
+@@ -12,6 +12,7 @@
+ #include <linux/slab.h>
+ #include <linux/spinlock.h>
+ #include <linux/vmalloc.h>
++#include <linux/interrupt.h>
+ 
+ #include <asm/uaccess.h>
+ #include <asm/pgalloc.h>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
