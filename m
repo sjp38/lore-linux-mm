@@ -1,33 +1,75 @@
-Message-ID: <403FFD0F.60908@cyberone.com.au>
-Date: Sat, 28 Feb 2004 13:29:35 +1100
-From: Nick Piggin <piggin@cyberone.com.au>
+Date: Sat, 28 Feb 2004 07:44:33 -0800
+From: "Martin J. Bligh" <mbligh@aracnet.com>
+Subject: [Bug 2219] New: kernel BUG at mm/rmap.c:306 
+Message-ID: <476870000.1077983073@[10.10.2.4]>
 MIME-Version: 1.0
-Subject: Re: [RFC] VM batching patch problems?
-References: <403FDEAA.1000802@cyberone.com.au> <20040227165244.25648122.akpm@osdl.org> <403FF15E.3040800@cyberone.com.au>
-In-Reply-To: <403FF15E.3040800@cyberone.com.au>
-Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: linux-mm@kvack.org
+To: linux-kernel <linux-kernel@vger.kernel.org>, linux-mm mailing list <linux-mm@kvack.org>
+Cc: castetm@ensisun.imag.fr
 List-ID: <linux-mm.kvack.org>
 
+           Summary: kernel BUG at mm/rmap.c:306
+    Kernel Version: 2.6.3
+            Status: NEW
+          Severity: high
+             Owner: akpm@digeo.com
+         Submitter: castetm@ensimag.imag.fr
 
-Nick Piggin wrote:
 
->
-> No it doesn't increase ZONE_NORMAL scanning. The scanning is the same 
-> rate,
-> but because ZONE_NORMAL is 1/4 the size, it has quadruple the 
-> pressure. If
-> you don't like logic, just pretend it is pinned by mem_map and other 
-> things.
-> Your batching patch is conceptually wrong and it adds complexity.
->
+Distribution: gentoo
+Hardware Environment:pentium-3/512 Mo RAM
 
-An unfortunate typo. I was supposed to say "if you don't like *that* logic",
-not "if you don't like logic"...
+I have try overcommit-accounting with strict overcommit, but when i launch a
+program like [1], there was a kernel bug [2]
+
+
+[1]
+int main()
+{
+        while(fork() != -1) {}
+        while(malloc(1024)) {}
+        while(1) {}
+}
+------------------------------------------------
+[2]
+Out of Memory: Killed process 8289 (a.out).
+Out of Memory: Killed process 8297 (a.out).
+swap_free: Bad swap offset entry 001c2790
+------------[ cut here ]------------
+kernel BUG at mm/rmap.c:306!
+invalid operand: 0000 [#1]
+CPU:    0
+EIP:    0060:[<c014baf0>]    Not tainted
+EFLAGS: 00010246
+EIP is at try_to_unmap_one+0x1e0/0x1f0
+eax: 00000000   ebx: 000c0000   ecx: 00000009   edx: c1000000
+esi: c14662e8   edi: df55e300   ebp: c14662e8   esp: dfa99d48
+ds: 007b   es: 007b   ss: 0068
+Process kswapd0 (pid: 8, threadinfo=dfa98000 task=dfa9eca0)
+Stack: df55e300 00000009 1c279005 00000000 00000000 00000004 c14662e8 da675ac0
+       00000000 c014bbab d4a5d440 00000004 00000000 da675ac0 00000000 c14662e8
+       00000001 dfa98000 c0142554 c1416c20 dfa99db8 c036a6f4 dfa98000 00000028
+Call Trace:
+ [<c014bbab>] try_to_unmap+0xab/0x160
+ [<c0142554>] shrink_list+0x224/0x560
+ [<c0142a30>] shrink_cache+0x1a0/0x320
+ [<c0143243>] shrink_zone+0x83/0xb0
+ [<c014365a>] balance_pgdat+0x19a/0x220
+ [<c01437f5>] kswapd+0x115/0x130
+ [<c011d7e0>] autoremove_wake_function+0x0/0x50
+ [<c0109302>] ret_from_fork+0x6/0x14
+ [<c011d7e0>] autoremove_wake_function+0x0/0x50
+ [<c01436e0>] kswapd+0x0/0x130
+ [<c01072a5>] kernel_thread_helper+0x5/0x10
+
+Code: 0f 0b 32 01 13 c0 32 c0 e9 78 fe ff ff 8d 76 00 55 57 56 89
+ <6>note: kswapd0[8] exited with preempt_count 2
+Out of Memory: Killed process 12353 (a.out).
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
