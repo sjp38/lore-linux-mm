@@ -1,40 +1,39 @@
-Received: from pirx.df.lth.se (root@pirx.df.lth.se [194.47.251.53])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id TAA12562
-	for <linux-mm@kvack.org>; Tue, 12 Jan 1999 19:02:37 -0500
-Received: by pirx.df.lth.se
-	via sendmail from stdin
-	id <m100Dkd-000hBQC@pirx.df.lth.se> (Debian Smail3.2.0.101)
-	for linux-mm@kvack.org; Wed, 13 Jan 1999 01:01:35 +0100 (CET)
-Message-ID: <19990113010134.A11559@pirx.df.lth.se>
-Date: Wed, 13 Jan 1999 01:01:34 +0100
-From: Robert Thorncrantz <rtz@pirx.df.lth.se>
-Subject: Where to find pre7. Was: Results: Zlatko's new vm patch
-References: <369ABFB4.C420E5AE@netplus.net> <Pine.LNX.3.95.990111213013.15291A-100000@penguin.transmeta.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <Pine.LNX.3.95.990111213013.15291A-100000@penguin.transmeta.com>; from Linus Torvalds on Mon, Jan 11, 1999 at 09:33:08PM -0800
+Received: from max.phys.uu.nl (max.phys.uu.nl [131.211.32.73])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id TAA12721
+	for <linux-mm@kvack.org>; Tue, 12 Jan 1999 19:18:52 -0500
+Date: Tue, 12 Jan 1999 22:46:08 +0100 (CET)
+From: Rik van Riel <riel@humbolt.geo.uu.nl>
+Subject: Re: MM deadlock [was: Re: arca-vm-8...]
+In-Reply-To: <87d84kl49u.fsf@atlas.CARNet.hr>
+Message-ID: <Pine.LNX.4.03.9901122245090.4656-100000@mirkwood.dummy.home>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Linus Torvalds <torvalds@transmeta.com>, Steve Bergman <steve@netplus.net>
-Cc: Andrea Arcangeli <andrea@e-mind.com>, brent verner <damonbrent@earthlink.net>, "Garst R. Reese" <reese@isn.net>, Kalle Andersson <kalle.andersson@mbox303.swipnet.se>, Zlatko Calusic <Zlatko.Calusic@CARNet.hr>, Ben McCann <bmccann@indusriver.com>, bredelin@ucsd.edu, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org, Alan Cox <alan@lxorguk.ukuu.org.uk>, "Stephen C. Tweedie" <sct@redhat.com>
+To: Zlatko Calusic <Zlatko.Calusic@CARNet.hr>
+Cc: Linus Torvalds <torvalds@transmeta.com>, "Stephen C. Tweedie" <sct@redhat.com>, "Eric W. Biederman" <ebiederm+eric@ccr.net>, Savochkin Andrey Vladimirovich <saw@msu.ru>, Andrea Arcangeli <andrea@e-mind.com>, steve@netplus.net, brent verner <damonbrent@earthlink.net>, "Garst R. Reese" <reese@isn.net>, Kalle Andersson <kalle.andersson@mbox303.swipnet.se>, Ben McCann <bmccann@indusriver.com>, Alan Cox <alan@lxorguk.ukuu.org.uk>, bredelin@ucsd.edu, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jan 11, 1999 at 09:33:08PM -0800, Linus Torvalds wrote:
-<snip>
-> 
-> The only feedback I have so far says that pre-7 is much better than any of
-> the pre-6 versions, but I'd be happier with more coverage depth and more
+On 12 Jan 1999, Zlatko Calusic wrote:
 
-I've not found the pre7 in the usual places on the mirrors. I found
-something that looks like it in /pub/linux/kernel/testing/pre-7.gz, is
-this the one, and is it a "real" pre-release? I'm a little uncertain
-since it's not in the same place as the others.
+> After number of async pages gets bigger than
+> pager_daemon.swap_cluster (= SWAP_CLUSTER_MAX), swapin readahead
+> becomes synchronous, and that hurts performance. It is better to
+> skip readahead in such situations, and that is also more fair to
+> swapout. Andrea came to exactly the same conclusion, independent
+> of me (on the same day :)).
 
-  /robert
+IIRC this facility was in the original swapin readahead
+implementation. That only leaves the question who removed
+it and why :))
 
--- 
-Robert Thorncrantz                                 rtz@pirx.df.lth.se
-Mundus Vult Decipi                              dat95rth@ludat.lth.se
+cheers,
+
+Rik -- If a Microsoft product fails, who do you sue?
++-------------------------------------------------------------------+
+| Linux memory management tour guide.        riel@humbolt.geo.uu.nl |
+| Scouting Vries cubscout leader.    http://humbolt.geo.uu.nl/~riel |
++-------------------------------------------------------------------+
+
 --
 This is a majordomo managed list.  To unsubscribe, send a message with
 the body 'unsubscribe linux-mm me@address' to: majordomo@kvack.org
