@@ -1,29 +1,35 @@
-Date: Sun, 12 Jan 2003 03:49:16 +0100
-From: Willy Tarreau <willy@w.ods.org>
+Date: Sun, 12 Jan 2003 17:11:25 +0200
+From: Marcus Alanen <marcus@infa.abo.fi>
+Message-Id: <200301121511.RAA22153@infa.abo.fi>
 Subject: Re: Linux VM Documentation - Draft 1
-Message-ID: <20030112024916.GA12998@alpha.home.local>
-References: <Pine.LNX.4.44.0301120210580.32623-100000@skynet>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
 In-Reply-To: <Pine.LNX.4.44.0301120210580.32623-100000@skynet>
+References: <Pine.LNX.4.44.0301120210580.32623-100000@skynet>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: mel@csn.ul.ie, linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Jan 12, 2003 at 02:11:37AM +0000, Mel Gorman wrote:
- 
-> Any feedback, comments or suggestions are welcome from anyone with a VM
+>Well, despite numerous setbacks, disasters and various panic-attacks, I've
+>finally got a first draft together for documentation of the Linux VM. This
+>is still incomplete but will hopefully still be a valuable resource to
+>those wishing to understand the VM.
 
-one feedback : Thanks a lot !!! This is invaluable work. I don't have the
-skills to tell you if/where you let mistakes, but your documents will help me
-(and probably many people) understanding this important kernel part.
+Excellent! A lot of people will learn from this, thank you!
 
-Congratulations, really !
-Willy
+>Understanding the Linux Virtual Memory Manager
+>PDF:  http://www.csn.ul.ie/~mel/projects/vm/guide/pdf/understand.pdf
+>HTML: http://www.csn.ul.ie/~mel/projects/vm/guide/html/understand/
+>Text: http://www.csn.ul.ie/~mel/projects/vm/guide/text/understand.txt
 
+Do you take patches? I couldn't find the .tex file.
+
+Regards,
+Marcus
+
+-- 
+Marcus Alanen
+maalanen@abo.fi
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
