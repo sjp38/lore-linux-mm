@@ -1,38 +1,43 @@
-Date: Tue, 26 Sep 2000 10:54:23 +0100
+Date: Tue, 26 Sep 2000 11:07:36 +0100
 From: "Stephen C. Tweedie" <sct@redhat.com>
 Subject: Re: the new VMt
-Message-ID: <20000926105423.D1638@redhat.com>
-References: <20000925143523.B19257@hq.fsmlabs.com> <E13df92-0005Zp-00@the-village.bc.nu> <20000925150744.A20586@hq.fsmlabs.com>
+Message-ID: <20000926110736.E1638@redhat.com>
+References: <20000925143523.B19257@hq.fsmlabs.com> <Pine.LNX.3.96.1000925164556.9644A-100000@kanga.kvack.org> <20000925151250.B20586@hq.fsmlabs.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20000925150744.A20586@hq.fsmlabs.com>; from yodaiken@fsmlabs.com on Mon, Sep 25, 2000 at 03:07:44PM -0600
+In-Reply-To: <20000925151250.B20586@hq.fsmlabs.com>; from yodaiken@fsmlabs.com on Mon, Sep 25, 2000 at 03:12:50PM -0600
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: yodaiken@fsmlabs.com
-Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, "Stephen C. Tweedie" <sct@redhat.com>, Jamie Lokier <lk@tantalophile.demon.co.uk>, mingo@elte.hu, Andrea Arcangeli <andrea@suse.de>, Marcelo Tosatti <marcelo@conectiva.com.br>, Linus Torvalds <torvalds@transmeta.com>, Rik van Riel <riel@conectiva.com.br>, Roger Larsson <roger.larsson@norran.net>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
+Cc: "Benjamin C.R. LaHaise" <blah@kvack.org>, "Stephen C. Tweedie" <sct@redhat.com>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
 Hi,
 
-On Mon, Sep 25, 2000 at 03:07:44PM -0600, yodaiken@fsmlabs.com wrote:
-> On Mon, Sep 25, 2000 at 09:46:35PM +0100, Alan Cox wrote:
+On Mon, Sep 25, 2000 at 03:12:50PM -0600, yodaiken@fsmlabs.com wrote:
+> > > 
 > > > I'm not too sure of what you have in mind, but if it is
 > > >      "process creates vast virtual space to generate many page table
 > > >       entries -- using mmap"
 > > > the answer is, virtual address space quotas and mmap should kill 
 > > > the process on low mem for page tables.
 > > 
-> > Those quotas being exactly what beancounter is
+> > No.  Page tables are not freed after munmap (and for good reason).  The
+> > counting of page table "beans" is critical.
 > 
-> But that is a function specific counter, not a counter in the 
-> alloc code.
+> I've seen the assertion before, reasons would be interesting.
 
-Beancounter is a framework for user-level accounting.  _What_ you
-account is up to the callers.  Maybe this has been a miscommunication,
-but beancounter is all about allowing callers to account for stuff
-before allocation, not about having the page allocation functions
-themselves enforce quotas.
+Reason 1: under DoS attack, you want to target not the process using
+the most resources, but the *user* using the most resources (else a
+fork-bomb style attack can work around your OOM-killer algorithms).
+
+Reason 2: if you've got tasks stuck in low-level page allocation
+routines, then you can't immediately kill -9 them, so reactive OOM
+killing always has vulnerabilities --- to be robust in preventing
+resource exhaustion you want limits on the use of those resources
+before they are exhausted --- the necessary accounting being part of
+what we refer to as "beancounter".
 
 --Stephen
 --
