@@ -1,48 +1,69 @@
-Date: Wed, 4 Feb 2004 18:04:42 -0800 (PST)
-From: Linus Torvalds <torvalds@osdl.org>
-Subject: Re: [Bugme-new] [Bug 2019] New: Bug from the mm subsystem involving
- X  (fwd)
-In-Reply-To: <1075946211.13163.18962.camel@dyn318004bld.beaverton.ibm.com>
-Message-ID: <Pine.LNX.4.58.0402041800320.2086@home.osdl.org>
-References: <51080000.1075936626@flay> <Pine.LNX.4.58.0402041539470.2086@home.osdl.org>
- <60330000.1075939958@flay> <64260000.1075941399@flay>
- <Pine.LNX.4.58.0402041639420.2086@home.osdl.org> <20040204165620.3d608798.akpm@osdl.org>
-  <Pine.LNX.4.58.0402041719300.2086@home.osdl.org>
- <1075946211.13163.18962.camel@dyn318004bld.beaverton.ibm.com>
+Message-ID: <4021A62D.40002@cyberone.com.au>
+Date: Thu, 05 Feb 2004 13:10:53 +1100
+From: Nick Piggin <piggin@cyberone.com.au>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH 3/5] mm improvements
+References: <4020BE45.10007@cyberone.com.au>	<Pine.LNX.4.44.0402041027380.24515-100000@chimarrao.boston.redhat.com> <16417.8644.203682.640759@laputa.namesys.com>
+In-Reply-To: <16417.8644.203682.640759@laputa.namesys.com>
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Keith Mannthey <kmannth@us.ibm.com>
-Cc: Andrew Morton <akpm@osdl.org>, "Martin J. Bligh" <mbligh@aracnet.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Nikita Danilov <Nikita@Namesys.COM>
+Cc: Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@osdl.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 
-On Wed, 4 Feb 2004, Keith Mannthey wrote:
-> 
-> Martin sent me a patch that fixed the X panics (NUMA and DISCONTIG
-> enabled).  (Thanks Martin!) I don't have the same X panics and issues I
-> had before. I don't know if this will work for the generic case. It
-> compiles with a simple memory situation just fine but I didn't boot it. 
+Nikita Danilov wrote:
 
-Looks ok, but the thing should be made a function (possibly inline, 
-depending on how big the code generated ends up being). As it is, it now 
-uses its arguments several times, and while I don't see anything where 
-that could screw up, it's just a tad scary.
+>Rik van Riel writes:
+> > On Wed, 4 Feb 2004, Nick Piggin wrote:
+> > > Nick Piggin wrote:
+> > > 
+> > > > 3/5: vm-lru-info.patch
+> > > >     Keep more referenced info in the active list. Should also improve
+> > > >     system time in some cases. Helps swapping loads significantly.
+> > 
+> > I suspect this is one of the more important ones in this
+> > batch of patches...
+>
+>I don't understand how this works. This patch just parks mapped pages on
+>the "ignored" segment of the active list, where they rest until
+>reclaim_mapped mode is entered.
+>
+>This only makes a difference for the pages that were page_referenced():
+>
+>1. they are moved to the ignored segment rather than to the head of the
+>active list.
+>
+>2. their referenced bit is not cleared
+>
+>
 
-Also, related to this whole mess, what the _heck_ is this in mm/rmap.c:
+It treats all mapped pages in the same manner. Without this
+patch, referenced mapped pages are distinctly disadvantaged
+vs unreferenced mapped pages.
 
-        if (!pfn_valid(page_to_pfn(page)) || PageReserved(page))
-                return pte_chain;
+Even if reclaim_mapped is only flipped once every few
+seconds it can make a big impact. On a 64MB heavily
+swapping, you probably take 10 seconds to reclaim 64MB. It
+is of critical importance that we keep as much hotness
+information as possible.
 
-that "pfn_valid(page_to_pfn(page))" just looks totally nonsensical. Can
-somebody really pass in random page pointers to this thing, and if so, are
-they guaranteed to be "not-random enough" to not cause bogus behaviour
-when the "page_to_pfn()" happens to be valid..
+It shows on the benchmarks too. It provides nearly as
+much improvement as your patch alone for a make -j16.
+ie. over 20%
 
-If VM_IO gets rid of this, then we should immediately apply the patch.
+http://www.kerneltrap.org/~npiggin/vm/2/
 
-			Linus
+
+Also, when you're heavily swapping, everything slows down
+to such an extent that "hot" pages are no longer touched
+thousands of times per second, but maybe a few times every
+few seconds. If you're continually clearing this information,
+as soon as reclaim_mapped is triggered, all your hot pages
+get evicted.
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
