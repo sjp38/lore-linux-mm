@@ -1,36 +1,62 @@
-Date: Thu, 22 Mar 2001 13:29:02 -0600
-From: Philipp Rumpf <prumpf@mandrakesoft.com>
+Date: Thu, 22 Mar 2001 14:28:31 -0600
+From: Stephen Clouse <stephenc@theiqgroup.com>
 Subject: Re: [PATCH] Prevent OOM from killing init
-Message-ID: <20010322132902.B23177@mandrakesoft.mandrakesoft.com>
-References: <Pine.LNX.4.21.0103212047590.19934-100000@imladris.rielhome.conectiva> <m18zly2pam.fsf@frodo.biederman.org>
+Message-ID: <20010322142831.A929@owns.warpcore.org>
+References: <3AB9313C.1020909@missioncriticallinux.com> <Pine.LNX.4.21.0103212047590.19934-100000@imladris.rielhome.conectiva> <20010322124727.A5115@win.tue.nl>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-In-Reply-To: <m18zly2pam.fsf@frodo.biederman.org>; from Eric W. Biederman on Thu, Mar 22, 2001 at 01:14:41AM -0700
+Content-Type: text/plain
+Content-Disposition: inline; filename="msg.pgp"
+In-Reply-To: <20010322124727.A5115@win.tue.nl>; from dwguest@win.tue.nl on Thu, Mar 22, 2001 at 12:47:27PM +0100
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Eric W. Biederman" <ebiederm@xmission.com>
+To: Guest section DW <dwguest@win.tue.nl>
 Cc: Rik van Riel <riel@conectiva.com.br>, Patrick O'Rourke <orourke@missioncriticallinux.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Mar 22, 2001 at 01:14:41AM -0700, Eric W. Biederman wrote:
-> Rik van Riel <riel@conectiva.com.br> writes:
-> Is there ever a case where killing init is the right thing to do?
+-----BEGIN PGP SIGNED MESSAGE-----
+Hash: SHA1
 
-There are cases where panic() is the right thing to do.  Broken init
-is such a case.
+On Thu, Mar 22, 2001 at 12:47:27PM +0100, Guest section DW wrote:
+> Last week I installed SuSE 7.1 somewhere.
+> During the install: "VM: killing process rpm",
+> leaving the installer rather confused.
+> (An empty machine, 256MB, 144MB swap, I think 2.2.18.)
+> 
+> Last month I had a computer algebra process running for a week.
+> Killed. But this computation was the only task this machine had.
+> Its sole reason of existence.
+> Too bad - zero information out of a week's computation.
+> (I think 2.4.0.)
+> 
+> Clearly, Linux cannot be reliable if any process can be killed
+> at any moment. I am not happy at all with my recent experiences.
 
-> My impression is that if init is selected the whole machine dies.
-> If you can kill init and still have a machine that mostly works,
+Really the whole oom_kill process seems bass-ackwards to me.  I can't in my mind
+logically justify annihilating large-VM processes that have been running for 
+days or weeks instead of just returning ENOMEM to a process that just started 
+up.
 
-you can't.
+We run Oracle on a development box here, and it's always the first to get the
+axe (non-root process using 70-80 MB VM).  Whenever someone's testing decides to 
+run away with memory, I usually spend the rest of the day getting intimate with
+the backup files, since SIGKILLing random Oracle processes, as you might have
+guessed, has a tendency to rape the entire database.
 
-> Guaranteeing not to select init can buy you piece of mind because
-> init if properly setup can put the machine back together again, while
-> not special casing init means something weird might happen and init
-> would be selected.
+It would be nice to give immunity to certain uids, or better yet, just turn the
+damn thing off entirely.  I've already hacked that in...errr, out.
 
-If we're in a situation where long-running processes with relatively
-small VM are killed the box is very unlikely to be usable anyway.
+- -- 
+Stephen Clouse <stephenc@theiqgroup.com>
+Senior Programmer, IQ Coordinator Project Lead
+The IQ Group, Inc. <http://www.theiqgroup.com/>
+
+-----BEGIN PGP SIGNATURE-----
+Version: PGP 6.5.8
+
+iQA/AwUBOrpgbgOGqGs0PadnEQLp5QCfZMwtDZRNwYQ6RJX0MJ8lRVHTj3YAoNlt
+pFWT2i+2y+Yze/6EYy9V0oaE
+=QIrK
+-----END PGP SIGNATURE-----
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
