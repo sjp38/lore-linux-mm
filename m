@@ -1,76 +1,60 @@
-Received: from digeo-nav01.digeo.com (digeo-nav01.digeo.com [192.168.1.233])
-	by packet.digeo.com (8.9.3+Sun/8.9.3) with SMTP id WAA23801
-	for <linux-mm@kvack.org>; Thu, 19 Sep 2002 22:41:44 -0700 (PDT)
-Message-ID: <3D8AB518.218F8503@digeo.com>
-Date: Thu, 19 Sep 2002 22:41:44 -0700
-From: Andrew Morton <akpm@digeo.com>
-MIME-Version: 1.0
-Subject: Re: [patch] remove page->virtual
-References: <3D8AAA58.41BC835F@digeo.com> <20020920050320.GH3530@holomorphy.com>
-Content-Type: text/plain; charset=us-ascii
+Message-ID: <20020920143536.58257.qmail@mail.com>
+Content-Type: text/plain; charset="iso-8859-15"
+Content-Disposition: inline
 Content-Transfer-Encoding: 7bit
+MIME-Version: 1.0
+From: "Lee Chin" <leechin@mail.com>
+Date: Fri, 20 Sep 2002 09:35:36 -0500
+Subject: Re: memory allocation on linux
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: William Lee Irwin III <wli@holomorphy.com>
-Cc: lkml <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: riel@conectiva.com.br, leechin@mail.com
+Cc: "Cannizzaro, Emanuele" <ecannizzaro@mtc.ricardo.com>, ebiederm+eric@ccr.net, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-William Lee Irwin III wrote:
+Hi
+>If you link your program statically
+>you might be able to get up to nearly 3 GB of >memory for your
+>process, but that's the limit...
+Is that on a 32 bith machine that I can get upto 3GB?  I have linked statically, but yet I max out at 2 GB.  I thoiught with th elatest kernel, which already includes the BIGMEM patch, I should be able to go upto 3GB.
+
+Thanks
+Lee
+
+----- Original Message -----
+From: Rik van Riel <riel@conectiva.com.br>
+Date: 	Thu, 19 Sep 2002 22:03:31 -0300 (BRT)
+To: Lee Chin <leechin@mail.com>
+Subject: Re: memory allocation on linux
+
+
+> On Thu, 19 Sep 2002, Lee Chin wrote:
 > 
-> On Thu, Sep 19, 2002 at 09:55:52PM -0700, Andrew Morton wrote:
-> > set_page_address() and page_address() implementations consume 0.4% and
-> > 1.3% of CPU time respectively.   I think that's OK. (Plus the tested code
-> > was doing an unneeded lookup in set_page_address(), for debug purposes)
+> > I have a process trying to allocate a large amount of memory.
+> > I have 4 GB physical memory in the system and more with swap space.
 > 
-> Looks yummy. I'll take it for a spin tonight on my benchmark-o-matic.
-> Clearing some more air in ZONE_NORMAL is always welcome here.
-
-Ta.
-
-> On Thu, Sep 19, 2002 at 09:55:52PM -0700, Andrew Morton wrote:
-> > c01884f2 6914     10.5108     .text.lock.dir
-> > c01546b3 5847     8.88872     .text.lock.namei
-> > c01eb99e 3811     5.79355     .text.lock.dec_and_lock
-> > c01515dc 3775     5.73883     link_path_walk
-> > c015207c 3567     5.42262     path_lookup
-> > c015aba4 3194     4.85558     __d_lookup
-> > c01eb690 2814     4.2779      __generic_copy_to_user
-> > c01eb950 2562     3.8948      atomic_dec_and_lock
-> > c0187580 2473     3.7595      ext2_readdir
-> > c0155d3c 2172     3.30192     filldir64
-> > c0151114 1786     2.71511     path_release
-> > c0145b6a 1753     2.66494     .text.lock.open
+> > However, I am unable to allocate more than 2GB for my process.
+> > How can I acheive this?
 > 
-> What's going on here? fs stuff is really hurting. At any rate, the
-> overhead of the address calculation and hashtable lookup is microscopic
-> according to this, and I want space.
+> Switch to a 64-bit CPU.  If you link your program statically
+> you might be able to get up to nearly 3 GB of memory for your
+> process, but that's the limit...
+> 
+> Rik
+> -- 
+> Bravely reimplemented by the knights who say "NIH".
+> 
+> http://www.surriel.com/		http://distro.conectiva.com/
+> 
+> Spamtraps of the month:  september@surriel.com trac@trac.org
+> 
+> 
 
+-- 
+__________________________________________________________
+Sign-up for your own FREE Personalized E-mail at Mail.com
+http://www.mail.com/?sr=signup
 
-c0182f90 5949     14.5552     ext2_readdir
-
-           lock_kernel()         
-
-c014f65c 5790     14.1662     path_lookup            
-
-    Confused.  oprofile claims read_lock(&current->fs->lock) but
-    it's surely dcache_lock.
-
-c01e6e80 4275     10.4595     atomic_dec_and_lock     
-
-    dput/iput
-
-c014eba4 2264     5.53924     link_path_walk          
-c0158050 1988     4.86397     __d_lookup              
-c01426e8 1903     4.656       sys_chdir               
-c01e6bc0 1735     4.24496     __generic_copy_to_user  
-c015319c 1344     3.28831     filldir64               
-c014e6b4 1205     2.94823     path_release            
-c0109070 1065     2.6057      system_call             
-c014b934 929      2.27295     cp_new_stat64           
-c014b380 822      2.01116     generic_fillattr        
-c0157250 712      1.74202     dput                    
-c014b3fc 622      1.52182     vfs_getattr             
-c0157468 556      1.36034     dget_locked
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
