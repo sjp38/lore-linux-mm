@@ -1,40 +1,47 @@
-Date: Tue, 8 Apr 2003 08:31:53 -0700
-From: "Randy.Dunlap" <rddunlap@osdl.org>
+From: Ed Tomlinson <tomlins@cam.org>
 Subject: Re: 2.5.67-mm1
-Message-Id: <20030408083153.5dec0d0e.rddunlap@osdl.org>
-In-Reply-To: <200304080917.15648.tomlins@cam.org>
-References: <20030408042239.053e1d23.akpm@digeo.com>
-	<200304080917.15648.tomlins@cam.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Date: Tue, 8 Apr 2003 11:39:58 -0400
+References: <20030408042239.053e1d23.akpm@digeo.com> <200304080917.15648.tomlins@cam.org> <20030408083153.5dec0d0e.rddunlap@osdl.org>
+In-Reply-To: <20030408083153.5dec0d0e.rddunlap@osdl.org>
+MIME-Version: 1.0
+Content-Disposition: inline
+Content-Type: text/plain;
+  charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
+Message-Id: <200304081139.58218.tomlins@cam.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ed Tomlinson <tomlins@cam.org>
+To: "Randy.Dunlap" <rddunlap@osdl.org>
 Cc: akpm@digeo.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 8 Apr 2003 09:17:15 -0400 Ed Tomlinson <tomlins@cam.org> wrote:
+On April 8, 2003 11:31 am, Randy.Dunlap wrote:
+> On Tue, 8 Apr 2003 09:17:15 -0400 Ed Tomlinson <tomlins@cam.org> wrote:
+> | Hi,
+> |
+> | This does not boot here.  I loop with the following message.
+> |
+> | i8042.c: Can't get irq 12 for AUX, unregistering the port.
+> |
+> | irq 12 is used (correctly) by my 20267 ide card.  My mouse is
+> | usb and AUX is not used.
+> |
+> | Ideas?
+>
+> I guess that's due to my early kbd init patch.
+> So why do you have i8042 configured into your kernel?
 
-| Hi,
-| 
-| This does not boot here.  I loop with the following message. 
-| 
-| i8042.c: Can't get irq 12 for AUX, unregistering the port.
-| 
-| irq 12 is used (correctly) by my 20267 ide card.  My mouse is
-| usb and AUX is not used.
-| 
-| Ideas?
+One, What exactly configures it?  Two my keyboard is not usb, just
+my mouse.
 
-I guess that's due to my early kbd init patch.
-So why do you have i8042 configured into your kernel?
+> The loop doesn't terminate?  Do you get the same message (above)
+> over and over again?
 
-The loop doesn't terminate?  Do you get the same message (above)
-over and over again?
+Yes, until I trigger a reboot (SysReq+B).
 
---
-~Randy
+Ed
+
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
