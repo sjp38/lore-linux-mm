@@ -1,77 +1,114 @@
-Received: from fujitsu2.fujitsu.com (localhost [127.0.0.1])
-	by fujitsu2.fujitsu.com (8.12.10/8.12.9) with ESMTP id i9Q2ciNo008128
-	for <linux-mm@kvack.org>; Mon, 25 Oct 2004 19:38:44 -0700 (PDT)
-Date: Mon, 25 Oct 2004 19:38:25 -0700
-From: Yasunori Goto <ygoto@us.fujitsu.com>
-Subject: [RFC/Patch]Making Removable zone[4/4]
-In-Reply-To: <20041025160642.690F.YGOTO@us.fujitsu.com>
-References: <20041025160642.690F.YGOTO@us.fujitsu.com>
-Message-Id: <20041025193707.6919.YGOTO@us.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+Date: Tue, 26 Oct 2004 15:37:31 +0900 (JST)
+Message-Id: <20041026.153731.38067476.taka@valinux.co.jp>
+Subject: Re: migration cache, updated
+From: Hirokazu Takahashi <taka@valinux.co.jp>
+In-Reply-To: <20041025213923.GD23133@logos.cnet>
+References: <20041025213923.GD23133@logos.cnet>
+Mime-Version: 1.0
+Content-Type: Text/Plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: lhms-devel@lists.sourceforge.net, linux-mm@kvack.org
+To: marcelo.tosatti@cyclades.com
+Cc: linux-mm@kvack.org, iwamoto@valinux.co.jp, haveblue@us.ibm.com, hugh@veritas.com
 List-ID: <linux-mm.kvack.org>
 
-This patch is just for test to make removable zones.
+Hi,
 
---
+I tested your patch and dead-locked has been occured in
+do_swap_page().
 
- hotremovable-goto/arch/i386/mm/init.c |   22 +++++++++++++++++++---
- 1 files changed, 19 insertions(+), 3 deletions(-)
+> This is an improved version of the migration cache patch - 
+> thanks to everyone who contributed - Hirokazu, Iwamoto, Dave,
+> Hugh.
 
-diff -puN arch/i386/mm/init.c~removable arch/i386/mm/init.c
---- hotremovable/arch/i386/mm/init.c~removable	Fri Aug 27 21:07:12 2004
-+++ hotremovable-goto/arch/i386/mm/init.c	Fri Aug 27 21:07:12 2004
-@@ -512,22 +512,38 @@ void zap_low_mappings (void)
- }
- 
- #ifndef CONFIG_DISCONTIGMEM
-+
-+unsigned int __init check_max_unremovable(void)
-+{
-+	/* XXX : Hardware information might be necessary.
-+	         Now is just for test */
-+	return (highend_pfn + max_low_pfn) / 2;
-+}
-+
- void __init zone_sizes_init(void)
- {
--	unsigned long zones_size[MAX_NR_ZONES] = {0, 0, 0};
--	unsigned int max_dma, high, low;
-+	unsigned long zones_size[MAX_NR_ZONES] = {0, 0, 0, 0, 0, 0};
-+	unsigned int max_dma, high, low, max_unremovable;
- 	
- 	max_dma = virt_to_phys((char *)MAX_DMA_ADDRESS) >> PAGE_SHIFT;
- 	low = max_low_pfn;
- 	high = highend_pfn;
- 	
-+	max_unremovable = check_max_unremovable();
-+
- 	if (low < max_dma)
- 		zones_size[ZONE_DMA] = low;
- 	else {
- 		zones_size[ZONE_DMA] = max_dma;
- 		zones_size[ZONE_NORMAL] = low - max_dma;
- #ifdef CONFIG_HIGHMEM
--		zones_size[ZONE_HIGHMEM] = high - low;
-+		if( low >= max_unremovable )
-+			zones_size[ZONE_HIGHMEM_RMV] = high - low;
-+		else if( high > max_unremovable ){
-+			zones_size[ZONE_HIGHMEM_RMV] = high - max_unremovable;
-+			zones_size[ZONE_HIGHMEM] = max_unremovable - low;
-+		}else
-+			zones_size[ZONE_HIGHMEM] = high - low;
- #endif
- 	}
- 	free_area_init(zones_size);	
-_
+> diff -Nur --show-c-function linux-2.6.9-rc2-mm4.mhp.orig/mm/memory.c linux-2.6.9-rc2-mm4.build/mm/memory.c
+> --- linux-2.6.9-rc2-mm4.mhp.orig/mm/memory.c	2004-10-05 15:08:23.000000000 -0300
+> +++ linux-2.6.9-rc2-mm4.build/mm/memory.c	2004-10-25 19:35:18.000000000 -0200
+> @@ -1433,15 +1440,22 @@ again:
+>  		inc_page_state(pgmajfault);
+>  		grab_swap_token();
+>  	}
+> -
+>  	mark_page_accessed(page);
+>  	lock_page(page);
+>  	if (!PageSwapCache(page)) {
+> +		/* hiro: add !PageMigration(page) here */
+>  		/* page-migration has occured */
+>  		unlock_page(page);
+>  		page_cache_release(page);
+>  		goto again;
+>  	}
+> +	}
+> +
+> +
+> +	if (pte_is_migration(orig_pte)) {
+> +		mark_page_accessed(page);
+> +		lock_page(page);
 
--- 
-Yasunori Goto <ygoto at us.fujitsu.com>
 
+The previous code will cause deadlock, as the page is already locked.
+
+> +	}
+>  
+>  	/*
+>  	 * Back out if somebody else faulted in this pte while we
+> @@ -1459,10 +1473,14 @@ again:
+>  	}
+>  
+>  	/* The page isn't present yet, go ahead with the fault. */
+> -		
+> -	swap_free(entry);
+> -	if (vm_swap_full())
+> -		remove_exclusive_swap_page(page);
+> +
+> +	if (!pte_is_migration(orig_pte)) {
+> +		swap_free(entry);
+> +		if (vm_swap_full())
+> +			remove_exclusive_swap_page(page);
+> +	} else {
+> +		migration_remove_reference(page);
+
+migration_remove_reference() also tries to lock the page that is
+already locked.
+
+> +	}
+>  
+>  	mm->rss++;
+>  	pte = mk_pte(page, vma->vm_page_prot);
+> diff -Nur --show-c-function linux-2.6.9-rc2-mm4.mhp.orig/mm/mmigrate.c linux-2.6.9-rc2-mm4.build/mm/mmigrate.c
+> --- linux-2.6.9-rc2-mm4.mhp.orig/mm/mmigrate.c	2004-10-05 15:08:23.000000000 -0300
+> +++ linux-2.6.9-rc2-mm4.build/mm/mmigrate.c	2004-10-25 20:34:35.324971872 -0200
+
+> +int migration_remove_reference(struct page *page)
+> +{
+> +	struct counter *c;
+> +	swp_entry_t entry;
+> +
+> +	entry.val = page->private;
+> +
+> +	read_lock_irq(&migration_space.tree_lock);
+> +
+> +	c = idr_find(&migration_idr, swp_offset(entry));
+> +
+> +	read_unlock_irq(&migration_space.tree_lock);
+> +
+> +	if (!c->i)
+> +		BUG();
+> +
+> +	c->i--;
+> +
+> +	if (!c->i) {
+> +		lock_page(page);
+
+It will be dead-locked when this function is called from do_swap_page().
+
+> +		remove_from_migration_cache(page, page->private);
+> +		unlock_page(page);
+> +		kfree(c);
+> +	}
+> +		
+> +}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
