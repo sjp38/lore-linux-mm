@@ -1,41 +1,38 @@
-Message-ID: <39F9BDB2.8C0CFE94@sgi.com>
-Date: Fri, 27 Oct 2000 10:38:58 -0700
-From: Rajagopal Ananthanarayanan <ananth@sgi.com>
+Subject: Re: ptes flags in compressed cache
+References: <20001026135245.B19100@linux.ime.usp.br>
+	<20001026165821.W20050@redhat.com>
+From: Christoph Rohland <cr@sap.com>
+Date: 27 Oct 2000 09:59:13 +0200
+In-Reply-To: "Stephen C. Tweedie"'s message of "Thu, 26 Oct 2000 16:58:21 +0100"
+Message-ID: <m3bsw6vhny.fsf@linux.local>
 MIME-Version: 1.0
-Subject: Re: page fault.
-References: <Pine.LNX.4.21.0010261752510.15696-100000@duckman.distro.conectiva> <Pine.GSO.4.05.10010262213310.16485-100000@aa.eps.jhu.edu> <8tboe4$3bfb7$1@fido.engr.sgi.com>
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: "Stephen C. Tweedie" <sct@redhat.com>
-Cc: linux-mm@kvack.org
+Cc: "Rodrigo S. de Castro" <rcastro@linux.ime.usp.br>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-"Stephen C. Tweedie" wrote:
-> 
-> Hi,
-> 
-> On Thu, Oct 26, 2000 at 10:14:23PM -0400, afei@jhu.edu wrote:
-> > You are right. I misunderstood what he wants. To know when the pagefault
-> > occured, one simply can work on the pagefault handler. It is trivial.
-> 
-> Page faults already produce a SIGSEGV which gets passed a sigcontext
-> struct describing where the fault occurred.
-> 
+"Stephen C. Tweedie" <sct@redhat.com> writes:
 
-Isn't it that only unsatisfied pagefaults generate
-SIGSEGV? The original question was whether there
-is a way to track all pagefaults in a given program.
-Please correct if I'm wrong: the answer to this latter
-question is no. Unless one modifies do_pagefault to
-generate such a signal on all faults ...
+> On Thu, Oct 26, 2000 at 01:52:45PM -0200, Rodrigo S. de Castro wrote:
+> > 
+> > 	I am working on a compressed cache for 2.2.16 and I am
+> > currently in a cache with no compression implementation. Well, at this
+> > step, I gotta a doubt of how can I mark the pages (actually, ptes)
+> > that are in my cache and neither present in memory nor in swap. This
+> > is essential when I have a page fault, and this page is not present in
+> > memory.
+> 
+> Reserve a SWP_ENTRY for compressed pages.  There's precedent for that:
+> SHM in 2.2 already uses that mechanism for swapped-out shared memory
+> pages.
 
+No, shm does not use a SWP_TYPE. It only pretends to do ;-)
 
---------------------------------------------------------------------------
-Rajagopal Ananthanarayanan ("ananth")
-Member Technical Staff, SGI.
---------------------------------------------------------------------------
+Greetings
+                Christoph
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
