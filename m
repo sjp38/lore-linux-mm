@@ -1,40 +1,94 @@
-Message-Id: <l03130303b731a2526a34@[192.168.239.105]>
-In-Reply-To: 
-        <Pine.LNX.4.33.0105231233070.311-100000@duckman.distro.conectiva>
-References: <20010521223212.C4934@khan.acc.umu.se>
-Mime-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Date: Wed, 23 May 2001 18:24:05 +0100
-From: Jonathan Morton <chromi@cyberspace.org>
-Subject: Re: [RFC][PATCH] Re: Linux 2.4.4-ac10
+Received: from burns.conectiva (burns.conectiva [10.0.0.4])
+	by perninha.conectiva.com.br (Postfix) with SMTP id 9BA8316B6C
+	for <linux-mm@kvack.org>; Wed, 23 May 2001 14:44:50 -0300 (EST)
+Date: Wed, 23 May 2001 14:44:48 -0300 (BRST)
+From: Rik van Riel <riel@conectiva.com.br>
+Subject: [PATCH] inode & dentry cache balancing
+Message-ID: <Pine.LNX.4.33.0105231433420.311-100000@duckman.distro.conectiva>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@conectiva.com.br>, David Weinehall <tao@acc.umu.se>
-Cc: Pavel Machek <pavel@suse.cz>, Mike Galbraith <mikeg@wen-online.de>, "Stephen C. Tweedie" <sct@redhat.com>, Ingo Oeser <ingo.oeser@informatik.tu-chemnitz.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Linus Torvalds <torvalds@transmeta.com>
+Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, "Stephen C. Tweedie" <sct@redhat.com>, arjanv@redhat.com, Marcelo Tosatti <marcelo@conectiva.com.br>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
->Time to hunt around for a 386 or 486 which is limited to such
->a small amount of RAM ;)
+Hi,
 
-I've got an old knackered 486DX/33 with 8Mb RAM (in 30-pin SIMMs, woohoo!),
-a flat CMOS battery, a 2Gb Maxtor HD that needs a low-level format every
-year, and no case.  It isn't running anything right now...
+the following patch simplifies the if-else conditions in
+do_try_to_free_pages() to the extent where it actually
+balances the normal pages against the inode & dentry caches
+again.
 
---------------------------------------------------------------
-from:     Jonathan "Chromatix" Morton
-mail:     chromi@cyberspace.org  (not for attachments)
-big-mail: chromatix@penguinpowered.com
-uni-mail: j.d.morton@lancaster.ac.uk
+Note that the strange if-else around kmem_cache_reap() isn't
+needed either, since page_launder() will, in the first loop,
+free the buffer heads that are needed for the second loop and
+for shrink_{icache,dcache}_memory() ... and if it doesn't we
+still have enough IO outstanding to keep the IO subsystem busy
+so it shouldn't matter either.
 
-The key to knowledge is not to rely on people to teach you it.
+Please apply for the next -pre or -ac kernel...
 
-Get VNC Server for Macintosh from http://www.chromatix.uklinux.net/vnc/
+regards,
 
------BEGIN GEEK CODE BLOCK-----
-Version 3.12
-GCS$/E/S dpu(!) s:- a20 C+++ UL++ P L+++ E W+ N- o? K? w--- O-- M++$ V? PS
-PE- Y+ PGP++ t- 5- X- R !tv b++ DI+++ D G e+ h+ r++ y+(*)
------END GEEK CODE BLOCK-----
+Rik
+--
+Linux MM bugzilla: http://linux-mm.org/bugzilla.shtml
+
+Virtual memory is like a game you can't win;
+However, without VM there's truly nothing to lose...
+
+		http://www.surriel.com/
+http://www.conectiva.com/	http://distro.conectiva.com/
+
+
+
+--- linux-2.4.5-pre3/mm/vmscan.c.orig	Wed May 23 14:09:23 2001
++++ linux-2.4.5-pre3/mm/vmscan.c	Wed May 23 14:19:32 2001
+@@ -865,14 +865,18 @@
+
+ 	/*
+ 	 * If we're low on free pages, move pages from the
+-	 * inactive_dirty list to the inactive_clean list.
++	 * inactive_dirty list to the inactive_clean list
++	 * and shrink the inode and dentry caches.
+ 	 *
+ 	 * Usually bdflush will have pre-cleaned the pages
+ 	 * before we get around to moving them to the other
+ 	 * list, so this is a relatively cheap operation.
+ 	 */
+-	if (free_shortage())
++	if (free_shortage()) {
+ 		ret += page_launder(gfp_mask, user);
++		shrink_dcache_memory(DEF_PRIORITY, gfp_mask);
++		shrink_icache_memory(DEF_PRIORITY, gfp_mask);
++	}
+
+ 	/*
+ 	 * If needed, we move pages from the active list
+@@ -882,21 +886,10 @@
+ 		ret += refill_inactive(gfp_mask, user);
+
+ 	/*
+-	 * Delete pages from the inode and dentry caches and
+-	 * reclaim unused slab cache if memory is low.
++	 * If we're still short on free pages, reclaim unused
++	 * slab cache memory.
+ 	 */
+ 	if (free_shortage()) {
+-		shrink_dcache_memory(DEF_PRIORITY, gfp_mask);
+-		shrink_icache_memory(DEF_PRIORITY, gfp_mask);
+-	} else {
+-		/*
+-		 * Illogical, but true. At least for now.
+-		 *
+-		 * If we're _not_ under shortage any more, we
+-		 * reap the caches. Why? Because a noticeable
+-		 * part of the caches are the buffer-heads,
+-		 * which we'll want to keep if under shortage.
+-		 */
+ 		kmem_cache_reap(gfp_mask);
+ 	}
 
 
 --
