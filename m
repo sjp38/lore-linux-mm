@@ -1,87 +1,186 @@
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e1.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id j2FEv2B5006866
-	for <linux-mm@kvack.org>; Tue, 15 Mar 2005 09:57:02 -0500
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay02.pok.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id j2FEv2l8084118
-	for <linux-mm@kvack.org>; Tue, 15 Mar 2005 09:57:02 -0500
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.12.11/8.12.11) with ESMTP id j2FEv2hl026276
-	for <linux-mm@kvack.org>; Tue, 15 Mar 2005 09:57:02 -0500
-Date: Tue, 15 Mar 2005 06:56:57 -0800
-From: "Martin J. Bligh" <Martin.Bligh@us.ibm.com>
-Subject: Re: [PATCH 0/4] sparsemem intro patches
-Message-ID: <214580000.1110898616@[10.10.2.4]>
-In-Reply-To: <20050314183042.7e7087a2.akpm@osdl.org>
-References: <1110834883.19340.47.camel@localhost> <20050314183042.7e7087a2.akpm@osdl.org>
-MIME-Version: 1.0
+Date: Tue, 15 Mar 2005 14:54:53 -0500
+From: Martin Hicks <mort@sgi.com>
+Subject: Re: [PATCH] Move code to isolate LRU pages into separate function
+Message-ID: <20050315195452.GE19113@localhost>
+References: <20050314214941.GP3286@localhost>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
+In-Reply-To: <20050314214941.GP3286@localhost>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>, Dave Hansen <haveblue@us.ibm.com>, Andy Whitcroft <apw@shadowen.org>, Dave McCracken <dmccr@us.ibm.com>, Daniel Phillips <phillips@redhat.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Martin Hicks <mort@sgi.com>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@osdl.org>
 List-ID: <linux-mm.kvack.org>
 
->>  The following four patches provide the last needed changes before the
->>  introduction of sparsemem.  For a more complete description of what this
->>  will do, please see this patch:
->> 
->>  http://www.sr71.net/patches/2.6.11/2.6.11-bk7-mhp1/broken-out/B-sparse-150-sparsemem.patch
+On Mon, Mar 14, 2005 at 04:49:41PM -0500, Martin Hicks wrote:
+> Hi,
 > 
-> I don't know what to think about this.  Can you describe sparsemem a little
-> further, differentiate it from discontigmem and tell us why we want one? 
-> Is it for memory hotplug?  If so, how does it support hotplug?
+> I noticed that the loop to pull pages out of the LRU lists for
+> processing occurred twice.  This just sticks that code into a separate
+> function to improve readability.
 > 
-> To which architectures is this useful, and what is the attitude of the
-> relevant maintenance teams?
+> The patch is against 2.6.11-mm2 but should apply to anything recent.
+> Build and boot tested on sn2.
 
-This isn't just for hotplug by any means. Andy wrote it to get rid of a whole
-bunch of different problems, roughly based on some previous work by Dan Phillips
-and Dave McCracken (I've added a cc to the actual authors of these patches). 
-This is the major part of what used to be called CONFIG_NONLINEAR, which we 
-discussed at last year's kernel summit, and people were pretty enthusiastic 
-about. 
+Whoops.  I was double-incrementing scanned, so only half the pages that
+you asked for were being scanned.
 
-> Quoting from the above patch:
-> 
->> Sparsemem replaces DISCONTIGMEM when enabled, and it is hoped that
->> it can eventually become a complete replacement.
->> ...
->> This patch introduces CONFIG_FLATMEM.  It is used in almost all
->> cases where there used to be an #ifndef DISCONTIG, because
->> SPARSEMEM and DISCONTIGMEM often have to compile out the same areas
->> of code.
-> 
-> Would I be right to worry about increasing complexity, decreased
-> maintainability and generally increasing mayhem?
+This version fixes that and also allows passing in a NULL scanned
+argument if you don't care how many pages were scanned.
 
-Not really - it cleans up the current mess where discontigmem means, and
-is used for, two distinct things: 1. the memory is significantly non-contig
-in the physical layout. 2. NUMA support.
 
-It also allows us to support discontiguous memory *within* a NUMA node, which
-is important for some systems - we can scrap the added complexity of ia64s
-vmemmap stuff, for instance. 
+Signed-Off-By:  Martin Hicks <mort@sgi.com>
 
-Whatever your opinions are on mem hotplug, I think we want CONFIG_SPARSEMEM
-to clean up the existing mess of discontig - with or without hotplug. I've 
-wanted this for a very long time, and was dicussing it with Andy at OLS last 
-year; he came up with a much better, cleaner way to implement it than I had.
 
-It also makes a lot of sense as a foundation for hotplug, which multiple 
-people seem to want for virtualization stuff.
-
-Anyway, that's what I want it for ;-)
-
-> If a competent kernel developer who is not familiar with how all this code
-> hangs together wishes to acquaint himself with it, what steps should he
-> take?
-
-Andy, can you explain that further? Maybe also worth checking these are the
-correct version of your patches.
-
-M.
+Index: linux-2.6.11/mm/vmscan.c
+===================================================================
+--- linux-2.6.11.orig/mm/vmscan.c	2005-03-14 13:39:53.000000000 -0800
++++ linux-2.6.11/mm/vmscan.c	2005-03-15 11:46:51.000000000 -0800
+@@ -550,14 +550,57 @@
+ }
+ 
+ /*
+- * zone->lru_lock is heavily contented.  We relieve it by quickly privatising
+- * a batch of pages and working on them outside the lock.  Any pages which were
+- * not freed will be added back to the LRU.
++ * zone->lru_lock is heavily contended.  Some of the functions that
++ * shrink the lists perform better by taking out a batch of pages
++ * and working on them outside the LRU lock.
+  *
+- * shrink_cache() adds the number of pages reclaimed to sc->nr_reclaimed
++ * For pagecache intensive workloads, this function is the hottest
++ * spot in the kernel (apart from copy_*_user functions).
++ *
++ * Appropriate locks must be held before calling this function.
++ *
++ * @nr_to_scan:	The number of pages to look through on the list.
++ * @src:	The LRU list to pull pages off.
++ * @dst:	The temp list to put pages on to.
++ * @scanned:	The number of pages that were scanned.
+  *
+- * For pagecache intensive workloads, the first loop here is the hottest spot
+- * in the kernel (apart from the copy_*_user functions).
++ * returns how many pages were moved onto *@dst.
++ */
++static int isolate_lru_pages(int nr_to_scan, struct list_head *src,
++			     struct list_head *dst, int *scanned)
++{
++	int nr_taken = 0;
++	struct page *page;
++	int scan = 0;
++
++	while (scan++ < nr_to_scan && !list_empty(src)) {
++		page = lru_to_page(src);
++		prefetchw_prev_lru_page(page, src, flags);
++
++		if (!TestClearPageLRU(page))
++			BUG();
++		list_del(&page->lru);
++		if (get_page_testone(page)) {
++			/*
++			 * It is being freed elsewhere
++			 */
++			__put_page(page);
++			SetPageLRU(page);
++			list_add(&page->lru, src);
++			continue;
++		} else {
++			list_add(&page->lru, dst);
++			nr_taken++;
++		}
++	}
++
++	if (scanned)
++		*scanned = scan;
++	return nr_taken;
++}
++
++/*
++ * shrink_cache() adds the number of pages reclaimed to sc->nr_reclaimed
+  */
+ static void shrink_cache(struct zone *zone, struct scan_control *sc)
+ {
+@@ -571,32 +614,13 @@
+ 	spin_lock_irq(&zone->lru_lock);
+ 	while (max_scan > 0) {
+ 		struct page *page;
+-		int nr_taken = 0;
+-		int nr_scan = 0;
++		int nr_taken;
++		int nr_scan;
+ 		int nr_freed;
+ 
+-		while (nr_scan++ < sc->swap_cluster_max &&
+-				!list_empty(&zone->inactive_list)) {
+-			page = lru_to_page(&zone->inactive_list);
+-
+-			prefetchw_prev_lru_page(page,
+-						&zone->inactive_list, flags);
+-
+-			if (!TestClearPageLRU(page))
+-				BUG();
+-			list_del(&page->lru);
+-			if (get_page_testone(page)) {
+-				/*
+-				 * It is being freed elsewhere
+-				 */
+-				__put_page(page);
+-				SetPageLRU(page);
+-				list_add(&page->lru, &zone->inactive_list);
+-				continue;
+-			}
+-			list_add(&page->lru, &page_list);
+-			nr_taken++;
+-		}
++		nr_taken = isolate_lru_pages(sc->swap_cluster_max,
++					     &zone->inactive_list,
++					     &page_list, &nr_scan);
+ 		zone->nr_inactive -= nr_taken;
+ 		zone->pages_scanned += nr_scan;
+ 		spin_unlock_irq(&zone->lru_lock);
+@@ -662,7 +686,7 @@
+ {
+ 	int pgmoved;
+ 	int pgdeactivate = 0;
+-	int pgscanned = 0;
++	int pgscanned;
+ 	int nr_pages = sc->nr_to_scan;
+ 	LIST_HEAD(l_hold);	/* The pages which were snipped off */
+ 	LIST_HEAD(l_inactive);	/* Pages to go onto the inactive_list */
+@@ -675,30 +699,9 @@
+ 	long swap_tendency;
+ 
+ 	lru_add_drain();
+-	pgmoved = 0;
+ 	spin_lock_irq(&zone->lru_lock);
+-	while (pgscanned < nr_pages && !list_empty(&zone->active_list)) {
+-		page = lru_to_page(&zone->active_list);
+-		prefetchw_prev_lru_page(page, &zone->active_list, flags);
+-		if (!TestClearPageLRU(page))
+-			BUG();
+-		list_del(&page->lru);
+-		if (get_page_testone(page)) {
+-			/*
+-			 * It was already free!  release_pages() or put_page()
+-			 * are about to remove it from the LRU and free it. So
+-			 * put the refcount back and put the page back on the
+-			 * LRU
+-			 */
+-			__put_page(page);
+-			SetPageLRU(page);
+-			list_add(&page->lru, &zone->active_list);
+-		} else {
+-			list_add(&page->lru, &l_hold);
+-			pgmoved++;
+-		}
+-		pgscanned++;
+-	}
++	pgmoved = isolate_lru_pages(nr_pages, &zone->active_list,
++				    &l_hold, &pgscanned);
+ 	zone->pages_scanned += pgscanned;
+ 	zone->nr_active -= pgmoved;
+ 	spin_unlock_irq(&zone->lru_lock);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
