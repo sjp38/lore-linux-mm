@@ -1,56 +1,66 @@
-Message-ID: <41DB35B8.1090803@sgi.com>
-Date: Tue, 04 Jan 2005 18:32:56 -0600
-From: Ray Bryant <raybry@sgi.com>
+Date: Tue, 4 Jan 2005 16:34:21 -0800 (PST)
+From: Linus Torvalds <torvalds@osdl.org>
+Subject: Re: Prezeroing V3 [1/4]: Allow request for zeroed memory
+In-Reply-To: <Pine.LNX.4.58.0501041512450.1536@schroedinger.engr.sgi.com>
+Message-ID: <Pine.LNX.4.58.0501041629490.4111@ppc970.osdl.org>
+References: <B8E391BBE9FE384DAA4C5C003888BE6F02900FBD@scsmsx401.amr.corp.intel.com>
+ <41C20E3E.3070209@yahoo.com.au> <Pine.LNX.4.58.0412211154100.1313@schroedinger.engr.sgi.com>
+ <Pine.LNX.4.58.0412231119540.31791@schroedinger.engr.sgi.com>
+ <Pine.LNX.4.58.0412231132170.31791@schroedinger.engr.sgi.com>
+ <Pine.LNX.4.58.0412231133130.31791@schroedinger.engr.sgi.com>
+ <Pine.GSO.4.61.0501011123550.27452@waterleaf.sonytel.be>
+ <Pine.LNX.4.58.0501041510430.1536@schroedinger.engr.sgi.com>
+ <Pine.LNX.4.58.0501041512450.1536@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
-Subject: page migration patchset
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: Hirokazu Takahashi <taka@valinux.co.jp>, Dave Hansen <haveblue@us.ibm.com>, Marcello Tosatti <marcelo.tosatti@cyclades.com>, Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Andrew Morton <akpm@osdl.org>, linux-ia64@vger.kernel.org, linux-mm@kvack.org, Linux Kernel Development <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Andrew,
 
-Dave Hansen and I have reordered the memory hotplug patchset so that the page 
-migration patches occur first.  This allows us to create a standalone page
-migration patchset (on top of which the rest of the memory hotplug patches
-apply).  A snapshot of these patches is available at:
+On Tue, 4 Jan 2005, Christoph Lameter wrote:
+>
+> This patch introduces __GFP_ZERO as an additional gfp_mask element to allow
+> to request zeroed pages from the page allocator.
 
-http://sr71.net/patches/2.6.10/2.6.10-mm1-mhp-test7/
+Ok, let's start merging this slowly, and in particular, this 1/4 one looks 
+pretty much like a cleanup regardless of whatever else happen, so let's 
+just do it. However, for it to really be a cleanup, how about making 
+_this_ part:
 
-A number of us are interested in using the page migration patchset by itself:
+> +
+> +		if (gfp_flags & __GFP_ZERO) {
+> +#ifdef CONFIG_HIGHMEM
+> +			if (PageHighMem(page)) {
+> +				int n = 1 << order;
+> +
+> +				while (n-- >0)
+> +					clear_highpage(page + n);
+> +			} else
+> +#endif
+> +			clear_page(page_address(page), order);
+> +		}
 
-(1)  Myself, for a manual page migration project I am working on.  (This
-      is for migrating jobs from one set of nodes to another under batch
-      scheduler control).
-(2)  Marcello, for his memory defragmentation work.
-(3)  Of course, the memory hotplug project itself.
+Match the existing previous part:
 
-(there are probably other "users" that I have not enumerated here).
+>  		if (order && (gfp_flags & __GFP_COMP))
+>  			prep_compound_page(page, order);
 
-Unfortunately, none of these "users" of the page migration patchset are ready
-to be merged into -mm yet.
 
-The question at the moment is, "Would you be interesting in merging the
-page migration patchset now, or should we wait until one or more of (1) to
-(3) above is also ready for merging?"
+and just split it up into a "prep_zero_page(page, order)"? I dislike 
+#ifdef's in the middle of deep functions. In the middle of a _trivial_ 
+function it's much more palatable.
 
-(Historically, lkml has waited for a user of new functionality before merging
-that functionality, so I expect that to be your answer;  in that case, please
-consider this note to be an preliminary notice that we will be submitting
-such patches for merging in the next month or so.  :-) )
--- 
-Best Regards,
-Ray
------------------------------------------------
-                   Ray Bryant
-512-453-9679 (work)         512-507-7807 (cell)
-raybry@sgi.com             raybry@austin.rr.com
-The box said: "Requires Windows 98 or better",
-            so I installed Linux.
------------------------------------------------
+At that point at least part 1 ends up being a nice clean patch on its own, 
+and should even shrink the code-size a bit. IOW, it not only is a cleanup, 
+there is even a technical argument for it (even without worrying about the 
+next stages).
+
+Hmm?
+
+		Linus
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
