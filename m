@@ -1,55 +1,55 @@
-Received: from Tandem.com (suntan.tandem.com [192.216.221.8])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id HAA01641
-	for <linux-mm@kvack.org>; Thu, 26 Mar 1998 07:33:43 -0500
-Date: Thu, 26 Mar 1998 18:04:23 +0530 (GMT+0530)
-From: Chirayu Patel <chirayu@wipro.tcpn.com>
-Subject: shrink_mmap ()?
-Message-Id: <Pine.SUN.3.95.980326175034.17975N-100000@Kabini>
-Mime-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from Galois.suse.de (Zuse.suse.de [195.125.217.2])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id IAA01798
+	for <linux-mm@kvack.org>; Thu, 26 Mar 1998 08:02:18 -0500
+Date: Thu, 26 Mar 1998 14:00:53 +0100
+Message-Id: <199803261300.OAA25495@boole.suse.de>
+From: "Dr. Werner Fink" <werner@suse.de>
+In-reply-to: <19980326034544.27868@jackalz> (message from Myrdraal on Thu, 26
+	Mar 1998 03:45:44 -0500)
+Subject: Re: 2.1.91pre2 death by swapping.
 Sender: owner-linux-mm@kvack.org
-To: linux-mm@kvack.org, linux-kernel@vger.rutgers.edu
+To: myrdraal@jackalz.dyn.ml.org
+Cc: linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 
-Hi,
+> 
+> Hi,
+>  Well, shortly after I wrote my previous message, 2.1.91pre2 died a nasty
+>  death. This system has 64mb RAM and was lightly loaded, the main thing
+>  it was doing was playing a MOD. It started to swap out of the blue, the
+>  mod started skipping more and more, and eventually stopped playing
+>  entiredly while the machine thrashed. It continued thrashing for 10-15
+>  minutes, every program totally stopped while this was happening. Using
+>  the magic sysrq show memory option, I could see that the free pages
+>  number was fluctuating between 10200 and 10250 or so. Eventually I rebooted
+>  back to 2.1.90 with the magic sysrq.
+> -Myrdraal
 
-I was going through the source for shrink_mmap.......
 
-The attached code puzzled me..
+I've found the following piece of code in the 2.1.91pre2:
 
-We are freeing a page with count = 1 (referenced by one process only) but
-we are not manipulating any page table entries. Why? Shouldnt we be
-manipulating the page table entries or where are the page table entries
-getting manipulated?
+--------------------------------------------------------------------------
+--- v2.1.90/linux/mm/filemap.c	Tue Mar 10 10:03:36 1998
++++ linux/mm/filemap.c	Wed Mar 25 13:13:36 1998
+@@ -150,6 +150,10 @@
+ 				}
+ 				tmp = tmp->b_this_page;
+ 			} while (tmp != bh);
++
++			/* Refuse to swap out all buffer pages */
++			if ((buffermem >> PAGE_SHIFT) * 100 > (buffer_mem.min_percent * num_physpages))
++				goto next;
+ 		}
+ 
+ 		/* We can't throw away shared pages, but we do mark
+--------------------------------------------------------------------------
 
-I know I have missed something terribly obvious over here. Can someone
-please help me out. 
+IMHO the `>' should be a `<', shouldn't it?
 
-Thanks.
+... and the better place fur such a statement is IMHO
+linux/mm/vmscan.c:do_try_to_free_page() which would avoid the shrink_mmap()
+and its do-while-loop.
 
--- Chirayu
 
------------------------------------------------------------------------
-switch (atomic_read(&page->count)) {
-	case 1:
-		/* is it a swap-cache or page-cache page? */
-		if (page->inode) {
-			if (test_and_clear_bit(PG_referenced,
-                                               &page->flags)) {
-				touch_page(page);
-				break;
-			}
-			age_page(page);
-			if (page->age)
-				break;
-			if (PageSwapCache(page)) {
-				delete_from_swap_cache(page);
-				return 1;
-			}
-			remove_page_from_hash_queue(page);
-			remove_page_from_inode_queue(page);
-			__free_page(page);
-			return 1;
-		}
-------------------------------------------------------------------------------
+          Werner
