@@ -1,46 +1,46 @@
-Subject: Re: Documentation/vm/locking: why not hold two PT locks?
-From: Ed L Cashin <ecashin@uga.edu>
-Date: Mon, 09 Feb 2004 11:19:09 -0500
-In-Reply-To: <20040209074409.32804.qmail@web14306.mail.yahoo.com> (Kanoj
- Sarcar's message of "Sun, 8 Feb 2004 23:44:09 -0800 (PST)")
-Message-ID: <87r7x4ns3m.fsf@cs.uga.edu>
-References: <20040209074409.32804.qmail@web14306.mail.yahoo.com>
-MIME-Version: 1.0
+Date: Mon, 9 Feb 2004 17:44:24 +0100
+From: Dominik Kubla <dominik@kubla.de>
+Subject: Re: 2.6.3-rc1-mm1
+Message-ID: <20040209164424.GA1795@intern.kubla.de>
+References: <20040209014035.251b26d1.akpm@osdl.org>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20040209014035.251b26d1.akpm@osdl.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Kanoj Sarcar <kanojsarcar@yahoo.com>
-Cc: Robert Love <rml@ximian.com>, linux-mm@kvack.org
+To: Andrew Morton <akpm@osdl.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Kanoj Sarcar <kanojsarcar@yahoo.com> writes:
+On Mon, Feb 09, 2004 at 01:40:35AM -0800, Andrew Morton wrote:
+> 
+> 
+> ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.6/2.6.3-rc1/2.6.3-rc1-mm1/
+> 
+> 
+> - NFSD update
 
-...
-> Its been a while since I wrote up those rules in
-> the "locking" file, but the example that Robert has
-> pointed out involving two different threads, each 
-> crabbing one mm lock and trying for the next one,
-> is the deadlock I had in mind. There may have been
-> new changes in 2.5 timeframe that also requires
-> the rule, I am not sure.
+How about including the NFSACL patch from acl.bestbits.at? One reason
+for people to move to 2.6 from 2.4 is that they no longer need to patch
+the kernel to get ACL support. Unless they want to have ACL support over
+NFSv3 that is... NFSACL support is quite an argument for Linux in an existing
+Solaris production environments, so i would like to see it included
+into the mainstream kernel ASAP (Note: I am not speaking for Andreas and
+the other people working on the ACL code!). Including it into -mm would give
+it the necessary exposure.
 
-Thanks, Kanoj!
+The patch is available in broken up form at:
+  http://acl.bestbits.at/current/diff/nfsacl-2.6.1-0.8.67.tar.gz
 
-After further looking into it, one thing in Documentation/vm/locking
-does seem out of date.  It says that "Page stealers hold kernel_lock
-to protect against a bunch of races."
+And before somebody mentions NFSv4: This is not (yet) an option for production
+environments.
 
-The only page stealing code that I can find is in rmap.c and vmscan.c.
-When vmscan.c:shrink_caches and its callees need to unmap a page,
-rmap.c:try_to_unmap gets called.  But nowhere is there a lock_kernel
-call that I could find.  Instead, they use trylocks and get the page
-table lock before stealing a page.
-
-Are there other page stealers?
-
+Regards,
+  Dominik Kubla
 -- 
---Ed L Cashin     PGP public key: http://noserose.net/e/pgp/
-
+L'hazard ne favorise que l'esprit prepare.  
+		-- L. Pasteur
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
