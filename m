@@ -1,43 +1,66 @@
-Date: Fri, 5 Jul 2002 02:27:37 -0400 (EDT)
-From: Alexander Viro <viro@math.psu.edu>
-Subject: Re: vm lock contention reduction
-In-Reply-To: <Pine.LNX.4.44.0207042257210.7465-100000@home.transmeta.com>
-Message-ID: <Pine.GSO.4.21.0207050218520.14718-100000@weyl.math.psu.edu>
+Message-ID: <3D253DC9.545865D4@zip.com.au>
+Date: Thu, 04 Jul 2002 23:33:45 -0700
+From: Andrew Morton <akpm@zip.com.au>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: vm lock contention reduction
+References: <Pine.LNX.4.44.0207042237130.7465-100000@home.transmeta.com> <Pine.LNX.4.44.0207042257210.7465-100000@home.transmeta.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Linus Torvalds <torvalds@transmeta.com>
-Cc: Andrew Morton <akpm@zip.com.au>, Rik van Riel <riel@conectiva.com.br>, Andrea Arcangeli <andrea@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: Rik van Riel <riel@conectiva.com.br>, Andrea Arcangeli <andrea@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-
-On Thu, 4 Jul 2002, Linus Torvalds wrote:
-
+Linus Torvalds wrote:
+> 
+> On Thu, 4 Jul 2002, Linus Torvalds wrote:
+> >
+> > Right now, we get roughly this behaviour simply by way of statistical
+> > behaviour for the page allocator ("if somebody allocates 5 times as many
+> > pages, he's 5 times as likely to have to clean something up too"), but
+> > trying to be smarter about this could easily break this relative fairness.
+> 
+> Side note: getting some higher-level locking wrong can _seriously_ break
+> this statistical behaviour.
+> 
 > In particular, the ext2 superblock lock at least used to be horribly
 > broken and held in a lot of "bad" places: I doubt Al has gotten far enough
 > to fix that brokenness. The superblock lock used to cause one process that
+> blocked for something (usually reading in some bitmap or other) to cause a
+> lot of _other_ processes to block quite unnecessarily on the badly placed
+> lock, even though they really would have had all the resources they
+> needed.
 
-As the matter of fact, I did.  If you want lock_super() to be killed in ext2
-(2.5) - just say so and I'll do the rest.
+ext2 is still performing synchronous bitmap reads inside lock_super()
+and yes, that shuts down the filesystem.  But once the bitmaps are
+in cache, it's not a huge problem.
 
-Right now both ext2_new_block() and ext2_new_inode() look through the
-group descriptors for good one and reserve (block|inode) in it.  That
-can be easily done under a spinlock.  After that we read a bitmap
-(no need for any locks) and grab a bit in it (we are guaranteed to
-have one).  The latter can be either done under a spinlock or by being
-clever and noticing that amount of contenders is always less or equal
-the number of free bits (with minimal use of set_bit()/etc. atomicity
-we can do that without spinlocks).  After that we don't need any locks
-whatsoever.
+Unless you have an Anton-class box.   The context switch on the lock_super
+in the ext2 block allocator is now one of his major throughput bottlenecks.
 
-Andrew had just killed the last bit of crap there - LRU used to be protected
-by lock_super() and since it's no more...
+Although I must say, we're talking about filesystem loads here which
+are purely RAM-based - fifteen-second tests which never hit disk.
+This is kinda silly, because it's not a very interesting operating
+region.  But it's fun - I think we've doubled 2.4 throughput now.
 
-Rewrite of balloc.c and ialloc.c was done with killing lock_super() in mind -
-I didn't want to do that in 2.4 for obvious reasons, but for 2.5 it's very
-easy...
+> That particular thing is really not a VM problem, but a ext2 issue. The
+> superblock lock just isn't very well placed. I personally suspect that it
+> should be replaced by a spinlock - just to force all blocking operations
+> to be moved outside the lock (so that it would only protect the actual
+> data structures - rather than be held around reading bitmap blocks into
+> memory etc).
 
+It can become a per-blockgroup spinlock.  That will scale splendidly.
+Removing the private bitmap LRUs gets us partway toward that.   But
+the bitmap buffers tend to get shoved up onto the active list real
+quick when you start pushing things.
+
+> But that's a rather painful kind of locking change to do and to test.
+
+Well.  First locks first.  kmap_lock is a bad one on x86.
+
+-
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
