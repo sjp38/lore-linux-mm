@@ -1,45 +1,66 @@
-From: David Woodhouse <dwmw2@infradead.org>
-In-Reply-To: <20020909121348.B4855@redhat.com> 
-References: <20020909121348.B4855@redhat.com>  <2653.1031563253@redhat.com> 
-Subject: Re: [RFC] On paging of kernel VM. 
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Date: Mon, 09 Sep 2002 12:24:40 +0100
-Message-ID: <28099.1031570680@redhat.com>
+Date: Mon, 9 Sep 2002 10:10:02 -0300 (BRT)
+From: Rik van Riel <riel@conectiva.com.br>
+Subject: Re: [PATCH] modified segq for 2.5
+In-Reply-To: <3D7C6C0A.1BBEBB2D@digeo.com>
+Message-ID: <Pine.LNX.4.44L.0209091004200.1857-100000@imladris.surriel.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Stephen C. Tweedie" <sct@redhat.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@digeo.com>
+Cc: William Lee Irwin III <wli@holomorphy.com>, sfkaplan@cs.amherst.edu, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-sct@redhat.com said:
->  The alternative is a kmap-style mechanism for temporarily mapping
-> pages beyond physical memory on demand.
+On Mon, 9 Sep 2002, Andrew Morton wrote:
 
-That's a possibility I'd considered, but in this case there are problems
-with explicitly mapping and unmapping the pages. The locking of the chip is
-a detail I was hoping to avoid exposing to the users of the device. 
+> I fiddled with it a bit:  did you forget to move the write(2) pages
+> to the inactive list?  I changed it to do that at IO completion.
+> It had little effect.  Probably should be looking at the page state
+> before doing that.
 
-With mapping/unmapping done explicitly, not only does an active mapping
-prevent all other users from writing to the same device, hence requiring a
-'cond_temporarily_unmap()' kind of function, but you also get deadlock if a
-user of the device tries to write while they have a mapping active. The
-answer "don't do that then" is workable but not preferable. 
+Hmmm indeed, I forgot this.  Note that IO completion state is
+too late, since then you'll have already pushed other pages
+out to the inactive list...
 
-Given that all the logic to mark pages present on read and then invalidate
-them on write access is going to have to be there for userspace _anyway_,
-being able to keep the API nice and simple by using that in kernelspace too
-would be far better, if we can justify the change to the slow path of the 
-vmalloc fault case.
+> The inactive list was smaller with this patch.  Around 10%
+> of allocatable memory usually.
 
-But yes, what you suggest is the current API for the flash stuff, sans the 
-'cond_temporarily_unmap_if_people_are_waiting()' bit. And that's why I've 
-avoided actually _using_ it, preferring to put up with the overhead of 
-reading into a RAM buffer until we can fix it.
+It should be a bit bigger than this, I think.  If it isn't
+something may be going wrong ;)
 
---
-dwmw2
+> I like the way in which the patch improves the reclaim success rate.
+> It went from 50% to 80 or 90%.
 
+That should help reduce the randomizing of the inactive list ;)
+
+> It worries me that the inactive list is so small.  But I need to
+> test it more.
+
+It's actually ok, though a larger inactive list might help with
+some workloads (or make the system worse with some others?).
+
+> (This patch looks a lot like NRU - what's the difference?)
+
+For mapped pages, it basically is NRU.  For normal cache pages,
+references while on the active list don't count, they will still
+get evicted. Only references while on the inactive list can save
+such a page.
+
+What this means is that (in clock terminology) the handspread
+for non-mapped cache pages is much smaller than for mapped pages.
+With an inactive list size of 10%, the handspread for mapped pages
+is about 10 times as wide as that for non-mapped pages, giving the
+mapped pages a bit of an advantage over the cache...
+
+regards,
+
+Rik
+-- 
+Bravely reimplemented by the knights who say "NIH".
+
+http://www.surriel.com/		http://distro.conectiva.com/
+
+Spamtraps of the month:  september@surriel.com trac@trac.org
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
