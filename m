@@ -1,55 +1,68 @@
-Date: Sun, 21 Jul 2002 23:17:32 -0700
-From: William Lee Irwin III <wli@holomorphy.com>
-Subject: Re: pte_chain_mempool-2.5.27-1
-Message-ID: <20020722061732.GD919@holomorphy.com>
-References: <20020721035513.GD6899@holomorphy.com> <3D3BA131.34D2BD86@zip.com.au>
-Mime-Version: 1.0
+Message-ID: <3D3BAA5B.E3C100A6@zip.com.au>
+Date: Sun, 21 Jul 2002 23:46:51 -0700
+From: Andrew Morton <akpm@zip.com.au>
+MIME-Version: 1.0
+Subject: Re: [PATCH][1/2] return values shrink_dcache_memory etc
+References: <3D3B9A6F.12B096E1@zip.com.au> <2725228.1027292816@[10.10.2.3]>
 Content-Type: text/plain; charset=us-ascii
-Content-Description: brief message
-Content-Disposition: inline
-In-Reply-To: <3D3BA131.34D2BD86@zip.com.au>
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@zip.com.au>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, riel@surriel.com, anton@samba.org
+To: "Martin J. Bligh" <Martin.Bligh@us.ibm.com>
+Cc: William Lee Irwin III <wli@holomorphy.com>, Linus Torvalds <torvalds@transmeta.com>, Rik van Riel <riel@conectiva.com.br>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Ed Tomlinson <tomlins@cam.org>
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Jul 21, 2002 at 11:07:45PM -0700, Andrew Morton wrote:
-> mempool?  Guess so.
-> mempool is really designed for things like IO request structures.
-> BIOs, etc.  Things which are guaranteed to have short lifecycles.
-> Things which make the "wait for some objects to be freed" loop
-> in mempool_alloc() reliable.
+"Martin J. Bligh" wrote:
+> 
+> >> > If we can get something in place which works acceptably on Martin
+> >> > Bligh's machines, and we can see that the gains of rmap (whatever
+> >> > they are ;)) are worth the as-yet uncoded pains then let's move on.
+> >> > But until then, adding new stuff to the VM just makes a `patch -R'
+> >> > harder to do.
+> >>
+> >> I have the same kinds of machines and have already been testing with
+> >> precisely the many tasks workloads he's concerned about for the sake of
+> >> correctness, and efficiency is also a concern here. highpte_chain is
+> >> already so high up on my priority queue that all other work is halted.
+> >
+> > OK.  But we're adding non-trivial amounts of new code simply
+> > to get the reverse mapping working as robustly as the virtual
+> > scan.  And we'll always have rmap's additional storage requirements.
+> >
+> > At some point we need to make a decision as to whether it's all
+> > worth it.  Right now we do not even have the information on the
+> > pluses side to do this.  That's worrisome.
+> 
+> These large NUMA machines should actually be rmap's glory day in the
+> sun.
 
-My usage of it was incorrect. Slab allocation alone will have to do.
+"should be".  Sigh.  Be nice to see an "is" one day ;)
 
+> Per-node kswapd, being able to free mem pressure on one node
+> easily (without cross-node bouncing), breakup of the lru list into
+> smaller chunks, etc. These actually fix some of the biggest problems
+> that we have right now and are hard to solve in other ways.
+> 
+> The large rmap overheads we still have to kill seem to me to be the
+> memory usage and the fork overhead. There's also a certain amount of
+> overhead to managing any more data structures, of course. I think we
+> know how to kill most of it. I don't think adding highpte_chain is
+> the correct thing to do ... seems like adding insult to injury. I'd
+> rather see us drive a silver stake through the problem's heart and
+> kill it properly ...
 
-On Sun, Jul 21, 2002 at 11:07:45PM -0700, Andrew Morton wrote:
-> Be aware that mempool kmallocs a contiguous chunk of element
-> pointers.  This statement is asking for a
-> kmalloc(16384 * sizeof(void *)), which is 128k. It will work,
-> but only just.
-> How did you engineer the size of this pool, btw?  In the
-> radix_tree code, we made the pool enormous.  It was effectively
-> halved in size when the ratnodes went to 64 slots, but I still
-> have the fun task of working out what the pool size should really
-> be.  In retrospect it would have been smarter to make it really
-> small and then increase it later in response to tester feedback.
-> Suggest you do that here.
+Well that would be nice.  And by extension, pte-highmem gets a stake
+as well.
 
-Any contiguous allocation that large is a bug. There was no engineering.
-It was a "conservative guess", and hence even worse than the radix tree
-node pool sizing early on. Removing mempool from it entirely is the best
-option. pte_chains aren't transient enough to work with this, and my
-misreading of mempool led me to believe it had the logic to deal with
-the cases you described above.
+Do you think that large pages alone would be enough to allow us
+to leave pte_chains (and page tables?) in ZONE_NORMAL, or would
+shared pagetables also be needed?
 
-OOM handling is on the way soon anyway, so mempool for "extra
-reliability" will be a non-issue then.
+Was it purely Oracle which drove pte-highmem, or do you think
+that page table and pte_chain consumption could be a problem
+on applications which can't/won't use large pages?
 
-
-Cheers,
-Bill
+-
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
