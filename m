@@ -1,133 +1,366 @@
-Date: Fri, 20 Jun 2003 02:17:43 +0200
-From: Andrea Arcangeli <andrea@suse.de>
-Subject: Re: [PATCH] Fix vmtruncate race and distributed filesystem race
-Message-ID: <20030620001743.GI18317@dualathlon.random>
-References: <133430000.1055448961@baldur.austin.ibm.com> <20030612134946.450e0f77.akpm@digeo.com> <20030612140014.32b7244d.akpm@digeo.com> <150040000.1055452098@baldur.austin.ibm.com> <20030612144418.49f75066.akpm@digeo.com> <184910000.1055458610@baldur.austin.ibm.com>
+Date: Fri, 20 Jun 2003 13:00:30 +0200
+From: Dominik Vogt <dominik.vogt@gmx.de>
+Subject: VM oops in 2.4.20, attempted patch
+Message-ID: <20030620110030.GE18326@gmx.de>
+Reply-To: dominik.vogt@gmx.de
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: multipart/mixed; boundary="OXfL5xGRrasGEqWY"
 Content-Disposition: inline
-In-Reply-To: <184910000.1055458610@baldur.austin.ibm.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave McCracken <dmccr@us.ibm.com>
-Cc: Andrew Morton <akpm@digeo.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: linux-kernel-owner@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+--OXfL5xGRrasGEqWY
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 
-On Thu, Jun 12, 2003 at 05:56:50PM -0500, Dave McCracken wrote:
-> --- 2.5.70-mm8/./mm/memory.c	2003-06-12 13:37:31.000000000 -0500
-> +++ 2.5.70-mm8-trunc/./mm/memory.c	2003-06-12 17:51:55.000000000 -0500
-> @@ -1138,6 +1138,8 @@ invalidate_mmap_range(struct address_spa
->  			hlen = ULONG_MAX - hba + 1;
->  	}
->  	down(&mapping->i_shared_sem);
-> +	/* Protect against page fault */
-> +	atomic_inc(&mapping->truncate_count);
->  	if (unlikely(!list_empty(&mapping->i_mmap)))
->  		invalidate_mmap_range_list(&mapping->i_mmap, hba, hlen);
->  	if (unlikely(!list_empty(&mapping->i_mmap_shared)))
-> @@ -1390,8 +1392,10 @@ do_no_page(struct mm_struct *mm, struct 
->  	unsigned long address, int write_access, pte_t *page_table, pmd_t *pmd)
->  {
->  	struct page * new_page;
-> +	struct address_space *mapping;
->  	pte_t entry;
->  	struct pte_chain *pte_chain;
-> +	unsigned sequence;
->  	int ret;
->  
->  	if (!vma->vm_ops || !vma->vm_ops->nopage)
-> @@ -1400,6 +1404,9 @@ do_no_page(struct mm_struct *mm, struct 
->  	pte_unmap(page_table);
->  	spin_unlock(&mm->page_table_lock);
->  
-> +	mapping = vma->vm_file->f_dentry->d_inode->i_mapping;
-> +retry:
-> +	sequence = atomic_read(&mapping->truncate_count);
->  	new_page = vma->vm_ops->nopage(vma, address & PAGE_MASK, 0);
->  
->  	/* no page was available -- either SIGBUS or OOM */
-> @@ -1428,6 +1435,16 @@ do_no_page(struct mm_struct *mm, struct 
->  	}
->  
->  	spin_lock(&mm->page_table_lock);
-> +	/*
-> +	 * For a file-backed vma, someone could have truncated or otherwise
-> +	 * invalidated this page.  If invalidate_mmap_range got called,
-> +	 * retry getting the page.
-> +	 */
-> +	if (unlikely(sequence != atomic_read(&mapping->truncate_count))) {
-> +		spin_unlock(&mm->page_table_lock);
-> +		page_cache_release(new_page);
-> +		goto retry;
-> +	}
->  	page_table = pte_offset_map(pmd, address);
+There is a bug in the 2.4.20 VM that causes a kernel oops.  The
+rreason is that sometimes the mm_struct of a task is accessed
+while it is currently being deleted.  The function exec_mmap(),
+fs/exec.c begins with this code:
 
-maybe I'm missing something silly but this fixes nothing IMHO. It's not
-a coincidence I used the seq_lock (aka frlock in 2.4-aa) in my fix, a
-single counter increment isn't nearly enough, you definitely need _both_
-an entry and exit point in do_truncate or you'll never know if
-vmtruncate has been running under you. The first increment is like the
-down_read, the second increment is the up_read. Both are necessary to
-trap any vmtruncate during the do_no_page.
+  old_mm = current->mm;
+  if (old_mm && atomic_read(&old_mm->mm_users) == 1) {
+          mm_release();
+          exit_mmap(old_mm);
+          return 0;
+  }
 
-Your patch traps this timing case:
+The logic assumes that if mm_users == 1, no other process can
+access the tasks mm_struct concurrently.  But that is not true.
+There are a number of places that happily use the mm_struct even
+while it is being destroyed via the exit_mmap() call in
+exec_mmap().  There are definitely oopses caused by the way the
+proc fs code accesses the mm_struct.
 
-	CPU 0			CPU 1
-	----------		-----------
-				do_no_page
-	truncate
-				read counter
+  Example from proc_pid_read_maps(), fs/proc/array.c:
 
-	increment counter
-	vmtruncate
-				->nopage
-				read counter again -> different so retry
+  task_lock(task);
+  mm = task->mm;
+  if (mm)
+          atomic_inc(&mm->mm_users);
+  task_unlock(task);
 
+I am not exactly sure about some other code.  The following code
+snippets look suspicious, but I am not deep enough into the VM
+code to judge whether they pose a problem or not:
 
-but you can't trap this with a single counter increment in do_truncate:
+access_process_vm(), kernel/ptrace.c:
 
-	CPU 0			CPU 1
-	----------		-----------
-				do_no_page
-	truncate
-	increment counter
-				read counter
-				->nopage
-	vmtruncate
-				read counter again -> different so retry
+  /* Worry about races with exit() */
+  task_lock(tsk);
+  mm = tsk->mm;
+  if (mm)
+    atomic_inc(&mm->mm_users);
+  task_unlock(tsk);
+  /* ... code fiddles with mm */
 
-thanks to the second counter increment after vmtruncate in my fix, the
-above race couldn't happen.
+Calls to access_process_vm() eventually originate from either the
+ptrace() system call in some architectures or the proc fs.  I
+believe that this code has the potential to make the kernel oops,
+but I have no proof.
 
-About the down(&inode->i_sem); up(), that you dropped under Andrew's
-suggestion, while that maybe ugly, it will have a chance to save cpu,
-and since it's a slow path such goto, it's definitely worthwhile to keep
-it IMHO. Otherwise one cpu will keep scheduling in a loop until truncate
-returns, and it can take time since it may have to do I/O or wait on
-some I/O semaphore. It wouldn't be DoSable, because the
-ret-from-exception will check need_resched, but still it's bad for cpu
-utilization and such a waste can be avoided trivially as in my fix.
+swap_out(), mm/vmscan.c:
 
-I was chatting with Daniel about those hooks a few minutes ago, and he
-suggested to make do_no_page a callback itself (instead of having
-do_no_page call into a ->nopage further callback). And to provide by
-default a generic implementation that would be equivalent to the current
-do_no_page. As far as I can tell that will save both the new pointer to
-function for the DSM hook (that IMHO has to be taken twice, both before
-->nopage and after ->nopage, not only before the ->nopage, for the
-reason explained above) and the ->nopage hook itself. So maybe that
-could be a cleaner solution to avoid the DSM hooks enterely, so we don't
-have more hooks but less, and a library call. This sounds the best for
-performance and flexibility. (talking only about 2.5 of course, 2.4 I
-think is just fine with my ""production"" 8) fix here:
+  spin_lock(&mmlist_lock);
+  mm = swap_mm;
+  while (mm->swap_address == TASK_SIZE || mm == &init_mm)
+  {
+    mm->swap_address = 0;
+    mm = list_entry(mm->mmlist.next, struct mm_struct, mmlist);
+    if (mm == swap_mm)
+      goto empty;
+    swap_mm = mm;
+  }
+  /* Make sure the mm doesn't disappear when we drop the lock.. */
+  atomic_inc(&mm->mm_users);
+  spin_unlock(&mmlist_lock);
 
-	http://www.us.kernel.org/pub/linux/kernel/people/andrea/kernels/v2.4/2.4.21rc8aa1/2.4.21rc8aa1/9999_truncate-nopage-race-1
+Since swap_out() can be called by any process, for example via
 
-)
+  ...
+  create_buffers()
+  free_more_memory()
+  try_to_free_pages()
+  try_to_free_pages_zone()
+  shrink_caches()
+  shrink_cache()
+  swap_out()
 
-Andrea
+it might occur that mm_struct is swapped out while it is being
+destroyed by execve().
+
+There is more suspicious code related to swapping in
+try_to_unsuse(), mm/swapfile.c.  Also, mm_users is accessed in an
+unsafe fashien in the various architecture dependent smp.c files.
+For example smp_flush_tlb_mm(), arch/sparc64/kernel/smp.c:
+
+  if (atomic_read(&mm->mm_users) == 1) {
+    /* See smp_flush_tlb_page for info about this. */
+    mm->cpu_vm_mask = (1UL << cpu);
+    goto local_flush_and_out;
+  }
+  /* ... */
+
+This is probably safe, but may unnecessarily flush the tlb (or
+possibly forget to flush the tlb although it has to?).
+
+----
+
+Basically, I think the problem is that the original VM design did
+not take care of concurrent access to the mm_struct of a process.
+It seems to assume that all processes accessing the mm_struct are
+clones.  If it were like this, mm_users == 1 would mean that only
+the current process is using the mm_struct and it can do with it
+as it pleases since other processes can not spontaneously start
+using the same structure.  Unfortunately this is not true, as
+detailed above.  As a consequence the leightweight locking scheme
+using the mm_users counter falls apart.
+
+----
+
+As for the severity of the problems we are having:  We have a
+cron job that triggers an lsof every minute.  Reading the
+/proc/<pid>/maps files of all processes sometimes collides with
+another process running once per minute that calls execve().  With
+ca. 200 machines we get about 100 oops messages per year cause by
+this problem.
+
+----
+
+I have attempted to make a patch that fixes the locking problems
+but does not add too much overhead for locking but did not get
+very far.  It uses a semaphore to protect read/write access to
+mm_users but does not lock the whole mm_struct.  The patch is
+attached below for reference.  Do not use it since it deadlocks
+the kernel within a couple of seconds.
+
+Bye
+
+Dominik ^_^  ^_^
+
+--OXfL5xGRrasGEqWY
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: attachment; filename="vmcrash-0.0.4_27_may_2003.patch"
+
+diff -r -u linux-2.4.20.orig/fs/exec.c linux-2.4.20/fs/exec.c
+--- linux-2.4.20.orig/fs/exec.c	Fri Nov 29 00:53:15 2002
++++ linux-2.4.20/fs/exec.c	Thu May 22 10:30:56 2003
+@@ -413,12 +413,21 @@
+ static int exec_mmap(void)
+ {
+ 	struct mm_struct * mm, * old_mm;
++	int cnt;
+ 
+ 	old_mm = current->mm;
+-	if (old_mm && atomic_read(&old_mm->mm_users) == 1) {
+-		mm_release();
+-		exit_mmap(old_mm);
+-		return 0;
++	if (old_mm) {
++		down_write(&old_mm->mm_users_sem);
++		if ((cnt = atomic_read(&old_mm->mm_users)) == 1) {
++			atomic_dec(&old_mm->mm_users);
++		}
++		up_write(&old_mm->mm_users_sem);
++		if (cnt == 1) {
++			mm_release();
++			exit_mmap(old_mm);
++			atomic_inc(&old_mm->mm_users);
++			return 0;
++		}
+ 	}
+ 
+ 	mm = mm_alloc();
+diff -r -u linux-2.4.20.orig/fs/proc/array.c linux-2.4.20/fs/proc/array.c
+--- linux-2.4.20.orig/fs/proc/array.c	Sat Aug  3 02:39:45 2002
++++ linux-2.4.20/fs/proc/array.c	Thu May 22 10:53:28 2003
+@@ -281,9 +281,7 @@
+ 	buffer = task_name(task, buffer);
+ 	buffer = task_state(task, buffer);
+ 	task_lock(task);
+-	mm = task->mm;
+-	if(mm)
+-		atomic_inc(&mm->mm_users);
++	mm = mmhold_task(task);
+ 	task_unlock(task);
+ 	if (mm) {
+ 		buffer = task_mem(mm, buffer);
+@@ -311,9 +309,7 @@
+ 	state = *get_task_state(task);
+ 	vsize = eip = esp = 0;
+ 	task_lock(task);
+-	mm = task->mm;
+-	if(mm)
+-		atomic_inc(&mm->mm_users);
++	mm = mmhold_task(task);
+ 	if (task->tty) {
+ 		tty_pgrp = task->tty->pgrp;
+ 		tty_nr = kdev_t_to_nr(task->tty->device);
+@@ -477,9 +473,7 @@
+ 	int size=0, resident=0, share=0, trs=0, lrs=0, drs=0, dt=0;
+ 
+ 	task_lock(task);
+-	mm = task->mm;
+-	if(mm)
+-		atomic_inc(&mm->mm_users);
++	mm = mmhold_task(task);
+ 	task_unlock(task);
+ 	if (mm) {
+ 		struct vm_area_struct * vma;
+@@ -619,9 +613,7 @@
+ 		goto out_free1;
+ 
+ 	task_lock(task);
+-	mm = task->mm;
+-	if (mm)
+-		atomic_inc(&mm->mm_users);
++	mm = mmhold_task(task);
+ 	task_unlock(task);
+ 	retval = 0;
+ 	if (!mm)
+diff -r -u linux-2.4.20.orig/fs/proc/base.c linux-2.4.20/fs/proc/base.c
+--- linux-2.4.20.orig/fs/proc/base.c	Sat Aug  3 02:39:45 2002
++++ linux-2.4.20/fs/proc/base.c	Thu May 22 10:53:56 2003
+@@ -60,9 +60,7 @@
+ 	struct task_struct *task = inode->u.proc_i.task;
+ 
+ 	task_lock(task);
+-	mm = task->mm;
+-	if (mm)
+-		atomic_inc(&mm->mm_users);
++	mm = mmhold_task(task);
+ 	task_unlock(task);
+ 	if (!mm)
+ 		goto out;
+@@ -129,9 +127,7 @@
+ 	struct mm_struct *mm;
+ 	int res = 0;
+ 	task_lock(task);
+-	mm = task->mm;
+-	if (mm)
+-		atomic_inc(&mm->mm_users);
++	mm = mmhold_task(task);
+ 	task_unlock(task);
+ 	if (mm) {
+ 		int len = mm->env_end - mm->env_start;
+@@ -148,9 +144,7 @@
+ 	struct mm_struct *mm;
+ 	int res = 0;
+ 	task_lock(task);
+-	mm = task->mm;
+-	if (mm)
+-		atomic_inc(&mm->mm_users);
++	mm = mmhold_task(task);
+ 	task_unlock(task);
+ 	if (mm) {
+ 		int len = mm->arg_end - mm->arg_start;
+@@ -356,9 +350,7 @@
+ 		return -ENOMEM;
+ 
+ 	task_lock(task);
+-	mm = task->mm;
+-	if (mm)
+-		atomic_inc(&mm->mm_users);
++	mm = mmhold_task(task);
+ 	task_unlock(task);
+ 	if (!mm)
+ 		return 0;
+diff -r -u linux-2.4.20.orig/include/linux/sched.h linux-2.4.20/include/linux/sched.h
+--- linux-2.4.20.orig/include/linux/sched.h	Fri Nov 29 00:53:15 2002
++++ linux-2.4.20/include/linux/sched.h	Thu May 22 11:34:34 2003
+@@ -213,6 +213,7 @@
+ 	struct vm_area_struct * mmap_cache;	/* last find_vma result */
+ 	pgd_t * pgd;
+ 	atomic_t mm_users;			/* How many users with user space? */
++	struct rw_semaphore mm_users_sem;	/* protects access to mm_users */
+ 	atomic_t mm_count;			/* How many references to "struct mm_struct" (users count as 1) */
+ 	int map_count;				/* number of VMAs */
+ 	struct rw_semaphore mmap_sem;
+@@ -244,6 +245,7 @@
+ 	mm_rb:		RB_ROOT,			\
+ 	pgd:		swapper_pg_dir, 		\
+ 	mm_users:	ATOMIC_INIT(2), 		\
++	mm_users_sem:	__RWSEM_INITIALIZER(name.mm_users_sem), \
+ 	mm_count:	ATOMIC_INIT(1), 		\
+ 	mmap_sem:	__RWSEM_INITIALIZER(name.mmap_sem), \
+ 	page_table_lock: SPIN_LOCK_UNLOCKED, 		\
+@@ -769,6 +771,9 @@
+ 		__mmdrop(mm);
+ }
+ 
++/* increases the usage counter of the mm_struct */
++struct mm_struct * mmhold(struct mm_struct *mm);
++struct mm_struct * mmhold_task(struct task_struct *tsk);
+ /* mmput gets rid of the mappings and all user-space */
+ extern void mmput(struct mm_struct *);
+ /* Remove the current tasks stale references to the old mm_struct */
+diff -r -u linux-2.4.20.orig/kernel/fork.c linux-2.4.20/kernel/fork.c
+--- linux-2.4.20.orig/kernel/fork.c	Fri Nov 29 00:53:15 2002
++++ linux-2.4.20/kernel/fork.c	Mon May 26 17:17:22 2003
+@@ -257,6 +257,45 @@
+ }
+ 
+ /*
++ * Test whether the mm_users counter of the mm_struct is
++ * positive and increase it by one if it is.  Do not touch
++ * the counter if it is zero or less, i.e. the mm is being
++ * created or destroyed.
++ *
++ * Returns mm if the mm could be held and NULL otherwise.
++ */
++struct mm_struct * mmhold(struct mm_struct *mm)
++{
++	struct mm_struct *ret_mm;
++
++	down_read(&mm->mm_users_sem);
++	if (likely(atomic_read(&mm->mm_users) >= 1)) {
++		atomic_inc(&mm->mm_users);
++		ret_mm = mm;
++	} else {
++		ret_mm = NULL;
++	}
++	up_read(&mm->mm_users_sem);
++
++	return ret_mm;
++}
++
++/*
++ * Calls mmhold with the task's mm.
++ */
++struct mm_struct * mmhold_task(struct task_struct *tsk)
++{
++	struct mm_struct *mm;
++
++	if (tsk->mm != NULL)
++		mm = mmhold(tsk->mm);
++	else
++		mm = NULL;
++
++	return mm;
++}
++
++/*
+  * Called when the last reference to the mm
+  * is dropped: either by a lazy thread or by
+  * mmput. Free the page directory and the mm.
+diff -r -u linux-2.4.20.orig/kernel/ptrace.c linux-2.4.20/kernel/ptrace.c
+--- linux-2.4.20.orig/kernel/ptrace.c	Sat Aug  3 02:39:46 2002
++++ linux-2.4.20/kernel/ptrace.c	Thu May 22 12:13:24 2003
+@@ -135,9 +135,7 @@
+ 
+ 	/* Worry about races with exit() */
+ 	task_lock(tsk);
+-	mm = tsk->mm;
+-	if (mm)
+-		atomic_inc(&mm->mm_users);
++	mm = mmhold_task(tsk);
+ 	task_unlock(tsk);
+ 	if (!mm)
+ 		return 0;
+
+--OXfL5xGRrasGEqWY--
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
