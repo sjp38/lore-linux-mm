@@ -1,82 +1,70 @@
-From: Gene Heskett <gene.heskett@verizon.net>
-Reply-To: gene.heskett@verizon.net
-Subject: Re: 2.6.0-mm1
-Date: Wed, 24 Dec 2003 10:39:21 -0500
-References: <20031222211131.70a963fb.akpm@osdl.org>
+Subject: [PATCH] Re: 2.6.0-mm1
+From: =?ISO-8859-1?Q?Ram=F3n?= Rey Vicente <rrey@ranty.pantax.net>
+Reply-To: ramon.rey@hispalinux.es
 In-Reply-To: <20031222211131.70a963fb.akpm@osdl.org>
-MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="us-ascii"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200312241039.21747.gene.heskett@verizon.net>
+References: <20031222211131.70a963fb.akpm@osdl.org>
+Content-Type: multipart/signed; micalg=pgp-sha1; protocol="application/pgp-signature"; boundary="=-h6z3fSPBRGjpeZjSg1AZ"
+Message-Id: <1072582996.6822.24.camel@debian>
+Mime-Version: 1.0
+Date: Sun, 28 Dec 2003 04:43:17 +0100
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@osdl.org>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tuesday 23 December 2003 00:11, Andrew Morton wrote:
->ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.6/2.6.0-
->test11/2.6.0-mm1/
->
->
->Quite a lot of new material here.  It would be appreciated if people
-> who have significant patches in -mm could retest please.
+--=-h6z3fSPBRGjpeZjSg1AZ
+Content-Type: multipart/mixed; boundary="=-YmRVpP8k+PUGm34xqqUD"
 
-I don't have anything in -mm1, but heres a report, up about 23 hrs 
-now.
 
-Everything seems to be working fine, and one proggy I couldn't run 
-before, now does, epsons iscan-1.5.2 front end for sane driven 
-scanners now works.  The major thing I see in the logs is audio 
-related, and has been carrying on since last summer.
+--=-YmRVpP8k+PUGm34xqqUD
+Content-Type: text/plain; charset=iso-8859-15
+Content-Transfer-Encoding: quoted-printable
 
-Dec 23 20:35:18 coyote kernel: via82cxxx: timeout while reading AC97 
-codec (0x9A0000)
-Dec 23 21:33:06 coyote kernel: via82cxxx: timeout while reading AC97 
-codec (0x9A0000)
-Dec 23 22:10:50 coyote kernel: via82cxxx: timeout while reading AC97 
-codec (0x9A0000)
-Dec 23 22:25:58 coyote kernel: via82cxxx: timeout while reading AC97 
-codec (0x9A0000)
-Dec 23 22:50:40 coyote kernel: via82cxxx: timeout while reading AC97 
-codec (0x9A0000)
-Dec 23 23:20:37 coyote kernel: via82cxxx: timeout while reading AC97 
-codec (0x9A0000)
-Dec 23 23:33:07 coyote kernel: via82cxxx: timeout while reading AC97 
-codec (0x9A0000)
-Dec 23 23:53:43 coyote kernel: via82cxxx: timeout while reading AC97 
-codec (0x9A0000)
-Dec 24 00:07:46 coyote kernel: via82cxxx: timeout while reading AC97 
-codec (0x9A0000)
-Dec 24 00:22:26 coyote kernel: via82cxxx: timeout while reading AC97 
-codec (0x9A0000)
-Dec 24 01:22:55 coyote kernel: via82cxxx: timeout while reading AC97 
-codec (0x9A0000)
-Dec 24 01:35:27 coyote kernel: via82cxxx: timeout while reading AC97 
-codec (0x9A0000)
-Dec 24 03:47:31 coyote kernel: via82cxxx: timeout while reading AC97 
-codec (0x9A0000)
-Dec 24 03:59:54 coyote kernel: via82cxxx: timeout while reading AC97 
-codec (0x9A0000)
+El mar, 23-12-2003 a las 06:11, Andrew Morton escribi=F3:
 
-I think that each of those is related to the little two tone noise I 
-play when there is new incoming mail.  There's a couple of other 
-non-show stoppers but thats the major log clutterer.  The only alsa 
-is whats in the kernel, and with a couple of very minor exceptions, 
-it all works.  No Ooops, lockups or anything like that.  All pretty 
-smooth and interactive using anticipatory at the moment.
+> +mt-ranier-support.patch
+>=20
+>  Mt Ranier support in the CDROM uniform layer.
 
-Merry Christmas Andrew!
+Somebody forgot this WAIT_CMD-to-ATAPI_WAIT_PC change
+--=20
+Ram=F3n Rey Vicente       <ramon dot rey at hispalinux dot es>
+        jabber ID       <rreylinux at jabber dot org>
+GPG public key ID 	0xBEBD71D5 -> http://pgp.escomposlinux.org/
 
--- 
-Cheers, Gene
-AMD K6-III@500mhz 320M
-Athlon1600XP@1400mhz  512M
-99.22% setiathome rank, not too shabby for a WV hillbilly
-Yahoo.com attornies please note, additions to this message
-by Gene Heskett are:
-Copyright 2003 by Maurice Eugene Heskett, all rights reserved.
+--=-YmRVpP8k+PUGm34xqqUD
+Content-Disposition: inline; filename=fix_idecd_seek_timeout_macro.patch
+Content-Type: text/x-patch; name=fix_idecd_seek_timeout_macro.patch;
+	charset=iso-8859-15
+Content-Transfer-Encoding: base64
+
+LS0tIGxpbnV4LTIuNi4wLW9yaWcvZHJpdmVycy9pZGUvaWRlLWNkLmMJMjAwMy0xMi0yOCAwNDoy
+NjozMS4wMDAwMDAwMDAgKzAxMDANCisrKyBsaW51eC0yLjYvZHJpdmVycy9pZGUvaWRlLWNkLmMJ
+MjAwMy0xMi0yOCAwMzo1NDoxOC4wMDAwMDAwMDAgKzAxMDANCkBAIC0xMzE4LDcgKzEzMTgsNyBA
+QA0KIA0KICNkZWZpbmUgSURFQ0RfU0VFS19USFJFU0hPTEQJKDEwMDApCQkJLyogMTAwMCBibG9j
+a3MgKi8NCiAjZGVmaW5lIElERUNEX1NFRUtfVElNRVIJKDUgKiBXQUlUX01JTl9TTEVFUCkJLyog
+MTAwIG1zICovDQotI2RlZmluZSBJREVDRF9TRUVLX1RJTUVPVVQJKDIgKiBXQUlUX0NNRCkJCS8q
+IDIwIHNlYyAqLw0KKyNkZWZpbmUgSURFQ0RfU0VFS19USU1FT1VUCSgyICogQVRBUElfV0FJVF9Q
+QykJLyogMjAgc2VjICovDQogDQogc3RhdGljIGlkZV9zdGFydHN0b3BfdCBjZHJvbV9zZWVrX2lu
+dHIgKGlkZV9kcml2ZV90ICpkcml2ZSkNCiB7DQo=
+
+--=-YmRVpP8k+PUGm34xqqUD--
+
+--=-h6z3fSPBRGjpeZjSg1AZ
+Content-Type: application/pgp-signature; name=signature.asc
+Content-Description: Esta parte del mensaje =?ISO-8859-1?Q?est=E1?= firmada
+	digitalmente
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.2.3 (GNU/Linux)
+
+iD8DBQA/7lFURGk68b69cdURAkDbAJ93VbAw9OYUp86QeD2gkLjZRer9CwCdHSu+
+pq9yNfxoIH4e5jPxs435+zY=
+=b4kC
+-----END PGP SIGNATURE-----
+
+--=-h6z3fSPBRGjpeZjSg1AZ--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
