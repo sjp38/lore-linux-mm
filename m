@@ -1,25 +1,36 @@
-Date: Mon, 28 Jun 1999 21:13:14 -0400 (EDT)
-From: "Benjamin C.R. LaHaise" <blah@kvack.org>
-Subject: linux-mm will be iffy the next few days
-Message-ID: <Pine.LNX.3.96.990628205611.13617A-100000@mole.spellcast.com>
+Date: Mon, 28 Jun 1999 20:53:23 -0400 (EDT)
+From: Chuck Lever <cel@monkey.org>
+Subject: Re: filecache/swapcache questions [RFC] [RFT] [PATCH] kanoj-mm12-2.3.8
+In-Reply-To: <14199.62047.543601.273526@dukat.scot.redhat.com>
+Message-ID: <Pine.BSO.4.10.9906282052110.10964-100000@funky.monkey.org>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: "Stephen C. Tweedie" <sct@redhat.com>
+Cc: Kanoj Sarcar <kanoj@google.engr.sgi.com>, andrea@suse.de, torvalds@transmeta.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hey all,
+On Mon, 28 Jun 1999, Stephen C. Tweedie wrote:
+> On Mon, 28 Jun 1999 13:51:03 -0700 (PDT), kanoj@google.engr.sgi.com (Kanoj Sarcar) said:
+> 
+> >> or perhaps the kernel could start more than one kswapd (one per swap
+> >> partition?).  with my patch, regular processes never wait for swap out
+> >> I/O, only kswapd does.
+> 
+> This is a mistake: such blocking is one of the prime ways in which we
+> can limit the rate at which processes can consume memory.
 
-Mail for linux-mm will probably be a bit flaky for the next week or so as
-the isdn line kvack.org is currently sitting behind is down, I'm on
-vacation (and about to leave the city), and an evil kludge is now in
-place...
+whoops.  i'm sorry, i mis-typed.  i meant that regular processes never
+*dispatch* I/O.  neither kswapd nor regular processes will wait.
 
-		-ben
-
+	- Chuck Lever
 --
-Hi!  I'm Signature Virus 99!  Copy me into your .signature and join the fun! 
+corporate:	<chuckl@netscape.com>
+personal:	<chucklever@netscape.net> or <cel@monkey.org>
+
+The Linux Scalability project:
+	http://www.citi.umich.edu/projects/linux-scalability/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
