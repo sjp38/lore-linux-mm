@@ -1,40 +1,49 @@
-Date: Tue, 15 Apr 2003 19:40:36 -0700
-From: William Lee Irwin III <wli@holomorphy.com>
-Subject: Re: 2.5.67-mm3
-Message-ID: <20030416024036.GK706@holomorphy.com>
-References: <20030414015313.4f6333ad.akpm@digeo.com> <20030416022154.GF12487@holomorphy.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20030416022154.GF12487@holomorphy.com>
+From: Jeremy Hall <jhall@maoz.com>
+Message-Id: <200304160341.h3G3fa4E028180@sith.maoz.com>
+Subject: Re: interrupt context
+In-Reply-To: <1050442843.3664.165.camel@localhost> from Robert Love at "Apr 15,
+ 2003 05:40:44 pm"
+Date: Tue, 15 Apr 2003 23:41:36 -0400 (EDT)
+MIME-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@digeo.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Robert Love <rml@tech9.net>
+Cc: Jeremy Hall <jhall@maoz.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Apr 15, 2003 at 07:21:54PM -0700, William Lee Irwin III wrote:
-> follow_hugetlb_page() behaved improperly if its starting address was
-> not hugepage-aligned. It looked a bit unclean too, so I rewrote it.
-> This fixes a bug, and more importantly, makes the thing readable by
-> something other than a compiler (e.g. programmers).
+With the tasklet version, I now have a different problem and don't fully 
+understand how we got here.
 
-And this one fixes an overflow when there is more than 4GB of hugetlb:
+Both CPUs are in snd_pcm_stop, which is a macro.  gdb has a hard time with 
+this and can't reference some of the preprocessor code.
 
+snd_pcm_stop is running for the same card but on different CPUs.  How'd 
+that happen? I thought the tasklet wouldn't run ... oh but it only blocks 
+itself from running on the local CPU twice
 
-diff -urpN htlb-2.5.67-bk6-1/arch/i386/mm/hugetlbpage.c htlb-2.5.67-bk6-2/arch/i386/mm/hugetlbpage.c
---- htlb-2.5.67-bk6-1/arch/i386/mm/hugetlbpage.c	2003-04-15 18:58:07.000000000 -0700
-+++ htlb-2.5.67-bk6-2/arch/i386/mm/hugetlbpage.c	2003-04-15 19:25:30.000000000 -0700
-@@ -482,9 +482,7 @@ int hugetlb_report_meminfo(char *buf)
- 
- int is_hugepage_mem_enough(size_t size)
- {
--	if (size > (htlbpagemem << HPAGE_SHIFT))
--		return 0;
--	return 1;
-+	return (size + ~HPAGE_MASK)/HPAGE_SIZE <= htlbpagemem;
- }
- 
- /*
+nice
+
+Do I need to use spin_lock_irqsave or spin_lock to protect itself from 
+running concurrently on different CPUs?
+
+_J
+
+In the new year, Robert Love wrote:
+> On Mon, 2003-04-14 at 23:44, Jeremy Hall wrote:
+> 
+> > My quandery is where to put the lock so that both cards will use it.  I 
+> > need a layer that is visible to both and don't fully understand the alsa 
+> > architecture enough to know where to put it.
+> 
+> OK, I understand you now. :)
+> 
+> What is the relationship between the two things that are conflicting?
+> 
+> 	Robert Love
+> 
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
