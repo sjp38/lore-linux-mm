@@ -1,41 +1,22 @@
-Date: Tue, 19 Aug 2003 20:23:29 -0700
-From: Andrew Morton <akpm@osdl.org>
-Subject: Re: 2.6.0-test3-mm3
-Message-Id: <20030819202329.24e938ac.akpm@osdl.org>
-In-Reply-To: <1061349342.8327.11.camel@localhost>
-References: <20030819013834.1fa487dc.akpm@osdl.org>
-	<1061349342.8327.11.camel@localhost>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+From: Juergen.Suendermann@ric.de
+Message-ID: <OFC1256D88.001666CF-ONC1256D88.001666CF-C1256D88.001666CF@REDZAC.DE>
+Date: Wed, 20 Aug 2003 06:04:41 +0200
+MIME-Version: 1.0
+Content-type: text/plain; charset=iso-8859-1
+Content-transfer-encoding: 8BIT
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jonathan Brown <jbrown@emergence.uk.net>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@intel.com
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Jonathan Brown <jbrown@emergence.uk.net> wrote:
->
->   CC      arch/i386/kernel/mpparse.o
-> arch/i386/kernel/mpparse.c: In function `mp_config_ioapic_for_sci':
-> arch/i386/kernel/mpparse.c:1067: warning: implicit declaration of
-> function `mp_find_ioapic'
-> arch/i386/kernel/mpparse.c:1069: `mp_ioapic_routing' undeclared (first
-> use in this function)
-> arch/i386/kernel/mpparse.c:1069: (Each undeclared identifier is reported
-> only once
-> arch/i386/kernel/mpparse.c:1069: for each function it appears in.)
-> arch/i386/kernel/mpparse.c:1071: warning: implicit declaration of
-> function `io_apic_set_pci_routing'
-> arch/i386/kernel/mpparse.c: In function `mp_parse_prt':
-> arch/i386/kernel/mpparse.c:1115: `mp_ioapic_routing' undeclared (first
-> use in this function)
-> make[1]: *** [arch/i386/kernel/mpparse.o] Error 1
-> make: *** [arch/i386/kernel] Error 2
-> 
+Ich bin krankheitsbedingt vorubergehend nicht erreichbar. Bitte wenden Sie
+sich an meine Kollegen Berding (heinz-gerd.berding@ric.de) oder Buhk
+(gunnar.buhk@ric.de) bzw. an die Teamassitentin Frau Roters
+(07156/933-395). Herzliche Grusse aus Delmenhorst
 
-Please send your .config to linux-acpi@intel.com and the fine folks
-there will fix it up, thanks.
+In response to:
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
