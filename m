@@ -1,51 +1,46 @@
-Date: Fri, 29 Sep 2000 11:34:10 -0300 (BRST)
+Date: Fri, 29 Sep 2000 11:39:18 -0300 (BRST)
 From: Rik van Riel <riel@conectiva.com.br>
-Subject: Re: lru_cache_add() -> deactivate_page_nolock()?
-In-Reply-To: <39D3F272.BC026A47@sgi.com>
-Message-ID: <Pine.LNX.4.21.0009291133190.23266-100000@duckman.distro.conectiva>
+Subject: Re: [patch] vmfixes-2.4.0-test9-B2 - fixing deadlocks
+In-Reply-To: <20000928165216.J17518@athlon.random>
+Message-ID: <Pine.LNX.4.21.0009291138080.23266-100000@duckman.distro.conectiva>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rajagopal Ananthanarayanan <ananth@sgi.com>
-Cc: riel@conectiva.com, linux-mm@kvack.org
+To: Andrea Arcangeli <andrea@suse.de>
+Cc: Christoph Rohland <cr@sap.com>, "Stephen C. Tweedie" <sct@redhat.com>, Ingo Molnar <mingo@elte.hu>, Linus Torvalds <torvalds@transmeta.com>, Roger Larsson <roger.larsson@norran.net>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 28 Sep 2000, Rajagopal Ananthanarayanan wrote:
+On Thu, 28 Sep 2000, Andrea Arcangeli wrote:
+> On Thu, Sep 28, 2000 at 08:16:32AM -0300, Rik van Riel wrote:
+> > Andrea, I have the strong impression that your idea of
+> > memory balancing is based on the idea that the OS should
+> > out-smart the application instead of looking at the usage
+> > pattern of the pages in memory.
+> 
+> Not sure what you mean with out-smart.
+> 
+> My only point is that the OS actually can only swapout such shm.
+> If that SHM is not supposed to be swapped out and if the OS I/O
+> cache have more aging then the shm cache, then the OS should
+> tell the DBMS that it's time to shrink some shm page by freeing
+> it.
 
-> Two cases here, depending on what happened in __alloc_pages():
-> 
-> 1. page->age will be PAGE_AGE_START if page was previously
->    freed (__free_pages_ok() sets the age)
-> 
-> 2. page->age will be zero if page was obtained through
->    a reclaim_page().
-> 
-> I can't believe this was a design choice. Simply
-> code like this is missing at the bottom of reclaim_page():
-> 
-> ---------
-> struct page * reclaim_page(zone_t * zone)
-> {
-> 	[ ... ]
-> 	if (page)
-> 		page->age = PAGE_START_AGE;
-> 	return page;
-> }
-> ----------
-> 
-> This will avoid nasty deactivation immediately on
-> entering the page into the cache.
-> 
-> ... btw, I have tried the above fix, and it does
-> improve dbench performance in cases where few
-> clients (1-2) are used on my 64MB system.
-> 
-> Rik, what do you think?
+OK, good to see that we agree on the fact that we
+should age and swapout all pages equally agressively.
 
-You're absolutely right. 
+> > of the pages in question, instead of making presumptions
+> > based on what kind of cache the page is in.
+> 
+> For the mapped pages we never make presumptions. We always check
+> the accessed bit and that's the most reliable info to know if
+> the page is been accessed recently (set from the cpu accesse
+> through the pte not only during page faults or cache hits).  
+> With the current design pages mapped multiple times will be
+> overaged a bit but this can't be fixed until we make a page->pte
+> reverse lookup...
 
-This is a bug which should be fixed.
+Indeed.
 
 regards,
 
