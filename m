@@ -1,36 +1,43 @@
-Date: Mon, 9 Oct 2000 23:34:36 +0200
-From: "Andi Kleen" <ak@suse.de>
+Date: Mon, 9 Oct 2000 18:34:29 -0300 (BRST)
+From: Rik van Riel <riel@conectiva.com.br>
 Subject: Re: [PATCH] VM fix for 2.4.0-test9 & OOM handler
-Message-ID: <20001009233436.A21846@gruyere.muc.suse.de>
-References: <200010092121.OAA01924@pachyderm.pa.dec.com> <E13ikTP-0002sT-00@the-village.bc.nu>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-In-Reply-To: <E13ikTP-0002sT-00@the-village.bc.nu>; from alan@lxorguk.ukuu.org.uk on Mon, Oct 09, 2000 at 10:28:38PM +0100
+In-Reply-To: <Pine.LNX.4.21.0010092336230.9803-100000@elte.hu>
+Message-ID: <Pine.LNX.4.21.0010091833280.1562-100000@duckman.distro.conectiva>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Alan Cox <alan@lxorguk.ukuu.org.uk>
-Cc: Jim Gettys <jg@pa.dec.com>, Andi Kleen <ak@suse.de>, Linus Torvalds <torvalds@transmeta.com>, Ingo Molnar <mingo@elte.hu>, Andrea Arcangeli <andrea@suse.de>, Rik van Riel <riel@conectiva.com.br>, Byron Stanoszek <gandalf@winds.org>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
+To: Ingo Molnar <mingo@elte.hu>
+Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, Andrea Arcangeli <andrea@suse.de>, Byron Stanoszek <gandalf@winds.org>, Linus Torvalds <torvalds@transmeta.com>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Oct 09, 2000 at 10:28:38PM +0100, Alan Cox wrote:
-> > Sounds like one needs in addition some mechanism for servers to "charge" clients for
-> > consumption. X certainly knows on behalf of which connection resources
-> > are created; the OS could then transfer this back to the appropriate client
-> > (at least when on machine).
+On Mon, 9 Oct 2000, Ingo Molnar wrote:
+> On Mon, 9 Oct 2000, Rik van Riel wrote:
 > 
-> Definitely - and this is present in some non Unix OS's. We do pass credentials
-> across AF_UNIX sockets so the mechanism is notionally there to provide the 
-> credentials to X, just not to use them
+> > Would this complexity /really/ be worth it for the twice-yearly OOM
+> > situation?
+> 
+> the only reason i suggested this was the init=/bin/bash, 4MB
+> RAM, no swap emergency-bootup case. We must not kill init in
+> that case - if the current code doesnt then great and none of
+> this is needed.
 
-X can get the pid using SO_PEERCRED for unix connections. 
+I guess this requires some testing. If anybody can reproduce
+the bad effects without going /too/ much out of the way of a
+realistic scenario, the code needs to be fixed.
 
-When the oom killer maintains some kind of badness value in the task_struct
-it would be possible to add a charge() systemcall that manipulates it.
+If it turns out to be a non-issue in all scenarios, there's
+no need to make the code any more complex.
 
-int charge(pid_t pid, int memorytobecharged) 
+regards,
 
+Rik
+--
+"What you're running that piece of shit Gnome?!?!"
+       -- Miguel de Icaza, UKUUG 2000
 
--Andi
+http://www.conectiva.com/		http://www.surriel.com/
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
