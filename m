@@ -1,50 +1,60 @@
-Subject: Re: broken VM in 2.4.10-pre9
-Date: Wed, 19 Sep 2001 23:04:10 +0100 (BST)
-In-Reply-To: <m1iteegag6.fsf@frodo.biederman.org> from "Eric W. Biederman" at Sep 19, 2001 03:03:21 PM
+content-class: urn:content-classes:message
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Message-Id: <E15jpRy-0003yt-00@the-village.bc.nu>
-From: Alan Cox <alan@lxorguk.ukuu.org.uk>
+Content-Type: text/plain;
+	charset="iso-8859-1"
+Content-Transfer-Encoding: 8BIT
+Subject: RE: broken VM in 2.4.10-pre9
+Date: Wed, 19 Sep 2001 17:15:21 -0500
+Message-ID: <878A2048A35CD141AD5FC92C6B776E4907B7A5@xchgind02.nsisw.com>
+From: "Rob Fuller" <rfuller@nsisoftware.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Eric W. Biederman" <ebiederm@xmission.com>
-Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, Daniel Phillips <phillips@bonn-fries.net>, Rob Fuller <rfuller@nsisoftware.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: "David S. Miller" <davem@redhat.com>, ebiederm@xmission.com
+Cc: alan@lxorguk.ukuu.org.uk, phillips@bonn-fries.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> That added to the fact that last time someone ran the numbers linux
-> was considerably faster than the BSD for mm type operations when not
-> swapping.  And this is the common case.
+In my one contribution to this thread I wrote:
 
-"Linux VM works wonderfully when nobody is using it"
+"One argument for reverse mappings is distributed shared memory or
+distributed file systems and their interaction with memory mapped files.
+For example, a distributed file system may need to invalidate a specific
+page of a file that may be mapped multiple times on a node."
 
-Which is rather like the scheduler works well for one task then by three is
-making bad decisions.
+I believe reverse mappings are an essential feature for memory mapped
+files in order for Linux to support sophisticated distributed file
+systems or distributed shared memory.  In general, this memory is NOT
+anonymous.  As such, it should not affect the performance of a
+fork/exec/exit.
 
-> But I have not seen the argument that not having reverse maps make it
-> undoable.  In fact previous versions of linux seem to put the proof
-> that you can get at least reasonable swapping under load without
-> reverse page tables.
+I suppose I confused the issue when I offered a supporting argument for
+reverse mappings.  It's not reverse mappings for anonymous pages I'm
+advocating, but reverse mappings for mapped file data.
 
-The last decent Linx VM behaviour was about 2.1.100 or so - which was
-without reverse maps. It's been downhill since then. So yes you may be
-right.
-
-> So my suggestion was to look at getting anonymous pages backed by what
-> amounts to a shared memory segment.  In that vein.  By using an extent
-> based data structure we can get the cost down under the current 8 bits
-> per page that we have for the swap counts, and make allocating swap
-> pages faster.  And we want to cluster related swap pages anyway so
-> an extent based system is a natural fit.
-
-Much of this goes away if you get rid of both the swap and anonymous page
-special cases. Back anonymous pages with the "whoops everything I write here
-vanishes mysteriously" file system and swap with a swapfs
-
-Reverse mappings make linear aging easier to do but are not critical (we
-can walk all physical pages via the page map array).
-
-Alan
+> -----Original Message-----
+> From: David S. Miller [mailto:davem@redhat.com]
+> Sent: Wednesday, September 19, 2001 4:56 PM
+> To: ebiederm@xmission.com
+> Cc: alan@lxorguk.ukuu.org.uk; phillips@bonn-fries.net; Rob Fuller;
+> linux-kernel@vger.kernel.org; linux-mm@kvack.org
+> Subject: Re: broken VM in 2.4.10-pre9
+>
+>
+>    From: ebiederm@xmission.com (Eric W. Biederman)
+>    Date: 19 Sep 2001 15:37:26 -0600
+>
+>    That I think is a significant cost.
+>
+> My own personal feeling, after having tried to implement a much
+> lighter weight scheme involving "anon areas", is that reverse maps or
+> something similar should be looked at as a latch ditch effort.
+>
+> We are tons faster than anyone else in fork/exec/exit precisely
+> because we keep track of so little state for anonymous pages.
+>
+> Later,
+> David S. Miller
+> davem@redhat.com
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
