@@ -1,30 +1,22 @@
 Received: from MIT.EDU (SOUTH-STATION-ANNEX.MIT.EDU [18.72.1.2])
-	by kvack.org (8.8.7/8.8.7) with SMTP id KAA12370
-	for <linux-mm@kvack.org>; Tue, 23 Mar 1999 10:49:34 -0500
-Message-Id: <199903231549.KAA20478@x15-cruise-basselope>
+	by kvack.org (8.8.7/8.8.7) with SMTP id LAA12826
+	for <linux-mm@kvack.org>; Tue, 23 Mar 1999 11:31:38 -0500
+Message-Id: <199903231631.LAA20764@x15-cruise-basselope>
 Subject: Re: LINUX-MM 
-In-Reply-To: Your message of "Tue, 23 Mar 1999 15:16:54 +0100."
-             <Pine.LNX.4.03.9903231514290.10060-100000@mirkwood.dummy.home>
-Date: Tue, 23 Mar 1999 10:49:11 EST
+In-Reply-To: Your message of "Tue, 23 Mar 1999 10:49:11 EST."
+             <199903231549.KAA20478@x15-cruise-basselope>
+Date: Tue, 23 Mar 1999 11:31:18 EST
 From: Kev <klmitch@MIT.EDU>
 Sender: owner-linux-mm@kvack.org
-To: Rik van Riel <riel@nl.linux.org>
-Cc: Matthias Arnold <Matthias.Arnold@edda.imsid.uni-jena.de>, Linux MM <linux-mm@kvack.org>
+To: Kev <klmitch@MIT.EDU>
+Cc: Rik van Riel <riel@nl.linux.org>, Matthias Arnold <Matthias.Arnold@edda.imsid.uni-jena.de>, Linux MM <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-> > Thanks for your reply.Unfortunately the memory is not (at least
-> > not completely) returned to the system after the program has
-> > finished (as the OS comand 'free' tells me).
-> 
-> Hmm, what version of the kernel are you using?
-> 
-> IIRC there's a slight bug in some of the newer kernels
-> where the swap cache isn't being freed when you exit
-> your program, but only later on when the system tries
-> to reclaim memory...
+> I believe the problem lies in the fact that there is not enough
+> SysV shared memory available.
 
-I believe the problem lies in the fact that there is not enough
-SysV shared memory available.
+blah, forget it; I'm paying attention to too many email conversations.
+Sorry,
 -- 
 Kevin L. Mitchell <klmitch@mit.edu>
 -------------------------  -. .---- --.. ..- -..-  --------------------------
