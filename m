@@ -1,29 +1,40 @@
-Message-ID: <401D8D64.8010605@cyberone.com.au>
-Date: Mon, 02 Feb 2004 10:36:04 +1100
-From: Nick Piggin <piggin@cyberone.com.au>
-MIME-Version: 1.0
-Subject: VM benchmarks
-Content-Type: text/plain; charset=us-ascii; format=flowed
+Date: Sun, 1 Feb 2004 16:08:18 -0800
+From: Andrew Morton <akpm@osdl.org>
+Subject: Re: VM benchmarks
+Message-Id: <20040201160818.1499be18.akpm@osdl.org>
+In-Reply-To: <401D8D64.8010605@cyberone.com.au>
+References: <401D8D64.8010605@cyberone.com.au>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
+To: Nick Piggin <piggin@cyberone.com.au>
 Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-After playing with the active / inactive list balancing a bit,
-I found I can very consistently take 2-3 seconds off a non
-swapping kbuild, and the light swapping case is closer to 2.4.
-Heavy swapping case is better again. Lost a bit in the middle
-though.
+Nick Piggin <piggin@cyberone.com.au> wrote:
+>
+> After playing with the active / inactive list balancing a bit,
+> I found I can very consistently take 2-3 seconds off a non
+> swapping kbuild, and the light swapping case is closer to 2.4.
+> Heavy swapping case is better again. Lost a bit in the middle
+> though.
+> 
+> http://www.kerneltrap.org/~npiggin/vm/4/
+> 
+> At the end of this I might come up with something that is very
+> suited to kbuild and no good at anything else. Do you have any
+> other ideas of what I should test?
+> 
 
-http://www.kerneltrap.org/~npiggin/vm/4/
+The thing people most seem to complain about is big compilations.
 
-At the end of this I might come up with something that is very
-suited to kbuild and no good at anything else. Do you have any
-other ideas of what I should test?
+Things like a bitkeeper consistency check while dinking with the X UI have
+also been noted, but that's a bit hard to quantify.
 
-Nick
+Maybe ask Roger to try his efax workload?
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
