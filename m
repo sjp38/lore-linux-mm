@@ -1,69 +1,87 @@
-Date: Wed, 28 Jul 2004 17:21:58 -0500
-From: Brent Casavant <bcasavan@sgi.com>
-Reply-To: Brent Casavant <bcasavan@sgi.com>
-Subject: Re: Scaling problem with shmem_sb_info->stat_lock
-In-Reply-To: <20040728095925.GQ2334@holomorphy.com>
-Message-ID: <Pine.SGI.4.58.0407281707370.33392@kzerza.americas.sgi.com>
-References: <Pine.SGI.4.58.0407131449330.111843@kzerza.americas.sgi.com>
- <Pine.LNX.4.44.0407132113350.8577-100000@localhost.localdomain>
- <20040728022625.249c78da.akpm@osdl.org> <20040728095925.GQ2334@holomorphy.com>
+From: Jesse Barnes <jbarnes@engr.sgi.com>
+Subject: Re: [PATCH] don't pass mem_map into init functions
+Date: Wed, 28 Jul 2004 15:39:40 -0700
+References: <1091048123.2871.435.camel@nighthawk> <200407281501.19181.jbarnes@engr.sgi.com> <1091053187.2871.526.camel@nighthawk>
+In-Reply-To: <1091053187.2871.526.camel@nighthawk>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Disposition: inline
+Content-Type: Multipart/Mixed;
+  boundary="Boundary-00=_ssCCBzsXjapiTYq"
+Message-Id: <200407281539.40049.jbarnes@engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: William Lee Irwin III <wli@holomorphy.com>
-Cc: Andrew Morton <akpm@osdl.org>, Hugh Dickins <hugh@veritas.com>, linux-mm@kvack.org
+To: Dave Hansen <haveblue@us.ibm.com>
+Cc: "Martin J. Bligh" <mbligh@aracnet.com>, linux-mm <linux-mm@kvack.org>, LSE <lse-tech@lists.sourceforge.net>, Anton Blanchard <anton@samba.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, davidm@hpl.hp.com, tony.luck@intel.com
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 28 Jul 2004, William Lee Irwin III wrote:
+--Boundary-00=_ssCCBzsXjapiTYq
+Content-Type: text/plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 
-> Hugh Dickins <hugh@veritas.com> wrote:
-> >> Though wli's per-cpu idea was sensible enough, converting to that
-> >>  didn't appeal to me very much.  We only have a limited amount of
-> >>  per-cpu space, I think, but an indefinite number of tmpfs mounts.
+On Wednesday, July 28, 2004 3:19 pm, Dave Hansen wrote:
+> On Wed, 2004-07-28 at 15:01, Jesse Barnes wrote:
+> > On Wednesday, July 28, 2004 1:55 pm, Dave Hansen wrote:
+> > > Compile tested on SMP x86 and NUMAQ.  I plan to give it a run on ppc64
+> > > in a bit.  I'd appreciate if one of the ia64 guys could make sure it's
+> > > OK for them as well.
+> >
+> > Which tree is this against?  It doesn't apply to the bk tree or
+> > linux-2.6.8-rc2-mm1.
 >
-> On Wed, Jul 28, 2004 at 02:26:25AM -0700, Andrew Morton wrote:
-> > What's wrong with <linux/percpu_counter.h>?
->
-> One issue with using it for the specific cases in question is that the
-> maintenance of the statistics is entirely unnecessary for them.
+> Put this one before it, and it should apply cleanly.  I posted this one
+> earlier today, and didn't realize that the new one was dependent.
 
-Yeah.  Hugh solved the stat_lock issue by getting rid of the superblock
-info for the internal superblock(s?) corresponding to /dev/zero and
-System V shared memory.  There was no way to get at that information
-anyway, so it wasn't useful to pay to keep it around.
+You're missing this little bit from your patchset.  Cc'ing Tony and David.
 
-> For the general case it may still make sense to do this. SGI will have
-> to comment here, as the workloads I'm involved with are kernel intensive
-> enough in other areas and generally run on small enough systems to have
-> no visible issues in or around the areas described.
+Jesse
 
-With Hugh's fix, the problem has now moved to other areas -- I consider
-the stat_lock issue solved.  Now I'm running up against the shmem_inode_info
-lock field.  A per-CPU structure isn't appropriate here because what it's
-mostly protecting is the inode swap entries, and that isn't at all amenable
-to a per-CPU breakdown (i.e. this is real data, not statistics).
+--Boundary-00=_ssCCBzsXjapiTYq
+Content-Type: text/plain;
+  charset="iso-8859-1";
+  name="memmap-cleanup-fix.patch"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: attachment;
+	filename="memmap-cleanup-fix.patch"
 
-The "obvious" fix is to morph the code so that the swap entries can be
-updated in parallel to eachother and in parallel to the other miscellaneous
-fields in the shmem_inode_info structure.  But this would be one *nasty*
-piece of work to accomplish, much less accomplish cleanly and correctly.
-I'm pretty sure my Linux skillset isn't up to the task, though it hasn't
-kept me from trying.  On the upside I don't think it would significantly
-impact performance on low processor-count systems, if we can manage to
-do it at all.
+diff -Napur -X /home/jbarnes/dontdiff linux-2.5-memmap.orig/arch/ia64/mm/init.c linux-2.5-memmap/arch/ia64/mm/init.c
+--- linux-2.5-memmap.orig/arch/ia64/mm/init.c	2004-07-28 15:42:32.000000000 -0700
++++ linux-2.5-memmap/arch/ia64/mm/init.c	2004-07-28 15:38:19.000000000 -0700
+@@ -433,14 +433,17 @@ virtual_memmap_init (u64 start, u64 end,
+ }
+ 
+ void
+-memmap_init (struct page *start, unsigned long size, int nid,
+-	     unsigned long zone, unsigned long start_pfn)
++memmap_init (unsigned long size, int nid, unsigned long zone,
++	     unsigned long start_pfn)
+ {
+ 	if (!vmem_map)
+ 		memmap_init_zone(size, nid, zone, start_pfn);
+ 	else {
++		struct page *start;
+ 		struct memmap_init_callback_data args;
+ 
++		start = pfn_to_page(start_pfn);
++
+ 		args.start = start;
+ 		args.end = start + size;
+ 		args.nid = nid;
+diff -Napur -X /home/jbarnes/dontdiff linux-2.5-memmap.orig/include/asm-ia64/pgtable.h linux-2.5-memmap/include/asm-ia64/pgtable.h
+--- linux-2.5-memmap.orig/include/asm-ia64/pgtable.h	2004-07-28 15:42:04.000000000 -0700
++++ linux-2.5-memmap/include/asm-ia64/pgtable.h	2004-07-28 15:38:45.000000000 -0700
+@@ -515,7 +515,7 @@ do {											\
+ #  ifdef CONFIG_VIRTUAL_MEM_MAP
+   /* arch mem_map init routine is needed due to holes in a virtual mem_map */
+ #   define __HAVE_ARCH_MEMMAP_INIT
+-    extern void memmap_init (struct page *start, unsigned long size, int nid, unsigned long zone,
++    extern void memmap_init (unsigned long size, int nid, unsigned long zone,
+ 			     unsigned long start_pfn);
+ #  endif /* CONFIG_VIRTUAL_MEM_MAP */
+ # endif /* !__ASSEMBLY__ */
 
-I'm kind of hoping for a fairy godmother to drop in, wave her magic wand,
-and say "Here's the quick and easy and obviously correct solution".  But
-what're the chances of that :).
-
-Thanks,
-Brent
-
--- 
-Brent Casavant             bcasavan@sgi.com        Forget bright-eyed and
-Operating System Engineer  http://www.sgi.com/     bushy-tailed; I'm red-
-Silicon Graphics, Inc.     44.8562N 93.1355W 860F  eyed and bushy-haired.
+--Boundary-00=_ssCCBzsXjapiTYq--
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
