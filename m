@@ -1,40 +1,29 @@
-Date: Thu, 24 Apr 2003 16:24:56 -0400 (EDT)
-From: Bill Davidsen <davidsen@tmr.com>
+Date: Thu, 24 Apr 2003 16:33:34 -0400
+From: Benjamin LaHaise <bcrl@redhat.com>
 Subject: Re: 2.5.68-mm2
-In-Reply-To: <20030423233652.C9036@redhat.com>
-Message-ID: <Pine.LNX.3.96.1030424162101.11351C-100000@gatekeeper.tmr.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Message-ID: <20030424163334.A12180@redhat.com>
+References: <20030423233652.C9036@redhat.com> <Pine.LNX.3.96.1030424162101.11351C-100000@gatekeeper.tmr.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.3.96.1030424162101.11351C-100000@gatekeeper.tmr.com>; from davidsen@tmr.com on Thu, Apr 24, 2003 at 04:24:56PM -0400
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Benjamin LaHaise <bcrl@redhat.com>
+To: Bill Davidsen <davidsen@tmr.com>
 Cc: Andrew Morton <akpm@digeo.com>, "Martin J. Bligh" <mbligh@aracnet.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 23 Apr 2003, Benjamin LaHaise wrote:
+On Thu, Apr 24, 2003 at 04:24:56PM -0400, Bill Davidsen wrote:
+> Of course reasonable way may mean that bash does some things a bit slower,
+> but given that the whole thing works well in most cases anyway, I think
+> the kernel handling the situation is preferable.
 
-> Actually, Ingo's rmap style sounds very similar to what I first implemented 
-> in one of my stabs at rmap.  It has a nasty side effect of being worst case 
-> for cache organisation -- the sister page tends to map to the exact same 
-> cache line in some processors.  Whoops.  That said, I think that the rmap 
-> pte-chains can really stand a bit of optimization by means of discarding a 
-> couple of bits, as well as merging for adjacent pages, so I don't think 
-> the overhead is a lost cause yet.  And nobody has written the clone() patch 
-> for bash yet...
+Eh?  It makes bash _faster_ for all cases of starting up a child process.  
+And it even works on 2.4 kernels.
 
-I'm not sure the best solution is to try to hack applications doing things
-in the way they find best. I suspect that we have to change the kernel so
-it handles the requests in a reasonable way.
-
-Of course reasonable way may mean that bash does some things a bit slower,
-but given that the whole thing works well in most cases anyway, I think
-the kernel handling the situation is preferable.
-
+		-ben
 -- 
-bill davidsen <davidsen@tmr.com>
-  CTO, TMR Associates, Inc
-Doing interesting things with little computers since 1979.
-
+Junk email?  <a href="mailto:aart@kvack.org">aart@kvack.org</a>
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
