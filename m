@@ -1,30 +1,27 @@
-Date: Fri, 13 Aug 1999 13:24:53 -0400 (EDT)
-From: Chris Atenasio <chrisa@flashcom.net>
+Date: Fri, 13 Aug 1999 18:53:45 -0400 (EDT)
+From: "Benjamin C.R. LaHaise" <blah@kvack.org>
 Subject: Re: Strange  memory allocation error in 2.2.11
-In-Reply-To: <Pine.LNX.3.96.990813104056.25480B-100000@mole.spellcast.com>
-Message-ID: <Pine.LNX.4.10.9908131320000.4925-100000@chris.atenasio.net>
+In-Reply-To: <Pine.LNX.4.10.9908131320000.4925-100000@chris.atenasio.net>
+Message-ID: <Pine.LNX.3.96.990813185246.725A-100000@mole.spellcast.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linux-MM@kvack.org
-Cc: "Benjamin C.R. LaHaise" <blah@kvack.org>, Roman Levenstein <romix@geocities.com>
+To: Chris Atenasio <chrisa@flashcom.net>
+Cc: Linux-MM@kvack.org, Roman Levenstein <romix@geocities.com>
 List-ID: <linux-mm.kvack.org>
 
-I will comment that something is definately up with MM in 2.2.11.
-Although no one else I've asked had this problem, my 2.2.11 almost seems
-to be unable to deallocate memory, and hangs after a few minutes when
-all is used up.
+On Fri, 13 Aug 1999, Chris Atenasio wrote:
 
-2.2.10 works fine.
+> I will comment that something is definately up with MM in 2.2.11.
+> Although no one else I've asked had this problem, my 2.2.11 almost seems
+> to be unable to deallocate memory, and hangs after a few minutes when
+> all is used up.
 
-oh, and this *is* egcs-2.91.66...
+First things first, get Dave's fix for the tcp memory leak (should be in
+2.2.12pre3).
 
-- Chris
------------------------------------------------------------------------------
-Chris Atenasio <chrisa@flashcom.net> - Friends don't let friends use Windows.
-Send mail with subject "send pgp key" or "word of the day" for auto-response.
-Today's word of the day: displays
+		-ben
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
