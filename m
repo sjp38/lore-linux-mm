@@ -1,61 +1,49 @@
-Date: Fri, 16 Jan 2004 09:03:49 -0800
-From: Andrew Morton <akpm@osdl.org>
-Subject: Re: 2.6.1-mm4
-Message-Id: <20040116090349.73b1fad4.akpm@osdl.org>
-In-Reply-To: <200401161449.i0GEnoAv026627@fire-1.osdl.org>
+Subject: Re: 2.6.1-mm4 (compile stats)
+From: John Cherry <cherry@osdl.org>
+In-Reply-To: <20040115225948.6b994a48.akpm@osdl.org>
 References: <20040115225948.6b994a48.akpm@osdl.org>
-	<200401161449.i0GEnoAv026627@fire-1.osdl.org>
+Content-Type: text/plain
+Message-Id: <1074273246.4603.16.camel@cherrytest.pdx.osdl.net>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Date: Fri, 16 Jan 2004 09:14:06 -0800
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Fabian Fenaut <fabian.fenaut@free.fr>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Gerd Knorr <kraxel@bytesex.org>
+To: Andrew Morton <akpm@osdl.org>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Fabian Fenaut <fabian.fenaut@free.fr> wrote:
->
-> I got an error compiling -mm4 :
-> 
->     [...]
->     CC [M]  drivers/media/video/ir-kbd-gpio.o
->  drivers/media/video/ir-kbd-gpio.c:185: unknown field `name' specified in
->  initializer
->  drivers/media/video/ir-kbd-gpio.c:185: warning: missing braces around
->  initializer
->  drivers/media/video/ir-kbd-gpio.c:185: warning: (near initialization for
->  `driver.drv')
->  drivers/media/video/ir-kbd-gpio.c:186: unknown field `drv' specified in
->  initializer
->  drivers/media/video/ir-kbd-gpio.c:187: unknown field `drv' specified in
->  initializer
->  drivers/media/video/ir-kbd-gpio.c:188: unknown field `gpio_irq'
->  specified in initializer
+Linux 2.6 (mm tree) Compile Statistics (gcc 3.2.2)
+Warnings/Errors Summary
 
-You must be using an elderly gcc.
+Kernel            bzImage   bzImage  bzImage  modules  bzImage  modules
+                (defconfig) (allno) (allyes) (allyes) (allmod) (allmod)
+--------------- ---------- -------- -------- -------- -------- --------
+2.6.1-mm4         0w/821e   0w/264e 154w/ 5e   8w/1e   5w/0e    179w/0e
+2.6.1-mm3         0w/0e     0w/0e   151w/ 5e  10w/0e   3w/0e    177w/0e
+2.6.1-mm2         0w/0e     0w/0e   143w/ 5e  12w/0e   3w/0e    171w/0e
+2.6.1-mm1         0w/0e     0w/0e   146w/ 9e  12w/0e   6w/0e    171w/0e
+2.6.1-rc2-mm1     0w/0e     0w/0e   149w/ 0e  12w/0e   6w/0e    171w/4e
+2.6.1-rc1-mm2     0w/0e     0w/0e   157w/15e  12w/0e   3w/0e    185w/4e
+2.6.1-rc1-mm1     0w/0e     0w/0e   156w/10e  12w/0e   3w/0e    184w/2e
+2.6.0-mm2         0w/0e     0w/0e   161w/ 0e  12w/0e   3w/0e    189w/0e
+2.6.0-mm1         0w/0e     0w/0e   173w/ 0e  12w/0e   3w/0e    212w/0e
 
+Web page with links to complete details:
+   http://developer.osdl.org/cherry/compile/
 
-diff -puN drivers/media/video/ir-kbd-gpio.c~ir-kbd-gpio-build-fix drivers/media/video/ir-kbd-gpio.c
---- 25/drivers/media/video/ir-kbd-gpio.c~ir-kbd-gpio-build-fix	2004-01-16 09:01:59.000000000 -0800
-+++ 25-akpm/drivers/media/video/ir-kbd-gpio.c	2004-01-16 09:02:17.000000000 -0800
-@@ -182,9 +182,11 @@ static int ir_probe(struct device *dev);
- static int ir_remove(struct device *dev);
- 
- static struct bttv_sub_driver driver = {
--	.drv.name	= DEVNAME,
--	.drv.probe	= ir_probe,
--	.drv.remove	= ir_remove,
-+	.drv = {
-+		.name	= DEVNAME,
-+		.probe	= ir_probe,
-+		.remove	= ir_remove,
-+	},
- 	.gpio_irq       = ir_irq,
- };
- 
+***********************************************************************
+For both defconfig and allnoconfig, there are hundreds of the following
+warnings:
 
-_
+`CONFIG_X86_L1_CACHE_SHIFT' undeclared here (not in a function)
+requested alignment is not a constant
+
+CONFIG_X86_L1_CACHE_SHIFT is not defined in defconfig and allnoconfig.
+***********************************************************************
+
+John
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
