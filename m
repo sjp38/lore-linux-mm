@@ -1,85 +1,95 @@
-Date: Thu, 3 Aug 2000 19:05:56 -0300 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
+Date: Thu, 3 Aug 2000 15:12:50 -0700 (PDT)
+From: Linus Torvalds <torvalds@transmeta.com>
 Subject: Re: RFC: design for new VM
-In-Reply-To: <Pine.LNX.4.10.10008031316490.6528-100000@penguin.transmeta.com>
-Message-ID: <Pine.LNX.4.21.0008031850330.24022-100000@duckman.distro.conectiva>
+In-Reply-To: <20000803235622.D759@nightmaster.csn.tu-chemnitz.de>
+Message-ID: <Pine.LNX.4.10.10008031505170.6698-100000@penguin.transmeta.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@transmeta.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.rutgers.edu
+To: Ingo Oeser <ingo.oeser@informatik.tu-chemnitz.de>
+Cc: Rik van Riel <riel@conectiva.com.br>, linux-mm@kvack.org, linux-kernel@vger.rutgers.edu
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 3 Aug 2000, Linus Torvalds wrote:
-> On Thu, 3 Aug 2000, Rik van Riel wrote:
-> > 
-> > The lists are not at all dependant on where the pages come
-> > from. The lists are dependant on the *page age*. This almost
-> > sounds like you didn't read my mail... ;(
+
+On Thu, 3 Aug 2000, Ingo Oeser wrote:
 > 
-> I did read the email. And I understand that. And that's exactly
-> why I think a single-list is equivalent (because your lists
-> basically act simply as "caches" of the page age).
+> I also assumed your markers are nothing but a normal element of
+> the list, that is just skipped, but don't cause a wraparound of
+> each of the scanners.
 
-If you add "with statistics about how many pages of age 0 there
-are" this is indeed the case.
+Right.
 
-> > NO. We need different queues so waiting for pages to be flushed
-> > to disk doesn't screw up page aging of the other pages (the ones
-> > we absolutely do not want to evict from memory yet).
+Think of them as invisible.
+
+> What happens, if one scanner decides to remove an element and
+> insert it elsewhere (to achieve it's special ordering)?
+
+Nothing, as far as the other scanners are aware, as they won't even look
+at that element anyway (assuming they work the same way as a multi-list
+scanner would work).
+
+See?
+
+One list is equivalent to multiple lists, assuming the scanners honour the
+same logic as a multi-list scanner would (ie ignore entries that they
+aren't designed for).
+
+> > Think about it _another_ way instead:
+> >  - the "multiple lists" case is provably a sub-case of the "one list,
+> >    scanners only care about their type of entries".
 > 
-> Go back. Read it. Realize that your "multiple queues" is nothing
-> more than "cached information". They do not change _behaviour_
-> at all. They only change the amount of CPU-time you need to
-> parse it.
-
-If the information is cached somewhere else, then this is indeed
-the case. My point is that we need to know how many pages with
-page->age==0 we have, so we can know if we need to scan memory
-and age more pages or if we should simply wait a bit until the
-currently old pages are flushed to disk and ready to be reused.
-
-> Basically, answer me this _simple_ question: what _behavioural_
-> differences do you claim multiple queues have? Ignore CPU usage
-> for now.
+> Got this concept (I think).
 > 
-> I'm claiming they are just a cache.
+> >  - the "one list" _allows_ for (but does not require) "mixing metaphors",
+> >    ie a scanner _can_ see and _can_ modify an entry that wouldn't be on
+> >    "it's list".
 > 
-> And you claim that the current MM cannot be balanced, but your
-> new one can.
+> That's what I would like to avoid. I don't like to idea of
+> multiple "states" per page. I would like to scan all pages, that
+> are *guaranteed* to have a special state and catch their
+> transistions. I prefer clean automata design for this.
 
-I agree that we could cache the information about how many pages
-of different ages and different dirty state we have in memory in
-a different way.
+I would tend to agree with you. It's much easier to think about the
+problems when you don't start "mixing" behaviour. 
 
-We could have one single queue, as you wrote, and a number of
-counters. Basically we'd need a counter for the number of old
-(age==0) clean pages and one for the old dirty pages.
+And getting a more explicit state transition may well be a good thing.
 
-Then we'd have multiple functions. Kflushd and kupdate would
-flush out the old dirty pages, __alloc_pages would walk the
-list to reclaim the old clean pages and we'd have a separate
-page aging function that only walks the list when we're short
-on free + inactive_dirty + inactive_clean pages.
+However, considering that right now we do not have that explicit code, I'd
+hate to add it and require it to be 100% correct for 2.4.x. See?
 
-That would give us the same behaviour as the plan I wrote.
+And I dislike the mental dishonesty of claiming that multiple lists are
+somehow different.
 
-What I fail to see is why this would be preferable to a code
-base where all the different pages are neatly separated and
-we don't have N+1 functions that are all scanning the same
-list, special-casing out each other's pages and searching 
-the list for their own special pages...
+> > And that's my beef with this: I can see a direct mapping from the multiple
+> > list case to the single list case. Which means that the multiple list case
+> > simply _cannot_ do something that the single-list case couldn't do.
+>  
+> Agree. There ist just a bit more atomicy between the scanners,
+> thats all I think. And of course states are exlusive instead of
+> possibly inclusive.
 
-regards,
+I do like the notion of having stricter rules, and that is a huge bonus
+for multi-lists.
 
-Rik
---
-"What you're running that piece of shit Gnome?!?!"
-       -- Miguel de Icaza, UKUUG 2000
+But one downside of multi-lists is that we've had problems with them in
+the past. fs/buffer.c used to use them even more than it does now, and it
+was a breeding ground of bugs. fs/buffer.c got cleaned up, and the current
+multi-list stuff is not at all that horrible any more, so multi-lists
+aren't necessarily evil.
 
-http://www.conectiva.com/		http://www.surriel.com/
+> > Let me re-iterate: I'm not arguing against multi-lists. I'm arguing about
+> > people being apparently dishonest and saying that the multi-lists are
+> > somehow able to do things that the current VM wouldn't be able to do.
+> 
+> Got that.
+> 
+> Its the features, that multiple lists *lack* , what makes them
+> attractive to _my_ eyes.
 
+Oh, I can agree with that. Discipline can be good for you.
+
+			Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
