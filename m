@@ -1,45 +1,57 @@
-Received: from atlas.CARNet.hr (zcalusic@atlas.CARNet.hr [161.53.123.163])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id BAA14808
-	for <linux-mm@kvack.org>; Wed, 13 Jan 1999 01:52:27 -0500
+Received: from penguin.e-mind.com (penguin.e-mind.com [195.223.140.120])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id IAA16790
+	for <linux-mm@kvack.org>; Wed, 13 Jan 1999 08:45:09 -0500
+Date: Wed, 13 Jan 1999 14:45:09 +0100 (CET)
+From: Andrea Arcangeli <andrea@e-mind.com>
 Subject: Re: MM deadlock [was: Re: arca-vm-8...]
-References: <Pine.LNX.4.03.9901122245090.4656-100000@mirkwood.dummy.home>
-Reply-To: Zlatko.Calusic@CARNet.hr
+In-Reply-To: <Pine.LNX.4.03.9901122245090.4656-100000@mirkwood.dummy.home>
+Message-ID: <Pine.LNX.3.96.990113144203.284C-100000@laser.bogus>
 MIME-Version: 1.0
-From: Zlatko Calusic <Zlatko.Calusic@CARNet.hr>
-Date: 13 Jan 1999 07:52:09 +0100
-In-Reply-To: Rik van Riel's message of "Tue, 12 Jan 1999 22:46:08 +0100 (CET)"
-Message-ID: <877lurbr6u.fsf@atlas.CARNet.hr>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 To: Rik van Riel <riel@humbolt.geo.uu.nl>
-Cc: Linus Torvalds <torvalds@transmeta.com>, "Stephen C. Tweedie" <sct@redhat.com>, "Eric W. Biederman" <ebiederm+eric@ccr.net>, Savochkin Andrey Vladimirovich <saw@msu.ru>, Andrea Arcangeli <andrea@e-mind.com>, steve@netplus.net, brent verner <damonbrent@earthlink.net>, "Garst R. Reese" <reese@isn.net>, Kalle Andersson <kalle.andersson@mbox303.swipnet.se>, Ben McCann <bmccann@indusriver.com>, Alan Cox <alan@lxorguk.ukuu.org.uk>, bredelin@ucsd.edu, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
+Cc: Zlatko Calusic <Zlatko.Calusic@CARNet.hr>, Linus Torvalds <torvalds@transmeta.com>, "Stephen C. Tweedie" <sct@redhat.com>, "Eric W. Biederman" <ebiederm+eric@ccr.net>, Savochkin Andrey Vladimirovich <saw@msu.ru>, steve@netplus.net, brent verner <damonbrent@earthlink.net>, "Garst R. Reese" <reese@isn.net>, Kalle Andersson <kalle.andersson@mbox303.swipnet.se>, Ben McCann <bmccann@indusriver.com>, Alan Cox <alan@lxorguk.ukuu.org.uk>, bredelin@ucsd.edu, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Rik van Riel <riel@humbolt.geo.uu.nl> writes:
+On Tue, 12 Jan 1999, Rik van Riel wrote:
 
-> On 12 Jan 1999, Zlatko Calusic wrote:
-> 
-> > After number of async pages gets bigger than
-> > pager_daemon.swap_cluster (= SWAP_CLUSTER_MAX), swapin readahead
-> > becomes synchronous, and that hurts performance. It is better to
-> > skip readahead in such situations, and that is also more fair to
-> > swapout. Andrea came to exactly the same conclusion, independent
-> > of me (on the same day :)).
-> 
 > IIRC this facility was in the original swapin readahead
 > implementation. That only leaves the question who removed
 > it and why :))
-> 
 
-*I* did, because original test was too complicated and nobody
-understood what was it actual purpose.
+There's another thing I completly disagree and that I just removed here. 
+It's the alignment of the offset field. I see no one point in going back
+instead of only doing real read_ahead_. 
 
-Beside that, when MM code changed recently, nr_free_pages started
-hovering at lower values, and that was killing readahead at most cases
-(with old test in place), thus producing terrible results, especially
-when you had more than one thrashing task.
+Maybe I am missing something?
 
--- 
-Zlatko
+Index: page_alloc.c
+===================================================================
+RCS file: /var/cvs/linux/mm/page_alloc.c,v
+retrieving revision 1.1.1.8
+retrieving revision 1.1.1.1.2.29
+diff -u -r1.1.1.8 -r1.1.1.1.2.29
+--- page_alloc.c	1999/01/11 21:24:23	1.1.1.8
++++ linux/mm/page_alloc.c	1999/01/12 23:00:04	1.1.1.1.2.29
+@@ -353,10 +352,10 @@
+ 	unsigned long offset = SWP_OFFSET(entry);
+ 	struct swap_info_struct *swapdev = SWP_TYPE(entry) + swap_info;
+ 	
+-	offset = (offset >> page_cluster) << page_cluster;
+-	
+ 	for (i = 1 << page_cluster; i > 0; i--) {
+-	      if (offset >= swapdev->max)
++	      if (offset >= swapdev->max ||
++		  /* don't block on I/O for doing readahead -arca */
++		  atomic_read(&nr_async_pages) > pager_daemon.max_async_pages)
+ 		      return;
+ 	      if (!swapdev->swap_map[offset] ||
+ 		  swapdev->swap_map[offset] == SWAP_MAP_BAD ||
+
+
+
+Andrea Arcangeli
+
 --
 This is a majordomo managed list.  To unsubscribe, send a message with
 the body 'unsubscribe linux-mm me@address' to: majordomo@kvack.org
