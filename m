@@ -1,210 +1,163 @@
-Date: Wed, 14 Jul 2004 13:09:42 -0500
-From: Dimitri Sivanich <sivanich@sgi.com>
-Subject: [PATCH] Move cache_reap out of timer context
-Message-ID: <20040714180942.GA18425@sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Received: from flecktone.americas.sgi.com (flecktone.americas.sgi.com [192.48.203.135])
+	by omx1.americas.sgi.com (8.12.10/8.12.9/linux-outbound_gateway-1.1) with ESMTP id i6EJRS0f000905
+	for <linux-mm@kvack.org>; Wed, 14 Jul 2004 14:27:28 -0500
+Received: from kzerza.americas.sgi.com (kzerza.americas.sgi.com [128.162.233.27])
+	by flecktone.americas.sgi.com (8.12.9/8.12.10/SGI_generic_relay-1.2) with ESMTP id i6EJRROW42243044
+	for <linux-mm@kvack.org>; Wed, 14 Jul 2004 14:27:27 -0500 (CDT)
+Date: Wed, 14 Jul 2004 14:27:27 -0500
+From: Brent Casavant <bcasavan@sgi.com>
+Reply-To: Brent Casavant <bcasavan@sgi.com>
+Subject: [PATCH] /dev/zero page fault scaling
+Message-ID: <Pine.SGI.4.58.0407141418280.115007@kzerza.americas.sgi.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Manfred Spraul <manfred@colorfullife.com>, Andrew Morton <akpm@osdl.org>, Ingo Molnar <mingo@elte.hu>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, lse-tech@lists.sourceforge.net
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-I'm submitting two patches associated with moving cache_reap functionality
-out of timer context.  Note that these patches do not make any further
-optimizations to cache_reap at this time.
+As discussed earlier this week on the linux-mm list, there are some
+scaling issues with the sbinfo stat_lock in mm/shmem.c.  In particular,
+bouncing the corresponding cache-line between CPUs in a large machine
+causes a dramatic slowdown in page fault performance.
 
-The first patch adds a function similiar to schedule_delayed_work to
-allow work to be scheduled on another cpu.
+However, the superblock statistics being kept for the /dev/zero use
+of this code are unnecessary, and I don't even think there's a way
+to obtain them.  The attached patch causes the relevant sections of
+code to skip the locks and statistic updates for /dev/zero, causing
+a significant speedup.
 
-The second patch makes use of schedule_delayed_work_on to schedule
-cache_reap to run from keventd.
+In a test program to measure the page fault performance, at 256P we
+see a 150x improvement in the number of page faults per cpu per
+wall-clock second (and other similar measures).  Page fault performance
+drops by about 50% at 512P compared to 256P, however this is likely
+a seperate problem (investigation has not started), but is still
+138x better than before these changes.
 
-These patches apply to 2.6.8-rc1.
+I'm not sure if this list is the appropriate place to submit these
+changes.  If not, please direct me to the correct lists/people to
+submit this to.  The patch is against 2.6.(something recent, maybe 7).
 
-Signed-off-by: Dimitri Sivanich <sivanich@sgi.com>
+Signed-off-by: Brent Casavant <bcasavan@sgi.com>
 
+--- linux.orig/mm/shmem.c	2004-07-13 17:20:34.000000000 -0500
++++ linux/mm/shmem.c	2004-07-13 17:09:32.000000000 -0500
+@@ -60,6 +60,7 @@
+ /* info->flags needs VM_flags to handle pagein/truncate races efficiently */
+ #define SHMEM_PAGEIN	 VM_READ
+ #define SHMEM_TRUNCATE	 VM_WRITE
++#define SHMEM_NOSBINFO	 VM_EXEC
 
-Index: linux/include/linux/workqueue.h
-===================================================================
---- linux.orig/include/linux/workqueue.h
-+++ linux/include/linux/workqueue.h
-@@ -63,6 +63,8 @@
- 
- extern int FASTCALL(schedule_work(struct work_struct *work));
- extern int FASTCALL(schedule_delayed_work(struct work_struct *work, unsigned long delay));
-+
-+extern int schedule_delayed_work_on(int cpu, struct work_struct *work, unsigned long delay);
- extern void flush_scheduled_work(void);
- extern int current_is_keventd(void);
- extern int keventd_up(void);
-Index: linux/kernel/workqueue.c
-===================================================================
---- linux.orig/kernel/workqueue.c
-+++ linux/kernel/workqueue.c
-@@ -398,6 +398,26 @@
- 	return queue_delayed_work(keventd_wq, work, delay);
- }
- 
-+int schedule_delayed_work_on(int cpu,
-+			struct work_struct *work, unsigned long delay)
-+{
-+	int ret = 0;
-+	struct timer_list *timer = &work->timer;
-+
-+	if (!test_and_set_bit(0, &work->pending)) {
-+		BUG_ON(timer_pending(timer));
-+		BUG_ON(!list_empty(&work->entry));
-+		/* This stores keventd_wq for the moment, for the timer_fn */
-+		work->wq_data = keventd_wq;
-+		timer->expires = jiffies + delay;
-+		timer->data = (unsigned long)work;
-+		timer->function = delayed_work_timer_fn;
-+		add_timer_on(timer, cpu);
-+		ret = 1;
-+	}
-+	return ret;
-+}
-+
- void flush_scheduled_work(void)
+ /* Pretend that each entry is of this size in directory's i_size */
+ #define BOGO_DIRENT_SIZE 20
+@@ -185,6 +186,9 @@
+ static void shmem_free_block(struct inode *inode)
  {
- 	flush_workqueue(keventd_wq);
-
-
-
-
-Index: linux/mm/slab.c
-===================================================================
---- linux.orig/mm/slab.c
-+++ linux/mm/slab.c
-@@ -519,11 +519,11 @@
- 	FULL
- } g_cpucache_up;
- 
--static DEFINE_PER_CPU(struct timer_list, reap_timers);
-+static DEFINE_PER_CPU(struct work_struct, reap_work);
- 
--static void reap_timer_fnc(unsigned long data);
- static void free_block(kmem_cache_t* cachep, void** objpp, int len);
- static void enable_cpucache (kmem_cache_t *cachep);
-+static void cache_reap (void *unused);
- 
- static inline void ** ac_entry(struct array_cache *ac)
- {
-@@ -573,35 +573,25 @@
- }
- 
- /*
-- * Start the reap timer running on the target CPU.  We run at around 1 to 2Hz.
-- * Add the CPU number into the expiry time to minimize the possibility of the
-+ * Initiate the reap timer running on the target CPU.  We run at around 1 to 2Hz
-+ * via the workqueue/eventd.
-+ * Add the CPU number into the expiration time to minimize the possibility of the
-  * CPUs getting into lockstep and contending for the global cache chain lock.
-  */
- static void __devinit start_cpu_timer(int cpu)
- {
--	struct timer_list *rt = &per_cpu(reap_timers, cpu);
-+	struct work_struct *reap_work = &per_cpu(reap_work, cpu);
- 
--	if (rt->function == NULL) {
--		init_timer(rt);
--		rt->expires = jiffies + HZ + 3*cpu;
--		rt->data = cpu;
--		rt->function = reap_timer_fnc;
--		add_timer_on(rt, cpu);
--	}
--}
--
--#ifdef CONFIG_HOTPLUG_CPU
--static void stop_cpu_timer(int cpu)
--{
--	struct timer_list *rt = &per_cpu(reap_timers, cpu);
--
--	if (rt->function) {
--		del_timer_sync(rt);
--		WARN_ON(timer_pending(rt));
--		rt->function = NULL;
-+	/*
-+	 * When this gets called from do_initcalls via cpucache_init(),
-+	 * init_workqueues() has already run, so keventd will be setup
-+	 * at that time.
-+	 */
-+	if (keventd_up() && reap_work->func == NULL) {
-+		INIT_WORK(reap_work, cache_reap, NULL);
-+		schedule_delayed_work_on(cpu, reap_work, HZ + 3 * cpu);
+ 	struct shmem_sb_info *sbinfo = SHMEM_SB(inode->i_sb);
++
++	if (SHMEM_I(inode)->flags & SHMEM_NOSBINFO)
++		return;
+ 	spin_lock(&sbinfo->stat_lock);
+ 	sbinfo->free_blocks++;
+ 	inode->i_blocks -= BLOCKS_PER_PAGE;
+@@ -213,11 +217,14 @@
+ 	if (freed > 0) {
+ 		struct shmem_sb_info *sbinfo = SHMEM_SB(inode->i_sb);
+ 		info->alloced -= freed;
++		shmem_unacct_blocks(info->flags, freed);
++
++		if (info->flags & SHMEM_NOSBINFO)
++			return;
+ 		spin_lock(&sbinfo->stat_lock);
+ 		sbinfo->free_blocks += freed;
+ 		inode->i_blocks -= freed*BLOCKS_PER_PAGE;
+ 		spin_unlock(&sbinfo->stat_lock);
+-		shmem_unacct_blocks(info->flags, freed);
  	}
  }
--#endif
- 
- static struct array_cache *alloc_arraycache(int cpu, int entries, int batchcount)
- {
-@@ -654,7 +644,6 @@
- 		break;
- #ifdef CONFIG_HOTPLUG_CPU
- 	case CPU_DEAD:
--		stop_cpu_timer(cpu);
- 		/* fall thru */
- 	case CPU_UP_CANCELED:
- 		down(&cache_chain_sem);
-@@ -2674,15 +2663,15 @@
- /**
-  * cache_reap - Reclaim memory from caches.
-  *
-- * Called from a timer, every few seconds
-+ * Called from workqueue/eventd every few seconds.
-  * Purpose:
-  * - clear the per-cpu caches for this CPU.
-  * - return freeable pages to the main free memory pool.
-  *
-  * If we cannot acquire the cache chain semaphore then just give up - we'll
-- * try again next timer interrupt.
-+ * try again on the next iteration.
-  */
--static void cache_reap (void)
-+static void cache_reap (void *unused)
- {
- 	struct list_head *walk;
- 
-@@ -2690,8 +2679,11 @@
- 	BUG_ON(!in_interrupt());
- 	BUG_ON(in_irq());
- #endif
--	if (down_trylock(&cache_chain_sem))
-+	if (down_trylock(&cache_chain_sem)) {
-+		/* Give up. Setup the next iteration. */
-+		schedule_delayed_work(&__get_cpu_var(reap_work), REAPTIMEOUT_CPUC + smp_processor_id());
- 		return;
+
+@@ -351,14 +358,16 @@
+ 		 * page (and perhaps indirect index pages) yet to allocate:
+ 		 * a waste to allocate index if we cannot allocate data.
+ 		 */
+-		spin_lock(&sbinfo->stat_lock);
+-		if (sbinfo->free_blocks <= 1) {
++		if (!(info->flags & SHMEM_NOSBINFO)) {
++			spin_lock(&sbinfo->stat_lock);
++			if (sbinfo->free_blocks <= 1) {
++				spin_unlock(&sbinfo->stat_lock);
++				return ERR_PTR(-ENOSPC);
++			}
++			sbinfo->free_blocks--;
++			inode->i_blocks += BLOCKS_PER_PAGE;
+ 			spin_unlock(&sbinfo->stat_lock);
+-			return ERR_PTR(-ENOSPC);
+ 		}
+-		sbinfo->free_blocks--;
+-		inode->i_blocks += BLOCKS_PER_PAGE;
+-		spin_unlock(&sbinfo->stat_lock);
+
+ 		spin_unlock(&info->lock);
+ 		page = shmem_dir_alloc(mapping_gfp_mask(inode->i_mapping));
+@@ -1002,16 +1005,24 @@
+ 	} else {
+ 		shmem_swp_unmap(entry);
+ 		sbinfo = SHMEM_SB(inode->i_sb);
+-		spin_lock(&sbinfo->stat_lock);
+-		if (sbinfo->free_blocks == 0 || shmem_acct_block(info->flags)) {
++		if (!(info->flags & SHMEM_NOSBINFO)) {
++			spin_lock(&sbinfo->stat_lock);
++			if (sbinfo->free_blocks == 0 || shmem_acct_block(info->flags)) {
++				spin_unlock(&sbinfo->stat_lock);
++				spin_unlock(&info->lock);
++				error = -ENOSPC;
++				goto failed;
++			}
++			sbinfo->free_blocks--;
++			inode->i_blocks += BLOCKS_PER_PAGE;
+ 			spin_unlock(&sbinfo->stat_lock);
+-			spin_unlock(&info->lock);
+-			error = -ENOSPC;
+-			goto failed;
++		} else {
++			if (shmem_acct_block(info->flags)) {
++				spin_unlock(&info->lock);
++				error = -ENOSPC;
++				goto failed;
++			}
+ 		}
+-		sbinfo->free_blocks--;
+-		inode->i_blocks += BLOCKS_PER_PAGE;
+-		spin_unlock(&sbinfo->stat_lock);
+
+ 		if (!filepage) {
+ 			spin_unlock(&info->lock);
+@@ -2032,6 +2049,7 @@
+ 	struct inode *inode;
+ 	struct dentry *dentry, *root;
+ 	struct qstr this;
++	struct shmem_inode_info *info;
+
+ 	if (IS_ERR(shm_mnt))
+ 		return (void *)shm_mnt;
+@@ -2061,7 +2079,11 @@
+ 	if (!inode)
+ 		goto close_file;
+
+-	SHMEM_I(inode)->flags = flags & VM_ACCOUNT;
++	info = SHMEM_I(inode);
++	info->flags = flags & VM_ACCOUNT;
++	if (0 == strcmp("dev/zero", name)) {
++		info->flags |= SHMEM_NOSBINFO;
 +	}
- 
- 	list_for_each(walk, &cache_chain) {
- 		kmem_cache_t *searchp;
-@@ -2755,22 +2747,8 @@
- 	}
- 	check_irq_on();
- 	up(&cache_chain_sem);
--}
--
--/*
-- * This is a timer handler.  There is one per CPU.  It is called periodially
-- * to shrink this CPU's caches.  Otherwise there could be memory tied up
-- * for long periods (or for ever) due to load changes.
-- */
--static void reap_timer_fnc(unsigned long cpu)
--{
--	struct timer_list *rt = &__get_cpu_var(reap_timers);
--
--	/* CPU hotplug can drag us off cpu: don't run on wrong CPU */
--	if (!cpu_is_offline(cpu)) {
--		cache_reap();
--		mod_timer(rt, jiffies + REAPTIMEOUT_CPUC + cpu);
--	}
-+	/* Setup the next iteration */
-+	schedule_delayed_work(&__get_cpu_var(reap_work), REAPTIMEOUT_CPUC + smp_processor_id());
- }
- 
- #ifdef CONFIG_PROC_FS
+ 	d_instantiate(dentry, inode);
+ 	inode->i_size = size;
+ 	inode->i_nlink = 0;	/* It is unlinked */
+
+-- 
+Brent Casavant             bcasavan@sgi.com        Forget bright-eyed and
+Operating System Engineer  http://www.sgi.com/     bushy-tailed; I'm red-
+Silicon Graphics, Inc.     44.8562N 93.1355W 860F  eyed and bushy-haired.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
