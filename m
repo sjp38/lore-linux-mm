@@ -1,61 +1,34 @@
-Date: Fri, 2 Apr 2004 17:38:01 +0200
+Date: Fri, 2 Apr 2004 17:45:59 +0200
 From: Andrea Arcangeli <andrea@suse.de>
 Subject: Re: [RFC][PATCH 1/3] radix priority search tree - objrmap complexity fix
-Message-ID: <20040402153801.GD21341@dualathlon.random>
-References: <20040402001535.GG18585@dualathlon.random> <Pine.LNX.4.44.0404020145490.2423-100000@localhost.localdomain> <20040402011627.GK18585@dualathlon.random> <20040401173649.22f734cd.akpm@osdl.org> <20040402020022.GN18585@dualathlon.random> <20040401180802.219ece99.akpm@osdl.org> <20040402022233.GQ18585@dualathlon.random> <20040402070525.A31581@infradead.org> <20040402152240.GA21341@dualathlon.random> <20040402162709.A4312@infradead.org>
+Message-ID: <20040402154559.GE21341@dualathlon.random>
+References: <Pine.LNX.4.44.0404020145490.2423-100000@localhost.localdomain> <20040402011627.GK18585@dualathlon.random> <20040401173649.22f734cd.akpm@osdl.org> <20040402020022.GN18585@dualathlon.random> <20040401180802.219ece99.akpm@osdl.org> <20040402022233.GQ18585@dualathlon.random> <20040402070525.A31581@infradead.org> <20040402152240.GA21341@dualathlon.random> <20040402162709.A4312@infradead.org> <20040402153801.GD21341@dualathlon.random>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20040402162709.A4312@infradead.org>
+In-Reply-To: <20040402153801.GD21341@dualathlon.random>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Christoph Hellwig <hch@infradead.org>, Andrew Morton <akpm@osdl.org>, hugh@veritas.com, vrajesh@umich.edu, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Apr 02, 2004 at 04:27:09PM +0100, Christoph Hellwig wrote:
-> On Fri, Apr 02, 2004 at 05:22:40PM +0200, Andrea Arcangeli wrote:
-> > I already explained the reason of the changes, and they've nothing to do
-> > with hugetlbfs. The whole thing has nothing to do with hugetlbfs. I also
-> > proposed a way to optimize _always_ regardless of hugetlbfs=y or =n, by
-> > just turning my __GFP_NO_COPM into a __GFP_COMP, again regardless of
-> > hugetlbfs. The current mainline code returning different things from
-> > alloc_pages depending on a hugetlbfs compile option is totally broken
-> > and I simply fixed it. this has absolutely nothing to do with the
-> > hugetlbfs users.
-> 
-> Umm, the usersn't aren't supposed to dig into the VM internals that deep.
-> Everyone who does has a bug.
+On Fri, Apr 02, 2004 at 05:38:01PM +0200, Andrea Arcangeli wrote:
+> 100 kernel developers, who cares about saving some cycles in 100
+> machines? Get real.
 
-that's why alloc_pages should return the same thing for every user.
-
-> 
-> > The only ones that may not turn it on are probably the embedded people
-> > using a custom kernel, but as I said I strongly doubt they want to risk
-> > to trigger driver bugs with a different alloc_pages API since nobody
-> > tested that API since everybody is going to turn hugetlbfs on.
-> 
-> We can make a little poll on lkml, but I bet most kernel developers will
-> have it disabled :)
-
-100 kernel developers, who cares about saving some cycles in 100
-machines? Get real.
-
-> > I'll now look into the bug that you triggered with xfs. Did you ever
-> > test with hugetlbfs=y before btw
-> 
-> I for myself haven't run with hugetlfs=y ever and don't really plan to.
-
-Now I get a crash in swap resume (I cannot test swap resume yet, at
-least now swap suspend works). Could be the same bug you triggered.
-We'll see.
-
-> Huh?  The callchain comes from generic slab code..
-
-slab code may be using multipages too. Anyways I had no time to look
-into it yet, so give me a bit of time, I need to fix swap resume now,
-after that works I'll check if your bug can be explained by the same
-issue that swap resume has right now, and if not I'll fix it, then I'll
-do mprotect merging (for file mappings too!).
+just to avoid any misunderstanding, I want to optimize it _everywhere_,
+I mean that optimizing it in only 100 machines and an embedded niche is
+worthless.  I'm not saying it's worthless to optimize it everywhere
+(though I doubt it's a measurable slowdown given the order > 0 is
+unlikely in the first place). if you check my first emails about the
+compound thing I wasn't very happy about it. The only single reason I
+had to keep it on by default is that currently I feel unsafe about
+optimizing it away turning it off by default, since the big testing (on
+weird drivers too) has happened so far with compound on by default, and
+disabling it everywhere would risk to trigger bugs, and this clearly
+shows you how unreliable it is to return different things from
+alloc_pages in function of an unrelated hugetlbfs option, and this is a
+basic problem I'm fixing.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
