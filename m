@@ -1,45 +1,29 @@
-Received: (from john@localhost)
-	by boreas.southchinaseas (8.9.3/8.9.3) id XAA07235
-	for <linux-mm@kvack.org>; Sun, 11 Jun 2000 23:16:53 +0100
-Subject: Re: VM callbacks and VM design
-References: <yttem69ccax.fsf@serpe.mitica> <20000607180737.A5943@acs.ucalgary.ca>
-From: "John Fremlin" <vii@penguinpowered.com>
-Date: 11 Jun 2000 23:16:52 +0100
-In-Reply-To: Neil Schemenauer's message of "Wed, 7 Jun 2000 18:07:37 -0600"
-Message-ID: <m2snuj278r.fsf@boreas.southchinaseas>
-MIME-Version: 1.0
+Date: Mon, 12 Jun 2000 15:16:59 +0200
+From: Jamie Lokier <lk@tantalophile.demon.co.uk>
+Subject: Re: O_SYNC patches for 2.4.0-test1-ac11
+Message-ID: <20000612151659.C5704@pcep-jamie.cern.ch>
+References: <20000609223632.E2621@redhat.com> <m3ya4ettbk.fsf@otr.mynet.cygnus.com> <20000609225802.I2621@redhat.com>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+In-Reply-To: <20000609225802.I2621@redhat.com>; from sct@redhat.com on Fri, Jun 09, 2000 at 10:58:02PM +0100
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: "Stephen C. Tweedie" <sct@redhat.com>
+Cc: Ulrich Drepper <drepper@cygnus.com>, linux-fsdevel@vger.rutgers.edu, linux-mm@kvack.org, Theodore Ts'o <tytso@valinux.com>, Alan Cox <alan@lxorguk.ukuu.org.uk>, Linus Torvalds <torvalds@transmeta.com>
 List-ID: <linux-mm.kvack.org>
 
-Neil Schemenauer <nascheme@enme.ucalgary.ca> writes:
+Stephen C. Tweedie wrote:
+> No.  If we do posix_fallocate(), then there are only two choices:
+> we either pre-zero the file contents (in which case we are as well
+> doing it from user space), or we record in the inode that the file
+> isn't pre-zeroed and so optimise things.
 
-[...]
+3rd choice: preallocate space with room for interleaved indirection
+blocks.  You don't need to record anything in the inode: it's the
+indirection blocks that get changed as you fill up the file.  And
+they're in exactly the right place.
 
-> In order to decide which pages are good candidates for freeing
-> the temporal locality heuristic should be used (ie. pages needed
-
-Why?
-
-> recently will also be needed in the near future).  Note that this
-> is different that "most often used".  I think Rik's latest aging
-> patch is slightly wrong in this regard.
-
-If you're greping through a large file you don't want to swap out your
-processes.
-
-Also, you might like to look at the ideas behind generational garbage
-collection; i.e. most objects are used briefly then forgotten about
-forever, but those which are still being used after a while will
-probably keep on being used.
-
-[...]
-
--- 
-
-	http://altern.org/vii
+-- Jamie
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
