@@ -1,19 +1,20 @@
-Message-ID: <3C74067C.EE824444@mandrakesoft.com>
-Date: Wed, 20 Feb 2002 15:26:36 -0500
-From: Jeff Garzik <jgarzik@mandrakesoft.com>
-MIME-Version: 1.0
+Date: Wed, 20 Feb 2002 12:31:05 -0800
+From: Larry McVoy <lm@bitmover.com>
 Subject: Re: [PATCH] struct page, new bk tree
+Message-ID: <20020220123105.J27423@work.bitmover.com>
 References: <Pine.LNX.4.33L.0202192044140.7820-100000@imladris.surriel.com> <20020219155706.H26350@work.bitmover.com> <20020220201716.45A574E2E@oscar.casa.dyndns.org>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
 Content-Transfer-Encoding: 8bit
+In-Reply-To: <20020220201716.45A574E2E@oscar.casa.dyndns.org>; from tomlins@cam.org on Wed, Feb 20, 2002 at 03:17:12PM -0500
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Ed Tomlinson <tomlins@cam.org>
 Cc: Larry McVoy <lm@bitmover.com>, Rik van Riel <riel@conectiva.com.br>, Linus Torvalds <torvalds@transmeta.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Ed Tomlinson wrote:
-> 
+On Wed, Feb 20, 2002 at 03:17:12PM -0500, Ed Tomlinson wrote:
 > In my opinion the idea of cset -x (while usefull) is fundamentally
 > broken.  The result of this is that ideas like blacklist need to be
 > considered.  I would propose instead an undo -x, that would
@@ -22,19 +23,48 @@ Ed Tomlinson wrote:
 > If bk handled ?bad? csets in this manner there would be no need for
 > blacklists - it is more robust in that you can always used undo -x.
 
-Well, if the changes are properly split up, you shouldn't need to do
-this...  In the ideal situation it is easiest for Linus to accept or
-reject a "bk pull" in its entirety.  Then he can just do a "bk unpull"
+First of all, cset -x is functionally equivalent to what you call
+undo -x.  They do the same thing.  Second of all, cset -x is _much_
+better.  It does the same thing without introducing any new diffs
+into the history.  Go get a test tree, make a changeset, clone
+the tree, cset -x the changeset, and diff the revision history files.
+All you will see is something like this:
 
-	Jeff
+^As 00000/00000/00455
+^Ad D 1.32 02/02/20 09:50:05 lm 33 32
+^Ax 32
+^Ac Exclude
+^AcC
+^AcK50774
+^Ae
 
+The "^Ax 32" line says "exclude the change who's serial number is 32".
+No reverse diffs applied to the file.  Much nicer.  Merges work like
+this too, in reverse, it just includes the branch deltas.
 
+But all of this misses the real point - Linus, with justification, doesn't
+want the revision history cluttered up with
 
+	Idea 1.
+
+	Remove Idea 1.
+
+	Idea 2.
+
+	Remove Idea 2.
+
+But we need some way to let changes get into the system so others can review
+them, test them, merge them with their stuff and test, etc.  But then when
+they are found to be wanting, we need a way to tell other people that those
+csets are verboten.
+
+I'm open to suggestions, this is a much harder problem than it appears 
+because of the fact that the revision histories are all replicas 
+possibly with local data.  Unlike CVS, there is no one place to go to
+edit the RCS files and obliterate some change.
 -- 
-Jeff Garzik      | "Why is it that attractive girls like you
-Building 1024    |  always seem to have a boyfriend?"
-MandrakeSoft     | "Because I'm a nympho that owns a brewery?"
-                 |             - BBC TV show "Coupling"
+---
+Larry McVoy            	 lm at bitmover.com           http://www.bitmover.com/lm 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
