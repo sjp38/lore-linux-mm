@@ -1,53 +1,59 @@
-Date: Mon, 19 Jun 2000 19:10:00 -0300 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
-Subject: Re: shrink_mmap() change in ac-21
-In-Reply-To: <20000619234627.B23135@pcep-jamie.cern.ch>
-Message-ID: <Pine.LNX.4.21.0006191905460.1290-100000@duckman.distro.conectiva>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: kswapd eating too much CPU on ac16/ac18
+References: <Pine.LNX.4.21.0006171227230.31955-100000@duckman.distro.conectiva>
+From: Goswin Brederlow <goswin.brederlow@student.uni-tuebingen.de>
+Date: 19 Jun 2000 23:22:58 +0200
+In-Reply-To: Rik van Riel's message of "Sat, 17 Jun 2000 12:33:52 -0300 (BRST)"
+Message-ID: <877lbl8ix9.fsf@mose.informatik.uni-tuebingen.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jamie Lokier <lk@tantalophile.demon.co.uk>
-Cc: Zlatko Calusic <zlatko@iskon.hr>, alan@redhat.com, linux-mm@kvack.org, linux-kernel@vger.rutgers.edu
+To: Rik van Riel <riel@conectiva.com.br>
+Cc: Cesar Eduardo Barros <cesarb@nitnet.com.br>, Mike Galbraith <mikeg@weiden.de>, Alan Cox <alan@lxorguk.ukuu.org.uk>, linux-kernel <linux-kernel@vger.rutgers.edu>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 19 Jun 2000, Jamie Lokier wrote:
-> Zlatko Calusic wrote:
-> > The shrink_mmap() change in your latest prepatch (ac12) doesn't look
-> > very healthy. Removing the test for the wrong zone we effectively
-> > discard lots of wrong pages before we get to the right one. That is
-> > effectively flushing the page cache and we have unbalanced system.
-> 
-> You know, there may be some sense in removing pages from the
-> wrong zone, if those wrong zones are quite full.
+>>>>> " " == Rik van Riel <riel@conectiva.com.br> writes:
 
-If the zone is full, it can't be a "wrong zone". The problem
-was that we kept removing pages from zones they shouldn't be
-removed from. If a zone has zone->free_pages > zone->pages_high,
-we should stop freeing pages from that zone.
+     > I think the phenomenon you're seeing is not at all related to
+     > deferred/non-deferred swapout. That doesn't have anything to do
+     > with kswapd CPU usage.
 
-> If the DMA zone desparately needs free pages and keeps needing
-> them, isn't it good to encourage future non-DMA allocations to
-> use another zone?
+     > The changed feedback loop in do_try_to_free_pages, however may
+     > have something to do with this. It works well on machines with
+     > more than 1 memory zone, but I can envision it breaking on
+     > machines with just one zone...
 
-Ahh, but we already do this (up to zone->pages_high). It just
-doesn't make sense to keep doing this infinitely ;)
+     > I'm thinking of a way to fix this cleanly, I'll keep you
+     > posted.
 
-Please wait a few more minutes for a patch which should fix it.
-I've assembled a very conservative patch set, grabbing bits from
-patches by Juan Quintela, Roger Larson and one minute snippet
-from the old 2.3 code...
+I have two boxes with 2.4.0-test1 kernels:
 
-regards,
+First one a Celeron 466 with 128 Mb ram:
+BIOS-provided physical RAM map:
+ e820: 000000000009f000 @ 0000000000000000 (usable)
+ e820: 0000000007f00000 @ 0000000000100000 (usable)
+On node 0 totalpages: 32768
+zone(0): 4096 pages.
+zone(1): 28672 pages.
+zone(2): 0 pages.
 
-Rik
---
-The Internet is not a network of computers. It is a network
-of people. That is its real strength.
+Second one a P120 with 16 MB ram (probably in one zone, but its not in
+reach at the moment).
 
-Wanna talk about the kernel?  irc.openprojects.net / #kernelnewbies
-http://www.conectiva.com/		http://www.surriel.com/
+On the Celeron 2.4.0-test1 runs fine (responsiveness is a bit low, but
+kswapd useage is fine).
 
+On the P120 kswapd needs 95-99% cpu time. and the system is realy
+realy slow. I teste plain 2.4.0-test1 to 2.2.4-test1-ac19 with various
+steps inbetween. The disk behaviour (how often the ide led blinks)
+differs and the amount swap used is different, but the kswap allways
+uses all cpu time.
+
+This could realy be a "number of zones" problem, so pleas thing about
+it.
+
+MfG
+	Goswin
+
+PS: I will add a zone mapping for the P120 when I get to it next time.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
