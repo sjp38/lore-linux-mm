@@ -1,84 +1,83 @@
-Date: Mon, 7 Aug 2000 18:59:37 -0300 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
+Message-Id: <200008080036.RAA03032@eng2.sequent.com>
+Reply-To: Gerrit.Huizenga@us.ibm.com
+From: Gerrit.Huizenga@us.ibm.com
 Subject: Re: RFC: design for new VM 
-In-Reply-To: <Pine.BSO.4.20.0008071641300.2595-100000@naughty.monkey.org>
-Message-ID: <Pine.LNX.4.21.0008071844100.25008-100000@duckman.distro.conectiva>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-reply-to: Your message of Mon, 07 Aug 2000 16:55:32 EDT.
+             <87256934.0072FA16.00@d53mta04h.boulder.ibm.com>
+Date: Mon, 07 Aug 2000 17:36:43 -0700
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: chucklever@bigfoot.com
-Cc: Gerrit.Huizenga@us.ibm.com, linux-mm@kvack.org, linux-kernel@vger.rutgers.edu, Linus Torvalds <torvalds@transmeta.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.rutgers.edu, Linus Torvalds <torvalds@transmeta.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 7 Aug 2000, Chuck Lever wrote:
-> On Mon, 7 Aug 2000 Gerrit.Huizenga@us.ibm.com wrote:
-> > Another fundamental flaw I see with both the current page aging mechanism
-> > and the proposed mechanism is that workloads which exhaust memory pay
-> > no penalty at all until memory is full.  Then there is a sharp spike
-> > in the amount of (slow) IO as pages are flushed, processes are swapped,
-> > etc.  There is no apparent smoothing of spikes, such as increasing the
-> > rate of IO as the rate of memory pressure increases.  With the exception
-> > of laptops, most machines can sustain a small amount of background
-> > asynchronous IO without affecting performance (laptops may want IO
-> > batched to maximize battery life).  I would propose that as memory
-> > pressure increases, paging/swapping IO should increase somewhat
-> > proportionally.  This provides some smoothing for the bursty nature of
-> > most single user or small ISP workloads.  I believe databases style
-> > loads on larger machines would also benefit.
-> 
-> 2 comments here.
-> 
+Hi Chuck,
+
 > 1.  kswapd runs in the background and wakes up every so often to handle
 > the corner cases that smooth bursty memory request workloads.  it executes
 > the same code that is invoked from the kernel's memory allocator to
 > reclaim pages.
+ 
+ yep...  We do the same, although primarily through RSS management and our
+ pageout deamon (separate from swapout).
 
-*nod*
+ One possible difference - dirty pages are schedule for asynchronous
+ flush to disk and then moved to the end of the free list after IO
+ is complete.  If the process faults on that page, either before it is
+ paged out or aftewrwards, it can be "reclaimed" either from the dirty
+ list or the free list , without re-reading from disk.  The pageout daemon
+ runs with the dirty list reaches a tuneable size, and the pageout deamon
+ shrinks the list to a tuneable size, moving all written pages to the
+ free list.
 
-The idea is that the memory_pressure variable indicates how
-much page stealing is going on (on average) so every time
-kswapd wakes up it knows how much pages to steal. That way
-it should (if we're "lucky") free enough pages to get us
-along until the next time kswapd wakes up.
+ In many ways, similar to what Rik is proposing, although I don't see any
+ "fast reclaim" capability.  Also, the method by which pages are aged
+ is quite different (global phys memory scan vs. processes maintaining
+ their own LRU set).  Having a list of prime candidates to flush makes
+ the kswapd/pageout overhead lower than using a global clock hand, but
+ the global clock hand *may* more perform better global optimisation
+ of page aging.
 
-> 2.  i agree with you that when the system exhausts memory, it
-> hits a hard knee; it would be better to soften this.
+> 2.  i agree with you that when the system exhausts memory, it hits a hard
+> knee; it would be better to soften this.  however, the VM system is
+> designed to optimize the case where the system has enough memory.  in
+> other words, it is designed to avoid unnecessary work when there is no
+> need to reclaim memory.  this design was optimized for a desktop workload,
+> like the scheduler or ext2 "async" mode.  if i can paraphrase other
+> comments i've heard on these lists, it epitomizes a basic design
+> philosophy: "to optimize the common case gains the most performance
+> advantage."
+ 
+ This works fine until I have a stable load on my system and then
+ start {Netscape, StarOffice, VMware, etc.} which then causes IO for
+ demand paging of the executable, as well as paging/swapping activity
+ to make room for the piggish footprints of these bigger applications.
 
-The memory_pressure variable is there to ease this. If the load
-is more or less bursty, but constant on a somewhat longer timescale
-(say one minute), then we'll average the inactive_target to
-somewhere between one and two seconds worth of page steals.
+ This is where it might help to pre-write dirty pages when the system
+ is more idle, without fully returning those pages to the free list.
 
-> can a soft-knee swapping algorithm be demonstrated that doesn't
-> impact the performance of applications running on a system that
-> hasn't exhausted its memory?
+> can a soft-knee swapping algorithm be demonstrated that doesn't impact the
+> performance of applications running on a system that hasn't exhausted its
+> memory?
+> 
+>      - Chuck Lever
 
-The algorithm we're using (dynamic inactive target w/
-agressively trying to meet that target) will eat disk
-bandwidth in the case of one application filling memory
-really fast but not swapping, but since the data is
-kept in memory, it shouldn't be a very big performance
-penalty in most cases.
+ Our VM doesn't exhibit a strong knee, but its method of avoiding that
+ is again the flexing RSS management.  Inactive processes tend to shrink
+ to their working footprint, larger processes tend to grow to expand
+ their footprint but still self-manage within the limits of available
+ memory.  I think it is possible to soften the knee on a per-workload
+ basis, and that's probably a spot for some tuneables.  E.g. when to
+ flush dirty old pages, how many to flush, and I think Rik has already
+ talked about having those tunables.
 
+ Despite the fact that our systems have been primarily deployed for
+ a single workload type (databases), we still have found that (the
+ right!) VM tuneables can have an enormous impact on performance. I
+ think the same will be much more true of an OS like Linux which tries
+ to be many things to all people.
 
-About NUMA scalability: we'll have different memory pools
-per NUMA node. So if you have a 32-node, 64GB NUMA machine,
-it'll partly function like 32 independant 2GB machines.
-
-We'll have to find a solution for the pagecache_lock (how do
-we make this more scalable?), but the pagecache_lru_lock, the
-memory queues/lists and kswapd will be per _node_.
-
-regards,
-
-Rik
---
-"What you're running that piece of shit Gnome?!?!"
-       -- Miguel de Icaza, UKUUG 2000
-
-http://www.conectiva.com/		http://www.surriel.com/
-
+gerrit
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
