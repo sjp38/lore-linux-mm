@@ -1,7 +1,7 @@
-Date: Tue, 13 May 2003 16:11:39 -0700
+Date: Tue, 13 May 2003 16:16:07 -0700
 From: William Lee Irwin III <wli@holomorphy.com>
 Subject: Re: Race between vmtruncate and mapped areas?
-Message-ID: <20030513231139.GZ8978@holomorphy.com>
+Message-ID: <20030513231607.GA8978@holomorphy.com>
 References: <154080000.1052858685@baldur.austin.ibm.com> <3EC15C6D.1040403@kolumbus.fi> <199610000.1052864784@baldur.austin.ibm.com> <20030513224929.GX8978@holomorphy.com> <220550000.1052866808@baldur.austin.ibm.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
@@ -27,12 +27,9 @@ On Tue, May 13, 2003 at 06:00:08PM -0500, Dave McCracken wrote:
 > I've attached the patch so you can see what I did.
 > Can anyone think of any gotchas to this solution?
 
-Okay, what's stopping filemap_nopage() from fetching the page from
-pagecache after one of the mm->mmap_sem's is dropped but before
-truncate_inode_pages() removes the page? The fault path is only locked
-out for one mm during one part of the operation. I can see taking
-->i_sem in do_no_page() fixing it, but not ->mmap_sem in vmtruncate()
-(but of course that's _far_ too heavy-handed to merge at all).
+How many processes are you doing this with? If it's a small number can
+you try it with 1000 or so?
+
 
 -- wli
 --
