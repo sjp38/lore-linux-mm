@@ -1,34 +1,42 @@
-Date: Tue, 25 Apr 2000 12:09:55 -0300 (BRST)
+Date: Tue, 25 Apr 2000 12:25:05 -0300 (BRST)
 From: Rik van Riel <riel@conectiva.com.br>
 Reply-To: riel@nl.linux.org
-Subject: Re: [PATCH] 2.3.99-pre6-3+  VM rebalancing
-In-Reply-To: <20000424212516.A4019@stormix.com>
-Message-ID: <Pine.LNX.4.21.0004251208520.10408-100000@duckman.conectiva>
+Subject: Re: pressuring dirty pages (2.3.99-pre6)
+In-Reply-To: <20000425103552.A4627@redhat.com>
+Message-ID: <Pine.LNX.4.21.0004251210080.10408-100000@duckman.conectiva>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Simon Kirby <sim@stormix.com>
-Cc: linux-mm@kvack.org, "Stephen C. Tweedie" <sct@redhat.com>, Ben LaHaise <bcrl@redhat.com>, linux-kernel@vger.rutgers.edu
+To: "Stephen C. Tweedie" <sct@redhat.com>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 24 Apr 2000, Simon Kirby wrote:
-> On Sat, Apr 22, 2000 at 11:08:35PM -0300, Rik van Riel wrote:
+On Tue, 25 Apr 2000, Stephen C. Tweedie wrote:
+> On Mon, Apr 24, 2000 at 07:42:12PM -0300, Rik van Riel wrote:
+> > 
+> > That will not work. The problem isn't that kswapd eats cpu,
+> > but the problem is that the dirty pages completely dominate
+> > physical memory.
 > 
-> > the following patch makes VM in 2.3.99-pre6+ behave more nice
-> > than in previous versions. It does that by:
-
-[snip]
-
-> 0 2 0  17204  2728  3544  60088   0  40   452   10  434  1788   1   5  94
-> 1 1 0  17236  2932  3588  59752   0  32   253    8  333  1591  12  38  50
+> That isn't a "problem".  That's a state.  Of _course_ memory
+> usage is going to be dominated by whichever sort of page is
+> being predominantly used.
 > 
-> It seems a bit odd that it is swapping out here when there is a
-> lot of cache memory available.
+> So we need to identify the real problem.  Is 2.3 much worse than
+> 2.2 at this dirty-write-mmap test?  Are we seeing swap
+> fragmentation reducing swap throughput?  Is the VM simply
+> keeping insufficient memory available for tasks other than the
+> highly paging one?
 
-If you look closer, you'll see that none of the swapped out
-stuff is swapped back in again. This shows that the VM
-subsystem did make the right choice here...
+The highly paging task is pushing other tasks out of memory, even
+though it doesn't do the task itself any good. In fact, some of
+the typical memory hogs are found to run *faster* when we age their
+pages better...
+
+The combination of the above "push harder" logic together with my
+anti hog code may work the way we want .. I've just compiled it and
+will be testing it for a while now.
 
 regards,
 
