@@ -1,34 +1,44 @@
-Date: Tue, 27 Jun 2000 13:57:58 -0500
-From: Timur Tabi <ttabi@interactivesi.com>
-In-Reply-To: <8525690B.0067D1F0.00@D51MTA03.pok.ibm.com>
-Subject: Re: Deleting an element from a free_list?
-Message-Id: <20000627190814Z131176-21004+70@kanga.kvack.org>
+From: David Woodhouse <dwmw2@infradead.org>
+Subject: kmap_kiobuf()
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Date: Wed, 28 Jun 2000 16:41:55 +0100
+Message-ID: <11270.962206915@cygnus.co.uk>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linux MM mailing list <linux-mm@kvack.org>
+To: linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
+Cc: sct@redhat.com, riel@conectiva.com.br
 List-ID: <linux-mm.kvack.org>
 
-** Reply to message from frankeh@us.ibm.com on Tue, 27 Jun 2000 14:55:15 -0400
+I think it would be useful to provide a function which can be used to 
+obtain a virtually-contiguous VM mapping of the pages of an iobuf.
 
+Currently, to access the pages of an iobuf, you have to kmap() each page
+individually. For various purposes, it would be useful to be able to kmap the
+whole iobuf contiguously, so that you can guarantee that:
 
-> NO, it will NOT prevent the kernel of allocating these blocks. They have to
-> be properly marked in the
-> bitmaps of the buddy algorithm...
+	page_address(iobuf->maplist[n]) + PAGE_SIZE 
+		== page_address(iobuf->maplist[n+1])
 
-Damn, I knew I was forgetting something.
+    (for n such that n < iobuf->nr_pages, obviously. Don't be so pedantic.)
 
-> You basically have to do what alloc_pages() does !!
+Rather than taking a kiobuf as an argument, the new function might as well 
+be more generic:
 
-*sigh* back to the source ...
+unsigned long kremap_pages(struct page **maplist, int nr_pages);
+void kunmap_pages(struct page **maplist, int nr_pages);
 
+I had a quick look at the code for kmap() and vmalloc() and decided that 
+even if I attempted to do it myself, I'd probably bugger it up and a MM 
+hacker would have to fix it anyway. So I'm not going to bother.
 
+T'would be useful if someone else could find the time to do so, though.
 
 
 --
-Timur Tabi - ttabi@interactivesi.com
-Interactive Silicon - http://www.interactivesi.com
+dwmw2
 
-When replying to a mailing-list message, please don't cc: me, because then I'll just get two copies of the same message.
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
