@@ -1,71 +1,55 @@
-Received: from max.phys.uu.nl (max.phys.uu.nl [131.211.32.73])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id RAA16435
-	for <linux-mm@kvack.org>; Wed, 24 Jun 1998 17:31:59 -0400
-Date: Wed, 24 Jun 1998 22:19:29 +0200 (CEST)
-From: Rik van Riel <H.H.vanRiel@phys.uu.nl>
-Reply-To: Rik van Riel <H.H.vanRiel@phys.uu.nl>
-Subject: Re: accounting for kernel resources
-In-Reply-To: <19980624110227.38267@lucifer.guardian.no>
-Message-ID: <Pine.LNX.3.96.980624221108.27393F-100000@mirkwood.dummy.home>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from flinx.npwt.net (eric@flinx.npwt.net [208.236.161.237])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id TAA17042
+	for <linux-mm@kvack.org>; Wed, 24 Jun 1998 19:32:27 -0400
+Subject: Re: Thread implementations...
+References: <199806240915.TAA09504@vindaloo.atnf.CSIRO.AU>
+	<Pine.LNX.3.96dg4.980624025515.26983E-100000@twinlark.arctic.org>
+	<199806241213.WAA10661@vindaloo.atnf.CSIRO.AU>
+From: ebiederm+eric@npwt.net (Eric W. Biederman)
+Date: 24 Jun 1998 17:00:59 -0500
+In-Reply-To: Richard Gooch's message of Wed, 24 Jun 1998 22:13:57 +1000
+Message-ID: <m1u35a4fz8.fsf@flinx.npwt.net>
 Sender: owner-linux-mm@kvack.org
-To: Alexander Kjeldaas <astor@guardian.no>
-Cc: security-audit@ferret.lmh.ox.ac.uk, Linux MM <linux-mm@kvack.org>
+To: Richard Gooch <Richard.Gooch@atnf.CSIRO.AU>
+Cc: Dean Gaudet <dgaudet-list-linux-kernel@arctic.org>, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 24 Jun 1998, Alexander Kjeldaas wrote:
+>>>>> "RG" == Richard Gooch <Richard.Gooch@atnf.CSIRO.AU> writes:
 
-> I know Alan Cox has given some thought to accounting the memory
-> mapping resources allocated by the kernel (pte). I haven't seen the
+RG> If we get madvise(2) right, we don't need sendfile(2), correct?
 
-These should probably be allocated to both the process
-involved _and_ to a special page_tbl statistic. It would
-be nice to see how much overhead the pagetables _really_
-take up (and their impact on memory fragmentation).
-Also, this statistic will be somewhat needed once I implement
-the zone allocator...
+It looks like it from here.  As far as madvise goes, I think we need
+to implement madvise(2) as:
 
-> design so I don't know how it works, but I'd like the kernel to
-> account for resources allocated more aggressively. A simple step would
-> be to let all structures allocated by kmalloc and associated with a
-> process be accounted for. Ideally, the only thing the kernel should be
+enum madvise_strategy {
+        MADV_NORMAL,
+        MADV_RANDOM,
+        MADV_SEQUENTIAL,
+        MADV_WILLNEED,
+        MADV_DONTNEED,
+}
+struct madvise_struct {
+	caddr_t addr;
+	size_t size;
+	size_t strategy;
+};
+int sys_madvise(struct madvise_struct *, int count);
 
-This is a very good idea, but we must be careful about some
-things...
+With madvise(3) following the traditional format with only one
+advisement can be done easily.  The reason I suggest multiple
+arguments is that for apps that have random but predictable access
+patterns will want to use MADV_WILLNEED & MADV_DONTNEED to an optimum
+swapping algorigthm.
 
-> responsible for should be caches that can be shrinked without having
-> any user-land effects. The accounting should not naively count the
-> number of bytes allocated, but take into account alignment-issues.
+And for that you will probably need multiple address ranges.  The
+clustering comunity has a similiar syscall implemented for programs
+whose working set size exceeds avaiable memory.  Except it has
+strategy hardwired to MADV_WILLNEED.
 
-What about network buffers and other stuff that's been
-pushed 'under' the current process but that doesn't really
-belong to it?
-There are several border cases, we probably should just
-give an extra argument to get_free_page() saying to which
-entitie(s) the memory should be charged...
+However someone needs to look at actuall programs to see which form
+is more practical to implement, in the kernel.
 
-> I think implementing this should be fairly easy - basically extending
-> rlimits and making a few macros. However, there might be some
-> border-cases where accounting is difficult. I can't think of them, but
-> others on this list might come up with something.
+Of course all I know about madvise I just read in the kernel source so
+I may be totally off...
 
-DMA buffers, for character devices we probably want to
-charge the process using it, for block devices the choice
-is less obvious... (TAR-usage, filesystem, database on raw
-disk, etc)
-
-All shared memory things. Buffers replicated from a written-too
-pagecache page (not dirty since the pagecache uses write-through
-to the buffer cache). Network buffers, filehandles and other
-stuff that's too small to charge to individual processes. These
-things grow large however when a process uses tons of 'em (500
-filehandles).
-
-The memory used to index the above cruft :)
-
-Rik.
-+-------------------------------------------------------------------+
-| Linux memory management tour guide.        H.H.vanRiel@phys.uu.nl |
-| Scouting Vries cubscout leader.      http://www.phys.uu.nl/~riel/ |
-+-------------------------------------------------------------------+
+Eric
