@@ -1,36 +1,74 @@
-Date: Tue, 3 Jul 2001 12:46:22 -0300 (BRT)
+Date: Wed, 4 Jul 2001 01:24:25 -0300 (BRT)
 From: Marcelo Tosatti <marcelo@conectiva.com.br>
-Subject: Re: Removal of PG_marker scheme from 2.4.6-pre
-In-Reply-To: <Pine.LNX.4.33L.0107012301460.19985-100000@imladris.rielhome.conectiva>
-Message-ID: <Pine.LNX.4.21.0107031245590.2868-100000@freak.distro.conectiva>
+Subject: [PATCH] initial detailed VM statistics code
+Message-ID: <Pine.LNX.4.21.0107040107320.3257-100000@freak.distro.conectiva>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@conectiva.com.br>
-Cc: Linus Torvalds <torvalds@transmeta.com>, lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: lkml <linux-kernel@vger.kernel.org>
+Cc: linux-mm@kvack.org, "Stephen C. Tweedie" <sct@redhat.com>, Rik van Riel <riel@conectiva.com.br>
 List-ID: <linux-mm.kvack.org>
 
+Hi, 
 
-On Sun, 1 Jul 2001, Rik van Riel wrote:
+Well, I've started working on VM stats code for 2.4. 
 
-> On Sat, 30 Jun 2001, Marcelo Tosatti wrote:
-> 
-> > In pre7:
-> >
-> > "me: undo page_launder() LRU changes, they have nasty side effects"
-> >
-> > Can you be more verbose about this ?
-> 
-> I think this was fixed by the GFP_BUFFER vs. GFP_CAN_FS + GFP_CAN_IO
-> thing and Linus accidentally backed out the wrong code ;)
-> 
-> cheers,
-> Rik
+vmstat output: 
 
-Nope.
+# r  b  w   swpd   free   buff  cache   si   so    bi    bo   in    cs us sy id
+# 0  1  1 102624   1412    120  89472   90 9114   304  9160  336  1102  12 7 92
 
--ac also freezes and it does not have the GFP_BUFFER changes. 
+This is the already known part..
+
+# launder launder_w ref_inact alloc_r kswapd_w krec_w kflush_w
+#     33       11       147    1260       23    328      151
+
+First, the global statistics:
+
+launder: nr of page_launder() calls
+launder_w: nr of times page_launder() started writing out pages
+ref_inac: nr of refill_inactive_scan() calls
+alloc_r: number of reschedules on __alloc_pages()
+kswapd_w: kswapd wakeups
+krec_w: kreclaimd wakeups
+kflush_w: kflushd wakeups
+
+# Zone fshort ishort   scan  clean  skipl  skipd launder  react rescue deact recfail
+#    DMA      0    224   3915   1500    342   1406    531    153      0 452 636
+# Normal      0      0  28073  12490   2451   9295   2678    676      0 2654     947
+
+Then the perzone statistics:
+
+fshort: per-zone free shortage
+ishort: per-zone inactive shortage
+scan: number of pages scanned by page_launder
+clean: number of pages cleaned by page_launder
+skipl: number of locked pages skipped by page_launder
+skipd: number of unlocked but dirty pages skipped by page_launder
+launder: number of pages laundered by page_launder
+react: number of pages reactivated by page_launder
+rescue: number of pages reactivated by reclaim_page
+deat: number of pages deactivated by refill_inactive_scan
+recfail: number of reclaim_page failures
+
+
+The code: 
+
+Patch against 2.4.6pre9:
+http://bazar.conectiva.com.br/~marcelo/patches/v2.4/2.4.6pre9/vmstats.patch
+
+Patch against procps from Conectiva's srpm (which is not stock procps):
+http://bazar.conectiva.com.br/~marcelo/patches/v2.4/2.4.6pre9/procps.patch
+
+And full vmstat.c so people don't need to get Conectiva's srpm:
+http://bazar.conectiva.com.br/~marcelo/patches/v2.4/2.4.6pre9/vmstat.c
+
+The vmstat code is really crappy and new fields are painfull to add. If
+anyone is willing to help me to write a decent vmstat, tell me. 
+
+The hacked vmstat will coredump on a non-patched kernel.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
