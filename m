@@ -1,88 +1,76 @@
-From: Kanoj Sarcar <kanoj@google.engr.sgi.com>
-Message-Id: <200102151857.KAA82397@google.engr.sgi.com>
-Subject: Re: x86 ptep_get_and_clear question
-Date: Thu, 15 Feb 2001 10:57:16 -0800 (PST)
-In-Reply-To: <20010215194246.A2437@pcep-jamie.cern.ch> from "Jamie Lokier" at Feb 15, 2001 07:42:46 PM
+Received: (3074 bytes) by baldur.fh-brandenburg.de
+	via sendmail with P:stdio/R:match-inet-hosts/T:smtp
+	(sender: <zippel@fh-brandenburg.de>)
+	id <m14TTU2-000pwIC@baldur.fh-brandenburg.de>
+	for <linux-mm@kvack.org>; Thu, 15 Feb 2001 19:50:26 +0100 (MET)
+	(Smail-3.2.0.97 1997-Aug-19 #3 built DST-Sep-15)
+Date: Thu, 15 Feb 2001 19:50:09 +0100 (MET)
+From: Roman Zippel <zippel@fh-brandenburg.de>
+Subject: Re: page locking and error handling
+In-Reply-To: <m1snlg6jws.fsf@frodo.biederman.org>
+Message-ID: <Pine.GSO.4.10.10102151835020.2986-100000@zeus.fh-brandenburg.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jamie Lokier <lk@tantalophile.demon.co.uk>
-Cc: Ben LaHaise <bcrl@redhat.com>, linux-mm@kvack.org, mingo@redhat.com, alan@redhat.com, linux-kernel@vger.kernel.org
+To: "Eric W. Biederman" <ebiederm@xmission.com>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> 
-> Kanoj Sarcar wrote:
-> > > Here's the important part: when processor 2 wants to set the pte's dirty
-> > > bit, it *rereads* the pte and *rechecks* the permission bits again.
-> > > Even though it has a non-dirty TLB entry for that pte.
-> > > 
-> > > That is how I read Ben LaHaise's description, and his test program tests
-> > > exactly this.
-> > 
-> > Okay, I will quote from Intel Architecture Software Developer's Manual
-> > Volume 3: System Programming Guide (1997 print), section 3.7, page 3-27:
-> > 
-> > "Bus cycles to the page directory and page tables in memory are performed
-> > only when the TLBs do not contain the translation information for a 
-> > requested page."
-> > 
-> > And on the same page:
-> > 
-> > "Whenever a page directory or page table entry is changed (including when 
-> > the present flag is set to zero), the operating system must immediately
-> > invalidate the corresponding entry in the TLB so that it can be updated
-> > the next time the entry is referenced."
-> > 
-> > So, it looks highly unlikely to me that the basic assumption about how
-> > x86 works wrt tlb/ptes in the ptep_get_and_clear() solution is correct.
-> 
-> To me those quotes don't address the question we're asking.  We know
-> that bus cycles _do_ occur when a TLB entry is switched from clean to
-> dirty, and furthermore they are locked cycles.  (Don't ask me how I know
-> this though).
-> 
-> Does that mean, in jargon, the TLB does not "contain
-> the translation information" for a write?
-> 
-> The second quote: sure, if we want the TLB updated we have to flush it.
-> And eventually in mm/mprotect.c we do.  But what before, it keeps on
-> using the old TLB entry?  That's ok.  If the entry was already dirty
-> then we don't mind if processor 2 continues with the old TLB entry for a
-> while, until we do the big TLB range flush.
-> 
-> In other words I don't think those two quotes address our question at
-> all.
+Hi,
 
-Agreed. But these are the only relevant quotes I could come up with. And
-to me, these quotes make the ptep_get_and_clear() assumption look risky
-at best ... even though they do not give clear answers either way.
+On 15 Feb 2001, Eric W. Biederman wrote:
 
+> > - if copy_from_user() fails the page is set as not uptodate. AFAIK this
+> >   assumes that the page->buffers are still uptodate, so previous writes
+> >   are not lost.
+> If copy_from_user fails that invokes undefined behavior, and you just lost
+> your previous writes because you ``overwrote'' them.
+
+What about partial writes?
+
+> > 3. During a write we always lock at least one page and we don't release
+> >    the previous page until we got the next. This means:
+> >    - the i_sem is not needed anymore, so multiple writes can access the
+> >      file at the same time.
 > 
-> What worries more is that this is quite a subtle requirement, and the
-> code in mm/mprotect.c is not specific to one architecture.  Do all SMP
-> CPUs support by Linux do the same thing on converting TLB entries from
-> clean to dirty, or do they have a subtle, easily missed data integrity
-> problem?
+> i_sem I believe is to protect the file length, and avoid weird
+> truncation races.  As well allowing things like O_APPEND work.
+> I don't see how page level locking helps with file size changes.
 
-No. All architectures do not have this problem. For example, if the
-Linux "dirty" (not the pte dirty) bit is managed by software, a fault
-will actually be taken when processor 2 tries to do the write. The fault
-is solely to make sure that the Linux "dirty" bit can be tracked. As long
-as the fault handler grabs the right locks before updating the Linux "dirty"
-bit, things should be okay. This is the case with mips, for example.
+Of course locking of i_size is still needed, but i_sem is not needed for
+the writing itself.
 
-The problem with x86 is that we depend on automatic x86 dirty bit
-update to manage the Linux "dirty" bit (they are the same!). So appropriate
-locks are not grabbed.
-
-Kanoj
-
-
+> >    - this would allow to pass multiple pages at once to the mapping
+> >      mechanism, as we can easily link several pages together. This
+> >      actually is all what is needed/wanted for streaming and no need for a
+> >      heavyweight kiobuf.
 > 
-> -- Jamie
+> Hmm.  For what you are suggesting kiobufs aren't that bad.  Not that
+> I'm supporting them, but since you are aiming at the cases they handle
+> just fine I won't criticize them either.
+
+A list of pages is more flexible and can be used in more situations than
+a kiobuf, a lower layer can of course still use whatever it wants.
+
+> > This is probably is a bit sketchy, but the main idea is to further improve
+> > the page state handling and remove dependencies/assumptions to the buffer
+> > handling. This would also allow better error handling, e.g. data for a
+> > removed media could be saved in a temporary file instead of throwing away
+> > the data or one could even keep two medias mounted in the same
+> > drive.
 > 
+> Create a pseudo block device if you want these kinds of semantics they
+> should not be handled directly by the filesystem layer.  At least not
+> unless so one comes up with a design where it just happens to fall out
+> naturally. (Unlikely).
+
+A pseudo block device is probably needed, but it needs a few hooks to
+switch to it, but most of them are in the slow path. It also needs some
+userspace support. Anyway, it doesn't need that much design changes,
+mostly you only need to change the ClearPageUptodate() calls.
+
+bye, Roman
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
