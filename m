@@ -1,66 +1,39 @@
-Subject: Re: Merging Nonlinear and Numa style memory hotplug
-From: Dave Hansen <haveblue@us.ibm.com>
-In-Reply-To: <200406250449.BSB05018@ms6.netsolmail.com>
-References: <200406250449.BSB05018@ms6.netsolmail.com>
-Content-Type: text/plain
-Message-Id: <1088141355.3918.1493.camel@nighthawk>
-Mime-Version: 1.0
-Date: Fri, 25 Jun 2004 08:16:47 -0700
+Received: from fujitsu1.fujitsu.com (localhost [127.0.0.1])
+	by fujitsu1.fujitsu.com (8.12.10/8.12.9) with ESMTP id i5PImRd6014130
+	for <linux-mm@kvack.org>; Fri, 25 Jun 2004 11:48:27 -0700 (PDT)
+Date: Fri, 25 Jun 2004 11:48:07 -0700
+From: Yasunori Goto <ygoto@us.fujitsu.com>
+Subject: Re: [Lhms-devel] Re: Merging Nonlinear and Numa style memory hotplug
+In-Reply-To: <1088133541.3918.1348.camel@nighthawk>
+References: <20040624194557.F02B.YGOTO@us.fujitsu.com> <1088133541.3918.1348.camel@nighthawk>
+Message-Id: <20040625114720.2935.YGOTO@us.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: shai@ftcon.com
-Cc: 'Yasunori Goto' <ygoto@us.fujitsu.com>, 'Linux Kernel ML' <linux-kernel@vger.kernel.org>, 'Linux Hotplug Memory Support' <lhms-devel@lists.sourceforge.net>, 'Linux-Node-Hotplug' <lhns-devel@lists.sourceforge.net>, 'linux-mm' <linux-mm@kvack.org>, "'BRADLEY CHRISTIANSEN [imap]'" <bradc1@us.ibm.com>
+To: Dave Hansen <haveblue@us.ibm.com>
+Cc: Linux Kernel ML <linux-kernel@vger.kernel.org>, Linux Hotplug Memory Support <lhms-devel@lists.sourceforge.net>, Linux-Node-Hotplug <lhns-devel@lists.sourceforge.net>, linux-mm <linux-mm@kvack.org>, "BRADLEY CHRISTIANSEN [imap]" <bradc1@us.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2004-06-24 at 21:49, Shai Fultheim wrote:
-> > > Doesn't this just find the lowest-numbered node's highmem?  Are you sure
-> > > that no NUMA systems have memory at lower physical addresses on
-> > > higher-numbered nodes?  I'm not sure that this is true.
 > 
-> In addition I'm involved in a NUMA-related project that might have
-> zone-normal on other nodes beside node0.  I also think that in some cases it
-> might be useful to have the code above and below in case of AMD machines
-> that have less than 1GB per processor (or at least less than 1GB on the
-> FIRST processor).
-
-But, this code is just for i386 processors.  Do you have a NUMA AMD i386
-system?
-
-> > > Again, I don't see what this loop is used for.  You appear to be trying
-> > > to detect which nodes have lowmem.  Is there currently any x86 NUMA
-> > > architecture that has lowmem on any node but node 0?
+> > Should this translation be in common code?
 > 
-> As noted above, this is possible, the cost of this code is not much, so I
-> would keep it in.
+> What do you mean by common code?  It should be shared by all
+> architectures.
 
-OK, I'll revise and say that it's impossible for all of the in-tree NUMA
-systems.  I'd heavily encourage you to post your code so that we can
-more easily understand what kind of system you have.  It's very hard to
-analyze impact on systems that we've never seen code for.
+If physical memory chunk size is larger than the area which
+should be contiguous like IA32's kmalloc, 
+there is no merit in this code.
+So, I thought only mem_section is enough.
+But I don't know about other architecutures yet and I'm not sure.
 
-In any case, I believe that the original loop should be kept pretty
-close to what is there now:
+Are you sure that all architectures need phys_section?
 
-        for (tmp = 0; tmp < max_low_pfn; tmp++)
-                /*
-                 * Only count reserved RAM pages
-                 */
-                if (page_is_ram(tmp) && PageReserved(pfn_to_page(tmp)))
-                        reservedpages++;
+Bye.
+-- 
+Yasunori Goto <ygoto at us.fujitsu.com>
 
-If you do, indeed, have non-ram pages between pfns 0 and max_low_pfn,
-I'd suggest doing something like this:
-
-                if (page_is_ram(tmp) && 
-		    node_online(page_to_nid(tmp)) &&
-                    PageReserved(pfn_to_page(tmp)))
-                        reservedpages++;
-
-That's a lot cleaner and more likely to work than replacing the entire
-loop with an ifdef.
-
--- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
