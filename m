@@ -1,42 +1,53 @@
-Received: from funky.monkey.org (smtp@funky.monkey.org [152.160.231.196])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id QAA17086
-	for <linux-mm@kvack.org>; Tue, 6 Apr 1999 16:47:27 -0400
-Date: Tue, 6 Apr 1999 16:47:23 -0400 (EDT)
-From: Chuck Lever <cel@monkey.org>
-Subject: Re: [patch] arca-vm-2.2.5
-In-Reply-To: <Pine.LNX.4.05.9904061831340.394-100000@laser.random>
-Message-ID: <Pine.BSF.4.03.9904061644370.3406-100000@funky.monkey.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mailhost.uni-koblenz.de (mailhost.uni-koblenz.de [141.26.64.1])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id QAA17215
+	for <linux-mm@kvack.org>; Tue, 6 Apr 1999 16:53:35 -0400
+Received: from lappi.waldorf-gmbh.de (cacc-8.uni-koblenz.de [141.26.131.8])
+	by mailhost.uni-koblenz.de (8.9.1/8.9.1) with ESMTP id WAA19712
+	for <linux-mm@kvack.org>; Tue, 6 Apr 1999 22:53:27 +0200 (MET DST)
+Message-ID: <19990406125558.C3742@uni-koblenz.de>
+Date: Tue, 6 Apr 1999 12:55:58 +0200
+From: ralf@uni-koblenz.de
+Subject: Re: Somw questions [ MAYBE OFFTOPIC ]
+References: <19990402113555.F9584@uni-koblenz.de> <Pine.BSI.3.96.990405050919.3415A-100000@m-net.arbornet.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+In-Reply-To: <Pine.BSI.3.96.990405050919.3415A-100000@m-net.arbornet.org>; from Amol Mohite on Mon, Apr 05, 1999 at 05:12:50AM -0400
 Sender: owner-linux-mm@kvack.org
-To: Andrea Arcangeli <andrea@e-mind.com>
-Cc: "Stephen C. Tweedie" <sct@redhat.com>, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
+To: Amol Mohite <amol@m-net.arbornet.org>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 6 Apr 1999, Andrea Arcangeli wrote:
-> >i guess i'm confused then.  what good does this change do:
+On Mon, Apr 05, 1999 at 05:12:50AM -0400, Amol Mohite wrote:
+
+> > A NULL pointer is just yet another invalid address.  There is no special
+> > test for a NULL pointer.  Most probably for example (char *)0x12345678
+> > will be invalid as a pointer as well and treated the same.  The CPU
+> > detects this when the TLB doesn't have a translation valid for the
+> > access being attempted.
 > 
-> Hmm I think I misunderstood you point, Chuck. I thought you was
-> complaining about the fact that some hash entry could be unused and other
-> overloaded
+> Yes but how does it know it is a null pointer ?
 
-yes, you understood correctly.
+Again, it doesn't know that it is a *NULL* pointer.  The kernel just knows
+that a user program resulted in the CPU throwing an exception for attempting
+an illegal access, that is insufficient permissions for the mapping or
+no mapping for the address at all.
 
-> but I was just assuming that the offset is always page-aligned.
-> I could write a simulation to check the hash function...
+> On that note, when c does not allow u to dereference a void pointer , is
+> this compiler doing the trick ?
 
-i didn't realize that the "offset" argument would always be page-aligned.
-but still, why does it help to add the unshifted "offset"?  doesn't seem
-like there's any new information in that.
+Only ANSI/ISO C doesn't allow to dereference void pointers, GCC allows this
+as an extension of the language.  Most machines only have untyped pointers,
+for them void * or not would only a difference to the compiler, not the
+machine - if the compiler allows it.
 
-	- Chuck Lever
---
-corporate:	<chuckl@netscape.com>
-personal:	<chucklever@netscape.net> or <cel@monkey.org>
+> Ok , about the expand down attribute, thats how 32 bit windows does it, so
+> i was wondering if linux also does the same.
+> 
+> 16 bit windows accesses a null pointer with a 0: descriptor.
+> 
+> Apparently intel allows u to load a 0 but not dererence it.
 
-The Linux Scalability project:
-	http://www.citi.umich.edu/projects/citi-netscape/
-
+  Ralf
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm my@address'
 in the body to majordomo@kvack.org.  For more info on Linux MM,
