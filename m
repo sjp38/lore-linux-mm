@@ -1,189 +1,44 @@
-Subject: Re: [PATCH] Fix for vma merging refcounting bug
-From: "Stephen C. Tweedie" <sct@redhat.com>
-In-Reply-To: <20030510163336.GB15010@dualathlon.random>
-References: <1052483661.3642.16.camel@sisko.scot.redhat.com>
-	 <20030510163336.GB15010@dualathlon.random>
-Content-Type: multipart/mixed; boundary="=-ioKWzMS7mRPSZYpBHhrX"
-Message-Id: <1052683446.4609.29.camel@sisko.scot.redhat.com>
+Date: Sun, 11 May 2003 15:15:06 -0700
+From: Andrew Morton <akpm@digeo.com>
+Subject: Re: Slab corruption mm3 + davem fixes
+Message-Id: <20030511151506.172eee58.akpm@digeo.com>
+In-Reply-To: <1052690490.4471.2.camel@rth.ninka.net>
+References: <20030511031940.97C24251B@oscar.casa.dyndns.org>
+	<200305111221.26048.tomlins@cam.org>
+	<1052690490.4471.2.camel@rth.ninka.net>
 Mime-Version: 1.0
-Date: 11 May 2003 21:04:06 +0100
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrea Arcangeli <andrea@suse.de>
-Cc: linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@digeo.com>, Stephen Tweedie <sct@redhat.com>
+To: "David S. Miller" <davem@redhat.com>
+Cc: tomlins@cam.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, rusty@rustcorp.com.au, laforge@netfilter.org
 List-ID: <linux-mm.kvack.org>
 
---=-ioKWzMS7mRPSZYpBHhrX
-Content-Type: text/plain
-Content-Transfer-Encoding: 7bit
+"David S. Miller" <davem@redhat.com> wrote:
+>
+> On Sun, 2003-05-11 at 09:21, Ed Tomlinson wrote:
+> > I am also seeing this on 69-bk (as of Sunday morning)
+> ...
+> > On May 10, 2003 11:19 pm, Ed Tomlinson wrote:
+> > > I looked at my logs and found the following error in it.  My kernel is
+> > > 69-mm3 with two davem fixes on it.
+> ...
+> > > May 10 22:41:06 oscar kernel: Call Trace:
+> > > May 10 22:41:06 oscar kernel:  [__slab_error+30/32] __slab_error+0x1e/0x20
+> > > May 10 22:41:06 oscar kernel:  [check_poison_obj+376/384]
+> > > check_poison_obj+0x178/0x180 May 10 22:41:06 oscar kernel: 
+> > > [kmalloc+221/392] kmalloc+0xdd/0x188 May 10 22:41:06 oscar kernel: 
+> > > [alloc_skb+64/240] alloc_skb+0x40/0xf0 May 10 22:41:06 oscar kernel: 
+> 
+> Yeah, more bugs in the NAT netfilter changes.  Debugging this one
+> patch is becomming a full time job :-(
+> 
+> This should fix it.  Rusty, you're computing checksums and mangling
+> src/dst using header pointers potentially pointing to free'd skbs.
+> 
 
-Hi,
-
-On Sat, 2003-05-10 at 17:33, Andrea Arcangeli wrote:
-> On Fri, May 09, 2003 at 01:34:21PM +0100, Stephen C. Tweedie wrote:
-> > When a new vma can be merged simultaneously with its two immediate
-> > neighbours in both directions, vma_merge() extends the predecessor vma
-> > and deletes the successor.  However, if the vma maps a file, it fails to
-> > fput() when doing the delete, leaving the file's refcount inconsistent.
-
-> great catch! nobody could notice it in practice
-
-Yep --- I only noticed it because I was running a quick-and-dirty vma
-merging test and wanted to test on a shmfs file, and noticed that the
-temporary shmfs filesystem became unmountable afterwards.  Test
-attached, in case anybody is interested (it's the third test, mapping a
-file page by page in two interleaved passes, which triggers this case.)
-
-> I'm attaching for review what I'm applying to my -aa tree, to fix the
-> above and the other issue with the non-ram vma merging fixed in 2.5.
-
-Looks OK.
-
-Cheers,
- Stephen
-
-
---=-ioKWzMS7mRPSZYpBHhrX
-Content-Disposition: inline; filename=vma-merge.c
-Content-Type: text/x-c; name=vma-merge.c; charset=ISO-8859-15
-Content-Transfer-Encoding: quoted-printable
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <errno.h>
-
-#include <unistd.h>
-#include <fcntl.h>
-#include <sys/mman.h>
-#include <sys/ipc.h>
-#include <sys/shm.h>
-
-static char *testfile =3D "/tmp/vma-test.dat";
-
-#define TEST_PAGES 1024
-int pagesize;
-int filesize;
-
-char *map_addr;
-
-void DIE(char *) __attribute__ ((noreturn));
-
-void DIE(char *why)
-{
-	perror(why);
-	exit(1);
-}
-
-#define plural(n) (((n) =3D=3D 1) ? "" : "s")
-=09
-void test_maps(char *which)
-{
-	int fd;
-	int rc;
-	int count =3D 0;
-	char buffer[256];
-	char filename[128];
-	FILE *mapfile;
-
-	fd =3D open("/proc/self/maps", O_RDONLY);
-	if (fd < 0)
-		DIE("open(/proc/self/maps");
-
-
-	mapfile =3D fopen("/proc/self/maps", "r");
-
-	while (1) {
-		if (!fgets(buffer, 256, mapfile))
-			break;
-	=09
-		rc =3D sscanf(buffer,=20
-			    "%*x-%*x %*4s %*x %*5s %*d %127s\n",=20
-			    filename);
-		if (!rc)
-			continue;
-		if (!strcmp(testfile, filename))
-			count++;
-	}
-=09
-	printf("Testing %s: found %d map%s\n", which, count, plural(count));
-}
-
-#define clear_maps() \
-	err =3D munmap(map_addr, filesize); 	\
-	if (err)			\
-		DIE("munmap");		\
-
-static void map_page(int fd, int i)
-{=09
-	char *ptr;
-
-	ptr =3D mmap(map_addr + i * pagesize,
-		   pagesize,
-		   PROT_READ,
-		   MAP_SHARED | MAP_FIXED,
-		   fd,
-		   i * pagesize);
-	if (ptr =3D=3D MAP_FAILED)
-		DIE("mmap");
-	if (ptr !=3D map_addr + i * pagesize) {
-		fprintf(stderr, "mmap returned unexpected address\n");
-		exit(1);
-	}
-}
-
-int main(int argc, char *argv[])
-{
-	int fd;
-	int err;
-	int i;
-
-	if (argc > 1)
-		testfile =3D argv[1];
-=09
-	pagesize =3D getpagesize();
-	filesize =3D TEST_PAGES * pagesize;
-
-	fd =3D open(testfile, O_CREAT|O_TRUNC|O_RDWR, 0666);
-	if (fd < 0)
-		DIE("open");
-
-	err =3D ftruncate(fd, filesize);
-	if (err)
-		DIE("ftuncate");
-
-	/* Find a suitable mmap address for the entire file */
-	map_addr =3D mmap(0, filesize, PROT_READ, MAP_SHARED, fd, 0);
-	if (map_addr =3D=3D MAP_FAILED)
-		DIE("mmap");
-	clear_maps();
-
-	/* Now map it in piece by piece */
-	for (i =3D 0; i < TEST_PAGES; i++)
-		map_page(fd, i);
-	test_maps("backwards merging");
-	clear_maps();
-
-	/* Next, map it in backwards */
-	for (i =3D TEST_PAGES; i-- > 0; )
-		map_page(fd, i);
-	test_maps("forwards merging");
-	clear_maps();
-
-	/* Finally, map it in in two interleaved passes */
-	for (i =3D 0; i < TEST_PAGES; i+=3D2)
-		map_page(fd, i);
-	for (i =3D 1; i < TEST_PAGES; i+=3D2)
-		map_page(fd, i);
-	test_maps("interleaved merging");
-
-	close(fd);
-	unlink(testfile);
-=09
-	return 0;
-}
-
---=-ioKWzMS7mRPSZYpBHhrX--
+Did you mean to send a one megabyte diff?
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
