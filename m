@@ -1,439 +1,430 @@
-Received: from digeo-nav01.digeo.com (digeo-nav01 [192.168.1.233])
-	by packet.digeo.com (8.12.8/8.12.8) with SMTP id h2GAgePu009910
-	for <linux-mm@kvack.org>; Sun, 16 Mar 2003 02:42:40 -0800 (PST)
-Date: Sun, 16 Mar 2003 02:42:39 -0800
-From: Andrew Morton <akpm@digeo.com>
-Subject: 2.5.64-mm8
-Message-Id: <20030316024239.484f8bda.akpm@digeo.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Date: Sun, 16 Mar 2003 13:21:34 +0100 (CET)
+From: Roman Zippel <zippel@linux-m68k.org>
+Subject: Re: 2.5.64-mm8
+In-Reply-To: <20030316024239.484f8bda.akpm@digeo.com>
+Message-ID: <Pine.LNX.4.44.0303161318590.12110-100000@serv>
+References: <20030316024239.484f8bda.akpm@digeo.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@digeo.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.5/2.5.64/2.5.64-mm8/
-
-. Several fixes to the anticipatory scheduler.  It is the default IO
-  scheduler again.
-
-  The main thing which was fixed here was an interesting deadlock involving
-  keventd, the I/O scheduler, vfork and request_module().
-
-. I should have mentioned that 2.5.64-mm7 included a CPU scheduler tweak
-  from Mike Galbraith which apparently fixes up the various starvation
-  problems which people have been experiencing.  That is also in 2.5.64-mm8.
-
-
-
-Changes since 2.5.64-mm7:
-
-
--ppc64-compat-flock.patch
--ppc64-eeh-fix.patch
--ppc64-socketcall-fix.patch
--register-tty_devclass.patch
-
- Merged
-
-+proc-sys-debug.patch
-
- Create /proc/sys/debug/0 ...  /proc/sys/debug/5.  These appear in the
- kernel as 
-
-	int proc_sys_debug[8];
-
- These are not used for anyting - it is for ah-hoc debugging convenience.
-
-+as-jumbo-fix.patch
-+as-request_fn-in-timer.patch
-+as-remove-request-fix.patch
-
- Anticipatory scheduler fixes
-
--deadline-default.patch
-
- Make the anticipatory scheduler the default again.
-
-+unplug-from-timer.patch
-
- Call q->unplug_fn direct from timer context rather than via
- schedule_work().
-
-+ext2-no-lock_super-set-s_dirt.patch
-+ext2-ialloc-no-lock_super.patch
-+ext2-ialloc-no-lock_super-fixes.patch
-
- Avoid lock_super() in the ext2 inode allocator
-
-+pci-update-1.patch
-
- Update for Russell's PCI rework.
-
-+affs-lock_kernel-fix.patch
-
- Missing an unlock_kernel().  (Why didn't any of the checkers notice this?)
-
-+lseek-ext2_readdir.patch
-
- Remove the lock_kernel()s in ext2_readdir/ext3_readdir
-
-+inode_setattr-lock_kernel-removal.patch
-
- Remove the lock_kernel() around inode_setattr's vmtruncate() call.
-
-+raid0-oops-fix.patch
-
- Fix oops in RAID0.
-
-
-
-All 124 patches:
-
-linus.patch
-  Latest from Linus
-
-mm.patch
-  add -mmN to EXTRAVERSION
-
-kgdb.patch
-
-proc-sys-debug.patch
-  create /proc/sys/debug/0 ... 7
-
-noirqbalance-fix.patch
-  Fix noirqbalance
-
-config_spinline.patch
-  uninline spinlocks for profiling accuracy.
-
-ppc64-reloc_hide.patch
-
-ppc64-pci-patch.patch
-  Subject: pci patch
-
-ppc64-aio-32bit-emulation.patch
-  32/64bit emulation for aio
-
-ppc64-64-bit-exec-fix.patch
-  Pass the load address into ELF_PLAT_INIT()
-
-ppc64-scruffiness.patch
-  Fix some PPC64 compile warnings
-
-sym-do-160.patch
-  make the SYM driver do 160 MB/sec
-
-config-PAGE_OFFSET.patch
-  Configurable kenrel/user memory split
-
-ptrace-flush.patch
-  cache flushing in the ptrace code
-
-buffer-debug.patch
-  buffer.c debugging
-
-warn-null-wakeup.patch
-
-ext3-truncate-ordered-pages.patch
-  ext3: explicitly free truncated pages
-
-reiserfs_file_write-5.patch
-
-tcp-wakeups.patch
-  Use fast wakeups in TCP/IPV4
-
-rcu-stats.patch
-  RCU statistics reporting
-
-ext3-journalled-data-assertion-fix.patch
-  Remove incorrect assertion from ext3
-
-nfs-speedup.patch
-
-nfs-oom-fix.patch
-  nfs oom fix
-
-sk-allocation.patch
-  Subject: Re: nfs oom
-
-nfs-more-oom-fix.patch
-
-rpciod-atomic-allocations.patch
-  Make rcpiod use atomic allocations
-
-linux-isp.patch
-
-isp-update-1.patch
-
-remove-unused-congestion-stuff.patch
-  Subject: [PATCH] remove unused congestion stuff
-
-as-iosched.patch
-  anticipatory I/O scheduler
-
-as-debug-BUG-fix.patch
-
-as-eject-BUG-fix.patch
-  AS: don't go BUG during cdrom eject
-
-as-jumbo-fix.patch
-  AS: OSDL fixes
-
-as-request_fn-in-timer.patch
-  Remove the scheduled_work thing
-
-as-remove-request-fix.patch
-
-cfq-2.patch
-  CFQ scheduler, #2
-
-unplug-from-timer.patch
-
-smalldevfs.patch
-  smalldevfs
-
-remap-file-pages-2.5.63-a1.patch
-  Subject: [patch] remap-file-pages-2.5.63-A1
-
-hugh-remap-fix.patch
-  hugh's file-offset-in-pte fix
-
-fremap-limit-offsets.patch
-  fremap: limit remap_file_pages() file offsets
-
-fremap-all-mappings.patch
-  Make all executable mappings be nonlinear
-
-filemap_populate-speedup.patch
-  filemap_populate speedup
-
-file-offset-in-pte-x86_64.patch
-  x86_64: support for file offsets in pte's
-
-file-offset-in-pte-ppc64.patch
-
-objrmap-2.5.62-5.patch
-  object-based rmap
-
-objrmap-nonlinear-fixes.patch
-  objrmap fix for nonlinear
-
-scheduler-tunables.patch
-  scheduler tunables
-
-scheduler-starvation-fixes.patch
-  CPU scheduler starvation fixes
-
-timer-cleanup.patch
-  timer code cleanup
-
-timer-readdition-fix.patch
-  timer re-addition lockup fix
-
-show_task-free-stack-fix.patch
-  show_task() fix and cleanup
-
-yellowfin-set_bit-fix.patch
-  yellowfin driver set_bit fix
-
-htree-nfs-fix.patch
-  Fix ext3 htree / NFS compatibility problems
-
-update_atime-ng.patch
-  inode a/c/mtime modification speedup
-
-one-sec-times.patch
-  Implement a/c/time speedup in ext2 & ext3
-
-task_prio-fix.patch
-  simple task_prio() fix
-
-set_current_state-fs.patch
-  use set_current_state in fs
-
-set_current_state-mm.patch
-  use set_current_state in mm
-
-copy_thread-leak-fix.patch
-  Fix memory leak in copy_thread
-
-slab_store_user-large-objects.patch
-  slab debug: perform redzoning against larger objects
-
-file_list_lock-contention-fix.patch
-  file_list_lock contention fixes
-
-tty_files-fixes.patch
-  file->f_list locking in tty_io.c
-
-file_list_cleanup.patch
-  file_list cleanup
-
-file_list-remove-free_list.patch
-  file_table: remove the private freelist
-
-file-list-less-locking.patch
-  file_list: less locking
-
-vt_ioctl-stack-use.patch
-  stack reduction in drivers/char/vt_ioctl.c
-
-fix-mem-equals.patch
-  Fix mem= options
-
-no-mmu-stubs.patch
-  a few missing stubs for !CONFIG_MMU
-
-nommu-slab.patch
-  slab changes for !CONFIG_MMU
-
-nfs-memleak-fix.patch
-  memleak in fs/nfs/inode.c::nfs_get_sb()
-
-ufs-memleak-fix.patch
-  Memleak in fs/ufs/util.c
-
-hugetlb-unmap_vmas-fix.patch
-  fix the fix for unmap_vmas & hugepages
-
-early-writeback-init.patch
-  Early writeback initialisation
-
-posix-timers-update.patch
-  posix timers update
-
-e100-memleak-fix.patch
-  Memleak in e100 driver
-
-pcmcia-1-kill-get_foo_map.patch
-  pcmcia: 1/6 kill get_*_map
-
-pcmcia-2-remove-bus_foo-abstractions.patch
-  pcmcia: 2/6: Remove bus_* abstractions
-
-pcmcia-3-add-SOCKET_CARDBUS_CONFIG.patch
-  pcmcia: 3/6: add SOCKET_CARDBUS_CONFIG flag
-
-pcmcia-4-add-locking.patch
-  pcmcia: 4/6: Add some locking to rsrc_mgr.c
-
-pcmcia-5-add-CONFIG_PCMCIA_PROBE.patch
-  pcmcia 5/6: Introduce CONFIG_PCMCIA_PROBE
-
-pcmcia-6-remove-old-cardbus-clients.patch
-  pcmcia: 6/6: Remove support for old cardbus clients
-
-oops-counters.patch
-  OOPS instance counters
-
-io_apic-DO_ACTION-cleanup.patch
-  io-apic.c: DO_ACTION cleanup
-
-ext2-ext3-noatime-fix.patch
-  Ext2/3 noatime and dirsync sometimes ignored
-
-oprofile-timer-fix.patch
-  fix oprofile timer race
-
-htree-nfs-fix-2.patch
-  htree nfs fix
-
-ext2-balloc-fix.patch
-  ext2: block allocation fix
-
-ext2-no-lock_super.patch
-  concurrent block allocation for ext2
-
-ext2-no-lock-super-whitespace-fixes.patch
-
-ext2-no-lock_super-fix-1.patch
-
-ext2-no-lock_super-fix-2.patch
-
-ext2-no-lock_super-fix-3.patch
-
-ext2-no-lock_super-fix-4.patch
-
-ext2-no-lock_super-fix-5.patch
-
-ext2-no-lock_super-fix-6.patch
-
-ext2-no-lock_super-fix-7.patch
-
-ext2-no-lock_super-set-s_dirt.patch
-  ext2 block allocator: set s_dirt
-
-ext2-ialloc-no-lock_super.patch
-  concurrent inode allocation for ext2
-
-ext2-ialloc-no-lock_super-fixes.patch
-  ext2: concurrent ialloc fixes
-
-brlock-removal-1.patch
-  Brlock removal 1/5 - core
-
-brlock-removal-2.patch
-  brlock removal 2/5: remove brlock from snap and vlan
-
-brlock-removal-3.patch
-  brlock removal 3/5: remove brlock from bridge
-
-brlock-removal-4.patch
-  brlock removal 4/5: removal from ipv4/ipv6
-
-brlock-removal-5.patch
-  brlock removal 5/5: remove brlock code
-
-pgd_index-comments.patch
-  pgd_index/pmd_index/pte_index commentary
-
-pci-6.patch
-
-pci-7.patch
-
-pci-8.patch
-
-pci-9.patch
-
-pci-10.patch
-
-pci-11.patch
-
-pci-12.patch
-
-pci-13.patch
-
-pci-14.patch
-
-pci-15.patch
-
-pci-update-1.patch
-  PCI patches: update
-
-proc-sysrq-trigger.patch
-  /proc/sysrq-trigger: trigger sysrq functions via /proc
-
-aio-bits-fix.patch
-  kiocbClear should use clear_bit instead of set_bit
-
-clean-inode-fix.patch
-  initialise inode->i_rdev
-
-affs-lock_kernel-fix.patch
-  affs unlock_kernel() fix
-
-lseek-ext2_readdir.patch
-  remove lock_kernel() from readdir implementations.
-
-inode_setattr-lock_kernel-removal.patch
-  remove lock_kernel() from inode_setattr's vmtruncate() call
-
-raid0-oops-fix.patch
-  fix raid0 oops
-
-
+Hi,
+
+On Sun, 16 Mar 2003, Andrew Morton wrote:
+
+> +affs-lock_kernel-fix.patch
+> 
+>  Missing an unlock_kernel().  (Why didn't any of the checkers notice this?)
+
+Could you replace this the patch below?
+It removes the kernel lock completely and also fixes a bitmap corruption.
+
+bye, Roman
+
+--- linux/fs/affs/Changes	18 May 2002 12:58:27 -0000	1.1.1.2
++++ linux/fs/affs/Changes	16 Mar 2003 00:35:30 -0000
+@@ -28,6 +28,11 @@ Known bugs:
+ 
+ Please direct bug reports to: zippel@linux-m68k.org
+ 
++Version 3.20
++------------
++- kill kernel lock
++- fix for a possible bitmap corruption
++
+ Version 3.19
+ ------------
+ 
+--- linux/fs/affs/bitmap.c	25 May 2002 16:20:39 -0000	1.1.1.8
++++ linux/fs/affs/bitmap.c	16 Mar 2003 00:35:31 -0000
+@@ -185,6 +185,8 @@ find_bmap:
+ 	/* search for the next bmap buffer with free bits */
+ 	i = sbi->s_bmap_count;
+ 	do {
++		if (--i < 0)
++			goto err_full;
+ 		bmap++;
+ 		bm++;
+ 		if (bmap < sbi->s_bmap_count)
+@@ -192,8 +194,6 @@ find_bmap:
+ 		/* restart search at zero */
+ 		bmap = 0;
+ 		bm = sbi->s_bitmap;
+-		if (--i <= 0)
+-			goto err_full;
+ 	} while (!bm->bm_free);
+ 	blk = bmap * sbi->s_bmap_bits;
+ 
+@@ -216,8 +216,8 @@ find_bmap_bit:
+ 	mask = ~0UL << (bit & 31);
+ 	blk &= ~31UL;
+ 
+-	tmp = be32_to_cpu(*data) & mask;
+-	if (tmp)
++	tmp = be32_to_cpu(*data);
++	if (tmp & mask)
+ 		goto find_bit;
+ 
+ 	/* scan the rest of the buffer */
+@@ -230,10 +230,11 @@ find_bmap_bit:
+ 			goto find_bmap;
+ 	} while (!(tmp = *data));
+ 	tmp = be32_to_cpu(tmp);
++	mask = ~0;
+ 
+ find_bit:
+ 	/* finally look for a free bit in the word */
+-	bit = ffs(tmp) - 1;
++	bit = ffs(tmp & mask) - 1;
+ 	blk += bit + sbi->s_reserved;
+ 	mask2 = mask = 1 << (bit & 31);
+ 	AFFS_I(inode)->i_lastalloc = blk;
+@@ -266,8 +267,8 @@ err_bh_read:
+ 	sbi->s_bmap_bh = NULL;
+ 	sbi->s_last_bmap = ~0;
+ err_full:
+-	pr_debug("failed\n");
+ 	up(&sbi->s_bmlock);
++	pr_debug("failed\n");
+ 	return 0;
+ }
+ 
+--- linux/fs/affs/dir.c	11 Nov 2002 18:56:16 -0000	1.1.1.6
++++ linux/fs/affs/dir.c	16 Mar 2003 00:35:31 -0000
+@@ -65,8 +65,6 @@ affs_readdir(struct file *filp, void *di
+ 	int			 stored;
+ 	int			 res;
+ 
+-	lock_kernel();
+-	
+ 	pr_debug("AFFS: readdir(ino=%lu,f_pos=%lx)\n",inode->i_ino,(unsigned long)filp->f_pos);
+ 
+ 	stored = 0;
+@@ -162,7 +160,6 @@ readdir_out:
+ 	affs_brelse(dir_bh);
+ 	affs_brelse(fh_bh);
+ 	affs_unlock_dir(inode);
+-	unlock_kernel();
+ 	pr_debug("AFFS: readdir()=%d\n", stored);
+ 	return res;
+ }
+--- linux/fs/affs/inode.c	18 Nov 2002 18:46:35 -0000	1.1.1.10
++++ linux/fs/affs/inode.c	16 Mar 2003 00:35:31 -0000
+@@ -195,11 +195,9 @@ affs_write_inode(struct inode *inode, in
+ 	if (!inode->i_nlink)
+ 		// possibly free block
+ 		return;
+-	lock_kernel();
+ 	bh = affs_bread(sb, inode->i_ino);
+ 	if (!bh) {
+ 		affs_error(sb,"write_inode","Cannot read block %lu",inode->i_ino);
+-		unlock_kernel();
+ 		return;
+ 	}
+ 	tail = AFFS_TAIL(sb, bh);
+@@ -227,7 +225,7 @@ affs_write_inode(struct inode *inode, in
+ 	affs_fix_checksum(sb, bh);
+ 	mark_buffer_dirty_inode(bh, inode);
+ 	affs_brelse(bh);
+-	unlock_kernel();
++	affs_free_prealloc(inode);
+ }
+ 
+ int
+@@ -236,8 +234,6 @@ affs_notify_change(struct dentry *dentry
+ 	struct inode *inode = dentry->d_inode;
+ 	int error;
+ 
+-	lock_kernel();
+-
+ 	pr_debug("AFFS: notify_change(%lu,0x%x)\n",inode->i_ino,attr->ia_valid);
+ 
+ 	error = inode_change_ok(inode,attr);
+@@ -257,7 +253,6 @@ affs_notify_change(struct dentry *dentry
+ 	if (!error && (attr->ia_valid & ATTR_MODE))
+ 		mode_to_prot(inode);
+ out:
+-	unlock_kernel();
+ 	return error;
+ }
+ 
+@@ -265,15 +260,13 @@ void
+ affs_put_inode(struct inode *inode)
+ {
+ 	pr_debug("AFFS: put_inode(ino=%lu, nlink=%u)\n", inode->i_ino, inode->i_nlink);
+-	lock_kernel();
+ 	affs_free_prealloc(inode);
+ 	if (atomic_read(&inode->i_count) == 1) {
++		down(&inode->i_sem);
+ 		if (inode->i_size != AFFS_I(inode)->mmu_private)
+ 			affs_truncate(inode);
+-		//if (inode->i_nlink)
+-		//	affs_clear_inode(inode);
++		up(&inode->i_sem);
+ 	}
+-	unlock_kernel();
+ }
+ 
+ void
+@@ -284,9 +277,7 @@ affs_delete_inode(struct inode *inode)
+ 	if (S_ISREG(inode->i_mode))
+ 		affs_truncate(inode);
+ 	clear_inode(inode);
+-	lock_kernel();
+ 	affs_free_block(inode->i_sb, inode->i_ino);
+-	unlock_kernel();
+ }
+ 
+ void
+--- linux/fs/affs/namei.c	11 Nov 2002 18:56:17 -0000	1.1.1.8
++++ linux/fs/affs/namei.c	16 Mar 2003 00:35:31 -0000
+@@ -218,12 +218,10 @@ affs_lookup(struct inode *dir, struct de
+ 
+ 	pr_debug("AFFS: lookup(\"%.*s\")\n",(int)dentry->d_name.len,dentry->d_name.name);
+ 
+-	lock_kernel();
+ 	affs_lock_dir(dir);
+ 	bh = affs_find_entry(dir, dentry);
+ 	affs_unlock_dir(dir);
+ 	if (IS_ERR(bh)) {
+-		unlock_kernel();
+ 		return ERR_PTR(PTR_ERR(bh));
+ 	}
+ 	if (bh) {
+@@ -240,12 +238,10 @@ affs_lookup(struct inode *dir, struct de
+ 		affs_brelse(bh);
+ 		inode = iget(sb, ino);
+ 		if (!inode) {
+-			unlock_kernel();
+ 			return ERR_PTR(-EACCES);
+ 		}
+ 	}
+ 	dentry->d_op = AFFS_SB(sb)->s_flags & SF_INTL ? &affs_intl_dentry_operations : &affs_dentry_operations;
+-	unlock_kernel();
+ 	d_add(dentry, inode);
+ 	return NULL;
+ }
+@@ -253,17 +249,10 @@ affs_lookup(struct inode *dir, struct de
+ int
+ affs_unlink(struct inode *dir, struct dentry *dentry)
+ {
+-	int res;
+ 	pr_debug("AFFS: unlink(dir=%d, \"%.*s\")\n", (u32)dir->i_ino,
+ 		 (int)dentry->d_name.len, dentry->d_name.name);
+ 
+-	if (!dentry->d_inode)
+-		return -ENOENT;
+-
+-	lock_kernel();
+-	res = affs_remove_header(dentry);
+-	unlock_kernel();
+-	return res;
++	return affs_remove_header(dentry);
+ }
+ 
+ int
+@@ -276,12 +265,9 @@ affs_create(struct inode *dir, struct de
+ 	pr_debug("AFFS: create(%lu,\"%.*s\",0%o)\n",dir->i_ino,(int)dentry->d_name.len,
+ 		 dentry->d_name.name,mode);
+ 
+-	lock_kernel();
+ 	inode = affs_new_inode(dir);
+-	if (!inode) {
+-		unlock_kernel();
++	if (!inode)
+ 		return -ENOSPC;
+-	}
+ 
+ 	inode->i_mode = mode;
+ 	mode_to_prot(inode);
+@@ -294,10 +280,8 @@ affs_create(struct inode *dir, struct de
+ 	if (error) {
+ 		inode->i_nlink = 0;
+ 		iput(inode);
+-		unlock_kernel();
+ 		return error;
+ 	}
+-	unlock_kernel();
+ 	return 0;
+ }
+ 
+@@ -310,12 +294,9 @@ affs_mkdir(struct inode *dir, struct den
+ 	pr_debug("AFFS: mkdir(%lu,\"%.*s\",0%o)\n",dir->i_ino,
+ 		 (int)dentry->d_name.len,dentry->d_name.name,mode);
+ 
+-	lock_kernel();
+ 	inode = affs_new_inode(dir);
+-	if (!inode) {
+-		unlock_kernel();
++	if (!inode)
+ 		return -ENOSPC;
+-	}
+ 
+ 	inode->i_mode = S_IFDIR | mode;
+ 	mode_to_prot(inode);
+@@ -328,10 +309,8 @@ affs_mkdir(struct inode *dir, struct den
+ 		inode->i_nlink = 0;
+ 		mark_inode_dirty(inode);
+ 		iput(inode);
+-		unlock_kernel();
+ 		return error;
+ 	}
+-	unlock_kernel();
+ 	return 0;
+ }
+ 
+@@ -357,14 +336,10 @@ affs_symlink(struct inode *dir, struct d
+ 	pr_debug("AFFS: symlink(%lu,\"%.*s\" -> \"%s\")\n",dir->i_ino,
+ 		 (int)dentry->d_name.len,dentry->d_name.name,symname);
+ 
+-	lock_kernel();
+ 	maxlen = AFFS_SB(sb)->s_hashsize * sizeof(u32) - 1;
+-	error = -ENOSPC;
+ 	inode  = affs_new_inode(dir);
+-	if (!inode) {
+-		unlock_kernel();
++	if (!inode)
+ 		return -ENOSPC;
+-	}
+ 
+ 	inode->i_op = &affs_symlink_inode_operations;
+ 	inode->i_data.a_ops = &affs_symlink_aops;
+@@ -410,7 +385,6 @@ affs_symlink(struct inode *dir, struct d
+ 	error = affs_add_entry(dir, inode, dentry, ST_SOFTLINK);
+ 	if (error)
+ 		goto err;
+-	unlock_kernel();
+ 
+ 	return 0;
+ 
+@@ -418,7 +392,6 @@ err:
+ 	inode->i_nlink = 0;
+ 	mark_inode_dirty(inode);
+ 	iput(inode);
+-	unlock_kernel();
+ 	return error;
+ }
+ 
+@@ -426,23 +399,11 @@ int
+ affs_link(struct dentry *old_dentry, struct inode *dir, struct dentry *dentry)
+ {
+ 	struct inode *inode = old_dentry->d_inode;
+-	int error;
+ 
+ 	pr_debug("AFFS: link(%u, %u, \"%.*s\")\n", (u32)inode->i_ino, (u32)dir->i_ino,
+ 		 (int)dentry->d_name.len,dentry->d_name.name);
+ 
+-	lock_kernel();
+-	error = affs_add_entry(dir, inode, dentry, ST_LINKFILE);
+-	if (error) {
+-		/* WTF??? */
+-		inode->i_nlink = 0;
+-		mark_inode_dirty(inode);
+-		iput(inode);
+-		unlock_kernel();
+-		return error;
+-	}
+-	unlock_kernel();
+-	return 0;
++	return affs_add_entry(dir, inode, dentry, ST_LINKFILE);
+ }
+ 
+ int
+@@ -453,21 +414,19 @@ affs_rename(struct inode *old_dir, struc
+ 	struct buffer_head *bh = NULL;
+ 	int retval;
+ 
+-	lock_kernel();
+ 	pr_debug("AFFS: rename(old=%u,\"%*s\" to new=%u,\"%*s\")\n",
+ 		 (u32)old_dir->i_ino, (int)old_dentry->d_name.len, old_dentry->d_name.name,
+ 		 (u32)new_dir->i_ino, (int)new_dentry->d_name.len, new_dentry->d_name.name);
+ 
+-	if ((retval = affs_check_name(new_dentry->d_name.name,new_dentry->d_name.len)))
+-		goto done;
++	retval = affs_check_name(new_dentry->d_name.name,new_dentry->d_name.len);
++	if (retval)
++		return retval;
+ 
+ 	/* Unlink destination if it already exists */
+ 	if (new_dentry->d_inode) {
+ 		retval = affs_remove_header(new_dentry);
+-		if (retval) {
+-			unlock_kernel();
++		if (retval)
+ 			return retval;
+-		}
+ 	}
+ 
+ 	retval = -EIO;
+@@ -493,6 +452,5 @@ affs_rename(struct inode *old_dir, struc
+ done:
+ 	mark_buffer_dirty_inode(bh, retval ? old_dir : new_dir);
+ 	affs_brelse(bh);
+-	unlock_kernel();
+ 	return retval;
+ }
+--- linux/fs/affs/super.c	27 Jan 2003 21:03:20 -0000	1.1.1.15
++++ linux/fs/affs/super.c	16 Mar 2003 00:35:31 -0000
+@@ -40,7 +40,6 @@ static void
+ affs_put_super(struct super_block *sb)
+ {
+ 	struct affs_sb_info *sbi = AFFS_SB(sb);
+-	lock_kernel();
+ 	pr_debug("AFFS: put_super()\n");
+ 
+ 	if (!(sb->s_flags & MS_RDONLY)) {
+@@ -58,7 +57,6 @@ affs_put_super(struct super_block *sb)
+ 	affs_brelse(sbi->s_root_bh);
+ 	kfree(sbi);
+ 	sb->s_fs_info = NULL;
+-	unlock_kernel();
+ 	return;
+ }
+ 
+@@ -67,7 +65,7 @@ affs_write_super(struct super_block *sb)
+ {
+ 	int clean = 2;
+ 	struct affs_sb_info *sbi = AFFS_SB(sb);
+-	lock_kernel();
++
+ 	if (!(sb->s_flags & MS_RDONLY)) {
+ 		//	if (sbi->s_bitmap[i].bm_bh) {
+ 		//		if (buffer_dirty(sbi->s_bitmap[i].bm_bh)) {
+@@ -81,7 +79,7 @@ affs_write_super(struct super_block *sb)
+ 	} else
+ 		sb->s_dirt = 0;
+ 
+-	unlock_kernel();
++	pr_debug("AFFS: write_super() at %lu, clean=%d\n", get_seconds(), clean);
+ }
+ 
+ static kmem_cache_t * affs_inode_cachep;
+--- linux/fs/affs/symlink.c	11 Nov 2002 18:56:17 -0000	1.1.1.5
++++ linux/fs/affs/symlink.c	16 Mar 2003 00:35:31 -0000
+@@ -32,9 +32,7 @@ static int affs_symlink_readpage(struct 
+ 	pr_debug("AFFS: follow_link(ino=%lu)\n",inode->i_ino);
+ 
+ 	err = -EIO;
+-	lock_kernel();
+ 	bh = affs_bread(inode->i_sb, inode->i_ino);
+-	unlock_kernel();
+ 	if (!bh)
+ 		goto fail;
+ 	i  = 0;
+@@ -63,9 +61,7 @@ static int affs_symlink_readpage(struct 
+ 		j++;
+ 	}
+ 	link[i] = '\0';
+-	lock_kernel();
+ 	affs_brelse(bh);
+-	unlock_kernel();
+ 	SetPageUptodate(page);
+ 	kunmap(page);
+ 	unlock_page(page);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
