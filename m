@@ -1,73 +1,65 @@
-Received: from d12relay01.megacenter.de.ibm.com (d12relay01.megacenter.de.ibm.com [9.149.165.180])
-	by mtagate7.de.ibm.com (8.12.10/8.12.10) with ESMTP id i32EHJv4028810
-	for <linux-mm@kvack.org>; Fri, 2 Apr 2004 14:17:22 GMT
-Received: from mschwid3.boeblingen.de.ibm.com (d12av02.megacenter.de.ibm.com [9.149.165.228])
-	by d12relay01.megacenter.de.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id i32EHHaA187088
-	for <linux-mm@kvack.org>; Fri, 2 Apr 2004 16:17:18 +0200
-Received: from sky by mschwid3.boeblingen.de.ibm.com with local (Exim 3.36 #1 (Debian))
-	id 1B9PTq-0000Uv-00
-	for <linux-mm@kvack.org>; Fri, 02 Apr 2004 16:17:10 +0200
-Date: Fri, 2 Apr 2004 16:17:10 +0200
-From: Martin Schwidefsky <schwidefsky@de.ibm.com>
-Subject: [PATCH] get_user_pages shortcut for anonymous pages.
-Message-ID: <20040402141710.GA1903@mschwid3.boeblingen.de.ibm.com>
+Date: Fri, 2 Apr 2004 17:22:40 +0200
+From: Andrea Arcangeli <andrea@suse.de>
+Subject: Re: [RFC][PATCH 1/3] radix priority search tree - objrmap complexity fix
+Message-ID: <20040402152240.GA21341@dualathlon.random>
+References: <20040402001535.GG18585@dualathlon.random> <Pine.LNX.4.44.0404020145490.2423-100000@localhost.localdomain> <20040402011627.GK18585@dualathlon.random> <20040401173649.22f734cd.akpm@osdl.org> <20040402020022.GN18585@dualathlon.random> <20040401180802.219ece99.akpm@osdl.org> <20040402022233.GQ18585@dualathlon.random> <20040402070525.A31581@infradead.org>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <20040402070525.A31581@infradead.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Christoph Hellwig <hch@infradead.org>, Andrew Morton <akpm@osdl.org>, hugh@veritas.com, vrajesh@umich.edu, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
-did anybody else stumble over the bigcore test case in gdb on a 64
-bit architecture? For s390-64 and no ulimit the bigcore test in
-fact crashes the kernel. The system is still pingable but it doesn't
-do anything because every single pages is used for page tables. The
-bigcore process is not terminated because the system thinks that
-there is enough swap space left to free some pages to continue.
-But this isn't true because its all page tables. I can't solve the
-real problem (too many page table pages) but I have a patch that
-helps with the bigcore test. The reason why bigcore creates a lot
-of pages tables is that the elf core dumper uses get_user_pages to
-get the pages frames for all vmas of the process. get_user_pages
-does a lookup for each page with follow_page and if the page
-doesn't exist uses handle_mm_fault to force the page in if possible. 
-It's handle_mm_fault that allocates the page middle directories and
-the page tables. To prevent that I added a check to get_user_pages
-to find out if the vma in question is for an anonymous mapping and
-if the caller of get_user_pages only wants to read from the pages.
-If this is the case (and follow_page returned NULL) just return
-ZERO_PAGE without going over handle_mm_fault.
-I tested this on a 256MB machine and bigcore successfully created
-a 2TB sparse file that gdb could read. Is this something that is
-worth to pursue or I am just wasting my time ?
+On Fri, Apr 02, 2004 at 07:05:25AM +0100, Christoph Hellwig wrote:
+> On Fri, Apr 02, 2004 at 04:22:33AM +0200, Andrea Arcangeli wrote:
+> > Well, I doubt anybody could take advantage of this optimization, since
+> > nobody can ship with hugetlbfs disabled anyways (peraphs with the
+> > exception of the embedded people but then I doubt they want to risk
+> 
+> Common. stop smoking that bad stuff.  Almost non-one except the known
+> oracle whores SuSE and RH need it.  Remeber Linux is used much more widely
+> except the known "Enterprise" vendors.  None of the NAS/networking/media
+> applicances or pdas I've seen has the slightest need for hugetlbfs.
 
-blues skies,
-  Martin.
+I already explained the reason of the changes, and they've nothing to do
+with hugetlbfs. The whole thing has nothing to do with hugetlbfs. I also
+proposed a way to optimize _always_ regardless of hugetlbfs=y or =n, by
+just turning my __GFP_NO_COPM into a __GFP_COMP, again regardless of
+hugetlbfs. The current mainline code returning different things from
+alloc_pages depending on a hugetlbfs compile option is totally broken
+and I simply fixed it. this has absolutely nothing to do with the
+hugetlbfs users.
 
-diff -urN linux-2.6/mm/memory.c linux-2.6-bigcore/mm/memory.c
---- linux-2.6/mm/memory.c	Fri Apr  2 11:05:27 2004
-+++ linux-2.6-bigcore/mm/memory.c	Fri Apr  2 11:08:08 2004
-@@ -750,6 +750,18 @@
- 			struct page *map;
- 			int lookup_write = write;
- 			while (!(map = follow_page(mm, start, lookup_write))) {
-+				/*
-+				 * Shortcut for anonymous pages. We don't want
-+				 * to force the creation of pages tables for
-+				 * insanly big anonymously mapped areas that
-+				 * nobody touched so far. This is important
-+				 * for doing a core dump for these mappings.
-+				 */
-+				if (!lookup_write && 
-+				    (!vma->vm_ops || !vma->vm_ops->nopage)) {
-+					map = ZERO_PAGE(start);
-+					break;
-+				}
- 				spin_unlock(&mm->page_table_lock);
- 				switch (handle_mm_fault(mm,vma,start,write)) {
- 				case VM_FAULT_MINOR:
+About your comment about SUSE and RH being the only ones shipping with
+hugetlbfs turned on, I very strongly doubt that any other distribution
+can ship with hugetlbfs turned off, just go ask them, I bet you will
+have a surprised that they turn it on too.
+
+The only ones that may not turn it on are probably the embedded people
+using a custom kernel, but as I said I strongly doubt they want to risk
+to trigger driver bugs with a different alloc_pages API since nobody
+tested that API since everybody is going to turn hugetlbfs on.
+
+As far as I can tell the number of people that runs with hugetlbfs off
+is a niche compared to the ones that will turn it on and you're totally
+wrong about claiming the opposite. You're confusing the number of active
+hugetlbfs users with the number of users that have a kernel compiled
+with hugetlbfs=y. That's a completely different thing. And regardless I
+proposed a way to optimize it. Plus I fixed a very bad bug that triggers
+with hugetlbfs=n and that obviously nobody tested, expce the
+CONFIG_MMU=n people, that infact had it fixed only for CONFIG_MM=n, that
+as well was totally broken since the alloc_pages API must be indipendent
+from CONFIG_MMU, that's a physical-memory thing. So stop making
+aggressive claims on l-k, especially when you're wrong.
+
+I'll now look into the bug that you triggered with xfs. Did you ever
+test with hugetlbfs=y before btw (maybe you were one of the users
+keeping it off always and now noticing the API changes under you, and
+now benefiting from my standardization of the API)? Could be a bug in my
+changes too (though it works fine for me), we'll see.
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
