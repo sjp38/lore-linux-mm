@@ -1,42 +1,35 @@
-Date: Sat, 11 Jul 1998 16:14:26 +0200 (CEST)
-From: Rik van Riel <H.H.vanRiel@phys.uu.nl>
-Reply-To: Rik van Riel <H.H.vanRiel@phys.uu.nl>
-Subject: Re: cp file /dev/zero <-> cache [was Re: increasing page size]
-In-Reply-To: <199807091442.PAA01020@dax.dcs.ed.ac.uk>
-Message-ID: <Pine.LNX.3.96.980711161041.6711A-100000@mirkwood.dummy.home>
+Received: from renko.ucs.ed.ac.uk (renko.ucs.ed.ac.uk [129.215.13.3])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id RAA26832
+	for <linux-mm@kvack.org>; Sat, 11 Jul 1998 17:13:20 -0400
+Date: Sat, 11 Jul 1998 22:11:58 +0100
+Message-Id: <199807112111.WAA03428@dax.dcs.ed.ac.uk>
+From: "Stephen C. Tweedie" <sct@redhat.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Subject: Re: cp file /dev/zero <-> cache [was Re: increasing page size]
+In-Reply-To: <Pine.LNX.3.96.980711131614.6185A-100000@mirkwood.dummy.home>
+References: <Pine.LNX.3.96.980708231741.352A-100000@dragon.bogus>
+	<Pine.LNX.3.96.980711131614.6185A-100000@mirkwood.dummy.home>
 Sender: owner-linux-mm@kvack.org
-To: "Stephen C. Tweedie" <sct@redhat.com>
-Cc: "Benjamin C.R. LaHaise" <blah@kvack.org>, Linux MM <linux-mm@kvack.org>
+To: Rik van Riel <H.H.vanRiel@phys.uu.nl>
+Cc: Andrea Arcangeli <arcangeli@mbox.queen.it>, Linux MM <linux-mm@kvack.org>, Stephen Tweedie <sct@redhat.com>, Linux Kernel <linux-kernel@vger.rutgers.edu>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 9 Jul 1998, Stephen C. Tweedie wrote:
+Hi,
 
-> There's a fundamentally nice property about the multi-level cache
-> which we _cannot_ easily emulate with page aging, and that is the
-> ability to avoid aging any hot pages at all while we are just
-> consuming cold pages.  For example, a large "find|xargs grep" can be
-> satisfied without staling any of the existing hot cached pages.
+On Sat, 11 Jul 1998 13:18:35 +0200 (CEST), Rik van Riel
+<H.H.vanRiel@phys.uu.nl> said:
 
-Thinking over this design, I wonder how many levels
-we'll need for normal operation, and how many pages
-are allowed in each level.
+> This morning I have posted a patch to Linux MM which can
+> drastically improve this situation.
 
-I'd think we'll want 4 levels, with each 'lower'
-level having 30% to 70% more pages than the level
-above. This should be enough to cater to the needs
-of both rc5des-like programs and multi-megabyte
-tiled image processing.
+> For the low-mem linux-kernel users, you can get the patch
+> from my homepage too.
 
-Then again, I could be completely wrong :) Anyone?
+I can't see it...
 
-Rik.
-+-------------------------------------------------------------------+
-| Linux memory management tour guide.        H.H.vanRiel@phys.uu.nl |
-| Scouting Vries cubscout leader.      http://www.phys.uu.nl/~riel/ |
-+-------------------------------------------------------------------+
-
+--Stephen
 --
 This is a majordomo managed list.  To unsubscribe, send a message with
 the body 'unsubscribe linux-mm me@address' to: majordomo@kvack.org
