@@ -1,55 +1,31 @@
-From: Alistair John Strachan <s0348365@sms.ed.ac.uk>
-Reply-To: s0348365@sms.ed.ac.uk
-Subject: Re: 2.6.2-rc3-mm1
-Date: Wed, 4 Feb 2004 10:05:26 +0000
-References: <20040202235817.5c3feaf3.akpm@osdl.org> <200402032347.36489.s0348365@sms.ed.ac.uk> <Pine.LNX.4.58.0402031941560.665@uberdeity>
-In-Reply-To: <Pine.LNX.4.58.0402031941560.665@uberdeity>
+Message-ID: <4020C356.6070404@cyberone.com.au>
+Date: Wed, 04 Feb 2004 21:03:02 +1100
+From: Nick Piggin <piggin@cyberone.com.au>
 MIME-Version: 1.0
-Content-Disposition: inline
-Content-Type: text/plain;
-  charset="iso-8859-1"
+Subject: Re: [PATCH 5/5] mm improvements
+References: <4020BDCB.8030707@cyberone.com.au> <4020BE94.1040001@cyberone.com.au>
+In-Reply-To: <4020BE94.1040001@cyberone.com.au>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
-Message-Id: <200402041005.26649.s0348365@sms.ed.ac.uk>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: Derek Foreman <manmower@signalmarketing.com>, Bartlomiej Zolnierkiewicz <B.Zolnierkiewicz@elka.pw.edu.pl>, Andrew Morton <akpm@osdl.org>, linux-mm@kvack.org
+To: Andrew Morton <akpm@osdl.org>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wednesday 04 February 2004 01:43, Derek Foreman wrote:
-> On Tue, 3 Feb 2004, Alistair John Strachan wrote:
-> > On Tuesday 03 February 2004 18:32, Bartlomiej Zolnierkiewicz wrote:
-> > > On Tuesday 03 of February 2004 18:39, Alistair John Strachan wrote:
-[snip]
-> > > > UDMA(133) /dev/ide/host0/bus0/target0/lun0: p1 p2 p3
-> > > > hde: max request size: 128KiB
-> > > >
-> > > > 30 seconds later, I get something like:
-> > > >
-> > > > hde: lost interrupt
-> > > > hde: lost interrupt
+
+Nick Piggin wrote:
+
+> Nick Piggin wrote:
 >
-> Just a quick check to make sure this isn't the same ACPI problem I'm
-> seeing here with an Nforce2 board and recent kernels...
+>> 5/5: vm-tune-throttle.patch
+>>     Try to allocate a bit harder before giving up / throttling on
+>>     writeout.
+>>
 >
-> Does the "acpi=off" boot parameter make things work?
 
-Thanks, this was it. I should've tried this first. Bart, the driver comes up 
-just fine with acpi disabled in the most recent kernels.
+That would be "try to free a bit harder"
 
-ACPI is clearly broken on nForce 2, though, and booting my system with 
-acpi=off, although allowing me to get to init, breaks USB initialisation. 
-This breakage must have been introduced since 2.6.2-rc1-mm1.
-
--- 
-Cheers,
-Alistair.
-
-personal:   alistair()devzero!co!uk
-university: s0348365()sms!ed!ac!uk
-student:    CS/AI Undergraduate
-contact:    7/10 Darroch Court,
-            University of Edinburgh.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
