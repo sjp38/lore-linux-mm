@@ -1,21 +1,20 @@
-Received: from atlas.CARNet.hr (zcalusic@atlas.CARNet.hr [161.53.123.163])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id DAA03853
-	for <linux-mm@kvack.org>; Thu, 3 Dec 1998 03:55:33 -0500
+Received: from max.phys.uu.nl (max.phys.uu.nl [131.211.32.73])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id FAA04311
+	for <linux-mm@kvack.org>; Thu, 3 Dec 1998 05:39:38 -0500
+Date: Thu, 3 Dec 1998 11:07:53 +0100 (CET)
+From: Rik van Riel <H.H.vanRiel@phys.uu.nl>
+Reply-To: Rik van Riel <H.H.vanRiel@phys.uu.nl>
 Subject: Re: [PATCH] swapin readahead
-References: <87vhjvkccu.fsf@atlas.CARNet.hr> <Pine.LNX.3.96.981201192554.4046A-100000@mirkwood.dummy.home> <199812021735.RAA04489@dax.scot.redhat.com> <87d862gs3h.fsf@atlas.CARNet.hr> <m1af15iyp9.fsf@flinx.ccr.net>
-Reply-To: Zlatko.Calusic@CARNet.hr
-Mime-Version: 1.0
-From: Zlatko Calusic <Zlatko.Calusic@CARNet.hr>
-Date: 03 Dec 1998 09:55:13 +0100
-In-Reply-To: ebiederm+eric@ccr.net's message of "02 Dec 1998 23:25:38 -0600"
-Message-ID: <8767bt7gge.fsf@atlas.CARNet.hr>
+In-Reply-To: <m1af15iyp9.fsf@flinx.ccr.net>
+Message-ID: <Pine.LNX.3.96.981203110335.4894A-100000@mirkwood.dummy.home>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 To: "Eric W. Biederman" <ebiederm+eric@ccr.net>
-Cc: "Stephen C. Tweedie" <sct@redhat.com>, Rik van Riel <H.H.vanRiel@phys.uu.nl>, Linux MM <linux-mm@kvack.org>
+Cc: Zlatko Calusic <Zlatko.Calusic@CARNet.hr>, "Stephen C. Tweedie" <sct@redhat.com>, Linux MM <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-ebiederm+eric@ccr.net (Eric W. Biederman) writes:
-
+On 2 Dec 1998, Eric W. Biederman wrote:
 > >>>>> "ZC" == Zlatko Calusic <Zlatko.Calusic@CARNet.hr> writes:
 > 
 > ZC> Trying 2.1.131-2, I'm mostly satisfied with MM workout, but...
@@ -29,37 +28,27 @@ ebiederm+eric@ccr.net (Eric W. Biederman) writes:
 > started all of the disk i/o that is reasonable for now and need to
 > switch to something else.
 
-I tried that approach (Rik has tried also) but only to find that
-swapout speed drops. Will investigate further...
+     if (buffer_over_borrow() || pgcache_over_borrow())
+             state = 0;              
+     if (atomic_read(&nr_async_pages) > pager_daemon.swap_cluster / 2)
+             shrink_mmap(i, gfp_mask);
 
-> 
-> This should have the same effect as the switches with the limits on
-> the swap cache but more autobalancing.  I'm nervous of a kernel that
-> needs small limits on it's disk cache to work correctly.
+I have this piece of code in my vmscan.c in do_try_to_free_page().
 
-Yes, that is exactly my point.
+It turns out to give the result we all seem to want. It has the
+old balancing code (that works) and makes an extra round through
+shrink_mmap() when we have been swapping stuff...
 
-I'm glad there is at least one person to share an opinion with. :)
+Please try it before dismissing :)
 
-> 
-> ZC> What I wanted to ask is: do you guys share my opinion, and what
-> ZC> changes would you like to see before 2.2 comes out?
-> 
-> One thing worth putting in.  Probably before to 2.2 but definentily
-> before any swap page readahead is done is to start using brw_page
-> for swapfiles.  I don't know about synchronous cases, but in the when
-> asynchronous operation is important it improves swapfile performance
-> immensely.
-> 
+cheers,
 
-Speaking about swap files (as opposed to swap partitions) what is the
-reason for synchronous operation when swapping to them, at first
-place? Races?
+Rik -- the flu hits, the flu hits, the flu hits -- MORE
++-------------------------------------------------------------------+
+| Linux memory management tour guide.        H.H.vanRiel@phys.uu.nl |
+| Scouting Vries cubscout leader.      http://www.phys.uu.nl/~riel/ |
++-------------------------------------------------------------------+
 
--- 
-Posted by Zlatko Calusic           E-mail: <Zlatko.Calusic@CARNet.hr>
----------------------------------------------------------------------
-       If you can't make it good, make it LOOK good." B. Gates
 --
 This is a majordomo managed list.  To unsubscribe, send a message with
 the body 'unsubscribe linux-mm me@address' to: majordomo@kvack.org
