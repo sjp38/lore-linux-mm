@@ -1,7 +1,7 @@
-Date: Wed, 18 Feb 2004 15:32:34 -0800
+Date: Wed, 18 Feb 2004 16:28:58 -0800
 From: Andrew Morton <akpm@osdl.org>
 Subject: Re: Non-GPL export of invalidate_mmap_range
-Message-Id: <20040218153234.3956af3a.akpm@osdl.org>
+Message-Id: <20040218162858.2a230401.akpm@osdl.org>
 In-Reply-To: <20040218230055.A14889@infradead.org>
 References: <20040216190927.GA2969@us.ibm.com>
 	<20040217073522.A25921@infradead.org>
@@ -28,17 +28,30 @@ Christoph Hellwig <hch@infradead.org> wrote:
 > Yes.  Andrew, please read the GPL, it's very clear about derived works.
 > Then please tell me why you think gpfs is not a derived work.
 
-I haven't seen the code.
+OK, so I looked at the wrapper.  It wasn't a tremendously pleasant
+experience.  It is huge, and uses fairly standard-looking filesytem
+interfaces and locking primitives.  Also some awareness of NFSV4 for some
+reason.
 
-> > But at the end of the day, if we decide to not export this symbol, we owe
-> > Paul a good, solid reason, yes?
-> 
-> Yes.  We've traditionally not exported symbols unless we had an intree user,
-> and especially not if it's for a module that's not GPL licensed.
+Still, the wrapper is GPL so this is not relevant.  Its only use is to tell
+us whether or not the non-GPL bits are "derived" from Linux, and it
+doesn't do that.
 
-That's certainly a good rule of thumb and we (and I) have used it before.
+The GPL doesn't define a derived work.  It says
 
-What is the reasoning behind it?
+  "If identifiable sections of that work are not derived from the
+   Program, and can be reasonably considered independent and separate works
+   in themselves, then this License, and its terms, do not apply to those
+   sections when you distribute them as separate works.  But when you
+   distribute the same sections as part of a whole which is a work based on
+   the Program, the distribution of the whole must be on the terms of this
+   License, ..."
+
+And the "But when you distribute..." part is what the Linus doctrine rubs
+out.  Because it is unreasonable to say that a large piece of work such as
+this is "derived" from Linux.
+
+Why do you believe that GPFS represents a kernel licensing violation?
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
