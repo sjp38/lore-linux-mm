@@ -1,31 +1,38 @@
-Date: Fri, 14 Jan 2000 01:28:49 +0100 (CET)
+Date: Fri, 14 Jan 2000 01:33:54 +0100 (CET)
 From: Andrea Arcangeli <andrea@suse.de>
 Subject: Re: [RFC] 2.3.39 zone balancing
-In-Reply-To: <Pine.LNX.4.10.10001131428250.2250-100000@penguin.transmeta.com>
-Message-ID: <Pine.LNX.4.21.0001140124110.3816-100000@alpha.random>
+In-Reply-To: <Pine.LNX.4.10.10001131524580.2250-100000@penguin.transmeta.com>
+Message-ID: <Pine.LNX.4.21.0001140128510.3816-100000@alpha.random>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Linus Torvalds <torvalds@transmeta.com>
-Cc: Kanoj Sarcar <kanoj@google.engr.sgi.com>, Alan Cox <alan@lxorguk.ukuu.org.uk>, Rik van Riel <riel@nl.linux.org>, mingo@chiara.csoma.elte.hu, linux-mm@kvack.org, linux-kernel@vger.rutgers.edu
+Cc: Ingo Molnar <mingo@chiara.csoma.elte.hu>, Kanoj Sarcar <kanoj@google.engr.sgi.com>, Alan Cox <alan@lxorguk.ukuu.org.uk>, Rik van Riel <riel@nl.linux.org>, linux-mm@kvack.org, linux-kernel@vger.rutgers.edu
 List-ID: <linux-mm.kvack.org>
 
 On Thu, 13 Jan 2000, Linus Torvalds wrote:
 
->to keep some memory free. Also, while we don't use high-memory pages right
->now in BH and irq contexts, I don't think that is something we need to
->codify, and it may change in the future. There's no real reason per se for
+>Basically, my argument is that there is no way "swap_out()" can really
+>target any special zone, except by avoiding to do the final stage in a
+>long sequence of stages that it has already done. I think that's just
+>completely wasteful - doing all the work, and then at the last minute
+>deciding to not use the work after all. Especially as we don't really have
+>any good reason to believe that it's the right thing in the first place.
 
-Yes, it will change on 64bit platforms.
+The only problem in what you are suggesting is that you may end swapping
+out also the wrong pages. Suppose you want to allocate 4k of DMA
+memory. Why should the machine swapout lots of mbytes of data while it
+could only swapout 4k? And after each swapout we have to restart from the
+vma because to swapout we have to drop the pagetable lock and so the
+mappings can be changed from under us.
 
->not using them (except for complexity), so I'd hate to have a special case
->for that case.
+>So that's why I think the page table walker should be completely
+>zone-blind, and just not care. It's likely to be more "balanced" that way
+>anyway.
 
-With the current code the special case is necessary but a rewrite should
-be able to get rid of it cleanly. Anyway actually adding the number of
-freeable pages to the free pages when checking the watermark is completly
-buggy (this has nothing to do with the special case).
+The swapout will be definitely more balanced but we may end doing not
+necesary swapouts.
 
 Andrea
 
