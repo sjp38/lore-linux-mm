@@ -1,43 +1,43 @@
-Date: Sat, 6 May 2000 21:22:10 -0300 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
-Reply-To: riel@nl.linux.org
-Subject: Re: [DATAPOINT] pre7-6 will not swap
-In-Reply-To: <39149B81.B92C8741@sgi.com>
-Message-ID: <Pine.LNX.4.21.0005062119500.1174-100000@duckman.conectiva>
+Message-ID: <3913F0C4.D546D155@gnu.org>
+Date: Sat, 06 May 2000 20:15:32 +1000
+From: Andrew Clausen <clausen@gnu.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: How much to malloc(), without running into swap...?
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rajagopal Ananthanarayanan <ananth@sgi.com>
-Cc: Benjamin Redelings I <bredelin@ucla.edu>, Linus Torvalds <torvalds@transmeta.com>, linux-mm@kvack.org
+To: linux-mm@kvack.org
+Cc: parted@gnu.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 6 May 2000, Rajagopal Ananthanarayanan wrote:
+Hi all, (please cc me)
 
-> What do you guys think?
+I'm hacking GNU Parted, which can (amongst other things) resize
+file systems.  It's performance is GREATLY improved if large
+disk buffers are used, provided it doesn't need to swap to access
+the buffers ;-)
 
-I think you may want to take a look at
-page_alloc.c::__alloc_pages(), where the kernel balances
-between different zones...
+So, how can I maximize the buffer sizes, without running into
+swap?  Note: I don't want to disable swap, because a certain
+(large) minimum is required for storing metadata, etc., so
+low-memory machines might want to use a swap (despite it being
+slow).
 
-- kswapd is woken up when zone->free_pages < zone->pages_low
-- kswapd goes to sleep when it has freed enough pages in the
-  current zone
-- if another zone has a lower memory load, we'll free some
-  "extra" pages in that other zone, up to zone->pages_high
+So, I want to know:
+(a) how much I can malloc() without swapping
+(b) how much I can malloc() with swapping
 
-This should provide enough balancing between zones...
+Also, I presume all IO is going to have to go through the buffer
+cache, etc., so having a larger buffers means more consumption
+on the kernel side of things.  OTOH, it can probably kick out
+old cached data fairly quickly (i.e. data used by other programs)
+Any ideas on how to do the calc's?
 
-regards,
+BTW, is /proc/meminfo a good idea?
 
-Rik
---
-The Internet is not a network of computers. It is a network
-of people. That is its real strength.
-
-Wanna talk about the kernel?  irc.openprojects.net / #kernelnewbies
-http://www.conectiva.com/		http://www.surriel.com/
-
+Thanks!
+Andrew Clausen
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
