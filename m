@@ -1,65 +1,126 @@
-Date: Tue, 26 Oct 2004 23:01:10 +0900 (JST)
-Message-Id: <20041026.230110.21315175.taka@valinux.co.jp>
+Date: Tue, 26 Oct 2004 09:41:16 -0200
+From: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
 Subject: Re: migration cache, updated
-From: Hirokazu Takahashi <taka@valinux.co.jp>
-In-Reply-To: <20041026092535.GE24462@logos.cnet>
-References: <20041025213923.GD23133@logos.cnet>
-	<20041026.181504.38310112.taka@valinux.co.jp>
-	<20041026092535.GE24462@logos.cnet>
+Message-ID: <20041026114116.GB27014@logos.cnet>
+References: <20041025213923.GD23133@logos.cnet> <20041026.153731.38067476.taka@valinux.co.jp> <20041026092011.GD24462@logos.cnet> <20041026.224550.109999656.taka@valinux.co.jp>
 Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20041026.224550.109999656.taka@valinux.co.jp>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: marcelo.tosatti@cyclades.com
+To: Hirokazu Takahashi <taka@valinux.co.jp>
 Cc: linux-mm@kvack.org, iwamoto@valinux.co.jp, haveblue@us.ibm.com, hugh@veritas.com
 List-ID: <linux-mm.kvack.org>
 
-Hi, Marcelo,
-
-> > > diff -Nur --show-c-function linux-2.6.9-rc2-mm4.mhp.orig/mm/vmscan.c linux-2.6.9-rc2-mm4.build/mm/vmscan.c
-> > > --- linux-2.6.9-rc2-mm4.mhp.orig/mm/vmscan.c	2004-10-05 15:08:23.000000000 -0300
-> > > +++ linux-2.6.9-rc2-mm4.build/mm/vmscan.c	2004-10-25 19:15:56.000000000 -0200
-> > > @@ -459,7 +457,9 @@ int shrink_list(struct list_head *page_l
-> > >  		}
-> > >  
-> > >  #ifdef CONFIG_SWAP
-> > > -		if (PageSwapCache(page)) {
-> > > +		// FIXME: allow relocation of migrate cache pages 
-> > > +		// into real swap pages for swapout.
+On Tue, Oct 26, 2004 at 10:45:50PM +0900, Hirokazu Takahashi wrote:
+> Hi,
+> 
+> > > The previous code will cause deadlock, as the page is already locked.
 > > 
+> > Actually this one is fine - the page is not locked (its locked
+> > by the SwapCache pte path - not migration path)
 > > 
-> > In my thought, it would be better to remove a target page from the
-> > LRU lists prior to migration. So that it makes the swap code not to
-> > grab the page, which is in the migration cache.
+> > if (pte_is_migration(pte)) 
+> > 	lookup_migration_cache
+> > else 
+> > 	old lookup swap cache
+> > 	lock_page
+> > 
+> > if (pte_is_migration(pte))
+> > 	mark_page_accessed
+> > 	lock_page
 > 
-> I dont see a problem with having the pages on LRU - the reclaiming 
-> code sees it, but its unfreeable, so it doesnt touch it. 
+> Oh, I understand.
 > 
-> The reclaiming path should see its a migration page, unmap the pte's
-> to it, remap them to swapcache pages (and ptes), so they can be
-> swapped out on pressure.
+> > Can you please try the tests with the following updated patch
+> > 
+> > Works for me
 > 
-> Can you please expand your thoughts?
+> It didn't work without one fix.
+> 
+> +void remove_from_migration_cache(struct page *page, int id)
+> +{
+> +	write_lock_irq(&migration_space.tree_lock);
+> +        idr_remove(&migration_idr, id);
+> +	radix_tree_delete(&migration_space.page_tree, id);
+> +	ClearPageSwapCache(page);
+> +	page->private = NULL;
+> +	write_unlock_irq(&migration_space.tree_lock);
+> +}
+> 
+> +int migration_remove_reference(struct page *page)
+> +{
+> +	struct counter *c;
+> +	swp_entry_t entry;
+> +
+> +	entry.val = page->private;
+> +
+> +	read_lock_irq(&migration_space.tree_lock);
+> +
+> +	c = idr_find(&migration_idr, swp_offset(entry));
+> +
+> +	read_unlock_irq(&migration_space.tree_lock);
+> +
+> +	if (!c->i)
+> +		BUG();
+> +
+> +	c->i--;
+> +
+> +	if (!c->i) {
+> +		remove_from_migration_cache(page, page->private);
+> +		kfree(c);
+> 
+> page_cache_release(page) should be invoked here, as the count for
+> the migration cache must be decreased.
+> With this fix, your migration cache started to work very fine!
 
-I thought the easiest way to avoid the race condition was
-removing the page from LRU during memory migration.
-But there may be no problem about the page, which is unfreeable
-as you mentioned.
+Oh yes, I removed that by accident.
 
-BTW, I wonder how the migration code avoid to choose some pages
-on LRU, which may have count == 0. This may happen the pages
-are going to be removed. We have to care about it.
+> +	}
+> +		
+> +}
+> 
+> 
+> 
+> The attached patch is what I ported your patch to the latest version
+> and I fixed the bug.
+
+It seems a hunk from your own tree leaked into this patch?
+
+See above
+
+> @@ -367,11 +527,6 @@ generic_migrate_page(struct page *page, 
+>  
+>  	/* map the newpage where the old page have been mapped. */
+>  	touch_unmapped_address(&vlist);
+> -	if (PageSwapCache(newpage)) {
+> -		lock_page(newpage);
+> -		__remove_exclusive_swap_page(newpage, 1);
+> -		unlock_page(newpage);
+> -	}
+>  
+>  	page->mapping = NULL;
+>  	unlock_page(page);
+> @@ -383,11 +538,6 @@ out_busy:
+>  	/* Roll back all operations. */
+>  	rewind_page(page, newpage);
+>  	touch_unmapped_address(&vlist);
+> -	if (PageSwapCache(page)) {
+> -		lock_page(page);
+> -		__remove_exclusive_swap_page(page, 1);
+> -		unlock_page(page);
+> -	}
+>  	return ret;
+
+This two hunks?
+
+OK fine I'll update the patch with all fixes to 
+the newer version of -mhp, and start working 
+on the nonblocking version of the migration 
+functions.
 
 
-> > > +		if (PageSwapCache(page) && !PageMigration(page)) {
-> > >  			swp_entry_t swap = { .val = page->private };
-> > >  			__delete_from_swap_cache(page);
-> > >  			write_unlock_irq(&mapping->tree_lock);
-> > > 
-
-Thanks,
-Hirokazu Takahashi.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
