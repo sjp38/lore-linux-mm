@@ -1,56 +1,45 @@
-Date: Mon, 16 Sep 2002 00:07:58 -0300 (BRT)
-From: Rik van Riel <riel@conectiva.com.br>
-Subject: Re: [PATCH](3/2) rmap14 for ac  (was: Re: 2.5.34-mm4)
-Message-ID: <Pine.LNX.4.44L.0209160005230.1857-100000@imladris.surriel.com>
+Content-Type: text/plain;
+  charset="iso-8859-1"
+From: Ed Tomlinson <tomlins@cam.org>
+Subject: Re: [PATCH] ageable slab callbacks
+Date: Sun, 15 Sep 2002 19:54:25 -0400
+References: <200209151436.20171.tomlins@cam.org> <3D851B5A.49F4296B@digeo.com>
+In-Reply-To: <3D851B5A.49F4296B@digeo.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Transfer-Encoding: 8bit
+Message-Id: <200209151954.25689.tomlins@cam.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Alan Cox <alan@lxorguk.ukuu.org.uk>
-Cc: Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Robert Love <rml@tech9.net>
+To: Andrew Morton <akpm@digeo.com>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+On September 15, 2002 07:44 pm, Andrew Morton wrote:
+> Hi, Ed.
 
-as an added bonus, here is patch 3 out of 2, with a small
-SMP bugfix. It turned out Arjan's patch for rmap14 wasn't
-safe as vmtruncate calls zap_page_range while holding a
-spinlock.  Guess I'll have to release rmap14b soon ;)
+Geez, I did miss alot didn't I?  Thanks for the review, I will
+eyeball the next one much more carefully.
 
-Rik
--- 
-Bravely reimplemented by the knights who say "NIH".
-http://www.surriel.com/		http://distro.conectiva.com/
-Spamtraps of the month:  september@surriel.com trac@trac.org
+> Ed Tomlinson wrote:
+> > Hi,
+> >
+> > This lets the vm use callbacks to shrink ageable caches.   With this we
+> > avoid having to change vmscan if an ageable cache family is added.  It
+> > also batches calls to the prune methods (SHRINK_BATCH).
+>
+> I do believe it would be better to move the batching logic into
+> slab.c and not make the individual cache implementations have
+> to know about it.  Just put the accumulators into cachep-> and
+> only call the shrinker when the counter reaches the threshold
 
+Yes it would be better.  Problem is how to find the number of entries in
+the cache we want to prune.  We could ask the shrink callback return
+this when passed a zero in ratio - I do not like dual purpose functions
+that much though...
 
-# This is a BitKeeper generated patch for the following project:
-# Project Name: Linux kernel tree
-# This patch format is intended for GNU patch command version 2.5 or higher.
-# This patch includes the following deltas:
-#	           ChangeSet	1.688   -> 1.689
-#	         mm/memory.c	1.56    -> 1.57
-#
-# The following is the BitKeeper ChangeSet Log
-# --------------------------------------------
-# 02/09/16	riel@imladris.surriel.com	1.689
-# vmtruncate calls zap_page_range() with a spinlock held, so remove
-# the explicit low latency schedule -- rml
-# --------------------------------------------
-#
-diff -Nru a/mm/memory.c b/mm/memory.c
---- a/mm/memory.c	Mon Sep 16 00:05:15 2002
-+++ b/mm/memory.c	Mon Sep 16 00:05:15 2002
-@@ -436,9 +436,6 @@
+Thanks,
 
- 		spin_unlock(&mm->page_table_lock);
-
--		if (current->need_resched)
--			schedule();
--
- 		address += block;
- 		size -= block;
- 	}
+Ed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
