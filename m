@@ -1,38 +1,45 @@
-Date: Fri, 20 Apr 2001 11:30:35 -0300 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
+Date: Fri, 20 Apr 2001 09:48:16 -0500
+From: Dave McCracken <dmc@austin.ibm.com>
 Subject: Re: suspend processes at load (was Re: a simple OOM ...)
-In-Reply-To: <Pine.LNX.4.30.0104201525350.20939-100000@fs131-224.f-secure.com>
-Message-ID: <Pine.LNX.4.21.0104201129360.1685-100000@imladris.rielhome.conectiva>
+Message-ID: <10520000.987778096@baldur>
+In-Reply-To: <Pine.LNX.4.30.0104201203280.20939-100000@fs131-224.f-secure.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Szabolcs Szakacsits <szaka@f-secure.com>
-Cc: Jonathan Morton <chromi@cyberspace.org>, Dave McCracken <dmc@austin.ibm.com>, "James A. Sutherland" <jas88@cam.ac.uk>, linux-mm@kvack.org
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 20 Apr 2001, Szabolcs Szakacsits wrote:
-> On Fri, 20 Apr 2001, Jonathan Morton wrote:
-> 
-> > Well, OK, let's look at a commercial UNIX known for stability at high load:
-> > Solaris.  How does Solaris handle thrashing?
-> 
-> Just as 2.2 and earlier kernels did [but not 2.4], keeps processes
-> running. Moreover the default is non-overcommiting memory handling.
-> There are also nice performance tuning guides.
+--On Friday, April 20, 2001 14:14:29 +0200 Szabolcs Szakacsits 
+<szaka@f-secure.com> wrote:
 
-1)  Solaris DOES suspend processes under heavy load
-2)  Linux 2.4 does not (but should, IMHO)
+> What about the simplest case when one process thrasing? You suspend it
+> continuously from time to time so it won't finish e.g. in 10 minutes but
+> in 1 hour.
 
-regards,
+Isn't one prcess thrashing sort of like one hand clapping? :)
 
-Rik
---
-Virtual memory is like a game you can't win;
-However, without VM there's truly nothing to lose...
+Seriously, the state we're talking about is when the running processes in 
+the machine collectively want significantly more memory than is available, 
+and none of them can make real progress.  Suspending one or more of them 
+for a few seconds will actually improve throughput and responsiveness of 
+the entire system.  As Rik has said, this has been in pretty much all 
+flavors of Unix since the early days, and it has been proven to be 
+effective.
 
-		http://www.surriel.com/
-http://www.conectiva.com/	http://distro.conectiva.com.br/
+I'm not saying there aren't other things we can do with working set 
+tracking that could help push out the point where the machine thrashes, but 
+at some point all those mechanisms will be overwhelmed, and process 
+suspension is a good last resort.
+
+Dave McCracken
+
+======================================================================
+Dave McCracken          IBM Linux Base Kernel Team      1-512-838-3059
+dmc@austin.ibm.com                                      T/L   678-3059
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
