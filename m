@@ -1,57 +1,38 @@
-Message-Id: <200304130317.h3D3HprZ021939@turing-police.cc.vt.edu>
-Subject: Re: 2.5.67-mm2 
-In-Reply-To: Your message of "Sun, 13 Apr 2003 03:55:29 +0200."
-             <1050198928.597.6.camel@teapot.felipe-alfaro.com>
-From: Valdis.Kletnieks@vt.edu
-References: <20030412180852.77b6c5e8.akpm@digeo.com>
-            <1050198928.597.6.camel@teapot.felipe-alfaro.com>
-Mime-Version: 1.0
-Content-Type: multipart/signed; boundary="==_Exmh_-1394136846P";
-	 micalg=pgp-sha1; protocol="application/pgp-signature"
+From: Jeremy Hall <jhall@maoz.com>
+Message-Id: <200304130350.h3D3o8pn031108@sith.maoz.com>
+Subject: Re: 2.5.67-mm2
+In-Reply-To: <20030413031440.GA14357@holomorphy.com> from William Lee Irwin III
+ at "Apr 12, 2003 08:14:40 pm"
+Date: Sat, 12 Apr 2003 23:50:08 -0400 (EDT)
+MIME-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Date: Sat, 12 Apr 2003 23:17:42 -0400
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Felipe Alfaro Solana <felipe_alfaro@linuxmail.org>
-Cc: Andrew Morton <akpm@digeo.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: William Lee Irwin III <wli@holomorphy.com>
+Cc: Jeremy Hall <jhall@maoz.com>, Felipe Alfaro Solana <felipe_alfaro@linuxmail.org>, Andrew Morton <akpm@digeo.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
---==_Exmh_-1394136846P
-Content-Type: text/plain; charset=us-ascii
+well I guess I could step through one thing at a time, n, because I DO get 
+an initial trap it comes as soon as cpus are brought up
 
-On Sun, 13 Apr 2003 03:55:29 +0200, Felipe Alfaro Solana said:
+but that would take a long time and I'm sure there's LOTS of code.
 
-> Any patches for CardBus/PCMCIA support? It's broken for me since
-> 2.5.66-mm2 (it works with 2.5.66-mm1) probably due to PCI changes or the
-> new PCMCIA state machine: if I boot my machine with my 3Com CardBus NIC
-> plugged in, the kernel deadlocks while checking the sockets, but it
-> works when booting with the card unplugged, and then plugging it back
-> once the system is stable (for example, init 1).
+_J
 
-Also seeing this with a Xircom card under vanilla 2.5.67.
+In the new year, William Lee Irwin III wrote:
+> On Sat, Apr 12, 2003 at 11:03:46PM -0400, Jeremy Hall wrote:
+> > I dunno about that, but mm2 locks in the boot process and doesn't display 
+> > anything to me through gdb even though it is supposed to.  I have gdb 
+> > console=gdb but that doesn't make the messages flow.
+> 
+> An early printk patch (any of the several going around) may give you an
+> idea of where it's barfing.
+> 
+> 
+> -- wli
+> 
 
-lspci reports this card as:
-
-03:00.0 Ethernet controller: Xircom Cardbus Ethernet 10/100 (rev 03)
-03:00.1 Serial controller: Xircom Cardbus Ethernet + 56k Modem (rev 03)
-
-Russel King posted an analysis back on April 1, which indicated he knew
-about the problem, understood it, and was working on it.
-
-
---==_Exmh_-1394136846P
-Content-Type: application/pgp-signature
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.2.1 (GNU/Linux)
-Comment: Exmh version 2.5 07/13/2001
-
-iD8DBQE+mNbVcC3lWbTT17ARAusmAKD8gvTxjgQBWOiK8m2vFeNgq1WyQACeP9FN
-TT0oNQcSp3IMtjZKUvMUZ54=
-=HZZf
------END PGP SIGNATURE-----
-
---==_Exmh_-1394136846P--
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
