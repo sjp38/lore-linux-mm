@@ -1,59 +1,100 @@
-Date: Mon, 3 Jul 2000 17:09:02 +0100
-From: "Stephen C. Tweedie" <sct@redhat.com>
-Subject: Re: More 2.2.17pre9 VM issues
-Message-ID: <20000703170902.L3284@redhat.com>
-References: <20000703145642.B3284@redhat.com> <Pine.LNX.4.21.0007031643100.1375-100000@inspiron.random>
-Mime-Version: 1.0
+From: Raymond Nijssen <raymond@zeropage.com>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.21.0007031643100.1375-100000@inspiron.random>; from andrea@suse.de on Mon, Jul 03, 2000 at 04:56:46PM +0200
+Content-Transfer-Encoding: 7bit
+Message-ID: <14688.59956.433676.615914@woensel.zeropage.com>
+Date: Mon, 3 Jul 2000 12:32:04 -0700 (PDT)
+Subject: Re: maximum memory limit
+In-Reply-To: <20000703113525.F2699@redhat.com>
+References: <Pine.LNX.4.10.10002081506290.626-100000@mirkwood.dummy.home>
+	<200007020535.WAA07278@woensel.zeropage.com>
+	<20000703113525.F2699@redhat.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrea Arcangeli <andrea@suse.de>
-Cc: "Stephen C. Tweedie" <sct@redhat.com>, Rik van Riel <riel@conectiva.com.br>, Marcelo Tosatti <marcelo@conectiva.com.br>, Jens Axboe <axboe@suse.de>, Alan Cox <alan@redhat.com>, Derek Martin <derek@cerberus.ne.mediaone.net>, Linux Kernel <linux-kernel@vger.rutgers.edu>, linux-mm@kvack.org
+To: "Stephen C. Tweedie" <sct@redhat.com>
+Cc: Linux Kernel <linux-kernel@vger.rutgers.edu>, Linux MM <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+::: "SCT" == Stephen C Tweedie <sct@redhat.com> writes:
 
-On Mon, Jul 03, 2000 at 04:56:46PM +0200, Andrea Arcangeli wrote:
-> 
-> >pages to be swapped in, invoking parts of the VM which assume they are
-> >able to use GFP_IO safely.
-> 
-> arghh b is a problem. I could workaround that with per per-process bitflag
-> set before down(&inode->i_sem) that reminds me not to write on any fs
-> because I would risk to recurse on the inode->i_sem.
+ > Hi,
+ > On Sat, Jul 01, 2000 at 10:35:51PM -0700, Raymond Nijssen wrote:
 
-It's not necessarily a problem, as the file paging routines don't take
-the inode semaphore any more (at least on ext2).  But unless we want
-to explicitly ban the read/writepage routines from invoking that
-semaphore, we have to be prepared for this to happen.
+ >> > It would certainly be a good option if libc could allocate
+ >> > new chunks of memory with mmap, or a combination of mmap and mremap.
+ >> > mremap is functionally a good as brk but will let you work with
+ >> > arbitrary areas of memory. 
+ >> 
+ >> The current implementation of malloc already does that to a limited extent.
+ >> The reason why it doesn't go any further than that is because overreliance on
+ >> mmap() puts all the burden on the kernel, and you're likely to severely
+ >> fragment your memory map.  Remember, mmap has a pagesize resolution.
 
-Given that a write() syscall takes the semaphore for its whole
-duration, that's an *awefully* long time to be preventing paging on
-that inode.  So this is in fact probably the way forward --- document
-that only write() can use the semaphore, but VM-invoked functions like
-*writepage must not.
+ > libc can easily mmap /dev/zero in chunks of multiple MB at a time if
+ > it wants to, and can then dole out that memory as if it was a huge
+ > piece of the heap without kernel involvement.
 
-> The main problem I have with kpiod is that while it obviously avoids any
-> kind of deadlocks on the fs since make_pio_request is completly
-> asynchronous, it also introduces a problem in the swap_out code where we
-> have no way to know if we did some progress or not and if we should wait
-> some buffer to be written to disk.
+Sure enough, mmapping anonymous chunks is easy.
+It is not easy to efficiently manage those chunks.
 
-Sure, but I've already said that I think we need multiple separate
-paging queues, with the process of aging and cleaning pages made
-separate from the process of evicting pages.  If you do that, then you
-can always tell, from the length of the queues, whether or not you
-still have work to do.
+This fragmentation (these chunks are oftentimes not abutting -- you have
+limited control over that) is hard to manage.  Make them big and you'll waste
+tons of resources.  Make them small and you'll be unable to consolidate free
+ranges to satisfy large requests.
 
-But I still agree that getting rid of kpiod is probably a good thing.
-We just can't do it in 2.2.  In 2.4, keep it away by all means, but we
-have to be aware of the implications when you do write() to an mmaped
-file.
+Writing an efficient allocator is actually a pretty tough problem.  It has to
+be fast, low-fragmenting, low administration overhead, low waste, etc.
+Add to that the ability to co-exist with other sbrk()ing allocators, mmap()ing
+routines and other complicating factors.
+An erratic context makes those objectives so much harder to achieve.
 
-Cheers,
- Stephen
+Yes some workarounds can may be made to work.  They make nices excercises, but
+it's still putting the horse behind the carriage.
+There's no substitute for a large unadorned memory space.
+
+
+ >> So how about getting rid of this memory map dichotomy?
+ >> 
+ >> The shared libs could be mapped from 3GB-max_stacksize downwards (rather than
+ >> from 1GB upwards).
+ >> 
+ >> Is there any reason why this cannot be done?
+
+ > You then break all programs which allocate large arrays on the stack.
+
+Most programmers are wise enough not to assume a large stack.
+For one because the stack has a fixed size on all major unices, typically 8MB
+(Solaris) or 80MB (HP/UX). 
+
+Does anybody know about programs requiring more than that?
+
+
+ > You cannot have an arbitrarily growable heap, AND an arbitrarily
+ > growable stack, AND have the kernel correctly guess where to place
+ > mmaps.
+
+Absolutely.   It's a matter of choosing which one to confine.
+
+Practically it is better to confine the stack.
+
+The rare exception for which the default max stacksize is not enough can be
+resolved easily by a wrapper that sets a different resource limit.
+
+
+ > One answer may be to start mmaps down near the heap boundary, and to
+ > teach glibc to be more willing to use mmap() for even small mallocs.
+ > That may break custom malloc libraries but should give the best
+ > results for code which uses the standard glibc malloc: it doesn't
+ > artificially restrain the stack or the mmap area.  Anything
+ > relying directly on [s]brk will be affected, of course.
+
+I don't understand this fear for limiting the stack:  in practice that just
+isn't a problem.  If anything one should fear fragmenting the heap:  I have
+seen many cases in which that is a severe problem.
+
+YMMV of course, and if it does, please share your experiences.
+
+-Raymond
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
