@@ -1,55 +1,41 @@
-From: andrea@suse.de
-Date: Mon, 10 Apr 2000 10:55:32 +0200 (CEST)
+Date: Mon, 10 Apr 2000 20:10:21 +0100
+From: "Stephen C. Tweedie" <sct@redhat.com>
 Subject: Re: [patch] take 2 Re: PG_swap_entry bug in recent kernels
-In-Reply-To: <200004090040.RAA49059@google.engr.sgi.com>
-Message-ID: <Pine.LNX.4.21.0004092326460.293-100000@vaio.random>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Message-ID: <20000410201021.V17648@redhat.com>
+References: <Pine.LNX.4.21.0004080305490.2459-100000@alpha.random> <200004082147.OAA75650@google.engr.sgi.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+In-Reply-To: <200004082147.OAA75650@google.engr.sgi.com>; from kanoj@google.engr.sgi.com on Sat, Apr 08, 2000 at 02:47:29PM -0700
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Kanoj Sarcar <kanoj@google.engr.sgi.com>
-Cc: Ben LaHaise <bcrl@redhat.com>, riel@nl.linux.org, Linus Torvalds <torvalds@transmeta.com>, linux-mm@kvack.org
+Cc: Andrea Arcangeli <andrea@suse.de>, Ben LaHaise <bcrl@redhat.com>, riel@nl.linux.org, Linus Torvalds <torvalds@transmeta.com>, linux-mm@kvack.org, Stephen Tweedie <sct@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 8 Apr 2000, Kanoj Sarcar wrote:
+Hi,
 
->Btw, I am looking at your patch with message id
-><Pine.LNX.4.21.0004081924010.317-100000@alpha.random>, that does not
->seem to be holding vmlist/pagetable lock in the swapdelete code (at
->least at first blush). That was partly why I wanted to know what fixes 
->are in your patch ...
+On Sat, Apr 08, 2000 at 02:47:29PM -0700, Kanoj Sarcar wrote:
+> 
+> You have answered your own question in a later email. I quote you:
+> "Are you using read_swap_cache from any
+> swapin event? The problem is swapin can't use read_swap_cache because with
+> read_swap_cache we would never know if we're doing I/O on an inactive swap
+> entry"
 
-The patch was against the earlier swapentry patch that was also fixing the
-vma/pte locking in swapoff. All the three patches I posted were
-incremental.
+Right.  The way the swap synchronisation always worked was that
+we must have a swap cache entry before _any_ IO, so the page lock 
+bit on that swap cache page could also serve as an IO lock on the
+swap entry.  (Actually, it didn't _always_ work that way, but that's
+the basic mechanism with the current swap cache.)
 
->Note: I prefer being able to hold mmap_sem in the swapdelete path, that
->will provide protection against fork/exit races too. I will try to port
+That relied on the swapper being able to do an atomic operation to
+search for a page cache page, and to create a new page and lock it
+if it wasn't already there.  That was made atomic only by use of the
+big lock.  If you don't have all page cache activity using that lock,
+then yes, you'll need the page cache lock while you set all of this 
+up.
 
-With my approch swapoff is serialized w.r.t. to fork/exit the same way as
-swap_out(). However I see the potential future problem in exit_mmap() that
-makes the entries not reachable before swapoff starts and that does the
-swap_free() after swapoff completed and after the swapdevice gone away (==
-too late). That's not an issue right now though, since both swapoff and
-do_exit() are holding the big kernel lock but it will become an issue
-eventually. Probably exit_mmap() should unlink and unmap the vmas bit by
-bit using locking to unlink and lefting them visible if they are not yet
-released. That should get rid of that future race.
-
-About grabbing the mmap semaphore in unuse_process: we don't need to do
-that because we aren't changing vmas from swapoff. Swapoff only browses
-and changes pagetables so it only needs the vmalist-access read-spinlock
-that avoids vma to go away, and the pagtable exclusive spinlock because
-we'll change the pagetables (and the latter one is implied in the
-vmlist_access_lock as we know from the vmlist_access_lock implementation).
-
-swap_out() can't grab the mmap_sem for obvious reasons, so if you only
-grab the mmap_sem you'll have to rely only on the big kernel lock to avoid
-swap_out() to race with your swapoff, right? It doesn't look like a right
-long term solution.
-
-Andrea
-
+--Stephen
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
