@@ -1,19 +1,21 @@
-Date: Mon, 8 Nov 2004 16:48:38 -0200
-From: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
+Date: Mon, 8 Nov 2004 14:28:37 -0800
+From: Andrew Morton <akpm@osdl.org>
 Subject: Re: [PATCH] ignore referenced pages on reclaim when OOM
-Message-ID: <20041108184838.GB3236@logos.cnet>
-References: <16783.59834.7179.464876@thebsh.namesys.com> <Pine.LNX.4.44.0411081655410.8589-100000@chimarrao.boston.redhat.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Message-Id: <20041108142837.307029fc.akpm@osdl.org>
 In-Reply-To: <Pine.LNX.4.44.0411081655410.8589-100000@chimarrao.boston.redhat.com>
+References: <16783.59834.7179.464876@thebsh.namesys.com>
+	<Pine.LNX.4.44.0411081655410.8589-100000@chimarrao.boston.redhat.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Rik van Riel <riel@redhat.com>
-Cc: Nikita Danilov <nikita@clusterfs.com>, akpm@osdl.org, linux-mm@kvack.org
+Cc: nikita@clusterfs.com, marcelo.tosatti@cyclades.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Nov 08, 2004 at 04:56:25PM -0500, Rik van Riel wrote:
+Rik van Riel <riel@redhat.com> wrote:
+>
 > On Tue, 9 Nov 2004, Nikita Danilov wrote:
 > 
 > >  > Speeds up extreme load performance on Rik's tests.
@@ -30,10 +32,14 @@ On Mon, Nov 08, 2004 at 04:56:25PM -0500, Rik van Riel wrote:
 > 1/4 of memory.  On the other hand, when you reach priority
 > 0, you've already scanned all pages once - beyond that point
 > the referenced bit really doesn't buy you much any more.
+> 
 
-Nikita, 
+But we have to scan active, referenced pages two times to move them onto
+the inactive list.  A bit more, really, because nowadays
+refill_inactive_zone() doesn't even run page_referenced() until it starts
+to reach higher scanning priorities.
 
-Can you please rerun your tests with priority=0 instead of priority=2? 
+So it could be that we're just not scanning enough.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
