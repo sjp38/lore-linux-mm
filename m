@@ -1,95 +1,35 @@
-Date: Wed, 05 Nov 2003 15:07:58 -0800
-From: "Martin J. Bligh" <mbligh@aracnet.com>
-Subject: Re: 2.6.0-test9-mm2
-Message-ID: <225880000.1068073678@flay>
-In-Reply-To: <20031104225544.0773904f.akpm@osdl.org>
-References: <20031104225544.0773904f.akpm@osdl.org>
+Received: from il.marvell.com ([10.2.1.184])
+	by mail.galileo.co.il (8.12.6/8.12.6) with ESMTP id hA6G8iGn018892
+	for <linux-mm@kvack.org>; Thu, 6 Nov 2003 18:08:45 +0200 (IST)
+Message-ID: <3FAA7237.1030006@il.marvell.com>
+Date: Thu, 06 Nov 2003 18:09:27 +0200
+From: Mark Mokryn <markm@il.marvell.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Subject: Highmem SCSI driver
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Seems to work fine on my box. Nothing very interesting from a performance
-perspective, but it does seem a touch faster than mainline on kernbench.
-NFI why ;-)
+We are trying to test 64-bit PCI DMA for a SCSI driver on a Xeon box,
 
-Kernbench: (make -j N vmlinux, where N = 2 x num_cpus)
-                              Elapsed      System        User         CPU
-              2.6.0-test9       45.28      100.19      568.01     1474.75
-          2.6.0-test9-mm2       44.83      100.79      567.74     1491.00
-         2.6.0-test9-mjb1       43.73       80.19      559.91     1463.25
+RH9 2.4.20-8 bigmem kernel, 6GB RAM.
+The machine shows 6GB in top, we set highmem_io in the driver, PCI DMA 
+mask covers 64-bit range, etc.
 
-Kernbench: (make -j N vmlinux, where N = 16 x num_cpus)
-                              Elapsed      System        User         CPU
-              2.6.0-test9       46.17      122.20      571.58     1501.00
-          2.6.0-test9-mm2       45.89      120.39      570.67     1504.75
-         2.6.0-test9-mjb1       43.52       89.98      562.91     1500.50
+Of course we're trying to make sure that the system does not create 
+bounce buffers unnecessarily. On a 64-bit box (AMD64) everything works 
+as expected. On the Xeon, no matter what we try, we never see I/Os 
+mapped above 4GB.
 
-Kernbench: (make -j vmlinux, maximal tasks)
-                              Elapsed      System        User         CPU
-              2.6.0-test9       45.84      120.14      570.93     1507.00
-          2.6.0-test9-mm2       44.21      118.81      571.28     1566.00
-         2.6.0-test9-mjb1       43.73       87.19      564.39     1488.50
+Any ideas on how we can drive I/Os mapped above 4GB down to our driver?
+
+Thanks,
+-Mark
 
 
-DISCLAIMER: SPEC(tm) and the benchmark name SDET(tm) are registered
-trademarks of the Standard Performance Evaluation Corporation. This 
-benchmarking was performed for research purposes only, and the run results
-are non-compliant and not-comparable with any published results.
-
-Results are shown as percentages of the first set displayed
-
-SDET 1  (see disclaimer)
-                           Throughput    Std. Dev
-              2.6.0-test9       100.0%         1.2%
-          2.6.0-test9-mm2        98.3%         2.3%
-         2.6.0-test9-mjb1       112.2%         1.8%
-
-SDET 2  (see disclaimer)
-                           Throughput    Std. Dev
-              2.6.0-test9       100.0%         2.0%
-          2.6.0-test9-mm2       103.8%         1.8%
-         2.6.0-test9-mjb1       116.4%         0.6%
-
-SDET 4  (see disclaimer)
-                           Throughput    Std. Dev
-              2.6.0-test9       100.0%         0.9%
-          2.6.0-test9-mm2       102.6%         1.0%
-         2.6.0-test9-mjb1       120.5%         0.6%
-
-SDET 8  (see disclaimer)
-                           Throughput    Std. Dev
-              2.6.0-test9       100.0%         0.4%
-          2.6.0-test9-mm2        98.9%         0.4%
-         2.6.0-test9-mjb1       123.7%         0.2%
-
-SDET 16  (see disclaimer)
-                           Throughput    Std. Dev
-              2.6.0-test9       100.0%         0.8%
-          2.6.0-test9-mm2       100.6%         0.9%
-         2.6.0-test9-mjb1       127.6%         0.0%
-
-SDET 32  (see disclaimer)
-                           Throughput    Std. Dev
-              2.6.0-test9       100.0%         0.3%
-          2.6.0-test9-mm2        99.8%         0.3%
-         2.6.0-test9-mjb1       125.9%         0.5%
-
-SDET 64  (see disclaimer)
-                           Throughput    Std. Dev
-              2.6.0-test9       100.0%         0.4%
-          2.6.0-test9-mm2        99.7%         0.4%
-         2.6.0-test9-mjb1       127.6%         0.9%
-
-SDET 128  (see disclaimer)
-                           Throughput    Std. Dev
-              2.6.0-test9       100.0%         0.1%
-          2.6.0-test9-mm2        99.0%         0.3%
-         2.6.0-test9-mjb1       127.7%         0.2%
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
