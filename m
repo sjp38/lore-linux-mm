@@ -1,47 +1,38 @@
-Date: Mon, 25 Sep 2000 18:04:48 +0200
-From: "Andi Kleen" <ak@suse.de>
-Subject: Re: the new VMt
-Message-ID: <20000925180448.A25083@gruyere.muc.suse.de>
-References: <20000925174138.D25814@athlon.random> <Pine.LNX.4.21.0009251747190.9122-100000@elte.hu>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-In-Reply-To: <Pine.LNX.4.21.0009251747190.9122-100000@elte.hu>; from mingo@elte.hu on Mon, Sep 25, 2000 at 06:02:18PM +0200
+Date: Mon, 25 Sep 2000 12:06:41 -0400 (EDT)
+From: Alexander Viro <viro@math.psu.edu>
+Subject: Re: [patch] vmfixes-2.4.0-test9-B2 - fixing deadlocks
+In-Reply-To: <Pine.LNX.4.21.0009251804280.9122-100000@elte.hu>
+Message-ID: <Pine.GSO.4.21.0009251157390.16980-100000@weyl.math.psu.edu>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Ingo Molnar <mingo@elte.hu>
-Cc: Andrea Arcangeli <andrea@suse.de>, Alan Cox <alan@lxorguk.ukuu.org.uk>, Marcelo Tosatti <marcelo@conectiva.com.br>, Linus Torvalds <torvalds@transmeta.com>, Rik van Riel <riel@conectiva.com.br>, Roger Larsson <roger.larsson@norran.net>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
+Cc: "Stephen C. Tweedie" <sct@redhat.com>, Andrea Arcangeli <andrea@suse.de>, Linus Torvalds <torvalds@transmeta.com>, Rik van Riel <riel@conectiva.com.br>, Roger Larsson <roger.larsson@norran.net>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Sep 25, 2000 at 06:02:18PM +0200, Ingo Molnar wrote:
-> Frankly, how often do we allocate multi-order pages? I've just made quick
-> statistics wrt. how allocation orders are distributed on a more or less
-> typical system:
+
+On Mon, 25 Sep 2000, Ingo Molnar wrote:
+
 > 
-> 	(ALLOC ORDER)
-> 	0: 167081
-> 	1: 850
-> 	2: 16
-> 	3: 25
-> 	4: 0
-> 	5: 1
-> 	6: 0
-> 	7: 2
-> 	8: 13
-> 	9: 5
+> On Mon, 25 Sep 2000, Stephen C. Tweedie wrote:
 > 
-> ie. 99.45% of all allocations are single-page! 0.50% is the 8kb
-> task-structure. The rest is 0.05%.
+> > Sorry, but in this case you have got a lot more variables than you
+> > seem to think.  The obvious lock is the ext2 superblock lock, but
+> > there are side cases with quota and O_SYNC which are much less
+> > commonly triggered.  That's not even starting to consider the other
+> > dozens of filesystems in the kernel which have to be audited if we
+> > change the locking requirements for GFP calls.
+> 
+> i'd suggest to simply BUG() in schedule() if the superblock lock is held
+> not directly by lock_super. Holding the superblock lock is IMO quite rude
+> anyway (for performance and latency) - is there any place where we hold it
+> for a long time and it's unavoidable?
 
-An important exception in 2.2/2.4 is NFS with bigger rsize (will be fixed
-in 2.5, but 2.4 does it this way). For an 8K r/wsize you need reliable 
-(=GFP_ATOMIC) 16K allocations.  
+Ingo, schedule() has no bloody business _knowing_ about superblock locks
+in the first place. Yes, ext2 should not bother taking it at all. For
+completely unrelated reasons.
 
-Another thing I would worry about are ports with multiple user page sizes in 2.5.
-Another ugly case is the x86-64 port which has 4K pages but may likely need
-a 16K kernel stack due to the 64bit stack bloat.
-
-
--Andi
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
