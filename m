@@ -1,36 +1,35 @@
-Date: Tue, 03 Dec 2002 12:08:09 -0800
-From: "Martin J. Bligh" <mbligh@aracnet.com>
+Received: from burns.conectiva (burns.conectiva [10.0.0.4])
+	by perninha.conectiva.com.br (Postfix) with SMTP id 3620048108
+	for <linux-mm@kvack.org>; Tue,  3 Dec 2002 18:57:04 -0200 (BRST)
+Date: Tue, 3 Dec 2002 18:56:54 -0200 (BRST)
+From: Rik van Riel <riel@conectiva.com.br>
 Subject: Re: [PATCH] 2.4.20-rmap15a
-Message-ID: <30200000.1038946087@titus>
-In-Reply-To: <20021203195854.GA6709@zork.net>
+In-Reply-To: <30200000.1038946087@titus>
+Message-ID: <Pine.LNX.4.50L.0212031855590.22252-100000@duckman.distro.conectiva>
 References: <Pine.LNX.4.44L.0212011833310.15981-100000@imladris.surriel.com>
  <6usmxfys45.fsf@zork.zork.net> <20021203195854.GA6709@zork.net>
+ <30200000.1038946087@titus>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: The One True Dave Barry <dave@zork.net>, linux-mm@kvack.org
-Cc: sneakums@zork.net
+To: "Martin J. Bligh" <mbligh@aracnet.com>
+Cc: The One True Dave Barry <dave@zork.net>, linux-mm@kvack.org, sneakums@zork.net
 List-ID: <linux-mm.kvack.org>
 
-> 	This is correct, and believe it or not i'm even using
-> 	2.4.19 + rmap15a, no other patches.  I don't have my hard
-> 	numbers available, but the difference between builds was quite
-> 	significant, something like:
->
-> 	2.4.19 vanilla:
-> 	real 85m
->
-> 	2.4.19-rmap15a:
-> 	real 102m
+On Tue, 3 Dec 2002, Martin J. Bligh wrote:
 
-Assuming the extra time is eaten in Sys, not User, can you get a profile
-of each, & post them?
+> Assuming the extra time is eaten in Sys, not User,
 
-M.
+It's not. It's idle time.  Looks like something very strange
+is going on, vmstat and top output would be nice to have...
 
+Rik
+-- 
+A: No.
+Q: Should I include quotations after my reply?
+
+http://www.surriel.com/		http://distro.conectiva.com/
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
