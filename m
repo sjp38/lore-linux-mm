@@ -1,34 +1,109 @@
-Content-Type: text/plain; charset=US-ASCII
-From: Daniel Phillips <phillips@bonn-fries.net>
-Subject: Re: 2.4.8-pre1 and dbench -20% throughput
-Date: Sat, 28 Jul 2001 05:18:39 +0200
-References: <200107272112.f6RLC3d28206@maila.telia.com> <0107280034050V.00285@starship> <200107272347.f6RNlTs15460@maild.telia.com>
-In-Reply-To: <200107272347.f6RNlTs15460@maild.telia.com>
+Message-Id: <200107280911.f6S9B3d17777@maila.telia.com>
+Content-Type: text/plain;
+  charset="iso-8859-1"
+From: Roger Larsson <roger.larsson@norran.net>
+Subject: Re: [PATCH] MAX_READAHEAD gives doubled throuput
+Date: Sat, 28 Jul 2001 11:07:04 +0200
+References: <200107280144.DAA25730@mailb.telia.com> <3B622E12.404971A7@zip.com.au>
+In-Reply-To: <3B622E12.404971A7@zip.com.au>
 MIME-Version: 1.0
-Message-Id: <01072805183900.00293@starship>
-Content-Transfer-Encoding: 7BIT
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
-Cc: Steven Cole <elenstev@mesatop.com>, Roger Larsson <roger.larsson@skelleftea.mail.telia.com>
+To: Andrew Morton <akpm@zip.com.au>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Saturday 28 July 2001 01:43, Roger Larsson wrote:
-> Hi again,
+On Saturdayen den 28 July 2001 05:14, Andrew Morton wrote:
+> Roger Larsson wrote:
+> > Hi all,
+> >
+> > Got wondering why simultaneous streaming is so much slower than normal...
+> >
+> > Are there any reasons nowadays why we should not attempt to read ahead
+> > more than 31 pages at once?
+> >
+> > 31 pages equals 0.1 MB, it is read from the HD in 4 ms => very close to
+> > the average access times. Resulting in a maximum of half the possible
+> > speed.
+> >
+> > With this patch copy and diff throughput are increased from 14 respective
+> > 11 MB/s to 27 and 28 !!!
+> >
+> > I enable the profiling as well... (one printk warning fixed)
 >
-> It might be variations in dbench - but I am not sure since I run
-> the same script each time.
+> It doesn't make any difference here.
+>
+> Dual 500MHz x86, 20 meg/sec IDE, 512 megs of RAM, kernel 2.4.7.
+> Diffing two kernel trees is 129 seconds without patch, 130 with.
+> Increasing MIN_READAHEAD to 31 as well saved eight seconds or so.
+>
 
-I believe I can reproduce the effect here, even with dbench 2.  So the 
-next two steps:
+Do not diff the trees - diff the tars!
+(most files in the tree is so small that they fit well in the 31 pages)
+Even the tars might be to small for a second run (fits in memory...)
 
-  1) Get some sleep
-  2) Find out why
 
-Bis Morgen
+> What kernel did you test with, and what are the specs for the
+> test machine?  Are your disks performing internal readahead?
+> If so, how much, and how large is the on-disk cache?
+>
+>
+>
+> /dev/hdf:
+>  multcount    = 16 (on)
+>  I/O support  =  1 (32-bit)
+>  unmaskirq    =  1 (on)
+>  using_dma    =  1 (on)
+>  keepsettings =  0 (off)
+>  nowerr       =  0 (off)
+>  readonly     =  0 (off)
+>  readahead    =  8 (on)
+>  geometry     = 5606/255/63, sectors = 90069840, start = 0
+> mnm:/home/akpm> 0 hdparm -I /dev/hdf
+>
 
---
-Daniel
+/dev/hda:
+ multcount    = 16 (on)
+ I/O support  =  0 (default 16-bit)
+ unmaskirq    =  0 (off)
+ using_dma    =  1 (on)
+ keepsettings =  0 (off)
+ nowerr       =  0 (off)
+ readonly     =  0 (off)
+ readahead    =  8 (on)
+ geometry     = 5606/255/63, sectors = 90069840, start = 0
+
+ok, so I did not have 32 bit nor unmaskirq turned on... should it matter?
+
+> /dev/hdf:
+>
+>  Model=BI-MTDAL3-7040 5                        , FwRev=XTO66AA0, SerialNo= 
+>       Y EMMYQG9424 Config={ HardSect NotMFM HdSw>15uSec Fixed DTR>10Mbs }
+>  RawCHS=16383/16/63, TrkSize=0, SectSize=0, ECCbytes=40
+>  BuffType=DualPortCache, BuffSize=1916kB, MaxMultSect=16, MultSect=16
+>  CurCHS=65535/1/63, CurSects=4128705, LBA=yes, LBAsects=90069840
+>  IORDY=on/off, tPIO={min:240,w/IORDY:120}, tDMA={min:120,rec:120}
+>  PIO modes: pio0 pio1 pio2 pio3 pio4
+>  DMA modes: mdma0 mdma1 mdma2 udma0 udma1 udma2 *udma3 udma4 udma5
+
+/dev/hda:
+ 
+ Model=BI-MTDAL3-7040 5                        , FwRev=XTO66AA0, SerialNo=
+  Y EMMYQM0073
+ Config={ HardSect NotMFM HdSw>15uSec Fixed DTR>10Mbs }
+ RawCHS=16383/16/63, TrkSize=0, SectSize=0, ECCbytes=40
+ BuffType=DualPortCache, BuffSize=1916kB, MaxMultSect=16, MultSect=16
+ CurCHS=4047/16/255, CurSects=16511760, LBA=yes, LBAsects=90069840
+ IORDY=on/off, tPIO={min:240,w/IORDY:120}, tDMA={min:120,rec:120}
+ PIO modes: pio0 pio1 pio2 pio3 pio4
+ DMA modes: mdma0 mdma1 mdma2 udma0 udma1 udma2 udma3 udma4 *udma5
+ Drive Supports : Reserved : ATA-2 ATA-3 ATA-4 ATA-5
+ Kernel Drive Geometry LogicalCHS=5606/255/63 PhysicalCHS=22075/16/255
+-- 
+Roger Larsson
+Skelleftea
+Sweden
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
