@@ -2,36 +2,26 @@ Content-Type: text/plain;
   charset="iso-8859-1"
 From: Daniel Phillips <phillips@arcor.de>
 Subject: Re: [PATCH] Optimize out pte_chain take three
-Date: Sat, 13 Jul 2002 16:10:02 +0200
-References: <Pine.LNX.4.44L.0207102145000.14432-100000@imladris.surriel.com>
-In-Reply-To: <Pine.LNX.4.44L.0207102145000.14432-100000@imladris.surriel.com>
+Date: Sat, 13 Jul 2002 16:20:42 +0200
+References: <20810000.1026311617@baldur.austin.ibm.com> <20020710222210.GU25360@holomorphy.com> <3D2CD3D3.B43E0E1F@zip.com.au>
+In-Reply-To: <3D2CD3D3.B43E0E1F@zip.com.au>
 MIME-Version: 1.0
 Content-Transfer-Encoding: 8bit
-Message-Id: <E17TNb5-0003JC-00@starship>
+Message-Id: <E17TNlL-0003JI-00@starship>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@conectiva.com.br>, Andrew Morton <akpm@zip.com.au>
-Cc: William Lee Irwin III <wli@holomorphy.com>, Dave McCracken <dmccr@us.ibm.com>, Linux Memory Management <linux-mm@kvack.org>
+To: Andrew Morton <akpm@zip.com.au>, William Lee Irwin III <wli@holomorphy.com>
+Cc: Rik van Riel <riel@conectiva.com.br>, Dave McCracken <dmccr@us.ibm.com>, Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thursday 11 July 2002 02:47, Rik van Riel wrote:
-> On Wed, 10 Jul 2002, Andrew Morton wrote:
-> 
-> > A lot of it should be fairly simple.  We have tons of pagecache-intensive
-> > workloads.  But we have gaps when it comes to the VM.  In the area of
-> > page replacement.
-> 
-> Umm, page replacement is about identifying the working set
-> and paging out those pages which are not in the working set.
-> 
-> None of the benchmark examples you give have anything like
-> a working set.
+On Thursday 11 July 2002 02:39, Andrew Morton wrote:
+> I can do the coding, although by /bin/sh skills
+> are woeful...
 
-What we need is a short C program that similates a working set.  I
-believe we discussed such a thing briefly at Ottawa.
+Careful... I've seen some recent test loads where the script time
+dominated run time, and this was for filesystem operations!
 
-This is just random-fu.  The main challenge is making it short and
-sweet.
+Little C programs are both more readable and more accurate.
 
 -- 
 Daniel
