@@ -1,54 +1,54 @@
-Received: from kleopatra.acc.umu.se (root@kleopatra.acc.umu.se [130.239.18.150])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id JAA19885
-	for <linux-mm@kvack.org>; Sun, 10 Jan 1999 09:45:57 -0500
-Date: Sun, 10 Jan 1999 15:45:38 +0100 (MET)
-From: David Weinehall <tao@acc.umu.se>
-Subject: Re: [PATCH] MM fix & improvement
-In-Reply-To: <87k8yw295p.fsf@atlas.CARNet.hr>
-Message-ID: <Pine.A41.4.05.9901101543290.10784-100000@lenin.acc.umu.se>
+Received: from dax.scot.redhat.com (sct@dax.scot.redhat.com [195.89.149.242])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id MAA20638
+	for <linux-mm@kvack.org>; Sun, 10 Jan 1999 12:00:32 -0500
+Date: Sun, 10 Jan 1999 16:59:43 GMT
+Message-Id: <199901101659.QAA00922@dax.scot.redhat.com>
+From: "Stephen C. Tweedie" <sct@redhat.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Subject: Re: MM deadlock [was: Re: arca-vm-8...]
+In-Reply-To: <Pine.LNX.3.95.990109134233.3478A-100000@penguin.transmeta.com>
+References: <Pine.LNX.3.95.990109095521.2572A-100000@penguin.transmeta.com>
+	<Pine.LNX.3.95.990109134233.3478A-100000@penguin.transmeta.com>
 Sender: owner-linux-mm@kvack.org
-To: Zlatko Calusic <Zlatko.Calusic@CARNet.hr>
-Cc: Linus Torvalds <torvalds@transmeta.com>, Linux-MM List <linux-mm@kvack.org>, Linux Kernel List <linux-kernel@vger.rutgers.edu>
+To: Linus Torvalds <torvalds@transmeta.com>
+Cc: Savochkin Andrey Vladimirovich <saw@msu.ru>, Andrea Arcangeli <andrea@e-mind.com>, steve@netplus.net, "Eric W. Biederman" <ebiederm+eric@ccr.net>, brent verner <damonbrent@earthlink.net>, "Garst R. Reese" <reese@isn.net>, Kalle Andersson <kalle.andersson@mbox303.swipnet.se>, Zlatko Calusic <Zlatko.Calusic@CARNet.hr>, Ben McCann <bmccann@indusriver.com>, Alan Cox <alan@lxorguk.ukuu.org.uk>, bredelin@ucsd.edu, "Stephen C. Tweedie" <sct@redhat.com>, linux-kernel@vger.rutgers.edu, Rik van Riel <H.H.vanRiel@phys.uu.nl>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 9 Jan 1999, Zlatko Calusic wrote:
+Hi,
 
-> OK, here it goes. Patch is unbelievably small, and improvement is
-> BIG.
+On Sat, 9 Jan 1999 13:50:14 -0800 (PST), Linus Torvalds
+<torvalds@transmeta.com> said:
 
-[Snip]
+> On Sat, 9 Jan 1999, Linus Torvalds wrote:
+>> 
+>> The cleanest solution I can think of is actually to allow semaphores to be
+>> recursive. I can do that with minimal overhead (just one extra instruction
+>> in the non-contention case), so it's not too bad, and I've wanted to do it
+>> for certain other things, but it's still a nasty piece of code to mess
+>> around with. 
 
-> pre6 + MM cleanup (needed for swap cache hit rate)
->  
->     hogmem 100 3	-	10.75 MB/sec
-> 2 x hogmem 50 3		-	2.01 + 1.97 MB/sec (disk thrashing)
-> swap cache		-	add 194431 find 13315/194300 (6.9% hit rate)
-> 
-> pre6 + MM cleanup + patch below
-> 
->     hogmem 100 3	-	13.27 MB/sec
-> 2 x hogmem 50 3		-	6.15 + 5.77 MB/sec (perfect)
-> swap cache		-	add 175887 find 76003/237711 (32% hit rate)
-> 
-> Notice how swap cache done it's job much better with changes applied!!!
+Ack.  I've been having a closer look, and making the superblock lock
+recursive doesn't work: the ext2fs allocation code is definitely not
+reentrant.  In particular, the bitmap buffers can get evicted out from
+under our feet if we reenter the block allocation code, leading to nasty
+filesystem and/or memory corruption.  The allocation code can also get
+confused if the bitmap contents change between checking the group
+descriptor for a block group and reading in the bitmap itself, leading
+to potential ENOSPC errors turning up wrongly.
 
-Looks REALLY nice...
+Preventing recursive VM access to the filesystem while we have the
+superblock lock seems the only easy way out short of making the
+allocation/truncate code fully reentrant.
 
-> Both tests were run in single user mode, after reboot, on 64MB
-> machine. Don't be disappointed if you get smaller numbers, I have two
-> swap partitions on different disks and transports (IDE + SCSI). :)
+On the other hand, it does look as if the inode deadlock is dealt with
+OK if we just make that semaphore recursive; I can't see anywhere that
+dies if we make that change.  This does somewhat imply that we may need
+to make a distinction between reentrant and non-reentrant semaphores if
+we go down this route.
 
-Have you tried your patch on a low-memory machine and/or a low-capacity
-processor, ie a 386 with say 4 MB's of memory?!
-
-/David Weinehall
-  _                                                                 _ 
- // David Weinehall <tao@acc.umu.se> /> Northern lights wander      \\ 
-//  Project MCA Linux hacker        //  Dance across the winter sky // 
-\>  http://www.acc.umu.se/~tao/    </   Full colour fire           </ 
-
+--Stephen.
 --
 This is a majordomo managed list.  To unsubscribe, send a message with
 the body 'unsubscribe linux-mm me@address' to: majordomo@kvack.org
