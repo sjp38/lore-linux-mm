@@ -1,33 +1,25 @@
-Date: Fri, 13 Oct 2000 14:29:08 -0700
-Message-Id: <200010132129.OAA03105@pizda.ninka.net>
-From: "David S. Miller" <davem@redhat.com>
-In-reply-to: <E13k3HY-0000yb-00@the-village.bc.nu> (message from Alan Cox on
-	Fri, 13 Oct 2000 12:45:47 +0100 (BST))
 Subject: Re: Updated Linux 2.4 Status/TODO List (from the ALS show)
-References: <E13k3HY-0000yb-00@the-village.bc.nu>
+Date: Fri, 13 Oct 2000 23:47:55 +0100 (BST)
+In-Reply-To: <20001013141723.C29525@twiddle.net> from "Richard Henderson" at Oct 13, 2000 02:17:23 PM
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Message-Id: <E13kDcJ-0001fX-00@the-village.bc.nu>
+From: Alan Cox <alan@lxorguk.ukuu.org.uk>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: alan@lxorguk.ukuu.org.uk
-Cc: davej@suse.de, tytso@mit.edu, torvalds@transmeta.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Richard Henderson <rth@twiddle.net>
+Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, "David S. Miller" <davem@redhat.com>, davej@suse.de, tytso@mit.edu, torvalds@transmeta.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-   > It might make more sense to just make rss an atomic_t.
+> On Fri, Oct 13, 2000 at 12:45:47PM +0100, Alan Cox wrote:
+> > Can we always be sure the rss will fit in an atomic_t - is it > 32bits on the
+> > ultrsparc/alpha ?
+> 
+> It is not.
 
-   Can we always be sure the rss will fit in an atomic_t - is it >
-   32bits on the ultrsparc/alpha ?
-
-Yes, this issue occurred to me last night as well.
-It is 32-bit on Alpha/UltraSparc.
-
-However, given the fact that this number measures "pages", the
-PAGE_SIZE on Ultra/Alpha, and the size of the 64-bit user address
-space on Ultra and Alpha, it would actually end up working.
-
-This doesn't make it a good idea though.
-
-Later,
-David S. Miller
-davem@redhat.com
+Then we need to use locking to protect the rss since on a big 64bit box
+we can exceed 2^32 pages in theory and probably soon in practice.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
