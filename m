@@ -1,41 +1,36 @@
-Received: from neon.transmeta.com (neon-best.transmeta.com [206.184.214.10])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id NAA17072
-	for <linux-mm@kvack.org>; Wed, 26 May 1999 13:44:43 -0400
-Date: Wed, 26 May 1999 10:44:02 -0700 (PDT)
-From: Linus Torvalds <torvalds@transmeta.com>
-Subject: Re: [PATCH] cache large files in the page cache
-In-Reply-To: <19990526094407.J527@mff.cuni.cz>
-Message-ID: <Pine.LNX.3.95.990526104127.14018K-100000@penguin.transmeta.com>
+Received: from dukat.scot.redhat.com (sct@dukat.scot.redhat.com [195.89.149.246])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id PAA18039
+	for <linux-mm@kvack.org>; Wed, 26 May 1999 15:22:27 -0400
+From: "Stephen C. Tweedie" <sct@redhat.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Message-ID: <14156.18924.10333.781178@dukat.scot.redhat.com>
+Date: Wed, 26 May 1999 20:22:20 +0100 (BST)
+Subject: Re: kernel_lock() profiling results
+In-Reply-To: <374C3237.2D89878@colorfullife.com>
+References: <3748111C.3F040C1F@colorfullife.com>
+	<14156.8862.155397.630098@dukat.scot.redhat.com>
+	<374C3237.2D89878@colorfullife.com>
 Sender: owner-linux-mm@kvack.org
-To: Jakub Jelinek <jj@sunsite.ms.mff.cuni.cz>
-Cc: "Eric W. Biederman" <ebiederm+eric@ccr.net>, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
+To: masp0008@stud.uni-sb.de
+Cc: "Stephen C. Tweedie" <sct@redhat.com>, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org, "David S. Miller" <davem@dm.cobaltmicro.com>
 List-ID: <linux-mm.kvack.org>
 
+Hi,
 
-On Wed, 26 May 1999, Jakub Jelinek wrote:
-> 
-> I have minor suggestion to the patch. Instead of using vm_index <<
-> PAGE_SHIFT and page->key << PAGE_CACHE_SHIFT shifts either choose different
-> constant names for this shifting (VM_INDEX_SHIFT and PAGE_KEY_SHIFT) or hide
-> these shifts by some pretty macros (you'll need two for each for both
-> directions in that case - if you go the macro way, maybe it would be a good
-> idea to make vm_index and key type some structure with a single member like
-> mm_segment_t for more strict typechecking).
+On Wed, 26 May 1999 19:41:11 +0200, Manfred Spraul
+<manfreds@colorfullife.com> said:
 
-Indeed. An dI would suggest that the shift be limited to at most 9 anyway:
-right now I applied the part that disallows non-page-aligned offsets, but
-I think that we may in the future allow anonymous mappings again at finer
-granularity (somebody made a really good argument about wine for this).
+> 1) Andrea noticed that 'unlock_kernel()' only releases the kernel lock
+> if the lock was obtained once.
 
-Thinking that the VM mapping shift has to be the same as the page shift is
-not necessarily the right thing. With just 9 bits of shift, you still get
-large files - 41 bits of files on a 32-bit architecture, and by the time
-you want more you _really_ can say that you had better upgrade your CPU. 
+Yes, but in all the places we are currently doing the copy_*_user, we
+only hold the lock once.  In general we might want to do a true
+save/restore of lock_depth for a new, self-unlocking copy_*_user, but
+right now the droplock diffs still do the right thing the simple way.
 
-		Linus
-
+--Stephen
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm my@address'
 in the body to majordomo@kvack.org.  For more info on Linux MM,
