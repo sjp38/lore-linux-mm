@@ -1,40 +1,24 @@
-Date: Mon, 14 Oct 2002 05:45:00 -0700 (PDT)
-Message-Id: <20021014.054500.89132620.davem@redhat.com>
-Subject: Re: [patch, feature] nonlinear mappings, prefaulting support,
- 2.5.42-F8
-From: "David S. Miller" <davem@redhat.com>
-In-Reply-To: <Pine.LNX.4.44.0210141334100.17808-100000@localhost.localdomain>
-References: <Pine.LNX.4.44.0210141334100.17808-100000@localhost.localdomain>
+Date: Mon, 14 Oct 2002 06:01:48 -0700
+From: William Lee Irwin III <wli@holomorphy.com>
+Subject: Re: 2.5.42-mm2 munmap() oops
+Message-ID: <20021014130148.GA4488@holomorphy.com>
+References: <20021014122014.GI2032@holomorphy.com>
 Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20021014122014.GI2032@holomorphy.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: mingo@elte.hu
-Cc: torvalds@transmeta.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: linux-mm@kvack.org, dmccr@us.ibm.com
 List-ID: <linux-mm.kvack.org>
 
-   - TLB flush avoidance: the MAP_FIXED overmapping of larger than 4K cache
-     units causes a TLB flush, greatly increasing the overhead of 'basic'
-     DB cache operations - both the direct overhead and the secondary costs
-     of repopulating the TLB cache are signifiant - and will only increase
-     with newer CPUs. remap_file_pages() uses the one-page invalidation
-     instruction, which does not destroy the TLB.
-   
-Maybe on your cpu.
+On Mon, Oct 14, 2002 at 05:20:14AM -0700, William Lee Irwin III wrote:
+> EIP is at zap_pmd_range+0xd6/0x10c
 
-We created the range tlb flushes so that architectures have a chance
-of optimizing such operations when possible.
+This is the BUG() if (page_count(ptepage) > 1)
 
-If that isn't happening for small numbers of pages on x86 currently,
-that isn't justification for special casing it here in this non-linear
-mappings code.
 
-If someone does a remap of 1GB of address space, I sure want the
-option of doing a full MM flush if that is cheaper on my platform.
-
-Currently, this part smells of an x86 performance hack, which might
-even be suboptimal on x86 for remapping of huge ranges.
+Bill
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
