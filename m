@@ -1,119 +1,139 @@
-Received: from westrelay02.boulder.ibm.com (westrelay02.boulder.ibm.com [9.17.195.11])
-	by e32.co.us.ibm.com (8.12.10/8.12.9) with ESMTP id j34HoN5j837826
-	for <linux-mm@kvack.org>; Mon, 4 Apr 2005 13:50:24 -0400
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by westrelay02.boulder.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id j34HoNwV211972
-	for <linux-mm@kvack.org>; Mon, 4 Apr 2005 11:50:23 -0600
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.12.11/8.12.11) with ESMTP id j34HoNoM004981
-	for <linux-mm@kvack.org>; Mon, 4 Apr 2005 11:50:23 -0600
-Subject: [PATCH 4/4] Introduce new Kconfig option for NUMA or DISCONTIG
-From: Dave Hansen <haveblue@us.ibm.com>
-Date: Mon, 04 Apr 2005 10:50:20 -0700
-Message-Id: <E1DIViP-0006dF-00@kernel.beaverton.ibm.com>
+Date: Mon, 4 Apr 2005 14:28:27 -0500
+From: Jack Steiner <steiner@sgi.com>
+Subject: per_cpu_pagesets degrades MPI performance
+Message-ID: <20050404192827.GA15142@sgi.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: akpm@osdl.org
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Dave Hansen <haveblue@us.ibm.com>, apw@shadowen.org
+To: akpm@osdl.org, hugh@veritas.com
+Cc: linux-mm@kvack.org, linux-ia64@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-There is some confusion that arose when working on SPARSEMEM patch
-between what is needed for DISCONTIG vs. NUMA.
+Performnace of a number of MPI benchmarks degraded when we upgraded 
+from 2.4 based kernels to 2.6 based kernels.  Surprisingly, we isolated 
+the cause of the degradation to page coloring problems caused by
+the per_cpu_pagesets feature that was added to 2.6. I'm sure that
+this feature is a significant win for many workloads but it is
+causing degradations for MPI workloads.
 
-Multiple pg_data_t's are needed for DISCONTIGMEM or NUMA,
-independently.  All of the current NUMA implementations require an
-implementation of DISCONTIG.  Because of this, quite a lot of code
-which is really needed for NUMA is actually under DISCONTIG #ifdefs.
-For SPARSEMEM, we changed some of these #ifdefs to CONFIG_NUMA, but
-that broke the DISCONTIG=y and NUMA=n case.
+I'm running on an IA64 using systems with L3 caches of 1.5MB, 3MB & 9MB. The
+degradation has been seen on all systems. The L3 caches on these systems
+are physically tagged & have 16 (1.5MB, 3MB) or 32 (9MB) colors.
 
-Introducing this new NEED_MULTIPLE_NODES config option allows code
-that is needed for both NUMA or DISCONTIG to be separated out from
-code that is specific to DISCONTIG.
+MPI programs consist of multiple threads that are simultaneously
+launched by a control thread. The threads typically allocate memory
+in parallel during the initialization phase.
 
-One great advantage of this approach is that it doesn't require
-every architecture to be converted over.  All of the current
-implementations should "just work", only the ones implementing
-SPARSEMEM will have to be fixed up.
+With per_cpu_pagesets, pages are allocated & released in small batchs.
+The batch size on the test system that I used is 4. Batching allocations
+introduces a bias into the colors of the pages that are assigned to
+a thread and is causing excessive L3 cache misses.
 
-The change to free_area_init() makes it work inside, or out of the
-new config option.
+I wrote a simple test program that forked 2 threads, then each thread
+malloc'ed & referenced 10MB of memory.  I then counted the colors of
+each of the pages in the 10MB region of the 2 threads:
 
-Signed-off-by: Dave Hansen <haveblue@us.ibm.com>
----
+	(color = (phys-addr / pagesize) % 16
 
- memhotplug-dave/include/linux/mmzone.h |    6 +++---
- memhotplug-dave/mm/Kconfig             |    8 ++++++++
- memhotplug-dave/mm/page_alloc.c        |    6 +++---
- 3 files changed, 14 insertions(+), 6 deletions(-)
+           ----------- color--------------------------------------------
+           0   1   2   3   4   5   6   7   8   9  10  11  12  13  14  15
+Thread 0:  2   2   2   2  75  75  75  75   1   1   1   1  74  74  75  76
+Thread 1: 74  74  74  74   1   1   1   1  75  76  76  76   2   2   2   2
 
-diff -puN include/linux/mmzone.h~A9-separate-NUMA-DISCONTIG include/linux/mmzone.h
---- memhotplug/include/linux/mmzone.h~A9-separate-NUMA-DISCONTIG	2005-04-04 10:15:39.000000000 -0700
-+++ memhotplug-dave/include/linux/mmzone.h	2005-04-04 10:15:39.000000000 -0700
-@@ -385,7 +385,7 @@ int lowmem_reserve_ratio_sysctl_handler(
- /* Returns the number of the current Node. */
- #define numa_node_id()		(cpu_to_node(_smp_processor_id()))
- 
--#ifndef CONFIG_DISCONTIGMEM
-+#ifndef CONFIG_NEED_MULTIPLE_NODES
- 
- extern struct pglist_data contig_page_data;
- #define NODE_DATA(nid)		(&contig_page_data)
-@@ -393,11 +393,11 @@ extern struct pglist_data contig_page_da
- #define MAX_NODES_SHIFT		1
- #define pfn_to_nid(pfn)		(0)
- 
--#else /* CONFIG_DISCONTIGMEM */
-+#else /* CONFIG_NEED_MULTIPLE_NODES */
- 
- #include <asm/mmzone.h>
- 
--#endif /* !CONFIG_DISCONTIGMEM */
-+#endif /* !CONFIG_NEED_MULTIPLE_NODES */
- 
- #if BITS_PER_LONG == 32 || defined(ARCH_HAS_ATOMIC_UNSIGNED)
- /*
-diff -puN mm/page_alloc.c~A9-separate-NUMA-DISCONTIG mm/page_alloc.c
---- memhotplug/mm/page_alloc.c~A9-separate-NUMA-DISCONTIG	2005-04-04 10:15:39.000000000 -0700
-+++ memhotplug-dave/mm/page_alloc.c	2005-04-04 10:15:39.000000000 -0700
-@@ -1768,18 +1768,18 @@ void __init free_area_init_node(int nid,
- 	free_area_init_core(pgdat, zones_size, zholes_size);
- }
- 
--#ifndef CONFIG_DISCONTIGMEM
-+#ifndef CONFIG_NEED_MULTIPLE_NODES
- static bootmem_data_t contig_bootmem_data;
- struct pglist_data contig_page_data = { .bdata = &contig_bootmem_data };
- 
- EXPORT_SYMBOL(contig_page_data);
-+#endif
- 
- void __init free_area_init(unsigned long *zones_size)
- {
--	free_area_init_node(0, &contig_page_data, zones_size,
-+	free_area_init_node(0, NODE_DATA(0), zones_size,
- 			__pa(PAGE_OFFSET) >> PAGE_SHIFT, NULL);
- }
--#endif
- 
- #ifdef CONFIG_PROC_FS
- 
-diff -puN mm/Kconfig~A9-separate-NUMA-DISCONTIG mm/Kconfig
---- memhotplug/mm/Kconfig~A9-separate-NUMA-DISCONTIG	2005-04-04 10:15:39.000000000 -0700
-+++ memhotplug-dave/mm/Kconfig	2005-04-04 10:15:39.000000000 -0700
-@@ -23,3 +23,11 @@ config DISCONTIGMEM
- 
- endchoice
- 
-+#
-+# Both the NUMA code and DISCONTIGMEM use arrays of pg_data_t's
-+# to represent different areas of memory.  This variable allows
-+# those dependencies to exist individually.
-+#
-+config NEED_MULTIPLE_NODES
-+	def_bool y
-+	depends on DISCONTIGMEM || NUMA
-_
+Note that thread 0 has most of it pages with colors 4-7 & 12-15 whereas 
+the other thread has colors 0-3 & 8-11. This effectively cuts the size of 
+the L3 in half. 
+
+The threads are nicely interleaving assignments of the batches of 4 pages.
+
+I see this same skew in page colors assigned to real user programs but it not
+as bad as the example shown above. However, performance of MPI programs is
+limited by the speed of the slowest thread. If only a single thread has
+poor coloring, performance of all threads degrades.
+
+I added a hack to disable the per_cpu_pagesets, the color skew disappears &
+both 2.4 & 2.6 kernel perform the same.
+
+With per_cpu_pagesets disabled, I see a tendency to assign a series of 
+odd pages to one thread & even pages to the other thread. However, there 
+appears to be enough noise in the system so that the pattern does not 
+persist for a long time and overall each thread has approximately the same 
+number of pages of each color.
+
+I also changed the batch size to 16. (I was running on a system that had
+an L3 with 16 colors). Again, the degradation disappeared.
+
+
+Here is data from a real benchmark suite.  The tests wer run on a 
+production system with 64p, 32 nodes.  The numbers show the time
+required to run each test. Benchmarks 1, 2 & 5 show significant
+degradation caused by the per_cpu_pagesets.
+
+              - PER_CPU_PAGESETS -
+TESTCASE      ENABLED     DISABLED        RATIO
+BENCHMARK1
+      4P         9.97         6.29         0.63
+      8P         5.34         3.84         0.72
+     16P         2.60         1.96         0.75
+     32P         1.64         1.07         0.65
+     64P         0.94         0.55         0.59
+    128P         0.60         0.33         0.56
+
+BENCHMARK2
+      4P      3061.46      2877.89         0.94
+      8P      1794.32      1707.51         0.95
+     16P      1201.00      1129.44         0.94
+     32P      1017.43       932.83         0.92
+
+BENCHMARK3
+     32P      3832.90      3897.00         1.02
+
+BENCHMARK4
+      2P      1387.00      1378.00         0.99
+      4P       698.23       714.24         1.02
+      8P       341.71       350.20         1.02
+     16P       174.82       170.84         0.98
+     32P        73.75        81.54         1.11
+
+BENCHMARK5
+      4P       761.07       757.09         0.99
+      8P       341.54       295.69         0.87
+     16P       142.38       136.37         0.96
+     32P        68.41        56.60         0.83
+     64P        35.17        34.43         0.98
+
+BENCHMARK6
+      1P       155.42       154.94         1.00
+      2P        73.40        72.86         0.99
+      4P        38.43        37.25         0.97
+      6P        25.66        25.49         0.99
+      8P        19.93        19.70         0.99
+     12P        13.99        13.94         1.00
+     16P        10.98        10.85         0.99
+     24P         8.02         7.92         0.99
+     48P         5.58         5.73         1.03
+
+Has anyone else seen this problem? I am considering adding
+a config option to allow a site to control the batch size
+used for per_cpu_pagesets. Are there other ideas that should 
+be pursued? 
+
+
+I should also note that the amount of memory potentially trapped in the 
+per_cpu_pagesets gets excessively large on big multinode systems.
+I'll post another note about this, but it looks like a 
+256 node, 512p system can have many GB of memory in the
+per_cpu_pagesets.
+
+-- 
+Thanks
+
+Jack Steiner (steiner@sgi.com)          651-683-5302
+Principal Engineer                      SGI - Silicon Graphics, Inc.
+
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
