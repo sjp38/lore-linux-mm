@@ -1,30 +1,26 @@
-Received: from mioooldpc (mioooldpc [127.0.0.1])
-	by mioooldpc (Postfix) with SMTP id 8A14330223
-	for <linux-mm@kvack.org>; Sat, 30 Jun 2001 21:26:34 +0200 (CEST)
-Content-Type: text/plain;
-  charset="utf-8"
-From: Jordi Polo <mumismo@wanadoo.es>
-Subject: about distributed memory
-Date: Sat, 30 Jun 2001 21:26:28 +0200
+Date: Sat, 30 Jun 2001 16:30:29 -0300 (BRT)
+From: Marcelo Tosatti <marcelo@conectiva.com.br>
+Subject: Removal of PG_marker scheme from 2.4.6-pre
+Message-ID: <Pine.LNX.4.21.0106301628570.3394-100000@freak.distro.conectiva>
 MIME-Version: 1.0
-Message-Id: <01063021262900.02513@mioooldpc>
-Content-Transfer-Encoding: 8bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Linus Torvalds <torvalds@transmeta.com>
+Cc: lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-some time ago i think that Rick was doing a patch to allow distributed memory 
-(MOSIX needed that , maybe others can use it ?) , but i don't know if has 
-been included is in beta or never written. 
-I'm interested in looking at it (and test it with several MOSIX machines if 
-you need) .
-we need anything else to achieve distributed memory  ?   
+Linus, 
 
-thanks
+In pre7:
 
---
-jordi polo 
+"me: undo page_launder() LRU changes, they have nasty side effects"
+
+
+Can you be more verbose about this ? 
+
+Thanks 
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
