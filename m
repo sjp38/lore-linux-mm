@@ -1,29 +1,30 @@
-Date: Tue, 2 May 2000 13:43:36 -0700 (PDT)
-From: Linus Torvalds <torvalds@transmeta.com>
-Subject: Re: Oops in __free_pages_ok (pre7-1) (Long)
-In-Reply-To: <yttg0s13gjx.fsf@vexeta.dc.fi.udc.es>
-Message-ID: <Pine.LNX.4.10.10005021342380.11153-100000@penguin.transmeta.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Tue, 2 May 2000 22:14:05 +0100
+From: "Stephen C. Tweedie" <sct@redhat.com>
+Subject: Re: kswapd @ 60-80% CPU during heavy HD i/o.
+Message-ID: <20000502221405.O1389@redhat.com>
+References: <Pine.LNX.4.21.0005021818070.1919-100000@alpha.random> <Pine.LNX.4.21.0005021405030.10610-100000@duckman.conectiva>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+In-Reply-To: <Pine.LNX.4.21.0005021405030.10610-100000@duckman.conectiva>; from riel@conectiva.com.br on Tue, May 02, 2000 at 02:06:20PM -0300
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Juan J. Quintela" <quintela@fi.udc.es>
-Cc: linux-mm@kvack.org, Andrea Arcangeli <andrea@suse.de>, Kanoj Sarcar <kanoj@google.engr.sgi.com>
+To: riel@nl.linux.org
+Cc: Andrea Arcangeli <andrea@suse.de>, Roger Larsson <roger.larsson@norran.net>, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+Hi,
 
-On 2 May 2000, Juan J. Quintela wrote:
-> Hi
->         several people have reported Oops in __free_pages_ok, after a
-> BUG() in page_alloc.h.  This happens in 2.3.99-pre[67].  The BUGs are:
+On Tue, May 02, 2000 at 02:06:20PM -0300, Rik van Riel wrote:
+> > do the smart things I was mentining some day ago in linux-mm
+> > with NUMA.
+> 
+> How do you want to take care of global page balancing with
+> this "optimisation"?
 
-I'd like ot know what the back-trace for those reports are? 
+You don't.  With NUMA, the memory is inherently unbalanced, and you
+don't want the allocator to smooth over the different nodes.
 
-I'm not against getting rid of the PageSwapEntry logic (it's complication
-for not very much gain), but I'd like to understand this more..
-
-		Linus
-
+--Stephen
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
