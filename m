@@ -1,52 +1,35 @@
-Message-ID: <3C866821.6DF3F65C@zip.com.au>
-Date: Wed, 06 Mar 2002 11:04:01 -0800
+Message-ID: <3C866A1C.FB0253FE@zip.com.au>
+Date: Wed, 06 Mar 2002 11:12:28 -0800
 From: Andrew Morton <akpm@zip.com.au>
 MIME-Version: 1.0
 Subject: Re: [PATCH] struct page shrinkage
-References: <OFC19C560E.A00F9111-ON85256B74.006633D4@pok.ibm.com>
+References: <OFC19C560E.A00F9111-ON85256B74.006633D4@pok.ibm.com>,
+		<OFC19C560E.A00F9111-ON85256B74.006633D4@pok.ibm.com> <20020306185004.GA32692@matchmail.com>
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Bulent Abali <abali@us.ibm.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Mike Fedyk <mfedyk@matchmail.com>
+Cc: Bulent Abali <abali@us.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Bulent Abali wrote:
+Mike Fedyk wrote:
 > 
-> extern struct page_state {
->              unsigned long nr_dirty;
->              unsigned long nr_locked;
-> } ____cacheline_aligned page_states[NR_CPUS];
+> On Wed, Mar 06, 2002 at 01:41:51PM -0500, Bulent Abali wrote:
+> > What is the outlook for inclusion of this patch in the main kernel?  Do you
+> > plan to submit or have been included yet?
 > 
-> This is perfect.   Looks like, if a run summation over all the CPUs I will
-> get the total locked and dirty pages, provided mm.h macros are respected.
+> I believe it is planned to be submitted to 2.5.
 
-That's correct.  And the mm.h macros *are* respected.  That patch
-ensures that they are.
+hmm.
 
-It goes as far as to rename PG_locked and PG_dirty to PG_locked_dontuse
-and PG_dirty_dontuse.
+> Andrew, why isn't this listed on the 2.5 status page?
 
-I'll be adding page_cache_size to the above struct, at least.
+Coz it's something I pulled out of my butt just a couple of
+weeks back :)
 
-The "run summation" function is already there, btw: get_page_state().
-
-> What is the outlook for inclusion of this patch in the main kernel?  Do you
-> plan to submit or have been included yet?
-
-Well it's all a part of a work to aggressively improve the efficiency
-of regular file I/O.  I don't know if the big grand plan will be successful
-yet.  At this time, it's thumbs up - way up.
-
-Nor do I know if this is a direction in which Linus wishes to take
-his kernel.
-
-But this change, the readahead changes, the pdflush pool and a few other
-pieces I have planned are probably appropriate for the base kernel
-irrespective of the end outcome.
-
-We'll see...
+We'll see how it pans out.  I must say that after two years
+of fixing other guys' bugs, it's fun writing some of my own.
 
 -
 --
