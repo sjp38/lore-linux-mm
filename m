@@ -1,104 +1,70 @@
-Received: from penguin.e-mind.com (penguin.e-mind.com [195.223.140.120])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id TAA18926
-	for <linux-mm@kvack.org>; Sun, 29 Nov 1998 19:54:58 -0500
-Date: Mon, 30 Nov 1998 21:02:05 +0100 (CET)
-From: Andrea Arcangeli <andrea@e-mind.com>
-Subject: Re: Update shared mappings
-In-Reply-To: <199811301352.NAA03313@dax.scot.redhat.com>
-Message-ID: <Pine.LNX.3.96.981130204515.498H-100000@dragon.bogus>
+Received: from max.phys.uu.nl (max.phys.uu.nl [131.211.32.73])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id UAA19032
+	for <linux-mm@kvack.org>; Sun, 29 Nov 1998 20:06:43 -0500
+Date: Mon, 30 Nov 1998 20:29:35 +0100 (CET)
+From: Rik van Riel <H.H.vanRiel@phys.uu.nl>
+Reply-To: Rik van Riel <H.H.vanRiel@phys.uu.nl>
+Subject: Re: [2.1.130-3] Page cache DEFINATELY too persistant... feature?
+In-Reply-To: <871zmldxkd.fsf@atlas.CARNet.hr>
+Message-ID: <Pine.LNX.3.96.981130202517.274A-100000@mirkwood.dummy.home>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: "Stephen C. Tweedie" <sct@redhat.com>
-Cc: Zlatko.Calusic@CARNet.hr, Linux-MM List <linux-mm@kvack.org>, Andi Kleen <andi@zero.aec.at>
+To: Zlatko Calusic <Zlatko.Calusic@CARNet.hr>
+Cc: "Stephen C. Tweedie" <sct@redhat.com>, Linus Torvalds <torvalds@transmeta.com>, Benjamin Redelings I <bredelin@ucsd.edu>, Linux Kernel <linux-kernel@vger.rutgers.edu>, Linux MM <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 30 Nov 1998, Stephen C. Tweedie wrote:
+On 30 Nov 1998, Zlatko Calusic wrote:
+> Rik van Riel <H.H.vanRiel@phys.uu.nl> writes:
 
->The mmap_semaphore is already taken out _much_ earlier on in msync(), or
->the vm_area_struct can be destroyed by another thread.  Is this patch
+> > that (or abolish the percentages completely) kswapd
+> > doesn't have an incentive to switch from a succesful
+> > round of swap_out() -- which btw doesn't free any
+> > actual memory so kswapd just continues doing that --
+> > to shrink_mmap().
+> 
+> Yep, this is the conclusion of my experiments, too.
 
-Infact the down you see is done on a different mmstruct. It has to be a
-diffent mm struct.
+> I made the following change in do_try_to_free_page():
 
->tested?  Won't we deadlock immediately on doing this extra down()
+[SNIP]
 
-Sure.
+> Unfortunately, this really killed swapout performance, so I dropped
+> the idea. Even letting swap_out do more passes, before changing state, 
+> didn't feel good.
+> 
+> One other idea I had, was to replace (code at the very beginning of
+> do_try_to_free_page()):
+> 
+> 	if (buffer_over_borrow() || pgcache_over_borrow())
+> 		shrink_mmap(i, gfp_mask);
+> 
+> with:
+> 
+> 	if (buffer_over_borrow() || pgcache_over_borrow())
+> 		state = 0;
 
->operation? 
+I am now trying:
+	if (buffer_over_borrow() || pgcache_over_borrow() ||
+			atomic_read(&nr_async_pages)
+		shrink_mmap(i, gfp_mask);
 
-No.
+Note that this doesn't stop kswapd from swapping out so
+swapout performance shouldn't suffer. It does however
+free up memory so kswapd should _terminate_ and keep the
+amount of I/O done to a sane level.
 
->The only reason that this patch works in its current state is that
->exit_mmap() skips the down(&mm->mmap_sem).  It can safely do so only
+Note that I'm running with my experimentas swapin readahead
+patch enabled so the system should be stressed even more
+than normally :)
 
-I guess you have not read the patch well...
+cheers,
 
->because if we are exiting the mmap, we know we are the last thread and
->so no other thread can be playing games with us.  So, exit_mmap()
->doesn't deadlock, but a sys_msync() on the region looks as if it will.
-
-???
-
-I reproduced the StarOffice deadlock here also without my patch. And the
-guy that said me that my patch was deadlocking staroffice then said me
-that now staroffice was working also with my patch applyed...
-
-Stephen I can' t see the obvious deadlocking you are tolking about. The
-mmap semphore can be held for many processes but not two times for the
-same one and never for the current one. The code should work fine also
-with CLONE_VM. I have no pending bug reports btw. 
-
-I am using the patch from day 0 and I never deadlocked. The only proggy I
-used specifically to try my update_shared_mappings() code is this though:
-
-#include <unistd.h>
-#include <fcntl.h>
-#include <sys/mman.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-
-/* file size, should be half of the size of the physical memory  */
-#define FILESIZE (5 * 1024 * 1024)
-
-int main(void)
-{
-  char *ptr;
-  int fd, i;
-  char c = 'A';
-  pid_t pid;
-
-  if ((fd = open("foo", O_RDWR | O_CREAT | O_EXCL, 0666)) == -1) {
-    perror("open");
-    exit(1);
-  }
-  lseek(fd, FILESIZE - 1, SEEK_SET);
-  /* write one byte to extend the file */
-  write(fd, &fd, 1);
-  ptr = mmap(0, FILESIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
-  if (ptr == NULL) {
-    perror("mmap");
-    exit(1);
-  }
-
-  /* dirty every page in the mapping */
-  for (i = 0; i < FILESIZE; i += 4096)
-    ptr[i] = c;
-
-  while (1) {
-    if ((pid = fork())) { /* parent, wait */
-      waitpid(pid, NULL, 0);
-    } else { /* child, exec away */
-	    msync(ptr, FILESIZE, MS_SYNC);
-    }
-    sleep(5);
-  }
-}
-
-Let me know if the code still need fixing. A proggy that trigger the bug
-would be helpful btw ;)
-
-Andrea Arcangeli
+Rik -- now completely used to dvorak kbd layout...
++-------------------------------------------------------------------+
+| Linux memory management tour guide.        H.H.vanRiel@phys.uu.nl |
+| Scouting Vries cubscout leader.      http://www.phys.uu.nl/~riel/ |
++-------------------------------------------------------------------+
 
 --
 This is a majordomo managed list.  To unsubscribe, send a message with
