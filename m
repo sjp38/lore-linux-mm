@@ -1,71 +1,38 @@
-From: David Woodhouse <dwmw2@infradead.org>
-Subject: [RFC] On paging of kernel VM.
+Date: Mon, 9 Sep 2002 12:13:48 +0100
+From: "Stephen C. Tweedie" <sct@redhat.com>
+Subject: Re: [RFC] On paging of kernel VM.
+Message-ID: <20020909121348.B4855@redhat.com>
+References: <2653.1031563253@redhat.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Transfer-Encoding: 8bit
-Date: Mon, 09 Sep 2002 10:20:53 +0100
-Message-ID: <2653.1031563253@redhat.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <2653.1031563253@redhat.com>; from dwmw2@infradead.org on Mon, Sep 09, 2002 at 10:20:53AM +0100
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org
+To: David Woodhouse <dwmw2@infradead.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Stephen Tweedie <sct@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-I think I'd like to introduce 'real' VMAs into kernel space, so that areas
-in the vmalloc range can have 'real' vm_ops and more to the point a real
-nopage function.
+Hi,
 
-Unfortunately AFAICT this would involve changing the fault handler on every 
-platform, so I'm debating whether it's really worth it -- if anyone else 
-could use it and if I could get round my problem any other way.
+On Mon, Sep 09, 2002 at 10:20:53AM +0100, David Woodhouse wrote:
+> I think I'd like to introduce 'real' VMAs into kernel space, so that areas
+> in the vmalloc range can have 'real' vm_ops and more to the point a real
+> nopage function.
 
-The problem is flash chips. These basically behave as ROM, but you write to 
-them by writing magic values to magic addresses, and during a write 
-operation the _whole_ chip returns status bits instead of data.
+The alternative is a kmap-style mechanism for temporarily mapping
+pages beyond physical memory on demand.  That would avoid the space
+limits we have on vmalloc etc; there's only a few tens of MB of
+address space we can use for mmap tricks in kernel space, so
+persistent maps are seriously constrained if you've got a lot of flash
+you want to map.
 
-To avoid taking up precious RAM with copies of data which are already in 
-flash, we can map pages of flash directly into userspace. On taking a 
-fault, we wait for any pending write to complete, mark the chip as busy, 
-then set up the page tables appropriately so that userspace can read from 
-it. On starting a write operation, you invalidate all currently-visible 
-pages before starting to talk to the chip.
+And with a kmap interface, your locking problems are much simpler ---
+you can trap accesses at source and you don't have to go hunting ptes
+to invalidate.
 
-There are cases in the kernel where we'd really like the same setup --
-mounting a JFFS2 file system, for example, is a slow operation because it's
-entirely log-structured and we have to read every log entry on the file
-system. The current method of reading into a RAM buffer under a lock and
-then dealing with stuff in RAM is entirely suboptimal, and proof-of-concept
-hacks to just use a pointer into the flash chip have been observed to
-improve mount time by about a factor of 4.
-
-The locking is a problem though. Flash chips may be divided into multiple
-partitions and other code may want to write to its partition while a mount
-is in progress. The naive approach of just locking the chip into read mode
-on giving out a pointer to it, and unlocking it when the mount is complete,
-is going to suck royally. Hence, it would be very nice if we could play the
-same trick as we do for userspace; giving out a pointer which is always
-going to be valid; you just might have to wait for it. 
-
-But as I said, this means screwing with every fault handler. It doesn't 
-have to affect the fast path -- we can go looking for these vmas only in 
-the case where we've already tried looking for the appropriate pte in 
-init_mm and haven't found it. But it's still an intrusive change that would 
-need to be done on every architecture.
-
-I'm wondering what else could use this if it were implemented. Is there any
-need for something like vmalloc_pageable(), for example? Anything else?
-Rusty and I have wittered about marking certain kernel functions and data as
-__pageable to go into a special such section too, but I'm wondering if that
-conversation was slightly Guinness-influenced :)
-
-Or is there another way to solve my original problem that I've overlooked?
-
-Answers on a postcard to...
-
---
-dwmw2
-
-
+Cheers,
+ Stephen
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
