@@ -1,30 +1,29 @@
 Subject: Re: 2.6.0-test5-mm2
-From: =?ISO-8859-1?Q?Ram=F3n?= Rey Vicente <retes_simbad@yahoo.es>
-In-Reply-To: <20030914234843.20cea5b3.akpm@osdl.org>
+From: Felipe Alfaro Solana <felipe_alfaro@linuxmail.org>
+In-Reply-To: <1063677742.988.7.camel@debian>
 References: <20030914234843.20cea5b3.akpm@osdl.org>
-Content-Type: text/plain; charset=iso-8859-15
-Message-Id: <1063677742.988.7.camel@debian>
+	 <1063677742.988.7.camel@debian>
+Content-Type: text/plain; charset=UTF-8
+Message-Id: <1063707835.1303.0.camel@teapot.felipe-alfaro.com>
 Mime-Version: 1.0
-Date: Tue, 16 Sep 2003 04:02:23 +0200
+Date: Tue, 16 Sep 2003 12:23:56 +0200
 Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
+To: =?ISO-8859-1?Q?Ram=F3n?= Rey Vicente <retes_simbad@yahoo.es>
 Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> +o20.1int.patch
+On Tue, 2003-09-16 at 04:02, RamA3n Rey Vicente wrote:
+> > +o20.1int.patch
+> 
+> The work of Con is great! The desktop experience is much better than
+> Linus tree. And now the stability of the system response is very good in
+> my K6-2 450 machine with many aplications launched at same time. 
+> 
+> I think this patches must be merged into Linus tree as soon as possible.
 
-The work of Con is great! The desktop experience is much better than
-Linus tree. And now the stability of the system response is very good in
-my K6-2 450 machine with many aplications launched at same time. 
-
-I think this patches must be merged into Linus tree as soon as possible.
--- 
-Ramon Rey Vicente       <ramon dot rey at hispalinux dot es>
-        jabber ID       <rreylinux at jabber dot org>
-------------------------------------------------------------
-gpg public key ID 0xBEBD71D5 # http://pgp.escomposlinux.org/
+I cannot agree with you more :-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
