@@ -1,62 +1,43 @@
-Date: Tue, 2 Nov 2004 17:34:08 -0500 (EST)
-From: Jason Baron <jbaron@redhat.com>
-Subject: Re: fix iounmap and a pageattr memleak (x86 and x86-64) 
-In-Reply-To: <4187FA6D.3070604@us.ibm.com>
-Message-ID: <Pine.LNX.4.44.0411021728460.8117-100000@dhcp83-105.boston.redhat.com>
+Received: from westrelay02.boulder.ibm.com (westrelay02.boulder.ibm.com [9.17.195.11])
+	by e31.co.us.ibm.com (8.12.10/8.12.9) with ESMTP id iA2MYKLv252816
+	for <linux-mm@kvack.org>; Tue, 2 Nov 2004 17:34:31 -0500
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by westrelay02.boulder.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id iA2MYAAY098652
+	for <linux-mm@kvack.org>; Tue, 2 Nov 2004 15:34:10 -0700
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.12.11/8.12.11) with ESMTP id iA2MYAQs004277
+	for <linux-mm@kvack.org>; Tue, 2 Nov 2004 15:34:10 -0700
+Message-ID: <41880B60.9070004@us.ibm.com>
+Date: Tue, 02 Nov 2004 14:34:08 -0800
+From: Dave Hansen <haveblue@us.ibm.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: fix iounmap and a pageattr memleak (x86 and x86-64)
+References: <4187FA6D.3070604@us.ibm.com>	<20041102220720.GV3571@dualathlon.random>	<4188086F.8010005@us.ibm.com> <20041102142944.0be6f750.akpm@osdl.org>
+In-Reply-To: <20041102142944.0be6f750.akpm@osdl.org>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Hansen <haveblue@us.ibm.com>
-Cc: andrea@novell.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andi Kleen <ak@suse.de>, Andrew Morton <akpm@osdl.org>
+To: Andrew Morton <akpm@osdl.org>
+Cc: andrea@novell.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, ak@suse.de
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2 Nov 2004, Dave Hansen wrote:
-
-> This patch:
+Andrew Morton wrote:
+> Dave Hansen <haveblue@us.ibm.com> wrote:
 > 
-> > From: Andrea Arcangeli <andrea@novell.com>
-> > 
-> > - fix silent memleak in the pageattr code that I found while searching
-> >   for the bug Andi fixed in the second patch below (basically reference
-> >   counting in split page was done on the pmd instead of the pte).
-> > 
-> > - Part of this patch is also needed to make the above work on x86 (otherwise
-> >   one of my new above BUGS() will trigger signalling the fact a bug was
-> >   there).  The below patch creates a subtle dependency that (_PAGE_PCD << 24)
-> >   must not be zero.  It's not the cleanest thing ever, but since it's an
-> >   hardware bitflag I doubt it's going to break.
-> > 
-> > Signed-off-by: Andi Kleen <ak@suse.de>
-> > Signed-off-by: Andrea Arcangeli <andrea@novell.com>
-> > Signed-off-by: Andrew Morton <akpm@osdl.org>
-> > ---
-> > 
-> >  25-akpm/arch/i386/mm/ioremap.c    |    4 ++--
-> >  25-akpm/arch/i386/mm/pageattr.c   |   13 +++++++------
-> >  25-akpm/arch/x86_64/mm/ioremap.c  |   14 +++++++-------
-> >  25-akpm/arch/x86_64/mm/pageattr.c |   23 ++++++++++++++---------
-> >  4 files changed, 30 insertions(+), 24 deletions(-)
+>>Andrea Arcangeli wrote:
+>>
+>>>Still I recommend investigating _why_ debug_pagealloc is violating the
+>>>API. It might not be necessary to wait for the pageattr universal
+>>>feature to make DEBUG_PAGEALLOC work safe.
+>>
+>>OK, good to know.  But, for now, can we pull this out of -mm?  Or, at 
+>>least that BUG_ON()?  DEBUG_PAGEALLOC is an awfully powerful debugging 
+>>tool to just be removed like this.
 > 
-> is hitting this BUG() during bootup:
-> 
->         /* memleak and potential failed 2M page regeneration */
->         BUG_ON(!page_count(kpte_page));
-> 
-> in 2.6.10-rc1-mm2.
-> 
+> If we make it a WARN_ON, will that cause a complete storm of output?
 
-I've seen the page_count being -1 (not sure why), for a number of pages in
-the identity mapped region...So the BUG() on 0 doesn't seem valid to me.
- 
-Also, in order to tell if the pages should be merged back to create a huge
-page, i don't see how the patch differentiates b/w pages that were split
-and those that weren't simply based on the page_count....
-
--Jason
-
-
-
+Yeah, just tried it.  I hit a couple hundred of them before I got to init.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
