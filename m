@@ -1,60 +1,111 @@
-Message-ID: <41C3D453.4040208@yahoo.com.au>
-Date: Sat, 18 Dec 2004 17:55:15 +1100
+Message-ID: <41C3D479.40708@yahoo.com.au>
+Date: Sat, 18 Dec 2004 17:55:53 +1100
 From: Nick Piggin <nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
-Subject: [RFC][PATCH 0/10] alternate 4-level page tables patches
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+Subject: [PATCH 1/10] alternate 4-level page tables patches
+References: <41C3D453.4040208@yahoo.com.au>
+In-Reply-To: <41C3D453.4040208@yahoo.com.au>
+Content-Type: multipart/mixed;
+ boundary="------------050802070405040700080703"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linux Memory Management <linux-mm@kvack.org>, Andi Kleen <ak@suse.de>
-Cc: Hugh Dickins <hugh@veritas.com>, Linus Torvalds <torvalds@osdl.org>, Andrew Morton <akpm@osdl.org>
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Linux Memory Management <linux-mm@kvack.org>, Andi Kleen <ak@suse.de>, Hugh Dickins <hugh@veritas.com>, Linus Torvalds <torvalds@osdl.org>, Andrew Morton <akpm@osdl.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+This is a multi-part message in MIME format.
+--------------050802070405040700080703
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 
-Apologies for not making progress on this done sooner, but better late than never.
+1/10
 
-First off - don't let all the signed-off-by: things fool you, I'm only intending
-this for comments, not merging. I just spent a bit of time getting the descriptions
-in better shape.
-
-Second - much of it is Andi's code (especially 4 level core, and x86-64 stuff).
-If any attributions aren't quite accurate at this stage, don't worry too much!
-
-
-Anyway, although we have a working 4-level page tables implementation, I am keeping
-with this because my personal taste preference. Not that it is anything against
-Andi's taste or technical implementation... but I wouldn't like progress to be held
-up on account of me, so I wouldn't be too upset to forget about this until 2.7 (or
-for ever)... /end disclaimer
-
-Well, the patches follow. Tested lightly on i386 32 and 36 bits, ia64, and x86-64
-with full 4 levels.
-
-Comments?
-
-Nick
+--------------050802070405040700080703
+Content-Type: text/plain;
+ name="3level-compat.patch"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline;
+ filename="3level-compat.patch"
 
 
-A bit of an aside: I was hoping to have a page table folding implementation that is
-basically transparent to architectures. That is, a 3-level arch could just include
-some generic header to fold the 4th level, and call it a day (without any other mods
-to arch/?/* or include/asm-?/*).
 
-The reality is, this isn't going to happen with our current semantics. It probably
-isn't a really big deal though, because I don't expect we'd have to support a 5
-level implementation any time soon. But it is something I'd like to explore further.
+Generic headers to fold the 3-level pagetable into 2 levels.
 
-I'll illustrate with an example: in the current setup, if the pmd is folded into
-the pgd, pgd_present is always true, and pmd_present is what actually examines the
-entry in the pgd. Now clearly, the architecture has to implement pmd_present, which
-is pgd_present in a 2-level setup.
+Signed-off-by: Nick Piggin <nickpiggin@yahoo.com.au>
 
-I would like to change that so pgd_present really does check the actual pgd entry,
-and pmd_present is unconditionally true. IMO this would work better and be less
-confusing than the current setup... but that's getting off topic...
 
+---
+
+ linux-2.6-npiggin/include/asm-generic/pgtable-nopmd.h |   59 ++++++++++++++++++
+ 1 files changed, 59 insertions(+)
+
+diff -puN /dev/null include/asm-generic/pgtable-nopmd.h
+--- /dev/null	2004-09-06 19:38:39.000000000 +1000
++++ linux-2.6-npiggin/include/asm-generic/pgtable-nopmd.h	2004-12-18 17:07:48.000000000 +1100
+@@ -0,0 +1,59 @@
++#ifndef _PGTABLE_NOPMD_H
++#define _PGTABLE_NOPMD_H
++
++#ifndef __ASSEMBLY__
++
++/*
++ * Having the pmd type consist of a pgd gets the size right, and allows
++ * us to conceptually access the pgd entry that this pmd is folded into
++ * without casting.
++ */
++typedef struct { pgd_t pgd; } pmd_t;
++
++#define PMD_SHIFT	PGDIR_SHIFT
++#define PTRS_PER_PMD	1
++#define PMD_SIZE  	(1UL << PMD_SHIFT)
++#define PMD_MASK  	(~(PMD_SIZE-1))
++
++/*
++ * The "pgd_xxx()" functions here are trivial for a folded two-level
++ * setup: the pmd is never bad, and a pmd always exists (as it's folded
++ * into the pgd entry)
++ */
++static inline int pgd_none(pgd_t pgd)		{ return 0; }
++static inline int pgd_bad(pgd_t pgd)		{ return 0; }
++static inline int pgd_present(pgd_t pgd)	{ return 1; }
++static inline void pgd_clear(pgd_t *pgd)	{ }
++#define pmd_ERROR(pmd)				(pgd_ERROR((pmd).pgd))
++
++#define pgd_populate(mm, pmd, pte)		do { } while (0)
++#define pgd_populate_kernel(mm, pmd, pte)	do { } while (0)
++
++/*
++ * (pmds are folded into pgds so this doesn't get actually called,
++ * but the define is needed for a generic inline function.)
++ */
++#define set_pgd(pgdptr, pgdval)			set_pmd((pmd_t *)(pgdptr), (pmd_t) { pgdval })
++
++static inline pmd_t * pmd_offset(pgd_t * pgd, unsigned long address)
++{
++	return (pmd_t *)pgd;
++}
++
++#define pmd_val(x)				(pgd_val((x).pgd))
++#define __pmd(x)				((pmd_t) { __pgd(x) } )
++
++#define pgd_page(pgd)				(pmd_page((pmd_t){ pgd }))
++#define pgd_page_kernel(pgd)			(pmd_page_kernel((pmd_t){ pgd }))
++
++/*
++ * allocating and freeing a pmd is trivial: the 1-entry pmd is
++ * inside the pgd, so has no extra memory associated with it.
++ */
++#define pmd_alloc_one(mm, address)		NULL
++#define pmd_free(x)				do { } while (0)
++#define __pmd_free_tlb(tlb, x)			do { } while (0)
++
++#endif /* __ASSEMBLY__ */
++
++#endif /* _PGTABLE_NOPMD_H */
+
+_
+
+--------------050802070405040700080703--
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
