@@ -1,76 +1,94 @@
-Received: from cthulhu.engr.sgi.com (cthulhu.engr.sgi.com [192.26.80.2])
-	by omx3.sgi.com (8.12.11/8.12.9/linux-outbound_gateway-1.1) with ESMTP id j1FN2rVp019283
-	for <linux-mm@kvack.org>; Tue, 15 Feb 2005 15:02:54 -0800
-Message-ID: <42127C38.9000406@sgi.com>
-Date: Tue, 15 Feb 2005 16:48:24 -0600
-From: Ray Bryant <raybry@sgi.com>
-MIME-Version: 1.0
-Subject: manual page migration -- issues
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+Date: Tue, 15 Feb 2005 16:51:52 -0600
+From: Robin Holt <holt@sgi.com>
+Subject: Re: [RFC 2.6.11-rc2-mm2 7/7] mm: manual page migration -- sys_page_migrate
+Message-ID: <20050215225152.GA26753@lnx-holt.americas.sgi.com>
+References: <20050212032620.18524.15178.29731@tomahawk.engr.sgi.com> <1108242262.6154.39.camel@localhost> <20050214135221.GA20511@lnx-holt.americas.sgi.com> <1108407043.6154.49.camel@localhost> <20050214220148.GA11832@lnx-holt.americas.sgi.com> <20050215074906.01439d4e.pj@sgi.com> <20050215162135.GA22646@lnx-holt.americas.sgi.com> <20050215083529.2f80c294.pj@sgi.com> <20050215185943.GA24401@lnx-holt.americas.sgi.com> <16914.28795.316835.291470@wombat.chubb.wattle.id.au>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <16914.28795.316835.291470@wombat.chubb.wattle.id.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm <linux-mm@kvack.org>
+To: Peter Chubb <peterc@gelato.unsw.edu.au>
+Cc: Robin Holt <holt@sgi.com>, ": Paul Jackson" <pj@sgi.com>, haveblue@us.ibm.com, raybry@sgi.com, taka@valinux.co.jp, hugh@veritas.com, akpm@osdl.org, marcello@cyclades.com, raybry@austin.rr.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-The following is an attempt to summarize the issues that have
-been raised thus far in this discussion.  I'm hoping that this
-list can help us resolve the issues in a (somewhat) organized
-manner:
+On Wed, Feb 16, 2005 at 08:58:19AM +1100, Peter Chubb wrote:
+> >>>>> "Robin" == Robin Holt <holt@sgi.com> writes:
+> 
+> Robin> On Tue, Feb 15, 2005 at 08:35:29AM -0800, Paul Jackson wrote:
+> >> What about the suggestion I had that you sort of skipped over,
+> >> which amounted to changing the system call from a node array to
+> >> just one node:
+> >> 
+> >> sys_page_migrate(pid, va_start, va_end, count, old_nodes,
+> >> new_nodes);
+> >> 
+> >> to:
+> >> 
+> >> sys_page_migrate(pid, va_start, va_end, old_node, new_node);
+> >> 
+> >> Doesn't that let you do all you need to?  Is it insane too?
+> 
+> Robin> Migration could be done in most cases and would only fall apart
+> Robin> when there are overlapping node lists and no nodes available as
+> Robin> temp space and we are not moving large chunks of data.
+> 
+> A possibly stupid suggestion: 
+> 
+> Can page migration be done lazily, instead of all at once?  Move the
+> process, mark its pages as candidates for migration, and when 
+> the page faults, decide whether to copy across or not...
+> 
+> That way you only copy the pages the process is using, and only copy
+> each page once.  It makes copy for replication easier in some future
+> incarnation, too, because the same basic infrastructure can be used.
 
-(1)  Should there be a new API or should/can the migration functionality
-      be folded under the NUMA API?
+I would agree that lazy might be possible, but then we need to keep track
+of the desired destination and can not rely upon first touch as that
+will likely result in scrambling the memory of the application.
 
-(2)  If we decide to make a new API, then what parameters should
-      that system call take?  Proposals have been made for all of
-      the following:
+I have been very lax in describing how a typical MPI application works.
+This method has been in place for years and is commonly accepted practice.
 
-      -- pid, va_start, va_end, count, old_nodes, new_nodes
-      -- pid, va_start, va_end, old_node_mask, new_node_mask
-      -- pid, va_start, va_end, old_node, new_node
-      -- same variations as above without the va_start/end arguments
+In the MPI model, a set of large mappings are done by the first process.
+It then forks x number of worker threads which touch their chunk of
+memory and rendezvous with the other workers.  Once all workers have
+redezvoused, they are allowed to start their processing.  A typical
+worker thread will reference their memory set 85-97% of the time and
+reference other memory sets in a read-only fashion the other part
+of the time.
 
-(2)  If we make a new API, how does that new API interact with the
-      NUMA API?
-      -- e. g.what happens when we migrate a VMA that has a mempolicy
-         associated with it?
+It is important to performance that the worker threads memory remains
+as close to its cpu as possible.  Any time the memory is on a different
+node, the performance of that thread degrades (memory is further away)
+and performance of the other thread is hindered (its memory controller
+is more busy) and the read portions of the neighbor threads to both
+of the afor mentioned worker threads is hindered as there is more
+NUMA activity.  Given all that, there is a common concept in MPI called
+a barrier where when worker threads complete a work set, they awaken
+threads waiting at the barrier associated with the work set.  As a
+result of this wait, by slowing down a single thread you can have a
+cascade effect which slows down the entire application significantly
+as barriers are missed.
 
-(3)  If we make a new API, how does this API interact with the rest
-      of the VM system.  For example, when we migrate part of a VMA
-      do we split the VMA or not?  (See also (4) below since if we
-      decide that the migration interface needs to be able to migrate
-      processes without stopping them, the whole concept of talking
-      about such ephemeral things as VMAs becomes pointless.)
+Because of all this discussion, memory placement needs be thought of
+as relative to the worker threads and maintained relatively consistent
+before and after the migration.
 
-(4)  How general of a migration model are we supporting?
-      -- migration where old and new set of nodes might not be disjoint
-      -- migration of general processes (without suspension) or just
-         of suspended processes
-      -- how general of a migration model is necessary to get sufficient
-         users (more than SGI, say) to increase the chances of getting
-         the facility merged into the kernel.
+Another issue with making it a lazy migrate is the real impetus for
+this is to free up memory on a node so a job can be stopped on one
+node, migrated to a different node and thereby free up the original
+node for a second job which would not fit with the original job
+taking up a section of the machine which would cause the other
+job to perform too poorly.
 
-(5)  How do we determine what vma's to migrate?   (Subquestion:  Is
-      this done by the kernel or in user space?)
-      -- original idea:  reference counts in /proc/pid/maps
-      -- newer idea: exclusion lists either set by marking the
-         file in some special way or by an explicit list
-      -- if we mark files as non-migratable, where is this information
-         stored?
+Sorry for the long rambling explanation.  I guess I will try to
+break this into smaller chunks on the upcoming discussion on the
+linux-mm list.
 
-(6)  How does the migration API (in whatever form it takes) interact
-      with cpusets?
-
-So first off, is this the complete list of issues?  Can anyone suggest
-an issue that isn't covered here?
--- 
------------------------------------------------
-Ray Bryant
-512-453-9679 (work)         512-507-7807 (cell)
-raybry@sgi.com             raybry@austin.rr.com
-The box said: "Requires Windows 98 or better",
-	 so I installed Linux.
------------------------------------------------
+Thanks,
+Robin
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
