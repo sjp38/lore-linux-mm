@@ -1,27 +1,37 @@
-Received: from HOKEY-POKEY-MILES.MIT.EDU (HOKEY-POKEY-MILES.MIT.EDU [18.243.0.30])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id RAA06714
-	for <linux-mm@kvack.org>; Tue, 8 Dec 1998 17:28:38 -0500
-Message-Id: <199812082228.RAA24523@HOKEY-POKEY-MILES.MIT.EDU>
-Subject: 2.1.131ac5 VM/MM performance in 4MB
-Date: Tue, 08 Dec 1998 17:28:30 EST
-From: "Ethan M. O'Connor" <zudark@MIT.EDU>
+Received: from dax.scot.redhat.com (sct@[195.89.149.242])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id SAA06996
+	for <linux-mm@kvack.org>; Tue, 8 Dec 1998 18:02:10 -0500
+Date: Tue, 8 Dec 1998 22:59:09 GMT
+Message-Id: <199812082259.WAA00875@dax.scot.redhat.com>
+From: "Stephen C. Tweedie" <sct@redhat.com>
+Subject: Tiny one-line fix to swap readahead
 Sender: owner-linux-mm@kvack.org
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.rutgers.edu
+To: Alan Cox <number6@the-village.bc.nu>
+Cc: Stephen Tweedie <sct@redhat.com>, linux-mm@kvack.org, Rik van Riel <H.H.vanRiel@fys.ruu.nl>
 List-ID: <linux-mm.kvack.org>
 
-I haven't done any quantitative measurements, but to be honest
-I really don't need to... 2.1.131ac5 (which appears to include Rik van Riel
-and Stephen Tweedie's latest MM patches) is _dramatically_ faster under all
-circumstances I've seen than any previous kernel on a 4MB 386SX/16.
-I have a feeling that percentages or multiples are fairly meaningless
-to quote, but it feels easily two to three times as fast for interactivity
-and program launch compared to 2.0.36. The difference is really rather
-staggering. Bravo! :)
+Hi,
 
-ethan o'connor
-zudark@mit.edu
+I just noticed this when experimenting with a slightly different swapin
+optimisation: swapping in entire 64k aligned blocks rather than doing
+strict readahead.  A side effect was that a swapin in the first free
+pages of the swap file tried to swapin the swap header, which is marked
+SWAP_MAP_BAD.  This breaks.
 
+Now the readahead code in Rik's own patches won't try to do this, but it
+_will_ have the same problem if you ever readahead past a bad page in
+the swap file.  The trick is to fix the test in mm/page_alloc.c,
+function swapin_readahead:
+
+	      if (!swapdev->swap_map[offset] ||
+		  swapdev->swap_map[offset] == SWAP_MAP_BAD ||  <<<< new line
+		  test_bit(offset, swapdev->swap_lockmap))
+		      continue;
+
+Sorry this isn't a diff, but my other changes to this file mean that I
+don't have a patch handy against plain ac*.
+
+--Stephen
 --
 This is a majordomo managed list.  To unsubscribe, send a message with
 the body 'unsubscribe linux-mm me@address' to: majordomo@kvack.org
