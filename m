@@ -1,56 +1,75 @@
-Received: from neon.transmeta.com (neon-best.transmeta.com [206.184.214.10])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id SAA19162
-	for <linux-mm@kvack.org>; Mon, 23 Mar 1998 18:37:30 -0500
-Date: Mon, 23 Mar 1998 15:37:08 -0800 (PST)
-From: Linus Torvalds <torvalds@transmeta.com>
-Subject: Re: Lazy page reclamation on SMP machines: memory barriers
-In-Reply-To: <199803232249.WAA02431@dax.dcs.ed.ac.uk>
-Message-ID: <Pine.LNX.3.95.980323152209.431E-100000@penguin.transmeta.com>
+Received: from max.fys.ruu.nl (max.fys.ruu.nl [131.211.32.73])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id VAA19885
+	for <linux-mm@kvack.org>; Mon, 23 Mar 1998 21:05:05 -0500
+Date: Mon, 23 Mar 1998 22:31:44 +0100 (MET)
+From: Rik van Riel <H.H.vanRiel@fys.ruu.nl>
+Reply-To: Rik van Riel <H.H.vanRiel@fys.ruu.nl>
+Subject: [PATCH] kswapd fix
+Message-ID: <Pine.LNX.3.91.980323222552.570B-100000@mirkwood.dummy.home>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: "Stephen C. Tweedie" <sct@dcs.ed.ac.uk>
-Cc: linux-mm@kvack.org, linux-smp@vger.rutgers.edu
+To: Linus Torvalds <torvalds@transmeta.com>
+Cc: linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
+Hi Linus,
 
+I've written the following fix for kswapd, it:
+- makes sure kswapd doesn't use all of the CPU, even if swapout_interval
+  is 0 (this fix is broken, but works for the moment)
+- triggers kswapd when free_memory_available() fails
+  (it gives a swapout frenzy, but since BUFFER_MEM has a minimum
+  quota interactive use suffers far less)
+- makes sure kswapd tries at least SWAP_CLUSTER_MAX times before
+  quitting (even when free_memory_available() succeeds), this is
+  done to avoid loads of context switches when kswapd is triggered
+  for another reason
 
-On Mon, 23 Mar 1998, Stephen C. Tweedie wrote:
-> 
-> Are there barrier constructs available to do this?  I believe the answer
-> to be no, based on the recent thread concerning the use of inline asm
-> cpuid instructions as a barrier on Intel machines.  Alternatively, does
-> Intel provide any ordering guarantees which may help?
+It patches cleanly against 2.1.90.
+(my university's internet dialup line is _very_ flaky right
+now, so I can't ftp a pre-91 if it exists :-( ).
 
-Just a quick follow-up with more intel-specific information in case people
-care. The serializing instructions (intel-speak for "read and write memory
-barrier") are:
+Rik.
++-------------------------------------------+--------------------------+
+| Linux: - LinuxHQ MM-patches page          | Scouting       webmaster |
+|        - kswapd ask-him & complain-to guy | Vries    cubscout leader |
+|     http://www.fys.ruu.nl/~riel/          | <H.H.vanRiel@fys.ruu.nl> |
++-------------------------------------------+--------------------------+
 
-Privileged (and all of these are too slow to really consider):
- - mov to control register
- - mov to debug register
- - wrmsr, invd, invlpg, winvd, lgdt, lldt, lidt, ltr
-
-Non-privileged:
- - CPUID, IRET, RSM (and only CPUID is really usable for serialization)
-
-In addition, any locked instruction (or xchg, which is implicitly locked) 
-will "wait for all previous instructions to complete, and for the store
-buffer to drain to memory". That, together with the rule that reads cannot
-pass locked instructions, essentially makes all locked instructions
-serialized (they _are_ serialized as far as memory ordering goes, but
-intel seems to use the term "serialized" for both memory ordering and for
-"internal CPU behaviour": in intel-speak a "real" serializing instruction
-will apparently also wait for the CPU pipeline to drain). 
-
-The cheapest way (considering register usage etc) to get a serializing
-instruction _seems_ to be to use something like
-
-	lock ; add $0,0(%esp)
-
-which will act as a read and write barrier, but won't actually drain the
-pipe completely (and won't trash any registers - and the stack is likely
-to be dirty and cached, so it won't generate any extra memory traffic
-except on a Pentium where the "lock" thing cannot work on the cache).
-
-		Linus
+--- vmscan.c.orig	Thu Mar 19 01:45:42 1998
++++ vmscan.c	Mon Mar 23 22:12:21 1998
+@@ -545,6 +545,7 @@
+ 	add_wait_queue(&kswapd_wait, &wait);
+ 	while (1) {
+ 		int tries;
++		int tried = 0;
+ 
+ 		current->state = TASK_INTERRUPTIBLE;
+ 		kswapd_awake = 0;
+@@ -563,12 +564,12 @@
+ 		if (tries < freepages.min) {
+ 			tries = freepages.min;
+ 		}
+-		if (nr_free_pages < freepages.high + freepages.low)
++		if (nr_free_pages < freepages.low)
+ 			tries <<= 1;
+ 		while (tries--) {
+ 			int gfp_mask;
+ 
+-			if (free_memory_available())
++			if (free_memory_available() && ++tried > SWAP_CLUSTER_MAX)
+ 				break;
+ 			gfp_mask = __GFP_IO;
+ 			try_to_free_page(gfp_mask);
+@@ -597,8 +598,8 @@
+ 
+ 	if (pages < freepages.low)
+ 		memory_low = want_wakeup = 1;
+-	else if ((pages < freepages.high || BUFFER_MEM > (num_physpages * buffer_mem.max_percent / 100))
+-			&& jiffies >= next_swap_jiffies)
++	else if ((pages < freepages.high || BUFFER_MEM > (num_physpages * buffer_mem.max_percent / 100) || !free_memory_available())
++			&& jiffies >= next_swap_jiffies + 5)
+ 		want_wakeup = 1;
+ 
+ 	if (want_wakeup) { 
