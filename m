@@ -1,40 +1,49 @@
-Content-Type: text/plain;
-  charset="iso-8859-1"
-From: Rob Landley <landley@trommello.org>
-Reply-To: landley@trommello.org
+Date: Mon, 28 Oct 2002 10:53:43 -0200 (BRST)
+From: Rik van Riel <riel@conectiva.com.br>
 Subject: Re: 2.5.44-mm6
-Date: Sun, 27 Oct 2002 21:41:55 -0500
-References: <3DBCD3D3.8DDA3982@digeo.com> <200210272024.10743.landley@trommello.org> <3DBCE7B9.C618781A@digeo.com>
-In-Reply-To: <3DBCE7B9.C618781A@digeo.com>
+In-Reply-To: <3DBCD3D3.8DDA3982@digeo.com>
+Message-ID: <Pine.LNX.4.44L.0210281051440.1697-100000@imladris.surriel.com>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8BIT
-Message-Id: <200210272041.55817.landley@trommello.org>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@digeo.com>
 Cc: lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Monday 28 October 2002 01:31, Andrew Morton wrote:
-> Rob Landley wrote:
-> > On Monday 28 October 2002 00:06, Andrew Morton wrote:
-> > > url: http://www.zip.com.au/~akpm/linux/patches/2.5/2.5.44/2.5.44-mm6/
-> >
-> > Naturally. :)
+On Sun, 27 Oct 2002, Andrew Morton wrote:
+
+> . Spent some time tuning up 2.5's StupidSwapStorm throughput.  It's
+>   on par with 2.4 for single-threaded things, but not for multiple
+>   processes.
 >
-> If you mean that putting the text "url" in front of a url was invented
-> by the deparment of redundancy department then yup.
+>   This is because 2.4's virtual scan allows individual processes to
+>   hammer all the others into swap and to make lots of progress then
+>   exit.  In the 2.5 VM all processes make equal progress and just
+>   thrash each other to bits.
+>
+>   This is an innate useful side-effect of the virtual scan, although
+>   it may have significant failure modes.  The 2.5 VM would need an
+>   explicit load control algorithm if we care about such workloads.
 
-No, just that the instant I put out the next-to-last 2.5 merge candidate list, 
-a new URL I should have included is in literally the next message I read.
+1) 2.4 does have the failure modes you talk about ;)
 
-Naturally.
+2) I have most of an explicit load control algorithm ready,
+   against an early 2.4 kernel, but porting it should be very
+   little work
 
-Rob
+Just let me know if you're interested in my load control mechanism
+and I'll send it to you.  Note that I never got the load control
+_policy_ right yet ...
 
+regards,
+
+Rik
 -- 
-http://penguicon.sf.net - Terry Pratchett, Eric Raymond, Pete Abrams, Illiad, 
-CmdrTaco, liquid nitrogen ice cream, and caffienated jello.  Well why not?
+Bravely reimplemented by the knights who say "NIH".
+http://www.surriel.com/		http://distro.conectiva.com/
+Current spamtrap:  <a href=mailto:"october@surriel.com">october@surriel.com</a>
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
