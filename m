@@ -1,34 +1,35 @@
-Message-ID: <40368E00.3000505@cyberone.com.au>
-Date: Sat, 21 Feb 2004 09:45:20 +1100
-From: Nick Piggin <piggin@cyberone.com.au>
+From: Daniel Phillips <phillips@arcor.de>
+Subject: Re: Non-GPL export of invalidate_mmap_range
+Date: Fri, 20 Feb 2004 18:00:32 -0500
+References: <20040216190927.GA2969@us.ibm.com> <200402201535.47848.phillips@arcor.de> <20040220140116.GD1269@us.ibm.com>
+In-Reply-To: <20040220140116.GD1269@us.ibm.com>
 MIME-Version: 1.0
-Subject: Re: LTP VM test slower under 2.6.3 than 2.4.20
-References: <40363778.20900@movaris.com>
-In-Reply-To: <40363778.20900@movaris.com>
-Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Disposition: inline
+Message-Id: <200402201800.12077.phillips@arcor.de>
+Content-Type: text/plain;
+  charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Kirk True <ktrue@movaris.com>
-Cc: kernelnewbies <kernelnewbies@nl.linux.org>, Linux-MM@kvack.org
+To: paulmck@us.ibm.com
+Cc: "Stephen C. Tweedie" <sct@redhat.com>, Andrew Morton <akpm@osdl.org>, Christoph Hellwig <hch@infradead.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-
-Kirk True wrote:
-
-> Hi all,
+On Friday 20 February 2004 09:01, Paul E. McKenney wrote:
+> On Fri, Feb 20, 2004 at 03:37:26PM -0500, Daniel Phillips wrote:
+> > Actually, I erred there in that invalidate_mmap_range should not export
+> > the flag, because it never makes sense to pass in non-zero from a DFS.
 >
-> Executing the LTP "mem01" VM test shows a huge time discrepancy 
-> between 2.4.20 and 2.6.3. Under 2.4.20 the total time is around 5 
-> seconds, while under 2.6.3 the system seems to hang for nearly a minute.
->
-> Where in particular should I start to look to see if it's a 
-> configuration/environment issue or a real problem? What other 
-> information would be helpful to know?
->
+> Doesn't vmtruncate() want to pass non-zero "all" in to
+> invalidate_mmap_range() in order to maintain compatibility with existing
+> Linux semantics?
 
-2.6 must start writeout, does it?
-Can you post vmstat 1 logs for each kernel?
+That comes from inside.  The DFS's truncate interface should just be 
+vmtruncate.  If I missed something, please shout.
+
+Regards,
+
+Daniel
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
