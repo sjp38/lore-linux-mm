@@ -1,41 +1,51 @@
-Date: Fri, 14 Jan 2005 17:31:06 -0800
-From: William Lee Irwin III <wli@holomorphy.com>
-Subject: Re: [RFC] Avoiding fragmentation through different allocator
-Message-ID: <20050115013106.GC3474@holomorphy.com>
-References: <Pine.LNX.4.58.0501122101420.13738@skynet> <20050113073146.GB1226@holomorphy.com> <20050114214218.GB3336@logos.cnet>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20050114214218.GB3336@logos.cnet>
+Message-ID: <41E8ED89.8090306@yahoo.com.au>
+Date: Sat, 15 Jan 2005 21:16:41 +1100
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+MIME-Version: 1.0
+Subject: Re: Odd kswapd behaviour after suspending in 2.6.11-rc1
+References: <20050113061401.GA7404@blackham.com.au> <41E61479.5040704@yahoo.com.au> <20050113085626.GA5374@blackham.com.au> <20050113101426.GA4883@blackham.com.au>
+In-Reply-To: <20050113101426.GA4883@blackham.com.au>
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
-Cc: Mel Gorman <mel@csn.ul.ie>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Bernard Blackham <bernard@blackham.com.au>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jan 12, 2005 at 11:31:46PM -0800, William Lee Irwin III wrote:
->> I'd expect to do better with kernel/user discrimination only, having
->> address-ordering biases in opposite directions for each case.
+Bernard Blackham wrote:
+> On Thu, Jan 13, 2005 at 04:56:27PM +0800, Bernard Blackham wrote:
+> 
+>>>Can you get a couple of Alt+SysRq+M traces during the time when
+>>>kswapd is going crazy please?
+>>
+>>Embarrasingly, I can't reproduce it at the moment.
+> 
+> 
+> Actually I lied - It is still completely reproduceable if I hadn't
+> confused myself with reversing reversed patches.. :/
+> 
+> Attached are a couple of Alt+Sysrq+M and Alt+Sysrq+T outputs when
+> kswapd goes crazy, with the last pair when things are back to
+> normal.
+> 
 
-On Fri, Jan 14, 2005 at 07:42:18PM -0200, Marcelo Tosatti wrote:
-> What you mean with "address-ordering biases in opposite directions
-> for each case" ? 
-> You mean to have each case allocate from the top and bottom of the
-> free list, respectively, and in opposite address direction ? What you
-> gain from that?
-> And what that means during a long period of VM stress ?
+OK I think the problem is due to swsusp allocating a very large
+chunk of memory before suspending. After resuming, kswapd is more
+or less in the same state and tries a bit too hard to free things.
 
-It's one of the standard anti-fragmentation tactics. The large free
-areas come from the middle, address ordering disposes of holes in the
-used areas, and the areas at opposite ends reflect expected lifetimes.
+And it goes crazy mainly because the kswapd "higher order awareness"
+stuff not having quite enough smarts. It needs to be a bit more
+aware of "classzone" allocation issues rather than just individual
+zones.
 
-It's more useful for cases where there is not an upper bound on the
-size of an allocation (or power-of-two blocksizes). On second thought,
-Mel's approach exploits both the bound and the power-of-two restriction
-advantageously.
+Thanks for the report... I'll come up with something for you to try
+in the next day or so.
+
+Thanks,
+Nick
 
 
--- wli
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
