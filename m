@@ -1,37 +1,41 @@
-Received: from dax.scot.redhat.com (sct@dax.scot.redhat.com [195.89.149.242])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id GAA15633
-	for <linux-mm@kvack.org>; Mon, 8 Feb 1999 06:22:36 -0500
-Date: Mon, 8 Feb 1999 11:22:15 GMT
-Message-Id: <199902081122.LAA02263@dax.scot.redhat.com>
+Date: Mon, 8 Feb 1999 11:24:58 GMT
+Message-Id: <199902081124.LAA02285@dax.scot.redhat.com>
 From: "Stephen C. Tweedie" <sct@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Subject: Re: Large memory system
-In-Reply-To: <19990130083631.B9427@msc.cornell.edu>
+In-Reply-To: <Pine.LNX.3.95.990130114256.27443A-100000@kanga.kvack.org>
 References: <19990130083631.B9427@msc.cornell.edu>
+	<Pine.LNX.3.95.990130114256.27443A-100000@kanga.kvack.org>
 Sender: owner-linux-mm@kvack.org
-To: Daniel Blakeley <daniel@msc.cornell.edu>
-Cc: linux-mm@kvack.org, Stephen Tweedie <sct@redhat.com>
+To: "Benjamin C.R. LaHaise" <blah@kvack.org>
+Cc: Daniel Blakeley <daniel@msc.cornell.edu>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 Hi,
 
-On Sat, 30 Jan 1999 08:36:31 -0500, Daniel Blakeley
-<daniel@msc.cornell.edu> said:
+On Sat, 30 Jan 1999 12:00:53 -0500 (EST), "Benjamin C.R. LaHaise"
+<blah@kvack.org> said:
 
-> I've jumped the gun a little bit and recommended a Professor buy 4GB
-> of RAM on a Xeon machine to run Linux on and he did.  After he got it
-> I read the large memory howto which states that the max memory size
-> for Linux 2.2.x is 2GB physical/2GB virtual.  The memory size seems to
-> limited by the 32bit nature of the x86 architecture.  The Xeon seems
-> to have a 36bit memory addressing mode.  Can Linux be easily expanded
-> to use the 36bit addressing?
+> Easily isn't a good way of putting it, unless you're talking about doing
+> something like mmap on /dev/mem, in which case you could make the
+> user/kernel virtual spilt weigh heavy on the user side and do memory
+> allocation yourself.  If you're talking about doing it transparently,
+> you're best bet is to do something like davem's suggested high mem
+> approach, and only use non-kernel mapped memory for user pages... if you
+> want to be able to support the page cache in high memory, things get
+> messy.
 
-It's not exactly trivial, but it can (and will) be done.  For now, you
-can only use 4G on a 64-bit architecture (Alpha or Sparc64), but
-basically we know how to address it on Intel too, transparently to the
-user.
+No it doesn't!  The only tricky thing is IO, but we need to have bounce
+buffers to high memory anyway for swapping.  The page cache uses "struct
+page" addresses in preference to actual page data pointers almost
+everywhere anyway, and whenever we are doing something like read(2) or
+write(2) functions, we just need a single per-CPU virtual pte in the
+vmalloc region to temporarily map the page into memory while we copy to
+user space (and remember that we do this from the context of the user
+process anyway, so we don't have to remap the user page even if it is in
+high memory).
 
 --Stephen
 --
