@@ -1,40 +1,34 @@
-Date: Mon, 22 Jul 2002 15:36:33 -0700 (MST)
-From: Craig Kulesa <ckulesa@as.arizona.edu>
-Subject: Re: [PATCH 2/2] move slab pages to the lru, for 2.5.27
-In-Reply-To: <20020722222150.GF919@holomorphy.com>
-Message-ID: <Pine.LNX.4.44.0207221520301.14311-100000@loke.as.arizona.edu>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [OOPS] 2.5.27 - __free_pages_ok()
+From: Paul Larson <plars@austin.ibm.com>
+In-Reply-To: <Pine.LNX.4.44L.0207221704120.3086-100000@imladris.surriel.com>
+References: <Pine.LNX.4.44L.0207221704120.3086-100000@imladris.surriel.com>
+Content-Type: text/plain
+Content-Transfer-Encoding: 7bit
+Date: 22 Jul 2002 17:34:32 -0500
+Message-Id: <1027377273.5170.37.camel@plars.austin.ibm.com>
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: William Lee Irwin III <wli@holomorphy.com>
-Cc: Steven Cole <elenstev@mesatop.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Steven Cole <scole@lanl.gov>, Ed Tomlinson <tomlins@cam.org>
+To: Rik van Riel <riel@conectiva.com.br>
+Cc: lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, haveblue@us.ibm.com
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 22 Jul 2002, William Lee Irwin III wrote:
+On Mon, 2002-07-22 at 15:05, Rik van Riel wrote:
+> Now that I think about it, could you try enabling RMAP_DEBUG
+> in mm/rmap.c and try triggering this bug again ?
+Done, output attached below.
 
-> The pte_chain mempool was ridiculously huge and the use of mempool for
-> this at all was in error.
+On Mon, 2002-07-22 at 15:19, Dave Hansen wrote:
+> I was hitting the same thing on a Netfinity 8500R/x370.  The problem 
+> was an old compiler (egcs 2.91-something).  It was triggered by a few 
+> different things, including kernprof and dcache_rcu.
+Well, it was a redhat box.  Just to be certain, I made sure to use kgcc
+and it still hung on boot, but kgcc is egcs-2.91.66 19990314/Linux
+(egcs-1.1.2 release).  If it would be helpful, I'll try compiling my
+kernel on a debian box tomorrow and booting with that.
 
-That's what I thoguht too -- but Steven tried making the pool 1/4th the
-size and it still failed.  OTOH, he tried 2.5.27-rmap, which uses the
-*same mempool patch* and he had no problem with the monster 128KB 
-allocation.  Maybe it was all luck. :)  I can't yet see anything in the 
-slablru patch that has anything to do with it...
-
-On another note -- Steven did point out that the slablru patch has a
-patchbug with regards to dquot.c.  I think this error is also in Ed's 
-June 5th patch (at least as posted), and I didn't catch it.  
-I believe that:
-
-shrink_dqcache_memory(int priority, unsigned int gfp_mask)
-	needs to be 
-age_dqcache_memory(kmem_cache_t *cachep, int entries, int gfp_mask)
-
-in dquot.c.  It'll be tested and fixed on the next go. :)
-
-Best regards,
-Craig Kulesa
+Thanks,
+Paul Larson
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
