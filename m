@@ -1,50 +1,78 @@
-Date: Wed, 7 Jun 2000 15:01:22 -0300 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
-Subject: Re: journaling & VM  (was: Re: reiserfs being part of the kernel:
- it'snot just the code)
-In-Reply-To: <393E8AEF.7A782FE4@reiser.to>
-Message-ID: <Pine.LNX.4.21.0006071459040.14304-100000@duckman.distro.conectiva>
+Message-ID: <393E9C58.9FE2A0E0@reiser.to>
+Date: Wed, 07 Jun 2000 12:02:48 -0700
+From: Hans Reiser <hans@reiser.to>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: journaling & VM  (was: Re: reiserfs being part of the kernel:it'snot
+ just the code)
+References: <Pine.LNX.4.21.0006071018320.14304-100000@duckman.distro.conectiva>
+Content-Type: text/plain; charset=koi8-r
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hans Reiser <hans@reiser.to>
-Cc: "Stephen C. Tweedie" <sct@redhat.com>, bert hubert <ahu@ds9a.nl>, linux-kernel@vger.rutgers.edu, Chris Mason <mason@suse.com>, linux-mm@kvack.org, Alexander Zarochentcev <zam@odintsovo.comcor.ru>
+To: Rik van Riel <riel@conectiva.com.br>
+Cc: "Stephen C. Tweedie" <sct@redhat.com>, "Quintela Carreira Juan J." <quintela@fi.udc.es>, bert hubert <ahu@ds9a.nl>, linux-kernel@vger.rutgers.edu, Chris Mason <mason@suse.com>, linux-mm@kvack.org, Alexander Zarochentcev <zam@odintsovo.comcor.ru>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 7 Jun 2000, Hans Reiser wrote:
-> "Stephen C. Tweedie" wrote:
+Rik van Riel wrote:
 > 
-> > Use reservations.  That's the point --- you reserve in advance, so that
-> > the VM can *guarantee* that you can continue to pin more pages up to
-> > the maximum you have reserved.  You take a reservation before starting
-> > a fs operation, so that if you need to block, it doesn't prevent the
-> > running transaction from being committed.
+> On Wed, 7 Jun 2000, Stephen C. Tweedie wrote:
+> > On Tue, Jun 06, 2000 at 08:45:08PM -0700, Hans Reiser wrote:
+> > > >
+> > > > This is the reason because of what I think that one operation in the
+> > > > address space makes no sense.  No sense because it can't be called
+> > > > from the page.
+> > >
+> > > What do you think of my argument that each of the subcaches should register
+> > > currently_consuming counters which are the number of pages that subcache
+> > > currently takes up in memory,
+> >
+> > There is no need for subcaches at all if all of the pages can be
+> > represented on the page cache LRU lists.  That would certainly
+> > make balancing between caches easier.
 > 
-> Ok, let's admit it, we have been agreeing on this with you for 9
-> months and no code has been written by any of us.:-/
+> Wouldn't this mean we could end up with an LRU cache full of
+> unfreeable pages?
+> 
+> Then we would scan the LRU cache and apply pressure on all of
+> the filesystems, but then the filesystem could decide it wants
+> to flush *other* pages from the ones we have on the LRU queue.
 
-I'd like to be able to keep stuff simple in the shrink_mmap
-"equivalent" I'm working on. Something like:
+And we intend to do exactly that with allocate on flush.  Eventually we will
+even repack on flush.
 
-if (PageDirty(page) && page->mapping && page->mapping->flush)
-	maxlaunder -= page->mapping->flush();
+> 
+> This could get particularly nasty when we have a VM with
+> active / inactive / scavenge lists... (like what I'm working
+> on now)
+> 
+> Then again, if the filesystem knows which pages we want to
+> push, it could base the order in which it is going to flush
+> its blocks on that memory pressure. Then your scheme will
+> undoubtedly be the more robust one.
+> 
+> Question is, are the filesystems ready to play this game? 
 
-Where the flush() function would return the amount of _inactive_
-pages that were flushed at the time we called this function...
-(we should not decrease maxlaunder if we flushed active pages
-since that would imply we didn't make any progress)
+Yes, we are eager to play, but you do intend that the filesystem will be
+pressured to age not flush, yes?
 
-regards,
+That is, if aging causes something to get flushed, it gets flushed, but if not
+then not.
+The filesystems should get passed some notion of how much of their cache to age
+so that you MM guys can have fun varying this.
 
-Rik
---
-The Internet is not a network of computers. It is a network
-of people. That is its real strength.
+You might want us to return how much got scheduled for flushing as a result of
+the aging, that way you know when to stop pressuring caches.
 
-Wanna talk about the kernel?  irc.openprojects.net / #kernelnewbies
-http://www.conectiva.com/		http://www.surriel.com/
-
+> 
+> regards,
+> 
+> Rik
+> --
+> The Internet is not a network of computers. It is a network
+> of people. That is its real strength.
+> 
+> Wanna talk about the kernel?  irc.openprojects.net / #kernelnewbies
+> http://www.conectiva.com/               http://www.surriel.com/
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
