@@ -1,43 +1,48 @@
-Subject: Re: Documentation/vm/locking: why not hold two PT locks?
-From: Robert Love <rml@ximian.com>
-In-Reply-To: <87ekt5ckgu.fsf@cs.uga.edu>
-References: <8765ehe0cu.fsf@uga.edu> <1076275778.5608.1.camel@localhost>
-	 <87ekt5ckgu.fsf@cs.uga.edu>
-Content-Type: text/plain
-Message-Id: <1076278320.6015.1.camel@localhost>
-Mime-Version: 1.0
-Date: Sun, 08 Feb 2004 17:12:00 -0500
+Message-ID: <40273002.9080007@cyberone.com.au>
+Date: Mon, 09 Feb 2004 18:00:18 +1100
+From: Nick Piggin <piggin@cyberone.com.au>
+MIME-Version: 1.0
+Subject: Re: [PATCH 1/5] mm improvements
+References: <Pine.LNX.4.44.0402041444560.24515-100000@chimarrao.boston.redhat.com>
+In-Reply-To: <Pine.LNX.4.44.0402041444560.24515-100000@chimarrao.boston.redhat.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ed L Cashin <ecashin@uga.edu>
-Cc: linux-mm@kvack.org
+To: Rik van Riel <riel@redhat.com>
+Cc: Andrew Morton <akpm@osdl.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 2004-02-08 at 16:47 -0500, Ed L Cashin wrote:
 
-> If that's all there is to it, then in my case, I have imposed a
-> locking hierarchy on my own code, so that wouldn't happen in my code.
-> I have a semaphore "S" outside of mmap_sem and page_table_lock.  Every
-> call path that can get to my code takes S before getting the
-> mmap_sem.  
+Rik van Riel wrote:
 
-Well, you don't follow a locking hierarchy either, you just have a
-global synchronizer (your semaphore S).  Same effect, sure, you cannot
-deadlock.
+> On Wed, 4 Feb 2004, Nick Piggin wrote:
+>
+>> > 1/5: vm-no-rss-limit.patch
+>> >     Remove broken RSS limiting. Simple problem, Rik is onto it.
+>> >
+>
+>
+> Does the patch below fix the performance problem with the
+> rss limit patch ?
+>
+>
 
-But anyone else who touches two or more PT's will deadlock.
+Sorry I missed this Rik. The rsslimit patch is now too old
+to apply to the mm tree because of one of my patches.
 
-> So it looks like my code is safe but not so efficient, since T2 has to
-> sleep when it doesn't get the semaphore S.  Is there some other
-> complication I'm missing?
+To fix this you need to be able to check rsslimit before
+clearing referenced bits, and possibly not clear referenced
+bit at all.
 
-It could be that _I_ am missing something, and there is another reason
-why we don't grab more than one PT concurrently.  But the locking
-hierarchy is still a concern.
+Its obviously inefficient to do to check ptes twice, so probably
+just doing it once would be OK, you'd just need to do something
+like:
 
-	Robert Love
+if (referenced && dont_clear_referenced)
+    SetPageReferenced(page);
 
+at the end.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
