@@ -1,5 +1,5 @@
-Date: Tue, 26 Oct 2004 15:37:31 +0900 (JST)
-Message-Id: <20041026.153731.38067476.taka@valinux.co.jp>
+Date: Tue, 26 Oct 2004 18:15:04 +0900 (JST)
+Message-Id: <20041026.181504.38310112.taka@valinux.co.jp>
 Subject: Re: migration cache, updated
 From: Hirokazu Takahashi <taka@valinux.co.jp>
 In-Reply-To: <20041025213923.GD23133@logos.cnet>
@@ -13,18 +13,29 @@ To: marcelo.tosatti@cyclades.com
 Cc: linux-mm@kvack.org, iwamoto@valinux.co.jp, haveblue@us.ibm.com, hugh@veritas.com
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+Hi, Marcelo,
 
-I tested your patch and dead-locked has been occured in
-do_swap_page().
-
+> Hi,
+> 
 > This is an improved version of the migration cache patch - 
 > thanks to everyone who contributed - Hirokazu, Iwamoto, Dave,
 > Hugh.
 
+Some comments.
+
 > diff -Nur --show-c-function linux-2.6.9-rc2-mm4.mhp.orig/mm/memory.c linux-2.6.9-rc2-mm4.build/mm/memory.c
 > --- linux-2.6.9-rc2-mm4.mhp.orig/mm/memory.c	2004-10-05 15:08:23.000000000 -0300
 > +++ linux-2.6.9-rc2-mm4.build/mm/memory.c	2004-10-25 19:35:18.000000000 -0200
+> @@ -1408,6 +1412,9 @@ static int do_swap_page(struct mm_struct
+>  	pte_unmap(page_table);
+>  	spin_unlock(&mm->page_table_lock);
+>  again:
+> +	if (pte_is_migration(orig_pte)) {
+> +		page = lookup_migration_cache(entry.val);
+> +	} else {
+>  	page = lookup_swap_cache(entry);
+>  	if (!page) {
+>   		swapin_readahead(entry, address, vma);
 > @@ -1433,15 +1440,22 @@ again:
 >  		inc_page_state(pgmajfault);
 >  		grab_swap_token();
@@ -35,6 +46,10 @@ do_swap_page().
 >  	if (!PageSwapCache(page)) {
 > +		/* hiro: add !PageMigration(page) here */
 >  		/* page-migration has occured */
+
+Now, !PageSwapCache(page) means the page isn't neither in the swap-cache
+nor in the migration-cache. The original code is enough.
+
 >  		unlock_page(page);
 >  		page_cache_release(page);
 >  		goto again;
@@ -45,70 +60,49 @@ do_swap_page().
 > +	if (pte_is_migration(orig_pte)) {
 > +		mark_page_accessed(page);
 > +		lock_page(page);
-
-
-The previous code will cause deadlock, as the page is already locked.
-
 > +	}
 >  
 >  	/*
 >  	 * Back out if somebody else faulted in this pte while we
-> @@ -1459,10 +1473,14 @@ again:
->  	}
+
+> diff -Nur --show-c-function linux-2.6.9-rc2-mm4.mhp.orig/mm/vmscan.c linux-2.6.9-rc2-mm4.build/mm/vmscan.c
+> --- linux-2.6.9-rc2-mm4.mhp.orig/mm/vmscan.c	2004-10-05 15:08:23.000000000 -0300
+> +++ linux-2.6.9-rc2-mm4.build/mm/vmscan.c	2004-10-25 19:15:56.000000000 -0200
+> @@ -38,8 +38,6 @@
+>  #include <asm/tlbflush.h>
+>  #include <asm/div64.h>
 >  
->  	/* The page isn't present yet, go ahead with the fault. */
-> -		
-> -	swap_free(entry);
-> -	if (vm_swap_full())
-> -		remove_exclusive_swap_page(page);
-> +
-> +	if (!pte_is_migration(orig_pte)) {
-> +		swap_free(entry);
-> +		if (vm_swap_full())
-> +			remove_exclusive_swap_page(page);
-> +	} else {
-> +		migration_remove_reference(page);
-
-migration_remove_reference() also tries to lock the page that is
-already locked.
-
-> +	}
+> -#include <linux/swapops.h>
+> -
+>  /*
+>   * The list of shrinker callbacks used by to apply pressure to
+>   * ageable caches.
+> @@ -459,7 +457,9 @@ int shrink_list(struct list_head *page_l
+>  		}
 >  
->  	mm->rss++;
->  	pte = mk_pte(page, vma->vm_page_prot);
-> diff -Nur --show-c-function linux-2.6.9-rc2-mm4.mhp.orig/mm/mmigrate.c linux-2.6.9-rc2-mm4.build/mm/mmigrate.c
-> --- linux-2.6.9-rc2-mm4.mhp.orig/mm/mmigrate.c	2004-10-05 15:08:23.000000000 -0300
-> +++ linux-2.6.9-rc2-mm4.build/mm/mmigrate.c	2004-10-25 20:34:35.324971872 -0200
+>  #ifdef CONFIG_SWAP
+> -		if (PageSwapCache(page)) {
+> +		// FIXME: allow relocation of migrate cache pages 
+> +		// into real swap pages for swapout.
 
-> +int migration_remove_reference(struct page *page)
-> +{
-> +	struct counter *c;
-> +	swp_entry_t entry;
-> +
-> +	entry.val = page->private;
-> +
-> +	read_lock_irq(&migration_space.tree_lock);
-> +
-> +	c = idr_find(&migration_idr, swp_offset(entry));
-> +
-> +	read_unlock_irq(&migration_space.tree_lock);
-> +
-> +	if (!c->i)
-> +		BUG();
-> +
-> +	c->i--;
-> +
-> +	if (!c->i) {
-> +		lock_page(page);
 
-It will be dead-locked when this function is called from do_swap_page().
+In my thought, it would be better to remove a target page from the
+LRU lists prior to migration. So that it makes the swap code not to
+grab the page, which is in the migration cache.
 
-> +		remove_from_migration_cache(page, page->private);
-> +		unlock_page(page);
-> +		kfree(c);
-> +	}
-> +		
-> +}
+
+> +		if (PageSwapCache(page) && !PageMigration(page)) {
+>  			swp_entry_t swap = { .val = page->private };
+>  			__delete_from_swap_cache(page);
+>  			write_unlock_irq(&mapping->tree_lock);
+> 
+
+
+Thanks,
+Hirokazu Takahashi.
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
