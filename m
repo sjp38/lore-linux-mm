@@ -1,78 +1,44 @@
+Date: Mon, 28 Apr 2003 02:47:13 -0700
+From: William Lee Irwin III <wli@holomorphy.com>
 Subject: Re: questions on swapping
-Message-ID: <OF82D3C19C.A5743FFE-ON65256D16.00349A8A@celetron.com>
-From: "Heerappa Hunje" <hunjeh@celetron.com>
-Date: Mon, 28 Apr 2003 15:07:08 +0530
-MIME-Version: 1.0
-Content-type: text/plain; charset=us-ascii
+Message-ID: <20030428094713.GT30441@holomorphy.com>
+References: <OF82D3C19C.A5743FFE-ON65256D16.00349A8A@celetron.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <OF82D3C19C.A5743FFE-ON65256D16.00349A8A@celetron.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: William Lee Irwin III <wli@holomorphy.com>
+To: Heerappa Hunje <hunjeh@celetron.com>
 Cc: kernelnewbies@nl.linux.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Dear william,
+On Mon, Apr 28, 2003 at 03:07:08PM +0530, Heerappa Hunje wrote:
+> Let me know how much of memory a system adminstrator can configure for
+> buffering mechanism out 128MB/256MB  or it will be choosen by the Linux
+> itself.
 
-Let me know how much of memory a system adminstrator can configure for
-buffering mechanism out 128MB/256MB  or it will be choosen by the Linux
-itself.
+I'd suggest the O'Reilly books on system administration for this kind
+of information. A general tour of the manpages (type "man man" to get
+started) sounds like something that might be good for you also. There's
+a lot of good material in them, and I refer to them routinely.
 
-Thanks n Regards
-Heerappa.
+BTW, the kernelnewbies mailing list is about C language programming in
+the kernel, and the linux-mm mailing list about virtual memory
+management programming in the kernel. Some of the questions you've
+posted are probably best dealt with elsewhere, e.g. on other mailing
+lists, as they haven't tended to be very related to kernel programming.
 
+Could someone give him a pointer to a mailing list or other support
+forum (newsgroup? anything) that would be of the right flavor? I've not
+done much in the way of system administration.
 
-
-|---------+---------------------------->
-|         |           William Lee Irwin|
-|         |           III              |
-|         |           <wli@holomorphy.c|
-|         |           om>              |
-|         |                            |
-|         |           04/28/2003 12:56 |
-|         |           PM               |
-|         |                            |
-|---------+---------------------------->
-  >------------------------------------------------------------------------------------------------------------------------------|
-  |                                                                                                                              |
-  |       To:       Heerappa Hunje <hunjeh@celetron.com>                                                                         |
-  |       cc:       linux-mm@kvack.org, kernelnewbies@nl.linux.org                                                               |
-  |       Subject:  Re: questions on swapping                                                                                    |
-  >------------------------------------------------------------------------------------------------------------------------------|
-
-
-
-
-On Mon, Apr 28, 2003 at 12:46:15PM +0530, Heerappa Hunje wrote:
-> 1. I have problem in locating the source code of linux operating system
-> because i dont know in which path it is kept. Pls suggest me the
-pathname.
-
-ftp://ftp.kernel.org/pub/linux/kernel/v2.5/
-             and
-ftp://ftp.kernel.org/pub/linux/kernel/v2.4/
-
-for the less adventurous
-
-
-On Mon, Apr 28, 2003 at 12:46:15PM +0530, Heerappa Hunje wrote:
-> 2. let me know the different ways to connect the device drivers module to
-> the kernel.
-
-This is a bit too general to answer at all.
-
-
-On Mon, Apr 28, 2003 at 12:46:15PM +0530, Heerappa Hunje wrote:
-> 3. let me know where actually the space for SWAPPING, BUFFERS  are
-> allocated. i mean whether they are in RAM Memory or Hard disk drive.
-
-Buffers are in RAM, swap is on-disk.
+If you're doing kernel programming after all, but are just having a
+tough time getting set up, you should probably still try going
+elsewhere for the bits about setting up your system properly.
 
 
 -- wli
-
-
-
-
-
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
