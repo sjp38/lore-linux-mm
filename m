@@ -1,41 +1,41 @@
-Date: Sat, 8 Jan 2005 13:43:54 +0000 (GMT)
+Date: Sat, 8 Jan 2005 21:12:10 +0000 (GMT)
 From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: [RFC] per thread page reservation patch
-In-Reply-To: <m1vfa8w0nk.fsf@clusterfs.com>
-Message-ID: <Pine.LNX.4.44.0501081336240.2804-100000@localhost.localdomain>
+Subject: Re: Prezeroing V3 [1/4]: Allow request for zeroed memory
+In-Reply-To: <Pine.LNX.4.58.0501041512450.1536@schroedinger.engr.sgi.com>
+Message-ID: <Pine.LNX.4.44.0501082103120.5207-100000@localhost.localdomain>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="us-ascii"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nikita Danilov <nikita@clusterfs.com>
-Cc: Andrew Morton <akpm@osdl.org>, pmarques@grupopie.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, hch@infradead.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Andrew Morton <akpm@osdl.org>, "David S. Miller" <davem@davemloft.net>, linux-ia64@vger.kernel.org, Linus Torvalds <torvalds@osdl.org>, linux-mm@kvack.org, Linux Kernel Development <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 8 Jan 2005, Nikita Danilov wrote:
-> Andrew Morton <akpm@osdl.org> writes:
-> >
-> > __alloc_pages(GFP_KERNEL, ...) doesn't return NULL.  It'll either succeed
-> > or never return ;) That behaviour may change at any time of course, but it
+On Tue, 4 Jan 2005, Christoph Lameter wrote:
+> This patch introduces __GFP_ZERO as an additional gfp_mask element to allow
+> to request zeroed pages from the page allocator.
+> ...
+> --- linux-2.6.10.orig/mm/memory.c	2005-01-04 12:16:41.000000000 -0800
+> +++ linux-2.6.10/mm/memory.c	2005-01-04 12:16:49.000000000 -0800
+> @@ -1650,10 +1650,9 @@
 > 
-> Hmm... it used to, when I wrote that code.
+>  		if (unlikely(anon_vma_prepare(vma)))
+>  			goto no_mem;
+> -		page = alloc_page_vma(GFP_HIGHUSER, vma, addr);
+> +		page = alloc_page_vma(GFP_HIGHZERO, vma, addr);
+>  		if (!page)
+>  			goto no_mem;
+> -		clear_user_highpage(page, addr);
+> 
+>  		spin_lock(&mm->page_table_lock);
+>  		page_table = pte_offset_map(pmd, addr);
 
-And still does, if OOM decides to kill _your_ task: OOM sets PF_MEMDIE,
-and then you don't get to go the retry route at all:
+Christoph, a late comment: doesn't this effectively replace
+do_anonymous_page's clear_user_highpage by clear_highpage, which would
+be a bad idea (inefficient? or corrupting?) on those few architectures
+which actually do something with that user addr?
 
-	/* This allocation should allow future memory freeing. */
-	if ((p->flags & (PF_MEMALLOC | PF_MEMDIE)) && !in_interrupt()) {
-		/* go through the zonelist yet again, ignoring mins */
-		for (i = 0; (z = zones[i]) != NULL; i++) {
-			page = buffered_rmqueue(z, order, gfp_mask);
-			if (page)
-				goto got_pg;
-		}
-		goto nopage;
-	}
-....
-nopage:
-	....
-	return NULL;
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
