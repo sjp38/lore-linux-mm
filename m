@@ -1,38 +1,37 @@
+Date: Tue, 20 Mar 2001 12:38:00 +0000
+From: "Stephen C. Tweedie" <sct@redhat.com>
 Subject: Re: 3rd version of R/W mmap_sem patch available
-References: <Pine.LNX.4.31.0103192300570.1195-100000@penguin.transmeta.com>
-From: ebiederm@xmission.com (Eric W. Biederman)
-Date: 20 Mar 2001 01:19:43 -0700
-In-Reply-To: Linus Torvalds's message of "Mon, 19 Mar 2001 23:03:02 -0800 (PST)"
-Message-ID: <m1lmq03l9c.fsf@frodo.biederman.org>
-MIME-Version: 1.0
+Message-ID: <20010320123800.A10222@redhat.com>
+References: <3AB6C7C2.D1A49FEF@uow.edu.au> <Pine.LNX.4.31.0103191932240.7210-100000@penguin.transmeta.com>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.31.0103191932240.7210-100000@penguin.transmeta.com>; from torvalds@transmeta.com on Mon, Mar 19, 2001 at 07:35:08PM -0800
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Linus Torvalds <torvalds@transmeta.com>
-Cc: Marcelo Tosatti <marcelo@conectiva.com.br>, Rik van Riel <riel@conectiva.com.br>, Mike Galbraith <mikeg@wen-online.de>, linux-mm@kvack.org, Manfred Spraul <manfred@colorfullife.com>, MOLNAR Ingo <mingo@chiara.elte.hu>
+Cc: Andrew Morton <andrewm@uow.edu.au>, "H. Peter Anvin" <hpa@transmeta.com>, Stephen Tweedie <sct@redhat.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Linus Torvalds <torvalds@transmeta.com> writes:
+Hi,
 
-> On Mon, 19 Mar 2001, Linus Torvalds wrote:
+On Mon, Mar 19, 2001 at 07:35:08PM -0800, Linus Torvalds wrote:
 > >
-> > Although I'd prefer to see somebody check out the other architectures,
-> > to do the (pretty trivial) changes to make them support properly
-> > threaded page faults. I'd hate to have two pre-patches without any
-> > input from other architectures..
+> > I can't see it.  Where did you hide it?
 > 
-> These are the trivial fixes to make -pre5 be spinlock-debugging-clean and
-> fix the missing unlock in copy_page_range(). I'd really like to hear from
-> architecture maintainers if possible.
-> 
-> 		Linus
+> Ahh. The mirroring is apparently broken. I put my stuff on a faster local
+> connection to "master.kernel.org", and depend on it being mirrored
+> automatically. And apparently the mirroring has been down for a few days
+> now. Ugh. I'll ping Peter.
 
-Hmm.  It looks like remap_area_pages doesn't return an error...
-- return 0;
-+ return error;
+Mirrored for now in
 
+	ftp.uk.linux.org:/pub/linux/sct/kernel/
 
-Eric
+for the sake of anyone else helping with this.
+
+Cheers,
+ Stephen
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
