@@ -1,44 +1,38 @@
-Date: Tue, 01 Mar 2005 09:09:04 +0900 (JST)
-Message-Id: <20050301.090904.71101313.taka@valinux.co.jp>
-Subject: Re: [PATCH] mm: memory migration: bug in touch_unmapped_address
-From: Hirokazu Takahashi <taka@valinux.co.jp>
-In-Reply-To: <422356AB.4040703@sgi.com>
-References: <422356AB.4040703@sgi.com>
+Message-Id: <Kilauea97945-17741-82853435-1@flonetwork.com>
+From: "Frankie Coffey" <bsagar@didamail.com>
+Date: Mon, 14 Feb 2005 15:23:38 -0400 (EDT) 
+Message-Id: <200410031442.i93LfbTw009505@www7.gmail.com>
+Subject: Become one of the low 3.25% rates
 Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: raybry@sgi.com
-Cc: marcelo.tosatti@cyclades.com, haveblue@us.ibm.com, linux-mm@kvack.org
+Content-Type: text/plain;
+Return-Path: <bsagar@didamail.com>
+To: linux-mm@kvack.org
+Cc: linux-mm-archive@kvack.org, mailer-daemon@kvack.org, needpcparts.com@kvack.org, ner-linux-aio@kvack.org, owner-linux-aio@kvack.org, owner-linux-mm@kvack.org, owner-majordomo@kvack.org, postmaster@kvack.orgr-linux-mm@kvack.orgrdomo@kvack.orgux-aio@kvack.orgwner-linux-aio@kvack.orgwner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Ray,
+Hello,
 
-> Hirokazu,
-> 
-> The length field in the call to get_user_pages() from touch_unmapped_pages()
-> is incorrectly specified in bytes, not pages.
->
-> As a result of this, if you use the migration code to migrate a page, then
-> subsequent pages (that are not necessarily currently allocated or mapped)
-> can be allocated and mapped as a result of the migration call.
+ We tried contacting you awhile ago about your low interest morta(ge rate.
 
-Yes, you're absolutely right.
-I'll fix it soon.
+ You have qualified for the lowest rate in years...
 
-> [touch_unmapped_pages() is added by the memory migration code from the memory
-> hotplug patch so this is not currently part of the mainline kernel]
-> 
-> See attached patch for the fix.
+ You could get over $380,000 for as little as $500 a month!
 
-Thank you,
-Hirokazu Takahashi
-   who is the person looking for new sponsors to help us to
-   continue developing the memory migration feature.
+ Ba(d credit? Doesn't matter, low rates are fixed no matter what!
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"aart@kvack.org"> aart@kvack.org </a>
+ 
+ To get a free, no obli,gation consultation click below:
+
+ http://www.bestlenderz4u.com/x/loan.php?id=nu
+
+
+
+ Best Regards,
+
+ Jerrod Boykin
+ 
+ to be remov(ed:	http://www.bestlenderz4u.com/x/st.html
+
+ this process takes one week, so please be patient. we do our 
+ best to take your email/s off but you have to fill out a rem/ove
+ or else you will continue to recieve email/s.
