@@ -1,68 +1,28 @@
-Date: Tue, 1 Jul 2003 22:46:31 +0100 (IST)
-From: Mel Gorman <mel@csn.ul.ie>
+Date: Tue, 01 Jul 2003 14:58:09 -0700
+From: "Martin J. Bligh" <mbligh@aracnet.com>
 Subject: Re: What to expect with the 2.6 VM
-In-Reply-To: <20030701022516.GL3040@dualathlon.random>
-Message-ID: <Pine.LNX.4.53.0307012236310.16265@skynet>
-References: <Pine.LNX.4.53.0307010238210.22576@skynet>
- <20030701022516.GL3040@dualathlon.random>
+Message-ID: <4340000.1057096683@[10.10.2.4]>
+In-Reply-To: <Pine.LNX.4.53.0307012202510.16265@skynet>
+References: <Pine.LNX.4.53.0307010238210.22576@skynet> <200306301943.04326.phillips@arcor.de> <Pine.LNX.4.53.0307012202510.16265@skynet>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrea Arcangeli <andrea@suse.de>
+To: Mel Gorman <mel@csn.ul.ie>, Daniel Phillips <phillips@arcor.de>
 Cc: Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 1 Jul 2003, Andrea Arcangeli wrote:
+> I was hoping someone else would write it so I could read it but thats what
+> I said about the 2.4 VM :-) 
 
-> On Tue, Jul 01, 2003 at 02:39:47AM +0100, Mel Gorman wrote:
-> >    Reverse Page Table Mapping
-> >    ==========================
-> >
-> > <rmap stuff snipped>
->
-> you mention only the positive things, and never the fact that's the most
-> hurting piece of kernel code in terms of performance and smp scalability
-> until you actually have to swapout or pageout.
->
+Sigh. Sadly I have a lot of this written up (including for object-based
+rmap you were thinkin about doing, etc), but it's an OLS paper, so I 
+can't release it, I believe. If you need this after OLS, it's easy ;-)
 
-You're right, I was commenting only on the positive side of things. I
-didn't pay close enough attention to the development of the 2.5 series so
-right now I can only comment on whats there and only to a small extent on
-what it means or why it might be a bad thing. Here goes a more balanced
-view...
+M.
 
-Based on what I can decipher from this thread and other rmap related
-threads, I've added this to the end of the rmap section. I'm still working
-on the non-linear issues. It'll probably take me another day or two to get
-that together.
-
---Begin Extract--
-   There are two main benefits, both page-out related, with the introduction
-   of reverse mapping. The first is with the management of page tables. In
-   2.4, anonymous shared pages had to be placed in a swap cache until all
-   references has been found. This could result in a large number of minor
-   faults as page adjacent in virtual space were moved to the swap cache
-   resulting in unnecessary page table updates. The second benefit is with
-   the actual paging out mechanism. 2.6 is much better at selecting the
-   correct page and atomically swapping it out from each virtual address
-   space.
-
-   Reverse mapping is not free though. The first obvious penalty is the space
-   requirements for PTE chains. The space requirements will obviously depend
-   on the number of shared pages, especially anonymous pages, in the system.
-   There was patches submitted for the sharing of page tables but it was not
-   merged into the mainline kernel. The second penalty is the CPU time
-   required to maintain the mappings but no figures are available to measure
-   how severe this is. The last point to note is that reverse mapping is only
-   of benefit when page-outs are frequent which is mainly the case with
-   lower-end machines. With large memory machines or with workloads that do
-   not cause much swapping, there is only costs to reverse mapping but no
-   benefits.
---End Extract--
-
--- 
-Mel Gorman
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
