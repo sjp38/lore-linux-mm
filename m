@@ -1,42 +1,44 @@
-Date: Thu, 11 Sep 2003 23:50:54 +0200
+Date: Thu, 11 Sep 2003 23:52:16 +0200
 From: Jens Axboe <axboe@suse.de>
 Subject: Re: ide-scsi oops was: 2.6.0-test4-mm3
-Message-ID: <20030911215054.GL12021@suse.de>
-References: <20030910114346.025fdb59.akpm@osdl.org> <10720000.1063224243@flay> <20030911082057.GP1396@suse.de> <1063294049.2967.30.camel@dhcp23.swansea.linux.org.uk>
+Message-ID: <20030911215216.GM12021@suse.de>
+References: <20030911082057.GP1396@suse.de> <Pine.LNX.4.44.0309111111150.24179-100000@innerfire.net>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1063294049.2967.30.camel@dhcp23.swansea.linux.org.uk>
+In-Reply-To: <Pine.LNX.4.44.0309111111150.24179-100000@innerfire.net>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Alan Cox <alan@lxorguk.ukuu.org.uk>
-Cc: "Martin J. Bligh" <mbligh@aracnet.com>, Andrew Morton <akpm@osdl.org>, Mike Fedyk <mfedyk@matchmail.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Gerhard Mack <gmack@innerfire.net>
+Cc: "Martin J. Bligh" <mbligh@aracnet.com>, Andrew Morton <akpm@osdl.org>, Mike Fedyk <mfedyk@matchmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Sep 11 2003, Alan Cox wrote:
-> On Iau, 2003-09-11 at 09:20, Jens Axboe wrote:
+On Thu, Sep 11 2003, Gerhard Mack wrote:
+> On Thu, 11 Sep 2003, Jens Axboe wrote:
+> 
+> > On Wed, Sep 10 2003, Martin J. Bligh wrote:
+> > > That's a real shame ... it seemed to work fine until recently. Some
+> > > of the DVD writers (eg the one I have - Sony DRU500A or whatever)
+> >
+> > Then maybe it would be a really good idea to find out why it doesn't
+> > work with ide-cd. What are the symptoms?
+> >
 > > > need it. Is it unfixable? or just nobody's done it?
-> > 
+> >
 > > It's not unfixable, there's just not a lot of motivation to fix it since
 > > it's basically dead.
+> >
 > 
-> Almost all IDE tape drives require ide-scsi/st modules for one.  I'm not
+> What about backwards compatability with all of that cd burning software
+> out there that only knows to scan the SCSI devices?
 
-Big deal, 99% of ide-scsi use is for cd burning. But yes, it should be
-fixed. I'm not disagreeing, I just don't think it's a high prio item.
-And apparently noone else thinks so either, if not it would have been
-fixed a long time ago (it's been broken for how long now?)
+That's basically impossible, I don't want to shoe horn atapi numbering
+into faked bus,id,lun type things.
 
-> sure of the problems in the 2.5 case, in the 2.4 case the big one was
-> that both IDE and SCSI want to control reset/recovery and reissue of
-> commands. That turns into a nasty mess and 2.4 now lets the IDE layer do
-> it, with SCSI just backing off. That may well be the right model for
-> 2.5.x - ie the reset eh handler just waits for the IDE layer to kill the
-> command. The other one was races in the reset code which 2.4 I think now
-> has fixed, which will bite non scsi users but less often
-
-Just needs someone to do it. Once it bugs someone enough, that someone
-will do it. Until then, it remains broken :)
+So people will just have to get used to the change. And I bet that Joe
+user with his cd-r thinks it's a lot more intuitive to use dev=/dev/hdc
+(which is his burner) rather than dev=1,0,0 for instance. The scanning
+basically helps that case alone, because noone can guess these numbers.
 
 -- 
 Jens Axboe
