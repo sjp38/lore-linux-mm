@@ -1,49 +1,53 @@
-Date: Sat, 13 Mar 2004 13:48:42 -0800
-From: Andrew Morton <akpm@osdl.org>
-Subject: Re: Poor DBT-3 pgsql 8way numbers on recent 2.6 mm kernels
-Message-Id: <20040313134842.78695cc6.akpm@osdl.org>
-In-Reply-To: <405379ED.A7D6B1E4@us.ibm.com>
-References: <1079130684.2961.134.camel@localhost>
-	<20040312233900.0d68711e.akpm@osdl.org>
-	<405379ED.A7D6B1E4@us.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Message-ID: <av5r1$86$hh-ro$5k18xw@m2r4.ig.br7qzl>
+From: "Ron Hines" <slshkph46@yahoo.com>
+Reply-To: "Ron Hines" <slshkph46@yahoo.com>
+Subject: V-i-a-g-r-a is Lousy k 
+Date: Mon, 15 Mar 04 11:14:49 GMT
+MIME-Version: 1.0
+Content-Type: multipart/alternative;
+	boundary="9._D3F3._FF_9"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: badari <pbadari@us.ibm.com>
-Cc: maryedie@osdl.org, linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-badari <pbadari@us.ibm.com> wrote:
->
-> Andrew,
-> 
-> We don't see any degradation with -mm trees with DSS workloads.
-> Meredith mentioned that the workload is "cached". Not much
-> IO activity. I wonder how it can be related to readahead ?
+--9._D3F3._FF_9
+Content-Type: text/plain;
+Content-Transfer-Encoding: quoted-printable
 
-Well I don't know what "cached" means really.  That's a reoccurring problem
-with these complex performance tests which some groups are running: lack of
-the really detailed information which kernel developers can use, long
-turnaround times in gathering followup information, even slow email
-turnaround times.  It's been a bit frustrating from that point of view.
+-Cia-lis (Tadalafil) is known as Su-per V|i|a|g|r|a because it acts quicke=
+r and lasts 
+much longer! Cia-lis has been dubbed the weekend pill: Take it once and it=
+ lasts all 
+weekend. Ci-alis starts working up to twice as fast as V-i-a-g-r-a, and co=
+ntinues working 
+for up to 24-36 hours. It's the best "Man Pil-ls" in the market today!
 
-I read the dbt3-pgsql setup docs.  It looks pretty formidable.  For a
-start, it provides waaaaaaaaaay too many options.  Sure, tell people how to
-tweak things, but provide some simple, standardised setup with works
-out-of-the-box.  Maybe it does, I don't know.
+Best of all, here's the good point of "Cialis" compared to V-I-A-G-R-A:
+
+- Twice or even much better than V-I-A-G-R-A or other pills!
+
+- virtually side effect F-R-E-E and can be taken without food or alcohol r=
+estraints. 
+
+- Take effect in as little as 16 minutes. 
+
+- 100% M|oney Back G|uarantee!
+
+FUL|L RE|FUND IF NOT DELIGHTED!
+
+Please Visit The Site Below For Mo.re Information:
+
+
+http://guitarmoves.com/4/7/index.php?ai=3D7366
 
 
 
-Anyway, if it means that the database is indeed in pagecache and this test
-is not using direct-io then presumably there's a lot of synchronous write
-traffic happening and not much reading?   A vmstat strace would tell.
 
-And if that is indeed the case I'd be suspecting the CPU scheduler.  But
-then, Meredith's profiles show almost completely idle CPUs.
+This is one time mai-ling. No re-moval is required.vgzfkid eiyoggwgbinfg  sjmvovg xrkyaidsj
 
-The simplest way to hunt this down is the old binary-search-through-the-patches process.  But that requires some test which takes just a few minutes.
+--9._D3F3._FF_9--
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
