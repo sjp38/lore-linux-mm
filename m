@@ -1,27 +1,26 @@
-Date: Sat, 2 Aug 2003 17:11:19 -0700
-From: William Lee Irwin III <wli@holomorphy.com>
 Subject: Re: 2.6.0-test2-mm3
-Message-ID: <20030803001119.GF32488@holomorphy.com>
-References: <20030802152202.7d5a6ad1.akpm@osdl.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+From: Felipe Alfaro Solana <felipe_alfaro@linuxmail.org>
 In-Reply-To: <20030802152202.7d5a6ad1.akpm@osdl.org>
+References: <20030802152202.7d5a6ad1.akpm@osdl.org>
+Content-Type: text/plain
+Message-Id: <1059875394.618.0.camel@teapot.felipe-alfaro.com>
+Mime-Version: 1.0
+Date: Sun, 03 Aug 2003 03:49:55 +0200
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@osdl.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, Aug 02, 2003 at 03:22:02PM -0700, Andrew Morton wrote:
-> . Added Ingo's 4G/4G memory split patch.  It takes my kernel build from
->   1:51 to 1:53 so gee.
+On Sun, 2003-08-03 at 00:22, Andrew Morton wrote:
+> ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.6/2.6.0-test2/2.6.0-test2-mm3/
+> 
+> . Con's CPU scheduler rework has been dropped out and Ingo's changes have
+>   been added.
 
-No idea who, if anyone, listened last time I answered questions on
-this. Sending in fixes shortly...
+Why?
 
-
--- wli
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
