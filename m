@@ -1,136 +1,331 @@
-From: Nikita Danilov <Nikita@Namesys.COM>
+From: Daniel Phillips <phillips@arcor.de>
+Subject: [RFC] Distributed mmap API
+Date: Wed, 25 Feb 2004 16:04:19 -0500
+References: <20040216190927.GA2969@us.ibm.com> <200402211400.16779.phillips@arcor.de> <20040222233911.GB1311@us.ibm.com>
+In-Reply-To: <20040222233911.GB1311@us.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain;
+  charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
-Message-ID: <16444.54077.645263.274441@laputa.namesys.com>
-Date: Wed, 25 Feb 2004 19:54:21 +0300
-Subject: Re: qsbench -m 350 numbers
-In-Reply-To: <20040225021113.4171c6ab.akpm@osdl.org>
-References: <20040225021113.4171c6ab.akpm@osdl.org>
+Content-Disposition: inline
+Message-Id: <200402251604.19040.phillips@arcor.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: Nick Piggin <piggin@cyberone.com.au>, linux-mm@kvack.org
+To: paulmck@us.ibm.com
+Cc: "Stephen C. Tweedie" <sct@redhat.com>, Andrew Morton <akpm@osdl.org>, Christoph Hellwig <hch@infradead.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Andrew Morton writes:
- > This is a single-threaded workload.  We've been beating 2.4 on this since
- > forever.
- > 
- > time ./qsbench -m 350, 256MB, SMP:
- > 
- > 2.4.25					2:02.66 2:05.92 1:39.27
- > 
- > blk_congestion_wait-return-remaining	1:56.61 1:55.23 1:52.92
- > kswapd-throttling-fixes			2:06.49 2:05.53 2:06.18 2:06.52
- > vm-dont-rotate-active-list		2:05.73 2:08.44 2:08.86
- > vm-lru-info				2:07.00 2:07.17 2:08.65
- > vm-shrink-zone				2:02.60 2:00.91 2:02.34
- > vm-tune-throttle			2:05.88 1:58.20 1:58.02
- > shrink_slab-for-all-zones		2:00.67 2:02.30 1:58.36
- > zone-balancing-fix			2:06.54 2:08.29 2:07.17
- > zone-balancing-batching			2:36.25 2:38.86 2:43.28
- > 
+This is the function formerly known as invalidate_mmap_range, with the
+addition of a new code path in the zap_ call chain to handle MAP_PRIVATE
+properly.  This function by itself is enough to support a crude but useful
+form of distributed mmap where a shared file is cached only on one cluster
+node at a time.
 
-I repeated qsbench test with patches from
+To use this, the distributed filesystem has to hook do_no_page to intercept
+page faults and carry out the needed global locking.  The locking itself does
+not require any new kernel hooks.  In brief, the patch here and another patch
+to be presented for the do_no_page hook, together provide the core kernel API
+for a simplified, distributed mmap.  (Note that there may be a workaround for
+the lack of a do_no_page hook, but certainly not as simple and robust.)
 
-ftp://ftp.namesys.com/pub/misc-patches/unsupported/extra/2004.02.25-2.6.3
+To put this in perspective, I'll mention the two big limitations of the
+simplified API:
 
-They are mainly supposed to improve file system behavior, so this is to
-check they don't hurt anonymous memory (much).
+  1) Invalidation is always a whole file at a time
+  2) Multiple readers may not cache the same data simultaneously
 
-$ export TIMEFORMAT="%3R %3S %3U"
-$ for i in $(seq 1 7) ;do time ./qsbench -m 350 -s 12345678 ;done
+To handle sub-file cache granularity, we also need to be able to flush dirty
+data and evict cache pages with sub-file granularity, giving a trio of cache
+management functions:
 
-results for each patch (applied sequentially) are followed by two lines:
-average of times and standard deviation ((DX)^2 = E(X^2) - (EX)^2):
+    unmap_mapping_range(mapping, start, length) /* this patch */
+    write_mapping_range(mapping, start, length) /* start IO for dirty cache */
+    evict_mapping_range(mapping, start, length) /* wait on IO and evict cache */
 
-          no-patches
-109.839 3.001 24.494
-111.130 3.070 24.257
-109.804 2.871 24.053
-109.334 3.015 24.104
-112.372 3.009 24.098
-109.226 3.135 23.822
-109.675 2.996 24.014
+To handle (2) above, the distributed filesystem will need to hook and modify
+the behaviour of do_wp_page so that it can intercept memory writes to shared
+cache pages.
 
-110.197 3.014 24.120
-  1.143 0.080  0.210
+To summarize the current proposal, and where we need to go in the future:
 
-          skip-writepage 
-111.444 2.978 24.016
-107.087 2.829 23.980
-109.878 2.824 24.000
-108.302 2.759 24.107
-108.967 2.838 23.962
-109.467 2.978 23.855
-109.485 3.056 23.859
+  Simple core kernel API for simplistic distributed memory map
+  ------------------------------------------------------------
 
-109.233 2.895 23.968
-  1.352 0.109  0.089
+     - unmap_mapping_range export (this patch)
+     - do_no_page hook
 
-          dont-rotate-active-list 
-107.124 2.959 24.309
-109.589 2.872 24.045
-108.346 2.977 23.965
-108.313 2.965 24.087
-110.276 3.020 23.816
-107.223 2.979 24.098
-110.580 3.007 24.063
+  Improved core kernel API for optimal distributed memory map
+  -----------------------------------------------------------
 
-108.779 2.968 24.055
-  1.397 0.048  0.149
+     - unmap_mapping_range export (this patch)
+     - write_mapping_range export
+     - evict_mapping_range export
+     - do_no_page hook
+     - do_wp_page hook
 
-          trasnfer-dirty-on-refill
-109.596 2.938 24.106
-108.247 2.990 23.859
-112.299 2.961 23.933
-108.815 2.859 24.069
-111.317 3.007 24.151
-109.998 3.007 23.986
-109.863 2.869 23.970
+There's no big rush to move on to the optimal version just now, since the simplistic
+version is already a big step forward.
 
-110.019 2.947 24.011
-  1.395 0.062  0.103
+I'd like to take this opportunity to apologize to Paul for derailing his more
+modest proposal, but unfortunately, the semantics that could be obtained that
+way are fatally flawed: private mmaps just won't work.  What I've written here
+is about the minimum that supports acceptable mmap semantics.
 
-          dont-unmap-on-pageout
-113.099 2.870 24.224
-114.249 2.856 24.101
-112.065 2.721 23.919
-113.318 2.891 24.209
-115.456 2.943 24.152
-112.370 2.923 24.087
-113.593 2.857 23.983
+And finally, the EXPORT_SYMBOL_GPL issue: after much fretting I've changed it
+to just EXPORT_SYMBOL in this patch, because I feel that we have better ways
+to further our goals of free and open software than to try to use this
+particular API as a battering ram.  Of course it's not my decision, I just
+want to register my vote here.
 
-113.450 2.866 24.096
-  1.148 0.072  0.113
+Regards,
 
-          async-writepage
-110.078 2.983 24.410
-112.285 3.045 23.959
-111.987 2.922 23.990
-114.183 3.043 24.018
-114.291 3.003 24.102
-113.335 2.954 24.245
-115.764 2.958 24.967
+Daniel
 
-113.132 2.987 24.242
-  1.861 0.046  0.358
+--- 2.6.3.clean/include/linux/mm.h	2004-02-17 22:57:13.000000000 -0500
++++ 2.6.3/include/linux/mm.h	2004-02-21 12:59:16.000000000 -0500
+@@ -430,23 +430,23 @@
+ void shmem_lock(struct file * file, int lock);
+ int shmem_zero_setup(struct vm_area_struct *);
+ 
+-void zap_page_range(struct vm_area_struct *vma, unsigned long address,
+-			unsigned long size);
+ int unmap_vmas(struct mmu_gather **tlbp, struct mm_struct *mm,
+ 		struct vm_area_struct *start_vma, unsigned long start_addr,
+-		unsigned long end_addr, unsigned long *nr_accounted);
+-void unmap_page_range(struct mmu_gather *tlb, struct vm_area_struct *vma,
+-			unsigned long address, unsigned long size);
++		unsigned long end_addr, unsigned long *nr_accounted, int zap);
+ void clear_page_tables(struct mmu_gather *tlb, unsigned long first, int nr);
+ int copy_page_range(struct mm_struct *dst, struct mm_struct *src,
+ 			struct vm_area_struct *vma);
+ int zeromap_page_range(struct vm_area_struct *vma, unsigned long from,
+ 			unsigned long size, pgprot_t prot);
+-
+-extern void invalidate_mmap_range(struct address_space *mapping,
+-				  loff_t const holebegin,
+-				  loff_t const holelen);
++extern void invalidate_filemap_range(struct address_space *mapping, loff_t const start, loff_t const length);
+ extern int vmtruncate(struct inode * inode, loff_t offset);
++void invalidate_page_range(struct vm_area_struct *vma, unsigned long address, unsigned long size, int all);
++
++static inline void zap_page_range(struct vm_area_struct *vma, ulong address, ulong size)
++{
++	invalidate_page_range(vma, address, size, 1);
++}
++
+ extern pmd_t *FASTCALL(__pmd_alloc(struct mm_struct *mm, pgd_t *pgd, unsigned long address));
+ extern pte_t *FASTCALL(pte_alloc_kernel(struct mm_struct *mm, pmd_t *pmd, unsigned long address));
+ extern pte_t *FASTCALL(pte_alloc_map(struct mm_struct *mm, pmd_t *pmd, unsigned long address));
+--- 2.6.3.clean/mm/memory.c	2004-02-17 22:57:47.000000000 -0500
++++ 2.6.3/mm/memory.c	2004-02-25 13:34:57.000000000 -0500
+@@ -384,9 +384,13 @@
+ 	return -ENOMEM;
+ }
+ 
+-static void
+-zap_pte_range(struct mmu_gather *tlb, pmd_t * pmd,
+-		unsigned long address, unsigned long size)
++static inline int is_anon(struct page *page)
++{
++	return !page->mapping || PageSwapCache(page);
++}
++
++static void zap_pte_range(struct mmu_gather *tlb, pmd_t * pmd,
++		unsigned long address, unsigned long size, int all)
+ {
+ 	unsigned long offset;
+ 	pte_t *ptep;
+@@ -409,8 +413,9 @@
+ 			continue;
+ 		if (pte_present(pte)) {
+ 			unsigned long pfn = pte_pfn(pte);
+-
+-			pte = ptep_get_and_clear(ptep);
++			if (unlikely(!all) && is_anon(pfn_to_page(pfn)))
++				continue;
++			pte = ptep_get_and_clear(ptep); /* get dirty bit atomically */
+ 			tlb_remove_tlb_entry(tlb, ptep, address+offset);
+ 			if (pfn_valid(pfn)) {
+ 				struct page *page = pfn_to_page(pfn);
+@@ -426,17 +431,19 @@
+ 				}
+ 			}
+ 		} else {
+-			if (!pte_file(pte))
++			if (!pte_file(pte)) {
++				if (!all)
++					continue;
+ 				free_swap_and_cache(pte_to_swp_entry(pte));
++			}
+ 			pte_clear(ptep);
+ 		}
+ 	}
+ 	pte_unmap(ptep-1);
+ }
+ 
+-static void
+-zap_pmd_range(struct mmu_gather *tlb, pgd_t * dir,
+-		unsigned long address, unsigned long size)
++static void zap_pmd_range(struct mmu_gather *tlb, pgd_t * dir,
++		unsigned long address, unsigned long size, int all)
+ {
+ 	pmd_t * pmd;
+ 	unsigned long end;
+@@ -453,14 +460,14 @@
+ 	if (end > ((address + PGDIR_SIZE) & PGDIR_MASK))
+ 		end = ((address + PGDIR_SIZE) & PGDIR_MASK);
+ 	do {
+-		zap_pte_range(tlb, pmd, address, end - address);
+-		address = (address + PMD_SIZE) & PMD_MASK; 
++		zap_pte_range(tlb, pmd, address, end - address, all);
++		address = (address + PMD_SIZE) & PMD_MASK;
+ 		pmd++;
+ 	} while (address < end);
+ }
+ 
+-void unmap_page_range(struct mmu_gather *tlb, struct vm_area_struct *vma,
+-			unsigned long address, unsigned long end)
++static void unmap_page_range(struct mmu_gather *tlb, struct vm_area_struct *vma,
++		unsigned long address, unsigned long end, int all)
+ {
+ 	pgd_t * dir;
+ 
+@@ -474,7 +481,7 @@
+ 	dir = pgd_offset(vma->vm_mm, address);
+ 	tlb_start_vma(tlb, vma);
+ 	do {
+-		zap_pmd_range(tlb, dir, address, end - address);
++		zap_pmd_range(tlb, dir, address, end - address, all);
+ 		address = (address + PGDIR_SIZE) & PGDIR_MASK;
+ 		dir++;
+ 	} while (address && (address < end));
+@@ -524,7 +531,7 @@
+  */
+ int unmap_vmas(struct mmu_gather **tlbp, struct mm_struct *mm,
+ 		struct vm_area_struct *vma, unsigned long start_addr,
+-		unsigned long end_addr, unsigned long *nr_accounted)
++		unsigned long end_addr, unsigned long *nr_accounted, int all)
+ {
+ 	unsigned long zap_bytes = ZAP_BLOCK_SIZE;
+ 	unsigned long tlb_start = 0;	/* For tlb_finish_mmu */
+@@ -568,7 +575,7 @@
+ 				tlb_start_valid = 1;
+ 			}
+ 
+-			unmap_page_range(*tlbp, vma, start, start + block);
++			unmap_page_range(*tlbp, vma, start, start + block, all);
+ 			start += block;
+ 			zap_bytes -= block;
+ 			if ((long)zap_bytes > 0)
+@@ -594,8 +601,8 @@
+  * @address: starting address of pages to zap
+  * @size: number of bytes to zap
+  */
+-void zap_page_range(struct vm_area_struct *vma,
+-			unsigned long address, unsigned long size)
++void invalidate_page_range(struct vm_area_struct *vma,
++		unsigned long address, unsigned long size, int all)
+ {
+ 	struct mm_struct *mm = vma->vm_mm;
+ 	struct mmu_gather *tlb;
+@@ -612,7 +619,7 @@
+ 	lru_add_drain();
+ 	spin_lock(&mm->page_table_lock);
+ 	tlb = tlb_gather_mmu(mm, 0);
+-	unmap_vmas(&tlb, mm, vma, address, end, &nr_accounted);
++	unmap_vmas(&tlb, mm, vma, address, end, &nr_accounted, all);
+ 	tlb_finish_mmu(tlb, address, end);
+ 	spin_unlock(&mm->page_table_lock);
+ }
+@@ -1071,10 +1078,8 @@
+  * Both hba and hlen are page numbers in PAGE_SIZE units.
+  * An hlen of zero blows away the entire portion file after hba.
+  */
+-static void
+-invalidate_mmap_range_list(struct list_head *head,
+-			   unsigned long const hba,
+-			   unsigned long const hlen)
++static void invalidate_mmap_range_list(struct list_head *head,
++		 unsigned long const hba,  unsigned long const hlen, int all)
+ {
+ 	struct list_head *curr;
+ 	unsigned long hea;	/* last page of hole. */
+@@ -1095,9 +1100,9 @@
+ 		    	continue;	/* Mapping disjoint from hole. */
+ 		zba = (hba <= vba) ? vba : hba;
+ 		zea = (vea <= hea) ? vea : hea;
+-		zap_page_range(vp,
++		invalidate_page_range(vp,
+ 			       ((zba - vba) << PAGE_SHIFT) + vp->vm_start,
+-			       (zea - zba + 1) << PAGE_SHIFT);
++			       (zea - zba + 1) << PAGE_SHIFT, all);
+ 	}
+ }
+ 
+@@ -1115,8 +1120,8 @@
+  * up to a PAGE_SIZE boundary.  A holelen of zero truncates to the
+  * end of the file.
+  */
+-void invalidate_mmap_range(struct address_space *mapping,
+-		      loff_t const holebegin, loff_t const holelen)
++static void invalidate_mmap_range(struct address_space *mapping,
++		loff_t const holebegin, loff_t const holelen, int all)
+ {
+ 	unsigned long hba = holebegin >> PAGE_SHIFT;
+ 	unsigned long hlen = (holelen + PAGE_SIZE - 1) >> PAGE_SHIFT;
+@@ -1133,12 +1138,19 @@
+ 	/* Protect against page fault */
+ 	atomic_inc(&mapping->truncate_count);
+ 	if (unlikely(!list_empty(&mapping->i_mmap)))
+-		invalidate_mmap_range_list(&mapping->i_mmap, hba, hlen);
++		invalidate_mmap_range_list(&mapping->i_mmap, hba, hlen, all);
+ 	if (unlikely(!list_empty(&mapping->i_mmap_shared)))
+-		invalidate_mmap_range_list(&mapping->i_mmap_shared, hba, hlen);
++		invalidate_mmap_range_list(&mapping->i_mmap_shared, hba, hlen, all);
+ 	up(&mapping->i_shared_sem);
+ }
+-EXPORT_SYMBOL_GPL(invalidate_mmap_range);
++
++ void unmap_mapping_range(struct address_space *mapping,
++		loff_t const start, loff_t const length)
++{
++	invalidate_mmap_range(mapping, start, length, 0);
++}
++
++EXPORT_SYMBOL(unmap_mapping_range);
+ 
+ /*
+  * Handle all mappings that got truncated by a "truncate()"
+@@ -1156,7 +1168,7 @@
+ 	if (inode->i_size < offset)
+ 		goto do_expand;
+ 	i_size_write(inode, offset);
+-	invalidate_mmap_range(mapping, offset + PAGE_SIZE - 1, 0);
++	invalidate_mmap_range(mapping, offset + PAGE_SIZE - 1, 0, 1);
+ 	truncate_inode_pages(mapping, offset);
+ 	goto out_truncate;
+ 
+--- 2.6.3.clean/mm/mmap.c	2004-02-17 22:58:32.000000000 -0500
++++ 2.6.3/mm/mmap.c	2004-02-19 22:46:01.000000000 -0500
+@@ -1134,7 +1134,7 @@
+ 
+ 	lru_add_drain();
+ 	tlb = tlb_gather_mmu(mm, 0);
+-	unmap_vmas(&tlb, mm, vma, start, end, &nr_accounted);
++	unmap_vmas(&tlb, mm, vma, start, end, &nr_accounted, 1);
+ 	vm_unacct_memory(nr_accounted);
+ 
+ 	if (is_hugepage_only_range(start, end - start))
+@@ -1436,7 +1436,7 @@
+ 	flush_cache_mm(mm);
+ 	/* Use ~0UL here to ensure all VMAs in the mm are unmapped */
+ 	mm->map_count -= unmap_vmas(&tlb, mm, mm->mmap, 0,
+-					~0UL, &nr_accounted);
++					~0UL, &nr_accounted, 1);
+ 	vm_unacct_memory(nr_accounted);
+ 	BUG_ON(mm->map_count);	/* This is just debugging */
+ 	clear_page_tables(tlb, FIRST_USER_PGD_NR, USER_PTRS_PER_PGD);
 
-          set_page_dirty-lru
-114.762 3.033 24.237
-112.963 2.876 24.314
-112.688 2.912 24.093
-114.412 2.909 24.029
-113.605 2.980 24.218
-112.116 2.953 24.092
-115.262 2.904 24.762
-
-113.687 2.938 24.249
-  1.166 0.054  0.247
-
-
-Nikita.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
