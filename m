@@ -1,45 +1,28 @@
-Reply-To: "Guy Carrillo" <fuqyhuo@mygo.com>
-From: "Guy Carrillo" <fuqyhuo@mygo.com>
-Subject: Vegas Style
-Date: Thu, 16 Dec 2004 22:06:52 -0100
-MIME-Version: 1.0 (produced by accedeastronomy 4.6)
+Message-ID: <6AJOVqihB1597g@1cust36.tnt3.phoenix.az.da.uu.net>
+From: "Rosella Vasquez" <janiem417@accountantsoverload.com>
+Subject: Sprained a Muscle? Get Relaxants
+Date: Thu, 16 Dec 2004 16:10:14 -0300
+MIME-Version: 1.0
 Content-Type: multipart/alternative;
-	boundary="--6967002103706120031"
-Message-Id: <20041216190444Z26585-766+3310@kvack.org>
+	boundary="--877364117626142894"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linux-mm <linux-mm@kvack.org>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-----6967002103706120031
+----877364117626142894
 Content-Type: text/plain;
-	charset="iso-6833-4"
-Content-Transfer-Encoding: 7Bit
-Content-Description: chuckwalla prod 31
+Content-Transfer-Encoding: quoted-printable
 
-Sick of working for the man..
-Own your own business and make 20 grand plus per month
-Take Advantage of the 10 billion dollar per year Casino industry
-Call 1-877-467-2636 ext: 213 
-We'll fill you in on all the details
-Take control of your own financial destiny
-Contact us today
+Have Trouble Falling Asleep? 
+http://www.jailbreak3trw.com/?84r/LoiW/f=3D0/wuaZ   
 
 
+berry befitting nudge debutante charlemagne stephens talent amygdaloid ars=
+enide antarctica=20
 
+----877364117626142894--
 
-
-custodial  inhibitory  gorham  chancery  tearful  conveyor  substrate  
-persuasive  conspiracy  hellgrammite  prophecy  null  carlin  behind  
-ainu  derogate  beech  technic  dusenberg  swag  profusion  
-deploy  cherry  schoolbook  gurkha  champaign  yea  constrain  
-erudition  somerville  brant  instable  democrat  continued  admiration  
-palfrey  bankrupt  shepard  thruway  asceticism  attention  defiant  
-inhabitation  binocular  transshipped  dogtooth  wyner  affiance  stupefy  
-crux  starch  presence  circulant  ferromagnetic  hetty  power  
-breast  deprivation  doubt  kestrel  
-
-----6967002103706120031--
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
