@@ -1,46 +1,54 @@
-Reply-To: <micke@hallendal.net>
-Message-ID: <036c75a14c1d$5527b2d2$5ba34ed2@fdtpnj>
-From: <micke@hallendal.net>
-Subject: Is that you?                                              
-Date: Tue, 10 Dec 2002 01:30:36 +0800
-MiME-Version: 1.0
-Content-Type: text/plain;
-	charset="us-ascii"
-Content-Transfer-Encoding: 8bit
+Message-ID: <3DF5BB06.A6F6AFFD@scs.ch>
+Date: Tue, 10 Dec 2002 10:59:34 +0100
+From: Martin Maletinsky <maletinsky@scs.ch>
+MIME-Version: 1.0
+Subject: Question on set_page_dirty()
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: linux-mm@kvack.org, kernelnewbies@nl.linux.org
 List-ID: <linux-mm.kvack.org>
 
-Hi !..
+Hello,
 
-think you replied to my personal ad!
-Yes I do get a lot of responses but you got me curious I haven't done this
-in a while so please forgive my nervousness. And I hope your still around,
-(the good people always get taken fast) Anyway since I know a "little" about
-you :) (that was cute by the way), you should take a look at me so that you
-can decide if we match.
-I'm not sure exactly what ad you replied to, I have a couple, but I do
-have a detailed profile with a picture at http://www.hot.ee/vipsingles
-Chris
-Well...If you're not interested any more, that's ok too....
-Have a great night.
-Cya!....:)
-ChrisBrenda27
+Looking at the function set_page_dirty() (in linux 2.4.18-3 - see below) I noticed, that it not only sets the pages PG_dirty bit (as the SetPageDirty() macro does), but
+additionnally may link the page onto a queue (more precisely the dirty queue of it's 'mapping').
+What is the meaning of this dirty queue, what is the effect of linking a page onto that queue, and when should the set_page_dirty() function be used rather than the
+SetPageDirty() macro?
 
-Member Registration  http://www.hot.ee/vipsingles
+Thanks in advance for any help
+with best regards
+Martin Maletinsky
+
+P.S. Please put me on CC: in your reply, since I am not in the mailing list.
+
+*
+153  * Add a page to the dirty page list.
+154  */
+155 void set_page_dirty(struct page *page)
+156 {
+157         if (!test_and_set_bit(PG_dirty, &page->flags)) {
+158                 struct address_space *mapping = page->mapping;
+159 
+160                 if (mapping) {
+161                         spin_lock(&pagecache_lock);
+162                         list_del(&page->list);
+163                         list_add(&page->list, &mapping->dirty_pages);
+164                         spin_unlock(&pagecache_lock);
+165 
+166                         if (mapping->host)
+167                                 mark_inode_dirty_pages(mapping->host);
+168                 }
+169         }
+170 }
 
 
-
-
-
-
-
-5099YVBT8-067LcRn6237mcLr6-064EHkb0929SaHKl40 
-
-
-
-8668xeSm1-093gpJW5289eKMT8-855jcPz2614URxY3-052oWfW2318rl53
+--
+Supercomputing System AG          email: maletinsky@scs.ch
+Martin Maletinsky                 phone: +41 (0)1 445 16 05
+Technoparkstrasse 1               fax:   +41 (0)1 445 16 10
+CH-8005 Zurich
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
