@@ -1,48 +1,45 @@
-Message-ID: <3D6EEC88.F6D0E6D6@zip.com.au>
-Date: Thu, 29 Aug 2002 20:54:48 -0700
-From: Andrew Morton <akpm@zip.com.au>
+Date: Thu, 29 Aug 2002 22:10:53 -0700 (PDT)
+From: Linus Torvalds <torvalds@transmeta.com>
+Subject: Re: weirdness with ->mm vs ->active_mm handling
+In-Reply-To: <20020829193413.H17288@redhat.com>
+Message-ID: <Pine.LNX.4.44.0208292206130.1336-100000@home.transmeta.com>
 MIME-Version: 1.0
-Subject: Re: statm_pgd_range() sucks!
-References: <20020830015814.GN18114@holomorphy.com> <3D6EDDC0.F9ADC015@zip.com.au> <20020830031208.GK888@holomorphy.com>
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: William Lee Irwin III <wli@holomorphy.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, riel@surriel.com
+To: Benjamin LaHaise <bcrl@redhat.com>
+Cc: linux-mm@kvack.org, Linux Kernel <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-William Lee Irwin III wrote:
+On Thu, 29 Aug 2002, Benjamin LaHaise wrote:
 > 
-> William Lee Irwin III wrote:
-> >> (1) shared, lib, text, & total are now reported as what's mapped
-> >>         instead of what's resident. This actually fixes two bugs:
-> 
-> On Thu, Aug 29, 2002 at 07:51:44PM -0700, Andrew Morton wrote:
-> > hmm.  Personally, I've never believed, or even bothered to try to
-> > understand what those columns are measuring.  Does anyone actually
-> > find them useful for anything?  If so, what are they being used for?
-> > What info do we really, actually want to know?
-> 
-> I'm basically looking for VSZ, RSS, %cpu, & pid -- after that I don't
-> care.
+> In trying to track down a bug, I found routines like generic_file_read 
+> getting called with current->mm == NULL.  This seems to be a valid state 
+> for lazy tlb tasks, but the code throughout the kernel doesn't seem to 
+> assume that.
 
-Well statistics coming out of the kernel can be quite vital in the tuning
-of real world applications - they're not just for kernel developers.  The
-stats contribute to the bottom-line performance and stability of the things
-for which people are actually using the kernel.  That's a motherhood statement,
-I know, but I think it's important.
+Hmm.. Have you actually ever seen this?
 
-> ...
-> 
-> Per-vma RSS is trivial, just less self-contained. Everywhere the
-> mm->rss is touched, the vma to account that to is also known, except
-> for put_dirty_page(), and that can be repaired as its caller knows.
+When tsk->mm is NULL, you should never EVER get a page fault, except for 
+the one special case of the vmalloc'ed area (which is tested for in 
+do_page_fault() before we even _look_ at "tsk->mm").
 
-This would provide useful information at a justifiable cost, don't you
-think?
+In fact, do_page_fault() very much checks
 
-(ho-hum, all right.  I'll code it ;))
+	if (in_atomic() || !mm)
+		goto no_context;  
+
+which says that a page fault when in a lazy TLB context should always
+cause a trap, killing the thing (or, if the access has a fixup, calling
+the fixup - although I don't think that should happen in any normal code)
+
+In other words: I think your patch is "functionally correct", in that it
+should work fine, but on the other hand having a NULL tsk->mm and trying
+to do any user-level access is _so_ wrong that I'd much rather take a NULL
+pointer fault than try to do something "sane" about it.
+
+		Linus
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
