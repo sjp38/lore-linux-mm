@@ -1,62 +1,76 @@
-Received: from hoemail2.firewall.lucent.com (localhost [127.0.0.1])
-	by hoemail2.firewall.lucent.com (Switch-2.1.3/Switch-2.1.0) with ESMTP id f58Gdo325288
-	for <linux-mm@kvack.org>; Fri, 8 Jun 2001 12:39:50 -0400 (EDT)
-Received: from ihlss.ih.lucent.com (h135-185-80-10.lucent.com [135.185.80.10])
-	by hoemail2.firewall.lucent.com (Switch-2.1.3/Switch-2.1.0) with ESMTP id f58Gdjp25178
-	for <linux-mm@kvack.org>; Fri, 8 Jun 2001 12:39:50 -0400 (EDT)
-Message-ID: <3B20FFBB.5E29CE37@lucent.com>
-Date: Fri, 08 Jun 2001 11:39:23 -0500
-From: Tom Roberts <tjroberts@lucent.com>
+Message-ID: <3B21050C.8A3699A9@earthlink.net>
+Date: Fri, 08 Jun 2001 11:02:04 -0600
+From: "Joseph A. Knapka" <jknapka@earthlink.net>
 MIME-Version: 1.0
-Subject: Re: mtsr and mfsr?
-References: <A33AEFDC2EC0D411851900D0B73EBEF766E100@NAPA>
+Subject: Re: temp. mem mappings
+References: <3B2DF994@MailAndNews.com>
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hua Ji <hji@netscreen.com>
-Cc: linuxppc-embedded@lists.linuxppc.org, linux-mm@kvack.org
+To: cohutta <cohutta@MailAndNews.com>
+Cc: "Stephen C. Tweedie" <sct@redhat.com>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Hua Ji wrote:
-> I was trying to clear and write some values into those 15 sr registers by
-> using **mtsr**.
-> But looks like it doesn't work. The testing I did looks like follows:
-> #define RESET 0
-> li %r3, RESET;
+cohutta wrote:
 > 
-> sync
-> isync
-> mtsr sr0, %r3
-> isync
-> sync
+> >===== Original Message From "Stephen C. Tweedie" <sct@redhat.com> =====
+> >Hi,
+> >
+> >On Wed, Jun 06, 2001 at 05:14:26PM -0400, cohutta wrote:
+> >
+> >> I think this is part of the problem: on my 1 GB system, the
+> >> ACPI tables are at physical 0x3fffxxxx == virtual 0xffffxxxx,
+> >> which could conflict with the APIC and IOAPIC mappings
+> >> (from fixmap.h).
+> >
+> >Shouldn't be --- the fixmaps should be part of the kernel's dynamic
+> >virtual area, which is not identity mapped.  You can still map those
+> >physical addresses via kmap() on a highmem system (and a 1GB machine
+> >should be running a highmem kernel).
 > 
-> mfsr %r3, sr0
-> bl uart_print
+> Well i now have a 768 MB machine, but i don't think that
+> makes a big difference with the problem that i am seeing
+> in mapping this ACPI memory early in setup_arch() [x86].
+> 
+> >> Well, i'm talking about physical memory, but it's marked as ACPI
+> >> data.
+> >
+> >If it is marked PG_Reserved, then ioremap() will work on it despite it
+> >being inside the normal physical memory area.  If not, kmap() will
+> >still work.
+> >
+> >> Another part of the problem is that I need to do this early in
+> >> arch/i386/kernel/setup.c::setup_arch(), like between calls to
+> >> paging_init() and init_apic_mappings().  I can't use ioremap()
+> >> here can i?  ioremap() calls get_vm_area() which calls
+> >> kmalloc(), and i don't think i can use kmalloc() just yet.
+> >
+> >Right --- you can use alloc_pages but we haven't done the
+> >initialisation of the kmalloc slabsl by this point.
+> 
+> My testing indicates that i can't use __get_free_page(GFP_KERNEL)
+> any time during setup_arch() [still x86].  It causes a BUG
+> in slab.c (line 920) [linux 2.4.5].  Did I misunderstand you?
+> Do you have another suggestion?
 
-While the general registers are scoreboarded, the SR registers are not.
-Synchronization is especially tricky between the CPU and the MMU. I suspect
-that if you interchange that second "isync;sync" pair to be the usual
-"sync; isync" this will work -- the "sync" ensures that the memory system
-is synchronized, and the "isync" ensures that the following mfsr does not
-execute until the "sync" is _complete_. But I am not certain; I do remember
-this is finicky, and there may well be errors of omission in the manuals....
+Oops. You can't use __get_free_page() or alloc_pages() until
+mem_init() is called, which occurs in main/init.c:start_kernel()
+quite some time after setup_arch() has happened.
 
-While "isync" says the following instructions execute in the context 
-established by the preceeding instructions, I suspect that in the case of
-MMU registers that really only applies to their being _used_ by the MMU, and 
-not necessarily to being _read_ by the CPU.
+If you need pages before mem_init() happens, but after paging_init()
+has completed in setup_arch(), then use alloc_bootmem()/free_bootmem().
+Any bootmem you alloc and don't free will end up being reserved.
 
-My (non-Linux) context-switching code simply loads all SR-s and does a single
-isync. It then loads all the registers (via BAT memory addressing), does a 
-little bit of housekeeping (again via BAT addressing), and then does an rfi. 
-At that point the SRs are all valid.
+-- Joe
+ 
 
-So if the above interchange does not get it to work, try inserting a
-few hundred NOP-s between setting and reading sr0 (:-)).
-
-
-Tom Roberts	tjroberts@Lucent.com
+-- Joseph A. Knapka
+"You know how many remote castles there are along the gorges? You
+ can't MOVE for remote castles!" -- Lu Tze re. Uberwald
+// Linux MM Documentation in progress:
+// http://home.earthlink.net/~jknapka/linux-mm/vmoutline.html
+* Evolution is an "unproven theory" in the same sense that gravity is. *
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
