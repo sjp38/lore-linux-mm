@@ -1,61 +1,40 @@
-Date: Thu, 12 Sep 2002 22:38:58 -0700
-From: "Martin J. Bligh" <mbligh@aracnet.com>
-Reply-To: "Martin J. Bligh" <mbligh@aracnet.com>
-Subject: Re: [PATCH] per-zone kswapd process
-Message-ID: <619179322.1031870337@[10.10.2.3]>
-In-Reply-To: <3D817BC8.785F5C44@digeo.com>
-References: <3D817BC8.785F5C44@digeo.com>
+Received: from digeo-nav01.digeo.com (digeo-nav01.digeo.com [192.168.1.233])
+	by packet.digeo.com (8.9.3+Sun/8.9.3) with SMTP id WAA28853
+	for <linux-mm@kvack.org>; Thu, 12 Sep 2002 22:47:30 -0700 (PDT)
+Message-ID: <3D817F94.4F4171FD@digeo.com>
+Date: Thu, 12 Sep 2002 23:03:00 -0700
+From: Andrew Morton <akpm@digeo.com>
 MIME-Version: 1.0
+Subject: Re: [PATCH] per-zone kswapd process
+References: <3D817BC8.785F5C44@digeo.com> <619179322.1031870337@[10.10.2.3]>
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@digeo.com>, William Lee Irwin III <wli@holomorphy.com>
-Cc: Dave Hansen <haveblue@us.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: "Martin J. Bligh" <mbligh@aracnet.com>
+Cc: William Lee Irwin III <wli@holomorphy.com>, Dave Hansen <haveblue@us.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> Sorry, I don't buy that.
+"Martin J. Bligh" wrote:
 > 
-> a) It does not need to be architecture neutral.  
+> ..
+> Can we make a simple default of 1 per node, which is what 99%
+> of people want, and then make it more complicated later if people
+> complain? It's really pretty easy:
 > 
-> b) You surely need a way of communicating the discovered topology
->    to userspace anyway.
-> 
-> c) $EDITOR /etc/numa-layouf.conf
-> 
-> d) $EDITOR /etc/kswapd.conf
+> for (node = 0; node < numnodes; ++node) {
+>         kswapd = kick_off_kswapd_for_node(node);
+>         kswapd->cpus_allowed = node_to_cpus(node);
+> }
 
-I guess you could do that, but it seems overly complicated to me.
-  
->> I think mbligh recently got the long-needed arch code in
->> for cpu to node... But I'm just not able to make the leap of faith that
->> memory detection is something that can ever comfortably be given to
->> userspace.
-> 
-> A simple syscall which alows you to launch a kswapd instance against
-> a group of zones on any group of CPUs provides complete generality 
-> and flexibility to userspace.  And it is architecture neutral.
-> 
-> If it really is incredibly hard to divine the topology from userspace
-> then you need to fix that up.  Provide the topology to userspace.
-> Which has the added benefit of providing, umm, the topology to userspace ;)
+Seems sane.
+ 
+> Or whatever the current cpus_allowed method is. All we seem to need
+> is node_to_cpus ... I can give that to you tommorow with no problem,
+> it's trivial.
 
-Can we make a simple default of 1 per node, which is what 99% 
-of people want, and then make it more complicated later if people 
-complain? It's really pretty easy:
-
-for (node = 0; node < numnodes; ++node) {
-	kswapd = kick_off_kswapd_for_node(node);
-	kswapd->cpus_allowed = node_to_cpus(node);
-}
-
-Or whatever the current cpus_allowed method is. All we seem to need
-is node_to_cpus ... I can give that to you tommorow with no problem,
-it's trivial.
-
-M.
-
+Tomorrow sounds too early - it'd be nice to get some before-n-after
+performance testing to go along with that patch ;)
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
