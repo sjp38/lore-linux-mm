@@ -1,47 +1,53 @@
-Received: from digeo-nav01.digeo.com (digeo-nav01.digeo.com [192.168.1.233])
-	by packet.digeo.com (8.9.3+Sun/8.9.3) with SMTP id BAA07749
-	for <linux-mm@kvack.org>; Tue, 25 Feb 2003 01:55:14 -0800 (PST)
-Date: Tue, 25 Feb 2003 01:55:37 -0800
-From: Andrew Morton <akpm@digeo.com>
+Date: Tue, 25 Feb 2003 11:57:08 -0600
+From: Dave McCracken <dmccr@us.ibm.com>
 Subject: Re: 2.5.62-mm3 - no X for me
-Message-Id: <20030225015537.4062825b.akpm@digeo.com>
-In-Reply-To: <20030225094526.GA18857@gemtek.lt>
+Message-ID: <131360000.1046195828@[10.1.1.5]>
+In-Reply-To: <20030225015537.4062825b.akpm@digeo.com>
 References: <20030223230023.365782f3.akpm@digeo.com>
-	<3E5A0F8D.4010202@aitel.hist.no>
-	<20030224121601.2c998cc5.akpm@digeo.com>
-	<20030225094526.GA18857@gemtek.lt>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+ <3E5A0F8D.4010202@aitel.hist.no><20030224121601.2c998cc5.akpm@digeo.com>
+ <20030225094526.GA18857@gemtek.lt> <20030225015537.4062825b.akpm@digeo.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Zilvinas Valinskas <zilvinas@gemtek.lt>
-Cc: helgehaf@aitel.hist.no, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Dave McCracken <dmccr@us.ibm.com>
+To: Andrew Morton <akpm@digeo.com>
+Cc: Zilvinas Valinskas <zilvinas@gemtek.lt>, helgehaf@aitel.hist.no, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Zilvinas Valinskas <zilvinas@gemtek.lt> wrote:
->
-> On Mon, Feb 24, 2003 at 12:16:01PM -0800, Andrew Morton wrote:
-> > Helge Hafting <helgehaf@aitel.hist.no> wrote:
-> > >
-> > > 2.5.62-mm3 boots up fine, but won't run X.  Something goes
-> > > wrong switching to graphics so my monitor says "no signal"
-> > > 
-> >
-> This is the boot messages and decoded ksymoops which happens when I try
-> to log off and login as a different user in KDE3.1 (debian/unstable).
+--On Tuesday, February 25, 2003 01:55:37 -0800 Andrew Morton
+<akpm@digeo.com> wrote:
+
+> Ah, thank you.
 > 
+> 	kernel BUG at mm/rmap.c:248!
+> 
+> The fickle finger of fate points McCrackenwards.
 
-Ah, thank you.
+Yep.  He tripped over my sanity check that pages not marked anon actually
+have a real mapping pointer.  Apparently X allocates a page that should be
+marked anon but isn't.
 
-	kernel BUG at mm/rmap.c:248!
+My main reason for adding the anon flag was to prove to myself that the
+mapping pointer can be trusted.  Apparently it can, generally, but it looks
+like I haven't successfully tracked down all the places that should set it.
+It looks like anon pages can come from random sources, so it might be an
+impossible task to find them all.
 
-The fickle finger of fate points McCrackenwards.
+I know you said you like the idea of having the flag, but I think the
+cleanest fix would be to change the check from
 
-> > Does 2.5.63 do the same thing?
-> I haven't tried this yet.
+	if (PageAnon(page))
+to
+	if (page->mapping && !PageSwapCache(page))
 
-2.5.63 should be OK.
+Or I could set the anon flag based on that test.  I know page flags are
+getting scarce, so I'm leaning toward removing the flag entirely.
+
+What would you recommend?
+
+Dave McCracken
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
