@@ -1,33 +1,35 @@
-Date: Fri, 27 Dec 2002 14:45:53 -0600
-From: Dave McCracken <dmccr@us.ibm.com>
+Date: Fri, 27 Dec 2002 12:50:25 -0800 (PST)
+From: Linus Torvalds <torvalds@transmeta.com>
 Subject: Re: shared pagetable benchmarking
-Message-ID: <58520000.1041021953@[10.1.1.5]>
-In-Reply-To: <Pine.LNX.4.44.0212271213180.21930-100000@home.transmeta.com>
-References: <Pine.LNX.4.44.0212271213180.21930-100000@home.transmeta.com>
+In-Reply-To: <58520000.1041021953@[10.1.1.5]>
+Message-ID: <Pine.LNX.4.44.0212271244390.771-100000@home.transmeta.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@transmeta.com>
+To: Dave McCracken <dmccr@us.ibm.com>
 Cc: Daniel Phillips <phillips@arcor.de>, Andrew Morton <akpm@digeo.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
---On Friday, December 27, 2002 12:18:23 -0800 Linus Torvalds
-<torvalds@transmeta.com> wrote:
+On Fri, 27 Dec 2002, Dave McCracken wrote:
+>
+> The other thing it does is eliminate the duplicate pte pages for shared
+> regions everywhere they span a complete pte page.  While hugetlb can also
+> do this for some specialized applications, shared page tables will do it
+> for every shared region that's large enough.  I dunno whether you consider
+> that important enough to qualify, but I figured I should point it out.
 
-> That's clearly not 2.6.x material. But at this point I doubt that shared
-> page tables are either, unless they fix something more important than 
-> fork() speed for processes that are larger than 16MB.
+I don't consider it important enough to qualify unless there are some real 
+loads where it really matters. I can well imagine that such loads exist 
+(where low-memory usage by page tables is a real problem), but I'd like to 
+have that confirmed as a bug-report and that the sharing really does fix 
+it.
 
-The other thing it does is eliminate the duplicate pte pages for shared
-regions everywhere they span a complete pte page.  While hugetlb can also
-do this for some specialized applications, shared page tables will do it
-for every shared region that's large enough.  I dunno whether you consider
-that important enough to qualify, but I figured I should point it out.
+In other words, I can believe that the sharing is 2.6.x material, but
+considering the fundamental nature of it I want it to be a confirmed
+bug-fix, not a feature.
 
-Dave McCracken
+		Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
