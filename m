@@ -1,168 +1,43 @@
-Date: Wed, 16 Jun 2004 09:24:13 -0500
-From: Dimitri Sivanich <sivanich@sgi.com>
-Subject: [PATCH]: Option to run cache reap in thread mode
-Message-ID: <20040616142413.GA5588@sgi.com>
+Date: Wed, 16 Jun 2004 16:29:34 +0100
+From: Christoph Hellwig <hch@infradead.org>
+Subject: Re: [PATCH]: Option to run cache reap in thread mode
+Message-ID: <20040616152934.GA13527@infradead.org>
+References: <20040616142413.GA5588@sgi.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <20040616142413.GA5588@sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Dimitri Sivanich <sivanich@sgi.com>
+Cc: Andrew Morton <akpm@osdl.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+On Wed, Jun 16, 2004 at 09:24:13AM -0500, Dimitri Sivanich wrote:
+> Hi,
+> 
+> In the process of testing per/cpu interrupt response times and CPU availability,
+> I've found that running cache_reap() as a timer as is done currently results
+> in some fairly long CPU holdoffs.
+> 
+> I would like to know what others think about running cache_reap() as a low
+> priority realtime kthread, at least on certain cpus that would be configured
+> that way (probably configured at boottime initially).  I've been doing some
+> testing running it this way on CPU's whose activity is mostly restricted to
+> realtime work (requiring rapid response times).
+> 
+> Here's my first cut at an initial patch for this (there will be other changes
+> later to set the configuration and to optimize locking in cache_reap()).
 
-In the process of testing per/cpu interrupt response times and CPU availability,
-I've found that running cache_reap() as a timer as is done currently results
-in some fairly long CPU holdoffs.
+YAKT, sigh..  I don't quite understand what you mean with a "holdoff" so
+maybe you could explain what problem you see?  You don't like cache_reap
+beeing called from timer context?
 
-I would like to know what others think about running cache_reap() as a low
-priority realtime kthread, at least on certain cpus that would be configured
-that way (probably configured at boottime initially).  I've been doing some
-testing running it this way on CPU's whose activity is mostly restricted to
-realtime work (requiring rapid response times).
+As for realtime stuff you're probably better off using something like rtlinux,
+getting into the hrt or even real strong soft rt busuniness means messing up
+the kernel horrible.  Given you're @sgi.com address you probably know what
+a freaking mess and maintaince nightmare IRIX has become because of that.
 
-Here's my first cut at an initial patch for this (there will be other changes
-later to set the configuration and to optimize locking in cache_reap()).
-
-Dimitri Sivanich <sivanich@sgi.com>
-
-
---- linux/mm/slab.c.orig	2004-06-16 09:09:09.000000000 -0500
-+++ linux/mm/slab.c	2004-06-16 09:10:03.000000000 -0500
-@@ -91,6 +91,9 @@
- #include	<linux/cpu.h>
- #include	<linux/sysctl.h>
- #include	<linux/module.h>
-+#include	<linux/kthread.h>
-+#include	<linux/stop_machine.h>
-+#include	<linux/syscalls.h>
- 
- #include	<asm/uaccess.h>
- #include	<asm/cacheflush.h>
-@@ -530,8 +533,15 @@ enum {
- 	FULL
- } g_cpucache_up;
- 
-+cpumask_t threaded_reap;	/* CPUs configured to run reap in thread mode */
-+
-+static DEFINE_PER_CPU(task_t *, reap_thread);
- static DEFINE_PER_CPU(struct timer_list, reap_timers);
- 
-+static void start_reap_thread(unsigned long cpu);
-+#ifdef CONFIG_HOTPLUG_CPU
-+static void stop_reap_thread(unsigned long cpu);
-+#endif
- static void reap_timer_fnc(unsigned long data);
- static void free_block(kmem_cache_t* cachep, void** objpp, int len);
- static void enable_cpucache (kmem_cache_t *cachep);
-@@ -661,11 +671,13 @@ static int __devinit cpuup_callback(stru
- 		up(&cache_chain_sem);
- 		break;
- 	case CPU_ONLINE:
-+		start_reap_thread(cpu);
- 		start_cpu_timer(cpu);
- 		break;
- #ifdef CONFIG_HOTPLUG_CPU
- 	case CPU_DEAD:
- 		stop_cpu_timer(cpu);
-+		stop_reap_thread(cpu);
- 		/* fall thru */
- 	case CPU_UP_CANCELED:
- 		down(&cache_chain_sem);
-@@ -802,6 +814,9 @@ void __init kmem_cache_init(void)
- 		up(&cache_chain_sem);
- 	}
- 
-+	/* Initialize to run cache_reap as a timer on all cpus. */
-+	cpus_clear(threaded_reap);
-+
- 	/* Done! */
- 	g_cpucache_up = FULL;
- 
-@@ -2762,6 +2777,63 @@ next:
- 	up(&cache_chain_sem);
- }
- 
-+/**
-+ * If cache reap is run in thread mode, we run it from here.
-+ */
-+static int reap_thread(void * data)
-+{
-+	set_current_state(TASK_INTERRUPTIBLE);
-+	while (!kthread_should_stop()) {
-+		cache_reap();
-+		schedule();
-+		set_current_state(TASK_INTERRUPTIBLE);
-+	}
-+	__set_current_state(TASK_RUNNING);
-+	return 0;
-+}
-+
-+/**
-+ * If the cpu is configured to run in thread mode, start the reap
-+ * thread here.
-+ */
-+static void start_reap_thread(unsigned long cpu)
-+{
-+	task_t * p;
-+	task_t ** rthread = &per_cpu(reap_thread, cpu);
-+	struct sched_param param;
-+
-+	if (!cpu_isset(cpu, threaded_reap)) {
-+		*rthread = NULL;
-+		return;
-+	}
-+
-+	param.sched_priority = sys_sched_get_priority_min(SCHED_FIFO); 
-+
-+	p = kthread_create(reap_thread, NULL, "cache_reap/%d",cpu);
-+	if (IS_ERR(p))
-+		return;
-+	*rthread = p;
-+	kthread_bind(p, cpu);
-+	sys_sched_setscheduler(p->pid, SCHED_FIFO, &param);
-+	wake_up_process(p);
-+}
-+
-+/**
-+ * If the cpu is running a reap thread, stop it here.
-+ */
-+#ifdef CONFIG_HOTPLUG_CPU
-+static void stop_reap_thread(unsigned long cpu)
-+{
-+	task_t ** rthread = &per_cpu(reap_thread, cpu);
-+
-+	if (*rthread != NULL) {
-+		kthread_stop(*rthread);
-+		*rthread = NULL;
-+	}
-+
-+}
-+#endif
-+
- /*
-  * This is a timer handler.  There is one per CPU.  It is called periodially
-  * to shrink this CPU's caches.  Otherwise there could be memory tied up
-@@ -2770,10 +2842,16 @@ next:
- static void reap_timer_fnc(unsigned long cpu)
- {
- 	struct timer_list *rt = &__get_cpu_var(reap_timers);
-+	task_t *rthread = __get_cpu_var(reap_thread);
- 
- 	/* CPU hotplug can drag us off cpu: don't run on wrong CPU */
- 	if (!cpu_is_offline(cpu)) {
--		cache_reap();
-+		/* If we're not running in thread mode, simply run cache reap */
-+		if (likely(rthread == NULL)) {
-+			cache_reap();
-+		} else {
-+			wake_up_process(rthread);
-+		}
- 		mod_timer(rt, jiffies + REAPTIMEOUT_CPUC + cpu);
- 	}
- }
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
