@@ -1,46 +1,39 @@
-Received: from stingray.netplus.net (root@stingray.netplus.net [206.250.192.19])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id WAA24796
-	for <linux-mm@kvack.org>; Wed, 6 Jan 1999 22:34:53 -0500
-Message-ID: <36942ACA.3F8C055D@netplus.net>
-Date: Wed, 06 Jan 1999 21:32:26 -0600
-From: Steve Bergman <steve@netplus.net>
-MIME-Version: 1.0
-Subject: Results: 2.2.0-pre5 vs arcavm10 vs arcavm9 vs arcavm7
-References: <Pine.LNX.3.96.990107001448.1242B-100000@laser.bogus>
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Received: from mail.ccr.net (ccr@alogconduit1ao.ccr.net [208.130.159.15])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id XAA25102
+	for <linux-mm@kvack.org>; Wed, 6 Jan 1999 23:29:51 -0500
+Subject: Re: arca-vm-8 [Re: [patch] arca-vm-6, killed kswapd [Re: [patch] new-vm , improvement , [Re: 2.2.0 Bug summary]]]
+References: <Pine.LNX.3.95.990106153252.7800D-100000@penguin.transmeta.com>
+From: ebiederm+eric@ccr.net (Eric W. Biederman)
+Date: 06 Jan 1999 22:30:59 -0600
+In-Reply-To: Linus Torvalds's message of "Wed, 6 Jan 1999 15:35:01 -0800 (PST)"
+Message-ID: <m1aezvg0vw.fsf@flinx.ccr.net>
 Sender: owner-linux-mm@kvack.org
-To: Andrea Arcangeli <andrea@e-mind.com>
-Cc: brent verner <damonbrent@earthlink.net>, "Garst R. Reese" <reese@isn.net>, Kalle Andersson <kalle.andersson@mbox303.swipnet.se>, Zlatko Calusic <Zlatko.Calusic@CARNet.hr>, Ben McCann <bmccann@indusriver.com>, bredelin@ucsd.edu, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org, Linus Torvalds <torvalds@transmeta.com>, Alan Cox <alan@lxorguk.ukuu.org.uk>, "Stephen C. Tweedie" <sct@redhat.com>
+To: Linus Torvalds <torvalds@transmeta.com>
+Cc: Andrea Arcangeli <andrea@e-mind.com>, steve@netplus.net, brent verner <damonbrent@earthlink.net>, "Garst R. Reese" <reese@isn.net>, Kalle Andersson <kalle.andersson@mbox303.swipnet.se>, Zlatko Calusic <Zlatko.Calusic@CARNet.hr>, Ben McCann <bmccann@indusriver.com>, Alan Cox <alan@lxorguk.ukuu.org.uk>, bredelin@ucsd.edu, "Stephen C. Tweedie" <sct@redhat.com>, linux-kernel@vger.rutgers.edu, Rik van Riel <H.H.vanRiel@phys.uu.nl>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Andrea Arcangeli wrote:
+>>>>> "LT" == Linus Torvalds <torvalds@transmeta.com> writes:
 
-> I've put out a new arca-vm-10 with at least this bug fixed.
-> 
-> ftp://e-mind.com/pub/linux/kernel-patches/2.2.0-pre4-arca-VM-10
-> 
+LT> Oh, well.. Based on what the arca-[678] patches did, there's now a pre-5
+LT> out there. Not very similar, but it should incorporate the basic idea: 
+LT> namely much more aggressively asynchronous swap-outs from a process
+LT> context. 
 
-Here are my latest numbers.  This is timing a complete kernel compile  (make
-clean;make depend;make;make modules;make modules_install)  in 16MB memory with
-netscape, kde, and various daemons running.  I unknowningly had two more daemons
-running in the background this time than last so the numbers can't be compared
-directly with my last test (Which I think I only sent to Andrea).  But all of
-these numbers are consistent with *each other*.
+LT> Comment away,
 
+1) With your comments on PG_dirty/(what shrink_mmap should do) you
+   have worked out what needs to happen for the mapped in memory case,
+   and I haven't quite gotten there.  Thank You.
 
-kernel		Time	Maj pf	Min pf  Swaps
-----------	-----	------	------	-----
-2.2.0-pre5	18:19	522333	493803	27984
-arcavm10	19:57	556299	494163	12035
-arcavm9		19:55	553783	494444	12077
-arcavm7		18:39	538520	493287	11526
+2) I have tested using PG_dirty from shrink_mmap and it is a
+   performance problem because it loses all locality of reference,
+   and because it forces shrink_mmap into a dual role, of freeing and
+   writing pages, which need seperate tuning.
 
+Linus is this a case you feel is important to tune for 2.2?
+If so I would be happy to play with it.
 
-Pre5 looks good.
-Arcavm7 still looks better than arcavm10.
-
--Steve
+Eric
 --
 This is a majordomo managed list.  To unsubscribe, send a message with
 the body 'unsubscribe linux-mm me@address' to: majordomo@kvack.org
