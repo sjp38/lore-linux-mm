@@ -1,50 +1,60 @@
-Date: Thu, 11 Nov 2004 17:10:48 -0600
-From: Brent Casavant <bcasavan@sgi.com>
-Reply-To: Brent Casavant <bcasavan@sgi.com>
-Subject: Re: [PATCH] Use MPOL_INTERLEAVE for tmpfs files
-In-Reply-To: <Pine.LNX.4.44.0411111929370.2939-300000@localhost.localdomain>
-Message-ID: <Pine.SGI.4.58.0411111645000.106380@kzerza.americas.sgi.com>
-References: <Pine.LNX.4.44.0411111929370.2939-300000@localhost.localdomain>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Thu, 11 Nov 2004 19:21:01 -0200
+From: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
+Subject: Re: [Fwd: Page allocator doubt]
+Message-ID: <20041111212101.GA18822@logos.cnet>
+References: <41937940.9070001@tteng.com.br> <1100200247.932.1145.camel@localhost> <4193BD07.5010100@tteng.com.br> <1100201816.7883.22.camel@localhost> <4193CA1B.1090409@tteng.com.br>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4193CA1B.1090409@tteng.com.br>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: "Martin J. Bligh" <mbligh@aracnet.com>, Andi Kleen <ak@suse.de>, "Adam J. Richter" <adam@yggdrasil.com>, colpatch@us.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: "Luciano A. Stertz" <luciano@tteng.com.br>
+Cc: Dave Hansen <haveblue@us.ibm.com>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 11 Nov 2004, Hugh Dickins wrote:
+On Thu, Nov 11, 2004 at 06:22:51PM -0200, Luciano A. Stertz wrote:
+> Dave Hansen wrote:
+> >On Thu, 2004-11-11 at 11:27, Luciano A. Stertz wrote:
+> >
+> >>	But... are they allocated to me, even with page_count zeroed? Do I 
+> >>	need to do get_page on the them? Sorry if it's a too lame question, but I 
+> >>still didn't understand and found no place to read about this.
+> >
+> >
+> >Do you see anywhere in the page allocator where it does a loop like
+> >yours?
+> >
+> >        for (i = 1; i< 1<<order; i++)
+> >		get_page(page + i);
+> 	Actually this loop isn't mine. It's part of the page allocator, but 
+> it's only executed on systems without a MMU.
+> 
+> >When you do a multi-order allocation, the first page represents the
+> >whole group and they're treated as a whole.  As you've noticed, breaking
+> >them up requires a little work.
+> >
+> >Why don't you post all of the code that you're using so that we can tell
+> >what you're doing?  There might be a better way.  Drivers probably
+> >shouldn't be putting stuff in the page cache all by themselves.  
+> 	Unhappily I can't post any code yet, but I'll try to give an insight 
+> 	of what we're trying to do.
+> 	It's not a driver. We're doing an implementation to allow the kernel 
+> 	to execute compressed files, decompressing pages on demand.
+> 	These files will usually be compressed in small blocks, typically 
+> 	4kb. But if they got compressed in blocks bigger then a page (say 8kb 
+> blocks on a 4kb page system), the kernel will have more than one 
+> decompressed page each time a block have to be decompressed; and I'd like 
+> to add them both to the page cache.
+> 	So, seems I would have to break multi-order allocated pages. Is this 
+> possible / viable? If not, maybe I'll have to work only with small 
+> blocks, but I wouldn't like to...
 
-> The first (against 2.6.10-rc1-mm5) being my reversion of NULL sbinfo
-> in shmem.c, to make it easier for others to add things into sbinfo
-> without having to worry about NULL cases.  So that goes back to
-> allocating an sbinfo even for the internal mount: I've rounded up to
-> L1_CACHE_BYTES to avoid false sharing, but even so, please test it out
-> on your 512-way to make sure I haven't screwed up the scalability we
-> got before - thanks.  If you find it okay, I'll send to akpm soonish.
+Why do you need the pages to be physically contiguous?
 
-I won't be able to get a 512 run in until Monday, due to test machine
-availability.  However runs at 32P and 64P indicate nothing disastrous.
-Results seem to be in line with the numbers we were getting when doing
-the NULL sbinfo work.
-
-So, thus far a preliminary "Looks good".
-
-> The second (against the first) being my take on your patch, with
-> mpol=interleave, and minor alterations which may irritate you so much
-> you'll revert them immediately! (mainly, using MPOL_INTERLEAVE and
-> MPOL_DEFAULT within shmem.c rather than defining separate flags).
-> Only slightly tested at this end.
-
-Seems to work just fine, and I rather like how this was made a bit more
-general.  Thumbs up!
-
-Brent
-
--- 
-Brent Casavant                          If you had nothing to fear,
-bcasavan@sgi.com                        how then could you be brave?
-Silicon Graphics, Inc.                    -- Queen Dama, Source Wars
+I dont see any reason for that requirement - you can use discontiguous physical
+pages which are virtually contiguous (so your decompression code wont need to 
+care about non adjacent pieces of memory).
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
