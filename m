@@ -1,65 +1,43 @@
-Message-ID: <42636.210.212.228.78.1043387664.webmail@mail.nitc.ac.in>
-Date: Fri, 24 Jan 2003 11:24:24 +0530 (IST)
-Subject: Re: your mail
-From: "Anoop J." <cs99001@nitc.ac.in>
+Message-ID: <3E3146BC.4D0A1A64@aitel.hist.no>
+Date: Fri, 24 Jan 2003 14:59:24 +0100
+From: Helge Hafting <helgehaf@aitel.hist.no>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Transfer-Encoding: 8bit
+Subject: Re: 2.5.59-mm5 got stuck during boot
+References: <20030123195044.47c51d39.akpm@digeo.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@digeo.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-How is this different from a fully associative cache .Would be better if u
-could deal it based on the address bits used
+Andrew Morton wrote:
 
-Thanks
+> .  -mm5 has the first cut of Nick Piggin's anticipatory I/O scheduler.
 
-David Lang wrote:
+Interesting, but it didn't boot completely.
+It came all the way to mount root from /dev/md0  (dirty raid1)
+freed 316k of kernel memory, and then nothing happened.
+numloc and capslock worked, and so did sysrq.
+It was as if the kernel "forgot" to run init.
+Nothing happened, but it wasn't hanging either.
 
->The idea of page coloring is based on the fact that common implementations
->of caching can't put any page in memory in any line in the cache (such an
->implementation is possible, but is more expensive to do so is not commonly
->done)
->
->With this implementation it means that if your program happens to use
->memory that cannot be mapped to half of the cache lines then effectivly
->the CPU cache is half it's rated size for your program. the next time your
->program runs it may get a more favorable memory allocation and be able to
->use all of the cache and therefor run faster.
->
->Page coloring is an attampt to take this into account when allocating
->memory to programs so that every program gets to use all of the cache.
->
->David Lang
->
->
-> On Fri, 24 Jan 2003, Anoop J. wrote:
->
->>Date: Fri, 24 Jan 2003 10:38:03 +0530 (IST)
->>From: Anoop J. <cs99001@nitc.ac.in>
->>To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
->>
->>
->>How does page coloring work. Iwant its mechanism not the implementation.
->>I went through some pages of W.L.Lynch's paper on cache and VM. Still not
->>able to grasp it .
->>
->>
->>Thanks in advance
->>
->>
->>
->>-
->>To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
->>the body of a message to majordomo@vger.kernel.org
->>More majordomo info at  http://vger.kernel.org/majordomo-info.html
->>Please read the FAQ at  http://www.tux.org/lkml/
->>
->
+sysrq "show pc" told me something about default idle.
+I noticed that the root raid-1 came up dirty. (2.5.X
+seems unable to shut down a raid-1 device "clean" if
+it  happens to be the root fs.  So there's _always_
+a bootup resync that starts as soon as the raid
+is autodetected. (Before mounting root)
 
 
+This is a UP P4, preempt, no module support,
+compiled with gcc 2.95.4 from debian.
 
+Stock 2.5.59 works, the only config change is to enable
+that new CONFIG_HANGCHECK_TIMER.  
+
+Helge Hafting
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
