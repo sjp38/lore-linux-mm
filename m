@@ -1,81 +1,34 @@
-Date: Thu, 10 Oct 2002 14:59:07 -0500
-From: Dave McCracken <dmccr@us.ibm.com>
-Subject: Fork timing numbers for shared page tables
-Message-ID: <175360000.1034279947@baldur.austin.ibm.com>
-In-Reply-To: <3DA5D893.CDD2407C@digeo.com>
-References: <167610000.1034278338@baldur.austin.ibm.com>
- <3DA5D893.CDD2407C@digeo.com>
-MIME-Version: 1.0
+Date: Thu, 10 Oct 2002 13:02:40 -0700
+From: William Lee Irwin III <wli@holomorphy.com>
+Subject: Re: Fork timing numbers for shared page tables
+Message-ID: <20021010200240.GV10722@holomorphy.com>
+References: <167610000.1034278338@baldur.austin.ibm.com> <3DA5D893.CDD2407C@digeo.com> <175360000.1034279947@baldur.austin.ibm.com>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
+In-Reply-To: <175360000.1034279947@baldur.austin.ibm.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@digeo.com>
-Cc: Linux Kernel <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>
+To: Dave McCracken <dmccr@us.ibm.com>
+Cc: Andrew Morton <akpm@digeo.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
---On Thursday, October 10, 2002 12:44:19 -0700 Andrew Morton
-<akpm@digeo.com> wrote:
+On Thu, Oct 10, 2002 at 02:59:07PM -0500, Dave McCracken wrote:
+> I ran this test in three cases, 2.5.41, 2.5.41-mm2 without share, and
+> 2.5.41-mm2 with share.
+> Now for the results (all times are in ms):
 
-> Be nice to get some compelling benchmark figures onto the
-> mailing lists to help push these.  They're pretty late...
-
-I've done some basic timing tests for shared page tables using a simple
-fork test I wrote.  It has three modes:
-
-The first mode forks as fast as it can, then calculates how long each fork
-took.  This measures the time the fork() system call took.
-
-The second mode adds a wait() for the child after the fork.  The child just
-calls exit(0).  This measures how long the child ran.
-
-The third mode adds an exec() in the child of a very small executable,
-which just exits.  This adds the exec() time to the mix.
-
-The program also optionally allocates a shared memory object and touches
-all the pages in it before the start of the test.  This adds extra pages to
-be dealt with by fork/exec/exit.  None of the pages are touched after the
-test starts.
-
-I ran this test in three cases, 2.5.41, 2.5.41-mm2 without share, and
-2.5.41-mm2 with share.
-
-Now for the results (all times are in ms):
-
-		2.5.41	mm2-unshared	mm2-shared
-		------	------------	----------
-fork
-----
-
-400K		 1.7	 1.6		 0.5
-4M		 5.0	 5.0		 3.4
-40M		28.4	29.5		 3.4
-
-fork/exit
----------
-
-400K		 1.7	 1.6		 1.6
-4M		 4.9	 5.3		 4.1
-40M		44.2	45.1		 4.1
-
-fork/exec/exit
---------------
-
-400K		 6.5	 7.5		 7.7
-4M		10.3	11.9		10.7
-40M		49.3	51.4		10.7
+Hrm, it'd be nice to see how nicely this does things for things like
+500GB-sized processes on 64-bit boxen...
 
 
-I don't know why exec introduces a small penalty for small tasks. I'm
-working on some optimizations that might help.
+Any chance you could pass this test along for randomized benchmark
+type stuff?
 
-Dave McCracken
 
-======================================================================
-Dave McCracken          IBM Linux Base Kernel Team      1-512-838-3059
-dmccr@us.ibm.com                                        T/L   678-3059
 
+Thanks,
+Bill
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
