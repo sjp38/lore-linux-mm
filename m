@@ -1,65 +1,58 @@
-From: "mobutu" <dubemobutu@fsmail.net>
-Subject: Assistance
-Mime-Version: 1.0
-Content-Type: text/plain; charset="iso-8859-1"
-Date: Wed, 14 Aug 2002 14:22:34
-Message-Id: <20020814123655Z26529-6280+40@kvack.org>
+Received: from localhost (haih@localhost [127.0.0.1])
+	by azure.engin.umich.edu (8.9.3/8.9.1) with ESMTP id LAA08276
+	for <linux-mm@kvack.org>; Wed, 14 Aug 2002 11:58:47 -0400 (EDT)
+Date: Wed, 14 Aug 2002 11:58:47 -0400 (EDT)
+From: Hai Huang <haih@engin.umich.edu>
+Subject: need help with understanding memory usage by a process
+Message-ID: <Pine.SOL.4.33.0208141136550.1292-100000@azure.engin.umich.edu>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-FROM: MR.DUBE MOBUTU. 
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-THE NETHERLANDS 
-EMAIL:dubemobutu@fsmail.net
+Hi,
 
+I'm fairly new at linux kernel develpment.  First let me describe what
+I can gather from my understanding before I post my question.
 
-SOLICITING FOR A BUSINESS VENTURE AND PARTNERSHIP 
+A Linux process can use memory in many differnt ways:
+  1) code section
+  2) data section
+  3) bss section
+  4) heap section
+  5) stack section
+where each one is described by one vm_area_struct, with the exception of
+data section and bss section which is usually concatenated.
 
-I am the son of the late president of the Federal Republic of Zaire, President Mobutu Sese 
-Seko, (now Republic of Congo, 
-under the leadership of the son of Mr. Laurent Kabila). I presume you are aware there is a 
-financial dispute between my family 
-(THE MOBUTU) and the present civilian Government. This is based on what they believe 
-as bad and corrupt governance on 
-my late father's part. May his soul rest in Perfect peace. 
+Other than these, there are couple other ways a Linux process can consume
+memory:
+  6) meta data used by the kernel to keep states about the process
+     (e.g., struct task, struct mm, struct fs, page tables, etc.)
+  7) memory mapped files
+  8) shared libraries
 
-Presently, we cannot do business here in Holland and many countries of the World 
-because of the new friendly relationship 
-between the present government and the Western World. As you might have heard how a 
-lot of my father's bank account in 
-Switzerland and North American have since been frozen. 
+I'm not very familiar with the IPC stuff, but I think process also use
+memory for
+  9) shm IPC
 
-Following the above mentioned reasons ,I am soliciting for your humble and confidential 
-assistance to take custody of Fifteen 
-Million United States Dollars (US$15,000,000.00), also to front for me in the areas of 
-business you desire profitable. 
+So, the above are the possible source of memory usage of a Linux process
+I can think of, but please add if you can think of other possible sources.
 
-This sum of US$15M has secretly been deposited into a confidential Security Company, 
-where it can easily be withdrawn or 
-paid to a recommended beneficiary. The funds will be released to you by the Security 
-Company based on my 
-recommendations, on that note, you will be presented as my partner who will be fronting for 
-me and my family in any 
-subsequent ventures. 
+Here is what I want to accomplish - for a particular process, I want to
+keep all memory footprint (item 1-9, maybe not 8) of this process within
+certain physical memory range (assuming I modifies the slab cache and
+buddy system a bit which would allow me to do so).  A process is created
+by do_fork() and followed by do_execve() (is this right or is there other
+path).  So, here is my question (finally :), after do_execve(), and before
+this task is first scheduled, the only memory footprint of this process is
+from item (6) and nothing else, is this correct?
 
-To show my preparedness and the appreciation to conduct this business with you, I shall 
-give you and your family 20% of the 
-funds and 20% commission on any profit realizable in the process of investment of this 
-funds. For your role in this business, 
-we are willing to make available 5% for any eventual cost that may occur in the process of 
-this transaction. 
+Thanks for any addendum/suggestion you can provide.
 
-Please, I need your entire support and co-operation for the success of this business 
-ventures, your utmost confidentiality and 
-secrecy is highly required, due to my family present predicament. 
-
-I sincerely will appreciate your acknowledgement by fax or telephone as soon as possible. 
-
-Yours truly, 
-
-MR. DUBE MOBUTU. 
-
+-
+Hai
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
