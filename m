@@ -1,46 +1,35 @@
-Subject: Re: 2.5.69-mm7
-References: <20030519012336.44d0083a.akpm@digeo.com>
-	<535806509.1053435150@IBM-O1F8DZ9MWMH>
-From: ebiederm@xmission.com (Eric W. Biederman)
-Date: 20 May 2003 14:01:56 -0600
-In-Reply-To: <535806509.1053435150@IBM-O1F8DZ9MWMH>
-Message-ID: <m1fzn91j63.fsf@frodo.biederman.org>
+Message-ID: <20030520202728.42626.qmail@web12308.mail.yahoo.com>
+Date: Tue, 20 May 2003 13:27:28 -0700 (PDT)
+From: Ravi <kravi26@yahoo.com>
+Subject: BUG_ON in remap_pte_range: Why?
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andy Whitcroft <apw@shadowen.org>
-Cc: Andrew Morton <akpm@digeo.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: linux-mm@kvack.org, kernelnewbies@nl.linux.org
 List-ID: <linux-mm.kvack.org>
 
-Andy Whitcroft <apw@shadowen.org> writes:
+Hi,
 
-> Seems that -mm7, has broken compilation of subarch visws:
-> 
-> arch/i386/kernel/built-in.o: In function `cpu_stop_apics':
-> arch/i386/kernel/built-in.o(.text+0xe511): undefined reference to
-> `stop_this_cpu'
-> 
-> arch/i386/kernel/built-in.o: In function `stop_apics':
-> arch/i386/kernel/built-in.o(.text+0xe552): undefined reference to `reboot_cpu'
-> arch/i386/mach-visws/built-in.o: In function `machine_restart':
-> arch/i386/mach-visws/built-in.o(.text+0x1): undefined reference to
-> `smp_send_stop'
-> 
-> Seems that the culprit is the reboot on boot processor changes, reverting the
-> following patches fixes the compilation:
-> 
-> 	patch -R -p1 <kexec-revert-NORET_TYPE.patch
-> 	patch -R -p1 <reboot_on_bsp.patch
-> 
-> Cheers.
+I am looking at the latest mm/memory.c on Bitkeeper.
+The comment for remap_pte_range() says "maps a range of 
+physical memory into the requested pages. the old mappings
+are removed". But the code has this check:
 
-Do you have a machine to test against.  Or is this a test for completeness?
+BUG_ON(!pte_none(*pte));
 
-I don't get the subarch factoring.  And as such I cannot see how to
-properly fixup the subarch code.
+Why is it a bug to have a valid PTE when remap_pte_range()
+is called? The 2.4 version of this fucntion cleared the
+old PTE using ptep_get_and_clear() and then installed
+a new one. Why was this changed?
 
-Eric
+Thanks,
+Ravi.
+
+__________________________________
+Do you Yahoo!?
+The New Yahoo! Search - Faster. Easier. Bingo.
+http://search.yahoo.com
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
