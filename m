@@ -1,36 +1,39 @@
-Date: Tue, 14 May 2002 18:41:27 -0700
-From: William Lee Irwin III <wli@holomorphy.com>
+Message-Id: <200205151200.g4FC0MY13196@Port.imtp.ilyichevsk.odessa.ua>
+Content-Type: text/plain;
+  charset="us-ascii"
+From: Denis Vlasenko <vda@port.imtp.ilyichevsk.odessa.ua>
+Reply-To: vda@port.imtp.ilyichevsk.odessa.ua
 Subject: Re: [RFC][PATCH] iowait statistics
-Message-ID: <20020515014127.GD27957@holomorphy.com>
-References: <Pine.LNX.4.44L.0205132214480.32261-100000@imladris.surriel.com> <Pine.LNX.3.96.1020514212343.2164A-200000@gatekeeper.tmr.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.3.96.1020514212343.2164A-200000@gatekeeper.tmr.com>
+Date: Wed, 15 May 2002 15:02:57 -0200
+References: <Pine.LNX.4.44L.0205132214480.32261-100000@imladris.surriel.com> <3CE073FA.57DAC578@zip.com.au>
+In-Reply-To: <3CE073FA.57DAC578@zip.com.au>
+MIME-Version: 1.0
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Bill Davidsen <davidsen@tmr.com>
-Cc: Rik van Riel <riel@conectiva.com.br>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@zip.com.au>, Rik van Riel <riel@conectiva.com.br>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, May 14, 2002 at 09:31:30PM -0400, Bill Davidsen wrote:
-> *** ./Makefile	Tue May 14 14:59:18 2002
-> --- ../linux-2.4.19-pre8-ac3p/./Makefile	Tue May 14 17:01:49 2002
-> ***************
-> *** 1,7 ****
->   VERSION = 2
->   PATCHLEVEL = 4
->   SUBLEVEL = 19
-> ! EXTRAVERSION = -pre8-ac3
->   
->   KERNELRELEASE=$(VERSION).$(PATCHLEVEL).$(SUBLEVEL)$(EXTRAVERSION)
+On 14 May 2002 00:18, Andrew Morton wrote:
+> Rik van Riel wrote:
+> > 4) on SMP systems the iowait time can be overestimated, no big
+> >    deal IMHO but cheap suggestions for improvement are welcome
+>
+> I suspect that a number of these statistical accounting mechanisms
+> are going to break.  The new irq-affinity code works awfully well.
+>
+> The kernel profiler in 2.5 doesn't work very well at present.
+> When investigating this, I ran a busy-wait process.  It attached
+> itself to CPU #3 and that CPU received precisely zero interrupts
+> across a five minute period.  So the profiler cunningly avoids profiling
+> busy CPUs, which is rather counter-productive.  Fortunate that oprofile
+> uses NMI.
 
-These look like patch rejects, not patches themselves.
-Resend?
-
-
-Cheers,
-Bill
+What, even local APIC interrupts did not happen on CPU#3
+in these five mins?
+--
+vda
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
