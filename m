@@ -1,44 +1,59 @@
-From: Christoph Rohland <cr@sap.com>
-Subject: Re: [question] shm_nattch in sys_shmat?
-Date: Mon, 03 Feb 2003 20:48:33 +0100
-In-Reply-To: <3E3AFA3A.6050205@us.ibm.com> (Matthew Dobson's message of
- "Fri, 31 Jan 2003 14:35:38 -0800")
-Message-ID: <ov4r7lf8mm.fsf@sap.com>
-References: <3E3AFA3A.6050205@us.ibm.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Received: from digeo-nav01.digeo.com (digeo-nav01.digeo.com [192.168.1.233])
+	by packet.digeo.com (8.9.3+Sun/8.9.3) with SMTP id NAA16627
+	for <linux-mm@kvack.org>; Mon, 3 Feb 2003 13:34:43 -0800 (PST)
+Date: Mon, 3 Feb 2003 13:29:29 -0800
+From: Andrew Morton <akpm@digeo.com>
+Subject: Re: hugepage patches
+Message-Id: <20030203132929.40f0d9c0.akpm@digeo.com>
+In-Reply-To: <m1n0ld1jvv.fsf@frodo.biederman.org>
+References: <20030131151501.7273a9bf.akpm@digeo.com>
+	<20030202025546.2a29db61.akpm@digeo.com>
+	<20030202195908.GD29981@holomorphy.com>
+	<20030202124943.30ea43b7.akpm@digeo.com>
+	<m1n0ld1jvv.fsf@frodo.biederman.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: colpatch@us.ibm.com
-Cc: linux-mm@kvack.org, William Lee Irwin III <wli@holomorphy.com>, "Martin J. Bligh" <mbligh@aracnet.com>
+To: "Eric W. Biederman" <ebiederm@xmission.com>
+Cc: wli@holomorphy.com, davem@redhat.com, rohit.seth@intel.com, davidm@napali.hpl.hp.com, anton@samba.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Matthew,
+ebiederm@xmission.com (Eric W. Biederman) wrote:
+>
+> > 
+> > Expanding ftruncate would be nice, but the current way of performing
+> > the page instantiation at mmap() time seems sufficient.
+> 
+> Having an expanding/shrinking ftruncate will trivially allow posix shared
+> memory semantics.   
+> 
+> I am trying to digest the idea of a mmap that grows a file.  There isn't
+> anything else that works that way is there?
 
-On Fri, 31 Jan 2003, Matthew Dobson wrote:
-> 	sys_shmat, does in fact increment shm_nattch, but only to
-> 	decrement it again a few lines later, as seen in this code
-> 	snippet.  Can anyone please explain why this is?
+Not that I can think of.
 
-sys_shmat temporarily increases shm_nattch to make sure it's never zero:
+> It looks like you are removing the limit checking from hugetlbfs, by
+> removing the expansion code from ftruncate.
 
->  >>>	shp->shm_nattch++;
+There was no expansion code.
 
-Make sure shm_nattch is greater than zero.
+The code I took out was vestigial.  We can put it all back if we decide to
+add a new expand-with-ftruncate feature to hugetlbfs.
 
->  >	user_addr = (void*) do_mmap (file, addr, size, prot,
+>  And given the fact that
+> nothing else grows in mmap, I suspect the code will be much easier to
+> write and maintain if the growth is constrained to happen in ftruncate.
 
-map the segment which increments shm_nattch in shm_mmap accounting for
-the actual mapping
+That would require a fault handler.  We don't have one of those for hugetlbs.
+ Probably not hard to add one though.
 
->  >>>	shp->shm_nattch--;
+> I may be missing something but it looks like there is not code present
+> to prevent multiple page allocations at the same time conflicting
+> when i_size is grown. 
 
-Correct it again.
-
-Greetings
-		Christoph
-
-
+All the mmap code runs under down_write(current->mm->mmap_sem);
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
