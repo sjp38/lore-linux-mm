@@ -1,44 +1,45 @@
-Date: Mon, 15 May 2000 12:58:41 -0300 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
+Date: Mon, 15 May 2000 09:01:03 -0700 (PDT)
+From: Linus Torvalds <torvalds@transmeta.com>
 Subject: Re: pre8: where has the anti-hog code gone?
 In-Reply-To: <852568E0.0056F0BB.00@raylex-gh01.eo.ray.com>
-Message-ID: <Pine.LNX.4.21.0005151256590.20410-100000@duckman.distro.conectiva>
+Message-ID: <Pine.LNX.4.10.10005150858060.3588-100000@penguin.transmeta.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Mark_H_Johnson.RTS@raytheon.com
-Cc: "Juan J. Quintela" <quintela@fi.udc.es>, linux-mm@kvack.org, torvalds@transmeta.com
+Cc: "Juan J. Quintela" <quintela@fi.udc.es>, linux-mm@kvack.org, riel@conectiva.com.br
 List-ID: <linux-mm.kvack.org>
 
+
 On Mon, 15 May 2000 Mark_H_Johnson.RTS@raytheon.com wrote:
-
+> 
+> I guess I have a "philosophy question" - one where I can't quite understand the
+> situation that we are in.
 >   What is the problem that killing processes is curing?
+> I understand that the code that [has been/still is?] killing processes is doing
+> so because there is no "free physical memory" - right now. Yet we have had code
+> to do a schedule() instead of killing the job, and gave the system the chance to
+> "fix" the lack of free physical memory problem (e.g., by writing dirty pages to
+> a mapped file or swap space on disk). From what I read from Juan's message
+> below, I guess this code has been lost or replaced by something more hostile to
+> user applications.
 
-> I understand that the code that [has been/still is?] killing
-> processes is doing so because there is no "free physical memory"
-> - right now. Yet we have had code to do a schedule() instead of
-> killing the job, and gave the system the chance to "fix" the
-> lack of free physical memory problem
+This is actually how Linux _used_ to work, a long long time ago. It is
+very simple, and it actually worked very well indeed.
 
-The problem was that while applications were busy freeing
-memory themselves, other applications could happily "eat"
-the pages that one application was freeing, leaving the
-page-freeing application with no memory after the page
-freeing was done.
+Until somebody _really_ starts to eat up memory, at which point it results
+in a machine that is completely dead to the world, doing nothing but
+swapping pages in and out again.
 
-With the patch I posted to linux-mm about an hour (??) ago,
-this problem seems to be fixed.
+The "wait until memory is free" approach works very well under many loads,
+it's just that it has some rather unfortunate pathological behaviour that
+is completely unacceptable. At some point you just have to say "Enough!",
+and start killing something.
 
-regards,
+The bug, of course, is that wehave been quite a bit too eager to do so;)
 
-Rik
---
-The Internet is not a network of computers. It is a network
-of people. That is its real strength.
-
-Wanna talk about the kernel?  irc.openprojects.net / #kernelnewbies
-http://www.conectiva.com/		http://www.surriel.com/
+		Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
