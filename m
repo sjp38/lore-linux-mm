@@ -1,41 +1,37 @@
-Date: Tue, 8 Jul 2003 13:01:22 +0200
-From: Petr Vandrovec <vandrove@vc.cvut.cz>
 Subject: Re: 2.5.74-mm2 + nvidia (and others)
-Message-ID: <20030708110122.GA10756@vana.vc.cvut.cz>
-References: <1057590519.12447.6.camel@sm-wks1.lan.irkk.nu> <1057647818.5489.385.camel@workshop.saharacpt.lan> <20030708072604.GF15452@holomorphy.com> <200307081051.41683.schlicht@uni-mannheim.de> <20030708085558.GG15452@holomorphy.com> <1057657046.1819.11.camel@mufasa.ds.co.ug>
+From: Flameeyes <dgp85@users.sourceforge.net>
+In-Reply-To: <20030708110122.GA10756@vana.vc.cvut.cz>
+References: <1057590519.12447.6.camel@sm-wks1.lan.irkk.nu>
+	 <1057647818.5489.385.camel@workshop.saharacpt.lan>
+	 <20030708072604.GF15452@holomorphy.com>
+	 <200307081051.41683.schlicht@uni-mannheim.de>
+	 <20030708085558.GG15452@holomorphy.com>
+	 <1057657046.1819.11.camel@mufasa.ds.co.ug>
+	 <20030708110122.GA10756@vana.vc.cvut.cz>
+Content-Type: text/plain
+Message-Id: <1057663430.2449.5.camel@laurelin>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1057657046.1819.11.camel@mufasa.ds.co.ug>
+Date: 08 Jul 2003 13:23:50 +0200
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Peter C. Ndikuwera" <pndiku@dsmagic.com>
-Cc: William Lee Irwin III <wli@holomorphy.com>, Thomas Schlichter <schlicht@uni-mannheim.de>, Martin Schlemmer <azarah@gentoo.org>, Andrew Morton <akpm@osdl.org>, smiler@lanil.mine.nu, KML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jul 08, 2003 at 12:37:26PM +0300, Peter C. Ndikuwera wrote:
-> The VMware patches are ...
-> 
-> ftp://platan.vc.cvut.cz/pub/vmware/vmware-any-any-updateXX.tar.gz
+On Tue, 2003-07-08 at 13:01, Petr Vandrovec wrote:
+> vmware-any-any-update35.tar.gz should work on 2.5.74-mm2 too.
+> But it is not tested, I have enough troubles with 2.5.74 without mm patches...
+vmnet doesn't compile:
 
-vmware-any-any-update35.tar.gz should work on 2.5.74-mm2 too.
-But it is not tested, I have enough troubles with 2.5.74 without mm patches...
+make: Entering directory `/tmp/vmware-config1/vmnet-only'
+In file included from userif.c:51:
+pgtbl.h: In function `PgtblVa2PageLocked':
+pgtbl.h:82: warning: implicit declaration of function `pmd_offset'
+pgtbl.h:82: warning: assignment makes pointer from integer without a
+cast
+make: Leaving directory `/tmp/vmware-config1/vmnet-only'
 
-> > On Tue, Jul 08, 2003 at 10:51:39AM +0200, Thomas Schlichter wrote:
-> > > Btw, what do you think about the idea of exporting the follow_pages()
-> > > function from mm/memory.c to kernel modules? So this could be used
-> > > for modules compiled for 2.[56] kernels and the old way just for 2.4
-> > > kernels...
-> > 
-> > I don't really have an opinion on it, but it's not my call.
 
-vmmon started using 'get_user_pages' for locking pages some time ago. 
-Unfortunately userspace needs looking at VA->PA mapping from time to time 
-although it already retrieved this information at the time get_user_pages() 
-was invoked :-( It makes userspace simpler, and it was also much faster than
-any other solution before pmd/pte moved into the high memory.
-						Best regards,
-							Petr Vandrovec
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
