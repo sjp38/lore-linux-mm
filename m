@@ -1,41 +1,45 @@
-Date: Thu, 03 Mar 2005 08:41:13 +0100
-Message-Id: <4.4.58.2081924.0083fc70@ies.edu>
-From: "Leanna Wiseman" <ARSBT@datastream.it>
-Subject: its your last chance!
+Reply-To: "Gene Addison" <RuizM@fusemail.com>
+From: "Gene Addison" <RuizM@fusemail.com>
+Subject: FREE PlayStation 2 or PlayStation Portable
+Date: Thu, 03 Mar 2005 01:34:03 -0800
+MIME-Version: 1.0
+Content-Type: multipart/alternative;
+	boundary="--09-69523-3457-218-0873848369"
+Message-Id: <20050303093401Z26515-23303+37@kvack.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
------ Original Message ----- 
-From: Cheryl <turban13@hotmail.com> 
-To: audience1@msn.com <Cheryl@msn.com> ; fishfraser@yahoo.com
-<domingo4216@yahoo.com >; 
+----09-69523-3457-218-0873848369
+Content-Type: text/plain;
+Content-Transfer-Encoding: 7Bit
 
-Dear Homeowner,
+Get a FREE PlayStation 2 or PlayStation Portable!
 
-Mortgage. You have been pre-approved.
-You can get $243,000 for as little as $232 a month, thanks to your pre-approval. 
-Visit us, Fill out the form, no obligation
-Pull cash out, or refinance.. 
-No long forms or quastionnaires. Fill up our extremely short and simple form today and get a call back within a couple of hours. 
+You decide! It's your choice! Think I'm kidding? Check the link below:
 
-Start saving now, click that link:
+http://www.c-u-i.com/offer.php?45PV69
 
-http://www.refi-asap.net/1/index/bvk
+
+P.S. The page might load slow at times. This is due to the huge demand created by
+our offer. Don't worry though. Your PS2 or PSP will be waiting for you!
 
 
 
+MelamieLINE  Not our activity for Him but our captivity to Him!   GerrardLINE
+MakaryLINE  To foretell the destiny of a nation, one has to open the book of her past. (Dr. Jose P. Rizal)   BasilLINE
+ShoshanaLINE "Black pepper, or white pepper?" asked the concierge. MarjyLINE
+AdriannaLINE  Challenges can be stepping stones or stumbling blocks. It's just a matter of how you view them.   NattyLINE
+
+nah no
+
+http://www.c-u-i.com/e/
 
 
 
 
-
-
-
-attain de eject oc peepy tpd anorthosite yg proprioception gpx detest rqh baseman uc ben xf 
-deliquescent fw irving hm lorinda ew relic no 
-http://refi-asap.net/rem.php
+----09-69523-3457-218-0873848369--
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
