@@ -1,71 +1,84 @@
-Date: Mon, 20 Dec 2004 19:53:08 +0100
+Date: Mon, 20 Dec 2004 19:59:19 +0100
 From: Andi Kleen <ak@suse.de>
-Subject: Re: [RFC][PATCH 0/10] alternate 4-level page tables patches
-Message-ID: <20041220185308.GA24493@wotan.suse.de>
-References: <41C3D453.4040208@yahoo.com.au> <Pine.LNX.4.44.0412182338040.13356-100000@localhost.localdomain> <20041220180435.GG4316@wotan.suse.de> <Pine.LNX.4.58.0412201016260.4112@ppc970.osdl.org>
+Subject: Re: [PATCH 10/10] alternate 4-level page tables patches
+Message-ID: <20041220185919.GB24493@wotan.suse.de>
+References: <41C3D548.6080209@yahoo.com.au> <41C3D57C.5020005@yahoo.com.au> <41C3D594.4020108@yahoo.com.au> <41C3D5B1.3040200@yahoo.com.au> <20041218073100.GA338@wotan.suse.de> <Pine.LNX.4.58.0412181102070.22750@ppc970.osdl.org> <20041220174357.GB4316@wotan.suse.de> <Pine.LNX.4.58.0412201000340.4112@ppc970.osdl.org> <20041220181930.GH4316@wotan.suse.de> <Pine.LNX.4.58.0412201041000.4112@ppc970.osdl.org>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.58.0412201016260.4112@ppc970.osdl.org>
+In-Reply-To: <Pine.LNX.4.58.0412201041000.4112@ppc970.osdl.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Linus Torvalds <torvalds@osdl.org>
-Cc: Andi Kleen <ak@suse.de>, Hugh Dickins <hugh@veritas.com>, Nick Piggin <nickpiggin@yahoo.com.au>, Linux Memory Management <linux-mm@kvack.org>, Andrew Morton <akpm@osdl.org>
+Cc: Andi Kleen <ak@suse.de>, Nick Piggin <nickpiggin@yahoo.com.au>, Linux Memory Management <linux-mm@kvack.org>, Hugh Dickins <hugh@veritas.com>, Andrew Morton <akpm@osdl.org>
 List-ID: <linux-mm.kvack.org>
 
-> I haven't done any side-by-side comparisons on your original patches, and
-> on Nick's version of your patches, but I'm pretty certain that Nick's
-> patches are more "directed", with less noise. Not because of any name
-
-> issues, but because I think the right place to do the folding is in the
-> middle.
-
-I don't think it's true. Currently his patches are much smaller,
-but only because he didn't convert the architectures yet. I think 
-if he does a full conversion it will be about the same size.
-
-[like he originally hoped to not touch the architectures that
-much, but it didn't work out] 
+On Mon, Dec 20, 2004 at 10:47:05AM -0800, Linus Torvalds wrote:
+> 
+> 
+> On Mon, 20 Dec 2004, Andi Kleen wrote:
+> > 
+> > I remember there was one, but they took a brute-force sledgehammer fix.
+> > The right fix would have been to add the noinlines, not penalize
+> > everybody.
+> 
+> No. 
+> 
+> Adding work-arounds to source code for broken compilers is just not 
+> acceptable. If some compiler feature works badly, it is _disabled_.
 
 
 > 
-> Quite frankly, I don't love Nick's patches either. I'd prefer to see the
-> infrastructure happen first - have the patch sequence first make _every_
-> single architecture use the "generic pud_t folding", and basically be in 
-> the position where the first <n> patches just do the syntactic part that 
-> makes it possible for then patches <n+1>, <n+2> to actually convert 
-> individual architectures that want it.
+> Look at "-fno-strict-aliasing". Exactly the same issue. Sure, we could 
+> have tried to find every place where it was an issue, but very 
+> fundamentally that's HARD. The issues aren't obvious from the source code, 
+> and the "fixes" are not obvious either and do not improve readability. 
+> Even though arguably the aliasing logic _could_ have helped other places
 
-I'm not sure what you mean with that. You have to convert the architectures,
-otherwise they won't compile. That's true for my patch and true for
-Nick's (except that he didn't do all the work of converting the archs yet)
+IMHO that's totally different. Yes aliasing problems are happening
+everywhere because they cause problems with very common coding idioms.
+But the big stack frame thing is pretty rare if it happens at all  
+(I'm still sceptical) 
 
-While it may be possible to do some
-hacks that allows code to be unconverted I didn't do this intentionally:
-the risk of some common code not getting converted and breaking
-true 4level page tables is too high.
+> 
+> So if a compiler does something we don't want to handle, we disable that
+> feature. It's just not _possible_ to audit the source code for these kinds
+> of compiler features unless you write a tool that does most of it
+> automatically (or at least points out where the things need to be done).
 
-At least my patchkit was 
-infrastructure (basically mm/* and a few related headers), 
-compat stuff (nopml4-* emulation layer) and then a single patch
-for each architecture.  You'll need to add it pretty much 
-all at one, otherwise things won't compile. I don't see how
-you could do it less intrusively (Nick's patches definitely require
-a similar flag day). 
+./scripts/checkstack.pl
 
-Currently only x86-64 is truly 4 level. ppc64 plans to be, but they
-haven't done it yet. All the others seem to want to stay at 2 or 3 levels
-for now.
+> 
+> Once you start doing "noinline" and depend on those being right, you end
+> up having to support that forever - with new code inevitably causing
+> subtle breakage because of some strange compiler rule that in no way is
+> obvious (ie adding/removing a "static" just because you ended up exporting
+> it to somebody else suddenly has very non-local issues - that's BAD).
 
-Ok in theory you could leave out the x86-64 patch at first, but then
-you would need a different patch that makes it use nopml4 (or pud_t) 
+You're far exaggerating the problem. It happens pretty seldom.
 
-> So no, naming isn't the big difference. The conceptual difference is
-> bigger. It's just that once you conceptually do it in the middle, a
-> numbered name like "pml4_t" just doesn't make any sense (I don't think it
+I think even Arjan only found one case or two in million lines
+of code.
 
-Sorry I didn't invent it, just copied it from the x86-64 architecture
-manuals because I didn't see any reason to be different.
+And as I said the stack frame sizes need to be regularly checked
+anyways, since there seems to be a fraction of the driver people
+who are just not aware of it (totally independent of unit-at-a-time) 
+
+> 
+> > It helps when you add the noinlines. I can do that later - search
+> > for Arjan's old report (I think he reported it), check what compiler
+> > version he used, compile everything with it and unit-at-a-time
+> > and eyeball all the big stack frames and add noinline
+> > if it should be really needed.
+> 
+> If you do that _first_, then sure. And have some automated checker tool
+> that we can run occasionally to verify that we don't break this magic rule
+> later by mistake.
+
+scripts/checkstack.pl
+
+There is probably a makefile target for it too, but I cannot find it 
+right now. Probably should be in make buildcheck.
 
 -Andi
 --
