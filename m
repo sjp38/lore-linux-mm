@@ -7,13 +7,13 @@ References: <20030319012115.466970fd.akpm@digeo.com>
 	<200303192327.45883.tomlins@cam.org>
 Content-Type: text/plain
 Content-Transfer-Encoding: 7bit
-Date: 19 Mar 2003 22:04:44 -0700
-Message-Id: <1048136698.10011.1736.camel@spc1.mesatop.com>
+Date: 20 Mar 2003 07:36:12 -0700
+Message-Id: <1048170972.4302.119.camel@spc9.esa.lanl.gov>
 Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Ed Tomlinson <tomlins@cam.org>
-Cc: Andrew Morton <akpm@digeo.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+Cc: Andrew Morton <akpm@digeo.com>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 On Wed, 2003-03-19 at 21:27, Ed Tomlinson wrote:
@@ -52,22 +52,28 @@ On Wed, 2003-03-19 at 21:27, Ed Tomlinson wrote:
 > 
 > Do things improve with the patch below applied?  You have to backout the 
 > schedule-tuneables patch before appling it.
-
-I take it this is the one to back out?
-scheduler-tunables.patch 17-Mar-2003 22:01    11k
-
 > 
 > Ed Tomlinson
 
-I'll give it a shot when I get the chance.  Unfortunately, I'm bogged
-down with meetings tomorrow morning, so it will be at least 14-15 hours
-from now.  Perhaps some other adventurous person can pick up the ball in
-the meantime.
+[patch snipped]
 
-My test system is 933Mhz PIII, IDE, 256MB. The apps are Mozilla 1.3 and
-Evolution 1.2.2 running under KDE 3.1.
+I tried that patch, and the bad behavior with the Evolution "Compose a
+Message" window remains.  With a load of dbench 12, I had stalls of many
+seconds before I could type something.  Also, here is an additional
+symptom.  If I move the Evolution "Compose" window around rapidly, it
+leaves a smear of itself on the screen under itself.  With all -mm2
+variants, this smear stays for an intolerably long time (tens of
+seconds) while that window does not record keyboard strokes.  2.5.65-bk
+on the other hand exhibits much more benign behavior.  Under similar
+load, the smear disappears in a few seconds and the window starts
+responding to keyboard events.  I just now rebooted 2.5-bk to verify,
+and it is still responsive at dbench client loads which would make
+Evolution unusable with 2.5.65-mm2.  Mozilla, on the other hand, still
+works OK under load with -mm2.  This was all with dbench running on
+ext3.
 
-Thanks,
+I won't be able to do any more testing for several hours, so have fun!
+
 Steven
 
 --
