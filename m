@@ -1,30 +1,48 @@
-Received: from wildwood.eecs.umich.edu (haih@wildwood.eecs.umich.edu [141.213.4.68])
-	by smtp.eecs.umich.edu (8.12.2/8.12.3) with ESMTP id g6NLIEwK024129
-	for <linux-mm@kvack.org>; Tue, 23 Jul 2002 17:18:14 -0400
-Date: Tue, 23 Jul 2002 17:21:30 -0400 (EDT)
-From: Hai Huang <haih@eecs.umich.edu>
-Subject: Anyone seen this before
-Message-ID: <Pine.LNX.4.33.0207231717120.3622-100000@wildwood.eecs.umich.edu>
+Date: Tue, 23 Jul 2002 15:45:42 -0700
+From: "Martin J. Bligh" <Martin.Bligh@us.ibm.com>
+Subject: disable highpte in rmap kernels
+Message-ID: <61060000.1027464342@flay>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Andrew Morton <akpm@zip.com.au>
+Cc: linux-mm mailing list <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+highpte doesn't work with rmap at the moment, and causes users
+to get panics that aren't trivially obvious what is causing them.
+I vote we disable it until it works .... totally untested patch below ...
+does this look sane to people? Seems trivial enough that even I
+couldn't get it wrong, but .... ;-)
 
-By dumping the mem_map, I've observed some werid pages. Let me know
-if you've seen this before or have a hunch about it.
+M.
 
-Basically, I've seen many of pages with page->count == 1 and page->flags
-= 0x1000000.  I'm using kernel 2.4.18-3 w/ rmap and w/HIGHMEM disabled.
-The machine only has one entry on the pgdat_list (that's why the 1 in
-0x1000000).  But I can decipher what can cause a page to be allocated with
-an empty page->flag.  Any clues?
-
+--- virgin-2.5.27/arch/i386/config.in	Sat Jul 20 12:11:12 2002
++++ linux-2.5.27-nohighpte/arch/i386/config.in	Tue Jul 23 13:54:43 2002
+@@ -185,10 +185,6 @@
+ 	 4GB           CONFIG_HIGHMEM4G \
+ 	 64GB          CONFIG_HIGHMEM64G" off
+ 
+-if [ "$CONFIG_HIGHMEM4G" = "y" -o "$CONFIG_HIGHMEM64G" = "y" ]; then
+-   bool 'Use high memory pte support' CONFIG_HIGHPTE
+-fi
 -
-hai
+ if [ "$CONFIG_HIGHMEM4G" = "y" ]; then
+    define_bool CONFIG_HIGHMEM y
+ fi
+--- virgin-2.5.27/arch/ppc/config.in	Sat Jul 20 12:11:04 2002
++++ linux-2.5.27-nohighpte/arch/ppc/config.in	Tue Jul 23 15:40:19 2002
+@@ -263,7 +263,6 @@
+ comment 'General setup'
+ 
+ bool 'High memory support' CONFIG_HIGHMEM
+-dep_bool '  Support for PTEs in high memory' CONFIG_HIGHPTE $CONFIG_HIGHMEM
+ bool 'Prompt for advanced kernel configuration options' CONFIG_ADVANCED_OPTIONS
+ if [ "$CONFIG_ADVANCED_OPTIONS" = "y" ]; then
+    if [ "$CONFIG_HIGHMEM" = "y" ]; then
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
