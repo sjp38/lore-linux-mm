@@ -1,52 +1,43 @@
-Received: from max.phys.uu.nl (max.phys.uu.nl [131.211.32.73])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id OAA01320
-	for <linux-mm@kvack.org>; Mon, 1 Feb 1999 14:34:25 -0500
-Received: from mirkwood.dummy.home (root@anx1p7.phys.uu.nl [131.211.33.96])
-	by max.phys.uu.nl (8.9.1/8.9.1/hjm) with ESMTP id RAA29983
-	for <linux-mm@kvack.org>; Mon, 1 Feb 1999 17:12:30 +0100 (MET)
-Date: Mon, 1 Feb 1999 16:59:22 +0100 (CET)
-From: Rik van Riel <riel@nl.linux.org>
-Subject: Re: Large memory system
-In-Reply-To: <19990130083631.B9427@msc.cornell.edu>
-Message-ID: <Pine.LNX.4.03.9902011656370.6909-100000@mirkwood.dummy.home>
+Received: from dax.scot.redhat.com (root@dax.scot.redhat.com [195.89.149.242])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id OAA01422
+	for <linux-mm@kvack.org>; Mon, 1 Feb 1999 14:37:58 -0500
+Date: Mon, 1 Feb 1999 13:07:37 GMT
+Message-Id: <199902011307.NAA02346@dax.scot.redhat.com>
+From: "Stephen C. Tweedie" <sct@redhat.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Subject: Re: MM deadlock [was: Re: arca-vm-8...]
+In-Reply-To: <199901300701.AAA08206@chelm.cs.nmt.edu>
+References: <199901261645.QAA03883@dax.scot.redhat.com>
+	<199901300701.AAA08206@chelm.cs.nmt.edu>
 Sender: owner-linux-mm@kvack.org
-To: Daniel Blakeley <daniel@msc.cornell.edu>
-Cc: linux-mm@kvack.org
+To: yodaiken@chelm.cs.nmt.edu
+Cc: "Stephen C. Tweedie" <sct@redhat.com>, alan@lxorguk.ukuu.org.uk, mingo@chiara.csoma.elte.hu, groudier@club-internet.fr, torvalds@transmeta.com, werner@suse.de, andrea@e-mind.com, riel@humbolt.geo.uu.nl, Zlatko.Calusic@CARNet.hr, ebiederm+eric@ccr.net, saw@msu.ru, steve@netplus.net, damonbrent@earthlink.net, reese@isn.net, kalle.andersson@mbox303.swipnet.se, bmccann@indusriver.com, bredelin@ucsd.edu, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 30 Jan 1999, Daniel Blakeley wrote:
+Hi,
 
-> I've jumped the gun a little bit and recommended a Professor buy
-> 4GB of RAM on a Xeon machine to run Linux on and he did.  After he
-> got it I read the large memory howto which states that the max
-> memory size for Linux 2.2.x is 2GB physical/2GB virtual.  The
-> memory size seems to limited by the 32bit nature of the x86
-> architecture.  The Xeon seems to have a 36bit memory addressing
-> mode.  Can Linux be easily expanded to use the 36bit addressing?
+On Sat, 30 Jan 1999 00:01:00 -0700 (MST), yodaiken@chelm.cs.nmt.edu
+said:
 
-Just today there was a patch on linux-kernel with a
-patch that allows you to use the top 2 GB as a RAM
-disk or something like that.
+>> The idea was to decide what region to hand out, _then_ to clear it.
+>> Standard best-fit algorithms apply when carving up the region.
 
-You can use that for swap and to mmap() stuff on.
-I think this could be quite useful for large simulations
-and stuff like that.
+> If clearing involves remapping kernel address space, then its a rather
+> complex process. 
 
-36-bit addressing is a bit difficult at the moment, but
-undoubtedly someone will code up something like that for
-Linux 2.3 (maybe the prof could let some (under)graduate
-student do this as a major project?).
+No, that is the whole point behind restricting such allocations to a
+zone containing only swappable objects.  There will be no
+non-relocatable objects there, and we can simply swap out each page in
+the selected contiguous zone.  
 
-succes,
+_If_ we expect to do this often then we will want to keep the relocated
+pages in memory, but for solving the current problem --- driver
+initialisation --- that is not so important and we can rely on the
+existing page swap code to just get rid of the data which is in the way.
 
-Rik -- If a Microsoft product fails, who do you sue?
-+-------------------------------------------------------------------+
-| Linux Memory Management site:  http://humbolt.geo.uu.nl/Linux-MM/ |
-| Nederlandse Linux documentatie:          http://www.nl.linux.org/ |
-+-------------------------------------------------------------------+
-
+--Stephen
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm my@address'
 in the body to majordomo@kvack.org.  For more info on Linux MM,
