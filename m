@@ -1,42 +1,41 @@
-Message-ID: <3B5BFB1F.F2967398@scs.ch>
-Date: Mon, 23 Jul 2001 12:23:27 +0200
-From: Martin Maletinsky <maletinsky@scs.ch>
+Received: from burns.conectiva (burns.conectiva [10.0.0.4])
+	by perninha.conectiva.com.br (Postfix) with SMTP id 2EAF338CE1
+	for <linux-mm@kvack.org>; Mon, 23 Jul 2001 14:26:14 -0300 (EST)
+Date: Mon, 23 Jul 2001 14:26:13 -0300 (BRST)
+From: Rik van Riel <riel@conectiva.com.br>
+Subject: Re: Swap progress accounting
+In-Reply-To: <20010723061512.A21588@devserv.devel.redhat.com>
+Message-ID: <Pine.LNX.4.33L.0107231425190.20326-100000@duckman.distro.conectiva>
 MIME-Version: 1.0
-Subject: Question concerning the buddy allocator
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
-Cc: paul@scs.ch
+To: Arjan van de Ven <arjanv@redhat.com>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hello,
+On Mon, 23 Jul 2001, Arjan van de Ven wrote:
 
-I am interested, if physically contiguous memory allocated from the buddy allocator may be freed in a different way than it was allocated. I.e. if a memory blocks of size
-(2^x)*PAGE_SIZE allocated by one call to the buddy allocator can be freed in fragments of (2^y)*PAGE_SIZE, with 2^(x-y) successive calls to the buddy allocator, where y < x
-and the fragments start at an address which is a multiple of (2^y)*PAGE_SIZE.
+> Currently, calling swap_out() on a zone doesn't count progress, and the
+> result can be that you swap_out() a lot of pages, and still return "no
+> progress possible" to try_to_free_pages(), which in turn makes a GFP_KERNEL
+> allocation fail (and that can kill init).
 
-I looked it up in the 2.2.x and 2.4.x code, and performed some experiments with the 2.4.x code, and I found that freeing the memory blocks in multiple fragments was
-possible. However, in order to free the fragments, the count field in the descriptor of the first page in each fragment needs to be set to 1. (This is because
-__free_pages() checks the count field of the first pages descriptor before calling __free_pages_ok(), if the count field is not zero, no further action is taken and the
-__free_pages() returns, i.e. no pages are re-inserted into the buddy allocation system.).
+"makes GFP_KERNEL allocation fail" ?!?!?!
 
-Can anyone tell me:
-- If the proceeding I described (i.e. setting the count field to 1) is a 'legal' way to free fragments, and if not if there is another 'legal' way to do so. May the
-modification of the page descriptor's count field have any undesired side-effects?
-- What is the reason behind the check of the count field of the first page's descriptor in __free_pages().
+Who the fuck broke __alloc_pages() while I wasn't looking ?
 
-Thank's for your help
-regards
-Martin
+Why don't you fix __alloc_pages() instead ?
 
+
+Rik
 --
-Supercomputing System AG          email: maletinsky@scs.ch
-Martin Maletinsky                 phone: +41 (0)1 445 16 05
-Technoparkstrasse 1               fax:   +41 (0)1 445 16 10
-CH-8005 Zurich
+Executive summary of a recent Microsoft press release:
+   "we are concerned about the GNU General Public License (GPL)"
 
+
+		http://www.surriel.com/
+http://www.conectiva.com/	http://distro.conectiva.com/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
