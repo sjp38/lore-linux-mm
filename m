@@ -1,31 +1,29 @@
-Date: Mon, 25 Sep 2000 12:17:36 -0400 (EDT)
-From: Alexander Viro <viro@math.psu.edu>
+Date: Mon, 25 Sep 2000 18:18:17 +0200
+From: "Andi Kleen" <ak@suse.de>
 Subject: Re: the new VMt
-In-Reply-To: <Pine.LNX.4.21.0009251821170.9122-100000@elte.hu>
-Message-ID: <Pine.GSO.4.21.0009251217020.16980-100000@weyl.math.psu.edu>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Message-ID: <20000925181817.A25553@gruyere.muc.suse.de>
+References: <20000925180448.A25083@gruyere.muc.suse.de> <Pine.LNX.4.21.0009251817420.9122-100000@elte.hu>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+In-Reply-To: <Pine.LNX.4.21.0009251817420.9122-100000@elte.hu>; from mingo@elte.hu on Mon, Sep 25, 2000 at 06:19:07PM +0200
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Ingo Molnar <mingo@elte.hu>
-Cc: Andrea Arcangeli <andrea@suse.de>, Alan Cox <alan@lxorguk.ukuu.org.uk>, Marcelo Tosatti <marcelo@conectiva.com.br>, Linus Torvalds <torvalds@transmeta.com>, Rik van Riel <riel@conectiva.com.br>, Roger Larsson <roger.larsson@norran.net>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
+Cc: Andi Kleen <ak@suse.de>, Andrea Arcangeli <andrea@suse.de>, Alan Cox <alan@lxorguk.ukuu.org.uk>, Marcelo Tosatti <marcelo@conectiva.com.br>, Linus Torvalds <torvalds@transmeta.com>, Rik van Riel <riel@conectiva.com.br>, Roger Larsson <roger.larsson@norran.net>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-
-On Mon, 25 Sep 2000, Ingo Molnar wrote:
-
-> On Mon, 25 Sep 2000, Andrea Arcangeli wrote:
+On Mon, Sep 25, 2000 at 06:19:07PM +0200, Ingo Molnar wrote:
+> > Another thing I would worry about are ports with multiple user page
+> > sizes in 2.5. Another ugly case is the x86-64 port which has 4K pages
+> > but may likely need a 16K kernel stack due to the 64bit stack bloat.
 > 
-> > > ie. 99.45% of all allocations are single-page! 0.50% is the 8kb
-> > 
-> > You're right. That's why it's a waste to have so many order in the
-> > buddy allocator. [...]
-> 
-> yep, i agree. I'm not sure what the biggest allocation is, some drivers
-> might use megabytes or contiguous RAM?
+> yep, but these cases are not affected, i think in the order != 0 case we
+> should return NULL if a certain number of iterations did not yield any
+> free page.
 
-Stupidity has no limits...
+Ok, that would just break fork()
 
+-Andi
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
