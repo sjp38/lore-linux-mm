@@ -1,30 +1,63 @@
-Received: from IlieCosmin ([213.37.164.55]) by smtp08.retemail.es
-          (InterMail vM.5.01.05.32 201-253-122-126-132-20030307) with SMTP
-          id <20031210212857.GWFY9384.smtp08.retemail.es@IlieCosmin>
-          for <linux-mm@kvack.org>; Wed, 10 Dec 2003 22:28:57 +0100
-Reply-To: "Do not reply please" <iliecosmin@hotmail.com>
-From: "Do not reply please" <iliecosmin@hotmail.com>
-Subject: Free SMS in all the world...
-Date: Wed, 10 Dec 2003 22:23:33 +0100
+Message-ID: <2811362-220031261331511375@lynx>
+Reply-To: smyrna@smyrnagroup.net
+From: "" <jasmin@smyrnagroup.org>
+Subject: Unsere Reisen 2004
+Date: Fri, 12 Dec 2003 19:15:11 -0800
 MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="us-ascii"
-Content-Transfer-Encoding: 7bit
-Message-Id: <20031210212857.GWFY9384.smtp08.retemail.es@IlieCosmin>
+Content-type: text/plain; charset=iso-8859-1
+Content-Transfer-Encoding: 8BIT
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Visit:
-http://iliecosmin.no-ip.com
+Mit unsere 17 jaehrige Tourismus Erfahrung wurden wir sie in die Turkei
+einladen.
+Sie konnen in unsere Webseite www.smyrnagroup.net
+Information bekommen.
+Uber;
+***Badeurlaub Hotels.
+***Freizeit Hotels.
+***Rundreisen als Bildungsreisen.
+***Christliche Touren-Freizeiten.
+***Behindertenreisen.
+***Sportreisen als Tennis-Golf-Wandern-Wasserski.
+***Und andere Reisen.
+Wir wurden auch mit ihnen zusammenarbeiten.
+Mit Herzlichen Grussen.
 
-You can send unlimited sms in all the world...
-And you can make money if you subscribe...
-Best regards,
+Ihr DR Sedat Igdeci
+
+Web:www.smyrnagroup.net
+Mail:  smyrna@smyrnagroup.net
 
 
-P.S. Sign my guestbook please.
+Dear Travellers
+
+Within 17 years of experience in Tour Business.
+Smyrna Travel is inviting you to beatifull country,
+Turkey.
+Please viset our website www.smynagroup.net .
+
+***Resort Hollyclays.
+***Cultural Round Trips.
+***Christian Touring.
+***Handicap Tours.
+***Hotel Reservations.
+***Travel Consultancy.
+
+Best Regards.
+Dr Sedat Igdeci
+
+Web:www.smyrnagroup.net
+Mail:  smyrna@smyrnagroup.net
+
+
+
+
+
+
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
