@@ -1,24 +1,44 @@
-Received: from bbmail1.unisys.com (192-63-2005.unisys.com [192.63.200.5])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id XAA07554
-	for <linux-mm@kvack.org>; Wed, 17 Dec 1997 23:19:12 -0500
-Received: from felix.tulblr.unisys.com (felix.tulblr.unisys.com [163.122.1.109])
-	by bbmail1.unisys.com (8.8.5/8.8.5) with SMTP id EAA16810
-	for <linux-mm@kvack.org>; Thu, 18 Dec 1997 04:12:50 GMT
-Date: Thu, 18 Dec 1997 09:46:58 +0500 (IST)
-From: Gaurish R Dalvi <gaurishr@tulblr.unisys.com>
-Subject: zombies ....
-In-Reply-To: <Pine.LNX.3.91.971216124819.15838B-100000@mirkwood.dummy.home>
-Message-ID: <Pine.SV4.3.95.971218094449.17067A-100000@felix>
+Received: from localhost (bcrl@localhost)
+	by kvack.org (8.8.7/8.8.7) with SMTP id BAA07984
+	for <linux-mm@kvack.org>; Thu, 18 Dec 1997 01:00:13 -0500
+Date: Thu, 18 Dec 1997 01:00:12 -0500 (U)
+From: Benjamin LaHaise <bcrl@kvack.org>
+Subject: Re: Slow memory support
+Message-ID: <Pine.LNX.3.95.971218005832.7940A-100000@as200.spellcast.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-Cc: linux-mm <linux-mm@kvack.org>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi!
-	A small doubt.
-	Thing is according to books, a zombie has released all its memory
-etc. but clogs up a system as the kernel has to maintain its return state.
+From: Rik van Riel <H.H.vanRiel@fys.ruu.nl>
+X-Sender: riel@mirkwood.dummy.home
+Reply-To: H.H.vanRiel@fys.ruu.nl
+To: Pavel Machek <pavel@Elf.mj.gts.cz>
+cc: linux-mm <linux-mm@kvack.org>
+Subject: Re: Slow memory support
+In-Reply-To: <19971217221622.50179@Elf.mj.gts.cz>
+Message-ID: <Pine.LNX.3.91.971218000718.887B-100000@mirkwood.dummy.home>
+Approved: ObHack@localhost
+Organization: none
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 
-	How can you make the system release the zombie totally. ( i.e. it
-shud not appear in ps command listsing even.).
+On Wed, 17 Dec 1997, Pavel Machek wrote:
+
+> This is what I do. (I only put buffers there, for now). But, what
+> about you have 64Meg of normal and 64Meg of slow memory? I doubt
+> you'll find 64Meg worth of buffers and page tables.
+
+Hmm, what about putting everything in slow memory, except
+for executable code...
+Or (with Ben's patch) we could move 'overly active' pages
+to fast memory and other pages to slow memory, with a max
+amount of pages we could move every second.
+
+Rik.
++-----------------------------+------------------------------+
+| For Linux mm-patches, go to | "I'm busy managing memory.." |
+| my homepage (via LinuxHQ).  | H.H.vanRiel@fys.ruu.nl       |
+| ...submissions welcome...   | http://www.fys.ruu.nl/~riel/ |
++-----------------------------+------------------------------+
