@@ -1,84 +1,115 @@
+Date: Sun, 7 Jan 2001 22:42:11 -0800 (PST)
+From: Linus Torvalds <torvalds@transmeta.com>
 Subject: Re: Subtle MM bug
-References: <Pine.LNX.4.21.0101071919120.21675-100000@duckman.distro.conectiva>
-Reply-To: zlatko@iskon.hr
-From: Zlatko Calusic <zlatko@iskon.hr>
-Date: 07 Jan 2001 23:33:08 +0100
-In-Reply-To: Rik van Riel's message of "Sun, 7 Jan 2001 19:37:06 -0200 (BRDT)"
-Message-ID: <87u27b3sd7.fsf@atlas.iskon.hr>
+In-Reply-To: <200101080602.WAA02132@pizda.ninka.net>
+Message-ID: <Pine.LNX.4.10.10101072223160.29065-100000@penguin.transmeta.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@conectiva.com.br>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: "David S. Miller" <davem@redhat.com>
+Cc: Rik van Riel <riel@conectiva.com.br>, Marcelo Tosatti <marcelo@conectiva.com.br>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Rik van Riel <riel@conectiva.com.br> writes:
+[ MM people Cc'd, because while I have a plan, I don't have enough time to
+  actually put that plan in action. And mayb esomebody can shoot down my
+  brilliant plan. ]
 
-> On 7 Jan 2001, Zlatko Calusic wrote:
+On Sun, 7 Jan 2001, David S. Miller wrote:
 > 
-> > Things go berzerk if you have one big process whose working set
-> > is around your physical memory size.
+> BTW, this reminds me.  Now that you keep track of the "all mm's" list
+> thingy, you can also keep track of "nr_mms" in the system and do that
+> little:
 > 
-> "go berzerk" in what way?  Does the system cause lots of extra
-> swap IO and does it make the system thrash where 2.2 didn't
-> even touch the disk ?
->
-
-Well, I think yes. I'll do some testing on the 2.2 before I can tell
-you for sure, but definitely the system is behaving badly where I
-think it should not.
-
-> > Final effect is that physical memory gets extremely flooded with
-> > the swap cache pages and at the same time the system absorbs
-> > ridiculous amount of the swap space.
+> 	for (i = 0; i < (nr_mms >> priority); i++)
+> 		pagetable_scan();
 > 
-> This is mostly because Linux 2.4 keeps dirty pages in the
-> swap cache. Under Linux 2.2 a page would be deleted from the
-> swap cache when a program writes to it, but in Linux 2.4 it
-> can stay in the swap cache.
->
+> thing you were talking about last week.
 
-OK, I can buy that.
+This is the whole reason for making that list in the first place. 
 
-> Oh, and don't forget that pages in the swap cache can also
-> be resident in the process, so it's not like the swap cache
-> is "eating into" the process' RSS ;)
->
+Even more subtle: see the comment in kernel/fork.c about keeping the list
+of mm's in order. What I _really_ want to do is something like
 
-So far so good... A little bit weird but not alarming per se.
+void swap_out(void)
+{
+	for (i = 0; i < (nr_mms >> priority); i++) {
+		struct list_head *p;
+		struct mm_struct *mm;
 
-> > For instance on my 192MB configuration, firing up the hogmem
-> > program which allocates let's say 170MB of memory and dirties it
-> > leads to 215MB of swap used.
-> 
-> So that's 170MB of swap space for hogmem and 45MB for
-> the other things in the system (daemons, X, ...).
->
+		spin_lock(&mmlist_lock);
+		p = initmm.mmlist.next;
+		if (p != &initmm.mmlist) {
+			struct mm_struct *mm = list_entry(p, struct mm_struct, mmlist);
 
-Yes, that's it. So it looks like all of my processes are on the
-swap. That can't be good. I mean, even Solaris (known to eat swap
-space like there's no tomorrow :)) would probably be more polite.
+			/* Move it to the back of the queue */
+			list_del(p);
+			__list_add(p, initmm.mmlist.prev, &initmm.mmlist);
+			atomic_inc(&mm->mm_users);
+			spin_unlock(&mmlist_lock);
 
-> Sounds pretty ok, except maybe for the fact that now
-> Linux allocates (not uses!) a lot more swap space then
-> before and some people may need to add some swap space
-> to their system ...
->
+			swap_out_mm(mm);
+			continue;
+		}
+		/* empty mm-list - shouldn't really happen except during bootup */ 
+		spin_unlock(&mmlist_lock);
+		break;
+	}
+}
 
-Yes, I would say really a lot more. Big diffeence.
+and just get rid of all the logic to try to "find the best mm". It's bogus
+anyway: we should get perfectly fair access patterns by just doing
+everything in round-robin, and each "swap_out_mm(mm)" would just try to
+walk some fixed percentage of the RSS size (say, something like
 
-Also, I don't see a diference between allocated and used swap space on
-the Linux. Could you elaborate on that?
+	count = (mm->rss >> 4)
 
-> 
-> Now if 2.4 has worse _performance_ than 2.2 due to one
-> reason or another, that I'd like to hear about ;)
-> 
+and be done with it.
 
-I'll get back to you later with more data. Time to boot 2.2. :)
--- 
-Zlatko
+Then, with something like the above, we just try to make sure that we scan
+the whole virtual memory space every once in a while. Make the "every once
+in a while" be some simple heuristic like "try to keep the active list to
+less than 50% of all memory". So "try_to_free_memory()" would just start
+off with something like
+
+	/*
+	 * Too many active pages? That implies that we don't have enough
+	 * of a working set for page_launder() to do a good job. Start by
+	 * walking the VM space..
+	 */
+	if ((nr_active_pages >> 1) > total_pages)
+		swap_out();
+
+	/*
+	 * This is where we actually free memory
+	 */
+	page_launder(..);
+
+and we'd be all done. (And that "max 50% of all pages should be active"
+number was taken out of my ass. AND the above will work really badly if
+there is no swap-space, so it needs tweaking - think of it not as a hard
+algorithm, but more as a "this is where I think we need to go").
+
+Advantage: it automatically does the right thing: if the reason for the
+memory pressure is that we have lots of pages mapped, it will scan the VM
+lists. If the reason is that we just have tons of pages cached, it won't
+even bother to age the page tables.
+
+Right now we have this cockamamy scheme to try to balance off the lists
+against each other, and then at fairly random points we'll get to
+"swap_out()" if we haven't found anything nice on the other lists. That's
+just not the way to get nice MM behaviour.
+
+I'll bet you $5 USD that the above approach will (a) work fairly and
+(b) give much smoother behavior with a much more understandable swap-out
+policy.
+
+Of course, I've been wrong before. But I'd like somebody to take a look.
+
+Anybody?
+
+		Linus
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
