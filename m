@@ -1,33 +1,55 @@
-Date: Sun, 20 May 2001 19:38:59 +0200 (CEST)
+Date: Sun, 20 May 2001 19:58:39 +0200 (CEST)
 From: Mike Galbraith <mikeg@wen-online.de>
 Subject: Re: [RFC][PATCH] Re: Linux 2.4.4-ac10
-In-Reply-To: <20010520173252.Q754@nightmaster.csn.tu-chemnitz.de>
-Message-ID: <Pine.LNX.4.33.0105201740570.1377-100000@mikeg.weiden.de>
+In-Reply-To: <8766ew16fn.fsf@atlas.iskon.hr>
+Message-ID: <Pine.LNX.4.33.0105201943510.1635-100000@mikeg.weiden.de>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ingo Oeser <ingo.oeser@informatik.tu-chemnitz.de>
-Cc: Rik van Riel <riel@conectiva.com.br>, "Stephen C. Tweedie" <sct@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Zlatko Calusic <zlatko.calusic@iskon.hr>
+Cc: "Stephen C. Tweedie" <sct@redhat.com>, Rik van Riel <riel@conectiva.com.br>, Ingo Oeser <ingo.oeser@informatik.tu-chemnitz.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 20 May 2001, Ingo Oeser wrote:
+On 20 May 2001, Zlatko Calusic wrote:
 
-> On Sun, May 20, 2001 at 05:29:49AM +0200, Mike Galbraith wrote:
-> > I'm not sure why that helps.  I didn't put it in as a trick or
-> > anything though.  I put it in because it didn't seem like a
-> > good idea to ever have more cleaned pages than free pages at a
-> > time when we're yammering for help.. so I did that and it helped.
+> Mike Galbraith <mikeg@wen-online.de> writes:
 >
-> The rationale for this is easy: free pages is wasted memory,
-> clean pages is hot, clean cache. The best state a cache can be in.
+> > Hi,
+> >
+> > On Fri, 18 May 2001, Stephen C. Tweedie wrote:
+> >
+> > > That's the main problem with static parameters.  The problem you are
+> > > trying to solve is fundamentally dynamic in most cases (which is also
+> > > why magic numbers tend to suck in the VM.)
+> >
+> > Magic numbers might be sucking some performance right now ;-)
+> >
+> [snip]
+>
+> I like your patch, it improves performance somewhat and makes things
+> more smooth and also code is simpler.
 
-Sure.  Under low load, cache is great.  Under stress, keeping it is
-not an option though ;-)  We're at or beyond capacity and moving at
-a high delda V (people yammering for help).  If you can recognize and
-kill the delta rapidly by dumping that which you are going to have
-to dump anyway, you save time getting back on your feet.  (my guess
-as to why dumping clean pages does measurably help in this case)
+Thanks for the feedback.  Positive is nice.. as is negative.
+
+> Anyway, 2.4.5-pre3 is quite debalanced and it has even broken some
+> things that were working properly before. For instance, swapoff now
+> deadlocks the machine (even with your patch applied).
+
+I haven't run into that.
+
+> Unfortunately, I have failed to pinpoint the exact problem, but I'm
+> confident that kernel goes in some kind of loop (99% system time, just
+> before deadlock). Anybody has some guidelines how to debug kernel if
+> you're running X?
+
+Serial console and kdb or kgdb if you have two machines.. or uml?
+
+> Also in all recent kernels, if the machine is swapping, swap cache
+> grows without limits and is hard to recycle, but then again that is
+> a known problem.
+
+This one bugs me.  I do not see that and can't understand why.
 
 	-Mike
 
