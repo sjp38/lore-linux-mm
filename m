@@ -1,30 +1,67 @@
-Date: Mon, 2 Oct 2000 14:17:55 -0300 (BRST)
+Date: Mon, 2 Oct 2000 15:01:10 -0300 (BRST)
 From: Rik van Riel <riel@conectiva.com.br>
-Subject: Re: [PATCH] fix for VM  test9-pre7
-In-Reply-To: <qwwu2avxkbx.fsf@sap.com>
-Message-ID: <Pine.LNX.4.21.0010021411400.22539-100000@duckman.distro.conectiva>
+Subject: TODO list for new VM  (oct 2000)
+Message-ID: <Pine.LNX.4.21.0010021447430.22539-100000@duckman.distro.conectiva>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Rohland <cr@sap.com>
-Cc: linux-kernel@vger.redhat.com, linux-mm@kvack.org, Linus Torvalds <torvalds@transmeta.com>
+To: linux-kernel@vger.redhat.com
+Cc: linux-mm@kvack.org, Matthew Dillon <dillon@apollo.backplane.com>, Linus Torvalds <torvalds@transmeta.com>
 List-ID: <linux-mm.kvack.org>
 
-On 2 Oct 2000, Christoph Rohland wrote:
+[MM TODO list, updated for october 2000]
 
-> the shm swapping still kills the machine(8GB mem) the machine
-> with somthing like '__alloc_pages failed order 0'.
-> 
-> When I do the same stresstest with mmaped file in ext2 the
-> machine runs fine but the processes do not do anything and
-> vmstat/ps lock up on these processes.
+---
+Here is the TODO list for the new VM. The only thing
+really needed for 2.4 is the OOM handler and a fix
+for the highmem deadlock.
 
-This may be a highmem bounce-buffer creation deadlock. Do
-your tests work if you use only 800 MB of RAM ?
+The page->mapping->flush() callback is really wanted
+by the journaling filesystem folks.
 
-Shared memory swapping on my 64 MB test machine seems to
-work fine (albeit a bit slow).
+The rest are mostly extra's that would be nice; these
+things won't be pushed for inclusion except if it turns
+out to be really trivial to implement, high performance
+on the cases they're supposed to affect and their influence
+is highly localised...
+
+(sorry folks, but for 2.4 I'll be really conservative)
+
+---> TODO list for the new VM <---
+
+for kernel 2.4, necessary:
+- out of memory handling
+	[integrate the OOM killer, 10 minutes work]
+- fix the highmem deadlock, where the swapper cannot create
+  low memory bounce buffers OR swap out low memory because
+  it has consumed all resources
+	[old bug, already reported with 2.4.0-test6, probably before]
+
+for kernel 2.4, really wanted:
+- page->mapping->flush() callback in page_launder(),
+  for easier integration with journaling filesystems
+  and maybe the network filesystems
+	[about 30 minutes of work on the VM side]
+
+for kernel 2.4, wanted:
+- maybe rebalance the swapper a bit ... we do page aging
+  now so maybe refill_inactive_scan() / shm_swap() and
+  swap_out() need to be rebalanced a bit
+
+for kernel 2.5:    (maybe available as patch for 2.4 ???)
+- physical->virtual reverse mapping, so we can do much
+  better page aging with less CPU usage spikes
+- better IO clustering for swap (and filesystem) IO
+- move all the global VM variables, lists, etc. into
+  the pgdat struct for better NUMA scalability
+- (maybe) some QoS things, as far as they are major
+  improvements with minor intrusion
+- thrashing control, maybe process suspension with some
+  forced swapping ?
+- include Ben LaHaise's code, which moves readahead
+  to the VMA level, this way we can do streaming swap
+  IO, complete with drop_behind()
 
 regards,
 
@@ -34,6 +71,7 @@ Rik
        -- Miguel de Icaza, UKUUG 2000
 
 http://www.conectiva.com/		http://www.surriel.com/
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
