@@ -1,45 +1,46 @@
-Received: from imperial.edgeglobal.com (imperial.edgeglobal.com [208.197.226.14])
-	by edgeglobal.com (8.9.1/8.9.1) with ESMTP id LAA21035
-	for <linux-mm@kvack.org>; Sun, 19 Sep 1999 11:07:14 -0400
-Date: Sun, 19 Sep 1999 11:13:05 -0400 (EDT)
-From: James Simmons <jsimmons@edgeglobal.com>
-Subject: Re: Need ammo against BSD Fud
-In-Reply-To: <Pine.LNX.4.10.9909191427000.22068-100000@mirkwood.dummy.home>
-Message-ID: <Pine.LNX.4.10.9909191106030.26343-100000@imperial.edgeglobal.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: by alna.lt
+	via sendmail from stdin
+	id <m11T3b6-0002ehC@read-only.alna.lt> (Debian Smail3.2.0.102)
+	for Linux-MM@kvack.org; Mon, 20 Sep 1999 15:35:12 +0200 (CEST)
+Date: Mon, 20 Sep 1999 15:35:12 +0200
+From: Kestutis Kupciunas <kesha@soften.ktu.lt>
+Subject: oom - out of memory
+Message-ID: <19990920153512.A20067@alna.lt>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Linux-MM@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 19 Sep 1999, Rik van Riel wrote:
+hello, linux memory managers,
 
-> On Fri, 17 Sep 1999, JF Martinez wrote:
-> 
-> > BSD people are writing tons of articles saying how superior BSD is
-> > respective to Linux.  There is a danger they will impregnate
-> > people with the idea: Linux=second rate system.
-> 
-> The BSD VM system _is_ better than the Linux one, but AFAIK
-> that's about the only part where we lag in such a way that
-> people can actually notice a difference.
-> 
-> I think it's time to stop the advocacy and start the design
-> of a better Linux VM system. The first part would be a real
-> zoned memory allocator. More in my next mail...
+thing i am eager to clarify is oom, out of memory problem,
+which doesn't work as it is supposed to (at least i think it
+doesn't do the trick). Having the system fully utilizing all the
+memory available on box and requesting more simply "hangs"
+the box. 
+Going into more details: i have noticed this behavior
+with all 2.[23].x kernels i have used (not sure about the previous series).
+usually problem arises when manipulating LARGE sets of large images
+under X (with gimp, imagemagick tools). as i open more images, naturally,
+memory/swap usage grows, and when it grows to the bounds, keyboard stops
+responding, screen stops repainting, hdd led's going crazy. all box
+services stop responding - i'm unable to connect from remote box. *RESET* :(
+this behavior isnt my box specific - i've vitnessed it happening on
+a bunch of different intels as well. The only chracteristics that apply
+to all those boxes are that all of them are x86.
+but according to the oom() function, the pid which is requesting
+memory when it's out, is beeing killed with a message.
+i didnt find any message in logs later...
+im not a 'kernel hacker', so maybe somebody could analyze the lifecycle
+of linux-mm memory allocating up to the bounds and over?
+or is there something i don't get right?
+sorry for the messy english
 
-We need to worry about making a better kernel. I don't know
-nothing about BSD VM svs linux  VM but I do know linux needs a more
-uniform  resource manager to make module writing easier. Having things
-like write_b  vary from platform to platform makes life a real nightmare
-for module writers. Also thier is a real lack of docs on how to make
-drivers portable to all platforms. Of course this will be tackled in
-2.5.x. 
 
-
-
-
+regards,
+ydum
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
