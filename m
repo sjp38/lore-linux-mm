@@ -1,42 +1,38 @@
-Date: Tue, 19 Feb 2002 16:41:55 -0300 (BRT)
-From: Rik van Riel <riel@conectiva.com.br>
+Date: Tue, 19 Feb 2002 11:54:52 -0800
+From: Larry McVoy <lm@bitmover.com>
 Subject: Re: [PATCH *] new struct page shrinkage
-In-Reply-To: <Pine.LNX.4.33.0202191116470.27806-100000@home.transmeta.com>
-Message-ID: <Pine.LNX.4.33L.0202191640230.7820-100000@imladris.surriel.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Message-ID: <20020219115452.S26350@work.bitmover.com>
+References: <20020219113217.P26350@work.bitmover.com> <Pine.LNX.4.33L.0202191634290.7820-100000@imladris.surriel.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.33L.0202191634290.7820-100000@imladris.surriel.com>; from riel@conectiva.com.br on Tue, Feb 19, 2002 at 04:35:26PM -0300
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@transmeta.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Rik van Riel <riel@conectiva.com.br>
+Cc: Larry McVoy <lm@bitmover.com>, Linus Torvalds <torvalds@transmeta.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Amy Graf <amy@bitmover.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 19 Feb 2002, Linus Torvalds wrote:
+On Tue, Feb 19, 2002 at 04:35:26PM -0300, Rik van Riel wrote:
+> On Tue, 19 Feb 2002, Larry McVoy wrote:
+> > This is really a problem for bkbits to solve if I understand it
+> > correctly. Rik wants to "name" his tree.  If we the bkbits admin
+> > interface have a "desc" command which changes the description listed
+> > on the web pages, then I think he'll be happy, right?
+> 
+> Indeed.  The problem was that I was getting too many trees
+> on linuxvm.bkbits.net and would only end up confusing people
+> what was what...
 
-> Btw, _please_ don't do things like changing the bitkeeper etc/config
-> file. Right now your very first changesets is something that I
-> definitely do not want in my tree.
+I've got Amy working on a change so you can do a 
 
-Since bk doesn't seem to let me remove the thing from the
-history (probably with some good reason), I guess you
-might as well import the following patch:
+admin shell>> desc [-rrepo] whatever you want
 
-http://surriel.com/patches/2.5/2.5.5-p2-struct_page5
-
-As a side effect, this patch should reduce the whole
-thing to one changeset, which isn't all bad since we
-don't need to have the history of Linux cluttered up
-with all the minor changes to this patch ;)
-
-regards,
-
-Rik
+and it will change the description to "whatever you want" on repo if specified,
+or all if not.
 -- 
-"Linux holds advantages over the single-vendor commercial OS"
-    -- Microsoft's "Competing with Linux" document
-
-http://www.surriel.com/		http://distro.conectiva.com/
-
+---
+Larry McVoy            	 lm at bitmover.com           http://www.bitmover.com/lm 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
