@@ -1,45 +1,225 @@
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Message-ID: <14619.16278.813629.967654@charged.uio.no>
-Date: Fri, 12 May 2000 01:17:42 +0200 (CEST)
-Subject: Re: PATCH: rewrite of invalidate_inode_pages
-In-Reply-To: <yttbt2chf46.fsf@vexeta.dc.fi.udc.es>
-References: <Pine.LNX.4.10.10005111445370.819-100000@penguin.transmeta.com>
-	<yttya5ghhtr.fsf@vexeta.dc.fi.udc.es>
-	<shsd7msemwu.fsf@charged.uio.no>
-	<yttbt2chf46.fsf@vexeta.dc.fi.udc.es>
-Reply-To: trond.myklebust@fys.uio.no
-From: Trond Myklebust <trond.myklebust@fys.uio.no>
+Date: Thu, 11 May 2000 19:38:58 -0400
+From: Simon Kirby <sim@stormix.com>
+Subject: Re: [PATCH] Recent VM fiasco - fixed
+Message-ID: <20000511193858.A402@stormix.com>
+References: <20000510215301.A322@stormix.com> <Pine.LNX.4.10.10005110019370.1355-100000@penguin.transmeta.com> <20000511071703.A4297@stormix.com>
+Mime-Version: 1.0
+Content-Type: multipart/mixed; boundary="M9NhX3UHpAaciwkO"
+In-Reply-To: <20000511071703.A4297@stormix.com>; from sim@stormix.com on Thu, May 11, 2000 at 07:17:04AM -0700
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Juan J. Quintela" <quintela@fi.udc.es>
-Cc: Linus Torvalds <torvalds@transmeta.com>, linux-mm@kvack.org, linux-kernel@vger.rutgers.edu
+To: Linus Torvalds <torvalds@transmeta.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.rutgers.edu
 List-ID: <linux-mm.kvack.org>
 
->>>>> " " == Juan J Quintela <quintela@fi.udc.es> writes:
+--M9NhX3UHpAaciwkO
+Content-Type: text/plain; charset=us-ascii
 
-     > Then you want only invalidate the non_locked pages: do you
+On Thu, May 11, 2000 at 07:17:04AM -0700, Simon Kirby wrote:
 
-That's right. This patch looks much more appropriate.
+> On Thu, May 11, 2000 at 12:23:19AM -0700, Linus Torvalds wrote:
+> ...
+> > which doesn't endup serializing the IO all the time?
+> 
+> A little bit better!  203 vmstat-line-seconds before, now 155
+> vmstat-line-seconds to complete.  It seems to be doing a better job like
+> this, but still doesn't write out in blocks like it used to:
 
-     > + while (count == ITERATIONS) {
-     > + spin_lock(&pagecache_lock);
-     > + spin_lock(&pagemap_lru_lock);
-     > + head = &inode->i_mapping->pages;
-     > + curr = head->next;
-     > + count = 0;
-     > +
-     > + while ((curr != head) && (count++ < ITERATIONS)) {
+Hrm!  pre7 release seems to be even better.  113 vmstat-line-seconds now
+(yes, I know this isn't a very scientific testing method :)).  Second try
+was 114 vmstat-line-seconds.  classzone-27 did it in 107, so that's not
+very far off!  Also, it swapped much less this time, and used less CPU. 
+vmstat output attached.
 
-Just one question: Isn't it better to do it all in 1 iteration through
-the loop rather than doing it in batches of 100 pages?
-You can argue that you're freeing up the spinlocks for the duration of
-the loop_and_test, but is that really going to make a huge difference
-to SMP performance?
+Hmm...I don't know if this means anything, but this kernel and pre7-9
+with the buffer.c modification seem to look at bit different than with
+classzone and with 2.2.  As the free memory is used and turned into cache
+as the uncompression first starts, it seemed to kind of sweep down not in
+a line but in a curve as it approached the minimum free, and during the
+beginning it was writing out in groups of 500 blocks but then went back
+to the continuous writing.  It seems odd that when it start it has no
+problem going through the first 50 MB in two or three seconds but then
+takes a long time to go through the next.  Maybe not, though.  Just
+noticing. :)
 
-Cheers,
-  Trond
+Simon-
+
+[  Stormix Technologies Inc.  ][  NetNation Communications Inc. ]
+[       sim@stormix.com       ][       sim@netnation.com        ]
+[ Opinions expressed are not necessarily those of my employers. ]
+
+--M9NhX3UHpAaciwkO
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: attachment; filename="vmstat-4.txt"
+
+   procs                      memory    swap          io     system         cpu
+ r  b  w   swpd   free   buff  cache  si  so    bi    bo   in    cs  us  sy  id
+ 0  0  0      0 102848   1252  10652   0   0    27     1   67    32   1   1  98
+ 0  0  0      0 102928   1252  10652   0   0     0     0  114    27   0   0 100
+ 0  0  0      0 102848   1252  10652   0   0     0     0  123    34   0   0  99
+ 0  0  0      0 102844   1252  10652   0   0     0     0  132    27   0   0 100
+ 0  0  0      0 102844   1252  10652   0   0     0     0  133    30   0   0 100
+ 0  0  0      0 102844   1252  10652   0   0     0     0  127    26   0   0 100
+ 1  0  0      0  96160   1268  15896   0   0   820     0  162   109   3   4  93
+ 1  0  0      0  65276   1308  45840   0   0  3763     0  353   313  23  13  64
+ 0  1  0      0  50064   1324  60432   0   0  1827  1003  352   250  11   6  83
+ 0  1  0      0  37832   1340  72264   0   0  1488  1500  591   193   8   5  87
+ 0  1  0      0  25928   1352  83784   0   0  1442  1500  608   185  10   5  85
+ 1  0  0      0  15760   1200  93968   0   0  1346  1000  621   165   8   7  85
+ 0  1  0      0  15044    252  96420   0   0  1231  1503  451   193  10   4  86
+ 1  0  0      0  13796    228  98736   0   0  1284  1000  578   205   7   7  86
+ 0  1  0      0  13676    228  98872   0   0   705  1802  778   157   3   4  93
+ 0  1  0      0  12536    232 100012   0   0  1522  1027  531   237   8   6  86
+ 0  1  0      0  12024    224 100500   0   0   642  2150  748   224   5   4  91
+ 0  1  0      0  11856    224 100696   0   0   704  1473  745   107   4   3  93
+ 0  1  0      0  10220    204 102488   0   0  1698   932  550   244   8   7  85
+ 1  0  0      0   9096    220 103804   0   0  1523   870  430   239   7   5  88
+ 0  1  0      0   8284    220 104548   0   0  1025  1348  596   161   5   6  89
+   procs                      memory    swap          io     system         cpu
+ r  b  w   swpd   free   buff  cache  si  so    bi    bo   in    cs  us  sy  id
+ 0  1  0      0   7940    204 104852   0   0  1183  1377  619   185   8   7  85
+ 0  1  0      0   7184    212 105604   0   0  1269  1157  496   212   9   5  86
+ 1  0  0      0   6052    220 106732   0   0  1059  1124  586   169   6   4  90
+ 1  0  0      0   4928    216 107932   0   0  1426  1361  607   224   8   7  85
+ 0  1  0      0   4464    220 108328   0   0  1218  1302  617   181   5   3  92
+ 0  1  0      0   4016    212 108820   0   0   865  1445  698   178   4   6  89
+ 0  1  0      0   3076    204 109800   0   0  1153  1156  545   174   8   4  88
+ 0  1  0      0   2572    220 110280   0   0  1651   897  531   240   9   6  85
+ 0  1  0      0   3008    220 109688   0   0  1762  1030  475   222  13   7  80
+ 0  1  0      0   2820    224 109848   0   0  1008  1092  554   132   5   6  89
+ 0  1  0      0   2448    232 110140   0   0  1250  1153  466   180   8   5  87
+ 0  1  0      0   2580    232 109884   0   0  1437  1235  595   183   8   5  87
+ 0  1  0      0   2884    228 109560   0   0  1590  1010  500   202  11   7  82
+ 0  1  0      0   2760    228 109672   0   0  1155  1540  609   174   5   6  88
+ 1  0  0      0   3072    232 109360   0   0  1089  1540  517   183   8   5  87
+ 0  1  0      0   2768    216 109692   0   0   415  1605  677   285   2   3  94
+ 0  1  0      0   2832    224 109704   0   0  1396  1155  547   188   7   5  88
+ 1  0  0      0   2344    228 110336   0   0  1693   961  600   238  10   7  83
+ 0  1  0      0   2684    240 109812   0   0  2038   868  500   266  14   9  77
+ 1  0  0      0   2436    228 110184   0   0  1057  1446  576   156   5   3  91
+ 0  1  0      0   2980    216 109556   0   0   416  1746  711   136   3   3  93
+   procs                      memory    swap          io     system         cpu
+ r  b  w   swpd   free   buff  cache  si  so    bi    bo   in    cs  us  sy  id
+ 0  1  0      0   2564    224 109976   0   0   946  1108  624   173   5   6  89
+ 0  1  0      0   2432    228 110180   0   0  1762   963  529   243  10  10  80
+ 0  1  0      0   2336    236 110248   0   0  2097  1028  586   282  13   5  82
+ 0  1  1      0   2812    220 109572   0   0  1250  1831  488   154   7   4  88
+ 0  1  0      0   2592    212 109828   0   0   412  1539  763   361   2   4  93
+ 0  1  1      0   2868    232 109560   0   0  1689   389  492   221  11   3  86
+ 0  1  0      0   2564    232 109860   0   0  1282  1199  576   151   8   5  87
+ 1  0  0      0   2492    236 109928   0   0  1153  1281  565   163   6   5  89
+ 0  1  0      0   2828    224 109564   0   0  1456  1704  472   362   7   9  84
+ 0  1  0      0   2796    220 109600   0   0   512  1156  754   280   5   1  94
+ 1  0  0      0   2680    228 109784   0   0   994  1251  575   165   5   7  87
+ 0  1  0      0   2580    236 109836   0   0  1634  1122  505   221  11   6  83
+ 1  0  0      0   2256    232 110236   0   0  2097   739  434   229  18   6  76
+ 0  1  0      0   2840    212 109612   0   0  1213  1319  540   145   9   5  86
+ 0  1  0      0   2564    224 109880   0   0  1046  1378  592   156   4   4  92
+ 0  1  1      0   2816    236 109568   0   0   964  1281  580   149   5   5  89
+ 0  1  0      0   2564    236 109800   0   0  1153  1205  616   176   6   7  87
+ 0  1  0      0   2500    240 109804   0   0  1712   996  456   200  13   8  79
+ 0  1  0      0   2556    228 109796   0   0  1378  1267  515   150  10   6  83
+ 0  1  0      0   2564    224 109840   0   0   961  1831  522   294   3   7  90
+ 0  1  0      0   2236    224 110196   0   0   417  1249  741   245   3   1  96
+   procs                      memory    swap          io     system         cpu
+ r  b  w   swpd   free   buff  cache  si  so    bi    bo   in    cs  us  sy  id
+ 0  1  0      0   2692    224 109828   0   0  1213  1252  602   188   8   6  86
+ 0  1  0      0   2580    228 109996   0   0  1751   993  511   199  10   8  82
+ 0  1  0      0   2576    232 110032   0   0  1392  1094  570   181   9   5  86
+ 1  0  0      0   2604    232 110016   0   0  1731  1121  539   221  10   9  81
+ 0  1  1      0   2796    236 109584   0   0  1411  1124  576   175  11   4  85
+ 1  0  0      0   2924    236 109368   0   0  1169  1476  409   146   9   4  87
+ 0  1  0      0   2564    236 109728   0   0  1185  1092  570   162   8   6  86
+ 0  1  0      0   2568    220 109752   0   0  1281  1569  647   185   8   8  84
+ 0  1  0      0   2820    228 109496   0   0   721  1381  558   112   5   3  91
+ 0  1  0      0   2328    228 110020   0   0   706  1699  617   150   2   3  95
+ 1  0  0      0   2884    208 109680   0   0   428  1188  691   218   3   5  92
+ 0  1  1      0   3072    192 109720   0   0   738  2171  582   133   5   6  89
+ 0  1  0      0   2948    188 110484   0   0   769   941  709   176   4   5  90
+ 1  0  0      0   2264    220 110992   0   0  2613   261  382   293  16  11  72
+ 0  1  0     36   2908    224 110112   0  36  1585  1023  441   216   9   9  82
+ 0  1  0     36   2832    224 110092   0   0  1090  1716  552   192   6   5  89
+ 1  0  0     36   2172    220 109876   0   0   608  1025  699   187   2   4  94
+ 1  0  1     36   2896    220 110052   0   0  2291   708  492   285  13   8  79
+ 1  0  0     36   3068    228 109684   0   0  1506  1414  470   237   9   8  82
+ 0  2  0     36   2764    220 110032   0   0   446  1797  725   303   4   3  93
+ 1  0  0     36   2260    216 110620   0   0   929   769  615   128   8   4  88
+   procs                      memory    swap          io     system         cpu
+ r  b  w   swpd   free   buff  cache  si  so    bi    bo   in    cs  us  sy  id
+ 0  1  0     36   2316    232 110464   0   0  1715  1089  545   207   7   7  86
+ 0  1  0     36   2752    224 110036   0   0  1346  1061  523   234   6   6  88
+ 0  1  0     36   2584    224 110232   0   0  1296  1349  591   226   9   5  86
+ 0  1  1     36   3080    216 109756   0   0   689  1988  612   212   3   6  91
+ 0  1  0     36   2684    212 110204   0   0  1411   513  592   228   8   5  87
+ 0  1  0     36   3064    224 109792   0   0  1586  1252  510   244  11   8  81
+ 0  1  0     36   2900    232 109800   0   0  1858   978  533   213  11   9  80
+ 0  1  0     36   2804    228 109800   0   0  1085  1256  495   202   6   7  87
+ 0  1  0     36   2564    228 110040   0   0  1140  1186  534   136   7   5  87
+ 0  1  0     36   2820    240 109632   0   0  1539  1252  583   184   9   5  86
+ 0  1  0     36   2692    236 109772   0   0  1121  1026  567   165  11   3  86
+ 0  1  0     36   2584    224 109912   0   0   911  1381  463   255   6   5  89
+ 1  0  0     36   2424    220 110240   0   0   544  1026  723   130   3   3  94
+ 0  1  0     36   2560    216 110036   0   0  1507  1445  605   170   7  10  83
+ 0  1  0     36   2196    232 109548   0   0  1426  1378  572   191  10   5  85
+ 0  1  0     36   2744    236 109828   0   0  2147  1110  537   252  13  12  75
+ 0  1  0     72   2836    220 109764   0  36   739  1181  563   116   4   3  92
+ 0  1  0     72   2228    232 110364   0   0  1071  1025  592   164   9   4  87
+ 0  1  0     72   2632    248 109956   0   0  1221  1186  526   178   9   4  87
+ 0  1  0     72   2824    236 109784   0   0  1121  1155  579   156   7   5  88
+ 0  1  0     72   2572    236 110012   0   0  1264  1122  532   181   8   6  86
+   procs                      memory    swap          io     system         cpu
+ r  b  w   swpd   free   buff  cache  si  so    bi    bo   in    cs  us  sy  id
+ 0  1  0     72   2984    224 109588   0   0  1442  1116  403   154   9   4  86
+ 0  1  0    108   3020    216 109620   0  36  1123  1498  535   134   6   7  87
+ 0  1  0    108   2580    216 110072   0   0   545   803  454    90   3   2  94
+ 0  1  0    108   2568    228 110088   0   0  1101  1314  505   162   6   6  88
+ 0  1  0    108   2732    232 109920   0   0  1223  1152  557   185   7   3  89
+ 0  1  0    108   2820    228 109868   0   0  1153  1221  592   168   7   4  89
+ 0  1  0    108   2564    240 110128   0   0  1426   901  503   254   8   5  86
+ 0  1  0    108   2760    236 109948   0   0  1121  1090  536   141   6   6  88
+ 0  1  0    108   2628    232 110020   0   0  1520  1347  579   200  13   5  82
+ 0  1  0    108   2772    236 109868   0   0  1122  1187  557   157   8   5  87
+ 0  1  0    108   2568    236 110072   0   0  1058  1219  573   178   5   6  89
+ 1  0  0    108   2812    228 109900   0   0  1121  1412  656   168   7   3  90
+ 0  0  0    108   3804    248 110140   0   0  1094   609  397   166   4   4  91
+ 0  0  0    108   3804    248 110140   0   0     0     0  105    29   0   0 100
+ 0  0  0    108   3804    248 110140   0   0     0     0  103    24   0   0 100
+ 0  0  0    108   3804    248 110140   0   0     0     0  102    26   0   0 100
+ 0  0  0    108   3804    248 110140   0   0     0     0  103    30   0   0  99
+ 0  0  0    108   3804    248 110140   0   0     0     0  101    29   0   0 100
+ 0  0  0    108   3804    248 110140   0   0     0     0  101    25   0   0 100
+ 0  0  0    108   3804    248 110140   0   0     0     0  102    24   0   0 100
+ 0  0  0    108   3804    248 110140   0   0     0     0  101    26   0   0 100
+   procs                      memory    swap          io     system         cpu
+ r  b  w   swpd   free   buff  cache  si  so    bi    bo   in    cs  us  sy  id
+ 0  0  0    108   3804    248 110140   0   0     0     0  102    29   0   0 100
+ 0  0  0    108   3804    248 110140   0   0     0     0  103    31   0   0 100
+ 0  0  0    108   3804    248 110140   0   0     0     0  101    24   0   0 100
+ 0  0  0    108   3804    248 110140   0   0     0     0  103    28   0   0 100
+ 0  0  0    108   3804    248 110140   0   0     0     0  103    30   0   0 100
+ 0  0  0    108   3804    248 110140   0   0     0     0  101    27   0   0 100
+ 0  0  0    108   3804    248 110140   0   0     0     0  103    30   0   0 100
+ 0  0  0    108   3764    264 110164   0   0    20     0  112    43   0   0  99
+ 0  0  0    108   3764    264 110164   0   0     0     0  101    24   0   0 100
+ 0  0  0    108   3764    264 110164   0   0     0     0  101    30   0   0 100
+ 0  0  0    108   3764    264 110164   0   0     0     0  102    24   0   0 100
+ 0  0  0    108   3764    264 110164   0   0     0     2  105    32   0   0 100
+ 0  0  0    108   3764    264 110164   0   0     0     0  101    23   0   0 100
+ 0  0  0    108   3764    264 110164   0   0     0     0  101    26   0   0 100
+ 0  0  0    108   3760    264 110168   0   0     0     0  106    32   0   0 100
+ 0  0  0    108   3760    264 110168   0   0     0     0  103    27   0   0 100
+ 0  0  0    108   3760    264 110168   0   0     0     0  101    29   0   0 100
+ 0  0  0    108   3760    264 110168   0   0     0     0  101    26   0   0 100
+ 0  0  0    108   3760    264 110168   0   0     0     0  102    23   0   0 100
+ 0  0  0    108   3760    264 110168   0   0     0     0  103    31   0   0 100
+ 0  0  0    108   3760    264 110168   0   0     0     0  101    26   0   0 100
+   procs                      memory    swap          io     system         cpu
+ r  b  w   swpd   free   buff  cache  si  so    bi    bo   in    cs  us  sy  id
+ 0  0  0    108   3760    264 110168   0   0     0  4834  313   332   0   1  99
+ 0  0  0    108   3760    264 110168   0   0     0     0  211    26   0   0 100
+ 0  0  0    108   3760    264 110168   0   0     0     0  103    27   0   0 100
+
+--M9NhX3UHpAaciwkO--
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
