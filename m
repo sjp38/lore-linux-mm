@@ -1,47 +1,78 @@
-Subject: Re: 2.5.74-mm2 + nvidia (and others)
-From: Christian Axelsson <smiler@lanil.mine.nu>
-Reply-To: smiler@lanil.mine.nu
-In-Reply-To: <200307071734.01575.schlicht@uni-mannheim.de>
-References: <1057590519.12447.6.camel@sm-wks1.lan.irkk.nu>
-	 <200307071734.01575.schlicht@uni-mannheim.de>
-Content-Type: multipart/signed; micalg=pgp-sha1; protocol="application/pgp-signature"; boundary="=-holf9TlXk8wASZ0OCRgY"
-Message-Id: <1057597773.6857.1.camel@sm-wks1.lan.irkk.nu>
+Message-Id: <5.2.1.1.2.20030707170502.025bd888@pop.gmx.net>
+Date: Mon, 07 Jul 2003 19:15:25 +0200
+From: Mike Galbraith <efault@gmx.de>
+Subject: Re: 2.5.74-mm1
+In-Reply-To: <Pine.LNX.4.55.0307070745250.4428@bigblue.dev.mcafeelabs.co
+ m>
+References: <Pine.LNX.4.53.0307071408440.5007@skynet>
+ <20030703023714.55d13934.akpm@osdl.org>
+ <200307060414.34827.phillips@arcor.de>
+ <Pine.LNX.4.53.0307071042470.743@skynet>
+ <200307071424.06393.phillips@arcor.de>
+ <Pine.LNX.4.53.0307071408440.5007@skynet>
 Mime-Version: 1.0
-Date: 07 Jul 2003 19:09:33 +0200
+Content-Type: text/plain; charset="us-ascii"; format=flowed
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org
+To: Davide Libenzi <davidel@xmailserver.org>
+Cc: Mel Gorman <mel@csn.ul.ie>, Daniel Phillips <phillips@arcor.de>, Jamie Lokier <jamie@shareable.org>, Andrew Morton <akpm@osdl.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
---=-holf9TlXk8wASZ0OCRgY
-Content-Type: text/plain
-Content-Transfer-Encoding: quoted-printable
+At 07:47 AM 7/7/2003 -0700, Davide Libenzi wrote:
+>On Mon, 7 Jul 2003, Mel Gorman wrote:
+>
+> > On Mon, 7 Jul 2003, Daniel Phillips wrote:
+> >
+> > > And set up distros to grant it by default.  Yes.
+> > >
+> > > The problem I see is that it lets user space priorities invade the 
+> range of
+> > > priorities used by root processes.
+> >
+> > That is the main drawback all right but it could be addressed by having a
+> > CAP_SYS_USERNICE capability which allows a user to renice only their own
+> > processes to a highest priority of -5, or some other reasonable value
+> > that wouldn't interfere with root processes. This capability would only be
+> > for applications like music players which need to give hints to the
+> > scheduler.
+>
+>The scheduler has to work w/out external input, period. If it doesn't we
+>have to fix it and not to force the user to submit external hints.
 
-On Mon, 2003-07-07 at 17:33, Thomas Schlichter wrote:
-> The problem is the highpmd patch in -mm2. There are two options:
-> 1. Revert the highpmd patch.
-> 2. Apply the attached patch to the NVIDIA kernel module sources.
+What about internal hints?
 
-Thanks alot, applying the patch you supplied cured the problem.
+Fishing expedition:
 
---=20
-Christian Axelsson
-smiler@lanil.mine.nu
+I'm tinkering with Linus' backboost trick, and what I'd like to try is 
+filtering out things which are doing I/O to graphics card, sound card, 
+mouse, kdb... whatnot with an in_interactive_interrupt().  Before I go off 
+tilting at that windmill, do you (or anyone) know of any reason why that 
+would be either stupid or impossible?
 
---=-holf9TlXk8wASZ0OCRgY
-Content-Type: application/pgp-signature; name=signature.asc
-Content-Description: This is a digitally signed message part
+Right now, I've got backboost max cpu consumption restricted, max priority 
+restricted /proc enabled and /proc tweakable, but I need to further 
+restrict/focus it somehow.  Any ideas wrt taming/focusing the little 
+beastie would be appreciated.  I'd really like to get it tame enough to be 
+reconsidered...
 
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.2.2 (GNU/Linux)
+I like backboost for the desktop quite a bit. Take xmms for instance, fire 
+it up and turn on it's cpu-hog-and-a-half gl visualization.  The sound 
+thread runs at high priority due to low cpu usage.  The gl thread otoh is 
+down in the mud, and is instantly disturbed by background tasks who 
+unreasonably ;) want their fair share of cpu.  With backboost, the gl 
+thread is boosted above background stuff where he belongs, the whole point 
+of interactivity being that it's not only ok to be grossly unfair about 
+things a human being is connecting to, it's a goodthing(tm)... worker can 
+stare mindlessly at glitz and listen to skip free music while his 
+employer's code gets moldy instead of being compiled. ;-)
 
-iD8DBQA/CalNyqbmAWw8VdkRAoVnAJ9MS76dMjIi65suY8htmHFfdQUCDwCg3Hp9
-fg/uAwzD4lY7PkEVEUOrdDg=
-=6DVm
------END PGP SIGNATURE-----
+Neat thing about backboost is that when you cover the gl thread, it 
+automagically loses boost, so when unreasonable boss walks in and you cover 
+it up, the compile speeds back up.  The glitz thread is only interactive if 
+you can see it, and does in fact only receive boost when you can see 
+it.  That's pretty cool.
 
---=-holf9TlXk8wASZ0OCRgY--
+         -Mike 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
