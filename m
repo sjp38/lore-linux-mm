@@ -1,142 +1,81 @@
-Date: Thu, 30 Mar 2000 18:50:13 +0200 (CEST)
-From: Andrea Arcangeli <andrea@suse.de>
+Date: Thu, 30 Mar 2000 14:14:53 -0300 (BRST)
+From: Rik van Riel <riel@conectiva.com.br>
+Reply-To: riel@nl.linux.org
 Subject: Re: shrink_mmap SMP race fix
 In-Reply-To: <Pine.LNX.4.21.0003301639540.368-100000@alpha.random>
-Message-ID: <Pine.LNX.4.21.0003301835020.494-100000@alpha.random>
+Message-ID: <Pine.LNX.4.21.0003301406530.1104-100000@duckman.conectiva>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@transmeta.com>
-Cc: linux-kernel@vger.rutgers.edu, linux-mm@kvack.org, MOLNAR Ingo <mingo@chiara.csoma.elte.hu>
+To: Andrea Arcangeli <andrea@suse.de>
+Cc: Linus Torvalds <torvalds@transmeta.com>, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org, MOLNAR Ingo <mingo@chiara.csoma.elte.hu>
 List-ID: <linux-mm.kvack.org>
 
-I also did two incremental locking change (for performance). The old code
-was doing:
+On Thu, 30 Mar 2000, Andrea Arcangeli wrote:
 
-		if (TryLockPage(page))
-			goto dispose_continue;
+> This third patch removes a path that makes no sense to me. If
+> you have an explanation for it it's very welcome. The page aging
+> happens very earlier not before such place.
 
-		/* Release the pagemap_lru lock even if the page is not yet
-		   queued in any lru queue since we have just locked down
-		   the page so nobody else may SMP race with us running
-		   a lru_cache_del() (lru_cache_del() always run with the
-		   page locked down ;). */
-		spin_unlock(&pagemap_lru_lock);
+Sorry, but if page aging happens elsewhere, why do we go through
+the trouble of maintaining an LRU list in the first place?
 
-		/* avoid unscalable SMP locking */
-		if (!page->buffers && page_count(page) > 1)
-			goto unlock_noput_continue;
+The answer is that the one-bit "page aging" (NRU replacement) of
+pages in the page tables simply isn't enough. I agree that the
+current 'magic number' approach isn't ideal and I welcome you to
+come up with something better.
 
-We was doing the guess check to avoid unscalable locking in the tight loop
-too late (after having just played with the pagemap_lru_lock and the
-per-page lock). I moved the unscalable locking change inside the
-pagemap_lru_lock critical section so that now no lock get touched in the
-tight loop (except for the reference bit).
+> I don't see the connection between the priority and a fixed
+> level of lru-cache. If something the higher is the priority the
+> harder we should shrink the cache (that's the opposite that the
+> patch achieves). Usually priority is always zero and the below
+> check has no effect.
 
-Then this following section of code was doing:
+The idea of this approach is that we need the LRU cache to do some
+aging on pages we're about to free. We absolutely need this because
+otherwise the system will be thrashing much earlier than needed.
+Good page replacement simply is a must.
 
-		/* Take the pagecache_lock spinlock held to avoid
-		   other tasks to notice the page while we are looking at its
-		   page count. If it's a pagecache-page we'll free it
-		   in one atomic transaction after checking its page count. */
-		spin_lock(&pagecache_lock);
+Since priority starts at 6 and only goes down in absolute
+emergencies, this approach allows us to have a minimum number
+of pages we age we can do better page aging when the system
+isn't under too much stress.
 
-		/* avoid freeing the page while it's locked */
-		get_page(page);
+The only big problem is that we seem to keep pages in the
+LRU cache that are also mapped in processes. This makes us
+do a lot of unneeded work on pages (though I hope I've
+overlooked something and the LRU cache only contains unmapped
+pages).
 
-		/* Is it a buffer page? */
-		if (page->buffers) {
-			spin_unlock(&pagecache_lock);
-			if (!try_to_free_buffers(page))
-				goto unlock_continue;
-			/* page was locked, inode can't go away under us */
-			if (!page->mapping) {
-				atomic_dec(&buffermem_pages);
-				goto made_buffer_progress;
-			}
-			spin_lock(&pagecache_lock);
-		}
+> I have algorithms completly autotuning (they happened to be in
+> the 2.2.x-andrea patches somewhere in ftp.suse.com, there were
+> many benchmarks also posted on l-k at that time), they don't add
+> anything fixed like the above and I strongly believe the
+> responsiveness under swap will be amazing as soon as I'll port
+> them to the new kernels.
 
-and as far I can tell we can instead move the spin_lock(&pagecache_lock)
-_after_ the page->buffers path and to increase the per-page counter
-(get_page(page)) without any lock acquired (removing a not necessary
-lock/unlock in the buffer freeing path). We are allowed to check the 
-page->buffer with only the per-page lock held (nobody can drop
-page->buffers from under us if we hold the lock on the page).
+That would be great!
 
-This is the incremental cleanup:
+I also have some ideas about how to make the LRU cache better,
+but the changes needed to get that right are IMHO a bit too big
+to do now that we've started on 2.4 pre...
 
---- 2.3.99-pre3aa1-alpha/mm/filemap.c.~1~	Thu Mar 30 16:10:38 2000
-+++ 2.3.99-pre3aa1-alpha/mm/filemap.c	Thu Mar 30 18:24:29 2000
-@@ -250,6 +250,11 @@
- 		count--;
- 
- 		dispose = &young;
-+
-+		/* avoid unscalable SMP locking */
-+		if (!page->buffers && page_count(page) > 1)
-+			goto dispose_continue;
-+
- 		if (TryLockPage(page))
- 			goto dispose_continue;
- 
-@@ -260,22 +265,11 @@
- 		   page locked down ;). */
- 		spin_unlock(&pagemap_lru_lock);
- 
--		/* avoid unscalable SMP locking */
--		if (!page->buffers && page_count(page) > 1)
--			goto unlock_noput_continue;
--
--		/* Take the pagecache_lock spinlock held to avoid
--		   other tasks to notice the page while we are looking at its
--		   page count. If it's a pagecache-page we'll free it
--		   in one atomic transaction after checking its page count. */
--		spin_lock(&pagecache_lock);
--
- 		/* avoid freeing the page while it's locked */
- 		get_page(page);
- 
- 		/* Is it a buffer page? */
- 		if (page->buffers) {
--			spin_unlock(&pagecache_lock);
- 			if (!try_to_free_buffers(page))
- 				goto unlock_continue;
- 			/* page was locked, inode can't go away under us */
-@@ -283,9 +277,14 @@
- 				atomic_dec(&buffermem_pages);
- 				goto made_buffer_progress;
- 			}
--			spin_lock(&pagecache_lock);
- 		}
- 
-+		/* Take the pagecache_lock spinlock held to avoid
-+		   other tasks to notice the page while we are looking at its
-+		   page count. If it's a pagecache-page we'll free it
-+		   in one atomic transaction after checking its page count. */
-+		spin_lock(&pagecache_lock);
-+
- 		/*
- 		 * We can't free pages unless there's just one user
- 		 * (count == 2 because we added one ourselves above).
-@@ -326,12 +325,6 @@
- 		spin_lock(&pagemap_lru_lock);
- 		UnlockPage(page);
- 		put_page(page);
--		list_add(page_lru, dispose);
--		continue;
--
--unlock_noput_continue:
--		spin_lock(&pagemap_lru_lock);
--		UnlockPage(page);
- 		list_add(page_lru, dispose);
- 		continue;
- 
+(my idea is very much like the 'free' list on BSD systems, where
+ we reclaim pages in FIFO order from the list, but give applications
+ the chance to reclaim them while they're on the list. The size of
+ the list is varied depending on the ratio between freed pages and
+ reclaimed pages)
 
-It's running without problems here so far.
+kind regards,
 
-Andrea
+Rik
+--
+The Internet is not a network of computers. It is a network
+of people. That is its real strength.
+
+Wanna talk about the kernel?  irc.openprojects.net / #kernelnewbies
+http://www.conectiva.com/		http://www.surriel.com/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
