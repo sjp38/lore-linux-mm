@@ -1,51 +1,41 @@
-Date: Fri, 10 Dec 2004 16:57:45 -0800
-From: Andrew Morton <akpm@osdl.org>
-Subject: Re: page fault scalability patch V12 [0/7]: Overview and
- performance tests
-Message-Id: <20041210165745.38c1930e.akpm@osdl.org>
-In-Reply-To: <Pine.LNX.4.44.0412110036330.807-100000@localhost.localdomain>
-References: <20041210161835.5b0b0828.akpm@osdl.org>
-	<Pine.LNX.4.44.0412110036330.807-100000@localhost.localdomain>
+Date: Fri, 10 Dec 2004 22:03:12 -0800
+From: William Lee Irwin III <wli@holomorphy.com>
+Subject: Re: pfault V12 : correction to tasklist rss
+Message-ID: <20041211060312.GV2714@holomorphy.com>
+References: <Pine.LNX.4.58.0412101150490.9169@schroedinger.engr.sgi.com> <Pine.LNX.4.44.0412102054190.32422-100000@localhost.localdomain> <20041210133859.2443a856.akpm@osdl.org>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20041210133859.2443a856.akpm@osdl.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: clameter@sgi.com, torvalds@osdl.org, benh@kernel.crashing.org, nickpiggin@yahoo.com.au, linux-mm@kvack.org, linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@osdl.org>
+Cc: Hugh Dickins <hugh@veritas.com>, clameter@sgi.com, torvalds@osdl.org, benh@kernel.crashing.org, nickpiggin@yahoo.com.au, linux-mm@kvack.org, linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
 Hugh Dickins <hugh@veritas.com> wrote:
->
-> On Fri, 10 Dec 2004, Andrew Morton wrote:
-> > Hugh Dickins <hugh@veritas.com> wrote:
-> > > But why is do_anonymous_page adding anything to lru_cache_add_active,
-> > > when its other callers leave it at that?  What's special about the
-> > > do_anonymous_page case?
-> > 
-> > do_swap_page() is effectively doing the same as do_anonymous_page(). 
-> > do_wp_page() and do_no_page() appear to be errant.
-> 
-> Demur.  do_swap_page has to mark_page_accessed because the page from
-> the swap cache is already on the LRU, and for who knows how long.
+>>> We have no  real way of establishing the ownership of shared pages
+>>> anyways. Its counted when allocated. But the page may live on afterwards
+>>> in another process and then not be accounted for although its only user is
+>>> the new process.
 
-Well.  Some of the time.  If the page was just read from swap, it's known
-to be on the active list.
+On Fri, Dec 10, 2004 at 01:38:59PM -0800, Andrew Morton wrote:
+> We did lose some accounting accuracy when the pagetable walk and the big
+> tasklist walks were removed.  Bill would probably have more details.  Given
+> that the code as it stood was a complete showstopper, the tradeoff seemed
+> reasonable.
 
-> The others (and count in fs/exec.c's install_arg_page) are dealing
-> with a freshly allocated page they are putting onto the active LRU.
-> 
-> My inclination would be simply to remove the mark_page_accessed
-> from do_anonymous_page; but I have no numbers to back that hunch.
-> 
+There are several issues, not listed in order of importance here:
+(1) Workload monitoring with high multiprogramming levels was infeasible.
+(2) The long address space walks interfered with mmap() and page
+	faults in the monitored processes, disturbing cluster membership
+	and exceeding maximum response times in monitored workloads.
+(3) There's a general long-running ongoing effort to take on various
+	places tasklist_lock is abused one-by-one to incrementally
+	resolve or otherwise mitigate the rwlock starvation issues.
 
-With the current implementation of page_referenced() the
-software-referenced bit doesn't matter anyway, as long as the pte's
-referenced bit got set.  So as long as the thing is on the active list, we
-can simply remove the mark_page_accessed() call.
 
-Except one day the VM might get smarter about pages which are both
-software-referenced and pte-referenced.
+-- wli
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
