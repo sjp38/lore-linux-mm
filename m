@@ -1,57 +1,37 @@
-Date: Thu, 17 May 2001 16:19:35 -0300 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
-Subject: Re: SMP/highmem problem
-In-Reply-To: <20010517203933.F6360@vestdata.no>
-Message-ID: <Pine.LNX.4.21.0105171612030.5531-100000@imladris.rielhome.conectiva>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=X-UNKNOWN
-Content-Transfer-Encoding: 8BIT
+Date: Thu, 17 May 2001 18:39:31 +0100
+From: "Stephen C. Tweedie" <sct@redhat.com>
+Subject: Re: Running out of vmalloc space
+Message-ID: <20010517183931.V2617@redhat.com>
+References: <3B04069C.49787EC2@fc.hp.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <3B04069C.49787EC2@fc.hp.com>; from dp@fc.hp.com on Thu, May 17, 2001 at 11:13:00AM -0600
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: =?iso-8859-1?Q?Ragnar_Kj=F8rstad?= <kernel@ragnark.vestdata.no>
-Cc: linux-mm@kvack.org, tlan@stud.ntnu.no
+To: David Pinedo <dp@fc.hp.com>
+Cc: linux-mm@kvack.org, Stephen Tweedie <sct@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 17 May 2001, [iso-8859-1] Ragnar Kjorstad wrote:
+Hi,
 
-> I've run into a performance issue.
+On Thu, May 17, 2001 at 11:13:00AM -0600, David Pinedo wrote:
 
-> I use a single process, bonnie++, that creates 16 1 GB files.
-> However, after a while, the machine gets really unresponsive
-> and the load gets really high. According to top, all CPU power
-> is spent in the kernel, mainly on kswapd, bdflush and kupdated.
+> On Linux, HP supports up to two FX10 boards in the system.  In order to
+> use two FX10 boards, the kernel driver needs to map the frame buffer and
+> control space for both of the boards.  That's a lot of address space,
+> 2*(16M+32M)=96M to be exact.  Using this much virtual address space on a
+> stock RH7.1 smp kernel on a system with 0.5G of memory didn't seem to
+> be a problem.  However, a colleague reported a problem to me on his
+> system with 1.0G of memory -- the X server was exiting with an error
+> message indicating that it couldn't map both devices.
 
-This is at least partly due to the following things:
+You obviously want to be able to map this memory into the X server's
+virtual address space, but do you really need to map it into the
+kernel's VA too?  
 
-1) balance_dirty_state() tests for a condition bdflush
-   may not be able to resolve
-2) nr_free_buffer_pages() counts free highmem pages, which
-   cannot be allocated to buffer memory, as available; this
-   means that bonnie++ never gets to slow down to disk speed
-   and fills up all of low memory
-3) because of 2) kswapd and bdflush are trying to write the
-   data out to disk like crazy, but can never keep up with
-   bonnie++
-4) bonnie++ tries to allocate new pages all the time, but
-   cannot succeed because all of low memory is full of dirty
-   page cache data .. this means it loops in __alloc_pages()
-   and continuously wakes up kswapd and bdflush
-
-A few fixes for this situation have gone into 2.4.5-pre2 and
-2.4.5-pre3. If you have the time, could you test if this problem
-has gotten less or has gone away in the latest kernels ?
-
-thanks,
-
-Rik
---
-Virtual memory is like a game you can't win;
-However, without VM there's truly nothing to lose...
-
-http://www.surriel.com/		http://distro.conectiva.com/
-
-Send all your spam to aardvark@nl.linux.org (spam digging piggy)
-
+Cheers,
+ Stephen
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
