@@ -1,66 +1,51 @@
-Message-ID: <39C890BC.7070308@SANgate.com>
-Date: Wed, 20 Sep 2000 13:26:04 +0300
-From: BenHanokh Gabriel <gabriel@SANgate.com>
-MIME-Version: 1.0
+Date: Wed, 20 Sep 2000 12:20:07 +0100
+From: "Stephen C. Tweedie" <sct@redhat.com>
 Subject: Re: how to translate virtual memory addresss into physical address ?
-References: <39C86AF6.1040200@SANgate.com> <20000920105308.K4608@redhat.com>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+Message-ID: <20000920122007.M4608@redhat.com>
+References: <39C86AF6.1040200@SANgate.com> <20000920105308.K4608@redhat.com> <39C890BC.7070308@SANgate.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <39C890BC.7070308@SANgate.com>; from gabriel@SANgate.com on Wed, Sep 20, 2000 at 01:26:04PM +0300
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Stephen C. Tweedie" <sct@redhat.com>
-Cc: Linux-MM mailing list <linux-mm@kvack.org>
+To: BenHanokh Gabriel <gabriel@SANgate.com>
+Cc: "Stephen C. Tweedie" <sct@redhat.com>, Linux-MM mailing list <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Stephen C. Tweedie wrote:
+Hi,
 
-> Hi,
-> 
-> On Wed, Sep 20, 2000 at 10:44:54AM +0300, BenHanokh Gabriel wrote:
-> > 
-> > how do i get in a kernel module the physical address from a virtual memory 
-> > addreess ( where the virual address can be either main-memory address or mmaped 
-> > pci memory) ?
-> 
-> When you say "main memory", do you mean user space virtual addresses
-> or just kernel space?
-> 
-my module will have to deal with user space virtual addresses which are mapped 
-either to the computer "main-memory" or to a pci-device memory.
+On Wed, Sep 20, 2000 at 01:26:04PM +0300, BenHanokh Gabriel wrote:
 
+> my module will have to deal with user space virtual addresses which are mapped 
+> either to the computer "main-memory" or to a pci-device memory.
 
-> For pci memory, you usually don't do anything --- you *start* with the
-> physical address and work from there, creating a virtual address with
-> ioremap().
-this is only possible when my module is the pci-device driver, which is not the 
-case here
+User space virtual addresses aren't necessarily mapped anywhere.  They
+can be swapped out, or for mmap they might not yet be faulted in at
+all.  You have to deal with all the complications of faulting the page
+and pinning it in memory if you want to deal with user virtual
+addresses.  I'd definitely use map_user_kiobuf for this, but that
+cannot yet deal with pci device memory.
 
->  You can do the translation backwards, but only by walking
-> page tables.
-how do i do this ? i tought that pci-memory is not pageable
+> >  You can do the translation backwards, but only by walking
+> > page tables.
+> how do i do this ? i tought that pci-memory is not pageable
 
-> 
-> You might want to use map_user_kiobuf() for user-space addresses if
-> you are running on 2.4 (or 2.2 with the raw IO patches).  I've got
-> diffs for a map_kernel_kiobuf() too, for 2.4 only.  Those will also
-> deal properly with things like locking user pages in memory and
-> dealing with high memory on Intel boxes.
+It's not pageable, but the virtual-to-physical address translation
+still uses page tables.  "Non-pageable" just means that the page table
+entries cannot get paged out, not that they don't exist.
 
-will the map_user_kiobuf handle pci-device memory correctly (AFAIK locking pci 
-memory is meaningless and that its memory is not split into pages ) ?
+> will the map_user_kiobuf handle pci-device memory correctly (AFAIK locking pci 
+> memory is meaningless and that its memory is not split into pages ) ?
+
+Not yet, no.  It can (and does) on the 2.2 version, but 2.4 encodes
+the kiobuf pages as "struct page *" pointers and we need to teach it
+how to generate such structs for dynamically-allocated memory regions
+such as PCI.
 
 
-
-
-regards
-Benhanokh Gabriel
-
------------------------------------------------------------------------------
-"If you think C++ is not overly complicated, just what is a
-protected abstract virtual base class with a pure virtual private destructor,
-and when was the last time you needed one?"
--- Tom Cargil, C++ Journal, Fall 1990. --
-
+Cheers,
+ Stephen
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
