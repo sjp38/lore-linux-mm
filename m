@@ -1,37 +1,31 @@
-Message-ID: <3C866A1C.FB0253FE@zip.com.au>
-Date: Wed, 06 Mar 2002 11:12:28 -0800
-From: Andrew Morton <akpm@zip.com.au>
+Subject: Re: Support for sectorsizes > 4KB ?
+Date: Wed, 6 Mar 2002 22:53:01 +0000 (GMT)
+In-Reply-To: <XFMail.20020306084829.R.Oehler@GDAmbH.com> from "Ralf Oehler" at Mar 06, 2002 08:48:29 AM
 MIME-Version: 1.0
-Subject: Re: [PATCH] struct page shrinkage
-References: <OFC19C560E.A00F9111-ON85256B74.006633D4@pok.ibm.com>,
-		<OFC19C560E.A00F9111-ON85256B74.006633D4@pok.ibm.com> <20020306185004.GA32692@matchmail.com>
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
+Message-Id: <E16ikHN-0008T9-00@the-village.bc.nu>
+From: Alan Cox <alan@lxorguk.ukuu.org.uk>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mike Fedyk <mfedyk@matchmail.com>
-Cc: Bulent Abali <abali@us.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Ralf Oehler <R.Oehler@GDAmbH.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Scsi <linux-scsi@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Mike Fedyk wrote:
+> In the not-so-far future there will occure MO media on the market with
+> 40 to 120 Gigabytes of capacity and sectorsizes of 8 KB and maybe more.
+> It's called "UDO" technology.
 > 
-> On Wed, Mar 06, 2002 at 01:41:51PM -0500, Bulent Abali wrote:
-> > What is the outlook for inclusion of this patch in the main kernel?  Do you
-> > plan to submit or have been included yet?
-> 
-> I believe it is planned to be submitted to 2.5.
+> Is there any way to support block devices with sectors larger than 4KB =
+> ?
 
-hmm.
+The scsi layer itself doesn't mind, but the page caches do. Once your
+block size exceeds the page size you hit a wall of memory fragmentation
+issues. Given that M/O media is relatively slow I'd be inclined to say
+write an sd like driver (smo or similar) which does reblocking and also
+knows a bit more about other M/O drive properties.
 
-> Andrew, why isn't this listed on the 2.5 status page?
-
-Coz it's something I pulled out of my butt just a couple of
-weeks back :)
-
-We'll see how it pans out.  I must say that after two years
-of fixing other guys' bugs, it's fun writing some of my own.
-
--
+Alan
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
