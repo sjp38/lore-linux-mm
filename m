@@ -1,113 +1,86 @@
-Date: Thu, 3 Aug 2000 23:56:22 +0200
-From: Ingo Oeser <ingo.oeser@informatik.tu-chemnitz.de>
+Date: Thu, 3 Aug 2000 19:05:56 -0300 (BRST)
+From: Rik van Riel <riel@conectiva.com.br>
 Subject: Re: RFC: design for new VM
-Message-ID: <20000803235622.D759@nightmaster.csn.tu-chemnitz.de>
-References: <20000803213705.C759@nightmaster.csn.tu-chemnitz.de> <Pine.LNX.4.10.10008031324490.6528-100000@penguin.transmeta.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.10.10008031324490.6528-100000@penguin.transmeta.com>; from torvalds@transmeta.com on Thu, Aug 03, 2000 at 01:40:59PM -0700
+In-Reply-To: <Pine.LNX.4.10.10008031316490.6528-100000@penguin.transmeta.com>
+Message-ID: <Pine.LNX.4.21.0008031850330.24022-100000@duckman.distro.conectiva>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Linus Torvalds <torvalds@transmeta.com>
-Cc: Rik van Riel <riel@conectiva.com.br>, linux-mm@kvack.org, linux-kernel@vger.rutgers.edu
+Cc: linux-mm@kvack.org, linux-kernel@vger.rutgers.edu
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Aug 03, 2000 at 01:40:59PM -0700, Linus Torvalds wrote:
-> >    -  state transistions _require_ reordering, which will affect
-> >       all scanners
+On Thu, 3 Aug 2000, Linus Torvalds wrote:
+> On Thu, 3 Aug 2000, Rik van Riel wrote:
+> > 
+> > The lists are not at all dependant on where the pages come
+> > from. The lists are dependant on the *page age*. This almost
+> > sounds like you didn't read my mail... ;(
 > 
-> NO.
+> I did read the email. And I understand that. And that's exactly
+> why I think a single-list is equivalent (because your lists
+> basically act simply as "caches" of the page age).
+
+If you add "with statistics about how many pages of age 0 there
+are" this is indeed the case.
+
+> > NO. We need different queues so waiting for pages to be flushed
+> > to disk doesn't screw up page aging of the other pages (the ones
+> > we absolutely do not want to evict from memory yet).
 > 
-> All your arguments are wrong.
- 
-Hmm, so I think I use wrong assumptions then...
+> Go back. Read it. Realize that your "multiple queues" is nothing
+> more than "cached information". They do not change _behaviour_
+> at all. They only change the amount of CPU-time you need to
+> parse it.
 
-I assumed all lists we talk about are circular and double chained
-(either your single list or Riks state lists).
+If the information is cached somewhere else, then this is indeed
+the case. My point is that we need to know how many pages with
+page->age==0 we have, so we can know if we need to scan memory
+and age more pages or if we should simply wait a bit until the
+currently old pages are flushed to disk and ready to be reused.
 
-I also assumed your markers are nothing but a normal element of
-the list, that is just skipped, but don't cause a wraparound of
-each of the scanners.
-
-What happens, if one scanner decides to remove an element and
-insert it elsewhere (to achieve it's special ordering)?
-
-Or are all elements only touched but the ordering is only changed
-by removing in the middle and appending only to either head or
-tail of this list?
-
-> Think about it _another_ way instead:
->  - the "multiple lists" case is provably a sub-case of the "one list,
->    scanners only care about their type of entries".
-
-Got this concept (I think).
-
->  - the "one list" _allows_ for (but does not require) "mixing metaphors",
->    ie a scanner _can_ see and _can_ modify an entry that wouldn't be on
->    "it's list".
-
-That's what I would like to avoid. I don't like to idea of
-multiple "states" per page. I would like to scan all pages, that
-are *guaranteed* to have a special state and catch their
-transistions. I prefer clean automata design for this.
-
-To get back to my encrypted swap example:
-
-   -  I only have to catch the transistions to "inactive_dirty" for
-      encryption (if the page is considered for real swap) and
-      mark it "PG_Encrypted".
-
-   -  I only have to catch the transition to "active" and only
-      have to check for "PG_Encrypted", decrypt and clear this
-      flag.
-      
-   -  Or I use a new list "encrypted" and do a transistion from
-      "encryped" to "active" and "inactive_dirty" to "encrypted"
-      including right points in the VM, which would be more like
-      adding a layer instead of creating a kludge.
-      
-I still couldn't figure out, how to do it for our kernels
-floating around, since I don't get a clean state transition
-diagram :-(
-
-> In it's purest case you can think of the list as multiple independent 
-> lists. But you can also allow the entries to interact if you wish. 
- 
-> And that's my beef with this: I can see a direct mapping from the multiple
-> list case to the single list case. Which means that the multiple list case
-> simply _cannot_ do something that the single-list case couldn't do.
- 
-Agree. There ist just a bit more atomicy between the scanners,
-thats all I think. And of course states are exlusive instead of
-possibly inclusive.
-
-> (The reverse is also true: the single list can have the list entries
-> interact. That's logically equivalent to the case of the multi-list
-> implementation moving an entry from one list to another)
+> Basically, answer me this _simple_ question: what _behavioural_
+> differences do you claim multiple queues have? Ignore CPU usage
+> for now.
 > 
-> So a single list is basically equivalent to multi-list, as long as the
-> decisions to move and re-order entries are equivalent.
+> I'm claiming they are just a cache.
+> 
+> And you claim that the current MM cannot be balanced, but your
+> new one can.
 
-Agreed.
+I agree that we could cache the information about how many pages
+of different ages and different dirty state we have in memory in
+a different way.
 
-> Let me re-iterate: I'm not arguing against multi-lists. I'm arguing about
-> people being apparently dishonest and saying that the multi-lists are
-> somehow able to do things that the current VM wouldn't be able to do.
+We could have one single queue, as you wrote, and a number of
+counters. Basically we'd need a counter for the number of old
+(age==0) clean pages and one for the old dirty pages.
 
-Got that.
+Then we'd have multiple functions. Kflushd and kupdate would
+flush out the old dirty pages, __alloc_pages would walk the
+list to reclaim the old clean pages and we'd have a separate
+page aging function that only walks the list when we're short
+on free + inactive_dirty + inactive_clean pages.
 
-Its the features, that multiple lists *lack* , what makes them
-attractive to _my_ eyes. You are the one, that has the last
-word, I just want to make sure, you've seen all the implications
-and I'm only stupid to assume, you didn't do that ;-)
+That would give us the same behaviour as the plan I wrote.
 
-Regards
+What I fail to see is why this would be preferable to a code
+base where all the different pages are neatly separated and
+we don't have N+1 functions that are all scanning the same
+list, special-casing out each other's pages and searching 
+the list for their own special pages...
 
-Ingo Oeser
--- 
-Feel the power of the penguin - run linux@your.pc
-<esc>:x
+regards,
+
+Rik
+--
+"What you're running that piece of shit Gnome?!?!"
+       -- Miguel de Icaza, UKUUG 2000
+
+http://www.conectiva.com/		http://www.surriel.com/
+
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
