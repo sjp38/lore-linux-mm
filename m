@@ -1,64 +1,52 @@
-Received: from ds02c00.rsc.raytheon.com (ds02c00.rsc.raytheon.com [147.25.138.118])
-	by dfw-gate1.raytheon.com (8.9.3/8.9.3) with ESMTP id JAA05712
-	for <linux-mm@kvack.org>; Fri, 21 Apr 2000 09:16:16 -0500 (CDT)
-From: Mark_H_Johnson@Raytheon.com
-Received: from rtshou-ds01.hso.link.com (rtshou-ds01.hso.link.com [130.210.151.8])
-	by ds02c00.rsc.raytheon.com (8.9.3/8.9.3) with ESMTP id JAA09646
-	for <linux-mm@kvack.org>; Fri, 21 Apr 2000 09:15:52 -0500 (CDT)
-Subject: Query on ulimit
-Message-ID: <OFB4641C99.2DC226BF-ON862568C8.004B95BB@hso.link.com>
-Date: Fri, 21 Apr 2000 09:15:40 -0500
+Date: Fri, 21 Apr 2000 13:02:23 -0300 (BRST)
+From: Rik van Riel <riel@conectiva.com.br>
+Reply-To: riel@nl.linux.org
+Subject: Re: swapping from pagecache?
+In-Reply-To: <852568C8.00490F70.00@raylex-gh01.eo.ray.com>
+Message-ID: <Pine.LNX.4.21.0004211250220.10921-100000@duckman.conectiva>
 MIME-Version: 1.0
-Content-type: text/plain; charset=us-ascii
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Mark_H_Johnson.RTS@raytheon.com
+Cc: Cacophonix <cacophonix@yahoo.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-The behavior of resource limits (e.g., "ulimit" in bash) is somewhat
-confusing - I think I understand what's happening behind the scenes & I'd
-like to confirm what I've found and ask a few questions.
+On Fri, 21 Apr 2000 Mark_H_Johnson.RTS@raytheon.com wrote:
 
-You can use ulimit in bash [or its companion call setrlimit] to view or set
-resource limits. For memory related limits, the command ulimit -dsmv on
-Linux 2.2.10 shows something like...
-data seg size (kbytes)    unlimited
-max memory size (kbytes)  unlimited
-stack size (kbytes)       8192
-virtual memory (kbytes)   unlimited
+> My experience so far w/ Linux 2.2 (both .10 and .14) is that it
+> is "lazy" in swapping and paging. It attempts to keep memory
+> fully utilized. There are costs and benefits of such an
+> approach. Your application may do better with such tuning. My
+> experience is that a "rogue" program, one that allocates a lot
+> of virtual memory and keeps it busy, can cause serious
+> degradation to a Linux system. Let me use an example a prime
+> number finder using Eratosthenes sieve. It walks through memory
+> setting every second, third, fifth, seventh, and so on item in a
+> large array, marking it as "non-prime". It generates a HUGE
+> number of dirty pages. Since physical memory limits aren't
+> imposed on Linux 2.2, this program gobbles up all physical
+> memory. Most, if not all other jobs get swapped, and system
+> performance is awful. Running this same program on a VMS system,
+> properly tuned, would result in slower performance for the
+> sieve, higher paging rates, but still reasonable interactive
+> performance. I would like to see Linux in 2001 have better
+> performance than VMS did in the early 80's.
 
-Attempting to set the virtual memory limit "ulimit -v 48192" always fails,
-even with root privilege. The error message appears to be misleading - it
-is:
-  ulimit: cannot raise limit: Invalid argument
->From what I can tell, the "Invalid argument" is correct, the reason "cannot
-raise limit" is incorrect - its that the virtual memory limit is read only
-[RIGHT?].
+I'm working on this and believe that by making swapping less
+lazy and being less friendly to big tasks. I've been thinking
+about these problems for a while now and will start writing
+the code this saturday or at the latest monday.
 
-Setting the data seg limit "ulimit -d 40000" succeeds. And the settings now
-change to...
-data seg size (kbytes)    40000
-max memory size (kbytes)  unlimited
-stack size (kbytes)       8192
-virtual memory (kbytes)   48192
+regards,
 
-So, to do what I wanted with setting -v, I should use -d instead [RIGHT?].
+Rik
+--
+The Internet is not a network of computers. It is a network
+of people. That is its real strength.
 
-The best I can tell, setting "ulimit -m 8192" succeeds and you can view the
-result, but is not effective at limiting physical memory usage [RIGHT?].
-
-Are there plans for implementing the physical memory limit? If so, when can
-I expect it to be done?
-
-In reading various system administrative guides, I can set the hard & soft
-limits with the startup files for each shell (e.g., .bashrc or .profile).
-However, that requires some "cooperation" from the users since there are a
-few ways to avoid execution of those files (e.g., bash -norc -noprofile).
-Is there some way to set hard and soft resource limits on a global or per
-user basis w/o modifying either the code in the kernel or login?
-Thanks.
---Mark H Johnson
-  <mailto:Mark_H_Johnson@raytheon.com>
+Wanna talk about the kernel?  irc.openprojects.net / #kernelnewbies
+http://www.conectiva.com/		http://www.surriel.com/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
