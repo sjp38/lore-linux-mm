@@ -1,163 +1,192 @@
-Date: Mon, 9 Oct 2000 20:25:34 -0400 (EDT)
-From: Byron Stanoszek <gandalf@winds.org>
-Subject: [RFC] New ideas for the OOM handler
-In-Reply-To: <Pine.LNX.4.21.0010091829140.7807-100000@winds.org>
-Message-ID: <Pine.LNX.4.21.0010091842240.7807-100000@winds.org>
+Subject: [PATCH]: fixing swapon memory leak against 2.4.0-test10-pre1
+From: "Juan J. Quintela" <quintela@fi.udc.es>
+Date: 10 Oct 2000 05:22:06 +0200
+Message-ID: <yttn1gde5y9.fsf@serpe.mitica>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Gerrit.Huizenga@us.ibm.com
-Cc: Rik van Riel <riel@conectiva.com.br>, Linus Torvalds <torvalds@transmeta.com>, Andi Kleen <ak@suse.de>, Ingo Molnar <mingo@elte.hu>, Andrea Arcangeli <andrea@suse.de>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
+To: lkml <linux-kernel@vger.kernel.org>, Linus Torvalds <torvalds@transmeta.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-What I'd personally like to see in the OOM should cover the following
-scenarios, theoretically:
+Hi Linus
+   I just resend this patch (the first time I forgot to put the
+   [PATCH] field).  It fixes a leak in swapon reported by marcelo
+   quite time ago.
 
- 1. User does a malloc() bomb. This should be caught instantly and killed when
-    there is no memory left to allocate. This covers tons of low-sized
-    mallocs() as well as a timed delay infinite loop. Obviously, unless the
-    sysadmin enabled vm_overcommit_memory (if that even still exists in 2.4),
-    the person won't be able to malloc(2147483647) anyway. The reason is clear.
+Later, Juan.
 
- 2. We want to protect daemon-type system level processes more than anything.
-    Therefore, any non-root process should be given higher priority for killing
-    versus a superuser process. On production systems, root is less likely to
-    hog a machine's memory than normal users. Furthermore, root's processes are
-    effectively more important and should be handled specially.
-    
-    This does NOT mean that we should ignore mistakes such as #1 above (Higher
-    priority does not mean exclusive priority). This also does not mean that
-    superuser processes shouldn't be killed until all regular user processes
-    are dead. Obviously, if root is tricked into running a malloc() bomb, the
-    VM should kill that process first.
+>>>>> "marcelo" == Marcelo de Paula Bezerra <mosca@roadnet.com.br> writes:
 
- 3. We want to target processes that will give us the biggest memory gain in
-    return. We should look more closely at parent nodes of parent-child
-    processes that use shared memory or copy-on-write segments between the two
-    from the use of a fork(). The 'originator' of that shared memory should be
-    the one to target. (See #4 below for how this may be useful).
+Hi
+        sorry for the delay (this problem has been posted some
+        time^Wmonths ago).
 
-    Total VSZ should not be the primary basis for selection. It does not make
-    sense to kill a child whose VSZ is 80,000kb when its parent is 70,000kb
-    (and 65,000kb is shared between the two). In contrast, it does make sense
-    to base the selection on the process who is the 'originator' of the shared
-    memory segment (the one who creates the mmap, or who loads the DSO).
-    
-    The best way to describe the DSO case is with an example. Say the machine
-    has 8 MB of ram. Root decides to run Apache, which happily loads several
-    dynamically shared objects. Say there was enough memory to load the parent
-    process and all shared objects, and then the process spawns an additional
-    15 PIDs / threads with shared memory attached. The correct process to
-    target here is the parent httpd and not the children individually. However,
-    we do not want to leave the children lying around without the parent, as
-    this does nothing, and no shared memory would be expunged (see #4 below).
+marcelo> I have noticed what looks like a kernel memory leak in swapoff/swapon
+marcelo> if you continualy do:
+marcelo> swapoff -a;swapon -a;free you will see the used memory grow without any
+marcelo> change in buffers and cached and it never gets back to original levels.
 
-    This concept becomes much harder to grasp when you want to subtract the
-    size of shared libraries (e.g. libc, libm) from the VSZ. As long as another
-    process has a shared object, then that size should be factored out. A
-    program whose shared Libc is 1200k out of a total VSZ of 2600k should not
-    get killed over a static program using 2200k.
+marcelo> Could one of the VM hackers look at this to confirm the leak?
 
-    The same thing goes for fork()'d processes, since memory is copy-on-write.
-    There is not much benefit to killing a child who just came out of a fork(),
-    as the parent will most likely fork again.
+Yes, It is an space leak in sys_swapon, the patch included should fix
+it and does some cleanups.  Until now we have an space leak of one
+page each time that we called sys_swapon.
 
- 4. Arguably, children of a killed process in the same process/session group
-    should also be killed. If netscape got killed, its child DNS helper should
-    too. It's more likely that a [working] shell would not be killed,
-    preventing several user programs from getting killed also. Programs like
-    'screen' should always initialize a new process group or session for their
-    children so that their children disassociate themselves from the parent
-    process. Most (but not all) child processes of high-memory programs would
-    be the 'worker bees' for that program.
+This patch does:
+- removes rw paramenter in creat_page_buffers function, as it is not
+  used.
+- removes the rw_swap_page_nolock enterely (as it don't make any sense
+  at all anymore).  We pass to use the rw_swap_page() function, as we
+  can use the normal interface from it only use.
+- Small micro-optimization in the test and clear of the swap cache
+  page bit.
+- we lock (as previously) and now also unlock the page used to read
+  the first block of the swap partition.  We use the normal swap cache
+  functions now, which lets us use the normal API.  Until now we
+  _forgot_ to Unlock the page and we call free_page, what was not
+  enough (as the counter was not 1 at that point).
+- Change sys_swapon to use alloc_page instead of __get_free_page() as
+  we need the page argument anyway.
 
-    This is a lot to chew, and I even doubt this should go into practice
-    because 90% of independent child processes are not initialized with a
-    separate session/process group ID. But this satisfies the assumption that
-    most memory eaters would usually be Leaf Nodes in the process table (e.g.
-    large programs run off of a shell) rather than parent nodes, and a shell is
-    not likely to be selected for killing. I'd like some comments on this.
+Any comments bug reports, ... are wellcome.
 
- 5. How about factoring stack size into the equation? I don't know how the
-    stack figures into the VM, but processes with a 70,000 function backtrace
-    log should be looked at with higher interest than a 'valid' program such as
-    'netscape'. Chances are the kernel already sets stack size limits and kills
-    with a SIGSEGV when that limit is hit, so we might not have to worry about
-    this one.
+Later, Juan.
 
- 6. Kill programs with an abnormally large number of pages used in the page
-    table first. This covers the usage of programs like Electric Fence that eat
-    up memory extremely quickly, while most of those pages are not actually
-    resident in Physical RAM.
+PD: Linus, please apply.
 
-Rules to enforce:
-
- 1. Init should never be killed. Ever. Unless the machine is on crack.
-
- 2. Processes with no virtual memory should not be touched -- Kernel threads.
-
-Additional ideas:
-
-I thought of some additional ways of determining which process gets killed
-first, prioritized on the above criteria:
-
- 1. Keep a count of the number of sbrk() memory regions in terms of size for
-    each process. The count should not be a recent total or moving average kept
-    for the past 5-10 minutes, but instead it should be a ratio relative to the
-    size of sbrk() requests of other processes. This quickly determines which
-    process is eating up memory the fastest. 99 out of 100 times this will be a
-    runaway process, an evil malloc(), or an overly abusive user. At times like
-    these, the user will 'expect' the program to crash with a SEGV anyway.
-
- 2. Short of marking a process a "System Process", we want to keep programs
-    like X or Svgalib from crashing. In this manner, I agree with the person
-    who said programs that have I/O Ports or devices open should be one of the
-    last to kill.
-    
-    Also, if such processes DO get killed, we want them to return the user into
-    a usable state where they can interact with the computer. In all OOM
-    killers 2.2 and up, killing X with sig 9 is a _bad_ idea. With all due
-    respects, we should be killing these processes with SIGSEGV instead of
-    SIGKILL to give programs a chance to cool down. However, when the OOM
-    killer kicks in there might not be enough memory free for even a printk()
-    let alone a core dump. It should be possible to reserve memory for handling
-    OOM situations (for instance, kick in OOM when there is 64kb of memory free
-    and no less). Chances are the program will just crash due to default signal
-    handling. But if the program catches SEGV and does nothing about it, then
-    when 0kb of memory becomes free, completely terminate the program.
-
-    This, of course, should only happen when swap is something like 95% full
-    and the program isn't almost entirely swapped out. We should also set a
-    flag to Never dump core. We should leave enough space on the swap partition
-    for memory to get swapped out to disk (and program memory swapped in) to
-    let a signal handler do its job. I think using 100% swap is a bad idea.
-
-These are all ideas and suggestions, and I expect most to be flamed out quick.
-I wrote this to get people thinking about how we could improve our current OOM
-killer and kill the 'right' programs instead of vital system daemons, without
-leaving our machine idle for 5 minutes while the OOM killer tries to think of
-what to kill next, either because the program is ignoring SIGTERM or there is
-100% swap space used.
-
-All in all, the OOM killer we have now is much better than the 2.2 version and
-works very well for its intended purpose. These are the types of ideas I would
-toss around if I were to implement the killer myself. Keeping it from being too
-complicated is the hard part. So, having said the above, elaborate on these
-ideas to see if we can _really_ improve our OOM and if it is worth the trouble
-doing so.
-
-I however suggest strongly that we implement the check for PID == 1 into the
-current OOM and toss out checking for Nice status, which makes no real sense
-(see my last post, and the posts for several others).
-
- -Byron
+diff -urN --exclude-from=/home/lfcia/quintela/work/kernel/exclude base/fs/buffer.c working/fs/buffer.c
+--- base/fs/buffer.c	Tue Oct  3 18:51:58 2000
++++ working/fs/buffer.c	Wed Oct  4 18:43:02 2000
+@@ -1246,7 +1246,7 @@
+ 	goto try_again;
+ }
+ 
+-static int create_page_buffers(int rw, struct page *page, kdev_t dev, int b[], int size)
++static int create_page_buffers(struct page *page, kdev_t dev, int b[], int size)
+ {
+ 	struct buffer_head *head, *bh, *tail;
+ 	int block;
+@@ -2092,7 +2092,7 @@
+ 	 */
+ 	fresh = 0;
+ 	if (!page->buffers) {
+-		create_page_buffers(rw, page, dev, b, size);
++		create_page_buffers(page, dev, b, size);
+ 		fresh = 1;
+ 	}
+ 	if (!page->buffers)
+diff -urN --exclude-from=/home/lfcia/quintela/work/kernel/exclude base/include/linux/swap.h working/include/linux/swap.h
+--- base/include/linux/swap.h	Wed Oct  4 18:02:45 2000
++++ working/include/linux/swap.h	Fri Oct  6 01:07:44 2000
+@@ -114,7 +114,6 @@
+ 
+ /* linux/mm/page_io.c */
+ extern void rw_swap_page(int, struct page *, int);
+-extern void rw_swap_page_nolock(int, swp_entry_t, char *, int);
+ 
+ /* linux/mm/page_alloc.c */
+ 
+diff -urN --exclude-from=/home/lfcia/quintela/work/kernel/exclude base/mm/page_io.c working/mm/page_io.c
+--- base/mm/page_io.c	Tue Oct  3 18:52:02 2000
++++ working/mm/page_io.c	Fri Oct  6 00:42:53 2000
+@@ -119,25 +119,3 @@
+ 	if (!rw_swap_page_base(rw, entry, page, wait))
+ 		UnlockPage(page);
+ }
+-
+-/*
+- * The swap lock map insists that pages be in the page cache!
+- * Therefore we can't use it.  Later when we can remove the need for the
+- * lock map and we can reduce the number of functions exported.
+- */
+-void rw_swap_page_nolock(int rw, swp_entry_t entry, char *buf, int wait)
+-{
+-	struct page *page = virt_to_page(buf);
+-	
+-	if (!PageLocked(page))
+-		PAGE_BUG(page);
+-	if (PageSwapCache(page))
+-		PAGE_BUG(page);
+-	if (page->mapping)
+-		PAGE_BUG(page);
+-	/* needs sync_page to wait I/O completation */
+-	page->mapping = &swapper_space;
+-	if (!rw_swap_page_base(rw, entry, page, wait))
+-		UnlockPage(page);
+-	page->mapping = NULL;
+-}
+diff -urN --exclude-from=/home/lfcia/quintela/work/kernel/exclude base/mm/swap_state.c working/mm/swap_state.c
+--- base/mm/swap_state.c	Tue Oct  3 18:52:02 2000
++++ working/mm/swap_state.c	Thu Oct  5 01:07:35 2000
+@@ -69,10 +69,9 @@
+ 
+ 	if (mapping != &swapper_space)
+ 		BUG();
+-	if (!PageSwapCache(page) || !PageLocked(page))
++	if (!PageTestandClearSwapCache(page) || !PageLocked(page))
+ 		PAGE_BUG(page);
+ 
+-	PageClearSwapCache(page);
+ 	__remove_inode_page(page);
+ }
+ 
+diff -urN --exclude-from=/home/lfcia/quintela/work/kernel/exclude base/mm/swapfile.c working/mm/swapfile.c
+--- base/mm/swapfile.c	Tue Aug  8 06:01:36 2000
++++ working/mm/swapfile.c	Fri Oct  6 01:14:31 2000
+@@ -552,6 +552,7 @@
+ 	int error;
+ 	static int least_priority = 0;
+ 	union swap_header *swap_header = 0;
++	struct page *page = NULL;
+ 	int swap_header_version;
+ 	int nr_good_pages = 0;
+ 	unsigned long maxpages;
+@@ -638,15 +639,16 @@
+ 	} else
+ 		goto bad_swap;
+ 
+-	swap_header = (void *) __get_free_page(GFP_USER);
+-	if (!swap_header) {
++	page = alloc_page(GFP_USER);
++	if (!page) {
+ 		printk("Unable to start swapping: out of memory :-)\n");
+ 		error = -ENOMEM;
+ 		goto bad_swap;
+ 	}
+-
+-	lock_page(virt_to_page(swap_header));
+-	rw_swap_page_nolock(READ, SWP_ENTRY(type,0), (char *) swap_header, 1);
++	lock_page(page);
++	swap_header = page_address(page);
++	add_to_swap_cache(page, SWP_ENTRY(type,0));
++	rw_swap_page(READ, page, 1);
+ 
+ 	if (!memcmp("SWAP-SPACE",swap_header->magic.magic,10))
+ 		swap_header_version = 1;
+@@ -785,8 +787,11 @@
+ 		++least_priority;
+ 	path_release(&nd);
+ out:
+-	if (swap_header)
+-		free_page((long) swap_header);
++	if (page) {
++		delete_from_swap_cache(page);
++		UnlockPage(page);
++		put_page(page);
++	}
+ 	unlock_kernel();
+ 	return error;
+ }
 
 -- 
-Byron Stanoszek                         Ph: (330) 644-3059
-Systems Programmer                      Fax: (330) 644-8110
-Commercial Timesharing Inc.             Email: bstanoszek@comtime.com
+In theory, practice and theory are the same, but in practice they 
+are different -- Larry McVoy
 
+
+-- 
+In theory, practice and theory are the same, but in practice they 
+are different -- Larry McVoy
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
