@@ -1,52 +1,155 @@
-Subject: Re: classzone-VM + mapped pages out of lru_cache
-References: <Pine.LNX.4.21.0005041702560.2512-100000@alpha.random>
-From: Trond Myklebust <trond.myklebust@fys.uio.no>
-Date: 04 May 2000 18:48:38 +0200
-In-Reply-To: Andrea Arcangeli's message of "Thu, 4 May 2000 17:19:03 +0200 (CEST)"
-Message-ID: <shsya5q2rdl.fsf@charged.uio.no>
+Subject: PATCH: Cleanup of use of PG_* page bits
+From: "Juan J. Quintela" <quintela@fi.udc.es>
+Date: 04 May 2000 19:08:39 +0200
+Message-ID: <yttd7n2kzu0.fsf@vexeta.dc.fi.udc.es>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrea Arcangeli <andrea@suse.de>
-Cc: "Juan J. Quintela" <quintela@fi.udc.es>, linux-mm@kvack.org, linux-kernel@vger.rutgers.edu
+To: linux-mm@kvack.org, Linus Torvalds <torvalds@transmeta.com>
 List-ID: <linux-mm.kvack.org>
 
->>>>> " " == Andrea Arcangeli <andrea@suse.de> writes:
+Hi Linus
+   this patch substitutes the direct access to the PG_* bits by the
+   use of macros.  It does it in the directories fs/ and mm/* as my
+   previous patch to clean all the kernel was not accepted.
 
-     > This untested patch should fix the problem also in 2.2.15 (the
-     > same way I fixed it in classzone patch):
+   If you like the patch I have two more proposals:
+    - Cleanup of the rest of the kernel of the direct operations
+    - Make a consistent naming between all the bits, i.e. to test one
+      bit we always do Page<Name of the bit> except for
+      Page_Uptodate, where we put the underscore.  All the Macros are
+      called Page<operation><BitName>, except ClearPage<BitName> and
+      SetPage<BitName>. 
 
-     > --- 2.2.15/mm/filemap.c Thu May 4 13:00:40 2000
-     > +++ /tmp/filemap.c Thu May 4 17:11:18 2000
-     > @@ -68,7 +68,7 @@
+    If you want I can do any of the two proposals.
+
+Comments??
+
+Later, Juan.
+
+diff -u -urN --exclude=CVS --exclude=*~ --exclude=.#* --exclude=TAGS pre7-4/fs/buffer.c testing/fs/buffer.c
+--- pre7-4/fs/buffer.c	Thu May  4 11:02:17 2000
++++ testing/fs/buffer.c	Thu May  4 18:44:57 2000
+@@ -789,7 +789,7 @@
+ 	/*
+ 	 * Run the hooks that have to be done when a page I/O has completed.
+ 	 */
+-	if (test_and_clear_bit(PG_decr_after, &page->flags))
++	if (PageTestandClearDecrAfter(page))
+ 		atomic_dec(&nr_async_pages);
  
-     >  	p = &inode->i_pages; while ((page = *p) != NULL) {
-     > - if (PageLocked(page)) {
-     > + if (PageLocked(page) || atomic_read(&page->count) > 1) {
-     >  			p = &page->next; continue;
-     >  		}
+ 	UnlockPage(page);
+@@ -1957,7 +1957,7 @@
+ 
+ 	if (!PageLocked(page))
+ 		panic("brw_page: page not locked for I/O");
+-//	clear_bit(PG_error, &page->flags);
++//	ClearPageError(page);
+ 	/*
+ 	 * We pretty much rely on the page lock for this, because
+ 	 * create_page_buffers() might sleep.
+diff -u -urN --exclude=CVS --exclude=*~ --exclude=.#* --exclude=TAGS pre7-4/fs/nfs/write.c testing/fs/nfs/write.c
+--- pre7-4/fs/nfs/write.c	Wed Apr 26 17:49:00 2000
++++ testing/fs/nfs/write.c	Thu May  4 18:45:16 2000
+@@ -1048,7 +1048,7 @@
+         dprintk("NFS:      nfs_updatepage returns %d (isize %Ld)\n",
+                                                 status, (long long)inode->i_size);
+ 	if (status < 0)
+-		clear_bit(PG_uptodate, &page->flags);
++		ClearPageUptodate(&page);
+ 	return status;
+ }
+ 
+diff -u -urN --exclude=CVS --exclude=*~ --exclude=.#* --exclude=TAGS pre7-4/fs/smbfs/file.c testing/fs/smbfs/file.c
+--- pre7-4/fs/smbfs/file.c	Wed Apr 26 02:28:56 2000
++++ testing/fs/smbfs/file.c	Thu May  4 18:45:31 2000
+@@ -56,7 +56,7 @@
+ 
+ 	/* We can't replace this with ClearPageError. why? is it a problem? 
+ 	   fs/buffer.c:brw_page does the same. */
+-	/* clear_bit(PG_error, &page->flags); */
++	/* ClearPageError(page); */
+ 
+ #ifdef SMBFS_DEBUG_VERBOSE
+ printk("smb_readpage_sync: file %s/%s, count=%d@%ld, rsize=%d\n",
+diff -u -urN --exclude=CVS --exclude=*~ --exclude=.#* --exclude=TAGS pre7-4/include/linux/fs.h testing/include/linux/fs.h
+--- pre7-4/include/linux/fs.h	Thu May  4 11:02:18 2000
++++ testing/include/linux/fs.h	Thu May  4 18:47:38 2000
+@@ -251,7 +251,7 @@
+ 
+ extern void set_bh_page(struct buffer_head *bh, struct page *page, unsigned long offset);
+ 
+-#define touch_buffer(bh)	set_bit(PG_referenced, &bh->b_page->flags)
++#define touch_buffer(bh)	SetPageReferenced(bh->b_page)
+ 
+ 
+ #include <linux/pipe_fs_i.h>
+diff -u -urN --exclude=CVS --exclude=*~ --exclude=.#* --exclude=TAGS pre7-4/include/linux/mm.h testing/include/linux/mm.h
+--- pre7-4/include/linux/mm.h	Thu May  4 11:02:18 2000
++++ testing/include/linux/mm.h	Thu May  4 18:57:13 2000
+@@ -196,7 +196,11 @@
+ #define SetPageError(page)	set_bit(PG_error, &(page)->flags)
+ #define ClearPageError(page)	clear_bit(PG_error, &(page)->flags)
+ #define PageReferenced(page)	test_bit(PG_referenced, &(page)->flags)
++#define SetPageReferenced(page)	set_bit(PG_referenced, &(page)->flags)
++#define PageTestandClearReferenced(page)	test_and_clear_bit(PG_referenced, &(page)->flags)
+ #define PageDecrAfter(page)	test_bit(PG_decr_after, &(page)->flags)
++#define SetPageDecrAfter(page)	set_bit(PG_decr_after, &(page)->flags)
++#define PageTestandClearDecrAfter(page)	test_and_clear_bit(PG_decr_after, &(page)->flags)
+ #define PageSlab(page)		test_bit(PG_slab, &(page)->flags)
+ #define PageSwapCache(page)	test_bit(PG_swap_cache, &(page)->flags)
+ #define PageReserved(page)	test_bit(PG_reserved, &(page)->flags)
+diff -u -urN --exclude=CVS --exclude=*~ --exclude=.#* --exclude=TAGS pre7-4/mm/filemap.c testing/mm/filemap.c
+--- pre7-4/mm/filemap.c	Thu May  4 11:02:18 2000
++++ testing/mm/filemap.c	Thu May  4 18:56:08 2000
+@@ -266,7 +266,7 @@
+ 		 * &young to make sure that we won't try to free it the next
+ 		 * time */
+ 		dispose = &young;
+-		if (test_and_clear_bit(PG_referenced, &page->flags))
++		if (PageTestandClearReferenced(page))
+ 			goto dispose_continue;
+ 
+ 		if (p_zone->free_pages > p_zone->pages_high)
+@@ -394,7 +394,7 @@
+ 		if (page->index == offset)
+ 			break;
+ 	}
+-	set_bit(PG_referenced, &page->flags);
++	SetPageReferenced(page);
+ not_found:
+ 	return page;
+ }
+diff -u -urN --exclude=CVS --exclude=*~ --exclude=.#* --exclude=TAGS pre7-4/mm/page_io.c testing/mm/page_io.c
+--- pre7-4/mm/page_io.c	Thu May  4 11:02:18 2000
++++ testing/mm/page_io.c	Thu May  4 18:46:51 2000
+@@ -74,7 +74,7 @@
+ 		return 0;
+ 	}
+  	if (!wait) {
+- 		set_bit(PG_decr_after, &page->flags);
++ 		SetPageDecrAfter(page);
+  		atomic_inc(&nr_async_pages);
+  	}
+ 
+diff -u -urN --exclude=CVS --exclude=*~ --exclude=.#* --exclude=TAGS pre7-4/mm/vmscan.c testing/mm/vmscan.c
+--- pre7-4/mm/vmscan.c	Thu May  4 11:02:18 2000
++++ testing/mm/vmscan.c	Thu May  4 18:47:07 2000
+@@ -56,7 +56,7 @@
+ 		 * tables to the global page map.
+ 		 */
+ 		set_pte(page_table, pte_mkold(pte));
+-		set_bit(PG_referenced, &page->flags);
++                SetPageReferenced(page);
+ 		goto out_failed;
+ 	}
+ 
 
 
-     > Trond, what do you think about it?
-
-Not good. If I'm running /bin/bash, and somebody on the server updates
-/bin/bash, then I don't want to reboot my machine. With the above
-patch, then all new processes will receive a mixture of pages from the
-old and the new file until by some accident I manage to clear the
-cache of the bad pages.
-
-We have to insist on the PageLocked() both in 2.2.x and 2.3.x because
-only pages which are in the process of being read in are safe. If we
-know we're scheduled to write out a full page then that would be safe
-too, but that is the only such case.
-
-Cheers,
-  Trond
-
-PS: It would be nice to have truncate_inode_pages() work in the same
-way as it does now: waiting on pages and locking them. This is useful
-for reading in the directory pages, since they need to be read in
-sequentially (please see the proposed patch I put on l-k earlier
-today).
+-- 
+In theory, practice and theory are the same, but in practice they 
+are different -- Larry McVoy
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
