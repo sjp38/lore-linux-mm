@@ -1,43 +1,66 @@
-Date: Sat, 13 Jul 2002 06:30:58 -0700
-From: William Lee Irwin III <wli@holomorphy.com>
+Content-Type: text/plain;
+  charset="iso-8859-1"
+From: Daniel Phillips <phillips@arcor.de>
 Subject: Re: [PATCH] Optimize out pte_chain take three
-Message-ID: <20020713133058.GU23693@holomorphy.com>
-References: <20810000.1026311617@baldur.austin.ibm.com> <20020710173254.GS25360@holomorphy.com> <3D2C9288.51BBE4EB@zip.com.au> <E17TMqy-0003IY-00@starship>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Description: brief message
-Content-Disposition: inline
-In-Reply-To: <E17TMqy-0003IY-00@starship>
+Date: Sat, 13 Jul 2002 15:41:16 +0200
+References: <20810000.1026311617@baldur.austin.ibm.com> <20020710173254.GS25360@holomorphy.com> <3D2C9288.51BBE4EB@zip.com.au>
+In-Reply-To: <3D2C9288.51BBE4EB@zip.com.au>
+MIME-Version: 1.0
+Content-Transfer-Encoding: 8bit
+Message-Id: <E17TN9A-0003Ie-00@starship>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Daniel Phillips <phillips@arcor.de>
-Cc: Andrew Morton <akpm@zip.com.au>, Rik van Riel <riel@conectiva.com.br>, Dave McCracken <dmccr@us.ibm.com>, Linux Memory Management <linux-mm@kvack.org>
+To: Andrew Morton <akpm@zip.com.au>, William Lee Irwin III <wli@holomorphy.com>
+Cc: Rik van Riel <riel@conectiva.com.br>, Dave McCracken <dmccr@us.ibm.com>, Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-At some point in the past, I wrote:
->>> (5)  enables cooperative offlining of memory for friendly guest instance
->>>         behavior in UML and/or LPAR settings
-
 On Wednesday 10 July 2002 22:01, Andrew Morton wrote:
->> Vapourware
+> Bill, please throw away your list and come up with a new one.
+> Consisting of workloads and tests which we can run to evaluate
+> and optimise page replacement algorithms.
 
-On Sat, Jul 13, 2002 at 03:22:28PM +0200, Daniel Phillips wrote:
-> See "enables" above.  Though I agree we want the thing at parity or
-> better on its own merits, I don't see the point of throwing tomatoes at
-> the "enables" points.  Recommendation: separate the list into "improves"
-> and "enables".
+I liked the list, I think it just needs to be reorganized.  All the
+vaporware needs to go into an "enables" section (repeating myself)
+and it needs to aquire a 'disadvantages' section, under which I'd
+like to contribute:
 
-The direction has been set and I'm following it. These things are now
-off the roadmap entirely regardless, or at least I won't pursue them
-until the things needing to be done now are addressed.
+  - For pure computational loads with no swapping, incurs unavoidable)
+    overhead on page setup and teardown
 
-Say, we could use a number of helpers with the quantitative measurement
-effort, Is there any chance you could help out here as well? It'd
-certainly help get the cost/benefit analysis of rmap going for the
-merge, and maybe even pinpoint things needing to be addressed.
+       (measure it)
 
-Cheers,
-Bill
+  - Adds new struct page overhead of one word, plus two words per
+    shared pte (share > 1)
+
+       (measure this)
+
+  - Introduces a new resource, pte chain nodes, with associated
+    locks and management issues
+
+       (show locking profiles)
+
+  - Is thought to cause swap read fragmentation
+
+       (demonstrate this, if possible)
+
+And an advantage to add to Bill's 'enables' list:
+
+  - Enables a swap fragmentation reduction algorithm based
+    on finding virtually adjacent swapout candidates via the
+    pte_chains
+
+> Alternatively, please try to enumerate the `operating regions'
+> for the page replacement code.  Then, we can identify measurable
+> tests which exercise them.  Then we can identify combinations of
+> those tests to model a `workload'.    We need to get this ball
+> rolling somehow.
+
+Strongly agreed that the focus has to be on workload modeling.
+We should be able to organize the modeling strictly around the
+advantages/disadvantages list.
+
+-- 
+Daniel
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
