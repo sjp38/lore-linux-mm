@@ -1,70 +1,31 @@
-Subject: Re: Break 2.4 VM in five easy steps
-Message-ID: <OF75B67BC7.4C70DAF5-ON85256A64.004C4AD1@pok.ibm.com>
-From: "Bulent Abali" <abali@us.ibm.com>
-Date: Thu, 7 Jun 2001 10:22:50 -0400
+From: John Stoffel <stoffel@casc.com>
 MIME-Version: 1.0
-Content-type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Message-ID: <15135.37789.234756.822456@gargle.gargle.HOWL>
+Date: Thu, 7 Jun 2001 10:45:49 -0400
+Subject: Re: [PATCH] reapswap for 2.4.5-ac10
+In-Reply-To: <l03130312b7444bea56f8@[192.168.239.105]>
+References: <l03130308b7439bb9f187@[192.168.239.105]>
+	<l03130312b7444bea56f8@[192.168.239.105]>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mike Galbraith <mikeg@wen-online.de>
-Cc: "Eric W. Biederman" <ebiederm@xmission.com>, Derek Glidden <dglidden@illusionary.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Jonathan Morton <chromi@cyberspace.org>
+Cc: Marcelo Tosatti <marcelo@conectiva.com.br>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+Jonathan> The one which deals with dead swapcache pages.  I want to
+Jonathan> apply the one which actively eats them using kreclaimd, too.
 
->> O.k.  I think I'm ready to nominate the dead swap pages for the big
->> 2.4.x VM bug award.  So we are burning cpu cycles in sys_swapoff
->> instead of being IO bound?  Just wanting to understand this the cheap
-way :)
->
->There's no IO being done whatsoever (that I can see with only a blinky).
->I can fire up ktrace and find out exactly what's going on if that would
->be helpful.  Eating the dead swap pages from the active page list prior
->to swapoff cures all but a short freeze.  Eating the rest (few of those)
->might cure the rest, but I doubt it.
->
->    -Mike
+Why do we need yet another daemon to reap pages/swap/cache from the
+system?  
 
-1)  I second Mike's observation.  swapoff either from command line or
-during
-shutdown, just hangs there.  No disk I/O is being done as I could see
-from the blinkers.  This is not a I/O boundness issue.  It is more like
-a deadlock.
+Or am I mis-understanding you here and you'd just be adding some stuff
+to kswapd?
 
-I happened to saw this one with debugger attached serial port.
-The system was alive.  I think I was watching the free page count and
-it was decreasing very slowly may be couple pages per second.  Bigger
-the swap usage longer it takes to do swapoff.  For example, if I had
-1GB in the swap space then it would take may be an half hour to shutdown...
-
-
-2)  Now why I would have 1 GB in the swap space, that is another problem.
-Here is what I observe and it doesn't make much sense to me.
-Let's say I have 1GB of memory and plenty of swap.  And let's
-say there is process with little less than 1GB size.  Suppose the system
-starts swapping because it is short few megabytes of memory.
-Within *seconds* of swapping, I see that the swap disk usage balloons to
-nearly 1GB. Nearly entire memory moves in to the page cache.  If you
-run xosview you will know what I mean.  Memory usage suddenly turns from
-green to red :-).   And I know for a fact that my disk cannot do 1GB per
-second :-). The SHARE column of the big process in "top" goes up by
-hundreds
-of megabytes.
-So it appears to me that MM is marking the whole process memory to be
-swapped out and probably reserving nearly 1 GB in the swap space and
-furthermore moves entire process pages to apparently to the page cache.
-You would think that if you are short by few MB of memory MM would put
-few MB worth of pages in the swap. But it wants to move entire processes
-in to swap.
-
-When the 1GB process exits, the swap usage doesn't change (dead swap
-pages?).
-And shutdown or swapoff will take forever due to #1 above.
-
-Bulent
-
-
-
-
+John
+   John Stoffel - Senior Unix Systems Administrator - Lucent Technologies
+	 stoffel@lucent.com - http://www.lucent.com - 978-952-7548
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
