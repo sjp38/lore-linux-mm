@@ -1,131 +1,102 @@
-Date: Tue, 14 Dec 2004 11:53:39 -0600
-From: Brent Casavant <bcasavan@sgi.com>
-Reply-To: Brent Casavant <bcasavan@sgi.com>
-Subject: [PATCH 3/3] TCP hashes: NUMA interleaving
-Message-ID: <Pine.SGI.4.61.0412141151340.22462@kzerza.americas.sgi.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Message-Id: <200412141811.iBEIBM922032@mail.osdl.org>
+Subject: Re: Automated performance testing system was Re: Text form for STP tests 
+In-Reply-To: Your message of "Mon, 13 Dec 2004 19:02:46 -0200."
+             <20041213210246.GA27473@logos.cnet>
+Date: Tue, 14 Dec 2004 10:11:22 -0800
+From: Cliff White <cliffw@osdl.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: linux-ia64@vger.kernel.org, ak@suse.de
+To: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
+Cc: linux-mm@kvack.org, stp-devel@lists.sourceforge.net
 List-ID: <linux-mm.kvack.org>
 
-The following patch against 2.6.10-rc3 modifies the TCP ehash and TCP
-bhash to enable the use of vmalloc to alleviate boottime memory allocation
-imbalances on NUMA systems, utilizing flags to the alloc_large_system_hash
-routine in order to centralize the enabling of this behavior.
+> On Mon, Dec 13, 2004 at 08:22:26AM -0800, cliff white wrote:
+> > On Mon, 13 Dec 2004 09:42:23 -0200
+> > Marcelo Tosatti <marcelo.tosatti@cyclades.com> wrote:
+> > 
+> > > On Wed, Dec 01, 2004 at 12:04:09PM -0800, Cliff White wrote:
+> > > > > On Wed, Dec 01, 2004 at 10:28:24AM -0800, Cliff White wrote:
+> > > > > > > Linux-MM fellows,
+[snip]
+> ork
+> > > > for all tests - some of the kits still needs some patching..
+> > > > cliffw
+> > > 
+> > > Any news on the automatic test series scripts Cliff ? 
+> > > 
+> > > Haven't seen any results yet.
+> > > 
+> > I ran a set for 2.6.10-rc3, PLM 3957, some results here:
+> >  http://www.osdl.org/projects/26lnxstblztn/results/
+> > Or by doing this:
+> > http://www.osdl.org/lab_activities/kernel_testing/stp/display_test_requests
+> ?d_patch_id%3Astring%3Aignore_empty=3957&op=Search
+> > 
+> > Marcelo, do you want me to submit the tests under your user id?
+> > That would make searching for results eaiser. 
+> 
+> Cliff, 
+> 
+> How have you started these tests? I dont to run LTP for example.
 
-This patch (3/3) depends on patch 1/3 in this patch series.  It
-does not depend on, nor is depended upon by, patch 2/3 in the
-series.
+We have a master script that checks kernel.org and bkbits.net for new
+stuff ( run by cron ) If the master script sees new checkins that
+match our regexp, it automagically kicks off the series of tests you 
+requested. That covers the base,etc. 
 
-Signed-off-by: Brent Casavant <bcasavan@sgi.com>
 
-Index: linux/net/ipv4/tcp.c
-===================================================================
---- linux.orig/net/ipv4/tcp.c	2004-12-10 18:09:49.011272637 -0600
-+++ linux/net/ipv4/tcp.c	2004-12-10 18:10:52.285839780 -0600
-@@ -256,6 +256,7 @@
- #include <linux/smp_lock.h>
- #include <linux/fs.h>
- #include <linux/random.h>
-+#include <linux/bootmem.h>
- 
- #include <net/icmp.h>
- #include <net/tcp.h>
-@@ -2254,7 +2255,6 @@
- void __init tcp_init(void)
- {
- 	struct sk_buff *skb = NULL;
--	unsigned long goal;
- 	int order, i;
- 
- 	if (sizeof(struct tcp_skb_cb) > sizeof(skb->cb))
-@@ -2287,43 +2287,35 @@
- 	 *
- 	 * The methodology is similar to that of the buffer cache.
- 	 */
--	if (num_physpages >= (128 * 1024))
--		goal = num_physpages >> (21 - PAGE_SHIFT);
--	else
--		goal = num_physpages >> (23 - PAGE_SHIFT);
--
--	if (thash_entries)
--		goal = (thash_entries * sizeof(struct tcp_ehash_bucket)) >> PAGE_SHIFT;
--	for (order = 0; (1UL << order) < goal; order++)
--		;
--	do {
--		tcp_ehash_size = (1UL << order) * PAGE_SIZE /
--			sizeof(struct tcp_ehash_bucket);
--		tcp_ehash_size >>= 1;
--		while (tcp_ehash_size & (tcp_ehash_size - 1))
--			tcp_ehash_size--;
--		tcp_ehash = (struct tcp_ehash_bucket *)
--			__get_free_pages(GFP_ATOMIC, order);
--	} while (!tcp_ehash && --order > 0);
--
--	if (!tcp_ehash)
--		panic("Failed to allocate TCP established hash table\n");
-+	tcp_ehash = (struct tcp_ehash_bucket *)
-+		alloc_large_system_hash("TCP established",
-+					sizeof(struct tcp_ehash_bucket),
-+					thash_entries,
-+					(num_physpages >= 128 * 1024) ?
-+						(25 - PAGE_SHIFT) :
-+						(27 - PAGE_SHIFT),
-+					HASH_HIGHMEM,
-+					&tcp_ehash_size,
-+					NULL,
-+					0);
-+	tcp_ehash_size = (1 << tcp_ehash_size) >> 1;
- 	for (i = 0; i < (tcp_ehash_size << 1); i++) {
- 		rwlock_init(&tcp_ehash[i].lock);
- 		INIT_HLIST_HEAD(&tcp_ehash[i].chain);
- 	}
- 
--	do {
--		tcp_bhash_size = (1UL << order) * PAGE_SIZE /
--			sizeof(struct tcp_bind_hashbucket);
--		if ((tcp_bhash_size > (64 * 1024)) && order > 0)
--			continue;
--		tcp_bhash = (struct tcp_bind_hashbucket *)
--			__get_free_pages(GFP_ATOMIC, order);
--	} while (!tcp_bhash && --order >= 0);
--
--	if (!tcp_bhash)
--		panic("Failed to allocate TCP bind hash table\n");
-+	tcp_bhash = (struct tcp_bind_hashbucket *)
-+		alloc_large_system_hash("TCP bind",
-+					sizeof(struct tcp_bind_hashbucket),
-+					tcp_ehash_size,
-+					(num_physpages >= 128 * 1024) ?
-+						(25 - PAGE_SHIFT) :
-+						(27 - PAGE_SHIFT),
-+					HASH_HIGHMEM,
-+					&tcp_bhash_size,
-+					NULL,
-+					64 * 1024);
-+	tcp_bhash_size = 1 << tcp_bhash_size;
- 	for (i = 0; i < tcp_bhash_size; i++) {
- 		spin_lock_init(&tcp_bhash[i].lock);
- 		INIT_HLIST_HEAD(&tcp_bhash[i].chain);
-@@ -2332,6 +2324,10 @@
- 	/* Try to be a bit smarter and adjust defaults depending
- 	 * on available memory.
- 	 */
-+	for (order = 0; ((1 << order) << PAGE_SHIFT) <
-+			(tcp_bhash_size * sizeof(struct tcp_bind_hashbucket));
-+			order++)
-+		;
- 	if (order > 4) {
- 		sysctl_local_port_range[0] = 32768;
- 		sysctl_local_port_range[1] = 61000;
+> 
+> I would like to be able to select two different patch ID's and run them from 
+> the web
+> interface, on a set of benchmarks vs memory size ranges vs nrCPUs (you alread
+> y do 
+> different number of CPUs on those series of tests I see), as we talked.
+> Not just me, every developer doing performance testing :)
 
--- 
-Brent Casavant                          If you had nothing to fear,
-bcasavan@sgi.com                        how then could you be brave?
-Silicon Graphics, Inc.                    -- Queen Dama, Source Wars
+The current web requires you to set this up by hand,one test at a time.
+We're working on some command line tools to replace the web, but
+we're also thinking about another rev of the web interface, so the 
+comments are helpful.
+> 
+> And then generate the graphs for the results of one patchID vs another. 
+> 
+> On reaim for example it would be nice to have graphs of global jobs per minut
+> e vs 
+> memory size, with a different colors for each patch ID. 
+Okay.
+> 
+> Maybe we can even fit results for different nrCPUS on the same graph 
+> with line types (with symbols like triangle, square, to differentiate).
+> But then it might become too polluted to easily visualize, but maybe not.
+
+I haven't had time to figure out fancy gnuplottage..that sounds neat.
+> 
+> Can you make the scripts which you are using for graphic generation and the
+> gnuplot configuration files available? So I can play around with them.
+> I want to help with that.
+> 
+> Another question: Is the source for reaim available? 
+Of course, we're the Open Source Development Lab :)
+Reaim:
+bk bk://developer.osdl.org/reaim
+or SF, tarballs
+http://sourceforge.net/projects/re-aim-7/
+
+any of the STP tests can be found as:
+bk bk://developer.osdl.org/stp-test/<testname>
+so 
+bk://developer.osdl.org/stp-test/reaim
+
+> 
+> I see you're already generating the graphs for vmstat/iostat and user/system 
+> time.
+> 
+> Thats really nice.
+Those bits are in a Perl module that a few tests re-use.
+
+> 
+cliffw
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
