@@ -1,102 +1,35 @@
-From: Daniel Phillips <phillips@arcor.de>
-Subject: Re: 2.5.74-mm1
-Date: Sun, 6 Jul 2003 20:50:29 +0200
-References: <20030703023714.55d13934.akpm@osdl.org> <200307051947.10726.phillips@arcor.de> <200307061341.31243.kernel@kolivas.org>
-In-Reply-To: <200307061341.31243.kernel@kolivas.org>
-MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
+Date: Sun, 6 Jul 2003 20:22:39 -0700
+From: "Randy.Dunlap" <randy.dunlap@verizon.net>
+Subject: Re: kgdb-irq=3 kgdb-io=0x038f
+Message-Id: <20030706202239.6ed7c5bb.randy.dunlap@verizon.net>
+In-Reply-To: <20030706124720.038c7b71.rddunlap@osdl.org>
+References: <20030706124720.038c7b71.rddunlap@osdl.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200307062050.29221.phillips@arcor.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Con Kolivas <kernel@kolivas.org>, Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: ecashin@uga.edu
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sunday 06 July 2003 05:41, Con Kolivas wrote:
-> On Sun, 6 Jul 2003 03:47, Daniel Phillips wrote:
-> > Not having to worry about detecting and babying along the realtime sound
-> > thread should make your job considerably easier.  OK, looking at the Zinf
-> > code I see that it does know about thread priority, via pthreads.  It's
-> > either not working, or it's not set to sensible defaults.  I'm looking
-> > into that.
->
-> Well if it gets real time scheduling all that goes away.. But of course
-> that would mean it needs root or equivalent user access.
+| Hi.  Has anyone ever tried making kernel boot options to set the kgdb
+| serial settings instead of setting them statically at .config
+| generation?
+| 
+| If not, would that be an easy thing to do?
 
-We need to do something about that, apparently.  OK, in another thread it's 
-been pointed out that SCHED_RR is broken for this, but nice=-something is 
-still an option.
+Looks doable, unless I'm missing some small quirk.
 
-> Even the lowest
-> priority real time apps get scheduled ahead of any nice priority boosted or
-> interactive boosted normal scheduling apps. However I'm going to give X
-> less buffer in the next version so it should get better without RT
-> scheduling.
->
-> WRT the other lkml threads, audio should work without skips on normal
-> desktop loads without priority changes, without root privileges and without
-> RT scheduling. Therefore I am still considering it a regression.
+I haven't seen such a patch.  However, ISTM that most (of my)
+debugging is in an almost static environment anyway.
 
-Given that my sound is now working better for me than it ever has on any 
-version of Linux, I wouldn't be so fast to call it a regression.  The active 
-ingredient is a priori priority assignment.  With your patch, nice=-2 gives  
-solid, reliable sound playing under all conditions I've thought to try.  
-Without your patch, nice=-10 is insufficient.  So you're on to something 
-good, it seems.
+If you are interested in trying to make such a patch and need some
+help, I'll work on it with you.
 
-> > Now, just so this doesn't get too easy for you, I have a nice little
-> > opengl application here:
-> >
-> >   http://nl.linux.org/~phillips/world.tgz
-> >   (3D engine - see screenshots on the same page)
-> >
-> > The "bounce" demo is suitable for testing how steady the framerate is.
-> > It's working pretty well since 2.4.73, if you leave the window in one
-> > place, but scheduling gets challenging (i.e., sucks) when you drag the 3D
-> > window around. How should we fix that?  It's my code so I'm willing to
-> > add whatever priority control is appropriate.
->
-> I assume you're not asking for the scheduler to be tweaked for this. You
-> want the 3d rendering to occur regardless of what is happening anywhere
-> else?
-
-I don't know what's required, this is just the next problem on my list after 
-sound scheduling, which as far as I'm concerned isn't particularly 
-interesting any more (except for the missing formal analysis) because we've 
-got solutions on the table.
-
-What I want is a reasonably steady frame rate, even when the window is being 
-dragged.  After that, being greedy, I'll want a steady rate under lots of 
-other challenging conditions as well.  (Note there's a tweakable option in 
-the source to emit ms/frame.)
-
-> If it doesn't use much cpu time but wakes lots then in it's current
-> form the scheduler will happily put this equal sharing with everything at
-> nice 0. X intermittently gets cpu hungry so will make this slow down at the
-> moment during those bursts. Your app will go ahead of everything else at a
-> priority of -3.
-
-So why is -1 or -2 not sufficient?
-
-> If it is cpu hungry, it will need at least -8 to get in on the act, and -13
-> to be ahead of everyone (not really recommended though).
-
-Being a 3D renderer, of course it's cpu hungry.  It's also a very common type 
-of interactive application.  As with sound, interactive 3D applications on 
-Linux should work by default, not be broken by default.  If that means fixing  
-applications, so be it, let's do that to avoid going overboard with kernel 
-scheduling policy.
-
-As I noted before, your patch is small, that's great.  Now the thing is to 
-really get the goodness out of it, and avoid building in too much automagic 
-where it isn't appropriate.
-
-Regards,
-
-Daniel
-
+--
+~Randy
+~ http://developer.osdl.org/rddunlap/ ~ http://www.xenotime.net/linux/ ~
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
