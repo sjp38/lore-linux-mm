@@ -1,50 +1,65 @@
-Content-Type: text/plain;
-  charset="iso-8859-1"
-From: Ed Tomlinson <tomlins@cam.org>
+Message-Id: <5.1.0.14.2.20010807123805.027f19a0@pop.cus.cam.ac.uk>
+Date: Tue, 07 Aug 2001 13:02:27 +0100
+From: Anton Altaparmakov <aia21@cam.ac.uk>
 Subject: Re: [RFC] using writepage to start io
-Date: Tue, 7 Aug 2001 07:39:44 -0400
-References: <755760000.997128720@tiny> <01080623182601.01864@starship> <20010807120234.D4036@redhat.com>
 In-Reply-To: <20010807120234.D4036@redhat.com>
-MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
-Message-Id: <20010807113944.D229E7B53@oscar.casa.dyndns.org>
+References: <01080623182601.01864@starship>
+ <755760000.997128720@tiny>
+ <01080623182601.01864@starship>
+Mime-Version: 1.0
+Content-Type: text/plain; charset="us-ascii"; format=flowed
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Stephen C. Tweedie" <sct@redhat.com>, Daniel Phillips <phillips@bonn-fries.net>
-Cc: Chris Mason <mason@suse.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: "Stephen C. Tweedie" <sct@redhat.com>
+Cc: Daniel Phillips <phillips@bonn-fries.net>, Chris Mason <mason@suse.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On August 7, 2001 07:02 am, Stephen C. Tweedie wrote:
-> Hi,
->
-> On Mon, Aug 06, 2001 at 11:18:26PM +0200, Daniel Phillips wrote:
-> > > On Monday, August 06, 2001 09:45:12 PM +0200 Daniel Phillips
-> > >
-> > > Grin, we're talking in circles.  My point is that by having two
-> > > threads, bdflush is allowed to skip over older buffers in favor of
-> > > younger ones because somebody else is responsible for writing the
-> > > older ones out.
-> >
-> > Yes, and you can't imagine an algorithm that could do that with *one*
-> > thread?
->
-> FWIW, we've seen big performance degradations in the past when testing
-> different ext3 checkpointing modes.  You can't reuse a disk block in
-> the journal without making sure that the data in it has been flushed
-> to disk, so ext3 does regular checkpointing to flush journaled blocks
-> out.  That can interact very badly with normal VM writeback if you're
-> not careful: having two threads doing the same thing at the same time
-> can just thrash the disk.
->
-> Parallel sync() calls from multiple processes has shown up the same
-> behaviour on ext2 in the past.  I'd definitely like to see at most one
-> thread of writeback per disk to avoid that.
+Hi,
 
-Be carefull here.  I have a system (solaris) at the office that has 96 drives 
-on it.  Do we really want 96 writeback threads?  With 96 drives, suspect the
-bus bandwidth would be the limiting factor.
+At 12:02 07/08/01, Stephen C. Tweedie wrote:
+>On Mon, Aug 06, 2001 at 11:18:26PM +0200, Daniel Phillips wrote:
+>FWIW, we've seen big performance degradations in the past when testing
+>different ext3 checkpointing modes.  You can't reuse a disk block in
+>the journal without making sure that the data in it has been flushed
+>to disk, so ext3 does regular checkpointing to flush journaled blocks
+>out.  That can interact very badly with normal VM writeback if you're
+>not careful: having two threads doing the same thing at the same time
+>can just thrash the disk.
+>
+>Parallel sync() calls from multiple processes has shown up the same
+>behaviour on ext2 in the past.  I'd definitely like to see at most one
+>thread of writeback per disk to avoid that.
 
-Ed Tomlinson 
+Why not have a facility with which each fs can register their own writeback 
+functions with a time interval? The daemon would be doing the writing to 
+the device and would be invoking the fs registered writers every <time 
+interval> seconds. That would avoid the problem of having two fs trying to 
+write in parallel but that ignores the problem of having two parallel 
+writers on separate partitions of the same disk but that could be solved at 
+the fs writeback function level.
+
+At least for NTFS TNG I was thinking of having a daemon running every 5 
+seconds and committing dirty data to disk but it would be iterating over 
+all mounted ntfs volumes in sequence and flushing all dirty data for each, 
+thus avoiding concurrent writing to the same disk, which I had thought 
+might cause a problem and you just confirmed it...[1]
+
+Just a thought,
+
+Anton
+
+[1] I am aware this probably doesn't scale too well but considering a 
+volume can span several disk partitions on the same disk or across several 
+disks I don't see how to parallelize at the fs level.
+
+
+-- 
+   "Nothing succeeds like success." - Alexandre Dumas
+-- 
+Anton Altaparmakov <aia21 at cam.ac.uk> (replace at with @)
+Linux NTFS Maintainer / WWW: http://linux-ntfs.sf.net/
+ICQ: 8561279 / WWW: http://www-stu.christs.cam.ac.uk/~aia21/
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
