@@ -1,39 +1,64 @@
-Date: Mon, 24 May 2004 21:15:45 +0000
-From: jcisaac@ftp.ie.xemacs.org
-Subject: l O 5, 5 =?ISO-8859-1?Q?1=D5?= 8 6 Engtlish
-References: <55A01CI2CE5CI436@kvack.org>
-In-Reply-To: <55A01CI2CE5CI436@kvack.org>
-Message-ID: <AK67E29DBHJG3KI8@ftp.ie.xemacs.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=koi8-r
-Content-Transfer-Encoding: 8bit
+Date: Mon, 24 May 2004 14:53:03 -0700
+From: Andrew Morton <akpm@osdl.org>
+Subject: Re: Slab cache reap and CPU availability
+Message-Id: <20040524145303.45c8f8a6.akpm@osdl.org>
+In-Reply-To: <200405241539.i4OFddJQ016338@fsgi142.americas.sgi.com>
+References: <20040521191609.6f4a49a7.akpm@osdl.org>
+	<200405241539.i4OFddJQ016338@fsgi142.americas.sgi.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Linux-mm <linux-mm@kvack.org>
+Return-Path: <owner-linux-mm@kvack.org>
+To: Dimitri Sivanich <sivanich@sgi.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-=?ISO-8859-1?Q?=F0=D2=C9=D7=C5=D4,?= =?ISO-8859-1?Q?=CB=C1=CB?= =?ISO-8859-1?Q?=C4=C5=CC=C1=3F?=
-Return-Path: <owner-linux-mm@kvack.org>
-X-Envelope-To: <"|/home/majordomo/wrapper archive -f /home/ftp/pub/archives/linux-mm/linux-mm -m -a"> (uid 0)
-X-Orcpt: rfc822;linux-mm-outgoing
-Original-Recipient: rfc822;linux-mm-outgoing
+Dimitri Sivanich <sivanich@sgi.com> wrote:
+>
+> > Do you have stack backtraces?  I thought the problem was via the RCU
+> > softirq callbacks, not via the timer interrupt.  Dipankar spent some time
+> > looking at the RCU-related problem but solutions are not comfortable.
+> > 
+> > What workload is triggering this?
+> > 
+> 
+> The IA/64 backtrace with all the cruft removed looks as follows:
+> 
+> 0xa000000100149ac0 reap_timer_fnc+0x100
+> 0xa0000001000f4d70 run_timer_softirq+0x2d0
+> 0xa0000001000e9440 __do_softirq+0x200
+> 0xa0000001000e94e0 do_softirq+0x80
+> 0xa000000100017f50 ia64_handle_irq+0x190
+> 
+> The system is running mostly AIM7, but I've seen holdoffs > 30 usec with
+> virtually no load on the system.
 
-dOAAIACAAI AUOOOI xUOTHEOO oAUCIxIOIUE AICIEEOEEE NUUE 
-oIEEAIOIAN IAOIAEEA IAOTHAIEN - IUUIAIEA, DOIEUIIUAIEA, OOEIO OATHE.
+They're pretty low latencies you're talking about there.
 
-oAI. 9 9 5 - 8 2 - 4 1 iIOExA. uxIIEOA OAETHAO! dOEEIAEOA OACIAIN!
+You should be able to reduce the amount of work in that timer handler by
+limiting the size of the per-cpu caches in the slab allocator.  You can do
+that by writing a magic incantation to /proc/slabinfo or:
 
-iAU OAEO wwww.amercenter.com -start learning english Today!
+--- 25/mm/slab.c~a	Mon May 24 14:51:32 2004
++++ 25-akpm/mm/slab.c	Mon May 24 14:51:37 2004
+@@ -2642,6 +2642,7 @@ static void enable_cpucache (kmem_cache_
+ 	if (limit > 32)
+ 		limit = 32;
+ #endif
++	limit = 8;
+ 	err = do_tune_cpucache(cachep, limit, (limit+1)/2, shared);
+ 	if (err)
+ 		printk(KERN_ERR "enable_cpucache failed for %s, error %d.\n",
 
-oACIxIOIUE EOOO DIIIOAO xAI IA DIOAONOON x IAAIE OEOOAAEE.
-oxAOAIIIOOO E AAOIIAOIUE EIIOOIIO x IAAIE OEOOAAEE- IO AUOIDIOOA 
-AI IOAIN, AI xOOOATHE O EIIOOOAIIUI DAOOIAOII E xAOAIIE OOOIxEE 
-- aICIEEOEEE UOI IA OAE OIIOII.
+_
 
 
-oxAOAUE AAUIxUE OOIxAIO E DOAEOETHAOEEA IAxUEE. oOA THAOAU IAONA xU 
-xIUIIOII OAExEOA OxIEIE UIAIENIE AOOUAE E UIAEIIUE, EIIIAC A CIAxIIA 
-OAIICI OAAN. 
+> Which uncomfortable solutions (which could relate to this case) have been
+> investigated?
 
+That work was focussed on the amount of work which is performed in a single
+RCU callback, not in the slab timer handler.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
