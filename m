@@ -1,37 +1,46 @@
-Received: from f04n07.cac.psu.edu (f04s07.cac.psu.edu [128.118.141.35])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id PAA11003
-	for <linux-mm@kvack.org>; Tue, 12 Jan 1999 15:24:52 -0500
-Message-ID: <369BAD5A.235762CE@psu.edu>
-Date: Tue, 12 Jan 1999 15:15:22 -0500
-From: Michael K Vance <mkv102@psu.edu>
+Received: from yme.mo.hiMolde.no (qmailr@yme.mo.hiMolde.no [158.38.74.10])
+	by kvack.org (8.8.7/8.8.7) with SMTP id QAA11333
+	for <linux-mm@kvack.org>; Tue, 12 Jan 1999 16:08:25 -0500
+Date: Tue, 12 Jan 1999 22:08:07 +0100 (CET)
+From: Erik Inge Bolso <knan@mo.himolde.no>
+Subject: The hogmemtest on a 386 / 8MB... Updated...
+Message-ID: <Pine.LNX.3.96.990112220701.9841B-100000@yme.mo.himolde.no>
 MIME-Version: 1.0
-Subject: Re: Results: Zlatko's new vm patch
-References: <Pine.LNX.3.95.990111213013.15291A-100000@penguin.transmeta.com>
-		<Pine.LNX.4.05.9901121055350.723-100000@alien.cowboy.net> <199901121816.SAA11120@dax.scot.redhat.com>
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=iso-8859-1
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
-To: "Stephen C. Tweedie" <sct@redhat.com>
-Cc: Joseph Anthony <jga@cowboy.net>, Linus Torvalds <torvalds@transmeta.com>, Steve Bergman <steve@netplus.net>, Andrea Arcangeli <andrea@e-mind.com>, brent verner <damonbrent@earthlink.net>, "Garst R. Reese" <reese@isn.net>, Kalle Andersson <kalle.andersson@mbox303.swipnet.se>, Zlatko Calusic <Zlatko.Calusic@CARNet.hr>, Ben McCann <bmccann@indusriver.com>, bredelin@ucsd.edu, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org, Alan Cox <alan@lxorguk.ukuu.org.uk>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-"Stephen C. Tweedie" wrote:
+386DX-25 w/8 MB RAM, IDE disk
 
-> > Well, sometimes the system writes to swap before I have used half my
-> > memory ( in X ) I view this with wmmon in windowmaker..
-> 
-> Suspect wmmon in that case.  If you can show this happening in a trace
-> output from "vmstat 1", then I'll start to worry.
+		./hogmem 12 3		(2x) ./hogmem 6 3
 
-wmmon stuffs both swap and physical mem in its "MEM" area, and also has a
-listing for "SWP", ie swap. I assume top is still reliable?
+2.0.36		0.32 MB/sec		0.14+0.14 MB/sec
+2.1.128		0.41 MB/sec		0.14+0.14 MB/sec
+2.2.0pre6	0.61 MB/sec		0.20+0.20 MB/sec
+2.2.0pre6
+ + arcavm16	0.54 MB/sec		0.16+0.16 MB/sec
+2.2.0pre7	0.61 MB/sec		0.27+0.27 MB/sec
+2.2.0pre7
+ + zlatko1	0.61 MB/sec		0.27+0.27 MB/sec
 
-m.
+"interactive feel" is impractical to test via telnet to a 386,
+to say the least... So I just test the numbers... Make of it
+whatever you want :)
 
--- 
-"We watched her fall over and lay down,
- shouting the poetic truths of high school journal keepers."
- -- Lee Rinaldo, Sonic Youth
+Zlatko's patch seem to make not a great deal of a difference in this
+simple test... But I don't know whether that was his intention
+either :)
+
+I'd be happy to test more kernel variations :)... since this 386 does a
+fair bit of swapping when accessed by FTP... :)
+
+--
+Erik I. Bolso <knan at mo.himolde.no>
+The White Tower: http://www.mo.himolde.no/~knan/
+
+
 --
 This is a majordomo managed list.  To unsubscribe, send a message with
 the body 'unsubscribe linux-mm me@address' to: majordomo@kvack.org
