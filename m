@@ -1,47 +1,70 @@
-Message-Id: <l03130325b745dbca4a2f@[192.168.239.105]>
-In-Reply-To: 
-        <Pine.LNX.4.21.0106072042340.1156-100000@freak.distro.conectiva>
-References: <l03130322b745b6bd9598@[192.168.239.105]>
+Date: Thu, 7 Jun 2001 21:38:06 -0400
+From: cohutta <cohutta@MailAndNews.com>
+Subject: RE: temp. mem mappings
+Message-ID: <3B2DF994@MailAndNews.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Date: Fri, 8 Jun 2001 02:35:47 +0100
-From: Jonathan Morton <chromi@cyberspace.org>
-Subject: Re: [PATCH] VM tuning patch, take 2
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Marcelo Tosatti <marcelo@conectiva.com.br>
-Cc: Jeff Garzik <jgarzik@mandrakesoft.com>, linux-mm@kvack.org
+To: "Stephen C. Tweedie" <sct@redhat.com>
+Cc: linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
->-       free += (dentry_stat.nr_unused * sizeof(struct dentry)) >>PAGE_SHIFT;
->-       free += (inodes_stat.nr_unused * sizeof(struct inode)) >> PAGE_SHIFT;
->+       /* free += (dentry_stat.nr_unused * sizeof(struct dentry)) >>
->PAGE_SHIFT;
->+          free += (inodes_stat.nr_unused * sizeof(struct inode)) >>
->PAGE_SHIFT;
->+        */
+>===== Original Message From "Stephen C. Tweedie" <sct@redhat.com> =====
+>Hi,
 >
+>On Wed, Jun 06, 2001 at 05:14:26PM -0400, cohutta wrote:
 >
->On workloads full of dentries/inodes, allocations are going to fail with
->this change (remember most dentries/inodes _are_ usually freeable).
+>> I think this is part of the problem: on my 1 GB system, the
+>> ACPI tables are at physical 0x3fffxxxx == virtual 0xffffxxxx,
+>> which could conflict with the APIC and IOAPIC mappings
+>> (from fixmap.h).
+>
+>Shouldn't be --- the fixmaps should be part of the kernel's dynamic
+>virtual area, which is not identity mapped.  You can still map those
+>physical addresses via kmap() on a highmem system (and a 1GB machine
+>should be running a highmem kernel).
 
-OK.  I made that change to help bring vm_enough_memory() and
-out_of_memory() in line with each other, so if we put that back in, it
-needs to be put in out_of_memory() as well.
+Well i now have a 768 MB machine, but i don't think that
+makes a big difference with the problem that i am seeing
+in mapping this ACPI memory early in setup_arch() [x86].
 
-As it happens, the dentry and inode caches get shrunk under VM pressure,
-and so by the time swap is full and buffers+cache are a minimum size, these
-caches will normally also be shrunk to their furthest sensible extent.
+>> Well, i'm talking about physical memory, but it's marked as ACPI
+>> data.
+>
+>If it is marked PG_Reserved, then ioremap() will work on it despite it
+>being inside the normal physical memory area.  If not, kmap() will
+>still work.
+>
+>> Another part of the problem is that I need to do this early in
+>> arch/i386/kernel/setup.c::setup_arch(), like between calls to
+>> paging_init() and init_apic_mappings().  I can't use ioremap()
+>> here can i?  ioremap() calls get_vm_area() which calls
+>> kmalloc(), and i don't think i can use kmalloc() just yet.
+>
+>Right --- you can use alloc_pages but we haven't done the
+>initialisation of the kmalloc slabsl by this point.
 
---------------------------------------------------------------
-from:     Jonathan "Chromatix" Morton
-mail:     chromi@cyberspace.org  (not for attachments)
+My testing indicates that i can't use __get_free_page(GFP_KERNEL)
+any time during setup_arch() [still x86].  It causes a BUG
+in slab.c (line 920) [linux 2.4.5].  Did I misunderstand you?
+Do you have another suggestion?
 
-The key to knowledge is not to rely on people to teach you it.
+[for others who need it, not Stephen:
+  __get_free_page() -> __get_free_pages() -> alloc_pages()
+  -> __alloc_pages() ]
 
-GCS$/E/S dpu(!) s:- a20 C+++ UL++ P L+++ E W+ N- o? K? w--- O-- M++$ V? PS
-PE- Y+ PGP++ t- 5- X- R !tv b++ DI+++ D G e+ h+ r++ y+(*)
+>_Why_ do you need access to the ACPI tables so early, though?
 
+ACPI tables have much to say about booting on newer x86 systems.
+I'll try to be more specific later, when i can.
+
+>Cheers,
+> Stephen
+
+Thanks Stephen.
+/c/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
