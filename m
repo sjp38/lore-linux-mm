@@ -1,28 +1,30 @@
-Date: Fri, 1 Oct 2004 14:00:13 -0700
-From: Andrew Morton <akpm@osdl.org>
-Subject: Re: [RFC] memory defragmentation to satisfy high order allocations
-Message-Id: <20041001140013.5e3afc59.akpm@osdl.org>
-In-Reply-To: <20041001190430.GA4372@logos.cnet>
-References: <20041001182221.GA3191@logos.cnet>
-	<20041001131147.3780722b.akpm@osdl.org>
-	<20041001190430.GA4372@logos.cnet>
+Date: Fri, 1 Oct 2004 22:57:27 +0200
+From: bert hubert <ahu@ds9a.nl>
+Subject: Re: md hangs while rebuilding
+Message-ID: <20041001205727.GA30680@outpost.ds9a.nl>
+References: <1096658210.9342.1525.camel@arcane>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1096658210.9342.1525.camel@arcane>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
-Cc: linux-mm@kvack.org, piggin@cyberone.com.au, arjanv@redhat.com, linux-kernel@vger.kernel.org, haveblue@us.ibm.com
+To: "Shesha B.  Sreenivasamurthy" <shesha@inostor.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernelnewbies@nl.linux.org
 List-ID: <linux-mm.kvack.org>
 
-Marcelo Tosatti <marcelo.tosatti@cyclades.com> wrote:
->
-> As far as I have researched, the memory moving/remapping code 
-> on the hot remove patches dont work correctly. Please correct me.
-> 
-> And what I've seen (from the Fujitsu guys) was quite ugly IMHO.
+On Fri, Oct 01, 2004 at 12:16:51PM -0700, Shesha B.  Sreenivasamurthy wrote:
 
-That's a totally different patch.
+> I have 9 disks raid 1. I pulled out 4 disks, and using raidhotadd I
+> triggered a rebuild on 3 of them. While rebuilding md1, the rebuilding
+> process is stuck at 0.0%. Below is a snapshot of "/proc/mdstat". 
+
+Please please please tell people what kernel you run with and your exact
+configuration.
+
+-- 
+http://www.PowerDNS.com      Open source, database driven DNS Software 
+http://lartc.org           Linux Advanced Routing & Traffic Control HOWTO
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
