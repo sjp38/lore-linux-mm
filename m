@@ -1,52 +1,39 @@
 Subject: Re: Unable to boot 2.6.0-test1-mm2 (mm1 is OK) on RH 9.0.93
 	(Severn)
 From: Steven Cole <elenstev@mesatop.com>
-In-Reply-To: <20030722180125.54503.qmail@web12303.mail.yahoo.com>
-References: <20030722180125.54503.qmail@web12303.mail.yahoo.com>
+In-Reply-To: <1058887517.1668.16.camel@spc9.esa.lanl.gov>
+References: <1058887517.1668.16.camel@spc9.esa.lanl.gov>
 Content-Type: text/plain
-Message-Id: <1058898314.1675.26.camel@spc9.esa.lanl.gov>
+Message-Id: <1058981039.1668.107.camel@spc9.esa.lanl.gov>
 Mime-Version: 1.0
-Date: 22 Jul 2003 12:25:15 -0600
+Date: 23 Jul 2003 11:23:59 -0600
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ravi Krishnamurthy <kravi26@yahoo.com>
+To: Andrew Morton <akpm@osdl.org>
 Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2003-07-22 at 12:01, Ravi Krishnamurthy wrote:
-> --- Steven Cole <elenstev@mesatop.com> wrote:
-> > I get this error when trying to boot 2.6.0-test1-mm2
-> > using the new Red
-> > Hat beta (Severn).  2.6.0-test2-mm2 runs successfully on
-> > a couple of
-> > other test boxes of mine.
-> > 
-> > VFS: Cannot open root device "hda1" or unknown-block(0,0)
-> > Please append a correct "root=" boot option
-> > Kernel panic: VFS: Unable to mount root fs on
-> > unknown-block(0,0)
+On Tue, 2003-07-22 at 09:25, Steven Cole wrote:
+> I get this error when trying to boot 2.6.0-test1-mm2 using the new Red
+> Hat beta (Severn).  2.6.0-test2-mm2 runs successfully on a couple of
+> other test boxes of mine.
 > 
->  The last time I had this problem, I found that
-> CONFIG_IDEDISK_MULTI_MODE was off and my disk wouldn't
-> get recognized without that. But you say your other
-> kernels are working, so I am not sure this is the problem.
-> 
-> -Ravi.
+> VFS: Cannot open root device "hda1" or unknown-block(0,0)
+> Please append a correct "root=" boot option
+> Kernel panic: VFS: Unable to mount root fs on unknown-block(0,0)
 
-Thanks, but in this case, that's not it.
+After reading a recent thread on lkml, I changed the "root=" thusly:
 
-[steven@spc1 linux-2.6.0-test1-mm2]$ grep ^CONFIG_IDE .config
-CONFIG_IDE=y
-CONFIG_IDEDISK_MULTI_MODE=y
-CONFIG_IDEPCI_SHARE_IRQ=y
-CONFIG_IDEDMA_PCI_AUTO=y
-CONFIG_IDEDMA_AUTO=y
+image=/boot/vmlinuz-2.6.0-test1-mm2
+        label=2.6.0-test1mm2
+        read-only
+        append="devfs=nomount hdc=ide-scsi root=/dev/hda1"
 
-I may try to build the kernel with another compiler. Severn has this
-fairly new gcc:
-[steven@spc1 etc]$ gcc --version
-gcc (GCC) 3.3 20030715 (Red Hat Linux 3.3-14)
+to this
+        append="devfs=nomount hdc=ide-scsi root=0301"
+
+And now 2.6.0-test1-mm2 boots and runs.
 
 Steven
 
