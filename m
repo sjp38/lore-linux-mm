@@ -1,47 +1,116 @@
-Message-ID: <20010220153722.51795.qmail@web12702.mail.yahoo.com>
-Date: Tue, 20 Feb 2001 07:37:22 -0800 (PST)
-From: Alan Cudmore <embeddedpenguin@yahoo.com>
-Subject: How to allocate large blocks of contiguous physical RAM?
+Date: Tue, 20 Feb 2001 15:52:56 -0300 (BRST)
+From: Rik van Riel <riel@conectiva.com.br>
+Subject: [PATCH] page_launder improvement for 2.4.1-ac19
+Message-ID: <Pine.LNX.4.21.0102201547400.3674-100000@duckman.distro.conectiva>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linux-MM@kvack.org
+To: Alan Cox <alan@lxorguk.ukuu.org.uk>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
-I'm trying to figure out how to allocate a large block
-of contiguous physical memory under linux 2.4.x. I
-have 4GB of RAM and have turned on the CONFIG_HIGMEM4G
-option. 
-Previously I was using the "bigphysarea" patch, but
-that seems to have a limit of around 900MB. ( is that
-because it is being allocated from the 1Gig kernel
-physical memory ? )
-Also, I have considered changing the PAGE_OFFSET
-define to 0x80000000 to give me a little under 2GB.
+Hi Alan,
 
-Ideally I would like to do the following:
-1. Pre-Allocate 2 or 3 gigs of contiguous memory
-2. A custom PCI 64/66Mhz card will be DMAing data
-directly into this memory at very high rates ( up to
-500MBytes per second, thus the need for a few gigs ) 
-3. Then I would like to be able to DMA data back out
-to SCSI without picking the data up ( using SCSI
-generic with Direct I/O ).
+the following patch makes kswapd always flush the right amount
+of pages in page_launder()  (ie. the number of pages we need
+to flush in order to work away the free shortage, minus the number
+of swapouts already in flight).
 
-I really am a linux-MM newbie, so I would appreciate
-advice on how I could accomplish such a feat, it it
-can be done at all. Any suggestions would be welcome.
+This makes the system react better under write loads, because
+user processes will have to go into try_to_free_pages() a lot
+less themselves...
 
-Thanks,
-Alan C.
+regards,
+
+Rik
+--
+Linux MM bugzilla: http://linux-mm.org/bugzilla.shtml
+
+Virtual memory is like a game you can't win;
+However, without VM there's truly nothing to lose...
+
+		http://www.surriel.com/
+http://www.conectiva.com/	http://distro.conectiva.com/
 
 
-__________________________________________________
-Do You Yahoo!?
-Get personalized email addresses from Yahoo! Mail - only $35 
-a year!  http://personal.mail.yahoo.com/
+
+--- linux-2.4.1-ac19/mm/vmscan.c.orig	Tue Feb 20 15:30:44 2001
++++ linux-2.4.1-ac19/mm/vmscan.c	Tue Feb 20 15:31:24 2001
+@@ -413,7 +413,7 @@
+  * This code is heavily inspired by the FreeBSD source code. Thanks
+  * go out to Matthew Dillon.
+  *
+- * XXX: restrict number of pageouts in flight...
++ * XXX: restrict number of pageouts in flight by ->writepage...
+  */
+ #define MAX_LAUNDER 		(1 << page_cluster)
+ int page_launder(int gfp_mask, int user)
+@@ -514,7 +514,10 @@
+ 			spin_unlock(&pagemap_lru_lock);
+ 
+ 			writepage(page);
+-			flushed_pages++;
++			/* XXX: all ->writepage()s should use nr_async_pages */
++			if (!PageSwapCache(page))
++				flushed_pages++;
++			maxlaunder--;
+ 			page_cache_release(page);
+ 
+ 			/* And re-start the thing.. */
+@@ -563,7 +566,8 @@
+ 			/* The buffers were not freed. */
+ 			if (!clearedbuf) {
+ 				add_page_to_inactive_dirty_list(page);
+-				flushed_pages++;
++				if (wait)
++					flushed_pages++;
+ 
+ 			/* The page was only in the buffer cache. */
+ 			} else if (!page->mapping) {
+@@ -636,14 +640,16 @@
+ 		 * with the paging load in the system and doesn't have
+ 		 * the IO storm problem, so it just flushes all pages
+ 		 * needed to fix the free shortage.
+-		 *
+-		 * XXX: keep track of nr_async_pages like the old swap
+-		 * code did?
+ 		 */
+-		if (user)
++		maxlaunder = shortage;
++		maxlaunder -= flushed_pages;
++		maxlaunder -= atomic_read(&nr_async_pages);
++	
++		if (maxlaunder <= 0)
++			goto out;
++
++		if (user && maxlaunder > MAX_LAUNDER)
+ 			maxlaunder = MAX_LAUNDER;
+-		else
+-			maxlaunder = shortage;
+ 
+ 		/*
+ 		 * If we are called by a user program, we need to free
+@@ -667,6 +673,7 @@
+ 	/*
+ 	 * Return the amount of pages we freed or made freeable.
+ 	 */
++out:
+ 	return freed_pages + flushed_pages;
+ }
+ 
+--- linux-2.4.1-ac19/mm/page_io.c.orig	Tue Feb 20 15:31:51 2001
++++ linux-2.4.1-ac19/mm/page_io.c	Tue Feb 20 15:32:21 2001
+@@ -69,7 +69,7 @@
+ 	} else {
+ 		return 0;
+ 	}
+- 	if (!wait) {
++ 	if (!wait && rw == WRITE) {
+  		SetPageDecrAfter(page);
+  		atomic_inc(&nr_async_pages);
+  	}
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
