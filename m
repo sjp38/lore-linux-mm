@@ -1,49 +1,39 @@
-Date: Tue, 29 Oct 2002 07:02:03 -0500 (EST)
-From: Bill Davidsen <davidsen@tmr.com>
+Date: Tue, 29 Oct 2002 15:28:00 -0200 (BRST)
+From: Rik van Riel <riel@conectiva.com.br>
 Subject: Re: 2.5.44-mm6
-In-Reply-To: <3DBD7176.BAC2BCD3@digeo.com>
-Message-ID: <Pine.LNX.3.96.1021029065944.6113B-100000@gatekeeper.tmr.com>
+In-Reply-To: <Pine.LNX.3.96.1021029065944.6113B-100000@gatekeeper.tmr.com>
+Message-ID: <Pine.LNX.4.44L.0210291526560.1697-100000@imladris.surriel.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@digeo.com>
-Cc: Rik van Riel <riel@conectiva.com.br>, lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Bill Davidsen <davidsen@tmr.com>
+Cc: Andrew Morton <akpm@digeo.com>, lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 28 Oct 2002, Andrew Morton wrote:
+On Tue, 29 Oct 2002, Bill Davidsen wrote:
+> On Mon, 28 Oct 2002, Andrew Morton wrote:
+> > Rik van Riel wrote:
+> > > Just let me know if you're interested in my load control mechanism
+> > > and I'll send it to you.
+> > It would also be interesting to know if we really care?
+>
+> I think there is a need for keeping an overloaded machine in some way
+> usable, not because anyone is really running it that way, but because
+> the sysadmin needs a way to determine why a correctly sized machine is
+> suddenly seeing a high load.
 
-> Rik van Riel wrote:
+Indeed, it's a stability thing, not a performance thing.
 
-> > 1) 2.4 does have the failure modes you talk about ;)
-> 
-> Shock :)  How does one trigger them?
-> 
-> 
-> > 2) I have most of an explicit load control algorithm ready,
-> >    against an early 2.4 kernel, but porting it should be very
-> >    little work
-> > 
-> > Just let me know if you're interested in my load control mechanism
-> > and I'll send it to you.
-> 
-> It would be interesting if you could send out what you have.
-> 
-> It would also be interesting to know if we really care?  The
-> machine is already running 10x slower than it would be if it
-> had enough memory; perhaps it is just not a region of operation
-> for which we're interested in optimising.  (Just being argumentitive
-> here ;))
+It's Not Good(tm) to have a system completely crap out because
+of a load spike. Instead it should survive the load spike and
+go on with life.
 
-I think there is a need for keeping an overloaded machine in some way
-usable, not because anyone is really running it that way, but because the
-sysadmin needs a way to determine why a correctly sized machine is
-suddenly seeing a high load.
-
+Rik
 -- 
-bill davidsen <davidsen@tmr.com>
-  CTO, TMR Associates, Inc
-Doing interesting things with little computers since 1979.
+Bravely reimplemented by the knights who say "NIH".
+http://www.surriel.com/		http://distro.conectiva.com/
+Current spamtrap:  <a href=mailto:"october@surriel.com">october@surriel.com</a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
