@@ -1,25 +1,52 @@
-Date: Wed, 2 Jul 2003 20:13:27 +0200
-From: Andrea Arcangeli <andrea@suse.de>
-Subject: Re: What to expect with the 2.6 VM
-Message-ID: <20030702181327.GO23578@dualathlon.random>
-References: <Pine.LNX.4.53.0307010238210.22576@skynet> <20030701022516.GL3040@dualathlon.random> <Pine.LNX.4.53.0307021641560.11264@skynet> <20030702171159.GG23578@dualathlon.random> <461030000.1057165809@flay> <20030702174700.GJ23578@dualathlon.random> <528080000.1057168362@flay>
-Mime-Version: 1.0
+Date: Wed, 02 Jul 2003 11:12:00 -0700
+From: "Martin J. Bligh" <mbligh@aracnet.com>
+Subject: Re: 2.5.73-mm3
+Message-ID: <530600000.1057169520@flay>
+In-Reply-To: <20030701221829.3e0edf3a.akpm@digeo.com>
+References: <20030701203830.19ba9328.akpm@digeo.com><15570000.1057122469@[10.10.2.4]> <20030701221829.3e0edf3a.akpm@digeo.com>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <528080000.1057168362@flay>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Martin J. Bligh" <mbligh@aracnet.com>
-Cc: Mel Gorman <mel@csn.ul.ie>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>
+To: Andrew Morton <akpm@digeo.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jul 02, 2003 at 10:52:42AM -0700, Martin J. Bligh wrote:
-> Indeed - if we could memlock it, it'd be OK to drop that stuff. Would
-> make everything a lot simpler.
+>> VFS: Cannot open root device "sda2" or unknown-block(0,0)
+>> Please append a correct "root=" boot option
+>> Kernel panic: VFS: Unable to mount root fs on unknown-block(0,0)
+>> 
+>> mm2 works fine.
+>> 
+>> Seems like no SCSI drivers at all got loaded ... same config file,
+>> feral on ISP.
+> 
+> Works OK here.
+> 
+> The config option for the feral driver got gratuitously renamed.  To
+> CONFIG_SCSI_FERAL_ISP.
 
-yes.
+Bah humbug.
 
-Andrea
+Well, I tried that now. Still E_NO_WORKEE though. Does spit out one
+error:
+
+scsi HBA driver Qlogic ISP 10X0/2X00 didn't set a release method.
+st: Version 20030622, fixed bufsize 32768, s/g segs 256
+oprofile: using NMI interrupt.
+NET4: Linux TCP/IP 1.0 for NET4.0
+IP: routing cache hash table of 131072 buckets, 1024Kbytes
+TCP: Hash tables configured (established 524288 bind 65536)
+NET4: Unix domain sockets 1.0/SMP for Linux NET4.0.
+VFS: Cannot open root device "sda2" or unknown-block(0,0)
+Please append a correct "root=" boot option
+Kernel panic: VFS: Unable to mount root fs on unknown-block(0,0)
+
+Note the "scsi HBA driver Qlogic ISP 10X0/2X00 didn't set a release method"
+bit.
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
