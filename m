@@ -1,44 +1,55 @@
-Received: from digeo-nav01.digeo.com (digeo-nav01.digeo.com [192.168.1.233])
-	by packet.digeo.com (8.9.3+Sun/8.9.3) with SMTP id BAA20882
-	for <linux-mm@kvack.org>; Mon, 30 Sep 2002 01:01:40 -0700 (PDT)
-Message-ID: <3D9804E1.76C9D4AE@digeo.com>
-Date: Mon, 30 Sep 2002 01:01:37 -0700
-From: Andrew Morton <akpm@digeo.com>
+Content-Type: text/plain;
+  charset="iso-8859-1"
+From: Ed Tomlinson <tomlins@cam.org>
+Subject: Re: 2.5.39 kmem_cache bug
+Date: Mon, 30 Sep 2002 07:18:57 -0400
+References: <20020928201308.GA59189@compsoc.man.ac.uk> <200209292020.40824.tomlins@cam.org> <3D97E737.80405@colorfullife.com>
+In-Reply-To: <3D97E737.80405@colorfullife.com>
 MIME-Version: 1.0
-Subject: Re: 2.5.39-mm1
-References: <3D976206.B2C6A5B8@digeo.com> <735786955.1033347097@[10.10.2.3]>
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Content-Transfer-Encoding: 8bit
+Message-Id: <200209300718.57382.tomlins@cam.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Martin J. Bligh" <mbligh@aracnet.com>
-Cc: lkml <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Anton Blanchard <anton@samba.org>
+To: Manfred Spraul <manfred@colorfullife.com>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-"Martin J. Bligh" wrote:
-> 
-> > I must say that based on a small amount of performance testing the
-> > benefits of the cache warmness thing are disappointing. Maybe 1% if
-> > you squint.  Martin, could you please do a before-and-after on the
-> > NUMAQ's, double check that it is actually doing the right thing?
-> 
-> Seems to work just fine:
-> 
-> 2.5.38-mm1 + my original hot/cold code.
-> Elapsed: 19.798s User: 191.61s System: 43.322s CPU: 1186.4%
-> 
-> 2.5.39-mm1
-> Elapsed: 19.532s User: 192.25s System: 42.642s CPU: 1203.2%
-> 
-> And it's a lot more than 1% for me ;-) About 12% of systime
-> on kernel compile, IIRC.
+On September 30, 2002 01:55 am, Manfred Spraul wrote:
+> Ed Tomlinson wrote:
+> >>The first problem is the per-cpu array draining. It's needed, too many
+> >>objects can sit in the per-cpu arrays.
+> >>< 2.5.39, the per-cpu arrays can cause more list operations than no
+> >>batching, this is something that must be avoided.
+> >>
+> >>Do you see an alternative to a timer/callback/hook? What's the simplest
+> >>approach to ensure that the callback runs on all cpus? I know Redhat has
+> >>a scalable timer patch, that one would fix the timer to the cpu that
+> >>called add_timer.
+> >
+> > Maybe.  If we treat the per cpu data as special form of cache we could
+> > use the shrinker callbacks to track how much we have to trim.  When the
+> > value exceeds a threshold (set when we setup the callback) we trim.  We
+> > could do the test in freeing path in slab.
+>
+> 2 problems:
+> * What if a cache falls completely idle? If there is freeing activity on
+> the cache, then the cache is active, thus there is no need to flush
+> * I don't think it's a good idea to add logic into the path that's
+> executed for every kfree/kmem_cache_free. A timer might not be very
+> pretty, but is definitively more efficient.
+> > The patch add shrinker callbacks was posted to linux-mm Sunday and
+> > to lkml on Thursday.
+>
+> I'll read them.
+> Is it guaranteed that the shrinker callbacks are called on all cpus, or
+> could some cpu binding happen?
 
-Well that's still a 1% bottom line.  But we don't have a
-comparison which shows the effects of this patch alone.
+There is no guarantee.  The best we could use them for is to link the 'pressure'
+on the percpu stuff to vm pressure.   From the above is does look like timers
+are the way to go.
 
-Can you patch -R the five patches and retest sometime?
+Ed
 
-I just get the feeling that it should be doing better.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
