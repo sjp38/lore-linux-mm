@@ -1,44 +1,37 @@
-Date: Wed, 21 Apr 2004 03:10:10 +0100
-From: Jamie Lokier <jamie@shareable.org>
 Subject: Re: msync() behaviour broken for MS_ASYNC, revert patch?
-Message-ID: <20040421021010.GC23621@mail.shareable.org>
-References: <1080771361.1991.73.camel@sisko.scot.redhat.com> <20040416223548.GA27540@mail.shareable.org> <1082411657.2237.128.camel@sisko.scot.redhat.com>
+From: "Stephen C. Tweedie" <sct@redhat.com>
+In-Reply-To: <20040421021010.GC23621@mail.shareable.org>
+References: <1080771361.1991.73.camel@sisko.scot.redhat.com>
+	 <20040416223548.GA27540@mail.shareable.org>
+	 <1082411657.2237.128.camel@sisko.scot.redhat.com>
+	 <20040421021010.GC23621@mail.shareable.org>
+Content-Type: text/plain
+Content-Transfer-Encoding: 7bit
+Message-Id: <1082541128.2060.14.camel@sisko.scot.redhat.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1082411657.2237.128.camel@sisko.scot.redhat.com>
+Date: 21 Apr 2004 10:52:09 +0100
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Stephen C. Tweedie" <sct@redhat.com>
-Cc: linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@osdl.org>, linux-kernel <linux-kernel@vger.kernel.org>, Ulrich Drepper <drepper@redhat.com>
+To: Jamie Lokier <jamie@shareable.org>
+Cc: linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@osdl.org>, linux-kernel <linux-kernel@vger.kernel.org>, Ulrich Drepper <drepper@redhat.com>, Stephen Tweedie <sct@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-Stephen C. Tweedie wrote:
-> > If so, what was the change?
-> 
-> 2.4.9 behaved like current 2.6 --- on MS_ASYNC, it did a
-> set_page_dirty() which means the page will get picked up by the next
-> 5-second bdflush pass.  But later 2.4 kernels were changed so that they
-> started MS_ASYNC IO immediately with filemap_fdatasync() (which is
-> asynchronous regarding the new IO, but which blocks synchronously if
-> there is already old IO in flight on the page.)
-> 
-> That was reverted back to the earlier, 2.4.9 behaviour in the 2.5
-> series.
+Hi,
 
-It was 2.5.68.
+On Wed, 2004-04-21 at 03:10, Jamie Lokier wrote:
 
-Thanks, that's very helpful.
+> msync(0) has always had behaviour consistent with the <=2.4.9 and
+> >=2.5.68 MS_ASYNC behaviour, is that right?
 
-msync(0) has always had behaviour consistent with the <=2.4.9 and
->=2.5.68 MS_ASYNC behaviour, is that right?
+Not sure about "always", but it looks like it recently at least.  2.2
+msync was implemented very differently but seems, from the source, to
+have the same property --- do_write_page() calls f_op->write() on msync,
+and MS_SYNC forces an fsync after the writes.  But 2.4 and 2.6 share
+much more similar code to each other.  So all since 2.2 seem to do the
+fully-async, deferred writeback behaviour for flags==0.
 
-If so, programs may as well "#define MS_ASYNC 0" on Linux, to get well
-defined and consistent behaviour.  It would be nice to change the
-definition in libc to zero, but I don't think it's possible because
-msync(MS_SYNC|MS_ASYNC) needs to fail.
+--Stephen
 
--- Jamie
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
