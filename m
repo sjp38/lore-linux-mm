@@ -1,51 +1,47 @@
-Subject: Re: Large memory system
-References: <19990130083631.B9427@msc.cornell.edu> 	<Pine.LNX.3.95.990130114256.27443A-100000@kanga.kvack.org> <199902081124.LAA02285@dax.scot.redhat.com>
-From: ebiederm+eric@ccr.net (Eric W. Biederman)
-Date: 08 Feb 1999 09:31:11 -0600
-In-Reply-To: "Stephen C. Tweedie"'s message of "Mon, 8 Feb 1999 11:24:58 GMT"
-Message-ID: <m17lts52v4.fsf@flinx.ccr.net>
+Received: from dax.scot.redhat.com (sct@dax.scot.redhat.com [195.89.149.242])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id LAA18423
+	for <linux-mm@kvack.org>; Mon, 8 Feb 1999 11:39:51 -0500
+Date: Mon, 8 Feb 1999 16:39:20 GMT
+Message-Id: <199902081639.QAA03290@dax.scot.redhat.com>
+From: "Stephen C. Tweedie" <sct@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Subject: [PATCH] Re: swapcache bug?
+In-Reply-To: <36BDD9B2.8718B21@stud.uni-sb.de>
+References: <36BDD9B2.8718B21@stud.uni-sb.de>
 Sender: owner-linux-mm@kvack.org
-To: "Stephen C. Tweedie" <sct@redhat.com>
-Cc: "Benjamin C.R. LaHaise" <blah@kvack.org>, Daniel Blakeley <daniel@msc.cornell.edu>, linux-mm@kvack.org
+To: masp0008@stud.uni-sb.de, Linus Torvalds <torvalds@transmeta.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Stephen Tweedie <sct@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
->>>>> "ST" == Stephen C Tweedie <sct@redhat.com> writes:
+Hi,
 
-ST> Hi,
-ST> On Sat, 30 Jan 1999 12:00:53 -0500 (EST), "Benjamin C.R. LaHaise"
-ST> <blah@kvack.org> said:
+On Sun, 07 Feb 1999 19:21:38 +0100, Manfred Spraul
+<masp0008@stud.uni-sb.de> said:
 
->> Easily isn't a good way of putting it, unless you're talking about doing
->> something like mmap on /dev/mem, in which case you could make the
->> user/kernel virtual spilt weigh heavy on the user side and do memory
->> allocation yourself.  If you're talking about doing it transparently,
->> you're best bet is to do something like davem's suggested high mem
->> approach, and only use non-kernel mapped memory for user pages... if you
->> want to be able to support the page cache in high memory, things get
->> messy.
+> I'm currently debugging my physical memory ramdisk, and I see lots of
+> entries in the page cache that have 'page->offset' which aren't
+> multiples of 4096. (they are multiples of 256)
+> All of them belong to swapper_inode.
 
-ST> No it doesn't!  The only tricky thing is IO, but we need to have bounce
-ST> buffers to high memory anyway for swapping.  The page cache uses "struct
-ST> page" addresses in preference to actual page data pointers almost
-ST> everywhere anyway, and whenever we are doing something like read(2) or
-ST> write(2) functions, we just need a single per-CPU virtual pte in the
-ST> vmalloc region to temporarily map the page into memory while we copy to
-ST> user space (and remember that we do this from the context of the user
-ST> process anyway, so we don't have to remap the user page even if it is in
-ST> high memory).
+That is normal.
 
-Cool.  We now have an idea that sounds possible.
+> If this is the intended behaviour, then page_hash() should be changed:
+> it assumes that 'page->offset' is a multiple of 4096.
 
-The only remaining question is how much of a performance hit would changing 
-the contents of a pte around all of the time be?
+Good point, the line include/linux/pagemap.h:39,
 
-Every single page read/write syscall, as well as copying down to I/O bounce buffers
-sounds common enough that we probably would see a performance hit.
+	return s(i+o) & (PAGE_HASH_SIZE-1);
 
-The other thing that happens is we start breaking assumptions about fixed limits
-based on architecture size.  Things like the swap entry may need to be expanded.
+should probably be 
 
-Eric
+	return s(i+o+offset) & (PAGE_HASH_SIZE-1);
+
+to mix in the low order bits for swap entries.  Well spotted.  Anyone
+see anything wrong with this one-liner change?
+
+--Stephen
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm my@address'
 in the body to majordomo@kvack.org.  For more info on Linux MM,
