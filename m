@@ -1,42 +1,30 @@
-Content-Type: text/plain;
-  charset="iso-8859-1"
-From: Ed Tomlinson <tomlins@cam.org>
-Subject: Re: New VM Testcase (2.4.18pre7 SWAPS) (2.4.17-rmap12b OK)
-Date: Mon, 4 Feb 2002 19:36:13 -0500
-References: <200202042227.g14MRFN12329@maile.telia.com>
-In-Reply-To: <200202042227.g14MRFN12329@maile.telia.com>
-MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
-Message-Id: <20020205003614.1036BF6E7@oscar.casa.dyndns.org>
+Date: Tue, 5 Feb 2002 02:16:08 -0700
+From: Erik Andersen <andersen@codepoet.org>
+Subject: Re: [PATCH *] rmap based VM, 12c
+Message-ID: <20020205091607.GA11426@codepoet.org>
+Reply-To: andersen@codepoet.org
+References: <Pine.LNX.4.33L.0202032348500.17850-100000@imladris.surriel.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.33L.0202032348500.17850-100000@imladris.surriel.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Roger Larsson <roger.larsson@norran.net>, list linux-kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Rik van Riel <riel@conectiva.com.br>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On February 4, 2002 05:24 pm, Roger Larsson wrote:
-> When examining Karlsbakk problem I got into one quite different myself.
->
-> I have a 256MB UP PII 933 MHz.
-> When running the included program with an option of 200
-> (serving 200 clients with streaming data a 10MB... on first run
-> it creates the data, from /dev/urandom - overkill from /dev/null is ok!)
->
-> ddteset.sh 200
-> [testcase initially written by Roy Sigurd Karlsbakk, he does not get
-> into this - but he has more RAM]
->
-> the 2.4.18pre7 goes into deep swap after awhile .
-> It is impossible to start a new login, et.c. finally
-> the dd processes begins to be OOM killed... not nice...
->
-> the 2.4.17-rmap12b handles this MUCH nicer!
+On Sun Feb 03, 2002 at 11:50:09PM -0200, Rik van Riel wrote:
+> Due to field circus duty I forgot to announce 12b ... so here is 12c
+> 
 
-Roger what happens if you add my patch that allows the shrink
-functions to return the number of pages they free?
+FYI, rmap 12c claims to be rmap 12b in the EXTRAVERSION...
 
-(patch was posted to lklm sunday, copy sent privatly to Roger)
+ -Erik
 
-Ed Tomlinson
+--
+Erik B. Andersen             http://codepoet-consulting.com/
+--This message was written using 73% post-consumer electrons--
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
