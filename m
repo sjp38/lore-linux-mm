@@ -1,45 +1,41 @@
-Date: Tue, 7 May 2002 14:21:23 -0700
-From: William Lee Irwin III <wli@holomorphy.com>
+Content-Type: text/plain;
+  charset="iso-8859-1"
+From: Daniel Phillips <phillips@bonn-fries.net>
 Subject: Re: Why *not* rmap, anyway?
-Message-ID: <20020507212123.GZ15756@holomorphy.com>
-References: <Pine.LNX.4.44L.0205071620270.7447-100000@duckman.distro.conectiva> <E175Ary-0000Th-00@starship>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Description: brief message
-Content-Disposition: inline
-In-Reply-To: <E175Ary-0000Th-00@starship>
+Date: Wed, 8 May 2002 01:02:02 +0200
+References: <Pine.LNX.4.33.0205071625570.1579-100000@erol> <E175Avp-0000Tm-00@starship> <20020507195007.GW15756@holomorphy.com>
+In-Reply-To: <20020507195007.GW15756@holomorphy.com>
+MIME-Version: 1.0
+Content-Transfer-Encoding: 8bit
+Message-Id: <E175Dy8-0000U6-00@starship>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Daniel Phillips <phillips@bonn-fries.net>
+To: William Lee Irwin III <wli@holomorphy.com>
 Cc: Rik van Riel <riel@conectiva.com.br>, Christian Smith <csmith@micromuse.com>, Joseph A Knapka <jknapka@earthlink.net>, "Martin J. Bligh" <Martin.Bligh@us.ibm.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, May 07, 2002 at 09:43:29PM +0200, Daniel Phillips wrote:
-> The most obvious place to start are the page table walking operations, of
-> which there are a half-dozen instances or so.  Bill started to do some
-> work on this, but that ran aground somehow.  I think you might run into
-> the argument 'not broken yet, so don't fix yet'.  Still, it would be
-> worth experimenting with strategies.
-> Personally, I'd consider such work a diversion from the more important task
-> of getting rmap implemented.
+On Tuesday 07 May 2002 21:50, William Lee Irwin III wrote:
+> On Tuesday 07 May 2002 21:25, William Lee Irwin III wrote:
+> >> Procedural interfaces to pagetable manipulations are largely what
+> >> the BSD pmap and SVR4 HAT layers consisted of, no?
+> 
+> On Tue, May 07, 2002 at 09:47:28PM +0200, Daniel Phillips wrote:
+> > They factor the interface the wrong way for Linux.  You don't want
+> > to have to search for each (pte *) starting from the top of the
+> > structure.  We need to be able to do bulk processing.  The BSD
+> > interface just doesn't accomodate this.
+> 
+> Generally the way to achieve this is by anticipating those bulk
+> operations and providing standardized methods for them. copy_page_range()
+> and zap_page_range() are already examples of this. For other cases,
+> it's perhaps a useful layer inversion.
 
-There are a couple of things I should probably say about my prior efforts.
+What I'm really talking about is how you'd reimplement copy_page_range,
+zap_page_range, and the other 4-5 primitives that use the 3 nested loops
+style of traversing the i86-style page table structure.
 
-The plan back then was to hide the pagetable structure from generic code
-altogether and allow architecture-specific code to export a procedural
-interface totally insulating the core from the structure of pagetables.
-This was largely motivated by the notion that the optimal pagetable
-structure could be chosen on a per-architecture basis. Linus himself
-informed me that there was evidence to the contrary regarding
-architecture-specific optimal pagetable structures, and so I abandoned
-that effort given the evidence the scheme was pessimal.
-
-I have no plans now to change the standardized structure or to export
-a HAT from arch code. OTOH I've faced some recent reminders of what the
-code looks like now and believe janitoring may well be in order.
-
-Cheers,
-Bill
+-- 
+Daniel
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
