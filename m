@@ -1,79 +1,42 @@
-Date: Fri, 16 May 2003 20:10:42 +0200
-From: Andreas Henriksson <andreas@fjortis.info>
+Date: Fri, 16 May 2003 19:30:33 +0100
+From: Dave Jones <davej@codemonkey.org.uk>
 Subject: Re: 2.5.69-mm6
-Message-ID: <20030516181042.GA556@foo>
-References: <20030516015407.2768b570.akpm@digeo.com> <20030516172834.GA9774@foo> <20030516175539.GA16626@suse.de>
+Message-ID: <20030516183033.GA18042@suse.de>
+References: <20030516015407.2768b570.akpm@digeo.com> <20030516172834.GA9774@foo> <20030516175539.GA16626@suse.de> <20030516181042.GA556@foo>
 Mime-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="0F1p//8PRICkK4MW"
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20030516175539.GA16626@suse.de>
+In-Reply-To: <20030516181042.GA556@foo>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Jones <davej@codemonkey.org.uk>, Andreas Henriksson <andreas@fjortis.info>, Andrew Morton <akpm@digeo.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andreas Henriksson <andreas@fjortis.info>
+Cc: Andrew Morton <akpm@digeo.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
---0F1p//8PRICkK4MW
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+On Fri, May 16, 2003 at 08:10:42PM +0200, Andreas Henriksson wrote:
 
-On Fri, May 16, 2003 at 06:55:39PM +0100, Dave Jones wrote:
-> On Fri, May 16, 2003 at 07:28:34PM +0200, Andreas Henriksson wrote:
->=20
->  > I had to remove "static" from the agp_init-function in
->  > drivers/char/agp/backend.c to get the kernel to link (when building
->  > Intel 810 Framebuffer into the kernel).
->=20
-> wrong fix. nuke the agp_init() call from i810fb
-> note, it still won't actually work. i810fb still fails to init
-> the agpgart for some reason.
-> =20
+ > Ok.. thanks for the quick reply .. I just booted the kernel and noticed
+ > that the console got stuck (but the it booted fine except from that).
 
-Ok.. thanks for the quick reply .. I just booted the kernel and noticed
-that the console got stuck (but the it booted fine except from that).
+The reports I've seen have shown that i810fb outputs some warnings
+during startup about being unable to allocate using agpgart.
+As i810fb depends on agp, this would imply its functionality would break.
+Are you sure it's working, and not falling back to non-fb mode ?
 
-Though I find this weird:
-The last thing I saw on the console was the detection of hdb and it's
-partitions.... I tried unplugging hdb and it booted just fine...=20
-coinsidence?
+ > And by the way.... the framebuffer flickers (is that the right word?)
+ > for me.... It looks like an old TV... (Has done with all the (2.5)
+ > kernels I've tried).. Is this a known problem and if so is there a
+ > solution?
+ > I'm using a TFT monitor and this is my append-line..
+ > append="video=i810fb:xres:1280,yres:1024,bpp:16,hsync1:30,hsync2:82, \
+ > 		vsync1:50,vsync2:75,accel"
+ > (... if it matters.)
 
-And by the way.... the framebuffer flickers (is that the right word?)
-for me.... It looks like an old TV... (Has done with all the (2.5)
-kernels I've tried).. Is this a known problem and if so is there a
-solution?
-I'm using a TFT monitor and this is my append-line..
-append=3D"video=3Di810fb:xres:1280,yres:1024,bpp:16,hsync1:30,hsync2:82, \
-		vsync1:50,vsync2:75,accel"
-(... if it matters.)
+That's probably one for Antonio to figure out, unfortunatly he's busy
+right now.
 
->  > I also got unresolved symbols for two modules.
->  > arch/i386/kernel/suspend.ko: enable_sep_cpu, default_ldt, init_tss
->  > arch/i386/kernel/apm.ko: save_processor_state, restore_processor_state
->=20
-> Mikael's patch for these has been posted several times already in the
-> last few days.
->=20
-Ok.. thanks again...
+		Dave
 
-> 		Dave
-
-Regards,
-Andreas Henriksson
-
---0F1p//8PRICkK4MW
-Content-Type: application/pgp-signature
-Content-Disposition: inline
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.2.2 (GNU/Linux)
-
-iD8DBQE+xSmiAO9glESeBDQRAkjlAKCaQ6SN14LoMd356w0ZTczGGo/2LQCeNq6F
-a2WlX5tgLc9TEo5YGVgLRY0=
-=O4s3
------END PGP SIGNATURE-----
-
---0F1p//8PRICkK4MW--
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
