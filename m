@@ -1,30 +1,34 @@
-Subject: Re: [patch] generic nonlinear mappings, 2.5.44-mm2-D0
-From: Alan Cox <alan@lxorguk.ukuu.org.uk>
-In-Reply-To: <Pine.LNX.4.44.0210222237180.22860-100000@localhost.localdomain>
-References: <Pine.LNX.4.44.0210222237180.22860-100000@localhost.localdomain>
-Content-Type: text/plain
-Content-Transfer-Encoding: 7bit
-Date: 22 Oct 2002 22:18:26 +0100
-Message-Id: <1035321506.329.161.camel@irongate.swansea.linux.org.uk>
-Mime-Version: 1.0
+Reply-To: Gerrit Huizenga <gh@us.ibm.com>
+From: Gerrit Huizenga <gh@us.ibm.com>
+Subject: Re: [PATCH 2.5.43-mm2] New shared page table patch 
+In-reply-to: Your message of 22 Oct 2002 21:23:59 BST.
+             <1035318239.329.141.camel@irongate.swansea.linux.org.uk>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="us-ascii"
+Content-ID: <10176.1035322404.1@us.ibm.com>
+Date: Tue, 22 Oct 2002 14:33:24 -0700
+Message-Id: <E1846eS-0002eC-00@w-gerrit2>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ingo Molnar <mingo@elte.hu>
-Cc: Andrew Morton <akpm@digeo.com>, Christoph Hellwig <hch@infradead.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Alan Cox <alan@lxorguk.ukuu.org.uk>
+Cc: "Martin J. Bligh" <mbligh@aracnet.com>, Benjamin LaHaise <bcrl@redhat.com>, Andrew Morton <akpm@digeo.com>, Rik van Riel <riel@conectiva.com.br>, "Eric W. Biederman" <ebiederm@xmission.com>, Bill Davidsen <davidsen@tmr.com>, Dave McCracken <dmccr@us.ibm.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2002-10-22 at 21:42, Ingo Molnar wrote:
-> 2Tb should still work. And to get to the 16 TB limit you'd have to
-> recompile with PAE. It costs some (rather limited) RAM overhead and some
-> fork() overhead. I think ext2/ext3fs's current 2Tb/4Tb limit is a much
-> bigger problem, you cannot compile around that - are there any patches in
-> fact that lift that limit? (well, one solution is to use another
-> filesystem.)
+In message <1035318239.329.141.camel@irongate.swansea.linux.org.uk>, > : Alan C
+ox writes:
+> On Tue, 2002-10-22 at 20:03, Martin J. Bligh wrote:
+> 
+> > > Can we delete the specialty syscalls now?
+> > 
+> > I was lead to believe that Linus designed them, so he may be emotionally attatched 
+> > to them, but I think there would be few others that would cry over the loss ...
+> 
+> You mean like the wonderfully pointless sys_readahead. The sooner these
+> calls go the better.
 
-At > 2Tb XFS/JFS would probably make a lot more sense anyway. We have
-the 320Gb disks available now, no doubt by the time 2.6 is out we'll be
-looking at 640Gb disks
+No, the other icky syscalls - the {alloc,free}_hugepages.
 
+gerrit
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
