@@ -1,81 +1,37 @@
-Message-ID: <41D99743.5000601@sgi.com>
-Date: Mon, 03 Jan 2005 13:04:35 -0600
+Message-ID: <41D99C3A.5090400@sgi.com>
+Date: Mon, 03 Jan 2005 13:25:46 -0600
 From: Ray Bryant <raybry@sgi.com>
 MIME-Version: 1.0
-Subject: Re: page migration
-References: <41D98556.8050605@sgi.com> <1104776733.25994.11.camel@localhost>
-In-Reply-To: <1104776733.25994.11.camel@localhost>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+Subject: Re: migration cache, updated
+Content-Type: multipart/mixed;
+ boundary="------------000705090500000100060804"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Hansen <haveblue@us.ibm.com>
-Cc: Hirokazu Takahashi <taka@valinux.co.jp>, Marcello Tosatti <marcelo.tosatti@cyclades.com>, linux-mm <linux-mm@kvack.org>
+To: Marcello Tosatti <marcelo.tosatti@cyclades.com>, Hirokazu Takahashi <taka@valinux.co.jp>
+Cc: linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Dave Hansen wrote:
+This is a multi-part message in MIME format.
+--------------000705090500000100060804
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 
-> 
->>I'd like to see this order of patches become the new order for the memory
->>hotplug patch.  That way, I won't have to pull the migration patches out
->>of the hotplug patch every time a new one comes out (I need the migration
->>code, but not the hotplug code for a project I am working on.)
->>
->>Do you suppose this can be done???
-> 
-> 
-> Absolutely.  I was simply working them in the order that they were
-> implemented.  But, if we want the migration stuff merged first, I have
-> absolutely no problem with putting it first in the patch set.  
-> 
-> Next time I publish a tree, I'll see what I can do about producing
-> similar rollups to what you have, with migration broken out from
-> hotplug.
-> 
+Marcello and Takahashi-san,
 
-Cool.  Let me know if I can help at all with that.
+In working with your migration cache patch, I found out that
+if CONFIG_MIGRATE_MEMORY is not set, then the kernel with your patch
+applied (on top of my "split out" version of the memory migration
+code from the hotplug patch) doesn't link.  (It still expects
+migration_space, etc to be defined as externals, and these aren't
+defined if CONFIG_MIGRATE_MEMORY is not set.)
 
-Once we get that done I'd like to pursure getting the migration patches 
-proposed for -mm and then mainline.  Does that make sense?
+Now I realize your patch is probably not "final" (there are a couple
+of FIXME's still in there....), but I found the attached patch
+useful as it lets my patched kernel compile with or without
+CONFIG_MEMORY_MIGRATE set.
 
-(perhaps it will make the hotplug patch easier to accept if we can get the 
-memory migration stuff in first).
-
-Of course, the "standalone" memory migration stuff makes most sense on NUMA, 
-and there is some minor interface changes there to support that (i. e. consider:
-
-migrate_onepage(page);
-
-vs
-
-migrate_onepage_node(page, node);
-
-what the latter does is to call alloc_pages_node() instead of
-page_cache_alloc() to get the new page.)
-
-This is all to support NUMA process and memory migration, where the
-required function is to move a process >>and<< its memory from one
-set of nodes to another.  (I should have a patch for these initial
-interface changes later this week.)
-
-But the real question I am wrestling with at the moment is the following:
-
-"Which approach to a NUMA process and memory migration facility would be more 
-likely to get into the mainline kernel:
-
-(1)  One based on the existing memory migration patches, or
-
-(2)  something simpler just written for the NUMA process and memory
-      migration case."
-
-My preference would be to build on top of the existing code
-from the hotplug project.  But the key goal here is to get the code
-into the mainline.  I am a little concerned that the hotlug memory migration
-code will be regarded as too complicated to get in, and I don't want that
-to hold up the NUMA process and memory migration facility, which is what I am
-working on and we (well, SGI) specifically need.
-
-Suggestions?
+I hope you find this useful and will incorporate it into your
+migration cache patch.
 
 -- 
 Best Regards,
@@ -87,6 +43,80 @@ raybry@sgi.com             raybry@austin.rr.com
 The box said: "Requires Windows 98 or better",
             so I installed Linux.
 -----------------------------------------------
+
+--------------000705090500000100060804
+Content-Type: text/plain;
+ name="migration_cache_update_fix_link.patch"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline;
+ filename="migration_cache_update_fix_link.patch"
+
+Fix the migration cache patch so that it will link even if
+CONFIG_MEMORY_MIGRATE is not set.
+
+Signed-off-by:Ray Bryant <raybry@sgi.com>
+
+Index: linux-2.6.10-rc2-mm4-page-migration-only/include/linux/mm.h
+===================================================================
+--- linux-2.6.10-rc2-mm4-page-migration-only.orig/include/linux/mm.h	2004-12-29 09:30:00.000000000 -0800
++++ linux-2.6.10-rc2-mm4-page-migration-only/include/linux/mm.h	2004-12-29 09:33:46.000000000 -0800
+@@ -279,6 +279,7 @@ struct page {
+ #include <linux/swap.h>
+ #include <linux/swapops.h> 
+ 
++#ifdef CONFIG_MEMORY_MIGRATE
+ static inline int PageMigration(struct page *page)
+ {
+         swp_entry_t entry;
+@@ -293,7 +294,9 @@ static inline int PageMigration(struct p
+ 
+         return 1;
+ }
+-
++#else
++#define PageMigration(p)  0
++#endif /* CONFIG_MEMORY_MIGRATE */
+ 
+ /*
+  * Methods to modify the page usage count.
+@@ -506,9 +509,13 @@ static inline struct address_space *page
+ {
+ 	struct address_space *mapping = page->mapping;
+ 
++#ifdef CONFIG_MEMORY_MIGRATE
+ 	if (unlikely(PageMigration(page)))
+ 		mapping = &migration_space;
+ 	else if (unlikely(PageSwapCache(page)))
++#else
++ 	if (unlikely(PageSwapCache(page)))
++#endif
+ 		mapping = &swapper_space;
+ 	else if (unlikely((unsigned long)mapping & PAGE_MAPPING_ANON))
+ 		mapping = NULL;
+Index: linux-2.6.10-rc2-mm4-page-migration-only/include/linux/swapops.h
+===================================================================
+--- linux-2.6.10-rc2-mm4-page-migration-only.orig/include/linux/swapops.h	2004-12-29 09:30:00.000000000 -0800
++++ linux-2.6.10-rc2-mm4-page-migration-only/include/linux/swapops.h	2004-12-29 09:36:30.000000000 -0800
+@@ -70,6 +70,7 @@ static inline pte_t swp_entry_to_pte(swp
+ 	return __swp_entry_to_pte(arch_entry);
+ }
+ 
++#ifdef CONFIG_MEMORY_MIGRATE
+ static inline int pte_is_migration(pte_t pte)
+ {
+ 	unsigned long swp_type;
+@@ -81,6 +82,9 @@ static inline int pte_is_migration(pte_t
+ 
+ 	return swp_type == MIGRATION_TYPE;
+ }
++#else
++#define pte_is_migration(x) 0
++#endif /* CONFIG_MEMORY_MIGRATE */
+ 
+ static inline pte_t migration_entry_to_pte(swp_entry_t entry)
+ {
+
+--------------000705090500000100060804--
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
