@@ -1,62 +1,88 @@
-Message-ID: <3AB777E1.2B233E8A@uow.edu.au>
-Date: Wed, 21 Mar 2001 02:31:45 +1100
-From: Andrew Morton <andrewm@uow.edu.au>
-MIME-Version: 1.0
+Date: Tue, 20 Mar 2001 08:08:36 -0800 (PST)
+From: Linus Torvalds <torvalds@transmeta.com>
 Subject: Re: 3rd version of R/W mmap_sem patch available
-References: <Pine.LNX.4.33.0103192254130.1320-100000@duckman.distro.conectiva> <Pine.LNX.4.31.0103191839510.1003-100000@penguin.transmeta.com> <3AB77311.77EB7D60@uow.edu.au> <3AB77443.55B42469@mandrakesoft.com>
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <3AB77311.77EB7D60@uow.edu.au>
+Message-ID: <Pine.LNX.4.31.0103200801480.1503-100000@penguin.transmeta.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jeff Garzik <jgarzik@mandrakesoft.com>
-Cc: Linus Torvalds <torvalds@transmeta.com>, linux-mm@kvack.org
+To: Andrew Morton <andrewm@uow.edu.au>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Jeff Garzik wrote:
-> 
-> Andrew Morton wrote:
-> > General comment: an expensive part of a pagefault
-> > is zeroing the new page.  It'd be nice if we could
-> > drop the page_table_lock while doing the clear_user_page()
-> > and, if possible, copy_user_page() functions.  Very nice.
-> 
-> People have talked before about creating zero pages in the background,
-> or creating them as a side effect of another operation (don't recall
-> details), so yeah this is definitely an area where some optimizations
-> could be done.  I wouldn't want to do it until 2.5 though...
 
-Actually, I did this for x86 last weekend :) Initial results are
-disappointing. 
+On Wed, 21 Mar 2001, Andrew Morton wrote:
+>
+> I stared long and hard at expand_stack().  Its first access
+> to vma->vm_start appears to be safe wrt other threads which
+> can alter this, but perhaps the page_table_lock should be
+> acquired earlier here?
 
-It creates a special uncachable mapping and sits there
-zeroing pages in a low-priority thread (also tried
-doing it in the idle task).
+Hmm.. Probably.
 
-It was made uncachable because a lot of the
-cost of clearing a page at fault time will be in
-the eviction of live, useful data.
+> We now have:
+>
+> 	free_pgd_slow();
+> 	pmd_free_slow();
+> 	pte_free_slow();
+>
+> Could we please have consistent naming back?
 
-But clearing an uncachable page takes about eight times
-as long as clearing a cachable, but uncached one.  Now,
-if there was a hardware peripheral which could zero pages
-quickly, that'd be good.
+Yes, I want to rename free_pgd_slow() to match the others.
 
-I dunno.  I need to test it on more workloads.  I was
-using kernel compiles and these have a very low
-sleeping-on-IO to faulting-zeropages-in ratio.  The
-walltime for kernel builds was unaltered.
+> in do_wp_page():
+>
+>         spin_unlock(&mm->page_table_lock);
+>         new_page = alloc_page(GFP_HIGHUSER);
+>         if (!new_page)
+>                 return -1;
+>         spin_lock(&mm->page_table_lock);
+>
+> Should retake the spinlock before returning.
 
-Certainly one can write silly applications which
-speed up by a factor of ten with this change.
+Thanks, done.
 
-I'll finish this work off sometime in the next week,
-stick it on the web.
+> General comment: an expensive part of a pagefault
+> is zeroing the new page.  It'd be nice if we could
+> drop the page_table_lock while doing the clear_user_page()
+> and, if possible, copy_user_page() functions.  Very nice.
 
+I don't think it's worth it. We should have basically zero contention on
+this lock now, and adding complexity to try to release it sounds like a
+bad idea when the only way to make contention on it is (a) kswapd (only
+when paging stuff out) and (b) multiple threads (only when taking
+concurrent page faults).
 
-But that's all orthogonal to my comment.  We'd
-get significantly better threaded use of a single
-mm if we didn't block it while clearing and copying 
-pages.
+So I don't really see the point of bothering.
+
+> read_zero_pagealigned()->zap_page_range()
+>
+> 	The handling of mm->rss is racy.  But I think
+> 	it always has been?
+
+It always has been. Right now I think we hold the page_table_lock over
+most of them, that the old patch to fix this might end up being just that
+one place. Somebody interested in checking?
+
+> This comment in mprotect.c:
+> +       /* XXX: maybe this could be down_read ??? - Rik */
+>
+> I don't think so.  The decisions about where in the
+> vma tree to place the new vma would be unprotected and racy.
+
+I think we could potentially find it useful in places to have a
+
+	down_write_start();
+
+	down_write_commit();
+
+in a few places, where "down_write_start()" only guarantees exclusion of
+other writers (and write-startes), while down_write_commit() waits for all
+the readers to go away.
+
+		Linus
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
