@@ -1,45 +1,55 @@
-Received: from neon.transmeta.com (neon-best.transmeta.com [206.184.214.10])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id TAA22962
-	for <linux-mm@kvack.org>; Sun, 24 Jan 1999 19:30:43 -0500
-Date: Sun, 24 Jan 1999 16:27:51 -0800 (PST)
-From: Linus Torvalds <torvalds@transmeta.com>
+Received: from snowcrash.cymru.net (snowcrash.cymru.net [163.164.160.3])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id TAA23031
+	for <linux-mm@kvack.org>; Sun, 24 Jan 1999 19:33:07 -0500
+Message-Id: <m104ap4-0007U1C@the-village.bc.nu>
+From: alan@lxorguk.ukuu.org.uk (Alan Cox)
 Subject: Re: MM deadlock [was: Re: arca-vm-8...]
-In-Reply-To: <m104WE3-0007U1C@the-village.bc.nu>
-Message-ID: <Pine.LNX.3.95.990124162426.17000B-100000@penguin.transmeta.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Mon, 25 Jan 1999 01:28:14 +0000 (GMT)
+In-Reply-To: <Pine.LNX.3.95.990124162036.17000A-100000@penguin.transmeta.com> from "Linus Torvalds" at Jan 24, 99 04:21:26 pm
+Content-Type: text
 Sender: owner-linux-mm@kvack.org
-To: Alan Cox <alan@lxorguk.ukuu.org.uk>
-Cc: sct@redhat.com, werner@suse.de, andrea@e-mind.com, riel@humbolt.geo.uu.nl, Zlatko.Calusic@CARNet.hr, ebiederm+eric@ccr.net, saw@msu.ru, steve@netplus.net, damonbrent@earthlink.net, reese@isn.net, kalle.andersson@mbox303.swipnet.se, bmccann@indusriver.com, bredelin@ucsd.edu, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
+To: Linus Torvalds <torvalds@transmeta.com>
+Cc: linker@z.ml.org, alan@lxorguk.ukuu.org.uk, sct@redhat.com, werner@suse.de, andrea@e-mind.com, riel@humbolt.geo.uu.nl, Zlatko.Calusic@CARNet.hr, ebiederm+eric@ccr.net, saw@msu.ru, steve@netplus.net, damonbrent@earthlink.net, reese@isn.net, kalle.andersson@mbox303.swipnet.se, bmccann@indusriver.com, bredelin@ucsd.edu, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+> On Sun, 24 Jan 1999, Gregory Maxwell wrote:
+> > 
+> > Do you really think "inability to handle large user spaces" or "inability
+> > to find memory easily" are features? 
+> 
+> Alan is just full of it on both accounts.
+> 
+> We handle large user space with no problem, and we find free memory no
+> problem.
 
-On Sun, 24 Jan 1999, Alan Cox wrote:
->
-> Being able to throw out page tables is something that is going to be needed
-> too. As far as I can see that does not mean complexity. The Linux VM is
-> very clean in its page handling, there is almost nothing in the page tables
-> that cannot be flushed or dumped to disk if need be.
+Oh good, whats the configuration setting for a 4Gig Xeon box. I've got
+people dying to know. So I'm not full of it.
 
-There _is_ a major problem: being able to swap out page tables means that
-the thing that swaps them out _has_ to own the mm semaphore. 
+Its not "inability to find memory easily" in my original comments either.
+In context its about the expense sometimes of finding which things to swap.
 
-That's the right thing to do anyway, but it means, for example, that the
-_only_ process that can page stuff out would be kswapd. 
+Note that I don't disagree with Linus. Every time Linus can say "but you don't
+need that because [sensible solution]" is a bigger win than adding a ton
+of special case code.
 
-Who knows? Maybe I should just bite the bullet and make that the rule,
-then we could forget about all the extra recursive semaphore crap too. And
-it has other advantages - it can speed up the page fault handler (which
-right now has to get the kernel lock for certain situations). 
+Right now
 
-Once that is done, paging out page tables is not really a problem.
+o	I can't run 3Gig user processes on a 4Gig Xeon
+o	I can't support devices needing large physically linear blocks of
+	memory
 
-> There are real cases where grab large linear block is needed.
+#1 is happening today
+#2 is happening a bit now - although its a lesser problem (unable to allocate
+ISA DMA buffer..) thats the visible part of a bigger issue. Some people
+don't bother with scatter gather DMA - real examples:
+	S3 Sonic Vibes	- linux can't support its wavetable (wants 4Mb linear)
+	Zoran based capture chips - physically linear capture/masks
+	Matrox Meteor frame grabber - physically linear grabbing
 
-Nobody has so far shown a reasonable implementation where this would be
-possible.
+So 2.3 needs to be able to allocate large linear physical spaces - not
+neccessarily efficiently either. These are all occasional grabs of memory.
 
-		Linus
+Alan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm my@address'
