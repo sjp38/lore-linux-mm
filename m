@@ -1,41 +1,33 @@
-From: fxcked@email.com
-Subject: linux-mm, I could goto jail for this!!!
-Message-ID: <MCISERVERhJUAwnpFgG0000eaaf@mciserver.MCIDOMAIN.local>
-Date: 4 Oct 2003 11:32:46 -0400
+Date: Sat, 4 Oct 2003 15:29:06 -0400
+From: Jeff Garzik <jgarzik@pobox.com>
+Subject: Re: 2.6.0-test6-mm3
+Message-ID: <20031004192906.GB30371@gtf.org>
+References: <20031004021255.3fefbacb.akpm@osdl.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20031004021255.3fefbacb.akpm@osdl.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Andrew Morton <akpm@osdl.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Find old friends, or even old enemies.
+On Sat, Oct 04, 2003 at 02:12:55AM -0700, Andrew Morton wrote:
+> ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.6/2.6.0-test6/2.6.0-test6-mm3/
+> 
+> . Added the Intel MSI interrupt patch.  This is mainly to get it under
+>   test and under review and to provide the Intel developers with a codebase
+>   against which to continue working.  Probably nobody has the hardware yet.
 
-Spy on your neighbors and even your EX! 
+MSI cards have been out there for a while, now.
+I dunno about the FSB pieces, though...
 
-Find out ANYTHING about ANYONE!
+I could have sworn Intel ICH5 (now released) supports MSI...
 
-Click here for more information.
-
-http://www.governmentspy@207.115.62.125/~still/ispysoftware.html
-
-
-
-
-
-
+	Jeff
 
 
-
-
-
-
-
-
-
-
-
-=====================================
-if you wish to be removed from this mailing list please reply to: fxcked@email.com
-WUTTJKNLARNOVNLI
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
