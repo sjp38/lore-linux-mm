@@ -1,30 +1,28 @@
-Date: Tue, 16 May 2000 14:23:35 -0300 (BRST)
+Date: Tue, 16 May 2000 16:21:03 -0300 (BRST)
 From: Rik van Riel <riel@conectiva.com.br>
-Subject: Re: More observations...
-In-Reply-To: <20000516170707.B30047@redhat.com>
-Message-ID: <Pine.LNX.4.21.0005161422380.30661-100000@duckman.distro.conectiva>
+Subject: [dirtypatch] quickhack to make pre8/9 behave
+Message-ID: <Pine.LNX.4.21.0005161604100.32026-100000@duckman.distro.conectiva>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Stephen C. Tweedie" <sct@redhat.com>
-Cc: Mike Simons <msimons@moria.simons-clan.com>, Linus Torvalds <torvalds@transmeta.com>, Linux Memory Management List <linux-mm@kvack.org>
+To: linux-mm@kvack.org
+Cc: Linus Torvalds <torvalds@transmeta.com>, "Stephen C. Tweedie" <sct@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 16 May 2000, Stephen C. Tweedie wrote:
+Hi,
 
-> For writable shared file mappings, the flush only goes to the
-> buffer cache, not to disk, so we still rely on bdflush
-> writeback, but currently filemap_swapout triggers the bdflush
-> thread automatically anyway.  Subsequent shrink_mmap reclaims
-> will just find a locked page and block, which is the desired
-> behaviour.
+with the quick&dirty patch below the system:
+- gracefully (more or less) survives mmap002
+- has good performance on mmap002
 
-I can agree on this. Shrink_mmap() should wait if it finds
-(a number of) locked buffers.  [It doesn't seem to do that
-right now]
+To me this patch shows that we really want to wait
+for dirty page IO to finish before randomly evicting
+the (wrong) clean pages and dying horribly.
 
-Linus??
+This is a dirty hack which should be replaced by whichever
+solution people thing should be implemented to have the
+allocator waiting for dirty pages to be flushed out.
 
 regards,
 
