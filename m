@@ -1,35 +1,32 @@
-Date: Tue, 8 Jul 2003 18:29:21 -0700
-From: William Lee Irwin III <wli@holomorphy.com>
+Date: Tue, 08 Jul 2003 22:13:12 -0700
+From: "Martin J. Bligh" <mbligh@aracnet.com>
 Subject: Re: [announce, patch] 4G/4G split on x86, 64 GB RAM (and more) support
-Message-ID: <20030709012921.GJ15452@holomorphy.com>
-References: <Pine.LNX.4.44.0307082332450.17252-100000@localhost.localdomain>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Message-ID: <55580000.1057727591@[10.10.2.4]>
 In-Reply-To: <Pine.LNX.4.44.0307082332450.17252-100000@localhost.localdomain>
+References: <Pine.LNX.4.44.0307082332450.17252-100000@localhost.localdomain>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ingo Molnar <mingo@elte.hu>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Ingo Molnar <mingo@elte.hu>, linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jul 09, 2003 at 12:45:52AM +0200, Ingo Molnar wrote:
-> The patch is orthogonal to wli's pgcl patch - both patches try to achieve
-> the same, with different methods. I can very well imagine workloads where
-> we want to have the combination of the two patches.
+> i'm pleased to announce the first public release of the "4GB/4GB VM split"
+> patch, for the 2.5.74 Linux kernel:
+> 
+>    http://redhat.com/~mingo/4g-patches/4g-2.5.74-F8
 
-Well, your patch does have the advantage of not being a "break all
-drivers" affair.
+I presume this was for -bk something as it applies clean to -bk6, but not
+virgin. 
 
-Also, even though pgcl scales "perfectly" wrt. highmem (nm the code
-being a train wreck), the raw capacity increase is needed. There are
-enough other reasons to go through with ABI-preserving page clustering
-that they're not really in competition with each other.
+However, it crashes before console_init on NUMA ;-( I'll shove early printk
+in there later.
 
-Looks good to me. I'll spin it up tonight.
+M.
 
-
--- wli
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
