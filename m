@@ -1,64 +1,29 @@
-Date: Mon, 24 Nov 2003 10:00:43 -0800
-From: Andrew Morton <akpm@osdl.org>
-Subject: Re: [RFC] Make balance_dirty_pages zone aware (1/2)
-Message-Id: <20031124100043.5416ed4c.akpm@osdl.org>
-In-Reply-To: <1034580000.1069688202@[10.10.2.4]>
-References: <3FBEB27D.5010007@us.ibm.com>
-	<20031123143627.1754a3f0.akpm@osdl.org>
-	<1034580000.1069688202@[10.10.2.4]>
+Date: Mon, 24 Nov 2003 14:55:27 -0800
+From: Mike Fedyk <mfedyk@matchmail.com>
+Subject: OOps! was: 2.6.0-test9-mm5
+Message-ID: <20031124225527.GB1343@mis-mike-wstn.matchmail.com>
+References: <20031121121116.61db0160.akpm@osdl.org>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20031121121116.61db0160.akpm@osdl.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Martin J. Bligh" <mbligh@aracnet.com>
-Cc: colpatch@us.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@osdl.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-"Martin J. Bligh" <mbligh@aracnet.com> wrote:
->
-> >> Currently the VM decides to start doing background writeback of pages if 
-> >>  10% of the systems pages are dirty, and starts doing synchronous 
-> >>  writeback of pages if 40% are dirty.  This is great for smaller memory 
-> >>  systems, but in larger memory systems (>2GB or so), a process can dirty 
-> >>  ALL of lowmem (ZONE_NORMAL, 896MB) without hitting the 40% dirty page 
-> >>  ratio needed to force the process to do writeback. 
-> > 
-> > Yes, it has been that way for a year or so.  I was wondering if anyone
-> > would hit any problems in practice.  Have you hit any problem in practice?
-> > 
-> > I agree that the per-zonification of this part of the VM/VFS makes some
-> > sense, although not _complete_ sense, because as you've seen, we need to
-> > perform writeout against all zones' pages if _any_ zone exceeds dirty
-> > limits.  This could do nasty things on a 1G highmem machine, due to the
-> > tiny highmem zone.  So maybe that zone should not trigger writeback.
-> > 
-> > However the simplest fix is of course to decrease the default value of the
-> > dirty thresholds - put them back to the 2.4 levels.  It all depends upon
-> > the nature of the problems which you have been observing?
-> 
-> I'm not sure that'll fix the problem for NUMA boxes, which is where we 
-> started.
+I'm getting an oops on boot, right after serial is initialised.
 
-What problems?
+Two things it says:
+BAD EIP!
+Trying to kill init!
 
-> When any node fills up completely with dirty pages (which would
-> only require one process doing a streaming write (eg an ftp download),
-> it seems we'll get into trouble.
+Yes, I'm using preempt.  I'll try without, and see if that "fixes" the
+problem, and try some other versions, since the last 2.6 booted on this
+machine is 2.6.0-test6-mm4.
 
-What trouble?
-
-> If we change the thresholds from 40% to
-> 20%, that just means you need a slightly larger system to trigger it,
-> it never fixes the problem ;-(
-
-What problem?
-
-
-If we make the dirty threshold a proportion of the initial amount of free
-memory in ZONE_NORMAL, as is done in 2.4 it will not be possible to fill
-any node with dirty pages.
-
+Mike
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
