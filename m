@@ -1,27 +1,29 @@
-Date: Mon, 24 Apr 2000 19:07:54 +0100
+Date: Mon, 24 Apr 2000 19:08:49 +0100
 From: "Stephen C. Tweedie" <sct@redhat.com>
 Subject: Re: mmap64?
-Message-ID: <20000424190754.B1566@redhat.com>
-References: <B5274D15.56A6%jason.titus@av.com> <Pine.LNX.4.21.0004221830080.20850-100000@duckman.conectiva>
+Message-ID: <20000424190849.C1566@redhat.com>
+References: <Pine.LNX.4.21.0004221830080.20850-100000@duckman.conectiva> <B527A1E9.56B9%jason.titus@av.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-In-Reply-To: <Pine.LNX.4.21.0004221830080.20850-100000@duckman.conectiva>; from riel@conectiva.com.br on Sat, Apr 22, 2000 at 06:30:35PM -0300
+In-Reply-To: <B527A1E9.56B9%jason.titus@av.com>; from jason.titus@av.com on Sat, Apr 22, 2000 at 06:37:29PM -0700
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: riel@nl.linux.org
-Cc: Jason Titus <jason.titus@av.com>, linux-mm@kvack.org, Stephen Tweedie <sct@redhat.com>
+To: Jason Titus <jason.titus@av.com>
+Cc: riel@nl.linux.org, linux-mm@kvack.org, Stephen Tweedie <sct@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
 Hi,
 
-On Sat, Apr 22, 2000 at 06:30:35PM -0300, Rik van Riel wrote:
-> 
-> Eurhmm, exactly where in the address space of your process are
-> you going to map this file?
+On Sat, Apr 22, 2000 at 06:37:29PM -0700, Jason Titus wrote:
 
-mmap64() is defined to allow you to map arbitrary regions of large
-files into your address space.  You don't have to map the whole
-file.
+> Well, seems like if we are allowing processes to access 3+GB, we should be
+> able to mmap a similar range.  Also, I don't know too much about the PAE 36
+> bit PIII stuff but I had thought it might give us some additional address
+> space...
+
+No, the PAE36 architecture only increases the addressable physical 
+memory on Intel CPUs.  It does nothing to change the virtual address
+space.
 
 --Stephen
 --
