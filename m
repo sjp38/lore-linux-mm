@@ -1,60 +1,28 @@
-content-class: urn:content-classes:message
-MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="iso-8859-1"
-Content-Transfer-Encoding: 8BIT
-Subject: RE: broken VM in 2.4.10-pre9
-Date: Wed, 19 Sep 2001 17:15:21 -0500
-Message-ID: <878A2048A35CD141AD5FC92C6B776E4907B7A5@xchgind02.nsisw.com>
-From: "Rob Fuller" <rfuller@nsisoftware.com>
+Date: Wed, 19 Sep 2001 15:21:18 -0700 (PDT)
+Message-Id: <20010919.152118.78708122.davem@redhat.com>
+Subject: Re: broken VM in 2.4.10-pre9
+From: "David S. Miller" <davem@redhat.com>
+In-Reply-To: <878A2048A35CD141AD5FC92C6B776E4907B7A5@xchgind02.nsisw.com>
+References: <878A2048A35CD141AD5FC92C6B776E4907B7A5@xchgind02.nsisw.com>
+Mime-Version: 1.0
+Content-Type: Text/Plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "David S. Miller" <davem@redhat.com>, ebiederm@xmission.com
-Cc: alan@lxorguk.ukuu.org.uk, phillips@bonn-fries.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: rfuller@nsisoftware.com
+Cc: ebiederm@xmission.com, alan@lxorguk.ukuu.org.uk, phillips@bonn-fries.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-In my one contribution to this thread I wrote:
+   I suppose I confused the issue when I offered a supporting argument for
+   reverse mappings.  It's not reverse mappings for anonymous pages I'm
+   advocating, but reverse mappings for mapped file data.
 
-"One argument for reverse mappings is distributed shared memory or
-distributed file systems and their interaction with memory mapped files.
-For example, a distributed file system may need to invalidate a specific
-page of a file that may be mapped multiple times on a node."
+We already have reverse mappings for files, via the VMA chain off the
+inode.
 
-I believe reverse mappings are an essential feature for memory mapped
-files in order for Linux to support sophisticated distributed file
-systems or distributed shared memory.  In general, this memory is NOT
-anonymous.  As such, it should not affect the performance of a
-fork/exec/exit.
-
-I suppose I confused the issue when I offered a supporting argument for
-reverse mappings.  It's not reverse mappings for anonymous pages I'm
-advocating, but reverse mappings for mapped file data.
-
-> -----Original Message-----
-> From: David S. Miller [mailto:davem@redhat.com]
-> Sent: Wednesday, September 19, 2001 4:56 PM
-> To: ebiederm@xmission.com
-> Cc: alan@lxorguk.ukuu.org.uk; phillips@bonn-fries.net; Rob Fuller;
-> linux-kernel@vger.kernel.org; linux-mm@kvack.org
-> Subject: Re: broken VM in 2.4.10-pre9
->
->
->    From: ebiederm@xmission.com (Eric W. Biederman)
->    Date: 19 Sep 2001 15:37:26 -0600
->
->    That I think is a significant cost.
->
-> My own personal feeling, after having tried to implement a much
-> lighter weight scheme involving "anon areas", is that reverse maps or
-> something similar should be looked at as a latch ditch effort.
->
-> We are tons faster than anyone else in fork/exec/exit precisely
-> because we keep track of so little state for anonymous pages.
->
-> Later,
-> David S. Miller
-> davem@redhat.com
->
+Later,
+David S. Miller
+davem@redhat.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
