@@ -1,44 +1,35 @@
-Date: Mon, 13 Mar 2000 09:43:39 +0100 (MET)
-From: Richard Guenther <richard.guenther@student.uni-tuebingen.de>
-Subject: Re: a plea for mincore()/madvise()
-In-Reply-To: <qwwd7p1ioff.fsf@sap.com>
-Message-ID: <Pine.LNX.4.10.10003130943040.2650-100000@linux17.zdv.uni-tuebingen.de>
+Message-ID: <38CCEADF.A6DE223A@ife.ee.ethz.ch>
+Date: Mon, 13 Mar 2000 14:19:27 +0100
+From: Thomas Sailer <sailer@ife.ee.ethz.ch>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: remap_page_range problem on 2.3.x
+References: <20000309175119.28794.qmail@web1306.mail.yahoo.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Rohland <hans-christoph.rohland@sap.com>
-Cc: Chuck Lever <cel@monkey.org>, Linus Torvalds <torvalds@transmeta.com>, James Manning <jmm@computer.org>, linux-mm@kvack.org
+To: Andy Henroid <andy_henroid@yahoo.com>
+Cc: Jeff Garzik <jgarzik@mandrakesoft.com>, Linux-MM@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 11 Mar 2000, Christoph Rohland wrote:
+Andy Henroid wrote:
 
-> Chuck Lever <cel@monkey.org> writes:
-> 
-> > > I'd like MADV_DONTNEED to just clear the page tables. If it was a private
-> > > mapping, all the modifications get lost. If it was a shared mapping,
-> > > modifications since the last msync() may or may not get lost. 
-> > 
-> > i'll create a patch against 2.3.51-pre3 for madvise() and post it on the
-> > mm list before sunday.  then we can argue about something we've both seen
-> > :)
-> > 
-> > let me think some more about DONTNEED.  at the face of it, i agree with
-> > your suggestion, but i may just exclude it from the patch until there is
-> > more discussion here.
-> 
-> As stated before I would be very interested in a call (perhaps
-> MADV_DONTNEED) which throws away shared (anon) memory pages.
+> Yes, the remap_page_range is done indirectly
+> through mmap call to the /dev/mem driver.
 
-I would like to have it throw away non anonymous shared pages, too.
+I think I saw this too some time ago.
 
-Richard.
+I tried to duplicate the kernel's view of the
+address space above 0xc0000000 at an offset in
+a usermode program. I ended up being able to
+read the correct data from /dev/mem, but reading
+from an mmaped page from /dev/mem returned completely
+bogus data (all zero).
 
---
-Richard Guenther <richard.guenther@student.uni-tuebingen.de>
-WWW: http://www.anatom.uni-tuebingen.de/~richi/
-The GLAME Project: http://www.glame.de/
+My code is in usb.in.tum.de, module usbstress,
+files uhcidump.c and kmem*
 
+Tom
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
