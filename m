@@ -1,50 +1,48 @@
-Date: Wed, 7 Jun 2000 23:11:13 +0100 (BST)
-From: James Sutherland <jas88@cam.ac.uk>
-Subject: Re: journaling & VM  
-In-Reply-To: <393EC40A.376BB072@reiser.to>
-Message-ID: <Pine.LNX.4.10.10006072304580.21297-100000@dax.joh.cam.ac.uk>
+Message-ID: <393ECAA7.AD0DC0D6@reiser.to>
+Date: Wed, 07 Jun 2000 15:20:23 -0700
+From: Hans Reiser <hans@reiser.to>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: journaling & VM 
+References: <20000607144102.F30951@redhat.com> <Pine.LNX.4.21.0006071103560.14304-100000@duckman.distro.conectiva> <20000607154620.O30951@redhat.com> <yttog5decvq.fsf@serpe.mitica> <393EAD84.A4BB6BD9@reiser.to> <20000607215436.F30951@redhat.com> <393EBEB5.AEEFF501@reiser.to> <20000607223352.J30951@redhat.com>
+Content-Type: text/plain; charset=koi8-r
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hans Reiser <hans@reiser.to>
-Cc: Rik van Riel <riel@conectiva.com.br>, "Stephen C. Tweedie" <sct@redhat.com>, "Quintela Carreira Juan J." <quintela@fi.udc.es>, linux-kernel@vger.rutgers.edu, Chris Mason <mason@suse.com>, linux-mm@kvack.org, Alexander Zarochentcev <zam@odintsovo.comcor.ru>
+To: "Stephen C. Tweedie" <sct@redhat.com>
+Cc: "Quintela Carreira Juan J." <quintela@fi.udc.es>, Rik van Riel <riel@conectiva.com.br>, bert hubert <ahu@ds9a.nl>, linux-kernel@vger.rutgers.edu, Chris Mason <mason@suse.com>, linux-mm@kvack.org, Alexander Zarochentcev <zam@odintsovo.comcor.ru>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 7 Jun 2000, Hans Reiser wrote:
-
-> Let me convey an aspect of its rightness.
+"Stephen C. Tweedie" wrote:
 > 
-> Caches have a declining marginal utility.  It is a good idea to keep
-> at least a little bit of each cache around.  The classic problem is
-> when you switch usage patterns back and forth, and one of the caches
-> has been completely flushed by, say, a large file read.  If just 3% of
-> the amount of cache remained from when it was being used that 3% might
-> give you a lot of speedup when the usage pattern flipped back.
+> Hi,
+> 
+> On Wed, Jun 07, 2000 at 02:29:25PM -0700, Hans Reiser wrote:
+> >
+> > If I understand Juan correctly, they fixed this issue.  Aging 1/64th of the
+> > cache for every cache evenly at every round of trying to free pages should be an
+> > excellent fix.  It should do just fine at the task of handling a system with
+> > both ext3 and reiserfs running.
+> 
+> That is _exactly_ what breaks the VM balance!  The net result of
+> an algorithm like that is that all caches are shrunk at the same
+> rate regardless of which ones are busy.  The "shrink everything
+> at once" principle is what used to cause large filesystem scans
+> (such as find|grep over a large source tree) to swap all our
+> running processes out.
+> 
+> There _has_ to be a way to allow the relative ages of the different
+> pages to influence the reclamation of pages from different sources.
+> 
+> Cheers,
+>  Stephen
 
-Incidentally, this effect comes up in Andrew Schulman's book, Unauthorized
-Windows '95, in the section where he compares raw DOS, SmartDrive, Windows
-3.1 with 32 bit disk access, and WfWG/Win95 with 32 bit file and disk
-access. One of his test sets illustrates this beautifully, as well as
-showing the performance gains from each; he runs a text search on varying
-sizes of text file, and there is a huge speed increase on the second
-run-through - up until the file is larger than the cache, at which point
-there is almost no difference between the first and second runs in some
-configurations, IIRC...
+I am confused, if a page is accessed the aging is undone.  Aging 1/64th is not
+the same as flushing 1/64th.  If cache A is not used the aging process gradually
+shrinks it to nothing because its pages aren't unaged, if cache B is heavily
+used the aging process doesn't age fast enough to overcome the unaging and new
+pages get added and it grows.  I am missing something....
 
-On a related note, any chance of making some caches swappable? The
-application I have in mind is for much slower block devices (floppy/CD
-media); using the free swap space as a cache for the CD ROM drive could be
-quite an improvement in some cases. (Actually, even for hard drives it
-could help: imagine an extremely busy disk on /dev/sda, with an
-almost-idle swap disk on /dev/hdb. Much more difficult to code, though,
-and probably not worth it...)
-
-Thoughts??
-
-
-James.
-
+Hans
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
