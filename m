@@ -1,39 +1,46 @@
-Subject: Re: [PATCH] ppc64: Fix possible race with set_pte on a present PTE
-Message-ID: <OFB228E20C.FF1B818B-ONC1256EA6.004258F7-C1256EA6.0042EA55@de.ibm.com>
-From: Martin Schwidefsky <schwidefsky@de.ibm.com>
-Date: Tue, 1 Jun 2004 14:10:53 +0200
+From: Dimitri Sivanich <sivanich@sgi.com>
+Message-Id: <200406012140.i51LeGjV043356@fsgi142.americas.sgi.com>
+Subject: Re: Slab cache reap and CPU availability
+Date: Tue, 1 Jun 2004 16:40:16 -0500 (CDT)
+In-Reply-To: <20040524145303.45c8f8a6.akpm@osdl.org> from "Andrew Morton" at May 24, 2004 02:53:03 PM
 MIME-Version: 1.0
-Content-type: text/plain; charset=ISO-8859-1
-Content-transfer-encoding: 8BIT
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Cc: Andrew Morton <akpm@osdl.org>, Andrea Arcangeli <andrea@suse.de>, bcrl@kvack.org, "David S. Miller" <davem@redhat.com>, Linux Arch list <linux-arch@vger.kernel.org>, Linux Kernel list <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, mingo@elte.hu, Linus Torvalds <torvalds@osdl.org>, wesolows@foobazco.org, willy@debian.org
+To: Andrew Morton <akpm@osdl.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+> 
+> Dimitri Sivanich <sivanich@sgi.com> wrote:
+> >
+> > The IA/64 backtrace with all the cruft removed looks as follows:
+> > 
+> > 0xa000000100149ac0 reap_timer_fnc+0x100
+> > 0xa0000001000f4d70 run_timer_softirq+0x2d0
+> > 0xa0000001000e9440 __do_softirq+0x200
+> > 0xa0000001000e94e0 do_softirq+0x80
+> > 0xa000000100017f50 ia64_handle_irq+0x190
+> > 
+> > The system is running mostly AIM7, but I've seen holdoffs > 30 usec with
+> > virtually no load on the system.
+> 
+> They're pretty low latencies you're talking about there.
+> 
+> You should be able to reduce the amount of work in that timer handler by
+> limiting the size of the per-cpu caches in the slab allocator.  You can do
+> that by writing a magic incantation to /proc/slabinfo or:
+> 
+> --- 25/mm/slab.c~a	Mon May 24 14:51:32 2004
+> +++ 25-akpm/mm/slab.c	Mon May 24 14:51:37 2004
+> @@ -2642,6 +2642,7 @@ static void enable_cpucache (kmem_cache_
+>  	if (limit > 32)
+>  		limit = 32;
+>  #endif
+> +	limit = 8;
 
-
-
-> I did the ppc64 impl, the x86 one (hope I got it right). I still need to
-> do ppc32 and I suppose s390 must be fixed now that ptep_estabish is gone
-> but I'll leave that to someone who understand something about these
-things ;)
-
-At the moment I can't access linux.bkbits.net so I can't test anything but
-as far as I can tell s390 should just work as is. ptep_establish is gone
-but it has been replaced by correct sequences: ptep_clear_flush & set_pte
-and set_pte & flush_tlb_page. The second sequence can be optimized to a
-ptep_clear_flush & set_pte if the _PAGE_RO bit has changed. Apart from
-that s390 is perfectly fine with the change.
-
-blue skies,
-   Martin
-
-Linux/390 Design & Development, IBM Deutschland Entwicklung GmbH
-Schonaicherstr. 220, D-71032 Boblingen, Telefon: 49 - (0)7031 - 16-2247
-E-Mail: schwidefsky@de.ibm.com
-
-
+I tried several values for this limit, but these had little effect.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
