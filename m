@@ -1,47 +1,71 @@
-Subject: Re: Aggressive swapout with 2.4.1pre4+
-References: <Pine.LNX.4.21.0101160138140.1556-100000@freak.distro.conectiva>
-Reply-To: zlatko@iskon.hr
-From: Zlatko Calusic <zlatko@iskon.hr>
-Date: 16 Jan 2001 19:41:26 +0100
-In-Reply-To: Marcelo Tosatti's message of "Tue, 16 Jan 2001 01:57:08 -0200 (BRST)"
-Message-ID: <87hf2z731l.fsf@atlas.iskon.hr>
+Date: Wed, 17 Jan 2001 15:48:39 +1100 (EST)
+From: Rik van Riel <riel@conectiva.com.br>
+Subject: Re: Subtle MM bug
+In-Reply-To: <87y9wlh4a7.fsf@atlas.iskon.hr>
+Message-ID: <Pine.LNX.4.31.0101171546130.5464-100000@localhost.localdomain>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Marcelo Tosatti <marcelo@conectiva.com.br>
-Cc: Linus Torvalds <torvalds@transmeta.com>, linux-mm@kvack.org
+To: Zlatko Calusic <zlatko@iskon.hr>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Marcelo Tosatti <marcelo@conectiva.com.br> writes:
+On 9 Jan 2001, Zlatko Calusic wrote:
+> Rik van Riel <riel@conectiva.com.br> writes:
+>
+> > Now if 2.4 has worse _performance_ than 2.2 due to one
+> > reason or another, that I'd like to hear about ;)
+> >
+>
+> Oh, well, it seems that I was wrong. :)
+>
+> First test: hogmem 180 5 = allocate 180MB and dirty it 5 times (on a
+> 192MB machine)
+>
+> kernel | swap usage | speed
+> -------------------------------
+> 2.2.17 |  48 MB     | 11.8 MB/s
+> -------------------------------
+> 2.4.0  | 206 MB     | 11.1 MB/s
+> -------------------------------
+>
+> So 2.2 is only marginally faster. Also it can be seen that 2.4
+> uses 4 times more swap space. If Linus says it's ok... :)
 
-> Hi Linus, 
-> 
-> Currently swap_out() scans a fixed percentage of each process RSS without
-> taking into account how much memory we are out of.
-> 
-> The following patch changes that by making swap_out() stop when it
-> successfully moved the "needed" (calculated by refill_inactive()) amount
-> of pages to the swap cache. 
-> 
-> This should avoid the system to swap out to aggressively. 
-> 
-> Comments? 
-> 
+I have been working on some changes to page_launder() which
+might just fix this problem. Quick and dirty patches are on
+my home page and I'll try to clean things up and make something
+correct & clean later today or tomorrow ;)
 
-Hm, I didn't notice that 2.4.1-pre4 swaps out aggressively. In fact it
-is very well balanced and I would vote for it as the kernel with the
-best tuned VM.
+> Second test: kernel compile make -j32 (empirically this puts the
+> VM under load, but not excessively!)
+>
+> 2.2.17 -> make -j32  392.49s user 47.87s system 168% cpu 4:21.13 total
+> 2.4.0  -> make -j32  389.59s user 31.29s system 182% cpu 3:50.24 total
+>
+> Now, is this great news or what, 2.4.0 is definitely faster.
 
-Your patch slightly complicates things and I'm not sure if it's
-strictly needed.
+One problem is that these tasks may be waiting on kswapd when
+kswapd might not get scheduled in on time. On the one hand this
+will mean lower load and less thrashing, on the other hand it
+means more IO wait.
 
-Now looking at the pre7 (not yet compiled) I see we will have really
-impressive 2.4.1. reiserfs, Jens' blk, VM fixed... sheesh... what will
-be left for fixing? ;)
+This is another area where we may be able to improve some things.
 
--- 
-Zlatko
+(btw, according to Alan the 2.4 kernel is the first one to break
+the 1.2 kernel compiling speed record on an 8MB machine he has ;))
+
+cheers,
+
+Rik  (stuck in australia on a conference)
+--
+Virtual memory is like a game you can't win;
+However, without VM there's truly nothing to lose...
+
+		http://www.surriel.com/
+http://www.conectiva.com/	http://distro.conectiva.com.br/
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
