@@ -1,36 +1,48 @@
-Received: from bidoc.vc.bravenet.com (bidoc.vc.bravenet.com [172.16.0.80])
-	by galadriel.bravenet.com (Postfix) with ESMTP id F2516188FD7
-	for <linux-mm@kvack.org>; Sat, 22 Mar 2003 03:12:10 -0800 (PST)
-Subject: Confirm your subscription
-From: steve@themovieglobe.com
-Message-Id: <20030322111209.5251F188EA2@bidoc.vc.bravenet.com>
-Date: Sat, 22 Mar 2003 03:12:09 -0800 (PST)
+From: Dawson Engler <engler@csl.stanford.edu>
+Message-Id: <200303221145.h2MBjAW09391@csl.stanford.edu>
+Subject: [CHECKER] races in 2.5.65/mm/swapfile.c?
+Date: Sat, 22 Mar 2003 03:45:10 -0800 (PST)
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: Dawson Engler <engler@csl.stanford.edu>
 List-ID: <linux-mm.kvack.org>
 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-Mailing List Subscription Confirmation
-*** Confirmation required ***
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Hi All,
 
-You have been invited to join our mailing list.
+mm/swapfile.c seems to have three potential races.
 
-This list has a double optin feature so you must go to the URL listed below
-to finish joining this list. This is a safeguard for you.
+The first two are in 
+        linux-2.5.62/mm/swap_state.c:87:add_to_swap_cache
 
-PLEASE CLICK THE LINK BELOW TO CONFIRM YOUR SUBSCRIPTION:
-http://pub50.bravenet.com/elist/add.php?usernum=4280452265&id=4532892
+which seems reachable without a lock from the callchain:
 
-IF YOU DO NOT WISH TO SUBSCRIBE DO NOT CLICK THE LINK:
-If this message was sent in error, please disregard it and no further email
-will be sent to you on this subject.
+        mm/swapfile.c:sys_swapoff:998->
+              sys_swapoff:1026->
+                try_to_unuse:591->
+                        mm/swap_state.c:read_swap_cache_async:377->
+                            add_to_swap_cache
+
+add_to_swap_cache increments two global variables without a lock:
+        INC_CACHE_INFO(add_total);
+and
+        INC_CACHE_INFO(exist_race);
 
 
------------------------------------------------------------------------
-Bravenet.com ~ free webtools for webmasters ~ http://www.bravenet.com/
+The final one is in
+        linux-2.5.62/mm/swapfile.c:213:swap_entry_free
+which seems to increment
+        nr_swap_pages++;
+without a lock.
 
+Are these real races?  Or are these just stats variables?  (Or is
+there some implicit locking that protects these?)
+
+Regards,
+Dawson
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
