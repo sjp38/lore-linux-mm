@@ -1,97 +1,37 @@
-Date: Wed, 4 Feb 2004 14:59:35 -0500 (EST)
-From: "Richard B. Johnson" <root@chaos.analogic.com>
-Reply-To: root@chaos.analogic.com
 Subject: Re: Active Memory Defragmentation: Our implementation & problems
-In-Reply-To: <40214A11.3060007@techsource.com>
-Message-ID: <Pine.LNX.4.53.0402041436030.2965@chaos>
-References: <20040204185446.91810.qmail@web9705.mail.yahoo.com>
- <Pine.LNX.4.53.0402041402310.2722@chaos> <40214A11.3060007@techsource.com>
+Message-ID: <OFE7103176.29D4436D-ON86256E30.006E41D8@raytheon.com>
+From: Mark_H_Johnson@raytheon.com
+Date: Wed, 4 Feb 2004 14:12:17 -0600
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Timothy Miller <miller@techsource.com>
-Cc: Alok Mooley <rangdi@yahoo.com>, Dave Hansen <haveblue@us.ibm.com>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: root@chaos.analogic.com
+Cc: Dave Hansen <haveblue@us.ibm.com>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Timothy Miller <miller@techsource.com>, owner-linux-mm@kvack.org, Alok Mooley <rangdi@yahoo.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 4 Feb 2004, Timothy Miller wrote:
 
->
->
-> Richard B. Johnson wrote:
->
-> > If this is an Intel x86 machine, it is impossible for pages
-> > to get fragmented in the first place. The hardware allows any
-> > page, from anywhere in memory, to be concatenated into linear
-> > virtual address space. Even the kernel address space is virtual.
-> > The only time you need physically-adjacent pages is if you
-> > are doing DMA that is more than a page-length at a time. The
-> > kernel keeps a bunch of those pages around for just that
-> > purpose.
-> >
-> > So, if you are making a "memory defragmenter", it is a CPU time-sink.
-> > That's all.
->
-> Would memory fragmentation have any appreciable impact on L2 cache line
-> collisions?
->
-> Would defragmenting it help?
->
-> In the case of the Opteron, there is a 1M cache that is (I forget) N-way
-> set associative, and it's physically indexed.  If a bunch of pages were
-> located such that there were a disproportionately large number of lines
-> which hit the same tag, you could be thrashing the cache.
->
-> There are two ways to deal with this:  (1) intelligently locates pages
-> in physical memory; (2) hope that natural entropy keeps things random
-> enough that it doesn't matter.
->
->
 
-Certainly anybody can figure out some special case where a
-cache-line might get flushed or whatever. Eventually you
-get to the fact that even contiguous physical RAM doesn't
-have to be contiguous and, in fact, with modern controllers
-it's quite unlikely that it is. It's a sack of bits that
-are uniquely addressable.
 
-The rest of the hardware makes this look like a bunch of RAM
-"pages", seldom the size of CPU pages, and the controller
-makes these pages look like contiguous RAM sitting in linear
-address-space. There is lots of wasted RAM in the Intel/IBM/PC
-architecture because the stuff that would be where the screen
-regen buffer is, where the graphics aperture exists, where
-the screen BIOS ROM is, where the BIOS ROM is (unless shadowed),
-all that space is occupied by RAM that can't even be addressed.
-So there are address-holes that are never accessed. This means
-that there are few nice clean cache-line fills for physical RAM
-below 1 megabyte.
+Richard B. Johnson wrote:
 
-Fortunately most accesses are above 1 megabytes. The locality-of-
-action helps reduce the amount of paging required in that memory
-accesses remain with a very short distance of each other in real
-programs. Of course, again, you can make a memory-corrupting
-program that thrashes the swap-file, but if you design to reduce
-that, you destroy interactivity.
+>Eventually you
+>get to the fact that even contiguous physical RAM doesn't
+>have to be contiguous and, in fact, with modern controllers
+>it's quite unlikely that it is. It's a sack of bits that
+>are uniquely addressable.
 
-Since the days of VAXen people have been trying to improve memory
-managers. So far, every improvement in special cases hurts the
-general case. I remember the controvesy at DEC when it was decided
-to keep some zero-filled pages around (demand-zero paging). These
-would be allocated as "readable". It's only when somebody would
-attempt to write to them, that a real page needed to be allocated.
-My question was; "Why a bunch of pages?". You only need one. As
-a customer, I was told that I didn't understand. So, DEC is out-
-of-business and nobody does demand-zero paging because it's dumb,
-damn stupid.
+Yes and no. We are using a shared memory interface on a cluster that allows
+us to map up to 512 Mbytes of memory from another machine. There are 16k
+address translation table (ATT) entries in the card, so we're allocating
+32K chunks of memory per ATT. We are using the bigphysarea patch for the
+driver (in 2.4 kernels) only because the driver can't reliably get the
+chunks of RAM it is asking for. We can continue to operate the way we've
+been doing or get a mechanism to defragment physical RAM so the driver can
+continue to work a week after we rebooted the machine.
 
-The same is true of "memory defragmentation".
-
-Cheers,
-Dick Johnson
-Penguin : Linux version 2.4.24 on an i686 machine (797.90 BogoMips).
-            Note 96.31% of all statistics are fiction.
-
+--Mark H Johnson
+  <mailto:Mark_H_Johnson@raytheon.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
