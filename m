@@ -1,33 +1,44 @@
-Date: Thu, 27 Jan 2005 09:02:19 -0800 (PST)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: A scrub daemon (prezeroing)
-In-Reply-To: <1106831669.19262.75.camel@hades.cambridge.redhat.com>
-Message-ID: <Pine.LNX.4.58.0501270900590.9985@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.58.0501211228430.26068@schroedinger.engr.sgi.com>
- <1106828124.19262.45.camel@hades.cambridge.redhat.com>
- <20050127131228.GB31288@lnx-holt.americas.sgi.com>
- <1106831669.19262.75.camel@hades.cambridge.redhat.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Thu, 27 Jan 2005 15:52:34 -0500
+From: Theodore Ts'o <tytso@mit.edu>
+Subject: Re: [patch] ext2: Apply Jack's ext3 speedups
+Message-ID: <20050127205233.GB9225@thunk.org>
+References: <200501270722.XAA10830@allur.sanmateo.akamai.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <200501270722.XAA10830@allur.sanmateo.akamai.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: David Woodhouse <dwmw2@infradead.org>
-Cc: Robin Holt <holt@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: pmeda@akamai.com
+Cc: akpm@osdl.org, jack@suse.cz, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 27 Jan 2005, David Woodhouse wrote:
+On Wed, Jan 26, 2005 at 11:22:39PM -0800, pmeda@akamai.com wrote:
+> 
+> Apply ext3 speedups added by Jan Kara to ext2.
+> Reference: http://linus.bkbits.net:8080/linux-2.5/gnupatch@41f127f2jwYahmKm0eWTJNpYcSyhPw
+> 
 
-> On Thu, 2005-01-27 at 07:12 -0600, Robin Holt wrote:
-> > An earlier proposal that Christoph pushed would have used the BTE on
-> > sn2 for this.  Are you thinking of using the BTE on sn0/sn1 mips?
->
-> I wasn't being that specific. There's spare DMA engines on a lot of
-> PPC/ARM/FRV/SH/MIPS and other machines, to name just the ones sitting
-> around my desk.
+This patch isn't right, as it causes ext2_sparse_group(1) to return 0
+instead of 1.  Block groups number 0 and 1 must always contain a
+superblock.
 
-If you look at the patch you will find a function call to register a
-hardware driver for zeroing. I did not include the driver in this patch
-because there was no change. Look at my other posts regarding prezeroing.
+>  static int ext2_group_sparse(int group)
+>  {
+> +	if (group <= 0)
+> +		return 1;
+
+Change this to be:
+
++	if (group <= 1)
++		return 1;
+
+and it should fix the patch (as well as be similar to the ext3
+mainline).  With this change,
+
+Acked-by: "Theodore Ts'o" <tytso@mit.edu>
+
+						- Ted
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
