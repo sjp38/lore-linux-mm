@@ -1,25 +1,86 @@
-Date: Mon, 16 Feb 2004 13:29:34 -0800
-From: Andrew Morton <akpm@osdl.org>
-Subject: Re: 2.6.3-rc3-mm1
-Message-Id: <20040216132934.65c3d6e0.akpm@osdl.org>
-In-Reply-To: <Pine.LNX.4.58.0402161610110.11793@montezuma.fsmlabs.com>
-References: <Pine.LNX.3.96.1040216141554.2146A-100000@gatekeeper.tmr.com>
-	<Pine.LNX.4.58.0402161610110.11793@montezuma.fsmlabs.com>
+Date: Mon, 16 Feb 2004 14:36:42 -0800
+From: "Randy.Dunlap" <rddunlap@osdl.org>
+Subject: Re: [Kernel-janitors] [PATCH] Check return code in mm/vmscan.c
+Message-Id: <20040216143642.48b2c176.rddunlap@osdl.org>
+In-Reply-To: <20040104051125.GF20458@eugeneteo.net>
+References: <20040103132524.GA21909@eugeneteo.net>
+	<20040103222706.GM6982@parcelfarce.linux.theplanet.co.uk>
+	<20040104051125.GF20458@eugeneteo.net>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Zwane Mwaikambo <zwane@linuxpower.ca>
-Cc: davidsen@tmr.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Eugene Teo <eugene.teo@eugeneteo.net>
+Cc: linux-mm@kvack.org, kernel-janitors@osdl.org
 List-ID: <linux-mm.kvack.org>
 
-Zwane Mwaikambo <zwane@linuxpower.ca> wrote:
->
-> Well the -tiny tree has that and a lot more drastic trimmings, Andrew is
-> there already an arrangement to feed the not so brutal changes to you?
+On Sun, 4 Jan 2004 13:11:26 +0800 Eugene Teo <eugene.teo@eugeneteo.net> wrote:
 
-nope.
+| <quote sender="Matthew Wilcox">
+| > On Sat, Jan 03, 2004 at 09:25:24PM +0800, Eugene Teo wrote:
+| > > http://www.anomalistic.org/patches/vmscan-check-ret-kernel_thread-fix-2.6.1-rc1-mm1.patch
+| > > 
+| > > diff -Naur -X /home/amnesia/w/dontdiff 2.6.1-rc1-mm1/mm/vmscan.c 2.6.1-rc1-mm1-fix/mm/vmscan.c
+| > > --- 2.6.1-rc1-mm1/mm/vmscan.c	2004-01-03 20:33:39.000000000 +0800
+| > > +++ 2.6.1-rc1-mm1-fix/mm/vmscan.c	2004-01-03 21:16:30.000000000 +0800
+| > > @@ -1093,10 +1093,16 @@
+| > >  
+| > >  static int __init kswapd_init(void)
+| > >  {
+| > > +	int ret;
+| > >  	pg_data_t *pgdat;
+| > >  	swap_setup();
+| > > -	for_each_pgdat(pgdat)
+| > > -		kernel_thread(kswapd, pgdat, CLONE_KERNEL);
+| > > +	for_each_pgdat(pgdat) {
+| > > +		ret = kernel_thread(kswapd, pgdat, CLONE_KERNEL);
+| > > +		if (ret < 0) {
+| > > +			printk("%s: unable to start kernel thread\n", __FUNCTION__);
+| > > +			return ret;
+| > > +		}
+| > > +	}
+| > >  	total_memory = nr_free_pagecache_pages();
+| > >  	return 0;
+| > >  }
+| > 
+| > If your new code is triggered, we've just failed to set up total_memory.
+| > I expect the system to behave very oddly after this ;-)
+| 
+| a panic call seems to be more appropriate :)
+| 
+| Here is the new fix. Patch compiles, and tested.
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Eugene, patch is tested how?  What do you mean by "tested"?
+In what conditions?
+
+| http://www.anomalistic.org/patches/vmscan-check-ret-kernel_thread-fix-2.6.1-rc1-mm1.patch
+| 
+| diff -Naur -X /home/amnesia/w/dontdiff 2.6.1-rc1-mm1/mm/vmscan.c 2.6.1-rc1-mm1-fix/mm/vmscan.c
+| --- 2.6.1-rc1-mm1/mm/vmscan.c	2004-01-04 10:29:24.000000000 +0800
+| +++ 2.6.1-rc1-mm1-fix/mm/vmscan.c	2004-01-04 13:04:52.000000000 +0800
+| @@ -1093,10 +1093,14 @@
+|  
+|  static int __init kswapd_init(void)
+|  {
+| +	int ret;
+|  	pg_data_t *pgdat;
+|  	swap_setup();
+| -	for_each_pgdat(pgdat)
+| -		kernel_thread(kswapd, pgdat, CLONE_KERNEL);
+| +	for_each_pgdat(pgdat) {
+| +		ret = kernel_thread(kswapd, pgdat, CLONE_KERNEL);
+| +		if (ret < 0)
+| +			panic("%s: unable to initialise kswapd\n", __FUNCTION__);
+| +	}
+|  	total_memory = nr_free_pagecache_pages();
+|  	return 0;
+|  }
+| 
+
+--
+~Randy
+kernel-janitors project:  http://janitor.kernelnewbies.org/
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
