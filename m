@@ -1,43 +1,43 @@
 Received: from max.fys.ruu.nl (max.fys.ruu.nl [131.211.32.73])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id RAA07846
-	for <linux-mm@kvack.org>; Thu, 4 Dec 1997 17:34:36 -0500
-Date: Thu, 4 Dec 1997 12:04:25 +0100 (MET)
+	by kvack.org (8.8.7/8.8.7) with ESMTP id RAA07849
+	for <linux-mm@kvack.org>; Thu, 4 Dec 1997 17:34:38 -0500
+Date: Thu, 4 Dec 1997 10:37:02 +0100 (MET)
 From: Rik van Riel <H.H.vanRiel@fys.ruu.nl>
 Reply-To: H.H.vanRiel@fys.ruu.nl
-Subject: mm-patches out there?
-Message-ID: <Pine.LNX.3.91.971204115830.7673A-100000@mirkwood.dummy.home>
+Subject: Re: fork: out of memory
+In-Reply-To: <199712040152.RAA00762@belvdere.vip.best.com>
+Message-ID: <Pine.LNX.3.91.971204103425.6860D-100000@mirkwood.dummy.home>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: linux-kernel <linux-kernel@vger.rutgers.edu>
+To: "David E. Fox" <dfox@belvdere.vip.best.com>
 Cc: linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+On Wed, 3 Dec 1997, David E. Fox wrote:
 
-I managed to salvage the important partitions from my crashed
-HD, and I'm back in business now...
+> > Was that with my patch running, or wery you trying to get it
+> > in... On my own system (24Mb) I magaged to compile the kernel
+> > with 'make -j5' without any problems...
+> 
+> Without the patch, i.e., clean 2.1.65 (make bzimage though)
+>  
+[snip]
+> 
+> I wrote in the other message that I got it to compile OK. 
+> Strangely enough, it failed twice in the same spot (ide.c) which
+> I haven't yet experienced. Third time though it worked.
 
-I've seen quite some mm patches floating around, and I've
-actually read (and even written) some of them.
-Now I wonder if anyone would be interested in a central
-place where all mm patches could accumulate / be found /
-be merged... I know I would.
-
-To put it in another way: I'm thinking of starting a mm-patch
-www-page (a'la linux-mama) where all memory management related
-patches can be found. So now I put out this request for all
-mm-authors whether they can send me:
-- a description of their patch
-- a pointer as to where I can find it
-- possibly even an updated patch (up-to-date with current kernel release)
-
-Then we can assess what features are floating around, and how
-we can make Linux:
-- more stable
-- faster
-- more feature-rich
-(in order of importance?)
+Maybe you should compile in <magic-sysrq> support and try
+<sysrq>-M when memory gets tight...
+> 
+> Strangely enough, I haven't seen any 'cannot fork' messages
+> today (yet). I got a slew of them yesterday (over 40 messages
+> saying 'cannot fork'). The only real difference is that netscape
+> is sitting around. Wierd.
+Hmm, strange. You'd expect Netscape to grab loads of memory
+so other programs could get even less... Or was it just
+'sitting around' and doing nothing:)
 
 grtz,
 
