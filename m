@@ -1,44 +1,40 @@
-Date: Fri, 13 Sep 2002 17:06:59 -0400
-Mime-Version: 1.0 (Apple Message framework v482)
-Content-Type: text/plain; charset=US-ASCII; format=flowed
-Subject: Obtaining the kernel's PTEs
-From: Scott Kaplan <sfkaplan@cs.amherst.edu>
-Content-Transfer-Encoding: 7bit
-Message-Id: <BDF7B0A2-C75C-11D6-8D39-000393829FA4@cs.amherst.edu>
+Subject: Re: 2.5.34-mm2 kernel BUG at sched.c:944! only with CONFIG_PREEMPT=y
+From: Steven Cole <elenstev@mesatop.com>
+In-Reply-To: <20020913224139.72df14ba.diegocg@teleline.es>
+References: <1031840041.1990.378.camel@spc9.esa.lanl.gov>
+	<20020913224139.72df14ba.diegocg@teleline.es>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 8BIT
+Date: 13 Sep 2002 15:20:26 -0600
+Message-Id: <1031952028.2604.28.camel@localhost.localdomain>
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Arador <diegocg@teleline.es>
+Cc: Andrew Morton <akpm@zip.com.au>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
------BEGIN PGP SIGNED MESSAGE-----
-Hash: SHA1
+On Fri, 2002-09-13 at 14:41, Arador wrote:
+> On 12 Sep 2002 08:14:01 -0600
+> Steven Cole <elenstev@mesatop.com> escribio:
+> 
+> > I got the following BUG at sched.c:944! with 2.5.34-mm2 and PREEMPT on.
+> > This was repeatable. 
+> 
+> Same for me:
+> POSIX conformance testing by UNIFIX
+> Kernel BUG at sched.c:944!
+> 
 
-Yet another question...
+If you just want a quick workaround (not a real fix), you
+can change in_atomic back to in_interrupt on line 933 of kernel/sched.c.
 
-Assume that I'm not concerned with ZONE_HIGHMEM, and I have a struct page*
-.  How would I obtain a pointer to the PTE that maps the corresponding 
-virtual page in the kernel's address space to this given page?
+Robert Love has posted another patch for this, so you might want to
+try that out.  Here is a link to that post:
+http://marc.theaimsgroup.com/?l=linux-kernel&m=103190275327089&w=2
+You may need to change KERN_ERROR to KERN_ERR in that patch.
 
-In case you're wondering, ``Why does he want that?'':  I want to remove 
-access permissions for pages, and I want to include the kernel in that 
-denial of permission.  An example of where this matters is when you have a 
-page cache page that was allocated by the VFS for read()/write() 
-operations on a regular (non-mmaped) file.  Only the kernel has a mapping 
-to that page, and I a trap to occur when the kernel tries to use that page.
-
-Must I get the PGD, PMD, and then PTE?  Is there a function that will do 
-this nicely for me so that I don't write redundant (and potentially buggy)
-  code for this little task?
-
-Scott
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.0.6 (Darwin)
-Comment: For info see http://www.gnupg.org
-
-iD8DBQE9glN28eFdWQtoOmgRAof5AJ4tBOxrX6g74RiFezCQfrsooJjwLQCgq0V4
-sH16r3mkat6WMtbqx9JcBbk=
-=HSwE
------END PGP SIGNATURE-----
+Steven
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
