@@ -1,51 +1,36 @@
-Received: from imperial.edgeglobal.com (imperial.edgeglobal.com [208.197.226.14])
-	by edgeglobal.com (8.9.1/8.9.1) with ESMTP id RAA15767
-	for <linux-mm@kvack.org>; Sat, 4 Sep 1999 17:23:22 -0400
-Date: Sat, 4 Sep 1999 17:27:42 -0400 (EDT)
-From: James Simmons <jsimmons@edgeglobal.com>
-Subject: accel again.
-Message-ID: <Pine.LNX.4.10.9909041708350.22380-100000@imperial.edgeglobal.com>
+Date: Sun, 5 Sep 1999 09:58:56 +0200 (CEST)
+From: Rik van Riel <riel@humbolt.geo.uu.nl>
+Subject: bdflush defaults bugreport
+Message-ID: <Pine.LNX.4.10.9909050953540.247-100000@mirkwood.dummy.home>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Linux MM <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Well I did my homework on spinlocks and see what you mean by using
-spinlocks to handle accel and framebuffer access. So just before I have
-fbcon access the accel engine I could do this right?
+Hi,
 
-In fb.h 
---------
-struct fb_info {
-	...
-	struct vm_area_struct vm_area
-	...
-}
---------
+yesterday evening I've seen a 32MB machine failing to install because
+mke2fs was killed due to memory shortage -- memory shortage due to
+a too large number of dirty blocks (max 40% by default).
 
-In fbcon.c
+Lowering the number to 1% solved all problems, so I guess we should
+lower the number in the kernel to something like 10%, which should
+be _more_ than enough since the page cache can now be dirty too...
 
-/* I going to access accel engine */
-spin_lock(&fb_info->vm_area->vm_mm->page_table_lock); 
+Btw, the problem happened on a 2.2.10 machine, so I guess we should
+lower the 2.2 default as well (to 15%? 20%?).
 
-/* accessing accel engine */
-....
-/* done with accel engine */
-spin_unlock(&fb_info->vm_area->vm_mm->page_table_lock);
+regards,
 
-Now this would lock the framebuffer correct? So if a process would try to
-acces the framebuffer it would be put to sleep while its doing accels. Is
-this basically what I need to do or is their something more that I am
-missing. 
-
-Their also exist the possiblity that the accel engine in the kernel and
-the accel registers from userland could be access at the same time. This
-means that spin_lock could be called twice. Any danger in this? Then some
-accel engines use a interuppt to flush their FIFO. So a 
-spin_lock_irqsave(&fb_info->vm_area->vm_mm->page_table_lock, flags);
-should always be used correct?
+Rik
+--
+The Internet is not a network of computers. It is a network
+of people. That is its real strength.
+--
+work at:	http://www.reseau.nl/
+home at:	http://www.nl.linux.org/~riel/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
