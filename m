@@ -1,47 +1,55 @@
-Date: Thu, 19 Dec 2002 00:54:26 -0800
+Date: Thu, 19 Dec 2002 01:28:53 -0800
 From: William Lee Irwin III <wli@holomorphy.com>
 Subject: Re: 2.5.52-mm2
-Message-ID: <20021219085426.GJ1922@holomorphy.com>
-References: <3E015ECE.9E3BD19@digeo.com>
+Message-ID: <20021219092853.GK1922@holomorphy.com>
+References: <3E015ECE.9E3BD19@digeo.com> <20021219085426.GJ1922@holomorphy.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <3E015ECE.9E3BD19@digeo.com>
+In-Reply-To: <20021219085426.GJ1922@holomorphy.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@digeo.com>
-Cc: lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Andrew Morton <akpm@digeo.com>, lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 On Wed, Dec 18, 2002 at 09:53:18PM -0800, Andrew Morton wrote:
-> url: http://www.zip.com.au/~akpm/linux/patches/2.5/2.5.52/2.5.52-mm2/
+>> url: http://www.zip.com.au/~akpm/linux/patches/2.5/2.5.52/2.5.52-mm2/
 
-Kernel compile on ramfs, shpte off, overcommit on (probably more like a
-stress test for shpte):
+On Thu, Dec 19, 2002 at 12:54:26AM -0800, William Lee Irwin III wrote:
+> Kernel compile on ramfs, shpte off, overcommit on (probably more like a
+> stress test for shpte):
 
-c0116810 187174   0.528821    pfn_to_nid
-c01168b8 192912   0.545032    x86_profile_hook
-c0163c0c 267362   0.755375    d_lookup
-c014e530 286920   0.810632    get_empty_filp
-c01b0b18 287959   0.813567    __copy_from_user
-c01320cc 307597   0.86905     find_get_page
-c011a6b0 331219   0.935789    scheduler_tick
-c0140890 342427   0.967455    vm_enough_memory
-c013fc60 353705   0.999319    handle_mm_fault
-c014eb49 358710   1.01346     .text.lock.file_table
-c011a1f8 379521   1.07226     load_balance
-c01b0ab0 840162   2.3737      __copy_to_user
-c013f5a0 1040429  2.93951     do_anonymous_page
-c01358c8 1056576  2.98513     __get_page_state
-c014406c 1260931  3.56249     page_remove_rmap
-c0143e68 1265355  3.57499     page_add_rmap
-c0106f38 21236731 59.9999     poll_idle
+With shpte on:
 
-shpte on will follow.
+c0135790 123025   0.33807     nr_free_pages
+c015021c 134621   0.369936    __fput
+c0119974 144602   0.397364    kmap_atomic
+c01b23d0 146899   0.403676    __copy_user_intel
+c014c050 159002   0.436935    pte_unshare
+c0122c28 171802   0.472109    current_kernel_time
+c01fbd9c 172897   0.475118    sync_buffer
+c0116870 187066   0.514054    pfn_to_nid
+c0115390 199497   0.548214    smp_apic_timer_interrupt
+c013f820 236468   0.64981     do_no_page
+c0116918 260314   0.715338    x86_profile_hook
+c016566c 274151   0.753362    d_lookup
+c01b2578 280625   0.771152    __copy_from_user
+c013212c 323752   0.889665    find_get_page
+c0140800 338288   0.929609    vm_enough_memory
+c013fbd0 355384   0.976589    handle_mm_fault
+c014ff90 358839   0.986083    get_empty_filp
+c011a710 363642   0.999282    scheduler_tick
+c011a258 507320   1.39411     load_balance
+c01505a9 664873   1.82706     .text.lock.file_table
+c01b2510 834467   2.2931      __copy_to_user
+c0135928 1051119  2.88846     __get_page_state
+c013f400 1062731  2.92037     do_anonymous_page
+c0143fa0 1273498  3.49955     page_add_rmap
+c014419c 1386659  3.81051     page_remove_rmap
+c0106f38 21099307 57.9805     poll_idle
 
 
 Bill
-
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
