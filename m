@@ -1,34 +1,49 @@
-Date: Mon, 25 Sep 2000 17:48:15 +0200
-From: Andrea Arcangeli <andrea@suse.de>
+Date: Mon, 25 Sep 2000 16:40:44 +0100
+From: "Stephen C. Tweedie" <sct@redhat.com>
 Subject: Re: the new VM
-Message-ID: <20000925174815.E25814@athlon.random>
-References: <E13dZX7-00055f-00@the-village.bc.nu> <Pine.LNX.4.21.0009251714480.9122-100000@elte.hu>
+Message-ID: <20000925164044.F2615@redhat.com>
+References: <Pine.LNX.4.21.0009251511050.6224-100000@elte.hu> <E13dZX7-00055f-00@the-village.bc.nu>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.21.0009251714480.9122-100000@elte.hu>; from mingo@elte.hu on Mon, Sep 25, 2000 at 05:16:06PM +0200
+In-Reply-To: <E13dZX7-00055f-00@the-village.bc.nu>; from alan@lxorguk.ukuu.org.uk on Mon, Sep 25, 2000 at 03:47:03PM +0100
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ingo Molnar <mingo@elte.hu>
-Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, Marcelo Tosatti <marcelo@conectiva.com.br>, Linus Torvalds <torvalds@transmeta.com>, Rik van Riel <riel@conectiva.com.br>, Roger Larsson <roger.larsson@norran.net>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
+To: Alan Cox <alan@lxorguk.ukuu.org.uk>
+Cc: mingo@elte.hu, Andrea Arcangeli <andrea@suse.de>, Marcelo Tosatti <marcelo@conectiva.com.br>, Linus Torvalds <torvalds@transmeta.com>, Rik van Riel <riel@conectiva.com.br>, Roger Larsson <roger.larsson@norran.net>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Sep 25, 2000 at 05:16:06PM +0200, Ingo Molnar wrote:
-> situation is just 1% RAM away from the 'root cannot log in', situation.
+Hi,
 
-The root cannot log in is a little different. Just think that in the "root
-cannot log in" you only need to press SYSRQ+E (or as worse +I).
+On Mon, Sep 25, 2000 at 03:47:03PM +0100, Alan Cox wrote:
+> 
+> GFP_KERNEL has to be able to fail for 2.4. Otherwise you can get everything
+> jammed in kernel space waiting on GFP_KERNEL and if the swapper cannot make
+> space you die.
 
-If all tasks in the systems are hanging into the GFP loop SYSRQ+I won't solve
-the deadlock.
+We already have PF_MEMALLOC to provide a last-chance allocation pool
+which only the swapper can eat into. 
 
-Ok you can add a signal check in the memory balancing code but that looks an
-ugly hack that shows the difference between the two cases (the one Alan pointed
-out is real deadlock, the current one is kind of live lock that can go away any
-time, while the deadlock can reach the point where it can't be recovered
-without an hack from an irq somewhere).
+The critical thing is to avoid having the swapper itself deadlock.
+Everything revolves around that.  Once you can make that guarantee,
+it's perfectly safe to make GFP_KERNEL succeed for other callers, just
+as long as you have enough beancounting in place in those callers.
 
-Andrea
+Right now, the biggest obstacle to this is the GFP_ATOMIC behaviour:
+
+	/*
+	 * Final phase: allocate anything we can!
+	 *
+	 * This is basically reserved for PF_MEMALLOC and
+	 * GFP_ATOMIC allocations...
+	 */
+
+Allowing GFP_ATOMIC to eat PF_MEMALLOC's last-chance pages is the
+wrong thing to do if we want to guarantee swapper progress under
+extreme load.
+
+Cheers,
+ Stephen
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
