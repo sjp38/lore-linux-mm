@@ -1,35 +1,82 @@
-Received: from localhost ([127.0.0.1] helo=fencepost.gnu.org)
-	by fencepost.gnu.org with esmtp (Exim 3.35 #1 (Debian))
-	id 17cbz4-0004Gd-00
-	for <linux-mm@kvack.org>; Wed, 07 Aug 2002 21:21:02 -0400
-Date: Wed, 07 Aug 2002 21:21:02 -0400
-Message-ID: <20020808012102.16404.70768.Mailman@fencepost.gnu.org>
-Subject: Your message to Bug-gnats awaits moderator approval
-From: bug-gnats-admin@gnu.org
-List-Help: <mailto:bug-gnats-request@gnu.org?subject=help>
-List-Post: <mailto:bug-gnats@gnu.org>
-List-Subscribe: <http://mail.gnu.org/mailman/listinfo/bug-gnats>,
-	<mailto:bug-gnats-request@gnu.org?subject=subscribe>
-List-Unsubscribe: <http://mail.gnu.org/mailman/listinfo/bug-gnats>,
-	<mailto:bug-gnats-request@gnu.org?subject=unsubscribe>
-List-Archive: <http://mail.gnu.org/pipermail/bug-gnats/>
+Date: Fri, 9 Aug 2002 11:12:20 -0400
+Mime-Version: 1.0 (Apple Message framework v482)
+Content-Type: text/plain; charset=US-ASCII; format=flowed
+Subject: Broad questions about the current design
+From: Scott Kaplan <sfkaplan@cs.amherst.edu>
+Content-Transfer-Encoding: 7bit
+Message-Id: <66ABF318-ABAA-11D6-8D07-000393829FA4@cs.amherst.edu>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Your mail to 'Bug-gnats' with the subject
+-----BEGIN PGP SIGNED MESSAGE-----
+Hash: SHA1
 
-    JUMP ROPE
+Hi folks,
 
-Is being held until the list moderator can review it for approval.
+I'm in process of trying to do some experiments that require modifying the 
+VM system to gather recency hit distribution statistics online.  I'm just 
+beginning to get the hang of the code, so I need some help, particularly 
+with the latest versions which are substantially different (it seems to me)
+  from the last versions that were (semi-)documented.  Some of these 
+questions may be foolish, and the last one in particular rambles a bit as 
+I think straight into the keyboard, but I am interested in your responses:
 
-The reason it is being held:
+1) What happened to page ages?  I found them in 2.4.0, but they're
+    gone by 2.4.19, and remain gone in 2.5.30.  The active list scan
+    seems to start at the tail and work its way towards the head,
+    demoting to the inactive list those pages whose reference bit is
+    cleared.  This seems to be like some kind of hybrid inbetween a
+    FIFO policy and a CLOCK algorithm.  Pages are inserted and scanned
+    based on the FIFO ordering, but given a second chance much like a
+    CLOCK.  Is a similar approach used for queuing pages for cleaning
+    and for reclaimation?  Am I interpreting this code in
+    refill_inactive correctly?
 
-    Message has a suspicious header
+2) Is there only one inactive list now?  Again, somewhere between
+    2.4.0 and 2.4.19, inactive_dirty_list and the per-zone
+    inactive_clean_lists disappeared.  How are the inactive_clean
+    and inactive_dirty pages separated?  Or are they no longer kept
+    separate in that way, and simply distinguished when trying to
+    reclaim pages?
 
-Either the message will get posted to the list, or you will receive
-notification of the moderator's decision.
+3) Does the scanning of pages (roughly every page within a minute)
+    create a lot of avoidable overhead?  I can see that such scanning
+    is necessary when page aging is used, as the ages must be updated
+    to maintain this frequency-of-use information.  However, in the
+    absence of page ages, scanning seems superfluous.  Some amount of
+    scanning for the purpose of flushing groups of dirty pages seems
+    appropriate, but that doesn't requiring the continual scanning of
+    all pages.  Clearing reference bits on roughly the same time scale
+    with which those bits are set could require regular and complete
+    scanning, but the value of that reference-bit-clearing has not been
+    clearly demonstrated (or has it?).
+
+    How much overhead *does* this scanning introduce?  Does it really
+    yield performance that is so much better than, say, a SEGQ
+    (CLOCK->LRU) structure with a single-handed clock?  Is it worth
+    raising this point when justifying rmap?  Specifically, we're
+    already accustomed to some amount of overhead in VM bookkeeping in
+    order to avoid bad memory management -- what fraction of the total
+    overhead would be due to rmap in bad cases when compared to this
+    overhead?
+
+Many thanks for answers and thoughts that you can provide.  I do have one 
+other important question to me:  How much should I expect this code to 
+continue to change?  Is this basic structure likely to change, or will 
+there only be tuning improvements and minor modifications?
+
+Scott
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.0.6 (Darwin)
+Comment: For info see http://www.gnupg.org
+
+iD8DBQE9U9vX8eFdWQtoOmgRAtzLAKCcKtzpOIfQyE27vwFaf1o6tvFlfACdHtY+
+T3EXbIQg/aqxNWqxXn5LAW4=
+=RZc9
+-----END PGP SIGNATURE-----
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
