@@ -1,35 +1,43 @@
-Date: Wed, 23 Jan 2002 20:12:48 +0100
-From: Andi Kleen <ak@suse.de>
+Date: Wed, 23 Jan 2002 17:20:35 -0200 (BRST)
+From: Rik van Riel <riel@conectiva.com.br>
 Subject: Re: [PATCH *] rmap VM, version 12
-Message-ID: <20020123201248.A27249@wotan.suse.de>
-References: <OFB07135FF.E6C5BE7E-ON88256B4A.0068CB3F@boulder.ibm.com> <Pine.LNX.4.33L.0201231704430.32617-100000@imladris.surriel.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.33L.0201231704430.32617-100000@imladris.surriel.com>
+In-Reply-To: <OFD53A5C76.36FD7F7A-ON88256B4A.0069B25C@boulder.ibm.com>
+Message-ID: <Pine.LNX.4.33L.0201231718080.32617-100000@imladris.surriel.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@conectiva.com.br>
-Cc: Badari Pulavarty <badari@us.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Badari Pulavarty <badari@us.ibm.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jan 23, 2002 at 05:05:13PM -0200, Rik van Riel wrote:
-> > uncompressing linux ...
-> > booting ..
-> 
-> At this point we're not even near using pagetables yet,
-> so I guess this is something else ...
-> 
-> (I'm not 100% sure, though)
+On Wed, 23 Jan 2002, Badari Pulavarty wrote:
 
-It happens when you crash before console initialization.  VM is already
-low level initialized there, but other CPUs should not have been booted yet.
+> I just tried to boot 2.4.17+rmap12 turning off HIGHMEM and it booted
+> just fine. So it has to do with some HIGHMEM change happend between
+> rmap11c and rmap12.
+>
+> Does this help ?
 
-Usual way to debug is to link with one of the patches that replace printk
-with an "early_printk" that writes directly into the vga text buffer and
-works without the console subsystem. 
+Yes.  Time for a very very big DOH, the kind of
+DOH that would make Homer Simpson blush ...
 
--andi
+I think you're seeing a divide by zero on line
+947 of page_alloc.c ... which also explains why
+the highmem emulation patch wasn't a big success
+here. ;)
+
+I'll release an rmap-12a within the hour.
+
+regards,
+
+Rik
+-- 
+"Linux holds advantages over the single-vendor commercial OS"
+    -- Microsoft's "Competing with Linux" document
+
+http://www.surriel.com/		http://distro.conectiva.com/
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
