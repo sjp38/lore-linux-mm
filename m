@@ -1,59 +1,44 @@
-Message-ID: <170EBA504C3AD511A3FE00508BB89A92021C912E@exnanycmbx4.ipc.com>
-From: "Downing, Thomas" <Thomas.Downing@ipc.com>
-Subject: RE: 2.5.70-mm1
-Date: Wed, 28 May 2003 09:26:32 -0400
+Date: Wed, 28 May 2003 09:53:46 -0500
+From: Dave McCracken <dmccr@us.ibm.com>
+Subject: Re: hard question re: swap cache
+Message-ID: <21290000.1054133626@baldur.austin.ibm.com>
+In-Reply-To: <20030527214157.31893.qmail@web41501.mail.yahoo.com>
+References: <20030527214157.31893.qmail@web41501.mail.yahoo.com>
 MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="iso-8859-1"
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@digeo.com>, linux-mm@kvack.org
+To: Carl Spalletta <cspalletta@yahoo.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
------Original Message-----
-From: Andrew Morton [mailto:akpm@digeo.com]
->
-> http://www.zip.com.au/~akpm/linux/patches/2.5/2.5.70-mm1.gz
->
->   Will appear soon at
->
->
-ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.5/2.5.70/2.5.70-
-mm1/
->
-> . A number of fixes against the ext3 work which Alex and I have been
-doing.
->   This code is stable now.  I'm using it on my main SMP desktop machine.
->
->   These are major changes to a major filesystem.  I would ask that
->   interested parties now subject these patches to stresstesting and to
->   performance testing.  The performance gains on SMP will be significant.
-[snip]
+Your question is a bit ambiguous because in kernel terms there are two
+distinct cases.
 
-Running this version for 2 days now on heavily used build machine.
-No problems to report.  Here are some numbers for kernel build.
-Machine is SMP, 2 Xeon P4, Intel chipset, single IDE HD, with
-hyperthreading enabled.
+A shared page, ie one mapped by mmap or shmmap is not anonymous in kernel
+terms.  It has a temporary file created for the region.  A shared page in
+this file is tracked through the page cache, so it's trivially found via
+either page cache lookup or by pagein through file system calls.
 
-2.5.67-bk4 (i think bk4):
+A truly anonymous page is generally either bss space or stack, and can only
+become shared through fork.  When a page of this type is unmapped, its
+address in swap space is written into the page table entry.  The page is
+also put into the swap cache at this time.  When the process tries to map
+the page again, it uses the swap address to look first in the swap cache,
+or, failing that, read it from swap space.
 
-       make -j1   make -j4
-       --------   --------
-real   5m03.889   2m37.253
-user   4m27.550   4m41.037
-sys    0m27.727   0m29.651
+An additional twist to this is that pages are not unmapped for swapout on a
+per-process basis in 2.5.  Page stealing is done via the active and
+inactive lists, which are by physical page.  They are unmapped in all
+processes at the same time by using the pte_chain mechanism.
 
-2.5.70-mm1:
+Dave McCracken
 
-       make -j1   make -j4
-       --------   --------
-real   4m52.212   2m41.565
-user   4m27.447   4m40.462
-sys    0m29.079   0m31.184
+======================================================================
+Dave McCracken          IBM Linux Base Kernel Team      1-512-838-3059
+dmccr@us.ibm.com                                        T/L   678-3059
 
-This test does not show any significant difference.  On the other hand,
-even with -j4 the disk activity is light.  If you have a better test
-that you would like me to run, point me to it, and I'll do it.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
