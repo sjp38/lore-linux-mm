@@ -1,60 +1,29 @@
-Date: Wed, 31 Dec 2003 11:49:48 +0100
-From: Tomas Szepe <szepe@pinerecords.com>
+Date: Wed, 31 Dec 2003 02:57:52 -0800
+From: Andrew Morton <akpm@osdl.org>
 Subject: Re: 2.6.0-rc1-mm1
-Message-ID: <20031231104947.GC16860@louise.pinerecords.com>
-References: <20031231004725.535a89e4.akpm@osdl.org> <20031231101907.GB16860@louise.pinerecords.com> <20031231024855.0aca5e52.akpm@osdl.org>
+Message-Id: <20031231025752.754fd926.akpm@osdl.org>
+In-Reply-To: <20031231104947.GC16860@louise.pinerecords.com>
+References: <20031231004725.535a89e4.akpm@osdl.org>
+	<20031231101907.GB16860@louise.pinerecords.com>
+	<20031231024855.0aca5e52.akpm@osdl.org>
+	<20031231104947.GC16860@louise.pinerecords.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20031231024855.0aca5e52.akpm@osdl.org>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, "David S. Miller" <davem@redhat.com>
+To: Tomas Szepe <szepe@pinerecords.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, davem@redhat.com
 List-ID: <linux-mm.kvack.org>
 
-On Dec-31 2003, Wed, 02:48 -0800
-Andrew Morton <akpm@osdl.org> wrote:
+Tomas Szepe <szepe@pinerecords.com> wrote:
+>
+> What I did was:
 
-> Tomas Szepe <szepe@pinerecords.com> wrote:
-> >
-> > In file included from include/linux/netfilter_bridge/ebtables.h:16,
-> >                  from net/bridge/netfilter/ebtables.c:25:
-> > include/linux/netfilter_bridge.h: In function `nf_bridge_maybe_copy_header':
-> > include/linux/netfilter_bridge.h:74: error: `ETH_P_8021Q' undeclared (first use in this function)
-> 
-> This problem also exists in 2.6.1-rc1.
+Well that just reverts the recent change back to the way it was.  I assume
+that change was made for a reason.  But with such a lame changelog I am not
+able to say what it was.   No doubt Dave will hunt down the perps ;)
 
-Andrew, are you quite sure this is the correct fix?
-
-What I did was:
-
---- b/include/linux/netfilter_bridge.h	2003-12-31 11:47:06.000000000 +0100
-+++ linux-2.6.0/include/linux/netfilter_bridge.h	2003-12-31 11:46:08.000000000 +0100
-@@ -71,10 +71,12 @@
- void nf_bridge_maybe_copy_header(struct sk_buff *skb)
- {
- 	if (skb->nf_bridge) {
-+#if defined(CONFIG_VLAN_8021Q) || defined(CONFIG_VLAN_8021Q_MODULE)
- 		if (skb->protocol == __constant_htons(ETH_P_8021Q)) {
- 			memcpy(skb->data - 18, skb->nf_bridge->hh, 18);
- 			skb_push(skb, 4);
- 		} else
-+#endif
- 			memcpy(skb->data - 16, skb->nf_bridge->hh, 16);
- 	}
- }
-@@ -84,8 +86,10 @@
- {
-         int header_size = 16;
- 
-+#if defined(CONFIG_VLAN_8021Q) || defined(CONFIG_VLAN_8021Q_MODULE)
- 	if (skb->protocol == __constant_htons(ETH_P_8021Q))
- 		header_size = 18;
-+#endif
- 
- 	memcpy(skb->nf_bridge->hh, skb->data - header_size, header_size);
- }
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
