@@ -1,10 +1,10 @@
 Received: from digeo-nav01.digeo.com (digeo-nav01.digeo.com [192.168.1.233])
-	by packet.digeo.com (8.9.3+Sun/8.9.3) with SMTP id CAA09974
-	for <linux-mm@kvack.org>; Sun, 2 Feb 2003 02:56:32 -0800 (PST)
-Date: Sun, 2 Feb 2003 02:56:39 -0800
+	by packet.digeo.com (8.9.3+Sun/8.9.3) with SMTP id CAA10002
+	for <linux-mm@kvack.org>; Sun, 2 Feb 2003 02:57:13 -0800 (PST)
+Date: Sun, 2 Feb 2003 02:57:20 -0800
 From: Andrew Morton <akpm@digeo.com>
 Subject: Re: hugepage patches
-Message-Id: <20030202025639.6a984730.akpm@digeo.com>
+Message-Id: <20030202025720.25bbf46d.akpm@digeo.com>
 In-Reply-To: <20030131151501.7273a9bf.akpm@digeo.com>
 References: <20030131151501.7273a9bf.akpm@digeo.com>
 Mime-Version: 1.0
@@ -15,45 +15,85 @@ Return-Path: <owner-linux-mm@kvack.org>
 To: davem@redhat.com, rohit.seth@intel.com, davidm@napali.hpl.hp.com, anton@samba.org, wli@holomorphy.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-10/4
+12/4
 
-Fix hugetlbfs faults
-
-
-If the underlying mapping was truncated and someone references the
-now-unmapped memory the kernel will enter handle_mm_fault() and will start
-instantiating PAGE_SIZE pte's inside the hugepage VMA.  Everything goes
-generally pear-shaped.
-
-So trap this in handle_mm_fault().  It adds no overhead to non-hugepage
-builds.
-
-Another possible fix would be to not unmap the huge pages at all in truncate
-- just anonymise them.
-
-But I think we want full ftruncate semantics for hugepages for management
-purposes.
+Fix hugetlb_vmtruncate_list()
 
 
- i386/mm/fault.c |    0 
- memory.c        |    4 ++++
- 2 files changed, 4 insertions(+)
+This function is quite wrong - has an "=" where it should have an "-" and
+confuses PAGE_SIZE and HPAGE_SIZE in its address and file offset arithmetic.
 
-diff -puN arch/i386/mm/fault.c~hugetlbfs-fault-fix arch/i386/mm/fault.c
-diff -puN mm/memory.c~hugetlbfs-fault-fix mm/memory.c
---- 25/mm/memory.c~hugetlbfs-fault-fix	2003-02-01 22:46:48.000000000 -0800
-+++ 25-akpm/mm/memory.c	2003-02-01 22:46:48.000000000 -0800
-@@ -1447,6 +1447,10 @@ int handle_mm_fault(struct mm_struct *mm
- 	pgd = pgd_offset(mm, address);
+
+
+
+ hugetlbfs/inode.c |   46 ++++++++++++++++++++++++++++++++--------------
+ 1 files changed, 32 insertions(+), 14 deletions(-)
+
+diff -puN fs/hugetlbfs/inode.c~hugetlb_vmtruncate-fixes fs/hugetlbfs/inode.c
+--- 25/fs/hugetlbfs/inode.c~hugetlb_vmtruncate-fixes	2003-02-02 01:17:12.000000000 -0800
++++ 25-akpm/fs/hugetlbfs/inode.c	2003-02-02 02:53:49.000000000 -0800
+@@ -240,29 +240,47 @@ static void hugetlbfs_drop_inode(struct 
+ 		hugetlbfs_forget_inode(inode);
+ }
  
- 	inc_page_state(pgfault);
+-static void hugetlb_vmtruncate_list(struct list_head *list, unsigned long pgoff)
++/*
++ * h_pgoff is in HPAGE_SIZE units.
++ * vma->vm_pgoff is in PAGE_SIZE units.
++ */
++static void
++hugetlb_vmtruncate_list(struct list_head *list, unsigned long h_pgoff)
+ {
+-	unsigned long start, end, length, delta;
+ 	struct vm_area_struct *vma;
+ 
+ 	list_for_each_entry(vma, list, shared) {
+-		start = vma->vm_start;
+-		end = vma->vm_end;
+-		length = end - start;
+-
+-		if (vma->vm_pgoff >= pgoff) {
+-			zap_hugepage_range(vma, start, length);
++		unsigned long h_vm_pgoff;
++		unsigned long v_length;
++		unsigned long h_length;
++		unsigned long v_offset;
 +
-+	if (is_vm_hugetlb_page(vma))
-+		return VM_FAULT_SIGBUS;	/* mapping truncation does this. */
++		h_vm_pgoff = vma->vm_pgoff << (HPAGE_SHIFT - PAGE_SHIFT);
++		v_length = vma->vm_end - vma->vm_start;
++		h_length = v_length >> HPAGE_SHIFT;
++		v_offset = (h_pgoff - h_vm_pgoff) << HPAGE_SHIFT;
 +
- 	/*
- 	 * We need the page table lock to synchronize with kswapd
- 	 * and the SMP-safe atomic PTE updates.
++		/*
++		 * Is this VMA fully outside the truncation point?
++		 */
++		if (h_vm_pgoff >= h_pgoff) {
++			zap_hugepage_range(vma, vma->vm_start, v_length);
+ 			continue;
+ 		}
+ 
+-		length >>= PAGE_SHIFT;
+-		delta = pgoff = vma->vm_pgoff;
+-		if (delta >= length)
++		/*
++		 * Is this VMA fully inside the truncaton point?
++		 */
++		if (h_vm_pgoff + (v_length >> HPAGE_SHIFT) <= h_pgoff)
+ 			continue;
+ 
+-		start += delta << PAGE_SHIFT;
+-		length = (length - delta) << PAGE_SHIFT;
+-		zap_hugepage_range(vma, start, length);
++		/*
++		 * The VMA straddles the truncation point.  v_offset is the
++		 * offset (in bytes) into the VMA where the point lies.
++		 */
++		zap_hugepage_range(vma,
++				vma->vm_start + v_offset,
++				v_length - v_offset);
+ 	}
+ }
+ 
 
 _
 
