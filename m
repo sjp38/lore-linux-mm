@@ -1,35 +1,39 @@
-Received: from penguin.e-mind.com (penguin.e-mind.com [195.223.140.120])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id JAA12287
-	for <linux-mm@kvack.org>; Tue, 6 Apr 1999 09:09:40 -0400
-Date: Tue, 6 Apr 1999 15:04:36 +0200 (CEST)
-From: Andrea Arcangeli <andrea@e-mind.com>
-Subject: Re: [patch] arca-vm-2.2.5
-In-Reply-To: <37096E02.C9E53CE2@redhat.com>
-Message-ID: <Pine.LNX.4.05.9904061459330.437-100000@laser.random>
+Received: from dukat.scot.redhat.com (sct@dukat.scot.redhat.com [195.89.149.246])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id KAA12936
+	for <linux-mm@kvack.org>; Tue, 6 Apr 1999 10:01:15 -0400
+From: "Stephen C. Tweedie" <sct@redhat.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Message-ID: <14090.4979.543492.66003@dukat.scot.redhat.com>
+Date: Tue, 6 Apr 1999 15:00:19 +0100 (BST)
+Subject: Re: [patch] arca-vm-2.2.5
+In-Reply-To: <Pine.LNX.4.05.9904050033340.779-100000@laser.random>
+References: <Pine.BSF.4.03.9904041657210.15836-100000@funky.monkey.org>
+	<Pine.LNX.4.05.9904050033340.779-100000@laser.random>
 Sender: owner-linux-mm@kvack.org
-To: Doug Ledford <dledford@redhat.com>
-Cc: Chuck Lever <cel@monkey.org>, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
+To: Andrea Arcangeli <andrea@e-mind.com>
+Cc: Chuck Lever <cel@monkey.org>, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org, "Stephen C. Tweedie" <sct@redhat.com>, Linus Torvalds <torvalds@transmeta.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 5 Apr 1999, Doug Ledford wrote:
+Hi,
 
->Hmmm...I've talked about this a few times to Alan Cox and Stephen
->Tweedie.  I didn't bother to instrument the hash function because in
->this case I knew it was tuned to the size of the inode structs.  But, I
->did implement a variable sized page cache hash table array.  I did this
+On Mon, 5 Apr 1999 02:22:35 +0200 (CEST), Andrea Arcangeli
+<andrea@e-mind.com> said:
 
-Well it's strightforward. I just did the same some time ago for the buffer
-hash table. But I agree with Chuck that enlarging the hash size could harm
-the hash function distrubution (I should think about it some more though).
+> The page hash function change is from Stephen (I did it here too because I
+> completly agreed with it). The point is that shm entries uses the lower
+> bits of the pagemap->offset field.
 
-I also think that I'll implement the cookie thing suggested by Mark since
-I am too much courious to see how much it will help (even if my mind is
-driven by RB-trees ;).
+_All_ swap entries do.  shm entries never enter the page cache so that's
+not a problem, but the swap cache _is_ a problem.
 
-Andrea Arcangeli
+> Eh, my shrink_mmap() is is a black magic and it's long to explain what I
+> thought ;).
 
+It is hard to have a meaningful discussion about it otherwise!
+
+--Stephen
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm my@address'
 in the body to majordomo@kvack.org.  For more info on Linux MM,
