@@ -1,38 +1,52 @@
-Date: Mon, 21 May 2001 05:54:42 +0200 (CEST)
+Date: Sun, 20 May 2001 11:47:33 +0200 (CEST)
 From: Mike Galbraith <mikeg@wen-online.de>
 Subject: Re: [RFC][PATCH] Re: Linux 2.4.4-ac10
-In-Reply-To: <Pine.LNX.4.21.0105201756550.5547-100000@freak.distro.conectiva>
-Message-ID: <Pine.LNX.4.33.0105210544390.465-100000@mikeg.weiden.de>
+In-Reply-To: <Pine.LNX.4.21.0105200546241.5531-100000@imladris.rielhome.conectiva>
+Message-ID: <Pine.LNX.4.33.0105201104090.610-100000@mikeg.weiden.de>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Marcelo Tosatti <marcelo@conectiva.com.br>
-Cc: "Stephen C. Tweedie" <sct@redhat.com>, Rik van Riel <riel@conectiva.com.br>, Ingo Oeser <ingo.oeser@informatik.tu-chemnitz.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Rik van Riel <riel@conectiva.com.br>
+Cc: "Stephen C. Tweedie" <sct@redhat.com>, Ingo Oeser <ingo.oeser@informatik.tu-chemnitz.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 20 May 2001, Marcelo Tosatti wrote:
+On Sun, 20 May 2001, Rik van Riel wrote:
 
-> On Sat, 19 May 2001, Mike Galbraith wrote:
+> On Sun, 20 May 2001, Mike Galbraith wrote:
 >
-> > @@ -1054,7 +1033,7 @@
-> >  				if (!zone->size)
-> >  					continue;
-> >
-> > -				while (zone->free_pages < zone->pages_low) {
-> > +				while (zone->free_pages < zone->inactive_clean_pages) {
-> >  					struct page * page;
-> >  					page = reclaim_page(zone);
-> >  					if (!page)
+> > You're right.  It should never dump too much data at once.  OTOH, if
+> > those cleaned pages are really old (front of reclaim list), there's no
+> > value in keeping them either.  Maybe there should be a slow bleed for
+> > mostly idle or lightly loaded conditions.
 >
->
-> What you're trying to do with this change ?
+> If you don't think it's worthwhile keeping the oldest pages
+> in memory around, please hand me your excess DIMMS ;)
 
-Just ensuring that I never had a large supply of cleaned pages laying
-around at a time when folks are in distress.  It also ensures that you
-never donate your last reclaimable pages, but that wasn't the intent.
+You're welcome to the data in any of them :)  The hardware I keep.
 
-It was a stray though that happened to produce measurable improvement.
+> Remember that inactive_clean pages are always immediately
+> reclaimable by __alloc_pages(), if you measured a performance
+> difference by freeing pages in a different way I'm pretty sure
+> it's a side effect of something else.  What that something
+> else is I'm curious to find out, but I'm pretty convinced that
+> throwing away data early isn't the way to go.
+
+OK.  I'm getting a little distracted by thinking about the locking
+and some latency comments I've heard various gurus make.  I should
+probably stick to thinking about/measuring throughput.. much easier.
+
+but ;-)
+
+Looking at the locking and trying to think SMP (grunt) though, I
+don't like the thought of taking two locks for each page until
+kreclaimd gets a chance to run.  One of those locks is the
+pagecache_lock, and that makes me think it'd be better to just
+reclaim a block if I have to reclaim at all.  At that point, the
+chances of needing to lock the pagecache soon again are about
+100%.  The data in that block is toast anyway.  A big hairy SMP
+box has to feel reclaim_page(). (they probably feel the zone lock
+too.. probably would like to allocate blocks)
 
 	-Mike
 
