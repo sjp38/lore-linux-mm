@@ -1,7 +1,7 @@
-Date: Thu, 29 May 2003 01:49:59 -0700
+Date: Thu, 29 May 2003 04:23:33 -0700
 From: Andrew Morton <akpm@digeo.com>
 Subject: Re: 2.5.70-mm2
-Message-Id: <20030529014959.757871fa.akpm@digeo.com>
+Message-Id: <20030529042333.3dd62255.akpm@digeo.com>
 In-Reply-To: <20030529012914.2c315dad.akpm@digeo.com>
 References: <20030529012914.2c315dad.akpm@digeo.com>
 Mime-Version: 1.0
@@ -14,23 +14,34 @@ List-ID: <linux-mm.kvack.org>
 
 Andrew Morton <akpm@digeo.com> wrote:
 >
+> 
 > ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.5/2.5.70/2.5.70-mm2/
+> 
+> 
+> . A couple more locking mistakes in ext3 have been fixed.
+> 
 
-urgh, sorry.  It has some extra debug which will generate a storm of
-warnings with ext2.  Delete the below line.
+But not all of them.  The below is needed on SMP.
 
-
-diff -puN mm/page_alloc.c~x mm/page_alloc.c
---- 25/mm/page_alloc.c~x	2003-05-29 01:48:25.000000000 -0700
-+++ 25-akpm/mm/page_alloc.c	2003-05-29 01:48:29.000000000 -0700
-@@ -256,7 +256,6 @@ static inline void free_pages_check(cons
- 			1 << PG_locked	|
- 			1 << PG_active	|
- 			1 << PG_reclaim	|
--			1 << PG_checked	|
- 			1 << PG_writeback )))
- 		bad_page(function, page);
- 	if (PageDirty(page))
+diff -puN fs/jbd/transaction.c~x fs/jbd/transaction.c
+--- 25-whoops/fs/jbd/transaction.c~x	2003-05-29 04:21:51.000000000 -0700
++++ 25-whoops-akpm/fs/jbd/transaction.c	2003-05-29 04:22:09.000000000 -0700
+@@ -2077,12 +2077,13 @@ void __journal_refile_buffer(struct jour
+  */
+ void journal_refile_buffer(journal_t *journal, struct journal_head *jh)
+ {
+-	struct buffer_head *bh;
++	struct buffer_head *bh = jh2bh(jh);
+ 
++	jbd_lock_bh_state(bh);
+ 	spin_lock(&journal->j_list_lock);
+-	bh = jh2bh(jh);
+ 
+ 	__journal_refile_buffer(jh);
++	jbd_unlock_bh_state(bh);
+ 	journal_remove_journal_head(bh);
+ 
+ 	spin_unlock(&journal->j_list_lock);
 
 _
 
