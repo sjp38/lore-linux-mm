@@ -1,43 +1,41 @@
-Received: from halibut.imedia.com (halibut.imedia.com [206.3.97.123])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id WAA25038
-	for <linux-mm@kvack.org>; Sun, 24 Jan 1999 22:35:56 -0500
-From: pmonta@halibut.imedia.com
-Date: Sun, 24 Jan 1999 19:35:23 -0800
-Message-Id: <199901250335.TAA07275@halibut.imedia.com>
-In-reply-to: <m104ap4-0007U1C@the-village.bc.nu> (alan@lxorguk.ukuu.org.uk)
+Received: from neon.transmeta.com (neon-best.transmeta.com [206.184.214.10])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id XAA25492
+	for <linux-mm@kvack.org>; Sun, 24 Jan 1999 23:22:42 -0500
+Date: Sun, 24 Jan 1999 20:17:07 -0800 (PST)
+From: Linus Torvalds <torvalds@transmeta.com>
 Subject: Re: MM deadlock [was: Re: arca-vm-8...]
-Reply-to: pmonta@imedia.com
-References: <m104ap4-0007U1C@the-village.bc.nu>
+In-Reply-To: <m104ap4-0007U1C@the-village.bc.nu>
+Message-ID: <Pine.LNX.3.95.990124201339.17000L-100000@penguin.transmeta.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: alan@lxorguk.ukuu.org.uk
-Cc: torvalds@transmeta.com, linker@z.ml.org, sct@redhat.com, werner@suse.de, andrea@e-mind.com, riel@humbolt.geo.uu.nl, Zlatko.Calusic@CARNet.hr, ebiederm+eric@ccr.net, saw@msu.ru, steve@netplus.net, damonbrent@earthlink.net, reese@isn.net, kalle.andersson@mbox303.swipnet.se, bmccann@indusriver.com, bredelin@ucsd.edu, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
+To: Alan Cox <alan@lxorguk.ukuu.org.uk>
+Cc: linker@z.ml.org, sct@redhat.com, werner@suse.de, andrea@e-mind.com, riel@humbolt.geo.uu.nl, Zlatko.Calusic@CARNet.hr, ebiederm+eric@ccr.net, saw@msu.ru, steve@netplus.net, damonbrent@earthlink.net, reese@isn.net, kalle.andersson@mbox303.swipnet.se, bmccann@indusriver.com, bredelin@ucsd.edu, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Alan Cox writes:
 
-> I can't support devices needing large physically linear blocks of
-> memory ...
->
-> S3 Sonic Vibes	- linux can't support its wavetable (wants 4Mb linear)
-> Zoran based capture chips - physically linear capture/masks
-> Matrox Meteor frame grabber - physically linear grabbing
->
-> So 2.3 needs to be able to allocate large linear physical spaces - not
-> neccessarily efficiently either. These are all occasional grabs of memory.
+On Mon, 25 Jan 1999, Alan Cox wrote:
+> 
+> Oh good, whats the configuration setting for a 4Gig Xeon box. I've got
+> people dying to know. So I'm not full of it.
 
-Yes---physical addressing for I/O is reality.  Some devices may
-not implement scatter-gather, and some may do so and yet still be
-afflicted with high latencies for descriptor fetching and
-the like.
+Oh, the answer is very simple: it's not going to happen.
 
-If allocations are rare, it doesn't seem that unreasonable to actually
-do physical copies, push stuff bodily out of the way to construct a new
-contiguous region.  Or else a separate allocator, like the present-day
-bigphysarea.
+EVER.
 
-Cheers,
-Peter Monta   pmonta@imedia.com
-Imedia Corp.
+You need more that 32 bits of address space to handle that kind of memory. 
+This is not something I'm going to discuss further. If people want to use
+more than 2GB of memory, they have exactly two options with Linux: 
+
+ - get a machine with reasonable address spaces. Right now that's either
+   alpha or sparc64, in the not too distant future it will be merced.
+ - use the extra memory as a ram-disk (possibly memory-mappable, but even
+   that I consider unlikely)
+
+This is not negotiable.
+
+		Linus
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm my@address'
 in the body to majordomo@kvack.org.  For more info on Linux MM,
