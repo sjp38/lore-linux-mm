@@ -3,10 +3,10 @@ From: Luiz Capitulino <lcapitulino@prefeitura.sp.gov.br>
 In-Reply-To: <200308132302.26656.kernel@kolivas.org>
 References: <20030813013156.49200358.akpm@osdl.org>
 	 <200308132302.26656.kernel@kolivas.org>
-Content-Type: text/plain; charset=ISO-8859-1
-Message-Id: <1060781719.449.6.camel@lorien>
+Content-Type: text/plain; charset=iso-8859-1
+Message-Id: <1060781744.449.8.camel@lorien>
 Mime-Version: 1.0
-Date: 13 Aug 2003 10:35:45 -0300
+Date: 13 Aug 2003 10:36:01 -0300
 Content-Transfer-Encoding: 8BIT
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
