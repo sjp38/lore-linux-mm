@@ -1,46 +1,93 @@
-Date: Fri, 04 Jul 2003 12:53:54 -0700
-From: "Martin J. Bligh" <mbligh@aracnet.com>
+Date: Fri, 4 Jul 2003 13:07:46 -0700
+From: William Lee Irwin III <wli@holomorphy.com>
 Subject: Re: 2.5.74-mm1 fails to boot due to APIC trouble, 2.5.73mm3 works.
-Message-ID: <16900000.1057348432@[10.10.2.4]>
-In-Reply-To: <20030704193135.GF955@holomorphy.com>
-References: <20030703023714.55d13934.akpm@osdl.org> <Pine.LNX.4.53.0307041139150.24383@montezuma.mastecende.com> <13170000.1057335490@[10.10.2.4]> <20030704183106.GC955@holomorphy.com> <14820000.1057346400@[10.10.2.4]> <20030704193135.GF955@holomorphy.com>
-MIME-Version: 1.0
+Message-ID: <20030704200746.GB1715@holomorphy.com>
+References: <20030703023714.55d13934.akpm@osdl.org> <3F054109.2050100@aitel.hist.no> <20030704093531.GA26348@holomorphy.com> <20030704095004.GB26348@holomorphy.com> <7910000.1057333295@[10.10.2.4]> <20030704182617.GA955@holomorphy.com> <15480000.1057347497@[10.10.2.4]>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
+In-Reply-To: <15480000.1057347497@[10.10.2.4]>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: William Lee Irwin III <wli@holomorphy.com>
-Cc: Zwane Mwaikambo <zwane@arm.linux.org.uk>, Helge Hafting <helgehaf@aitel.hist.no>, Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: "Martin J. Bligh" <mbligh@aracnet.com>
+Cc: Helge Hafting <helgehaf@aitel.hist.no>, Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
---William Lee Irwin III <wli@holomorphy.com> wrote (on Friday, July 04, 2003 12:31:35 -0700):
+On Fri, Jul 04, 2003 at 02:35:31AM -0700, William Lee Irwin III wrote:
+>> It's not a cleanup, and it doesn't touch trailing whitespace etc.
 
-> At some point in the past, I wrote:
->>> The bitmap is wider than the function wants. The change is fine, despite
->>> your abuse of phys_cpu_present_map.
-> 
-> On Fri, Jul 04, 2003 at 12:20:02PM -0700, Martin J. Bligh wrote:
->> I'm happy to remove the abuse of phys_cpu_present_map, seeing as we now
->> have a reason to do so. That would actually seem a much cleaner solution
->> to these problems than creating a whole new data type, which still doesn't
->> represent what it claims to
-> 
-> Dirtier, but possibly lower line count.
+On Fri, Jul 04, 2003 at 12:38:19PM -0700, Martin J. Bligh wrote:
+> Maybe not, but it looks like one. Maybe if you actually explain
+> what you're trying to fix, and why?
+> I think this kind of change deserves a better explanation that 
+> "I'm right" ... that's my main objection.
 
-I disagree with the "dirtier" bit, but still. I'd rather have this sort
-of stuff put into subarch, where most people don't have to look at it.
+I'll try to be more verbose, then.
 
-More to the point, the changes would be confined to the big-iron arches,
-and have less chance of breaking anyone else for things they don't
-care about, nor do them any benefit. Touching this code is fragile as
-hell, so if it can be confined, it should be ...
 
-It'd also remove the long-standing abuse of phys_cpu_present_map, which
-would probably make the rest of the code clearer.
+On Fri, Jul 04, 2003 at 02:35:31AM -0700, William Lee Irwin III wrote:
+>> It is.
 
-M.
+On Fri, Jul 04, 2003 at 12:38:19PM -0700, Martin J. Bligh wrote:
+> Explain. Not obvious to the casual observer.
 
+The function assigns physical APIC ID's to IO-APIC's. The loop is
+intended to iterate over the physical APIC ID space. 0xf is an
+inaccurate description of the upper bound on the physical APIC ID space.
+APIC_BROADCAST_ID is a more accurate upper bound.
+
+
+On Fri, Jul 04, 2003 at 02:35:31AM -0700, William Lee Irwin III wrote:
+>> APIC_BROADCAST_ID is an upper bound on valid physical APIC ID's as it
+>> is used in the code. That actually was commented in the patch.
+
+On Fri, Jul 04, 2003 at 12:38:19PM -0700, Martin J. Bligh wrote:
+> I find it odd that this worked before then. Also seems to be a separate
+> issue from the rest of the patch. Is quite probably correct, is just
+> non-obvious in the context of the rest of the patch.
+
+I audited not only for usage of limited-width bitmaps for APIC ID
+spaces, but also improper bounds on iterations over APIC ID spaces.
+Things ran out of APIC ID's when phys_cpu_present_map was NR_CPUS
+wide. This patch makes the limits accurate to the hardware with
+the brute-force application of bitmaps. The semantic impact of
+dropping in a bitmap is very low. The issue that arose was that it
+wasn't wide enough, which was obvious enough to spot as a thinko
+without even testing.
+
+
+On Fri, Jul 04, 2003 at 02:35:31AM -0700, William Lee Irwin III wrote:
+>> The change is correct, and I am not thinking of any such thing.
+>> APIC_BROADCAST_ID's sole usage is for terminating loops over physical
+>> APIC ID's while setting the physical APIC ID's of IO-APIC's.
+
+On Fri, Jul 04, 2003 at 12:38:19PM -0700, Martin J. Bligh wrote:
+> Why is Summit 0xF, and bigsmp 0xFF then?
+
+Summit (and all other xAPIC-based subarches) should be 0xFF; I missed
+it in the sweep.
+
+
+On Fri, Jul 04, 2003 at 02:35:31AM -0700, William Lee Irwin III wrote:
+>> Look at where it's used.
+
+On Fri, Jul 04, 2003 at 12:38:19PM -0700, Martin J. Bligh wrote:
+> I did. Still unclear why you think this is correct, or what physical
+> apicids have to do with a function that maps from apicids to  the
+> phys_cpu_present_map, which is a compact mapping of logical apicids
+> for NUMA-Q.
+> Sorry, but this needs more explanation.
+
+The bitmap width is sufficient. NUMA-Q abuses what everything else
+uses for physical APIC ID's (partly because of the BIOS). It so happens
+that the array is MAX_APICS wide, which suffices for NUMA-Q (and
+anything else that cares to use it).
+
+No. This was not written for or around NUMA-Q; it's meant for the
+io_apic.c loops and sparse physid wakeup on non-NUMA-Q machines.
+
+
+-- wli
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
