@@ -1,35 +1,39 @@
-Date: Wed, 23 May 2001 04:33:35 -0300 (BRT)
-From: Marcelo Tosatti <marcelo@conectiva.com.br>
-Subject: write drop behind effect on active scanning 
-Message-ID: <Pine.LNX.4.21.0105221910361.864-100000@freak.distro.conectiva>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Wed, 23 May 2001 10:35:18 +0100
+From: "Stephen C. Tweedie" <sct@redhat.com>
+Subject: Re: Running out of vmalloc space
+Message-ID: <20010523103518.X8080@redhat.com>
+References: <3B04069C.49787EC2@fc.hp.com> <20010517183931.V2617@redhat.com> <3B045546.312BA42E@fc.hp.com> <3B0AF30D.8D25806A@fc.hp.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <3B0AF30D.8D25806A@fc.hp.com>; from dp@fc.hp.com on Tue, May 22, 2001 at 05:15:26PM -0600
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@conectiva.com.br>, "Stephen C. Tweedie" <sct@redhat.com>
-Cc: lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: David Pinedo <dp@fc.hp.com>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+Hi,
 
-Hi, 
+On Tue, May 22, 2001 at 05:15:26PM -0600, David Pinedo wrote:
+> I followed up on the suggestion of several folks to not map the graphics
+> board into kernel vm space. While investigating how to do that, I
+> discovered that the frame buffer space did not need to be mapped -- it
+> was already being mapped with the control space. So instead of needing
+> (32M+16M)*2=96M of vmalloc space, I only need 32M*2=64M. That change
+> seemed easier than figuring out how not to map the board into kernel vm
+> space, so...
 
-I just noticed a "bad" effect of write drop behind yesterday during some
-tests.
+...so you'll end up with a driver which will work fine as long as
+nobody tries to load it in parallel with another driver which tries to
+pull the same stunt.  It's an easy way out which doesn't work if
+everybody takes the same easy way out.
 
-The problem is that we deactivate written pages, thus making the inactive
-list become pretty big (full of unfreeable pages) under write intensive IO
-workloads.
+I *really* think you need to be avoiding the mapping in the first
+place if at all possible.
 
-So what happens is that we don't do _any_ aging on the active list, and in
-the meantime the inactive list (which should have "easily" freeable
-pages) is full of locked pages. 
-
-I'm going to fix this one by replacing "deactivate_page(page)" to
-"ClearPageReferenced(page)" in generic_file_write(). This way the written
-pages are aged faster but we avoid the bad effect just described.
-
-Any comments on the fix ?  
-
+Cheers,
+ Stephen
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
