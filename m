@@ -1,25 +1,32 @@
-From: Nikita Danilov <Nikita@Namesys.COM>
+Message-ID: <DVERFVFIEDXTSZTFLDCDC@yahoo.com>
+From: "Ora Goodwin" <john_Black068@yahoo.com>
+Reply-To: "Ora Goodwin" <john_Black068@yahoo.com>
+Subject: sugper viagrga bulldog debussy
+Date: Mon, 16 Feb 2004 15:51:57 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Message-ID: <16432.49219.407816.444084@laputa.namesys.com>
-Date: Mon, 16 Feb 2004 16:06:11 +0300
-Subject: Re: [PATCH] 2.6.3-rc3-mm1: align scan_page per node
-In-Reply-To: <4030BB86.8060206@cyberone.com.au>
-References: <4030BB86.8060206@cyberone.com.au>
+Content-Type: multipart/alternative;
+	boundary="--495971189711541"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <piggin@cyberone.com.au>
-Cc: Andrew Morton <akpm@osdl.org>, linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Nick Piggin writes:
- > Ok ok, I'll do it... is this the right way to go about it?
- > I'm assuming it is worth doing?
+----495971189711541
+Content-Type: text/plain;
+Content-Transfer-Encoding: quoted-printable
 
-I think it's right.
+Did you know That the normal cost for 
+Super Vkiagra is $20, per dose?
 
-Nikita.
+We are running a hot special!! 
+T0DAY Its only an amazing $3.00
+Shipped world wide!
+
+http://fastactingpills.com/sv/?pid=3Devaph6163
+
+flabby seizure
+
+----495971189711541--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
