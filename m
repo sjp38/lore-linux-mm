@@ -1,32 +1,37 @@
-Date: Tue, 26 Jun 2001 04:13:14 -0300 (BRT)
-From: Marcelo Tosatti <marcelo@conectiva.com.br>
-Subject: Re: [RFC] VM statistics to gather
-In-Reply-To: <Pine.LNX.4.21.0106252238070.941-100000@freak.distro.conectiva>
-Message-ID: <Pine.LNX.4.21.0106260404450.1849-100000@freak.distro.conectiva>
+Subject: Re: VM tuning through fault trace gathering [with actual code]
+References: <Pine.LNX.4.21.0106252152580.941-100000@freak.distro.conectiva>
+From: John Fremlin <vii@users.sourceforge.net>
+Date: 26 Jun 2001 13:54:30 +0100
+In-Reply-To: <Pine.LNX.4.21.0106252152580.941-100000@freak.distro.conectiva> (Marcelo Tosatti's message of "Mon, 25 Jun 2001 21:53:33 -0300 (BRT)")
+Message-ID: <m2n16vcsft.fsf@boreas.yi.org.>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@conectiva.com.br>
-Cc: linux-mm@kvack.org
+To: Marcelo Tosatti <marcelo@conectiva.com.br>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
+Marcelo Tosatti <marcelo@conectiva.com.br> writes:
 
-On Mon, 25 Jun 2001, Marcelo Tosatti wrote:
-
+> On 25 Jun 2001, John Fremlin wrote:
 > 
-> On Mon, 25 Jun 2001, Rik van Riel wrote:
-> 
-> > Hi,
 > > 
-> > I am starting the process of adding more detailed instrumentation
-> > to the VM subsystem and am wondering which statistics to add.
-> > A quick start of things to measure are below, but I've probably
-> > missed some things. Comments are welcome ...
+> > Last year I had the idea of tracing the memory accesses of the system
+> > to improve the VM - the traces could be used to test algorithms in
+> > userspace. The difficulty is of course making all memory accesses
+> > fault without destroying system performance.
 
-	unsigned int vm_agepagedown; /* Count of age page down */
-	unsigned int vm_agepageup;   /* Count of age page up */ 
+[...]
 
+> Linux Trace Toolkit (http://www.opersys.com/LTT) does that. 
+
+I dld the ltt-usenix paper and skim read it. It didn't seem to talk
+about page faults much. Where should I look?
+
+-- 
+
+	http://ape.n3.net
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
