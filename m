@@ -1,43 +1,48 @@
-Received: from digeo-nav01.digeo.com (digeo-nav01.digeo.com [192.168.1.233])
-	by packet.digeo.com (8.9.3+Sun/8.9.3) with SMTP id CAA22397
-	for <linux-mm@kvack.org>; Fri, 14 Feb 2003 02:21:57 -0800 (PST)
-Date: Fri, 14 Feb 2003 02:22:20 -0800
-From: Andrew Morton <akpm@digeo.com>
-Subject: Re: 2.5.60-mm2
-Message-Id: <20030214022220.30d0ed69.akpm@digeo.com>
-In-Reply-To: <20030214101356.GA17155@codemonkey.org.uk>
-References: <20030214013144.2d94a9c5.akpm@digeo.com>
-	<20030214093856.GC13845@codemonkey.org.uk>
-	<20030214015802.66800166.akpm@digeo.com>
-	<20030214101356.GA17155@codemonkey.org.uk>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Subject: Re: loading and executing a binary image (user mode) from memory
+References: <NDBBILGLJCKBNGMNECMOCEDFILAA.dang@broadcom.com>
+From: ebiederm@xmission.com (Eric W. Biederman)
+Date: 14 Feb 2003 08:45:14 -0700
+In-Reply-To: <NDBBILGLJCKBNGMNECMOCEDFILAA.dang@broadcom.com>
+Message-ID: <m1of5e7to5.fsf@frodo.biederman.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Jones <davej@codemonkey.org.uk>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Dannie Gay <dang@broadcom.com>
+Cc: linux-mm@kvack.org, linux-questions-only@ssc.com, david@kasey.umkc.edu
 List-ID: <linux-mm.kvack.org>
 
-Dave Jones <davej@codemonkey.org.uk> wrote:
->
-> On Fri, Feb 14, 2003 at 01:58:02AM -0800, Andrew Morton wrote:
-> 
->  > > I'm puzzled that you've had NFS stable enough to test these.
->  > This was just writing out a single 400 megabyte file with `dd'.  I didn't try
->  > anything fancier.
-> 
-> ok. Can you hold off pushing NFS bits to Linus until this gets
-> pinned down ? I really don't want to introduce any more variables
-> to this, especially when its so hard to pin down to an exact
-> replication scenario.
+"Dannie Gay" <dang@broadcom.com> writes:
 
-I wouldn't push any NFS bits.  It has a breathing maintainer ;)
+> Need assistance with this embedded linux project:
 
-I've been mainly looking at the OOM problems, which need MM help.  Got
-distracted.
+I would suggest jffs2, as it does compression and you can run it
+directly out of flash.
+ 
+> I want to decompress (from flash) a application into memory and execute it.
+> Ideally I want to simply jump to the starting location and run.  I've
+> already successfully allocated the required amount of memory (on bootup)
+> with alloc_bootmem_pages() from the kernel and decompress the image from
+> flash and load it into my allocated memory (free from kernel tampering).
+> My user mode application loads from a small initial ram disk, maps the
+> allocated memory into my process space and marks it as read/execute via mmap
+> PROT_READ|PROT_EXEC.  The problem is what kind of binary image is required
+> to be built which would allow simply jumping to this location?  Can a
+> particular binary image be built with gcc that is possition independant and
+> free from the file system requirements imposed upon do_execve?
 
+Generally linux has virtual memory so you don't need to be position independent.
+And if you are running on a port without a mmu it a standard binary there should
+already be position independent.
 
+> I'm stuck here, has anyone done this sort of thing?
+
+Placing filesystems in flash is routine....
+
+The exact details of what you want sound fuzzy and silly. But the net
+effect does not sound hard.
+
+Eric
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
