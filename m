@@ -1,57 +1,70 @@
-Message-ID: <4173D219.3010706@shadowen.org>
-Date: Mon, 18 Oct 2004 15:24:25 +0100
+Subject: 050 bootmem use NODE_DATA
+In-Reply-To: <4173D219.3010706@shadowen.org>
+Message-Id: <E1CJYYn-0000Zk-4w@ladymac.shadowen.org>
 From: Andy Whitcroft <apw@shadowen.org>
-MIME-Version: 1.0
-Subject: CONFIG_NONLINEAR for small systems
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Date: Mon, 18 Oct 2004 15:32:29 +0100
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: lhms-devel@lists.sourceforge.net, linux-mm@kvack.org
-Cc: Andy Whitcroft <apw@shadowen.org>
+To: apw@shadowen.org, lhms-devel@lists.sourceforge.net, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Following this email will be a series of patches which provide a
-sample implementation of a simplified CONFIG_NONLINEAR memory model. 
-The first two cleanup general infrastructure to minimise code 
-duplication.  The third introduces an allocator for the numa remap space 
-on i386.  The fourth generalises the page flags code to allow the reuse 
-of the NODEZONE bits.  The final three are the actual meat of the 
-implementation for both i386 and ppc64.
+Convert the default non-node based bootmem routines to use
+NODE_DATA(0).  This is semantically and functionally identical in
+any non-node configuration as NODE_DATA(x) is defined as below.
 
-050-bootmem-use-NODE_DATA
-060-refactor-setup_memory-i386
-080-alloc_remap-i386
-100-cleanup-node-zone
-150-nonlinear
-160-nonlinear-i386
-170-nonlinear-ppc64
+#define NODE_DATA(nid)          (&contig_page_data)
 
-As has been observed the CONFIG_DISCONTIGMEM implementation
-is inefficient space-wise where a system has a sparse intra-node memory
-configuration. For example we have systems where node 0 has a
-1GB hole within it. Under CONFIG_DISCONTIGMEM this results in the
-struct page's for this area being allocated from ZONE_NORMAL and
-never used; this is particularly problematic on these 32bit systems
-as we are already under severe pressure in this zone.
+For the node cases (CONFIG_NUMA and CONFIG_DISCONTIG_MEM) we can
+use these non-node forms where all boot memory is defined on node 0.
 
-The generalised CONFIG_NONLINEAR memory model described at OLS
-seemed provide more than enough decriptive power to address this
-issue but provided far more functionality that was required.
-Particularly it breaks the identity V=P+c to allow compression of
-the kernel address space, which is not required on these smaller systems.
+Revision: $Rev$
 
-This patch set is implemented as a proof-of-concept to show
-that a simplified CONFIG_NONLINEAR based implementation could provide
-sufficient flexibility to solve the problems for these systems.
+Signed-off-by: Andy Whitcroft <apw@shadowen.org>
 
-In the longer term I'd like to see a single CONFIG_NONLINEAR
-implementation which allowed these various features to be stacked in
-combination as required.
+diffstat 050-bootmem-use-NODE_DATA
+---
+ bootmem.c |   10 ++++------
+ 1 files changed, 4 insertions(+), 6 deletions(-)
 
-Thoughts?
-
--apw
+diff -upN reference/mm/bootmem.c current/mm/bootmem.c
+--- reference/mm/bootmem.c
++++ current/mm/bootmem.c
+@@ -343,31 +343,29 @@ unsigned long __init free_all_bootmem_no
+ 	return(free_all_bootmem_core(pgdat));
+ }
+ 
+-#ifndef CONFIG_DISCONTIGMEM
+ unsigned long __init init_bootmem (unsigned long start, unsigned long pages)
+ {
+ 	max_low_pfn = pages;
+ 	min_low_pfn = start;
+-	return(init_bootmem_core(&contig_page_data, start, 0, pages));
++	return(init_bootmem_core(NODE_DATA(0), start, 0, pages));
+ }
+ 
+ #ifndef CONFIG_HAVE_ARCH_BOOTMEM_NODE
+ void __init reserve_bootmem (unsigned long addr, unsigned long size)
+ {
+-	reserve_bootmem_core(contig_page_data.bdata, addr, size);
++	reserve_bootmem_core(NODE_DATA(0)->bdata, addr, size);
+ }
+ #endif /* !CONFIG_HAVE_ARCH_BOOTMEM_NODE */
+ 
+ void __init free_bootmem (unsigned long addr, unsigned long size)
+ {
+-	free_bootmem_core(contig_page_data.bdata, addr, size);
++	free_bootmem_core(NODE_DATA(0)->bdata, addr, size);
+ }
+ 
+ unsigned long __init free_all_bootmem (void)
+ {
+-	return(free_all_bootmem_core(&contig_page_data));
++	return(free_all_bootmem_core(NODE_DATA(0)));
+ }
+-#endif /* !CONFIG_DISCONTIGMEM */
+ 
+ void * __init __alloc_bootmem (unsigned long size, unsigned long align, unsigned long goal)
+ {
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
