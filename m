@@ -1,50 +1,63 @@
-Date: Thu, 18 Nov 2004 19:28:41 -0800 (PST)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: fast path for anonymous memory allocation
-In-Reply-To: <419D5E09.20805@yahoo.com.au>
-Message-ID: <Pine.LNX.4.58.0411181921001.1674@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.44.0411061527440.3567-100000@localhost.localdomain>
- <Pine.LNX.4.58.0411181126440.30385@schroedinger.engr.sgi.com>
- <Pine.LNX.4.58.0411181715280.834@schroedinger.engr.sgi.com>
- <419D581F.2080302@yahoo.com.au> <Pine.LNX.4.58.0411181835540.1421@schroedinger.engr.sgi.com>
- <419D5E09.20805@yahoo.com.au>
+Message-ID: <419D8C07.9040606@yahoo.com.au>
+Date: Fri, 19 Nov 2004 17:00:39 +1100
+From: Nick Piggin <nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: another approach to rss : sloppy rss
+References: <Pine.LNX.4.44.0411061527440.3567-100000@localhost.localdomain> <Pine.LNX.4.58.0411181126440.30385@schroedinger.engr.sgi.com> <419D47E6.8010409@yahoo.com.au> <Pine.LNX.4.58.0411181711130.834@schroedinger.engr.sgi.com> <419D4EC7.6020100@yahoo.com.au> <Pine.LNX.4.58.0411181834260.1421@schroedinger.engr.sgi.com>
+In-Reply-To: <Pine.LNX.4.58.0411181834260.1421@schroedinger.engr.sgi.com>
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Hugh Dickins <hugh@veritas.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, linux-mm@kvack.org, linux-ia64@vger.kernel.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Hugh Dickins <hugh@veritas.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, linux-mm@kvack.org, linux-ia64@kernel.vger.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 19 Nov 2004, Nick Piggin wrote:
+Christoph Lameter wrote:
+> On Fri, 19 Nov 2004, Nick Piggin wrote:
+> 
+> 
+>>What do you think a per-mm flag to switch between realtime and lazy rss?
+> 
+> 
+> Yes thats what the patch has.
+> 
 
-> But you're doing it after you've set up a pte for that page you are
-> clearing... I think? What's to stop another thread trying to read or
-> write to it concurrently?
+OK.
 
-Nothing. If this had led to anything then we would have needed to address
-this issue. The clearing had to be outside of the lock in order not to
-impact the performance tests negatively.
+> 
+>>The only code it would really _add_ would be your mm counting function...
+>>I guess another couple of branches in the fault handlers too, but I don't
+>>know if they'd be very significant.
+> 
+> 
+> You would need to add hooks to all uses of rss. That adds additional code
+> to the critical paths.
+> 
+> 
 
-> > If you do the clearing with the page table lock held then performance will
-> > suffer.
-> Yeah very much, but if you allocate and clear a "just in case" page
-> _before_ taking any locks for the fault then you'd be able to go
-> straight through do_anonymous_page.
->
-> But yeah that has other issues like having a spare page per CPU (maybe
-> not so great a loss), and having anonymous faults much more likely to
-> get pages which are cache cold.
+It would be an extra branch for each use of rss, yes.
 
-You may be able to implement that using the hot and cold lists. Have
-something that runs on the lists and prezeros and preformats these pages
-(idle thread?).
+I'm probably going to abstract out direct access to rss anyway (for the
+abstracted page table locking patch - so eg. the fully locked system needn't
+use atomics).
 
-Set some flag to indicate that a page has been prepared and then just zing
-it in if do_anymous_page finds that flag said.
+So after that, you could do it without much intrusiveness. If it is any
+consolation, the flag would be read mostly and easily predictable. And you
+could make the lazy-rss a CONFIG option as well, which would remove the
+cost in the common case.
 
-But I think this may be introduce way too much complexity
-into the page fault handler.
+
+
+Just coming back to your sloppy rss patch - this thing will of course allow
+unbounded error to build up. Well, it *will* be bounded by the actual RSS if
+we assume the races can only cause rss to be underestimated. However, such an
+assumption (I think it is a safe one?) also means that rss won't hover around
+the correct value, but tend to go increasingly downward.
+
+On your HPC codes that never reclaim memory, and don't do a lot of mapping /
+unmapping I guess this wouldn't matter... But a long running database or
+something?
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
