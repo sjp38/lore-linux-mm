@@ -1,55 +1,30 @@
-Date: Sat, 6 Nov 2004 13:53:17 +0100
-From: Andries Brouwer <aebr@win.tue.nl>
-Subject: Re: [PATCH] Remove OOM killer ...
-Message-ID: <20041106125317.GB9144@pclin040.win.tue.nl>
-References: <20041105200118.GA20321@logos.cnet>
+Date: Sat, 6 Nov 2004 13:59:01 +0100
+From: Andi Kleen <ak@suse.de>
+Subject: Re: removing mm->rss and mm->anon_rss from kernel?
+Message-ID: <20041106125901.GD16434@wotan.suse.de>
+References: <4189EC67.40601@yahoo.com.au> <Pine.LNX.4.58.0411040820250.8211@schroedinger.engr.sgi.com> <418AD329.3000609@yahoo.com.au> <Pine.LNX.4.58.0411041733270.11583@schroedinger.engr.sgi.com> <418AE0F0.5050908@yahoo.com.au> <418AE9BB.1000602@yahoo.com.au> <1099622957.29587.101.camel@gaston> <418C55A7.9030100@yahoo.com.au> <Pine.LNX.4.58.0411060120190.22874@schroedinger.engr.sgi.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20041105200118.GA20321@logos.cnet>
+In-Reply-To: <Pine.LNX.4.58.0411060120190.22874@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
-Cc: Andrew Morton <akpm@osdl.org>, Nick Piggin <piggin@cyberone.com.au>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Hugh Dickins <hugh@veritas.com>, linux-mm@kvack.org, linux-ia64@kernel.vger.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Nov 05, 2004 at 06:01:18PM -0200, Marcelo Tosatti wrote:
+> The patch is by no means perfect. If you think this is worth pursuing then
+> I will finish the support for other archs and deal with the locking
+> issues etc. This patch may also remove hot spot issues that may arise with
+> the use of these two variables and so is of interest to us.
 
-> My wife is almost killing me, its Friday night and I've been telling her
-> "just another minute" for hours. Have to run.
+It's probably better to keep the counters. Otherwise there will be massive
+slowdown when people run performance monitor applets that read /proc regularly.
+We went through this several times already, there used to be some other
+/proc field that also walked everything and there were frequent
+complaints about it.
 
-:-)
-
-> As you know the OOM is very problematic in 2.6 right now - so I went
-> to investigate it.
-
-I have always been surprised that so few people investigated
-doing things right, that is, entirely without OOM killer.
-Apparently developers do not think about using Linux for serious work
-where it can be a disaster, possibly even a life-threatening disaster,
-when any process can be killed at any time.
-
-Ten years ago it was a bad waste of resources to have swapspace
-lying around that would be used essentially 0% of the time.
-But with todays disk sizes it is entirely feasible to have
-a few hundred MB of "unused" swap space. A small price to
-pay for the guarantee that no process will be OOM killed.
-
-A month ago I showed a patch that made overcommit mode 2
-work for me. Google finds it in http://lwn.net/Articles/104959/
-
-So far, nobody commented.
-
-This is not in a state such that I would like to submit it,
-but I think it would be good to focus some energy into
-offering a Linux that is guaranteed free of OOM surprises.
-
-So, let me repeat the RFC.
-Apply the above patch, and do "echo 2 > /proc/sys/vm/overcommit_memory".
-Now test. In case you have no, or only a small amount of swap space,
-also do "echo 80 > /proc/sys/vm/overcommit_ratio" or so.
-
-Andries
+-Andi
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
