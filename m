@@ -1,47 +1,36 @@
-Subject: [PATCH] Fix for vma merging refcounting bug
-From: "Stephen C. Tweedie" <sct@redhat.com>
-Content-Type: text/plain
-Content-Transfer-Encoding: 7bit
-Message-Id: <1052483661.3642.16.camel@sisko.scot.redhat.com>
-Mime-Version: 1.0
-Date: 09 May 2003 13:34:21 +0100
+Date: Fri, 9 May 2003 08:57:48 -0400 (EDT)
+From: Bill Davidsen <davidsen@tmr.com>
+Subject: Re: 2.5.69-mm2 Kernel panic, possibly network related
+In-Reply-To: <1052304024.9817.3.camel@rth.ninka.net>
+Message-ID: <Pine.LNX.3.96.1030509085607.26434U-100000@gatekeeper.tmr.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
-Cc: Stephen Tweedie <sct@redhat.com>, Andrew Morton <akpm@digeo.com>, Andrea Arcangeli <andrea@suse.de>
+To: "David S. Miller" <davem@redhat.com>
+Cc: Helge Hafting <helgehaf@aitel.hist.no>, Andrew Morton <akpm@digeo.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-When a new vma can be merged simultaneously with its two immediate
-neighbours in both directions, vma_merge() extends the predecessor vma
-and deletes the successor.  However, if the vma maps a file, it fails to
-fput() when doing the delete, leaving the file's refcount inconsistent.
+On 7 May 2003, David S. Miller wrote:
 
-# This is a BitKeeper generated patch for the following project:
-# Project Name: Linux kernel tree
-# This patch format is intended for GNU patch command version 2.5 or higher.
-# This patch includes the following deltas:
-#	           ChangeSet	1.1083  -> 1.1084 
-#	           mm/mmap.c	1.79    -> 1.80   
-#
-# The following is the BitKeeper ChangeSet Log
-# --------------------------------------------
-# 03/05/09	sct@sisko.scot.redhat.com	1.1084
-# Fix vma merging problem leading to file refcount getting out of sync.
-# --------------------------------------------
-#
-diff -Nru a/mm/mmap.c b/mm/mmap.c
---- a/mm/mmap.c	Fri May  9 13:26:53 2003
-+++ b/mm/mmap.c	Fri May  9 13:26:53 2003
-@@ -471,6 +471,8 @@
- 			spin_unlock(lock);
- 			if (need_up)
- 				up(&inode->i_mapping->i_shared_sem);
-+			if (file)
-+				fput(file);
- 
- 			mm->map_count--;
- 			kmem_cache_free(vm_area_cachep, next);
+> On Wed, 2003-05-07 at 03:10, Helge Hafting wrote:
+> > 2.5.69-mm1 is fine, 2.5.69-mm2 panics after a while even under very
+> > light load.
+> 
+> Do you have AF_UNIX built modular?
+> 
 
+This may be the same thing reported in
+<20030505144808.GA18518@butterfly.hjsoft.com> earlier, it seems to happen
+in 2.5.69 base. Interesting that he has it working in mm1, perhaps the
+module just didn't get loaded.
+
+Of course it could be another problem.
+
+-- 
+bill davidsen <davidsen@tmr.com>
+  CTO, TMR Associates, Inc
+Doing interesting things with little computers since 1979.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
