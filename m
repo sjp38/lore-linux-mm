@@ -1,32 +1,55 @@
-Date: Thu, 29 Jun 2000 17:59:23 -0500
+Date: Fri, 30 Jun 2000 12:38:19 -0500
 From: Timur Tabi <ttabi@interactivesi.com>
-Subject: __get_free_pages and free_page
-Message-Id: <20000629231053Z131172-21003+63@kanga.kvack.org>
+Subject: get_page_map in 2.2 vs 2.4
+Message-Id: <20000630175015Z131177-21002+72@kanga.kvack.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Linux MM mailing list <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Let's say I allocate a block of memory with __get_free_pages, which requires
-that I specify the order.  To free the memory, I need to call free_pages, also
-specifying the same order.
+In 2.2, the function get_page_map is this:
 
-What happens if I specify a smaller order?  Will it free a subset of that block?
+/* 
+ * Given a physical address, is there a useful struct page pointing to it?
+ */
 
-Example:
+static struct page * get_page_map(unsigned long page)
+{
+	struct page *map;
+	
+	if (MAP_NR(page) >= max_mapnr)
+		return 0;
+	if (page == ZERO_PAGE(page))
+		return 0;
+	map = mem_map + MAP_NR(page);
+	if (PageReserved(map))
+		return 0;
+	return map;
+}
 
-	unsigned long addr;
+In 2.4, it's been changed to this:
 
-	addr = __get_free_pages(GFP_ATOMIC, 3);  // allocate 2^3 pages = 32KB
+/* 
+ * Given a physical address, is there a useful struct page pointing to
+ * it?  This may become more complex in the future if we start dealing
+ * with IO-aperture pages in kiobufs.
+ */
 
-	free_pages(addr, 2);			// frees the 1st 16KB only???
+static inline struct page * get_page_map(struct page *page)
+{
+	if (page > (mem_map + max_mapnr))
+		return 0;
+	return page;
+}
 
-	addr += 16384;				// addr points to 2nd 16KB block
+It appears that although the comment is no longer correct.  In 2.2, the
+function took an unsigned long and returned a pointer to a mem_map_t.  In 2.4,
+it takes a mem_map_t and returns it.  This is hardly useful.
 
-At this point, will addr point to a valid 16KB block of memory?  Will the heap
-be intact?  Or will it screw things up?
+Am I missing something?  What was wrong with the original implementation?  And
+why hasn't the comment changed?
 
-This is with Linux 2.4.
+
 
 
 --
