@@ -1,373 +1,240 @@
-Received: from digeo-nav01.digeo.com (digeo-nav01.digeo.com [192.168.1.233])
-	by packet.digeo.com (8.9.3+Sun/8.9.3) with SMTP id XAA00149
-	for <linux-mm@kvack.org>; Tue, 11 Mar 2003 23:20:18 -0800 (PST)
-Date: Tue, 11 Mar 2003 23:21:17 -0800
-From: Andrew Morton <akpm@digeo.com>
-Subject: 2.5.64-mm5
-Message-Id: <20030311232117.28eb3734.akpm@digeo.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from chorus.teradyne.com (chorus.teradyne.com [131.101.1.195])
+	by rent.teradyne.com (8.8.8+Sun/8.8.8) with ESMTP id CAA21791
+	for <linux-mm@kvack.org>; Wed, 12 Mar 2003 02:33:37 -0500 (EST)
+Received: from laforge.ttd.teradyne.com (laforge.ttd.teradyne.com [131.101.20.119]) by chorus.teradyne.com (8.8.8+Sun/8.7.1) with ESMTP id CAA04411 for <linux-mm@kvack.org>; Wed, 12 Mar 2003 02:33:36 -0500 (EST)
+Received: from heismanttd (heisman-ttd.ttd.teradyne.com [131.101.20.76]) by laforge.ttd.teradyne.com (8.8.8+Sun/8.7.1) with SMTP id BAA14486 for <linux-mm@kvack.org>; Wed, 12 Mar 2003 01:33:35 -0600 (CST)
+Message-ID: <008601c2e869$b1364850$4c146583@heismanttd>
+From: "Jake Dawley-Carr" <jake@dawley-carr.org>
+Subject: HowTo: Profile Memory in a Linux System
+Date: Wed, 12 Mar 2003 01:33:35 -0600
+MIME-Version: 1.0
+Content-Type: text/plain;
+	charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.5/2.5.64/2.5.64-mm5/
+Hi,
 
-. Various fixes and debug things.
+I have written a mini-HOWTO on profiling memory usage under Linux.
 
-. Included the brlock-removal patches for a bit of testing.
+If you have the time and the interest, please review this short
+document. I will take your corrections and submit this document to the
+Linux Documentation Project as a reference for others. 
 
-. The global files_lock spinlock is now one of the most expensive locks in
-  the kernel.  There are a few patches here which pretty much exterminate it.
+If this is not an appropriate mailing list, would you please redirect
+me to a relevant list?
 
-  These were written by Manfred and myself.  We somehow blundered through
-  this despite our never having seen any UNIX(tm) source code.  Beginner's
-  luck.
+Thanks,
 
-. No significant anticipatory scheduler changes this time.  We're still
-  hunting Ed's bug.  Testing results would be interesting.
 
+Jake
 
 
+HOWTO: Profile Memory in a Linux System
 
-Changes since 2.5.64-mm4
+1.  Introduction
 
- linus.patch
+    It's important to determine how your system utilizes it's
+    resources. If your systems performance is unacceptable, it is
+    necessary to determine which resource is slowing the system
+    down. This document attempts to identify the following:
 
- Latest from Linus
+    a.  What is the system memory usage per unit time?
+    b.  How much swap is being used per unit time?
+    c.  What does each process' memory use look like over time?
+    d.  What processes are using the most memory?
 
--sysfs_remove_dir-dcache_lock.patch
--nfs-del_timer-race-fix.patch
--serial-warning-fix.patch
--resurrect-kernel_flag.patch
--eepro100-warning-fix.patch
--atm_dev_sem.patch
--gcc3-inline-fix.patch
+    I used a RedHat-7.3 machine (kernel-2.4.18) for my experiments,
+    but any modern Linux distribution with the commands "ps" and
+    "free" would work.
 
- Merged
+2.  Definitions
 
-+noirqbalance-fix.patch
+    RAM (Random Access Memory) - Location where programs reside when
+    they are running. Other names for this are system memory or
+    physical memory. The purpose of this document is to determine if
+    you have enough of this.
 
- Fix the i386 noirqbalance boot option
+    Memory Buffers - A page cache for the virtual memory system. The
+    kernel keeps track of frequently accessed memory and stores the
+    pages here.
 
-+config_spinline.patch
+    Memory Cached - Any modern operating system will cache files
+    frequently accessed. You can see the effects of this with the
+    following commands:
 
- Config option to allow the out-of-line spinlock spinning code to be placed
- inline.  So kernel profiling shows the spin cost in the caller, not in
- .text.lock.foo.
+        for i in 1 2 ; do
+            free -o
+            time grep -r foo /usr/bin >/dev/null 2>/dev/null
+        done
 
-+config-PAGE_OFFSET.patch
+    Memory Used - Amount of RAM in use by the computer. The kernel
+    will attempt to use as much of this as possible through buffers
+    and caching.
 
- Configurable user/kernel split (so I can pretend I have 16G)
+    Swap - It is possible to extend the memory space of the computer
+    by using the hard drive as memory. This is called swap. Hard
+    drives are typically several orders of magnitude slower than RAM
+    so swap is only used when no RAM is available.
 
--as-random-fixes.patch
--as-comment-fix.patch
--as-naming-comments-BUG.patch
--as-unnecessary-test.patch
--as-atomicity-fix.patch
--as-state-tracking-and-debug.patch
--as-state-tracking-fix.patch
--as-nr_dispatched-atomic-fix.patch
--as-thinktime.patch
--as-div-by-zero-fix.patch
--as-history-track-reads-only.patch
+    Swap Used - Amount of swap space used by the computer.
 
- Folded into as-iosched.patch
+    PID (Process IDentifier) - Each process (or instance of a running
+    program) has a unique number. This number is called a PID.
 
-+as-debug-BUG-fix.patch
+    PPID (Parent Process IDentifier) - A process (or running program)
+    can create new processes. The new process created is called a
+    child process. The original process is called the parent
+    process. The child process has a PPID equal to the PID of the
+    parent process. There are two exceptions to this rule. The first
+    is a program called "init". This process always has a PID of 1 and
+    a PPID of 0. The second exception is when a parent process exit
+    all of the child processes are adopted by the "init" process and
+    have a PPID of 1. 
 
- 64-bit fix for anticipatory scheduler debug code.
+    VSIZE (Virtual memory SIZE) - The amount of memory the process is
+    currently using. This includes the amount in RAM and the amount in
+    swap.
 
--objrmap-X-fix.patch
--objrmap-nr_mapped-fix.patch
--objrmap-mapped-mem-fix-2.patch
--objrmap-atomic_t-fix.patch
+    RSS (Resident Set Size) - The portion of a process that exists in
+    physical memory (RAM). The rest of the program exists in swap. If
+    the computer has not used swap, this number will be equal to
+    VSIZE.
 
- Folded into objrmap-2.5.62-5.patch
+3.  What consumes System Memory?
 
--scheduler-tunables-fix.patch
+    The kernel - The kernel will consume a couple of MB of memory. The
+    memory that the kernel consumes can not be swapped out to
+    disk. This memory is not reported by commands such as "free" or
+    "ps".
 
- Folded into scheduler-tunables.patch
+    Running programs - Programs that have been executed will consume
+    memory while they run.
 
--pte_file-always.patch
+    Memory Buffers - The amount of memory used is managed by the
+    kernel. You can get the amount with "free".
 
- This didn't work.
+    Memory Cached - The amount of memory used is managed by the
+    kernel. You can get the amount with "free".
 
-+file-offset-in-pte-x86_64.patch
+4.  Determining System Memory Usage
 
- x86_64 support for file-offsets-in-ptes
+    The inputs to this section were obtained with the command:
 
-+set_current_state-fs.patch
-+set_current_state-mm.patch
+        free -o
 
- Cleanups
+    The command "free" is a c program that reads the "/proc"
+    filesystem.
 
-+copy_thread-leak-fix.patch
+    There are three elements that are useful when determining the
+    system memory usage. They are:
 
- Memory leak fix
+    a.  Memory Used
+    b.  Memory Used - Memory Buffers - Memory Cached
+    c.  Swap Used
 
-+slab_store_user-large-objects.patch
+    A graph of "Memory Used" per unit time will show the "Memory Used"
+    asymptotically approach the total amount of memory in the system
+    under heavy use. This is normal, as RAM unused is RAM wasted.
 
- Allow larger slab objects to get full use-after-free debug treatment
+    A graph of "Memory Used - Memory Buffered - Memory Cached" per
+    unit time will give a good sense of the memory use of your
+    applications minus the effects of your operating system. As you
+    start new applications, this value should go up. As you quit
+    applications, this value should go down. If an application has a
+    severe memory leak, this line will have a positive slope.
 
-+file_list_lock-contention-fix.patch
-+tty_files-fixes.patch
-+file_list_cleanup.patch
-+file_list-remove-free_list.patch
-+file-list-less-locking.patch
+    A graph of "Swap Used" per unit time will display the swap
+    usage. When the system is low on RAM, a program called kswapd will
+    swap parts of process if they haven't been used for some time. If
+    the amount of swap continues to climb at a steady rate, you may
+    have a memory leak or you might need more RAM.
 
- file_list_lock speedups and cleanups
+5.  Per Process Memory Usage
 
-+vt_ioctl-stack-use.patch
+    The inputs to this section were obtained with the command:
 
- Stack reduction
+        ps -eo pid,ppid,rss,vsize,pcpu,pmem,cmd -ww --sort=pid
 
-+fix-mem-equals.patch
+    The command "ps" is a c program that reads the "/proc"
+    filesystem.
 
- Fix the "mem=" boot option.
+    There are two elements that are useful when determining the per
+    process memory usage. They are:
 
-+no-mmu-stubs.patch
-+nommu-slab.patch
+    a.  RSS
+    b.  VSIZE
 
- !CONFIG_MMU fixes
+    A graph of RSS per unit time will show how much RAM the process is
+    using over time.
 
-+nfsd-memleak-fix.patch
-+nfs-memleak-fix.patch
-+ufs-memleak-fix.patch
+    A graph of VSIZE per unit time will show how large the process is
+    over time.
 
- Memory leak fixes
+6.  Collecting Data
 
-+hugetlb-unmap_vmas-fix.patch
+    a.  Reboot the system. This will reset your systems memory use
 
- Fix the fix for unmapping hugetlb areas
+    b.  Run the following commands every ten seconds and redirect the
+        results to a file.
 
-+brlock-1.patch
-+brlock-2.patch
-+brlock-3.patch
-+brlock-4.patch
-+brlock-5.patch
-+brlock-6.patch
-+brlock-7.patch
-+brlock-8.patch
+        free -o
+        ps -eo pid,ppid,rss,vsize,pcpu,pmem,cmd -ww --sort=pid
 
- brlock removal
+    c.  Do whatever you normally do on your system
 
+    d.  Stop logging your data
 
+7.  Generate a Graph
 
-All 72 patches
+    a.  System Memory Use
 
-linus.patch
-  Latest from Linus
+        For the output of "free", place the following on one graph
 
-mm.patch
-  add -mmN to EXTRAVERSION
+        1.  X-axis is "MB Used"
 
-kgdb.patch
+        2.  Y-axis is unit time
 
-noirqbalance-fix.patch
-  Fix noirqbalance
+        3.  Memory Used per unit time
 
-config_spinline.patch
-  uninline spinlocks for profiling accuracy.
+        4.  Memory Used - Memory Buffered - Memory Cached per unit time
 
-ppc64-reloc_hide.patch
+        5.  Swap Used per unit time
 
-ppc64-pci-patch.patch
-  Subject: pci patch
+    b.  Per Process Memory Use
 
-ppc64-aio-32bit-emulation.patch
-  32/64bit emulation for aio
+        For the output of "ps", place the following on one graph
 
-ppc64-64-bit-exec-fix.patch
-  Pass the load address into ELF_PLAT_INIT()
+        1.  X-axis is "MB Used"
 
-ppc64-scruffiness.patch
-  Fix some PPC64 compile warnings
+        2.  Y-axis is unit time
 
-sym-do-160.patch
-  make the SYM driver do 160 MB/sec
+        3.  For each process with %MEM > 10.0
 
-nfsd-disable-softirq.patch
-  Fix race in svcsock.c in 2.5.61
+            a.  RSS per unit time
 
-report-lost-ticks.patch
-  make lost-tick detection more informative
+            b.  VSIZE per unit time
 
-config-PAGE_OFFSET.patch
-  Configurable kenrel/user memory split
+8. Understand the Graphs
 
-ptrace-flush.patch
-  cache flushing in the ptrace code
+    a.  System Memory Use
 
-buffer-debug.patch
-  buffer.c debugging
+        "Memory Used" will approach "Memory Total"
 
-warn-null-wakeup.patch
+        If "Memory Used - Memory Buffered - Memory Cached" is 75% of
+        "Memory Used", you either have a memory leak or you need to
+        purchase more memory. 
 
-ext3-truncate-ordered-pages.patch
-  ext3: explicitly free truncated pages
+    b.  Per Process Memory Use
 
-reiserfs_file_write-5.patch
+        This graph will tell you what processes are hogging the
+        memory. 
 
-tcp-wakeups.patch
-  Use fast wakeups in TCP/IPV4
-
-lockd-lockup-fix-2.patch
-  Subject: Re: Fw: Re: 2.4.20 NFS server lock-up (SMP)
-
-rcu-stats.patch
-  RCU statistics reporting
-
-ext3-journalled-data-assertion-fix.patch
-  Remove incorrect assertion from ext3
-
-nfs-speedup.patch
-
-nfs-oom-fix.patch
-  nfs oom fix
-
-sk-allocation.patch
-  Subject: Re: nfs oom
-
-nfs-more-oom-fix.patch
-
-rpciod-atomic-allocations.patch
-  Make rcpiod use atomic allocations
-
-linux-isp.patch
-
-isp-update-1.patch
-
-remove-unused-congestion-stuff.patch
-  Subject: [PATCH] remove unused congestion stuff
-
-as-iosched.patch
-  anticipatory I/O scheduler
-
-as-debug-BUG-fix.patch
-
-cfq-2.patch
-  CFQ scheduler, #2
-
-smalldevfs.patch
-  smalldevfs
-
-objrmap-2.5.62-5.patch
-  object-based rmap
-
-scheduler-tunables.patch
-  scheduler tunables
-
-show_task-free-stack-fix.patch
-  show_task() fix and cleanup
-
-reiserfs-fix-memleaks.patch
-  ReiserFS: fix memleaks on journal opening failures
-
-yellowfin-set_bit-fix.patch
-  yellowfin driver set_bit fix
-
-remap-file-pages-2.5.63-a1.patch
-  Subject: [patch] remap-file-pages-2.5.63-A1
-
-hugh-nonlinear-fixes.patch
-  Fix nonlinear oddities
-
-file-offset-in-pte-x86_64.patch
-  x86_64: support for file offsets in pte's
-
-htree-nfs-fix.patch
-  Fix ext3 htree / NFS compatibility problems
-
-update_atime-ng.patch
-  inode a/c/mtime modification speedup
-
-one-sec-times.patch
-  Implement a/c/time speedup in ext2 & ext3
-
-task_prio-fix.patch
-  simple task_prio() fix
-
-register-tty_devclass.patch
-  Register tty_devclass before use
-
-set_current_state-fs.patch
-  use set_current_state in fs
-
-set_current_state-mm.patch
-  use set_current_state in mm
-
-copy_thread-leak-fix.patch
-  Fix memory leak in copy_thread
-
-slab_store_user-large-objects.patch
-  slab debug: perform redzoning against larger objects
-
-file_list_lock-contention-fix.patch
-  file_list_lock contention fixes
-
-tty_files-fixes.patch
-  file->f_list locking in tty_io.c
-
-file_list_cleanup.patch
-  file_list cleanup
-
-file_list-remove-free_list.patch
-  file_table: remove the private freelist
-
-file-list-less-locking.patch
-  file_list: less locking
-
-vt_ioctl-stack-use.patch
-  stack reduction in drivers/char/vt_ioctl.c
-
-fix-mem-equals.patch
-  Fix mem= options
-
-no-mmu-stubs.patch
-  a few missing stubs for !CONFIG_MMU
-
-nommu-slab.patch
-  slab changes for !CONFIG_MMU
-
-nfsd-memleak-fix.patch
-  nfsd/export.c memleak.
-
-nfs-memleak-fix.patch
-  memleak in fs/nfs/inode.c::nfs_get_sb()
-
-ufs-memleak-fix.patch
-  Memleak in fs/ufs/util.c
-
-hugetlb-unmap_vmas-fix.patch
-  fix the fix for unmap_vmas & hugepages
-
-brlock-1.patch
-  Eliminate brlock in psnap
-
-brlock-2.patch
-  Eliminate brlock for packet_type
-
-brlock-3.patch
-  Eliminate brlock from vlan
-
-brlock-4.patch
-  Eliminate brlock in net/bridge
-
-brlock-5.patch
-  Eliminate brlock from netfilter
-
-brlock-6.patch
-  Eliminate brlock from ipv4
-
-brlock-7.patch
-  Eliminate brlock from IPV6
-
-brlock-8.patch
-  Kill brlock
-
+        If the VSIZE of any of these programs has a constant, positive
+        slope, it may have a memory leak.
 
 
 --
