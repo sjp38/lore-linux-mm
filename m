@@ -1,76 +1,164 @@
-Subject: Linux I/O performance in 2.3.99pre
-Reply-To: zlatko@iskon.hr
-From: Zlatko Calusic <zlatko@iskon.hr>
-Date: 22 May 2000 14:26:40 +0200
-Message-ID: <dn4s7qpy7z.fsf@magla.iskon.hr>
+Subject: PATCH: Rewrite of truncate_inode_pages (take 3)
+References: <yttsnvk28jy.fsf@vexeta.dc.fi.udc.es>
+From: "Juan J. Quintela" <quintela@fi.udc.es>
+In-Reply-To: "Juan J. Quintela"'s message of "14 May 2000 22:14:41 +0200"
+Date: 22 May 2000 14:33:36 +0200
+Message-ID: <yttog5y9333.fsf@serpe.mitica>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
-Cc: andrea@suse.de
+To: linux-mm@kvack.org
+Cc: linux-fsdevel@vger.rutgers.edu, Linus Torvalds <torvalds@transmeta.com>
 List-ID: <linux-mm.kvack.org>
 
-This is just to report that I/O performance in the pre kernels is very
-bad. System is so sluggish that you don't need any benchmarks to
-quantify it, but I did some anyway. :)
+Hi
+        I have reworte the function truncate_inode_pages.  The version
+        in vanilla pre9-3 does busy waiting in the partial page, with
+        this version the locking for the partial page and from the
+        rest of the pages is the same.  This make that we have less
+        special cases.  For the rest of pages the function works the
+        same.  The only difference is that version is cleaner IMHO.
+        Or there are some corner case that I have failed to see?
 
-This is bonnie output on pre9-3 virgin:
+        Comments?
+
+        Later, Juan.
+
+        I have CC: the linux-fsdevel people, they are the users of
+        that function, could somebody give me some feedback against
+        the change?
 
 
-              -------Sequential Output-------- ---Sequential Input-- --Random--
-              -Per Char- --Block--- -Rewrite-- -Per Char- --Block--- --Seeks---
-Machine    MB K/sec %CPU K/sec %CPU K/sec %CPU K/sec %CPU K/sec %CPU  /sec %CPU
-pre9-3    400 15032 64.4 12843 13.8  6202  7.1 11421 38.1 13005 11.6 118.1  1.2
-                         ^^^^^                            ^^^^^
+diff -urN --exclude-from=/home/lfcia/quintela/work/kernel/exclude work/mm/filemap.c testing/mm/filemap.c
+--- work/mm/filemap.c	Fri May 12 23:46:46 2000
++++ testing/mm/filemap.c	Sun May 14 22:08:45 2000
+@@ -146,9 +146,39 @@
+ 	spin_unlock(&pagecache_lock);
+ }
+ 
+-/*
++static inline void truncate_partial_page(struct page *page, unsigned partial)
++{
++	memclear_highpage_flush(page, partial, PAGE_CACHE_SIZE-partial);
++				
++	if (page->buffers)
++		block_flushpage(page, partial);
++
++}
++
++static inline void truncate_complete_page(struct page *page)
++{
++	if (!page->buffers || block_flushpage(page, 0))
++		lru_cache_del(page);
++	
++	/*
++	 * We remove the page from the page cache _after_ we have
++	 * destroyed all buffer-cache references to it. Otherwise some
++	 * other process might think this inode page is not in the
++	 * page cache and creates a buffer-cache alias to it causing
++	 * all sorts of fun problems ...  
++	 */
++	remove_inode_page(page);
++	page_cache_release(page);
++}
++
++/**
++ * truncate_inode_pages - truncate *all* the pages from an offset
++ * @mapping: mapping to truncate
++ * @lstart: offset from with to truncate
++ *
+  * Truncate the page cache at a set offset, removing the pages
+  * that are beyond that offset (and zeroing out partial pages).
++ * If any page is locked we wait for it to become unlocked.
+  */
+ void truncate_inode_pages(struct address_space * mapping, loff_t lstart)
+ {
+@@ -168,11 +198,10 @@
+ 
+ 		page = list_entry(curr, struct page, list);
+ 		curr = curr->next;
+-
+ 		offset = page->index;
+ 
+-		/* page wholly truncated - free it */
+-		if (offset >= start) {
++		/* Is one of the pages to truncate? */
++		if ((offset >= start) || (partial && (offset + 1) == start)) {
+ 			if (TryLockPage(page)) {
+ 				page_cache_get(page);
+ 				spin_unlock(&pagecache_lock);
+@@ -183,22 +212,14 @@
+ 			page_cache_get(page);
+ 			spin_unlock(&pagecache_lock);
+ 
+-			if (!page->buffers || block_flushpage(page, 0))
+-				lru_cache_del(page);
+-
+-			/*
+-			 * We remove the page from the page cache
+-			 * _after_ we have destroyed all buffer-cache
+-			 * references to it. Otherwise some other process
+-			 * might think this inode page is not in the
+-			 * page cache and creates a buffer-cache alias
+-			 * to it causing all sorts of fun problems ...
+-			 */
+-			remove_inode_page(page);
++			if (partial && (offset + 1) == start) {
++				truncate_partial_page(page, partial);
++				partial = 0;
++			} else 
++				truncate_complete_page(page);
+ 
+ 			UnlockPage(page);
+ 			page_cache_release(page);
+-			page_cache_release(page);
+ 
+ 			/*
+ 			 * We have done things without the pagecache lock,
+@@ -209,37 +230,6 @@
+ 			 */
+ 			goto repeat;
+ 		}
+-		/*
+-		 * there is only one partial page possible.
+-		 */
+-		if (!partial)
+-			continue;
+-
+-		/* and it's the one preceeding the first wholly truncated page */
+-		if ((offset + 1) != start)
+-			continue;
+-
+-		/* partial truncate, clear end of page */
+-		if (TryLockPage(page)) {
+-			spin_unlock(&pagecache_lock);
+-			goto repeat;
+-		}
+-		page_cache_get(page);
+-		spin_unlock(&pagecache_lock);
+-
+-		memclear_highpage_flush(page, partial, PAGE_CACHE_SIZE-partial);
+-		if (page->buffers)
+-			block_flushpage(page, partial);
+-
+-		partial = 0;
+-
+-		/*
+-		 * we have dropped the spinlock so we have to
+-		 * restart.
+-		 */
+-		UnlockPage(page);
+-		page_cache_release(page);
+-		goto repeat;
+ 	}
+ 	spin_unlock(&pagecache_lock);
+ }
 
-It looks like a slightly slower/older 5400 disk, is it?
 
-But in fact it is a quite fast (and expensive) 7200rpm disk, which is
-capable of this:
-
-              -------Sequential Output-------- ---Sequential Input-- --Random--
-              -Per Char- --Block--- -Rewrite-- -Per Char- --Block--- --Seeks---
-Machine    MB K/sec %CPU K/sec %CPU K/sec %CPU K/sec %CPU K/sec %CPU  /sec %CPU
-9-3-nswap 400 21222 89.7 22244 19.7  7343  8.0 17863 57.3 21030 18.0 118.8  1.1
-                         ^^^^^                            ^^^^^
-
-This second numbers are generated on the same kernel version, but with
-disabled swap_out() function.
-
-Memory balancing is killing I/O. It is very common to see system
-swapping loads of pages in/out with only one I/O intensive process
-running and plenty (~100MB) free memory (page cache). Swapping kills
-I/O performance because of needless disk head seeks, and thus all
-recent kernels have very slow I/O (~60% of possible speed).
-
-While at benchmarking, I have also tested 2.3.42 which is the last
-kernel before elevator rewrite (Hi Andrea! :))
-
-              -------Sequential Output-------- ---Sequential Input-- --Random--
-              -Per Char- --Block--- -Rewrite-- -Per Char- --Block--- --Seeks---
-Machine    MB K/sec %CPU K/sec %CPU K/sec %CPU K/sec %CPU K/sec %CPU  /sec %CPU
-2.3.42    400 20978 97.2 22519 22.2  9302 12.7 18860 61.5 21020 20.4 114.8  1.3
-                                     ^^^^
-
-Numbers for read/write are almost same as in my experiment (which is
-to say that VM subsytem worked OK in 2.3.42, at least for common
-memory configurations :)), but there is a measurable difference in a
-rewrite case. Old elevator allowed ~9.5MB/s rewriting speed, while
-with new code it drops to ~7.5MB/s.
-
-Question for Andrea: is it possible to get back to the old speeds with
-tha new elevator code, or is the speed drop unfortunate effect of the
-"non-starvation" logic, and thus can't be cured?
-
-Doing that same rewrite test under old and new kernels reveals that in
-2.3.42 disk is completely quiet while rewriting, while in the 99-pre
-series it makes very loud and scary noise. Could that still be a bug
-somewhere in the elevator?
-
-Regards,
 -- 
-Zlatko
+In theory, practice and theory are the same, but in practice they 
+are different -- Larry McVoy
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
