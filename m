@@ -1,90 +1,62 @@
-Received: from pneumatic-tube.sgi.com (pneumatic-tube.sgi.com [204.94.214.22])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id LAA21437
-	for <Linux-MM@kvack.org>; Fri, 23 Apr 1999 11:52:00 -0400
-From: kanoj@google.engr.sgi.com (Kanoj Sarcar)
-Message-Id: <199904231548.IAA40539@google.engr.sgi.com>
-Subject: Re: RFC: patch for suspected shm swap problem
-Date: Fri, 23 Apr 1999 08:48:37 -0700 (PDT)
-In-Reply-To: <14112.29896.111556.997365@dukat.scot.redhat.com> from "Stephen C. Tweedie" at Apr 23, 99 02:25:28 pm
+Received: from funky.monkey.org (smtp@funky.monkey.org [152.160.231.196])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id XAA16369
+	for <linux-mm@kvack.org>; Sat, 24 Apr 1999 23:22:56 -0400
+Date: Sat, 24 Apr 1999 23:22:32 -0400 (EDT)
+From: Chuck Lever <cel@monkey.org>
+Subject: Re: [patch] arca-vm-2.2.5
+In-Reply-To: <14091.20289.68799.79898@dukat.scot.redhat.com>
+Message-ID: <Pine.BSF.4.03.9904242317090.21947-100000@funky.monkey.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 To: "Stephen C. Tweedie" <sct@redhat.com>
-Cc: torvalds@transmeta.com, number6@the-village.bc.nu, Linux-MM@kvack.org, linux-kernel@vger.rutgers.edu
+Cc: Andrea Arcangeli <andrea@e-mind.com>, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On Wed, 7 Apr 1999, Stephen C. Tweedie wrote:
+> On Wed, 7 Apr 1999 00:27:21 +0200 (CEST), Andrea Arcangeli
+> <andrea@e-mind.com> said:
 > 
-> Hi,
+> > It's not so obvious to me. I sure agree that an O(n) insertion/deletion is
+> > far too slow but a O(log(n)) for everything could be rasonable to me. And
+> > trees don't worry about unluky hash behavior.
 > 
-> On Thu, 22 Apr 1999 09:03:14 -0700 (PDT), kanoj@google.engr.sgi.com
-> (Kanoj Sarcar) said:
-> 
-> > I suspect the problem is that shm_swap bumps up swap_id to more
-> > than max_shmid under some circumstances, leading the next call
-> > to shm_swap to trip. Note that valid values of max_shmid are 0 ..
-> > SHMMNI - 1, but shm_swap can leave swap_id set to SHMMNI.
-> 
-> > MMU code maintainers, could you please review the patch and let 
-> > me know whether it is good 
-> 
-> Agreed: the patch looks correct.
-> 
-> In particular, with the patch in place we are still protected against
-> having max_shmid shrink between calls to shm_swap(): the worst that can
-> happen is that we find an unused shm_seg which will get caught by the
-> IPC_UNUSED test near the top of shm_swap.  Only if the shm table is
-> full, and so the swap_id overflow forces the next shm_segs[swap_id] to
-> point to an entry not preinitialised to IPC_UNUSED or IPC_NOID, will
-> there be a danger, and the patch makes sure that we never overstep that
-> bound.  (This probably explains why we haven't seen the problem before:
-> were you allocating the maximum number of shm segments during the stress
-> test?)
+> Trees are O(log n) for insert/delete, with a high constant of
+> proportionality (ie. there can be quite a lot of work to be done even
+> for small log n).  Trees also occupy more memory per node.  Hashes are
+> O(1) for insert and delete, and are a _fast_ O(1).  The page cache needs
+> fast insert and delete.
 
-Yes ... my benchmark is so resource hungry that I had to end up also
-bumping _SHM_ID_BITS to increase the number of shm segs, but that's
-irrelevant.
+i had a few minutes the other day, so i extracted just the rb-tree part of
+2.2.5-arca10, and benchmarked it against 2.2.5 and against the hash tuning
+patch i'm working on.  i ran this on our 512M 4-way Dell PowerEdge 6300.
 
-Thanks.
+ref - 2.2.5 kernel with 4000 process slots and b_state fix
 
-Kanoj
+rbt - 2.2.5 kernel with 4000 process slots and rbtree patch applied
+        (b_state fix *not* applied)
+hash - 2.2.5 kernel with an older version of my hash tuning patch applied
+        (b_state fix applied)
 
-> 
-> --Stephen
-> 
-> ----------------------------------------------------------------
-> From: kanoj@google.engr.sgi.com (Kanoj Sarcar)
-> Sender: owner-linux-kernel@vger.rutgers.edu
-> To: Linux-MM@kvack.org, linux-kernel@vger.rutgers.edu
-> Subject: RFC: patch for suspected shm swap problem
-> Date: 	Thu, 22 Apr 1999 09:03:14 -0700 (PDT)
-> 
-> Hi,
->  
-> While running some heavy stress on shm code, I took a panic in
-> shm_swap coming out of do_try_to_free_pages in the context of
-> non-kswapd processes. From the register display, I suspect the
-> problem to be fixed by this patch:
->  
-> --- /usr/tmp/p_rdiff_a000PE/shm.c       Tue Apr 20 16:07:02 1999
-> +++ kern/ipc/shm.c	Tue Apr 20 16:05:54 1999
-> @@ -716,10 +716,10 @@
->                 next_id:
->                 swap_idx = 0;
->                 if (++swap_id > max_shmid) {
-> +                       swap_id = 0;
->                         if (loop)
->                                 goto failed;
->                         loop = 1;
-> -                       swap_id = 0;
->                 }
->                 goto check_id;
->         }
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm my@address'
-> in the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://humbolt.geo.uu.nl/Linux-MM/
-> 
+160 concurrent scripts.  all of the benchmark fits in memory.
+
+ref:  3725.8 s=15.23
+rbt:  3893.3 s=9.82
+hash: 4007.3 s=15.95
+
+"hash" tunes the page cache, the buffer cache, the dentry cache, and the
+inode cache.  "rbt" just replaces the page cache with per-inode rbtrees.
+i think the rbtree patch compares pretty favorably for very large memory
+machines.
+
+	- Chuck Lever
+--
+corporate:	<chuckl@netscape.com>
+personal:	<chucklever@netscape.net> or <cel@monkey.org>
+
+The Linux Scalability project:
+	http://www.citi.umich.edu/projects/linux-scalability/
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm my@address'
