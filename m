@@ -1,35 +1,52 @@
-Date: Sat, 13 Jan 2001 05:41:52 -0200 (BRST)
-From: Marcelo Tosatti <marcelo@conectiva.com.br>
-Subject: Re: swapout selection change in pre1
-In-Reply-To: <Pine.LNX.4.10.10101130003270.1262-100000@penguin.transmeta.com>
-Message-ID: <Pine.LNX.4.21.0101130502080.11440-100000@freak.distro.conectiva>
+Subject: Re: pre2 swap_out() changes
+References: <Pine.LNX.4.10.10101121138060.2249-100000@penguin.transmeta.com>
+Reply-To: zlatko@iskon.hr
+From: Zlatko Calusic <zlatko@iskon.hr>
+Date: 13 Jan 2001 12:51:15 +0100
+In-Reply-To: Linus Torvalds's message of "Fri, 12 Jan 2001 11:45:26 -0800 (PST)"
+Message-ID: <87y9wffz64.fsf@atlas.iskon.hr>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Linus Torvalds <torvalds@transmeta.com>
-Cc: linux-mm@kvack.org
+Cc: Marcelo Tosatti <marcelo@conectiva.com.br>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+Linus Torvalds <torvalds@transmeta.com> writes:
 
-On Sat, 13 Jan 2001, Linus Torvalds wrote:
+> On 12 Jan 2001, Zlatko Calusic wrote:
+> > 
+> > Performance of 2.4.0-pre2 is terrible as it is now. There is a big
+> > performance drop from 2.4.0. Simple test (that is not excessively
+> > swapping, I remind) shows this:
+> > 
+> > 2.2.17     -> make -j32  392.49s user 47.87s system 168% cpu 4:21.13 total
+> > 2.4.0      -> make -j32  389.59s user 31.29s system 182% cpu 3:50.24 total
+> > 2.4.0-pre2 -> make -j32  393.32s user 138.20s system 129% cpu 6:51.82 total
+> 
+> Marcelo's patch (which is basically the pre2 mm changes - the other was
+> the syntactic change of making "swap_cnt" be an argument to swap_out_mm()
+> rather than being a per-mm thing) will improve feel for stuff that doesn't
+> want to swap out - VM scanning is basically handled exclusively by kswapd,
+> and it only triggers under low-mem circumstances.
+> 
 
-> It's the other way around: it used to be _extremely_ unfair towards
-> threads, because threads woul dget swapped out _much_ more that
-> non-threads. The new "count only nr of mm's" actually fixes a real problem
-> in this area: a process with hundreds of threads would just get swapped
-> out _way_ too quickly (it used to be counted as "hundreds of VM's", even
-> though it's obviously just one VM, and should be swapped out as such).
+Hm, what I noticed is completely the opposite. pre2 seems a little bit
+reluctant to swap out, and when it does it looks like it picks wrong
+pages. During the compile sessions (results above) pre2 had long
+periods where it just tried to get its working set in memory and
+during that time all 32 processes were on hold. Thus only 129% CPU
+usage and much longer total time.
 
-The point is: Should this VM with hundreds of threads be treaded as a VM
-with one thread ?
+On the other hand, 2.4.0 + Marcelo kept both processors busy at all
+times. Sometimes only few processes were TASK_RUNNING, but the system
+_never_ got in the situation where it had spare unused CPU cycles.
 
-With the old "per-task" selection scheme (before -prerelease), swap_cnt
-used to avoid us from scanning a VM too much (if swap_cnt reached zero the
-VM would not be scanned until all other VM's had been scanned).
-
-
-
+If I start typical make -j2 compile my %CPU time is also 182% or 183%,
+so 2.4.0 was _really_ good.
+-- 
+Zlatko
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
