@@ -1,44 +1,87 @@
-Date: Tue, 11 Apr 2000 14:40:37 -0300 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
-Reply-To: riel@nl.linux.org
-Subject: Re: [patch] take 2 Re: PG_swap_entry bug in recent kernels
-In-Reply-To: <Pine.LNX.4.21.0004111752550.19969-100000@maclaurin.suse.de>
-Message-ID: <Pine.LNX.4.21.0004111438440.1118-100000@duckman.conectiva>
+Message-ID: <38F364B3.5A4A45D9@colorfullife.com>
+Date: Tue, 11 Apr 2000 19:45:23 +0200
+From: Manfred Spraul <manfreds@colorfullife.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: zap_page_range(): TLB flush race
+References: <Pine.LNX.4.21.0004111824090.19969-100000@maclaurin.suse.de>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrea Arcangeli <andrea@suse.de>
-Cc: Kanoj Sarcar <kanoj@google.engr.sgi.com>, Ben LaHaise <bcrl@redhat.com>, Linus Torvalds <torvalds@transmeta.com>, linux-mm@kvack.org
+Cc: "Stephen C. Tweedie" <sct@redhat.com>, "David S. Miller" <davem@redhat.com>, alan@lxorguk.ukuu.org.uk, kanoj@google.engr.sgi.com, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org, torvalds@transmeta.com
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 11 Apr 2000, Andrea Arcangeli wrote:
-> On Mon, 10 Apr 2000, Kanoj Sarcar wrote:
+Andrea Arcangeli wrote:
 > 
-> >While forking, a parent might copy a swap handle into the child, but we
+> On Tue, 11 Apr 2000, Manfred Spraul wrote:
 > 
-> That's a bug in fork. Simply let fork to check if the swaphandle
-> is SWAPOK or not before increasing the swap count. If it's
-> SWAPOK then swap_duplicate succesfully,
+> >* They need the old pte value and the virtual address for their flush
+> >ipi.
+> 
+> Why can't they flush all the address space unconditionally on the other
+> cpus?
 
-"it was hard to write, it should be hard to maintain"
+They have a special instruction that flushes one mapping on all cpus in
+the system. 
+It has 2 parameters:
+	* virtual address of the page
+	* segment of the physical page to be flushed???
 
-Relying on pieces of magic like this, spread out all over
-the kernel source will make the code more fragile and hell
-to maintain.
+Is someone out there with a s390 asm handbook? I only have these
+comments:
 
-Unless somebody writes the documentation for all of this,
-of course...
++/*
++ * s390 has two ways of flushing TLBs
++ * 'ptlb' does a flush of the local processor
++ * 'ipte' invalidates a pte in a page table and flushes that out of 
++ * the TLBs of all PUs of a SMP 
++ */
 
-regards,
++       /*
++        * S390 has 1mb segments, we are emulating 4MB segments
++        */
++
++       pto = (pte_t*) (((unsigned long) pte) & 0x7ffffc00);
++              
++               __asm__ __volatile("    ic   0,2(%0)\n"
++                          "    ipte %1,%2\n"
++                          "    stc  0,2(%0)"
++                          : : "a" (pte), "a" (pto), "a" (addr): "0");
++}
 
-Rik
+> I can't find a valid reason for which they do need the old pte
+> value. The tlb should be a virtual->physical mapping only, the pte isn't
+> relevant at all with the TLB. however if they really need both old pte
+> address and the virtual address of the page, they can trivially pass the
+> parameters to the other CPUs acquring a spinlock and using some global
+> variable exactly as IA32 does to avoid flushing the whole TLB on the other
+> CPUs in the flush_tlb_page case.
+> 
+> >Obviously their work-around
+> >       flush_tlb_page()
+> >       set_pte()
+> >is wrong as well, and it breaks all other architectures :-/
+> 
+> I bet it breaks s390 too.
+> 
+
+Of course :-)
+
+> The other filemap_sync race with threads that Kanoj was talking about is
+> very less severe since it can't make the machine unstable, but it can only
+> forgot to write some bit using strange userspace app design (only _data_
+> corruption can happen to the shared mmaping of the patological app).
+
+Yes. 
+Can we ignore the munmap+access case?
+I'd say that if 2 threads race with munmap+access, then the behaviour is
+undefined.
+Tlb flushes are expensive, I'd like to avoid the second tlb flush as in
+Kanoj's patch.
+
 --
-The Internet is not a network of computers. It is a network
-of people. That is its real strength.
-
-Wanna talk about the kernel?  irc.openprojects.net / #kernelnewbies
-http://www.conectiva.com/		http://www.surriel.com/
+	Manfred
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
