@@ -1,67 +1,126 @@
-Date: Tue, 22 Apr 2003 16:52:08 +0200
-From: Andrea Arcangeli <andrea@suse.de>
+Date: Tue, 22 Apr 2003 07:56:44 -0700
+From: William Lee Irwin III <wli@holomorphy.com>
 Subject: Re: objrmap and vmtruncate
-Message-ID: <20030422145208.GI23320@dualathlon.random>
-References: <20030405143138.27003289.akpm@digeo.com> <Pine.LNX.4.44.0304220618190.24063-100000@devserv.devel.redhat.com> <20030422123719.GH23320@dualathlon.random> <20030422132013.GF8931@holomorphy.com>
+Message-ID: <20030422145644.GG8978@holomorphy.com>
+References: <20030422115421.GC8931@holomorphy.com> <Pine.LNX.4.44.0304221017200.10400-100000@devserv.devel.redhat.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20030422132013.GF8931@holomorphy.com>
+In-Reply-To: <Pine.LNX.4.44.0304221017200.10400-100000@devserv.devel.redhat.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: William Lee Irwin III <wli@holomorphy.com>, Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@digeo.com>, mbligh@aracnet.com, mingo@elte.hu, hugh@veritas.com, dmccr@us.ibm.com, Linus Torvalds <torvalds@transmeta.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Ingo Molnar <mingo@redhat.com>
+Cc: Andrew Morton <akpm@digeo.com>, Andrea Arcangeli <andrea@suse.de>, mbligh@aracnet.com, mingo@elte.hu, hugh@veritas.com, dmccr@us.ibm.com, Linus Torvalds <torvalds@transmeta.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Apr 22, 2003 at 06:20:13AM -0700, William Lee Irwin III wrote:
-> On Tue, Apr 22, 2003 at 07:00:05AM -0400, Ingo Molnar wrote:
-> >> If the O(N^2) can be optimized away then i'm all for it. If not, then i
-> >> dont really understand how the same people who call sys_remap_file_pages()
-> >> a 'hack' [i believe they are not understanding the current state of the
-> 
-> On Tue, Apr 22, 2003 at 02:37:19PM +0200, Andrea Arcangeli wrote:
-> > it's an hack primarly because you're mixing linear with non linear,
-> > incidentally that as well breaks truncate. In the current state truncate
-> > is malfunctioning. To make truncate working in the current state you
-> > would need to check all pages->indexes for every page pointed by the
-> > pagetables belonging to each vma linked in the objrmap.
-> > I don't think anybody wants to slowdown truncate like that (I mean, with
-> > partial truncates and huge vmas).
-> > Fixing it so truncate works still at a the current speed (when you don't
-> > use sys_remap_file_pages) means changing the API to be sane and at the
-> > very least to stop mixing linaer with nonlinaer vmas.
-> 
-> The truncate() issues are a relatively major outstanding issue in -mm,
-> and IIRC hugh was the first to raise them.
+On Tue, 22 Apr 2003, William Lee Irwin III wrote:
+>> Are the reserved bits in PAE kernel-usable at all or do they raise
+>> exceptions when set? This may be cpu revision -dependent, but if things
+>> are usable in some majority of models it could be ihteresting.
 
-yes.
+On Tue, Apr 22, 2003 at 10:31:49AM -0400, Ingo Molnar wrote:
+> if the present bit is clear then the remaining 63 bits are documented by
+> Intel as being software-available, so this all works just fine.
 
-> On Tue, Apr 22, 2003 at 02:37:19PM +0200, Andrea Arcangeli wrote:
-> > I'm not against making mmap faster or whatever, but sys_remap_file_pages
-> > makes sense to me only as a VM bypass, something that will always be
-> > faster than the regular mmap or whatever by bypassing the VM. If you
-> > don't bypass the VM you should make mmap run as fast as
-> > sys_remap_file_pages instead IMHO.
-> 
-> Well, AFAICT the question wrt. sys_remap_file_pages() is not speed, but
-> space. Speeding up mmap() is of course worthy of merging given the
-> usual mergeability criteria.
+Sorry; I should have caught that from the standard docs; I was over-
+anticipating something involving valid PTE's.
 
-I completely agree. The major cost is the mangling of the pagetables
-that makes the ~32G case worthwhile only with largepages (better drop
-some ram and use largepages than add more ram w/o largepages). I just
-fixed my tree to allow up to 64G in largepages in a single file because
-16G was a too low limit now. So sys_remap_file_pages should provide few
-performance advantages, and its main benefit is in avoiding all the ram
-waste with the vmas (and the rmap waste if rmap is used in the VM) which
-contraddicts the "generic" usage with VM knowledge that may add overhead
-(I mean the partial object over the remap-file-pages).
 
-If we can get sys_remap_file_pages running at zero space overhead with
-vm knowledge that's ok, but at least from my part I much prefer being
-able to mix multiple files in the same mmap(VM_NONLINEAR) than to have
-vm knowledge on the VM bypass.
+On Tue, 22 Apr 2003, William Lee Irwin III wrote:
+>> Getting the things out of lowmem sounds very interesting, although I
+>> vaguely continue to wonder about the total RAM overhead. ISTR an old 2.4
+>> benchmark run on PAE x86 where 90+% of physical RAM was consumed by
+>> pagetables _after_ pte_highmem (where before the kernel dropped dead).
 
-Andrea
+On Tue, Apr 22, 2003 at 10:31:49AM -0400, Ingo Molnar wrote:
+> just create a sparse enough memory layout (one page mapped every 2MB) and
+> pagetable overhead will dominate. Is it a problem in practice? I doubt it,
+> and you get what you asked for, and you can always offset it with RAM.
+
+Actually it wasn't from sparse memory, it was from massive sharing.
+Basically 10000 processes whose virtualspace was dominated by shmem
+shared across all of them.
+
+On some reflection I suspect a variety of techniques are needed here.
+
+
+On Tue, 22 Apr 2003, William Lee Irwin III wrote:
+>> Well, the already-existing pagetable overhead is not insignificant. It's
+>> somewhere around 3MB on lightly-loaded 768MB x86-32 UP, which is very
+>> close to beginning to swap.
+
+On Tue, Apr 22, 2003 at 10:31:49AM -0400, Ingo Molnar wrote:
+> 3MB might sound alot. Companion pagetables will make that 9MB on non-PAE.
+> (current pte chains should make that roughly 6MB on average) 9MB is 1.1%
+> of all RAM. 4K granular mem_map[] is 1.5% cost, and even there it's not
+> mainly the RAM overhead that hurts us, but the lowmem overhead.
+> (btw., the size of companion pagetables is likely reduced via pgcl as well
+> - they need to track the VM units of pages, not the MMU units of pages.)
+
+Well, the thing is pte_chains are O(utilized_ptes) so it ends up being
+around 3MB + 3/5MB == 3.6MB. I've gone and applied the objrmap and
+anobjrmap patches (despite the worst case behavior) and the space
+savings are very noticeable and very beneficial, though still not as
+good as with shpte which cut the sum of the two to well under 2MB.
+
+Also, I'd be _very_ careful when claiming pgcl can offer space
+reductions here. Page clustering involves the core VM understanding
+that pieces of pages can be scattered about, with anonymous pages in
+particularly arbitrary scatter/gather relationships. This breaks the
+very assumption people are making when assuming page clustering can
+save pte_chain space: that physical contiguity within an anonymous
+software page can be exploited to infer small scanning regions to
+recover multiple pte's from a single pointer. This is not the case.
+
+For anonymous memory alone (which has been the sole usage of pte_chains
+in -mm kernels for some time) the pte_chain space is 5MB except under
+the heaviest of memory pressure, where things are temporarily reaped
+down to under 100KB. The arbitrary relationship of anonymous pages to
+virtual offsets in the presence of page clustering means that most (not
+all, but high unpredictability) pte_chains must be retained for them.
+
+At the very least I'd like to have the public opinion on the impact of
+page clustering on pte_chain space downgraded from "improvement" to
+"no effect whatsoever". My own experience shows:
+
+HighTotal:    65198080 kB
+HighFree:     60631808 kB
+LowTotal:       751872 kB
+LowFree:         25152 kB
+
+dentry_cache               295889K        390350K      75.80%   
+ext2_inode_cache           260442K        268617K      96.96%   
+buffer_head                   799K          1868K      42.79%   
+size-8192                    1760K          1856K      94.83%   
+size-1024                    1737K          1767K      98.30%   
+pae_pmd                       604K          1152K      52.43%   
+biovec-BIO_MAX_PAGES          768K           780K      98.46%   
+size-2048                     612K           690K      88.70%   
+size-512                      503K           535K      93.93%   
+size-64                       270K           450K      59.93%   
+task_struct                   310K           428K      72.50%   
+biovec-128                    384K           409K      93.77%   
+blkdev_requests               396K           404K      98.02%   
+inode_cache                   352K           375K      93.96%   
+size-4096                     168K           256K      65.62%   
+mm_struct                      19K           250K       7.95%   
+pte_chain                      75K           227K      33.25%   
+proc_inode_cache               72K           220K      32.65%   
+biovec-64                     192K           220K      87.07%   
+size-256                      162K           218K      74.40%   
+radix_tree_node               121K           218K      55.63%   
+sighand_cache                 160K           215K      74.40%   
+filp                           38K           186K      20.60%   
+
+under light load. I don't trust this to mean much.
+
+Basically, I have _very_ good reasons to believe even after the
+discussed potential pte_chain space optimizations page clustering
+enables are implemented they will not be highly effective and won't
+provide a generally applicable solution to the pte_chain space problem.
+
+
+-- wli
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
