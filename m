@@ -1,53 +1,57 @@
-Received: from neon.transmeta.com (neon-best.transmeta.com [206.184.214.10])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id AAA30770
-	for <linux-mm@kvack.org>; Mon, 18 Jan 1999 00:13:42 -0500
-Date: Sun, 17 Jan 1999 21:11:45 -0800 (PST)
-From: Linus Torvalds <torvalds@transmeta.com>
+Received: from penguin.e-mind.com (penguin.e-mind.com [195.223.140.120])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id EAA00135
+	for <linux-mm@kvack.org>; Mon, 18 Jan 1999 04:16:23 -0500
+Date: Mon, 18 Jan 1999 10:15:07 +0100 (CET)
+From: Andrea Arcangeli <andrea@e-mind.com>
 Subject: Re: [patch] NEW: arca-vm-21, swapout via shrink_mmap using PG_dirty
-In-Reply-To: <Pine.LNX.3.96.990118001901.263A-100000@laser.bogus>
-Message-ID: <Pine.LNX.3.95.990117210123.28579G-100000@penguin.transmeta.com>
+In-Reply-To: <Pine.LNX.3.95.990117210123.28579G-100000@penguin.transmeta.com>
+Message-ID: <Pine.LNX.3.96.990118095719.302B-100000@laser.bogus>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Andrea Arcangeli <andrea@e-mind.com>
-Cc: Steve Bergman <steve@netplus.net>, dlux@dlux.sch.bme.hu, "Nicholas J. Leon" <nicholas@binary9.net>, "Eric W. Biederman" <ebiederm+eric@ccr.net>, Kalle Andersson <kalle@sslug.dk>, brent verner <damonbrent@earthlink.net>, "Garst R. Reese" <reese@isn.net>, Kalle Andersson <kalle.andersson@mbox303.swipnet.se>, Zlatko Calusic <Zlatko.Calusic@CARNet.hr>, Ben McCann <bmccann@indusriver.com>, bredelin@ucsd.edu, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org, Alan Cox <alan@lxorguk.ukuu.org.uk>, "Stephen C. Tweedie" <sct@redhat.com>, Heinz Mauelshagen <mauelsha@ez-darmstadt.telekom.de>, Max <max@Linuz.sns.it>
+To: Linus Torvalds <torvalds@transmeta.com>
+Cc: "Eric W. Biederman" <ebiederm+eric@ccr.net>, Zlatko Calusic <Zlatko.Calusic@CARNet.hr>, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org, Alan Cox <alan@lxorguk.ukuu.org.uk>, "Stephen C. Tweedie" <sct@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 18 Jan 1999, Andrea Arcangeli wrote:
-> 
-> Even if rock solid my PG_dirty implementation is been a lose. This because
-> swapping out from shrink_mmap() was causing not ordered write to disk. So
-> even if the process userspace was ordered in the swap, it was async
-> written not-ordered. This was harming a _lot_ swapout performances... 
+On Sun, 17 Jan 1999, Linus Torvalds wrote:
 
-Indeed. 
+> Note that what I really wanted to use PG_dirty for was not for normal
+> page-outs, but for shared mappings of files. 
 
-Note that what I really wanted to use PG_dirty for was not for normal
-page-outs, but for shared mappings of files. 
+Ah, Ok ;). I was using it in a completly different manner. I was using it
+to indicate that the swap cache page was not uptodate on the swap space.
+But as just said this cause not ordered write to disk from shrink_mmap().
+Other than that it _was_ fine.
 
-For normal page-out activity, the PG_dirty thing isn't a win, simply
-because (a) it doesn't actually buy us anything (we might as well do it 
-from the page tables directly) and (b) as you noticed, it increases
-fragmentation.
+> The reason PG_dirty should be a win for shared mappings is: (a) it gets
+> rid of the file write semaphore problem in a very clean way and (b) it
 
-The reason PG_dirty should be a win for shared mappings is: (a) it gets
-rid of the file write semaphore problem in a very clean way and (b) it
-reduces the number of IO requests for mappings that are writable for
-multiple contexts (right now we will actually do multiple page-outs, one
-for each shared mapping that has dirtied the page). 
+I can't understand this. I think to know _where_ to mark the page dirty
+(in the `if (vm_op->swapout)' path) but I don't understand _where_ to
+write the page out to disk avoiding the fs deadlock. Writing them in
+shrink_mmap() would not fix the deadlock (obviously if shrink_mmap() is
+still recalled as now by try_to_free_pages() etc...). 
 
-I know you worked on patches to reduce (b) by walking multiple page
-tables, but quite frankly that was always so ugly as to never stand a
-chance in h*ll of ever getting included in a standard kernel. 
+> I know you worked on patches to reduce (b) by walking multiple page
+> tables, but quite frankly that was always so ugly as to never stand a
 
-I looked at the problem, and PG_dirty for shared mappings should be
-reasonably simple. However, I don't think I can do it for 2.2 simply
-because it involves some VFS interface changes (it requires that you can
-use the pame_map[] information and nothing else to page out: we have the
-inode and the offset which actually is enough data to do it, but we don't
-have a good enough "inode->i_op->writepage()" setup yet).
+OK, agreed ;). I am taking it here in the meantime only because it should
+be at least safe. 
 
-		Linus
+> I looked at the problem, and PG_dirty for shared mappings should be
+> reasonably simple. However, I don't think I can do it for 2.2 simply
+> because it involves some VFS interface changes (it requires that you can
+> use the pame_map[] information and nothing else to page out: we have the
+> inode and the offset which actually is enough data to do it, but we don't
+> have a good enough "inode->i_op->writepage()" setup yet).
+
+I still don't understand from _where_ doing the writepage. If we would do
+it from shrink_mmap() I can't see how we could clear the pte of the
+process (or better processes) before starting the writepage(). Probably I
+am missing something of important (maybe because these nights I had not a
+lot of time to sleep ;)... 
+
+Andrea Arcangeli
 
 --
 This is a majordomo managed list.  To unsubscribe, send a message with
