@@ -1,40 +1,60 @@
-Date: Tue, 13 May 2003 15:49:29 -0700
-From: William Lee Irwin III <wli@holomorphy.com>
-Subject: Re: Race between vmtruncate and mapped areas?
-Message-ID: <20030513224929.GX8978@holomorphy.com>
-References: <154080000.1052858685@baldur.austin.ibm.com> <3EC15C6D.1040403@kolumbus.fi> <199610000.1052864784@baldur.austin.ibm.com>
+Date: Wed, 14 May 2003 00:52:10 +0200
+From: Andrea Arcangeli <andrea@suse.de>
+Subject: Re: [PATCH] Fix for vma merging refcounting bug
+Message-ID: <20030513225210.GK15316@dualathlon.random>
+References: <1052483661.3642.16.camel@sisko.scot.redhat.com> <20030510163336.GB15010@dualathlon.random> <1052683446.4609.29.camel@sisko.scot.redhat.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <199610000.1052864784@baldur.austin.ibm.com>
+In-Reply-To: <1052683446.4609.29.camel@sisko.scot.redhat.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave McCracken <dmccr@us.ibm.com>
-Cc: Mika Penttil? <mika.penttila@kolumbus.fi>, Linux Memory Management <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>
+To: "Stephen C. Tweedie" <sct@redhat.com>
+Cc: linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@digeo.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, May 13, 2003 at 05:26:24PM -0500, Dave McCracken wrote:
-> Hmm... Yep, it is.  I did some more investigating.  My initial scenario
-> required that the task mapping the page extend the file after the truncate,
-> which must be done via some kind of write().  The write() would trip over
-> i_sem and therefore hang waiting for vmtruncate() to complete.  So I was
-> wrong about that one.
-> Hoever, vmtruncate() does get to truncate_complete_page() with a page
-> that's mapped...
-> After some though it occurred to me there is a simple alternative scenario
-> that's not protected.  If a task is *already* in a page fault mapping the
-> page in, then vmtruncate() could call zap_page_range() before the page
-> fault completes.  When the page fault does complete the page will be mapped
-> into the area previously cleared by vmtruncate().
-> We could make vmtruncate() take mmap_sem for write, but that seems somewhat
-> drastic.  Does anyone have any alternative ideas?
+On Sun, May 11, 2003 at 09:04:06PM +0100, Stephen C. Tweedie wrote:
+> Hi,
+> 
+> On Sat, 2003-05-10 at 17:33, Andrea Arcangeli wrote:
+> > On Fri, May 09, 2003 at 01:34:21PM +0100, Stephen C. Tweedie wrote:
+> > > When a new vma can be merged simultaneously with its two immediate
+> > > neighbours in both directions, vma_merge() extends the predecessor vma
+> > > and deletes the successor.  However, if the vma maps a file, it fails to
+> > > fput() when doing the delete, leaving the file's refcount inconsistent.
+> 
+> > great catch! nobody could notice it in practice
+> 
+> Yep --- I only noticed it because I was running a quick-and-dirty vma
+> merging test and wanted to test on a shmfs file, and noticed that the
+> temporary shmfs filesystem became unmountable afterwards.  Test
+> attached, in case anybody is interested (it's the third test, mapping a
+> file page by page in two interleaved passes, which triggers this case.)
+> 
+> > I'm attaching for review what I'm applying to my -aa tree, to fix the
+> > above and the other issue with the non-ram vma merging fixed in 2.5.
+> 
+> Looks OK.
 
-That doesn't sound like it's going to help, there isn't a unique
-mmap_sem to be taken and so we just get caught between acquisitions
-with the same problem.
+actually I just noticed the fput is never been buggy in my tree:
 
+	if (!file || !rb_parent || !vma_merge(mm, prev, rb_parent, addr, addr + len, vma->vm_flags, file, pgoff)) {
+		vma_link(mm, vma, prev, rb_link, rb_parent);
+		if (correct_wcount)
+			atomic_inc(&file->f_dentry->d_inode->i_writecount);
+	} else {
+		if (file) {
+			if (correct_wcount)
+				atomic_inc(&file->f_dentry->d_inode->i_writecount);
+			fput(file);
+			^^^^^^^^^
+		}
+		kmem_cache_free(vm_area_cachep, vma);
+	}
 
--- wli
+so this was a merging bug in 2.5
+
+Andrea
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
