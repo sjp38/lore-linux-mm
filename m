@@ -1,31 +1,87 @@
-Date: Sat, 12 Apr 2003 21:32:05 -0700
+Date: Sat, 12 Apr 2003 21:42:14 -0700
 From: Andrew Morton <akpm@digeo.com>
 Subject: Re: 2.5.67-mm2
-Message-Id: <20030412213205.4bcbe1d8.akpm@digeo.com>
-In-Reply-To: <200304130422.h3D4M6XY031187@sith.maoz.com>
-References: <200304130354.h3D3slbp031124@sith.maoz.com>
-	<200304130422.h3D4M6XY031187@sith.maoz.com>
+Message-Id: <20030412214214.57a87776.akpm@digeo.com>
+In-Reply-To: <200304130350.h3D3o8pn031108@sith.maoz.com>
+References: <20030413031440.GA14357@holomorphy.com>
+	<200304130350.h3D3o8pn031108@sith.maoz.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Jeremy Hall <jhall@maoz.com>
-Cc: felipe_alfaro@linuxmail.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: wli@holomorphy.com, felipe_alfaro@linuxmail.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Joshua Kwan <joshk@triplehelix.org>, Shane Shrybman <shrybman@sympatico.ca>
 List-ID: <linux-mm.kvack.org>
 
-Jeremy Hall <jhall@maoz.com> wrote:
->
-> ah, here we go
-> 
-> BUG(); line 907 of mm/slab.c
-> 
+This should fix it up.
 
-Yup, it looks like the lockmeter patch has borked the preempt_count when
-CONFIG_LOCKMETER=n.  Sorry, I didn't test it with preempt enabled.
+ include/linux/spinlock.h |   14 +++++++-------
+ 1 files changed, 7 insertions(+), 7 deletions(-)
 
-I'll fix that up.  Meanwhile you can revert the lockmeter patch or disable
-preemption.
+diff -puN include/linux/spinlock.h~lockmeter-fixes include/linux/spinlock.h
+--- 25/include/linux/spinlock.h~lockmeter-fixes	2003-04-12 21:35:49.000000000 -0700
++++ 25-akpm/include/linux/spinlock.h	2003-04-12 21:35:57.000000000 -0700
+@@ -328,20 +328,20 @@ do { \
+ 
+ #define spin_unlock_irqrestore(lock, flags) \
+ do { \
+-	spin_unlock(lock); \
++	_raw_spin_unlock(lock); \
+ 	local_irq_restore(flags); \
+ 	preempt_enable(); \
+ } while (0)
+ 
+ #define _raw_spin_unlock_irqrestore(lock, flags) \
+ do { \
+-	spin_unlock(lock); \
++	_raw_spin_unlock(lock); \
+ 	local_irq_restore(flags); \
+ } while (0)
+ 
+ #define spin_unlock_irq(lock) \
+ do { \
+-	spin_unlock(lock); \
++	_raw_spin_unlock(lock); \
+ 	local_irq_enable(); \
+ 	preempt_enable(); \
+ } while (0)
+@@ -355,14 +355,14 @@ do { \
+ 
+ #define read_unlock_irqrestore(lock, flags) \
+ do { \
+-	read_unlock(lock); \
++	_raw_read_unlock(lock); \
+ 	local_irq_restore(flags); \
+ 	preempt_enable(); \
+ } while (0)
+ 
+ #define read_unlock_irq(lock) \
+ do { \
+-	read_unlock(lock); \
++	_raw_read_unlock(lock); \
+ 	local_irq_enable(); \
+ 	preempt_enable(); \
+ } while (0)
+@@ -376,14 +376,14 @@ do { \
+ 
+ #define write_unlock_irqrestore(lock, flags) \
+ do { \
+-	write_unlock(lock); \
++	_raw_write_unlock(lock); \
+ 	local_irq_restore(flags); \
+ 	preempt_enable(); \
+ } while (0)
+ 
+ #define write_unlock_irq(lock) \
+ do { \
+-	write_unlock(lock); \
++	_raw_write_unlock(lock); \
+ 	local_irq_enable(); \
+ 	preempt_enable(); \
+ } while (0)
+
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
