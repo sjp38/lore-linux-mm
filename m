@@ -1,57 +1,51 @@
-Date: Fri, 14 Jan 2005 09:43:06 -0800 (PST)
-From: Linus Torvalds <torvalds@osdl.org>
-Subject: Re: page table lock patch V15 [0/7]: overview
-In-Reply-To: <20050114170140.GB4634@muc.de>
-Message-ID: <Pine.LNX.4.58.0501140924480.2310@ppc970.osdl.org>
-References: <41E5B7AD.40304@yahoo.com.au> <Pine.LNX.4.58.0501121552170.12669@schroedinger.engr.sgi.com>
- <41E5BC60.3090309@yahoo.com.au> <Pine.LNX.4.58.0501121611590.12872@schroedinger.engr.sgi.com>
- <20050113031807.GA97340@muc.de> <Pine.LNX.4.58.0501130907050.18742@schroedinger.engr.sgi.com>
- <20050113180205.GA17600@muc.de> <Pine.LNX.4.58.0501131701150.21743@schroedinger.engr.sgi.com>
- <20050114043944.GB41559@muc.de> <Pine.LNX.4.58.0501140838240.27382@schroedinger.engr.sgi.com>
- <20050114170140.GB4634@muc.de>
+Date: Fri, 14 Jan 2005 20:37:58 +0000 (GMT)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: Re: smp_rmb in mm/memory.c in 2.6.10
+In-Reply-To: <20050113232214.84887.qmail@web14303.mail.yahoo.com>
+Message-ID: <Pine.LNX.4.44.0501142012300.2938-100000@localhost.localdomain>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset="us-ascii"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <ak@muc.de>
-Cc: Christoph Lameter <clameter@sgi.com>, Nick Piggin <nickpiggin@yahoo.com.au>, Andrew Morton <akpm@osdl.org>, hugh@veritas.com, linux-mm@kvack.org, linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org, benh@kernel.crashing.org
+To: Kanoj Sarcar <kanojsarcar@yahoo.com>
+Cc: Anton Blanchard <anton@samba.org>, Andi Kleen <ak@suse.de>, William Lee Irwin III <wli@holomorphy.com>, Andrea Arcangeli <andrea@suse.de>, linux-mm@kvack.org, davem@redhat.com
 List-ID: <linux-mm.kvack.org>
 
-
-On Fri, 14 Jan 2005, Andi Kleen wrote:
+On Thu, 13 Jan 2005, Kanoj Sarcar wrote:
 > 
-> With all the other overhead (disabling exceptions, saving register etc.)
-> will be likely slower. Also you would need fallback paths for CPUs 
-> without MMX but with PAE (like Ppro). You can benchmark
-> it if you want, but I wouldn't be very optimistic. 
+> Thanks, I think this explains it. IE, if do_no_page()
+> reads truncate_count, and then later goes on to
+> acquire a lock in nopage(), the smp_rmb() is
+> guaranteeing that the read of truncate_count completes
+> before nopage() starts executing. 
+> 
+> For x86 at least, it seems to me that since the
+> spin_lock (in nopage()) uses a "lock" instruction,
+> that itself guarantees that the truncate_count read is
+> completed, even without the smp_rmb(). (Refer to IA32
+> SDM Vol 3 section 7.2.4 last para page 7-11). Thus for
+> x86, the smp_rmb is superfluous.
 
-We could just say that PAE requires MMX. Quite frankly, if you have a 
-PPro, you probably don't need PAE anyway - I don't see a whole lot of 
-people that spent huge amounts of money on memory and CPU (a PPro that had 
-more than 4GB in it was _quite_ expensive at the time) who haven't 
-upgraded to a PII by now..
+You're making me nervous.  If you look at 2.6.11-rc1 you'll find
+that I too couldn't see the point of that smp_rmb(), on any architecture,
+and so removed it; while also removing the "atomicity" of truncate_count.
 
-IOW, the overlap of "really needs PAE" and "doesn't have MMX" is probably 
-effectively zero.
+Here was my comment to that patch:
+> Why is mapping->truncate_count atomic?  It's incremented inside
+> i_mmap_lock (and i_sem), and the reads don't need it to be atomic.
+> 
+> And why smp_rmb() before call to ->nopage?  The compiler cannot reorder
+> the initial assignment of sequence after the call to ->nopage, and no
+> cpu (yet!) can read from the future, which is all that matters there.
 
-That said, you're probably right in that it probably _is_ expensive enough
-that it doesn't help. Even if the process doesn't use FP/MMX (so that you
-can avoid the overhead of state save/restore), you need to
+Now I'm not so convinced by that "no cpu can read from the future".
 
- - disable preemption
- - clear "TS" (pretty expensive in itself, since it touches CR0)
- - .. do any operations ..
- - set "TS" (again, CR0)
- - enable preemption
+I don't entirely follow your remarks above, but I do think people
+on this thread have a better grasp of these matters than I have:
+does anyone now think that smp_rmb() needs to be restored?
 
-so it's likely a thousand cycles minimum on a P4 (I'm just assuming that
-the P4 will serialize on CR0 accesses, which implies that it's damn
-expensive), and possibly a hundred on other x86 implementations.
+Hugh
 
-That's in the noise for something that does a full page table copy, but it
-likely makes using MMX for single page table entries a total loss.
-
-			Linus
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
