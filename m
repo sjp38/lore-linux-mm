@@ -1,52 +1,58 @@
-Message-ID: <3D268E19.B68559F6@zip.com.au>
-Date: Fri, 05 Jul 2002 23:28:41 -0700
-From: Andrew Morton <akpm@zip.com.au>
-MIME-Version: 1.0
+Date: Sat, 6 Jul 2002 12:06:55 -0700 (PDT)
+From: Linus Torvalds <torvalds@transmeta.com>
 Subject: Re: [PATCH][RFT](2) minimal rmap for 2.5 - akpm tested
-References: <Pine.LNX.4.44L.0207060228460.8346-100000@imladris.surriel.com>
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <3D268E19.B68559F6@zip.com.au>
+Message-ID: <Pine.LNX.4.44.0207061205001.1157-100000@home.transmeta.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@conectiva.com.br>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@transmeta.com>
+To: Andrew Morton <akpm@zip.com.au>
+Cc: Rik van Riel <riel@conectiva.com.br>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Rik van Riel wrote:
-> 
-> Hi,
-> 
-> Almost the same patch as before, except this one has had
-> a few hours of testing by Andrew Morton and two bugs have
-> been ironed out, most notably the truncate_complete_page()
-> race.  This patch is probably safe since Andrew got bored
-> when no new bugs showed up ...
-> 
 
-The box died, but not due to rmap.  We have a lock ranking
-bug:
+On Fri, 5 Jul 2002, Andrew Morton wrote:
+>
+> The box died, but not due to rmap.  We have a lock ranking
+> bug:
+>
+>         do_exit
+>         ->mmput
+>           ->exit_mmap                           page_table_lock
+>             ->removed_shared_vm_struct
+>               ->lock_vma_mappings               i_shared_lock
 
-        do_exit
-        ->mmput
-          ->exit_mmap                           page_table_lock
-            ->removed_shared_vm_struct
-              ->lock_vma_mappings               i_shared_lock
+I _think_ we should just move the remove_shared_vm_struct() down into the
+case where we're closing the mapping, ie something like the appended.
 
-versus
+That way we _only_ do the actual page table stuff under the page table
+lock, and do all the generic VM/FS stuff outside the lock.
 
-        do_truncate
-        ->notify_change
-          ->inode_setattr
-            ->vmtruncate                        i_shared_lock
-              ->vmtruncate_list
-                ->zap_page_range                page_table_lock
+Comments?
 
-It seems that in 2.5.16, a call to remove_shared_vm_struct() was
-added to exit_mmap(), inside mm->page_table_lock.
+		Linus
 
-That ranking conflicts with truncate.
+-------------------------------
+--- 1.34/mm/mmap.c	Thu Jun 27 00:35:55 2002
++++ edited/mm/mmap.c	Sat Jul  6 12:06:02 2002
+@@ -1121,7 +1121,6 @@
+ 		unsigned long end = mpnt->vm_end;
 
--
+ 		mm->map_count--;
+-		remove_shared_vm_struct(mpnt);
+ 		unmap_page_range(tlb, mpnt, start, end);
+ 		mpnt = mpnt->vm_next;
+ 	}
+@@ -1148,6 +1147,7 @@
+ 	 */
+ 	while (mpnt) {
+ 		struct vm_area_struct * next = mpnt->vm_next;
++		remove_shared_vm_struct(mpnt);
+ 		if (mpnt->vm_ops) {
+ 			if (mpnt->vm_ops->close)
+ 				mpnt->vm_ops->close(mpnt);
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
