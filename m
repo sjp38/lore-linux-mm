@@ -1,49 +1,83 @@
-Date: Mon, 1 May 2000 22:03:35 -0300 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
-Reply-To: riel@nl.linux.org
-Subject: Re: kswapd @ 60-80% CPU during heavy HD i/o.
-In-Reply-To: <200005020023.RAA31259@pizda.ninka.net>
-Message-ID: <Pine.LNX.4.21.0005012154440.7508-100000@duckman.conectiva>
+Subject: Re: Oops in __free_pages_ok (pre7-1) (Long)
+From: "Juan J. Quintela" <quintela@fi.udc.es>
+Date: 02 May 2000 03:08:02 +0200
+In-Reply-To: "Juan J. Quintela"'s message of "02 May 2000 01:29:26 +0200"
+Message-ID: <yttg0s13gjx.fsf@vexeta.dc.fi.udc.es>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "David S. Miller" <davem@redhat.com>
-Cc: roger.larsson@norran.net, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
+To: linux-mm@kvack.org, Linus Torvalds <torvalds@transmeta.com>, Andrea Arcangeli <andrea@suse.de>, Kanoj Sarcar <kanoj@google.engr.sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 1 May 2000, David S. Miller wrote:
+Hi
+        several people have reported Oops in __free_pages_ok, after a
+BUG() in page_alloc.h.  This happens in 2.3.99-pre[67].  The BUGs are:
 
-> BTW, what loop are you trying to "continue;" out of here?
-> 
-> +			    do {
->  				if (tsk->need_resched)
->  					schedule();
->  				if ((!zone->size) || (!zone->zone_wake_kswapd))
->  					continue;
->  				do_try_to_free_pages(GFP_KSWAPD, zone);
-> +			   } while (zone->free_pages < zone->pages_low &&
-> +					   --count);
-> 
-> :-)  Just add a "next_zone:" label at the end of that code and
-> change the continue; to a goto next_zone;
+	if (page->mapping)
+		BUG();
+and
+	if (PageSwapCache(page))
+		BUG();
+somebody reported to me that he obtained the BUG:
+	if (PageLocked(page))
+		BUG();
 
-I want kswapd to continue with freeing pages from this zone if
-there aren't enough free pages in this zone. This is needed
-because kswapd used to stop freeing pages even if we were below
-pages_min...
+I have found that this patch solves the Oops for me. (I know that this
+is not the proper solution, could people test this patch and mail me
+if the Oops disappear/or go worst?  I am trying to isolate the
+problem.  Now I get one kill of the process from the VM, I am
+interested to know if this is the case for the rest of the people with
+this problem.
 
-(leading to out of memory situations when it wasn't needed, or
-to dozens or even hundreds of extra context switches / extra
-swapin latency when we call balance_zones from alloc_pages, etc)
+I have read the comments from Andrea in this list about that
+PG_swap_entry bit should be only a optimization, never produce
+instability.  I have checked that with the following patch (i.e. the
+only place when we set that bit) I don't get more Oops.
 
-Rik
---
-The Internet is not a network of computers. It is a network
-of people. That is its real strength.
+This bit is only used in three places in the kernel:
 
-Wanna talk about the kernel?  irc.openprojects.net / #kernelnewbies
-http://www.conectiva.com/		http://www.surriel.com/
+mm/memory.c:1056:do_swap_page()::SetPageSwapEntry(page);
+        The only place where it is set
+
+mm/swapfile.c:210:acquire_swap_entry():	if (!PageSwapEntry(page))
+        Here we check if it is set, and if true, we check that the
+        values are valid.
+
+mm/swap_state.c:134:	ClearPageSwapEntry(page);
+        We clear the bit in free_page_and_swap_cache(), but I am not
+        sure that it is the only place when it must be deleted.
+        Comments really appreciated.
+
+It appears that we forgot to remove some bits/values when we free a
+page. It has been several patches in this list regarding the
+swap_entry bit, but not agreement in which is the correct one.
+
+I hope this help to somebody understand where is the problem, or at
+least give me some hint where can be the problem.
+
+Thanks in advance, Juan.
+
+diff -u -urN --exclude=CVS --exclude=*~ --exclude=.#* pre7-1plus/mm/memory.c lin
+ux/mm/memory.c
+--- pre7-1plus/mm/memory.c      Tue Apr 25 00:46:18 2000
++++ linux/mm/memory.c   Tue May  2 00:36:13 2000
+@@ -1053,7 +1053,7 @@
+ 
+        pte = mk_pte(page, vma->vm_page_prot);
+ 
+-       SetPageSwapEntry(page);
++       /*      SetPageSwapEntry(page);  */
+ 
+        /*
+         * Freeze the "shared"ness of the page, ie page_count + swap_count.
+
+
+-- 
+In theory, practice and theory are the same, but in practice they 
+are different -- Larry McVoy
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
