@@ -1,40 +1,49 @@
-Received: from mail.ccr.net (ccr@alogconduit1ar.ccr.net [208.130.159.18])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id NAA19662
-	for <linux-mm@kvack.org>; Sun, 24 Jan 1999 13:44:18 -0500
-Subject: Re: 2.2.0-final
-References: <Pine.LNX.3.96.990124141300.222A-100000@laser.bogus>
-From: ebiederm+eric@ccr.net (Eric W. Biederman)
-Date: 24 Jan 1999 12:41:25 -0600
-In-Reply-To: Andrea Arcangeli's message of "Sun, 24 Jan 1999 14:16:35 +0100 (CET)"
-Message-ID: <m1iudwo6nd.fsf@flinx.ccr.net>
+Received: from snowcrash.cymru.net (snowcrash.cymru.net [163.164.160.3])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id OAA20206
+	for <linux-mm@kvack.org>; Sun, 24 Jan 1999 14:38:46 -0500
+Message-Id: <m104WE3-0007U1C@the-village.bc.nu>
+From: alan@lxorguk.ukuu.org.uk (Alan Cox)
+Subject: Re: MM deadlock [was: Re: arca-vm-8...]
+Date: Sun, 24 Jan 1999 20:33:42 +0000 (GMT)
+In-Reply-To: <Pine.LNX.3.95.990123161758.12138B-100000@penguin.transmeta.com> from "Linus Torvalds" at Jan 23, 99 04:19:13 pm
+Content-Type: text
 Sender: owner-linux-mm@kvack.org
-To: Andrea Arcangeli <andrea@e-mind.com>
-Cc: linux-mm@kvack.org
+To: Linus Torvalds <torvalds@transmeta.com>
+Cc: alan@lxorguk.ukuu.org.uk, sct@redhat.com, werner@suse.de, andrea@e-mind.com, riel@humbolt.geo.uu.nl, Zlatko.Calusic@CARNet.hr, ebiederm+eric@ccr.net, saw@msu.ru, steve@netplus.net, damonbrent@earthlink.net, reese@isn.net, kalle.andersson@mbox303.swipnet.se, bmccann@indusriver.com, bredelin@ucsd.edu, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
->>>>> "AA" == Andrea Arcangeli <andrea@e-mind.com> writes:
+> On Sat, 23 Jan 1999, Alan Cox wrote:
+> > 
+> > Thats a bug in our current vm structures, like the others - inability to
+> > throw out page tables, inability to find memory easily, inability to move
+> > blocks to allocate large areas in a target space, inability to handle
+> > large user spaces etc.
+> 
+> What? None of those are bugs, they are features.
+> 
+> Complexity is not a goal to be reached. Complexity is something to be
+> avoided at all cost. If you don't believe me, look at NT.
 
-AA> On Sat, 23 Jan 1999, Andrea Arcangeli wrote:
->> On Wed, 20 Jan 1999, Linus Torvalds wrote:
->> 
->> > In short, before you post a bug-report about 2.2.0-final, I'd like you to
->> 
->> There are three things from me I think should go in before 2.2.0 real
+A feature becomes a bug at the point it becomes a problem. Right now there
+is a continual background DMA rumbling. That one at least needs solving.
 
-AA> There's a fourth thing I forget to tell yesterday. If all pte are young we
-AA> could not be able to swapout while with priority == 0 we must not care
-AA> about CPU aging. I hope to have pointed out right and needed things, I
-AA> don't want to spam you while you are busy... 
+Being able to throw out page tables is something that is going to be needed
+too. As far as I can see that does not mean complexity. The Linux VM is
+very clean in its page handling, there is almost nothing in the page tables
+that cannot be flushed or dumped to disk if need be.
 
-I don't think this is an issue.  Before we get to calling
-swap_out with priority == 0 we have called it with priorities.
-6,5,4,3,2,1  Which will have travelled a little over 1.5 times over
-the page tables (assuming they can't find anything either).
+There are real cases where grab large linear block is needed. Sadly the
+fact that NT and 98 support it will make this more not less common. The
+current PCI soundcards like the S3 SonicVibes aren't easily supportable
+in Linux because they require a 4Mb linear block. The Zoran video capture
+chipset (Trust, Iomega, and others) needs large linear blocks. Even I2O
+wants 32/64K linear chunks and thats designed to be "OS independant"
 
-So it looks doubtful to me that all pte's could be young.
+Its on my "please for 2.3" list not because the linear block problem is an
+elegance issue but because people are baning their heads on it. The large
+physical memory problem is there because people are already hitting it.
 
-Eric
-
+Alan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm my@address'
