@@ -1,83 +1,42 @@
-Date: Sun, 19 May 2002 14:28:40 +0530
-From: Abhishek Nayani <abhi@kernelnewbies.org>
-Subject: working of balance_classzone()
-Message-ID: <20020519085840.GA3660@SandStorm.net>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Received: from [10.10.13.3]([10.10.13.3]) (1478 bytes) by megami.veritas.com
+	via sendmail with P:esmtp/R:smart_host/T:smtp
+	(sender: <hugh@veritas.com>)
+	id <m179Plf-0006dZC@megami.veritas.com>
+	for <linux-mm@kvack.org>; Sun, 19 May 2002 05:26:31 -0700 (PDT)
+	(Smail-3.2.0.101 1997-Dec-17 #15 built 2001-Aug-30)
+Date: Sun, 19 May 2002 13:29:28 +0100 (BST)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: Re: working of balance_classzone()
+In-Reply-To: <20020519085840.GA3660@SandStorm.net>
+Message-ID: <Pine.LNX.4.21.0205191314520.9780-100000@localhost.localdomain>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Abhishek Nayani <abhi@kernelnewbies.org>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+On Sun, 19 May 2002, Abhishek Nayani wrote:
+> 
+> 	So the code in balance_classzone() looks very suspicious as it
+> is acting as if there were many blocks of free pages of different orders
+> on the list and we are trying to get the block of the correct order and
+> then freeing the rest in reverse order.... 
+> 
+> 	Since there is only one block, we can cut the code to just check
+> the order of that block, if its greater than our requirement, call
+> rmqueue() else return NULL. 
 
-	I was commenting the code of balance_classzone() and am stuck up
-at some point. The code in question is:
+The code hereabouts has been marooned for many releases, somewhere
+in between what Andrea intended and what Linus wanted.  You're right
+that there's a (harmless) mismatch between what __free_pages_ok is
+actually doing, and what balance_classzone is expecting it to do.
+But that should get sorted out when Andrea's further VM patches are
+merged into 2.4.20... (always seems to be around the next corner).
 
-	if (likely(__freed)) {
-	/* pick from the last inserted so we're lifo */
-		entry = local_pages->next;
-		do {
-		     tmp = list_entry(entry, struct page, list);
----->>		     if (tmp->index == order && memclass(page_zone(tmp), classzone)) {
-				list_del(entry);
-				current->nr_local_pages--;
-				set_page_count(tmp, 1);
-				page = tmp;
-				.................
+Hugh
 
-
-	According to the code of __free_pages_ok(), when we try to free
-pages with PF_FREE_PAGES set (as is done in balance_classzone() before
-the call to try_to_free_pages()) only one block of pages of some order
-is added to the local_pages member of the current task. Also
-nr_local_pages is 1 if there is a block of pages else it is 0 (ie. being
-used as a flag).
-
-[related code: local_freelist:
-	           if (current->nr_local_pages)
-	                goto back_local_freelist;]
-
-
-
-	So the code in balance_classzone() looks very suspicious as it
-is acting as if there were many blocks of free pages of different orders
-on the list and we are trying to get the block of the correct order and
-then freeing the rest in reverse order.... 
-
-	Since there is only one block, we can cut the code to just check
-the order of that block, if its greater than our requirement, call
-rmqueue() else return NULL. 
-
-	If i am missing something or u've not understood my doubt,
-please let me know...
-
-
-					Bye,
-						Abhi.
-	
---------------------------------------------------------------------------
-"I can only show you the door, you have to walk through it..." - Morpheus
---------------------------------------------------------------------------
-Home Page: http://www.abhi.tk
------BEGIN GEEK CODE BLOCK------------------------------------------------
-GCS d+ s:- a-- C+++ UL P+ L+++ E- W++ N+ o K- w--- O-- M- V- PS PE Y PGP 
-t+ 5 X+ R- tv+ b+++ DI+ D G e++ h! !r y- 
-------END GEEK CODE BLOCK-------------------------------------------------
-
------ End forwarded message -----
-					Bye,
-						Abhi.
-	
---------------------------------------------------------------------------
-"I can only show you the door, you have to walk through it..." - Morpheus
---------------------------------------------------------------------------
-Home Page: http://www.abhi.tk
------BEGIN GEEK CODE BLOCK------------------------------------------------
-GCS d+ s:- a-- C+++ UL P+ L+++ E- W++ N+ o K- w--- O-- M- V- PS PE Y PGP 
-t+ 5 X+ R- tv+ b+++ DI+ D G e++ h! !r y- 
-------END GEEK CODE BLOCK-------------------------------------------------
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
