@@ -1,52 +1,33 @@
-Message-ID: <3CAD3632.E14560B@zip.com.au>
-Date: Thu, 04 Apr 2002 21:29:22 -0800
-From: Andrew Morton <akpm@zip.com.au>
+Received: from localhost (sanket@localhost)
+	by mailhub.cdac.ernet.in (8.11.4/8.11.4) with ESMTP id g35BRug18836
+	for <linux-mm@kvack.org>; Fri, 5 Apr 2002 16:57:59 +0530 (IST)
+Date: Fri, 5 Apr 2002 16:57:56 +0530 (IST)
+From: Sanket Rathi <sanket.rathi@cdac.ernet.in>
+Subject: How CPU(x86) resolve kernel address
+Message-ID: <Pine.GSO.4.10.10204051648440.18364-100000@mailhub.cdac.ernet.in>
 MIME-Version: 1.0
-Subject: Re: 2.2.20 suspends everything then recovers during heavy I/O
-References: <4.2.0.58.20020404140237.00b6c390@london.rubylane.com>
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jim Wilcoxson <jim@rubylane.com>
-Cc: linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Jim Wilcoxson wrote:
-> 
-> I'm setting up a new system with 2.2.20, Ingo's raid patches, plus
-> Hedrick's IDE patches.
-> 
-> When doing heavy I/O, like copying partitions between drives using tar in a
-> pipeline, I've noticed that things will just stop for long periods of time,
-> presumably while buffers are written out to the destination disk.  The
-> destination drive light is on and the system is not exactly hung, because I
-> can switch consoles and stuff, but a running vmstat totally suspends for
-> 10-15 seconds.
-> 
-> Any tips or patches that will avoid this?  If our server hangs for 15
-> seconds, we're going to have tons of web requests piled up for it when it
-> decides to wakeup...
-> 
+I read all about the memory management in linux. all thing are clear to me
+like there is 3GB space for user procee and 1GB for kernel and thats why
+kernel address always greater then 0xC0000000. But one thing is not clear
+that is for kernel address there is no page table, actually there is no
+need because this is one to one mapping to physical memory but who resolve
+kernel address to actual physical address how CPU(X86) perform this task
+because when we do DMA we have to give actual physical address by
+virt_to_phys() so what is the mechanism by which CPU translate kernel
+address into physical address ( Somewhere i heard that CPU ignore some of
+the upper bits of address if so then how much bits and why).
 
-Which filesystem are you using?
+Thanks in advance 
 
-First thing to do is to ensure that your disks are achieving
-the expected bandwidth.  Measure them with `hdparm -t'.
-If the throughput is poor, and they're IDE, check the
-chipset tuning options in your kernel config and/or
-tune the disks with hdparm.
+--- Sanket Rathi
 
-If all that fails, you can probably smooth things
-out by tuning the writeback parameters in /proc/sys/vm/bdflush
-(if that's there in 2.2.  It's certainly somewhere :))
-Set the `interval' value smaller than the default five
-seconds, set `nfract' higher.  Set `age_buffer' lower..
 
-And finally: don't go copying entire partitions around
-on a live web server :)
-
--
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
