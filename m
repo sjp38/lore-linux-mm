@@ -1,33 +1,46 @@
-Received: from burns.conectiva (burns.conectiva [10.0.0.4])
-	by perninha.conectiva.com.br (Postfix) with SMTP id 08F0D38C3C
-	for <linux-mm@kvack.org>; Thu, 23 Aug 2001 15:44:55 -0300 (EST)
-Date: Thu, 23 Aug 2001 15:44:46 -0300 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
+Message-Id: <200108231849.f7NIns005651@maila.telia.com>
+Content-Type: text/plain;
+  charset="iso-8859-1"
+From: Roger Larsson <roger.larsson@norran.net>
 Subject: Re: [PATCH NG] alloc_pages_limit & pages_min
-In-Reply-To: <200108231841.f7NIf3001564@mailf.telia.com>
-Message-ID: <Pine.LNX.4.33L.0108231544340.31410-100000@duckman.distro.conectiva>
+Date: Thu, 23 Aug 2001 20:45:31 +0200
+References: <Pine.LNX.4.33L.0108222139350.5646-100000@imladris.rielhome.conectiva>
+In-Reply-To: <Pine.LNX.4.33L.0108222139350.5646-100000@imladris.rielhome.conectiva>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Roger Larsson <roger.larsson@norran.net>
+To: Rik van Riel <riel@conectiva.com.br>
 Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 23 Aug 2001, Roger Larsson wrote:
+On Thursdayen den 23 August 2001 02:40, Rik van Riel wrote:
+> On Thu, 23 Aug 2001, Roger Larsson wrote:
+> > +				if (page) {
+> > +					while (z->free_pages < z->pages_low) {
+> > +						struct page *extra = reclaim_page(z);
+> > +						if (!extra)
+> > +							break;
+> > +						__free_page(extra);
+> > +					}
+> > +				}
+>
+> This is a surprise ;)
+>
+> Why did you introduce this piece of code?
+> What is it supposed to achieve ?
+>
 
-> f we did get one page => we are above pages_min
-> try to reach pages_low too.
+A lighter alternative would be to reclaim just one extra page...
+Then it will move in the right direction but not more, quite
+nice actually!
 
-Yeah, but WHY ?
+/RogerL
 
-Rik
---
-IA64: a worthy successor to the i860.
-
-		http://www.surriel.com/
-http://www.conectiva.com/	http://distro.conectiva.com/
-
+-- 
+Roger Larsson
+Skelleftea
+Sweden
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
