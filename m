@@ -1,35 +1,27 @@
-Received: from mail.intermedia.net ([207.5.44.129])
-	by kvack.org (8.8.7/8.8.7) with SMTP id NAA24032
-	for <linux-mm@kvack.org>; Mon, 24 May 1999 13:26:29 -0400
-Received: from [134.96.127.159] by mail.colorfullife.com (NTMail 3.03.0017/1.abcr) with ESMTP id la382211 for <linux-mm@kvack.org>; Mon, 24 May 1999 10:26:43 -0700
-Message-ID: <37498A69.FF40CFE3@colorfullife.com>
-Date: Mon, 24 May 1999 19:20:41 +0200
-From: Manfred Spraul <manfreds@colorfullife.com>
-Reply-To: masp0008@stud.uni-sb.de
-MIME-Version: 1.0
-Subject: Re: [PATCHES]
-References: <Pine.LNX.3.96.990523171206.21583A-100000@chiara.csoma.elte.hu>
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Received: from the-village.bc.nu (lightning.swansea.uk.linux.org [194.168.151.1])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id LAA02725
+	for <linux-mm@kvack.org>; Tue, 25 May 1999 11:39:45 -0400
+Subject: Re: Q: PAGE_CACHE_SIZE?
+Date: Tue, 25 May 1999 17:29:23 +0100 (BST)
+In-Reply-To: <19990518170401.A3966@fred.muc.de> from "Andi Kleen" at May 18, 99 05:04:01 pm
+Content-Type: text
+Message-Id: <E10mK50-0001eC-00@the-village.bc.nu>
+From: Alan Cox <alan@lxorguk.ukuu.org.uk>
 Sender: owner-linux-mm@kvack.org
-To: Ingo Molnar <mingo@chiara.csoma.elte.hu>
-Cc: "Eric W. Biederman" <ebiederm+eric@ccr.net>, Linus Torvalds <torvalds@transmeta.com>, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
+To: Andi Kleen <ak@muc.de>
+Cc: ebiederm+eric@ccr.net, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Ingo Molnar wrote:
-> on my box the page cache is already completely parallel on SMP,
-> we drop the kernel lock on entry into page-cache routines and
-> re-lock it only if we call filesystem-specific code or
-> buffer-cache code.
+> > Who's idea was it start the work to make the granularity of the page
+> > cache larger?
+> 
+> I guess the main motivation comes from the ARM port, where some versions
+> have PAGE_SIZE=32k.
 
-How have you called the 'release_kernel_lock()' function?
+For large amounts of memory on fast boxes you want a higher page size. Some
+vendors even pick page size based on memory size at boot up. 
 
-I found several lengthy operations in the kernel which
-should also release the kernel lock.
-(the slowest: clear_page() when called by get_free_page(GFP_WAIT))
-
---
-	Manfred
+Alan
 
 
 --
