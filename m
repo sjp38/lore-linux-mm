@@ -1,50 +1,33 @@
-Message-ID: <41EDAA6E.5000900@mvista.com>
-Date: Tue, 18 Jan 2005 16:31:42 -0800
-From: Steve Longerbeam <stevel@mvista.com>
+Date: Wed, 19 Jan 2005 12:37:54 +0000 (GMT)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: Re: BUG in shared_policy_replace() ?
+In-Reply-To: <41EDAA6E.5000900@mvista.com>
+Message-ID: <Pine.LNX.4.44.0501191221400.4795-100000@localhost.localdomain>
 MIME-Version: 1.0
-Subject: BUG in shared_policy_replace() ?
-Content-Type: multipart/mixed;
- boundary="------------020207020808080703030302"
+Content-Type: text/plain; charset="us-ascii"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <ak@suse.de>
-Cc: linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
+To: Steve Longerbeam <stevel@mvista.com>
+Cc: Andi Kleen <ak@suse.de>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-This is a multi-part message in MIME format.
---------------020207020808080703030302
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+On Tue, 18 Jan 2005, Steve Longerbeam wrote:
+> 
+> Why free the shared policy created to split up an old
+> policy that spans the whole new range? Ie, see patch.
 
-Hi Andi,
+I think you're misreading it.  That code comes from when I changed it
+over from sp->sem to sp->lock.  If it finds that it needs to split an
+existing range, so needs to allocate a new2, then it has to drop and
+reacquire the spinlock around that.  It's conceivable that a racing
+task could change the tree while the spinlock is dropped, in such a
+way that this split is no longer necessary once we reacquire the
+spinlock.  The code you're looking at frees up new2 in that case;
+whereas in the normal case, where it is still needed, there's a
+new2 = NULL after inserting it, so that it won't be freed below.
 
-Why free the shared policy created to split up an old
-policy that spans the whole new range? Ie, see patch.
+Hugh
 
-Steve
-
---------------020207020808080703030302
-Content-Type: text/plain;
- name="mempolicy.diff"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline;
- filename="mempolicy.diff"
-
---- mm/mempolicy.c.orig	2005-01-18 16:13:35.573273351 -0800
-+++ mm/mempolicy.c	2005-01-18 16:24:23.940608135 -0800
-@@ -1052,10 +1052,6 @@
- 	if (new)
- 		sp_insert(sp, new);
- 	spin_unlock(&sp->lock);
--	if (new2) {
--		mpol_free(new2->policy);
--		kmem_cache_free(sn_cache, new2);
--	}
- 	return 0;
- }
- 
-
---------------020207020808080703030302--
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
