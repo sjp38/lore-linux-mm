@@ -1,25 +1,34 @@
-Received: from wildwood.eecs.umich.edu (haih@wildwood.eecs.umich.edu [141.213.4.68])
-	by smtp.eecs.umich.edu (8.12.3/8.12.3) with ESMTP id g8O3pUdi010571
-	for <linux-mm@kvack.org>; Mon, 23 Sep 2002 23:51:45 -0400
-Date: Mon, 23 Sep 2002 23:53:43 -0400 (EDT)
-From: Hai Huang <haih@eecs.umich.edu>
-Subject: page_launder*() functions
-Message-ID: <Pine.LNX.4.33.0209232350420.11814-100000@wildwood.eecs.umich.edu>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Tue, 24 Sep 2002 14:41:09 +1000
+From: Rusty Russell <rusty@rustcorp.com.au>
+Subject: Re: 2.5.38-mm2 [PATCH]
+Message-Id: <20020924144109.2cbbdb36.rusty@rustcorp.com.au>
+In-Reply-To: <20020923151559.B29900@in.ibm.com>
+References: <3D8E96AA.C2FA7D8@digeo.com>
+	<20020923151559.B29900@in.ibm.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: dipankar@in.ibm.com
+Cc: akpm@digeo.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Why aren't page_launder*() functions defined as static in vmscan.c since
-they're only used within this file?  It's exporting something that's
-unncessarily exported.  I'm looking at 2.4.18-3 kernel, maybe newer
-versions fixed this???
+On Mon, 23 Sep 2002 15:15:59 +0530
+Dipankar Sarma <dipankar@in.ibm.com> wrote:
+> Later I will submit a full rcu_ltimer patch that contains
+> the call_rcu_preempt() interface which can be useful for
+> module unloading and the likes. This doesn't affect
+> the non-preemption path.
 
--
-Hai Huang
+You don't need this: I've dropped the requirement for module
+unload.
 
+Cheers!
+Rusty.
+-- 
+   there are those who do and those who hang on and you don't see too
+   many doers quoting their contemporaries.  -- Larry McVoy
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
