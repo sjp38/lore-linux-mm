@@ -1,35 +1,42 @@
-Date: Mon, 2 Oct 2000 16:56:42 -0300 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
+Date: Mon, 2 Oct 2000 21:52:17 +0200
+From: Andrea Arcangeli <andrea@suse.de>
 Subject: Re: [PATCH] fix for VM test9-pre,
-In-Reply-To: <20001002215217.C21473@athlon.random>
-Message-ID: <Pine.LNX.4.21.0010021655390.1067-100000@duckman.distro.conectiva>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Message-ID: <20001002215217.C21473@athlon.random>
+References: <20001002212521.A21473@athlon.random> <Pine.LNX.4.21.0010021626460.22539-100000@duckman.distro.conectiva>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.21.0010021626460.22539-100000@duckman.distro.conectiva>; from riel@conectiva.com.br on Mon, Oct 02, 2000 at 04:28:48PM -0300
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrea Arcangeli <andrea@suse.de>
+To: Rik van Riel <riel@conectiva.com.br>
 Cc: Ying Chen/Almaden/IBM <ying@almaden.ibm.com>, linux-mm@kvack.org, Ingo Molnar <mingo@elte.hu>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2 Oct 2000, Andrea Arcangeli wrote:
+On Mon, Oct 02, 2000 at 04:28:48PM -0300, Rik van Riel wrote:
+> Yup, indeed. I guess we need some extra logic to prevent the
+> system from trying to fill all of low memory with dirty
+> pages just because all of the highmem pages are free.
 
-> > I can dig out the bug report if you want ;)
-> 
-> I read one that you sent to TYTSO and I believe classzone should
-> take care of that highmem problem.
+A dirty page is allocated in the HIGHMEM immediatly because it's allocated with
+GFP_HIGHMEM (see page_cache_alloc() macro). Only the I/O is slower then
+(compared to a non highmem machine) because we need bounce buffers for it (and
+that trashes mem bus and it makes the I/O slower but it's not a matter of
+virtual memory balancing as far I can see).
 
-If that is the case, could you extract the bugfix from
-the classzone code and send it to the list?
+> Unfortunately, I DID get a few bug reports about
+> 2.4.0-test6 and earlier kernels that DID show this
+> bug ...
 
-regards,
+So that may be yet another MM bug, since I remeber Ying said he didn't seen the
+bad behaviour in test6.
 
-Rik
---
-"What you're running that piece of shit Gnome?!?!"
-       -- Miguel de Icaza, UKUUG 2000
+> I can dig out the bug report if you want ;)
 
-http://www.conectiva.com/		http://www.surriel.com/
+I read one that you sent to TYTSO and I believe classzone should take care of
+that highmem problem.
 
+Andrea
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
