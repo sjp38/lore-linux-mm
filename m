@@ -1,30 +1,27 @@
-Date: Thu, 15 Aug 2002 21:31:40 -0700
-From: Greg KH <greg@kroah.com>
+Message-ID: <3D5D0CC5.768BEAE8@zip.com.au>
+Date: Fri, 16 Aug 2002 07:31:33 -0700
+From: Andrew Morton <akpm@zip.com.au>
+MIME-Version: 1.0
 Subject: Re: [PATCH] add buddyinfo /proc entry
-Message-ID: <20020816043140.GA2478@kroah.com>
 References: <3D5C6410.1020706@us.ibm.com>
-Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <3D5C6410.1020706@us.ibm.com>
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Dave Hansen <haveblue@us.ibm.com>
-Cc: Andrew Morton <akpm@zip.com.au>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Martin J. Bligh" <Martin.Bligh@us.ibm.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Martin J. Bligh" <Martin.Bligh@us.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Aug 15, 2002 at 07:31:44PM -0700, Dave Hansen wrote:
-> Not _another_ proc entry!
+Dave Hansen wrote:
+> 
+> ..
+> +static void frag_stop(struct seq_file *m, void *arg)
+> +{
+> +       (void)m;
+> +       (void)arg;
+> +}
 
-Yes, not another one.  Why not move these to driverfs, where they
-belong.
-
-(ignore the driverfs name, it should be called kfs, or some such thing,
-as stuff more than driver info should go there, just like these entries.)
-
-thanks,
-
-greg k-h
+Don't tell me the compiler warns about this now?
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
