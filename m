@@ -1,102 +1,59 @@
-Date: Wed, 06 Oct 2004 16:39:14 +0900 (JST)
-Message-Id: <20041006.163914.48665150.taka@valinux.co.jp>
-Subject: Re: [PATCH] mhp: transfer dirty tag at radix_tree_replace 
-From: Hirokazu Takahashi <taka@valinux.co.jp>
-In-Reply-To: <20041005164627.GB3462@logos.cnet>
-References: <20041002183349.GA7986@logos.cnet>
-	<20041003.131338.41636688.taka@valinux.co.jp>
-	<20041005164627.GB3462@logos.cnet>
+Subject: Re: slab fragmentation ?
+From: Badari Pulavarty <pbadari@us.ibm.com>
+In-Reply-To: <4162ECAD.8090403@colorfullife.com>
+References: <1096500963.12861.21.camel@dyn318077bld.beaverton.ibm.com>
+	 <20040929204143.134154bc.akpm@osdl.org>  <29460000.1096555795@[10.10.2.4]>
+	 <1096555693.12861.27.camel@dyn318077bld.beaverton.ibm.com>
+	 <415F968B.8000403@colorfullife.com>
+	 <1096905099.12861.117.camel@dyn318077bld.beaverton.ibm.com>
+	 <41617567.9010507@colorfullife.com>
+	 <1096987570.12861.122.camel@dyn318077bld.beaverton.ibm.com>
+	 <4162E0AF.4000704@colorfullife.com>
+	 <1097000846.12861.143.camel@dyn318077bld.beaverton.ibm.com>
+	 <4162ECAD.8090403@colorfullife.com>
+Content-Type: text/plain
+Message-Id: <1097074688.12861.182.camel@dyn318077bld.beaverton.ibm.com>
 Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
+Date: 06 Oct 2004 07:58:08 -0700
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: marcelo.tosatti@cyclades.com
-Cc: iwamoto@valinux.co.jp, haveblue@us.ibm.com, linux-mm@kvack.org
+To: Manfred Spraul <manfred@colorfullife.com>
+Cc: Andrew Morton <akpm@osdl.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi, Marcelo.
-
-> > > 1) 
-> > > I'm pretty sure you should transfer the radix tree tag at radix_tree_replace().
-> > > If for example you transfer a dirty tagged page to another zone, an mpage_writepages()
-> > > will miss it (because it uses pagevec_lookup_tag(PAGECACHE_DIRTY_TAG)). 
-> > > 
-> > > Should be quite trivial to do (save tags before deleting and set to new entry, 
-> > > all in radix_tree_replace).
-> > > 
-> > > My implementation also contained the same bug.
-> > 
-> > Yes, it's one of the issues to do. The tag should be transferred in
-> > radix_tree_replace() as you pointed out. The current implementation
-> > sets the tag in set_page_dirty(newpage).
+On Tue, 2004-10-05 at 11:49, Manfred Spraul wrote:
+> Badari Pulavarty wrote:
 > 
-> OK, guys, can you test this please?
+> >>The fix would be simple: kmem_cache_alloc_node must walk through the 
+> >>list of partial slabs and check if it finds a slab from the correct 
+> >>node. If it does, then just use that slab instead of allocating a new 
+> >>one. 
 
-Ok, I'll test it. 
+I have been looking at the code, I don't understand few things here.
+alloc_percpu() calls kmem_cache_alloc_node() to allocate objects from
+each node. Its just making sure that each object comes from different
+node where the CPU belongs. So, without NUMA all the allocations come
+from same node. Isn't it ?
 
-> This transfer the dirty radix tree tag at radix_tree_replace, avoiding 
-> a potential miss on tag-lookup.  We could also copy all bits representing 
-> the valid tags for this node in the radix tree. 
-> 
-> But this uses the available interfaces from radix-lib.c. In case 
-> a new tag gets added, radix_tree_replace() will have to know about it.
+If so, in NON numa case why bother allocating a new slab at all ?
+Why can't we return an object from our per-cpu cache list ? Yes. We
+might end up allocating objects for all CPUs from the cpu cache
+we are running on. But current code doesn't deal with CPUs, only
+nodes. So it should be same.
 
-Yeah. I guess it would be better to copy the radix_tree_delete()
-code to radix_tree_replace() and modify it to replace items directly
-in the future.
+OR just grab  first partial slab and allocate it from there ?
 
-> Pretty straightforward.
-> 
-> I still need to figure out how to use Iwamoto's patch to add/remove 
-> zone's on the fly (for testing the migration process).
->
-> diff -Nur linux-2.6.9-rc2-mm4.mhp.orig/include/linux/radix-tree.h linux-2.6.9-rc2-mm4/include/linux/radix-tree.h
-> --- linux-2.6.9-rc2-mm4.mhp.orig/include/linux/radix-tree.h	2004-10-05 15:09:39.198873072 -0300
-> +++ linux-2.6.9-rc2-mm4/include/linux/radix-tree.h	2004-10-05 15:23:42.441680680 -0300
-> @@ -68,9 +68,17 @@
->  radix_tree_replace(struct radix_tree_root *root,
->  				unsigned long index, void *item)
->  {
-> +	int dirty;
-> +
-> +	dirty = radix_tree_tag_get(root, index, PAGECACHE_TAG_DIRTY);
-> +
->  	if (radix_tree_delete(root, index) == NULL)
->  		return -1;
->  	radix_tree_insert(root, index, item);
-> +
-> +	if (dirty)
-> +		radix_tree_tag_set(root, index, PAGECACHE_TAG_DIRTY);
-> +
->  	return 0;
->  }
->  
-> diff -Nur linux-2.6.9-rc2-mm4.mhp.orig/lib/radix-tree.c linux-2.6.9-rc2-mm4/lib/radix-tree.c
-> --- linux-2.6.9-rc2-mm4.mhp.orig/lib/radix-tree.c	2004-10-05 15:09:29.442356288 -0300
-> +++ linux-2.6.9-rc2-mm4/lib/radix-tree.c	2004-10-05 15:24:16.961432880 -0300
-> @@ -443,7 +443,6 @@
->  }
->  EXPORT_SYMBOL(radix_tree_tag_clear);
->  
-> -#ifndef __KERNEL__	/* Only the test harness uses this at present */
->  /**
->   *	radix_tree_tag_get - get a tag on a radix tree node
->   *	@root:		radix tree root
-> @@ -495,7 +494,6 @@
->  	}
->  }
->  EXPORT_SYMBOL(radix_tree_tag_get);
-> -#endif
->  
->  static unsigned int
->  __lookup(struct radix_tree_root *root, void **results, unsigned long index,
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"aart@kvack.org"> aart@kvack.org </a>
-> 
+If NUMA, we need to do get a partial slab belongs to the node and
+do the allocation from there.
+
+Am I missing something fundamental here ?
+
+Thanks,
+Badari
+
+
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
