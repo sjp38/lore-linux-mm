@@ -1,9 +1,9 @@
-Message-ID: <3800DE17.935ADF8D@colorfullife.com>
-Date: Sun, 10 Oct 1999 20:42:31 +0200
+Message-ID: <3801059B.D9C64189@colorfullife.com>
+Date: Sun, 10 Oct 1999 23:31:07 +0200
 From: Manfred Spraul <manfreds@colorfullife.com>
 MIME-Version: 1.0
 Subject: Re: locking question: do_mmap(), do_munmap()
-References: <Pine.GSO.4.10.9910101327010.16317-100000@weyl.math.psu.edu>
+References: <Pine.GSO.4.10.9910101450250.16317-100000@weyl.math.psu.edu>
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -13,28 +13,27 @@ Cc: Andrea Arcangeli <andrea@suse.de>, linux-kernel@vger.rutgers.edu, Ingo Molna
 List-ID: <linux-mm.kvack.org>
 
 Alexander Viro wrote:
-> I'm not sure that it will work (we scan the thing in many places and
-> quite a few may be blocking ;-/), unless you propose to protect individual
-> steps of the scan, which will give you lots of overhead.
+> Hold on. In swap_out_mm() you have to protect find_vma() (OK, it doesn't
+> block, but we'll have to take care of mm->mmap_cache) _and_ you'll have to
+> protect vma from destruction all way down to try_to_swap_out(). And to
+> vma->swapout(). Which can sleep, so spinlocks are out of question here.
 
-The overhead should be low, we could keep the "double synchronization",
-ie
-* either down(&mm->mmap_sem) or spin_lock(&mm->vma_list_lock) for read
-* both locks for write.
+I found vma->swapout() when I tried to implement it. Sh... 
+We could make vma_list_lock a semaphore, but I haven't checked for any
+hidden problems yet.
 
-I think that 3 to 5 spin_lock() calls are required.
+> 
+> I still think that just keeping a cyclic list of pages, grabbing from that
+> list before taking mmap_sem _if_ we have a chance for blocking
+> __get_free_page(), refilling if the list is empty (prior to down()) and
+> returning the page into the list if we didn't use it may be the simplest
+> way.
 
-> I suspect that
-> swap_out_mm() needs fixing, not everything else... And it looks like we
-> can't drop the sucker earlier in handle_mm_fault. Or can we?
-
-That would be a good idea:
-For multi-threaded applications, swap-in is currently single-threaded,
-ie we do not overlap the io operations if 2 threads of the same process
-cause page faults. Everything is fully serialized.
-
-But I think this would be a huge change, eg do_munmap() in one thread
-while another thread waits for page-in....
+I don't like the idea, but it sounds possible.
+A problem could be that the page-in functions can allocate memory:
+do_nopage() -> filemap_nopage(): it calls i_op->readpage() which would
+call get_block(), eg ext2: load the indirect page, this needs memory -->
+OOM.
 
 --
 	Manfred
