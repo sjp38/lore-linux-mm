@@ -1,69 +1,84 @@
-Message-ID: <3B6DE4AE.9A06D23F@zip.com.au>
-Date: Sun, 05 Aug 2001 17:28:30 -0700
-From: Andrew Morton <akpm@zip.com.au>
+Content-Type: text/plain; charset=US-ASCII
+From: Daniel Phillips <phillips@bonn-fries.net>
+Subject: Re: [RFC] using writepage to start io
+Date: Mon, 6 Aug 2001 07:39:47 +0200
+References: <276480000.997054344@tiny>
+In-Reply-To: <276480000.997054344@tiny>
 MIME-Version: 1.0
-Subject: Re: [RFC] Accelerate dbench
-References: <Pine.LNX.4.33L.0108042101341.2526-100000@imladris.rielhome.conectiva>,
-		<Pine.LNX.4.33L.0108042101341.2526-100000@imladris.rielhome.conectiva> <01080504334100.00294@starship>
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Message-Id: <01080607394704.00294@starship>
+Content-Transfer-Encoding: 7BIT
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Daniel Phillips <phillips@bonn-fries.net>
-Cc: Rik van Riel <riel@conectiva.com.br>, linux-mm@kvack.org, Marcelo Tosatti <marcelo@conectiva.com.br>
+To: Chris Mason <mason@suse.com>, linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, torvalds@transmeta.com
 List-ID: <linux-mm.kvack.org>
 
-Daniel Phillips wrote:
-> 
-> How wrong could it be when it's turning in results like this:
-> 
->   dbench 12, 2.4.8-pre4 vanilla
->   12.76user 76.49system 6:20.56elapsed 23%CPU (0avgtext+0avgdata 0maxresident)k
->   0inputs+0outputs (426major+405minor)pagefaults 0swaps
+On Monday 06 August 2001 01:32, Chris Mason wrote:
+> On Monday, August 06, 2001 12:38:01 AM +0200 Daniel Phillips
+>
+> <phillips@bonn-fries.net> wrote:
+> > On Sunday 05 August 2001 20:34, Chris Mason wrote:
+> >> I wrote:
+> >> > Note that the fact that buffers dirtied by ->writepage are
+> >> > ordered by time-dirtied means that the dirty_buffers list really
+> >> > does have indirect knowledge of page aging.  There may well be
+> >> > benefits to your approach but I doubt this is one of them.
+> >>
+> >> A problem is that under memory pressure, we'll flush a buffer that
+> >> has been dirty for a long time, even if we are constantly
+> >> redirtying it and have it more or less pinned.  This might not be
+> >> common enough to cause problems, but it still isn't optimal.  Yes,
+> >> it is a good idea to flush that page at some time, but under memory
+> >> pressure we want to do the least amount of work that will lead to a
+> >> freeable page.
+> >
+> > But we don't have a choice.  The user has set an explicit limit on
+> > how long a dirty buffer can hang around before being flushed.  The
+> > old-buffer rule trumps the need to allocate new memory.  As you
+> > noted, it doesn't cost a lot because if the system is that heavily
+> > loaded then the rate of dirty buffer production is naturally
+> > throttled.
+>
+> there are at least 3 reasons to write buffers to disk
+>
+> 1) they are too old
+> 2) the percentage of dirty buffers is too high
+> 3) you need to reclaim them due to memory pressure
+>
+> There are 3 completely different things; there's no trumping of
+> priorities.
 
-Oi!  Didn't Andrew say not to optimise for dbench?
+There is.  If your heavily loaded machine goes down and you lose edits 
+from 1/2 an hour ago even though your bdflush parms specify a 30 second 
+update cycle you'll call the system broken, whereas if it runs 5% slower 
+under heavy write+swap load that's just life.
 
-We've had some interesting times with ext3 and dbench lately.
-It all boils down to the fact that dbench deletes its own
-working files inside the kupdate writeback interval.
+> Under memory pressure you write buffers you have a high
+> chance of freeing, during write throttling you write buffers that
+> won't get dirty again right away, and when writing old buffers you
+> write the oldest first.
+>
+> This doesn't mean you can always make the right decision on all 3
+> cases, or that making the right decision is worth the effort ;-)
 
-This means that:
+If we need to do write throttling we should do it at the point where we 
+still know its a write, i.e., somewhere in sys_write.  Some time after 
+writes are throttled (specified by bdflush parms) all the old write 
+buffers will have worked their way through to the drives and your case 
+(3) gets all the bandwidth.  I don't see a conflict, except that we 
+don't have such an upstream write throttling mechanism yet.  We sort-of 
+have one in that a writer will busy itself trying to help out with lru 
+scanning when it can't get a free page for the page cache.  This has the 
+ugly result that we have bunches of processes spinning on the lru lock 
+and we have no idea what the queue scanning rates really are.  We can do 
+something much more intelligent and predictable there and we'll be a lot 
+closer to being able to balance intelligently between your cases.
 
-a) If dbench is running fast enough to delete its file within
-   the writeback interval, it'll run even faster because it
-   does less IO!  Non-linear behaviour there.
+By the way, I think you should combine (2) and (3) using an and, which 
+gets us back to the "kupdate thing" vs the "bdflush thing".
 
-b) If a butterfly flaps its wing, and something triggers
-   bdflush then your dbench throughput is demolished, because
-   data which ordinarily is deleted before ever getting written
-   out ends up hitting disk.
-
-   It was discovered that with one particular workload ext2
-   was not triggering bdflush but ext3 was.   Twiddling the
-   bdflush nfract and nfract_sync parameters prevented this
-   and our throughput went from something unmentionable up
-   to 85% of ext2.  (actually, it was a teeny bit faster with
-   80 clients - dunno why).
-
-All this was with ext3 in data writeback mode, of course - the
-other journalling modes write data out within 5 seconds anyway,
-which is another reason why ext3 dbench numbers are unrepresentatively
-lower than ext2 - we do about four times as much I/O!
-
-So...  This artifact makes *gross* throughput differences, and
-if your VM changes are somehow causing changed flush behaviour
-then perhaps you won't see what you're looking for.
-
-And note the positive feedback cycle: a slower dbench run will
-result in more IO, which will result in a slower dbench run, 
-which will....
-
-For VM/fs tuning efforts I'd recommend that you consider hacking
-dbench to not delete its files - just rename them or something.
-
-(Not blaming dbench here - it is merely emulating netbench dopiness).
-
--
+--
+Daniel
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
