@@ -1,82 +1,38 @@
-Received: from localhost (localhost [127.0.0.1])
-	by funky.monkey.org (Postfix) with ESMTP id 018AD14A01
-	for <linux-mm@kvack.org>; Fri, 21 Jan 2000 15:21:33 -0500 (EST)
-Date: Fri, 21 Jan 2000 15:21:33 -0500 (EST)
-From: Chuck Lever <cel@monkey.org>
-Subject: possible brw_page optimization
-Message-ID: <Pine.BSO.4.10.10001211508270.26216-100000@funky.monkey.org>
+Date: Fri, 21 Jan 2000 20:18:36 +0100 (CET)
+From: Rik van Riel <riel@nl.linux.org>
+Subject: Re: [PATCH] 2.2.1{3,4,5} VM fix
+In-Reply-To: <Pine.LNX.4.21.0001211353200.486-100000@alpha.random>
+Message-ID: <Pine.LNX.4.10.10001212016180.301-100000@mirkwood.dummy.home>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Andrea Arcangeli <andrea@suse.de>
+Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, Linux Kernel <linux-kernel@vger.rutgers.edu>, Linux MM <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-i've been exploring swap compaction and encryption, and found that
-brw_page wants to break pages into buffer-sized pieces in order to
-schedule I/O.  the logic wants to eliminate unnecessary I/O requests, so
-it checks each buffer to see if it is up to date; it doesn't schedule
-reads for buffers that are already up to date.  all buffers are scheduled
-unconditionally during a write request.
+On Fri, 21 Jan 2000, Andrea Arcangeli wrote:
 
-for compaction or encryption, all buffers must be read in order to get the
-whole page and decrypt or decompress it, so i'd like to make
-brw_page(READ) read all buffers for a page unconditionally, just like
-brw_page(WRITE).  at first, i thought a simple flag could request this
-change in behavior.
+> Since 2.1.x all GFP_KERNEL allocations (not atomic) succeed too.
 
-however, looking at brw_page's callers, brw_page(READ) in 2.3.39+ is only
-invoked on fresh pages, so i can't see where it's possible to not read all
-the buffers for a page in brw_page.  seems like the following is a
-potential common case optimization of brw_page, with no loss of
-performance.
+Alan, I think we've located the bug that made 2.2 kernels
+run completely out of memory :)
 
-what issues am i missing?
+Andrea, the last few pages are meant for ATOMIC and
+PF_MEMALLOC allocations only, otherwise you'll get
+deadlock situations.
 
-int brw_page(int rw, struct page *page, kdev_t dev, int b[], int size)
-{
-	struct buffer_head *head, *bh, *arr[MAX_BUF_PER_PAGE];
-	int block, nr = 0;
+And don't point me at buggy code that crashes if its
+GFP_KERNEL allocation fails. That same code would
+also crash if it were allowed to fill up freepages.min
+and then run really out of memory...
 
-	/*
-	 * We pretty much rely on the page lock for this, because
-	 * create_page_buffers() might sleep.
-	 */
-	if (!page->buffers)
-		create_page_buffers(rw, page, dev, b, size);
+regards,
 
-	head = page->buffers;
-	bh = head;
-	do {
-		arr[nr++] = bh;
-		atomic_inc(&bh->b_count);
-
-		if (rw == WRITE ) {
-			block = *(b++);
-			if (!bh->b_blocknr)
-				bh->b_blocknr = block;
-
-			set_bit(BH_Uptodate, &bh->b_state);
-			set_bit(BH_Dirty, &bh->b_state);
-		}
-
-		bh = bh->b_this_page;
-	} while (bh != head);
-
-	ll_rw_block(rw, nr, arr);
-	if (rw == READ)
-		++current->maj_flt;
-
-	return 0;
-}
-
-	- Chuck Lever
+Rik
 --
-corporate:	<chuckl@netscape.com>
-personal:	<chucklever@netscape.net> or <cel@monkey.org>
-
-The Linux Scalability project:
-	http://www.citi.umich.edu/projects/linux-scalability/
+The Internet is not a network of computers. It is a network
+of people. That is its real strength.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
