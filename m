@@ -1,56 +1,31 @@
-Date: Wed, 30 May 2001 19:51:03 -0300 (BRT)
-From: Marcelo Tosatti <marcelo@conectiva.com.br>
-Subject: Re: Plain 2.4.5 VM
-In-Reply-To: <l03130306b73b215af2d5@[192.168.239.105]>
-Message-ID: <Pine.LNX.4.21.0105301939480.14444-100000@freak.distro.conectiva>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Thu, 31 May 2001 19:17:30 +0200
+From: Ingo Oeser <ingo.oeser@informatik.tu-chemnitz.de>
+Subject: Re: http://ds9a.nl/cacheinfo project - please comment & improve
+Message-ID: <20010531191729.E754@nightmaster.csn.tu-chemnitz.de>
+References: <20010527222020.A25390@home.ds9a.nl> <Pine.LNX.4.21.0105301648290.5231-100000@freak.distro.conectiva> <20010530234806.C8629@home.ds9a.nl>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20010530234806.C8629@home.ds9a.nl>; from ahu@ds9a.nl on Wed, May 30, 2001 at 11:48:06PM +0200
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jonathan Morton <chromi@cyberspace.org>
-Cc: Rik van Riel <riel@conectiva.com.br>, Mark Hahn <hahn@coffee.psychology.mcmaster.ca>, linux-mm@kvack.org
+To: bert hubert <ahu@ds9a.nl>
+Cc: Marcelo Tosatti <marcelo@conectiva.com.br>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On Wed, May 30, 2001 at 11:48:06PM +0200, bert hubert wrote:
+> Oh, if anybody has ideas on statistics that should be exported, please let
+> me know. On the agenda is a bitmap that describes which pages are actually
+> in the cache.
 
-On Wed, 30 May 2001, Jonathan Morton wrote:
+You mean sth. like the mincore() syscall?
 
-> >The "getting rid of it" above consists of 2 parts:
-> >
-> >1) moving the page to the active list, where
-> >   refill_inactive_scan will age it
-> 
-> Ummm...  I don't see any movement of pages to the "active" list in
-> try_to_swap_out().
+Regards
 
-Hum? Increasing the page age will move it to the active list (indirectly,
-of course) if it is already a swap cache page.
-
-Otherwise the page will be added to the swapcache (which means it will be
-added to the active list). 
-
-> Instead, I see some very direct attempts to push the
-> page onto backing store by some means.  In the stock kernel, this is done
-> solely on the status of a single bit in the PTE, regardless of page->age or
-> it's position on any particular list.
-
-Allocating swap space for a page and adding the page to the swap cache
-will not add it to the backing store immediately. 
-
-> IOW, all the fannying around with page->age really has very little (if any)
-> effect on the paging behaviour when it matters most - when memory pressure
-> is so intense that kswapd is looping. 
-
-Jonathan,
-
-kswapd should never loop in the first place.
-
-We have to limit aging.
-
-With the current behaviour of the kernel, _all_ tasks are aging each
-others pages when memory pressure is really high (apart from kswapd
-possibly looping).
-
-
+Ingo Oeser
+-- 
+To the systems programmer,
+users and applications serve only to provide a test load.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
