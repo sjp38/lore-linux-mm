@@ -1,35 +1,35 @@
-Received: from Galois.suse.de (Zuse.suse.de [195.125.217.2])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id JAA02261
-	for <linux-mm@kvack.org>; Thu, 26 Mar 1998 09:47:04 -0500
-Date: Thu, 26 Mar 1998 15:44:50 +0100
-Message-Id: <199803261444.PAA01409@boole.suse.de>
-From: "Dr. Werner Fink" <werner@suse.de>
-In-reply-to: <Pine.LNX.3.91.980326150617.566A-100000@mirkwood.dummy.home>
-	(message from Rik van Riel on Thu, 26 Mar 1998 15:08:12 +0100 (MET))
-Subject: Re: [PATCH] linux-2.1.91-pre2 crash fixed
+Received: from neon.transmeta.com (neon-best.transmeta.com [206.184.214.10])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id MAA02946
+	for <linux-mm@kvack.org>; Thu, 26 Mar 1998 12:39:54 -0500
+Date: Thu, 26 Mar 1998 09:39:11 -0800 (PST)
+From: Linus Torvalds <torvalds@transmeta.com>
+Subject: Re: [PATCH] swapout speedup 2.1.91-pre2
+In-Reply-To: <Pine.LNX.3.91.980326121934.19975A-100000@mirkwood.dummy.home>
+Message-ID: <Pine.LNX.3.95.980326093755.32429H-100000@penguin.transmeta.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: H.H.vanRiel@fys.ruu.nl
-Cc: torvalds@transmeta.com, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
+To: Rik van Riel <H.H.vanRiel@fys.ruu.nl>
+Cc: linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
 
-> I've found a small typo in mm/filemap.c, which prevented
-> proper operation of the VM subsystem and, in effect, threw
-> kswapd in a loop.
+
+On Thu, 26 Mar 1998, Rik van Riel wrote:
 > 
-> In effect, it refused to free buffer memory when it was
-> _above_ the minimum percentage :)
+> here's the speedup patch I promised earlier.
+> It:
+> - increases tries when we're tight on memory
+> - clusters swapouts from user programs (to save disk movement)
+> - wraps the above in a nice inline
+> 
+> NOTE: this patch is untested, but otherwise completely trivial :)
 
-This small type with its enormous effect I've mentioned a hour ago or so :)
+Ok, this looks more like the kind of algorithms I wanted. I alread knew
+that the hardcoded "50" was wrong, your heuristic looks sensible (with the
+modification you already sent to make it slightly less aggressive). 
 
+Anyway, I'm fairly happy with this kind of setup, I'll make a real 2.1.91
+soonish,
 
-BTW: Rik? I've a simple suggestion for the calculation of the number of
-     free pages.  After the last kernel driver has done its allocation
-     it would be usefull to remember the number of free pages with
-     a global variable num_availpages and use this one instead of
-     num_physpages for the most memory management operations.
-     This would give a better protection for systems with less amount of
-     physical ram to be out of the choosen limits for the VM subsystem.
-
-
-              Werner
+		Linus
