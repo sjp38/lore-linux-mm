@@ -1,117 +1,31 @@
-Received: from localhost (jerrell@localhost)
-	by jerrell.lowell.mclinux.com (8.9.3/8.9.3) with ESMTP id LAA12646
-	for <linux-mm@kvack.org>; Mon, 2 Apr 2001 11:17:26 -0400
-Date: Mon, 2 Apr 2001 11:17:26 -0400 (EDT)
-From: Richard Jerrell <jerrell@missioncriticallinux.com>
-Subject: Re: [PATCH] Reclaim orphaned swap pages
-Message-ID: <Pine.LNX.4.21.0104021102290.12558-200000@jerrell.lowell.mclinux.com>
+Date: Mon, 2 Apr 2001 20:17:50 +0200 (MET DST)
+From: Szabolcs Szakacsits <szaka@f-secure.com>
+Subject: Re: [PATCH] Reclaim orphaned swap pages 
+Message-ID: <Pine.LNX.4.30.0104021952000.406-100000@fs131-224.f-secure.com>
 MIME-Version: 1.0
-Content-Type: MULTIPART/MIXED; BOUNDARY="17458952-374389372-986224646=:12558"
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Richard Jerrell <jerrell@missioncriticallinux.com>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
---17458952-374389372-986224646=:12558
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+> From what I can see of the patch vm_enough_memory will still fail
+> causing premature oom
 
->From what I can see of the patch vm_enough_memory will still fail causing
-premature oom merely because those pages haven't been accounted for as
-free.  The checking should probably be done in page_launder, too, to
-prevent the write at that level.  Also, the page count might be two,
-depending on if you have buffers.  The attached patch should work just
-fine and remove these pages as quickly as possible.  I sent it out to the
-kernel list on the 27th in response to Stephen Tweedie's point that exit
-path deletion was slow, but I guess it belongs here.
+Actually if vm_enough_memory fails that prevents oom, apps get ENOMEM
+instead of killed by oom_kill later. Moreover vm_enough_memory is long
+different and apparently it's just overestimating free pages that makes
+people unhappy with the resulted higher oom_kill/ENOMEM rate. If you
+want to prevent premature oom you should patch out_of_memory but be
+careful if you overestimate you can/will lockup. Anyway I think the
+right place for oom_kill would be in the page fault handler [just as for
+early kernels] but this needs a small change in __alloc_pages otherwise
+processes get stuck there [see goto try_again] when system is low on
+memory.
 
-Rich
+	Szaka
 
---17458952-374389372-986224646=:12558
-Content-Type: TEXT/PLAIN; charset=US-ASCII; name="2.4.1-paging-fix-27.03.01.patch"
-Content-Transfer-Encoding: BASE64
-Content-ID: <Pine.LNX.4.21.0104021117260.12558@jerrell.lowell.mclinux.com>
-Content-Description: 
-Content-Disposition: attachment; filename="2.4.1-paging-fix-27.03.01.patch"
-
-ZGlmZiAtck51IGxpbnV4LTIuNC4xL2luY2x1ZGUvbGludXgvc3dhcC5oIGxp
-bnV4LTIuNC4xLXBhZ2luZy1maXgvaW5jbHVkZS9saW51eC9zd2FwLmgNCi0t
-LSBsaW51eC0yLjQuMS9pbmNsdWRlL2xpbnV4L3N3YXAuaAlUdWUgSmFuIDMw
-IDAyOjI0OjU2IDIwMDENCisrKyBsaW51eC0yLjQuMS1wYWdpbmctZml4L2lu
-Y2x1ZGUvbGludXgvc3dhcC5oCVR1ZSBNYXIgMjcgMTQ6MDA6MTcgMjAwMQ0K
-QEAgLTY5LDYgKzY5LDcgQEANCiBGQVNUQ0FMTCh1bnNpZ25lZCBpbnQgbnJf
-ZnJlZV9idWZmZXJfcGFnZXModm9pZCkpOw0KIGV4dGVybiBpbnQgbnJfYWN0
-aXZlX3BhZ2VzOw0KIGV4dGVybiBpbnQgbnJfaW5hY3RpdmVfZGlydHlfcGFn
-ZXM7DQorZXh0ZXJuIGludCBucl9zd2FwX2NhY2hlX3BhZ2VzOw0KIGV4dGVy
-biBhdG9taWNfdCBucl9hc3luY19wYWdlczsNCiBleHRlcm4gc3RydWN0IGFk
-ZHJlc3Nfc3BhY2Ugc3dhcHBlcl9zcGFjZTsNCiBleHRlcm4gYXRvbWljX3Qg
-cGFnZV9jYWNoZV9zaXplOw0KZGlmZiAtck51IGxpbnV4LTIuNC4xL21tL21t
-YXAuYyBsaW51eC0yLjQuMS1wYWdpbmctZml4L21tL21tYXAuYw0KLS0tIGxp
-bnV4LTIuNC4xL21tL21tYXAuYwlNb24gSmFuIDI5IDExOjEwOjQxIDIwMDEN
-CisrKyBsaW51eC0yLjQuMS1wYWdpbmctZml4L21tL21tYXAuYwlUdWUgTWFy
-IDI3IDEwOjM4OjE3IDIwMDENCkBAIC02Myw2ICs2Myw3IEBADQogCWZyZWUg
-Kz0gYXRvbWljX3JlYWQoJnBhZ2VfY2FjaGVfc2l6ZSk7DQogCWZyZWUgKz0g
-bnJfZnJlZV9wYWdlcygpOw0KIAlmcmVlICs9IG5yX3N3YXBfcGFnZXM7DQor
-CWZyZWUgKz0gbnJfc3dhcF9jYWNoZV9wYWdlczsNCiAJcmV0dXJuIGZyZWUg
-PiBwYWdlczsNCiB9DQogDQpkaWZmIC1yTnUgbGludXgtMi40LjEvbW0vc3dh
-cF9zdGF0ZS5jIGxpbnV4LTIuNC4xLXBhZ2luZy1maXgvbW0vc3dhcF9zdGF0
-ZS5jDQotLS0gbGludXgtMi40LjEvbW0vc3dhcF9zdGF0ZS5jCUZyaSBEZWMg
-MjkgMTg6MDQ6MjcgMjAwMA0KKysrIGxpbnV4LTIuNC4xLXBhZ2luZy1maXgv
-bW0vc3dhcF9zdGF0ZS5jCVR1ZSBNYXIgMjcgMTA6NDE6MDQgMjAwMQ0KQEAg
-LTE3LDYgKzE3LDggQEANCiANCiAjaW5jbHVkZSA8YXNtL3BndGFibGUuaD4N
-CiANCitpbnQgbnJfc3dhcF9jYWNoZV9wYWdlcyA9IDA7DQorDQogc3RhdGlj
-IGludCBzd2FwX3dyaXRlcGFnZShzdHJ1Y3QgcGFnZSAqcGFnZSkNCiB7DQog
-CXJ3X3N3YXBfcGFnZShXUklURSwgcGFnZSwgMCk7DQpAQCAtNTgsNiArNjAs
-NyBAQA0KICNpZmRlZiBTV0FQX0NBQ0hFX0lORk8NCiAJc3dhcF9jYWNoZV9h
-ZGRfdG90YWwrKzsNCiAjZW5kaWYNCisJbnJfc3dhcF9jYWNoZV9wYWdlcysr
-Ow0KIAlpZiAoIVBhZ2VMb2NrZWQocGFnZSkpDQogCQlCVUcoKTsNCiAJaWYg
-KFBhZ2VUZXN0YW5kU2V0U3dhcENhY2hlKHBhZ2UpKQ0KQEAgLTk2LDYgKzk5
-LDcgQEANCiAjaWZkZWYgU1dBUF9DQUNIRV9JTkZPDQogCXN3YXBfY2FjaGVf
-ZGVsX3RvdGFsKys7DQogI2VuZGlmDQorCW5yX3N3YXBfY2FjaGVfcGFnZXMt
-LTsNCiAJcmVtb3ZlX2Zyb21fc3dhcF9jYWNoZShwYWdlKTsNCiAJc3dhcF9m
-cmVlKGVudHJ5KTsNCiB9DQpkaWZmIC1yTnUgbGludXgtMi40LjEvbW0vdm1z
-Y2FuLmMgbGludXgtMi40LjEtcGFnaW5nLWZpeC9tbS92bXNjYW4uYw0KLS0t
-IGxpbnV4LTIuNC4xL21tL3Ztc2Nhbi5jCU1vbiBKYW4gMTUgMTU6MzY6NDkg
-MjAwMQ0KKysrIGxpbnV4LTIuNC4xLXBhZ2luZy1maXgvbW0vdm1zY2FuLmMJ
-VHVlIE1hciAyNyAxNDozNzoxOCAyMDAxDQpAQCAtMzk0LDYgKzM5NCwyMSBA
-QA0KIAlyZXR1cm4gcGFnZTsNCiB9DQogDQorLyoqIA0KKyAqIFNob3J0LWNp
-cmN1aXRzIHRoZSBkZWFkIHN3YXAgY2FjaGUgcGFnZSB0byBwcmV2ZW50DQor
-ICogdW5uZWNlc3NhcnkgZGlzayBJTw0KKyAqLw0KK3N0YXRpYyBpbmxpbmUg
-dm9pZCBkZWxldGVfZGVhZF9zd2FwX2NhY2hlX3BhZ2Uoc3RydWN0IHBhZ2Ug
-KnBhZ2UpIHsNCisJaWYgKGJsb2NrX2ZsdXNocGFnZShwYWdlLCAwKSkNCisJ
-CWxydV9jYWNoZV9kZWwocGFnZSk7DQorCQ0KKwlDbGVhclBhZ2VEaXJ0eShw
-YWdlKTsNCisJc3Bpbl91bmxvY2soJnBhZ2VtYXBfbHJ1X2xvY2spOw0KKwlf
-X2RlbGV0ZV9mcm9tX3N3YXBfY2FjaGUocGFnZSk7DQorCXNwaW5fbG9jaygm
-cGFnZW1hcF9scnVfbG9jayk7DQorCXBhZ2VfY2FjaGVfcmVsZWFzZShwYWdl
-KTsNCit9DQorDQogLyoqDQogICogcGFnZV9sYXVuZGVyIC0gY2xlYW4gZGly
-dHkgaW5hY3RpdmUgcGFnZXMsIG1vdmUgdG8gaW5hY3RpdmVfY2xlYW4gbGlz
-dA0KICAqIEBnZnBfbWFzazogd2hhdCBvcGVyYXRpb25zIHdlIGFyZSBhbGxv
-d2VkIHRvIGRvDQpAQCAtNDY3LDYgKzQ4MiwyNCBAQA0KIAkJfQ0KIA0KIAkJ
-LyoNCisJCSAqIFByZXZlbnQgYSBkZWFkIHByb2Nlc3MncyBwYWdlcyBmcm9t
-IGJlaW5nDQorCQkgKiB3cml0dGVuIHRvIHN3YXAgd2hlbiBubyBvbmUgZWxz
-ZSBuZWVkcw0KKwkJICogdGhlbS4gIExhenkgZm9ybSBvZiByZW1vdmluZyB0
-aGVzZSBwYWdlcw0KKwkJICogYXQgZXhpdCB0aW1lLg0KKwkJICovDQorCQlp
-ZiAoUGFnZVN3YXBDYWNoZShwYWdlKSkgew0KKwkJCXBhZ2VfY2FjaGVfZ2V0
-KHBhZ2UpOw0KKwkJCWlmKCFpc19wYWdlX3NoYXJlZChwYWdlKSkgew0KKyAg
-ICAgICAgCQkJZGVsZXRlX2RlYWRfc3dhcF9jYWNoZV9wYWdlKHBhZ2UpOw0K
-Kw0KKwkJCQlVbmxvY2tQYWdlKHBhZ2UpOw0KKwkJCQlwYWdlX2NhY2hlX3Jl
-bGVhc2UocGFnZSk7DQorCQkJCWNvbnRpbnVlOw0KKwkJCX0NCisJCQlwYWdl
-X2NhY2hlX3JlbGVhc2UocGFnZSk7DQorCQl9DQorDQorCQkvKg0KIAkJICog
-RGlydHkgc3dhcC1jYWNoZSBwYWdlPyBXcml0ZSBpdCBvdXQgaWYNCiAJCSAq
-IGxhc3QgY29weS4uDQogCQkgKi8NCkBAIC02NTAsNiArNjgzLDI0IEBADQog
-CQkJbGlzdF9kZWwocGFnZV9scnUpOw0KIAkJCW5yX2FjdGl2ZV9wYWdlcy0t
-Ow0KIAkJCWNvbnRpbnVlOw0KKwkJfQ0KKw0KKwkJLyoNCisJCSAqIFByZXZl
-bnQgYSBkZWFkIHByb2Nlc3MncyBwYWdlcyBmcm9tIGJlaW5nDQorCQkgKiB3
-cml0dGVuIHRvIHN3YXAgd2hlbiBubyBvbmUgZWxzZSBuZWVkcw0KKwkJICog
-dGhlbS4gIExhenkgZm9ybSBvZiByZW1vdmluZyB0aGVzZSBwYWdlcw0KKwkJ
-ICogYXQgZXhpdCB0aW1lLg0KKwkJICovDQorCQlpZiAoUGFnZVN3YXBDYWNo
-ZShwYWdlKSkgew0KKwkJCXBhZ2VfY2FjaGVfZ2V0KHBhZ2UpOw0KKwkJCWlm
-KCFpc19wYWdlX3NoYXJlZChwYWdlKSAmJiAhVHJ5TG9ja1BhZ2UocGFnZSkp
-IHsNCisJCQkJZGVsZXRlX2RlYWRfc3dhcF9jYWNoZV9wYWdlKHBhZ2UpOw0K
-Kw0KKwkJCQlVbmxvY2tQYWdlKHBhZ2UpOw0KKwkJCQlwYWdlX2NhY2hlX3Jl
-bGVhc2UocGFnZSk7DQorCQkJCWNvbnRpbnVlOw0KKwkJCX0NCisJCQlwYWdl
-X2NhY2hlX3JlbGVhc2UocGFnZSk7DQogCQl9DQogDQogCQkvKiBEbyBhZ2lu
-ZyBvbiB0aGUgcGFnZXMuICovDQo=
---17458952-374389372-986224646=:12558--
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
