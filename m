@@ -1,43 +1,36 @@
-Message-Id: <l03130306b705d43ce2c0@[192.168.239.105]>
+Message-Id: <l03130304b705d2c78ae5@[192.168.239.105]>
 In-Reply-To: 
-        <Pine.LNX.4.30.0104201203280.20939-100000@fs131-224.f-secure.com>
-References: <mibudt848g9vrhaac88qjdpnaut4hajooa@4ax.com>
+        <Pine.LNX.4.30.0104201414400.20939-100000@fs131-224.f-secure.com>
+References: 
+        <Pine.LNX.4.33.0104191609500.17635-100000@duckman.distro.conectiva>
 Mime-Version: 1.0
-Content-Type: text/plain; charset="iso-8859-1"
-Content-Transfer-Encoding: 8BIT
-Date: Fri, 20 Apr 2001 13:02:11 +0100
+Content-Type: text/plain; charset="us-ascii"
+Date: Fri, 20 Apr 2001 12:50:05 +0100
 From: Jonathan Morton <chromi@cyberspace.org>
 Subject: Re: suspend processes at load (was Re: a simple OOM ...)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Szabolcs Szakacsits <szaka@f-secure.com>, "James A. Sutherland" <jas88@cam.ac.uk>
-Cc: Dave McCracken <dmc@austin.ibm.com>, linux-mm@kvack.org
+To: Szabolcs Szakacsits <szaka@f-secure.com>, Rik van Riel <riel@conectiva.com.br>
+Cc: Dave McCracken <dmc@austin.ibm.com>, "James A. Sutherland" <jas88@cam.ac.uk>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
->> More to the point, though, what about the worst case, where every
->> process is thrashing?
+>> Actually, this idea must have been in Unix since about
+>> Bell Labs v5 Unix, possibly before.
 >
->What about the simplest case when one process thrasing? You suspend it
->continuously from time to time so it won't finish e.g. in 10 minutes but
->in 1 hour.
+>When people were happy they could sit down in front of a computer. But
+>world changed since then. Users expectations are much higher, they want
+>[among others] latency and high availability.
+>
+>> This is not a new idea, it's an old solution to an old
+>> problem; it even seems to work quite well.
+>
+>Seems for who? AIX? "DON'T TOUCH IT!" I think HP-UX also has and it's
+>not famous because of its stability. Sure, not because of this but maybe
+>sometimes it contributes, maybe its design contributes, maybe its
+>designers contribute.
 
-One process thrashing, lots of other processes behaving sensibly.  With the
-current page-replacement policy, active memory belonging to well-behaved
-processes will be regularly paged out (a Bad Thing?), whether the thrashing
-process is suspended periodically or not.  The suspensions simply reduce
-the frequency of this a little.
-
-Where *every* process is thrashing, you have to suspend lots of processes
-in order to get the rest to run.  Also, every time you change the set of
-suspended processes, you have to wait for the VM to settle before the peak
-useful work is being done again, and even longer than that before you can
-sensibly change the set of suspended processes again.  This is *very*
-granular - of the order of tens of seconds for a medium-sized PC-type
-computer.
-
-We need a better page-replacement algorithm, and I think my suggestion goes
-some way towards that.  Who knows, I might even attempt to implement it
-next week...
+Well, OK, let's look at a commercial UNIX known for stability at high load:
+Solaris.  How does Solaris handle thrashing?
 
 --------------------------------------------------------------
 from:     Jonathan "Chromatix" Morton
