@@ -1,77 +1,95 @@
-Message-ID: <32779.213.7.62.75.997402832.squirrel@webmail.hbesoftware.com>
-Date: Thu, 9 Aug 2001 20:20:32 -0400 (EDT)
+Content-Type: text/plain;
+  charset="iso-8859-1"
+From: Ed Tomlinson <tomlins@cam.org>
 Subject: Re: 2.4.8-pre7: still buffer cache problems
-From: "marc heckmann" <heckmann@hbesoftware.com>
-In-Reply-To: <Pine.LNX.4.33L.0108091749580.1439-100000@duckman.distro.conectiva>
+Date: Thu, 9 Aug 2001 21:52:50 -0400
 References: <Pine.LNX.4.33L.0108091749580.1439-100000@duckman.distro.conectiva>
+In-Reply-To: <Pine.LNX.4.33L.0108091749580.1439-100000@duckman.distro.conectiva>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
 Content-Transfer-Encoding: 8bit
+Message-Id: <20010810015251.7DBC193B8@oscar.casa.dyndns.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: riel@conectiva.com.br
-Cc: heckmann@hbesoftware.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Rik van Riel <riel@conectiva.com.br>, marc heckmann <heckmann@hbesoftware.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> 
+Hi Rik,
+
+This has nice effects here.  With 320M memory starting a tob backup would put 
+about 120M in the buffer cache.  With this applied it peaks at about 60M - the
+system also remains more interactive.
+
+If buffer_mem.borrow_percent is not used anywhere else suggest we reduce the
+default percentage a bit more and see if things get even better.
+
+Thoughts
+
+Ed Tomlinson
+
+On August 9, 2001 04:55 pm, Rik van Riel wrote:
+> On Thu, 9 Aug 2001, marc heckmann wrote:
+> > While 2.4.8-pre7 definitely fixes the "dd if=/dev/zero
+> > of=bigfile bs=1000k count=bignumber" case. The "dd if=/dev/hda
+> > of=/dev/null" is still quite broken for me.
+>
 > OK, there is no obvious way to do do drop-behind on
 > buffer cache pages, but I think we can use a quick
 > hack to make the system behave well under the presence
 > of large amounts of buffer cache pages.
-> 
+>
 > What we could do is, in refill_inactive_scan(), just
 > moving buffer cache pages to the inactive list regardless
 > of page aging when there are too many buffercache pages
 > around in the system.
-> 
+>
 > Does the patch below help you ?
-
-well, the buffer cache still got huge and the system still swapped out like
-mad, but it seemed like the buffer cache grew _slower_ and that the vm was
-more fair towards other vm users. so interactivity was better but still far
-from 2.2. and then it oops'ed [I don't think it was because of your patch
-though..]:
-
-
-Oops: kernel access of bad area, sig: 11
-NIP: C005DEDC XER: 00000000 LR: C005B78C SP: C1251E10 REGS: c1251d60 TRAP: 0300
-Using defaults from ksymoops -t elf32-powerpc -a powerpc:common
-MSR: 00009032 EE: 1 PR: 0 FP: 0 ME: 1 IR/DR: 11
-TASK = c1250000[1386] 'vmstat' Last syscall: 3 
-last math c4568000 last altivec 00000000
-GPR00: 00002000 C1251E10 C1250000 C8CC8000 C7262000 C01536F0 C5549880 00000000 
-GPR08: 00007262 7FFFE000 00000000 00000000 84004883 10019BEC 7FFFF678 7FFFF680 
-GPR16: 00000000 00000000 C7262000 00000052 00000625 00000440 00000000 C8CC8232 
-GPR24: C0003CE0 7FFFF634 0020D000 C1251EA8 C1251EA0 C681A67C C681A660 C8CC8000 
-Call backtrace: 
-C58631A0 C005B78C C003A980 C0003D3C 1000141C 10000E18 0FEB5308 
-00000000 
-Warning (Oops_read): Code line not seen, dumping what data is available
-
->>NIP; c005dedc <proc_pid_stat+104/300>   <=====
-Trace; c58631a0 <_end+567567c/d64853c>
-Trace; c005b78c <proc_info_read+74/19c>
-Trace; c003a980 <sys_read+c8/114>
-Trace; c0003d3c <ret_from_syscall_1+0/b4>
-Trace; 1000141c Before first symbol
-Trace; 10000e18 Before first symbol
-Trace; 0feb5308 Before first symbol
-Trace; 00000000 Before first symbol
-
-
-20 warnings issued.  Results may not be reliable.
-
-Cheers,
-
--marc
-
--- 
-	Marc Heckmann <heckmann@hbe.ca>
-
-	C3C5 9226 3C03 CDF7 2EF1  029F 4CAD FBA4 F5ED 68EB
-	key: http://people.hbesoftware.com/~heckmann/
-
-
+>
+> regards,
+>
+> Rik
+> --
+> IA64: a worthy successor to the i860.
+>
+> 		http://www.surriel.com/
+> http://www.conectiva.com/	http://distro.conectiva.com/
+>
+>
+> --- linux-2.4.7-ac7/mm/vmscan.c.buffer	Thu Aug  9 17:54:24 2001
+> +++ linux-2.4.7-ac7/mm/vmscan.c	Thu Aug  9 17:55:09 2001
+> @@ -708,6 +708,8 @@
+>   * This function will scan a portion of the active list to find
+>   * unused pages, those pages will then be moved to the inactive list.
+>   */
+> +#define too_many_buffers (atomic_read(&buffermem_pages) > \
+> +		(num_physpages * buffer_mem.borrow_percent / 100))
+>  int refill_inactive_scan(zone_t *zone, unsigned int priority, int target)
+>  {
+>  	struct list_head * page_lru;
+> @@ -770,6 +772,18 @@
+>  				page_active = 1;
+>  			}
+>  		}
+> +
+> +		/*
+> +		 * If the amount of buffer cache pages is too
+> +		 * high we just move every buffer cache page we
+> +		 * find to the inactive list. Eventually they'll
+> +		 * be reclaimed there...
+> +		 */
+> +		if (page->buffers && !page->mapping && too_many_buffers) {
+> +			deactivate_page_nolock(page);
+> +			page_active = 0;
+> +		}
+> +
+>  		/*
+>  		 * If the page is still on the active list, move it
+>  		 * to the other end of the list. Otherwise we exit if
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
