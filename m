@@ -1,46 +1,59 @@
-From: "Mark" <Jonelistinger@citiz.net>
-Subject: Marketing Service
+Date: Tue, 15 Feb 2005 12:53:03 +0100
+From: Andi Kleen <ak@suse.de>
+Subject: Re: [RFC 2.6.11-rc2-mm2 0/7] mm: manual page migration -- overview
+Message-ID: <20050215115302.GB19586@wotan.suse.de>
+References: <20050212032535.18524.12046.26397@tomahawk.engr.sgi.com> <m1vf8yf2nu.fsf@muc.de> <42114279.5070202@sgi.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset="ISO-8859-1"
-Date: Tue, 15 Feb 2005 19:14:39 +0800
-Reply-To: "Mark" <Sales@30600.com>
-Content-Transfer-Encoding: 8bit
-Message-Id: <20050215111747Z26562-20892+331@kvack.org>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <42114279.5070202@sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Ray Bryant <raybry@sgi.com>
+Cc: Andi Kleen <ak@muc.de>, Ray Bryant <raybry@austin.rr.com>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, stevel@mvista.com
 List-ID: <linux-mm.kvack.org>
 
-To linux-mm@kvack.org:
+> (1)  You really don't want to migrate the code pages of shared libraries
+>      that are mapped into the process address space.  This causes a
+>      useless shuffling of pages which really doesn't help system
+>      performance.  On the other hand, if a shared library is some
+>      private thing that is only used by the processes being migrated,
+>      then you should move that.
 
-Email is the best promote tool.
+I think the better solution for this would be to finally integrate Steve L.'s 
+file attribute code (and find some solution to make it persistent,
+e.g. using xattrs with a new inode flag) and then "lock" the shared 
+libraries to their policy using a new attribute flag.
 
-We offer Email Marketing with quality service.
+> 
+> (2)  You really only want to migrate pages once.  If a file is mapped
+>      into several of the pid's that are being migrated, then you want
+>      to figure this out and issue one call to have it moved wrt one of
+>      the pid's.
+>      (The page migration code from the memory hotplug patch will handle
+>      updating the pte's of the other processs (thank goodness for
+>      rmap...))
 
-1. Target Email Addresses
+I don't get this. Surely the migration code will check if a page
+is already in the target node, and when that is the case do nothing.
 
-We can provide target e-mail addresses you need, which are compiled 
-only on your order. We will customize your client email addresses.
+How could this "double migration" happen? 
 
-* We have millions of email addresses in a wide variety of categories.
+> 
+> (3)  In the case where a particular file is mapped into different
+>      processes at different file offsets (and we are migrating both
+>      of the processes), one has to examine the file offsets to figure
+>      out if the mappings overlap or not. If they overlap, then you've
+>      got to issue two calls, each of which describes a non-overlapping
+>      region; both calls taken together would cover the entire range
+>      of pages mapped to the file.  Similarly if the ranges do not
+>      overlap.
 
-2. Send out Target Emails for you
+That sounds like a quite obscure corner case which I'm not sure
+is worth all the complexity.
 
-We can send your email message to your target clients! We will
-customize your email addresses and send your message for you.
+-Andi
 
-More information: www.marketingforme.com
-
-* We also offer Web Hosting & mail dedicated server.
-
-
-Regards!
-
-Mark
-Sale Support
-Sales@marketingforme.com
-
-No Thanks: AuYou@Hotmail.com?subject=linux-mm@kvack.org
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
