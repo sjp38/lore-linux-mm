@@ -1,56 +1,54 @@
-Subject: Re: 2.5.33-mm4 filemap_copy_from_user: Unexpected page fault
-From: Steven Cole <elenstev@mesatop.com>
-In-Reply-To: <3D78E79B.78B202DE@zip.com.au>
-References: <3D78DD07.E36AE3A9@zip.com.au>
-	<1031331803.2799.178.camel@spc9.esa.lanl.gov>
-	<3D78E79B.78B202DE@zip.com.au>
-Content-Type: text/plain
-Content-Transfer-Encoding: 7bit
-Date: 06 Sep 2002 11:54:07 -0600
-Message-Id: <1031334847.2799.206.camel@spc9.esa.lanl.gov>
-Mime-Version: 1.0
+Content-Type: text/plain;
+  charset="iso-8859-1"
+From: Ed Tomlinson <tomlins@cam.org>
+Subject: Re: slablru for 2.5.32-mm1
+Date: Fri, 6 Sep 2002 07:39:27 -0400
+References: <Pine.LNX.4.44.0209052032410.30628-100000@loke.as.arizona.edu> <3D783156.68A088D1@zip.com.au>
+In-Reply-To: <3D783156.68A088D1@zip.com.au>
+MIME-Version: 1.0
+Content-Transfer-Encoding: 8bit
+Message-Id: <200209060739.27058.tomlins@cam.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@zip.com.au>
+To: Andrew Morton <akpm@zip.com.au>, Craig Kulesa <ckulesa@as.arizona.edu>
 Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2002-09-06 at 11:36, Andrew Morton wrote:
-> Steven Cole wrote:
-> > 
-> > ...
-> > > Does this fix?
-> > ...
-> > Unfortunately no.
-> 
-> Well, isn't this fun?  umm.  You're _sure_ you ran the right kernel
-> and such?
+On September 6, 2002 12:38 am, Andrew Morton wrote:
+> Craig Kulesa wrote:
+> > Ed Tomlinson wrote:
+> > >> Andrew Morton wrote:
+> > >>
+> > >> The patch does a zillion BUG->BUG_ON conversions in slab.c, which is a
+> > >> bit unfortunate, because it makes it a bit confusing to review.  Let's
+> > >> do that in a standalone patch next time ;)
+> > >
+> > > Yes.  I would have left the BUG_ONs till later.  Craig thought
+> > > otherwise.  I do agree two patches would have been better.
+> >
+> > I agree also.  I never imagined that patch would make it up the ladder
+> > before the BUG_ON's changes got split out into a separate patch.  Sorry!
+> > So... since I introduced the BUG_ON's, I thought I should clean it up.
+> >
+> > This is mostly for Ed and Andrew, but at:
+> >         http://loke.as.arizona.edu/~ckulesa/kernel/rmap-vm/2.5.33/
+> >
+> > you can get a copy of Andrew's slablru.patch from the 2.5.33-mm3 series
+> > where I have altered fs/dcache.c and mm/slab.c (whose patches otherwise
+> > apply cleanly to vanilla 2.5.33) to remove the BUG_ON changes.  It does
+> > reduce the size of the patch, and improves its readability considerably.
+> > Hope that helps.
+>
+> Thanks.  This patch is in Ed's hands at present - his call.
 
-Oops, forgot to include linux-mm on the earlier reply.
-Yes I am sure I ran the right kernel.
+Craig, Andrew wants to see if we can get something similar to slablru without
+using the lru.  Think its possible, its about half coded.  He also wants to 
+eliminate the 'lazy' release of slab pages.  The bottom line is that slablru
+is getting rewritten.  
 
-> 
-> Could you send your /proc/mounts, and tell me which of those partitions
-> you're running the test on?
-> 
-Here that is again, for the linux-mm list:
+Do you have the BUGON changes in a patch all by themselves?
 
-[steven@spc5 linux-2.5.33-mm4]$ cat /proc/mounts
-rootfs / rootfs rw 0 0
-/dev/root / ext3 rw 0 0
-/proc /proc proc rw 0 0
-none /dev/pts devpts rw 0 0
-/dev/sda5 /home ext3 rw 0 0
-none /dev/shm tmpfs rw 0 0
-/dev/sdb2 /share ext2 rw 0 0
-/dev/sda3 /usr ext3 rw 0 0
-
-
-Test were run on /home (ext3) with single exception of one earlier test
-on /share (ext2).
-
-Steven
-
+Ed
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
