@@ -1,23 +1,30 @@
-Date: Sun, 1 Jul 2001 02:47:23 +0200
-From: bert hubert <ahu@ds9a.nl>
-Subject: cinfo
-Message-ID: <20010701024723.A27744@home.ds9a.nl>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Date: Sat, 30 Jun 2001 21:35:06 -0700 (PDT)
+From: Linus Torvalds <torvalds@transmeta.com>
+Subject: Re: Removal of PG_marker scheme from 2.4.6-pre
+In-Reply-To: <Pine.LNX.4.21.0106301628570.3394-100000@freak.distro.conectiva>
+Message-ID: <Pine.LNX.4.33.0106302134050.1092-100000@penguin.transmeta.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Marcelo Tosatti <marcelo@conectiva.com.br>
+Cc: lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Of mild interest may be http://ds9a.nl/cinfo which uses mincore() to query
-the kernel pagecache. Supports Linux, FreeBSD, OpenBSD, Solaris and Mac OS
-X.
+On Sat, 30 Jun 2001, Marcelo Tosatti wrote:
+>
+> In pre7:
+>
+> "me: undo page_launder() LRU changes, they have nasty side effects"
+>
+> Can you be more verbose about this ?
 
--- 
-http://www.PowerDNS.com      Versatile DNS Services  
-Trilab                       The Technology People   
-'SYN! .. SYN|ACK! .. ACK!' - the mating call of the internet
+See the thread about 2.4.5-ac13+ (and my pre3+) basically becoming
+unusable for longish times (temporarily locking up) on linux-kernel. It
+was due to these changes.
+
+		Linus
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
