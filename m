@@ -1,329 +1,60 @@
-Date: Wed, 11 Feb 2004 12:44:08 -0800
-From: "Martin J. Bligh" <mbligh@aracnet.com>
-Subject: 2.6.2-mjb1
-Message-ID: <30760000.1076532248@[10.10.2.4]>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
+Date: Thu, 12 Feb 2004 00:53:45 +0100
+From: Philippe =?ISO-8859-15?Q?Gramoull=E9?=
+	<philippe.gramoulle@mmania.com>
+Subject: Re: 2.6.3-rc1-mm1
+Message-Id: <20040212005345.1805b1d3@philou.gramoulle.local>
+In-Reply-To: <20040209155823.6f884f23.akpm@osdl.org>
+References: <20040209014035.251b26d1.akpm@osdl.org>
+	<20040209151818.32965df6@philou.gramoulle.local>
+	<20040209155823.6f884f23.akpm@osdl.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=ISO-8859-15
+Content-Transfer-Encoding: 8BIT
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-kernel <linux-kernel@vger.kernel.org>
-Cc: linux-mm mailing list <linux-mm@kvack.org>
+To: Andrew Morton <akpm@osdl.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, "J. Bruce Fields" <bfields@fieldses.org>
 List-ID: <linux-mm.kvack.org>
 
-The patchset is meant to be pretty stable, not so much a testing ground.
-Main differences from mainline are:
-
-1. Better performance & resource consumption, particularly on larger machines.
-2. Diagnosis tools (kgdb, early_printk, etc).
-3. Updated arch support for AMD64 + PPC64.
-4. Better support for sound, especially OSS emulation over ALSA.
-5. Better support for video (v4l2, bttv, ivtv).
-6. Kexec support.
-
-I'd be very interested in feedback from anyone willing to test on any 
-platform, however large or small.
-
-ftp://ftp.kernel.org/pub/linux/kernel/people/mbligh/2.6.2/patch-2.6.2-mjb1.bz2
-
-Since 2.6.1-mjb1 (~ = changed, + = added, - = dropped)
-
-Notes:  
-
------------------------------------------------------------------------
-
-Now in Linus' tree:
-
-- ppc64_sched_clock_fix				Anton Blanchard / Paul Mackerras
-- ppc64_use_statfs64				Anton Blanchard
-- ppc64_compat_clock				Olaf Hering
-- ppc64_numa_sign_extn				Anton Blanchard
-- ppc64_IRQ_INPROGRESS_fix			Anton Blanchard
-- x86-64					Andi Kleen et al.
-- use_minus_p					Martin J Bligh
-- qlogic					Qlogic / Mike Anderson
-- pci_topology					Matt Dobson
-
-Dropped:
-
-- netdrvr_2.6.1_rc1_exp1				Jeff Garzik
-	(took netpoll subset instead)
-- sched_tunables					Robert Love
-	(needs update for sched_domains)
-- local_balance_exec				Martin J. Bligh
-	(needs rework / discard for sched_domains)
-- schedstat					Rick Lindsley
-- schedstat_arches				Rick Lindsley
-	Pending update for sched_domains code.
-- mbind_part1					Matt Dobson
-- mbind_part2					Matt Dobson
-	Pending update to new codebase.
-- sysfs_vs_dcache				Maneesh Soni
-	rolled in with in new codebase
-
-New:
-
-+ netpoll						Jeff Garzik / mpm
-	Polled net drivers for kgdb et al.
-
-+ ppc64_update						Anton Blanchard
-	PPC 64 update
-
-+ 4g_zap_low_mappings					Martin Lorenz
-	stop zap_low_mappings from being __init
-
-+ sched_domains						Nick Piggin
-	sched_domains code
-
-+ sched_balance_fix					Rick Lindsley
-	Fix balancing problem in the sched domains code.
-
-+ pfn_valid						Martin J. Bligh
-	Fix pfn_valid to cope with memory holes
-
-+ no_numa_pc						Martin J. Bligh
-	Disallow NUMA on PC subarch
-
-~ autoswap						Con Kolivas
-	Auto-tune swapiness (new version)
-
-+ sysfs_backing_store1					Maneesh Soni
-+ sysfs_backing_store2					Maneesh Soni
-+ sysfs_backing_store3					Maneesh Soni
-+ sysfs_backing_store4					Maneesh Soni
-+ sysfs_backing_store5					Maneesh Soni
-+ sysfs_backing_store6					Maneesh Soni
-	Sysfs backing store to stop it gobbling so much mem.
-
-+ export_cpu_2_node					Pat Mansfield
-	export cpu_2_node
-
-+ distribute_boot_allocs				Manfred Spraul
-	Distribute boot allocations across NUMA nodes
-
-+ config_acpi_numa					Martin J. Bligh
-	disable CONFIG_ACPI_NUMA for anything but ia64
-
-+ vma_statistics					Martin J. Bligh
-	Provide per VMA stats
-
-Pending:
-local_balance_exec
-reluctance in cross-node balance (less_bouncy)
-sched tunables patch
-emulex update
-NUMA membinding API
-x86_64 update
-config_numasched
-sched tunables (reinstante)
-list_of_lists
-Child runs first (akpm)
-Netdump
-Netconsole
-
-Present in this patch:
-
--mjb						Martin J. Bligh
-	Add a tag to the makefile
-
-netpoll						Jeff Garzik / mpm
-	Polled net drivers for kgdb et al.
-
-kgdb						Various
-	Stolen from akpm's 2.6.0-mm1, includes fixes
-
-kgdboe_netpoll					Matt Mackall et al.
-	Kgdb over ethernet support that works with the netpoll infrastructure
-
-kgdboe_build_fix				Andrew Morton
-	Fix kgdboe stuff so non-ia32 platforms build
-
-kgdb_x86_64					Jim Houston
-	Support kgdb on x86_64
-
-kgdb_gdb6_patches				Jim Houston
-	Patches for gdb to support kgdb on x86_64, under scripts/kgdb/
-
-ppc64_update					Anton Blanchard
-	PPC 64 update
-
-ppc64_reloc_hide				Anton Blanchard / Paul Mackerras
-	PPC 64 fixups
-
-spinlock_inlining				Andrew Morton & Martin J. Bligh
-	Inline spinlocks for profiling. Made into a ugly config option by me.
-
-lockmeter					John Hawkes / Hanna Linder
-	Locking stats.
-
-lockmeter_ia64					Ray Bryant
-	Add a config option for lockmeter on ia64
-
-oops_dump_preceding_code			Andrew Morton
-	dump opcodes preceding and after the offending EIP.
-
-4g4g						Ingo Molnar
-	Provide a 4G/4G user/kernel split for 32 bit memory lushes.
-
-4g_zap_low_mappings					Martin Lorenz
-	stop zap_low_mappings from being __init
-
-4g4g_locked_copy					Dave McCracken
-	Fix locking bug in 4/4 split
-
-lotsa_sds					Badari
-	Enable lots of scsi disks
-
-build_options_on_oops				Andrew Morton
-	Print out the build options when we oops.
-
-sched_domains					Nick Piggin
-	sched_domains code
-
-sched_balance_fix				Rick Lindsley
-	Fix balancing problem in the sched domains code.
-
-early_printk					Dave Hansen / Keith Mannthey
-	Allow printk before console_init
-
-confighz					Andrew Morton / Dave Hansen
-	Make HZ a config option of 100 Hz or 1000 Hz
-
-config_page_offset				Dave Hansen / Andrea
-	Make PAGE_OFFSET a config option
-
-numameminfo					Martin Bligh / Keith Mannthey
-	Expose NUMA meminfo information under /proc/meminfo.numa
-
-partial_objrmap					Dave McCracken
-	Object based rmap for filebacked pages.
-
-tcp_speedup					Martin J. Bligh
-	Speedup TCP (avoid double copy) as suggested by Linus
-
-disable preempt					Martin J. Bligh
-	I broke preempt somehow, temporarily disable it to stop accidents
-
-aiofix2						Mingming Cao
-	fixed a bug in ioctx_alloc()
-
-config_irqbal					Keith Mannthey
-	Make irqbalance a config option
-
-percpu_real_loadavg				Dave Hansen / Martin J. Bligh
-	Tell me what the real load average is, and tell me per cpu.
-
-per_node_rss					Matt Dobson
-	Track which nodes tasks mem is on, so sched can be sensible.
-
-pfn_to_nid					Martin J. Bligh
-	Dance around the twisted rats nest of crap in i386 include.
-
-pfn_valid					Martin J. Bligh
-	Fix pfn_valid to cope with memory holes
-
-no_numa_pc					Martin J. Bligh
-	Disallow NUMA on PC subarch
-
-gcov						Hubertus / Paul Larson
-	Code coverage monitor
-
-gfp_node_strict					Dave Hansen
-	Add a node strict binding as a gfp mask option
-
-irqbal_fast					Adam Litke
-	Balance IRQs more readily
-
-kcg						Adam Litke
-	Acylic call graphs from the kernel. Wheeeeeeeeeeeee!
-
-kcg_gcc_detect					Adam Litke
-	Detect older gcc versions that don't work with mcount, and crap out
-
-numa_mem_equals 				Dave Hansen
-	mem= command line parameter NUMA awareness.
-
-schedstat					Rick Lindsley
-	Provide lotsa scheduler statistics
-
-schedstat_arches				Rick Lindsley
-	Make schedstats support PPC, PPC64, x86_64 as well as ia32
-
-autoswap					Con Kolivas
-	Auto-tune swapiness
-
-emulex driver					Emulex
-	Driver for emulex fiberchannel cards
-
-protocol254					Paul Mackerras / Omkhar 
-	Allow protocol 254
-
-slabtune					Dave McCracken
-	Take slab in bigger bites on larger machines
-
-topdown						Bill Irwin
-	Turn userspace upside down for fun & profit
-
-stacktrace					Adam Litke
-	Stack backtracing via frame pointers
-
-implicit_huge_pages 				Adam Litke / wli / Brian T.
-	Implicit huge pages for mmap and shmem
-
-fasync_lock_rcu					Manfred Spraul
-	Use RCU for fasync_lock
-
-kexec						Eric Biederman et al.
-	Exec a kernel for breakfast today.
-
-alsa_100rc2					ALSA project
-	New code drop of sound infrastructure - fixes various bugs.
-
-force_wholefrag					Martin J. Bligh et al.
-	OSS emulation sounds like crap without wholefrag. Revert that change.
-
-lockmeter_notsc					Martin J. Bligh
-	Lockmeter does not require CONFIG_X86_TSC.
-
-smp_boot_id					Martin J. Bligh
-	Fix panic if boot cpu's phys apicid doesn't match expected.
-
-sysfs_backing_store1					Maneesh Soni
-sysfs_backing_store2					Maneesh Soni
-sysfs_backing_store3					Maneesh Soni
-sysfs_backing_store4					Maneesh Soni
-sysfs_backing_store5					Maneesh Soni
-sysfs_backing_store6					Maneesh Soni
-	Sysfs backing store to stop it gobbling so much mem.
-
-ivtv						Kevin Thayer / Steven Fuerst
-	Driver for ivtv (includes Hauppauge PVR 250 / 350)
-	Written by Kevin Thayer, ported to 2.6 by Steven Fuerst
-
-gcov_warning_fix					
-	Fix warning in gcov
-
-tiocgdev						Gerd Knorr
-
-ia64_dev_and_lock
-
-map_hugetlb
-	Fix up definitions for hugetlb for other arches.
-
-export_cpu_2_node					Pat Mansfield
-	export cpu_2_node
-
-distribute_boot_allocs					Manfred Spraul
-	Distribute boot allocations across NUMA nodes
-
-config_acpi_numa					Martin J. Bligh
-	disable CONFIG_ACPI_NUMA for anything but ia64
-
-vma_statistics						Martin J. Bligh
-	Provide per VMA stats
-
-
+Hello Andrew and Bruce,
+
+Yes, with this patch applied, i can now start the NFSD kernel server again.
+
+Much Thanks,
+
+Bye,
+
+Philippe
+
+On Mon, 9 Feb 2004 15:58:23 -0800
+Andrew Morton <akpm@osdl.org> wrote:
+
+  | Philippe Gramoulle  <philippe.gramoulle@mmania.com> wrote:
+  | >
+  | > Starting with 2.6.3-rc1-mm1, nfsd isn't working any more. Exportfs just hangs.
+  | 
+  | Yes, sorry.  The nfsd patches had a painful birth.  This chunk got lost.
+  | 
+  | --- 25/net/sunrpc/svcauth.c~nfsd-02-sunrpc-cache-init-fixes	Mon Feb  9 14:04:03 2004
+  | +++ 25-akpm/net/sunrpc/svcauth.c	Mon Feb  9 14:06:26 2004
+  | @@ -150,7 +150,13 @@ DefineCacheLookup(struct auth_domain,
+  |  		  &auth_domain_cache,
+  |  		  auth_domain_hash(item),
+  |  		  auth_domain_match(tmp, item),
+  | -		  kfree(new); if(!set) return NULL;
+  | +		  kfree(new); if(!set) {
+  | +			if (new)
+  | +				write_unlock(&auth_domain_cache.hash_lock);
+  | +			else
+  | +				read_unlock(&auth_domain_cache.hash_lock);
+  | +			return NULL;
+  | +		  }
+  |  		  new=item; atomic_inc(&new->h.refcnt),
+  |  		  /* no update */,
+  |  		  0 /* no inplace updates */
+  | 
+  | _
+  | 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
