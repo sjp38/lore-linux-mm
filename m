@@ -1,41 +1,49 @@
-Date: Tue, 3 Sep 2002 19:54:38 -0700
-From: William Lee Irwin III <wli@holomorphy.com>
+Message-ID: <3D757F11.B72BB708@zip.com.au>
+Date: Tue, 03 Sep 2002 20:33:37 -0700
+From: Andrew Morton <akpm@zip.com.au>
+MIME-Version: 1.0
 Subject: Re: 2.5.33-mm1
-Message-ID: <20020904025438.GV888@holomorphy.com>
-References: <3D7437AC.74EAE22B@zip.com.au> <3D755E2D.7A6D55C6@zip.com.au> <20020904011503.GT888@holomorphy.com> <200209032255.43198.tomlins@cam.org>
-Mime-Version: 1.0
+References: <200209032251.54795.tomlins@cam.org>
 Content-Type: text/plain; charset=us-ascii
-Content-Description: brief message
-Content-Disposition: inline
-In-Reply-To: <200209032255.43198.tomlins@cam.org>
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Ed Tomlinson <tomlins@cam.org>
-Cc: Andrew Morton <akpm@zip.com.au>, lkml <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: William Lee Irwin III <wli@holomorphy.com>, lkml <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On September 3, 2002 09:15 pm, William Lee Irwin III wrote:
->> William Lee Irwin III <wli@holomorphy.com>
-[something must have gotten snipped]
+Ed Tomlinson wrote:
+> 
+> On September 3, 2002 09:13 pm, Andrew Morton wrote:
+> 
+> > ext3_inode_cache     959   2430    448  264  270    1
+> >
+> > That's 264 pages in use, 270 total.  If there's a persistent gap between
+> > these then there is a problem - could well be that slablru is not locating
+> > the pages which were liberated by the pruning sufficiently quickly.
+> 
+> Sufficiently quickly is a relative thing.
 
-On Tue, Sep 03, 2002 at 10:55:43PM -0400, Ed Tomlinson wrote:
-> What are the numbers telling you?  Is you test faster or slower
-> with slablru?  Does it page more or less?  Is looking at the number
-> of objects the way to determine if slablru is helping?  I submit
-> the paging and runtimes are much better indications?  What do
-> story do they tell?
+Those pages are useless!  It's silly having slab hanging onto them
+while we go and reclaim useful pagecache instead.
 
-Everything else is pretty much fine-tuning. Prior to this there was
-zero control exerted over the things. Now it's much better behaved
-with far less "swapping while buttloads of instantly reclaimable slab
-memory is available" going on. Almost no swapping out of user memory
-in favor of bloated slabs.
+I *really* think we need to throw away those pages instantly.
 
-It's really that binary distinction that's most visible.
+The only possible reason for hanging onto them is because they're
+cache-warm.  And we need a global-scope cpu-local hot pages queue
+anyway.
 
+And once we have that, slab _must_ release its warm pages into it.
+It's counterproductive for slab to hang onto warm pages when, say,
+a pagefault needs one.
 
-Cheers,
-Bill
+>  It could also be that by the time the
+> pages are reclaimed another <n> have been cleaned.  IMO its no worst than
+> have freeable pages on lru from any other source.  If we get close to oom
+> we will call kmem_cache_reap, otherwise we let the lru find the pages.
+
+As I say, by not releasing those (useless to slab) pages, we're causing
+other (useful) stuff to be reclaimed.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
