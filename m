@@ -1,100 +1,40 @@
-Received: from there (h164n1fls31o925.telia.com [213.65.254.164])
-	by maild.telia.com (8.11.2/8.11.0) with SMTP id f7MNoZp17510
-	for <linux-mm@kvack.org>; Thu, 23 Aug 2001 01:50:35 +0200 (CEST)
-Message-Id: <200108222350.f7MNoZp17510@maild.telia.com>
-Content-Type: text/plain;
-  charset="iso-8859-1"
-From: Roger Larsson <roger.larsson@norran.net>
-Subject: [PATCH NG] alloc_pages_limit & pages_min
-Date: Thu, 23 Aug 2001 01:46:12 +0200
+Date: Wed, 22 Aug 2001 21:40:20 -0300 (BRST)
+From: Rik van Riel <riel@conectiva.com.br>
+Subject: Re: [PATCH NG] alloc_pages_limit & pages_min
+In-Reply-To: <200108222350.f7MNoZp17510@maild.telia.com>
+Message-ID: <Pine.LNX.4.33L.0108222139350.5646-100000@imladris.rielhome.conectiva>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Roger Larsson <roger.larsson@norran.net>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+On Thu, 23 Aug 2001, Roger Larsson wrote:
 
-[Note: not tested yet... but it might be hard to trigger]
+> +				if (page) {
+> +					while (z->free_pages < z->pages_low) {
+> +						struct page *extra = reclaim_page(z);
+> +						if (!extra)
+> +							break;
+> +						__free_page(extra);
+> +					}
+> +				}
 
-After discussions with Riel and some additions...
+This is a surprise ;)
 
-* The original code had a little bug in those cases when
-- kreclaimd were not allowed to run for a LONG time...
-Lots of kernel activity, RT tasks, or code running
-around for a long time allocating memory.
-- there were lots of inactive clean pages
-- pages were allocated without direct_reclaim (higher order)
-(networking might be one candidate)
-it could result in using up ALL free pages!
+Why did you introduce this piece of code?
+What is it supposed to achieve ?
 
-This patch tries to prevent this situation in several ways:
-1) Do not allow to alloc a free page when they are critically low.
-   [last line of patch]
-
-2) If direct reclaims are allowed do some additional work.
- reclaim & free until pages_min,
- alloc one page,
- reclaim and free until pages_low
-
-Q) Nothing is done to force execution of kreclaimd, if no process
-    that can direct_reclaim allocs a page - what will happen then?
-    [unlikely but...]
-
-/RogerL
-
+Rik
 -- 
-Roger Larsson
-Skelleftea
-Sweden
+IA64: a worthy successor to i860.
 
+http://www.surriel.com/		http://distro.conectiva.com/
 
-*******************************************
-Patch prepared by: roger.larsson@norran.net with comments from Riel
+Send all your spam to aardvark@nl.linux.org (spam digging piggy)
 
---- linux/mm/page_alloc.c.orig	Wed Aug 22 13:36:57 2001
-+++ linux/mm/page_alloc.c	Thu Aug 23 01:15:17 2001
-@@ -253,11 +253,35 @@
- 
- 		if (z->free_pages + z->inactive_clean_pages >= water_mark) {
- 			struct page *page = NULL;
--			/* If possible, reclaim a page directly. */
--			if (direct_reclaim)
-+
-+			/*
-+			 * Reclaim a page from the inactive_clean list.
-+			 * If needed, refill the free list up to the
-+			 * low water mark.
-+			 */
-+			if (direct_reclaim) {
- 				page = reclaim_page(z);
--			/* If that fails, fall back to rmqueue. */
--			if (!page)
-+
-+				while (page && z->free_pages < z->pages_min) {
-+					__free_page(page);
-+					page = reclaim_page(z);
-+				}
-+
-+				if (page) {
-+					while (z->free_pages < z->pages_low) {
-+						struct page *extra = reclaim_page(z);
-+						if (!extra)
-+							break;
-+						__free_page(extra);
-+					}
-+				}
-+
-+				/* let kreclaimd handle up to pages_high */
-+			}
-+			/* If that fails, fall back to rmqueue, but never let
-+			*  free_pages go below pages_min...
-+			*/
-+			if (!page && z->free_pages >= z->pages_min)
- 				page = rmqueue(z, order);
- 			if (page)
- 				return page;
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
