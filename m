@@ -1,31 +1,35 @@
-Date: Sat, 31 May 2003 10:48:28 -0400 (EDT)
-From: Rik van Riel <riel@redhat.com>
-Subject: [PATCH] rmap 15j for 2.4.21-rc6
-In-Reply-To: <Pine.LNX.4.44.0305301315440.4407-100000@chimarrao.boston.redhat.com>
-Message-ID: <Pine.LNX.4.44.0305311047110.20941-100000@chimarrao.boston.redhat.com>
+Subject: Re: 2.5.70-mm3: LVM/device-mapper seems broken
+References: <20030531013716.07d90773.akpm@digeo.com>
+	<6u4r3bky20.fsf@zork.zork.net>
+	<1054390711.13115.1.camel@chtephan.cs.pocnet.net>
+	<6uznl3jh25.fsf@zork.zork.net>
+From: Sean Neakums <sneakums@zork.net>
+Date: Sat, 31 May 2003 16:11:33 +0100
+In-Reply-To: <6uznl3jh25.fsf@zork.zork.net> (Sean Neakums's message of "Sat,
+ 31 May 2003 16:01:54 +0100")
+Message-ID: <6uvfvrjgm2.fsf@zork.zork.net>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org
+To: Christophe Saout <christophe@saout.de>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 30 May 2003, Rik van Riel wrote:
+Sean Neakums <sneakums@zork.net> writes:
 
-> The tenth maintenance release of the 15th version of the reverse
-> mapping based VM is now available.
-> This is an attempt at making a more robust and flexible VM
-> subsystem, while cleaning up a lot of code at the same time.
-> The patch is available from:
-> 
->            http://surriel.com/patches/2.4/2.4.21-pre7-rmap15j
-> and        http://linuxvm.bkbits.net/
+> Christophe Saout <christophe@saout.de> writes:
+>
+>> You need to recompile libdevmapper against the new kernel headers. The
+>> kdev_t size has changed and unfortunately the old ioctl interface
+>> exposed this limited one to the userspace.
+>
+> Aha.
+>
+> The 64-bit device number patch reverses cleanly, so I think I'll just
+> build without it and try again.
 
-Today I finally merged rmap15j forward to marcelo's latest
-release.  The IO stall fixes should be especially interesting:
-
-http://surriel.com/patches/2.4/2.4.21-rc6-rmap15j
+Okay, that did it.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
