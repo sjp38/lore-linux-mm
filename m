@@ -1,49 +1,46 @@
-Date: Wed, 4 Feb 2004 13:04:40 -0800
-From: Andrew Morton <akpm@osdl.org>
-Subject: Re: [PATCH 0/5] mm improvements
-Message-Id: <20040204130440.71d4be3c.akpm@osdl.org>
-In-Reply-To: <Pine.LNX.4.44.0402042047040.4021-100000@localhost.localdomain>
-References: <20040204103307.7a288ce3.akpm@osdl.org>
-	<Pine.LNX.4.44.0402042047040.4021-100000@localhost.localdomain>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Message-ID: <40216B25.3020207@techsource.com>
+Date: Wed, 04 Feb 2004 16:59:01 -0500
+From: Timothy Miller <miller@techsource.com>
+MIME-Version: 1.0
+Subject: Re: Active Memory Defragmentation: Our implementation & problems
+References: <20040204185446.91810.qmail@web9705.mail.yahoo.com> <Pine.LNX.4.53.0402041402310.2722@chaos> <361730000.1075923354@[10.1.1.5]>
+In-Reply-To: <361730000.1075923354@[10.1.1.5]>
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: Nikita@Namesys.COM, piggin@cyberone.com.au, linux-mm@kvack.org
+To: Dave McCracken <dmccr@us.ibm.com>
+Cc: root@chaos.analogic.com, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Hugh Dickins <hugh@veritas.com> wrote:
->
-> On Wed, 4 Feb 2004, Andrew Morton wrote:
-> > Hugh Dickins <hugh@veritas.com> wrote:
-> > >
-> > >  Sorry, that BUG_ON is there for very good reason.  It's no disgrace
-> > >  that your testing didn't notice the effect of passing a mapped page
-> > >  down to shmem_writepage, but it is a serious breakage of tmpfs.
-> > 
-> > hm.  Can't I force writepage-of-a-mapped-page with msync()?
+
+Dave McCracken wrote:
+
 > 
-> I hope not, __filemap_fdatawrite still starts off with:
+> Um, wrong answer.  When you ask for more than one page from the buddy
+> allocator  (order greater than 0) it always returns physically contiguous
+> pages.
 > 
-> 	if (mapping->backing_dev_info->memory_backed)
-> 		return 0;
+> Also, one of the near-term goals in VM is to be able to allocate and free
+> large pages from the main memory pools, which requires that something like
+> order 9 or 10 allocations (based on the architecture) succeed.
+> 
 
-Sigh.  ->memory_backed is a crock.  It is excessively overloaded and needs
-to be split up into several things which really mean something.
+What's the x86 large page size?  4M?  16M?  For the sake of arguement, 
+let's call it 4M.  Doesn't matter.
 
-> Once upon a time you did have vmscan.c calling ->writepages, rather
-> the effect that Nikita is trying for.  It was that writepages which
-> led me to insert the BUG_ON and give tmpfs a dummy writepages.
-> Later on you dropped the ->writepages from vmscan.c:
-> do you remember why? would be useful info for Nikita.
+Let's say this defragmenter allowed the kernel to detect when 1024 4k 
+pages were contiguous and aligned properly and could silently replace 
+the processor mapping tables so that all of these "pages" would be 
+mapped by one TLB entry.  (At such time that some pages need to get 
+freed, the VM would silently switch back to the 4k model.)
 
-I'd need to troll the changelogs to remember the exact reason.  I had the
-standalone a_ops->vm_writeback thing in there, which was able to do
-writearound against the targetted page.  iirc it was causing some difficulties and
-as a big effort was underway to minimise the amount of writeout via vmscan
-_anyway_, I decided to toss it all out, stick with page-at-a-time writepage.
+This would reduce TLB entries for a lot of programs above a certain 
+size, and therefore improve peformance.
+
+The question is:  How much overhead really is caused by TLB misses?  The 
+TLB in the Athlon is like 512 entries.  That means it can know about 2 
+megabytes worth of 4k pages at any one time.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
