@@ -1,55 +1,45 @@
-From: Ed Tomlinson <tomlins@cam.org>
-Subject: Re: 2.5.70-mm1
-Date: Tue, 27 May 2003 19:05:24 -0400
-References: <20030527004255.5e32297b.akpm@digeo.com> <200305271633.40421.tomlins@cam.org> <20030527134946.7ffd524d.akpm@digeo.com>
-In-Reply-To: <20030527134946.7ffd524d.akpm@digeo.com>
+Date: Wed, 28 May 2003 01:08:34 +0100 (BST)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: Re: hard question re: swap cache
+In-Reply-To: <20030527214157.31893.qmail@web41501.mail.yahoo.com>
+Message-ID: <Pine.LNX.4.44.0305280048380.9660-100000@localhost.localdomain>
 MIME-Version: 1.0
-Content-Disposition: inline
-Content-Type: text/plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
-Message-Id: <200305271905.24181.tomlins@cam.org>
+Content-Type: text/plain; charset="us-ascii"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@digeo.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Carl Spalletta <cspalletta@yahoo.com>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On May 27, 2003 04:49 pm, Andrew Morton wrote:
-> Ed Tomlinson <tomlins@cam.org> wrote:
-> > Hi Andrew,
-> >
-> > This one oops on boot 2 out of 3 tries.
-> >
-> > ...
-> > EIP is at load_module+0x7c5/0x800
->
-> -mm has modules changes.  Is CONFIG_DEBUG_PAGEALLOC enabled?
+On Tue, 27 May 2003, Carl Spalletta wrote:
+> Assume a shared, anonymous page is referenced by a set of
+> processes a,b,c,d,e and the page is marked present in the
+> page tables of each process.  Assume then that the page is
+> marked for swapout in the pagetables of 'a'. A swap slot is
+> filled with a copy of the page, but it is still present in
+> memory.
+> ....
+> Then say b,c,d and e in that order have the page swapped out.
+> Either the page is copied to the page slot for each swapout
+> or it _must_ be copied on the last swap (when the page usage
+> counter goes to zero) else the modifications made by b,c,d,e
+> will be lost.
 
-#
-# Kernel hacking
-#
-CONFIG_DEBUG_KERNEL=y
-CONFIG_DEBUG_STACKOVERFLOW=y
-CONFIG_DEBUG_SLAB=y
-# CONFIG_DEBUG_IOVIRT is not set
-CONFIG_MAGIC_SYSRQ=y
-# CONFIG_DEBUG_SPINLOCK is not set
-# CONFIG_SPINLINE is not set
-# CONFIG_DEBUG_PAGEALLOC is not set
-CONFIG_KALLSYMS=y
-CONFIG_DEBUG_SPINLOCK_SLEEP=y
-# CONFIG_KGDB is not set
-CONFIG_DEBUG_INFO=y
-CONFIG_FRAME_POINTER=y
+I'm not certain I understand your question (in particular, I don't
+understand the page being copied to a page slot), but I might have
+your answer.
 
-No.  I have been running 69-mm8 for several days without problems.   It 
-would seem to be an initialization problem, 70-mm1 has now been 3 hours
-here.
+Observe that mm/mmap.c:do_mmap_pgoff uses mm/shmem.c:shmem_zero_setup
+for a shared anonymous mapping.  That creates a tmpfs object to back
+the mapping, so its pages are not _directly_ backed by swap.
 
-Ed
+Under memory pressure, shmem_writepage gets called, which translates
+(well, akpm's superb technical term for this is "swizzles") the page
+to swap, and then later shmem_getpage may bring it back in.  Note
+the BUG_ON(page_mapped(page)) in shmem_writepage, which gives the
+assurance I think you're looking for.
 
-
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
