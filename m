@@ -1,42 +1,46 @@
-Date: Wed, 4 Feb 2004 14:45:21 -0500 (EST)
-From: Rik van Riel <riel@redhat.com>
-Subject: Re: [PATCH 1/5] mm improvements
-In-Reply-To: <4020BDFF.3010201@cyberone.com.au>
-Message-ID: <Pine.LNX.4.44.0402041444560.24515-100000@chimarrao.boston.redhat.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; CHARSET=US-ASCII; FORMAT=flowed
-Content-ID: <Pine.LNX.4.44.0402041444562.24515@chimarrao.boston.redhat.com>
+Subject: Re: Active Memory Defragmentation: Our implementation & problems
+From: Dave Hansen <haveblue@us.ibm.com>
+In-Reply-To: <20040204185446.91810.qmail@web9705.mail.yahoo.com>
+References: <20040204185446.91810.qmail@web9705.mail.yahoo.com>
+Content-Type: text/plain
+Message-Id: <1075924593.27981.458.camel@nighthawk>
+Mime-Version: 1.0
+Date: 04 Feb 2004 11:56:33 -0800
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <piggin@cyberone.com.au>
-Cc: Andrew Morton <akpm@osdl.org>, linux-mm@kvack.org
+To: Alok Mooley <rangdi@yahoo.com>
+Cc: linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 4 Feb 2004, Nick Piggin wrote:
+On Wed, 2004-02-04 at 10:54, Alok Mooley wrote:
+> --- Dave Hansen <haveblue@us.ibm.com> wrote:
+> 
+> > The "work until we get interrupted and restart if
+> > something changes
+> > state" approach is very, very common.  Can you give
+> > some more examples
+> > of just how a page fault would ruin the defrag
+> > process?
+> > 
+> 
+> What I mean to say is that if we have identified some
+> pages for movement, & we get preempted, the pages
+> identified as movable may not remain movable any more
+> when we are rescheduled. We are left with the task of
+> identifying new movable pages.
 
-> > 1/5: vm-no-rss-limit.patch
-> >     Remove broken RSS limiting. Simple problem, Rik is onto it.
-> >
+Depending on the quantity of work that you're trying to do at once, this
+might be unavoidable.  
 
-Does the patch below fix the performance problem with the
-rss limit patch ?
+I know it's a difficult thing to think about, but I still don't
+understand the precise cases that you're concerned about.  Page faults
+to me seem like the least of your problems.  A bigger issue would be if
+the page is written to by userspace after you copy, but before you
+install the new pte.  Did I miss the code in your patch that invalidated
+the old tlb entries?
 
-
-===== fs/exec.c 1.103 vs edited =====
---- 1.103/fs/exec.c	Mon Jan 19 01:35:50 2004
-+++ edited/fs/exec.c	Wed Feb  4 14:38:10 2004
-@@ -1117,6 +1117,11 @@
- 	retval = init_new_context(current, bprm.mm);
- 	if (retval < 0)
- 		goto out_mm;
-+	if (likely(current->mm)) {
-+		bprm.mm->rlimit_rss = current->mm->rlimit_rss;
-+	} else {
-+		bprm.mm->rlimit_rss = init_mm.rlimit_rss;
-+	}
- 
- 	bprm.argc = count(argv, bprm.p / sizeof(void *));
- 	if ((retval = bprm.argc) < 0)
+--dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
