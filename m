@@ -1,41 +1,45 @@
-Date: Thu, 22 May 2003 12:40:18 +0100
-From: Christoph Hellwig <hch@infradead.org>
 Subject: Re: [PATCH] dirty bit clearing on s390.
-Message-ID: <20030522124018.A20638@infradead.org>
+From: Arjan van de Ven <arjanv@redhat.com>
+Reply-To: arjanv@redhat.com
+In-Reply-To: <20030522112000.GA2597@mschwid3.boeblingen.de.ibm.com>
 References: <20030522112000.GA2597@mschwid3.boeblingen.de.ibm.com>
+Content-Type: multipart/signed; micalg=pgp-sha1; protocol="application/pgp-signature"; boundary="=-eIYQvzJ2RzM2EzY3iBVw"
+Message-Id: <1053603729.2360.0.camel@laptop.fenrus.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20030522112000.GA2597@mschwid3.boeblingen.de.ibm.com>; from schwidefsky@de.ibm.com on Thu, May 22, 2003 at 01:20:00PM +0200
+Date: 22 May 2003 13:42:09 +0200
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Martin Schwidefsky <schwidefsky@de.ibm.com>
 Cc: linux-mm@kvack.org, akpm@digeo.com, phillips@arcor.de
 List-ID: <linux-mm.kvack.org>
 
-On Thu, May 22, 2003 at 01:20:00PM +0200, Martin Schwidefsky wrote:
-> +#ifndef arch_set_page_uptodate
-> +#define arch_set_page_uptodate(page)
-> +#endif
-> +
->  #define PageUptodate(page)	test_bit(PG_uptodate, &(page)->flags)
-> -#define SetPageUptodate(page)	set_bit(PG_uptodate, &(page)->flags)
-> +#define SetPageUptodate(page) \
-> +	do {								\
-> +		arch_set_page_uptodate(page);				\
-> +		set_bit(PG_uptodate, &(page)->flags);			\
-> +	} while (0)
->  #define ClearPageUptodate(page)	clear_bit(PG_uptodate, &(page)->flags)
+--=-eIYQvzJ2RzM2EzY3iBVw
+Content-Type: text/plain
+Content-Transfer-Encoding: quoted-printable
 
-I guess it would be nicer if the arch could just overrid SetPageUptodate
-completly e.g.
+On Thu, 2003-05-22 at 13:20, Martin Schwidefsky wrote:
 
-#ifndef SetPageUptodate
-#define SetPageUptodate(page)	set_bit(PG_uptodate, &(page)->flags)
-#endif
 
-with a big comment explaining why s390 needs it.  Else it looks fine to me.
+> Our solution is to move the clearing of the storage key (dirty bit)
+> from set_pte to SetPageUptodate. A patch that implements this is
+> attached. What do you think ?
 
+Is there anything that prevents a thread mmaping the page to redirty it
+before the kernel marks it uptodate ?=20
+
+--=-eIYQvzJ2RzM2EzY3iBVw
+Content-Type: application/pgp-signature; name=signature.asc
+Content-Description: This is a digitally signed message part
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.2.2 (GNU/Linux)
+
+iD8DBQA+zLeRxULwo51rQBIRAnkRAJ4sYlnnpkkR1USZP5T1WrFCM3tquwCfc3FN
+qjXVRtN9xqsZXMvxNN3Bias=
+=Leyg
+-----END PGP SIGNATURE-----
+
+--=-eIYQvzJ2RzM2EzY3iBVw--
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
