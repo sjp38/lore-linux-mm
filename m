@@ -1,63 +1,69 @@
-Message-ID: <419C5B45.2080100@tebibyte.org>
-Date: Thu, 18 Nov 2004 09:20:21 +0100
-From: Chris Ross <chris@tebibyte.org>
-MIME-Version: 1.0
-Subject: Re: [PATCH] Remove OOM killer from try_to_free_pages / all_unreclaimable
- braindamage
-References: <20041105200118.GA20321@logos.cnet> <200411051532.51150.jbarnes@sgi.com> <20041106012018.GT8229@dualathlon.random> <1099706150.2810.147.camel@thomas> <20041117195417.A3289@almesberger.net> <419BDE53.1030003@tebibyte.org> <20041117210410.R28844@almesberger.net> <419BECB0.70801@tebibyte.org> <20041117221419.S28844@almesberger.net>
-In-Reply-To: <20041117221419.S28844@almesberger.net>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Date: Thu, 18 Nov 2004 07:01:38 -0300
+From: Werner Almesberger <wa@almesberger.net>
+Subject: Re: [PATCH] Remove OOM killer from try_to_free_pages / all_unreclaimable braindamage
+Message-ID: <20041118070137.T28844@almesberger.net>
+References: <20041105200118.GA20321@logos.cnet> <200411051532.51150.jbarnes@sgi.com> <20041106012018.GT8229@dualathlon.random> <1099706150.2810.147.camel@thomas> <20041117195417.A3289@almesberger.net> <419BDE53.1030003@tebibyte.org> <20041117210410.R28844@almesberger.net> <419BECB0.70801@tebibyte.org> <20041117221419.S28844@almesberger.net> <419C5B45.2080100@tebibyte.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <419C5B45.2080100@tebibyte.org>; from chris@tebibyte.org on Thu, Nov 18, 2004 at 09:20:21AM +0100
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Werner Almesberger <wa@almesberger.net>
+To: Chris Ross <chris@tebibyte.org>
 Cc: Thomas Gleixner <tglx@linutronix.de>, Andrea Arcangeli <andrea@novell.com>, Jesse Barnes <jbarnes@sgi.com>, Marcelo Tosatti <marcelo.tosatti@cyclades.com>, Andrew Morton <akpm@osdl.org>, Nick Piggin <piggin@cyberone.com.au>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+Chris Ross wrote:
+> All I'm advocating is just swapping something out if possible 
+> instead.
 
-Werner Almesberger escreveu:
-> The tricky bit is now to identify such part-time interactive tasks,
-> i.e. the ones who won't receive a trigger for a while. To make
-> things worse, there are those who may be happily doing something,
-> like spinning some animated GIF, which would be perfectly fine
-> being put to a long sleep. That in turn may make the X server idle,
-> etc.
+Yes, but this only works if a) your system can make progress
+towards lowering its memory needs without the process(es) you've
+picked for swapping, and b) these processes don't happen to be
+something that cannot tolerate long suspension, and c) the total
+memory needs are such that they can be better satisfied after
+these processes have been swapped out.
 
-I don't think you need to be that subtle about it, though I agree 
-perfection would be nice :) The present behaviour is just to kill 
-something. All I'm advocating is just swapping something out if possible 
-instead. Yes by definition we probably have picked something you would 
-have preferred to leave running, but the machine simply cope with 
-everything being asked of it at the moment and that something got the 
-short straw. At least swapped out we will get round to running it when 
-we can.
+Examples where this isn't the case: a) if you swap out your
+hoursekeeping cron job, the system will just sit idle, then you
+swap it in again after a few minutes, and the agony repeats.
+b) if you swap out my X server while I'm sitting at the machine,
+all you've done was to force me to press the big red switch
+manually. c) if there's a process with excessive memory demands
+that can't be met anyway, it's better to end its misery quickly,
+instead of spending a day thrashing.
 
-> Again, if you have such a clearly defined scenario, perhaps the
-> cron jobs should just loudly announce that housekeeping is now
-> starting and that this changes some of the rules. Or perhaps,
-> there could be a SIGSWAP to swap out a process (maybe SIGSUSP it
-> first so that it doesn't come back on its own).
+So again, your automatic OOM kill^H^H^H^Hcounsellor doesn't only
+have to follow a fixed policy, but it also has to sense what kind
+of situation we're in.
 
-Sounds like a job for priorities and sensible use of batch scheduling.
+A SIGSWAP would help with a) and b). In case a), the cron jobs
+would signal anything that's not them. In case b), by definition,
+I'd not be working when this happens. This can be assisted by
+user detection heuristics as used in some batch distribution
+systems. (Now we have a fairly complex user space already, with
+lots of policy.) The usual "runaway process" heuristics can
+probably take care of c).
 
-I still feel that special casing things is basically wrong. We could 
-work around the specific example that the cron.daily on my test machines 
-tends to cause things to be oom_killed, but it's better to fix the 
-problem. What about when I try to build umlsim again -- my standard test 
-case for triggering the oom killer ;)
+> Too often at present the machine just doesn't know what to do,
 
-Let's not forget that oom killing (when it works) is a last resort, 
-something we do only if we have to to avoid a panic. Too often at 
-present the machine just doesn't know what to do, runs around confused 
-and makes things worse by shooting its own leg off. Which is pretty much 
-a real-world definition of panicking*. Lets at least try to avoid 
-causing permanent damage, such as killing off sshd.
+See, that's exactly what I mean :-) So, why not just tell it ?
+"Hey, things are going to get a little rough for a while. Why
+don't you take a nap on that comfty swap disk while I clean up
+the house ?"
 
-[ * I just looked it up: "of, relating to, or resembling the mental or 
-emotional state believed induced by the god Pan". Cool ]
+> [ * I just looked it up: "of, relating to, or resembling the mental or 
+> emotional state believed induced by the god Pan". Cool ]
 
-Regards,
-Chris R.
+Hmm, you're suggesting we follow Morpheus instead of Pan then ?
+And I always thought the OOM killer was more like Eris' work :-)
+
+- Werner
+
+-- 
+  _________________________________________________________________________
+ / Werner Almesberger, Buenos Aires, Argentina         wa@almesberger.net /
+/_http://www.almesberger.net/____________________________________________/
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
