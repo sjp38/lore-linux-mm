@@ -1,42 +1,52 @@
-Message-ID: <3DEE1CA5.7C45C252@scs.ch>
-Date: Wed, 04 Dec 2002 16:17:57 +0100
-From: Martin Maletinsky <maletinsky@scs.ch>
+Date: Wed, 04 Dec 2002 13:36:35 -0800
+From: "Martin J. Bligh" <Martin.Bligh@us.ibm.com>
+Subject: [PATCH] make sure all PMDs are allocated under PAE mode
+Message-ID: <91490000.1039037795@flay>
 MIME-Version: 1.0
-Subject: Question on swapping
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org, kernelnewbies@nl.linux.org
+To: Andrew Morton <akpm@zip.com.au>
+Cc: linux-kernel <linux-kernel@vger.kernel.org>, linux-mm mailing list <linux-mm@kvack.org>, haveblue@us.ibm.com
 List-ID: <linux-mm.kvack.org>
 
-Hello,
+Below is a bugfix I found for a problem Dave Hansen was hitting
+when using PAE mode on a 1Gb RAM box. Basically if we change
+PAGE_OFFSET to have more than 1Gb of KVA in excess of the 
+physical ram used, we forget to instantiate the upper PMDs.
+(The PMDs for kernel space seem to be created only if there's
+physical ram against them, but we also need them for the vmalloc
+space).
 
-I am looking at the swapping mechanism in Linux. I have read the relevant chapter 16 in 'Understanding the Linux Kernel' from Bovet&Cesati, and looked at the 2.2.18 kernel
-source code. I still have the follwing question:
+The change below makes us walk from PAGE_OFFSET up to the top
+of virtual address space (instead of up to the top of phys ram),
+and ignores the rest of the loop apart from the PMD alloc for
+that upper region (above the 1-1 phys-virt mapping region).
 
-Function try_to_swap_out() [p. 481 in 'Understanding the Linux Kernel']:
-If the page in question already belongs to the swap cache, the function performs no data transfer to the swap space on the disk (but only marks the page as swapped out).
-The corresponding comment in the try_to_swap_out() functions states 'Is the page already in the swap cache? If so, ..... - it is already up-to-date on disk.
-Understanding the Linux Kernel states on p. 482 'If the page belongs to the swap cache .... no memory transfer is performed'.
-Now my question is, couldn't the page have been modified since it was added to the swap cache (and written to disk), and thus differ from the data in the swap space? In
-this case shouldn't the page be written to disk (again)?
-Such a modification may result from a store operation of another process that shares the page with the process from which it was added to the swap cache, or by an I/O
-operation from some external device - in both cases the data stored in the corresponding page slot in the swap area differs from the data stored in the page frame. If later
-on the page frame is released by shrink_mmap() from the swap cache, and subsequently needs to be restored from the data in the swap area, the page frame's latest content is
-lost.
+Thanks to Dave for doing the actual patch creation and testing.
+It's designed to be minimally invasive, rather than desperately
+efficient.
 
-Thanks in advance for any help
-with best regards
-Martin Maletinsky
+M.
 
-P.S. Please put me on CC: in your reply, since I am not in the mailing list.
+diff -Nru a/arch/i386/mm/init.c b/arch/i386/mm/init.c
+--- a/arch/i386/mm/init.c	Tue Dec  3 15:54:44 2002
++++ b/arch/i386/mm/init.c	Tue Dec  3 15:54:44 2002
+@@ -134,8 +134,10 @@
+ 	pgd = pgd_base + pgd_ofs;
+ 	pfn = 0;
+ 
+-	for (; pgd_ofs < PTRS_PER_PGD && pfn < max_low_pfn; pgd++, pgd_ofs++) {
++	for (; pgd_ofs < PTRS_PER_PGD; pgd++, pgd_ofs++) {
+ 		pmd = one_md_table_init(pgd);
++		if (pfn >= max_low_pfn)
++			continue;
+ 		for (pmd_ofs = 0; pmd_ofs < PTRS_PER_PMD && pfn < max_low_pfn; pmd++, pmd_ofs++) {
+ 			/* Map with big pages if possible, otherwise create normal page tables. */
+ 			if (cpu_has_pse) {
 
---
-Supercomputing System AG          email: maletinsky@scs.ch
-Martin Maletinsky                 phone: +41 (0)1 445 16 05
-Technoparkstrasse 1               fax:   +41 (0)1 445 16 10
-CH-8005 Zurich
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
