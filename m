@@ -1,35 +1,63 @@
-From: Daniel Phillips <phillips@arcor.de>
-Subject: Re: [RFC] My research agenda for 2.7
-Date: Fri, 27 Jun 2003 18:00:53 +0200
-References: <200306250111.01498.phillips@arcor.de> <Pine.LNX.4.53.0306271617210.21548@skynet> <200306271750.52362.phillips@arcor.de>
-In-Reply-To: <200306271750.52362.phillips@arcor.de>
+Date: Fri, 27 Jun 2003 11:13:19 -0500
+From: Dave McCracken <dmccr@us.ibm.com>
+Subject: [PATCH 2.5.73-mm1] Make sure truncate fix has no race
+Message-ID: <69440000.1056730399@baldur.austin.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200306271800.53487.phillips@arcor.de>
+Content-Type: multipart/mixed; boundary="==========1873729384=========="
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: "Martin J. Bligh" <mbligh@aracnet.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@digeo.com>
+Cc: Linux Memory Management <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Friday 27 June 2003 17:50, Daniel Phillips wrote:
-> You might want to have a look at this:
->
->    http://www.research.att.com/sw/tools/vmalloc/
->    (Vmalloc: A Memory Allocation Library)
+--==========1873729384==========
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 
-Whoops, I retract that.  I did a quick scan of the page and ran into a link 
-labled "Non-Commercial License Agreement and Software", attached to some form 
-of license loaded with ugly patent words and so on.  My immediate reaction 
-is: stay far, far away from that work, it is encumbered.  It would be nice if 
-somebody knows differently, but for now I must ignore Vo's work.
 
-Regards,
+Paul McKenney pointed out that reading the truncate sequence number in
+do_no_page might not be entirely safe if the ->nopage callout takes no
+locks.  The simple solution is to move the read before the unlock of
+page_table_lock.  Here's a patch that does it.
 
-Daniel
+Dave McCracken
+
+======================================================================
+Dave McCracken          IBM Linux Base Kernel Team      1-512-838-3059
+dmccr@us.ibm.com                                        T/L   678-3059
+
+--==========1873729384==========
+Content-Type: text/plain; charset=us-ascii; name="trunc-2.5.73-mm1-1.diff"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: attachment; filename="trunc-2.5.73-mm1-1.diff"; size=897
+
+--- 2.5.73-mm1/mm/memory.c	2003-06-27 10:40:48.000000000 -0500
++++ 2.5.73-mm1-trunc/mm/memory.c	2003-06-27 10:47:10.000000000 -0500
+@@ -1402,11 +1402,11 @@ do_no_page(struct mm_struct *mm, struct 
+ 		return do_anonymous_page(mm, vma, page_table,
+ 					pmd, write_access, address);
+ 	pte_unmap(page_table);
+-	spin_unlock(&mm->page_table_lock);
+ 
+ 	mapping = vma->vm_file->f_dentry->d_inode->i_mapping;
+-retry:
+ 	sequence = atomic_read(&mapping->truncate_count);
++	spin_unlock(&mm->page_table_lock);
++retry:
+ 	new_page = vma->vm_ops->nopage(vma, address & PAGE_MASK, 0);
+ 
+ 	/* no page was available -- either SIGBUS or OOM */
+@@ -1441,6 +1441,7 @@ retry:
+ 	 * retry getting the page.
+ 	 */
+ 	if (unlikely(sequence != atomic_read(&mapping->truncate_count))) {
++		sequence = atomic_read(&mapping->truncate_count);
+ 		spin_unlock(&mm->page_table_lock);
+ 		page_cache_release(new_page);
+ 		goto retry;
+
+--==========1873729384==========--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
