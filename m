@@ -1,37 +1,68 @@
-Date: Sat, 11 Jan 2003 17:57:56 -0500
-From: Jeff Garzik <jgarzik@pobox.com>
-Subject: Re: 2.5.56-mm1
-Message-ID: <20030111225756.GA13330@gtf.org>
-References: <200301111443.08527.akpm@digeo.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <200301111443.08527.akpm@digeo.com>
+Date: Sun, 12 Jan 2003 02:09:28 +0000 (GMT)
+From: Mel Gorman <mel@csn.ul.ie>
+Message-ID: <Pine.LNX.4.44.0301120147440.32623-100000@skynet>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@digeo.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, viro@math.psu.edu
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, Jan 11, 2003 at 02:43:08PM -0800, Andrew Morton wrote:
-> - dcache-RCU.
-> 
->   This was recently updated to fix a rename race.  It's quite stable.  I'm
->   not sure where we stand wrt merging it now.  Al seems to have disappeared.
+Well, despite numerous setbacks, disasters and various panic-attacks, I've
+finally got a first draft together for documentation of the Linux VM. This
+is still incomplete but will hopefully still be a valuable resource to
+those wishing to understand the VM.
 
-I talked to him in person last week, and this was one of the topics of
-discussion.  He seemed to think it was fundamentally unfixable.  He
-proceed to explain why, and then explained the scheme he worked out to
-improve things.  Unfortunately my memory cannot do justice to the
-details.
+It is based on 2.4.20 as the 2.5.x one still changes too much too
+regularly to make documenting it feasible. I do believe though that having
+a good understanding of the 2.4.20 VM is 80% of the work to understanding
+the 2.5.x one at least. There is a few notable areas not covered yet but
+will be over the next month or two but I am releasing this early so I can
+start getting feedback and correcting any errors or poor assumptions now
+rather than later. The areas are;
 
-Next time he explains it, I will write it down :)
+o Swap area management   (swap.c, swapfile.c etc)
+o High memory management (highmem.c)
+o Memory locking         (mlock.c)
+o Mem init (May not cover as it's very arch specific and there is docs out
+            there on the subject already)
+o Shared memory (May not cover this at all as it is really an IPC field)
+o Buffer management (Same, except it's of more importance to IO)
 
-Sorry for so lame a data point :)
+The documentation comes in two parts. The first is "Understanding the
+Linux Virtual Memory Manager" and it does pretty much as described. It is
+available in three formats, PDF, HTML and plain text.
 
-	Jeff
+Understanding the Linux Virtual Memory Manager
+PDF:  http://www.csn.ul.ie/~mel/projects/vm/guide/pdf/understand.pdf
+HTML: http://www.csn.ul.ie/~mel/projects/vm/guide/html/understand/
+Text: http://www.csn.ul.ie/~mel/projects/vm/guide/text/understand.txt
 
+The second part is a code commentary which is literally a guided tour
+through the code. It is intended to help decipher the more cryptic
+sections as well as identify the code patterns that are prevalent through
+the code. I decided to have the code separate from the first document as
+maintaining the code in the document would be too painful
 
+Code Commentary on the Linux Virtual Memory Manager
+PDF:  http://www.csn.ul.ie/~mel/projects/vm/guide/pdf/code.pdf
+HTML: http://www.csn.ul.ie/~mel/projects/vm/guide/html/code
+Text: http://www.csn.ul.ie/~mel/projects/vm/guide/text/code.txt
+
+Any feedback, comments or suggestions are welcome from anyone with a VM
+interest but I would appreciate if people already familiar with the VM
+would even give a brief read to check for technical accuracy. There was
+rarely an authoritative source to check to make sure I was right and I
+didn't want to be asking questions every 5 minutes on IRC or mailing
+lists :-)
+
+Enjoy...
+
+-- 
+Mel Gorman
+MSc Student, University of Limerick
+http://www.csn.ul.ie/~mel
 
 
 --
