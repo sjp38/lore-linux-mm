@@ -1,67 +1,33 @@
-Date: Mon, 9 Oct 2000 16:46:09 -0700 (PDT)
-From: jg@pa.dec.com (Jim Gettys)
-Message-Id: <200010092346.QAA28375@pachyderm.pa.dec.com>
-In-Reply-To: <200010092313.e99NDQX173855@saturn.cs.uml.edu>
+Date: Tue, 10 Oct 2000 01:52:58 +0200
+From: Andrea Arcangeli <andrea@suse.de>
 Subject: Re: [PATCH] VM fix for 2.4.0-test9 & OOM handler
+Message-ID: <20001010015258.C9520@athlon.random>
+References: <20001010002520.B8709@athlon.random> <XFMail.20001010085923.peterw@mulga.surf.ap.tivoli.com>
 Mime-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <XFMail.20001010085923.peterw@mulga.surf.ap.tivoli.com>; from peterw@dascom.com.au on Tue, Oct 10, 2000 at 08:59:23AM +1000
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Albert D. Cahalan" <acahalan@cs.uml.edu>
-Cc: Jim Gettys <jg@pa.dec.com>, Linus Torvalds <torvalds@transmeta.com>, Alan Cox <alan@lxorguk.ukuu.org.uk>, Andi Kleen <ak@suse.de>, Ingo Molnar <mingo@elte.hu>, Andrea Arcangeli <andrea@suse.de>, Rik van Riel <riel@conectiva.com.br>, Byron Stanoszek <gandalf@winds.org>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
+To: Peter Waltenberg <peterw@dascom.com.au>
+Cc: Linus Torvalds <torvalds@transmeta.com>, Rik van Riel <riel@conectiva.com.br>, Byron Stanoszek <gandalf@winds.org>, MM mailing list <linux-mm@kvack.org>, Ingo Molnar <mingo@elte.hu>
 List-ID: <linux-mm.kvack.org>
 
-"Albert D. Cahalan" <acahalan@cs.uml.edu> writes: 
-> Date: Mon, 9 Oct 2000 19:13:25 -0400 (EDT)
->
-> >> From: Linus Torvalds <torvalds@transmeta.com>
-> 
-> >> One of the biggest bitmaps is the background bitmap. So you have a
-> >> client that uploads it to X and then goes away. There's nobody to
-> >> un-count to by the time X decides to switch to another background.
-> >
-> > Actually, the big offenders are things other than the background
-> > bitmap: things like E do absolutely insane things, you would not
-> > believe (or maybe you would).  The background pixmap is generally
-> > in the worst case typically no worse than 4 megabytes (for those
-> > people who are crazy enough to put images up as their root window
-> > on 32 bit deep displays, at 1kX1k resolution).
-> 
-> Still, it would be nice to recover that 4 MB when the system
-> doesn't have any memory left.
-> 
+On Tue, Oct 10, 2000 at 08:59:23AM +1000, Peter Waltenberg wrote:
+> never gets used, but the majority of kernels released ARE killable with memory
+> pressure.
 
-Yup. The X server could give back the memory for some cases like the
-background without too much hackery.
+If those kernels are killable with memory pressure it's because of bugs
+in the kernel not because of missing oom killer heuristic.
 
-> X, and any other big friendly processes, could participate in
-> memory balancing operations. X could be made to clean out a
-> font cache when the kernel signals that memory is low. When
-> the situation becomes serious, X could just mmap /dev/zero over
-> top of the background image.
+> That probably doesn't matter, the machine would be dead otherwise anyway. WITH
 
-I agree in principle, though the problem is difficult, as the memory pool 
-may get fragmented... Most memory usage is less monolithic than the 
-background pixmap.
+The current task may be almost as big as the one that we choosed to kill that
+was hanging in a read from NFS and killing it (even if it wasn't selected by
+the oom killer) would allow the machine to run again. The NFS server could
+return alive only after several minutes instead.
 
-And maintaining separate memory pools often wastes more memory than it
-saves.
-
-> 
-> Netscape could even be hacked to dump old junk... or if it is
-> just too leaky, it could exec itself to fix the problem.
-
-Netscape 4.x is hopeless; it is leakier than the Titanic.  There is hope 
-for Mozilla.
-				- Jim
-
-
---
-Jim Gettys
-Technology and Corporate Development
-Compaq Computer Corporation
-jg@pa.dec.com
-
+Andrea
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
