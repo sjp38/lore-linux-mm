@@ -1,55 +1,79 @@
-Message-Id: <200012292154.QAA17527@ninigret.metatel.office>
-From: Rafal Boni <rafal.boni@eDial.com>
-Subject: Re: 2.2.19pre3 and poor reponse to RT-scheduled processes? 
-In-Reply-To: Your message of "Fri, 29 Dec 2000 16:19:28 EST."
-             <20001229161927.A560@xi.linuxpower.cx>
-Date: Fri, 29 Dec 2000 16:54:23 -0500
+From: Daniel Phillips <phillips@innominate.de>
+Subject: Re: Interesting item came up while working on FreeBSD's pageout daemon
+Date: Sat, 30 Dec 2000 00:00:28 +0100
+Content-Type: text/plain
+References: <Pine.LNX.4.21.0012211741410.1613-100000@duckman.distro.conectiva> <00122900094502.00966@gimli> <200012290624.eBT6O3s14135@apollo.backplane.com>
+In-Reply-To: <200012290624.eBT6O3s14135@apollo.backplane.com>
+MIME-Version: 1.0
+Message-Id: <00123000022903.00966@gimli>
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Matthew Dillon <dillon@apollo.backplane.com>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
------BEGIN PGP SIGNED MESSAGE-----
-Hash: SHA1
+Matthew Dillon wrote:
+> :Thanks for clearing that up, but it doesn't change the observation -
+> :it still looks like he's keeping dirty pages 'on probation' twice as
+> :long as before.  Having each page take an extra lap the inactive_dirty
+> :list isn't exactly equivalent to just scanning the list more slowly,
+> :but it's darn close.  Is there a fundamental difference?
+> :
+> :--
+> :Daniel
+> 
+>     Well, scanning the list more slowly would still give dirty and clean
+>     pages the same effective priority relative to each other before being
+>     cleaned.  Giving the dirty pages an extra lap around the inactive
+>     queue gives clean pages a significantly higher priority over dirty
+>     pages in regards to choosing which page to launder next.
+>     So there is a big difference there.
 
-Content-Type: text/plain; charset=us-ascii
+There's the second misunderstanding.  I assumed you had separate clean
+vs dirty inactive lists.
 
-In message <20001229161927.A560@xi.linuxpower.cx>, Greg Maxwell wrote:
+>     The effect of this (and, more importantly, limiting the number of dirty
+>     pages one is willing to launder in the first pageout pass) is rather
+>     significant due to the big difference in cost in dealing with clean
+>     pages verses dirty pages.
+> 
+>     'cleaning' a clean page means simply throwing it away, which costs maybe
+>     a microsecond of cpu time and no I/O.  'cleaning' a dirty page requires
+>     flushing it to its backing store prior to throwing it away, which costs
+>     a significant bit of cpu and at least one write I/O.  One write I/O
+>     may not seem like a lot, but if the disk is already loaded down and the
+>     write I/O has to seek we are talking at least 5 milliseconds of disk
+>     time eaten by the operation.  Multiply this by the number of dirty pages
+>     being flushed and it can cost a huge and very noticeable portion of
+>     your disk bandwidth, verses zip for throwing away a clean page.
 
-- -> You are running IDE aren't you?
-- -> 
-- -> Enable DMA and/or unmask interupts.
+To estimate the cost of paging io you have to think in terms of the
+extra work you have to do because you don't have infinite memory.  In
+other words, you would have had to write those dirty pages anyway - this
+is an unavoidable cost.  You incur an avoidable cost when you reclaim a
+page that will be needed again sooner than some other candidate.  If the
+page was clean the cost is an extra read, if dirty it's a write plus a
+read.  Alternatively, the dirty page might be written again soon - if
+it's a partial page write the cost is an extra read and a write, if it's
+a full page the cost is just a write.  So it costs at most twice as much
+to guess wrong about a dirty vs clean page.  This difference is
+significant, but it's not as big as the 1 usec vs 5 msec you suggesed.
 
-D'oh!  Thanks to Greg for the clue-by-four!  I *am* running IDE and I had
-both DMA (due to misreading of kernel boot message) and interrupt unmasking 
-(since I had forgotten that one) off....
+If I'm right then making the dirty page go 3 times around the loop
+should result in worse performance vs 2 times.
 
-I had assumed that DMA was on from the mention of it in kernel messages 
-(which on closer reading do indicate CMOS/BIOS configured default modes,
-not what the kernel is using), and the lack of an explicit message on
-the order of "I know it's there, but I'm not going to use it all the
-same" 8-)
-
-Now my box behaves much more reasonably... I'll just have to beat harder
-on it and see what happens.
-
-Thank for the help,
-- --rafal
-
-- ----
-Rafal Boni                                              rafal.boni@eDial.com
- PGP key C7D3024C, print EA49 160D F5E4 C46A 9E91  524E 11E0 7133 C7D3 024C
-    Need to get a hold of me?  http://800.edial.com/rafal.boni@eDial.com
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.0.0 (GNU/Linux)
-Comment: Exmh version 2.1.1 10/15/1999
-
-iD8DBQE6TQgOEeBxM8fTAkwRArCFAKDVrzaWxGtRFR0pbyNwvIF20bOSiwCfdhg9
-wK1ZAhaCfK5qcrQezDECiK4=
-=9x6E
------END PGP SIGNATURE-----
-
+>     Due to the (relatively speaking) huge cost involved in laundering a dirty
+>     page, the extra cpu time we eat giving the dirty pages a longer life on
+>     the inactive queue in the hopes of avoiding the flush, or skipping them
+>     entirely with a per-pass dirty page flushing limit, is well worth it.
+> 
+>     This is a classic algorithmic tradeoff... spend a little extra cpu to
+>     choose the best pages to launder in order to save a whole lot of cpu
+>     (and disk I/O) later on.
+ 
+--
+Daniel
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
