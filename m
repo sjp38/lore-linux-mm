@@ -1,126 +1,64 @@
-From: Mark_H_Johnson.RTS@raytheon.com
-Message-ID: <852568C8.00490F70.00@raylex-gh01.eo.ray.com>
-Date: Fri, 21 Apr 2000 08:22:47 -0500
-Subject: Re: swapping from pagecache?
-Mime-Version: 1.0
+Received: from ds02c00.rsc.raytheon.com (ds02c00.rsc.raytheon.com [147.25.138.118])
+	by dfw-gate1.raytheon.com (8.9.3/8.9.3) with ESMTP id JAA05712
+	for <linux-mm@kvack.org>; Fri, 21 Apr 2000 09:16:16 -0500 (CDT)
+From: Mark_H_Johnson@Raytheon.com
+Received: from rtshou-ds01.hso.link.com (rtshou-ds01.hso.link.com [130.210.151.8])
+	by ds02c00.rsc.raytheon.com (8.9.3/8.9.3) with ESMTP id JAA09646
+	for <linux-mm@kvack.org>; Fri, 21 Apr 2000 09:15:52 -0500 (CDT)
+Subject: Query on ulimit
+Message-ID: <OFB4641C99.2DC226BF-ON862568C8.004B95BB@hso.link.com>
+Date: Fri, 21 Apr 2000 09:15:40 -0500
+MIME-Version: 1.0
 Content-type: text/plain; charset=us-ascii
-Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Cacophonix <cacophonix@yahoo.com>
-Cc: linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+The behavior of resource limits (e.g., "ulimit" in bash) is somewhat
+confusing - I think I understand what's happening behind the scenes & I'd
+like to confirm what I've found and ask a few questions.
 
-I have a few questions & comments on this [and related memory resource items].
+You can use ulimit in bash [or its companion call setrlimit] to view or set
+resource limits. For memory related limits, the command ulimit -dsmv on
+Linux 2.2.10 shows something like...
+data seg size (kbytes)    unlimited
+max memory size (kbytes)  unlimited
+stack size (kbytes)       8192
+virtual memory (kbytes)   unlimited
 
- - Are you saying that the performance of 2.3.99 is below that of 2.2 because
-the system is swapping?
- - If so, why do you consider swapping to be "bad"?
+Attempting to set the virtual memory limit "ulimit -v 48192" always fails,
+even with root privilege. The error message appears to be misleading - it
+is:
+  ulimit: cannot raise limit: Invalid argument
+>From what I can tell, the "Invalid argument" is correct, the reason "cannot
+raise limit" is incorrect - its that the virtual memory limit is read only
+[RIGHT?].
 
-In the "good old days" (mid 70's to early 80's), most systems had enough
-physical memory to keep a few jobs in memory and the rest had to be swapped.
-Many of these systems could be called "aggressive" in swapping to push a few
-extra jobs into the swap area so that currently running jobs could grow and so
-that new jobs could be brought into memory immediately. This tends to improve
-interactive response time at the cost of making some periodic tasks [e.g., a job
-that wakes up every 15 minutes to forward email] run slightly slower.
+Setting the data seg limit "ulimit -d 40000" succeeds. And the settings now
+change to...
+data seg size (kbytes)    40000
+max memory size (kbytes)  unlimited
+stack size (kbytes)       8192
+virtual memory (kbytes)   48192
 
-As paging was added to systems (e.g., in VAX/VMS) a lot of effort was expended
-to continue to use memory efficiently. There were several parameters that you
-could set for users or as system wide settings that adjusted how much physical
-memory would be allocated to a running process. You could tune the system so
-that one or many jobs could get more memory (and less paging) if the system was
-lightly loaded. When the system became heavily loaded (10am to 2pm), the
-physical memory allocated to each job was reduced - increasing paging, but
-allowing "fair" access to system resources.
+So, to do what I wanted with setting -v, I should use -d instead [RIGHT?].
 
-My experience so far w/ Linux 2.2 (both .10 and .14) is that it is "lazy" in
-swapping and paging. It attempts to keep memory fully utilized. There are costs
-and benefits of such an approach. Your application may do better with such
-tuning. My experience is that a "rogue" program, one that allocates a lot of
-virtual memory and keeps it busy, can cause serious degradation to a Linux
-system. Let me use an example a prime number finder using Eratosthenes  sieve.
-It walks through memory setting every second, third, fifth, seventh, and so on
-item in a large array, marking it as "non-prime". It generates a HUGE number of
-dirty pages. Since physical memory limits aren't imposed on Linux 2.2, this
-program gobbles up all physical memory. Most, if not all other jobs get swapped,
-and system performance is awful. Running this same program on a VMS system,
-properly tuned, would result in slower performance for the sieve, higher paging
-rates, but still reasonable interactive performance. I would like to see Linux
-in 2001 have better performance than VMS did in the early 80's.
+The best I can tell, setting "ulimit -m 8192" succeeds and you can view the
+result, but is not effective at limiting physical memory usage [RIGHT?].
 
-My current application area is with large, real time systems. Our current target
-system has 24 CPU's w/ 2 G of physical memory. In these systems, I don't want
-any paging nor swapping when the real time application is running. I want to
-lock everything needed into physical memory & actually want to disable paging
-and swapping if I could [I can, but it severely restricts my choice in OS and
-causes other problems].
+Are there plans for implementing the physical memory limit? If so, when can
+I expect it to be done?
 
-Now, I can't afford to buy a system like that for each developer. Therefore, I
-can't use it for most of the development activity. I want to be able to develop
-that application on a $5k PC, run it in "slower than real time", take the paging
-and swapping hits and get some work done instead of waiting until 3am when time
-is available on the $1,500K simulator. So, to get what I want, I need good
-performance out of the memory management system. It needs to be able to page &
-swap to maintain good interactive response times. It would be better if it was
-tunable to handle a wide variety of applications - perhaps that would be a
-better solution than biasing the system to or away from paging and swapping.
-
+In reading various system administrative guides, I can set the hard & soft
+limits with the startup files for each shell (e.g., .bashrc or .profile).
+However, that requires some "cooperation" from the users since there are a
+few ways to avoid execution of those files (e.g., bash -norc -noprofile).
+Is there some way to set hard and soft resource limits on a global or per
+user basis w/o modifying either the code in the kernel or login?
+Thanks.
 --Mark H Johnson
   <mailto:Mark_H_Johnson@raytheon.com>
-
-
-|--------+----------------------->
-|        |          Cacophonix   |
-|        |          <cacophonix@y|
-|        |          ahoo.com>    |
-|        |                       |
-|        |          04/20/00     |
-|        |          04:07 PM     |
-|        |                       |
-|--------+----------------------->
-  >----------------------------------------------------------------------------|
-  |                                                                            |
-  |       To:     linux-mm@kvack.org                                           |
-  |       cc:     (bcc: Mark H Johnson/RTS/Raytheon/US)                        |
-  |       Subject:     swapping from pagecache?                                |
-  >----------------------------------------------------------------------------|
-
-
-
-Hello all,
-I've been running a few webserver tests with 2.3.99-pre6-2, and there seems
-to be some difference in behavior between 2.2.x and 2.3.99-pre.
-
-Specifically, on 2.3.99, it appears that unused pages from the page cache
-are swapped to disk, while in 2.2, unused pages are not swapped. As a result,
-performance on 2.3.99-pre drops to below 2.2. levels under such a scenario.
-
-[detailed procinfo removed]
-
-A procinfo under 2.2.16-pre1 with a similar scenario shows memory being
-shared (mainly by the web server, which has an internal cache), and does
-not swap at all.
-
-Any comments on this behavior? (shm is mounted of course).  Thanks for
-any advice.
-
-cheers,
-karthik
-
-
-__________________________________________________
-Do You Yahoo!?
-Send online invitations with Yahoo! Invites.
-http://invites.yahoo.com
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux.eu.org/Linux-MM/
-
-
-
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
