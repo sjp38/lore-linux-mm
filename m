@@ -1,35 +1,39 @@
-From: "Joseph D. Wagner" <wagnerjd@prodigy.net>
-Subject: RE: How to study memory leakage
-Date: Tue, 11 Feb 2003 10:10:14 -0600
-Message-ID: <000001c2d1e8$11409c20$b5425aa6@joe>
+Message-ID: <314925670-220032211181549123@server>
+Reply-To: info@smyrnagroup.net
+From: "" <smyrna@ttnet.net.tr>
+Subject: www.smyrnagroup.net
+Date: Tue, 11 Feb 2003 20:15:49 +0200
 MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="utf-8"
+Content-type: text/plain; charset=windows-1250
 Content-Transfer-Encoding: 8BIT
-In-Reply-To: <200302110939.PAA09314@brahma.roc.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: shajupt@qpackets.com, linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> System is becoming slow after some user space
-> programs are run and the memory usage displayed
-> also increasing
->
-> is their any known procedure or tools to study
-> the memory leakage both in user-space and kernel-space
+Sehr geehrte Damen und Herren.
+Sie finden in unsere Webseit-www.smyrnagroup.net unsere eigene Badeurlaub Hotels-Reisen-Rundreisen als Sonderangebote ,die wir als Studienreisen-Bildungsreisen und Christliche Reisen durchfuhren.
+In unserer Webseite www.smyrnagroup.net konnen  sie auch unsere andere Reisen finden.
+Wie ;
+***Blaue Reisen mit Smyrna Schiffe.
+***Eine Woche Istanbul Euro 340 Flug+Hotel-HP+Ausfluge aus Deutschland-Schweiz-Oesterreich.
+***Eine Woche Tuerkische Riveria Euro 340 Flug+Hotel-HP+Ausfluge aus Deutschland-Schweiz-Oesterreich .
+***Bade-Urlaub Hotels der Tuerkei mit Preisen .(Auch Funf Smyrna Group Hotels)
+***Rundreisen-Studienreisen-Christliche Freizeiten, 
+***Jugend Reisen und Hotels.
+***Behinderten Reisen. Strand Hotels fur Behinderten.
+***Senioeren Reisen und Gesundheits Reisen mit Thermal Hotels.
+***Sport Reisen wie Trainingslagern fur Tennis-Fussball und Schwimmen, 
 
-1) Monitor current memory usage taking special care to note current memory statistics
-2) Start the suspect program
-3) Do stuff
-4) Quit the suspect
-5) Check back with memory statistics; they should be the same as when you started the program.  If you're missing memory, this is the confirmed leak.
+Wenn sie die Tuerkei Fluge direkt buchen mochten,melden sie bitte bei uns .
+Wir stehen fur ihre Fragen zur Verfugung.
+Mit Herzlichen Grussen.
+Ihr Dr.Sedat Igdeci
+Tel:0090 242 424 80 81
+Fax:0090 242 512 89 91       
+Fax.0090 242 514 02 52 
 
-Step 5 isn't as easy as it looks.  The memory leak may only be occurring in a particular part of the program.  For example, if you have a Word Processor, the leak may occur only after executing the Find/Replace functions, not simply from running the program.
-
-Yeah, there are tools out there that make this a lot easier, but I don't know where these tools are on Linux.
-
-Joseph Wagner
+smyrna
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
