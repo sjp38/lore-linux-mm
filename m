@@ -1,48 +1,54 @@
-Date: Mon, 28 May 2001 15:07:07 -0300 (BRT)
-From: Marcelo Tosatti <marcelo@conectiva.com.br>
-Subject: Re: [PATCH] modified memory_pressure calculation
-In-Reply-To: <3B12A515.B8B207EA@colorfullife.com>
-Message-ID: <Pine.LNX.4.21.0105281448570.1261-100000@freak.distro.conectiva>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Tue, 29 May 2001 11:24:14 -0500
+From: Timur Tabi <ttabi@interactivesi.com>
+In-Reply-To: <OF5385EE96.412D8BDB-ON85256A58.005E44E7@pok.ibm.com>
+Subject: Re: order of matching alloc_pages/free_pages call pairs. Are they always same?
+Message-ID: <f1ZeVC.A.A_H.v08E7@dinero.interactivesi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Manfred Spraul <manfred@colorfullife.com>
-Cc: linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 28 May 2001, Manfred Spraul wrote:
+** Reply to message from "Bulent Abali" <abali@us.ibm.com> on Sat, 26 May 2001
+13:10:42 -0400
 
-> Marcelo Tosatti wrote:
-> > 
-> > I disagree with the second hunk.
-> > 
-> > memory_pressure is used to calculate the size of _both_ the inactive dirty
-> > and clean lists.
-> > 
-> > Since you're adding the page back to the inactive dirty list, you should
-> > not increase memory_pressure.
-> >
+
+> Is it reasonable to assume that matching
+> alloc_pages/free_pages pairs will always have the same order
+> as the 2nd argument?
 > 
-> Correct. And page_launder should increase memory_pressure fore each page
-> it moves back into the active list.
+> For example
+> pg = alloc_pages( , aorder);   free_pages(pg, forder);
+> Is (aorder == forder) always true?
+> 
+> Or, are there any bizarro drivers etc which will intentionally
+> free partial amounts, that is (forder < aorder)?
 
-With the current VM code we can reach a high deactivation rate under most
-heavy losts. Way too high, actually.
+Yes!!  My driver does exactly that!!  Please DO NOT do anything to break this
+functionality.  Here's the code which does that:
 
-With a lot of heavy allocator(s), the deactivation target will become high
-pretty fast, and tasks will have their pages freed way too fast.
+void fragment_and_free(void *_region, unsigned current_order, unsigned
+new_order)
+{
+    unsigned long current_size = (1 << current_order) << PAGE_SHIFT;
+    unsigned long new_size = (1 << new_order) << PAGE_SHIFT;
 
-Allocators which try to free pages themselves by calling try_to_free_pages
-(in __alloc_pages()) are aging the active pages, and if we have lots of
-them doing that, we have a problem.
+    char *region = (char *) _region;
+    char *p;
 
-It looks correct to make page_launder() increase memory_pressure for each
-page moved to the active list, but then the problem I described above will
-become even worse. 
+    printk("Subdividing block of order %u into blocks of order %u\n",
+current_order, new_order);
+
+    if (new_order <= current_order)
+    {
+        for (p = region; p < (region + current_size); p += new_size)
+            free_pages((u32) p, new_order);
+    }
+}
 
 
-
+-- 
+Timur Tabi - ttabi@interactivesi.com
+Interactive Silicon - http://www.interactivesi.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
