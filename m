@@ -1,38 +1,38 @@
-Date: Mon, 25 Sep 2000 14:47:15 +0100
-From: "Stephen C. Tweedie" <sct@redhat.com>
+Date: Mon, 25 Sep 2000 15:57:31 +0200 (CEST)
+From: Ingo Molnar <mingo@elte.hu>
+Reply-To: mingo@elte.hu
 Subject: Re: [patch] vmfixes-2.4.0-test9-B2
-Message-ID: <20000925144715.D2615@redhat.com>
-References: <20000925033128.A10381@athlon.random> <Pine.GSO.4.21.0009242122520.14096-100000@weyl.math.psu.edu> <20000925040230.D10381@athlon.random>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20000925040230.D10381@athlon.random>; from andrea@suse.de on Mon, Sep 25, 2000 at 04:02:30AM +0200
+In-Reply-To: <20000925155650.F22882@athlon.random>
+Message-ID: <Pine.LNX.4.21.0009251555420.9122-100000@elte.hu>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrea Arcangeli <andrea@suse.de>
-Cc: Alexander Viro <viro@math.psu.edu>, Linus Torvalds <torvalds@transmeta.com>, Ingo Molnar <mingo@elte.hu>, Rik van Riel <riel@conectiva.com.br>, Roger Larsson <roger.larsson@norran.net>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
+Cc: Linus Torvalds <torvalds@transmeta.com>, Rik van Riel <riel@conectiva.com.br>, Roger Larsson <roger.larsson@norran.net>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+On Mon, 25 Sep 2000, Andrea Arcangeli wrote:
 
-On Mon, Sep 25, 2000 at 04:02:30AM +0200, Andrea Arcangeli wrote:
-> On Sun, Sep 24, 2000 at 09:27:39PM -0400, Alexander Viro wrote:
-> > So help testing the patches to them. Arrgh...
-> 
-> I think I'd better fix the bugs that I know about before testing patches that
-> tries to remove the superblock_lock at this stage.
+> -		sync_page(page);
+>  		set_task_state(tsk, TASK_UNINTERRUPTIBLE);
+> +		sync_page(page);
 
-Right.  If we're introducing new deadlock possibilities, then sure we
-can fix the obvious cases in ext2, but it will be next to impossible
-to do a thorough audit of all of the other filesystems.  Adding in the
-new shrink_icache loop into the VFS just feels too dangerous right
-now.
+> -		run_task_queue(&tq_disk);
+>  		set_task_state(tsk, TASK_UNINTERRUPTIBLE);
+> +		run_task_queue(&tq_disk);
 
-Of course, that doesn't mean we shouldn't remove the excessive
-superblock locking from ext2 --- rather, it is simply more robust to
-keep the two issues separate.
+these look like genuine fixes, but i dont think they can explain the hangs
+i had yesterday - those were simple VM deadlocks. I dont see any deadlocks
+today - but i'm running the unsafe B2 variant of the vmfixes patch. (and i
+have no swapping enabled which simplifies my VM setup.)
 
---Stephen
+but one of these two fixes could explain the slowdown i saw on and off for
+quite some time, seeing very bad read performance occasionally. (do you
+remember my sched.c tq_disc hack?)
+
+	Ingo
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
