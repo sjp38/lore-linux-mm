@@ -1,74 +1,61 @@
-Received: from m2.gw.fujitsu.co.jp ([10.0.50.72]) by fgwmail6.fujitsu.co.jp (8.12.10/Fujitsu Gateway)
-	id i980kAR6023070 for <linux-mm@kvack.org>; Fri, 8 Oct 2004 09:46:10 +0900
-	(envelope-from kamezawa.hiroyu@jp.fujitsu.com)
-Received: from s2.gw.fujitsu.co.jp by m2.gw.fujitsu.co.jp (8.12.10/Fujitsu Domain Master)
-	id i980k9f1021448 for <linux-mm@kvack.org>; Fri, 8 Oct 2004 09:46:09 +0900
-	(envelope-from kamezawa.hiroyu@jp.fujitsu.com)
-Received: from s2.gw.fujitsu.co.jp (s2 [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id A23861F723E
-	for <linux-mm@kvack.org>; Fri,  8 Oct 2004 09:46:09 +0900 (JST)
-Received: from fjmail502.fjmail.jp.fujitsu.com (fjmail502-0.fjmail.jp.fujitsu.com [10.59.80.98])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 3B9A51F723C
-	for <linux-mm@kvack.org>; Fri,  8 Oct 2004 09:46:09 +0900 (JST)
-Received: from jp.fujitsu.com
- (fjscan503-0.fjmail.jp.fujitsu.com [10.59.80.124]) by
- fjmail502.fjmail.jp.fujitsu.com
- (Sun Internet Mail Server sims.4.0.2001.07.26.11.50.p9)
- with ESMTP id <0I5800D0VQ4RD0@fjmail502.fjmail.jp.fujitsu.com> for
- linux-mm@kvack.org; Fri,  8 Oct 2004 09:46:05 +0900 (JST)
-Date: Fri, 08 Oct 2004 09:51:40 +0900
-From: Hiroyuki KAMEZAWA <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH]  no buddy bitmap patch : intro and includes [0/2]
-In-reply-to: <1260090000.1097164623@[10.10.2.4]>
-Message-id: <4165E49C.6080604@jp.fujitsu.com>
-MIME-version: 1.0
-Content-type: text/plain; charset=us-ascii; format=flowed
-Content-transfer-encoding: 7bit
-References: <D36CE1FCEFD3524B81CA12C6FE5BCAB007ED31D6@fmsmsx406.amr.corp.intel.com>
- <1097163578.3625.43.camel@localhost> <1260090000.1097164623@[10.10.2.4]>
+Date: Fri, 08 Oct 2004 16:00:28 +0900 (JST)
+Message-Id: <20041008.160028.22497637.taka@valinux.co.jp>
+Subject: Re: [RFC] memory defragmentation to satisfy high order allocations
+From: Hirokazu Takahashi <taka@valinux.co.jp>
+In-Reply-To: <20041007120605.GA13779@logos.cnet>
+References: <20041004172427.GL16374@logos.cnet>
+	<20041005.115347.95910198.taka@valinux.co.jp>
+	<20041007120605.GA13779@logos.cnet>
+Mime-Version: 1.0
+Content-Type: Text/Plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Martin J. Bligh" <mbligh@aracnet.com>
-Cc: Dave Hansen <haveblue@us.ibm.com>, Matthew E Tolentino <matthew.e.tolentino@intel.com>, Linux Kernel ML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, lhms <lhms-devel@lists.sourceforge.net>, Andrew Morton <akpm@osdl.org>, William Lee Irwin III <wli@holomorphy.com>, "Luck, Tony" <tony.luck@intel.com>, Hirokazu Takahashi <taka@valinux.co.jp>, Dave McCracken <dmccr@us.ibm.com>
+To: marcelo.tosatti@cyclades.com
+Cc: iwamoto@valinux.co.jp, haveblue@us.ibm.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Martin J. Bligh wrote:
- >>>>What was the purpose behind this, again? Sorry, has been too long since
- >>>>I last looked.
+Hi, Marcelo.
 
->>On Thu, 2004-10-07 at 08:03, Tolentino, Matthew E wrote:
->>
->>For one, it avoids the otherwise requisite resizing of the bitmaps=20
->>during memory hotplug operations...
->>
-
- >> Dave McCracken wrote:
->> The memory allocator bitmaps are the main remaining reason we need the
->> concept of linear memory.  If we can get rid of them, it's one step closer
->> to managing memory as a set of sections.
-
- >>--Dave Hansen <haveblue@us.ibm.com> wrote (on Thursday, October 07, 2004 08:39:38 -0700)
->>It also simplifies the nonlinear implementation.  The whole reason we
->>had the lpfn (Linear) stuff was so that the bitmaps could represent a
->>sparse physical address space in a much more linear fashion.  With no
->>bitmaps, this isn't an issue, and gets rid of a lot of code, and a
->>*huge* source of bugs where lpfns and pfns are confused for each other. 
+> It seems there is typo in the current version of the patch:
+> 
+> int try_to_migrate_pages(struct list_head *page_list)
+> {
+> ...
+>         current->flags |= PF_KSWAPD;    /*  It's fake */
+>         list_for_each_entry_safe(page, page2, page_list, lru) {
+>                 /*
+>                  * Start writeback I/O if it's a dirty page with buffers
+>                  * and it doesn't have migrate_page method.
+>                  */
+>                 if (PageDirty(page) && PagePrivate(page)) {
+>                         if (!TestSetPageLocked(page)) {
+>                                 mapping = page_mapping(page);
+>                                 if (!mapping || mapping->a_ops->migrate_page ||
+a> 						^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+>                                     pageout(page, mapping) != PAGE_SUCCESS) {
+>                                         unlock_page(page);
+>                                 }
+>                         }
+>                 }
 > 
 > 
-> Makese sense on both counts. Would be nice to add the justification to 
-> the changelog ;-)
-> 
+> Shouldnt that be "!mapping->a_ops->migrate_page"?
 
-It seems all I should answer is already answered.
-Thank you all.
+"mapping->a_ops->migrate_page" is correct.
 
-I'll add the purpose to the changelog.
+This code is just for optimization. If mapping->a_ops->migrate_page
+isn't implemented, migrate_page_common() is used to migrate the page.
+migrate_page_common() will try to write it back if it's dirty, so that
+it would be better to start writeback I/O for target pages in advance
+without waiting the I/O completions.
 
-Kame <kamezawa.hiroyu@jp.fujitsu.com>
+As you may know the migration code will work fine without this code.
 
-> M.
-> 
+> That is, if we can't migrate the page, try to write it out?
 
+Thank you,
+Hirokazu Takahashi.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
