@@ -1,51 +1,53 @@
-Date: Fri, 27 Feb 1998 17:28:33 -0500 (EST)
-From: "Benjamin C.R. LaHaise" <blah@kvack.org>
-Subject: Re: [2x PATCH] page map aging & improved kswap logic
-In-Reply-To: <199802271952.TAA01195@dax.dcs.ed.ac.uk>
-Message-ID: <Pine.LNX.3.95.980227164636.13161A-100000@as200.spellcast.com>
+Received: from max.fys.ruu.nl (max.fys.ruu.nl [131.211.32.73])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id MAA29072
+	for <linux-mm@kvack.org>; Mon, 2 Mar 1998 12:02:22 -0500
+Date: Mon, 2 Mar 1998 17:19:41 +0100 (MET)
+From: Rik van Riel <H.H.vanRiel@fys.ruu.nl>
+Reply-To: Rik van Riel <H.H.vanRiel@fys.ruu.nl>
+Subject: Re: Fairness in love and swapping
+In-Reply-To: <199802271941.TAA01151@dax.dcs.ed.ac.uk>
+Message-ID: <Pine.LNX.3.91.980302171448.29405D-100000@mirkwood.dummy.home>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 To: "Stephen C. Tweedie" <sct@dcs.ed.ac.uk>
-Cc: Rik van Riel <H.H.vanRiel@fys.ruu.nl>, "Dr. Werner Fink" <werner@suse.de>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.rutgers.edu>
+Cc: "Dr. Werner Fink" <werner@suse.de>, torvalds@transmeta.com, nahshon@actcom.co.il, alan@lxorguk.ukuu.org.uk, paubert@iram.es, mingo@chiara.csoma.elte.hu, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 On Fri, 27 Feb 1998, Stephen C. Tweedie wrote:
-...
-> The biggest problem is avoiding blocking while we do the work in
-> try_to_swap_out().  That is a rather tricky piece of code, since it has
-> to deal with the fact that the process it is swapping can actually be
-> killed if we sleep for any reason, so it will not necessarily still be
-> there when we wake up again.  We've really got to do the entire
-> custering operation for write within try_to_swap_out() and then start up
-> the IO for those pages.
 
-The code I'm hoping to complete this weekend should solve this problem
-nicely -- vm_ops->swapout is now completely integrated within the swapper
-for 'normal' shared/private pages and won't sleep until all ptes that
-reference a page have been replaced with the swap entry.  So it's just a
-small step to batch up the pages to be written out.
+> > AFAIK, mapped images aren't part of a proces' RSS, but
+> > are page-cached (page->inode type of RSS). And swapping
+> > of those vma's _is_ done in shrink_mmap() in filemap.c.
+> 
+> No, absolutely not.  These pages are certainly present in the page
+[snip]
+> > But if I've overlooked something, I'd really like to hear about
+> > it... A bit of a clue never hurts when coding up new patches :-)
+> 
+> You're welcome. :)
 
-> However, at least with the new swap cache stuff we can make things
-> easier, since it is now possible to set up swap cache associations
-> atomically on all the pages we want to swapout, and then take as much
-> time as we want performing the actual writes.  All we need to do is make
-> sure that we lock all the pages for IO without the risk of blocking.
+Nevertheless, the system seems to run smoother when the
+page-cache pages aren't thrown away immediately, but aged
+as normal pages are. Read-ahead pages _are_ sometimes
+freed before they're actually used, so in this case the
+system _will_ have to read them again. But maybe a 'true'
+LRU implementation for the 'hardy-referenced' pages might
+be better (with a sysctl tunable timing thing).
 
-At your suggestion, my work in progress now includes a per private vma
-inode, which essentially makes the swap-cache disappear since all pages
-are now in the page cache.  There is a concern with this: on swapin, each
-pte that pointed to the page on disk has to be replaced with the page's
-entry.  Unfortunately this means that the swap entry is now lost!  I'm
-tempted to revert back to the old swap_cache_entry, and will have to
-unless someone has an ingenious idea about where the swap entry could be
-stored.  (The inode, offset pair can't be used for the swap cache as
-they're used to find the appropriate pte in the page tables.)
+start:
+	page->age |= (1 << lru_age_factor)
+referenced:
+	page->age >>= 1
+	page->age |= (1 << lru_age_factor)
+not-referenced:
+	page->age >>=1
 
-One possibility is to store the swap entries in a structure attached to
-the inode - right now affs is using a whopping ~80 longs for its private
-inode data.  Or the data could just be stored in swap-cache entries tied
-to the inode - actually that might work well as a page would need to be
-allocated on swapin of an entry.  Hmmm...
+grtz,
 
-		-ben
+Rik.
++-----------------------------+------------------------------+
+| For Linux mm-patches, go to | "I'm busy managing memory.." |
+| my homepage (via LinuxHQ).  | H.H.vanRiel@fys.ruu.nl       |
+| ...submissions welcome...   | http://www.fys.ruu.nl/~riel/ |
++-----------------------------+------------------------------+
