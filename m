@@ -1,38 +1,57 @@
 Received: from penguin.e-mind.com (penguin.e-mind.com [195.223.140.120])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id RAA12006
-	for <linux-mm@kvack.ORG>; Thu, 28 Jan 1999 17:35:46 -0500
-Date: Thu, 28 Jan 1999 23:33:03 +0100 (CET)
+	by kvack.org (8.8.7/8.8.7) with ESMTP id RAA12126
+	for <linux-mm@kvack.ORG>; Thu, 28 Jan 1999 17:47:18 -0500
+Date: Thu, 28 Jan 1999 23:04:42 +0100 (CET)
 From: Andrea Arcangeli <andrea@e-mind.com>
+Reply-To: Andrea Arcangeli <andrea@e-mind.com>
 Subject: Re: [patch] fixed both processes in D state and the /proc/ oopses [Re: [patch] Fixed the race that was oopsing Linux-2.2.0]
-In-Reply-To: <199901281807.SAA03328@dax.scot.redhat.com>
-Message-ID: <Pine.LNX.3.96.990128232118.797B-100000@laser.bogus>
+In-Reply-To: <Pine.LNX.3.95.990128095147.32418F-100000@penguin.transmeta.com>
+Message-ID: <Pine.LNX.3.96.990128205918.438B-100000@laser.bogus>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: "Stephen C. Tweedie" <sct@redhat.com>
-Cc: Linus Torvalds <torvalds@transmeta.com>, linux-kernel@vger.rutgers.edu, werner@suse.de, mlord@pobox.com, "David S. Miller" <davem@dm.COBALTMICRO.COM>, gandalf@szene.CH, adamk@3net.net.pl, kiracofe.8@osu.edu, ksi@ksi-linux.COM, djf-lists@ic.NET, tomh@taz.ccs.fau.edu, Alan Cox <alan@lxorguk.ukuu.org.uk>, linux-mm@kvack.org
+To: Linus Torvalds <torvalds@transmeta.com>
+Cc: "Stephen C. Tweedie" <sct@redhat.com>, linux-kernel@vger.rutgers.edu, werner@suse.de, mlord@pobox.com, "David S. Miller" <davem@dm.COBALTMICRO.COM>, gandalf@szene.CH, adamk@3net.net.pl, kiracofe.8@osu.edu, ksi@ksi-linux.COM, djf-lists@ic.NET, tomh@taz.ccs.fau.edu, Alan Cox <alan@lxorguk.ukuu.org.uk>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 28 Jan 1999, Stephen C. Tweedie wrote:
+On Thu, 28 Jan 1999, Linus Torvalds wrote:
 
-> Linus, we are in violent agreement: see my previous email. :)  I agree
-> with both you and Andrea that the atomic_t is not strictly necessary,
-> and agree vigorously that removing it is wrong because it will just make
-> the job of fine-graining the locking ever more harder.  As we relax the
-> kernel locks, the atomic_t becomes more and more important.
+> Incorrect, see my previous email. It may not be strictly necessary right
+> now due to us probably holding the kernel lock everywhere, but it is
+> conceptually necessary, and it is _not_ an argument for a spinlock.
 
-I'm afraid. I still think that it will never be needed even removing
-lock_kernel(), because doing that we would need to make atomic the
-decreasing of mm->count with current->mm = &init_mm, otherwise we would
-not know if we can touch the current->mm of a process at any time. 
+If you remove the kernel lock around do_exit() you _need_ my mm_lock
+spinlock. You need it to make atomic the decreasing of mm->count and
+current->mm = &init_mm. If the two instructions are not atomic you have
+_no_ way to know if you can mmget() at any time the mm of a process.
 
-It's far from be like the semaphore case where we avoid the spinlock to
-not race because we can order our moves differently if we are in down() or
-in up(). 
+I repeat in another way (just trying to avoid English mistakes): 
+decreasing mm->count has to go in sync with updating current->mm,
+otherwise you don't know if you can access the mm of a process (and so
+also touching mm->count) because the mm of such process could be just been
+deallocated (the process could be a zombie).
 
-But maybe I am missing something, but it's what I think though.
+As far I can see the mm->count will _never_ have 1 reason to be atomic_t
+even removing the function lock_kernel() from
+/usr/src/linux/include/asm/smplock.h . 
+
+Using an int for mm->count (isntead of atomic_t) is far from be something
+of magic. Doing that change it means that I don't expect work by magic,
+but I know that it will work fine. It's instead magic (out of the human
+reason) how the kernel works now, if you think that we _need_ atomic_t
+instead of int. 
+
+It's hard for me to be quiet even if you asked me to go away because I
+think you are plain wrong telling that we need mm->count atomic_t for the
+future. 
 
 Andrea Arcangeli
+
+PS. You have not hurted me asking me to go away, because I _always_ do the
+_best_ I _can_, and if my best is plain wrong I can't change this reality. 
+What I care is to do the best I can. Maybe I should really go away and do
+something in my sparetime where it's not requested to be clever... I hope
+it's not the case though and that you wasn't serious.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm my@address'
