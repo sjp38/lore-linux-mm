@@ -1,38 +1,58 @@
-Date: Wed, 6 Jun 2001 13:31:40 +0100 (BST)
-From: Hugh Dickins <hugh@veritas.com>
+Message-Id: <l0313030db743d4a05018@[192.168.239.105]>
+In-Reply-To: <3B1E203C.5DC20103@uow.edu.au>
+References: <l03130308b7439bb9f187@[192.168.239.105]>
+Mime-Version: 1.0
+Content-Type: text/plain; charset="us-ascii"
+Date: Wed, 6 Jun 2001 13:50:53 +0100
+From: Jonathan Morton <chromi@cyberspace.org>
 Subject: Re: [PATCH] reapswap for 2.4.5-ac10
-In-Reply-To: <Pine.LNX.4.21.0106051742590.3541-100000@freak.distro.conectiva>
-Message-ID: <Pine.LNX.4.21.0106061303570.2828-100000@localhost.localdomain>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Marcelo Tosatti <marcelo@conectiva.com.br>
-Cc: "Stephen C. Tweedie" <sct@redhat.com>, Alan Cox <alan@lxorguk.ukuu.org.uk>, =?iso-8859-1?Q?Andr=E9_Dahlqvist?= <anedah-9@sm.luth.se>, linux-mm@kvack.org
+To: Andrew Morton <andrewm@uow.edu.au>
+Cc: Marcelo Tosatti <marcelo@conectiva.com.br>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 5 Jun 2001, Marcelo Tosatti wrote:
-> On Tue, 5 Jun 2001, Stephen C. Tweedie wrote:
-> > On Tue, Jun 05, 2001 at 04:48:46PM -0300, Marcelo Tosatti wrote:
-> > > I'm resending the reapswap patch for inclusion into -ac series. 
-> > 
-> > Isn't it broken in this state?  Checking page_count, page->buffers and
-> > PageSwapCache without the appropriate locks is dangerous.
-> 
-> We hold the pagemap_lru_lock, so there will be no one doing lookups on
-> this swap page (get_swapcache_page() locks pagemap_lru_lock).
-> 
-> Am I overlooking something here? 
+>> Interesting observation.  Something else though, which kswapd is guilty of
+>> as well: consider a page shared among many processes, eg. part of a
+>> library.  As kswapd scans, the page is aged down for each process that uses
+>> it.  So glibc gets aged down many times more quickly than a non-shared
+>> page, precisely the opposite of what we really want to happen.
+>
+>Perhaps the page should be aged down by (1 / page->count)?
+>
+>Just scale all the age stuff by 256 or 1000 or whatever and
+>instead of saying
+>
+>	page->age -= CONSTANT;
+>
+>you can use
+>
+>	page->age -= (CONSTANT * 256) / atomic_read(page->count);
+>
+>
+>So the more users, the more slowly it ages.  You get the idea.
 
-mm/shmem.c:shmem_getpage_locked() and mm/swapfile.c:try_to_unuse()
-call delete_from_swap_cache_nolock(), both holding page lock,
-neither holding pagemap_lru_lock.
+However big you make that scaling constant, you'll always find some pages
+which have more users than that.  Consider a shell server, and pages
+belonging to glibc.  Once the number of users gets that large, the age will
+go down by exactly zero, even if it just happens that the page is truly not
+in use.
 
-Unless you hold the page lock, PageSwapCache(page) and page->index
-are volatile, but to find swap_count(page) you have to rely on both
-of them.  TryLockPage()?
+BUT, as it turns out, refill_inactive_scan() already does ageing down on a
+page-by-page basis, rather than process-by-process.  So I can indeed take
+out my little decrement in try_to_swap_out() and just leave the
+bail-out-if-age-wasn't-zero code.  The age-up code stays - it's good to
+catch accesses as frequently as possible.
 
-Hugh
+--------------------------------------------------------------
+from:     Jonathan "Chromatix" Morton
+mail:     chromi@cyberspace.org  (not for attachments)
+
+The key to knowledge is not to rely on people to teach you it.
+
+GCS$/E/S dpu(!) s:- a20 C+++ UL++ P L+++ E W+ N- o? K? w--- O-- M++$ V? PS
+PE- Y+ PGP++ t- 5- X- R !tv b++ DI+++ D G e+ h+ r++ y+(*)
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
