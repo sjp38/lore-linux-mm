@@ -1,35 +1,65 @@
-Message-ID: <3D6B0215.9FDECCAC@zip.com.au>
-Date: Mon, 26 Aug 2002 21:37:41 -0700
-From: Andrew Morton <akpm@zip.com.au>
-MIME-Version: 1.0
+Message-ID: <20020827092219.27495.qmail@thales.mathematik.uni-ulm.de>
+From: "Christian Ehrhardt" <ehrhardt@mathematik.uni-ulm.de>
+Date: Tue, 27 Aug 2002 11:22:19 +0200
 Subject: Re: MM patches against 2.5.31
-References: <3D644C70.6D100EA5@zip.com.au> <E17jO6g-0002XU-00@starship> <20020826200048.3952.qmail@thales.mathematik.uni-ulm.de> <E17jQB8-0002Zi-00@starship> <3D6A9E4D.DBCC5D0A@zip.com.au> <20020826234230.B21820@redhat.com>
+References: <3D644C70.6D100EA5@zip.com.au> <E17jKlX-0001i0-00@starship> <20020826152950.9929.qmail@thales.mathematik.uni-ulm.de> <E17jO6g-0002XU-00@starship> <3D6A8082.3775C5AB@zip.com.au>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+In-Reply-To: <3D6A8082.3775C5AB@zip.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Benjamin LaHaise <bcrl@redhat.com>
-Cc: Daniel Phillips <phillips@arcor.de>, Christian Ehrhardt <ehrhardt@mathematik.uni-ulm.de>, lkml <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Andrew Morton <akpm@zip.com.au>
+Cc: Daniel Phillips <phillips@arcor.de>, lkml <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Benjamin LaHaise wrote:
+On Mon, Aug 26, 2002 at 12:24:50PM -0700, Andrew Morton wrote:
+> The flaw is in doing the put_page_testzero() outside of any locking
+> which would prevent other CPUs from finding and "rescuing" the zero-recount
+> page.
 > 
-> On Mon, Aug 26, 2002 at 02:31:57PM -0700, Andrew Morton wrote:
-> > I like the magical-removal-just-before-free, and my gut feel is that
-> > it'll provide a cleaner end result.
+> CPUA:
+> 	if (put_page_testzero()) {
+> 		/* Here's the window */
+> 		spin_lock(lru_lock);
+> 		list_del(page->lru);
 > 
-> For the record, I'd rather see explicite removal everwhere.  We received
-> a number of complaints along the lines of "I run my app immediately after
-> system startup, and it's fast, but the second time it's slower" due to
-> the lazy page reclaim in early 2.4.  Until there's a way to make LRU
-> scanning faster than page allocation, it can't be lazy.
+> CPUB:
 > 
+> 	spin_lock(lru_lock);
+> 	page = list_entry(lru);
+> 	page_cache_get(page);	/* If this goes from 0->1, we die */
+> 	...
+> 	page_cache_release(page);	/* double free */
 
-I think that's what Rik was referring to.
+So what we want CPUB do instead is
 
-But here, "explicit removal" refers to running lru_cache_del() prior
-to the final put_page, rather than within the context of the final
-put_page.  So it's a different thing.
+	spin_lock(lru_lock);
+	page = list_entry(lru)
+
+	START ATOMIC 
+		page_cache_get(page);
+		res = (page_count (page) == 1)
+	END ATOMIC
+
+	if (res) {
+		atomic_dec (&page->count);
+		continue;  /* with next page */
+	}
+	...
+	page_cache_release (page);
+
+I.e. we want to detect _atomically_ that we just raised the page count
+from zero to one. My patch actually has a solution that implements the
+needed atomic operation above by means of the atomic functions that we
+currently have on all archs (it's called get_page_testzero and
+should probably called get_page_testone).
+The more I think about this the more I think this is the way to go.
+
+      regards   Christian
+
+-- 
+THAT'S ALL FOLKS!
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
