@@ -1,48 +1,39 @@
-Date: Tue, 15 Jun 2004 23:37:40 -0700 (PDT)
-From: Ron Maeder <rlm@orionmulti.com>
-Subject: Re: mmap() > phys mem problem
-In-Reply-To: <40CFB99A.8080508@yahoo.com.au>
-Message-ID: <Pine.LNX.4.60.0406152330540.868@stimpy>
-References: <Pine.LNX.4.44.0406141501340.7351-100000@pygar.sc.orionmulti.com>
- <40CE6ADE.4040903@yahoo.com.au> <40CFB99A.8080508@yahoo.com.au>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII; format=flowed
+Date: Wed, 16 Jun 2004 08:12:14 +0100
+From: Christoph Hellwig <hch@infradead.org>
+Subject: Re: [PATCH] s390: lost dirty bits.
+Message-ID: <20040616071214.GA7810@infradead.org>
+References: <20040615174436.GA10098@mschwid3.boeblingen.de.ibm.com> <20040615210919.1c82a5c8.akpm@osdl.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20040615210919.1c82a5c8.akpm@osdl.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: riel@surriel.com, akpm@osdl.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@osdl.org>
+Cc: Martin Schwidefsky <schwidefsky@de.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-I can avoid this particular situation in the short term, but I can't avoid 
-the general case in the long run.  Thanks again.  -Ron
+On Tue, Jun 15, 2004 at 09:09:19PM -0700, Andrew Morton wrote:
+>  #define ClearPageReferenced(page)	clear_bit(PG_referenced, &(page)->flags)
+>  #define TestClearPageReferenced(page) test_and_clear_bit(PG_referenced, &(page)->flags)
+>  
+> -#ifndef arch_set_page_uptodate
+> -#define arch_set_page_uptodate(page) do { } while (0)
+> +#ifdef arch_set_page_uptodate
+> +#define SetPageUptodate(page) arch_set_page_uptodate(page)
+> +#else
+> +#define SetPageUptodate(page) set_bit(PG_uptodate, &(page)->flags)
+>  #endif
 
-On Wed, 16 Jun 2004, Nick Piggin wrote:
+Eek.  It looks like SetPageUptodate, it smells like SetPageUptodate, why
+do you give it another name?  Just put a
 
-> Nick Piggin wrote:
->> Ron Maeder wrote:
->> 
->>> I tried upping /proc/sys/vm/min_free_kbytes to 4096 as suggested below, 
->>> with the same results (grinding to a halt, out of mem).
->>> 
->>> Any other suggestions?  Thanks for your help.
->>> 
->> 
->> Hmm. Maybe ask linux-net and/or the NFS guys?
->> 
->> You need to know the maximum amount of memory that your setup
->> might need in order to write out one page.
->> 
->> There might also be ways to reduce this, like reducing NFS
->> transfer sizes or network buffers... I dunno.
->> 
->
-> Actually no, I don't think that will help. I have an
-> idea that might help. Stay tuned :)
->
-> For the time being, would it be at all possible to
-> work around it using your msync hack, turning swap on,
-> or doing read/write IO?
->
+#ifndef SetPageUptodate	/* S390 wants to override this */
+#define SetPageUptodate		set_bit(PG_uptodate, &(page)->flags)
+#endif
+
+in mm.h
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
