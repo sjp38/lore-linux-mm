@@ -1,38 +1,38 @@
-Date: Wed, 28 Jul 1999 11:46:43 -0400 (EDT)
-From: "Benjamin C.R. LaHaise" <blah@kvack.org>
+Message-ID: <004001bed91c$177667a0$c80c17ac@clmsdev.local>
+From: "Manfred Spraul" <masp0008@stud.uni-sb.de>
 Subject: Re: active_mm & SMP & TLB flush: possible bug
-In-Reply-To: <379EF7D0.375C78A4@colorfullife.com>
-Message-ID: <Pine.LNX.3.96.990728114443.27907A-100000@mole.spellcast.com>
+Date: Wed, 28 Jul 1999 18:58:58 +0200
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain;
+	charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: masp0008@stud.uni-sb.de
-Cc: linux-mm@kvack.org
+To: "Benjamin C.R. LaHaise" <blah@kvack.org>
+Cc: Linux MM <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 28 Jul 1999, Manfred Spraul wrote:
+>> BTW, where can I find more details about the active_mm implementation?
+>> specifically, I'd like to know why active_mm was added to
+>> "struct task_struct".
+>> >From my first impression, it's a CPU specific information
+>> (every CPU has exactly one active_mm, threads which are not running have
+>> no
+>> active_mm), so I'd have used a global array[NR_CPUS].
+>
+>That soulds like a good idea -- care to offer a patch? =)
 
-> if these 2 CPU switch their roles, then we use an outdates
-> TLB cache.
+I still try to understand the current implementation, and I can't propose a
+patch before I understand the current code...
 
-You're right, thankfully it's fixed in 2.3.12-8 (meaning that my dual
-finally stops SIGSEGVing random processes).
+I'll try to write a patch over the weekend.
 
-> BTW, where can I find more details about the active_mm implementation?
-> specifically, I'd like to know why active_mm was added to
-> "struct task_struct".
-> >From my first impression, it's a CPU specific information
-> (every CPU has exactly one active_mm, threads which are not running have
-> no
-> active_mm), so I'd have used a global array[NR_CPUS].
 
-That soulds like a good idea -- care to offer a patch? =)
+    Manfred
 
-		-ben
 
---
-Hi!  I'm Signature Virus 99!  Copy me into your .signature and join the fun!
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
