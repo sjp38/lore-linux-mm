@@ -1,43 +1,87 @@
-Date: Sun, 20 Aug 2000 19:15:15 -0300 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
-Subject: Re: Performance: test6, 7-5, 7-5 Multiqueue, history
-In-Reply-To: <39A02880.54E3C08@sgi.com>
-Message-ID: <Pine.LNX.4.21.0008201911130.5411-100000@duckman.distro.conectiva>
+Date: Mon, 21 Aug 2000 01:36:27 +0200 (CEST)
+From: Jelle Foks <jelle@flying.demon.nl>
+Subject: Re: memory file system on linux
+In-Reply-To: <20000820171034.21395.qmail@web6405.mail.yahoo.com>
+Message-ID: <Pine.LNX.4.21.0008210118170.14289-100000@bang.batnet>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rajagopal Ananthanarayanan <ananth@sgi.com>
+To: Ramesh Panuganty <rameshpanuganty@yahoo.com>
 Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 20 Aug 2000, Rajagopal Ananthanarayanan wrote:
+On Sun, 20 Aug 2000, Ramesh Panuganty wrote:
 
->  o test5 continues to yield the best performance.
->  o test5 -> test6 (and in test7-5) block I/O performance degraded about 10%.
+> Hi,
+> 
+> I am new to this group and came here while looking for
+> a specific information. Can someone help me in getting
+> the information (please reply to me directly).
+> 
+> Are there any memory file systems on linux with which
+> I can maitain the entire file system on RAM?
 
-Interesting, I wonder why this is (and I'll look into it
-tomorrow to find out what happened and to fix it).
+What you can do is use use any filesystem on top of the RAM block device
+(CONFIG_BLK_DEV_RAM).
 
->  o MQ patch yields bad performance in most cases; perhaps changes
->    between test7-pre4 and test7-pre5 don't sit well with MQ changes,
->    since I used the t7p4 MQ patch.
+>     - will /dev/ram come to of any help for me?
 
-The problem which causes this is that bdflush in the
-multiqueue vm writes out pages in the 'wrong' order
-sometimes. I'll fix this ASAP.
+Yes, probably. Just choose a filesystem to run on top of it. 'initrd' is
+probably the magic word you're looking for. initrd stands for (I
+think) 'INITial RamDisk'...
 
-(I think I'll make a a heisenbug compensator for the
-SMP bug and get on with life)
+>     - I had read about something like 'tmpfs' on SunOS
+> which is a virtual filesystem that is entirely
+> resident in the memory (probably shares the space with
+> swap)
 
-regards,
+tmpfs does require a partition on the harddisk, and basically is a kludge
+because the regular filesystem for sunos was not fast enough for temporary
+files such as those placed in '/tmp'. Therefore, sun designed a new
+filesystem that was faster for small, short-lived files, and combined it
+with their paging (swap disk space). The current default Linux filesystem
+(ext2fs) has been benchmarked in the past to be equivalent or better than
+both tmpfs and the regular solaris filesystem for any application (you can
+probably find it in the linux-kernel archives, in a thread related to
+tmpfs), so Linux does not require anything such as a 'tmpfs' because
+ext2fs does not has the shortcomings that make it necessary (there are
+some shortcomings (hence ext2fs, reiserfs, etc...), but they're
+different).
 
-Rik
---
-"What you're running that piece of shit Gnome?!?!"
-       -- Miguel de Icaza, UKUUG 2000
+> Actually, I will tell you what I am looking for...
+> 
+> I have a 32MB IDE-disc and a 64MB RAM on my machine.
+> But these small IDE-discs support very limited number
+> of I/O Operations in their life time. Hence to limit
+> the I/O, I want to keep the 32MB file system itself on
+> RAM and do a read-write only once during bootup and
+> shutdown.
 
-http://www.conectiva.com/		http://www.surriel.com/
+There is a cramfs, ROMfs, and also I read somewhere about somebody
+having implemented a filesystem specifically for FLASH ROMs.
+
+I also suggest that you look into 'initrd', which basically is just a
+compressed RAMdisk image loaded together with the kernel (in your case,
+you could store the kernel plus an initrd image on the 32MB disk, and then
+do everything from RAM). The initrd is loaded from the storage medium by
+the same bootloader that loads the kernel, then the initrd is decompressed
+into RAM to be used as RAMdisk (of any filesystem, minix is an often-used
+choice because of it's relatively low filesystem overhead). Btw, If your
+disk is FLASH-based, then only the the limit for the medium lifetime are
+just the number of writes to the medium (FLASH is as good as ROM for
+reads, except sometimes it's a lot slower), so ROMfs or possibly even
+iso9660 might be interesing for you, saving some more precious RAM by
+having a lot of your files available read-only directly from the 32MB
+medium instead of RAM.
+
+> Is there anyway, I can achieve this?
+> 
+
+Cya,
+
+Jelle.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
