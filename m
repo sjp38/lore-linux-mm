@@ -1,65 +1,63 @@
-Received: from flinx.npwt.net (eric@flinx.npwt.net [208.236.161.237])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id WAA25288
-	for <linux-mm@kvack.org>; Tue, 30 Jun 1998 22:31:53 -0400
-Subject: Re: (reiserfs) Re: More on Re: (reiserfs) Reiserfs and ext2fs (was Re: (reiserfs) Sum Benchmarks (these look typical?))
-References: <Pine.HPP.3.96.980617035608.29950A-100000@ixion.honeywell.com>
-	<199806221138.MAA00852@dax.dcs.ed.ac.uk>
-	<358F4FBE.821B333C@ricochet.net> <m11zsgrvnf.fsf@flinx.npwt.net>
-	<199806241154.MAA03544@dax.dcs.ed.ac.uk>
-	<m11zse6ecw.fsf@flinx.npwt.net>
-	<199806251100.MAA00835@dax.dcs.ed.ac.uk>
-	<m1emwcf97d.fsf@flinx.npwt.net>
-	<199806291035.LAA00733@dax.dcs.ed.ac.uk>
-	<m1u354dlna.fsf@flinx.npwt.net>
-	<199806301610.RAA00957@dax.dcs.ed.ac.uk>
-From: ebiederm+eric@npwt.net (Eric W. Biederman)
-Date: 30 Jun 1998 19:17:15 -0500
-In-Reply-To: "Stephen C. Tweedie"'s message of Tue, 30 Jun 1998 17:10:46 +0100
-Message-ID: <m1n2au77ck.fsf@flinx.npwt.net>
+Received: from haymarket.ed.ac.uk (haymarket.ed.ac.uk [129.215.128.53])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id FAA26943
+	for <linux-mm@kvack.org>; Wed, 1 Jul 1998 05:23:45 -0400
+Date: Wed, 1 Jul 1998 09:50:57 +0100
+Message-Id: <199807010850.JAA00764@dax.dcs.ed.ac.uk>
+From: "Stephen C. Tweedie" <sct@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Subject: Re: Thread implementations... 
+In-Reply-To: <199806301930.MAA09098@bitmover.com>
+References: <199806301930.MAA09098@bitmover.com>
 Sender: owner-linux-mm@kvack.org
-To: "Stephen C. Tweedie" <sct@dcs.ed.ac.uk>
-Cc: Hans Reiser <reiser@ricochet.net>, Shawn Leas <sleas@ixion.honeywell.com>, Reiserfs <reiserfs@devlinux.com>, Ken Tetrick <ktetrick@ixion.honeywell.com>, linux-mm@kvack.org
+To: Larry McVoy <lm@bitmover.com>
+Cc: "Stephen C. Tweedie" <sct@redhat.com>, "Eric W. Biederman" <ebiederm+eric@npwt.net>, Christoph Rohland <hans-christoph.rohland@sap-ag.de>, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
->>>>> "ST" == Stephen C Tweedie <sct@dcs.ed.ac.uk> writes:
+Hi,
 
-ST> Hi,
-ST> On 29 Jun 1998 14:59:37 -0500, ebiederm+eric@npwt.net (Eric
-ST> W. Biederman) said:
+On Tue, 30 Jun 1998 12:30:45 -0700, lm@bitmover.com (Larry McVoy)
+said:
 
->> There are two problems I see.  
+> 	if ((free_memory < we_will_start_paging_soon) &&
+> 	    (offset is clust_size multiple) &&
+> 	    (offset > small_file) &&
+> 	    (access is sequential)) {
+> 	    	free_behind(vp, offset - clust_size, clust_size);
+> 	}
 
->> 1) A DMA controller actively access the same memory the CPU is
->> accessing could be a problem.  Recall video flicker on old video
->> cards.
+Looks entirely reasonable.  I've been thinking of something very
+similar but just a little more complex, so that we can also cleanly
+handle the case of sequential mmap()ed reads, both of mapped files and
+potentially of anonymous datasets.  The difference there is that if we
+are dealing with tiled data, then we may need to allow a larger window
+between the current pagein cursor and the forget-behind cursor.
+Again, if we just unmap the pages and place them on a high-priority
+reuse queue, then getting the guess wrong just results in a minor
+fault unless we do actually reuse the memory before accessing the data
+again.
 
-ST> Shouldn't be a problem.
+> 	1) it was nice that I/O took care of itself.  The pageout daemon is
+> 	   pretty costly (Stephen, we talked about this at Linux Expo - this
+> 	   is why I want a pageout daemon that works on files, not on pages).
 
-When either I trace through the code, or a hardware guy convinces me,
-that it is safe to both write to a page, and do DMA from a page
-simultaneously I'll believe it.
+Yes, and Ingo and I have been talking about ways of doing it.
+	
+> 	2) Small files aren't worth the trouble and aren't the cause of the
+> 	   trouble.  
 
->> 2) More importantly the cpu writes to the _cache_, and the DMA
->> controller reads from the RAM.  I don't see any consistency garnatees
->> there.  We may be able solve these problems on a per architecture or
->> device basis however.
+Small files benefit from a similar scheme.  For small
+sequentially-accessed files, as they age, we want to remove the entire
+file from cache at once.  Repopulating a sequential file's fragmented
+cache is expensive anyway, so it may in fact be _cheaper_ to do this
+than to just throw out one page at a time.  
 
-ST> Again, not important.  If we ever modify a page which is already being
-ST> written out to a device, then we mark that page dirty.  On write, we
-ST> mark it clean (but locked) _before_ starting the IO, not after.  So, if
-ST> there is ever an overlap of a filesystem/mmap write with an IO to disk,
-ST> we will always schedule another IO later to clean the re-dirtied
-ST> buffers.
-
-Duh.  I wonder what I was thinking...
-
-Anyhow I've implemented the conservative version.  The only
-change needed is to change from unmapping pages to removing the dirty
-bit, and the basic code stands. 
-
-The most important change needed would be to tell unuse_page it can't
-remove a a locked page from the page cache.  Either that or I need to
-worry about incrementing the count for page writes, which wouldn't be
-a bad idea either.
-
-Eric
+As long as we have the concept of a virtual extent, where we define
+that extent as the natural readahead pattern for the workload, then we
+want to uncache the same units we readahead.  That's normally
+sequential clusters, but if we have things like Ingo's random swap
+stats-based prediction logic, then we can use exactly the same extent
+concept there too.
+	
+--Stephen
