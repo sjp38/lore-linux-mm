@@ -1,50 +1,44 @@
-Received: from twcny.rr.com (bsh1-12d.twcny.rr.com [24.92.245.45])
-	by mailout2-0.nyroc.rr.com (8.9.3/8.9.3) with ESMTP id WAA29744
-	for <linux-mm@kvack.org>; Tue, 8 Aug 2000 22:29:26 -0400 (EDT)
-Message-ID: <3990C388.64AE497D@twcny.rr.com>
-Date: Tue, 08 Aug 2000 22:35:52 -0400
-From: Assem Salama <assem@twcny.rr.com>
-Reply-To: assem@twcny.rr.com
+From: Kanoj Sarcar <kanoj@google.engr.sgi.com>
+Message-Id: <200008101718.KAA33467@google.engr.sgi.com>
+Subject: pte_pagenr/MAP_NR deleted in pre6
+Date: Thu, 10 Aug 2000 10:18:49 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Kernel Question
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: linux-mm@kvack.org, linux-kernel@vger.rutgers.edu
+Cc: rmk@arm.linux.org.uk, nico@cam.org, davem@redhat.com, davidm@hpl.hp.com, alan@lxorguk.ukuu.org.uk
 List-ID: <linux-mm.kvack.org>
 
-I am runing RedHat 6.2, kernel version: 2.2.14-5.0
+Thought I would send out a quick note about a change I put into test6.
+Basically, to make it easier to implement DISCONTIGMEM systems, the
+concepts of page/mem_map number/index has been killed from the generic
+(non architecture specific) parts of the kernel. This includes MAP_NR,
+pte_pagenr and max_mapnr (although max_mapnr is used by a lot of 
+architectures, it is not used by the generic kernel anymore).
 
-I have a couple of questions:
-    When I try to use ioremap, it gives me an undefined refernce. So, I
-ended up using __ioremap. Is this the right way? Am I missing something?
+New macros that have been born to replace the above ones are 
+virt_to_page (thusly named by Linus!), which will take a kernel direct
+mapped address as input and provide the corresponding struct page. The
+other one is VALID_PAGE(), which given a page struct, determines whether
+it is a valid page struct and represents _physical_ memory.   
 
-same thing happened with memcpy, and virt_to_phys.
+Both of virt_to_page and VALID_PAGE are in include/asm*/page.h. I have 
+tried to make sure there were no mistakes when making the changes for
+the various architectures, but I am sure I goofed up a few cases, so 
+apologies in advance. 
 
-    Also, I have a PCI board with 16MB of onboard memory. I got the
-driver to probe the device and everything. I used __ioremap to remap the
+Also, as I have suggested before, the pte_page implementation in
+sparc/sparc64 should be cleaned up, and the usages of MAP_NR in the
+arm code. Russell, Linus has not put in the final patch that will 
+allow DISCONTIGMEM systems to lay out their mem_map arrays however
+they see fit, I have resent it to him, if that is put in, we can get
+down to simplifying most of the DISCONTIG arch code.
 
-PCI memory into virtual memory and I can read and write to it in kernel
-space. Now, I want to be able to do that through user space. So, I
-implemented mmap into my driver. I use remap_page_range with the
-following arguments:
+Thanks.
 
-in init_mdoule()
-myri_phys = (unsigned long) dev->base_address[0] &
-PCI_BASE_ADDRESS_MEM_MASK;
-...
-
-in mydrv_mmap()
-remap_page_range(vmP->vm_start, myri_phys,16*1024*1024 /* 16MB */,
-vmP->vm_page_prot)
-
-however, when I call mmap from user space, the machine either hangs or
-completely reboots.
-
-Any help would be greatly appreciated.
-Sincerely,
-Assem Salama
+Kanoj
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
