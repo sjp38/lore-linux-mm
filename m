@@ -1,77 +1,99 @@
-Message-ID: <3AE3400B.80B2F1BF@club-internet.fr>
-Date: Sun, 22 Apr 2001 22:33:15 +0200
-From: Jean Francois Martinez <jfm2@club-internet.fr>
-MIME-Version: 1.0
+From: James A. Sutherland <jas88@cam.ac.uk>
 Subject: Re: suspend processes at load (was Re: a simple OOM ...)
-References: <l03130312b708cf8a37bf@[192.168.239.105]> <Pine.LNX.4.21.0104221555090.1685-100000@imladris.rielhome.conectiva> <usc6etgvdlapakkeh57lcr8qu5ji7ca142@4ax.com>
-Content-Type: text/plain; charset=iso-8859-1
-Content-Transfer-Encoding: 8bit
+Date: Sun, 22 Apr 2001 21:35:14 +0100
+Message-ID: <ssf6etkhgrc2ejgcv22ophdj7pb5fbifbk@4ax.com>
+References: <Pine.LNX.4.30.0104201203280.20939-100000@fs131-224.f-secure.com> <sb72ets3sek2ncsjg08sk5tmj7v9hmt4p7@4ax.com> <3AE1DCA8.A6EF6802@earthlink.net> <l0313030fb70791aa88ae@[192.168.239.105]> <54b5et09brren07ta6kme3l28th29pven4@4ax.com> <l03130311b708b57e1923@[192.168.239.105]> <re36et84buhdc4mm252om30upobd8285th@4ax.com> <l03130312b708cf8a37bf@[192.168.239.105]> <o7a6ets1pf548v51tu6d357ng1o0iu77ub@4ax.com> <l03130313b708dedad0c4@[192.168.239.105]>
+In-Reply-To: <l03130313b708dedad0c4@[192.168.239.105]>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 8BIT
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "James A. Sutherland" <jas88@cam.ac.uk>
-Cc: Rik van Riel <riel@conectiva.com.br>, Jonathan Morton <chromi@cyberspace.org>, "Joseph A. Knapka" <jknapka@earthlink.net>, linux-mm@kvack.org
+To: Jonathan Morton <chromi@cyberspace.org>
+Cc: "Joseph A. Knapka" <jknapka@earthlink.net>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-"James A. Sutherland" a ecrit :
+On Sun, 22 Apr 2001 20:30:50 +0100, you wrote:
 
-> On Sun, 22 Apr 2001 15:57:32 -0300 (BRST), you wrote:
+>>>>>- Login needs paging in (is suspended while it waits).
 >
-> >On Sun, 22 Apr 2001, Jonathan Morton wrote:
-> >
-> >> I think we're approaching the problem from opposite viewpoints.
-> >> Don't get me wrong here - I think process suspension could be a
-> >> valuable "feature" under extreme load, but I think that the
-> >> working-set idea will perform better and more consistently under "mild
-> >> overloads", which the current system handles extremely poorly.
-> >
-> >Could this mean that we might want _both_ ?
+>>>But login was suspended because of a page fault,
+>>
+>>No, login was NOT *suspended*. It's sleeping on I/O, not suspended.
 >
-> Absolutely, as I said elsewhere.
->
-> >1) a minimal guaranteed working set for small processes, so root
-> >   can login and large hogs don't penalize good guys
-> >   (simpler than the working set idea, should work just as good)
->
-> Yep - this will help us under heavy load conditions, when the system
-> starts getting "sluggish"...
->
-> >2) load control through process suspension when the load gets
-> >   too high to handle, this is also good to let the hogs (which
-> >   would thrash with the working set idea) make some progress
-> >   in turns
->
-> Exactly!
->
->
+>So, the memory hogs are causing page faults (accessing memory which is not
+>currently resident), login is causing page faults (same definition).
+>What's the difference?
 
-I find this funny because I suggested that idea in 1996 after 2.0 release.
-I even gave an example (with an 8 megs box, how time change :-) from
-a situation who could be handled only by stopping a process.  That is
-two processes who peek 5 Megs of memory in 1 ms (they are scaning
-an array).  Since your average disk needs some 20 ms to retrieve a
-page that means both processes will spend nearly 100% of time waiting
-for pages who have been stolen by the other so the only way is to stop
-or swap one of them and let the other run alone for some time.  But at that
-time I was told Linux this was feature for high loads and Linux was not
-being used there.
+The number of page faults, the size of process. One is a huge process
+generating large numbers of page faults over a period of time,
+contributing a large amount to the VM load.
 
-BTW this idea has been implemented in mainframes since the 60s.
+>>>>Not really. Your WS suggestion doesn't evict some processes entirely,
+>>>>which is necessary under some workloads.
+>>>
+>>>Can you give an example of such a workload?
+>>
+>>Example: any process which is doing random access throughout an array
+>>in memory. Let's suppose it's a 100 Mb array on a machine with 128Mb
+>>of RAM.
+>
+>>How exactly will your approach solve the two process case, yet still
+>>keeping the processes running properly?
+>
+>It will allocate one process it's entire working set in physical RAM, 
 
-Another idea in mainframes is that some processes can be swapped out
-because you know they will be sleeping for a long time.    The 3270
-interface only interacts with the mainframe when user hits the enter key
-and in whole screen mode this is when he has filled a whole page of text.
-That means that when a process enters keyboard sleep it will probably
-remain in that state for  several minutes so in
-case MVS needs memory it looks for TSO (interactive) process on keyboard
-sleep, swaps them first and ask questions later.
-Of course Unix has a differnt UI and I don't see a sleep class where
-we can assume programs on it will be sleeping for minutes.
+Which one?
+
+>and
+>allow the other to make progress as fast as disk I/O will allow (which I
+>would call "single-process thrashing").  
+
+So you effectively "busy-suspend" the other process - it's going
+nowhere, but eating I/O capacity as it does so.
+
+>When, after a few seconds, the
+>entirely-resident process completes, the other is allowed to take up as
+>much RAM as it likes.
+
+i.e. it resumes proper execution.
+
+>If I've followed my mental dry-run correctly, the entirely-resident process
+>would probably be the *second* process to be started, assuming both are
+>identical, one is started a few scheduling cycles after the other, and the
+>first process establishes it's 100Mb working set within those few cycles.
+>
+>If, at this point, your suspension algorithm decided to suspend the
+>(mostly) swapped-out process for a few brief periods of time, it would have
+>little effect except maybe to slightly delay the resumption of progress of
+>the swapped-out process and to reduce the amount of disk I/O caused while
+>the first process ran to completion.
+
+If you truly allow the second process to be starved entirely of
+memory, yes. At which point, it's suspended, and you've just copied my
+solution (and Rik's, and that used by a dozen other Unices.)
+
+>>>I think we're approaching the problem from opposite viewpoints.  Don't get
+>>>me wrong here - I think process suspension could be a valuable "feature"
+>>>under extreme load, but I think that the working-set idea will perform
+>>>better and more consistently under "mild overloads", which the current
+>>>system handles extremely poorly.  Probably the only way to resolve this
+>>>argument is to actually try and implement each idea, and see how they
+>>>perform.
+>>
+>>Since the two are not mutually exclusive, why try "comparing" them?
+>>Returning to our car analogy, would you try "comparing" snow chains
+>>with diff-lock?!
+>
+>I said nothing about comparison or competition.  By "each idea" I *include*
+>the possibility of having the suspension algorithm *and* the working-set
+>algorithm implemented simultaneously.  It would be instructive to see how
+>they performed separately, too.
+
+Perhaps, but they tackle different problems.
 
 
-                                    JFM
-
-
+James.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
