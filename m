@@ -1,361 +1,395 @@
-Received: from digeo-nav01.digeo.com (digeo-nav01.digeo.com [192.168.1.233])
-	by packet.digeo.com (8.9.3+Sun/8.9.3) with SMTP id SAA08114
-	for <linux-mm@kvack.org>; Sun, 2 Mar 2003 18:09:47 -0800 (PST)
-Date: Sun, 2 Mar 2003 18:09:59 -0800
-From: Andrew Morton <akpm@digeo.com>
-Subject: 2.5.63-mm2
-Message-Id: <20030302180959.3c9c437a.akpm@digeo.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Date: Mon, 3 Mar 2003 11:57:34 +0100 (CET)
+From: Ingo Molnar <mingo@elte.hu>
+Reply-To: Ingo Molnar <mingo@elte.hu>
+Subject: [patch] remap-file-pages-2.5.63-A0
+Message-ID: <Pine.LNX.4.44.0303031142190.24967-100000@localhost.localdomain>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Linus Torvalds <torvalds@transmeta.com>
+Cc: Andrew Morton <akpm@zip.com.au>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-http://www.kernel.org/pub/linux/kernel/people/akpm/patches/2.5/2.5.63/2.5.63-mm2/
-
-Mainly bugfixes, and solidification of the anticipatory scheduler.
-
-The anticipatory scheduler has become significantly better - I believe that
-all of the little regressions which had previously been identified are fixed
-up now, with the exception of the OLTP-style database workload which is still
-10% slower.  Write-versus-write latency problems have been fixed, which is
-important for ext3 behaviour during heavy writeback.
-
-All the infrastructure for per-task IO pattern tracking is in now place so we
-should be able to fix the OLTP slowdown without any requirement for manual
-tuning.
-
-We still have not located Ed Tomlinson's lost IO request.  It's odd.
-
-
-
-If you see this come out:
-
-Slab corruption: start=cde0414c, expend=cde0418b, problemat=cde04162
-Data: **********************7B ****************************************A5 
-Next: 71 F0 2C .A5 C2 0F 17 84 10 B3 CE 00 80 04 08 00 A0 05 08 8C 1C 90 CE 25 00 00 00 75 18 00 00 
-slab error in check_poison_obj(): cache `vm_area_struct': object was modified after freeing
-Call Trace:
- [<c013aabd>] __slab_error+0x21/0x28
- [<c013acac>] check_poison_obj+0x104/0x110
- [<c013c080>] kmem_cache_alloc+0x90/0x11c
- [<c01449c0>] split_vma+0x28/0xcc
- [<c0144b35>] do_munmap+0xd1/0x178
- [<c0144c21>] sys_munmap+0x45/0x64
- [<c0109143>] syscall_call+0x7/0xb
-
-please do not report it.  We know.
-
-If this message comes out for any cache apart from vm_area_struct then please
-_do_ report it.
-
-
-
-
-Changes since 2.5.63-mm1:
-
-
--devfs-fix.patch
-
- Dropped for now - conflicts with changes in Linus's tree
-
--nfs-unstable-pages.patch
-
- Dropped for a while - it could impact testing of limit-write-latency.patch
-
--as-comments-and-tweaks.patch
--as-hz-1000-fix.patch
--as-tidy-up-rename.patch
--anticipation_is_killing_me.patch
--as-update-1.patch
--as-break-anticipation-on-write.patch
--as-break-if-readahead.patch
--as-fix-hughs-problem.patch
--as-cleanup.patch
--as-start-stop-anticipation-helpers.patch
--as-cleanup-2.patch
--as-cleanup-3.patch
--as-cleanup-3-write-latency-fix.patch
--as-handle-exitted-tasks.patch
--as-handle-exitted-tasks-fix.patch
--as-no-plugging-and-cleanups.patch
--as-remove-debug.patch
--as-track-queued-reads.patch
--as-accounting-fix.patch
--as-nr_reads-fix.patch
--as-tuning.patch
--as-disable-nr_reads.patch
-
- Folded into anticipatory-scheduling.patch
-
-+as-random-fixes.patch
-+as-comment-fix.patch
-
- More anticipatory scheduling work
-
-+objrmap-nr_mapped-fix.patch
-+objrmap-mapped-mem-fix-2.patch
-
- Fix up the mapped page accounting
-
-+sched-b3.patch
-
- Latest HT-aware CPU scheduler patch
-
-+cciss-startup-problem-fix.patch
-+cciss-retry-bus-reset.patch
-+cciss-add-cmd-type.patch
-+cciss-getluninfo-ioctl.patch
-+cciss-passthrough-ioctl.patch
-
- cciss update
-
-+show_task-free-stack-fix.patch
-
- Fix some nonsense in the sysrq-t output.  Probably we should just remove
- the non-functional "free stack" accounting.
-
-+use-after-free-check.patch
-
- Full use-after-free checking in slab
-
-+reiserfs-fix-memleaks.patch
-
- Reiserfs fixes
-
-+copy_page_range-invalid-page-fix.patch
-
- Fix a crash when an app forks while holding a mmap of /dev/mem.  This is
- incomplete.
-
-
-
-
-All 77 patches:
-
-linus.patch
-  Latest from Linus
-
-separate.patch
-
-mm.patch
-  add -mmN to EXTRAVERSION
-
-rpc_rmdir-fix.patch
-  Fix nfs oops during mount
-
-ppc64-reloc_hide.patch
-
-ppc64-pci-patch.patch
-  Subject: pci patch
-
-ppc64-e100-fix.patch
-  fix e100 for big-endian machines
-
-ppc64-aio-32bit-emulation.patch
-  32/64bit emulation for aio
-
-ppc64-64-bit-exec-fix.patch
-  Subject: 64bit exec
-
-ppc64-scruffiness.patch
-  Fix some PPC64 compile warnings
-
-sym-do-160.patch
-  make the SYM driver do 160 MB/sec
-
-kgdb.patch
-
-nfsd-disable-softirq.patch
-  Fix race in svcsock.c in 2.5.61
-
-report-lost-ticks.patch
-  make lost-tick detection more informative
-
-ptrace-flush.patch
-  cache flushing in the ptrace code
-
-buffer-debug.patch
-  buffer.c debugging
-
-warn-null-wakeup.patch
-
-ext3-truncate-ordered-pages.patch
-  ext3: explicitly free truncated pages
-
-deadline-dispatching-fix.patch
-  deadline IO scheduler dispatching fix
-
-limit-write-latency.patch
-  fix possible latency in balance_dirty_pages()
-
-reiserfs_file_write-5.patch
-
-tcp-wakeups.patch
-  Use fast wakeups in TCP/IPV4
-
-lockd-lockup-fix-2.patch
-  Subject: Re: Fw: Re: 2.4.20 NFS server lock-up (SMP)
-
-rcu-stats.patch
-  RCU statistics reporting
-
-ext3-journalled-data-assertion-fix.patch
-  Remove incorrect assertion from ext3
-
-nfs-speedup.patch
-
-nfs-oom-fix.patch
-  nfs oom fix
-
-sk-allocation.patch
-  Subject: Re: nfs oom
-
-nfs-more-oom-fix.patch
-
-nfs-sendfile.patch
-  Implement sendfile() for NFS
-
-rpciod-atomic-allocations.patch
-  Make rcpiod use atomic allocations
-
-linux-isp.patch
-
-isp-update-1.patch
-
-remove-unused-congestion-stuff.patch
-  Subject: [PATCH] remove unused congestion stuff
-
-aic-makefile-fix.patch
-  aicasm Makefile fix
-
-loop-hack.patch
-  loop: Fix OOM and oops
-
-atm_dev_sem.patch
-  convert atm_dev_lock from spinlock to semaphore
-
-flock-fix.patch
-  flock fixes for 2.5.62
-
-sysfs-dget-fix-2.patch
-
-irq-sharing-fix.patch
-  fix irq sharing and SA_INTERRUPT on x86
-
-as-iosched.patch
-  anticipatory I/O scheduler
-
-as-random-fixes.patch
-  Subject: [PATCH] important fixes
-
-as-comment-fix.patch
-  AS: comment fix
-
-readahead-shrink-to-zero.patch
-  Allow VFS readahead to fall to zero
-
-cfq-2.patch
-  CFQ scheduler, #2
-
-smalldevfs.patch
-  smalldevfs
-
-objrmap-2.5.62-5.patch
-  object-based rmap
-
-objrmap-X-fix.patch
-  objrmap fix for X
-
-objrmap-nr_mapped-fix.patch
-  objrmap: fix /proc/meminfo:Mapped
-
-objrmap-mapped-mem-fix-2.patch
-  fix objrmap mapped mem accounting again
-
-oprofile-up-fix.patch
-  fix oprofile on UP (lockless sync)
-
-update_atime-speedup.patch
-  speed up update_atime()
-
-ext2-update_atime_speedup.patch
-  Use one_sec_update_atime in ext2
-
-ext3-update_atime_speedup.patch
-  Use one_sec_update_atime in ext2
-
-UPDATE_ATIME-to-update_atime.patch
-  Rename UPDATE_ATIME to update_atime
-
-per-cpu-disk-stats.patch
-  Make diskstats per-cpu using kmalloc_percpu
-
-presto_get_sb-fix.patch
-  fix presto_get_sb() return value and oops.
-
-on_each_cpu.patch
-  fix preempt-issues with smp_call_function()
-
-on_each_cpu-ldt-cleanup.patch
-
-notsc-panic.patch
-  Don't panic if TSC is enabled and notsc is used
-
-alloc_pages_cleanup.patch
-  clean up redundant code for alloc_pages
-
-ext2-handle-htree-flag.patch
-  ext2: clear ext3 htree flag on directories
-
-sched-b3.patch
-  HT scheduler, sched-2.5.63-B3
-
-mpparse-typo-fix.patch
-  fix typo in arch/i386/kernel/mpparse.c in printk
-
-i386-no-swap-fix.patch
-  allow CONFIG_SWAP=n for i386
-
-remove-hugetlb_key.patch
-  remove dead hugetlb_key forward decl
-
-hugetlbpage-doc-update.patch
-  hugetlbpage documentation update
-
-hugetlb-valid-page-ranges.patch
-  hugetlb: fix MAP_FIXED handling
-
-cciss-startup-problem-fix.patch
-  cciss: fix unlikely startup problem
-
-cciss-retry-bus-reset.patch
-  cciss: retry bus resets
-
-cciss-add-cmd-type.patch
-  cciss: add cmd_type to sendcmd parameters
-
-cciss-getluninfo-ioctl.patch
-  cciss: add CCISS_GETLUNINFO ioctl
-
-cciss-passthrough-ioctl.patch
-  cciss: add passthrough ioctl
-
-show_task-free-stack-fix.patch
-  show_task() fix and cleanup
-
-use-after-free-check.patch
-  slab use-after-free detector
-
-reiserfs-fix-memleaks.patch
-  ReiserFS: fix memleaks on journal opening failures
-
-copy_page_range-invalid-page-fix.patch
-  Fix copy_page_range()'s handling of invalid pages
-
-
+the attached patch, against BK-curr, is a preparation to make
+remap_file_pages() usable on swappable vmas as well. When 'swapping out'
+shared-named mappings the page offset is written into the pte.
+
+it takes one bit from the swap-type bits, otherwise it does not change the
+pte layout - so it should be easy to adapt any other architecture to this
+change as well. (this patch does not introduce the protection-bits-in-pte
+approach used in my previous patch.)
+
+On 32-bit pte sizes with an effective usable pte range of 29 bits, this
+limits mmap()-able file size to 4096 * 2^29 == 2 TBs. If the usable range
+is smaller, then the maximum mmap() size is reduced as well. The
+worst-case i found (PPC) was 2 hw-reserved bits in the swap-case, which
+limits us to 1 TB filesize. Is there any other hw that has an even worse
+ratio of sw-usable pte bits?
+
+this mmap() limit can be eliminated by simply not converting the swapped
+out pte to a file-pte, but clearning it and falling back to the linear
+mapping upon swapin. This puts the limit into remap_file_pages() alone,
+but i really hope no-one wants to use remap_file_pages() on a 32-bit
+platform, on a larger than 1-2 TB file.
+
+	Ingo
+
+--- linux/include/linux/mm.h.orig	
++++ linux/include/linux/mm.h	
+@@ -136,7 +136,7 @@ struct vm_operations_struct {
+ 	void (*open)(struct vm_area_struct * area);
+ 	void (*close)(struct vm_area_struct * area);
+ 	struct page * (*nopage)(struct vm_area_struct * area, unsigned long address, int unused);
+-	int (*populate)(struct vm_area_struct * area, unsigned long address, unsigned long len, unsigned long prot, unsigned long pgoff, int nonblock);
++	int (*populate)(struct vm_area_struct * area, unsigned long address, unsigned long len, pgprot_t prot, unsigned long pgoff, int nonblock);
+ };
+ 
+ /* forward declaration; pte_chain is meant to be internal to rmap.c */
+@@ -419,7 +419,7 @@ extern int vmtruncate(struct inode * ino
+ extern pmd_t *FASTCALL(__pmd_alloc(struct mm_struct *mm, pgd_t *pgd, unsigned long address));
+ extern pte_t *FASTCALL(pte_alloc_kernel(struct mm_struct *mm, pmd_t *pmd, unsigned long address));
+ extern pte_t *FASTCALL(pte_alloc_map(struct mm_struct *mm, pmd_t *pmd, unsigned long address));
+-extern int install_page(struct mm_struct *mm, struct vm_area_struct *vma, unsigned long addr, struct page *page, unsigned long prot);
++extern int install_page(struct mm_struct *mm, struct vm_area_struct *vma, unsigned long addr, struct page *page, pgprot_t prot);
+ extern int handle_mm_fault(struct mm_struct *mm,struct vm_area_struct *vma, unsigned long address, int write_access);
+ extern int make_pages_present(unsigned long addr, unsigned long end);
+ extern int access_process_vm(struct task_struct *tsk, unsigned long addr, void *buf, int len, int write);
+--- linux/include/linux/swapops.h.orig	
++++ linux/include/linux/swapops.h	
+@@ -51,6 +51,7 @@ static inline swp_entry_t pte_to_swp_ent
+ {
+ 	swp_entry_t arch_entry;
+ 
++	BUG_ON(pte_file(pte));
+ 	arch_entry = __pte_to_swp_entry(pte);
+ 	return swp_entry(__swp_type(arch_entry), __swp_offset(arch_entry));
+ }
+@@ -64,5 +65,6 @@ static inline pte_t swp_entry_to_pte(swp
+ 	swp_entry_t arch_entry;
+ 
+ 	arch_entry = __swp_entry(swp_type(entry), swp_offset(entry));
++	BUG_ON(pte_file(__swp_entry_to_pte(arch_entry)));
+ 	return __swp_entry_to_pte(arch_entry);
+ }
+--- linux/include/asm-i386/pgtable.h.orig	
++++ linux/include/asm-i386/pgtable.h	
+@@ -112,6 +112,7 @@ void pgtable_cache_init(void);
+ #define _PAGE_PSE	0x080	/* 4 MB (or 2MB) page, Pentium+, if present.. */
+ #define _PAGE_GLOBAL	0x100	/* Global TLB entry PPro+ */
+ 
++#define _PAGE_FILE	0x040	/* pagecache or swap? */
+ #define _PAGE_PROTNONE	0x080	/* If not present */
+ 
+ #define _PAGE_TABLE	(_PAGE_PRESENT | _PAGE_RW | _PAGE_USER | _PAGE_ACCESSED | _PAGE_DIRTY)
+@@ -189,6 +190,7 @@ static inline int pte_exec(pte_t pte)		{
+ static inline int pte_dirty(pte_t pte)		{ return (pte).pte_low & _PAGE_DIRTY; }
+ static inline int pte_young(pte_t pte)		{ return (pte).pte_low & _PAGE_ACCESSED; }
+ static inline int pte_write(pte_t pte)		{ return (pte).pte_low & _PAGE_RW; }
++static inline int pte_file(pte_t pte)		{ return (pte).pte_low & _PAGE_FILE; }
+ 
+ static inline pte_t pte_rdprotect(pte_t pte)	{ (pte).pte_low &= ~_PAGE_USER; return pte; }
+ static inline pte_t pte_exprotect(pte_t pte)	{ (pte).pte_low &= ~_PAGE_USER; return pte; }
+@@ -286,7 +288,7 @@ typedef pte_t *pte_addr_t;
+ #define update_mmu_cache(vma,address,pte) do { } while (0)
+ 
+ /* Encode and de-code a swap entry */
+-#define __swp_type(x)			(((x).val >> 1) & 0x3f)
++#define __swp_type(x)			(((x).val >> 1) & 0x1f)
+ #define __swp_offset(x)			((x).val >> 8)
+ #define __swp_entry(type, offset)	((swp_entry_t) { ((type) << 1) | ((offset) << 8) })
+ #define __pte_to_swp_entry(pte)		((swp_entry_t) { (pte).pte_low })
+--- linux/include/asm-i386/pgtable-2level.h.orig	
++++ linux/include/asm-i386/pgtable-2level.h	
+@@ -63,4 +63,14 @@ static inline pmd_t * pmd_offset(pgd_t *
+ #define pfn_pte(pfn, prot)	__pte(((pfn) << PAGE_SHIFT) | pgprot_val(prot))
+ #define pfn_pmd(pfn, prot)	__pmd(((pfn) << PAGE_SHIFT) | pgprot_val(prot))
+ 
++/*
++ * Bits 0, 6 and 7 are taken, split up the 29 bits of offset
++ * into this range:
++ */
++#define pte_to_pgoff(pte) \
++	((((pte).pte_low >> 1) & 0x1f ) + (((pte).pte_low >> 8) << 5 ))
++
++#define pgoff_to_pte(off) \
++	((pte_t) { (((off) & 0x1f) << 1) + (((off) >> 5) << 8) + _PAGE_FILE })
++
+ #endif /* _I386_PGTABLE_2LEVEL_H */
+--- linux/include/asm-i386/pgtable-3level.h.orig	
++++ linux/include/asm-i386/pgtable-3level.h	
+@@ -115,4 +115,11 @@ static inline pmd_t pfn_pmd(unsigned lon
+ 	return __pmd(((unsigned long long)page_nr << PAGE_SHIFT) | pgprot_val(pgprot));
+ }
+ 
++/*
++ * Bits 0, 6 and 7 are taken in the low part of the pte,
++ * put the 32 bits of offset into the high part.
++ */
++#define pte_to_pgoff(pte) ((pte).pte_high)
++#define pgoff_to_pte(off) ((pte_t) { _PAGE_FILE, (off) })
++
+ #endif /* _I386_PGTABLE_3LEVEL_H */
+--- linux/mm/fremap.c.orig	
++++ linux/mm/fremap.c	
+@@ -16,12 +16,12 @@
+ #include <asm/cacheflush.h>
+ #include <asm/tlbflush.h>
+ 
+-static inline void zap_pte(struct mm_struct *mm, pte_t *ptep)
++static inline int zap_pte(struct mm_struct *mm, pte_t *ptep)
+ {
+ 	pte_t pte = *ptep;
+ 
+ 	if (pte_none(pte))
+-		return;
++		return 0;
+ 	if (pte_present(pte)) {
+ 		unsigned long pfn = pte_pfn(pte);
+ 
+@@ -36,9 +36,12 @@ static inline void zap_pte(struct mm_str
+ 				mm->rss--;
+ 			}
+ 		}
++		return 1;
+ 	} else {
+-		free_swap_and_cache(pte_to_swp_entry(pte));
++		if (!pte_file(pte))
++			free_swap_and_cache(pte_to_swp_entry(pte));
+ 		pte_clear(ptep);
++		return 0;
+ 	}
+ }
+ 
+@@ -47,9 +50,9 @@ static inline void zap_pte(struct mm_str
+  * previously existing mapping.
+  */
+ int install_page(struct mm_struct *mm, struct vm_area_struct *vma,
+-		unsigned long addr, struct page *page, unsigned long prot)
++		unsigned long addr, struct page *page, pgprot_t prot)
+ {
+-	int err = -ENOMEM;
++	int err = -ENOMEM, flush;
+ 	pte_t *pte, entry;
+ 	pgd_t *pgd;
+ 	pmd_t *pmd;
+@@ -69,18 +72,17 @@ int install_page(struct mm_struct *mm, s
+ 	if (!pte)
+ 		goto err_unlock;
+ 
+-	zap_pte(mm, pte);
++	flush = zap_pte(mm, pte);
+ 
+ 	mm->rss++;
+ 	flush_page_to_ram(page);
+ 	flush_icache_page(vma, page);
+-	entry = mk_pte(page, protection_map[prot]);
+-	if (prot & PROT_WRITE)
+-		entry = pte_mkwrite(pte_mkdirty(entry));
++	entry = mk_pte(page, prot);
+ 	set_pte(pte, entry);
+ 	pte_chain = page_add_rmap(page, pte, pte_chain);
+ 	pte_unmap(pte);
+-	flush_tlb_page(vma, addr);
++	if (flush)
++		flush_tlb_page(vma, addr);
+ 
+ 	spin_unlock(&mm->page_table_lock);
+ 	pte_chain_free(pte_chain);
+@@ -104,26 +106,28 @@ err:
+  *
+  * this syscall works purely via pagetables, so it's the most efficient
+  * way to map the same (large) file into a given virtual window. Unlike
+- * mremap()/mmap() it does not create any new vmas.
++ * mmap()/mremap() it does not create any new vmas. The new mappings are
++ * also safe across swapout.
+  *
+- * The new mappings do not live across swapout, so either use MAP_LOCKED
+- * or use PROT_NONE in the original linear mapping and add a special
+- * SIGBUS pagefault handler to reinstall zapped mappings.
++ * NOTE: the 'prot' parameter right now is ignored, and the vma's default
++ * protection is used. Arbitrary protections might be implemented in the
++ * future.
+  */
+ int sys_remap_file_pages(unsigned long start, unsigned long size,
+-	unsigned long prot, unsigned long pgoff, unsigned long flags)
++	unsigned long __prot, unsigned long pgoff, unsigned long flags)
+ {
+ 	struct mm_struct *mm = current->mm;
+ 	unsigned long end = start + size;
+ 	struct vm_area_struct *vma;
+ 	int err = -EINVAL;
+ 
++	if (__prot & ~0xf)
++		return err;
+ 	/*
+ 	 * Sanitize the syscall parameters:
+ 	 */
+-	start = PAGE_ALIGN(start);
+-	size = PAGE_ALIGN(size);
+-	prot &= 0xf;
++	start = start & PAGE_MASK;
++	size = size & PAGE_MASK;
+ 
+ 	down_read(&mm->mmap_sem);
+ 
+@@ -136,15 +140,9 @@ int sys_remap_file_pages(unsigned long s
+ 	if (vma && (vma->vm_flags & VM_SHARED) &&
+ 		vma->vm_ops && vma->vm_ops->populate &&
+ 			end > start && start >= vma->vm_start &&
+-				end <= vma->vm_end) {
+-		/*
+-		 * Change the default protection to PROT_NONE:
+-		 */
+-		if (pgprot_val(vma->vm_page_prot) != pgprot_val(__S000))
+-			vma->vm_page_prot = __S000;
+-		err = vma->vm_ops->populate(vma, start, size, prot,
+-						pgoff, flags & MAP_NONBLOCK);
+-	}
++				end <= vma->vm_end)
++		err = vma->vm_ops->populate(vma, start, size, vma->vm_page_prot,
++				pgoff, flags & MAP_NONBLOCK);
+ 
+ 	up_read(&mm->mmap_sem);
+ 
+--- linux/mm/shmem.c.orig	
++++ linux/mm/shmem.c	
+@@ -945,7 +945,7 @@ struct page *shmem_nopage(struct vm_area
+ 
+ static int shmem_populate(struct vm_area_struct *vma,
+ 	unsigned long addr, unsigned long len,
+-	unsigned long prot, unsigned long pgoff, int nonblock)
++	pgprot_t prot, unsigned long pgoff, int nonblock)
+ {
+ 	struct inode *inode = vma->vm_file->f_dentry->d_inode;
+ 	struct mm_struct *mm = vma->vm_mm;
+--- linux/mm/filemap.c.orig	
++++ linux/mm/filemap.c	
+@@ -1195,7 +1195,7 @@ err:
+ static int filemap_populate(struct vm_area_struct *vma,
+ 			unsigned long addr,
+ 			unsigned long len,
+-			unsigned long prot,
++			pgprot_t prot,
+ 			unsigned long pgoff,
+ 			int nonblock)
+ {
+--- linux/mm/swapfile.c.orig	
++++ linux/mm/swapfile.c	
+@@ -384,6 +384,8 @@ unuse_pte(struct vm_area_struct *vma, un
+ {
+ 	pte_t pte = *dir;
+ 
++	if (pte_file(pte))
++		return;
+ 	if (likely(pte_to_swp_entry(pte).val != entry.val))
+ 		return;
+ 	if (unlikely(pte_none(pte) || pte_present(pte)))
+--- linux/mm/rmap.c.orig	
++++ linux/mm/rmap.c	
+@@ -365,11 +365,21 @@ static int try_to_unmap_one(struct page 
+ 	pte = ptep_get_and_clear(ptep);
+ 	flush_tlb_page(vma, address);
+ 
+-	/* Store the swap location in the pte. See handle_pte_fault() ... */
+ 	if (PageSwapCache(page)) {
++		/*
++		 * Store the swap location in the pte.
++		 * See handle_pte_fault() ...
++		 */
+ 		swp_entry_t entry = { .val = page->index };
+ 		swap_duplicate(entry);
+ 		set_pte(ptep, swp_entry_to_pte(entry));
++		BUG_ON(pte_file(*ptep));
++	} else {
++		/*
++		 * Store the file page offset in the pte.
++		 */
++		set_pte(ptep, pgoff_to_pte(page->index));
++		BUG_ON(!pte_file(*ptep));
+ 	}
+ 
+ 	/* Move the dirty bit to the physical page now the pte is gone. */
+--- linux/mm/memory.c.orig	
++++ linux/mm/memory.c	
+@@ -281,7 +281,8 @@ skip_copy_pte_range:
+ 					goto cont_copy_pte_range_noset;
+ 				/* pte contains position in swap, so copy. */
+ 				if (!pte_present(pte)) {
+-					swap_duplicate(pte_to_swp_entry(pte));
++					if (!pte_file(pte))
++						swap_duplicate(pte_to_swp_entry(pte));
+ 					set_pte(dst_pte, pte);
+ 					goto cont_copy_pte_range_noset;
+ 				}
+@@ -408,7 +409,8 @@ zap_pte_range(struct mmu_gather *tlb, pm
+ 				}
+ 			}
+ 		} else {
+-			free_swap_and_cache(pte_to_swp_entry(pte));
++			if (!pte_file(pte))
++				free_swap_and_cache(pte_to_swp_entry(pte));
+ 			pte_clear(ptep);
+ 		}
+ 	}
+@@ -1381,6 +1383,41 @@ out:
+ }
+ 
+ /*
++ * Fault of a previously existing named mapping. Repopulate the pte
++ * from the encoded file_pte if possible. This enables swappable
++ * nonlinear vmas.
++ */
++static int do_file_page(struct mm_struct * mm, struct vm_area_struct * vma,
++	unsigned long address, int write_access, pte_t *pte, pmd_t *pmd)
++{
++	unsigned long pgoff;
++	int err;
++
++	BUG_ON(!vma->vm_ops || !vma->vm_ops->nopage);
++	/*
++	 * Fall back to the linear mapping if the fs does not support
++	 * ->populate:
++	 */
++	if (!vma->vm_ops || !vma->vm_ops->populate || 
++			(write_access && !(vma->vm_flags & VM_SHARED))) {
++		pte_clear(pte);
++		return do_no_page(mm, vma, address, write_access, pte, pmd);
++	}
++
++	pgoff = pte_to_pgoff(*pte);
++
++	pte_unmap(pte);
++	spin_unlock(&mm->page_table_lock);
++
++	err = vma->vm_ops->populate(vma, address & PAGE_MASK, PAGE_SIZE, vma->vm_page_prot, pgoff, 0);
++	if (err == -ENOMEM)
++		return VM_FAULT_OOM;
++	if (err)
++		return VM_FAULT_OOM;
++	return VM_FAULT_MAJOR;
++}
++
++/*
+  * These routines also need to handle stuff like marking pages dirty
+  * and/or accessed for architectures that don't do it in hardware (most
+  * RISC architectures).  The early dirtying is also good on the i386.
+@@ -1409,13 +1446,10 @@ static inline int handle_pte_fault(struc
+ 
+ 	entry = *pte;
+ 	if (!pte_present(entry)) {
+-		/*
+-		 * If it truly wasn't present, we know that kswapd
+-		 * and the PTE updates will not touch it later. So
+-		 * drop the lock.
+-		 */
+ 		if (pte_none(entry))
+ 			return do_no_page(mm, vma, address, write_access, pte, pmd);
++		if (pte_file(entry))
++			return do_file_page(mm, vma, address, write_access, pte, pmd);
+ 		return do_swap_page(mm, vma, address, pte, pmd, entry, write_access);
+ 	}
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
