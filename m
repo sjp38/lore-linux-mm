@@ -1,201 +1,109 @@
-Received: from m2.gw.fujitsu.co.jp ([10.0.50.72]) by fgwmail5.fujitsu.co.jp (8.12.10/Fujitsu Gateway)
-	id i7VAZp9B027746 for <linux-mm@kvack.org>; Tue, 31 Aug 2004 19:35:51 +0900
+Received: from m4.gw.fujitsu.co.jp ([10.0.50.74]) by fgwmail5.fujitsu.co.jp (8.12.10/Fujitsu Gateway)
+	id i7VAcq9B028820 for <linux-mm@kvack.org>; Tue, 31 Aug 2004 19:38:52 +0900
 	(envelope-from kamezawa.hiroyu@jp.fujitsu.com)
-Received: from s7.gw.fujitsu.co.jp by m2.gw.fujitsu.co.jp (8.12.10/Fujitsu Domain Master)
-	id i7VAZpti011244 for <linux-mm@kvack.org>; Tue, 31 Aug 2004 19:35:51 +0900
+Received: from s2.gw.fujitsu.co.jp by m4.gw.fujitsu.co.jp (8.12.10/Fujitsu Domain Master)
+	id i7VAcpTM013477 for <linux-mm@kvack.org>; Tue, 31 Aug 2004 19:38:51 +0900
 	(envelope-from kamezawa.hiroyu@jp.fujitsu.com)
-Received: from fjmail504.fjmail.jp.fujitsu.com (fjmail504-0.fjmail.jp.fujitsu.com [10.59.80.102]) by s7.gw.fujitsu.co.jp (8.12.11)
-	id i7VAZo8O029057 for <linux-mm@kvack.org>; Tue, 31 Aug 2004 19:35:50 +0900
+Received: from fjmail505.fjmail.jp.fujitsu.com (fjmail505-0.fjmail.jp.fujitsu.com [10.59.80.104]) by s2.gw.fujitsu.co.jp (8.12.10)
+	id i7VAcpcr026326 for <linux-mm@kvack.org>; Tue, 31 Aug 2004 19:38:51 +0900
 	(envelope-from kamezawa.hiroyu@jp.fujitsu.com)
 Received: from jp.fujitsu.com
  (fjscan503-0.fjmail.jp.fujitsu.com [10.59.80.124]) by
- fjmail504.fjmail.jp.fujitsu.com
+ fjmail505.fjmail.jp.fujitsu.com
  (Sun Internet Mail Server sims.4.0.2001.07.26.11.50.p9)
- with ESMTP id <0I3B002ZD43P7H@fjmail504.fjmail.jp.fujitsu.com> for
- linux-mm@kvack.org; Tue, 31 Aug 2004 19:35:50 +0900 (JST)
-Date: Tue, 31 Aug 2004 19:41:02 +0900
+ with ESMTP id <0I3B00ARB48PVN@fjmail505.fjmail.jp.fujitsu.com> for
+ linux-mm@kvack.org; Tue, 31 Aug 2004 19:38:50 +0900 (JST)
+Date: Tue, 31 Aug 2004 19:44:02 +0900
 From: Hiroyuki KAMEZAWA <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [RFC] buddy allocator without bitmap(2) [1/3]
-Message-id: <413455BE.6010302@jp.fujitsu.com>
+Subject: [RFC] buddy allocator without bitmap(2) [2/3]
+Message-id: <41345672.4000702@jp.fujitsu.com>
 MIME-version: 1.0
-Content-type: text/plain; charset=us-ascii; format=flowed
+Content-type: text/plain; charset=us-ascii
 Content-transfer-encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Linux Kernel ML <linux-kernel@vger.kernel.org>
-Cc: linux-mm <linux-mm@kvack.org>, LHMS <lhms-devel@lists.sourceforge.net>
+Cc: LHMS <lhms-devel@lists.sourceforge.net>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-This is 2nd file.
-Implements initialization code for buddy allocator.
-
-
-- Kame
-
-------------
-
-This patch removes bitmap allocation in zone_init_free_lists() and
-page_to_bitmap_size();
-
-calculate_aligned_end() works
-(a) detects mem_map is aligned or not.
-(b) if start of mem_map is not aligned, add PG_buddyend flags to pages
-     which has no lower address buddy.
-(c) if end of mem_map is not aligned, reserve it by reserve_bootmem()
-
-
+This is 3rd.
+Implements alloc_pages() code.
 
 -- Kame
+-------------------------------------
+
+This patch removes bitmap operation from alloc_pages().
+
+Instead of using MARK_USED() bitmap operation,
+this patch records page's order in page struct itself, page->private field.
+
+During locking zone->lock, a returned page's PG_private is cleared and
+new heads of contiguous pages of 2^n length are connected to free_area[].
+they are all marked with PG_private and their page->private keep their order.
+
 
 
 ---
 
-  linux-2.6.9-rc1-mm1-k-kamezawa/mm/page_alloc.c |  112 ++++++++++++++++---------
-  1 files changed, 73 insertions(+), 39 deletions(-)
+ linux-2.6.9-rc1-mm1-k-kamezawa/mm/page_alloc.c |   17 +++++++----------
+ 1 files changed, 7 insertions(+), 10 deletions(-)
 
-diff -puN mm/page_alloc.c~eliminate-bitmap-init mm/page_alloc.c
---- linux-2.6.9-rc1-mm1-k/mm/page_alloc.c~eliminate-bitmap-init	2004-08-31 18:37:14.596519040 +0900
-+++ linux-2.6.9-rc1-mm1-k-kamezawa/mm/page_alloc.c	2004-08-31 18:43:30.723339072 +0900
-@@ -1499,6 +1499,70 @@ static void __init calculate_zone_totalp
-  	printk(KERN_DEBUG "On node %d totalpages: %lu\n", pgdat->node_id, realtotalpages);
-  }
+diff -puN mm/page_alloc.c~eliminate-bitmap-alloc mm/page_alloc.c
+--- linux-2.6.9-rc1-mm1-k/mm/page_alloc.c~eliminate-bitmap-alloc	2004-08-31 18:37:16.768188896 +0900
++++ linux-2.6.9-rc1-mm1-k-kamezawa/mm/page_alloc.c	2004-08-31 18:43:27.740792488 +0900
+@@ -288,9 +288,6 @@ void __free_pages_ok(struct page *page,
+ 	free_pages_bulk(page_zone(page), 1, &list, order);
+ }
 
-+/*
-+ * (1) checks a mem_map is aligned to max_order or not.
-+ * (2) if mem_map is not aligned in its start address, find pages which are
-+ * lower-end of buddy.
-+ * (3) if mem_map is not aligned in end addres,, find a page which is higher
-+ * end of buddy and remove it from buddy allocator.
-+ * All found pages are marked as PG_buddyend. These marked page has speccial
-+ * meaning in free_pages().
-+ */
-+
-+
-+static void __init calculate_aligned_end(struct zone *zone,
-+					 unsigned long start_pfn,
-+					 int nr_pages)
-+{
-+	struct page *base;
-+	unsigned long mask;
-+	long start_idx, end_idx;
-+	
-+	start_idx = start_pfn - zone->zone_start_pfn;
-+	end_idx = start_idx + nr_pages - 1;
-+	mask = (1 << MAX_ORDER) - 1;
-+	base = zone->zone_mem_map;
-+	
-+	if (start_idx & mask) {
-+		long edge_idx, buddy_idx;
-+		int order;
-+		edge_idx = start_idx;
-+		/*
-+		 * Mark all pages which can be  higher half of buddy in
-+		 * its index, but its lower half is never available.
-+		 */
-+		for (edge_idx = start_idx,order = 0;
-+		     order < MAX_ORDER;
-+		     order++) {
-+			if (edge_idx > end_idx)
-+				break;
-+			buddy_idx = edge_idx ^ (1 << order);
-+			if (buddy_idx < edge_idx) {
-+				SetPageBuddyend(base + edge_idx);
-+				edge_idx += (1 << order);
-+			}
-+		}
-+	}
-+	if ((end_idx & mask) != mask) {
-+		unsigned long end_address;
-+		/*
-+		 * Reserve the last page as the stopper for buddy allocator.
-+		 * This page is a victim to make buddy allocator work fine.
-+		 *
-+		 * Note:
-+                 * We are using reserve_bootmem() here, is this correct ?
-+		 */
-+		SetPageBuddyend(base + end_idx);
-+		SetPagePrivate(base + end_idx);
-+		end_address = (zone->zone_start_pfn + end_idx) << PAGE_SHIFT;
-+#ifndef CONFIG_DISCONTIGMEM
-+		reserve_bootmem(end_address,PAGE_SIZE);
-+#else
-+		reserve_bootmem_node(zone->zone_pgdat,end_address,PAGE_SIZE);
-+#endif
-+	}
-+	return;
-+}
-
-  /*
-   * Initially all pages are reserved - free ones are freed
-@@ -1510,7 +1574,9 @@ void __init memmap_init_zone(unsigned lo
-  {
-  	struct page *start = pfn_to_page(start_pfn);
-  	struct page *page;
+-#define MARK_USED(index, order, area) \
+-	__change_bit((index) >> (1+(order)), (area)->map)
 -
-+	unsigned long saved_start_pfn = start_pfn;
-+	struct zone *zonep = zone_table[NODEZONE(nid, zone)];
-+	
-  	for (page = start; page < (start + size); page++) {
-  		set_page_zone(page, NODEZONE(nid, zone));
-  		set_page_count(page, 0);
-@@ -1524,51 +1590,19 @@ void __init memmap_init_zone(unsigned lo
-  #endif
-  		start_pfn++;
-  	}
--}
--
--/*
-- * Page buddy system uses "index >> (i+1)", where "index" is
-- * at most "size-1".
-- *
-- * The extra "+3" is to round down to byte size (8 bits per byte
-- * assumption). Thus we get "(size-1) >> (i+4)" as the last byte
-- * we can access.
-- *
-- * The "+1" is because we want to round the byte allocation up
-- * rather than down. So we should have had a "+7" before we shifted
-- * down by three. Also, we have to add one as we actually _use_ the
-- * last bit (it's [0,n] inclusive, not [0,n[).
-- *
-- * So we actually had +7+1 before we shift down by 3. But
-- * (n+8) >> 3 == (n >> 3) + 1 (modulo overflows, which we do not have).
-- *
-- * Finally, we LONG_ALIGN because all bitmap operations are on longs.
-- */
--unsigned long pages_to_bitmap_size(unsigned long order, unsigned long nr_pages)
--{
--	unsigned long bitmap_size;
--
--	bitmap_size = (nr_pages-1) >> (order+4);
--	bitmap_size = LONG_ALIGN(bitmap_size+1);
-+	/* Because memmap_init_zone() is called in suitable way
-+	 * even if zone has memory holes,
-+	 * calling calculate_aligned_end(zone) here is reasonable
-+	 */
-+	calculate_aligned_end(zonep, saved_start_pfn, size);
+ /*
+  * The order of subdivision here is critical for the IO subsystem.
+  * Please do not alter this order without good reasons and regression
+@@ -307,7 +304,7 @@ void __free_pages_ok(struct page *page,
+  */
+ static inline struct page *
+ expand(struct zone *zone, struct page *page,
+-	 unsigned long index, int low, int high, struct free_area *area)
++       int low, int high, struct free_area *area)
+ {
+ 	unsigned long size = 1 << high;
 
--	return bitmap_size;
-  }
+@@ -317,7 +314,9 @@ expand(struct zone *zone, struct page *p
+ 		size >>= 1;
+ 		BUG_ON(bad_range(zone, &page[size]));
+ 		list_add(&page[size].lru, &area->free_list);
+-		MARK_USED(index + size, high, area);
++		/* Note: already have lock, we don't need to use atomic ops */
++		set_page_order(&page[size], high);
++		SetPagePrivate(&page[size]);
+ 	}
+ 	return page;
+ }
+@@ -371,7 +370,6 @@ static struct page *__rmqueue(struct zon
+ 	struct free_area * area;
+ 	unsigned int current_order;
+ 	struct page *page;
+-	unsigned int index;
 
-  void zone_init_free_lists(struct pglist_data *pgdat, struct zone *zone, unsigned long size)
-  {
-  	int order;
--	for (order = 0; ; order++) {
--		unsigned long bitmap_size;
--
-+	for (order = 0 ; order < MAX_ORDER ; order++) {
-  		INIT_LIST_HEAD(&zone->free_area[order].free_list);
--		if (order == MAX_ORDER-1) {
--			zone->free_area[order].map = NULL;
--			break;
--		}
--
--		bitmap_size = pages_to_bitmap_size(order, size);
--		zone->free_area[order].map =
--		  (unsigned long *) alloc_bootmem_node(pgdat, bitmap_size);
-  	}
-  }
+ 	for (current_order = order; current_order < MAX_ORDER; ++current_order) {
+ 		area = zone->free_area + current_order;
+@@ -380,11 +378,10 @@ static struct page *__rmqueue(struct zon
 
+ 		page = list_entry(area->free_list.next, struct page, lru);
+ 		list_del(&page->lru);
+-		index = page - zone->zone_mem_map;
+-		if (current_order != MAX_ORDER-1)
+-			MARK_USED(index, current_order, area);
++		/* Note: already have lock, we don't need to use atomic ops */
++		ClearPagePrivate(page);
+ 		zone->free_pages -= 1UL << order;
+-		return expand(zone, page, index, order, current_order, area);
++		return expand(zone, page, order, current_order, area);
+ 	}
+
+ 	return NULL;
 
 _
 
