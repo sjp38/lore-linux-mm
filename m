@@ -1,26 +1,126 @@
-From: domino/westnetinc@NOTES.WESTNETINC.COM
-Subject: NAV detected a virus in a document you authored.
-Date: Sat, 19 Jun 2004 10:17:13 -0600
-Message-ID: <OFD57DA548.4DDEE311-ON87256EB8.0059779E@notes.westnetinc.com>
+Message-ID: <2735815788784.58151@owbjihbw@aethomas.com>
+Reply-To: "Terri Shubert" <owbjihbw@aethomas.com>
+From: "Terri Shubert" <owbjihbw@aethomas.com>
+Subject: Fantabulous Rolex Replicas
+Date: Sun, 20 Jun 2004 05:06:24 +0600
 MIME-Version: 1.0
-Content-type: text/plain; charset=us-ascii
+Content-Type: multipart/alternative;
+	boundary="--7714685983399540140"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Please contact your system administrator.
+----7714685983399540140
+Content-Type: text/plain;
+	charset="iso-4163-2"
+Content-Transfer-Encoding: quoted-printable
+
+Hi,
+
+Thank you for expressing interest in
+
+Genuine Replicas Watches.
+
+http://www.myreplica.info/index.php?ref=3D876543
+
+We would like to take this opportunity to introduce to you,
+our fine selection of
+
+Italian Crafted Rolex Time Pieces. 
+ 
+http://www.myreplica.info/index.php?ref=3D876543
+
+You can view our large selection of Rolexes
+(including Breitling, Tag Heuer, Cartier etc) at: 
+
+http://www.myreplica.info/index.php?ref=3D876543
+
+As we are the direct manufacturers,
+you are assured of the lowest prices and highest quality
+each and every time you purchase from us.
+
+You may also be interested to know that we have the following brands 
+available in our wide selection as well:
+
+Rolex
+
+Carrier
+
+Bvlgari
+
+Frank Muller
+
+Harry Winston
+
+Chopard
+
+Patek Philippe
+
+Vacheron Constantin
+
+Breguet
+
+A.lange & Sohne
+
+Glashute Original
+
+Audemars Piguet
+
+Roger Dubuis
+
+Blancpain
+
+Jaeger-lecoultre
+
+IWC
+
+Zenith
+
+Officine Panerai
+
+Alain Silberstein
+
+Chronoswiss
+
+Breitling
+
+Omega
+
+Tag Heuer
+
+Ikepod
+
+Eberhard
+
+Tudor
+
+Sin
+
+If you see anything that might interest you, 
+or if you have any questions, please don't hesitate to check us out at:
+
+http://www.myreplica.info/index.php?ref=3D876543
+
+I certainly look forward to hearing from you.
+
+Best regards,
+
+Mike
+
+Sales Manager
+Genuine Replicas
 
 
-The infected component in the scanned document was deleted.
 
 
-Virus Information:
-The attachment textfile.zip contained the virus W32.Netsky.C@mm and was
-deleted.
+You received this email because your have previously 
+purchased from, or inquired about our product line under 
+GENUINE REPLICAS. If you do not wish to participate 
+further with GENUINE REPLICAS. Send an email with 
+the title heading:Delete to unsubscribe@myreplica.info
 
-
-
+----7714685983399540140--
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
