@@ -1,66 +1,56 @@
-Date: Sun, 25 Jun 2000 00:51:42 -0300 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
-Subject: 2.4 / 2.5 VM plans
-Message-ID: <Pine.LNX.4.21.0006242357020.15823-100000@duckman.distro.conectiva>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Mon, 26 Jun 2000 16:45:34 -0500
+From: Timur Tabi <ttabi@interactivesi.com>
+Subject: referenced/uptodate pages in the free list?
+Message-Id: <20000626215518Z131165-21002+48@kanga.kvack.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@transmeta.com>
-Cc: "Stephen C. Tweedie" <sct@redhat.com>, linux-mm@kvack.org
+To: Linux MM mailing list <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+I've written a small driver which traverses the free list and prints out a list
+of all the pages that are free (yes, I know it's a huge list).
 
-since I've heard some rumours of you folks having come
-up with nice VM ideas at USENIX and since I've been
-working on various VM things (and experimental 2.5 things)
-for the last months, maybe it's a good idea to see which
-of your ideas have already been put into code and to see
-which ideas fit together or are mutually exclusive.  :)
+The code goes from contig_page_data.node_zones[1].free_area[0] to
+contig_page_data.node_zones[1].free_area[MAX_ORDER-1].  It traverses the
+free_list for each free_area.  If I read everything correctly, each element in
+free_area[x].free_list is a pointer to a physically contiguous list of 2^x
+elements in the mem_map array.  IOW, if free_area[2].free_list.prev points to a
+mem_map_t structure, then it means that that mem_map_t and the 3 following it
+are supposed to be all free.
 
-To start the discussion, here's my flameba^Wlist of ideas:
+If I have that right, then I'm seeing something odd.  My program prints out the
+contents of each mem_map_t pointed to be each element of free_list of each
+free_area of orders 0, 1, 2, and 3.  I'm seeing something weird:
 
-2.4:
+Jun 26 16:30:57 two kernel: O2: free_area c025c8a0, prev=c127bb28,
+next=c129ad88, *map=0 
 
-1) re-introduce page aging, my small and simple experiments
-   seem to indicate that page aging takes *less* cpu time
-   than copying pages to/from highmem all the time (let alone
-   making your applications wait for disk because we replaced
-   the wrong page last time)
+Jun 26 16:30:57 two kernel: mem_map_t at c127bb28: phys: 8d44000 flags: 0 zone:
+c025c86c, phys: 8d45000 flags: 0 zone: c025c86c, phys: 8d46000 flags: 0 zone:
+c025c86c, phys: 8d47000 flags: 0 zone: c025c86c,  
 
-2) fix the latency problems of applications calling shrink_mmap
-   and flushing infinite amounts of pages  (mostly fixed)
+Jun 26 16:30:57 two kernel: mem_map_t at c129ad88: phys: 9430000 flags: c zone:
+c025c86c, phys: 9431000 flags: c zone: c025c86c, phys: 9432000 flags: c zone:
+c025c86c, phys: 9433000 flags: c zone: c025c86c,  
 
-3) separate page replacement (page aging) and page flushing,
-   currently we'll happily free a referenced clean page just
-   because the unreferenced pages haven't been flushed to disk
-   yet ...   this is very bad since the unreferenced pages often
-   turn out to be things like executable code
+Look at the flags for these two lines.  The first block of mem_map_t structures
+(4 mem_map_t's starting at address c127bb28) each has a value for 0 in the flags
+field.  But this second block (4 mem_map_t's starting at address c129ad88) each
+has a value of 0xC for the flags field.  This translates to the
 
-   we could achieve this by augmenting the current MM subsystem
-   with an inactive and scavenge list, in the process splitting
-   shrink_mmap() into three better readable functions ... I have
-   this mostly done
+#define PG_referenced		 2
+#define PG_uptodate		 3
 
-4) fix balance_dirty() to include inactive pages and have kflushd
-   help kswapd by proactively flushing some of the inactive pages
-   _before_ we run into trouble
+bits being set.  Could someone explain to me what it means for a free page to
+have these bits set?
 
-5) implement some form of write throttling for VMAs so it'll be
-   impossible for big mmap()s, etc, to competely fill memory
-   with dirty pages
 
-regards,
 
-Rik
 --
-The Internet is not a network of computers. It is a network
-of people. That is its real strength.
+Timur Tabi - ttabi@interactivesi.com
+Interactive Silicon - http://www.interactivesi.com
 
-Wanna talk about the kernel?  irc.openprojects.net / #kernelnewbies
-http://www.conectiva.com/		http://www.surriel.com/
-
+When replying to a mailing-list message, please don't cc: me, because then I'll just get two copies of the same message.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
