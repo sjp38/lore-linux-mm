@@ -1,112 +1,42 @@
-From: Nikita Danilov <nikita@clusterfs.com>
-MIME-Version: 1.0
+Date: Sat, 6 Nov 2004 12:05:09 -0800
+From: William Lee Irwin III <wli@holomorphy.com>
+Subject: Re: removing mm->rss and mm->anon_rss from kernel?
+Message-ID: <20041106200509.GG2890@holomorphy.com>
+References: <4189EC67.40601@yahoo.com.au> <Pine.LNX.4.58.0411040820250.8211@schroedinger.engr.sgi.com> <418AD329.3000609@yahoo.com.au> <Pine.LNX.4.58.0411041733270.11583@schroedinger.engr.sgi.com> <418AE0F0.5050908@yahoo.com.au> <418C55A7.9030100@yahoo.com.au> <Pine.LNX.4.58.0411060120190.22874@schroedinger.engr.sgi.com> <204290000.1099754257@[10.10.2.4]> <Pine.LNX.4.58.0411060812390.25369@schroedinger.engr.sgi.com>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Message-ID: <16781.9482.821680.375843@gargle.gargle.HOWL>
-Date: Sat, 6 Nov 2004 22:24:58 +0300
-Subject: Re: [PATCH] Remove OOM killer from try_to_free_pages / all_unreclaimable braindamage
-In-Reply-To: <20041106174444.GF3851@dualathlon.random>
-References: <20041105200118.GA20321@logos.cnet>
-	<200411051532.51150.jbarnes@sgi.com>
-	<20041106012018.GT8229@dualathlon.random>
-	<418C2861.6030501@cyberone.com.au>
-	<20041106015051.GU8229@dualathlon.random>
-	<16780.46945.925271.26168@thebsh.namesys.com>
-	<20041106153209.GC3851@dualathlon.random>
-	<16781.436.710721.667909@gargle.gargle.HOWL>
-	<20041106174444.GF3851@dualathlon.random>
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.58.0411060812390.25369@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrea Arcangeli <andrea@novell.com>
-Cc: Nick Piggin <piggin@cyberone.com.au>, Jesse Barnes <jbarnes@sgi.com>, Marcelo Tosatti <marcelo.tosatti@cyclades.com>, Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Hugh Dickins <hugh@veritas.com>, linux-mm@kvack.org, linux-ia64@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Andrea Arcangeli writes:
- > On Sat, Nov 06, 2004 at 07:54:12PM +0300, Nikita Danilov wrote:
- > > Andrea Arcangeli writes:
- > >  > On Sat, Nov 06, 2004 at 02:37:05PM +0300, Nikita Danilov wrote:
- > >  > > We need page-reservation API of some sort. There were several attempts
- > >  > > to introduce this, but none get into mainline.
- > >  > 
- > >  > they're already in under the name of mempools
- > > 
- > > I am talking about slightly different thing. Think of some operation
- > > that calls find_or_create_page(). find_or_create_page() doesn't know
- > > about memory reserved in mempools, it uses alloc_page() directly. If one
- > > wants to guarantee that compound operation has enough memory to
- > > complete, memory should be reserved at the lowest level---in the page
- > > allocator.
- > 
- > the page allocator reserve only memory in order to swapout, that's
- > PF_MEMALLOC.
- > 
- > For other purposes not related to swapping (which is not a deterministic
- > thing, given there can be multiple layers of I/O and fs operations to
- > do), you should use mempool and change find_or_create_page to get your
- > reserved page as parameter.
+On Sat, Nov 06, 2004 at 08:19:55AM -0800, Christoph Lameter wrote:
+> Yes but I think this is preferable because of the generally faster
+> operations of the vm without having to continually update statistics. And
+> these statistics seem to be quite difficult to properly generate (why else
+> introduce anon_rss). Without the counters other optimizations are easier
+> to do.
+> Doing a ps is not a frequent event. Of course this may cause
+> significant load if one does regularly access /proc entities then. Are
+> there any threads from the past with some numbers of what the impact was
+> when we calculated rss via proc?
 
-This means breaking all layering and passing mempool pointer all the way
-down to the lowest layer allocators (like bio and drivers). The only
-practical way to do this, is to put mempool pointer into current
-task_struct. At which point it's no different from having per-thread
-list of pages that __alloc_pages() looks into before falling back to
-per-cpu page-sets and buddy. _Except_ in the latter case, reservation is
-handled transparently in __alloc_pages() and code shouldn't be adjusted
-to check for mempool in zillion of places.
+It was catastrophic. Failure of monitoring tools to make forward
+progress, long-lived delays of "victim" processes whose locks were held
+by /proc/ observers, and the like.
 
- > 
- > >  > I'm perfectly aware the fs tends to be the less correct places in terms
- > >  > of allocations, and luckily it's not an heavy memory user, so I still
- > > 
- > > Either you are kidding, or we are facing very different workloads. In
- > > the world of file-system development, file-system is (not surprisingly)
- > > single largest memory consumer.
- > 
- > when the machine runs oom the fs allocations means nothing. when the
- > machine runs oom is because somebody entered the malloc loop or
- > something like that. all allocations come from page faults.
- > 
- > Try yourself to run your box oom with getblk allocations. Only then
- > you'll run into the deadlock.
- > 
- > You've to keep in mind an oom condition happens once in a while, and
- > when it happens the userspace memory allocation load is huge compared to
- > any fs operation.
 
-I think you are confusing "file system" and "ext2". I definitely know
-from experience that with some file system types, system can be oommed
-without any significant user-level allocation activity. Now, one can say
-that either such file-systems are broken, or Linux MM lacks support for
-features (like reservation) they need.
+On Sat, Nov 06, 2004 at 08:19:55AM -0800, Christoph Lameter wrote:
+> That has its own complications and would require lots of memory with
+> systems that already have up to 10k cpus.
 
- > 
- > >  > have to see a deadlock in getblk or create_buffers or similar. It's
- > >  > mostly a correctness issue (math proof it can't deadlock, right now it
- > >  > can if more tasks all get stuck in getblk at the same time during a hard
- > >  > oom condition etc..).
- > > 
- > > Add here mmap that can dirty all physical memory behind your back, and
- > > delayed disk block allocation that forces ->writepage() to allocate
- > > potentially huge extent when memory is already tight and hope of having
- > > a proof becomes quite remote.
- > 
- > that's the PF_MEMALLOC path. A reservation already exists, or it would
- > never work since 2.2. PF_MEMALLOC and the min/2 watermark are meant to
- > allow writepage to allocate ram. however the amount reserved is limited,
+Split counters are a solved problem, even for the 10K cpus case.
 
-low-mem watermark is mostly useless in the face of direct reclaim, when
-unbounded number of threads enter try_to_free_pages() and call
-->writepage() simultaneously.
 
- > so it's not perfect. The only way to make it perfect I believe is to
- > reserve the stuff inside the fs with mempools as described above.
-
-I don't see what advantages mempools have over page reservation handled
-directly by page allocator, like in
-
-ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.6/2.6.9-rc4/2.6.9-rc4-mm1/broken-out/reiser4-perthread-pages.patch
-
-Nikita.
+-- wli
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
