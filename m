@@ -1,49 +1,36 @@
-Received: from burns.conectiva (burns.conectiva [10.0.0.4])
-	by postfix.conectiva.com.br (Postfix) with SMTP id 6343016BC2
-	for <linux-mm@kvack.org>; Fri, 23 Mar 2001 11:57:53 -0300 (EST)
-Date: Fri, 23 Mar 2001 11:56:23 -0300 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
-Subject: Re: [PATCH] Prevent OOM from killing init
-In-Reply-To: <3ABB2A19.D82B50A7@evision-ventures.com>
-Message-ID: <Pine.LNX.4.21.0103231154440.29682-100000@imladris.rielhome.conectiva>
+Message-ID: <3ABB6833.183E9188@mandrakesoft.com>
+Date: Fri, 23 Mar 2001 10:13:55 -0500
+From: Jeff Garzik <jgarzik@mandrakesoft.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: General 2.4 impressions (was Re: [PATCH] Prevent OOM from killing init)
+References: <20010323015358Z129164-406+3041@vger.kernel.org> <Pine.LNX.4.21.0103230403370.29682-100000@imladris.rielhome.conectiva> <20010323122815.A6428@win.tue.nl> <m1hf0k1qvi.fsf@frodo.biederman.org>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Martin Dalecki <dalecki@evision-ventures.com>
-Cc: Stephen Clouse <stephenc@theiqgroup.com>, Guest section DW <dwguest@win.tue.nl>, Patrick O'Rourke <orourke@missioncriticallinux.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 23 Mar 2001, Martin Dalecki wrote:
-> Rik van Riel wrote:
-> > On Sat, 23 Mar 2002, Martin Dalecki wrote:
-> > 
-> > > This is due to the broken calculation formula in oom_kill().
-> > 
-> > Feel free to write better-working code.
-> 
-> I don't get paid for it and I'm not idling through my days...
+Personally I think the OOM killer itself is fine.  I think there are
+problems elsewhere which are triggering the OOM killer when it should
+not be triggered, ie. a leak like Doug Ledford was reporting.
 
-  <similar response from Andries>
+I definitely see heavier page/dcache usage in 2.4 -- but that is to be
+expected due to 2.4 changes!  So it is incredibily difficult to quantify
+if something is wrong, and if so, where...
 
-Well, in that case you'll have to live with the current OOM
-killer.  Martin wrote down a pretty detailed description of
-what's wrong with my algorithm, if it really bothers him he
-should be able to come up with something better.
+My own impressions of 2.4 are that it "feels faster" for my own uses and
+it's stable.  The downsides I find are that heavy fs activity seems to
+imply increased swapping, which jibes with a guess that the page/dcache
+is exceptionally greedy with releasing pages under memory pressure.
 
-Personally, I think there is more important VM code to look
-after, since OOM is a pretty rare occurrance anyway.
+</unquantified vague ramble>
 
-regards,
-
-Rik
---
-Virtual memory is like a game you can't win;
-However, without VM there's truly nothing to lose...
-
-		http://www.surriel.com/
-http://www.conectiva.com/	http://distro.conectiva.com.br/
-
+-- 
+Jeff Garzik       | May you have warm words on a cold evening,
+Building 1024     | a full moon on a dark night,
+MandrakeSoft      | and a smooth road all the way to your door.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
