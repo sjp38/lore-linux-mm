@@ -1,55 +1,94 @@
-Received: from sap-ag.de ([194.39.131.3])
-  by smtpde02.sap-ag.de (out) with ESMTP id TAA29354
-  for <linux-mm@kvack.org>; Sun, 19 Nov 2000 19:08:27 +0100 (MEZ)
-Received: from linux.local.wdf.sap-ag.de (ct4012.wdf.sap-ag.de [147.204.29.12])
-	by sap-ag.de (8.8.8/8.8.8) with SMTP id TAA28508
-	for <linux-mm@kvack.org>; Sun, 19 Nov 2000 19:13:20 +0100 (MET)
-Resent-Message-Id: <200011191813.TAA28508@sap-ag.de>
-Resent-To: linux-mm@kvack.org
-Subject: Re: Hung kswapd (2.4.0-t11p5)
-References: <3A146EDA.36D1F9C4@redhat.com>
-From: Christoph Rohland <cr@sap.com>
-In-Reply-To: Bob Matthews's message of "Thu, 16 Nov 2000 18:33:46 -0500"
-Date: 19 Nov 2000 15:34:42 +0100
-Message-ID: <m3n1ewyqrh.fsf@linux.local>
+Received: from localhost (skumar@localhost)
+	by hopper.unh.edu (8.11.1/8.11.1) with ESMTP id eAL6iRF461371
+	for <linux-mm@kvack.org>; Tue, 21 Nov 2000 01:44:31 -0500 (EST)
+Date: Tue, 21 Nov 2000 01:44:27 -0500 (EST)
+From: Sunil Kumar <skumar@cisunix.unh.edu>
+Subject: How to add a user buffer in page table
+Message-ID: <Pine.OSF.4.21.0011210127200.434702-100000@hopper.unh.edu>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Bob Matthews <bmatthews@redhat.com>
-Cc: riel@nl.linux.org, johnsonm@redhat.com
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Bob and Rik,
+Hi All
 
-Bob Matthews <bmatthews@redhat.com> writes:
+I was trying to port a function written by me from linux 2.2.12 to
+2.4-test9 version. The function put_dbuff_page_into_pt puts a
+dedicated buffer into page table.
 
-> kswapd itself appears to be stuck here:
-> 
-> (gdb) list *0xc01394c2
-> 0xc01394c2 is in create_buffers (buffer.c:1240).
-> 1235	
-> 1236		/* 
-> 1237		 * Set our state for sleeping, then check again for buffer heads.
-> 1238		 * This ensures we won't miss a wake_up from an interrupt.
-> 1239		 */
-> 1240		wait_event(buffer_wait, nr_unused_buffer_heads >=
-> MAX_BUF_PER_PAGE);
-> 1241		goto try_again;
-> 1242	}
-> 1243	
-> 1244	static int create_page_buffers(int rw, struct page *page, kdev_t
-> dev, int b[], int size)
+However I am facing problem since the mk_pte function in 2.2.12 was using
+unisgned long as its first parameter and in test9 version mk_pte uses
+struct page * as its parameter. 
+Also there is no MAP_NR macro in test9. I guess its being replaced by
+virt_to_page function in test9.
 
-That's apparently exactly the same place shm swapping gets
-stuck. Apparently we run out of buffer heads on highmem machines (I
-actually believe that we can trigger the same on lowmem machines also,
-only under much higher load wrt the machine size, but that's only a
-guess)
+Here is my functin in 2.2.12 version. In this function get_empty_pgtable
+is written by me.
 
-Greetings
-                Christoph
+static unsigned long put_dbuff_page_into_pt( struct task_struct *tsp,
+                                                    unsigned long phy_addr
+)
+    {
+    pte_t           *page_table;
+    unsigned long   linear_address = TO_VIRTUAL(phy_addr);
+    int             repeat = 10;
+    unsigned long   new_phys = phy_addr;
 
+
+    do  {/* calculating the position of the page table entry in page table
+*/
+        if( (page_table = get_empty_pgtable(tsp, linear_address)) == NULL
+)
+            {
+            printk("put_dbuff_page_into_pt: Out of mem for pt.\n");
+            return -1;
+            }
+
+        if( !pte_none(*page_table) )
+            {
+            printk("put_dbuff_page_into_pt: PTE_VAL = %lx\n",
+		pte_val(*page_table));
+            dirty_pages[dp_count] = linear_address;
+            dp_count++;
+            if(!(new_phys = __get_free_page(GFP_KERNEL)))
+                {
+                printk("put_dbuff_page_into_pt: No free pages.\n");
+                return -1;
+                }
+            linear_address = TO_VIRTUAL(new_phys);
+            repeat--;
+            }
+        else
+            repeat = 0;
+        } while(repeat);
+
+    *page_table = mk_pte(new_phys, PAGE_SHARED);
+    mem_map_reserve(MAP_NR(new_phys)); 
+/*  printk("p_d: l_a=%x\n", linear_address);  */
+
+    return new_phys;
+	
+    } 
+    /* end of function */
+
+
+If anybody has any clue how to modify the mk_pte function. In 2.2.12
+version new_phys was an unsigned long, but in test9 version it expects it
+to struct page *.
+
+I guess MAP_NR is to replaced by virt_to_page.
+
+
+thanks 
+
+Sunil Kumar
+Dept of Computer Science
+U of New Hampshire
+Email:	skumar@cs.unh.edu
+Voice:	603-862-0701 (O)
+	    295-4618 (R)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
