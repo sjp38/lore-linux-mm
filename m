@@ -1,37 +1,59 @@
-Date: Mon, 20 Aug 2001 20:42:08 -0300 (BRT)
-From: Marcelo Tosatti <marcelo@conectiva.com.br>
-Subject: Re: [PATCH][RFC] using a memory_clock_interval
-In-Reply-To: <200108210022.f7L0Mf320610@mailg.telia.com>
-Message-ID: <Pine.LNX.4.21.0108202039120.538-100000@freak.distro.conectiva>
+Message-ID: <20010821121309.29694.qmail@web14202.mail.yahoo.com>
+Date: Tue, 21 Aug 2001 05:13:09 -0700 (PDT)
+From: PRASENJIT CHAKRABORTY <pras_chakra@yahoo.com>
+Subject: Need help in using __copy_to_user()
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Roger Larsson <roger.larsson@norran.net>
-Cc: linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+Hello All,
 
-On Tue, 21 Aug 2001, Roger Larsson wrote:
+   I am a new addition to this list.
 
-> It runs, lets ship it...
-> 
-> First version of a patch that tries to USE a memory_clock to determine
-> when to run kswapd...
-> 
-> Limits needs tuning... but it runs with almost identical performace as the
-> original.
-> Note: that the rubberband is only for debug use...
-> 
-> I will update it for latest kernel... but it might be a week away...
+I am developing a driver. Though the driver is
+functioning well but I am stuck up at the point of
+transferring something from kernel to user space.
 
-Roger, 
+I am using __copy_to_user() and before calling this I
+am checking the validity of user address with
+verify_area().
 
-Why are you using memory_clock_interval (plus pages_high, of course) as
-the global inactive target ?
+Now the problem is that __copy_to_user() sometimes
+return value > 0 which indicates a failure. This
+happens everytime the user address is not currently
+present in the Physical Page i.e the when
+__copy_to_user tries to copy to a page which is not
+currently paged in then it fails.
 
-That makes the inactive target not dynamic anymore. 
+Moreover if I access the user buffer from my user
+program before passing it to the kernel for transfer
+then __copy_to_user performs it happily or if I lock
+that page through mlock() system call. I read the
+documentation but nowhere I found that I need to do
+something before __copy_to_user().
 
+The problem for the time being has been workarounded
+by putting __verify_write() before __copy_to_user.
+
+So I would like to know what is wrong with my approach
+or is it due to some other issue which is unknown to
+me (e.g corruption etc).
+
+I shall be grateful to you all if you kindly help me
+out of this.
+
+Thanks n Regards,
+
+Prasenjit
+
+
+__________________________________________________
+Do You Yahoo!?
+Make international calls for as low as $.04/minute with Yahoo! Messenger
+http://phonecard.yahoo.com/
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
