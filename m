@@ -1,46 +1,45 @@
-Received: from flinx.npwt.net (eric@flinx.npwt.net [208.236.161.237])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id NAA09556
-	for <linux-mm@kvack.org>; Wed, 22 Apr 1998 13:57:18 -0400
+Date: Wed, 22 Apr 1998 14:29:18 -0400 (EDT)
+From: "Benjamin C.R. LaHaise" <blah@kvack.org>
 Subject: Re: (reiserfs) Re: Maybe we can do 40 bits in June/July. (fwd)
-References: <Pine.LNX.3.91.980422151602.31012F-100000@mirkwood.dummy.home>
-From: ebiederm+eric@npwt.net (Eric W. Biederman)
-In-Reply-To: Rik van Riel's message of Wed, 22 Apr 1998 15:18:19 +0200 (MET DST)
-Date: 22 Apr 1998 12:57:01 -0500
-Message-ID: <m1yawxoi36.fsf@flinx.npwt.net>
+In-Reply-To: <m1yawxoi36.fsf@flinx.npwt.net>
+Message-ID: <Pine.LNX.3.95.980422140626.9664A-100000@as200.spellcast.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: H.H.vanRiel@phys.uu.nl
+To: "Eric W. Biederman" <ebiederm+eric@npwt.net>
 Cc: linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
->>>>> "RR" == Rik van Riel <H.H.vanRiel@phys.uu.nl> writes:
+On 22 Apr 1998, Eric W. Biederman wrote:
+...
+> My design:
+> As I understand it the buffer cache is fine, so it is just a matter
+> getting the page cache and the vma and the glue working.
 
-RR> Hi guys,
-RR> I just got this message from Hans Reiser (the main
-RR> ReiserFS coordinator), who says that ReiserFS will
-RR> be 40-bits (1TB filesize) ready by june/juli this
-RR> year.
-RR> Now we (the MM guys) need to get together and make
-RR> the MM layer 40-bit transparent too (or 41-bit).
+The buffer cache is currently fine, but we do want to get rid of it...
 
-RR> Any takers?
+> My thought is to make the page cache use generic keys. 
+> This should help support things like the swapper inode a little
+> better.  Still need a bit somewhere so we can coallese VMA's that have
+> an inode but don't need continous keys.  That's for later.
 
-I will make at least a preliminary patch.  
+Hmmm, if you've seen my rev_pte patch then you'll notice that *all* vmas
+will soon need continuous keys... 
 
-I have already started.
+> For the common case of inodes have the those keys:
+> page->key == page->offset >> PAGE_SHIFT.
 
-My design:
-As I understand it the buffer cache is fine, so it is just a matter
-getting the page cache and the vma and the glue working.
+Not a good idea unless support for a.out is dropped completely -- a better
+choice would be to use 512 as a divisor; then pages can at least be at the
+block offset as needed by a.out.
 
-My thought is to make the page cache use generic keys. 
-This should help support things like the swapper inode a little
-better.  Still need a bit somewhere so we can coallese VMA's that have
-an inode but don't need continous keys.  That's for later.
+Something else to keep in mind is that we also need a mechanism to keep
+metadata in the page cache (rather, per-inode metadata; fixed metadata can
+just use its own inode).
 
-For the common case of inodes have the those keys:
-page->key == page->offset >> PAGE_SHIFT.
+> And of course get rid of page->offset.  The field name changes will to
+> catch any old code that is out there.
 
-And of course get rid of page->offset.  The field name changes will to
-catch any old code that is out there.
+That's a good idea.
 
-Eric
+		-ben
