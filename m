@@ -1,125 +1,67 @@
-Date: Tue, 26 Oct 2004 09:41:16 -0200
+Date: Tue, 26 Oct 2004 10:01:36 -0200
 From: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
 Subject: Re: migration cache, updated
-Message-ID: <20041026114116.GB27014@logos.cnet>
-References: <20041025213923.GD23133@logos.cnet> <20041026.153731.38067476.taka@valinux.co.jp> <20041026092011.GD24462@logos.cnet> <20041026.224550.109999656.taka@valinux.co.jp>
+Message-ID: <20041026120136.GC27014@logos.cnet>
+References: <20041025213923.GD23133@logos.cnet> <417DA5B8.8000706@jp.fujitsu.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20041026.224550.109999656.taka@valinux.co.jp>
+In-Reply-To: <417DA5B8.8000706@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hirokazu Takahashi <taka@valinux.co.jp>
-Cc: linux-mm@kvack.org, iwamoto@valinux.co.jp, haveblue@us.ibm.com, hugh@veritas.com
+To: Hiroyuki KAMEZAWA <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: linux-mm@kvack.org, Hirokazu Takahashi <taka@valinux.co.jp>, IWAMOTO Toshihiro <iwamoto@valinux.co.jp>, Dave Hansen <haveblue@us.ibm.com>, Hugh Dickins <hugh@veritas.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Oct 26, 2004 at 10:45:50PM +0900, Hirokazu Takahashi wrote:
-> Hi,
+On Tue, Oct 26, 2004 at 10:17:44AM +0900, Hiroyuki KAMEZAWA wrote:
+> Hi, Marcelo
 > 
-> > > The previous code will cause deadlock, as the page is already locked.
+> Marcelo Tosatti wrote:
+> >Hi,
+> > #define SWP_TYPE_SHIFT(e)	(sizeof(e.val) * 8 - MAX_SWAPFILES_SHIFT)
+> >-#define SWP_OFFSET_MASK(e)	((1UL << SWP_TYPE_SHIFT(e)) - 1)
+> >+#define SWP_OFFSET_MASK(e)	((1UL << (SWP_TYPE_SHIFT(e))) - 1)
+> >+
+> >+#define MIGRATION_TYPE  (MAX_SWAPFILES - 1)
 > > 
-> > Actually this one is fine - the page is not locked (its locked
-> > by the SwapCache pte path - not migration path)
-> > 
-> > if (pte_is_migration(pte)) 
-> > 	lookup_migration_cache
-> > else 
-> > 	old lookup swap cache
-> > 	lock_page
-> > 
-> > if (pte_is_migration(pte))
-> > 	mark_page_accessed
-> > 	lock_page
+> At the first glance, I think MIGRATION_TYPE=0 is better.
+> #define MIGRATION_TYPE  (0)
 > 
-> Oh, I understand.
+> In swapfile.c::sys_swapon()
+> This code determines new swap_type for commanded swapon().
+> =============
+> p = swap_info;
+> for (type = 0 ; type < nr_swapfiles ; type++,p++)
+>          if (!(p->flags & SWP_USED))
+>                break;
+> error = -EPERM;
+> ==============
 > 
-> > Can you please try the tests with the following updated patch
-> > 
-> > Works for me
-> 
-> It didn't work without one fix.
-> 
-> +void remove_from_migration_cache(struct page *page, int id)
-> +{
-> +	write_lock_irq(&migration_space.tree_lock);
-> +        idr_remove(&migration_idr, id);
-> +	radix_tree_delete(&migration_space.page_tree, id);
-> +	ClearPageSwapCache(page);
-> +	page->private = NULL;
-> +	write_unlock_irq(&migration_space.tree_lock);
-> +}
-> 
-> +int migration_remove_reference(struct page *page)
-> +{
-> +	struct counter *c;
-> +	swp_entry_t entry;
-> +
-> +	entry.val = page->private;
-> +
-> +	read_lock_irq(&migration_space.tree_lock);
-> +
-> +	c = idr_find(&migration_idr, swp_offset(entry));
-> +
-> +	read_unlock_irq(&migration_space.tree_lock);
-> +
-> +	if (!c->i)
-> +		BUG();
-> +
-> +	c->i--;
-> +
-> +	if (!c->i) {
-> +		remove_from_migration_cache(page, page->private);
-> +		kfree(c);
-> 
-> page_cache_release(page) should be invoked here, as the count for
-> the migration cache must be decreased.
-> With this fix, your migration cache started to work very fine!
+> set nr_swapfiles=1, swap_info[0].flags = SWP_USED
+> at boot time seems good. or fix swapon().
 
-Oh yes, I removed that by accident.
+Hi Hiroyuki,
 
-> +	}
-> +		
-> +}
-> 
-> 
-> 
-> The attached patch is what I ported your patch to the latest version
-> and I fixed the bug.
+Indeed.
 
-It seems a hunk from your own tree leaked into this patch?
+This should do it?
 
-See above
-
-> @@ -367,11 +527,6 @@ generic_migrate_page(struct page *page, 
->  
->  	/* map the newpage where the old page have been mapped. */
->  	touch_unmapped_address(&vlist);
-> -	if (PageSwapCache(newpage)) {
-> -		lock_page(newpage);
-> -		__remove_exclusive_swap_page(newpage, 1);
-> -		unlock_page(newpage);
-> -	}
->  
->  	page->mapping = NULL;
->  	unlock_page(page);
-> @@ -383,11 +538,6 @@ out_busy:
->  	/* Roll back all operations. */
->  	rewind_page(page, newpage);
->  	touch_unmapped_address(&vlist);
-> -	if (PageSwapCache(page)) {
-> -		lock_page(page);
-> -		__remove_exclusive_swap_page(page, 1);
-> -		unlock_page(page);
-> -	}
->  	return ret;
-
-This two hunks?
-
-OK fine I'll update the patch with all fixes to 
-the newer version of -mhp, and start working 
-on the nonblocking version of the migration 
-functions.
-
+--- swapfile.c.orig     2004-10-26 11:33:56.734551048 -0200
++++ swapfile.c  2004-10-26 11:34:03.284555296 -0200
+@@ -1370,6 +1370,13 @@ asmlinkage long sys_swapon(const char __
+                swap_list_unlock();
+                goto out;
+        }
++
++       /* MAX_SWAPFILES-1 is reserved for migration pages */
++       if (type > MAX_SWAPFILES-1) {
++               swap_list_unlock();
++               goto out;
++       }
++
+        if (type >= nr_swapfiles)
+                nr_swapfiles = type+1;
+        INIT_LIST_HEAD(&p->extent_list);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
