@@ -1,30 +1,41 @@
-Subject: Re: 2.6.0-test5-mm2
-From: Felipe Alfaro Solana <felipe_alfaro@linuxmail.org>
-In-Reply-To: <1063677742.988.7.camel@debian>
-References: <20030914234843.20cea5b3.akpm@osdl.org>
-	 <1063677742.988.7.camel@debian>
-Content-Type: text/plain; charset=UTF-8
-Message-Id: <1063707835.1303.0.camel@teapot.felipe-alfaro.com>
-Mime-Version: 1.0
-Date: Tue, 16 Sep 2003 12:23:56 +0200
-Content-Transfer-Encoding: 8bit
+From: Leandro Motta Barros <lmb@exatas.unisinos.br>
+Subject: Freeing boot memory
+Date: Tue, 16 Sep 2003 18:17:37 -0300
+MIME-Version: 1.0
+Content-Type: text/plain;
+  charset="us-ascii"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200309161817.37802.lmb@exatas.unisinos.br>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: =?ISO-8859-1?Q?Ram=F3n?= Rey Vicente <retes_simbad@yahoo.es>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: linux-mm@kvack.org
+Cc: sisopiii-l@cscience.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2003-09-16 at 04:02, RamA3n Rey Vicente wrote:
-> > +o20.1int.patch
-> 
-> The work of Con is great! The desktop experience is much better than
-> Linus tree. And now the stability of the system response is very good in
-> my K6-2 450 machine with many aplications launched at same time. 
-> 
-> I think this patches must be merged into Linus tree as soon as possible.
+Hello,
 
-I cannot agree with you more :-)
+I and a colleague are studying the VM subsystem (actually this is the first 
+time we are examining the Linux source code more closely) and have a question 
+or two.
 
+Well, the questions concern the boot memory allocator. To be more precise, 
+We're interested in the memory deallocation routines. We have seen that it is 
+only possible to free full pages. So, theoretically, if we make several 
+allocations smaller than one page, we will not be able to actually free this 
+memory. I just don't know of this kind of situation happens in real life. Do 
+we currently have some pages of memory "wasted" because the boot memory 
+allocator was not able to free small allocations? Is there any estimate (or 
+benchmark or whatever) on the number of pages that could be freed but are 
+not?
+
+We have interest in hacking a little bit in the VM, and we thought that trying 
+to find out ways to avoid this problem (if this is really a problem) could be 
+nice. Do you have any thoughts about this?
+
+Thanks a lot,
+
+LMB
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
