@@ -1,64 +1,210 @@
-Message-ID: <20000420210732.5417.qmail@web123.yahoomail.com>
-Date: Thu, 20 Apr 2000 14:07:32 -0700 (PDT)
-From: Cacophonix <cacophonix@yahoo.com>
-Subject: swapping from pagecache?
+Received: from giganet.com (gn75.giganet.com [208.239.8.75])
+	by mail.giganet.com (8.8.7/8.8.7) with ESMTP id TAA27281
+	for <linux-mm@kvack.org>; Thu, 20 Apr 2000 19:40:04 -0400
+Message-ID: <38FF961B.ACF08696@giganet.com>
+Date: Thu, 20 Apr 2000 19:43:23 -0400
+From: Weimin Tchen <wtchen@giganet.com>
 MIME-Version: 1.0
+Subject: Re: questions on having a driver pin user memory for DMA
+References: <38FE3B08.9FFB4C4E@giganet.com> <20000420132741.C16473@redhat.com>
 Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hello all,
-I've been running a few webserver tests with 2.3.99-pre6-2, and there seems 
-to be some difference in behavior between 2.2.x and 2.3.99-pre.
+Ingo Oeser wrote:
 
-Specifically, on 2.3.99, it appears that unused pages from the page cache
-are swapped to disk, while in 2.2, unused pages are not swapped. As a result,
-performance on 2.3.99-pre drops to below 2.2. levels under such a scenario.
+> On 20 Apr 2000, Eric W. Biederman wrote:
+>
+> > Your interface sounds like it walks around all of the networking
+> > code in the kernel.  How can that be good?
+>
+> It is not a NIC in the sense that you do TCP/IP over it. These
+> NICs with VIA support are used in high speed homogenous networks
+> between cluster nodes IIRC.
 
-For example, a procinfo on 2.3.99-pre6 reports:
+Yes, I should have explained better. Our NIC allows a user buffer to handle
+message transfers & receives with a remote node also fitted our NIC. We have
+recently added another driver that fits our software & hardware under the
+TCP/IP stack using skb's & netif_rx() etc like the ethernet driver does. But
+direct user-level access of the NIC is more efficient with minimal kernel
+support.
 
-Linux 2.3.99-pre6 (root@pc46) (gcc egcs-2.91.66) #8 Sun Apr 16 14:28:40 PDT
-2000 1CPU [pc46]
- 
-Memory:      Total        Used        Free      Shared     Buffers      Cached
-Mem:        513120      511220        1900           0        6280      442264
-Swap:       265064       41984      223080
- 
-Bootup: Thu Apr 20 12:12:46 2000    Load average: 4.02 3.40 2.05 2/39 2287
- 
-user  :       0:00:01.40  14.0%  page in :     5191  disk 1:       62r     166w
-nice  :       0:00:00.01   0.1%  page out:      904  disk 2:     1235r       0w
-system:       0:00:04.65  46.5%  swap in :       72
-idle  :       0:00:03.94  39.4%  swap out:      787
-uptime:       0:31:28.18         context :     2421
- 
-irq  0:      1000 timer                 irq 10:      1817 sym53c8xx
-irq  1:         0 keyboard              irq 11:        21 eth1
-irq  2:         0 cascade [4]           irq 12:         0 PS/2 Mouse
-irq  3:         0                       irq 13:         0 fpu
-irq  4:         0                       irq 15:     54620 NetGear GA620 Gigabi
-                                                                               
-                          
-
-Note that the value under shared is 0.
-
-A procinfo under 2.2.16-pre1 with a similar scenario shows memory being
-shared (mainly by the web server, which has an internal cache), and does
-not swap at all.
-
-Any comments on this behavior? (shm is mounted of course).  Thanks for 
-any advice.
-
-cheers,
-karthik
+user-level program with user-level memory
+  |         or VI arch library calls
+DMA      |
+  |         or VI driver
+NIC which has an ASIC that can DMA into/from user-level memory
+  |
+ +--- point-to-point connection to a remote node with our NIC or to our switch
+box ---  etc.
 
 
-__________________________________________________
-Do You Yahoo!?
-Send online invitations with Yahoo! Invites.
-http://invites.yahoo.com
+For standard Ethernet, the software and hardware contrilbute about equal
+overhead to total message latency. With gigabit-speed networks, the hardware
+latency is a minor concern in comparison with the much higher software
+overhead. The NIC's DMA skips much of the kernel work. One use of our product
+is in scientific applications that can be run in parallel on PC's with fast
+access to shared data. Our product can be layered underneath MPI Software
+Technology 's Message Passing Interface library that is used by the scientific
+community.
+
+If you are interested here is more info on VI (Virtual Interface Arch)
+    http://www.viarch.org/
+    http://www.intel.com/design/servers/vi/
+    http://www.mpi-softtech.com/
+
+
+
+"Stephen C. Tweedie" wrote:
+
+> Sure.  I'm a former DEC VMS F11BXQP and Spiralog guy myself.
+
+Then Linux internals must seem to be a breeze compared w/ XQP crashes. My hat
+is off to people who handled XQP, like Robert Rappaport . DEC did excellent
+clustering using its proprietary SCS message protocol over a proprietary CI
+bus. But inexpensive hardware and common standards are winning the day.
+
+
+>
+> > 2. after a fork(), copy-on-write changes the physical address of the
+> > user buffer
+>
+> What fork() semantics do you want, though?  VIA is a little ambiguous
+> about this right now.
+>
+
+The MPI library does a fork() outside of user program control, so this can
+steal away the physical pages setup by the parent for DMA, without warning. We
+didn't notice this since our library uses pthreads which probably clones to
+share the adderss space.
+
+
+>
+> > 3.a memory leak that can hang the system, if a process does: malloc a
+> > memory buffer, register this memory, free the memory, THEN deregister
+> > the memory.
+>
+> Shouldn't be a problem if you handle page reference counts correctly.
+
+By checking page count inside our driver, it appears that:
+
+malloc() sets page count = 1
+our driver's memory register operation increments count to 2
+out-of-order free() does NOT reduce count (even when we were using PG_locked
+instead of PG_reserved)
+our driver's memory DEregister operation decrements count to 1
+
+As a result, the page does not get released back to the system.
+
+
+
+> > 1. lock against paging
+>
+> Simple enough.  Just a page reference count increment is enough for
+> this.
+
+Originally we thought that handling the page count was enough to prevent
+paging, but DMA was not occuring into the correct user memory, when there was
+heavy memory use by another application. This was fixed by setting PG_locked
+on the page. (Now I'm using PG_reserved to also solve the fork() problem.)
+
+> > - Issue 1.
+> > Initially our driver locked memory by  incrementing the page count. When
+> > that turned out to be insufficient,
+>
+> In what way is it insufficient?  An unlocked page may be removed from
+> the process's page tables, but as long as the refcount is held on the
+> physical page it should never actually be destroyed, and the mapping
+> between VA and physical page should be restored on any subsequent page
+> fault.
+>
+
+I imagine that if a CPU instruction references a virtual page that has been
+totally paged out to disk, then the kernel will fixup the fault and setup a
+NEW physical page with a copy of data from disk. However our NIC just DMA's to
+the physical memory without faulting on a virtual address.
+
+
+> > I added setting the PG_locked bit
+> > for the page frame. (However this bit is actually for locking during an
+> > IO transfer. Thus I wonder if using PG_locked would cause a problem if
+> > the user memory is also mapped to a file.)
+>
+> It shouldn't do.
+>
+
+Thanks. I'm concerned about a user buffer being mapped to a file also. So when
+file IO is done, the PG_locked flag would be cleared so the page is no longer
+pinned.
+
+>
+> > I'm probably misreading this, but it appears that  /mm/memory.c:
+> > map_user_kiobuf() pins user memory by just incrementing the page count.
+> > Will this actually prevent paging or will it only prevent the virtual
+> > address from being deleted from the user address space by a free()?
+>
+> It prevents the physical page from being destroyed until the corresponding
+> free_page.  It also prevents the VA-to-physical-page mapping from
+> disappearing,
+
+I'm unclear: does a page count > 0
+- only reserve the page frame structure so that new physical memory can be
+setup when paging-in
+- or does it actually keep the physical memory allocated for that user memory
+virtual address ?
+
+
+>  I also hoped
+> > to fix issue II (copy-on-write after fork) by setting VM_SHARED along w/
+> > VM_LOCKED.
+>
+> We already have a solution to the fork issue and are currently trying
+> to persuade Linus to accept it.  Essentially you just have to be able
+> to force a copy-out instead of deferring COW when you fork on a page
+> which has outstanding hardware IO mapped, unless the VMA is VM_SHARED.
+>
+
+Is sounds great. Did you run into similar problems w/ fork()? We saw this even
+if the child very little so probably did not touch the registered pages (which
+seems to be contrary to COW operation).
+
+>
+> PG_reserved is actually quite widely used for this sort of thing.
+> It is quite legitimate as long as you are very careful about what
+> sort of pages you apply it to.  Specifically, you need to have
+> cleanup in place for when the area is released, and that implies
+> that PG_reserved is only really legal if you are using it on pages
+> which have been explicitly allocated by a driver and mmap()ed into
+> user space.
+>
+
+Yes I saw PG_reserved used in many drivers, but I'm concerned that this is a
+kludge that has side effects. Rubini's book recommended not using it. Our
+driver uses it in both a memory registration ioctl() and in a mmap operaton.
+Our driver cleans-up in a DEregister ioctl() by using our driver's structures
+that record the locked pages. This cleanup also gets run by the drivers's
+release operations if the program aborts.
+
+
+
+>
+> > PG_reserved appears to prevent
+> > memory cleanup
+
+> Correct.  That's why you need to be mmap()ing, not using map_user_kiobuf,
+> to use PG_reserved.  Either that, or you record which pages the driver
+> has reserved, and release them manually when some other trigger happens
+> such as a close of a driver file descriptor.
+>
+
+Yes our driver does that.
+
+Thanks to all of you for your advice,
+-Weimin
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
