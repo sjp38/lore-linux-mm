@@ -1,61 +1,31 @@
-Message-ID: <3EB05F61.5070404@us.ibm.com>
-Date: Wed, 30 Apr 2003 16:42:25 -0700
-From: Dave Hansen <haveblue@us.ibm.com>
+From: Ed Tomlinson <tomlins@cam.org>
+Subject: Re: 2.5.68-mm3
+Date: Wed, 30 Apr 2003 19:57:58 -0400
+References: <20030429235959.3064d579.akpm@digeo.com>
+In-Reply-To: <20030429235959.3064d579.akpm@digeo.com>
 MIME-Version: 1.0
-Subject: [PATCH] remove unnecessary PAE pgd set
-Content-Type: multipart/mixed;
- boundary="------------030002090605080700060007"
+Content-Disposition: inline
+Content-Type: text/plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
+Message-Id: <200304301957.58729.tomlins@cam.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@digeo.com>
-Cc: linux-mm@kvack.org, Paul Larson <plars@linuxtestproject.org>
+To: Andrew Morton <akpm@digeo.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This is a multi-part message in MIME format.
---------------030002090605080700060007
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+On April 30, 2003 02:59 am, Andrew Morton wrote:
+> Bits and pieces.  Nothing major, apart from the dynamic request allocation
+> patch.  This arbitrarily increases the maximum requests/queue to 1024, and
+> could well make large (and usually bad) changes to various benchmarks.
+> However some will be helped.
 
-With PAE on, there are only 4 PGD entries.  The kernel ones never
-change, so there is no need to copy them when a vmalloc fault occurs.
-This was this was causing problems with the split pmd patches, but it is
-still correct for mainline.
+Here is something a little broken.  Suspect it might be in 68-bk too:
 
-Tested with and without PAE.  I ran it in a loop turning on and off 10
-swap partitions, which is what excited the original bug.
-http://bugme.osdl.org/show_bug.cgi?id=640
--- 
-Dave Hansen
-haveblue@us.ibm.com
+if [ -r System.map ]; then /sbin/depmod -ae -F System.map  2.5.68-mm3; fi
+WARNING: /lib/modules/2.5.68-mm3/kernel/sound/oss/cs46xx.ko needs unknown symbol cs4x_ClearPageReserved
 
---------------030002090605080700060007
-Content-Type: text/plain;
- name="vmal_fault-optimization-PAE-2.5.68-0.patch"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline;
- filename="vmal_fault-optimization-PAE-2.5.68-0.patch"
-
---- linux-2.5.68-vmal_fault/arch/i386/mm/fault.c.orig	Wed Apr 30 13:36:49 2003
-+++ linux-2.5.68-vmal_fault/arch/i386/mm/fault.c	Wed Apr 30 13:36:18 2003
-@@ -405,7 +405,15 @@
- 
- 		if (!pgd_present(*pgd_k))
- 			goto no_context;
-+		/*
-+		 * kernel pmd pages are shared among all processes
-+		 * with PAE on.  Since vmalloc pages are always
-+		 * in the kernel area, this will always be a 
-+		 * waste with PAE on.
-+		 */
-+#ifndef CONFIG_X86_PAE
- 		set_pgd(pgd, *pgd_k);
-+#endif
- 		
- 		pmd = pmd_offset(pgd, address);
- 		pmd_k = pmd_offset(pgd_k, address);
-
---------------030002090605080700060007--
-
+Ed Tomlinson
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
