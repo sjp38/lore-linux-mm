@@ -1,33 +1,42 @@
-Date: Fri, 16 May 2003 19:56:38 +0100
-From: Dave Jones <davej@codemonkey.org.uk>
-Subject: Re: [OOPS] 2.5.69-mm6
-Message-ID: <20030516185638.GA19669@suse.de>
-References: <20030516015407.2768b570.akpm@digeo.com> <87fznfku8z.fsf@lapper.ihatent.com> <20030516180848.GW8978@holomorphy.com>
+Subject: Re: Race between vmtruncate and mapped areas?
+From: Daniel McNeil <daniel@osdl.org>
+In-Reply-To: <20030515231714.GL1429@dualathlon.random>
+References: <20030514103421.197f177a.akpm@digeo.com>
+	 <82240000.1052934152@baldur.austin.ibm.com>
+	 <20030515004915.GR1429@dualathlon.random>
+	 <20030515013245.58bcaf8f.akpm@digeo.com>
+	 <20030515085519.GV1429@dualathlon.random>
+	 <20030515022000.0eb9db29.akpm@digeo.com>
+	 <20030515094041.GA1429@dualathlon.random>
+	 <1053016706.2693.10.camel@ibm-c.pdx.osdl.net>
+	 <20030515191921.GJ1429@dualathlon.random>
+	 <1053036250.2696.33.camel@ibm-c.pdx.osdl.net>
+	 <20030515231714.GL1429@dualathlon.random>
+Content-Type: text/plain
+Message-Id: <1053131245.2690.78.camel@ibm-c.pdx.osdl.net>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20030516180848.GW8978@holomorphy.com>
+Date: 16 May 2003 17:27:25 -0700
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: William Lee Irwin III <wli@holomorphy.com>, Alexander Hoogerhuis <alexh@ihatent.com>, Andrew Morton <akpm@digeo.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrea Arcangeli <andrea@suse.de>
+Cc: Andrew Morton <akpm@digeo.com>, dmccr@us.ibm.com, mika.penttila@kolumbus.fi, linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, May 16, 2003 at 11:08:48AM -0700, William Lee Irwin III wrote:
- > On Fri, May 16, 2003 at 01:26:20PM +0200, Alexander Hoogerhuis wrote:
- > > This one goes in -mm5 as well, machine runs fine for a while in X, but
- > > trying to switch to a vty send the machine into the tall weeds...
- > 
- > Could you run with the radeon driver non-modular and kernel debugging
- > on? Then when it oopses could you use addr2line(1) to resolve this to
- > a line number?
- > 
- > I'm at something of a loss with respect to dealing with DRM in general.
+On Thu, 2003-05-15 at 16:17, Andrea Arcangeli wrote:
 
-Not that I'm pointing fingers, but it could be that
-reslabify-pgds-and-pmds.patch again  ? Maybe it's still not quite right?
-Might be worth backing out and retesting, just to rule it out.
+> no, the spin_lock only acts as a barrier in one way, not both ways, so
+> an smp_something is still needed.
+> 
 
-		Dave
+Can you explain this more?  On a x86, isn't a spin_lock a lock; dec
+instruction and the rmb() a lock; addl.  I thought x86 instructions
+with lock prefix provided a memory barrier.
+
+Just curious,
+
+-- 
+Daniel McNeil <daniel@osdl.org>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
