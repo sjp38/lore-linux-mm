@@ -1,95 +1,44 @@
-Message-Id: <200105082051.f48KpTx08708@maila.telia.com>
-Content-Type: text/plain;
-  charset="iso-8859-1"
-From: Roger Larsson <roger.larsson@norran.net>
-Subject: [RFC] alternative swap_amount
-Date: Tue, 8 May 2001 22:48:46 +0200
-MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Message-Id: <200105082052.NAA08757@beastie.mckusick.com>
+Subject: Re: on load control / process swapping 
+In-Reply-To: Your message of "Mon, 07 May 2001 15:50:20 PDT."
+             <200105072250.f47MoKe68863@earth.backplane.com>
+Date: Tue, 08 May 2001 13:52:58 -0700
+From: Kirk McKusick <mckusick@mckusick.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
-Cc: Rik van Riel <riel@conectiva.com.br>
+To: Matt Dillon <dillon@earth.backplane.com>
+Cc: Rik van Riel <riel@conectiva.com.br>, arch@FreeBSD.ORG, linux-mm@kvack.org, sfkaplan@cs.amherst.edu
 List-ID: <linux-mm.kvack.org>
 
-Hi again,
+I know that FreeBSD will swap out sleeping processes, but will it
+ever swap out running processes? The old BSD VM system would do so
+(we called it hard swapping). It is possible to get a set of running
+processes that simply do not all fit in memory, and the only way
+for them to make forward progress is to cycle them through memory.
 
-Got some time to spend...
+As to the size issue, we used to be biased towards the processes
+with large resident set sizes in kicking things out. In general,
+swapping out small things does not buy you much memory and it
+annoys more users. To avoid picking on the biggest, each time we
+needed to kick something out, we would find the five biggest, and 
+kick out the one that had been memory resident the longest. The
+effect is to go round-robin among the big processes. Note that
+this algorithm allows you to kick out shells, if they are the
+biggest processes. Also note that this is a last ditch algorithm
+used only after there are no more idle processes available to
+kick out. Our decision that we had had to kick out running
+processes was: (1) no idle processes available to swap, (2) load
+average over one (if there is just one process, kicking it out
+does not solve the problem :-), (3) paging rate above a specified
+threshhold over the entire previous 30 seconds (e.g., been bad 
+for a long time and not getting better in the short term), and
+(4) paging rate to/from swap area using more than half the 
+available disk bandwidth (if your filesystems are on the same
+disk as you swap areas, you can get a false sense of success
+because all your process stop paging while they are blocked
+waiting for their file data.
 
-I wonder about the fairness in swap_amount (mm/vmscan.c)
-Suppose you have a small process with
-	mm->rss <= SWAP_MIN
-then swap_amount will 
-	return SWAP_MIN
-
-Resulting in an attempt to swap out ALL pages of that process.
-And if it had less pages even claim that we did not succeed...???
-
-Shouldn't the return value at least be limited by the actual number
-of pages in the mm?
-
-Rules:
-	0 -> 0 (if there are no pages anyway..., must be handled)
-	low -> P% of low (but require that we will finally get 0 pages left)
-	high -> p% of high
-
-One, _untested_ example, would be:
-
-static inline int swap_amount(struct mm_struct *mm)
-{
-	/* begin with high, I have slightly more big than small ? */
-	int nr = mm->rss >> SWAP_SHIFT;
-	if (nr < SWAP_MIN) {
-		nr = (mm->rss + 1) / 2; /* 0 => 0, 1 => 1, 2 => 1, 3 => 2 */
- 		if (nr > SWAP_MIN)
-			nr = SWAP_MIN;
-	}
-	return nr;
-}
-
-Compare these outputs:
-rss	_old	_new
-        0               8               0
-        1               8               1
-        2               8               1
-        4               8               2
-        8               8               4
-       16               8               8
-       32               8               8
-       64               8               8
-      128               8               8
-      256               8               8
-      512              16              16
-     1024              32              32
-     2048              64              64
-     4096             128             128
-
-/RogerL
-
----- original code ----
-#define SWAP_SHIFT 5
-#define SWAP_MIN 8
-
-static inline int swap_amount(struct mm_struct *mm)
-{
-	int nr = mm->rss >> SWAP_SHIFT;
-	return nr < SWAP_MIN ? SWAP_MIN : nr;
-}
-
-static int swap_out(unsigned int priority, int gfp_mask)
-{
-	int counter;
-	int retval = 0;
-	struct mm_struct *mm = current->mm;
-
-	/* Always start by trying to penalize the process that is allocating memory*/
-	if (mm)
-		retval = swap_out_mm(mm, swap_amount(mm));
-
--- 
-Roger Larsson
-Skelleftea
-Sweden
+	Kirk
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
