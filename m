@@ -1,41 +1,54 @@
-Date: Tue, 12 Sep 2000 18:04:39 -0300 (BRST)
+Date: Thu, 14 Sep 2000 01:30:26 -0300 (BRST)
 From: Rik van Riel <riel@conectiva.com.br>
-Subject: Re: [PATCH] Re: simple FS application that hangs 2.4-test5, mem mgmt
- problem or FS buffer cache mgmt problem?
-In-Reply-To: <200009121926.e8CJQGN28377@trampoline.thunk.org>
-Message-ID: <Pine.LNX.4.21.0009121804070.1045-100000@duckman.distro.conectiva>
+Subject: [PATCH *] VM patch for 2.4.0-test8
+Message-ID: <Pine.LNX.4.21.0009140119560.1075-100000@duckman.distro.conectiva>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: tytso@mit.edu
-Cc: ying@almaden.ibm.com, linux-mm@kvack.org
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.redhat.com, Linus Torvalds <torvalds@transmeta.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 12 Sep 2000 tytso@mit.edu wrote:
+Hi,
 
->    Date: Fri, 1 Sep 2000 14:03:51 -0300 (BRST)
->    From: Rik van Riel <riel@conectiva.com.br>
-> 
->    [Ted: could you add this problem to the 2.4 jobs list?  thanks]
-> 
->    On Fri, 1 Sep 2000, Ying Chen/Almaden/IBM wrote:
-> 
->    > I while back I reported some problems with buffer cache and
->    > probably memory mgmt subsystem when I ran high IOPS with SPEC
->    > SFS.
-> 
->    > I recently tried the same thing, i.e., running large IOPS SPEC
->    > SFS, against the test6 up kernel. I had no problem if I don't
->    > turn HIGHMEM support on in the kernel. As soon as I turned
->    > HIGHMEM support on (I have 2GB memory in my system), I ran into
->    > the same problem, i.e., I'd get "Out of memory" sort of thing
->    > from various subsystems, like SCSI or IP, and eventually my
->    > kernel hangs.
-> 
-> What's the currents status on this bug?  Many thanks.
+The new VM patch seems has received a major amount of
+code cleanup, performance tuning and stability improvement
+over the last few days and is now almost production
+quality, with the following 4 items left for 2.4:
 
-I still have no idea what could cause the bug ... ;(
+- improve streaming IO performance
+- out of memory handling
+- integrate Ben LaHaise's readahead on the VMA level
+  (and make drop_behind() work for that) .. fixes kswapd cpu eating
+- (maybe) make drop_behind() work better for some cases
+- testing, testing, testing, testing ...
+
+The post-2.4 TODO list contains these items:
+- physical page based aging  (reduce kswapd cpu use more and
+  do better/more fair page aging)
+- much much better IO clustering  (neatly abstracted away?)
+- page->mapping->flush() callback for journaling and network
+  filesystems   (maybe later in 2.4)
+- thrashing control (like process suspension?)
+
+
+The new VM already seems to be more stable under load than the
+old VM and tuning has taken it so far that I'm already running
+into bottle necks in /other/ places (eg. the elevator code)
+when putting the system under rediculously heavy load...
+
+I haven't had much time to do things like dbench and tiobench
+testing though, which is why I'm sending this email and asking
+the enthousiast benchmarkers to give the patch a try and tell
+me about the results.
+
+Oh, and please don't restrict yourself to just the synthetic
+benchmarks. The VM is there to give the best results for
+applications that have something like a working set and has
+not been tuned yet to give good performance for benchmarks
+(which seem to run very much different from any application
+I've ever seen).
 
 regards,
 
