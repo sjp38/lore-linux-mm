@@ -1,27 +1,29 @@
+Date: Tue, 17 Aug 1999 14:37:29 +0200 (CEST)
+From: Andrea Arcangeli <andrea@suse.de>
 Subject: Re: [bigmem-patch] 4GB with Linux on IA32
-Date: Tue, 17 Aug 1999 12:46:35 +0100 (BST)
-In-Reply-To: <199908170650.XAA95856@google.engr.sgi.com> from "Kanoj Sarcar" at Aug 16, 99 11:50:42 pm
-Content-Type: text
-Message-Id: <E11GhhN-0004Rx-00@the-village.bc.nu>
-From: Alan Cox <alan@lxorguk.ukuu.org.uk>
+In-Reply-To: <Pine.LNX.4.10.9908162324001.1048-100000@penguin.transmeta.com>
+Message-ID: <Pine.LNX.4.10.9908171435340.414-100000@laser.random>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Kanoj Sarcar <kanoj@google.engr.sgi.com>
-Cc: torvalds@transmeta.com, andrea@suse.de, alan@lxorguk.ukuu.org.uk, sct@redhat.com, Gerhard.Wichert@pdb.siemens.de, Winfried.Gerhard@pdb.siemens.de, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
+To: Linus Torvalds <torvalds@transmeta.com>
+Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, Kanoj Sarcar <kanoj@google.engr.sgi.com>, sct@redhat.com, Gerhard.Wichert@pdb.siemens.de, Winfried.Gerhard@pdb.siemens.de, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> I will give you one example of the type of cases that I am talking about.
-> In drivers/char/bttv.c, VIDIOCSFBUF ioctl seems to be setting the "vidadr"
-> to a kernel virtual address from the physical address present in the 
-> user's pte. This will not work for bigmem pages.
+On Mon, 16 Aug 1999, Linus Torvalds wrote:
 
-Oh now I understand Linus rather bizarre message
+>I'd like you to do the above cleanup, and then the bigmem patches look
+>like they could easily be integrated into the current 2.3.x series. But
+>with #ifdef's it won't.
 
-VIDIOCSFBUF takes a physical base address. The &1 stuff thats i nthere is 
-a debug hook that never got taken out. You can ignore the &1 case in that
-ioctl or just remove it.
+Fine ;)). I'll do the cleanup and I'll give you a new patch without the
+#ifdef in the common code (all other archs will have to #define some noop
+as well then of course).
 
-Alan
+Thanks.
+
+Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
