@@ -1,59 +1,65 @@
-From: Christoph Rohland <cr@sap.com>
-Subject: Re: shmfs/tmpfs/vm-fs
-References: <01120616545301.04747@hishmoom> <m34rn3jobk.fsf@linux.local>
-	<01120712372904.00795@hishmoom> <m3vgfjjcfz.fsf@linux.local>
-	<3C11B5A4.1070708@zytor.com>
-Message-ID: <m38zcejc65.fsf@linux.local>
-Date: 08 Dec 2001 10:54:05 +0100
+Subject: ext3 writeback mode slower than ordered mode?
+Reply-To: zlatko.calusic@iskon.hr
+From: Zlatko Calusic <zlatko.calusic@iskon.hr>
+Date: 08 Dec 2001 22:10:00 +0100
+Message-ID: <871yi5wh93.fsf@atlas.iskon.hr>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "H. Peter Anvin" <hpa@zytor.com>
-Cc: lothar.maerkle@gmx.de, linux-mm@kvack.org
+To: sct@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Hi hpa,
+Hi!
 
-On Fri, 07 Dec 2001, H. Peter Anvin wrote:
-> Christoph Rohland wrote:
-> 
->> It was possible in some 2.3 kernels, but this had to be removed
->> with the cleanup :-(
-> 
-> I guess I really still don't understand why.  
+My apologies if this is an FAQ, and I'm still catching up with
+the linux-kernel list.
 
-It is mainly a matter of simplicity: Filesystem semantics differ
-considerably from the SYSV semantics and I can assure you that the old
-implementation was a nightmare to maintain and keep compatible with
-all the little oddities of SYSV shm.
+Today I decided to convert my /tmp partition to be mounted in
+writeback mode, as I noticed that ext3 in ordered mode syncs every 5
+seconds and that is something defenitely not needed for /tmp, IMHO.
 
-E.g. there is a creator id which you cannot change and
-which is always allowed to control the opject. Also the Linux feature,
-that you can SHM_RMID a segment but still access is with its id as
-long as there are references is pretty unusual for filesystems.
+Then I did some tests in order to prove my theory. :)
 
-So I had to realise that the SYSV shm API does _not_ correspond to
-files in a directory, but it more an open struct file without a linked
-directory entry. This struct file is managed by the SYSV ipc module
-and the user can access it via shmat. This model works out quite
-naturally.
+But, alas, writeback is slower.
 
-The whole interface between ipc/shm.c and mm/shmem.c is
-shmem_file_setup, shmem_nopage and shmem_lock!  shmem does not know
-anything about SYSV and its weird semantics.
+[ordered]
+{atlas} [~]% writer 200 1
+Wrote 200.00 MB in 2 seconds -> 70.92 MB/s (100.0 %CPU)
 
-> I certainly can understand that it would be highly undesirable if it
-> had to be supported before /dev/shm is mounted, but I don't see any
-> reason to allow SysV shared memory before mounting /dev/shm.
+[writeback]
+{atlas} [/tmp]% writer 200 1
+Wrote 200.00 MB in 5 seconds -> 37.11 MB/s (96.8 %CPU)
 
-I would like this behaviour as well, but it would mean to complicate
-the whole thing more than it's worth.
+"writer" is a simple application that just writes to a file and
+deletes it afterwards. As I have 768MB RAM, 200MB doesn't trigger I/O
+in neither case, so the numbers are the measure of the speed of the FS
+internals, and as you can see writeback is running at half
+speed (extra copy? why?). Strange...
 
-Greetings
-		Christoph
+Just to be on a safe side, I decided to test a real application, sort,
+which uses $TMPDIR for temporary files. Once again, if I point $TMPDIR
+to an ext3/writeback partition, sort takes longer to do its work. And
+its repeatable.
 
+[$TMPDIR=/tmp writeback]
+{atlas} [~]% time sort bigfile -o outfile
+sort bigfile -o outfile  40.14s user 19.84s system 95% cpu 1:02.60 total
 
+[$TMPDIR=~ ordered]
+{atlas} [~]% time sort bigfile -o outfile
+sort bigfile -o outfile  40.74s user 14.78s system 97% cpu 57.196 total
+
+Notice +5 seconds in sys time for a writeback case, and adequate
+increase in wallclock time.
+
+All tests were done on the 2.4.16, but 2.5.x series exhibit the same
+behaviour. Eventually, I decided to continue mounting /tmp in the
+default, ordered mode.
+
+I'm confused, TIA for anybody clarifying this to me!
+-- 
+Zlatko
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
