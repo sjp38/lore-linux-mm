@@ -1,77 +1,95 @@
-Date: Thu, 21 Dec 2000 19:49:47 -0200 (BRDT)
-From: Rik van Riel <riel@conectiva.com.br>
-Subject: [PATCH] generic_file_map drop-behind fix
-Message-ID: <Pine.LNX.4.21.0012211935470.1613-100000@duckman.distro.conectiva>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Thu, 21 Dec 2000 19:20:53 -0800 (PST)
+From: Matthew Dillon <dillon@apollo.backplane.com>
+Message-Id: <200012220320.eBM3Kr605128@apollo.backplane.com>
+Subject: Re: Interesting item came up while working on FreeBSD's pageout
+ daemon
+References: <Pine.LNX.4.21.0012211741410.1613-100000@duckman.distro.conectiva>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ingo Molnar <mingo@elte.hu>
-Cc: linux-mm@kvack.org, Linus Torvalds <torvalds@transmeta.com>, linux-kernel@vger.kernel.org
+To: Rik van Riel <riel@conectiva.com.br>
+Cc: Daniel Phillips <phillips@innominate.de>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Ingo,
+    Right.  I am going to add another addendum... let me give a little
+    background first.  I've been testing the FBsd VM system with two
+    extremes... on one extreme is Yahoo which tends to wind up running
+    servers which collect a huge number of dirty pages that need to be
+    flushed, but have lots of disk bandwidth available to flush them.
+    The other extreme is a heavily loaded newsreader box which operate 
+    under extreme memory pressure but has mostly clean pages.   Heavy
+    load in this case means 400-600 newsreader processes on a 512MB box
+    eating around 8MB/sec in new memory, but which has mostly clean pages.
 
-the attached patch (against 2.4.0-test12-pre3) should fix the
-problem where generic_file_write() causes a page to be moved
-to the inactive list when the program is still writing to it.
+    My original solution for Yahoo was to treat clean and dirty pages at
+    the head of the inactive queue the same... that is, flush dirty pages
+    as they were encountered in the inactive queue and free clean pages,
+    with no limit on dirty page flushes.  This worked great for yahoo,
+    but failed utterly with the poor news machines.  News machines that
+    were running at a load of 1-2 were suddenly running at lods of 50-150.
+    i.e. they began to thrash and get really sludgy.
 
-Does this patch fix the web benching bottleneck in tux2 ? ;)
+    It took me a few days to figure out what was going on, because the
+    stats from the news machines showed the pageout daemon having no
+    problems... it was finding around 10,000 clean pages and 200-400
+    dirty pages per pass, and flushing the 200-400 dirty pages.  That's
+    a 25:1 clean:dirty ratio.
 
-regards,
+    Well, it turns out that the flushing of 200-400 dirty pages per pageout
+    pass was responsible for the load blowups.  The machines had already
+    been running at 100% disk load, you may recall.  Adding the additional
+    write load, even at 25:1, slowed the drives down enough that suddenly
+    many of the newsreader processes were blocking on disk I/O.  Hence the
+    load shot through the roof.
 
-Rik
---
-Hollywood goes for world dumbination,
-	Trailer at 11.
+    I tried to 'fix' the problem by saying "well, ok, so we won't flush
+    dirty pages immediately, we will give them another runaround in the
+    inactive queue before we flush them".  This worked for medium loads and
+    I thought I was done, so I wrote my first summary message to Rik and
+    Linus describing the problem and solution.
 
-		http://www.surriel.com/
-http://www.conectiva.com/	http://distro.conectiva.com.br/
+    --
 
+    But the story continues.  It turns out that that has NOT fixed the
+    problem.  The number of dirty pages being flushed went down, but
+    not enough.  Newsreader machine loads still ran in the 50-100 range.
+    At this point we really are talking about truely idle-but-dirty pages.
+    No matter, the machines were still blowing up.
 
---- linux-2.4.0-test12-pre3/mm/filemap.c.orig	2000/12/21 18:20:17
-+++ linux/mm/filemap.c	2000/12/21 21:31:39
-@@ -2436,7 +2436,7 @@
- 	}
- 
- 	while (count) {
--		unsigned long bytes, index, offset;
-+		unsigned long bytes, index, offset, partial = 0;
- 		char *kaddr;
- 
- 		/*
-@@ -2446,8 +2446,10 @@
- 		offset = (pos & (PAGE_CACHE_SIZE -1)); /* Within page */
- 		index = pos >> PAGE_CACHE_SHIFT;
- 		bytes = PAGE_CACHE_SIZE - offset;
--		if (bytes > count)
-+		if (bytes > count) {
- 			bytes = count;
-+			partial = 1;
-+		}
- 
- 		status = -ENOMEM;	/* we'll assign it later anyway */
- 		page = __grab_cache_page(mapping, index, &cached_page);
-@@ -2478,9 +2480,17 @@
- 			buf += status;
- 		}
- unlock:
--		/* Mark it unlocked again and drop the page.. */
-+		/*
-+		 * Mark it unlocked again and release the page.
-+		 * In order to prevent large (fast) file writes
-+		 * from causing too much memory pressure we move
-+		 * completely written pages to the inactive list.
-+		 * We do, however, try to keep the pages that may
-+		 * still be written to (ie. partially written pages).
-+		 */
- 		UnlockPage(page);
--		deactivate_page(page);
-+		if (!partial)
-+			deactivate_page(page);
- 		page_cache_release(page);
- 
- 		if (status < 0)
+    So, to make a long story even longer, after further experiments I
+    determined that it was the write-load itself blowin up the machines.
+    Never mind what they were writing ... the simple *act* of writing
+    anything made the HD's much less efficient then under a read-only load.
+    Even limiting the number of pages flushed to a reasonable sounding
+    number like 64 didn't solve the problem... the load still hovered around
+    20.
+
+    The patch I currently have under test which solves the problem is a
+    combination of what I had in 4.2-release, which limited the dirty page
+    flushing to 32 pages per pass, and what I have in 4.2-stable which
+    has no limit.  The new patch basically does this:
+
+	(remember pageout passes always free/flush pages from the inactive
+	queue, never the active queue!)
+
+	* Run a pageout pass with a dirty page flushing limit of 32 plus
+	  give dirty inactive pages a second go-around in the inactive
+	  queue.
+
+	* If the pass succeeds we are done.
+
+	* If the pass cannot free up enough pages (i.e. the machine happens
+	  to have a huge number of dirty pages sitting around, aka the Yahoo
+	  scenario), then take a second pass immediately and do not have any
+	  limit whatsoever on dirty page flushes in the second pass.
+
+    *THIS* appears to work for both extremes.  It's what I'm going to be
+    committing in the next few days to FreeBSD.  BTW, years ago John Dyson 
+    theorized that disk writing could have this effect on read efficiency,
+    which is why FBsd originally had a 32 page dirty flush limit per pass.
+    Now it all makes sense, and I've got proof that it's still a problem
+    with modern systems.
+
+						    -Matt
 
 
 --
