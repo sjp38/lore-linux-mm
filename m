@@ -1,32 +1,68 @@
-Date: Thu, 23 Nov 2000 01:42:07 +0000
-From: Pavel Machek <pavel@suse.cz>
+Date: Fri, 24 Nov 2000 13:23:40 +0100 (MET)
+From: Szabolcs Szakacsits <szaka@f-secure.com>
 Subject: Re: [PATCH] Reserved root VM + OOM killer
-Message-ID: <20001123014206.D96@toy>
-References: <Pine.LNX.4.30.0011221736000.14122-100000@fs129-190.f-secure.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-In-Reply-To: <Pine.LNX.4.30.0011221736000.14122-100000@fs129-190.f-secure.com>; from szaka@f-secure.com on Wed, Nov 22, 2000 at 08:09:44PM +0100
+In-Reply-To: <20001123014206.D96@toy>
+Message-ID: <Pine.LNX.4.30.0011241145200.12335-100000@fs129-190.f-secure.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Szabolcs Szakacsits <szaka@f-secure.com>
+To: Pavel Machek <pavel@suse.cz>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi!
+On Thu, 23 Nov 2000, Pavel Machek wrote:
 
-> HOW?
-> No performance loss, RAM is always fully utilized (except if no swap),
+> > HOW?
+> > No performance loss, RAM is always fully utilized (except if no swap),
+>
+> Handheld machines never have any swap, and alwys have little RAM [trust me,
+> velo1 I'm writing this on is so tuned that 100KB les and machine is useless].
+>  Unless reservation  can be turned off, it is not acceptable. Okay, it can
+> be tuned. Ok, then.
+>
+> [What about making default reserved space 10% of *swap* size?]
 
-Handheld machines never have any swap, and alwys have little RAM [trust me,
-velo1 I'm writing this on is so tuned that 100KB les and machine is useless].
- Unless reservation  can be turned off, it is not acceptable. Okay, it can
-be tuned. Ok, then.
+No. Many people uses no swap even if they have plenty of RAM. I wasn't
+right when I wrote the "reserved" VM is on swap or in buffer/page
+cache. I wanted to write the reserved VM is unused swap and/or it is
+*used* as buffer/page cache until it's not needed by root. Left away
+swap from the former sentence and you get no RAM is wasted at all ;)
 
-[What about making default reserved space 10% of *swap* size?]
+Moreover the default value for boxes with less than 8MB is 0 pages (I
+thought about "embedded" systems), it's 5 MB if the box has more then
+100MB and 5% of the RAM but after considered it as part of the VM
+between 8MB and 100MB. I found in my setup, at least 4 MB needed to be
+useful if root wants to act sure. Of course this can be different in
+other setups and application behaviours -- this is why it can be tuned
+runtime. Using more "reserved" [this is really a stupid and not
+accurate name] VM definitely helps :) BTW, apparently Solaris reserves
+4 MB for root.
 
--- 
-Philips Velo 1: 1"x4"x8", 300gram, 60, 12MB, 40bogomips, linux, mutt,
-details at http://atrey.karlin.mff.cuni.cz/~pavel/velo/index.html.
+I also thought about making it a compile time option [for people using
+Linux as embedded systmes] in that case you would have less than 25%
+chance to save one page -- I would instead optimize the compiler ;)
+.... but maybe embedded systems use non-overcomittable memory
+handling, I didn't look how they handle OOM.
+
+I'm afraid I was also wrong about performance, here is a typical case
+how standard 2.2 kernel works if OOM happens: killing gpm, vmstat,
+syslogd, tail, httpd, zsh, identd, httpd, klogd, httpd, httpd, httpd
+[the main httpd, web is dead], bad_app. If there is more bad_app
+[working on the same problem but e.g. they were feeded by wrong input,
+etc], then you have the big chance you must hit the reset button. With
+Rik's OOM killer, the "right" processes are killed but I found the
+system trashes too long and because of the constant memory pressure
+you still must hit the reset button. With my patch + fixes of Rik's
+OOM killer, the "right"  processes are killed fast [it's done only in
+page fault, contrary to 2.4.0-test11 that has two OOM killer: one in
+page fault and Rik's one ... pretty ugly] and you can do whatever you
+want as root. It would be nice to see which one of the three cases
+would finish a job first where multiply processes [not threads] work
+on the same job saving the partial results and constantly producing
+OOM.
+
+	Szaka
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
