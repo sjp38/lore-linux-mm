@@ -1,58 +1,67 @@
 Received: from max.phys.uu.nl (max.phys.uu.nl [131.211.32.73])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id HAA30189
-	for <linux-mm@kvack.org>; Mon, 7 Dec 1998 07:57:33 -0500
-Date: Mon, 7 Dec 1998 12:52:54 +0100 (CET)
+	by kvack.org (8.8.7/8.8.7) with ESMTP id IAA30226
+	for <linux-mm@kvack.org>; Mon, 7 Dec 1998 08:04:01 -0500
+Date: Mon, 7 Dec 1998 13:02:04 +0100 (CET)
 From: Rik van Riel <H.H.vanRiel@phys.uu.nl>
 Reply-To: Rik van Riel <H.H.vanRiel@phys.uu.nl>
-Subject: Re: [PATCH] swapin readahead and fixes
-In-Reply-To: <Pine.LNX.3.96.981204192244.28834B-100000@ferret.lmh.ox.ac.uk>
-Message-ID: <Pine.LNX.3.96.981207124716.23360D-100000@mirkwood.dummy.home>
+Subject: Re: 2.1.131 first impressions
+In-Reply-To: <19981207005145.A832@tantalophile.demon.co.uk>
+Message-ID: <Pine.LNX.3.96.981207125304.23360E-100000@mirkwood.dummy.home>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Chris Evans <chris@ferret.lmh.ox.ac.uk>
-Cc: Linux MM <linux-mm@kvack.org>
+To: Jamie Lokier <lkd@tantalophile.demon.co.uk>
+Cc: Linux Kernel <linux-kernel@vger.rutgers.edu>, Linux MM <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 4 Dec 1998, Chris Evans wrote:
-> On Thu, 3 Dec 1998, Rik van Riel wrote:
+On Mon, 7 Dec 1998, Jamie Lokier wrote:
+
+> I've just switched from 2.1.129 to 2.1.131 + Rik's "fastest VM system"
+> patch, and I have to say, nice!
 > 
-> > here is a patch (against 2.1.130, but vs. 2.1.131 should
-> > be trivial) that improves the swapping performance both
-> > during swapout and swapin and contains a few minor fixes.
-
-Since Dec 3 a lot changed. There now _is_ a patch against the
-2.1.131 with Stephen's apparantly excellent shrink_mmap() fix.
-
-> I'm very interested in performance for sequential swapping. This
-> occurs in for example scientific applications which much sweep
-> through vast arrays much larger than physical RAM. 
+> Disk activity
+> =============
 > 
-> Have you benchmarked booting with low physical RAM, lots of swap and
-> writing a simple program that allocates 100's of Mb of memory and
-> then sequentially accesses every page in a big loop? 
+> Something's changed.  Can't say whether it's the main tree changes or
+> Rik's mm changes (I haven't tried plain 2.1.131).
 
-Yes. Zlatko Calusic made a small and simple program that you
-can tell how much memory to use and how many passes it should
-make. It simply reads the memory and dirties it. I have achieved
-5 MB/s (that's 10 MB/s when you count the fact that you both have
-to read _and_ write) on a 200 MB session.
+Both. Stephen's changes to shrink_mmap() really have a huge
+influence on performance.
 
-> This is one area in which FreeBSD stomps on us. Theoretically it
-> should be possible to get swap with readahead pulling pages into RAM
-> at disk speed. 
+> I'm not using any swap either (well, 16k on a 64MB system).  It feels
+> faster somehow anyway.
 
-I have looked at the FreeBSD code. We can do better than that
-and I've worked out quite a nice scheme to do both read-ahead,
-read-behind or a combination of the two (depending on the
-situation). We also should stop reading in pages that are in
-the vincinity but don't belong to the program at hand.
+The not-using-any-swap part comes both from Stephen's improvement
+and my change to vmscan.c; we now quit a swap_out() loop earlier
+and we do (over?-)agressive pruning of the page and buffer caches.
 
-Unfortunately the Linux swapout code doesn't do proper clustering
-yet (too much fragmentation within a program's address space) and
-none of the above ideas have been converted to code yet. :)
+> Well, apart from Squid which still spends a few minutes grinding
+> away at the disk when it starts.  I would like to find a way to fix
+> this, it's probably the most thrashy thing my disk has to handle and
+> it does slow down everything else for a while quite significantly. 
 
-cheers,
+This could be a side effect of a too agressive pruning of the
+caches. We should fix this.
+
+> Netscape still hits the disk very hard when it starts, and takes what
+> seems like just as long.  Netscape is pretty quick to start the second
+> time though (about 3 seconds), so it's definitely a paging thing.  Is
+> there anything which could be done with paging
+> read-ahead/read-behind/read-cleverer to make Netscape not thrash the
+> disk when it starts?
+
+No, not really. When Netscape starts it is not in cache yet :)
+
+I agree that we should do better readbehind though. I am
+currently designing a nice algorithm for deciding whether
+to do read-ahead, read-behind, a bit of both or a lot of
+both. It is mainly focused at swap I/O though...
+
+File I/O might be better served with a slightly different
+algorithm, so we need a volunteer for that... If you are
+that volunteer: linux-mm@kvack.org is the list to be.
+
+regards,
 
 Rik -- the flu hits, the flu hits, the flu hits -- MORE
 +-------------------------------------------------------------------+
