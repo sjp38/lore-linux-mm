@@ -1,89 +1,48 @@
-Date: Tue, 25 May 2004 07:48:24 -0700 (PDT)
-From: Linus Torvalds <torvalds@osdl.org>
+Date: Tue, 25 May 2004 08:35:01 -0700
+From: Keith M Wesolowski <wesolows@foobazco.org>
 Subject: Re: [PATCH] ppc64: Fix possible race with set_pte on a present PTE
-In-Reply-To: <20040525114437.GC29154@parcelfarce.linux.theplanet.co.uk>
-Message-ID: <Pine.LNX.4.58.0405250726000.9951@ppc970.osdl.org>
-References: <1085369393.15315.28.camel@gaston> <Pine.LNX.4.58.0405232046210.25502@ppc970.osdl.org>
- <1085371988.15281.38.camel@gaston> <Pine.LNX.4.58.0405232134480.25502@ppc970.osdl.org>
- <1085373839.14969.42.camel@gaston> <Pine.LNX.4.58.0405232149380.25502@ppc970.osdl.org>
- <20040525034326.GT29378@dualathlon.random> <Pine.LNX.4.58.0405242051460.32189@ppc970.osdl.org>
- <20040525114437.GC29154@parcelfarce.linux.theplanet.co.uk>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Message-ID: <20040525153501.GA19465@foobazco.org>
+References: <1085369393.15315.28.camel@gaston> <Pine.LNX.4.58.0405232046210.25502@ppc970.osdl.org> <1085371988.15281.38.camel@gaston> <Pine.LNX.4.58.0405232134480.25502@ppc970.osdl.org> <1085373839.14969.42.camel@gaston> <Pine.LNX.4.58.0405232149380.25502@ppc970.osdl.org> <20040525034326.GT29378@dualathlon.random> <Pine.LNX.4.58.0405242051460.32189@ppc970.osdl.org> <20040525114437.GC29154@parcelfarce.linux.theplanet.co.uk> <Pine.LNX.4.58.0405250726000.9951@ppc970.osdl.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.58.0405250726000.9951@ppc970.osdl.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Matthew Wilcox <willy@debian.org>
-Cc: Andrea Arcangeli <andrea@suse.de>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Andrew Morton <akpm@osdl.org>, Linux Kernel list <linux-kernel@vger.kernel.org>, Ingo Molnar <mingo@elte.hu>, Ben LaHaise <bcrl@kvack.org>, linux-mm@kvack.org, Architectures Group <linux-arch@vger.kernel.org>
+To: Linus Torvalds <torvalds@osdl.org>
+Cc: Matthew Wilcox <willy@debian.org>, Andrea Arcangeli <andrea@suse.de>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Andrew Morton <akpm@osdl.org>, Linux Kernel list <linux-kernel@vger.kernel.org>, Ingo Molnar <mingo@elte.hu>, Ben LaHaise <bcrl@kvack.org>, linux-mm@kvack.org, Architectures Group <linux-arch@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
+On Tue, May 25, 2004 at 07:48:24AM -0700, Linus Torvalds wrote:
 
-On Tue, 25 May 2004, Matthew Wilcox wrote:
-
-> On Mon, May 24, 2004 at 09:00:02PM -0700, Linus Torvalds wrote:
-> > I suspect we should just make a "ptep_set_bits()" inline function that 
-> > _atomically_ does "set the dirty/accessed bits". On x86, it would be a 
-> > simple
-> > 
-> > 		asm("lock ; orl %1,%0"
-> > 			:"m" (*ptep)
-> > 			:"r" (entry));
-> > 
-> > and similarly on most other architectures it should be quite easy to do 
-> > the equivalent. You can always do it with a simple compare-and-exchange 
-> > loop, something any SMP-capable architecture should have.
+> > > the equivalent. You can always do it with a simple compare-and-exchange 
+> > > loop, something any SMP-capable architecture should have.
 > 
-> ... but PA doesn't.  Just load-and-clear-word (and its 64-bit equivalent
-> in 64-bit mode).  And that word has to be 16-byte aligned.
+> The race is:
+>  - one CPU sets the dirty bit (possibly with a hardware walker, but I 
+>    guess on PA it's probably done in sw)
+>  - the other CPU sets the accessed bit in sw as part of the 
+>    "handle_pte_fault()" processing.
+> 
+> Right now we set the accessed bit with a simple "ptep_establish()", which 
+> will use "set_pte()", which is just a regular write. So setting the 
+> accessed bit will basically be a nonatomic sequence of
+> 
+>  - read pte entry
+>  - entry = pte_mkyoung(entry)
+>  - set_pte(entry)
+> 
+> which is all done under the mm->page_table_lock, but which does NOT 
+> protect against any hardware page-table walkers or any asynchronous sw 
+> walkers (if anybody does them).
 
-Wow. And this architecture claims to support SMP? 
+Some sparc32 CPUs are also vulnerable to this race; in fact the
+supersparc manual describes it specifically and even outlines the
+compare-exchange loop using our rotten swap instruction.  In our case,
+the race is with a hardware walker.
 
-> What race are we protecting against?  If it's like xchg() and we only
-> need to protect against a racing xchg() and not a reader, we can just
-> reuse the global array of hashed spinlocks we have for that.
-
-The race is:
- - one CPU sets the dirty bit (possibly with a hardware walker, but I 
-   guess on PA it's probably done in sw)
- - the other CPU sets the accessed bit in sw as part of the 
-   "handle_pte_fault()" processing.
-
-Right now we set the accessed bit with a simple "ptep_establish()", which 
-will use "set_pte()", which is just a regular write. So setting the 
-accessed bit will basically be a nonatomic sequence of
-
- - read pte entry
- - entry = pte_mkyoung(entry)
- - set_pte(entry)
-
-which is all done under the mm->page_table_lock, but which does NOT 
-protect against any hardware page-table walkers or any asynchronous sw 
-walkers (if anybody does them).
-
-Basically, the suggestion is to replace the "set_pte()" with something 
-that is safe against anything else that updates the page tables (whether 
-software or hardware). If only core kernel code does that, then you should 
-already be fine, since the page-table spinlock should already be held by 
-all updaters.
-
-NOTE! One really easy approach would be to say that we never mix software 
-updates of the accessed bit with hw updates, and just have a rule that if 
-the architecture does accessed-bit updates in hardware (and can thus race 
-with us doing them in software _despite_ the fact that we hold the page 
-table lock), then we just don't do the update at all. 
-
-We'd just pass in a flag to "ptep_establish()" to tell it whether we
-changed the dirty bit or not. It would be "write_access" in
-handle_pte_fault(), and 1 in the other two cases.
-
-> Ah, atomic writes we can do.  That's easy.  I think all Linux architectures
-> support atomic writes to naturally aligned addresses, don't they?
-
-Yes. You'd really have to work at it _not_ to support them ;)
-
-However, the atomic write case only helps in the case when we update _all_ 
-the bits that hw walkers can update, 
-
-			Linus
+-- 
+Keith M Wesolowski
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
