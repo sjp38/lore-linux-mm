@@ -1,54 +1,80 @@
 Subject: Re: [RFC] memory defragmentation to satisfy high order allocations
-From: Trond Myklebust <trond.myklebust@fys.uio.no>
-In-Reply-To: <20041004.050320.78713249.taka@valinux.co.jp>
-References: <20041003140723.GD4635@logos.cnet>
-	 <20041004.033559.71092746.taka@valinux.co.jp>
-	 <1096831287.9667.61.camel@lade.trondhjem.org>
-	 <20041004.050320.78713249.taka@valinux.co.jp>
-Content-Type: text/plain; charset=iso-8859-1
-Message-Id: <1096836249.9667.100.camel@lade.trondhjem.org>
+From: Dave Hansen <haveblue@us.ibm.com>
+In-Reply-To: <20041003.131338.41636688.taka@valinux.co.jp>
+References: <20041001234200.GA4635@logos.cnet>
+	 <20041002.183015.41630389.taka@valinux.co.jp>
+	 <20041002183349.GA7986@logos.cnet>
+	 <20041003.131338.41636688.taka@valinux.co.jp>
+Content-Type: text/plain
+Message-Id: <1096856540.3684.7610.camel@localhost>
 Mime-Version: 1.0
-Date: Sun, 03 Oct 2004 22:44:09 +0200
-Content-Transfer-Encoding: 8BIT
+Date: Sun, 03 Oct 2004 19:22:20 -0700
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Hirokazu Takahashi <taka@valinux.co.jp>
-Cc: Marcelo Tosatti <marcelo.tosatti@cyclades.com>, iwamoto@valinux.co.jp, haveblue@us.ibm.com, Andrew Morton <akpm@osdl.org>, linux-mm@kvack.org, piggin@cyberone.com.au, arjanv@redhat.com, linux-kernel@vger.kernel.org
+Cc: marcelo.tosatti@cyclades.com, IWAMOTO Toshihiro <iwamoto@valinux.co.jp>, Andrew Morton <akpm@osdl.org>, linux-mm <linux-mm@kvack.org>, piggin@cyberone.com.au, Arjan van de Ven <arjanv@redhat.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Pa su , 03/10/2004 klokka 22:03, skreiv Hirokazu Takahashi:
+On Sat, 2004-10-02 at 21:13, Hirokazu Takahashi wrote:
+> > Questions: are there any documents on the memory hotplug userspace tools? 
+> > Where can I find them?
+> 
+> IBM guys and Fujitsu guys are designing user interface independently.
+> IBM team is implementing memory section hotplug while Fujitsu team
+> try to implement NUMA node hotplug. But both of the designs use
+> regular hot-plug mechanism, which kicks /sbin/hotplug script to control
+> devices via sysfs.
+> 
+> Dave, would you explain about it?
 
-> However, while network is down network/cluster filesystems might not
-> release pages forever unlike in the case of block devices, which may
-> timeout or returns a error in case of failure.
+First of all, we're still on the first set of these APIs.  So, either
+we're really, really smart (unlikely) or we have a few revisions an
+rewrites to go before everybody is happy.
 
-Where is the difference? As far as the VM is concerned, it is a latency
-problem. The fact of whether or not it is a permanent hang, a hang with
-a long timeout, or just a slow device is irrelevant because the VM
-doesn't actually know about these devices.
+ls /sys/devices/system/memory/ gives you each memory area, with
+arbitrary numbers like this:
+memory0
+memory1
+memory2
+memory8953
 
-> Each filesystem can control what the migration code does.
-> If it doesn't have anything to help memory migration, it's possible
-> to wait for the network coming up before starting memory migration,
-> or give up it if the network happen to be down. That's no problem.
+We haven't decided whether to make each of those represent a constant
+sized area, or let them be variable.  In any case, there will either be
+a range inside of each or a global block size something like here:
 
-Wrong. It *is* a problem: Filesystems aren't required to know anything
-about the particulars of the underlying block/network/... device timeout
-semantics either.
+	/sys/devices/system/memory/block_size
 
-Think, for instance about EXT2. Where in the current code do you see
-that it is required to detect that it is running on top of something
-like the NBD device? Where does it figure out what the latencies of this
-device is?
+Each memory device would have a directory like this:
 
-AFAICS, most filesystems in linux/fs/* have no knowledge whatsoever
-about the underlying block/network/... devices and their timeout values.
-Basing your decision about whether or not you need to manage high
-latency situations just by inspecting the filesystem type is therefore
-not going to give very reliable results.
+# ls /sys/devices/system/memory/memory8953/
+node -> ../../node/node4 (for the NUMA case)
+state
+phys_start_addr
 
-Cheers,
-  Trond
+To take a memory section offline, you 
+		
+	echo offline > /sys/devices/system/memory/memory8953/state
+
+For now, that takes the section offline by allocating all of its pages
+and migrating the test.  It also removes the sysfs node, triggering a
+/sbin/hotplug event for the device removal.  We might makes this 2
+different states in the future (offline and removal).  This could also
+potentially be triggered by hardware alone.
+
+For now, you can also add memory, but it's hackish and will certainly
+change:
+
+	echo 0x8000000 > /sys/devices/system/memory/probe
+
+will add SECTION_SIZE amount of memory at 2GB.  Yes, SECTION_SIZE is
+hard-coded, but this is only for testing.  We'll eventually take ranges
+and maybe NUMA information into there somehow.  Why can't the hardware
+just do this?  It's a long story :)
+
+-- 
+Dave Hansen
+haveblue@us.ibm.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
