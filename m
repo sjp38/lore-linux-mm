@@ -1,65 +1,51 @@
-Date: Wed, 16 May 2001 10:26:42 -0700 (PDT)
-From: Matt Dillon <dillon@earth.backplane.com>
-Message-Id: <200105161726.f4GHQg472438@earth.backplane.com>
-Subject: Re: on load control / process swapping
-References: <Pine.LNX.4.21.0105131417550.5468-100000@imladris.rielhome.conectiva> <3B00CECF.9A3DEEFA@mindspring.com> <200105151724.f4FHOYt54576@earth.backplane.com> <3B0238EB.DF435099@mindspring.com>
+Received: from burns.conectiva (burns.conectiva [10.0.0.4])
+	by perninha.conectiva.com.br (Postfix) with SMTP id 7730716B4E
+	for <linux-mm@kvack.org>; Wed, 16 May 2001 14:41:35 -0300 (EST)
+Date: Wed, 16 May 2001 14:41:35 -0300 (BRST)
+From: Rik van Riel <riel@conectiva.com.br>
+Subject: Re: RE: on load control / process swapping
+In-Reply-To: <200105161714.f4GHEFs72217@earth.backplane.com>
+Message-ID: <Pine.LNX.4.33.0105161439140.18102-100000@duckman.distro.conectiva>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Terry Lambert <tlambert2@mindspring.com>
-Cc: Rik van Riel <riel@conectiva.com.br>, arch@FreeBSD.ORG, linux-mm@kvack.org, sfkaplan@cs.amherst.edu
+To: Matt Dillon <dillon@earth.backplane.com>
+Cc: Charles Randall <crandall@matchlogic.com>, Roger Larsson <roger.larsson@norran.net>, arch@FreeBSD.ORG, linux-mm@kvack.org, sfkaplan@cs.amherst.edu
 List-ID: <linux-mm.kvack.org>
 
-:I think a lot of the "administrative limits" are stupid;
-:in particular, I think it's really dumb to have 70% free
-:resources, and yet enforce administrative limits as if all
-:...
+On Wed, 16 May 2001, Matt Dillon wrote:
 
-    The 'memoryuse' resource limit is not enforced unless
-    the system is under memory pressure.
+>     In regards to the particular case of scanning a huge multi-gigabyte
+>     file, FreeBSD has a sequential detection heuristic which does a
+>     pretty good job preventing cache blow-aways by depressing the priority
+>     of the data as it is read or written.  FreeBSD will still try to cache
+>     a good chunk, but it won't sacrifice all available memory.  If you
+>     access the data via the VM system, through mmap, you get even more
+>     control through the madvise() syscall.
 
-:...
-:>     And without being able to make the prediction
-:>     accurately you simply cannot determine how much data
-:>     you should try to cache before you begin recycling it.
-:
-:I should think that would be obvious: nearly everything
-:you can, based on locality and number of concurrent
-:references.  It's only when you attempt prefetch that it
-:actually becomes complicated; deciding to throw away a
-:clean page later instead of _now_ costs you practically
-:nothing.
-:...
+There's one thing "wrong" with the drop-behind idea though;
+it penalises data even when it's still in core and we're
+reading it for the second or third time.
 
-    Prefetching has nothing to do with what we've been
-    talking about.  We don't have a problem caching prefetched
-    pages that aren't used.  The problem we have is determining 
-    when to throw away data once it has been used by a program.
+Maybe it would be better to only do drop-behind when we're
+actually allocating new memory for the vnode in question and
+let re-use of already present memory go "unpunished" ?
 
-:...
-:>     So the jist of the matter is that FreeBSD (1) already
-:>     has process-wide working set limitations which are
-:>     activated when the system is under load,
-:
-:They are largely useless, since they are also active even
-:when the system is not under load, so they act as preemptive
-:...
+Hmmm, now that I think about this more, it _could_ introduce
+some different fairness issues. Darn ;)
 
-    This is not true.  Who told you this?  This is absolutely
-    not true.
+regards,
 
-:drags on performance.  They are also (as was pointed out in
-:an earlier thread) _not_ applied to mmap() and other regions,
-:so they are easily subverted.
-:...
-:
-:-- Terry
-:
+Rik
+--
+Linux MM bugzilla: http://linux-mm.org/bugzilla.shtml
 
-    This is not true.  The 'memoryuse' limit applies to all
-    in-core pages associated with the process, whether mmap()'d
-    or not.
+Virtual memory is like a game you can't win;
+However, without VM there's truly nothing to lose...
 
-					-Matt
+		http://www.surriel.com/
+http://www.conectiva.com/	http://distro.conectiva.com/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
