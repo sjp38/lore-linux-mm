@@ -1,49 +1,66 @@
-Date: Tue, 26 Jun 2001 00:05:07 +0200
-From: Jens Axboe <axboe@suse.de>
-Subject: Re: 2.4.6pre3: kswapd dominating CPU
-Message-ID: <20010626000507.J4132@suse.de>
-References: <F341E03C8ED6D311805E00902761278C07EFA68B@xfc04.fc.hp.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <F341E03C8ED6D311805E00902761278C07EFA68B@xfc04.fc.hp.com>; from matt_zinkevicius@hp.com on Mon, Jun 25, 2001 at 03:02:02PM -0700
+Received: from burns.conectiva (burns.conectiva [10.0.0.4])
+	by perninha.conectiva.com.br (Postfix) with SMTP id E8F5138C26
+	for <linux-mm@kvack.org>; Mon, 25 Jun 2001 20:04:25 -0300 (EST)
+Received: from localhost (riel@localhost)
+	by duckman.conectiva.com.br (8.11.4/8.11.3) with ESMTP id f5PN4PH30875
+	for <linux-mm@kvack.org>; Mon, 25 Jun 2001 20:04:25 -0300
+Date: Mon, 25 Jun 2001 20:04:25 -0300 (BRST)
+From: Rik van Riel <riel@conectiva.com.br>
+Subject: [RFC] VM statistics to gather
+Message-ID: <Pine.LNX.4.33L.0106252002560.23373-100000@duckman.distro.conectiva>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "ZINKEVICIUS,MATT (HP-Loveland,ex1)" <matt_zinkevicius@hp.com>
-Cc: linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jun 25 2001, ZINKEVICIUS,MATT (HP-Loveland,ex1) wrote:
-> > WIth a machine spec'ed like that, you might want to try with the
-> > zero-bounce patches for highmem machines. Running out of memory and
-> > still requiring low mem bounce buffers can get ugly -- the 
-> > patches won't
-> > solve any vm issues, but they should solve the problem for you (and
-> > boost your specsfs performance a good deal).
-> > 
-> > Haven't had time to update to 2.4.6-pre3 yet, if these don't apply let
-> > me know:
-> > 
-> > *.kernel.org/pub/linux/kernel/people/axboe/patches/2.4.5/block
-> > -highmem-all-4.bz2
-> 
-> We tried your block-highmem patch for 2.4.6pre1 (the 2.4.5 one you suggested
-> didn't patch cleanly). Sadly the kernel is unbootable (stops at
-> "uncompressing kernel..."). If you give as an updated patch for 2.4.6pre3 we
-> will be happy to try it!
+Hi,
 
-I'll be updating it tomorrow anyway, it's probably the zone issue again.
-At least I'll be able to verify if it is tomorrow, I'll post an update
-later.
+I am starting the process of adding more detailed instrumentation
+to the VM subsystem and am wondering which statistics to add.
+A quick start of things to measure are below, but I've probably
+missed some things. Comments are welcome ...
 
-> > Dunno what I/O controller you used...
-> 
-> Qlogic fibre channel card (kernel's qlogicfc driver)
 
-Ok good
 
--- 
-Jens Axboe
+--- kernel_stat.h.instr	Sun Jun 24 19:52:34 2001
++++ kernel_stat.h	Mon Jun 25 20:02:38 2001
+@@ -26,6 +26,25 @@
+ 	unsigned int dk_drive_wblk[DK_MAX_MAJOR][DK_MAX_DISK];
+ 	unsigned int pgpgin, pgpgout;
+ 	unsigned int pswpin, pswpout;
++	unsigned int vm_pgscan;		/* Pages scanned by pageout code. */
++	unsigned int vm_pgdeact;	/* Pages deactivated by pageout code */
++	unsigned int vm_pgclean;	/* Pages moved to inactive_clean */
++	unsigned int vm_pgskiplaunder;	/* Pages skipped by page_launder */
++	unsigned int vm_pglaundered;	/* Pages laundered by page_launder */
++	unsigned int vm_pgreact;	/* Pages reactivated by page_launder
++					 * (rescued from inactive_clean list) */
++	unsigned int vm_pgrescue;	/* Pages reactivated by reclaim_page
++					 * (rescued from inactive_dirty list) */
++	unsigned int vm_majfault;	/* Major page faults (disk IO) */
++	unsigned int vm_minfault;	/* Minor page faults (no disk IO) */
++	unsigned int vm_cow_fault;	/* COW faults, copy needed */
++	unsigned int vm_cow_optim;	/* COW skipped copy */
++	unsigned int vm_zero_fault;	/* Zero-filled page given to process */
++	unsigned int vm_zero_optim;	/* COW of the EMPTY_ZERO_PAGE */
++	unsigned int vm_kswapd_wakeup;	/* kswapd wake-ups */
++	unsigned int vm_kswapd_loops;	/* kswapd go-arounds in kswapd() loop */
++	unsigned int vm_pg_freed;	/* Pages freed by pageout code, also
++					   pages moved to inactive_clean */
+ #if !defined(CONFIG_ARCH_S390)
+ 	unsigned int irqs[NR_CPUS][NR_IRQS];
+ #endif
+
+Rik
+--
+Executive summary of a recent Microsoft press release:
+   "we are concerned about the GNU General Public License (GPL)"
+
+
+		http://www.surriel.com/
+http://www.conectiva.com/	http://distro.conectiva.com/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
