@@ -1,31 +1,32 @@
-Date: Sat, 19 Jul 2003 18:35:12 +0500
-From: "Vinay I K" <abcxyz1@lycos.com>
-Message-ID: <GMEIMFMIEBFEOBAA@mailcity.com>
-Mime-Version: 1.0
-Reply-To: abcxyz1@lycos.com
-Subject: Linux free issue
-Content-Type: text/plain; charset=us-ascii
-Content-Language: en
-Content-Transfer-Encoding: 7bit
+Date: Sat, 19 Jul 2003 10:39:04 -0400 (EDT)
+From: Rik van Riel <riel@redhat.com>
+Subject: Re: Linux free issue
+In-Reply-To: <MEHFFGFJPAFEOBAA@mailcity.com>
+Message-ID: <Pine.LNX.4.44.0307191037530.26759-100000@chimarrao.boston.redhat.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linux-MM@kvack.org
+To: Vinay I K <abcxyz1@lycos.com>
+Cc: Linux-MM@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hello,
+On Sat, 19 Jul 2003, Vinay I K wrote:
 
-Its a newbie question. I have been trying to look around and hit upon the following link.      
-http://mail.nl.linux.org/linux-mm/1998-08/msg00028.html
+> http://mail.nl.linux.org/linux-mm/1998-08/msg00028.html
+> 
+> I am a bit confused. When we call free in Linux, is the memory not given
+> back to the system(just cached)? What is the state of the issue in the
+> latest Linux Kernel?
 
-I am a bit confused. When we call free in Linux, is the memory not given back to the system(just cached)? What is the state of the issue in the latest Linux Kernel?
+The issue is not in the Linux kernel at all, but in glibc.
+It is the C library that has (after careful measuring and
+optimising) made the decision to not call the system call
+to free memory but instead keep it for later use.
 
-Thanks,
-V
+I suspect their decision is the right one in most of the
+cases.
 
-
-____________________________________________________________
-Get advanced SPAM filtering on Webmail or POP Mail ... Get Lycos Mail!
-http://login.mail.lycos.com/r/referral?aid=27005
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
