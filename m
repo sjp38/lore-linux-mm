@@ -1,52 +1,42 @@
-Message-Id: <200108212108.f7LL8Za08285@maila.telia.com>
-Content-Type: text/plain;
-  charset="iso-8859-1"
-From: Roger Larsson <roger.larsson@norran.net>
+Date: Tue, 21 Aug 2001 19:35:23 -0300 (BRST)
+From: Rik van Riel <riel@conectiva.com.br>
 Subject: Re: [PATCH][RFC] using a memory_clock_interval
-Date: Tue, 21 Aug 2001 23:04:13 +0200
-References: <Pine.LNX.4.21.0108202039120.538-100000@freak.distro.conectiva>
-In-Reply-To: <Pine.LNX.4.21.0108202039120.538-100000@freak.distro.conectiva>
+In-Reply-To: <200108212108.f7LL8Za08285@maila.telia.com>
+Message-ID: <Pine.LNX.4.33L.0108211932280.5646-100000@imladris.rielhome.conectiva>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Marcelo Tosatti <marcelo@conectiva.com.br>
-Cc: linux-mm@kvack.org
+To: Roger Larsson <roger.larsson@norran.net>
+Cc: Marcelo Tosatti <marcelo@conectiva.com.br>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tuesdayen den 21 August 2001 01:42, Marcelo Tosatti wrote:
-> On Tue, 21 Aug 2001, Roger Larsson wrote:
-> > It runs, lets ship it...
-> >
-> > First version of a patch that tries to USE a memory_clock to determine
-> > when to run kswapd...
-> >
-> > Limits needs tuning... but it runs with almost identical performace as
-> > the original.
-> > Note: that the rubberband is only for debug use...
-> >
-> > I will update it for latest kernel... but it might be a week away...
->
-> Roger,
->
-> Why are you using memory_clock_interval (plus pages_high, of course) as
-> the global inactive target ?
->
-> That makes the inactive target not dynamic anymore.
+On Tue, 21 Aug 2001, Roger Larsson wrote:
 
-It is still dymanic due the fact that kswapd will be run not depending on a
-wall clock, but on problematic allocations done.
-(i.e. inactive_target looses its meaning for the VM since it measures
-pages/second but second is no more a base for kswapd runs...
-both mean - I want to have this amount of reclaimable pages until the next 
-kswapd run...)
+> > That makes the inactive target not dynamic anymore.
+>
+> It is still dymanic due the fact that kswapd will be run not depending on a
+> wall clock, but on problematic allocations done.
+> (i.e. inactive_target looses its meaning for the VM since it measures
+> pages/second but second is no more a base for kswapd runs... both mean
+> - I want to have this amount of reclaimable pages until the next
+> kswapd run...)
 
-/RogerL
+But we still want the inactive list to be "1 second" large,
+both to give us more than enough time to do the pageout IO
+and in order to give programs a good chance to use the pages
+again.
 
--- 
-Roger Larsson
-Skelleftea
-Sweden
+regards,
+
+Rik
+--
+IA64: a worthy successor to i860.
+
+http://www.surriel.com/		http://distro.conectiva.com/
+
+Send all your spam to aardvark@nl.linux.org (spam digging piggy)
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
