@@ -1,38 +1,45 @@
-Date: Tue, 22 Oct 2002 14:29:52 -0500
-From: Dave McCracken <dmccr@us.ibm.com>
+Reply-To: Gerrit Huizenga <gh@us.ibm.com>
+From: Gerrit Huizenga <gh@us.ibm.com>
 Subject: Re: [PATCH 2.5.43-mm2] New shared page table patch 
-Message-ID: <190260000.1035314992@baldur.austin.ibm.com>
-In-Reply-To: <E1844MH-00027H-00@w-gerrit2>
-References: <E1844MH-00027H-00@w-gerrit2>
+In-reply-to: Your message of Tue, 22 Oct 2002 12:11:34 PDT.
+             <3DB5A2E6.6000305@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
+Content-Type: text/plain; charset="us-ascii"
+Content-ID: <8499.1035314994.1@us.ibm.com>
+Date: Tue, 22 Oct 2002 12:29:54 -0700
+Message-Id: <E1844iw-0002D9-00@w-gerrit2>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Gerrit Huizenga <gh@us.ibm.com>, Andrew Morton <akpm@digeo.com>
-Cc: Rik van Riel <riel@conectiva.com.br>, "Eric W. Biederman" <ebiederm@xmission.com>, "Martin J. Bligh" <mbligh@aracnet.com>, Bill Davidsen <davidsen@tmr.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>
+To: Ulrich Drepper <drepper@redhat.com>
+Cc: Dave McCracken <dmccr@us.ibm.com>, Rik van Riel <riel@conectiva.com.br>, Andrew Morton <akpm@digeo.com>, "Eric W. Biederman" <ebiederm@xmission.com>, "Martin J. Bligh" <mbligh@aracnet.com>, Bill Davidsen <davidsen@tmr.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
---On Tuesday, October 22, 2002 12:06:29 -0700 Gerrit Huizenga
-<gh@us.ibm.com> wrote:
+In message <3DB5A2E6.6000305@redhat.com>, > : Ulrich Drepper writes:
+> -----BEGIN PGP SIGNED MESSAGE-----
+> Hash: SHA1
+> 
+> Dave McCracken wrote:
+> 
+> >   3) The current large page implementation is only for applications
+> >      that want anonymous *non-pageable* shared memory.  Shared page
+> >      tables reduce resource usage for any shared area that's mapped
+> >      at a common address and is large enough to span entire pte pages.
+> 
+> 
+> Does this happen automatically (i.e., without modifying th emmap call)?
+> 
+> In any case, a system using prelinking will likely have all users of a
+> DSO mapping the DSO at the same address.  Will a system benefit in this
+> case?  If not directly, perhaps with some help from ld.so since we do
+> know when we expect the same is used everywhere.
 
-> If the shared pte patch had mmap support, then all shared libraries
-> would benefit.  Might need to align them to 4 MB boundaries for best
-> results, which would also be easy for libraries with unspecified
-> attach addresses (e.g. most shared libraries).
+One important thing to watch out for is to make sure that the PLT
+and GOT fixups (where typically pages are mprotected to RW, modified,
+then back to RO) are not in the range of pages that are shared.
+And, it helps if everything that is shared read-only is 4 MB aligned.
+If ld.so could do that under linux, we'd have the biggest win.
 
-Shared page tables do support mmap, but only for areas that are marked
-shared.  Private mappings are only shared at fork time.  If shared
-libraries are mapped shared, then shared page tables will actively share
-pte pages for them.
-
-Dave McCracken
-
-======================================================================
-Dave McCracken          IBM Linux Base Kernel Team      1-512-838-3059
-dmccr@us.ibm.com                                        T/L   678-3059
-
+gerrit
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
