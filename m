@@ -1,41 +1,55 @@
-From: Dave Hansen <haveblue@us.ibm.com>
-Subject: [patch] remove weird pmd cast
-Date: Thu, 07 Oct 2004 09:38:40 -0700
-Sender: linux-kernel-owner@vger.kernel.org
-Message-ID: <E1CFbHz-0001b8-00@kernel.beaverton.ibm.com>
-Return-path: <linux-kernel-owner+glk-linux-kernel=40m.gmane.org-S267454AbUJGRGQ@vger.kernel.org>
-To: linux-kernel@vger.kernel.org
-Cc: akpm@osdl.org, linux-mm@kvack.org, Dave Hansen <haveblue@us.ibm.com>
+From: "Lionel" <Bynum41ea@juno.com>
+Subject: It's me, Kashmir NH360417  from Yahoo        6f
+Date: Wed, 13 Oct 2004 18:47:25 +0600
+Sender: owner-linux-mm@kvack.org
+Message-ID: <25719.1971563318$1097669182@news.gmane.org>
+Reply-To: "Lionel" <Bynum41ea@juno.com>
+Mime-Version: 1.0
+Content-Type: multipart/alternative;
+	boundary="--513895024743594573"
+Return-path: <owner-linux-mm@kvack.org>
+To: fool@kvack.org, kernel@kvack.org, linux-mm@kvack.org
 List-Id: linux-mm.kvack.org
 
+[                                                                                                                                                                          Priority: Normal                   ]
 
-I don't know what this is trying to do.  It might be some kind of
-artifact from when get_pgd_slow() was removed. 
+----513895024743594573
+Content-Type: text/plain;
+Content-Encoding: bitBitNUM
 
-The expanded expression with __pa() ends up looking something like this:
+hi there,
 
-	(unsigned long)(u64)(u32)pmd-PAGE_OFFSET
+V!co-din, X @n-ax, VAl-1um, Xen1-cal, Ph3nte-rm1n3, men's health And many many more...
+Start savings now
 
-and that is just nutty because pmd is a pointer now, anyway.
+Cl!ck the l!nk below:
 
-Attached patch removes the casts.  
+http://salient.yournotagoingtolialkiadidls.com/indexv.html?aa5156
 
-Signed-off-by: Dave Hansen <haveblue@us.ibm.com>
----
+Get these online for 70% off.
 
- memhotplug-dave/arch/i386/mm/pgtable.c |    2 +-
- 1 files changed, 1 insertion(+), 1 deletion(-)
 
-diff -puN arch/i386/mm/pgtable.c~A3-remove-weird-pmd-casts-i386 arch/i386/mm/pgtable.c
---- memhotplug/arch/i386/mm/pgtable.c~A3-remove-weird-pmd-casts-i386	2004-10-07 09:34:26.000000000 -0700
-+++ memhotplug-dave/arch/i386/mm/pgtable.c	2004-10-07 09:34:26.000000000 -0700
-@@ -233,7 +233,7 @@ pgd_t *pgd_alloc(struct mm_struct *mm)
- 		pmd_t *pmd = kmem_cache_alloc(pmd_cache, GFP_KERNEL);
- 		if (!pmd)
- 			goto out_oom;
--		set_pgd(&pgd[i], __pgd(1 + __pa((u64)((u32)pmd))));
-+		set_pgd(&pgd[i], __pgd(1 + __pa(pmd)));
- 	}
- 	return pgd;
- 
-_
+
+
+
+
+
+
+
+
+
+
+
+
+tlvdvocjznfvmmyufwtjwbrffcigyejkedmntihlqhmhkyfmjtezspm
+nattyceramiumabetting
+bookshelvescasecontribution
+
+----513895024743594573--
+
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"aart@kvack.org"> aart@kvack.org </a>
