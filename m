@@ -1,197 +1,452 @@
-Subject: all processes waiting in TASK_UNINTERRUPTIBLE state
-Message-ID: <OF7B251945.42FE908D-ON85256A76.004C34E9@pok.ibm.com>
-From: "Bulent Abali" <abali@us.ibm.com>
-Date: Mon, 25 Jun 2001 10:10:38 -0400
+Subject: VM tuning through fault trace gathering [with actual code]
+From: John Fremlin <vii@users.sourceforge.net>
+Date: 25 Jun 2001 16:26:39 +0100
+Message-ID: <m2d77s4m34.fsf@boreas.yi.org.>
 MIME-Version: 1.0
-Content-type: text/plain; charset=us-ascii
+Content-Type: multipart/mixed; boundary="=-=-="
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, "Justin T. Gibbs" <gibbs@scsiguy.com>, mingo@elte.hu
+Cc: linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-keywords:  tux, aic7xxx, 2.4.5-ac4, specweb99, __wait_on_page, __lock_page
-
-Greetings,
-
-I am running in to a problem, seemingly a deadlock situation, where almost
-all the processes end up in the TASK_UNINTERRUPTIBLE state.   All the
-process eventually stop responding, including login shell, no screen
-updates, keyboard etc.  Can ping and sysrq key works.   I traced the tasks
-through sysrq-t key.  The processors are in the idle state.  Tasks all seem
-to get stuck in the __wait_on_page or __lock_page.  It appears from the
-source that they are waiting for pages to be unlocked.   run_task_queue
-(&tq_disk) should eventually cause pages to unlock but it doesn't happen.
-Anybody familiar with this problem or have seen it before?  Thanks for any
-comments.
-Bulent
-
-Here are the conditions:
-Dual PIII, 1GHz, 1GB of memory,  aic7xxx scsi driver, acenic eth.
-This occurs while TUX  (2.4.5-B6) webserver is being driven by SPECWeb99
-benchmark at a rate of 800 c/s.  The system is very busy doing disk and
-network I/O.  Problem occurs sometimes in an hour and sometimes 10-20 hours
-in to the running.
-
-Bulent
+--=-=-=
 
 
-Process: 0, {             swapper}
-EIP: 0010:[<c010524d>] CPU: 1 EFLAGS: 00000246
-EAX: 00000000 EBX: c0105220 ECX: c2afe000 EDX: 00000025
-ESI: c2afe000 EDI: c2afe000 EBP: c0105220 DS: 0018 ES: 0018
-CR0: 8005003b CR2: 08049df0 CR3: 268e0000 CR4: 000006d0
-Call Trace: [<c01052d2>] [<c0119186>] [<c01192fb>]
-SysRq : Show Regs
+Last year I had the idea of tracing the memory accesses of the system
+to improve the VM - the traces could be used to test algorithms in
+userspace. The difficulty is of course making all memory accesses
+fault without destroying system performance.
 
-Process: 0, {             swapper}
-EIP: 0010:[<c010524d>] CPU: 0 EFLAGS: 00000246
-EAX: 00000000 EBX: c0105220 ECX: c030a000 EDX: 00000000
-ESI: c030a000 EDI: c030a000 EBP: c0105220 DS: 0018 ES: 0018
-CR0: 8005003b CR2: 08049f7c CR3: 37a63000 CR4: 000006d0
-Call Trace: [<c01052d2>] [<c0105000>] [<c01001cf>]
-SysRq : Show Regs
+The following patch (i386 only) will dump all page faults to
+/dev/biglog (you need devfs for this node to appear). If you echo 1 >
+/proc/sys/vm/trace then *almost all* userspace memory accesses will
+take a soft fault. Note that this is a bit suicidal at the moment
+because of the staggeringly inefficient way its implemented, on my box
+(K6-2 300MHz) only processes which do very little (e.g. /usr/bin/yes)
+running at highest priority are able to print anything to the console.
 
-EIP: 0010:[<c010524d>] CPU: 1 EFLAGS: 00000246
-Using defaults from ksymoops -t elf32-i386 -a i386
-EAX: 00000000 EBX: c0105220 ECX: c2afe000 EDX: 00000025
-ESI: c2afe000 EDI: c2afe000 EBP: c0105220 DS: 0018 ES: 0018
-CR0: 8005003b CR2: 08049df0 CR3: 268e0000 CR4: 000006d0
-Call Trace: [<c01052d2>] [<c0119186>] [<c01192fb>]
-
-EIP: 0010:[<c010524d>] CPU: 0 EFLAGS: 00000246
-EAX: 00000000 EBX: c0105220 ECX: c030a000 EDX: 00000000
-ESI: c030a000 EDI: c030a000 EBP: c0105220 DS: 0018 ES: 0018
-CR0: 8005003b CR2: 08049f7c CR3: 37a63000 CR4: 000006d0
-Call Trace: [<c01052d2>] [<c0105000>] [<c01001cf>]
-
->>EIP; c010524d <default_idle+2d/40>   <=====
-Trace; c01052d2 <cpu_idle+52/70>
-Trace; c0119186 <__call_console_drivers+46/60>
-Trace; c01192fb <call_console_drivers+eb/100>
-
->>EIP; c010524d <default_idle+2d/40>   <=====
-Trace; c01052d2 <cpu_idle+52/70>
-Trace; c0105000 <prepare_namespace+0/10>
-Trace; c01001cf <L6+0/2>
-
-=================
-
-SysRq : Show Memory
-Mem-info:
-Free pages:        4300kB (   792kB HighMem)
-( Active: 200434, inactive_dirty: 26808, inactive_clean: 1472, free: 1075
-(574 1148 1722) )
-24*4kB 15*8kB 2*16kB 1*32kB 1*64kB 1*128kB 1*256kB 0*512kB 0*1024kB
-0*2048kB 0*4096kB = 728kB)
-493*4kB 3*8kB 1*16kB 0*32kB 0*64kB 0*128kB 1*256kB 1*512kB 0*1024kB
-0*2048kB 0*4096kB = 2780kB)
-0*4kB 1*8kB 1*16kB 0*32kB 0*64kB 0*128kB 1*256kB 1*512kB 0*1024kB 0*2048kB
-0*4096kB = 792kB)
-Swap cache: add 2711, delete 643, find 5301/6721
-Free swap:       2087996kB
-253932 pages of RAM
-24556 pages of HIGHMEM
-7212 reserved pages
-221419 pages shared
-2068 pages swap cached
-0 pages in page table cache
-Buffer memory:    12164kB
-    CLEAN: 2322 buffers, 9276 kbyte, 3 used (last=2322), 2 locked, 0
-protected, 0 dirty
-   LOCKED: 405 buffers, 1608 kbyte, 39 used (last=404), 348 locked, 0
-protected, 0 dirty
-    DIRTY: 322 buffers, 1288 kbyte, 0 used (last=0), 322 locked, 0
-protected, 322 dirty
-
-=====================
-
-async IO 0/2  D 00000013     0  1061   1059          1062       (NOTLB)
-Call Trace: [<c012e121>] [<c012f059>] [<c02614d7>] [<c0258c44>]
-[<c02588c0>]
-   [<c025c65a>] [<c0256848>] [<c0258478>] [<c0105636>] [<c02582a0>]
-
-Trace; c012e121 <___wait_on_page+91/c0>
-Trace; c012f059 <do_generic_file_read+449/7d0>
-Trace; c02614d7 <send_abuf+27/30>
-Trace; c0258c44 <generic_send_file+84/100>
-Trace; c02588c0 <sock_send_actor+0/1a0>
-Trace; c025c65a <http_send_body+6a/100>
-Trace; c0256848 <tux_schedule_atom+18/20>
-Trace; c0258478 <cachemiss_thread+1d8/350>
-Trace; c0105636 <kernel_thread+26/30>
-Trace; c02582a0 <cachemiss_thread+0/350>
+I think the best way would be to have only one valid l2 pte per
+process. I'll have a go at doing that in a day or two unless someone
+has a better idea?
 
 
-==================
+--=-=-=
+Content-Type: text/x-patch
+Content-Disposition: attachment;
+  filename=linux-2.4.4-i386-pagetrace-2.patch
 
-bash          D C2AE541C     0   920    912                     (NOTLB)
-Call Trace: [<c012e1e1>] [<c012e04d>] [<c016b880>] [<c012fdac>]
-[<c012a76a>]
-   [<c012a8cb>] [<c0110018>] [<c02709c7>] [<c0113ed0>] [<c0114106>]
-[<c0195494>]
-   [<c01417d2>] [<c011e25b>] [<c0113ed0>] [<c01075b8>
+diff --exclude *~ --new-file -u -r linux-2.4.4-orig/drivers/char/Makefile linux-2.4.4-i386-pagetrace/drivers/char/Makefile
+--- linux-2.4.4-orig/drivers/char/Makefile	Tue May  1 14:33:51 2001
++++ linux-2.4.4-i386-pagetrace/drivers/char/Makefile	Sat Jun 23 22:21:34 2001
+@@ -16,7 +16,7 @@
+ 
+ O_TARGET := char.o
+ 
+-obj-y	 += tty_io.o n_tty.o tty_ioctl.o mem.o raw.o pty.o misc.o random.o
++obj-y	 += tty_io.o n_tty.o tty_ioctl.o mem.o raw.o pty.o misc.o random.o biglog.o
+ 
+ # All of the (potential) objects that export symbols.
+ # This list comes from 'grep -l EXPORT_SYMBOL *.[hc]'.
+diff --exclude *~ --new-file -u -r linux-2.4.4-orig/drivers/char/biglog.c linux-2.4.4-i386-pagetrace/drivers/char/biglog.c
+--- linux-2.4.4-orig/drivers/char/biglog.c	Thu Jan  1 01:00:00 1970
++++ linux-2.4.4-i386-pagetrace/drivers/char/biglog.c	Sun Jun 24 14:55:55 2001
+@@ -0,0 +1,204 @@
++/* Implements a misc device that can output large amounts of data from
++ * the kernel to userspace
++ *
++ * (c) 2001 John Fremlin released under GPL
++ */
++
++#include <linux/slab.h>
++#include <linux/init.h>
++#include <linux/miscdevice.h>
++#include <linux/spinlock.h>
++#include <linux/wait.h>
++#include <asm/uaccess.h>
++#include <linux/mm.h>
++#include <linux/module.h>
++
++#define BUFFER_SIZE (1024*1024*1)
++
++char buffer[BUFFER_SIZE];
++
++static DECLARE_WAIT_QUEUE_HEAD(waiters);
++static spinlock_t write_head_lock = SPIN_LOCK_UNLOCKED;
++unsigned long write_head;
++
++struct fop_priv
++{
++	unsigned long read_head;
++}
++;
++
++void biglog_log(const char*str)
++{
++	const char*i = str;
++	unsigned long head;
++	unsigned long flags;
++
++	spin_lock_irqsave(&write_head_lock,flags);
++	head = write_head;
++	while(*i) {
++		buffer[head++]= *i++;
++		if(head>=BUFFER_SIZE)
++			head = 0;
++	}
++	write_head = head;
++	spin_unlock_irqrestore(&write_head_lock,flags);
++	wake_up_all(&waiters);
++}
++
++void biglog_logfault(struct mm_struct *mm, struct vm_area_struct * vma,
++		     unsigned long address, int write_access) 
++{
++	static unsigned long no;
++	static char faultbuf[1024];
++
++	char* process = current ? current->comm : "unknown";
++	pid_t pid = current ? current->pid : 0;
++	
++	unsigned long offset = address - vma->vm_start;
++	struct file* file = vma->vm_file;
++	struct dentry* dentry = file ? file->f_dentry : 0;
++	struct inode* inode = dentry ? dentry->d_inode : 0;
++
++	unsigned long ino = inode ? inode->i_ino : 0;
++	kdev_t device = inode ? inode->i_dev : 0;
++	struct qstr* d_name = dentry ? &dentry->d_name : 0;
++               
++	char name[100];
++	unsigned len = sizeof(name)-1;
++               
++	if(d_name && (d_name->len < len))
++		len = d_name->len;
++               
++	strncpy(name, d_name ? (const char*)d_name->name : (const char*)
++		"anon", len);
++	name[len] = 0;
++
++	sprintf(faultbuf,"%lu: %p%c (%s) %lu (%s) %p %lu:%lu+%lu\n",
++		no++,
++		(void*)address,
++		write_access?'W':'r',
++		process,
++		(unsigned long)pid,
++		(char*)name,
++		vma,
++		(unsigned long)device,
++		ino,
++		offset
++		);
++
++	biglog_log(faultbuf);
++}
++
++static int fop_open(struct inode * inode, struct file * file)
++{
++	struct fop_priv*priv;
++	priv = kmalloc(sizeof *priv,GFP_KERNEL);
++	if(!priv)
++		return -ENOMEM;
++
++	memset(priv,0,sizeof *priv);
++
++	priv->read_head = write_head;
++	file->private_data = priv;
++
++	return 0;
++}
++
++static ssize_t fop_read(struct file * file, char * buf,
++			size_t count, loff_t *ppos)
++{
++	ssize_t ret = 0;
++	unsigned long head;
++	unsigned long flags;
++	struct fop_priv *priv = (struct fop_priv *)file->private_data;
++
++	if (ppos != &file->f_pos)
++		return -ESPIPE;
++
++	spin_lock_irqsave(&write_head_lock,flags);
++	head = write_head;
++	if(head == priv->read_head) {
++		spin_unlock_irqrestore(&write_head_lock,flags);
++		if(file->f_flags&O_NONBLOCK)
++			return -EAGAIN;
++		
++		if (wait_event_interruptible(waiters,
++		    head != write_head)
++		    == -ERESTARTSYS) {
++			return -ERESTARTSYS;
++		}
++		spin_lock_irqsave(&write_head_lock,flags);
++		head = write_head;
++	}
++	if(!count) 
++		goto out;
++	
++	if(head >= priv->read_head)
++		if(count > head - priv->read_head)
++			count = head - priv->read_head;
++		
++	if(count+priv->read_head >  BUFFER_SIZE)
++		count = BUFFER_SIZE - priv->read_head;
++	
++	if (copy_to_user(buf, buffer + priv->read_head, count))
++		ret = -EFAULT;
++	else {
++		ret = count;
++		priv->read_head += count;
++		if(priv->read_head >= BUFFER_SIZE)
++			priv->read_head = 0;
++	}
++ out:
++	spin_unlock_irqrestore(&write_head_lock,flags);
++	return ret;
++}
++
++static int fop_release(struct inode * inode, struct file * file)
++{
++	struct fop_priv *priv = (struct fop_priv *)file->private_data;
++	kfree(priv);
++	return 0;
++}
++
++static struct file_operations fops = {
++	owner:		THIS_MODULE,
++	read:		fop_read,
++	open:		fop_open,
++	release:		fop_release,
++};
++
++static struct miscdevice dev=
++{
++	MISC_DYNAMIC_MINOR,
++	"biglog",
++	&fops
++};
++
++
++static int __init mod_init(void)
++{
++	if(misc_register(&dev)){
++		printk(KERN_DEBUG "biglog: could not register device node\n");
++		return -EBUSY;
++	}
++	
++	printk(KERN_INFO "biglog: ready to rock\n");
++	return 0;
++}
++
++static void __exit mod_exit(void)
++{
++	if(misc_deregister(&dev))
++		printk(KERN_DEBUG "biglog: could not deregister device node\n");
++
++	/* FIXME: remove if this gets into main tree */
++	printk(KERN_INFO "biglog: biglog has left the building\n");
++}
++
++module_init(mod_init);
++module_exit(mod_exit);
++
++MODULE_DESCRIPTION("Interface for loggin large amounts of data from the kernel");
++MODULE_AUTHOR("John Fremlin");
++EXPORT_SYMBOL(biglog_logfault);
++EXPORT_SYMBOL(biglog_log);
+diff --exclude *~ --new-file -u -r linux-2.4.4-orig/include/asm-i386/mmu_context.h linux-2.4.4-i386-pagetrace/include/asm-i386/mmu_context.h
+--- linux-2.4.4-orig/include/asm-i386/mmu_context.h	Tue May  1 20:35:24 2001
++++ linux-2.4.4-i386-pagetrace/include/asm-i386/mmu_context.h	Sun Jun 24 15:34:31 2001
+@@ -27,6 +27,8 @@
+ 
+ static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next, struct task_struct *tsk, unsigned cpu)
+ {
++	extern void trace_mm(struct mm_struct*mm);
++	trace_mm(next);
+ 	if (prev != next) {
+ 		/* stop flush ipis for the previous mm */
+ 		clear_bit(cpu, &prev->cpu_vm_mask);
+diff --exclude *~ --new-file -u -r linux-2.4.4-orig/include/asm-i386/pgtable.h linux-2.4.4-i386-pagetrace/include/asm-i386/pgtable.h
+--- linux-2.4.4-orig/include/asm-i386/pgtable.h	Tue May  1 20:35:24 2001
++++ linux-2.4.4-i386-pagetrace/include/asm-i386/pgtable.h	Sun Jun 24 14:57:11 2001
+@@ -174,6 +174,7 @@
+ #define _PAGE_GLOBAL	0x100	/* Global TLB entry PPro+ */
+ 
+ #define _PAGE_PROTNONE	0x080	/* If not present */
++#define _PAGE_TRACE     0x200
+ 
+ #define _PAGE_TABLE	(_PAGE_PRESENT | _PAGE_RW | _PAGE_USER | _PAGE_ACCESSED | _PAGE_DIRTY)
+ #define _KERNPG_TABLE	(_PAGE_PRESENT | _PAGE_RW | _PAGE_ACCESSED | _PAGE_DIRTY)
+@@ -243,7 +244,8 @@
+ /* page table for 0-4MB for everybody */
+ extern unsigned long pg0[1024];
+ 
+-#define pte_present(x)	((x).pte_low & (_PAGE_PRESENT | _PAGE_PROTNONE))
++#define pte_present(x)	((x).pte_low & (_PAGE_PRESENT | _PAGE_PROTNONE | _PAGE_TRACE))
++#define pte_traced(x)   ((x).pte_low & _PAGE_TRACE)
+ #define pte_clear(xp)	do { set_pte(xp, __pte(0)); } while (0)
+ 
+ #define pmd_none(x)	(!pmd_val(x))
+@@ -278,6 +280,8 @@
+ static inline pte_t pte_mkdirty(pte_t pte)	{ (pte).pte_low |= _PAGE_DIRTY; return pte; }
+ static inline pte_t pte_mkyoung(pte_t pte)	{ (pte).pte_low |= _PAGE_ACCESSED; return pte; }
+ static inline pte_t pte_mkwrite(pte_t pte)	{ (pte).pte_low |= _PAGE_RW; return pte; }
++static inline pte_t pte_mktrace(pte_t pte)      { (pte).pte_low |= _PAGE_TRACE; (pte).pte_low &= ~_PAGE_PRESENT; return pte; }
++static inline pte_t pte_untrace(pte_t pte)      { if(!pte_traced(pte))return pte; (pte).pte_low &= ~_PAGE_TRACE; (pte).pte_low |= _PAGE_PRESENT; return pte; }
+ 
+ static inline  int ptep_test_and_clear_dirty(pte_t *ptep)	{ return test_and_clear_bit(_PAGE_BIT_DIRTY, ptep); }
+ static inline  int ptep_test_and_clear_young(pte_t *ptep)	{ return test_and_clear_bit(_PAGE_BIT_ACCESSED, ptep); }
+diff --exclude *~ --new-file -u -r linux-2.4.4-orig/include/linux/sysctl.h linux-2.4.4-i386-pagetrace/include/linux/sysctl.h
+--- linux-2.4.4-orig/include/linux/sysctl.h	Tue May  1 20:35:46 2001
++++ linux-2.4.4-i386-pagetrace/include/linux/sysctl.h	Sun Jun 24 04:08:01 2001
+@@ -134,7 +134,8 @@
+ 	VM_PAGECACHE=7,		/* struct: Set cache memory thresholds */
+ 	VM_PAGERDAEMON=8,	/* struct: Control kswapd behaviour */
+ 	VM_PGT_CACHE=9,		/* struct: Set page table cache parameters */
+-	VM_PAGE_CLUSTER=10	/* int: set number of pages to swap together */
++	VM_PAGE_CLUSTER=10,	/* int: set number of pages to swap together */
++	VM_TRACE=11,            /* Turn on page access tracing */
+ };
+ 
+ 
+diff --exclude *~ --new-file -u -r linux-2.4.4-orig/kernel/sysctl.c linux-2.4.4-i386-pagetrace/kernel/sysctl.c
+--- linux-2.4.4-orig/kernel/sysctl.c	Tue May  1 14:34:43 2001
++++ linux-2.4.4-i386-pagetrace/kernel/sysctl.c	Sun Jun 24 04:16:27 2001
+@@ -40,6 +40,7 @@
+ #if defined(CONFIG_SYSCTL)
+ 
+ /* External variables not in a header file. */
++extern int page_trace;
+ extern int panic_timeout;
+ extern int C_A_D;
+ extern int bdf_prm[], bdflush_min[], bdflush_max[];
+@@ -270,6 +271,8 @@
+ 	 &pgt_cache_water, 2*sizeof(int), 0644, NULL, &proc_dointvec},
+ 	{VM_PAGE_CLUSTER, "page-cluster", 
+ 	 &page_cluster, sizeof(int), 0644, NULL, &proc_dointvec},
++	{VM_TRACE, "trace",
++	 &page_trace, sizeof(int), 0644, NULL, &proc_dointvec},
+ 	{0}
+ };
+ 
+diff --exclude *~ --new-file -u -r linux-2.4.4-orig/mm/memory.c linux-2.4.4-i386-pagetrace/mm/memory.c
+--- linux-2.4.4-orig/mm/memory.c	Tue May  1 14:34:43 2001
++++ linux-2.4.4-i386-pagetrace/mm/memory.c	Sun Jun 24 15:51:19 2001
+@@ -52,6 +52,7 @@
+ unsigned long num_physpages;
+ void * high_memory;
+ struct page *highmem_start_page;
++int page_trace;
+ 
+ /*
+  * We special-case the C-O-W ZERO_PAGE, because it's such
+@@ -1271,6 +1272,48 @@
+ 	return 2;	/* Major fault */
+ }
+ 
++void trace_vma(struct vm_area_struct*vma,pte_t *avoid)
++{
++	unsigned long address;
++
++	if(!page_trace)
++		return;
++	
++	for(address = vma->vm_start;
++	    address < vma->vm_end;
++	    address += PAGE_SIZE)
++	{
++		pgd_t *pgd;
++		pmd_t *pmd;
++		pte_t * pte;
++
++		pgd = pgd_offset(vma->vm_mm, address);
++		if(pgd && !pgd_none(*pgd) && !pgd_bad(*pgd)){
++			pmd = pmd_offset(pgd, address);
++			if(pmd && !pmd_none(*pmd) && !pmd_bad(*pmd)){
++				pte = pte_offset(pmd, address);
++				if(pte && pte != avoid && !pte_none(*pte))
++					if(pte_present(*pte) && !pte_traced(*pte)) {
++						establish_pte(vma, address, pte, pte_mktrace(*pte));
++						flush_tlb_page(vma,address);
++					}
++				
++			}
++		}
++	}
++}
++
++void trace_mm(struct mm_struct*mm)
++{
++	struct vm_area_struct * mmap;
++
++	if(!page_trace)
++		return;
++	
++	for(mmap = mm->mmap;mmap;mmap = mmap->vm_next)
++		trace_vma(mmap,0);
++}
++
+ /*
+  * These routines also need to handle stuff like marking pages dirty
+  * and/or accessed for architectures that don't do it in hardware (most
+@@ -1294,19 +1337,25 @@
+ 	int write_access, pte_t * pte)
+ {
+ 	pte_t entry;
+-
++	
+ 	entry = *pte;
++	if(pte_traced(entry)) {
++		trace_vma(vma,pte);
++		entry = pte_untrace(entry);
++		establish_pte(vma, address, pte, entry);
++		return 1;
++	}
++
++	trace_vma(vma,pte);
++
+ 	if (!pte_present(entry)) {
+-		/*
+-		 * If it truly wasn't present, we know that kswapd
+-		 * and the PTE updates will not touch it later. So
+-		 * drop the lock.
+-		 */
++
+ 		if (pte_none(entry))
+ 			return do_no_page(mm, vma, address, write_access, pte);
+ 		return do_swap_page(mm, vma, address, pte, pte_to_swp_entry(entry), write_access);
+ 	}
+ 
++	entry = pte_untrace(entry);
+ 	if (write_access) {
+ 		if (!pte_write(entry))
+ 			return do_wp_page(mm, vma, address, pte, entry);
+@@ -1324,10 +1373,14 @@
+ int handle_mm_fault(struct mm_struct *mm, struct vm_area_struct * vma,
+ 	unsigned long address, int write_access)
+ {
++	extern void biglog_logfault(struct mm_struct *mm, struct vm_area_struct * vma,
++				    unsigned long address, int write_access);
+ 	int ret = -1;
+ 	pgd_t *pgd;
+ 	pmd_t *pmd;
+ 
++	biglog_logfault(mm,vma,address,write_access);
++	
+ 	current->state = TASK_RUNNING;
+ 	pgd = pgd_offset(mm, address);
+ 
 
-Trace; c012e1e1 <__lock_page+91/c0>
-Trace; c012e04d <read_cluster_nonblocking+17d/1c0>
-Trace; c016b880 <ext2_get_block+0/5b0>
-Trace; c012fdac <filemap_nopage+3fc/5b0>
-Trace; c012a49a <do_swap_page+23a/2f0>
-Trace; c012a76a <do_no_page+8a/150>
-Trace; c012a8cb <handle_mm_fault+9b/150>
-Trace; c021814c <sock_sendmsg+6c/90>
-Trace; c0113ed0 <do_page_fault+0/550>
-Trace; c0114106 <do_page_fault+236/550>
-Trace; c0118aa5 <do_syslog+1e5/820>
-Trace; c01417d2 <sys_read+c2/d0>
-Trace; c011e25b <do_softirq+6b/a0>
-Trace; c0113ed0 <do_page_fault+0/550>
-Trace; c01075b8 <error_code+34/3c>
+--=-=-=
 
 
+-- 
+PS. I'm desparately seeking last minute summer job in Europe due to an
+unfortunate series of events. Please see http://ape.n3.net/cv.html
 
-void ___wait_on_page(struct page *page)
-{
-        struct task_struct *tsk = current;
-        DECLARE_WAITQUEUE(wait, tsk);
-
-        add_wait_queue(&page->wait, &wait);
-        do {
-                sync_page(page);
-                set_task_state(tsk, TASK_UNINTERRUPTIBLE);
-                if (!PageLocked(page))
-                        break;
-                run_task_queue(&tq_disk);
-                schedule();
-        } while (PageLocked(page));
-        tsk->state = TASK_RUNNING;
-        remove_wait_queue(&page->wait, &wait);
-}
-
-static void __lock_page(struct page *page)
-{
-        struct task_struct *tsk = current;
-        DECLARE_WAITQUEUE(wait, tsk);
-
-        add_wait_queue_exclusive(&page->wait, &wait);
-        for (;;) {
-                sync_page(page);
-                set_task_state(tsk, TASK_UNINTERRUPTIBLE);
-                if (PageLocked(page)) {
-                        run_task_queue(&tq_disk);
-                        schedule();
-                        continue;
-                }
-                if (!TryLockPage(page))
-                        break;
-        }
-        tsk->state = TASK_RUNNING;
-        remove_wait_queue(&page->wait, &wait);
-}
-
-
-
-
+--=-=-=--
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
