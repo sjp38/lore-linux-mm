@@ -1,97 +1,40 @@
-Date: Fri, 6 Apr 2001 21:48:34 +0100 (BST)
-From: Hugh Dickins <hugh@veritas.com>
+Received: from burns.conectiva (burns.conectiva [10.0.0.4])
+	by postfix.conectiva.com.br (Postfix) with SMTP id ED22716BCC
+	for <linux-mm@kvack.org>; Fri,  6 Apr 2001 18:04:40 -0300 (EST)
+Date: Fri, 6 Apr 2001 18:04:58 -0300 (BRST)
+From: Rik van Riel <riel@conectiva.com.br>
 Subject: Re: [PATCH] swap_state.c thinko
-In-Reply-To: <Pine.LNX.4.31.0104061245320.25931-100000@penguin.transmeta.com>
-Message-ID: <Pine.LNX.4.21.0104062104220.1484-100000@localhost.localdomain>
+In-Reply-To: <20010406222256.C935@athlon.random>
+Message-ID: <Pine.LNX.4.33.0104061804400.7624-100000@duckman.distro.conectiva>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@transmeta.com>
-Cc: Andrea Arcangeli <andrea@suse.de>, Ben LaHaise <bcrl@redhat.com>, Rik van Riel <riel@conectiva.com.br>, Richard Jerrrell <jerrell@missioncriticallinux.com>, Stephen Tweedie <sct@redhat.com>, arjanv@redhat.com, alan@redhat.com, linux-mm@kvack.org
+To: Andrea Arcangeli <andrea@suse.de>
+Cc: Linus Torvalds <torvalds@transmeta.com>, Hugh Dickins <hugh@veritas.com>, Ben LaHaise <bcrl@redhat.com>, Richard Jerrrell <jerrell@missioncriticallinux.com>, Stephen Tweedie <sct@redhat.com>, arjanv@redhat.com, alan@redhat.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 6 Apr 2001, Linus Torvalds wrote:
-> On Fri, 6 Apr 2001, Hugh Dickins wrote:
-> >
-> > swapper_space.nrpages, that's neat, but I insist it's not right.
-> 
-> It's not "right", but I suspect it's actually good enough.
+On Fri, 6 Apr 2001, Andrea Arcangeli wrote:
+> On Fri, Apr 06, 2001 at 12:52:26PM -0700, Linus Torvalds wrote:
+> > vm_enough_memory() is a heuristic, nothing more. We want it to reflect
+> > _some_ view of reality, but the Linux VM is _fundamentally_ based on the
+> > notion of over-commit, and that won't change. vm_enough_memory() is only
+> > meant to give a first-order appearance of not overcommitting wildly. It
+> > has never been anything more than that.
+>
+> 200% agreed.
 
-Yes, even before Andrea's final email, I found myself warming to
-his point of view.  As you both point out, vm_enough_pages() is
-merely a heuristic for rejecting the impossible, and overcommit
-laughs in the face of strict calculation here.  And it does a
-better job than the comparison with infinity I was implying.
+I don't think we should approximate THAT roughly ;))
 
-> Also, note that when if get _really_ low on memory, the swap cache effect
-> should be going away: if we still have the swap cache pages in memory,
-> we've obviously not paged everything out yet. So the double accounting
-> should have a limit error of zero as we approach being truly low on
-> memory. And that, I suspect, is the most important thing - making sure
-> that we allow programs to run when they can, but at least having _some_
-> concept of "enough is enough".
+Rik
+--
+Linux MM bugzilla: http://linux-mm.org/bugzilla.shtml
 
-I've been rehearsing this same "limit error of zero" argument to
-myself here, since your call for "Ideas?" which shut us up.  It's
-plausible, I bet it's not strictly true, but it feels good enough:
-we all know there are cases where it will go wrong, nothing new there.
+Virtual memory is like a game you can't win;
+However, without VM there's truly nothing to lose...
 
-But maybe a comment in vm_enough_pages() to make the false accounting
-explicit?  And pace those who hate multiple returns, why add all those
-pages every time, including call to nr_free_pages(), when most often
-it can succeed right away?  I haven't got your "num_physpages >> 6"
-in there: sounds very reasonable - but there's a 23/11/98 NJC comment
-(omitted from mine below, since no such code recently) to suggest it
-was tried once before, anyone remember why that was abandoned?
-
-Hugh
-
-int vm_enough_memory(long pages)
-{
-	/* Stupid algorithm to decide if we have enough memory: while
-	 * simple, it hopefully works in most obvious cases.. Easy to
-	 * fool it, but this should catch most mistakes.
-	 */
-	long free;
-	
-        /* Sometimes we want to use more memory than we have. */
-	if (sysctl_overcommit_memory)
-		return 1;
-
-	free = nr_swap_pages;
-	if (free > pages)
-		return 1;
-	free += atomic_read(&page_cache_size);
-	if (free > pages)
-		return 1;
-	free += atomic_read(&buffermem_pages);
-	if (free > pages)
-		return 1;
-	/*
-	 * swapper_space.nrpages is the number of swap pages cached:
-	 * they have already been included in page_cache_size, but
-	 * this compensates for recently unmapped and freeable pages
-	 * of swap not yet included in nr_swap_pages: when in doubt,
-	 * let vm_enough_memory() err towards success.
-	 */
-	free += swapper_space.nrpages;
-	if (free > pages)
-		return 1;
-	free += nr_free_pages();
-	if (free > pages)
-		return 1;
-	/*
-	 * The code below doesn't account for free space in the inode
-	 * and dentry slab cache, slab cache fragmentation, inodes and
-	 * dentries which will become freeable under VM load, etc.
-	 * Lets just hope all these (complex) factors balance out...
-	 */
-	free += (dentry_stat.nr_unused * sizeof(struct dentry)) >> PAGE_SHIFT;
-	free += (inodes_stat.nr_unused * sizeof(struct inode)) >> PAGE_SHIFT;
-
-	return free > pages;
-}
+		http://www.surriel.com/
+http://www.conectiva.com/	http://distro.conectiva.com/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
