@@ -1,43 +1,50 @@
-Received: from garner.india.hp.com (garner.india.hp.com [15.10.45.11])
-	by atlrel6.hp.com (Postfix) with ESMTP id 0CBDA949
-	for <linux-mm@kvack.org>; Thu,  5 Dec 2002 08:24:36 -0500 (EST)
-Received: from india.hp.com (dhcp196.india.hp.com [15.10.42.196])
-	by garner.india.hp.com (8.9.3 (PHNE_18546)/8.9.3 SMKit7.02) with ESMTP id TAA17158
-	for <linux-mm@kvack.org>; Thu, 5 Dec 2002 19:05:49 +0530 (IST)
-Message-ID: <3DEF5294.F962BF62@india.hp.com>
-Date: Thu, 05 Dec 2002 18:50:20 +0530
-From: Anil Kumar Nanduri <anil@india.hp.com>
+Received: from burns.conectiva (burns.conectiva [10.0.0.4])
+	by perninha.conectiva.com.br (Postfix) with SMTP id 1C88948653
+	for <linux-mm@kvack.org>; Thu,  5 Dec 2002 14:31:06 -0200 (BRST)
+Date: Thu, 5 Dec 2002 14:30:51 -0200 (BRST)
+From: Rik van Riel <riel@conectiva.com.br>
+Subject: [PATCH] bugfix for HIGHMEM_DEBUG
+Message-ID: <Pine.LNX.4.50L.0212051428070.22252-100000@duckman.distro.conectiva>
 MIME-Version: 1.0
-Subject: Error handling
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Marcelo Tosatti <marcelo@conectiva.com.br>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi All,
-    While I am browsing the page_launder code, I found an interesting scenario
-    which is not considered in 2.4-7 kernel, I do not know about other kernels(2.5).
+Hi Marcelo,
 
-    The following is the scenario....
-    As page launder initiates disk transfers using submit_bh as part of cleaning
-    inactive dirty pages, if that disk I/O fails, drivers generally call "buffer_IO_error"
-    which will ultimately set the page_error flag for that page.
+I found a bug in the HIGHMEM_DEBUG code, in kunmap_atomic()
+to be specific.  The problem is that kunmap_atomic() can get
+called with an address which isn't page aligned, but we compare
+that address to a page aligned address and bug if the two
+aren't equal.
 
-    As the page launder in its next pass or in the same pass(if the disk i/o is fast enough)
-    tries to move this page into the clean list without checking page-error flag. This is fine
-    with file's data, but not with swap pages.
+The obvious fix is to page-align the address before doing the
+check, we're not doing anything else with it anyway since
+kunmap_atomic() is a nop if HIGHMEM_DEBUG is off.
 
-    Incase of swap pages the ideal thing would be not to move that page to inactive list
-    if the disk I/O for that block fails which is not happening currently.
+please apply,
 
-    Is this a BUG?
+Rik
+-- 
+A: No.
+Q: Should I include quotations after my reply?
+http://www.surriel.com/		http://guru.conectiva.com/
 
 
-Regards,
--anil.
+--- include/asm/highmem.h.orig	2002-12-05 13:23:31.000000000 -0200
++++ include/asm/highmem.h	2002-12-05 13:13:18.000000000 -0200
+@@ -106,7 +106,7 @@
+ static inline void kunmap_atomic(void *kvaddr, enum km_type type)
+ {
+ #if HIGHMEM_DEBUG
+-	unsigned long vaddr = (unsigned long) kvaddr;
++	unsigned long vaddr = (unsigned long) kvaddr & PAGE_MASK;
+ 	enum fixed_addresses idx = type + KM_TYPE_NR*smp_processor_id();
 
+ 	if (vaddr < FIXADDR_START) // FIXME
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
