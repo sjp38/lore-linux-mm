@@ -1,36 +1,44 @@
-Date: Tue, 29 Aug 2000 00:09:35 +0100
-From: "Stephen C. Tweedie" <sct@redhat.com>
-Subject: Re: pgd/pmd/pte and x86 kernel virtual addresses
-Message-ID: <20000829000935.K1467@redhat.com>
-References: <20000825165116Z131177-250+7@kanga.kvack.org> <Pine.LNX.3.96.1000825125457.23502B-100000@kanga.kvack.org> <20000825185716Z131186-247+10@kanga.kvack.org>
-Mime-Version: 1.0
+Received: from dyn-33.linux.theplanet.co.uk ([195.92.244.33] helo=caramon.arm.linux.org.uk)
+	by www.linux.org.uk with esmtp (Exim 3.13 #1)
+	id 13TnMz-0003Kx-00
+	for linux-mm@kvack.org; Tue, 29 Aug 2000 16:32:14 +0100
+Received: from flint.arm.linux.org.uk (root@flint [192.168.0.4])
+	by caramon.arm.linux.org.uk (8.9.3/8.9.3) with ESMTP id QAA14832
+	for <linux-mm@kvack.org>; Tue, 29 Aug 2000 16:32:18 +0100
+Received: (from rmk@localhost)
+	by flint.arm.linux.org.uk (8.9.3/8.9.3) id QAA24159
+	for linux-mm@kvack.org; Tue, 29 Aug 2000 16:31:15 +0100
+From: Russell King <rmk@arm.linux.org.uk>
+Message-Id: <200008291531.QAA24159@flint.arm.linux.org.uk>
+Subject: filemap_sync over-eager at flushing?
+Date: Tue, 29 Aug 2000 16:31:15 +0100 (BST)
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20000825185716Z131186-247+10@kanga.kvack.org>; from ttabi@interactivesi.com on Fri, Aug 25, 2000 at 01:46:33PM -0500
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Timur Tabi <ttabi@interactivesi.com>
-Cc: Linux MM mailing list <linux-mm@kvack.org>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 Hi,
 
-On Fri, Aug 25, 2000 at 01:46:33PM -0500, Timur Tabi wrote:
+I've been looking at the TLB/Cache code in 2.4.0-test7 (prompted by
+Dave Millers description in test8-pre1), and have come across something
+odd:
 
-> physical pointer.  The first is the normal virtual pointer for kernel memory,
-> and the second is the one returned by ioremap_nocache().  I was under the
-> understanding that caching is enabled on physical pages only, so it shouldn't
-> matter which virtual address I use.  Is that correct?
-
-No.  The no-cache bit is set in the page table entry, so depends on
-the virtual address.  There is a *different* form of memory access
-control which can be used to make memory non-cachable, and that is the
-"mtrr" (Memory Type Range Register), which exists in different forms
-on all recent Intel and AMD cpus.  Mtrrs work on physical addresses,
-but that is not what ioremap_nocache() uses.
-
---Stephen
-
+filemap_sync() calls flush_{cache,tlb}_range().  In between, it
+eventually calls filemap_sync_pte(), which uses flush_{cache,tlb}_page().
+But hang on, we've already done flush_cache_range(), and are going to do
+flush_tlb_range() in filemap_sync(), so isn't the flush_{cache,tlb}_page
+rather unnecessary?
+   _____
+  |_____| ------------------------------------------------- ---+---+-
+  |   |         Russell King        rmk@arm.linux.org.uk      --- ---
+  | | | | http://www.arm.linux.org.uk/personal/aboutme.html   /  /  |
+  | +-+-+                                                     --- -+-
+  /   |               THE developer of ARM Linux              |+| /|\
+ /  | | |                                                     ---  |
+    +-+-+ -------------------------------------------------  /\\\  |
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
