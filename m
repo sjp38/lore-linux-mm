@@ -1,39 +1,37 @@
-Date: Thu, 7 Sep 2000 10:30:25 +0100 (BST)
-From: Tigran Aivazian <tigran@veritas.com>
+Date: Thu, 7 Sep 2000 12:39:37 +0300
+From: Matti Aarnio <matti.aarnio@zmailer.org>
 Subject: Re: Would you please send me the Linux OS source code !
-In-Reply-To: <0056890013895956000002L962*@MHS>
-Message-ID: <Pine.LNX.4.21.0009071028140.1304-100000@saturn.homenet>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Message-ID: <20000907123937.K22907@mea-ext.zmailer.org>
+References: <0056890013895956000002L962*@MHS> <Pine.GSO.4.10.10009070450370.286-100000@weyl.math.psu.edu>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.GSO.4.10.10009070450370.286-100000@weyl.math.psu.edu>; from viro@math.psu.edu on Thu, Sep 07, 2000 at 05:08:56AM -0400
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: sanjay.bh@philips.com
+To: Alexander Viro <viro@math.psu.edu>
 Cc: Linux-MM@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 7 Sep 2000 sanjay.bh@philips.com wrote:
+On Thu, Sep 07, 2000 at 05:08:56AM -0400, Alexander Viro wrote:
+...
+> 	Dear Sir,
+> 
+> 	You have posted to mailing list with several dozens of subscribers
+> requesting them to send about a gigabyte of gzipped sources to address
+> sanjay.bh@philips.com. We regret to inform you that your request can
+> not be processed unless you use the proper form. Correct way is to put
 
-> Dear Sir:
-> How Do You Do !
->    Would you please send me the source code of the linux operating system ?
->    I am interesting in the linux operating system, the help from you is important to me.
->    Thank you !
->    my mail is: sanjay.bh@philips.com
+	Heh heh...   This chap is real (apparently).
+	(As much as I thought that somebody wanted to get somebody else
+	 mailbombed.)
 
-Hi Sanjay,
+	In the end I just gave him(?) pointer from where to download
+	the kernel source via FTP.
 
-Sorry if you were made fun of, a little bit - it was in order as your
-request was indeed rather stupid.
+> 						The Management.
 
-Anyway, don't take it personally and you can find the source code of the
-Linux kernel (for that is what "operating system" is - the kernel) at:
-
-ftp://ftp.kernel.org/pub/linux/kernel/v2.4
-
-Regards,
-Tigran
-
-
+/Matti Aarnio
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
