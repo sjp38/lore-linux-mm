@@ -1,50 +1,62 @@
-Date: Tue, 25 May 2004 15:09:33 -0700 (PDT)
-From: Linus Torvalds <torvalds@osdl.org>
 Subject: Re: [PATCH] ppc64: Fix possible race with set_pte on a present PTE
-In-Reply-To: <1085521251.24948.127.camel@gaston>
-Message-ID: <Pine.LNX.4.58.0405251504170.9951@ppc970.osdl.org>
-References: <1085369393.15315.28.camel@gaston>  <Pine.LNX.4.58.0405232046210.25502@ppc970.osdl.org>
-  <1085371988.15281.38.camel@gaston>  <Pine.LNX.4.58.0405232134480.25502@ppc970.osdl.org>
-  <1085373839.14969.42.camel@gaston>  <Pine.LNX.4.58.0405232149380.25502@ppc970.osdl.org>
-  <20040525034326.GT29378@dualathlon.random>  <Pine.LNX.4.58.0405242051460.32189@ppc970.osdl.org>
-  <20040525114437.GC29154@parcelfarce.linux.theplanet.co.uk>
- <Pine.LNX.4.58.0405250726000.9951@ppc970.osdl.org>  <20040525153501.GA19465@foobazco.org>
-  <Pine.LNX.4.58.0405250841280.9951@ppc970.osdl.org>  <20040525102547.35207879.davem@redhat.com>
-  <Pine.LNX.4.58.0405251034040.9951@ppc970.osdl.org>  <20040525105442.2ebdc355.davem@redhat.com>
-  <Pine.LNX.4.58.0405251056520.9951@ppc970.osdl.org> <1085521251.24948.127.camel@gaston>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+In-Reply-To: <Pine.LNX.4.58.0405251455320.9951@ppc970.osdl.org>
+References: <1085369393.15315.28.camel@gaston>
+	 <Pine.LNX.4.58.0405232046210.25502@ppc970.osdl.org>
+	 <1085371988.15281.38.camel@gaston>
+	 <Pine.LNX.4.58.0405232134480.25502@ppc970.osdl.org>
+	 <1085373839.14969.42.camel@gaston>
+	 <Pine.LNX.4.58.0405232149380.25502@ppc970.osdl.org>
+	 <20040525034326.GT29378@dualathlon.random>
+	 <Pine.LNX.4.58.0405242051460.32189@ppc970.osdl.org>
+	 <20040525114437.GC29154@parcelfarce.linux.theplanet.co.uk>
+	 <Pine.LNX.4.58.0405250726000.9951@ppc970.osdl.org>
+	 <20040525153501.GA19465@foobazco.org>
+	 <Pine.LNX.4.58.0405250841280.9951@ppc970.osdl.org>
+	 <20040525102547.35207879.davem@redhat.com>
+	 <Pine.LNX.4.58.0405251034040.9951@ppc970.osdl.org>
+	 <20040525105442.2ebdc355.davem@redhat.com>
+	 <Pine.LNX.4.58.0405251056520.9951@ppc970.osdl.org>
+	 <1085521251.24948.127.camel@gaston>
+	 <Pine.LNX.4.58.0405251452590.9951@ppc970.osdl.org>
+	 <Pine.LNX.4.58.0405251455320.9951@ppc970.osdl.org>
+Content-Type: text/plain
+Message-Id: <1085522860.15315.133.camel@gaston>
+Mime-Version: 1.0
+Date: Wed, 26 May 2004 08:07:41 +1000
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+To: Linus Torvalds <torvalds@osdl.org>
 Cc: "David S. Miller" <davem@redhat.com>, wesolows@foobazco.org, willy@debian.org, Andrea Arcangeli <andrea@suse.de>, Andrew Morton <akpm@osdl.org>, Linux Kernel list <linux-kernel@vger.kernel.org>, mingo@elte.hu, bcrl@kvack.org, linux-mm@kvack.org, Linux Arch list <linux-arch@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-
-On Wed, 26 May 2004, Benjamin Herrenschmidt wrote:
+> 	static inline void ptep_update_dirty_accessed(pte_t *ptep, pte_t entry, int dirty)
+> 	{
+> 		unsigned long bits = pte_value(entry) & (_PAGE_DIRTY | _PAGE_ACCESSED);
+> 		unsigned long tmp;
 > 
-> Well, just setting one of those 2 bits doesn't require a hash table
-> invalidate as long as nothing else changes.
+> 		__asm__ __volatile__(
+> 	"1:	lwarx	%0,0,%3\n\
+> 		or	%0,%2,%0\n\
+> 		stwcx.	%0,0,%3\n\
+> 		bne-	1b"
+> 		:"=&r" (tmp), "=m" (*ptep)
+> 		:"r" (bits), "r" (ptep)
+> 		:"cc");
+> 	}
+> 
+> 	/* Make asm-generic/pgtable.h know about it.. */
+> 	#define ptep_update_dirty_accessed ptep_update_dirty_accessed
 
-I'm starting to doubt this, because:
+That looks good on a first look, I need to re-read the whole discussion since
+yesterday through to make sure I didn't miss anything. Note that I'd rather
+call the function ptep_set_* than ptep_update_* to make clear that it can
+only ever be used to _set_ those bits.
 
-> We do dirty by mapping r/o in the hash table, and accessed on hash
-> faults (our clear_young triggers a flush). So just setting those bits
-> in the linux PTE without touching the hash table is fine, we'll just
-> possibly take an extra fault on the next write or access, but that
-> might not be much slower than going to the hash update the permissions
-> directly.
+Ben.
 
-But if we don't update the hash tables, how will the TLB entry _ever_ say 
-that the page is writable? So we won't take just _one_ extra fault on the 
-next write, we'll _keep_ taking them, since the hash tables will continue 
-to claim that the page is read-only, even if the linux sw page tables say 
-it is writable.
 
-So I think the code needs to invalidate the hash after having updated the 
-pte. No?
-
-		Linus
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
