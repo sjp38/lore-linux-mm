@@ -1,189 +1,142 @@
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e2.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id j2H0SHvi016680
-	for <linux-mm@kvack.org>; Wed, 16 Mar 2005 19:28:17 -0500
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e5.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id j2H0SDVf023523
+	for <linux-mm@kvack.org>; Wed, 16 Mar 2005 19:28:13 -0500
 Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay02.pok.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id j2H0SHs8096868
-	for <linux-mm@kvack.org>; Wed, 16 Mar 2005 19:28:17 -0500
+	by d01relay04.pok.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id j2H0SDwE227286
+	for <linux-mm@kvack.org>; Wed, 16 Mar 2005 19:28:13 -0500
 Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.12.11/8.12.11) with ESMTP id j2H0SHbI012342
-	for <linux-mm@kvack.org>; Wed, 16 Mar 2005 19:28:17 -0500
-Subject: [RFC][PATCH 3/6] sparsemem: steal some bits from mem_map
+	by d01av02.pok.ibm.com (8.12.11/8.12.11) with ESMTP id j2H0SDPr012284
+	for <linux-mm@kvack.org>; Wed, 16 Mar 2005 19:28:13 -0500
+Subject: [RFC][PATCH 2/6] sparsemem: hotplug support
 From: Dave Hansen <haveblue@us.ibm.com>
-Date: Wed, 16 Mar 2005 16:28:15 -0800
-Message-Id: <E1DBis4-0000dF-00@kernel.beaverton.ibm.com>
+Date: Wed, 16 Mar 2005 16:28:11 -0800
+Message-Id: <E1DBis0-0000Sx-00@kernel.beaverton.ibm.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-arch@vger.kernel.org
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Dave Hansen <haveblue@us.ibm.com>, apw@shadowen.org
 List-ID: <linux-mm.kvack.org>
 
-The section_mem_map doesn't really store a pointer.  It stores
-something that is convenient to do some math against to get a
-pointer.  It isn't valid to just do *section_mem_map, so I
-don't think it should be stored as a pointer.
+Make sparse's initalization be accessible at runtime.  This
+allows sparse mappings to be created after boot in a hotplug
+situation.
 
-There are a couple of things I'd like to store about a section.
-First of all, the fact that it is !NULL does not mean that it
-is present.  There could be such a combination where
-section_mem_map *is* NULL, but the math gets you properly to
-a real mem_map.  So, I don't think that check is safe.
-
-Since we're storing 32-bit-aligned structures, we have a few
-bits in the bottom of the pointer to play with.  Use one bit
-to encode whether there's really a mem_map there, and the
-other one to tell whether there's a valid section there. We
-need to distinguish between the two because sometimes there's
-a gap between when a section is discovered to be present and
-when we can get the mem_map for it.
+This patch is separated from the previous one just to give an
+indication how much of the sparse infrastructure is *just* for
+hotplug memory.
 
 Signed-off-by: Dave Hansen <haveblue@us.ibm.com>
 ---
 
- memhotplug-dave/include/linux/mmzone.h |   48 +++++++++++++++++++++++++++++----
- memhotplug-dave/mm/sparse.c            |   37 +++++++++++++++++--------
- 2 files changed, 69 insertions(+), 16 deletions(-)
+ memhotplug-dave/include/linux/mmzone.h |    2 
+ memhotplug-dave/mm/sparse.c            |   72 ++++++++++++++++++++++++---------
+ 2 files changed, 56 insertions(+), 18 deletions(-)
 
-diff -puN include/linux/mmzone.h~B-sparse-153-sparse-bits include/linux/mmzone.h
---- memhotplug/include/linux/mmzone.h~B-sparse-153-sparse-bits	2005-03-16 16:13:09.000000000 -0800
-+++ memhotplug-dave/include/linux/mmzone.h	2005-03-16 16:13:09.000000000 -0800
-@@ -440,12 +440,50 @@ extern struct pglist_data contig_page_da
- 
- struct page;
- struct mem_section {
--	struct page *section_mem_map;
-+	/*
-+	 * This is, logically, a pointer to an array of struct
-+	 * pages.  However, it is stored with some other magic.
-+	 * (see sparse.c::sparse_init_one_section())
-+	 *
-+	 * Making it a UL at least makes someone do a cast
-+	 * before using it wrong.
-+	 */
-+	unsigned long section_mem_map;
- };
- 
- extern struct mem_section mem_section[NR_MEM_SECTIONS];
- 
--#define	SECTION_MARKED_PRESENT	((void *)-1)
-+/*
-+ * We use the lower bits of the mem_map pointer to store
-+ * a little bit of information.  There should be at least
-+ * 3 bits here due to 32-bit alignment.
-+ */
-+#define	SECTION_MARKED_PRESENT	(1UL<<0)
-+#define SECTION_HAS_MEM_MAP	(1UL<<1)
-+#define SECTION_MAP_LAST_BIT	(1UL<<2)
-+#define SECTION_MAP_MASK	(~(SECTION_MAP_LAST_BIT-1))
-+
-+static inline struct page *__section_mem_map_addr(struct mem_section *section)
-+{
-+	unsigned long map = section->section_mem_map;
-+	map &= SECTION_MAP_MASK;
-+	return (struct page *)map;
-+}
-+
-+static inline int valid_section(struct mem_section *section)
-+{
-+	return (section->section_mem_map & SECTION_MARKED_PRESENT);
-+}
-+
-+static inline int section_has_mem_map(struct mem_section *section)
-+{
-+	return (section->section_mem_map & SECTION_HAS_MEM_MAP);
-+}
-+
-+static inline int valid_section_nr(int nr)
-+{
-+	return valid_section(&mem_section[nr]);
-+}
- 
- /*
-  * Given a kernel address, find the home node of the underlying memory.
-@@ -460,18 +498,18 @@ static inline struct mem_section *__pfn_
- #define pfn_to_page(pfn) 						\
- ({ 									\
- 	unsigned long __pfn = (pfn);					\
--	__pfn_to_section(__pfn)->section_mem_map + __pfn;		\
-+	__section_mem_map_addr(__pfn_to_section(__pfn)) + __pfn;	\
- })
- #define page_to_pfn(page)						\
- ({									\
--	page - mem_section[page_to_section(page)].section_mem_map;	\
-+	page - __section_mem_map_addr(&mem_section[page_to_section(page)]);	\
- })
- 
- static inline int pfn_valid(unsigned long pfn)
- {
- 	if ((pfn >> PFN_SECTION_SHIFT) >= NR_MEM_SECTIONS)
- 		return 0;
--	return mem_section[pfn >> PFN_SECTION_SHIFT].section_mem_map != 0;
-+	return valid_section(&mem_section[pfn >> PFN_SECTION_SHIFT]);
- }
- 
- /*
-diff -puN mm/sparse.c~B-sparse-153-sparse-bits mm/sparse.c
---- memhotplug/mm/sparse.c~B-sparse-153-sparse-bits	2005-03-16 16:13:09.000000000 -0800
-+++ memhotplug-dave/mm/sparse.c	2005-03-16 16:13:09.000000000 -0800
-@@ -25,7 +25,7 @@ void memory_present(int nid, unsigned lo
- 	for (pfn = start; pfn < end; pfn += PAGES_PER_SECTION) {
- 		int section = pfn >> PFN_SECTION_SHIFT;
- 		if (!mem_section[section].section_mem_map) {
--			mem_section[section].section_mem_map = (void *) -1;
-+			mem_section[section].section_mem_map = SECTION_MARKED_PRESENT;
- 			size += (PAGES_PER_SECTION * sizeof (struct page));
- 		}
- 	}
-@@ -52,17 +52,32 @@ unsigned long __init node_memmap_size_by
+diff -puN mm/sparse.c~B-sparse-152-sparse-hotplug mm/sparse.c
+--- memhotplug/mm/sparse.c~B-sparse-152-sparse-hotplug	2005-03-16 15:46:39.000000000 -0800
++++ memhotplug-dave/mm/sparse.c	2005-03-16 15:46:39.000000000 -0800
+@@ -52,6 +52,40 @@ unsigned long __init node_memmap_size_by
  	return nr_pages * sizeof(struct page);
  }
  
-+/*
-+ * Subtle, we encode the real pfn into the mem_map such that
-+ * the identity pfn - section_mem_map will return the actual
-+ * physical page frame number.
-+ */
-+static unsigned long sparse_encode_mem_map(struct page *mem_map, int pnum)
++static int sparse_init_one_section(struct mem_section *ms, int pnum, struct page *mem_map)
 +{
-+	return (unsigned long)(mem_map - (pnum << PFN_SECTION_SHIFT));
++	if (ms->section_mem_map &&
++	    (ms->section_mem_map != SECTION_MARKED_PRESENT))
++		return -EEXIST;
++	/*
++	 * Subtle, we encode the real pfn into the mem_map such that
++	 * the identity pfn - section_mem_map will return the actual
++	 * physical page frame number.
++	 */
++	ms->section_mem_map = mem_map - (pnum << PFN_SECTION_SHIFT);
++
++	return 1;
 +}
 +
-+/*
-+ * We need this if we ever free the mem_maps.  While not implemented yet,
-+ * this function is included for parity with its sibling.
-+ */
-+static __attribute((unused))
-+struct page *sparse_decode_mem_map(unsigned long coded_mem_map, int pnum)
++static struct page *sparse_early_mem_map_alloc(int pnum)
 +{
-+	return ((struct page *)coded_mem_map) + (pnum << PFN_SECTION_SHIFT);
++	struct page *map;
++	int nid = early_pfn_to_nid(pnum << PFN_SECTION_SHIFT);
++
++	map = alloc_remap(nid, sizeof(struct page) * PAGES_PER_SECTION);
++	if (map)
++		return map;
++
++	map = alloc_bootmem_node(NODE_DATA(nid),
++			sizeof(struct page) * PAGES_PER_SECTION);
++	if (map)
++		return map;
++
++	printk(KERN_WARNING "%s: allocation failed\n", __FUNCTION__);
++	mem_section[pnum].section_mem_map = 0;
++	return NULL;
 +}
 +
- static int sparse_init_one_section(struct mem_section *ms, int pnum, struct page *mem_map)
+ /*
+  * Allocate the accumulated non-linear sections, allocate a mem_map
+  * for each and record the physical to section mapping.
+@@ -60,28 +94,30 @@ void sparse_init(void)
  {
--	if (ms->section_mem_map &&
--	    (ms->section_mem_map != SECTION_MARKED_PRESENT))
--		return -EEXIST;
--	/*
--	 * Subtle, we encode the real pfn into the mem_map such that
--	 * the identity pfn - section_mem_map will return the actual
--	 * physical page frame number.
--	 */
--	ms->section_mem_map = mem_map - (pnum << PFN_SECTION_SHIFT);
-+	if (!valid_section(ms))
-+		return -EINVAL;
-+
-+	ms->section_mem_map |= sparse_encode_mem_map(mem_map, pnum);
- 
- 	return 1;
- }
-@@ -96,7 +111,7 @@ void sparse_init(void)
+ 	int pnum;
  	struct page *map;
+-	int nid;
  
  	for (pnum = 0; pnum < NR_MEM_SECTIONS; pnum++) {
--		if (!mem_section[pnum].section_mem_map)
-+		if (!valid_section_nr(pnum))
+ 		if (!mem_section[pnum].section_mem_map)
  			continue;
  
- 		map = sparse_early_mem_map_alloc(pnum);
+-		nid = early_pfn_to_nid(pnum << PFN_SECTION_SHIFT);
+-		map = alloc_remap(nid, sizeof(struct page) * PAGES_PER_SECTION);
+-		if (!map)
+-			map = alloc_bootmem_node(NODE_DATA(nid),
+-				sizeof(struct page) * PAGES_PER_SECTION);
+-		if (!map) {
+-			mem_section[pnum].section_mem_map = 0;
+-			continue;
+-		}
+-
+-		/*
+-		 * Subtle, we encode the real pfn into the mem_map such that
+-		 * the identity pfn - section_mem_map will return the actual
+-		 * physical page frame number.
+-		 */
+-		mem_section[pnum].section_mem_map = map -
+-			(pnum << PFN_SECTION_SHIFT);
++		map = sparse_early_mem_map_alloc(pnum);
++		if (map)
++			sparse_init_one_section(&mem_section[pnum], pnum, map);
+ 	}
+ }
++
++/*
++ * returns the number of sections whose mem_maps were properly
++ * set.  If this is <=0, then that means that the passed-in
++ * map was not consumed and must be freed.
++ */
++int sparse_add_one_section(int start_pfn, int nr_pages, struct page *map)
++{
++	struct mem_section *ms = __pfn_to_section(start_pfn);
++
++	if (ms->section_mem_map & SECTION_MARKED_PRESENT)
++		return -EEXIST;
++
++	ms->section_mem_map |= SECTION_MARKED_PRESENT;
++
++	return sparse_init_one_section(ms, start_pfn >> PFN_SECTION_SHIFT, map);
++}
+diff -puN include/linux/mmzone.h~B-sparse-152-sparse-hotplug include/linux/mmzone.h
+--- memhotplug/include/linux/mmzone.h~B-sparse-152-sparse-hotplug	2005-03-16 15:46:39.000000000 -0800
++++ memhotplug-dave/include/linux/mmzone.h	2005-03-16 15:46:39.000000000 -0800
+@@ -445,6 +445,8 @@ struct mem_section {
+ 
+ extern struct mem_section mem_section[NR_MEM_SECTIONS];
+ 
++#define	SECTION_MARKED_PRESENT	((void *)-1)
++
+ /*
+  * Given a kernel address, find the home node of the underlying memory.
+  */
 _
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
