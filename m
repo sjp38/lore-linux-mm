@@ -1,331 +1,693 @@
-Received: from penguin.e-mind.com (penguin.e-mind.com [195.223.140.120])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id HAA25112
-	for <linux-mm@kvack.org>; Thu, 14 Jan 1999 07:34:00 -0500
-Date: Thu, 14 Jan 1999 13:30:44 +0100 (CET)
-From: Andrea Arcangeli <andrea@e-mind.com>
-Reply-To: Andrea Arcangeli <andrea@e-mind.com>
-Subject: Re: [patch] arca-vm-19 [Re: Results: Zlatko's new vm patch]
-In-Reply-To: <Pine.LNX.3.96.990113213203.1822B-100000@laser.bogus>
-Message-ID: <Pine.LNX.3.96.990114132019.2683B-100000@laser.bogus>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail.ccr.net (ccr@alogconduit1ae.ccr.net [208.130.159.5])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id HAA25192
+	for <linux-mm@kvack.org>; Thu, 14 Jan 1999 07:43:55 -0500
+Subject: Alpha quality write out daemon
+From: ebiederm+eric@ccr.net (Eric W. Biederman)
+Date: 14 Jan 1999 04:08:02 -0600
+Message-ID: <m1g19ep3p9.fsf@flinx.ccr.net>
 Sender: owner-linux-mm@kvack.org
-To: Steve Bergman <steve@netplus.net>, dlux@dlux.sch.bme.hu, "Nicholas J. Leon" <nicholas@binary9.net>
-Cc: Linus Torvalds <torvalds@transmeta.com>, brent verner <damonbrent@earthlink.net>, "Garst R. Reese" <reese@isn.net>, Kalle Andersson <kalle.andersson@mbox303.swipnet.se>, Zlatko Calusic <Zlatko.Calusic@CARNet.hr>, Ben McCann <bmccann@indusriver.com>, bredelin@ucsd.edu, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org, Alan Cox <alan@lxorguk.ukuu.org.uk>, "Stephen C. Tweedie" <sct@redhat.com>, Heinz Mauelshagen <mauelsha@ez-darmstadt.telekom.de>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 13 Jan 1999, Andrea Arcangeli wrote:
+This patch is agains 2.2.0-pre5.
 
-> I produced a new arca-vm-19. I would like if you could try it. I don't
+I have been working and have implemented a daemon that does
+all swaping out except from shm areas (todo).
 
-It seems that the better algorithm I am be able to invent is been the
-growing_swap_cache one (the one in arca-vm-16). Steve could you try this
-new patch (arca-vm-20) against real 2.2.0-pre7? I think that it should be
-still better than arca-vm-16 + SWAP_CLUSTER_MAX=512. 
+It is intended as an early protype for 2.3.
+But it's acting like a bug magnet.
 
-If it will be not very good could you do:
+What it does is add an extra kernel daemon that does nothing but
+walking through the page tables start I/O on dirty pages and mark them
+clean and write protected.  Sleep 30 seconds and do it again.
 
-echo 8 2 4 512 512 512 > /proc/sys/vm/pager
+Since aging isn't taken into account, and because it writes all
+dirty pages this code is much more aggressive than any variation of
+our current code in writing swap pages out.
 
-and try again? (such numbers should be the same of setting
-SWAP_CLUSTER_MAX in arca-vm-16, but as default only the max_async_pages is
-set to 512 because I think it's been the only one that made a difference). 
+Unfortunantely this extra aggressiveness seems to be turning up lurking 
+bugs in other parts of the kernel.  I keep getting:
 
-If this will be not the best again you could apply the filemap.c patch I
-sent you in the last email (the one that return to put the shrink_mmap()
-weight exponential increasing in function of priority) and try again?
+Kernel Panic: Freeing swap cahce page
+or
+swap entry mismatch<7>clean_mm:0 found a page
+swap_cache: replacing non-empty entry 00076300 on page c18fe000
+   Which I have tracked down to finding dirty ptes that point at swap cache pages!
 
-Many thanks!
+Since I have only added one signficant function, and it only runs in a single
+thread I am 95% sure it's not my new code.
 
-Andrea Arcangeli
+Which means buried deep in the swap code somewhere is a lurking bug.
 
-Here arca-vm-20 against 2.2.0-pre7:
+Please take a look.  If it really is my fault shoot me.
+Otherwise let's see if we can find the bug this exercises before 2.2
 
-Index: linux/mm/filemap.c
-diff -u linux/mm/filemap.c:1.1.1.9 linux/mm/filemap.c:1.1.1.1.2.48
---- linux/mm/filemap.c:1.1.1.9	Thu Jan  7 12:21:35 1999
-+++ linux/mm/filemap.c	Thu Jan 14 13:15:32 1999
-@@ -121,14 +125,11 @@
- int shrink_mmap(int priority, int gfp_mask)
- {
- 	static unsigned long clock = 0;
--	unsigned long limit = num_physpages;
- 	struct page * page;
--	int count;
--
--	count = (limit << 1) >> priority;
-+	unsigned long count = num_physpages / (priority+1);
- 
- 	page = mem_map + clock;
--	do {
-+	while (count-- != 0) {
- 		int referenced;
- 
- 		/* This works even in the presence of PageSkip because
-@@ -147,7 +148,6 @@
- 			clock = page->map_nr;
- 		}
- 		
--		count--;
- 		referenced = test_and_clear_bit(PG_referenced, &page->flags);
- 
- 		if (PageLocked(page))
-@@ -160,21 +160,6 @@
- 		if (atomic_read(&page->count) != 1)
- 			continue;
- 
--		/*
--		 * Is it a page swap page? If so, we want to
--		 * drop it if it is no longer used, even if it
--		 * were to be marked referenced..
--		 */
--		if (PageSwapCache(page)) {
--			if (referenced && swap_count(page->offset) != 1)
--				continue;
--			delete_from_swap_cache(page);
--			return 1;
--		}	
--
--		if (referenced)
--			continue;
--
- 		/* Is it a buffer page? */
- 		if (page->buffers) {
- 			if (buffer_under_min())
-@@ -184,6 +169,14 @@
- 			return 1;
- 		}
- 
-+		if (referenced)
-+			continue;
-+
-+		if (PageSwapCache(page)) {
-+			delete_from_swap_cache(page);
-+			return 1;
-+		}	
-+
- 		/* is it a page-cache page? */
- 		if (page->inode) {
- 			if (pgcache_under_min())
-@@ -191,8 +184,7 @@
- 			remove_inode_page(page);
- 			return 1;
- 		}
--
--	} while (count > 0);
-+	}
- 	return 0;
- }
- 
-Index: linux/mm/mmap.c
-diff -u linux/mm/mmap.c:1.1.1.2 linux/mm/mmap.c:1.1.1.1.2.12
---- linux/mm/mmap.c:1.1.1.2	Fri Nov 27 11:19:10 1998
-+++ linux/mm/mmap.c	Wed Jan 13 21:23:38 1999
-@@ -66,7 +66,7 @@
- 	free += page_cache_size;
- 	free += nr_free_pages;
- 	free += nr_swap_pages;
--	free -= (page_cache.min_percent + buffer_mem.min_percent + 2)*num_physpages/100; 
-+	free -= (pager_daemon.cache_min_percent + pager_daemon.buffer_min_percent + 2)*num_physpages/100; 
- 	return free > pages;
- }
- 
-Index: linux/mm/page_alloc.c
-diff -u linux/mm/page_alloc.c:1.1.1.9 linux/mm/page_alloc.c:1.1.1.1.2.31
---- linux/mm/page_alloc.c:1.1.1.9	Thu Jan 14 12:32:57 1999
-+++ linux/mm/page_alloc.c	Thu Jan 14 12:42:59 1999
-@@ -124,7 +124,6 @@
- 	if (!PageReserved(page) && atomic_dec_and_test(&page->count)) {
- 		if (PageSwapCache(page))
- 			panic ("Freeing swap cache page");
--		page->flags &= ~(1 << PG_referenced);
- 		free_pages_ok(page->map_nr, 0);
- 		return;
- 	}
-@@ -141,7 +140,6 @@
- 		if (atomic_dec_and_test(&map->count)) {
- 			if (PageSwapCache(map))
- 				panic ("Freeing swap cache pages");
--			map->flags &= ~(1 << PG_referenced);
- 			free_pages_ok(map_nr, order);
- 			return;
- 		}
-@@ -212,19 +210,18 @@
- 		 * further thought.
- 		 */
- 		if (!(current->flags & PF_MEMALLOC)) {
--			static int trashing = 0;
- 			int freed;
- 
- 			if (nr_free_pages > freepages.min) {
--				if (!trashing)
-+				if (!current->trashing)
- 					goto ok_to_allocate;
- 				if (nr_free_pages > freepages.low) {
--					trashing = 0;
-+					current->trashing = 0;
- 					goto ok_to_allocate;
- 				}
- 			}
- 
--			trashing = 1;
-+			current->trashing = 1;
- 			current->flags |= PF_MEMALLOC;
- 			freed = try_to_free_pages(gfp_mask);
- 			current->flags &= ~PF_MEMALLOC;
-@@ -361,7 +358,7 @@
- 		if (offset >= swapdev->max)
- 			break;
- 		/* Don't block on I/O for read-ahead */
--		if (atomic_read(&nr_async_pages) >= pager_daemon.swap_cluster)
-+		if (atomic_read(&nr_async_pages) >= pager_daemon.max_async_pages)
- 			break;
- 		/* Don't read in bad or busy pages */
- 		if (!swapdev->swap_map[offset])
-Index: linux/mm/page_io.c
-diff -u linux/mm/page_io.c:1.1.1.4 linux/mm/page_io.c:1.1.1.1.2.6
---- linux/mm/page_io.c:1.1.1.4	Tue Dec 29 01:39:20 1998
-+++ linux/mm/page_io.c	Wed Jan 13 00:00:04 1999
-@@ -58,7 +58,7 @@
- 	}
- 
- 	/* Don't allow too many pending pages in flight.. */
--	if (atomic_read(&nr_async_pages) > pager_daemon.swap_cluster)
-+	if (atomic_read(&nr_async_pages) > pager_daemon.max_async_pages)
- 		wait = 1;
- 
- 	p = &swap_info[type];
-Index: linux/mm/swap.c
-diff -u linux/mm/swap.c:1.1.1.6 linux/mm/swap.c:1.1.1.1.2.14
---- linux/mm/swap.c:1.1.1.6	Mon Jan 11 22:24:24 1999
-+++ linux/mm/swap.c	Thu Jan 14 13:15:32 1999
-@@ -40,41 +40,17 @@
+Eric
+
+
+diff -uNrX linux-ignore-files linux-2.2.0-pre5.eb1.1/include/linux/mm.h linux-2.2.0-pre5.eb1.2/include/linux/mm.h
+--- linux-2.2.0-pre5.eb1.1/include/linux/mm.h	Thu Jan  7 00:25:38 1999
++++ linux-2.2.0-pre5.eb1.2/include/linux/mm.h	Wed Jan 13 08:53:22 1999
+@@ -100,6 +100,7 @@
+ 		unsigned long page);
+ 	int (*swapout)(struct vm_area_struct *,  unsigned long, pte_t *);
+ 	pte_t (*swapin)(struct vm_area_struct *, unsigned long, unsigned long);
++	int (*writeout)(struct vm_area_struct *, unsigned long offset, unsigned long page);
  };
  
- /* How many pages do we try to swap or page in/out together? */
--int page_cluster = 4; /* Default value modified in swap_setup() */
-+int page_cluster = 5; /* Default readahead 32 pages every time */
+ /*
+@@ -392,6 +393,8 @@
+ 				buffer_mem.min_percent * num_physpages)
+ #define pgcache_under_min()	(page_cache_size * 100 < \
+ 				page_cache.min_percent * num_physpages)
++
++extern void wakeup_pgflush(void);
  
- /* We track the number of pages currently being asynchronously swapped
-    out, so that we don't try to swap TOO many pages out at once */
- atomic_t nr_async_pages = ATOMIC_INIT(0);
+ #endif /* __KERNEL__ */
  
--buffer_mem_t buffer_mem = {
--	2,	/* minimum percent buffer */
--	10,	/* borrow percent buffer */
--	60	/* maximum percent buffer */
--};
--
--buffer_mem_t page_cache = {
--	2,	/* minimum percent page cache */
--	15,	/* borrow percent page cache */
--	75	/* maximum */
--};
--
- pager_daemon_t pager_daemon = {
--	512,	/* base number for calculating the number of tries */
--	SWAP_CLUSTER_MAX,	/* minimum number of tries */
--	SWAP_CLUSTER_MAX,	/* do swap I/O in clusters of this size */
-+	8,	/* starting priority of try_to_free_pages() */
-+	2,	/* minimum percent buffer */
-+	4,	/* minimum percent page cache */
-+	32,	/* number of tries we do on every try_to_free_pages() */
-+	128,	/* do swap I/O in clusters of this size */
-+	512	/* max number of async swapped-out pages on the fly */
- };
+diff -uNrX linux-ignore-files linux-2.2.0-pre5.eb1.1/include/linux/sched.h linux-2.2.0-pre5.eb1.2/include/linux/sched.h
+--- linux-2.2.0-pre5.eb1.1/include/linux/sched.h	Wed Jan  6 22:51:44 1999
++++ linux-2.2.0-pre5.eb1.2/include/linux/sched.h	Wed Jan 13 08:53:16 1999
+@@ -168,6 +168,9 @@
+ 	unsigned long rss, total_vm, locked_vm;
+ 	unsigned long def_flags;
+ 	unsigned long cpu_vm_mask;
++	unsigned long swap_write_pass;
++	unsigned long swap_address;
++	unsigned long swap_cnt;		/* number of pages to swap on next pass */
+ 	/*
+ 	 * This is an architecture-specific pointer: the portable
+ 	 * part of Linux does not know about any segments.
+@@ -184,7 +187,9 @@
+ 		0, 0, 0, 				\
+ 		0, 0, 0, 0,				\
+ 		0, 0, 0,				\
+-		0, 0, NULL }
++		0, 0, 					\
++		0, 0, 0,				\
++	        NULL }
+ 
+ struct signal_struct {
+ 	atomic_t		count;
+@@ -269,10 +274,8 @@
+ 	unsigned long min_flt, maj_flt, nswap, cmin_flt, cmaj_flt, cnswap;
+ 	int swappable:1;
+ 	int trashing_memory:1;
+-	unsigned long swap_address;
+ 	unsigned long old_maj_flt;	/* old value of maj_flt */
+ 	unsigned long dec_flt;		/* page fault count of the last time */
+-	unsigned long swap_cnt;		/* number of pages to swap on next pass */
+ /* process credentials */
+ 	uid_t uid,euid,suid,fsuid;
+ 	gid_t gid,egid,sgid,fsgid;
+@@ -354,7 +357,7 @@
+ /* utime */	{0,0,0,0},0, \
+ /* per CPU times */ {0, }, {0, }, \
+ /* flt */	0,0,0,0,0,0, \
+-/* swp */	0,0,0,0,0,0, \
++/* swp */	0,0,0,0, \
+ /* process credentials */					\
+ /* uid etc */	0,0,0,0,0,0,0,0,				\
+ /* suppl grps*/ 0, {0,},					\
+diff -uNrX linux-ignore-files linux-2.2.0-pre5.eb1.1/init/main.c linux-2.2.0-pre5.eb1.2/init/main.c
+--- linux-2.2.0-pre5.eb1.1/init/main.c	Wed Jan  6 22:46:42 1999
++++ linux-2.2.0-pre5.eb1.2/init/main.c	Mon Jan 11 19:13:57 1999
+@@ -65,6 +65,8 @@
+ extern int bdflush(void *);
+ extern int kswapd(void *);
+ extern void kswapd_setup(void);
++extern int pgflush(void *);
++extern void pgflush_init(void);
+ 
+ extern void init_IRQ(void);
+ extern void init_modules(void);
+@@ -1272,6 +1274,10 @@
+ 	/* Start the background pageout daemon. */
+ 	kswapd_setup();
+ 	kernel_thread(kswapd, NULL, CLONE_FS | CLONE_FILES | CLONE_SIGHAND);
++	/* Start the backgroud writeout daemon. */
++	pgflush_init();
++	kernel_thread(pgflush, NULL, CLONE_FS | CLONE_FILES | CLONE_SIGHAND);
++ 
+ 
+ #if CONFIG_AP1000
+ 	/* Start the async paging daemon. */
+diff -uNrX linux-ignore-files linux-2.2.0-pre5.eb1.1/mm/Makefile linux-2.2.0-pre5.eb1.2/mm/Makefile
+--- linux-2.2.0-pre5.eb1.1/mm/Makefile	Tue May 12 14:17:54 1998
++++ linux-2.2.0-pre5.eb1.2/mm/Makefile	Mon Jan 11 22:09:47 1999
+@@ -9,7 +9,7 @@
+ 
+ O_TARGET := mm.o
+ O_OBJS	 := memory.o mmap.o filemap.o mprotect.o mlock.o mremap.o \
+-	    vmalloc.o slab.o \
++	    vmalloc.o slab.o vmclean.o \
+ 	    swap.o vmscan.o page_io.o page_alloc.o swap_state.o swapfile.o
+ 
+ include $(TOPDIR)/Rules.make
+diff -uNrX linux-ignore-files linux-2.2.0-pre5.eb1.1/mm/filemap.c linux-2.2.0-pre5.eb1.2/mm/filemap.c
+--- linux-2.2.0-pre5.eb1.1/mm/filemap.c	Mon Jan 11 23:19:16 1999
++++ linux-2.2.0-pre5.eb1.2/mm/filemap.c	Thu Jan 14 02:56:28 1999
+@@ -1121,52 +1121,6 @@
+ 	return result;
+ }
+ 
 -
 -/*
-- * Perform any setup for the swap system
+- * Swapping to a shared file: while we're busy writing out the page
+- * (and the page still exists in memory), we save the page information
+- * in the page table, so that "filemap_swapin()" can re-use the page
+- * immediately if it is called while we're busy swapping it out..
+- *
+- * Once we've written it all out, we mark the page entry "empty", which
+- * will result in a normal page-in (instead of a swap-in) from the now
+- * up-to-date disk file.
 - */
--
--void __init swap_setup(void)
+-int filemap_swapout(struct vm_area_struct * vma,
+-	unsigned long offset,
+-	pte_t *page_table)
 -{
--	/* Use a smaller cluster for memory <16MB or <32MB */
--	if (num_physpages < ((16 * 1024 * 1024) >> PAGE_SHIFT))
--		page_cluster = 2;
--	else if (num_physpages < ((32 * 1024 * 1024) >> PAGE_SHIFT))
--		page_cluster = 3;
--	else
--		page_cluster = 4;
+-	int error;
+-	unsigned long page = pte_page(*page_table);
+-	unsigned long entry = SWP_ENTRY(SHM_SWP_TYPE, MAP_NR(page));
+-
+-	flush_cache_page(vma, (offset + vma->vm_start - vma->vm_offset));
+-	set_pte(page_table, __pte(entry));
+-	flush_tlb_page(vma, (offset + vma->vm_start - vma->vm_offset));
+-	error = filemap_write_page(vma, offset, page);
+-	if (pte_val(*page_table) == entry)
+-		pte_clear(page_table);
+-	return error;
 -}
-Index: linux/mm/swapfile.c
-diff -u linux/mm/swapfile.c:1.1.1.3 linux/mm/swapfile.c:1.1.1.1.2.6
---- linux/mm/swapfile.c:1.1.1.3	Mon Jan 11 22:24:24 1999
-+++ linux/mm/swapfile.c	Wed Jan 13 00:00:04 1999
-@@ -23,7 +23,6 @@
- 
- struct swap_info_struct swap_info[MAX_SWAPFILES];
- 
--#define SWAPFILE_CLUSTER 256
- 
- static inline int scan_swap_map(struct swap_info_struct *si)
+-
+-/*
+- * filemap_swapin() is called only if we have something in the page
+- * tables that is non-zero (but not present), which we know to be the
+- * page index of a page that is busy being swapped out (see above).
+- * So we just use it directly..
+- */
+-static pte_t filemap_swapin(struct vm_area_struct * vma,
+-	unsigned long offset,
+-	unsigned long entry)
+-{
+-	unsigned long page = SWP_OFFSET(entry);
+-
+-	atomic_inc(&mem_map[page].count);
+-	page = (page << PAGE_SHIFT) + PAGE_OFFSET;
+-	return mk_pte(page,vma->vm_page_prot);
+-}
+-
+-
+ static inline int filemap_sync_pte(pte_t * ptep, struct vm_area_struct *vma,
+ 	unsigned long address, unsigned int flags)
  {
-@@ -31,7 +30,7 @@
- 	/* 
- 	 * We try to cluster swap pages by allocating them
- 	 * sequentially in swap.  Once we've allocated
--	 * SWAPFILE_CLUSTER pages this way, however, we resort to
-+	 * SWAP_CLUSTER pages this way, however, we resort to
- 	 * first-free allocation, starting a new cluster.  This
- 	 * prevents us from scattering swap pages all over the entire
- 	 * swap partition, so that we reduce overall disk seek times
-@@ -47,7 +46,7 @@
- 			goto got_page;
- 		}
- 	}
--	si->cluster_nr = SWAPFILE_CLUSTER;
-+	si->cluster_nr = SWAP_CLUSTER;
- 	for (offset = si->lowest_bit; offset <= si->highest_bit ; offset++) {
- 		if (si->swap_map[offset])
- 			continue;
-Index: linux/mm/vmscan.c
-diff -u linux/mm/vmscan.c:1.1.1.12 linux/mm/vmscan.c:1.1.1.1.2.93
---- linux/mm/vmscan.c:1.1.1.12	Mon Jan 11 22:24:24 1999
-+++ linux/mm/vmscan.c	Thu Jan 14 13:15:32 1999
-@@ -10,6 +10,11 @@
-  *  Version: $Id: vmscan.c,v 1.5 1998/02/23 22:14:28 sct Exp $
-  */
+@@ -1306,8 +1260,9 @@
+ 	NULL,			/* advise */
+ 	filemap_nopage,		/* nopage */
+ 	NULL,			/* wppage */
+-	filemap_swapout,	/* swapout */
+-	filemap_swapin,		/* swapin */
++	NULL,			/* swapout */
++	NULL,			/* swapin */
++	filemap_write_page,	/* writeout */
+ };
  
+ /*
+diff -uNrX linux-ignore-files linux-2.2.0-pre5.eb1.1/mm/vmclean.c linux-2.2.0-pre5.eb1.2/mm/vmclean.c
+--- linux-2.2.0-pre5.eb1.1/mm/vmclean.c	Wed Dec 31 18:00:00 1969
++++ linux-2.2.0-pre5.eb1.2/mm/vmclean.c	Thu Jan 14 03:11:06 1999
+@@ -0,0 +1,395 @@
 +/*
-+ * free_user_and_cache() and always async swapout original idea.
-+ * Copyright (C) 1999  Andrea Arcangeli
++ *  linux/mm/vmclean.c
++ *
++ *  Copyright (C) 1999 Eric Biederman
++ *
 + */
 +
- #include <linux/slab.h>
- #include <linux/kernel_stat.h>
- #include <linux/swap.h>
-@@ -20,6 +25,8 @@
- 
- #include <asm/pgtable.h>
- 
-+int swapout_interval = HZ;
++#include <linux/slab.h>
++#include <linux/kernel_stat.h>
++#include <linux/swap.h>
++#include <linux/swapctl.h>
++#include <linux/smp_lock.h>
++#include <linux/pagemap.h>
++#include <linux/init.h>
 +
- /*
-  * The swap-out functions return 1 if they successfully
-  * threw something out, and we got a free page. It returns
-@@ -71,6 +78,21 @@
- 	 * memory, and we should just continue our scan.
- 	 */
- 	if (PageSwapCache(page_map)) {
-+		if (pte_write(pte))
-+		{
-+			struct page *found;
-+			printk ("VM: Found a writable swap-cached page!\n");
-+			/* Try to diagnose the problem ... */
-+			found = find_page(&swapper_inode, page_map->offset);
-+			if (found) {
-+				printk("page=%p@%08lx, found=%p, count=%d\n",
-+				       page_map, page_map->offset,
-+				       found, atomic_read(&found->count));
-+				__free_page(found);
-+			} else 
-+				printk ("Spurious, page not in cache\n");
-+			return 0;
++#include <asm/pgtable.h>
++
++/*
++ * The vm-clean  functions return 1 if they successfully
++ * cleaned something. It returns zero if it couldn't do anything, and
++ * any other value indicates it decreased rss, but the page was shared.
++ *
++ * NOTE! If it sleeps, it *must* return 1 to make sure we
++ * don't continue with the clean. Otherwise we may be
++ * using a process that no longer actually exists (it might
++ * have died while we slept).
++ */
++static int try_to_clean(struct vm_area_struct* vma, unsigned long address, pte_t * page_table)
++{
++	pte_t pte;
++	unsigned long entry;
++	unsigned long page;
++	struct page * page_map;
++	int result = 0;
++
++	pte = *page_table;
++	if (!pte_present(pte))
++		return result;
++	page = pte_page(pte);
++	if (MAP_NR(page) >= max_mapnr)
++		return result;
++
++	page_map = mem_map + MAP_NR(page);
++	if ((PageReserved(page_map))
++	    || PageLocked(page_map))
++		return result;
++
++	if (!pte_dirty(pte)) {
++		goto out;
++	}
++	flush_cache_page(vma, address);
++
++	if (vma->vm_ops && vma->vm_ops->writeout) {
++		if (vma->vm_ops->writeout(vma, address - vma->vm_start + vma->vm_offset, page)) {
++			struct task_struct *tsk;
++			/* Find some appropriate process to tell,
++			 * anyone with the same mm_struct is fine
++			 */
++			read_lock(&tasklist_lock);
++			for_each_task(tsk) {
++				if (!tsk->swappable)
++					continue;
++				if (tsk->mm == vma->vm_mm) {
++					kill_proc(tsk->pid, SIGBUS, 1);
++					break;
++				}
++			}
++			read_unlock(&tasklist_lock);
++			goto out;
 +		}
- 		entry = page_map->offset;
- 		swap_duplicate(entry);
- 		set_pte(page_table, __pte(entry));
-@@ -199,7 +221,7 @@
++		result = 1;
++		pte = pte_mkclean(pte);
++		set_pte(page_table, pte);
++		goto out;
++	}
++	if (PageSwapCache(page_map)) {
++		printk(KERN_ERR "swap_cache: writing dirty page on page %08lx",
++		       page_address(page_map));
++		delete_from_swap_cache(page_map);
++	}
++	/*
++	 * This is a dirty, swappable page.  First of all,
++	 * get a suitable swap entry for it, and make sure
++	 * we have the swap cache set up to associate the
++	 * page with that swap entry.
++	 */
++	entry = get_swap_page();
++	if (!entry)
++		goto out; /* No swap space left */
++	
++	add_to_swap_cache(page_map, entry);
++	/* We checked we were unlocked way up above, and we
++	   have been careful not to stall until here */
++	set_bit(PG_locked, &page_map->flags);
++
++	/* OK, do a physical asynchronous write to swap.  */
++	rw_swap_page(WRITE, entry, (char *) page, 0);
++
++	result = 1; /* Could we have slept? Play it safe */
++	/* Note:  We make the page read only here to maintain the invariant
++	 * that swap cache pages are always read only.
++	 * Once we have PG_dirty or a similar mechanism implemented we
++	 * can relax this.
++	 */
++	pte = pte_wrprotect(pte_mkclean(pte));
++	set_pte(page_table, pte);
++
++out:
++	return result;
++}
++
++/*
++ * A new implementation of swap_out().  We do not swap complete processes,
++ * but only a small number of blocks, before we continue with the next
++ * process.  The number of blocks actually swapped is determined on the
++ * number of page faults, that this process actually had in the last time,
++ * so we won't swap heavily used processes all the time ...
++ *
++ * Note: the priority argument is a hint on much CPU to waste with the
++ *       swap block search, not a hint, of how much blocks to swap with
++ *       each process.
++ *
++ * (C) 1993 Kai Petzke, wpp@marie.physik.tu-berlin.de
++ */
++
++static inline int clean_pmd(struct vm_area_struct * vma,
++	pmd_t *dir, unsigned long address, unsigned long end,
++	unsigned long *paddress)
++{
++	pte_t * pte;
++	unsigned long pmd_end;
++
++	if (pmd_none(*dir))
++		return 0;
++	if (pmd_bad(*dir)) {
++		printk("clean_pmd: bad pmd (%08lx)\n", pmd_val(*dir));
++		pmd_clear(dir);
++		return 0;
++	}
++	
++	pte = pte_offset(dir, address);
++	
++	pmd_end = (address + PMD_SIZE) & PMD_MASK;
++	if (end > pmd_end)
++		end = pmd_end;
++
++	do {
++		int result;
++		*paddress = address + PAGE_SIZE;
++		result = try_to_clean(vma, address, pte);
++		if (result)
++			return result;
++		address += PAGE_SIZE;
++		pte++;
++	} while (address < end);
++	return 0;
++}
++
++static inline int clean_pgd(struct vm_area_struct * vma,
++	pgd_t *dir, unsigned long address, unsigned long end, unsigned long *paddress)
++{
++	pmd_t * pmd;
++	unsigned long pgd_end;
++
++	if (pgd_none(*dir))
++		return 0;
++	if (pgd_bad(*dir)) {
++		printk("clean_pgd: bad pgd (%08lx)\n", pgd_val(*dir));
++		pgd_clear(dir);
++		return 0;
++	}
++
++	pmd = pmd_offset(dir, address);
++
++	pgd_end = (address + PGDIR_SIZE) & PGDIR_MASK;	
++	if (end > pgd_end)
++		end = pgd_end;
++	
++	do {
++		int result;
++		result = clean_pmd(vma, pmd, address, end, paddress);
++		if (result)
++			return result;
++		address = (address + PMD_SIZE) & PMD_MASK;
++		pmd++;
++	} while (address < end);
++	return 0;
++}
++
++static int clean_vma(struct vm_area_struct *vma, 
++		     unsigned long address, unsigned long *paddress)
++{
++	pgd_t *pgdir;
++	unsigned long end;
++
++	/* Don't write out areas like shared memory which have their
++	 * own separate swapping mechanism
++	 */
++	if (vma->vm_flags & VM_SHM)  {
++		return 0;
++	}
++
++	/* Don't write out locked anonymous memory */
++	if (vma->vm_flags & VM_LOCKED && 
++	    (!vma->vm_ops || !vma->vm_ops->writeout)) {
++		return 0;
++	}
++
++	pgdir = pgd_offset(vma->vm_mm, address);
++
++	end = vma->vm_end;
++	while (address < end) {
++		int result;
++		result = clean_pgd(vma, pgdir, address, end, paddress);
++		if (result)
++			return result;
++		address = (address + PGDIR_SIZE) & PGDIR_MASK;
++		pgdir++;
++	}
++	return 0;
++}
++
++static int clean_mm(struct mm_struct *mm, unsigned long *paddress)
++{
++	struct vm_area_struct *vma;
++	unsigned long address = *paddress;
++
++	vma = find_vma(mm, address);
++	if (vma) {
++		if (address < vma->vm_start) {
++			address = vma->vm_start;
++		}
++		for(;atomic_read(&mm->count) > 1;) {
++			int result = clean_vma(vma, address, paddress);
++			if (result) 
++				return result;
++			vma = vma->vm_next;
++			if (!vma)
++				break;
++			address = vma->vm_start;
++		}
++	}
++	/* We didn't write anything out */
++	return -1;	
++}
++
++/*
++ * Select the task with maximal swap_cnt and try to swap out a page.
++ * N.B. This function returns only 0 or 1.  Return values != 1 from
++ * the lower level routines result in continued processing.
++ */
++static void clean_tsks(void)
++{
++	/* Use write pass so I don't write out the same mm more than once */
++	static unsigned long write_pass = 0;
++
++	for(;;) {	
++		struct mm_struct *mm;
++		int result;
++		unsigned long address;
++		struct task_struct *tsk;
++		mm = NULL;
++
++		read_lock(&tasklist_lock);
++		for_each_task(tsk) {
++			if (!tsk->swappable)  /* the task is being set up */
++				continue;
++			if (tsk->mm->rss == 0) {
++				tsk->mm->swap_write_pass = write_pass; /* bad? */
++				continue;
++			}
++			if (tsk->mm->swap_write_pass == write_pass) 
++				continue;
++			/* don't let the mm struct go away unexpectedly */
++			mm = tsk->mm;
++			mmget(mm);
++			break;
++		}
++		read_unlock(&tasklist_lock);
++		if (!mm) 
++			break;
++		lock_kernel();
++		address = 0;
++#if 0
++		printk(KERN_DEBUG "clean_mm(%ld) starting for %p\n", write_pass, mm);
++#endif
++		do {
++			result = clean_mm(mm, &address);
++			if (result) {
++#if 0
++				printk(KERN_DEBUG "clean_mm:%ld found a page\n", write_pass);
++#endif
++			}
++			if (atomic_read(&nr_async_pages) >= pager_daemon.swap_cluster) {
++				run_task_queue(&tq_disk);
++			}
++			if (current->need_resched) 
++				schedule();
++		} while((result > 0) && (atomic_read(&mm->count) > 1));
++		mm->swap_write_pass = write_pass;
++#if 0
++		printk(KERN_DEBUG "clean_mm:%ld done\n", write_pass);
++#endif
++		mmput(mm);
++		unlock_kernel();
++	}
++		
++	write_pass = (write_pass != 0)?0:1;
++}
++
++/* ====================== pgflush support =================== */
++
++/* This is a simple kernel daemon, whose job it is to write all dirty pages
++ * in memory.
++ */
++#if 1
++unsigned long pgflush_wait = 30*HZ;
++#else
++unsigned long pgflush_wait = HZ/5;
++#endif
++struct task_struct *pgflush_tsk = 0;
++
++void wakeup_pgflush(void)
++{
++	if (!pgflush_tsk)
++		return;
++	if (current == pgflush_tsk)
++		return;
++	wake_up_process(pgflush_tsk);
++}
++
++/*
++ * Before we start the kernel thread, print out the
++ * pgflushd initialization message (otherwise the init message
++ * may be printed in the middle of another driver's init
++ * message).  It looks very bad when that happens.
++ */
++__initfunc(void pgflush_init(void))
++{
++       printk ("Starting kpgflushd\n");
++}
++
++/* This is the actual pgflush daemon itself. 
++ * We launch it ourselves internally with
++ * kernel_thread(...)  directly after the first thread in init/main.c 
++ */
++
++int pgflush(void *unsused)
++{
++	/*
++	 *	We have a bare-bones task_struct, and really should fill
++	 *	in a few more things so "top" and /proc/2/{exe,root,cwd}
++	 *	display semi-sane things. Not real crucial though...  
++	 */
++
++	current->session = 1;
++	current->pgrp = 1;
++	sprintf(current->comm, "kpgflushd");
++	pgflush_tsk = current;
++
++	/*
++	 * Tell the memory management that we're a "memory allocator",
++	 * and that if we need more memory we should get access to it
++	 * regardless (see "__get_free_pages()"). "kswapd" should
++	 * never get caught in the normal page freeing logic.
++	 *
++	 * (Kswapd normally doesn't need memory anyway, but sometimes
++	 * you need a small amount of memory in order to be able to
++	 * page out something else, and this flag essentially protects
++	 * us from recursively trying to free more memory as we're
++	 * trying to free the first piece of memory in the first place).
++	 */
++	for(;;) {
++		unsigned long left;
++		current->state = TASK_INTERRUPTIBLE;
++
++		if (signal_pending(current)) {
++			spin_lock_irq(&current->sigmask_lock);
++			flush_signals(current);
++			spin_unlock_irq(&current->sigmask_lock);
++		}
++
++		printk(KERN_DEBUG "clean_tsks() starting\n");
++		clean_tsks();  /* fill up the dirty list */
++		printk(KERN_DEBUG "clean_tsks() done\n");
++		/* Then put it all on disk */
++		run_task_queue(&tq_disk);
++		/* Should I run tq_disk more often? */
++
++		printk(KERN_DEBUG "kpgflushd going to sleep\n");
++		left = schedule_timeout(pgflush_wait);
++		printk(KERN_DEBUG "kpgflushd awoke with %ld jiffies remaing\n",
++		       left);
++	}
++}
+diff -uNrX linux-ignore-files linux-2.2.0-pre5.eb1.1/mm/vmscan.c linux-2.2.0-pre5.eb1.2/mm/vmscan.c
+--- linux-2.2.0-pre5.eb1.1/mm/vmscan.c	Wed Jan  6 22:51:45 1999
++++ linux-2.2.0-pre5.eb1.2/mm/vmscan.c	Tue Jan 12 23:39:42 1999
+@@ -79,7 +79,7 @@
+ 		tsk->nswap++;
+ 		flush_tlb_page(vma, address);
+ 		__free_page(page_map);
+-		return 0;
++		return 0; /* This is the only work we can do now */
+ 	}
+ 
+ 	/*
+@@ -99,61 +99,8 @@
+ 		pte_clear(page_table);
+ 		goto drop_pte;
+ 	}
+-
+-	/*
+-	 * Ok, it's really dirty. That means that
+-	 * we should either create a new swap cache
+-	 * entry for it, or we should write it back
+-	 * to its own backing store.
+-	 *
+-	 * Note that in neither case do we actually
+-	 * know that we make a page available, but
+-	 * as we potentially sleep we can no longer
+-	 * continue scanning, so we migth as well
+-	 * assume we free'd something.
+-	 *
+-	 * NOTE NOTE NOTE! This should just set a
+-	 * dirty bit in page_map, and just drop the
+-	 * pte. All the hard work would be done by
+-	 * shrink_mmap().
+-	 *
+-	 * That would get rid of a lot of problems.
+-	 */
+-	if (vma->vm_ops && vma->vm_ops->swapout) {
+-		pid_t pid = tsk->pid;
+-		vma->vm_mm->rss--;
+-		if (vma->vm_ops->swapout(vma, address - vma->vm_start + vma->vm_offset, page_table))
+-			kill_proc(pid, SIGBUS, 1);
+-		__free_page(page_map);
+-		return 1;
+-	}
+-
+-	/*
+-	 * This is a dirty, swappable page.  First of all,
+-	 * get a suitable swap entry for it, and make sure
+-	 * we have the swap cache set up to associate the
+-	 * page with that swap entry.
+-	 */
+-	entry = get_swap_page();
+-	if (!entry)
+-		return 0; /* No swap space left */
+-		
+-	vma->vm_mm->rss--;
+-	tsk->nswap++;
+-	flush_cache_page(vma, address);
+-	set_pte(page_table, __pte(entry));
+-	flush_tlb_page(vma, address);
+-	swap_duplicate(entry);	/* One for the process, one for the swap cache */
+-	add_to_swap_cache(page_map, entry);
+-	/* We checked we were unlocked way up above, and we
+-	   have been careful not to stall until here */
+-	set_bit(PG_locked, &page_map->flags);
+-
+-	/* OK, do a physical asynchronous write to swap.  */
+-	rw_swap_page(WRITE, entry, (char *) page, 0);
+-
+-	__free_page(page_map);
+-	return 1;
++	/* wakeup_pgflush here? */
++	return 0;
+ }
+ 
+ /*
+@@ -192,7 +139,7 @@
  
  	do {
  		int result;
@@ -334,7 +696,7 @@ diff -u linux/mm/vmscan.c:1.1.1.12 linux/mm/vmscan.c:1.1.1.1.2.93
  		result = try_to_swap_out(tsk, vma, address, pte, gfp_mask);
  		if (result)
  			return result;
-@@ -271,7 +293,7 @@
+@@ -264,7 +211,7 @@
  	/*
  	 * Go through process' page directory.
  	 */
@@ -343,7 +705,7 @@ diff -u linux/mm/vmscan.c:1.1.1.12 linux/mm/vmscan.c:1.1.1.1.2.93
  
  	/*
  	 * Find the proper vm-area
-@@ -293,8 +315,8 @@
+@@ -286,8 +233,8 @@
  	}
  
  	/* We didn't find anything for the process */
@@ -354,31 +716,7 @@ diff -u linux/mm/vmscan.c:1.1.1.12 linux/mm/vmscan.c:1.1.1.1.2.93
  	return 0;
  }
  
-@@ -306,7 +328,8 @@
- static int swap_out(unsigned int priority, int gfp_mask)
- {
- 	struct task_struct * p, * pbest;
--	int counter, assign, max_cnt;
-+	int counter, assign;
-+	unsigned long max_cnt;
- 
- 	/* 
- 	 * We make one or two passes through the task list, indexed by 
-@@ -325,7 +348,7 @@
- 	counter = nr_tasks / (priority+1);
- 	if (counter < 1)
- 		counter = 1;
--	if (counter > nr_tasks)
-+	else if (counter > nr_tasks)
- 		counter = nr_tasks;
- 
- 	for (; counter >= 0; counter--) {
-@@ -338,13 +361,13 @@
- 		for (; p != &init_task; p = p->next_task) {
- 			if (!p->swappable)
- 				continue;
--	 		if (p->mm->rss <= 0)
-+	 		if (p->mm->rss == 0)
+@@ -335,9 +282,9 @@
  				continue;
  			/* Refresh swap_cnt? */
  			if (assign)
@@ -391,324 +729,26 @@ diff -u linux/mm/vmscan.c:1.1.1.12 linux/mm/vmscan.c:1.1.1.1.2.93
  				pbest = p;
  			}
  		}
-@@ -375,8 +398,6 @@
-        int i;
-        char *revision="$Revision: 1.5 $", *s, *e;
- 
--       swap_setup();
--       
-        if ((s = strchr(revision, ':')) &&
-            (e = strchr(s, '$')))
-                s++, i = e - s;
-@@ -430,7 +451,7 @@
- 			break;
- 		current->state = TASK_INTERRUPTIBLE;
- 		run_task_queue(&tq_disk);
--		schedule_timeout(HZ);
-+		schedule_timeout(swapout_interval);
- 
- 		/*
- 		 * kswapd isn't even meant to keep up with anything,
-@@ -438,13 +459,36 @@
- 		 * point is to make sure that the system doesn't stay
- 		 * forever in a really bad memory squeeze.
- 		 */
--		if (nr_free_pages < freepages.high)
-+		if (nr_free_pages < freepages.min)
- 			try_to_free_pages(GFP_KSWAPD);
- 	}
- 
- 	return 0;
- }
- 
-+static int free_user_and_cache(int priority, int gfp_mask)
-+{
-+	static unsigned long grow_swap_cache = 0;
-+
-+	if (!shrink_mmap(priority, gfp_mask))
-+		grow_swap_cache = 1;
-+
-+	switch (grow_swap_cache)
-+	{
-+	case 0:
-+		return 1;
-+	default:
-+		if (grow_swap_cache++ >= freepages.high)
-+			grow_swap_cache = 0;
-+	}
-+
-+	if (swap_out(priority, gfp_mask))
-+		return 1;
-+
-+	grow_swap_cache = 0;
-+	return 0;
-+}
-+
- /*
-  * We need to make the locks finer granularity, but right
-  * now we need this so that we can do page allocations
-@@ -457,34 +501,35 @@
- int try_to_free_pages(unsigned int gfp_mask)
- {
- 	int priority;
--	int count = SWAP_CLUSTER_MAX;
-+	static int state = 0;
-+	int count = pager_daemon.tries;
- 
- 	lock_kernel();
- 
+@@ -456,6 +403,9 @@
  	/* Always trim SLAB caches when memory gets low. */
  	kmem_cache_reap(gfp_mask);
--
--	priority = 6;
--	do {
--		while (shrink_mmap(priority, gfp_mask)) {
--			if (!--count)
--				goto done;
--		}
  
--		/* Try to get rid of some shared memory pages.. */
--		while (shm_swap(priority, gfp_mask)) {
--			if (!--count)
--				goto done;
--		}
--	
--		/* Then, try to page stuff out.. */
--		while (swap_out(priority, gfp_mask)) {
--			if (!--count)
--				goto done;
--		}
-+	priority = pager_daemon.priority;
-+	switch (state)
-+	{
-+		do {
-+		case 0:
-+			while (free_user_and_cache(priority, gfp_mask)) {
-+				if (!--count)
-+					goto done;
-+			}
-+			state = 1;
-+		case 1:
-+			/* Try to get rid of some shared memory pages.. */
-+			while (shm_swap(priority, gfp_mask)) {
-+				if (!--count)
-+					goto done;
-+			}
-+			state = 0;
++	/* Also invest in clean pages */
++	wakeup_pgflush();
++
+ 	priority = 6;
+ 	do {
+ 		while (shrink_mmap(priority, gfp_mask)) {
+@@ -476,6 +426,9 @@
+ 		}
  
--		shrink_dcache_memory(priority, gfp_mask);
--	} while (--priority >= 0);
-+			shrink_dcache_memory(priority, gfp_mask);
-+		} while (--priority >= 0);
-+	}
+ 		shrink_dcache_memory(priority, gfp_mask);
++
++		schedule();
++
+ 	} while (--priority >= 0);
  done:
  	unlock_kernel();
- 
-Index: linux/kernel/fork.c
-diff -u linux/kernel/fork.c:1.1.1.6 linux/kernel/fork.c:1.1.1.1.2.10
---- linux/kernel/fork.c:1.1.1.6	Mon Jan 11 22:24:21 1999
-+++ linux/kernel/fork.c	Mon Jan 11 22:56:09 1999
-@@ -511,6 +514,7 @@
- 
- 	p->did_exec = 0;
- 	p->swappable = 0;
-+	p->trashing = 0;
- 	p->state = TASK_UNINTERRUPTIBLE;
- 
- 	copy_flags(clone_flags, p);
-Index: linux/kernel/sysctl.c
-diff -u linux/kernel/sysctl.c:1.1.1.6 linux/kernel/sysctl.c:1.1.1.1.2.12
---- linux/kernel/sysctl.c:1.1.1.6	Mon Jan 11 22:24:22 1999
-+++ linux/kernel/sysctl.c	Wed Jan 13 21:23:38 1999
-@@ -32,7 +32,7 @@
- 
- /* External variables not in a header file. */
- extern int panic_timeout;
--extern int console_loglevel, C_A_D;
-+extern int console_loglevel, C_A_D, swapout_interval;
- extern int bdf_prm[], bdflush_min[], bdflush_max[];
- extern char binfmt_java_interpreter[], binfmt_java_appletviewer[];
- extern int sysctl_overcommit_memory;
-@@ -216,6 +216,8 @@
- };
- 
- static ctl_table vm_table[] = {
-+	{VM_SWAPOUT, "swapout_interval",
-+	 &swapout_interval, sizeof(int), 0644, NULL, &proc_dointvec},
- 	{VM_FREEPG, "freepages", 
- 	 &freepages, sizeof(freepages_t), 0644, NULL, &proc_dointvec},
- 	{VM_BDFLUSH, "bdflush", &bdf_prm, 9*sizeof(int), 0600, NULL,
-@@ -223,11 +225,7 @@
- 	 &bdflush_min, &bdflush_max},
- 	{VM_OVERCOMMIT_MEMORY, "overcommit_memory", &sysctl_overcommit_memory,
- 	 sizeof(sysctl_overcommit_memory), 0644, NULL, &proc_dointvec},
--	{VM_BUFFERMEM, "buffermem",
--	 &buffer_mem, sizeof(buffer_mem_t), 0644, NULL, &proc_dointvec},
--	{VM_PAGECACHE, "pagecache",
--	 &page_cache, sizeof(buffer_mem_t), 0644, NULL, &proc_dointvec},
--	{VM_PAGERDAEMON, "kswapd",
-+	{VM_PAGERDAEMON, "pager",
- 	 &pager_daemon, sizeof(pager_daemon_t), 0644, NULL, &proc_dointvec},
- 	{VM_PGT_CACHE, "pagetable_cache", 
- 	 &pgt_cache_water, 2*sizeof(int), 0600, NULL, &proc_dointvec},
-Index: linux/include/linux/mm.h
-diff -u linux/include/linux/mm.h:1.1.1.6 linux/include/linux/mm.h:1.1.1.1.2.21
---- linux/include/linux/mm.h:1.1.1.6	Mon Jan 11 22:23:57 1999
-+++ linux/include/linux/mm.h	Thu Jan 14 13:15:31 1999
-@@ -118,7 +118,6 @@
- 	unsigned long offset;
- 	struct page *next_hash;
- 	atomic_t count;
--	unsigned int unused;
- 	unsigned long flags;	/* atomic flags, some possibly updated asynchronously */
- 	struct wait_queue *wait;
- 	struct page **pprev_hash;
-@@ -302,8 +301,7 @@
- 
- /* filemap.c */
- extern void remove_inode_page(struct page *);
--extern unsigned long page_unuse(struct page *);
--extern int shrink_mmap(int, int);
-+extern int FASTCALL(shrink_mmap(int, int));
- extern void truncate_inode_pages(struct inode *, unsigned long);
- extern unsigned long get_cached_page(struct inode *, unsigned long, int);
- extern void put_cached_page(unsigned long);
-@@ -387,9 +385,9 @@
- }
- 
- #define buffer_under_min()	((buffermem >> PAGE_SHIFT) * 100 < \
--				buffer_mem.min_percent * num_physpages)
--#define pgcache_under_min()	(page_cache_size * 100 < \
--				page_cache.min_percent * num_physpages)
-+				pager_daemon.buffer_min_percent * num_physpages)
-+#define pgcache_under_min()	((page_cache_size-swapper_inode.i_nrpages) * 100 < \
-+				pager_daemon.cache_min_percent * num_physpages)
- 
- #endif /* __KERNEL__ */
- 
-Index: linux/include/linux/sched.h
-diff -u linux/include/linux/sched.h:1.1.1.6 linux/include/linux/sched.h:1.1.1.1.2.13
---- linux/include/linux/sched.h:1.1.1.6	Mon Jan 11 22:24:03 1999
-+++ linux/include/linux/sched.h	Thu Jan 14 12:42:58 1999
-@@ -169,6 +174,7 @@
- 	unsigned long rss, total_vm, locked_vm;
- 	unsigned long def_flags;
- 	unsigned long cpu_vm_mask;
-+	unsigned long swap_cnt, swap_address;
- 	/*
- 	 * This is an architecture-specific pointer: the portable
- 	 * part of Linux does not know about any segments.
-@@ -177,15 +183,17 @@
- };
- 
- #define INIT_MM {					\
--		&init_mmap, NULL, swapper_pg_dir, 	\
-+		&init_mmap, NULL, swapper_pg_dir,	\
- 		ATOMIC_INIT(1), 1,			\
- 		MUTEX,					\
- 		0,					\
- 		0, 0, 0, 0,				\
--		0, 0, 0, 				\
-+		0, 0, 0,				\
- 		0, 0, 0, 0,				\
- 		0, 0, 0,				\
--		0, 0, NULL }
-+		0, 0,					\
-+		0, 0,					\
-+		NULL }
- 
- struct signal_struct {
- 	atomic_t		count;
-@@ -270,8 +278,7 @@
- /* mm fault and swap info: this can arguably be seen as either mm-specific or thread-specific */
- 	unsigned long min_flt, maj_flt, nswap, cmin_flt, cmaj_flt, cnswap;
- 	int swappable:1;
--	unsigned long swap_address;
--	unsigned long swap_cnt;		/* number of pages to swap on next pass */
-+	int trashing:1;
- /* process credentials */
- 	uid_t uid,euid,suid,fsuid;
- 	gid_t gid,egid,sgid,fsgid;
-@@ -355,7 +362,7 @@
- /* utime */	{0,0,0,0},0, \
- /* per CPU times */ {0, }, {0, }, \
- /* flt */	0,0,0,0,0,0, \
--/* swp */	0,0,0, \
-+/* swp */	0,0, \
- /* process credentials */					\
- /* uid etc */	0,0,0,0,0,0,0,0,				\
- /* suppl grps*/ 0, {0,},					\
-Index: linux/include/linux/swap.h
-diff -u linux/include/linux/swap.h:1.1.1.6 linux/include/linux/swap.h:1.1.1.1.2.17
---- linux/include/linux/swap.h:1.1.1.6	Mon Jan 11 22:24:05 1999
-+++ linux/include/linux/swap.h	Wed Jan 13 21:28:52 1999
-@@ -33,7 +33,7 @@
- #define SWP_USED	1
- #define SWP_WRITEOK	3
- 
--#define SWAP_CLUSTER_MAX 32
-+#define SWAP_CLUSTER	(pager_daemon.swap_cluster)
- 
- #define SWAP_MAP_MAX	0x7fff
- #define SWAP_MAP_BAD	0x8000
-@@ -68,9 +68,6 @@
- 
- /* linux/ipc/shm.c */
- extern int shm_swap (int, int);
--
--/* linux/mm/swap.c */
--extern void swap_setup (void);
- 
- /* linux/mm/vmscan.c */
- extern int try_to_free_pages(unsigned int gfp_mask);
-Index: linux/include/linux/swapctl.h
-diff -u linux/include/linux/swapctl.h:1.1.1.4 linux/include/linux/swapctl.h:1.1.1.1.2.6
---- linux/include/linux/swapctl.h:1.1.1.4	Mon Jan 11 22:24:05 1999
-+++ linux/include/linux/swapctl.h	Thu Jan 14 13:15:31 1999
-@@ -4,32 +4,23 @@
- #include <asm/page.h>
- #include <linux/fs.h>
- 
--typedef struct buffer_mem_v1
-+typedef struct freepages_s
- {
--	unsigned int	min_percent;
--	unsigned int	borrow_percent;
--	unsigned int	max_percent;
--} buffer_mem_v1;
--typedef buffer_mem_v1 buffer_mem_t;
--extern buffer_mem_t buffer_mem;
--extern buffer_mem_t page_cache;
--
--typedef struct freepages_v1
--{
- 	unsigned int	min;
- 	unsigned int	low;
- 	unsigned int	high;
--} freepages_v1;
--typedef freepages_v1 freepages_t;
-+} freepages_t;
- extern freepages_t freepages;
- 
--typedef struct pager_daemon_v1
-+typedef struct pager_daemon_s
- {
--	unsigned int	tries_base;
--	unsigned int	tries_min;
-+	unsigned int	priority;
-+	unsigned int	buffer_min_percent;
-+	unsigned int	cache_min_percent;
-+	unsigned int	tries;
- 	unsigned int	swap_cluster;
--} pager_daemon_v1;
--typedef pager_daemon_v1 pager_daemon_t;
-+	unsigned int	max_async_pages;
-+} pager_daemon_t;
- extern pager_daemon_t pager_daemon;
- 
- #endif /* _LINUX_SWAPCTL_H */
-
-
 --
 This is a majordomo managed list.  To unsubscribe, send a message with
 the body 'unsubscribe linux-mm me@address' to: majordomo@kvack.org
