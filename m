@@ -1,34 +1,72 @@
-Date: Mon, 20 Oct 2003 17:27:32 -0700
-From: Andrew Morton <akpm@osdl.org>
-Subject: Re: 2.6.0-test8-mm1
-Message-Id: <20031020172732.6b6b3646.akpm@osdl.org>
-In-Reply-To: <200310210014.h9L0EZFP003073@turing-police.cc.vt.edu>
-References: <20031020020558.16d2a776.akpm@osdl.org>
-	<200310201811.18310.schlicht@uni-mannheim.de>
-	<20031020144836.331c4062.akpm@osdl.org>
-	<200310210001.08761.schlicht@uni-mannheim.de>
-	<200310210014.h9L0EZFP003073@turing-police.cc.vt.edu>
+Message-Id: <200310210046.h9L0kHFg001918@turing-police.cc.vt.edu>
+Subject: Re: 2.6.0-test8-mm1 
+In-Reply-To: Your message of "Mon, 20 Oct 2003 17:27:32 PDT."
+             <20031020172732.6b6b3646.akpm@osdl.org>
+From: Valdis.Kletnieks@vt.edu
+References: <20031020020558.16d2a776.akpm@osdl.org> <200310201811.18310.schlicht@uni-mannheim.de> <20031020144836.331c4062.akpm@osdl.org> <200310210001.08761.schlicht@uni-mannheim.de> <200310210014.h9L0EZFP003073@turing-police.cc.vt.edu>
+            <20031020172732.6b6b3646.akpm@osdl.org>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Content-Type: multipart/signed; boundary="==_Exmh_1887342736P";
+	 micalg=pgp-sha1; protocol="application/pgp-signature"
 Content-Transfer-Encoding: 7bit
+Date: Mon, 20 Oct 2003 20:46:17 -0400
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Valdis.Kletnieks@vt.edu
+To: Andrew Morton <akpm@osdl.org>
 Cc: schlicht@uni-mannheim.de, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Valdis.Kletnieks@vt.edu wrote:
->
-> This ring any bells?  What you want tested? etc etc....
+--==_Exmh_1887342736P
+Content-Type: text/plain; charset="us-ascii"
+Content-Id: <1901.1066697159.1@turing-police.cc.vt.edu>
 
-Can you try disabling all fbdev stuff in config?
+On Mon, 20 Oct 2003 17:27:32 PDT, Andrew Morton said:
+> Valdis.Kletnieks@vt.edu wrote:
+> >
+> > This ring any bells?  What you want tested? etc etc....
+> 
+> Can you try disabling all fbdev stuff in config?
 
------ End forwarded message -----
+OK.. That booted just fine, didn't hang in pty_init, didn't hit the
+WARN_ON added to fs_inoce.c.
 
--- 
-"The software industry today survives only through an unstated agreement 
-not to stir things up too much.  We must hope this lawsuit [by SCO] isn't 
-the big stirring spoon." -- Ian Lance Taylor, Linux Journal, June 2003
+So we have:
+
+works:
+#  CONFIG_FB is not set
+
+Doesn't work:
+CONFIG_FB=y
+CONFIG_FB_VESA=y
+CONFIG_FRAMEBUFFER_CONSOLE=y
+CONFIG_PCI_CONSOLE=y
+CONFIG_FONT_8x8=y
+CONFIG_FONT_8x16=y
+CONFIG_LOGO=y
+CONFIG_LOGO_LINUX_MONO=y
+CONFIG_LOGO_LINUX_VGA16=y
+CONFIG_LOGO_LINUX_CLUT224=y
+
+I've not had a chance to play binary search on those options yet..  Graphics
+card is an NVidia GeForce 440Go, and was previous working just fine with
+framebuffer over on vc1-6 and NVidia's driver on an XFree86 on vc7. (OK, I
+admit I didn't stress test the framebuffer side much past "penguins and
+scroiled text"...)
+
+
+--==_Exmh_1887342736P
+Content-Type: application/pgp-signature
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.2.2 (GNU/Linux)
+Comment: Exmh version 2.5 07/13/2001
+
+iD8DBQE/lIHYcC3lWbTT17ARApF3AKDgMlT3xPJBvSwCVvIfzCeKvTOQaACgreus
+1D0iOzxbeyt9kyEK/ZKdzME=
+=Chp5
+-----END PGP SIGNATURE-----
+
+--==_Exmh_1887342736P--
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
