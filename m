@@ -1,36 +1,38 @@
-Date: Mon, 22 Nov 2004 14:27:10 +0000 (GMT)
+Date: Mon, 22 Nov 2004 14:31:02 +0000 (GMT)
 From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: [PATCH]: 2/4 mm/swap.c cleanup
-In-Reply-To: <16801.6313.996546.52706@gargle.gargle.HOWL>
-Message-ID: <Pine.LNX.4.44.0411221419100.2867-100000@localhost.localdomain>
+Subject: Re: [PATCH]: 3/4 mm/rmap.c cleanup
+In-Reply-To: <20041121131437.4c3bcee0.akpm@osdl.org>
+Message-ID: <Pine.LNX.4.44.0411221428080.2867-100000@localhost.localdomain>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="us-ascii"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nikita Danilov <nikita@clusterfs.com>
-Cc: Andrew Morton <akpm@osdl.org>, Linux-Kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@osdl.org>
+Cc: Nikita Danilov <nikita@clusterfs.com>, Linux-Kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 22 Nov 2004, Nikita Danilov wrote:
-> Andrew Morton writes:
->  > 
->  > Sorry, this looks more like a dirtyup to me ;)
+On Sun, 21 Nov 2004, Andrew Morton wrote:
+> Nikita Danilov <nikita@clusterfs.com> wrote:
+> >
+> > mm/rmap.c:page_referenced_one() and mm/rmap.c:try_to_unmap_one() contain
+> >  identical code that
+> > 
+> >   - takes mm->page_table_lock;
+> > 
+> >   - drills through page tables;
+> > 
+> >   - checks that correct pte is reached.
+> > 
+> >  Coalesce this into page_check_address()
 > 
-> Don't tell me you are not great fan on comma operator abuse. :)
-> 
-> Anyway, idea is that by hiding complexity it loop macro, we get rid of a
-> maze of pvec-loops in swap.c all alike.
-> 
-> Attached is next, more typeful variant. Compilebootentested.
+> Looks sane, but it comes at a bad time.  Please rework and resubmit after
+> the 4-level pagetable code is merged into Linus's tree, post-2.6.10.
 
-You're scaring me, Nikita.  Those loops in mm/swap.c are easy to follow,
-whyever do you want to obfuscate them with your own macro maze?
+Personally, I prefer the straightforward way it looks without Nikita's
+patch.  But it is a matter of personal taste, and I may well be in the
+minority.
 
-Ingenious for_each macros make sense where it's an idiom which is going
-to be useful to many across the tree; but these are just a few instances
-in a single source file.
-
-Please find a better outlet for your talents!
+Would be better justified if the common function were not "inline"?
 
 Hugh
 
