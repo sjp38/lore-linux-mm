@@ -1,171 +1,136 @@
-Content-Type: text/plain;
-  charset="iso-8859-1"
-From: Ed Tomlinson <tomlins@cam.org>
-Subject: Re: Fwd: Re: slablru for 2.5.32-mm1
-Date: Mon, 2 Sep 2002 18:49:34 -0400
-References: <200209021137.41132.tomlins@cam.org> <3D73C3C3.B48FE419@zip.com.au>
-In-Reply-To: <3D73C3C3.B48FE419@zip.com.au>
+Message-ID: <3D740C35.9E190D04@zip.com.au>
+Date: Mon, 02 Sep 2002 18:11:17 -0700
+From: Andrew Morton <akpm@zip.com.au>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
-Message-Id: <200209021849.34481.tomlins@cam.org>
+Subject: Re: About the free page pool
+References: <3D73CB28.D2F7C7B0@zip.com.au> <218D9232-BEBF-11D6-A3BE-000393829FA4@cs.amherst.edu>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@zip.com.au>
+To: Scott Kaplan <sfkaplan@cs.amherst.edu>
 Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On September 2, 2002 04:02 pm, Andrew Morton wrote:
-> Ed Tomlinson wrote:
-> > ...
-> > The pages which back slab objects may be manually marked as referenced
-> > via kmem_touch_page(), which simply sets PG_referenced.  It _could_ use
-> > mark_page_accessed(), but doesn't.  So slab pages will always remain on
-> > the inactive list.
+Scott Kaplan wrote:
+> 
+> -----BEGIN PGP SIGNED MESSAGE-----
+> Hash: SHA1
+> 
+> On Monday, September 2, 2002, at 04:33 PM, Andrew Morton wrote:
+> 
+> > Scott Kaplan wrote:
+> >> How important is it to maintain a list of free pages?  That is, how
+> >> critical is it that there be some pool of free pages from which the only
+> >> bookkeeping required is the removal of that page from the free list.
 > >
-> > --
-> > Since shrinking a slab is a much lower cost operation than a swap we keep
-> > the slab pages in inactive where they age faster.  Note I did test with
-> > slabs following the normal active/inactive cycle - we swapped more.
-> > --
->
-> It worries me that we may be keeping a large number of unfreeable
-> slab pages on the inactive list.  These will churn around creating
-> extra work, but more significantly they will revent refill_inactive
-> from bringing down really-reclaimable pages.
+> > There are several reasons, all messy.
+> >
+> > - We need to be able to allocate pages at interrupt time.  Mainly
+> >   for networking receive.
+> 
+> Okay, this actually seems pretty important, and I suspected that it would
+> be a critical issue.  I suppose interrupts really do need to be as quick
+> as possible, so doing the reclamation work during non-interrupt times is a
+> good trade off.  That's a sufficient argument for me.
+> 
+> > - We sometimes need to allocate memory from *within* the context of
+> >   page reclaim: find a dirty page on the LRU, need to write it out,
+> >   need to allocate some memory to start the IO.  Where does that
+> >   memory come from.
+> 
+> That part could be handled without too much trouble, I believe.  If we're
+> ensuring that some trailing portion of the inactive list is clean and
+> ready for reclamation, then when the situation above arises, just allocate
+> space by taking it from the end of the inactive list.  There should be no
+> problem in doing that.
 
-Well we could move some the active list.  I would suggest this only 
-happen for full slabs though.  How about the following?  Note the
-test for referenced in refill_inactive will always fail for slab pages
-(no pte_chain).   I do not think fixing this will make much 
-difference though.
+yes.  But there are the latency issues as well.  We'll have cpu-local
+pool of pages with which to satisfy most of these allocations anyway,
+I guess.
 
-On another tack.  Another reason for using a simple boolean instead of 
-a threshold is that I can envision needing to do different things inside
-what is now called kmem_count_page.  For instance for buffers we might
-want to call try_to_release_page(page, 0) and if it works just free the slab...
-For this we would need to add and pass a control var (and gfpmask) to the  
-pruner callback from kmem_count_page.   The counting would then happen 
-in the callback.
+> > - The kernel frequently needs to perform higher-order allocations:
+> >   two or more physically-contiguous pages.  The way we agglomerate
+> >   0-order pages into higher-order pages is by coalescing them in the
+> >   buddy.  If _all_ "free" pages are out on an LRU somewhere, we don't
+> >   have a higher-order pool to draw from.
+> 
+> What is the current approach to this problem?  Does the buddy allocator
+> interact with the existing VM replacement policy so that, at times, the
+> page occupying some particular page frame will be evicted not because it's
+> the LRU page, but rather because its page frame is physically adjacent to
+> some other free page?  In other words, I see the need to allocate
+> physically contiguous groups of pages, and that the buddy allocator is
+> used for that purpose, but what influence does the buddy allocator have to
+> ensure that it can fulfill those higher-order allocations?
 
-Patch below is lightly tested.
+The current approach is guess-and-giggle.  It seems to work out that
+there are enough physically contig pages for it to work.
 
-Ed
+The most important are 1-order allocations (8k, for kernel stacks).
+The memory allocator will retry these allocations indefinitely, so
+they end up succeeding, somehow.
 
-----------
-# This is a BitKeeper generated patch for the following project:
-# Project Name: Linux kernel tree
-# This patch format is intended for GNU patch command version 2.5 or higher.
-# This patch includes the following deltas:
-#	           ChangeSet	1.534   -> 1.535  
-#	         mm/vmscan.c	1.99    -> 1.100  
-#	include/linux/slab.h	1.13    -> 1.14   
-#	           mm/slab.c	1.31    -> 1.32   
-#
-# The following is the BitKeeper ChangeSet Log
-# --------------------------------------------
-# 02/09/02	ed@oscar.et.ca	1.535
-# Place full slabpages onto the activelist
-# --------------------------------------------
-#
-diff -Nru a/include/linux/slab.h b/include/linux/slab.h
---- a/include/linux/slab.h	Mon Sep  2 18:46:17 2002
-+++ b/include/linux/slab.h	Mon Sep  2 18:46:17 2002
-@@ -63,9 +63,6 @@
- extern int kmem_count_page(struct page *, int);
- #define kmem_touch_page(addr)                 SetPageReferenced(virt_to_page(addr));
- 
--/* shrink a slab */
--extern int kmem_shrink_slab(struct page *);
--
- /* dcache prune ( defined in linux/fs/dcache.c) */
- extern int age_dcache_memory(kmem_cache_t *, int, int);
- 
-diff -Nru a/mm/slab.c b/mm/slab.c
---- a/mm/slab.c	Mon Sep  2 18:46:17 2002
-+++ b/mm/slab.c	Mon Sep  2 18:46:17 2002
-@@ -421,6 +421,9 @@
-  
- /* 
-  * Used by shrink_cache to determine caches that need pruning.
-+ * 0 - leave on inactive list
-+ * 1 - free this slab
-+ * 2 - move to active list
-  */
- int kmem_count_page(struct page *page, int ref)
- {
-@@ -435,6 +438,15 @@
- 		ret = !slabp->inuse;
- 	} else 
- 		ret = !ref && !slabp->inuse;
-+
-+	/* try to unlink the slab */
-+	if (ret)
-+		ret = kmem_shrink_slab(page);
-+
-+	/* do we want to make this slab page active? */
-+	if (!ret && (cachep->num == slabp->inuse))
-+		ret = 2;
-+
- 	spin_unlock_irq(&cachep->spinlock);
- 	return ret;
- }
-@@ -1083,7 +1095,7 @@
-  * - shrink works and we return the pages shrunk
-  * - shrink fails because the slab is in use, we return 0
-  * - the page_count gets decremented by __pagevec_release_nonlru
-- * called with page_lock bit set. 
-+ * called with page_lock bit set and cachep->spinlock held.
-  */
- int kmem_shrink_slab(struct page *page)
- {
-@@ -1091,7 +1103,6 @@
- 	slab_t *slabp = GET_PAGE_SLAB(page);
- 	unsigned int ret = 0;
- 
--	spin_lock_irq(&cachep->spinlock);
- 	if (!slabp->inuse) {
- 	 	if (!cachep->growing) { 
- 			unsigned int i = (1<<cachep->gfporder);
-@@ -1108,7 +1119,6 @@
- 		BUG_ON(PageActive(page));
- 	}
- out:
--	spin_unlock_irq(&cachep->spinlock);
- 	return ret; 
- }
- 
-diff -Nru a/mm/vmscan.c b/mm/vmscan.c
---- a/mm/vmscan.c	Mon Sep  2 18:46:17 2002
-+++ b/mm/vmscan.c	Mon Sep  2 18:46:17 2002
-@@ -123,11 +123,15 @@
- 		 * stop if we are done.
- 		 */
- 		if (PageSlab(page)) {
--			if (kmem_count_page(page, TestClearPageReferenced(page))) {
--				if (kmem_shrink_slab(page))
--					goto free_ref;
-+			switch (kmem_count_page(page, TestClearPageReferenced(page))) {
-+			case 0:
-+				goto keep_locked;
-+			case 1: 
-+				goto free_ref;
-+			case 2:
-+				goto activate_locked;
- 			}
--			goto keep_locked;
-+			BUG();
- 		}
- 
- 		may_enter_fs = (gfp_mask & __GFP_FS) ||
+I think there's a bug in there, actually.  If all zones have enough
+free memory but there are no 1-order pages available, then the 1-order
+allocator tried to run page reclaim, which will say "nope, nothing
+needs doing".  Eventually, someone else returns some memory and coalescing
+happens.   It's not a very glorious part of the kernel design.
+
+> > It's a ratio of the zone size, and there are a few thresholds in there,
+> > for hysteresis, for emergency allocations, etc.  See free_area_init_core(
+> > )
+> 
+> I took a look, and if I'm calculating things correctly, pages_high seems
+> to be set so that the free list is at most about 0.8% of the total number
+> of pages in the zone.  For larger memories (above about 128 MB), that
+> percentage decreases.  So we're keeping a modest pool of a few hundred
+> pages -- not too big a deal.
+
+Free memory seems to bottom out at about 2.2M on a 2.5G machine.
+
+Note that the kernel statically allocates about 10M when it boots.  This
+is basically a bug, and fixing it is a matter of running around shouting
+at people.  This will happen ;)  This is the low-hanging fruit.
 
 
-----------
+> [From a later email:]
+> > Well, I'm at a bit of a loss to understand what the objective
+> > of all this is.  Is it so that we can effectively increase the
+> > cache size, by not "wasting" all that free memory?
+> 
+> While I suppose it would be to keep those few hundred pages mapped and
+> re-usable by the VM system, it would only make a difference in the miss
+> rate under very tense and unlikely circumstances.  A few pages can make a
+> big difference in the miss rate, but only if those few pages would allow
+> the replacement policy to *just barely* keep the pages cached for long
+> enough before they are referenced again.
 
+See 10M, above.
 
+> My goal was a different one:  I just wanted some further simplification of
+> the replacement mechanism.  When a free page is allocated, it gets mapped
+> into some address space and inserted into the active list (right?).
 
+Inactive, initially.  It changes with the vm-of-the-minute though.
 
+>  If we
+> wanted the active and inactive lists to remain a constant size (and for
+> the movement of pages through those lists to be really simple), we could
+> immediately evict a page from the active list into the inactive list, and
+> then evict some other page from the inactive list to the free list.  If we
+> did that, though, the use of a free list would be superfluous.
+> 
+> Since the approach I'm describing performs the VM bookkeeping during
+> allocation (and, thus, potentially, interrupt) time, it would be a poor
+> choice.  Evictions from the active and inactive lists must be performed at
+> some other time.  Doing so is a tad more complicated, and makes the
+> behavior of the replacement policy harder to model.  It seems, however,
+> that to keep allocation fast, that bit of added complexity is necessary.
+> 
 
-
+Well, we never evict from the active list - just from the tail of the
+inactive list.  But yes.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
