@@ -1,328 +1,100 @@
-Received: from debian from [209.144.230.137] by mail3.iadfw.net
-	(/\##/\ Smail3.1.30.16 #30.61) with esmtp for <linux-mm@kvack.org> sender: <ahaas@neosoft.com>
-	id <mT/17Xidr-0039Q9T@mail3.iadfw.net>; Thu, 25 Jul 2002 08:26:55 -0500 (CDT)
-Date: Thu, 25 Jul 2002 08:25:39 -0500
-From: Art Haas <ahaas@neosoft.com>
-Subject: [PATCH] designated initializer changes for mm/*
-Message-ID: <20020725132539.GB1035@debian>
+Date: Thu, 25 Jul 2002 18:10:59 +0200
+From: Christoph Hellwig <hch@lst.de>
+Subject: [RFC] start_aggressive_readahead
+Message-ID: <20020725181059.A25857@lst.de>
 Mime-Version: 1.0
-Content-Type: multipart/mixed; boundary="bCsyhTFzCvuiizWE"
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
-Cc: trivial@rustcorp.com.au
+To: torvalds@transmeta.com
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
---bCsyhTFzCvuiizWE
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Another patch from the XFS tree, I'd be happy to get some comments on
+this one again.
 
-Hi.
+This function (start_aggressive_readahead()) checks whether all zones
+of the given gfp mask have lots of free pages.  XFS needs this for it's
+own readahead code (used only deep in the directory code, normal file
+readahead is handled by the generic pagecache code).  We perform the
+readahead only is it returns 1 for enough free pages.
 
-Here's a set of small patches that convert the code to using
-the ISO C99 designated initializer syntax. The patches are all
-against 2.5.28.
+We could rip it out of XFS entirely without funcionality-loss, but it
+would cost directory handling performance.
 
-Art Haas
+I'm also open for a better name (I think the current one is very bad,
+but don't have a better idea :)).  I'd also be ineterested in comments
+how to avoid the new function and use existing functionality for it,
+but I've tried to find it for a long time and didn't find something
+suiteable.
 
 -- 
-They that can give up essential liberty to obtain a little temporary
-safety deserve neither liberty nor safety.
- -- Benjamin Franklin, Historical Review of Pennsylvania, 1759
+The US Army issues lap-top computers now to squad-leaders on up. [...]
+Believe me, there is nothing more lethal than a Power Point briefing
+given by an Army person.	-- Leon A. Goldstein
 
---bCsyhTFzCvuiizWE
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: attachment; filename="filemap.c.diff"
-
---- linux-2.5.28/mm/filemap.c.old	2002-07-20 21:58:57.000000000 -0500
-+++ linux-2.5.28/mm/filemap.c	2002-07-24 20:05:37.000000000 -0500
-@@ -1442,7 +1442,7 @@
- }
+--- linux/include/linux/mm.h Wed, 29 May 2002 14:00:22
++++ linux/include/linux/mm.h Mon, 22 Jul 2002 12:06:09
+@@ -460,6 +460,8 @@ extern void FASTCALL(free_pages(unsigned
+ #define __free_page(page) __free_pages((page), 0)
+ #define free_page(addr) free_pages((addr),0)
  
- static struct vm_operations_struct generic_file_vm_ops = {
--	nopage:		filemap_nopage,
-+	.nopage		= filemap_nopage,
- };
++extern int start_aggressive_readahead(int);
++
+ extern void show_free_areas(void);
+ extern void show_free_areas_node(pg_data_t *pgdat);
  
- /* This is used for a general mmap of a disk file */
-
---bCsyhTFzCvuiizWE
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: attachment; filename="numa.c.diff"
-
---- linux-2.5.28/mm/numa.c.old	2002-07-05 18:42:20.000000000 -0500
-+++ linux-2.5.28/mm/numa.c	2002-07-24 20:05:37.000000000 -0500
-@@ -12,7 +12,7 @@
- int numnodes = 1;	/* Initialized for UMA platforms */
+--- linux/kernel/ksyms.c Wed, 17 Jul 2002 12:08:06
++++ linux/kernel/ksyms.c Mon, 22 Jul 2002 12:06:09
+@@ -90,6 +90,7 @@ EXPORT_SYMBOL(exit_fs);
+ EXPORT_SYMBOL(exit_sighand);
  
- static bootmem_data_t contig_bootmem_data;
--pg_data_t contig_page_data = { bdata: &contig_bootmem_data };
-+pg_data_t contig_page_data = { .bdata = &contig_bootmem_data };
- 
- #ifndef CONFIG_DISCONTIGMEM
- 
-
---bCsyhTFzCvuiizWE
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: attachment; filename="page_io.c.diff"
-
---- linux-2.5.28/mm/page_io.c.old	2002-07-20 21:58:57.000000000 -0500
-+++ linux-2.5.28/mm/page_io.c	2002-07-24 20:05:37.000000000 -0500
-@@ -132,11 +132,11 @@
- }
- 
- struct address_space_operations swap_aops = {
--	vm_writeback:	swap_vm_writeback,
--	writepage:	swap_writepage,
--	readpage:	swap_readpage,
--	sync_page:	block_sync_page,
--	set_page_dirty:	__set_page_dirty_nobuffers,
-+	.vm_writeback	= swap_vm_writeback,
-+	.writepage	= swap_writepage,
-+	.readpage	= swap_readpage,
-+	.sync_page	= block_sync_page,
-+	.set_page_dirty	= __set_page_dirty_nobuffers,
- };
+ /* internal kernel memory management */
++EXPORT_SYMBOL(start_aggressive_readahead);
+ EXPORT_SYMBOL(_alloc_pages);
+ EXPORT_SYMBOL(__alloc_pages);
+ EXPORT_SYMBOL(alloc_pages_node);
+--- linux/mm/page_alloc.c Tue, 25 Jun 2002 10:15:12 
++++ linux/mm/page_alloc.c Mon, 22 Jul 2002 12:06:09
+@@ -512,6 +512,37 @@ unsigned int nr_free_highpages (void)
+ #define K(x) ((x) << (PAGE_SHIFT-10))
  
  /*
-
---bCsyhTFzCvuiizWE
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: attachment; filename="readahead.c.diff"
-
---- linux-2.5.28/mm/readahead.c.old	2002-07-20 21:58:57.000000000 -0500
-+++ linux-2.5.28/mm/readahead.c	2002-07-24 20:05:37.000000000 -0500
-@@ -14,8 +14,8 @@
- #include <linux/backing-dev.h>
- 
- struct backing_dev_info default_backing_dev_info = {
--	ra_pages:	(VM_MAX_READAHEAD * 1024) / PAGE_CACHE_SIZE,
--	state:		0,
-+	.ra_pages	= (VM_MAX_READAHEAD * 1024) / PAGE_CACHE_SIZE,
-+	.state		= 0,
- };
- 
- /*
-
---bCsyhTFzCvuiizWE
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: attachment; filename="shmem.c.diff"
-
---- linux-2.5.28/mm/shmem.c.old	2002-07-24 19:42:41.000000000 -0500
-+++ linux-2.5.28/mm/shmem.c	2002-07-24 20:05:38.000000000 -0500
-@@ -1254,14 +1254,14 @@
- }
- 
- static struct inode_operations shmem_symlink_inline_operations = {
--	readlink:	shmem_readlink_inline,
--	follow_link:	shmem_follow_link_inline,
-+	.readlink	= shmem_readlink_inline,
-+	.follow_link	= shmem_follow_link_inline,
- };
- 
- static struct inode_operations shmem_symlink_inode_operations = {
--	truncate:	shmem_truncate,
--	readlink:	shmem_readlink,
--	follow_link:	shmem_follow_link,
-+	.truncate	= shmem_truncate,
-+	.readlink	= shmem_readlink,
-+	.follow_link	= shmem_follow_link,
- };
- 
- static int shmem_parse_options(char *options, int *mode, uid_t *uid, gid_t *gid, unsigned long * blocks, unsigned long *inodes)
-@@ -1462,51 +1462,51 @@
- }
- 
- static struct address_space_operations shmem_aops = {
--	writepage:	shmem_writepage,
--	set_page_dirty:	__set_page_dirty_nobuffers,
-+	.writepage	= shmem_writepage,
-+	.set_page_dirty	= __set_page_dirty_nobuffers,
- };
- 
- static struct file_operations shmem_file_operations = {
--	mmap:	shmem_mmap,
-+	.mmap	= shmem_mmap,
- #ifdef CONFIG_TMPFS
--	read:	shmem_file_read,
--	write:	shmem_file_write,
--	fsync:	shmem_sync_file,
-+	.read	= shmem_file_read,
-+	.write	= shmem_file_write,
-+	.fsync	= shmem_sync_file,
- #endif
- };
- 
- static struct inode_operations shmem_inode_operations = {
--	truncate:	shmem_truncate,
-+	.truncate	= shmem_truncate,
- };
- 
- static struct inode_operations shmem_dir_inode_operations = {
- #ifdef CONFIG_TMPFS
--	create:		shmem_create,
--	lookup:		simple_lookup,
--	link:		shmem_link,
--	unlink:		shmem_unlink,
--	symlink:	shmem_symlink,
--	mkdir:		shmem_mkdir,
--	rmdir:		shmem_rmdir,
--	mknod:		shmem_mknod,
--	rename:		shmem_rename,
-+	.create		= shmem_create,
-+	.lookup		= simple_lookup,
-+	.link		= shmem_link,
-+	.unlink		= shmem_unlink,
-+	.symlink	= shmem_symlink,
-+	.mkdir		= shmem_mkdir,
-+	.rmdir		= shmem_rmdir,
-+	.mknod		= shmem_mknod,
-+	.rename		= shmem_rename,
- #endif
- };
- 
- static struct super_operations shmem_ops = {
--	alloc_inode:	shmem_alloc_inode,
--	destroy_inode:	shmem_destroy_inode,
-+	.alloc_inode	= shmem_alloc_inode,
-+	.destroy_inode	= shmem_destroy_inode,
- #ifdef CONFIG_TMPFS
--	statfs:		shmem_statfs,
--	remount_fs:	shmem_remount_fs,
-+	.statfs		= shmem_statfs,
-+	.remount_fs	= shmem_remount_fs,
- #endif
--	delete_inode:	shmem_delete_inode,
--	drop_inode:	generic_delete_inode,
--	put_super:	shmem_put_super,
-+	.delete_inode	= shmem_delete_inode,
-+	.drop_inode	= generic_delete_inode,
-+	.put_super	= shmem_put_super,
- };
- 
- static struct vm_operations_struct shmem_vm_ops = {
--	nopage:	shmem_nopage,
-+	.nopage	= shmem_nopage,
- };
- 
- static struct super_block *shmem_get_sb(struct file_system_type *fs_type,
-@@ -1518,17 +1518,17 @@
- #ifdef CONFIG_TMPFS
- /* type "shm" will be tagged obsolete in 2.5 */
- static struct file_system_type shmem_fs_type = {
--	owner:		THIS_MODULE,
--	name:		"shmem",
--	get_sb:		shmem_get_sb,
--	kill_sb:	kill_litter_super,
-+	.owner		= THIS_MODULE,
-+	.name		= "shmem",
-+	.get_sb		= shmem_get_sb,
-+	.kill_sb	= kill_litter_super,
- };
- #endif
- static struct file_system_type tmpfs_fs_type = {
--	owner:		THIS_MODULE,
--	name:		"tmpfs",
--	get_sb:		shmem_get_sb,
--	kill_sb:	kill_litter_super,
-+	.owner		= THIS_MODULE,
-+	.name		= "tmpfs",
-+	.get_sb		= shmem_get_sb,
-+	.kill_sb	= kill_litter_super,
- };
- static struct vfsmount *shm_mnt;
- 
-
---bCsyhTFzCvuiizWE
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: attachment; filename="slab.c.diff"
-
---- linux-2.5.28/mm/slab.c.old	2002-07-24 19:42:41.000000000 -0500
-+++ linux-2.5.28/mm/slab.c	2002-07-24 20:05:38.000000000 -0500
-@@ -384,14 +384,14 @@
- 
- /* internal cache of cache description objs */
- static kmem_cache_t cache_cache = {
--	slabs_full:	LIST_HEAD_INIT(cache_cache.slabs_full),
--	slabs_partial:	LIST_HEAD_INIT(cache_cache.slabs_partial),
--	slabs_free:	LIST_HEAD_INIT(cache_cache.slabs_free),
--	objsize:	sizeof(kmem_cache_t),
--	flags:		SLAB_NO_REAP,
--	spinlock:	SPIN_LOCK_UNLOCKED,
--	colour_off:	L1_CACHE_BYTES,
--	name:		"kmem_cache",
-+	.slabs_full	= LIST_HEAD_INIT(cache_cache.slabs_full),
-+	.slabs_partial	= LIST_HEAD_INIT(cache_cache.slabs_partial),
-+	.slabs_free	= LIST_HEAD_INIT(cache_cache.slabs_free),
-+	.objsize	= sizeof(kmem_cache_t),
-+	.flags		= SLAB_NO_REAP,
-+	.spinlock	= SPIN_LOCK_UNLOCKED,
-+	.colour_off	= L1_CACHE_BYTES,
-+	.name		= "kmem_cache",
- };
- 
- /* Guard access to the cache-chain. */
-@@ -2044,10 +2044,10 @@
-  */
- 
- struct seq_operations slabinfo_op = {
--	start:	s_start,
--	next:	s_next,
--	stop:	s_stop,
--	show:	s_show
-+	.start	= s_start,
-+	.next	= s_next,
-+	.stop	= s_stop,
-+	.show	= s_show
- };
- 
- #define MAX_SLABINFO_WRITE 128
-
---bCsyhTFzCvuiizWE
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: attachment; filename="swap_state.c.diff"
-
---- linux-2.5.28/mm/swap_state.c.old	2002-07-20 21:58:57.000000000 -0500
-+++ linux-2.5.28/mm/swap_state.c	2002-07-24 20:05:38.000000000 -0500
-@@ -23,23 +23,23 @@
-  * avoid some special-casing in other parts of the kernel.
-  */
- static struct inode swapper_inode = {
--	i_mapping:	&swapper_space,
-+	.i_mapping	= &swapper_space,
- };
- 
- extern struct address_space_operations swap_aops;
- 
- struct address_space swapper_space = {
--	page_tree:	RADIX_TREE_INIT(GFP_ATOMIC),
--	page_lock:	RW_LOCK_UNLOCKED,
--	clean_pages:	LIST_HEAD_INIT(swapper_space.clean_pages),
--	dirty_pages:	LIST_HEAD_INIT(swapper_space.dirty_pages),
--	io_pages:	LIST_HEAD_INIT(swapper_space.io_pages),
--	locked_pages:	LIST_HEAD_INIT(swapper_space.locked_pages),
--	host:		&swapper_inode,
--	a_ops:		&swap_aops,
--	i_shared_lock:	SPIN_LOCK_UNLOCKED,
--	private_lock:	SPIN_LOCK_UNLOCKED,
--	private_list:	LIST_HEAD_INIT(swapper_space.private_list),
-+	.page_tree	= RADIX_TREE_INIT(GFP_ATOMIC),
-+	.page_lock	= RW_LOCK_UNLOCKED,
-+	.clean_pages	= LIST_HEAD_INIT(swapper_space.clean_pages),
-+	.dirty_pages	= LIST_HEAD_INIT(swapper_space.dirty_pages),
-+	.io_pages	= LIST_HEAD_INIT(swapper_space.io_pages),
-+	.locked_pages	= LIST_HEAD_INIT(swapper_space.locked_pages),
-+	.host		= &swapper_inode,
-+	.a_ops		= &swap_aops,
-+	.i_shared_lock	= SPIN_LOCK_UNLOCKED,
-+	.private_lock	= SPIN_LOCK_UNLOCKED,
-+	.private_list	= LIST_HEAD_INIT(swapper_space.private_list),
- };
- 
- #ifdef SWAP_CACHE_INFO
-
---bCsyhTFzCvuiizWE--
++ * If it returns non zero it means there's lots of ram "free"
++ * (note: not in cache!) so any caller will know that
++ * he can allocate some memory to do some more aggressive
++ * (possibly wasteful) readahead. The state of the memory
++ * should be rechecked after every few pages allocated for
++ * doing this aggressive readahead.
++ *
++ * NOTE: caller passes in gfp_mask of zones to check
++ */
++int start_aggressive_readahead(int gfp_mask)
++{
++	pg_data_t *pgdat = pgdat_list;
++	zonelist_t *zonelist;
++	zone_t **zonep, *zone;
++	int ret = 0;
++
++	do {
++		zonelist = pgdat->node_zonelists + (gfp_mask & GFP_ZONEMASK);
++		zonep = zonelist->zones;
++
++		for (zone = *zonep++; zone; zone = *zonep++)
++			if (zone->free_pages > zone->pages_high * 2)
++				ret = 1;
++
++		pgdat = pgdat->node_next;
++	} while (pgdat);
++
++	return ret;
++}
++
++/*
+  * Show free area list (used inside shift_scroll-lock stuff)
+  * We also calculate the percentage fragmentation. We do this by counting the
+  * memory on each free list with the exception of the first item on the list.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
