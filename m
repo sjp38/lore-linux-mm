@@ -1,36 +1,45 @@
-Received: from digeo-nav01.digeo.com (digeo-nav01.digeo.com [192.168.1.233])
-	by packet.digeo.com (8.9.3+Sun/8.9.3) with SMTP id IAA09601
-	for <linux-mm@kvack.org>; Sun, 29 Sep 2002 08:47:56 -0700 (PDT)
-Message-ID: <3D9720AB.BB226D58@digeo.com>
-Date: Sun, 29 Sep 2002 08:47:55 -0700
-From: Andrew Morton <akpm@digeo.com>
-MIME-Version: 1.0
+Content-Type: text/plain;
+  charset="iso-8859-1"
+From: Ed Tomlinson <tomlins@cam.org>
 Subject: Re: [PATCH] add callback back to slab pruning
-References: <20020928234930.F13817@bitchcake.off.net> <3D968652.28AD6766@digeo.com> <200209290931.29653.tomlins@cam.org>
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Date: Sun, 29 Sep 2002 14:38:16 -0400
+References: <20020928234930.F13817@bitchcake.off.net> <200209290931.29653.tomlins@cam.org> <3D9720AB.BB226D58@digeo.com>
+In-Reply-To: <3D9720AB.BB226D58@digeo.com>
+MIME-Version: 1.0
+Content-Transfer-Encoding: 8bit
+Message-Id: <200209291438.16022.tomlins@cam.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ed Tomlinson <tomlins@cam.org>
+To: Andrew Morton <akpm@digeo.com>
 Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Ed Tomlinson wrote:
-> 
-> Hi Andrew,
-> 
-> I posted this Thursday but it seems to have gotten lost in
-> the storm of messages on slab.
-> 
+On September 29, 2002 11:47 am, Andrew Morton wrote:
+> Ed Tomlinson wrote:
+> > Hi Andrew,
+> >
+> > I posted this Thursday but it seems to have gotten lost in
+> > the storm of messages on slab.
+>
+> Ah, sorry, I neglected to answer.  Yes, I have been testing
+> this for a few days, works fine thanks.
 
-Ah, sorry, I neglected to answer.  Yes, I have been testing
-this for a few days, works fine thanks.
+Been busy have you?  <grin>
 
-Calling out to the shrinker to find out how many objects
-they have is sneaky.
+> Calling out to the shrinker to find out how many objects
+> they have is sneaky.
 
-I haven't looked super-closely at the code, but it'd be nice
-to make shrinker_lock go away ;)
+Yes.  However it does let us have the ratio calculation in one place
+in vmscan.
+
+> I haven't looked super-closely at the code, but it'd be nice
+> to make shrinker_lock go away ;)
+
+Will keep this in mind.
+
+Thanks
+Ed
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
