@@ -1,64 +1,31 @@
-Date: Wed, 02 Jul 2003 13:05:01 -0700
-From: "Martin J. Bligh" <mbligh@aracnet.com>
-Subject: Re: What to expect with the 2.6 VM
-Message-ID: <542640000.1057176301@flay>
-In-Reply-To: <Pine.LNX.4.44.0307021401570.31191-100000@chimarrao.boston.redhat.com>
-References: <Pine.LNX.4.44.0307021401570.31191-100000@chimarrao.boston.redhat.com>
-MIME-Version: 1.0
+Date: Wed, 2 Jul 2003 14:10:55 -0700
+From: Mike Fedyk <mfedyk@matchmail.com>
+Subject: Re: [RFC] My research agenda for 2.7
+Message-ID: <20030702211055.GC13296@matchmail.com>
+References: <200306250111.01498.phillips@arcor.de> <200306262100.40707.phillips@arcor.de> <Pine.LNX.4.53.0306262030500.5910@skynet> <200306270222.27727.phillips@arcor.de> <Pine.LNX.4.53.0306271345330.14677@skynet>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.53.0306271345330.14677@skynet>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@redhat.com>, Andrea Arcangeli <andrea@suse.de>
-Cc: Mel Gorman <mel@csn.ul.ie>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Daniel Phillips <phillips@arcor.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
->> So ether we declare 32bit archs obsolete in production with 2.6, or we
->> drop rmap behind remap_file_pages.
-> 
->> Something has to change since IMHO in the current 2.5.73 remap_file_pages
->> is nearly useless.
-> 
-> Agreed.  What we did for a certain unspecified kernel tree
-> at Red Hat was the following:
-> 
-> 1) limit sys_remap_file_pages functionality to shared memory
->    segments on ramfs (unswappable) and tmpfs (mostly unswappable;))
-> 
-> 2) have the VMAs with remapped pages in them marked VM_LOCKED
-> 
-> 3) do not set up pte chains for the pages that get mapped with
->    install_page
-> 
-> 4) remove said pages from the LRU list, in the ramfs case, they're
->    unswappable anyway so we shouldn't have the VM scan them
-> 
-> The only known user of sys_remap_file_pages was more than happy
-> to have the functionality limited to just what they actually need, 
-> in order to get simpler code with less overhead.
-> 
-> Lets face it, nobody is going to use sys_remap_file_pages for
-> anything but a database shared memory segment anyway. You don't
-> need to care about truncate or the other corner cases.
+On Fri, Jun 27, 2003 at 02:00:42PM +0100, Mel Gorman wrote:
+> You're right, I will need to write a proper RFC one way or the other. I
+> was thinking of using slabs because that way there wouldn't be need to
+> scan all of mem_map, just a small number of slabs. I have no basis for
+> this other than hand waving gestures though.
 
-Well if RH have done this internally, and they invented the thing,
-then I see no reason not do that in 2.5 ... 
+Mel,
 
->> Maybe I'm just taking this out of context, and it's twisting my brain,
->> but as far as I know, the nonlinear vma's *are* backed by pte_chains.
->
-> Rik:
->
-> They are, but IMHO they shouldn't be.  The nonlinear vmas are used
-> only for database shared memory segments and other "bypass the VM"
-> applications, so I don't see any reason why we need to complicate
-> things hopelessly in order to deal with corner cases like truncate.
+This sounds much like something I was reading from Larry McVoy using page
+objects (like one level higher in magnatude than pages).
 
-Agreed. Oddly, most of us seem to agree on this ... ;-)
-
-M.
-
+I don't remember the URL, but there was something pretty extensive from
+Larry already explaining the concept.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
