@@ -1,30 +1,29 @@
-Date: Thu, 16 Dec 2004 23:06:08 +0000
-From: Russell King <rmk+lkml@arm.linux.org.uk>
-Subject: Re: [patch] [RFC] move 'struct page' into its own header
-Message-ID: <20041216230607.B15420@flint.arm.linux.org.uk>
-References: <E1Cf3jM-00034h-00@kernel.beaverton.ibm.com> <20041216222513.GA15451@infradead.org> <1103237161.13614.2388.camel@localhost>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1103237161.13614.2388.camel@localhost>; from haveblue@us.ibm.com on Thu, Dec 16, 2004 at 02:46:01PM -0800
+Date: Fri, 17 Dec 2004 01:36:49 +0100 (CET)
+From: Roman Zippel <zippel@linux-m68k.org>
+Subject: Re: [patch] [RFC] make WANT_PAGE_VIRTUAL a config option
+In-Reply-To: <E1Cf3bP-0002el-00@kernel.beaverton.ibm.com>
+Message-ID: <Pine.LNX.4.61.0412170133560.793@scrub.home>
+References: <E1Cf3bP-0002el-00@kernel.beaverton.ibm.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Dave Hansen <haveblue@us.ibm.com>
-Cc: Christoph Hellwig <hch@infradead.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+Cc: linux-kernel@vger.kernel.org, geert@linux-m68k.org, ralf@linux-mips.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Dec 16, 2004 at 02:46:01PM -0800, Dave Hansen wrote:
-> But, I'm not quite sure why page-flags.h even needs asm/pgtable.h.  I
-> just took it out in i386, and it still compiles just fine.  Maybe it is
-> needed for another architecture.
+Hi,
 
-Removing that include is also fine on ARM.
+On Thu, 16 Dec 2004, Dave Hansen wrote:
 
--- 
-Russell King
- Linux kernel    2.6 ARM Linux   - http://www.arm.linux.org.uk/
- maintainer of:  2.6 PCMCIA      - http://pcmcia.arm.linux.org.uk/
-                 2.6 Serial core
+> I'm working on breaking out the struct page definition into its
+> own file.  There seem to be a ton of header dependencies that
+> crop up around struct page, and I'd like to start getting rid
+> of thise.
+
+Why do you want to move struct page into a separate file?
+
+bye, Roman
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
