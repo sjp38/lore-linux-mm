@@ -1,66 +1,53 @@
-Date: Tue, 16 May 2000 06:53:22 -0700 (PDT)
+Date: Tue, 16 May 2000 07:03:38 -0700 (PDT)
 From: Linus Torvalds <torvalds@transmeta.com>
 Subject: Re: Estrange behaviour of pre9-1
-In-Reply-To: <yttog67xqjq.fsf@vexeta.dc.fi.udc.es>
-Message-ID: <Pine.LNX.4.10.10005160642440.1398-100000@penguin.transmeta.com>
+In-Reply-To: <Pine.LNX.4.21.0005152147490.20410-100000@duckman.distro.conectiva>
+Message-ID: <Pine.LNX.4.10.10005160653380.1398-100000@penguin.transmeta.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Juan J. Quintela" <quintela@fi.udc.es>
-Cc: linux-mm@kvack.org
+To: Rik van Riel <riel@conectiva.com.br>
+Cc: "Juan J. Quintela" <quintela@fi.udc.es>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 
-On 16 May 2000, Juan J. Quintela wrote:
-> Hi
+On Mon, 15 May 2000, Rik van Riel wrote:
+> > 
+> > linus> Think of it as "this user can allocate a few pages, but it's on credit.
+> > linus> They have to be paid back with the appropriate 'try_to_free_pages()'".
 > 
-> linus> That is indeed what my shink_mmap() suggested change does (ie make
-> linus> "sync_page_buffers()" wait for old locked buffers). 
-> 
-> But your change wait for *all* locked buffers, I want to start several
-> writes asynchronously and then wait for one of them.
+> I don't think this will help. Imagine a user firing up 'ls', that
+> will need more than one page. Besides, the difference isn't that
+> we have to free pages, but that we have to deal with a *LOT* of
+> dirty pages at once, unexpectedly.
 
-This is pretty much exactly what my change does - no need to be
-excessively clever.
+The reason it will help is that we can usethe "credit" to balance out the
+spikes.
 
-Remember, we walk the LRU list from the "old" end, and whenever we hita
-dirty buffer we will write it out asynchronously. AND WE WILL MOVE IT TO
-THE TOP OF THE LRU QUEUE!
+Think of how people use credit cards. They get paid once or twice a month,
+andthen they have lots of money. But sometimes there's a big item like a
+cruise in the caribbean, and that rum ended up being more expensive than
+you thought.. Not to mention all those trinkets.
 
-Which means that we will only see actual locked buffers if we have gotten
-through the whole LRU queue without giving our write-outs time to
-complete: which is exactly the situation where we do want to wait for
-them.
+So what do you do? Do you pay it off immediately? Maybe you cannot afford
+to, right then. You'll have to pay it off partially each month, but you
+don't have to pay it all at once. And you have to pay interest.
 
-So normally, we will write out a ton of buffers, and then wait for the
-oldest one. You're obviously right that we may end up waiting for more
-than one buffer, but when that happens it will be the right thing to do:
-whenever we're waiting for the oldest buffer to flush, the others are also
-likely to have flushed (remember - we started them pretty much at the same
-time because we've tried hard to delay the 'run_task(&tq_disk)' too).
+This is a similar situation. We will have to pay interest (== free more
+pages than we actually allocated), and we'll have to do it each month (==
+call try_to_free_pages() on every allocation that happens while we have an
+outstanding balance). But we don't have to pay it all back immediately (==
+a single negative return from try_to_free_pages() does not kill us).
 
->						 This makes the
-> system sure that we don't try to write *all* the memory in one simple
-> call to try_to_free_pages.
+Right now "try_to_free_pages()" tries to always "pay back" something like
+8 or 16 pages for each page we "borrowed". That's good. But let's face it,
+we might be asked to pay back during a market slump when all the pages are
+dirty, and while we have the "money", it's locked up right now. It would
+be ok to pay off just one or two pages (== miniumum monthly payment), as
+long as we pay back the rest later.
 
-Well, right now we cannot avoid doing that. The reason is simply that the
-current MM layerdoes not know how many pages are dirty. THAT is a problem,
-but it's not a problem we're going to solve for 2.4.x. 
-
-If you actually were to use "write()", or if the load on the machine was
-more balanced than just one large "mmap002", you wouldn't see the
-everything-at-once behaviour, but ..
-
-> Yes, I agree here, but this program is based in one application that
-> gets Ooops in pre6 and previous kernels.  I made the test to know that
-> the code works, I know that the thing that does mmap002 is very rare,
-> but not one reason to begin doing Oops/killing innocent processes.
-> That is all the point of that test, not optimise performance for it.
-
-Absolutely. We apparently do not get the oopses any more, but the
-out-of-memory behaviour should be fixed. And never fear, we'llget it
-fixed.
+See?
 
 		Linus
 
