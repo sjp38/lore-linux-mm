@@ -1,42 +1,132 @@
-Date: Fri, 21 Sep 2001 11:27:23 -0400
-Subject: Re: broken VM in 2.4.10-pre9
-Message-ID: <20010921112722.A3646@cs.cmu.edu>
-References: <Pine.LNX.4.33L.0109200903100.19147-100000@imladris.rielhome.conectiva> <20010921080549Z16344-2758+350@humbolt.nl.linux.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20010921080549Z16344-2758+350@humbolt.nl.linux.org>
-From: Jan Harkes <jaharkes@cs.cmu.edu>
+Received: from exch-staff1.ul.ie ([136.201.1.64])
+ by ul.ie (PMDF V5.2-32 #41949) with ESMTP id <0GK000M36SK5ZD@ul.ie> for
+ linux-mm@kvack.org; Fri, 21 Sep 2001 17:02:30 +0100 (BST)
+Content-return: allowed
+Date: Fri, 21 Sep 2001 17:07:34 +0100
+From: "Gabriel.Leen" <Gabriel.Leen@ul.ie>
+Subject: RE: Process not given >890MB on a 4MB machine ?????????
+Message-id: <5D2F375D116BD111844C00609763076E050D1658@exch-staff1.ul.ie>
+MIME-version: 1.0
+Content-type: text/plain
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Daniel Phillips <phillips@bonn-fries.net>
-Cc: Rik van Riel <riel@conectiva.com.br>, Alan Cox <alan@lxorguk.ukuu.org.uk>, "Eric W. Biederman" <ebiederm@xmission.com>, Rob Fuller <rfuller@nsisoftware.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Benjamin LaHaise <bcrl@redhat.com>, "'ebiederm@xmission.com'" <ebiederm@xmission.com>, "'tvignaud@mandrakesoft.com'" <tvignaud@mandrakesoft.com>
+Cc: "Gabriel.Leen" <gabriel.leen@ul.ie>, "'linux-mm@kvack.org'" <linux-mm@kvack.org>, "'brian@worldcontrol.com'" <brian@worldcontrol.com>, "'arjan@fenrus.demon.nl'" <arjan@fenrus.demon.nl>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Sep 21, 2001 at 10:13:11AM +0200, Daniel Phillips wrote:
->   - small inactive list really means large active list (and vice versa)
->   - aging increments need to depend on the size of the active list
->   - "exponential" aging may be completely bogus
+Hello everybody,
+Thanks for your help.
 
-I don't think so, whenever there is sufficient memory pressure, the scan
-of the active list is not only done by kswapd, but also by the page
-allocations.
+Unfortunately the package which I am using is a pre-compiled distribution,
+so that limits what I can do with it :(
+But I will hasle the developers and see what version of glibc they used.
 
-This does have the nice effect that with a large active list on a system
-that has a working set that fits in memory, pages basically always age
-up, and we get an automatic used-once/drop-behind behaviour for
-streaming data because the age of these pages is relatively low.
+QUESTION:
+Have you actualy run a single process on the rawhide distribution which uses
+~3GB ????????????
+Please say YES :)
 
-As soon as the rate of new allocations increases to the point that
-kswapd can't keep up, which happens if the number of cached used-once
-pages is too small, or the working set expands so that it doesn't fit in
-memory. The memory shortage then causes all pages to agressively get
-aged down, pushing out the less frequently used pages of the working set.
+Red Hat kernel 2.4.9 as in 2.4.9-0.5 from rawhide ?
+It should work, you should be able to get close to 3Gb....
 
-Exponential down aging simply causes us to loop fewer times in
-do_try_to_free_pages is such situations.
+++++++++++++++++++++++++++++++++++++++++++++++++++++
+Some more info:
+I have a small program listing attached which has helped me to identify the
+problem.
+It just gobbles up memory and writes zeros and f's to it
 
-Jan
+When I ran this on the kernel distribution out of the Box for Linux 7.1
+delux
+it would only work up to 1.2GB and then malloc returned NULL, continue
+writing the
+error messages to the console and eventually terminate normally.
+
+Then I compiled the 2.4.9 kernel with the patch from Alan and it will run up
+to 2GB
+but not more, now the error occurs straight away when I hit run:
+"segmentation fault"
+
+Previously on the older kernel it would run when malloc returned NULL, the
+program
+continued writing the error and terminated normally.
+Now the kernel appears to be psychic or something ?
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+Thank you again for your help, much appreciated,
+Gabriel
+
+
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+
+#include <stdlib.h>
+
+// Change SIZE for experiments
+// size in MegaBytes.
+#define SIZE 300
+
+// Memory is allocated in SIZE  blocks of allocation units.
+// currently all allocation units are stored in one array.
+#define DEFAULT_BLOCK 1024
+#define ALLOCATION_UNIT 1024
+
+int main() {
+        int c, i,j;
+        char *ch;
+        char *charray[SIZE*DEFAULT_BLOCK];
+
+        for( i = 0; i < SIZE; i++ ) {
+                for( c = 0; c < DEFAULT_BLOCK; c++ ) {
+                        ch = malloc(ALLOCATION_UNIT);
+                        if( ch == NULL )
+                                printf("%d FAILED", c);
+			charray[(i*DEFAULT_BLOCK)+c]=ch;
+
+                }
+                printf("%d\n", i);
+
+                if( i % 10 == 0 )
+                        sleep(1);
+        }
+	printf("writing 0x00-s to memory ...\n");
+        for( i = 0; i < SIZE; i++ ) {
+                for( c = 0; c < DEFAULT_BLOCK; c++ ) {
+                	ch=charray[(i*DEFAULT_BLOCK)+c];
+			for(j=0;j<ALLOCATION_UNIT;j++) {
+				ch[j]=0x00;
+			}
+                }
+                printf("%d\n", i);
+
+                if( i % 10 == 0 )
+                        sleep(1);
+        }
+	printf("writing 0xFF-s to memory ...\n");
+        for( i = 0; i < SIZE; i++ ) {
+                for( c = 0; c < DEFAULT_BLOCK; c++ ) {
+                	ch=charray[(i*DEFAULT_BLOCK)+c];
+			for(j=0;j<ALLOCATION_UNIT;j++) {
+				ch[j]=0xFF;
+			}
+                }
+                printf("%d\n", i);
+
+                if( i % 10 == 0 )
+                        sleep(1);
+        }
+	printf("Memory allocation succeeded. Total allocated memory in
+kilobytes = %d\n",\
+
+((DEFAULT_BLOCK*SIZE*ALLOCATION_UNIT)+sizeof(charray))/1024);
+        printf("sleeping for 30 seconds ...\n");
+        sleep(30);
+
+        return 0;
+}
+
+
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	END
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
