@@ -1,42 +1,43 @@
-Message-ID: <37F8DCD1.E726CBBC@switchboard.ericsson.se>
-Date: Mon, 04 Oct 1999 18:58:57 +0200
-From: Marcus Sundberg <erammsu@kieraypc01.p.y.ki.era.ericsson.se>
-MIME-Version: 1.0
+Date: Mon, 4 Oct 1999 13:27:43 -0400 (EDT)
+From: James Simmons <jsimmons@edgeglobal.com>
 Subject: Re: MMIO regions
-References: <Pine.LNX.4.10.9910041028350.7066-100000@imperial.edgeglobal.com>
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <Pine.LNX.3.96.991004115631.500A-100000@kanga.kvack.org>
+Message-ID: <Pine.LNX.4.10.9910041308080.8295-100000@imperial.edgeglobal.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: James Simmons <jsimmons@edgeglobal.com>
-Cc: linux-mm@kvack.org
+To: "Benjamin C.R. LaHaise" <blah@kvack.org>
+Cc: Linux MM <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-James Simmons wrote:
-> 
-> Howdy again!!
-> 
->    I noticed something for SMP machines with all the dicussion about
-> concurrent access to memory regions. What happens when you have two
-> processes that have both mmapped the same MMIO region for some card.
-> Doesn't have to be a video card,. On a SMP machine it is possible that
-> both processes could access the same region at the same time. This could
-> cause the card to go into a indeterminate state. Even lock the machine.
-> Does their exist a way to handle this? Also some cards have mulitple MMIO
-> regions. What if a process mmaps one MMIO region of this card and another
-> process mmaps another MMIO region of this card. Now process one could
-> alter the card in such a way it could effect the results that process two
-> is expecting. How is this dealt with? Is it dealt with? If not what would
-> be a good way to handle this?
+On Mon, 4 Oct 1999, Benjamin C.R. LaHaise wrote:
 
-AFAIK no drivers except fbcon drivers map any IO-region to userspace.
+> On Mon, 4 Oct 1999, James Simmons wrote:
+> 
+> > And if the process holding the locks dies then no other process can access
+> > this resource. Also if the program forgets to release the lock you end up
+> > with other process never being able to access this piece of hardware.   
+> 
+> Eh?  That's simply not true -- it's easy enough to handle via a couple of
+> different means: in the release fop or munmap which both get called on
+> termination of a task.  
 
-//Marcus
--- 
--------------------------------+------------------------------------
-        Marcus Sundberg        | http://www.stacken.kth.se/~mackan/
- Royal Institute of Technology |       Phone: +46 707 295404
-       Stockholm, Sweden       |   E-Mail: mackan@stacken.kth.se
+Which means only one application can ever have access to the MMIO. If
+another process wanted it then this application would have to tell the
+other appilcation hey I want it so unmap. Then the application demanding
+it would then have to mmap it.  
+
+> Or in userspace from the SIGCHLD to the parent, 
+
+Thats assuming its always a child that has access to a MMIO region.
+
+> or if you're really paranoid, you can save the pid in an owner field in
+the
+> lock and periodically check that the process is still there.
+ 
+How would you use this method?
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
