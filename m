@@ -1,106 +1,67 @@
-Date: Thu, 23 Sep 2004 11:24:16 +0200
+Date: Thu, 23 Sep 2004 11:29:54 +0200
 From: Andi Kleen <ak@suse.de>
-Subject: Re: [PATCH 1/2] mm: page cache mempolicy for page cache allocation
-Message-ID: <20040923092416.GC6146@wotan.suse.de>
-References: <20040923043236.2132.2385.23158@raybryhome.rayhome.net> <20040923043246.2132.91877.24290@raybryhome.rayhome.net>
+Subject: Re: [PATCH 2/2] mm: eliminate node 0 bias in MPOL_INTERLEAVE
+Message-ID: <20040923092954.GA4836@wotan.suse.de>
+References: <20040923043236.2132.2385.23158@raybryhome.rayhome.net> <20040923043256.2132.93167.33080@raybryhome.rayhome.net>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20040923043246.2132.91877.24290@raybryhome.rayhome.net>
+In-Reply-To: <20040923043256.2132.93167.33080@raybryhome.rayhome.net>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Ray Bryant <raybry@austin.rr.com>
-Cc: Andi Kleen <ak@suse.de>, William Lee Irwin III <wli@holomorphy.com>, Andrew Morton <akpm@osdl.org>, linux-mm <linux-mm@kvack.org>, Jesse Barnes <jbarnes@sgi.com>, Dan Higgins <djh@sgi.com>, Dave Hansen <haveblue@us.ibm.com>, lse-tech <lse-tech@lists.sourceforge.net>, Brent Casavant <bcasavan@sgi.com>, "Martin J. Bligh" <mbligh@aracnet.com>, linux-kernel <linux-kernel@vger.kernel.org>, Ray Bryant <raybry@sgi.com>, Paul Jackson <pj@sgi.com>, Nick Piggin <piggin@cyberone.com.au>
+Cc: Andi Kleen <ak@suse.de>, William Lee Irwin III <wli@holomorphy.com>, Andrew Morton <akpm@osdl.org>, linux-mm <linux-mm@kvack.org>, Jesse Barnes <jbarnes@sgi.com>, Dan Higgins <djh@sgi.com>, lse-tech <lse-tech@lists.sourceforge.net>, Brent Casavant <bcasavan@sgi.com>, "Martin J. Bligh" <mbligh@aracnet.com>, linux-kernel <linux-kernel@vger.kernel.org>, Nick Piggin <piggin@cyberone.com.au>, Ray Bryant <raybry@sgi.com>, Paul Jackson <pj@sgi.com>, Dave Hansen <haveblue@us.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-> +/* policy selection bits are passed from user shifted left by this amount */
-> +#define REQUEST_POLICY_SHIFT	16
-> +#define REQUEST_POLICY_PAGE     POLICY_PAGE << REQUEST_POLICY_SHIFT
-> +#define REQUEST_POLICY_PAGECACHE POLICY_PAGECACHE << REQUEST_POLICY_SHIFT
-> +#define REQUEST_POLICY_MASK     (0x3FFF) << REQUEST_POLICY_SHIFT
+On Wed, Sep 22, 2004 at 11:32:45PM -0500, Ray Bryant wrote:
+> Each of these cases potentially breaks the (assumed) invariant of
 
-Please put brackets around the macros. Putting them around numbers
-is not needed though @)
+I would prefer to keep the invariant.
 
+> +++ linux-2.6.9-rc2-mm1/mm/mempolicy.c	2004-09-21 17:44:58.000000000 -0700
+> @@ -435,7 +435,7 @@ asmlinkage long sys_set_mempolicy(int re
+>  		default_policy[policy] = new;
+>  	}
+>  	if (new && new->policy == MPOL_INTERLEAVE)
+> -		current->il_next = find_first_bit(new->v.nodes, MAX_NUMNODES);
+> +		current->il_next = current->pid % MAX_NUMNODES;
 
-> +#define REQUEST_POLICY_DEFAULT  (0x8000) << REQUEST_POLICY_SHIFT
-> +
->  /* Flags for get_mem_policy */
->  #define MPOL_F_NODE	(1<<0)	/* return next IL mode instead of node mask */
->  #define MPOL_F_ADDR	(1<<1)	/* look up vma using address */
-> @@ -31,6 +54,8 @@
->  #include <linux/slab.h>
->  #include <linux/rbtree.h>
->  #include <asm/semaphore.h>
-> +#include <linux/sched.h>
-> +#include <asm/current.h>
+Please do the find_next/find_first bit here in the slow path. 
 
-Why is that needed? I don't see any users for this.  Please avoid this 
-if possible, we already have too much include dependency spagetti.
+Another useful change may be to check if il_next points to a node
+that is in the current interleaving mask. If yes don't change it.
+This way skew when interleaving policy is set often could be avoided.
 
-
-> --- linux-2.6.9-rc2-mm1.orig/include/linux/sched.h	2004-09-16 12:54:41.000000000 -0700
-> +++ linux-2.6.9-rc2-mm1/include/linux/sched.h	2004-09-22 08:48:45.000000000 -0700
-> @@ -31,6 +31,8 @@
->  #include <linux/pid.h>
->  #include <linux/percpu.h>
->  
-> +#include <linux/mempolicy.h>
-
-I also don't see why this should be needed. Please remove.
-
-> +	for(i=0;i<NR_MEM_POLICIES;i++)
-
-There should be more spaces here (similar in other loops) 
-
-
->  	int err, pval;
->  	struct mm_struct *mm = current->mm;
->  	struct vm_area_struct *vma = NULL;
-> -	struct mempolicy *pol = current->mempolicy;
-> +	struct mempolicy *pol = NULL;
-> +	int policy_type, request_policy_default;
->  
->  	if (flags & ~(unsigned long)(MPOL_F_NODE|MPOL_F_ADDR))
->  		return -EINVAL;
->  	if (nmask != NULL && maxnode < numnodes)
->  		return -EINVAL;
-> +
-> +	policy_type = (flags & REQUEST_POLICY_MASK) > REQUEST_POLICY_SHIFT;
-> +	request_policy_default = (flags & REQUEST_POLICY_DEFAULT);
-
-Why is that not an MPOL_F_* ? 
-
->  /* Slow path of a mempolicy copy */
->  struct mempolicy *__mpol_copy(struct mempolicy *old)
-> @@ -1093,8 +1146,8 @@ void __init numa_policy_init(void)
->  	/* Set interleaving policy for system init. This way not all
->  	   the data structures allocated at system boot end up in node zero. */
->  
-> -	if (sys_set_mempolicy(MPOL_INTERLEAVE, nodes_addr(node_online_map),
-> -							MAX_NUMNODES) < 0)
-> +	if (sys_set_mempolicy(REQUEST_POLICY_PAGE | MPOL_INTERLEAVE, 
-> +		nodes_addr(node_online_map), MAX_NUMNODES) < 0)
-
-That's definitely wrong, the boot time interleaving is not for the page
-cache but for all allocations. There are not even page cache allocations
-that early.
-
-Overall when I look at all the complications you add for the per process
-page policy which doesn't even have a demonstrated need I'm not sure
-it is really worth it.
-
->  		printk("numa_policy_init: interleaving failed\n");
+>  	return 0;
 >  }
 >  
-> @@ -1102,5 +1155,5 @@ void __init numa_policy_init(void)
->   * Assumes fs == KERNEL_DS */
->  void numa_default_policy(void)
->  {
-> -	sys_set_mempolicy(MPOL_DEFAULT, NULL, 0);
-> +	sys_set_mempolicy(REQUEST_POLICY_PAGE | MPOL_DEFAULT, NULL, 0);
+> @@ -714,6 +714,11 @@ static unsigned interleave_nodes(struct 
+>  
+>  	nid = me->il_next;
+>  	BUG_ON(nid >= MAX_NUMNODES);
+> +	if (!test_bit(nid, policy->v.nodes)) {
+> +		nid = find_next_bit(policy->v.nodes, MAX_NUMNODES, 1+nid);
+> +		if (nid >= MAX_NUMNODES)
+> +			nid = find_first_bit(policy->v.nodes, MAX_NUMNODES);
+> +	}
 
-Same.
+And remove it here.
+
+>  	next = find_next_bit(policy->v.nodes, MAX_NUMNODES, 1+nid);
+>  	if (next >= MAX_NUMNODES)
+>  		next = find_first_bit(policy->v.nodes, MAX_NUMNODES);
+> Index: linux-2.6.9-rc2-mm1/kernel/fork.c
+> ===================================================================
+> --- linux-2.6.9-rc2-mm1.orig/kernel/fork.c	2004-09-21 16:24:49.000000000 -0700
+> +++ linux-2.6.9-rc2-mm1/kernel/fork.c	2004-09-21 17:41:12.000000000 -0700
+> @@ -873,6 +873,8 @@ static task_t *copy_process(unsigned lon
+>  			goto bad_fork_cleanup;
+>  		}
+>  	}
+> +	/* randomize placement of first page across nodes */
+> +	p->il_next = p->pid % MAX_NUMNODES;
+
+Same here.
 
 -Andi
 --
