@@ -1,5 +1,5 @@
-Message-Id: <5.1.1.6.2.20030119090404.00c82030@pop.gmx.net>
-Date: Sun, 19 Jan 2003 09:04:47 +0100
+Message-Id: <5.1.1.6.2.20030119090508.00cbd808@pop.gmx.net>
+Date: Sun, 19 Jan 2003 09:06:31 +0100
 From: Mike Galbraith <efault@gmx.de>
 Subject: Re: 2.5.59mm2 BUG at fs/jbd/transaction.c:1148
 In-Reply-To: <20030119000548.6a6e26e5.akpm@digeo.com>
@@ -26,9 +26,10 @@ At 12:05 AM 1/19/2003 -0800, Andrew Morton wrote:
 >
 >You using data=journal?
 
-Yup, on /var.
+(p.s. it isn't a repeatable oops.  i've done SysRq-S many times)
 
          -Mike
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
