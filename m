@@ -1,68 +1,65 @@
-Subject: Re: Please test: workaround to help swapoff behaviour
-Message-ID: <OF4314E00C.5B8A0E4C-ON85256A64.006F54E0@pok.ibm.com>
-From: "Bulent Abali" <abali@us.ibm.com>
-Date: Thu, 7 Jun 2001 16:33:38 -0400
+Date: Thu, 7 Jun 2001 13:43:33 -0700 (PDT)
+From: Linus Torvalds <torvalds@transmeta.com>
+Subject: Re: Background scanning change on 2.4.6-pre1
+In-Reply-To: <Pine.LNX.4.21.0106071545520.1156-100000@freak.distro.conectiva>
+Message-ID: <Pine.LNX.4.21.0106071330060.6510-100000@penguin.transmeta.com>
 MIME-Version: 1.0
-Content-type: text/plain; charset=us-ascii
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Marcelo Tosatti <marcelo@conectiva.com.br>
-Cc: Mike Galbraith <mikeg@wen-online.de>, "Eric W. Biederman" <ebiederm@xmission.com>, Derek Glidden <dglidden@illusionary.com>, lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+Cc: lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On Thu, 7 Jun 2001, Marcelo Tosatti wrote:
+> 
+> Who did this change to refill_inactive_scan() in 2.4.6-pre1 ? 
 
+I think it was Andreas Dilger..
 
-
->This is for the people who has been experiencing the lockups while running
->swapoff.
->
->Please test. (against 2.4.6-pre1)
->
->
->--- linux.orig/mm/swapfile.c Wed Jun  6 18:16:45 2001
->+++ linux/mm/swapfile.c Thu Jun  7 16:06:11 2001
->@@ -345,6 +345,8 @@
 >         /*
->          * Find a swap page in use and read it in.
+>          * When we are background aging, we try to increase the page aging
+>          * information in the system.
 >          */
->+        if (current->need_resched)
->+             schedule();
->         swap_device_lock(si);
->         for (i = 1; i < si->max ; i++) {
->              if (si->swap_map[i] > 0 && si->swap_map[i] != SWAP_MAP_BAD)
-{
+>         if (!target)
+>                 maxscan = nr_active_pages >> 4;
+> 
+> This is going to make all pages have age 0 on an idle system after some
+> time (the old code from Rik which has been replaced by this code tried to 
+> avoid that)
 
+He posted a nice explanation of how this change made behaviour noticeably
+smoother, and how you could actually see the nicer balance between the
+active and inactive lists using osview.
 
-I tested your patch against 2.4.5.  It works.  No more lockups.  Without
-the
-patch it took 14 minutes 51 seconds to complete swapoff (this is to recover
-1.5GB of
-swap space).  During this time the system was frozen.  No keyboard, no
-screen, etc. Practically locked-up.
+The code is not necessarily "correct", but this patch was accompanied by
+useful real-life user information.
 
-With the patch there are no more lockups. Swapoff kept running in the
-background.
-This is a winner.
+Now, I think the problem with the old code was that it didn't do _any_
+background page aging if "inactive" was large enough. And that really
+doesn't make all that much sense. Background page aging is needed to
+"sort" the active list, regardless of how many inactive pages there are.
 
-But here is the caveat: swapoff keeps burning 100% of the cycles until it
-completes.
-This is not going to be a big deal during shutdowns.  Only when you enter
-swapoff from
-the command line it is going to be a problem.
+The decision to not do page aging should not be based on the number of
+inactive pages, and I think the patch is correct in that sense.
 
-I looked at try_to_unuse in swapfile.c.  I believe that the algorithm is
-broken.
-For each and every swap entry it is walking the entire process list
-(for_each_task(p)).  It is also grabbing a whole bunch of locks
-for each swap entry.  It might be worthwhile processing swap entries in
-batches instead of one entry at a time.
+Now, if you were to change the code to something like
 
-In any case, I think having this patch is worthwhile as a quick and dirty
-remedy.
+	/* background scanning? */
+	if (!target) {
+		if (atomic_read(page_aging) <= 0)
+			return 0;
+		maxscan = nr_active_pages >> 4;
+	}
 
-Bulent Abali
+and make the "page_aging" be something that goes up when we age stuff up
+and goes down when we age it down, and does the proper balancing, THAT
+would probably be ok. Then the decision to not age in the background would
+be based on whether we have lots of pages getting aged up or not.
 
+Heuristics should make sense, not be "random".
 
+		Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
