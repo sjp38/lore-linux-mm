@@ -1,85 +1,48 @@
-Date: Thu, 2 May 2002 14:24:41 +0530
-From: Suparna Bhattacharya <suparna@in.ibm.com>
-Subject: Re: [PATCH]Fix: Init page count for all pages during higher order allocs
-Message-ID: <20020502142441.A1668@in.ibm.com>
-Reply-To: suparna@in.ibm.com
-References: <20020429202446.A2326@in.ibm.com> <m1r8ky1jzu.fsf@frodo.biederman.org> <20020430110108.A1275@in.ibm.com> <3CCEF4CC.C56E31B8@zip.com.au>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <3CCEF4CC.C56E31B8@zip.com.au>; from akpm@zip.com.au on Tue, Apr 30, 2002 at 12:47:24PM -0700
+Date: Thu, 2 May 2002 14:08:50 +0100 (BST)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: Re: [PATCH]Fix: Init page count for all pages during higher order
+ allocs
+In-Reply-To: <20020502142441.A1668@in.ibm.com>
+Message-ID: <Pine.LNX.4.21.0205021312370.999-100000@localhost.localdomain>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@zip.com.au>
-Cc: "Eric W. Biederman" <ebiederm@xmission.com>, linux-kernel@vger.kernel.org, marcelo@brutus.conectiva.com.br, linux-mm@kvack.org
+To: Suparna Bhattacharya <suparna@in.ibm.com>
+Cc: Andrew Morton <akpm@zip.com.au>, "Eric W. Biederman" <ebiederm@xmission.com>, linux-kernel@vger.kernel.org, marcelo@brutus.conectiva.com.br, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Apr 30, 2002 at 12:47:24PM -0700, Andrew Morton wrote:
-> Suparna Bhattacharya wrote:
-> > 
-> > ...
-> > > It might make sense to add a PG_large flag and
-> > > then in the immediately following struct page add a pointer to the next
-> > > page, so you can identify these pages by inspection.  Doing something
-> > > similar to the PG_skip flag.
-> > 
-> > Maybe different solutions could emerge for this in 2.4 and 2.5.
-> > 
-> > Even a PG_partial flag for the partial pages will enable us to
-> > traverse back to the main page, and vice-versa to determine the
-> > partial pages covered by the main page, without any additional
-> > pointers. Is that an acceptable option for 2.4 ? (That's one
-> > more page flag ...)
-> > 
-> 
-> I'd suggest that you go with the PG_partial thing for the
-> follow-on pages.
-> 
-> If you have a patch for crashdumps, and that patch is
-> included in the main kernel, and it happens to rely on the
-> addition of a new page flag well gee, that's a tiny change.
-> 
-> Plus it only affects code paths in the `order > 0' case,
-> which are rare.
-> 
-> Plus you can independently use PG_partial to detect when
-> someone is freeing pages from the wrong part of a higher-order
-> allocation - that's a feature ;)
+On Thu, 2 May 2002, Suparna Bhattacharya wrote:
+[ discussion of PG_inuse / PG_partial / PG_large snipped ]
 
-I guess the current check for page count during free should catch
-this too in general. Possibly PG_partial would be more reliable 
-because the page count is more susceptible to modification as it
-is touched more often ... 
+Any of those can handle that job (distinguishing non0orders),
+but I do believe you want a further PG_ flag for crash dumps.
 
-> 
-> An alternative is to just set PG_inuse against _all_ pages
-> in rmqueue(), and clear PG_inuse against all pages in
-> __free_pages_ok().  Which seems cleaner, and would fix other
-> problems, I suspect.
+The pages allocated GFP_HIGHUSER are about as uninteresting
+as the free pages: the cases where they're interesting (for
+analyzing a kernel crash, as opposed to snooping on a crashed
+customer's personal data!) are _very_ rare, but the waste of
+space and time putting them in a crash dump is very often
+abominable, and of course worse on larger machines.
 
-This works well for us. If no one minds the extra flag, and it
-is preferable to the option of initializing page count for 
-higher order pages, we'll go ahead and do this.
- 
-BTW, with PG_inuse, we can detect higher order pages too - ones
-which are in use, but have a zero page count, i.e. PG_inuse +
-zero page count == equivalent to == PG_partial. So it is possible
-to locate the main page (or initial page) of the higher order
-area, just as with PG_partial.
+As someone else noted in this thread, the kernel tries to keep
+pages in use anyway, so omitting free pages won't buy you a great
+deal on its own.  And I think it's to omit free pages that you want
+to distinguish the count 0 continuations from the count 0 frees?
 
-Likewise, with PG_partial, since this would be set and cleared
-during alloc/free, we can figure out if a page is in use by
-checking if page count is non-zero or this is a partial page,
-i.e. PG_Partial | page_count > 0 == equivalent to == PG_inuse.
+PG_highuser? PG_data?  Or inverses: PG_internal? PG_dumpable?
+I think not PG_highuser, because it's too specific to what just
+happens to be the best, but inadequate, test I've found so far.
 
-We can take any one way and define appropriate macros to
-get both effects.
+A first guess is that pages allocated with __GFP_HIGHMEM can be
+omitted from a dump, but that works out wrong on vmalloced space
+and on highmem pagetables, both of which are important in a dump.
+GFP_HIGHUSER test dumps vmalloced pages, and both Andrea's 2.4 or
+Ingo's 2.5 highmem pagetables.  But (notably in reboot after crash:
+dump copied from swap) memory can be full of GFP_USER blockdev pages.
 
-Regards
-Suparna
+Hugh
 
-> 
-> -
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
