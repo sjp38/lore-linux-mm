@@ -1,37 +1,75 @@
-Subject: Re: ptes flags in compressed cache
-References: <20001026135245.B19100@linux.ime.usp.br>
-	<20001026165821.W20050@redhat.com>
-From: Christoph Rohland <cr@sap.com>
-Date: 27 Oct 2000 09:59:13 +0200
-In-Reply-To: "Stephen C. Tweedie"'s message of "Thu, 26 Oct 2000 16:58:21 +0100"
-Message-ID: <m3bsw6vhny.fsf@linux.local>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+From: jfm2@club-internet.fr
+In-reply-to: <Pine.LNX.4.10.10010271832020.13084-100000@dax.joh.cam.ac.uk>
+	(message from James Sutherland on Fri, 27 Oct 2000 18:36:13 +0100
+	(BST))
+Subject: Re: Discussion on my OOM killer API
+References: <Pine.LNX.4.10.10010271832020.13084-100000@dax.joh.cam.ac.uk>
+Message-Id: <20001027221259.C0ED4F42C@agnes.fremen.dune>
+Date: Sat, 28 Oct 2000 00:12:59 +0200 (CEST)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Stephen C. Tweedie" <sct@redhat.com>
-Cc: "Rodrigo S. de Castro" <rcastro@linux.ime.usp.br>, linux-mm@kvack.org
+To: jas88@cam.ac.uk
+Cc: ingo.oeser@informatik.tu-chemnitz.de, riel@conectiva.com.br, torvalds@transmeta.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-"Stephen C. Tweedie" <sct@redhat.com> writes:
-
-> On Thu, Oct 26, 2000 at 01:52:45PM -0200, Rodrigo S. de Castro wrote:
-> > 
-> > 	I am working on a compressed cache for 2.2.16 and I am
-> > currently in a cache with no compression implementation. Well, at this
-> > step, I gotta a doubt of how can I mark the pages (actually, ptes)
-> > that are in my cache and neither present in memory nor in swap. This
-> > is essential when I have a page fault, and this page is not present in
-> > memory.
 > 
-> Reserve a SWP_ENTRY for compressed pages.  There's precedent for that:
-> SHM in 2.2 already uses that mechanism for swapped-out shared memory
-> pages.
+> On Fri, 27 Oct 2000, Ingo Oeser wrote:
+> 
+> > On Fri, Oct 27, 2000 at 12:58:44AM +0100, James Sutherland wrote:
+> > > Which begs the question, where did the userspace OOM policy daemon go? It,
+> > > coupled with Rik's simple in-kernel last-ditch handler, should cover most
+> > > eventualities without the need for nasty kernel kludges.
+> > 
+> > If I do the full blown variant of my patch: 
+> > 
+> > echo "my-kewl-oom-killer" >/proc/sys/vm/oom_handler
+> > 
+> > will try to load the module with this name for a new one and
+> > uninstall the old one.
+> 
+> EBADIDEA. The kernel's OOM killer is a last ditch "something's going to
+> die - who's first?" - adding extra bloat like this is BAD.
+> 
+> Policy should be decided user-side, and should prevent the kernel-side
+> killer EVER triggering.
+> 
 
-No, shm does not use a SWP_TYPE. It only pretends to do ;-)
+Only problem is that your user side process will have been pushed out
+of memory by netcape and that in this kind of situations it will take
+a looooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooong
+time to be recalled from swap and it being able to kill anything.
+Well before it comes back netscape will have eaten all remaining
+memory so kernel will have to decide by itself.
 
-Greetings
-                Christoph
+Only solution is to allow the OOM never to be swapped but you also
+need all libraries to remain in memory or have the kernel check OOM is
+statically linked.  However this user space OOM will then have a
+sigificantly memory larger footprint than a kernel one and don't
+forget it cannot be swapped.
+
+> > The original idea was an simple "I install a module and lock it
+> > into memory" approach[1] for kernel hackers, which is _really_
+> > easy to to and flexibility for nothing[2].
+> > 
+> > If the Rik and Linus prefer the user-accessable variant via
+> > /proc, I'll happily implement this.
+> > 
+> > I just intended to solve a "religious" discussion via code
+> > instead of words ;-)
+> 
+> I was planning to implement a user-side OOM killer myself - perhaps we
+> could split the work, you do kernel-side, I'll do the userspace bits?
+> 
+
+Hhere is an heuristic who tends to work well ;-)
+
+if (short_on_memory == TRUE )  {
+     kill_all_copies_of_netscape()
+}
+
+-- 
+			Jean Francois Martinez
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
