@@ -1,35 +1,38 @@
-Date: Thu, 15 May 2003 02:55:39 -0700
+Date: Thu, 15 May 2003 02:58:52 -0700
 From: Andrew Morton <akpm@digeo.com>
 Subject: Re: Race between vmtruncate and mapped areas?
-Message-Id: <20030515025539.0067012d.akpm@digeo.com>
-In-Reply-To: <20030515094656.GB1429@dualathlon.random>
-References: <20030515004915.GR1429@dualathlon.random>
-	<Pine.LNX.4.44.0305142234120.20800-100000@chimarrao.boston.redhat.com>
-	<20030515094656.GB1429@dualathlon.random>
+Message-Id: <20030515025852.77991db3.akpm@digeo.com>
+In-Reply-To: <20030515094041.GA1429@dualathlon.random>
+References: <154080000.1052858685@baldur.austin.ibm.com>
+	<20030513181018.4cbff906.akpm@digeo.com>
+	<18240000.1052924530@baldur.austin.ibm.com>
+	<20030514103421.197f177a.akpm@digeo.com>
+	<82240000.1052934152@baldur.austin.ibm.com>
+	<20030515004915.GR1429@dualathlon.random>
+	<20030515013245.58bcaf8f.akpm@digeo.com>
+	<20030515085519.GV1429@dualathlon.random>
+	<20030515022000.0eb9db29.akpm@digeo.com>
+	<20030515094041.GA1429@dualathlon.random>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrea Arcangeli <andrea@suse.de>
-Cc: riel@redhat.com, dmccr@us.ibm.com, mika.penttila@kolumbus.fi, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: dmccr@us.ibm.com, mika.penttila@kolumbus.fi, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
 Andrea Arcangeli <andrea@suse.de> wrote:
 >
-> > > -	if (page->buffers)
->  > > -		goto preserve;
->  > > +	BUG_ON(page->buffers);
->  > 
->  > I wonder if there is nothing else that can leave behind
->  > buffers in this way.
+> > I do think that we should push the revalidate operation over into the vm_ops. 
+>  > That'll require an extra arg to ->nopage, but it has a spare one anyway (!).
 > 
->  that's why I left the BUG_ON, if there's anything else I want to know,
->  there shouldn't be anything else as the comment also suggest. I recall
->  when we discussed this single check with Andrew and that was the only
->  reason we left it AFIK.
+>  not sure why you need a callback, the lowlevel if needed can serialize
+>  using the same locking in the address space that vmtruncate uses. I
+>  would wait a real case need before adding a callback.
 
-yes, the test should no longer be needed.
+Just a vague feeling that knowing about vm_file in do_no_page() is
+a layering violation.  I guess we can live with it.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
