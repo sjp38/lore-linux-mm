@@ -1,53 +1,42 @@
-Message-ID: <B340C717.7D3865F@valudeal.net>
-Date: Fri, 30 Jul 2004 12:00:17 -1100
-Reply-To: "kory eary" <snoellors@valudeal.net>
-From: "kory eary" <snoellors@valudeal.net>
+Message-ID: <410B13E5.9080005@sgi.com>
+Date: Fri, 30 Jul 2004 22:37:09 -0500
+From: Ray Bryant <raybry@sgi.com>
 MIME-Version: 1.0
-Subject: important looking younger is less expensive
-Content-Type: text/plain;
-	charset="us-ascii"
+Subject: Re: Scaling problem with shmem_sb_info->stat_lock
+References: <Pine.LNX.4.44.0407292006290.1096-100000@localhost.localdomain>	<Pine.SGI.4.58.0407301633051.36748@kzerza.americas.sgi.com> <20040730163443.37f9b309.pj@sgi.com>
+In-Reply-To: <20040730163443.37f9b309.pj@sgi.com>
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: harry widdison <ian@kvack.org>
-Cc: ashley wozniak <majordomo@kvack.org>, werner hebert <blah@kvack.org>, chadwick rumfola <aart@kvack.org>, francis skrine <linux-aio@kvack.org>, hiram szufat <bcrl@kvack.org>, walton azevedo <linux-ns83820@kvack.org>, eric armenta <linux-mm@kvack.org>
+To: Paul Jackson <pj@sgi.com>
+Cc: Brent Casavant <bcasavan@sgi.com>, hugh@veritas.com, wli@holomorphy.com, akpm@osdl.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-non-arpanet^cattanach~
-suolupop 
+Perhaps, but then you still have one processor doing the zeroing and setup for 
+all of those pages, and that can be a signficiant serial bottleneck.
 
-d'r^-ugs   from   a,me,`rica    & 0ve^-rnig~'ht    de,,liv,~er 
+Paul Jackson wrote:
+> Brent wrote:
+> 
+>>Having a single CPU fault in all the pages will generally
+>>cause all pages to reside on a single NUMA node.
+> 
+> 
+> Couldn't one use Andi Kleen's numa mbind() to layout the
+> memory across the desired nodes, before faulting it in?
+> 
 
-
-
-
-~,qfwdarou http://kcyb.lk.retyping8911rneds.us/f74/
-
-
-
-
-I'm not sure, said Rob, that I shall be able again to make the connections
-that will strike the Master Key
-
-
-
------Original Message-----
-From: Paulene Fields [mailto:jrfwpx@vo.com] 
-To: dee krance; alva sheridan; noel wimberly 
-Sent: Tuesday, September, 2004 10:53 AM
-Subject: Gptnpsupdate: exciting new med'ical a'nnounceme_ntMerrphifh
-
-
-
-
-latendorf uwfsbukatin^
-Suddenly there was a rending, tearing sound, and the earth split into
-another great crack just beneath the spot where the horse was standing
-After they had secured all the booty they could find, the tall Turk, who
-seemed the leader of the three, violently kicked at the prisoner with his
-heavy boot
-
-guayaca`n12contendiente05cautiverio,chipriote individuacio`n.
+-- 
+Best Regards,
+Ray
+-----------------------------------------------
+                   Ray Bryant
+512-453-9679 (work)         512-507-7807 (cell)
+raybry@sgi.com             raybry@austin.rr.com
+The box said: "Requires Windows 98 or better",
+            so I installed Linux.
+-----------------------------------------------
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
