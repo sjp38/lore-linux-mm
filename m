@@ -1,73 +1,63 @@
-Date: Wed, 17 Nov 2004 22:14:19 -0300
-From: Werner Almesberger <wa@almesberger.net>
-Subject: Re: [PATCH] Remove OOM killer from try_to_free_pages / all_unreclaimable braindamage
-Message-ID: <20041117221419.S28844@almesberger.net>
-References: <20041105200118.GA20321@logos.cnet> <200411051532.51150.jbarnes@sgi.com> <20041106012018.GT8229@dualathlon.random> <1099706150.2810.147.camel@thomas> <20041117195417.A3289@almesberger.net> <419BDE53.1030003@tebibyte.org> <20041117210410.R28844@almesberger.net> <419BECB0.70801@tebibyte.org>
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by e33.co.us.ibm.com (8.12.10/8.12.9) with ESMTP id iAI28iJT644224
+	for <linux-mm@kvack.org>; Wed, 17 Nov 2004 21:08:44 -0500
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d03relay04.boulder.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id iAI28iQC212184
+	for <linux-mm@kvack.org>; Wed, 17 Nov 2004 19:08:44 -0700
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.12.11/8.12.11) with ESMTP id iAI28h9v025862
+	for <linux-mm@kvack.org>; Wed, 17 Nov 2004 19:08:43 -0700
+Subject: Re: [Lhms-devel] [RFC] fix for hot-add enabled SRAT/BIOS and numa
+	KVA areas
+From: keith <kmannth@us.ibm.com>
+In-Reply-To: <1100711519.5838.2.camel@localhost>
+References: <1100659057.26335.125.camel@knk>
+	 <1100711519.5838.2.camel@localhost>
+Content-Type: text/plain
+Message-Id: <1100743722.26335.644.camel@knk>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <419BECB0.70801@tebibyte.org>; from chris@tebibyte.org on Thu, Nov 18, 2004 at 01:28:32AM +0100
+Date: Wed, 17 Nov 2004 18:08:42 -0800
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Chris Ross <chris@tebibyte.org>
-Cc: Thomas Gleixner <tglx@linutronix.de>, Andrea Arcangeli <andrea@novell.com>, Jesse Barnes <jbarnes@sgi.com>, Marcelo Tosatti <marcelo.tosatti@cyclades.com>, Andrew Morton <akpm@osdl.org>, Nick Piggin <piggin@cyberone.com.au>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Dave Hansen <haveblue@us.ibm.com>
+Cc: external hotplug mem list <lhms-devel@lists.sourceforge.net>, linux-mm <linux-mm@kvack.org>, Chris McDermott <lcm@us.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-Chris Ross wrote:
-> with the sshd. If the daemon was swapped out you wouldn't be able to log 
-> into the box while it was thrashing, but in practice you can't really 
-> anyway.
+On Wed, 2004-11-17 at 09:11, Dave Hansen wrote:
+> On Tue, 2004-11-16 at 18:37, keith wrote:
+> >   The numa KVA code used the node_start and node_end values (obtained
+> > from the above memory ranges) to make it's lowmem reservations.  The
+> > problem is that the lowmem area reserved is quite large.  It reserves
+> > the entire a lmem_map large enough for 0x1000000 address space.  I don't
+> > feel this is a great use of lowmem on my system :)
+> 
+> It does seem silly to waste all of that lowmem for memory that *might*
+> be there, but what do you plan to do for contiguous address space (for
+> mem_map) once the memory addition occurs?  We've always talked about
+> having to preallocate mem_map space on 32-bit platforms and by your
+> patch it appears that this isn't what you want to do.  
+> 
+> -- Dave
 
-Nor would you want to, in the scenario you're describing, because
-the system is doing housekeeping while you're away/asleep. I
-agree that this makes sense.
+  I am not anticipating to support hot-add without config_nonlinear or
+something similar which should provide more flexibility in allocation of
+smaller section mem_maps.  This is only a issue when booted as a
+discontig system.  We don't even consult the SRAT when we boot flat
+(contiguous address space) so it is a non-issue.
 
-The tricky bit is now to identify such part-time interactive tasks,
-i.e. the ones who won't receive a trigger for a while. To make
-things worse, there are those who may be happily doing something,
-like spinning some animated GIF, which would be perfectly fine
-being put to a long sleep. That in turn may make the X server idle,
-etc.
+  Wasting 500k of lowmem for memory that "might" be there is no good.  I
+don't think having to preallocate the mem_map for a hot-add is really
+that good.  What if the system never adds memory?  What if it only adds
+8gig not 49g?  The system is crippled because it reserves the lmem_map
+it "might" do a hot add with?  
 
-Again, if you have such a clearly defined scenario, perhaps the
-cron jobs should just loudly announce that housekeeping is now
-starting and that this changes some of the rules. Or perhaps,
-there could be a SIGSWAP to swap out a process (maybe SIGSUSP it
-first so that it doesn't come back on its own).
+  I forgot the mention that without this patch my system does not boot
+with the hot-add support enabled in the bios.  
 
-> Well yes, in typical fashion everything depends on everything else. That 
-> in a nutshell is also my argument against the kill-me flag.
+Thanks,
+  Keith 
 
-I think it may be more subtle: everybody seems to have a set of
-scenarios where the best solution is quite obvious and could
-be easily implemented. Also, every once in a while, you find
-that system loads which clearly demand a specific action in
-scenario A need something very different in scenario B.
-
-E.g. if you go by load spike, you'll be able to contain some
-of the less inspired experiments on that undergrad mainframe,
-but you may end up killing the cron jobs in your housekeeping
-scenario. (And in this case, swapping wouldn't even help.) Or,
-if you never kill anything big with a long run time, you'll
-protect that simulation of an universe that's just on the
-verge of developing intelligent life, but you may completely
-miss the Web browser that's been rotating banner ads for weeks.
-(Here, swapping might help.)
-
-So I think that you also need to know what the processes are,
-and not only what they're doing. This should greatly improve
-predictions of what they will do in the future, and why
-they're doing it in the first place.
-
-It's ultimately policy decisions, and that's where I see a place
-for light-weight markup mechanisms like a "kill me first" bit.
-
-- Werner
-
--- 
-  _________________________________________________________________________
- / Werner Almesberger, Buenos Aires, Argentina         wa@almesberger.net /
-/_http://www.almesberger.net/____________________________________________/
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
