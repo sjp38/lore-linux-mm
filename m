@@ -1,49 +1,54 @@
-Date: Thu, 4 May 2000 11:43:22 -0700 (PDT)
-From: Linus Torvalds <torvalds@transmeta.com>
-Subject: Re: Oops in __free_pages_ok (pre7-1) (Long) (backtrace)
-In-Reply-To: <3911BF09.653D9A2@sgi.com>
-Message-ID: <Pine.LNX.4.10.10005041137320.1388-100000@penguin.transmeta.com>
+Date: Thu, 4 May 2000 20:43:40 +0200 (CEST)
+From: Andrea Arcangeli <andrea@suse.de>
+Subject: Re: classzone-VM + mapped pages out of lru_cache
+In-Reply-To: <shsya5q2rdl.fsf@charged.uio.no>
+Message-ID: <Pine.LNX.4.21.0005042022200.3416-100000@alpha.random>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rajagopal Ananthanarayanan <ananth@sgi.com>
-Cc: riel@nl.linux.org, Kanoj Sarcar <kanoj@google.engr.sgi.com>, linux-mm@kvack.org, "David S. Miller" <davem@redhat.com>
+To: Trond Myklebust <trond.myklebust@fys.uio.no>
+Cc: "Juan J. Quintela" <quintela@fi.udc.es>, linux-mm@kvack.org, linux-kernel@vger.rutgers.edu
 List-ID: <linux-mm.kvack.org>
 
+On 4 May 2000, Trond Myklebust wrote:
 
-On Thu, 4 May 2000, Rajagopal Ananthanarayanan wrote:
-> 
-> You may have something here. It's the burstiness of
-> the demand.
+>Not good. If I'm running /bin/bash, and somebody on the server updates
+>/bin/bash, then I don't want to reboot my machine. With the above
 
-The way bursty demand is _supposed_ to be handled is that the "demander"
-just ends up doing the "try_to_free_pages()" call itself at that point.
-There's no way kswapd can handle these cases sanely, and at some point we
-just need to start freeing memory synchronously.
+If you use rename(2) to update the shell (as you should since `cp` would
+corrupt also users that are reading /bin/bash from local fs) then nfs
+should get it right also with my patch since it should notice the inode
+number changed (the nfs fd handle should get the inode number as cookie),
+right?
 
-So what's probably started happening is that "try_to_free_pages()" is not
-trying hard enough to free stuff (probably the counters changed, and it
-now only scans half the memory it used to under pressure), so when we get
-into the bursty demand situation, the allocator ends up giving up in
-disgust.
+>We have to insist on the PageLocked() both in 2.2.x and 2.3.x because
+>only pages which are in the process of being read in are safe. If we
+>know we're scheduled to write out a full page then that would be safe
+>too, but that is the only such case.
 
-This is something you'll never see under non-busrty load, simply because
-kswapd doesn't care - it will continue to page stuff out whether
-try_to_free_pages() returns happy or not. So if try_to_free_pages() isn't
-trying hard enough, kswapd will compensate by just calling it more.
+I'm not wondering about locking/coherency/read/writes.
 
-Note that changing how hard try_to_free_pages() tries to free a page is
-exactly part of what Rik has been doing, so this is something that has
-changed recently. It's not trivial to get right, for a very simple reason:
-we need to balance the "hardness" between the VM area scanning and the RLU
-list scanning.
+The only problem I am wondering about is that we simply can't unlink
+_mapped_ page-cache pages from the pagecache as we do now.
 
-Rik probably balanced it ok, but ended up making it too soft, giving up
-much too easily even when memory really would be available if it were to
-just try a bit harder..
+Say there's page A in the page cache. It gets mapped into a pte of process
+X. Then before you can drop A from the page cache to invalidate it
+(because such page changed on the nfs server), you _first_ have to unmap
+such page from the pte of process X. This is why invalidate_inode_pages
+must not unlink mapped pages. It's not a locking problem, PageLocked()
+pagecache_lock and all other locks are irrelevant. It's not a race but a
+design issue.
 
-		Linus
+>PS: It would be nice to have truncate_inode_pages() work in the same
+>way as it does now: waiting on pages and locking them. This is useful
+>for reading in the directory pages, since they need to be read in
+>sequentially (please see the proposed patch I put on l-k earlier
+>today).
+
+I'll look at it.
+
+Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
