@@ -1,98 +1,50 @@
-Date: Sat, 5 Jul 2003 04:46:58 -0700
-From: William Lee Irwin III <wli@holomorphy.com>
+From: Daniel Phillips <phillips@arcor.de>
 Subject: Re: 2.5.74-mm1
-Message-ID: <20030705114658.GM955@holomorphy.com>
-References: <20030703023714.55d13934.akpm@osdl.org> <20030704210737.GI955@holomorphy.com> <20030704181539.2be0762a.akpm@osdl.org> <20030705052102.GB13308@krispykreme> <20030705111844.GL955@holomorphy.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Date: Sat, 5 Jul 2003 17:28:12 +0200
+References: <20030703023714.55d13934.akpm@osdl.org> <200307050216.27850.phillips@arcor.de>
+In-Reply-To: <200307050216.27850.phillips@arcor.de>
+MIME-Version: 1.0
+Content-Type: text/plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <20030705111844.GL955@holomorphy.com>
+Message-Id: <200307051728.12891.phillips@arcor.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Anton Blanchard <anton@samba.org>, Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, Jul 05, 2003 at 04:18:44AM -0700, William Lee Irwin III wrote:
-> How about this, then? I think it's still racy against something doing
-> daemonize(), though (i.e. if q does daemonize() it shoots it regardless).
+On Saturday 05 July 2003 02:16, Daniel Phillips wrote:
+> It now tolerates window dragging on this unaccelerated moderately high
+> resolution VGA without any sound dropouts.  There are still dropouts while
+> scrolling in Mozilla, so it acts much like 2.5.73+Con's patch, as expected.
 
-Take 2:
+Update: dropouts still do occur while moving windows, but rarely.  When they 
+do occur, they are severe.  A debian dist-upgrade just caused a dropout - and 
+another just now, about 3 seconds long.  I feel that tweaking is only going 
+to get us so far with this.  The situation re scheduling in 2.5 feels much as 
+the vm situation did in 2.3, in other words, we're halfway down a long twisty 
+road that ends with something that works, after having tried and failed at 
+many flavors of tweaking and tuning.  Ultimately the problem will be solved 
+by redesign, and probably not just limited to kernel code.
 
+> I had 2.5.74 freeze up a couple of times yesterday, resulting in a totally
+> dead, unpingable system, so now I'm running 2.5.74-mm1 with kgdb and hoping
+> to catch one of those beasts in the wild.
 
-===== mm/oom_kill.c 1.23 vs edited =====
---- 1.23/mm/oom_kill.c	Wed Apr 23 03:15:53 2003
-+++ edited/mm/oom_kill.c	Sat Jul  5 04:46:17 2003
-@@ -123,7 +123,7 @@
- 	struct task_struct *chosen = NULL;
- 
- 	do_each_thread(g, p)
--		if (p->pid) {
-+		if (p->pid && p->mm) {
- 			int points = badness(p);
- 			if (points > maxpoints) {
- 				chosen = p;
-@@ -141,7 +141,7 @@
-  * CAP_SYS_RAW_IO set, send SIGTERM instead (but it's unlikely that
-  * we select a process with CAP_SYS_RAW_IO set).
-  */
--void oom_kill_task(struct task_struct *p)
-+static void __oom_kill_task(task_t *p)
- {
- 	printk(KERN_ERR "Out of Memory: Killed process %d (%s).\n", p->pid, p->comm);
- 
-@@ -161,6 +161,16 @@
- 	}
- }
- 
-+static struct mm_struct *oom_kill_task(task_t *p)
-+{
-+	struct mm_struct *mm = get_task_mm(p);
-+	if (!mm || mm == &init_mm)
-+		return NULL;
-+	__oom_kill_task(p);
-+	return mm;
-+}
-+
-+
- /**
-  * oom_kill - kill the "best" process when we run out of memory
-  *
-@@ -171,9 +181,11 @@
-  */
- static void oom_kill(void)
- {
-+	struct mm_struct *mm;
- 	struct task_struct *g, *p, *q;
- 	
- 	read_lock(&tasklist_lock);
-+retry:
- 	p = select_bad_process();
- 
- 	/* Found nothing?!?! Either we hang forever, or we panic. */
-@@ -182,17 +194,20 @@
- 		panic("Out of memory and no killable processes...\n");
- 	}
- 
--	oom_kill_task(p);
-+	mm = oom_kill_task(p);
-+	if (!mm)
-+		goto retry;
- 	/*
- 	 * kill all processes that share the ->mm (i.e. all threads),
- 	 * but are in a different thread group
- 	 */
- 	do_each_thread(g, q)
--		if (q->mm == p->mm && q->tgid != p->tgid)
--			oom_kill_task(q);
-+		if (q->mm == mm && q->tgid != p->tgid)
-+			__oom_kill_task(q);
- 	while_each_thread(g, q);
- 
- 	read_unlock(&tasklist_lock);
-+	mmput(mm);
- 
- 	/*
- 	 * Make kswapd go out of the way, so "p" has a good chance of
+Update: this is easily repeatable.  A few quick switches between X and text 
+mode triggers the freeze reliably.  On two occasions, I had a lockup while 
+just doing an innocent window operation.  It also happens in 2.4, so it isn't 
+a 2.5 problem per se.  Is it a pure hardware problem?  It's always easy to 
+take that position.  I can only guess at the moment.  Kgdb is no help in 
+diagnosing, as the kgdb stub also goes comatose, or at least the serial link 
+does.  No lockups have occurred so far when I was not interacting with the 
+system via the keyboard or mouse.  Suggestions?
+
+Regards,
+
+Daniel
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
