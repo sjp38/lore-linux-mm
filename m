@@ -1,68 +1,157 @@
-Subject: [PATCH 2.6.3-rc2-mm1]
-From: Daniel McNeil <daniel@osdl.org>
-In-Reply-To: <20040212015710.3b0dee67.akpm@osdl.org>
-References: <20040212015710.3b0dee67.akpm@osdl.org>
-Content-Type: multipart/mixed; boundary="=-WkKm/Ky7yo68JQtEmqu/"
-Message-Id: <1076706243.1956.26.camel@ibm-c.pdx.osdl.net>
+Date: Sat, 14 Feb 2004 10:04:49 +0800
+From: Eugene Teo <eugene.teo@eugeneteo.net>
+Subject: VM Acct patch (was Re: 2.6.3-rc1-mm1)
+Message-ID: <20040214020449.GA2252@eugeneteo.net>
+Reply-To: Eugene Teo <eugene.teo@eugeneteo.net>
+References: <20040209014035.251b26d1.akpm@osdl.org>
 Mime-Version: 1.0
-Date: 13 Feb 2004 13:04:03 -0800
+Content-Type: multipart/signed; micalg=pgp-sha1;
+	protocol="application/pgp-signature"; boundary="tKW2IUtsqtDRztdT"
+Content-Disposition: inline
+In-Reply-To: <20040209014035.251b26d1.akpm@osdl.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@osdl.org>
-Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, "linux-aio@kvack.org" <linux-aio@kvack.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
---=-WkKm/Ky7yo68JQtEmqu/
-Content-Type: text/plain
-Content-Transfer-Encoding: 7bit
+--tKW2IUtsqtDRztdT
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-This patch samples i_size before dropping the i_sem.
-The i_size could change by a racing write and we could
-return uninitialized data.
+<quote sender=3D"Andrew Morton">
+> ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.6/2.6.3-rc1/2=
+=2E6.3-rc1-mm1/
 
-re-diffed against 2.6.3-rc2-mm1.
+[snipped]
 
-Daniel
+While doing my port, I noticed that add_page_state macro can be used
+in place of mod_page_state, since both performs the same task, and the
+former is more meaningful.
 
---=-WkKm/Ky7yo68JQtEmqu/
-Content-Disposition: attachment; filename=dio_size.2.6.3-rc2-mm1.patch
-Content-Type: text/plain; name=dio_size.2.6.3-rc2-mm1.patch; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Here my patch. It applies to 2.6.3-rc2-mm1, but it shouldn't matter if
+-rc2 or -rc2-mm1 is applied. I have compiled this patch, and tested it
+too.
 
---- linux-2.6.3-rc2-mm1.orig/fs/direct-io.c	2004-02-12 11:35:41.613567579 -0800
-+++ linux-2.6.3-rc2-mm1/fs/direct-io.c	2004-02-12 11:35:52.135706887 -0800
-@@ -909,6 +909,7 @@ direct_io_worker(int rw, struct kiocb *i
- 	int ret = 0;
- 	int ret2;
- 	size_t bytes;
-+	loff_t i_size;
- 
- 	dio->bio = NULL;
- 	dio->inode = inode;
-@@ -1017,7 +1018,12 @@ direct_io_worker(int rw, struct kiocb *i
- 	 * All block lookups have been performed. For READ requests
- 	 * we can let i_sem go now that its achieved its purpose
- 	 * of protecting us from looking up uninitialized blocks.
-+	 * 
-+	 * We also need sample i_size before we release i_sem to prevent
-+	 * a racing write from changing i_size causing us to return
-+	 * uninitialized data.
- 	 */
-+	i_size = i_size_read(inode);
- 	if ((rw == READ) && dio->needs_locking)
- 		up(&dio->inode->i_sem);
- 
-@@ -1064,7 +1070,6 @@ direct_io_worker(int rw, struct kiocb *i
- 		if (ret == 0)
- 			ret = dio->page_errors;
- 		if (ret == 0 && dio->result) {
--			loff_t i_size = i_size_read(inode);
- 
- 			ret = dio->result;
- 			/*
+http://www.anomalistic.org/patches/vmacct-mod_page_state-fix-2.6.3-rc2-mm1.=
+patch
 
---=-WkKm/Ky7yo68JQtEmqu/--
+diff -Naur -X /home/amnesia/w/dontdiff 2.6.3-rc2-mm1-BAK/drivers/block/ll_r=
+w_blk.c 2.6.3-rc2-mm1-fix/drivers/block/ll_rw_blk.c
+--- 2.6.3-rc2-mm1-BAK/drivers/block/ll_rw_blk.c	2004-02-14 09:36:28.0000000=
+00 +0800
++++ 2.6.3-rc2-mm1-fix/drivers/block/ll_rw_blk.c	2004-02-14 09:40:43.0000000=
+00 +0800
+@@ -2313,9 +2313,9 @@
+ 	BIO_BUG_ON(!bio->bi_io_vec);
+ 	bio->bi_rw =3D rw;
+ 	if (rw & WRITE)
+-		mod_page_state(pgpgout, count);
++		add_page_state(pgpgout, count);
+ 	else
+-		mod_page_state(pgpgin, count);
++		add_page_state(pgpgin, count);
+=20
+ 	if (unlikely(block_dump)) {
+ 		char b[BDEVNAME_SIZE];
+diff -Naur -X /home/amnesia/w/dontdiff 2.6.3-rc2-mm1-BAK/fs/inode.c 2.6.3-r=
+c2-mm1-fix/fs/inode.c
+--- 2.6.3-rc2-mm1-BAK/fs/inode.c	2004-02-14 09:36:30.000000000 +0800
++++ 2.6.3-rc2-mm1-fix/fs/inode.c	2004-02-14 09:44:57.000000000 +0800
+@@ -453,9 +453,9 @@
+ 	up(&iprune_sem);
+=20
+ 	if (current_is_kswapd())
+-		mod_page_state(kswapd_inodesteal, reap);
++		add_page_state(kswapd_inodesteal, reap);
+ 	else
+-		mod_page_state(pginodesteal, reap);
++		add_page_state(pginodesteal, reap);
+ }
+=20
+ /*
+diff -Naur -X /home/amnesia/w/dontdiff 2.6.3-rc2-mm1-BAK/mm/page_alloc.c 2.=
+6.3-rc2-mm1-fix/mm/page_alloc.c
+--- 2.6.3-rc2-mm1-BAK/mm/page_alloc.c	2004-02-14 09:36:30.000000000 +0800
++++ 2.6.3-rc2-mm1-fix/mm/page_alloc.c	2004-02-14 09:42:01.000000000 +0800
+@@ -268,7 +268,7 @@
+ 	LIST_HEAD(list);
+ 	int i;
+=20
+-	mod_page_state(pgfree, 1 << order);
++	add_page_state(pgfree, 1 << order);
+ 	for (i =3D 0 ; i < (1 << order) ; ++i)
+ 		free_pages_check(__FUNCTION__, page + i);
+ 	list_add(&page->list, &list);
+@@ -512,7 +512,7 @@
+=20
+ 	if (page !=3D NULL) {
+ 		BUG_ON(bad_range(zone, page));
+-		mod_page_state(pgalloc, 1 << order);
++		add_page_state(pgalloc, 1 << order);
+ 		prep_new_page(page, order);
+ 	}
+ 	return page;
+diff -Naur -X /home/amnesia/w/dontdiff 2.6.3-rc2-mm1-BAK/mm/vmscan.c 2.6.3-=
+rc2-mm1-fix/mm/vmscan.c
+--- 2.6.3-rc2-mm1-BAK/mm/vmscan.c	2004-02-14 09:36:30.000000000 +0800
++++ 2.6.3-rc2-mm1-fix/mm/vmscan.c	2004-02-14 09:45:09.000000000 +0800
+@@ -460,10 +460,10 @@
+ 	list_splice(&ret_pages, page_list);
+ 	if (pagevec_count(&freed_pvec))
+ 		__pagevec_release_nonlru(&freed_pvec);
+-	mod_page_state(pgsteal, ret);
++	add_page_state(pgsteal, ret);
+ 	if (current_is_kswapd())
+-		mod_page_state(kswapd_steal, ret);
+-	mod_page_state(pgactivate, pgactivate);
++		add_page_state(kswapd_steal, ret);
++	add_page_state(pgactivate, pgactivate);
+ 	return ret;
+ }
+=20
+@@ -535,7 +535,7 @@
+ 		if (nr_taken =3D=3D 0)
+ 			goto again;
+=20
+-		mod_page_state(pgscan, nr_scan);
++		add_page_state(pgscan, nr_scan);
+ 		nr_freed =3D shrink_list(&page_list, gfp_mask, nr_scanned);
+ 		ret +=3D nr_freed;
+=20
+@@ -784,8 +784,8 @@
+ 	spin_unlock_irq(&zone->lru_lock);
+ 	pagevec_release(&pvec);
+=20
+-	mod_page_state(pgrefill, nr_pages_in - nr_pages);
+-	mod_page_state(pgdeactivate, pgdeactivate);
++	add_page_state(pgrefill, nr_pages_in - nr_pages);
++	add_page_state(pgdeactivate, pgdeactivate);
+ }
+=20
+ /*
 
+--=20
+Eugene TEO -  <eugeneteo%eugeneteo!net>   <http://www.anomalistic.org/>
+1024D/14A0DDE5 print D851 4574 E357 469C D308  A01E 7321 A38A 14A0 DDE5
+main(i) { putchar(182623909 >> (i-1) * 5&31|!!(i<7)<<6) && main(++i); }
+
+
+--tKW2IUtsqtDRztdT
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: Digital signature
+Content-Disposition: inline
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.2.4 (GNU/Linux)
+
+iD8DBQFALYJBcyGjihSg3eURAh8kAJ9cRCWsoTXn/KZ3czvPrCuIe7g1AwCeK9XK
+Bm/PQgeD+TBfmJVp6eQmAwI=
+=oJ1L
+-----END PGP SIGNATURE-----
+
+--tKW2IUtsqtDRztdT--
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
