@@ -1,43 +1,100 @@
-Received: from wli by holomorphy with local (Exim 3.34 #1 (Debian))
-	id 175xNp-0003VR-00
-	for <linux-mm@kvack.org>; Thu, 09 May 2002 16:31:37 -0700
-Date: Thu, 9 May 2002 16:31:36 -0700
-From: William Lee Irwin III <wli@holomorphy.com>
-Subject: Re: [RFC] tabulating page->virtual on highmem
-Message-ID: <20020509233136.GS15756@holomorphy.com>
-References: <20020508221506.GL15756@holomorphy.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Description: brief message
-Content-Disposition: inline
-In-Reply-To: <20020508221506.GL15756@holomorphy.com>
+Received: from localhost (sanket@localhost)
+	by mailhub.cdac.ernet.in (8.11.4/8.11.4) with ESMTP id g4A5Uqg15734
+	for <linux-mm@kvack.org>; Fri, 10 May 2002 11:00:53 +0530 (IST)
+Date: Fri, 10 May 2002 11:00:52 +0530 (IST)
+From: Sanket Rathi <sanket.rathi@cdac.ernet.in>
+Subject: page table entries
+Message-ID: <Pine.GSO.4.10.10205101049310.14865-100000@mailhub.cdac.ernet.in>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, May 08, 2002 at 03:15:06PM -0700, William Lee Irwin III wrote:
-> The size of the kmap pool appears to dictate the number of distinct
-> values of page->virtual. Maintaining an index into the pool would
-> seem to provide superior space behavior, as the index need not be
-> of full machine word precision. Furthermore, no auxiliary lookup
-> would appear to be required as the kmap pool is virtually contiguous
-> and so the virtual address could be calculated from base virtual
-> address of the kmap pool and the index into the pool.
-> For architectures using page->virtual for page_address() calculation
-> this technique does not apply, and so page->virtual would then need
-> to be maintained as is, or at least retain enough precision for a full
-> page frame number.
-> I don't have my heart set on this but I thought I'd at least throw the
-> idea out where its desirability (and potential implementations) could
-> be discussed.
-
-Since no one's screamed too loudly I'll push out an implementation of
-this sometime in the next few days.
+hi
+i have perform a test on page table entries. i allocate a buffer through
+vmalloc in kernel module and travers page table through that returned
+address. following is kernel module
 
 
-Cheers,
-Bill
+
+int init_module(void)
+{
+    unsigned long address, phyadd, pfnum, ioadd;
+    pgd_t *pgdp ;
+    pmd_t *pmdp ;
+    pte_t *ptep ;
+    struct page *page_s ;
+    printk("\n---------------Entering init_module.--------------------\n") ;
+
+    address = (unsigned long) vmalloc (10) ;
+    printk("\naddress=%lx", address) ;
+
+    pgdp = pgd_offset_k(address) ;
+    printk("\n\npgdp=%lx", (unsigned long) pgdp) ;
+    printk("\npgd_val=%lx", pgd_val(*pgdp)) ;
+
+    pmdp = pmd_offset(pgdp, address) ;
+    printk("\n\npmdp=%lx", (unsigned long) pmdp) ;
+    printk("\npmd_val=%lx", pmd_val(*pmdp)) ;
+
+    ptep = pte_offset(pmdp, address) ;
+    printk("\n\nptep=%lx", (unsigned long) ptep) ;
+    printk("\npte_val=%lx", pte_val(*ptep)) ; 
+
+
+
+    page_s = pte_page(*ptep) ;
+    printk("\nkernel virtual  address=%lx",(unsigned long)
+page_s->virtual) ;
+
+    ioadd = virt_to_bus(page_s->virtual) ;
+    printk("\nio address virt_to_bus=%lx", ioadd) ;
+
+    printk("\n\n---------------Exiting init_module.------------------\n") ;
+
+    return 0 ;
+}
+
+
+
+when i install the above module the output is as following
+
+
+---------------Entering init_module.---------------------
+
+address=c28d8000
+
+pgdp=c0101c28
+pgd_val=10af063
+
+pmdp=c0101c28
+pmd_val=10af063
+
+ptep=c10af360
+pte_val=1516063
+
+kernel virtual  address=c1516000
+io address virt_to_bus=1516000
+
+---------------Exiting init_module.----------------------
+
+The problem is i am not able to understand that why the pgd_val, pmd_val
+and pte_val contain 0x63 in last two positions actually they are page
+address so their last 3 position(in hex) should be zero like in io
+address.
+can somebody help me
+
+
+Thanks in Advance
+
+
+ --- Sanket Rathi
+
+--------------------------
+
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
