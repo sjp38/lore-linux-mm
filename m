@@ -1,60 +1,33 @@
-Date: Mon, 19 Jan 2004 16:57:30 -0800
-From: Andrew Morton <akpm@osdl.org>
+Date: Mon, 19 Jan 2004 21:13:26 -0500 (EST)
+From: Thomas Molina <tmolina@cablespeed.com>
 Subject: Re: 2.6.1-mm4
-Message-Id: <20040119165730.7f250869.akpm@osdl.org>
-In-Reply-To: <Pine.LNX.4.58.0401191912300.5662@localhost.localdomain>
+In-Reply-To: <20040119165730.7f250869.akpm@osdl.org>
+Message-ID: <Pine.LNX.4.58.0401192107550.5662@localhost.localdomain>
 References: <20040115225948.6b994a48.akpm@osdl.org>
-	<Pine.LNX.4.58.0401191912300.5662@localhost.localdomain>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+ <Pine.LNX.4.58.0401191912300.5662@localhost.localdomain>
+ <20040119165730.7f250869.akpm@osdl.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Thomas Molina <tmolina@cablespeed.com>
+To: Andrew Morton <akpm@osdl.org>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Thomas Molina <tmolina@cablespeed.com> wrote:
->
-> Rusty, 
+
+On Mon, 19 Jan 2004, Andrew Morton wrote:
+
+> > Cannot open master raw device '/dev/rawctl' (No such device)
 > 
-> I updated mm4 with the patch you sent in response to my shutdown oops 
-> report and haven't received a repeat oops in six reboots.  Hopefully this 
-> cures my problem.  I previously couldn't reproduce the oops every single 
-> reboot.  
+> Do you have
 > 
-> I do have a couple of other anomalies to report though.
+> 	alias char-major-162 raw
 > 
-> First is this snippet from my bootup log:
-> 
-> Cannot open master raw device '/dev/rawctl' (No such device)
+> in /etc/modprobe.conf?
 
-Do you have
-
-	alias char-major-162 raw
-
-in /etc/modprobe.conf?
-
-> WARNING: /lib/modules/2.6.1-mm4a/kernel/fs/nfsd/nfsd.ko needs unknown 
-> symbol dnotify_parent
-> 
-
-Yup, this is fixed and it's all merged up.
-
-diff -puN fs/dnotify.c~nfsd-04-add-dnotify-events-fix fs/dnotify.c
---- 25/fs/dnotify.c~nfsd-04-add-dnotify-events-fix	2004-01-16 08:42:25.000000000 -0800
-+++ 25-akpm/fs/dnotify.c	2004-01-16 08:42:45.000000000 -0800
-@@ -165,6 +165,7 @@ void dnotify_parent(struct dentry *dentr
- 		spin_unlock(&dentry->d_lock);
- 	}
- }
-+EXPORT_SYMBOL_GPL(dnotify_parent);
- 
- static int __init dnotify_init(void)
- {
-
-_
-
+I added that and got the same message on the next reboot.  I don't get 
+this on the 2.4 RedHat kernel.  I will have to do a bk pull for 2.6 since 
+I have been running mm kernels exclusively lately.  
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
