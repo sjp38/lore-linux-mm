@@ -1,47 +1,35 @@
-Content-Type: text/plain;
-  charset="iso-8859-1"
-From: Rene Herman <rene.herman@keyaccess.nl>
-Subject: Re: VM trouble, both 2.4 and 2.5
-Date: Sat, 16 Nov 2002 01:59:02 +0100
-References: <02111521422000.00195@7ixe4> <02111601184000.00209@7ixe4> <3DD593A5.9DB99F5@digeo.com>
-In-Reply-To: <3DD593A5.9DB99F5@digeo.com>
+Message-ID: <20021117070320.75710.qmail@web12305.mail.yahoo.com>
+Date: Sat, 16 Nov 2002 23:03:20 -0800 (PST)
+From: Ravi <kravi26@yahoo.com>
+Subject: Page size andFS blocksize
 MIME-Version: 1.0
-Message-Id: <02111601590201.00209@7ixe4>
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@digeo.com>
-Cc: linux-mm@kvack.org, Con Kolivas <contest@kolivas.net>
+To: kernelnewbies@nl.linux.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Saturday 16 November 2002 01:39, Andrew Morton wrote:
+Hi,
+ I was browsing the block device read/write code in fs/buffer.c (kernel
+version 2.4.18).
+>From waht I understood,  there is an implicit assumption that
+filesystem block sizes
+are never more than the size of a single page. I say this because I
+couldn't figure
+out how to specify if the page being read is part of a block. (The
+buffer_head structure
+has no member that says 'offset within the block').  
+  Have I read the code right, or am I missing something? And has this
+changed in
+2.5?
 
-> heh.  That mount(8) thing really sucks.  Especially if you
-> spend time helping folk out with ext3 problems.
->
-> Maybe we should fix it...
+-Thanks,
+ Ravi.
 
-Not before I get the chance to laugh at someone *else* being confused by it, 
-I hope...
-
-> > Does this bit mean the report was still somewhat useful (for fixing
-> > either ext3 or the overcommit accounting) though, or was it already
-> > well-known?
->
-> Very useful thanks, no it's not well known.  Or at least, it wasn't.
-
-Thanks, makes me feel much better :-)
-
-> Well.  What the heck am I going to do about it?  I guess change the
-> overcommit logic to look at page_states.nr_mapped or something.  Or
-> maybe take a look at fixing ext3.
-
-Do note that I haven't actually a clue what I'm talking about, but given that 
-lack, the latter does sound better. It would seem to make sense to have those 
-pages show up in the pagecache, regardless of any ability to work around them 
-not doing so elsewhere?
-
-Rene.
+__________________________________________________
+Do you Yahoo!?
+Yahoo! Web Hosting - Let the expert host your site
+http://webhosting.yahoo.com
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
