@@ -1,26 +1,629 @@
-Date: Wed, 3 May 2000 03:28:16 +0200 (CEST)
-From: Andrea Arcangeli <andrea@suse.de>
-Subject: Re: Oops in __free_pages_ok (pre7-1) (Long)
-In-Reply-To: <Pine.LNX.4.10.10005021743270.811-100000@penguin.transmeta.com>
-Message-ID: <Pine.LNX.4.21.0005030323220.4537-100000@alpha.random>
+Message-ID: <390F98C7.79DDB276@sgi.com>
+Date: Tue, 02 May 2000 20:11:03 -0700
+From: Rajagopal Ananthanarayanan <ananth@sgi.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: Oops in __free_pages_ok (pre7-1) (Long) (backtrace)
+References: <8ener4$6djpb$1@fido.engr.sgi.com>
+Content-Type: text/plain; charset=iso-8859-1
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Linus Torvalds <torvalds@transmeta.com>
-Cc: "Juan J. Quintela" <quintela@fi.udc.es>, linux-mm@kvack.org, Kanoj Sarcar <kanoj@google.engr.sgi.com>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2 May 2000, Linus Torvalds wrote:
+Linus Torvalds wrote:
+> 
+> On 2 May 2000, Juan J. Quintela wrote:
+> > Hi
+> >         several people have reported Oops in __free_pages_ok, after a
+> > BUG() in page_alloc.h.  This happens in 2.3.99-pre[67].  The BUGs are:
+> 
+> I'd like ot know what the back-trace for those reports are?
+> 
+> I'm not against getting rid of the PageSwapEntry logic (it's complication
+> for not very much gain), but I'd like to understand this more..
 
->Note that as far as I remember, the swap entry thing was introduced
->because get_swap_entry() was slow and took up a lot of time.
 
-That's a good point too but I was more worried about I/O seek time than CPU
-load.
+Following please find information about one of the BUG() in __free_pages_ok();
+I'm re-sending the messages I sent to linux-kernel eariler last week:
 
-Andrea
+-------------
 
+I ran into a BUG in __free_pages_ok which checks:
+
+----------
+        if (PageSwapCache(page))
+                BUG();
+----------
+
+The  call to free the page was from try_to_swap_out():
+
+----------
+        /*
+         * Is the page already in the swap cache? If so, then
+         * we can just drop our reference to it without doing
+         * any IO - it's already up-to-date on disk.
+         *
+         * Return 0, as we didn't actually free any real
+         * memory, and we should just continue our scan.
+         */
+        if (PageSwapCache(page)) {
+                entry.val = page->index;
+                swap_duplicate(entry);
+                set_pte(page_table, swp_entry_to_pte(entry));
+drop_pte:
+                vma->vm_mm->rss--;
+                flush_tlb_page(vma, address);
+                __free_page(page);
+                goto out_failed;
+        }
+-----------
+
+The entire trace from kdb is as follows (XXX = unknown):
+
+----------
+XXXXXXXXXX XXXXXXXXXX  __free_pages_ok(XXXX)
+0xc35d5d9c 0xc013543c  try_to_swap_out+0xc8( 0xc179dc20, 0x43589000, 0xc2963624,
+0x5,
+0xc179dc20 )
+0xc35d5dd8 0xc0135710  swap_out_vma+0x11c( 0xc179dc20, 0x432d4000, 0x5, 0xc02c7c68,
+0xc3256520 )
+0xc35d5df8 0xc01357ee  swap_out_mm+0x7e( 0xc3256520, 0x5, 0x4, 0x6, 0x5 )
+0xc35d5e24 0xc01359de  swap_out+0x176( 0x6, 0x5, 0xc35d4000, 0xc02d0890, 0x5 )
+0xc35d5e40 0xc0135b31  do_try_to_free_pages+0x89( 0x5, 0xc02d06b8, 0xc02d06b8,
+0xc35d5e78,
+0xc013666b )
+0xc35d5e54 0xc0135d17  try_to_free_pages+0x2b( 0x5, 0xc02d06b8, 0xc02d0898, 0x0,
+0xc02d088c )
+0xc35d5e78 0xc013666b  zone_balance_memory+0x63( 0xc02d088c, 0xc35d4000, 0x0,
+0x5b5f00 )
+0xc35d5e98 0xc0136724  __alloc_pages+0x80( 0xc35d4000, 0x0, 0xc35d4000 )
+0xc35d5eac 0xc0136dbe  read_swap_cache_async+0x62( 0x5b5f00, 0x1, 0x5b5f00,
+0x5b5f00,
+0xc13919c4 )
+0xc35d5ecc 0xc012889b  do_swap_page+0x97( 0xc35d4000, 0xc179dc20, 0x45671fff,
+0xc13919c4,
+0x5b5f00 )
+0xc35d5efc 0xc0128ce7  handle_mm_fault+0x13b( 0xc35d4000, 0xc179dc20, 0x45671fff,
+0x0,
+0xc35d4000 )
+0xc35d5fb4 0xc011513e  do_page_fault+0x18e
+[1]more>
+0xbffff540 0xc010a681  error_code+0x2d 
+-------------
+
+I have a kdb helper function which prints out some of the fields in the page,
+and also below is the hex dump of the "struct page"
+
+----------
+  [1]kdb> page 0xc1002de0
+struct page at 0xc1002de0
+  next 0xc1042ee0 prev 0xc101e900 addr space 0xc02d0520 index 557568
+  count 1 flags PG_uptodate PG_swap_cache PG_swap_entry virtual 0xc0092000
+  buffers 0x00000000  block_map 00000000000000000000000000000000
+    [ ... ] 
+                         
+c1002de0: c1042ee0 c101e900 c02d0520 00088200  a..A.e.A .-A....
+c1002df0: 00000000 00000001 00000a08 c1042efc  ............u..A
+c1002e00: c101e91c 00000000 dead4ead c1002e0c  .e.A....-N-TH...A
+c1002e10: c1002e0c c1002e14 c02f3b3f c1150e5c  ...A...A?;/A\..A
+c1002e20: 00000000 c0092000 c02d0600 00000000  ..... .A..-A.... 
+---------------------
+
+
+Question: Is this a problem in the reference count on the page?
+If indeed the page can be freed by the call in try_to_swap_out,
+then the test in __free_pages_ok will trigger every time this path
+is taken. Any one have ideas as to what's wrong?
+
+BTW, the above happened during a relatively normal operation of
+using 'diff'. Don't know if it reproducible.
+----------------------
+
+As Jeff G. pointed out in another mail, I left out some
+important information. If you need more info., please let me know.
+
+(1) this is with kernel version 2.3.99-pre2 with some XFS changes.
+(2) I have a 2 CPU X-86 box with 64MB memory.
+
+Here's the .config used to build the kernel:
+
+-----------
+#
+# Automatically generated by make menuconfig: don't edit
+#
+CONFIG_X86=y
+CONFIG_ISA=y
+CONFIG_UID16=y
+
+#
+# Code maturity level options
+#
+CONFIG_EXPERIMENTAL=y
+
+#
+# Processor type and features
+#
+# CONFIG_M386 is not set
+# CONFIG_M486 is not set
+# CONFIG_M586 is not set
+# CONFIG_M586TSC is not set
+CONFIG_M686=y
+# CONFIG_MK6 is not set
+# CONFIG_MK7 is not set
+CONFIG_X86_WP_WORKS_OK=y
+CONFIG_X86_INVLPG=y
+CONFIG_X86_BSWAP=y
+CONFIG_X86_POPAD_OK=y
+CONFIG_X86_TSC=y
+CONFIG_X86_GOOD_APIC=y
+CONFIG_X86_PGE=y
+# CONFIG_MICROCODE is not set
+CONFIG_NOHIGHMEM=y
+# CONFIG_HIGHMEM4G is not set
+# CONFIG_HIGHMEM64G is not set
+# CONFIG_MATH_EMULATION is not set
+# CONFIG_MTRR is not set
+CONFIG_SMP=y
+
+#
+# Loadable module support
+#
+CONFIG_MODULES=y
+CONFIG_MODVERSIONS=y
+CONFIG_KMOD=y
+
+#
+# General setup
+#
+CONFIG_NET=y
+# CONFIG_VISWS is not set
+CONFIG_X86_IO_APIC=y
+CONFIG_X86_LOCAL_APIC=y
+CONFIG_PCI=y
+# CONFIG_PCI_GOBIOS is not set
+# CONFIG_PCI_GODIRECT is not set
+CONFIG_PCI_GOANY=y
+CONFIG_PCI_BIOS=y
+CONFIG_PCI_DIRECT=y
+CONFIG_PCI_NAMES=y
+# CONFIG_MCA is not set
+# CONFIG_HOTPLUG is not set
+CONFIG_SYSVIPC=y
+# CONFIG_BSD_PROCESS_ACCT is not set
+# CONFIG_SYSCTL is not set
+CONFIG_KCORE_ELF=y
+# CONFIG_KCORE_AOUT is not set
+CONFIG_BINFMT_AOUT=m
+CONFIG_BINFMT_ELF=y
+CONFIG_BINFMT_MISC=m
+# CONFIG_PM is not set
+# CONFIG_ACPI is not set
+# CONFIG_APM is not set
+
+#
+# Parallel port support
+#
+# CONFIG_PARPORT is not set
+
+#
+# Plug and Play configuration
+#
+# CONFIG_PNP is not set
+# CONFIG_ISAPNP is not set
+
+#
+# Block devices
+#
+CONFIG_BLK_DEV_FD=m
+# CONFIG_BLK_DEV_XD is not set
+# CONFIG_PARIDE is not set
+# CONFIG_BLK_CPQ_DA is not set
+# CONFIG_BLK_DEV_DAC960 is not set
+# CONFIG_BLK_DEV_LOOP is not set
+# CONFIG_BLK_DEV_NBD is not set
+# CONFIG_BLK_DEV_MD is not set
+# CONFIG_BLK_DEV_RAM is not set
+
+#
+# Networking options
+#
+CONFIG_PACKET=m
+# CONFIG_PACKET_MMAP is not set
+# CONFIG_NETLINK is not set
+# CONFIG_NETFILTER is not set
+# CONFIG_FILTER is not set
+CONFIG_UNIX=y
+CONFIG_INET=y
+# CONFIG_IP_MULTICAST is not set
+# CONFIG_IP_ADVANCED_ROUTER is not set
+# CONFIG_IP_PNP is not set
+# CONFIG_IP_ROUTER is not set
+# CONFIG_NET_IPIP is not set
+# CONFIG_NET_IPGRE is not set
+# CONFIG_IP_ALIAS is not set
+# CONFIG_SYN_COOKIES is not set
+CONFIG_SKB_LARGE=y
+# CONFIG_IPV6 is not set
+# CONFIG_KHTTPD is not set
+# CONFIG_ATM is not set
+# CONFIG_IPX is not set
+# CONFIG_ATALK is not set
+# CONFIG_DECNET is not set
+# CONFIG_X25 is not set
+# CONFIG_LAPB is not set
+# CONFIG_BRIDGE is not set
+# CONFIG_LLC is not set
+# CONFIG_ECONET is not set
+# CONFIG_WAN_ROUTER is not set
+# CONFIG_NET_FASTROUTE is not set
+# CONFIG_NET_HW_FLOWCONTROL is not set
+
+#
+# QoS and/or fair queueing
+#
+# CONFIG_NET_SCHED is not set
+
+#
+# Telephony Support
+#
+# CONFIG_PHONE is not set
+# CONFIG_PHONE_IXJ is not set
+
+#
+# ATA/IDE/MFM/RLL support
+#
+# CONFIG_IDE is not set
+# CONFIG_BLK_DEV_IDE_MODES is not set
+# CONFIG_BLK_DEV_HD is not set
+
+#
+# SCSI support
+#
+CONFIG_SCSI=y
+CONFIG_BLK_DEV_SD=y
+CONFIG_SD_EXTRA_DEVS=40
+# CONFIG_CHR_DEV_ST is not set
+# CONFIG_BLK_DEV_SR is not set
+# CONFIG_CHR_DEV_SG is not set
+CONFIG_SCSI_DEBUG_QUEUES=y
+CONFIG_SCSI_MULTI_LUN=y
+CONFIG_SCSI_CONSTANTS=y
+# CONFIG_SCSI_LOGGING is not set
+
+#
+# SCSI low-level drivers
+#
+# CONFIG_BLK_DEV_3W_XXXX_RAID is not set
+# CONFIG_SCSI_7000FASST is not set
+# CONFIG_SCSI_ACARD is not set
+CONFIG_SCSI_AHA152X=m
+# CONFIG_SCSI_AHA1542 is not set
+CONFIG_SCSI_AHA1740=m
+CONFIG_SCSI_AIC7XXX=y
+# CONFIG_AIC7XXX_TCQ_ON_BY_DEFAULT is not set
+CONFIG_AIC7XXX_CMDS_PER_DEVICE=8
+# CONFIG_AIC7XXX_PROC_STATS is not set
+CONFIG_AIC7XXX_RESET_DELAY=5
+# CONFIG_SCSI_IPS is not set
+# CONFIG_SCSI_ADVANSYS is not set
+# CONFIG_SCSI_IN2000 is not set
+# CONFIG_SCSI_AM53C974 is not set
+# CONFIG_SCSI_MEGARAID is not set
+# CONFIG_SCSI_BUSLOGIC is not set
+# CONFIG_SCSI_DTC3280 is not set
+# CONFIG_SCSI_EATA is not set
+# CONFIG_SCSI_EATA_DMA is not set
+# CONFIG_SCSI_EATA_PIO is not set
+# CONFIG_SCSI_FUTURE_DOMAIN is not set
+# CONFIG_SCSI_GDTH is not set
+# CONFIG_SCSI_GENERIC_NCR5380 is not set
+# CONFIG_SCSI_INITIO is not set
+# CONFIG_SCSI_INIA100 is not set
+# CONFIG_SCSI_NCR53C406A is not set
+# CONFIG_SCSI_SYM53C416 is not set
+# CONFIG_SCSI_SIM710 is not set
+# CONFIG_SCSI_NCR53C7xx is not set
+# CONFIG_SCSI_NCR53C8XX is not set
+CONFIG_SCSI_SYM53C8XX=m
+CONFIG_SCSI_NCR53C8XX_DEFAULT_TAGS=4
+CONFIG_SCSI_NCR53C8XX_MAX_TAGS=32
+CONFIG_SCSI_NCR53C8XX_SYNC=20
+# CONFIG_SCSI_NCR53C8XX_PROFILE is not set
+# CONFIG_SCSI_NCR53C8XX_IOMAPPED is not set
+# CONFIG_SCSI_NCR53C8XX_PQS_PDS is not set
+# CONFIG_SCSI_NCR53C8XX_SYMBIOS_COMPAT is not set
+# CONFIG_SCSI_PAS16 is not set
+# CONFIG_SCSI_PCI2000 is not set
+# CONFIG_SCSI_PCI2220I is not set
+# CONFIG_SCSI_PSI240I is not set
+# CONFIG_SCSI_QLOGIC_FAS is not set
+# CONFIG_SCSI_QLOGIC_ISP is not set
+CONFIG_SCSI_QLOGIC_FC=m
+# CONFIG_SCSI_QLOGIC_1280 is not set
+# CONFIG_SCSI_SEAGATE is not set
+# CONFIG_SCSI_DC390T is not set
+# CONFIG_SCSI_T128 is not set
+# CONFIG_SCSI_U14_34F is not set
+# CONFIG_SCSI_ULTRASTOR is not set
+# CONFIG_SCSI_DEBUG is not set
+
+#
+# IEEE 1394 (FireWire) support
+#
+# CONFIG_IEEE1394 is not set
+
+#
+# I2O device support
+#
+# CONFIG_I2O is not set
+# CONFIG_I2O_PCI is not set
+# CONFIG_I2O_BLOCK is not set
+# CONFIG_I2O_LAN is not set
+# CONFIG_I2O_SCSI is not set
+# CONFIG_I2O_PROC is not set
+
+#
+# Network device support
+#
+CONFIG_NETDEVICES=y
+
+#
+# ARCnet devices
+#
+# CONFIG_ARCNET is not set
+CONFIG_DUMMY=m
+# CONFIG_BONDING is not set
+# CONFIG_EQUALIZER is not set
+# CONFIG_NET_SB1000 is not set
+
+#
+# Ethernet (10 or 100Mbit)
+#
+CONFIG_NET_ETHERNET=y
+CONFIG_NET_VENDOR_3COM=y
+# CONFIG_EL1 is not set
+# CONFIG_EL2 is not set
+# CONFIG_ELPLUS is not set
+# CONFIG_EL16 is not set
+# CONFIG_EL3 is not set
+# CONFIG_3C515 is not set
+CONFIG_VORTEX=m
+CONFIG_LANCE=m
+# CONFIG_NET_VENDOR_SMC is not set
+# CONFIG_NET_VENDOR_RACAL is not set
+# CONFIG_AT1700 is not set
+# CONFIG_DEPCA is not set
+# CONFIG_NET_ISA is not set
+CONFIG_NET_PCI=y
+CONFIG_PCNET32=m
+# CONFIG_ADAPTEC_STARFIRE is not set
+# CONFIG_AC3200 is not set
+# CONFIG_APRICOT is not set
+# CONFIG_CS89x0 is not set
+# CONFIG_DE4X5 is not set
+# CONFIG_TULIP is not set
+# CONFIG_DGRS is not set
+# CONFIG_DM9102 is not set
+# CONFIG_EEPRO100 is not set
+# CONFIG_LNE390 is not set
+# CONFIG_NE3210 is not set
+# CONFIG_NE2K_PCI is not set
+# CONFIG_RTL8129 is not set
+# CONFIG_8139TOO is not set
+# CONFIG_SIS900 is not set
+# CONFIG_TLAN is not set
+# CONFIG_VIA_RHINE is not set
+# CONFIG_ES3210 is not set
+# CONFIG_EPIC100 is not set
+# CONFIG_NET_POCKET is not set
+
+#
+# Ethernet (1000 Mbit)
+#
+# CONFIG_YELLOWFIN is not set
+# CONFIG_ACENIC is not set
+# CONFIG_SK98LIN is not set
+# CONFIG_FDDI is not set
+# CONFIG_HIPPI is not set
+# CONFIG_PPP is not set
+# CONFIG_SLIP is not set
+
+#
+# Wireless LAN (non-hamradio)
+#
+# CONFIG_NET_RADIO is not set
+
+#
+# Token Ring devices
+#
+# CONFIG_TR is not set
+# CONFIG_NET_FC is not set
+# CONFIG_RCPCI is not set
+# CONFIG_SHAPER is not set
+
+#
+# Wan interfaces
+#
+# CONFIG_WAN is not set
+
+#
+# Amateur Radio support
+#
+# CONFIG_HAMRADIO is not set
+
+#
+# IrDA (infrared) support
+#
+# CONFIG_IRDA is not set
+
+#
+# ISDN subsystem
+#
+# CONFIG_ISDN is not set
+
+#
+# Old CD-ROM drivers (not SCSI, not IDE)
+#
+# CONFIG_CD_NO_IDESCSI is not set
+
+#
+# Character devices
+#
+CONFIG_VT=y
+CONFIG_VT_CONSOLE=y
+CONFIG_SERIAL=y
+CONFIG_SERIAL_CONSOLE=y
+# CONFIG_SERIAL_EXTENDED is not set
+# CONFIG_SERIAL_NONSTANDARD is not set
+CONFIG_UNIX98_PTYS=y
+CONFIG_UNIX98_PTY_COUNT=256
+
+#
+# I2C support
+#
+# CONFIG_I2C is not set
+
+#
+# Mice
+#
+# CONFIG_BUSMOUSE is not set
+CONFIG_MOUSE=y
+CONFIG_PSMOUSE=y
+CONFIG_82C710_MOUSE=y
+# CONFIG_PC110_PAD is not set
+
+#
+# Joysticks
+#
+# CONFIG_JOYSTICK is not set
+# CONFIG_QIC02_TAPE is not set
+
+#
+# Watchdog Cards
+#
+# CONFIG_WATCHDOG is not set
+CONFIG_PROFILING=y
+# CONFIG_NVRAM is not set
+# CONFIG_RTC is not set
+
+#
+# Video For Linux
+#
+# CONFIG_VIDEO_DEV is not set
+# CONFIG_DTLK is not set
+# CONFIG_R3964 is not set
+# CONFIG_APPLICOM is not set
+
+#
+# Ftape, the floppy tape device driver
+#
+# CONFIG_FTAPE is not set
+CONFIG_DRM=y
+# CONFIG_DRM_TDFX is not set
+# CONFIG_DRM_GAMMA is not set
+# CONFIG_AGP is not set
+
+#
+# USB support
+#
+# CONFIG_USB is not set
+
+#
+# File systems
+#
+# CONFIG_QUOTA is not set
+CONFIG_AUTOFS_FS=m
+CONFIG_AUTOFS4_FS=m
+# CONFIG_ADFS_FS is not set
+# CONFIG_AFFS_FS is not set
+# CONFIG_HFS_FS is not set
+# CONFIG_BFS_FS is not set
+# CONFIG_FAT_FS is not set
+# CONFIG_MSDOS_FS is not set
+# CONFIG_UMSDOS_FS is not set
+# CONFIG_VFAT_FS is not set
+# CONFIG_EFS_FS is not set
+# CONFIG_CRAMFS is not set
+CONFIG_ISO9660_FS=m
+# CONFIG_JOLIET is not set
+# CONFIG_MINIX_FS is not set
+# CONFIG_NTFS_FS is not set
+# CONFIG_HPFS_FS is not set
+CONFIG_PROC_FS=y
+# CONFIG_DEVFS_FS is not set
+# CONFIG_DEVFS_DEBUG is not set
+CONFIG_DEVPTS_FS=y
+# CONFIG_QNX4FS_FS is not set
+# CONFIG_ROMFS_FS is not set
+CONFIG_EXT2_FS=y
+# CONFIG_SYSV_FS is not set
+# CONFIG_UDF_FS is not set
+# CONFIG_UFS_FS is not set
+CONFIG_XFS_FS=m
+CONFIG_PAGE_BUF=y
+CONFIG_PAGE_BUF_LOCKING=y
+CONFIG_AVL=y
+# CONFIG_PAGE_BUF_META is not set
+# CONFIG_XFS_VNODE_TRACING is not set
+CONFIG_AVL=y
+# CONFIG_XFS_ARCH_MIPS is not set
+CONFIG_XFS_ARCH_NATIVE=y
+# CONFIG_XFS_ARCH_MULTI is not set
+
+#
+# Network File Systems
+#
+# CONFIG_CODA_FS is not set
+CONFIG_NFS_FS=m
+# CONFIG_ROOT_NFS is not set
+# CONFIG_NFSD is not set
+CONFIG_SUNRPC=m
+CONFIG_LOCKD=m
+# CONFIG_SMB_FS is not set
+# CONFIG_NCP_FS is not set
+
+#
+# Partition Types
+#
+# CONFIG_PARTITION_ADVANCED is not set
+CONFIG_MSDOS_PARTITION=y
+# CONFIG_NLS is not set
+
+#
+# Console drivers
+#
+CONFIG_VGA_CONSOLE=y
+# CONFIG_VIDEO_SELECT is not set
+# CONFIG_MDA_CONSOLE is not set
+
+#
+# Frame-buffer support
+#
+# CONFIG_FB is not set
+
+#
+# Sound
+#
+# CONFIG_SOUND is not set
+
+#
+# Kernel hacking
+#
+# CONFIG_MAGIC_SYSRQ is not set
+# CONFIG_LOCKMETER is not set
+CONFIG_KDB=y
+CONFIG_KDB_FRAMEPTR=y
+CONFIG_KDB_STBSIZE=13500
+CONFIG_MCOUNT=y
+CONFIG_PROF_FRAME_PTR=y
+
+-- 
+--------------------------------------------------------------------------
+Rajagopal Ananthanarayanan ("ananth")
+Member Technical Staff, SGI.
+--------------------------------------------------------------------------
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
