@@ -1,43 +1,34 @@
-From: kanoj@google.engr.sgi.com (Kanoj Sarcar)
-Message-Id: <199906291736.KAA20280@google.engr.sgi.com>
+Date: Tue, 29 Jun 1999 22:08:52 +0200 (CEST)
+From: Andrea Arcangeli <andrea@suse.de>
 Subject: Re: filecache/swapcache questions [RFC] [RFT] [PATCH] kanoj-mm12-2.3.8
-Date: Tue, 29 Jun 1999 10:36:41 -0700 (PDT)
-In-Reply-To: <14200.44196.867290.619751@dukat.scot.redhat.com> from "Stephen C. Tweedie" at Jun 29, 99 12:23:16 pm
+ Fix swapoff races
+In-Reply-To: <Pine.LNX.4.10.9906290032460.1588-100000@laser.random>
+Message-ID: <Pine.LNX.4.10.9906292205340.32426-100000@laser.random>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Stephen C. Tweedie" <sct@redhat.com>
-Cc: cel@monkey.org, linux-mm@kvack.org
+To: Chuck Lever <cel@monkey.org>
+Cc: "Stephen C. Tweedie" <sct@redhat.com>, Kanoj Sarcar <kanoj@google.engr.sgi.com>, torvalds@transmeta.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> 
-> Hi,
-> 
-> On Mon, 28 Jun 1999 15:15:29 -0700 (PDT), kanoj@google.engr.sgi.com
-> (Kanoj Sarcar) said:
-> 
-> >> kswapd itself always uses a gfp_mask that includes GFP_IO, so nothing it
-> >> calls will ever wait.  the I/O it schedules is asynchronous, and when
-> >> complete, the buffer exit code in end_buffer_io_async will set the page
-> >> flags appropriately for shrink_mmap() to come by and steal it. also, the
-> >> buffer code will use pre-allocated buffers if gfp fails.
-> >> 
-> 
-> > Which is why you must gurantee that kswapd can always run, and keep
-> > as few blocking points as possible ...
-> 
-> Look, we're just going round in circles here.
-> 
-> kswapd *can* always run.
->
+On Tue, 29 Jun 1999, Andrea Arcangeli wrote:
 
-Not if you are going to try grabbing mmap_sem in that path ... 
+For the record: the snapshot wasn't SMP safe.
 
-Anyway, I guess we have established that is a bad idea ...
+> 	/*
+>+	 * We can release the big kernel lock here since
+>+	 * kswapd will see the page locked. -Andrea
+>+	 */
+>+	unlock_kernel();
 
-Kanoj 
+This was a bit too early (pefectly ok for kswapd but not ok for the swap
+cache SMP safety). We must first take over the swap cache and run
+swap_count before be allowed to release the big kernel lock. So this
+should be moved a bit lower...
+
+Andrea
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
