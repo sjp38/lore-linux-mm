@@ -1,42 +1,42 @@
-Date: Tue, 19 Feb 2002 11:32:17 -0800
-From: Larry McVoy <lm@bitmover.com>
+Date: Tue, 19 Feb 2002 16:35:26 -0300 (BRT)
+From: Rik van Riel <riel@conectiva.com.br>
 Subject: Re: [PATCH *] new struct page shrinkage
-Message-ID: <20020219113217.P26350@work.bitmover.com>
-References: <Pine.LNX.4.33L.0202191131050.1930-100000@imladris.surriel.com> <Pine.LNX.4.33.0202191116470.27806-100000@home.transmeta.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.33.0202191116470.27806-100000@home.transmeta.com>; from torvalds@transmeta.com on Tue, Feb 19, 2002 at 11:21:34AM -0800
+In-Reply-To: <20020219113217.P26350@work.bitmover.com>
+Message-ID: <Pine.LNX.4.33L.0202191634290.7820-100000@imladris.surriel.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@transmeta.com>
-Cc: Rik van Riel <riel@conectiva.com.br>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Larry McVoy <lm@bitmover.com>
+Cc: Linus Torvalds <torvalds@transmeta.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Feb 19, 2002 at 11:21:34AM -0800, Linus Torvalds wrote:
-> > The patch has been changed like you wanted, with page->zone
-> > shoved into page->flags. I've also pulled the thing up to
-> > your latest changes from linux.bkbits.net so you should be
-> > able to just pull it into your tree from:
-> >
-> > bk://linuxvm.bkbits.net/linux-2.5-struct_page
-> 
-> Btw, _please_ don't do things like changing the bitkeeper etc/config file.
-> Right now your very first changesets is something that I definitely do not
-> want in my tree.
+On Tue, 19 Feb 2002, Larry McVoy wrote:
 
-This is really a problem for bkbits to solve if I understand it correctly.
-Rik wants to "name" his tree.  If we the bkbits admin interface have a 
-"desc" command which changes the description listed on the web pages, then
-I think he'll be happy, right?  We had the same problem with the PPC tree,
-people do this without realizing the implications.
+> This is really a problem for bkbits to solve if I understand it
+> correctly. Rik wants to "name" his tree.  If we the bkbits admin
+> interface have a "desc" command which changes the description listed
+> on the web pages, then I think he'll be happy, right?
 
-I'd suggest a changeset to the config file which says 
+Indeed.  The problem was that I was getting too many trees
+on linuxvm.bkbits.net and would only end up confusing people
+what was what...
 
-# Don't change the description unless you are Linus.
+> I'd suggest a changeset to the config file which says
+>
+> # Don't change the description unless you are Linus.
+
+Nice warning ;)
+
+regards,
+
+Rik
 -- 
----
-Larry McVoy            	 lm at bitmover.com           http://www.bitmover.com/lm 
+"Linux holds advantages over the single-vendor commercial OS"
+    -- Microsoft's "Competing with Linux" document
+
+http://www.surriel.com/		http://distro.conectiva.com/
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
