@@ -1,42 +1,42 @@
-Date: Wed, 13 Nov 2002 19:33:48 +0000
-From: Christoph Hellwig <hch@infradead.org>
+Date: Wed, 13 Nov 2002 17:37:15 -0200 (BRST)
+From: Rik van Riel <riel@conectiva.com.br>
 Subject: Re: [PATCH] 10/4  -ac to newer rmap
-Message-ID: <20021113193348.A29582@infradead.org>
-References: <20021113193041Z80262-23310+72@imladris.surriel.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20021113193041Z80262-23310+72@imladris.surriel.com>; from riel@conectiva.com.br on Wed, Nov 13, 2002 at 05:30:34PM -0200
+In-Reply-To: <20021113193348.A29582@infradead.org>
+Message-ID: <Pine.LNX.4.44L.0211131735380.3817-100000@imladris.surriel.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@conectiva.com.br>
+To: Christoph Hellwig <hch@infradead.org>
 Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, Arjan van de Ven <arjanv@redhat.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
->  /* 
->   * Wait for a page to get unlocked.
->   *
->   * This must be called with the caller "holding" the page,
->   * ie with increased "page->count" so that the page won't
->   * go away during the wait..
-> - *
-> - * The waiting strategy is to get on a waitqueue determined
-> - * by hashing. Waiters will then collide, and the newly woken
-> - * task must then determine whether it was woken for the page
-> - * it really wanted, and go back to sleep on the waitqueue if
-> - * that wasn't it. With the waitqueue semantics, it never leaves
-> - * the waitqueue unless it calls, so the loop moves forward one
-> - * iteration every time there is
-> - * (1) a collision 
-> - * and
-> - * (2) one of the colliding pages is woken
-> - *
-> - * This is the thundering herd problem, but it is expected to
-> - * be very rare due to the few pages that are actually being
-> - * waited on at any given time and the quality of the hash function.
->   */
+On Wed, 13 Nov 2002, Christoph Hellwig wrote:
 
-What is the pint of removing comments?
+> >  /*
+> >   * Wait for a page to get unlocked.
+> >   *
+> >   * This must be called with the caller "holding" the page,
+> >   * ie with increased "page->count" so that the page won't
+> >   * go away during the wait..
+
+	[snip last 2 paragraphs of comment]
+
+> >   */
+>
+> What is the pint of removing comments?
+
+These comments really were excessively large.  The main point of
+this particular patch would be to bring -rmap and -ac in line so
+it's easier to merge patches from one kernel into the other.
+
+regards,
+
+Rik
+-- 
+Bravely reimplemented by the knights who say "NIH".
+http://www.surriel.com/		http://guru.conectiva.com/
+Current spamtrap:  <a href=mailto:"october@surriel.com">october@surriel.com</a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
