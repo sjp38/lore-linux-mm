@@ -1,44 +1,46 @@
-Received: from penguin.e-mind.com (penguin.e-mind.com [195.223.140.120])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id HAA18676
-	for <linux-mm@kvack.org>; Tue, 11 May 1999 07:29:38 -0400
-Date: Tue, 11 May 1999 13:38:48 +0200 (CEST)
-From: Andrea Arcangeli <andrea@e-mind.com>
-Subject: Re: [PATCH] dirty pages in memory & co.
-In-Reply-To: <m1g154e7ou.fsf@flinx.ccr.net>
-Message-ID: <Pine.LNX.4.05.9905111334580.929-100000@laser.random>
+Received: from dukat.scot.redhat.com (sct@dukat.scot.redhat.com [195.89.149.246])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id OAA22788
+	for <linux-mm@kvack.org>; Tue, 11 May 1999 14:47:12 -0400
+From: "Stephen C. Tweedie" <sct@redhat.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Message-ID: <14136.31444.33068.416501@dukat.scot.redhat.com>
+Date: Tue, 11 May 1999 19:45:40 +0100 (BST)
+Subject: Re: [PATCH] dirty pages in memory & co.
+In-Reply-To: <Pine.LNX.4.05.9905111334580.929-100000@laser.random>
+References: <m1g154e7ou.fsf@flinx.ccr.net>
+	<Pine.LNX.4.05.9905111334580.929-100000@laser.random>
 Sender: owner-linux-mm@kvack.org
-To: "Eric W. Biederman" <ebiederm+eric@ccr.net>
-Cc: linux-mm@kvack.org
+To: Andrea Arcangeli <andrea@e-mind.com>
+Cc: "Eric W. Biederman" <ebiederm+eric@ccr.net>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 10 May 1999, Eric W. Biederman wrote:
+Hi,
 
->The reason I am looking at reverse page entries, is I would like to handle
->dirty mapped pages better.  
->My thought is basically to trap the fault that dirties the page and mark it dirty.
->Then after it has aged long enough I unmap or at least clear the write allow bits of
->the pte or ptes.
->
->This does buy an improvement, in when things get written out.  But beyond that I
->don't know.
+On Tue, 11 May 1999 13:38:48 +0200 (CEST), Andrea Arcangeli
+<andrea@e-mind.com> said:
 
-Having the reverse lookup from pagemap to ptes would also make life a bit
-easier in my update_shared_mappings ;). So in general I see your point.
-Think when you'll clear the dirty bit from the pagemap, then you'll want
-to mark clean also the pte in the tasks. Right?
+> But I am worried by page faults. The page fault that allow us to know
+> where there is an uptodate swap-entry on disk just hurt performances more
+> than not having such information (I did benchmarks).
 
-But I am worried by page faults. The page fault that allow us to know
-where there is an uptodate swap-entry on disk just hurt performances more
-than not having such information (I did benchmarks).
+It obviously depends on whether you are swap-bound or CPU-bound.  Have
+you tried both?
 
->It's certainly something to think about for your other algorithms.
+One thing I definitely agree with is that it may sometimes be preferable
+to drop the swap cache to avoid fragmentation.  If we have a new dirty
+page requiring writing to swap, and its VA neighbours are already in the
+swap cache, it makes sense to eliminate the swap cache and write all the
+pages to the new location to keep them contiguous on disk.  
 
-I am not sure if it's worthwhile, but I think it worth testing ;).
+The real aim here is to allow us to keep dirty pages in the swap cache
+too: this will allow us to keep good, unfragmented swap allocations by
+persistently assigning a contiguous range of swap to a contiguous range
+of process data pages, even if the process is only dirtying some of
+those pages.
 
-Andrea Arcangeli
-
+--Stephen
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm my@address'
 in the body to majordomo@kvack.org.  For more info on Linux MM,
