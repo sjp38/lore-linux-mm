@@ -1,33 +1,35 @@
-Date: Fri, 3 Nov 2000 06:51:05 -0800
-Message-Id: <200011031451.GAA10924@pizda.ninka.net>
-From: "David S. Miller" <davem@redhat.com>
-In-reply-to: <200011031456.JAA21492@tsx-prime.MIT.EDU> (tytso@MIT.EDU)
-Subject: Re: BUG FIX?: mm->rss is modified in some places without holding the  page_table_lock
-References: <200011031456.JAA21492@tsx-prime.MIT.EDU>
+Date: Fri, 3 Nov 2000 23:27:21 +0100
+From: Andrea Arcangeli <andrea@suse.de>
+Subject: Re: PATCH [2.4.0test10]: Kiobuf#02, fault-in fix
+Message-ID: <20001103232721.D27034@athlon.random>
+References: <20001102134021.B1876@redhat.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20001102134021.B1876@redhat.com>; from sct@redhat.com on Thu, Nov 02, 2000 at 01:40:21PM +0000
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: tytso@MIT.EDU
-Cc: davej@suse.de, torvalds@transmeta.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: "Stephen C. Tweedie" <sct@redhat.com>
+Cc: Linus Torvalds <torvalds@transmeta.com>, Rik van Riel <riel@nl.linux.org>, Ingo Molnar <mingo@redhat.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-   Are you saying that the original bug report may not actually be a
-   problem?  Is ms->rss actually protected in _all_ of the right
-   places, but people got confused because of the syntactic sugar?
+On Thu, Nov 02, 2000 at 01:40:21PM +0000, Stephen C. Tweedie wrote:
+> +			if (!write || pte_write(*pte))
 
-I don't know if all of them are ok, most are.
+You should check pte is dirty, not only writeable.
 
-Someone would need to do the analysis.  David's patch could be used as
-a good starting point.  A quick glance at mm/memory.c shows these
-spots need to be fixed:
+>  		if (handle_mm_fault(current->mm, vma, ptr, datain) <= 0) 
+>  			goto out_unlock;
+>  		spin_lock(&mm->page_table_lock);
+> -		map = follow_page(ptr);
+> +		map = follow_page(ptr, datain);
 
-1) End of zap_page_range()
-2) Middle of do_swap_page
-3) do_anonymous_page
-4) do_no_page
+Here you should _first_ follow_page and do handle_mm_fault _only_ if the pte is
+not ok. This way only during first pagein we'll walk the pagetables two times,
+all the other times we'll walk pagetables only once just to check that the
+mapping is still there.
 
-Later,
-David S. Miller
-davem@redhat.com
+Andrea
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
