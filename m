@@ -1,37 +1,32 @@
-Date: Tue, 15 Jul 2003 23:22:33 -0700
-From: Andrew Morton <akpm@osdl.org>
 Subject: Re: 2.6.0-test1-mm1
-Message-Id: <20030715232233.7d187f0e.akpm@osdl.org>
-In-Reply-To: <20030716061642.GA4032@triplehelix.org>
 References: <20030715225608.0d3bff77.akpm@osdl.org>
-	<20030716061642.GA4032@triplehelix.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+From: Sean Neakums <sneakums@zork.net>
+Date: Wed, 16 Jul 2003 09:07:42 +0100
+In-Reply-To: <20030715225608.0d3bff77.akpm@osdl.org> (Andrew Morton's
+ message of "Tue, 15 Jul 2003 22:56:08 -0700")
+Message-ID: <6uwueidhdd.fsf@zork.zork.net>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Joshua Kwan <joshk@triplehelix.org>
+To: Andrew Morton <akpm@osdl.org>, Con Kolivas <kernel@kolivas.org>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Joshua Kwan <joshk@triplehelix.org> wrote:
->
-> There are a mountain of warnings when compiling, and I've traced it to
->  asm-i386/irq.h, i THINK... for example:
-> 
->  In file included from include/asm/thread_info.h:13,
->                   from include/linux/thread_info.h:21,
->                   from include/linux/spinlock.h:12,
->                   from include/linux/irq.h:17,
->                   from arch/i386/kernel/cpu/mcheck/winchip.c:8:
->  include/asm/processor.h:66: warning: padding struct size to alignment boundary
->  include/asm/processor.h:339: warning: padding struct to align `info'
->  include/asm/processor.h:401: warning: padding struct to align `i387'
+Andrew Morton <akpm@osdl.org> writes:
 
-Oh, all right, I forgot to set aside the requisite eighteen hours to build
-the kernel with gcc-3.x.  Sorry bout that.
+> . Another interactivity patch from Con.  Feedback is needed on this
+>   please - we cannot make much progress on this fairly subjective work
+>   without lots of people telling us how it is working for them.
 
-Just ignore them, or revert wpadded.patch.
+This patch seems to mostly cure an oddity I've been seeing since
+2.5.7x, or maybe very late 2.5.6x (I forget exactly when) where
+running 'ps aux' or 'ls -l' in an xterm (and only xterm it seems; I've
+tried rxvt and aterm) would more often than not result in a wallclock
+run time of up to two seconds, instead of the usual tenth of a second
+or so, with system and user time remaining constant.  If I keep
+running 'ps aux' its output does start to become slow again, snapping
+back to full speed after a few more runs.  Kind of an odd one.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
