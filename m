@@ -1,50 +1,58 @@
-Message-ID: <YSXVMADJLRZFGRKNWVWJBZ@webmailv.com>
-From: "Rex Crosby" <ycsqcrmcyphift@tacomail.com>
-Reply-To: "Rex Crosby" <ycsqcrmcyphift@tacomail.com>
-Subject: Ref!ll your med!cat!on onl!ne! 
-Date: Wed, 28 Jan 2004 13:23:05 -0300
+From: Nikita Danilov <Nikita@Namesys.COM>
 MIME-Version: 1.0
-Content-Type: multipart/alternative;
-	boundary="--071781181334100"
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Message-ID: <16407.59031.17836.961587@laputa.namesys.com>
+Date: Wed, 28 Jan 2004 19:43:03 +0300
+Subject: [PATCH] mm/vmscan.c:shrink_list(): check PageSwapCache() after add_to_swap()
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Andrew Morton <akpm@osdl.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-----071781181334100
-Content-Type: text/plain;
-Content-Transfer-Encoding: quoted-printable
+Hello,
 
-Linux-mm, You won't believe this! I found the cure for ED (erectile dysfun=
-ction), it's a pill called viagra. Unfortunately this pill is very expensi=
-ve and will only be sold to certain people.
+shrink_list() checks PageSwapCache() before calling add_to_swap(), this
+means that anonymous page that is going to be added to the swap right
+now these checks return false and:
 
-But I think I have a way to help you. 
+ (*) it will be unaccounted for in nr_mapped, and
 
-This site:
+ (*) it won't be written to the swap if gfp_flags include __GFP_IO but
+     not __GFP_FS.
 
-http://www.healthuu3.com/host/default.asp?id=3D1915
+(Both will happen only on the next round of scanning.)
 
-is selling generic viagra, which has identical results to the real pill at=
- half the price! All you need is a credit card.
+Patch below just moves may_enter_fs initialization down. I am not sure
+about (*nr_mapped) increase though.
 
-I hope that helps you out, I know it did for me.
+Comments?
 
-Let me know how it works out :) 
+Nikita.
+diff -puN -b mm/vmscan.c~check-PageSwapCache-after-add-to-swap mm/vmscan.c
+--- i386/mm/vmscan.c~check-PageSwapCache-after-add-to-swap	Wed Jan 28 19:22:14 2004
++++ i386-nikita/mm/vmscan.c	Wed Jan 28 19:36:16 2004
+@@ -380,8 +380,6 @@ shrink_list(struct list_head *page_list,
+ 			(*nr_mapped)++;
+ 
+ 		BUG_ON(PageActive(page));
+-		may_enter_fs = (gfp_mask & __GFP_FS) ||
+-				(PageSwapCache(page) && (gfp_mask & __GFP_IO));
+ 
+ 		if (PageWriteback(page))
+ 			goto keep_locked;
+@@ -412,6 +410,9 @@ shrink_list(struct list_head *page_list,
+ 		}
+ #endif /* CONFIG_SWAP */
+ 
++		may_enter_fs = (gfp_mask & __GFP_FS) ||
++				(PageSwapCache(page) && (gfp_mask & __GFP_IO));
++
+ 		/*
+ 		 * The page is mapped into the page tables of one or more
+ 		 * processes. Try to unmap it here.
 
-
-
-R e m o v e|| http://www.healthuu3.com/host/emailremove.asp
-
-
-
-
-
-
-
-
-----071781181334100--
-
+_
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
