@@ -1,36 +1,43 @@
-Date: Wed, 12 Apr 2000 15:45:14 +0100
-From: "Stephen C. Tweedie" <sct@redhat.com>
 Subject: Re: page->offset
-Message-ID: <20000412154514.G7570@redhat.com>
 References: <CA2568BF.00489645.00@d73mta05.au.ibm.com>
-Mime-Version: 1.0
+From: ebiederm+eric@ccr.net (Eric W. Biederman)
+Date: 12 Apr 2000 10:29:30 -0500
+In-Reply-To: pnilesh@in.ibm.com's message of "Wed, 12 Apr 2000 18:34:21 +0530"
+Message-ID: <m1aeizban9.fsf@flinx.biederman.org>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-In-Reply-To: <CA2568BF.00489645.00@d73mta05.au.ibm.com>; from pnilesh@in.ibm.com on Wed, Apr 12, 2000 at 06:34:21PM +0530
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: pnilesh@in.ibm.com
 Cc: "Stephen C. Tweedie" <sct@redhat.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+pnilesh@in.ibm.com writes:
 
-On Wed, Apr 12, 2000 at 06:34:21PM +0530, pnilesh@in.ibm.com wrote:
+> To have your views,
 > 
 > If a file is opened and from an offset which is not page aligned say from
 > offset 10.
+Umm.  Files aren't opend with offsets.
+The are however mapped at offsets.
+
 > When we read this file into the memory page ,where the first byte will be
 > loaded into the memory ?
+When you mmap the file?  A read syscall isn't affected?
+
 > In 2.2 the first byte of the page will be the 10th byte of the file.
+Nope.  Can't do alignments less the fs blocksize which at least 512 bytes
+even in 2.2.  But for the mmap case you are substantailly correct.
+
 > In 2.3 the first byte will be first byte in the file and 10th byte is the
 > 10th in the file.
+That is what will be in the cache.   The mmap  request will simply be refused.
 
-No.  The cache will always be page aligned in both 2.2 and 2.3 for
-all user IO and for all mmap()ed files.  The _only_ case where we
-allow non-aligned mappings is when the execve() syscall is executed
-on a QMAGIC binary, in which case 2.2 will allow the mapping and
-will page the binary in at unaligned offsets when page faults occur.
+> This is what I feel.
 
---Stephen
+How does feelings have anything to do with it?
+
+Eric
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
