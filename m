@@ -1,40 +1,53 @@
-Date: Sat, 3 Jun 2000 21:17:13 -0300 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
-Subject: Re: classzone-31
-In-Reply-To: <Pine.LNX.4.21.0006031643500.404-100000@inspiron.random>
-Message-ID: <Pine.LNX.4.21.0006032113330.17414-100000@duckman.distro.conectiva>
+Received: (from john@localhost)
+	by boreas.southchinaseas (8.9.3/8.9.3) id BAA04750
+	for <linux-mm@kvack.org>; Sun, 4 Jun 2000 01:40:23 +0100
+Subject: Long time spent in swap_out &co
+From: "John Fremlin" <vii@penguinpowered.com>
+Date: 04 Jun 2000 01:40:19 +0100
+Message-ID: <m2snuuz3bg.fsf@boreas.southchinaseas>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrea Arcangeli <andrea@suse.de>
-Cc: linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 3 Jun 2000, Andrea Arcangeli wrote:
+I had a look at vmscan.c and noticed that the swap_out process
+selection procedure looks suboptimal (this is 2.4.0-test1-ac7 with
+Rik's mm patch rev 3). If I make a mistake, please correct it gently
+(I am a clueless newbie).
 
-> classzone-31 against 2.4.0-test1-ac7 is here:
+        (a) The entire list of processes is scanned through each time
+        at least once. (Slow, and holding a lock.)
 
-In the process of writing the new VM code I've been looking
-through your patch for some ideas and I have some questions.
+        (b) The biggest rss is chosen. Admittedly the swap_cnt
+        heuristics help a bit but it means that a large process that
+        is on touching its pages will keep distracting attention from
+        more smaller processes that may or may not be more wasteful.
 
-1) could you explain your shrink_mmap changes?
-   why do they work?
+Suggestions
 
-2) why are you backing out bugfixes made by Linus and
-   other people?  what does your patch gain by that?
-   (eg the do_try_to_free_pages stuff)
+        Guess a reasonable minimum size process to look at (say, twice
+        the average of the first couple of size_cnts) so the entire
+        list isn't scanned through so often and different processes
+        will be targeted first when all the size_cnts are reset.
 
-regards,
+        Are we just dealing with the running processes? (If not, why
+        not first try to swap out the sleeping ones?)
 
-Rik
---
-The Internet is not a network of computers. It is a network
-of people. That is its real strength.
+        Or, target processes with fewest page faults.
 
-Wanna talk about the kernel?  irc.openprojects.net / #kernelnewbies
-http://www.conectiva.com/		http://www.surriel.com/
+        [I'm basically unconvinced of the idea of size_cnt]
 
+Hard evidence
+
+        I set up a lot of processes to run, more than my box can
+        handle and a large proportion of SysReq-Ps had EIPs in
+        swap_out. (Waiting for lock? Not checked).
+
+-- 
+
+	http://altern.org/vii
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
