@@ -1,37 +1,50 @@
-Received: from d1o43.telia.com (d1o43.telia.com [194.22.195.241])
-	by maila.telia.com (8.9.3/8.9.3) with ESMTP id PAA23688
-	for <linux-mm@kvack.org>; Thu, 18 Jan 2001 15:05:16 +0100 (CET)
-Received: from dox (t7o43p30.telia.com [194.237.168.150])
-	by d1o43.telia.com (8.10.2/8.10.1) with SMTP id f0IE4xB28469
-	for <linux-mm@kvack.org>; Thu, 18 Jan 2001 15:05:15 +0100 (CET)
-Content-Type: text/plain;
-  charset="iso-8859-1"
-From: Roger Larsson <roger.larsson@skelleftea.mail.telia.com>
-Subject: DATAPOINT: 2.4.1-pre8 v. other
-Date: Thu, 18 Jan 2001 15:00:11 +0100
+Message-ID: <3A670E0E.5394FFFD@augan.com>
+Date: Thu, 18 Jan 2001 16:38:54 +0100
+From: Roman Zippel <roman@augan.com>
 MIME-Version: 1.0
-Message-Id: <01011815001100.01243@dox>
-Content-Transfer-Encoding: 8bit
+Subject: Re: swapout selection change in pre1
+References: <Pine.LNX.4.31.0101181032150.31432-100000@localhost.localdomain>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Rik van Riel <riel@conectiva.com.br>
+Cc: Linus Torvalds <torvalds@transmeta.com>, Jamie Lokier <lk@tantalophile.demon.co.uk>, Ed Tomlinson <tomlins@cam.org>, Marcelo Tosatti <marcelo@conectiva.com.br>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 Hi,
 
-I have performed my usual streaming write, copy, read, diff, dbench,
-and mmap002
+Rik van Riel wrote:
 
-2.4.1-pre8 (with emu10k patch) is slower than 2.2.18 when streaming,
-but much better when running dbench. Best of the ones I have tested is
-the 2.4.1-pre1+marcelo (was there any bugs in there that helped performance?)
+> > Reverse mapping is basically not simple at all. For each page table entry,
+> > you need a
+> >
+> >       struct reverse_map {
+> >               /* actual pte pointer is implied by location,
+> >                  if you implement this cleverly, but still
+> >                  needed, of course */
+> >               struct reverse_map *prev, *next;
+> >               struct vm_struct *vma;
+> >       };
+> 
+> Actually, you need only 2 pointers per page.
+> 
+> struct reverse_map {
+>         pte_t * pte;
+>         struct reverse_map * next;
+> };
 
-I do also run Quintelas mmap002 one interesting aspect is that the used
-time doubled...??? pre8 took 4m21 to finish most others has taken below
-2m30.... (this might actually be a good sign - hard to tell...)
+To keep memory usage low and to still be reasonably fast, we could
+restrict the size of a vma to two mmu levels and cache a pointer to the
+pmd table in the vma, so you have less to lookup in the page table. It
+would also speed up normal mapping/unmapping of entries for
+architectures with more than 2 mmu levels. Generic mm code had mostly
+only to deal with two mmu levels and e.g could call "pmd =
+pmd_alloc_vma(vma, address);" instead of "pgd = pgd_offset(mm, address);
+pmd = pmd_alloc(pgd, address);". No idea if this is fast enough for
+balancing, but it would simplify other parts. :-)
 
-
-/RogerL
+bye, Roman
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
