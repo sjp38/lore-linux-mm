@@ -1,46 +1,86 @@
-Message-Id: <200307021827.h62IRCp3001341@turing-police.cc.vt.edu>
-Subject: Re: 2.5.73-mm3 
-In-Reply-To: Your message of "Tue, 01 Jul 2003 20:38:30 PDT."
-             <20030701203830.19ba9328.akpm@digeo.com>
-From: Valdis.Kletnieks@vt.edu
-References: <20030701203830.19ba9328.akpm@digeo.com>
-Mime-Version: 1.0
-Content-Type: multipart/signed; boundary="==_Exmh_-1586579328P";
-	 micalg=pgp-sha1; protocol="application/pgp-signature"
+Date: Wed, 02 Jul 2003 11:50:11 -0700
+From: "Martin J. Bligh" <mbligh@aracnet.com>
+Subject: Re: 2.5.73-mm3
+Message-ID: <535730000.1057171811@flay>
+In-Reply-To: <530600000.1057169520@flay>
+References: <20030701203830.19ba9328.akpm@digeo.com><15570000.1057122469@[10.10.2.4]> <20030701221829.3e0edf3a.akpm@digeo.com> <530600000.1057169520@flay>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
-Date: Wed, 02 Jul 2003 14:27:12 -0400
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@digeo.com>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
---==_Exmh_-1586579328P
-Content-Type: text/plain; charset=us-ascii
-
-On Tue, 01 Jul 2003 20:38:30 PDT, Andrew Morton <akpm@digeo.com>  said:
+> scsi HBA driver Qlogic ISP 10X0/2X00 didn't set a release method.
+> st: Version 20030622, fixed bufsize 32768, s/g segs 256
+> oprofile: using NMI interrupt.
+> NET4: Linux TCP/IP 1.0 for NET4.0
+> IP: routing cache hash table of 131072 buckets, 1024Kbytes
+> TCP: Hash tables configured (established 524288 bind 65536)
+> NET4: Unix domain sockets 1.0/SMP for Linux NET4.0.
+> VFS: Cannot open root device "sda2" or unknown-block(0,0)
+> Please append a correct "root=" boot option
+> Kernel panic: VFS: Unable to mount root fs on unknown-block(0,0)
 > 
-> ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.5/2.5.73/2.5.73-mm3/
+> Note the "scsi HBA driver Qlogic ISP 10X0/2X00 didn't set a release method"
+> bit.
 
-> . The weird behaviour with time-n-date on SpeedStep machines should be
->   fixed.  Some of the weird behaviour, at least.
+OK, this rediffed version of Mike's earlier patch fixes it - I guess it
+got trampled in the merge. All the ifdefs surrounding isplinux_release
+are a bit odd, but I think I got 'em right. Would be a damned sight 
+easier if we ripped out all that version crud.
 
-The problem I noted with speedstep-ich.c mangling the loops_per_jiffies variable
-is still there.  Looks like I have something to do on the plane tomorrow. ;)
+M.
 
---==_Exmh_-1586579328P
-Content-Type: application/pgp-signature
+diff -purN linux-2.5.73-mm3/drivers/scsi/isp/isp_linux.c 2.5.73-mm3/drivers/scsi/isp/isp_linux.c
+--- linux-2.5.73-mm3/drivers/scsi/isp/isp_linux.c	2003-07-01 20:29:04.000000000 -0700
++++ 2.5.73-mm3/drivers/scsi/isp/isp_linux.c	2003-07-02 11:01:02.000000000 -0700
+@@ -145,7 +145,6 @@ isplinux_detect(Scsi_Host_Template *tmpt
+     return (rval);
+ }
+ 
+-#ifdef	MODULE
+ /* io_request_lock *not* held here */
+ int
+ isplinux_release(struct Scsi_Host *host)
+@@ -185,7 +184,6 @@ isplinux_release(struct Scsi_Host *host)
+ 	isp_kfree(FCPARAM(isp)->isp_dump_data, amt);
+ 	FCPARAM(isp)->isp_dump_data = 0;
+     }
+-#endif
+ #if defined(CONFIG_PROC_FS) && LINUX_VERSION_CODE >= KERNEL_VERSION(2,4,0)
+     /*
+      * Undo any PROCFS stuff
+@@ -193,8 +191,8 @@ isplinux_release(struct Scsi_Host *host)
+     isplinux_undo_proc(isp);
+ #endif
+     return (1);
+-}
+ #endif
++}
+ 
+ const char *
+ isplinux_info(struct Scsi_Host *host)
+diff -purN linux-2.5.73-mm3/drivers/scsi/isp/isp_linux.h 2.5.73-mm3/drivers/scsi/isp/isp_linux.h
+--- linux-2.5.73-mm3/drivers/scsi/isp/isp_linux.h	2003-07-01 20:29:04.000000000 -0700
++++ 2.5.73-mm3/drivers/scsi/isp/isp_linux.h	2003-07-02 10:53:38.000000000 -0700
+@@ -774,12 +774,8 @@ static INLINE unsigned long _usec_to_jif
+ 
+ int isplinux_proc_info(char *, char **, off_t, int, int, int);
+ int isplinux_detect(Scsi_Host_Template *);
+-#ifdef	MODULE
+ int isplinux_release(struct Scsi_Host *);
+ #define	ISPLINUX_RELEASE	isplinux_release
+-#else
+-#define	ISPLINUX_RELEASE	NULL
+-#endif
+ const char *isplinux_info(struct Scsi_Host *);
+ int isplinux_queuecommand(Scsi_Cmnd *, void (* done)(Scsi_Cmnd *));
+ #if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
 
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.2.2 (GNU/Linux)
-Comment: Exmh version 2.5 07/13/2001
-
-iD8DBQE/AyQAcC3lWbTT17ARAglgAJwOL6q4f3d1kactDN3RMgNG+/tZjgCcCuVX
-wV8bHEEyPDh1eLWHftdIDzE=
-=nzKV
------END PGP SIGNATURE-----
-
---==_Exmh_-1586579328P--
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
