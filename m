@@ -1,42 +1,50 @@
-Received: from ariessys.com (ns.ariessys.com [198.115.92.2])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id KAA23526
-	for <linux-mm@kvack.org>; Thu, 29 Apr 1999 10:38:47 -0400
-Received: from [198.115.92.60] (lightning.ariessys.com [198.115.92.60])
-	by ariessys.com (8.8.8/8.8.8) with ESMTP id KAA19366
-	for <linux-mm@kvack.org>; Thu, 29 Apr 1999 10:38:37 -0400
-Mime-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Message-Id: <v04020a00b34e1e944f31@[198.115.92.60]>
-Date: Thu, 29 Apr 1999 10:38:39 -0400
-From: "James E. King, III" <jking@ariessys.com>
-Subject: 1GB ramdisk
+Message-ID: <001901be9324$66ddcbf0$c80c17ac@clmsdev.local>
+From: "Manfred Spraul" <masp0008@stud.uni-sb.de>
+Subject: Re: Hello
+Date: Fri, 30 Apr 1999 18:12:21 +0200
+MIME-Version: 1.0
+Content-Type: text/plain;
+	charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: linux-mm@kvack.org
+To: "Benjamin C.R. LaHaise" <blah@kvack.org>, "James E. King, III" <jking@ariessys.com>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Thanks for all the help.  I don't really need the 4GB memory for
-application space...  What I want to do is take the index files of the
-database and put them into a ramdisk.  It appears that this is possible,
-albeit with some patches.  I think this will substantially increate the
-performance of my database system.
+Benjamin C.R. LaHaise <blah@kvack.org> wrote:
+>I think someone created patches that make a ramdisk out of the really high
+>memory.  Try doing a search of the linux-kernel archives -- I remember
+>seeing it withing the past 3 or 4 months.  Hope this helps!
+I wrote that patch, but I abandoned it because I think that the performance
+would be inacceptable: the data is first cached in the buffer cache,
+and later moved into high memory, and if you access the data it's
+moved back. I think that the memmove() calls would slow down
+the system considerably.
 
-Someone suggested using alpha which would solve all of my problems.  True,
-but where can I find a quad processor 500MHz alpha box for around $25,000?
-Let me know.  Last time I checked, the list price on an AlphaServer 4100
-configured this way was over $100,000.
+If you need the patch I can send it to you.
 
-It would be really, really helpful if someone created a ramdisk-HOWTO with
-information on how one can create a ramdisk of 1GB or 2GB size. :>
+But I have a new idea: what about replacing the current 'shm' implementation
+with a high memory aware implementation.
+* use high memory if high memory is available. We only need a simple
+   bitmap for the high-mem. max_mapnr remains 1 or 2 GB, page_map
+   is not extended.
+* if you have more than 2 Gb memory, then you don't want that the system
+    starts to swap out. So there is no need to support swap for that memory.
+    This means: no double buffering etc required.
+* I haven't yet read the new Xeon page table extentions,
+  but perhaps we could support up to 64 GB memory without changing the
+  rest of the OS   (Intel could write such a driver for Windows NT,
+  I'm sure this is possible for Linux, too).
+* it's very easy for the user mode programmers, no new interfaces.
+
+I think that this implementation would required only a few hundred lines.
+
+What do you think about this?
+
+Regards,
+    Manfred
 
 
-     _/   _/_/  _/_/_/ _/_/  _/_/         James E. King, III
-    _/_/  _/ _/   _/   _/   _/            Aries Systems Corporation
-   _/_/_/ _/_/    _/   _/_/  _/_/         200 Sutton Street
-   _/  _/ _/ _/   _/   _/       _/        North Andover, MA.  01845
-   _/  _/ _/ _/ _/_/_/ _/_/  _/_/         (978) 975-7570
-                                          (978) 975-3811 FAX
-      <http://www.kfinder.com/>
-  Enhancing the Power of Knowledge(r)     jking@ariessys.com
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm my@address'
 in the body to majordomo@kvack.org.  For more info on Linux MM,
