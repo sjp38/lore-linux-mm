@@ -1,45 +1,62 @@
-Date: Wed, 27 Oct 2004 09:01:24 -0700
-From: "Martin J. Bligh" <mbligh@aracnet.com>
-Subject: Re: news about IDE PIO HIGHMEM bug (was: Re: 2.6.9-mm1)
-Message-ID: <1246750000.1098892883@[10.10.2.4]>
-In-Reply-To: <1246230000.1098892359@[10.10.2.4]>
-References: <58cb370e041027074676750027@mail.gmail.com> <417FBB6D.90401@pobox.com> <1246230000.1098892359@[10.10.2.4]>
+Message-ID: <417FCE4E.4080605@pobox.com>
+Date: Wed, 27 Oct 2004 12:35:26 -0400
+From: Jeff Garzik <jgarzik@pobox.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
+Subject: [PATCH] Re: news about IDE PIO HIGHMEM bug (was: Re: 2.6.9-mm1)
+References: <58cb370e041027074676750027@mail.gmail.com> <417FBB6D.90401@pobox.com> <1246230000.1098892359@[10.10.2.4]> <1246750000.1098892883@[10.10.2.4]>
+In-Reply-To: <1246750000.1098892883@[10.10.2.4]>
+Content-Type: multipart/mixed;
+ boundary="------------090508010108060408080403"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jeff Garzik <jgarzik@pobox.com>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
-Cc: Bartlomiej Zolnierkiewicz <bzolnier@gmail.com>, "Randy.Dunlap" <rddunlap@osdl.org>, William Lee Irwin III <wli@holomorphy.com>, Jens Axboe <axboe@suse.de>
+To: "Martin J. Bligh" <mbligh@aracnet.com>, Andrew Morton <akpm@osdl.org>
+Cc: Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Bartlomiej Zolnierkiewicz <bzolnier@gmail.com>, "Randy.Dunlap" <rddunlap@osdl.org>, William Lee Irwin III <wli@holomorphy.com>, Jens Axboe <axboe@suse.de>
 List-ID: <linux-mm.kvack.org>
 
---"Martin J. Bligh" <mbligh@aracnet.com> wrote (on Wednesday, October 27, 2004 08:52:39 -0700):
+This is a multi-part message in MIME format.
+--------------090508010108060408080403
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 
->> Bartlomiej Zolnierkiewicz wrote:
->>> We have stuct page of the first page and a offset.
->>> We need to obtain struct page of the current page and map it.
->> 
->> 
->> Opening this question to a wider audience.
->> 
->> struct scatterlist gives us struct page*, and an offset+length pair. The struct page* is the _starting_ page of a potentially multi-page run of data.
->> 
->> The question:  how does one get struct page* for the second, and successive pages in a known-contiguous multi-page run, if one only knows the first page?
+Martin J. Bligh wrote:
+> To repeat what I said in IRC ... ;-)
 > 
-> If it's a higher order allocation, just page+1 should be safe. If it just
-> happens to be contig, it might cross a discontig boundary, and not obey
-> that rule. Very unlikely, but possible.
+> Actually, you could check this with the pfns being the same when >> MAX_ORDER-1.
+> We should be aligned on a MAX_ORDER boundary, I think.
+> 
+> However, pfn_to_page(page_to_pfn(page) + 1) might be safer. If rather slower.
 
-To repeat what I said in IRC ... ;-)
 
-Actually, you could check this with the pfns being the same when >> MAX_ORDER-1.
-We should be aligned on a MAX_ORDER boundary, I think.
+Is this patch acceptable to everyone?  Andrew?
 
-However, pfn_to_page(page_to_pfn(page) + 1) might be safer. If rather slower.
+It uses the publicly-exported pfn_to_page/page_to_pfn abstraction, which 
+seems to be the only way to accomplish what we want to do in IDE/libata.
 
-M.
+	Jeff
 
+
+
+--------------090508010108060408080403
+Content-Type: text/plain;
+ name="patch"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline;
+ filename="patch"
+
+===== include/linux/mm.h 1.193 vs edited =====
+--- 1.193/include/linux/mm.h	2004-10-20 04:37:06 -04:00
++++ edited/include/linux/mm.h	2004-10-27 12:33:28 -04:00
+@@ -41,6 +41,8 @@
+ #define MM_VM_SIZE(mm)	TASK_SIZE
+ #endif
+ 
++#define nth_page(page,n) pfn_to_page(page_to_pfn((page)) + n)
++
+ /*
+  * Linux kernel virtual memory manager primitives.
+  * The idea being to have a "virtual" mm in the same way
+
+--------------090508010108060408080403--
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
