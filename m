@@ -1,47 +1,63 @@
-Date: Thu, 5 Feb 2004 13:29:28 -0500
-From: Ben Collins <bcollins@debian.org>
-Subject: Re: 2.6.2-mm1 aka "Geriatric Wombat"
-Message-ID: <20040205182928.GA1042@phunnypharm.org>
-References: <fa.h1qu7q8.n6mopi@ifi.uio.no> <402240F9.3050607@gadsdon.giointernet.co.uk> <20040205182614.GG13075@kroah.com>
+Date: Thu, 5 Feb 2004 20:03:49 +0100
+From: Pavel Machek <pavel@suse.cz>
+Subject: Re: Active Memory Defragmentation: Our implementation & problems
+Message-ID: <20040205190349.GC294@elf.ucw.cz>
+References: <20040204191829.57468.qmail@web9704.mail.yahoo.com> <Pine.LNX.4.53.0402041427270.2947@chaos>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20040205182614.GG13075@kroah.com>
+In-Reply-To: <Pine.LNX.4.53.0402041427270.2947@chaos>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Greg KH <greg@kroah.com>
-Cc: Robert Gadsdon <robert@gadsdon.giointernet.co.uk>, Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: "Richard B. Johnson" <root@chaos.analogic.com>
+Cc: Alok Mooley <rangdi@yahoo.com>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Dave Hansen <haveblue@us.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Feb 05, 2004 at 10:26:14AM -0800, Greg KH wrote:
-> On Thu, Feb 05, 2004 at 01:11:21PM +0000, Robert Gadsdon wrote:
-> > 2.6.2-mm1 tombstone "Badness in kobject_get....." when booting:
-> 
-> Oooh, not nice.  That means a kobject is being used before it has been
-> initialized.  Glad to see that check finally helps out...
-> 
-> > ieee1394: Host added: ID:BUS[0-00:1023]  GUID[090050c50000046f]
-> > Badness in kobject_get at lib/kobject.c:431
-> > Call Trace:
-> >  [<c0239966>] kobject_get+0x36/0x40
-> >  [<c027cc73>] get_device+0x13/0x20
-> >  [<c027d899>] bus_for_each_dev+0x59/0xc0
-> >  [<d0939355>] nodemgr_node_probe+0x55/0x120 [ieee1394]
-> >  [<d0939200>] nodemgr_probe_ne_cb+0x0/0x90 [ieee1394]
-> >  [<d0939748>] nodemgr_host_thread+0x168/0x190 [ieee1394]
-> >  [<d09395e0>] nodemgr_host_thread+0x0/0x190 [ieee1394]
-> >  [<c010ac15>] kernel_thread_helper+0x5/0x10
-> 
-> Looks like one of the ieee1394 patches causes this.  Ben?
+Hi!
 
-Andrew, does 2.6.2-mm1 have that big ieee1394 patch, or is this the same
-as stock 2.6.2?
+> > If this is an Intel x86 machine, it is impossible
+> > > for pages
+> > > to get fragmented in the first place. The hardware
+> > > allows any
+> > > page, from anywhere in memory, to be concatenated
+> > > into linear
+> > > virtual address space. Even the kernel address space
+> > > is virtual.
+> > > The only time you need physically-adjacent pages is
+> > > if you
+> > > are doing DMA that is more than a page-length at a
+> > > time. The
+> > > kernel keeps a bunch of those pages around for just
+> > > that
+> > > purpose.
+> > >
+> > > So, if you are making a "memory defragmenter", it is
+> > > a CPU time-sink.
+> > > That's all.
+> >
+> > What if the external fragmentation increases so much
+> > that it is not possible to find a large sized block?
+> > Then, is it not better to defragment rather than swap
+> > or fail?
+> >
+> > -Alok
+> 
+> All "blocks" are the same size, i.e., PAGE_SIZE. When RAM
+> is tight the content of a page is written to the swap-file
+> according to a least-recently-used protocol. This frees
+> a page. Pages are allocated to a process only one page at
+> a time. This prevents some hog from grabbing all the memory
+> in the machine. Memory allocation and physical page allocation
+> are two different things, I can malloc() a gigabyte of RAM on
+> a machine. It only gets allocated when an attempt is made
+> to access a page.
 
+Alok is right. kernel needs to do kmalloc(8K) from time to time. And
+notice that kernel uses 4M tables.
+								Pavel
 -- 
-Debian     - http://www.debian.org/
-Linux 1394 - http://www.linux1394.org/
-Subversion - http://subversion.tigris.org/
-WatchGuard - http://www.watchguard.com/
+When do you have a heart between your knees?
+[Johanka's followup: and *two* hearts?]
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
