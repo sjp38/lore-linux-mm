@@ -1,34 +1,56 @@
-Subject: Re: follow_page()
-From: Arjan van de Ven <arjan@infradead.org>
-In-Reply-To: <41935AB9.7000101@yahoo.com.au>
-References: <20041111024015.7c50c13d.akpm@osdl.org>
-	 <1100170570.2646.27.camel@laptop.fenrus.org>
-	 <20041111030634.1d06a7c1.akpm@osdl.org>
-	 <1100171453.2646.29.camel@laptop.fenrus.org>
-	 <419353D5.2080902@yahoo.com.au> <1100175387.4387.1.camel@laptop.fenrus.org>
-	 <41935AB9.7000101@yahoo.com.au>
-Content-Type: text/plain
-Message-Id: <1100177165.4387.4.camel@laptop.fenrus.org>
+Date: Thu, 11 Nov 2004 08:18:01 -0200
+From: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
+Subject: Re: [PATCH 2/3] higher order watermarks
+Message-ID: <20041111101801.GB15358@logos.cnet>
+References: <417F5584.2070400@yahoo.com.au> <417F55B9.7090306@yahoo.com.au> <417F5604.3000908@yahoo.com.au> <20041104085745.GA7186@logos.cnet> <20041110162311.GA12696@logos.cnet> <4192C32E.6070001@yahoo.com.au>
 Mime-Version: 1.0
-Date: Thu, 11 Nov 2004 13:46:06 +0100
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4192C32E.6070001@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Andrew Morton <akpm@osdl.org>, linux-mm@kvack.org
+Cc: Andrew Morton <akpm@osdl.org>, Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-> Well, if you write into the page returned via follow_page, that
-> isn't going to dirty the pte by itself... so it is a bit of a
-> hit and miss regarding whether the page really will get dirtied
-> through that pte in the near future (I don't know, maybe that
-> is generally what happens with normal usage patterns?).
+On Thu, Nov 11, 2004 at 12:41:02PM +1100, Nick Piggin wrote:
+> Marcelo Tosatti wrote:
+> >On Thu, Nov 04, 2004 at 06:57:45AM -0200, Marcelo Tosatti wrote:
+> >
+> >
+> >>The original code didnt had the can_try_harder/gfp_high decrease 
+> >>which is now on zone_watermark_ok. 
+> >>
+> >>Means that those allocations will now be successful earlier, instead
+> >>of going to the next zonelist iteration. kswapd will not be awake
+> >>when it used to be.
+> >>
+> >>Hopefully it doesnt matter that much. You did this by intention?
+> >
+> >
+> >Another thing Nick is that now balance_pgdat uses zone_watermark_ok, 
+> >and that sums "z->protection[alloc_type]".
+> >
+> >        if (free_pages <= min + z->protection[alloc_type])
+> >                return 0;
+> >
+> >Since balance_pgdat calls with alloc_type=0, the code will sum ZONE_DMA
+> >(alloc_type = 0) protection, and it should not.
+> >
+> >kswapd should be working on the bare min/low/high watermarks AFAICT, 
+> >without the protections.
+> >
+> >Comments?
+> >
+> >
+> 
+> Yeah.. I think z->protection[0] should always be 0, shouldn't it?
 
-that's why the function has a parameter saying it is for writing too, I
-think...
+Oh yes, fine.
 
-either way this deserves some comments in the code...
--- 
+> I was just hesitant to add another parameter to the function and
+> have yet another case to check.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
