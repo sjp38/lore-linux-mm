@@ -1,62 +1,59 @@
-Date: Sat, 24 Mar 2001 02:08:17 +0000 (GMT)
-From: Paul Jakma <paul@jakma.org>
+Received: from burns.conectiva (burns.conectiva [10.0.0.4])
+	by postfix.conectiva.com.br (Postfix) with SMTP id CAAC616B31
+	for <linux-mm@kvack.org>; Sat, 24 Mar 2001 03:39:57 -0300 (EST)
+Date: Sat, 24 Mar 2001 02:54:55 -0300 (BRST)
+From: Rik van Riel <riel@conectiva.com.br>
 Subject: Re: [PATCH] Prevent OOM from killing init
-In-Reply-To: <Pine.LNX.4.30.0103232312440.13864-100000@fs131-224.f-secure.com>
-Message-ID: <Pine.LNX.4.33.0103240203340.11627-100000@fogarty.jakma.org>
+In-Reply-To: <Pine.LNX.4.30.0103231854470.13864-100000@fs131-224.f-secure.com>
+Message-ID: <Pine.LNX.4.21.0103240252080.1863-100000@imladris.rielhome.conectiva>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Szabolcs Szakacsits <szaka@f-secure.com>
-Cc: Paul Jakma <paulj@itg.ie>, linux-mm@kvack.org, Linux Kernel <linux-kernel@vger.kernel.org>
+Cc: Patrick O'Rourke <orourke@missioncriticallinux.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 24 Mar 2001, Szabolcs Szakacsits wrote:
+On Fri, 23 Mar 2001, Szabolcs Szakacsits wrote:
 
-> Nonsense hodgepodge. See and/or mesaure the impact. I sent numbers in my
-> former email. You also missed non-overcommit must be _optional_ [i.e.
-> you wouldn't be forced to use it ;)]. Yes, there are users and
-> enterprises who require it and would happily pay the 50-100% extra swap
-> space for the same workload and extra reliability.
+> When I ported your OOM killer to 2.2.x and integrated it into the
+> 'reserved root memory' [*] patch, during intensive testing I found two
+> cases when init was killed. It happened on low-end machines and when
+> OOM killer wasn't triggered so init was killed in the page fault
+> handler. The later was also one of the reasons I replaced the "random"
+> OOM killer in page fault handler with yours [so there is only one OOM
+> killer].
 
-ok.. the last time OOM came up, the main objection to fully
-guaranteed vm was the possible huge overhead.
+Good idea, we should do this for 2.4.  I cannot remember
+reading an email from you about this, it's quite possible
+I just missed it and didn't answer because I never read
+it ...
 
-if someone knows how to do it without a huge overhead, i'd love to
-see it and try it out.
+> Other things that bothered me,
+>  - niced processes are penalized
 
-> At every time you add/delete users, add/delete special apps, etc.
+This can be considered a bug and should be fixed...
 
-no.. pam_limits knows about groups, and you can specify limit for
-that group, one time.
+>  - trying to kill a task that is permanently in TASK_UNINTERRUPTIBLE
+>    will probably deadlock the machine [or the random OOM killer will
+>    kill the box].
 
-@user ... ... ...
+This could indeed be a problem, though I cannot really see any
+case where a task would be in TASK_UNINTERRUPTIBLE permanently.
+OTOH, a 1GB read() will take a (much) too long time to finish.
 
-> Rik's killer is quite fine at _default_. But there will be always
-> people who won't like it
-
-exactly... so lets try avoid ever needing it. it is a last resort.
-
-> default, use the /proc/sys/vm/oom_killer interface"? As I said
-> before there are also such patch by Chris Swiedler and definitely
-> not a huge, complex one.
-
-uhmm.. where?
-
-> And these stupid threads could be forgotten for good and all.
-
-:)
-
-> 	Szaka
+Your ideas sound really good, would you have the time to implement
+them for 2.4 ?
 
 regards,
--- 
-Paul Jakma	paul@clubi.ie	paul@jakma.org
-PGP5 key: http://www.clubi.ie/jakma/publickey.txt
--------------------------------------------
-Fortune:
-The optimum committee has no members.
-		-- Norman Augustine
+
+Rik
+--
+Virtual memory is like a game you can't win;
+However, without VM there's truly nothing to lose...
+
+		http://www.surriel.com/
+http://www.conectiva.com/	http://distro.conectiva.com.br/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
