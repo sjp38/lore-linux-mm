@@ -1,36 +1,50 @@
-Date: Fri, 16 Mar 2001 17:29:31 +0000
-From: "Stephen C. Tweedie" <sct@redhat.com>
-Subject: Re: [PATCH/RFC] fix missing tlb flush on x86 smp+pae
-Message-ID: <20010316172931.V30889@redhat.com>
-References: <20010316133445.N30889@redhat.com> <Pine.LNX.4.31.0103160906490.17122-100000@penguin.transmeta.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.31.0103160906490.17122-100000@penguin.transmeta.com>; from torvalds@transmeta.com on Fri, Mar 16, 2001 at 09:10:49AM -0800
+Received: from burns.conectiva (burns.conectiva [10.0.0.4])
+	by postfix.conectiva.com.br (Postfix) with SMTP id B094F16B19
+	for <linux-mm@kvack.org>; Sun, 18 Mar 2001 04:37:22 -0300 (EST)
+Date: Sun, 18 Mar 2001 04:23:16 -0300 (BRST)
+From: Rik van Riel <riel@conectiva.com.br>
+Subject: Re: changing mm->mmap_sem  (was: Re: system call for process
+ information?)
+In-Reply-To: <20010316125338.L30889@redhat.com>
+Message-ID: <Pine.LNX.4.21.0103180419550.13050-100000@imladris.rielhome.conectiva>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@transmeta.com>
-Cc: "Stephen C. Tweedie" <sct@redhat.com>, Jamie Lokier <lk@tantalophile.demon.co.uk>, Ben LaHaise <bcrl@redhat.com>, linux-mm@kvack.org
+To: "Stephen C. Tweedie" <sct@redhat.com>
+Cc: george anzinger <george@mvista.com>, Alexander Viro <viro@math.psu.edu>, linux-mm@kvack.org, bcrl@redhat.com, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+On Fri, 16 Mar 2001, Stephen C. Tweedie wrote:
 
-On Fri, Mar 16, 2001 at 09:10:49AM -0800, Linus Torvalds wrote:
-> 
-> > On Intel, yes.  The PAE case is a special case: we lose one bit of
-> > addressing for each level of page table because the pte width has
-> > doubled, so the two-level page table is short of two bits of address
-> > coverage in PAE mode.
-> 
-> I would almost tend to suggest that we just always allocate the PAE. Do it
-> at the same time we allocate the page directory - make PAE use
-> "get_pgd_slow()", and just always allocate the 3 pages. Much simpler.
+> Right, I'm not suggesting removing that: making the mmap_sem
+> read/write is fine, but yes, we still need that semaphore.
 
-It would probably be worth it: the binary, libraries and stack are
-going to populate all 3 pages almost immediately anyway.  I just hate
-tweaking code just after we've finally got it stable. :)
+Initial patch (against 2.4.2-ac20) is available at
+http://www.surriel.com/patches/
 
---Stephen
+> But as for the "page faults would use an extra lock to protect against
+> each other" bit --- we already have another lock, the page table lock,
+> which can be used in this way, so ANOTHER lock should be unnecessary.
+
+Tomorrow I'll take a look at the various ->nopage
+functions and do_swap_page to see if these functions
+would be able to take simultaneous faults at the same
+address (from multiple threads).  If not, either we'll
+need to modify these functions, or we could add a (few?)
+extra lock to prevent these functions from faulting at
+the same address at the same time in multiple threads.
+
+regards,
+
+Rik
+--
+Virtual memory is like a game you can't win;
+However, without VM there's truly nothing to lose...
+
+		http://www.surriel.com/
+http://www.conectiva.com/	http://distro.conectiva.com.br/
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
