@@ -1,43 +1,73 @@
-From: dca@torrent.com
-Date: Sun, 8 Aug 1999 14:02:25 -0400
-Message-Id: <199908081802.OAA23738@grappelli.torrent.com>
-Subject: Re: getrusage
+Date: Sun, 8 Aug 1999 20:38:57 +0200 (CEST)
+From: Andrea Arcangeli <andrea@suse.de>
+Subject: [patch] care about the age of the pte even if we are low on memory
+Message-ID: <Pine.LNX.4.10.9908082020250.29734-100000@laser.random>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: grg22@ai.mit.edu, Linux-MM@kvack.org
+To: Linus Torvalds <torvalds@transmeta.com>, MOLNAR Ingo <mingo@redhat.com>, "Stephen C. Tweedie" <sct@redhat.com>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> You need another [new entry]: a vm id.
+I don't know why in the 2.3.x we are swapping out even the young pages.
+This is not going to help oom handling at all and it's only reducing of an
+order of magnitude the interactive feeling under heavy swapout. I can
+notice an huge difference with eyes from clean 2.2.10 to 2.3.13-pre8.
 
-I'm missing something here.  Isn't the vmid implicit in the caller's
-context?  That is, if I call getrusage, I'm asking about "my" vm
-statistics.  /proc and gtop are sources of information about other
-contexts.
+The low_on_memory flag is there only for GFP internals and IMO it
+shouldn't be ever looked from other places.
 
-> There is already a patch floating around on l-k that does that,
-> although it reports via a /proc entry per process. Integrating it in
-> rusage would be a nice addition. The possible unique ids are memory
-> address of the kernel mm_struct (ugly, but zero cost), or the pid of
-> the process who created the VM first.
+This patch against 2.3.13-pre8 will fix the problem and it will avoid
+further mistakes.
 
-> If you do fix this, could you please make all these entries
-> *unsigned* longs?
+diff -urN 2.3.13-pre8/include/linux/mm.h 2.3.13-pre8-low_on_memory/include/linux/mm.h
+--- 2.3.13-pre8/include/linux/mm.h	Wed Aug  4 12:28:17 1999
++++ 2.3.13-pre8-low_on_memory/include/linux/mm.h	Sun Aug  8 20:25:58 1999
+@@ -292,8 +292,6 @@
+ 	return page;
+ }
+ 
+-extern int low_on_memory;
+-
+ /* memory.c & swap.c*/
+ 
+ #define free_page(addr) free_pages((addr),0)
+diff -urN 2.3.13-pre8/mm/page_alloc.c 2.3.13-pre8-low_on_memory/mm/page_alloc.c
+--- 2.3.13-pre8/mm/page_alloc.c	Tue Jul 13 02:02:40 1999
++++ 2.3.13-pre8-low_on_memory/mm/page_alloc.c	Sun Aug  8 20:24:03 1999
+@@ -194,8 +194,6 @@
+ 	set_page_count(map, 1); \
+ } while (0)
+ 
+-int low_on_memory = 0;
+-
+ unsigned long __get_free_pages(int gfp_mask, unsigned long order)
+ {
+ 	unsigned long flags;
+@@ -221,6 +219,7 @@
+ 	 */
+ 	if (!(current->flags & PF_MEMALLOC)) {
+ 		int freed;
++		static int low_on_memory = 0;
+ 
+ 		if (nr_free_pages > freepages.min) {
+ 			if (!low_on_memory)
+diff -urN 2.3.13-pre8/mm/vmscan.c 2.3.13-pre8-low_on_memory/mm/vmscan.c
+--- 2.3.13-pre8/mm/vmscan.c	Sun Aug  8 17:21:41 1999
++++ 2.3.13-pre8-low_on_memory/mm/vmscan.c	Sun Aug  8 20:23:19 1999
+@@ -54,7 +54,7 @@
+ 	 * Dont be too eager to get aging right if
+ 	 * memory is dangerously low.
+ 	 */
+-	if (!low_on_memory && pte_young(pte)) {
++	if (pte_young(pte)) {
+ 		/*
+ 		 * Transfer the "accessed" bit from the page
+ 		 * tables to the global page map.
 
-Taking a hint from Solaris' treatment of getrlimit, how 'bout:
+Andrea
 
-  typedef unsigned long rusage_t;
-
-for the flexibility?
-
-Is there interest in providing max values for the individual kinds of
-memory (shared/data/stack) in addition to the overall maxrss?  It's
-not what I need, and other implementations don't provide it.  They
-don't even provide current values, only useless "integrals".
-
-By the sound of it, I have maybe a week to produce something
-acceptable if I want to see it in 2.4.  Is that about right?
-
--dca
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
