@@ -1,66 +1,62 @@
-Message-ID: <3917C33F.1FA1BAD4@sgi.com>
-Date: Tue, 09 May 2000 00:50:23 -0700
-From: Rajagopal Ananthanarayanan <ananth@sgi.com>
+Date: Tue, 9 May 2000 02:56:10 -0500 (CDT)
+From: Daniel Stone <tamriel@ductape.net>
+Subject: Re: [PATCH] Recent VM fiasco - fixed
+In-Reply-To: <Pine.LNX.4.21.0005081442030.20790-100000@duckman.conectiva>
+Message-ID: <Pine.LNX.4.21.0005090254360.12487-100000@ductape.net>
 MIME-Version: 1.0
-Subject: A possible winner in pre7-8
-References: <Pine.LNX.4.10.10005082332560.773-100000@penguin.transmeta.com>
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@transmeta.com>
-Cc: linux-mm@kvack.org
+To: riel@nl.linux.org
+Cc: Zlatko Calusic <zlatko@iskon.hr>, linux-mm@kvack.org, linux-kernel@vger.rutgers.edu, Linus Torvalds <torvalds@transmeta.com>
 List-ID: <linux-mm.kvack.org>
 
-Linus Torvalds wrote:
-> 
-> On Mon, 8 May 2000, Rajagopal Ananthanarayanan wrote:
-> >
-> > Not sure entirely what effect this has, except for freeing underlying
-> > buffer_head's. The page itself is still skipped. Anyway, brief examination
-> > shows that you've changed several things here (in 7-7), so I'll have to go
-> > at it some more time to get a full picture.
-> 
-> Actually, look at pre7-8 instead.
-> 
-> pre7-7 was rather useful to me - I tested the exact same kernel with the
-> only difference being the order of the "zone free" and the
-> "try_to_free_buffers()" tests, and that's what I then released as pre7-7.
-> But pre7-8 has what I believe to be a saner order when it comes to the
-> other tests.
+Rik,
+That's astonishing, I'm sure, but think of us poor bastards who DON'T have
+an SMP machine with >1gig of RAM.
 
+This is a P120, 32meg. Lately, fine has degenerated into bad into worse
+into absolutely obscene. It even kills my PGSQL compiles.
+And I killed *EVERYTHING* there was to kill.
+The only processes were init, bash and gcc/cc1. VM still wiped it out.
 
-Interesting! This stuff is coming out faster than I can patch.
-In any case, good news about pre7-8: not only does dbench run without
-errors, but it runs well. Let's hope that others (Juan & Benjamin to name two)
-see similar results.
+d
 
+On Mon, 8 May 2000, Rik van Riel wrote:
+
+> On 8 May 2000, Zlatko Calusic wrote:
 > 
-> > Unfortunately my dbench test really runs bad with pre 7-7.
-> > Quantitively, the amount of memory in "cache" of vmstat
-> > is higher than before. write()'s start failing.
+> > BTW, this patch mostly *removes* cruft recently added, and
+> > returns to the known state of operation.
 > 
-> Can you tell me how they fail? Is it with a ENOMEM, or is there something
-> more insidious going on?
+> Which doesn't work.
 > 
-> I tested pre7-7 with 20MB of RAM, and it was fine. But I didn't run
-> dbench: instead I tested it with X and netscape and a kernel recursive
-> diff - really more to test that it works ok under real load. Something
-> which previous pre7's definitely did not do well on at all. pre7-8 should
-> be better, because it has the LRU enabled on the buffer cache too,
-> something that pre7-7 lost due to the ordering changes.
+> Think of a 1GB machine which has a 16MB DMA zone,
+> a 950MB normal zone and a very small HIGHMEM zone.
+> 
+> With the old VM code the HIGHMEM zone would be
+> swapping like mad while the other two zones are
+> idle.
+> 
+> It's Not That Kind Of Party(tm)
+> 
+> cheers,
+> 
+> Rik
+> --
+> The Internet is not a network of computers. It is a network
+> of people. That is its real strength.
+> 
+> Wanna talk about the kernel?  irc.openprojects.net / #kernelnewbies
+> http://www.conectiva.com/		http://www.surriel.com/
+> 
+> 
+> -
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.rutgers.edu
+> Please read the FAQ at http://www.tux.org/lkml/
 > 
 
-pre7-8 is definitely better; 7-7 was really bad. I don't know for
-sure but the write failure was similar to what I've seen earlier with ENOMEM.
-
-More after looking at your changes in 7-6 -> 7-7 and  7-7 ->7-8 ...
-
--- 
---------------------------------------------------------------------------
-Rajagopal Ananthanarayanan ("ananth")
-Member Technical Staff, SGI.
---------------------------------------------------------------------------
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
