@@ -1,63 +1,47 @@
-Date: Tue, 18 Mar 2003 21:33:07 +0000
-From: Adam Belay <ambx1@neo.rr.com>
 Subject: Re: 2.5.65-mm1
-Message-ID: <20030318213307.GA13998@neo.rr.com>
-References: <20030318031104.13fb34cc.akpm@digeo.com> <87adfs4sqk.fsf@lapper.ihatent.com> <87bs08vfkg.fsf@lapper.ihatent.com> <1731494377120.20030318224925@wr.miee.ru>
-Mime-Version: 1.0
+References: <20030318031104.13fb34cc.akpm@digeo.com>
+	<87adfs4sqk.fsf@lapper.ihatent.com>
+	<87bs08vfkg.fsf@lapper.ihatent.com>
+	<20030318160902.C21945@flint.arm.linux.org.uk>
+	<873clkw6ui.fsf@lapper.ihatent.com>
+	<20030318162601.78f11739.akpm@digeo.com>
+From: Alexander Hoogerhuis <alexh@ihatent.com>
+Date: 19 Mar 2003 07:16:48 +0100
+In-Reply-To: <20030318162601.78f11739.akpm@digeo.com>
+Message-ID: <87llzbc23z.fsf@lapper.ihatent.com>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1731494377120.20030318224925@wr.miee.ru>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Ruslan U. Zakirov" <cubic@wildrose.miee.ru>
-Cc: Andrew Morton <akpm@digeo.com>, linux-mm@kvack.org, Alexander Hoogerhuis <alexh@ihatent.com>, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@digeo.com>
+Cc: rmk@arm.linux.org.uk, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Mar 18, 2003 at 10:49:25PM +0300, Ruslan U. Zakirov wrote:
-> AH> Alexander Hoogerhuis <alexh@ihatent.com> writes:
-> >> Andrew Morton <akpm@digeo.com> writes:
-> >> >
-> >> > [SNIP]
-> >> >
-> >> 
-> >> [SNIP MYSELF]
-> >>
-> AH> And this one when probing for my PCIC:
+Andrew Morton <akpm@digeo.com> writes:
+
+> Alexander Hoogerhuis <alexh@ihatent.com> wrote:
+> >
+> > I'm not suspecting the PCI in particular for the PCIC-bits, only
+> > making X and the Radeon work again. But here you are:
 > 
-> AH> Intel PCIC probe: PNP <6>pnp: res: The PnP device '00:0f' is already
-> AH> active.
-> Hello, Alexandre and other.
->        This error is not mm specific.
-> This was brought with latest PnP changes.
-> As I've understood that latest PnP Layer activates all devices during layer
-> initialisation, but I don't know how it could be if we don't register
+> Something bad has happened to the Radeon driver in recent kernels.  I've seen
+> various reports with various syptoms and some suspicion has been directed at
+> the AGP changes.
+> 
+> But as far as I know nobody has actually got down and done the binary search
+> to find out exactly when it started happening.
 
-PnP code currently assigns resources at init and then activates during driver
-matching.
+The AGP code enables my machine with 1xAGP, but under 2.4 with same X
+version it will support 4x. I had a poke around in the Intel AGP code
+and there doesn't seem to be a way to manually convinve the driver of
+the truth :)
 
-> pnp_driver. With first look I didn't find this runpaths. I'll try to
-> review all changes.
-> Adam know absolutly right solution in this case, I think :)
->                        Best regards, Ruslan.
->
->                          mailto:cubic@wr.miee.ru
-
-Hi Ruslan and others,
-
-Yes, this is actually a glitch in the driver.  The bios has activated this
-device at boot time and the driver tries to activate it again without
-checking if it was active in the first place.
-
-I'm going to do the following to correct this:
-1.) Update this driver to use the new pnp code, the new code automatically
-manages this.
-2.) Change pnp_activate_dev so that it doesn't return an error if the device
-is already active, instead have it silently stop.  This is a more logical
-behavior because the device will function properly even if it was already
-active.  I should probably do the same with pnp_disable_dev.
-
-Regards,
-Adam
+mvh,
+A
+-- 
+Alexander Hoogerhuis                               | alexh@ihatent.com
+CCNP - CCDP - MCNE - CCSE                          | +47 908 21 485
+"You have zero privacy anyway. Get over it."  --Scott McNealy
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
