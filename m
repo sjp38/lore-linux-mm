@@ -1,45 +1,26 @@
 Received: from burns.conectiva (burns.conectiva [10.0.0.4])
-	by perninha.conectiva.com.br (Postfix) with SMTP id B789138CF4
-	for <linux-mm@kvack.org>; Thu,  9 Aug 2001 17:47:35 -0300 (EST)
-Date: Thu, 9 Aug 2001 17:47:35 -0300 (BRST)
+	by perninha.conectiva.com.br (Postfix) with SMTP id BFC3A38C3D
+	for <linux-mm@kvack.org>; Thu,  9 Aug 2001 17:58:34 -0300 (EST)
+Date: Thu, 9 Aug 2001 17:58:33 -0300 (BRST)
 From: Rik van Riel <riel@conectiva.com.br>
 Subject: Re: Swapping for diskless nodes
-In-Reply-To: <20010809125033.E1200@nightmaster.csn.tu-chemnitz.de>
-Message-ID: <Pine.LNX.4.33L.0108091740470.1439-100000@duckman.distro.conectiva>
+In-Reply-To: <m1snf1tb1q.fsf@frodo.biederman.org>
+Message-ID: <Pine.LNX.4.33L.0108091758070.1439-100000@duckman.distro.conectiva>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ingo Oeser <ingo.oeser@informatik.tu-chemnitz.de>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: "Eric W. Biederman" <ebiederm@xmission.com>
+Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, "Dirk W. Steinberg" <dws@dirksteinberg.de>, Ingo Oeser <ingo.oeser@informatik.tu-chemnitz.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 9 Aug 2001, Ingo Oeser wrote:
+On 9 Aug 2001, Eric W. Biederman wrote:
 
-> Are there any races I have to consider?
+> I don't know about that.  We already can swap over just about
+> everything because we can swap over the loopback device.
 
-Well, this IS a big issue against swap over network.
-
-Swap over network is inherently prone to deadlock
-situations, due to the following three problems:
-
-1) we swap pages out when we are close to running
-   out of free memory
-2) to write pages out over the network, we need to
-   allocate space to assemble network packets
-3) we need to have memory to receive the ACKs on
-   the packets we sent out
-
-The only real solution to this would be memory
-reservations so we know this memory won't be used
-for other purposes.
-
-What we can do right now is be careful about how
-many writeouts over the network we do at the same
-time, but that will still get us killed in case of
-a ping flood ;)
-
-regards,
+Last I looked the loopback device could deadlock your
+system without you needing to swap over it ;)
 
 Rik
 --
