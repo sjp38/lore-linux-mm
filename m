@@ -1,95 +1,60 @@
-Message-ID: <3D948EA6.A6EFC26B@austin.ibm.com>
-Date: Fri, 27 Sep 2002 12:00:22 -0500
-From: Bill Hartner <hartner@austin.ibm.com>
-MIME-Version: 1.0
-Subject: Re: VolanoMark Benchmark results for 2.5.26, 2.5.26 + rmap, 2.5.35,and  
- 2.5.35 + mm1
-References: <Pine.LNX.4.44L.0209172219200.1857-100000@imladris.surriel.com>
+Date: Fri, 27 Sep 2002 22:44:24 +0530
+From: Dipankar Sarma <dipankar@in.ibm.com>
+Subject: Re: 2.5.38-mm3
+Message-ID: <20020927224424.A28529@in.ibm.com>
+Reply-To: dipankar@in.ibm.com
+References: <20020927152833.D25021@in.ibm.com> <502559422.1033113869@[10.10.2.3]>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+In-Reply-To: <502559422.1033113869@[10.10.2.3]>; from mbligh@aracnet.com on Fri, Sep 27, 2002 at 08:04:31AM -0700
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@conectiva.com.br>
-Cc: Andrew Morton <akpm@digeo.com>, linux-mm@kvack.org, lse-tech@lists.sourceforge.net, mbligh@aracnet.com
+To: "Martin J. Bligh" <mbligh@aracnet.com>
+Cc: William Lee Irwin III <wli@holomorphy.com>, Zwane Mwaikambo <zwane@linuxpower.ca>, Andrew Morton <akpm@digeo.com>, lkml <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Rik van Riel wrote:
+On Fri, Sep 27, 2002 at 08:04:31AM -0700, Martin J. Bligh wrote:
+> >> > What application were you all running ?
 > 
+> Kernel compile on NUMA-Q looks like this:
 > 
-> > > 2.5.26 vs 2.5.26 + rmap patch
-> > > -----------------------------
-> > > It appears as though the page stealing decisions made when using the
-> > > 2.5.26 rmap patch may not be as good as the baseline for this workload.
-> > > There was more swap activity and idle time.
-> >
-> > Do you have similar results for 2.4 and 2.4-rmap?
+> 125673 total
+> 82183 default_idle
+> 2288 d_lookup
+> 1921 vm_enough_memory
+> 1883 __generic_copy_from_user
+> 1566 file_read_actor
+> 1381 .text.lock.file_table           <-------------
+
+More likely, this is contention for the files_lock. Do you have any 
+lockmeter data ?  That should give us more information. If so,
+the files_struct_rcu isn't likely to help.
+
+> 1168 find_get_page
+> 1116 get_empty_filp
 > 
-> If Bill is going to test this, I'd appreciate it if he could use
-> rmap14a (or newer, if I've released it by the time he gets around
-> to testing).
+> Presumably that's the same thing? Interestingly, if I look back at 
+> previous results, I see it's about twice the cost in -mm as it is 
+> in mainline, not sure why ... at least against 2.5.37 virgin it was.
+
+Not sure why it shows up more in -mm, but likely because -mm has
+lot less contention on other locks like dcache_lock.
+
 > 
+> > Please try running the files_struct_rcu patch where fget() is lockfree
+> > and let me know what you see.
+> 
+> Will do ... if you tell me where it is ;-)
 
-More VolanoMark results using an 8-way 700 Mhz under memory pressure for
-2.4.19 and rmap14b.
+Oh, the usual place -
+http://sourceforge.net/project/showfiles.php?group_id=8875&release_id=112473
+I wish sourceforge FRS continued to allow direct links to patches.
 
-Details of SUT same as :
-
-http://marc.theaimsgroup.com/?l=linux-mm&m=103229747000714&w=2
-
-NOTE : the swap device is on ServeRAID which is probably bouncing for
-the HIGHMEM pages in most if not all of the tests so results will
-likely improve when bouncing is eliminated.
-
-2419     = 2.4.19 + o(1) scheduler
-2419rmap = 2.4.19 + rmap14b + o(1) scheduler
-
-%sys/%user = ratio of %system CPU utilization to %user CPU utilization.
-
-========================================
-The results for the 3 GB mem test were :
-========================================
-
-kernel       msg/s  %CPU %sys/%user  Total swpin   Total swpout  Total swapio
------------  -----  ---- ----------  ------------  ------------  ------------
-
-2.4.19       ***** system hard hangs - requires reset. *****
-2.4.19rmap   37767  76.9 1.46        2,274,380 KB  3,800,336 KB  6,074,716 KB
-
-=============================== old data below===============================
-2.5.26       51824  96.3 1.42        1,987,024 KB  2,148,100 KB  4,135,124 KB
-2.5.26rmap   46053  90.8 1.55        3,139,324 KB  3,887,368 KB  7,026,692 KB
-2.5.35       44693  86.1 1.45        1,982,236 KB  5,393,152 KB  7,375,388 KB
-2.5.35mm1    39679  99.6 1.50       *2,720,600 KB *6,154,512 KB *8,875,112 KB
-
-* used pgin/pgout instead of swapin/swapout since /proc/stat changed.
-
-2.4.19 + o(1) hangs the system - requires reset.
-
-2.4.19 + rmap13 + o(1) performance is degraded.  The baseline 2.4.19 hangs
-after a couple of attempts so no direct comparision.  There are also peaks
-of idle time during high swap activity.
-
-========================================
-The results for the 4 GB mem test were :
-========================================
-
-kernel       msg/s  %CPU %sys/%user  Total swpin   Total swpout  Total swapio
------------  -----  ---- ----------  ------------  ------------  ------------
-
-2.4.19       55386  99.8 1.40        0             0             0
-2.4.19rmap   52330  99.5 1.43        0             2,363,388 KB  2,363,388 KB
-
-=============================== old data below===============================
-2.5.26       55446  99.4 1.40        0             0             0
-2.5.35       52845  99.9 1.38        0             0             0
-2.5.35mm1    52755  99.9 1.42        0             0             0
-
-2.4.19 + o(1) using 4GB memory performs as well as 2.5.26.
-
-2.4.19 + rmap14b + o(1) performance is down 5.5 % (52330/55386).
-There was swap io even though we had 500MB free mem.
-
-Bill
+Thanks
+-- 
+Dipankar Sarma  <dipankar@in.ibm.com> http://lse.sourceforge.net
+Linux Technology Center, IBM Software Lab, Bangalore, India.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
