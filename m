@@ -1,39 +1,48 @@
-Received: from ns-ca.netscreen.com (ns-ca.netscreen.com [10.100.10.21])
-	by mail.netscreen.com (8.10.0/8.10.0) with ESMTP id f4IHYQA26159
-	for <linux-mm@kvack.org>; Fri, 18 May 2001 10:34:26 -0700
-Message-ID: <A33AEFDC2EC0D411851900D0B73EBEF766DCD9@NAPA>
-From: Hua Ji <hji@netscreen.com>
-Subject: About swapper_page_dir and processes' page directory
-Date: Fri, 18 May 2001 10:47:48 -0700
-MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="iso-8859-1"
+Date: Fri, 18 May 2001 20:19:24 +0200
+From: Ingo Oeser <ingo.oeser@informatik.tu-chemnitz.de>
+Subject: Re: Linux 2.4.4-ac10
+Message-ID: <20010518201924.M754@nightmaster.csn.tu-chemnitz.de>
+References: <Pine.LNX.4.21.0105181403280.5531-100000@imladris.rielhome.conectiva> <Pine.LNX.4.33.0105181936240.583-100000@mikeg.weiden.de>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.33.0105181936240.583-100000@mikeg.weiden.de>; from mikeg@wen-online.de on Fri, May 18, 2001 at 07:45:15PM +0200
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Mike Galbraith <mikeg@wen-online.de>
+Cc: Rik van Riel <riel@conectiva.com.br>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Folks,
+On Fri, May 18, 2001 at 07:45:15PM +0200, Mike Galbraith wrote:
+> Yes, ~exactly!  I chose 30 tasks because they almost do (tool/userland
+> dependant.. must recalibrate often) fit.  The bitch is to get the vm
+> to automagically detect the rss/cache munch tradeoff point without all
+> the manual help.
 
-Get a question today. Thanks in advance.
+What about a sysctl for that? Choose decent steps and let 0
+(which is an insane value) mean "let's kernel decide" and make
+this default.
 
-As we know, vmalloc and other memory allocation/de-allocation will
-change/update
-the swapper_page_dir maintain by the kernel. 
+In the past we could do this by adjusting some watermarks in
+/proc/sys/vm but now, we can't do anything but trust the genius
+kernel developers.
 
-I am wondering when/how the kernel synchronzie the change to user level
-processes' page
-directory entries from the 768th to the 1023th.
+I doubt that we can test all kinds of workload and even imagine
+what pervert stuff some people do with their machines.
 
-Those entries get copied from swapper_page_dir when a user process get
-forked/created. Does the kernel
-frequently update this information every time when the swapper_page_dir get
-changed?
+Tuning _is_ manual work. Always has been and always will be.
 
-Regards,
+This countinously "I know it better then you" is what I hated
+about Windows and now this comes more and more into Linux :-(
 
-Mike
- 
+Rik: Would you take patches for such a tradeoff sysctl?
+
+Regards
+
+Ingo Oeser
+-- 
+To the systems programmer,
+users and applications serve only to provide a test load.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
