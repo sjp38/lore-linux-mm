@@ -1,165 +1,46 @@
-Date: Tue, 10 Oct 2000 18:11:48 +0200
-From: Ingo Oeser <ingo.oeser@informatik.tu-chemnitz.de>
-Subject: Re: [PATCH] OOM killer API (was: [PATCH] VM fix for 2.4.0-test9 & OOM handler)
-Message-ID: <20001010181148.D784@nightmaster.csn.tu-chemnitz.de>
-References: <20001010170708.C784@nightmaster.csn.tu-chemnitz.de> <Pine.LNX.4.21.0010101231120.11122-100000@duckman.distro.conectiva>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.21.0010101231120.11122-100000@duckman.distro.conectiva>; from riel@conectiva.com.br on Tue, Oct 10, 2000 at 12:32:50PM -0300
+Date: Tue, 10 Oct 2000 10:28:02 -0700 (PDT)
+From: Linus Torvalds <torvalds@transmeta.com>
+Subject: Re: [PATCH] VM fix for 2.4.0-test9 & OOM handler
+In-Reply-To: <200010101441.QAA11537@cave.bitwizard.nl>
+Message-ID: <Pine.LNX.4.10.10010101022430.1791-100000@penguin.transmeta.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@conectiva.com.br>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Rogier Wolff <R.E.Wolff@BitWizard.nl>
+Cc: Jim Gettys <jg@pa.dec.com>, Alan Cox <alan@lxorguk.ukuu.org.uk>, Andi Kleen <ak@suse.de>, Ingo Molnar <mingo@elte.hu>, Andrea Arcangeli <andrea@suse.de>, Rik van Riel <riel@conectiva.com.br>, Byron Stanoszek <gandalf@winds.org>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Oct 10, 2000 at 12:32:50PM -0300, Rik van Riel wrote:
-> > So now you can stop arguing about the one and only OOM killer,
-> > implement it, provide it as module and get back to the important
-> > stuff ;-)
+
+On Tue, 10 Oct 2000, Rogier Wolff wrote:
 > 
-> This is definately a cool toy for people who have doubts
-> that my OOM killer will do the wrong thing in their
-> workloads.
+> So if Netscape can "pump" 40 extra megabytes of memory out of X, this
+> can be exploited. 
+> 
+> Now we're back to the point that a heuristic can never be right all
+> the time......
 
-Thanks ;-)
+I agree. In fact, we never left that.
 
-But I forgot to include my changes to the mm/Makefile (to export
-the API for modules).
+Nothing is perfect.
 
-Here is a _working_ one:
+In fact, a lot of engineering is _recognizing_ that you can never achieve
+"perfect", and you're much better off not even trying - and having a
+simple system that is "good enough".
 
---- linux-2.4.0-test10-pre1/mm/oom_kill.c	Tue Oct 10 16:31:08 2000
-+++ linux-2.4.0-test10-pre1-ioe/mm/oom_kill.c	Tue Oct 10 16:59:27 2000
-@@ -13,6 +13,8 @@
-  *  machine) this file will double as a 'coding guide' and a signpost
-  *  for newbie kernel hackers. It features several pointers to major
-  *  kernel subsystems and hints as to where to find out what things do.
-+ *
-+ *  Added oom_killer API for special needs - Ingo Oeser
-  */
- 
- #include <linux/mm.h>
-@@ -136,7 +138,7 @@
- }
- 
- /**
-- * oom_kill - kill the "best" process when we run out of memory
-+ * oom_kill_rik - kill the "best" process when we run out of memory
-  *
-  * If we run out of memory, we have the choice between either
-  * killing a random task (bad), letting the system crash (worse)
-@@ -147,7 +149,9 @@
-  * CAP_SYS_RAW_IO set, send SIGTERM instead (but it's unlikely that
-  * we select a process with CAP_SYS_RAW_IO set).
-  */
--void oom_kill(void)
-+
-+
-+static void oom_kill_rik(void)
- {
- 
- 	struct task_struct *p = select_bad_process();
-@@ -207,4 +211,63 @@
- 
- 	/* Else... */
- 	return 1;
-+}
-+
-+/* Protects oom_killer against resetting during its execution */
-+static rwlock_t oom_kill_lock = RW_LOCK_UNLOCKED;
-+
-+static oom_killer_t oom_killer = oom_kill_rik;
-+
-+/** 
-+ * oom_kill - the oom_kill wrapper for installable OOM killers
-+ *
-+ * Wraper around the OOM killers, that can be installed via
-+ * install_oom_killer and reset_default_oom_killer.
-+ *
-+ * This gets called from kswapd() in linux/mm/vmscan.c when we 
-+ * really run out of memory.
-+ */
-+void oom_kill(void) {
-+	read_lock(&oom_kill_lock);
-+	oom_killer();
-+	read_unlock(&oom_kill_lock);
-+}
-+
-+/**
-+ * install_oom_killer - install alternate OOM killer
-+ * @new_oom_kill: the alternate OOM killer provided by the caller
-+ *
-+ * Since the default OOM killer (oom_kill_rik) is not suitable 
-+ * for everyone, we provide an interface to install custom OOM killers.
-+ * 
-+ * You can take the most appropriate action for your application if the
-+ * kernel goes OOM.
-+ *
-+ * Providing an NULL argument just returns the current OOM killer.
-+ *
-+ * Returns: The OOM killer, which has been installed so far.
-+ * 
-+ * NOTE: We don't do refcounting on OOM killers, so be careful with 
-+ * 	modules
-+ */
-+oom_killer_t install_oom_killer(oom_killer_t new_oom_kill) {
-+	oom_killer_t tmp;
-+	write_lock(&oom_kill_lock);
-+	tmp=oom_killer;
-+	if (new_oom_kill) 
-+		oom_killer=new_oom_kill;
-+	write_unlock(&oom_kill_lock);
-+	return tmp;
-+}
-+
-+/**
-+ * reset_default_oom_killer - reset back to default OOM killer
-+ *
-+ * If you are going to unload the module which provided 
-+ * your OOM killer, you can install the default one by this.
-+ *
-+ * Returns: The OOM killer, which has been installed so far.
-+ */
-+oom_killer_t reset_default_oom_killer(void) {
-+	return install_oom_killer(&oom_kill_rik);
- }
---- linux-2.4.0-test10-pre1/include/linux/swap.h	Tue Oct 10 16:31:08 2000
-+++ linux-2.4.0-test10-pre1-ioe/include/linux/swap.h	Tue Oct 10 16:44:22 2000
-@@ -127,8 +127,14 @@
- #define read_swap_cache(entry) read_swap_cache_async(entry, 1);
- 
- /* linux/mm/oom_kill.c */
-+typedef void (*oom_killer_t)(void);
-+
- extern int out_of_memory(void);
- extern void oom_kill(void);
-+
-+oom_killer_t install_oom_killer(oom_killer_t new_oom_kill);
-+oom_killer_t reset_default_oom_killer(void);
-+
- 
- /*
-  * Make these inline later once they are working properly.
---- linux-2.4.0-test10-pre1/mm/Makefile	Tue Oct 10 16:31:08 2000
-+++ linux-2.4.0-test10-pre1-ioe/mm/Makefile	Tue Oct 10 16:34:06 2000
-@@ -10,7 +10,8 @@
- O_TARGET := mm.o
- O_OBJS	 := memory.o mmap.o filemap.o mprotect.o mlock.o mremap.o \
- 	    vmalloc.o slab.o bootmem.o swap.o vmscan.o page_io.o \
--	    page_alloc.o swap_state.o swapfile.o numa.o oom_kill.o
-+	    page_alloc.o swap_state.o swapfile.o numa.o
-+OX_OBJS  := oom_kill.o
- 
- ifeq ($(CONFIG_HIGHMEM),y)
- O_OBJS += highmem.o
+This is the old adage of "perfect is the enemy of good" - trying too hard
+is actually _detrimental_ in 99% of all cases. We should have simple
+heuristics that work most of the time, instead of trying to cajole a
+complex system like X to help us do some complicated resource management
+system.
 
-Regards
+Complexity will just result in the OOM killer failing in surprising ways.
 
-Ingo Oeser
--- 
-Feel the power of the penguin - run linux@your.pc
-<esc>:x
+A simple heuristic will mean that the OOM killer will still fail, but at
+least it won't be be in subtle and surprising ways.
+
+			Linus
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
