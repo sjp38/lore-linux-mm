@@ -1,56 +1,65 @@
-Date: Mon, 27 Sep 1999 16:22:19 -0400 (EDT)
-From: James Simmons <jsimmons@edgeglobal.com>
-Subject: Re: mm->mmap_sem
-In-Reply-To: <14319.31833.53685.244682@dukat.scot.redhat.com>
-Message-ID: <Pine.LNX.4.10.9909271616080.7835-100000@imperial.edgeglobal.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: Dynamic Swap - How to do it ?
+References: <37E98460.9731265@nibiru.pauls.erfurt.thur.de>
+From: ebiederm+eric@ccr.net (Eric W. Biederman)
+Date: 27 Sep 1999 22:41:48 -0500
+In-Reply-To: Enrico Weigelt's message of "Thu, 23 Sep 1999 01:37:36 +0000"
+Message-ID: <m1so3zg0sj.fsf@alogconduit1ai.ccr.net>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Stephen C. Tweedie" <sct@redhat.com>
-Cc: Andrea Arcangeli <andrea@suse.de>, linux-mm@kvack.org
+To: weigelt@nibiru.pauls.erfurt.thur.de
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> Hi,
+Enrico Weigelt <weigelt@nibiru.pauls.erfurt.thur.de> writes:
+
+> hi folks,
 > 
-> On Sat, 25 Sep 1999 21:19:59 -0400 (EDT), James Simmons
-> <jsimmons@edgeglobal.com> said:
+> i've trying to develop a dynamic swap manager.
 > 
-> > To be exactly I'm trying to do cooperative locking between a mmaping of
-> > the accel region of /dev/gfx and the framebuffer region of /dev/fb. 
+> i've written a little deamon which frequently reads the memory
+> usage from /proc and adds swapfiles if necessary. but this doesn't
+> really satisfy me. so i'd like to do it at kernel level,
+> because there could be some critical situations:
 > 
-> I thought you might be.  Look at the DRI (XI's direct rendering
-> infrastructure): they implement a cooperative locking mechanism which
-> optimises the fast case (current locker was also the last holder of the
-> lock) not to require a syscall at all.
+> what if an application (ore more) requests very much memory very fast - 
+> more than the swap deamon's min-space-range ? then the swap deamon
+> cant't increase the swapspace as fast as necessary and the application
+> doesn't get the memory - in the worst case the app doesnt care about it,
+> tries to access the (not allocated) memory and gets an SIGSEG.
 
-Already am peeking under the hood.
+That is a feature.  In particular consider a rogue program.
+that (a) forks like crazy and (b) attempts to allocate and touch
+a visisble 3 GB.  Hostile programs will & should have problems.
 
-> Using any form of physical memory protection will be too slow.
+> so it would be better, if these applications are blocked until the swap
+> deamon has allocated the memory or definitively can't/won't allocate it.
 
-Agree. 
+kill -SIGSTOP
 
-> > I notice that after mmapping the kernel can no long control access to
-> > the memory regions. So I need to block any process from accessing the
-> > framebuffer while the accel engine is running. Since many low end
-> > cards lock if you access the framebuffer and accel engine at the same
-> > time.
+If you reach the point where the kernel would be killing off tasks.
+You are too late.  The kernel must get memory or it can't function.
+
 > 
-> I know.  The hardware sucks.  There is no fast way to deal with it.  The
-> closest you might get to it is ia32 segmentation, but we don't support
-> that in the kernel and never will.
+> but how should the kernel know which processes may be blocked and which 
+> not. and how to reserve memory for the swap deamon ?
+> there should be a flag in the process status field, which tells the
+> kernel
+> that this process won't be affected by this - because it _manages_ this.
+> (let's say an process type MEMORY_MANAGER or something like that)
+> and there has to be some code in the kernel, which tells the swap deamon
+> when it's time to increase the swap sapce.
+> 
+> what do you think about this ?
 
-Well if the number of cards that are broken this bad are small then I will
-just not support such cards. If simulatenous access just screws up the
-screen well that will not count. As long as crumy hardware is not allowed
-to lock the machine.
+Implement it in user space first, and see how far you can go.
+The amount of swap space allocated is a policy question.
+Also consider mlockall (on the a statically linked daemon)
+so it doesn't page.
 
-> You still don't prevent a rogue application from locking the graphics
-> adapter. 
+Also someone I forget who has played with this before
+so you might want to look around a little.
 
-Yuck. I rather not support that kind of hardware if that type of hardware 
-is small in numbers. 
-
+Eric
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
