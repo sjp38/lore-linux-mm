@@ -1,44 +1,34 @@
-Date: Wed, 31 May 2000 16:30:22 -0300 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
 Subject: Re: [PATCH] VM bugfix + rebalanced + code beauty
-In-Reply-To: <qww4s7e61ds.fsf@sap.com>
-Message-ID: <Pine.LNX.4.21.0005311629160.30221-100000@duckman.distro.conectiva>
+References: <Pine.LNX.4.21.0005311629160.30221-100000@duckman.distro.conectiva>
+From: Christoph Rohland <cr@sap.com>
+Date: 31 May 2000 22:58:08 +0200
+In-Reply-To: Rik van Riel's message of "Wed, 31 May 2000 16:30:22 -0300 (BRST)"
+Message-ID: <qwwg0qy309r.fsf@sap.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Rohland <cr@sap.com>
-Cc: evil7@bellsouth.net, Alan Cox <alan@lxorguk.ukuu.org.uk>, linux-mm@kvack.org, linux-kernel@vger.rutgers.edu
+To: Rik van Riel <riel@conectiva.com.br>
+Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, linux-mm@kvack.org, linux-kernel@vger.rutgers.edu
 List-ID: <linux-mm.kvack.org>
 
-On 31 May 2000, Christoph Rohland wrote:
-> Rik van Riel <riel@conectiva.com.br> writes:
-> > here is a patch (versus 2.4.0-test1-ac5 and 6) that fixes a number
-> > of things in the VM subsystem.
-> > 
-> > - since the pagecache can now contain dirty pages, we no
-> >   longer take them out of the pagecache when they get dirtied
-> 
-> Does this mean, that we can do anonymous shared maps in the page
-> cache?
+Rik van Riel <riel@conectiva.com.br> writes:
 
-I'm testing stuff now, but seem unable to reproduce your
-observation. However, I *am* seeing high cpu usage by
-kswapd ;)
+> I'm testing stuff now, but seem unable to reproduce your
+> observation. However, I *am* seeing high cpu usage by
+> kswapd ;)
 
-I guess we really want to integrate the SHM swapout routine
-with shrink_mmap...
+I do these tests regularly 8way/8GB and the latest kernel is
+definitely a step back.
 
-regards,
+> I guess we really want to integrate the SHM swapout routine
+> with shrink_mmap...
 
-Rik
---
-The Internet is not a network of computers. It is a network
-of people. That is its real strength.
+I would love to integrate the whole shm page handling into the page
+cache.
 
-Wanna talk about the kernel?  irc.openprojects.net / #kernelnewbies
-http://www.conectiva.com/		http://www.surriel.com/
-
+Greetings
+		Christoph
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
