@@ -1,13 +1,15 @@
-Date: Thu, 5 Aug 2004 23:17:15 -0700
+Date: Thu, 5 Aug 2004 23:19:38 -0700
 From: Andrew Morton <akpm@osdl.org>
-Subject: Re: [PATCH] 1/4: rework alloc_pages
-Message-Id: <20040805231715.2a4f6bf8.akpm@osdl.org>
-In-Reply-To: <41131FA6.4070402@yahoo.com.au>
+Subject: Re: [PATCH] 3/4: writeout watermarks
+Message-Id: <20040805231938.6d87476c.akpm@osdl.org>
+In-Reply-To: <4113218F.5050803@yahoo.com.au>
 References: <41130FB1.5020001@yahoo.com.au>
-	<20040805221958.49049229.akpm@osdl.org>
-	<41131732.7060606@yahoo.com.au>
-	<20040805223725.246b0950.akpm@osdl.org>
-	<41131FA6.4070402@yahoo.com.au>
+	<41130FD2.5070608@yahoo.com.au>
+	<41131105.8040108@yahoo.com.au>
+	<20040805222733.477b3017.akpm@osdl.org>
+	<41131862.5050000@yahoo.com.au>
+	<20040805224920.6755198d.akpm@osdl.org>
+	<4113218F.5050803@yahoo.com.au>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
@@ -19,19 +21,11 @@ List-ID: <linux-mm.kvack.org>
 
 Nick Piggin <nickpiggin@yahoo.com.au> wrote:
 >
->  Ie, we have the (pages_low - pages_min) buffer after waking kswapd
->  before entering synch reclaim. Previously there was no buffer. I thought
->  this was the point of background reclaim. I don't know if I can explain
->  it any better than that sorry.
+>  Basically what the above code, is scale the dirty_ratio with the
+>  amount of unmapped pages, however it doesn't also scale the
+>  dirty_background_ratio (it does after my patch).
 
-Yes, that is the point.  I was wondering yesterday why pages_min was no
-longer used for anything any more.  We must have screwed things up when
-doing the lower zone protection stuff for NUMA.  Bugger.
-
-Wanna send that patch again, with a fit-for-human-consumption
-description?
-
-Thanks.
+OK, that makes sense.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
