@@ -1,70 +1,73 @@
-From: Dr.Philip Mensah <p_mensah@indiatimes.com>
-Reply-To: p_mensah@voila.fr
-Subject: your Assistance is needed
-Date: Sun, 09 Jan 2005 11:33:03 +0400
-MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="b9102a15-352b-40ce-8aae-49c4c6209c0c"
-Message-Id: <20050109073304Z26582-767+687@kvack.org>
+Date: Sun, 9 Jan 2005 09:35:51 -0200
+From: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
+Subject: Re: [RFC] per thread page reservation patch
+Message-ID: <20050109113551.GB9144@logos.cnet>
+References: <1105019521.7074.79.camel@tribesman.namesys.com> <20050107144644.GA9606@infradead.org> <1105118217.3616.171.camel@tribesman.namesys.com> <41DEDF87.8080809@grupopie.com> <m1llb5q7qs.fsf@clusterfs.com> <20050107132459.033adc9f.akpm@osdl.org> <m1d5wgrir7.fsf@clusterfs.com> <20050107150315.3c1714a4.akpm@osdl.org> <m18y74rfqs.fsf@clusterfs.com> <20050107154305.790b8a51.akpm@osdl.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20050107154305.790b8a51.akpm@osdl.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Andrew Morton <akpm@osdl.org>
+Cc: Nikita Danilov <nikita@clusterfs.com>, pmarques@grupopie.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, hch@infradead.org
 List-ID: <linux-mm.kvack.org>
 
-This is a multi-part message in MIME format
---b9102a15-352b-40ce-8aae-49c4c6209c0c
-Content-Type: text/plain; charset=iso-8859-1
-Content-Transfer-Encoding: quoted-printable
+On Fri, Jan 07, 2005 at 03:43:05PM -0800, Andrew Morton wrote:
+> Nikita Danilov <nikita@clusterfs.com> wrote:
+> >
+> > >
+> > > Why does the filesystem risk going oom during the rebalance anyway?  Is it
+> > > doing atomic allocations?
+> > 
+> > No, just __alloc_pages(GFP_KERNEL, 0, ...) returns NULL. When this
+> > happens, the only thing balancing can do is to panic.
+> 
+> __alloc_pages(GFP_KERNEL, ...) doesn't return NULL.  It'll either succeed
+> or never return ;) That behaviour may change at any time of course, but it
+> does make me wonder why we're bothering with this at all.  Maybe it's
+> because of the possibility of a GFP_IO failure under your feet or
+> something?
+> 
+> What happens if reiser4 simply doesn't use this code?
+> 
+> 
+> If we introduce this mechanism, people will end up using it all over the
+> place.  Probably we could remove radix_tree_preload(), which is the only
+> similar code I can I can immediately think of.
+> 
+> Page reservation is not a bad thing per-se, but it does need serious
+> thought.
 
-FROM THE DESK OF DR.PHILIP MENSAH 
-AUDITOR, 
-FEDERAL MINISTRY OF HEALTH AND SOCIAL SERVICES, 
-ACCRA GHANA. 
-EMAIL: p_mensah@voila.fr 
+Whenever scheme comes up I dont think the current check in __alloc_pages() is 
+any good:
 
-DEAR FRIEND, 
+        if (order == 0) {
+                page = perthread_pages_alloc();
+                if (page != NULL)
+                        return page;
+        }
 
-LETTER FOR URGENT ASSISTANCE ON FUND TRANSFER 
+Two things:
 
-First, I must solicit your strictest confidence in this transaction. This by =
-virtue of its nature as being utterly confidential and TOP SECRET. I got your =
-contact in our search for a foreign partner who has the ability and =
-reliability to prosecute a transaction of great magnitude involving a pending =
-business transaction requiring maximum confidence. We are top officials of =
-the Federal Ministry of Health and social services Accra Ghana. We are =
-interested in investments in your country with funds which are presently =
-trapped here Ghana in other to commence this business we solicit your =
-assistance to enable us transfer into your account the said trapped funds. =
-The source of this fund is as follows: During our last year Auditing, we find =
-out that some government officials set up companies and awarded themselves =
-contracts which were grossly over invoiced in various Ministries, We also =
-identified a lot of inflated contracts funds which are presently Deposited in =
-a BANK here in Accra. However, by virtue of our position as civil servants =
-and members of the panel ,we cannot acquire this money in our names, I have =
-therefore, been delegated as a matter of trust by my colleagues of the panel =
-to look for an overseas partner(s) into whose account we would transfer the =
-total sum of USD$35,500,000.00 [THIRTY FIVE MILLION,FIVE HUNDRED THOUSAND =
-UNITED STATES DOLLARS]. Hence we are writing you this letter. We agreed to =
-share the money thus: [1] 20% FOR THE ACCOUNT OWNER [YOU] [2] 80% FOR US =
-[THEOFFICALS] It is from the 80% that we wish to commence investments in your =
-country as you will also stand as our foreign agent over there. Please note =
-that this transaction is 100% safe and we hope to commence the transaction =
-latest seven[7]days from the date of the receipt of the following information =
-bellow. [A] COMPANY=92S NAME BENEFICIARY OF ACCOUNT. [B] YOUR PERSONAL =
-TELEPHONE NUMBER AND FAX NUMBERS. [C] BANK ACCOUNT/SORT/ABA/ROUTING NUMBERS =
-WHICH THE FUND WILL BE TRANSFERED TO. [D]YOUR BANK ADDRESS,TELEPHONE =
-NUMBERS/FAX NUMBERS. The above information will enable us commence the =
-transfer of this funds into your account in your country without delay and =
-also to open an account in your name. We are looking forward to doing this =
-business with you and solicit your confidentiality in this transaction. =
-Please acknowledge the receipt of this letter using the above email address; =
-I will bring you into the complete picture of this pending project when I =
-hear from you. 
+- all instances of an allocator from the current thread will eat from the perthread
+  reserves, you probably want only a few special allocations to eat from the reserves?
+  Thing is its not really a reservation intended for emergency situations,
+  rather a "generic per-thread pool" the way things are now.
 
-With Kind regards, 
+- its a real fast path, we're adding quite some instructions there which are only
+  used by reiserfs now.
 
-DR.PHILIP MENSAH   
---b9102a15-352b-40ce-8aae-49c4c6209c0c--
+I think in a "final" implementation emergency allocations should be explicitly stated 
+as such by the callers ?
 
+> How does reiser4 end up deciding how many pages to reserve?  Gross
+> overkill?
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"aart@kvack.org"> aart@kvack.org </a>
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
