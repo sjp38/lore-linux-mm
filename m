@@ -1,42 +1,30 @@
-Subject: Re: [PATCH] no buddy bitmap patch : for ia64 [2/2]
-From: Dave Hansen <haveblue@us.ibm.com>
-In-Reply-To: <4165399D.7010600@jp.fujitsu.com>
-References: <4165399D.7010600@jp.fujitsu.com>
-Content-Type: text/plain
-Message-Id: <1097163793.3625.47.camel@localhost>
-Mime-Version: 1.0
-Date: Thu, 07 Oct 2004 08:43:13 -0700
-Content-Transfer-Encoding: 7bit
+Content-class: urn:content-classes:message
+MIME-Version: 1.0
+Content-Type: text/plain;
+	charset="iso-8859-1"
+Content-Transfer-Encoding: 8BIT
+Subject: RE: [RFC/PATCH]  pfn_valid() more generic : arch independent part[0/2]
+Date: Thu, 7 Oct 2004 08:53:32 -0700
+Message-ID: <B8E391BBE9FE384DAA4C5C003888BE6F022668D0@scsmsx401.amr.corp.intel.com>
+From: "Luck, Tony" <tony.luck@intel.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hiroyuki KAMEZAWA <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Linux Kernel ML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, lhms <lhms-devel@lists.sourceforge.net>, Andrew Morton <akpm@osdl.org>, William Lee Irwin III <wli@holomorphy.com>, "Luck, Tony" <tony.luck@intel.com>, Hirokazu Takahashi <taka@valinux.co.jp>
+To: "Martin J. Bligh" <mbligh@aracnet.com>, Hiroyuki KAMEZAWA <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: LinuxIA64 <linux-ia64@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2004-10-07 at 05:42, Hiroyuki KAMEZAWA wrote:
->  #ifdef CONFIG_VIRTUAL_MEM_MAP
->  extern int ia64_pfn_valid (unsigned long pfn);
-> +#define HOLES_IN_ZONE 1
->  #else
->  # define ia64_pfn_valid(pfn) 1
->  #endif
+>The normal way to fix the above is just to have a bitmap array 
+>to test - in your case a 1GB granularity would be sufficicent. That 
+>takes < 1 word to implement for the example above ;-)
 
-The real way to do this is to put it in a Kconfig file.  
+In the general case you need a bit for each granule (since that is the
+unit that the kernel admits/denies the existence of memory).  But the
+really sparse systems end up with a large bitmap.  SGI Altix uses 49
+physical address bits, and a granule size of 16MB ... so we need 2^25
+bits ... i.e. 4MBbytes.  While that's a drop in the ocean on a 4TB
+machine, it still seems a pointless waste.
 
-something like:
-
-config HOLES_IN_ZONE
-	bool
-	depends on VIRTUAL_MEM_MAP
-
-right below where 'config VIRTUAL_MEM_MAP' is defined.  That way, if any
-other architectures need it, they alter their Kconfig files instead of
-headers.  Also, it leaves the possibility of having an arch-independent
-Kconfig file for memory-related options which I'd like to do in the
-future.
-
--- Dave
-
+-Tony
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
