@@ -1,51 +1,54 @@
-From: kanoj@google.engr.sgi.com (Kanoj Sarcar)
-Message-Id: <199912092054.MAA57205@google.engr.sgi.com>
-Subject: Re: Getting big areas of memory, in 2.3.x?
-Date: Thu, 9 Dec 1999 12:54:11 -0800 (PST)
-In-Reply-To: <Pine.LNX.4.05.9912092136180.17600-100000@humbolt.nl.linux.org> from "Rik van Riel" at Dec 9, 99 09:39:45 pm
-MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from aa.eps.jhu.edu (aa.eps.jhu.edu [128.220.24.92])
+ by jhmail.hcf.jhu.edu (PMDF V5.2-31 #37929)
+ with ESMTP id <01JJAY59ZJ4AF9E1EE@jhmail.hcf.jhu.edu> for linux-mm@kvack.org;
+ Thu, 9 Dec 1999 16:12:04 EDT
+Date: Thu, 09 Dec 1999 16:10:43 -0500 (EST)
+From: afei@jhu.edu
+Subject: Re: Motivation for page replace alg.?
+In-reply-to: <Pine.LNX.4.05.9912092053420.17600-100000@humbolt.nl.linux.org>
+Message-id: <Pine.GSO.4.05.9912091608000.11818-100000@aa.eps.jhu.edu>
+MIME-version: 1.0
+Content-type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Rik van Riel <riel@nl.linux.org>
-Cc: jgarzik@mandrakesoft.com, mingo@chiara.csoma.elte.hu, alan@lxorguk.ukuu.org.uk, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
+Cc: afei@jhu.edu, Chris Vaill <cvaill@cs.columbia.edu>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> 
-> On Thu, 9 Dec 1999, Kanoj Sarcar wrote:
-> > > Ingo Molnar wrote:
-> > > > hm, does anyone have any conceptual problem with a new
-> > > > allocate_largemem(pages) interface in page_alloc.c? It's not terribly hard
-> > > > to scan all bitmaps for available RAM and mark the large memory area
-> > > > allocated and remove all pages from the freelists. Such areas can only be
-> > > > freed via free_largemem(pages). Both calls will be slow, so should be only
-> > > > used at driver initialization time and such.
-> > > 
-> > > Would this interface swap out user pages if necessary?  That sort of
-> > > interface would be great, and kill a number of hacks floating around out
-> > > there.
-> > 
-> > Swapping out user pages is not a sure shot thing unless Linux implements
-> > reverse maps, so that we can track which page is being used by which pte. 
-> > 
-> > Without rmaps, any possible solution will be quite costly, if not an 
-> > outright hack, IMO. 
-> 
-> Not only that, we would also need to make
-> sure that no kernel data pages are in the way.
-> 
-> This means we'll need both reverse maps and
-> a "real" zoned allocator. Not a 2.4 thing,
-> I'm afraid :(
->
+If the Linux-MM team would accept it, I am willing to contribute this
+document to help to understand Linux memory management. But before that, I
+need to clean up the document and make it more readable. I will later on
+use Latex to do it (just some copy/paste).
 
-Well, at least in 2.3, kernel data (and page caches) are below 1G,
-which means there's a lot of memory possible out there with
-references only from user memory. Shm page references are 
-revokable too. Of course, in 2.5, things will probably change. 
+Fei
 
-Kanoj
+On Thu, 9 Dec 1999, Rik van Riel wrote:
+
+> On Thu, 9 Dec 1999 afei@jhu.edu wrote:
+> 
+> > Chris, we have done some analysis on this problem. Please check out the
+> > online document about linux memory management at:
+> > http://aa.eps.jhu.edu/~feiliu/Linux
+> > 
+> > sorry about the readability, it is converted from word. I will work on the
+> > layout later, but the content is there.
+> 
+> I know this is a scholl assignment, but
+> would it be possible to publish the
+> docs on the web, for instance at the Linux-MM
+> site?
+> 
+> Rik
+> --
+> The Internet is not a network of computers. It is a network
+> of people. That is its real strength.
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://humbolt.geo.uu.nl/Linux-MM/
+> 
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
