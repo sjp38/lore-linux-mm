@@ -1,37 +1,38 @@
 Received: from max.phys.uu.nl (max.phys.uu.nl [131.211.32.73])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id RAA15028
-	for <linux-mm@kvack.org>; Thu, 9 Jul 1998 17:18:59 -0400
-Date: Thu, 9 Jul 1998 22:39:10 +0200 (CEST)
+	by kvack.org (8.8.7/8.8.7) with ESMTP id RAA15022
+	for <linux-mm@kvack.org>; Thu, 9 Jul 1998 17:18:30 -0400
+Date: Thu, 9 Jul 1998 21:55:57 +0200 (CEST)
 From: Rik van Riel <H.H.vanRiel@phys.uu.nl>
 Reply-To: Rik van Riel <H.H.vanRiel@phys.uu.nl>
-Subject: Re: cp file /dev/zero <-> cache [was Re: increasing page size]
-In-Reply-To: <199807082211.XAA14327@dax.dcs.ed.ac.uk>
-Message-ID: <Pine.LNX.3.96.980709223502.29519A-100000@mirkwood.dummy.home>
+Subject: Re: everyone who has VM problems/messages (writable swappage or crash or lockup)
+In-Reply-To: <Pine.GSO.3.96.980709162723.29328B-100000@valerie.inf.elte.hu>
+Message-ID: <Pine.LNX.3.96.980709215250.28236H-100000@mirkwood.dummy.home>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: "Stephen C. Tweedie" <sct@redhat.com>
-Cc: Andrea Arcangeli <arcangeli@mbox.queen.it>, Linux MM <linux-mm@kvack.org>
+To: MOLNAR Ingo <mingo@valerie.inf.elte.hu>
+Cc: Linux MM <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 8 Jul 1998, Stephen C. Tweedie wrote:
-> <H.H.vanRiel@phys.uu.nl> said:
-> 
-> > When my zone allocator is finished, it'll be a piece of
-> > cake to implement lazy page reclamation.
-> 
-> I've already got a working implementation.  The issue of lazy
-> reclamation is pretty much independent of the allocator underneath; I
+On Thu, 9 Jul 1998, MOLNAR Ingo wrote:
 
-We really should integrate this _now_, with the twist
-that pages which could form a larger buddy should be
-immediately deallocated.
+> [actually i saw problems because we still do not handle the 'out of swap'
+> case very gracefully, but thats another issue. Also, the ramdisk test does
+> not (yet) fully simulate a real disk.]
 
-This can give us a cheap way to:
-- create larger memory buddies
-- remove some of the pressure on the buddy allocator
-  (no need to grab that last 64 kB area when 25% of
-  user pages are lazy reclaim)
+Part of the code to handle that is on my homepage,
+but as I haven't worked out how to decide when to
+start this code I haven't made a patch yet...
+
+If you are interested, could you please look into
+it? (my time is now completely consumed by reviewing
+the zone allocator's design, a week camp with our
+Scouts group and finetuning the VM system for 2.2)
+
+If anyone else is reading this, could you please
+think about how this task is accomplished and work
+something out together? (I'll be away from sunday
+12th until saterday the 19th)
 
 Rik.
 +-------------------------------------------------------------------+
