@@ -1,54 +1,49 @@
+Date: Fri, 2 Nov 2001 15:23:49 -0800
+From: Simon Kirby <sim@netnation.com>
 Subject: Re: Zlatko's I/O slowdown status
-References: <Pine.LNX.4.33L.0111021825180.2963-100000@imladris.surriel.com>
-Reply-To: zlatko.calusic@iskon.hr
-From: Zlatko Calusic <zlatko.calusic@iskon.hr>
-Date: 02 Nov 2001 22:22:52 +0100
-In-Reply-To: <Pine.LNX.4.33L.0111021825180.2963-100000@imladris.surriel.com> (Rik van Riel's message of "Fri, 2 Nov 2001 18:26:44 -0200 (BRST)")
-Message-ID: <877kt8eukz.fsf@atlas.iskon.hr>
-MIME-Version: 1.0
+Message-ID: <20011102152349.B17362@netnation.com>
+References: <Pine.LNX.4.33.0110261018270.1001-100000@penguin.transmeta.com> <87k7xfk6zd.fsf@atlas.iskon.hr> <20011102065255.B3903@athlon.random> <87g07xdj6x.fsf@atlas.iskon.hr>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+In-Reply-To: <87g07xdj6x.fsf@atlas.iskon.hr>; from zlatko.calusic@iskon.hr on Fri, Nov 02, 2001 at 09:14:14PM +0100
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@conectiva.com.br>
-Cc: Andrea Arcangeli <andrea@suse.de>, Jens Axboe <axboe@suse.de>, Marcelo Tosatti <marcelo@conectiva.com.br>, linux-mm@kvack.org, lkml <linux-kernel@vger.kernel.org>
+To: Zlatko Calusic <zlatko.calusic@iskon.hr>
+Cc: Andrea Arcangeli <andrea@suse.de>, Linus Torvalds <torvalds@transmeta.com>, Jens Axboe <axboe@suse.de>, Marcelo Tosatti <marcelo@conectiva.com.br>, linux-mm@kvack.org, lkml <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Rik van Riel <riel@conectiva.com.br> writes:
+On Fri, Nov 02, 2001 at 09:14:14PM +0100, Zlatko Calusic wrote:
 
-> On 2 Nov 2001, Zlatko Calusic wrote:
+> Thank God, today it is finally solved. Just two days ago, I was pretty
+> sure that disk had started dying on me, and i didn't know of any
+> solution for that. Today, while I was about to try your patch, I got
+> another idea and finally pinpointed the problem.
 > 
-> > It was write caching. Somehow disk was running with write cache turned
-> > off and I was getting abysmal write performance. Then I found hdparm
-> > -W0 /proc/ide/hd* in /etc/init.d/umountfs which is ran during shutdown
-> >
-> > I would advise users of Debian unstable to comment that part,
+> It was write caching. Somehow disk was running with write cache turned
+> off and I was getting abysmal write performance. Then I found hdparm
+> -W0 /proc/ide/hd* in /etc/init.d/umountfs which is ran during shutdown
+> but I don't understand how it survived through reboots and restarts!
+> And why only two of four disks, which I'm dealing with, got confused
+> with the command. And finally I don't understand how I could still got
+> full speed occassionaly. Weird!
 > 
-> Why do you want Debian users to loose their data ? ;)
+> I would advise users of Debian unstable to comment that part, I'm sure
+> it's useless on most if not all setups. You might be pleasantly
+> surprised with performance gains (write speed doubles).
 
-That few lines of code is a recent addition to Debian. It never
-existed before, so do you want to say that Debian was buggy for years
-and people lost massive amounts of data because of that? :)
+Aha!  That would explain why I was seeing it as well... and why I was
+seeing errors from hdparm for /dev/hdc and /dev/hdd, which are CDROMs.
 
-No, really, I'm using poweroff on my computer and not once I had a
-problem with it (I'm speaking about thousands of poweroffs) losing
-data after poweroff. But I have a problem with bad performance. :)
+Argh. :)
 
-> 
-> The 'hdparm -W0' is useful in getting the drive to flush
-> out the data to disk instead of having it linger around
-> in the drive cache.
-> 
+If they have hdparm -W 0 at shutdown, there should be a -W 1 during
+startup.
 
-Yes, I know, but it's not THAT important, otherwise it wouldn't be
-missing so many years from the init script.
+Simon-
 
-Anyway, this whole debate probably points to a problem of missing
-hdparm -W1 in the startup init script. IDE drives really behave
-poorely without write caching and there's nothing we could do about
-that, beside turning it on and pray to God we don't have too many
-power outages. :)
--- 
-Zlatko
+[  Stormix Technologies Inc.  ][  NetNation Communications Inc. ]
+[       sim@stormix.com       ][       sim@netnation.com        ]
+[ Opinions expressed are not necessarily those of my employers. ]
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
