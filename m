@@ -1,11 +1,10 @@
-Date: Fri, 3 Aug 2001 22:28:31 -0700 (PDT)
+Date: Fri, 3 Aug 2001 23:37:41 -0700 (PDT)
 From: Linus Torvalds <torvalds@transmeta.com>
 Subject: Re: [RFC][DATA] re "ongoing vm suckage"
 In-Reply-To: <Pine.LNX.4.33.0108040055090.11200-100000@touchme.toronto.redhat.com>
-Message-ID: <Pine.LNX.4.33.0108032216350.1032-100000@penguin.transmeta.com>
+Message-ID: <Pine.LNX.4.33.0108032330450.1193-100000@penguin.transmeta.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=ISO-8859-1
-Content-Transfer-Encoding: 8BIT
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Ben LaHaise <bcrl@redhat.com>
@@ -14,61 +13,27 @@ List-ID: <linux-mm.kvack.org>
 
 On Sat, 4 Aug 2001, Ben LaHaise wrote:
 >
-> > How about capping the number of requests to something sane, like 128? Then
-> > the natural request allocation (together with the batching that we already
-> > have) should work just dandy.
->
-> This has other drawbacks that are quite serious: namely, the order in
-> which io is submitted to the block layer is not anywhere close to optimal
-> for getting useful amounts of work done.
+> Within reason.  I'm actually heading to bed now, so it'll have to wait
+> until tomorrow, but it is fairly trivial to reproduce by dd'ing to an 8GB
+> non-sparse file.  Also, duplicating a huge file will show similar
+> breakdown under load.
 
-Now this is true _whatever_ we do.
+Well, I've made a 2.4.8-pre4.
 
-We all agree that we have to cap the thing somewhere, no?
+This one has marcelo's zone fixes, and my request suggestions. I'm writing
+email right now with the 8GB write in the background, and unpacked and
+patched a kernel. It's certainly not _fast_, but it's not too painful to
+use either.  The 8GB file took 7:25 to write (including the sync), which
+averages out to 18+MB/s. Which is, as far as I can tell, about the best I
+can get on this 5400RPM 80GB drive with the current IDE driver (the
+experimental IDE driver is supposed to do better, but that's not for
+2.4.x)
 
-Which means that we may be cutting off at a point where if we didn't cut
-off, we could have merged better etc. So that problem we have regardless
-of whether we could bhas submitted to ll_rw_block() or we count requests
-submitted to the actual IO layer.
+An added advantage of doing the waiting in the request handling was that
+this way it automatically balances reads against writes - writes cannot
+cause reads to fail because they have separate request queue allocations.
 
-The advantage off cutting off on a per-request basis is:
-
- - doing contiguous IO is "almost free" on most hardware today. So it's ok
-   to allow a lot more IO if it's contiguous - because the cost of doing
-   one request (even if large) is usually much lower than the cost of
-   doing two (smaller) requests.
-
- - What we really want to do is to have a sliding window of active
-   requests - enough to get reasonable elevator behaviour, and small
-   enough to get reasonable latency. Again, for both of these, the
-   "request" is the right entity - latency comes mostly from seeks (ie
-   between request boundaries), and similarly the elevator obviously works
-   on request boundaries too, not on "bh" boundaries.
-
-Also, I doubt it makes all that much sense to change the number of queue
-entries based on memory size. It probably makes more sense to scale the
-number of requests by disk speed, for example.
-
-[ Although there's almost certainly some amount of correlation - if you
-  have 2GB of RAM, you probably have fast disks too. But not the linear
-  function that we currently have. ]
-
->			  This situation only gets worse
-> as more and more tasks find that they need to clean buffers in order to
-> allocate memory, and start throwing more and more buffers from different
-> tasks into the io queue (think what happens when two tasks are walking
-> the dirty buffer lists locking buffers and then attempting to allocate a
-> request which then delays one of the tasks).
-
-Note that this really is a sitation we've had forever.
-
-There are good reasons to believe that we should do a better job of
-sorting the IO requests at a higher level in _addition_ to the low-level
-elevator. Filesystems should strive to allocate blocks contiguously etc,
-and we should strive to keep (and write out) the dirty lists etc in a
-somewhat cronological order to take advantage of usually contiguous writes
-(and maybe actively sort the dirty queue on writes that are _not_ going to
-have good locality, like swapping).
+Does it work reasonably under your loads?
 
 		Linus
 
