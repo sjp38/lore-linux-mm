@@ -1,44 +1,70 @@
-Date: Fri, 15 Oct 2004 16:34:40 +0100
-From: Christoph Hellwig <hch@infradead.org>
-Subject: Re: [RESEND][PATCH 4/6] Add page becoming writable notification
-Message-ID: <20041015153440.GA22607@infradead.org>
-References: <20041014203545.GA13639@infradead.org> <24449.1097780701@redhat.com> <28544.1097852703@redhat.com>
+Subject: Re: [PATCH] reduce fragmentation due to kmem_cache_alloc_node
+From: Badari Pulavarty <pbadari@us.ibm.com>
+In-Reply-To: <41684BF3.5070108@colorfullife.com>
+References: <41684BF3.5070108@colorfullife.com>
+Content-Type: text/plain
+Message-Id: <1097863727.2861.43.camel@dyn318077bld.beaverton.ibm.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <28544.1097852703@redhat.com>
+Date: 15 Oct 2004 11:08:48 -0700
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: David Howells <dhowells@redhat.com>
-Cc: Christoph Hellwig <hch@infradead.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+To: Manfred Spraul <manfred@colorfullife.com>
+Cc: Andrew Morton <akpm@osdl.org>, linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Oct 15, 2004 at 04:05:03PM +0100, David Howells wrote:
-> 
-> > > +	/* notification that a page is about to become writable */
-> > > +	int (*page_mkwrite)(struct page *page);
-> > 
-> > This doesn't fit into address_space operations at all.  The vm_operation
-> > below is enough.
-> 
-> Filesystems shouldn't be overloading vm_operations on ordinary files, or so
-> I've been instructed.
+Manfred & Andrew,
 
-huh?  that doesn't make any sense.  if a filesystem needs to do something
-special win regards to the VM it should overload vm_operations.  Currently
-that's only ncpfs and xfs.
+I am happy with the patch.This seems to have fixed slab fragmentation
+problem with scsi_debug tests.
 
-> > This prototype shows pretty much that splitting it out doesn't make much
-> > sense.  Why not add a goto reuse_page; where you call it currently and
-> > append it at the end of do_wp_page?
+But I still have issue with my scsi-debug tests. I don't think they
+are related to this patch. When I do,
+
+	while :
+	do
+		simulate 1000 scsi-debug disks
+		freeup 1000 scsi-debug disks
+	done
+
+I see size-64 "inuse" objects increasing. Eventually, it fills
+up entire low-mem. I guess while freeing up scsi-debug disks,
+is not cleaning up all the allocations :(
+
+But one question I have is - Is it possible to hold size-64 slab,
+because it has a management allocation (slabp - 40 byte allocations)
+from alloc_slabmgmt() ?  I remember seeing this earlier. Is it worth
+moving all managment allocations to its own slab ? should I try it ?
+
+Thanks,
+Badari
+
+On Sat, 2004-10-09 at 13:37, Manfred Spraul wrote:
+> Hi Andrew,
 > 
-> Judging by the CodingStyle doc - which you like throwing at me - it should be
-> split into a separate inline function. I could come up with a better name, I
-> suppose to keep Willy happy too - perhaps make_pte_writable(); it's just that
-> I wanted to name it to show its derivation.
+> attached is a patch that fixes the fragmentation that Badri noticed with 
+> kmem_cache_alloc_node. Could you add it to the mm tree? The patch is 
+> against 2.6.9-rc3-mm3.
+> 
+> Description:
+> kmem_cache_alloc_node tries to allocate memory from a given node. The 
+> current implementation contains two bugs:
+> - the node aware code was used even for !CONFIG_NUMA systems. Fix: 
+> inline function that redefines kmem_cache_alloc_node as kmem_cache_alloc 
+> for !CONFIG_NUMA.
+> - the code always allocated a new slab for each new allocation. This 
+> caused severe fragmentation. Fix: walk the slabp lists and search for a 
+> matching page instead of allocating a new page.
+> - the patch also adds a new statistics field for node-local allocs. They 
+> should be rare - the codepath is quite slow, especially compared to the 
+> normal kmem_cache_alloc.
+> 
+> Badri: Could you test it?
+> Andrew, could you add the patch to the next -mm kernel? I'm running it 
+> right now, no obvious problems.
+> 
+> Signed-Off-By: Manfred Spraul <manfred@colorfullife.com>
 
-Splitting in helpers makes sense if there's a sane interface.  The number of
-arguments doesn't exactly imply that it's the case here.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
