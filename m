@@ -6,9 +6,9 @@ References: <20030318031104.13fb34cc.akpm@digeo.com>
 	<873clkw6ui.fsf@lapper.ihatent.com>
 	<20030318162601.78f11739.akpm@digeo.com>
 From: Alexander Hoogerhuis <alexh@ihatent.com>
-Date: 19 Mar 2003 07:16:48 +0100
+Date: 19 Mar 2003 09:12:48 +0100
 In-Reply-To: <20030318162601.78f11739.akpm@digeo.com>
-Message-ID: <87llzbc23z.fsf@lapper.ihatent.com>
+Message-ID: <87fzpjepvj.fsf@lapper.ihatent.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
@@ -31,10 +31,17 @@ Andrew Morton <akpm@digeo.com> writes:
 > But as far as I know nobody has actually got down and done the binary search
 > to find out exactly when it started happening.
 
-The AGP code enables my machine with 1xAGP, but under 2.4 with same X
-version it will support 4x. I had a poke around in the Intel AGP code
-and there doesn't seem to be a way to manually convinve the driver of
-the truth :)
+Just got my machine out and booted up, this time I did enable my
+chipset into 4x AGP, instead of 1x as last night:
+
+alexh@lapper ~ $ dmesg | grep -i agp
+Linux agpgart interface v0.100 (c) Dave Jones
+agpgart: Detected Intel i845 chipset
+agpgart: Maximum main memory to use for agp memory: 690M
+agpgart: AGP aperture is 256M @ 0xa0000000
+agpgart: Putting AGP V2 device at 00:00.0 into 4x mode
+agpgart: Putting AGP V2 device at 01:00.0 into 4x mode
+alexh@lapper ~ $
 
 mvh,
 A
