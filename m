@@ -1,32 +1,33 @@
-Date: Thu, 7 Nov 2002 14:46:25 -0500
-From: Benjamin LaHaise <bcrl@redhat.com>
-Subject: Re: Usage of get_user_pages() in fs/aio.c
-Message-ID: <20021107144625.B30214@redhat.com>
-References: <20021106211538.M659@nightmaster.csn.tu-chemnitz.de>
+Date: Thu, 7 Nov 2002 23:13:35 +0100
+From: Ingo Oeser <ingo.oeser@informatik.tu-chemnitz.de>
+Subject: Re: get_user_pages rewrite (completed, updated for 2.4.46)
+Message-ID: <20021107231335.Q659@nightmaster.csn.tu-chemnitz.de>
+References: <20021107110840.P659@nightmaster.csn.tu-chemnitz.de> <20021107113842.GB23425@holomorphy.com> <20021107135747.A594@rotuma.informatik.tu-chemnitz.de> <20021107125955.GK19821@holomorphy.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20021106211538.M659@nightmaster.csn.tu-chemnitz.de>; from ingo.oeser@informatik.tu-chemnitz.de on Wed, Nov 06, 2002 at 09:15:38PM +0100
+In-Reply-To: <20021107125955.GK19821@holomorphy.com>; from wli@holomorphy.com on Thu, Nov 07, 2002 at 04:59:55AM -0800
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ingo Oeser <ingo.oeser@informatik.tu-chemnitz.de>
-Cc: linux-mm@kvack.org
+To: William Lee Irwin III <wli@holomorphy.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Nov 06, 2002 at 09:15:38PM +0100, Ingo Oeser wrote:
-> What this can cause is clear ;-)
-> 
-> Simple fix would be to replace "info->mmap_size" with "nr_pages",
-> that you compute just some lines above.
+Hi William,
 
-Whoops.  Yeah, that's a bug.  It hasn't actually been noticed in 
-testing because the array of pages is freshly allocated from mmap 
-and thus stops filling the array at nr_pages, but it could be 
-exploited by a hostile user.  I'll feed that patch up asap.
+On Thu, Nov 07, 2002 at 04:59:55AM -0800, William Lee Irwin III wrote:
+> I think just fixing the callers and killing the dead code is all
+> that's needed (or wanted).
 
-		-ben
+Ok, so I put it up as splitup patches and as one complete patch onto
+
+   <http://www.tu-chemnitz.de/~ioe/patches-page_walk/index.html>
+   
+Regards
+
+Ingo Oeser
 -- 
-"Do you seek knowledge in time travel?"
+Science is what we can tell a computer. Art is everything else. --- D.E.Knuth
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
