@@ -1,49 +1,57 @@
-Date: Thu, 17 May 2001 22:16:10 +0300
-From: Matti Aarnio <matti.aarnio@zmailer.org>
-Subject: Re: Running out of vmalloc space
-Message-ID: <20010517221610.K5947@mea-ext.zmailer.org>
-References: <3B04069C.49787EC2@fc.hp.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <3B04069C.49787EC2@fc.hp.com>; from dp@fc.hp.com on Thu, May 17, 2001 at 11:13:00AM -0600
+Date: Thu, 17 May 2001 16:19:35 -0300 (BRST)
+From: Rik van Riel <riel@conectiva.com.br>
+Subject: Re: SMP/highmem problem
+In-Reply-To: <20010517203933.F6360@vestdata.no>
+Message-ID: <Pine.LNX.4.21.0105171612030.5531-100000@imladris.rielhome.conectiva>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=X-UNKNOWN
+Content-Transfer-Encoding: 8BIT
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: David Pinedo <dp@fc.hp.com>
-Cc: linux-mm@kvack.org
+To: =?iso-8859-1?Q?Ragnar_Kj=F8rstad?= <kernel@ragnark.vestdata.no>
+Cc: linux-mm@kvack.org, tlan@stud.ntnu.no
 List-ID: <linux-mm.kvack.org>
 
-On Thu, May 17, 2001 at 11:13:00AM -0600, David Pinedo wrote:
-[ Why vmalloc() space is so small ? ]
+On Thu, 17 May 2001, [iso-8859-1] Ragnar Kjorstad wrote:
 
-  Hua Ji summarized quite well what the kernel does, and where.
+> I've run into a performance issue.
 
-  There are 32bit machines which *can* access whole 4G kernel space
-  separate from simultaneous 4G user space, however i386 is not one
-  of those.
+> I use a single process, bonnie++, that creates 16 1 GB files.
+> However, after a while, the machine gets really unresponsive
+> and the load gets really high. According to top, all CPU power
+> is spent in the kernel, mainly on kswapd, bdflush and kupdated.
 
-  PAE36 doesn't help either -- aside of the PHYSICAL memory addressability
-  increase, the problem is in 4G choke point in address calculations which
-  causes  32-bit segment register value be added on  32-bits address, but
-  only for the low 32 bits, loosing "up-shifted" top 4 bits.  The mapping
-  tables will then expand that 32-bit result to 36 bits of PAE.
+This is at least partly due to the following things:
 
-  If you can come up with some magic instruction which does data move
-  from/to alternate memory mapping context than what is currently running
-  (e.g. userspace or kernel), preferrably privileged instruction, a LOT
-  of people would be very glad -- and very nearly overnight we could 
-  supply 4G space for both user and kernel spaces.
+1) balance_dirty_state() tests for a condition bdflush
+   may not be able to resolve
+2) nr_free_buffer_pages() counts free highmem pages, which
+   cannot be allocated to buffer memory, as available; this
+   means that bonnie++ never gets to slow down to disk speed
+   and fills up all of low memory
+3) because of 2) kswapd and bdflush are trying to write the
+   data out to disk like crazy, but can never keep up with
+   bonnie++
+4) bonnie++ tries to allocate new pages all the time, but
+   cannot succeed because all of low memory is full of dirty
+   page cache data .. this means it loops in __alloc_pages()
+   and continuously wakes up kswapd and bdflush
 
-  In Motorola 68k series there is such a thing, called 'movec'.
+A few fixes for this situation have gone into 2.4.5-pre2 and
+2.4.5-pre3. If you have the time, could you test if this problem
+has gotten less or has gone away in the latest kernels ?
 
-> Thanks for any information anyone can provide.
->  
-> David Pinedo
-> Hewlett-Packard Company
-> Fort Collins, Colorado
-> dp@fc.hp.com
+thanks,
 
-/Matti Aarnio  -- who much prefers clean 64-bit pointers...
+Rik
+--
+Virtual memory is like a game you can't win;
+However, without VM there's truly nothing to lose...
+
+http://www.surriel.com/		http://distro.conectiva.com/
+
+Send all your spam to aardvark@nl.linux.org (spam digging piggy)
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
