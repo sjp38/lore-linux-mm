@@ -1,73 +1,64 @@
-Message-ID: <39B2C4EF.187E1E5E@zk3.dec.com>
-Date: Sun, 03 Sep 2000 17:38:55 -0400
-From: Peter Rival <frival@zk3.dec.com>
-MIME-Version: 1.0
+Message-ID: <20000904094750.A13518@saw.sw.com.sg>
+Date: Mon, 4 Sep 2000 09:47:50 +0800
+From: Andrey Savochkin <saw@saw.sw.com.sg>
 Subject: Re: Rik van Riel's VM patch
-References: <200009030010.RAA01038@gnuppy.monkey.org> <39B1B3F1.B228FABA@timpanogas.com>
+References: <E13VYF1-0000gN-00@the-village.bc.nu> <Pine.LNX.4.21.0009031743190.1112-100000@duckman.distro.conectiva>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <Pine.LNX.4.21.0009031743190.1112-100000@duckman.distro.conectiva>; from "Rik van Riel" on Sun, Sep 03, 2000 at 05:47:01PM
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Jeff V. Merkey" <jmerkey@timpanogas.com>
-Cc: Bill Huey <billh@gnuppy.monkey.org>, John Levon <moz@compsoc.man.ac.uk>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Rik van Riel <riel@conectiva.com.br>, Alan Cox <alan@lxorguk.ukuu.org.uk>
+Cc: Bill Huey <billh@gnuppy.monkey.org>, John Levon <moz@compsoc.man.ac.uk>, linux-mm@kvack.org, "Theodore Y. Ts'o" <tytso@MIT.EDU>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
+Hi,
 
-"Jeff V. Merkey" wrote:
+On Sun, Sep 03, 2000 at 05:47:01PM -0300, Rik van Riel wrote:
+> On Sun, 3 Sep 2000, Alan Cox wrote:
+> 
+> > Things like random memory corruption from dropping dirty bits,
+> > and some of the others are far more serious showstoppers alas
+> 
+> Indeed, there are 4 major issues left in the VM area:
+> 
+[snip]
+> 2) dirty bits can get lost, try_to_swap_out() and other
+>    places have a race with the hardware
+> 
+>    [from mm/vmscan.c, line 60 has a race with the /hardware/]
+>      55         if (pte_young(pte)) {
+>      56                 /*
+>      57                  * Transfer the "accessed" bit from the page
+>      58                  * tables to the global page map.
+>      59                  */
+>      60                 set_pte(page_table, pte_mkold(pte));
+>      61                 SetPageReferenced(page);
+>      62                 goto out_failed;
+>      63         }
 
-> Someone tell Rik to get his hands on a copy of AIMS-7 and start
-> benchmarking his VM so when the SCO Unix numbers hit the street, we've
-> got a rebuttal and fix dates to tell folks.
->
+I wonder about software races.
+Page table manipulations in mm/memory.c are guarded by page_table_lock
+against concurrent kswapd actions, with the following comments:
+        /*
+         * This is a long-lived spinlock. That's fine.
+         * There's no contention, because the page table
+         * lock only protects against kswapd anyway, and
+         * even if kswapd happened to be looking at this
+         * process we _want_ it to get stuck.
+         */
+and in the other place
+ *
+ * Note the "page_table_lock". It is to protect against kswapd removing
+ * pages from under us. Note that kswapd only ever _removes_ pages, never
+ * adds them. As such, once we have noticed that the page is not present,
+ * we can drop the lock early.
 
-That's going to be tough - AIM as a company is out of business (just go to
-www.aim.com and be surprised ;).  And not to get off-topic, but there are bigger
-problems with AIM7 tests than the VM (like the fact that they have hundreds of
-runnable processes at any given time which our global run queue doesn't handle
-well).  Really - pick something like SPECWeb99...oh, wait - we already destroy
-the competition there... :)
+Fine.  However, I don't see a trace of page_table_lock in swapping-out code!
+And I don't see any other lock which may ensure the serialization.
+Am I missing something?
 
- - Pete (still looking for a complete systemic test that's like AIM only more
-realistic)
-
->
-> :-)
->
-> Jeff
->
-> Bill Huey wrote:
-> >
-> > John,
-> >
-> > > Hi, this is just a short no-statistics testimony that Rik's VM patch
-> > > to test8-pre1 seems much improved over test7. I have a UP P200 with 40Mb,
-> > > and previously running KDE2 + mozilla was totally unusable.
-> >
-> > > With the patch, things run much more smoothly. Interactive feel seems
-> > > better, and I don't have "swapping holidays" any more.
-> >
-> > > Heavily stressing it by g++ is better as well...
-> > >
-> > > just a data point,
-> > > john
-> >
-> > Yes, it kicks butt and it finally (just about) removes the final
-> > Linux kernel showstopper for recent kernels. ;-)
-> >
-> > I did a GNOME + KDE2 + c++ compile since I've been doing port work
-> > and I have similar experiences.
-> >
-> > bill
-> >
-> > -
-> > To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> > the body of a message to majordomo@vger.kernel.org
-> > Please read the FAQ at http://www.tux.org/lkml/
-> -
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> Please read the FAQ at http://www.tux.org/lkml/
-
+	Andrey
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
