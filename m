@@ -1,27 +1,32 @@
-Date: Mon, 2 Oct 2000 11:20:30 -0700 (PDT)
-From: Linus Torvalds <torvalds@transmeta.com>
+Date: Mon, 2 Oct 2000 15:24:39 -0300 (BRST)
+From: Rik van Riel <riel@conectiva.com.br>
 Subject: Re: TODO list for new VM  (oct 2000)
-In-Reply-To: <Pine.LNX.4.21.0010021447430.22539-100000@duckman.distro.conectiva>
-Message-ID: <Pine.LNX.4.10.10010021117540.828-100000@penguin.transmeta.com>
+In-Reply-To: <Pine.LNX.4.10.10010021117540.828-100000@penguin.transmeta.com>
+Message-ID: <Pine.LNX.4.21.0010021524140.22539-100000@duckman.distro.conectiva>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@conectiva.com.br>
+To: Linus Torvalds <torvalds@transmeta.com>
 Cc: linux-kernel@vger.redhat.com, linux-mm@kvack.org, Matthew Dillon <dillon@apollo.backplane.com>
 List-ID: <linux-mm.kvack.org>
 
-Why do you apparently ignore the fact that page-out write-back performance
-is horribly crappy because it always starts out doing synchronous writes?
+On Mon, 2 Oct 2000, Linus Torvalds wrote:
 
-I pointed out previously in a private email that page_launder() must be
-buggy as it stands now, you seem to have ignored that part (and the
-test-program that shows 1MB/s writeout speeds due to it) completely.
+> Why do you apparently ignore the fact that page-out write-back
+> performance is horribly crappy because it always starts out
+> doing synchronous writes?
 
-The whole _point_ of the new VM was performance. Without that, the new VM
-is pointless, and discussing TODO features is equally pointless.
+Because it is fixed in the patch I mailed yesterday?
 
-		Linus
+regards,
+
+Rik
+--
+"What you're running that piece of shit Gnome?!?!"
+       -- Miguel de Icaza, UKUUG 2000
+
+http://www.conectiva.com/		http://www.surriel.com/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
