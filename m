@@ -1,23 +1,32 @@
-Date: Sun, 13 Aug 2000 17:34:34 -0700
-From: Anton Blanchard <anton@linuxcare.com>
-Subject: Re: pte_pagenr/MAP_NR deleted in pre6
-Message-ID: <20000813173434.A1938@linuxcare.com>
-References: <200008101718.KAA33467@google.engr.sgi.com> <200008110224.TAA24476@pizda.ninka.net>
+Date: Mon, 14 Aug 2000 09:16:06 +0100
+From: "Stephen C. Tweedie" <sct@redhat.com>
+Subject: Re: non-buffers writes
+Message-ID: <20000814091606.I12218@redhat.com>
+References: <3986D82A.CF9DEE2A@SANgate.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-In-Reply-To: <200008110224.TAA24476@pizda.ninka.net>; from davem@redhat.com on Thu, Aug 10, 2000 at 07:24:32PM -0700
+Content-Disposition: inline
+In-Reply-To: <3986D82A.CF9DEE2A@SANgate.com>; from gabriel@SANgate.com on Tue, Aug 01, 2000 at 05:01:14PM +0300
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "David S. Miller" <davem@redhat.com>
-Cc: kanoj@google.engr.sgi.com, linux-mm@kvack.org, linux-kernel@vger.rutgers.edu, rmk@arm.linux.org.uk, nico@cam.org, davidm@hpl.hp.com, alan@lxorguk.ukuu.org.uk
+To: BenHanokh Gabriel <gabriel@SANgate.com>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
- 
-> I took care of sparc64 and have asked Anton to deal with sparc32.
+Hi,
 
-sparc32 has also been fixed.
+On Tue, Aug 01, 2000 at 05:01:14PM +0300, BenHanokh Gabriel wrote:
+> 
+> how can i do direct writes to disk without the buffer-cache overhead?
+> i failed to see any relevant flag to open() , nor any fnctl()
 
-Anton
+Via /dev/raw/raw* raw devices ("man raw").  We plan much more powerful
+direct IO functionality for 2.5 (which should support O_DIRECT opening
+of devices and regular files), but for now raw IO is the only
+supported mechanism.
+
+Cheers, 
+ Stephen
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
