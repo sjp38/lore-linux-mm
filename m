@@ -1,29 +1,55 @@
-From: Zach Brown <zab@zabbo.net>
-Subject: Re: [RFC][PATCH] Interface to invalidate regions of mmaps
-Date: Tue, 13 May 2003 16:57:36 -0700
-Sender: linux-kernel-owner@vger.kernel.org
-Message-ID: <3EC18670.8070103@zabbo.net>
-References: <20030513133636.C2929@us.ibm.com>	<20030513152141.5ab69f07.akpm@digeo.com>	<3EC17BA3.7060403@zabbo.net> <20030513161938.1fc00a5e.akpm@digeo.com>
+Date: Sun, 1 Jun 2003 14:06:10 +0200
+Subject: Re: 2.5.66-mm3 and raid still oopses, but later than mm1/mm2
+Message-ID: <20030601120610.GA6249@hh.idb.hist.no>
+References: <20030403005817.69a29d7b.akpm@digeo.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Return-path: <linux-kernel-owner+linux-kernel=40quimby.gnus.org@vger.kernel.org>
-In-Reply-To: <20030513161938.1fc00a5e.akpm@digeo.com>
-To: Andrew Morton <akpm@digeo.com>
-Cc: paulmck@us.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mjbligh@us.ibm.com
-List-Id: linux-mm.kvack.org
+Content-Disposition: inline
+In-Reply-To: <20030403005817.69a29d7b.akpm@digeo.com>
+From: Helge Hafting <helgehaf@aitel.hist.no>
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: Andrew Morton <akpm@digeo.com>, neilb@cse.unsw.edu.au
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+List-ID: <linux-mm.kvack.org>
 
+2.5.70-mm3 with raid1 has improved to some extent,
+the RAID crash now happens somewhat later.
 
-> In 2.5, page->buffers was abstracted out to page->private, and is available
-> to filesystems for functions such as this.
+I got a lot of kernel errors during RAID initialization,
+with normal boot messages inbetween.  Nothing made it to
+the logs.  I eventually got this:
 
-that's great news!
+Kernel BUG at mm/slab.c:1682
+invalid operand 0000 [#1]
+PREEMPTSMP
+CPU:0
+EIP at free_block+0x276/0x350
+process fsck
 
-> When you finally decide to do your development in a development kernel ;)
+Call trace:
+drain_array
+reap_timer_fnc
+reap_timer_fnc
+run_timer_softirq
+do_softirq
+smp_apic_timer
+apic_timer_interrupt
 
-customers seem to have the strangest aversion to  development kernels :)
+<0> KErnel panic exception in interrupt
+in interrupt - not syncing
+reboot in 300 seconds
 
-but, yeah, I should be doing 2.5 work soon and will holler if
-simplifications make themselves apparent.
+This is 2.5.70-mm3, with a patch that makes
+matroxfb work so I could see the entire oops.
 
-- z
+This is a dual celeron, with 2 scsi disks.
+Root & /home is on raid-1, there is also a raid-0,
+all disk-based filesystems are ext2.
+
+Helge Hafting
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"aart@kvack.org"> aart@kvack.org </a>
