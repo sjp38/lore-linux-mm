@@ -1,43 +1,30 @@
-Date: Tue, 29 Mar 2005 00:22:51 +0200
-From: Pavel Machek <pavel@ucw.cz>
-Subject: Re: [PATCH 0/4] sparsemem intro patches
-Message-ID: <20050328222251.GF1389@elf.ucw.cz>
-References: <1110834883.19340.47.camel@localhost> <20050319193345.GE1504@openzaurus.ucw.cz> <1112045005.2087.38.camel@localhost>
+From: =?ISO-8859-1?Q? "Jo=E3o?= Mauricio" <brclube2005@gmail.com>
+Subject: Proposta de Trabalho
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1112045005.2087.38.camel@localhost>
+Content-Type: text/plain; charset="ISO-8859-1"
+Date: Mon, 28 Mar 2005 21:26:23 -0300
+Content-Transfer-Encoding: 8bit
+Message-Id: <20050329002708Z26651-20891+4619@kvack.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Hansen <haveblue@us.ibm.com>
-Cc: Andrew Morton <akpm@osdl.org>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi!
+Convido voce a conhecer a MDD - Sistema Multiplicar que esta mudando a
+vida de muitos Brasileiros.
 
-> > > Three of these are i386-only, but one of them reorganizes the macros
-> > > used to manage the space in page->flags, and will affect all platforms.
-> > > There are analogous patches to the i386 ones for ppc64, ia64, and
-> > > x86_64, but those will be submitted by the normal arch maintainers.
-> > > 
-> > > The combination of the four patches has been test-booted on a variety of
-> > > i386 hardware, and compiled for ppc64, i386, and x86-64 with about 17
-> > > different .configs.  It's also been runtime-tested on ia64 configs (with
-> > > more patches on top).
-> > 
-> > Could you try swsusp on i386, too?
-> 
-> Runtime, or just compiling?  
-> 
-> Have you noticed a real problem?
+Para voce que ja tem ou nao um emprego, podendo ser feito nas horas vagas,
+com grandes remuneracoes.
 
-I'd prefer runtime, but.... No, I did not notice anything, but in past
-we have some "interesting" problems with discontigmem... and this
-looks similar.
-								Pavel
--- 
-People were complaining that M$ turns users into beta-testers...
-...jr ghea gurz vagb qrirybcref, naq gurl frrz gb yvxr vg gung jnl!
+Pagamentos depositados diretamente em sua conta semanalmente, otimo para
+quem trabalha e exelente para quem esta a procura de um emprego. Adquira
+esta renda extra toda semana.
+
+Acesse ja nosso site:
+http://www.mddmarketing.com/multiplicar.asp?a35066
+
+
+Meu MSN: web_joao@yahoo.com.br
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
