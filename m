@@ -1,71 +1,37 @@
-From: Dr.Philip mensah <p-mensah@indiatimes.com>
-Reply-To: p_mensah@walla.com
-Subject: From Dr. Philip Mensah
-Date: Wed, 06 Apr 2005 01:35:07 +0400
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e6.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id j35MANMj025832
+	for <linux-mm@kvack.org>; Tue, 5 Apr 2005 18:10:23 -0400
+Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
+	by d01relay04.pok.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id j35MANBG247318
+	for <linux-mm@kvack.org>; Tue, 5 Apr 2005 18:10:23 -0400
+Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
+	by d01av03.pok.ibm.com (8.12.11/8.12.11) with ESMTP id j35MAN8g028784
+	for <linux-mm@kvack.org>; Tue, 5 Apr 2005 18:10:23 -0400
+Message-ID: <4252AAEA.8080202@us.ibm.com>
+Date: Tue, 05 Apr 2005 08:12:42 -0700
+From: Janet Morgan <janetmor@us.ibm.com>
 MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="f607610f-a63b-11d9-9df2-000795c6d4d3"
-Message-Id: <20050405213611Z26667-20891+4919@kvack.org>
+Subject: 2.6.12-rc2-mm1 compilation failure
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
+Cc: Andrew Morton <akpm@osdl.org>
 List-ID: <linux-mm.kvack.org>
 
-This is a multi-part message in MIME format
---f607610f-a63b-11d9-9df2-000795c6d4d3
-Content-Type: text/plain; charset=iso-8859-1
-Content-Transfer-Encoding: quoted-printable
+I ran into this when trying to build 2.6.12-rc2-mm1:
 
-FROM THE DESK OF DR.PHILIP MENSAH
-AUDITOR,
-FEDERAL MINISTRY OF HEALTH
-AND SOCIAL SERVICES,
-ACCRA GHANA.
-EMAIL: p_mensah@walla.com
-DATE: 05 - 04 - 05
+arch/i386/kernel/built-in.o(.init.text+0x161f): In function `setup_arch':
+: undefined reference to `acpi_boot_table_init'
+arch/i386/kernel/built-in.o(.init.text+0x1624): In function `setup_arch':
+: undefined reference to `acpi_boot_init'
+make: *** [.tmp_vmlinux1] Error 1
 
-DEAR FRIEND,
+Thanks,
+-Janet
 
-LETTER FOR URGENT ASSISTANCE ON FUND TRANSFER
 
-First, I must solicit your strictest confidence in this transaction. This by
-virtue of its nature as being utterly confidential and TOP SECRET. I got
-your contact in our search for a foreign partner who has the ability and
-reliability to prosecute a transaction of great magnitude involving a
-pending business transaction requiring maximum confidence. We are top
-officials of the Federal Ministry of Health and social services Accra Ghana.
-We are interested in investments in your country with funds which are
-presently trapped here Ghana in other to commence this business we solicit
-your assistance to enable us transfer into your account the said trapped
-funds. The source of this fund is as follows: During our last year Auditing,
-we find out that some government officials set up companies and awarded
-themselves contracts which were grossly over invoiced in various Ministries,
-We also identified a lot of inflated contracts funds which are presently
-Deposited in a BANK here in Accra. However, by virtue of our position as
-civil servants and members of the panel ,we cannot acquire this money in our
-names, I have therefore, been delegated as a matter of trust by my
-colleagues of the panel to look for an overseas partner(s) into whose
-account we would transfer the total sum of USD$35,500,000.00 [THIRTY FIVE
-MILLION,FIVE HUNDRED THOUSAND UNITED STATES DOLLARS]. Hence we are writing
-you this letter. We agreed to share the money thus: [1] 20% FOR THE ACCOUNT
-OWNER [YOU] [2] 80% FOR US [THEOFFICALS] It is from the 80% that we wish to
-commence investments in your country as you will also stand as our foreign
-agent over there. Please note that this transaction is 100% safe and we hope
-to commence the transaction latest seven[7]days from the date of the receipt
-of the following information bellow. [A] COMPANY?S NAME BENEFICIARY OF
-ACCOUNT. [B] YOUR PERSONAL TELEPHONE NUMBER AND FAX NUMBERS. [C] BANK
-ACCOUNT/SORT/ABA/ROUTING NUMBERS WHICH THE FUND WILL BE TRANSFERED TO.
-[D]YOUR BANK ADDRESS,TELEPHONE NUMBERS/FAX NUMBERS. The above information
-will enable us commence the transfer of this funds into your account in your
-country without delay and also to open an account in your name. We are
-looking forward to doing this business with you and solicit your
-confidentiality in this transaction. Please acknowledge the receipt of this
-letter using the above email address; I will bring you into the complete
-picture of this pending project when I hear from you.
-
-With Kind regards,
-
-DR.PHILIP MENSAH   
---f607610f-a63b-11d9-9df2-000795c6d4d3--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
