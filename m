@@ -1,67 +1,57 @@
-Received: from flinx.npwt.net (eric@flinx.npwt.net [208.236.161.237])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id MAA05574
-	for <linux-mm@kvack.org>; Sat, 18 Jul 1998 12:25:20 -0400
-Subject: Re: More info: 2.1.108 page cache performance on low memory
-References: <199807131653.RAA06838@dax.dcs.ed.ac.uk>
-	<m190lxmxmv.fsf@flinx.npwt.net>
-	<199807141730.SAA07239@dax.dcs.ed.ac.uk>
-	<m14swgm0am.fsf@flinx.npwt.net> <87d8b370ge.fsf@atlas.CARNet.hr>
-From: ebiederm+eric@npwt.net (Eric W. Biederman)
-Date: 18 Jul 1998 11:40:20 -0500
-In-Reply-To: Zlatko Calusic's message of 18 Jul 1998 15:28:17 +0200
-Message-ID: <m1pvf3jeob.fsf@flinx.npwt.net>
+Date: Sun, 19 Jul 1998 00:10:09 +0200 (CEST)
+From: Rik van Riel <H.H.vanRiel@phys.uu.nl>
+Reply-To: Rik van Riel <H.H.vanRiel@phys.uu.nl>
+Subject: Re: cp file /dev/zero <-> cache [was Re: increasing page size]
+In-Reply-To: <199807131342.OAA06485@dax.dcs.ed.ac.uk>
+Message-ID: <Pine.LNX.3.96.980719000622.27620E-100000@mirkwood.dummy.home>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Zlatko.Calusic@CARNet.hr
-Cc: "Stephen C. Tweedie" <sct@redhat.com>, linux-mm@kvack.org
+To: "Stephen C. Tweedie" <sct@redhat.com>
+Cc: "Benjamin C.R. LaHaise" <blah@kvack.org>, Linux MM <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
->>>>> "ZC" == Zlatko Calusic <Zlatko.Calusic@CARNet.hr> writes:
+On Mon, 13 Jul 1998, Stephen C. Tweedie wrote:
 
-Let me just step back a second so I can be clear:
+> I'm working on it right now.  Currently, the VM is so bad that it is
+> seriously getting in the way of my job.  Just trying to fix some odd
+> swapper bugs is impossible to test because I can't set up a ramdisk for
+> swap and do in-memory tests that way: things thrash incredibly.  The
+> algorithms for aggressive cache pruning rely on fractions of
+> nr_physpages, and that simply doesn't work if you have large numbers of
+> pages dedicated to non-swappable things such as ramdisk, bigphysarea DMA
+> buffers or network buffers.
 
-A) The idea proposed by Stephen way perhaps we could use Least
-Recently Used lists instead of page aging.  It's effectively the same
-thing but shrink_mmap can find the old pages much much faster, by
-simply following a linked list.
+This means we'll have to substract those pages before
+determining the used percentage.
 
-B) This idea intrigues me because handling of generic dirty pages
-I have about the same problem.  In cloneing bdflush for the page cache
-I discovered two fields I would need to add to struct page to do an
-exact cloning job.  A page writetime, and LRU list pointers for dirty
-pages.  I went ahead and implemented them, but also implemented an
-alternative, which is the default.
+> Rik, unfortunately I think we're just going to have to back out your
+> cache page ageing.  I've just done that on my local test box and the
+> results are *incredible*:
 
-So on any discussion with LRU lists I'm terribly interested.
-As soon as I get the time I'll even implement the more general case.
-Mostly I just need to get my computer moved to where I am at so I can
-code when I have free time :)
+OK, I don't see much problems with that, except that the
+aging helps a _lot_ with readahead. For the rest, it's
+not much more than a kludge anyway ;(
 
-What I have now are controled by the defines I added to
-include/linux/mm.h with my shmfs patches.
-#undef USE_PG_FLUSHTIME  (This tells sync_old_pages when to stop)
-#undef USE_PG_DIRTY_LIST (Define this for a first pass at an LRU list
-for dirty pages)
+We really ought to do better than that anyway. I'll give
+you guys the URL of the Digital Unix manuals on this...
+(they have some _very_ nice mechanisms for this)
 
-If nothing else it's worth trying to see if it improves my write times
-which fall way behind the read times, on Zlato's benchmark :(
+> I'm going to do a bit more experimenting to see if we can keep some of
+> the good ageing behaviour by doing proper LRU in the cache, but
+> otherwise I think the cache ageing has either got to go or to be
+> drastically altered.
 
-If I can talk Zlatko or someone into looking at these it would be
-nice.  I really need to get my own copy of bonnie and a few other
-benchmarks...
+A 2-level LRU on the page cache would be _very_ nice,
+but probably just as desastrous wrt. fragmentation as
+aging...
 
-ZC> Next week, I will test some ideas which possibly could improve things
-ZC> WITH page aging.
+Rik.
++-------------------------------------------------------------------+
+| Linux memory management tour guide.        H.H.vanRiel@phys.uu.nl |
+| Scouting Vries cubscout leader.      http://www.phys.uu.nl/~riel/ |
++-------------------------------------------------------------------+
 
-ZC> I must admit, after lot of critics I made upon page aging, that I
-ZC> believe it's the right way to go, but it should be done properly.
-ZC> Performance should be better, not worse.
-
-Agreed.  We should look very carefully though to see if any aging
-solution increases fragmentation.  According to Stephen the current
-one does, and this may be a natural result of aging and not just a
-single implementation :(
-
-Eric
 --
 This is a majordomo managed list.  To unsubscribe, send a message with
 the body 'unsubscribe linux-mm me@address' to: majordomo@kvack.org
