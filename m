@@ -1,18 +1,17 @@
-Date: Tue, 28 Jan 2003 08:49:34 -0800
-From: "Martin J. Bligh" <mbligh@aracnet.com>
+Date: Tue, 28 Jan 2003 12:06:11 -0500 (EST)
+From: Bill Davidsen <davidsen@tmr.com>
 Subject: Re: [PATCH] page coloring for 2.5.59 kernel, version 1
-Message-ID: <1498630000.1043772571@titus>
 In-Reply-To: <p73k7gpz0vu.fsf@oldwotan.suse.de>
-References: <3.0.6.32.20030127224726.00806c20@boo.net.suse.lists.linux.kernel> <884740000.1043737132@titus.suse.lists.linux.kernel> <20030128071313.GH780@holomorphy.com.suse.lists.linux.kernel> <1466000000.1043770007@titus.suse.lists.linux.kernel> <p73k7gpz0vu.fsf@oldwotan.suse.de>
+Message-ID: <Pine.LNX.3.96.1030128120205.32466B-100000@gatekeeper.tmr.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andi Kleen <ak@suse.de>
-Cc: jasonp@boo.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
+
+On 28 Jan 2003, Andi Kleen wrote:
 
 > The main advantage of cache coloring normally is that benchmarks 
 > should get stable results. Without it a benchmark result can vary based on 
@@ -20,17 +19,14 @@ List-ID: <linux-mm.kvack.org>
 > 
 > Just having stable benchmarks may be worth it.
 
-OK, I'll try to hack the scripts to measure standard deviation between runs
-as well.
+I have noted in ctxbench that the SMP results have a vast performance
+range while the uni (and nosmp) don't. Not clear if this would improve
+that, but I sure would like to try.
 
-> I suspect the benefit will vary a lot based on the CPU. Your caches may
-> have good enough associativity. On other CPUs it may make much more difference.
-
-IIRC, P3's are 4 way associative ... people had been saying that this would
-make more of a difference on machines with larger caches, which is why I ran
-it ... 2Mb is fairly big for ia32. 
-
-M.
+-- 
+bill davidsen <davidsen@tmr.com>
+  CTO, TMR Associates, Inc
+Doing interesting things with little computers since 1979.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
