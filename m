@@ -1,40 +1,85 @@
-Received: from localhost ([64.228.87.86]) by tomts7-srv.bellnexxia.net
-          (InterMail vM.4.01.03.16 201-229-121-116-20010115) with ESMTP
-          id <20011022071147.OTEL2701.tomts7-srv.bellnexxia.net@localhost>
-          for <linux-mm@kvack.org>; Mon, 22 Oct 2001 03:11:47 -0400
-From: Rich <ochalskird@yahoo.ca>
-Date: Mon, 22 Oct 2001 03:01:18 -0700
-Subject: This Was Seen On 20/20
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Date: Tue, 23 Oct 2001 15:07:31 -0500
+From: Duffey <email@davidduffey.com>
+Subject: Removing pages from the MM
+Message-ID: <20011023150731.A20191@dduffey.davidduffey.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Content-Transfer-Encoding: 7bit
-Message-Id: <20011022071147.OTEL2701.tomts7-srv.bellnexxia.net@localhost>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi There!
+Dear Linux Kernel Memory Hackers,
 
-Several months ago, I made a conscious decision not to delete what I 
-figured was just another 'junk' e-mail.
-That decision has changed my life! Here you have the very same 
-opportunity in front of you. If you take just five minutes to read through the 
-following program you won't regret it. See for yourself ...
-ALL INVOLVED WILL PROFIT!! That is a promise.
+I am an undergraduate at K-State University majoring in Computer Science.
+I have chosen to do an honors research project that involves the memory
+manager of Linux.  At the moment I am gathering information to give a
+detailed design specification (project feasibility study) for eventual
+implementation.
 
-Please go to: http://www.secretwebbargains.com
+I've been lurking on the mailing list for a month now and have been
+impressed with the level of cooperation and technical discussion.
+I have experience writing kernel modules for SCSI, block devices, and
+networking, but this will be the first time I will be involved with
+the MM.  Several message-threads have given me insight into the Linux
+kernel MM that you can't find anywhere else.  I hope that my ideas will
+do the same.
 
-I promise you, that there is no pop-up screens are anything like that, in fact there 
-is no pictures just text and I strongly recommend that you at least read the information.
- 
-Whatever you decide,
+I want to create a way for users to temporarily free the memory resources
+held by their processes and later inject the memory back into the system.
+I feel that it is possible to do this without giving the user more
+privileges, using different libraries, or recompiling their programs.
+It should also be easy to set up (i.e., does not require kernel patching,
+or setting up a distributed environment).  In a nutshell, it should be
+easy to install and use.
 
-GOOD LUCK.
+My initial thought is to create a Linux module that provides access to
+a process's page table through the /proc filesystem.  If I want to free
+the resource held by my process, I would suspend the process first and
+then ask for the pages from /proc (i.e., cat /proc/dswap/pid > file).
+That would free all the process's pages with exception to locked or
+shared memory.  If the user then continues execution at that point,
+the process would most likely page fault and die.  On the other hand,
+if the user injects the resources back into the process (with cat
+file > /proc/dswap/pid) and then continues execution, it would act as if
+the process had simply been suspended with the advantage of releasing
+memory resources.
 
-Rich
+I'm interested in previous work and finding others who have done similar
+projects or have insight/interest in my project.  I would appreciate
+any sources of information that may be related.  I have a couple of
+technical questions at the moment.
 
+* Will it be too difficult to access needed areas of the MM from a module?
+  Will a patched kernel be necessary?
 
+* After reading through the pagefile code, specifically swapoff, I'm
+  concerned about the performance issues of injecting memory back into
+  the system.	Will I run into the same problem?  Could injecting memory
+  be done in a more efficient manner?
+
+* Will the current changes occurring in the virtual machine dramatically
+  affect my code?
+
+My project could also be used to modify a running process.  It could be
+used to change simple data structures or even code of a running process,
+although, I can't think of a reason anyone would want to do this.  I plan
+on making a simple demonstration of this, but I would appreciate a more
+practical example.
+
+I would enjoy any of your thoughts, the project specification draft is
+due by November 15th.  You can contact me by email, dduffey@cis.ksu.edu,
+or by phone 785-565-1589.  Also, Let me know if you would like me to
+keep you informed of my progress.  Thank you.
+
+Sincerely,
+
+-- 
+David Duffey <email@DavidDuffey.com>                  1605 Hillcrest Dr Apt X30
+             -----------------------                  Manhattan, KS 66502
+                                                      (785)395-2630
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
