@@ -1,73 +1,77 @@
-Date: Tue, 25 Jan 2005 16:12:31 +0000 (GMT)
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH] Avoiding fragmentation through different allocator
-In-Reply-To: <20050125145602.GB75109@muc.de>
-Message-ID: <Pine.LNX.4.58.0501251603360.1203@skynet>
-References: <0E3FA95632D6D047BA649F95DAB60E5705A70E61@exa-atlanta>
- <20050125145602.GB75109@muc.de>
+Message-ID: <41F68BE6.3090704@ammasso.com>
+Date: Tue, 25 Jan 2005 12:11:50 -0600
+From: Timur Tabi <timur.tabi@ammasso.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: Query on remap_pfn_range compatibility
+References: <OF0A92B996.F674A9A0-ON86256F93.0066BC3F@raytheon.com>
+In-Reply-To: <OF0A92B996.F674A9A0-ON86256F93.0066BC3F@raytheon.com>
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <ak@muc.de>
-Cc: "Mukker, Atul" <Atulm@lsil.com>, 'Steve Lord' <lord@xfs.org>, 'Marcelo Tosatti' <marcelo.tosatti@cyclades.com>, 'William Lee Irwin III' <wli@holomorphy.com>, 'Linux Memory Management List' <linux-mm@kvack.org>, 'Linux Kernel' <linux-kernel@vger.kernel.org>, 'Grant Grundler' <grundler@parisc-linux.org>
+To: linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 25 Jan 2005, Andi Kleen wrote:
+Mark_H_Johnson@raytheon.com wrote:
 
-> On Tue, Jan 25, 2005 at 09:02:34AM -0500, Mukker, Atul wrote:
-> >
-> > > e.g. performance on megaraid controllers (very popular
-> > > because a big PC vendor ships them) was always quite bad on
-> > > Linux. Up to the point that specific IO workloads run half as
-> > > fast on a megaraid compared to other controllers. I heard
-> > > they do work better on Windows.
-> > >
-> > <snip>
-> > > Ideally the Linux IO patterns would look similar to the
-> > > Windows IO patterns, then we could reuse all the
-> > > optimizations the controller vendors did for Windows :)
-> >
-> > LSI would leave no stone unturned to make the performance better for
-> > megaraid controllers under Linux. If you have some hard data in relation to
-> > comparison of performance for adapters from other vendors, please share with
-> > us. We would definitely strive to better it.
->
-> Sorry for being vague on this. I don't have much hard data on this,
-> just telling an annecdote. The issue we saw was over a year ago
-> and on a machine running an IO intensive multi process stress test
-> (I believe it was an AIM7 variant with some tweaked workfile). When the test
-> was moved to a machine with megaraid controller it ran significantly
-> lower, compared to the old setup with a non RAID SCSI controller from
-> a different vendor. I unfortunately don't know anymore the exact
-> type/firmware revision etc. of the megaraid that showed the problem.
->
 
-Ok, for me here, the bottom line is that decent hardware will not benefit
-from help from the allocator. Worse, if the work required to provide
-adjacent pages is high, it will even adversly affect throughput. I know as
-well that to have physically contiguous pages in userspace would involve a
-fair amount of overhead so even if we devise a system for providing them,
-it would need to be a configurable option.
+> I am also trying to avoid an ugly hack like the following:
+> 
+>   VMA_PARAM_IN_REMAP=`grep remap_page_range
+> $PATH_LINUX_INCLUDE/linux/mm.h|grep vma`
+>   if [ -z "$VMA_PARAM_IN_REMAP" ]; then
+>     export REMAP_PAGE_RANGE_PARAM="4"
+>   else
+>     export REMAP_PAGE_RANGE_PARAM="5"
+>   endif
 
-I will keep an eye out for a means of granting physically contiguous pages
-for userspace in a lightweight manner but I'm going to focus on general
-availability of large pages for TLBs, extend the system for a pool of
-zero'd pages and how it can be adapted to help out the hotplug folks.
+My makefile has a ton of stuff like this. Our driver needs to work with 
+all 2.4 and 2.6 kernels, and it makes heavy use of the VM.  It also 
+needs to deal with distros that have "broken" header files.
 
-The system I have in mind for contiguous pages for userspace right now is
-to extend the allocator API so that prefaulting and readahead will request
-blocks of pages for userspace rather than a series of order-0 pages. So,
-if we prefault 32 pages ahead, the allocator would have a new API that
-would return 32 pages that are physically contiguous. That, in combination
-with forced IOMMU may show if Contiguous Pages For IO is worth it or not.
+This wouldn't be such a problem if the kernel developers would add 
+macros to indicate the version of the function parameters.  Basically, 
+the header file should define REMAP_PAGE_RANGE_PARAM (or some 
+equivalent), so that you don't need to calculate it in your makefile. 
+But the kernel developers don't care about backwards compatibility, so 
+we're stuck with these ugly hacks.
 
-This will take a while as I'll have to develop some mechanism for
-measuring it while I'm at it and I only do this 2 days a week so it'll
-take a while.
+> Would it be acceptable to add a symbol like
+>   #define MM_VM_REMAP_PFN_RANGE
+> in include/linux/mm.h or is that too much of a hack as well?
+
+The easiest solution would be to update gcc to provide some kind of 
+internal macro that would tell me if a function is defined or not.  For 
+instance, I could do this:
+
+#if defined(remap_pfn_range)
+remap_pfn_range(...)
+#else
+remap_page_range(...)
+#endif
+
+This doesn't work because remap_pfn_range is a function, not a macro. 
+Then we could do other things like:
+
+#if parameters(remap_page_range) = 4
+remap_page_range(a, b, c, d)
+#else
+remap_page_range(a, b, c, d, e)
+#endif
+
+This would allow me to handle kernel versions that have 4 instead of 5 
+parameters for remap_page_range().
+
+Ironically, even if gcc were updated like this, it wouldn't help me a 
+whole lot, because I still need to use the older versions of gcc on the 
+older distros.  But at least it the problem wouldn't be getting worse, 
+like it is today.
 
 -- 
-Mel Gorman
+Timur Tabi
+Staff Software Engineer
+timur.tabi@ammasso.com
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
