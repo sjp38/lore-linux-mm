@@ -1,34 +1,30 @@
-Date: Fri, 30 Jul 2004 16:40:22 -0500
-From: Brent Casavant <bcasavan@sgi.com>
-Reply-To: Brent Casavant <bcasavan@sgi.com>
+Date: Fri, 30 Jul 2004 16:34:43 -0700
+From: Paul Jackson <pj@sgi.com>
 Subject: Re: Scaling problem with shmem_sb_info->stat_lock
-In-Reply-To: <Pine.LNX.4.44.0407292006290.1096-100000@localhost.localdomain>
-Message-ID: <Pine.SGI.4.58.0407301633051.36748@kzerza.americas.sgi.com>
+Message-Id: <20040730163443.37f9b309.pj@sgi.com>
+In-Reply-To: <Pine.SGI.4.58.0407301633051.36748@kzerza.americas.sgi.com>
 References: <Pine.LNX.4.44.0407292006290.1096-100000@localhost.localdomain>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+	<Pine.SGI.4.58.0407301633051.36748@kzerza.americas.sgi.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: William Lee Irwin III <wli@holomorphy.com>, Andrew Morton <akpm@osdl.org>, linux-mm@kvack.org
+To: Brent Casavant <bcasavan@sgi.com>
+Cc: hugh@veritas.com, wli@holomorphy.com, akpm@osdl.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 29 Jul 2004, Hugh Dickins wrote:
+Brent wrote:
+> Having a single CPU fault in all the pages will generally
+> cause all pages to reside on a single NUMA node.
 
-> Why doesn't the creator of the shm segment or /dev/zero mapping just
-> fault in all the pages before handing over to the other threads?
-
-Dean Roe pointed out another answer to this.  For NUMA locality reasons
-you want individual physical pages to be near the CPU which will use it
-most heavily.  Having a single CPU fault in all the pages will generally
-cause all pages to reside on a single NUMA node.
-
-Brent
+Couldn't one use Andi Kleen's numa mbind() to layout the
+memory across the desired nodes, before faulting it in?
 
 -- 
-Brent Casavant             bcasavan@sgi.com        Forget bright-eyed and
-Operating System Engineer  http://www.sgi.com/     bushy-tailed; I'm red-
-Silicon Graphics, Inc.     44.8562N 93.1355W 860F  eyed and bushy-haired.
+                          I won't rest till it's the best ...
+                          Programmer, Linux Scalability
+                          Paul Jackson <pj@sgi.com> 1.650.933.1373
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
