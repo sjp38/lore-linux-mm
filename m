@@ -1,40 +1,43 @@
-Date: Sun, 29 Jul 2001 22:51:21 +0100 (BST)
-From: Hugh Dickins <hugh@veritas.com>
+Date: Sun, 29 Jul 2001 20:23:25 -0300 (BRST)
+From: Rik van Riel <riel@conectiva.com.br>
 Subject: Re: 2.4.8-pre1 and dbench -20% throughput
-In-Reply-To: <01072923202100.01194@starship>
-Message-ID: <Pine.LNX.4.21.0107292242170.1279-100000@localhost.localdomain>
+In-Reply-To: <Pine.LNX.4.21.0107292242170.1279-100000@localhost.localdomain>
+Message-ID: <Pine.LNX.4.33L.0107292021480.11893-100000@imladris.rielhome.conectiva>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Daniel Phillips <phillips@bonn-fries.net>
-Cc: Rik van Riel <riel@conectiva.com.br>, "Linus Torvalds <torvalds@transmeta.com> Marcelo Tosatti" <marcelo@conectiva.com.br>, linux-mm@kvack.org, Andrew Morton <akpm@zip.com.au>, Mike Galbraith <mikeg@wen-online.de>, Steven Cole <elenstev@mesatop.com>, Roger Larsson <roger.larsson@skelleftea.mail.telia.com>
+To: Hugh Dickins <hugh@veritas.com>
+Cc: Daniel Phillips <phillips@bonn-fries.net>, "Linus Torvalds <torvalds@transmeta.com> Marcelo Tosatti" <marcelo@conectiva.com.br>, linux-mm@kvack.org, Andrew Morton <akpm@zip.com.au>, Mike Galbraith <mikeg@wen-online.de>, Steven Cole <elenstev@mesatop.com>, Roger Larsson <roger.larsson@skelleftea.mail.telia.com>
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 29 Jul 2001, Daniel Phillips wrote:
-> 
-> "Age" is hugely misleading, I think everybody agrees, but we are still 
-> in a stable series, and a global name change would just make it harder 
-> to apply patches.
+On Sun, 29 Jul 2001, Hugh Dickins wrote:
+> On Sun, 29 Jul 2001, Daniel Phillips wrote:
+> >
+> > "Age" is hugely misleading, I think everybody agrees,
 
-There are very few places where "age" comes in.  Not my call,
-but I doubt we're so frozen as to have to stick with that name.
+Yup. I mainly kept it because we called things this way
+in the 1.2, 1.3, 2.0 and 2.1 kernels.
 
-> That said, I think BSD uses "weight".  It's not a lot better, but at 
-> least you know that the more heaviliy weighted page is one with the 
-> higher weight value, whereas we have "age up" meaning "make younger" :-/
-> 
-> And how can age go up and down anyway?  I'd prefer to talk about 
-> ->temperature, more in line with what we see in the literature.
-> 
-> But then, it's so easy to talk about "aging", what would it be with 
-> ->temperature:  Heating?  Cooling?  Stirring?  ;-)
+> > That said, I think BSD uses "weight".
 
-That's much _much_ better: I'd go for "warmth" myself, warm_page_up()
-and cool_page_down().  I particularly like the ambiguity, that a warmer
-page may be a more recently used page or a more frequently used page.
+> That's much _much_ better: I'd go for "warmth" myself,
 
-Hugh
+FreeBSD uses act_count, short for activation count.
+
+Showing how active a page is is probably a better analogy
+than the temperature one ... but that's just IMHO ;)
+
+regards,
+
+Rik
+--
+Virtual memory is like a game you can't win;
+However, without VM there's truly nothing to lose...
+
+http://www.surriel.com/		http://distro.conectiva.com/
+
+Send all your spam to aardvark@nl.linux.org (spam digging piggy)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
