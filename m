@@ -1,37 +1,32 @@
-Date: Sun, 3 Aug 2003 01:48:12 -0400 (EDT)
-From: Zwane Mwaikambo <zwane@arm.linux.org.uk>
+Date: Sun, 3 Aug 2003 00:05:42 -0700
+From: Danek Duvall <duvall@emufarm.org>
 Subject: Re: 2.6.0-test2-mm3
-In-Reply-To: <Pine.LNX.4.53.0308030118580.3473@montezuma.mastecende.com>
-Message-ID: <Pine.LNX.4.53.0308030146300.3473@montezuma.mastecende.com>
+Message-ID: <20030803070542.GF10284@lorien.emufarm.org>
 References: <20030802152202.7d5a6ad1.akpm@osdl.org>
- <Pine.LNX.4.53.0308030106380.3473@montezuma.mastecende.com>
- <20030802222839.1904a247.akpm@osdl.org> <Pine.LNX.4.53.0308030118580.3473@montezuma.mastecende.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20030802152202.7d5a6ad1.akpm@osdl.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@osdl.org>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 3 Aug 2003, Zwane Mwaikambo wrote:
+On Sat, Aug 02, 2003 at 03:22:02PM -0700, Andrew Morton wrote:
 
-> > err, that's a bug isn't it?
-> 
-> I've had a hard time following the saga behind the synaptics code. I know 
-> there is some external thing you have to download but never got round to 
-> doing it. I'll give that a go now too with CONFIG_MOUSE_PS2_SYNAPTICS. 
-> Colour me lazy...
+> . I don't think anyone has reported on whether 2.6.0-test2-mm2 fixed any
+>   PS/2 or synaptics problems.  You are all very bad.
 
-Ok after downloading the XFree86 driver and enabling 
-CONFIG_MOUSE_PS2_SYNAPTICS everything is peachy, plus i get to use the 
-scroll buttons.
+I tried it on my Fujitsu P2120, hoping that the PS/2 resume patch would
+help it wake up from S3 properly, but no such luck.  The radeon
+framebuffer doesn't restore, and the keyboard doesn't work.  The mouse
+might, but there's no way for me to tell.
 
-So its confirmed working on my formerly 'broken' setup.
+If I remember correctly, the network functioned properly on resume in
+test1-mm2, but doesn't in test2-mm3, so I had to do a reset.
 
-Thanks,
-	Zwane
-
+Danek
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
