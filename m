@@ -1,30 +1,53 @@
-From: "William J. Earl" <wje@cthulhu.engr.sgi.com>
+From: "Stephen C. Tweedie" <sct@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
-Message-ID: <14417.16577.210091.926383@liveoak.engr.sgi.com>
-Date: Fri, 10 Dec 1999 10:04:49 -0800 (PST)
+Message-ID: <14418.44165.273585.41704@dukat.scot.redhat.com>
+Date: Sat, 11 Dec 1999 19:56:53 +0000 (GMT)
 Subject: Re: Getting big areas of memory, in 2.3.x?
-In-Reply-To: <Pine.LNX.4.10.9912101437330.4472-100000@chiara.csoma.elte.hu>
-References: <Pine.LNX.4.05.9912101308140.31379-100000@humbolt.nl.linux.org>
-	<Pine.LNX.4.10.9912101437330.4472-100000@chiara.csoma.elte.hu>
+In-Reply-To: <Pine.LNX.4.10.9912100139370.12148-100000@chiara.csoma.elte.hu>
+References: <Pine.LNX.3.96.991209180518.21542B-100000@kanga.kvack.org>
+	<Pine.LNX.4.10.9912100139370.12148-100000@chiara.csoma.elte.hu>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Ingo Molnar <mingo@chiara.csoma.elte.hu>
-Cc: Rik van Riel <riel@nl.linux.org>, Kanoj Sarcar <kanoj@google.engr.sgi.com>, Jeff Garzik <jgarzik@mandrakesoft.com>, alan@lxorguk.ukuu.org.uk, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
+Cc: "Benjamin C.R. LaHaise" <blah@kvack.org>, Rik van Riel <riel@nl.linux.org>, Kanoj Sarcar <kanoj@google.engr.sgi.com>, Jeff Garzik <jgarzik@mandrakesoft.com>, alan@lxorguk.ukuu.org.uk, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org, Stephen Tweedie <sct@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-Ingo Molnar writes:
-...
- > this is possible (sans the relocation process which is a special thing
- > anyway), but why would we want to allocate large chunks of contiguous user
- > pages?
-...
+Hi,
 
-     To be able to use, for example, 2 or 4 MB pages on x86 to reduce
-TLB thrashing (and, if the I/O path understands large pages, the software
-overhead to set up large direct or raw I/O requests).
+On Fri, 10 Dec 1999 01:44:53 +0100 (CET), Ingo Molnar
+<mingo@chiara.csoma.elte.hu> said:
 
+> On Thu, 9 Dec 1999, Benjamin C.R. LaHaise wrote:
+>> The type of allocation determines what pool memory is allocated from.  
+>> Ie nonpagable kernel allocations come from one zone, atomic
+>> allocations from another and user from yet another.  ...
+
+> well, this is perfectly possible with the current zone allocator (check
+> out how build_zonelists() builds dynamic allocation paths). I dont see
+> much point in it though, it might prevent fragmentation to a certain
+> degree, but i dont think it is a fair use of memory resources. (i'm pretty
+> sure the atomic zone would stay unused most of the time) 
+
+Don't use static zones then.
+
+Something I talked about with Linus a while back was to separate memory
+into 4MB or 16MB zones, and do allocation not from individual zones but
+from zone lists.  Then you just keep track of two lists of zones: one
+which contains zones which are known to have been used for non-pagable
+allocations, and another in which all allocations are pagable.  
+
+The pagable-allocation zone family can always be used for large
+allocations: you just select a contiguous region of pages which aren't
+currently being used by the contiguous allocator, and page them out (or
+relocate them to a different zone if you prefer).
+
+If this is only needed by device initialisation, the relocation doesn't
+have to be fast.  A dumb, brute-force search (such as is already done by
+sys_swapoff()) will do fine.
+
+--Stephen
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
