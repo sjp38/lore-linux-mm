@@ -1,57 +1,35 @@
-Message-ID: <3D6989F7.9ED1948A@zip.com.au>
-Date: Sun, 25 Aug 2002 18:52:55 -0700
+Message-ID: <3D698F4E.93A3DDA2@zip.com.au>
+Date: Sun, 25 Aug 2002 19:15:42 -0700
 From: Andrew Morton <akpm@zip.com.au>
 MIME-Version: 1.0
 Subject: Re: MM patches against 2.5.31
-References: <3D644C70.6D100EA5@zip.com.au> <20020822112806.28099.qmail@thales.mathematik.uni-ulm.de>
+References: <1030031958.14756.479.camel@spc9.esa.lanl.gov> <2631076918.1030007179@[10.10.2.3]>
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christian Ehrhardt <ehrhardt@mathematik.uni-ulm.de>
-Cc: lkml <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: "Martin J. Bligh" <Martin.Bligh@us.ibm.com>
+Cc: Steven Cole <elenstev@mesatop.com>, lkml <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Christian Ehrhardt wrote:
+"Martin J. Bligh" wrote:
 > 
-> On Wed, Aug 21, 2002 at 07:29:04PM -0700, Andrew Morton wrote:
-> >
-> > I've uploaded a rollup of pending fixes and feature work
-> > against 2.5.31 to
-> >
-> > http://www.zip.com.au/~akpm/linux/patches/2.5/2.5.31/2.5.31-mm1/
-> >
-> > The rolled up patch there is suitable for ongoing testing and
-> > development.  The individual patches are in the broken-out/
-> > directory and should all be documented.
+> > kjournald: page allocation failure. order:0, mode:0x0
 > 
-> Sorry, but we still have the page release race in multiple places.
-> Look at the following (page starts with page_count == 1):
-> 
+> I've seen this before, but am curious how we ever passed
+> a gfpmask (aka mode) of 0 to __alloc_pages? Can't see anywhere
+> that does this?
 
-So we do.  It's a hugely improbable race, so there's no huge rush
-to fix it.  Looks like the same race is present in -ac kernels,
-actually, if add_to_swap() fails.  Also perhaps 2.4 is exposed if
-swap_writepage() is synchronous, and page reclaim races with 
-zap_page_range.  ho-hum.
+Could be anywhere, really.  A network interrupt doing GFP_ATOMIC
+while kjournald is executing.  A radix-tree node allocation 
+on the add-to-swap path perhaps.  (The swapout failure messages
+aren't supposed to come out, but mempool_alloc() stomps on the
+caller's setting of PF_NOWARN.)
 
+Or:
 
-What I'm inclined to do there is to change __page_cache_release()
-to not attempt to free the page at all.  Just let it sit on the
-LRU until page reclaim encounters it.  With the anon-free-via-pagevec
-patch, very, very, very few pages actually get their final release in
-__page_cache_release() - zero on uniprocessor, I expect.
-
-And change pagevec_release() to take the LRU lock before dropping
-the refcount on the pages.
-
-That means there will need to be two flavours of pagevec_release():
-one which expects the pages to become freeable (and takes the LRU
-lock in anticipation of this).  And one which doesn't expect the
-pages to become freeable.  The latter will leave the occasional
-zero-count page on the LRU, as above.
-
-Sound sane?
+mnm:/usr/src/25> grep -r GFP_ATOMIC drivers/scsi/*.c | wc -l
+     89
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
