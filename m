@@ -2,9 +2,9 @@ Subject: Re: xmm2 - monitor Linux MM active/inactive lists graphically
 References: <Pine.LNX.4.31.0110250920270.2184-100000@cesium.transmeta.com>
 Reply-To: zlatko.calusic@iskon.hr
 From: Zlatko Calusic <zlatko.calusic@iskon.hr>
-Date: 26 Oct 2001 11:45:55 +0200
+Date: 26 Oct 2001 12:08:46 +0200
 In-Reply-To: <Pine.LNX.4.31.0110250920270.2184-100000@cesium.transmeta.com> (Linus Torvalds's message of "Thu, 25 Oct 2001 09:31:12 -0700 (PDT)")
-Message-ID: <dnd73apwdo.fsf@magla.zg.iskon.hr>
+Message-ID: <dnr8rqu30x.fsf@magla.zg.iskon.hr>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
@@ -22,48 +22,39 @@ Linus Torvalds <torvalds@transmeta.com> writes:
 > I suspect it may just be that "queue_nr_requests"/"batch_count" is
 > different in -ac: what happens if you tweak them to the same values?
 > 
-> (See drivers/block/ll_rw_block.c)
-> 
-> I think -ac made the queues a bit deeper the regular kernel does 128
-> requests and a batch-count of 16, I _think_ -ac does something like "2
-> requests per megabyte" and batch_count=32, so if you have 512MB you should
-> try with
-> 
-> 	queue_nr_requests = 1024
-> 	batch_count = 32
-> 
-> Does that help?
-> 
 
-Unfortunately not. It makes a machine quite unresponsive while it's
-writing to disk, and vmstat 1 discovers strange "spiky"
-behaviour. Average throughput is ~ 8MB/s (disk is capable of ~ 13MB/s)
+Next test:
+
+block: 1024 slots per queue, batch=341
+
+Wrote 600.00 MB in 71 seconds -> 8.39 MB/s (7.5 %CPU)
+
+Still very spiky, and during the write disk is uncapable of doing any
+reads. IOW, no serious application can be started before writing has
+finished. Shouldn't we favour reads over writes? Or is it just that
+the elevator is not doing its job right, so reads suffer?
+
 
    procs                      memory    swap          io     system         cpu
  r  b  w   swpd   free   buff  cache  si  so    bi    bo   in    cs  us  sy  id
- 2  0  0      0   3840    528 441900   0   0     0 34816  188   594   2  34  64
- 0  1  0      0   3332    536 442384   0   0     4 10624  187   519   2   8  90
- 0  1  0      0   3324    536 442384   0   0     0     0  182   499   0   0 100
- 2  1  0      0   3300    536 442384   0   0     0     0  198   486   0   1  99
- 1  1  0      0   3304    536 442384   0   0     0     0  186   513   0   0 100
- 0  1  1      0   3304    536 442384   0   0     0     0  193   473   0   1  99
- 0  1  1      0   3304    536 442384   0   0     0     0  191   508   1   1  98
- 0  1  0      0   3884    536 441840   0   0     4 44672  189   590   4  40  56
- 0  1  0      0   3860    536 441840   0   0     0     0  186   526   0   1  99
- 0  1  0      0   3852    536 441840   0   0     0     0  191   500   0   0 100
- 0  1  0      0   3844    536 441840   0   0     0     0  193   482   1   0  99
- 0  1  0      0   3844    536 441840   0   0     0     0  187   511   0   1  99
- 0  2  1      0   3832    540 441844   0   0     4     0  305  1004   3   2  95
- 0  3  1      0   3824    544 441844   0   0     4     0  410  1340   2   2  96
- 0  3  0      0   3764    552 441916   0   0    12 47360  346   915   6  41  53
- 0  3  0      0   3764    552 441916   0   0     0     0  373   887   0   0 100
- 0  3  0      0   3764    552 441916   0   0     0     0  278   692   1   2  97
- 1  3  0      0   3764    552 441916   0   0     0     0  221   579   0   3  97
- 0  3  0      0   3764    552 441916   0   0     0     0  286   704   0   2  98
+ 0  1  1      0   3600    424 453416   0   0     0     0  190   510   2   1  97
+ 0  1  1      0   3596    424 453416   0   0     0 40468  189   508   2   2  96
+ 0  1  1      0   3592    424 453416   0   0     0     0  189   541   1   0  99
+ 0  1  1      0   3592    424 453416   0   0     0     0  190   513   1   0  99
+ 1  1  1      0   3592    424 453416   0   0     0     0  192   511   0   1  99
+ 0  1  1      0   3596    424 453416   0   0     0     0  188   528   0   0 100
+ 0  1  1      0   3592    424 453416   0   0     0     0  188   510   1   0  99
+ 0  1  1      0   3592    424 453416   0   0     0 41444  195   507   0   2  98
+ 0  1  1      0   3592    424 453416   0   0     0     0  190   514   1   1  98
+ 1  1  1      0   3588    424 453416   0   0     0     0  192   554   0   2  98
+ 0  1  1      0   3584    424 453416   0   0     0     0  191   506   0   1  99
+ 0  1  1      0   3584    424 453416   0   0     0     0  186   514   0   0 100
+ 0  1  1      0   3584    424 453416   0   0     0     0  186   515   0   0 100
+ 1  1  1      0   3576    424 453416   0   0     0     0  434  1493   3   2  95
+ 1  1  1      0   3564    424 453416   0   0     0 40560  301   936   3   1  96
+ 0  1  1      0   3564    424 453416   0   0     0     0  338  1050   1   2  97
+ 0  1  1      0   3560    424 453416   0   0     0     0  286   893   1   2  97
 
-I'll now test "batch_count = queue_nr_requests / 3", which I found in
-2.4.14-pre2, but with queue_nr_request still left at 1024. And report
-results after that.
 -- 
 Zlatko
 --
