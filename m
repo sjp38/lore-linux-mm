@@ -1,36 +1,27 @@
-Date: Sat, 5 Jul 2003 04:18:44 -0700
+Date: Sat, 5 Jul 2003 04:46:58 -0700
 From: William Lee Irwin III <wli@holomorphy.com>
 Subject: Re: 2.5.74-mm1
-Message-ID: <20030705111844.GL955@holomorphy.com>
-References: <20030703023714.55d13934.akpm@osdl.org> <20030704210737.GI955@holomorphy.com> <20030704181539.2be0762a.akpm@osdl.org> <20030705052102.GB13308@krispykreme>
+Message-ID: <20030705114658.GM955@holomorphy.com>
+References: <20030703023714.55d13934.akpm@osdl.org> <20030704210737.GI955@holomorphy.com> <20030704181539.2be0762a.akpm@osdl.org> <20030705052102.GB13308@krispykreme> <20030705111844.GL955@holomorphy.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20030705052102.GB13308@krispykreme>
+In-Reply-To: <20030705111844.GL955@holomorphy.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Anton Blanchard <anton@samba.org>
-Cc: Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Anton Blanchard <anton@samba.org>, Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-At some point in the past, akpm wrote:
->> Look at select_bad_process(), and the ->mm test in badness().  pdflush
->> can never be chosen.
->> Nevertheless, there have been several report where kernel threads _are_ 
->> being hit my the oom killer.  Any idea why that is?
+On Sat, Jul 05, 2003 at 04:18:44AM -0700, William Lee Irwin III wrote:
+> How about this, then? I think it's still racy against something doing
+> daemonize(), though (i.e. if q does daemonize() it shoots it regardless).
 
-On Sat, Jul 05, 2003 at 03:21:02PM +1000, Anton Blanchard wrote:
-> Milton and I were just looking at this and it seems there is no locking
-> to prevent p->mm ending up NULL due to exit. And if p->mm does end up
-> NULL, you go off and kill all your kernel threads :)
-
-How about this, then? I think it's still racy against something doing
-daemonize(), though (i.e. if q does daemonize() it shoots it regardless).
+Take 2:
 
 
 ===== mm/oom_kill.c 1.23 vs edited =====
 --- 1.23/mm/oom_kill.c	Wed Apr 23 03:15:53 2003
-+++ edited/mm/oom_kill.c	Sat Jul  5 04:15:25 2003
++++ edited/mm/oom_kill.c	Sat Jul  5 04:46:17 2003
 @@ -123,7 +123,7 @@
  	struct task_struct *chosen = NULL;
  
@@ -49,7 +40,7 @@ daemonize(), though (i.e. if q does daemonize() it shoots it regardless).
  {
  	printk(KERN_ERR "Out of Memory: Killed process %d (%s).\n", p->pid, p->comm);
  
-@@ -161,6 +161,15 @@
+@@ -161,6 +161,16 @@
  	}
  }
  
@@ -59,13 +50,14 @@ daemonize(), though (i.e. if q does daemonize() it shoots it regardless).
 +	if (!mm || mm == &init_mm)
 +		return NULL;
 +	__oom_kill_task(p);
++	return mm;
 +}
 +
 +
  /**
   * oom_kill - kill the "best" process when we run out of memory
   *
-@@ -171,9 +180,11 @@
+@@ -171,9 +181,11 @@
   */
  static void oom_kill(void)
  {
@@ -77,7 +69,7 @@ daemonize(), though (i.e. if q does daemonize() it shoots it regardless).
  	p = select_bad_process();
  
  	/* Found nothing?!?! Either we hang forever, or we panic. */
-@@ -182,17 +193,20 @@
+@@ -182,17 +194,20 @@
  		panic("Out of memory and no killable processes...\n");
  	}
  
