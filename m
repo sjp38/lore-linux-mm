@@ -1,7 +1,7 @@
-Date: Fri, 19 Jul 2002 02:22:26 -0700 (MST)
+Date: Fri, 19 Jul 2002 02:27:19 -0700 (MST)
 From: Craig Kulesa <ckulesa@as.arizona.edu>
-Subject: [PATCH 4/6] "not nearly so minimal" rmap for 2.5.26
-Message-ID: <Pine.LNX.4.44.0207182239350.4647-100000@loke.as.arizona.edu>
+Subject: [PATCH 5/6] move slab pages to the lru, for rmap
+Message-ID: <Pine.LNX.4.44.0207190120270.4647-100000@loke.as.arizona.edu>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -10,96 +10,81 @@ To: linux-kernel@vger.kernel.org
 Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-In the usual place is a series of rmap patches, collected and ported from 
-various contributions...
+
+Part 5 in my rmap patch queue against 2.5.26:
 
 	http://loke.as.arizona.edu/~ckulesa/kernel/rmap-vm/2.5.26/
+	[ 2.5.26-rmap-5-slablru 18-Jul-2002 22:35    40k ]
 
-The first three are essentially the same as Andrew & Rik's posted patches 
-for 2.5.26, minus the arm changes:
+This is a port of Ed Tomlinson's (tomlins@cam.org) really nifty patch to 
+let the (full) rmap VM do the work of freeing (inode/dentry/dquot) slab 
+pages based on page aging.  
 
-	2.5.26-rmap-1-core
-	2.5.26-rmap-2-lrufix
-	2.5.26-rmap-3-optimize 
+	http://mail.nl.linux.org/linux-mm/2002-06/msg00001.html
 
-This, the fourth in the series, brings the rmap VM approximately to the 
-level of Rik van Riel's rmap-13b patches -- ex. the 2.4-ac kernel tree, 
-in terms of basic page replacement, page aging, and lru list logic.  
+Summary: The slab pages are moved into the active list, where they are
+aged and pruned.  The rate of pruning is simply the rate we see entries
+for these slabs in refill_inactive_zone (while scanning the active list
+for pages to deactivate).  This has the significant advantage of being
+wholly self-tuning!  If we can count a slab page as fully pruned and no
+longer in use, it is freed.  For non-lru slab caches, we occasionally call
+kmem_cache_shrink to keep those caches in check.  A final sweep though
+kmem_cache_reap() is our last protection against OOM.
 
-The basic components of the patch, which might make a sensible splitting 
-arrangement someday (?), not in order:
+---
 
-	- make dquot, inode and dentry cache shrinking functions return 
-	  the number of pages shrunk
+The only significant structural change to the patch is 2.5's invocation 
+of the inode caches per-filesystem.  I have given each fs's inode 
+cache a pruner method during its allocation (a one-line change).  
+Filesystems edited:
 
-	- add rss limit enforcement and throttling; edit Dave McCracken's 
-	  optimizations to add this to rmap.
+ fs/adfs/super.c          |    1 
+ fs/affs/super.c          |    1 
+ fs/bfs/inode.c           |    1 
+ fs/coda/inode.c          |    2 
+ fs/efs/super.c           |    1 
+ fs/ext2/super.c          |    1 
+ fs/ext3/super.c          |    1 
+ fs/fat/inode.c           |    1 
+ fs/freevxfs/vxfs_super.c |    4 
+ fs/hfs/super.c           |    1 
+ fs/hpfs/super.c          |    1 
+ fs/isofs/inode.c         |    1 
+ fs/jffs2/super.c         |    1 
+ fs/jfs/super.c           |    1 
+ fs/minix/inode.c         |    1 
+ fs/ncpfs/inode.c         |    1 
+ fs/nfs/inode.c           |    1 
+ fs/ntfs/super.c          |    2 
+ fs/proc/inode.c          |    1 
+ fs/qnx4/inode.c          |    1 
+ fs/reiserfs/super.c      |    1 
+ fs/romfs/inode.c         |    1 
+ fs/smbfs/inode.c         |    1 
+ fs/sysv/inode.c          |    1 
+ fs/udf/super.c           |    1 
+ fs/ufs/super.c           |    1 
 
-	- alterations for numa
+Intermezzo has a funky dentry cache that may need a pruner method (??), 
+but I didn't touch it.  If there was a better way to do this, I was too 
+blind to see it.  
 
-	- page aging of active list, low-level background aging. 
-	  Heuristic akin to Linux 2.0/FreeBSD.
+This patch has been well tested with ext3 and the generic slab caches.  I 
+expect the other filesystems' inode caches to behave correctly, but it 
+wouldn't hurt to test! ... ;)
 
-	- preparatory changes to header files: mm_inline.h macros for LRU 
-	  list management, for_each_zone(), and other handy bits. 
+I haven't benchmarked the patch quantitatively, but the balance of 
+eviction between nonslab and slab pages seems to scale with the age of the 
+pages.  Slocate runs don't evict the desktop, but do evict cold daemons 
+and other cruft.  New allocations for applications shrink the older slabs 
+accordingly.  Seems sane.  By comparison, plain rmap-13b plunders the slab 
+caches rather ruthlessly.  
 
-	- major LRU list shakeup.  shrink_cache functionally becomes 
-	  page_launder, which cleans the inactive (dirty) list and creates 
-	  a list of freeable pages in inactive (clean), like the 'cache' 
-	  list in FreeBSD.  page_launder makes inactive pages "clean", 
-	  "clean" pages can be freed immediately or directly reclaimed 
-	  without going through the usual page allocation.  Pages on 
-	  the active list are aged and sent to inactive (dirty) when they 
-	  are cold. Etc, etc...  Lists are per-zone.  Min, low, high, 
-	  plenty watermarks dictate when action should be taken to refill 
-	  the various lists.
+The overhead for putting these pages on the lru lists, and the hopeful 
+benefits for properly aging and evicting them, should be benchmarked 
+sometime. 
 
-	- Drop_behind takes "already passed" pages in the readahead buffer 
-	  and deactivates them to the clean list.  If we need them again, 
-	  they're easily reclaimed.  If not, they make easy pickings for 
-	  reclaim.
-
-Or something like that.   I have *not* done any kind of patch splitting, 
-as significant changes undoubtedly lie ahead.  One seems pretty near:
-
-	- Andrew Morton proposed a series of patches to reduce 
-	  pagemap_lru_lock contention -- in essence, they move a lot of 
-	  the page management VM functions away from processing one page 
-	  at a time, to batch processing.  
-
-		http://mail.nl.linux.org/linux-mm/2002-07/msg00009.html
-
-	  Implementation of this notion for the full rmap patch also looks 
-	  very interesting.  In particular:
-
-		a) reclaim_page can reclaim in batch mode from the clean 
-		   list.  Rik made the point that it might be good to 
-		   drop direct reclaim and simply free the pages.  This 
-		   simplifies page_alloc.c logic a bit, and ensures that 
-		   page flags need only be updated in rmqueue(), just 
-		   like vanilla-2.5-latest.  Right now, we need it in 
-		   both rmqueue and reclaim_page for direct-reclaim --
-		   took me two days to figure that one out! 
-
-		b) page_launder_zone is a great candidate for 
-		   batching, much in the same sense as akpm is batching 
-		   shrink_cache().  This is similar to its current 
-		   behavior, but we just won't hold the pagemap_lru_lock
-		   except to load up on pages to scan.
-
-		c) Same deal for refill_inactive_zone(). 
-
-Once Andrew has stabilized his lock contention patches, it'll be 
-interesting to see what they can do for the full rmap vm.  
-
-One significant question is large pages.  Batching is great for 4K pages,
-and indeed the motivation is to get some of the good behavior of larger
-page sizes, without having to actually do that.  But if large pages are
-necessary to some folks, how do we (or should we) nicely degrade to
-unbatched processing?  Batch processing 4M pages sounds a bit on the
-coarse side! :)
-
-Give the patches a try, try to break them, send me feedback and fixes. ;)
+Give it a try! :)
 
 Craig Kulesa
 Steward Observatory
