@@ -1,36 +1,55 @@
-Date: Tue, 09 Nov 2004 12:09:52 -0800
-From: "Martin J. Bligh" <mbligh@aracnet.com>
-Subject: Re: [PATCH] Use MPOL_INTERLEAVE for tmpfs files
-Message-ID: <463220000.1100030992@flay>
-In-Reply-To: <Pine.LNX.4.44.0411091824070.5130-100000@localhost.localdomain>
-References: <Pine.LNX.4.44.0411091824070.5130-100000@localhost.localdomain>
-MIME-Version: 1.0
+Date: Tue, 9 Nov 2004 14:46:42 -0200
+From: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
+Subject: [PATCH] kswapd shall not sleep during page shortage
+Message-ID: <20041109164642.GE7632@logos.cnet>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>, Brent Casavant <bcasavan@sgi.com>
-Cc: Andi Kleen <ak@suse.de>, "Adam J. Richter" <adam@yggdrasil.com>, colpatch@us.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: akpm@osdl.org
+Cc: linux-mm@kvack.org, Nick Piggin <piggin@cyberone.com.au>
 List-ID: <linux-mm.kvack.org>
 
-> I think the option should be "mpol=interleave" rather than just
-> "interleave", who knows what baroque mpols we might want to support
-> there in future?
+Andrew,
 
-Sounds sensible.
+I was wrong last time I read balance_pgdat() when I thought kswapd
+couldnt sleep under page shortage. 
+
+It can, because all_zones_ok is set to "1" inside the 
+"priority=DEF_PRIORITY; priority >= 0; priority--" loop.
+
+So this patch sets "all_zones_ok" to zero even if all_unreclaimable 
+is set, avoiding it from sleeping when zones are under page short.
+
+Please apply!
+
+
+--- linux-2.6.10-rc1-mm2/mm/vmscan.c.orig	2004-11-09 16:38:04.480873424 -0200
++++ linux-2.6.10-rc1-mm2/mm/vmscan.c	2004-11-09 16:38:08.624243536 -0200
+@@ -1033,15 +1033,17 @@
+ 				if (zone->present_pages == 0)
+ 					continue;
  
-> I'm irritated to realize that we can't change the default for SysV
-> shared memory or /dev/zero this way, because that mount is internal.
-
-Boggle. shmem I can perfectly understand, and have been intending to
-change for a while. But why /dev/zero ? Presumably you'd always want
-that local?
-
-Thanks,
-
-M.
-
+-				if (zone->all_unreclaimable &&
+-						priority != DEF_PRIORITY)
+-					continue;
+-
+ 				if (!zone_watermark_ok(zone, order,
+ 						zone->pages_high, 0, 0, 0)) {
+ 					end_zone = i;
+-					goto scan;
++					all_zones_ok = 0;
+ 				}
++
++				if (zone->all_unreclaimable &&
++						priority != DEF_PRIORITY)
++					continue;
++
++				goto scan;
+ 			}
+ 			goto out;
+ 		} else {
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
