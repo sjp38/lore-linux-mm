@@ -1,40 +1,64 @@
-Date: Sat, 9 Jun 2001 04:55:36 -0300 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
-Subject: Re: Break 2.4 VM in five easy steps
-In-Reply-To: <m1ofs15tm0.fsf@frodo.biederman.org>
-Message-ID: <Pine.LNX.4.21.0106090455050.14934-100000@imladris.rielhome.conectiva>
+Subject: Re: VM Report was:Re: Break 2.4 VM in five easy steps
+References: <Pine.LNX.4.33.0106082013500.672-100000@mikeg.weiden.de>
+Reply-To: zlatko.calusic@iskon.hr
+From: Zlatko Calusic <zlatko.calusic@iskon.hr>
+Date: 09 Jun 2001 14:31:49 +0200
+In-Reply-To: <Pine.LNX.4.33.0106082013500.672-100000@mikeg.weiden.de> (Mike Galbraith's message of "Fri, 8 Jun 2001 20:30:32 +0200 (CEST)")
+Message-ID: <87u21p3kcq.fsf@atlas.iskon.hr>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Eric W. Biederman" <ebiederm@xmission.com>
-Cc: Derek Glidden <dglidden@illusionary.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Mike Galbraith <mikeg@wen-online.de>
+Cc: John Stoffel <stoffel@casc.com>, Tobias Ringstrom <tori@unhappy.mine.nu>, Jonathan Morton <chromi@cyberspace.org>, Shane Nay <shane@minirl.com>, Marcelo Tosatti <marcelo@conectiva.com.br>, "Dr S.M. Huen" <smh1008@cus.cam.ac.uk>, Sean Hunter <sean@dev.sportingbet.com>, Xavier Bestel <xavier.bestel@free.fr>, lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 6 Jun 2001, Eric W. Biederman wrote:
-> Derek Glidden <dglidden@illusionary.com> writes:
+Mike Galbraith <mikeg@wen-online.de> writes:
+
+> On Fri, 8 Jun 2001, John Stoffel wrote:
 > 
-> > The problem I reported is not that 2.4 uses huge amounts of swap but
-> > that trying to recover that swap off of disk under 2.4 can leave the
-> > machine in an entirely unresponsive state, while 2.2 handles identical
-> > situations gracefully.  
+> > Mike> OK, riddle me this.  If this test is a crummy test, just how is
+> > Mike> it that I was able to warn Rik in advance that when 2.4.5 was
+> > Mike> released, he should expect complaints?  How did I _know_ that?
+> > Mike> The answer is that I fiddle with Rik's code a lot, and I test
+> > Mike> with this test because it tells me a lot.  It may not tell you
+> > Mike> anything, but it does me.
+> >
+> > I never said it was a crummy test, please do not read more into my
+> > words than was written.  What I was trying to get across is that just
+> > one test (such as a compile of the kernel) isn't perfect at showing
+> > where the problems are with the VM sub-system.
 > 
-> The interesting thing from other reports is that it appears to be
-> kswapd using up CPU resources.
+> Hmm...
+> 
+> Tobias> Could you please explain what is good about this test?  I
+> Tobias> understand that it will stress the VM, but will it do so in a
+> Tobias> realistic and relevant way?
+> 
+> I agree, this isn't really a good test case.  I'd rather see what
+> ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> happens when you fire up a gimp session to edit an image which is
+> *almost* the size of RAM, or even just 50% the size of ram.  Then how
+> does that affect your other processes that are running at the same
+> time?
+> 
+> ...but anyway, yes it just one test from any number of possibles.
 
-This part is being worked on, expect a solution for this thing
-soon...
+One great test that I'm using regularly to see what's goin' on, is at
+http://lxr.linux.no/. It is a cool utility to cross reference your
+Linux kernel source tree, and in the mean time eat gobs of memory, do
+lots of I/O, and burn many CPU cycles (all at the same time). Ideal
+test, if you ask me and if anybody has the time, it would be nice to
+see different timing numbers when run on different kernels. Just make
+sure you run it on the same kernel tree to make reproducable results.
+It has three passes, and the third one is the most interesting one
+(use vmstat 1 to see why). When run with 64MB RAM configuration, it
+would swap heavily, with 128MB somewhat, and at 192MB maybe not
+(depending on the other applications running at the same time).
 
-
-Rik
---
-Virtual memory is like a game you can't win;
-However, without VM there's truly nothing to lose...
-
-http://www.surriel.com/		http://distro.conectiva.com/
-
-Send all your spam to aardvark@nl.linux.org (spam digging piggy)
-
+Try it, it is a nice utility, and a great test. :)
+-- 
+Zlatko
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
