@@ -1,42 +1,52 @@
-Date: Fri, 18 Feb 2005 08:25:18 -0800
-From: Paul Jackson <pj@sgi.com>
+Message-ID: <42161FBF.70200@sgi.com>
+Date: Fri, 18 Feb 2005 11:02:55 -0600
+From: Ray Bryant <raybry@sgi.com>
+MIME-Version: 1.0
 Subject: Re: [RFC 2.6.11-rc2-mm2 0/7] mm: manual page migration -- overview
  II
-Message-Id: <20050218082518.03f46371.pj@sgi.com>
-In-Reply-To: <20050218130232.GB13953@wotan.suse.de>
-References: <20050212032535.18524.12046.26397@tomahawk.engr.sgi.com>
-	<m1vf8yf2nu.fsf@muc.de>
-	<42114279.5070202@sgi.com>
-	<20050215121404.GB25815@muc.de>
-	<421241A2.8040407@sgi.com>
-	<20050215214831.GC7345@wotan.suse.de>
-	<4212C1A9.1050903@sgi.com>
-	<20050217235437.GA31591@wotan.suse.de>
-	<4215A992.80400@sgi.com>
-	<20050218130232.GB13953@wotan.suse.de>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+References: <20050212032535.18524.12046.26397@tomahawk.engr.sgi.com> <m1vf8yf2nu.fsf@muc.de> <42114279.5070202@sgi.com> <20050215121404.GB25815@muc.de> <421241A2.8040407@sgi.com> <20050215214831.GC7345@wotan.suse.de> <4212C1A9.1050903@sgi.com> <20050217235437.GA31591@wotan.suse.de>
+In-Reply-To: <20050217235437.GA31591@wotan.suse.de>
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andi Kleen <ak@suse.de>
-Cc: raybry@sgi.com, ak@muc.de, raybry@austin.rr.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Andi Kleen <ak@muc.de>, Ray Bryant <raybry@austin.rr.com>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Andi wrote:
-> Problem is what happens
-> when some memory is in some other node due to memory pressure fallbacks.
-> Your scheme would not migrate this memory at all. 
+Andi Kleen wrote:
 
-The arrays of old and new nodes handle this fine.
-Include that 'other node' in the array of old nodes,
-and the corresponding new node, where those pages
-should migrate, in the array of new nodes.
+> You and Robin mentioned some problems with "double migration"
+> with that, but it's still not completely clear to me what
+> problem you're solving here. Perhaps that needs to be reexamined.
+> 
+> 
+There is one other case where Robin and I have talked about double
+migration.  That is the case where the set of old nodes and new
+nodes overlap.  If one is not careful, and the system call interface
+is assumed to be something like:
+
+page_migrate(pid, old_node, new_node);
+
+then if one is not careful (and depending on what the complete list
+of old_nodes and new_nodes are), then if one does something like:
+
+page_migrate(pid, 1, 2);
+page_migrate(pid, 2, 3);
+
+then you can end up actually moving pages from node 1 to node 2,
+only to move them again from node 2 to node 3.  This is another
+form of double migration that we have worried about avoiding.
 
 -- 
-                  I won't rest till it's the best ...
-                  Programmer, Linux Scalability
-                  Paul Jackson <pj@sgi.com> 1.650.933.1373, 1.925.600.0401
+-----------------------------------------------
+Ray Bryant
+512-453-9679 (work)         512-507-7807 (cell)
+raybry@sgi.com             raybry@austin.rr.com
+The box said: "Requires Windows 98 or better",
+	 so I installed Linux.
+-----------------------------------------------
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
