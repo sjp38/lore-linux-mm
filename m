@@ -1,32 +1,48 @@
-From: "ismail (cartman) donmez" <kde@myrealbox.com>
-Subject: Re: 2.6.0-test2-mm1
-Date: Tue, 29 Jul 2003 08:33:02 +0300
-References: <20030727233716.56fb68d2.akpm@osdl.org>
-In-Reply-To: <20030727233716.56fb68d2.akpm@osdl.org>
+Received: from rra2002 (helo=localhost)
+	by aria.ncl.cs.columbia.edu with local-esmtp (Exim 4.14)
+	id 19hwPV-0005uP-7s
+	for linux-mm@kvack.org; Wed, 30 Jul 2003 15:14:53 -0400
+Date: Wed, 30 Jul 2003 15:14:53 -0400 (EDT)
+From: "Raghu R. Arur" <rra2002@aria.ncl.cs.columbia.edu>
+Subject: do_wp_page 
+Message-ID: <Pine.GSO.4.51.0307301514240.8932@aria.ncl.cs.columbia.edu>
 MIME-Version: 1.0
-Content-Disposition: inline
-Content-Type: text/plain;
-  =?ISO-8859-1?Q?charset=3D"=FDso-8859-1"?=
-Content-Transfer-Encoding: 7bit
-Message-Id: <200307290833.02848.kde@myrealbox.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+ hi,
 
-Some things I noticed:
+  In do_wp_page of 2.4.19 why is the rss value of  address space
+incremented only when the old_page ( the page on which the process faults
+due to write protection) is a reserved page. I mean if the process has
+mapped a read only page ( which is different from a ZERO_PAGE) and if it
+faults on that page when it tries to
+write, the rss value is not incremented even if a new page is created
+and page table entry is set to the allocated page. What am i missing here?
 
-1- Seems like you missed out framebuffer patch ( there was a little s/</<= 
-patch ) so we don't see any penguin at startup anymore.
+	new_page = alloc_page(GFP_HIGHUSER);
+	if (!new_page)
+		goto no_mem;
+	copy_cow_page(old_page,new_page,address);
+	/*
+	 * Re-check the pte - we dropped the lock
+	 */
+	spin_lock(&mm->page_table_lock);
+	if (pte_same(*page_table, pte)) {
+	  if (PageReserved(old_page)) {
+			++mm->rss;
+	  }
+		break_cow(vma, new_page, address, page_table);
+		lru_cache_add(new_page);
+		/* Free the old page.. */
+		new_page = old_page;
+	}
 
-2- Con's patch makes KDE's sound daemon skip ( aRts ) when using Juk ( KDE 
-JukeBox ) [ to skip just minimize/maximize any window fast ] . Seems like 
-problem is at aRts decoding as mplayer -ao arts works fine without skips.
-
-Regards,
-/ismail
+ thanks,
+Raghu
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
