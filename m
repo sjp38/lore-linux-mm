@@ -1,153 +1,92 @@
-Received: from d9a0b4 ([216.72.61.126]) by eniac.cable.net.co
-          (Post.Office MTA v3.5.3 release 223
-          ID# 637-71558U30000L25000S0V35) with SMTP id co
-          for <linux-mm@kvack.org>; Sun, 18 Nov 2001 13:01:28 -0500
-From: gtsemailser@cable.net.co
-Subject: LASER TONER CARTRIDGES SAVE UP TO 40% FROM RETAIL PRICE.
-Date: Sun, 18 Nov 2001 13:01:28 -0500
-Message-ID: <20011118180128.AAA24932@eniac.cable.net.co@d9a0b4>
+Received: from burns.conectiva (burns.conectiva [10.0.0.4])
+	by perninha.conectiva.com.br (Postfix) with SMTP id DB19C38DD4
+	for <linux-mm@kvack.org>; Mon, 19 Nov 2001 14:41:36 -0300 (EST)
+Date: Mon, 19 Nov 2001 14:23:54 -0200 (BRST)
+From: Marcelo Tosatti <marcelo@conectiva.com.br>
+Subject: Re: kupdated high load with heavy disk I/O
+In-Reply-To: <20011114233005.A762@tentacle.dhs.org>
+Message-ID: <Pine.LNX.4.21.0111191423030.7289-100000@freak.distro.conectiva>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: John McCutchan <ttb@tentacle.dhs.org>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-GT TONER SUPPLIES
+Could you please guys try to reproduce the problem with kernel profiling
+turned on and send us the output of readprofile? 
+
+This way we can know which function is using more CPU time, thus we can
+identify the problem. 
 
 
-ORDER BY PHONE PLEASE CALL 770-623-9780
-ORDER BY EMAIL: gtsupplies@cable.net.co
-EMAIL REMOVAL:  gtsemailser@cable.net.co
+On Wed, 14 Nov 2001, John McCutchan wrote:
 
-
-LASER PRINTER TONER CARTRIDGES, COPIER AND FAX CARTRIDGES
-SAVE UP TO 40% FROM RETAIL PRICE.
-
-UNIVERSITY AND/OR SCHOOL PURCHASE ORDERS WELCOME. (NO CREDIT APPROVAL REQUIRED)
-
-ALL OTHER PURCHASE ORDERS REQUESTS REQUIRE CREDIT APPROVAL.
-
-PAY BY CHECK, C.O.D, OR PURCHASE ORDER (NET 30 DAYS).
-
-FOR THOSE OF YOU WHO HAVE ANY QUESTION ABOUT OUR COMPANY PLEASE EMAIL US AT
-gtsinfo@cable.net.co
-
-
-OUR NEW, LASER PRINTER TONER CARTRIDGE, PTICES ARE AS FOLLOWS: (PLEASE ORDER
-BY ITEM NUMBER)
-
-ITEM    MAKE        MODEL                       PRICE
-
-1---------- HP--------------------LASERJET SERIES 4L, 4P
-(74A)-----------------------------  $39.00
-2---------- HP--------------------LASERJET SERIES 1100
-(92A)-------------------------------    $39.00
-3---------- HP--------------------LASERJET SERIES 2
-(95A)------------------------------------$30.00
-4---------- HP-------------------   LASERJET SERIES 2P
-(75A)---------------------------------- $49.00
-5---------- HP-------------------   LASERJET SERIES 5P,5MP,6P,6MP
-(03A)----------------   $39.00
-6---------- HP-------------------   LASERJET SERIES 5SI,800
-(09A)----------------------------$89.00
-7---------- HP--------------------LASERJET SERIES 2100
-(96A)-------------------------------    $65.00
-8---------- HP--------------------LASERJET SERIES 8100
-(82X)-------------------------------    $129.00
-9---------- HP--------------------LASERJET SERIES 5L,6L
-(3906A)---------------------------  $35.00
-10---------HP--------------------LASERJET SERIES
-4V------------------------------------------    $89.00
-11---------HP--------------------LASERJET SERIES 4000
-(27X)-------------------------------    $65.00
-12---------HP--------------------LASERJET SERIES 3SI,4SI
-(91A)----------------------------   $49.00
-13---------HP--------------------LASERJET SERIES 4,4M,5,5M
-(98A)-----------------------    $40.00
-14---------HP--------------------LASERJET SERIES 5000
-(29X)--------------------------------$89.00
-15---------HP--------------------LASERFAX 500, 700 (FX1)
-------------------------------------$44.00
-16---------HP--------------------LASERFAX 5000, 7000
-(FX2)---------------------------------  $49.00
-17---------HP--------------------LASERFAX
-(FX3)-----------------------------------------------    $49.00
-18---------HP--------------------LASERFAX
-(FX4)-----------------------------------------------    $49.00
-
-19---------LEXMARK--------  OPTRA 4019,4029 HIGH
-YIELD------------------------------ $79.00
-20---------LEXMARK--------  OPTRA R 4039,4049 HIGH
-YIELD---------------------------    $99.00
-21---------LEXMARK--------  OPTRA
-E-----------------------------------------------------------$49.00
-22---------LEXMARK---------OPTRA
-N----------------------------------------------------------$105.00
-23---------LEXMARK--------  OPTRA
-S-----------------------------------------------------------$145.00
-24---------LEXMARK--------  OPTRA
-T-----------------------------------------------------------$180.00
-
-25---------EPSON--------------  ACTION LASER
-7000,7500,8000,9000----------------------   $99.00
-26---------EPSON--------------  ACTION LASER
-1000,1500------------------------------------$99.00
-
-27---------PANASONIC-----   NEC SERIES 2 MODELS 90 AND
-95------------------------  $99.00
-
-28---------APPLE--------------  LASER WRITER PRO
-600,16/600----------------------------  $40.00
-29---------APPLE--------------  LASER WRITER SELECT
-300,320,360----------------------$64.00
-30---------APPLE--------------  LASER WRITER 300,
-320--------------------------------------   $49.00
-31---------APPLE--------------  LASER WRITER NT,
-2NT-------------------------------------    $49.00
-32---------APPLE--------------  LASER WRITER
-12/640----------------------------------------  $69.00
-
-33---------CANON------------    FAX LASERCLASS 4000
-(FX3)------------------------------ $49.00
-34---------CANON------------    FAX LASERCLASS 5000,6000,7000
-(FX2)----------------   $44.00
-35---------CANON------------    LASERFAX 5000,7000
-(FX2)---------------------------------  $44.00
-36---------CANON------------    LASERFAX 8500,9000
-(FX4)---------------------------------  $44.00
-37---------CANON------------    COPIER PC3,6RE,7 & 11
-(A30)-------------------------------    $59.00
-38---------CANON------------    COPIER 300,320,700,720 AND 760
-(E-40)------------------    $79.00
-
-30 DAY UNLIMITED WARRANTY INCLUDED ON ALL PRODUCTS.
-
-IF YOU ARE ORDERING BY E-MAIL OR C.O.D. PLEASE FILL OUT AN ORDER FORM WITH
-THE FOLLOWING INFORMATION:
-
-PHONE NUMBER
-COMPANY NAME
-FIRST AND LAST NAME
-STREET ADDRESS
-CITY, STATE ZIP CODE
-
-IF YOU ARE ORDERING BY PURCHASE ORDER PLEASE FILL OUT AN ORDER FORM WITH THE
-FOLLOWING INFORMATION:
-
-PURCHASE ORDER NUMBER
-PHONE NUMBER
-COMPANY OR SCHOOL NAME
-SHIPPING ADDRESS AND BILLING ADDRESS
-CITY, STATE ZIP CODE
-
-ALL TRADE MARKS AND BRAND NAMES LISTED ABOVE ARE PROPERTY OF THE RESPECTIVE
-HOLDERS AND USED FOR DESCRIPTIVE PURPOSES ONLY.
-
-
-
-
-
-
-
+> Hi,
+> 
+> I also have the exact same behaviour when running mkisofs. During the 
+> creation of the ISO the interactive feel is sluggish and after mkisofs
+> is complete the box is sluggish and appears to lock up. During
+> this sluggish period there is alot of disk activity. This is under
+> 2.4.14
+> 
+> John
+> On Wed, Nov 14, 2001 at 06:01:23PM -0500, Rechenberg, Andrew wrote:
+> > Hello,
+> > 
+> > I have read some previous threads about kupdated consuming 99% of CPU under
+> > intense disk I/O in kernel 2.4.x on the archives of linux-kernel (April
+> > 2001), and some issues about I/O problems on linux-mm, but have yet to find
+> > any suggestions or fixes.  I am currently experiencing the same issue and
+> > was wondering if anyone has any thoughts or suggestions on the issue.  I am
+> > not subscribed to the list so would you please CC: me directly on any
+> > responses?  I can also check out the archives at theaimsgroup.com if a CC:
+> > would not be appropriate.  Thank you.
+> > 
+> > The issue that I am having is that when there is a heavy amount a disk I/O,
+> > the box becomes slightly unresponsive and kupdated is using 99.9% in 'top.'
+> > Sometimes the box appears to totally lock up.  If one waits several seconds
+> > to a couple of minutes the system appears to 'unlock' and runs sluggishly
+> > for a while.  This cycle will repeat itself until the I/O subsides.  The
+> > memory usage goes up to the full capacity of the box and then about 10MB of
+> > swap is used while this problem is occurring.  Memory and swap does not get
+> > relinquished afer the incident.
+> > 
+> > The issue appears in kernel 2.4.14 compiled directly from source from
+> > kernel.org with no patches.  These problems manifest themselves with only
+> > one user doing heavy disk I/O.  The normal user load on the box can run
+> > between 350-450 users so this behavior would be unacceptable because the
+> > application that is being run is interactive.  With 450 users, and the same
+> > process running on a 2.2.20 kernel the performance of the box is great, with
+> > only a very slightly noticeable slow down.
+> > 
+> > I am running the Informix database UniVerse version 9.6.2.4 on a 4 processor
+> > 700MHz Xeon Dell PowerEdge 6400.  The disk subsystem is controlled by a PERC
+> > 2/DC RAID card with 128MB on-board cache (megaraid driver compiled directly
+> > in to the kernel).  Data array is on 5 36GB 10K Ultra160 disks in a RAID5
+> > configuration.  The box has 4GB RAM, but is only using 2GB due to the move
+> > back to the 2.2 kernel.  The only kernel paramters that have been modified
+> > are in /proc/sys/kernel/sem.  All filesystems are ext2.
+> > 
+> > If you need any more detailed info, please let me know.  Any help on this
+> > problem would be immensely appreciated.  Thank you in advance.
+> > 
+> > Regards,
+> > Andrew Rechenberg
+> > Network Team, Sherman Financial Group
+> > arechenberg@shermanfinancialgroup.com
+> > 
+> > --
+> > To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> > the body to majordomo@kvack.org.  For more info on Linux MM,
+> > see: http://www.linux-mm.org/
+> > 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
