@@ -1,81 +1,37 @@
-Date: Sun, 6 May 2001 23:08:20 +0200 (CEST)
-From: BERECZ Szabolcs <szabi@inf.elte.hu>
-Subject: page_launder() bug
-Message-ID: <Pine.A41.4.31.0105062307290.59664-100000@pandora.inf.elte.hu>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Message-Id: <l03130303b71b795cab9b@[192.168.239.105]>
+In-Reply-To: <Pine.A41.4.31.0105062307290.59664-100000@pandora.inf.elte.hu>
+Mime-Version: 1.0
+Content-Type: text/plain; charset="us-ascii"
+Date: Sun, 6 May 2001 22:59:19 +0100
+From: Jonathan Morton <chromi@cyberspace.org>
+Subject: Re: page_launder() bug
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-kernel@vger.kernel.org
+To: BERECZ Szabolcs <szabi@inf.elte.hu>, linux-kernel@vger.kernel.org
 Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi!
+>-			 page_count(page) == (1 + !!page->buffers));
 
-there is a bug in page_launder introduced with kernel 2.4.3-ac12.
-if the swapfile is on a filesystem, then after swapping out some
-pages, the system locks up. sometimes it writes an oops message.
-I don't know exactly what's the problem, but with the attached
-patch it works. (this is just a reverse patch to go back to
-pre 2.4.3-ac12, and it's against 2.4.4-ac5)
-please fix the bug, or apply this patch until fixed properly.
+Two inversions in a row?  I'd like to see that made more explicit,
+otherwise it looks like a bug to me.  Of course, if it IS a bug...
 
-a question:
-why don't you include lkcd or something like that in the
-mainstream kernel? it would be much easier to save those annoying
-oopses :)
+--------------------------------------------------------------
+from:     Jonathan "Chromatix" Morton
+mail:     chromi@cyberspace.org  (not for attachments)
+big-mail: chromatix@penguinpowered.com
+uni-mail: j.d.morton@lancaster.ac.uk
 
-Bye,
-Szabi
+The key to knowledge is not to rely on people to teach you it.
 
+Get VNC Server for Macintosh from http://www.chromatix.uklinux.net/vnc/
 
-diff -Nur linux/mm/vmscan.c linux.swapfix/mm/vmscan.c
---- linux/mm/vmscan.c	Sun May  6 15:59:22 2001
-+++ linux.swapfix/mm/vmscan.c	Sun May  6 16:07:09 2001
-@@ -448,15 +448,9 @@
- 	maxscan = nr_inactive_dirty_pages;
- 	while ((page_lru = inactive_dirty_list.prev) != &inactive_dirty_list &&
- 				maxscan-- > 0) {
--		int dead_swap_page;
--
- 		page = list_entry(page_lru, struct page, lru);
- 		zone = page->zone;
+-----BEGIN GEEK CODE BLOCK-----
+Version 3.12
+GCS$/E/S dpu(!) s:- a20 C+++ UL++ P L+++ E W+ N- o? K? w--- O-- M++$ V? PS
+PE- Y+ PGP++ t- 5- X- R !tv b++ DI+++ D G e+ h+ r++ y+(*)
+-----END GEEK CODE BLOCK-----
 
--		dead_swap_page =
--			(PageSwapCache(page) &&
--			 page_count(page) == (1 + !!page->buffers));
--
- 		/* Wrong page on list?! (list corruption, should not happen) */
- 		if (!PageInactiveDirty(page)) {
- 			printk("VM: page_launder, wrong page on list.\n");
-@@ -467,10 +461,9 @@
- 		}
-
- 		/* Page is or was in use?  Move it to the active list. */
--		if (!dead_swap_page &&
--		    (PageTestandClearReferenced(page) || page->age > 0 ||
--		     (!page->buffers && page_count(page) > 1) ||
--		     page_ramdisk(page))) {
-+		if (PageTestandClearReferenced(page) || page->age > 0 ||
-+				(!page->buffers && page_count(page) > 1) ||
-+				page_ramdisk(page)) {
- 			del_page_from_inactive_dirty_list(page);
- 			add_page_to_active_list(page);
- 			continue;
-@@ -512,11 +505,8 @@
- 			if (!writepage)
- 				goto page_active;
-
--			/* First time through? Move it to the back of the list,
--			 * but not if it is a dead swap page. We want to reap
--			 * those as fast as possible.
--			 */
--			if (!launder_loop && !dead_swap_page) {
-+			/* First time through? Move it to the back of the list */
-+			if (!launder_loop) {
- 				list_del(page_lru);
- 				list_add(page_lru, &inactive_dirty_list);
- 				UnlockPage(page);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
