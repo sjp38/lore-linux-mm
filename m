@@ -1,82 +1,52 @@
-Date: Fri, 04 Feb 2005 16:32:48 +0900 (JST)
-Message-Id: <20050204.163248.41633006.taka@valinux.co.jp>
-Subject: Re: migration cache, updated
-From: Hirokazu Takahashi <taka@valinux.co.jp>
-In-Reply-To: <420240F8.6020308@sgi.com>
-References: <42014605.4060707@sgi.com>
-	<20050203.115911.119293038.taka@valinux.co.jp>
-	<420240F8.6020308@sgi.com>
-Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
+Message-ID: <16899.15980.791820.132469@cargo.ozlabs.ibm.com>
+Date: Fri, 4 Feb 2005 20:20:44 +1100
+From: Paul Mackerras <paulus@samba.org>
+Subject: Re: A scrub daemon (prezeroing)
+In-Reply-To: <Pine.LNX.4.58.0502032220430.28851@schroedinger.engr.sgi.com>
+References: <Pine.LNX.4.58.0501211228430.26068@schroedinger.engr.sgi.com>
+	<1106828124.19262.45.camel@hades.cambridge.redhat.com>
+	<20050202153256.GA19615@logos.cnet>
+	<Pine.LNX.4.58.0502021103410.12695@schroedinger.engr.sgi.com>
+	<20050202163110.GB23132@logos.cnet>
+	<Pine.LNX.4.61.0502022204140.2678@chimarrao.boston.redhat.com>
+	<16898.46622.108835.631425@cargo.ozlabs.ibm.com>
+	<Pine.LNX.4.58.0502031650590.26551@schroedinger.engr.sgi.com>
+	<16899.2175.599702.827882@cargo.ozlabs.ibm.com>
+	<Pine.LNX.4.58.0502032220430.28851@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: raybry@sgi.com
-Cc: marcelo.tosatti@cyclades.com, linux-mm@kvack.org, iwamoto@valinux.co.jp, haveblue@us.ibm.com, hugh@veritas.com
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Rik van Riel <riel@redhat.com>, Marcelo Tosatti <marcelo.tosatti@cyclades.com>, David Woodhouse <dwmw2@infradead.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@osdl.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Ray,
+Christoph Lameter writes:
 
-I realized the situation.
+> If the program does not use these cache lines then you have wasted time
+> in the page fault handler allocating and handling them. That is what
+> prezeroing does for you.
 
-> >>>>(This message comes from ia64_do_page_fault() and appears to because
-> >>>>handle_mm_fault() returned FAULT_OOM....)
-> >>>>
-> >>>>I haven't looked into this further, but was wondering if perhaps one of
-> >>>>you would understand why the migrate cache patch would fail in this way?
-> >>>
-> >>>
-> >>>I can't think of anything right now - probably do_wp_page() is returning FAULT_OOM,
-> >>>can you confirm that?
-> >>>
-> >>
-> >>No, it doesn't appear to be do_wp_page().  It looks like get_swap_page() 
-> >>returns FAULT_OOM followed by get_user_pages() returning FAULT_OOM.
-> >>For the page that causes the VM to kill the process, there is no return
-> >>from get_user_pages() that returns FAULT_OOM.  Not sure yet what is going
-> >>on here.
-> > 
-> > 
-> > The current implementation requires swap devices to migrate pages.
-> > Have you added any swap devices?
-> > 
-> > This restriction will be solved with the migration cache Marcelo
-> > is working on.
-> > 
-> > Thanks,
-> > Hirokazu Takahashi.
-> > 
-> > 
-> I'm running with the migration cache patch applied as well.  This is a
-> requirement for the project I am working on as the customer doesn't want
-> to swap out pages just to migrated them.
+The program is going to access at least one cache line of the new
+page.  On my G5, it takes _less_ time to clear the whole page and pull
+in one cache line from L2 cache to L1 than it does to pull in that
+same cache line from memory.
 
-I see.
+> Yes but its a short burst that only occurs very infrequestly and it takes
 
-> If I take out the migration cache patch, this "VM: killing ..." problem
-> goes away.   So it has something to do specifically with the migration
-> cache code.
+It occurs just as often as we clear pages in the page fault handler.
+We aren't clearing any fewer pages by prezeroing, we are just clearing
+them a bit earlier.
 
-I've never seen the message though the migration cache code may have
-some bugs. May I ask you some questions about it?
+> advantage of all the optimizations that modern memory subsystems have for
+> linear accesses. And if hardware exists that can offload that from the cpu
+> then the cpu caches are only minimally affected.
 
- - Which version of kernel did you use for it?
- - Which migration cache code did you choose?
- - How many nodes, CPUs and memory does your box have?
- - What kind of applications were running on your box?
- - How often did this happened?
- - Did this message appear right after starting the migration?
-   Or it appeared some short while later?
- - How the target pages to be migrated were selected?
- - How did you kick memory migration started?
- - Please show me /proc/meminfo when the problem happened.
- - Is it possible to make the same problem on my machine?
+I can believe that prezeroing could provide a benefit on some
+machines, but I don't think it will provide any on ppc64.
 
-And, would you please make your project proceed without the
-migration cache code for a while?
-
-Thanks,
-Hirokazu Takahashi.
+Paul.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
