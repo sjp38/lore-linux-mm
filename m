@@ -1,63 +1,64 @@
-Date: Thu, 29 May 2003 11:40:08 -0700
-From: "Martin J. Bligh" <mbligh@aracnet.com>
+Date: Thu, 29 May 2003 11:52:37 -0700
+From: Andrew Morton <akpm@digeo.com>
 Subject: Re: 2.5.70-mm1
-Message-ID: <18080000.1054233607@[10.10.2.4]>
-In-Reply-To: <1980000.1054189401@[10.10.2.4]>
-References: <20030527004255.5e32297b.akpm@digeo.com> <1980000.1054189401@[10.10.2.4]>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Message-Id: <20030529115237.33c9c09a.akpm@digeo.com>
+In-Reply-To: <18080000.1054233607@[10.10.2.4]>
+References: <20030527004255.5e32297b.akpm@digeo.com>
+	<1980000.1054189401@[10.10.2.4]>
+	<18080000.1054233607@[10.10.2.4]>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@digeo.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: "Martin J. Bligh" <mbligh@aracnet.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> SDET 128  (see disclaimer)
->                            Throughput    Std. Dev
->                2.5.66-mm2       100.0%         0.6%
->           2.5.66-mm2-ext3         3.9%         0.4%
+"Martin J. Bligh" <mbligh@aracnet.com> wrote:
+>
+> > SDET 128  (see disclaimer)
+> >                            Throughput    Std. Dev
+> >                2.5.66-mm2       100.0%         0.6%
+> >           2.5.66-mm2-ext3         3.9%         0.4%
+> > 
+> > SDET 128  (see disclaimer)
+> >                            Throughput    Std. Dev
+> >           2.5.70-mm1-ext2       100.0%         0.1%
+> >           2.5.70-mm1-ext3        22.7%         2.0%
 > 
-> SDET 128  (see disclaimer)
+> Andrew pointed out I should turn off extended attributes, I reran
+> like this ... not much change (with error margins)
+> 
+>  SDET 32  (see disclaimer)
 >                            Throughput    Std. Dev
->           2.5.70-mm1-ext2       100.0%         0.1%
->           2.5.70-mm1-ext3        22.7%         2.0%
+>           2.5.70-mm1-ext2       100.0%         0.2%
+>           2.5.70-mm1-ext3        30.9%         7.8%
+>           2.5.70-mm1-noxa        34.6%         6.5%
 
-Andrew pointed out I should turn off extended attributes, I reran
-like this ... not much change (with error margins)
+OK, a 10x improvement isn't too bad.  I'm hoping the gap between ext2 and
+ext3 is mainly idle time and not spinning-on-locks time.
 
- SDET 32  (see disclaimer)
-                           Throughput    Std. Dev
-          2.5.70-mm1-ext2       100.0%         0.2%
-          2.5.70-mm1-ext3        30.9%         7.8%
-          2.5.70-mm1-noxa        34.6%         6.5%
 
-SDET 128  (see disclaimer)
-                           Throughput    Std. Dev
-          2.5.70-mm1-ext2       100.0%         0.1%
-          2.5.70-mm1-ext3        22.7%         2.0%
-          2.5.70-mm1-noxa        21.4%         4.6%
+> 
+>    2024927   267.3% total
+>    1677960   472.8% default_idle
+>     116350     0.0% .text.lock.transaction
+>      42783     0.0% do_get_write_access
+>      40293     0.0% journal_dirty_metadata
+>      34251  6414.0% __down
+>      27867  9166.8% .text.lock.attr
 
-.text.lock.attr is still in there, so either I balls'ed it up somehow, or
-it wasn't the extd attr stuff in the first place. 
+Bah.  In inode_setattr(), move the mark_inode_dirty() outside
+lock_kernel().
 
-CONFIG_EXT2_FS=y
-# CONFIG_EXT2_FS_XATTR is not set
-CONFIG_EXT3_FS=y
-# CONFIG_EXT3_FS_XATTR is not set
+>      20016  2619.9% __wake_up
+>      19632   927.4% schedule
+>      12204     0.0% .text.lock.sched
+>      12128     0.0% start_this_handle
+>      10011     0.0% journal_add_journal_head
 
-   2024927   267.3% total
-   1677960   472.8% default_idle
-    116350     0.0% .text.lock.transaction
-     42783     0.0% do_get_write_access
-     40293     0.0% journal_dirty_metadata
-     34251  6414.0% __down
-     27867  9166.8% .text.lock.attr
-     20016  2619.9% __wake_up
-     19632   927.4% schedule
-     12204     0.0% .text.lock.sched
-     12128     0.0% start_this_handle
-     10011     0.0% journal_add_journal_head
+hm, lots of context switches still.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
