@@ -1,29 +1,32 @@
-Date: Sat, 12 Jul 2003 02:02:14 +1000
-From: Anton Blanchard <anton@samba.org>
-Subject: Re: 2.5.74-mm3
-Message-ID: <20030711160214.GH7348@krispykreme>
-References: <20030708223548.791247f5.akpm@osdl.org> <200307101821.h6AIL87u013299@turing-police.cc.vt.edu> <20030711082532.GA432@fib011235813.fsnet.co.uk>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20030711082532.GA432@fib011235813.fsnet.co.uk>
+Received: from h-69-3-127-235.dnvtco56.covad.net ([69.3.127.235] helo=TristanWW)
+	by turkey.mail.pas.earthlink.net with smtp (Exim 3.33 #1)
+	id 19b8sT-0006U9-00
+	for linux-mm@kvack.org; Fri, 11 Jul 2003 18:08:41 -0700
+From: <TristanWW@SmileAtYou.com>
+Subject: confirmation
+Message-Id: <E19b8sT-0006U9-00@turkey.mail.pas.earthlink.net>
+Date: Fri, 11 Jul 2003 18:08:41 -0700
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Joe Thornber <thornber@sistina.com>
-Cc: Valdis.Kletnieks@vt.edu, Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-> The v1 ioctl interface passes the dev in as a __kernel_dev_t, so
-> unfortunately if you change the size of __kernel_dev_t you will have
-> to rebuild the tools.
-> 
-> The v4 ioctl interface just uses a __u64 which I hope will be future
-> proof.
+Confirmation for linux-mm@kvack.org
 
-This was the only thing that made the 32bit ioctls different to the 64bit 
-ones on ppc64, so changing it to __u64 is a good thing.
+Thank you for your interest in my work.  After you complete the verification below you will be added to my list to receive updates whenever a piece is completed.
 
-Anton
+If you didn't sign up, perhaps a friend added you.
+
+Reply to this email and type 'Yes Please' in the body and you will be added.  Do nothing and you will be forgotten.
+
+Derek Olson
+Tristan Woodworks
+Your soul speaks Art.
+http://www.SmileAtYou.com
+Highlands Ranch, Colorado
+
+
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
