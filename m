@@ -1,43 +1,42 @@
-Date: Thu, 20 Sep 2001 10:02:45 -0300 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
+Content-Type: text/plain; charset=US-ASCII
+From: Daniel Phillips <phillips@bonn-fries.net>
 Subject: Re: broken VM in 2.4.10-pre9
-In-Reply-To: <20010919.145534.104033668.davem@redhat.com>
-Message-ID: <Pine.LNX.4.33L.0109201001120.19147-100000@imladris.rielhome.conectiva>
+Date: Thu, 20 Sep 2001 15:40:55 +0200
+References: <E15k3O2-0005Fr-00@the-village.bc.nu>
+In-Reply-To: <E15k3O2-0005Fr-00@the-village.bc.nu>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Transfer-Encoding: 7BIT
+Message-Id: <20010920133330Z16274-2757+894@humbolt.nl.linux.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "David S. Miller" <davem@redhat.com>
-Cc: ebiederm@xmission.com, alan@lxorguk.ukuu.org.uk, phillips@bonn-fries.net, rfuller@nsisoftware.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Alan Cox <alan@lxorguk.ukuu.org.uk>
+Cc: "Eric W. Biederman" <ebiederm@xmission.com>, Rob Fuller <rfuller@nsisoftware.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 19 Sep 2001, David S. Miller wrote:
-
-> My own personal feeling, after having tried to implement a much
-> lighter weight scheme involving "anon areas", is that reverse maps or
-> something similar should be looked at as a latch ditch effort.
+On September 20, 2001 02:57 pm, Alan Cox wrote:
+> > On September 20, 2001 12:04 am, Alan Cox wrote:
+> > > Reverse mappings make linear aging easier to do but are not critical (we
+> > > can walk all physical pages via the page map array).
+> >
+> > But you can't pick up the referenced bit that way, so no up aging, only
+> > down.
 >
-> We are tons faster than anyone else in fork/exec/exit precisely
-> because we keep track of so little state for anonymous pages.
+> #1 If you really wanted to you could update a referenced bit in the page
+> struct in the fault handling path.
 
-Thinking about this some more, it would seem that the
-"perfect fork()" would be one where you DON'T copy the
-page tables, but only set the parent's page tables to
-read-only and point the VMAs of the child at some kind
-of memory objects.
+Right, we probably should do that.  But consider that any time this happens a
+reverse map would have eliminated the fault because we wouldn't need to unmap
+the page until we're actually going to free it.
 
-For example, for file-backed VMAs we might already skip
-the page table copying right now.
+> #2 If a page is referenced multiple times by different processes is the
+> behaviour of multiple upward aging actually wrong.
 
-regards,
+With rmap it's easy to do it either way: either treat the ref bits as if
+they're all or'd together or, perhaps more sensibly, age up by an amount that
+depends on the number of ref bits set, but not as much as UP_AGE * refs.
 
-Rik
--- 
-IA64: a worthy successor to i860.
-
-http://www.surriel.com/		http://distro.conectiva.com/
-
-Send all your spam to aardvark@nl.linux.org (spam digging piggy)
+--
+Daniel
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
