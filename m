@@ -1,82 +1,46 @@
-Received: from list by main.gmane.org with local (Exim 3.35 #1 (Debian))
-	id 1BAVPS-0008WN-00
-	for <linux-mm@kvack.org>; Mon, 05 Apr 2004 16:49:10 +0200
-Received: from finn.gmane.org ([80.91.224.251])
-        by main.gmane.org with esmtp (Gmexim 0.1 (Debian))
-        id 1AlnuQ-0007hv-00
-        for <linux-mm@kvack.org>; Mon, 05 Apr 2004 16:49:10 +0200
-Received: from ku4s by finn.gmane.org with local (Gmexim 0.1 (Debian))
-        id 1AlnuQ-0007hv-00
-        for <linux-mm@kvack.org>; Mon, 05 Apr 2004 16:49:10 +0200
-From: "Kuas (gmane)" <ku4s@users.sourceforge.net>
-Subject: Re: Page Mapping
-Date: Mon, 05 Apr 2004 10:49:08 -0400
-Message-ID: <407171E4.4020002@users.sourceforge.net>
-References: <4070CB37.8070704@users.sourceforge.net>
+Date: Mon, 5 Apr 2004 18:08:59 +0200
+From: Andrea Arcangeli <andrea@suse.de>
+Subject: Re: [RFC][PATCH 1/3] radix priority search tree - objrmap complexity fix
+Message-ID: <20040405160859.GE2234@dualathlon.random>
+References: <20040402195927.A6659@infradead.org> <20040402192941.GP21341@dualathlon.random> <20040402205410.A7194@infradead.org> <20040402203514.GR21341@dualathlon.random> <20040403094058.A13091@infradead.org> <20040403152026.GE2307@dualathlon.random> <20040403155958.GF2307@dualathlon.random> <20040403170258.GH2307@dualathlon.random> <20040405105912.A3896@infradead.org> <20040405131113.A5094@infradead.org>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
-In-Reply-To: <4070CB37.8070704@users.sourceforge.net>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20040405131113.A5094@infradead.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Christoph Hellwig <hch@infradead.org>, Andrew Morton <akpm@osdl.org>, hugh@veritas.com, vrajesh@umich.edu, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Sorry, please ignore some of the previous question.
+On Mon, Apr 05, 2004 at 01:11:13PM +0100, Christoph Hellwig wrote:
+> On Mon, Apr 05, 2004 at 10:59:12AM +0100, Christoph Hellwig wrote:
+> > On Sat, Apr 03, 2004 at 07:02:58PM +0200, Andrea Arcangeli wrote:
+> > > can you try this potential fix too? (maybe you want to try this first
+> > > thing)
+> > > 
+> > > this is from Hugh's anobjramp patches.
+> > > 
+> > > I merged it once, then I got a crash report, so I backed it out since it
+> > > was working anyways, but it was due a merging error that it didn't work
+> > > correctly, the below version should be fine and it seems really needed.
+> > > 
+> > > I'll upload a new kernel with this applied.
+> > 
+> > Still fails with 2.6.5-aa3 which seems to have this one applied.
+> 
+> Disabling compound pages unconditionally gets it working again.
 
-I found the answer in Intel Developer guide v3. 'pte_t' consists of the 
-base physical address of the page (20 MSB of pte_t) and page flags (12 
-LSB of pte_t). So to get the address, I just have to mask the pte_t with 
-PAGE_MASK.
+This is weird, it sounds like something is reusing page->private for
+slab pages in ppc, how that can be possible?
 
-Now the next question is can I just use that address and refer to it 
-right away? Like using a pointer? Or I still have to use some MMU mechanism?
+Can you also double check that this is not reproducible on x86 just in
+case?
 
-And I don't see anywhere in the page struct to know how big is the page 
-filled? I don't think every page has all 4 KB filled, right? Or are all 
-the pages zeroed out before being reassigned? So I still can read the 
-whole page, just the last bytes will be 0x00 if it's not used.
+can you try again with compound on and the debugging patch I posted that
+replicates page->private into page->mapping to verify it's only
+page->private being corrupt?
 
-Kuas.
-
-
-Kuas (gmane) wrote:
-> Hello,
-> 
-> This might be very trivial question for people in this mailing list. I 
-> need to know if my understanding is correct.
-> 
-> We are doing some experiment with Linux kernel for security. Right now, 
-> we are trying to see some behavior in the Linux memory management. I am 
-> trying to track and possibly scan (for now) all the pages that's just 
-> brought into the memory. I am doing this in i386 arch and Linux kernel 
-> 2.4.22.
-> 
-> I think it would be good to do it in: mm/memory.c in do_no_page(). At 
-> the end of the function, I have references to pte_t and page struct of 
-> the fresh new page that's just brought in from disk (not swapped).
-> 
-> This is diagram the diagram I'm going to refer:
-> http://www.skynet.ie/~mel/projects/vm/guide/html/understand/node24.html
-> 
->  From my understanding from the diagram of Linear Address to Page 
-> conversion (please let me know if I'm correct or misunderstood). The 
-> struct "pte_t->pte_low" an entry if PTE table, is the base 'physical' 
-> address of the page. In this case I can just use it to reference the 
-> page. I can't find any other conversion method to get another address.
-> 
-> Assuming I have that address, can I just direct reference that address 
-> (assuming the address is physical and from kernel mode) or do I have to 
-> use some methods to access the page content?
-> 
-> How do I know the size of the page that's filled though? I can't see 
-> that information from the page struct.
-> 
-> Thanks in Advance for comments and information.
-> 
-> 
-> Kuas
-
+thanks for the help.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
