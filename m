@@ -1,7 +1,7 @@
-Date: Mon, 4 Aug 2003 15:50:57 -0400 (EDT)
+Date: Tue, 5 Aug 2003 11:45:36 -0400 (EDT)
 From: "Raghu R. Arur" <rra2002@aria.ncl.cs.columbia.edu>
-Subject: buffer head and buffer pages
-Message-ID: <Pine.GSO.4.51.0308041544400.29728@aria.ncl.cs.columbia.edu>
+Subject: anonymous buffer pages
+Message-ID: <Pine.GSO.4.51.0308051141270.10476@aria.ncl.cs.columbia.edu>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -10,18 +10,15 @@ To: kernelnewbies@nl.linux.org
 Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-  Hi,
+ Hi,
 
-  Please help me to understand this better. each buffer has a buffer
-head. the b_page of buffer_head points to the page that contains the
-mapped data. Will both these pages ( the page that holds the buffer_head
-structure and buffer page that contains the actual data) mapped to the
-process OR only the page with the buffer_head is mapped to the process ?
-In other words, the rss value of the process accounts for both these pages
-or it accounts for only the page with the buffer_head ?
+  when are anonymous buffer pages created and how are they removed from
+the system  in linux 2.4.19 ? In try_to_swap_out() when it encounters a
+anonymous buffer page the page is not unmapped from the process. So how is
+this page freed to the free-list ?
 
  Thanks a lot,
- Raghu
+Raghu
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
