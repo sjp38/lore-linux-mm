@@ -1,9 +1,9 @@
-Date: Wed, 02 Jul 2003 11:50:11 -0700
+Date: Wed, 02 Jul 2003 12:56:03 -0700
 From: "Martin J. Bligh" <mbligh@aracnet.com>
 Subject: Re: 2.5.73-mm3
-Message-ID: <535730000.1057171811@flay>
-In-Reply-To: <530600000.1057169520@flay>
-References: <20030701203830.19ba9328.akpm@digeo.com><15570000.1057122469@[10.10.2.4]> <20030701221829.3e0edf3a.akpm@digeo.com> <530600000.1057169520@flay>
+Message-ID: <537120000.1057175763@flay>
+In-Reply-To: <20030701221829.3e0edf3a.akpm@digeo.com>
+References: <20030701203830.19ba9328.akpm@digeo.com><15570000.1057122469@[10.10.2.4]> <20030701221829.3e0edf3a.akpm@digeo.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
@@ -14,72 +14,82 @@ To: Andrew Morton <akpm@digeo.com>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> scsi HBA driver Qlogic ISP 10X0/2X00 didn't set a release method.
-> st: Version 20030622, fixed bufsize 32768, s/g segs 256
-> oprofile: using NMI interrupt.
-> NET4: Linux TCP/IP 1.0 for NET4.0
-> IP: routing cache hash table of 131072 buckets, 1024Kbytes
-> TCP: Hash tables configured (established 524288 bind 65536)
-> NET4: Unix domain sockets 1.0/SMP for Linux NET4.0.
-> VFS: Cannot open root device "sda2" or unknown-block(0,0)
-> Please append a correct "root=" boot option
-> Kernel panic: VFS: Unable to mount root fs on unknown-block(0,0)
-> 
-> Note the "scsi HBA driver Qlogic ISP 10X0/2X00 didn't set a release method"
-> bit.
+Spiffy - works now.
 
-OK, this rediffed version of Mike's earlier patch fixes it - I guess it
-got trampled in the merge. All the ifdefs surrounding isplinux_release
-are a bit odd, but I think I got 'em right. Would be a damned sight 
-easier if we ripped out all that version crud.
+Kernbench: (make -j N vmlinux, where N = 2 x num_cpus)
+                              Elapsed      System        User         CPU
+                   2.5.73       45.08       98.30      568.56     1479.00
+               2.5.73-mm3       44.39       92.72      563.04     1476.25
+              2.5.73-mjb1       43.70       75.71      564.62     1465.00
 
-M.
+Kernbench: (make -j N vmlinux, where N = 16 x num_cpus)
+                              Elapsed      System        User         CPU
+                   2.5.73       45.99      115.34      571.60     1493.00
+               2.5.73-mm3       45.36      111.71      565.71     1493.75
+              2.5.73-mjb1       43.88       88.37      570.41     1500.75
 
-diff -purN linux-2.5.73-mm3/drivers/scsi/isp/isp_linux.c 2.5.73-mm3/drivers/scsi/isp/isp_linux.c
---- linux-2.5.73-mm3/drivers/scsi/isp/isp_linux.c	2003-07-01 20:29:04.000000000 -0700
-+++ 2.5.73-mm3/drivers/scsi/isp/isp_linux.c	2003-07-02 11:01:02.000000000 -0700
-@@ -145,7 +145,6 @@ isplinux_detect(Scsi_Host_Template *tmpt
-     return (rval);
- }
- 
--#ifdef	MODULE
- /* io_request_lock *not* held here */
- int
- isplinux_release(struct Scsi_Host *host)
-@@ -185,7 +184,6 @@ isplinux_release(struct Scsi_Host *host)
- 	isp_kfree(FCPARAM(isp)->isp_dump_data, amt);
- 	FCPARAM(isp)->isp_dump_data = 0;
-     }
--#endif
- #if defined(CONFIG_PROC_FS) && LINUX_VERSION_CODE >= KERNEL_VERSION(2,4,0)
-     /*
-      * Undo any PROCFS stuff
-@@ -193,8 +191,8 @@ isplinux_release(struct Scsi_Host *host)
-     isplinux_undo_proc(isp);
- #endif
-     return (1);
--}
- #endif
-+}
- 
- const char *
- isplinux_info(struct Scsi_Host *host)
-diff -purN linux-2.5.73-mm3/drivers/scsi/isp/isp_linux.h 2.5.73-mm3/drivers/scsi/isp/isp_linux.h
---- linux-2.5.73-mm3/drivers/scsi/isp/isp_linux.h	2003-07-01 20:29:04.000000000 -0700
-+++ 2.5.73-mm3/drivers/scsi/isp/isp_linux.h	2003-07-02 10:53:38.000000000 -0700
-@@ -774,12 +774,8 @@ static INLINE unsigned long _usec_to_jif
- 
- int isplinux_proc_info(char *, char **, off_t, int, int, int);
- int isplinux_detect(Scsi_Host_Template *);
--#ifdef	MODULE
- int isplinux_release(struct Scsi_Host *);
- #define	ISPLINUX_RELEASE	isplinux_release
--#else
--#define	ISPLINUX_RELEASE	NULL
--#endif
- const char *isplinux_info(struct Scsi_Host *);
- int isplinux_queuecommand(Scsi_Cmnd *, void (* done)(Scsi_Cmnd *));
- #if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
+Kernbench: (make -j vmlinux, maximal tasks)
+                              Elapsed      System        User         CPU
+                   2.5.73       46.01      115.06      571.66     1491.75
+               2.5.73-mm3       45.38      114.91      565.81     1497.75
+              2.5.73-mjb1       43.93       85.48      570.47     1492.25
+
+
+DISCLAIMER: SPEC(tm) and the benchmark name SDET(tm) are registered
+trademarks of the Standard Performance Evaluation Corporation. This 
+benchmarking was performed for research purposes only, and the run results
+are non-compliant and not-comparable with any published results.
+
+Results are shown as percentages of the first set displayed
+
+SDET 1  (see disclaimer)
+                           Throughput    Std. Dev
+                   2.5.73       100.0%         2.5%
+               2.5.73-mm3       105.3%         2.2%
+              2.5.73-mjb1       112.8%         0.0%
+
+SDET 2  (see disclaimer)
+                           Throughput    Std. Dev
+                   2.5.73       100.0%         7.1%
+               2.5.73-mm3        99.3%         3.4%
+              2.5.73-mjb1       108.8%         4.7%
+
+SDET 4  (see disclaimer)
+                           Throughput    Std. Dev
+                   2.5.73       100.0%         0.5%
+               2.5.73-mm3       102.5%         2.2%
+              2.5.73-mjb1       132.3%         0.0%
+
+SDET 8  (see disclaimer)
+                           Throughput    Std. Dev
+                   2.5.73       100.0%         1.4%
+               2.5.73-mm3        96.7%         0.7%
+              2.5.73-mjb1       122.5%         0.3%
+
+SDET 16  (see disclaimer)
+                           Throughput    Std. Dev
+                   2.5.73       100.0%         0.5%
+               2.5.73-mm3       101.8%         0.3%
+              2.5.73-mjb1       122.3%         0.9%
+
+SDET 32  (see disclaimer)
+                           Throughput    Std. Dev
+                   2.5.73       100.0%         0.1%
+               2.5.73-mm3       103.6%         0.8%
+              2.5.73-mjb1       123.2%         0.8%
+
+SDET 64  (see disclaimer)
+                           Throughput    Std. Dev
+                   2.5.73       100.0%         0.2%
+               2.5.73-mm3       104.1%         0.2%
+              2.5.73-mjb1       123.8%         0.1%
+
+SDET 128  (see disclaimer)
+                           Throughput    Std. Dev
+                   2.5.73       100.0%         0.2%
+               2.5.73-mm3       103.5%         0.1%
+              2.5.73-mjb1       122.6%         0.3%
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
