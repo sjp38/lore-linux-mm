@@ -1,70 +1,98 @@
-Date: Wed, 10 Sep 2003 23:53:59 -0700
-From: William Lee Irwin III <wli@holomorphy.com>
+Date: Thu, 11 Sep 2003 09:23:46 +0200
+From: Wiktor Wodecki <wodecki@gmx.de>
 Subject: Re: 2.6.0-test5-mm1
-Message-ID: <20030911065359.GS4306@holomorphy.com>
-References: <20030908235028.7dbd321b.akpm@osdl.org>
+Message-ID: <20030911072346.GC4806@gmx.de>
+References: <7F740D512C7C1046AB53446D3720017304AF36@scsmsx402.sc.intel.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: multipart/signed; micalg=pgp-sha1;
+	protocol="application/pgp-signature"; boundary="7gGkHNMELEOhSGF6"
 Content-Disposition: inline
-In-Reply-To: <20030908235028.7dbd321b.akpm@osdl.org>
+In-Reply-To: <7F740D512C7C1046AB53446D3720017304AF36@scsmsx402.sc.intel.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: "Nakajima, Jun" <jun.nakajima@intel.com>
+Cc: Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi <linux-acpi@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Sep 08, 2003 at 11:50:28PM -0700, Andrew Morton wrote:
-> ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.6/2.6.0-test5/2.6.0-test5-mm1/
-> Small fixes, mainly.
+--7gGkHNMELEOhSGF6
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-Here's another one.
+On Wed, Sep 10, 2003 at 04:01:14PM -0700, Nakajima, Jun wrote:
+> Getting SCI at IRQ 7 is not a problem, but it sounds very rare.=20
+>=20
+> Can you please send dmesg and acpidmp to linux-acpi@intel.com?
+> Or file a bug report and put them on http://bugme.osdl.org/?
 
-any_online_cpu() is required to and with cpu_online_map before
-attempting to find an online cpu somewhere in the map; this patch adds
-that logic to the implementation(s) of any_online_cpu().
+I attached the information from my system to bug 905
+(http://bugme.osdl.org/show_bug.cgi?id=3D905) on bugme.
+Hope this helps.
 
-Untested, but apparently necessary e.g. for set_cpus_allowed() not to oops.
+>=20
+> Thanks,
+> Jun
+>=20
+> > -----Original Message-----
+> > From: Wiktor Wodecki [mailto:wodecki@gmx.de]
+> > Sent: Wednesday, September 10, 2003 2:18 PM
+> > To: Andrew Morton
+> > Cc: linux-kernel@vger.kernel.org; linux-mm@kvack.org
+> > Subject: Re: 2.6.0-test5-mm1
+> >=20
+> > Hi,
+> >=20
+> > still errors with uncared irq with test5-mm1:
+> >=20
+> > Sep 10 21:36:13 kakerlak kernel: irq 7: nobody cared!
+> > Sep 10 21:36:13 kakerlak kernel: Call Trace:
+> > Sep 10 21:36:13 kakerlak kernel:  [__report_bad_irq+42/144]
+> > __report_bad_irq+0x2a/0x90
+> > Sep 10 21:36:13 kakerlak kernel:  [note_interrupt+108/176]
+> > note_interrupt+0x6c/0xb0
+> > Sep 10 21:36:13 kakerlak kernel:  [do_IRQ+288/304] do_IRQ+0x120/0x130
+> > Sep 10 21:36:13 kakerlak kernel:  [common_interrupt+24/32]
+> > common_interrupt+0x18/0x20
+> > Sep 10 21:36:13 kakerlak kernel:  [do_softirq+64/160]
+> do_softirq+0x40/0xa0
+> > Sep 10 21:36:13 kakerlak kernel:  [do_IRQ+252/304] do_IRQ+0xfc/0x130
+> > Sep 10 21:36:13 kakerlak kernel:  [_stext+0/96] rest_init+0x0/0x60
+> > Sep 10 21:36:13 kakerlak kernel:  [common_interrupt+24/32]
+> > common_interrupt+0x18/0x20
+> > Sep 10 21:36:13 kakerlak kernel:  [_stext+0/96] rest_init+0x0/0x60
+> > Sep 10 21:36:13 kakerlak kernel:  [acpi_processor_idle+213/455]
+> > acpi_processor_idle+0xd5/0x1c7
+> > Sep 10 21:36:13 kakerlak kernel:  [_stext+0/96] rest_init+0x0/0x60
+> > Sep 10 21:36:13 kakerlak kernel:  [cpu_idle+44/64] cpu_idle+0x2c/0x40
+> > Sep 10 21:36:13 kakerlak kernel:  [start_kernel+332/352]
+> > start_kernel+0x14c/0x160
+> > Sep 10 21:36:13 kakerlak kernel:  [unknown_bootoption+0/256]
+> > unknown_bootoption+0x0/0x100
+> > Sep 10 21:36:13 kakerlak kernel:
+> > Sep 10 21:36:13 kakerlak kernel: handlers:
+> > Sep 10 21:36:13 kakerlak kernel: [acpi_irq+0/22] (acpi_irq+0x0/0x16)
+> > Sep 10 21:36:13 kakerlak kernel: Disabling IRQ #7
+> >=20
+> > kernel booted with pci=3Dnoacpi, lspci attached
 
+--=20
+Regards,
 
--- wli
+Wiktor Wodecki
 
+--7gGkHNMELEOhSGF6
+Content-Type: application/pgp-signature
+Content-Disposition: inline
 
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.2.2 (GNU/Linux)
 
-===== include/asm-generic/cpumask_arith.h 1.1 vs edited =====
---- 1.1/include/asm-generic/cpumask_arith.h	Mon Aug 18 19:46:23 2003
-+++ edited/include/asm-generic/cpumask_arith.h	Wed Sep 10 23:46:36 2003
-@@ -27,7 +27,12 @@
- #define cpus_shift_right(dst, src, n)	do { dst = (src) >> (n); } while (0)
- #define cpus_shift_left(dst, src, n)	do { dst = (src) << (n); } while (0)
- 
--#define any_online_cpu(map)		({ (map) ? first_cpu(map) : NR_CPUS; })
-+#define any_online_cpu(map)			\
-+({						\
-+	cpumask_t __tmp__;			\
-+	cpus_and(__tmp__, map, cpu_online_map);	\
-+	__tmp__ ? first_cpu(__tmp__) : NR_CPUS;	\
-+})
- 
- #define CPU_MASK_ALL	(~((cpumask_t)0) >> (8*sizeof(cpumask_t) - NR_CPUS))
- #define CPU_MASK_NONE	((cpumask_t)0)
-===== include/asm-generic/cpumask_array.h 1.1 vs edited =====
---- 1.1/include/asm-generic/cpumask_array.h	Mon Aug 18 19:46:23 2003
-+++ edited/include/asm-generic/cpumask_array.h	Wed Sep 10 23:46:05 2003
-@@ -36,7 +36,13 @@
- 					cpu_set(cpu, __cpu_mask);	\
- 					__cpu_mask;			\
- 				})
--#define any_online_cpu(map)	find_first_bit((map).mask, NR_CPUS)
-+#define any_online_cpu(map)			\
-+({						\
-+	cpumask_t __tmp__;			\
-+	cpus_and(__tmp__, map, cpu_online_map);	\
-+	find_first_bit(__tmp__.mask, NR_CPUS);	\
-+})
-+
- 
- /*
-  * um, these need to be usable as static initializers
+iD8DBQE/YCMC6SNaNRgsl4MRAsnwAJ90VbSzb/11U7ONWQrzmLHWUBUHlgCfQbnm
+oSL/mpvW7/4RLqPl12EGzE4=
+=4tns
+-----END PGP SIGNATURE-----
+
+--7gGkHNMELEOhSGF6--
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
