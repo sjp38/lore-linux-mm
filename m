@@ -1,93 +1,77 @@
-Received: from newsguy.com (thparkth@localhost [127.0.0.1])
-	by newsguy.com (8.12.9/8.12.8) with ESMTP id i4CEBtXm011777
-	for <linux-mm@kvack.org>; Wed, 12 May 2004 07:11:55 -0700 (PDT)
-	(envelope-from thparkth@newsguy.com)
-Received: (from thparkth@localhost)
-	by newsguy.com (8.12.9/8.12.8/Submit) id i4CEBt6b011774
-	for linux-mm@kvack.org; Wed, 12 May 2004 07:11:55 -0700 (PDT)
-	(envelope-from thparkth)
-Date: Wed, 12 May 2004 07:11:55 -0700 (PDT)
-Message-Id: <200405121411.i4CEBt6b011774@newsguy.com>
-From: Andrew Crawford <acrawford@ieee.org>
-Subject: The long, long life of an inactive_dirty page
+Subject: Re: The long, long life of an inactive_dirty page
+From: Arjan van de Ven <arjanv@redhat.com>
+Reply-To: arjanv@redhat.com
+In-Reply-To: <200405121411.i4CEBt6b011774@newsguy.com>
+References: <200405121411.i4CEBt6b011774@newsguy.com>
+Content-Type: multipart/signed; micalg=pgp-sha1; protocol="application/pgp-signature"; boundary="=-+eYCnoufQcAqnlSaSSHv"
+Message-Id: <1084373509.2778.9.camel@laptop.fenrus.com>
+Mime-Version: 1.0
+Date: Wed, 12 May 2004 16:51:50 +0200
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Andrew Crawford <acrawford@ieee.org>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Please forgive this beginner-level question, but I am trying to understand the
-process by which dirty pages become clean when there is no memory pressure. I
-have been unable to find any useful answers in a very thorough Google session.
-
-All of these questions are based on 2.4.21 (-9.ELhugemem).
-
-Imagine that I have a process which writes a large amount of data to a file,
-then exits. It is clear and demonstrable that those pages, as yet unwritten to
-disk, end up on the inactive_dirty list.
-
-Nothing else is running on the box. There are several GBs of free RAM.
-
-It is my understanding that the next thing that should happen is that
-page_launder(), which is invoked when memory gets low, should come along and
-get those pages written, and then, on its next pass mark them inactive_clean.
-
-But in thise case, we have plenty of memory available and absolutely nothing
-using it. So there's never any memory pressure, page_launder is never called,
-and the data is never written to disk. This is arguably a bad thing; an
-entirely idle system should not be sitting for hours or days with uncommitted
-data in RAM for the obvious reason.
-
-Now my understanding might be naive, out of date, or just plain wrong, but
-nevertheless this is happening in real life on our servers. I can produce what
-appears to be the same behaviour at will.
-
-After I create a large file with dd, I find that the size of inactive_dirty
-reduces at a steady rate - exactly 260K per two seconds - until it reaches a
-level where it remains indefinitely.
-
-> grep Inact_dirty /proc/meminfo
-Inact_dirty:       480 kB
-> dd if=/dev/zero of=/tmp/ac1 bs=1048576 count=500
-500+0 records in
-500+0 records out
-> grep Inact_dirty /proc/meminfo
-Inact_dirty:    510684 kB
-> grep MemFree /proc/meminfo
-MemFree:       7065484 kB
-
-[ ~5 minutes later ]
-
-> grep Inact_dirty /proc/meminfo
-Inact_dirty:    492240 kB
-
-[ ~5 minutes later ]
-
->  grep Inact_dirty /proc/meminfo
-Inact_dirty:    463680 kB
-
-[ ~1 hr later ]
-
-> grep Inact_dirty /proc/meminfo
-Inact_dirty:    463688 kB
-
-[ ~5 hrs later ]
-
->  grep Inact_dirty /proc/meminfo
-Inact_dirty:    463682 kB
+--=-+eYCnoufQcAqnlSaSSHv
+Content-Type: text/plain
+Content-Transfer-Encoding: quoted-printable
 
 
-.. and indeed, the next day the number is basically the same, as long as
-updatedb and similar aren't run overnight.
+> It is my understanding that the next thing that should happen is that
+> page_launder(), which is invoked when memory gets low, should come along =
+and
+> get those pages written, and then, on its next pass mark them inactive_cl=
+ean.
+>=20
+> But in thise case, we have plenty of memory available and absolutely noth=
+ing
+> using it. So there's never any memory pressure, page_launder is never cal=
+led,
+> and the data is never written to disk. This is arguably a bad thing; an
+> entirely idle system should not be sitting for hours or days with uncommi=
+tted
+> data in RAM for the obvious reason.
 
-That's 460MB of uncommitted data hanging around on a completely idle machine.
+bdflush and co WILL commit the data to disk after like 30 seconds.
+They will not move it to inactive_clean; that will happen at the first
+sight of memory pressure. The code that does that notices that the data
+isn't dirty and won't do a write-out just a move.
 
-Are there any proc/sysctl parameters that can influence this behaviour?
 
-With thanks for any insights,
 
-Yours,
+> > grep Inact_dirty /proc/meminfo
+> Inact_dirty:    492240 kB
+>=20
+> [ ~5 minutes later ]
+>=20
+> >  grep Inact_dirty /proc/meminfo
+> Inact_dirty:    463680 kB
 
-Andrew
+Inact_dirty isn't guaranteed to be dirty, it's the list of pages that
+CAN be dirty.
+
+> That's 460MB of uncommitted data hanging around on a completely idle mach=
+ine.
+>=20
+it's not uncommitted, as I said there are other methods that make sure
+that doesn't happen.
+
+
+
+--=-+eYCnoufQcAqnlSaSSHv
+Content-Type: application/pgp-signature; name=signature.asc
+Content-Description: This is a digitally signed message part
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.2.4 (GNU/Linux)
+
+iD8DBQBAojoFxULwo51rQBIRAhClAKCUybZHP7z6XbO7okOP+BaiAloS2gCfQUYb
+EkH0wIlify3ZwrpkiMQs2Lc=
+=+Tmw
+-----END PGP SIGNATURE-----
+
+--=-+eYCnoufQcAqnlSaSSHv--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
