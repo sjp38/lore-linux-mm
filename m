@@ -1,47 +1,121 @@
-Message-ID: <3A9ED281.90C5F7CB@dm.ultramaster.com>
-Date: Thu, 01 Mar 2001 17:51:45 -0500
-From: David Mansfield <lkml@dm.ultramaster.com>
+Date: Thu, 1 Mar 2001 18:37:08 -0300 (BRT)
+From: Marcelo Tosatti <marcelo@conectiva.com.br>
+Subject: [PATCH] ac7: page_launder() & refill_inactive() changes
+Message-ID: <Pine.LNX.4.21.0103011829150.8305-100000@freak.distro.conectiva>
 MIME-Version: 1.0
-Subject: Re: [PATCH] oom-killer trigger
-References: <Pine.LNX.4.33.0103011904140.1304-100000@duckman.distro.conectiva>
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@conectiva.com.br>
-Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, linux-mm@kvack.org,  =?iso-8859-1?Q?Xos=C9=20V=E1zquez?= <xose@smi-ps.com>, linux-kernel@vger.kernel.org
+To: Alan Cox <alan@lxorguk.ukuu.org.uk>
+Cc: Rik van Riel <riel@conectiva.com.br>, lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> 
-> 1. the OOM killer never triggers if we have > freepages.min
->    of free memory
-> 2. __alloc_pages() never allocates pages to < freepages.min
->    for user allocations
-> 
-> ==> the OOM killer never gets triggered under some workloads;
->     the system just sits around with nr_free_pages == freepages.min
-> 
-> The patch below trivially fixes this by upping the OOM kill limit
-> by a really small number of pages ...
+Hi, 
 
-> +       if (nr_free_pages() > freepages.min + 4)
+The following patch changes two things:
+
+ - Counts asynchronous ll_rw_block() IO in the flushed pages counter (page_launder)
+ - Limits the amount of scanned pte's _by user tasks_ inside swap_out()
 
 
-Call me stupid, but why not just change the > to >= (or < to <=) rather
-than introducing a magic number (4).  Or at least make the magic number
-interesting, like:
 
-+       if (nr_free_pages() > freepages.min + 42)
+diff --exclude-from=/home/marcelo/exclude -Nur linux.orig/fs/buffer.c linux/fs/buffer.c
+--- linux.orig/fs/buffer.c	Thu Mar  1 19:21:02 2001
++++ linux/fs/buffer.c	Thu Mar  1 19:33:38 2001
+@@ -1399,7 +1399,8 @@
+ 	 * instead.
+ 	 */
+ 	if (!offset) {
+-		if (!try_to_free_buffers(page, 0)) {
++		try_to_free_buffers(page, 0);
++		if (page->buffers) {
+ 			atomic_inc(&buffermem_pages);
+ 			return 0;
+ 		}
+@@ -2413,7 +2414,7 @@
+ 	spin_unlock(&free_list[index].lock);
+ 	write_unlock(&hash_table_lock);
+ 	spin_unlock(&lru_list_lock);
+-	return 1;
++	return 0;
+ 
+ busy_buffer_page:
+ 	/* Uhhuh, start writeback so that we don't end up with all dirty pages */
+@@ -2428,6 +2429,7 @@
+ 			goto cleaned_buffers_try_again;
+ 		}
+ 		wakeup_bdflush(0);
++		return 1;
+ 	}
+ 	return 0;
+ }
+diff --exclude-from=/home/marcelo/exclude -Nur linux.orig/mm/vmscan.c linux/mm/vmscan.c
+--- linux.orig/mm/vmscan.c	Thu Mar  1 19:21:08 2001
++++ linux/mm/vmscan.c	Thu Mar  1 19:35:51 2001
+@@ -269,7 +269,7 @@
+ 	return nr < SWAP_MIN ? SWAP_MIN : nr;
+ }
+ 
+-static int swap_out(unsigned int priority, int gfp_mask)
++static int swap_out(unsigned int priority, int gfp_mask, int user)
+ {
+ 	int counter;
+ 	int retval = 0;
+@@ -280,7 +280,12 @@
+ 		retval = swap_out_mm(mm, swap_amount(mm));
+ 
+ 	/* Then, look at the other mm's */
+-	counter = (mmlist_nr << SWAP_SHIFT) >> priority;
++
++	if  (user) 
++		counter = (mmlist_nr) >> priority;
++	else
++		counter = (mmlist_nr << SWAP_SHIFT) >> priority;
++
+ 	do {
+ 		struct list_head *p;
+ 
+@@ -535,7 +540,7 @@
+ 		 * buffer pages
+ 		 */
+ 		if (page->buffers) {
+-			int wait, clearedbuf;
++			int wait;
+ 			/*
+ 			 * Since we might be doing disk IO, we have to
+ 			 * drop the spinlock and take an extra reference
+@@ -554,7 +559,8 @@
+ 				wait = 0;	/* No IO */
+ 
+ 			/* Try to free the page buffers. */
+-			clearedbuf = try_to_free_buffers(page, wait);
++			if (try_to_free_buffers(page, wait))
++				flushed_pages++;
+ 
+ 			/*
+ 			 * Re-take the spinlock. Note that we cannot
+@@ -564,10 +570,8 @@
+ 			spin_lock(&pagemap_lru_lock);
+ 
+ 			/* The buffers were not freed. */
+-			if (!clearedbuf) {
++			if (page->buffers) {
+ 				add_page_to_inactive_dirty_list(page);
+-				if (wait)
+-					flushed_pages++;
+ 
+ 			/* The page was only in the buffer cache. */
+ 			} else if (!page->mapping) {
+@@ -876,7 +880,7 @@
+ 			goto done;
+ 
+ 		/* If refill_inactive_scan failed, try to page stuff out.. */
+-		swap_out(DEF_PRIORITY, gfp_mask);
++		swap_out(DEF_PRIORITY, gfp_mask, user);
+ 
+ 		if (--maxtry <= 0)
+ 				return 0;
 
-:-)
-
-Thanks for the bugfix,
-David
-
--- 
-David Mansfield                                           (718) 963-2020
-david@ultramaster.com
-Ultramaster Group, LLC                               www.ultramaster.com
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
