@@ -1,103 +1,107 @@
-Received: from nmu.edu (googee.NMU.EDU [198.110.193.121])
-	by euclid.nmu.edu (8.11.0/8.11.0) with ESMTP id f47LcMt06990
-	for <linux-mm@kvack.org>; Mon, 7 May 2001 17:38:22 -0400
-Message-ID: <3AF71B81.F60D2904@nmu.edu>
-Date: Mon, 07 May 2001 18:02:41 -0400
-From: Randy Appleton <rappleto@nmu.edu>
-MIME-Version: 1.0
-Subject: MM performance benchmark
-Content-Type: multipart/mixed;
- boundary="------------0E1F67C7945FC39693272FE4"
+Date: Mon, 7 May 2001 15:50:20 -0700 (PDT)
+From: Matt Dillon <dillon@earth.backplane.com>
+Message-Id: <200105072250.f47MoKe68863@earth.backplane.com>
+Subject: Re: on load control / process swapping
+References: <Pine.LNX.4.21.0105061924160.582-100000@imladris.rielhome.conectiva>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Rik van Riel <riel@conectiva.com.br>
+Cc: arch@freebsd.org, linux-mm@kvack.org, sfkaplan@cs.amherst.edu
 List-ID: <linux-mm.kvack.org>
 
-This is a multi-part message in MIME format.
---------------0E1F67C7945FC39693272FE4
-Content-Type: multipart/alternative;
- boundary="------------5A8D32379B1D9B5CD547D371"
+    This is accomplished as a side effect to the way the page queues
+    are handled.  A page placed in the active queue is not allowed
+    to be moved out of that queue for a minimum period of time based
+    on page aging.  See line 500 or so of vm_pageout.c (in -stable) .
 
+    Thus when a process wakes up and pages a bunch of pages in, those
+    pages are guarenteed to stay in-core for a period of time no matter
+    what level of memory stress is occuring.
 
---------------5A8D32379B1D9B5CD547D371
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+:2) make sure the resident processes aren't thrashing,
+:   that is, don't let new processes back in memory if
+:   none of the currently resident processes is "ready"
+:   to be suspended
 
-Hi!
+    When a process is swapped out, the process is removed from the run
+    queue and the P_INMEM flag is cleared.  The process is only woken up
+    when faultin() is called (vm_glue.c line 312).  faultin() is only
+    called from the scheduler() (line 340 of vm_glue.c) and the scheduler
+    only runs when the VM system indicates a minimum number of free pages
+    are available (vm_page_count_min()), which you can adjust with
+    the vm.v_free_min sysctl (usually represents 1-9 megabytes, dependings
+    on how much memory the system has).
 
-I'm a professor of computer science at Northern Michigan University.
-Three students and myself
-have been benchmarking the Linux kernel.  At
-http://euclid.nmu.edu/~benchmark you will see
-graphs describing performance for mmap() and page faults.
+    So what occurs is that the system comes under extreme memory pressure
+    and starts to swapout blocked processes.  This reduces memory pressure
+    over time.  When memory pressure is sufficiently reudced the scheduler
+    wakes up a swapped-out process (one at a time).
 
-Both graphs show a huge improvement between 2.2 and 2.3.  We see a 100x
-performance
-gain.  My questions is ... Why has performance improved so much?  What
-changed between
-2.2 and 2.3 to account for a 100x performance improvement?
+    There might be some fine tuning that we can do here, such as try to
+    choose a better process to swapout (right now it's priority based which
+    isn't the best way to do it).
 
--Much Thanks
--Randy
+:3) have a mechanism to detect thrashing in a VM
+:   subsystem which isn't rate-limited  (hard?)
 
---
-========================================================================
-|| Randy Appleton, Professor of Computer Science at Northern Michigan ||
-|| University.  And a big fan of Linux!                               ||
-================= mailto:randy@euclid.nmu.edu ==========================
+    In FreeBSD, rate-limiting is a function of a lightly loaded system.
+    We rate-limit page laundering (pageouts).  However, if the rate-limited
+    laundering is not sufficient to reach our free + cache page targets,
+    we take another laundering loop and this time do not limit it at all.
 
+    Thus under heavy memory pressure, no real rate limiting occurs.  The
+    system will happily pagein and pageout megabytes/sec.  The reason we
+    do this is because David Greenman and John Dyson found a long time
+    ago that attempting to rate limit paging does not actually solve the
+    thrashing problem, it actually makes it worse... So they solved the
+    problem another way (see my answers for #1 and #2).  It isn't the
+    paging operations themselves that cause thrashing.
 
+:and, for extra brownie points:
+:4) fairness, small processes can be paged in and out
+:   faster, so we can suspend&resume them faster; this
+:   has the side effect of leaving the proverbial root
+:   shell more usable
 
---------------5A8D32379B1D9B5CD547D371
-Content-Type: text/html; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+    Small process can contribute to thrashing as easily as large
+    processes can under extreme memory pressure... for example,
+    take an overloaded shell machine.  *ALL* processes are 'small'
+    processes in that case, or most of them are, and in great numbers
+    they can be the cause.  So no test that specifically checks the
+    size of the process can be used to give it any sort of priority.
 
-<!doctype html public "-//w3c//dtd html 4.0 transitional//en">
-<html>
-Hi!
-<p>I'm a professor of computer science at Northern Michigan University.&nbsp;
-Three students and myself
-<br>have been benchmarking the Linux kernel.&nbsp; At <A HREF="http://euclid.nmu.edu/~benchmark">http://euclid.nmu.edu/~benchmark</A>
-you will see
-<br>graphs describing performance for mmap() and page faults.
-<p>Both graphs show a huge improvement between 2.2 and 2.3.&nbsp; We see
-a 100x performance
-<br>gain.&nbsp; My questions is ... Why has performance improved so much?&nbsp;
-What changed between
-<br>2.2 and 2.3 to account for a 100x performance improvement?
-<p>-Much Thanks
-<br>-Randy
-<pre>--&nbsp;
-========================================================================
-|| Randy Appleton, Professor of Computer Science at Northern Michigan ||
-|| University.&nbsp; And a big fan of Linux!&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ||
-================= <A HREF="mailto:randy@euclid.nmu.edu">mailto:randy@euclid.nmu.edu</A> ==========================</pre>
-&nbsp;</html>
+    Additionally, *idle* small processes are also great contributers 
+    to the VM subsystem in regards to clearing out idle pages.  For
+    example, on a heavily loaded shell machine more then 80% of the
+    'small processes' have been idle for long periods of time and it
+    is exactly our ability to page them out that allows us to extend
+    the machine's operational life and move the thrashing threshold
+    farther away.  The last thing we want to do is make a 'fix' that
+    prevents us from paging out idle small processes.  It would kill
+    the machine.
 
---------------5A8D32379B1D9B5CD547D371--
+:5) make sure already resident processes cannot create
+:   a situation that'll keep the swapped out tasks out
+:   of memory forever ... but don't kill performance either,
+:   since bad performance means we cannot get out of the
+:   bad situation we're in
 
---------------0E1F67C7945FC39693272FE4
-Content-Type: text/x-vcard; charset=us-ascii;
- name="rappleto.vcf"
-Content-Transfer-Encoding: 7bit
-Content-Description: Card for Randy Appleton
-Content-Disposition: attachment;
- filename="rappleto.vcf"
+    When the system starts swapping processes out, it continues to swap
+    them out until memory pressure goes down.  With memory pressure down
+    processes are swapped back in again one at a time, typically in FIFO
+    order.  So this situation will generally not occur.
 
-begin:vcard 
-n:Appleton;Randy
-x-mozilla-html:TRUE
-org:Northern Michigan University
-adr:;;;;;;
-version:2.1
-email;internet:rappleto@nmu.edu
-title:Dr.
-x-mozilla-cpt:;0
-fn:Randy Appleton
-end:vcard
+    Basically we have all the algorithms in place to deal with thrashing.
+    I'm sure that there are a few places where we can optimize things...
+    for example, we can certainly tune the swapout algorithm itself.
 
---------------0E1F67C7945FC39693272FE4--
+						-Matt
 
+:regards,
+:
+:Rik
+:--
+:Virtual memory is like a game you can't win;
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
