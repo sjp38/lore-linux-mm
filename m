@@ -1,27 +1,39 @@
-Date: Mon, 9 Aug 1999 12:46:18 +0200 (CEST)
-From: Andrea Arcangeli <andrea@suse.de>
-Subject: Re: [patch] care about the age of the pte even if we are low on
- memory
-In-Reply-To: <99Aug9.113711gmt+0100.66305@gateway.ukaea.org.uk>
-Message-ID: <Pine.LNX.4.10.9908091244590.7493-100000@laser.random>
+Received: from sphinx.cs.tu-berlin.de (pokam@sphinx.cs.tu-berlin.de [130.149.31.22])
+	by mail.cs.tu-berlin.de (8.9.1/8.9.1) with ESMTP id QAA14157
+	for <linux-mm@kvack.org>; Thu, 12 Aug 1999 16:19:28 +0200 (MET DST)
+From: Gilles Pokam <pokam@cs.tu-berlin.de>
+Received: (from pokam@localhost)
+	by sphinx.cs.tu-berlin.de (8.9.1/8.9.0) id QAA16816
+	for linux-mm@kvack.org; Thu, 12 Aug 1999 16:19:26 +0200 (MET DST)
+Message-Id: <199908121419.QAA16816@sphinx.cs.tu-berlin.de>
+Subject: vremap question
+Date: Thu, 12 Aug 1999 16:19:25 +0200 (MET DST)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Neil Conway <nconway.list@ukaea.org.uk>
-Cc: linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 9 Aug 1999, Neil Conway wrote:
+Hi,
 
->Ouch - let's try to keep those comments up to date folks.  Good comments
+Are there some restrictions on the use of vremap ?
 
-You are plain right, excuse me (I have not read the comment). When the
-patch will be applyed I'll provide an update to the comment. Thanks for
-pointing this out.
+I am trying to map 1MB of my PCI-device memory into kernel space. Having the base
+i/o address and the span of my device memory i use the ioremap function like this:
+ virt = ioremap_nocache(base_io,size);
 
-Andrea
+my device memory is subdivided like this: 216kb of unused memory,216kb of prom,128kb 
+register,128kb fpga and 216kb of sram. After the ioremap call, i can access the prom
+region, but any attempt to read or write the sram,register or fpga region yields 0x0!
 
+can someone tell me what is wrong ?
+
+Thanks.
+
+ 
+-- 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
