@@ -1,44 +1,43 @@
-Message-ID: <42236968.9040807@sgi.com>
-Date: Mon, 28 Feb 2005 12:56:40 -0600
-From: Ray Bryant <raybry@sgi.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH] mm: memory migration: bug in touch_unmapped_address
-References: <422356AB.4040703@sgi.com> <20050228133348.GA26902@logos.cnet>
-In-Reply-To: <20050228133348.GA26902@logos.cnet>
-Content-Type: text/plain; charset=us-ascii; format=flowed
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by e1.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id j1SIsNpb003350
+	for <linux-mm@kvack.org>; Mon, 28 Feb 2005 13:54:23 -0500
+Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
+	by d01relay02.pok.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id j1SIsNmU061578
+	for <linux-mm@kvack.org>; Mon, 28 Feb 2005 13:54:23 -0500
+Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
+	by d01av01.pok.ibm.com (8.12.11/8.12.11) with ESMTP id j1SIsMjV022750
+	for <linux-mm@kvack.org>; Mon, 28 Feb 2005 13:54:22 -0500
+Subject: [PATCH 0/5] prepare x86/ppc64 DISCONTIG code for hotplug
+From: Dave Hansen <haveblue@us.ibm.com>
+Content-Type: text/plain
+Date: Mon, 28 Feb 2005 10:54:18 -0800
+Message-Id: <1109616858.6921.39.camel@localhost>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
-Cc: Hirokazu Takahashi <taka@valinux.co.jp>, Dave Hansen <haveblue@us.ibm.com>, linux-mm <linux-mm@kvack.org>
+To: Andrew Morton <akpm@osdl.org>
+Cc: Keith Mannthey <kmannth@us.ibm.com>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Marcelo Tosatti wrote:
-> Good catch.
-> 
-> That was the reason for the migration cache problems you were seeing?
-> 
+Subject pretty much says it all.  Descriptions are in the individual
+patches.  These patches replace the
+"allow-hot-add-enabled-i386-numa-box-to-boot.patch" which is currently
+in -mm.  Please drop it.  
 
-AFAIK, no.  I found this problem because pages were being touched after
-I scanned for pages to be migrated -- the result was that pages that
-had not been touched by the application were being touched and then
-left on the old nodes.
+They apply to 2.6.11-rc5 after a few patches from -mm which conflicted:
 
-For the moment, I'm still pursuing a strategy of getting my manual
-page migration code to work without the migration cache -- once I've
-got that all working I'll come back and revisit the migration cache
-bug I had reported.
+	stop-using-base-argument-in-__free_pages_bulk.patch
+	consolidate-set_max_mapnr_init-implementations.patch
+	refactor-i386-memory-setup.patch
+	remove-free_all_bootmem-define.patch
+	mostly-i386-mm-cleanup.patch
 
--- 
-Best Regards,
-Ray
------------------------------------------------
-                   Ray Bryant
-512-453-9679 (work)         512-507-7807 (cell)
-raybry@sgi.com             raybry@austin.rr.com
-The box said: "Requires Windows 98 or better",
-            so I installed Linux.
------------------------------------------------
+Boot-tested on plain x86 laptop, NUMAQ, and Summit.  These probably
+deserve to stay in -mm for a release or two.
+
+-- Dave
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
