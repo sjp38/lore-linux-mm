@@ -1,73 +1,46 @@
-Date: Thu, 21 Oct 2004 16:42:45 -0700
+Date: Thu, 21 Oct 2004 17:15:58 -0700
 From: Andrew Morton <akpm@osdl.org>
 Subject: Re: [PATCH] zap_pte_range should not mark non-uptodate pages dirty
-Message-Id: <20041021164245.4abec5d2.akpm@osdl.org>
-In-Reply-To: <20041021232059.GE8756@dualathlon.random>
+Message-Id: <20041021171558.3214cea4.akpm@osdl.org>
+In-Reply-To: <20041021164245.4abec5d2.akpm@osdl.org>
 References: <1098393346.7157.112.camel@localhost>
 	<20041021144531.22dd0d54.akpm@osdl.org>
 	<20041021223613.GA8756@dualathlon.random>
 	<20041021160233.68a84971.akpm@osdl.org>
 	<20041021232059.GE8756@dualathlon.random>
+	<20041021164245.4abec5d2.akpm@osdl.org>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrea Arcangeli <andrea@novell.com>
-Cc: shaggy@austin.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: andrea@novell.com, shaggy@austin.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Andrea Arcangeli <andrea@novell.com> wrote:
+Andrew Morton <akpm@osdl.org> wrote:
 >
-> On Thu, Oct 21, 2004 at 04:02:33PM -0700, Andrew Morton wrote:
-> > Andrea Arcangeli <andrea@novell.com> wrote:
-> > >
-> > > On Thu, Oct 21, 2004 at 02:45:31PM -0700, Andrew Morton wrote:
-> > > > Maybe we should revisit invalidate_inode_pages2().  It used to be an
-> > > > invariant that "pages which are mapped into process address space are
-> > > > always uptodate".  We broke that (good) invariant and we're now seeing
-> > > > some fallout.  There may be more.
-> > > 
-> > > such invariant doesn't exists since 2.4.10. There's no way to get mmaps
-> > > reload data from disk without breaking such an invariant.
-> > 
-> > There are at least two ways:
-> > 
-> > a) Set a new page flag in invalidate, test+clear that at fault time
-> 
-> What's the point of adding a new page flag when the invariant
-> !PageUptodate && page_mapcount(page) already provides the information?
+> I don't get it.  invalidate has the pageframe.  All it need to do is to
+> lock the page, examine mapcount and if it's non-zero, do the shootdown. 
 
-Step back and think about this.  What earthly sense is there in permitting
-userspace access to non uptodate pages?
+unmap_mapping_range() will do that - can call it one page at a time, or
+batch up runs of pages.  It's not fast, but presumably not frequent either.
 
-None.  It's completely wrong and the invariant was a good one.  We broke it
-by introducing some kluge to force new I/O when someone does a new fault
-against the page.
+The bigger problem is shooting down the buffer_heads.  It's certainly the
+case that mpage_readpage() will call block_read_full_page() which will then
+bring the page uptodate without performing any I/O.
 
-(A new PG_needs_rereading flag isn't sufficient btw - we'd also need
-BH_Needs_Rereading and associated code.  ug.)
+And invalidating the buffer_heads in invalidate_inode_pages2() is tricky -
+we need to enter the filesystem and I'm not sure that either
+->invalidatepage() or ->releasepage() are quite suitable.  For a start,
+they're best-effort and may fail.  If we just go and mark the buffers not
+uptodate we'll probably give ext3 a heart attack, so careful work would be
+needed there.
 
-> > b) shoot down all pte's mapping the locked page at invalidate time, mark the
-> >    page not uptodate.
-> 
-> invalidate should run fast, I didn't enforce coherency or it'd hurt too
-> much the O_DIRECT write if something is mapped, we only allow buffered
-> read against O_DIRECT write to work coherently, the mmap coherency has
-> never been provided to avoid having to search for vmas in the prio_tree
-> for every single write to an inode.
+Let's go back to why we needed all of this.  Was it just for the NFS
+something-changed-on-the-server code?  If so, would it be sufficient to add
+a new invalidate_inode_pages3() just for NFS, which clears the uptodate
+bit?  Or something along those lines?
 
-I don't get it.  invalidate has the pageframe.  All it need to do is to
-lock the page, examine mapcount and if it's non-zero, do the shootdown. 
-The only way in which we would be performing the shootdown a significant
-number of times would be if someone was repeatedly faulting the thing back
-in anyway, and in that case the physical I/O cost would dominate.  Where's
-the performance overhead??
-
-Plus it makes the currently incorrect code correct for existing mmaps.
-
-Plus it avoids the idiotic situation of having non uptodate pages
-accessible to user processes.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
