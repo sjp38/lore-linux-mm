@@ -1,33 +1,63 @@
-From: Jesse Barnes <jbarnes@engr.sgi.com>
-Subject: Re: [PATCH] don't pass mem_map into init functions
-Date: Wed, 28 Jul 2004 18:33:55 -0700
-References: <1091048123.2871.435.camel@nighthawk> <200407281539.40049.jbarnes@engr.sgi.com> <1091056702.2871.617.camel@nighthawk>
-In-Reply-To: <1091056702.2871.617.camel@nighthawk>
+Message-ID: <410858FE.3090007@yahoo.com.au>
+Date: Thu, 29 Jul 2004 11:55:10 +1000
+From: Nick Piggin <nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
-Content-Disposition: inline
-Content-Type: text/plain;
-  charset="iso-8859-1"
+Subject: Re: [RFC][PATCH 2/2] perzone slab LRUs
+References: <410789EB.1060209@yahoo.com.au> <41078A3D.6040103@yahoo.com.au> <34870000.1091025443@[10.10.2.4]>
+In-Reply-To: <34870000.1091025443@[10.10.2.4]>
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
-Message-Id: <200407281833.55574.jbarnes@engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Hansen <haveblue@us.ibm.com>
-Cc: "Martin J. Bligh" <mbligh@aracnet.com>, linux-mm <linux-mm@kvack.org>, LSE <lse-tech@lists.sourceforge.net>, Anton Blanchard <anton@samba.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, davidm@hpl.hp.com, tony.luck@intel.com
+To: "Martin J. Bligh" <mbligh@aracnet.com>
+Cc: Andrew Morton <akpm@osdl.org>, Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wednesday, July 28, 2004 4:18 pm, Dave Hansen wrote:
-> On Wed, 2004-07-28 at 15:39, Jesse Barnes wrote:
-> > You're missing this little bit from your patchset.  Cc'ing Tony and
-> > David.
+Martin J. Bligh wrote:
+
+>>Oops, forgot to CC linux-mm.
+>>
+>>Nick Piggin wrote:
+>>
+>>>This patch is only intended for comments.
+>>>
+>>>This implements (crappy?) infrastructure for per-zone slab LRUs for
+>>>reclaimable slabs, and moves dcache.c over to use that.
+>>>
+>>>The global unused list is retained to reduce intrusiveness, and another
+>>>per-zone LRU list is added (which are still protected with the global 
+>>>dcache
+>>>lock). This is an attempt to make slab scanning more robust on highmem and
+>>>NUMA systems.
+>>>
 >
-> Thanks for finding that.  That appears to be an ia64-ism, so I think the
-> rest of the patch is OK.
+>Do we have slab that goes in highmem anywhere? I thought not .... 64 bit
+>NUMA makes a lot of sense though.
+>
+>
 
-Well, it booted anyway :).  I didn't check to see if any other arches had 
-their own memmap_init routines though, I'm assuming you already covered 
-those.
+I don't think so, but it still (I think) allows a general slab pressure 
+forumula
+for highmem and muliple ZONE_NORMAL NUMA that doesn't blow up like our 
+current
+one can.
 
-Jesse
+The per-zone lists I'd say would have to help somewhat on the 
+performance side of
+things as far as not taking remote cache misses during scanning. It 
+should also
+mean that a low memory node will not globally shrink masses of slab from 
+nodes that
+have plenty of memory.
+
+As far as the dependant inodes problem goes - it could be a significant 
+problem,
+and I think would need to be solved before perzone slab LRUs are a 
+viable option.
+The most simplistic way I can see to solve it is: if we scan an inode 
+that is pinned
+by dentries, scan its pinning dentries instead.
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
