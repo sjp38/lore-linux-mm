@@ -1,41 +1,36 @@
-Date: Sun, 7 Jan 2001 19:18:31 -0200 (BRDT)
-From: Rik van Riel <riel@conectiva.com.br>
+Date: Sun, 7 Jan 2001 21:21:45 +0000 (GMT)
+From: <davej@suse.de>
 Subject: Re: [patch] mm-cleanup-1 (2.4.0)
 In-Reply-To: <dnitnrcbji.fsf@magla.iskon.hr>
-Message-ID: <Pine.LNX.4.21.0101071917250.21675-100000@duckman.distro.conectiva>
+Message-ID: <Pine.LNX.4.31.0101072120310.5027-100000@athlon.local>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Zlatko Calusic <zlatko@iskon.hr>
-Cc: Marcelo Tosatti <marcelo@conectiva.com.br>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Marcelo Tosatti <marcelo@conectiva.com.br>, linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
 On 7 Jan 2001, Zlatko Calusic wrote:
 
-> OK, maybe I was too fast in concluding with that change. I'm
-> still trying to find out why is MM working bad in some
-> circumstances (see my other email to the list).
-> 
-> Anyway, I would than suggest to introduce another /proc entry
-> and call it appropriately: max_async_pages. Because that is what
-> we care about, anyway. I'll send another patch.
+> Anyway, I would than suggest to introduce another /proc entry and call
+> it appropriately: max_async_pages. Because that is what we care about,
+> anyway. I'll send another patch.
 
-In fact, that's NOT what we care about.
+Anton Blanchard already did a patch for this. Sent to the list
+on Thu, 7 Dec 2000 16:15:54 +1100 subject:
+[PATCH]: sysctl to tune async and sync bdflush triggers
 
-What we really care about is the number of disk seeks
-the VM subsystem has queued to disk, since it's seek
-time that causes other requests to suffer bad latency.
+I don't recall seeing any responses to that patch, but it seems
+to do exactly what you describe.
 
 regards,
 
-Rik
---
-Virtual memory is like a game you can't win;
-However, without VM there's truly nothing to lose...
+Davej.
 
-		http://www.surriel.com/
-http://www.conectiva.com/	http://distro.conectiva.com.br/
+-- 
+| Dave Jones.        http://www.suse.de/~davej
+| SuSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
