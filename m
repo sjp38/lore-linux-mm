@@ -1,72 +1,194 @@
-Date: Mon, 13 Dec 2004 08:22:26 -0800
-From: cliff white <cliffw@osdl.org>
-Subject: Re: Automated performance testing system was Re: Text form for STP
- tests
-Message-Id: <20041213082226.12f3a8de.cliffw@osdl.org>
-In-Reply-To: <20041213114223.GH24597@logos.cnet>
-References: <20041201131607.GH2250@dmt.cyclades>
-	<200412012004.iB1K49n23315@mail.osdl.org>
-	<20041213114223.GH24597@logos.cnet>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Date: Mon, 13 Dec 2004 09:10:40 -0800 (PST)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: Anticipatory prefaulting in the page fault handler V1
+In-Reply-To: <200412132330.23893.amgta@yacht.ocn.ne.jp>
+Message-ID: <Pine.LNX.4.58.0412130905140.360@schroedinger.engr.sgi.com>
+References: <Pine.LNX.4.44.0411221457240.2970-100000@localhost.localdomain>
+ <156610000.1102546207@flay> <Pine.LNX.4.58.0412091130160.796@schroedinger.engr.sgi.com>
+ <200412132330.23893.amgta@yacht.ocn.ne.jp>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
-Cc: linux-mm@kvack.org
+To: Akinobu Mita <amgta@yacht.ocn.ne.jp>
+Cc: "Martin J. Bligh" <mbligh@aracnet.com>, nickpiggin@yahoo.com.au, Jeff Garzik <jgarzik@pobox.com>, torvalds@osdl.org, hugh@veritas.com, benh@kernel.crashing.org, linux-mm@kvack.org, linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 13 Dec 2004 09:42:23 -0200
-Marcelo Tosatti <marcelo.tosatti@cyclades.com> wrote:
+On Mon, 13 Dec 2004, Akinobu Mita wrote:
 
-> On Wed, Dec 01, 2004 at 12:04:09PM -0800, Cliff White wrote:
-> > > On Wed, Dec 01, 2004 at 10:28:24AM -0800, Cliff White wrote:
-> > > > > Linux-MM fellows,
-> > > > > 
-> > > > > I've been talking to Cliff about the need for a set of benchmarks,
-> > > > > covering as many different workloads as possible, for developers to have a 
-> > > > > better notion of impact on performance changes. 
-> > > > > 
-> > [snip]
-> > > > robots are running this test series against linux-2.6.7 ( for history data )
-> > > > There will need to be some adjustments - some of these tests will no doubt
-> > > > fail for reasons of script error or configuration ( i see already kernbench will 
-> > > > have to be redunced for 1-cpu systems, as it runs > 13.5 hours :( )
-> > > > 
-> > > > And, the second part of the automation is already done, but needs input.
-> > > > I can aim this test battery at any kernel patch, where 'any kernel patch'
-> > > > is identified by a regexp. What kernels do you want this against? 
-> > > 
-> > > The most recent 2.6.10-rc2 and 2.6.10-rc2-mm in STP.
-> > > 
-> > > Will this be available through the web interface? 
-> > 
-> > Yes, the results should be visible. If something looks wrongs, email.
-> > the 'advanced search' bit needs some test-specific fixes, and may not work
-> > for all tests - some of the kits still needs some patching..
-> > cliffw
-> 
-> Any news on the automatic test series scripts Cliff ? 
-> 
-> Haven't seen any results yet.
-> 
-I ran a set for 2.6.10-rc3, PLM 3957, some results here:
- http://www.osdl.org/projects/26lnxstblztn/results/
-Or by doing this:
-http://www.osdl.org/lab_activities/kernel_testing/stp/display_test_requests?d_patch_id%3Astring%3Aignore_empty=3957&op=Search
+> I also encountered processes segfault.
+> Below patch fix several problems.
+>
+> 1) if no pages could allocated, returns VM_FAULT_OOM
+> 2) fix duplicated pte_offset_map() call
 
-Marcelo, do you want me to submit the tests under your user id?
-That would make searching for results eaiser. 
-cliffw
+I also saw these two issues and I think I dealt with them in a forthcoming
+patch.
 
-> Thanks
-> 
-> 
+> 3) don't set_pte() for the entry which already have been set
 
+Not sure how this could have happened in the patch.
 
--- 
-The church is near, but the road is icy.
-The bar is far, but i will walk carefully. - Russian proverb
+Could you try my updated version:
+
+Index: linux-2.6.9/include/linux/sched.h
+===================================================================
+--- linux-2.6.9.orig/include/linux/sched.h	2004-12-08 15:01:48.801457702 -0800
++++ linux-2.6.9/include/linux/sched.h	2004-12-08 15:02:04.286479345 -0800
+@@ -537,6 +537,8 @@
+ #endif
+
+ 	struct list_head tasks;
++	unsigned long anon_fault_next_addr;	/* Predicted sequential fault address */
++	int anon_fault_order;			/* Last order of allocation on fault */
+ 	/*
+ 	 * ptrace_list/ptrace_children forms the list of my children
+ 	 * that were stolen by a ptracer.
+Index: linux-2.6.9/mm/memory.c
+===================================================================
+--- linux-2.6.9.orig/mm/memory.c	2004-12-08 15:01:50.668339751 -0800
++++ linux-2.6.9/mm/memory.c	2004-12-09 14:21:17.090061608 -0800
+@@ -55,6 +55,7 @@
+
+ #include <linux/swapops.h>
+ #include <linux/elf.h>
++#include <linux/pagevec.h>
+
+ #ifndef CONFIG_DISCONTIGMEM
+ /* use the per-pgdat data instead for discontigmem - mbligh */
+@@ -1432,52 +1433,99 @@
+ 		unsigned long addr)
+ {
+ 	pte_t entry;
+-	struct page * page = ZERO_PAGE(addr);
+-
+-	/* Read-only mapping of ZERO_PAGE. */
+-	entry = pte_wrprotect(mk_pte(ZERO_PAGE(addr), vma->vm_page_prot));
++ 	unsigned long end_addr;
++
++	addr &= PAGE_MASK;
++
++ 	if (likely((vma->vm_flags & VM_RAND_READ) || current->anon_fault_next_addr != addr)) {
++		/* Single page */
++		current->anon_fault_order = 0;
++		end_addr = addr + PAGE_SIZE;
++	} else {
++		/* Sequence of faults detect. Perform preallocation */
++ 		int order = ++current->anon_fault_order;
++
++		if ((1 << order) < PAGEVEC_SIZE)
++			end_addr = addr + (PAGE_SIZE << order);
++		else
++			end_addr = addr + PAGEVEC_SIZE * PAGE_SIZE;
+
+-	/* ..except if it's a write access */
++		if (end_addr > vma->vm_end)
++			end_addr = vma->vm_end;
++		if ((addr & PMD_MASK) != (end_addr & PMD_MASK))
++			end_addr &= PMD_MASK;
++	}
+ 	if (write_access) {
+-		/* Allocate our own private page. */
++
++		unsigned long a;
++		struct page **p;
++		struct pagevec pv;
++
+ 		pte_unmap(page_table);
+ 		spin_unlock(&mm->page_table_lock);
+
++		pagevec_init(&pv, 0);
++
+ 		if (unlikely(anon_vma_prepare(vma)))
+-			goto no_mem;
+-		page = alloc_page_vma(GFP_HIGHUSER, vma, addr);
+-		if (!page)
+-			goto no_mem;
+-		clear_user_highpage(page, addr);
++			return VM_FAULT_OOM;
++
++		/* Allocate the necessary pages */
++		for(a = addr; a < end_addr ; a += PAGE_SIZE) {
++			struct page *p = alloc_page_vma(GFP_HIGHUSER, vma, a);
++
++			if (likely(p)) {
++				clear_user_highpage(p, a);
++				pagevec_add(&pv, p);
++			} else {
++				if (a == addr)
++					return VM_FAULT_OOM;
++				break;
++			}
++		}
+
+ 		spin_lock(&mm->page_table_lock);
+-		page_table = pte_offset_map(pmd, addr);
+
+-		if (!pte_none(*page_table)) {
++		for(p = pv.pages; addr < a; addr += PAGE_SIZE, p++) {
++
++			page_table = pte_offset_map(pmd, addr);
++			if (unlikely(!pte_none(*page_table))) {
++				/* Someone else got there first */
++				pte_unmap(page_table);
++				page_cache_release(*p);
++				continue;
++			}
++
++ 			entry = maybe_mkwrite(pte_mkdirty(mk_pte(*p,
++ 						 vma->vm_page_prot)),
++ 					      vma);
++
++			mm->rss++;
++			lru_cache_add_active(*p);
++			mark_page_accessed(*p);
++			page_add_anon_rmap(*p, vma, addr);
++
++			set_pte(page_table, entry);
+ 			pte_unmap(page_table);
+-			page_cache_release(page);
+-			spin_unlock(&mm->page_table_lock);
+-			goto out;
++
++ 			/* No need to invalidate - it was non-present before */
++ 			update_mmu_cache(vma, addr, entry);
++		}
++ 	} else {
++ 		/* Read */
++		entry = pte_wrprotect(mk_pte(ZERO_PAGE(addr), vma->vm_page_prot));
++nextread:
++		set_pte(page_table, entry);
++		pte_unmap(page_table);
++		update_mmu_cache(vma, addr, entry);
++		addr += PAGE_SIZE;
++		if (unlikely(addr < end_addr)) {
++			pte_offset_map(pmd, addr);
++			goto nextread;
+ 		}
+-		mm->rss++;
+-		entry = maybe_mkwrite(pte_mkdirty(mk_pte(page,
+-							 vma->vm_page_prot)),
+-				      vma);
+-		lru_cache_add_active(page);
+-		mark_page_accessed(page);
+-		page_add_anon_rmap(page, vma, addr);
+ 	}
+-
+-	set_pte(page_table, entry);
+-	pte_unmap(page_table);
+-
+-	/* No need to invalidate - it was non-present before */
+-	update_mmu_cache(vma, addr, entry);
++	current->anon_fault_next_addr = addr;
+ 	spin_unlock(&mm->page_table_lock);
+-out:
+ 	return VM_FAULT_MINOR;
+-no_mem:
+-	return VM_FAULT_OOM;
+ }
+
+ /*
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
