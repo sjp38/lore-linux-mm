@@ -1,46 +1,62 @@
-Date: Mon, 2 Oct 2000 18:27:01 -0300 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
-Subject: Re: [highmem bug report against -test5 and -test6] Re: [PATCH] Re:
- simple FS application that hangs 2.4-test5, mem mgmt problem or FS buffer
- cache mgmt problem? (fwd)
-In-Reply-To: <Pine.LNX.4.10.10010021421150.826-100000@penguin.transmeta.com>
-Message-ID: <Pine.LNX.4.21.0010021826110.1067-100000@duckman.distro.conectiva>
+Message-ID: <39D8FC19.CD089EB6@mountain.net>
+Date: Mon, 02 Oct 2000 17:20:25 -0400
+From: Tom Leete <tleete@mountain.net>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH] fix for VM  test9-pre7
+References: <Pine.LNX.4.21.0010021250180.22539-100000@duckman.distro.conectiva>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@transmeta.com>
-Cc: Ingo Molnar <mingo@elte.hu>, Andrea Arcangeli <andrea@suse.de>, linux-mm@kvack.org, "Stephen C. Tweedie" <sct@redhat.com>
+To: Rik van Riel <riel@conectiva.com.br>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2 Oct 2000, Linus Torvalds wrote:
-> On Mon, 2 Oct 2000, Rik van Riel wrote:
-> > 
-> > Would it be "close enough" to simply clear the buffer heads of
-> > clean pages which make it to the front of the active list ?
-> > 
-> > Or is there another optimisation we could do to make the
-> > approximation even better ?
+[Linus removed from CC]
+Rik van Riel wrote:
 > 
-> I'd prefer it to be done as part of the LRU aging - we do watn
-> to age all pages, and as part of the aging process we migth as
-> well remove buffers that are lying around.
+> On Mon, 2 Oct 2000, Tom Leete wrote:
+> 
+> > I ran lmbench on test9-pre7 with and without the patch.
+> >
+> > Test machine was a slow medium memory UP box:
+> > Cx586@120Mhz, no optimizations, 56M
+> >
+> > I still experience instability on this machine with both the
+> > patched and vanilla kernel. It usually takes the form of
+> > sudden total lockups, but on occasion I have seen oops +
+> > panic at boot.
+> 
+> If you could decode the oops or mail us the panic, we
+> might find out if this is a VM related problem or not...
 
-This was what I was proposing ;)
+I posted one to l-k recently. Time pressure prevented me
+getting these.
+No guarantee they are the same.
 
-With, maybe, the optimisation that we don't want to do this
-if we're simply doing background scanning and we don't have a
-free memory shortage yet.
+The lockups are clearly from irq handlers. They seem
+associated with ide and net.
 
-regards,
+> 
+> > This summary doesn't show any performance advantage to the
+> > patch, but the detailed plots show that memory access
+> > latency degrades more gracefully wrt array size.
+> 
+> That's because this benchmark has a very artificial page
+> access pattern, that doesn't really benefit from any kind
+> of page replacement. ;)
+> 
 
-Rik
---
-"What you're running that piece of shit Gnome?!?!"
-       -- Miguel de Icaza, UKUUG 2000
+The memory access latency issue showed up clearly. Without
+the patch it is a step function at 16k array size. It looks
+like vanilla always page faults for allocations bigger than
+that. Your patch knocks the corner off that.
 
-http://www.conectiva.com/		http://www.surriel.com/
+It's supposed to be easy to add tests to lmbench, but I've
+never done it.
 
+Cheers,
+Tom
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
