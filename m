@@ -1,45 +1,72 @@
 Received: from max.fys.ruu.nl (max.fys.ruu.nl [131.211.32.73])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id GAA09967
-	for <linux-mm@kvack.org>; Tue, 9 Dec 1997 06:22:14 -0500
-Date: Tue, 9 Dec 1997 11:58:17 +0100 (MET)
+	by kvack.org (8.8.7/8.8.7) with ESMTP id JAA10692
+	for <linux-mm@kvack.org>; Tue, 9 Dec 1997 09:53:21 -0500
+Date: Tue, 9 Dec 1997 15:37:36 +0100 (MET)
 From: Rik van Riel <H.H.vanRiel@fys.ruu.nl>
 Reply-To: H.H.vanRiel@fys.ruu.nl
-Subject: Re: VM ideas (was: Re: TTY changes to 2.1.65)
-In-Reply-To: <wd867ozt0eo.fsf@parafoudre.irisa.fr>
-Message-ID: <Pine.LNX.3.91.971209115446.690C-100000@mirkwood.dummy.home>
+Subject: Re: pageable page tables
+In-Reply-To: <19971209122346.02899@Elf.mj.gts.cz>
+Message-ID: <Pine.LNX.3.91.971209152121.584D-100000@mirkwood.dummy.home>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: David Mentre <David.Mentre@irisa.fr>
-Cc: Joerg Rade <jr@petz.han.de>, linux-mm <linux-mm@kvack.org>
+To: Pavel Machek <pavel@Elf.mj.gts.cz>
+Cc: linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.rutgers.edu>
 List-ID: <linux-mm.kvack.org>
 
-On 9 Dec 1997, David Mentre wrote:
+On Tue, 9 Dec 1997, Pavel Machek wrote:
 
->  The interesting point of Joerg is that he see the TLB mecanism as a
-> more general mecanism than just to solve swapping problems.
+> Hi!
+> 
+> > > Simple task might be 'memory priorities'. Something like priorities
+> > > for scheduler but for memory. (I tried to implement them, and they
+> > > gave <1% performance gain ;-), but I have interface to set such
+> > > parameter if you want to play).
+> > 
+> > sounds rather good... (swapout-priorities??)
+> 
+> But proved to be pretty ineffective. I came to this idea when I
+> realized that to cook machine, running 100 processes will not hurt too
+> much. But running 10 processes, 50 megabytes each will cook almost
+> anything...
 
-OK...
+I think it will be more of a scheduling issue...
+Suspending low-priority, background jobs for a minute
+(in turn) will make swapping / running possible again
+(even without changes to the swapping code).
 
->  As I'm a little involved in Distributed Shared Memories (with a PhD ;),
-> I couldn't let such an opportunity happen without talking. I totally
-> agree with Joerg. One problems with DSM is that you must track user
-> memory accesses to maintain coherency. Unfortunatly, fine grain access
-> like cache line is not available to the average system
-> programmer. Therefore sub-page protection could be very useful. 
+To do this, we could create a new scheduling class: SCHED_BG
+Processes in this class are run:
+- one at a time (possibly two??)
+- for LONG slices, getting longer after each slice (a'la CTSS)
+- so only one of them has to be in memory...
+- at a lower priority than interactive jobs.
+- CPU time and memory used by these processes aren't charged
+  when user quota's are inforced... this should encourage users
+  to run large jobs (and even medium compiles) as SCHED_BG jobs
 
-I admit I haven't thought of that... Not having this might
-be analogous to the bouncing-cache-line problem slab development
-was confronted with (or just avoided?)
+about the time-slicing:
+- the SCHED_BG process is run when no interactive process is
+  runnable
+- it starts with a 1 second slice, followed by 2, 4, 8, 16, 
+  and longer timeslices (in order to reduce swapping).
+- these slices are only interrupted by:
+  - an interactive process wanting the CPU
+  - blocking on a resource
+  - another SCHED_BG process is woken up
+- after the timeslice is over, the process is put to sleep
+  for a duration of: last_timeslice * nr_background_processes
+- when no background process is running/runnable, the next
+  SCHED_BG process to be woken up is made runnable
+- the SCHED_BG processes can run together/in parrallel when
+  available memory is above a certain threshold (then they
+  can receive 'normal' timeslices)
 
->  Regarding DIPC, I think we could improved a little the coherency
-> protocol. One big advantage of DIPC is that it provide code, and you
-> can't lie with code. :) I hope I'll have more code in the future to
-> explain my point of vue in DSM.
+And when free memory stays below free_pages_low for more
+than 5 seconds, we can choose to have even normal processes
+queued for some time (in order to reduce paging)
 
-Cool, we can always use good/beautiful code...
-This is especially true when I can learn new things by
-reading it.
+Where Do You Want Us To Take You Today ? (tm)
 
 Rik.
 
