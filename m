@@ -1,33 +1,30 @@
-Received: from dukat.scot.redhat.com (sct@dukat.scot.redhat.com [195.89.149.246])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id UAA31387
-	for <linux-mm@kvack.org>; Thu, 29 Apr 1999 20:54:59 -0400
 From: "Stephen C. Tweedie" <sct@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
-Message-ID: <14120.65367.60211.158632@dukat.scot.redhat.com>
-Date: Fri, 30 Apr 1999 01:54:47 +0100 (BST)
+Message-ID: <14120.65431.754233.47675@dukat.scot.redhat.com>
+Date: Fri, 30 Apr 1999 01:55:51 +0100 (BST)
 Subject: Re: Hello
-In-Reply-To: <v04020a01b34cd7f3c7c3@[198.115.92.60]>
-References: <v04020a01b34cd7f3c7c3@[198.115.92.60]>
+In-Reply-To: <001901be9324$66ddcbf0$c80c17ac@clmsdev.local>
+References: <001901be9324$66ddcbf0$c80c17ac@clmsdev.local>
 Sender: owner-linux-mm@kvack.org
-To: "James E. King, III" <jking@ariessys.com>
-Cc: linux-mm@kvack.org, Stephen Tweedie <sct@redhat.com>
+To: Manfred Spraul <masp0008@stud.uni-sb.de>
+Cc: "Benjamin C.R. LaHaise" <blah@kvack.org>, "James E. King, III" <jking@ariessys.com>, linux-mm@kvack.org, Stephen Tweedie <sct@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
 Hi,
 
-On Wed, 28 Apr 1999 11:28:07 -0400, "James E. King, III"
-<jking@ariessys.com> said:
+On Fri, 30 Apr 1999 18:12:21 +0200, "Manfred Spraul"
+<masp0008@stud.uni-sb.de> said:
 
-> 1. If I purchase a Quad Xeon 550 with 4 GB of memory, will Linux work
->    on it?  (I saw the whole thing about tweaking kernel parameters to
->    change from a 3:1 split to a 2:2 split)
+> * I haven't yet read the new Xeon page table extentions,
+>   but perhaps we could support up to 64 GB memory without changing the
+>   rest of the OS   (Intel could write such a driver for Windows NT,
+>   I'm sure this is possible for Linux, too).
 
-It _will_ work, but by default will only use 1GB.  The most it can use
-if you recompile the kernel is 2GB.
-
-However, we have plans to support 64GB cleanly --- watch this space. :)
+NT's VLM support only gives you access to the high memory if you use a
+special API.  We plan on supporting clean access to all of physical
+memory quite transparently for Linux, without any such restrictions.
 
 --Stephen
 --
