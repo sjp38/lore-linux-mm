@@ -1,32 +1,49 @@
-Received: from northrelay02.pok.ibm.com (northrelay02.pok.ibm.com [9.117.200.22])
-	by e1.ny.us.ibm.com (8.9.3/8.9.3) with ESMTP id NAA140474
-	for <linux-mm@kvack.org>; Sat, 26 May 2001 13:08:09 -0400
-Received: from d01ml233.pok.ibm.com (d01ml233.pok.ibm.com [9.117.200.63])
-	by northrelay02.pok.ibm.com (8.8.8m3/NCO v4.96) with ESMTP id NAA188988
-	for <linux-mm@kvack.org>; Sat, 26 May 2001 13:04:22 -0400
-Subject: order of matching alloc_pages/free_pages call pairs.  Are they always same?
-Message-ID: <OF5385EE96.412D8BDB-ON85256A58.005E44E7@pok.ibm.com>
-From: "Bulent Abali" <abali@us.ibm.com>
-Date: Sat, 26 May 2001 13:10:42 -0400
+Message-ID: <3B1070A3.D43B4A63@earthlink.net>
+Date: Sat, 26 May 2001 21:12:35 -0600
+From: "Joseph A. Knapka" <jknapka@earthlink.net>
 MIME-Version: 1.0
-Content-type: text/plain; charset=us-ascii
+Subject: Re: order of matching alloc_pages/free_pages call pairs.  Are they
+ always same?
+References: <OF5385EE96.412D8BDB-ON85256A58.005E44E7@pok.ibm.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Bulent Abali <abali@us.ibm.com>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Is it reasonable to assume that matching
-alloc_pages/free_pages pairs will always have the same order
-as the 2nd argument?
+Bulent Abali wrote:
+> 
+> Is it reasonable to assume that matching
+> alloc_pages/free_pages pairs will always have the same order
+> as the 2nd argument?
+> 
+> For example
+> pg = alloc_pages( , aorder);   free_pages(pg, forder);
+> Is (aorder == forder) always true?
+> 
+> Or, are there any bizarro drivers etc which will intentionally
+> free partial amounts, that is (forder < aorder)?
 
-For example
-pg = alloc_pages( , aorder);   free_pages(pg, forder);
-Is (aorder == forder) always true?
+This would be a somewhat bizarre thing to do, but after thinking
+about it a bit, I believe it would work fine - as long as you're
+very careful to free blocks with appropriate order and alignment.
 
-Or, are there any bizarro drivers etc which will intentionally
-free partial amounts, that is (forder < aorder)?
+I'm not personally aware of any code that actually frees sub-blocks
+of allocated blocks, but I expect that when I get around to looking
+at the slab allocator (kmalloc(), kfree()) there will be code
+in there that does so.
+
+-- Joe
 
 
+-- Joseph A. Knapka
+"If I ever get reincarnated... let me make certain I don't come back
+ as a paperclip." -- protagonist, H Murakami's "Hard-boiled Wonderland"
+// Linux MM Documentation in progress:
+// http://home.earthlink.net/~jknapka/linux-mm/vmoutline.html
+* Evolution is an "unproven theory" in the same sense that gravity is. *
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
