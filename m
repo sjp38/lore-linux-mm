@@ -1,5 +1,5 @@
-Message-ID: <3D6E8B25.425263D5@zip.com.au>
-Date: Thu, 29 Aug 2002 13:59:17 -0700
+Message-ID: <3D6E8B7F.8D5D20D8@zip.com.au>
+Date: Thu, 29 Aug 2002 14:00:47 -0700
 From: Andrew Morton <akpm@zip.com.au>
 MIME-Version: 1.0
 Subject: Re: [PATCH] low-latency zap_page_range()
@@ -28,7 +28,7 @@ will allow other CPUs to get on with stuff, and will provide efficiency
 increases.  (It's a pretty lame way of doing that though).
 
 But I don't recall seeing nasty page_table_lock spintimes on
-anyone's lockmeter reports, so...
+anyone's lockmeter reports, so we can leave it as-is for now.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
