@@ -1,37 +1,34 @@
-Message-ID: <20010925005033.A137@bug.ucw.cz>
-Date: Tue, 25 Sep 2001 00:50:34 +0200
-From: Pavel Machek <pavel@suse.cz>
-Subject: Re: broken VM in 2.4.10-pre9
-References: <m1iteegag6.fsf@frodo.biederman.org> <E15jpRy-0003yt-00@the-village.bc.nu>
-Mime-Version: 1.0
+Subject: Re: Process not given >890MB on a 4MB machine ?????????
+References: <Pine.GSO.4.05.10109251335380.23459-100000@aa.eps.jhu.edu>
+From: ebiederm@xmission.com (Eric W. Biederman)
+Date: 26 Sep 2001 01:04:00 -0600
+In-Reply-To: <Pine.GSO.4.05.10109251335380.23459-100000@aa.eps.jhu.edu>
+Message-ID: <m1n13i5t7j.fsf@frodo.biederman.org>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-In-Reply-To: <E15jpRy-0003yt-00@the-village.bc.nu>; from Alan Cox on Wed, Sep 19, 2001 at 11:04:10PM +0100
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Alan Cox <alan@lxorguk.ukuu.org.uk>, "Eric W. Biederman" <ebiederm@xmission.com>
-Cc: Daniel Phillips <phillips@bonn-fries.net>, Rob Fuller <rfuller@nsisoftware.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: afei@jhu.edu
+Cc: "Stephen C. Tweedie" <sct@redhat.com>, Joseph A Knapka <jknapka@earthlink.net>, "Gabriel.Leen" <Gabriel.Leen@ul.ie>, "'linux-mm@kvack.org'" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi!
+afei@jhu.edu writes:
 
-> > So my suggestion was to look at getting anonymous pages backed by what
-> > amounts to a shared memory segment.  In that vein.  By using an extent
-> > based data structure we can get the cost down under the current 8 bits
-> > per page that we have for the swap counts, and make allocating swap
-> > pages faster.  And we want to cluster related swap pages anyway so
-> > an extent based system is a natural fit.
->
-> Much of this goes away if you get rid of both the swap and anonymous page
-> special cases. Back anonymous pages with the "whoops everything I write here
-> vanishes mysteriously" file system and swap with a swapfs
+> The current Linux MM design is a 3:1 split of 4G virtual/physical memory.
+> So a process, under normal condition cannot get beyond 3G memory
+> allocated.
 
-What exactly is anonymous memory? I thought it is what you do when you
-want to malloc(), but you want to back that up by swap, not /dev/null.
+The current Linux i386 MM usage is a 3:1 split of 4G virtual
+memory. 3GB for the uesr process.  1GB for the kernel.  With all of
+the highmem tricks the kernel can access up to 16TB of physical memory
+on a 32 bit system but the i386 architeture only provides for a
+maximum of 64GB of physical memory.
 
-								Pavel
--- 
-I'm pavel@ucw.cz. "In my country we have almost anarchy and I don't care."
-Panos Katsaloulis describing me w.r.t. patents at discuss@linmodems.org
+A user space process is free to implement it's own paging of a file or
+a shared memory region in and out of it's address space but that
+usually requires code redesign, so few people go for it.
+
+Eric
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
