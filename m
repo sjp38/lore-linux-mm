@@ -1,49 +1,38 @@
-Date: Mon, 25 Mar 2002 16:05:51 -0600
+Received: from mail3.iadfw.net ([209.196.123.3])
+	by mx4.airmail.net with smtp (Exim 3.33 #1)
+	id 16pezk-0001SL-00
+	for linux-mm@kvack.org; Mon, 25 Mar 2002 18:39:24 -0600
+Received: from debian from [209.144.230.185] by mail3.iadfw.net
+	(/\##/\ Smail3.1.30.16 #30.61) with esmtp for <linux-mm@kvack.org> sender: <ahaas@neosoft.com>
+	id <mS/16pf05-003811S@mail3.iadfw.net>; Mon, 25 Mar 2002 18:39:45 -0600 (CST)
+Received: from arth by debian with local (Exim 3.34 #1 (Debian))
+	id 16pfAz-0001Bg-00
+	for <linux-mm@kvack.org>; Mon, 25 Mar 2002 18:51:01 -0600
+Date: Mon, 25 Mar 2002 18:51:00 -0600
 From: Art Haas <ahaas@neosoft.com>
-Subject: Re: [PATCH] latest radix-tree pagecache patch and 2.4.19-pre3-ac6
-Message-ID: <20020325160551.B1424@debian>
-References: <20020325114947.A606@debian> <20020325194317.A31878@caldera.de>
+Subject: [PATCH] 2nd try at radix-tree pagecache and 2.4.19-pre3-ac6
+Message-ID: <20020325185100.A4563@debian>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20020325194317.A31878@caldera.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Hellwig <hch@caldera.de>
-Cc: linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Mar 25, 2002 at 07:43:18PM +0100, Christoph Hellwig wrote:
->
-> [ ... my comments ... ]
-> 
-> I think I have found at least once obvious bug:
-> 
->  a) this cannot actually compile, pagecache_lock is gone..
->  b) find_get_page already does locking internally AND also
->     grabs a reference to the page.
-> 
-> This should probably be just a radix_tree_lookup()
-> 
-> @@ -1064,7 +999,7 @@
->  	spin_lock(&pagemap_lru_lock);
->  	while (--index >= start) {
->  		spin_lock(&pagecache_lock);
-> -		page = __find_page(mapping, index);
-> +		page = find_get_page(mapping, index);
->  		spin_unlock(&pagecache_lock);
->  		if (!page || !PageActive(page))
->  			break;
-> 
+Hi.
 
-The file does compile, and my kernel running now does have
-the changes I've made. I must be picking up the variable
-from somewhere else, and I can't say where that is right
-now. Hmmmm ....
+Changes since the first version ...
+1) Removed any remaining references to pagecache_lock in filemap.c
+   vmscan.c as the variable has been removed.
 
-Thanks for looking over the patch. I'll make the change
-and try things out. Thanks again for working on the radix-tree
-patches!
+2) Modified a __find_page() call to radix_tree_lookup()
+   in filemap.c. This change is meant to fix a problem
+   pointed out by Christoph Hellwig.
+
+I've built the kernel with the patch, and it's running now,
+and seems to be working well. Once again, all comments and
+suggestions welcomed, and my thanks to all the VM coders.
 
 -- 
 They that can give up essential liberty to obtain a little temporary
