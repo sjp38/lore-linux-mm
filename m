@@ -1,37 +1,35 @@
-Date: Mon, 06 Dec 2004 14:44:23 +0000
-From: Miquel van Smoorenburg <miquels@cistron.nl>
-Subject: Re: pages not marked as accessed on non-page boundaries
-References: <20041205141342.GA29174@cistron.nl>
-	<Pine.LNX.4.61.0412050944040.5582@chimarrao.boston.redhat.com>
-In-Reply-To: <Pine.LNX.4.61.0412050944040.5582@chimarrao.boston.redhat.com>
-	(from riel@redhat.com on Sun Dec  5 15:44:37 2004)
-Message-Id: <1102344263l.12264l.3l@traveler>
+Received: from ms3.netsolmail.com (IDENT:mirapoint@[216.168.230.176])
+	by omr2.netsolmail.com (8.12.10/8.12.10) with ESMTP id iB6JA4G6009205
+	for <linux-mm@kvack.org>; Mon, 6 Dec 2004 14:10:04 -0500 (EST)
+From: <evt@texelsoft.com>
+Message-Id: <200412061910.CGY65252@ms3.netsolmail.com>
+Date: Mon, 6 Dec 2004 14:10:02 -0500
+Subject: Can remap_area_pages be made non-static
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1; Format=Flowed
-Content-Disposition: inline
-Content-Transfer-Encoding: 8BIT
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 2004.12.05 15:44, Rik van Riel wrote:
-> On Sun, 5 Dec 2004, Miquel van Smoorenburg wrote:
-> 
-> > When you have a database accessing small amounts of data
-> > in an index file randomly, then most of those pages will
-> > not be marked as read and will be thrown out too soon.
-> 
-> > Would it be a good thing to fix this ? Patch is below.
-> 
-> Your patch makes a lot of sense to me.  This should help
-> keep database indexes in memory...
+All,
 
-Okay I'll send it on to Andrew then for -mm tonight or tomorrow.
+What I'm trying to do is, in a situation where I have two
+identical pci video cards where the framebuffer memory maps
+the cards memory but only one is in use at a time, when a card
+fails or is hot-removed, I'd like to unmap the memory from the
+card that failed and remap the memory of the spare card to the
+same virtual address. It seems to me that remap_area_pages()
+does exactly what I desire but it's static.
 
-Mike.
+Can this fn be made non-static or is there a better way to do
+this? Please cc evt@texelsoft.com since my request to
+subscribe to the list has not completed yet.
 
+Thanks.
+
+- Eric van Tassell
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
