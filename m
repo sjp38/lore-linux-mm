@@ -1,34 +1,42 @@
-Date: Sat, 20 Jul 2002 13:53:49 -0700 (PDT)
-From: Linus Torvalds <torvalds@transmeta.com>
-Subject: Re: [PATCH][1/2] return values shrink_dcache_memory etc
-In-Reply-To: <Pine.LNX.4.44L.0207201740580.12241-100000@imladris.surriel.com>
-Message-ID: <Pine.LNX.4.44.0207201351160.1552-100000@home.transmeta.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Sat, 20 Jul 2002 13:54:54 -0700
+From: William Lee Irwin III <wli@holomorphy.com>
+Subject: Re: [PATCH] for_each_pgdat
+Message-ID: <20020720205454.GF1096@holomorphy.com>
+References: <1027196535.1116.773.camel@sinai> <236911771.1027172579@[10.10.2.3]>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Description: brief message
+Content-Disposition: inline
+In-Reply-To: <236911771.1027172579@[10.10.2.3]>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@conectiva.com.br>
-Cc: Andrew Morton <akpm@zip.com.au>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Ed Tomlinson <tomlins@cam.org>
+To: "Martin J. Bligh" <Martin.Bligh@us.ibm.com>
+Cc: Robert Love <rml@tech9.net>, akpm@zip.com.au, torvalds@transmeta.com, riel@conectiva.com.br, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+At some point in the past, Robert Love wrote:
+>> This patch implements for_each_pgdat(pg_data_t *) which is a helper
+>> macro to cleanup code that does a loop of the form:
 
-On Sat, 20 Jul 2002, Rik van Riel wrote:
->
-> OK, I'll try to forward-port Ed's code to do that from 2.4 to 2.5
-> this weekend...
+On Sat, Jul 20, 2002 at 01:43:00PM -0700, Martin J. Bligh wrote:
+> If you're going to do that (which I think is a good idea) can you
+> rename node_next to pgdat_next, as it often has nothing to do with
+> nodes whatsoever (discontigmem on a non-NUMA machine, or even more
+> confusingly a NUMA machine which is discontig within a node)? I'll
+> attatch a patch below, but it conflicts what what you're doing
+> horribly, and it's even easier to do after your abtraction ...
 
-Side note: while I absolutely think that is the right thing to do, that's
-also the much more "interesting" change. As a result, I'd be happier if it
-went through channels (ie probably Andrew) and had some wider testing
-first at least in the form of a CFT on linux-kernel.
+Another option would be to convert pgdats to using list.h, which would
+make things even prettier IMHO. After wrapping the list iterations it's
+actually not difficult to swizzle the list linkage out from underneath.
 
-[ Or has it already been in 2.4.x in any major tree? (In which case my
-  testing argument is lessened to some degree and it's mainly just to
-  verify that the forward-port works). ]
+And yes, s/pgdat/physcontig_region/ or whatever would make the name
+match the intended usage.
 
-Thanks,
-		Linus
 
+
+Cheers,
+Bill
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
