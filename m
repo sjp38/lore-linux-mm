@@ -1,34 +1,28 @@
-From: Martin Diehl <lists@mdiehl.de>
-Subject: Re: [2.6.0-test3-mm3] irda compile error
-Date: Thu, 21 Aug 2003 21:42:00 +0200 (CEST)
-Sender: linux-kernel-owner@vger.kernel.org
-Message-ID: <Pine.LNX.4.44.0308212120380.3006-100000@notebook.home.mdiehl.de>
-References: <3F44A22D.6040005@lanil.mine.nu>
-Mime-Version: 1.0
+Received: from rra2002 (helo=localhost)
+	by aria.ncl.cs.columbia.edu with local-esmtp (Exim 4.22)
+	id 19ttYZ-0003yk-Am
+	for linux-mm@kvack.org; Mon, 01 Sep 2003 14:37:39 -0400
+Date: Mon, 1 Sep 2003 14:37:39 -0400 (EDT)
+From: "Raghu R. Arur" <rra2002@aria.ncl.cs.columbia.edu>
+Subject: flushing tlb in try_to_swap_out 
+Message-ID: <Pine.GSO.4.51.0309011437050.15065@aria.ncl.cs.columbia.edu>
+MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
-Return-path: <linux-kernel-owner+linux-kernel=40quimby.gnus.org@vger.kernel.org>
-In-Reply-To: <3F44A22D.6040005@lanil.mine.nu>
-To: Christian Axelsson <smiler@lanil.mine.nu>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
-List-Id: linux-mm.kvack.org
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: linux-mm@kvack.org
+List-ID: <linux-mm.kvack.org>
 
-On Thu, 21 Aug 2003, Christian Axelsson wrote:
+   I see that in try_to_swap_out() (linux 2.4.19), the page that is being
+unmapped from a process is flushed out. But try_to_swap_out() is executed
+in the context of kswapd. And also whenever a context switch takes place
+the whole tlb is flushed out. So is this flushing done just becuase linux
+uses lazy_tlb_flush during process context switch ?
 
-> Got this while doing  make. Config attached.
-> Same config compiles fine under mm2
-> 
->  CC      drivers/net/irda/vlsi_ir.o
-> drivers/net/irda/vlsi_ir.c: In function `vlsi_proc_pdev':
-> drivers/net/irda/vlsi_ir.c:167: structure has no member named `name'
-
-Yep, Thanks. I'm aware of the problem which is due to the recent 
-device->name removal. In fact a fix for this was already included in the 
-latest resent of my big vlsi update patch pending since long.
-
-Anyway, it was pointed out now the patch is too big so I'm currently 
-working on splitting it up. Bunch of patches will follow soon :-)
-
-Btw., are you actually using this driver? I'm always looking for testers 
-with 2.6 to give better real life coverage...
-
-Martin
+ thanks a lot,
+ Raghu
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"aart@kvack.org"> aart@kvack.org </a>
