@@ -1,42 +1,42 @@
-Date: Sun, 25 Mar 2001 00:13:38 +0000
-From: "Stephen C. Tweedie" <sct@redhat.com>
+Received: from burns.conectiva (burns.conectiva [10.0.0.4])
+	by postfix.conectiva.com.br (Postfix) with SMTP id 6654216B15
+	for <linux-mm@kvack.org>; Sat, 24 Mar 2001 22:27:59 -0300 (EST)
+Date: Sat, 24 Mar 2001 22:05:18 -0300 (BRST)
+From: Rik van Riel <riel@conectiva.com.br>
 Subject: Re: [PATCH] Fix races in 2.4.2-ac22 SysV shared memory
-Message-ID: <20010325001338.C11686@redhat.com>
-References: <20010323011331.J7756@redhat.com> <Pine.LNX.4.31.0103231157200.766-100000@penguin.transmeta.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.31.0103231157200.766-100000@penguin.transmeta.com>; from torvalds@transmeta.com on Fri, Mar 23, 2001 at 11:58:50AM -0800
+In-Reply-To: <20010325001338.C11686@redhat.com>
+Message-ID: <Pine.LNX.4.21.0103242203290.1863-100000@imladris.rielhome.conectiva>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@transmeta.com>, Rik van Riel <riel@nl.linux.org>
-Cc: "Stephen C. Tweedie" <sct@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Alan Cox <alan@lxorguk.ukuu.org.uk>, Ben LaHaise <bcrl@redhat.com>, Christoph Rohland <cr@sap.com>
+To: "Stephen C. Tweedie" <sct@redhat.com>
+Cc: Linus Torvalds <torvalds@transmeta.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Alan Cox <alan@lxorguk.ukuu.org.uk>, Ben LaHaise <bcrl@redhat.com>, Christoph Rohland <cr@sap.com>
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+On Sun, 25 Mar 2001, Stephen C. Tweedie wrote:
 
-On Fri, Mar 23, 2001 at 11:58:50AM -0800, Linus Torvalds wrote:
+> Rik, do you think it is really necessary to take the page lock and
+> release it inside lookup_swap_cache?  I may be overlooking something,
+> but I can't see the benefit of it ---
 
-> Ehh.. Sleeping with the spin-lock held? Sounds like a truly bad idea.
+I don't think we need to do this, except to protect us from
+using a page which isn't up-to-date yet and locked because
+of disk IO.
 
-Uggh --- the shmem code already does, see:
+Reclaim_page() takes the pagecache_lock before trying to
+free anything, so there's no reason to lock against that.
 
-shmem_truncate->shmem_truncate_part->shmem_free_swp->
-lookup_swap_cache->find_lock_page
+regards,
 
-It looks messy: lookup_swap_cache seems to be abusing the page lock
-gratuitously, but there are probably callers of it which rely on the
-assumption that it performs an implicit wait_on_page().
+Rik
+--
+Virtual memory is like a game you can't win;
+However, without VM there's truly nothing to lose...
 
-Rik, do you think it is really necessary to take the page lock and
-release it inside lookup_swap_cache?  I may be overlooking something,
-but I can't see the benefit of it --- we can still race against
-page_launder, so the page may still get locked behind our backs after
-we get the reference from lookup_swap_cache (page_launder explicitly
-avoids taking the pagecache hash spinlock which might avoid this
-particular race).
+		http://www.surriel.com/
+http://www.conectiva.com/	http://distro.conectiva.com.br/
 
---Stephen
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
