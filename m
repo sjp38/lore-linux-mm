@@ -1,41 +1,42 @@
-Received: from 200-161-3-230.insite.com.br ([200.161.3.230])
- by posta2.selcuk.edu.tr
- (Sun Java System Messaging Server 6.1 (built Apr 28 2004))
- with SMTP id <0I12004G30SMZ010@posta2.selcuk.edu.tr> for linux-mm@kvack.org;
- Sun, 18 Jul 2004 13:39:02 -0200 (GMT)
-Received: from (HELO re622hl) [148.135.185.232] by 200-161-3-230.insite.com.br
- with ESMTP id 5D6C6BECF2C for <linux-mm@kvack.org>; Thu,
- 22 Jul 2004 07:40:26 -0400
-Date: Thu, 22 Jul 2004 07:40:26 +0000 (GMT)
-From: Valentin Hodges <uosdqfq@iop.org>
-Subject: Popular software n at low low prices. theresa ddtaqjyt
-Reply-to: Valentin Hodges <uosdqfq@iop.org>
-Message-id: <y-2-dox-h48lp8r--4$0c3@bsm.74el3ke8>
-MIME-version: 1.0
-Content-type: multipart/alternative;
- boundary="Boundary_(ID_tROcsoh35SYCW/C1ulKbFg)"
+Date: Mon, 19 Jul 2004 09:42:06 -0500
+From: Dimitri Sivanich <sivanich@sgi.com>
+Subject: Re: [PATCH] Move cache_reap out of timer context
+Message-ID: <20040719144206.GA11585@sgi.com>
+References: <20040714180942.GA18425@sgi.com> <20040717185256.GA5815@elte.hu>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20040717185256.GA5815@elte.hu>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Ingo Molnar <mingo@elte.hu>
+Cc: Manfred Spraul <manfred@colorfullife.com>, Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, lse-tech@lists.sourceforge.net
 List-ID: <linux-mm.kvack.org>
 
---Boundary_(ID_tROcsoh35SYCW/C1ulKbFg)
-Content-type: text/plain
-Content-transfer-encoding: 7BIT
-
-Loads of cool soft at incredibly low prices
-Windows XP Professional + Office XP Professional for as low as $80
-Order here:
-http://soap.sue.edwards.acdfiaj.info/?IrKheZIdMgPBucIindictdeputy
-The stock is limited
-The offer is valid till next 24 hours
-Hurry!
-
-
-
-nojsco    ubo wjor ayragtywykkhf  noue wyoiwmqibdj
-
---Boundary_(ID_tROcsoh35SYCW/C1ulKbFg)--
+On Sat, Jul 17, 2004 at 08:52:56PM +0200, Ingo Molnar wrote:
+> 
+> * Dimitri Sivanich <sivanich@sgi.com> wrote:
+> 
+> > I'm submitting two patches associated with moving cache_reap
+> > functionality out of timer context.  Note that these patches do not
+> > make any further optimizations to cache_reap at this time.
+> > 
+> > The first patch adds a function similiar to schedule_delayed_work to
+> > allow work to be scheduled on another cpu.
+> > 
+> > The second patch makes use of schedule_delayed_work_on to schedule
+> > cache_reap to run from keventd.
+> > 
+> > These patches apply to 2.6.8-rc1.
+> > 
+> > Signed-off-by: Dimitri Sivanich <sivanich@sgi.com>
+> 
+> looks good to me and i agree with moving this unbound execution-time
+> function out of irq context. I suspect this should see some -mm testing
+> first/too?
+> 
+If others could test this patch on whatever platforms they have available, I
+would very much appreciate it.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
