@@ -1,33 +1,30 @@
-Message-ID: <000d01bfda37$f34c3ee0$0a1e18ac@local>
-From: "Manfred Spraul" <manfred@colorfullife.com>
-References: <87r99t8m2r.fsf@atlas.iskon.hr>
+Date: Mon, 19 Jun 2000 23:46:27 +0200
+From: Jamie Lokier <lk@tantalophile.demon.co.uk>
 Subject: Re: shrink_mmap() change in ac-21
-Date: Mon, 19 Jun 2000 23:47:14 +0200
-MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
+Message-ID: <20000619234627.B23135@pcep-jamie.cern.ch>
+References: <87r99t8m2r.fsf@atlas.iskon.hr>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+In-Reply-To: <87r99t8m2r.fsf@atlas.iskon.hr>; from zlatko@iskon.hr on Mon, Jun 19, 2000 at 10:14:52PM +0200
 Sender: owner-linux-mm@kvack.org
-From: "Zlatko Calusic" <zlatko@iskon.hr>
 Return-Path: <owner-linux-mm@kvack.org>
-To: zlatko@iskon.hr, alan@redhat.com
-Cc: linux-mm@kvack.org, linux-kernel@vger.rutgers.edu
+To: Zlatko Calusic <zlatko@iskon.hr>
+Cc: alan@redhat.com, linux-mm@kvack.org, linux-kernel@vger.rutgers.edu
 List-ID: <linux-mm.kvack.org>
 
->
-> The reason is balancing of the DMA zone (which is much smaller on a
-> 128MB machine than the NORMAL zone!). shrink_mmap() now happily evicts
-> wrong pages from the memory and continues doing so until it finally
-> frees enough pages from the DMA zone. That, of course, hurts caching
-> as the page cache gets shrunk a lot without a good reason.
->
-What caused the zone balancing?
-Did you deliberately allocate GFP_DMA memory (sound card, old scsi card,
-floppy disk, ...) or was it during "normal" operation?
+Zlatko Calusic wrote:
+> The shrink_mmap() change in your latest prepatch (ac12) doesn't look
+> very healthy. Removing the test for the wrong zone we effectively
+> discard lots of wrong pages before we get to the right one. That is
+> effectively flushing the page cache and we have unbalanced system.
 
---
-    Manfred
+You know, there may be some sense in removing pages from the wrong zone,
+if those wrong zones are quite full.  If the DMA zone desparately needs
+free pages and keeps needing them, isn't it good to encourage future
+non-DMA allocations to use another zone?  Removing pages from other
+zones is one way to achieve that.
 
+-- Jamie
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
