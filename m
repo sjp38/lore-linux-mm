@@ -1,44 +1,24 @@
-Received: from atrey.karlin.mff.cuni.cz (root@atrey.karlin.mff.cuni.cz [195.113.31.123])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id QAA05900
-	for <linux-mm@kvack.org>; Wed, 17 Dec 1997 16:31:08 -0500
-Message-ID: <19971217221425.30735@Elf.mj.gts.cz>
-Date: Wed, 17 Dec 1997 22:14:25 +0100
-From: Pavel Machek <pavel@Elf.mj.gts.cz>
-Subject: Re: pageable page tables
-References: <19971210161108.02428@Elf.mj.gts.cz> <Pine.LNX.3.91.971212074748.466A-100000@mirkwood.dummy.home>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-In-Reply-To: <Pine.LNX.3.91.971212074748.466A-100000@mirkwood.dummy.home>; from Rik van Riel on Fri, Dec 12, 1997 at 07:57:16AM +0100
+Received: from bbmail1.unisys.com (192-63-2005.unisys.com [192.63.200.5])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id XAA07554
+	for <linux-mm@kvack.org>; Wed, 17 Dec 1997 23:19:12 -0500
+Received: from felix.tulblr.unisys.com (felix.tulblr.unisys.com [163.122.1.109])
+	by bbmail1.unisys.com (8.8.5/8.8.5) with SMTP id EAA16810
+	for <linux-mm@kvack.org>; Thu, 18 Dec 1997 04:12:50 GMT
+Date: Thu, 18 Dec 1997 09:46:58 +0500 (IST)
+From: Gaurish R Dalvi <gaurishr@tulblr.unisys.com>
+Subject: zombies ....
+In-Reply-To: <Pine.LNX.3.91.971216124819.15838B-100000@mirkwood.dummy.home>
+Message-ID: <Pine.SV4.3.95.971218094449.17067A-100000@felix>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: H.H.vanRiel@fys.ruu.nl
-Cc: linux-mm@kvack.org
+Cc: linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
 Hi!
+	A small doubt.
+	Thing is according to books, a zombie has released all its memory
+etc. but clogs up a system as the kernel has to maintain its return state.
 
-> > Not sure this is good idea.
-> 
-> Many systems use something like NQS for large jobs, but
-> this would be a nice scheme for 'medium' jobs. The
-> machine at our school, for instance, has a 5minute CPU
-> limit (per process)...
-> Doing a large compile (glibc :-) on such a machine would
-> not only fail, but it would also annoy other users. This
-> SCHED_BG scheme doesn't really load the rest of the system...
-
-No, it would not fail, as no single process eats 5 minutes. And even
-with SCHED_BG you would load rest of the system: you would load disk
-subsystem. Often, disk subsystem is more important than CPU.
-
-> > > And when free memory stays below free_pages_low for more
-> > > than 5 seconds, we can choose to have even normal processes
-> > > queued for some time (in order to reduce paging)
-> 
-> someone else have an opinion on this?
-
-Too many heuristics?
-
-								Pavel
--- 
-I'm really pavel@atrey.karlin.mff.cuni.cz. 	   Pavel
-Look at http://atrey.karlin.mff.cuni.cz/~pavel/ ;-).
+	How can you make the system release the zombie totally. ( i.e. it
+shud not appear in ps command listsing even.).
