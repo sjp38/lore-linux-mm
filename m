@@ -1,33 +1,33 @@
-Date: Fri, 23 Mar 2001 21:57:20 +0200 (MET DST)
-From: Szabolcs Szakacsits <szaka@f-secure.com>
-Subject: Re: [PATCH] Prevent OOM from killing init
-In-Reply-To: <20010322230041.A5598@win.tue.nl>
-Message-ID: <Pine.LNX.4.30.0103232135020.13864-100000@fs131-224.f-secure.com>
+Date: Fri, 23 Mar 2001 11:58:50 -0800 (PST)
+From: Linus Torvalds <torvalds@transmeta.com>
+Subject: Re: [PATCH] Fix races in 2.4.2-ac22 SysV shared memory
+In-Reply-To: <20010323011331.J7756@redhat.com>
+Message-ID: <Pine.LNX.4.31.0103231157200.766-100000@penguin.transmeta.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Guest section DW <dwguest@win.tue.nl>
-Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, Stephen Clouse <stephenc@theiqgroup.com>, Rik van Riel <riel@conectiva.com.br>, Patrick O'Rourke <orourke@missioncriticallinux.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: "Stephen C. Tweedie" <sct@redhat.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Alan Cox <alan@lxorguk.ukuu.org.uk>, Ben LaHaise <bcrl@redhat.com>, Christoph Rohland <cr@sap.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 22 Mar 2001, Guest section DW wrote:
-> Presently however, a flawless program can be killed.
-> That is what makes Linux unreliable.
 
-Your advocation is "save the application, crash the OS!". But you can't
-be blamed because everybody's first reaction is this :) But if you start
-to think you get the conclusion that process killing can't be avoided if
-you want the system keep running. But I agree Linux lacks some important
-things [see my other email] that could make the situation easily and
-inexpensively controllable.
+On Fri, 23 Mar 2001, Stephen C. Tweedie wrote:
+>
+> The patch below is for two races in sysV shared memory.
 
-BTW, your app isn't flawless because it doesn't consider Linux memory
-management is [quasi-]overcommit-only at present ;) [or you used other
-apps as well, e.g. login, ps, cron is enough to kill your app when it
-stopped at OOM time].
+	+       spin_lock (&info->lock);
+	+
+	+       /* The shmem_swp_entry() call may have blocked, and
+	+        * shmem_writepage may have been moving a page between the page
+	+        * cache and swap cache.  We need to recheck the page cache
+	+        * under the protection of the info->lock spinlock. */
+	+
+	+       page = find_lock_page(mapping, idx);
 
-	Szaka
+Ehh.. Sleeping with the spin-lock held? Sounds like a truly bad idea.
+
+		Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
