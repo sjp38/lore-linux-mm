@@ -1,30 +1,41 @@
-Date: Mon, 19 Aug 2002 14:22:35 -0700
-From: William Lee Irwin III <wli@holomorphy.com>
-Subject: Re: 2.5.31 i386 mem_map usage corrections
-Message-ID: <20020819212235.GC21683@holomorphy.com>
-References: <20020819102156.GJ18350@holomorphy.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Description: brief message
-Content-Disposition: inline
-In-Reply-To: <20020819102156.GJ18350@holomorphy.com>
+Content-Type: text/plain;
+  charset="iso-8859-1"
+From: Daniel Phillips <phillips@arcor.de>
+Subject: Re: [PATCH] rmap 14
+Date: Mon, 19 Aug 2002 23:38:21 +0200
+References: <Pine.LNX.4.44.0208192204260.23261-100000@skynet>
+In-Reply-To: <Pine.LNX.4.44.0208192204260.23261-100000@skynet>
+MIME-Version: 1.0
+Content-Transfer-Encoding: 8bit
+Message-Id: <E17guEA-0000vQ-00@starship>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@zip.com.au, gone@us.ibm.com, Martin.Bligh@us.ibm.com
+To: Mel <mel@csn.ul.ie>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Aug 19, 2002 at 03:21:56AM -0700, William Lee Irwin III wrote:
-> With these fixes (modulo merging), most notably the fix for
-> pmd_populate(), I was able to boot and run userspace on a 16x/16G NUMA-Q
-> in combination with Pat Gaughen's x86 discontigmem patches.
+On Monday 19 August 2002 23:19, Mel wrote:
+> On Mon, 19 Aug 2002, Daniel Phillips wrote:
+> 
+> > It sounds like you want to try the linux trace toolkit:
+> >
+> >    http://www.opersys.com/LTT/
+> >
+> 
+> I have been looking it's direction a couple of times. I suspect I'll
+> eventually end up using it to answer some questions
 
-In case this wasn't clear, this is a fix for what is (AFAIK)
-the only reliably reproducible scenario reproducing the BUG on
-page->pte.chain != NULL.
+That's exactly what I meant - when you uncover something interesting with
+your test tool, you investigate it further with LTT.
 
+> but I'm trying to
+> get as far as possible without using large kernel patches. At the moment
+> the extent of the patches involves exporting symbols to modules
 
-Cheers,
-Bill
+I think you've chosen roughly the right level to approach this.
+
+-- 
+Daniel
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
