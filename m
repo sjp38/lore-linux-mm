@@ -1,34 +1,36 @@
-Message-ID: <3CCB0F78.4000802@zytor.com>
-Date: Sat, 27 Apr 2002 13:52:08 -0700
-From: "H. Peter Anvin" <hpa@zytor.com>
+Subject: Re: [PATCH]Fix: Init page count for all pages during higher order allocs
+References: <20020429202446.A2326@in.ibm.com>
+From: ebiederm@xmission.com (Eric W. Biederman)
+Date: 29 Apr 2002 11:40:21 -0600
+In-Reply-To: <20020429202446.A2326@in.ibm.com>
+Message-ID: <m1r8ky1jzu.fsf@frodo.biederman.org>
 MIME-Version: 1.0
-Subject: Re: memory exhausted
-References: <5.1.0.14.2.20020424145006.00b17cb0@notes.tcindex.com> <Pine.LNX.4.44L.0204242318240.1960-100000@imladris.surriel.com> <20020425025753.GJ26092@holomorphy.com> <3CCAFC69.8090306@zytor.com> <20020427203854.GR26092@holomorphy.com>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: William Lee Irwin III <wli@holomorphy.com>
-Cc: Rik van Riel <riel@conectiva.com.br>, Vivian Wang <vivianwang@tcindex.com>, linux-mm@kvack.org
+To: suparna@in.ibm.com
+Cc: linux-kernel@vger.kernel.org, marcelo@brutus.conectiva.com.br, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-William Lee Irwin III wrote:
-> 
->>Good God, I hope x86-64 catches on soon and kills off this PAE silliness...
-> 
-> Well, I did say "absolutely not recommended". 64-bit hardware of
-> whatever kind is without question a more appropriate solution to these
-> kinds of issues than such shenanigans anyway, and at this point I'm
-> more or less sorry I brought that up. And I'll leave the discussion
-> of what specific lines of hardware are most suitable for other fora. =)
-> 
+Suparna Bhattacharya <suparna@in.ibm.com> writes:
 
-Oh, no, I didn't mean to pick on you.  It was more of a general lament. 
-  I hope x86-64 can make 64-bit computing widespread.
+> The call to set_page_count(page, 1) in page_alloc.c appears to happen 
+> only for the first page, for order 1 and higher allocations.
+> This leaves the count for the rest of the pages in that block 
+> uninitialised.
 
-	-hpa
+Actually it should be zero.
 
+This is deliberate because high order pages should not be referenced by
+their partial pages.  It might make sense to add a PG_large flag and
+then in the immediately following struct page add a pointer to the next
+page, so you can identify these pages by inspection.  Doing something
+similar to the PG_skip flag.
 
+Beyond that I get nervous, that people will treat it as endorsement of
+doing a high order continuous allocation and then fragmenting the page.
+
+Eric
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
