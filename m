@@ -1,47 +1,72 @@
-Received: from stingray.netplus.net (root@stingray.netplus.net [206.250.192.19] (may be forged))
-	by kvack.org (8.8.7/8.8.7) with ESMTP id RAA24679
-	for <linux-mm@kvack.org>; Sun, 10 Jan 1999 17:53:30 -0500
-Message-ID: <36992ED2.D05EA28F@netplus.net>
-Date: Sun, 10 Jan 1999 16:50:58 -0600
-From: Steve Bergman <steve@netplus.net>
-MIME-Version: 1.0
-Subject: Results: arcavm15, et. al.
-References: <Pine.LNX.3.96.990110215759.2341A-100000@laser.bogus> <369920F3.E9940FAA@netplus.net>
+Received: from hoon.perlsupport.com (root@dt0e3na9.tampabay.rr.com [24.92.175.169])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id SAA24965
+	for <linux-mm@kvack.org>; Sun, 10 Jan 1999 18:28:53 -0500
+Received: by hoon.perlsupport.com
+	via sendmail from stdin
+	id <m0zzUMn-0001bsC@hoon.perlsupport.com> (Debian Smail3.2.0.102)
+	for linux-mm@kvack.org; Sun, 10 Jan 1999 18:33:57 -0500 (EST)
+Date: Sun, 10 Jan 1999 18:33:56 -0500
+From: Chip Salzenberg <chip@perlsupport.com>
+Subject: testing/pre-7 and do_poll()
+Message-ID: <19990110183356.C262@perlsupport.com>
+References: <36990DB5.DA6AE432@netplus.net> <Pine.LNX.3.95.990110130307.7668N-100000@penguin.transmeta.com>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <Pine.LNX.3.95.990110130307.7668N-100000@penguin.transmeta.com>; from Linus Torvalds on Sun, Jan 10, 1999 at 01:41:38PM -0800
 Sender: owner-linux-mm@kvack.org
-To: Andrea Arcangeli <andrea@e-mind.com>, Linus Torvalds <torvalds@transmeta.com>, brent verner <damonbrent@earthlink.net>, "Garst R. Reese" <reese@isn.net>, Kalle Andersson <kalle.andersson@mbox303.swipnet.se>, Zlatko Calusic <Zlatko.Calusic@CARNet.hr>, Ben McCann <bmccann@indusriver.com>, bredelin@ucsd.edu, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org, Alan Cox <alan@lxorguk.ukuu.org.uk>, "Stephen C. Tweedie" <sct@redhat.com>
+To: Linus Torvalds <torvalds@transmeta.com>
+Cc: linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-For the image load test:
+According to Linus Torvalds:
+> There's a "pre-7.gz" on ftp.kernel.org in testing, anybody interested?
 
-pre6+zlatko's_patch             2:35
-and with requested change       3:09
-pre6                            2:27
-pre5                            1:58
-arcavm13                        9:13
-arcavm15			1:59
+Got it, like it -- *except* the fix for overflow in do_poll() is a
+little bit off.  Quoting testing/pre-7:
+
+	if (timeout) {
+		/* Carefula about overflow in the intermediate values */
+		if ((unsigned long) timeout < MAX_SCHEDULE_TIMEOUT / HZ)
+			timeout = (timeout*HZ+999)/1000+1;
+		else /* Negative or overflow */
+			timeout = MAX_SCHEDULE_TIMEOUT;
+	}
+
+However, the maximum legal millisecond timeout isn't (as shown)
+MAX_SCHEDULE_TIMEOUT/HZ, but rather MAX_SCHEDULE_TIMEOUT/(1000/HZ).
+So this code will turn some large timeouts into MAX_SCHEDULE_TIMEOUT
+unnecessarily.
+
+Therefore, I suggest this patch:
+
+Index: fs/select.c
+*************** asmlinkage int sys_poll(struct pollfd * 
+*** 336,346 ****
+  		goto out;
+  
+! 	if (timeout) {
+! 		/* Carefula about overflow in the intermediate values */
+! 		if ((unsigned long) timeout < MAX_SCHEDULE_TIMEOUT / HZ)
+! 			timeout = (timeout*HZ+999)/1000+1;
+! 		else /* Negative or overflow */
+! 			timeout = MAX_SCHEDULE_TIMEOUT;
+! 	}
+  
+  	err = -ENOMEM;
+--- 336,343 ----
+  		goto out;
+  
+! 	if (timeout < 0)
+! 		timeout = MAX_SCHEDULE_TIMEOUT;
+! 	else if (timeout)
+! 		timeout = ROUND_UP(timeout, 1000/HZ);
+  
+  	err = -ENOMEM;
 
 
-For the kernel compile test:
-
-In 12MB:
-                                Elapsed Maj.    Min.    Swaps
-                                -----   ------  ------  -----
-pre6+zlatko_patch               22:14   383206  204482  57823
-and with requested change       22:23   378662  198194  51445
-pre6                            20:54   352934  191210  48678
-pre5                            19:35   334680  183732  93427 
-arcavm13                        19:45   344452  180243  38977
-arcavm15			20:07	N/A	N/A	N/A
-
-Arcavm15 looks very good.  pre5 and arcavm13 look a bit better but of the
-kernels with the anti-deadlock code it looks the best so far. ( I assume that
-being based upon pre6 it's safe.)
-The battery in my palmtop died so I don't have the page fault and swaps results
-available for arcavm15.  I'll grab the pre-7.gz patch and see how it does.
-
--Steve
+-- 
+Chip Salzenberg      - a.k.a. -      <chip@perlsupport.com>
+      "When do you work?"   "Whenever I'm not busy."
 --
 This is a majordomo managed list.  To unsubscribe, send a message with
 the body 'unsubscribe linux-mm me@address' to: majordomo@kvack.org
