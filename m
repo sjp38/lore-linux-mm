@@ -1,52 +1,52 @@
-Message-ID: <3B1D5CDC.966285C1@earthlink.net>
-Date: Tue, 05 Jun 2001 16:27:40 -0600
-From: "Joseph A. Knapka" <jknapka@earthlink.net>
+Received: from freak.distro.conectiva (freak.distro.conectiva [10.0.17.22])
+	by perninha.conectiva.com.br (Postfix) with ESMTP id 705A738CA7
+	for <linux-mm@kvack.org>; Tue,  5 Jun 2001 23:06:45 -0300 (EST)
+Date: Tue, 5 Jun 2001 21:31:01 -0300 (BRT)
+From: Marcelo Tosatti <marcelo@conectiva.com.br>
+Subject: [RFC] some experimental VM code 
+Message-ID: <Pine.LNX.4.21.0106052108440.3769-100000@freak.distro.conectiva>
 MIME-Version: 1.0
-Subject: Re: temp. mem mappings
-References: <bYPDZD.A.c3.-gUH7@dinero.interactivesi.com>
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Timur Tabi <ttabi@interactivesi.com>
-Cc: linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Timur Tabi wrote:
-> 
-> ** Reply to message from cohutta <cohutta@MailAndNews.com> on Tue, 5 Jun 2001
-> 16:42:52 -0400
-> 
-> > I don't really want to play with the page tables if i can help it.
-> > I didn't use ioremap() because it's real system memory, not IO bus
-> > memory.
-> >
-> > How much normal memory is identity-mapped at boot on x86?
-> > Is it more than 8 MB?
-> 
-> Much more.  Somewhere between 2 and 4 GB is mapped.  Large memory support in
-> Linux has always confused me, so I can't remember exactly how much is mapped.
+Hi people, 
 
-On x86, it's a little less than 1GB (4G-PAGE_OFFSET-<a little bit for
-fixmaps,
-kmap, vmalloc>); PAGE_OFFSET is 3GB by default. There is some stuff that
-happens
-before that mapping is done, though. All you can absolutely count on
-when you
-first enter 32-bit mode is the low 8MB. setup_arch() in
-arch/i386/kernel/setup.c
-is the place to look if you want to be sure; paging_init() is called
-from there.
+As you may know, the current behaviour of the kernel when it hits a
+low memory condition is to allow each task to:
 
--- Joe
- 
+ - Writeout data to free memory
+ - Unmap pte's/allocate swap space and age down pages
 
--- Joseph A. Knapka
-"You know how many remote castles there are along the gorges? You
- can't MOVE for remote castles!" -- Lu Tze re. Uberwald
-// Linux MM documentation in progress:
-// http://home.earthlink.net/~jknapka/linux-mm/vmoutline.html
-* Evolution is an "unproven theory" in the same sense that gravity is. *
+Until the task gets a free page. 
+
+I've been saying for sometime now that I think only kswapd should do
+the page aging part. If we don't do it this way, heavy VM loads will make
+each memory intensive task age down other processes pages, so we see
+ourselves in a "unmapping/faulting" storm. Imagine what happens to
+interactivity in such a case. 
+
+Trying to avoid that bad behaviour, I've experimented some code which 
+
+ - Makes only kswapd age pages/unmap pte's. 
+ - Tasks doing __GFP_IO allocations (non GFP_BUFFER allocations) wait on 
+   the kswapd waitqueue when they are not able to do any progress trying
+   to free pages themselves.
+ - kswapd will not sleep until there is an inactive shortage or a free
+   shortage.
+
+Plus some other tweaks.
+
+The behaviour is far away from getting nice, but I believe this is a step
+on the right direction.
+
+I _really_ would like to receive reports on this patch --- interactivity
+under high loads should be quite better with it.
+
+http://bazar.conectiva.com.br/~marcelo/patches/v2.4/2.4.6pre1/2.4.6pre1-vm-mt.patch
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
