@@ -1,101 +1,213 @@
-Date: Mon, 9 Dec 2002 21:28:51 -0800
-From: William Lee Irwin III <wli@holomorphy.com>
-Subject: Re: dbench on tmpfs OOM's
-Message-ID: <20021210052851.GE9882@holomorphy.com>
-References: <3D86BE4F.75C9B6CC@digeo.com> <Pine.LNX.4.44.0209170726050.19523-100000@localhost.localdomain>
-Mime-Version: 1.0
+Received: from digeo-nav01.digeo.com (digeo-nav01.digeo.com [192.168.1.233])
+	by packet.digeo.com (8.9.3+Sun/8.9.3) with SMTP id BAA22985
+	for <linux-mm@kvack.org>; Tue, 10 Dec 2002 01:46:33 -0800 (PST)
+Message-ID: <3DF5B7F7.9406647C@digeo.com>
+Date: Tue, 10 Dec 2002 01:46:31 -0800
+From: Andrew Morton <akpm@digeo.com>
+MIME-Version: 1.0
+Subject: 2.5.51-mm1
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.44.0209170726050.19523-100000@localhost.localdomain>
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: Andrew Morton <akpm@digeo.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Sep 17, 2002 at 08:01:20AM +0100, Hugh Dickins wrote:
-> What I never did was try GFP_HIGHUSER and kmap on the index pages:
-> I think I decided back then that it wasn't likely to be needed
-> (sparsely filled file indexes are a rarer case than sparsely filled
-> pagetables, once the stupidity is fixed; and small files don't use
-> index pages at all).  But Bill's testing may well prove me wrong.
+url: http://www.zip.com.au/~akpm/linux/patches/2.5/2.5.51/2.5.51-mm1/
 
-The included fix works flawlessly under the conditions of the original
-reported problem on 2.5.50-bk6-wli-1.
+ -> 2.5.51-mm1-shpte.gz   For Dave
+ -> 2.5.51-mm1.gz         Full patch
 
-Sorry for not getting back to you sooner.
+Since 2.5.50-mm2:
+
+-remove-fail_writepage.patch
+
+ Dropped - went for a simpler version
+
+-page-reservation.patch
+
+ Dropped - will be doing this in a simpler manner
+
++2-remove-fail_writepage.patch
+
+ Simpler version of the removal of fail_writepage()
+
++lockless-current_kernel_time.patch
+
+ From Andi: don't take a global lock in current_kernel_time()
+
++remove-vmscan-check.patch
+
+ Remove a debugging check which isn't right any more
+
++max_sane_readahead.patch
+
+ Limits on the amount of user-directed readahead
+
++default-super-ops.patch
+
+ A little cleanup.
 
 
-Thanks,
-Bill
 
-Results:
--------
+All 56 patches:
 
-instance 1:
-----------
-Throughput 86.2057 MB/sec (NB=107.757 MB/sec  862.057 MBit/sec)  512 procs
-dbench 512  360.36s user 12645.64s system 1648% cpu 13:08.91 total
+kgdb.patch
 
-instance 2:
-----------
-Throughput 85.8913 MB/sec (NB=107.364 MB/sec  858.913 MBit/sec)  512 procs
-dbench 512  361.96s user 11780.65s system 1539% cpu 13:08.97 total
+dio-return-partial-result.patch
 
+aio-direct-io-infrastructure.patch
+  AIO support for raw/O_DIRECT
 
-Peak memory consumption during the run:
+deferred-bio-dirtying.patch
+  bio dirtying infrastructure
 
-/proc/meminfo:
--------------
-MemTotal:     32125300 kB
-MemFree:       7841472 kB
-MemShared:           0 kB
-Buffers:          1236 kB
-Cached:       23397036 kB
-SwapCached:          0 kB
-Active:         149512 kB
-Inactive:     23386864 kB
-HighTotal:    31588352 kB
-HighFree:      7681344 kB
-LowTotal:       536948 kB
-LowFree:        160128 kB
-SwapTotal:           0 kB
-SwapFree:            0 kB
-Dirty:               0 kB
-Writeback:           0 kB
-Mapped:         142508 kB
-Slab:           133020 kB
-Committed_AS: 23757472 kB
-PageTables:      18820 kB
-ReverseMaps:    168934
-HugePages_Total:     0
-HugePages_Free:      0
-Hugepagesize:     2048 kB
+aio-direct-io.patch
+  AIO support for raw/O_DIRECT
 
-/proc/slabinfo (reported by bloatmost):
----------------------------------------
- shmem_inode_cache:    39321KB    39682KB   99.9 
-   radix_tree_node:    33870KB    34335KB   98.64
-           pae_pmd:    18732KB    18732KB  100.0 
-      dentry_cache:    11612KB    14156KB   82.2 
-       task_struct:     2691KB     2710KB   99.32
-        signal_act:     2207KB     2216KB   99.58
-              filp:     1976KB     2032KB   97.23
-         size-1024:     1824KB     1824KB  100.0 
-       names_cache:     1740KB     1740KB  100.0 
-    vm_area_struct:     1598KB     1650KB   96.88
-         pte_chain:     1271KB     1305KB   97.39
-         size-2048:      982KB     1032KB   95.15
-biovec-BIO_MAX_PAGES:      768KB      780KB   98.46
-       files_cache:      704KB      704KB  100.0 
-         mm_struct:      656KB      665KB   98.65
-          size-512:      421KB      436KB   96.55
-   blkdev_requests:      400KB      405KB   98.76
-        biovec-128:      384KB      390KB   98.46
-  ext2_inode_cache:      309KB      315KB   98.33
-       inode_cache:      253KB      253KB  100.0 
- skbuff_head_cache:      221KB      251KB   88.24
-           size-32:      183KB      211KB   86.68
+aio-dio-debug.patch
+
+dio-reduce-context-switch-rate.patch
+  Reduced wakeup rate in direct-io code
+
+cputimes_stat.patch
+  Retore per-cpu time accounting, with a config option
+
+deprecate-bdflush.patch
+  deprecate use of bdflush()
+
+reduce-random-context-switch-rate.patch
+  Reduce context switch rate due to the random driver
+
+bcrl-printk.patch
+
+read_zero-speedup.patch
+  speed up read_zero() for !CONFIG_MMU
+
+nommu-rmap-locking.patch
+  Fix rmap locking for CONFIG_SWAP=n
+
+semtimedop.patch
+  semtimedop - semop() with a timeout
+
+writeback-handle-memory-backed.patch
+  skip memory-backed filesystems in writeback
+
+2-remove-fail_writepage.patch
+
+wli-show_free_areas.patch
+  show_free_areas extensions
+
+inlines-net.patch
+
+rbtree-iosched.patch
+  rbtree-based IO scheduler
+
+deadsched-fix.patch
+  deadline scheduler fix
+
+quota-smp-locks.patch
+  Subject: [PATCH] Quota SMP locks
+
+shpte-ng.patch
+  pagetable sharing for ia32
+
+shpte-nonlinear.patch
+  shpte: support nonlinear mappings and clean up clear_share_range()
+
+shpte-always-on.patch
+  Force CONFIG_SHAREPTE=y for ia32
+
+pmd-allocation-fix.patch
+  make sure all PMDs are allocated under PAE mode
+
+ptrace-flush.patch
+  Subject: [PATCH] ptrace on 2.5.44
+
+buffer-debug.patch
+  buffer.c debugging
+
+warn-null-wakeup.patch
+
+pentium-II.patch
+  Pentium-II support bits
+
+radix-tree-overflow-fix.patch
+  handle overflows in radix_tree_gang_lookup()
+
+rcu-stats.patch
+  RCU statistics reporting
+
+auto-unplug.patch
+  self-unplugging request queues
+
+less-unplugging.patch
+  Remove most of the blk_run_queues() calls
+
+sync_fs.patch
+  Add a sync_fs super_block operation
+
+ext3_sync_fs.patch
+  implement ext3_sync_fs
+
+ext3-fsync-speedup.patch
+  Clean up ext3_sync_file()
+
+filldir-checks.patch
+  copy_user checks in filldir()
+
+vmstats-fixes.patch
+  vm accounting fixes and addition
+
+hugetlb-fixes.patch
+  hugetlb fixes
+
+writeback-interaction-fix.patch
+  fs-writeback rework.
+
+scalable-zone-protection.patch
+  Add /proc/sys/vm/lower_zone_protection
+
+page-wait-table-min-size.patch
+  Set a minimum hash table size for wait_on_page()
+
+ext3-transaction-reserved-blocks.patch
+  Reserve an additional transaction block in ext3_dirty_inode
+
+remove-PF_SYNC.patch
+
+dont-inherit-mlockall.patch
+  Don't inherit mm->def_flags across forks
+
+bootmem-alloc-alignment.patch
+  bootmem allocator merging fix
+
+ext23_free_blocks-check.patch
+  ext2/ext3_free_blocks() extra check
+
+blkdev-rlimit.patch
+  don't allpy file size rlimits to blockdevs
+
+readahead-pinned-memory.patch
+  limit pinned memory due to readahead
+
+lockless-current_kernel_time.patch
+  Lockless current_kernel_timer()
+
+remove-vmscan-check.patch
+  remove a vm debug check
+
+max_sane_readahead.patch
+
+default-super-ops.patch
+  provide a default super_block_operations
+
+page-walk-api.patch
+
+page-walk-scsi.patch
+
+page-walk-api-update.patch
+  pagewalk API update
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
