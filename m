@@ -1,44 +1,40 @@
-Received: from netmail.austin.ibm.com (netmail.austin.ibm.com [9.53.250.98])
-	by mailgate1.austin.ibm.com (AIX4.3/8.9.3/8.9.3) with ESMTP id KAA18850
-	for <linux-mm@kvack.org>; Tue, 31 Oct 2000 10:48:41 -0600
-Received: from popmail.austin.ibm.com (popmail.austin.ibm.com [9.53.247.178])
-        by netmail.austin.ibm.com (8.8.5/8.8.5) with ESMTP id KAA50068
-        for <linux-mm@kvack.org>; Tue, 31 Oct 2000 10:47:51 -0600
-Received: from us.ibm.com (slpratt2.austin.ibm.com [9.53.126.238]) by popmail.austin.ibm.com (AIX4.3/8.9.3/8.7-client1.01) with ESMTP id KAA23796 for <linux-mm@kvack.org>; Tue, 31 Oct 2000 10:47:48 -0600
-Message-ID: <39FEF83C.E0EFBE28@us.ibm.com>
-Date: Tue, 31 Oct 2000 10:50:04 -0600
-From: Steven Pratt <slpratt@us.ibm.com>
+Date: Tue, 31 Oct 2000 14:06:08 -0200 (BRST)
+From: Marcelo Tosatti <marcelo@conectiva.com.br>
+Subject: Re: [RFC] Structure in Compressed Cache
+In-Reply-To: <20001030190922.A5183@linux.ime.usp.br>
+Message-ID: <Pine.LNX.4.21.0010311404210.1475-100000@freak.distro.conectiva>
 MIME-Version: 1.0
-Subject: [Fwd: [PATCH] 2.4.0-test10-pre6  TLB flush race in establish_pte]
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: linux-mm@kvack.org, kernel@tutu.ime.usp.br
 List-ID: <linux-mm.kvack.org>
 
- Andrea Arcangeli wrote:
- >
- > On Mon, Oct 30, 2000 at 03:31:22PM -0600, Steve Pratt/Austin/IBM
-wrote:
- > > [..] no patch ever
- > > appeared. [..]
- >
- > You didn't followed l-k closely enough as the strict fix was
-submitted two
- > times but it got not merged. (maybe because it had an #ifdef __s390__
-that was
- > _necessary_ by that time?)
- >
- > You can find the old and now useless patch here:
- >
 
->ftp://ftp.us.kernel.org/pub/linux/kernel/people/andrea/patches/v2.4/2.4.0-test5/tlb-flush-smp-race-1
- 
- I stand corrected, I missed this is my searching.  Hopefully this will
- get in this time.
- 
-> Steve
+On Mon, 30 Oct 2000, Rodrigo S. de Castro wrote:
+
+> Hello,
+> 
+> 	In my implementation of compressed cache (kernel 2.2.16), I
+> started the project having my cache as a slab cache, structure
+> provided by kernel. I have all step 1 (a cache with no compression)
+> done, but I had a problem with marking pages in my cache. After an
+> email sent to the list about this subject, I started looking at shared
+> memory mechanism (mainly ipc/shm.c), and I saw that there's another
+> way of making it: with a page table allocation and memory mapping. I
+> could go on with my initial idea (with slab cache) but I think that
+> doing the latter way (with page table and memory mapping) would be
+> more complete (and, of course, harder). I will have a pool of
+> (compressed) pages that gotta be always in memory and will be
+> "between" physical memory and swap. As the project is growing I would
+> like to define now which path to follow, taking in account
+> completeness and upgradeability (to future versions of kernel). Which
+> way do you think that is better? Please, I also ask you to tell me in
+> case you know if there's another way, maybe better, of doing it.
+
+Slab cache memory is physically contiguous and non swappable, so it may be
+a waste to use it to cache userspace data. 
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
