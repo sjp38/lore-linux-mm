@@ -1,180 +1,52 @@
-Date: Thu, 9 Dec 2004 00:33:15 +0100
-From: Miquel van Smoorenburg <miquels@cistron.nl>
-Subject: Re: PATCH: mark_page_accessed() for read()s on non-page boundaries
-Message-ID: <20041208233314.GA13529@cistron.nl>
-References: <20041207213819.GA32537@cistron.nl> <20041207135205.783860cf.akpm@osdl.org> <1102457139l.23999l.3l@stargazer.cistron.net> <20041207142805.2b7517b7.akpm@osdl.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20041207142805.2b7517b7.akpm@osdl.org>
+Message-ID: <41B8060A.4050402@yahoo.com.au>
+Date: Thu, 09 Dec 2004 19:00:10 +1100
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+MIME-Version: 1.0
+Subject: Re: page fault scalability patch V12 [0/7]: Overview and performance
+ tests
+References: <Pine.LNX.4.44.0411221457240.2970-100000@localhost.localdomain> <Pine.LNX.4.58.0411221343410.22895@schroedinger.engr.sgi.com> <Pine.LNX.4.58.0411221419440.20993@ppc970.osdl.org> <Pine.LNX.4.58.0411221424580.22895@schroedinger.engr.sgi.com> <Pine.LNX.4.58.0411221429050.20993@ppc970.osdl.org> <Pine.LNX.4.58.0412011539170.5721@schroedinger.engr.sgi.com>
+In-Reply-To: <Pine.LNX.4.58.0412011539170.5721@schroedinger.engr.sgi.com>
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: linux-mm@kvack.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Linus Torvalds <torvalds@osdl.org>, Hugh Dickins <hugh@veritas.com>, akpm@osdl.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, linux-mm@kvack.org, linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-According to Andrew Morton:
-> It'll probably need to handle the "Maximally shrunk" case too.  But I've
-> locally merged some readahead rework from Steve Pratt and Ram Pai, and it
-> looks like the changes will be simpler in that case:
+Christoph Lameter wrote:
+> Changes from V11->V12 of this patch:
+> - dump sloppy_rss in favor of list_rss (Linus' proposal)
+> - keep up against current Linus tree (patch is based on 2.6.10-rc2-bk14)
+> 
 
-It looks like I can just set ra->prev_page unconditionally...
+[snip]
 
-I redid the patch against 2.6.10-rc3 and ran some tests:
+> For more than 8 cpus the page fault rate increases by orders
+> of magnitude. For more than 64 cpus the improvement in performace
+> is 10 times better.
 
-- Boot kernel with mem=128M
-
-- create a testfile of size 8 MB on a partition. Unmount/mount.
-
-- then generate about 10 MB/sec streaming writes
-
-	for i in `seq 1 1000`
-	do
-		dd if=/dev/zero of=junkfile.$i bs=1M count=10
-		sync
-		cat junkfile.$i > /dev/null
-		sleep 1
-	done
-
-- use an application that reads 128 bytes 64000 times from a
-  random offset in the 64 MB testfile.
-
-1. Linux 2.6.10-rc3 vanilla, no streaming writes:
-
-# time ~/rr testfile
-Read 128 bytes 64000 times
-~/rr testfile  0.03s user 0.22s system 5% cpu 4.456 total
-
-2. Linux 2.6.10-rc3 vanilla, streaming writes:
-
-# time ~/rr testfile
-Read 128 bytes 64000 times
-~/rr testfile  0.03s user 0.16s system 2% cpu 7.667 total
-# time ~/rr testfile
-Read 128 bytes 64000 times
-~/rr testfile  0.03s user 0.37s system 1% cpu 23.294 total
-# time ~/rr testfile
-Read 128 bytes 64000 times
-~/rr testfile  0.02s user 0.99s system 1% cpu 1:11.52 total
-# time ~/rr testfile
-Read 128 bytes 64000 times
-~/rr testfile  0.03s user 0.21s system 2% cpu 10.273 total
-
-3. Linux 2.6.10-rc3 with read-page-access.patch , streaming writes:
-
-# time ~/rr testfile
-Read 128 bytes 64000 times
-~/rr testfile  0.02s user 0.21s system 3% cpu 7.634 total
-# time ~/rr testfile
-Read 128 bytes 64000 times
-~/rr testfile  0.04s user 0.22s system 2% cpu 9.588 total
-# time ~/rr testfile
-Read 128 bytes 64000 times
-~/rr testfile  0.02s user 0.12s system 24% cpu 0.563 total
-# time ~/rr testfile
-Read 128 bytes 64000 times
-~/rr testfile  0.03s user 0.13s system 98% cpu 0.163 total
-
-As expected, with the read-page-access.patch, the kernel keeps
-the 8 MB testfile cached as expected, while without it,
-it doesn't.
-
-So this is useful for workloads where one smallish (wrt RAM) file
-is read randomly over and over again (like heavily used database
-indexes), while other I/O is going on. Plain 2.6 caches those files
-poorly, if the app uses plain read().
-
-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+Those numbers are pretty impressive. I thought you'd said with earlier
+patches that performance was about doubled from 8 to 512 CPUS. Did I
+remember correctly? If so, where is the improvement coming from? The
+per-thread RSS I guess?
 
 
+On another note, these patches are basically only helpful to new
+anonymous page faults. I guess this is the main thing you are concerned
+about at the moment, but I wonder if you would see improvements with
+my patch to remove the ptl from the other types of faults as well?
 
-PATCH: mark_page_accessed() for read()s on non-page boundaries
+The downside of my patch - well the main downsides - compared to yours
+are its intrusiveness, and the extra cost involved in copy_page_range
+which yours appears not to require.
 
-When reading a (partial) page from disk using read(), the kernel only
-marks the page as "accessed" if the read started at a page boundary.
-This means that files that are accessed randomly at non-page boundaries
-(usually database style files) will not be cached properly.
+As I've said earlier though, I wouldn't mind your patches going in. At
+least they should probably get into -mm soon, when Andrew has time (and
+after the 4level patches are sorted out). That wouldn't stop my patch
+(possibly) being merged some time after that if and when it was found
+worthy...
 
-The patch below uses the readahead state instead. If a page is read(),
-it is marked as "accessed" if the previous read() was for a different
-page, whatever the offset in the page.
-
-Signed-Off-By: Miquel van Smoorenburg <miquels@cistron.nl>
-
-
-diff -ruN linux-2.6.10-rc3.orig/mm/filemap.c linux-2.6.10-rc3/mm/filemap.c
---- linux-2.6.10-rc3.orig/mm/filemap.c	2004-12-08 16:05:17.000000000 +0100
-+++ linux-2.6.10-rc3/mm/filemap.c	2004-12-08 16:50:17.000000000 +0100
-@@ -689,6 +689,7 @@
- {
- 	struct inode *inode = mapping->host;
- 	unsigned long index, end_index, offset;
-+	unsigned long prev_page;
- 	loff_t isize;
- 	struct page *cached_page;
- 	int error;
-@@ -719,6 +720,8 @@
- 		}
- 		nr = nr - offset;
- 
-+		prev_page = ra.next_size ? ra.prev_page : -1UL;
-+
- 		cond_resched();
- 		page_cache_readahead(mapping, &ra, filp, index);
- 
-@@ -726,10 +729,13 @@
- 		page = find_get_page(mapping, index);
- 		if (unlikely(page == NULL)) {
- 			handle_ra_miss(mapping, &ra, index);
-+			prev_page = -1UL;
- 			goto no_cached_page;
- 		}
--		if (!PageUptodate(page))
-+		if (!PageUptodate(page)) {
-+			prev_page = -1UL;
- 			goto page_not_up_to_date;
-+		}
- page_ok:
- 
- 		/* If users can be writing to this page using arbitrary
-@@ -740,9 +746,10 @@
- 			flush_dcache_page(page);
- 
- 		/*
--		 * Mark the page accessed if we read the beginning.
-+		 * When (part of) the same page is read multiple times
-+		 * in succession, only mark it as accessed the first time.
- 		 */
--		if (!offset)
-+		if (prev_page != index)
- 			mark_page_accessed(page);
- 
- 		/*
-diff -ruN linux-2.6.10-rc3.orig/mm/readahead.c linux-2.6.10-rc3/mm/readahead.c
---- linux-2.6.10-rc3.orig/mm/readahead.c	2004-10-18 23:53:11.000000000 +0200
-+++ linux-2.6.10-rc3/mm/readahead.c	2004-12-08 16:07:40.000000000 +0100
-@@ -364,6 +364,7 @@
- 		if (ra->next_size != 0)
- 			goto out;
- 	}
-+	ra->prev_page = offset;
- 
- 	if (ra->next_size == -1UL)
- 		goto out;	/* Maximally shrunk */
-@@ -382,13 +383,10 @@
- 		 */
- 		first_access=1;
- 		ra->next_size = max / 2;
--		ra->prev_page = offset;
- 		ra->currnt_wnd_hit++;
- 		goto do_io;
- 	}
- 
--	ra->prev_page = offset;
--
- 	if (offset >= ra->start && offset <= (ra->start + ra->size)) {
- 		/*
- 		 * A readahead hit.  Either inside the window, or one
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
