@@ -1,61 +1,63 @@
-Date: Fri, 30 Jan 2004 06:14:36 -0500
+Date: Fri, 30 Jan 2004 06:18:05 -0500
 From: "Zephaniah E. Hull" <warp@babylon.d2dc.net>
-Subject: Re: 2.6.2-rc2-mm2
-Message-ID: <20040130111435.GB2505@babylon.d2dc.net>
-References: <20040130014108.09c964fd.akpm@osdl.org>
+Subject: Re: 2.6.2-rc2-mm1
+Message-ID: <20040130111805.GC2505@babylon.d2dc.net>
+References: <20040127233402.6f5d3497.akpm@osdl.org> <20040130104829.GA2505@babylon.d2dc.net> <20040130110205.GA1583@ucw.cz>
 Mime-Version: 1.0
 Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="/WwmFnJnmDyWGHa4"
+	protocol="application/pgp-signature"; boundary="XWOWbaMNXpFDWE00"
 Content-Disposition: inline
-In-Reply-To: <20040130014108.09c964fd.akpm@osdl.org>
+In-Reply-To: <20040130110205.GA1583@ucw.cz>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Vojtech Pavlik <vojtech@suse.cz>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@osdl.org>
 List-ID: <linux-mm.kvack.org>
 
---/WwmFnJnmDyWGHa4
+--XWOWbaMNXpFDWE00
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
 Content-Transfer-Encoding: quoted-printable
 
-On Fri, Jan 30, 2004 at 01:41:08AM -0800, Andrew Morton wrote:
+On Fri, Jan 30, 2004 at 12:02:05PM +0100, Vojtech Pavlik wrote:
+> On Fri, Jan 30, 2004 at 05:48:29AM -0500, Zephaniah E. Hull wrote:
+> > On Tue, Jan 27, 2004 at 11:34:02PM -0800, Andrew Morton wrote:
+> > >=20
+> > > ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.6/2.6.2-r=
+c2/2.6.2-rc2-mm1/
+> > >=20
+> > > - From now on, -mm kernels will contain the latest contents of:
+> > >=20
+> > > 	Vojtech's tree:		input.patch
+> >=20
+> > This one seems to have a rather problematic patch, which I can't find
+> > any explanation for.
 >=20
+> There is another revision of the same mouse from A4Tech (owned by
+> Jaroslav Kysela), that reports itself as Cypress and has the buttons a
+> bit differently.
 >=20
-> ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.6/2.6.2-rc2/2=
-=2E6.2-rc2-mm2/
->=20
->=20
-> - I added a few late-arriving patches.  Usually this breaks things.
->=20
-> - Added a few external development trees (USB, XFS).
->=20
-> - PNP update
+> If it indeed collides with your mouse, then we need somehow to specify
+> which button carries the wheel information in the quirk list.
 
-This patch contains:
---- linux-2.6.2-rc2/./include/linux/sched.h	2004-01-25 20:49:43.000000000 -=
-0800
-+++ 25/./include/linux/sched.h	2004-01-29 23:27:45.000000000 -0800
-=2E..
---- linux-2.6.2-rc2/include/linux/sched.h	2004-01-25 20:49:43.000000000 -08=
-00
-+++ 25/include/linux/sched.h	2004-01-29 23:27:45.000000000 -0800
-
-Both of which seem to be the exact same patch.
-
-This obviously causes some problems when applying.
+Ugh, that is not fun, it does indeed conflict.
+How about HID_QUIRK_2WHEEL_MOUSE_HACK_EXTRA and
+HID_QUIRK_2WHEEL_MOUSE_HACK_BACK as quirk names?
 
 --=20
 	1024D/E65A7801 Zephaniah E. Hull <warp@babylon.d2dc.net>
 	   92ED 94E4 B1E6 3624 226D  5727 4453 008B E65A 7801
 	    CCs of replies from mailing lists are requested.
 
-This is commonly attributed to the lusers spending too much time talking
-with their BOFH. They start thinking their name is "Moron" or "Dimwit"
-because you keep calling them that.  -- Toni Lassila <toni@nukespam.org>
-    in the Scary Devil Monastery about lusers forgetting their own names
+I could imagine that there might be some GPL project out there that
+_deserves_ getting sued(*) and it has nothing to do with Linux.
 
---/WwmFnJnmDyWGHa4
+                Linus
+
+(*) "GNU Emacs, the defendent, did inefariously conspire to play
+towers-of-hanoy, while under the guise of a harmless editor".
+
+--XWOWbaMNXpFDWE00
 Content-Type: application/pgp-signature; name="signature.asc"
 Content-Description: Digital signature
 Content-Disposition: inline
@@ -63,12 +65,12 @@ Content-Disposition: inline
 -----BEGIN PGP SIGNATURE-----
 Version: GnuPG v1.2.4 (GNU/Linux)
 
-iD8DBQFAGjybRFMAi+ZaeAERApnnAKCBL/y1e1lMAcjouF/KVClZvV00MwCdE2Oa
-9zIGCT3m+8003pztPXVKOA8=
-=P4KP
+iD8DBQFAGj1tRFMAi+ZaeAERAiadAJ9p0mXNYHkggc5SmtyzGUZa2X/voQCdFCrs
+YzpyQRiopiM1w3YsYZgTZCA=
+=apJI
 -----END PGP SIGNATURE-----
 
---/WwmFnJnmDyWGHa4--
+--XWOWbaMNXpFDWE00--
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
