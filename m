@@ -1,9 +1,9 @@
-Date: Tue, 1 Feb 2005 10:47:30 -0800 (PST)
+Date: Tue, 1 Feb 2005 11:01:55 -0800 (PST)
 From: Christoph Lameter <clameter@sgi.com>
 Subject: Re: page fault scalability patch V16 [3/4]: Drop page_table_lock in
  handle_mm_fault
 In-Reply-To: <41FF00CE.8060904@yahoo.com.au>
-Message-ID: <Pine.LNX.4.58.0502011044350.3205@schroedinger.engr.sgi.com>
+Message-ID: <Pine.LNX.4.58.0502011047330.3205@schroedinger.engr.sgi.com>
 References: <41E5B7AD.40304@yahoo.com.au> <Pine.LNX.4.58.0501121552170.12669@schroedinger.engr.sgi.com>
  <41E5BC60.3090309@yahoo.com.au> <Pine.LNX.4.58.0501121611590.12872@schroedinger.engr.sgi.com>
  <20050113031807.GA97340@muc.de> <Pine.LNX.4.58.0501130907050.18742@schroedinger.engr.sgi.com>
@@ -22,14 +22,51 @@ List-ID: <linux-mm.kvack.org>
 
 On Tue, 1 Feb 2005, Nick Piggin wrote:
 
-> Slightly OT: are you still planning to move the update_mem_hiwater and
-> friends crud out of these fastpaths? It looks like at least that function
-> is unsafe to be lockless.
+> >  	pte_unmap(page_table);
+> > +	page_table_atomic_stop(mm);
+> >
+> >  	/*
+> >  	 * Ok, we need to copy. Oh, well..
+> >  	 */
+> >  	if (!PageReserved(old_page))
+> >  		page_cache_get(old_page);
+> > -	spin_unlock(&mm->page_table_lock);
+> >
+>
+> I don't think you can do this unless you have done something funky that I
+> missed. And that kind of shoots down your lockless COW too, although it
+> looks like you can safely have the second part of do_wp_page without the
+> lock. Basically - your lockless COW patch itself seems like it should be
+> OK, but this hunk does not.
 
-Yes. I have a patch pending and the author of the CSA patches is a
-cowoerker of mine. The patch will be resubmitted once certain aspects
-of the timer subsystem are stabilized and/or when he gets back from his
-vacation. The statistics are not critical to system operation.
+See my comment at the end of this message.
+
+> I would be very interested if you are seeing performance gains with your
+> lockless COW patches, BTW.
+
+So far I have not had time to focus on benchmarking that.
+
+> Basically, getting a reference on a struct page was the only thing I found
+> I wasn't able to do lockless with pte cmpxchg. Because it can race with
+> unmapping in rmap.c and reclaim and reuse, which probably isn't too good.
+> That means: the only operations you are able to do lockless is when there
+> is no backing page (ie. the anonymous unpopulated->populated case).
+>
+> A per-pte lock is sufficient for this case, of course, which is why the
+> pte-locked system is completely free of the page table lock.
+
+Introducing pte locking would allow us to go further with parallelizing
+this but its another invasive procedure. I think parallelizing COW is only
+possible to do reliable with some pte locking scheme. But then the
+question is if the pte locking is really faster than obtaining a spinlock.
+I suspect this may not be the case.
+
+> Although I may have some fact fundamentally wrong?
+
+The unmapping in rmap.c would change the pte. This would be discovered
+after acquiring the spinlock later in do_wp_page. Which would then lead to
+the operation being abandoned.
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
