@@ -1,84 +1,71 @@
-Date: Mon, 1 May 2000 20:23:43 -0300 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
-Reply-To: riel@nl.linux.org
+Date: Mon, 1 May 2000 16:33:45 -0700
+Message-Id: <200005012333.QAA31200@pizda.ninka.net>
+From: "David S. Miller" <davem@redhat.com>
+In-reply-to: <Pine.LNX.4.21.0005012017300.7508-100000@duckman.conectiva>
+	(message from Rik van Riel on Mon, 1 May 2000 20:23:43 -0300 (BRST))
 Subject: Re: kswapd @ 60-80% CPU during heavy HD i/o.
-In-Reply-To: <390E1534.B33FF871@norran.net>
-Message-ID: <Pine.LNX.4.21.0005012017300.7508-100000@duckman.conectiva>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; CHARSET=US-ASCII
-Content-ID: <Pine.LNX.4.21.0005012017302.7508@duckman.conectiva>
+References: <Pine.LNX.4.21.0005012017300.7508-100000@duckman.conectiva>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Roger Larsson <roger.larsson@norran.net>
-Cc: linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
+To: riel@nl.linux.org
+Cc: roger.larsson@norran.net, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2 May 2000, Roger Larsson wrote:
+   We can simply "move" the list_head when we're done scanning and
+   continue from where we left off last time. That way we'll be much
+   less cpu intensive and scan all pages fairly.
 
-> I think there are some problems in the current (pre7-1) shrink_mmap.
-> 
-> 1) "Random" resorting for zone with free_pages > pages_high
->   while loop searches from the end of the list.
->   old pages on non memory pressure zones are disposed as 'young'.
->   Young pages are put in front, like recently touched ones.
->   This results in a random resort for these pages.
+   Using not one but 2 or 3 bits for aging the pages can result in
+   something closer to lru and cheaper than the scheme we have now.
 
-Not doing this would result in having to scan the same "wrong zone"
-pages over and over again, possibly never reaching the pages we do
-want to free.
+   What do you (and others) think about this idea?
 
-> 2) The implemented algorithm results in a lot of list operations -
->    each scanned page is deleted from the list.
+Why not have two lists, an active and an inactive list.  As reference
+bits clear, pages move to the inactive list.  If a reference bit stays
+clear up until when the page moves up to the head of the inactive
+list, we then try to free it.  For the active list, you do the "move
+the list head" technique.
 
-*nod*
+So you have two passes, one populates the inactive list, the next
+inspects the inactive list for pages to free up.  The toplevel
+shrink_mmap scheme can look something like:
 
-Maybe it's better to scan the list and leave it unchanged, doing
-second chance replacement on it like we do in 2.2 ... or even 2
-or 3 bit aging?
+	free_unreferenced_pages_in_inactive_list();
+	repopulate_inactive_list();
 
-That way we only have to scan and do none of the expensive list
-operations. Sorting doesn't make much sense anyway since we put
-most pages on the list in an essentially random order...
+And you define some heuristics to decide how populated you wish to
+try to keep the inactive list.
 
-> 3) The list is supposed to be small - it is not...
+Next, during periods of inactivity you have kswapd or some other
+daemon periodically (once every 5 seconds, something like this)
+perform an inactive list population run.
 
-Who says the list is supposed to be small?
+The inactive lru population can be done cheaply, using the above
+ideas, roughly like:
 
-> 4) Count is only decreased for suitable pages, but is related
->    to total pages.
+	LIST_HEAD(inactive_queue);
+	struct list_head * active_scan_point = &lru_active;
 
-Not doing this resulted in being unable to free the "right" pages,
-even if they are there on the list (just beyond where we stopped
-scanning) and killing a process with out of memory errors.
+	for_each_active_lru_page() {
+		if (!test_and_clear_referenced(page)) {
+			list_del(entry);
+			list_add(entry, &inactive_queue);
+		} else
+			active_scan_point = entry;
+	}
 
-> 5) Returns on first fully successful page. Rescan from beginning
->    at next call to get another one... (not that bad since pages
->    are moved to the end)
+	list_splice(&inactive_queue, &lru_inactive);
+	list_head_move(&lru_active, active_scan_point);
 
-Well, it *is* bad since we'll end up scanning all the pages in
-&old; (and trying to free them again, which probably fails just
-like it did last time). The more I think about it, the more I think
-we want to go to a second chance algorithm where we don't change
-the list (except to remove pages from the list).
+This way you only do list manipulations for actual work done
+(ie. moving inactive page candidates to the inactive list).
 
-We can simply "move" the list_head when we're done scanning and
-continue from where we left off last time. That way we'll be much
-less cpu intensive and scan all pages fairly.
+I may try to toss together and example implementation, but feel
+free to beat me to it :-)
 
-Using not one but 2 or 3 bits for aging the pages can result in 
-something closer to lru and cheaper than the scheme we have now.
-
-What do you (and others) think about this idea?
-
-regards,
-
-Rik
---
-The Internet is not a network of computers. It is a network
-of people. That is its real strength.
-
-Wanna talk about the kernel?  irc.openprojects.net / #kernelnewbies
-http://www.conectiva.com/		http://www.surriel.com/
+Later,
+David S. Miller
+davem@redhat.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
