@@ -1,55 +1,37 @@
-Message-Id: <200305210538.h4L5cPu08811@Port.imtp.ilyichevsk.odessa.ua>
-Content-Type: text/plain;
-  charset="koi8-r"
-From: Denis Vlasenko <vda@port.imtp.ilyichevsk.odessa.ua>
-Reply-To: vda@port.imtp.ilyichevsk.odessa.ua
-Subject: Re: Finalised 2.4 VM Documentation
-Date: Wed, 21 May 2003 08:44:43 +0300
-References: <Pine.LNX.4.53.0305191329310.24249@skynet>
-In-Reply-To: <Pine.LNX.4.53.0305191329310.24249@skynet>
-MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Date: Wed, 21 May 2003 16:13:16 +0400
+From: Ivan Kokshaysky <ink@jurassic.park.msu.ru>
+Subject: Re: 2.5.69-mm7
+Message-ID: <20030521161316.A3541@jurassic.park.msu.ru>
+References: <20030519012336.44d0083a.akpm@digeo.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20030519012336.44d0083a.akpm@digeo.com>; from akpm@digeo.com on Mon, May 19, 2003 at 01:23:36AM -0700
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>, Linux Memory Management List <linux-mm@kvack.org>
-Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@digeo.com>
+Cc: Jaroslav Kysela <perex@suse.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 19 May 2003 15:53, Mel Gorman wrote:
-> I've finalised all the documentation that I'm going to do for the 2.4
-> VM and no further updates will be posted on the web site to this
-> version. At this stage it has been heavily read by a number of people
-> and there hasn't been a complaint or correction in a few weeks now. 
-> I'm happy to say it is now complete (and more importantly correct)
-> and acts as a detailed description of the 2.4 VM, the algorithms that
-> it is based on and comprehensive coverage of the code. People who are
-> only interested in the 2.5.x VMs will still find it much easier to
-> follow when they clearly know how 2.4 is put together.
->
-> As always, it comes in two parts. The first part is the actual
-> documentation and gives a description of the whole VM. The second is
-> a code commentary which covers a significant percentage of the VM for
-> guiding through the messier parts. They are available in PDF, HTML
-> and plain text formats.
->
-> Main site: http://www.csn.ul.ie/~mel/projects/vm/
->
-> Understanding the Linux Virtual Memory Manager
-> PDF:  http://www.csn.ul.ie/~mel/projects/vm/guide/pdf/understand.pdf
-> HTML: http://www.csn.ul.ie/~mel/projects/vm/guide/html/understand/
-> Text: http://www.csn.ul.ie/~mel/projects/vm/guide/text/understand.txt
->
-> Code Commentary on the Linux Virtual Memory Manager
-> PDF:  http://www.csn.ul.ie/~mel/projects/vm/guide/pdf/code.pdf
-> HTML: http://www.csn.ul.ie/~mel/projects/vm/guide/html/code
-> Text: http://www.csn.ul.ie/~mel/projects/vm/guide/text/code.txt
->
-> Thanks to all the people who read through it, helped me out and sent
-> encouragement. It's been fun.
+On Mon, May 19, 2003 at 01:23:36AM -0700, Andrew Morton wrote:
+> sound-core-memalloc-build-fix.patch
+>   soubd/core/memalloc.c needs mm.h
 
-Amazing stuff. Thank you.
---
-vda
+Ditto sound/core/sgbuf.c, at least on alpha, for
+mem_map and other page stuff.
+
+Ivan.
+
+--- 2.5/sound/core/sgbuf.c	Mon Apr  7 21:31:57 2003
++++ linux/sound/core/sgbuf.c	Mon Apr 14 19:15:11 2003
+@@ -23,6 +23,7 @@
+ #include <linux/version.h>
+ #include <linux/pci.h>
+ #include <linux/slab.h>
++#include <linux/mm.h>
+ #include <linux/vmalloc.h>
+ #include <sound/memalloc.h>
+ 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
