@@ -1,38 +1,63 @@
-Subject: Re: MM patches against 2.5.31
-From: Steven Cole <elenstev@mesatop.com>
-In-Reply-To: <2631076918.1030007179@[10.10.2.3]>
-References: <1030031958.14756.479.camel@spc9.esa.lanl.gov>
-	<2631076918.1030007179@[10.10.2.3]>
-Content-Type: text/plain
+Message-ID: <3D654C8F.30400@us.ibm.com>
+Date: Thu, 22 Aug 2002 13:41:51 -0700
+From: Matthew Dobson <colpatch@us.ibm.com>
+Reply-To: colpatch@us.ibm.com
+MIME-Version: 1.0
+Subject: Re: [Lse-tech] [patch] SImple Topology API v0.3 (1/2)
+References: <3D6537D3.3080905@us.ibm.com> <20020822202239.A30036@infradead.org>
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
-Date: 22 Aug 2002 13:45:52 -0600
-Message-Id: <1030045552.3954.10.camel@spc9.esa.lanl.gov>
-Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Martin J. Bligh" <Martin.Bligh@us.ibm.com>
-Cc: Andrew Morton <akpm@zip.com.au>, lkml <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Christoph Hellwig <hch@infradead.org>
+Cc: Andrew Morton <akpm@zip.com.au>, Linus Torvalds <torvalds@transmeta.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Martin Bligh <mjbligh@us.ibm.com>, Andrea Arcangeli <andrea@suse.de>, Michael Hohnbaum <hohnbaum@us.ibm.com>, lse-tech <lse-tech@lists.sourceforge.net>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2002-08-22 at 10:06, Martin J. Bligh wrote:
-> > kjournald: page allocation failure. order:0, mode:0x0
+The file asm/mmzone.h needs to be included in both the CONFIG_DISCONTIGMEM and 
+!CONFIG_DISCONTIGMEM cases (at least after my patch).  This just pulls the 
+#include out of the #ifdefs.
+
+Cheers!
+
+-Matt
+
+Christoph Hellwig wrote:
+> On Thu, Aug 22, 2002 at 12:13:23PM -0700, Matthew Dobson wrote:
 > 
-> I've seen this before, but am curious how we ever passed
-> a gfpmask (aka mode) of 0 to __alloc_pages? Can't see anywhere
-> that does this?
+>>--- linux-2.5.27-vanilla/include/linux/mmzone.h	Sat Jul 20 12:11:05 2002
+>>+++ linux-2.5.27-api/include/linux/mmzone.h	Wed Jul 24 17:33:41 2002
+>>@@ -220,15 +20,15 @@
+>> #define NODE_MEM_MAP(nid)	mem_map
+>> #define MAX_NR_NODES		1
+>> 
+>>-#else /* !CONFIG_DISCONTIGMEM */
+>>-
+>>-#include <asm/mmzone.h>
+>>+#else /* CONFIG_DISCONTIGMEM */
+>> 
+>> /* page->zone is currently 8 bits ... */
+>> #define MAX_NR_NODES		(255 / MAX_NR_ZONES)
+>> 
+>> #endif /* !CONFIG_DISCONTIGMEM */
+>> 
+>>+#include <asm/mmzone.h>
+>>+
 > 
-> Thanks,
 > 
-> M.
+> What is the exact purpose of this change?
+> 
+> 
+> 
+> -------------------------------------------------------
+> This sf.net email is sponsored by: OSDN - Tired of that same old
+> cell phone?  Get a new here for FREE!
+> https://www.inphonic.com/r.asp?r=sourceforge1&refcode1=vs3390
+> _______________________________________________
+> Lse-tech mailing list
+> Lse-tech@lists.sourceforge.net
+> https://lists.sourceforge.net/lists/listinfo/lse-tech
+> 
 
-I ran dbench 1..128 on 2.5.31-mm1 several more times with nothing
-unusual happening, and then got this from pdflush with dbench 96.
-
-pdflush: page allocation failure. order:0, mode:0x0
-
-FWIW, this 2.5.31-mm1 kernel is SMP, HIGHMEM4G, no PREEMPT.
-
-Steven
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
