@@ -1,33 +1,51 @@
-Message-ID: <396F0E1D.AE1C4D27@uow.edu.au>
-Date: Fri, 14 Jul 2000 22:57:01 +1000
-From: Andrew Morton <andrewm@uow.edu.au>
+Date: Fri, 14 Jul 2000 10:35:00 -0300 (BRST)
+From: Rik van Riel <riel@conectiva.com.br>
+Subject: Re: writeback list
+In-Reply-To: <20000714103535.H3113@redhat.com>
+Message-ID: <Pine.LNX.4.21.0007141026340.10193-100000@duckman.distro.conectiva>
 MIME-Version: 1.0
-Subject: Re: vmtruncate question
-References: <396BCFA8.C033D94A@uow.edu.au>,
-            <396BCFA8.C033D94A@uow.edu.au>; from andrewm@uow.edu.au on Wed,
-            Jul 12, 2000 at 01:53:44AM +0000 <20000714111802.R3113@redhat.com>
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: "Stephen C. Tweedie" <sct@redhat.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-"Stephen C. Tweedie" wrote:
+On Fri, 14 Jul 2000, Stephen C. Tweedie wrote:
+> On Thu, Jul 13, 2000 at 04:30:35PM -0300, Rik van Riel wrote:
+> > 
+> > we may have forgotten something in our new new vm design from
+> > last weekend. While we have the list head available to put
+> > pages in the writeback list, we don't have an entry in to put
+> > the timestamp of the write in struct_page...
 > 
-> Hi,
-> 
-> On Wed, Jul 12, 2000 at 01:53:44AM +0000, Andrew Morton wrote:
-> > The flushes which surround the second call to zap_page_range()
-> > would appear to be flushing more memory than is to be
-> > zapped.  Is this correct, or should it be:
-> 
-> Yes, I noticed that too: I think you're right.
+> It shouldn't matter.  Just assume something like the 30-second sync.
+> You can keep placeholders in the list for that, or even do something
+> like have multiple lists, one for the current 30-seconds being synced,
+> one for the next sync.  You can do the same for 5-second metadata
+> syncs too if you want;
 
-OK, thanks.  I'll implement this in the changes which are part of the
-low-lat patch and send it off to LT tonight.  If he says "no
-low-latency" then I'll make sure this issue isn't forgotten about.
+Placeholders seem like the best idea to me. Having separate
+lists for data and metadata will have to go away anyway when
+we start using journaled filesystems (which have their own
+ordering issues).
+
+> It perturbs the LRU a bit, but then we also have page aging so
+> that's not too bad.  (Are you planning on using the age values
+> in the inactive list, btw?)
+
+All pages on the inactive list will have age 0, once they are
+touched they go back to the active list...
+
+regards,
+
+Rik
+--
+"What you're running that piece of shit Gnome?!?!"
+       -- Miguel de Icaza, UKUUG 2000
+
+http://www.conectiva.com/		http://www.surriel.com/
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
