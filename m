@@ -1,35 +1,41 @@
-Date: Thu, 28 Sep 2000 07:12:07 -0300 (BRST)
+Date: Thu, 28 Sep 2000 08:16:32 -0300 (BRST)
 From: Rik van Riel <riel@conectiva.com.br>
-Subject: Re: 2.4.0-t9p7 and mmap002 - freeze
-In-Reply-To: <Pine.Linu.4.10.10009280803050.1233-100000@mikeg.weiden.de>
-Message-ID: <Pine.LNX.4.21.0009280710230.1814-100000@duckman.distro.conectiva>
+Subject: Re: [patch] vmfixes-2.4.0-test9-B2 - fixing deadlocks
+In-Reply-To: <Pine.LNX.4.21.0009280702460.1814-100000@duckman.distro.conectiva>
+Message-ID: <Pine.LNX.4.21.0009280742280.1814-100000@duckman.distro.conectiva>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mike Galbraith <mikeg@weiden.de>
-Cc: Roger Larsson <roger.larsson@norran.net>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Andrea Arcangeli <andrea@suse.de>
+Cc: Christoph Rohland <cr@sap.com>, "Stephen C. Tweedie" <sct@redhat.com>, Ingo Molnar <mingo@elte.hu>, Linus Torvalds <torvalds@transmeta.com>, Roger Larsson <roger.larsson@norran.net>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 28 Sep 2000, Mike Galbraith wrote:
-> On Wed, 27 Sep 2000, Roger Larsson wrote:
+On Thu, 28 Sep 2000, Rik van Riel wrote:
+> On Wed, 27 Sep 2000, Andrea Arcangeli wrote:
+
+> > But again: if the shm contains I/O cache it should be released
+> > and not swapped out.  Swapping out shmfs that contains I/O cache
+> > would be exactly like swapping out page-cache.
 > 
-> > Tried latest patch with the same result - freeze...
-> 
-> Ditto.
+> The OS has no business knowing what's inside that SHM page.
 
-I'm finally back from Linux Kongress and Linux Expo and
-will look at the latest tree and integrate the fixes I
-made while on the road later today (after I get some
-sleep).
+Hmm, now I woke up maybe I should formulate this in a
+different way.
 
-I have fixed this particular bug, which was caused by
-us moving unfreeable pages to the inactive_dirty list
-and back again, while not accomplishing anything useful.
+Andrea, I have the strong impression that your idea of
+memory balancing is based on the idea that the OS should
+out-smart the application instead of looking at the usage
+pattern of the pages in memory.
 
-The fix for this is trivial and I'll post it later
-today (cleaned up and working in the current source
-tree).
+This is fundamentally different from the idea that the OS
+should make decisions based on the observed usage patterns
+of the pages in question, instead of making presumptions
+based on what kind of cache the page is in.
+
+I've been away for 10 days and have been sitting on a bus
+all last night so my judgement may be off. I'd certainly
+like to hear I'm wrong ;)
 
 regards,
 
