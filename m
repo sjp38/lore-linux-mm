@@ -1,28 +1,30 @@
-Date: Sun, 6 Apr 2003 05:26:03 -0400
+Date: Sun, 6 Apr 2003 05:29:43 -0400
 From: Benjamin LaHaise <bcrl@redhat.com>
 Subject: Re: objrmap and vmtruncate
-Message-ID: <20030406052603.A4440@redhat.com>
-References: <20030404163154.77f19d9e.akpm@digeo.com> <12880000.1049508832@flay> <20030405024414.GP16293@dualathlon.random> <20030404192401.03292293.akpm@digeo.com> <20030405040614.66511e1e.akpm@digeo.com> <20030405232524.GD1828@holomorphy.com>
+Message-ID: <20030406052943.B4440@redhat.com>
+References: <20030404163154.77f19d9e.akpm@digeo.com> <12880000.1049508832@flay> <20030405024414.GP16293@dualathlon.random> <20030404192401.03292293.akpm@digeo.com> <20030405040614.66511e1e.akpm@digeo.com> <20030405163003.GD1326@dualathlon.random>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20030405232524.GD1828@holomorphy.com>; from wli@holomorphy.com on Sat, Apr 05, 2003 at 03:25:24PM -0800
+In-Reply-To: <20030405163003.GD1326@dualathlon.random>; from andrea@suse.de on Sat, Apr 05, 2003 at 06:30:03PM +0200
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: William Lee Irwin III <wli@holomorphy.com>, Andrew Morton <akpm@digeo.com>, andrea@suse.de, mbligh@aracnet.com, mingo@elte.hu, hugh@veritas.com, dmccr@us.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrea Arcangeli <andrea@suse.de>
+Cc: Andrew Morton <akpm@digeo.com>, mbligh@aracnet.com, mingo@elte.hu, hugh@veritas.com, dmccr@us.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, Apr 05, 2003 at 03:25:24PM -0800, William Lee Irwin III wrote:
-> I apparently erred when I claimed this kind of test would not provide
-> useful figures of merit for page replacement algorithms. There appears
-> to be more to life than picking the right pages.
+On Sat, Apr 05, 2003 at 06:30:03PM +0200, Andrea Arcangeli wrote:
+> 
+> I'm not questioning during paging rmap is more efficient than objrmap,
+> but your argument about rmap having lower complexity of objrmap and that
+> rmap is needed is wrong. The fact is that with your 100 mappings per
+> each of the 100 tasks case, both algorithms works in O(N) where N is
+> the number of the pagetables mapping the page. No difference in
 
-This is precisely the conclusion which davem and myself came to, and 
-explained at the beginning of this whole ordeal.  It all boils down to 
-the complexity of the algorithm, and the fact that the number of cache 
-misses scales with that.
-
-Can we get on with merging pgcl to mitigate some of the rmap costs now?  ;-)
+Small mistake on your part: there are two different parameters to that:
+objrmap is O(N) where N is the number of vmas, and regular rmap is O(M) 
+where M is the number of currently mapped ptes.  M <= N and is frequently 
+less for sparsely resident pages (ie in things like executables).
 
 		-ben
 --
