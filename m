@@ -1,9 +1,10 @@
-Date: Mon, 1 Mar 2004 15:59:11 -0500 (EST)
+Date: Mon, 1 Mar 2004 16:05:51 -0500 (EST)
 From: Anand Eswaran <aeswaran@andrew.cmu.edu>
 Subject: Re: writepage  
-In-Reply-To: <Pine.LNX.4.44.0403011531260.32137-100000@delhi.clic.cs.columbia.edu>
-Message-ID: <Pine.LNX.4.58-035.0403011555590.2281@unix43.andrew.cmu.edu>
+In-Reply-To: <Pine.LNX.4.58-035.0403011555590.2281@unix43.andrew.cmu.edu>
+Message-ID: <Pine.LNX.4.58-035.0403011603530.2281@unix43.andrew.cmu.edu>
 References: <Pine.LNX.4.44.0403011531260.32137-100000@delhi.clic.cs.columbia.edu>
+ <Pine.LNX.4.58-035.0403011555590.2281@unix43.andrew.cmu.edu>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -12,53 +13,71 @@ To: "Raghu R. Arur" <rra2002@cs.columbia.edu>
 Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-In that case, it seems to me that during the next pass of the launder
-loop, the loop by definition cannot have a (page->mapping) value of NULL
-because it has been added to the swapcache in the previous pass.
+Sorry I meant for a given page , during the next pass, when the
+page->buffers is NON_NULL and is released, by definition the page cannot
+have a null mapping because it would have been added in the swapcache
+previous pass. Is that true?
 
-Is that true?
------
+Thanks,
+----
 Anand.
 
+On Mon, 1 Mar 2004, Anand Eswaran wrote:
 
-
-On Mon, 1 Mar 2004, Raghu R. Arur wrote:
-
+> In that case, it seems to me that during the next pass of the launder
+> loop, the loop by definition cannot have a (page->mapping) value of NULL
+> because it has been added to the swapcache in the previous pass.
 >
->  The page is added to the swap cache by add_to_swap_cache and not by
-> writepage.
+> Is that true?
+> -----
+> Anand.
 >
->  writepage() (swap_writepage() in this case) prepares the page to write to
-> the swap disk by creating buffers and submits the page to the disk. So
-> page->buffers will be NON_NULL.
 >
-> Raghu.
 >
-> On Mon, 1 Mar 2004, Anand Eswaran wrote:
+> On Mon, 1 Mar 2004, Raghu R. Arur wrote:
 >
-> > Hi :
 > >
-> >   I have quick question reg Linux 2.4.18, Ive tried to understand the code
-> > but am pretty confused:
+> >  The page is added to the swap cache by add_to_swap_cache and not by
+> > writepage.
 > >
-> >   In the typical malloc execution-path,  the page is added to swap and it's
-> > pte_chain is unmapped  after which the writepage() is executed.  However I
-> > notice that *after* the writepage(), the page->buffers is NON_NULL.
+> >  writepage() (swap_writepage() in this case) prepares the page to write to
+> > the swap disk by creating buffers and submits the page to the disk. So
+> > page->buffers will be NON_NULL.
 > >
-> >   Is this supposed to happen? I thought the writepage function flushed the
-> > page to swap, so why are there residual buffers?
+> > Raghu.
 > >
-> > Thanks,
-> > ----
-> > Anand.
+> > On Mon, 1 Mar 2004, Anand Eswaran wrote:
 > >
-> > --
-> > To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> > the body to majordomo@kvack.org.  For more info on Linux MM,
-> > see: http://www.linux-mm.org/ .
-> > Don't email: <a href=mailto:"aart@kvack.org"> aart@kvack.org </a>
+> > > Hi :
+> > >
+> > >   I have quick question reg Linux 2.4.18, Ive tried to understand the code
+> > > but am pretty confused:
+> > >
+> > >   In the typical malloc execution-path,  the page is added to swap and it's
+> > > pte_chain is unmapped  after which the writepage() is executed.  However I
+> > > notice that *after* the writepage(), the page->buffers is NON_NULL.
+> > >
+> > >   Is this supposed to happen? I thought the writepage function flushed the
+> > > page to swap, so why are there residual buffers?
+> > >
+> > > Thanks,
+> > > ----
+> > > Anand.
+> > >
+> > > --
+> > > To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> > > the body to majordomo@kvack.org.  For more info on Linux MM,
+> > > see: http://www.linux-mm.org/ .
+> > > Don't email: <a href=mailto:"aart@kvack.org"> aart@kvack.org </a>
+> > >
 > >
->
+> >
+> >
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"aart@kvack.org"> aart@kvack.org </a>
 >
 >
 --
