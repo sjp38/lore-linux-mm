@@ -1,39 +1,48 @@
-Message-ID: <3D3F56C6.B045E8A@mvista.com>
-Date: Wed, 24 Jul 2002 18:39:18 -0700
-From: george anzinger <george@mvista.com>
+Date: Wed, 24 Jul 2002 23:35:27 -0300 (BRT)
+From: Rik van Riel <riel@conectiva.com.br>
+Subject: Re: page_add/remove_rmap costs
+In-Reply-To: <3D3F0DE4.84A4FB62@zip.com.au>
+Message-ID: <Pine.LNX.4.44L.0207242334460.3086-100000@imladris.surriel.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] updated low-latency zap_page_range
-References: <Pine.LNX.4.44.0207241820170.5944-100000@home.transmeta.com>
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@transmeta.com>
-Cc: Robert Love <rml@tech9.net>, Andrew Morton <akpm@zip.com.au>, riel@conectiva.com.br, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@zip.com.au>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Linus Torvalds wrote:
-> 
-> On 24 Jul 2002, Robert Love wrote:
+On Wed, 24 Jul 2002, Andrew Morton wrote:
+> Rik van Riel wrote:
+> > On Wed, 24 Jul 2002, Andrew Morton wrote:
 > >
-> >       if (preempt_count() == 1 && need_resched())
+> > I guess I'll take a stab at bcrl's and davem's code and will
+> > try to also hide it between an rmap.c interface ;)
+>
+> hmm, OK.  Big job...
+
+Absolutely, not a short term thing.  In the short term
+I'll split out the remainder of Craig Kulesa's big patch
+and will send you bits and pieces.
+
+> > > For example: given that copy_page_range performs atomic ops against
+> > > page->count, how come page_add_rmap()'s atomic op against page->flags
+> > > is more of a problem?
 > >
-> > Then we get "if (0 && ..)" which should hopefully be evaluated away.
-> 
-> I think preempt_count() is not unconditionally 0 for non-preemptible
-> kernels, so I don't think this is a compile-time constant.
-> 
-> That may be a bug in preempt_count(), of course.
-> 
-Didn't we just put bh_count and irq_count in the same
-word???
+> > Could it have something to do with cpu_relax() delaying
+> > things ?
+>
+> Don't think so.  That's only executed on the contended case,
+
+You're right.
+
+regards,
+
+Rik
 -- 
-George Anzinger   george@mvista.com
-High-res-timers: 
-http://sourceforge.net/projects/high-res-timers/
-Real time sched:  http://sourceforge.net/projects/rtsched/
-Preemption patch:
-http://www.kernel.org/pub/linux/kernel/people/rml
+Bravely reimplemented by the knights who say "NIH".
+
+http://www.surriel.com/		http://distro.conectiva.com/
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
