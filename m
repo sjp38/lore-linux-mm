@@ -1,201 +1,113 @@
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by e6.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id j1OHTJr9004925
-	for <linux-mm@kvack.org>; Thu, 24 Feb 2005 12:29:19 -0500
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay04.pok.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id j1OHTJSt225518
-	for <linux-mm@kvack.org>; Thu, 24 Feb 2005 12:29:19 -0500
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.12.11/8.12.11) with ESMTP id j1OHTJKR005426
-	for <linux-mm@kvack.org>; Thu, 24 Feb 2005 12:29:19 -0500
-Subject: [PATCH 1/5] memset the i386 numa pgdats in arch code
+Received: from westrelay02.boulder.ibm.com (westrelay02.boulder.ibm.com [9.17.195.11])
+	by e34.co.us.ibm.com (8.12.10/8.12.9) with ESMTP id j1OHTYMN032252
+	for <linux-mm@kvack.org>; Thu, 24 Feb 2005 12:29:34 -0500
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by westrelay02.boulder.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id j1OHTXov133982
+	for <linux-mm@kvack.org>; Thu, 24 Feb 2005 10:29:33 -0700
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.12.11/8.12.11) with ESMTP id j1OHTXKO031616
+	for <linux-mm@kvack.org>; Thu, 24 Feb 2005 10:29:33 -0700
+Subject: [PATCH 5/5] SRAT cleanup: make calculations and indenting level more sane
 From: Dave Hansen <haveblue@us.ibm.com>
-Date: Thu, 24 Feb 2005 09:29:17 -0800
-Message-Id: <E1D4Mne-0006uM-00@kernel.beaverton.ibm.com>
+Date: Thu, 24 Feb 2005 09:29:31 -0800
+Message-Id: <E1D4Mns-0007DT-00@kernel.beaverton.ibm.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
-Cc: colpatch@us.ibm.com, kravetz@us.ibm.com, mbligh@aracnet.com, anton@samba.org, Dave Hansen <haveblue@us.ibm.com>, ygoto@us.fujitsu.com
+Cc: colpatch@us.ibm.com, kravetz@us.ibm.com, mbligh@aracnet.com, anton@samba.org, Dave Hansen <haveblue@us.ibm.com>, ygoto@us.fujitsu.com, apw@shadowen.org, kmannth@us.ibm.com
 List-ID: <linux-mm.kvack.org>
 
-The next patch in this series will remove the arch-independent
-clearing of the pgdat's.  This first patch removes the i386
-dependency on that behavior.
+Using the assumption that all addresses in the SRAT are ascending,
+the calculations can get a bit simpler, and remove the 
+"been_here_before" variable.
 
-The new i386 function, remapped_pgdat_init() takes care of
-initializing the pgdats which are finally mapped after
-paging_init() is done.  The zone_sizes_init() call has to occur
-after the pgdat clearing.
+This also breaks that calculation out into its own function, which
+further simplifies the look of the code.
 
-zone_sizes_init() is currently called from the end of paging_init(),
-because that's the first place where the pgdats could have been
-zeroed.  However, zone_sizes_init() really doesn't have anything
-to do with paging, and probably shouldn't be in paging_init().
-
-Moving this call into setup_memory() allows the declaration of
-zone_sizes_init() to change files as well, which means a net
-removal of one #ifdef.  It also provides a handy place to put
-the new function, far away from the paging code that it really
-has nothing to do with.  Moving files required only using
-highend_pfn inside of the HIGHMEM ifdef, but this saves a line
-of code anyway.
-
-Fixes from: Yasunori Goto <ygoto@us.fujitsu.com>
 Signed-off-by: Dave Hansen <haveblue@us.ibm.com>
 ---
 
- sparse-dave/arch/i386/kernel/setup.c |   42 +++++++++++++++++++++++++++++++++++
- sparse-dave/arch/i386/mm/discontig.c |    4 ---
- sparse-dave/arch/i386/mm/init.c      |   26 ---------------------
- 3 files changed, 43 insertions(+), 29 deletions(-)
+ sparse-dave/arch/i386/kernel/srat.c |   61 ++++++++++++++++++------------------
+ 1 files changed, 32 insertions(+), 29 deletions(-)
 
-diff -puN arch/i386/kernel/setup.c~A2.1-re-memset-i386-pgdats arch/i386/kernel/setup.c
---- sparse/arch/i386/kernel/setup.c~A2.1-re-memset-i386-pgdats	2005-02-24 08:56:38.000000000 -0800
-+++ sparse-dave/arch/i386/kernel/setup.c	2005-02-24 08:56:38.000000000 -0800
-@@ -40,6 +40,7 @@
- #include <linux/efi.h>
- #include <linux/init.h>
- #include <linux/edd.h>
-+#include <linux/nodemask.h>
- #include <video/edid.h>
- #include <asm/e820.h>
- #include <asm/mpspec.h>
-@@ -1053,8 +1054,29 @@ static unsigned long __init setup_memory
- 
- 	return max_low_pfn;
- }
-+
-+void __init zone_sizes_init(void)
-+{
-+	unsigned long zones_size[MAX_NR_ZONES] = {0, 0, 0};
-+	unsigned int max_dma, low;
-+
-+	max_dma = virt_to_phys((char *)MAX_DMA_ADDRESS) >> PAGE_SHIFT;
-+	low = max_low_pfn;
-+
-+	if (low < max_dma)
-+		zones_size[ZONE_DMA] = low;
-+	else {
-+		zones_size[ZONE_DMA] = max_dma;
-+		zones_size[ZONE_NORMAL] = low - max_dma;
-+#ifdef CONFIG_HIGHMEM
-+		zones_size[ZONE_HIGHMEM] = highend_pfn - low;
-+#endif
-+	}
-+	free_area_init(zones_size);
-+}
- #else
- extern unsigned long setup_memory(void);
-+extern void zone_sizes_init(void);
- #endif /* !CONFIG_DISCONTIGMEM */
- 
- void __init setup_bootmem_allocator(void)
-@@ -1133,6 +1155,24 @@ void __init setup_bootmem_allocator(void
+diff -puN arch/i386/kernel/srat.c~A3.3-srat-cleanup arch/i386/kernel/srat.c
+--- sparse/arch/i386/kernel/srat.c~A3.3-srat-cleanup	2005-02-24 08:56:41.000000000 -0800
++++ sparse-dave/arch/i386/kernel/srat.c	2005-02-24 08:56:41.000000000 -0800
+@@ -181,6 +181,35 @@ static __init void chunk_to_zones(unsign
+ 	}
  }
  
- /*
-+ * The node 0 pgdat is initialized before all of these because
-+ * it's needed for bootmem.  node>0 pgdats have their virtual
-+ * space allocated before the pagetables are in place to access
-+ * them, so they can't be cleared then.
-+ *
-+ * This should all compile down to nothing when NUMA is off.
-+ */
-+void __init remapped_pgdat_init(void)
-+{
-+	int nid;
-+
-+	for_each_online_node(nid) {
-+		if (nid != 0)
-+			memset(NODE_DATA(nid), 0, sizeof(struct pglist_data));
-+	}
-+}
-+
 +/*
-  * Request address space for all standard RAM and ROM resources
-  * and also for regions reported as reserved by the e820.
-  */
-@@ -1401,6 +1441,8 @@ void __init setup_arch(char **cmdline_p)
- 	smp_alloc_memory(); /* AP processor realmode stacks in low memory*/
- #endif
- 	paging_init();
-+	remapped_pgdat_init();
-+	zone_sizes_init();
- 
- 	/*
- 	 * NOTE: at this point the bootmem allocator is fully available.
-diff -puN arch/i386/mm/discontig.c~A2.1-re-memset-i386-pgdats arch/i386/mm/discontig.c
---- sparse/arch/i386/mm/discontig.c~A2.1-re-memset-i386-pgdats	2005-02-24 08:56:38.000000000 -0800
-+++ sparse-dave/arch/i386/mm/discontig.c	2005-02-24 08:56:38.000000000 -0800
-@@ -133,7 +133,6 @@ static void __init allocate_pgdat(int ni
- 	else {
- 		NODE_DATA(nid) = (pg_data_t *)(__va(min_low_pfn << PAGE_SHIFT));
- 		min_low_pfn += PFN_UP(sizeof(pg_data_t));
--		memset(NODE_DATA(nid), 0, sizeof(pg_data_t));
++ * The SRAT table always lists ascending addresses, so can always
++ * assume that the first "start" address that you see is the real
++ * start of the node, and that the current "end" address is after
++ * the previous one.
++ */
++static __init void node_read_chunk(int nid, struct node_memory_chunk_s *memory_chunk)
++{
++	/*
++	 * Only add present memory as told by the e820.
++	 * There is no guarantee from the SRAT that the memory it
++	 * enumerates is present at boot time because it represents
++	 * *possible* memory hotplug areas the same as normal RAM.
++	 */
++	if (memory_chunk->start_pfn >= max_pfn) {
++		printk (KERN_INFO "Ignoring SRAT pfns: 0x%08lx -> %08lx\n",
++			memory_chunk->start_pfn, memory_chunk->end_pfn);
++		return;
++	}
++	if (memory_chunk->nid != nid)
++		return;
++
++	/* is the node currently empty? */
++	if (!node_start_pfn[nid] && !node_end_pfn[nid])
++		node_start_pfn[nid] = memory_chunk->start_pfn;
++
++	node_end_pfn[nid] = memory_chunk->end_pfn;
++}
++
+ /* Parse the ACPI Static Resource Affinity Table */
+ static int __init acpi20_parse_srat(struct acpi_table_srat *sratp)
+ {
+@@ -267,35 +296,9 @@ static int __init acpi20_parse_srat(stru
+ 		       node_memory_chunk[j].end_pfn);
  	}
- }
- 
-@@ -254,6 +253,7 @@ unsigned long __init setup_memory(void)
- 	for_each_online_node(nid)
- 		find_max_pfn_node(nid);
- 
-+	memset(NODE_DATA(0), 0, sizeof(struct pglist_data));
- 	NODE_DATA(0)->bdata = &node0_bdata;
- 	setup_bootmem_allocator();
- 	return max_low_pfn;
-@@ -271,8 +271,6 @@ void __init zone_sizes_init(void)
- 	for (nid = MAX_NUMNODES - 1; nid >= 0; nid--) {
- 		if (!node_online(nid))
- 			continue;
--		if (nid)
--			memset(NODE_DATA(nid), 0, sizeof(pg_data_t));
- 		NODE_DATA(nid)->pgdat_next = pgdat_list;
- 		pgdat_list = NODE_DATA(nid);
- 	}
-diff -puN include/asm-i386/mmzone.h~A2.1-re-memset-i386-pgdats include/asm-i386/mmzone.h
-diff -puN mm/page_alloc.c~A2.1-re-memset-i386-pgdats mm/page_alloc.c
-diff -puN arch/i386/mm/init.c~A2.1-re-memset-i386-pgdats arch/i386/mm/init.c
---- sparse/arch/i386/mm/init.c~A2.1-re-memset-i386-pgdats	2005-02-24 08:56:38.000000000 -0800
-+++ sparse-dave/arch/i386/mm/init.c	2005-02-24 08:56:38.000000000 -0800
-@@ -394,31 +394,6 @@ void zap_low_mappings (void)
- 	flush_tlb_all();
- }
- 
--#ifndef CONFIG_DISCONTIGMEM
--static void __init zone_sizes_init(void)
--{
--	unsigned long zones_size[MAX_NR_ZONES] = {0, 0, 0};
--	unsigned int max_dma, high, low;
--	
--	max_dma = virt_to_phys((char *)MAX_DMA_ADDRESS) >> PAGE_SHIFT;
--	low = max_low_pfn;
--	high = highend_pfn;
--	
--	if (low < max_dma)
--		zones_size[ZONE_DMA] = low;
--	else {
--		zones_size[ZONE_DMA] = max_dma;
--		zones_size[ZONE_NORMAL] = low - max_dma;
--#ifdef CONFIG_HIGHMEM
--		zones_size[ZONE_HIGHMEM] = high - low;
--#endif
--	}
--	free_area_init(zones_size);	
--}
--#else
--extern void zone_sizes_init(void);
--#endif /* !CONFIG_DISCONTIGMEM */
+  
+-	/*calculate node_start_pfn/node_end_pfn arrays*/
+-	for_each_online_node(nid) {
+-		int been_here_before = 0;
 -
- static int disable_nx __initdata = 0;
- u64 __supported_pte_mask = ~_PAGE_NX;
- 
-@@ -519,7 +494,6 @@ void __init paging_init(void)
- 	__flush_tlb_all();
- 
- 	kmap_init();
--	zone_sizes_init();
- }
- 
- /*
+-		for (j = 0; j < num_memory_chunks; j++){
+-			/*
+-			 * Only add present memroy to node_end/start_pfn
+-			 * There is no guarantee from the srat that the memory
+-			 * is present at boot time.
+-			 */
+-			if (node_memory_chunk[j].start_pfn >= max_pfn) {
+-				printk (KERN_INFO "Ignoring chunk of memory reported in the SRAT (could be hot-add zone?)\n");
+-				printk (KERN_INFO "chunk is reported from pfn %04x to %04x\n",
+-					node_memory_chunk[j].start_pfn, node_memory_chunk[j].end_pfn);
+-				continue;
+-			}
+-			if (node_memory_chunk[j].nid == nid) {
+-				if (been_here_before == 0) {
+-					node_start_pfn[nid] = node_memory_chunk[j].start_pfn;
+-					node_end_pfn[nid] = node_memory_chunk[j].end_pfn;
+-					been_here_before = 1;
+-				} else { /* We've found another chunk of memory for the node */
+-					if (node_start_pfn[nid] < node_memory_chunk[j].start_pfn) {
+-						node_end_pfn[nid] = node_memory_chunk[j].end_pfn;
+-					}
+-				}
+-			}
+-		}
+-	}
++	for_each_online_node(nid)
++		for (j = 0; j < num_memory_chunks; j++)
++			node_read_chunk(nid, &node_memory_chunk[j]);
+ 	for_each_online_node(nid) {
+ 		unsigned long start = node_start_pfn[nid];
+ 		unsigned long end = node_end_pfn[nid];
 _
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
