@@ -1,57 +1,49 @@
-Received: from penguin.e-mind.com (penguin.e-mind.com [195.223.140.120])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id MAA26000
-	for <linux-mm@kvack.org>; Tue, 1 Dec 1998 12:50:02 -0500
-Date: Tue, 1 Dec 1998 18:48:44 +0100 (CET)
-From: Andrea Arcangeli <andrea@e-mind.com>
-Reply-To: Andrea Arcangeli <andrea@e-mind.com>
-Subject: Re: Update shared mappings
-In-Reply-To: <199812011503.PAA18144@dax.scot.redhat.com>
-Message-ID: <Pine.LNX.3.96.981201182728.16745C-100000@dragon.bogus>
+Received: from max.phys.uu.nl (max.phys.uu.nl [131.211.32.73])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id OAA26509
+	for <linux-mm@kvack.org>; Tue, 1 Dec 1998 14:00:49 -0500
+Date: Tue, 1 Dec 1998 19:42:46 +0100 (CET)
+From: Rik van Riel <H.H.vanRiel@phys.uu.nl>
+Reply-To: Rik van Riel <H.H.vanRiel@phys.uu.nl>
+Subject: Re: 2.1.130 mem usage. (fwd)
+In-Reply-To: <Pine.LNX.3.96.981201183922.243B-100000@dragon.bogus>
+Message-ID: <Pine.LNX.3.96.981201193815.4046C-100000@mirkwood.dummy.home>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: "Stephen C. Tweedie" <sct@redhat.com>
-Cc: Zlatko.Calusic@CARNet.hr, Linux-MM List <linux-mm@kvack.org>, Andi Kleen <andi@zero.aec.at>
+To: Andrea Arcangeli <andrea@e-mind.com>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 1 Dec 1998, Stephen C. Tweedie wrote:
+On Tue, 1 Dec 1998, Andrea Arcangeli wrote:
 
->I think I have: I can reliably deadlock machines with this patch.
+> -		free_page_and_swap_cache(page);
+> +		free_page(page);
+>  
+> Doing this we are not swapping out really I think, because the page
+> now is also on the hd, but it' s still in memory and so
+> shrink_mmap() will have the double of the work to do. 
 
-s/patch/proggy/ side effect of lots of kernel developing ;)
+This is the whole idea. Having shrink_mmap() do the freeing
+gives us something like page aging, but at a much much lower
+cost.
 
-andrea@dragon:/tmp$ egcc -O2 shared_map.c 
-andrea@dragon:/tmp$ ./a.out 
-andrea@dragon:/tmp$ 
+> I' ll try to reverse these patches right now in my own tree.
 
-No deadlock at all. Are you sure you are using my _latest_ patch in
-arca-39? Some weeks ago I fixed this:
+The only thing I'll tell you is that performance will be
+far worse. The rest you can probably figure out yourself:)
 
-static void update_shared_mappings(struct vm_area_struct *this,
-				   unsigned long address,
-				   pte_t orig_pte)
-{
-	if (this->vm_flags & VM_SHARED)
-	{
-		struct file * filp = this->vm_file;
-		if (filp)
-		{
-			struct inode * inode = filp->f_dentry->d_inode;
-			struct vm_area_struct * shared;
+Btw, the 'unused' entry in the page struct is there so we
+can do math on page_structs without having to divide by
+strange numbers (an order of magnitude slower on most
+CPUs).
 
-			for (shared = inode->i_mmap; shared;
-			     shared = shared->vm_next_share)
-			{
-				if (shared->vm_mm == this->vm_mm)
-					    ^^^^^          ^^^^^
-					continue;
-				update_one_shared_mapping(shared, address,
-							  orig_pte);
-			}
-		}
-	}
-}
+regards,
 
+Rik -- now completely used to dvorak kbd layout...
++-------------------------------------------------------------------+
+| Linux memory management tour guide.        H.H.vanRiel@phys.uu.nl |
+| Scouting Vries cubscout leader.      http://www.phys.uu.nl/~riel/ |
++-------------------------------------------------------------------+
 
 --
 This is a majordomo managed list.  To unsubscribe, send a message with
