@@ -1,30 +1,37 @@
-Date: Mon, 15 May 2000 21:22:12 +0200 (CEST)
+Date: Mon, 15 May 2000 21:30:50 +0200 (CEST)
 From: Ingo Molnar <mingo@elte.hu>
 Reply-To: mingo@elte.hu
 Subject: Re: [patch] VM stable again?
-In-Reply-To: <20000515200116.E24812@redhat.com>
-Message-ID: <Pine.LNX.4.10.10005152120350.8896-100000@elte.hu>
+In-Reply-To: <Pine.LNX.4.21.0005151608590.20410-100000@duckman.distro.conectiva>
+Message-ID: <Pine.LNX.4.10.10005152122580.8896-100000@elte.hu>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Stephen C. Tweedie" <sct@redhat.com>
-Cc: Rik van Riel <riel@conectiva.com.br>, Linus Torvalds <torvalds@transmeta.com>, linux-mm@kvack.org
+To: Rik van Riel <riel@conectiva.com.br>
+Cc: "Stephen C. Tweedie" <sct@redhat.com>, Linus Torvalds <torvalds@transmeta.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 15 May 2000, Stephen C. Tweedie wrote:
+On Mon, 15 May 2000, Rik van Riel wrote:
 
-> One other thought here --- there is another way to achieve this.
-> Make try_to_free_pages() return a struct page *.  That will not
-> only achieve some measure of SMP locality, it also guarantees that
-> the page freed will be reacquired by the task which did the work to
-> free it.
+> I've thought about this but it doesn't seem worth the extra complexity
+> to me. Just making sure that while our task is freeing pages nobody
+> else will grab those pages without having also freed some pages seems
+> to be enough to me.
 
-i suggested this as well, but this is not always possible. Eg. the dentry
-and inode cache does a slab-free, and there is no good (existing)
-mechanizm to do it and recover the page freed. And singling out
-shrink_mmap() is not generic enough. (although it's the most common source
-of free pages)
+actually wouldnt it be simpler to always call try_to_free_pages() when the
+zone is low on memory? This will keep the pressure on the system to
+recover from the low memory situation, and it reuses the low_on_memory
+flag. The new free_before_allocate flag is a 'now we are really low on
+memory' flag.
+
+> Furthermore, the "SMP locality" you talk about will probably be
+> completely overshadowed by the non-locality of the VM freeing code
+> anyway...
+
+But it would be a performance optimization for sure, a __free_pages() +
+__alloc_pages() is saved - this can make a big difference if (a mostly
+clean) pagecache is shrunk.
 
 	Ingo
 
