@@ -1,32 +1,28 @@
-Date: Mon, 10 Jan 2005 16:41:58 -0800
-From: Chris Wright <chrisw@osdl.org>
-Subject: Re: Prezeroing V4 [1/4]: Arch specific page zeroing during page fault
-Message-ID: <20050110164157.R469@build.pdx.osdl.net>
-References: <Pine.LNX.4.44.0501082103120.5207-100000@localhost.localdomain> <Pine.LNX.4.58.0501100915200.19135@schroedinger.engr.sgi.com> <Pine.LNX.4.58.0501101004230.2373@ppc970.osdl.org> <Pine.LNX.4.58.0501101552100.25654@schroedinger.engr.sgi.com> <Pine.LNX.4.58.0501101553140.25654@schroedinger.engr.sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.58.0501101553140.25654@schroedinger.engr.sgi.com>; from clameter@sgi.com on Mon, Jan 10, 2005 at 03:54:08PM -0800
+Message-ID: <Z19gAQsni8@pcp.com>
+From: "Maryann Gates" <manpakettlecorn@painandwellnesscenter.com>
+Subject: Need That Paper to Become Superior Then Your Boss?
+Date: Tue, 11 Jan 2005 04:43:48 +0400
+MIME-Version: 1.0
+Content-Type: multipart/alternative;
+	boundary="--ZEND-56662"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Linus Torvalds <torvalds@osdl.org>, Hugh Dickins <hugh@veritas.com>, Andrew Morton <akpm@osdl.org>, "David S. Miller" <davem@davemloft.net>, linux-ia64@vger.kernel.org, linux-mm@kvack.org, Linux Kernel Development <linux-kernel@vger.kernel.org>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-* Christoph Lameter (clameter@sgi.com) wrote:
-> @@ -1795,7 +1786,7 @@
-> 
->  		if (unlikely(anon_vma_prepare(vma)))
->  			goto no_mem;
-> -		page = alloc_page_vma(GFP_HIGHZERO, vma, addr);
-> +		page = alloc_zeroed_user_highpage(vma, addr);
+----ZEND-56662
+Content-Type: text/plain;
+Content-Transfer-Encoding: 7Bit
 
-Oops, HIGHZERO is gone already in Linus' tree.
+Degrees For Working Professionals!
 
-thanks,
--chris
--- 
-Linux Security Modules     http://lsm.immunix.org     http://lsm.bkbits.net
+Add degrees to your resume instantly & open avenues to promotion & better  jobs!  We are 
+here to serve you <B>1_206-666_6485</B>
+
+curate delphinium eve northwestern blue geographer marin attitude frank neophyte
+
+----ZEND-56662--
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
