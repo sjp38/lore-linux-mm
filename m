@@ -1,23 +1,18 @@
-Date: Wed, 8 Nov 2000 08:53:19 -0600 (CST)
-From: Jesse Pollard <pollard@tomcat.admin.navo.hpc.mil>
-Message-Id: <200011081453.IAA340590@tomcat.admin.navo.hpc.mil>
+Date: Wed, 8 Nov 2000 17:36:40 +0100 (CET)
+From: Mikulas Patocka <mikulas@artax.karlin.mff.cuni.cz>
 Subject: Re: Looking for better VM
+In-Reply-To: <Pine.LNX.4.05.10011081450320.3666-100000@humbolt.nl.linux.org>
+Message-ID: <Pine.LNX.3.96.1001108172338.7153A-100000@artax.karlin.mff.cuni.cz>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: riel@conectiva.com.br, Szabolcs Szakacsits <szaka@f-secure.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@transmeta.com>, Ingo Molnar <mingo@elte.hu>
+To: Rik van Riel <riel@conectiva.com.br>
+Cc: Szabolcs Szakacsits <szaka@f-secure.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@transmeta.com>, Ingo Molnar <mingo@elte.hu>
 List-ID: <linux-mm.kvack.org>
 
-------
-> On Wed, 8 Nov 2000, Szabolcs Szakacsits wrote:
-> > On Mon, 6 Nov 2000, Rik van Riel wrote:
-[snip]
-> > You could ask, so what's the point for non-overcommit if we use
-> > process killing in the end? And the answer, in *practise* this almost
-> > never happens, root can always clean up and no processes are lost
-> > [just as when disk is "full" except the reserved area for root]. See?
-> > Human get a chance against hard-wired AI.
-> > 
+Hi.
+
 > > I also didn't say non-overcommit should be used as default and a
 > > patch http://www.cs.helsinki.fi/linux/linux-kernel/2000-13/1208.html,
 > > developed for 2.3.99-pre3 by Eduardo Horvath and unfortunately was
@@ -34,34 +29,16 @@ List-ID: <linux-mm.kvack.org>
 > are very well behaved ... in which case you don't need
 > non-overcommit.
 
-Applications are not usually the problem, users are. If a user starts
-one "well behaved" process, and then starts another, and another....
-The system WILL go OOM, and with unpredictable results (as far as the user
-is concerned).
+BTW. Why does your OOM killer in 2.4 try to kill process that mmaped most
+memory? mmap is hamrless. mmap on files can't eat memory and swap.
 
-The Eduardo Horvath patch works exactly as he designed. It allowed overcommit
-by root, disallowed user generating overcommit. or it could disallow
-overcommit by all, or operate the same as without the patch (but it did
-accumulate some statistics).
+Imagine a case: you have database server that mmaps the whole 2G file but
+doesn't have too much anonymous memory. You have an offending process that
+does while (1) malloc(1000) and fills up 512M swap. Your OOM killer would
+kill the server first...
 
-The problem is that unless user memory resource controls are available to
-the administrator to establish some policy, system deadlock will always
-occur, OR you have random shutdowns, or random process aborts. The resource
-controls should allow an administrator defined policy, established in user
-space, and enforced by the kernel. The kernel should be able to enforce any
-policy from no memory restriction (current, and reasonable for single user
-workstations), to fully disabled overcommit (dedicated multi-user batch
-processing in clustered environments).
+Mikulas
 
-I know the patch was an early prototype. It did provide some identification
-of the locations that resource controls could/should be done (this should be a
-2.5 developement item).
-
--------------------------------------------------------------------------
-Jesse I Pollard, II
-Email: pollard@navo.hpc.mil
-
-Any opinions expressed are solely my own.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
