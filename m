@@ -1,38 +1,33 @@
-Date: Fri, 27 Dec 2002 12:18:23 -0800 (PST)
-From: Linus Torvalds <torvalds@transmeta.com>
+Date: Fri, 27 Dec 2002 14:45:53 -0600
+From: Dave McCracken <dmccr@us.ibm.com>
 Subject: Re: shared pagetable benchmarking
-In-Reply-To: <47580000.1041020194@[10.1.1.5]>
-Message-ID: <Pine.LNX.4.44.0212271213180.21930-100000@home.transmeta.com>
+Message-ID: <58520000.1041021953@[10.1.1.5]>
+In-Reply-To: <Pine.LNX.4.44.0212271213180.21930-100000@home.transmeta.com>
+References: <Pine.LNX.4.44.0212271213180.21930-100000@home.transmeta.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave McCracken <dmc@austin.ibm.com>
+To: Linus Torvalds <torvalds@transmeta.com>
 Cc: Daniel Phillips <phillips@arcor.de>, Andrew Morton <akpm@digeo.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 27 Dec 2002, Dave McCracken wrote:
-> 
-> I gave Andrew a patch that does make it break even on small forks, by doing
-> the copy at fork time when a process only has 3 pte pages.  My tests
-> indicate that any process with 4 or more pte pages usually is faster by
-> doing the share.
+--On Friday, December 27, 2002 12:18:23 -0800 Linus Torvalds
+<torvalds@transmeta.com> wrote:
 
-Ok, so it doesn't actually break even, it just disables itself. That's not 
-the same thing in my book, but may of course be acceptable.
+> That's clearly not 2.6.x material. But at this point I doubt that shared
+> page tables are either, unless they fix something more important than 
+> fork() speed for processes that are larger than 16MB.
 
-I'd personally be much happier if just the real cause for the rmap
-slowdown was fixed, possibly by having it be done lazily (the shared page
-table stuff tries to do the _copy_ of the rmap information lazily, but
-maybe the real solution is to go one level further and just set the dang
-things up lazily in the first place, since most of the time it's not even
-needed).
+The other thing it does is eliminate the duplicate pte pages for shared
+regions everywhere they span a complete pte page.  While hugetlb can also
+do this for some specialized applications, shared page tables will do it
+for every shared region that's large enough.  I dunno whether you consider
+that important enough to qualify, but I figured I should point it out.
 
-That's clearly not 2.6.x material. But at this point I doubt that shared
-page tables are either, unless they fix something more important than 
-fork() speed for processes that are larger than 16MB.
-
-		Linus
+Dave McCracken
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
