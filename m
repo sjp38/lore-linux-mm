@@ -1,77 +1,52 @@
-Message-ID: <41F68BE6.3090704@ammasso.com>
-Date: Tue, 25 Jan 2005 12:11:50 -0600
-From: Timur Tabi <timur.tabi@ammasso.com>
-MIME-Version: 1.0
-Subject: Re: Query on remap_pfn_range compatibility
-References: <OF0A92B996.F674A9A0-ON86256F93.0066BC3F@raytheon.com>
-In-Reply-To: <OF0A92B996.F674A9A0-ON86256F93.0066BC3F@raytheon.com>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+Date: Tue, 25 Jan 2005 11:50:14 -0700
+From: Grant Grundler <grundler@parisc-linux.org>
+Subject: Re: [PATCH] Avoiding fragmentation through different allocator
+Message-ID: <20050125185014.GA3582@colo.lackof.org>
+References: <0E3FA95632D6D047BA649F95DAB60E5705A70E61@exa-atlanta>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <0E3FA95632D6D047BA649F95DAB60E5705A70E61@exa-atlanta>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org
+To: "Mukker, Atul" <Atulm@lsil.com>
+Cc: 'Andi Kleen' <ak@muc.de>, 'Steve Lord' <lord@xfs.org>, 'Marcelo Tosatti' <marcelo.tosatti@cyclades.com>, 'Mel Gorman' <mel@csn.ul.ie>, 'William Lee Irwin III' <wli@holomorphy.com>, 'Linux Memory Management List' <linux-mm@kvack.org>, 'Linux Kernel' <linux-kernel@vger.kernel.org>, 'Grant Grundler' <grundler@parisc-linux.org>
 List-ID: <linux-mm.kvack.org>
 
-Mark_H_Johnson@raytheon.com wrote:
+On Tue, Jan 25, 2005 at 09:02:34AM -0500, Mukker, Atul wrote:
+> The megaraid driver is open source, do you see anything that driver can do
+> to improve performance. We would greatly appreciate any feedback in this
+> regard and definitely incorporate in the driver. The FW under Linux and
+> windows is same, so I do not see how the megaraid stack should perform
+> differently under Linux and windows?
 
+Just to second what Andy already stated: it's more likely the
+Megaraid firmware could be better at fetching the SG lists.
+This is a difficult problem since the firmware needs to work
+well on so many different platforms/chipsets.
 
-> I am also trying to avoid an ugly hack like the following:
-> 
->   VMA_PARAM_IN_REMAP=`grep remap_page_range
-> $PATH_LINUX_INCLUDE/linux/mm.h|grep vma`
->   if [ -z "$VMA_PARAM_IN_REMAP" ]; then
->     export REMAP_PAGE_RANGE_PARAM="4"
->   else
->     export REMAP_PAGE_RANGE_PARAM="5"
->   endif
+If LSI has time to turn more stones, get a PCI bus analyzer and filter
+it to only capture CPU MMIO traffic and DMA traffic to/from some
+"well known" SG lists (ie instrument the driver to print those to
+the console). Then run AIM7 or similar multithreaded workload.
+A perfect PCI trace will show the device pulling the SG list in
+cacheline at time after the CPU MMIO reads/writes from the card
+to indicate a new transaction is ready to go.
 
-My makefile has a ton of stuff like this. Our driver needs to work with 
-all 2.4 and 2.6 kernels, and it makes heavy use of the VM.  It also 
-needs to deal with distros that have "broken" header files.
+Another stone LSI could turn is to verify the megaraid controller is
+NOT contending with the CPU for cachelines used to build SG lists.
+This something the driver controls but I only know how to measure
+this on ia64 machines (with pfmon or caliper or similar tool).
+If you want examples, see
+	http://iou.parisc-linux.org/ols2004/pfmon_for_iodorks.pdf
 
-This wouldn't be such a problem if the kernel developers would add 
-macros to indicate the version of the function parameters.  Basically, 
-the header file should define REMAP_PAGE_RANGE_PARAM (or some 
-equivalent), so that you don't need to calculate it in your makefile. 
-But the kernel developers don't care about backwards compatibility, so 
-we're stuck with these ugly hacks.
+In case it's not clear from above, optimal IO flow means the device
+is moving control data and streaming data in cacheline or bigger units.
+If Megaraid is already doing that, then the PCI trace timing info
+should point at where the latencies are.
 
-> Would it be acceptable to add a symbol like
->   #define MM_VM_REMAP_PFN_RANGE
-> in include/linux/mm.h or is that too much of a hack as well?
-
-The easiest solution would be to update gcc to provide some kind of 
-internal macro that would tell me if a function is defined or not.  For 
-instance, I could do this:
-
-#if defined(remap_pfn_range)
-remap_pfn_range(...)
-#else
-remap_page_range(...)
-#endif
-
-This doesn't work because remap_pfn_range is a function, not a macro. 
-Then we could do other things like:
-
-#if parameters(remap_page_range) = 4
-remap_page_range(a, b, c, d)
-#else
-remap_page_range(a, b, c, d, e)
-#endif
-
-This would allow me to handle kernel versions that have 4 instead of 5 
-parameters for remap_page_range().
-
-Ironically, even if gcc were updated like this, it wouldn't help me a 
-whole lot, because I still need to use the older versions of gcc on the 
-older distros.  But at least it the problem wouldn't be getting worse, 
-like it is today.
-
--- 
-Timur Tabi
-Staff Software Engineer
-timur.tabi@ammasso.com
+hth,
+grant
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
