@@ -1,40 +1,85 @@
-Subject: Re: PATCH: Bug in invalidate_inode_pages()?
-References: <yttk8h4vcgp.fsf@vexeta.dc.fi.udc.es>
-From: Trond Myklebust <trond.myklebust@fys.uio.no>
-Date: 09 May 2000 02:29:32 +0200
-In-Reply-To: "Juan J. Quintela"'s message of "09 May 2000 01:39:18 +0200"
-Message-ID: <shsbt2gh8gj.fsf@charged.uio.no>
+Subject: Re: [DATAPOINT] pre7-6 will not swap
+References: <Pine.LNX.4.10.10005061225460.1470-100000@penguin.transmeta.com>
+From: "Quintela Carreira Juan J." <quintela@vexeta.dc.fi.udc.es>
+In-Reply-To: Linus Torvalds's message of "Sat, 6 May 2000 12:35:00 -0700 (PDT)"
+Date: 09 May 2000 03:52:46 +0200
+Message-ID: <ytt66sov6a9.fsf@vexeta.dc.fi.udc.es>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Juan J. Quintela" <quintela@fi.udc.es>
-Cc: linux-mm@kvack.org, linux-kernel@vger.rutgers.edu
+To: Linus Torvalds <torvalds@transmeta.com>
+Cc: Rajagopal Ananthanarayanan <ananth@sgi.com>, Andrea Arcangeli <andrea@suse.de>, Benjamin Redelings I <bredelin@ucla.edu>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
->>>>> " " == Juan J Quintela <quintela@fi.udc.es> writes:
+>>>>> "linus" == Linus Torvalds <torvalds@transmeta.com> writes:
 
-     > Hi
-     >         I think that I have found a bug in
-     >         invalidate_inode_pages.
-     > It results that we don't remove the pages from the
-     > &inode->i_mapping->pages list, then when we return te do the
-     > next loop through all the pages, we can try to free a page that
-     > we have freed in the previous pass.  Once here I have also
-     > removed the goto
 
-     > Comments, have I lost something obvious?
+linus> in vmscan.c, and that seems to be quite well-behaved too (but if somebody
+linus> has the energy to test the two different versions, I'd absolutely love to
+linus> hear results..)
 
-Unfortunately, yes...
+Hi Linus, 
+   I have tested two versions of the patch (against vanilla
+pre7-6), the first was to remove the test altogether (I think this is
+from Rajagopal):
 
-  Firstly, you're removing the wrong page (viz. curr = curr->next).
+--- pre7-6/mm/vmscan.c	Fri May  5 23:58:56 2000
++++ testing/mm/vmscan.c	Mon May  8 23:30:52 2000
+@@ -114,8 +114,9 @@
+ 	 * Don't do any of the expensive stuff if
+ 	 * we're not really interested in this zone.
+ 	 */
+-	if (!page->zone->zone_wake_kswapd)
++/*	if (!page->zone->zone_wake_kswapd)
+ 		goto out_unlock;
++*/
+ 
+ 	/*
+ 	 * Ok, it's really dirty. That means that
 
-  Secondly, we're already removing the page from the mapping using the
-  inlined function remove_page_from_inode_queue() which is again
-  called by remove_inode_page(). This also updates mapping->nrpages.
+Second one  is the Linus suggestion, change the test for:
 
-So invalidate_inode_pages() is correct as it stands.
+diff -u -urN --exclude=CVS --exclude=*~ --exclude=.#* --exclude=TAGS pre7-6/mm/vmscan.c testing2/mm/vmscan.c
+--- pre7-6/mm/vmscan.c	Fri May  5 23:58:56 2000
++++ testing2/mm/vmscan.c	Tue May  9 01:46:08 2000
+@@ -114,7 +114,7 @@
+ 	 * Don't do any of the expensive stuff if
+ 	 * we're not really interested in this zone.
+ 	 */
+-	if (!page->zone->zone_wake_kswapd)
++	if (page->zone->free_pages > page->zone->pages_high)
+ 		goto out_unlock;
+ 
+ 	/*
+and thred one was the classzone-25 patch from Andrea.
 
-Cheers,
-  Trond
+The test is one of my tests:
+    while (true); do time ./mmap002; done
+which the size parameter adjusted to the size of te memory of the
+system.
+
+        The results are:
+vanilla pre7-6 kills *all* my processes after 2 minutes and a half 
+pre7-6 + Rajagopal:  Works quite well, times are stable between 2m20
+                     and 3m10 (didn't kill any processes)
+
+pre7-6 + Linus:      Kill all the processes after 3m and a few
+                     seconds.
+
+pre7-6 + classzone25: between 2m8 seconds and 2m23.
+
+2.2.15: between 1m50 and 2m15 (the time is quite stable around 1m50)
+        It has killed one process in 7 so far.
+
+If you need more information, let me know.  As always comments,
+suggestions are welcome.
+
+Later, Juan.
+
+-- 
+In theory, practice and theory are the same, but in practice they 
+are different -- Larry McVoy
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
