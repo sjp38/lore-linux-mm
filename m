@@ -1,56 +1,47 @@
-From: "Stephen C. Tweedie" <sct@redhat.com>
+Received: from sbustd.stud.uni-sb.de (IDENT:2YAFXw/blW/Kyt8r5WusaUCmoBlAbys8@eris.rz.uni-sb.de [134.96.7.8])
+	by indyio.rz.uni-sb.de (8.9.3/8.9.3) with ESMTP id OAA4119877
+	for <linux-mm@kvack.org>; Wed, 28 Jul 1999 14:28:30 +0200 (CST)
+Received: from colorfullife.com (IDENT:manfreds@acc3-200.telip.uni-sb.de [134.96.127.200])
+	by sbustd.stud.uni-sb.de (8.9.3/8.9.3) with ESMTP id OAA08510
+	for <linux-mm@kvack.org>; Wed, 28 Jul 1999 14:28:28 +0200 (CST)
+Message-ID: <379EF7D0.375C78A4@colorfullife.com>
+Date: Wed, 28 Jul 1999 14:30:08 +0200
+From: Manfred Spraul <manfreds@colorfullife.com>
+Reply-To: masp0008@stud.uni-sb.de
 MIME-Version: 1.0
+Subject: active_mm & SMP & TLB flush: possible bug
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
-Message-ID: <14238.34878.790624.59746@dukat.scot.redhat.com>
-Date: Wed, 28 Jul 1999 05:34:06 +0100 (BST)
-Subject: [PATCH] Re: mm synchronization question
-In-Reply-To: <003101bed81b$1d39dac0$30b16086@sl16es04.phil.uni-sb.de>
-References: <003101bed81b$1d39dac0$30b16086@sl16es04.phil.uni-sb.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: ms <masp0008@stud.uni-sb.de>, Linus Torvalds <torvalds@transmeta.com>
-Cc: linux-mm@kvack.org, Stephen Tweedie <sct@redhat.com>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+I think that active_mm breaks CLEVER_SMP_INVALIDATE
+(linux/asm-i386/pgtable.h)
+(version 2.3.11)
 
-On Tue, 27 Jul 1999 12:30:39 +0200, "ms" <masp0008@stud.uni-sb.de> said:
+e.g. flush_tlb():
+CPU 1 executes thread A, CPU2 waits in
+the idle thread with a lazy TLB context of thread A.
 
-> I think I found a minor bug: do_wp_page() does not call spin_unlock()
-> if called with bad parameters: if "goto bad_wp_page" is executed, then
-> noone unlocks the page_table_lock spinlock.
+CPU1: flush_tlb() causes no IPI because
+current->mm->mm_users is still 1.
 
-Indeed, that looks like a genuine fault.  Patch below.
- 
-> My second question is the mm semaphore: It seems that if in a multi
-> threaded application several threads access a large mmaped file, that
-> then all page-in operations are serialized (including waiting for the
-> disk IO). Is that correct?  
+if these 2 CPU switch their roles, then we use an outdates
+TLB cache.
 
-Only partially.  The IOs are serialised, but the readahead IOs that the
-page faults implicitly trigger are asynchronous to that.
+-------------
+BTW, where can I find more details about the active_mm implementation?
+specifically, I'd like to know why active_mm was added to
+"struct task_struct".
+>From my first impression, it's a CPU specific information
+(every CPU has exactly one active_mm, threads which are not running have
+no
+active_mm), so I'd have used a global array[NR_CPUS].
 
-> Are there any plans to change that?
 
-Not right now afaik, but we probably could do it at some point.  It
-would be very easy to do a simple solution which allowed concurrent page
-faults while still barring mmap()/munmap() operations from colliding
-with the fault.
-
---Stephen
-
-----------------------------------------------------------------
---- mm/memory.c~	Wed Jul 28 00:52:42 1999
-+++ mm/memory.c	Wed Jul 28 05:30:48 1999
-@@ -846,6 +855,7 @@
- 	return 1;
- 
- bad_wp_page:
-+	spin_unlock(&tsk->mm->page_table_lock);
- 	printk("do_wp_page: bogus page at address %08lx (%08lx)\n",address,old_page);
- 	return -1;
- }
+	Manfred
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
