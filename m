@@ -1,160 +1,77 @@
+Date: Tue, 25 May 2004 21:08:10 -0700 (PDT)
+From: Linus Torvalds <torvalds@osdl.org>
 Subject: Re: [PATCH] ppc64: Fix possible race with set_pte on a present PTE
-From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-In-Reply-To: <Pine.LNX.4.58.0405251749500.9951@ppc970.osdl.org>
-References: <1085369393.15315.28.camel@gaston>
-	 <Pine.LNX.4.58.0405232046210.25502@ppc970.osdl.org>
-	 <1085371988.15281.38.camel@gaston>
-	 <Pine.LNX.4.58.0405232134480.25502@ppc970.osdl.org>
-	 <1085373839.14969.42.camel@gaston>
-	 <Pine.LNX.4.58.0405232149380.25502@ppc970.osdl.org>
-	 <20040525034326.GT29378@dualathlon.random>
-	 <Pine.LNX.4.58.0405242051460.32189@ppc970.osdl.org>
-	 <20040525114437.GC29154@parcelfarce.linux.theplanet.co.uk>
-	 <Pine.LNX.4.58.0405250726000.9951@ppc970.osdl.org>
-	 <20040525153501.GA19465@foobazco.org>
-	 <Pine.LNX.4.58.0405250841280.9951@ppc970.osdl.org>
-	 <20040525102547.35207879.davem@redhat.com>
-	 <Pine.LNX.4.58.0405251034040.9951@ppc970.osdl.org>
-	 <20040525105442.2ebdc355.davem@redhat.com>
-	 <Pine.LNX.4.58.0405251056520.9951@ppc970.osdl.org>
-	 <1085521251.24948.127.camel@gaston>
-	 <Pine.LNX.4.58.0405251452590.9951@ppc970.osdl.org>
-	 <Pine.LNX.4.58.0405251455320.9951@ppc970.osdl.org>
-	 <1085522860.15315.133.camel@gaston>
-	 <Pine.LNX.4.58.0405251514200.9951@ppc970.osdl.org>
-	 <1085530867.14969.143.camel@gaston>
-	 <Pine.LNX.4.58.0405251749500.9951@ppc970.osdl.org>
-Content-Type: text/plain
-Message-Id: <1085541906.14969.412.camel@gaston>
-Mime-Version: 1.0
-Date: Wed, 26 May 2004 13:25:06 +1000
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <1085541906.14969.412.camel@gaston>
+Message-ID: <Pine.LNX.4.58.0405252031270.15534@ppc970.osdl.org>
+References: <1085369393.15315.28.camel@gaston>  <Pine.LNX.4.58.0405232046210.25502@ppc970.osdl.org>
+  <1085371988.15281.38.camel@gaston>  <Pine.LNX.4.58.0405232134480.25502@ppc970.osdl.org>
+  <1085373839.14969.42.camel@gaston>  <Pine.LNX.4.58.0405232149380.25502@ppc970.osdl.org>
+  <20040525034326.GT29378@dualathlon.random>  <Pine.LNX.4.58.0405242051460.32189@ppc970.osdl.org>
+  <20040525114437.GC29154@parcelfarce.linux.theplanet.co.uk>
+ <Pine.LNX.4.58.0405250726000.9951@ppc970.osdl.org>  <20040525153501.GA19465@foobazco.org>
+  <Pine.LNX.4.58.0405250841280.9951@ppc970.osdl.org>  <20040525102547.35207879.davem@redhat.com>
+  <Pine.LNX.4.58.0405251034040.9951@ppc970.osdl.org>  <20040525105442.2ebdc355.davem@redhat.com>
+  <Pine.LNX.4.58.0405251056520.9951@ppc970.osdl.org>  <1085521251.24948.127.camel@gaston>
+  <Pine.LNX.4.58.0405251452590.9951@ppc970.osdl.org>
+ <Pine.LNX.4.58.0405251455320.9951@ppc970.osdl.org>  <1085522860.15315.133.camel@gaston>
+  <Pine.LNX.4.58.0405251514200.9951@ppc970.osdl.org>  <1085530867.14969.143.camel@gaston>
+  <Pine.LNX.4.58.0405251749500.9951@ppc970.osdl.org> <1085541906.14969.412.camel@gaston>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@osdl.org>
+To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
 Cc: "David S. Miller" <davem@redhat.com>, wesolows@foobazco.org, willy@debian.org, Andrea Arcangeli <andrea@suse.de>, Andrew Morton <akpm@osdl.org>, Linux Kernel list <linux-kernel@vger.kernel.org>, mingo@elte.hu, bcrl@kvack.org, linux-mm@kvack.org, Linux Arch list <linux-arch@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2004-05-26 at 10:50, Linus Torvalds wrote: 
-> On Wed, 26 May 2004, Benjamin Herrenschmidt wrote:
-> > 
-> > Heh, I can still send a patch "fixing" it if you want ;)
+
+On Wed, 26 May 2004, Benjamin Herrenschmidt wrote:
 > 
-> If you include a tested version of the ppc64 fix, I'd likely apply that.
+> I think we are using ptep_establish for more than just setting those
+> 2 bits (like for setting up the new PTE in break_cow and such while
+> the current implementationL/definition is more like just setting
+> those bits and nothing else....
 
-Ok, that doesn't work. Trigger BUG_ON in rmap.c:421
+You're right. We do use it on the do_wp_page() path, and there we actually 
+use a whole new page in the "break_cow()" case. That case is in fact 
+fundamentally different from the other ones.
 
-I think we are using ptep_establish for more than just setting those
-2 bits (like for setting up the new PTE in break_cow and such while
-the current implementationL/definition is more like just setting
-those bits and nothing else....
+So we should probably break up the "ptep_establish()" into its two pieces,
+since the callers don't actually want to do the same thing. One really
+wants to do a "clear old one, set a totally new one", and the two other
+places want to actually update just the dirty and accessed bits.
 
-If we end up doing more than setting those bits, we need to flush the
-PTE completely from the hash etc....
+In fact, the only non-generic user of "ptep_establish()" (s390) didn't 
+want to use the generic version exactly because of this very conceptual 
+bug. It uses "ptep_clear_flush()" for the replacement case, which actually 
+makes sense.
 
-Anyway, here's the non working patch, including the rename.
+So does it work if you do this appended patch first? This is a real 
+cleanup, and I think it will allow us to get rid of the s390-specific code 
+in ptep_establish(). Along with hopefully fixing your problem too.
 
-Ben.
+After this, we should be able to have a BUG() in "set_pte()" if the entry 
+wasn't clear before (assuming the arch doesn't use set_pte() for the dirty 
+updates etc).
 
-===== include/asm-generic/pgtable.h 1.5 vs edited =====
---- 1.5/include/asm-generic/pgtable.h	2004-05-26 06:04:54 +10:00
-+++ edited/include/asm-generic/pgtable.h	2004-05-26 10:58:17 +10:00
-@@ -3,8 +3,8 @@
- 
- #ifndef __HAVE_ARCH_PTEP_ESTABLISH
- 
--#ifndef ptep_update_dirty_accessed
--#define ptep_update_dirty_accessed(__ptep, __entry, __dirty) set_pte(__ptep, __entry)
-+#ifndef ptep_set_dirty_accessed
-+#define ptep_set_dirty_accessed(__ptep, __entry, __dirty) set_pte(__ptep, __entry)
- #endif
- 
- /*
-@@ -17,7 +17,7 @@
-  */
- #define ptep_establish(__vma, __address, __ptep, __entry, __dirty)	\
- do {									\
--	ptep_update_dirty_accessed(__ptep, __entry, __dirty);		\
-+	ptep_set_dirty_accessed(__ptep, __entry, __dirty);		\
- 	flush_tlb_page(__vma, __address);				\
- } while (0)
- #endif
-===== include/asm-i386/pgtable.h 1.45 vs edited =====
---- 1.45/include/asm-i386/pgtable.h	2004-05-26 06:04:54 +10:00
-+++ edited/include/asm-i386/pgtable.h	2004-05-26 10:59:12 +10:00
-@@ -325,7 +325,7 @@
-  * bit at the same time.
-  */
- #define update_mmu_cache(vma,address,pte) do { } while (0)
--#define ptep_update_dirty_accessed(__ptep, __entry, __dirty)	\
-+#define ptep_set_dirty_accessed(__ptep, __entry, __dirty)	\
- 	do {							\
- 		if (__dirty) set_pte(__ptep, __entry);		\
- 	} while (0)
-===== include/asm-ppc64/pgtable.h 1.33 vs edited =====
---- 1.33/include/asm-ppc64/pgtable.h	2004-05-23 07:56:24 +10:00
-+++ edited/include/asm-ppc64/pgtable.h	2004-05-26 13:09:59 +10:00
-@@ -306,7 +306,10 @@
- 	return old;
+		Linus
+
+---
+===== mm/memory.c 1.177 vs edited =====
+--- 1.177/mm/memory.c	Tue May 25 12:37:09 2004
++++ edited/mm/memory.c	Tue May 25 21:04:49 2004
+@@ -1004,7 +1004,10 @@
+ 	flush_cache_page(vma, address);
+ 	entry = maybe_mkwrite(pte_mkdirty(mk_pte(new_page, vma->vm_page_prot)),
+ 			      vma);
+-	ptep_establish(vma, address, page_table, entry, 1);
++
++	/* Get rid of the old entry, replace with new */
++	ptep_clear_flush(vma, address, page_table);
++	set_pte(page_table, entry);
+ 	update_mmu_cache(vma, address, entry);
  }
  
--/* PTE updating functions */
-+/* PTE updating functions, this function puts the PTE in the
-+ * batch, doesn't actually triggers the hash flush immediately,
-+ * you need to call flush_tlb_pending() to do that.
-+ */
- extern void hpte_update(pte_t *ptep, unsigned long pte, int wrprot);
- 
- static inline int ptep_test_and_clear_young(pte_t *ptep)
-@@ -318,7 +321,7 @@
- 	old = pte_update(ptep, _PAGE_ACCESSED);
- 	if (old & _PAGE_HASHPTE) {
- 		hpte_update(ptep, old, 0);
--		flush_tlb_pending();	/* XXX generic code doesn't flush */
-+		flush_tlb_pending();
- 	}
- 	return (old & _PAGE_ACCESSED) != 0;
- }
-@@ -396,10 +399,36 @@
-  */
- static inline void set_pte(pte_t *ptep, pte_t pte)
- {
--	if (pte_present(*ptep))
-+	if (pte_present(*ptep)) {
- 		pte_clear(ptep);
-+		flush_tlb_pending();
-+	}
- 	*ptep = __pte(pte_val(pte)) & ~_PAGE_HPTEFLAGS;
- }
-+
-+/* Set the dirty and/or accessed bits atomically in a linux PTE, this
-+ * function doesn't need to flush the hash entry
-+ */
-+static inline void ptep_set_dirty_accessed(pte_t *ptep, pte_t entry, int dirty)
-+{
-+	unsigned long bits = pte_val(entry) & (_PAGE_DIRTY | _PAGE_ACCESSED);
-+	unsigned long tmp;
-+
-+	WARN_ON(!pte_present(*ptep));
-+
-+	__asm__ __volatile__(
-+	       "1:     ldarx   %0,0,%3\n\
-+                or      %0,%2,%0\n\
-+                stdcx.  %0,0,%3\n\
-+                bne-    1b"
-+	:"=&r" (tmp), "=m" (*ptep)
-+	:"r" (bits), "r" (ptep)
-+	:"cc");
-+}
-+
-+/* Make asm-generic/pgtable.h know about it.. */
-+#define ptep_set_dirty_accessed ptep_set_dirty_accessed
-+
- 
- /*
-  * Macro to mark a page protection value as "uncacheable".
-
-
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
