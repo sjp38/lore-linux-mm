@@ -1,60 +1,64 @@
-Date: Wed, 24 Sep 2003 10:57:54 +0100
-From: viro@parcelfarce.linux.theplanet.co.uk
-Subject: Re: 2.6.0-test5-mm4 boot crash
-Message-ID: <20030924095754.GW7665@parcelfarce.linux.theplanet.co.uk>
-References: <20030922013548.6e5a5dcf.akpm@osdl.org> <3F716177.6060607@aitel.hist.no>
+Date: Thu, 25 Sep 2003 14:43:15 +0200
+From: Vojtech Pavlik <vojtech@suse.cz>
+Subject: Re: 2.6.0-test5-mm4
+Message-ID: <20030925124315.GB24049@ucw.cz>
+References: <20030922013548.6e5a5dcf.akpm@osdl.org> <200309221317.42273.alistair@devzero.co.uk> <20030922143605.GA9961@gemtek.lt> <20030922115509.4d3a3f41.akpm@osdl.org> <m2oexc345m.fsf@p4.localdomain> <20030922214526.GD2983@ucw.cz> <m2u171ene7.fsf@p4.localdomain>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <3F716177.6060607@aitel.hist.no>
+In-Reply-To: <m2u171ene7.fsf@p4.localdomain>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Helge Hafting <helgehaf@aitel.hist.no>
-Cc: Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Peter Osterlund <petero2@telia.com>
+Cc: Vojtech Pavlik <vojtech@suse.cz>, Andrew Morton <akpm@osdl.org>, Zilvinas Valinskas <zilvinas@gemtek.lt>, alistair@devzero.co.uk, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Sep 24, 2003 at 11:18:47AM +0200, Helge Hafting wrote:
-> Unable to handle null pointer deref at virtual address 00000000
-> eip c02b7d1e  eip at md_probe
+On Thu, Sep 25, 2003 at 02:13:04AM +0200, Peter Osterlund wrote:
 
-Oh, boy...  OK, I see what happens and it's _ugly_.  md_probe() is misused
-there big way.  The minimal fix is to revert the cleanup in md_probe() -
-replace
-	int unit = *part;
-with
-	int unit = MINOR(dev);
+> Vojtech Pavlik <vojtech@suse.cz> writes:
+> 
+> > On Mon, Sep 22, 2003 at 11:27:17PM +0200, Peter Osterlund wrote:
+> > > Andrew Morton <akpm@osdl.org> writes:
+> > > 
+> > > > Zilvinas Valinskas <zilvinas@gemtek.lt> wrote:
+> > > > >
+> > > > > Btw Andrew ,
+> > > > > 
+> > > > > this change  "Synaptics" -> "SynPS/2" - breaks driver synaptic driver
+> > > > > from http://w1.894.telia.com/~u89404340/touchpad/index.html. 
+> > > > > 
+> > > > > 
+> > > > > -static char *psmouse_protocols[] = { "None", "PS/2", "PS2++", "PS2T++", "GenPS/
+> > > > > 2", "ImPS/2", "ImExPS/2", "Synaptics"}; 
+> > > > > +static char *psmouse_protocols[] = { "None", "PS/2", "PS2++", "PS2T++", "GenPS/2", "ImPS/2", "ImExPS/2", "SynPS/2"};
+> > > > 
+> > > > You mean it breaks the XFree driver?  Is it just a matter of editing
+> > > > XF86Config to tell it the new protocl name?
+> > > 
+> > > It breaks the event device auto detection, which works by parsing
+> > > /proc/bus/input/devices. The protocol name is hard coded so you can't
+> > > just change the XF86Config file.
+> > > 
+> > > > Either way, it looks like a change which should be reverted?
+> > > 
+> > > I think the new protocol name is better, so why not just fix the X
+> > > driver instead. Here is a fixed version:
+> > > 
+> > > http://w1.894.telia.com/~u89404340/touchpad/synaptics-0.11.4.tar.bz2
+> > 
+> > I'd suggest the driver either checks the BUS/VENDOR/DEVICE ids or the
+> > bitfields for the pad, not the name. Names are unreliable ...
+> 
+> OK, this is now implemented in version 0.11.5, which I just uploaded
+> to my web site. This version also adds support for the new events
+> ABS_TOOL_WIDTH, BTN_TOOL_FINGER, BTN_TOOL_DOUBLETAP and
+> BTN_TOOL_TRIPLETAP.
 
+Great, thanks.
 
-However, that is crap solution.  The problem is that md_probe() is called
-directly with bogus arguments - not only part is NULL (which triggers the
-oops), but dev (which is supposed to be dev_t value) is actually mdidx(mddev).
-
-Cleaner fix follows, but we really need to get the situation with gendisk
-allocations into the sane shape there.  Sigh...
-
-diff -urN B5-tty_devnum-fix/drivers/md/md.c B5-current/drivers/md/md.c
---- B5-tty_devnum-fix/drivers/md/md.c	Tue Sep 23 04:16:30 2003
-+++ B5-current/drivers/md/md.c	Wed Sep 24 05:44:27 2003
-@@ -1500,6 +1500,7 @@
- 	mdk_rdev_t *rdev;
- 	struct gendisk *disk;
- 	char b[BDEVNAME_SIZE];
-+	int unit;
- 
- 	if (list_empty(&mddev->disks)) {
- 		MD_BUG();
-@@ -1591,8 +1592,9 @@
- 		invalidate_bdev(rdev->bdev, 0);
- 	}
- 
--	md_probe(mdidx(mddev), NULL, NULL);
--	disk = disks[mdidx(mddev)];
-+	unit = mdidx(mddev);
-+	md_probe(0, &unit, NULL);
-+	disk = disks[unit];
- 	if (!disk)
- 		return -ENOMEM;
- 
+-- 
+Vojtech Pavlik
+SuSE Labs, SuSE CR
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
