@@ -1,55 +1,52 @@
-Date: Wed, 15 Aug 2001 07:06:22 -0400
-From: Marc Heckmann <heckmann@hbesoftware.com>
-Subject: Re: 2.4.8-pre7: still buffer cache problems[+2.4.9-pre3 comments]
-Message-ID: <20010815070622.A27813@hbe.ca>
-References: <Pine.LNX.4.33L.0108091749580.1439-100000@duckman.distro.conectiva> <32779.213.7.62.75.997402832.squirrel@webmail.hbesoftware.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <32779.213.7.62.75.997402832.squirrel@webmail.hbesoftware.com>; from heckmann@hbesoftware.com on Thu, Aug 09, 2001 at 08:20:32PM -0400
+Date: Wed, 15 Aug 2001 07:32:39 -0300 (BRST)
+From: Rik van Riel <riel@conectiva.com.br>
+Subject: [PATCH] 2.4.8-ac5 VM changes
+Message-ID: <Pine.LNX.4.33L.0108150728090.5646-100000@imladris.rielhome.conectiva>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
+ReSent-To: Alan Cox <alan@lxorguk.ukuu.org.uk>, <linux-mm@kvack.org>
+ReSent-Message-ID: <Pine.LNX.4.33L.0108151411570.5646@imladris.rielhome.conectiva>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: riel@conectiva.com.br
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Alan Cox <alan@lxorguk.ukuu.org.uk>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Aug 09, 2001 at 08:20:32PM -0400, marc heckmann wrote:
-> > 
-> > OK, there is no obvious way to do do drop-behind on
-> > buffer cache pages, but I think we can use a quick
-> > hack to make the system behave well under the presence
-> > of large amounts of buffer cache pages.
-> > 
-> > What we could do is, in refill_inactive_scan(), just
-> > moving buffer cache pages to the inactive list regardless
-> > of page aging when there are too many buffercache pages
-> > around in the system.
-> > 
-> > Does the patch below help you ?
-> 
-> well, the buffer cache still got huge and the system still swapped out like
-> mad, but it seemed like the buffer cache grew _slower_ and that the vm was
-> more fair towards other vm users. so interactivity was better but still far
-> from 2.2. and then it oops'ed [I don't think it was because of your patch
-> though..]:
-> 
+Hi Alan,
 
-I tried 2.4.8 final and it fixes the problem.... could it be the 
-fs/buffer.c changes? behaviour is now like 2.2 (good in this case). if I 
-have time I'll try 2.4.8-ac5 to se if it also fixes it. thanks to whoever 
-is responsible for the fix.
+the following patch implements these (trivial) things,
+which clean up the code slightly and will give us the
+opportunity to experiment with the VM by tuning some
+parameters at run-time:
 
-also I tried 2.4.9-pre3 and it performs _much_ [I'd say 10 times better!]
-better under high VM load specifically when filling all ram+swap. Where
-2.4.8 used to thrash without making any progress what so ever [I'd have to
-reset], 2.4.9-pre3 will either oom_kill (the _right_ process) or manage to
-handle swap to let processes run without thrashing. this is all on PPC 
-without any highmem (192Mb + 200mb swap.).
+1) merge the page_age*() cleanups from -linus
 
+2) make /proc/sys/vm/freepages writeable again
 
-	Cheers,
+3) switch the page aging tactic in /proc/sys/vm:
+     0)  no page aging
+     1)  exponential decline   * current, default
+     2)  linear decline        * Linux 2.0, FreeBSD
 
-	-marc
+4) specify a static inactive_target in /proc/sys/vm,
+   this can be good for some specific workloads, but
+   seems mostly useful for VM experimenting and tuning
+
+Note that this patch does not modify the default behaviour
+of the kernel.
+
+Please apply for the next -ac.
+
+thanks,
+
+Rik
+--
+IA64: a worthy successor to i860.
+
+http://www.surriel.com/		http://distro.conectiva.com/
+
+Send all your spam to aardvark@nl.linux.org (spam digging piggy)
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
