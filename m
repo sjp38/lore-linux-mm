@@ -1,31 +1,37 @@
-Date: Thu, 13 Jun 2002 17:45:26 +0100
-From: "Stephen C. Tweedie" <sct@redhat.com>
-Subject: Re: slab cache
-Message-ID: <20020613174526.F9286@redhat.com>
-References: <3D036BBE.4030603@shaolinmicro.com> <20020610095750.B2571@redhat.com> <3D076339.1070301@shaolinmicro.com> <20020612162941.M12834@redhat.com> <3D08C984.3010308@shaolinmicro.com>
+Received: from caramail.com (www57.caramail.com [213.193.13.67])
+	by mail4.caramail.com (8.8.8/8.8.8) with SMTP id RAA03779
+	for linux-mm@kvack.org; Mon, 17 Jun 2002 17:45:20 +0200 (DST)
+From: anya aitali <tiziri00@caramail.com>
+Message-ID: <1024325907014473@caramail.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <3D08C984.3010308@shaolinmicro.com>; from davidchow@shaolinmicro.com on Fri, Jun 14, 2002 at 12:34:12AM +0800
+Subject: linux page table
+Date: Mon, 17 Jun 2002 16:58:27 GMT+1
+Content-Type: multipart/mixed; boundary="=_NextPart_Caramail_0144731024325907_ID"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: David Chow <davidchow@shaolinmicro.com>
-Cc: "Stephen C. Tweedie" <sct@redhat.com>, linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+This message is in MIME format. Since your mail reader does not understand
+this format, some or all of this message may not be legible.
 
-On Fri, Jun 14, 2002 at 12:34:12AM +0800, David Chow wrote:
+--=_NextPart_Caramail_0144731024325907_ID
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: 7bit
 
-> Thanks for comment, since you mention about cache, do you mean CPU L2 
-> caches? I don't use to dynamic alloc and dealloc pages, I have a fixed 
-> sized cache per CPU, even using vmalloc I will only do it only once 
-> during module initialize, and dealloc only on unload, 
+Hi 
+Can you oriented me. I had a PFN (page frame number) for 
+one page and I want assign it to a entry for a pte_page.
+What are the LINUX kernel functions should I use.
+Thanks. 
 
-In that case, slab won't have anything to offer you over basic use of
-get_free_pages().
+_________________________________________________________ 
+Envoyez des messages musicaux sur le portable de vos amis 
+ http://mobile.lycos.fr/mobile/local/sms_musicaux/
 
---Stephen
+
+--=_NextPart_Caramail_0144731024325907_ID--
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
