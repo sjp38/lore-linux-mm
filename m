@@ -1,48 +1,28 @@
-From: kanoj@google.engr.sgi.com (Kanoj Sarcar)
-Message-Id: <200003270800.AAA65612@google.engr.sgi.com>
-Subject: Re: [PATCH] Re: kswapd
-Date: Mon, 27 Mar 2000 00:00:21 -0800 (PST)
-In-Reply-To: <Pine.LNX.4.10.10003262200520.1538-100000@penguin.transmeta.com> from "Linus Torvalds" at Mar 26, 2000 10:07:48 PM
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Received: from f03n07e.au.ibm.com
+	by ausmtp02.au.ibm.com (IBM AP 1.0) with ESMTP id SAA155642
+	for <linux-mm@kvack.org>; Mon, 27 Mar 2000 18:39:10 +1000
+From: pnilesh@in.ibm.com
+Received: from d73mta05.au.ibm.com (f06n05s [9.185.166.67])
+	by f03n07e.au.ibm.com (8.8.8m2/8.8.7) with SMTP id SAA36184
+	for <linux-mm@kvack.org>; Mon, 27 Mar 2000 18:39:45 +1000
+Message-ID: <CA2568AF.002D39AF.00@d73mta05.au.ibm.com>
+Date: Mon, 27 Mar 2000 13:36:19 +0530
+Subject: Why ?
+Mime-Version: 1.0
+Content-type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@transmeta.com>
-Cc: riel@nl.linux.org, Russell King <rmk@arm.linux.org.uk>, linux-mm@kvack.org, linux-kernel@vger.rutgers.edu
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> 
-> On the other hand you're definitely right that this is not a new bug
-> introduced by you, Kanoj - this seems to be just a thinko that has been
+Why the first 0x0 - 0x07ffffff   virtual addresses are not used by any
+process ?
+Is that used by the kernel and if yes for what ?
 
-Whew, as long as I can keep that beer I was going to send to Russell on
-Rik's suggestion for myself! :-)
+Nilesh Patel
 
-On a more serious note, I know too little about the application load 
-that Rik/Russell is talking about to understand what's going on, but
-I have the vague suspicion that Rik's patch is just a part fix to the 
-problem, and that maybe we might be doing too many kswapd wakes ups
-via the balancing code. 
 
-This is my reasoning: Rik's patch makes it so that before kswapd 
-undertakes heavy weight work, it yields the cpu ... then it checks
-whether it has to do the work (via zone_wake_kswapd). This is the
-only difference over pre3. If this is improving things a lot, that
-makes me believe that the memory-low condition is subsiding (pages
-are being freed up) just after kswapd has yielded, and before it
-gets scheduled onto the cpu again. This depends on the app and its
-priority too, I guess. If there is an app load where the pages are
-not freed, Rik's patch would _probably_ not be able to help. Its 
-better than nothing, but if you wanted to do the best you could, you
-need to add more yield points into the body of kswapd code (which 
-I suspect will not be free of side effects possibly). 
-
-The other part about possibly doing too many kswapd wakeups is 
-just a hunch, not directly related to this patch. I will forward
-a balancing patch on the mailing lists next for people to try.
-
-Kanoj
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
