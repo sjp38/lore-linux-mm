@@ -1,40 +1,40 @@
-Message-ID: <20020404183821.25904.qmail@web12301.mail.yahoo.com>
-Date: Thu, 4 Apr 2002 10:38:21 -0800 (PST)
-From: Ravi <kravi26@yahoo.com>
-Subject: Re: Memory allocation in Linux (fwd)
-In-Reply-To: <Pine.LNX.4.21.0204041258240.24668-100000@mailhost.tifr.res.in>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Received: from user-112077u.dsl.mindspring.com ([66.32.28.254] helo=dublin)
+	by blount.mail.mindspring.net with esmtp (Exim 3.33 #1)
+	id 16tFNH-0003g2-00
+	for linux-mm@kvack.org; Thu, 04 Apr 2002 17:06:31 -0500
+Message-Id: <4.2.0.58.20020404140237.00b6c390@london.rubylane.com>
+Date: Thu, 04 Apr 2002 14:06:20 -0800
+From: Jim Wilcoxson <jim@rubylane.com>
+Subject: 2.2.20 suspends everything then recovers during heavy I/O
+Mime-Version: 1.0
+Content-Type: text/plain; charset="us-ascii"; format=flowed
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Amit S. Jain" <amitjain@tifr.res.in>, linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+I'm setting up a new system with 2.2.20, Ingo's raid patches, plus 
+Hedrick's IDE patches.
 
-> Obtaining large amount of continuous memory from the kernel is not a
-> good practice and is also not possible.However,as far as
-> non-contiguous memory is concerned ...cant those be obtained in huge 
-> amounts (I am talkin in terms of MB).Using get_free_pages or vmalloc 
-> cant large amounts of memory be obtained.
- 
-  __get_free_pages() allocates physically contiguous pages, so it
-doesn't help you.  vmalloc() may be used to get more memory than you
-would with kmalloc(), but it isn't guaranteed to succeed. vmalloc can
-fail for two reasons (AFAIK):
- - vmalloc maps physically discontiguous pages to kernel virtual
-addresses in the range of VMALLOC_START and VMALLOC_END. If this
-address range is used up, vmalloc will fail.
- - allocations done by vmalloc are always backed by physical pages. So
-if enough physical memory is not available to satisfy the request,
-vmalloc will fail.
+When doing heavy I/O, like copying partitions between drives using tar in a 
+pipeline, I've noticed that things will just stop for long periods of time, 
+presumably while buffers are written out to the destination disk.  The 
+destination drive light is on and the system is not exactly hung, because I 
+can switch consoles and stuff, but a running vmstat totally suspends for 
+10-15 seconds.
 
-Hope this helps,
-Ravi.
+Any tips or patches that will avoid this?  If our server hangs for 15 
+seconds, we're going to have tons of web requests piled up for it when it 
+decides to wakeup...
 
-__________________________________________________
-Do You Yahoo!?
-Yahoo! Tax Center - online filing with TurboTax
-http://taxes.yahoo.com/
+Thanks for any advice you may have.  (I'm not on the mailing list BTW).
+
+Jim
+___________________________________________
+Jim Wilcoxson, Owner
+Ruby Lane Antiques, Collectibles & Fine Art
+1.313.274.0788
+http://www.rubylane.com 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
