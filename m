@@ -1,46 +1,64 @@
-Date: Mon, 30 Jul 2001 19:52:12 +0200 (CEST)
-From: Mike Galbraith <mikeg@wen-online.de>
-Subject: Re: 2.4.8-pre1 and dbench -20% throughput
-In-Reply-To: <3B657A6E.2487127F@osdlab.org>
-Message-ID: <Pine.LNX.4.33.0107301935570.605-100000@mikeg.weiden.de>
+Received: from burns.conectiva (burns.conectiva [10.0.0.4])
+	by perninha.conectiva.com.br (Postfix) with SMTP id D106338C89
+	for <linux-mm@kvack.org>; Mon, 30 Jul 2001 16:10:16 -0300 (EST)
+Date: Mon, 30 Jul 2001 16:10:13 -0300 (BRST)
+From: Rik van Riel <riel@conectiva.com.br>
+Subject: strange locking __find_get_swapcache_page()
+Message-ID: <Pine.LNX.4.33L.0107301542230.5582-100000@duckman.distro.conectiva>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Randy.Dunlap" <rddunlap@osdlab.org>
-Cc: Theodore Tso <tytso@mit.edu>, Andrew Morton <akpm@zip.com.au>, Daniel Phillips <phillips@bonn-fries.net>, Marcelo Tosatti <marcelo@conectiva.com.br>, linux-mm@kvack.org, Rik van Riel <riel@conectiva.com.br>, Steven Cole <elenstev@mesatop.com>, Roger Larsson <roger.larsson@skelleftea.mail.telia.com>
+To: Linus Torvalds <torvalds@transmeta.com>
+Cc: linux-mm@kvack.org, Andrea Arcangeli <andrea@suse.de>, Andrew Morton <andrewm@uow.edu.au>, Marcelo Tosatti <marcelo@conectiva.com.br>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 30 Jul 2001, Randy.Dunlap wrote:
+Hi,
 
-> Theodore Tso wrote:
-> >
-> > On Sun, Jul 29, 2001 at 11:41:50AM +1000, Andrew Morton wrote:
-> >
-> > > It would be very useful to have a standardised and very carefully
-> > > chosen set of tests which we could use for evaluating fs and kernel
-> > > performance.  I'm not aware of anything suitable, really.  It would
-> > > have to be a whole bunch of datapoints sprinkled throughout a
-> > > multidimesional space.  That's what we do at present, but it's ad-hoc.
-> >
-> > All the gripes about dbench/netbench aside, one good thing about them
-> > is that they hit the filesystem with a large number of operations in
-> > parallel, which is what a fileserver under heavy load will see.
-> > Benchmarks like Andrew and Bonnie tend to have a much more serialized
-> > pattern of filesystem access.
->
-> Is iozone (using threads) any better at this?
-> We are currently using iozone.
->
-> And where can I find Zlatko's xmm program that Mike mentioned?
+I've encountered a suspicious piece of code in filemap.c:
 
-I lost the original URL, but have the source if you want it.  It's
-a simple histogram, with zero stats.  You can't do detailed analysis,
-but if you only need to see the big picture, it's useful.
+struct page * __find_get_swapcache_page( ... )
+...
+        /*
+         * We need the LRU lock to protect against page_launder().
+         */
 
-If you search the archives, you'll find the URL.  (or ask Zlatko)
+        spin_lock(&pagecache_lock);
+        page = __find_page_nolock(mapping, offset, *hash);
+        if (page) {
+                spin_lock(&pagemap_lru_lock);
+                if (PageSwapCache(page))
+                        page_cache_get(page);
+                else
+                        page = NULL;
+                spin_unlock(&pagemap_lru_lock);
+        }
+        spin_unlock(&pagecache_lock);
 
-	-Mike
+
+Question is ... WHY do we need the pagemap_lru_lock ?
+
+Page_launder() never removes the page from the swap
+cache, that is only done by reclaim_page(), and done
+while holding the pagecache_lock.
+
+The other places where pages are removed from the
+swap cache (tmpfs and free_page_and_swap_cache)
+also hold the pagecache_lock.
+
+Taking the pagemap_lru_lock seems unneeded to me...
+
+regards,
+
+Rik
+--
+Executive summary of a recent Microsoft press release:
+   "we are concerned about the GNU General Public License (GPL)"
+
+
+		http://www.surriel.com/
+http://www.conectiva.com/	http://distro.conectiva.com/
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
