@@ -1,39 +1,45 @@
-Reply-To: <todd1973@yahoo.com>
-Message-ID: <023d14e47e7a$5142d5b1$2bd36bd5@qcbpbk>
-From: <todd1973@yahoo.com>
-Subject: Karen, did you see this?                                                   
-Date: Thu, 12 Sep 0102 14:23:27 -0000
-MiME-Version: 1.0
-Content-Type: multipart/mixed;
-	boundary="----=_NextPart_000_00A7_33E30C6C.D6745A53"
+Message-ID: <3D80B1C8.EE19E03D@earthlink.net>
+Date: Thu, 12 Sep 2002 09:24:56 -0600
+From: "Joseph A. Knapka" <jknapka@earthlink.net>
+MIME-Version: 1.0
+Subject: Re: kiobuf interface / PG_locked flag
+References: <3D8054D5.B385C83@scs.ch>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: blah@kvack.org, linux-mm@kvack.org
+To: Martin Maletinsky <maletinsky@scs.ch>
+Cc: linux-mm@kvack.org, kernelnewbies@nl.linux.org
 List-ID: <linux-mm.kvack.org>
 
-------=_NextPart_000_00A7_33E30C6C.D6745A53
-Content-Type: text/plain; charset="iso-8859-1"
-Content-Transfer-Encoding: base64
+Martin Maletinsky wrote:
+> 
+> Hello,
+> 
+> I just read about the kiobuf interface in the Linux Device Driver book from Rubini/Corbet, and there is one point, which I don't understand:
+> - map_user_kiobuf() forces the pages within a user space address range into physical memory, and increments their usage count, which subsequently prevents the pages from
+> being swapped out.
 
+While it's true that having a non-zero reference count will prevent
+a page from being swapped out, such a page is still subject to
+all normal VM operations. In particular, the VM might unmap
+the page from your process, *decrement its reference count*, and
+then swap it out.
 
-c2lzdGVyDQpUaGUgV29ybGRzIDFzdCBBQlNPTFVURUxZIEZSRUUgQWR1bHQg
-U3VwZXJzaXRlLg0KMTAwJSBGcmVlLCBOTyBDcmVkaXQgQ2FyZCEgIA0KRnJl
-ZSBEcmVhbWdpcmxzIGFuZCBIYXJkY29yZSEgIA0KRnJlZSBMaXZlIEdpcmxz
-IG9uIFZpZGVvDQpGcmVlIE1vdmllcyENCkNsaWNrIGJlbG93IGFuZCBlbnRl
-ciBhIHZhbGlkIGVtYWlsIGFkZHJlc3MgdG8gZ2V0IEZyZWUgQWNjZXNzIQ0K
-DQpodHRwOi8vd3d3LmZyZWVzZXhldXJvcGUuY29tL3NhZmUuaHRtbA0KDQpo
-dHRwOi8vd3d3LmZyZWVzZXhldXJvcGUuY29tL3NhZmUuaHRtbA0KDQoNCg0K
-DQoNCg0KDQoNCg0KDQoNCnNpc3Rlcg0KDQoNCg0KDQoNCg0KDQoNCg0KDQoN
-Cg0KDQoNCg0KDQoNCg0KDQoNCg0KDQoNCg0KDQoNCg0KDQoNCg0KDQoNCg0K
-DQoNCg0KDQoNCg0KDQoNCg0KDQoNCg0KDQoNCg0KDQoNCg0KDQoNCg0KDQoN
-Cg0KDQoNCg0KDQoNCg0KDQoNCg0KDQoNCg0KDQoNCg0KDQoNCg0KDQpUaGlz
-IGlzIGEgMSB0aW1lIG1haWxpbmcuICBUbyBzdG9wIHJlY2VpdmluZyBhbnlt
-b3JldyBlbWFpbHMgZnJvbSB1cyBwbGVhc2UgY2xpY2sgaGVyZSBhbmQgZW50
-ZXIgYWRkcmVzcw0KaHR0cDovL3d3dy5mcmVlc2V4ZXVyb3BlLmNvbS9yZW1v
-dmUvDQpzaXN0ZXINCjQ1NTRuU0RlOC0yMzRCZk5mMjEwMmVlWFA0LTc0MmJz
-bUU4NTY0QXppazEtOTQwQWFIczE3MjlVSGJnMy1sNTc=
+> - lock_kiovec() sets the PG_locked flag for the pages in the kiobufs of a kiovec. The PG_locked flag prevents the pages from being swapped out, which is however already
+> ensured by map_user_kiobuf().
+
+I believe PG_locked will prevent the VM from unmapping the
+page, which does, in fact, gaurantee that it won't be
+swapped out.
+
+Cheers,
+
+-- Joe
+  "I'd rather chew my leg off than maintain Java code, which
+   sucks, 'cause I have a lot of Java code to maintain and
+   the leg surgery is starting to get expensive." - Me
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
 see: http://www.linux-mm.org/
-------=_NextPart_000_00A7_33E30C6C.D6745A53--
