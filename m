@@ -1,45 +1,58 @@
-Date: Tue, 15 Feb 2005 17:17:09 -0800
+Date: Tue, 15 Feb 2005 17:41:09 -0800
 From: Paul Jackson <pj@sgi.com>
 Subject: Re: manual page migration -- issue list
-Message-Id: <20050215171709.64b155ec.pj@sgi.com>
-In-Reply-To: <20050215165106.61fd4954.pj@sgi.com>
+Message-Id: <20050215174109.238b7135.pj@sgi.com>
+In-Reply-To: <42128B25.9030206@sgi.com>
 References: <42128B25.9030206@sgi.com>
-	<20050215165106.61fd4954.pj@sgi.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Paul Jackson <pj@sgi.com>
-Cc: raybry@sgi.com, linux-mm@kvack.org, holt@sgi.com, ak@muc.de, haveblue@us.ibm.com, marcello@cyclades.com, stevel@mwwireless.net, peterc@gelato.unsw.edu.au
+To: Ray Bryant <raybry@sgi.com>
+Cc: linux-mm@kvack.org, holt@sgi.com, ak@muc.de, haveblue@us.ibm.com, marcello@cyclades.com, stevel@mwwireless.net, peterc@gelato.unsw.edu.au
 List-ID: <linux-mm.kvack.org>
 
-As a straw man, let me push the factored migration call to the
-extreme, and propose a call:
+A couple comments in response to Andi's earlier post on the
+related lkml thread ...
 
-  sys_page_migrate(pid, oldnode, newnode)
+Andi wrote:
+> Sorry, but the only real difference between your API and mbind is that
+> yours has a pid argument. 
 
-that moves any physical page in the address space of pid that is
-currently located on oldnode to newnode.
+One other difference shouts out at me.  I am unsure of my reading of
+Andi's post, so I can't tell if (1) it was so obvious Andi didn't
+bother mentioning it, or (2) he doesn't see it as a difference.
 
-Won't this come about as close as we are going to get to replicating the
-physical memory layout of a job, if we just call it once, for each task
-in that job?  Oops - make that one call for each node in use by the job
-- see the following ...
+That difference is this.
+
+    The various numa mechanisms, such as mbind, set_mempolicy and cpusets,
+    as well as the simple first touch that MPI jobs rely on, are all about
+    setting a policy for where future allocations should go.
+
+    This page migration mechanism is all about changing the placement of
+    physical pages of ram that are currently allocated.
+
+At any point in time, numa policy guides future allocations, and page
+migration redoes past allocations.
 
 
-Earlier I (pj) wrote:
-> The one thing not trivially covered in such a one task, one node pair at
-> a time factoring is memory that is placed on a node that is remote from
-> any of the tasks which map that memory.  Let me call this 'remote
-> placement.'  Offhand, I don't know why anyone would do this.
+Andi wrote:
+> My thinking is the simplest way to handle that is to have a call that just
+> migrates everything. 
 
-Well - one case - headless nodes.  These are memory-only nodes.
+I might have ended up at the same place, not sure, when I just suggested
+in my previous post:
 
-Typically one sys_page_migrate() call will be needed for each such node,
-specifying some task in the job that has all the relevent memory on that
-node mapped, specifying that (old) node, and specifying which new node
-that memory should be migrated to.
+pj wrote:
+> As a straw man, let me push the factored migration call to the
+> extreme, and propose a call:
+> 
+>   sys_page_migrate(pid, oldnode, newnode)
+> 
+> that moves any physical page in the address space of pid that is
+> currently located on oldnode to newnode.
+
 
 -- 
                   I won't rest till it's the best ...
