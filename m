@@ -1,61 +1,78 @@
-Subject: Re: 2.6.3-rc2-mm1
-References: <20040212015710.3b0dee67.akpm@osdl.org>
-	<1076630675.6006.6.camel@moria.arnor.net>
-From: Terje Kvernes <terjekv@math.uio.no>
-Date: Sat, 14 Feb 2004 11:36:09 +0100
-In-Reply-To: <1076630675.6006.6.camel@moria.arnor.net> (Torrey Hoffman's
- message of "Thu, 12 Feb 2004 16:04:35 -0800")
-Message-ID: <wxxisiaeyna.fsf@nommo.uio.no>
+Received: from webmail.andrew.cmu.edu (WEBMAIL2.andrew.cmu.edu [128.2.10.92])
+	by smtp1.andrew.cmu.edu (8.12.10/8.12.10) with SMTP id i1G3CtZI007952
+	for <linux-mm@kvack.org>; Sun, 15 Feb 2004 22:12:55 -0500
+Message-ID: <1165.128.2.185.83.1076901174.squirrel@webmail.andrew.cmu.edu>
+Date: Sun, 15 Feb 2004 22:12:54 -0500 (EST)
+Subject: Doubt regarding reservation of pages for application
+From: "Anand Eswaran" <aeswaran@andrew.cmu.edu>
+Reply-To: aeswaran@ece.cmu.edu
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain;charset=iso-8859-1
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Torrey Hoffman <thoffman@arnor.net>
-Cc: Andrew Morton <akpm@osdl.org>, Linux-Kernel List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Torrey Hoffman <thoffman@arnor.net> writes:
+Hi :
 
-> On Thu, 2004-02-12 at 01:57, Andrew Morton wrote:
-> > ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.6/2.6.3-rc2/2.6.3-rc2-mm1/
-> 
-> [... list of many patches]
-> 
-> > bk-ieee1394.patch
-> 
-> I reported a bug in 2.6.2-rc3-mm1 and was asked to retest... result
-> is it's still broken.  The result is the same - even a little worse
-> now, it won't get as far as running init so I have no log to post.
+   Im trying to implement reservation of pages for  particular
+applications in the 2.4-18 kernel.
 
-  I'm seeing the same bug, and I have ieee1394 as a module.  I can
-  help to debug this if need be.
+    In this regard, I have a few doubts and would really appreciate if
+someone could someone please help me out with these.
 
-> This machine has no serial port and I haven't tried the network
-> logging stuff yet...
-> 
-> But the oops looked very similar.  At least the function names and the
-> references to ieee1394 are the same.  The 2.6.2-rc3-mm1 oops was:
-> 
-> > ieee1394: Host added: ID:BUS[0-00:1023]  GUID[00508d0000f42af5]
-> > Badness in kobject_get at lib/kobject.c:431
-> > Call Trace:
-> >  [<c02078dc>] kobject_get+0x3c/0x50
-> >  [<c0272fd1>] get_device+0x11/0x20
-> >  [<c0273c68>] bus_for_each_dev+0x78/0xd0
-> >  [<fc876185>] nodemgr_node_probe+0x45/0x100 [ieee1394]
-> >  [<fc876030>] nodemgr_probe_ne_cb+0x0/0x90 [ieee1394]
-> >  [<fc87654b>] nodemgr_host_thread+0x14b/0x180 [ieee1394]
-> >  [<fc876400>] nodemgr_host_thread+0x0/0x180 [ieee1394]
-> >  [<c010b285>] kernel_thread_helper+0x5/0x10
+    I know its a longer-than-avg mail , sorry about it, just thought
+elaborating might throw more light on it.
 
-  yup.  this is _very_ familiar.  I have the same problem with
-  2.6.3-rc2-mm1.  I also have some devfs problems that I can't quite
-  pinpoint so I've rolled back to 2.6.2-mm1.
- 
-  [ ... ]
 
--- 
-Terje
+
+WHAT I'M DOING
+
+1) I select a particular chunk of the memory ( a subsection of the first
+zone[ZONE_NORMAL]) that has  unused pages (not in the pagecache)
+
+2)   I populate pages from this region onto a special freelist structure
+of mine ( essentially duplicating the free_area_t )
+
+  I implement this reservation as a system call which takes in the size of
+the region in PAGE_SIZE units.
+
+
+MY QUESTION
+
+  I grab the pagemap_lru_lock early and dont let it go until Ive populated
+all the pages in the chosen region to my freelists. The length of time I
+grab the lock is proportional to the size of the region Im reserving for
+my application.
+
+   Does this affect kswapd operations significantly ? i.e Is it ok to make
+kswapd wait till I release the spinlock?
+
+   I recently had a fiasco wherein when journalling support for my ide
+device was aborted and page buffers were written randomly to my disk.
+Hence my hypothesis on interference with kswapd and jbd. Could one of
+the gurus on this list please verify this for me? ;)
+
+  On a meta-level, is there any interest in general for such support for
+timing-constrained multimedia applications where you dont want to pay
+the timing penalty of a disk swap? If there is, at the end of my
+implementation, I can come out with a patch. Please let me know.
+
+
+Thanks a lot,
+
+-----
+Anand.
+
+
+
+
+
+
+
+
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
