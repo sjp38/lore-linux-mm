@@ -1,11 +1,11 @@
 Received: from neon.transmeta.com (neon-best.transmeta.com [206.184.214.10])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id SAA12293
-	for <linux-mm@kvack.ORG>; Thu, 28 Jan 1999 18:01:12 -0500
-Date: Thu, 28 Jan 1999 14:53:15 -0800 (PST)
+	by kvack.org (8.8.7/8.8.7) with ESMTP id TAA13165
+	for <linux-mm@kvack.ORG>; Thu, 28 Jan 1999 19:26:48 -0500
+Date: Thu, 28 Jan 1999 16:17:42 -0800 (PST)
 From: Linus Torvalds <torvalds@transmeta.com>
 Subject: Re: [patch] fixed both processes in D state and the /proc/ oopses [Re: [patch] Fixed the race that was oopsing Linux-2.2.0]
-In-Reply-To: <Pine.LNX.3.96.990128232118.797B-100000@laser.bogus>
-Message-ID: <Pine.LNX.3.95.990128144808.956H-100000@penguin.transmeta.com>
+In-Reply-To: <Pine.LNX.3.96.990128205918.438B-100000@laser.bogus>
+Message-ID: <Pine.LNX.3.95.990128161635.956I-100000@penguin.transmeta.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -15,36 +15,22 @@ List-ID: <linux-mm.kvack.org>
 
 
 On Thu, 28 Jan 1999, Andrea Arcangeli wrote:
-> 
-> I'm afraid. I still think that it will never be needed even removing
-> lock_kernel(), because doing that we would need to make atomic the
-> decreasing of mm->count with current->mm = &init_mm, otherwise we would
-> not know if we can touch the current->mm of a process at any time. 
+>
+> If you remove the kernel lock around do_exit() you _need_ my mm_lock
+> spinlock. You need it to make atomic the decreasing of mm->count and
+> current->mm = &init_mm. If the two instructions are not atomic you have
+> _no_ way to know if you can mmget() at any time the mm of a process.
 
-What?
+Andrea, just go away.
 
-We can _always_ touch current->mm, because it can _never_ go away from
-under us: it will always have a non-zero count exactly because "current"
-has a copy of it.
+The two do not _have_ to be atomic, they never had to, and they never
+_will_ have to be atomic. You obviously haven't read all my email
+explaining why they don't have to be atomic.
 
-If you want to touch some _other_ process mm pointer, that's when it gets
-interesting. Buyer beware.
+> I repeat in another way (just trying to avoid English mistakes): 
+> decreasing mm->count has to go in sync with updating current->mm,
 
-> But maybe I am missing something, but it's what I think though.
-
-You're missing the fact that whenever we own the mm, we know that NOBODY
-else can do anything bad at all, because nobody else can ever think that
-the count is zero. Because we hold a reference count to it.
-
-The _only_ interesting case is when multiple threads do "exit()" at the
-same time, and then one of them will be the last one - and that last one
-will _know_ he is the last one because that's how atomic_dec_and_tes()
-works. And once he knows, he no longer has to care about anybody else,
-because he knows that nobody else can touch that mm space any more (or it
-wouldn't have decremented the counter to zero in the first place). 
-
-So not only does mm->count need to be atomic in the absense of other
-locks, but that atomicity is obviously sufficient for allocation purposes. 
+No it has not.
 
 		Linus
 
