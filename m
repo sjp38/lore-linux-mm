@@ -1,40 +1,52 @@
-Received: from neon.transmeta.com (neon-best.transmeta.com [206.184.214.10])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id NAA28862
-	for <linux-mm@kvack.org>; Sat, 2 Jan 1999 13:12:56 -0500
-Date: Sat, 2 Jan 1999 10:10:31 -0800 (PST)
-From: Linus Torvalds <torvalds@transmeta.com>
-Reply-To: Linus Torvalds <torvalds@transmeta.com>
-Subject: Re: [patch] new-vm improvement [Re: 2.2.0 Bug summary]
-In-Reply-To: <Pine.LNX.3.96.990102162944.176A-100000@laser.bogus>
-Message-ID: <Pine.LNX.3.95.990102100512.18853G-100000@penguin.transmeta.com>
+Received: from squid.netplus.net (squid.netplus.net [206.250.192.10])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id PAA29359
+	for <linux-mm@kvack.org>; Sat, 2 Jan 1999 15:05:59 -0500
+Message-ID: <368E7BCC.68A75964@netplus.net>
+Date: Sat, 02 Jan 1999 14:04:28 -0600
+From: Steve Bergman <steve@netplus.net>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [patch] new-vm improvement [Re: 2.2.0 Bug summary]
+References: <Pine.LNX.3.95.990101225111.16066K-100000@penguin.transmeta.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Andrea Arcangeli <andrea@e-mind.com>
-Cc: Steve Bergman <steve@netplus.net>, Benjamin Redelings I <bredelin@ucsd.edu>, "Stephen C. Tweedie" <sct@redhat.com>, Alan Cox <alan@lxorguk.ukuu.org.uk>, Rik van Riel <H.H.vanRiel@phys.uu.nl>, linux-mm@kvack.org
+To: Linus Torvalds <torvalds@transmeta.com>
+Cc: Andrea Arcangeli <andrea@e-mind.com>, Benjamin Redelings I <bredelin@ucsd.edu>, "Stephen C. Tweedie" <sct@redhat.com>, linux-kernel@vger.rutgers.edu, Alan Cox <alan@lxorguk.ukuu.org.uk>, Rik van Riel <H.H.vanRiel@phys.uu.nl>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-
-
-On Sat, 2 Jan 1999, Andrea Arcangeli wrote:
+Linus Torvalds wrote:
 > 
-> > The other thing I'd like to hear is how pre3 looks with this patch, which
-> > should behave basically like Andrea's latest patch but without the
-> > obfuscation he put into his patch..
+> Would you care to do some more testing? In particular, I'd like to hear
+> how basic 2.2.0pre3 works (that's essentially the same as test1-pre, with
+> only minor updates)? I'd like to calibrate the numbers against that,
+> rather than against kernels that I haven't actually ever run myself.
 > 
-> I rediffed my latest swapout stuff against your latest tree (I consider
-> your latest patch as test1-pre4, right?).
 
-Andrea, I already told you that I refuse to apply patches that include
-this many obvious cases of pure obfuscation.
+I've done some more testing, this time including the low memory case. 
+For low memory testing I built the dhcp server from SRPM in 8MB with X,
+xdm, various daemons (sendmail, named, inetd, etc.), and vmstat 1
+running.  Swap area stayed at about 8MB usage.  I have also run the
+128MB tests some more and have slightly more accurate results.  Here is
+the summary:
 
-As I already told you in an earlier mail, your state machine only has two
-states, not three like the code makes you believe. Gratuitous changes like
-that that only show that the writer didn't actually _think_ about the code
-is not something I want at any stage, much less now.
 
-		Linus
 
+Kernel                                          128MB              8MB
+------------                                    -------           
+------
+2.1.131-ac11                                    172 sec            260
+sec
+test1-pre  + Arcangeli's patch                  119 sec            226
+sec
+2.2.0-pre3                                      175 sec            334
+sec
+2.2.0-pre3 + Linus's patch                      129 sec            312
+sec
+RH5.2 Stock (2.0.36-0.7)                        280 sec            N/A
+
+
+
+-Steve
 --
 This is a majordomo managed list.  To unsubscribe, send a message with
 the body 'unsubscribe linux-mm me@address' to: majordomo@kvack.org
