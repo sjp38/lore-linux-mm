@@ -1,39 +1,38 @@
-Date: Wed, 06 Oct 2004 08:14:08 -0700
-From: "Martin J. Bligh" <mbligh@aracnet.com>
-Subject: Re: [RFC/PATCH]  pfn_valid() more generic : arch independent part[0/2]
-Message-ID: <1209350000.1097075647@[10.10.2.4]>
-In-Reply-To: <416392BF.1020708@jp.fujitsu.com>
-References: <416392BF.1020708@jp.fujitsu.com>
+Received: from sunna.tekno.chalmers.se (sunna.tekno.chalmers.se [129.16.30.77])
+	by helios.medic.chalmers.se (X1/X1) with ESMTP id i96K7J9Z008421
+	for <linux-mm@kvack.org>; Wed, 6 Oct 2004 22:07:19 +0200 (MEST)
+Date: Wed, 6 Oct 2004 22:07:55 +0200 (MEST)
+From: Dianqin Xu <dianqin@mdstud.chalmers.se>
+Subject: About the avltree.h 
+Message-ID: <Pine.GSO.4.58.0410062206400.21585@sunna.tekno.chalmers.se>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hiroyuki KAMEZAWA <kamezawa.hiroyu@jp.fujitsu.com>, LinuxIA64 <linux-ia64@vger.kernel.org>
-Cc: linux-mm <linux-mm@kvack.org>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> This is generic parts.
-> 
-> Boot-time routine:
-> At first, information of valid pages is gathered into a list.
-> After gathering all information, 2 level table are created.
-> Why I create table instead of using a list is only for good cache hit.
-> 
-> pfn_valid_init()  <- initilize some structures
-> validate_pages(start,size) <- gather valid pfn information
-> pfn_valid_setup() <- create 1st and 2nd table.
+Dear Sir:
 
+Sorry to write the mail to trouble you.
 
-Boggle. what on earth are you trying to do?
+I am a master student of Chalmers University of Technology,Sweden.
 
-pfn_valid does exactly one thing - it checks whether there is a struct
-page for that pfn. Nothing else. Surely that can't possibly take a tenth
-of this amount of code?
+Now I am doing my master thesis: "realtime scheduling in linux kernel",
+one of our basic data structure is the AVL tree.
 
-M.
+I have searched the code avltree.c(Generic AVL-Tree) as the PATCH of
+linux 2.3.30. But I cannot find the included header file avltree.h.
+If possible, Could you please give me your hand to send that file to me?
+That file is important for us to understand the code. BTW, I have tried to
+write to the responsible author Kevin O'Connor, but his email address has
+been expired.
 
+Thank you so much for your kind help.
+
+with best regards
+
+Jerry Xu
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
