@@ -1,54 +1,56 @@
-Message-ID: <3DF5BB06.A6F6AFFD@scs.ch>
-Date: Tue, 10 Dec 2002 10:59:34 +0100
-From: Martin Maletinsky <maletinsky@scs.ch>
-MIME-Version: 1.0
-Subject: Question on set_page_dirty()
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Received: from NigelLaptop
+ (203-167-153-172.dialup.clear.net.nz [203.167.153.172])
+ by smtp2.clear.net.nz (CLEAR Net Mail)
+ with SMTP id <0H6Y00F8F05GNM@smtp2.clear.net.nz> for linux-mm@kvack.org; Wed,
+ 11 Dec 2002 19:46:29 +1300 (NZDT)
+Date: Wed, 11 Dec 2002 19:44:29 +1300
+From: Nigel Cunningham <ncunningham@clear.net.nz>
+Subject: Using reverse mapping in 2.5.51 for suspend-to-disk.
+Message-id: <000101c2a0e0$c5743140$ac99a7cb@NigelLaptop>
+MIME-version: 1.0
+Content-type: text/plain; charset=iso-8859-1
+Content-transfer-encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org, kernelnewbies@nl.linux.org
+To: "Linux Memory Management List (E-mail)" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Hello,
+Hi all.
 
-Looking at the function set_page_dirty() (in linux 2.4.18-3 - see below) I noticed, that it not only sets the pages PG_dirty bit (as the SetPageDirty() macro does), but
-additionnally may link the page onto a queue (more precisely the dirty queue of it's 'mapping').
-What is the meaning of this dirty queue, what is the effect of linking a page onto that queue, and when should the set_page_dirty() function be used rather than the
-SetPageDirty() macro?
+Let me begin by saying I'm quite new to kernel hacking, and will freely
+admit that I've lots still to learn. Please, therefore, cut me some slack if
+I show previously unsurpassed ignorance!
 
-Thanks in advance for any help
-with best regards
-Martin Maletinsky
+First, some background:
 
-P.S. Please put me on CC: in your reply, since I am not in the mailing list.
+I've done some work on the suspend-to-disk code in the 2.4 series kernels.
+The mainstream suspend-to-disk code in 2.4 essentially eats all the memory
+it can, makes a copy of the remainder, and writes that copy to disk. I
+prepared a version that eats far less memory and writes a bigger image,
+thereby resulting in a more responsive system on resume (although it takes
+longer to read). The target, of course is to eat [virtually] no memory at
+all and store as close to a perfect image as possible. To get closer to
+that, I implemented a crude reverse mapping (assuming I understand the term
+correctly) which makes a bitmap of pages ('pageset 1') that are only used by
+processes which have been stopped (ie processes not needed for writing the
+image), writes the contents of those pages to disk and then copies and saves
+the remaining pages ('pageset 2') using pageset1 pages and free memory. It
+works well, and will probably work better once I put it in a kernel where
+drivers are properly quiesced!
 
-*
-153  * Add a page to the dirty page list.
-154  */
-155 void set_page_dirty(struct page *page)
-156 {
-157         if (!test_and_set_bit(PG_dirty, &page->flags)) {
-158                 struct address_space *mapping = page->mapping;
-159 
-160                 if (mapping) {
-161                         spin_lock(&pagecache_lock);
-162                         list_del(&page->list);
-163                         list_add(&page->list, &mapping->dirty_pages);
-164                         spin_unlock(&pagecache_lock);
-165 
-166                         if (mapping->host)
-167                                 mark_inode_dirty_pages(mapping->host);
-168                 }
-169         }
-170 }
+Which brings me to my question. I want to start trying to get this going in
+a 2.5 kernel, and have seen people talking about reverse-mapping patches for
+a while now. I'm wondering if you have managed or are preparing to merge
+such patches into the 2.5 series, whether they would be helpful to me in
+identifying those pageset1 pages. If so, how I use them.
 
+Of course you might want to bag the whole method in general :> I'll happily
+try to implement a better method if you suggestion one!
 
---
-Supercomputing System AG          email: maletinsky@scs.ch
-Martin Maletinsky                 phone: +41 (0)1 445 16 05
-Technoparkstrasse 1               fax:   +41 (0)1 445 16 10
-CH-8005 Zurich
+Regards and thanks in advance,
+
+Nigel
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
