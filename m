@@ -1,203 +1,198 @@
-Content-Type: text/plain;
-  charset="iso-8859-1"
-From: Ed Tomlinson <tomlins@cam.org>
-Subject: Re: [PATCH][RFC] appling preasure to icache and dcache
-Date: Mon, 2 Apr 2001 08:58:21 -0400
-References: <01040208425501.20592@oscar>
-In-Reply-To: <01040208425501.20592@oscar>
-MIME-Version: 1.0
-Message-Id: <01040208582103.20592@oscar>
-Content-Transfer-Encoding: 8bit
+Date: Sun, 1 Apr 2001 22:25:02 +0100
+From: Stephen Tweedie <sct@redhat.com>
+Subject: [PATCH-2.4.2ac26] More shared memory corruption/leak bugfixes
+Message-ID: <20010401222502.B977@redhat.com>
+Mime-Version: 1.0
+Content-Type: multipart/mixed; boundary="uZ3hkaAS1mZxFaxD"
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org
+To: Christoph Rohland <cr@sap.com>, linux-mm@kvack.org
+Cc: Stephen Tweedie <sct@redhat.com>, Ben LaHaise <bcrl@redhat.com>, arjanv@redhat.com, Alan Cox <alan@lxorguk.ukuu.org.uk>
 List-ID: <linux-mm.kvack.org>
+
+--uZ3hkaAS1mZxFaxD
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 
 Hi,
 
-The patch in the last message was scrambled.  The last two lines
-belong to the previous fragment.  Here is the correct beast.
+The patch below fixes a number of problems in shared memory in
+2.4.2ac26 (ie. it is relative to my previous set of shm patches).
 
-Ed Tomlinson <tomlins@cam.org
+The main problems fixed (hopefully!) are:
 
----
-diff -u -r --exclude-from=ex.txt linux.ac28/mm/page_alloc.c linux/mm/page_alloc.c
---- linux.ac28/mm/page_alloc.c	Sun Apr  1 18:52:22 2001
-+++ linux/mm/page_alloc.c	Mon Apr  2 07:54:05 2001
-@@ -138,11 +138,9 @@
- 
- 	/*
- 	 * We don't want to protect this variable from race conditions
--	 * since it's nothing important, but we do want to make sure
--	 * it never gets negative.
-+	 * since it's nothing important.
- 	 */
--	if (memory_pressure > NR_CPUS)
--		memory_pressure--;
-+	inactivate_pressure++;
- }
- 
- #define MARK_USED(index, order, area) \
-diff -u -r --exclude-from=ex.txt linux.ac28/mm/swap.c linux/mm/swap.c
---- linux.ac28/mm/swap.c	Mon Jan 22 16:30:21 2001
-+++ linux/mm/swap.c	Thu Mar 29 11:37:47 2001
-@@ -47,10 +47,12 @@
-  * many inactive pages we should have.
-  *
-  * In reclaim_page and __alloc_pages: memory_pressure++
-- * In __free_pages_ok: memory_pressure--
-+ * In __free_pages_ok: inactivate_pressure++
-+ * In invalidate_pages_scan: inactivate_pressure++
-  * In recalculate_vm_stats the value is decayed (once a second)
+ Fix locking to avoid sleeping with spinlocks
+
+ Fix locking to avoid races between swapin and swapout
+
+ Fix shm size accounting to prevent a swap leak in shmem_truncate
+
+ Avoid swapout on already-mapped pages to avoid disconnecting pages
+ from their shm segment
+
+I'm currently on a plane and will have only sporadic laptop access to
+mail for the next week and a half, so I'll not be able to do much more
+than the basic tmpfs testing I've already done on these patches so far
+(I have checked that it runs on ac28 too, though).  Feedback welcome
+but I may not be as responsive as I'd like until about the 14th of
+April.
+
+The patches will not apply to 2.4.3 kernels until Christoph's own
+changes in ac* are merged in, but most of the bugs fixed here apply to
+2.4.3 too.  I think that the Linus tree avoids the leak, but the
+locking problems are in both trees.
+
+Cheers,
+ Stephen
+
+
+--uZ3hkaAS1mZxFaxD
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: attachment; filename="2.4.2-ac26.shm-fix2.patch2"
+
+--- linux-2.4.2-ac26/mm/shmem.c.~1~	Tue Mar 27 18:41:50 2001
++++ linux-2.4.2-ac26/mm/shmem.c	Sun Apr  1 02:52:14 2001
+@@ -226,7 +226,7 @@
   */
- int memory_pressure;
-+int inactivate_pressure;
- 
- /* We track the number of pages currently being asynchronously swapped
-    out, so that we don't try to swap TOO many pages out at once */
-@@ -287,6 +289,7 @@
- 	 * memory_pressure.
- 	 */
- 	memory_pressure -= (memory_pressure >> INACTIVE_SHIFT);
-+	inactivate_pressure -= (inactivate_pressure >> INACTIVE_SHIFT);
- }
- 
- /*
-diff -u -r --exclude-from=ex.txt linux.ac28/mm/vmscan.c linux/mm/vmscan.c
---- linux.ac28/mm/vmscan.c	Sun Apr  1 18:52:22 2001
-+++ linux/mm/vmscan.c	Mon Apr  2 07:42:55 2001
-@@ -759,6 +791,8 @@
+ static int shmem_writepage(struct page * page)
+ {
+-	int error;
++	int error = 0;
+ 	struct shmem_inode_info *info;
+ 	swp_entry_t *entry, swap;
+ 	struct inode *inode;
+@@ -234,6 +234,11 @@
+ 	if (!PageLocked(page))
+ 		BUG();
+ 	
++	/* Only move to the swap cache if there are no other users of
++	 * the page. */
++	if (atomic_read(&page->count) > 2)
++		goto out;
++	
+ 	inode = page->mapping->host;
+ 	info = &inode->u.shmem_i;
+ 	swap = __get_swap_page(2);
+@@ -243,16 +248,14 @@
+ 		return -ENOMEM;
  	}
- 	spin_unlock(&pagemap_lru_lock);
  
-+	inactivate_pressure += nr_deactivated;
++	spin_lock(&info->lock);
+ 	entry = shmem_swp_entry(info, page->index);
+ 	if (IS_ERR(entry))	/* this had been allocted on page allocation */
+ 		BUG();
+-	spin_lock(&info->lock);
+ 	shmem_recalc_inode(page->mapping->host);
+ 	error = -EAGAIN;
+-	if (entry->val) {
+-		__swap_free(swap, 2);
+-		goto out;
+-	}
++	if (entry->val)
++		BUG();
+ 
+ 	*entry = swap;
+ 	error = 0;
+@@ -265,8 +268,9 @@
+ 	page_cache_release(page);
+ 	set_page_dirty(page);
+ 	info->swapped++;
+-out:
 +
- 	return nr_deactivated;
+ 	spin_unlock(&info->lock);
++out:
+ 	UnlockPage(page);
+ 	return error;
+ }
+@@ -307,8 +311,10 @@
+ 	 * cache and swap cache.  We need to recheck the page cache
+ 	 * under the protection of the info->lock spinlock. */
+ 
+-	page = find_lock_page(mapping, idx);
++	page = __find_get_page(mapping, idx, page_hash(mapping, idx));
+ 	if (page) {
++		if (TryLockPage(page))
++			goto wait_retry;
+ 		spin_unlock (&info->lock);
+ 		return page;
+ 	}
+@@ -317,7 +323,8 @@
+ 		unsigned long flags;
+ 
+ 		/* Look it up and read it in.. */
+-		page = lookup_swap_cache(*entry);
++		page = __find_get_page(&swapper_space, entry->val,
++				       page_hash(&swapper_space, entry->val));
+ 		if (!page) {
+ 			spin_unlock (&info->lock);
+ 			lock_kernel();
+@@ -326,6 +333,11 @@
+ 			unlock_kernel();
+ 			if (!page) 
+ 				return ERR_PTR(-ENOMEM);
++			if (!Page_Uptodate(page)) {
++				page_cache_release(page);
++				return ERR_PTR(-EIO);
++			}
++			
+ 			/* Too bad we can't trust this page, because we
+ 			 * dropped the info->lock spinlock */
+ 			page_cache_release(page);
+@@ -333,13 +345,12 @@
+ 		}
+ 
+ 		/* We have to this with page locked to prevent races */
+-		if (TryLockPage(page)) {
+-			spin_unlock(&info->lock);
+- 			wait_on_page(page);
+-			page_cache_release(page);
+-			goto repeat;
+-		}
+-			
++		if (TryLockPage(page)) 
++			goto wait_retry;
++
++		if (swap_count(page) > 2)
++			BUG();
++		
+ 		swap_free(*entry);
+ 		*entry = (swp_entry_t) {0};
+ 		delete_from_swap_cache_nolock(page);
+@@ -371,7 +382,6 @@
+ 		add_to_page_cache (page, mapping, idx);
+ 	}
+ 
+-	
+ 	/* We have the page */
+ 	SetPageUptodate(page);
+ 	if (info->locked)
+@@ -380,6 +390,12 @@
+ no_space:
+ 	spin_unlock (&inode->i_sb->u.shmem_sb.stat_lock);
+ 	return ERR_PTR(-ENOSPC);
++
++wait_retry:
++	spin_unlock (&info->lock);
++	wait_on_page(page);
++	page_cache_release(page);
++	goto repeat;
  }
  
-@@ -937,6 +971,76 @@
- 	return ret;
- }
+ static int shmem_getpage(struct inode * inode, unsigned long idx, struct page **ptr)
+@@ -640,8 +656,8 @@
+ 			buf += bytes;
+ 			if (pos > inode->i_size) 
+ 				inode->i_size = pos;
+-			if (inode->u.shmem_i.max_index < index)
+-				inode->u.shmem_i.max_index = index;
++			if (inode->u.shmem_i.max_index <= index)
++				inode->u.shmem_i.max_index = index+1;
  
-+/*
-+ * Try to shrink the dcache if either its size or free space
-+ * has grown, and it looks like we might get the required pages.
-+ * This function would simplify if the caches tracked how
-+ * many _pages_ were freeable.
-+ */
-+int try_shrinking_dcache(int goal, unsigned int gfp_mask)
-+{
-+
-+	/* base - projects the threshold above which we can free pages */
-+	
-+	static int base, free = 0;
-+	int pages, old, ret;
-+
-+	old = free;			/* save old free space size */
-+
-+	pages = (dentry_stat.nr_dentry * sizeof(struct dentry)) >> PAGE_SHIFT;
-+	free = (dentry_stat.nr_unused * sizeof(struct dentry)) >> PAGE_SHIFT;
-+
-+	if (base > pages)	/* If the cache shrunk reset base,  The cache
-+		base = pages;	 * growing applies preasure as does expanding
-+	if (free > old)		 * free space - even if later shrinks */
-+		base -= (base>free-old) ? free-old : base;
-+
-+	/* try free pages...  Note that the using inactive_pressure _is_
-+	 * racy.  It does not matter, a bad guess will not hurt us.
-+	 * Testing free here does not work effectivily.
-+	 */
-+	
-+	if (pages-base >= goal) { 
-+		ret = inactivate_pressure;
-+       		shrink_dcache_memory(DEF_PRIORITY, gfp_mask);
-+		ret = inactivate_pressure - ret; 
-+		base += (!ret) ? pages-base : (ret>goal) ? ret : goal; 
-+	} else
-+		ret = 0;
-+
-+	return ret;
-+}
-+
-+/*
-+ * Same logic as above but for the icache.
-+ */
-+int try_shrinking_icache(int goal, unsigned int gfp_mask)
-+{
-+	static int base, free = 0;
-+	int pages, old, ret;
-+	
-+	old = free;
-+
-+	pages = (inodes_stat.nr_inodes * sizeof(struct inode)) >> PAGE_SHIFT;
-+	free = (inodes_stat.nr_unused * sizeof(struct inode)) >> PAGE_SHIFT;
-+	
-+	if (base > pages)
-+		base = pages;
-+	if (free > old)
-+		base -= (base>free-old) ? free-old : base;
-+
-+	if (pages-base >= goal) { 
-+		ret = inactivate_pressure;
-+       		shrink_icache_memory(DEF_PRIORITY, gfp_mask);
-+		ret = inactivate_pressure - ret; 
-+		base += (!ret) ? pages-base : (ret>goal) ? ret : goal; 
-+	} else
-+		ret = 0;
-+
-+	return ret;
-+}
-+
-+
- DECLARE_WAIT_QUEUE_HEAD(kswapd_wait);
- DECLARE_WAIT_QUEUE_HEAD(kswapd_done);
- struct task_struct *kswapd_task;
-@@ -984,18 +1088,28 @@
- 	 */
- 	for (;;) {
- 		static int recalc = 0;
-+		int delta = 0;
- 
- 		/* If needed, try to free some memory. */
- 		if (inactive_shortage() || free_shortage()) 
- 			do_try_to_free_pages(GFP_KSWAPD, 0);
- 
- 		/*
--		 * Do some (very minimal) background scanning. This
--		 * will scan all pages on the active list once
--		 * every minute. This clears old referenced bits
--		 * and moves unused pages to the inactive list.
-+		 * Try to keep the rate of pages inactivations 
-+		 * similar to the rate of pages allocations.  This
-+		 * also perform background page aging, but only
-+		 * when there is preasure on the vm.  We get the
-+		 * pages from the dcache and icache if its likely
-+		 * there are enought freeable pages there.
- 		 */
--		refill_inactive_scan(DEF_PRIORITY, 0);
-+		delta = (memory_pressure >> INACTIVE_SHIFT) \
-+			- (inactivate_pressure >> INACTIVE_SHIFT);
-+		if (delta > 0)
-+			delta -= try_shrinking_dcache(delta,GFP_KSWAPD);
-+		if (delta > 0)
-+			delta -= try_shrinking_icache(delta,GFP_KSWAPD);
-+		if (delta > 0)
-+			refill_inactive_scan(DEF_PRIORITY, delta);
- 
- 		/* Once a second, recalculate some VM stats. */
- 		if (time_after(jiffies, recalc + HZ)) {
---- linux.ac28/include/linux/swap.h	Sun Apr  1 18:52:22 2001
-+++ linux/include/linux/swap.h	Thu Mar 29 11:31:09 2001
-@@ -102,6 +102,7 @@
- 
- /* linux/mm/swap.c */
- extern int memory_pressure;
-+extern int inactivate_pressure;
- extern void age_page_up(struct page *);
- extern void age_page_up_nolock(struct page *);
- extern void age_page_down(struct page *);
----
+ 		}
+ unlock:
+
+--uZ3hkaAS1mZxFaxD--
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
