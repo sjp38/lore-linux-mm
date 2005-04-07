@@ -1,58 +1,68 @@
-Date: Thu, 7 Apr 2005 13:52:27 -0500
+Received: from flecktone.americas.sgi.com (flecktone.americas.sgi.com [198.149.16.15])
+	by omx1.americas.sgi.com (8.12.10/8.12.9/linux-outbound_gateway-1.1) with ESMTP id j37LB2xT010188
+	for <linux-mm@kvack.org>; Thu, 7 Apr 2005 16:11:02 -0500
+Date: Thu, 7 Apr 2005 16:11:01 -0500
 From: Jack Steiner <steiner@sgi.com>
-Subject: Re: per_cpu_pagesets degrades MPI performance
-Message-ID: <20050407185226.GA23873@sgi.com>
-References: <20050404192827.GA15142@sgi.com> <4251DE87.10002@yahoo.com.au>
+Subject: Excessive memory trapped in pageset lists
+Message-ID: <20050407211101.GA29069@sgi.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <4251DE87.10002@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: akpm@osdl.org, hugh@veritas.com, linux-mm@kvack.org, linux-ia64@vger.kernel.org
+To: linux-mm@kvack.org
+Cc: clameter@sgi.com
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Apr 05, 2005 at 10:40:39AM +1000, Nick Piggin wrote:
-> Jack Steiner wrote:
-> 
-> [snip nice detective work]
-> 
-> >Has anyone else seen this problem? I am considering adding
-> >a config option to allow a site to control the batch size
-> >used for per_cpu_pagesets. Are there other ideas that should 
-> >be pursued? 
-> >
-> 
-> What about using a non power of 2 for the batch? Like 5.
-> If that helps, then we can make a patch to clamp it to a
-> good value. At a guess I'd say a power of 2 +/- 1 might be
-> the way to go.
-> 
-> Nick
-> 
-> -- 
-> SUSE Labs, Novell Inc.
+The zone structure has 2 lists in the per_cpu_pageset structure. 
+These lists are used for quickly allocating & freeing pages:
 
-Good idea. For the specific benchmark that I was running, batch sizes
-of 0 (pcp disabled), 1, 3, 5, 7, 9, 10, 11, 13 & 15 all produced good results. 
-Batch sizes of 2, 4 and 8 produced horrible results.
+        struct zone {
+                ...
+                struct per_cpu_pageset  pageset[NR_CPUS];
+        }
 
-Surprisingly 7 was not quite as good as the other good values but I attribute that
-to an anomaly of the reference pattern of the specific benchmark.
+        struct per_cpu_pageset {
+                ...
+                struct per_cpu_pages pcp[2];
+        }
 
-Even more suprising (again an anomaly I think) was that a size of 13 ran
-10% faster than any of the other sizes. I reproduced this data point several
-times - it is real.
+	struct per_cpu_pages {
+		...
+		struct list_head list;	// list head for free pages
+	}
 
-Our next step to to run the full benchmark suite. That should happen
-within 2 weeks.
+Since the lists are private to a cpu, no global locks are required to
+allocate or free pages.  This is likely a performance win for many benchmarks.
 
-Tentatively, I'm planning to post a patch to change the batch size to 
-2**n-1 but I'll wait for the results of the full benchmark.
+However, memory in the lists is trapped, ie. not easily available
+for allocation by any cpu except the owner of the list. In addition,
+there is no "shaker" for this memory.
 
-I also want to finish understanding the issue of excessive memory
-being trapped in the per_cpu lists.
+
+So how much memory can be in the lists.... Lots!
+
+There is 1 zone per node (on SN). Each zone has 2 lists per cpu.
+One list is for "hot" pages, the other is for "cold" pages.
+
+On a big SN system there are 512p and 256 nodes:
+
+        512cpus * 256zones * 2 lists/percpu/perzone = 256K lists
+
+On any system with more than 256MB/node (ie, all SN systems), the hot list
+will contain 4 to 24 pages.. The cold list will contain 0 - 4 pages.
+Assuming worst case, on a 512p system with 256k lists, there can be
+a lot of memory trapped in these lists.
+
+   28 pages/node/cpu * 512 cpus * 256nodes * 16384 bytes/page = 60GB  (Yikes!!!)
+
+In practice, there will be a lot less memory in the lists, but even a
+lot less is still way too much.
+
+
+I have a couple of ideas for fixing this but it looks like Christoph is
+actively making changes in this area. Christoph do you want to address
+this issue or should I wait for your patch to stabilize?
 
 -- 
 Thanks
