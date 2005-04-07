@@ -1,64 +1,53 @@
-Message-ID: <4254842C.60306@engr.sgi.com>
-Date: Wed, 06 Apr 2005 19:51:56 -0500
-From: Ray Bryant <raybry@engr.sgi.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH_FOR_REVIEW 2.6.12-rc1 2/3] mm: manual page	migration-rc1
- -- add node_map arg to try_to_migrate_pages()
-References: <20050406041633.25060.64831.21849@jackhammer.engr.sgi.com>	 <20050406041701.25060.91114.75958@jackhammer.engr.sgi.com> <1112801963.19430.151.camel@localhost>
-In-Reply-To: <1112801963.19430.151.camel@localhost>
-Content-Type: text/plain; charset=us-ascii; format=flowed
+Received: from westrelay01.boulder.ibm.com (westrelay01.boulder.ibm.com [9.17.195.10])
+	by e33.co.us.ibm.com (8.12.10/8.12.9) with ESMTP id j37FUZ4I631756
+	for <linux-mm@kvack.org>; Thu, 7 Apr 2005 11:30:35 -0400
+Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
+	by westrelay01.boulder.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id j37FUVFP197282
+	for <linux-mm@kvack.org>; Thu, 7 Apr 2005 09:30:34 -0600
+Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av03.boulder.ibm.com (8.12.11/8.12.11) with ESMTP id j37FUVdm028313
+	for <linux-mm@kvack.org>; Thu, 7 Apr 2005 09:30:31 -0600
+Subject: Re: [PATCH 1/4] create mm/Kconfig for arch-independent memory
+	options
+From: Dave Hansen <haveblue@us.ibm.com>
+In-Reply-To: <Pine.LNX.4.61.0504070219160.15339@scrub.home>
+References: <E1DIViE-0006Kf-00@kernel.beaverton.ibm.com>
+	 <42544D7E.1040907@linux-m68k.org> <1112821319.14584.28.camel@localhost>
+	 <Pine.LNX.4.61.0504070133380.25131@scrub.home>
+	 <1112831857.14584.43.camel@localhost>
+	 <Pine.LNX.4.61.0504070219160.15339@scrub.home>
+Content-Type: text/plain
+Date: Thu, 07 Apr 2005 08:30:24 -0700
+Message-Id: <1112887825.14584.59.camel@localhost>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Hansen <haveblue@us.ibm.com>
-Cc: Ray Bryant <raybry@sgi.com>, Hirokazu Takahashi <taka@valinux.co.jp>, Andi Kleen <ak@suse.de>, Marcello Tosatti <marcello@cyclades.com>, Ray Bryant <raybry@austin.rr.com>, linux-mm <linux-mm@kvack.org>
+To: Roman Zippel <zippel@linux-m68k.org>
+Cc: Andrew Morton <akpm@osdl.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andy Whitcroft <apw@shadowen.org>
 List-ID: <linux-mm.kvack.org>
 
-Dave Hansen wrote:
-> On Tue, 2005-04-05 at 21:17 -0700, Ray Bryant wrote:
-> 
->>+#ifdef CONFIG_NUMA
->>+static inline struct page *node_migrate_onepage(struct page *page, short *node_map) 
->>+{
->>+	if (node_map)
->>+		return migrate_onepage(page, node_map[page_to_nid(page)]);
->>+	else
->>+		return migrate_onepage(page, MIGRATE_NODE_ANY); 
->>+		
->>+}
->>+#else
->>+static inline struct page *node_migrate_onepage(struct page *page, short *node_map) 
->>+{
->>+	return migrate_onepage(page, MIGRATE_NODE_ANY); 
->>+}
->>+#endif
-> 
-> 
-> I don't think that #ifdef is needed.  A user is always welcome to call
-> node_migrate_onepage() with a non-existent node in node_map[] because
-> they'll just get an error when the allocation attempt occurs.  The same
-> is true when there's only one node.  
-> 
-> -- Dave
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"aart@kvack.org"> aart@kvack.org </a>
-> 
-Sounds reasonable to me.
+On Thu, 2005-04-07 at 02:30 +0200, Roman Zippel wrote:
+> I was hoping for this too, in the meantime can't you simply make it a 
+> suboption of DISCONTIGMEM? So an extra option is only visible when it's 
+> enabled and most people can ignore it completely by just disabling a 
+> single option.
 
--- 
-Best Regards,
-Ray
------------------------------------------------
-                   Ray Bryant
-512-453-9679 (work)         512-507-7807 (cell)
-raybry@sgi.com             raybry@austin.rr.com
-The box said: "Requires Windows 98 or better",
-            so I installed Linux.
------------------------------------------------
+That's reasonable, except that SPARSEMEM doesn't strictly have anything
+to do with DISCONTIG.
+
+How about a menu that's hidden under CONFIG_EXPERIMENTAL?
+
+> > I'm not opposed to creating some better help text for those things, I'm
+> > just not sure that we really need it, or that it will help end users get
+> > to the right place.  I guess more explanation never hurt anyone.
+> 
+> Some basic explanation with a link for more information can't hurt.
+
+I'll see what I can come up with.
+
+-- Dave
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
