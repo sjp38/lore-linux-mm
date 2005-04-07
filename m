@@ -1,67 +1,65 @@
-Date: 6 Apr 2005 20:29:51 -0000
-Message-ID: <20050406202951.18977.qmail@nfly23.registerfly.com>
-Subject: Urgent Response
-Content-Type: text/plain; charset="iso-8859-1"
-From: "David Williams" <davidwilliamspvt@netscape.net>
-Reply-To: "David Williams" <davidwilliamspvt@netscape.net>
+Date: Thu, 7 Apr 2005 02:30:00 +0200 (CEST)
+From: Roman Zippel <zippel@linux-m68k.org>
+Subject: Re: [PATCH 1/4] create mm/Kconfig for arch-independent memory options
+In-Reply-To: <1112831857.14584.43.camel@localhost>
+Message-ID: <Pine.LNX.4.61.0504070219160.15339@scrub.home>
+References: <E1DIViE-0006Kf-00@kernel.beaverton.ibm.com>  <42544D7E.1040907@linux-m68k.org>
+ <1112821319.14584.28.camel@localhost>  <Pine.LNX.4.61.0504070133380.25131@scrub.home>
+ <1112831857.14584.43.camel@localhost>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Dave Hansen <haveblue@us.ibm.com>
+Cc: Andrew Morton <akpm@osdl.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andy Whitcroft <apw@shadowen.org>
 List-ID: <linux-mm.kvack.org>
 
-DAVID WILLIAMS
-DEH HARZZER 54-56
-1088DH AMSTERDAM-NETHERLANDS
+Hi,
 
-ATTN: SIR/MADAM,
+On Wed, 6 Apr 2005, Dave Hansen wrote:
 
-PERMIT ME TO INFORM YOU OF MY DESIRE OF GOING INTO
-BUSINESS RELATIONSHIP WITH YOU. I GOT YOUR  AND
-CONTACT FROM THE NETHERLANDS CHAMBER OF COMMERCE AND
-INDUSTRY. I PRAYED OVER IT AND SELECTED YOUR 
-AMONG OTHER S DUE TO IT'S ESTEEMING NATURE AND THE
-RECOMMENDATIONS GIVEN TO ME AS A REPUTABLE AND TRUST
-WORTHY PERSON I CAN CONFIDE ON AND BY THEIR
-RECOMMENDATIONS I MUST NOT HESITATE TO CONFIDE IN YOU
-FOR THIS SIMPLE AND SINCERE REQUEST.
+> > Why is this choice needed at all? Why would one choose SPARSEMEM over 
+> > DISCONTIGMEM?
+> 
+> For now, it's only so people can test either one, and we don't have to
+> try to toss DICONTIGMEM out of the kernel in fell swoop.  When the
+> memory hotplug options are enabled, the DISCONTIG option goes away, and
+> SPARSEMEM is selected as the only option.
+> 
+> I hope to, in the future, make the options more like this:
+> 
+> config MEMORY_HOTPLUG...
+> config NUMA...
+> 
+> config DISCONTIGMEM
+> 	depends on NUMA && !MEMORY_HOTPLUG
+> 
+> config SPARSEMEM
+> 	depends on MEMORY_HOTPLUG || OTHER_ARCH_THING
+> 
+> config FLATMEM
+> 	depends on !DISCONTIGMEM && !SPARSEMEM
 
-I AM DAVID WILLIAMS,A 22YEARS OLD BOY, THE ONLY SON OF LATE CHIEF AND MRS CHRISTOPHER WILLIAMS. MY FATHER WAS A VERY WEALTHY COCOA MERCHANT BASED IN ABIDJAN, THE ECONOMIC CAPITAL OF IVORY COAST BEFORE HE WAS POISONED TO DEATH BY HIS BUSINESS ASSOCIATES ON ONE OF THEIR EVENING OUTING TO DISCUSSON A BUSINESS DEAL. 
+I was hoping for this too, in the meantime can't you simply make it a 
+suboption of DISCONTIGMEM? So an extra option is only visible when it's 
+enabled and most people can ignore it completely by just disabling a 
+single option.
 
-WHEN MY MOTHER DIED ON THE 21ST OCTOBER 1990, MY FATHER TOOK ME SO SPECIAL BECAUSE I AM MOTHERLESS. BEFORE THE DEATH OF MY FATHER ON 24TH APRIL 2002, IN A PRIVATE HOSPITAL IN ABIDJAN, HE SECRETLY CALLED ME ON HIS BED SIDE AND TOLD ME THAT HE HAS A SUM OF US$15M (FIFTHEN MILLION UNITED STATES DOLLARS) LEFT IN A BANK HERE IN AMSTERDAM NETHERLANDS.
+> > Help texts such as "If unsure, choose <something else>" make 
+> > the complete config option pretty useless.
+> 
+> They don't make it useless, they just guide a clueless user to the right
+> place, without them having to think about it at all.  Those of us that
+> need to test the various configurations are quite sure of what we're
+> doing, and can ignore the messages. :)
+> 
+> I'm not opposed to creating some better help text for those things, I'm
+> just not sure that we really need it, or that it will help end users get
+> to the right place.  I guess more explanation never hurt anyone.
 
-THAT HE USED MY  AS HIS ONLY SON FOR THE NEXT OF KIN IN
-DEPOSIT OF THE FUND. HE ALSO EXPLAINED TO ME THAT IT
-WAS BECAUSE OF THIS WEALTH THAT HE WAS POISONED BY HIS
-BUSINESS ASSOCIATES, THAT I SHOULD SEEK FOR A FOREIGN
-PARTNER IN A COUNTRY OF MY CHOICE WHERE I WILL
-TRANSFER THIS MONEY AND USE IT FOR INVESTMENT PURPOSE.
+Some basic explanation with a link for more information can't hurt.
 
-FOR THIS SIMPLE REASON, I ARRANGED WITH A TRAVEL AGENT, WHO HELPED ME TO TRAVEL TO AMSTERDAM-NETHERLANDS WHERE THE FUND IS DEPOSITED. I AM RIGHT NOW IN AMSTERDAM AS A REFUGEE. 
-
-I AM HONOURABLY SEEKING YOUR ASSISTANCE IN THE FOLLOWING WAYS. 
-1) TO HELP ME RETRIEVE THIS FUND AND HELP PROVIDE A BANK ACCOUNT WHERE THIS MONEY WOULD BE TRANSFERED INTO.
-2) TO SERVE AS THE GUARDIAN OF THIS FUND AND ME 
-3) TO MAKE ARRANGEMENT FOR ME TO COME OVER TO YOUR
-COUNTRY TO FURTHER MY EDUCATION AND TO SECURE A 
-RESIDENTIAL PERMIT FOR ME IN YOUR COUNTRY. 
-
-MOREOVER, SIR, I AM WILLING TO OFFER YOU 15% OF THE
-TOTAL SUM AS COMPENSATION FOR YOUR EFFORT/INPUT AFTER
-THE SUCCESSFUL TRANSFER OF THIS FUND TO YOUR NOMINATED
-ACCOUNT OVERSEA. FURTHERMORE, YOU CAN INDICATE YOUR
-OPTION TOWARDS ASSISTING ME AS I BELIEVE THAT THIS
-TRANSACTION WOULD BE CONCLUDED WITHIN SEVEN (7) DAYS,
-YOU SIGNIFY INTEREST TO ASSIST ME. 
-
-ANTICIPATING HEARING FROM YOU SOON. 
-
-THANKS AND GOD BLESS. 
-
-EMAIL ME DIRECTLY ON davidwilliamspvt@netscape.net
-
-BEST REGARD 
-DAVID WILLIAMS
-
+bye, Roman
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
