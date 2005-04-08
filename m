@@ -1,53 +1,85 @@
-Received: from d03relay05.boulder.ibm.com (d03relay05.boulder.ibm.com [9.17.195.107])
-	by e34.co.us.ibm.com (8.12.10/8.12.9) with ESMTP id j381Om5b056456
-	for <linux-mm@kvack.org>; Thu, 7 Apr 2005 21:24:48 -0400
-Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
-	by d03relay05.boulder.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id j381OlNh185816
-	for <linux-mm@kvack.org>; Thu, 7 Apr 2005 19:24:47 -0600
-Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av01.boulder.ibm.com (8.12.11/8.12.11) with ESMTP id j381Olbh002259
-	for <linux-mm@kvack.org>; Thu, 7 Apr 2005 19:24:47 -0600
-Subject: Re: Excessive memory trapped in pageset lists
-From: Dave Hansen <haveblue@us.ibm.com>
-In-Reply-To: <20050407211101.GA29069@sgi.com>
-References: <20050407211101.GA29069@sgi.com>
-Content-Type: text/plain
-Date: Thu, 07 Apr 2005 18:24:41 -0700
-Message-Id: <1112923481.21749.88.camel@localhost>
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e5.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id j381elvo024602
+	for <linux-mm@kvack.org>; Thu, 7 Apr 2005 21:40:47 -0400
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay04.pok.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id j381elXs245632
+	for <linux-mm@kvack.org>; Thu, 7 Apr 2005 21:40:47 -0400
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.12.11/8.12.11) with ESMTP id j381ekO7004120
+	for <linux-mm@kvack.org>; Thu, 7 Apr 2005 20:40:46 -0500
+Date: Thu, 7 Apr 2005 18:34:41 -0700
+From: Chandra Seetharaman <sekharan@us.ibm.com>
+Subject: Re: [ckrm-tech] [PATCH 2/6] CKRM: Core framework support
+Message-ID: <20050408013441.GB14474@chandralinux.beaverton.ibm.com>
+References: <20050402031249.GC23284@chandralinux.beaverton.ibm.com> <1112920762.21749.78.camel@localhost>
 Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1112920762.21749.78.camel@localhost>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jack Steiner <steiner@sgi.com>
-Cc: linux-mm <linux-mm@kvack.org>, clameter@sgi.com
+To: Dave Hansen <haveblue@us.ibm.com>
+Cc: ckrm-tech@lists.sourceforge.net, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2005-04-07 at 16:11 -0500, Jack Steiner wrote:
->    28 pages/node/cpu * 512 cpus * 256nodes * 16384 bytes/page = 60GB  (Yikes!!!)
-...
-> I have a couple of ideas for fixing this but it looks like Christoph is
-> actively making changes in this area. Christoph do you want to address
-> this issue or should I wait for your patch to stabilize?
+On Thu, Apr 07, 2005 at 05:39:22PM -0700, Dave Hansen wrote:
+> xOn Fri, 2005-04-01 at 19:12 -0800, Chandra Seetharaman wrote:
 
-What about only keeping the page lists populated for cpus which can
-locally allocate from the zone?
+Hmm... big hole.... 
+will provide a temporary patch to disable mem controller in NUMA
+till I make it work on NUMA.
 
-	cpu_to_node(cpu) == page_nid(pfn_to_page(zone->zone_start_pfn)) 
+chandra
+> > +struct ckrm_mem_res {
+> ...
+> > +       struct ckrm_zone ckrm_zone[MAX_NR_ZONES];
+> 
+>  static void
+>  mem_res_initcls_one(struct ckrm_mem_res *res)
+>  {
+> ...
+> +       for_each_zone(zone) {
+> ...
+> +               res->ckrm_zone[zindex].memcls = res;
+> +               zindex++;
+> +       }
+> 
+> MAX_NR_ZONES is actually the max number of *kinds* of zones.  It's the
+> maximum number of 'struct zones' that a single pg_data_t can have in its
+> node_zones[] array.  However, each DISCONTIG or NUMA node has one of
+> these arrays, and that's what for_each_zone() loops over: _all_ of the
+> system's zones, not just a single node's. See:
+> 
+> #define for_each_zone(zone) \
+>         for (zone = pgdat_list->node_zones; zone; zone = next_zone(zone))
+> 
+> Thus, the first call to mem_res_initcls_one() on a DISCONTIG or NUMA
+> system which has a non-node-zero node will overflow that array.
+> 
+> I saw some of this code before, and that's when I asked about the memory
+> controller's NUMA interaction.  I thought something was wrong, but I
+> couldn't put my finger on it.
+> 
+> I addition to these overflows, the same issue exists with results from
+> the page_zonenum() macro.  This badly named macro returns a "unique
+> identifier" for a node, not its index in its parent pg_data_t's
+> node_zones[] array (like the code expects).  So, on i386, a page on
+> node0[ZONE_NORMAL] will have a page_zonenum() of 1, node0[ZONE_HIGHMEM]
+> will be 2, node1[ZONE_DMA] will be 3, node100[ZONE_NORMAL] will be 301,
+> etc...
+> 
+> Indexing any array declared array[MAX_NR_ZONES=1] as array[301] is
+> likely to cause problems pretty fast.
+> 
+> -- Dave
+> 
 
-There certainly aren't a lot of cases where frequent, persistent
-single-page allocations are occurring off-node, unless a node is empty.
-If you go to an off-node 'struct zone', you're probably bouncing so many
-cachelines that you don't get any benefit from per-cpu-pages anyway.
+-- 
 
-Maybe there could be a per-cpu-pages miss rate that's required to occur
-before the lists are even populated.  That would probably account better
-for cases where nodes are disproportionately populated with memory.
-This, along with the occasional flushing of the pages back into the
-general allocator if the miss rate isn't satisfied should give some good
-self-tuning behavior.
-
--- Dave
-
+----------------------------------------------------------------------
+    Chandra Seetharaman               | Be careful what you choose....
+              - sekharan@us.ibm.com   |      .......you may get it.
+----------------------------------------------------------------------
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
