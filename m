@@ -1,85 +1,100 @@
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by e5.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id j381elvo024602
-	for <linux-mm@kvack.org>; Thu, 7 Apr 2005 21:40:47 -0400
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay04.pok.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id j381elXs245632
-	for <linux-mm@kvack.org>; Thu, 7 Apr 2005 21:40:47 -0400
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.12.11/8.12.11) with ESMTP id j381ekO7004120
-	for <linux-mm@kvack.org>; Thu, 7 Apr 2005 20:40:46 -0500
-Date: Thu, 7 Apr 2005 18:34:41 -0700
-From: Chandra Seetharaman <sekharan@us.ibm.com>
-Subject: Re: [ckrm-tech] [PATCH 2/6] CKRM: Core framework support
-Message-ID: <20050408013441.GB14474@chandralinux.beaverton.ibm.com>
-References: <20050402031249.GC23284@chandralinux.beaverton.ibm.com> <1112920762.21749.78.camel@localhost>
+Date: Thu, 7 Apr 2005 21:34:36 -0500
+From: Jack Steiner <steiner@sgi.com>
+Subject: Re: Excessive memory trapped in pageset lists
+Message-ID: <20050408023436.GA1927@sgi.com>
+References: <20050407211101.GA29069@sgi.com> <1112923481.21749.88.camel@localhost>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1112920762.21749.78.camel@localhost>
+In-Reply-To: <1112923481.21749.88.camel@localhost>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Dave Hansen <haveblue@us.ibm.com>
-Cc: ckrm-tech@lists.sourceforge.net, linux-mm <linux-mm@kvack.org>
+Cc: linux-mm <linux-mm@kvack.org>, clameter@sgi.com
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Apr 07, 2005 at 05:39:22PM -0700, Dave Hansen wrote:
-> xOn Fri, 2005-04-01 at 19:12 -0800, Chandra Seetharaman wrote:
+On Thu, Apr 07, 2005 at 06:24:41PM -0700, Dave Hansen wrote:
+> On Thu, 2005-04-07 at 16:11 -0500, Jack Steiner wrote:
+> >    28 pages/node/cpu * 512 cpus * 256nodes * 16384 bytes/page = 60GB  (Yikes!!!)
+> ...
+> > I have a couple of ideas for fixing this but it looks like Christoph is
+> > actively making changes in this area. Christoph do you want to address
+> > this issue or should I wait for your patch to stabilize?
+> 
+> What about only keeping the page lists populated for cpus which can
+> locally allocate from the zone?
+> 
+> 	cpu_to_node(cpu) == page_nid(pfn_to_page(zone->zone_start_pfn)) 
 
-Hmm... big hole.... 
-will provide a temporary patch to disable mem controller in NUMA
-till I make it work on NUMA.
+Exactly. That is at the top of my list. What I haven't decided is whether to:
 
-chandra
-> > +struct ckrm_mem_res {
-> ...
-> > +       struct ckrm_zone ckrm_zone[MAX_NR_ZONES];
+	- leave the list_heads for offnode pages in the per_cpu_pages
+	  struct. Offnode lists would be unused but the amount of wasted space
+	  is small - probably 0 because of the cacheline alignment 
+	  of the per_cpu_pageset. This is the simplest solution
+	  but is not clean because of the unused fields. Unless some
+	  architectures want to control whether offnode pages
+	  are kept in the lists (???).
+
+	  	OR
+
+	- remove the list_heads from the per_cpu_pageset and make it
+	  a standalone array in the zone struct. Array size would be
+	  MAX_CPUS_PER_NODE. I don't recall any notion of MAX_CPUS_PER_NODE
+	  or a relative cpu number on a node (have I overlooked this?). 
+	  This solution is cleaner in the long run but may involve more 
+	  infrastructure than I wanted to get into at this point.
+
+	  	OR
+
+	- sane as above but have a SINGLE list_head per zone. The list
+	  would be used by all cpus on the node. Thsi avoids the page coloring
+	  issues I ran into earlier (see prev posting). Obviously, this requires 
+	  a lock. However, only on-node cpus would normally take the lock. 
+	  Another advantage of this scheme is that an offnode shaker could 
+	  acquire the lock & drain the lists if memory became low.
+
+I haven't fully thought thru these ideas. Maybe other alternatives would
+be even better.... Suggestions????
+
+
 > 
->  static void
->  mem_res_initcls_one(struct ckrm_mem_res *res)
->  {
-> ...
-> +       for_each_zone(zone) {
-> ...
-> +               res->ckrm_zone[zindex].memcls = res;
-> +               zindex++;
-> +       }
+> There certainly aren't a lot of cases where frequent, persistent
+> single-page allocations are occurring off-node, unless a node is empty.
+
+Hmmmm. True, but one of our popular configurations consists of memory-only nodes.
+I know of one site that has 240 memory-only nodes & 16 nodes with
+both cpus & memory. For this configuration, most memory if offnode 
+to EVERY cpu. (But I still don't want to cache offnode pages).
+
+
+> If you go to an off-node 'struct zone', you're probably bouncing so many
+> cachelines that you don't get any benefit from per-cpu-pages anyway.
+
+Agree, although on the SGI systems, we set a global policy to roundrobin
+all file pages across all nodes. However, I'm not suggesting we cache
+offnode pages in the per_cpu_pageset. That gets us back to where we 
+started - too much memory in percpu page lists. Also, creating a file
+page already bounces a lot of cachelines around.
+
 > 
-> MAX_NR_ZONES is actually the max number of *kinds* of zones.  It's the
-> maximum number of 'struct zones' that a single pg_data_t can have in its
-> node_zones[] array.  However, each DISCONTIG or NUMA node has one of
-> these arrays, and that's what for_each_zone() loops over: _all_ of the
-> system's zones, not just a single node's. See:
-> 
-> #define for_each_zone(zone) \
->         for (zone = pgdat_list->node_zones; zone; zone = next_zone(zone))
-> 
-> Thus, the first call to mem_res_initcls_one() on a DISCONTIG or NUMA
-> system which has a non-node-zero node will overflow that array.
-> 
-> I saw some of this code before, and that's when I asked about the memory
-> controller's NUMA interaction.  I thought something was wrong, but I
-> couldn't put my finger on it.
-> 
-> I addition to these overflows, the same issue exists with results from
-> the page_zonenum() macro.  This badly named macro returns a "unique
-> identifier" for a node, not its index in its parent pg_data_t's
-> node_zones[] array (like the code expects).  So, on i386, a page on
-> node0[ZONE_NORMAL] will have a page_zonenum() of 1, node0[ZONE_HIGHMEM]
-> will be 2, node1[ZONE_DMA] will be 3, node100[ZONE_NORMAL] will be 301,
-> etc...
-> 
-> Indexing any array declared array[MAX_NR_ZONES=1] as array[301] is
-> likely to cause problems pretty fast.
-> 
-> -- Dave
-> 
+> Maybe there could be a per-cpu-pages miss rate that's required to occur
+> before the lists are even populated.  That would probably account better
+> for cases where nodes are disproportionately populated with memory.
+> This, along with the occasional flushing of the pages back into the
+> general allocator if the miss rate isn't satisfied should give some good
+> self-tuning behavior.
+
+Makes sense.
 
 -- 
+Thanks
 
-----------------------------------------------------------------------
-    Chandra Seetharaman               | Be careful what you choose....
-              - sekharan@us.ibm.com   |      .......you may get it.
-----------------------------------------------------------------------
+Jack Steiner (steiner@sgi.com)          651-683-5302
+Principal Engineer                      SGI - Silicon Graphics, Inc.
+
+
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
