@@ -1,45 +1,71 @@
-Date: Thu, 7 Apr 2005 15:08:59 -0300
-From: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
-Subject: Re: question on page-migration code
-Message-ID: <20050407180858.GB19449@logos.cnet>
-References: <4255B13E.8080809@engr.sgi.com>
+Received: from westrelay02.boulder.ibm.com (westrelay02.boulder.ibm.com [9.17.195.11])
+	by e34.co.us.ibm.com (8.12.10/8.12.9) with ESMTP id j380dS5b329868
+	for <linux-mm@kvack.org>; Thu, 7 Apr 2005 20:39:28 -0400
+Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
+	by westrelay02.boulder.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id j380dSQ0236586
+	for <linux-mm@kvack.org>; Thu, 7 Apr 2005 18:39:28 -0600
+Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av04.boulder.ibm.com (8.12.11/8.12.11) with ESMTP id j380dRoN010710
+	for <linux-mm@kvack.org>; Thu, 7 Apr 2005 18:39:27 -0600
+Subject: Re: [ckrm-tech] [PATCH 2/6] CKRM: Core framework support
+From: Dave Hansen <haveblue@us.ibm.com>
+In-Reply-To: <20050402031249.GC23284@chandralinux.beaverton.ibm.com>
+References: <20050402031249.GC23284@chandralinux.beaverton.ibm.com>
+Content-Type: text/plain
+Date: Thu, 07 Apr 2005 17:39:22 -0700
+Message-Id: <1112920762.21749.78.camel@localhost>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4255B13E.8080809@engr.sgi.com>
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ray Bryant <raybry@engr.sgi.com>
-Cc: Hirokazu Takahashi <taka@valinux.co.jp>, Dave Hansen <haveblue@us.ibm.com>, linux-mm <linux-mm@kvack.org>
+To: Chandra Seetharaman <sekharan@us.ibm.com>
+Cc: ckrm-tech@lists.sourceforge.net, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Apr 07, 2005 at 05:16:30PM -0500, Ray Bryant wrote:
-> Hirokazu (and Marcelo),
-> 
-> In testing my manual page migration code, I've run up against a situation
-> where the migrations are occasionally very slow.  They work ok, but they
-> can take minutes to migrate a few megabytes of memory.
-> 
-> Dropping into kdb shows that the migration code is waiting in msleep() in
-> migrate_page_common() due to an -EAGAIN return from page_migratable().
-> A little further digging shows that the specific return in page_migratable()
-> is the very last one there at the bottom of the routine.
-> 
-> I'm puzzled as to why the page is still busy in this case.  Previous code
-> in page_migratable() has unmapped the page, its not in PageWriteback()
-> because we would have taken a different return statement in that case.
-> 
-> According to /proc/meminfo, there are no pages in either SwapCache or
-> Dirty state, and the system has been sync'd before the migrate_pages()
-> call was issued.
+xOn Fri, 2005-04-01 at 19:12 -0800, Chandra Seetharaman wrote:
+> +struct ckrm_mem_res {
+...
+> +       struct ckrm_zone ckrm_zone[MAX_NR_ZONES];
 
-Who is using the page? 
+ static void
+ mem_res_initcls_one(struct ckrm_mem_res *res)
+ {
+...
++       for_each_zone(zone) {
+...
++               res->ckrm_zone[zindex].memcls = res;
++               zindex++;
++       }
 
-A little debugging might help similar to what bad_page does can help: 
+MAX_NR_ZONES is actually the max number of *kinds* of zones.  It's the
+maximum number of 'struct zones' that a single pg_data_t can have in its
+node_zones[] array.  However, each DISCONTIG or NUMA node has one of
+these arrays, and that's what for_each_zone() loops over: _all_ of the
+system's zones, not just a single node's. See:
 
-        printk(KERN_EMERG "flags:0x%0*lx mapping:%p mapcount:%d count:%d\n",
-                (int)(2*sizeof(page_flags_t)), (unsigned long)page->flags,
-                page->mapping, page_mapcount(page), page_count(page));
+#define for_each_zone(zone) \
+        for (zone = pgdat_list->node_zones; zone; zone = next_zone(zone))
+
+Thus, the first call to mem_res_initcls_one() on a DISCONTIG or NUMA
+system which has a non-node-zero node will overflow that array.
+
+I saw some of this code before, and that's when I asked about the memory
+controller's NUMA interaction.  I thought something was wrong, but I
+couldn't put my finger on it.
+
+I addition to these overflows, the same issue exists with results from
+the page_zonenum() macro.  This badly named macro returns a "unique
+identifier" for a node, not its index in its parent pg_data_t's
+node_zones[] array (like the code expects).  So, on i386, a page on
+node0[ZONE_NORMAL] will have a page_zonenum() of 1, node0[ZONE_HIGHMEM]
+will be 2, node1[ZONE_DMA] will be 3, node100[ZONE_NORMAL] will be 301,
+etc...
+
+Indexing any array declared array[MAX_NR_ZONES=1] as array[301] is
+likely to cause problems pretty fast.
+
+-- Dave
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
