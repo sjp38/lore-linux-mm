@@ -1,98 +1,68 @@
-Date: Thu, 7 Apr 2005 21:34:36 -0500
-From: Jack Steiner <steiner@sgi.com>
+Date: Thu, 7 Apr 2005 22:18:07 -0700 (PDT)
+From: Christoph Lameter <clameter@engr.sgi.com>
 Subject: Re: Excessive memory trapped in pageset lists
-Message-ID: <20050408023436.GA1927@sgi.com>
+In-Reply-To: <20050408023436.GA1927@sgi.com>
+Message-ID: <Pine.LNX.4.58.0504072207080.6964@schroedinger.engr.sgi.com>
 References: <20050407211101.GA29069@sgi.com> <1112923481.21749.88.camel@localhost>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1112923481.21749.88.camel@localhost>
+ <20050408023436.GA1927@sgi.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Hansen <haveblue@us.ibm.com>
-Cc: linux-mm <linux-mm@kvack.org>, clameter@sgi.com
+To: Jack Steiner <steiner@sgi.com>
+Cc: Dave Hansen <haveblue@us.ibm.com>, linux-mm <linux-mm@kvack.org>, clameter@sgi.com
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Apr 07, 2005 at 06:24:41PM -0700, Dave Hansen wrote:
-> On Thu, 2005-04-07 at 16:11 -0500, Jack Steiner wrote:
-> >    28 pages/node/cpu * 512 cpus * 256nodes * 16384 bytes/page = 60GB  (Yikes!!!)
-> ...
-> > I have a couple of ideas for fixing this but it looks like Christoph is
-> > actively making changes in this area. Christoph do you want to address
-> > this issue or should I wait for your patch to stabilize?
-> 
-> What about only keeping the page lists populated for cpus which can
-> locally allocate from the zone?
-> 
-> 	cpu_to_node(cpu) == page_nid(pfn_to_page(zone->zone_start_pfn)) 
+On Thu, 7 Apr 2005, Jack Steiner wrote:
 
-Exactly. That is at the top of my list. What I haven't decided is whether to:
+> On Thu, Apr 07, 2005 at 06:24:41PM -0700, Dave Hansen wrote:
+> > On Thu, 2005-04-07 at 16:11 -0500, Jack Steiner wrote:
+> > >    28 pages/node/cpu * 512 cpus * 256nodes * 16384 bytes/page = 60GB  (Yikes!!!)
+> > ...
+> > > I have a couple of ideas for fixing this but it looks like Christoph is
+> > > actively making changes in this area. Christoph do you want to address
+> > > this issue or should I wait for your patch to stabilize?
+> >
+> > What about only keeping the page lists populated for cpus which can
+> > locally allocate from the zone?
+> >
+> > 	cpu_to_node(cpu) == page_nid(pfn_to_page(zone->zone_start_pfn))
+>
+> Exactly. That is at the top of my list. What I haven't decided is whether to:
 
-	- leave the list_heads for offnode pages in the per_cpu_pages
-	  struct. Offnode lists would be unused but the amount of wasted space
-	  is small - probably 0 because of the cacheline alignment 
-	  of the per_cpu_pageset. This is the simplest solution
-	  but is not clean because of the unused fields. Unless some
-	  architectures want to control whether offnode pages
-	  are kept in the lists (???).
+<list of options where to keep the pagesets....,>
 
-	  	OR
+Maybe its best to keep only pageset for each cpu for the zone that is
+local to the cpu? That may allow simplified locking.
 
-	- remove the list_heads from the per_cpu_pageset and make it
-	  a standalone array in the zone struct. Array size would be
-	  MAX_CPUS_PER_NODE. I don't recall any notion of MAX_CPUS_PER_NODE
-	  or a relative cpu number on a node (have I overlooked this?). 
-	  This solution is cleaner in the long run but may involve more 
-	  infrastructure than I wanted to get into at this point.
+The pageset could be defined as a per cpu variable.
 
-	  	OR
+I would like to add a list of zeroed pages to the hot and cold list. If a
+page can be obtained with some inline code from the per cpu lists from the
+local zone then we would be able to bypass the unlock, page alloc, page
+zero, relock, verify pte not changed sequence during page faults.
 
-	- sane as above but have a SINGLE list_head per zone. The list
-	  would be used by all cpus on the node. Thsi avoids the page coloring
-	  issues I ran into earlier (see prev posting). Obviously, this requires 
-	  a lock. However, only on-node cpus would normally take the lock. 
-	  Another advantage of this scheme is that an offnode shaker could 
-	  acquire the lock & drain the lists if memory became low.
-
-I haven't fully thought thru these ideas. Maybe other alternatives would
-be even better.... Suggestions????
+F.e. do_anonymous page could try to obtain an entry from the quicklist
+and only drop the lock if the allocation is off node or no pages are on
+the quicklist of zeroed pages.
 
 
-> 
-> There certainly aren't a lot of cases where frequent, persistent
-> single-page allocations are occurring off-node, unless a node is empty.
+> > There certainly aren't a lot of cases where frequent, persistent
+> > single-page allocations are occurring off-node, unless a node is empty.
+>
+> Hmmmm. True, but one of our popular configurations consists of memory-only nodes.
+> I know of one site that has 240 memory-only nodes & 16 nodes with
+> both cpus & memory. For this configuration, most memory if offnode
+> to EVERY cpu. (But I still don't want to cache offnode pages).
 
-Hmmmm. True, but one of our popular configurations consists of memory-only nodes.
-I know of one site that has 240 memory-only nodes & 16 nodes with
-both cpus & memory. For this configuration, most memory if offnode 
-to EVERY cpu. (But I still don't want to cache offnode pages).
+We could have an additional pageset in the remote zone for remote
+accesses only. This means we would have to manage one remote pageset
+and a set of cpu local pagesets for the cpu to which the zone is the
+primary local node.
 
-
-> If you go to an off-node 'struct zone', you're probably bouncing so many
-> cachelines that you don't get any benefit from per-cpu-pages anyway.
-
-Agree, although on the SGI systems, we set a global policy to roundrobin
-all file pages across all nodes. However, I'm not suggesting we cache
-offnode pages in the per_cpu_pageset. That gets us back to where we 
-started - too much memory in percpu page lists. Also, creating a file
-page already bounces a lot of cachelines around.
-
-> 
-> Maybe there could be a per-cpu-pages miss rate that's required to occur
-> before the lists are even populated.  That would probably account better
-> for cases where nodes are disproportionately populated with memory.
-> This, along with the occasional flushing of the pages back into the
-> general allocator if the miss rate isn't satisfied should give some good
-> self-tuning behavior.
-
-Makes sense.
-
--- 
-Thanks
-
-Jack Steiner (steiner@sgi.com)          651-683-5302
-Principal Engineer                      SGI - Silicon Graphics, Inc.
-
+The off node pageset would require a spinlock
+whereas the node local pagesets could work very quickly w/o locking. We
+would need some easy way to distinguish off node accesses from on node.
 
 
 --
