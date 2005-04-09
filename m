@@ -1,66 +1,81 @@
-Message-ID: <4257E0A9.5010609@yahoo.com.au>
-Date: Sun, 10 Apr 2005 00:03:21 +1000
+Message-ID: <4257F3EC.1000901@yahoo.com.au>
+Date: Sun, 10 Apr 2005 01:25:32 +1000
 From: Nick Piggin <nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
-Subject: [patch] clamp batch size to (2^n)-1
-Content-Type: multipart/mixed;
- boundary="------------000400080508040903000503"
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: Jack Steiner <steiner@sgi.com>, Linux Memory Management <linux-mm@kvack.org>
-List-ID: <linux-mm.kvack.org>
-
-This is a multi-part message in MIME format.
---------------000400080508040903000503
+Subject: Re: [patch 1/4] pcp: zonequeues
+References: <4257D74C.3010703@yahoo.com.au>
+In-Reply-To: <4257D74C.3010703@yahoo.com.au>
 Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: Jack Steiner <steiner@sgi.com>
+Cc: Linux Memory Management <linux-mm@kvack.org>
+List-ID: <linux-mm.kvack.org>
 
-Oh, this is the other thing.
+Nick Piggin wrote:
+> Hi Jack,
+> Was thinking about some problems in this area, and I hacked up
+> a possible implementation to improve things.
+> 
+> 1/4 switches the per cpu pagesets in struct zone to a single list
+> of zone pagesets for each CPU.
+> 
 
-I'm thinking it would be a good idea to get this into -mm ASAP,
-even before you guys have fully tested it. Just to get the wheels
-in motion early.
+Just thinking out loud here... this patch (or something like it)
+would probably be a good idea regardless of the remote pageset
+removal patches following it.
 
-Yeah? Or did you have something else in mind?
+Shouldn't be any changes in behaviour, but it gives you remote
+pagesets in local memory and hopefully better cache behaviour due
+to less packing needed, and the use of percpu.
 
-(It is actually against the previous patchset, but obviously that
-won't be merged before this patch).
+But...
+
+> +
+> +struct per_cpu_zone_stats {
+>  	unsigned long numa_hit;		/* allocated in intended node */
+>  	unsigned long numa_miss;	/* allocated in non intended node */
+>  	unsigned long numa_foreign;	/* was intended here, hit elsewhere */
+>  	unsigned long interleave_hit; 	/* interleaver prefered this zone */
+>  	unsigned long local_node;	/* allocation from local node */
+>  	unsigned long other_node;	/* allocation from other node */
+> -#endif
+>  } ____cacheline_aligned_in_smp;
+>  
+>  #define ZONE_DMA		0
+> @@ -113,16 +114,19 @@ struct zone {
+>  	unsigned long		free_pages;
+>  	unsigned long		pages_min, pages_low, pages_high;
+>  	/*
+> -	 * We don't know if the memory that we're going to allocate will be freeable
+> -	 * or/and it will be released eventually, so to avoid totally wasting several
+> -	 * GB of ram we must reserve some of the lower zone memory (otherwise we risk
+> -	 * to run OOM on the lower zones despite there's tons of freeable ram
+> -	 * on the higher zones). This array is recalculated at runtime if the
+> -	 * sysctl_lowmem_reserve_ratio sysctl changes.
+> +	 * We don't know if the memory that we're going to allocate will be
+> +	 * freeable or/and it will be released eventually, so to avoid totally
+> +	 * wasting several GB of ram we must reserve some of the lower zone
+> +	 * memory (otherwise we risk to run OOM on the lower zones despite
+> +	 * there's tons of freeable ram on the higher zones). This array is
+> +	 * recalculated at runtime if the sysctl_lowmem_reserve_ratio sysctl
+> +	 * changes.
+>  	 */
+>  	unsigned long		lowmem_reserve[MAX_NR_ZONES];
+>  
+> -	struct per_cpu_pageset	pageset[NR_CPUS];
+> +#ifdef CONFIG_NUMA
+> +	struct per_cpu_zone_stats stats[NR_CPUS];
+> +#endif
+>  
+
+I wonder if this stats information should be in the pageset there
+in local memory as well? I initially moved it to its own structure
+so that the zone queues could be completely confined to page_alloc.
 
 -- 
 SUSE Labs, Novell Inc.
-
---------------000400080508040903000503
-Content-Type: text/plain;
- name="pcp-modify-batch.patch"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline;
- filename="pcp-modify-batch.patch"
-
-Index: linux-2.6/mm/page_alloc.c
-===================================================================
---- linux-2.6.orig/mm/page_alloc.c	2005-04-09 23:13:53.000000000 +1000
-+++ linux-2.6/mm/page_alloc.c	2005-04-09 23:59:36.000000000 +1000
-@@ -1623,6 +1623,18 @@ void __init build_percpu_pagelists(void)
- 			if (batch < 1)
- 				batch = 1;
- 
-+			/*
-+			 * Clamp the batch to a 2^n - 1 value. Having a power
-+			 * of 2 value was found to be more likely to have
-+			 * suboptimal cache aliasing properties in some cases.
-+			 *
-+			 * For example if 2 tasks are alternately allocating
-+			 * batches of pages, one task can end up with a lot
-+			 * of pages of one half of the possible page colors
-+			 * and the other with pages of the other colors.
-+			 */
-+			batch = (1 << fls(batch + batch/2)) - 1;
-+
- 			init_percpu_pageset(&zone->pageset, batch);
- 			for (cpu = 0; cpu < NR_CPUS; cpu++) {
- 				struct zone_pagesets *zp;
-
---------------000400080508040903000503--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
