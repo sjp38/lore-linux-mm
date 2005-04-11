@@ -1,5 +1,5 @@
-Message-ID: <425AC932.2030300@engr.sgi.com>
-Date: Mon, 11 Apr 2005 14:00:02 -0500
+Message-ID: <425AD727.5070304@engr.sgi.com>
+Date: Mon, 11 Apr 2005 14:59:35 -0500
 From: Ray Bryant <raybry@engr.sgi.com>
 MIME-Version: 1.0
 Subject: Re: question on page-migration code
@@ -13,46 +13,22 @@ To: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
 Cc: Hirokazu Takahashi <taka@valinux.co.jp>, Dave Hansen <haveblue@us.ibm.com>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Marcelo Tosatti wrote:
-
-> Who is using the page? 
-> 
-> A little debugging might help similar to what bad_page does can help: 
-> 
->         printk(KERN_EMERG "flags:0x%0*lx mapping:%p mapcount:%d count:%d\n",
->                 (int)(2*sizeof(page_flags_t)), (unsigned long)page->flags,
->                 page->mapping, page_mapcount(page), page_count(page));
-> --
-
 Marcello,
 
-I wrote:
+Checking /proc/vmstat/pgpgout appears to indicate that the pages I am
+migrating are being swapped out when I see the migration slow down,
+although something is fishy with pgpgout.  pgpgout is supposed to be
+KB of page I/O, but I know that I am migrating 8685 pages, at 16KB/page,
+or 138960 KB.  pgpgout gets incremented by roughly twice this.
+So it looks like either:
 
-"PagePrivate() is cleared by truncation specific code in migrate_onepage(),
-but it doesn't appear to be cleared (directly) by code on the
-generic_migrate_page() patch.  I wonder if this has something to do with
-the problem I am seeing. "
+(1)  pgpgout is really sectors written, or
+(2)  pages are being paged out twice as part of memory migration.
 
-Ooops.  I didn't look deep enough.  migrate_page_common() calls
-writeback_and_free_buffers(), which in turn calls try_to_release_page()
-which will eventually call down to __clear_page_buffers() which will
-clear PagePrivate().
-
-So it looks like the following is perhaps what is happening:
-
-(1)  We come into migrate_one_page() with the pages dirty.  (The first
-      time we enter the -EAGAIN section of migate_page_common() we have
-      flags = 105d, the last time through before succeeding, flags are
-      104d, and when we do return flags=004d.
-(2)  We have to wait around until the pages get paged out before we can
-      migrated them.  (flags=004d).
-
-I'll have to check and see if I believe it might take 3 minutes to page
-out all of the pages of my application.  If so, then this explains what
-is happening.
-
-Does that make sense?
-
+I still don't understand why this pageout process doesn't happen
+every time I do a migration (e. g. never on the first time),
+and why it is taking 210 s to page out 138960 K.  That's around 600 KB/s
+of I/O to the paging disk.
 -- 
 Best Regards,
 Ray
