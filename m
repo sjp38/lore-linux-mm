@@ -1,44 +1,52 @@
-Message-ID: <425AD727.5070304@engr.sgi.com>
-Date: Mon, 11 Apr 2005 14:59:35 -0500
-From: Ray Bryant <raybry@engr.sgi.com>
-MIME-Version: 1.0
-Subject: Re: question on page-migration code
-References: <4255B13E.8080809@engr.sgi.com> <20050407180858.GB19449@logos.cnet>
-In-Reply-To: <20050407180858.GB19449@logos.cnet>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by e32.co.us.ibm.com (8.12.10/8.12.9) with ESMTP id j3BMxc5j171534
+	for <linux-mm@kvack.org>; Mon, 11 Apr 2005 18:59:38 -0400
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d03relay04.boulder.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id j3BMxc6O226434
+	for <linux-mm@kvack.org>; Mon, 11 Apr 2005 16:59:38 -0600
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.12.11/8.12.11) with ESMTP id j3BMxcVX029651
+	for <linux-mm@kvack.org>; Mon, 11 Apr 2005 16:59:38 -0600
+Subject: [PATCH 3/3] mm/Kconfig: give DISCONTIG more help text
+From: Dave Hansen <haveblue@us.ibm.com>
+Date: Mon, 11 Apr 2005 15:59:36 -0700
+Message-Id: <E1DL7sX-00037u-00@kernel.beaverton.ibm.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
-Cc: Hirokazu Takahashi <taka@valinux.co.jp>, Dave Hansen <haveblue@us.ibm.com>, linux-mm <linux-mm@kvack.org>
+To: akpm@osdl.org
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, zippel@linux-m68k.org, Dave Hansen <haveblue@us.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-Marcello,
+This gives DISCONTIGMEM a bit more help text to explain
+what it does, not just when to choose it.
 
-Checking /proc/vmstat/pgpgout appears to indicate that the pages I am
-migrating are being swapped out when I see the migration slow down,
-although something is fishy with pgpgout.  pgpgout is supposed to be
-KB of page I/O, but I know that I am migrating 8685 pages, at 16KB/page,
-or 138960 KB.  pgpgout gets incremented by roughly twice this.
-So it looks like either:
+Signed-off-by: Dave Hansen <haveblue@us.ibm.com>
+---
 
-(1)  pgpgout is really sectors written, or
-(2)  pages are being paged out twice as part of memory migration.
+ memhotplug-dave/mm/Kconfig |   10 ++++++++++
+ 1 files changed, 10 insertions(+)
 
-I still don't understand why this pageout process doesn't happen
-every time I do a migration (e. g. never on the first time),
-and why it is taking 210 s to page out 138960 K.  That's around 600 KB/s
-of I/O to the paging disk.
--- 
-Best Regards,
-Ray
------------------------------------------------
-                   Ray Bryant
-512-453-9679 (work)         512-507-7807 (cell)
-raybry@sgi.com             raybry@austin.rr.com
-The box said: "Requires Windows 98 or better",
-            so I installed Linux.
------------------------------------------------
+diff -puN mm/Kconfig~A2-mm-Kconfig-DISCONTIG-help-text mm/Kconfig
+--- memhotplug/mm/Kconfig~A2-mm-Kconfig-DISCONTIG-help-text	2005-04-11 15:49:10.000000000 -0700
++++ memhotplug-dave/mm/Kconfig	2005-04-11 15:49:10.000000000 -0700
+@@ -23,6 +23,16 @@ config DISCONTIGMEM_MANUAL
+ 	bool "Discontigious Memory"
+ 	depends on ARCH_DISCONTIGMEM_ENABLE
+ 	help
++	  This option provides enhanced support for discontiguous
++	  memory systems, over FLATMEM.  These systems have holes
++	  in their physical address spaces, and this option provides
++	  more efficient handling of these holes.  However, the vast
++	  majority of hardware has quite flat address spaces, and
++	  can have degraded performance from extra overhead that
++	  this option imposes.
++
++	  Many NUMA configurations will have this as the only option.
++
+ 	  If unsure, choose "Flat Memory" over this option.
+ 
+ endchoice
+_
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
