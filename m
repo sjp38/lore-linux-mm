@@ -1,82 +1,74 @@
-Message-ID: <4257F3EC.1000901@yahoo.com.au>
-Date: Sun, 10 Apr 2005 01:25:32 +1000
-From: Nick Piggin <nickpiggin@yahoo.com.au>
+Message-ID: <425A8796.2050903@engr.sgi.com>
+Date: Mon, 11 Apr 2005 09:20:06 -0500
+From: Ray Bryant <raybry@engr.sgi.com>
 MIME-Version: 1.0
-Subject: Re: [patch 1/4] pcp: zonequeues
-References: <4257D74C.3010703@yahoo.com.au>
-In-Reply-To: <4257D74C.3010703@yahoo.com.au>
+Subject: Re: question on page-migration code
+References: <4255B13E.8080809@engr.sgi.com> <20050407180858.GB19449@logos.cnet>
+In-Reply-To: <20050407180858.GB19449@logos.cnet>
 Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jack Steiner <steiner@sgi.com>
-Cc: Linux Memory Management <linux-mm@kvack.org>
+To: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
+Cc: Hirokazu Takahashi <taka@valinux.co.jp>, Dave Hansen <haveblue@us.ibm.com>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Nick Piggin wrote:
-> Hi Jack,
-> Was thinking about some problems in this area, and I hacked up
-> a possible implementation to improve things.
+Marcelo Tosatti wrote:
+> On Thu, Apr 07, 2005 at 05:16:30PM -0500, Ray Bryant wrote:
 > 
-> 1/4 switches the per cpu pagesets in struct zone to a single list
-> of zone pagesets for each CPU.
+>>Hirokazu (and Marcelo),
+>>
+>>In testing my manual page migration code, I've run up against a situation
+>>where the migrations are occasionally very slow.  They work ok, but they
+>>can take minutes to migrate a few megabytes of memory.
+>>
+>>Dropping into kdb shows that the migration code is waiting in msleep() in
+>>migrate_page_common() due to an -EAGAIN return from page_migratable().
+>>A little further digging shows that the specific return in page_migratable()
+>>is the very last one there at the bottom of the routine.
+>>
+>>I'm puzzled as to why the page is still busy in this case.  Previous code
+>>in page_migratable() has unmapped the page, its not in PageWriteback()
+>>because we would have taken a different return statement in that case.
+>>
+>>According to /proc/meminfo, there are no pages in either SwapCache or
+>>Dirty state, and the system has been sync'd before the migrate_pages()
+>>call was issued.
 > 
+> 
+> Who is using the page? 
+> 
+> A little debugging might help similar to what bad_page does can help: 
+> 
+>         printk(KERN_EMERG "flags:0x%0*lx mapping:%p mapcount:%d count:%d\n",
+>                 (int)(2*sizeof(page_flags_t)), (unsigned long)page->flags,
+>                 page->mapping, page_mapcount(page), page_count(page));
+> --
 
-Just thinking out loud here... this patch (or something like it)
-would probably be a good idea regardless of the remote pageset
-removal patches following it.
+The suspect pages all have flags field of 105d and mapcount of 0, pagecount
+of 3.  If I'm decoding the bits correctly, we've got the following bits
+set:
 
-Shouldn't be any changes in behaviour, but it gives you remote
-pagesets in local memory and hopefully better cache behaviour due
-to less packing needed, and the use of percpu.
+Locked
+Referenced
+Uptodate
+Dirty
+Active
+PG_arch_1
 
-But...
-
-> +
-> +struct per_cpu_zone_stats {
->  	unsigned long numa_hit;		/* allocated in intended node */
->  	unsigned long numa_miss;	/* allocated in non intended node */
->  	unsigned long numa_foreign;	/* was intended here, hit elsewhere */
->  	unsigned long interleave_hit; 	/* interleaver prefered this zone */
->  	unsigned long local_node;	/* allocation from local node */
->  	unsigned long other_node;	/* allocation from other node */
-> -#endif
->  } ____cacheline_aligned_in_smp;
->  
->  #define ZONE_DMA		0
-> @@ -113,16 +114,19 @@ struct zone {
->  	unsigned long		free_pages;
->  	unsigned long		pages_min, pages_low, pages_high;
->  	/*
-> -	 * We don't know if the memory that we're going to allocate will be freeable
-> -	 * or/and it will be released eventually, so to avoid totally wasting several
-> -	 * GB of ram we must reserve some of the lower zone memory (otherwise we risk
-> -	 * to run OOM on the lower zones despite there's tons of freeable ram
-> -	 * on the higher zones). This array is recalculated at runtime if the
-> -	 * sysctl_lowmem_reserve_ratio sysctl changes.
-> +	 * We don't know if the memory that we're going to allocate will be
-> +	 * freeable or/and it will be released eventually, so to avoid totally
-> +	 * wasting several GB of ram we must reserve some of the lower zone
-> +	 * memory (otherwise we risk to run OOM on the lower zones despite
-> +	 * there's tons of freeable ram on the higher zones). This array is
-> +	 * recalculated at runtime if the sysctl_lowmem_reserve_ratio sysctl
-> +	 * changes.
->  	 */
->  	unsigned long		lowmem_reserve[MAX_NR_ZONES];
->  
-> -	struct per_cpu_pageset	pageset[NR_CPUS];
-> +#ifdef CONFIG_NUMA
-> +	struct per_cpu_zone_stats stats[NR_CPUS];
-> +#endif
->  
-
-I wonder if this stats information should be in the pageset there
-in local memory as well? I initially moved it to its own structure
-so that the zone queues could be completely confined to page_alloc.
+Doesn't tell me much.  Anything spring to mind when you look at these
+bits, Marcelo?
 
 -- 
-SUSE Labs, Novell Inc.
-
+Best Regards,
+Ray
+-----------------------------------------------
+                   Ray Bryant
+512-453-9679 (work)         512-507-7807 (cell)
+raybry@sgi.com             raybry@austin.rr.com
+The box said: "Requires Windows 98 or better",
+            so I installed Linux.
+-----------------------------------------------
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
