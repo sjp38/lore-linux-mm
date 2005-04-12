@@ -1,72 +1,56 @@
-Message-ID: <425B600E.6020701@engr.sgi.com>
-Date: Tue, 12 Apr 2005 00:43:42 -0500
-From: Ray Bryant <raybry@engr.sgi.com>
+Subject: Re: mapping large amount of memory on physical addresses
+Message-ID: <OF967F18DF.AC2C3352-ONC1256FE1.0022ECD3@brime.fr>
+From: scarayol@assystembrime.com
+Date: Tue, 12 Apr 2005 08:23:46 +0200
 MIME-Version: 1.0
-Subject: Re: question on page-migration code
-References: <4255B13E.8080809@engr.sgi.com>	<20050407180858.GB19449@logos.cnet>	<425AC268.4090704@engr.sgi.com> <20050412.084143.41655902.taka@valinux.co.jp>
-In-Reply-To: <20050412.084143.41655902.taka@valinux.co.jp>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-type: text/plain; charset=iso-8859-1
+Content-transfer-encoding: 8BIT
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hirokazu Takahashi <taka@valinux.co.jp>
-Cc: marcelo.tosatti@cyclades.com, haveblue@us.ibm.com, linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Hirokazu,
+Hello,
 
-What appears to be happening is the following:
+ I wrote 2 drivers very close to the driver /dev/mem in order to write in
+ the physical memory at specific addresses. For that I use mmap
+instruction.
+ I want to know, if there is a limit  for the maximum amount of physical
+ memory that I can map with a single the mmap instruction.
 
-dirty pte bits are being swept into the page dirty bit as a side effect
-of migration.  That is, if a page had pte_dirty(pte) set, then after
-migration, it will have PageDirty(page) = true.
+ My platform is a MPC885 (PowerPC) on a MPC885ADS board and I have a 2.4.26
+ kernel.
 
-Only pages with PageDirty() set will be written to swap as part of the
-process of trying to clear PG_private.  So, when I do the first migration,
-the PG_dirty bit is not set on the page, but the dirty bit is set in the
-pte.  Because PG_dirty is not set, the page does not get written to swap,
-and the migration is fast.  However, at the end of the migration process,
-the pages all have PG_dirty set and the pte dirty bits are cleared.
+ Now I map 2 zones of 1MB (first zone at 6MB and the 2nd at 7MB:I have 8MB
+ on my board), each on the same physical component (to have data
+ transfertsbetween the two zones). But, in  the final application (on our
+ own card) one zone will represent 2MB for a component of 2MB and  and the
+ other 216 MB for another component of 256MB. So, it will let 40MB for the
+ kernel, FileSystem, etc.
+ How can I be sure that linux let me reserve all these physical addresses ?
+ If I use the command 'mem=6M' in u-boot to force Linux in the first 6M,
+the
+ mem driver accesses don't work any more.
 
-The second time I do the migration, the PG_dirty bits are still set
-(left over from the first migration), so they have to be written to swap
-and the migration is slow.  As part of the pageout(), try_to_release_page()
-process, the PG_dirty is cleared, along with the pte dirty bits, as before.
+ If mmap doesn't work for such an amount of memory (216 MB) how can I do ?
 
-When the program is resumed, it will cause the pte dirty bits to be set,
-and then we will be back in the situation we started with before the first
-migration.
+ Last question: How could I verify the mapping by a shell command or a
+ memory dump... ?
 
-Hence the third migration will be fast, and the 4th migration will be slow,
-etc.  This is a stable, repeatable process.
+ Thank you really for your help.
 
-I guess it seems to me that if a page has pte dirty set, but doesn't have
-PG_dirty set, then that state should be carried over to the newpage after
-a migration, rather than sweeping the pte dirty bit into the PG_dirty bit.
+----------------------------------------------------------
+Sophie CARAYOL
 
-Another way to do this would be to implement the migrate dirty buffers
-without swap I/O trick of ext2/3 in XFS, but that is somewhat far afield
-for me to try.  :-)  I'll discuss this with Nathan Scott et al and see
-if that is something that would be straightforward to do.
+TECHNOLOGIES & SYSTEMES
+50 rue du President Sadate
+F - 29337 QUIMPER CEDEX
 
-But I have a nagging suspicion that this covers up, rather than fixes
-the state transition from oldpage to newpage that really shouldn't be
-happening, as near as I can tell.
+Tel: +33 2 98 10 30 06
+mailto:scarayol@assystembrime.com
+----------------------------------------------------------
 
-BTW, the program that I am testing creates a relatively large mapped file,
-and, as you guessed, this file is backed by XFS.  Programs that just use
-large amounts of anonymous storage are not effected by this problem, I
-would imagine.
--- 
-Best Regards,
-Ray
------------------------------------------------
-                   Ray Bryant
-512-453-9679 (work)         512-507-7807 (cell)
-raybry@sgi.com             raybry@austin.rr.com
-The box said: "Requires Windows 98 or better",
-            so I installed Linux.
------------------------------------------------
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
