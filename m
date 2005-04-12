@@ -1,5 +1,5 @@
-Message-ID: <425B5534.30809@engr.sgi.com>
-Date: Mon, 11 Apr 2005 23:57:24 -0500
+Message-ID: <425B600E.6020701@engr.sgi.com>
+Date: Tue, 12 Apr 2005 00:43:42 -0500
 From: Ray Bryant <raybry@engr.sgi.com>
 MIME-Version: 1.0
 Subject: Re: question on page-migration code
@@ -13,51 +13,50 @@ To: Hirokazu Takahashi <taka@valinux.co.jp>
 Cc: marcelo.tosatti@cyclades.com, haveblue@us.ibm.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hirokazu Takahashi wrote:
-> Hi Ray,
-> 
-> 
-> 
-  <snip>
-> 
-> I understand what happened on your machine.
-> 
-> PG_private is a filesystem specific flag, setting some filesystem
-> depending data in page->private. When the flag is set on a page,
-> only the local filesystem on which the page depends can handle it. 
-> 
-> Most of the filesystems uses page->private to manage buffers while
-> others may use it for different purposes. Each filesystem can
-> implement migrate_page method to handles page->private.
-> At this moment, only ext2 and ext3 have this method, which migrates
-> buffers without any I/Os.
-> 
-> If the method isn't implemented for the page, the migration code
-> calls pageout() and try_to_release_page() to release page->private
-> instead. 
-> 
-> Which filesystem are you using? I guess it might be XFS which
-> doesn't have the method yet.
-> 
-> Thank you,
-> Hirokazu Takahashi.
-> 
-Yes, I am using XFS.  However, the thing I still don't understand
-why the migration is fast the first time I use it, but then the
-next time it is slow?  It is the case that swap I/O is apparently
-happening for the pages when I see the slowdown, so I agree that
-you've probably diagnosed that part of the problem.  (Well, I
-would wonder why pageout() followed by try_to_release_page() is
-soooo slow.  But hey perhaps we are doing I/O in one page units
-or such and that could explain why the I/O takes so long.)
+Hi Hirokazu,
 
-But why does the first migration happen so quickly?  I'm wondering
-if the migration process doesn't leave the page in a state that
-requires cleaning, whereas the pages as originally found didn't
-need to be cleaned.  It would seem to me we would want the page
-state after migration to be effectively the same as the page
-state before migration.
+What appears to be happening is the following:
 
+dirty pte bits are being swept into the page dirty bit as a side effect
+of migration.  That is, if a page had pte_dirty(pte) set, then after
+migration, it will have PageDirty(page) = true.
+
+Only pages with PageDirty() set will be written to swap as part of the
+process of trying to clear PG_private.  So, when I do the first migration,
+the PG_dirty bit is not set on the page, but the dirty bit is set in the
+pte.  Because PG_dirty is not set, the page does not get written to swap,
+and the migration is fast.  However, at the end of the migration process,
+the pages all have PG_dirty set and the pte dirty bits are cleared.
+
+The second time I do the migration, the PG_dirty bits are still set
+(left over from the first migration), so they have to be written to swap
+and the migration is slow.  As part of the pageout(), try_to_release_page()
+process, the PG_dirty is cleared, along with the pte dirty bits, as before.
+
+When the program is resumed, it will cause the pte dirty bits to be set,
+and then we will be back in the situation we started with before the first
+migration.
+
+Hence the third migration will be fast, and the 4th migration will be slow,
+etc.  This is a stable, repeatable process.
+
+I guess it seems to me that if a page has pte dirty set, but doesn't have
+PG_dirty set, then that state should be carried over to the newpage after
+a migration, rather than sweeping the pte dirty bit into the PG_dirty bit.
+
+Another way to do this would be to implement the migrate dirty buffers
+without swap I/O trick of ext2/3 in XFS, but that is somewhat far afield
+for me to try.  :-)  I'll discuss this with Nathan Scott et al and see
+if that is something that would be straightforward to do.
+
+But I have a nagging suspicion that this covers up, rather than fixes
+the state transition from oldpage to newpage that really shouldn't be
+happening, as near as I can tell.
+
+BTW, the program that I am testing creates a relatively large mapped file,
+and, as you guessed, this file is backed by XFS.  Programs that just use
+large amounts of anonymous storage are not effected by this problem, I
+would imagine.
 -- 
 Best Regards,
 Ray
