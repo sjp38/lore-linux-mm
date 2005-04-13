@@ -1,53 +1,32 @@
-Date: Wed, 13 Apr 2005 19:48:00 +0900 (JST)
-Message-Id: <20050413.194800.74725991.taka@valinux.co.jp>
-Subject: Re: question on page-migration code
-From: Hirokazu Takahashi <taka@valinux.co.jp>
-In-Reply-To: <1113324392.8343.53.camel@localhost>
-References: <425AC268.4090704@engr.sgi.com>
-	<20050412.084143.41655902.taka@valinux.co.jp>
-	<1113324392.8343.53.camel@localhost>
-Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+From: "Prince Rapheal." <princerapheal@yahoo.com>
+Reply-To: prince_raph200@yahoo.com
+Date: Wed, 13 Apr 2005 13:29:18 +0000
+Subject: Are You Interesting?.
+MIME-Version: 1.0
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: 8BIT
+Message-Id: <20050413132912Z26562-23302+2388@kvack.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: haveblue@us.ibm.com
-Cc: raybry@engr.sgi.com, marcelo.tosatti@cyclades.com, linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+CITI BANK PLC PBC., ACCOUNTS DEPT.,
+PLOT 23/27 ADEMOLA CRESCENT
+DAKAR SENEGAL.
 
-> > If the method isn't implemented for the page, the migration code
-> > calls pageout() and try_to_release_page() to release page->private
-> > instead. 
-> > 
-> > Which filesystem are you using? I guess it might be XFS which
-> > doesn't have the method yet.
-> 
-> Can we more easily detect and work around this in the code, so that this
-> won't happen for more filesystems?
+Dear Friend,
+I am Prince Rapheal, an accountant with Citi Bank,Plc PBC. I gathered your information from the internet. The business I am about to introduce is basedon sheer trust and with a sense of purpose.I am contacting you to assist in repatriating the sum of $36M u.S dollars.The money and property left behind by Dr. Mark Wood Morie who had an accident On the 21st of April 2000, Dr Mark Wood Morie , his wife and their two Children were involved in a car accident in a remote village called Kuru near St. Louis in Cassamans. All occupants of the car Unfortunately lost their lives.
 
-As Ray said, the following seems to be a straight approach.
-I haven't had any other ideas to work around it.
+Since then I have made several enquiries to his embassy here in Dakar senegal to locate any of Morie's extended relatives, this has also proved unsuccessful to locate any member of his family hence I contacted you as his account officer to work with you before they get confiscated, frozen or declared unserviceable by the bank where these huge deposits were lodged. Particularly,the Ctit Bank of of Senegal Plc where the deceased had an account valued at about thirty Six Million United States Dollars (US$36,000,000:00).
 
-ray> I guess it seems to me that if a page has pte dirty set, but doesn't have
-ray> PG_dirty set, then that state should be carried over to the newpage after
-ray> a migration, rather than sweeping the pte dirty bit into the PG_dirty bit.
+Now the management has issued a notice to provide the next of kin or have the account frozen. Since I have been unsuccessful in locating the relatives for over 3 years now,I seek your consent to present you as the next of kin to the deceased since you are a foriegner so that the proceeds of this account valued at $36,000,000:00 can be paid to you and then you and I can share the money. 60% to me and 30% to you, while 10% will be maped out for any miscellaneous expenses that mightbe incure in the cause of this transaction.
 
-The implementation might be as follows:
-   - to make try_to_unmap_one() record dirty bit in anywhere
-     instead of calling set_page_dirty().
-   - to make touch_unmapped_address() call get_user_pages() with
-     the record of the dirty bit.
-
-However, we have to remember that there must exit some race conditions.
-For example, it may fail to restore the dirty bit since the process
-address spaces might be deleted during the memory migration.
-This may occur as the process isn't suspended during the migration.
+I have all the necessary legal documents to back up this claim, and this I must do to make sure that this fund is not wasted or end up in the wrong hands. All I require is your honest and sincere co-operation to enable us see this deal through. I guarantee you that this transaction will be executed under a legitimate arrangement that will protect you and I from any breach of the law. Reply me through my e-mail address (princerapheal2002@voila.fr </ym/Compose?To=princerapheal2002@voila.fr>) Looking forward to hear from you.
+Yours Sincerely,
+MR Prince Rapheal.
 
 
-Thanks,
-Hirokazu Takahashi.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
