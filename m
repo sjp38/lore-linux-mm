@@ -1,32 +1,51 @@
-From: "Prince Rapheal." <princerapheal@yahoo.com>
-Reply-To: prince_raph200@yahoo.com
-Date: Wed, 13 Apr 2005 13:29:18 +0000
-Subject: Are You Interesting?.
-MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: 8BIT
-Message-Id: <20050413132912Z26562-23302+2388@kvack.org>
+Received: from shell0.pdx.osdl.net (fw.osdl.org [65.172.181.6])
+	by smtp.osdl.org (8.12.8/8.12.8) with ESMTP id j3DHZss4005597
+	(version=TLSv1/SSLv3 cipher=EDH-RSA-DES-CBC3-SHA bits=168 verify=NO)
+	for <linux-mm@kvack.org>; Wed, 13 Apr 2005 10:35:55 -0700
+Received: from bix (shell0.pdx.osdl.net [10.9.0.31])
+	by shell0.pdx.osdl.net (8.13.1/8.11.6) with SMTP id j3DHZs2A005310
+	for <linux-mm@kvack.org>; Wed, 13 Apr 2005 10:35:54 -0700
+Date: Wed, 13 Apr 2005 10:35:46 -0700
+From: Andrew Morton <akpm@osdl.org>
+Subject: Fw: [Bug 4481] hang at boot from kernels 2.6.9 and above
+Message-Id: <20050413103546.789a9290.akpm@osdl.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-CITI BANK PLC PBC., ACCOUNTS DEPT.,
-PLOT 23/27 ADEMOLA CRESCENT
-DAKAR SENEGAL.
+Strange.  Keeps hitting buffered_rmqueue()'s
 
-Dear Friend,
-I am Prince Rapheal, an accountant with Citi Bank,Plc PBC. I gathered your information from the internet. The business I am about to introduce is basedon sheer trust and with a sense of purpose.I am contacting you to assist in repatriating the sum of $36M u.S dollars.The money and property left behind by Dr. Mark Wood Morie who had an accident On the 21st of April 2000, Dr Mark Wood Morie , his wife and their two Children were involved in a car accident in a remote village called Kuru near St. Louis in Cassamans. All occupants of the car Unfortunately lost their lives.
+	BUG_ON(bad_range(zone, page));
 
-Since then I have made several enquiries to his embassy here in Dakar senegal to locate any of Morie's extended relatives, this has also proved unsuccessful to locate any member of his family hence I contacted you as his account officer to work with you before they get confiscated, frozen or declared unserviceable by the bank where these huge deposits were lodged. Particularly,the Ctit Bank of of Senegal Plc where the deceased had an account valued at about thirty Six Million United States Dollars (US$36,000,000:00).
-
-Now the management has issued a notice to provide the next of kin or have the account frozen. Since I have been unsuccessful in locating the relatives for over 3 years now,I seek your consent to present you as the next of kin to the deceased since you are a foriegner so that the proceeds of this account valued at $36,000,000:00 can be paid to you and then you and I can share the money. 60% to me and 30% to you, while 10% will be maped out for any miscellaneous expenses that mightbe incure in the cause of this transaction.
-
-I have all the necessary legal documents to back up this claim, and this I must do to make sure that this fund is not wasted or end up in the wrong hands. All I require is your honest and sincere co-operation to enable us see this deal through. I guarantee you that this transaction will be executed under a legitimate arrangement that will protect you and I from any breach of the law. Reply me through my e-mail address (princerapheal2002@voila.fr </ym/Compose?To=princerapheal2002@voila.fr>) Looking forward to hear from you.
-Yours Sincerely,
-MR Prince Rapheal.
+during bootup.
 
 
+Begin forwarded message:
+
+Date: Wed, 13 Apr 2005 07:18:08 -0700
+From: bugme-daemon@osdl.org
+To: akpm@digeo.com
+Subject: [Bug 4481] hang at boot from kernels 2.6.9 and above
+
+
+http://bugme.osdl.org/show_bug.cgi?id=4481
+
+
+
+
+
+------- Additional Comments From borge3@esial.uhp-nancy.fr  2005-04-13 07:18 -------
+Created an attachment (id=4911)
+ --> (http://bugme.osdl.org/attachment.cgi?id=4911&action=view)
+another dmesg
+
+
+------- You are receiving this mail because: -------
+You are the assignee for the bug, or are watching the assignee.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
