@@ -1,51 +1,48 @@
-Received: from shell0.pdx.osdl.net (fw.osdl.org [65.172.181.6])
-	by smtp.osdl.org (8.12.8/8.12.8) with ESMTP id j3DHZss4005597
-	(version=TLSv1/SSLv3 cipher=EDH-RSA-DES-CBC3-SHA bits=168 verify=NO)
-	for <linux-mm@kvack.org>; Wed, 13 Apr 2005 10:35:55 -0700
-Received: from bix (shell0.pdx.osdl.net [10.9.0.31])
-	by shell0.pdx.osdl.net (8.13.1/8.11.6) with SMTP id j3DHZs2A005310
-	for <linux-mm@kvack.org>; Wed, 13 Apr 2005 10:35:54 -0700
-Date: Wed, 13 Apr 2005 10:35:46 -0700
-From: Andrew Morton <akpm@osdl.org>
-Subject: Fw: [Bug 4481] hang at boot from kernels 2.6.9 and above
-Message-Id: <20050413103546.789a9290.akpm@osdl.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+From: "MRS.VOS SANCHEZ" <smith-bowani@webmail.co.za>
+Reply-To: clsmith@homemail.co.za
+Date: Thu, 14 Apr 2005 02:24:22 +0200
+Subject: Private
+MIME-Version: 1.0
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: 8BIT
+Message-Id: <20050414002415Z26643-23302+2418@kvack.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Strange.  Keeps hitting buffered_rmqueue()'s
+WINNING NOTIFICATION
+      EURO AFRO ASIAN SWEEPSTAKE LOTO,
+      REF: EAASL/206/8320054/887
+      BATCH: 9075/08/LCF
+ 
+CONGRATULATIONS!!!
 
-	BUG_ON(bad_range(zone, page));
+We are pleased to inform you of the announcement today the 8th of April 2005 of winners of the BONO Loto's International program. Your details attached to ticket number 275-1085-8862-005, with serial number 8786-35 drew the lucky winning 1 15 22 30 43 45 You have therefore been approved for a lump sum pay out of one million, five hundred and ten thousand, seven hundred and sixty-six euros, forty cents only, (1.510.766,40 Euro.) in cash credited to file Ref No: EAASL/206/8320054/887. And you can as well search our website to see that you are one of the lucky winners of this month <http://onlae.terra.es/sorteos.asp>
+All participants were selected through a computer ballot system drawn from 25,000 names from Middle East, Asia, Africa, Canada, Europe, Australia, New Zea land, South and North America as part of our International promotion programmes. 
+ 
+CLAIMS NOTIFICATION.
+Please note that your lucky winning number falls
+within our European booklet representative office in Europe as indicated in your play coupon.
+Your fund is now deposited with an International finance and security house insured. Due to the mix up of some names and numbers, we ask that you keep this award notification strictly from public notice until your claim has been processed and your money remitted to your account. This is part of our security protocol to avoid multiple claims or unscrupulous acts by participants of this program.
+ 
+To begin your claim, please contact your International claims agent,
+COLE SMITH,
+Client service manager,
+Fountain Trust finance & security 
+TEL: + 44-704-011-8296
+EMAIL:clsmith@homemail.co.za 
 
-during bootup.
+For timely processing and remittance of your prize money to a designated account of your choice, remember to contact your claims agent
+NOTE: In order to avoid unnecessary delays and complications, please do remember to quote your Reference and Batch numbers in all your correspondences with your claims agent. Further more, should there be any change of your address, do inform your claims agent as soon as possible.
+Congratulations again from all our staffs and thank you for being part of our promotional programmes.
+ 
+Sincerely,
+MRS.VOS SANCHEZ
+ 
+N.B.Any breach of confidentiality on the part of the winners will result to disqualification. The Bono lotto Promotion holds the right to cancel your winning if you are below the age of 18. Contacts should be made directly to the Claims Unit Department via email on or before 14 days after receiving your winning notification, as this is mandatory. 
 
 
-Begin forwarded message:
-
-Date: Wed, 13 Apr 2005 07:18:08 -0700
-From: bugme-daemon@osdl.org
-To: akpm@digeo.com
-Subject: [Bug 4481] hang at boot from kernels 2.6.9 and above
-
-
-http://bugme.osdl.org/show_bug.cgi?id=4481
-
-
-
-
-
-------- Additional Comments From borge3@esial.uhp-nancy.fr  2005-04-13 07:18 -------
-Created an attachment (id=4911)
- --> (http://bugme.osdl.org/attachment.cgi?id=4911&action=view)
-another dmesg
-
-
-------- You are receiving this mail because: -------
-You are the assignee for the bug, or are watching the assignee.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
