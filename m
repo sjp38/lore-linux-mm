@@ -2,186 +2,203 @@ From: Nikita Danilov <nikita@clusterfs.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
-Message-ID: <16994.40502.570586.277989@gargle.gargle.HOWL>
-Date: Sun, 17 Apr 2005 21:34:46 +0400
-Subject: [PATCH]: VM 1/8 /proc/zoneinfo 
+Message-ID: <16994.40538.327768.911229@gargle.gargle.HOWL>
+Date: Sun, 17 Apr 2005 21:35:22 +0400
+Subject: [PATCH]: VM 2/8 rmap.c cleanup
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 Cc: Andrew Morton <AKPM@Osdl.ORG>
 List-ID: <linux-mm.kvack.org>
 
-Add /proc/zoneinfo file to display information about memory zones. Useful to
-analyze VM behaviour.
+mm/rmap.c:page_referenced_one() and mm/rmap.c:try_to_unmap_one() contain
+identical code that
+
+ - takes mm->page_table_lock;
+
+ - drills through page tables;
+
+ - checks that correct pte is reached.
+
+Coalesce this into page_check_address()
 
 Signed-off-by: Nikita Danilov <nikita@clusterfs.com>
 
 
- fs/proc/proc_misc.c |   15 ++++++
- mm/page_alloc.c     |  130 +++++++++++++++++++++++++++++++++++++++++++++++-----
- 2 files changed, 133 insertions(+), 12 deletions(-)
+ mm/rmap.c |  113 +++++++++++++++++++++++++++-----------------------------------
+ 1 files changed, 50 insertions(+), 63 deletions(-)
 
-diff -puN fs/proc/proc_misc.c~zoneinfo fs/proc/proc_misc.c
---- bk-linux/fs/proc/proc_misc.c~zoneinfo	2005-04-17 17:52:48.000000000 +0400
-+++ bk-linux-nikita/fs/proc/proc_misc.c	2005-04-17 17:52:48.000000000 +0400
-@@ -214,6 +214,20 @@ static struct file_operations fragmentat
- 	.release	= seq_release,
- };
+diff -puN mm/rmap.c~rmap-cleanup mm/rmap.c
+--- bk-linux/mm/rmap.c~rmap-cleanup	2005-04-17 17:52:48.000000000 +0400
++++ bk-linux-nikita/mm/rmap.c	2005-04-17 17:52:48.000000000 +0400
+@@ -243,6 +243,42 @@ unsigned long page_address_in_vma(struct
+ }
  
-+extern struct seq_operations zoneinfo_op;
-+static int zoneinfo_open(struct inode *inode, struct file *file)
-+{
-+	(void)inode;
-+	return seq_open(file, &zoneinfo_op);
-+}
-+
-+static struct file_operations proc_zoneinfo_file_operations = {
-+	.open		= zoneinfo_open,
-+	.read		= seq_read,
-+	.llseek		= seq_lseek,
-+	.release	= seq_release,
-+};
-+
- static int version_read_proc(char *page, char **start, off_t off,
- 				 int count, int *eof, void *data)
- {
-@@ -584,6 +598,7 @@ void __init proc_misc_init(void)
- 	create_seq_entry("slabinfo",S_IWUSR|S_IRUGO,&proc_slabinfo_operations);
- 	create_seq_entry("buddyinfo",S_IRUGO, &fragmentation_file_operations);
- 	create_seq_entry("vmstat",S_IRUGO, &proc_vmstat_file_operations);
-+	create_seq_entry("zoneinfo",S_IRUGO, &proc_zoneinfo_file_operations);
- 	create_seq_entry("diskstats", 0, &proc_diskstats_operations);
- #ifdef CONFIG_MODULES
- 	create_seq_entry("modules", 0, &proc_modules_operations);
-diff -puN mm/page_alloc.c~zoneinfo mm/page_alloc.c
---- bk-linux/mm/page_alloc.c~zoneinfo	2005-04-17 17:52:48.000000000 +0400
-+++ bk-linux-nikita/mm/page_alloc.c	2005-04-17 17:52:48.000000000 +0400
-@@ -1836,6 +1836,112 @@ struct seq_operations fragmentation_op =
- 	.show	= frag_show,
- };
- 
-+/*
-+ * Output information about zones in @pgdat.
+ /*
++ * Check that @page is mapped at @address into @mm.
++ *
++ * On success returns with mapped pte and locked mm->page_table_lock.
 + */
-+static int zoneinfo_show(struct seq_file *m, void *arg)
++static pte_t *page_check_address(struct page *page, struct mm_struct *mm,
++					unsigned long address)
 +{
-+	pg_data_t *pgdat = (pg_data_t *)arg;
-+	struct zone *zone;
-+	struct zone *node_zones = pgdat->node_zones;
-+	unsigned long flags;
++	pgd_t *pgd;
++	pud_t *pud;
++	pmd_t *pmd;
++	pte_t *pte;
 +
-+	for (zone = node_zones; zone - node_zones < MAX_NR_ZONES; ++zone) {
-+		int i;
-+
-+		if (!zone->present_pages)
-+			continue;
-+
-+		spin_lock_irqsave(&zone->lock, flags);
-+		seq_printf(m, "Node %d, zone %8s", pgdat->node_id, zone->name);
-+		seq_printf(m,
-+			   "\n  pages free     %lu"
-+			   "\n        min      %lu"
-+			   "\n        low      %lu"
-+			   "\n        high     %lu"
-+			   "\n        active   %lu"
-+			   "\n        inactive %lu"
-+			   "\n        scanned  %lu (a: %lu i: %lu)"
-+			   "\n        spanned  %lu"
-+			   "\n        present  %lu",
-+			   zone->free_pages,
-+			   zone->pages_min,
-+			   zone->pages_low,
-+			   zone->pages_high,
-+			   zone->nr_active,
-+			   zone->nr_inactive,
-+			   zone->pages_scanned,
-+			   zone->nr_scan_active, zone->nr_scan_inactive,
-+			   zone->spanned_pages,
-+			   zone->present_pages);
-+		seq_printf(m,
-+			   "\n        protection: (%lu",
-+			   zone->lowmem_reserve[0]);
-+		for (i = 1; i < ARRAY_SIZE(zone->lowmem_reserve); ++ i)
-+			seq_printf(m, ", %lu", zone->lowmem_reserve[i]);
-+		seq_printf(m,
-+			   ")"
-+			   "\n  pagesets");
-+		for (i = 0; i < ARRAY_SIZE(zone->pageset); ++ i) {
-+			struct per_cpu_pageset *pageset;
-+			int j;
-+
-+			pageset = &zone->pageset[i];
-+			if (pageset->pcp[0].count == 0 &&
-+			    pageset->pcp[1].count == 0)
-+				continue;
-+			for (j = 0; j < ARRAY_SIZE(pageset->pcp); ++ j) {
-+				seq_printf(m,
-+					   "\n    cpu: %i pcp: %i"
-+					   "\n              count: %i"
-+					   "\n              low:   %i"
-+					   "\n              high:  %i"
-+					   "\n              batch: %i",
-+					   i, j,
-+					   pageset->pcp[j].count,
-+					   pageset->pcp[j].low,
-+					   pageset->pcp[j].high,
-+					   pageset->pcp[j].batch);
++	/*
++	 * We need the page_table_lock to protect us from page faults,
++	 * munmap, fork, etc...
++	 */
++	spin_lock(&mm->page_table_lock);
++	pgd = pgd_offset(mm, address);
++	if (likely(pgd_present(*pgd))) {
++		pud = pud_offset(pgd, address);
++		if (likely(pud_present(*pud))) {
++			pmd = pmd_offset(pud, address);
++			if (likely(pmd_present(*pmd))) {
++				pte = pte_offset_map(pmd, address);
++				if (likely(pte_present(*pte) &&
++					   page_to_pfn(page) == pte_pfn(*pte)))
++					return pte;
++				pte_unmap(pte);
 +			}
-+#ifdef CONFIG_NUMA
-+			seq_printf(m,
-+				   "\n            numa_hit:       %lu"
-+				   "\n            numa_miss:      %lu"
-+				   "\n            numa_foreign:   %lu"
-+				   "\n            interleave_hit: %lu"
-+				   "\n            local_node:     %lu"
-+				   "\n            other_node:     %lu",
-+				   pageset->numa_hit,
-+				   pageset->numa_miss,
-+				   pageset->numa_foreign,
-+				   pageset->interleave_hit,
-+				   pageset->local_node,
-+				   pageset->other_node);
-+#endif
 +		}
-+		seq_printf(m,
-+			   "\n  all_unreclaimable: %u"
-+			   "\n  prev_priority:     %i"
-+			   "\n  temp_priority:     %i"
-+			   "\n  start_pfn:         %lu",
-+			   zone->all_unreclaimable,
-+			   zone->prev_priority,
-+			   zone->temp_priority,
-+			   zone->zone_start_pfn);
-+		spin_unlock_irqrestore(&zone->lock, flags);
-+		seq_putc(m, '\n');
 +	}
-+	return 0;
++	spin_unlock(&mm->page_table_lock);
++	return ERR_PTR(-ENOENT);
 +}
 +
-+struct seq_operations zoneinfo_op = {
-+	.start	= frag_start, /* iterate over all zones. The same as in
-+			       * fragmentation. */
-+	.next	= frag_next,
-+	.stop	= frag_stop,
-+	.show	= zoneinfo_show,
-+};
-+
- static char *vmstat_text[] = {
- 	"nr_dirty",
- 	"nr_writeback",
-@@ -2040,10 +2146,10 @@ static void setup_per_zone_pages_min(voi
- 				min_pages = 128;
- 			zone->pages_min = min_pages;
- 		} else {
--			/* if it's a lowmem zone, reserve a number of pages 
-+			/* if it's a lowmem zone, reserve a number of pages
- 			 * proportionate to the zone's size.
- 			 */
--			zone->pages_min = (pages_min * zone->present_pages) / 
-+			zone->pages_min = (pages_min * zone->present_pages) /
- 			                   lowmem_pages;
- 		}
++/*
+  * Subfunctions of page_referenced: page_referenced_one called
+  * repeatedly from either page_referenced_anon or page_referenced_file.
+  */
+@@ -251,9 +287,6 @@ static int page_referenced_one(struct pa
+ {
+ 	struct mm_struct *mm = vma->vm_mm;
+ 	unsigned long address;
+-	pgd_t *pgd;
+-	pud_t *pud;
+-	pmd_t *pmd;
+ 	pte_t *pte;
+ 	int referenced = 0;
  
+@@ -263,39 +296,18 @@ static int page_referenced_one(struct pa
+ 	if (address == -EFAULT)
+ 		goto out;
+ 
+-	spin_lock(&mm->page_table_lock);
+-
+-	pgd = pgd_offset(mm, address);
+-	if (!pgd_present(*pgd))
+-		goto out_unlock;
+-
+-	pud = pud_offset(pgd, address);
+-	if (!pud_present(*pud))
+-		goto out_unlock;
+-
+-	pmd = pmd_offset(pud, address);
+-	if (!pmd_present(*pmd))
+-		goto out_unlock;
+-
+-	pte = pte_offset_map(pmd, address);
+-	if (!pte_present(*pte))
+-		goto out_unmap;
+-
+-	if (page_to_pfn(page) != pte_pfn(*pte))
+-		goto out_unmap;
+-
+-	if (ptep_clear_flush_young(vma, address, pte))
+-		referenced++;
+-
+-	if (mm != current->mm && !ignore_token && has_swap_token(mm))
+-		referenced++;
++	pte = page_check_address(page, mm, address);
++	if (!IS_ERR(pte)) {
++		if (ptep_clear_flush_young(vma, address, pte))
++			referenced++;
+ 
+-	(*mapcount)--;
++		if (mm != current->mm && !ignore_token && has_swap_token(mm))
++			referenced++;
+ 
+-out_unmap:
+-	pte_unmap(pte);
+-out_unlock:
+-	spin_unlock(&mm->page_table_lock);
++		(*mapcount)--;
++		pte_unmap(pte);
++		spin_unlock(&mm->page_table_lock);
++	}
+ out:
+ 	return referenced;
+ }
+@@ -502,9 +514,6 @@ static int try_to_unmap_one(struct page 
+ {
+ 	struct mm_struct *mm = vma->vm_mm;
+ 	unsigned long address;
+-	pgd_t *pgd;
+-	pud_t *pud;
+-	pmd_t *pmd;
+ 	pte_t *pte;
+ 	pte_t pteval;
+ 	int ret = SWAP_AGAIN;
+@@ -515,30 +524,9 @@ static int try_to_unmap_one(struct page 
+ 	if (address == -EFAULT)
+ 		goto out;
+ 
+-	/*
+-	 * We need the page_table_lock to protect us from page faults,
+-	 * munmap, fork, etc...
+-	 */
+-	spin_lock(&mm->page_table_lock);
+-
+-	pgd = pgd_offset(mm, address);
+-	if (!pgd_present(*pgd))
+-		goto out_unlock;
+-
+-	pud = pud_offset(pgd, address);
+-	if (!pud_present(*pud))
+-		goto out_unlock;
+-
+-	pmd = pmd_offset(pud, address);
+-	if (!pmd_present(*pmd))
+-		goto out_unlock;
+-
+-	pte = pte_offset_map(pmd, address);
+-	if (!pte_present(*pte))
+-		goto out_unmap;
+-
+-	if (page_to_pfn(page) != pte_pfn(*pte))
+-		goto out_unmap;
++	pte = page_check_address(page, mm, address);
++	if (IS_ERR(pte))
++		goto out;
+ 
+ 	/*
+ 	 * If the page is mlock()d, we cannot swap it out.
+@@ -604,7 +592,6 @@ static int try_to_unmap_one(struct page 
+ 
+ out_unmap:
+ 	pte_unmap(pte);
+-out_unlock:
+ 	spin_unlock(&mm->page_table_lock);
+ out:
+ 	return ret;
+@@ -708,7 +695,6 @@ static void try_to_unmap_cluster(unsigne
+ 	}
+ 
+ 	pte_unmap(pte);
+-
+ out_unlock:
+ 	spin_unlock(&mm->page_table_lock);
+ }
+@@ -860,3 +846,4 @@ int try_to_unmap(struct page *page)
+ 		ret = SWAP_SUCCESS;
+ 	return ret;
+ }
++
 
 _
 --
