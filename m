@@ -2,541 +2,323 @@ From: Nikita Danilov <nikita@clusterfs.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
-Message-ID: <16994.40662.865338.484778@gargle.gargle.HOWL>
-Date: Sun, 17 Apr 2005 21:37:26 +0400
-Subject: [PATCH]: VM 5/8 async-writepage
+Message-ID: <16994.40699.267629.21475@gargle.gargle.HOWL>
+Date: Sun, 17 Apr 2005 21:38:03 +0400
+Subject: [PATCH]: VM 7/8 cluster pageout
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 Cc: Andrew Morton <AKPM@Osdl.ORG>
 List-ID: <linux-mm.kvack.org>
 
-Perform some calls to the ->writepage() asynchronously.
+Implement pageout clustering at the VM level.
 
-VM scanner starts pageout for dirty pages found at tail of the inactive list
-during scan. It is supposed (or at least desired) that under normal conditions
-amount of such write back is small.
+With this patch VM scanner calls pageout_cluster() instead of
+->writepage(). pageout_cluster() tries to find a group of dirty pages around
+target page, called "pivot" page of the cluster. If group of suitable size is
+found, ->writepages() is called for it, otherwise page_cluster() falls back
+to ->writepage().
 
-Even if few pages are paged out by scanner, they still stall "direct reclaim"
-path (__alloc_pages()->try_to_free_pages()->...->shrink_list()->writepage()),
-and to decrease allocation latency it makes sense to perform pageout
-asynchronously.
+This is supposed to help in work-loads with significant page-out of
+file-system pages from tail of the inactive list (for example, heavy dirtying
+through mmap), because file system usually writes multiple pages more
+efficiently. Should also be advantageous for file-systems doing delayed
+allocation, as in this case they will allocate whole extents at once.
 
-Current design is very simple: at the boot-up fixed number of pageout threads
-is started. If shrink_list() decides that page is eligible for the
-asynchronous pageout, it is placed into shared queue and later processed by
-one of pageout threads.
+Few points:
 
-Most interesting part of this patch is async_writepage() that decides when
-page should be paged out asynchronously.
+ - swap-cache pages are not clustered (although they can be, but by
+   page->private rather than page->index)
+
+ - only kswapd do clustering, because direct reclaim path should be low
+   latency.
+
+ - this patch adds new fields to struct writeback_control and expects
+   ->writepages() to interpret them. This is needed, because pageout_cluster()
+   calls ->writepages() with pivot page already locked, so that ->writepages()
+   is allowed to only trylock other pages in the cluster.
+
+   Besides, rather rough plumbing (wbc->pivot_ret field) is added to check
+   whether ->writepages() failed to write pivot page for any reason (in latter
+   case page_cluster() falls back to ->writepage()).
+
+   Only mpage_writepages() was updated to honor these new fields, but
+   all in-tree ->writepages() implementations seem to call
+   mpage_writepages(). (Except reiser4, of course, for which I'll send a
+   (trivial) patch, if necessary).
 
 Signed-off-by: Nikita Danilov <nikita@clusterfs.com>
 
 
- include/linux/page-flags.h |    1 
- mm/page-writeback.c        |   21 +++-
- mm/page_alloc.c            |    9 +
- mm/vmscan.c                |  232 ++++++++++++++++++++++++++++++++++++++-------
- 4 files changed, 222 insertions(+), 41 deletions(-)
+ fs/mpage.c                |  118 +++++++++++++++++++++-------------------------
+ include/linux/writeback.h |    6 ++
+ mm/vmscan.c               |   72 +++++++++++++++++++++++++++-
+ 3 files changed, 133 insertions(+), 63 deletions(-)
 
-diff -puN mm/vmscan.c~async-writepage mm/vmscan.c
---- bk-linux/mm/vmscan.c~async-writepage	2005-04-17 17:52:50.000000000 +0400
-+++ bk-linux-nikita/mm/vmscan.c	2005-04-17 17:52:51.000000000 +0400
-@@ -47,6 +47,8 @@ typedef enum {
- 	PAGE_ACTIVATE,
- 	/* page has been sent to the disk successfully, page is unlocked */
- 	PAGE_SUCCESS,
-+	/* page was queued for asynchronous pageout */
-+	PAGE_ASYNC,
- 	/* page is clean and locked */
- 	PAGE_CLEAN,
- } pageout_t;
-@@ -79,9 +81,28 @@ struct scan_control {
- 	 * In this context, it doesn't matter that we scan the
- 	 * whole list at once. */
- 	int swap_cluster_max;
-+	/* number of dirty pages in the currently processed chunk of inactive
-+	 * list */
-+	int nr_dirty;
- };
+diff -puN mm/vmscan.c~cluster-pageout mm/vmscan.c
+--- bk-linux/mm/vmscan.c~cluster-pageout	2005-04-17 17:52:52.000000000 +0400
++++ bk-linux-nikita/mm/vmscan.c	2005-04-17 17:52:52.000000000 +0400
+@@ -349,6 +349,76 @@ static void send_page_to_kaiod(struct pa
+ 	spin_unlock(&kaio_queue_lock);
+ }
  
- /*
-+ * Asynchronous writepage tunables.
-+ */
 +enum {
-+	KAIO_PRIORITY     = DEF_PRIORITY - 4,
-+	KAIO_THROTTLE     = 128,
-+	KAIO_CLUSTER_SIZE = 4,
-+	KAIO_THREADS_NR   = 4
++	PAGE_CLUSTER_WING = 16,
++	PAGE_CLUSTER_SIZE = 2 * PAGE_CLUSTER_WING,
 +};
 +
-+static spinlock_t kaio_queue_lock = SPIN_LOCK_UNLOCKED;
-+static unsigned int kaio_nr_requests = 0;
-+static unsigned int kaio_threads_active = KAIO_THREADS_NR;
-+static LIST_HEAD(kaio_queue);
-+static DECLARE_WAIT_QUEUE_HEAD(kaio_wait);
++enum {
++	PIVOT_RET_MAGIC = 42
++};
 +
-+/*
-  * The list of shrinker callbacks used by to apply pressure to
-  * ageable caches.
-  */
-@@ -290,9 +311,49 @@ static void handle_write_error(struct ad
- }
- 
++static int pageout_cluster(struct page *page, struct address_space *mapping,
++			   struct writeback_control *wbc)
++{
++	pgoff_t punct;
++	pgoff_t start;
++	pgoff_t end;
++	struct page *opage = page;
++
++	if (PageSwapCache(page) || !current_is_kswapd())
++		return mapping->a_ops->writepage(page, wbc);
++
++	wbc->pivot = page;
++	punct = page->index;
++	read_lock_irq(&mapping->tree_lock);
++	for (start = punct - 1;
++	     start < punct && punct - start <= PAGE_CLUSTER_WING; -- start) {
++		page = radix_tree_lookup(&mapping->page_tree, start);
++		if (page == NULL || !PageDirty(page))
++			/*
++			 * no suitable page, stop cluster at this point
++			 */
++			break;
++		if ((start % PAGE_CLUSTER_SIZE) == 0)
++			/*
++			 * we reached aligned page.
++			 */
++			-- start;
++			break;
++	}
++	++ start;
++	for (end = punct + 1;
++	     end > punct && end - start < PAGE_CLUSTER_SIZE; ++ end) {
++		/*
++		 * XXX nikita: consider find_get_pages_tag()
++		 */
++		page = radix_tree_lookup(&mapping->page_tree, end);
++		if (page == NULL || !PageDirty(page))
++			/*
++			 * no suitable page, stop cluster at this point
++			 */
++			break;
++	}
++	read_unlock_irq(&mapping->tree_lock);
++	-- end;
++	wbc->pivot_ret = PIVOT_RET_MAGIC; /* magic */
++	if (end > start) {
++		wbc->start = ((loff_t)start) << PAGE_CACHE_SHIFT;
++		wbc->end   = ((loff_t)end) << PAGE_CACHE_SHIFT;
++		wbc->end  += PAGE_CACHE_SIZE - 1;
++		wbc->nr_to_write = end - start + 1;
++		do_writepages(mapping, wbc);
++	}
++	if (wbc->pivot_ret == PIVOT_RET_MAGIC)
++		/*
++		 * single page, or ->writepages() skipped pivot for any
++		 * reason: just call ->writepage()
++		 */
++		wbc->pivot_ret = mapping->a_ops->writepage(opage, wbc);
++	return wbc->pivot_ret;
++}
++
  /*
-+ * check whether writepage should be done asynchronously by kaiod.
-+ */
-+static int async_writepage(struct page *page, struct scan_control *sc)
-+{
-+	/*
-+	 * we are called from kaiod, time to really send page out.
-+	 */
-+	if (sc == NULL)
-+		return 0;
-+	/* goal of doing writepage asynchronously is to decrease latency of
-+	 * memory allocations involving direct reclaim, which is inapplicable
-+	 * to the kswapd */
-+	if (current_is_kswapd())
-+		return 0;
-+	/* limit number of pending async-writepage requests */
-+	else if (kaio_nr_requests > KAIO_THROTTLE)
-+		return 0;
-+	/* if we are under memory pressure---do pageout synchronously to
-+	 * throttle scanner. */
-+	else if (page_zone(page)->prev_priority < KAIO_PRIORITY)
-+		return 0;
-+	/* if expected number of writepage requests submitted by this
-+	 * invocation of shrink_list() is large enough---do them
-+	 * asynchronously */
-+	else if (sc->nr_dirty > KAIO_CLUSTER_SIZE)
-+		return 1;
-+	else
-+		return 0;
-+}
-+
-+static void send_page_to_kaiod(struct page *page)
-+{
-+	spin_lock(&kaio_queue_lock);
-+	list_add_tail(&page->lru, &kaio_queue);
-+	kaio_nr_requests ++;
-+	spin_unlock(&kaio_queue_lock);
-+}
-+
-+/*
   * Called by shrink_list() for each dirty page. Calls ->writepage().
   */
--static pageout_t pageout(struct page *page, struct address_space *mapping)
-+static pageout_t pageout(struct page *page, struct address_space *mapping,
-+			 struct scan_control *sc)
- {
- 	/*
- 	 * If the page is dirty, only perform writeback if that write will be
-@@ -345,6 +406,8 @@ static pageout_t pageout(struct page *pa
- 	 */
- 	if (!TestSetPageSkipped(page))
- 		return PAGE_KEEP;
-+	if (async_writepage(page, sc))
-+		return PAGE_ASYNC;
- 	if (clear_page_dirty_for_io(page)) {
- 		int res;
+@@ -434,7 +504,7 @@ static pageout_t pageout(struct page *pa
  
-@@ -396,6 +459,7 @@ static int shrink_list(struct list_head 
- 	LIST_HEAD(ret_pages);
- 	struct pagevec freed_pvec;
- 	int pgactivate = 0;
-+	int pgaio = 0;
- 	int reclaimed = 0;
+ 		ClearPageSkipped(page);
+ 		SetPageReclaim(page);
+-		res = mapping->a_ops->writepage(page, &wbc);
++		res = pageout_cluster(page, mapping, &wbc);
  
- 	cond_resched();
-@@ -469,11 +533,16 @@ static int shrink_list(struct list_head 
- 				goto keep_locked;
- 
- 			/* Page is dirty, try to write it out here */
--			switch(pageout(page, mapping)) {
-+			switch(pageout(page, mapping, sc)) {
- 			case PAGE_KEEP:
- 				goto keep_locked;
- 			case PAGE_ACTIVATE:
- 				goto activate_locked;
-+			case PAGE_ASYNC:
-+				pgaio ++;
-+				unlock_page(page);
-+				send_page_to_kaiod(page);
-+				continue;
- 			case PAGE_SUCCESS:
- 				if (PageWriteback(page) || PageDirty(page))
- 					goto keep;
-@@ -565,6 +634,10 @@ keep:
- 		list_add(&page->lru, &ret_pages);
- 		BUG_ON(PageLRU(page));
- 	}
-+	if (pgaio > 0) {
-+		add_page_state(nr_async_writeback, pgaio);
-+		wake_up_interruptible(&kaio_wait);
-+	}
- 	list_splice(&ret_pages, page_list);
- 	if (pagevec_count(&freed_pvec))
- 		__pagevec_release_nonlru(&freed_pvec);
-@@ -587,11 +660,12 @@ keep:
-  * @src:	The LRU list to pull pages off.
-  * @dst:	The temp list to put pages on to.
-  * @scanned:	The number of pages that were scanned.
-+ * @dirty:	The number of dirty pages found during scan.
-  *
-  * returns how many pages were moved onto *@dst.
-  */
- static int isolate_lru_pages(int nr_to_scan, struct list_head *src,
--			     struct list_head *dst, int *scanned)
-+			     struct list_head *dst, int *scanned, int *dirty)
- {
- 	int nr_taken = 0;
- 	struct page *page;
-@@ -615,6 +689,8 @@ static int isolate_lru_pages(int nr_to_s
- 		} else {
- 			list_add(&page->lru, dst);
- 			nr_taken++;
-+			if (PageDirty(page))
-+				++*dirty;
- 		}
- 	}
- 
-@@ -623,33 +699,71 @@ static int isolate_lru_pages(int nr_to_s
- }
- 
- /*
-+ * Move pages from @list to active or inactive list according to PageActive(),
-+ * and release one reference on each processed page.
-+ */
-+static void distribute_lru_pages(struct list_head *list)
-+{
-+	struct pagevec pvec;
-+	struct page *page;
-+	struct zone *zone = NULL;
-+
-+	pagevec_init(&pvec, 1);
-+
-+	while (!list_empty(list)) {
-+		page = lru_to_page(list);
-+		if (page_zone(page) != zone) {
-+			if (zone != NULL)
-+				spin_unlock_irq(&zone->lru_lock);
-+			zone = page_zone(page);
-+			spin_lock_irq(&zone->lru_lock);
-+		}
-+		if (TestSetPageLRU(page))
-+			BUG();
-+		list_del(&page->lru);
-+		if (PageActive(page)) {
-+			if (PageSkipped(page))
-+				ClearPageSkipped(page);
-+			add_page_to_active_list(zone, page);
-+		} else {
-+			add_page_to_inactive_list(zone, page);
-+		}
-+		if (!pagevec_add(&pvec, page)) {
-+			spin_unlock_irq(&zone->lru_lock);
-+			__pagevec_release(&pvec);
-+			spin_lock_irq(&zone->lru_lock);
-+		}
-+	}
-+	if (zone != NULL)
-+		spin_unlock_irq(&zone->lru_lock);
-+	pagevec_release(&pvec);
-+}
-+
-+/*
-  * shrink_cache() adds the number of pages reclaimed to sc->nr_reclaimed
-  */
- static void shrink_cache(struct zone *zone, struct scan_control *sc)
- {
- 	LIST_HEAD(page_list);
--	struct pagevec pvec;
- 	int max_scan = sc->nr_to_scan;
- 
--	pagevec_init(&pvec, 1);
--
- 	lru_add_drain();
- 	spin_lock_irq(&zone->lru_lock);
- 	while (max_scan > 0) {
--		struct page *page;
- 		int nr_taken;
- 		int nr_scan;
- 		int nr_freed;
- 
- 		nr_taken = isolate_lru_pages(sc->swap_cluster_max,
- 					     &zone->inactive_list,
--					     &page_list, &nr_scan);
-+					     &page_list, &nr_scan,
-+					     &sc->nr_dirty);
- 		zone->nr_inactive -= nr_taken;
- 		zone->pages_scanned += nr_scan;
- 		spin_unlock_irq(&zone->lru_lock);
- 
- 		if (nr_taken == 0)
--			goto done;
-+			return;
- 
- 		max_scan -= nr_scan;
- 		if (current_is_kswapd())
-@@ -662,35 +776,15 @@ static void shrink_cache(struct zone *zo
- 		mod_page_state_zone(zone, pgsteal, nr_freed);
- 		sc->nr_to_reclaim -= nr_freed;
- 
--		spin_lock_irq(&zone->lru_lock);
- 		/*
- 		 * Put back any unfreeable pages.
- 		 */
--		while (!list_empty(&page_list)) {
--			page = lru_to_page(&page_list);
--			if (TestSetPageLRU(page))
--				BUG();
--			list_del(&page->lru);
--			if (PageActive(page)) {
--				if (PageSkipped(page))
--					ClearPageSkipped(page);
--				add_page_to_active_list(zone, page);
--			} else {
--				add_page_to_inactive_list(zone, page);
--			}
--			if (!pagevec_add(&pvec, page)) {
--				spin_unlock_irq(&zone->lru_lock);
--				__pagevec_release(&pvec);
--				spin_lock_irq(&zone->lru_lock);
--			}
--		}
-+		distribute_lru_pages(&page_list);
-+		spin_lock_irq(&zone->lru_lock);
-   	}
- 	spin_unlock_irq(&zone->lru_lock);
--done:
--	pagevec_release(&pvec);
- }
- 
--
- /* move pages from @page_list to the @spot, that should be somewhere on the
-  * @zone->active_list */
- static int
-@@ -1062,8 +1156,12 @@ int try_to_free_pages(struct zone **zone
- 		}
- 
- 		/* Take a nap, wait for some writeback to complete */
--		if (sc.nr_scanned && priority < DEF_PRIORITY - 2)
--			blk_congestion_wait(WRITE, HZ/10);
-+		if (priority < DEF_PRIORITY - 2) {
-+			if (sc.nr_scanned)
-+				blk_congestion_wait(WRITE, HZ/10);
-+			while (read_page_state(nr_async_writeback) > 0)
-+				blk_congestion_wait(WRITE, HZ/10);
-+		}
- 	}
- out:
- 	for (i = 0; zones[i] != 0; i++) {
-@@ -1249,6 +1347,71 @@ out:
- 	return total_reclaimed;
- }
- 
-+static int kaiod(void *p)
-+{
-+	daemonize("kaiod%i", (int)p);
-+
-+	current->flags |= PF_MEMALLOC|PF_KSWAPD;
-+
-+	while (1) {
-+		DEFINE_WAIT(wait);
-+		LIST_HEAD(todo);
-+		LIST_HEAD(done);
-+		struct page *page;
-+		int nr_pages;
-+
-+		if (current->flags & PF_FREEZE)
-+			refrigerator(PF_FREEZE);
-+
-+		spin_lock(&kaio_queue_lock);
-+		while (kaio_nr_requests == 0) {
-+			prepare_to_wait_exclusive(&kaio_wait,
-+						  &wait, TASK_INTERRUPTIBLE);
-+			-- kaio_threads_active;
-+			spin_unlock(&kaio_queue_lock);
-+			schedule();
-+			finish_wait(&kaio_wait, &wait);
-+			spin_lock(&kaio_queue_lock);
-+			++ kaio_threads_active;
-+		}
-+		list_splice_init(&kaio_queue, &todo);
-+		nr_pages = kaio_nr_requests;
-+		kaio_nr_requests = 0;
-+		spin_unlock(&kaio_queue_lock);
-+		while (!list_empty(&todo)) {
-+			pageout_t outcome;
-+
-+			page = lru_to_page(&todo);
-+			list_del(&page->lru);
-+
-+			if (TestSetPageLocked(page))
-+				outcome = PAGE_SUCCESS;
-+			else if (PageWriteback(page))
-+				outcome = PAGE_KEEP;
-+			else if (PageDirty(page))
-+				outcome = pageout(page,
-+						  page_mapping(page), NULL);
-+			else
-+				outcome = PAGE_KEEP;
-+
-+			switch (outcome) {
-+			case PAGE_ASYNC:
-+				BUG();
-+			case PAGE_ACTIVATE:
-+				SetPageActive(page);
-+			case PAGE_KEEP:
-+			case PAGE_CLEAN:
-+				unlock_page(page);
-+			case PAGE_SUCCESS:
-+				list_add(&page->lru, &done);
-+				BUG_ON(PageLRU(page));
-+			}
-+		}
-+		distribute_lru_pages(&done);
-+		sub_page_state(nr_async_writeback, nr_pages);
-+	}
-+}
-+
- /*
-  * The background pageout daemon, started as a kernel thread
-  * from the init process.
-@@ -1395,11 +1558,14 @@ static int __devinit cpu_callback(struct
- 
- static int __init kswapd_init(void)
- {
-+	int i;
- 	pg_data_t *pgdat;
- 	swap_setup();
- 	for_each_pgdat(pgdat)
- 		pgdat->kswapd
- 		= find_task_by_pid(kernel_thread(kswapd, pgdat, CLONE_KERNEL));
-+	for (i = 0; i < KAIO_THREADS_NR; ++i)
-+		kernel_thread(kaiod, (void *)i, CLONE_KERNEL);
- 	total_memory = nr_free_pagecache_pages();
- 	hotcpu_notifier(cpu_callback, 0);
- 	return 0;
-diff -puN include/linux/sched.h~async-writepage include/linux/sched.h
-diff -puN include/linux/page-flags.h~async-writepage include/linux/page-flags.h
---- bk-linux/include/linux/page-flags.h~async-writepage	2005-04-17 17:52:51.000000000 +0400
-+++ bk-linux-nikita/include/linux/page-flags.h	2005-04-17 17:52:51.000000000 +0400
-@@ -86,6 +86,7 @@ struct page_state {
- 	unsigned long nr_dirty;		/* Dirty writeable pages */
- 	unsigned long nr_writeback;	/* Pages under writeback */
- 	unsigned long nr_unstable;	/* NFS unstable pages */
-+	unsigned long nr_async_writeback; /* Pages set for async writeback */
- 	unsigned long nr_page_table_pages;/* Pages used for pagetables */
- 	unsigned long nr_mapped;	/* mapped into pagetables */
- 	unsigned long nr_slab;		/* In slab */
-diff -puN mm/page_alloc.c~async-writepage mm/page_alloc.c
---- bk-linux/mm/page_alloc.c~async-writepage	2005-04-17 17:52:51.000000000 +0400
-+++ bk-linux-nikita/mm/page_alloc.c	2005-04-17 17:52:51.000000000 +0400
-@@ -1250,12 +1250,14 @@ void show_free_areas(void)
- 		K(nr_free_pages()),
- 		K(nr_free_highpages()));
- 
--	printk("Active:%lu inactive:%lu dirty:%lu writeback:%lu "
-+	printk("Active:%lu inactive:%lu dirty:%lu "
-+		"writeback:%lu async-writeback:%lu "
- 		"unstable:%lu free:%u slab:%lu mapped:%lu pagetables:%lu\n",
- 		active,
- 		inactive,
- 		ps.nr_dirty,
- 		ps.nr_writeback,
-+		ps.nr_async_writeback,
- 		ps.nr_unstable,
- 		nr_free_pages(),
- 		ps.nr_slab,
-@@ -1966,6 +1968,7 @@ static char *vmstat_text[] = {
- 	"nr_dirty",
- 	"nr_writeback",
- 	"nr_unstable",
-+	"nr_async_writeback",
- 	"nr_page_table_pages",
- 	"nr_mapped",
- 	"nr_slab",
-diff -puN mm/page-writeback.c~async-writepage mm/page-writeback.c
---- bk-linux/mm/page-writeback.c~async-writepage	2005-04-17 17:52:51.000000000 +0400
-+++ bk-linux-nikita/mm/page-writeback.c	2005-04-17 17:52:51.000000000 +0400
-@@ -105,6 +105,7 @@ struct writeback_state
- 	unsigned long nr_unstable;
- 	unsigned long nr_mapped;
- 	unsigned long nr_writeback;
-+	unsigned long nr_async_writeback;
+ 		if (res < 0)
+ 			handle_write_error(mapping, page, res);
+diff -puN include/linux/writeback.h~cluster-pageout include/linux/writeback.h
+--- bk-linux/include/linux/writeback.h~cluster-pageout	2005-04-17 17:52:52.000000000 +0400
++++ bk-linux-nikita/include/linux/writeback.h	2005-04-17 17:52:52.000000000 +0400
+@@ -55,6 +55,12 @@ struct writeback_control {
+ 	unsigned encountered_congestion:1;	/* An output: a queue is full */
+ 	unsigned for_kupdate:1;			/* A kupdate writeback */
+ 	unsigned for_reclaim:1;			/* Invoked from the page allocator */
++	/* if non-NULL, page already locked by ->writepages()
++	 * caller. ->writepages() should use trylock on all other pages it
++	 * submits for IO */
++	struct page *pivot;
++	/* if ->pivot is not NULL, result for pivot page is stored here */
++	int pivot_ret;
  };
  
- static void get_writeback_state(struct writeback_state *wbs)
-@@ -113,6 +114,7 @@ static void get_writeback_state(struct w
- 	wbs->nr_unstable = read_page_state(nr_unstable);
- 	wbs->nr_mapped = read_page_state(nr_mapped);
- 	wbs->nr_writeback = read_page_state(nr_writeback);
-+	wbs->nr_async_writeback = read_page_state(nr_async_writeback);
+ /*
+diff -puN fs/mpage.c~cluster-pageout fs/mpage.c
+--- bk-linux/fs/mpage.c~cluster-pageout	2005-04-17 17:52:52.000000000 +0400
++++ bk-linux-nikita/fs/mpage.c	2005-04-17 17:52:52.000000000 +0400
+@@ -391,7 +391,6 @@ __mpage_writepage(struct bio *bio, struc
+ 	sector_t *last_block_in_bio, int *ret, struct writeback_control *wbc,
+ 	writepage_t writepage_fn)
+ {
+-	struct address_space *mapping = page->mapping;
+ 	struct inode *inode = page->mapping->host;
+ 	const unsigned blkbits = inode->i_blkbits;
+ 	unsigned long end_index;
+@@ -409,6 +408,7 @@ __mpage_writepage(struct bio *bio, struc
+ 	struct buffer_head map_bh;
+ 	loff_t i_size = i_size_read(inode);
+ 
++	*ret = 0;
+ 	if (page_has_buffers(page)) {
+ 		struct buffer_head *head = page_buffers(page);
+ 		struct buffer_head *bh = head;
+@@ -582,30 +582,22 @@ alloc_new:
+ confused:
+ 	if (bio)
+ 		bio = mpage_bio_submit(WRITE, bio);
+-
+-	if (writepage_fn) {
+-		*ret = (*writepage_fn)(page, wbc);
+-	} else {
+-		*ret = -EAGAIN;
+-		goto out;
+-	}
+-	/*
+-	 * The caller has a ref on the inode, so *mapping is stable
+-	 */
+-	if (*ret) {
+-		if (*ret == -ENOSPC)
+-			set_bit(AS_ENOSPC, &mapping->flags);
+-		else
+-			set_bit(AS_EIO, &mapping->flags);
+-	}
+ out:
+ 	return bio;
  }
  
- /*
-@@ -181,6 +183,14 @@ get_dirty_limits(struct writeback_state 
- }
- 
- /*
-+ * pages that count as dirty, but will be clean some time in the future.
-+ */
-+static inline unsigned long nr_transient_pages(struct writeback_state *wbs)
++static void handle_writepage_error(int err, struct address_space *mapping)
 +{
-+	return wbs->nr_writeback + wbs->nr_async_writeback;
++	if (unlikely(err == -ENOSPC))
++		set_bit(AS_ENOSPC, &mapping->flags);
++	else if (unlikely(err != 0))
++		set_bit(AS_EIO, &mapping->flags);
 +}
 +
-+/*
-  * balance_dirty_pages() must be called by processes which are generating dirty
-  * data.  It looks at the number of dirty pages in the machine and will force
-  * the caller to perform writeback if the system is over `vm_dirty_ratio'.
-@@ -209,7 +219,7 @@ static void balance_dirty_pages(struct a
- 		get_dirty_limits(&wbs, &background_thresh,
- 					&dirty_thresh, mapping);
- 		nr_reclaimable = wbs.nr_dirty + wbs.nr_unstable;
--		if (nr_reclaimable + wbs.nr_writeback <= dirty_thresh)
-+		if (nr_reclaimable + nr_transient_pages(&wbs) <= dirty_thresh)
- 			break;
+ /**
+  * mpage_writepages - walk the list of dirty pages of the given
+  * address space and writepage() all of them.
+- * 
++ *
+  * @mapping: address space structure to write
+  * @wbc: subtract the number of written pages from *@wbc->nr_to_write
+  * @get_block: the filesystem's block mapper function.
+@@ -682,51 +674,53 @@ retry:
+ 		for (i = 0; i < nr_pages; i++) {
+ 			struct page *page = pvec.pages[i];
  
- 		dirty_exceeded = 1;
-@@ -225,7 +235,8 @@ static void balance_dirty_pages(struct a
- 			get_dirty_limits(&wbs, &background_thresh,
- 					&dirty_thresh, mapping);
- 			nr_reclaimable = wbs.nr_dirty + wbs.nr_unstable;
--			if (nr_reclaimable + wbs.nr_writeback <= dirty_thresh)
-+			if (nr_reclaimable +
-+			    nr_transient_pages(&wbs) <= dirty_thresh)
- 				break;
- 			pages_written += write_chunk - wbc.nr_to_write;
- 			if (pages_written >= write_chunk)
-@@ -234,7 +245,7 @@ static void balance_dirty_pages(struct a
- 		blk_congestion_wait(WRITE, HZ/10);
- 	}
+-			/*
+-			 * At this point we hold neither mapping->tree_lock nor
+-			 * lock on the page itself: the page may be truncated or
+-			 * invalidated (changing page->mapping to NULL), or even
+-			 * swizzled back from swapper_space to tmpfs file
+-			 * mapping
+-			 */
+-
+-			lock_page(page);
++			if (page != wbc->pivot) {
++				/*
++				 * At this point we hold neither
++				 * mapping->tree_lock nor lock on the page
++				 * itself: the page may be truncated or
++				 * invalidated (changing page->mapping to
++				 * NULL), or even swizzled back from
++				 * swapper_space to tmpfs file mapping
++				 */
  
--	if (nr_reclaimable + wbs.nr_writeback <= dirty_thresh)
-+	if (nr_reclaimable + nr_transient_pages(&wbs) <= dirty_thresh)
- 		dirty_exceeded = 0;
+-			if (unlikely(page->mapping != mapping)) {
+-				unlock_page(page);
+-				continue;
+-			}
++				if (wbc->pivot != NULL) {
++					if (unlikely(TestSetPageLocked(page)))
++						continue;
++				} else
++					lock_page(page);
++
++				if (unlikely(page->mapping != mapping)) {
++					unlock_page(page);
++					continue;
++				}
  
- 	if (writeback_in_progress(bdi))
-@@ -304,7 +315,7 @@ void throttle_vm_writeout(void)
-                  */
-                 dirty_thresh += dirty_thresh / 10;      /* wheeee... */
+-			if (unlikely(is_range) && page->index > end) {
+-				done = 1;
+-				unlock_page(page);
+-				continue;
+-			}
++				if (unlikely(is_range) && page->index > end) {
++					done = 1;
++					unlock_page(page);
++					continue;
++				}
  
--                if (wbs.nr_unstable + wbs.nr_writeback <= dirty_thresh)
-+                if (wbs.nr_unstable + nr_transient_pages(&wbs) <= dirty_thresh)
-                         break;
-                 blk_congestion_wait(WRITE, HZ/10);
-         }
-@@ -698,7 +709,7 @@ int set_page_dirty_lock(struct page *pag
- EXPORT_SYMBOL(set_page_dirty_lock);
+-			if (wbc->sync_mode != WB_SYNC_NONE)
+-				wait_on_page_writeback(page);
++				if (wbc->sync_mode != WB_SYNC_NONE)
++					wait_on_page_writeback(page);
  
- /*
-- * Clear a page's dirty flag, while caring for dirty memory accounting. 
-+ * Clear a page's dirty flag, while caring for dirty memory accounting.
-  * Returns true if the page was previously dirty.
-  */
- int test_clear_page_dirty(struct page *page)
+-			if (PageWriteback(page) ||
+-					!clear_page_dirty_for_io(page)) {
+-				unlock_page(page);
+-				continue;
++				if (PageWriteback(page) ||
++				    !clear_page_dirty_for_io(page)) {
++					unlock_page(page);
++					continue;
++				}
+ 			}
+ 
+-			if (writepage) {
++			if (writepage)
+ 				ret = (*writepage)(page, wbc);
+-				if (ret) {
+-					if (ret == -ENOSPC)
+-						set_bit(AS_ENOSPC,
+-							&mapping->flags);
+-					else
+-						set_bit(AS_EIO,
+-							&mapping->flags);
+-				}
+-			} else {
++			else
+ 				bio = __mpage_writepage(bio, page, get_block,
+-						&last_block_in_bio, &ret, wbc,
+-						writepage_fn);
+-			}
++							&last_block_in_bio,
++							&ret, wbc,
++							writepage_fn);
++			handle_writepage_error(ret, page->mapping);
++			if (page == wbc->pivot)
++				wbc->pivot_ret = ret;
+ 			if (ret || (--(wbc->nr_to_write) <= 0))
+ 				done = 1;
+ 			if (wbc->nonblocking && bdi_write_congested(bdi)) {
+@@ -766,7 +760,7 @@ int mpage_writepage(struct page *page, g
+ 			&last_block_in_bio, &ret, wbc, NULL);
+ 	if (bio)
+ 		mpage_bio_submit(WRITE, bio);
+-
++	handle_writepage_error(ret, page->mapping);
+ 	return ret;
+ }
+ EXPORT_SYMBOL(mpage_writepage);
 
 _
 --
