@@ -2,189 +2,266 @@ From: Nikita Danilov <nikita@clusterfs.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
-Message-ID: <16994.40579.617974.423522@gargle.gargle.HOWL>
-Date: Sun, 17 Apr 2005 21:36:03 +0400
-Subject: [PATCH]: VM 3/8 PG_skipped
+Message-ID: <16994.40620.892220.121182@gargle.gargle.HOWL>
+Date: Sun, 17 Apr 2005 21:36:44 +0400
+Subject: [PATCH]: VM 4/8 dont-rotate-active-list
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 Cc: Andrew Morton <AKPM@Osdl.ORG>
 List-ID: <linux-mm.kvack.org>
 
-Don't call ->writepage from VM scanner when page is met for the first time
-during scan.
+Currently, if zone is short on free pages, refill_inactive_zone() starts
+moving pages from active_list to inactive_list, rotating active_list as it
+goes. That is, pages from the tail of active_list are transferred to its head,
+thus destroying lru ordering, exactly when we need it most --- when system is
+low on free memory and page replacement has to be performed.
 
-New page flag PG_skipped is used for this. This flag is TestSet-ed just
-before calling ->writepage and is cleaned when page enters inactive
-list.
+This patch modifies refill_inactive_zone() so that it scans active_list
+without rotating it. To achieve this, special dummy page zone->scan_page
+is maintained for each zone. This page marks a place in the active_list
+reached during scanning.
 
-One can see this as "second chance" algorithm for the dirty pages on the
-inactive list.
-
-BSD does the same: src/sys/vm/vm_pageout.c:vm_pageout_scan(),
-PG_WINATCFLS flag.
-
-Reason behind this is that ->writepages() will perform more efficient writeout
-than ->writepage(). Skipping of page can be conditioned on zone->pressure.
-
-On the other hand, avoiding ->writepage() increases amount of scanning
-performed by kswapd.
+As an additional bonus, if memory pressure is not so big as to start swapping
+mapped pages (reclaim_mapped == 0 in refill_inactive_zone()), then not
+referenced mapped pages can be left behind zone->scan_page instead of moving
+them to the head of active_list. When reclaim_mapped mode is activated,
+zone->scan_page is reset back to the tail of active_list so that these pages
+can be re-scanned.
 
 Signed-off-by: Nikita Danilov <nikita@clusterfs.com>
 
 
- include/linux/page-flags.h |    7 +++
- mm/swap.c                  |    1 
- mm/truncate.c              |    2 +
- mm/vmscan.c                |   80 +++++++++++++++++++++++++++++++--------------
- 4 files changed, 66 insertions(+), 24 deletions(-)
+ include/linux/mmzone.h |    6 ++
+ mm/page_alloc.c        |   20 ++++++++
+ mm/vmscan.c            |  119 +++++++++++++++++++++++++++++++++++++------------
+ 3 files changed, 118 insertions(+), 27 deletions(-)
 
-diff -puN mm/vmscan.c~skip-writepage mm/vmscan.c
---- bk-linux/mm/vmscan.c~skip-writepage	2005-04-17 17:52:49.000000000 +0400
-+++ bk-linux-nikita/mm/vmscan.c	2005-04-17 17:52:49.000000000 +0400
-@@ -331,18 +329,50 @@ static pageout_t pageout(struct page *pa
- 		return PAGE_ACTIVATE;
- 	if (!may_write_to_queue(mapping->backing_dev_info))
- 		return PAGE_KEEP;
--
-+	/*
-+	 * Don't call ->writepage when page is met for the first time during
-+	 * scanning. Reasons:
-+	 *
-+	 *     1. if memory pressure is not too high, skipping ->writepage()
-+	 *     may avoid writing out page that will be re-dirtied (should not
-+	 *     be too important, because scanning starts from the tail of
-+	 *     inactive list, where pages are _supposed_ to be rarely used,
-+	 *     but when under constant memory pressure, inactive list is
-+	 *     rotated and so is more FIFO than LRU).
-+	 *
-+	 *     2. ->writepages() writes data more efficiently than
-+	 *     ->writepage().
+diff -puN include/linux/mmzone.h~dont-rotate-active-list include/linux/mmzone.h
+--- bk-linux/include/linux/mmzone.h~dont-rotate-active-list	2005-04-17 17:52:50.000000000 +0400
++++ bk-linux-nikita/include/linux/mmzone.h	2005-04-17 17:52:50.000000000 +0400
+@@ -207,6 +207,12 @@ struct zone {
+ 	unsigned long		present_pages;	/* amount of memory (excluding holes) */
+ 
+ 	/*
++	 * dummy page used as place holder during scanning of
++	 * active_list in refill_inactive_zone()
 +	 */
-+	if (!TestSetPageSkipped(page))
-+		return PAGE_KEEP;
- 	if (clear_page_dirty_for_io(page)) {
- 		int res;
++	struct page *scan_page;
 +
- 		struct writeback_control wbc = {
- 			.sync_mode = WB_SYNC_NONE,
- 			.nr_to_write = SWAP_CLUSTER_MAX,
--			.nonblocking = 1,
--			.for_reclaim = 1,
++	/*
+ 	 * rarely used fields:
+ 	 */
+ 	char			*name;
+diff -puN mm/page_alloc.c~dont-rotate-active-list mm/page_alloc.c
+--- bk-linux/mm/page_alloc.c~dont-rotate-active-list	2005-04-17 17:52:50.000000000 +0400
++++ bk-linux-nikita/mm/page_alloc.c	2005-04-17 17:52:50.000000000 +0400
+@@ -1615,6 +1615,9 @@ void zone_init_free_lists(struct pglist_
+ 	memmap_init_zone((size), (nid), (zone), (start_pfn))
+ #endif
+ 
++/* dummy pages used to scan active lists */
++static struct page scan_pages[MAX_NUMNODES][MAX_NR_ZONES];
++
+ /*
+  * Set up the zone data structures:
+  *   - mark all pages reserved
+@@ -1637,6 +1640,7 @@ static void __init free_area_init_core(s
+ 		struct zone *zone = pgdat->node_zones + j;
+ 		unsigned long size, realsize;
+ 		unsigned long batch;
++		struct page *scan_page;
+ 
+ 		zone_table[NODEZONE(nid, j)] = zone;
+ 		realsize = size = zones_size[j];
+@@ -1696,6 +1700,22 @@ static void __init free_area_init_core(s
+ 		zone->nr_scan_inactive = 0;
+ 		zone->nr_active = 0;
+ 		zone->nr_inactive = 0;
++
++		/* initialize dummy page used for scanning */
++		scan_page = &scan_pages[nid][j];
++		zone->scan_page = scan_page;
++		memset(scan_page, 0, sizeof *scan_page);
++		scan_page->flags =
++			(1 << PG_locked) |
++			(1 << PG_error) |
++			(1 << PG_lru) |
++			(1 << PG_active) |
++			(1 << PG_reserved);
++		set_page_zone(scan_page, j);
++		page_cache_get(scan_page);
++		INIT_LIST_HEAD(&scan_page->lru);
++		list_add(&scan_page->lru, &zone->active_list);
++
+ 		if (!size)
+ 			continue;
+ 
+diff -puN mm/vmscan.c~dont-rotate-active-list mm/vmscan.c
+--- bk-linux/mm/vmscan.c~dont-rotate-active-list	2005-04-17 17:52:50.000000000 +0400
++++ bk-linux-nikita/mm/vmscan.c	2005-04-17 17:52:50.000000000 +0400
+@@ -690,6 +690,39 @@ done:
+ 	pagevec_release(&pvec);
+ }
+ 
++
++/* move pages from @page_list to the @spot, that should be somewhere on the
++ * @zone->active_list */
++static int
++spill_on_spot(struct zone *zone,
++	      struct list_head *page_list, struct list_head *spot,
++	      struct pagevec *pvec)
++{
++	struct page *page;
++	int          moved;
++
++	moved = 0;
++	while (!list_empty(page_list)) {
++		page = lru_to_page(page_list);
++		prefetchw_prev_lru_page(page, page_list, flags);
++		if (TestSetPageLRU(page))
++			BUG();
++		BUG_ON(!PageActive(page));
++		list_move(&page->lru, spot);
++		moved++;
++		if (!pagevec_add(pvec, page)) {
++			zone->nr_active += moved;
++			moved = 0;
++			spin_unlock_irq(&zone->lru_lock);
++			__pagevec_release(pvec);
++			spin_lock_irq(&zone->lru_lock);
++		}
++	}
++	return moved;
++}
++
++
++
+ /*
+  * This moves pages from the active list to the inactive list.
+  *
+@@ -716,22 +749,17 @@ refill_inactive_zone(struct zone *zone, 
+ 	int nr_pages = sc->nr_to_scan;
+ 	LIST_HEAD(l_hold);	/* The pages which were snipped off */
+ 	LIST_HEAD(l_inactive);	/* Pages to go onto the inactive_list */
+-	LIST_HEAD(l_active);	/* Pages to go onto the active_list */
++	LIST_HEAD(l_ignore);	/* Pages to be returned to the active_list */
++	LIST_HEAD(l_active);	/* Pages to go onto the head of the
++				 * active_list */
+ 	struct page *page;
++	struct page *scan;
+ 	struct pagevec pvec;
+ 	int reclaim_mapped = 0;
+ 	long mapped_ratio;
+ 	long distress;
+ 	long swap_tendency;
+ 
+-	lru_add_drain();
+-	spin_lock_irq(&zone->lru_lock);
+-	pgmoved = isolate_lru_pages(nr_pages, &zone->active_list,
+-				    &l_hold, &pgscanned);
+-	zone->pages_scanned += pgscanned;
+-	zone->nr_active -= pgmoved;
+-	spin_unlock_irq(&zone->lru_lock);
+-
+ 	/*
+ 	 * `distress' is a measure of how much trouble we're having reclaiming
+ 	 * pages.  0 -> no problems.  100 -> great trouble.
+@@ -763,15 +791,66 @@ refill_inactive_zone(struct zone *zone, 
+ 	if (swap_tendency >= 100)
+ 		reclaim_mapped = 1;
+ 
++	scan = zone->scan_page;
++	lru_add_drain();
++	pgmoved = 0;
++	pgscanned = 0;
++	spin_lock_irq(&zone->lru_lock);
++	if (reclaim_mapped) {
++		/*
++		 * When scanning active_list with !reclaim_mapped mapped
++		 * inactive pages are left behind zone->scan_page. If zone is
++		 * switched to reclaim_mapped mode reset zone->scan_page to
++		 * the end of inactive list so that inactive mapped pages are
++		 * re-scanned.
++		 */
++		list_move_tail(&scan->lru, &zone->active_list);
++	}
++	while (pgscanned < nr_pages &&
++	       zone->active_list.prev != zone->active_list.next) {
++		/*
++		 * if head of active list reached---wrap to the tail
++		 */
++		if (scan->lru.prev == &zone->active_list)
++			list_move_tail(&scan->lru, &zone->active_list);
++		page = lru_to_page(&scan->lru);
++		prefetchw_prev_lru_page(page, &zone->active_list, flags);
++		if (!TestClearPageLRU(page))
++			BUG();
++		list_del(&page->lru);
++		if (get_page_testone(page)) {
 +			/*
-+			 * synchronous page reclamation should be non blocking
-+			 * for the reasons outlined in the comment above. But
-+			 * in the kswapd blocking is ok.
-+			 *
-+			 * NOTE:
-+			 *
-+			 *     1. .nonblocking is not analyzed by existing
-+			 *     in-tree implementations of ->writepage().
-+			 *
-+			 *     2. may be if page zone is under considerable
-+			 *     memory pressure (zone->prev_priority is low),
-+			 *     .nonblocking should be set anyway.
++			 * It was already free!  release_pages() or put_page()
++			 * are about to remove it from the LRU and free it. So
++			 * put the refcount back and put the page back on the
++			 * LRU
 +			 */
-+			.nonblocking = !current_is_kswapd(),
-+			.for_reclaim = 1 /* XXX not used */
- 		};
- 
-+		ClearPageSkipped(page);
- 		SetPageReclaim(page);
- 		res = mapping->a_ops->writepage(page, &wbc);
++			__put_page(page);
++			SetPageLRU(page);
++			list_add(&page->lru, &zone->active_list);
++		} else {
++			list_add(&page->lru, &l_hold);
++			pgmoved++;
++		}
++		pgscanned++;
++	}
++	zone->nr_active -= pgmoved;
++	zone->pages_scanned += pgscanned;
++	spin_unlock_irq(&zone->lru_lock);
 +
- 		if (res < 0)
- 			handle_write_error(mapping, page, res);
- 		if (res == WRITEPAGE_ACTIVATE) {
-@@ -353,10 +383,8 @@ static pageout_t pageout(struct page *pa
- 			/* synchronous write or broken a_ops? */
- 			ClearPageReclaim(page);
+ 	while (!list_empty(&l_hold)) {
+ 		cond_resched();
+ 		page = lru_to_page(&l_hold);
+ 		list_del(&page->lru);
++		/*
++		 * probably it would be useful to transfer dirty bit from pte
++		 * to the @page here.
++		 */
+ 		if (page_mapped(page)) {
+ 			if (!reclaim_mapped ||
+ 			    (total_swap_pages == 0 && PageAnon(page)) ||
+ 			    page_referenced(page, 0, sc->priority <= 0)) {
+-				list_add(&page->lru, &l_active);
++				list_add(&page->lru, &l_ignore);
+ 				continue;
+ 			}
  		}
--
- 		return PAGE_SUCCESS;
+@@ -810,23 +889,9 @@ refill_inactive_zone(struct zone *zone, 
+ 		spin_lock_irq(&zone->lru_lock);
  	}
--
- 	return PAGE_CLEAN;
- }
  
-@@ -643,10 +671,13 @@ static void shrink_cache(struct zone *zo
- 			if (TestSetPageLRU(page))
- 				BUG();
- 			list_del(&page->lru);
--			if (PageActive(page))
-+			if (PageActive(page)) {
-+				if (PageSkipped(page))
-+					ClearPageSkipped(page);
- 				add_page_to_active_list(zone, page);
--			else
-+			} else {
- 				add_page_to_inactive_list(zone, page);
-+			}
- 			if (!pagevec_add(&pvec, page)) {
- 				spin_unlock_irq(&zone->lru_lock);
- 				__pagevec_release(&pvec);
-@@ -757,6 +788,7 @@ refill_inactive_zone(struct zone *zone, 
- 			BUG();
- 		if (!TestClearPageActive(page))
- 			BUG();
-+		ClearPageSkipped(page);
- 		list_move(&page->lru, &zone->inactive_list);
- 		pgmoved++;
- 		if (!pagevec_add(&pvec, page)) {
-diff -puN include/linux/page-flags.h~skip-writepage include/linux/page-flags.h
---- bk-linux/include/linux/page-flags.h~skip-writepage	2005-04-17 17:52:49.000000000 +0400
-+++ bk-linux-nikita/include/linux/page-flags.h	2005-04-17 17:52:49.000000000 +0400
-@@ -76,6 +76,7 @@
- #define PG_reclaim		18	/* To be reclaimed asap */
- #define PG_nosave_free		19	/* Free, should not be written */
- #define PG_uncached		20	/* Page has been mapped as uncached */
-+#define PG_skipped		21	/* ->writepage() was skipped */
- 
- /*
-  * Global page accounting.  One instance per CPU.  Only unsigned longs are
-@@ -161,6 +162,12 @@ extern void __mod_page_state(unsigned of
- 		__mod_page_state(offset, (delta));				\
- 	} while (0)
- 
-+#define PageSkipped(page)	test_bit(PG_skipped, &(page)->flags)
-+#define SetPageSkipped(page)	set_bit(PG_skipped, &(page)->flags)
-+#define TestSetPageSkipped(page)	test_and_set_bit(PG_skipped, &(page)->flags)
-+#define ClearPageSkipped(page)		clear_bit(PG_skipped, &(page)->flags)
-+#define TestClearPageSkipped(page)	test_and_clear_bit(PG_skipped, &(page)->flags)
-+
- /*
-  * Manipulation of page state flags
-  */
-diff -puN mm/truncate.c~skip-writepage mm/truncate.c
---- bk-linux/mm/truncate.c~skip-writepage	2005-04-17 17:52:49.000000000 +0400
-+++ bk-linux-nikita/mm/truncate.c	2005-04-17 17:52:49.000000000 +0400
-@@ -54,6 +54,7 @@ truncate_complete_page(struct address_sp
- 	clear_page_dirty(page);
- 	ClearPageUptodate(page);
- 	ClearPageMappedToDisk(page);
-+	ClearPageSkipped(page);
- 	remove_from_page_cache(page);
- 	page_cache_release(page);	/* pagecache ref */
- }
-@@ -86,6 +87,7 @@ invalidate_complete_page(struct address_
- 	__remove_from_page_cache(page);
- 	write_unlock_irq(&mapping->tree_lock);
- 	ClearPageUptodate(page);
-+	ClearPageSkipped(page);
- 	page_cache_release(page);	/* pagecache ref */
- 	return 1;
- }
-diff -puN mm/swap.c~skip-writepage mm/swap.c
---- bk-linux/mm/swap.c~skip-writepage	2005-04-17 17:52:49.000000000 +0400
-+++ bk-linux-nikita/mm/swap.c	2005-04-17 17:52:49.000000000 +0400
-@@ -303,6 +303,7 @@ void __pagevec_lru_add(struct pagevec *p
- 		}
- 		if (TestSetPageLRU(page))
- 			BUG();
-+		ClearPageSkipped(page);
- 		add_page_to_inactive_list(zone, page);
- 	}
- 	if (zone)
+-	pgmoved = 0;
+-	while (!list_empty(&l_active)) {
+-		page = lru_to_page(&l_active);
+-		prefetchw_prev_lru_page(page, &l_active, flags);
+-		if (TestSetPageLRU(page))
+-			BUG();
+-		BUG_ON(!PageActive(page));
+-		list_move(&page->lru, &zone->active_list);
+-		pgmoved++;
+-		if (!pagevec_add(&pvec, page)) {
+-			zone->nr_active += pgmoved;
+-			pgmoved = 0;
+-			spin_unlock_irq(&zone->lru_lock);
+-			__pagevec_release(&pvec);
+-			spin_lock_irq(&zone->lru_lock);
+-		}
+-	}
++	pgmoved = spill_on_spot(zone, &l_active, &zone->active_list, &pvec);
++	zone->nr_active += pgmoved;
++ 	pgmoved = spill_on_spot(zone, &l_ignore, &scan->lru, &pvec);
+ 	zone->nr_active += pgmoved;
+ 	spin_unlock_irq(&zone->lru_lock);
+ 	pagevec_release(&pvec);
 
 _
 --
