@@ -1,9 +1,9 @@
-Date: Mon, 18 Apr 2005 08:49:12 -0400 (EDT)
+Date: Mon, 18 Apr 2005 11:12:42 -0400 (EDT)
 From: Rik van Riel <riel@redhat.com>
-Subject: Re: [PATCH]: VM 4/8 dont-rotate-active-list
-In-Reply-To: <16994.40620.892220.121182@gargle.gargle.HOWL>
-Message-ID: <Pine.LNX.4.61.0504180847350.3232@chimarrao.boston.redhat.com>
-References: <16994.40620.892220.121182@gargle.gargle.HOWL>
+Subject: Re: [PATCH]: VM 3/8 PG_skipped
+In-Reply-To: <16994.40579.617974.423522@gargle.gargle.HOWL>
+Message-ID: <Pine.LNX.4.61.0504181111390.8456@chimarrao.boston.redhat.com>
+References: <16994.40579.617974.423522@gargle.gargle.HOWL>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -14,16 +14,16 @@ List-ID: <linux-mm.kvack.org>
 
 On Sun, 17 Apr 2005, Nikita Danilov wrote:
 
-> This patch modifies refill_inactive_zone() so that it scans active_list
-> without rotating it. To achieve this, special dummy page zone->scan_page
-> is maintained for each zone. This page marks a place in the active_list
-> reached during scanning.
+> Don't call ->writepage from VM scanner when page is met for the first time
+> during scan.
 
-Doesn't this make the active list behave closer to FIFO ?
+> Reason behind this is that ->writepages() will perform more efficient 
+> writeout than ->writepage(). Skipping of page can be conditioned on 
+> zone->pressure.
 
-How does this behave when running a mix of multiple
-applications, instead of one app that's referencing
-memory in a circular pattern ?   Say, AIM7 ?
+Agreed, in order to write out blocks of pages at once from
+the pageout code, we'll need to wait with writing until the
+dirty bit has been propagated from the ptes to the pages.
 
 -- 
 "Debugging is twice as hard as writing the code in the first place.
