@@ -1,60 +1,43 @@
-Message-ID: <426470EB.4090600@sgi.com>
-Date: Mon, 18 Apr 2005 21:46:03 -0500
-From: Ray Bryant <raybry@sgi.com>
+From: Nikita Danilov <nikita@clusterfs.com>
 MIME-Version: 1.0
-Subject: Re: question on page-migration code
-References: <425AC268.4090704@engr.sgi.com>	<20050412.084143.41655902.taka@valinux.co.jp>	<1113324392.8343.53.camel@localhost> <20050413.194800.74725991.taka@valinux.co.jp>
-In-Reply-To: <20050413.194800.74725991.taka@valinux.co.jp>
-Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
+Message-ID: <16997.3467.378280.467539@gargle.gargle.HOWL>
+Date: Tue, 19 Apr 2005 17:54:19 +0400
+Subject: Re: [PATCH]: VM 4/8 dont-rotate-active-list
+In-Reply-To: <Pine.LNX.4.61.0504180847350.3232@chimarrao.boston.redhat.com>
+References: <16994.40620.892220.121182@gargle.gargle.HOWL>
+	<Pine.LNX.4.61.0504180847350.3232@chimarrao.boston.redhat.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hirokazu Takahashi <taka@valinux.co.jp>
-Cc: haveblue@us.ibm.com, raybry@engr.sgi.com, marcelo.tosatti@cyclades.com, linux-mm@kvack.org
+To: Rik van Riel <riel@redhat.com>
+Cc: linux-mm@kvack.org, Andrew Morton <AKPM@Osdl.ORG>
 List-ID: <linux-mm.kvack.org>
 
-Hirokazu et al,
+Rik van Riel writes:
+ > On Sun, 17 Apr 2005, Nikita Danilov wrote:
+ > 
+ > > This patch modifies refill_inactive_zone() so that it scans active_list
+ > > without rotating it. To achieve this, special dummy page zone->scan_page
+ > > is maintained for each zone. This page marks a place in the active_list
+ > > reached during scanning.
+ > 
+ > Doesn't this make the active list behave closer to FIFO ?
+ > 
+ > How does this behave when running a mix of multiple
+ > applications, instead of one app that's referencing
+ > memory in a circular pattern ?   Say, AIM7 ?
 
-I'm sorry, I've been kind of out of the loop here since last Wenesday
-(that's the day I left Austin to fly to Melbourne, Australia which is
-where I am now, visiting the SGI lab in Melbourne).
+Nick Piggin found that this patch improves kbuild performance:
 
-Nathan Scott (who works at SGI Melbourne) looked at the ext2/ext3
-migrate_page code and realized that basically the same implementation
-would work for xfs.  So I now have a kernel that implements that
-function for xfs and, as you predicted, the "slow down" in the 2nd
-migration that I was seeing before has gone away.  I'll add Nathan's
-patch to my manual page migration stuff in the next version (later
-this week, I hope).
+http://mail.nl.linux.org/linux-mm/2004-01/msg00111.html
 
-So I guess it doesn't matter to me at the moment whether or not
-the PG_dirty bit is set on the pages, except that I philosphically
-dislike the fact that migration changes the state of the page.
-I'm not sure it matters, but I would prefer it if this didn't
-happen.  However, I'm not adamant about this, since what I really
-want to happen is to have a functioning manual page migration
-system call.  It does seem to be a bother to have to add that
-migrate_page method to each file system, since in most cases
-the addition is going to look somewhat like it does for ext2/3.
-For xfs, Nathan did add an additional bit to make sure that
-xfs metadata pages were not considered migratable.
+That thread also contains lengthy discussion of why this patch was
+supposed to work.
 
-WRT, Marcelo's question as to who is causing the page out I/O
-to occur during migration, let me go back and verify this is
-actually what is happening.
+ > 
 
-Otherwise, is there a consensus about what to do about the
-PG_dirty bits being set on the migrated pages?  As I read
-things Marcelo says it is not worth it, but others think
-that it should be fixed?
--- 
------------------------------------------------
-Ray Bryant
-512-453-9679 (work)         512-507-7807 (cell)
-raybry@sgi.com             raybry@austin.rr.com
-The box said: "Requires Windows 98 or better",
-	 so I installed Linux.
------------------------------------------------
+Nikita.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
