@@ -1,56 +1,60 @@
-From: Nikita Danilov <nikita@clusterfs.com>
+Message-ID: <426470EB.4090600@sgi.com>
+Date: Mon, 18 Apr 2005 21:46:03 -0500
+From: Ray Bryant <raybry@sgi.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Subject: Re: question on page-migration code
+References: <425AC268.4090704@engr.sgi.com>	<20050412.084143.41655902.taka@valinux.co.jp>	<1113324392.8343.53.camel@localhost> <20050413.194800.74725991.taka@valinux.co.jp>
+In-Reply-To: <20050413.194800.74725991.taka@valinux.co.jp>
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
-Message-ID: <16996.6304.930404.72906@gargle.gargle.HOWL>
-Date: Tue, 19 Apr 2005 00:29:20 +0400
-Subject: Re: [PATCH]: VM 3/8 PG_skipped
-In-Reply-To: <1113846712.10810.111.camel@localhost>
-References: <16994.40579.617974.423522@gargle.gargle.HOWL>
-	<Pine.LNX.4.61.0504181111390.8456@chimarrao.boston.redhat.com>
-	<1113846712.10810.111.camel@localhost>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Hansen <haveblue@us.ibm.com>
-Cc: linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@osdl.org>
+To: Hirokazu Takahashi <taka@valinux.co.jp>
+Cc: haveblue@us.ibm.com, raybry@engr.sgi.com, marcelo.tosatti@cyclades.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Dave Hansen writes:
- > On Mon, 2005-04-18 at 11:12 -0400, Rik van Riel wrote:
- > > On Sun, 17 Apr 2005, Nikita Danilov wrote:
- > > 
- > > > Don't call ->writepage from VM scanner when page is met for the first time
- > > > during scan.
- > > 
- > > > Reason behind this is that ->writepages() will perform more efficient 
- > > > writeout than ->writepage(). Skipping of page can be conditioned on 
- > > > zone->pressure.
- > > 
- > > Agreed, in order to write out blocks of pages at once from
- > > the pageout code, we'll need to wait with writing until the
- > > dirty bit has been propagated from the ptes to the pages.
- > 
- > Is there a way to do this without consuming a page->flags bit?  We're
- > starting to run really low on them.
+Hirokazu et al,
 
-Cannot think of one immediately. (Not counting that last fad of using
-least significant bit of pointer to store something: page->mapping,
-page->lru.next, and page->lru.prev, plus PAGE_CACHE_SHIFT bits in the
-page->virtual :-)).
+I'm sorry, I've been kind of out of the loop here since last Wenesday
+(that's the day I left Austin to fly to Melbourne, Australia which is
+where I am now, visiting the SGI lab in Melbourne).
 
-One possible route is to move flags that are used by file systems only
-(PG_mappedtodisk, PG_error) into the per-mapping radix-tree.
+Nathan Scott (who works at SGI Melbourne) looked at the ext2/ext3
+migrate_page code and realized that basically the same implementation
+would work for xfs.  So I now have a kernel that implements that
+function for xfs and, as you predicted, the "slow down" in the 2nd
+migration that I was seeing before has gone away.  I'll add Nathan's
+patch to my manual page migration stuff in the next version (later
+this week, I hope).
 
-Also, PG_skipped only makes sense for pages on inactive list, so we can
-use some otherwise invalid combination (e.g., PageActive(pg) &&
-!PageLRU(pg)), but this will complicate code that temporarily privatizes
-pages from LRU.
+So I guess it doesn't matter to me at the moment whether or not
+the PG_dirty bit is set on the pages, except that I philosphically
+dislike the fact that migration changes the state of the page.
+I'm not sure it matters, but I would prefer it if this didn't
+happen.  However, I'm not adamant about this, since what I really
+want to happen is to have a functioning manual page migration
+system call.  It does seem to be a bother to have to add that
+migrate_page method to each file system, since in most cases
+the addition is going to look somewhat like it does for ext2/3.
+For xfs, Nathan did add an additional bit to make sure that
+xfs metadata pages were not considered migratable.
 
- > 
- > -- Dave
- > 
+WRT, Marcelo's question as to who is causing the page out I/O
+to occur during migration, let me go back and verify this is
+actually what is happening.
 
-Nikita.
+Otherwise, is there a consensus about what to do about the
+PG_dirty bits being set on the migrated pages?  As I read
+things Marcelo says it is not worth it, but others think
+that it should be fixed?
+-- 
+-----------------------------------------------
+Ray Bryant
+512-453-9679 (work)         512-507-7807 (cell)
+raybry@sgi.com             raybry@austin.rr.com
+The box said: "Requires Windows 98 or better",
+	 so I installed Linux.
+-----------------------------------------------
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
