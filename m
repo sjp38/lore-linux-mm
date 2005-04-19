@@ -1,43 +1,53 @@
-From: Nikita Danilov <nikita@clusterfs.com>
+Message-ID: <42651C8D.2080606@yahoo.com>
+Date: Tue, 19 Apr 2005 09:58:21 -0500
+From: DanD <djd3of5@yahoo.com>
+Reply-To: djd3of5@yahoo.com
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Subject: Reading zeros from mmap'ed memory while debugging
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
-Message-ID: <16997.3467.378280.467539@gargle.gargle.HOWL>
-Date: Tue, 19 Apr 2005 17:54:19 +0400
-Subject: Re: [PATCH]: VM 4/8 dont-rotate-active-list
-In-Reply-To: <Pine.LNX.4.61.0504180847350.3232@chimarrao.boston.redhat.com>
-References: <16994.40620.892220.121182@gargle.gargle.HOWL>
-	<Pine.LNX.4.61.0504180847350.3232@chimarrao.boston.redhat.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: linux-mm@kvack.org, Andrew Morton <AKPM@Osdl.ORG>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Rik van Riel writes:
- > On Sun, 17 Apr 2005, Nikita Danilov wrote:
- > 
- > > This patch modifies refill_inactive_zone() so that it scans active_list
- > > without rotating it. To achieve this, special dummy page zone->scan_page
- > > is maintained for each zone. This page marks a place in the active_list
- > > reached during scanning.
- > 
- > Doesn't this make the active list behave closer to FIFO ?
- > 
- > How does this behave when running a mix of multiple
- > applications, instead of one app that's referencing
- > memory in a circular pattern ?   Say, AIM7 ?
+Hello,
+I have encountered something that appears a little strange.
+Background:
+   - Dell desktop running Red Hat Linux 8.0, KDE desktop/gui
+   - I have an application and PCI driver (not written by me) that
+     o does first open PCI driver and mmap 16K, shared
+     o zeros 16K memory array used for second open & mmap
+     o does second open PCI driver and mmap 16K, shared & fixed
+   - Attempting to debug application using ddd and gdb
+   - Logic analyzer connected to PCI bus to trace all
+     reads and writes to PCI card
+Observation:
+   - Reads and writes to addresses from first mmap
+     o data written to mmap address goes out to PCI
+     o data reads from mmap address cause PCI read
+       to occur (with valid data), returns data
+       read from PCI to application
+   - Reads and writes to addresses from second mmap
+     o data written to mmap address goes out to PCI
+     o data reads from mmap address cause PCI read
+       to occur (with valid data), but zeros are
+       returned to the application as value read
+Questions:
+   - Is this the expected behavior?
+   - If so, why?
+   - If not, any thoughts on what is going wrong?
 
-Nick Piggin found that this patch improves kbuild performance:
-
-http://mail.nl.linux.org/linux-mm/2004-01/msg00111.html
-
-That thread also contains lengthy discussion of why this patch was
-supposed to work.
-
- > 
-
-Nikita.
+Much thanks,
+Dan
+-- 
+=============================================
+DanD
+djd3of5@yahoo.com
+Senior Engineer
+Work Experience: Windows & Linux
+"We live in an imperfect world"
+=============================================
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
