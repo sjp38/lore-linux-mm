@@ -1,54 +1,58 @@
-From: Raymond Owomida <owomida@africamail.com>
-Subject: Re: About That Investment Proposal
-Reply-To: Raymond Owomida <owomida@africamail.com>
-mime-version: 1.0
-content-type: multipart/mixed;
-	boundary="qzsoft_directmail_seperator"
-Message-Id: <20050420132709Z26540-23302+2704@kvack.org>
-Date: Wed, 20 Apr 2005 09:27:06 -0400
+Date: Wed, 20 Apr 2005 14:23:10 -0300
+From: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
+Subject: swap space address layout improvements in -mm
+Message-ID: <20050420172310.GA8871@logos.cnet>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm <linux-mm@kvack.org>
+To: akpm@osdl.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
---qzsoft_directmail_seperator
-Content-Type: text/plain;
-	charset="DEFAULT"
-Content-Transfer-Encoding: base64
+Hi Andrew,
 
-RGVhciBTaXIvTWFkYW0sCgpJIHdyaXRlIHRvIHNvbGljaXQgeW91ciBjb2xsYWJvcmF0aW9uIGlu
-IGFuIGltbWVkaWF0ZSBpbnZlc3RtZW50IG9wcG9ydHVuaXR5LCB3aGljaCB3aWxsIHJlcXVpcmVz
-IHlvdXIgY29vcGVyYXRlIG9yIHBlcnNvbmFsIHN0YXR1cyBpbiBhY2hpZXZpbmcuIFRoaXMgcHJv
-cG9zaXRpb24gd2lsbCBubyBkb3VidCBwcm92aWRlIHVzIHdpdGggYSBncmVhdCBmaW5hbmNpYWwg
-cmV3YXJkLCBpZiBvdXIgbXV0dWFsIGludGVyZXN0cyBhbmQgc2VjdXJpdHkgYXJlIHdlbGwgYWRk
-cmVzc2VkLgpJIGFtICwgUmF5bW9uZCBPd29taWRhLCB0aGUgcGVyc29uYWwgYXR0b3JuZXkgdG8g
-bGF0ZSBNci4gQWxpLCBhIE1hbGF5c2lhbiBuYXRpb25hbCB3aG8gdXNlZCB0byBiZSBhIHByaXZh
-dGUgY29udHJhY3RvciB3aXRoIG9pbCBjb21wYW5pZXMgaGVyZSBpbiBUb2dvLgoKQmFzZWQgb24g
-eW91ciBwcm9maWxlIGFzIHJlY29tbWVuZGVkLCBJIGVhcm5lc3RseSBzZWVrIHlvdXIgYXNzaXN0
-YW5jZSB0byBzZWN1cmUgYSBVUyQ5LjggTWlsbGlvbiwgV2hpY2ggbXkgbGF0ZSBjbGllbnQgZGVw
-b3NpdGVkIHdpdGggYSBzZWN1cml0eSBjb21wYW55IGJlZm9yZSBoaXMgZGVtaXNlIGJ5IGF1dG8g
-YWNjaWRlbnQuIENvaW5jaWRlbnRhbGx5LCBoZSBuZWl0aGVyIGxlZnQgbWUgYW4gaW5zdHJ1Y3Rp
-b24gb3IgYSB3aWxsIGFzIGhvdyB0byBoYW5kbGUgaGlzIGFzc2V0cy4gSGF2aW5nIGZhaWxlZCBm
-b3IgZ29vZCB0aHJlZSB5ZWFycyB0byBsb2NhdGUgYW55IG9mIGhpcyByZWxhdGl2ZXMgdGhyb3Vn
-aCBoaXMgY2xvc2UgYXNzb2NpYXRlIGFuZCBlbWJhc3N5LiBJIGFtIG5vdyBwcmVzc2VkIHRvIHNl
-ZWsgeW91ciBjb25zZW50IGluIHByZXNlbnRpbmcgeW91IGFzIHRoZSBiZW5lZmljaWFyeSBvZiB0
-aGUgVVMkOS44TWlsbGlvbiwgcHJpbWFyaWx5IHRvIHNlY3VyZSB0aGUgZnVuZCBmcm9tIGJlaW5n
-IGZvcmZlaXRlZCB0byB0aGUgR292ZXJubWVudCwgYXMgdGhlIHJlZ3VsYXRpb24gcHJldmFpbHMg
-b3ZlciBzdWNoIGZ1bmRzIGFmdGVyIHRocmVlIHllYXJzIHdpdGhvdXQgY2xhaW1zIGluIG15IGNv
-dW50cnkuCgpGb3IgeW91ciBhc3Npc3RhbmNlLCBJIHdpbGwgcHJvdmlkZSB5b3Ugd2l0aCBhIGZp
-bmFuY2lhbCByZXdhcmQgb2YgMjUlIG9mIHRoZSBVUyQ5LjggTWlsbGlvbiBvciBwbHVzIGEgcGFy
-dG5lcnNoaXAgZGVhbCBkZXBlbmRpbmcgb24gb3VyIG11dHVhbCB1bmRlcnN0YW5kaW5nLCBhcyBp
-dCBpcyBteSBpbnRlbnRpb24gdG8gaW52ZXN0IHBhcnQgb2YgdGhpcyBtb25leSBpbiB5b3VyIGNv
-dW50cnkuCiAKQXMgSSBsb29rIGZvcndhcmQgdG8gb3VyIGdhaW5mdWwgcGFydG5lcnNoaXAsIEkg
-d2lsbCB3YW50IHRvIGFzc3VyZSB5b3UgdGhhdCB5b3VyIGFzc2lzdGFuY2Ugd2lsbCBub3QgZXhw
-b3NlIHlvdSB0byBhbnkgZm9ybSBvZiByaXNrcy4gCkkgd2lsbCBhbHNvIHdhbnQgdG8gYmUgY29u
-dmluY2VkIGJhc2VkIG9uIHlvdXIgcHJvZmlsZSwgdGhhdCB5b3VyIHBlcnNvbmFsIHN0YXR1cyBh
-bmQgZmluYW5jaWFsIGNyZWRpYmlsaXR5IGlzIHdlbGwgcHJvdmVuIHRvIGFzc2ltaWxhdGUgYSBj
-YXBpdGFsIGZsaWdodCBvZiBVUyQ5LjggTUlMTElPTi4KCkkgbG9vayBmb3J3YXJkIHRvIHlvdXIg
-cmVzcG9uc2Ugb24gb3dvbWlkYV9yQHlhaG9vLmNvbSAgIApSZWdhcmRzClJheW1vbmQgT3dvbWlk
-YQoKCg==
+I have spent some time reading your swap space allocation patch.
 
---qzsoft_directmail_seperator--
++ * We divide the swapdev into 1024 kilobyte chunks.  We use the cookie and the
++ * upper bits of the index to select a chunk and the rest of the index as the
++ * offset into the selected chunk.
++ */
++#define CHUNK_SHIFT    (20 - PAGE_SHIFT)
++#define CHUNK_MASK     (-1UL << CHUNK_SHIFT)
++
++static int
++scan_swap_map(struct swap_info_struct *si, void *cookie, pgoff_t index)
++{
++       unsigned long chunk;
++       unsigned long nchunks;
++       unsigned long block;
++       unsigned long scan;
++
++       nchunks = si->max >> CHUNK_SHIFT;
++       chunk = 0;
++       if (nchunks)
++               chunk = hash_long((unsigned long)cookie + (index & CHUNK_MASK),
++                                       BITS_PER_LONG) % nchunks;
++
++       block = (chunk << CHUNK_SHIFT) + (index & ~CHUNK_MASK);
+
+>From what I can understand you're aiming at having virtually contiguous pages sequentially 
+allocated on disk.  
+
+I just dont understand how you want that to be achieved using the hash function, which is 
+quite randomic... In practice, the calculated hash values have most of its MostSignificantBit's 
+changed at each increment of 255, resulting in non sequential block values at such 
+index increments. 
+
+The first and subsequent block allocations are simply randomic, instead of being sequential.
+Hit me with your cluebat.
+ 
+>From what I know, it is interesting to allocate from (0 in direction to -> end block) 
+(roughly what sct allocation scheme does).
+
+I suspect a more advanced fs-like swap allocation scheme is wanted. 
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
