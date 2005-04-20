@@ -1,59 +1,50 @@
-Date: Wed, 20 Apr 2005 14:23:10 -0300
-From: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
-Subject: swap space address layout improvements in -mm
-Message-ID: <20050420172310.GA8871@logos.cnet>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Reply-To: "Alison Kirkland" <veoechjboymk@mol.com.cn>
+From: "Alison Kirkland" <veoechjboymk@mol.com.cn>
+Subject: Re: Your home lo an at 1.0% - 1.48%
+Date: Wed, 20 Apr 2005 22:45:02 -0100
+MIME-Version: 1.0
+Content-Type: multipart/alternative;
+	boundary="--09-20466-3457-152-08014"
+Message-Id: <20050420225411Z26590-20891+5614@kvack.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: akpm@osdl.org, linux-mm@kvack.org
+To: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Andrew,
+----09-20466-3457-152-08014
+Content-Type: text/plain;
+	charset="iso-2569-6"
+Content-Transfer-Encoding: quoted-printable
 
-I have spent some time reading your swap space allocation patch.
-
-+ * We divide the swapdev into 1024 kilobyte chunks.  We use the cookie and the
-+ * upper bits of the index to select a chunk and the rest of the index as the
-+ * offset into the selected chunk.
-+ */
-+#define CHUNK_SHIFT    (20 - PAGE_SHIFT)
-+#define CHUNK_MASK     (-1UL << CHUNK_SHIFT)
-+
-+static int
-+scan_swap_map(struct swap_info_struct *si, void *cookie, pgoff_t index)
-+{
-+       unsigned long chunk;
-+       unsigned long nchunks;
-+       unsigned long block;
-+       unsigned long scan;
-+
-+       nchunks = si->max >> CHUNK_SHIFT;
-+       chunk = 0;
-+       if (nchunks)
-+               chunk = hash_long((unsigned long)cookie + (index & CHUNK_MASK),
-+                                       BITS_PER_LONG) % nchunks;
-+
-+       block = (chunk << CHUNK_SHIFT) + (index & ~CHUNK_MASK);
-
->From what I can understand you're aiming at having virtually contiguous pages sequentially 
-allocated on disk.  
-
-I just dont understand how you want that to be achieved using the hash function, which is 
-quite randomic... In practice, the calculated hash values have most of its MostSignificantBit's 
-changed at each increment of 255, resulting in non sequential block values at such 
-index increments. 
-
-The first and subsequent block allocations are simply randomic, instead of being sequential.
-Hit me with your cluebat.
+Hi,
  
->From what I know, it is interesting to allocate from (0 in direction to -> end block) 
-(roughly what sct allocation scheme does).
+Did you recieve my email from last week?  I'm happy to tell you
+that you can get a home loan at a 1% - 1.67% rate.
+ 
+Your tracking number is # G4 033 294
+ 
+You need to confirm your details within the next 24 hours.  
+Please respond to this email address:  lowrates@fusemail.com
+ 
+Be sure to include the following:
 
-I suspect a more advanced fs-like swap allocation scheme is wanted. 
+- Full name
+- Phone #
+- Best time to reach you
+ 
+We will get back with you right away to discuss the details.
+
+Best Regards,
+
+Alison Kirkland
+Account Officer
+ 
+
+To never hear from us again
+please put "no thanks" in the subject line
 
 
+----09-20466-3457-152-08014--
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
