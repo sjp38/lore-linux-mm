@@ -1,31 +1,55 @@
-Date: Tue, 19 Apr 2005 18:38:52 -0700
-From: William Lee Irwin III <wli@holomorphy.com>
-Subject: Re: [PATCH 0/4] io_remap_pfn_range: intro.
-Message-ID: <20050420013852.GC2104@holomorphy.com>
-References: <20050318112545.6f5f7635.rddunlap@osdl.org> <20050318125617.5e57c3f8.davem@davemloft.net>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20050318125617.5e57c3f8.davem@davemloft.net>
+From: Raymond Owomida <owomida@africamail.com>
+Subject: Re: About That Investment Proposal
+Reply-To: Raymond Owomida <owomida@africamail.com>
+mime-version: 1.0
+content-type: multipart/mixed;
+	boundary="qzsoft_directmail_seperator"
+Message-Id: <20050420132709Z26540-23302+2704@kvack.org>
+Date: Wed, 20 Apr 2005 09:27:06 -0400
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "David S. Miller" <davem@davemloft.net>
-Cc: "Randy.Dunlap" <rddunlap@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@osdl.org, riel@redhat.com, kurt@garloff.de, Keir.Fraser@cl.cam.ac.uk, Ian.Pratt@cl.cam.ac.uk, Christian.Limpach@cl.cam.ac.uk
+To: linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 18 Mar 2005 11:25:45 -0800 "Randy.Dunlap" <rddunlap@osdl.org> wrote:
->> The sparc32 & sparc64 code needs live testing.
+--qzsoft_directmail_seperator
+Content-Type: text/plain;
+	charset="DEFAULT"
+Content-Transfer-Encoding: base64
 
-On Fri, Mar 18, 2005 at 12:56:17PM -0800, David S. Miller wrote:
-> These patches look great Randy.  I think they should go in.
-> If sparc explodes, I'll clean up the mess.  Any problem which
-> crops up should not be difficult to solve.
+RGVhciBTaXIvTWFkYW0sCgpJIHdyaXRlIHRvIHNvbGljaXQgeW91ciBjb2xsYWJvcmF0aW9uIGlu
+IGFuIGltbWVkaWF0ZSBpbnZlc3RtZW50IG9wcG9ydHVuaXR5LCB3aGljaCB3aWxsIHJlcXVpcmVz
+IHlvdXIgY29vcGVyYXRlIG9yIHBlcnNvbmFsIHN0YXR1cyBpbiBhY2hpZXZpbmcuIFRoaXMgcHJv
+cG9zaXRpb24gd2lsbCBubyBkb3VidCBwcm92aWRlIHVzIHdpdGggYSBncmVhdCBmaW5hbmNpYWwg
+cmV3YXJkLCBpZiBvdXIgbXV0dWFsIGludGVyZXN0cyBhbmQgc2VjdXJpdHkgYXJlIHdlbGwgYWRk
+cmVzc2VkLgpJIGFtICwgUmF5bW9uZCBPd29taWRhLCB0aGUgcGVyc29uYWwgYXR0b3JuZXkgdG8g
+bGF0ZSBNci4gQWxpLCBhIE1hbGF5c2lhbiBuYXRpb25hbCB3aG8gdXNlZCB0byBiZSBhIHByaXZh
+dGUgY29udHJhY3RvciB3aXRoIG9pbCBjb21wYW5pZXMgaGVyZSBpbiBUb2dvLgoKQmFzZWQgb24g
+eW91ciBwcm9maWxlIGFzIHJlY29tbWVuZGVkLCBJIGVhcm5lc3RseSBzZWVrIHlvdXIgYXNzaXN0
+YW5jZSB0byBzZWN1cmUgYSBVUyQ5LjggTWlsbGlvbiwgV2hpY2ggbXkgbGF0ZSBjbGllbnQgZGVw
+b3NpdGVkIHdpdGggYSBzZWN1cml0eSBjb21wYW55IGJlZm9yZSBoaXMgZGVtaXNlIGJ5IGF1dG8g
+YWNjaWRlbnQuIENvaW5jaWRlbnRhbGx5LCBoZSBuZWl0aGVyIGxlZnQgbWUgYW4gaW5zdHJ1Y3Rp
+b24gb3IgYSB3aWxsIGFzIGhvdyB0byBoYW5kbGUgaGlzIGFzc2V0cy4gSGF2aW5nIGZhaWxlZCBm
+b3IgZ29vZCB0aHJlZSB5ZWFycyB0byBsb2NhdGUgYW55IG9mIGhpcyByZWxhdGl2ZXMgdGhyb3Vn
+aCBoaXMgY2xvc2UgYXNzb2NpYXRlIGFuZCBlbWJhc3N5LiBJIGFtIG5vdyBwcmVzc2VkIHRvIHNl
+ZWsgeW91ciBjb25zZW50IGluIHByZXNlbnRpbmcgeW91IGFzIHRoZSBiZW5lZmljaWFyeSBvZiB0
+aGUgVVMkOS44TWlsbGlvbiwgcHJpbWFyaWx5IHRvIHNlY3VyZSB0aGUgZnVuZCBmcm9tIGJlaW5n
+IGZvcmZlaXRlZCB0byB0aGUgR292ZXJubWVudCwgYXMgdGhlIHJlZ3VsYXRpb24gcHJldmFpbHMg
+b3ZlciBzdWNoIGZ1bmRzIGFmdGVyIHRocmVlIHllYXJzIHdpdGhvdXQgY2xhaW1zIGluIG15IGNv
+dW50cnkuCgpGb3IgeW91ciBhc3Npc3RhbmNlLCBJIHdpbGwgcHJvdmlkZSB5b3Ugd2l0aCBhIGZp
+bmFuY2lhbCByZXdhcmQgb2YgMjUlIG9mIHRoZSBVUyQ5LjggTWlsbGlvbiBvciBwbHVzIGEgcGFy
+dG5lcnNoaXAgZGVhbCBkZXBlbmRpbmcgb24gb3VyIG11dHVhbCB1bmRlcnN0YW5kaW5nLCBhcyBp
+dCBpcyBteSBpbnRlbnRpb24gdG8gaW52ZXN0IHBhcnQgb2YgdGhpcyBtb25leSBpbiB5b3VyIGNv
+dW50cnkuCiAKQXMgSSBsb29rIGZvcndhcmQgdG8gb3VyIGdhaW5mdWwgcGFydG5lcnNoaXAsIEkg
+d2lsbCB3YW50IHRvIGFzc3VyZSB5b3UgdGhhdCB5b3VyIGFzc2lzdGFuY2Ugd2lsbCBub3QgZXhw
+b3NlIHlvdSB0byBhbnkgZm9ybSBvZiByaXNrcy4gCkkgd2lsbCBhbHNvIHdhbnQgdG8gYmUgY29u
+dmluY2VkIGJhc2VkIG9uIHlvdXIgcHJvZmlsZSwgdGhhdCB5b3VyIHBlcnNvbmFsIHN0YXR1cyBh
+bmQgZmluYW5jaWFsIGNyZWRpYmlsaXR5IGlzIHdlbGwgcHJvdmVuIHRvIGFzc2ltaWxhdGUgYSBj
+YXBpdGFsIGZsaWdodCBvZiBVUyQ5LjggTUlMTElPTi4KCkkgbG9vayBmb3J3YXJkIHRvIHlvdXIg
+cmVzcG9uc2Ugb24gb3dvbWlkYV9yQHlhaG9vLmNvbSAgIApSZWdhcmRzClJheW1vbmQgT3dvbWlk
+YQoKCg==
 
-Thanks for covering for me. My understanding of this area of the code
-is very limited, so your help is much appreciated here.
+--qzsoft_directmail_seperator--
 
-
--- wli
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
