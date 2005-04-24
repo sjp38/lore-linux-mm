@@ -1,25 +1,36 @@
-Date: Sun, 24 Apr 2005 09:42:59 +0200
-From: Arjan van de Ven <arjanv@redhat.com>
-Subject: Re: Fw: [Bug 4520] New: /proc/*/maps fragments too quickly compared to 2.4
-Message-ID: <20050424074259.GA6005@devserv.devel.redhat.com>
-References: <20050423211819.3ec82cc7.akpm@osdl.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20050423211819.3ec82cc7.akpm@osdl.org>
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: Ingo Molnar <mingo@elte.hu>, linux-mm@kvack.org, wwc@rentec.com
+Date: Sun, 24 Apr 2005 23:03:22 +0200
+From: "Tyler Simms" <mishael@mailAccount.com>
+Message-Id: <CFE3.AA79.9A21-003077698B8C@mac.com>
+Subject: Rates fixed wont last long
+Return-Path: <mishael@mailAccount.com>
+To: inux-aio@kvack.org
+Cc: inux-mm@kvack.org, jordomo@kvack.org, kernel@kvack.org, lah@kvack.org, linux-aio@kvack.org, linux-mm@kvack.org, linux-mm-archive@kvack.orgm@kvack.org, mailer-daemon@kvack.orgmm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, Apr 23, 2005 at 09:18:19PM -0700, Andrew Morton wrote:
 
-Ingo, do you have time to look? I have "family duty" today and am travelling
-the next few days; the earliest I can look is thursday realistically.
+Hello,
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"aart@kvack.org"> aart@kvack.org </a>
+ We tried contacting you awhile ago about your low interest morta(ge rate.
+
+ You have qualified for the lowest rate in years...
+
+ You could get over $380,000 for as little as $500 a month!
+
+ Ba(d credit? Doesn't matter, low rates are fixed no matter what!
+
+ 
+ To get a free, no obli,gation consultation click below:
+
+ http://www.n1c3.com/sign.asp
+
+
+
+ Best Regards,
+
+ Earnestine Gilliam
+ 
+ to be remov(ed:	http://www.n1c3.com/gone.asp
+
+ this process takes one week, so please be patient. we do our 
+ best to take your email/s off but you have to fill out a rem/ove
+ or else you will continue to recieve email/s.
