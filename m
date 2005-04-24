@@ -1,123 +1,112 @@
-Date: Sat, 23 Apr 2005 14:55:04 -0400 (EDT)
-From: Rik van Riel <riel@redhat.com>
-Subject: Re: [RFC] non-resident page management
-In-Reply-To: <Pine.LNX.4.61.0504231310160.26710@chimarrao.boston.redhat.com>
-Message-ID: <Pine.LNX.4.61.0504231453210.26710@chimarrao.boston.redhat.com>
-References: <1114255557.10805.2.camel@localhost>
- <Pine.LNX.4.61.0504231310160.26710@chimarrao.boston.redhat.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Sat, 23 Apr 2005 21:18:19 -0700
+From: Andrew Morton <akpm@osdl.org>
+Subject: Fw: [Bug 4520] New: /proc/*/maps fragments too quickly compared to
+ 2.4
+Message-Id: <20050423211819.3ec82cc7.akpm@osdl.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org
+To: Ingo Molnar <mingo@elte.hu>, Arjan van de Ven <arjanv@redhat.com>
+Cc: linux-mm@kvack.org, wwc@rentec.com
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 23 Apr 2005, Rik van Riel wrote:
+Guys, Wolfgang has found what appears to be a serious mmap fragmentation
+problem with the mm_struct.free_area_cache.
 
-> The next part of my cunning plan is to get rid of the object
-> generation number,
 
-Here's the change, incremental to the previous patch.  This should
-simplify things for the caller and work with both the swap cache
-and filesystem backed inodes - assuming filesystems are smart about
-recycling inode numbers, otherwise I may need to use another field
-too ...
+Begin forwarded message:
 
-Signed-off-by: Rik van Riel <riel@redhat.com>
+Date: Tue, 19 Apr 2005 11:55:44 -0700
+From: bugme-daemon@osdl.org
+To: akpm@digeo.com
+Subject: [Bug 4520] New: /proc/*/maps fragments too quickly compared to 2.4
 
---- linux-2.6.11/include/linux/nonresident.h.nr2	2005-04-23 14:10:00.000000000 -0400
-+++ linux-2.6.11/include/linux/nonresident.h	2005-04-23 14:10:18.000000000 -0400
-@@ -7,6 +7,6 @@
-  * Keeps track of whether a non-resident page was recently evicted
-  * and should be immediately promoted to the active list.
-  */
--extern int recently_evicted(void *, unsigned long, unsigned long);
--extern int remember_page(void *, unsigned long, unsigned long);
-+extern int recently_evicted(void *, unsigned long);
-+extern int remember_page(void *, unsigned long);
- void init_nonresident(unsigned long);
---- linux-2.6.11/mm/nonresident.c.nr2	2005-04-23 14:10:07.000000000 -0400
-+++ linux-2.6.11/mm/nonresident.c	2005-04-23 14:52:31.000000000 -0400
-@@ -26,14 +26,6 @@
- 
- static unsigned long nr_buckets;
- 
--/*
-- * We fold the object generation number into the offset field, since
-- * that one has the most "free" bits on a 32 bit system.
-- */
--#define NR_GEN_SHIFT		(BITS_PER_LONG * 7 / 8)
--#define NR_OFFSET_MASK		((1 << NR_GEN_SHIFT) - 1)
--#define make_nr_oag(x,y)	(((x) & NR_OFFSET_MASK) + ((y) << NR_GEN_SHIFT))
--
- struct nr_page {
- 	void * mapping;
- 	unsigned long offset_and_gen;
-@@ -51,19 +43,31 @@ struct nr_bucket
- /* The non-resident page hash table. */
- static struct nr_bucket * nr_hashtable;
- 
--struct nr_bucket * nr_hash(void * mapping, unsigned long offset_and_gen)
-+struct nr_bucket * nr_hash(void * mapping, unsigned long offset)
- {
- 	unsigned long bucket;
- 	unsigned long hash;
- 
--	hash = 17;
--	hash = 37 * hash + hash_ptr_mul(mapping);
--	hash = 37 * hash + hash_long_mul(offset_and_gen);
-+	hash = hash_ptr_mul(mapping);
-+	hash = 37 * hash + hash_long_mul(offset);
- 	bucket = hash % nr_buckets;
- 
- 	return nr_hashtable + bucket;
- }
- 
-+static unsigned long nr_cookie(struct address_space * mapping, unsigned long offset)
-+{
-+	unsigned long cookie = offset;
-+
-+	if (mapping->host) {
-+		cookie = hash_mul_long(offset);
-+		cookie = 37 * cookie + hash_ptr_mul(mapping->host->i_ino);
-+		cookie = 37 * cookie + hash_ptr_mul(mapping->host->i_sb);
-+	}
-+
-+	return cookie;
-+}
-+
- static int nr_same(struct nr_page * first, struct nr_page * second)
- {
- 	/* Chances are this nr_page belongs to a different mapping ... */
-@@ -77,10 +81,10 @@ static int nr_same(struct nr_page * firs
- 	return 0;
- }
- 
--int recently_evicted(void * mapping, unsigned long offset, unsigned long gen)
-+int recently_evicted(struct address_space * mapping, unsigned long offset)
- {
--	unsigned long offset_and_gen = make_nr_oag(offset, gen);
--	struct nr_bucket * nr_bucket = nr_hash(mapping, offset_and_gen);
-+	unsigned long offset_and_gen = nr_cookie(mapping, offset);
-+	struct nr_bucket * nr_bucket = nr_hash(mapping, offset);
- 	struct nr_page wanted;
- 	int state = -1;
- 	int i;
-@@ -102,10 +106,10 @@ int recently_evicted(void * mapping, uns
- 	return state;
- }
- 
--int remember_page(void * mapping, unsigned long offset, unsigned long gen)
-+int remember_page(struct address_space * mapping, unsigned long offset)
- {
--	unsigned long offset_and_gen = make_nr_oag(offset, gen);
--	struct nr_bucket * nr_bucket = nr_hash(mapping, offset_and_gen);
-+	unsigned long offset_and_gen = nr_cookie(mapping, offset);
-+	struct nr_bucket * nr_bucket = nr_hash(mapping, offset);
- 	struct nr_page * victim;
- 	int recycled = 0;
- 	int i;
+
+http://bugme.osdl.org/show_bug.cgi?id=4520
+
+           Summary: /proc/*/maps fragments too quickly compared to 2.4
+    Kernel Version: 2.6.11.4
+            Status: NEW
+          Severity: normal
+             Owner: akpm@digeo.com
+         Submitter: wwc@rentec.com
+
+
+Distribution: Suse 9.2
+Hardware Environment: Dual AMD64 / 8GB memory
+Software Environment: 64 bit kernel 2.6.11.2 or .4 running 32 bit application
+Problem Description: 
+The appended c program, compiled in 32 bit mode, runs on our 2.6.11.4 (64bit
+kernel) out of memory after a short while. 
+
+Once this happens the programs copies /proc/self/maps to stdout which is large
+and very fragmented.  
+
+The same program runs 'forever' and after that ;-) /proc/self/maps only 
+contains a few entries of very large mmapped regions.
+
+Steps to reproduce:
+Compile the program below in 32 bit mode, run on 2.4 and 2.6 kernels.
+
+
+#include <stdio.h>
+#include <string.h>
+#include <unistd.h>
+#include <sys/mman.h>
+
+#define numMaps   600
+#define largeArea 9500000
+#define forEver   1000000
+#define oneMeg    0x100000
+
+void
+aLLocator()
+{
+
+  char* bvec[numMaps];
+  unsigned int i;
+  memset( bvec,0,sizeof(bvec));
+	 
+  for(  i = 0; i < forEver ; ++i ) {
+    unsigned oidx;
+    unsigned kidx;
+    int len;
+    /* munmap old entries */
+    oidx = (i+numMaps/10) % numMaps;
+    len = (oidx & 7) ? ((oidx&7)* oneMeg) : largeArea; /* map size */
+    if( bvec[oidx] ) { munmap( bvec[oidx], len ); bvec[oidx] = 0; }
+
+    /* mmap new ones */
+    kidx = i % numMaps;
+    len = (kidx & 7) ? ((kidx&7)* oneMeg) : largeArea; /* map size */
+    bvec[kidx] = (char*)(mmap(0, len, PROT_READ|PROT_WRITE,
+			      MAP_PRIVATE|MAP_ANONYMOUS, -1, 0));
+
+    if( bvec[kidx] == (char*)(-1) ) {
+      printf("Failed after %d rounds\n", i);
+      break;
+    }
+  }
+}
+
+int main() {
+  FILE *f;
+  int c;
+
+  aLLocator();
+
+  f = fopen( "/proc/self/maps", "r" );
+  while( (c = fgetc(f)) != EOF )
+    putchar(c);
+  fclose(f);
+  
+  return 0;
+}
+
+------- You are receiving this mail because: -------
+You are the assignee for the bug, or are watching the assignee.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
