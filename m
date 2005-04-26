@@ -1,9 +1,9 @@
-Date: Mon, 25 Apr 2005 20:37:39 -0700
+Date: Mon, 25 Apr 2005 20:43:27 -0700
 From: Andrew Morton <akpm@osdl.org>
-Subject: Re: [PATCH]: VM 2/8 rmap.c cleanup
-Message-Id: <20050425203739.5f653204.akpm@osdl.org>
-In-Reply-To: <16994.40538.327768.911229@gargle.gargle.HOWL>
-References: <16994.40538.327768.911229@gargle.gargle.HOWL>
+Subject: Re: [PATCH]: VM 3/8 PG_skipped
+Message-Id: <20050425204327.4436cd77.akpm@osdl.org>
+In-Reply-To: <16994.40579.617974.423522@gargle.gargle.HOWL>
+References: <16994.40579.617974.423522@gargle.gargle.HOWL>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
@@ -15,55 +15,36 @@ List-ID: <linux-mm.kvack.org>
 
 Nikita Danilov <nikita@clusterfs.com> wrote:
 >
-> mm/rmap.c:page_referenced_one() and mm/rmap.c:try_to_unmap_one() contain
->  identical code that
+>  Don't call ->writepage from VM scanner when page is met for the first time
+>  during scan.
 > 
->   - takes mm->page_table_lock;
+>  New page flag PG_skipped is used for this. This flag is TestSet-ed just
+>  before calling ->writepage and is cleaned when page enters inactive
+>  list.
 > 
->   - drills through page tables;
+>  One can see this as "second chance" algorithm for the dirty pages on the
+>  inactive list.
 > 
->   - checks that correct pte is reached.
+>  BSD does the same: src/sys/vm/vm_pageout.c:vm_pageout_scan(),
+>  PG_WINATCFLS flag.
 > 
->  Coalesce this into page_check_address()
+>  Reason behind this is that ->writepages() will perform more efficient writeout
+>  than ->writepage(). Skipping of page can be conditioned on zone->pressure.
 > 
-> ...
->   /*
->  + * Check that @page is mapped at @address into @mm.
->  + *
->  + * On success returns with mapped pte and locked mm->page_table_lock.
->  + */
->  +static pte_t *page_check_address(struct page *page, struct mm_struct *mm,
->  +					unsigned long address)
->  +{
->  +	pgd_t *pgd;
->  +	pud_t *pud;
->  +	pmd_t *pmd;
->  +	pte_t *pte;
->  +
->  +	/*
->  +	 * We need the page_table_lock to protect us from page faults,
->  +	 * munmap, fork, etc...
->  +	 */
->  +	spin_lock(&mm->page_table_lock);
->  +	pgd = pgd_offset(mm, address);
->  +	if (likely(pgd_present(*pgd))) {
->  +		pud = pud_offset(pgd, address);
->  +		if (likely(pud_present(*pud))) {
->  +			pmd = pmd_offset(pud, address);
->  +			if (likely(pmd_present(*pmd))) {
->  +				pte = pte_offset_map(pmd, address);
->  +				if (likely(pte_present(*pte) &&
->  +					   page_to_pfn(page) == pte_pfn(*pte)))
->  +					return pte;
->  +				pte_unmap(pte);
->  +			}
->  +		}
->  +	}
->  +	spin_unlock(&mm->page_table_lock);
->  +	return ERR_PTR(-ENOENT);
->  +}
+>  On the other hand, avoiding ->writepage() increases amount of scanning
+>  performed by kswapd.
 
-Can we not simply return NULL in the failure case?
+I worry that this will cause boxes to go oom all over the place, due to the
+longer scans which are encountered prior to pages being reclaimed.
+
+We could of course increase the "oh crap, we've scanned too much"
+threshold.  We probably need to do that anyway - I shrunk it by heaps early
+in 2.5 just as a "let's see who complains" experiment.
+
+Writeout off the LRU should be a rare case.  We should have instrumentation
+for that, but we don't.
+
+My gut feel with this patch is to run away in terror, frankly.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
