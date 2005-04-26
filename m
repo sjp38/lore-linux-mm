@@ -1,69 +1,74 @@
-From: Nikita Danilov <nikita@clusterfs.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Subject: Re: [PATCH]: VM 5/8 async-writepage
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+In-Reply-To: <17006.4715.211258.938496@gargle.gargle.HOWL>
+References: <16994.40662.865338.484778@gargle.gargle.HOWL>
+	 <20050425205706.55fe9833.akpm@osdl.org>
+	 <17005.64094.860824.34597@gargle.gargle.HOWL>
+	 <20050426013632.55e958c8.akpm@osdl.org>
+	 <17006.4715.211258.938496@gargle.gargle.HOWL>
+Content-Type: text/plain
+Date: Tue, 26 Apr 2005 20:22:55 +1000
+Message-Id: <1114510975.5097.10.camel@npiggin-nld.site>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Message-ID: <17006.5587.396660.728303@gargle.gargle.HOWL>
-Date: Tue, 26 Apr 2005 14:20:03 +0400
-Subject: Re: [PATCH]: VM 6/8 page_referenced(): move dirty
-In-Reply-To: <20050426030517.0a72ee14.akpm@osdl.org>
-References: <16994.40677.105697.817303@gargle.gargle.HOWL>
-	<20050425210016.6f8a47d1.akpm@osdl.org>
-	<17006.127.376459.93584@gargle.gargle.HOWL>
-	<20050426015518.2df35139.akpm@osdl.org>
-	<17006.2975.791376.558683@gargle.gargle.HOWL>
-	<20050426030517.0a72ee14.akpm@osdl.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: linux-mm@kvack.org
+To: Nikita Danilov <nikita@clusterfs.com>
+Cc: Andrew Morton <akpm@osdl.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Andrew Morton writes:
- > Nikita Danilov <nikita@clusterfs.com> wrote:
- > >
- > > Andrew Morton writes:
- > >   > Nikita Danilov <nikita@clusterfs.com> wrote:
- > >   > >
- > >   > >   > 
- > >   > >   > I can envision workloads (such as mmap 80% of memory and continuously dirty
- > >   > >   > it) which would end up performing continuous I/O with this patch.
- > >   > > 
- > >   > >  Below is a version that tries to move dirtiness to the struct page only
- > >   > >  if we are really going to deactivate the page. In your scenario above,
- > >   > >  continuously dirty pages will be on the active list, so it should be
- > >   > >  okay.
- > >   > 
- > >   > OK, well it'll now increase the amount of I/O by a smaller amount.  Trade
- > >   > that off against possibly improved I/O patterns.  But how do we know that
- > >   > all this is a net gain?
- > > 
- > >  By looking at the (micro-) benchmarking results:
- > > 
- > >  2.6.12-rc2:
- > > 
- > >  before-patch page_referenced-move-dirty
- > > 
- > >          45.8  32.3
- > >         204.3  93.2
- > >         194.8  89.5
- > >         194.9  89.9
- > >         197.7  92.1
- > >         195.0  90.2
- > >         199.4  89.5
- > >         196.3  89.2
- > 
- > hm.  What's the reason for such a large difference?  That workload should
+On Tue, 2005-04-26 at 14:05 +0400, Nikita Danilov wrote:
+> Andrew Morton writes:
+>  > Seems a bit pointless then?
+> 
+> Err.. why? With this patch, if there is small memory shortage, and dirty
+> pages on the end of the inactive list are rare (usual case),
+> alloc_pages() will return quickly after reclaiming clean pages, allowing
+> memory consuming operation to complete faster. If there is severe memory
+> shortage (priority < KPGOUT_PRIORITY), ->writepage() calls are done
+> synchronously, so there is no risk of deadlock.
+> 
 
-Early write-out from pdflush and balance_dirty_pages()?
+It is adding a lot of state/behavioural complexity, which is
+unfortunate considering we barely manage to keep page reclaim
+doing the right thing at the best of times :(
 
- > just be doing pretty-much-linear write even if we're writing a
- > page-at-a-time off the tail of the LRU.
- > 
- > Was that box SMP?
+I agree with Andrew. kswapd provides one layer of asynchronous
+reclaim, and in the rare case of direct reclaim, ->writepage is
+usually asynchronous as well.
 
-Single P4 with HT; file system is ext3.
+We'll never be able to eliminate all stalls. And under really
+heavy memory pressure most of the stalls are probably going to
+be coming from actually waiting for a page to be cleaned and
+freed, or *reading* in the working set.
 
-Nikita.
+>  > 
+>  > Have you quantified this?
+> 
+> Yes, (copied from original message that introduced patches):
+> 
+> before after
+>   45.4  45.8
+>  214.4 204.3
+>  199.1 194.8
+>  208.3 194.9
+>  199.5 197.7
+>  206.8 195.0
+>  200.8 199.4
+>  204.7 196.3
+> 
+> In that micro-benchmark memory pressure is high, so not a lot of
+> asynchronous pageout is done. More testing will be a good thing of
+> course, isn't this what -mm is for? :)
+> 
+
+I'd rather see a real benefit *first*, even for -mm :)
+
+
+-- 
+SUSE Labs, Novell Inc.
+
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
