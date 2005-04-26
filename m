@@ -1,73 +1,65 @@
-From: Nikita Danilov <nikita@clusterfs.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Date: Tue, 26 Apr 2005 02:36:35 -0700
+From: Andrew Morton <akpm@osdl.org>
+Subject: Re: [PATCH]: VM 7/8 cluster pageout
+Message-Id: <20050426023635.37ab2c38.akpm@osdl.org>
+In-Reply-To: <17006.1794.857289.487941@gargle.gargle.HOWL>
+References: <16994.40699.267629.21475@gargle.gargle.HOWL>
+	<20050425211514.29e7c86b.akpm@osdl.org>
+	<17006.1794.857289.487941@gargle.gargle.HOWL>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Message-ID: <17006.2975.791376.558683@gargle.gargle.HOWL>
-Date: Tue, 26 Apr 2005 13:36:31 +0400
-Subject: Re: [PATCH]: VM 6/8 page_referenced(): move dirty
-In-Reply-To: <20050426015518.2df35139.akpm@osdl.org>
-References: <16994.40677.105697.817303@gargle.gargle.HOWL>
-	<20050425210016.6f8a47d1.akpm@osdl.org>
-	<17006.127.376459.93584@gargle.gargle.HOWL>
-	<20050426015518.2df35139.akpm@osdl.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
+To: Nikita Danilov <nikita@clusterfs.com>
 Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Andrew Morton writes:
- > Nikita Danilov <nikita@clusterfs.com> wrote:
- > >
- > >   > 
- > >   > I can envision workloads (such as mmap 80% of memory and continuously dirty
- > >   > it) which would end up performing continuous I/O with this patch.
- > > 
- > >  Below is a version that tries to move dirtiness to the struct page only
- > >  if we are really going to deactivate the page. In your scenario above,
- > >  continuously dirty pages will be on the active list, so it should be
- > >  okay.
- > 
- > OK, well it'll now increase the amount of I/O by a smaller amount.  Trade
- > that off against possibly improved I/O patterns.  But how do we know that
- > all this is a net gain?
+Nikita Danilov <nikita@clusterfs.com> wrote:
+>
+> Andrew Morton writes:
+>  > Nikita Danilov <nikita@clusterfs.com> wrote:
+>  > >
+>  > > Implement pageout clustering at the VM level.
+>  > 
+>  > I dunno...
+>  > 
+>  > Once __mpage_writepages() has started I/O against the pivot page, I don't
+>  > see that we have any guarantees that some other CPU cannot come in,
+>  > truncated or reclaim all the inode's pages and then reclaimed the inode
+>  > altogether.  While __mpage_writepages() is still dinking with it all.
+> 
+> Ah, silly me. Will __iget(page->mapping->host) in pageout_cluster() be
+> enough? We risk truncate on matching iput(), but VM scanner calls iput()
+> on inodes with ->i_nlink == 0 already (from shrink_dcache()).
 
-By looking at the (micro-) benchmarking results:
+I have vague memories about iput() in page reclaim causing deadlocks or
+some other nastiness.  Maybe not.
 
-2.6.12-rc2:
+ummm, generic_vm_writeback() used igrab(), to avoid races with the inode
+disappearing.  Which would seem to be an odd thing to happen if we had a
+locked page.  Maybe I used igrab because a bare atomic_inc(&inode->i_count)
+seemed grubby, and there's no API function to do it.  But I do seem to
+recall that igrab() was needed for other reasons.  It's all lost in the
+mists of time.
 
-before-patch page_referenced-move-dirty
+> Also that patch fixes what I believe is a bug in mpage_writepages(): if
+> ->writepage() returns WRITEPAGE_ACTIVATE page is still _locked_, but
+> __mpage_writepages() doesn't unlock it. Attached is documentation fix.
 
-        45.8  32.3
-       204.3  93.2
-       194.8  89.5
-       194.9  89.9
-       197.7  92.1
-       195.0  90.2
-       199.4  89.5
-       196.3  89.2
+OK.  WRITEPAGE_ACTIVATE is supposed to be a secret hack whcih filesystems
+don't use.
 
-Numbers are seconds it took to dirty 1G of mmapped file on box with
-mem=64m (first row is different, because file was just created, and
-consists of one huge hole).
+>  > 
+>  > I had something like this happening in 2.5.10(ish), but ended up deciding
+>  > it was all too complex and writeout from the LRU is rare and the pages are
+>  > probably close-by on the LRU and the elevator sorting would catch most
+>  > cases so I tossed it all out.
+> 
+> Are you talking about ->vm_writeback()?
 
-Also I have seen that this patch improves oom-resistance on a box with
-small memory, all of which is dirtied through mmap. One possible
-explanation is that blk_congestion_wait() in try_to_free_pages() doesn't
-throttle scanner enough.
+yup.
 
- > 
- > >   > 
- > >   > IOW: I'm gonna drop this one like it's made of lead!
- > > 
- > >  Let's decrease atomic number by 3.
- > 
- > Still heavy.
- > 
-
-Minus one more.
-
-Nikita.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
