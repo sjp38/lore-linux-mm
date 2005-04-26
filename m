@@ -1,36 +1,36 @@
-Message-ID: <426DE4ED.8020006@yahoo.com.au>
-Date: Tue, 26 Apr 2005 16:51:25 +1000
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-MIME-Version: 1.0
-Subject: Re: [PATCH]: VM 4/8 dont-rotate-active-list
-References: <16994.40620.892220.121182@gargle.gargle.HOWL> <20050425205141.0b756263.akpm@osdl.org>
-In-Reply-To: <20050425205141.0b756263.akpm@osdl.org>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: Nikita Danilov <nikita@clusterfs.com>, linux-mm@kvack.org
+Date: Tue, 26 Apr 2005 09:19:44 +0100
+From: "Eula Arias" <supines@doneasy.com>
+Message-Id: <CFE1.AA79.9A71supines@doneasy.com>
+Subject: Rates fixed wont last long
+Return-Path: <supines@doneasy.com>
+To: linux-mm-archive@kvack.org
+Cc: m@kvack.org, mailer-daemon@kvack.org, mm@kvack.org, mo@kvack.org, mus@kvack.org, needpcparts.com@kvack.org, ner-linux-aio@kvack.org, ner-linux-mm@kvack.orgnux-aio@kvack.orgnux-mm@kvack.orgo@kvack.org, ordomo@kvack.org, owner-linux-aio@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Andrew Morton wrote:
 
-> 
-> I'll plop this into -mm to see what happens.  That should give us decent
-> stability testing, but someone is going to have to do a ton of performance
-> testing to justify an upstream merge, please.
-> 
+Hello,
 
-I did find that it helped swapping performance, fairly
-significantly when I last tested it.
+ We tried contacting you awhile ago about your low interest morta(ge rate.
 
-Having it in -mm for a while would be good.
+ You have qualified for the lowest rate in years...
 
--- 
-SUSE Labs, Novell Inc.
+ You could get over $380,000 for as little as $500 a month!
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"aart@kvack.org"> aart@kvack.org </a>
+ Ba(d credit? Doesn't matter, low rates are fixed no matter what!
+
+ 
+ To get a free, no obli,gation consultation click below:
+
+ http://www.cr3at3.com/sign.asp
+
+
+
+ Best Regards,
+
+ Isabella Beck
+ 
+ to be remov(ed:	http://www.cr3at3.com/gone.asp
+
+ this process takes one week, so please be patient. we do our 
+ best to take your email/s off but you have to fill out a rem/ove
+ or else you will continue to recieve email/s.
