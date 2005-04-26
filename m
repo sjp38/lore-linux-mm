@@ -1,82 +1,82 @@
-Subject: Re: [PATCH]: VM 8/8 shrink_list(): set PG_reclaimed
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-In-Reply-To: <17006.5376.606064.533068@gargle.gargle.HOWL>
-References: <16994.40728.397980.431164@gargle.gargle.HOWL>
-	 <20050425212911.31cf6b43.akpm@osdl.org>
-	 <17006.5376.606064.533068@gargle.gargle.HOWL>
-Content-Type: text/plain
-Date: Tue, 26 Apr 2005 20:32:01 +1000
-Message-Id: <1114511521.5097.18.camel@npiggin-nld.site>
+Date: Tue, 26 Apr 2005 03:33:59 -0700
+From: Andrew Morton <akpm@osdl.org>
+Subject: Re: [PATCH]: VM 6/8 page_referenced(): move dirty
+Message-Id: <20050426033359.228bcd09.akpm@osdl.org>
+In-Reply-To: <17006.5587.396660.728303@gargle.gargle.HOWL>
+References: <16994.40677.105697.817303@gargle.gargle.HOWL>
+	<20050425210016.6f8a47d1.akpm@osdl.org>
+	<17006.127.376459.93584@gargle.gargle.HOWL>
+	<20050426015518.2df35139.akpm@osdl.org>
+	<17006.2975.791376.558683@gargle.gargle.HOWL>
+	<20050426030517.0a72ee14.akpm@osdl.org>
+	<17006.5587.396660.728303@gargle.gargle.HOWL>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Nikita Danilov <nikita@clusterfs.com>
-Cc: Andrew Morton <akpm@osdl.org>, linux-mm@kvack.org
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2005-04-26 at 14:16 +0400, Nikita Danilov wrote:
+Nikita Danilov <nikita@clusterfs.com> wrote:
+>
 > Andrew Morton writes:
-> 
-> [...]
-> 
+>  > Nikita Danilov <nikita@clusterfs.com> wrote:
+>  > >
+>  > > Andrew Morton writes:
+>  > >   > Nikita Danilov <nikita@clusterfs.com> wrote:
+>  > >   > >
+>  > >   > >   > 
+>  > >   > >   > I can envision workloads (such as mmap 80% of memory and continuously dirty
+>  > >   > >   > it) which would end up performing continuous I/O with this patch.
+>  > >   > > 
+>  > >   > >  Below is a version that tries to move dirtiness to the struct page only
+>  > >   > >  if we are really going to deactivate the page. In your scenario above,
+>  > >   > >  continuously dirty pages will be on the active list, so it should be
+>  > >   > >  okay.
+>  > >   > 
+>  > >   > OK, well it'll now increase the amount of I/O by a smaller amount.  Trade
+>  > >   > that off against possibly improved I/O patterns.  But how do we know that
+>  > >   > all this is a net gain?
+>  > > 
+>  > >  By looking at the (micro-) benchmarking results:
+>  > > 
+>  > >  2.6.12-rc2:
+>  > > 
+>  > >  before-patch page_referenced-move-dirty
+>  > > 
+>  > >          45.8  32.3
+>  > >         204.3  93.2
+>  > >         194.8  89.5
+>  > >         194.9  89.9
+>  > >         197.7  92.1
+>  > >         195.0  90.2
+>  > >         199.4  89.5
+>  > >         196.3  89.2
 >  > 
->  > To address the race which Nick identified I think we can do it this way?
+>  > hm.  What's the reason for such a large difference?  That workload should
 > 
-> I think that instead of fixing that race we'd better to make it valid:
-> let's redefine PG_reclaim to mean
-> 
->        "page has been seen on the tail of the inactive list, but VM
->        failed to reclaim it right away either because it was dirty, or
->        there was some race. Reclaim this page as soon as possible."
-> 
-> Nikita.
-> 
-> set PG_reclaimed bit on pages that are under writeback when shrink_list()
-> looks at them: these pages are at end of the inactive list, and it only makes
-> sense to reclaim them as soon as possible when writeout finishes.
-> 
-> Signed-off-by: Nikita Danilov <nikita@clusterfs.com>
-> 
-> 
->  mm/filemap.c    |   10 +++++----
->  mm/page_alloc.c |    3 +-
->  mm/swap.c       |   12 +----------
->  mm/vmscan.c     |   60 +++++++++++++++++++++++++++++++++++++++++---------------
->  4 files changed, 54 insertions(+), 31 deletions(-)
-> 
-> diff -puN mm/vmscan.c~SetPageReclaimed-inactive-tail mm/vmscan.c
-> --- bk-linux/mm/vmscan.c~SetPageReclaimed-inactive-tail	2005-04-22 12:09:59.000000000 +0400
-> +++ bk-linux-nikita/mm/vmscan.c	2005-04-22 12:11:31.000000000 +0400
+> Early write-out from pdflush and balance_dirty_pages()?
 
-[...]
+ah, much less dirty memory around.  Yes, it might be something to do with
+that.
 
-> diff -puN mm/page_alloc.c~SetPageReclaimed-inactive-tail mm/page_alloc.c
-> --- bk-linux/mm/page_alloc.c~SetPageReclaimed-inactive-tail	2005-04-22 12:09:59.000000000 +0400
-> +++ bk-linux-nikita/mm/page_alloc.c	2005-04-22 12:09:59.000000000 +0400
-> @@ -319,13 +319,14 @@ static inline void free_pages_check(cons
->  			1 << PG_private |
->  			1 << PG_locked	|
->  			1 << PG_active	|
-> -			1 << PG_reclaim	|
->  			1 << PG_slab	|
->  			1 << PG_swapcache |
->  			1 << PG_writeback )))
->  		bad_page(function, page);
->  	if (PageDirty(page))
->  		ClearPageDirty(page);
-> +	if (PageReclaim(page))
-> +		ClearPageReclaim(page);
->  }
->  
->  /*
+The difference is so large that we really should understand the precise
+reason rather than guessing though.  It might point at some problem in the
+lru-based page-at-a-time writeback which we can fix.
 
-A bit ugly for maybe little improvement. I agree it makes fine
-of sense in theory, but possibly not worthwhile if it doesn't
-actually help (but I'm not saying it doesn't).
+>  > just be doing pretty-much-linear write even if we're writing a
+>  > page-at-a-time off the tail of the LRU.
+>  > 
+>  > Was that box SMP?
+> 
+> Single P4 with HT; file system is ext3.
 
--- 
-SUSE Labs, Novell Inc.
+OK.  Sometimes writeback-off-the-lru goes poorly on SMP (half the speed)
+due to the two CPUs performing writeout to different parts of the disk.  Or
+something like that.  Just a simple memset(malloc(lots)) swapstorm
+demonstrates it.
 
 
 --
