@@ -1,9 +1,9 @@
-Date: Mon, 25 Apr 2005 21:15:14 -0700
+Date: Mon, 25 Apr 2005 21:29:11 -0700
 From: Andrew Morton <akpm@osdl.org>
-Subject: Re: [PATCH]: VM 7/8 cluster pageout
-Message-Id: <20050425211514.29e7c86b.akpm@osdl.org>
-In-Reply-To: <16994.40699.267629.21475@gargle.gargle.HOWL>
-References: <16994.40699.267629.21475@gargle.gargle.HOWL>
+Subject: Re: [PATCH]: VM 8/8 shrink_list(): set PG_reclaimed
+Message-Id: <20050425212911.31cf6b43.akpm@osdl.org>
+In-Reply-To: <16994.40728.397980.431164@gargle.gargle.HOWL>
+References: <16994.40728.397980.431164@gargle.gargle.HOWL>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
@@ -15,21 +15,41 @@ List-ID: <linux-mm.kvack.org>
 
 Nikita Danilov <nikita@clusterfs.com> wrote:
 >
-> Implement pageout clustering at the VM level.
+> 
+> set PG_reclaimed bit on pages that are under writeback when shrink_list()
+> looks at them: these pages are at end of the inactive list, and it only makes
+> sense to reclaim them as soon as possible when writeout finishes.
+> 
 
-I dunno...
+Makes sense, I guess.  It would be nice to know how many pages actually get
+this treatment, and under what situations.
 
-Once __mpage_writepages() has started I/O against the pivot page, I don't
-see that we have any guarantees that some other CPU cannot come in,
-truncated or reclaim all the inode's pages and then reclaimed the inode
-altogether.  While __mpage_writepages() is still dinking with it all.
+To address the race which Nick identified I think we can do it this way?
 
-I had something like this happening in 2.5.10(ish), but ended up deciding
-it was all too complex and writeout from the LRU is rare and the pages are
-probably close-by on the LRU and the elevator sorting would catch most
-cases so I tossed it all out.
+--- 25/mm/vmscan.c~mm-shrink_list-set-pg_reclaimed	2005-04-25 21:26:28.853691816 -0700
++++ 25-akpm/mm/vmscan.c	2005-04-25 21:27:28.180672744 -0700
+@@ -401,8 +401,18 @@ static int shrink_list(struct list_head 
+ 		if (page_mapped(page) || PageSwapCache(page))
+ 			sc->nr_scanned++;
+ 
+-		if (PageWriteback(page))
++		if (PageWriteback(page)) {
++			if (!PageReclaim(page)) {
++				SetPageReclaim(page);
++				if (!PageWriteback(page)) {
++					/*
++					 * oops, the writeout just completed.
++					 */
++					ClearPageReclaim(page);
++				}
++			}
+ 			goto keep_locked;
++		}
+ 
+ 		referenced = page_referenced(page, 1, sc->priority <= 0);
+ 		/* In active use or really unfreeable?  Activate it. */
+_
 
-Plus some of your other patches make LRU-based writeout even less common.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
