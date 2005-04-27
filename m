@@ -1,37 +1,45 @@
-From: Nikita Danilov <nikita@clusterfs.com>
+Subject: Re: returning non-ram via ->nopage, was Re: [patch] mspec driver for 2.6.12-rc2-mm3
+References: <16987.39773.267117.925489@jaguar.mkp.net>
+	<20050412032747.51c0c514.akpm@osdl.org>
+	<yq07jj8123j.fsf@jaguar.mkp.net>
+	<20050413204335.GA17012@infradead.org>
+	<yq08y3bys4e.fsf@jaguar.mkp.net>
+	<20050424101615.GA22393@infradead.org>
+	<yq03btftb9u.fsf@jaguar.mkp.net>
+	<20050425144749.GA10093@infradead.org>
+	<yq0ll75rxsl.fsf@jaguar.mkp.net> <426FB56B.5000006@pobox.com>
+	<20050427155526.GA25921@infradead.org>
+From: Jes Sorensen <jes@wildopensource.com>
+Date: 27 Apr 2005 14:03:50 -0400
+In-Reply-To: <20050427155526.GA25921@infradead.org>
+Message-ID: <yq0hdhsrta1.fsf@jaguar.mkp.net>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Message-ID: <17007.52609.465222.106632@gargle.gargle.HOWL>
-Date: Wed, 27 Apr 2005 21:36:01 +0400
-Subject: Re: [PATCH/RFC 0/4] VM: Manual and Automatic page cache reclaim
-In-Reply-To: <20050427150848.GR8018@localhost>
-References: <20050427150848.GR8018@localhost>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Martin Hicks <mort@sgi.com>
-Cc: Ray Bryant <raybry@sgi.com>, ak@suse.de, linux-mm@kvack.org
+To: Christoph Hellwig <hch@infradead.org>
+Cc: Jeff Garzik <jgarzik@pobox.com>, Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Martin Hicks writes:
+>>>>> "Christoph" == Christoph Hellwig <hch@infradead.org> writes:
 
-[...]
+Christoph> On Wed, Apr 27, 2005 at 11:53:15AM -0400, Jeff Garzik
+Christoph> wrote:
+>> I don't see anything wrong with a ->nopage approach.
+>> 
+>> At Linus's suggestion, I used ->nopage in the implementation of
+>> sound/oss/via82cxxx_audio.c.
 
- > 
- > The reclaim code.  It extends shrink_list() so it can be used to scan
- > the active list as well.  The core of all of this is
- > reclaim_clean_pages().  It tries to remove a specified number of pages
- > from a zone's cache.  It does this without swapping or doing writebacks.
- > The goal here is to free easily freeable pages.
+Christoph> The difference is that you return kernel memory (actually
+Christoph> pci_alloc_consistant memory that has it's own set of
+Christoph> problems), while this is memory not in mem_map, so he
+Christoph> allocates some regularly kernel memory too to have a struct
+Christoph> page and just leaks it
 
-That's probably not very relevant for the scenario you describe, but
-reclaiming free pages first looks quite similar to the behavior Linux
-had when there were separate inactive_clean and inactive_dirty queues in
-VM. Problem with that approach was that by skipping dirty pages, LRU was
-destroyed, and system shortly starts reclaiming hot read-only pages,
-ignoring cold but dirty ones.
+Are you suggesting then that we change do_no_page to handle this as a
+special return value then?
 
-Nikita.
+Jes
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
