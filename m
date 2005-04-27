@@ -1,10 +1,10 @@
-Date: Wed, 27 Apr 2005 16:33:51 -0700
+Date: Wed, 27 Apr 2005 16:35:46 -0700
 From: Andrew Morton <akpm@osdl.org>
-Subject: Re: [PATCH/RFC 3/4] VM: toss_page_cache_node syscall
-Message-Id: <20050427163351.442aca08.akpm@osdl.org>
-In-Reply-To: <20050427150952.GU8018@localhost>
+Subject: Re: [PATCH/RFC 4/4] VM: automatic reclaim through mempolicy
+Message-Id: <20050427163546.7654efc1.akpm@osdl.org>
+In-Reply-To: <20050427151010.GV8018@localhost>
 References: <20050427145734.GL8018@localhost>
-	<20050427150952.GU8018@localhost>
+	<20050427151010.GV8018@localhost>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
@@ -16,17 +16,22 @@ List-ID: <linux-mm.kvack.org>
 
 Martin Hicks <mort@sgi.com> wrote:
 >
-> This just adds a simple syscall to call into the reclaim code.
-> The use for this would be to clear all unneeded pagecache and slabcache
-> off a node before running a big HPC job.
-> 
-> A "memory freer" app can be found at:
-> http://www.bork.org/~mort/sgi/localreclaim/reclaim_memory.c
+> This implements a set of flags that modify the behavior
+> of the the mempolicies to allow reclaiming of preferred 
+> memory (as definited by the mempolicy) before spilling
+> onto remote nodes.  It also adds a new mempolicy
+> "localreclaim" which is just the default mempolicy with
+> non-zero reclaim flags.
 
-I renamed "toss" to "reclaim".  We don't want to confirm that mm developers
-are a bunch of tossers.  Please update userspace to suit?
+My attention span expired, and I'm not super-familiar with the mempolicy
+stuff anyway.
 
-ia64 unistd.h needs patching?
+> The change required adding a "flags" argument to sys_set_mempolicy()
+> to give hints about what kind of memory you're willing to sacrifice.
+
+This is a back-compatible change, so current userspace will continue to
+work OK, yes?
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
