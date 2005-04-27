@@ -1,35 +1,83 @@
-Date: Wed, 27 Apr 2005 16:50:43 -0700
-From: Andrew Morton <akpm@osdl.org>
-Subject: Re: [PATCH/RFC 4/4] VM: automatic reclaim through mempolicy
-Message-Id: <20050427165043.7ff66a19.akpm@osdl.org>
-In-Reply-To: <20050427151010.GV8018@localhost>
-References: <20050427145734.GL8018@localhost>
-	<20050427151010.GV8018@localhost>
+Received: from westrelay02.boulder.ibm.com (westrelay02.boulder.ibm.com [9.17.195.11])
+	by e34.co.us.ibm.com (8.12.10/8.12.9) with ESMTP id j3RNqEeE456700
+	for <linux-mm@kvack.org>; Wed, 27 Apr 2005 19:52:14 -0400
+Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
+	by westrelay02.boulder.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id j3RNqEtY370852
+	for <linux-mm@kvack.org>; Wed, 27 Apr 2005 17:52:14 -0600
+Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av03.boulder.ibm.com (8.12.11/8.13.3) with ESMTP id j3RNqDxx031549
+	for <linux-mm@kvack.org>; Wed, 27 Apr 2005 17:52:13 -0600
+Subject: Can this happen ?
+From: Badari Pulavarty <pbadari@us.ibm.com>
+Content-Type: text/plain
+Message-Id: <1114645113.26913.662.camel@dyn318077bld.beaverton.ibm.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Date: 27 Apr 2005 16:38:34 -0700
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Martin Hicks <mort@sgi.com>
-Cc: linux-mm@kvack.org, raybry@sgi.com, ak@suse.de
+To: linux-mm@kvack.org, linux-fsdevel <linux-fsdevel@vger.kernel.org>
+Cc: Andrew Morton <akpm@osdl.org>, skodati@in.ibm.com
 List-ID: <linux-mm.kvack.org>
 
-Martin Hicks <mort@sgi.com> wrote:
->
-> +#ifdef CONFIG_PAGE_OWNER /* huga... */
-> + 	{
-> +	unsigned long address, bp;
-> +#ifdef X86_64
-> +	asm ("movq %%rbp, %0" : "=r" (bp) : );
-> +#else
-> +        asm ("movl %%ebp, %0" : "=r" (bp) : );
-> +#endif
-> +        page->order = (int) order;
-> +        __stack_trace(page, &address, bp);
-> +	}
-> +#endif /* CONFIG_PAGE_OWNER */
+Hi Andrew,
 
-What's happening here, btw?
+We ran into a panic in drop_buffers() while running some networking
+tests and I am wondering if this a valid case. try_to_free_buffers()
+seems to call drop_buffers() even if the mapping is NULL. drop_buffers()
+seems to de-ref the mapping. This is causing NULL pointer deref.
+
+But, is "mapping == NULL" still valid case here ? Can we be in the
+code to drop buffers and have mapping NULL ? We would be in this
+code only if PagePrivate() is set. Can we have page private with
+out a valid mapping ?
+
+Thanks,
+Badari
+
+int try_to_free_buffers(struct page *page)
+{
+        struct address_space * const mapping = page->mapping;
+        ....
+                                                                                                                       
+        if (mapping == NULL) {          /* can this still happen? */
+                ret = drop_buffers(page, &buffers_to_free);
+                goto out;
+        }
+}
+
+drop_buffers(struct page *page, struct buffer_head **buffers_to_free)
+{
+        ....
+                if (buffer_write_io_error(bh))
+                        set_bit(AS_EIO, &page->mapping->flags); <<<<<<
+	...
+}
+
+1:mon> e
+cpu 0x1: Vector: 300 (Data Access) at [c00000007ff4b620]
+    pc: c0000000000bd524: .drop_buffers+0x40/0xcc
+    lr: c0000000000bd614: .try_to_free_buffers+0x64/0xf4
+    sp: c00000007ff4b8a0
+   msr: 8000000000009032
+   dar: 60
+ dsisr: 40000000
+  current = 0xc00000000fe7e040
+  paca    = 0xc0000000003da800
+    pid   = 40, comm = kswapd1
+
+1:mon> t
+[c00000007ff4b920] c0000000000bd614 .try_to_free_buffers+0x64/0xf4
+[c00000007ff4b9c0] c0000000000baadc .try_to_release_page+0x88/0x9c
+[c00000007ff4ba40] c000000000099418 .shrink_list+0x3a0/0x608
+[c00000007ff4bb90] c000000000099a04 .shrink_cache+0x384/0x610
+[c00000007ff4bcd0] c00000000009a4d4 .shrink_zone+0x104/0x140
+[c00000007ff4bd70] c00000000009aaf0 .balance_pgdat+0x270/0x448
+[c00000007ff4be90] c00000000009ade4 .kswapd+0x11c/0x120
+[c00000007ff4bf90] c000000000018ad0 .kernel_thread+0x4c/0x6c
+
+
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
