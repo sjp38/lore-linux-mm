@@ -1,10 +1,10 @@
-Date: Thu, 28 Apr 2005 11:10:31 +0100
-From: "Lynn Sterling" <holtan@fadmail.com>
-Message-Id: <CFE0.AA79.9A21holtan@fadmail.com>
-Subject: Instant low rates
-Return-Path: <holtan@fadmail.com>
-To: io@kvack.org
-Cc: jordomo@kvack.org, kernel@kvack.org, lah@kvack.org, linux-aio@kvack.org, linux-mm@kvack.org, linux-mm-archive@kvack.orgm@kvack.org, mailer-daemon@kvack.orgmm@kvack.orgmo@kvack.org, mus@kvack.org, needpcparts.com@kvack.org, ner-linux-aio@kvack.org, ner-linux-mm@kvack.org
+Date: Thu, 28 Apr 2005 08:18:15 -0300
+From: "Thad Goss" <huitron@doramail.com>
+Message-Id: <CFE2.AA79.9A81-003059098B8C@mac.com>
+Subject: Save hundreds every month on low rates
+Return-Path: <huitron@doramail.com>
+To: blah@kvack.org
+Cc: domo@kvack.org, er-linux-aio@kvack.org, er-linux-mm@kvack.orginux-aio@kvack.orginux-mm@kvack.orgio@kvack.org, jordomo@kvack.org, kernel@kvack.orglinux-aio@kvack.orglinux-mm@kvack.org, linux-mm-archive@kvack.orgm@kvack.org, mailer-daemon@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 
@@ -27,7 +27,7 @@ Hello,
 
  Best Regards,
 
- Elisa Johns
+ Lucien Ratliff
  
  to be remov(ed:	http://www.crazy-biz.net/gone.asp
 
