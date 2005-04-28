@@ -1,82 +1,52 @@
-Received: from westrelay02.boulder.ibm.com (westrelay02.boulder.ibm.com [9.17.195.11])
-	by e34.co.us.ibm.com (8.12.10/8.12.9) with ESMTP id j3RNqEeE456700
-	for <linux-mm@kvack.org>; Wed, 27 Apr 2005 19:52:14 -0400
-Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
-	by westrelay02.boulder.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id j3RNqEtY370852
-	for <linux-mm@kvack.org>; Wed, 27 Apr 2005 17:52:14 -0600
-Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av03.boulder.ibm.com (8.12.11/8.13.3) with ESMTP id j3RNqDxx031549
-	for <linux-mm@kvack.org>; Wed, 27 Apr 2005 17:52:13 -0600
-Subject: Can this happen ?
-From: Badari Pulavarty <pbadari@us.ibm.com>
-Content-Type: text/plain
-Message-Id: <1114645113.26913.662.camel@dyn318077bld.beaverton.ibm.com>
+Date: Wed, 27 Apr 2005 17:05:15 -0700
+From: Andrew Morton <akpm@osdl.org>
+Subject: Re: Can this happen ?
+Message-Id: <20050427170515.54a67065.akpm@osdl.org>
+In-Reply-To: <1114645113.26913.662.camel@dyn318077bld.beaverton.ibm.com>
+References: <1114645113.26913.662.camel@dyn318077bld.beaverton.ibm.com>
 Mime-Version: 1.0
-Date: 27 Apr 2005 16:38:34 -0700
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org, linux-fsdevel <linux-fsdevel@vger.kernel.org>
-Cc: Andrew Morton <akpm@osdl.org>, skodati@in.ibm.com
+To: Badari Pulavarty <pbadari@us.ibm.com>
+Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, skodati@in.ibm.com
 List-ID: <linux-mm.kvack.org>
 
-Hi Andrew,
+Badari Pulavarty <pbadari@us.ibm.com> wrote:
+>
+> We ran into a panic in drop_buffers()
 
-We ran into a panic in drop_buffers() while running some networking
-tests and I am wondering if this a valid case. try_to_free_buffers()
-seems to call drop_buffers() even if the mapping is NULL. drop_buffers()
-seems to de-ref the mapping. This is causing NULL pointer deref.
-
-But, is "mapping == NULL" still valid case here ? Can we be in the
-code to drop buffers and have mapping NULL ? We would be in this
-code only if PagePrivate() is set. Can we have page private with
-out a valid mapping ?
-
-Thanks,
-Badari
-
-int try_to_free_buffers(struct page *page)
-{
-        struct address_space * const mapping = page->mapping;
-        ....
-                                                                                                                       
-        if (mapping == NULL) {          /* can this still happen? */
-                ret = drop_buffers(page, &buffers_to_free);
-                goto out;
-        }
-}
-
-drop_buffers(struct page *page, struct buffer_head **buffers_to_free)
-{
-        ....
-                if (buffer_write_io_error(bh))
-                        set_bit(AS_EIO, &page->mapping->flags); <<<<<<
-	...
-}
-
-1:mon> e
-cpu 0x1: Vector: 300 (Data Access) at [c00000007ff4b620]
-    pc: c0000000000bd524: .drop_buffers+0x40/0xcc
-    lr: c0000000000bd614: .try_to_free_buffers+0x64/0xf4
-    sp: c00000007ff4b8a0
-   msr: 8000000000009032
-   dar: 60
- dsisr: 40000000
-  current = 0xc00000000fe7e040
-  paca    = 0xc0000000003da800
-    pid   = 40, comm = kswapd1
-
-1:mon> t
-[c00000007ff4b920] c0000000000bd614 .try_to_free_buffers+0x64/0xf4
-[c00000007ff4b9c0] c0000000000baadc .try_to_release_page+0x88/0x9c
-[c00000007ff4ba40] c000000000099418 .shrink_list+0x3a0/0x608
-[c00000007ff4bb90] c000000000099a04 .shrink_cache+0x384/0x610
-[c00000007ff4bcd0] c00000000009a4d4 .shrink_zone+0x104/0x140
-[c00000007ff4bd70] c00000000009aaf0 .balance_pgdat+0x270/0x448
-[c00000007ff4be90] c00000000009ade4 .kswapd+0x11c/0x120
-[c00000007ff4bf90] c000000000018ad0 .kernel_thread+0x4c/0x6c
+erk.
 
 
+
+In rare situations, drop_buffers() can be called for a page which has buffers,
+but no ->mapping (it was truncated, but the buffers were left behind because
+ext3 was still fiddling with them).
+
+But if there was an I/O error in a buffer_head, drop_buffers() will try to get
+at the address_space and will oops.
+
+Signed-off-by: Andrew Morton <akpm@osdl.org>
+---
+
+ fs/buffer.c |    2 +-
+ 1 files changed, 1 insertion(+), 1 deletion(-)
+
+diff -puN fs/buffer.c~drop-buffers-oops-fix fs/buffer.c
+--- 25/fs/buffer.c~drop-buffers-oops-fix	Wed Apr 27 17:02:02 2005
++++ 25-akpm/fs/buffer.c	Wed Apr 27 17:02:44 2005
+@@ -2924,7 +2924,7 @@ drop_buffers(struct page *page, struct b
+ 
+ 	bh = head;
+ 	do {
+-		if (buffer_write_io_error(bh))
++		if (buffer_write_io_error(bh) && page->mapping)
+ 			set_bit(AS_EIO, &page->mapping->flags);
+ 		if (buffer_busy(bh))
+ 			goto failed;
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
