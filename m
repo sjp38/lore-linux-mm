@@ -1,34 +1,40 @@
-Date: Thu, 28 Apr 2005 07:56:07 -0400 (EDT)
-From: Rik van Riel <riel@redhat.com>
-Subject: Re: [PATCH/RFC 0/4] VM: Manual and Automatic page cache reclaim
-In-Reply-To: <20050427233335.492d0b6f.akpm@osdl.org>
-Message-ID: <Pine.LNX.4.61.0504280755170.32328@chimarrao.boston.redhat.com>
-References: <20050427150848.GR8018@localhost> <20050427233335.492d0b6f.akpm@osdl.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from server1.altavista.com  (mail.altavista.com  [66.218.71.198])
+	by fep2.fastermail.com (Postfix) with ESMTP id A025C9374
+	for <linux-mm@kvack.org>; Thu, 28 Apr 2005 16:00:27 +0300 (EDT)
+Received: from nobody by fastermail.com with local (Exim 4.32)
+	id 1C1rjW-4434oD-My
+	for <linux-mm@kvack.org>; Thu, 28 Apr 2005 12:05:27 -0100
+Subject: Client Newsletter
+From: "Paul Lara" <PaulLara_Management@fastermail.com>
+Message-ID: <675218210975.7eb1e0597064@fastermail.com>
+Content-Type: text/plain; charset="ISO-8859-1"
+Date: Thu, 28 Apr 2005 15:01:27 +0200
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: Martin Hicks <mort@sgi.com>, linux-mm@kvack.org, raybry@sgi.com, ak@suse.de
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 27 Apr 2005, Andrew Morton wrote:
+We tried to contact you earlier about flnanclng your home at a lower rate.
+I would like to let you know that we have gone ahead and started 
+the preapproval process,
 
-> Is it not possible to change the page allocator's zone fallback mechanism
-> so that once the local node's zones' pages are all allocated, we don't
-> simply advance onto the next node?  Instead, could we not perform a bit of
-> reclaim on this node's zones first?  Only advance onto the next nodes if
-> things aren't working out?
+Here are the results:
 
-IMHO that's the best idea.  The patches posted add new
-mechanisms to the VM and have the potential to disturb
-LRU ordering quite a bit - which could make the VM
-worse under load.
+*Account ID: [205-Linux-mm-197]
+*Negotiable Amount: $96,943 to $247, 315
+*Rate: 3.11% - 5.75%
 
--- 
-"Debugging is twice as hard as writing the code in the first place.
-Therefore, if you write the code as cleverly as possible, you are,
-by definition, not smart enough to debug it." - Brian W. Kernighan
+For more information or to have a broker contact you please visit:
+http://nigbose.1ndeed.com/formupdate.asp
+
+Best Regards,
+
+Paul Lara,
+Account Manager
+
+
+No future contact:
+http://gsehangover.1ndeed.com/deletion.asp
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
