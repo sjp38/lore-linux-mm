@@ -1,55 +1,39 @@
-Subject: Re: [PATCH] drop_buffers() shouldn't de-ref page->mapping if its NULL
-References: <1114645113.26913.662.camel@dyn318077bld.beaverton.ibm.com>
-	<1114646015.26913.668.camel@dyn318077bld.beaverton.ibm.com>
-From: OGAWA Hirofumi <hirofumi@mail.parknet.co.jp>
-Date: Thu, 28 Apr 2005 12:46:33 +0900
-In-Reply-To: <1114646015.26913.668.camel@dyn318077bld.beaverton.ibm.com> (Badari Pulavarty's message of "27 Apr 2005 16:53:38 -0700")
-Message-ID: <87k6mn5zs6.fsf@devron.myhome.or.jp>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Date: Wed, 27 Apr 2005 23:33:35 -0700
+From: Andrew Morton <akpm@osdl.org>
+Subject: Re: [PATCH/RFC 0/4] VM: Manual and Automatic page cache reclaim
+Message-Id: <20050427233335.492d0b6f.akpm@osdl.org>
+In-Reply-To: <20050427150848.GR8018@localhost>
+References: <20050427150848.GR8018@localhost>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Badari Pulavarty <pbadari@us.ibm.com>
-Cc: linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Andrew Morton <akpm@osdl.org>, skodati@in.ibm.com
+To: Martin Hicks <mort@sgi.com>
+Cc: linux-mm@kvack.org, raybry@sgi.com, ak@suse.de
 List-ID: <linux-mm.kvack.org>
 
-Badari Pulavarty <pbadari@us.ibm.com> writes:
-
-> Hi,
+Martin Hicks <mort@sgi.com> wrote:
 >
-> I answered my own question. It looks like we could have pages
-> with buffers without page->mapping. In such cases, we shouldn't
-> de-ref page->mapping in drop_buffers(). Here is the trivial
-> patch to fix it.
->
-> Thanks,
-> Badari
+> The patches introduce two different ways to free up page cache from a
+>  node: manually through a syscall and automatically through flag
+>  modifiers to a mempolicy.
 
-[...]
+Backing up and thinking about this a bit more....
 
->
-> Signed-off-by: Badari Pulavarty <pbadari@us.ibm.com>
-> --- linux-2.6.12-rc2.org/fs/buffer.c	2005-04-27 07:19:44.000000000 -0700
-> +++ linux-2.6.12-rc2/fs/buffer.c	2005-04-27 07:20:34.000000000 -0700
-> @@ -2917,7 +2917,7 @@ drop_buffers(struct page *page, struct b
->  
->  	bh = head;
->  	do {
-> -		if (buffer_write_io_error(bh))
-> +		if (buffer_write_io_error(bh) && page->mapping)
->  			set_bit(AS_EIO, &page->mapping->flags);
->  		if (buffer_busy(bh))
->  			goto failed;
+>  Currently if a job is started and there is page cache lying around on a
+>  particular node then allocations will spill onto remote nodes and page
+>  cache won't be reclaimed until the whole system is short on memory.
+>  This can result in a signficiant performance hit for HPC applications
+>  that planned on that memory being allocated locally.
 
-On my experience, this happened the bh leak case only.
+Why do it this way at all?
 
-If you are not sure whether this is valid state or not, I worry this
-patch hides real bug.  How about adding the warning, not just remove
-de-ref?
-
-Thanks.
--- 
-OGAWA Hirofumi <hirofumi@mail.parknet.co.jp>
+Is it not possible to change the page allocator's zone fallback mechanism
+so that once the local node's zones' pages are all allocated, we don't
+simply advance onto the next node?  Instead, could we not perform a bit of
+reclaim on this node's zones first?  Only advance onto the next nodes if
+things aren't working out?
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
