@@ -1,51 +1,34 @@
-Message-ID: <4270C606.8040000@yahoo.com.au>
-Date: Thu, 28 Apr 2005 21:16:22 +1000
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-MIME-Version: 1.0
+Date: Thu, 28 Apr 2005 07:56:07 -0400 (EDT)
+From: Rik van Riel <riel@redhat.com>
 Subject: Re: [PATCH/RFC 0/4] VM: Manual and Automatic page cache reclaim
-References: <20050427150848.GR8018@localhost> <20050427233335.492d0b6f.akpm@osdl.org>
 In-Reply-To: <20050427233335.492d0b6f.akpm@osdl.org>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+Message-ID: <Pine.LNX.4.61.0504280755170.32328@chimarrao.boston.redhat.com>
+References: <20050427150848.GR8018@localhost> <20050427233335.492d0b6f.akpm@osdl.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@osdl.org>
 Cc: Martin Hicks <mort@sgi.com>, linux-mm@kvack.org, raybry@sgi.com, ak@suse.de
 List-ID: <linux-mm.kvack.org>
 
-Andrew Morton wrote:
-> Martin Hicks <mort@sgi.com> wrote:
-> 
->>The patches introduce two different ways to free up page cache from a
->> node: manually through a syscall and automatically through flag
->> modifiers to a mempolicy.
-> 
-> 
-> Backing up and thinking about this a bit more....
-> 
-> 
->> Currently if a job is started and there is page cache lying around on a
->> particular node then allocations will spill onto remote nodes and page
->> cache won't be reclaimed until the whole system is short on memory.
->> This can result in a signficiant performance hit for HPC applications
->> that planned on that memory being allocated locally.
-> 
-> 
-> Why do it this way at all?
-> 
+On Wed, 27 Apr 2005, Andrew Morton wrote:
+
 > Is it not possible to change the page allocator's zone fallback mechanism
 > so that once the local node's zones' pages are all allocated, we don't
 > simply advance onto the next node?  Instead, could we not perform a bit of
 > reclaim on this node's zones first?  Only advance onto the next nodes if
 > things aren't working out?
 
-Yeah. I got a patch that does this. It is quite possible - you have
-to make some balance so you don't go to shit on workloads that have
-a working set larger than a single node's memory, but...
+IMHO that's the best idea.  The patches posted add new
+mechanisms to the VM and have the potential to disturb
+LRU ordering quite a bit - which could make the VM
+worse under load.
 
 -- 
-SUSE Labs, Novell Inc.
-
+"Debugging is twice as hard as writing the code in the first place.
+Therefore, if you write the code as cleverly as possible, you are,
+by definition, not smart enough to debug it." - Brian W. Kernighan
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
