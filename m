@@ -1,35 +1,52 @@
-Date: Sat, 30 Apr 2005 03:46:25 +0500
-From: "Forest Rhodes" <imago@fadmail.com>
-Subject: High rates? Not with us! low fixed rate
-Message-ID: <117941.1690.imago@fadmail.com>
-Return-Path: <imago@fadmail.com>
-To: kernel@kvack.org
-Cc: lah@kvack.org, linux-aio@kvack.org, linux-mm@kvack.org, linux-mm-archive@kvack.orgm@kvack.org, mailer-daemon@kvack.orgmm@kvack.org
+Date: Fri, 29 Apr 2005 16:06:59 -0700 (PDT)
+From: Christoph Lameter <clameter@engr.sgi.com>
+Subject: Re: [PATCH 3/3] Page Fault Scalability V20: Avoid lock for anonymous
+ write fault
+In-Reply-To: <20050429210240.GA14774@infradead.org>
+Message-ID: <Pine.LNX.4.58.0504291600500.16690@schroedinger.engr.sgi.com>
+References: <20050429195901.15694.28520.sendpatchset@schroedinger.engr.sgi.com>
+ <20050429195917.15694.21053.sendpatchset@schroedinger.engr.sgi.com>
+ <20050429210240.GA14774@infradead.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: Christoph Hellwig <hch@infradead.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-ia64@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Hello,
+On Fri, 29 Apr 2005, Christoph Hellwig wrote:
 
- We tried contacting you awhile ago about your low interest morta(ge rate.
+> On Fri, Apr 29, 2005 at 12:59:17PM -0700, Christoph Lameter wrote:
+> > Do not use the page_table_lock in do_anonymous_page. This will significantly
+> > increase the parallelism in the page fault handler for SMP systems. The patch
+> > also modifies the definitions of _mm_counter functions so that rss and anon_rss
+> > become atomic (and will use atomic64_t if available).
+>
+> I thought we said all architectures should provide an atomic64_t (and
+> given that it's not actually 64bit on 32bit architecture we should
+> probably rename it to atomic_long_t)
 
- You have qualified for the lowest rate in years...
+Yes the way atomic types are provided may need a revision.
+First of all we need atomic types that are size bound
 
- You could get over $380,000 for as little as $500 a month!
+	atomic8_t
+	atomic16_t
+	atomic32_t
 
- Ba(d credit? Doesn't matter, low rates are fixed no matter what!
+and (if available)
 
- 
- To get a free, no obli,gation consultation click below:
+	atomic64_t
 
- http://www.h0us1ng.com/sign.asp
+and then some aliases
 
+	atomic_t -> atomic type for int
+	atomic_long_t -> atomic type for long
 
-
- Best Regards,
-
- Cherie Britton
- 
- to be remov(ed:	http://www.h0us1ng.com/gone.asp
-
- this process takes one week, so please be patient. we do our 
- best to take your email/s off but you have to fill out a rem/ove
- or else you will continue to recieve email/s.
+If these types are available then this patch could be cleaned up to
+just use atomic_long_t.
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"aart@kvack.org"> aart@kvack.org </a>
