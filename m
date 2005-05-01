@@ -1,63 +1,20 @@
-From: "George Tumulak" <business_george@walla.com>
-Subject: Tried and Tested Genuine Opportunity!
-Mime-Version: 1.0
-Content-Type: text/plain; charset="ISO-8859-1"
-Date: Sun, 1 May 2005 19:21:07 +0800
-Reply-To: "George Tumulak" <business_george@walla.com>
-Content-Transfer-Encoding: 8bit
-Message-Id: <20050501112046Z26517-20891+6033@kvack.org>
+From: "VerdesTrigos.Org" <vt@verdestrigos.org>
+Subject: VerdesTrigos.Org fomenta o =?ISO-8859-1?Q?h=E1bito?= da leitura
+Date: Sun, 1 May 2005 11:57:40 -0300
+Reply-To: contato@verdestrigos.org
+Content-Type: text/plain; charset="iso-8859-1"
+Message-Id: <20050501145733Z26536-23302+3096@kvack.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hello,
+VerdesTrigos.ORG e inspirado em Vincent Van Googh, especialmente na obra ?The Green Wheat Fields?. A ONG cultural e literaria nasceu em 1998 na cidade de Presidente Prudente, SP; seu criador e editor e o pensador e escritor Henrique Chagas. VerdesTrigos.ORG publica semanalmente ensaios, artigos, criticas, resenhas, entrevistas, cronicas, contos e poemas de jornalistas, pesquisadores, professores e escritores novos e consagrados. Entre os colunistas e colaboradores: Agnaldo Farias, Airo Zamoner, Efraim Rodrigues, Miguel Sanches Neto, Ronaldo Cagiano, Gabriel Perisse, Rubens Shirassu Jr., Chico Lopes e Jose Aloise Bahia. Mais informacoes pelo site http://www.verdestrigos.org
 
-I've found a very rewarding career -- built on a part-time basis, 
-and I thought you might be interested. 
+Conheca Verdes Trigos: http://www.verdestrigos.org
 
-Our system is AUTOMATED so you don't have to worry about personal 
-rejection. And, when you do find someone who's really serious 
-aboutimproving their finances, our automated system presents your 
-businessopportunity to them, one step at a time. 
+remover: http://www.verdestrigos.org/sys/
 
-People that have read this same email just 1-2 months ago, are 
-now making the kind of income they knew they were worth! If you 
-have 10-15 hours a week, you can do this too.
-
-What would you do, and whom would you spend your time with when 
-you're earning the kind of profits you'd like?
-
-If you're interested to get a FREE tour please send an email to
-
-			biz_explore2005@walla.com  
-	 
-with the subject  "Let Me Evaluate Your Program".
-	
-Also include the following in the body of the email.
-
-	1.) FirstName 
-	2.) LastName 
-	3.) Country
-	
-I will then send you an email that contains the FREE tour link. 
-
-The FREE tour has NO COST, NO OBLIGATION, NO COMMITMENT.
-In case you feel that it is not for you,  you can unsubscribe 
-anytime. 
-
-Hope to receive an email from you sooner.
-
-
-Best Regards,
-George Tumulak
-
-===================================================================
-
-If you wish to no longer receive emails from me,just send an email to 
-business_george@walla.com with the subject"REMOVE ME" 
-
-==================================================================== 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
