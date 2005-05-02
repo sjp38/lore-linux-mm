@@ -1,42 +1,61 @@
-Date: Mon, 2 May 2005 01:51:27 -0400 (EDT)
-From: Rik van Riel <riel@redhat.com>
-Subject: Re: [PATCH]: VM 7/8 cluster pageout
-In-Reply-To: <20050502041257.GL2104@holomorphy.com>
-Message-ID: <Pine.LNX.4.61.0505020148470.1371@chimarrao.boston.redhat.com>
-References: <16994.40699.267629.21475@gargle.gargle.HOWL>
- <20050425211514.29e7c86b.akpm@osdl.org> <20050502041257.GL2104@holomorphy.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Mon, 02 May 2005 18:03:55 +0900 (JST)
+Message-Id: <20050502.180355.38710526.taka@valinux.co.jp>
+Subject: Re: [PATCH]: VM 3/8 PG_skipped
+From: Hirokazu Takahashi <taka@valinux.co.jp>
+In-Reply-To: <20050425204327.4436cd77.akpm@osdl.org>
+References: <16994.40579.617974.423522@gargle.gargle.HOWL>
+	<20050425204327.4436cd77.akpm@osdl.org>
+Mime-Version: 1.0
+Content-Type: Text/Plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: William Lee Irwin III <wli@holomorphy.com>
-Cc: Andrew Morton <akpm@osdl.org>, Nikita Danilov <nikita@clusterfs.com>, linux-mm@kvack.org
+To: akpm@osdl.org
+Cc: nikita@clusterfs.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 1 May 2005, William Lee Irwin III wrote:
+Hi,
 
-> I would be careful in dismissing the case as "rare"; what I've
-> discovered in this kind of performance scenario is that the rare case
-> happens to someone, who is willing to tolerate poor performance and
-> understands they're not the common case, but discovers pathological
-> performance instead and cries out for help (unfortunately, this is all
-> subjective). I'd be glad to see some bulletproofing of the VM against
-> this case go into mainline, not to specifically recommend this approach
-> against any other.
+> >  Don't call ->writepage from VM scanner when page is met for the first time
+> >  during scan.
+> > 
+> >  New page flag PG_skipped is used for this. This flag is TestSet-ed just
+> >  before calling ->writepage and is cleaned when page enters inactive
+> >  list.
+> > 
+> >  One can see this as "second chance" algorithm for the dirty pages on the
+> >  inactive list.
+> > 
+> >  BSD does the same: src/sys/vm/vm_pageout.c:vm_pageout_scan(),
+> >  PG_WINATCFLS flag.
+> > 
+> >  Reason behind this is that ->writepages() will perform more efficient writeout
+> >  than ->writepage(). Skipping of page can be conditioned on zone->pressure.
+> > 
+> >  On the other hand, avoiding ->writepage() increases amount of scanning
+> >  performed by kswapd.
+> 
+> I worry that this will cause boxes to go oom all over the place, due to the
+> longer scans which are encountered prior to pages being reclaimed.
+> 
+> We could of course increase the "oh crap, we've scanned too much"
+> threshold.  We probably need to do that anyway - I shrunk it by heaps early
+> in 2.5 just as a "let's see who complains" experiment.
+> 
+> Writeout off the LRU should be a rare case.  We should have instrumentation
+> for that, but we don't.
 
-Agreed.  The VM is all about preventing these "corner cases",
-because there will always be users who run into them the whole
-time - from bootup till shutdown - and we can't degenerate to
-pathological performance for somebody's main workload ;)
+IMHO, I don't think it's always true.
+Would you please consider mmap'ed pages, which may not be written out
+by pdflush. It might leave many unexpected dirty pages to the swapcode.
 
-Of course, if there isn't an actual workload that's being
-improved by some patch we should avoid the complexity, but
-if a patch helps enough to outweigh its complexity ...
+I feel it would be better to let pdflush do this things, though.
 
--- 
-"Debugging is twice as hard as writing the code in the first place.
-Therefore, if you write the code as cleverly as possible, you are,
-by definition, not smart enough to debug it." - Brian W. Kernighan
+> My gut feel with this patch is to run away in terror, frankly.
+
+
+Thanks,
+Hirokazu Takahashi.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
