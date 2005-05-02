@@ -1,77 +1,111 @@
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e2.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id j42Iif3Q016580
-	for <linux-mm@kvack.org>; Mon, 2 May 2005 14:44:41 -0400
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay02.pok.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id j42IifNn091338
-	for <linux-mm@kvack.org>; Mon, 2 May 2005 14:44:41 -0400
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.12.11/8.13.3) with ESMTP id j42Iifer009357
-	for <linux-mm@kvack.org>; Mon, 2 May 2005 14:44:41 -0400
-Message-ID: <42767516.4020101@us.ibm.com>
-Date: Mon, 02 May 2005 11:44:38 -0700
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by e35.co.us.ibm.com (8.12.10/8.12.9) with ESMTP id j42JdIT9519868
+	for <linux-mm@kvack.org>; Mon, 2 May 2005 15:39:18 -0400
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d03relay04.boulder.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id j42JdD5K151658
+	for <linux-mm@kvack.org>; Mon, 2 May 2005 13:39:18 -0600
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.12.11/8.13.3) with ESMTP id j42JdDS6027411
+	for <linux-mm@kvack.org>; Mon, 2 May 2005 13:39:13 -0600
+Message-ID: <427681DF.4000208@us.ibm.com>
+Date: Mon, 02 May 2005 12:39:11 -0700
 From: Matthew Dobson <colpatch@us.ibm.com>
 MIME-Version: 1.0
 Subject: Re: [PATCH] Remove struct reclaim_state
-References: <42718AA1.5010805@us.ibm.com> <20050429175108.242c410e.akpm@osdl.org>
-In-Reply-To: <20050429175108.242c410e.akpm@osdl.org>
+References: <42718AA1.5010805@us.ibm.com> <20050429175108.242c410e.akpm@osdl.org> <42767516.4020101@us.ibm.com>
+In-Reply-To: <42767516.4020101@us.ibm.com>
 Content-Type: multipart/mixed;
- boundary="------------030807070009000504000802"
+ boundary="------------000204030404010807020101"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, mbligh@aracnet.com
+To: Matthew Dobson <colpatch@us.ibm.com>
+Cc: Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mbligh@aracnet.com
 List-ID: <linux-mm.kvack.org>
 
 This is a multi-part message in MIME format.
---------------030807070009000504000802
+--------------000204030404010807020101
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 
-Andrew Morton wrote:
-> Matthew Dobson <colpatch@us.ibm.com> wrote:
+Matthew Dobson wrote:
+> Andrew Morton wrote:
 > 
->>Since shrink_slab() currently returns 0 no matter what happens,
->> I changed it to return the number of slab pages freed.
+>>Matthew Dobson <colpatch@us.ibm.com> wrote:
+>>
+>>
+>>>Since shrink_slab() currently returns 0 no matter what happens,
+>>>I changed it to return the number of slab pages freed.
+>>
+>>
+>>A sane cleanup, but it conflicts with vmscan-notice-slab-shrinking.patch,
+>>which returns a different thing from shrink_slab() in order to account for
+>>slab reclaim only causing internal fragmentation and not actually freeing
+>>pages yet.
+>>
+>>vmscan-notice-slab-shrinking.patch isn't quite complete yet, but we do need
+>>to do something along these lines.  I need to get back onto it.
 > 
 > 
-> A sane cleanup, but it conflicts with vmscan-notice-slab-shrinking.patch,
-> which returns a different thing from shrink_slab() in order to account for
-> slab reclaim only causing internal fragmentation and not actually freeing
-> pages yet.
+> I hadn't seen that patch...  These can coexist fairly easily, though.  I
+> can change my patch to zero and then read current->reclaimed_slab *outside*
+> the call to shrink_slab.  It unfortunately shrinks less lines of code, and
+> leaves the hack that is current->reclaimed_slab exposed to more than one
+> function, but...
 > 
-> vmscan-notice-slab-shrinking.patch isn't quite complete yet, but we do need
-> to do something along these lines.  I need to get back onto it.
+> How's this look?
+> 
+> mcd@arrakis:~/linux/patches $ diffstat remove-reclaim_state.patch
+>  include/linux/sched.h |    3 +--
+>  include/linux/swap.h  |    8 --------
+>  mm/page_alloc.c       |    6 ------
+>  mm/slab.c             |    3 +--
+>  mm/vmscan.c           |   21 ++++-----------------
+>  5 files changed, 6 insertions(+), 35 deletions(-)
+> 
+> -Matt
 
-I hadn't seen that patch...  These can coexist fairly easily, though.  I
-can change my patch to zero and then read current->reclaimed_slab *outside*
-the call to shrink_slab.  It unfortunately shrinks less lines of code, and
-leaves the hack that is current->reclaimed_slab exposed to more than one
-function, but...
+Ok.  Now I'm getting REALLY crazy.  I noticed that try_to_free_pages() &
+balance_pgdat() (the two callers of shrink_slab()) do something really
+dumb: they set sc.nr_scanned to 0, call shrink_slab() with sc.nr_scanned as
+a pass-by-value parameter, then do total_scanned += sc.nr_scanned, despite
+knowing damn well that sc.nr_scanned = 0, since _they just set it to that_.
+ I doubt we really want to be constantly incrementing total_scanned by 0.
+We either don't want to update it, or we want to update it by the value
+scanned gets in shrink_slab().
 
-How's this look?
+So, you're probably asking yourself, what is the point of all this
+rambling?  What if we change shrink_slab() to take a struct scan_control *
+instead of an unsigned long for it's first argument?  Then we can
+_actually_ update nr_scanned AND nr_reclaimed directly inside of
+shrink_slab() instead of trying to pass all this data back to the two
+partially brain-dead callers.
+
+Updated to 2.6.12-rc3-mm2, which includes
+vmscan-notice-slab-shrinking.patch.  Look at all those -'s!! :)
 
 mcd@arrakis:~/linux/patches $ diffstat remove-reclaim_state.patch
- include/linux/sched.h |    3 +--
+include/linux/sched.h |    3 +--
  include/linux/swap.h  |    8 --------
  mm/page_alloc.c       |    6 ------
- mm/slab.c             |    3 +--
- mm/vmscan.c           |   21 ++++-----------------
- 5 files changed, 6 insertions(+), 35 deletions(-)
+ mm/slab.c             |    4 ++--
+ mm/vmscan.c           |   36 ++++++++++++------------------------
+ 5 files changed, 15 insertions(+), 42 deletions(-)
+
+Running it through a build & boot test now.  I'll let you know if it barfs.
 
 -Matt
 
-
---------------030807070009000504000802
+--------------000204030404010807020101
 Content-Type: text/x-patch;
  name="remove-reclaim_state.patch"
 Content-Transfer-Encoding: 7bit
 Content-Disposition: inline;
  filename="remove-reclaim_state.patch"
 
-diff -Nurp --exclude-from=/home/mcd/.dontdiff linux-2.6.12-rc3/include/linux/sched.h linux-2.6.12-rc3+remove-reclaim_state/include/linux/sched.h
---- linux-2.6.12-rc3/include/linux/sched.h	2005-04-27 10:59:19.000000000 -0700
-+++ linux-2.6.12-rc3+remove-reclaim_state/include/linux/sched.h	2005-04-28 17:30:09.000000000 -0700
-@@ -425,7 +425,6 @@ extern struct user_struct root_user;
+diff -Nurp --exclude-from=/home/mcd/.dontdiff linux-2.6.12-rc3-mm2/include/linux/sched.h linux-2.6.12-rc3-mm2+remove-reclaim_state/include/linux/sched.h
+--- linux-2.6.12-rc3-mm2/include/linux/sched.h	2005-05-02 12:16:13.820665112 -0700
++++ linux-2.6.12-rc3-mm2+remove-reclaim_state/include/linux/sched.h	2005-05-02 12:17:24.095981640 -0700
+@@ -451,7 +451,6 @@ extern struct user_struct root_user;
  
  typedef struct prio_array prio_array_t;
  struct backing_dev_info;
@@ -79,18 +113,18 @@ diff -Nurp --exclude-from=/home/mcd/.dontdiff linux-2.6.12-rc3/include/linux/sch
  
  #ifdef CONFIG_SCHEDSTATS
  struct sched_info {
-@@ -705,7 +704,7 @@ struct task_struct {
+@@ -751,7 +750,7 @@ struct task_struct {
  	void *journal_info;
  
  /* VM state */
 -	struct reclaim_state *reclaim_state;
-+	unsigned long reclaimed_slab;
++	unsigned long *reclaimed_slab;
  
  	struct dentry *proc_dentry;
  	struct backing_dev_info *backing_dev_info;
-diff -Nurp --exclude-from=/home/mcd/.dontdiff linux-2.6.12-rc3/include/linux/swap.h linux-2.6.12-rc3+remove-reclaim_state/include/linux/swap.h
---- linux-2.6.12-rc3/include/linux/swap.h	2005-04-27 10:59:18.000000000 -0700
-+++ linux-2.6.12-rc3+remove-reclaim_state/include/linux/swap.h	2005-04-27 15:54:49.000000000 -0700
+diff -Nurp --exclude-from=/home/mcd/.dontdiff linux-2.6.12-rc3-mm2/include/linux/swap.h linux-2.6.12-rc3-mm2+remove-reclaim_state/include/linux/swap.h
+--- linux-2.6.12-rc3-mm2/include/linux/swap.h	2005-05-02 12:16:13.891654320 -0700
++++ linux-2.6.12-rc3-mm2+remove-reclaim_state/include/linux/swap.h	2005-05-02 12:17:24.117978296 -0700
 @@ -65,14 +65,6 @@ typedef struct {
  	unsigned long val;
  } swp_entry_t;
@@ -106,10 +140,10 @@ diff -Nurp --exclude-from=/home/mcd/.dontdiff linux-2.6.12-rc3/include/linux/swa
  #ifdef __KERNEL__
  
  struct address_space;
-diff -Nurp --exclude-from=/home/mcd/.dontdiff linux-2.6.12-rc3/mm/page_alloc.c linux-2.6.12-rc3+remove-reclaim_state/mm/page_alloc.c
---- linux-2.6.12-rc3/mm/page_alloc.c	2005-04-27 11:00:00.000000000 -0700
-+++ linux-2.6.12-rc3+remove-reclaim_state/mm/page_alloc.c	2005-04-27 17:08:33.000000000 -0700
-@@ -732,7 +732,6 @@ __alloc_pages(unsigned int __nocast gfp_
+diff -Nurp --exclude-from=/home/mcd/.dontdiff linux-2.6.12-rc3-mm2/mm/page_alloc.c linux-2.6.12-rc3-mm2+remove-reclaim_state/mm/page_alloc.c
+--- linux-2.6.12-rc3-mm2/mm/page_alloc.c	2005-05-02 12:16:14.696531960 -0700
++++ linux-2.6.12-rc3-mm2+remove-reclaim_state/mm/page_alloc.c	2005-05-02 12:17:24.141974648 -0700
+@@ -768,7 +768,6 @@ __alloc_pages(unsigned int __nocast gfp_
  	const int wait = gfp_mask & __GFP_WAIT;
  	struct zone **zones, *z;
  	struct page *page;
@@ -117,7 +151,7 @@ diff -Nurp --exclude-from=/home/mcd/.dontdiff linux-2.6.12-rc3/mm/page_alloc.c l
  	struct task_struct *p = current;
  	int i;
  	int classzone_idx;
-@@ -820,12 +819,7 @@ rebalance:
+@@ -860,12 +859,7 @@ rebalance:
  
  	/* We now go into synchronous reclaim */
  	p->flags |= PF_MEMALLOC;
@@ -130,23 +164,65 @@ diff -Nurp --exclude-from=/home/mcd/.dontdiff linux-2.6.12-rc3/mm/page_alloc.c l
  	p->flags &= ~PF_MEMALLOC;
  
  	cond_resched();
-diff -Nurp --exclude-from=/home/mcd/.dontdiff linux-2.6.12-rc3/mm/slab.c linux-2.6.12-rc3+remove-reclaim_state/mm/slab.c
---- linux-2.6.12-rc3/mm/slab.c	2005-04-27 11:00:00.000000000 -0700
-+++ linux-2.6.12-rc3+remove-reclaim_state/mm/slab.c	2005-04-28 17:30:25.000000000 -0700
-@@ -937,8 +937,7 @@ static void kmem_freepages(kmem_cache_t 
+diff -Nurp --exclude-from=/home/mcd/.dontdiff linux-2.6.12-rc3-mm2/mm/slab.c linux-2.6.12-rc3-mm2+remove-reclaim_state/mm/slab.c
+--- linux-2.6.12-rc3-mm2/mm/slab.c	2005-05-02 12:16:14.766521320 -0700
++++ linux-2.6.12-rc3-mm2+remove-reclaim_state/mm/slab.c	2005-05-02 12:17:24.165971000 -0700
+@@ -942,8 +942,8 @@ static void kmem_freepages(kmem_cache_t 
  		page++;
  	}
  	sub_page_state(nr_slab, nr_freed);
 -	if (current->reclaim_state)
 -		current->reclaim_state->reclaimed_slab += nr_freed;
-+	current->reclaimed_slab += nr_freed;
++	if (current->reclaimed_slab)
++		*current->reclaimed_slab += nr_freed;
  	free_pages((unsigned long)addr, cachep->gfporder);
  	if (cachep->flags & SLAB_RECLAIM_ACCOUNT) 
  		atomic_sub(1<<cachep->gfporder, &slab_reclaim_pages);
-diff -Nurp --exclude-from=/home/mcd/.dontdiff linux-2.6.12-rc3/mm/vmscan.c linux-2.6.12-rc3+remove-reclaim_state/mm/vmscan.c
---- linux-2.6.12-rc3/mm/vmscan.c	2005-04-27 11:00:00.000000000 -0700
-+++ linux-2.6.12-rc3+remove-reclaim_state/mm/vmscan.c	2005-05-02 11:37:28.852114056 -0700
-@@ -913,7 +913,6 @@ int try_to_free_pages(struct zone **zone
+diff -Nurp --exclude-from=/home/mcd/.dontdiff linux-2.6.12-rc3-mm2/mm/vmscan.c linux-2.6.12-rc3-mm2+remove-reclaim_state/mm/vmscan.c
+--- linux-2.6.12-rc3-mm2/mm/vmscan.c	2005-05-02 12:16:14.796516760 -0700
++++ linux-2.6.12-rc3-mm2+remove-reclaim_state/mm/vmscan.c	2005-05-02 12:26:14.313376344 -0700
+@@ -190,23 +190,28 @@ EXPORT_SYMBOL(remove_shrinker);
+  *
+  * Returns the number of slab objects which we shrunk.
+  */
+-static int shrink_slab(unsigned long scanned, unsigned int gfp_mask,
++static int shrink_slab(struct scan_control *sc, unsigned int gfp_mask,
+ 			unsigned long lru_pages)
+ {
+ 	struct shrinker *shrinker;
+ 	int ret = 0;
+ 
+-	if (scanned == 0)
+-		scanned = SWAP_CLUSTER_MAX;
++	if (sc->nr_scanned == 0)
++		sc->nr_scanned = SWAP_CLUSTER_MAX;
+ 
+ 	if (!down_read_trylock(&shrinker_rwsem))
+ 		return 1;	/* Assume we'll be able to shrink next time */
+ 
++	/*
++	 * Each shrinker will now increment sc->nr_reclaimed by the number
++	 * of pages it frees.
++	 */
++	current->reclaimed_slab = &sc->nr_reclaimed;
+ 	list_for_each_entry(shrinker, &shrinker_list, list) {
+ 		unsigned long long delta;
+ 		unsigned long total_scan;
+ 
+-		delta = (4 * scanned) / shrinker->seeks;
++		delta = (4 * sc->nr_scanned) / shrinker->seeks;
+ 		delta *= (*shrinker->shrinker)(0, gfp_mask);
+ 		do_div(delta, lru_pages + 1);
+ 		shrinker->nr += delta;
+@@ -235,6 +240,7 @@ static int shrink_slab(unsigned long sca
+ 
+ 		shrinker->nr += total_scan;
+ 	}
++	current->reclaimed_slab = NULL;
+ 	up_read(&shrinker_rwsem);
+ 	return ret;
+ }
+@@ -969,7 +975,6 @@ int try_to_free_pages(struct zone **zone
  	int priority;
  	int ret = 0;
  	int total_scanned = 0, total_reclaimed = 0;
@@ -154,21 +230,20 @@ diff -Nurp --exclude-from=/home/mcd/.dontdiff linux-2.6.12-rc3/mm/vmscan.c linux
  	struct scan_control sc;
  	unsigned long lru_pages = 0;
  	int i;
-@@ -940,11 +939,9 @@ int try_to_free_pages(struct zone **zone
+@@ -998,11 +1003,7 @@ int try_to_free_pages(struct zone **zone
  		sc.priority = priority;
  		sc.swap_cluster_max = SWAP_CLUSTER_MAX;
  		shrink_caches(zones, &sc);
-+		current->reclaimed_slab = 0;
- 		shrink_slab(sc.nr_scanned, gfp_mask, lru_pages);
+-		shrink_slab(sc.nr_scanned, gfp_mask, lru_pages);
 -		if (reclaim_state) {
 -			sc.nr_reclaimed += reclaim_state->reclaimed_slab;
 -			reclaim_state->reclaimed_slab = 0;
 -		}
-+		sc.nr_reclaimed += current->reclaimed_slab;
++		shrink_slab(&sc, gfp_mask, lru_pages);
  		total_scanned += sc.nr_scanned;
  		total_reclaimed += sc.nr_reclaimed;
  		if (total_reclaimed >= sc.swap_cluster_max) {
-@@ -1012,7 +1009,6 @@ static int balance_pgdat(pg_data_t *pgda
+@@ -1070,7 +1071,6 @@ static int balance_pgdat(pg_data_t *pgda
  	int priority;
  	int i;
  	int total_scanned, total_reclaimed;
@@ -176,19 +251,19 @@ diff -Nurp --exclude-from=/home/mcd/.dontdiff linux-2.6.12-rc3/mm/vmscan.c linux
  	struct scan_control sc;
  
  loop_again:
-@@ -1099,9 +1095,9 @@ scan:
+@@ -1161,10 +1161,7 @@ scan:
  			sc.priority = priority;
  			sc.swap_cluster_max = nr_pages? nr_pages : SWAP_CLUSTER_MAX;
  			shrink_zone(zone, &sc);
 -			reclaim_state->reclaimed_slab = 0;
-+			current->reclaimed_slab = 0;
- 			shrink_slab(sc.nr_scanned, GFP_KERNEL, lru_pages);
+-			nr_slab = shrink_slab(sc.nr_scanned, GFP_KERNEL,
+-						lru_pages);
 -			sc.nr_reclaimed += reclaim_state->reclaimed_slab;
-+			sc.nr_reclaimed += current->reclaimed_slab;
++			nr_slab = shrink_slab(&sc, GFP_KERNEL, lru_pages);
  			total_reclaimed += sc.nr_reclaimed;
  			total_scanned += sc.nr_scanned;
- 			if (zone->all_unreclaimable)
-@@ -1171,16 +1167,12 @@ static int kswapd(void *p)
+ 			if (zone->unreclaimable == ALL_UNRECLAIMABLE)
+@@ -1234,16 +1231,12 @@ static int kswapd(void *p)
  	pg_data_t *pgdat = (pg_data_t*)p;
  	struct task_struct *tsk = current;
  	DEFINE_WAIT(wait);
@@ -205,7 +280,7 @@ diff -Nurp --exclude-from=/home/mcd/.dontdiff linux-2.6.12-rc3/mm/vmscan.c linux
  
  	/*
  	 * Tell the memory management that we're a "memory allocator",
-@@ -1254,11 +1246,7 @@ int shrink_all_memory(int nr_pages)
+@@ -1317,11 +1310,7 @@ int shrink_all_memory(int nr_pages)
  	pg_data_t *pgdat;
  	int nr_to_free = nr_pages;
  	int ret = 0;
@@ -217,7 +292,7 @@ diff -Nurp --exclude-from=/home/mcd/.dontdiff linux-2.6.12-rc3/mm/vmscan.c linux
  	for_each_pgdat(pgdat) {
  		int freed;
  		freed = balance_pgdat(pgdat, nr_to_free, 0);
-@@ -1267,7 +1255,6 @@ int shrink_all_memory(int nr_pages)
+@@ -1330,7 +1319,6 @@ int shrink_all_memory(int nr_pages)
  		if (nr_to_free <= 0)
  			break;
  	}
@@ -226,7 +301,7 @@ diff -Nurp --exclude-from=/home/mcd/.dontdiff linux-2.6.12-rc3/mm/vmscan.c linux
  }
  #endif
 
---------------030807070009000504000802--
+--------------000204030404010807020101--
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
