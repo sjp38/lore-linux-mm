@@ -1,74 +1,44 @@
-Date: Tue, 3 May 2005 01:08:46 -0700
-From: Andrew Morton <akpm@osdl.org>
-Subject: Re: [PATCH/RFC 0/4] VM: Manual and Automatic page cache reclaim
-Message-Id: <20050503010846.508bbe62.akpm@osdl.org>
-In-Reply-To: <4277259C.6000207@engr.sgi.com>
-References: <20050427150848.GR8018@localhost>
-	<20050427233335.492d0b6f.akpm@osdl.org>
-	<4277259C.6000207@engr.sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Date: Tue, 3 May 2005 09:16:11 -0400 (EDT)
+From: Rik van Riel <riel@redhat.com>
+Subject: Re: [RFC] how do we move the VM forward? (was Re: [RFC] cleanup of
+ use-once)
+In-Reply-To: <42771904.7020404@yahoo.com.au>
+Message-ID: <Pine.LNX.4.61.0505030913480.27756@chimarrao.boston.redhat.com>
+References: <Pine.LNX.4.61.0505030037100.27756@chimarrao.boston.redhat.com>
+ <42771904.7020404@yahoo.com.au>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; CHARSET=US-ASCII; FORMAT=flowed
+Content-ID: <Pine.LNX.4.61.0505030913482.27756@chimarrao.boston.redhat.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ray Bryant <raybry@engr.sgi.com>
-Cc: mort@sgi.com, linux-mm@kvack.org, raybry@sgi.com, ak@suse.de
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Ray Bryant <raybry@engr.sgi.com> wrote:
->
-> ...
-> One of the common responses to changes in the VM system for optimizations
-> of this type is that we instead should devote our efforts to improving
-> the VM system algorithms and that we are taking an "easy way out" by
-> putting a hack into the VM system.
+On Tue, 3 May 2005, Nick Piggin wrote:
 
-There's that plus the question which forever lurks around funky SGI patches:
+> I think the biggest problem with our twine and duct tape page reclaim
+> scheme is that somehow *works* (for some value of works).
 
-	How many machines in the world want this feature?
+> I think we branch a new tree for all interested VM developers to work
+> on and try to get performing well. Probably try to restrict it to page
+> reclaim and related fundamentals so it stays as small as possible and
+> worth testing.
 
-Because if the answer is "twelve" then gee it becomes hard to justify
-merging things into the mainline kernel.  Particularly when they add
-complexity to page reclaim.
+Sounds great.  I'd be willing to maintain a quilt tree for
+this - in fact, I've already got a few patches ;)
 
->  Fundamentally, the VM system cannot
-> predict the future behavior of the application in order to correctly
-> make this tradeoff.
+Also, we should probably keep track of exactly what we're
+working towards.  I've put my ideas on a wiki page, feel
+free to add yours - probably a new page for stuff that's
+not page replacement related ;)
 
-Yup.  But we could add a knob to each zone which says, during page
-allocation "be more reluctant to advance onto the next node - do some
-direct reclaim instead"
+http://wiki.linux-mm.org/wiki/AdvancedPageReplacement
 
-And the good thing about that is that it is an easier merge because it's a
-simpler patch and because it's useful to more machines.  People can tune it
-and get better (or worse) performance from existing apps on NUMA.
-
-Yes, if it's a "simple" patch then it _might_ do a bit of swapout or
-something.  But the VM does prefer to reclaim clean pagecache first (as
-well as slab, which is a bonus for this approach).
-
-Worth trying, at least?
-
-> 
-> Why isn't POSIX_FADV_DONTNEED good enough here?
-> ----------------------------------------------
-
-I was going to ask that.
-
-> We've tried that too.  If the application is sufficiently aware of what
-> files it has opened, it could schedule those page cache pages to be
-> released.  Unfortunately, this doesn't handle the case of the last
-> application that ran and wrote out a bunch of data before it terminated,
-> nor does it deal very well with shell scripts that stage data onto and
-> off of the compute node as part the job's workflow.
-
-Ah.  But to do this we need to be able to answer the question "what files
-are in pagecache, and how much pagecache do they have".  (And "on what
-nodes", but let's ignore that coz it's hard ;)) And something like this
-would be an easier merge because it's useful to more than twelve machines.
-
-It could be done in userspace, really.  Hack into glibc's open() and
-creat() to log file opening activity, something silly like that.
+-- 
+"Debugging is twice as hard as writing the code in the first place.
+Therefore, if you write the code as cleverly as possible, you are,
+by definition, not smart enough to debug it." - Brian W. Kernighan
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
