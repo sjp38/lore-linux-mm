@@ -1,55 +1,59 @@
-Date: Tue, 3 May 2005 18:23:47 -0700
-From: Andrew Morton <akpm@osdl.org>
-Subject: Re: [PATCH/RFC 0/4] VM: Manual and Automatic page cache reclaim
-Message-Id: <20050503182347.47abec55.akpm@osdl.org>
-In-Reply-To: <20050503132102.GS19244@localhost>
-References: <20050427150848.GR8018@localhost>
-	<20050427233335.492d0b6f.akpm@osdl.org>
-	<4277259C.6000207@engr.sgi.com>
-	<20050503010846.508bbe62.akpm@osdl.org>
-	<20050503132102.GS19244@localhost>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Subject: [0/6] SPARSEMEM memory model patches
+Message-Id: <E1DTQMa-0002UX-OU@pinky.shadowen.org>
+From: Andy Whitcroft <apw@shadowen.org>
+Date: Wed, 04 May 2005 21:20:56 +0100
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Martin Hicks <mort@sgi.com>
-Cc: raybry@engr.sgi.com, linux-mm@kvack.org, ak@suse.de
+To: akpm@osdl.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, apw@shadowen.org, haveblue@us.ibm.com, kravetz@us.ibm.com
 List-ID: <linux-mm.kvack.org>
 
-Martin Hicks <mort@sgi.com> wrote:
->
-> 
-> On Tue, May 03, 2005 at 01:08:46AM -0700, Andrew Morton wrote:
-> > Ray Bryant <raybry@engr.sgi.com> wrote:
-> > >
-> > > ...
-> > > One of the common responses to changes in the VM system for optimizations
-> > > of this type is that we instead should devote our efforts to improving
-> > > the VM system algorithms and that we are taking an "easy way out" by
-> > > putting a hack into the VM system.
-> > 
-> > There's that plus the question which forever lurks around funky SGI patches:
-> > 
-> > 	How many machines in the world want this feature?
-> > 
-> > Because if the answer is "twelve" then gee it becomes hard to justify
-> > merging things into the mainline kernel.  Particularly when they add
-> > complexity to page reclaim.
-> 
-> And vendors seem hesitant because it isn't upstream.... chicken?  egg?
-> 
+After long testing outside -mm we believe that the SPARSEMEM patches
+are ready for wider testing, please consider for -mm.
 
-That's between SGI and vendors, to some extent.  Generally, yes, I very
-much want to keep vendor trees and the public tree in sync.  But a patch
-like this is relatively intrusive, adds to long-term maintenance cost and
-on the other hand is extremely specialised.  It's really hard to justify
-adding this work to the public tree, IMO.
+SPARSEMEM essentially is a replacement for DISCONTIGMEM providing
+support for non-contigious memory but with the advantage of
+handling both inter- and intra-node memory holes.  The goal of the
+implementation was to design a clean memory memory model covering
+the needs of both UMA and NUMA discontigouos memory layouts whilst
+providing a basis for hotplug.  This should allow us to consolidate
+the implementation of various "discontiguous" memory model whilst
+trying to fix its short comings.  Ultimatly it should allow us to
+remove DISCONTIGMEM.
 
-Which is why I'd like to see whether you can come up with something which
-is either useful to a wider range of users or which adds less maintenance
-complexity.
+Following this mail are 6 patches which provide SPARSEMEM for i386,
+they introduce SPARSEMEM as an alternative to DISCONTIGMEM without
+removing it:
 
+[1/6] generify early_pfn_to_nid
+[2/6] generify memory present
+[3/6] sparsemem memory model
+[4/6] sparsemem memory model for i386
+[5/6] sparsemem swiss cheese numa layouts
+[6/6] sparsemem hotplug base
+
+These patches have been compiled, booted and tested on 2.6.12-rc2
+(plus the -mm patches listed below).  They have been compile and boot
+tested against 2.6.12-rc3-mm2.  They do assume a number of patches
+already incorporated into -mm including the latest configuration
+updates from Dave Hansen <haveblue@us.ibm.com>.
+
+remove-non-discontig-use-of-pgdat-node_mem_map.patch
+resubmit-sparsemem-base-early_pfn_to_nid-works-before-sparse-is-initialized.patch
+resubmit-sparsemem-base-simple-numa-remap-space-allocator.patch
+resubmit-sparsemem-base-reorganize-page-flags-bit-operations.patch
+resubmit-sparsemem-base-teach-discontig-about-sparse-ranges.patch
+create-mm-kconfig-for-arch-independent-memory-options.patch
+make-each-arch-use-mm-kconfig.patch
+update-all-defconfigs-for-arch_discontigmem_enable.patch
+introduce-new-kconfig-option-for-numa-or-discontig.patch
+sparsemem-fix-minor-defaults-issue-in-mm-kconfig.patch
+mm-kconfig-kill-unused-arch_flatmem_disable.patch
+mm-kconfig-hide-memory-model-selection-menu.patch
+
+Comments/feedback appreciated.
+
+-apw
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
