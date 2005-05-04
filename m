@@ -1,41 +1,74 @@
-Date: Tue, 3 May 2005 13:40:30 -0700
-From: William Lee Irwin III <wli@holomorphy.com>
-Subject: Re: returning non-ram via ->nopage, was Re: [patch] mspec driver for 2.6.12-rc2-mm3
-Message-ID: <20050503204030.GQ2104@holomorphy.com>
-References: <16987.39773.267117.925489@jaguar.mkp.net> <20050412032747.51c0c514.akpm@osdl.org> <yq07jj8123j.fsf@jaguar.mkp.net> <20050413204335.GA17012@infradead.org> <yq08y3bys4e.fsf@jaguar.mkp.net> <20050424101615.GA22393@infradead.org> <yq03btftb9u.fsf@jaguar.mkp.net> <20050425144749.GA10093@infradead.org> <yq0ll75rxsl.fsf@jaguar.mkp.net>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <yq0ll75rxsl.fsf@jaguar.mkp.net>
+Message-ID: <42781AC5.1000201@yahoo.com.au>
+Date: Wed, 04 May 2005 10:43:49 +1000
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+MIME-Version: 1.0
+Subject: Re: [RFC] how do we move the VM forward? (was Re: [RFC] cleanup of
+ use-once)
+References: <Pine.LNX.4.61.0505030037100.27756@chimarrao.boston.redhat.com> <42771904.7020404@yahoo.com.au> <Pine.LNX.4.61.0505030913480.27756@chimarrao.boston.redhat.com>
+In-Reply-To: <Pine.LNX.4.61.0505030913480.27756@chimarrao.boston.redhat.com>
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jes Sorensen <jes@wildopensource.com>
-Cc: Christoph Hellwig <hch@infradead.org>, Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Rik van Riel <riel@redhat.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Apr 26, 2005 at 06:14:02PM -0400, Jes Sorensen wrote:
-> Having the page allocations and drop ins on a first touch basis is
-> consistent with what is done for cached memory and seems a pretty
-> reasonable approach to me. Sure it isn't particularly pretty to use
-> the ->nopage approach, nobody disagrees with you there, but what is
-> the alternative?
-> Is the problem more an issue of the ugliness of allocating a page
-> just to return it to the nopage handler or the fact that we're trying
-> to make the allocations node local?
-> If you have any suggestions for how to do this differently, then I'm
-> all ears.
-> Cheers,
-> Jes
-> PS: Thanks to Robin Holt for providing more info on MPI application
-> behavior than I ever wanted to know ;-)
+Rik van Riel wrote:
+> On Tue, 3 May 2005, Nick Piggin wrote:
+> 
+>> I think the biggest problem with our twine and duct tape page reclaim
+>> scheme is that somehow *works* (for some value of works).
+> 
+> 
+>> I think we branch a new tree for all interested VM developers to work
+>> on and try to get performing well. Probably try to restrict it to page
+>> reclaim and related fundamentals so it stays as small as possible and
+>> worth testing.
+> 
+> 
+> Sounds great.  I'd be willing to maintain a quilt tree for
+> this - in fact, I've already got a few patches ;)
+> 
 
-This and several other issues all fall down when instead of ->nopage(),
-the vma's fault handling method takes a vma, a virtual address, and
-an access type, and returns a VM_FAULT_* code. Yes, I remember how I
-got heavily criticized the last time I wrote/suggested/whatever this.
+OK I'll help maintain and review patches.
 
+Also having a box or two for running regression and stress
+testing is a must. I can do a bit here, but unfortunately
+"kernel compiles until it hurts" is probably not the best
+workload to target.
 
--- wli
+In general most systems and their workloads aren't constantly
+swapping, so we should aim to minimise IO for normal
+workloads. Databases that use the pagecache (eg. postgresql)
+would be a good test. But again we don't want to focus on one
+thing.
+
+That said, of course we don't want to hurt the "really
+thrashing" case - and hopefully improve it if possible.
+
+> Also, we should probably keep track of exactly what we're
+> working towards.  I've put my ideas on a wiki page, feel
+> free to add yours - probably a new page for stuff that's
+> not page replacement related ;)
+> 
+
+I guess some of those page replacement algorithms would be
+really interesting to explore - and we definitely should be
+looking into them at some stage as part of our -vm tree.
+
+Though my initial aims are to first simplify and rationalise
+and unify things where possible.
+
+NUMA "issues" related to page reclaim are also interesting to
+me.
+
+I'll try to get some time to get my patches into shape in the
+next week or so.
+
+-- 
+SUSE Labs, Novell Inc.
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
