@@ -1,41 +1,33 @@
-Message-ID: <427A4787.4030802@shadowen.org>
-Date: Thu, 05 May 2005 17:19:19 +0100
+Message-ID: <427A59BC.1020208@shadowen.org>
+Date: Thu, 05 May 2005 18:37:00 +0100
 From: Andy Whitcroft <apw@shadowen.org>
 MIME-Version: 1.0
-Subject: Re: [1/3] add early_pfn_to_nid for ppc64
-References: <E1DTQUL-0002WE-D6@pinky.shadowen.org> <427A3F6A.6060405@austin.ibm.com>
-In-Reply-To: <427A3F6A.6060405@austin.ibm.com>
+Subject: Re: [3/3] sparsemem memory model for ppc64
+References: <E1DTQWH-0002We-I9@pinky.shadowen.org> <20050505023132.GB20283@austin.ibm.com>
+In-Reply-To: <20050505023132.GB20283@austin.ibm.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: jschopp@austin.ibm.com
-Cc: linuxppc64-dev@ozlabs.org, paulus@samba.org, anton@samba.org, linux-mm@kvack.org, haveblue@us.ibm.com, linux-kernel@vger.kernel.org
+To: Olof Johansson <olof@lixom.net>
+Cc: linuxppc64-dev@ozlabs.org, paulus@samba.org, anton@samba.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, haveblue@us.ibm.com, kravetz@us.ibm.com
 List-ID: <linux-mm.kvack.org>
 
-Joel Schopp wrote:
->> +#ifdef CONFIG_HAVE_ARCH_EARLY_PFN_TO_NID
->> +#define early_pfn_to_nid(pfn)  pa_to_nid(((unsigned long)pfn) <<
->> PAGE_SHIFT)
->> +#endif
+Olof Johansson wrote:
+> Hi,
 > 
-> 
-> Is there a reason we didn't just use pfn_to_nid() directly here instead
-> of pa_to_nid()?  I'm just thinking of having DISCONTIG/NUMA off and
-> pfn_to_nid() being #defined to zero for those cases.
+> Just two formatting nitpicks below.
 
-The problem is that pfn_to_nid is defined by the memory model.  In the
-SPARSEMEM case it isn't always usable until after the we have
-initialised and allocated the sparse mem_maps.  It is allocations during
-this phase that need this early_pfn_to_nid() form, to guide its
-allocations of the mem_map to obtain locality with the physical memory
-blocks.
+Thanks, this would be better served by rewriting the first comment and
+removing the second all together.
 
-This is clearer in the i386 port where the early_pfn_to_nid()
-implementation uses low level table to determine the location.  As has
-been mentioned in another thread, we are using what is effectivly a
-DISCONTIGMEM data structure here.  I have some work in progress to split
-that last part and move to a true early implementation on ppc64 too.
+/* Add all physical memory to the bootmem map, mark each area
+ * present.  The first block has already been marked present above.
+ */
+
+I note that the diff in question has sneaked into the wrong patch, that
+segement represents memory_present.  So I'll rediff them with it there.
+ No overall change to the code.
 
 -apw
 --
