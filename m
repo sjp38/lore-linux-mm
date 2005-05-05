@@ -1,44 +1,93 @@
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by e6.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id j45HrX61021164
-	for <linux-mm@kvack.org>; Thu, 5 May 2005 13:53:33 -0400
-Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
-	by d01relay04.pok.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id j45HrX8Y052080
-	for <linux-mm@kvack.org>; Thu, 5 May 2005 13:53:33 -0400
-Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
-	by d01av03.pok.ibm.com (8.12.11/8.13.3) with ESMTP id j45HrWd6019215
-	for <linux-mm@kvack.org>; Thu, 5 May 2005 13:53:32 -0400
-Date: Thu, 5 May 2005 10:53:20 -0700
-From: mike kravetz <kravetz@us.ibm.com>
-Subject: Re: [3/3] sparsemem memory model for ppc64
-Message-ID: <20050505175320.GC3930@w-mikek2.ibm.com>
-References: <E1DTQWH-0002We-I9@pinky.shadowen.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <E1DTQWH-0002We-I9@pinky.shadowen.org>
+Received: from [179.54.198.111] (port=2044 helo=[impostor])
+    by i219-165-165-195.s02.a011.ap.plala.or.jp with esmtp
+    id 10818826336masted46330
+    for linux-mm@kvack.org; Fri, 6 May 2005 07:09:28 +0900
+Mime-Version: 1.0 (Apple Message framework v728)
+Content-Transfer-Encoding: 7bit
+Message-Id: <11929653473.102389@i219-165-165-195.s02.a011.ap.plala.or.jp>
+Content-Type: text/plain; charset=US-ASCII; format=flowed
+From: Rosalia <obstructions@privates.com>
+Subject: Are This Company's shares ready to Go Higher?
+Date: Fri, 6 May 2005 07:09:27 +0900
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andy Whitcroft <apw@shadowen.org>
-Cc: linuxppc64-dev@ozlabs.org, paulus@samba.org, anton@samba.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, haveblue@us.ibm.com
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, May 04, 2005 at 09:30:57PM +0100, Andy Whitcroft wrote:
-> +	/*
-> +	 * Note presence of first (logical/coalasced) LMB which will
-> +	 * contain RMO region
-> +	 */
-> +	start_pfn = lmb.memory.region[0].physbase >> PAGE_SHIFT;
-> +	end_pfn = start_pfn + (lmb.memory.region[0].size >> PAGE_SHIFT);
-> +	memory_present(0, start_pfn, end_pfn);
+------------------------
+Stock Symbol: IGTS
 
-I need to take a close look at this again, but I think this special
-handling for the RMO region in unnecessary.  I added it in the 'early
-days of SPARSE' when there were some 'bootstrap' issues and we needed
-to initialize some memory before setting up the bootmem bitmap.  I'm
-pretty sure all those issues have gone away.
+Current Price: $0.03
 
--- 
-Mike
+Rating: Strong Buy
+
+Speculative Target price in next 5 days: 12 cents
+
+This stock receives our top rating - 10 out of 10
+
+Breaking NEWS (released last night): http://biz.yahoo.com/bw/050419/195708.html?.v=1
+
+This is going to be exciting stock play
+-------------------------
+
+Jump on board while you can - Dont regret later
+
+About the Company
+
+YOUTH AND AMATEUR SPORTS COMPANY POISED FOR GROWTH
+
+Intelligent Sports, Inc. is a publicly held company trading on the OTC markets under the ticker symbol "IGTS". Intelligent Sports will be the holding company for several sports related businesses.
+Intelligent Sports provides business units with strategic guidance and support in the areas of marketing, sales, sponsorships, partnerships, policy & procedures, finance and expansion.
+Their initial business launch is to develop youth and amateur sports centers throughout the country that offers a year-round sports calendar with emphasis on youth and amateur sports programs and skill development.
+Their plan is to expand this concept into membership-based, multi-purpose sports facilities that will promote a diverse range of sports programs, leagues, tournaments, clinics, individual sports skill development and nutritional training.
+
+YOUTH AND AMATEUR SPORTS INDUSTRY OVERVIEW
+
+Organized youth sports is a growing industry. Over 20 million boys and girls participate in organized youth sports in the United States. Gone are the days of backyard, pick-up sports.
+These days, kids from five to eighteen are being organized into school and parent-sponsored sports programs requiring intense preparation and better competition.
+These demands have caused an incredible increase in cost and shortage of training, equipment and facilities for organized youth sports.
+Additionally, parents today are investing in their children and looking for youth sports organizations that are supportive, motivational and provide a constructive environment for participating and learning.
+These concerns and values create a competitive advantage for Intelligent Sports, Inc. Our youth and amateur programs will provide an ongoing and long-term relationship with our parents and youth supported with yearsof professional experience and personal integrity. Intelligent Sports
+will provide recreational, developmental and competitive programs for youth sports that will be fun, bring families together and teach children life lessons about teamwork, setting goals and the value of hard work.
+
+--------------------------
+Stock Symbol: IGTS
+
+Current Price: $0.03
+
+Rating: Strong Buy
+
+Speculative Target price in next 5 days: 12 cents
+
+This stock receives our top rating - 10 out of 10
+
+Breaking NEWS (released last night): http://biz.yahoo.com/bw/050419/195708.html?.v=1
+
+This is going to be exciting stock play
+-------------------------
+
++++++++++++++++++++++++++++++++
+
+Disclaimer
+
+This publication is not registered investment advisor, The information presented above is not an offer to buy or sell securities it contains
+"forward looking statements" within the meaning of Section 27A of the Securities Act of 1933 and Section 21B of the Securities Exchange Act of
+1934. Any statements that express or involve discussions with respect to predictions, goals, expectations, beliefs, plans, projections,
+objectives, assumptions or future events or performance are not statements of historical fact and may be "forward looking statements."
+In compliance with Section 17(b), the publishers of this report disclose the holding of IGTS shares prior to the publication of this report. Be
+aware of an inherent conflict of interest resulting from such holdings due to our intent to profit from the liquidation of these shares. Shares
+may be sold at any time, even after positive statements have been made regarding the above company. Since we own shares, there is an inherent
+conflict of interest in our statements and opinions. Readers of this publication are cautioned not to place undue reliance on forward-looking
+statements, which are based on certain assumptions and expectations involving various risks and uncertainties, that could cause results to
+differ materially from those set forth in the forward- looking statements. Please be advised that nothing within this email shall
+constitute a solicitation or an offer to buy or sell any security mentioned herein. This newsletter is neither a registered investment
+advisor nor affiliated with any broker or dealer. All statements made are our express opinion only and should be treated as such. We may own,
+buy and sell any securities mentioned at any time. This report includes forward-looking statements within the meaning of The Private Securities
+Litigation Reform Act of 1995. These statements may include terms as "expect", "believe", "may", "will", "move","undervalued" and "intend" or
+similar terms. This newsletter was paid $41500 from third party to send this report. PLEASE DO YOUR OWN DUE DILIGENCE BEFORE INVESTING IN ANY
+PROFILED COMPANY. You may lose money from investing in Penny Stocks.
+ 
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
