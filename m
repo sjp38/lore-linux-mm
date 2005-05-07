@@ -1,7 +1,7 @@
-Message-ID: <f6ab01c5527f$c53978c6$fad6f3ac@aaronkwok.net>
-From: Kayden STEPHENS <demoder@aaronkwok.net>
-Subject: Employees needed
-Date: Fri, 06 May 2005 21:09:31 +0000
+Message-ID: <9fbb01c5529f$ad6f7418$6fa939c5@lopezclub.com>
+From: Elian BARRY <diadochy@lopezclub.com>
+Subject: Job opportunity
+Date: Sat, 07 May 2005 00:55:55 +0000
 MIME-Version: 1.0
 Content-Type: text/plain;
     format=flowed;
@@ -13,7 +13,7 @@ Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+Hi there,
 
 Do you want to earn some extra $$$ working from home? We have a great offer for you!
 
@@ -40,7 +40,7 @@ If you like to join our community don't hesitate to visit http://www.shipandpay.
 
 Thank you.
 
-Sincerely yours,
+Yours,
 Ship & Pay International
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
