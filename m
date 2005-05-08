@@ -1,23 +1,42 @@
-Received: from [90.219.210.109] (port=2178 helo=[Proxmire])
-    by nas8-36.dialup.farlep.net with esmtp
-    id 9985870105risings71107
-    for linux-mm@kvack.org; Sat, 7 May 2005 14:13:08 +0300
-Mime-Version: 1.0 (Apple Message framework v728)
-Content-Transfer-Encoding: 7bit
-Message-Id: <1048003692.99031@nas8-36.dialup.farlep.net>
-Content-Type: text/plain; charset=US-ASCII; format=flowed
-From: Abraham <reorganization@cmawebline.org>
-Subject: Why are online drugs popular
-Date: Sat, 7 May 2005 14:13:07 +0300
+From: anthony@hipub.net
+Subject: Strategic Joint Venture
+Mime-Version: 1.0
+Content-Type: text/plain; charset="iso-8859-1"
+Date: Sun, 8 May 2005 23:17:01 GMT
+Message-ID: <WOW-1Y7VMHGJNZ2dxRY0003e473@wow-1y7vmhgjnz2>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Why are online drugs popular
-http://qyny.t8w4fcbmq3b1xct.paishnkmd.com
+Perhaps you already know, we help companies "Go Public". The President of our company is a securities
+and corporate lawyer.
+
+Please visit our site to receive information regarding how any company can go public. We have several
+research reports available on this subject.
+
+If you are aware of a company that may be suitable for this please let us know. We are happy for you to
+be amply rewarded for your assistance.
+
+The Benefits of being a public company are many. It is a valuable and powerful tool in achieving your goals.
+
+We look forward to developing a long-term business relationship with you.
+
+All the best,
+
+S. Anthony
+http://www.hipub.net/
 
 
+#LPSCW
+We also have newsletters for you.
+P.S. If you prefer to not hear from us any more, email us with no longer in the subject.
+takeoff@hipub.net
+
+
+
+
+8721 Santa Monica Blvd. Number 359 Los Angeles, CA 90069
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
