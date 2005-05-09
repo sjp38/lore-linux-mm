@@ -1,35 +1,37 @@
-Date: Mon, 09 May 2005 07:58:15 -0300
-From: "Donald Bloom" <inglish@mailAccount.com>
-Subject: Need a low mortage rate?
-Message-ID: <BKELLDAGKABIOCHDFD380DGAA.danny786@virgilio.it>
-Return-Path: <inglish@mailAccount.com>
-To: jordomo@kvack.org
-Cc: kernel@kvack.org, lah@kvack.org, linux-aio@kvack.org, linux-mm@kvack.org, linux-mm-archive@kvack.orgm@kvack.org, mailer-daemon@kvack.orgmm@kvack.org, mus@kvack.org
+Date: Mon, 9 May 2005 14:29:16 +0200
+From: =?iso-8859-1?Q?Bj=F6rn?= Steinbrink <B.Steinbrink@gmx.de>
+Subject: [patch] mm: fix rss counter being incremented when unmapping
+Message-ID: <20050509122916.GA30726@doener.homenet>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hello,
+This patch fixes a bug introduced by the "mm counter operations through
+macros" patch, which replaced a decrement operation in with an increment
+macro in try_to_unmap_one().
 
- We tried contacting you awhile ago about your low interest morta(ge rate.
+Signed-off-by: Bjorn Steinbrink <B.Steinbrink@gmx.de>
 
- You have qualified for the lowest rate in years...
-
- You could get over $380,000 for as little as $500 a month!
-
- Ba(d credit? Doesn't matter, low rates are fixed no matter what!
-
+diff -NurpP --minimal linux-2.6.12-rc4/mm/rmap.c linux-2.6.12-rc4-fixed/mm/rmap.c
+--- linux-2.6.12-rc4/mm/rmap.c  2005-05-08 17:53:49.000000000 +0200
++++ linux-2.6.12-rc4-fixed/mm/rmap.c    2005-05-09 13:38:03.000000000 +0200
+@@ -586,7 +586,7 @@ static int try_to_unmap_one(struct page 
+                dec_mm_counter(mm, anon_rss);
+        }
  
- To get a free, no obli,gation consultation click below:
-
- http://www.trust1ng.com/sign.asp
-
-
-
- Best Regards,
-
- Blaine Ortega
+-       inc_mm_counter(mm, rss);
++       dec_mm_counter(mm, rss);
+        page_remove_rmap(page);
+        page_cache_release(page);
  
- to be remov(ed:	http://www.trust1ng.com/gone.asp
-
- this process takes one week, so please be patient. we do our 
- best to take your email/s off but you have to fill out a rem/ove
- or else you will continue to recieve email/s.
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"aart@kvack.org"> aart@kvack.org </a>
