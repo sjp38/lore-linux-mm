@@ -1,44 +1,35 @@
-From: anthony@hipub.net
-Subject: Strategic Joint Venture
-Mime-Version: 1.0
-Content-Type: text/plain; charset="iso-8859-1"
-Date: Sun, 8 May 2005 23:17:01 GMT
-Message-ID: <WOW-1Y7VMHGJNZ2dxRY0003e473@wow-1y7vmhgjnz2>
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+Date: Mon, 09 May 2005 07:58:15 -0300
+From: "Donald Bloom" <inglish@mailAccount.com>
+Subject: Need a low mortage rate?
+Message-ID: <BKELLDAGKABIOCHDFD380DGAA.danny786@virgilio.it>
+Return-Path: <inglish@mailAccount.com>
+To: jordomo@kvack.org
+Cc: kernel@kvack.org, lah@kvack.org, linux-aio@kvack.org, linux-mm@kvack.org, linux-mm-archive@kvack.orgm@kvack.org, mailer-daemon@kvack.orgmm@kvack.org, mus@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Perhaps you already know, we help companies "Go Public". The President of our company is a securities
-and corporate lawyer.
+Hello,
 
-Please visit our site to receive information regarding how any company can go public. We have several
-research reports available on this subject.
+ We tried contacting you awhile ago about your low interest morta(ge rate.
 
-If you are aware of a company that may be suitable for this please let us know. We are happy for you to
-be amply rewarded for your assistance.
+ You have qualified for the lowest rate in years...
 
-The Benefits of being a public company are many. It is a valuable and powerful tool in achieving your goals.
+ You could get over $380,000 for as little as $500 a month!
 
-We look forward to developing a long-term business relationship with you.
+ Ba(d credit? Doesn't matter, low rates are fixed no matter what!
 
-All the best,
+ 
+ To get a free, no obli,gation consultation click below:
 
-S. Anthony
-http://www.hipub.net/
-
-
-#LPSCW
-We also have newsletters for you.
-P.S. If you prefer to not hear from us any more, email us with no longer in the subject.
-takeoff@hipub.net
+ http://www.trust1ng.com/sign.asp
 
 
 
+ Best Regards,
 
-8721 Santa Monica Blvd. Number 359 Los Angeles, CA 90069
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"aart@kvack.org"> aart@kvack.org </a>
+ Blaine Ortega
+ 
+ to be remov(ed:	http://www.trust1ng.com/gone.asp
+
+ this process takes one week, so please be patient. we do our 
+ best to take your email/s off but you have to fill out a rem/ove
+ or else you will continue to recieve email/s.
