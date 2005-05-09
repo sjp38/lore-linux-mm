@@ -1,29 +1,62 @@
-Date: Mon, 9 May 2005 23:30:28 +0200
-From: Arjan van de Ven <arjanv@redhat.com>
-Subject: Re: Fw: [Bug 4520] New: /proc/*/maps fragments too quickly compared to
-Message-ID: <20050509213027.GA3963@devserv.devel.redhat.com>
-References: <17023.26119.111329.865429@gargle.gargle.HOWL> <20050509142651.1d3ae91e.akpm@osdl.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20050509142651.1d3ae91e.akpm@osdl.org>
+Received: from westrelay02.boulder.ibm.com (westrelay02.boulder.ibm.com [9.17.195.11])
+	by e33.co.us.ibm.com (8.12.10/8.12.9) with ESMTP id j49N46mD613108
+	for <linux-mm@kvack.org>; Mon, 9 May 2005 19:04:06 -0400
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by westrelay02.boulder.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id j49N41FL360318
+	for <linux-mm@kvack.org>; Mon, 9 May 2005 17:04:06 -0600
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.12.11/8.13.3) with ESMTP id j49N40gX005978
+	for <linux-mm@kvack.org>; Mon, 9 May 2005 17:04:00 -0600
+Message-ID: <427FEC57.8060505@austin.ibm.com>
+Date: Mon, 09 May 2005 18:03:51 -0500
+From: Joel Schopp <jschopp@austin.ibm.com>
+Reply-To: jschopp@austin.ibm.com
+MIME-Version: 1.0
+Subject: Re: sparsemem ppc64 tidy flat memory comments and fix benign mempresent
+ call
+References: <E1DVAVE-00012m-Pq@pinky.shadowen.org>
+In-Reply-To: <E1DVAVE-00012m-Pq@pinky.shadowen.org>
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: Wolfgang Wander <wwc@rentec.com>, mingo@elte.hu, linux-mm@kvack.org
+To: Andy Whitcroft <apw@shadowen.org>
+Cc: akpm@osdl.org, anton@samba.org, haveblue@us.ibm.com, kravetz@us.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linuxppc64-dev@ozlabs.org, olof@lixom.net, paulus@samba.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, May 09, 2005 at 02:26:51PM -0700, Andrew Morton wrote:
+> diff -upN reference/arch/ppc64/mm/init.c current/arch/ppc64/mm/init.c
+> --- reference/arch/ppc64/mm/init.c
+> +++ current/arch/ppc64/mm/init.c
+> @@ -631,18 +631,19 @@ void __init do_init_bootmem(void)
+>  
+>  	max_pfn = max_low_pfn;
+>  
+> -	/* add all physical memory to the bootmem map. Also, find the first
+> -	 * presence of all LMBs*/
+> +	/* Add all physical memory to the bootmem map, mark each area
+> +	 * present.  The first block has already been marked present above.
+> +	 */
+>  	for (i=0; i < lmb.memory.cnt; i++) {
+>  		unsigned long physbase, size;
+>  
+>  		physbase = lmb.memory.region[i].physbase;
+>  		size = lmb.memory.region[i].size;
+> -		if (i) { /* already created mappings for first LMB */
+> +		if (i) {
+>  			start_pfn = physbase >> PAGE_SHIFT;
+>  			end_pfn = start_pfn + (size >> PAGE_SHIFT);
+> +			memory_present(0, start_pfn, end_pfn);
+>  		}
+> -		memory_present(0, start_pfn, end_pfn);
+>  		free_bootmem(physbase, size);
+>  	}
 
-> Possibly for the 2.6.12 release the safest approach would be to just
-> disable the free area cache while we think about it.
+Instead of moving all that around why don't we just drop the duplicate 
+and the if altogether?  I tested and sent a patch back in March that 
+cleaned up the non-numa case pretty well.
 
-the free area cache either is historically tricky to be fair; it has the
-thankless job of either keeping at the "ealiest" small hole (and thus being
-useless if most allocs are bigger than that hole) or leaving an occasionally
-small hole alone and thus fragmenting memory more, like you've shown.
-I like neither to be honest; the price however is a higher lookup cost (well
-mitigated if vma merging is really effective) 
+http://sourceforge.net/mailarchive/message.php?msg_id=11320001
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
