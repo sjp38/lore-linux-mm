@@ -1,37 +1,35 @@
-Message-Id: <200505101934.j4AJYfg26483@unix-os.sc.intel.com>
-From: "Chen, Kenneth W" <kenneth.w.chen@intel.com>
-Subject: RE: Fw: [Bug 4520] New: /proc/*/maps fragments too quickly compared to
-Date: Tue, 10 May 2005 12:34:41 -0700
-MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="us-ascii"
-Content-Transfer-Encoding: 7bit
-In-Reply-To: <20050510115818.0828f5d1.akpm@osdl.org>
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e2.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id j4AJgUDn027567
+	for <linux-mm@kvack.org>; Tue, 10 May 2005 15:42:30 -0400
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay04.pok.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id j4AJgUum118724
+	for <linux-mm@kvack.org>; Tue, 10 May 2005 15:42:30 -0400
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.12.11/8.13.3) with ESMTP id j4AJgUKp017780
+	for <linux-mm@kvack.org>; Tue, 10 May 2005 15:42:30 -0400
+Date: Tue, 10 May 2005 12:42:25 -0700
+From: mike kravetz <kravetz@us.ibm.com>
+Subject: Re: sparsemem ppc64 tidy flat memory comments and fix benign mempresent call
+Message-ID: <20050510194225.GD3915@w-mikek2.ibm.com>
+References: <E1DVAVE-00012m-Pq@pinky.shadowen.org> <427FEC57.8060505@austin.ibm.com> <4280D72C.4090203@shadowen.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4280D72C.4090203@shadowen.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: 'Andrew Morton' <akpm@osdl.org>
-Cc: wwc@rentec.com, mingo@elte.hu, arjanv@redhat.com, linux-mm@kvack.org
+To: Andy Whitcroft <apw@shadowen.org>
+Cc: jschopp@austin.ibm.com, akpm@osdl.org, anton@samba.org, haveblue@us.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linuxppc64-dev@ozlabs.org, olof@lixom.net, paulus@samba.org
 List-ID: <linux-mm.kvack.org>
 
-Andrew Morton wrote Tuesday, May 10, 2005 11:58 AM
-> "Chen, Kenneth W" <kenneth.w.chen@intel.com> wrote:
-> > Andrew Morton wrote on Monday, May 09, 2005 2:27 PM
-> > > Possibly for the 2.6.12 release the safest approach would be to just
-> > > disable the free area cache while we think about it.
-> > 
-> > I hope people are not thinking permanently kill the free area cache
-> > algorithm.  It is known to give a large percentage of performance gain
-> > on specweb SSL benchmark.  I think it gives 4-5% gain from free area
-> > cache algorithm.
-> 
-> It also makes previously-working workloads completely *fail*.
+On Tue, May 10, 2005 at 04:45:48PM +0100, Andy Whitcroft wrote:
+> Joel, Mike, Dave could you test this one on your platforms to confirm
+> its widly applicable, if so we can push it up to -mm.
 
-I agree that functionality over rule most of everything else.  Though, I
-do want to bring to your attention on how much performance regression we
-will see if the free area cache is completely disabled.  I rather make
-noise now instead of a couple month down the road :-)
+It works on my machine with various config options.
 
-
+-- 
+Mike
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
