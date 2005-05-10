@@ -1,36 +1,46 @@
-Date: Tue, 10 May 2005 21:50:27 +0100
-From: "Irving Painter" <lammor@doramail.com>
-Message-Id: <CFE7.AA79.9A11lammor@doramail.com>
-Subject: Your account #039M7791
-Return-Path: <lammor@doramail.com>
-To: blah@kvack.org
-Cc: domo@kvack.org, er-linux-aio@kvack.org, er-linux-mm@kvack.orginux-aio@kvack.orginux-mm@kvack.orgio@kvack.org, jordomo@kvack.org, kernel@kvack.orglinux-aio@kvack.orglinux-mm@kvack.org, linux-mm-archive@kvack.orgm@kvack.org, mailer-daemon@kvack.orgmm@kvack.org
+From: Wolfgang Wander <wwc@rentec.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Message-ID: <17025.5072.723650.790074@gargle.gargle.HOWL>
+Date: Tue, 10 May 2005 16:04:32 -0400
+Subject: Re: Fw: [Bug 4520] New: /proc/*/maps fragments too quickly compared to
+In-Reply-To: <20050510195854.GA27755@elte.hu>
+References: <20050510115818.0828f5d1.akpm@osdl.org>
+	<200505101934.j4AJYfg26483@unix-os.sc.intel.com>
+	<20050510124357.2a7d2f9b.akpm@osdl.org>
+	<17025.4213.255704.748374@gargle.gargle.HOWL>
+	<20050510195854.GA27755@elte.hu>
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: Ingo Molnar <mingo@elte.hu>
+Cc: Wolfgang Wander <wwc@rentec.com>, Andrew Morton <akpm@osdl.org>, "Chen, Kenneth W" <kenneth.w.chen@intel.com>, arjanv@redhat.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+Ingo Molnar writes:
+ > 
+ > * Wolfgang Wander <wwc@rentec.com> wrote:
+ > 
+ > > I volunteer to do the testing - just the test I got from Ingo did
+ > > not show any timing difference for either of the three solutions:
+ > > 
+ > > a) use free_cache
+ > > b) disable free_cache
+ > > c) use my maybe improved and maybe much too complex free_cache
+ > > 
+ > > The test_str02.c I got only ran up to 1300 threads on my machine (8GB 
+ > > dual x86_64) and Ingo expected it to go up to 20000.
+ > 
+ > do something like 'ulimit -s 128k' to reduce the thread stack sizes, to 
+ > be able to run more threads. You are running an x86 (not x64) kernel to 
+ > test, right?
 
-Hello,
+I can run either one - thanks.  I'll try it out...
 
- We tried contacting you awhile ago about your low interest morta(ge rate.
-
- You have qualified for the lowest rate in years...
-
- You could get over $380,000 for as little as $500 a month!
-
- Ba(d credit? Doesn't matter, low rates are fixed no matter what!
-
+        Wolfgang
  
- To get a free, no obli,gation consultation click below:
-
- http://www.trust1ng.net/sign.asp
-
-
-
- Best Regards,
-
- Catherine Huffman
- 
- to be remov(ed:	http://www.trust1ng.net/gone.asp
-
- this process takes one week, so please be patient. we do our 
- best to take your email/s off but you have to fill out a rem/ove
- or else you will continue to recieve email/s.
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"aart@kvack.org"> aart@kvack.org </a>
