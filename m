@@ -1,64 +1,46 @@
-Message-ID: <42825236.1030503@engr.sgi.com>
-Date: Wed, 11 May 2005 13:43:02 -0500
-From: Ray Bryant <raybry@engr.sgi.com>
-MIME-Version: 1.0
-Subject: Re: [Lhms-devel] Re: [PATCH 2.6.12-rc3 1/8] mm: manual page migration-rc2
- -- xfs-extended-attributes-rc2.patch
-References: <20050511043756.10876.72079.60115@jackhammer.engr.sgi.com> <20050511043802.10876.60521.51027@jackhammer.engr.sgi.com> <20050511071538.GA23090@infradead.org> <4281F650.2020807@engr.sgi.com> <20050511125932.GW25612@wotan.suse.de>
-In-Reply-To: <20050511125932.GW25612@wotan.suse.de>
-Content-Type: text/plain; charset=us-ascii; format=flowed
+Date: Wed, 11 May 2005 11:55:31 -0700
+From: Paul Jackson <pj@sgi.com>
+Subject: Re: [Lhms-devel] Re: [PATCH 2.6.12-rc3 7/8] mm: manual page
+ migration-rc2 -- sys_migrate_pages-cpuset-support-rc2.patch
+Message-Id: <20050511115531.0ac49db8.pj@sgi.com>
+In-Reply-To: <428214C2.709@engr.sgi.com>
+References: <20050511043756.10876.72079.60115@jackhammer.engr.sgi.com>
+	<20050511043840.10876.87654.53504@jackhammer.engr.sgi.com>
+	<20050511053733.2ec67499.pj@sgi.com>
+	<428214C2.709@engr.sgi.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <ak@suse.de>
-Cc: Christoph Hellwig <hch@infradead.org>, Ray Bryant <raybry@sgi.com>, Hirokazu Takahashi <taka@valinux.co.jp>, Marcelo Tosatti <marcelo.tosatti@cyclades.com>, Dave Hansen <haveblue@us.ibm.com>, linux-mm <linux-mm@kvack.org>, Nathan Scott <nathans@sgi.com>, Ray Bryant <raybry@austin.rr.com>, lhms-devel@lists.sourceforge.net, Jes Sorensen <jes@wildopensource.com>
+To: Ray Bryant <raybry@engr.sgi.com>
+Cc: raybry@sgi.com, linux-mm@kvack.org, raybry@austin.rr.com, lhms-devel@lists.sourceforge.net
 List-ID: <linux-mm.kvack.org>
 
-Andi Kleen wrote:
->>But, we do such things by consensus and I am willing to try to implement
->>whatever convention we all agree on.  I would like to have an agreement
->>from all parties before I proceed with an alternative implementation.
->>I will pursue the ld.so changes with the glibc-developers and see what
->>the reaction is.
-> 
-> 
-> 
-> I think Christoph's reaction mostly comes from trying to do this
-> in file system specific code. Rather it should be some independent
-> piece of code that just uses the EA interfaces offered by the FS
-> to do this.
-> 
-> -Andi
-> 
+Ray wrote:
+> <trimming the cc list a bit...>
 
-If we are going to use a "system" attribute, as near as I can tell, this
-requires a change in the file system specific code.  If we use a "user"
-attribute, then no fs change is required.  However, in the latter case
-there is also no way to reserve a name that users can't overwrite or usurp.
+argh ... please don't
 
-However, I think that a "user" attribute might be workable.  For most
-files that we would be marking this way (e. g. /lib and /usr/lib), a
-non-root user can't change the user attributes anyway, since normal
-protection rules apply.  For mapped files in other places, the chances
-of a collision on the user.migration attribute are sufficiently small,
-I would think, that we could live with that.  (A user would have to use
-the same name and the same values that the kernel is looking for to
-have an effect.)
+> I guess I could fix cpuset_mems_allowed() to work the same was as the
+> other code.  It would mean taking the task lock again, but I suppose
+> we can deal with that.
 
-The only remaining issue is the use of a "user" attribute to communicate
-with the kernel.  That makes me uneasy as I don't know if this would
-follow the normal conventions for extended attribute usage.
+Unless this is on a hot path, I am more concerned with ensuring that
+code has the fewest surprises (unexpected differences) and the fewest
+not trivially obvious order sensitive conditions than I am with the cost
+of a non-essential task lock.
+
+> I was trying to save 64 bytes of stack space
+
+A worthwhile goal, but not at the cost of such order sensitive abuse of
+a variable three different ways over 149 lines of code, unless this is a
+known stack size critical routine, which I am not aware that it is.
 
 -- 
-Best Regards,
-Ray
------------------------------------------------
-                   Ray Bryant
-512-453-9679 (work)         512-507-7807 (cell)
-raybry@sgi.com             raybry@austin.rr.com
-The box said: "Requires Windows 98 or better",
-            so I installed Linux.
------------------------------------------------
+                  I won't rest till it's the best ...
+                  Programmer, Linux Scalability
+                  Paul Jackson <pj@engr.sgi.com> 1.650.933.1373, 1.925.600.0401
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
