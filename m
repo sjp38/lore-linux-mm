@@ -1,37 +1,34 @@
-Date: Wed, 11 May 2005 20:50:03 +0100
+Date: Wed, 11 May 2005 21:00:33 +0100
 From: Christoph Hellwig <hch@infradead.org>
 Subject: Re: [Lhms-devel] Re: [PATCH 2.6.12-rc3 1/8] mm: manual page migration-rc2 -- xfs-extended-attributes-rc2.patch
-Message-ID: <20050511195003.GA2468@infradead.org>
-References: <20050511043756.10876.72079.60115@jackhammer.engr.sgi.com> <20050511043802.10876.60521.51027@jackhammer.engr.sgi.com> <20050511071538.GA23090@infradead.org> <4281F650.2020807@engr.sgi.com>
+Message-ID: <20050511200033.GA2646@infradead.org>
+References: <20050511043756.10876.72079.60115@jackhammer.engr.sgi.com> <20050511043802.10876.60521.51027@jackhammer.engr.sgi.com> <20050511071538.GA23090@infradead.org> <4281F650.2020807@engr.sgi.com> <20050511125932.GW25612@wotan.suse.de> <42825236.1030503@engr.sgi.com> <20050511193207.GE11200@wotan.suse.de>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <4281F650.2020807@engr.sgi.com>
+In-Reply-To: <20050511193207.GE11200@wotan.suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ray Bryant <raybry@engr.sgi.com>
-Cc: Christoph Hellwig <hch@infradead.org>, Ray Bryant <raybry@sgi.com>, Hirokazu Takahashi <taka@valinux.co.jp>, Marcelo Tosatti <marcelo.tosatti@cyclades.com>, Andi Kleen <ak@suse.de>, Dave Hansen <haveblue@us.ibm.com>, linux-mm <linux-mm@kvack.org>, Nathan Scott <nathans@sgi.com>, Ray Bryant <raybry@austin.rr.com>, lhms-devel@lists.sourceforge.net
+To: Andi Kleen <ak@suse.de>
+Cc: Ray Bryant <raybry@engr.sgi.com>, Ray Bryant <raybry@sgi.com>, Hirokazu Takahashi <taka@valinux.co.jp>, Marcelo Tosatti <marcelo.tosatti@cyclades.com>, Dave Hansen <haveblue@us.ibm.com>, linux-mm <linux-mm@kvack.org>, Nathan Scott <nathans@sgi.com>, Ray Bryant <raybry@austin.rr.com>, lhms-devel@lists.sourceforge.net, Jes Sorensen <jes@wildopensource.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, May 11, 2005 at 07:10:56AM -0500, Ray Bryant wrote:
-> Is the issue here the use of extended attributes, period, or the use of the
-> system name space?
+On Wed, May 11, 2005 at 09:32:07PM +0200, Andi Kleen wrote:
+> hch: if you still are against this please reread the original thread
+> with me and Ray and see why we decided that ld.so changes are not
+> a good idea.
 
-The former.
+please send a pointer to the discussion.
 
-> I would observe that after lengthy discussion on this topic in February
-> with Andi, use of extended attributes was agreed upon as the preferred
-> solution.  Your alternative (As I recall: modifying the dynamic loader
-> to mark mapped files in memory as shared libraries, and requiring a new
-> mmap() flag to mark files as non-migratable) strikes me as more
-> complicated and even harder to get accepted by the community, since it
-> touches not only the kernel, but glibc as well.
+Not that I think it matters a lot.  What Ray implemented is a very
+special cased hack for migration policies that only applies to shared
+libraries.  Doing it generically is about the same amount of code and
+a lot cleaner.
 
-But it's the right thing to do.  Non-migratability is not an attribute
-of a file but a memory region.  Being able to set it for individual
-mappings and possible even modifying it with a new MADVISE subcall
-makes sense.
-
+Note that I'm not against storing information in the file so that
+shared libraries get the proper treatment, but the proper place for
+that is an additional ELF header or magic section, similar to the
+noexec stack changes.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
