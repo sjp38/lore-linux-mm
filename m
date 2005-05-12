@@ -1,51 +1,56 @@
-From: Wolfgang Wander <wwc@rentec.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Date: Thu, 12 May 2005 15:41:48 +0900 (JST)
+Message-Id: <20050512.154148.52902091.taka@valinux.co.jp>
+Subject: Re: [PATCH 2.6.12-rc3 4/8] mm: manual page migration-rc2 --
+ add-sys_migrate_pages-rc2.patch
+From: Hirokazu Takahashi <taka@valinux.co.jp>
+In-Reply-To: <4282115C.40207@engr.sgi.com>
+References: <20050511043821.10876.47127.71762@jackhammer.engr.sgi.com>
+	<20050511.222314.10910241.taka@valinux.co.jp>
+	<4282115C.40207@engr.sgi.com>
+Mime-Version: 1.0
+Content-Type: Text/Plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
-Message-ID: <17026.45684.442592.17147@gargle.gargle.HOWL>
-Date: Wed, 11 May 2005 21:33:40 -0400
-Subject: Re: [PATCH] Avoiding mmap fragmentation  (against 2.6.12-rc4) to
-In-Reply-To: <20050511175901.15fa7b95.akpm@osdl.org>
-References: <20050510115818.0828f5d1.akpm@osdl.org>
-	<200505101934.j4AJYfg26483@unix-os.sc.intel.com>
-	<20050510124357.2a7d2f9b.akpm@osdl.org>
-	<17025.4213.255704.748374@gargle.gargle.HOWL>
-	<20050510125747.65b83b4c.akpm@osdl.org>
-	<17026.6227.225173.588629@gargle.gargle.HOWL>
-	<20050511175901.15fa7b95.akpm@osdl.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: Wolfgang Wander <wwc@rentec.com>, kenneth.w.chen@intel.com, mingo@elte.hu, arjanv@redhat.com, linux-mm@kvack.org
+To: raybry@engr.sgi.com
+Cc: raybry@sgi.com, marcelo.tosatti@cyclades.com, ak@suse.de, haveblue@us.ibm.com, hch@infradead.org, linux-mm@kvack.org, nathans@sgi.com, raybry@austin.rr.com, lhms-devel@lists.sourceforge.net
 List-ID: <linux-mm.kvack.org>
 
-Andrew Morton writes:
- > Wolfgang Wander <wwc@rentec.com> wrote:
- > >
- > > diff -rpu linux-2.6.12-rc4-vanilla/fs/binfmt_elf.c linux-2.6.12-rc4-wwc/fs/binfmt_elf.c
- > >  --- linux-2.6.12-rc4-vanilla/fs/binfmt_elf.c	2005-05-10 18:28:59.958415676 -0400
- > >  +++ linux-2.6.12-rc4-wwc/fs/binfmt_elf.c	2005-05-10 16:34:23.696894470 -0400
- > >  @@ -775,6 +775,7 @@ static int load_elf_binary(struct linux_
- > >   	   change some of these later */
- > >   	set_mm_counter(current->mm, rss, 0);
- > >   	current->mm->free_area_cache = current->mm->mmap_base;
- > >  +	current->mm->cached_hole_size = current->mm->cached_hole_size;
- > 
- > eh?
+Hi,
 
-Outch!  Good catch. Thanks Andrew!
+> > BTW, I'm not sure whether it's enough that migrate_vma() can only
+> > migrate currently mapped pages. This may leave some pages in the
+> > page-cache if they're not mapped to the process address spaces yet.
+> > 
+> > Thanks,
+> > Hirokazu Takahashi.
+> 
+> If the page isn't mapped, there is no good way to match it up with
+> a particular process id, is there?   :-)
 
-Ken, when you post your revised version can you replace this line
-with 
+I just thought of the page, belonging to some file which is
+mmap()ed to the target process to be migrated. The page may
+not be accessed and the associated PTE isn't set yet.
+if vma->vm_file->f_mapping equals page_mapping(page), the page
+should be migrated. 
 
-+ current->mm->cached_hole_size = ~0UL;
+Pages in the swap-cache have the same problem since the related
+PTEs may be clean.
 
-Same problem in binfmt_aout.c!
+But these cases may be rare and your approach seems to be good
+enough in most cases.
 
-Since we set free_area_cache to mmap_base the bug is hardly able to
-cause any real harm but it looks more than silly.
+> We've handled that separately in the actual migration application,
+> by sync'ing the system and  then freeing clean page cache pages
+> before the migrate_pages() system call is invoked.
+> 
+> -- 
+> Best Regards,
+> Ray
 
-    Wolfgang
+Thanks,
+Hirokazu Takahashi.
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
