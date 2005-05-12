@@ -1,27 +1,36 @@
-Date: Thu, 12 May 2005 16:49:02 -0500
-From: Robin Holt <holt@sgi.com>
-Subject: Re: NUMA aware slab allocator V2
-Message-ID: <20050512214902.GA18835@lnx-holt.americas.sgi.com>
-References: <Pine.LNX.4.58.0505110816020.22655@schroedinger.engr.sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.58.0505110816020.22655@schroedinger.engr.sgi.com>
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@engr.sgi.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@osdl.org, shai@scalex86.org
+Date: Thu, 12 May 2005 17:45:02 -0600
+From: "Dale Redmond" <vidal@emailaccount.com>
+Message-Id: <CFE8.AA79.9A81vidal@emailaccount.com>
+Subject: Lowest rate approval
+Return-Path: <vidal@emailaccount.com>
+To: er-linux-aio@kvack.org
+Cc: er-linux-mm@kvack.orginux-mm@kvack.org, jordomo@kvack.org, kernel@kvack.org, lah@kvack.orglinux-mm@kvack.org, linux-mm-archive@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Christoph,
 
-Can you let me know when this is in so I can modify the ia64 pgalloc.h
-to not use the quicklists any longer?
+Hello,
 
-Thanks,
-Robin
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"aart@kvack.org"> aart@kvack.org </a>
+ We tried contacting you awhile ago about your low interest morta(ge rate.
+
+ You have qualified for the lowest rate in years...
+
+ You could get over $380,000 for as little as $500 a month!
+
+ Ba(d credit? Doesn't matter, low rates are fixed no matter what!
+
+ 
+ To get a free, no obli,gation consultation click below:
+
+ http://www.ch00s3.com/sign.asp
+
+
+
+ Best Regards,
+
+ Dwayne Koehler
+ 
+ to be remov(ed:	http://www.ch00s3.com/gone.asp
+
+ this process takes one week, so please be patient. we do our 
+ best to take your email/s off but you have to fill out a rem/ove
+ or else you will continue to recieve email/s.
