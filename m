@@ -1,40 +1,28 @@
-Received: by zproxy.gmail.com with SMTP id 13so404820nzn
-        for <linux-mm@kvack.org>; Thu, 12 May 2005 02:39:43 -0700 (PDT)
-Message-ID: <b82a8917050512023938ce1f4d@mail.gmail.com>
-Date: Thu, 12 May 2005 15:09:43 +0530
-From: Niraj kumar <niraj17@gmail.com>
-Reply-To: Niraj kumar <niraj17@gmail.com>
-Subject: Re: NUMA aware slab allocator V2
-In-Reply-To: <20050512000444.641f44a9.akpm@osdl.org>
+Date: Thu, 12 May 2005 10:55:35 +0100
+From: Christoph Hellwig <hch@infradead.org>
+Subject: Re: [Lhms-devel] Re: [PATCH 2.6.12-rc3 1/8] mm: manual page migration-rc2 -- xfs-extended-attributes-rc2.patch
+Message-ID: <20050512095535.GA14409@infradead.org>
+References: <20050511043756.10876.72079.60115@jackhammer.engr.sgi.com> <20050511043802.10876.60521.51027@jackhammer.engr.sgi.com> <20050511071538.GA23090@infradead.org> <4281F650.2020807@engr.sgi.com> <20050511195003.GA2468@infradead.org> <4282798F.8060005@engr.sgi.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 8BIT
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-References: <Pine.LNX.4.58.0505110816020.22655@schroedinger.engr.sgi.com>
-	 <20050512000444.641f44a9.akpm@osdl.org>
+In-Reply-To: <4282798F.8060005@engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: Christoph Lameter <clameter@engr.sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, shai@scalex86.org
+To: Ray Bryant <raybry@engr.sgi.com>
+Cc: Ray Bryant <raybry@sgi.com>, Hirokazu Takahashi <taka@valinux.co.jp>, Marcelo Tosatti <marcelo.tosatti@cyclades.com>, Andi Kleen <ak@suse.de>, Dave Hansen <haveblue@us.ibm.com>, linux-mm <linux-mm@kvack.org>, Nathan Scott <nathans@sgi.com>, Ray Bryant <raybry@austin.rr.com>, lhms-devel@lists.sourceforge.net, Jes Sorensen <jes@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-On 5/12/05, Andrew Morton <akpm@osdl.org> wrote:
-> Christoph Lameter <clameter@engr.sgi.com> wrote:
-> >
-> > This patch allows kmalloc_node to be as fast as kmalloc by introducing
-> >  node specific page lists for partial, free and full slabs.
-> 
-> This patch causes the ppc64 G5 to lock up fairly early in boot.  It's
-> pretty much a default config:
-> http://www.zip.com.au/~akpm/linux/patches/stuff/config-pmac
-> 
-> No serial port, no debug environment, but no useful-looking error messages
-> either.  See http://www.zip.com.au/~akpm/linux/patches/stuff/dsc02516.jpg
+On Wed, May 11, 2005 at 04:30:55PM -0500, Ray Bryant wrote:
+> I guess we have a different world view on this.  It seems to me that
+> migratability is a long term property of the file itself (and how it
+> is commonly used) rather than a short term property (i. e. how the
+> file is used this particular time it got mapped in).
 
-The image shows that kernel comand line option "quiet" was used .
-We can probably get some more info if  booted without "quiet" .
+When you talk about files you're already in the special casing business.
+Only few vmas are file-backed and it makes lots of sense to mark an
+anonymous vma non-migratable.
 
-Niraj
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
