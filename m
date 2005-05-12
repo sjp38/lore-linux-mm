@@ -1,7 +1,7 @@
-Date: Thu, 12 May 2005 09:07:36 +0200
+Date: Thu, 12 May 2005 09:14:01 +0200
 From: Ingo Molnar <mingo@elte.hu>
 Subject: Re: [PATCH] Avoiding mmap fragmentation  (against 2.6.12-rc4) to
-Message-ID: <20050512070736.GA15494@elte.hu>
+Message-ID: <20050512071401.GA16345@elte.hu>
 References: <20050510115818.0828f5d1.akpm@osdl.org> <200505101934.j4AJYfg26483@unix-os.sc.intel.com> <20050510124357.2a7d2f9b.akpm@osdl.org> <17025.4213.255704.748374@gargle.gargle.HOWL> <20050510125747.65b83b4c.akpm@osdl.org> <17026.6227.225173.588629@gargle.gargle.HOWL>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
@@ -15,17 +15,17 @@ List-ID: <linux-mm.kvack.org>
 
 * Wolfgang Wander <wwc@rentec.com> wrote:
 
-> The patch below is against linux-2.6.12-rc4.
-> 
-> Ingo recently introduced a great speedup for allocating new mmaps 
-> using the free_area_cache pointer which boosts the specweb SSL 
-> benchmark by 4-5% and causes huge performance increases in thread 
-> creation.
+> Now - drumroll ;-) the appended patch works fine with leakme: it ends 
+> with only 7 distinct areas in /proc/self/maps and also thread creation 
+> seems sufficiently fast with 0.71s for 20000 threads.
 
-small correction: 'recently' was more than 2.5 years ago (!). So this 
-issue is something that hits certain rare workloads. Note that the mmap 
-speedup was also backported to 2.4 so it is quite widely deployed. This 
-is the first time anyone complained.
+great! Looks good to me. The whole allocator is a bit of a patchwork, 
+but we knew that: the optimizations are heuristics so there will always 
+be workloads where the linear search could trigger. (If someone replaces 
+the whole thing with some smart size and address indexed tree structure 
+it may work better, but i'm not holding my breath.)
+
+This needs tons of testing though.
 
 	Ingo
 --
