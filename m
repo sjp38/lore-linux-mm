@@ -1,59 +1,35 @@
-Message-ID: <4282815F.1000100@engr.sgi.com>
-Date: Wed, 11 May 2005 17:04:15 -0500
-From: Ray Bryant <raybry@engr.sgi.com>
-MIME-Version: 1.0
-Subject: Re: [Lhms-devel] Re: [PATCH 2.6.12-rc3 1/8] mm: manual page migration-rc2
- -- xfs-extended-attributes-rc2.patch
-References: <20050511043756.10876.72079.60115@jackhammer.engr.sgi.com> <20050511043802.10876.60521.51027@jackhammer.engr.sgi.com> <20050511071538.GA23090@infradead.org> <4281F650.2020807@engr.sgi.com> <20050511125932.GW25612@wotan.suse.de> <42825236.1030503@engr.sgi.com> <20050511193207.GE11200@wotan.suse.de> <20050511200033.GA2646@infradead.org>
-In-Reply-To: <20050511200033.GA2646@infradead.org>
-Content-Type: text/plain; charset=us-ascii; format=flowed
+Date: Wed, 11 May 2005 17:59:01 -0700
+From: Andrew Morton <akpm@osdl.org>
+Subject: Re: [PATCH] Avoiding mmap fragmentation  (against 2.6.12-rc4) to
+Message-Id: <20050511175901.15fa7b95.akpm@osdl.org>
+In-Reply-To: <17026.6227.225173.588629@gargle.gargle.HOWL>
+References: <20050510115818.0828f5d1.akpm@osdl.org>
+	<200505101934.j4AJYfg26483@unix-os.sc.intel.com>
+	<20050510124357.2a7d2f9b.akpm@osdl.org>
+	<17025.4213.255704.748374@gargle.gargle.HOWL>
+	<20050510125747.65b83b4c.akpm@osdl.org>
+	<17026.6227.225173.588629@gargle.gargle.HOWL>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Hellwig <hch@infradead.org>
-Cc: Andi Kleen <ak@suse.de>, Ray Bryant <raybry@sgi.com>, Hirokazu Takahashi <taka@valinux.co.jp>, Marcelo Tosatti <marcelo.tosatti@cyclades.com>, Dave Hansen <haveblue@us.ibm.com>, linux-mm <linux-mm@kvack.org>, Nathan Scott <nathans@sgi.com>, Ray Bryant <raybry@austin.rr.com>, lhms-devel@lists.sourceforge.net, Jes Sorensen <jes@wildopensource.com>
+To: Wolfgang Wander <wwc@rentec.com>
+Cc: kenneth.w.chen@intel.com, mingo@elte.hu, arjanv@redhat.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Christoph Hellwig wrote:
-> On Wed, May 11, 2005 at 09:32:07PM +0200, Andi Kleen wrote:
-> 
->>hch: if you still are against this please reread the original thread
->>with me and Ray and see why we decided that ld.so changes are not
->>a good idea.
-> 
-> 
-> please send a pointer to the discussion.
-> 
+Wolfgang Wander <wwc@rentec.com> wrote:
+>
+> diff -rpu linux-2.6.12-rc4-vanilla/fs/binfmt_elf.c linux-2.6.12-rc4-wwc/fs/binfmt_elf.c
+>  --- linux-2.6.12-rc4-vanilla/fs/binfmt_elf.c	2005-05-10 18:28:59.958415676 -0400
+>  +++ linux-2.6.12-rc4-wwc/fs/binfmt_elf.c	2005-05-10 16:34:23.696894470 -0400
+>  @@ -775,6 +775,7 @@ static int load_elf_binary(struct linux_
+>   	   change some of these later */
+>   	set_mm_counter(current->mm, rss, 0);
+>   	current->mm->free_area_cache = current->mm->mmap_base;
+>  +	current->mm->cached_hole_size = current->mm->cached_hole_size;
 
-The thread starts here:
-
-http://marc.theaimsgroup.com/?l=linux-mm&m=110817907931126&w=2
-
-> Not that I think it matters a lot.  What Ray implemented is a very
-> special cased hack for migration policies that only applies to shared
-> libraries.  Doing it generically is about the same amount of code and
-> a lot cleaner.
-> 
-> Note that I'm not against storing information in the file so that
-> shared libraries get the proper treatment, but the proper place for
-> that is an additional ELF header or magic section, similar to the
-> noexec stack changes.
-> 
-
-Can you help me get the glibc developers to buy into the necessary
-changes to ld.so?  (Isn't that where such changes would end up being
-made?)
-
--- 
-Best Regards,
-Ray
------------------------------------------------
-                   Ray Bryant
-512-453-9679 (work)         512-507-7807 (cell)
-raybry@sgi.com             raybry@austin.rr.com
-The box said: "Requires Windows 98 or better",
-            so I installed Linux.
------------------------------------------------
+eh?
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
