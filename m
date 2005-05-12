@@ -1,33 +1,40 @@
-Date: Thu, 12 May 2005 09:14:01 +0200
-From: Ingo Molnar <mingo@elte.hu>
-Subject: Re: [PATCH] Avoiding mmap fragmentation  (against 2.6.12-rc4) to
-Message-ID: <20050512071401.GA16345@elte.hu>
-References: <20050510115818.0828f5d1.akpm@osdl.org> <200505101934.j4AJYfg26483@unix-os.sc.intel.com> <20050510124357.2a7d2f9b.akpm@osdl.org> <17025.4213.255704.748374@gargle.gargle.HOWL> <20050510125747.65b83b4c.akpm@osdl.org> <17026.6227.225173.588629@gargle.gargle.HOWL>
+Received: by zproxy.gmail.com with SMTP id 13so404820nzn
+        for <linux-mm@kvack.org>; Thu, 12 May 2005 02:39:43 -0700 (PDT)
+Message-ID: <b82a8917050512023938ce1f4d@mail.gmail.com>
+Date: Thu, 12 May 2005 15:09:43 +0530
+From: Niraj kumar <niraj17@gmail.com>
+Reply-To: Niraj kumar <niraj17@gmail.com>
+Subject: Re: NUMA aware slab allocator V2
+In-Reply-To: <20050512000444.641f44a9.akpm@osdl.org>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 8BIT
 Content-Disposition: inline
-In-Reply-To: <17026.6227.225173.588629@gargle.gargle.HOWL>
+References: <Pine.LNX.4.58.0505110816020.22655@schroedinger.engr.sgi.com>
+	 <20050512000444.641f44a9.akpm@osdl.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Wolfgang Wander <wwc@rentec.com>
-Cc: Andrew Morton <akpm@osdl.org>, kenneth.w.chen@intel.com, arjanv@redhat.com, linux-mm@kvack.org
+To: Andrew Morton <akpm@osdl.org>
+Cc: Christoph Lameter <clameter@engr.sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, shai@scalex86.org
 List-ID: <linux-mm.kvack.org>
 
-* Wolfgang Wander <wwc@rentec.com> wrote:
+On 5/12/05, Andrew Morton <akpm@osdl.org> wrote:
+> Christoph Lameter <clameter@engr.sgi.com> wrote:
+> >
+> > This patch allows kmalloc_node to be as fast as kmalloc by introducing
+> >  node specific page lists for partial, free and full slabs.
+> 
+> This patch causes the ppc64 G5 to lock up fairly early in boot.  It's
+> pretty much a default config:
+> http://www.zip.com.au/~akpm/linux/patches/stuff/config-pmac
+> 
+> No serial port, no debug environment, but no useful-looking error messages
+> either.  See http://www.zip.com.au/~akpm/linux/patches/stuff/dsc02516.jpg
 
-> Now - drumroll ;-) the appended patch works fine with leakme: it ends 
-> with only 7 distinct areas in /proc/self/maps and also thread creation 
-> seems sufficiently fast with 0.71s for 20000 threads.
+The image shows that kernel comand line option "quiet" was used .
+We can probably get some more info if  booted without "quiet" .
 
-great! Looks good to me. The whole allocator is a bit of a patchwork, 
-but we knew that: the optimizations are heuristics so there will always 
-be workloads where the linear search could trigger. (If someone replaces 
-the whole thing with some smart size and address indexed tree structure 
-it may work better, but i'm not holding my breath.)
-
-This needs tons of testing though.
-
-	Ingo
+Niraj
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
