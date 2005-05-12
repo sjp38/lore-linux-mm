@@ -1,56 +1,37 @@
-Date: Thu, 12 May 2005 15:41:48 +0900 (JST)
-Message-Id: <20050512.154148.52902091.taka@valinux.co.jp>
-Subject: Re: [PATCH 2.6.12-rc3 4/8] mm: manual page migration-rc2 --
- add-sys_migrate_pages-rc2.patch
-From: Hirokazu Takahashi <taka@valinux.co.jp>
-In-Reply-To: <4282115C.40207@engr.sgi.com>
-References: <20050511043821.10876.47127.71762@jackhammer.engr.sgi.com>
-	<20050511.222314.10910241.taka@valinux.co.jp>
-	<4282115C.40207@engr.sgi.com>
+Date: Thu, 12 May 2005 00:04:44 -0700
+From: Andrew Morton <akpm@osdl.org>
+Subject: Re: NUMA aware slab allocator V2
+Message-Id: <20050512000444.641f44a9.akpm@osdl.org>
+In-Reply-To: <Pine.LNX.4.58.0505110816020.22655@schroedinger.engr.sgi.com>
+References: <Pine.LNX.4.58.0505110816020.22655@schroedinger.engr.sgi.com>
 Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: raybry@engr.sgi.com
-Cc: raybry@sgi.com, marcelo.tosatti@cyclades.com, ak@suse.de, haveblue@us.ibm.com, hch@infradead.org, linux-mm@kvack.org, nathans@sgi.com, raybry@austin.rr.com, lhms-devel@lists.sourceforge.net
+To: Christoph Lameter <clameter@engr.sgi.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, shai@scalex86.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+Christoph Lameter <clameter@engr.sgi.com> wrote:
+>
+> This patch allows kmalloc_node to be as fast as kmalloc by introducing
+>  node specific page lists for partial, free and full slabs.
 
-> > BTW, I'm not sure whether it's enough that migrate_vma() can only
-> > migrate currently mapped pages. This may leave some pages in the
-> > page-cache if they're not mapped to the process address spaces yet.
-> > 
-> > Thanks,
-> > Hirokazu Takahashi.
-> 
-> If the page isn't mapped, there is no good way to match it up with
-> a particular process id, is there?   :-)
+This patch causes the ppc64 G5 to lock up fairly early in boot.  It's
+pretty much a default config:
+http://www.zip.com.au/~akpm/linux/patches/stuff/config-pmac
 
-I just thought of the page, belonging to some file which is
-mmap()ed to the target process to be migrated. The page may
-not be accessed and the associated PTE isn't set yet.
-if vma->vm_file->f_mapping equals page_mapping(page), the page
-should be migrated. 
+No serial port, no debug environment, but no useful-looking error messages
+either.  See http://www.zip.com.au/~akpm/linux/patches/stuff/dsc02516.jpg
 
-Pages in the swap-cache have the same problem since the related
-PTEs may be clean.
+Also, the patch came through with all the "^ $" lines converted to
+completely empty lines - probably your email client is trying to be clever.
+Please send yourself a patch, check that it applies?
 
-But these cases may be rare and your approach seems to be good
-enough in most cases.
-
-> We've handled that separately in the actual migration application,
-> by sync'ing the system and  then freeing clean page cache pages
-> before the migrate_pages() system call is invoked.
-> 
-> -- 
-> Best Regards,
-> Ray
-
-Thanks,
-Hirokazu Takahashi.
-
+Finally, I do intend to merge up the various slab patches which are in -mm,
+so if you could base further work on top of those it would simplify life,
+thanks.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
