@@ -1,71 +1,95 @@
-Message-ID: <42838742.3030903@engr.sgi.com>
-Date: Thu, 12 May 2005 11:41:38 -0500
-From: Ray Bryant <raybry@engr.sgi.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH 2.6.12-rc3 4/8] mm: manual page migration-rc2 -- add-sys_migrate_pages-rc2.patch
-References: <20050511043821.10876.47127.71762@jackhammer.engr.sgi.com>	<20050511.222314.10910241.taka@valinux.co.jp>	<4282115C.40207@engr.sgi.com> <20050512.154148.52902091.taka@valinux.co.jp>
-In-Reply-To: <20050512.154148.52902091.taka@valinux.co.jp>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+Date: Thu, 12 May 2005 14:53:02 -0400
+From: Martin Hicks <mort@sgi.com>
+Subject: Re: [PATCH/RFC 0/4] VM: Manual and Automatic page cache reclaim
+Message-ID: <20050512185302.GO19244@localhost>
+References: <20050427150848.GR8018@localhost> <20050427233335.492d0b6f.akpm@osdl.org> <4277259C.6000207@engr.sgi.com> <20050503010846.508bbe62.akpm@osdl.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20050503010846.508bbe62.akpm@osdl.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hirokazu Takahashi <taka@valinux.co.jp>
-Cc: raybry@sgi.com, marcelo.tosatti@cyclades.com, ak@suse.de, haveblue@us.ibm.com, hch@infradead.org, linux-mm@kvack.org, nathans@sgi.com, raybry@austin.rr.com, lhms-devel@lists.sourceforge.net
+To: Andrew Morton <akpm@osdl.org>
+Cc: Ray Bryant <raybry@engr.sgi.com>, linux-mm@kvack.org, ak@suse.de
 List-ID: <linux-mm.kvack.org>
 
-Hirokazu Takahashi wrote:
-
-
+On Tue, May 03, 2005 at 01:08:46AM -0700, Andrew Morton wrote:
 > 
-> I just thought of the page, belonging to some file which is
-> mmap()ed to the target process to be migrated. The page may
-> not be accessed and the associated PTE isn't set yet.
-> if vma->vm_file->f_mapping equals page_mapping(page), the page
-> should be migrated. 
+> Yup.  But we could add a knob to each zone which says, during page
+> allocation "be more reluctant to advance onto the next node - do some
+> direct reclaim instead"
 > 
-> Pages in the swap-cache have the same problem since the related
-> PTEs may be clean.
+> And the good thing about that is that it is an easier merge because it's a
+> simpler patch and because it's useful to more machines.  People can tune it
+> and get better (or worse) performance from existing apps on NUMA.
 > 
-> But these cases may be rare and your approach seems to be good
-> enough in most cases.
+> Yes, if it's a "simple" patch then it _might_ do a bit of swapout or
+> something.  But the VM does prefer to reclaim clean pagecache first (as
+> well as slab, which is a bonus for this approach).
 > 
-> 
+> Worth trying, at least?
 
-Well, what could be done would be the following, I suppose:
+So, I did this as an exercise.  A few things came up:
 
-If follow_page() returns NULL and the vma maps a file, we could
-lookup the page in the radix tree, and if we find it, and if it
-is on a node that we are migrating from, we could add the page
-to the set of pages to be migrated.
+1)  If you just call directly into the reclaim code then it swaps a LOT.
+I stuck my "don't swap" flag back in, just to see what would happen.  It
+works a lot better if you can tell it to just not swap.
 
-The disadvantage of this is that we could do a LOT of radix
-tree lookups and find relatively few pages.  (Our approach of
-releasing free page cache pages first makes such pages just
-"go away".  But we don't have "release free page cache pages"
-in the mainline yet.  :-( )
+2)  With a per zone on/off flag for reclaim, I then run into the
+trouble where the allocator always reclaims pages, even when it
+shouldn't.  Filling pagecache with files will start reclaiming from the
+preferred zone as soon as the zone fills, leaving the rest of the zones
+unused.
 
-Similarly, if we modified follow_page() (e. g. follow_page_ex())
-to return the pte, check to see if it is a swap pte (!pte_none()
-&& !pte_file()), if so then use pte_to_swap_entry() to get
-the swap entry, and then use that to look up the page in the
-swapper space radix tree.  Then handle it as above (hmmm...
-will your migration code handle a page in the swap cache?)
+My last patch, using mempolicies, got this right because the core
+kernel, which wasn't set to use reclaim, would just allocate off-node
+for stuff like page cache pages.
 
-Once again, this could lead to lots of lookups.  This is
-especially a concern for a large multithreaded app, since the
-address spaces are the same for each process id, hence we look
-up the same info over and over in each page table scan.
+3)  This patch has no code that limits the amount of scanning that is done
+under really heavy memory stress.  A "make -j" kernel build takes more
+time to complete than I'm willing to wait, while a stock kernel does
+complete the run in 15-20 minutes.
+
+Scanning too much is really the biggest problem.  I want to keep using
+refill_inactive_list(), so that I don't futz with the LRU ordering or
+resort to reclaiming active pages like I was doing in my old patch.
+
+4) Under trivial tests, this patch helps NUMA machines get local memory
+more often.  The silly test was to just fill node 0 with page cache and
+then run a "make -j8" kernbench test on node 0  (2 cpu node).
+
+Without zone reclaiming turned on, all memory allocations go to node 1.
+With the reclaiming on, page cache is reclaimed and gcc gets all local
+memory.
+
+This is a real problem.  We even see it on modest 8p/32G build servers
+because there is lots of pagecache kicking around and a lot of the
+allocations end up being remote.
+
+zone reclaiming on:
+
+Average Optimal -j 8 Load Run:
+Elapsed Time 703.87
+User Time 1337.77
+System Time 47.94
+Percent CPU 196
+Context Switches 73669
+Sleeps 58874
+
+zone reclaiming off:
+
+Average Optimal -j 8 Load Run:
+Elapsed Time 741.22
+User Time 1396.97
+System Time 65.14
+Percent CPU 197
+Context Switches 73211
+Sleeps 58996
+
+mh
 
 -- 
-Best Regards,
-Ray
------------------------------------------------
-                   Ray Bryant
-512-453-9679 (work)         512-507-7807 (cell)
-raybry@sgi.com             raybry@austin.rr.com
-The box said: "Requires Windows 98 or better",
-            so I installed Linux.
------------------------------------------------
+Martin Hicks   ||   Silicon Graphics Inc.   ||   mort@sgi.com
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
