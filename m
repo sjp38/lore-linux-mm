@@ -1,89 +1,58 @@
-Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-        by fgwmail6.fujitsu.co.jp (Fujitsu Gateway)
-        id j4D7RSwV014206 for <linux-mm@kvack.org>; Fri, 13 May 2005 16:27:28 +0900
-        (envelope-from y-goto@jp.fujitsu.com)
-Received: from s4.gw.fujitsu.co.jp by m1.gw.fujitsu.co.jp (8.12.10/Fujitsu Domain Master)
-	id j4D7RR2C023942 for <linux-mm@kvack.org>; Fri, 13 May 2005 16:27:27 +0900
-	(envelope-from y-goto@jp.fujitsu.com)
-Received: from s4.gw.fujitsu.co.jp (localhost [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id CCE3515362F
-	for <linux-mm@kvack.org>; Fri, 13 May 2005 16:27:27 +0900 (JST)
-Received: from fjm502.ms.jp.fujitsu.com (fjm502.ms.jp.fujitsu.com [10.56.99.74])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 827A515362D
-	for <linux-mm@kvack.org>; Fri, 13 May 2005 16:27:27 +0900 (JST)
-Received: from [10.124.100.220] (fjmscan501.ms.jp.fujitsu.com [10.56.99.141])by fjm502.ms.jp.fujitsu.com with ESMTP id j4D7R12U010780
-	for <linux-mm@kvack.org>; Fri, 13 May 2005 16:27:01 +0900
-Date: Fri, 13 May 2005 16:27:00 +0900
-From: Yasunori Goto <y-goto@jp.fujitsu.com>
-Subject: [PATCH/RFC 2/2] Remove pgdat list
-Message-Id: <20050513160619.5227.Y-GOTO@jp.fujitsu.com>
+Message-ID: <42847A80.6020002@engr.sgi.com>
+Date: Fri, 13 May 2005 04:59:28 -0500
+From: Ray Bryant <raybry@engr.sgi.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+Subject: Re: [Lhms-devel] Re: [PATCH 2.6.12-rc3 4/8] mm: manual page migration-rc2
+ -- add-sys_migrate_pages-rc2.patch
+References: <4282115C.40207@engr.sgi.com>	<20050512.154148.52902091.taka@valinux.co.jp>	<42838742.3030903@engr.sgi.com> <20050513.085034.74732081.taka@valinux.co.jp>
+In-Reply-To: <20050513.085034.74732081.taka@valinux.co.jp>
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Hirokazu Takahashi <taka@valinux.co.jp>
+Cc: raybry@sgi.com, marcelo.tosatti@cyclades.com, ak@suse.de, haveblue@us.ibm.com, hch@infradead.org, linux-mm@kvack.org, nathans@sgi.com, raybry@austin.rr.com, lhms-devel@lists.sourceforge.net
 List-ID: <linux-mm.kvack.org>
 
-This patch is moving NODE_DATA()'s definition in include/linux/mmzone.h
-to use for_each_pgdat or for_each_zone.
+Hirokazu Takahashi wrote:
+> Hi Ray,
+> 
+> 
 
-Signed-off-by: Yasunori Goto <y-goto@jp.fujitsu.com>
----
+>>
+>>Well, what could be done would be the following, I suppose:
+>>
+>>If follow_page() returns NULL and the vma maps a file, we could
+>>lookup the page in the radix tree, and if we find it, and if it
+>>is on a node that we are migrating from, we could add the page
+>>to the set of pages to be migrated.
+>>
+>>The disadvantage of this is that we could do a LOT of radix
+>>tree lookups and find relatively few pages.  (Our approach of
+> 
+> 
+> 
+> How about find_get_pages() for whole mmap()'ed ranges?
+> With it, you may not need to call follow_page().
+> 
 
- pgdat_link-goto/include/linux/mmzone.h |   28 ++++++++++++++--------------
- 1 files changed, 14 insertions(+), 14 deletions(-)
+No, you need to call follow_page() to get, for example, the
+read-write pages of a shared library that are process private.
 
-diff -puN include/linux/mmzone.h~move_node_data include/linux/mmzone.h
---- pgdat_link/include/linux/mmzone.h~move_node_data	2005-05-13 12:09:34.996172040 +0900
-+++ pgdat_link-goto/include/linux/mmzone.h	2005-05-13 12:13:33.006988896 +0900
-@@ -304,6 +304,20 @@ unsigned long __init node_memmap_size_by
-  */
- #define zone_idx(zone)		((zone) - (zone)->zone_pgdat->node_zones)
- 
-+#ifndef CONFIG_NEED_MULTIPLE_NODES
-+
-+extern struct pglist_data contig_page_data;
-+#define NODE_DATA(nid)		(&contig_page_data)
-+#define NODE_MEM_MAP(nid)	mem_map
-+#define MAX_NODES_SHIFT		1
-+#define pfn_to_nid(pfn)		(0)
-+
-+#else /* CONFIG_NEED_MULTIPLE_NODES */
-+
-+#include <asm/mmzone.h>
-+
-+#endif /* !CONFIG_NEED_MULTIPLE_NODES */
-+
- #define first_online_pgdat() NODE_DATA(first_online_node())
- #define next_online_pgdat(pgdat)				\
- 	((next_online_node((pgdat)->node_id) != MAX_NUMNODES) ?	\
-@@ -403,20 +417,6 @@ int lowmem_reserve_ratio_sysctl_handler(
- /* Returns the number of the current Node. */
- #define numa_node_id()		(cpu_to_node(_smp_processor_id()))
- 
--#ifndef CONFIG_NEED_MULTIPLE_NODES
--
--extern struct pglist_data contig_page_data;
--#define NODE_DATA(nid)		(&contig_page_data)
--#define NODE_MEM_MAP(nid)	mem_map
--#define MAX_NODES_SHIFT		1
--#define pfn_to_nid(pfn)		(0)
--
--#else /* CONFIG_NEED_MULTIPLE_NODES */
--
--#include <asm/mmzone.h>
--
--#endif /* !CONFIG_NEED_MULTIPLE_NODES */
--
- #ifdef CONFIG_SPARSEMEM
- #include <asm/sparsemem.h>
- #endif
-_
+For the moment, I would propose punting on this issue.  I don't
+think there will be many pages in this category, and if they do
+show up later, we have a couple of approaches to deal with them.
 
 -- 
-Yasunori Goto 
-
+Best Regards,
+Ray
+-----------------------------------------------
+                   Ray Bryant
+512-453-9679 (work)         512-507-7807 (cell)
+raybry@sgi.com             raybry@austin.rr.com
+The box said: "Requires Windows 98 or better",
+            so I installed Linux.
+-----------------------------------------------
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
