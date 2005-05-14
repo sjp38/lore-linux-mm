@@ -1,46 +1,41 @@
-Date: Fri, 15 Jul 2005 09:06:25 -0700 (PDT)
-From: Christoph Lameter <clameter@engr.sgi.com>
-Subject: Re: [NUMA] Display and modify the memory policy of a process through
- /proc/<pid>/numa_policy
-In-Reply-To: <20050714230501.4a9df11e.pj@sgi.com>
-Message-ID: <Pine.LNX.4.62.0507150901500.8556@schroedinger.engr.sgi.com>
-References: <200507150452.j6F4q9g10274@unix-os.sc.intel.com>
- <Pine.LNX.4.62.0507142152400.2139@schroedinger.engr.sgi.com>
- <20050714230501.4a9df11e.pj@sgi.com>
+Received: from Verale330sb730ebv7h (52.86.52.42) by ozubzymwwd882.prodigy.net
+          (InterMail vM.5.01.06.05 140-528-674-355-203-65714743) with SMTP
+          id <82032908214811.ZGX449.ozxdcos334165.prodigy.net@gladel34k920ujz335z>
+          for <linux-mm@kvack.org>; Sat, 14 May 2005 18:08:09 -0400
+Message-ID: <6176oe147yw79$82364$muk1u998@Verayg921gk65zsr7o>
+From: "Jacquelyn Aaron" <atnddhfio@netscape.net>
+Subject: Software 3000 cilia
+Date: Sun, 15 May 2005 03:02:09 +0500
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: multipart/alternative;
+	boundary="--legion"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Paul Jackson <pj@sgi.com>
-Cc: kenneth.w.chen@intel.com, linux-mm@kvack.org, linux-ia64@vger.kernel.org, Andi Kleen <ak@suse.de>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 14 Jul 2005, Paul Jackson wrote:
+----legion
+Content-Type: text/plain;
+Content-Transfer-Encoding: quoted-printable
 
-> Christoph wrote:
-> > This is an implementation that deals with monitoring and managing running 
-> > processes.
-> 
-> So is this patch roughly equivalent to adding a pid to the
-> mbind/set_mempolicy/get_mempolicy system calls?
+Hello
 
-Yes. Almost.
- 
-> Not that I am advocating for or against adding doing that.  But this
-> seems like alot of code, with new and exciting API details, just to
-> add a pid argument, if such it be.
 
-I think the syscall interface is plainly wrong for monitoring and managing 
-a process. The /proc interface is designed to monitor processes and it 
-allows the modification of process characteristics. This is the natural 
-way to implement viewing of numa allocation maps, the runtime changes
-to allocation strategies and finally something that migrates pages of a 
-vma between nodes.
+We got thousands software at low low price 
 
-A syscall interface implies that you have to write user space programs 
-with associated libraries to display and manipulate values. As 
-demonstrated this is really not necessary. Implementation via /proc
-is fairly simple.
+visit us now 
+
+http://www.erevansoft.net
+
+
+
+
+phage
+
+
+----legion--
+
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
