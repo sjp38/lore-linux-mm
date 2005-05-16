@@ -1,33 +1,36 @@
-From: promotion@druck.at
-Subject: Druckerpatronen bis zu 92% =?ISO-8859-1?Q?g=FCnstiger?=
-Mime-Version: 1.0
-Content-Type: text/plain; charset="iso-8859-1"
-Date: Sun, 15 May 2005 17:16:28
-Message-Id: <20050515152040Z26529-930+214@kvack.org>
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+Date: Mon, 16 May 2005 08:50:39 +0600
+From: "Chase Willis" <clymer@doramail.com>
+Message-Id: <CFE1.AA79.9A31clymer@doramail.com>
+Subject: Re-finance at todays low rate
+Return-Path: <clymer@doramail.com>
+To: domo@kvack.org
+Cc: er-linux-aio@kvack.org, er-linux-mm@kvack.orginux-aio@kvack.orginux-mm@kvack.orgio@kvack.org, jordomo@kvack.org, kernel@kvack.org, lah@kvack.orglinux-aio@kvack.orglinux-mm@kvack.org, linux-mm-archive@kvack.orgm@kvack.org, mailer-daemon@kvack.orgmm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Sehr geehrte Damen und Herren
 
-Kennen Sie die teuerste Flussigkeit der Welt?
-Das ist nicht das Benzin, sondern
+Hello,
 
-Druckerfarbe
+ We tried contacting you awhile ago about your low interest morta(ge rate.
 
-1 Liter kostet umgerechnet 1000 Euro und mehr.
+ You have qualified for the lowest rate in years...
 
-Wir bieten Ihnen die Moglichkeit, bei ihren Druckkosten
-bis zu 92% Ihrer Kosten einzusparen
-mit 100% Zufriedenheits-Garantie
+ You could get over $380,000 for as little as $500 a month!
 
-Unverbindliche Infos fordern Sie bitte an unter:
-lafitte100@yahoo.fr
+ Ba(d credit? Doesn't matter, low rates are fixed no matter what!
 
-Dies ist kein Spam, weil wir geschaftlichen Kontakt haben oder hatten
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"aart@kvack.org"> aart@kvack.org </a>
+ 
+ To get a free, no obli,gation consultation click below:
+
+ http://www.truthfu1ly.com/sign.asp
+
+
+
+ Best Regards,
+
+ Thurman Chappell
+ 
+ to be remov(ed:	http://www.truthfu1ly.com/gone.asp
+
+ this process takes one week, so please be patient. we do our 
+ best to take your email/s off but you have to fill out a rem/ove
+ or else you will continue to recieve email/s.
