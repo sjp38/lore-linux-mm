@@ -1,57 +1,62 @@
-Date: Sun, 15 May 2005 22:00:17 -0700
-From: Andrew Morton <akpm@osdl.org>
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e6.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id j4GDr2Uo015659
+	for <linux-mm@kvack.org>; Mon, 16 May 2005 09:53:02 -0400
+Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
+	by d01relay04.pok.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id j4GDr1Xn103156
+	for <linux-mm@kvack.org>; Mon, 16 May 2005 09:53:02 -0400
+Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
+	by d01av01.pok.ibm.com (8.12.11/8.13.3) with ESMTP id j4GDr1ju025722
+	for <linux-mm@kvack.org>; Mon, 16 May 2005 09:53:01 -0400
 Subject: Re: NUMA aware slab allocator V3
-Message-Id: <20050515220017.6271c55e.akpm@osdl.org>
-In-Reply-To: <Pine.LNX.4.62.0505140908480.17517@schroedinger.engr.sgi.com>
+From: Dave Hansen <haveblue@us.ibm.com>
+In-Reply-To: <Pine.LNX.4.62.0505131823210.12315@schroedinger.engr.sgi.com>
 References: <Pine.LNX.4.58.0505110816020.22655@schroedinger.engr.sgi.com>
-	<20050512000444.641f44a9.akpm@osdl.org>
-	<Pine.LNX.4.58.0505121252390.32276@schroedinger.engr.sgi.com>
-	<20050513000648.7d341710.akpm@osdl.org>
-	<Pine.LNX.4.58.0505130411300.4500@schroedinger.engr.sgi.com>
-	<20050513043311.7961e694.akpm@osdl.org>
-	<Pine.LNX.4.62.0505131823210.12315@schroedinger.engr.sgi.com>
-	<20050514004204.2302dc52.akpm@osdl.org>
-	<Pine.LNX.4.62.0505140908480.17517@schroedinger.engr.sgi.com>
+	 <20050512000444.641f44a9.akpm@osdl.org>
+	 <Pine.LNX.4.58.0505121252390.32276@schroedinger.engr.sgi.com>
+	 <20050513000648.7d341710.akpm@osdl.org>
+	 <Pine.LNX.4.58.0505130411300.4500@schroedinger.engr.sgi.com>
+	 <20050513043311.7961e694.akpm@osdl.org>
+	 <Pine.LNX.4.62.0505131823210.12315@schroedinger.engr.sgi.com>
+Content-Type: text/plain
+Date: Mon, 16 May 2005 06:52:48 -0700
+Message-Id: <1116251568.1005.29.camel@localhost>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Christoph Lameter <clameter@engr.sgi.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, shai@scalex86.org, steiner@sgi.com
+Cc: Andrew Morton <akpm@osdl.org>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, shai@scalex86.org, steiner@sgi.com
 List-ID: <linux-mm.kvack.org>
 
-Christoph Lameter <clameter@engr.sgi.com> wrote:
->
-> Here is Dave's patch again:
-> 
->  =====================================================================
->  I think I found the problem.  Could you try the attached patch?
-> 
->  As I said before FLATMEM is really referring to things like the
->  mem_map[] or max_mapnr.
-> 
->  CONFIG_NEED_MULTIPLE_NODES is what gets turned on for DISCONTIG or for
->  NUMA.  We'll slowly be removing all of the DISCONTIG cases, so
->  eventually it will merge back to be one with NUMA.
-> 
->  -- Dave
-> 
->  --- clean/include/linux/numa.h.orig     2005-05-13 06:44:56.000000000 
->  -0700
->  +++ clean/include/linux/numa.h  2005-05-13 06:52:05.000000000 -0700
->  @@ -3,7 +3,7 @@
-> 
->   #include <linux/config.h>
-> 
->  -#ifndef CONFIG_FLATMEM
->  +#ifdef CONFIG_NEED_MULTIPLE_NODES
->   #include <asm/numnodes.h>
->   #endif
+On Fri, 2005-05-13 at 18:24 -0700, Christoph Lameter wrote: 
+>  /*
+> + * Some Linux kernels currently have weird notions of NUMA. Make sure that
+> + * there is only a single node if CONFIG_NUMA is not set. Remove this check
+> + * after the situation has stabilized.
+> + */
+> +#ifndef CONFIG_NUMA
+> +#if MAX_NUMNODES != 1
+> +#error "Broken Configuration: CONFIG_NUMA not set but MAX_NUMNODES !=1 !!"
+> +#endif
+> +#endif
 
-Nope.
+There are some broken assumptions in the kernel that
+CONFIG_DISCONTIG==CONFIG_NUMA.  These usually manifest when code assumes
+that one pg_data_t means one NUMA node.
 
-mm/slab.c:117:2: #error "Broken Configuration: CONFIG_NUMA not set but MAX_NUMNODES !=1 !!"
+However, NUMA node ids are actually distinct from "discontigmem nodes".
+A "discontigmem node" is just one physically contiguous area of memory,
+thus one pg_data_t.  Some (non-NUMA) Mac G5's have a gap in their
+address space, so they get two discontigmem nodes.
+
+So, that #error is bogus.  It's perfectly valid to have multiple
+discontigmem nodes, when the number of NUMA nodes is 1.  MAX_NUMNODES
+refers to discontigmem nodes, not NUMA nodes.
+
+In current -mm, you can use CONFIG_NEED_MULTIPLE_NODES to mean 'NUMA ||
+DISCONTIG'.  
+
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
