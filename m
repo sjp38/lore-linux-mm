@@ -1,42 +1,58 @@
-Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
-	by e35.co.us.ibm.com (8.12.10/8.12.9) with ESMTP id j4GHUgT9510658
-	for <linux-mm@kvack.org>; Mon, 16 May 2005 13:30:42 -0400
-Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
-	by d03relay04.boulder.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id j4GHUgGc179512
-	for <linux-mm@kvack.org>; Mon, 16 May 2005 11:30:42 -0600
-Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av04.boulder.ibm.com (8.12.11/8.13.3) with ESMTP id j4GHUgYp018849
-	for <linux-mm@kvack.org>; Mon, 16 May 2005 11:30:42 -0600
-Subject: Re: /proc/meminfo
-From: Dave Hansen <haveblue@us.ibm.com>
-In-Reply-To: <6934efce05051610252b84713f@mail.gmail.com>
-References: <6934efce05051610252b84713f@mail.gmail.com>
-Content-Type: text/plain
-Date: Mon, 16 May 2005 10:30:29 -0700
-Message-Id: <1116264629.1005.75.camel@localhost>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Date: Mon, 16 May 2005 10:54:33 -0700 (PDT)
+From: Christoph Lameter <clameter@engr.sgi.com>
+Subject: Re: NUMA aware slab allocator V3
+In-Reply-To: <1116264135.1005.73.camel@localhost>
+Message-ID: <Pine.LNX.4.62.0505161046430.1653@schroedinger.engr.sgi.com>
+References: <Pine.LNX.4.58.0505110816020.22655@schroedinger.engr.sgi.com>
+ <20050512000444.641f44a9.akpm@osdl.org>  <Pine.LNX.4.58.0505121252390.32276@schroedinger.engr.sgi.com>
+  <20050513000648.7d341710.akpm@osdl.org>  <Pine.LNX.4.58.0505130411300.4500@schroedinger.engr.sgi.com>
+  <20050513043311.7961e694.akpm@osdl.org>  <Pine.LNX.4.62.0505131823210.12315@schroedinger.engr.sgi.com>
+  <1116251568.1005.29.camel@localhost>  <Pine.LNX.4.62.0505160943140.1330@schroedinger.engr.sgi.com>
+ <1116264135.1005.73.camel@localhost>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jared Hulbert <jaredeh@gmail.com>
-Cc: linux-mm <linux-mm@kvack.org>
+To: Dave Hansen <haveblue@us.ibm.com>
+Cc: Andrew Morton <akpm@osdl.org>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, shai@scalex86.org, steiner@sgi.com
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2005-05-16 at 10:25 -0700, Jared Hulbert wrote:
-> Please have mercy on a linux-mm newbie.  I'd like to understand the
-> output of /proc/meminfo and /proc/<[0-9]+>/maps.  I want to measure 2
-> things: First, how much memory in a system is used for code or other
-> readonly file mmaps or what RAM can be saved by using XIP flash.
-> Second, at the time a system snapshot is taken how much RAM is
-> absolutely needed (for example, I assume we could dump caches, flush
-> buffers, and clean up unused memory.)
+On Mon, 16 May 2005, Dave Hansen wrote:
+
+> > How do the concepts of numa node id relate to discontig node ids?
 > 
-> Where can I find a good reference to what this all output means?  Are
-> there other sources of information available?
+> I believe there are quite a few assumptions on some architectures that,
+> when NUMA is on, they are equivalent.  It appears to be pretty much
+> assumed everywhere that CONFIG_NUMA=y means one pg_data_t per NUMA node.
 
-Documentation/filesystems/proc.txt
+Ah. That sounds much better.
 
--- Dave
+> Remember, as you saw, you can't assume that MAX_NUMNODES=1 when NUMA=n
+> because of the DISCONTIG=y case.
+
+I have never seen such a machine. A SMP machine with multiple 
+"nodes"? So essentially one NUMA node has multiple discontig "nodes"?
+
+This means that the concept of a node suddenly changes if there is just 
+one numa node(CONFIG_NUMA off implies one numa node)? 
+
+> So, in summary, if you want to do it right: use the
+> CONFIG_NEED_MULTIPLE_NODES that you see in -mm.  As plain DISCONTIG=y
+> gets replaced by sparsemem any code using this is likely to stay
+> working.
+
+s/CONFIG_NUMA/CONFIG_NEED_MULTIPLE_NODES?
+
+That will not work because the idea is the localize the slabs to each 
+node. 
+
+If there are multiple nodes per numa node then invariable one node in the 
+numa node (sorry for this duplication of what node means but I did not 
+do it) must be preferred since numa_node_id() does not return a set of 
+discontig nodes.
+ 
+Sorry but this all sounds like an flaw in the design. There is no 
+consistent notion of node. Are you sure that this is not a ppc64 screwup?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
