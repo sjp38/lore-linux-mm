@@ -1,47 +1,62 @@
-Date: Mon, 16 May 2005 11:08:35 -0700
-From: "Martin J. Bligh" <mbligh@mbligh.org>
-Reply-To: "Martin J. Bligh" <mbligh@mbligh.org>
+Received: from westrelay02.boulder.ibm.com (westrelay02.boulder.ibm.com [9.17.195.11])
+	by e35.co.us.ibm.com (8.12.10/8.12.9) with ESMTP id j4GICgT9494454
+	for <linux-mm@kvack.org>; Mon, 16 May 2005 14:12:42 -0400
+Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
+	by westrelay02.boulder.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id j4GICgdV079800
+	for <linux-mm@kvack.org>; Mon, 16 May 2005 12:12:42 -0600
+Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av04.boulder.ibm.com (8.12.11/8.13.3) with ESMTP id j4GICgPj015457
+	for <linux-mm@kvack.org>; Mon, 16 May 2005 12:12:42 -0600
 Subject: Re: NUMA aware slab allocator V3
-Message-ID: <714210000.1116266915@flay>
+From: Dave Hansen <haveblue@us.ibm.com>
 In-Reply-To: <Pine.LNX.4.62.0505161046430.1653@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.58.0505110816020.22655@schroedinger.engr.sgi.com> <20050512000444.641f44a9.akpm@osdl.org>  <Pine.LNX.4.58.0505121252390.32276@schroedinger.engr.sgi.com> <20050513000648.7d341710.akpm@osdl.org>  <Pine.LNX.4.58.0505130411300.4500@schroedinger.engr.sgi.com> <20050513043311.7961e694.akpm@osdl.org>  <Pine.LNX.4.62.0505131823210.12315@schroedinger.engr.sgi.com> <1116251568.1005.29.camel@localhost>  <Pine.LNX.4.62.0505160943140.1330@schroedinger.engr.sgi.com><1116264135.1005.73.camel@localhost> <Pine.LNX.4.62.0505161046430.1653@schroedinger.engr.sgi.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+References: <Pine.LNX.4.58.0505110816020.22655@schroedinger.engr.sgi.com>
+	 <20050512000444.641f44a9.akpm@osdl.org>
+	 <Pine.LNX.4.58.0505121252390.32276@schroedinger.engr.sgi.com>
+	 <20050513000648.7d341710.akpm@osdl.org>
+	 <Pine.LNX.4.58.0505130411300.4500@schroedinger.engr.sgi.com>
+	 <20050513043311.7961e694.akpm@osdl.org>
+	 <Pine.LNX.4.62.0505131823210.12315@schroedinger.engr.sgi.com>
+	 <1116251568.1005.29.camel@localhost>
+	 <Pine.LNX.4.62.0505160943140.1330@schroedinger.engr.sgi.com>
+	 <1116264135.1005.73.camel@localhost>
+	 <Pine.LNX.4.62.0505161046430.1653@schroedinger.engr.sgi.com>
+Content-Type: text/plain
+Date: Mon, 16 May 2005 11:12:29 -0700
+Message-Id: <1116267149.1005.85.camel@localhost>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@engr.sgi.com>, Dave Hansen <haveblue@us.ibm.com>, Andy Whitcroft <apw@shadowen.org>
+To: Christoph Lameter <clameter@engr.sgi.com>
 Cc: Andrew Morton <akpm@osdl.org>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, shai@scalex86.org, steiner@sgi.com
 List-ID: <linux-mm.kvack.org>
 
->> > How do the concepts of numa node id relate to discontig node ids?
->> 
->> I believe there are quite a few assumptions on some architectures that,
->> when NUMA is on, they are equivalent.  It appears to be pretty much
->> assumed everywhere that CONFIG_NUMA=y means one pg_data_t per NUMA node.
-> 
-> Ah. That sounds much better.
-> 
->> Remember, as you saw, you can't assume that MAX_NUMNODES=1 when NUMA=n
->> because of the DISCONTIG=y case.
+On Mon, 2005-05-16 at 10:54 -0700, Christoph Lameter wrote:
+> > Remember, as you saw, you can't assume that MAX_NUMNODES=1 when NUMA=n
+> > because of the DISCONTIG=y case.
 > 
 > I have never seen such a machine. A SMP machine with multiple 
-> "nodes"? So essentially one NUMA node has multiple discontig "nodes"?
+> "nodes"?
 
-I believe you (SGI) make one ;-) Anywhere where you have large gaps in
-the physical address range within a node, this is what you really need.
-Except ia64 has this wierd virtual mem_map thing that can go away once
-we have sparsemem.
+Yes.  "discontigmem nodes" 
+
+> So essentially one NUMA node has multiple discontig "nodes"?
+
+Yes, in theory.
+
+A discontig node is just a contiguous area of physical memory.
 
 > This means that the concept of a node suddenly changes if there is just 
 > one numa node(CONFIG_NUMA off implies one numa node)? 
 
-The end point of where we're getting to is 1 node = 1 pgdat (which we can
-then rename to struct node or something). All this confusing mess of 
-config options is just a migration path, which I'll leave it to Andy to
-explain ;-)
+Correct as well.
 
+> > So, in summary, if you want to do it right: use the
+> > CONFIG_NEED_MULTIPLE_NODES that you see in -mm.  As plain DISCONTIG=y
+> > gets replaced by sparsemem any code using this is likely to stay
+> > working.
+> 
 > s/CONFIG_NUMA/CONFIG_NEED_MULTIPLE_NODES?
 > 
 > That will not work because the idea is the localize the slabs to each 
@@ -51,24 +66,33 @@ explain ;-)
 > numa node (sorry for this duplication of what node means but I did not 
 > do it) must be preferred since numa_node_id() does not return a set of 
 > discontig nodes.
->  
+
+I know it's confusing.  I feel your pain :)
+
+You're right, I think you completely want CONFIG_NUMA, not
+NEED_MULTIPLE_NODES.  So, toss out that #ifdef, and everything should be
+in pretty good shape.  Just don't make any assumptions about how many
+'struct zone' or 'pg_data_t's a single "node's" pages can come from.
+
+Although it doesn't help your issue, you may want to read the comments
+in here, I wrote it when my brain was twisting around the same issues:
+
+http://www.kernel.org/pub/linux/kernel/people/akpm/patches/2.6/2.6.12-rc4/2.6.12-rc4-mm2/broken-out/introduce-new-kconfig-option-for-numa-or-discontig.patch
+
 > Sorry but this all sounds like an flaw in the design. There is no 
-> consistent notion of node. Are you sure that this is not a ppc64 screwup?
+> consistent notion of node.
 
-No, it's a discontigmem screwup. Currently a pgdat represents 2 different
-scenarios: 
+It's not really a flaw in the design, it's a misinterpretation of the
+original design as new architectures implemented things.  I hope to
+completely ditch DISCONTIGMEM, eventually.
 
-(1) physically discontiguous memory chunk.
-(2) a NUMA node.
+> Are you sure that this is not a ppc64 screwup?
 
-I don't think we support both at the same time with the old code. So it
-seems to me like your numa aware slab code (which I'm still intending to
-go read, but haven't yet) is only interested in real nodes. Logically
-speaking, that would be CONFIG_NUMA. The current transition config options
-are a bit of a mess ... Andy, I presume CONFIG_NEED_MULTIPLE_NODES is
-really CONFIG_NEED_MULTIPLE_PGDATS ?
+Yeah, ppc64 is not at fault, it just provides the most obvious exposure
+of the issue.
 
-M.
+-- Dave
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
