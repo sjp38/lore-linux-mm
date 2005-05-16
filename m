@@ -1,98 +1,68 @@
-Received: from westrelay02.boulder.ibm.com (westrelay02.boulder.ibm.com [9.17.195.11])
-	by e33.co.us.ibm.com (8.12.10/8.12.9) with ESMTP id j4GHMUmD305754
-	for <linux-mm@kvack.org>; Mon, 16 May 2005 13:22:30 -0400
-Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
-	by westrelay02.boulder.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id j4GHMTdV100632
-	for <linux-mm@kvack.org>; Mon, 16 May 2005 11:22:30 -0600
-Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av01.boulder.ibm.com (8.12.11/8.13.3) with ESMTP id j4GHMTaY032740
-	for <linux-mm@kvack.org>; Mon, 16 May 2005 11:22:29 -0600
-Subject: Re: NUMA aware slab allocator V3
-From: Dave Hansen <haveblue@us.ibm.com>
-In-Reply-To: <Pine.LNX.4.62.0505160943140.1330@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.58.0505110816020.22655@schroedinger.engr.sgi.com>
-	 <20050512000444.641f44a9.akpm@osdl.org>
-	 <Pine.LNX.4.58.0505121252390.32276@schroedinger.engr.sgi.com>
-	 <20050513000648.7d341710.akpm@osdl.org>
-	 <Pine.LNX.4.58.0505130411300.4500@schroedinger.engr.sgi.com>
-	 <20050513043311.7961e694.akpm@osdl.org>
-	 <Pine.LNX.4.62.0505131823210.12315@schroedinger.engr.sgi.com>
-	 <1116251568.1005.29.camel@localhost>
-	 <Pine.LNX.4.62.0505160943140.1330@schroedinger.engr.sgi.com>
-Content-Type: text/plain
-Date: Mon, 16 May 2005 10:22:15 -0700
-Message-Id: <1116264135.1005.73.camel@localhost>
+Received: by zproxy.gmail.com with SMTP id 13so1428127nzn
+        for <linux-mm@kvack.org>; Mon, 16 May 2005 10:25:33 -0700 (PDT)
+Message-ID: <6934efce05051610252b84713f@mail.gmail.com>
+Date: Mon, 16 May 2005 10:25:33 -0700
+From: Jared Hulbert <jaredeh@gmail.com>
+Reply-To: Jared Hulbert <jaredeh@gmail.com>
+Subject: /proc/meminfo
 Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 8BIT
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@engr.sgi.com>
-Cc: Andrew Morton <akpm@osdl.org>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, shai@scalex86.org, steiner@sgi.com
+To: linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2005-05-16 at 09:47 -0700, Christoph Lameter wrote:
-> On Mon, 16 May 2005, Dave Hansen wrote:
-> > There are some broken assumptions in the kernel that
-> > CONFIG_DISCONTIG==CONFIG_NUMA.  These usually manifest when code assumes
-> > that one pg_data_t means one NUMA node.
-> > 
-> > However, NUMA node ids are actually distinct from "discontigmem nodes".
-> > A "discontigmem node" is just one physically contiguous area of memory,
-> > thus one pg_data_t.  Some (non-NUMA) Mac G5's have a gap in their
-> > address space, so they get two discontigmem nodes.
-> 
-> I thought the discontigous memory in one node was handled through zones? 
-> I.e. ZONE_HIGHMEM in i386?
+Please have mercy on a linux-mm newbie.  I'd like to understand the
+output of /proc/meminfo and /proc/<[0-9]+>/maps.  I want to measure 2
+things: First, how much memory in a system is used for code or other
+readonly file mmaps or what RAM can be saved by using XIP flash.
+Second, at the time a system snapshot is taken how much RAM is
+absolutely needed (for example, I assume we could dump caches, flush
+buffers, and clean up unused memory.)
 
-You can only have one zone of each type under each pg_data_t.  For
-instance, you can't properly represent (DMA, NORMAL, HIGHMEM, <GAP>,
-HIGHMEM) in a single pg_data_t without wasting node_mem_map[] space.
-The "proper" discontig way of representing that is like this:
+Where can I find a good reference to what this all output means?  Are
+there other sources of information available?
 
-        pg_data_t[0] (DMA, NORMAL, HIGHMEM)
-        <GAP>
-        pg_data_t[1] (---, ------, HIGHMEM)
+Here are my assumptions:
+# cat /proc/meminfo
+MemTotal: = Memory managed by Linux kernel. Total RAM - kernel image.
+MemFree: = Memory not allocated.  Not the same as memory availiable to allocate.
+Buffers: = ?
+Cached: = inode cache
+SwapCached: = Used swap space
+Active: = Pages allocated by kernel and user processes
+Inactive: = Pages allocated but read to be purged
+HighTotal: = 2Gig limit stuff
+HighFree: =  ""
+LowTotal: = ""
+LowFree: = ""
+SwapTotal: = What is the relationship between this and SwapCached?
+SwapFree: =  ""
+Dirty: = ?
+Writeback: = ?
+Slab: = ?
+CommitLimit: = ?
+Commited_AS: = ?
+PageTables: = Memory allocated for use as page tables.
+VmallocTotal: = Virtual memory space allocated
+VmallocUsed: = ?
+VmallocChunk: = ?
 
-Where pg_data_t[1] has empty DMA and NORMAL zones.  Also, remember that
-both of these could theoretically be on the same NUMA node.  But, I
-don't think we ever do that in practice.
+# cat /proc/1/maps
+08048000-0804E000    r-xp    00000000    75:00    637746    /sbin/init
+(readonly, executable mmap of file /sbin/init Probably code)
+0804E000-0804F000    rw-p    00000000    75:00    637746    /sbin/init
+(readwrite, mmap of file /sbin/init Probably initialized variables
+etc)
+0804F000-08070000    rw-p    0804F000    00:00    0 (I don't know)
 
-> > So, that #error is bogus.  It's perfectly valid to have multiple
-> > discontigmem nodes, when the number of NUMA nodes is 1.  MAX_NUMNODES
-> > refers to discontigmem nodes, not NUMA nodes.
-> 
-> Ok. We looked through the code and saw that the check may be removed 
-> without causing problems. However, there is still a feeling of uneasiness 
-> about this.
-
-I don't blame you :)
-
-> To what node does numa_node_id() refer?
-
-That refers to the NUMA node that you're thinking of.  Close CPUs and
-memory and I/O, etc...
-
-> And it is legit to use 
-> numa_node_id() to index cpu maps and stuff?
-
-Yes, those are all NUMA nodes.
-
-> How do the concepts of numa node id relate to discontig node ids?
-
-I believe there are quite a few assumptions on some architectures that,
-when NUMA is on, they are equivalent.  It appears to be pretty much
-assumed everywhere that CONFIG_NUMA=y means one pg_data_t per NUMA node.
-
-Remember, as you saw, you can't assume that MAX_NUMNODES=1 when NUMA=n
-because of the DISCONTIG=y case.
-
-So, in summary, if you want to do it right: use the
-CONFIG_NEED_MULTIPLE_NODES that you see in -mm.  As plain DISCONTIG=y
-gets replaced by sparsemem any code using this is likely to stay
-working.
-
--- Dave
-
+1st column = virtual memory map of map
+2nd column = r = read; w = write; x = executable; p =  I don't know
+3rd column = I don't know
+4th column = size of map (but it often doesn't match the size of column 1)
+5th column = name of file
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
