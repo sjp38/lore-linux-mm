@@ -1,68 +1,44 @@
-Date: Mon, 16 May 2005 12:05:53 -0700 (PDT)
-From: christoph <christoph@scalex86.org>
-Subject: [PATCH] Factor in buddy allocator alignment requirements in node
- memory alignment
-Message-ID: <Pine.LNX.4.62.0505161204540.4977@ScMPusgw>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by e5.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id j4GKEPpv000626
+	for <linux-mm@kvack.org>; Mon, 16 May 2005 16:14:25 -0400
+Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
+	by d01relay02.pok.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id j4GKEPV8135770
+	for <linux-mm@kvack.org>; Mon, 16 May 2005 16:14:25 -0400
+Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
+	by d01av03.pok.ibm.com (8.12.11/8.13.3) with ESMTP id j4GKEPkj023057
+	for <linux-mm@kvack.org>; Mon, 16 May 2005 16:14:25 -0400
+Subject: Re: [PATCH] Factor in buddy allocator alignment requirements in
+	node memory alignment
+From: Dave Hansen <haveblue@us.ibm.com>
+In-Reply-To: <Pine.LNX.4.62.0505161204540.4977@ScMPusgw>
+References: <Pine.LNX.4.62.0505161204540.4977@ScMPusgw>
+Content-Type: text/plain
+Date: Mon, 16 May 2005 13:14:11 -0700
+Message-Id: <1116274451.1005.106.camel@localhost>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org
+To: christoph <christoph@scalex86.org>
+Cc: linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Memory for nodes on i386 is currently aligned on 2 MB boundaries.
-However, the buddy allocator needs pages to be aligned on
-PAGE_SIZE << MAX_ORDER which is 8MB if MAX_ORDER = 11.
+On Mon, 2005-05-16 at 12:05 -0700, christoph wrote:
+> Memory for nodes on i386 is currently aligned on 2 MB boundaries.
+> However, the buddy allocator needs pages to be aligned on
+> PAGE_SIZE << MAX_ORDER which is 8MB if MAX_ORDER = 11.
 
-The following patch determines the maximum alignment needed and will
-chose 2MB boundaries if MAX_ORDER is very low but will align correctly
-to a MAX_ORDER boundary if the alignment requirements of the page allocator
-are greater than 2MB.
+Why do you need this?  Are you planning on allowing NUMA KVA remap pages
+to be handed over to the buddy allocator?  That would be a major
+departure from what we do now, and I'd be very interested in seeing how
+that is implemented before a infrastructure for it goes in.
 
-Signed-off-by: Christoph Lameter <christoph@scalex86.org>
-Signed-off-by: Shai Fultheim <shai@scalex86.org>
+BTW, how sure are you that those alignment restrictions really still
+exist?  Some of them went away when we got rid of the buddy bitmap.  You
+might want to check that you definitely need this.
 
-Index: linux-2.6.11/arch/i386/mm/discontig.c
-===================================================================
---- linux-2.6.11.orig/arch/i386/mm/discontig.c	2005-05-12 20:04:56.000000000 -0700
-+++ linux-2.6.11/arch/i386/mm/discontig.c	2005-05-12 20:05:58.000000000 -0700
-@@ -100,8 +100,6 @@ extern unsigned long max_low_pfn;
- extern unsigned long totalram_pages;
- extern unsigned long totalhigh_pages;
- 
--#define LARGE_PAGE_BYTES (PTRS_PER_PTE * PAGE_SIZE)
--
- unsigned long node_remap_start_pfn[MAX_NUMNODES];
- unsigned long node_remap_size[MAX_NUMNODES];
- unsigned long node_remap_offset[MAX_NUMNODES];
-@@ -185,6 +183,12 @@ static unsigned long calculate_numa_rema
- {
- 	int nid;
- 	unsigned long size, reserve_pages = 0;
-+	/*
-+	 * Alignment is either to the PMD boundary or to the boundary of the
-+	 * largest order allowed by the buddy allocator whichever is bigger
-+	 */
-+	unsigned long alignment = (( 1 << MAX_ORDER ) > PTRS_PER_PTE) ?
-+					 1 << MAX_ORDER : PTRS_PER_PTE;
- 
- 	for_each_online_node(nid) {
- 		if (nid == 0)
-@@ -204,10 +208,10 @@ static unsigned long calculate_numa_rema
- 		/* ensure the remap includes space for the pgdat. */
- 		size = node_remap_size[nid] + sizeof(pg_data_t);
- 
--		/* convert size to large (pmd size) pages, rounding up */
--		size = (size + LARGE_PAGE_BYTES - 1) / LARGE_PAGE_BYTES;
-+		/* convert size to the alignment, rounding up */
-+		size = (size + (alignment * PAGE_SIZE) - 1) / (alignment * PAGE_SIZE);
- 		/* now the roundup is correct, convert to PAGE_SIZE pages */
--		size = size * PTRS_PER_PTE;
-+		size = size * alignment;
- 		printk("Reserving %ld pages of KVA for lmem_map of node %d\n",
- 				size, nid);
- 		node_remap_size[nid] = size;
+-- Dave
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
