@@ -1,65 +1,39 @@
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by e4.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id j4H0RS2O008001
-	for <linux-mm@kvack.org>; Mon, 16 May 2005 20:27:28 -0400
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay04.pok.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id j4H0RSXn111380
-	for <linux-mm@kvack.org>; Mon, 16 May 2005 20:27:28 -0400
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.12.11/8.13.3) with ESMTP id j4H0RHU8006406
-	for <linux-mm@kvack.org>; Mon, 16 May 2005 20:27:18 -0400
-Subject: Re: NUMA aware slab allocator V3
-From: Dave Hansen <haveblue@us.ibm.com>
-In-Reply-To: <Pine.LNX.4.62.0505161713130.21512@graphe.net>
-References: <Pine.LNX.4.58.0505110816020.22655@schroedinger.engr.sgi.com>
-	 <Pine.LNX.4.62.0505161046430.1653@schroedinger.engr.sgi.com>
-	 <714210000.1116266915@flay> <200505161410.43382.jbarnes@virtuousgeek.org>
-	 <740100000.1116278461@flay>  <Pine.LNX.4.62.0505161713130.21512@graphe.net>
-Content-Type: text/plain
-Date: Mon, 16 May 2005 17:26:53 -0700
-Message-Id: <1116289613.26955.14.camel@localhost>
-Mime-Version: 1.0
+Message-ID: <42893D7C.6070907@jp.fujitsu.com>
+Date: Tue, 17 May 2005 09:40:28 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+MIME-Version: 1.0
+Subject: Re: [Lhms-devel] [RFC] consistency of zone->zone_start_pfn, spanned_pages
+References: <1116000019.32433.10.camel@localhost>
+In-Reply-To: <1116000019.32433.10.camel@localhost>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <christoph@lameter.com>
-Cc: "Martin J. Bligh" <mbligh@mbligh.org>, Jesse Barnes <jbarnes@virtuousgeek.org>, Christoph Lameter <clameter@engr.sgi.com>, Andy Whitcroft <apw@shadowen.org>, Andrew Morton <akpm@osdl.org>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, shai@scalex86.org, steiner@sgi.com, "Matthew C. Dobson [imap]" <colpatch@us.ibm.com>
+To: Dave Hansen <haveblue@us.ibm.com>
+Cc: lhms <lhms-devel@lists.sourceforge.net>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-> +#ifdef CONFIG_NUMA
-> +#define NUMA_NODES MAX_NUMNODES
-> +#define NUMA_NODE_ID numa_node_id()
-> +#else
-> +#define NUMA_NODES 1
-> +#define NUMA_NODE_ID 0
->  #endif
+Hi,
+Dave Hansen wrote:
+> The zone struct has a few important members which explicitly define the
+> range of pages that it manages: zone_start_pfn and spanned_pages.
+> 
+> The current memory hotplug coded has concentrated on appending memory to
+> existing zones, which means just increasing spanned_pages.  There is
+> currently no code that breaks at runtime if this value is simply
+> incremented.
+> 
 
-I think numa_node_id() should always do what you want.  It is never
-related to discontig nodes, and #defines down to the same thing you have
-in the end, anyway:
-        
-        #define numa_node_id()       (cpu_to_node(_smp_processor_id()))
-        
-        asm-i386/topology.h
-        #ifdef CONFIG_NUMA
-        ...
-        static inline int cpu_to_node(int cpu)
-        {
-                return cpu_2_node[cpu];
-        }
-        
-        asm-generic/topology.h:
-        #ifndef cpu_to_node
-        #define cpu_to_node(cpu)        (0)
-        #endif
+How about removing zone_start_pfn and spanned_pages ?
 
-As for the MAX_NUMNODES, I'd just continue to use it, instead of a new
-#define.  There is no case where there can be more NUMA nodes than
-DISCONTIG nodes, and this assumption appears in plenty of other code.
+I found they are used in
+    bad_range() in page_alloc.c
+    mark_free_page() in CONFIG_PM.
 
-I'm cc'ing Matt Dobson, who's touched this MAX_NUMNODES business a lot
-more recently than I.
+And I think we can remove them with section-range-ops when CONFIG_SPARSEMEM=y.
+They are used in some another places ?
 
--- Dave
+-- Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
