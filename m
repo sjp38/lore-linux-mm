@@ -1,75 +1,32 @@
-Subject: [PATCH] sparsemem-ppc64-flat-first-block-is-not-special
-In-Reply-To: <4280D72C.4090203@shadowen.org>
-Message-Id: <E1DY1oW-0002hE-7B@pinky.shadowen.org>
-From: Andy Whitcroft <apw@shadowen.org>
-Date: Tue, 17 May 2005 14:08:48 +0100
+Date: Tue, 17 May 2005 15:12:02 +0200
+From: Andrea Arcangeli <andrea@suse.de>
+Subject: Re: [PATCH] Factor in buddy allocator alignment requirements in node memory alignment
+Message-ID: <20050517131202.GQ26073@g5.random>
+References: <Pine.LNX.4.62.0505161204540.4977@ScMPusgw> <1116274451.1005.106.camel@localhost> <Pine.LNX.4.62.0505161240240.13692@ScMPusgw> <1116276439.1005.110.camel@localhost>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1116276439.1005.110.camel@localhost>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: akpm@osdl.org
-Cc: anton@samba.org, apw@shadowen.org, haveblue@us.ibm.com, jschopp@austin.ibm.com, kravetz@us.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linuxppc64-dev@ozlabs.org, olof@lixom.net, paulus@samba.org
+To: Dave Hansen <haveblue@us.ibm.com>
+Cc: christoph <christoph@scalex86.org>, linux-mm <linux-mm@kvack.org>, shai@scalex86.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Ok.  Testing seems to show that indeed the initial memory blocks
-do not need to be treated specially on ppc64 non-numa systems.
-Andrew could you add this to the sparsemem patches please.
-Applies on top of 2.6.12-rc4-mm2.
+On Mon, May 16, 2005 at 01:47:19PM -0700, Dave Hansen wrote:
+> Just because it complains doesn't mean that anything is actually
+> wrong :)
+> 
+> Do you know which pieces of code actually break if the alignment doesn't
+> meet what that warning says?
 
--apw
-
-Testing seems to confirm that we do not need to handle the first memory
-block specially in do_init_bootmem.
-
-Signed-off-by: Andy Whitcroft <apw@shadowen.org>
-
-diffstat sparsemem-ppc64-flat-first-block-is-not-special
----
- init.c |   21 +++++++--------------
- 1 files changed, 7 insertions(+), 14 deletions(-)
-
-diff -upN reference/arch/ppc64/mm/init.c current/arch/ppc64/mm/init.c
---- reference/arch/ppc64/mm/init.c
-+++ current/arch/ppc64/mm/init.c
-@@ -538,14 +538,6 @@ void __init do_init_bootmem(void)
- 	unsigned long start, bootmap_pages;
- 	unsigned long total_pages = lmb_end_of_DRAM() >> PAGE_SHIFT;
- 	int boot_mapsize;
--	unsigned long start_pfn, end_pfn;
--	/*
--	 * Note presence of first (logical/coalasced) LMB which will
--	 * contain RMO region
--	 */
--	start_pfn = lmb.memory.region[0].physbase >> PAGE_SHIFT;
--	end_pfn = start_pfn + (lmb.memory.region[0].size >> PAGE_SHIFT);
--	memory_present(0, start_pfn, end_pfn);
- 
- 	/*
- 	 * Find an area to use for the bootmem bitmap.  Calculate the size of
-@@ -562,18 +554,19 @@ void __init do_init_bootmem(void)
- 	max_pfn = max_low_pfn;
- 
- 	/* Add all physical memory to the bootmem map, mark each area
--	 * present.  The first block has already been marked present above.
-+	 * present.
- 	 */
- 	for (i=0; i < lmb.memory.cnt; i++) {
- 		unsigned long physbase, size;
-+		unsigned long start_pfn, end_pfn;
- 
- 		physbase = lmb.memory.region[i].physbase;
- 		size = lmb.memory.region[i].size;
--		if (i) {
--			start_pfn = physbase >> PAGE_SHIFT;
--			end_pfn = start_pfn + (size >> PAGE_SHIFT);
--			memory_present(0, start_pfn, end_pfn);
--		}
-+
-+		start_pfn = physbase >> PAGE_SHIFT;
-+		end_pfn = start_pfn + (size >> PAGE_SHIFT);
-+		memory_present(0, start_pfn, end_pfn);
-+
- 		free_bootmem(physbase, size);
- 	}
- 
+Be sure in early 2001 the alpha wildfire wasn't booting without having
+natural alingment from the 2^order allocation, after several days of
+debugging and crashing eventually I figured it out and added the printk
+(it couldn't be a BUG since it was early in the boot to see it). The
+kernel stack on x86 w/o 4k stacks depends on the natural alignment of
+the 2^order buddy allocations for example. No idea how much other code
+would break with not naturally aligned 2^order allocations.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
