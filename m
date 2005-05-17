@@ -1,31 +1,88 @@
-Date: Tue, 17 May 2005 05:46:14 -0500
-From: Robin Holt <holt@sgi.com>
-Subject: Re: [RFC] consistency of zone->zone_start_pfn, spanned_pages
-Message-ID: <20050517104614.GB12790@lnx-holt.americas.sgi.com>
-References: <1116000019.32433.10.camel@localhost> <20050513182446.GA23416@lnx-holt.americas.sgi.com> <4289BE64.8070605@shadowen.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4289BE64.8070605@shadowen.org>
+Subject: Re: [PATCH] Factor in buddy allocator alignment requirements in node memory alignment
+In-Reply-To: <Pine.LNX.4.62.0505161240240.13692@ScMPusgw>
+Message-Id: <E1DY18K-0002dJ-KM@pinky.shadowen.org>
+From: Andy Whitcroft <apw@shadowen.org>
+Date: Tue, 17 May 2005 13:25:12 +0100
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andy Whitcroft <apw@shadowen.org>
-Cc: Robin Holt <holt@sgi.com>, Dave Hansen <haveblue@us.ibm.com>, lhms <lhms-devel@lists.sourceforge.net>, linux-mm <linux-mm@kvack.org>
+To: christoph@scalex86.org
+Cc: akpm@osdl.org, haveblue@us.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, shai@scalex86.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, May 17, 2005 at 10:50:28AM +0100, Andy Whitcroft wrote:
-> Robin Holt wrote:
-> 
-> > 	do {
-> > 		start_pfn = zone->zone_start_pfn;
-> > 		spanned_pages = zone->spanned_pages;
-> > 	while (unlikely(start_pfn != zone->zone_start_pfn));
-> 
-> Whilst like a seq_lock, without the memory barriers this isn't safe right?
+>     if ((zone_start_pfn) & (zone_required_alignment-1))
+>            printk(KERN_CRIT "BUG: wrong zone alignment, it will crash\n");
 
-Definitely.  You would need barriers.
+I am confused.  Your patch attempts to change the alignment of the
+mem_map for the node.  However, the warning which is triggering is
+talking about the relative alignment of the physical pages which
+make up the zone, ie those which will be represented by the mem_map.
+The alignment of the mem_map is being forced because we are going
+to use large pages to map them for performance and tlb coverage
+not to match the alignment constraint above.
 
-Robin
+That said, I believe that this warning is no longer accurate.
+The order in which buddies are combined and the alignment thereof
+is handled by __free_pages_bulk.  This now uses the low order
+bits of the physical page frame number to calculate the free'd
+objects relative position within the MAX_ORDER aligned buddies,
+not the relative position of the page structure within the mem_map.
+This allows _either_ edge of the zone to contain partial MAX_ORDER
+sized buddies.  These simply never will have matching buddies and
+thus will never make it to the 'top' of the pyramid.
+
+Indeed looking back at the original patch I commented on how this
+change fixed the problem highlighted by the warning, it seems I
+failed to follow up and remove it.
+
+In short I think that this warning is now bogus and can be removed.
+
+Andrew, please consider this patch for -mm.
+
+-apw
+
+===
+Originally __free_pages_bulk used the relative page number within
+a zone to define its buddies.  This meant that to maintain the
+"maximally aligned" requirements (that an allocation of size N will
+be aligned at least to N physically) zones had to also be aligned to
+1<<MAX_ORDER pages.  When __free_pages_bulk was updated to use the
+relative page frame numbers of the free'd pages to pair buddies this
+released the alignment constraint on the 'left' edge of the zone.
+This allows _either_ edge of the zone to contain partial MAX_ORDER
+sized buddies.  These simply never will have matching buddies and
+thus will never make it to the 'top' of the pyramid.
+
+The patch below removes a now redundant check ensuring that the
+mem_map was aligned to MAX_ORDER.
+
+Signed-off-by: Andy Whitcroft <apw@shadowen.org>
+
+diffstat free_area_init_core-remove-bogus-warning
+---
+ page_alloc.c |    4 ----
+ 1 files changed, 4 deletions(-)
+
+diff -X /home/apw/brief/lib/vdiff.excl -rupN reference/mm/page_alloc.c current/mm/page_alloc.c
+--- reference/mm/page_alloc.c
++++ current/mm/page_alloc.c
+@@ -1942,7 +1942,6 @@ static void __init free_area_init_core(s
+ 		unsigned long *zones_size, unsigned long *zholes_size)
+ {
+ 	unsigned long i, j;
+-	const unsigned long zone_required_alignment = 1UL << (MAX_ORDER-1);
+ 	int cpu, nid = pgdat->node_id;
+ 	unsigned long zone_start_pfn = pgdat->node_start_pfn;
+ 
+@@ -2033,9 +2032,6 @@ static void __init free_area_init_core(s
+ 		zone->zone_mem_map = pfn_to_page(zone_start_pfn);
+ 		zone->zone_start_pfn = zone_start_pfn;
+ 
+-		if ((zone_start_pfn) & (zone_required_alignment-1))
+-			printk(KERN_CRIT "BUG: wrong zone alignment, it will crash\n");
+-
+ 		memmap_init(size, nid, j, zone_start_pfn);
+ 
+ 		zonetable_add(zone, nid, j, zone_start_pfn, size);
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
