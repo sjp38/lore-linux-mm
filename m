@@ -1,69 +1,93 @@
-Date: Tue, 17 May 2005 10:19:58 -0700 (PDT)
-From: christoph <christoph@scalex86.org>
-Subject: Re: [PATCH] Factor in buddy allocator alignment requirements in node
- memory alignment
-In-Reply-To: <E1DY18K-0002dJ-KM@pinky.shadowen.org>
-Message-ID: <Pine.LNX.4.62.0505171018560.2872@ScMPusgw>
-References: <E1DY18K-0002dJ-KM@pinky.shadowen.org>
+Message-Id: <200505172228.j4HMSkg28528@unix-os.sc.intel.com>
+From: "Chen, Kenneth W" <kenneth.w.chen@intel.com>
+Subject: [PATCH] Avoiding mmap fragmentation - clean rev
+Date: Tue, 17 May 2005 15:28:46 -0700
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain;
+	charset="us-ascii"
+Content-Transfer-Encoding: 7bit
+In-Reply-To: <E4BA51C8E4E9634993418831223F0A49291F06E1@scsmsx401.amr.corp.intel.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
-Cc: akpm@osdl.org, Andy Whitcroft <apw@shadowen.org>, haveblue@us.ibm.com, linux-kernel@vger.kernel.org, shai@scalex86.org
+To: 'Wolfgang Wander' <wwc@rentec.com>, 'Andrew Morton' <akpm@osdl.org>
+Cc: mingo@elte.hu, arjanv@redhat.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 17 May 2005, Andy Whitcroft wrote:
+This patch tries to solve address space fragmentation issue brought
+up by Wolfgang where fragmentation is so severe that application
+would fail on 2.6 kernel.  Looking a bit deep into the issue, we
+found that a lot of fragmentation were caused by suboptimal algorithm
+in the munmap code path.  For example, as people pointed out that
+when a series of munmap occurs, the free_area_cache would point to
+last vma that was freed, ignoring its surrounding and not performing
+any coalescing at all, thus artificially create more holes in the
+virtual address space than necessary.  However, all the information
+needed to perform coalescing are actually already there.  This patch
+put that data in use so we will prevent artificial fragmentation.
 
-> Andrew, please consider this patch for -mm.
+This patch covers both bottom-up and top-down topology.  For bottom-up
+topology, free_area_cache points to prev->vm_end. And for top-down,
+free_area_cache points to next->vm_start.  The results are very promising,
+it passes the test case that Wolfgang posted and I have tested it on a
+variety of x86, x86_64, ia64 machines.
 
-I agree. Forget about my patch and include this one.
+Please note, this patch completely obsoletes previous patch that
+Wolfgang posted and should completely retain the performance benefit
+of free_area_cache and at the same time preserving fragmentation to
+minimum.
 
-> Originally __free_pages_bulk used the relative page number within
-> a zone to define its buddies.  This meant that to maintain the
-> "maximally aligned" requirements (that an allocation of size N will
-> be aligned at least to N physically) zones had to also be aligned to
-> 1<<MAX_ORDER pages.  When __free_pages_bulk was updated to use the
-> relative page frame numbers of the free'd pages to pair buddies this
-> released the alignment constraint on the 'left' edge of the zone.
-> This allows _either_ edge of the zone to contain partial MAX_ORDER
-> sized buddies.  These simply never will have matching buddies and
-> thus will never make it to the 'top' of the pyramid.
-> 
-> The patch below removes a now redundant check ensuring that the
-> mem_map was aligned to MAX_ORDER.
-> 
-> Signed-off-by: Andy Whitcroft <apw@shadowen.org>
-> 
-> diffstat free_area_init_core-remove-bogus-warning
-> ---
->  page_alloc.c |    4 ----
->  1 files changed, 4 deletions(-)
-> 
-> diff -X /home/apw/brief/lib/vdiff.excl -rupN reference/mm/page_alloc.c current/mm/page_alloc.c
-> --- reference/mm/page_alloc.c
-> +++ current/mm/page_alloc.c
-> @@ -1942,7 +1942,6 @@ static void __init free_area_init_core(s
->  		unsigned long *zones_size, unsigned long *zholes_size)
->  {
->  	unsigned long i, j;
-> -	const unsigned long zone_required_alignment = 1UL << (MAX_ORDER-1);
->  	int cpu, nid = pgdat->node_id;
->  	unsigned long zone_start_pfn = pgdat->node_start_pfn;
->  
-> @@ -2033,9 +2032,6 @@ static void __init free_area_init_core(s
->  		zone->zone_mem_map = pfn_to_page(zone_start_pfn);
->  		zone->zone_start_pfn = zone_start_pfn;
->  
-> -		if ((zone_start_pfn) & (zone_required_alignment-1))
-> -			printk(KERN_CRIT "BUG: wrong zone alignment, it will crash\n");
-> -
->  		memmap_init(size, nid, j, zone_start_pfn);
->  
->  		zonetable_add(zone, nid, j, zone_start_pfn, size);
-> 
-> 
-> 
+Andrew, please consider for -mm testing.  Thanks.
+
+- Ken Chen
+
+
+ mmap.c |   18 +++++++++++++-----
+ 1 files changed, 13 insertions(+), 5 deletions(-)
+
+Signed-off-by: Ken Chen <kenneth.w.chen@intel.com>
+
+--- linux-2.6.11/mm/mmap.c.orig	2005-05-17 15:05:02.487937407 -0700
++++ linux-2.6.11/mm/mmap.c	2005-05-17 15:05:13.292624775 -0700
+@@ -1208,9 +1208,10 @@ void arch_unmap_area(struct vm_area_stru
+ 	/*
+ 	 * Is this a new hole at the lowest possible address?
+ 	 */
+-	if (area->vm_start >= TASK_UNMAPPED_BASE &&
+-			area->vm_start < area->vm_mm->free_area_cache)
+-		area->vm_mm->free_area_cache = area->vm_start;
++	unsigned long addr = (unsigned long) area->vm_private_data;
++
++	if (addr >= TASK_UNMAPPED_BASE && addr < area->vm_mm->free_area_cache)
++		area->vm_mm->free_area_cache = addr;
+ }
+ 
+ /*
+@@ -1290,8 +1291,10 @@ void arch_unmap_area_topdown(struct vm_a
+ 	/*
+ 	 * Is this a new hole at the highest possible address?
+ 	 */
+-	if (area->vm_end > area->vm_mm->free_area_cache)
+-		area->vm_mm->free_area_cache = area->vm_end;
++	unsigned long addr = (unsigned long) area->vm_private_data;
++
++	if (addr > area->vm_mm->free_area_cache)
++		area->vm_mm->free_area_cache = addr;
+ 
+ 	/* dont allow allocations above current base */
+ 	if (area->vm_mm->free_area_cache > area->vm_mm->mmap_base)
+@@ -1656,6 +1659,11 @@ detach_vmas_to_be_unmapped(struct mm_str
+ 	} while (vma && vma->vm_start < end);
+ 	*insertion_point = vma;
+ 	tail_vma->vm_next = NULL;
++	if (mm->unmap_area == arch_unmap_area)
++		tail_vma->vm_private_data = (void*) prev->vm_end;
++	else
++		tail_vma->vm_private_data = vma ?
++			(void*) vma->vm_start : (void*) mm->mmap_base;
+ 	mm->mmap_cache = NULL;		/* Kill the cache. */
+ }
+ 
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
