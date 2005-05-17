@@ -1,62 +1,70 @@
-Message-ID: <428A21FA.3090203@engr.sgi.com>
-Date: Tue, 17 May 2005 11:55:22 -0500
-From: Ray Bryant <raybry@engr.sgi.com>
+Date: Tue, 17 May 2005 10:19:58 -0700 (PDT)
+From: christoph <christoph@scalex86.org>
+Subject: Re: [PATCH] Factor in buddy allocator alignment requirements in node
+ memory alignment
+In-Reply-To: <E1DY18K-0002dJ-KM@pinky.shadowen.org>
+Message-ID: <Pine.LNX.4.62.0505171018560.2872@ScMPusgw>
+References: <E1DY18K-0002dJ-KM@pinky.shadowen.org>
 MIME-Version: 1.0
-Subject: Re: manual page migration and madvise/mbind
-References: <428A1F6F.2020109@engr.sgi.com>
-In-Reply-To: <428A1F6F.2020109@engr.sgi.com>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ray Bryant <raybry@engr.sgi.com>
-Cc: Christoph Hellwig <hch@engr.sgi.com>, Andi Kleen <ak@muc.de>, linux-mm <linux-mm@kvack.org>, lhms <lhms-devel@lists.sourceforge.net>
+To: linux-mm@kvack.org
+Cc: akpm@osdl.org, Andy Whitcroft <apw@shadowen.org>, haveblue@us.ibm.com, linux-kernel@vger.kernel.org, shai@scalex86.org
 List-ID: <linux-mm.kvack.org>
 
-Ray Bryant wrote:
+On Tue, 17 May 2005, Andy Whitcroft wrote:
 
-> 
-> However, I've come across a minor issue that has complicated my thinking
-> on this:  If one were to use madvise() or mbind() to apply the migration
-> policy flags (e. g. the three policies we basically need are:  migrate,
-> migrate_non_shared, and migrated_none, used for normal files, libraries,
-> and shared binaries, respectively) then when madvise() (let us say)
-> is called, it isn't good enough to mark the vma that the address and
-> length point to, it's necessary to reach down to a common subobject,
-> (such as the file struct, address space struct, or inode) and mark
-> that.
-> 
-> If the vma is all that is marked, then when migrate_pages() is called
-> and as a result some other address space than the current one is examined,
-> it won't see the flags.
-> 
-> (Remember that the migrate_pages() system call takes a pid, a count,
-> and a list of old and new node so that this process is allowed to
-> migrate that process over there, which is what the batch manager needs
-> to do.  Running madvise() in the current process's address space doesn't
-> help much unless it marks something deeper in the address space hierarchy
-> than a vma.)
-> 
-> This is something quite a bit different than what madvise() or mbind()
-> do today.  (They just manipulate vma's AFAIK.)
-> 
-> Does that observation change y'all's thinking on this in any way?
+> Andrew, please consider this patch for -mm.
 
-Achh.... Nevermind... my bad.
+I agree. Forget about my patch and include this one.
 
-If we do the madvise/mbind in each pid (via exec_ve() ld.so) then we can
-mark just the vma and that is fine.  I was off on some other tangent....
+> Originally __free_pages_bulk used the relative page number within
+> a zone to define its buddies.  This meant that to maintain the
+> "maximally aligned" requirements (that an allocation of size N will
+> be aligned at least to N physically) zones had to also be aligned to
+> 1<<MAX_ORDER pages.  When __free_pages_bulk was updated to use the
+> relative page frame numbers of the free'd pages to pair buddies this
+> released the alignment constraint on the 'left' edge of the zone.
+> This allows _either_ edge of the zone to contain partial MAX_ORDER
+> sized buddies.  These simply never will have matching buddies and
+> thus will never make it to the 'top' of the pyramid.
+> 
+> The patch below removes a now redundant check ensuring that the
+> mem_map was aligned to MAX_ORDER.
+> 
+> Signed-off-by: Andy Whitcroft <apw@shadowen.org>
+> 
+> diffstat free_area_init_core-remove-bogus-warning
+> ---
+>  page_alloc.c |    4 ----
+>  1 files changed, 4 deletions(-)
+> 
+> diff -X /home/apw/brief/lib/vdiff.excl -rupN reference/mm/page_alloc.c current/mm/page_alloc.c
+> --- reference/mm/page_alloc.c
+> +++ current/mm/page_alloc.c
+> @@ -1942,7 +1942,6 @@ static void __init free_area_init_core(s
+>  		unsigned long *zones_size, unsigned long *zholes_size)
+>  {
+>  	unsigned long i, j;
+> -	const unsigned long zone_required_alignment = 1UL << (MAX_ORDER-1);
+>  	int cpu, nid = pgdat->node_id;
+>  	unsigned long zone_start_pfn = pgdat->node_start_pfn;
+>  
+> @@ -2033,9 +2032,6 @@ static void __init free_area_init_core(s
+>  		zone->zone_mem_map = pfn_to_page(zone_start_pfn);
+>  		zone->zone_start_pfn = zone_start_pfn;
+>  
+> -		if ((zone_start_pfn) & (zone_required_alignment-1))
+> -			printk(KERN_CRIT "BUG: wrong zone alignment, it will crash\n");
+> -
+>  		memmap_init(size, nid, j, zone_start_pfn);
+>  
+>  		zonetable_add(zone, nid, j, zone_start_pfn, size);
+> 
+> 
+> 
 
--- 
-Best Regards,
-Ray
------------------------------------------------
-                   Ray Bryant
-512-453-9679 (work)         512-507-7807 (cell)
-raybry@sgi.com             raybry@austin.rr.com
-The box said: "Requires Windows 98 or better",
-            so I installed Linux.
------------------------------------------------
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
