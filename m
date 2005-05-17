@@ -1,49 +1,58 @@
-Date: Tue, 17 May 2005 14:43:23 +0900
-From: Yasunori Goto <y-goto@jp.fujitsu.com>
-Subject: Re: [Lhms-devel] [RFC] consistency of zone->zone_start_pfn, spanned_pages
-In-Reply-To: <42893D7C.6070907@jp.fujitsu.com>
-References: <1116000019.32433.10.camel@localhost> <42893D7C.6070907@jp.fujitsu.com>
-Message-Id: <20050517134334.2391.Y-GOTO@jp.fujitsu.com>
+Message-ID: <008901c55abb$cec81350$0f01a8c0@max>
+From: "Richard Purdie" <rpurdie@rpsys.net>
+References: <20050516130048.6f6947c1.akpm@osdl.org><20050516210655.E634@flint.arm.linux.org.uk><030401c55a6e$34e67cb0$0f01a8c0@max><20050516163900.6daedc40.akpm@osdl.org> <17033.14096.441537.200132@gargle.gargle.HOWL>
+Subject: Re: 2.6.12-rc4-mm2
+Date: Tue, 17 May 2005 09:38:26 +0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+Content-Type: text/plain;
+	format=flowed;
+	charset="iso-8859-1";
+	reply-type=original
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Dave Hansen <haveblue@us.ibm.com>
-Cc: lhms <lhms-devel@lists.sourceforge.net>, linux-mm <linux-mm@kvack.org>
+To: Wolfgang Wander <wwc@rentec.com>, Andrew Morton <akpm@osdl.org>
+Cc: rmk@arm.linux.org.uk, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+Wolfgang Wander:
+> > > Its a bit late for me to try and debug this further and I'm not sure I 
+> > > know
+> > > the mm layer well enough to do so anyway. With these patches 
+> > > removed, -mm1
+> > > boots fine. I'm confident the same will apply to -mm2.
+> >
+> > Great, thanks.
+> >
+> > Wolfgang, we broke ARM.
+>
+> Thanks Richard for the debugging.
+>
+> Can you try the following patch that fixes a stupid typo of mine:
 
-> Hi,
-> Dave Hansen wrote:
-> > The zone struct has a few important members which explicitly define the
-> > range of pages that it manages: zone_start_pfn and spanned_pages.
-> > 
-> > The current memory hotplug coded has concentrated on appending memory to
-> > existing zones, which means just increasing spanned_pages.  There is
-> > currently no code that breaks at runtime if this value is simply
-> > incremented.
-> > 
+I applied this against -mm2 and can comfirm it fixes the problem.
+
+Thanks,
+
+Richard
+
+
+> Signed-off-by: Wolfgang Wander <wwc@rentec.com>
+>
+> --- linux-2.6.12-rc4-wwc/arch/arm/mm/mmap.c~    2005-05-10 
+> 16:33:34.000000000 -0400
+> +++ linux-2.6.12-rc4-wwc/arch/arm/mm/mmap.c     2005-05-16 
+> 20:10:05.000000000 -0400
+> @@ -76,7 +76,7 @@ arch_get_unmapped_area(struct file *filp
+>        if( len > mm->cached_hole_size )
+>                start_addr = addr = mm->free_area_cache;
+>        else {
+> -               start_addr = TASK_UNMAPPED_BASE;
+> +               start_addr = addr = TASK_UNMAPPED_BASE;
+>                mm->cached_hole_size = 0;
+>        }
+>
 > 
-> How about removing zone_start_pfn and spanned_pages ?
-> 
-> I found they are used in
->     bad_range() in page_alloc.c
->     mark_free_page() in CONFIG_PM.
-> 
-> And I think we can remove them with section-range-ops when CONFIG_SPARSEMEM=y.
-> They are used in some another places ?
-
-Hmm, spanned_pages is used at build_zonelists_node() 
-in page_alloc.c.
-It looks like still useful for me to initialize and update zonelists
-which is hot-added.
-
-
-Bye.
--- 
-Yasunori Goto 
-
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
