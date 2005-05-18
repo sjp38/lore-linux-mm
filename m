@@ -1,31 +1,55 @@
-Date: Tue, 17 May 2005 18:07:42 -0700 (PDT)
-From: Christoph Lameter <clameter@engr.sgi.com>
-Subject: Re: NUMA aware slab allocator V2
-In-Reply-To: <428A7E48.6060909@us.ibm.com>
-Message-ID: <Pine.LNX.4.62.0505171807280.12337@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.58.0505110816020.22655@schroedinger.engr.sgi.com>
- <20050512000444.641f44a9.akpm@osdl.org> <Pine.LNX.4.58.0505121252390.32276@schroedinger.engr.sgi.com>
- <20050513000648.7d341710.akpm@osdl.org> <428A7E48.6060909@us.ibm.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: 18 May 2005 03:26:27 +0200
+Date: Wed, 18 May 2005 03:26:27 +0200
+From: Andi Kleen <ak@muc.de>
+Subject: Re: manual page migration and madvise/mbind
+Message-ID: <20050518012627.GA33395@muc.de>
+References: <428A1F6F.2020109@engr.sgi.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <428A1F6F.2020109@engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Matthew Dobson <colpatch@us.ibm.com>
-Cc: Andrew Morton <akpm@osdl.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, shai@scalex86.org
+To: Ray Bryant <raybry@engr.sgi.com>
+Cc: Christoph Hellwig <hch@engr.sgi.com>, linux-mm <linux-mm@kvack.org>, lhms <lhms-devel@lists.sourceforge.net>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 17 May 2005, Matthew Dobson wrote:
+Sorry for late answer.
 
-> Also, there is a similar loop for CPUs which should be replaced with
-> for_each_online_cpu(i).
+On Tue, May 17, 2005 at 11:44:31AM -0500, Ray Bryant wrote:
+> (Remember that the migrate_pages() system call takes a pid, a count,
+> and a list of old and new node so that this process is allowed to
+> migrate that process over there, which is what the batch manager needs
+> to do.  Running madvise() in the current process's address space doesn't
+> help much unless it marks something deeper in the address space hierarchy
+> than a vma.)
 > 
-> These for_each_FOO macros are cleaner and less likely to break in the
-> future, since we can simply modify the one definition if the way to
-> itterate over nodes/cpus changes, rather than auditing 100 open coded
-> implementations and trying to determine the intent of the loop's author.
+> This is something quite a bit different than what madvise() or mbind()
+> do today.  (They just manipulate vma's AFAIK.)
 
-Ok. Done.
+Nah, mbind manipulates backing objects too, in particular for shared 
+memory. It is not right now implemented for files, but that was planned
+and Steve L's patches went into that direction with some limitations.
 
+And yes, the state would need to be stored in the address_space, which
+is shared.  In my version it was in private backing store objects.
+Check Steve's patch.
+
+The main problem I see with the "hack ld.so" approach is that it 
+doesn't work for non program files. So if you really want to handle
+them you would need a daemon that sets the policies once a file 
+is mapped or hack all the programs to set the policies. I don't
+see that as being practicable. Ok you could always add a "sticky" process
+policy that actually allocates mempolicies for newly read files
+and so marks them using your new flags. But that would seem
+somewhat ugly to me and is probably incompatible with your batch manager
+anyways.  The only sane way to handle arbitary files like this
+would be the xattr.
+
+If you ignore data files then it would be ok to keep it to 
+ELF loaders and ld.so I guess.
+
+-Andi
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
