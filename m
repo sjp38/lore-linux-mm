@@ -1,241 +1,147 @@
-Date: Wed, 18 May 2005 08:26:43 -0700
+Date: Wed, 18 May 2005 08:28:29 -0700
 From: Matt Tolentino <metolent@snoqualmie.dp.intel.com>
-Message-Id: <200505181526.j4IFQhds026916@snoqualmie.dp.intel.com>
-Subject: [patch 3/4] reorganize x86-64 NUMA and DISCONTIGMEM config options
+Message-Id: <200505181528.j4IFSTo1026925@snoqualmie.dp.intel.com>
+Subject: [patch 4/4] add x86-64 specific support for sparsemem
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: ak@muc.de, akpm@osdl.org
 Cc: apw@shadowen.org, haveblue@us.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-In order to use the alternative sparsemem implmentation for NUMA
-kernels, we need to reorganize the config options.  This patch
-effectively abstracts out the CONFIG_DISCONTIGMEM options to
-CONFIG_NUMA in most cases.  Thus, the discontigmem implementation
-may be employed as always, but the sparsemem implementation may
-be used alternatively.
+This patch adds in the necessary support for sparsemem such that
+x86-64 kernels may use sparsemem as an alternative to discontigmem
+for NUMA kernels.  Note that this does no preclude one from 
+continuing to build NUMA kernels using discontigmem, but merely
+allows the option to build NUMA kernels with sparsemem.
+
+Interestingly, the use of sparsemem in lieu of discontigmem in NUMA
+kernels results in reduced text size for otherwise equivalent
+kernels as shown in the example builds below:
+
+   text	   data	    bss	    dec	    hex	filename
+2371036	 765884	1237108	4374028	 42be0c	vmlinux.discontig
+2366549	 776484	1302772	4445805	 43d66d	vmlinux.sparse
 
 Signed-off-by: Matt Tolentino <matthew.e.tolentino@intel.com>
 Signed-off-by: Dave Hansen <haveblue@us.ibm.com>
 ---
 
- arch/x86_64/kernel/head64.c   |    2 +-
- arch/x86_64/kernel/setup.c    |    6 +++---
- arch/x86_64/mm/Makefile       |    2 +-
- arch/x86_64/mm/init.c         |    9 ++++++---
- arch/x86_64/mm/ioremap.c      |    2 +-
- include/asm-x86_64/io.h       |    5 -----
- include/asm-x86_64/mmzone.h   |   15 +++++++++------
- include/asm-x86_64/page.h     |    4 +++-
- include/asm-x86_64/topology.h |    4 +---
- 9 files changed, 25 insertions(+), 24 deletions(-)
+ arch/x86_64/kernel/setup.c     |   10 ++++++++--
+ arch/x86_64/mm/numa.c          |    8 ++++++++
+ include/asm-x86_64/bitops.h    |    2 --
+ include/asm-x86_64/sparsemem.h |   26 ++++++++++++++++++++++++++
+ 4 files changed, 42 insertions(+), 4 deletions(-)
 
-diff -urNp linux-2.6.12-rc4-mm2/arch/x86_64/kernel/head64.c linux-2.6.12-rc4-mm2-m/arch/x86_64/kernel/head64.c
---- linux-2.6.12-rc4-mm2/arch/x86_64/kernel/head64.c	2005-05-07 01:20:31.000000000 -0400
-+++ linux-2.6.12-rc4-mm2-m/arch/x86_64/kernel/head64.c	2005-05-18 07:48:16.000000000 -0400
-@@ -94,7 +94,7 @@ void __init x86_64_start_kernel(char * r
- 	s = strstr(saved_command_line, "earlyprintk=");
- 	if (s != NULL)
- 		setup_early_printk(s);
--#ifdef CONFIG_DISCONTIGMEM
-+#ifdef CONFIG_NUMA
- 	s = strstr(saved_command_line, "numa=");
- 	if (s != NULL)
- 		numa_setup(s+5);
 diff -urNp linux-2.6.12-rc4-mm2/arch/x86_64/kernel/setup.c linux-2.6.12-rc4-mm2-m/arch/x86_64/kernel/setup.c
---- linux-2.6.12-rc4-mm2/arch/x86_64/kernel/setup.c	2005-05-18 07:43:00.000000000 -0400
-+++ linux-2.6.12-rc4-mm2-m/arch/x86_64/kernel/setup.c	2005-05-18 07:48:16.000000000 -0400
-@@ -349,7 +349,7 @@ static __init void parse_cmdline_early (
- 		if (!memcmp(from, "mem=", 4))
- 			parse_memopt(from+4, &from); 
- 
--#ifdef CONFIG_DISCONTIGMEM
-+#ifdef CONFIG_NUMA
- 		if (!memcmp(from, "numa=", 5))
- 			numa_setup(from+5); 
- #endif
-@@ -399,7 +399,7 @@ static __init void parse_cmdline_early (
- 	*cmdline_p = command_line;
+--- linux-2.6.12-rc4-mm2/arch/x86_64/kernel/setup.c	2005-05-18 07:50:07.000000000 -0400
++++ linux-2.6.12-rc4-mm2-m/arch/x86_64/kernel/setup.c	2005-05-18 07:51:13.000000000 -0400
+@@ -40,6 +40,7 @@
+ #include <linux/acpi.h>
+ #include <linux/kallsyms.h>
+ #include <linux/edd.h>
++#include <linux/mmzone.h>
+ #include <linux/kexec.h>
+ #include <asm/mtrr.h>
+ #include <asm/uaccess.h>
+@@ -400,9 +401,12 @@ static __init void parse_cmdline_early (
  }
  
--#ifndef CONFIG_DISCONTIGMEM
-+#ifndef CONFIG_NUMA
- static void __init contig_initmem_init(void)
+ #ifndef CONFIG_NUMA
+-static void __init contig_initmem_init(void)
++static void __init
++contig_initmem_init(unsigned long start_pfn, unsigned long end_pfn)
  {
          unsigned long bootmap_size, bootmap; 
-@@ -576,7 +576,7 @@ void __init setup_arch(char **cmdline_p)
- 	acpi_numa_init();
- #endif
- 
--#ifdef CONFIG_DISCONTIGMEM
-+#ifdef CONFIG_NUMA
++
++	memory_present(0, start_pfn, end_pfn);
+         bootmap_size = bootmem_bootmap_pages(end_pfn)<<PAGE_SHIFT;
+         bootmap = find_e820_area(0, end_pfn<<PAGE_SHIFT, bootmap_size);
+         if (bootmap == -1L) 
+@@ -579,7 +583,7 @@ void __init setup_arch(char **cmdline_p)
+ #ifdef CONFIG_NUMA
  	numa_initmem_init(0, end_pfn); 
  #else
- 	contig_initmem_init(); 
-diff -urNp linux-2.6.12-rc4-mm2/arch/x86_64/mm/Makefile linux-2.6.12-rc4-mm2-m/arch/x86_64/mm/Makefile
---- linux-2.6.12-rc4-mm2/arch/x86_64/mm/Makefile	2005-05-07 01:20:31.000000000 -0400
-+++ linux-2.6.12-rc4-mm2-m/arch/x86_64/mm/Makefile	2005-05-18 07:48:16.000000000 -0400
-@@ -4,7 +4,7 @@
+-	contig_initmem_init(); 
++	contig_initmem_init(0, end_pfn);
+ #endif
  
- obj-y	 := init.o fault.o ioremap.o extable.o pageattr.o
- obj-$(CONFIG_HUGETLB_PAGE) += hugetlbpage.o
--obj-$(CONFIG_DISCONTIGMEM) += numa.o
-+obj-$(CONFIG_NUMA) += numa.o
- obj-$(CONFIG_K8_NUMA) += k8topology.o
- obj-$(CONFIG_ACPI_NUMA) += srat.o
+ 	/* Reserve direct mapping */
+@@ -645,6 +649,8 @@ void __init setup_arch(char **cmdline_p)
+ 		reserve_bootmem(crashk_res.start, crashk_res.end - crashk_res.start + 1);
+ 	}
+ #endif
++
++	sparse_init();
+ 	paging_init();
  
-diff -urNp linux-2.6.12-rc4-mm2/arch/x86_64/mm/init.c linux-2.6.12-rc4-mm2-m/arch/x86_64/mm/init.c
---- linux-2.6.12-rc4-mm2/arch/x86_64/mm/init.c	2005-05-07 01:20:31.000000000 -0400
-+++ linux-2.6.12-rc4-mm2-m/arch/x86_64/mm/init.c	2005-05-18 07:48:16.000000000 -0400
-@@ -318,7 +318,7 @@ void zap_low_mappings(void)
- 	flush_tlb_all();
+ 	check_ioapic();
+diff -urNp linux-2.6.12-rc4-mm2/arch/x86_64/mm/numa.c linux-2.6.12-rc4-mm2-m/arch/x86_64/mm/numa.c
+--- linux-2.6.12-rc4-mm2/arch/x86_64/mm/numa.c	2005-05-07 01:20:31.000000000 -0400
++++ linux-2.6.12-rc4-mm2-m/arch/x86_64/mm/numa.c	2005-05-18 07:51:13.000000000 -0400
+@@ -66,6 +66,13 @@ int __init compute_hash_shift(struct nod
+ 	return -1; 
  }
  
--#ifndef CONFIG_DISCONTIGMEM
-+#ifndef CONFIG_NUMA
- void __init paging_init(void)
- {
- 	{
-@@ -427,13 +427,16 @@ void __init mem_init(void)
- 	reservedpages = 0;
- 
- 	/* this will put all low memory onto the freelists */
--#ifdef CONFIG_DISCONTIGMEM
-+#ifdef CONFIG_NUMA
- 	totalram_pages += numa_free_all_bootmem();
- 	tmp = 0;
- 	/* should count reserved pages here for all nodes */ 
- #else
-+
-+#ifdef CONFIG_FLATMEM
- 	max_mapnr = end_pfn;
- 	if (!mem_map) BUG();
++#ifdef CONFIG_SPARSEMEM
++int early_pfn_to_nid(unsigned long pfn)
++{
++	return phys_to_nid(pfn << PAGE_SHIFT);
++}
 +#endif
- 
- 	totalram_pages += free_all_bootmem();
- 
-@@ -515,7 +518,7 @@ void free_initrd_mem(unsigned long start
- void __init reserve_bootmem_generic(unsigned long phys, unsigned len) 
++
+ /* Initialize bootmem allocator for a node */
+ void __init setup_node_bootmem(int nodeid, unsigned long start, unsigned long end)
  { 
- 	/* Should check here against the e820 map to avoid double free */ 
--#ifdef CONFIG_DISCONTIGMEM
-+#ifdef CONFIG_NUMA
- 	int nid = phys_to_nid(phys);
-   	reserve_bootmem_node(NODE_DATA(nid), phys, len);
- #else       		
-diff -urNp linux-2.6.12-rc4-mm2/arch/x86_64/mm/ioremap.c linux-2.6.12-rc4-mm2-m/arch/x86_64/mm/ioremap.c
---- linux-2.6.12-rc4-mm2/arch/x86_64/mm/ioremap.c	2005-05-18 07:38:20.000000000 -0400
-+++ linux-2.6.12-rc4-mm2-m/arch/x86_64/mm/ioremap.c	2005-05-18 07:48:16.000000000 -0400
-@@ -178,7 +178,7 @@ void __iomem * __ioremap(unsigned long p
- 	if (phys_addr >= ISA_START_ADDRESS && last_addr < ISA_END_ADDRESS)
- 		return (__force void __iomem *)phys_to_virt(phys_addr);
+@@ -80,6 +87,7 @@ void __init setup_node_bootmem(int nodei
+ 	start_pfn = start >> PAGE_SHIFT;
+ 	end_pfn = end >> PAGE_SHIFT;
  
--#ifndef CONFIG_DISCONTIGMEM
-+#ifdef CONFIG_FLATMEM
- 	/*
- 	 * Don't allow anybody to remap normal RAM that we're using..
- 	 */
-diff -urNp linux-2.6.12-rc4-mm2/include/asm-x86_64/io.h linux-2.6.12-rc4-mm2-m/include/asm-x86_64/io.h
---- linux-2.6.12-rc4-mm2/include/asm-x86_64/io.h	2005-05-07 01:20:31.000000000 -0400
-+++ linux-2.6.12-rc4-mm2-m/include/asm-x86_64/io.h	2005-05-18 07:48:17.000000000 -0400
-@@ -124,12 +124,7 @@ extern inline void * phys_to_virt(unsign
- /*
-  * Change "struct page" to physical address.
-  */
--#ifdef CONFIG_DISCONTIGMEM
--#include <asm/mmzone.h>
- #define page_to_phys(page)    ((dma_addr_t)page_to_pfn(page) << PAGE_SHIFT)
--#else
--#define page_to_phys(page)	((page - mem_map) << PAGE_SHIFT)
--#endif
++	memory_present(nodeid, start_pfn, end_pfn);
+ 	nodedata_phys = find_e820_area(start, end, pgdat_size); 
+ 	if (nodedata_phys == -1L) 
+ 		panic("Cannot find memory pgdat in node %d\n", nodeid);
+diff -urNp linux-2.6.12-rc4-mm2/include/asm-x86_64/bitops.h linux-2.6.12-rc4-mm2-m/include/asm-x86_64/bitops.h
+--- linux-2.6.12-rc4-mm2/include/asm-x86_64/bitops.h	2005-05-07 01:20:31.000000000 -0400
++++ linux-2.6.12-rc4-mm2-m/include/asm-x86_64/bitops.h	2005-05-18 07:51:13.000000000 -0400
+@@ -411,8 +411,6 @@ static __inline__ int ffs(int x)
+ /* find last set bit */
+ #define fls(x) generic_fls(x)
  
- #include <asm-generic/iomap.h>
- 
-diff -urNp linux-2.6.12-rc4-mm2/include/asm-x86_64/mmzone.h linux-2.6.12-rc4-mm2-m/include/asm-x86_64/mmzone.h
---- linux-2.6.12-rc4-mm2/include/asm-x86_64/mmzone.h	2005-05-18 07:38:28.000000000 -0400
-+++ linux-2.6.12-rc4-mm2-m/include/asm-x86_64/mmzone.h	2005-05-18 07:48:17.000000000 -0400
-@@ -6,7 +6,7 @@
- 
- #include <linux/config.h>
- 
--#ifdef CONFIG_DISCONTIGMEM
-+#ifdef CONFIG_NUMA
- 
- #define VIRTUAL_BUG_ON(x) 
- 
-@@ -30,17 +30,16 @@ static inline __attribute__((pure)) int 
- 	return nid; 
- } 
- 
--#define pfn_to_nid(pfn) phys_to_nid((unsigned long)(pfn) << PAGE_SHIFT)
+-#define ARCH_HAS_ATOMIC_UNSIGNED 1
 -
--#define kvaddr_to_nid(kaddr)	phys_to_nid(__pa(kaddr))
- #define NODE_DATA(nid)		(node_data[nid])
+ #endif /* __KERNEL__ */
  
- #define node_start_pfn(nid)	(NODE_DATA(nid)->node_start_pfn)
- #define node_end_pfn(nid)       (NODE_DATA(nid)->node_start_pfn + \
- 				 NODE_DATA(nid)->node_spanned_pages)
- 
--#define local_mapnr(kvaddr) \
--	( (__pa(kvaddr) >> PAGE_SHIFT) - node_start_pfn(kvaddr_to_nid(kvaddr)) )
-+#ifdef CONFIG_DISCONTIGMEM
+ #endif /* _X86_64_BITOPS_H */
+diff -urNp linux-2.6.12-rc4-mm2/include/asm-x86_64/sparsemem.h linux-2.6.12-rc4-mm2-m/include/asm-x86_64/sparsemem.h
+--- linux-2.6.12-rc4-mm2/include/asm-x86_64/sparsemem.h	1969-12-31 19:00:00.000000000 -0500
++++ linux-2.6.12-rc4-mm2-m/include/asm-x86_64/sparsemem.h	2005-05-18 07:51:13.000000000 -0400
+@@ -0,0 +1,26 @@
++#ifndef _ASM_X86_64_SPARSEMEM_H
++#define _ASM_X86_64_SPARSEMEM_H 1
 +
-+#define pfn_to_nid(pfn) phys_to_nid((unsigned long)(pfn) << PAGE_SHIFT)
-+#define kvaddr_to_nid(kaddr)	phys_to_nid(__pa(kaddr))
- 
- /* AK: this currently doesn't deal with invalid addresses. We'll see 
-    if the 2.5 kernel doesn't pass them
-@@ -57,4 +56,8 @@ static inline __attribute__((pure)) int 
- 			({ u8 nid__ = pfn_to_nid(pfn); \
- 			   nid__ != 0xff && (pfn) >= node_start_pfn(nid__) && (pfn) <= node_end_pfn(nid__); }))
- #endif
++#ifdef CONFIG_SPARSEMEM
 +
-+#define local_mapnr(kvaddr) \
-+	( (__pa(kvaddr) >> PAGE_SHIFT) - node_start_pfn(kvaddr_to_nid(kvaddr)) )
-+#endif
- #endif
-diff -urNp linux-2.6.12-rc4-mm2/include/asm-x86_64/page.h linux-2.6.12-rc4-mm2-m/include/asm-x86_64/page.h
---- linux-2.6.12-rc4-mm2/include/asm-x86_64/page.h	2005-05-18 07:38:28.000000000 -0400
-+++ linux-2.6.12-rc4-mm2-m/include/asm-x86_64/page.h	2005-05-18 07:48:17.000000000 -0400
-@@ -121,7 +121,9 @@ extern __inline__ int get_order(unsigned
- 	  __pa(v); })
- 
- #define __va(x)			((void *)((unsigned long)(x)+PAGE_OFFSET))
--#ifndef CONFIG_DISCONTIGMEM
-+#define __boot_va(x)		__va(x)
-+#define __boot_pa(x)		__pa(x)
-+#ifdef CONFIG_FLATMEM
- #define pfn_to_page(pfn)	(mem_map + (pfn))
- #define page_to_pfn(page)	((unsigned long)((page) - mem_map))
- #define pfn_valid(pfn)		((pfn) < max_mapnr)
-diff -urNp linux-2.6.12-rc4-mm2/include/asm-x86_64/topology.h linux-2.6.12-rc4-mm2-m/include/asm-x86_64/topology.h
---- linux-2.6.12-rc4-mm2/include/asm-x86_64/topology.h	2005-05-18 07:38:28.000000000 -0400
-+++ linux-2.6.12-rc4-mm2-m/include/asm-x86_64/topology.h	2005-05-18 07:48:17.000000000 -0400
-@@ -3,7 +3,7 @@
- 
- #include <linux/config.h>
- 
--#ifdef CONFIG_DISCONTIGMEM
-+#ifdef CONFIG_NUMA
- 
- #include <asm/mpspec.h>
- #include <asm/bitops.h>
-@@ -28,7 +28,6 @@ extern int __node_distance(int, int);
- #define node_to_cpumask(node)		(node_to_cpumask[node])
- #define pcibus_to_cpumask(bus)		node_to_cpumask(pci_bus_to_node[(bus)->number]);
- 
--#ifdef CONFIG_NUMA
- /* sched_domains SD_NODE_INIT for x86_64 machines */
- #define SD_NODE_INIT (struct sched_domain) {		\
- 	.span			= CPU_MASK_NONE,	\
-@@ -54,7 +53,6 @@ extern int __node_distance(int, int);
- 	.balance_interval	= 1,			\
- 	.nr_balance_failed	= 0,			\
- }
--#endif
- 
- #endif
- 
++/*
++ * generic non-linear memory support:
++ *
++ * 1) we will not split memory into more chunks than will fit into the flags
++ *    field of the struct page
++ *
++ * SECTION_SIZE_BITS		2^n: size of each section
++ * MAX_PHYSADDR_BITS		2^n: max size of physical address space
++ * MAX_PHYSMEM_BITS		2^n: how much memory we can have in that space
++ *
++ */
++
++#define SECTION_SIZE_BITS	27 /* matt - 128 is convenient right now */
++#define MAX_PHYSADDR_BITS	40
++#define MAX_PHYSMEM_BITS	40
++
++extern int early_pfn_to_nid(unsigned long pfn);
++
++#endif /* CONFIG_SPARSEMEM */
++
++#endif /* _ASM_X86_64_SPARSEMEM_H */
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
