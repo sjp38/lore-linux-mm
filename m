@@ -1,36 +1,31 @@
-Date: Tue, 17 May 2005 16:49:23 -0700 (PDT)
-From: Christoph Lameter <christoph@lameter.com>
-Subject: Re: NUMA aware slab allocator V3
-In-Reply-To: <428A800D.8050902@us.ibm.com>
-Message-ID: <Pine.LNX.4.62.0505171648370.17681@graphe.net>
+Date: Tue, 17 May 2005 18:07:42 -0700 (PDT)
+From: Christoph Lameter <clameter@engr.sgi.com>
+Subject: Re: NUMA aware slab allocator V2
+In-Reply-To: <428A7E48.6060909@us.ibm.com>
+Message-ID: <Pine.LNX.4.62.0505171807280.12337@schroedinger.engr.sgi.com>
 References: <Pine.LNX.4.58.0505110816020.22655@schroedinger.engr.sgi.com>
- <Pine.LNX.4.62.0505161046430.1653@schroedinger.engr.sgi.com>
- <714210000.1116266915@flay> <200505161410.43382.jbarnes@virtuousgeek.org>
- <740100000.1116278461@flay>  <Pine.LNX.4.62.0505161713130.21512@graphe.net>
- <1116289613.26955.14.camel@localhost> <428A800D.8050902@us.ibm.com>
+ <20050512000444.641f44a9.akpm@osdl.org> <Pine.LNX.4.58.0505121252390.32276@schroedinger.engr.sgi.com>
+ <20050513000648.7d341710.akpm@osdl.org> <428A7E48.6060909@us.ibm.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Matthew Dobson <colpatch@us.ibm.com>
-Cc: Dave Hansen <haveblue@us.ibm.com>, "Martin J. Bligh" <mbligh@mbligh.org>, Jesse Barnes <jbarnes@virtuousgeek.org>, Christoph Lameter <clameter@engr.sgi.com>, Andy Whitcroft <apw@shadowen.org>, Andrew Morton <akpm@osdl.org>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, shai@scalex86.org, steiner@sgi.com
+Cc: Andrew Morton <akpm@osdl.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, shai@scalex86.org
 List-ID: <linux-mm.kvack.org>
 
 On Tue, 17 May 2005, Matthew Dobson wrote:
 
-> You're right, Dave.  The series of #defines at the top resolve to the same
-> thing as numa_node_id().  Adding the above #defines will serve only to
-> obfuscate the code.
+> Also, there is a similar loop for CPUs which should be replaced with
+> for_each_online_cpu(i).
+> 
+> These for_each_FOO macros are cleaner and less likely to break in the
+> future, since we can simply modify the one definition if the way to
+> itterate over nodes/cpus changes, rather than auditing 100 open coded
+> implementations and trying to determine the intent of the loop's author.
 
-Ok.
- 
-> Another thing that will really help, Christoph, would be replacing all your
-> open-coded for (i = 0; i < MAX_NUMNODES/NR_CPUS; i++) loops.  We have
-> macros that make that all nice and clean and (should?) do the right thing
-> for various combinations of SMP/DISCONTIG/NUMA/etc.  Use those and if they
-> DON'T do the right thing, please let me know and we'll fix them ASAP.
+Ok. Done.
 
-Some of that was already done but I can check again.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
