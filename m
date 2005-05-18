@@ -1,56 +1,48 @@
-Message-ID: <428B9269.2080907@engr.sgi.com>
-Date: Wed, 18 May 2005 14:07:21 -0500
-From: Ray Bryant <raybry@engr.sgi.com>
+Date: Wed, 18 May 2005 15:57:35 -0400 (EDT)
+From: Rik van Riel <riel@redhat.com>
+Subject: [PATCH] prevent NULL mmap in topdown model
+Message-ID: <Pine.LNX.4.61.0505181556190.3645@chimarrao.boston.redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 2.6.12-rc3 4/8] mm: manual page migration-rc2 -- add-sys_migrate_pages-rc2.patch
-References: <20050511043756.10876.72079.60115@jackhammer.engr.sgi.com> <20050511043821.10876.47127.71762@jackhammer.engr.sgi.com> <20050511082457.GA24134@infradead.org>
-In-Reply-To: <20050511082457.GA24134@infradead.org>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Hellwig <hch@infradead.org>
-Cc: Ray Bryant <raybry@sgi.com>, Hirokazu Takahashi <taka@valinux.co.jp>, Marcelo Tosatti <marcelo.tosatti@cyclades.com>, Andi Kleen <ak@suse.de>, Dave Hansen <haveblue@us.ibm.com>, linux-mm <linux-mm@kvack.org>, Nathan Scott <nathans@sgi.com>, Ray Bryant <raybry@austin.rr.com>, lhms-devel@lists.sourceforge.net
+To: linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Christoph Hellwig wrote:
+This (trivial) patch prevents the topdown allocator from allocating
+mmap areas all the way down to address zero.  It's not the prettiest
+patch, so suggestions for improvement are welcome ;)
 
-> 
->>+	if (nr_busy > 0) {
->>+		pass++;
->>+		if (pass > 10)
->>+			return -EAGAIN;
->>+		/* wait until some I/O completes and try again */
->>+		blk_congestion_wait(WRITE, HZ/10);
->>+		goto retry;
-> 
-> 
-> this is a layering violation.  How to wait is up to the implementor
-> of the address_space
-> 
+Signed-off-by: Rik van Riel <riel@redhat.com>
 
-Christoph,
-
-I've done the other changes you suggested, but am a little confused
-by this one.  Is your suggestion that I should be calling:
-
-vma->vm_file->f_mapping->a_ops->writepages()
-
-(assuming this exists)
-
-instead of doing the blk_congestion_wait()?  There is no "wait"
-function defined in the aops vector as near as I can tell.
-
--- 
-Best Regards,
-Ray
------------------------------------------------
-                   Ray Bryant
-512-453-9679 (work)         512-507-7807 (cell)
-raybry@sgi.com             raybry@austin.rr.com
-The box said: "Requires Windows 98 or better",
-            so I installed Linux.
------------------------------------------------
+--- linux-2.6.11/mm/mmap.c.nullptr	2005-05-17 23:07:26.000000000 -0400
++++ linux-2.6.11/mm/mmap.c	2005-05-17 23:18:53.000000000 -0400
+@@ -1251,7 +1251,7 @@
+ 	addr = mm->free_area_cache;
+ 
+ 	/* make sure it can fit in the remaining address space */
+-	if (addr >= len) {
++	if (addr >= (len + mm->brk)) {
+ 		vma = find_vma(mm, addr-len);
+ 		if (!vma || addr <= vma->vm_start)
+ 			/* remember the address as a hint for next time */
+@@ -1267,13 +1267,13 @@
+ 		 * return with success:
+ 		 */
+ 		vma = find_vma(mm, addr);
+-		if (!vma || addr+len <= vma->vm_start)
++		if ((!vma || addr+len <= vma->vm_start) && addr > mm->brk)
+ 			/* remember the address as a hint for next time */
+ 			return (mm->free_area_cache = addr);
+ 
+ 		/* try just below the current vma->vm_start */
+ 		addr = vma->vm_start-len;
+-	} while (len <= vma->vm_start);
++	} while (len <= vma->vm_start && addr > mm->brk);
+ 
+ 	/*
+ 	 * A failed mmap() very likely causes application failure,
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
