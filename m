@@ -1,37 +1,36 @@
-Date: 18 May 2005 18:25:28 +0200
-Date: Wed, 18 May 2005 18:25:28 +0200
+Date: 18 May 2005 18:27:10 +0200
+Date: Wed, 18 May 2005 18:27:10 +0200
 From: Andi Kleen <ak@muc.de>
-Subject: Re: [patch 2/4] add x86-64 Kconfig options for sparsemem
-Message-ID: <20050518162528.GC88141@muc.de>
-References: <200505181524.j4IFOfew026909@snoqualmie.dp.intel.com>
+Subject: Re: [patch 4/4] add x86-64 specific support for sparsemem
+Message-ID: <20050518162710.GD88141@muc.de>
+References: <200505181528.j4IFSTo1026925@snoqualmie.dp.intel.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <200505181524.j4IFOfew026909@snoqualmie.dp.intel.com>
+In-Reply-To: <200505181528.j4IFSTo1026925@snoqualmie.dp.intel.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Matt Tolentino <metolent@snoqualmie.dp.intel.com>
 Cc: akpm@osdl.org, apw@shadowen.org, haveblue@us.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, May 18, 2005 at 08:24:41AM -0700, Matt Tolentino wrote:
-> 
-> Add the requisite arch specific Kconfig options to enable 
-> the use of the sparsemem implementation for NUMA kernels
-> on x86-64.
+> @@ -400,9 +401,12 @@ static __init void parse_cmdline_early (
+>  }
+>  
+>  #ifndef CONFIG_NUMA
+> -static void __init contig_initmem_init(void)
+> +static void __init
+> +contig_initmem_init(unsigned long start_pfn, unsigned long end_pfn)
+>  {
+>          unsigned long bootmap_size, bootmap; 
+> +
+> +	memory_present(0, start_pfn, end_pfn);
 
-How much did you test sparsemem on x86-64 NUMA ? 
+Watch indentation.
 
-There are various cases that probably need to be checked,
-AMD with SRAT, AMD without SRAT, AMD with more than 4GB RAM, 
-Summit(?), NUMA EMULATION etc.
-
-If all that works I would have no problem with removing the
-old code.
+Rest looks good.
 
 -Andi
-
-
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
