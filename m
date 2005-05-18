@@ -1,35 +1,39 @@
-Date: Wed, 18 May 2005 10:48:37 -0700 (PDT)
-From: Christoph Lameter <clameter@engr.sgi.com>
-Subject: Re: NUMA aware slab allocator V3
-In-Reply-To: <428B7B16.10204@us.ibm.com>
-Message-ID: <Pine.LNX.4.62.0505181046320.20978@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.58.0505110816020.22655@schroedinger.engr.sgi.com>
- <Pine.LNX.4.62.0505161046430.1653@schroedinger.engr.sgi.com>
- <714210000.1116266915@flay> <200505161410.43382.jbarnes@virtuousgeek.org>
- <740100000.1116278461@flay>  <Pine.LNX.4.62.0505161713130.21512@graphe.net>
- <1116289613.26955.14.camel@localhost> <428A800D.8050902@us.ibm.com>
- <Pine.LNX.4.62.0505171648370.17681@graphe.net> <428B7B16.10204@us.ibm.com>
+Message-Id: <200505181757.j4IHv0g14491@unix-os.sc.intel.com>
+From: "Chen, Kenneth W" <kenneth.w.chen@intel.com>
+Subject: RE: [PATCH] Avoiding mmap fragmentation - clean rev
+Date: Wed, 18 May 2005 10:57:00 -0700
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain;
+	charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
+In-Reply-To: <17035.30820.347382.9137@gargle.gargle.HOWL>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Matthew Dobson <colpatch@us.ibm.com>
-Cc: Christoph Lameter <christoph@lameter.com>, Dave Hansen <haveblue@us.ibm.com>, "Martin J. Bligh" <mbligh@mbligh.org>, Jesse Barnes <jbarnes@virtuousgeek.org>, Andy Whitcroft <apw@shadowen.org>, Andrew Morton <akpm@osdl.org>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, shai@scalex86.org, steiner@sgi.com
+To: 'Wolfgang Wander' <wwc@rentec.com>
+Cc: =?iso-8859-1?Q?Herv=E9_Piedvache?= <herve@elma.fr>, 'Andrew Morton' <akpm@osdl.org>, mingo@elte.hu, arjanv@redhat.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 18 May 2005, Matthew Dobson wrote:
+Wolfgang Wander wrote on Wednesday, May 18, 2005 10:16 AM
+> My goal was to place small requests close to the base while leaving
+> larger holes open as long as possible and far from the base. 2.4
+> kernels did this inadvertently by always starting to search from the
+> base, my patch starts searching from the base (upward or downward)
+> if the new request is known to fit between base and current cache
+> pointer, thus it maintains the 2.4 quality of mixing small and large
+> requests and maintains the huge speedups Ingo introduced with the
+> cache pointer.
 
-> Thanks!  I just looked at V2 & V3 of the patch and saw some open-coded
-> loops.  I may have missed a later version of the patch which has fixes.
-> Feel free to CC me on future versions of the patch...
-
-I will when I get everything together. The hold up at the moment is that 
-Martin has found a boot failure with the new slab allocator on ppc64 that 
-I am unable to explain.
- 
-Strangely, the panic is in the page allocator. I have no means of 
-testing since I do not have a ppc64 system available. Could you help me 
-figure out what is going on?
+This algorithm tends to penalize small size request and it would do a
+linear search from the beginning. It would also penalize large size
+request since cache pointer will be reset to a lower address and making
+a subsequent large request to search forward.  In your case, since all
+mappings are anonymous mmap with same page protection, you won't notice
+performance problem because of coalescing in the mapped area.  But other
+app like apache web server, which mmap thousands of different files will
+degrade. The probability of linear search is lot higher with this proposal.
+The nice thing about the current *broken* cache pointer is that it is
+almost an O(1) order to fulfill a request since it moves in one direction.
+The new proposal would reduce that O(1) probability.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
