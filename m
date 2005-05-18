@@ -1,28 +1,52 @@
-Date: Wed, 18 May 2005 08:20:23 -0700
+Date: Wed, 18 May 2005 08:23:07 -0700
 From: Matt Tolentino <metolent@snoqualmie.dp.intel.com>
-Message-Id: <200505181520.j4IFKNYi026893@snoqualmie.dp.intel.com>
-Subject: [patch 0/4] x86-64 sparsemem support
+Message-Id: <200505181523.j4IFN7rs026902@snoqualmie.dp.intel.com>
+Subject: [patch 1/4] remove direct ref to contig_page_data for x86-64
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: ak@muc.de, akpm@osdl.org
 Cc: apw@shadowen.org, haveblue@us.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Here are a set of patches against 2.6.12-rc4-mm2 that 
-enable the use of the sparsemem implementation for x86-64
-NUMA kernels.  I've boot tested these for the normal contiguous
-configuration as well as NUMA configurations using both
-discontigmem and sparsemem options.  The NUMA configurations
-have been tested using the "numa=fake" option as I don't have
-direct access to a true x86-64 NUMA machine.  
+This patch pulls out all remaining direct references to 
+contig_page_data from arch/x86-64, thus saving an ifdef
+in one case.  
 
-For reference, these have been in the memory hotplug tree
-Dave has been maintaining and also form the basis for supporting
-memory hotplug.  Please review and consider for inclusion in -mm
-for wider testing.  Patches to follow...
+Signed-off-by: Matt Tolentino <matthew.e.tolentino@intel.com>
+Signed-off-by: Dave Hansen <haveblue@us.ibm.com>
+---
 
-matt
+ arch/x86_64/kernel/aperture.c |    4 ----
+ arch/x86_64/kernel/setup.c    |    2 +-
+ 2 files changed, 1 insertion(+), 5 deletions(-)
 
+diff -urNp linux-2.6.12-rc4-mm2/arch/x86_64/kernel/aperture.c linux-2.6.12-rc4-mm2-m/arch/x86_64/kernel/aperture.c
+--- linux-2.6.12-rc4-mm2/arch/x86_64/kernel/aperture.c	2005-05-07 01:20:31.000000000 -0400
++++ linux-2.6.12-rc4-mm2-m/arch/x86_64/kernel/aperture.c	2005-05-16 13:13:52.000000000 -0400
+@@ -42,11 +42,7 @@ static struct resource aper_res = {
+ 
+ static u32 __init allocate_aperture(void) 
+ {
+-#ifdef CONFIG_DISCONTIGMEM
+ 	pg_data_t *nd0 = NODE_DATA(0);
+-#else
+-	pg_data_t *nd0 = &contig_page_data;
+-#endif	
+ 	u32 aper_size;
+ 	void *p; 
+ 
+diff -urNp linux-2.6.12-rc4-mm2/arch/x86_64/kernel/setup.c linux-2.6.12-rc4-mm2-m/arch/x86_64/kernel/setup.c
+--- linux-2.6.12-rc4-mm2/arch/x86_64/kernel/setup.c	2005-05-16 13:17:18.000000000 -0400
++++ linux-2.6.12-rc4-mm2-m/arch/x86_64/kernel/setup.c	2005-05-16 13:13:52.000000000 -0400
+@@ -408,7 +408,7 @@ static void __init contig_initmem_init(v
+         if (bootmap == -1L) 
+                 panic("Cannot find bootmem map of size %ld\n",bootmap_size);
+         bootmap_size = init_bootmem(bootmap >> PAGE_SHIFT, end_pfn);
+-        e820_bootmem_free(&contig_page_data, 0, end_pfn << PAGE_SHIFT); 
++        e820_bootmem_free(NODE_DATA(0), 0, end_pfn << PAGE_SHIFT);
+         reserve_bootmem(bootmap, bootmap_size);
+ } 
+ #endif
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
