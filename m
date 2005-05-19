@@ -1,73 +1,74 @@
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by e5.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id j4J0Wndv024883
-	for <linux-mm@kvack.org>; Wed, 18 May 2005 20:32:49 -0400
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by e3.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id j4J0aLNu015293
+	for <linux-mm@kvack.org>; Wed, 18 May 2005 20:36:21 -0400
 Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay04.pok.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id j4J0Wnkv121532
-	for <linux-mm@kvack.org>; Wed, 18 May 2005 20:32:49 -0400
+	by d01relay02.pok.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id j4J0aLPE146872
+	for <linux-mm@kvack.org>; Wed, 18 May 2005 20:36:21 -0400
 Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.12.11/8.13.3) with ESMTP id j4J0WmT0031288
-	for <linux-mm@kvack.org>; Wed, 18 May 2005 20:32:48 -0400
-Date: Wed, 18 May 2005 17:26:36 -0700
+	by d01av02.pok.ibm.com (8.12.11/8.13.3) with ESMTP id j4J0aKnq006274
+	for <linux-mm@kvack.org>; Wed, 18 May 2005 20:36:20 -0400
+Date: Wed, 18 May 2005 17:30:08 -0700
 From: Chandra Seetharaman <sekharan@us.ibm.com>
-Subject: Re: page flags ?
-Message-ID: <20050519002636.GB25076@chandralinux.beaverton.ibm.com>
-References: <1116450834.26913.1293.camel@dyn318077bld.beaverton.ibm.com> <20050518145644.717afc21.akpm@osdl.org> <1116456143.26913.1303.camel@dyn318077bld.beaverton.ibm.com> <20050518162302.13a13356.akpm@osdl.org> <1116461369.26913.1339.camel@dyn318077bld.beaverton.ibm.com>
+Subject: [PATCH 0/6] CKRM: Memory controller for CKRM
+Message-ID: <20050519003008.GC25076@chandralinux.beaverton.ibm.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1116461369.26913.1339.camel@dyn318077bld.beaverton.ibm.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Badari Pulavarty <pbadari@us.ibm.com>
-Cc: Andrew Morton <akpm@osdl.org>, linux-mm@kvack.org, linux-fsdevel <linux-fsdevel@vger.kernel.org>
+To: ckrm-tech@lists.sourceforge.net, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, May 18, 2005 at 05:09:29PM -0700, Badari Pulavarty wrote:
-> On Wed, 2005-05-18 at 16:23, Andrew Morton wrote:
-> > Badari Pulavarty <pbadari@us.ibm.com> wrote:
-> > >
-> > > Is it possible to get yet another PG_fs_specific flag ? 
-> > 
-> > Anything's possible ;)
-> > 
-> > How many bits are spare now?  ZONETABLE_PGSHIFT hurts my brain.
-> 
-> Depends on whom you ask :) CKRM folks are using one/few, 
+Hello ckrm-tech members,
 
-CKRM used one bit... getting rid of it..
+Here is the latest CKRM Memory controller patch against the patchset Gerrit
+released on 05/05/05.
 
-> Hotplug memory guys are using one... :( I lost track..
-> 
-> > 
-> > > Reasons for it are:
-> > > 
-> > > 	- I need this for supporting delayed allocation on ext3.
-> > 
-> > Why?
-> > 
-> 
-> I think, I explained you earlier.. But let me refresh your memory.
-> 
-> 
-> In order to do delayed allocation, we "reserve" (not same reservation
-> the code) a block in prepare/commit and do the allocation in
-> writepage/writepages.  Unfortunately, mapped writes directly come into
-> writepage without making a reservation. In order to guarantee that
-> write() succeeds, I need a way to indicate if the "page" has made
-> a reservation or not. I was hoping to use a page->flag to do this.
-> That way I don't have to touch page->private like Alex's code and
-> get away using mpage routines, instead of having my own.
-> 
-> 
-> Thanks,
-> Badari
-> 
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"aart@kvack.org"> aart@kvack.org </a>
+I applied the feedback I got on/off the list. Made few fixes and some
+cleanups. Details about the changes are in the appripriate patches.
+
+It is tested on i386.
+
+Currently disabled on NUMA.
+
+Hello linux-mm members,
+
+These are set of patches that provides the control of memory under the CKRM
+framework(Details at http://ckrm.sf.net). I eagerly wait for your
+feedback/comments/suggestions/concerns etc.,
+
+To All,
+
+I am looking for improvement suggestions
+        - to not have a field in the page data structure for the mem
+          controller
+	- to make vmscan.c cleaner.
+
+--------
+Patches are
+11-01-mem_base_changes:
+        Basic changes to the core kernel to support memory controller.
+
+11-02-mem_base-core:
+        To fit in the ckrm framework. No support for guarantee, limit in
+	this patch. No config file support also.
+
+11-03-mem_core-limit:
+        Support for limit is added.
+
+11-04-mem_limit-guar:
+        Support for guarantee is added.
+
+11-05-mem_guar-config:
+        Support for few config parameters added.
+
+11-06-mem_config-docs:
+        Ofcourse... Documentation.
+
+regards,
+
+chandra
+
 
 -- 
 
