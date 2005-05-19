@@ -1,66 +1,72 @@
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by e6.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id j4JGtqbS021822
-	for <linux-mm@kvack.org>; Thu, 19 May 2005 12:55:52 -0400
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay04.pok.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id j4JGtqW5098322
-	for <linux-mm@kvack.org>; Thu, 19 May 2005 12:55:52 -0400
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.12.11/8.13.3) with ESMTP id j4JGtquh004262
-	for <linux-mm@kvack.org>; Thu, 19 May 2005 12:55:52 -0400
-Date: Thu, 19 May 2005 09:49:30 -0700
-From: Chandra Seetharaman <sekharan@us.ibm.com>
-Subject: Re: [ckrm-tech] [Patch 5/6] CKRM: Add config support for mem controller
-Message-ID: <20050519164930.GG27270@chandralinux.beaverton.ibm.com>
-References: <20050519003324.GA25265@chandralinux.beaverton.ibm.com> <1116466010.26955.102.camel@localhost> <20050519162653.GB27270@chandralinux.beaverton.ibm.com> <1116520990.26955.133.camel@localhost>
-Mime-Version: 1.0
+From: Wolfgang Wander <wwc@rentec.com>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1116520990.26955.133.camel@localhost>
+Content-Transfer-Encoding: 7bit
+Message-ID: <17036.56626.994129.265926@gargle.gargle.HOWL>
+Date: Thu, 19 May 2005 14:38:42 -0400
+Subject: RE: [PATCH] Avoiding mmap fragmentation - clean rev
+In-Reply-To: <200505181757.j4IHv0g14491@unix-os.sc.intel.com>
+References: <17035.30820.347382.9137@gargle.gargle.HOWL>
+	<200505181757.j4IHv0g14491@unix-os.sc.intel.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Hansen <haveblue@us.ibm.com>
-Cc: ckrm-tech@lists.sourceforge.net, linux-mm <linux-mm@kvack.org>
+To: "Chen, Kenneth W" <kenneth.w.chen@intel.com>
+Cc: 'Wolfgang Wander' <wwc@rentec.com>, =?iso-8859-1?Q?Herv=E9_Piedvache?= <herve@elma.fr>, 'Andrew Morton' <akpm@osdl.org>, mingo@elte.hu, arjanv@redhat.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, May 19, 2005 at 09:43:10AM -0700, Dave Hansen wrote:
-> On Thu, 2005-05-19 at 09:26 -0700, Chandra Seetharaman wrote:
-> > On Wed, May 18, 2005 at 06:26:50PM -0700, Dave Hansen wrote:
-> > > There appears to still be some serious issues in the patch with respect
-> > > to per-zone accounting.  There is only accounting in each ckrm_mem_res
-> > > for each *kind* of zone, not each zone.
-> > 
-> > In the absense of NUMA/DISCONTIGMEM, isn't 'kind of zone' and 'zone'
-> > the same ? Correct me if this assumption is wrong.
-> 
-> Yes, that is correct.  Do you not expect your code to work with NUMA or
-> DISCONTIGMEM?
+Chen, Kenneth W writes:
+ > Wolfgang Wander wrote on Wednesday, May 18, 2005 10:16 AM
+ > > My goal was to place small requests close to the base while leaving
+ > > larger holes open as long as possible and far from the base. 2.4
+ > > kernels did this inadvertently by always starting to search from the
+ > > base, my patch starts searching from the base (upward or downward)
+ > > if the new request is known to fit between base and current cache
+ > > pointer, thus it maintains the 2.4 quality of mixing small and large
+ > > requests and maintains the huge speedups Ingo introduced with the
+ > > cache pointer.
+ > 
+ > This algorithm tends to penalize small size request and it would do a
+ > linear search from the beginning. It would also penalize large size
+ > request since cache pointer will be reset to a lower address and making
+ > a subsequent large request to search forward.  In your case, since all
+ > mappings are anonymous mmap with same page protection, you won't notice
+ > performance problem because of coalescing in the mapped area.  But other
+ > app like apache web server, which mmap thousands of different files will
+ > degrade. The probability of linear search is lot higher with this proposal.
+ > The nice thing about the current *broken* cache pointer is that it is
+ > almost an O(1) order to fulfill a request since it moves in one direction.
+ > The new proposal would reduce that O(1) probability.
 
-not yet...
-> 
-> > > Could you explain what advantages keeping a per-zone-type count has over
-> > > actually doing one count for each zone?  Also, why bother tracking it
-> > > per-zone-type anyway?  Would a single count work the same way
-> > 
-> > fits the NUMA/DISCONTIGMEM issue discussed above.
-> 
-> I don't think it fits it very well, it kinda just glosses over it.  A
-> great fit would be something that tracked how much each class was using
-> in each zone, not each kind of zone.  Perhaps a controller would like to
-> keep an individual class from using too much memory in any particular
-> NUMA node.  The current memory controller design would keep that from
-> happening.
+I do certainly see that the algorithm isn't perfect in every case
+however for the test case Ingo sent me (Ingo, did you verify the
+timing?)  my patch performed as well as Ingo's original solution.  I
+assume that Ingo's test was requesting same map sizes for every thread
+so the results would be a bit biased in my favour... ;-)
 
-This is one of "things to consider" in our "numa support".
-> 
-> -- Dave
-> 
+That leaves us with two scenarious for a new mmap request:
 
--- 
+  * the new request is greater or equal than the cached_hole_size ->
+    no change in behaviour
+  * otherwise we start the search at a position where we know the
+    new request will fit in, this could eventually even be faster
+    than the required wrap.
 
-----------------------------------------------------------------------
-    Chandra Seetharaman               | Be careful what you choose....
-              - sekharan@us.ibm.com   |      .......you may get it.
-----------------------------------------------------------------------
+So I don't necessarily see that the probability is reduced in all
+circumstances.  Clearly mixed size requests do tend to keep the
+free_area_cache pointer low and thus will likely extend the search length.
+
+Are there test cases/benchmarks which would simulate the behaviour of an 
+Apache like application under the various schemes?
+
+Clearly one has to weight the performance issues against the memory
+efficiency but since we demonstratibly throw away 25% (or 1GB) of the
+available address space in the various accumulated holes a long
+running application can generate I hope that for the time being we can
+stick with my first solution, preferably extended by your munmap fix? 
+
+Please? ;-)
+
+            Wolfgang
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
