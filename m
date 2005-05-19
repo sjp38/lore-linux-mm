@@ -1,16 +1,16 @@
-Received: from westrelay02.boulder.ibm.com (westrelay02.boulder.ibm.com [9.17.195.11])
-	by e33.co.us.ibm.com (8.12.10/8.12.9) with ESMTP id j4J0dbmD659238
-	for <linux-mm@kvack.org>; Wed, 18 May 2005 20:39:37 -0400
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by e33.co.us.ibm.com (8.12.10/8.12.9) with ESMTP id j4J0e2mD573318
+	for <linux-mm@kvack.org>; Wed, 18 May 2005 20:40:02 -0400
 Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by westrelay02.boulder.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id j4J0db1o141074
-	for <linux-mm@kvack.org>; Wed, 18 May 2005 18:39:37 -0600
+	by d03relay04.boulder.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id j4J0e2rR234460
+	for <linux-mm@kvack.org>; Wed, 18 May 2005 18:40:02 -0600
 Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.12.11/8.13.3) with ESMTP id j4J0dbcj007902
-	for <linux-mm@kvack.org>; Wed, 18 May 2005 18:39:37 -0600
-Date: Wed, 18 May 2005 17:33:24 -0700
+	by d03av02.boulder.ibm.com (8.12.11/8.13.3) with ESMTP id j4J0e20f008391
+	for <linux-mm@kvack.org>; Wed, 18 May 2005 18:40:02 -0600
+Date: Wed, 18 May 2005 17:33:49 -0700
 From: Chandra Seetharaman <sekharan@us.ibm.com>
-Subject: [Patch 5/6] CKRM: Add config support for mem controller
-Message-ID: <20050519003324.GA25265@chandralinux.beaverton.ibm.com>
+Subject: [PATCH 6/6] CKRM: Documentation for mem controller
+Message-ID: <20050519003348.GA25276@chandralinux.beaverton.ibm.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
@@ -19,498 +19,321 @@ Return-Path: <owner-linux-mm@kvack.org>
 To: ckrm-tech@lists.sourceforge.net, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Patch 5 of 6 patches to support memory controller under CKRM framework.
-Provides some config parameter support. Details about the config parameters
-in the Documentation patch.
-----------------------------------------
+Patch 6 of 6 patches to support memory controller under CKRM framework.
+Documentaion for the memory controller.
 
- include/linux/ckrm_mem.h        |   14 ++++
- include/linux/ckrm_mem_inline.h |    4 +
- kernel/ckrm/ckrm_memcore.c      |  126 ++++++++++++++++++++++++++++++++++++++--
- kernel/ckrm/ckrm_memctlr.c      |   49 +++++++++++++++
- mm/vmscan.c                     |   95 ++++++++++++++++++++++++++++--
- 5 files changed, 277 insertions(+), 11 deletions(-)
+ mem_rc.design |  184 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ mem_rc.usage  |  112 +++++++++++++++++++++++++++++++++++
+ 2 files changed, 296 insertions(+)
 
-Content-Disposition: inline; filename=11-05-mem_guar-config
+Content-Disposition: inline; filename=11-06-mem_config-docs
 
-Index: linux-2612-rc3/include/linux/ckrm_mem.h
+Index: aa/Documentation/ckrm/mem_rc.design
 ===================================================================
---- linux-2612-rc3.orig/include/linux/ckrm_mem.h
-+++ linux-2612-rc3/include/linux/ckrm_mem.h
-@@ -63,16 +63,28 @@ struct ckrm_mem_res {
- 	int nr_dontcare;		/* # of dont care children */
- 
- 	struct ckrm_zone ckrm_zone[MAX_NR_ZONES];
+--- /dev/null
++++ aa/Documentation/ckrm/mem_rc.design
+@@ -0,0 +1,184 @@
++0. Lifecycle of a LRU Page:
++----------------------------
++These are the events in a page's lifecycle:
++   - allocation of the page
++     there are multiple high level page alloc functions; __alloc_pages()
++	 is the lowest level function that does the real allocation.
++   - get into LRU list (active list or inactive list)
++   - get out of LRU list
++   - freeing the page
++     there are multiple high level page free functions; free_pages_bulk()
++	 is the lowest level function that does the real free.
++   
++When the memory subsystem runs low on LRU pages, pages are reclaimed by
++    - moving pages from active list to inactive list (refill_inactive_zone())
++    - freeing pages from the inactive list (shrink_zone)
++depending on the recent usage of the page(approximately).
 +
-+ 	struct list_head shrink_list;	/* list of classes that are near
-+				 	 * limit and need to be shrunk
-+					 */
-+	int shrink_count;
-+	unsigned long last_shrink;
- };
- 
-+#define CLS_AT_LIMIT		(1)
++In the process of the life cycle a page can move from the lru list to swap
++and back. For this document's purpose, we treat it same as freeing and
++allocating the page, respectfully.
 +
- extern atomic_t ckrm_mem_real_count;
- extern struct ckrm_res_ctlr mem_rcbs;
- extern struct ckrm_mem_res *ckrm_mem_root_class;
- extern struct list_head ckrm_memclass_list;
-+extern struct list_head ckrm_shrink_list;
- extern spinlock_t ckrm_mem_lock;
- extern spinlock_t ckrm_overguar_lock[MAX_NR_ZONES];
- extern int ckrm_nr_mem_classes;
- extern unsigned int ckrm_tot_lru_pages;
-+extern int ckrm_mem_shrink_count;
-+extern int ckrm_mem_shrink_to;
-+extern int ckrm_mem_shrink_interval;
- 
- extern void ckrm_mem_migrate_mm(struct mm_struct *, struct ckrm_mem_res *);
- extern void ckrm_mem_migrate_all_pages(struct ckrm_mem_res *,
-@@ -84,6 +96,8 @@ extern int ckrm_class_limit_ok(struct ck
- 
- extern struct ckrm_zone *ckrm_get_max_overguar_czone(int);
- 
-+extern void ckrm_shrink_atlimit(struct ckrm_mem_res *);
++1. Introduction
++---------------
++Memory resource controller controls the number of lru physical pages
++(active and inactive list) a class uses. It does not restrict any
++other physical pages (slabs etc.,)
 +
- #else
- 
- #define ckrm_mem_migrate_mm(a, b)			do {} while (0)
-Index: linux-2612-rc3/include/linux/ckrm_mem_inline.h
++For simplicity, this document will always refer lru physical pages as
++physical pages or simply pages.
++
++There are two parameters(that are set by the user) that affect the number
++of pages a class is allowed to have in active/inactive list.
++They are
++  - guarantee - specifies the number of pages a class is
++	guaranteed to get. In other words, if a class is using less than
++	'guarantee' number of pages, its pages will not be freed when the
++	memory subsystem tries to free some pages.
++  - limit - specifies the maximum number of pages a class can get;
++    'limit' in essence can be considered as the 'hard limit'
++
++Rest of this document details how these two parameters are used in the
++memory allocation logic.
++
++Note that the numbers that are specified in the shares file, doesn't
++directly correspond to the number of pages. But, the user can make
++it so by making the total_guarantee and max_limit of the default class
++(/rcfs/taskclass) to be the total number of pages(given in stats file)
++available in the system.
++
++  for example: 
++   # cd /rcfs/taskclass
++   # grep System stats
++   System: tot_pages=257512,active=5897,inactive=2931,free=243991
++   # cat shares
++   res=mem,guarantee=-2,limit=-2,total_guarantee=100,max_limit=100
++
++  "tot_pages=257512" above mean there are 257512 lru pages in
++  the system.
++  
++  By making total_guarantee and max_limit to be same as this number at 
++  this level (/rcfs/taskclass), one can make guarantee and limit in all 
++  classes refer to the number of pages.
++
++  # echo 'res=mem,total_guarantee=257512,max_limit=257512' > shares
++  # cat shares
++  res=mem,guarantee=-2,limit=-2,total_guarantee=257512,max_limit=257512
++
++
++The number of pages a class can use be anywhere between zero and its
++limit. CKRM memory controller springs into action when the system needs
++to choose a victim page to swap out. While the number of pages a class can
++have allocated may be anywhere between zero and its limit, victim
++pages will be choosen from classes that are above their guarantee.
++
++Victim class will be chosen by the number pages a class is using over its
++guarantee. i.e a class that is using 10000 pages over its guarantee will be
++chosen against a class that is using 1000 pages over its guarantee.
++Pages belonging to classes that are below their guarantee will not be
++chosen as a victim.
++
++Whenever a class's usage goes over its limit number of pages, memory
++allocations will fail. In order to reduce the failure rate and to behave 
++like the VM, CKRM provides config parameters that will free up pages
++of a class when it is getting closer to its limit. Next section details 
++different parameters and how they can be used.
++
++2. Configuaration parameters
++---------------------------
++
++Memory controller provides the following configuration parameters. Usage of
++these parameters will be made clear in the following section.
++
++state: Shows whether the memory controller is enabled(1) or disabled(0). By
++    default, the controller is disabled. User can either enabled it by just
++    changing the state or is is enabled automatically either when the user
++    defines a new class or changes the shares of the default root class.
++
++fail_over: When pages are being allocated, if the class is over fail_over % of
++    its limit, then fail the memory allocation. Default is 110.
++    ex: If limit of a class is 30000 and fail_over is 110, then memory
++    allocations would start failing once the class is using more than 33000
++    pages.
++
++shrink_at: When a class is using shrink_at % of its limit, then start
++    shrinking the class, i.e start freeing the page to make more free pages
++    available for this class. Default is 90.
++    ex: If limit of a class is 30000 and shrink_at is 90, then pages from this
++    class will start to get freed when the class's usage is above 27000
++
++shrink_to: When a class reached shrink_at % of its limit, ckrm will try to
++    shrink the class's usage to shrink_to %. Defalut is 80.
++    ex: If limit of a class is 30000 with shrink_at being 90 and shrink_to
++    being 80, then ckrm will try to free pages from the class when its
++    usage reaches 27000 and will try to bring it down to 24000.
++
++num_shrinks: Number of shrink attempts ckrm will do within shrink_interval
++    seconds. After this many attempts in a period, ckrm will not attempt a
++    shrink even if the class's usage goes over shrink_at %. Default is 10.
++
++shrink_interval: Number of seconds in a shrink period. Default is 10.
++
++3. Design
++--------------------------
++
++CKRM memory resource controller taps at appropriate low level memory 
++management functions to associate a page with a class and to charge
++a class that brings the page to the LRU list.
++
++CKRM maintains lru lists per-class instead of keeping it system-wide, so
++that reducing a class's usage doesn't involve going through the system-wide
++lru lists.
++
++3.1 Changes in page allocation function(__alloc_pages())
++--------------------------------------------------------
++- If the class that the current task belong to is over 'fail_over' % of its
++  'limit', allocation of page(s) fail. Otherwise, the page allocation will
++  proceed as before.
++- Note that the class is _not_ charged for the page(s) here.
++
++3.2 Adding/Deleting page to active/inactive list
++-------------------------------------------------
++When a page is added to the active or inactive list, the class that the
++task belongs to is charged for the page usage.
++
++When a page is deleted from the active or inactive list, the class that the
++page belongs to is credited back.
++
++If a class uses 'shrink_at' % of its limit, attempt is made to shrink
++the class's usage to 'shrink_to' % of its limit, in order to help the class
++stay within its limit.
++But, if the class is aggressive, and keep getting over the class's limit
++often(more than such 'num_shrinks' events in 'shrink_interval' seconds),
++then the memory resource controller gives up on the class and doesn't try
++to shrink the class, which will eventually lead the class to reach
++fail_over % and then the page allocations will start failing.
++
++3.3 Changes in the page reclaimation path (refill_inactive_zone and shrink_zone)
++-------------------------------------------------------------------------------
++Pages will be moved from active to inactive list(refill_inactive_zone) and
++pages from inactive list by choosing victim classes. Victim classes are
++chosen depending on their usage over their guarantee.
++
++Classes with DONT_CARE guarantee are assumed an implicit guarantee which is
++based on the number of children(with DONT_CARE guarantee) its parent has
++(including the default class) and the unused pages its parent still has.
++ex1: If a default root class /rcfs/taskclass has 3 children c1, c2 and c3
++and has 200000 pages, and all the classes have DONT_CARE guarantees, then
++all the classes (c1, c2, c3 and the default class of /rcfs/taskclass) will 
++get 50000 (200000 / 4) pages each.
++ex2: If, in the above example c1 is set with a guarantee of 80000 pages,
++then the other classes (c2, c3 and the default class of /rcfs/taskclass)
++will get 40000 ((200000 - 80000) / 3) pages each.
++
++3.5 Handling of Shared pages
++----------------------------
++Even if a mm is shared by tasks, the pages that belong to the mm will be
++charged against the individual tasks that bring the page into LRU. 
++
++But, when any task that is using a mm moves to a different class or exits,
++then all pages that belong to the mm will be charged against the richest
++class among the tasks that are using the mm.
++
++Note: Shared page handling need to be improved with a better policy.
++
+Index: aa/Documentation/ckrm/mem_rc.usage
 ===================================================================
---- linux-2612-rc3.orig/include/linux/ckrm_mem_inline.h
-+++ linux-2612-rc3/include/linux/ckrm_mem_inline.h
-@@ -26,6 +26,8 @@
- 
- #ifdef CONFIG_CKRM_RES_MEM
- 
-+#define ckrm_shrink_list_empty() list_empty(&ckrm_shrink_list)
+--- /dev/null
++++ aa/Documentation/ckrm/mem_rc.usage
+@@ -0,0 +1,112 @@
++Installation
++------------
 +
- static inline struct ckrm_mem_res *
- ckrm_task_memclass(struct task_struct *tsk)
- {
-@@ -324,6 +326,8 @@ static inline void ckrm_add_tail_inactiv
- 
- #else
- 
-+#define ckrm_shrink_list_empty()		(1)
++1. Configure "Class based physical memory controller" under CKRM (see
++      Documentation/ckrm/installation) 
 +
- static inline void *
- ckrm_task_memclass(struct task_struct *tsk)
- {
-Index: linux-2612-rc3/kernel/ckrm/ckrm_memcore.c
-===================================================================
---- linux-2612-rc3.orig/kernel/ckrm/ckrm_memcore.c
-+++ linux-2612-rc3/kernel/ckrm/ckrm_memcore.c
-@@ -42,6 +42,7 @@ LIST_HEAD(ckrm_memclass_list);
- spinlock_t ckrm_mem_lock; /* protects list above */
- unsigned int ckrm_tot_lru_pages; /* # of pages in the system */
- int ckrm_nr_mem_classes = 0;
-+int ckrm_mem_state = 0;
- struct ckrm_mem_res *ckrm_mem_root_class;
- atomic_t ckrm_mem_real_count = ATOMIC_INIT(0);
- 
-@@ -52,6 +53,7 @@ EXPORT_SYMBOL_GPL(ckrm_memclass_list);
- EXPORT_SYMBOL_GPL(ckrm_mem_lock);
- EXPORT_SYMBOL_GPL(ckrm_tot_lru_pages);
- EXPORT_SYMBOL_GPL(ckrm_nr_mem_classes);
-+EXPORT_SYMBOL_GPL(ckrm_mem_state);
- EXPORT_SYMBOL_GPL(ckrm_mem_root_class);
- EXPORT_SYMBOL_GPL(ckrm_mem_real_count);
- 
-@@ -103,6 +105,7 @@ mem_res_initcls_one(struct ckrm_mem_res 
- 	res->implicit_guar = CKRM_SHARE_DONTCARE;
- 
- 	INIT_LIST_HEAD(&res->mcls_list);
-+	INIT_LIST_HEAD(&res->shrink_list);
- 
- 	for_each_zone(zone) {
- 		INIT_LIST_HEAD(&res->ckrm_zone[zindex].active_list);
-@@ -248,6 +251,11 @@ mem_res_alloc(struct ckrm_core_class *co
- 		ckrm_nr_mem_classes++;
- 	} else
- 		printk(KERN_ERR "MEM_RC: alloc: GFP_ATOMIC failed\n");
++2. Reboot the system with the new kernel.
 +
-+	/* enable the controller if the user defined atleast 1 class */
-+	if (ckrm_nr_mem_classes > 1)
-+		ckrm_mem_state = 1;
-+	 
- 	return res;
- }
- 
-@@ -402,6 +410,9 @@ mem_set_share_values(void *my_res, struc
- 		set_impl_guar_children(parres);
- 	}
- 
-+	/* If the user has changed the shares, enable the controller */
-+	ckrm_mem_state = 1;
++3. Verify that the memory controller is present by reading the file
++   /rcfs/taskclass/config (should show a line with res=mem)
 +
- 	return rc;
- }
- 
-@@ -499,6 +510,23 @@ mem_change_resclass(void *tsk, void *old
- 	return;
- }
- 
-+#define MEM_STATE "state"
-+#define MEM_FAIL_OVER "fail_over"
-+#define MEM_SHRINK_AT "shrink_at"
-+#define MEM_SHRINK_TO "shrink_to"
-+#define MEM_SHRINK_COUNT "num_shrinks"
-+#define MEM_SHRINK_INTERVAL "shrink_interval"
++Usage
++-----
 +
-+int ckrm_mem_fail_at = 110;
-+int ckrm_mem_shrink_at = 90;
-+int ckrm_mem_shrink_to = 80;
-+int ckrm_mem_shrink_count = 10;
-+int ckrm_mem_shrink_interval = 10;
++For brevity, unless otherwise specified all the following commands are
++executed in the default class (/rcfs/taskclass).
 +
-+EXPORT_SYMBOL_GPL(ckrm_mem_fail_at);
-+EXPORT_SYMBOL_GPL(ckrm_mem_shrink_at);
-+EXPORT_SYMBOL_GPL(ckrm_mem_shrink_to);
++Initially, the systemwide default class gets 100% of the LRU pages, and the
++stats file at the /rcfs/taskclass level displays the total number of
++physical pages.
 +
- static int
- mem_show_config(void *my_res, struct seq_file *sfile)
- {
-@@ -506,24 +534,110 @@ mem_show_config(void *my_res, struct seq
- 
- 	if (!res)
- 		return -EINVAL;
--	printk(KERN_INFO "show_config called for %s resource of class %s\n",
--			MEM_RES_NAME, res->core->name);
- 
--	seq_printf(sfile, "res=%s", MEM_RES_NAME);
-+	seq_printf(sfile, "res=%s,%s=%d,%s=%d,%s=%d,%s=%d,%s=%d,%s=%d\n",
-+		MEM_RES_NAME,
-+		MEM_STATE, ckrm_mem_state,
-+		MEM_FAIL_OVER, ckrm_mem_fail_at,
-+		MEM_SHRINK_AT, ckrm_mem_shrink_at,
-+		MEM_SHRINK_TO, ckrm_mem_shrink_to,
-+		MEM_SHRINK_COUNT, ckrm_mem_shrink_count,
-+		MEM_SHRINK_INTERVAL, ckrm_mem_shrink_interval);
- 
- 	return 0;
- }
- 
-+typedef int __bitwise memclass_token_t;
++   # cd /rcfs/taskclass
++   # grep System stats
++   System: tot_pages=239778,active=60473,inactive=135285,free=44555
++   # cat shares
++   res=mem,guarantee=-2,limit=-2,total_guarantee=100,max_limit=100
 +
-+enum memclass_token {
-+	mem_state = (__force memclass_token_t) 1,
-+	mem_fail_over = (__force memclass_token_t) 2,
-+	mem_shrink_at = (__force memclass_token_t) 3,
-+	mem_shrink_to = (__force memclass_token_t) 4,
-+	mem_shrink_count = (__force memclass_token_t) 5,
-+	mem_shrink_interval = (__force memclass_token_t) 6,
-+	mem_err = (__force memclass_token_t) 7
-+};
++   tot_pages - total number of pages
++   active    - number of pages in the active list ( sum of all zones)
++   inactive  - number of pages in the inactive list ( sum of all zones)
++   free      - number of free pages (sum of all zones)
 +
-+static match_table_t mem_tokens = {
-+	{mem_state, MEM_STATE "=%d"},
-+	{mem_fail_over, MEM_FAIL_OVER "=%d"},
-+	{mem_shrink_at, MEM_SHRINK_AT "=%d"},
-+	{mem_shrink_to, MEM_SHRINK_TO "=%d"},
-+	{mem_shrink_count, MEM_SHRINK_COUNT "=%d"},
-+	{mem_shrink_interval, MEM_SHRINK_INTERVAL "=%d"},
-+	{mem_err, NULL},
-+};
++   By making total_guarantee and max_limit to be same as tot_pages, one can 
++   make the numbers in shares file be same as the number of pages for a
++   class.
 +
- static int
- mem_set_config(void *my_res, const char *cfgstr)
- {
-+	char *p;
- 	struct ckrm_mem_res *res = my_res;
-+	int err = 0, val;
- 
- 	if (!res)
- 		return -EINVAL;
--	printk(KERN_INFO "set_config called for %s resource of class %s\n",
--			MEM_RES_NAME, res->core->name);
--	return 0;
++   # echo 'res=mem,total_guarantee=239778,max_limit=239778' > shares
++   # cat shares
++   res=mem,guarantee=-2,limit=-2,total_guarantee=239778,max_limit=239778
 +
-+	while ((p = strsep((char**)&cfgstr, ",")) != NULL) {
-+		substring_t args[MAX_OPT_ARGS];
-+		int token;
-+		if (!*p)
-+			continue;
++Changing configuration parameters:
++----------------------------------
++For description of the paramters read the file mem_rc.design in this same directory.
 +
-+		token = match_token(p, mem_tokens, args);
-+		switch (token) {
-+		case mem_state:
-+			err = -EINVAL;
-+			match_int(args, &val);
-+			switch (val) {
-+			case 0:
-+				if (ckrm_nr_mem_classes > 1)
-+					break;
-+				/* FALLTHRU */
-+			case 1:
-+				ckrm_mem_state = val;
-+				err = 0;
-+				break;
-+			default:
-+				break;
-+			}
-+			break;
-+		case mem_fail_over:
-+			if (match_int(args, &val) || (val <= 0))
-+				err = -EINVAL;
-+			else
-+				ckrm_mem_fail_at = val;
-+			break;
-+		case mem_shrink_at:
-+			if (match_int(args, &val) || (val <= 0))
-+				err = -EINVAL;
-+			else
-+				ckrm_mem_shrink_at = val;
-+			break;
-+		case mem_shrink_to:
-+			if (match_int(args, &val) || (val < 0) || (val > 100))
-+				err = -EINVAL;
-+			else
-+				ckrm_mem_shrink_to = val;
-+			break;
-+		case mem_shrink_count:
-+			if (match_int(args, &val) || (val <= 0))
-+				err = -EINVAL;
-+			else
-+				ckrm_mem_shrink_count = val;
-+			break;
-+		case mem_shrink_interval:
-+			if (match_int(args, &val) || (val <= 0))
-+				err = -EINVAL;
-+			else
-+				ckrm_mem_shrink_interval = val;
-+			break;
-+		default:
-+			err = -EINVAL;
-+		}
-+	}
-+	return err;
- }
- 
- static int
-Index: linux-2612-rc3/kernel/ckrm/ckrm_memctlr.c
-===================================================================
---- linux-2612-rc3.orig/kernel/ckrm/ckrm_memctlr.c
-+++ linux-2612-rc3/kernel/ckrm/ckrm_memctlr.c
-@@ -59,10 +59,13 @@ ckrm_del_from_guar_list(struct ckrm_zone
- 	}
- }
- 
-+extern int ckrm_mem_state;
++Following is the default values for the configuration parameters:
 +
- void
- add_use_count(struct ckrm_mem_res *cls, int borrow, int zindex, int cnt)
- {
- 	int i, pg_total = 0;
-+	extern int ckrm_mem_shrink_at;
- 	struct ckrm_mem_res *parcls = ckrm_memclass(cls->parent);
- 
- 	if (!cls)
-@@ -82,6 +85,12 @@ add_use_count(struct ckrm_mem_res *cls, 
- 	} else
- 		atomic_add(cnt, &ckrm_mem_real_count);
- 	ckrm_add_to_guar_list(&cls->ckrm_zone[zindex], zindex);
++   localhost:~ # cd /rcfs/taskclass
++   localhost:/rcfs/taskclass # cat config
++   res=mem,state=1,fail_over=110,shrink_at=90,shrink_to=80,num_shrinks=10,shrink_interval=10
 +
-+	if (ckrm_mem_state && (cls->pg_limit != CKRM_SHARE_DONTCARE) &&
-+			(pg_total >= 
-+			((ckrm_mem_shrink_at * cls->pg_limit) / 100)) &&
-+			(test_bit(CLS_AT_LIMIT, &cls->flags)))
-+		ckrm_shrink_atlimit(cls);
- 	return;
- }
- 
-@@ -113,7 +122,7 @@ ckrm_class_limit_ok(struct ckrm_mem_res 
- {
- 	int ret, i, pg_total = 0;
- 
--	if ((mem_rcbs.resid == -1) || !cls)
-+	if ((ckrm_mem_state == 0) || (mem_rcbs.resid == -1) || !cls)
- 		return 1;
- 	for (i = 0; i < MAX_NR_ZONES; i++)
- 		pg_total += cls->pg_total[i];
-@@ -123,6 +132,10 @@ ckrm_class_limit_ok(struct ckrm_mem_res 
- 	} else
- 		ret = (pg_total <= cls->pg_limit);
- 
-+	/* If we are failing, just nudge the back end */
-+	if (ret == 0)
-+		ckrm_shrink_atlimit(cls);
++Here is how to change a specific configuration parameter. Note that more than one 
++configuration parameter can be changed in a single echo command though for simplicity
++we show one per echo.
 +
- 	return ret;
- }
- 
-@@ -404,3 +417,37 @@ ckrm_get_max_overguar_czone(int zindex)
- 
- 	return maxczone;
- }
-+LIST_HEAD(ckrm_shrink_list);
++ex: Changing fail_over: 
++   localhost:/rcfs/taskclass # echo "res=mem,fail_over=120" > config
++   localhost:/rcfs/taskclass # cat config
++   res=mem,state=1,fail_over=120,shrink_at=90,shrink_to=80,num_shrinks=10,shrink_interval=10
 +
-+void
-+ckrm_shrink_atlimit(struct ckrm_mem_res *cls)
-+{
-+	struct zone *zone;
-+	unsigned long flags;
-+	int order;
++ex: Changing shrink_at: 
++   localhost:/rcfs/taskclass # echo "res=mem,shrink_at=85" > config
++   localhost:/rcfs/taskclass # cat config
++   res=mem,state=1,fail_over=120,shrink_at=85,shrink_to=80,num_shrinks=10,shrink_interval=10
 +
-+	if (!cls || (cls->pg_limit == CKRM_SHARE_DONTCARE))
-+		return;
-+	if (test_and_set_bit(CLS_AT_LIMIT, &cls->flags))
-+		return;
-+	if (time_after(cls->last_shrink + ckrm_mem_shrink_interval * HZ, 
-+								jiffies)) {
-+		cls->last_shrink = jiffies;
-+		cls->shrink_count = 0;
-+	}
-+	cls->shrink_count++;
-+	if (cls->shrink_count > ckrm_mem_shrink_count) {
-+		clear_bit(CLS_AT_LIMIT, &cls->flags);
-+		return;
-+	}
-+	spin_lock_irqsave(&ckrm_mem_lock, flags);
-+	list_add(&cls->shrink_list, &ckrm_shrink_list);
-+	spin_unlock_irqrestore(&ckrm_mem_lock, flags);
-+	for_each_zone(zone) {
-+		/* This is just a number to get to wakeup kswapd */
-+		order = cls->pg_total[0] -
-+			((ckrm_mem_shrink_to * cls->pg_limit) / 100);
-+		wakeup_kswapd(zone, order);
-+		break; /* only once is enough */
-+	}
-+}
-Index: linux-2612-rc3/mm/vmscan.c
-===================================================================
---- linux-2612-rc3.orig/mm/vmscan.c
-+++ linux-2612-rc3/mm/vmscan.c
-@@ -869,6 +869,87 @@ shrink_ckrmzone(struct ckrm_zone *czone,
- 		}
- 	}
- }
++ex: Changing shrink_to: 
++   localhost:/rcfs/taskclass # echo "res=mem,shrink_to=75" > config
++   localhost:/rcfs/taskclass # cat config
++   res=mem,state=1,fail_over=120,shrink_at=85,shrink_to=75,num_shrinks=10,shrink_interval=10
 +
-+/* FIXME: This function needs to be given more thought. */
-+static void
-+ckrm_shrink_class(struct ckrm_mem_res *cls)
-+{
-+	struct scan_control sc;
-+	struct zone *zone;
-+	int zindex = 0, cnt, act_credit = 0, inact_credit = 0;
++ex: Changing num_shrinks: 
++   localhost:/rcfs/taskclass # echo "res=mem,num_shrinks=20" > config
++   localhost:/rcfs/taskclass # cat config
++   res=mem,state=1,fail_over=120,shrink_at=85,shrink_to=75,num_shrinks=20,shrink_interval=10
 +
-+	sc.nr_mapped = read_page_state(nr_mapped);
-+	sc.nr_scanned = 0;
-+	sc.nr_reclaimed = 0;
-+	sc.priority = 0; /* always very high priority */
++ex: Changing shrink_interval: 
++   localhost:/rcfs/taskclass # echo "res=mem,shrink_interval=15" > config
++   localhost:/rcfs/taskclass # cat config
++   res=mem,state=1,fail_over=120,shrink_at=85,shrink_to=75,num_shrinks=20,shrink_interval=15
 +
-+	for_each_zone(zone) {
-+		int zone_total, zone_limit, active_limit,
-+					inactive_limit, clszone_limit;
-+		struct ckrm_zone *czone;
-+		u64 temp;
++Class creation 
++--------------
 +
-+		czone = &cls->ckrm_zone[zindex];
++   # mkdir c1
 +
-+		zone->temp_priority = zone->prev_priority;
-+		zone->prev_priority = sc.priority;
++Its initial share is DONT_CARE. The parent's share values will be unchanged.
 +
-+		zone_total = zone->nr_active + zone->nr_inactive 
-+						+ zone->free_pages;
++Setting a new class share
++-------------------------
++	
++   # echo 'res=mem,guarantee=25000,limit=50000' > c1/shares
 +
-+		temp = (u64) cls->pg_limit * zone_total;
-+		do_div(temp, ckrm_tot_lru_pages);
-+		zone_limit = (int) temp;
-+		clszone_limit = (ckrm_mem_shrink_to * zone_limit) / 100;
-+		active_limit = (2 * clszone_limit) / 3; /* 2/3rd in active */
-+		inactive_limit = clszone_limit / 3; /* 1/3rd in inactive */
++   # cat c1/shares	
++   res=mem,guarantee=25000,limit=50000,total_guarantee=100,max_limit=100
++	
++   'guarantee' specifies the number of pages this class entitled to get
++   'limit' is the maximum number of pages this class can get.
 +
-+		sc.ckrm_active = 0;
-+		cnt = czone->nr_active + act_credit - active_limit;
-+		if (cnt > 0) {
-+			sc.ckrm_active = (unsigned long) cnt;
-+			act_credit = 0;
-+		} else
-+			act_credit += cnt;
++Monitoring
++----------
 +
-+		sc.ckrm_inactive = 0;
-+		cnt = sc.ckrm_active + inact_credit +
-+					(czone->nr_inactive - inactive_limit);
-+		if (cnt > 0) {
-+			sc.ckrm_inactive = (unsigned long) cnt;
-+			inact_credit = 0;
-+		} else
-+			inact_credit += cnt;
++stats file shows statistics of the page usage of a class
++   # cat stats
++   ----------- Memory Resource stats start -----------
++   System: tot_pages=239778,active=60473,inactive=135285,free=44555
++   Number of pages used(including pages lent to children): 196654
++   Number of pages guaranteed: 239778
++   Maximum limit of pages: 239778
++   Total number of pages available(after serving guarantees to children): 214778
++   Number of pages lent to children: 0
++   Number of pages borrowed from the parent: 0
++   ----------- Memory Resource stats end -----------
 +
-+		if (sc.ckrm_active || sc.ckrm_inactive) {
-+			sc.nr_to_reclaim = sc.ckrm_inactive;
-+			shrink_ckrmzone(czone, &sc);
-+		}
-+		zone->prev_priority = zone->temp_priority;
-+		zindex++;
-+	}
-+}
-+
-+static void
-+ckrm_shrink_classes(void)
-+{
-+	struct ckrm_mem_res *cls;
-+
-+	spin_lock_irq(&ckrm_mem_lock);
-+	while (!ckrm_shrink_list_empty()) {
-+		cls =  list_entry(ckrm_shrink_list.next, struct ckrm_mem_res,
-+				shrink_list);
-+		list_del(&cls->shrink_list);
-+		spin_unlock_irq(&ckrm_mem_lock);
-+		ckrm_shrink_class(cls);
-+		clear_bit(CLS_AT_LIMIT, &cls->flags);
-+		spin_lock_irq(&ckrm_mem_lock);
-+	}
-+	spin_unlock_irq(&ckrm_mem_lock);
-+}
-+
-+#else
-+#define ckrm_shrink_classes()	do { } while(0)
- #endif
- 
- /*
-@@ -1135,7 +1216,8 @@ loop_again:
- 					continue;
- 
- 				if (!zone_watermark_ok(zone, order,
--						zone->pages_high, 0, 0, 0)) {
-+						zone->pages_high, 0, 0, 0) &&
-+						ckrm_shrink_list_empty()) {
- 					end_zone = i;
- 					goto scan;
- 				}
-@@ -1171,7 +1253,8 @@ scan:
- 
- 			if (nr_pages == 0) {	/* Not software suspend */
- 				if (!zone_watermark_ok(zone, order,
--						zone->pages_high, end_zone, 0, 0))
-+					zone->pages_high, end_zone, 0, 0) &&
-+						ckrm_shrink_list_empty())
- 					all_zones_ok = 0;
- 			}
- 			zone->temp_priority = priority;
-@@ -1300,7 +1383,10 @@ static int kswapd(void *p)
- 		}
- 		finish_wait(&pgdat->kswapd_wait, &wait);
- 
--		balance_pgdat(pgdat, 0, order);
-+		if (!ckrm_shrink_list_empty())
-+			ckrm_shrink_classes();
-+		else 
-+			balance_pgdat(pgdat, 0, order);
- 	}
- 	return 0;
- }
-@@ -1316,7 +1402,8 @@ void wakeup_kswapd(struct zone *zone, in
- 		return;
- 
- 	pgdat = zone->zone_pgdat;
--	if (zone_watermark_ok(zone, order, zone->pages_low, 0, 0, 0))
-+	if (zone_watermark_ok(zone, order, zone->pages_low, 0, 0, 0) &&
-+			ckrm_shrink_list_empty())
- 		return;
- 	if (pgdat->kswapd_max_order < order)
- 		pgdat->kswapd_max_order = order;
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
