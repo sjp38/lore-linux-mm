@@ -1,40 +1,34 @@
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by e6.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id j4JEs29o001279
-	for <linux-mm@kvack.org>; Thu, 19 May 2005 10:54:02 -0400
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay04.pok.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id j4JEs1W5120052
-	for <linux-mm@kvack.org>; Thu, 19 May 2005 10:54:01 -0400
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.12.11/8.13.3) with ESMTP id j4JEs1gG018604
-	for <linux-mm@kvack.org>; Thu, 19 May 2005 10:54:01 -0400
-Subject: Re: [patch 2/4] add x86-64 Kconfig options for sparsemem
-From: Dave Hansen <haveblue@us.ibm.com>
-In-Reply-To: <20050518165358.GF88141@muc.de>
-References: <200505181643.j4IGhm7S026977@snoqualmie.dp.intel.com>
-	 <20050518165358.GF88141@muc.de>
-Content-Type: text/plain
-Date: Thu, 19 May 2005 07:53:44 -0700
-Message-Id: <1116514424.26955.119.camel@localhost>
-Mime-Version: 1.0
+From: Jesse Barnes <jbarnes@virtuousgeek.org>
+Subject: Re: NUMA aware slab allocator V3
+Date: Thu, 19 May 2005 09:14:01 -0700
+References: <Pine.LNX.4.58.0505110816020.22655@schroedinger.engr.sgi.com> <Pine.LNX.4.62.0505181439080.10598@graphe.net> <Pine.LNX.4.62.0505182105310.17811@graphe.net>
+In-Reply-To: <Pine.LNX.4.62.0505182105310.17811@graphe.net>
+MIME-Version: 1.0
+Content-Type: text/plain;
+  charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200505190914.01772.jbarnes@virtuousgeek.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <ak@muc.de>
-Cc: Matt Tolentino <metolent@snoqualmie.dp.intel.com>, Andrew Morton <akpm@osdl.org>, Andy Whitcroft <apw@shadowen.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: Christoph Lameter <christoph@lameter.com>
+Cc: Matthew Dobson <colpatch@us.ibm.com>, Dave Hansen <haveblue@us.ibm.com>, "Martin J. Bligh" <mbligh@mbligh.org>, Andy Whitcroft <apw@shadowen.org>, Andrew Morton <akpm@osdl.org>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, shai@scalex86.org, steiner@sgi.com
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2005-05-18 at 18:53 +0200, Andi Kleen wrote:
-> Hmm, I would have assumed IBM tested it, since Dave Hansen signed off - 
-> they have a range of Opteron machines.   If not I can test it
-> on a few boxes later.
+On Wednesday, May 18, 2005 10:07 pm, Christoph Lameter wrote:
+> Here is a revised patch. Would be good if someone could review my use
+> of online_cpu / online_node etc. Is there some way to bring cpus
+> online and offline to test if this really works? Seems that the code
+> in alloc_percpu is suspect even in the old allocator because it may
+> have to allocate memory for non present cpus.
 
-I actually don't personally have any access to Opteron machines.  But, I
-know Keith Mannthey has been testing it all along on his various x86_64
-machines.  I'll certainly make sure we get another run on all of those
-once it goes into -mm.
+If you have hotplug enabled, I think you'll see an 'online' file that 
+you can echo 1 or 0 into, somewhere in /sys/devices/system/cpu/cpu0 for 
+example.  It should work even on machines where it doesn't actually 
+power down the slot (it'll just remove it from the online map, and it 
+won't get scheduled on, etc.); at least it did last time I tested it.
 
--- Dave
-
+Jesse
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
