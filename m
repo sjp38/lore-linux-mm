@@ -1,61 +1,31 @@
-Date: Thu, 19 May 2005 10:43:25 +0900 (JST)
-Message-Id: <20050519.104325.13596447.taka@valinux.co.jp>
-Subject: Re: [PATCH 0/6] CKRM: Memory controller for CKRM
-From: Hirokazu Takahashi <taka@valinux.co.jp>
-In-Reply-To: <20050519003008.GC25076@chandralinux.beaverton.ibm.com>
-References: <20050519003008.GC25076@chandralinux.beaverton.ibm.com>
-Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Date: Wed, 18 May 2005 22:25:25 -0400 (EDT)
+From: Rik van Riel <riel@redhat.com>
+Subject: Re: [PATCH] prevent NULL mmap in topdown model
+In-Reply-To: <Pine.LNX.4.58.0505181535210.18337@ppc970.osdl.org>
+Message-ID: <Pine.LNX.4.61.0505182224250.29123@chimarrao.boston.redhat.com>
+References: <Pine.LNX.4.61.0505181556190.3645@chimarrao.boston.redhat.com>
+ <Pine.LNX.4.58.0505181535210.18337@ppc970.osdl.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: sekharan@us.ibm.com
-Cc: ckrm-tech@lists.sourceforge.net, linux-mm@kvack.org
+To: Linus Torvalds <torvalds@osdl.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hello,
+On Wed, 18 May 2005, Linus Torvalds wrote:
 
-It just looks like that once kswapd moves pages between the active lists
-and the inactive lists, the pages happen to belong to the class
-to which kswapd belong.
+> Why not just change the "addr >= len" test into "addr > len" and be done 
+> with it?
 
-Is this right behavior that you intend?
+If you're fine with not catching dereferences of a struct
+member further than PAGE_SIZE into a struct when the struct
+pointer is NULL, sure ...
 
-> Hello ckrm-tech members,
-> 
-> Here is the latest CKRM Memory controller patch against the patchset Gerrit
-> released on 05/05/05.
-> 
-> I applied the feedback I got on/off the list. Made few fixes and some
-> cleanups. Details about the changes are in the appripriate patches.
-> 
-> It is tested on i386.
-> 
-> Currently disabled on NUMA.
-> 
-> Hello linux-mm members,
-> 
-> These are set of patches that provides the control of memory under the CKRM
-> framework(Details at http://ckrm.sf.net). I eagerly wait for your
-> feedback/comments/suggestions/concerns etc.,
-> 
-> To All,
-> 
-> I am looking for improvement suggestions
->         - to not have a field in the page data structure for the mem
->           controller
-
-What do you think if you make each class owns inodes instead of pages
-in the page-cache?
-
-> 	- to make vmscan.c cleaner.
-
-
-Thanks,
-Hirokazu Takahashi.
-
-
-
+-- 
+"Debugging is twice as hard as writing the code in the first place.
+Therefore, if you write the code as cleverly as possible, you are,
+by definition, not smart enough to debug it." - Brian W. Kernighan
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
