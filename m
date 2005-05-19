@@ -1,35 +1,37 @@
-Date: Thu, 19 May 2005 15:53:06 -0700
+Date: Thu, 19 May 2005 15:54:41 -0700
 From: Andrew Morton <akpm@osdl.org>
-Subject: Re: page flags ?
-Message-Id: <20050519155306.2b895e64.akpm@osdl.org>
-In-Reply-To: <1116527349.26913.1353.camel@dyn318077bld.beaverton.ibm.com>
-References: <1116450834.26913.1293.camel@dyn318077bld.beaverton.ibm.com>
-	<20050518145644.717afc21.akpm@osdl.org>
-	<1116456143.26913.1303.camel@dyn318077bld.beaverton.ibm.com>
-	<20050518162302.13a13356.akpm@osdl.org>
-	<428C6FB9.4060602@shadowen.org>
-	<20050519041116.1e3a6d29.akpm@osdl.org>
-	<1116527349.26913.1353.camel@dyn318077bld.beaverton.ibm.com>
+Subject: Re: [PATCH] Avoiding mmap fragmentation - clean rev
+Message-Id: <20050519155441.7a8e94f9.akpm@osdl.org>
+In-Reply-To: <17036.56626.994129.265926@gargle.gargle.HOWL>
+References: <17035.30820.347382.9137@gargle.gargle.HOWL>
+	<200505181757.j4IHv0g14491@unix-os.sc.intel.com>
+	<17036.56626.994129.265926@gargle.gargle.HOWL>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Badari Pulavarty <pbadari@us.ibm.com>
-Cc: apw@shadowen.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+To: Wolfgang Wander <wwc@rentec.com>
+Cc: kenneth.w.chen@intel.com, herve@elma.fr, mingo@elte.hu, arjanv@redhat.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Badari Pulavarty <pbadari@us.ibm.com> wrote:
+Wolfgang Wander <wwc@rentec.com> wrote:
 >
-> I am worried about the overhead this might add to kmap/kunmap().
-> 
+> Clearly one has to weight the performance issues against the memory
+>  efficiency but since we demonstratibly throw away 25% (or 1GB) of the
+>  available address space in the various accumulated holes a long
+>  running application can generate
 
-kmap() already sucks.
+That sounds pretty bad.
 
->  -#define PG_highmem		 8
->  +#define PG_highmem_removed	 8	/* Trying to kill this */
+> I hope that for the time being we can
+>  stick with my first solution,
 
-I thnik I'll just nuke this.
+I'm inclined to do this.
+
+> preferably extended by your munmap fix?
+
+And this, if someone has a patch? 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
