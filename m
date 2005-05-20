@@ -1,39 +1,28 @@
-Message-Id: <200505200202.j4K22Fg06686@unix-os.sc.intel.com>
+Message-Id: <200505200214.j4K2Ecg06778@unix-os.sc.intel.com>
 From: "Chen, Kenneth W" <kenneth.w.chen@intel.com>
 Subject: RE: [PATCH] Avoiding mmap fragmentation - clean rev
-Date: Thu, 19 May 2005 19:02:15 -0700
+Date: Thu, 19 May 2005 19:14:38 -0700
 MIME-Version: 1.0
 Content-Type: text/plain;
 	charset="us-ascii"
 Content-Transfer-Encoding: 7bit
-In-Reply-To: <20050519155441.7a8e94f9.akpm@osdl.org>
+In-Reply-To: 
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: 'Andrew Morton' <akpm@osdl.org>, Wolfgang Wander <wwc@rentec.com>
+To: 'Andrew Morton' <akpm@osdl.org>, 'Wolfgang Wander' <wwc@rentec.com>
 Cc: herve@elma.fr, mingo@elte.hu, arjanv@redhat.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Andrew Morton wrote on Thursday, May 19, 2005 3:55 PM
-> Wolfgang Wander <wwc@rentec.com> wrote:
-> >
-> > Clearly one has to weight the performance issues against the memory
-> >  efficiency but since we demonstratibly throw away 25% (or 1GB) of the
-> >  available address space in the various accumulated holes a long
-> >  running application can generate
-> 
-> That sounds pretty bad.
-> 
-> > I hope that for the time being we can
-> >  stick with my first solution,
-> 
-> I'm inclined to do this.
+Chen, Kenneth W wrote on Thursday, May 19, 2005 7:02 PM
+> Oh well, I guess we have to take a performance hit here in favor of
+> functionality.  Though this is a problem specific to 32-bit address
+> space, please don't unnecessarily penalize 64-bit arch.  If Andrew is
+> going to take Wolfgang's patch, then we should minimally take the
+> following patch.  This patch revert changes made in arch/ia64 and make
+> x86_64 to use alternate cache algorithm for 32-bit app.
 
-Oh well, I guess we have to take a performance hit here in favor of
-functionality.  Though this is a problem specific to 32-bit address
-space, please don't unnecessarily penalize 64-bit arch.  If Andrew is
-going to take Wolfgang's patch, then we should minimally take the
-following patch.  This patch revert changes made in arch/ia64 and make
-x86_64 to use alternate cache algorithm for 32-bit app.
+Oh, crap, there is a typo in my patch and it won't compile on x86_64.
+Here is an updated version.  Please this one instead.
 
 
 Signed-off-by: Ken Chen <kenneth.w.chen@intel.com>
@@ -81,10 +70,11 @@ Signed-off-by: Ken Chen <kenneth.w.chen@intel.com>
  			return addr;
  	}
 -	if (len <= mm->cached_hole_size) {
-+	if (if begin != TASK_UNMAPPED_64 && len <= mm->cached_hole_size) {
++	if (begin != TASK_UNMAPPED_64 && len <= mm->cached_hole_size) {
  	        mm->cached_hole_size = 0;
  		mm->free_area_cache = begin;
  	}
+
 
 
 --
