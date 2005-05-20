@@ -1,57 +1,82 @@
-Message-Id: <200505200310.j4K3Aqg07353@unix-os.sc.intel.com>
-From: "Chen, Kenneth W" <kenneth.w.chen@intel.com>
-Subject: RE: [PATCH] Avoiding mmap fragmentation - clean rev
-Date: Thu, 19 May 2005 20:10:52 -0700
-MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="iso-8859-1"
+Date: Fri, 20 May 2005 14:29:27 +0900 (JST)
+Message-Id: <20050520.142927.108372625.taka@valinux.co.jp>
+Subject: Re: [PATCH 0/6] CKRM: Memory controller for CKRM
+From: Hirokazu Takahashi <taka@valinux.co.jp>
+In-Reply-To: <20050519163338.GC27270@chandralinux.beaverton.ibm.com>
+References: <20050519003008.GC25076@chandralinux.beaverton.ibm.com>
+	<20050519.104325.13596447.taka@valinux.co.jp>
+	<20050519163338.GC27270@chandralinux.beaverton.ibm.com>
+Mime-Version: 1.0
+Content-Type: Text/Plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
-In-Reply-To: <17036.56626.994129.265926@gargle.gargle.HOWL>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: 'Wolfgang Wander' <wwc@rentec.com>
-Cc: =?iso-8859-1?Q?Herv=E9_Piedvache?= <herve@elma.fr>, 'Andrew Morton' <akpm@osdl.org>, mingo@elte.hu, arjanv@redhat.com, linux-mm@kvack.org
+To: sekharan@us.ibm.com
+Cc: ckrm-tech@lists.sourceforge.net, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Wolfgang Wander wrote on Thursday, May 19, 2005 11:39 AM
-> I do certainly see that the algorithm isn't perfect in every case
-> however for the test case Ingo sent me (Ingo, did you verify the
-> timing?)  my patch performed as well as Ingo's original solution.  I
-> assume that Ingo's test was requesting same map sizes for every thread
-> so the results would be a bit biased in my favour... ;-)
+Hi Chandra,
+
+> On Thu, May 19, 2005 at 10:43:25AM +0900, Hirokazu Takahashi wrote:
+> > Hello,
+> > 
+> > It just looks like that once kswapd moves pages between the active lists
+> > and the inactive lists, the pages happen to belong to the class
+> > to which kswapd belong.
+> 
+> In refill_inactive_zone()(where pages are moved from active to inactive
+> list), ckrm_zone(where the page came from) is where the inactive pages are 
+> moved to.
+
+Ah, I understood.
+You have changed these functions not to call add_page_to_active_list() or
+add_page_to_inactive_list() anymore.
+
+Still, there may remain problems that mark_page_accessed() calls
+add_page_to_active_list() to move pages between classes.
+I guess this isn't good manner since some functions which call
+mark_page_accessed(), like unmap_mapping_range_vma() or get_user_pages(),
+may refer pages of the other classes.
+
+> I don't see how you concluded this. Can you point to the code.
+> 
+> > 
+> > Is this right behavior that you intend?
+> 
+> certainly not :)
+> > 
+> > > Hello ckrm-tech members,
+> > > 
+> > > Here is the latest CKRM Memory controller patch against the patchset Gerrit
+> > > released on 05/05/05.
+> > > 
+> > > I applied the feedback I got on/off the list. Made few fixes and some
+> > > cleanups. Details about the changes are in the appripriate patches.
+> > > 
+> > > It is tested on i386.
+> > > 
+> > > Currently disabled on NUMA.
+> > > 
+> > > Hello linux-mm members,
+> > > 
+> > > These are set of patches that provides the control of memory under the CKRM
+> > > framework(Details at http://ckrm.sf.net). I eagerly wait for your
+> > > feedback/comments/suggestions/concerns etc.,
+> > > 
+> > > To All,
+> > > 
+> > > I am looking for improvement suggestions
+> > >         - to not have a field in the page data structure for the mem
+> > >           controller
+> > 
+> > What do you think if you make each class owns inodes instead of pages
+> > in the page-cache?
+> > 
+> > > 	- to make vmscan.c cleaner.
 
 
-While working on porting the munmap free area coalescing patch on top of
-2.6.12-rc4-mm2 Kernel, this change from wolfgang looked very strange:
-
-> @@ -1209,8 +1218,14 @@ void arch_unmap_area(struct vm_area_stru
->          * Is this a new hole at the lowest possible address?
->          */
->         if (area->vm_start >= TASK_UNMAPPED_BASE &&
-> -                       area->vm_start < area->vm_mm->free_area_cache)
-> -               area->vm_mm->free_area_cache = area->vm_start;
-> +           area->vm_start < area->vm_mm->free_area_cache) {
-> +               unsigned area_size = area->vm_end-area->vm_start;
-> +
-> +               if (area->vm_mm->cached_hole_size < area_size)
-> +                       area->vm_mm->cached_hole_size = area_size;
-> +               else
-> +                       area->vm_mm->cached_hole_size = ~0UL;
-> +       }
->  }
-
-
-First, free_area_cache won't get moved on munmap.  OK fine. Secondly,
-if area that we just unmapped is smaller than cached_hole_size, instead
-of doing nothing (the condition of largest know hole size below current
-cache pointer still holds at this time), the new code will reset hole
-size to ~0UL, which will trigger a full scan next time for any mmap
-request.
-
-Wolfgang, did you tweak this area?  Or this is just a simple typo or
-something?  AFAWICS, this patch will trigger a lot more innocent full scan
-than what people claim it is.
-
+Thanks,
+Hirokazu Takahashi.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
