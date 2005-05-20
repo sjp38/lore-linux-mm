@@ -1,73 +1,64 @@
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e5.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id j4KHDOwA020963
-	for <linux-mm@kvack.org>; Fri, 20 May 2005 13:13:24 -0400
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay02.pok.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id j4KHDNi4123874
-	for <linux-mm@kvack.org>; Fri, 20 May 2005 13:13:23 -0400
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.12.11/8.13.3) with ESMTP id j4KHDNbX017083
-	for <linux-mm@kvack.org>; Fri, 20 May 2005 13:13:23 -0400
-Date: Fri, 20 May 2005 10:06:47 -0700
-From: Chandra Seetharaman <sekharan@us.ibm.com>
-Subject: Re: [ckrm-tech] [PATCH 2/6] CKRM: Core framework support
-Message-ID: <20050520170647.GC28304@chandralinux.beaverton.ibm.com>
-References: <20050519003205.GA25232@chandralinux.beaverton.ibm.com> <20050520022732.A6646717AE@sv1.valinux.co.jp>
+Date: Fri, 20 May 2005 20:16:06 +0200
+From: Herbert Poetzl <herbert@13thfloor.at>
+Subject: Re: [RFC] how do we move the VM forward? (was Re: [RFC] cleanup ofuse-once)
+Message-ID: <20050520181606.GB6002@MAIL.13thfloor.at>
+References: <Pine.LNX.4.61.0505030037100.27756@chimarrao.boston.redhat.com> <42771904.7020404@yahoo.com.au> <Pine.LNX.4.61.0505030913480.27756@chimarrao.boston.redhat.com> <42781AC5.1000201@yahoo.com.au> <Pine.LNX.4.62.0505031749010.12818@qynat.qvtvafvgr.pbz>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20050520022732.A6646717AE@sv1.valinux.co.jp>
+In-Reply-To: <Pine.LNX.4.62.0505031749010.12818@qynat.qvtvafvgr.pbz>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KUROSAWA Takahiro <kurosawa@valinux.co.jp>
-Cc: ckrm-tech@lists.sourceforge.net, linux-mm@kvack.org
+To: David Lang <david.lang@digitalinsight.com>
+Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, May 20, 2005 at 11:27:31AM +0900, KUROSAWA Takahiro wrote:
-> Hi,
+On Tue, May 03, 2005 at 05:51:43PM -0700, David Lang wrote:
+> On Wed, 4 May 2005, Nick Piggin wrote:
 > 
-> On Wed, 18 May 2005 17:32:05 -0700
-> Chandra Seetharaman <sekharan@us.ibm.com> wrote:
-> 
-> > Index: linux-2612-rc3/mm/page_alloc.c
-> > ===================================================================
-> > --- linux-2612-rc3.orig/mm/page_alloc.c
-> > +++ linux-2612-rc3/mm/page_alloc.c
-> > @@ -752,7 +752,7 @@ __alloc_pages(unsigned int __nocast gfp_
-> >  	 */
-> >  	can_try_harder = (unlikely(rt_task(p)) && !in_interrupt()) || !wait;
-> >  
-> > -	if (!ckrm_class_limit_ok(ckrm_get_mem_class(p)))
-> > +	if (!ckrm_class_limit_ok(ckrm_task_memclass(p)))
-> >  		return NULL;
-> >  
-> >  	zones = zonelist->zones;  /* the list of zones suitable for gfp_mask */
-> 
-> __alloc_pages() seems to look at the limit of the interrupted task
-> when an interrupt handler calls __alloc_pages().  It might be better
-> not to use ckrm_class_limit_ok() in in_interrupt() case, as we can't 
-> assume that the interrupt is caused by the interrupted task.
+> >
+> >Also having a box or two for running regression and stress
+> >testing is a must. I can do a bit here, but unfortunately
+> >"kernel compiles until it hurts" is probably not the best
+> >workload to target.
 
-Sounds valid... I had it before that way, for for some other reasoning of
-mine. will get it back.
-> 
-> In can_try_harder case, how about trying to reclaim pages that belong
-> to the class if !ckrm_class_limit_ok() ?
+if there are some tests or output (kernel logs, etc)
+or proc info or vmstat or whatever, which doesn't take
+100% cpu time, I'm able and willing to test it on different
+workloads (including compiling the kernel until it hurts ;)
 
-Sounds a good idea. will do it.
-
-Thanks for your comments.
+> >In general most systems and their workloads aren't constantly
+> >swapping, so we should aim to minimise IO for normal
+> >workloads. Databases that use the pagecache (eg. postgresql)
+> >would be a good test. But again we don't want to focus on one
+> >thing.
+> >
+> >That said, of course we don't want to hurt the "really
+> >thrashing" case - and hopefully improve it if possible.
 > 
-> Regards,
+> may I suggest useing OpenOffice as one test, it can eat up horrendous 
+> amounts of ram in operation (I have one spreadsheet I can send you if 
+> needed that takes 45min of cpu time on a Athlon64 3200 with 1G of ram just 
+> to open, at which time it shows openoffice takeing more then 512M of ram)
+
+cool, looks like they are taking the MS compatibility
+really serious nowadays ...
+
+best,
+Herbert
+
+> David Lang
 > 
 > -- 
-> KUROSAWA, Takahiro
-
--- 
-
-----------------------------------------------------------------------
-    Chandra Seetharaman               | Be careful what you choose....
-              - sekharan@us.ibm.com   |      .......you may get it.
-----------------------------------------------------------------------
+> There are two ways of constructing a software design. One way is to make it 
+> so simple that there are obviously no deficiencies. And the other way is to 
+> make it so complicated that there are no obvious deficiencies.
+>  -- C.A.R. Hoare
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"aart@kvack.org"> aart@kvack.org </a>
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
