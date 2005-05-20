@@ -1,42 +1,91 @@
-Date: Thu, 19 May 2005 17:20:10 -0700
-From: "Martin J. Bligh" <mbligh@mbligh.org>
-Reply-To: "Martin J. Bligh" <mbligh@mbligh.org>
-Subject: Re: page flags ?
-Message-ID: <66070000.1116548410@flay>
-In-Reply-To: <1116546938.26913.1386.camel@dyn318077bld.beaverton.ibm.com>
-References: <1116450834.26913.1293.camel@dyn318077bld.beaverton.ibm.com> <20050518145644.717afc21.akpm@osdl.org> <1116456143.26913.1303.camel@dyn318077bld.beaverton.ibm.com> <20050518162302.13a13356.akpm@osdl.org> <428C6FB9.4060602@shadowen.org> <20050519041116.1e3a6d29.akpm@osdl.org> <1116527349.26913.1353.camel@dyn318077bld.beaverton.ibm.com> <20050519155306.2b895e64.akpm@osdl.org> <1116545665.26913.1378.camel@dyn318077bld.beaverton.ibm.com> <62940000.1116547401@flay> <1116546938.26913.1386.camel@dyn318077bld.beaverton.ibm.com>
+Message-Id: <200505200202.j4K22Fg06686@unix-os.sc.intel.com>
+From: "Chen, Kenneth W" <kenneth.w.chen@intel.com>
+Subject: RE: [PATCH] Avoiding mmap fragmentation - clean rev
+Date: Thu, 19 May 2005 19:02:15 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain;
+	charset="us-ascii"
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
+In-Reply-To: <20050519155441.7a8e94f9.akpm@osdl.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Badari Pulavarty <pbadari@us.ibm.com>
-Cc: Andrew Morton <akpm@osdl.org>, apw@shadowen.org, linux-mm@kvack.org, linux-fsdevel <linux-fsdevel@vger.kernel.org>
+To: 'Andrew Morton' <akpm@osdl.org>, Wolfgang Wander <wwc@rentec.com>
+Cc: herve@elma.fr, mingo@elte.hu, arjanv@redhat.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
->> > BTW, I tried to kill PG_slab. Other than catching error conditions
->> > with memory freeing, there are few users of it
->> >  
->> > 	-  show_mem(): to show how much memory stuck in slab easily.
->> > 	-  kobjsize()
->> 
->> Is really useful to be able to trace down exactly what mem is in slab,
->> and otherwise were memory came from / leaked to. I spose it could could
->> be a debug option, but seems a bit sad if we don't need the space yet.
->> /proc/meminfo gets it from per cpu page_state, but is nice to have
->> a double check.
+Andrew Morton wrote on Thursday, May 19, 2005 3:55 PM
+> Wolfgang Wander <wwc@rentec.com> wrote:
+> >
+> > Clearly one has to weight the performance issues against the memory
+> >  efficiency but since we demonstratibly throw away 25% (or 1GB) of the
+> >  available address space in the various accumulated holes a long
+> >  running application can generate
 > 
-> I agree. I like that "memory stuck in slab" info too :)
-> Shall we wait till we really really need bits in page->flags ?
-> Hopefully, by then we will all be 64-bit and life would be wonderful :)
+> That sounds pretty bad.
+> 
+> > I hope that for the time being we can
+> >  stick with my first solution,
+> 
+> I'm inclined to do this.
 
-Would be nicer not to kill them until we need ... perhaps they could be
-commented as to their potential demise? Then the debug ones could be
-wrapped in something else, at least, and made available on 64 bit only
-(when it comes to that ...)
+Oh well, I guess we have to take a performance hit here in favor of
+functionality.  Though this is a problem specific to 32-bit address
+space, please don't unnecessarily penalize 64-bit arch.  If Andrew is
+going to take Wolfgang's patch, then we should minimally take the
+following patch.  This patch revert changes made in arch/ia64 and make
+x86_64 to use alternate cache algorithm for 32-bit app.
 
-M.
+
+Signed-off-by: Ken Chen <kenneth.w.chen@intel.com>
+
+--- linux-2.6.11/arch/ia64/kernel/sys_ia64.c.orig	2005-05-19 18:35:31.468087777 -0700
++++ linux-2.6.11/arch/ia64/kernel/sys_ia64.c	2005-05-19 18:35:46.521798000 -0700
+@@ -38,14 +38,8 @@ arch_get_unmapped_area (struct file *fil
+ 	if (REGION_NUMBER(addr) == REGION_HPAGE)
+ 		addr = 0;
+ #endif
+-	if (!addr) {
+-	        if (len > mm->cached_hole_size) {
+-		        addr = mm->free_area_cache;
+-		} else {
+-		        addr = TASK_UNMAPPED_BASE;
+-			mm->cached_hole_size = 0;
+-		}
+-	}
++	if (!addr)
++		addr = mm->free_area_cache;
+ 
+ 	if (map_shared && (TASK_SIZE > 0xfffffffful))
+ 		/*
+@@ -65,7 +59,6 @@ arch_get_unmapped_area (struct file *fil
+ 			if (start_addr != TASK_UNMAPPED_BASE) {
+ 				/* Start a new search --- just in case we missed some holes.  */
+ 				addr = TASK_UNMAPPED_BASE;
+-				mm->cached_hole_size = 0;
+ 				goto full_search;
+ 			}
+ 			return -ENOMEM;
+@@ -75,8 +68,6 @@ arch_get_unmapped_area (struct file *fil
+ 			mm->free_area_cache = addr + len;
+ 			return addr;
+ 		}
+-		if (addr + mm->cached_hole_size < vma->vm_start)
+-		        mm->cached_hole_size = vma->vm_start - addr;
+ 		addr = (vma->vm_end + align_mask) & ~align_mask;
+ 	}
+ }
+--- linux-2.6.11/arch/x86_64/kernel/sys_x86_64.c.orig	2005-05-19 18:37:32.202461298 -0700
++++ linux-2.6.11/arch/x86_64/kernel/sys_x86_64.c	2005-05-19 18:39:03.110663309 -0700
+@@ -111,7 +111,7 @@ arch_get_unmapped_area(struct file *filp
+ 		    (!vma || addr + len <= vma->vm_start))
+ 			return addr;
+ 	}
+-	if (len <= mm->cached_hole_size) {
++	if (if begin != TASK_UNMAPPED_64 && len <= mm->cached_hole_size) {
+ 	        mm->cached_hole_size = 0;
+ 		mm->free_area_cache = begin;
+ 	}
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
