@@ -1,82 +1,49 @@
-Message-Id: <200505200214.j4K2Ecg06778@unix-os.sc.intel.com>
-From: "Chen, Kenneth W" <kenneth.w.chen@intel.com>
-Subject: RE: [PATCH] Avoiding mmap fragmentation - clean rev
-Date: Thu, 19 May 2005 19:14:38 -0700
-MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="us-ascii"
+Date: Fri, 20 May 2005 11:27:31 +0900
+From: KUROSAWA Takahiro <kurosawa@valinux.co.jp>
+Subject: Re: [ckrm-tech] [PATCH 2/6] CKRM: Core framework support
+In-Reply-To: <20050519003205.GA25232@chandralinux.beaverton.ibm.com>
+References: <20050519003205.GA25232@chandralinux.beaverton.ibm.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-In-Reply-To: 
+Message-Id: <20050520022732.A6646717AE@sv1.valinux.co.jp>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: 'Andrew Morton' <akpm@osdl.org>, 'Wolfgang Wander' <wwc@rentec.com>
-Cc: herve@elma.fr, mingo@elte.hu, arjanv@redhat.com, linux-mm@kvack.org
+To: Chandra Seetharaman <sekharan@us.ibm.com>
+Cc: ckrm-tech@lists.sourceforge.net, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Chen, Kenneth W wrote on Thursday, May 19, 2005 7:02 PM
-> Oh well, I guess we have to take a performance hit here in favor of
-> functionality.  Though this is a problem specific to 32-bit address
-> space, please don't unnecessarily penalize 64-bit arch.  If Andrew is
-> going to take Wolfgang's patch, then we should minimally take the
-> following patch.  This patch revert changes made in arch/ia64 and make
-> x86_64 to use alternate cache algorithm for 32-bit app.
+Hi,
 
-Oh, crap, there is a typo in my patch and it won't compile on x86_64.
-Here is an updated version.  Please this one instead.
+On Wed, 18 May 2005 17:32:05 -0700
+Chandra Seetharaman <sekharan@us.ibm.com> wrote:
 
+> Index: linux-2612-rc3/mm/page_alloc.c
+> ===================================================================
+> --- linux-2612-rc3.orig/mm/page_alloc.c
+> +++ linux-2612-rc3/mm/page_alloc.c
+> @@ -752,7 +752,7 @@ __alloc_pages(unsigned int __nocast gfp_
+>  	 */
+>  	can_try_harder = (unlikely(rt_task(p)) && !in_interrupt()) || !wait;
+>  
+> -	if (!ckrm_class_limit_ok(ckrm_get_mem_class(p)))
+> +	if (!ckrm_class_limit_ok(ckrm_task_memclass(p)))
+>  		return NULL;
+>  
+>  	zones = zonelist->zones;  /* the list of zones suitable for gfp_mask */
 
-Signed-off-by: Ken Chen <kenneth.w.chen@intel.com>
+__alloc_pages() seems to look at the limit of the interrupted task
+when an interrupt handler calls __alloc_pages().  It might be better
+not to use ckrm_class_limit_ok() in in_interrupt() case, as we can't 
+assume that the interrupt is caused by the interrupted task.
 
---- linux-2.6.11/arch/ia64/kernel/sys_ia64.c.orig	2005-05-19 18:35:31.468087777 -0700
-+++ linux-2.6.11/arch/ia64/kernel/sys_ia64.c	2005-05-19 18:35:46.521798000 -0700
-@@ -38,14 +38,8 @@ arch_get_unmapped_area (struct file *fil
- 	if (REGION_NUMBER(addr) == REGION_HPAGE)
- 		addr = 0;
- #endif
--	if (!addr) {
--	        if (len > mm->cached_hole_size) {
--		        addr = mm->free_area_cache;
--		} else {
--		        addr = TASK_UNMAPPED_BASE;
--			mm->cached_hole_size = 0;
--		}
--	}
-+	if (!addr)
-+		addr = mm->free_area_cache;
- 
- 	if (map_shared && (TASK_SIZE > 0xfffffffful))
- 		/*
-@@ -65,7 +59,6 @@ arch_get_unmapped_area (struct file *fil
- 			if (start_addr != TASK_UNMAPPED_BASE) {
- 				/* Start a new search --- just in case we missed some holes.  */
- 				addr = TASK_UNMAPPED_BASE;
--				mm->cached_hole_size = 0;
- 				goto full_search;
- 			}
- 			return -ENOMEM;
-@@ -75,8 +68,6 @@ arch_get_unmapped_area (struct file *fil
- 			mm->free_area_cache = addr + len;
- 			return addr;
- 		}
--		if (addr + mm->cached_hole_size < vma->vm_start)
--		        mm->cached_hole_size = vma->vm_start - addr;
- 		addr = (vma->vm_end + align_mask) & ~align_mask;
- 	}
- }
---- linux-2.6.11/arch/x86_64/kernel/sys_x86_64.c.orig	2005-05-19 18:37:32.202461298 -0700
-+++ linux-2.6.11/arch/x86_64/kernel/sys_x86_64.c	2005-05-19 18:39:03.110663309 -0700
-@@ -111,7 +111,7 @@ arch_get_unmapped_area(struct file *filp
- 		    (!vma || addr + len <= vma->vm_start))
- 			return addr;
- 	}
--	if (len <= mm->cached_hole_size) {
-+	if (begin != TASK_UNMAPPED_64 && len <= mm->cached_hole_size) {
- 	        mm->cached_hole_size = 0;
- 		mm->free_area_cache = begin;
- 	}
+In can_try_harder case, how about trying to reclaim pages that belong
+to the class if !ckrm_class_limit_ok() ?
 
+Regards,
 
-
+-- 
+KUROSAWA, Takahiro
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
