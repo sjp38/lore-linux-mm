@@ -1,30 +1,54 @@
-From: Wolfgang Wander <wwc@rentec.com>
+From: "Great Deals" <edfyuynu@printerink4lesscentral.com>
+Subject: Epson Inkjet Cartridges from 5.99
+Date: Fri, 20 May 2005 10:14:15 -0500
+Message-ID: <1c82601c55d4e$96083640$7de3c3cf@webcoretech.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain;
+	charset="us-ascii"
 Content-Transfer-Encoding: 7bit
-Message-ID: <17037.56393.789430.265404@gargle.gargle.HOWL>
-Date: Fri, 20 May 2005 08:47:05 -0400
-Subject: RE: [PATCH] Avoiding mmap fragmentation - clean rev
-In-Reply-To: <200505200214.j4K2Ecg06778@unix-os.sc.intel.com>
-References: <200505200214.j4K2Ecg06778@unix-os.sc.intel.com>
+Content-Class: urn:content-classes:message
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Chen, Kenneth W" <kenneth.w.chen@intel.com>
-Cc: 'Andrew Morton' <akpm@osdl.org>, 'Wolfgang Wander' <wwc@rentec.com>, herve@elma.fr, mingo@elte.hu, arjanv@redhat.com, linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Chen, Kenneth W writes:
- > Chen, Kenneth W wrote on Thursday, May 19, 2005 7:02 PM
- > > Oh well, I guess we have to take a performance hit here in favor of
- > > functionality.  Though this is a problem specific to 32-bit address
- > > space, please don't unnecessarily penalize 64-bit arch.  If Andrew is
- > > going to take Wolfgang's patch, then we should minimally take the
- > > following patch.  This patch revert changes made in arch/ia64 and make
- > > x86_64 to use alternate cache algorithm for 32-bit app.
-
-Great! Makes more than perfect sense in the 64bit world.
-
-            Wolfgang
+Save up to 75% on Inkjet, Laser & Copier Supplies
+Quality Products, with 100% Satisfaction Guarantee
+Easy, Fast, Affordable Shipping Worldwide
+Plenty of Payment Options to Meet YOUR Needs!
+  
+>> SPECIAL: FREE Shipping to US & Canada on Orders over $50 <<
+  
+Visit us on the web at http://www.printerink4lesscentral.com
+  
+  Epson S020089.............$6.95 (Normally $28.45)
+  Epson S020093.............$5.95 (Normally $23.70)
+  Epson S020108.............$5.95 (Normally $28.45)
+  Epson S020187.............$5.95 (Normally $23.70)
+  Epson S020189.............$5.95 (Normally $28.45)
+  Epson S020191.............$6.95 (Normally $28.45)
+  Epson T017201.............$6.95 (Normally $28.45)
+  Epson T018201.............$7.95 (Normally $23.70)
+  Epson T019201.............$5.99 (Normally $28.45)
+  Epson T027201.............$8.95 (Normally $21.84)
+  Epson T032120.............$5.95 (Normally $33.24)
+  Epson T040120.............$6.95 (Normally $28.45)
+  Epson T041020.............$7.95 (Normally $28.45)
+  
+  Brother LC21BK............$6.99 (Normally $19.99)
+  Canon BCI24BK.............$3.99 (Normally  $6.49)
+  HP C6578DN...............$22.95 (Normally $34.99)
+  
+  
+>> Get your own Ink Store website and earn $$$ <<
+  
+For details go to http://www.printerink4lesscentral.com/IncomeOp/
+  
+  
+If you wish to contact us please visit our web site.
+  
+For instruction on how to be permanently remove from this
+distribution system go to http://www.printerink4lesscentral.com/Remove/
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
