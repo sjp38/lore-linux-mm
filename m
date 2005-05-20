@@ -1,44 +1,42 @@
-Subject: Re: [RFC] how do we move the VM forward? (was Re: [RFC] cleanup
-	ofuse-once)
-From: Lee Revell <rlrevell@joe-job.com>
-In-Reply-To: <20050520181606.GB6002@MAIL.13thfloor.at>
-References: <Pine.LNX.4.61.0505030037100.27756@chimarrao.boston.redhat.com>
-	 <42771904.7020404@yahoo.com.au>
-	 <Pine.LNX.4.61.0505030913480.27756@chimarrao.boston.redhat.com>
-	 <42781AC5.1000201@yahoo.com.au>
-	 <Pine.LNX.4.62.0505031749010.12818@qynat.qvtvafvgr.pbz>
-	 <20050520181606.GB6002@MAIL.13thfloor.at>
-Content-Type: text/plain
-Date: Fri, 20 May 2005 14:30:43 -0400
-Message-Id: <1116613844.29740.14.camel@mindpipe>
-Mime-Version: 1.0
+Received: from westrelay02.boulder.ibm.com (westrelay02.boulder.ibm.com [9.17.195.11])
+	by e32.co.us.ibm.com (8.12.10/8.12.9) with ESMTP id j4KJ3w0c552780
+	for <linux-mm@kvack.org>; Fri, 20 May 2005 15:03:58 -0400
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by westrelay02.boulder.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id j4KJ3web227492
+	for <linux-mm@kvack.org>; Fri, 20 May 2005 13:03:58 -0600
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.12.11/8.13.3) with ESMTP id j4KJ3w19011285
+	for <linux-mm@kvack.org>; Fri, 20 May 2005 13:03:58 -0600
+Message-ID: <428E3497.3080406@us.ibm.com>
+Date: Fri, 20 May 2005 12:03:51 -0700
+From: Matthew Dobson <colpatch@us.ibm.com>
+MIME-Version: 1.0
+Subject: Re: NUMA aware slab allocator V3
+References: <Pine.LNX.4.58.0505110816020.22655@schroedinger.engr.sgi.com>  <Pine.LNX.4.62.0505161046430.1653@schroedinger.engr.sgi.com>  <714210000.1116266915@flay> <200505161410.43382.jbarnes@virtuousgeek.org>  <740100000.1116278461@flay>  <Pine.LNX.4.62.0505161713130.21512@graphe.net> <1116289613.26955.14.camel@localhost> <428A800D.8050902@us.ibm.com> <Pine.LNX.4.62.0505171648370.17681@graphe.net> <428B7B16.10204@us.ibm.com> <Pine.LNX.4.62.0505181046320.20978@schroedinger.engr.sgi.com> <428BB05B.6090704@us.ibm.com> <Pine.LNX.4.62.0505181439080.10598@graphe.net> <Pine.LNX.4.62.0505182105310.17811@graphe.net>
+In-Reply-To: <Pine.LNX.4.62.0505182105310.17811@graphe.net>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Herbert Poetzl <herbert@13thfloor.at>
-Cc: David Lang <david.lang@digitalinsight.com>, Nick Piggin <nickpiggin@yahoo.com.au>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Christoph Lameter <christoph@lameter.com>
+Cc: "Martin J. Bligh" <mbligh@mbligh.org>, Andrew Morton <akpm@osdl.org>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2005-05-20 at 20:16 +0200, Herbert Poetzl wrote:
-> cool, looks like they are taking the MS compatibility
-> really serious nowadays ...
-> 
+Christoph, I'm getting the following errors building rc4-mm2 w/ GCC 2.95.4:
 
-Um... I don't know when you last used Windows, but most Linux desktop
-GUI apps are way more bloated than the Windows counterparts.  Take a
-look at some of the Gnome bounties for reducing bloat - some of them are
-just embarassing.
+mm/slab.c:281: field `entry' has incomplete typemm/slab.c: In function
+'cache_alloc_refill':
+mm/slab.c:2497: warning: control reaches end of non-void function
+mm/slab.c: In function `kmem_cache_alloc':
+mm/slab.c:2567: warning: `objp' might be used uninitialized in this function
+mm/slab.c: In function `kmem_cache_alloc_node':
+mm/slab.c:2567: warning: `objp' might be used uninitialized in this function
+mm/slab.c: In function `__kmalloc':
+mm/slab.c:2567: warning: `objp' might be used uninitialized in this function
+make[1]: *** [mm/slab.o] Error 1
+make[1]: *** Waiting for unfinished jobs....
 
-Quick demo: with a recent Gnome, open the file selector dialog, and
-browse to /usr/bin.  The disk goes nuts for 20 seconds before the file
-list is even displayed.  Now hit cancel and try it again.  No disk
-activity this time, but the CPU pegs for 7-8 seconds before the files
-are displayed.
-
-Now try the same on Windows.  It's instantaneous.
-
-Lee
-
+-Matt
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
