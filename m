@@ -1,8 +1,8 @@
 From: Paul Cameron Davies <pauld@cse.unsw.EDU.AU>
-Date: Sat, 21 May 2005 14:12:07 +1000 (EST)
-Subject: [PATCH 9/15] PTI: Introduce iterators
-In-Reply-To: <Pine.LNX.4.61.0505211400351.24777@wagner.orchestra.cse.unsw.EDU.AU>
-Message-ID: <Pine.LNX.4.61.0505211409350.26645@wagner.orchestra.cse.unsw.EDU.AU>
+Date: Sat, 21 May 2005 14:58:45 +1000 (EST)
+Subject: [PATCH 11/15] PTI: Continue calling iterators
+In-Reply-To: <Pine.LNX.4.61.0505211417450.26645@wagner.orchestra.cse.unsw.EDU.AU>
+Message-ID: <Pine.LNX.4.61.0505211455390.8979@wagner.orchestra.cse.unsw.EDU.AU>
 References: <20050521024331.GA6984@cse.unsw.EDU.AU>
  <Pine.LNX.4.61.0505211250570.7134@wagner.orchestra.cse.unsw.EDU.AU>
  <Pine.LNX.4.61.0505211305230.12627@wagner.orchestra.cse.unsw.EDU.AU>
@@ -11,6 +11,8 @@ References: <20050521024331.GA6984@cse.unsw.EDU.AU>
  <Pine.LNX.4.61.0505211344350.24777@wagner.orchestra.cse.unsw.EDU.AU>
  <Pine.LNX.4.61.0505211352170.28095@wagner.orchestra.cse.unsw.EDU.AU>
  <Pine.LNX.4.61.0505211400351.24777@wagner.orchestra.cse.unsw.EDU.AU>
+ <Pine.LNX.4.61.0505211409350.26645@wagner.orchestra.cse.unsw.EDU.AU>
+ <Pine.LNX.4.61.0505211417450.26645@wagner.orchestra.cse.unsw.EDU.AU>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII; format=flowed
 Sender: owner-linux-mm@kvack.org
@@ -18,425 +20,423 @@ Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Patch 9 of 15.
+Patch 11 of 15.
 
-This patch introduces 3 iterators to complete the architecture independent
-component of the page table interface.  Each iterator is passed a function
-that can operate on the pte it is iterating over.  Each iterator may be
-passed a struct containing parameters for the function to operate on.
+This patch starts calling the read iterator.
 
- 	*page_table_build_iterator: This iterator builds the page table
- 	 between the given range of addresses.
- 	*page_table_read_iterator: This iterator is passed a range of
- 	 addresses for a page table and iterates over the ptes to be
- 	 operated on accordingly.
- 	*page_table_dual_iterator: This iterator reads a page table and
- 	 builds an identical page table.
+ 	*It abstracts unmap_page_range in memory.c
+ 	*It abstracts unmap_vm_area in vmalloc.c
+ 	*It abstracts change_protection in mprotect.c
 
-  include/mm/mlpt-generic.h   |    1
-  include/mm/mlpt-iterators.h |  348 
-++++++++++++++++++++++++++++++++++++++++++++
-  2 files changed, 349 insertions(+)
+  mm/memory.c   |  174 
+++++++++++++++++++++++++----------------------------------
+  mm/mprotect.c |   78 +++++++-------------------
+  mm/vmalloc.c  |   52 +----------------
+  3 files changed, 98 insertions(+), 206 deletions(-)
 
-Index: linux-2.6.12-rc4/include/mm/mlpt-iterators.h
+Index: linux-2.6.12-rc4/mm/memory.c
 ===================================================================
---- /dev/null	1970-01-01 00:00:00.000000000 +0000
-+++ linux-2.6.12-rc4/include/mm/mlpt-iterators.h	2005-05-19 
-18:12:36.000000000 +1000
-@@ -0,0 +1,348 @@
-+#ifndef MLPT_ITERATORS_H
-+#define MLPT_ITERATORS_H 1
-+
-+typedef int (*pte_callback_t)(struct mm_struct *, pte_t *, unsigned long, 
-void *);
-+
-+static void unmap_pte(struct mm_struct *mm, pte_t *pte)
+--- linux-2.6.12-rc4.orig/mm/memory.c	2005-05-19 18:15:26.000000000 
++1000
++++ linux-2.6.12-rc4/mm/memory.c	2005-05-19 18:21:20.000000000 
++1000
+@@ -175,127 +175,97 @@
+  	return err;
+  }
+
+-static void zap_pte_range(struct mmu_gather *tlb, pmd_t *pmd,
+-				unsigned long addr, unsigned long end,
+-				struct zap_details *details)
++struct unmap_page_range_struct
+  {
+-	pte_t *pte;
++	struct mmu_gather *tlb;
++	struct zap_details *details;
++};
+
+-	pte = pte_offset_map(pmd, addr);
+-	do {
+-		pte_t ptent = *pte;
+-		if (pte_none(ptent))
+-			continue;
+-		if (pte_present(ptent)) {
+-			struct page *page = NULL;
+-			unsigned long pfn = pte_pfn(ptent);
+-			if (pfn_valid(pfn)) {
+-				page = pfn_to_page(pfn);
+-				if (PageReserved(page))
+-					page = NULL;
+-			}
+-			if (unlikely(details) && page) {
+-				/*
+-				 * unmap_shared_mapping_pages() wants to
+-				 * invalidate cache without truncating:
+-				 * unmap shared but keep private pages.
+-				 */
+-				if (details->check_mapping &&
+-				    details->check_mapping != 
+page->mapping)
+-					continue;
+-				/*
+-				 * Each page->index must be checked when
+-				 * invalidating or truncating nonlinear.
+-				 */
+-				if (details->nonlinear_vma &&
+-				    (page->index < details->first_index ||
+-				     page->index > details->last_index))
+-					continue;
+-			}
+-			ptent = ptep_get_and_clear(tlb->mm, addr, pte);
+-			tlb_remove_tlb_entry(tlb, pte, addr);
+-			if (unlikely(!page))
+-				continue;
+-			if (unlikely(details) && details->nonlinear_vma
+-			    && linear_page_index(details->nonlinear_vma,
+-						addr) != page->index)
+-				set_pte_at(tlb->mm, addr, pte,
+-					   pgoff_to_pte(page->index));
+-			if (pte_dirty(ptent))
+-				set_page_dirty(page);
+-			if (PageAnon(page))
+-				dec_mm_counter(tlb->mm, anon_rss);
+-			else if (pte_young(ptent))
+-				mark_page_accessed(page);
+-			tlb->freed++;
+-			page_remove_rmap(page);
+-			tlb_remove_page(tlb, page);
+-			continue;
++static int zap_one_pte(struct mm_struct *mm, pte_t *pte, unsigned long 
+addr, void *data)
 +{
-+	if (mm == &init_mm)
-+		return;
++	struct mmu_gather *tlb = ((struct unmap_page_range_struct 
+*)data)->tlb;
++	struct zap_details *details = ((struct unmap_page_range_struct 
+*)data)->details;
 +
-+	pte_unmap(pte);
-+}
-+
-+static pte_t *pte_alloc(struct mm_struct *mm, pmd_t *pmd, unsigned long 
-address)
-+{
-+	if (mm == &init_mm)
-+		return pte_alloc_kernel(&init_mm, pmd, address);
-+
-+	return pte_alloc_map(mm, pmd, address);
-+}
-+
-+static int build_iterator_pte_range(struct mm_struct *mm, pmd_t *pmd, 
-unsigned long addr,
-+	unsigned long end, pte_callback_t func, void *args)
-+{
-+	pte_t *pte;
-+	int err;
-+
-+	pte = pte_alloc(mm, pmd, addr);
-+	if (!pte)
-+		return -ENOMEM;
-+	do {
-+		err = func(mm, pte, addr, args);
-+		if (err)
-+			return err;
-+	} while (pte++, addr += PAGE_SIZE, addr != end);
-+
-+	unmap_pte(mm, pte - 1);
-+
-+	return 0;
-+}
-+
-+static inline int build_iterator_pmd_range(struct mm_struct *mm, pud_t 
-*pud,
-+	unsigned long addr, unsigned long end, pte_callback_t func, void 
-*args)
-+{
-+	pmd_t *pmd;
-+	unsigned long next;
-+
-+	pmd = pmd_alloc(mm, pud, addr);
-+	if (!pmd)
-+		return -ENOMEM;
-+	do {
-+		next = pmd_addr_end(addr, end);
-+		if (build_iterator_pte_range(mm, pmd, addr, next, func, 
-args))
-+			return -ENOMEM;
-+	} while (pmd++, addr = next, addr != end);
-+
-+	return 0;
-+}
-+
-+static inline int build_iterator_pud_range(struct mm_struct *mm, pgd_t 
-*pgd,
-+	unsigned long addr, unsigned long end, pte_callback_t func, void 
-*args)
-+{
-+	pud_t *pud;
-+	unsigned long next;
-+
-+	pud = pud_alloc(mm, pgd, addr);
-+	if (!pud)
-+		return -ENOMEM;
-+
-+	do {
-+		next = pud_addr_end(addr, end);
-+		if (build_iterator_pmd_range(mm, pud, addr, next, func, 
-args))
-+			return -ENOMEM;
-+	} while (pud++, addr = next, addr != end);
-+
-+	return 0;
-+}
-+
-+/**
-+ * page_table_build_iterator - THE BUILD ITERATOR
-+ * @mm: the address space that owns the page table
-+ * @addr: the address to start building at
-+ * @end: the last address in the build range
-+ * @func: the function to operate on the pte
-+ * @args: the arguments to pass to the function
-+ *
-+ * Returns int.  Indicates error
-+ *
-+ * Builds the page table between the given range of addresses.  func
-+ * operates on each pte according to args supplied.
-+ */
-+
-+static inline int page_table_build_iterator(struct mm_struct *mm,
-+	unsigned long addr, unsigned long end, pte_callback_t func, void 
-*args)
-+{
-+	unsigned long next;
-+	int err;
-+	pgd_t *pgd;
-+
-+	if (mm == &init_mm)
-+		pgd = pgd_offset_k(addr);
-+	else
-+		pgd = pgd_offset(mm, addr);
-+
-+	do {
-+		next = pgd_addr_end(addr, end);
-+		err = build_iterator_pud_range(mm, pgd, addr, next, func, 
-args);
-+		if (err)
-+			break;
-+	} while (pgd++, addr = next, addr != end);
-+
-+	return err;
-+}
-+
-+static pte_t *pte_offset(struct mm_struct *mm, pmd_t *pmd, unsigned long 
-address)
-+{
-+	if (mm == &init_mm)
-+		return pte_offset_kernel(pmd, address);
-+
-+	return pte_offset_map(pmd, address);
-+}
-+
-+
-+static int read_iterator_pte_range(struct mm_struct *mm, pmd_t *pmd,
-+	unsigned long addr, unsigned long end, pte_callback_t func, void 
-*args)
-+{
-+	pte_t *pte;
-+	int ret=0;
-+
-+	pte = pte_offset(mm, pmd, addr);
-+
-+	do {
-+		ret = func(mm, pte, addr, args);
-+		if (ret)
-+			return ret;
-+	} while (pte++, addr += PAGE_SIZE, addr != end);
-+
-+	unmap_pte(mm, pte - 1);
-+
-+	return ret;
-+}
-+
-+
-+static inline int read_iterator_pmd_range(struct mm_struct *mm, pud_t 
-*pud,
-+	unsigned long addr, unsigned long end, pte_callback_t func, void 
-*args)
-+{
-+	pmd_t *pmd;
-+	unsigned long next;
-+	int ret=0;
-+
-+	pmd = pmd_offset(pud, addr);
-+	do {
-+		next = pmd_addr_end(addr, end);
-+		if (pmd_none_or_clear_bad(pmd))
-+			continue;
-+		ret = read_iterator_pte_range(mm, pmd, addr, next, func, 
-args);
-+		if(ret)
-+			break;
-+	} while (pmd++, addr = next, addr != end);
-+	return ret;
-+}
-+
-+
-+static inline int read_iterator_pud_range(struct mm_struct *mm, pgd_t 
-*pgd,
-+	unsigned long addr, unsigned long end, pte_callback_t func, void 
-*args)
-+{
-+	pud_t *pud;
-+	unsigned long next;
-+	int ret=0;
-+
-+	pud = pud_offset(pgd, addr);
-+	do {
-+		next = pud_addr_end(addr, end);
-+		if (pud_none_or_clear_bad(pud))
-+			continue;
-+		ret = read_iterator_pmd_range(mm, pud, addr, next, func, 
-args);
-+		if(ret)
-+			break;
-+	} while (pud++, addr = next, addr != end);
-+	return ret;
-+}
-+
-+/**
-+ * page_table_read_iterator - THE READ ITERATOR
-+ * @mm: the address space that owns the page table
-+ * @addr: the address to start building at
-+ * @end: the last address in the build range
-+ * @func: the function to operate on the pte
-+ * @args: the arguments to pass to the function
-+ *
-+ * Returns int.  Indicates error
-+ *
-+ * Reads the page table between the given range of addresses.  func
-+ * operates on each pte according to args supplied.
-+ */
-+
-+static inline int page_table_read_iterator(struct mm_struct *mm,
-+	unsigned long addr, unsigned long end, pte_callback_t func, void 
-*args)
-+{
-+	unsigned long next;
-+	pgd_t *pgd;
-+	int ret=0;
-+
-+	if (mm == &init_mm)
-+		pgd = pgd_offset_k(addr);
-+	else
-+		pgd = pgd_offset(mm, addr);
-+
-+	do {
-+		next = pgd_addr_end(addr, end);
-+		if (pgd_none_or_clear_bad(pgd))
-+			continue;
-+		ret = read_iterator_pud_range(mm, pgd, addr, next, func, 
-args);
-+		if(ret)
-+			break;
-+	} while (pgd++, addr = next, addr != end);
-+
-+	return ret;
-+}
-+
-+typedef int (*pte_rw_iterator_callback_t)(struct mm_struct *, struct 
-mm_struct *,
-+	pte_t *, pte_t *, unsigned long, void *);
-+
-+
-+static int dual_pte_range(struct mm_struct *dst_mm, struct mm_struct 
-*src_mm,
-+		pmd_t *dst_pmd, pmd_t *src_pmd, unsigned long addr, 
-unsigned long end,
-+		pte_rw_iterator_callback_t func, void *args)
-+{
-+	pte_t *src_pte, *dst_pte;
-+	int progress;
-+
-+again:
-+	dst_pte = pte_alloc_map(dst_mm, dst_pmd, addr);
-+	if (!dst_pte)
-+		return -ENOMEM;
-+	src_pte = pte_offset_map_nested(src_pmd, addr);
-+
-+	progress = 0;
-+	spin_lock(&src_mm->page_table_lock);
-+	do {
-+		/*
-+		 * We are holding two locks at this point - either of them
-+		 * could generate latencies in another task on another 
-CPU.
-+		 */
-+		if (progress >= 32 && (need_resched() ||
-+		    need_lockbreak(&src_mm->page_table_lock) ||
-+		    need_lockbreak(&dst_mm->page_table_lock)))
-+			break;
-+		if (pte_none(*src_pte)) {
-+			progress++;
-+			continue;
++	pte_t ptent = *pte;
++	if (pte_present(ptent)) {
++		struct page *page = NULL;
++		unsigned long pfn = pte_pfn(ptent);
++		if (pfn_valid(pfn)) {
++			page = pfn_to_page(pfn);
++			if (PageReserved(page))
++				page = NULL;
+  		}
+-		/*
+-		 * If details->check_mapping, we leave swap entries;
+-		 * if details->nonlinear_vma, we leave file entries.
+-		 */
+-		if (unlikely(details))
+-			continue;
+-		if (!pte_file(ptent))
+-			free_swap_and_cache(pte_to_swp_entry(ptent));
+-		pte_clear(tlb->mm, addr, pte);
+-	} while (pte++, addr += PAGE_SIZE, addr != end);
+-	pte_unmap(pte - 1);
+-}
+
+-static inline void zap_pmd_range(struct mmu_gather *tlb, pud_t *pud,
+-				unsigned long addr, unsigned long end,
+-				struct zap_details *details)
+-{
+-	pmd_t *pmd;
+-	unsigned long next;
++		if (unlikely(details) && page) {
++			/*
++			 * unmap_shared_mapping_pages() wants to
++			 * invalidate cache without truncating:
++			 * unmap shared but keep private pages.
++			 */
++			if (details->check_mapping &&
++			    details->check_mapping != page->mapping)
++				return 0;
++			/*
++			 * Each page->index must be checked when
++			 * invalidating or truncating nonlinear.
++			 */
++			if (details->nonlinear_vma &&
++			    (page->index < details->first_index ||
++			     page->index > details->last_index))
++				return 0;
 +		}
-+		func(dst_mm, src_mm, dst_pte, src_pte, addr, args);
-+		progress += 8;
-+	} while (dst_pte++, src_pte++, addr += PAGE_SIZE, addr != end);
-+	spin_unlock(&src_mm->page_table_lock);
+
+-	pmd = pmd_offset(pud, addr);
+-	do {
+-		next = pmd_addr_end(addr, end);
+-		if (pmd_none_or_clear_bad(pmd))
+-			continue;
+-		zap_pte_range(tlb, pmd, addr, next, details);
+-	} while (pmd++, addr = next, addr != end);
+-}
++		ptent = ptep_get_and_clear(tlb->mm, addr, pte);
++		tlb_remove_tlb_entry(tlb, pte, addr);
++		if (unlikely(!page))
++			return 0;
+
+-static inline void zap_pud_range(struct mmu_gather *tlb, pgd_t *pgd,
+-				unsigned long addr, unsigned long end,
+-				struct zap_details *details)
+-{
+-	pud_t *pud;
+-	unsigned long next;
++		if (unlikely(details) && details->nonlinear_vma
++		    && linear_page_index(details->nonlinear_vma,
++					addr) != page->index)
++			set_pte_at(tlb->mm, addr, pte,
++				   pgoff_to_pte(page->index));
++		if (pte_dirty(ptent))
++			set_page_dirty(page);
++		if (PageAnon(page))
++			dec_mm_counter(tlb->mm, anon_rss);
++		else if (pte_young(ptent))
++			mark_page_accessed(page);
++		tlb->freed++;
++		page_remove_rmap(page);
++		tlb_remove_page(tlb, page);
++		return 0;
 +
-+	pte_unmap_nested(src_pte - 1);
-+	pte_unmap(dst_pte - 1);
-+	cond_resched_lock(&dst_mm->page_table_lock);
-+	if (addr != end)
-+		goto again;
++	}
+
+-	pud = pud_offset(pgd, addr);
+-	do {
+-		next = pud_addr_end(addr, end);
+-		if (pud_none_or_clear_bad(pud))
+-			continue;
+-		zap_pmd_range(tlb, pud, addr, next, details);
+-	} while (pud++, addr = next, addr != end);
++	/*
++	 * If details->check_mapping, we leave swap entries;
++	 * if details->nonlinear_vma, we leave file entries.
++	 */
++	if (unlikely(details))
++		return 0;
++
++	if (!pte_file(ptent))
++		free_swap_and_cache(pte_to_swp_entry(ptent));
++	pte_clear(tlb->mm, addr, pte);
 +	return 0;
-+}
+  }
+
+  static void unmap_page_range(struct mmu_gather *tlb, struct 
+vm_area_struct *vma,
+  				unsigned long addr, unsigned long end,
+  				struct zap_details *details)
+  {
+-	pgd_t *pgd;
+-	unsigned long next;
++	struct unmap_page_range_struct data;
+
+  	if (details && !details->check_mapping && !details->nonlinear_vma)
+  		details = NULL;
+
++	data.tlb = tlb;
++	data.details = details;
 +
-+static inline int dual_pmd_range(struct mm_struct *dst_mm, struct 
-mm_struct *src_mm,
-+		pud_t *dst_pud, pud_t *src_pud, unsigned long addr, 
-unsigned long end,
-+		pte_rw_iterator_callback_t func, void *args)
-+{
-+	pmd_t *src_pmd, *dst_pmd;
-+	unsigned long next;
-+
-+	dst_pmd = pmd_alloc(dst_mm, dst_pud, addr);
-+	if (!dst_pmd)
-+		return -ENOMEM;
-+	src_pmd = pmd_offset(src_pud, addr);
-+	do {
-+		next = pmd_addr_end(addr, end);
-+		if (pmd_none_or_clear_bad(src_pmd))
-+			continue;
-+		if (dual_pte_range(dst_mm, src_mm, dst_pmd, src_pmd,
-+						addr, next, func, args))
-+			return -ENOMEM;
-+	} while (dst_pmd++, src_pmd++, addr = next, addr != end);
-+	return 0;
-+}
-+
-+static inline int dual_pud_range(struct mm_struct *dst_mm, struct 
-mm_struct *src_mm,
-+		pgd_t *dst_pgd, pgd_t *src_pgd, unsigned long addr, 
-unsigned long end,
-+		pte_rw_iterator_callback_t func, void *args)
-+{
-+	pud_t *src_pud, *dst_pud;
-+	unsigned long next;
-+
-+	dst_pud = pud_alloc(dst_mm, dst_pgd, addr);
-+	if (!dst_pud)
-+		return -ENOMEM;
-+	src_pud = pud_offset(src_pgd, addr);
-+	do {
-+		next = pud_addr_end(addr, end);
-+		if (pud_none_or_clear_bad(src_pud))
-+			continue;
-+		if (dual_pmd_range(dst_mm, src_mm, dst_pud, src_pud,
-+						addr, next, func, args))
-+			return -ENOMEM;
-+	} while (dst_pud++, src_pud++, addr = next, addr != end);
-+	return 0;
-+}
-+
-+/**
-+ * page_table_dual_iterator - THE READ WRITE ITERATOR
-+ * @dst_mm: the address space that owns the destination page table
-+ * @src_mm: the address space that owns the source page table
-+ * @addr: the address to start building at
-+ * @end: the last address in the build range
-+ * @func: the function to operate on the pte
-+ * @args: the arguments to pass to the function
-+ *
-+ * Returns int.  Indicates error
-+ *
-+ * Reads the source page table and builds a replica page table.
-+ * func operates on the ptes in the source and destination page tables.
-+ */
-+
-+static inline int page_table_dual_iterator(struct mm_struct *dst_mm, 
-struct mm_struct *src_mm,
-+	unsigned long addr, unsigned long end, pte_rw_iterator_callback_t 
-func, void *args)
-+{
-+	pgd_t *src_pgd;
-+	pgd_t *dst_pgd;
-+	unsigned long next;
-+
-+	dst_pgd = pgd_offset(dst_mm, addr);
-+	src_pgd = pgd_offset(src_mm, addr);
-+	do {
-+		next = pgd_addr_end(addr, end);
-+		if (pgd_none_or_clear_bad(src_pgd))
-+			continue;
-+
-+		if (dual_pud_range(dst_mm, src_mm, dst_pgd,
-+			src_pgd, addr, next, func, args))
-+			return -ENOMEM;
-+
-+	} while (dst_pgd++, src_pgd++, addr = next, addr != end);
-+	return 0;
-+}
-+
-+
-+#endif
-Index: linux-2.6.12-rc4/include/mm/mlpt-generic.h
+  	BUG_ON(addr >= end);
+  	tlb_start_vma(tlb, vma);
+-	pgd = pgd_offset(vma->vm_mm, addr);
+-	do {
+-		next = pgd_addr_end(addr, end);
+-		if (pgd_none_or_clear_bad(pgd))
+-			continue;
+-		zap_pud_range(tlb, pgd, addr, next, details);
+-	} while (pgd++, addr = next, addr != end);
++	page_table_read_iterator(vma->vm_mm, addr, end, zap_one_pte, 
+&data);
+  	tlb_end_vma(tlb, vma);
+  }
+
+Index: linux-2.6.12-rc4/mm/vmalloc.c
 ===================================================================
---- linux-2.6.12-rc4.orig/include/mm/mlpt-generic.h	2005-05-19 
-17:24:49.000000000 +1000
-+++ linux-2.6.12-rc4/include/mm/mlpt-generic.h	2005-05-19 
-18:12:36.000000000 +1000
-@@ -3,6 +3,7 @@
+--- linux-2.6.12-rc4.orig/mm/vmalloc.c	2005-05-19 18:15:26.000000000 
++1000
++++ linux-2.6.12-rc4/mm/vmalloc.c	2005-05-19 18:21:20.000000000 
++1000
+@@ -24,63 +24,21 @@
+  DEFINE_RWLOCK(vmlist_lock);
+  struct vm_struct *vmlist;
 
-  #include <linux/highmem.h>
-  #include <asm/tlb.h>
-+#include <mm/mlpt-iterators.h>
+-static void vunmap_pte_range(pmd_t *pmd, unsigned long addr, unsigned 
+long end)
++int unmap_vm_pte(struct mm_struct *mm, pte_t *pte, unsigned long address, 
+void *args)
+  {
+-	pte_t *pte;
+-
+-	pte = pte_offset_kernel(pmd, addr);
+-	do {
+-		pte_t ptent = ptep_get_and_clear(&init_mm, addr, pte);
+-		WARN_ON(!pte_none(ptent) && !pte_present(ptent));
+-	} while (pte++, addr += PAGE_SIZE, addr != end);
+-}
+-
+-static inline void vunmap_pmd_range(pud_t *pud, unsigned long addr,
+-						unsigned long end)
+-{
+-	pmd_t *pmd;
+-	unsigned long next;
+-
+-	pmd = pmd_offset(pud, addr);
+-	do {
+-		next = pmd_addr_end(addr, end);
+-		if (pmd_none_or_clear_bad(pmd))
+-			continue;
+-		vunmap_pte_range(pmd, addr, next);
+-	} while (pmd++, addr = next, addr != end);
+-}
+-
+-static inline void vunmap_pud_range(pgd_t *pgd, unsigned long addr,
+-						unsigned long end)
+-{
+-	pud_t *pud;
+-	unsigned long next;
+-
+-	pud = pud_offset(pgd, addr);
+-	do {
+-		next = pud_addr_end(addr, end);
+-		if (pud_none_or_clear_bad(pud))
+-			continue;
+-		vunmap_pmd_range(pud, addr, next);
+-	} while (pud++, addr = next, addr != end);
++	pte_t ptent = ptep_get_and_clear(&init_mm, address, pte);
++	WARN_ON(!pte_none(ptent) && !pte_present(ptent));
++	return 0;
+  }
 
-  /**
-   * init_page_table - initialise a user process page table
+  void unmap_vm_area(struct vm_struct *area)
+  {
+-	pgd_t *pgd;
+-	unsigned long next;
+  	unsigned long addr = (unsigned long) area->addr;
+  	unsigned long end = addr + area->size;
+
+  	BUG_ON(addr >= end);
+-	pgd = pgd_offset_k(addr);
+  	flush_cache_vunmap(addr, end);
+-	do {
+-		next = pgd_addr_end(addr, end);
+-		if (pgd_none_or_clear_bad(pgd))
+-			continue;
+-		vunmap_pud_range(pgd, addr, next);
+-	} while (pgd++, addr = next, addr != end);
++	page_table_read_iterator(&init_mm, addr, end, unmap_vm_pte, NULL);
+  	flush_tlb_kernel_range((unsigned long) area->addr, end);
+  }
+
+Index: linux-2.6.12-rc4/mm/mprotect.c
+===================================================================
+--- linux-2.6.12-rc4.orig/mm/mprotect.c	2005-05-19 17:01:14.000000000 
++1000
++++ linux-2.6.12-rc4/mm/mprotect.c	2005-05-19 18:21:20.000000000 
++1000
+@@ -19,82 +19,46 @@
+  #include <linux/mempolicy.h>
+  #include <linux/personality.h>
+  #include <linux/syscalls.h>
++#include <linux/page_table.h>
+
+  #include <asm/uaccess.h>
+-#include <asm/pgtable.h>
+  #include <asm/cacheflush.h>
+  #include <asm/tlbflush.h>
+
+-static void change_pte_range(struct mm_struct *mm, pmd_t *pmd,
+-		unsigned long addr, unsigned long end, pgprot_t newprot)
+-{
+-	pte_t *pte;
+-
+-	pte = pte_offset_map(pmd, addr);
+-	do {
+-		if (pte_present(*pte)) {
+-			pte_t ptent;
+-
+-			/* Avoid an SMP race with hardware updated 
+dirty/clean
+-			 * bits by wiping the pte and then setting the new 
+pte
+-			 * into place.
+-			 */
+-			ptent = pte_modify(ptep_get_and_clear(mm, addr, 
+pte), newprot);
+-			set_pte_at(mm, addr, pte, ptent);
+-			lazy_mmu_prot_update(ptent);
+-		}
+-	} while (pte++, addr += PAGE_SIZE, addr != end);
+-	pte_unmap(pte - 1);
+-}
+-
+-static inline void change_pmd_range(struct mm_struct *mm, pud_t *pud,
+-		unsigned long addr, unsigned long end, pgprot_t newprot)
++struct change_prot_struct
+  {
+-	pmd_t *pmd;
+-	unsigned long next;
+-
+-	pmd = pmd_offset(pud, addr);
+-	do {
+-		next = pmd_addr_end(addr, end);
+-		if (pmd_none_or_clear_bad(pmd))
+-			continue;
+-		change_pte_range(mm, pmd, addr, next, newprot);
+-	} while (pmd++, addr = next, addr != end);
+-}
++	pgprot_t newprot;
++};
+
+-static inline void change_pud_range(struct mm_struct *mm, pgd_t *pgd,
+-		unsigned long addr, unsigned long end, pgprot_t newprot)
++int change_prot_pte(struct mm_struct *mm, pte_t *pte, unsigned long 
+address, void *data)
+  {
+-	pud_t *pud;
+-	unsigned long next;
+-
+-	pud = pud_offset(pgd, addr);
+-	do {
+-		next = pud_addr_end(addr, end);
+-		if (pud_none_or_clear_bad(pud))
+-			continue;
+-		change_pmd_range(mm, pud, addr, next, newprot);
+-	} while (pud++, addr = next, addr != end);
++	if (pte_present(*pte)) {
++		pte_t ptent;
++		/* Avoid an SMP race with hardware updated dirty/clean
++		 * bits by wiping the pte and then setting the new pte
++		 * into place.
++		 */
++		ptent = pte_modify(ptep_get_and_clear(mm, address, pte),
++			((struct change_prot_struct *)data)->newprot);
++		set_pte_at(mm, address, pte, ptent);
++		lazy_mmu_prot_update(ptent);
++		return 0;
++	}
++	return 0;
+  }
+
+  static void change_protection(struct vm_area_struct *vma,
+  		unsigned long addr, unsigned long end, pgprot_t newprot)
+  {
+  	struct mm_struct *mm = vma->vm_mm;
+-	pgd_t *pgd;
+-	unsigned long next;
+  	unsigned long start = addr;
++	struct change_prot_struct data;
+
++	data.newprot = newprot;
+  	BUG_ON(addr >= end);
+-	pgd = pgd_offset(mm, addr);
+  	flush_cache_range(vma, addr, end);
+  	spin_lock(&mm->page_table_lock);
+-	do {
+-		next = pgd_addr_end(addr, end);
+-		if (pgd_none_or_clear_bad(pgd))
+-			continue;
+-		change_pud_range(mm, pgd, addr, next, newprot);
+-	} while (pgd++, addr = next, addr != end);
++	page_table_read_iterator(mm, addr, end, change_prot_pte, &data);
+  	flush_tlb_range(vma, start, end);
+  	spin_unlock(&mm->page_table_lock);
+  }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
