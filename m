@@ -1,73 +1,60 @@
-Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
-	by e31.co.us.ibm.com (8.12.10/8.12.9) with ESMTP id j4L0Deua024624
-	for <linux-mm@kvack.org>; Fri, 20 May 2005 20:13:40 -0400
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by d03relay04.boulder.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id j4L0Dewj260132
-	for <linux-mm@kvack.org>; Fri, 20 May 2005 18:13:40 -0600
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.12.11/8.13.3) with ESMTP id j4L0DdMj022215
-	for <linux-mm@kvack.org>; Fri, 20 May 2005 18:13:39 -0600
-Date: Fri, 20 May 2005 17:07:00 -0700
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e1.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id j4L0HvU5007578
+	for <linux-mm@kvack.org>; Fri, 20 May 2005 20:17:57 -0400
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay04.pok.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id j4L0HvYV074508
+	for <linux-mm@kvack.org>; Fri, 20 May 2005 20:17:57 -0400
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.12.11/8.13.3) with ESMTP id j4L0HvYF015358
+	for <linux-mm@kvack.org>; Fri, 20 May 2005 20:17:57 -0400
+Date: Fri, 20 May 2005 17:11:18 -0700
 From: Chandra Seetharaman <sekharan@us.ibm.com>
 Subject: Re: [PATCH 0/6] CKRM: Memory controller for CKRM
-Message-ID: <20050521000700.GA30327@chandralinux.beaverton.ibm.com>
-References: <20050519003008.GC25076@chandralinux.beaverton.ibm.com> <20050519.104325.13596447.taka@valinux.co.jp> <20050519163338.GC27270@chandralinux.beaverton.ibm.com> <20050520.142927.108372625.taka@valinux.co.jp>
+Message-ID: <20050521001118.GB30327@chandralinux.beaverton.ibm.com>
+References: <20050519003008.GC25076@chandralinux.beaverton.ibm.com> <20050520.182624.67793132.taka@valinux.co.jp>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20050520.142927.108372625.taka@valinux.co.jp>
+In-Reply-To: <20050520.182624.67793132.taka@valinux.co.jp>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Hirokazu Takahashi <taka@valinux.co.jp>
 Cc: ckrm-tech@lists.sourceforge.net, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, May 20, 2005 at 02:29:27PM +0900, Hirokazu Takahashi wrote:
+On Fri, May 20, 2005 at 06:26:24PM +0900, Hirokazu Takahashi wrote:
 > Hi Chandra,
 > 
-> > On Thu, May 19, 2005 at 10:43:25AM +0900, Hirokazu Takahashi wrote:
-> > > Hello,
-> > > 
-> > > It just looks like that once kswapd moves pages between the active lists
-> > > and the inactive lists, the pages happen to belong to the class
-> > > to which kswapd belong.
-> > 
-> > In refill_inactive_zone()(where pages are moved from active to inactive
-> > list), ckrm_zone(where the page came from) is where the inactive pages are 
-> > moved to.
 > 
-> Ah, I understood.
-> You have changed these functions not to call add_page_to_active_list() or
-> add_page_to_inactive_list() anymore.
+> I think it's very heavy to move all pages, which are mapped to removing
+> regions, to new classes every time. It always happens when doing exec()
+> or exit(), while munmap and closing file don't.
+> Pages associating with libc.so or text of shells might move around
+> the all classes.
 > 
-> Still, there may remain problems that mark_page_accessed() calls
-> add_page_to_active_list() to move pages between classes.
-> I guess this isn't good manner since some functions which call
-> mark_page_accessed(), like unmap_mapping_range_vma() or get_user_pages(),
-> may refer pages of the other classes.
+> IMHO, it would be enough to just leave them as they are.
+> These pages would be released a little later if no class touch them,
+> or they might be accessed from another class to migrate another
+> class, or they might reused in the same class.
 
-You mean these functions are not called in the context of the task that
-is in the stack ?
+No, it will be incorrect, as the class that is using the page doesn't need
+these pages anymore, we should not be charging them for those pages.
 
+May be we should do something light while keeping the accounting proper.
+Any ideas ?
 > 
-<snip>
-> > > > 
-> > > > I am looking for improvement suggestions
-> > > >         - to not have a field in the page data structure for the mem
-> > > >           controller
-> > > 
-> > > What do you think if you make each class owns inodes instead of pages
-> > > in the page-cache?
-
-I think i missed to answer this question in the earlier reply.
-
-do you mean a controller for managing inodes ?
-> > > 
-> > > > 	- to make vmscan.c cleaner.
+> I feel it's not needed to move these pages in hurry.
+> I prefer the implementation light.
+> What do you think?
+> 
+> 
+> BTW, the memory controller would be a good new to video streaming
+> guys, I guess.
 > 
 > 
 > Thanks,
 > Hirokazu Takahashi.
+> 
 
 -- 
 
