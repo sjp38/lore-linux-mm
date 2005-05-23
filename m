@@ -1,5 +1,5 @@
-Date: Mon, 23 May 2005 20:31:59 +0900 (JST)
-Message-Id: <20050523.203159.01016468.taka@valinux.co.jp>
+Date: Mon, 23 May 2005 21:54:11 +0900 (JST)
+Message-Id: <20050523.215411.124651572.taka@valinux.co.jp>
 Subject: Re: [PATCH 0/6] CKRM: Memory controller for CKRM
 From: Hirokazu Takahashi <taka@valinux.co.jp>
 In-Reply-To: <20050521000700.GA30327@chandralinux.beaverton.ibm.com>
@@ -17,39 +17,25 @@ List-ID: <linux-mm.kvack.org>
 
 Hi Chandra,
 
-> > > On Thu, May 19, 2005 at 10:43:25AM +0900, Hirokazu Takahashi wrote:
-> > > > Hello,
+> > > > > 
+> > > > > I am looking for improvement suggestions
+> > > > >         - to not have a field in the page data structure for the mem
+> > > > >           controller
 > > > > 
-> > > > It just looks like that once kswapd moves pages between the active lists
-> > > > and the inactive lists, the pages happen to belong to the class
-> > > > to which kswapd belong.
-> > > 
-> > > In refill_inactive_zone()(where pages are moved from active to inactive
-> > > list), ckrm_zone(where the page came from) is where the inactive pages are 
-> > > moved to.
-> > 
-> > Ah, I understood.
-> > You have changed these functions not to call add_page_to_active_list() or
-> > add_page_to_inactive_list() anymore.
-> > 
-> > Still, there may remain problems that mark_page_accessed() calls
-> > add_page_to_active_list() to move pages between classes.
-> > I guess this isn't good manner since some functions which call
-> > mark_page_accessed(), like unmap_mapping_range_vma() or get_user_pages(),
-> > may refer pages of the other classes.
+> > > > What do you think if you make each class owns inodes instead of pages
+> > > > in the page-cache?
 > 
-> You mean these functions are not called in the context of the task that
-> is in the stack ?
+> I think i missed to answer this question in the earlier reply.
+> 
+> do you mean a controller for managing inodes ?
 
-No, in some cases though it doesn't seem to be serious.
+Yes, I think it might be another solution though I haven't examined
+about it yet.
 
-You may take a look at unmap_mapping_range_tree() as an example.
-It traverses mapping->i_mmap to find all related vma's to be
-unmapped. And get_user_pages() has the parameter that indicates
-which process space should be accessed.
 
 Thanks,
 Hirokazu Takahashi.
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
