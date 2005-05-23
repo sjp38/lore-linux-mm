@@ -1,11 +1,11 @@
-Date: Mon, 23 May 2005 21:54:11 +0900 (JST)
-Message-Id: <20050523.215411.124651572.taka@valinux.co.jp>
+Date: Mon, 23 May 2005 22:20:46 +0900 (JST)
+Message-Id: <20050523.222046.113099660.taka@valinux.co.jp>
 Subject: Re: [PATCH 0/6] CKRM: Memory controller for CKRM
 From: Hirokazu Takahashi <taka@valinux.co.jp>
-In-Reply-To: <20050521000700.GA30327@chandralinux.beaverton.ibm.com>
-References: <20050519163338.GC27270@chandralinux.beaverton.ibm.com>
-	<20050520.142927.108372625.taka@valinux.co.jp>
-	<20050521000700.GA30327@chandralinux.beaverton.ibm.com>
+In-Reply-To: <20050521001118.GB30327@chandralinux.beaverton.ibm.com>
+References: <20050519003008.GC25076@chandralinux.beaverton.ibm.com>
+	<20050520.182624.67793132.taka@valinux.co.jp>
+	<20050521001118.GB30327@chandralinux.beaverton.ibm.com>
 Mime-Version: 1.0
 Content-Type: Text/Plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
@@ -17,25 +17,44 @@ List-ID: <linux-mm.kvack.org>
 
 Hi Chandra,
 
-> > > > > 
-> > > > > I am looking for improvement suggestions
-> > > > >         - to not have a field in the page data structure for the mem
-> > > > >           controller
-> > > > 
-> > > > What do you think if you make each class owns inodes instead of pages
-> > > > in the page-cache?
+> > I think it's very heavy to move all pages, which are mapped to removing
+> > regions, to new classes every time. It always happens when doing exec()
+> > or exit(), while munmap and closing file don't.
+> > Pages associating with libc.so or text of shells might move around
+> > the all classes.
+> > 
+> > IMHO, it would be enough to just leave them as they are.
+> > These pages would be released a little later if no class touch them,
+> > or they might be accessed from another class to migrate another
+> > class, or they might reused in the same class.
 > 
-> I think i missed to answer this question in the earlier reply.
+> No, it will be incorrect, as the class that is using the page doesn't need
+> these pages anymore, we should not be charging them for those pages.
 > 
-> do you mean a controller for managing inodes ?
+> May be we should do something light while keeping the accounting proper.
+> Any ideas ?
 
-Yes, I think it might be another solution though I haven't examined
-about it yet.
+I understand your intention. But I don't think it's always proper.
+It wouldn't be bad idea to leave pages for perl scripts launched
+by Apache, as they may be reused soon.
+Each class may tend to re-execute the same programs.
+
+OTOH, pages as a cache of closed file may not be reused by the same
+class again, though they're counted as valid pages for the class.
+
+I guess both of them are in gray area.
+
+> > I feel it's not needed to move these pages in hurry.
+> > I prefer the implementation light.
+> > What do you think?
+> > 
+> > 
+> > BTW, the memory controller would be a good new to video streaming
+> > guys, I guess.
 
 
 Thanks,
 Hirokazu Takahashi.
-
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
