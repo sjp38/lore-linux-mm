@@ -1,84 +1,45 @@
-Message-ID: <42E46FF5.5080805@yahoo.com.au>
-Date: Mon, 25 Jul 2005 14:52:05 +1000
-From: Nick Piggin <nickpiggin@yahoo.com.au>
+Received: from Freemang9k09rm38rdc (57.104.20.40) by lhasacyzjatp66.prodigy.net
+          (InterMail vM.5.01.06.05 502-141-622-185-214-387931146) with SMTP
+          id <4722958405809.ELRVR329.vklmbtq8937.prodigy.net@fractiouszj891nj9p8ulx>
+          for <linux-mm@kvack.org>; Tue, 24 May 2005 02:54:11 -0600
+Message-ID: <5586s3o66583$0503027$qpo19zzl936@Freemanv43kcs2x61tn>
+From: "Leticia Kirk" <SHYLGPYUTN@netscape.net>
+Subject: Best Erection Drugs ! cranberry
+Date: Tue, 24 May 2005 04:00:11 -0500
 MIME-Version: 1.0
-Subject: Re: PageReserved removal from swsusp
-References: <42E44294.5020408@yahoo.com.au> <1122265909.6144.106.camel@localhost>
-In-Reply-To: <1122265909.6144.106.camel@localhost>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: multipart/alternative;
+	boundary="--verisimilitude"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: ncunningham@cyclades.com
-Cc: Linux Memory Management <linux-mm@kvack.org>, Pavel Machek <pavel@suse.cz>, Hugh Dickins <hugh@veritas.com>, William Lee Irwin III <wli@holomorphy.com>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Nigel Cunningham wrote:
-> Hi.
-> 
->>
->>They're my two ideas. Anyone else?
-> 
-> 
-> I have a few differences in Suspend2 that let me only use one real
-> pageflag (Nosave).
-> 
+----verisimilitude
+Content-Type: text/plain;
+Content-Transfer-Encoding: quoted-printable
 
-Thanks for the reply.
 
-> The changes are:
-> 
-> 1) Use a set of order zero allocations, tied together via a kmalloc'd
-> list of pointers as a means of dynamically creating and destroying
-> pseudo page-flags (such as are only needed while suspending). The
-> bitmaps don't support sparsemem yet, but this support could be added
-> pretty easily.
-> 
-> 2) This bitmap could be used straight off for swsusp's PageNosave flag
-> since it is only used in kernel/power/swsusp.c (2.6.13-rc3 checked).
-> 
-> 3) Set & Clear PageNosaveFree are also used in mm/page_alloc.c, in
-> mark_free_pages, which is only called from swsusp.c, so a dynamically
-> allocated bitmap could be used there too.
-> 
+Hello
 
-1,2,3 all sound good. I guess if swsusp becomes any more of a page flag
-hog then the page flag bitmap sounds like a good idea. Though at present
-it will only allow us to save 1 flag (PageNosaveFree).
 
-I guess I'm mostly interested in how to remove PageReserved usage. That is
-one that isn't able to be nicely handled with your pseudo flags bitmap.
 
-> 4) That leaves PageReserved. Pavel and I both rely on a page flag being
-> set in the arch specific code (based on e820 tables), so as to know what
-> pages are untouchable. As I look more closely though, I wonder if we
-> could do without that if we instead directly do the 
-> 
-> (page_is_ram(pfn) && !(bad_ppro && page_kills_ppro(pfn))
-> 
-> and
-> 
-> (addr < (void *)&__nosave_begin || addr >= (void *)&__nosave_end)
-> 
-> tests when preparing the image. Assuming, of course, that page_is_ram,
-> bad_ppro and page_kills_ppro can be made usable by us.
-> 
+Best Erection Drugs 
 
-Well that doesn't sound too unreasonable. Of course you don't want to
-use all that directly, but have it put in a nice arch defined wrapper
-for you (eg. page_is_usable_ram).
+world wide shiping 
 
-I'm currently playing around with trying to reuse an existing flag
-to get this information (instead of PageReserved). But it doesn't seem
-like a big problem if we have to fall back to the above.
+visit us now 
 
-Thanks,
-Nick
+http://uncapping.net/vcl/?okok
 
--- 
-SUSE Labs, Novell Inc.
 
-Send instant messages to your online friends http://au.messenger.yahoo.com 
+
+
+hansel
+
+----verisimilitude--
+
+
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
