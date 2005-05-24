@@ -1,49 +1,34 @@
-Date: Tue, 24 May 2005 14:04:40 -0700
-From: "Martin J. Bligh" <mbligh@mbligh.org>
-Reply-To: "Martin J. Bligh" <mbligh@mbligh.org>
-Subject: Re: [Lhms-devel] Re: [PATCH 2.6.12-rc3 1/8] mm: manual page migration-rc2 -- xfs-extended-attributes-rc2.patch
-Message-ID: <87250000.1116968680@[10.10.2.4]>
-In-Reply-To: <Pine.LNX.4.62.0505241356320.2846@graphe.net>
-References: <20050511043756.10876.72079.60115@jackhammer.engr.sgi.com><20050511043802.10876.60521.51027@jackhammer.engr.sgi.com><20050511071538.GA23090@infradead.org> <4281F650.2020807@engr.sgi.com><20050511125932.GW25612@wotan.suse.de> <42825236.1030503@engr.sgi.com><20050511193207.GE11200@wotan.suse.de> <20050512104543.GA14799@infradead.org><428E6427.7060401@engr.sgi.com> <429217F8.5020202@mwwireless.net><4292B361.80500@engr.sgi.com> <Pine.LNX.4.62.0505241356320.2846@graphe.net>
+Date: Tue, 24 May 2005 14:37:54 -0700 (PDT)
+From: Christoph Lameter <christoph@lameter.com>
+Subject: Re: NUMA aware slab allocator V3
+In-Reply-To: <428E56EE.4050400@us.ibm.com>
+Message-ID: <Pine.LNX.4.62.0505241436460.3878@graphe.net>
+References: <Pine.LNX.4.58.0505110816020.22655@schroedinger.engr.sgi.com>
+ <Pine.LNX.4.62.0505161046430.1653@schroedinger.engr.sgi.com>
+ <714210000.1116266915@flay> <200505161410.43382.jbarnes@virtuousgeek.org>
+ <740100000.1116278461@flay>  <Pine.LNX.4.62.0505161713130.21512@graphe.net>
+ <1116289613.26955.14.camel@localhost> <428A800D.8050902@us.ibm.com>
+ <Pine.LNX.4.62.0505171648370.17681@graphe.net> <428B7B16.10204@us.ibm.com>
+ <Pine.LNX.4.62.0505181046320.20978@schroedinger.engr.sgi.com>
+ <428BB05B.6090704@us.ibm.com> <Pine.LNX.4.62.0505181439080.10598@graphe.net>
+ <Pine.LNX.4.62.0505182105310.17811@graphe.net> <428E3497.3080406@us.ibm.com>
+ <Pine.LNX.4.62.0505201210460.390@graphe.net> <428E56EE.4050400@us.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <christoph@lameter.com>, Ray Bryant <raybry@engr.sgi.com>
-Cc: Steve Longerbeam <stevel@mwwireless.net>, Christoph Hellwig <hch@infradead.org>, Andi Kleen <ak@suse.de>, Ray Bryant <raybry@sgi.com>, Hirokazu Takahashi <taka@valinux.co.jp>, Marcelo Tosatti <marcelo.tosatti@cyclades.com>, Dave Hansen <haveblue@us.ibm.com>, linux-mm <linux-mm@kvack.org>, Nathan Scott <nathans@sgi.com>, Ray Bryant <raybry@austin.rr.com>, lhms-devel@lists.sourceforge.net, Jes Sorensen <jes@wildopensource.com>
+To: Matthew Dobson <colpatch@us.ibm.com>
+Cc: "Martin J. Bligh" <mbligh@mbligh.org>, Andrew Morton <akpm@osdl.org>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
---Christoph Lameter <christoph@lameter.com> wrote (on Tuesday, May 24, 2005 13:59:30 -0700):
+On Fri, 20 May 2005, Matthew Dobson wrote:
 
-> On Mon, 23 May 2005, Ray Bryant wrote:
-> 
->> We need to take a different migration action based on which case we
->> are in:
->> 
->> (1)  Migrate all of the pages.
->> (2)  Migrate the non-shared pages.
->> (3)  Migrate none of the pages.
->> 
->> So we need some external way for the kernel to be told which kind of
->> mapped file this is.  That is why we need some kind of interface for
->> the user (or admininistrator) to tell us how to classify each shared
->> mapped file.
-> 
-> Sorry I am a bit late to the party and I know you must have said this
-> before but what is the reason again not to use the page reference count to 
-> determine if a page is shared? Maybe its possible to live with some 
-> restrictions that the use of the page reference count brings.
-> 
-> Seems that touching a filesystem and the ELF headers is way off from the 
-> vm.
+> I can't for the life of me explain why, but the above patch makes ALL the
+> warnings go away, despite the fact that they seem unrelated.  I dunno...
+> Maybe we should upgrade the compiler on that box?
 
-I forget the context of this conversation, but in general if you want to
-find out if the page is shared, you want mapcount, not the reference
-count. Is so much easier now that we have that field ...
+Is the NUMA slab patch now working on ppc64?
 
-M.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
