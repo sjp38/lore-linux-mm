@@ -1,62 +1,46 @@
-Message-ID: <20050522182229.20451.qmail@web25609.mail.ukl.yahoo.com>
-Date: Sun, 22 May 2005 20:22:29 +0200 (CEST)
-From: Vincenzo Mallozzi <vinjunior@yahoo.it>
-Subject: set_fs(), get_fs and general protection fault
+Date: Tue, 24 May 2005 13:59:30 -0700 (PDT)
+From: Christoph Lameter <christoph@lameter.com>
+Subject: Re: [Lhms-devel] Re: [PATCH 2.6.12-rc3 1/8] mm: manual page
+ migration-rc2 -- xfs-extended-attributes-rc2.patch
+In-Reply-To: <4292B361.80500@engr.sgi.com>
+Message-ID: <Pine.LNX.4.62.0505241356320.2846@graphe.net>
+References: <20050511043756.10876.72079.60115@jackhammer.engr.sgi.com>
+ <20050511043802.10876.60521.51027@jackhammer.engr.sgi.com>
+ <20050511071538.GA23090@infradead.org> <4281F650.2020807@engr.sgi.com>
+ <20050511125932.GW25612@wotan.suse.de> <42825236.1030503@engr.sgi.com>
+ <20050511193207.GE11200@wotan.suse.de> <20050512104543.GA14799@infradead.org>
+ <428E6427.7060401@engr.sgi.com> <429217F8.5020202@mwwireless.net>
+ <4292B361.80500@engr.sgi.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Ray Bryant <raybry@engr.sgi.com>
+Cc: Steve Longerbeam <stevel@mwwireless.net>, Christoph Hellwig <hch@infradead.org>, Andi Kleen <ak@suse.de>, Ray Bryant <raybry@sgi.com>, Hirokazu Takahashi <taka@valinux.co.jp>, Marcelo Tosatti <marcelo.tosatti@cyclades.com>, Dave Hansen <haveblue@us.ibm.com>, linux-mm <linux-mm@kvack.org>, Nathan Scott <nathans@sgi.com>, Ray Bryant <raybry@austin.rr.com>, lhms-devel@lists.sourceforge.net, Jes Sorensen <jes@wildopensource.com>
 List-ID: <linux-mm.kvack.org>
 
-Hi all,
-I'm developing a module that checkpoints thread
-processes.
-In order to do the checkpoint, I use get_fs() and
-set_fs() instructions. The way I use them is as
-follow:
+On Mon, 23 May 2005, Ray Bryant wrote:
 
-checkpoint_function()
-{
-   fs = get_fs();
-   set_fs(KERNEL_DS);
+> We need to take a different migration action based on which case we
+> are in:
+> 
+> (1)  Migrate all of the pages.
+> (2)  Migrate the non-shared pages.
+> (3)  Migrate none of the pages.
+> 
+> So we need some external way for the kernel to be told which kind of
+> mapped file this is.  That is why we need some kind of interface for
+> the user (or admininistrator) to tell us how to classify each shared
+> mapped file.
 
-   INSTRUCTIONS TO SAVE MEMORY DESCRIPTOR
+Sorry I am a bit late to the party and I know you must have said this
+before but what is the reason again not to use the page reference count to 
+determine if a page is shared? Maybe its possible to live with some 
+restrictions that the use of the page reference count brings.
 
-   set_fs(fs);
-}
+Seems that touching a filesystem and the ELF headers is way off from the 
+vm.
 
-restore_function()
-{
-   fs = get_fs();
-   set_fs(KERNEL_DS);
-
-   INSTRUCTIONS TO RESTORE MEMORY DESCRIPTOR
-
-   set_fs(fs);
-}
-
-When I execute checkpoint_function(), all seems to go
-well. 
-But when I execute restore_function, a "general
-protection fault" error is returned.
-If I omit the instructions get_fs and set_fs, no error
-of this type is returned (but the checkpoint does not
-work well).
-Can anyone help me on the usage of these instructions.
-I've also found some previous emails regarding them,
-but I've not well understood in which way get_fs and
-set_fs must be applied in my module.
-I've also read some checkpoint tools, e.g. CRACK, in
-which they are used in about the same way I do it.
-Thanks.
-Vincenzo Mallozzi.
-
-
-		
-___________________________________ 
-Nuovo Yahoo! Messenger: E' molto piu divertente: Audibles, Avatar, Giochi, Rubrica? Scaricalo ora! 
-http://it.messenger.yahoo.it
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
