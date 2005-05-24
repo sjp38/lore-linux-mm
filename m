@@ -1,65 +1,69 @@
-Message-ID: <4292202D.5020905@rentec.com>
-Date: Mon, 23 May 2005 14:25:49 -0400
-From: Wolfgang Wander <wwc@rentec.com>
+Message-ID: <4292B361.80500@engr.sgi.com>
+Date: Mon, 23 May 2005 23:53:53 -0500
+From: Ray Bryant <raybry@engr.sgi.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] Avoiding mmap fragmentation - clean rev
-References: <200505202351.j4KNpHg21468@unix-os.sc.intel.com>
-In-Reply-To: <200505202351.j4KNpHg21468@unix-os.sc.intel.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Subject: Re: [Lhms-devel] Re: [PATCH 2.6.12-rc3 1/8] mm: manual page migration-rc2
+ -- xfs-extended-attributes-rc2.patch
+References: <20050511043756.10876.72079.60115@jackhammer.engr.sgi.com> <20050511043802.10876.60521.51027@jackhammer.engr.sgi.com> <20050511071538.GA23090@infradead.org> <4281F650.2020807@engr.sgi.com> <20050511125932.GW25612@wotan.suse.de> <42825236.1030503@engr.sgi.com> <20050511193207.GE11200@wotan.suse.de> <20050512104543.GA14799@infradead.org> <428E6427.7060401@engr.sgi.com> <429217F8.5020202@mwwireless.net>
+In-Reply-To: <429217F8.5020202@mwwireless.net>
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Chen, Kenneth W" <kenneth.w.chen@intel.com>
-Cc: 'Andrew Morton' <akpm@osdl.org>, herve@elma.fr, mingo@elte.hu, arjanv@redhat.com, linux-mm@kvack.org
+To: Steve Longerbeam <stevel@mwwireless.net>
+Cc: Christoph Hellwig <hch@infradead.org>, Andi Kleen <ak@suse.de>, Ray Bryant <raybry@sgi.com>, Hirokazu Takahashi <taka@valinux.co.jp>, Marcelo Tosatti <marcelo.tosatti@cyclades.com>, Dave Hansen <haveblue@us.ibm.com>, linux-mm <linux-mm@kvack.org>, Nathan Scott <nathans@sgi.com>, Ray Bryant <raybry@austin.rr.com>, lhms-devel@lists.sourceforge.net, Jes Sorensen <jes@wildopensource.com>
 List-ID: <linux-mm.kvack.org>
 
-Chen, Kenneth W wrote:
-> Andrew Morton wrote on Thursday, May 19, 2005 3:55 PM
-> 
->>Wolfgang Wander <wwc@rentec.com> wrote:
->>
->>>Clearly one has to weight the performance issues against the memory
->>> efficiency but since we demonstratibly throw away 25% (or 1GB) of the
->>> available address space in the various accumulated holes a long
->>> running application can generate
->>
->>That sounds pretty bad.
->>
->>
->>>I hope that for the time being we can
->>> stick with my first solution,
->>
->>I'm inclined to do this.
->>
->>
->>>preferably extended by your munmap fix?
->>
->>And this, if someone has a patch? 
+Steve Longerbeam wrote:
 > 
 > 
+>
 > 
-> 2nd patch on top of wolfgang's patch.  It's a compliment on top of initial
-> attempt by wolfgang to solve the fragmentation problem.  The code path
-> in munmap is suboptimal and potentially worsen the fragmentation because
-> with a series of munmap, the free_area_cache would point to last vma that
-> was freed, ignoring its surrounding and not performing any coalescing at all,
-> thus artificially create more holes in the virtual address space than necessary.
-> Since all the information needed to perform coalescing are actually already there.
-> This patch put that data in use so we will prevent artificial fragmentation.
+> I have a question about the migration attributes. Are these attributes
+> needed because your migration code is not _capable_ of migrating
+> shared pages? Or is it that you just want to selectively choose which
+> shared object memory should and should not be migrated?
 > 
-> It covers both bottom-up and top-down topology.  For bottom-up topology,
-> free_area_cache points to prev->vm_end. And for top-down, free_area_cache points
-> to next->vm_start.
+> Steve
+> 
 
+Hi Steve,
 
-Works perfectly fine here.  All my tests pass and our large applications 
-are happy with this patch.
+The reason the migration attributes are required is that from inside the
+kernel, whilst looking at VMA's in the migration code, all mapped files
+look alike.  There is no way to tell the difference (AFAIK) between:
 
-Thanks Ken for your patience with my lack of it ;-)
+(1)  A regular mapped file that the user mapped in and is shared
+      among the processes that are being migrated.
+(2)  A mapped file that maps a shared library.
+(3)  A mapped file that maps a shared executable (e. g. /bin/bash).
 
-             Wolfgang
+We need to take a different migration action based on which case we
+are in:
 
+(1)  Migrate all of the pages.
+(2)  Migrate the non-shared pages.
+(3)  Migrate none of the pages.
 
+So we need some external way for the kernel to be told which kind of
+mapped file this is.  That is why we need some kind of interface for
+the user (or admininistrator) to tell us how to classify each shared
+mapped file.
+
+(Obviously, we could make some assumptions about file names and catch
+a lot of these, but then you would need a configerable interfac to
+the kernel to control those names, and that seems like a problem.)
+
+-- 
+Best Regards,
+Ray
+-----------------------------------------------
+                   Ray Bryant
+512-453-9679 (work)         512-507-7807 (cell)
+raybry@sgi.com             raybry@austin.rr.com
+The box said: "Requires Windows 98 or better",
+            so I installed Linux.
+-----------------------------------------------
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
