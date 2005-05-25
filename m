@@ -1,41 +1,37 @@
-Date: Wed, 25 May 2005 10:42:34 -0300
-From: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
-Subject: [PATCH] small valid_swaphandles() optimization
-Message-ID: <20050525134234.GA16054@logos.cnet>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>, Hugh Dickins <hugh@veritas.com>
-Cc: linux-mm@kvack.org
+Date: Wed, 25 May 2005 13:47:35 -0700
+From: "Eva Rosario" <bastain@doneasy.com>
+Message-Id: <CFE1.AA79.9A71bastain@doneasy.com>
+Subject: Become a homeowner with low rates
+Return-Path: <bastain@doneasy.com>
+To: linux-mm-archive@kvack.org
+Cc: m@kvack.org, mailer-daemon@kvack.org, mm@kvack.org, mo@kvack.org, mus@kvack.org, needpcparts.com@kvack.org, ner-linux-aio@kvack.org, ner-linux-mm@kvack.orgnux-aio@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Andrew, Hugh,
 
-The following patch, relative to valid_swaphandles(), moves the EOF 
-check outside validity check loop, saving a few instructions. 
+Hello,
 
---- a/mm/swapfile.c.orig	2005-05-25 15:45:18.000000000 -0300
-+++ b/mm/swapfile.c	2005-05-25 16:20:45.000000000 -0300
-@@ -1713,11 +1713,12 @@
- 		toff++, i--;
- 	*offset = toff;
+ We tried contacting you awhile ago about your low interest morta(ge rate.=
+
+
+ You have qualified for the lowest rate in years...
+
+ You could get over $380,000 for as little as $500 a month!
+
+ Ba(d credit? Doesn't matter, low rates are fixed no matter what!
+
  
-+	/* Don't read-ahead past the end of the swap area */
-+	if (toff+i >= swapdev->max)
-+		i = swapdev->max - toff - 1;
-+
- 	swap_device_lock(swapdev);
- 	do {
--		/* Don't read-ahead past the end of the swap area */
--		if (toff >= swapdev->max)
--			break;
- 		/* Don't read in free or bad pages */
- 		if (!swapdev->swap_map[toff])
- 			break;
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"aart@kvack.org"> aart@kvack.org </a>
+ To get a free, no obli,gation consultation click below:
+
+ http://www.pr1ces.com/sign.asp
+
+
+
+ Best Regards,
+
+ Marisol Paige
+ 
+ to be remov(ed:	http://www.pr1ces.com/gone.asp
+
+ this process takes one week, so please be patient. we do our 
+ best to take your email/s off but you have to fill out a rem/ove
+ or else you will continue to recieve email/s.
