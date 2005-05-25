@@ -1,53 +1,38 @@
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e6.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id j4PKfN6n002661
-	for <linux-mm@kvack.org>; Wed, 25 May 2005 16:41:23 -0400
-Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
-	by d01relay02.pok.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id j4PKfK5Z144348
-	for <linux-mm@kvack.org>; Wed, 25 May 2005 16:41:23 -0400
-Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
-	by d01av03.pok.ibm.com (8.12.11/8.13.3) with ESMTP id j4PKfFu0025026
-	for <linux-mm@kvack.org>; Wed, 25 May 2005 16:41:15 -0400
-Date: Wed, 25 May 2005 13:40:56 -0700
-From: Mike Kravetz <kravetz@us.ibm.com>
-Subject: Re: Avoiding external fragmentation with a placement policy Version 11
-Message-ID: <20050525204056.GA9257@w-mikek2.ibm.com>
-References: <20050522200507.6ED7AECFC@skynet.csn.ul.ie>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20050522200507.6ED7AECFC@skynet.csn.ul.ie>
+Date: Wed, 25 May 2005 14:03:06 -0700 (PDT)
+From: Christoph Lameter <christoph@lameter.com>
+Subject: Re: NUMA aware slab allocator V3
+In-Reply-To: <4294C39B.1040401@us.ibm.com>
+Message-ID: <Pine.LNX.4.62.0505251402090.15286@graphe.net>
+References: <Pine.LNX.4.58.0505110816020.22655@schroedinger.engr.sgi.com>
+ <Pine.LNX.4.62.0505161046430.1653@schroedinger.engr.sgi.com>
+ <714210000.1116266915@flay> <200505161410.43382.jbarnes@virtuousgeek.org>
+ <740100000.1116278461@flay>  <Pine.LNX.4.62.0505161713130.21512@graphe.net>
+ <1116289613.26955.14.camel@localhost> <428A800D.8050902@us.ibm.com>
+ <Pine.LNX.4.62.0505171648370.17681@graphe.net> <428B7B16.10204@us.ibm.com>
+ <Pine.LNX.4.62.0505181046320.20978@schroedinger.engr.sgi.com>
+ <428BB05B.6090704@us.ibm.com> <Pine.LNX.4.62.0505181439080.10598@graphe.net>
+ <Pine.LNX.4.62.0505182105310.17811@graphe.net> <428E3497.3080406@us.ibm.com>
+ <Pine.LNX.4.62.0505201210460.390@graphe.net> <428E56EE.4050400@us.ibm.com>
+ <Pine.LNX.4.62.0505241436460.3878@graphe.net> <4293B292.6010301@us.ibm.com>
+ <Pine.LNX.4.62.0505242221340.7191@graphe.net> <4294C39B.1040401@us.ibm.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@osdl.org
+To: Matthew Dobson <colpatch@us.ibm.com>
+Cc: "Martin J. Bligh" <mbligh@mbligh.org>, Andrew Morton <akpm@osdl.org>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Sun, May 22, 2005 at 09:05:07PM +0100, Mel Gorman wrote:
->  /*
-> + * Calculate the size of the zone->usemap
-> + */
-> +static unsigned long __init usemap_size(unsigned long zonesize) {
-> +	unsigned long usemapsize;
-> +
-> +	/* - Number of MAX_ORDER blocks in the zone */
-> +	usemapsize = (zonesize + (1 << (MAX_ORDER-1))) >> (MAX_ORDER-1);
-> +
-> +	/* - BITS_PER_ALLOC_TYPE bits to record what type of block it is */
-> +	usemapsize = (usemapsize * BITS_PER_ALLOC_TYPE + (sizeof(unsigned long)*8)) / 8;
-> +
-> +	return L1_CACHE_ALIGN(usemapsize);
-> +}
+On Wed, 25 May 2005, Matthew Dobson wrote:
 
-In the first calculation, I think you are trying to 'round up'.  If this
-is the case, then I believe the calculation should be:
+> > Umm.. How does it fail? Any relationship to the slab allocator?
+> 
+> It dies really early om my x86 box.  I'm not 100% sure that it is b/c of
+> your patches, since it dies so early I get nothing on the console.  Grub
+> tells me it's loading the kernel image then....  nothing.
 
-usemapsize = (zonesize + ((1 << (MAX_ORDER-1)) - 1) >> (MAX_ORDER-1);
-
-I don't know if there is a similar issue in the second calculation.
-Arithmetic is not one of my strengths.
-
--- 
-Mike
+Hmmm. Do you have an emulator? For IA32 and IA64 we have something that 
+simulates a boot up sequence and can tell us what is going on.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
