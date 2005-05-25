@@ -1,74 +1,45 @@
 Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
-	by e33.co.us.ibm.com (8.12.10/8.12.9) with ESMTP id j4PI55mD020708
-	for <linux-mm@kvack.org>; Wed, 25 May 2005 14:05:05 -0400
+	by e34.co.us.ibm.com (8.12.10/8.12.9) with ESMTP id j4PIRicE298198
+	for <linux-mm@kvack.org>; Wed, 25 May 2005 14:27:44 -0400
 Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by d03relay04.boulder.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id j4PI553f078304
-	for <linux-mm@kvack.org>; Wed, 25 May 2005 12:05:05 -0600
+	by d03relay04.boulder.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id j4PIRh3f117990
+	for <linux-mm@kvack.org>; Wed, 25 May 2005 12:27:43 -0600
 Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.12.11/8.13.3) with ESMTP id j4PI54hL017782
-	for <linux-mm@kvack.org>; Wed, 25 May 2005 12:05:05 -0600
-Message-ID: <4294BE45.3000502@austin.ibm.com>
-Date: Wed, 25 May 2005 13:04:53 -0500
-From: Joel Schopp <jschopp@austin.ibm.com>
-Reply-To: jschopp@austin.ibm.com
+	by d03av02.boulder.ibm.com (8.12.11/8.13.3) with ESMTP id j4PIRh2n024780
+	for <linux-mm@kvack.org>; Wed, 25 May 2005 12:27:43 -0600
+Message-ID: <4294C39B.1040401@us.ibm.com>
+Date: Wed, 25 May 2005 11:27:39 -0700
+From: Matthew Dobson <colpatch@us.ibm.com>
 MIME-Version: 1.0
-Subject: Re: Avoiding external fragmentation with a placement policy Version
- 11
-References: <20050522200507.6ED7AECFC@skynet.csn.ul.ie>
-In-Reply-To: <20050522200507.6ED7AECFC@skynet.csn.ul.ie>
-Content-Type: text/plain; charset=us-ascii; format=flowed
+Subject: Re: NUMA aware slab allocator V3
+References: <Pine.LNX.4.58.0505110816020.22655@schroedinger.engr.sgi.com>  <Pine.LNX.4.62.0505161046430.1653@schroedinger.engr.sgi.com>  <714210000.1116266915@flay> <200505161410.43382.jbarnes@virtuousgeek.org>  <740100000.1116278461@flay>  <Pine.LNX.4.62.0505161713130.21512@graphe.net> <1116289613.26955.14.camel@localhost> <428A800D.8050902@us.ibm.com> <Pine.LNX.4.62.0505171648370.17681@graphe.net> <428B7B16.10204@us.ibm.com> <Pine.LNX.4.62.0505181046320.20978@schroedinger.engr.sgi.com> <428BB05B.6090704@us.ibm.com> <Pine.LNX.4.62.0505181439080.10598@graphe.net> <Pine.LNX.4.62.0505182105310.17811@graphe.net> <428E3497.3080406@us.ibm.com> <Pine.LNX.4.62.0505201210460.390@graphe.net> <428E56EE.4050400@us.ibm.com> <Pine.LNX.4.62.0505241436460.3878@graphe.net> <4293B292.6010301@us.ibm.com> <Pine.LNX.4.62.0505242221340.7191@graphe.net>
+In-Reply-To: <Pine.LNX.4.62.0505242221340.7191@graphe.net>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@osdl.org
+To: Christoph Lameter <christoph@lameter.com>
+Cc: "Martin J. Bligh" <mbligh@mbligh.org>, Andrew Morton <akpm@osdl.org>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-> Changelog since V10
+Christoph Lameter wrote:
+> On Tue, 24 May 2005, Matthew Dobson wrote:
 > 
-> o Important - All allocation types now use per-cpu caches like the standard
->   allocator. Older versions may have trouble with large numbers of processors
+> 
+>>No...  It does compile with that trivial patch, though! :)
+>>
+>>-mm2 isn't booting on my 32-way x86 box, nor does it boot on my PPC64 box.
+>> I figured -mm3 would be out shortly and I'd give the boxes another kick in
+>>the pants then...
+> 
+> 
+> Umm.. How does it fail? Any relationship to the slab allocator?
 
-Do you have a new set of benchmarks we could see?  The ones you had for 
-v10 were pretty useful.
+It dies really early om my x86 box.  I'm not 100% sure that it is b/c of
+your patches, since it dies so early I get nothing on the console.  Grub
+tells me it's loading the kernel image then....  nothing.
 
-> o Removed all the additional buddy allocator statistic code
-
-Is there a separate patch for the statistic code or is it no longer 
-being maintained?
-
-> +/*
-> + * Shared per-cpu lists would cause fragmentation over time
-> + * The pcpu_list is to keep kernel and userrclm allocations
-> + * apart while still allowing all allocation types to have
-> + * per-cpu lists
-> + */
-
-Why are kernel nonreclaimable and kernel reclaimable joined here?  I'm 
-not saying you are wrong, I'm just ignorant and need some education.
-
-> +struct pcpu_list {
-> +	int count;
-> +	struct list_head list;
-> +} ____cacheline_aligned_in_smp;
-> +
->  struct per_cpu_pages {
-> -	int count;		/* number of pages in the list */
-> +	struct pcpu_list pcpu_list[2]; /* 0: kernel 1: user */
->  	int low;		/* low watermark, refill needed */
->  	int high;		/* high watermark, emptying needed */
->  	int batch;		/* chunk size for buddy add/remove */
-> -	struct list_head list;	/* the list of pages */
->  };
->  
-
-Instead of defining 0 and 1 in a comment why not use a #define?
-
- > +			pcp->pcpu_list[0].count = 0;
- > +			pcp->pcpu_list[1].count = 0;
-
-The #define would make code like this look more readable.
-
+-Matt
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
