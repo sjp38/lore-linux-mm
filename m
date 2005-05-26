@@ -1,196 +1,49 @@
-Date: Wed, 25 May 2005 12:59:25 -0300
-From: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
-Subject: visual representation of swap area allocation
-Message-ID: <20050525155925.GA16874@logos.cnet>
-Mime-Version: 1.0
-Content-Type: multipart/mixed; boundary="gKMricLos+KVdGMg"
-Content-Disposition: inline
+Date: Thu, 26 May 2005 03:15:16 +0100 (BST)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: Re: [PATCH] small valid_swaphandles() optimization
+In-Reply-To: <20050525134234.GA16054@logos.cnet>
+Message-ID: <Pine.LNX.4.61.0505260303520.5870@goblin.wat.veritas.com>
+References: <20050525134234.GA16054@logos.cnet>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="us-ascii"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: akpm@osdl.org, Hugh Dickins <hugh@veritas.com>
-Cc: linux-mm@kvack.org
+To: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
+Cc: Andrew Morton <akpm@osdl.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
---gKMricLos+KVdGMg
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+On Wed, 25 May 2005, Marcelo Tosatti wrote:
+> 
+> The following patch, relative to valid_swaphandles(), moves the EOF 
+> check outside validity check loop, saving a few instructions. 
 
+But increasing the function's footprint - though not very excitingly
+either way.  Any benchmarks in support of it ?-)
 
-Hi,
+Hmmm.  Doesn't it go wrong on the toff == swapdev->max - 1 case,
+when i becomes 0 then is decremented negative at the end of the loop?
+Easily fixed, but suggests your optimization not worth the obfuscation?
 
-Due to personal interest, I've hacked up a small program to generate a 
-visual representation of swap area allocation. Results are quite
-interesting to me, so I've decided to share them with you.
+Hugh
 
-Test program is memtest's "fillmem" (on a 512/512 mem/swap machine).
-
-kernel is 2.6.11-rc4.
-
-stock_second_stage.png: stock allocator after fillmem's first stage
-akpm_first_stage.png: akpm's
-stock_first_stage.png: stock allocator after fillmem's second stage
-akpm_second_stage.png: akpm's
-
-"Legend": 
-White: free
-Red: used
-Black: past end of area
-
-I wonder about the noticeable periodic white regions on akpm's allocator,
-my guess is that its due to "properties" of the hash function. Collisions 
-could explain that ? Note there is a matching red region for each white 
-region. 
-
-There is no noticeable performance difference between the two allocators 
-with the "fillmem" workload on my tests.
-
---gKMricLos+KVdGMg
-Content-Type: image/png
-Content-Disposition: attachment; filename="akpm_first_stage.png"
-Content-Transfer-Encoding: base64
-
-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
-AABJRU5ErkJggg==
-
---gKMricLos+KVdGMg
-Content-Type: image/png
-Content-Disposition: attachment; filename="akpm_second_stage.png"
-Content-Transfer-Encoding: base64
-
-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
-
---gKMricLos+KVdGMg
-Content-Type: image/png
-Content-Disposition: attachment; filename="stock_first_stage.png"
-Content-Transfer-Encoding: base64
-
-iVBORw0KGgoAAAANSUhEUgAAAoAAAAHgAgMAAABIvzR3AAAACVBMVEUAAAD/////AADNXrec
-AAABwElEQVR4nO3OsQmAQBAAwS/ST6xQrNLYeBEOmck223W/nPcw13r3+MFxDFYGK4OVwcpg
-ZbAyWBmsDFYGK4OVwcpgZbAyWBmsDFYGK4OVwcpgZbAyWBmsDFYGK4OVwcpgZbAyWBmsDFYG
-K4OVwcpgZbAyWBmsDFYGK4OVwcpgZbAyWBmsDFYGK4OVwcpgZbAyWBmsDFYGK4OVwcpgZbAy
-WBmsDFYGK4OVwcpgZbAyWBmsDFYGK4OVwcpgZbAyWBmsDFYGK4OVwcpgZbAyWBmsDFYGK4OV
-wcpgZbAyWBmsDFYGK4OVwcpgZbAyWBmsDFYGK4OVwcpgZbAyWBmsDFYGK4OVwcpgZbAymOy9
-j/mDezaDlcHKYGWwMlgZrAxWBiuDlcHKYGWwMlgZrAxWBiuDlcHKYGWwMlgZrAxWBiuDlcHK
-YGWwMlgZrAxWBiuDlcHKYGWwMlgZrAxWBiuDlcHKYGWwMlgZrAxWBiuDlcHKYGWwMlgZrAxW
-BiuDlcHKYGWwMlgZrAxWBiuDlcHKYGWwMlgZrAxWBiuDlcHKYGWwMlgZrAxWBiuDlcHKYGWw
-qoPH+tz4QQAAAAAAAAAAAAD+5gE0N66LdtkNIgAAAABJRU5ErkJggg==
-
---gKMricLos+KVdGMg
-Content-Type: image/png
-Content-Disposition: attachment; filename="stock_second_stage.png"
-Content-Transfer-Encoding: base64
-
-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
-
---gKMricLos+KVdGMg--
+> --- a/mm/swapfile.c.orig	2005-05-25 15:45:18.000000000 -0300
+> +++ b/mm/swapfile.c	2005-05-25 16:20:45.000000000 -0300
+> @@ -1713,11 +1713,12 @@
+>  		toff++, i--;
+>  	*offset = toff;
+>  
+> +	/* Don't read-ahead past the end of the swap area */
+> +	if (toff+i >= swapdev->max)
+> +		i = swapdev->max - toff - 1;
+> +
+>  	swap_device_lock(swapdev);
+>  	do {
+> -		/* Don't read-ahead past the end of the swap area */
+> -		if (toff >= swapdev->max)
+> -			break;
+>  		/* Don't read in free or bad pages */
+>  		if (!swapdev->swap_map[toff])
+>  			break;
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
