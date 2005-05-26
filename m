@@ -1,72 +1,39 @@
-Received: from [77.192.52.123] (port=4016 helo=[partner])
-    by p8114-ipad07fukuhanazo.fukushima.ocn.ne.jp with esmtp
-    id 1117791407anglers43977
-    for linux-mm@kvack.org; Thu, 26 May 2005 13:10:35 +0900
-Mime-Version: 1.0 (News mailer)
+Date: Wed, 25 May 2005 23:48:24 -0700
+From: "Martin J. Bligh" <mbligh@mbligh.org>
+Reply-To: "Martin J. Bligh" <mbligh@mbligh.org>
+Subject: Re: NUMA aware slab allocator V3
+Message-ID: <179780000.1117090103@[10.10.2.4]>
+In-Reply-To: <Pine.LNX.4.62.0505251402090.15286@graphe.net>
+References: <Pine.LNX.4.58.0505110816020.22655@schroedinger.engr.sgi.com> <Pine.LNX.4.62.0505161046430.1653@schroedinger.engr.sgi.com> <714210000.1116266915@flay> <200505161410.43382.jbarnes@virtuousgeek.org> <740100000.1116278461@flay>  <Pine.LNX.4.62.0505161713130.21512@graphe.net><1116289613.26955.14.camel@localhost> <428A800D.8050902@us.ibm.com><Pine.LNX.4.62.0505171648370.17681@graphe.net> <428B7B16.10204@us.ibm.com><Pine.LNX.4.62.0505181046320.20978@schroedinger.engr.sgi.com><428BB05B.6090704@us.ibm.com> <Pine.LNX.4.62.0505181439080.10598@graphe.net><Pine.LNX.4.62.0505182105310.17811@graphe.net> <428E3497.3080406@us.ibm.com><Pine.LNX.4.62.0505201210460.390@graphe.net> <428E56EE.4050400@us.ibm.com><Pine.LNX.4.62.0505241436460.3878@graphe.net>
+ <4293B292.6010301@us.ibm.com><Pine.LNX.4.62.0505242221340.7191@graphe.net> <4294C39B.1040401@us.ibm.com> <Pine.LNX.4.62.0505251402090.15286@graphe.net>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
-Message-Id: <83835103486.8233683345@p8114-ipad07fukuhanazo.fukushima.ocn.ne.jp>
-Content-Type: text/plain; charset=US-ASCII; format=flowed
-From: Catherine <ascendancy@wiersma.com>
-Subject: These Shares Poised for a Run?
-Date: Thu, 26 May 2005 13:10:34 +0900
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Christoph Lameter <christoph@lameter.com>, Matthew Dobson <colpatch@us.ibm.com>
+Cc: Andrew Morton <akpm@osdl.org>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Here we go again - RLYC already up 80% this week - Much more to happen
 
-The profile for the month of May is RLYC - Relay Capital Corporation 
+--Christoph Lameter <christoph@lameter.com> wrote (on Wednesday, May 25, 2005 14:03:06 -0700):
 
-RLYC - released amazing news on Wednesday after the close
-Relay Capital Corp. to Launch "My Family" Stored-Value Cards for Families to Send Money to Relatives, Especially Those in Former Homelands
-Relay Capital Corp. to Launch "My Family" Stored-Value Cards for Families to Send Money to Relatives, Especially Those in Former Homelands
-Relay Capital Corp. to Launch "My Family" Stored-Value Cards for Families to Send Money to Relatives, Especially Those in Former Homelands
+> On Wed, 25 May 2005, Matthew Dobson wrote:
+> 
+>> > Umm.. How does it fail? Any relationship to the slab allocator?
+>> 
+>> It dies really early om my x86 box.  I'm not 100% sure that it is b/c of
+>> your patches, since it dies so early I get nothing on the console.  Grub
+>> tells me it's loading the kernel image then....  nothing.
+> 
+> Hmmm. Do you have an emulator? For IA32 and IA64 we have something that 
+> simulates a boot up sequence and can tell us what is going on.
 
+Turning on early printk is probably easier. Not that it seems to work nearly
+as early as some of hte other implementations we had, but still.
 
-+++++++++++++++++++++++++++++++++++++++++++++++++
-Symbol:                  RLYC
-Price:	                 $0.38
-Expected possible price in next 5 days: 85 cents
-+++++++++++++++++++++++++++++++++++++++++++++++++
-
-Breaking News Announced : Relay Capital Corp. to Launch "My Family" Stored-Value Cards for Families to Send Money to Relatives, Especially Those in Former Homelands
-
-
-+++++++++++++++++++++++++++++++++++++++++++++++++
-Symbol:                  RLYC
-Price:	                 $0.38
-Expected possible price in next 5 days: 85 cents
-+++++++++++++++++++++++++++++++++++++++++++++++++
-
-
-Relay Capital Corporation (RLYC)  is a developer and marketer of a wide range of prepaid financial services, including pre-paid stored value cards, reward cards, employee payroll cards, gift, retail and affinity group cards, travel cards and fund transfer cards. It encompasses both the marketing and distribution of pre-paid and pay-transfer cards in concert with the development of loading centers. Loading centers are retail locations, such as convenience stores, check cashing facilities or other types of retail facilities serving to dispense or receive cash facilitating transactions for the stored-value card consumer. 
-
-+++++++++++++++++++++++++++++++++++++++++++++++++
-Symbol:                  RLYC
-Price:	                 $0.38
-Expected possible price in next 5 days: 85 cents
-+++++++++++++++++++++++++++++++++++++++++++++++++
-
----------------------------------------------------------
-
-Breaking News:  LOS ANGELES, CA, May 25, 2005 (MARKET WIRE via COMTEX) -- May 25, 2005 (MARKET WIRE) - Relay Capital Corp. (RLYC) is launching "My Family(SM)" Dual-Pak stored-value debit cards to serve the multi-billion dollar market for family members who send money to relatives, especially to those in former homelands, or parents who want to provide money to students living away from home quickly, conveniently and cost effectively. 
-
-My Family(SM) cards, which Corporate Network negotiated on behalf of Relay Capital with Ascot Investments, Inc., (www.ascotinc.com) addresses the growing global demand for the rapid, cost-efficient ability to securely send and receive money across town or around the world. It eliminates the sometimes-insurmountable hassles of having to locate and physically get to a facility to send or pick up wired funds. Cash is available within minutes at the nearest affiliated ATM. 
-
-Relay Capital's My Family(SM) card's primary focus is US families sending money to relatives abroad. A primary example is Hispanic immigrants that send money to relatives in their homeland. A recent LOS ANGELES TIMES article entitled, "Funds Sent to Mexico Hit Record" stated, "The central bank of Mexico projected that 2004 remittances would hit $16.3 billion, up 22% over 2003." 
-
-
-
-
-
-+++++++++++++++++++++++++++++++++++++++
-
-Read This before you do anything else:
-
-Information within this email contains "forward looking statements" within the meaning of Section 27A of the Securities Act of 1933 and Section 21B of the Securities Exchange Act of 1934. Any statements that express or involve discussions with respect to predictions, goals, expectations, beliefs, plans, projections, objectives, assumptions or future events or performance are not statements of historical fact and may be "forward looking statements." Forward looking statements are based on expectations, estimates and projections at the time the statements are made that involve a number of risks and uncertainties which could cause actual results or events to differ materially from those presently anticipated. Forward looking statements in this action may be identified through the use of words such as: "projects", "foresee", "expects", "estimates," "believes," "understands" "will," "part of: "anticipates," or that by statements indicating certain actions "may," "could," or "might" occur. All information provided within this email pertaining to investing, stocks, securities must be understood as information provided and not investment advice. Emerging Equity Alert advises all readers and subscribers to seek advice from a registered professional securities representative before deciding to trade in stocks featured within this email. None of the material within this report shall be construed as any kind of investment advice. Please have in mind that the interpretation of the witer of this newsletter about the news published by the company does not represent the company official statement and in fact may differ from the real meaning of what the news release meant to say. Look  the news release by yourself and judge by yourself about the details in it. In compliance with Section 17(b), we disclose the holding of RLYC shares prior to the publication of this report. Be aware of an inherent conflict of interest resulting from such holdings due to our intent to profit from the liquidation of these shares. Shares may be sold at any time, even after positive statements have been made regarding the above company. Since we own shares, there is an inherent conflict of interest in our statements and opinions. Readers  of this publication are cautioned not to place undue reliance on forward-looking statements, which are based on certain assumptions and expectations involving various risks and uncertainties, that could cause results to differ materially from those set forth in the forward- looking statements. "Expected Speculative price" should not be accepted as price projection its only for informational purposes. Please be advised that nothing within this email shall constitute a solicitation or an invitation to get position in or sell any security mentioned herein.  This newsletter is neither a registered investment advisor nor affiliated with any broker or dealer. This newsletter was paid $29500 from third party  (RaginbullsStock) to send this report.  All statements made are our express opinion only and should be treated as such. We may own, take position and  sell any securities mentioned at any time. This report includes forward-looking statements within the meaning of The Private Securities Litigation Reform Act of 1995. These statements may include terms as "expect", "believe", "may", "will", "move","undervalued" , "speculative target price" and "intend" or similar terms. 
-
-
+M.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
