@@ -1,51 +1,35 @@
-Date: Thu, 26 May 2005 03:15:16 +0100 (BST)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: [PATCH] small valid_swaphandles() optimization
-In-Reply-To: <20050525134234.GA16054@logos.cnet>
-Message-ID: <Pine.LNX.4.61.0505260303520.5870@goblin.wat.veritas.com>
-References: <20050525134234.GA16054@logos.cnet>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
-Cc: Andrew Morton <akpm@osdl.org>, linux-mm@kvack.org
+Date: Thu, 26 May 2005 02:27:39 -0100
+From: "Pat Magee" <ollison@yebox.com>
+Subject: Need a low mortage rate?
+Message-ID: <112141.7404.ollison@yebox.com>
+Return-Path: <ollison@yebox.com>
+To: inux-aio@kvack.org
+Cc: inux-mm@kvack.org, jordomo@kvack.org, kernel@kvack.org, lah@kvack.org, linux-aio@kvack.org, linux-mm@kvack.org, linux-mm-archive@kvack.orgm@kvack.org, mailer-daemon@kvack.orgmm@kvack.orgmo@kvack.org, mus@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 25 May 2005, Marcelo Tosatti wrote:
-> 
-> The following patch, relative to valid_swaphandles(), moves the EOF 
-> check outside validity check loop, saving a few instructions. 
+Hello,
 
-But increasing the function's footprint - though not very excitingly
-either way.  Any benchmarks in support of it ?-)
+ We tried contacting you awhile ago about your low interest morta(ge rate.
 
-Hmmm.  Doesn't it go wrong on the toff == swapdev->max - 1 case,
-when i becomes 0 then is decremented negative at the end of the loop?
-Easily fixed, but suggests your optimization not worth the obfuscation?
+ You have qualified for the lowest rate in years...
 
-Hugh
+ You could get over $380,000 for as little as $500 a month!
 
-> --- a/mm/swapfile.c.orig	2005-05-25 15:45:18.000000000 -0300
-> +++ b/mm/swapfile.c	2005-05-25 16:20:45.000000000 -0300
-> @@ -1713,11 +1713,12 @@
->  		toff++, i--;
->  	*offset = toff;
->  
-> +	/* Don't read-ahead past the end of the swap area */
-> +	if (toff+i >= swapdev->max)
-> +		i = swapdev->max - toff - 1;
-> +
->  	swap_device_lock(swapdev);
->  	do {
-> -		/* Don't read-ahead past the end of the swap area */
-> -		if (toff >= swapdev->max)
-> -			break;
->  		/* Don't read in free or bad pages */
->  		if (!swapdev->swap_map[toff])
->  			break;
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"aart@kvack.org"> aart@kvack.org </a>
+ Ba(d credit? Doesn't matter, low rates are fixed no matter what!
+
+ 
+ To get a free, no obli,gation consultation click below:
+
+ http://www.pr1ces.com/sign.asp
+
+
+
+ Best Regards,
+
+ Gilberto Holmes
+ 
+ to be remov(ed:	http://www.pr1ces.com/gone.asp
+
+ this process takes one week, so please be patient. we do our 
+ best to take your email/s off but you have to fill out a rem/ove
+ or else you will continue to recieve email/s.
