@@ -1,40 +1,105 @@
-Date: Wed, 25 May 2005 23:48:24 -0700
-From: "Martin J. Bligh" <mbligh@mbligh.org>
-Reply-To: "Martin J. Bligh" <mbligh@mbligh.org>
-Subject: Re: NUMA aware slab allocator V3
-Message-ID: <179780000.1117090103@[10.10.2.4]>
-In-Reply-To: <Pine.LNX.4.62.0505251402090.15286@graphe.net>
-References: <Pine.LNX.4.58.0505110816020.22655@schroedinger.engr.sgi.com> <Pine.LNX.4.62.0505161046430.1653@schroedinger.engr.sgi.com> <714210000.1116266915@flay> <200505161410.43382.jbarnes@virtuousgeek.org> <740100000.1116278461@flay>  <Pine.LNX.4.62.0505161713130.21512@graphe.net><1116289613.26955.14.camel@localhost> <428A800D.8050902@us.ibm.com><Pine.LNX.4.62.0505171648370.17681@graphe.net> <428B7B16.10204@us.ibm.com><Pine.LNX.4.62.0505181046320.20978@schroedinger.engr.sgi.com><428BB05B.6090704@us.ibm.com> <Pine.LNX.4.62.0505181439080.10598@graphe.net><Pine.LNX.4.62.0505182105310.17811@graphe.net> <428E3497.3080406@us.ibm.com><Pine.LNX.4.62.0505201210460.390@graphe.net> <428E56EE.4050400@us.ibm.com><Pine.LNX.4.62.0505241436460.3878@graphe.net>
- <4293B292.6010301@us.ibm.com><Pine.LNX.4.62.0505242221340.7191@graphe.net> <4294C39B.1040401@us.ibm.com> <Pine.LNX.4.62.0505251402090.15286@graphe.net>
+Date: Thu, 26 May 2005 13:35:46 +0100 (IST)
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: Avoiding external fragmentation with a placement policy Version
+ 11
+In-Reply-To: <4294BE45.3000502@austin.ibm.com>
+Message-ID: <Pine.LNX.4.58.0505260809420.695@skynet>
+References: <20050522200507.6ED7AECFC@skynet.csn.ul.ie> <4294BE45.3000502@austin.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <christoph@lameter.com>, Matthew Dobson <colpatch@us.ibm.com>
-Cc: Andrew Morton <akpm@osdl.org>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Joel Schopp <jschopp@austin.ibm.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@osdl.org
 List-ID: <linux-mm.kvack.org>
 
+On Wed, 25 May 2005, Joel Schopp wrote:
 
---Christoph Lameter <christoph@lameter.com> wrote (on Wednesday, May 25, 2005 14:03:06 -0700):
+> > Changelog since V10
+> >
+> > o Important - All allocation types now use per-cpu caches like the standard
+> >   allocator. Older versions may have trouble with large numbers of
+> > processors
+>
+> Do you have a new set of benchmarks we could see?  The ones you had for v10
+> were pretty useful.
+>
 
-> On Wed, 25 May 2005, Matthew Dobson wrote:
-> 
->> > Umm.. How does it fail? Any relationship to the slab allocator?
->> 
->> It dies really early om my x86 box.  I'm not 100% sure that it is b/c of
->> your patches, since it dies so early I get nothing on the console.  Grub
->> tells me it's loading the kernel image then....  nothing.
-> 
-> Hmmm. Do you have an emulator? For IA32 and IA64 we have something that 
-> simulates a boot up sequence and can tell us what is going on.
+Only what I've posted as part of the patch. I cannot benchmark the
+scalability on large numbers of processors as I lack such a machine. I am
+*guessing* that the inability of previous patch versions to use per-cpu
+caches for kernel allocations would have hurt, but I do not know for a
+fact.
 
-Turning on early printk is probably easier. Not that it seems to work nearly
-as early as some of hte other implementations we had, but still.
+> > o Removed all the additional buddy allocator statistic code
+>
+> Is there a separate patch for the statistic code or is it no longer being
+> maintained?
+>
 
-M.
+It's still being maintained, I didn't post it because I didn't think
+people were interested and I am happy to keep the stats patch as part of
+VMRegress. The current version of the statistics patch is attached this
+mail. It comes with a noticeable performance penalty when enabled.
 
+> > +/*
+> > + * Shared per-cpu lists would cause fragmentation over time
+> > + * The pcpu_list is to keep kernel and userrclm allocations
+> > + * apart while still allowing all allocation types to have
+> > + * per-cpu lists
+> > + */
+>
+> Why are kernel nonreclaimable and kernel reclaimable joined here?  I'm not
+> saying you are wrong, I'm just ignorant and need some education.
+>
+
+Right now, the KernRclm areas tend to free up in large blocks over time,
+but there is no way of forcing it so we rarely get the MAX_ORDER-1 sized
+blocks from the kernel areas. The per-cpu caches pollute areas very slowly
+but are not very noticable in the kernrclm areas. As I don't expect to get
+the interesting large blocks fre ein the kernel areas, and this is a
+critical path, I decided to let the per-cpu lists share the kernel lists.
+
+When hotplug comes into play, or we have a mechanism for force-reclaiming
+the KernRclm areas, this will need to be revisited.
+
+Does this make sense?
+
+> > +struct pcpu_list {
+> > +    int count;
+> > +    struct list_head list;
+> > +} ____cacheline_aligned_in_smp;
+> > +
+> >  struct per_cpu_pages {
+> > -    int count;      /* number of pages in the list */
+> > +    struct pcpu_list pcpu_list[2]; /* 0: kernel 1: user */
+> >      int low;/* low watermark, refill needed */
+> >      int high;       /* high watermark, emptying needed */
+> >      int batch;      /* chunk size for buddy add/remove */
+> > -    struct list_head list;  /* the list of pages */
+> >  };
+> >
+>
+> Instead of defining 0 and 1 in a comment why not use a #define?
+>
+
+We could, and in an unreleased version, it was a #define. I used the 0 and
+1 to look similar to how hot/cold page lists are managed and I wanted
+things to look familiar.
+
+> > +    pcp->pcpu_list[0].count = 0;
+> > +    pcp->pcpu_list[1].count = 0;
+>
+> The #define would make code like this look more readable.
+>
+
+I'll release a verion on Monday against the latest rc5 kernel with a
+#define instead. Probably something like PCPU_KERNEL and PCPU_USER
+
+-- 
+Mel Gorman
+Part-time Phd Student                          Java Applications Developer
+University of Limerick                         IBM Dublin Software Lab
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
