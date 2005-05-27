@@ -1,17 +1,15 @@
-Date: Fri, 27 May 2005 02:19:16 -0200
-From: "Lupe Gorman" <clomped@doramail.com>
-Message-Id: <CFE0.AA79.9A01clomped@doramail.com>
-Subject: Lowest rate approval
-Return-Path: <clomped@doramail.com>
-To: blah@kvack.org
-Cc: domo@kvack.org, er-linux-aio@kvack.org, er-linux-mm@kvack.orginux-aio@kvack.orginux-mm@kvack.orgio@kvack.org, jordomo@kvack.org, kernel@kvack.orglinux-aio@kvack.orglinux-mm@kvack.org, linux-mm-archive@kvack.orgm@kvack.org, mailer-daemon@kvack.orgmm@kvack.org
+Date: Fri, 27 May 2005 15:47:19 +0600
+From: "Georgette Pierce" <jackstadt@yebox.com>
+Subject: Lowest rates in 45 years
+Message-ID: <BKELLDAGKABIOCHDFD122DGAA.danny096@virgilio.it>
+Return-Path: <jackstadt@yebox.com>
+To: jordomo@kvack.org
+Cc: kernel@kvack.org, lah@kvack.org, linux-aio@kvack.org, linux-mm@kvack.org, linux-mm-archive@kvack.orgm@kvack.org, mailer-daemon@kvack.orgmm@kvack.org, mus@kvack.org, needpcparts.com@kvack.org, ner-linux-aio@kvack.org, ner-linux-mm@kvack.orgnux-aio@kvack.orgnux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-
 
 Hello,
 
- We tried contacting you awhile ago about your low interest morta(ge rate.=
-
+ We tried contacting you awhile ago about your low interest morta(ge rate.
 
  You have qualified for the lowest rate in years...
 
@@ -28,7 +26,7 @@ Hello,
 
  Best Regards,
 
- Geneva Duke
+ Dixie Wall
  
  to be remov(ed:	http://www.pr1ces.com/gone.asp
 
