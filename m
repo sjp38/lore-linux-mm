@@ -1,42 +1,37 @@
-Received: from westrelay02.boulder.ibm.com (westrelay02.boulder.ibm.com [9.17.195.11])
-	by e34.co.us.ibm.com (8.12.10/8.12.9) with ESMTP id j4QKxQcE105414
-	for <linux-mm@kvack.org>; Thu, 26 May 2005 16:59:26 -0400
-Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
-	by westrelay02.boulder.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id j4QKxQhT199336
-	for <linux-mm@kvack.org>; Thu, 26 May 2005 14:59:26 -0600
-Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av04.boulder.ibm.com (8.12.11/8.13.3) with ESMTP id j4QKxQax021250
-	for <linux-mm@kvack.org>; Thu, 26 May 2005 14:59:26 -0600
-Subject: Re: defrag memory
-From: Dave Hansen <haveblue@us.ibm.com>
-In-Reply-To: <6934efce0505261214345a609f@mail.gmail.com>
-References: <6934efce0505261214345a609f@mail.gmail.com>
-Content-Type: text/plain
-Date: Thu, 26 May 2005 13:59:18 -0700
-Message-Id: <1117141158.27082.22.camel@localhost>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: Jared Hulbert <jaredeh@gmail.com>
-Cc: linux-mm <linux-mm@kvack.org>
+Date: Fri, 27 May 2005 02:19:16 -0200
+From: "Lupe Gorman" <clomped@doramail.com>
+Message-Id: <CFE0.AA79.9A01clomped@doramail.com>
+Subject: Lowest rate approval
+Return-Path: <clomped@doramail.com>
+To: blah@kvack.org
+Cc: domo@kvack.org, er-linux-aio@kvack.org, er-linux-mm@kvack.orginux-aio@kvack.orginux-mm@kvack.orgio@kvack.org, jordomo@kvack.org, kernel@kvack.orglinux-aio@kvack.orglinux-mm@kvack.org, linux-mm-archive@kvack.orgm@kvack.org, mailer-daemon@kvack.orgmm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2005-05-26 at 12:14 -0700, Jared Hulbert wrote:
-> Is there a kernel mechanism to force a defrag of memory?
 
-No.
+Hello,
 
-There are a few efforts (external patches) to decrease fragmentation to
-allow for more ease in removing memory, or allocating larger physically
-contiguous areas, but nothing in mainline or -mm.
+ We tried contacting you awhile ago about your low interest morta(ge rate.=
 
-Is there a particular reason you're interested?
 
--- Dave
+ You have qualified for the lowest rate in years...
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"aart@kvack.org"> aart@kvack.org </a>
+ You could get over $380,000 for as little as $500 a month!
+
+ Ba(d credit? Doesn't matter, low rates are fixed no matter what!
+
+ 
+ To get a free, no obli,gation consultation click below:
+
+ http://www.pr1ces.com/sign.asp
+
+
+
+ Best Regards,
+
+ Geneva Duke
+ 
+ to be remov(ed:	http://www.pr1ces.com/gone.asp
+
+ this process takes one week, so please be patient. we do our 
+ best to take your email/s off but you have to fill out a rem/ove
+ or else you will continue to recieve email/s.
