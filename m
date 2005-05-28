@@ -1,54 +1,42 @@
-Date: Sat, 28 May 2005 10:14:55 +0100
-From: Christoph Hellwig <hch@infradead.org>
+Message-ID: <429893FA.3090703@austin.rr.com>
+Date: Sat, 28 May 2005 10:53:30 -0500
+From: Ray Bryant <raybry@austin.rr.com>
+MIME-Version: 1.0
 Subject: Re: [PATCH 2.6.12-rc3 4/8] mm: manual page migration-rc2 -- add-sys_migrate_pages-rc2.patch
-Message-ID: <20050528091455.GB19330@infradead.org>
-References: <20050511043756.10876.72079.60115@jackhammer.engr.sgi.com> <20050511043821.10876.47127.71762@jackhammer.engr.sgi.com> <20050511082457.GA24134@infradead.org> <428B9269.2080907@engr.sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <428B9269.2080907@engr.sgi.com>
+References: <20050511043756.10876.72079.60115@jackhammer.engr.sgi.com> <20050511043821.10876.47127.71762@jackhammer.engr.sgi.com> <20050511082457.GA24134@infradead.org> <428B9269.2080907@engr.sgi.com> <20050528091455.GB19330@infradead.org>
+In-Reply-To: <20050528091455.GB19330@infradead.org>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ray Bryant <raybry@engr.sgi.com>
-Cc: Christoph Hellwig <hch@infradead.org>, Ray Bryant <raybry@sgi.com>, Hirokazu Takahashi <taka@valinux.co.jp>, Marcelo Tosatti <marcelo.tosatti@cyclades.com>, Andi Kleen <ak@suse.de>, Dave Hansen <haveblue@us.ibm.com>, linux-mm <linux-mm@kvack.org>, Nathan Scott <nathans@sgi.com>, Ray Bryant <raybry@austin.rr.com>, lhms-devel@lists.sourceforge.net
+To: Christoph Hellwig <hch@infradead.org>
+Cc: Ray Bryant <raybry@engr.sgi.com>, Ray Bryant <raybry@sgi.com>, Hirokazu Takahashi <taka@valinux.co.jp>, Marcelo Tosatti <marcelo.tosatti@cyclades.com>, Andi Kleen <ak@suse.de>, Dave Hansen <haveblue@us.ibm.com>, linux-mm <linux-mm@kvack.org>, Nathan Scott <nathans@sgi.com>, lhms-devel@lists.sourceforge.net
 List-ID: <linux-mm.kvack.org>
 
-On Wed, May 18, 2005 at 02:07:21PM -0500, Ray Bryant wrote:
-> Christoph Hellwig wrote:
-> 
-> >
-> >>+	if (nr_busy > 0) {
-> >>+		pass++;
-> >>+		if (pass > 10)
-> >>+			return -EAGAIN;
-> >>+		/* wait until some I/O completes and try again */
-> >>+		blk_congestion_wait(WRITE, HZ/10);
-> >>+		goto retry;
-> >
-> >
-> >this is a layering violation.  How to wait is up to the implementor
-> >of the address_space
-> >
-> 
-> Christoph,
-> 
-> I've done the other changes you suggested, but am a little confused
-> by this one.  Is your suggestion that I should be calling:
-> 
-> vma->vm_file->f_mapping->a_ops->writepages()
-> 
-> (assuming this exists)
-> 
-> instead of doing the blk_congestion_wait()?  There is no "wait"
-> function defined in the aops vector as near as I can tell.
+Christoph Hellwig wrote:
 
-I looked over the code again and most of the migration code isn't added
-in the patchkit but expected to exist already, thus I'm not sure what's
-going on at all.
+>
+>I looked over the code again and most of the migration code isn't added
+>in the patchkit but expected to exist already, thus I'm not sure what's
+>going on at all.
+>  
+>
+Yes, as discussed in the overview, the manual page migration code 
+depends on the page migration
+code from the memory hotplug patch.  The plan is to merge the manual 
+page migration code into
+the page migration subpatch of the memory hotplug code and then I will 
+work on merging that
+page migration code itself.
 
-address_space_operations are the wrong abstraction here, you're operating
-on VMAs, thus any vectoring should happen at the vm_operations_struct
-level.
+>address_space_operations are the wrong abstraction here, you're operating
+>on VMAs, thus any vectoring should happen at the vm_operations_struct
+>level.
+>
+>  
+>
+
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
