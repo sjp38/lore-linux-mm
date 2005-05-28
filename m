@@ -1,45 +1,46 @@
-Date: Sat, 28 May 2005 09:49:29 +0100
+Date: Sat, 28 May 2005 09:53:27 +0100
 From: Christoph Hellwig <hch@infradead.org>
-Subject: Re: manual page migration and madvise/mbind
-Message-ID: <20050528084929.GA19027@infradead.org>
-References: <428A1F6F.2020109@engr.sgi.com> <20050518012627.GA33395@muc.de>
+Subject: Re: [PATCH 1/15] PTI: clean page table interface
+Message-ID: <20050528085327.GA19047@infradead.org>
+References: <20050521024331.GA6984@cse.unsw.EDU.AU>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20050518012627.GA33395@muc.de>
+In-Reply-To: <20050521024331.GA6984@cse.unsw.EDU.AU>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <ak@muc.de>
-Cc: Ray Bryant <raybry@engr.sgi.com>, Christoph Hellwig <hch@engr.sgi.com>, linux-mm <linux-mm@kvack.org>, lhms <lhms-devel@lists.sourceforge.net>
+To: Paul Davies <pauld@gelato.unsw.edu.au>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, May 18, 2005 at 03:26:27AM +0200, Andi Kleen wrote:
-> > This is something quite a bit different than what madvise() or mbind()
-> > do today.  (They just manipulate vma's AFAIK.)
+On Sat, May 21, 2005 at 12:43:31PM +1000, Paul Davies wrote:
+> Here are a set of 15 patches against 2.6.12-rc4 to provide a clean
+> page table interface so that alternate page tables can be fitted
+> to Linux in the future.  This patch set is produced on behalf of
+> the Gelato research group at the University of New South Wales.
 > 
-> Nah, mbind manipulates backing objects too, in particular for shared 
-> memory. It is not right now implemented for files, but that was planned
-> and Steve L's patches went into that direction with some limitations.
+> LMbench results are included at the end of this patch set.  The
+> results are very good although the mmap latency figures were
+> slightly higher than expected.
 > 
-> And yes, the state would need to be stored in the address_space, which
-> is shared.  In my version it was in private backing store objects.
-> Check Steve's patch.
-> 
-> The main problem I see with the "hack ld.so" approach is that it 
-> doesn't work for non program files. So if you really want to handle
-> them you would need a daemon that sets the policies once a file 
-> is mapped or hack all the programs to set the policies. I don't
-> see that as being practicable. Ok you could always add a "sticky" process
-> policy that actually allocates mempolicies for newly read files
-> and so marks them using your new flags. But that would seem
-> somewhat ugly to me and is probably incompatible with your batch manager
-> anyways.  The only sane way to handle arbitary files like this
-> would be the xattr.
+> I look forward to any feedback that will assist me in putting
+> together a page table interface that will benefit the whole linux
+> community. 
 
-Storing the full memory policy in the extended attributes seems at least
-a little less hackish then what's done currently.  We should read the policy
-once at mmap time only instead of letting VM code poke into xattr details,
-though.
+I've not looked over it a lot, but your code organization is a bit odd
+and non-standard:
+
+ - generic implementations for per-arch abstractions go into asm-generic
+   and every asm-foo/ header that wants to use it includes it.  In your
+   case that would be an asm-generic/page_table.h for the generic 3level
+   page tables.  Please avoid #includes for generic implementations from
+   architecture-independent headers guarded by CONFIG_ symbols.
+ - I don't think the subdirectory under mm/ makes sense.  Just call the
+   file mm/3level-page-table.c or something.
+ - similar please avoid the include/mm directory.  It might or might not
+   make sense to have a subdirectory for mm headers, but please don't
+   start one as part of a large patch series.
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
