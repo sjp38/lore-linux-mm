@@ -1,33 +1,42 @@
-Received: from [130.150.96.100] (port=4580 helo=[basically])
-    by client-201.240.103.62.speedy.net.pe with esmtp
-    id 70747110168inoculate94118
-    for linux-mm@kvack.org; Sat, 28 May 2005 11:13:43 -0500
-Mime-Version: 1.0 (Apple Message framework v728)
-Content-Transfer-Encoding: 7bit
-Message-Id: <10577955610.84815108586@client-201.240.103.62.speedy.net.pe>
-Content-Type: text/plain; charset=US-ASCII; format=flowed
-From: Felice <attendance@aif.ch>
-Subject: Experience more powerful orgasms
-Date: Sat, 28 May 2005 11:13:42 -0500
+Message-Id: <20050528231722.025759000@nd47.coderock.org>
+Date: Sun, 29 May 2005 01:17:22 +0200
+From: domen@coderock.org
+Subject: [patch 2/2] printk : arch/i386/mm/ioremap.c
+Content-Disposition: inline; filename=printk-arch_i386_mm_ioremap
 Sender: owner-linux-mm@kvack.org
+From: Christophe Lucas <clucas@rotomalug.org>
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: akpm@osdl.org
+Cc: linux-mm@kvack.org, Christophe Lucas <clucas@rotomalug.org>, domen@coderock.org
 List-ID: <linux-mm.kvack.org>
 
-Pleasure your women - size does matter!
-http://www.jnaz.net/ss/
 
 
+printk() calls should include appropriate KERN_* constant.
+
+Signed-off-by: Christophe Lucas <clucas@rotomalug.org>
+Signed-off-by: Domen Puncer <domen@coderock.org>
 
 
+---
+ ioremap.c |    2 +-
+ 1 files changed, 1 insertion(+), 1 deletion(-)
 
-What we anticipate seldom occurs: but what we least expect generally happens. 
-Nobody realizes that some people expend tremendous energy merely to be normal. 
-The only difference between genius and stupidity is that genius is limited. 
-Good company and good discourse are the very sinews of virtue.  
-Curious things, habits. People themselves never knew they had them.   
+Index: quilt/arch/i386/mm/ioremap.c
+===================================================================
+--- quilt.orig/arch/i386/mm/ioremap.c
++++ quilt/arch/i386/mm/ioremap.c
+@@ -241,7 +241,7 @@ void iounmap(volatile void __iomem *addr
+ 	write_lock(&vmlist_lock);
+ 	p = __remove_vm_area((void *) (PAGE_MASK & (unsigned long __force) addr));
+ 	if (!p) { 
+-		printk("iounmap: bad address %p\n", addr);
++		printk(KERN_WARNING "iounmap: bad address %p\n", addr);
+ 		goto out_unlock;
+ 	}
+ 
 
-
+--
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
