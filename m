@@ -1,46 +1,54 @@
-Date: Sat, 28 May 2005 09:53:27 +0100
+Date: Sat, 28 May 2005 10:14:55 +0100
 From: Christoph Hellwig <hch@infradead.org>
-Subject: Re: [PATCH 1/15] PTI: clean page table interface
-Message-ID: <20050528085327.GA19047@infradead.org>
-References: <20050521024331.GA6984@cse.unsw.EDU.AU>
+Subject: Re: [PATCH 2.6.12-rc3 4/8] mm: manual page migration-rc2 -- add-sys_migrate_pages-rc2.patch
+Message-ID: <20050528091455.GB19330@infradead.org>
+References: <20050511043756.10876.72079.60115@jackhammer.engr.sgi.com> <20050511043821.10876.47127.71762@jackhammer.engr.sgi.com> <20050511082457.GA24134@infradead.org> <428B9269.2080907@engr.sgi.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20050521024331.GA6984@cse.unsw.EDU.AU>
+In-Reply-To: <428B9269.2080907@engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Paul Davies <pauld@gelato.unsw.edu.au>
-Cc: linux-mm@kvack.org
+To: Ray Bryant <raybry@engr.sgi.com>
+Cc: Christoph Hellwig <hch@infradead.org>, Ray Bryant <raybry@sgi.com>, Hirokazu Takahashi <taka@valinux.co.jp>, Marcelo Tosatti <marcelo.tosatti@cyclades.com>, Andi Kleen <ak@suse.de>, Dave Hansen <haveblue@us.ibm.com>, linux-mm <linux-mm@kvack.org>, Nathan Scott <nathans@sgi.com>, Ray Bryant <raybry@austin.rr.com>, lhms-devel@lists.sourceforge.net
 List-ID: <linux-mm.kvack.org>
 
-On Sat, May 21, 2005 at 12:43:31PM +1000, Paul Davies wrote:
-> Here are a set of 15 patches against 2.6.12-rc4 to provide a clean
-> page table interface so that alternate page tables can be fitted
-> to Linux in the future.  This patch set is produced on behalf of
-> the Gelato research group at the University of New South Wales.
+On Wed, May 18, 2005 at 02:07:21PM -0500, Ray Bryant wrote:
+> Christoph Hellwig wrote:
 > 
-> LMbench results are included at the end of this patch set.  The
-> results are very good although the mmap latency figures were
-> slightly higher than expected.
+> >
+> >>+	if (nr_busy > 0) {
+> >>+		pass++;
+> >>+		if (pass > 10)
+> >>+			return -EAGAIN;
+> >>+		/* wait until some I/O completes and try again */
+> >>+		blk_congestion_wait(WRITE, HZ/10);
+> >>+		goto retry;
+> >
+> >
+> >this is a layering violation.  How to wait is up to the implementor
+> >of the address_space
+> >
 > 
-> I look forward to any feedback that will assist me in putting
-> together a page table interface that will benefit the whole linux
-> community. 
+> Christoph,
+> 
+> I've done the other changes you suggested, but am a little confused
+> by this one.  Is your suggestion that I should be calling:
+> 
+> vma->vm_file->f_mapping->a_ops->writepages()
+> 
+> (assuming this exists)
+> 
+> instead of doing the blk_congestion_wait()?  There is no "wait"
+> function defined in the aops vector as near as I can tell.
 
-I've not looked over it a lot, but your code organization is a bit odd
-and non-standard:
+I looked over the code again and most of the migration code isn't added
+in the patchkit but expected to exist already, thus I'm not sure what's
+going on at all.
 
- - generic implementations for per-arch abstractions go into asm-generic
-   and every asm-foo/ header that wants to use it includes it.  In your
-   case that would be an asm-generic/page_table.h for the generic 3level
-   page tables.  Please avoid #includes for generic implementations from
-   architecture-independent headers guarded by CONFIG_ symbols.
- - I don't think the subdirectory under mm/ makes sense.  Just call the
-   file mm/3level-page-table.c or something.
- - similar please avoid the include/mm directory.  It might or might not
-   make sense to have a subdirectory for mm headers, but please don't
-   start one as part of a large patch series.
-
+address_space_operations are the wrong abstraction here, you're operating
+on VMAs, thus any vectoring should happen at the vm_operations_struct
+level.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
