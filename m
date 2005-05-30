@@ -1,49 +1,57 @@
-From: Paul Davies <pauld@gelato.unsw.edu.au>
-Date: Mon, 30 May 2005 15:16:07 +1000
-Subject: Re: PTI: clean page table interface
-Message-ID: <20050530051607.GA20379@cse.unsw.EDU.AU>
-References: <20050521024331.GA6984@cse.unsw.EDU.AU> <20050528085327.GA19047@infradead.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20050528085327.GA19047@infradead.org>
+From: "MISS JANET WILLIAMS" <jenny_wils@yahoo.fr>
+Reply-To: jenty_wil10@yahoo.com
+Date: Mon, 30 May 2005 12:57:38 +0000
+Subject: Good Day!!
+MIME-Version: 1.0
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: 8BIT
+Message-Id: <20050530130013Z26582-1676+74@kvack.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Hellwig <hch@infradead.org>
-Cc: linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 28/05/05 09:53 +0100, Christoph Hellwig wrote:
-> I've not looked over it a lot, but your code organization is a bit odd
-> and non-standard:
-> 
->  - generic implementations for per-arch abstractions go into asm-generic
->    and every asm-foo/ header that wants to use it includes it.  In your
->    case that would be an asm-generic/page_table.h for the generic 3level
->    page tables.  Please avoid #includes for generic implementations from
->    architecture-independent headers guarded by CONFIG_ symbols.
->  - I don't think the subdirectory under mm/ makes sense.  Just call the
->    file mm/3level-page-table.c or something.
->  - similar please avoid the include/mm directory.  It might or might not
->    make sense to have a subdirectory for mm headers, but please don't
->    star one as part of a large patch series.
+Attn/Dear,
 
-Thank you for your pointers regarding the code organisation.  I will be
-taking your advice which will appear in the next iteration of patches.
 
-We have a guarded page table implementation at UNSW (originally conceived
-of by Jochen Liedtke).  We are testing it in Linux as an alternative to
-the MLPT.  After the current patches (to achieve a clean interface), we have
-a GPT patch set which includes directories mm/fixed-mlpt and mm/gpt.
+I would like to apply through this medium for your
+co-operation and to secure  an opportunity to invest
+and do joint business with you in your country. 
 
-The GPT is far more sophisticated than the MLPT and is written across a
-number of files.  Having a directory for each page table implementation
-makes sense when you see alternate page tables side by side.
+I have a substantial capital i honourably intend to
+invest in your country into a very lucrative business
+venture of which you are to advise and execute the
+said venture over there for the mutual benefits of
+both of us.
 
-I am writing a patch[0/15] to give a brief explanation of what we are doing
-at UNSW and to explain the interface a little better.  
 
-Please let me know if there is anything else that would assist.
+Your able co-operation is to become my business
+partner in your country and create ideas on how money
+will be invested,properly managed and the type of
+investment after the money is transferred to your
+custody with your assistance.
+
+Meanwhile, on indication of your willingness to handle
+this transaction sincerely by protecting our interests
+and upon your acceptance of this proposal, I would
+furnish you with the full detailed information,
+procedure,amount involve and mutually agree on your
+percentage interest or share holding for helping me to
+secure the release of the deposit and investing the
+money.
+
+I shall be glad to reserve this respect and
+opportunity for you, if you so desire, but do urge you
+to give the matter your immediate attention it
+deserves.Looking forward to your  response.
+
+Yours Faithfully,
+
+MISS JANET WILLIAMS.
+
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
