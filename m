@@ -1,28 +1,61 @@
-Date: Tue, 31 May 2005 09:56:40 -0700
-From: Chris Wright <chrisw@osdl.org>
-Subject: Re: [PATCH] prevent NULL mmap in topdown model
-Message-ID: <20050531165640.GL27549@shell0.pdx.osdl.net>
-References: <Pine.LNX.4.61.0505181556190.3645@chimarrao.boston.redhat.com> <Pine.LNX.4.58.0505181535210.18337@ppc970.osdl.org> <Pine.LNX.4.61.0505182224250.29123@chimarrao.boston.redhat.com> <Pine.LNX.4.58.0505181946300.2322@ppc970.osdl.org> <20050519064657.GH23013@shell0.pdx.osdl.net> <1116490511.6027.25.camel@laptopd505.fenrus.org> <87u0klybpq.fsf@stark.xeocode.com>
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by e3.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id j4VJJuLa010506
+	for <linux-mm@kvack.org>; Tue, 31 May 2005 15:19:56 -0400
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay02.pok.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id j4VJJueQ144170
+	for <linux-mm@kvack.org>; Tue, 31 May 2005 15:19:56 -0400
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.12.11/8.13.3) with ESMTP id j4VJJtOO000840
+	for <linux-mm@kvack.org>; Tue, 31 May 2005 15:19:55 -0400
+Date: Tue, 31 May 2005 12:10:54 -0700
+From: Chandra Seetharaman <sekharan@us.ibm.com>
+Subject: Re: Virtual NUMA machine and CKRM
+Message-ID: <20050531191054.GD29202@chandralinux.beaverton.ibm.com>
+References: <20050519003008.GC25076@chandralinux.beaverton.ibm.com> <20050527.221613.78716667.taka@valinux.co.jp>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <87u0klybpq.fsf@stark.xeocode.com>
+In-Reply-To: <20050527.221613.78716667.taka@valinux.co.jp>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Greg Stark <gsstark@mit.edu>
-Cc: Arjan van de Ven <arjan@infradead.org>, Chris Wright <chrisw@osdl.org>, Linus Torvalds <torvalds@osdl.org>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Hirokazu Takahashi <taka@valinux.co.jp>
+Cc: ckrm-tech@lists.sourceforge.net, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-* Greg Stark (gsstark@mit.edu) wrote:
-> More realistically, iirc either Wine or dosemu, i forget which, actually has
-> to map page 0 to work properly.
+On Fri, May 27, 2005 at 10:16:13PM +0900, Hirokazu Takahashi wrote:
+> Hi Chandra,
+> 
+> Why don't you implement CKRM memory controller as virtual NUMA
+> node.
+> 
+> I think what you want do is almost what NUMA code does, which
+> restricts resources to use. If you define virtual NUMA node with
 
-Yup, this is well-known, and the patch does not effect MAP_FIXED.
+Besides mixing virtual/physical, IMHO it will be hairy as the ckrm class
+needs to have all the zones that exists in the system(unlike the real NUMA
+node), and it will get more complicated when CKRM is deployed in a NUMA
+system itself.
 
-http://kernel.org/git/?p=linux/kernel/git/torvalds/linux-2.6.git;a=commit;h=49a43876b935c811cfd29d8fe998a6912a1cc5c4
 
-thanks,
--chris
+> some memory and some virtual CPUs, you can just assign target jobs
+> to them.
+> 
+> What do you think of my idea?
+> 
+> Thanks,
+> Hirokazu Takahashi.
+> 
+> > I am looking for improvement suggestions
+> >         - to not have a field in the page data structure for the mem
+> >           controller
+> > 	- to make vmscan.c cleaner.
+
+-- 
+
+----------------------------------------------------------------------
+    Chandra Seetharaman               | Be careful what you choose....
+              - sekharan@us.ibm.com   |      .......you may get it.
+----------------------------------------------------------------------
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
