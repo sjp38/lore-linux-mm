@@ -1,34 +1,35 @@
-From: "Jone" <kzl112233@126.com>
-Subject: Marketing Plan
+Subject: Re: [ckrm-tech] Virtual NUMA machine and CKRM
+In-Reply-To: Your message of "Fri, 27 May 2005 22:16:13 +0900 (JST)"
+	<20050527.221613.78716667.taka@valinux.co.jp>
+References: <20050527.221613.78716667.taka@valinux.co.jp>
 Mime-Version: 1.0
-Content-Type: text/plain; charset="ISO-8859-1"
-Date: Wed, 1 Jun 2005 12:25:19 +0800
-Reply-To: "Jone" <info@yesboosting.com>
-Content-Transfer-Encoding: 8bit
-Message-Id: <20050601042752Z26642-1676+297@kvack.org>
+Content-Type: Text/Plain; charset=us-ascii
+Date: Wed, 01 Jun 2005 14:28:19 +0900
+Message-Id: <1117603699.326265.4138.nullmailer@yamt.dyndns.org>
+From: YAMAMOTO Takashi <yamamoto@valinux.co.jp>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: taka@valinux.co.jp
+Cc: ckrm-tech@lists.sourceforge.net, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Dear linux-mm@kvack.org:
+hi,
 
-We can promote your business for you:
+> Why don't you implement CKRM memory controller as virtual NUMA
+> node.
 
-1. Supply the email list according to your order.
+i think that you need to describe what's a "virtual NUMA node" before
+soliciting comments.
 
-2. Send out target emails according to your order.
+> I think what you want do is almost what NUMA code does, which
+> restricts resources to use. If you define virtual NUMA node with
+> some memory and some virtual CPUs, you can just assign target jobs
+> to them.
 
-3. Supply Mailing Server and Offshore web Hosting.
+because resource restrictions from numa and ckrm are very different,
+i don't think there is a single effective structure for both of them.
 
-Hope to do business with you.
-
-
-Mr Jone
-Marketing Dept
-KZL123123@eyou.com
-
-No for linux-mm@kvack.org: Thanks@Hotmail.com
+YAMAMOTO Takashi
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
