@@ -1,7 +1,7 @@
-Date: Wed, 1 Jun 2005 10:23:12 -0400
+Date: Wed, 1 Jun 2005 10:23:26 -0400
 From: Martin Hicks <mort@sgi.com>
-Subject: [PATCH 3/4] VM: add __GFP_NORECLAIM
-Message-ID: <20050601142312.GV14894@localhost>
+Subject: [PATCH 4/4] VM: rate limit early reclaim
+Message-ID: <20050601142326.GW14894@localhost>
 References: <20050601141154.GN14894@localhost>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
@@ -13,75 +13,82 @@ To: Linux MM <linux-mm@kvack.org>, Andrew Morton <akpm@osdl.org>
 Cc: Ray Bryant <raybry@engr.sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-When using the early zone reclaim, it was noticed that allocating new
-pages that should be spread across the whole system caused eviction
-of local pages.
+When early zone reclaim is turned on the LRU is scanned more frequently
+when a zone is low on memory.  This limits when the zone reclaim can
+be called by skipping the scan if another thread (either via kswapd or
+sync reclaim) is already reclaiming from the zone.
 
-This adds a new GFP flag to prevent early reclaim from happening during
-certain allocation attempts.  The example that is implemented here is
-for page cache pages.  We want page cache pages to be spread across the
-whole system, and we don't want page cache pages to evict other pages
-to get local memory.
+Signed-off-by: Martin Hicks <mort@sgi.com> 
 
-Signed-off-by:  Martin Hicks <mort@sgi.com>
+ include/linux/mmzone.h |    2 ++
+ mm/page_alloc.c        |    1 +
+ mm/vmscan.c            |   10 ++++++++++
+ 3 files changed, 13 insertions(+)
 
- include/linux/gfp.h     |    3 ++-
- include/linux/pagemap.h |    4 ++--
- mm/page_alloc.c         |    2 ++
- 3 files changed, 6 insertions(+), 3 deletions(-)
-
-Index: linux-2.6.12-rc5-mm1/include/linux/gfp.h
+Index: linux-2.6.12-rc5-mm1/mm/vmscan.c
 ===================================================================
---- linux-2.6.12-rc5-mm1.orig/include/linux/gfp.h	2005-05-26 12:26:57.000000000 -0700
-+++ linux-2.6.12-rc5-mm1/include/linux/gfp.h	2005-05-26 12:27:15.000000000 -0700
-@@ -39,6 +39,7 @@ struct vm_area_struct;
- #define __GFP_COMP	0x4000u	/* Add compound page metadata */
- #define __GFP_ZERO	0x8000u	/* Return zeroed page on success */
- #define __GFP_NOMEMALLOC 0x10000u /* Don't use emergency reserves */
-+#define __GFP_NORECLAIM  0x20000u /* No realy zone reclaim during allocation */
+--- linux-2.6.12-rc5-mm1.orig/mm/vmscan.c	2005-05-26 12:27:11.000000000 -0700
++++ linux-2.6.12-rc5-mm1/mm/vmscan.c	2005-05-26 12:27:17.000000000 -0700
+@@ -903,7 +903,9 @@ shrink_caches(struct zone **zones, struc
+ 		if (zone->all_unreclaimable && sc->priority != DEF_PRIORITY)
+ 			continue;	/* Let kswapd poll it */
  
- #define __GFP_BITS_SHIFT 20	/* Room for 20 __GFP_FOO bits */
- #define __GFP_BITS_MASK ((1 << __GFP_BITS_SHIFT) - 1)
-@@ -47,7 +48,7 @@ struct vm_area_struct;
- #define GFP_LEVEL_MASK (__GFP_WAIT|__GFP_HIGH|__GFP_IO|__GFP_FS| \
- 			__GFP_COLD|__GFP_NOWARN|__GFP_REPEAT| \
- 			__GFP_NOFAIL|__GFP_NORETRY|__GFP_NO_GROW|__GFP_COMP| \
--			__GFP_NOMEMALLOC)
-+			__GFP_NOMEMALLOC|__GFP_NORECLAIM)
++		atomic_inc(&zone->reclaim_in_progress);
+ 		shrink_zone(zone, sc);
++		atomic_dec(&zone->reclaim_in_progress);
+ 	}
+ }
+  
+@@ -1114,7 +1116,9 @@ scan:
+ 			sc.nr_reclaimed = 0;
+ 			sc.priority = priority;
+ 			sc.swap_cluster_max = nr_pages? nr_pages : SWAP_CLUSTER_MAX;
++			atomic_inc(&zone->reclaim_in_progress);
+ 			shrink_zone(zone, &sc);
++			atomic_dec(&zone->reclaim_in_progress);
+ 			reclaim_state->reclaimed_slab = 0;
+ 			nr_slab = shrink_slab(sc.nr_scanned, GFP_KERNEL,
+ 						lru_pages);
+@@ -1357,9 +1361,15 @@ int zone_reclaim(struct zone *zone, unsi
+ 	else
+ 		sc.swap_cluster_max = SWAP_CLUSTER_MAX;
  
- #define GFP_ATOMIC	(__GFP_HIGH)
- #define GFP_NOIO	(__GFP_WAIT)
-Index: linux-2.6.12-rc5-mm1/include/linux/pagemap.h
-===================================================================
---- linux-2.6.12-rc5-mm1.orig/include/linux/pagemap.h	2005-05-26 12:26:57.000000000 -0700
-+++ linux-2.6.12-rc5-mm1/include/linux/pagemap.h	2005-05-26 12:27:15.000000000 -0700
-@@ -52,12 +52,12 @@ void release_pages(struct page **pages, 
++	/* Don't reclaim the zone if there are other reclaimers active */
++	if (!atomic_inc_and_test(&zone->reclaim_in_progress))
++		goto out;
++
+ 	shrink_zone(zone, &sc);
+ 	total_reclaimed = sc.nr_reclaimed;
  
- static inline struct page *page_cache_alloc(struct address_space *x)
- {
--	return alloc_pages(mapping_gfp_mask(x), 0);
-+	return alloc_pages(mapping_gfp_mask(x)|__GFP_NORECLAIM, 0);
++ out:
++	atomic_dec(&zone->reclaim_in_progress);
+ 	return total_reclaimed;
  }
  
- static inline struct page *page_cache_alloc_cold(struct address_space *x)
- {
--	return alloc_pages(mapping_gfp_mask(x)|__GFP_COLD, 0);
-+	return alloc_pages(mapping_gfp_mask(x)|__GFP_COLD|__GFP_NORECLAIM, 0);
- }
+Index: linux-2.6.12-rc5-mm1/include/linux/mmzone.h
+===================================================================
+--- linux-2.6.12-rc5-mm1.orig/include/linux/mmzone.h	2005-05-26 12:27:11.000000000 -0700
++++ linux-2.6.12-rc5-mm1/include/linux/mmzone.h	2005-05-26 12:27:17.000000000 -0700
+@@ -149,6 +149,8 @@ struct zone {
+ 	 * as it fails a watermark_ok() in __alloc_pages?
+ 	 */
+ 	int			reclaim_pages;
++	/* A count of how many reclaimers are scanning this zone */
++	atomic_t		reclaim_in_progress;
  
- typedef int filler_t(void *, struct page *);
+ 	/*
+ 	 * prev_priority holds the scanning priority for this zone.  It is
 Index: linux-2.6.12-rc5-mm1/mm/page_alloc.c
 ===================================================================
---- linux-2.6.12-rc5-mm1.orig/mm/page_alloc.c	2005-05-26 12:27:11.000000000 -0700
-+++ linux-2.6.12-rc5-mm1/mm/page_alloc.c	2005-05-26 12:27:15.000000000 -0700
-@@ -729,6 +729,8 @@ check_zone_reclaim(struct zone *z, unsig
- {
- 	if (!z->reclaim_pages)
- 		return 0;
-+	if (gfp_mask & __GFP_NORECLAIM)
-+		return 0;
- 	return 1;
- }
+--- linux-2.6.12-rc5-mm1.orig/mm/page_alloc.c	2005-05-26 12:27:15.000000000 -0700
++++ linux-2.6.12-rc5-mm1/mm/page_alloc.c	2005-05-26 12:27:17.000000000 -0700
+@@ -1757,6 +1757,7 @@ static void __init free_area_init_core(s
+ 		zone->nr_scan_inactive = 0;
+ 		zone->nr_active = 0;
+ 		zone->nr_inactive = 0;
++		atomic_set(&zone->reclaim_in_progress, -1);
+ 		if (!size)
+ 			continue;
  
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
