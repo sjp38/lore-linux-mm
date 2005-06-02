@@ -1,55 +1,73 @@
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by e4.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id j5207EhM009866
-	for <linux-mm@kvack.org>; Wed, 1 Jun 2005 20:07:14 -0400
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay04.pok.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id j5207ELI196266
-	for <linux-mm@kvack.org>; Wed, 1 Jun 2005 20:07:14 -0400
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.12.11/8.13.3) with ESMTP id j5207ELU030822
-	for <linux-mm@kvack.org>; Wed, 1 Jun 2005 20:07:14 -0400
-Date: Wed, 1 Jun 2005 17:07:11 -0700
-From: Mike Kravetz <kravetz@us.ibm.com>
-Subject: Re: Avoiding external fragmentation with a placement policy Version 12
-Message-ID: <20050602000711.GA7910@w-mikek2.ibm.com>
-References: <20050531112048.D2511E57A@skynet.csn.ul.ie> <429E20B6.2000907@austin.ibm.com> <429E4023.2010308@yahoo.com.au> <20050601234730.GF3998@w-mikek2.ibm.com> <429E4B22.5080404@yahoo.com.au>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <429E4B22.5080404@yahoo.com.au>
+Message-ID: <429E50B8.1060405@yahoo.com.au>
+Date: Thu, 02 Jun 2005 10:20:08 +1000
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+MIME-Version: 1.0
+Subject: Re: Avoiding external fragmentation with a placement policy Version
+ 12
+References: <20050531112048.D2511E57A@skynet.csn.ul.ie> <429E20B6.2000907@austin.ibm.com> <429E4023.2010308@yahoo.com.au> <423970000.1117668514@flay> <429E483D.8010106@yahoo.com.au> <434510000.1117670555@flay>
+In-Reply-To: <434510000.1117670555@flay>
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
+To: "Martin J. Bligh" <mbligh@mbligh.org>
 Cc: jschopp@austin.ibm.com, Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@osdl.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jun 02, 2005 at 09:56:18AM +1000, Nick Piggin wrote:
-> Mike Kravetz wrote:
-> >Allocating lots of MAX_ORDER blocks can be very useful for things
-> >like hot-pluggable memory.  I know that this may not be of interest
-> >to most.  However, I've been combining Mel's defragmenting patch
-> >with the memory hotplug patch set.  As a result, I've been able to
-> >go from 5GB down to 544MB of memory on my ppc64 system via offline
-> >operations.  Note that ppc64 only employs a single (DMA) zone.  So,
-> >page 'grouping' based on use is coming mainly from Mel's patch.
-> >
-> 
-> Back in the day, Linus would tell you to take a hike if you
-> wanted to complicate the buddy allocator to better support
-> memory hotplug ;)
-> 
-> I don't know what's happened to him now though, he seems to
-> have gone a little soft on you enterprise types.
-> 
-> Seriously - thanks for the data point, I had an idea that you
-> guys wanted this for mem hotplug.
+Martin J. Bligh wrote:
 
-Mel wrote the patch independent of the mem hotplug effort.  As
-part of the hotplug effort, we knew fragmentation needed to be
-addressed.  So, when Mel released his patch we jumped all over
-it.
+> There's one example ... we can probably work around it if we try hard
+> enough. However, the fundamental question becomes "do we support higher
+> order allocs, or not?". If not fine ... but we ought to quit pretending
+> we do. If so, then we need to make them more reliable.
+> 
 
--- 
-Mike
+It appears that we basically support order 3 allocations and
+less (those will stay in the page allocator until something
+happens).
+
+I see your point... Mel's patch has failure cases though.
+For example, someone turns swap off, or mlocks some memory
+(I guess we then add the page migration defrag patch and
+problem is solved?).
+
+I do see your point. The extra complexity makes me cringe though
+(no offence to Mel - I'm sure it is a complex problem).
+
+>>Yeah more or less. But with the fragmentation patch, it by
+>>no means becomes an exact science ;) I wouldn't have thought
+>>it would make it hugely easier to free an order 2 or 3 area
+>>memory block on a loaded machine.
+> 
+> 
+> Ummm. so the blunderbuss is an exact science? ;-) At least it fairly
+> consistently doesn't work, I suppose ;-) ;-)
+>  
+
+No but I was just saying it is just another degree of
+"unsuportedness" (or supportedness, if you are a half full man).
+
+>>Why not just have kernel allocations going from the bottom
+>>up, and user allocations going from the top down. That would
+>>get you most of the way there, wouldn't it? (disclaimer: I
+>>could well be talking shit here).
+> 
+> 
+> Not sure it's quite that simple, though I haven't looked in detail
+> at these patches. My point was merely that we need to do *something*.
+> Off the top of my head ... what happens when kernel meets user in
+> the middle. where do we free and allocate from now ? ;-) Once we've
+> been up for a while, mem is nearly all used, nearly all of the time.
+> 
+
+No, I'm quite sure it isn't that simple, unfortunately. Hence
+disclaimer ;)
+
+> Is a good discussion to have though ;-)
+> 
+
+Yep, I was trying to help get something going!
+Send instant messages to your online friends http://au.messenger.yahoo.com 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
