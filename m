@@ -1,83 +1,50 @@
-Date: Thu, 02 Jun 2005 07:01:37 -0700
-From: "Martin J. Bligh" <mbligh@mbligh.org>
-Reply-To: "Martin J. Bligh" <mbligh@mbligh.org>
-Subject: Re: Avoiding external fragmentation with a placement policy Version 12
-Message-ID: <333490000.1117720896@[10.10.2.4]>
-In-Reply-To: <Pine.LNX.4.58.0506021120120.4112@skynet>
-References: <20050531112048.D2511E57A@skynet.csn.ul.ie> <429E20B6.2000907@austin.ibm.com><429E4023.2010308@yahoo.com.au> <423970000.1117668514@flay> <Pine.LNX.4.58.0506021120120.4112@skynet>
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by e33.co.us.ibm.com (8.12.10/8.12.9) with ESMTP id j52FqHmD419790
+	for <linux-mm@kvack.org>; Thu, 2 Jun 2005 11:52:17 -0400
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d03relay04.boulder.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id j52FqHJj154948
+	for <linux-mm@kvack.org>; Thu, 2 Jun 2005 09:52:17 -0600
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.12.11/8.13.3) with ESMTP id j52FqG7n001105
+	for <linux-mm@kvack.org>; Thu, 2 Jun 2005 09:52:16 -0600
+Message-ID: <429F2B26.9070509@austin.ibm.com>
+Date: Thu, 02 Jun 2005 10:52:06 -0500
+From: Joel Schopp <jschopp@austin.ibm.com>
+Reply-To: jschopp@austin.ibm.com
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Subject: Re: Avoiding external fragmentation with a placement policy Version
+ 12
+References: <20050531112048.D2511E57A@skynet.csn.ul.ie> <429E20B6.2000907@austin.ibm.com> <429E4023.2010308@yahoo.com.au> <423970000.1117668514@flay> <429E483D.8010106@yahoo.com.au> <434510000.1117670555@flay> <429E50B8.1060405@yahoo.com.au>
+In-Reply-To: <429E50B8.1060405@yahoo.com.au>
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Nick Piggin <nickpiggin@yahoo.com.au>, jschopp@austin.ibm.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@osdl.org
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: "Martin J. Bligh" <mbligh@mbligh.org>, Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@osdl.org
 List-ID: <linux-mm.kvack.org>
 
->> >> Other than the very minor whitespace changes above I have nothing bad to
->> >> say about this patch.  I think it is about time to pick in up in -mm for
->> >> wider testing.
->> >> 
->> > 
->> > It adds a lot of complexity to the page allocator and while
->> > it might be very good, the only improvement we've been shown
->> > yet is allocating lots of MAX_ORDER allocations I think? (ie.
->> > not very useful)
->> 
->> I agree that MAX_ORDER allocs aren't interesting, but we can hit
->> frag problems easily at way less than max order. CIFS does it, NFS
->> does it, jumbo frame gigabit ethernet does it, to name a few. The
->> most common failure I see is order 3.
->> 
-> 
-> I focused on the MAX_ORDER allocations for two reasons. The first is
-> because they are very difficult to satisfy. If we can service MAX_ORDER
-> allocations, we can certainly service order 3. The second is that my very
-> long-term (and currently vapour-ware) aim is to transparently support
-> large pages which will require 4MiB blocks on the x86 at least.
+> I see your point... Mel's patch has failure cases though.
+> For example, someone turns swap off, or mlocks some memory
+> (I guess we then add the page migration defrag patch and
+> problem is solved?).
 
-Oh, I wasn't arguing with your approach ... is always better to go a bit
-further. Was just illustrating that there are real world problems right
-now that hit this stuff, ergo we need it. Yes, I'd like to be able to do 
-large page, memory hotplug, etc too ... but if people aren't excited about
-those, there are plenty of other reasons to fix the frag problem.
+This reminds me that page migration defrag will be pretty useless 
+without something like this done first.  There will be stuff that can't 
+be migrated and it needs to be grouped together somehow.
 
-It seems apparent statistically that the larger the machine, the worse the
-frag problem is, as we'll blow away more memory before getting contig 
-blocks. If it wasn't pre-7am, I'd try to calculate the statistics, but 
-frankly, I can't be bothered ;-) I'm sure there are others whose math
-degree is less rusty than mine.
+In summary here are the reasons I see to run with Mel's patch:
 
-> With this allocator, we are still using a blunderbus approach but the
-> chances of big enough chunks been available are a lot better. I released a
-> proof-of-concept patch that freed pages by linearly scanning that worked
-> very well, but it needs a lot of work. Linearly scanning would help
-> guarantee high-order allocations but the penalty is that LRU-ordering
-> would be violated.
+1. It really helps with medium-large allocations under memory pressure.
+2. Page migration defrag will need it.
+3. Memory hotplug remove will need it.
 
-Yes, would be nice ... but we need to gather things into freeable and 
-non-freeable either way, it seems, so doesn't invalidate what you're 
-doing at all.
+On the downside we have:
 
-It seems apparent statistically that the larger the machine, the worse the
-frag problem is, as we'll blow away more memory before getting contig 
-blocks. If it wasn't pre-7am, I'd try to calculate the statistics, but 
-frankly, I can't be bothered ;-) I'm sure there are others whose math
-degree is less rusty than mine, and I'd hate to deprive them of the 
-opportunity to play ;-)
+1. Slightly more complexity in the allocator.
 
-> To test lower-order allocations, I ran a slightly different test where I
-> tried to allocate 6000 order-5 pages under heavy pressure. The standard
-> allocator repeatadly went OOM and allocated 5190 pages. The modified one
-> did not OOM and allocated 5961. The test is not very fair though because
-> it pins memory and the allocations are type GFP_KERNEL. For the gigabit
-> ethernet and network filesystem tests, I imagine we are dealing with
-> GFP_ATOMIC or GFP_NFS?
+I'd personally trade a little extra complexity for any of the 3 upsides.
 
-cifsd: page allocation failure. order:3, mode:0xd0
-
-M.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
