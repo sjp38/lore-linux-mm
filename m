@@ -1,50 +1,36 @@
-Date: Thu, 2 Jun 2005 10:49:50 +0100 (IST)
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: Avoiding external fragmentation with a placement policy Version
- 12
-In-Reply-To: <429E20B6.2000907@austin.ibm.com>
-Message-ID: <Pine.LNX.4.58.0506021049270.4112@skynet>
-References: <20050531112048.D2511E57A@skynet.csn.ul.ie> <429E20B6.2000907@austin.ibm.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: Joel Schopp <jschopp@austin.ibm.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@osdl.org
+Date: Thu, 02 Jun 2005 14:44:30 +0300
+From: "Greta Krause" <raving@doramail.com>
+Message-Id: <CFE4.AA79.9A01-003005198B8C@mac.com>
+Subject: Fixed rates will not last long
+Return-Path: <raving@doramail.com>
+To: kernel@kvack.org
+Cc: lah@kvack.org, linux-aio@kvack.org, linux-mm@kvack.org, linux-mm-archive@kvack.orgm@kvack.org, mailer-daemon@kvack.orgmm@kvack.org, mo@kvack.org, mus@kvack.org, needpcparts.com@kvack.org, ner-linux-aio@kvack.org, ner-linux-mm@kvack.orgnux-aio@kvack.orgnux-mm@kvack.orgo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 1 Jun 2005, Joel Schopp wrote:
 
->
-> > -    struct free_area *area;
-> >      struct page *buddy;
-> > -
-> > +
->
-> ...
->
-> >      }
-> > +
-> >      spin_unlock_irqrestore(&zone->lock, flags);
-> > -    return allocated;
-> > +    return count - allocated;
-> >  }
-> >  +
-> > +
->
-> Other than the very minor whitespace changes above I have nothing bad to say
-> about this patch.  I think it is about time to pick in up in -mm for wider
-> testing.
->
+Hello,
 
-Thanks. I posted a V13 without the whitespace damage
+ We tried contacting you awhile ago about your low interest morta(ge rate.
 
--- 
-Mel Gorman
-Part-time Phd Student                          Java Applications Developer
-University of Limerick                         IBM Dublin Software Lab
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"aart@kvack.org"> aart@kvack.org </a>
+ You have qualified for the lowest rate in years...
+
+ You could get over $400,000 for as little as $400 a month!
+
+ Ba(d credit? Doesn't matter, low rates are fixed no matter what!
+
+ 
+ To get a free, no obli,gation consultation click below:
+
+ http://www.cr3am.com/signs.asp
+
+
+
+ Best Regards,
+
+ Sebastian Aldridge
+ 
+ to be remov(ed:	http://www.cr3am.com/deletion.asp
+
+ this process takes one week, so please be patient. we do our 
+ best to take your email/s off but you have to fill out a rem/ove
+ or else you will continue to recieve email/s.
