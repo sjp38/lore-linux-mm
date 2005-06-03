@@ -1,114 +1,69 @@
-Date: Fri, 3 Jun 2005 14:05:47 +0100 (IST)
+Date: Fri, 3 Jun 2005 14:13:56 +0100 (IST)
 From: Mel Gorman <mel@csn.ul.ie>
 Subject: Re: Avoiding external fragmentation with a placement policy Version
  12
-In-Reply-To: <1117770488.5084.25.camel@npiggin-nld.site>
-Message-ID: <Pine.LNX.4.58.0506031349280.10779@skynet>
-References: <20050531112048.D2511E57A@skynet.csn.ul.ie>  <429E20B6.2000907@austin.ibm.com>
- <429E4023.2010308@yahoo.com.au>  <423970000.1117668514@flay>
- <429E483D.8010106@yahoo.com.au>  <434510000.1117670555@flay>
- <429E50B8.1060405@yahoo.com.au>  <429F2B26.9070509@austin.ibm.com>
- <1117770488.5084.25.camel@npiggin-nld.site>
+In-Reply-To: <358040000.1117777372@[10.10.2.4]>
+Message-ID: <Pine.LNX.4.58.0506031408560.10779@skynet>
+References: <1117770488.5084.25.camel@npiggin-nld.site><20050602.214927.59657656.davem@davemloft.net><357240000.1117776882@[10.10.2.4]>
+ <20050602.223712.41634750.davem@davemloft.net> <358040000.1117777372@[10.10.2.4]>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: jschopp@austin.ibm.com, "Martin J. Bligh" <mbligh@mbligh.org>, linux-mm@kvack.org, lkml <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@osdl.org>
+To: "Martin J. Bligh" <mbligh@mbligh.org>
+Cc: "David S. Miller" <davem@davemloft.net>, nickpiggin@yahoo.com.au, jschopp@austin.ibm.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@osdl.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 3 Jun 2005, Nick Piggin wrote:
+On Thu, 2 Jun 2005, Martin J. Bligh wrote:
 
-> On Thu, 2005-06-02 at 10:52 -0500, Joel Schopp wrote:
-> > > I see your point... Mel's patch has failure cases though.
-> > > For example, someone turns swap off, or mlocks some memory
-> > > (I guess we then add the page migration defrag patch and
-> > > problem is solved?).
+> > From: "Martin J. Bligh" <mbligh@mbligh.org>
+> > Date: Thu, 02 Jun 2005 22:34:42 -0700
 > >
-> > This reminds me that page migration defrag will be pretty useless
-> > without something like this done first.  There will be stuff that can't
-> > be migrated and it needs to be grouped together somehow.
+> >> One of the calls I got the other day was for loopback interface.
+> >> Default MTU is 16K, which seems to screw everything up and do higher
+> >> order allocs. Turning it down to under 4K seemed to fix things. I'm
+> >> fairly sure loopback doesn't really need phys contig memory, but it
+> >> seems to use it at the moment ;-)
 > >
-> > In summary here are the reasons I see to run with Mel's patch:
-> >
-> > 1. It really helps with medium-large allocations under memory pressure.
-> > 2. Page migration defrag will need it.
-> > 3. Memory hotplug remove will need it.
-> >
+> > It helps get better bandwidth to have larger buffers.
+> > That's why AF_UNIX tries to use larger orders as well.
 >
-> I guess I'm now more convinced of its need ;)
->
-> add:
-> 4. large pages
-> 5. (hopefully) helps with smaller allocations (ie. order 3)
+> Though surely the reality will be that after your system is up for a
+> while, and is thorougly fragmented, your latency becomes frigging horrible
+> for most allocs though? You risk writing a crapload of pages out to disk
+> for every alloc ...
 >
 
-6. Avoid calls to the page allocator
+That would be interesting to find out. I've it on my TODO list to teach
+bench-stresshighalloc to time how long allocations are taking. It'll be at
+least a week before I get around to it though.
 
-If a subsystem needs 8 pages to do a job, it should only have to call the
-allocator once, not 8 times only to spend more time breaking the work up
-into page-sized chunks.
+> > With all these processors using prefetching in their
+> > memcpy() implementations, reducing the number of memcpy()
+> > calls per byte is getting more and more important.
+> > Each memcpy() call makes you hit the memory latency
+> > cost since the first prefetch can't be done early
+> > enough.
+>
+> but it's vastly different order of magnitude than touching disk.
+> Can we not do a "sniff alloc" first (ie if this is easy, give it
+> to me, else just fail and return w/o reclaim), then fall back to
+> smaller allocs?
 
-If you look at rmqueue_bulk() in the patch, you'll see that it tries to
-fill the per-cpu lists of order-0 pages with one call to the allocator
-which saved some time. The additional statistics patch shows how many of
-these bulk requests are made and what sizes were actually allocated. It
-shows that a sizable number of additional calls to the buddy allocator are
-avoided.
+rmqueue_bulk() in the patch does something like this. It tries to allocate
+in the largest possible blocks and falls back to the lower orders as
+necessary. It could always be trying to reclaim though. I think the only
+easy way to fail and return w/o reclaim is to use GFP_ATOMIC which would
+have other consequences.
 
-> It would really help your cause in the short term if you can
-> demonstrate improvements for say order-3 allocations (eg. use
-> gige networking, TSO, jumbo frames, etc).
+> Though I suspect the reality is that on any real
+> system, a order 4 alloc will never actually succeed in any sensible
+> amount of time anyway? Perhaps us lot just reboot too often ;-)
 >
 
-I will work on this early next week unless someone else does not beat me
-to it. Right now, I need to catch a flight and I'll be offline for a few
-days.
-
-Once I start, I'm going to be running tests on network filesystems mounted
-on the loopback device to see what sort of results I find.
-
->
-> > On the downside we have:
-> >
-> > 1. Slightly more complexity in the allocator.
-> >
->
-> For some definitions of 'slightly', perhaps :(
->
-
-Does it need more documentation? If so, I'll write up a detailed blurb on
-how it works and drop it into Documentation/
-
-> Although I can't argue that a buddy allocator is no good without
-> being able to satisfy higher order allocations.
->
-
-Unfortunately, it is a fundemental flaw of the buddy allocator that it
-fragments badly. The thing is, other allocators that do not fragment are
-also slower.
-
-> So in that case, I'm personally OK with it going into -mm. Hopefully
-> there will be a bit more review and hopefully some simplification if
-> possible.
->
-
-Fingers crossed. I would be very interested to see anything that makes it
-simplier.
-
-> Last question: how does it go on systems with really tiny memories?
-> (4MB, 8MB, that kind of thing).
->
-
-I tested it with mem=16M (anything lower and my machine doesn't boot the
-standard kernel with going OOM, let alone the patched one). There was no
-significant change in performance of the aim9 benchmarks. The additional
-memory overhead of the patch is insignificant.
-
-However, at low memory, the fragmentation strategy does not work unless
-MAX_ORDER is also dropped. As the block reservations are 2^MAX_ORDER in
-size, there is no point reserving anything if the system only has 4
-MAX_ORDER blocks to being with.
+That is quite possible :) . I'll see about teaching the benchmarks to time
+allocations to see how much time we spend satisfying order 4 allocations
+on the standard kernel and with the patch.
 
 -- 
 Mel Gorman
