@@ -1,38 +1,55 @@
-Date: Fri, 03 Jun 2005 07:00:59 -0700
-From: "Martin J. Bligh" <mbligh@mbligh.org>
-Reply-To: "Martin J. Bligh" <mbligh@mbligh.org>
-Subject: Re: Avoiding external fragmentation with a placement policy Version 12
-Message-ID: <370550000.1117807258@[10.10.2.4]>
-In-Reply-To: <Pine.LNX.4.58.0506031349280.10779@skynet>
-References: <20050531112048.D2511E57A@skynet.csn.ul.ie>  <429E20B6.2000907@austin.ibm.com><429E4023.2010308@yahoo.com.au>  <423970000.1117668514@flay><429E483D.8010106@yahoo.com.au>  <434510000.1117670555@flay><429E50B8.1060405@yahoo.com.au>  <429F2B26.9070509@austin.ibm.com><1117770488.5084.25.camel@npiggin-nld.site> <Pine.LNX.4.58.0506031349280.10779@skynet>
-MIME-Version: 1.0
+Date: Fri, 3 Jun 2005 16:00:26 +0100
+Subject: Re: [PATCH] i386 sparsemem: undefined early_pfn_to_nid when !NUMA
+Message-ID: <20050603150026.GC19217@shadowen.org>
+References: <20050527162822.EBE1D09F@kernel.beaverton.ibm.com>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
+In-Reply-To: <20050527162822.EBE1D09F@kernel.beaverton.ibm.com>
+From: Andy Whitcroft <apw@shadowen.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>, Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: jschopp@austin.ibm.com, linux-mm@kvack.org, lkml <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@osdl.org>
+To: akpm@osdl.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Dave Hansen <haveblue@us.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-> Does it need more documentation? If so, I'll write up a detailed blurb on
-> how it works and drop it into Documentation/
-> 
->> Although I can't argue that a buddy allocator is no good without
->> being able to satisfy higher order allocations.
-> 
-> Unfortunately, it is a fundemental flaw of the buddy allocator that it
-> fragments badly. The thing is, other allocators that do not fragment are
-> also slower.
+Seem benign for normal use and allows testing for hotplug.  Tested
+on my test boxes.
 
-Do we care? 99.9% of allocations are fronted by the hot/cold page cache
-now anyway ... and yes, I realise that things popping in/out of that 
-obviously aren't going into the "defrag" pool, but still, it should help.
-I suppose all we're slowing down is higher order allocs anyway, which
-is the uncommon case, but ... worth thinking about.
+Andrew please apply to -mm.
 
-M.
+-apw
 
+=== 8< ===
+On i386, early_pfn_to_nid() is only defined when discontig.c
+is compiled in.  The current dependency doesn't reflect this,
+probably because the default i386 config doesn't allow for
+SPARSEMEM without NUMA.
+
+But, we'll need SPARSEMEM && !NUMA for memory hotplug, and I
+do this for testing anyway.
+
+Andy, please forward on if you concur.
+
+Signed-off-by: Dave Hansen <haveblue@us.ibm.com>
+Signed-off-by: Andy Whitcroft <apw@shadowen.org>
+
+diffstat sparsemem-i386-undefined-early_pfn_to_nid-when-not-NUMA
+---
+ Kconfig |    1 +
+ 1 files changed, 1 insertion(+)
+
+diff -upN reference/arch/i386/Kconfig current/arch/i386/Kconfig
+--- reference/arch/i386/Kconfig
++++ current/arch/i386/Kconfig
+@@ -803,6 +803,7 @@ source "mm/Kconfig"
+ config HAVE_ARCH_EARLY_PFN_TO_NID
+ 	bool
+ 	default y
++	depends on NUMA
+ 
+ config HIGHPTE
+ 	bool "Allocate 3rd-level pagetables from highmem"
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
