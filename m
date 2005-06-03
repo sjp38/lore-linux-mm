@@ -1,40 +1,32 @@
-Date: Fri, 03 Jun 2005 10:56:54 -0700
-From: "Martin J. Bligh" <mbligh@mbligh.org>
-Reply-To: "Martin J. Bligh" <mbligh@mbligh.org>
-Subject: Re: Avoiding external fragmentation with a placement policy Version 12
-Message-ID: <831680000.1117821414@flay>
-In-Reply-To: <20050603174706.GA25663@localhost.localdomain>
-References: <20050531112048.D2511E57A@skynet.csn.ul.ie> <429E20B6.2000907@austin.ibm.com> <429E4023.2010308@yahoo.com.au> <423970000.1117668514@flay> <20050603174706.GA25663@localhost.localdomain>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Date: Fri, 03 Jun 2005 11:43:31 -0700 (PDT)
+Message-Id: <20050603.114331.85417605.davem@davemloft.net>
+Subject: Re: Avoiding external fragmentation with a placement policy
+ Version 12
+From: "David S. Miller" <davem@davemloft.net>
+In-Reply-To: <1117816980.5985.17.camel@localhost>
+References: <429FFC21.1020108@yahoo.com.au>
+	<369850000.1117807062@[10.10.2.4]>
+	<1117816980.5985.17.camel@localhost>
+Mime-Version: 1.0
+Content-Type: Text/Plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
+From: Dave Hansen <haveblue@us.ibm.com>
+Date: Fri, 03 Jun 2005 09:43:00 -0700
 Return-Path: <owner-linux-mm@kvack.org>
-To: Sonny Rao <sonnyrao@us.ibm.com>
-Cc: Nick Piggin <nickpiggin@yahoo.com.au>, jschopp@austin.ibm.com, Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@osdl.org
+To: haveblue@us.ibm.com
+Cc: mbligh@mbligh.org, nickpiggin@yahoo.com.au, jschopp@austin.ibm.com, mel@csn.ul.ie, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@osdl.org
 List-ID: <linux-mm.kvack.org>
 
+> Are those loopback allocations GFP_KERNEL?
 
---On Friday, June 03, 2005 12:47:06 -0500 Sonny Rao <sonnyrao@us.ibm.com> wrote:
+It depends :-)  Most of the time, the packets will be
+allocated at sendmsg() time for the user, and thus GFP_KERNEL.
 
-> On Wed, Jun 01, 2005 at 04:28:34PM -0700, Martin J. Bligh wrote:
-> <snip> 
->> Seems to me we're basically pointing a blunderbuss at memory, and 
->> blowing away large portions, and *hoping* something falls out the
->> bottom that's a big enough chunk?
-> 
-> Isn't this also the case with the slab shrinkers ??
-> 
-> We kill stuff until some free pages hopefully fall out, but this can
-> be difficult when you have 20+ non-related items per page (dcache).
-> 
-> I think there should be a better way there as well.
-
-Yup. Same problem, I've been looking at that too ...
-
-M.
-
+But the flags may be different if, for example, the packet
+is being allocated for the NFS client/server code, or some
+asynchronous packet generated at software interrupt time
+(TCP ACKs, ICMP replies, etc.).
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
