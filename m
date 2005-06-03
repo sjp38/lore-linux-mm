@@ -1,74 +1,40 @@
-Date: Fri, 3 Jun 2005 14:13:56 +0100 (IST)
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: Avoiding external fragmentation with a placement policy Version
- 12
-In-Reply-To: <358040000.1117777372@[10.10.2.4]>
-Message-ID: <Pine.LNX.4.58.0506031408560.10779@skynet>
-References: <1117770488.5084.25.camel@npiggin-nld.site><20050602.214927.59657656.davem@davemloft.net><357240000.1117776882@[10.10.2.4]>
- <20050602.223712.41634750.davem@davemloft.net> <358040000.1117777372@[10.10.2.4]>
+Date: Fri, 03 Jun 2005 06:57:42 -0700
+From: "Martin J. Bligh" <mbligh@mbligh.org>
+Reply-To: "Martin J. Bligh" <mbligh@mbligh.org>
+Subject: Re: Avoiding external fragmentation with a placement policy Version 12
+Message-ID: <369850000.1117807062@[10.10.2.4]>
+In-Reply-To: <429FFC21.1020108@yahoo.com.au>
+References: <429E50B8.1060405@yahoo.com.au><429F2B26.9070509@austin.ibm.com><1117770488.5084.25.camel@npiggin-nld.site> <20050602.214927.59657656.davem@davemloft.net> <357240000.1117776882@[10.10.2.4]> <429FFC21.1020108@yahoo.com.au>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Martin J. Bligh" <mbligh@mbligh.org>
-Cc: "David S. Miller" <davem@davemloft.net>, nickpiggin@yahoo.com.au, jschopp@austin.ibm.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@osdl.org
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: "David S. Miller" <davem@davemloft.net>, jschopp@austin.ibm.com, mel@csn.ul.ie, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@osdl.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2 Jun 2005, Martin J. Bligh wrote:
 
-> > From: "Martin J. Bligh" <mbligh@mbligh.org>
-> > Date: Thu, 02 Jun 2005 22:34:42 -0700
-> >
-> >> One of the calls I got the other day was for loopback interface.
-> >> Default MTU is 16K, which seems to screw everything up and do higher
-> >> order allocs. Turning it down to under 4K seemed to fix things. I'm
-> >> fairly sure loopback doesn't really need phys contig memory, but it
-> >> seems to use it at the moment ;-)
-> >
-> > It helps get better bandwidth to have larger buffers.
-> > That's why AF_UNIX tries to use larger orders as well.
->
-> Though surely the reality will be that after your system is up for a
-> while, and is thorougly fragmented, your latency becomes frigging horrible
-> for most allocs though? You risk writing a crapload of pages out to disk
-> for every alloc ...
->
+>>> Actually, even with TSO enabled, you'll get large order
+>>> allocations, but for receive packets, and these allocations
+>>> happen in software interrupt context.
+>> 
+>> Sounds like we still need to cope then ... ?
+> 
+> Sure. Although we should try to not use higher order allocs if
+> possible of course. Even with a fallback mode, you will still be
+> putting more pressure on higher order areas and thus degrading
+> the service for *other* allocators, so such schemes should
+> obviously be justified by performance improvements.
 
-That would be interesting to find out. I've it on my TODO list to teach
-bench-stresshighalloc to time how long allocations are taking. It'll be at
-least a week before I get around to it though.
+My point is that outside of a benchmark situation (where we just
+rebooted the machine to run a test) you will NEVER get an order 4
+block free anyway, so it's pointless. Moreover, if we use non-contig
+order 0 blocks, we can use cache hot pages ;-)
 
-> > With all these processors using prefetching in their
-> > memcpy() implementations, reducing the number of memcpy()
-> > calls per byte is getting more and more important.
-> > Each memcpy() call makes you hit the memory latency
-> > cost since the first prefetch can't be done early
-> > enough.
->
-> but it's vastly different order of magnitude than touching disk.
-> Can we not do a "sniff alloc" first (ie if this is easy, give it
-> to me, else just fail and return w/o reclaim), then fall back to
-> smaller allocs?
+M.
 
-rmqueue_bulk() in the patch does something like this. It tries to allocate
-in the largest possible blocks and falls back to the lower orders as
-necessary. It could always be trying to reclaim though. I think the only
-easy way to fail and return w/o reclaim is to use GFP_ATOMIC which would
-have other consequences.
-
-> Though I suspect the reality is that on any real
-> system, a order 4 alloc will never actually succeed in any sensible
-> amount of time anyway? Perhaps us lot just reboot too often ;-)
->
-
-That is quite possible :) . I'll see about teaching the benchmarks to time
-allocations to see how much time we spend satisfying order 4 allocations
-on the standard kernel and with the patch.
-
--- 
-Mel Gorman
-Part-time Phd Student                          Java Applications Developer
-University of Limerick                         IBM Dublin Software Lab
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
