@@ -1,70 +1,119 @@
-Message-ID: <429FFC21.1020108@yahoo.com.au>
-Date: Fri, 03 Jun 2005 16:43:45 +1000
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-MIME-Version: 1.0
+Date: Fri, 3 Jun 2005 14:05:47 +0100 (IST)
+From: Mel Gorman <mel@csn.ul.ie>
 Subject: Re: Avoiding external fragmentation with a placement policy Version
  12
-References: <429E50B8.1060405@yahoo.com.au><429F2B26.9070509@austin.ibm.com><1117770488.5084.25.camel@npiggin-nld.site> <20050602.214927.59657656.davem@davemloft.net> <357240000.1117776882@[10.10.2.4]>
-In-Reply-To: <357240000.1117776882@[10.10.2.4]>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <1117770488.5084.25.camel@npiggin-nld.site>
+Message-ID: <Pine.LNX.4.58.0506031349280.10779@skynet>
+References: <20050531112048.D2511E57A@skynet.csn.ul.ie>  <429E20B6.2000907@austin.ibm.com>
+ <429E4023.2010308@yahoo.com.au>  <423970000.1117668514@flay>
+ <429E483D.8010106@yahoo.com.au>  <434510000.1117670555@flay>
+ <429E50B8.1060405@yahoo.com.au>  <429F2B26.9070509@austin.ibm.com>
+ <1117770488.5084.25.camel@npiggin-nld.site>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Martin J. Bligh" <mbligh@mbligh.org>
-Cc: "David S. Miller" <davem@davemloft.net>, jschopp@austin.ibm.com, mel@csn.ul.ie, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@osdl.org
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: jschopp@austin.ibm.com, "Martin J. Bligh" <mbligh@mbligh.org>, linux-mm@kvack.org, lkml <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@osdl.org>
 List-ID: <linux-mm.kvack.org>
 
-Martin J. Bligh wrote:
->>>It would really help your cause in the short term if you can
->>>demonstrate improvements for say order-3 allocations (eg. use
->>>gige networking, TSO, jumbo frames, etc).
->>
->>TSO chops up the user data into PAGE_SIZE chunks, it doesn't
->>make use of non-zero page orders.
->>
+On Fri, 3 Jun 2005, Nick Piggin wrote:
 
-My mistake. Thanks for correcting me.
+> On Thu, 2005-06-02 at 10:52 -0500, Joel Schopp wrote:
+> > > I see your point... Mel's patch has failure cases though.
+> > > For example, someone turns swap off, or mlocks some memory
+> > > (I guess we then add the page migration defrag patch and
+> > > problem is solved?).
+> >
+> > This reminds me that page migration defrag will be pretty useless
+> > without something like this done first.  There will be stuff that can't
+> > be migrated and it needs to be grouped together somehow.
+> >
+> > In summary here are the reasons I see to run with Mel's patch:
+> >
+> > 1. It really helps with medium-large allocations under memory pressure.
+> > 2. Page migration defrag will need it.
+> > 3. Memory hotplug remove will need it.
+> >
+>
+> I guess I'm now more convinced of its need ;)
+>
+> add:
+> 4. large pages
+> 5. (hopefully) helps with smaller allocations (ie. order 3)
+>
 
+6. Avoid calls to the page allocator
 
-> One of the calls I got the other day was for loopback interface. 
-> Default MTU is 16K, which seems to screw everything up and do higher 
-> order allocs. Turning it down to under 4K seemed to fix things. I'm 
-> fairly sure loopback doesn't really need phys contig memory, but it 
-> seems to use it at the moment ;-)
-> 
+If a subsystem needs 8 pages to do a job, it should only have to call the
+allocator once, not 8 times only to spend more time breaking the work up
+into page-sized chunks.
 
-Out of interest, I did do some tests a while back that showed
-16K is good for TCP over loopback bandwidth on a few different
-types of CPUs (P3, Xeon, Opteron...).
+If you look at rmqueue_bulk() in the patch, you'll see that it tries to
+fill the per-cpu lists of order-0 pages with one call to the allocator
+which saved some time. The additional statistics patch shows how many of
+these bulk requests are made and what sizes were actually allocated. It
+shows that a sizable number of additional calls to the buddy allocator are
+avoided.
 
-IIRC 32K may have been slightly faster, but not enough to warrant
-that size allocation.
+> It would really help your cause in the short term if you can
+> demonstrate improvements for say order-3 allocations (eg. use
+> gige networking, TSO, jumbo frames, etc).
+>
 
-Bandwidth for smaller sizes dropped off quite significantly,
-although I'm not sure if that would have been from the actual
-memory copy overhead or increased per-'something' overhead in the
-network code. If the latter, that would suggest at least in theory
-it could use noncongiguous physical pages.
+I will work on this early next week unless someone else does not beat me
+to it. Right now, I need to catch a flight and I'll be offline for a few
+days.
 
-> 
->>Actually, even with TSO enabled, you'll get large order
->>allocations, but for receive packets, and these allocations
->>happen in software interrupt context.
-> 
-> 
-> Sounds like we still need to cope then ... ?
-> 
+Once I start, I'm going to be running tests on network filesystems mounted
+on the loopback device to see what sort of results I find.
 
-Sure. Although we should try to not use higher order allocs if
-possible of course. Even with a fallback mode, you will still be
-putting more pressure on higher order areas and thus degrading
-the service for *other* allocators, so such schemes should
-obviously be justified by performance improvements.
+>
+> > On the downside we have:
+> >
+> > 1. Slightly more complexity in the allocator.
+> >
+>
+> For some definitions of 'slightly', perhaps :(
+>
+
+Does it need more documentation? If so, I'll write up a detailed blurb on
+how it works and drop it into Documentation/
+
+> Although I can't argue that a buddy allocator is no good without
+> being able to satisfy higher order allocations.
+>
+
+Unfortunately, it is a fundemental flaw of the buddy allocator that it
+fragments badly. The thing is, other allocators that do not fragment are
+also slower.
+
+> So in that case, I'm personally OK with it going into -mm. Hopefully
+> there will be a bit more review and hopefully some simplification if
+> possible.
+>
+
+Fingers crossed. I would be very interested to see anything that makes it
+simplier.
+
+> Last question: how does it go on systems with really tiny memories?
+> (4MB, 8MB, that kind of thing).
+>
+
+I tested it with mem=16M (anything lower and my machine doesn't boot the
+standard kernel with going OOM, let alone the patched one). There was no
+significant change in performance of the aim9 benchmarks. The additional
+memory overhead of the patch is insignificant.
+
+However, at low memory, the fragmentation strategy does not work unless
+MAX_ORDER is also dropped. As the block reservations are 2^MAX_ORDER in
+size, there is no point reserving anything if the system only has 4
+MAX_ORDER blocks to being with.
 
 -- 
-SUSE Labs, Novell Inc.
-
-Send instant messages to your online friends http://au.messenger.yahoo.com 
+Mel Gorman
+Part-time Phd Student                          Java Applications Developer
+University of Limerick                         IBM Dublin Software Lab
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
