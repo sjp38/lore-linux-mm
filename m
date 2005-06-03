@@ -1,53 +1,78 @@
-Received: from smtp3.akamai.com (vwall2.sanmateo.corp.akamai.com [172.23.1.72])
-	by smtp3.akamai.com (8.12.10/8.12.10) with ESMTP id j531NdRt005373
-	for <linux-mm@kvack.org>; Thu, 2 Jun 2005 18:23:40 -0700 (PDT)
-Message-ID: <429FB11B.3DC2EEF3@akamai.com>
-Date: Thu, 02 Jun 2005 18:23:39 -0700
-From: Prasanna Meda <pmeda@akamai.com>
-MIME-Version: 1.0
-Subject: Re: [patch] scm: fix scm_fp_list allocation problem
-References: <200506012227.PAA05624@allur.sanmateo.akamai.com>
-		<20050602161341.3d94f17b.akpm@osdl.org>
-		<429FA5D4.87FD9B6C@akamai.com> <20050602175327.6e257d94.akpm@osdl.org>
-Content-Type: text/plain; charset=us-ascii
+Subject: Re: Avoiding external fragmentation with a placement policy
+	Version 12
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+In-Reply-To: <429F2B26.9070509@austin.ibm.com>
+References: <20050531112048.D2511E57A@skynet.csn.ul.ie>
+	 <429E20B6.2000907@austin.ibm.com> <429E4023.2010308@yahoo.com.au>
+	 <423970000.1117668514@flay> <429E483D.8010106@yahoo.com.au>
+	 <434510000.1117670555@flay> <429E50B8.1060405@yahoo.com.au>
+	 <429F2B26.9070509@austin.ibm.com>
+Content-Type: text/plain
+Date: Fri, 03 Jun 2005 13:48:08 +1000
+Message-Id: <1117770488.5084.25.camel@npiggin-nld.site>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: linux-mm@kvack.org
+To: jschopp@austin.ibm.com
+Cc: "Martin J. Bligh" <mbligh@mbligh.org>, Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org, lkml <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@osdl.org>
 List-ID: <linux-mm.kvack.org>
 
-Andrew Morton wrote:
+On Thu, 2005-06-02 at 10:52 -0500, Joel Schopp wrote:
+> > I see your point... Mel's patch has failure cases though.
+> > For example, someone turns swap off, or mlocks some memory
+> > (I guess we then add the page migration defrag patch and
+> > problem is solved?).
+> 
+> This reminds me that page migration defrag will be pretty useless 
+> without something like this done first.  There will be stuff that can't 
+> be migrated and it needs to be grouped together somehow.
+> 
+> In summary here are the reasons I see to run with Mel's patch:
+> 
+> 1. It really helps with medium-large allocations under memory pressure.
+> 2. Page migration defrag will need it.
+> 3. Memory hotplug remove will need it.
+> 
 
-> Prasanna Meda <pmeda@akamai.com> wrote:
-> >
-> > >
-> > > Given that you need to patch the kernel to support larger SCM_MAX_FD, why
-> > > not add this patch at the same time, keep it out of the main tree?
-> >
-> > Can do.
-> > Ideally every fd openable should be passed over. I work towards that goal
-> > and submit again.
->
-> No.
->
-> I meant that given that you are already patching your personal kernel to make
-> SCM_MAX_FD larger, why don't you simultaneously apply this patch?
+I guess I'm now more convinced of its need ;)
 
-> In other words: why does the kernel.org kernel need this patch?
+add:
+4. large pages
+5. (hopefully) helps with smaller allocations (ie. order 3)
 
-I agreed that I can apply both the changes locally.
-
-kernel.org does not  get direct benifit.  It is merely benificial to people
-who wants to use more fds.   I just thought  changing  SCM_MAX_FD
-is easier  for them than changing macro and adding code .
-
-
-
-Thanks,
-Prasanna.
+It would really help your cause in the short term if you can
+demonstrate improvements for say order-3 allocations (eg. use
+gige networking, TSO, jumbo frames, etc).
 
 
+> On the downside we have:
+> 
+> 1. Slightly more complexity in the allocator.
+> 
+
+For some definitions of 'slightly', perhaps :(
+
+Although I can't argue that a buddy allocator is no good without
+being able to satisfy higher order allocations.
+
+So in that case, I'm personally OK with it going into -mm. Hopefully
+there will be a bit more review and hopefully some simplification if
+possible.
+
+Last question: how does it go on systems with really tiny memories?
+(4MB, 8MB, that kind of thing).
+
+> I'd personally trade a little extra complexity for any of the 3 upsides.
+> 
+
+-- 
+SUSE Labs, Novell Inc.
+
+
+
+
+Send instant messages to your online friends http://au.messenger.yahoo.com 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
