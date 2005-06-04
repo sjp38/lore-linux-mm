@@ -1,44 +1,44 @@
-Message-ID: <42A10ED2.7020205@yahoo.com.au>
-Date: Sat, 04 Jun 2005 12:15:46 +1000
-From: Nick Piggin <nickpiggin@yahoo.com.au>
+Message-ID: <01dc01c56910$4788ad60$0f01a8c0@max>
+From: "Richard Purdie" <rpurdie@rpsys.net>
+References: <20050516130048.6f6947c1.akpm@osdl.org> <20050516210655.E634@flint.arm.linux.org.uk> <030401c55a6e$34e67cb0$0f01a8c0@max> <20050516163900.6daedc40.akpm@osdl.org> <20050602220213.D3468@flint.arm.linux.org.uk>
+Subject: Re: 2.6.12-rc4-mm2
+Date: Sat, 4 Jun 2005 15:18:16 +0100
 MIME-Version: 1.0
-Subject: Re: Avoiding external fragmentation with a placement policy Version
- 12
-References: <E1DeNiA-0008Ap-00@gondolin.me.apana.org.au>
-In-Reply-To: <E1DeNiA-0008Ap-00@gondolin.me.apana.org.au>
-Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Type: text/plain;
+	format=flowed;
+	charset="iso-8859-1";
+	reply-type=original
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Herbert Xu <herbert@gondor.apana.org.au>
-Cc: mbligh@mbligh.org, davem@davemloft.net, jschopp@austin.ibm.com, mel@csn.ul.ie, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@osdl.org
+To: Russell King <rmk@arm.linux.org.uk>, Andrew Morton <akpm@osdl.org>
+Cc: Wolfgang Wander <wwc@rentec.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Herbert Xu wrote:
-> Nick Piggin <nickpiggin@yahoo.com.au> wrote:
-> 
->>network code. If the latter, that would suggest at least in theory
->>it could use noncongiguous physical pages.
-> 
-> 
-> With Dave's latest super-TSO patch, TCP over loopback will only be
-> doing order-0 allocations in the common case.  UDP and others may
-> still do large allocations but that logic is all localised in
-> ip_append_data.
-> 
-> So if we wanted we could easily remove most large allocations over
-> the loopback device.
+Russell King:
+>
+> I'm not sure what happened with this, but there's someone reporting that
+> -rc5-mm1 doesn't work.  Unfortunately, there's not a lot to go on:
+>
+> http://lists.arm.linux.org.uk/pipermail/linux-arm-kernel/2005-May/029188.html
+>
+> Could be unrelated for all I know.
 
-I would be very interested to look into that. I would be
-willing to do benchmarks on a range of machines too if
-that would be of any use to you.
+I've just tried 2.6.12-rc5-mm2 on the Zaurus (arm pxa) and its "not happy". 
+I'm seeing segfaults as it boots, particularly around udev and hotplug 
+initilisation but in other places as well. Over three different bootups, I 
+saw the segfaults move around to different scripts so something fundamental 
+is wrong. On the last attempt, it looked up solid and failed to boot. No 
+oops or any interesting debug information.
 
-Thanks,
-Nick
+I'll roll back to 2.6.12-rc5-mm1 and see how that works next. I guess I'll 
+just have to start a binary search after that (again :-/) unless anyone has 
+any ideas of what changed that might cause this?
 
--- 
-SUSE Labs, Novell Inc.
-Send instant messages to your online friends http://au.messenger.yahoo.com 
+(2.6.12-rc4-mm2 and 2.6.12-rc5 are known good)
+
+Richard 
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
