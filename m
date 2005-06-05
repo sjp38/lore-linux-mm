@@ -1,28 +1,66 @@
-Received: from [155.44.168.134] (port=4497 helo=[firearms])
-    by 222.124.1.70 with esmtp
-    id 12015264125datagram92195
-    for linux-mm@kvack.org; Sun, 5 Jun 2005 20:07:20 +0700
-Mime-Version: 1.0 (Apple Message framework v728)
+Message-ID: <010a01c569fe$83899a10$0f01a8c0@max>
+From: "Richard Purdie" <rpurdie@rpsys.net>
+References: <20050516130048.6f6947c1.akpm@osdl.org> <20050516210655.E634@flint.arm.linux.org.uk> <030401c55a6e$34e67cb0$0f01a8c0@max> <20050516163900.6daedc40.akpm@osdl.org> <20050602220213.D3468@flint.arm.linux.org.uk> <008201c569c3$61b30ab0$0f01a8c0@max> <20050605124556.A23271@flint.arm.linux.org.uk>
+Subject: Re: 2.6.12-rc4-mm2
+Date: Sun, 5 Jun 2005 19:43:38 +0100
+MIME-Version: 1.0
+Content-Type: text/plain;
+	format=flowed;
+	charset="iso-8859-1";
+	reply-type=original
 Content-Transfer-Encoding: 7bit
-Message-Id: <6702494244.11664587954@222.124.1.70>
-Content-Type: text/plain; charset=US-ASCII; format=flowed
-From: Aloys <metaphysically@mikeleckiesculpture.com>
-Subject: cheap oem soft shipping worldwide 
-Date: Sun, 5 Jun 2005 20:07:19 +0700
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Russell King <rmk@arm.linux.org.uk>
+Cc: Andrew Morton <akpm@osdl.org>, Wolfgang Wander <wwc@rentec.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Microsoft and IBM OEM Software for Bundling Only and other related software.
-http://jlzp.074flz0tfsi7f1i.aladfala9.com
+Russell King:
+>>     [PATCH] ARM: Move copy/clear user_page locking into implementation
+>
+> This one changes the way we do these operations on SA1100, but it got
+> tested prior to submission on the Assabet which didn't show anything
+> up.  However, if I had to pick one, it'd be this.
+
+And testing confirms this patch is indeed at fault. Adding/removing the code 
+below stabilises/destabilises the system (I'm defining instability as random 
+segfaults, floating point errors, illegal instructions and alignment 
+errors).
+
+The test system is ARM PXA255 based (v5te core, preempt enabled) and its 
+using copypage-xscale.S. I suspect the locking below is needed on the xscale 
+for some reason.
+
+Does that make sense and highlight a problem?
+
+Richard
 
 
+--- a/include/asm-arm/page.h
++++ b/include/asm-arm/page.h
+@@ -114,19 +114,8 @@ extern void __cpu_copy_user_page(void *t
+      unsigned long user);
+ #endif
 
+-#define clear_user_page(addr,vaddr,pg)   \
+- do {      \
+-  preempt_disable();   \
+-  __cpu_clear_user_page(addr, vaddr); \
+-  preempt_enable();   \
+- } while (0)
+-
+-#define copy_user_page(to,from,vaddr,pg)  \
+- do {      \
+-  preempt_disable();   \
+-  __cpu_copy_user_page(to, from, vaddr); \
+-  preempt_enable();   \
+- } while (0)
++#define clear_user_page(addr,vaddr,pg)  __cpu_clear_user_page(addr, vaddr)
++#define copy_user_page(to,from,vaddr,pg) __cpu_copy_user_page(to, from, 
+vaddr)
 
-Absurdity, n.: A statement or belief manifestly inconsistent with one's own opinion. 
-True art is characterized by an irresistible urge in the creative artist 
-
+ #define clear_page(page) memzero((void *)(page), PAGE_SIZE)
+ extern void copy_page(void *to, const void *from); 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
