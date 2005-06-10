@@ -1,39 +1,35 @@
-Received: from dogmail.org (dogmail-org.mr.outblaze.com [205.158.62.181])
-        by cc846480-a.wsm1.gr.home.nl (Postfix) with ESMTP id OJPWOGL5MS
-        for <linux-mm@kvack.org>; Thu, 9 Jan 2005 15:16:36 +0000
-Date: Thu, 9 Jan 2005 15:16:36 +0000
-From: Rita Holliday <feheriqat@dogmail.org>
-Reply-To: Rita Holliday <feheriqat@dogmail.org>
-Message-ID: <04835560513950.7560194951199@cc846480-a.wsm1.gr.home.nl>
-Subject: Customer recognition with your custom logo (050271842)
-MIME-Version: 1.0
-Content-Type: text/plain;
-        charset="Windows-1252"
-Content-Transfer-Encoding: 8bit
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+Message-ID: <20041afrry3.ED8DA244AE@mailhost1a.lists.techtarget.com>
+Date: Fri, 10 Jun 2005 06:56:33 +0400
+From: "Troy Meier" <mcquilkin@fadmail.com>
+Subject: High rates? Not with us! low fixed rate
+Return-Path: <mcquilkin@fadmail.com>
+To: er-linux-mm@kvack.org
+Cc: inux-aio@kvack.orgio@kvack.org, jordomo@kvack.org, kernel@kvack.org, lah@kvack.org, linux-aio@kvack.org, linux-mm-archive@kvack.org, mailer-daemon@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Our art team creates a custom logo for you, based on your needs.  Years of experience have taught us how to create a logo that makes a statement that is unique to you.
+Hello,
 
-In a pr ofessional manner we learn about your image and how you would like the world to perceive you and your company.  With this information we then create a logo that is not only unique but reflects the purpose of you and your company.
+ We tried contacting you awhile ago about your low interest morta(ge rate.
 
-For value and a logo that reflects your image, take a few minutes and visit Try Logos!
+ You have been selected for our lowest rate in years...
 
-http://www1.try-x-logos.net/
+ You could get over $420,000 for as little as $400 a month!
 
-Sincerely,
-Logo Design Team
+ Ba(d credit, Bank*ruptcy? Doesn't matter, low rates are fixed no matter what!
+
  
+ To get a free, no obli,gation consultation click below:
+
+ http://www.jo1nt.com/signs.asp
 
 
 
+ Best Regards,
 
-http://www1.try-x-logos.net/uns.php
+ Brittney Woodson
+ 
+ to be remov(ed:	http://www.jo1nt.com/deletion.asp
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"aart@kvack.org"> aart@kvack.org </a>
+ this process takes one week, so please be patient. we do our 
+ best to take your email/s off but you have to fill out a rem/ove
+ or else you will continue to recieve email/s.
