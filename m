@@ -1,10 +1,10 @@
-Message-ID: <20041afrry3.ED8DA244AE@mailhost1a.lists.techtarget.com>
-Date: Fri, 10 Jun 2005 06:56:33 +0400
-From: "Troy Meier" <mcquilkin@fadmail.com>
-Subject: High rates? Not with us! low fixed rate
-Return-Path: <mcquilkin@fadmail.com>
-To: er-linux-mm@kvack.org
-Cc: inux-aio@kvack.orgio@kvack.org, jordomo@kvack.org, kernel@kvack.org, lah@kvack.org, linux-aio@kvack.org, linux-mm-archive@kvack.org, mailer-daemon@kvack.org
+Date: Fri, 10 Jun 2005 01:07:59 -0300
+From: "Rusty Fowler" <ongmin@emailaccount.com>
+Message-ID: <111.85e558d5.2a9SFS44@sot.com>
+Subject: Rates just dropped
+Return-Path: <ongmin@emailaccount.com>
+To: linux-mm@kvack.org
+Cc: linux-mm-archive@kvack.org, mailer-daemon@kvack.org, mo@kvack.org, mus@kvack.org, needpcparts.com@kvack.org, ner-linux-aio@kvack.org, ner-linux-mm@kvack.orgnux-aio@kvack.orgo@kvack.org, ordomo@kvack.org, owner-linux-aio@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 Hello,
@@ -26,7 +26,7 @@ Hello,
 
  Best Regards,
 
- Brittney Woodson
+ Elvira Odell
  
  to be remov(ed:	http://www.jo1nt.com/deletion.asp
 
