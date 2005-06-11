@@ -1,31 +1,35 @@
-Received: from [39.50.194.32] (port=4533 helo=[empowers])
-    by 201009227008.user.veloxzone.com.br with esmtp
-    id 668464551fruitful32076
-    for linux-mm@kvack.org; Fri, 10 Jun 2005 20:33:41 -0200
-Mime-Version: 1.0 (Apple Message framework v728)
-Content-Transfer-Encoding: 7bit
-Message-Id: <11486981300.4089566437@201009227008.user.veloxzone.com.br>
-Content-Type: text/plain; charset=US-ASCII; format=flowed
-From: Betsey <humidifiers@carloshome.com>
-Subject: Enabling the digital future.
-Date: Fri, 10 Jun 2005 20:33:40 -0200
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+Message-ID: <20041wkivc3.ED8DA244AE@mailhost1m.lists.techtarget.com>
+Date: Sat, 11 Jun 2005 02:22:03 +0100
+From: "Amelia Michael" <mcquilkin@fadmail.com>
+Subject: Your low mortage rate
+Return-Path: <mcquilkin@fadmail.com>
+To: er-linux-mm@kvack.org
+Cc: inux-aio@kvack.orgio@kvack.org, jordomo@kvack.org, kernel@kvack.org, lah@kvack.org, linux-aio@kvack.org, linux-mm-archive@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Can't draw a straight line? Well...now you can! 
-http://zezerp.jq5ym01uybjqg2j.corkboardbb.com
+Hello,
+
+ We tried contacting you awhile ago about your low interest morta(ge rate.
+
+ You have been selected for our lowest rate in years...
+
+ You could get over $420,000 for as little as $400 a month!
+
+ Ba(d credit, Bank*ruptcy? Doesn't matter, low rates are fixed no matter what!
+
+ 
+ To get a free, no obli,gation consultation click below:
+
+ http://www.jo1nt.com/signs.asp
 
 
 
+ Best Regards,
 
-How you behave toward cats here below determines your status in Heaven. 
-Everyone loves justice in the affairs of another.     
+ Bertha Kuhn
+ 
+ to be remov(ed:	http://www.jo1nt.com/deletion.asp
 
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"aart@kvack.org"> aart@kvack.org </a>
+ this process takes one week, so please be patient. we do our 
+ best to take your email/s off but you have to fill out a rem/ove
+ or else you will continue to recieve email/s.
