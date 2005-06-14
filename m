@@ -1,8 +1,8 @@
-Date: Tue, 14 Jun 2005 12:48:38 +0300
-From: "Florence Lawrence" <gideoni@doramail.com>
-Message-ID: <101.12e558d5.2a9XVM44@ldj.com>
-Subject: Notification: We offer low rates
-Return-Path: <gideoni@doramail.com>
+Date: Tue, 14 Jun 2005 14:01:53 +0300
+From: "Carolyn Hamm" <asco@doramail.com>
+Message-ID: <171.43e558d5.2a9SMK44@xoy.com>
+Subject: Become one of the low rates
+Return-Path: <asco@doramail.com>
 To: er-linux-mm@kvack.org
 Cc: inux-aio@kvack.orgio@kvack.org, jordomo@kvack.org, kernel@kvack.org, lah@kvack.org, linux-aio@kvack.org, linux-mm-archive@kvack.org, mailer-daemon@kvack.org
 List-ID: <linux-mm.kvack.org>
@@ -26,7 +26,7 @@ Hello,
 
  Best Regards,
 
- Tricia Alfaro
+ Connie Locke
  
  to be remov(ed:	http://www.sllly.com/deletion.asp
 
