@@ -1,37 +1,37 @@
-Received: from cashette.com (bay10-f23.bay10.cashette.com [216.218.158.108])
-        by sacmail-fe3.sacmail.com (8.12.11/8.12.11) with ESMTP id j4BM34K2002683
-        for <linux-mm@kvack.org>; Tue, 14 Jun 2005 10:50:34 -0100
-Message-ID: <BAY10-F236A1BA986DC2A5523D6D0B2100@phx.gbl>
-From: "Heather" <HeatherDavidson@didamail.com>
-Subject: Call away
-Date: Tue, 14 Jun 2005 12:46:34 +0100
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by e6.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id j5ELd23C017320
+	for <linux-mm@kvack.org>; Tue, 14 Jun 2005 17:39:02 -0400
+Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
+	by d01relay02.pok.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id j5ELd2IN263192
+	for <linux-mm@kvack.org>; Tue, 14 Jun 2005 17:39:02 -0400
+Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
+	by d01av03.pok.ibm.com (8.12.11/8.13.3) with ESMTP id j5ELd1jA005357
+	for <linux-mm@kvack.org>; Tue, 14 Jun 2005 17:39:01 -0400
+Received: from dyn9047017072.beaverton.ibm.com (dyn9047017072.beaverton.ibm.com [9.47.17.72])
+	by d01av03.pok.ibm.com (8.12.11/8.12.11) with ESMTP id j5ELd13N005330
+	for <linux-mm@kvack.org>; Tue, 14 Jun 2005 17:39:01 -0400
+Subject: [RFC] PageReserved ?
+From: Badari Pulavarty <pbadari@us.ibm.com>
+Content-Type: text/plain
+Message-Id: <1118783741.4301.357.camel@dyn9047017072.beaverton.ibm.com>
 Mime-Version: 1.0
-Content-Type: text/plain; format=flowed
+Date: 14 Jun 2005 14:15:42 -0700
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Financial Update:
+Hi,
 
-Client ID: 292-linux-mm@kvack.org-230
-Daily Earned Income: 200$ - 2000$
+On Andrew's suggestion, I am looking at possibility of getting
+rid of PageReserved() usage. I see lots of drivers setting this
+flag. I am wondering what was the (intended) purpose of 
+PageReserved() ?
 
-Since you are apart of our growing Financial Community
-we have information on how to make 200$ - 2000$ daily.
 
-About 80% of our clients succeed with this opportunity.
-
-Give me a call anytime to find out how.
-1-800-409-1495
-
-If you got this email by mistake then call me to
-be removed from the database.
-
-Heather Davidson
-Greens Solutions
-Phone: 1-800-409-1495
-
+Thanks,
+Badari
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
