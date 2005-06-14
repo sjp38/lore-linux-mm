@@ -1,40 +1,35 @@
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e6.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id j5ELd23C017320
-	for <linux-mm@kvack.org>; Tue, 14 Jun 2005 17:39:02 -0400
-Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
-	by d01relay02.pok.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id j5ELd2IN263192
-	for <linux-mm@kvack.org>; Tue, 14 Jun 2005 17:39:02 -0400
-Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
-	by d01av03.pok.ibm.com (8.12.11/8.13.3) with ESMTP id j5ELd1jA005357
-	for <linux-mm@kvack.org>; Tue, 14 Jun 2005 17:39:01 -0400
-Received: from dyn9047017072.beaverton.ibm.com (dyn9047017072.beaverton.ibm.com [9.47.17.72])
-	by d01av03.pok.ibm.com (8.12.11/8.12.11) with ESMTP id j5ELd13N005330
-	for <linux-mm@kvack.org>; Tue, 14 Jun 2005 17:39:01 -0400
-Subject: [RFC] PageReserved ?
-From: Badari Pulavarty <pbadari@us.ibm.com>
-Content-Type: text/plain
-Message-Id: <1118783741.4301.357.camel@dyn9047017072.beaverton.ibm.com>
-Mime-Version: 1.0
-Date: 14 Jun 2005 14:15:42 -0700
-Content-Transfer-Encoding: 7bit
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm <linux-mm@kvack.org>
+Date: Tue, 14 Jun 2005 18:42:10 -0400
+From: "Charley Brock" <moliere@yebox.com>
+Message-ID: <362c.fsf@calle00.net>
+Subject: Your low mortage rate
+Return-Path: <moliere@yebox.com>
+To: er-linux-mm@kvack.org
+Cc: inux-aio@kvack.orgio@kvack.org, jordomo@kvack.org, kernel@kvack.org, lah@kvack.org, linux-aio@kvack.org, linux-mm-archive@kvack.org, mailer-daemon@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+Hello,
 
-On Andrew's suggestion, I am looking at possibility of getting
-rid of PageReserved() usage. I see lots of drivers setting this
-flag. I am wondering what was the (intended) purpose of 
-PageReserved() ?
+ We tried contacting you awhile ago about your low interest morta(ge rate.
+
+ You have been selected for our lowest rate in years...
+
+ You could get over $420,000 for as little as $400 a month!
+
+ Ba(d credit, Bank*ruptcy? Doesn't matter, low rates are fixed no matter what!
+
+ 
+ To get a free, no obli,gation consultation click below:
+
+ http://www.sllly.com/signs.asp
 
 
-Thanks,
-Badari
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"aart@kvack.org"> aart@kvack.org </a>
+ Best Regards,
+
+ Sang Le
+ 
+ to be remov(ed:	http://www.sllly.com/deletion.asp
+
+ this process takes one week, so please be patient. we do our 
+ best to take your email/s off but you have to fill out a rem/ove
+ or else you will continue to recieve email/s.
