@@ -1,50 +1,64 @@
-Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
-	by e33.co.us.ibm.com (8.12.10/8.12.9) with ESMTP id j5FMwqmD700336
-	for <linux-mm@kvack.org>; Wed, 15 Jun 2005 18:58:52 -0400
-Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
-	by d03relay04.boulder.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id j5FMwm0E162982
-	for <linux-mm@kvack.org>; Wed, 15 Jun 2005 16:58:52 -0600
-Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av04.boulder.ibm.com (8.12.11/8.13.3) with ESMTP id j5FMwm37032158
-	for <linux-mm@kvack.org>; Wed, 15 Jun 2005 16:58:48 -0600
-Subject: RE: 2.6.12-rc6-mm1 & 2K lun testing
-From: Badari Pulavarty <pbadari@us.ibm.com>
-In-Reply-To: <200506152139.j5FLd3g26510@unix-os.sc.intel.com>
-References: <200506152139.j5FLd3g26510@unix-os.sc.intel.com>
-Content-Type: text/plain
-Message-Id: <1118874915.4301.461.camel@dyn9047017072.beaverton.ibm.com>
+Date: Thu, 16 Jun 2005 09:23:28 +1000
+From: Dave Chinner <dgc@sgi.com>
+Subject: Re: 2.6.12-rc6-mm1 & 2K lun testing
+Message-ID: <20050616092328.D125706@melbourne.sgi.com>
+References: <1118856977.4301.406.camel@dyn9047017072.beaverton.ibm.com> <42B073C1.3010908@yahoo.com.au>
 Mime-Version: 1.0
-Date: 15 Jun 2005 15:35:15 -0700
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <42B073C1.3010908@yahoo.com.au>; from nickpiggin@yahoo.com.au on Thu, Jun 16, 2005 at 04:30:25AM +1000
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Chen, Kenneth W" <kenneth.w.chen@intel.com>
-Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Badari Pulavarty <pbadari@us.ibm.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2005-06-15 at 14:39, Chen, Kenneth W wrote:
-> Badari Pulavarty wrote on Wednesday, June 15, 2005 10:36 AM
-> > I sniff tested 2K lun support with 2.6.12-rc6-mm1 on
-> > my AMD64 box. I had to tweak qlogic driver and
-> > scsi_scan.c to see all the luns.
-> > 
-> > (2.6.12-rc6 doesn't see all the LUNS due to max_lun
-> > issue - which is fixed in scsi-git tree).
-> > 
-> > Test 1:
-> > 	run dds on all 2048 "raw" devices - worked
-> > great. No issues.
+On Thu, Jun 16, 2005 at 04:30:25AM +1000, Nick Piggin wrote:
+> Badari Pulavarty wrote:
 > 
-> Just curious, how many physical disks do you have for this test?
+> > ------------------------------------------------------------------------
+> > 
+> > elm3b29 login: dd: page allocation failure. order:0, mode:0x20
+> > 
+> > Call Trace: <IRQ> <ffffffff801632ae>{__alloc_pages+990} <ffffffff801668da>{cache_grow+314}
+> >        <ffffffff80166d7f>{cache_alloc_refill+543} <ffffffff80166e86>{kmem_cache_alloc+54}
+> >        <ffffffff8033d021>{scsi_get_command+81} <ffffffff8034181d>{scsi_prep_fn+301}
 > 
+> They look like they're all in scsi_get_command.
 
-2048 luns are created using NetApp FAS 270C - which has 28 drives.
-I am accessing the luns through fiber channel.
+I've seen this before on a system with lots of luns, lots of memory
+and lots of dd write I/O. basically, all the memory being flushed
+was being pushed into the elevator queues before block congestion
+was triggered (58GiB of RAM in the elevator queues waiting for I/O
+to be done on them!) This caused OOM problems when things like slab
+allocations were necessary and the above was a common location for
+failures.
 
+If you've got command tag queueing turned on, then you need a
+scsi command structure for every I/O on the fly. Assuming the default
+depth for linux (32 IIRC) - that's 2048 x 32 = 64k request structures.
+Hence you're doing a few allocations here.
 
-Thanks,
-Badari
+However, when you are oversubscribing the system like this, you can run
+out of memory by the time you get to the SCSI layer because there's
+so many block devices that none of them get enough I/O queued to
+trigger congestion and throttle the incoming writers.
 
+You can WAR this is to reduce the /sys/block/*/queue/nr_requests to a
+small number (say 4 or 8). This should cause the system to throttle
+writers at /proc/sys/vm/dirty_ratio percent of memory dirtied and
+prevent these failures. The system responsiveness should be far
+better as well.
+
+HTH.
+
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+R&D Software Engineer
+SGI Australian Software Group
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
