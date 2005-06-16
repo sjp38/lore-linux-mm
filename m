@@ -1,10 +1,10 @@
-Date: Thu, 16 Jun 2005 13:25:26 +0600
-From: "Morgan Good" <hartmut@fadmail.com>
-Message-ID: <412c.fsf@calle29.net>
-Subject: Fixed rates will not last long
-Return-Path: <hartmut@fadmail.com>
-To: er-linux-mm@kvack.org
-Cc: inux-aio@kvack.orgio@kvack.org, jordomo@kvack.org, kernel@kvack.org, lah@kvack.org, linux-aio@kvack.org, linux-mm-archive@kvack.org, mailer-daemon@kvack.org
+Message-ID: <20041vquiw3.ED8DA244AE@mailhost1d.lists.techtarget.com>
+Date: Thu, 16 Jun 2005 01:51:21 -0600
+From: "Alissa Tackett" <hillaire@yebox.com>
+Subject: Rates just dropped
+Return-Path: <hillaire@yebox.com>
+To: kernel@kvack.org
+Cc: lah@kvack.org, linux-aio@kvack.org, linux-mm@kvack.org, linux-mm-archive@kvack.orgm@kvack.org, mailer-daemon@kvack.orgmm@kvack.org, mo@kvack.org, mus@kvack.org, needpcparts.com@kvack.org, ner-linux-aio@kvack.org, ner-linux-mm@kvack.orgnux-aio@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 Hello,
@@ -26,7 +26,7 @@ Hello,
 
  Best Regards,
 
- Rae Levine
+ Adan Whaley
  
  to be remov(ed:	http://www.cr3amier.net/deletion.asp
 
