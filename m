@@ -1,35 +1,54 @@
-Message-ID: <20041vquiw3.ED8DA244AE@mailhost1d.lists.techtarget.com>
-Date: Thu, 16 Jun 2005 01:51:21 -0600
-From: "Alissa Tackett" <hillaire@yebox.com>
-Subject: Rates just dropped
-Return-Path: <hillaire@yebox.com>
-To: kernel@kvack.org
-Cc: lah@kvack.org, linux-aio@kvack.org, linux-mm@kvack.org, linux-mm-archive@kvack.orgm@kvack.org, mailer-daemon@kvack.orgmm@kvack.org, mo@kvack.org, mus@kvack.org, needpcparts.com@kvack.org, ner-linux-aio@kvack.org, ner-linux-mm@kvack.orgnux-aio@kvack.org
+Date: Thu, 16 Jun 2005 00:24:51 -0700
+From: Andrew Morton <akpm@osdl.org>
+Subject: Re: 2.6.12-rc6-mm1 & 2K lun testing
+Message-Id: <20050616002451.01f7e9ed.akpm@osdl.org>
+In-Reply-To: <1118856977.4301.406.camel@dyn9047017072.beaverton.ibm.com>
+References: <1118856977.4301.406.camel@dyn9047017072.beaverton.ibm.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: Badari Pulavarty <pbadari@us.ibm.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hello,
+Badari Pulavarty <pbadari@us.ibm.com> wrote:
+>
+> I sniff tested 2K lun support with 2.6.12-rc6-mm1 on
+>  my AMD64 box. I had to tweak qlogic driver and
+>  scsi_scan.c to see all the luns.
+> 
+>  (2.6.12-rc6 doesn't see all the LUNS due to max_lun
+>  issue - which is fixed in scsi-git tree).
+> 
+>  Test 1:
+>  	run dds on all 2048 "raw" devices - worked
+>  great. No issues.
+> 
+>  Tests 2: 
+>  	run "dds" on 2048 filesystems (one file
+>  per filesystem). Kind of works. I was expecting better
+>  responsiveness & stability.
+> 
+> 
+>  Overall - Good news is, it works. 
+> 
+>  Not so good news - with filesystem tests, machine becomes 
+>  unresponsive, lots of page allocation failures but machine 
+>  stays up and completes the tests and recovers.
 
- We tried contacting you awhile ago about your low interest morta(ge rate.
+Any chance of getting a peek at /proc/slabinfo?
 
- You have been selected for our lowest rate in years...
+Presumably increasing /proc/sys/vm/min_free_kbytes will help.
 
- You could get over $420,000 for as little as $400 a month!
+We seem to be always ooming when allocating scsi command structures. 
+Perhaps the block-level request structures are being allocated with
+__GFP_WAIT, but it's a bit odd.  Which I/O scheduler?  If cfq, does
+reducing /sys/block/*/queue/nr_requests help?
 
- Ba(d credit, Bank*ruptcy? Doesn't matter, low rates are fixed no matter what!
-
- 
- To get a free, no obli,gation consultation click below:
-
- http://www.cr3amier.net/signs.asp
-
-
-
- Best Regards,
-
- Adan Whaley
- 
- to be remov(ed:	http://www.cr3amier.net/deletion.asp
-
- this process takes one week, so please be patient. we do our 
- best to take your email/s off but you have to fill out a rem/ove
- or else you will continue to recieve email/s.
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"aart@kvack.org"> aart@kvack.org </a>
