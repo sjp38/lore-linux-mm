@@ -1,51 +1,49 @@
-Date: Thu, 16 Jun 2005 00:24:51 -0700
-From: Andrew Morton <akpm@osdl.org>
-Subject: Re: 2.6.12-rc6-mm1 & 2K lun testing
-Message-Id: <20050616002451.01f7e9ed.akpm@osdl.org>
-In-Reply-To: <1118856977.4301.406.camel@dyn9047017072.beaverton.ibm.com>
-References: <1118856977.4301.406.camel@dyn9047017072.beaverton.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+From: Mr Rapheal Garang <rapheal_23@yahoo.com>
+Reply-To: rapheal28@excite.com
+Subject: Your Response is needed
+Date: Thu, 16 Jun 2005 13:38:53 +0200
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="a9aa1a38-4b4d-44a0-b5aa-2ecff6c81caa"
+Message-Id: <20050616124055Z26530-954+722@kvack.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Badari Pulavarty <pbadari@us.ibm.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Badari Pulavarty <pbadari@us.ibm.com> wrote:
->
-> I sniff tested 2K lun support with 2.6.12-rc6-mm1 on
->  my AMD64 box. I had to tweak qlogic driver and
->  scsi_scan.c to see all the luns.
-> 
->  (2.6.12-rc6 doesn't see all the LUNS due to max_lun
->  issue - which is fixed in scsi-git tree).
-> 
->  Test 1:
->  	run dds on all 2048 "raw" devices - worked
->  great. No issues.
-> 
->  Tests 2: 
->  	run "dds" on 2048 filesystems (one file
->  per filesystem). Kind of works. I was expecting better
->  responsiveness & stability.
-> 
-> 
->  Overall - Good news is, it works. 
-> 
->  Not so good news - with filesystem tests, machine becomes 
->  unresponsive, lots of page allocation failures but machine 
->  stays up and completes the tests and recovers.
+This is a multi-part message in MIME format
+--a9aa1a38-4b4d-44a0-b5aa-2ecff6c81caa
+Content-Type: text/plain; charset=iso-8859-1
+Content-Transfer-Encoding: quoted-printable
 
-Any chance of getting a peek at /proc/slabinfo?
-
-Presumably increasing /proc/sys/vm/min_free_kbytes will help.
-
-We seem to be always ooming when allocating scsi command structures. 
-Perhaps the block-level request structures are being allocated with
-__GFP_WAIT, but it's a bit odd.  Which I/O scheduler?  If cfq, does
-reducing /sys/block/*/queue/nr_requests help?
+Dear Sir,
+I am contacting you believing you are honest and trustworthy person. I =
+believe you will not betray the confidence my family are willing to repose in =
+you,for have contact you even though we haven't meet in person before.
+My name is Raphael Garang , a citizen of southern Sudan, the son of 
+Mr.John Garang,leader of Sudan People's Liberation Army (SPLA) and a Rebel =
+leader from southern Sudan.
+I am presently in Senegal with my Sister and my mother Mrs Elizabeth Garang.
+My father Mr John Garang deposited the sum of US$6,500.000.00 Dollars (Six =
+Million Five Hundred Thousand United States Dollars) under into a Finance =
+Firm Senegal with my name Raphael as his next of kin.
+We need to transfer the money to a foreign trustee with interest to secure a =
+sustainable investment.We are therefore soliciting for your assistance to =
+help us receive the money out from Senegal and as well to transfer it into =
+your private or company account for our investment in your country under your =
+care. You are advised to visit this website to find more details about the =
+role of my father on my country civil war =
+http://news.bbc.co.uk/1/hi/world/africa/2134220.stm Please reply immediately =
+you receive this mail for further discussion and also tell us the amount you =
+will take as your rewards for helping us to
+handle the transfer to your position to enable us to give you more details =
+information of the deposit.
+We have with us here the deposit Certificate which be forward to you
+immediately you indicate your willingness to be our foreign business
+partner.
+Thanks for your anticipated understanding and co-operation.
+Best regards,
+Raphael/Mrs Elizabeth Garang.  
+--a9aa1a38-4b4d-44a0-b5aa-2ecff6c81caa--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
