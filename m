@@ -1,59 +1,29 @@
-Date: Fri, 17 Jun 2005 14:13:31 -0700
-From: Andrew Morton <akpm@osdl.org>
-Subject: Re: 2.6.12-rc6-mm1 & 2K lun testing
-Message-Id: <20050617141331.078e5f8f.akpm@osdl.org>
-In-Reply-To: <42B2E7D2.9080705@us.ibm.com>
-References: <1118856977.4301.406.camel@dyn9047017072.beaverton.ibm.com>
-	<20050616002451.01f7e9ed.akpm@osdl.org>
-	<1118951458.4301.478.camel@dyn9047017072.beaverton.ibm.com>
-	<20050616133730.1924fca3.akpm@osdl.org>
-	<1118965381.4301.488.camel@dyn9047017072.beaverton.ibm.com>
-	<20050616175130.22572451.akpm@osdl.org>
-	<42B2E7D2.9080705@us.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from [177.24.139.208] (port=4130 helo=[Telnet])
+    by pool-64-223-112-253.burl.east.verizon.net with esmtp
+    id 81545108858Verderer71966
+    for linux-mm@kvack.org; Sat, 18 Jun 2005 09:39:14 -0400
+Mime-Version: 1.0 (Apple Message framework v728)
 Content-Transfer-Encoding: 7bit
+Message-Id: <1633017853.155885634@pool-64-223-112-253.burl.east.verizon.net>
+Content-Type: text/plain; charset=US-ASCII; format=flowed
+From: Ambrose <Londonderry@stern.net>
+Subject: No need to pay more - cheapest OEM online.
+Date: Sat, 18 Jun 2005 09:39:13 -0400
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Badari Pulavarty <pbadari@us.ibm.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Badari Pulavarty <pbadari@us.ibm.com> wrote:
->
-> > It shouldn't be necessary to do both.  Either the patch or the tuning
-> > should fix it.  Please confirm.
-> > 
-> > Also please determine whether the deep CFQ queue depth is a problem when
-> > the VFS tuning/patching is in place.
-> > 
-> > IOW: let's work out which of these three areas needs to be addressed.
-> > 
-> 
-> Andrew,
-> 
-> Sorry for not getting back earlier. I am running into weird problems.
-> When running "dd" write tests to 2048 ext3 filesystems, just with your
-> patch (no dirty ratio or CFS queue depth tuning), I see "buff" 
-> increasing instead of "cache" and I see "bi" instead of "bo".
-> Whats going on here ?
+Super software, swell prices, splendid service.
+http://tbyur.ova3r56z3g6d3po.shieldha.com
 
-Beats me.  Are you sure you're not running a broken vmstat?
 
-`buff' would increase if you were accidentally writing to /dev/sda1 rather
-than /dev/sda1/some-filename, but I don't know why vmstat would be getting
-confused over the direction of the I/O.
 
-> 
-> procs -----------memory---------- ---swap-- -----io---- --system-- 
-> ----cpu----
->   r  b   swpd   free   buff  cache   si   so    bi    bo   in    cs us 
-> sy id wa
-> ..
->   2  0      4 6339920  42712  24884    0    0     0    19  413  1237 46 
->   6 48  0
 
-You're wordwrapping...
+The Depth of your Mythology is the Extent of your Effectiveness.  
+The important thing is not to stop questioning.     
+
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
