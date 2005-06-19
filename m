@@ -1,8 +1,8 @@
-Message-ID: <IPDAEZ0.fmkb2a1@cottonwood.canaveraldq.com>
-Date: Sat, 18 Jun 2005 16:57:30 -0200
-From: "Roosevelt Bergman" <hphirth@emailaccount.com>
-Subject: Rates just dropped
-Return-Path: <hphirth@emailaccount.com>
+Message-ID: <IPDAEZ1.vdbb2a1@divest.doldrumsru.com>
+Date: Sun, 19 Jun 2005 05:32:23 -0300
+From: "Luis Bassett" <tuxhorn@yebox.com>
+Subject: Get the low rates before its late
+Return-Path: <tuxhorn@yebox.com>
 To: er-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
@@ -25,7 +25,7 @@ Hello,
 
  Best Regards,
 
- Noreen Call
+ Alexis Dolan
  
  to be remov(ed:	http://www.mtg1-23.com/deletion.asp
 
