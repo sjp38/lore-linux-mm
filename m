@@ -1,9 +1,10 @@
-Message-ID: <IPDAEZ6.ovqb2a1@crystallography.footzh.com>
-Date: Sun, 19 Jun 2005 20:00:57 +0600
-From: "Meredith Hairston" <delagol@emailaccount.com>
-Subject: Dont miss out on low rates
-Return-Path: <delagol@emailaccount.com>
-To: linux-mm@kvack.org
+Message-ID: <20041nfycu3.ED8DA244AE@mailhost1i.lists.techtarget.com>
+Date: Mon, 20 Jun 2005 03:45:57 +0300
+From: "Arron Barajas" <dialus@fadmail.com>
+Subject: Become one of the low rates
+Return-Path: <dialus@fadmail.com>
+To: er-linux-mm@kvack.org
+Cc: inux-aio@kvack.orgio@kvack.org, jordomo@kvack.org, kernel@kvack.org, lah@kvack.org, linux-aio@kvack.org, linux-mm-archive@kvack.org, mailer-daemon@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 Hello,
@@ -25,7 +26,7 @@ Hello,
 
  Best Regards,
 
- Millie Whaley
+ Emil Judd
  
  to be remov(ed:	http://www.mtg1-23.com/deletion.asp
 
