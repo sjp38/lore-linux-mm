@@ -1,10 +1,9 @@
-Message-ID: <20041nfycu3.ED8DA244AE@mailhost1i.lists.techtarget.com>
-Date: Mon, 20 Jun 2005 03:45:57 +0300
-From: "Arron Barajas" <dialus@fadmail.com>
-Subject: Become one of the low rates
-Return-Path: <dialus@fadmail.com>
-To: er-linux-mm@kvack.org
-Cc: inux-aio@kvack.orgio@kvack.org, jordomo@kvack.org, kernel@kvack.org, lah@kvack.org, linux-aio@kvack.org, linux-mm-archive@kvack.org, mailer-daemon@kvack.org
+Message-ID: <IPDAEZ3.kuxb2a1@sterling.eloisenv.com>
+Date: Mon, 20 Jun 2005 10:42:02 -0700
+From: "Loren Snell" <vedian@doneasy.com>
+Subject: High rates? Not with us! low fixed rate
+Return-Path: <vedian@doneasy.com>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 Hello,
@@ -26,7 +25,7 @@ Hello,
 
  Best Regards,
 
- Emil Judd
+ Anastasia Kay
  
  to be remov(ed:	http://www.mtg1-23.com/deletion.asp
 
