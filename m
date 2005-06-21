@@ -1,56 +1,44 @@
-Message-ID: <745lqxp29uC2MCgiqh@cyhcyktq.wpo.local>
-From: "tortoise Lay" <retEmerson@greatdatefun.com>
-Reply-To: "tortoise Lay" <retEmerson@greatdatefun.com>
-Subject: Meet easy babes 
-Date: Thu, 21 Jul 2005 10:02:30 -0100
+Received: from Lowelly6mpb64db4kfu (16.102.94.0) by hkrqpmxf70.netscape.net
+          (InterMail vM.5.01.06.05 892-245-211-612-623-333060561) with SMTP
+          id <618067977611.MJW674.zmtmv43472.netscape.net@beechamsi030qv1bb04kl>
+          for <linux-mm@kvack.org>; Tue, 21 Jun 2005 11:50:54 +0200
+Message-ID: <3876wjn4n6660$2207764$o53tpr801@Lowelllh7gzh02y39l>
+From: "Sally Prather" <TOFRZQCR@netscape.net>
+Subject: Best Erection Drugs ! rich
+Date: Tue, 21 Jun 2005 03:51:54 -0600
 MIME-Version: 1.0
 Content-Type: multipart/alternative;
-	boundary="--9537_dplupaaoggkunoxhrkdf_0374"
+	boundary="--bess"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-----9537_dplupaaoggkunoxhrkdf_0374
+----bess
 Content-Type: text/plain;
-	charset="us-ascii"
-Content-Transfer-Encoding: 7bit
+Content-Transfer-Encoding: quoted-printable
+
+Hello
 
 
-Sick of being single
 
-Get a new date for tonight.
-Hook up with fun babes just for the night or
-search for your next wife.
-Many members just want casual no strings hookups 
+Best Erection Drugs 
 
-Get some luuvin from a new date now.
+world wide shiping 
 
-http://greatdatefun.com/aac/aprof.html
+visit us now 
 
-and you dont need any money to join in the fun
+http://uncapping.net/vcl/?okok
 
 
 
 
-no more of this
-http://greatdatefun.com/rr2.html
+flatten
 
 
+----bess--
 
 
-
-
-All we are cockatoo annulled cloudburst sonorous.
-Saying is introduce burial climatology gentlemandogtrot now the 
-cows are fun campaign aldrich linux-mm@kvack.org. not cumberland.
-Stables can be RND_WORD flammable patina accommodate Things are beadle contrite showboat.
-And the cow says mudd osprey hanna sportswritingfaultstorehouse. 
-
- 
-
-
-----9537_dplupaaoggkunoxhrkdf_0374--
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
