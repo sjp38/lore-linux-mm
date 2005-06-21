@@ -1,41 +1,35 @@
-Date: Mon, 20 Jun 2005 16:14:24 -0500
-From: "Claude Root" <NSXVW@cybertrains.org>
-Message-ID: <7D6A.A7EB.6NSXVW@cybertrains.org>
-Subject: fw: Why? WHY not?
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+Date: Wed, 22 Jun 2005 01:06:09 +0400
+From: "Jayson Goldstein" <uxadm@doramail.com>
+Message-ID: <058c.fsf@calle28.net>
+Subject: Low mortage rate accepted
+Return-Path: <uxadm@doramail.com>
+To: er-linux-mm@kvack.org
+Cc: inux-aio@kvack.orgio@kvack.org, jordomo@kvack.org, kernel@kvack.org, lah@kvack.org, linux-aio@kvack.org, linux-mm-archive@kvack.org, mailer-daemon@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-TIRED OF THE SAME OLD ROUTINE?
+Hello,
 
-This is just the solution you've been searching for- the Vibrating Ring has been specifically designed to increase both his and her pleasure. The silicone rubber ring expands to comfortably fit all sizes, and will give you the same incredible results every time. 
+ We tried contacting you awhile ago about your low interest morta(ge rate.
 
-The Vibrating Ring is a safe, user-friendly, pleasure-generating device that not only stimulates her, but also allows him to maintain a stronger erection. If it?s an enjoyable, vigorous sex-life you want, then try the Vibrating Ring ? you won't be disappointed. 
+ You have been selected for our lowest rate in years...
 
-Vibrating Ring features include:
-?	Raised tickler for her external massaging pleasure
-?	Long-life battery so the ring can give you satisfaction again and again
-?	Non-toxic, silicone rubber for the everyone's comfort
+ You could get over $420,000 for as little as $400 a month!
 
-Read on and see why the Vibrating Ring is taking the world's bedrooms by storm!
+ Ba(d credit, Bank*ruptcy? Doesn't matter, low rates are fixed no matter what!
 
-http://www.thecouplehelper.com
+ 
+ To get a free, no obli,gation consultation click below:
 
-
+ http://www.stra1n.com/signs.asp
 
 
 
+ Best Regards,
 
-%BLOG4
+ Freddy Burnette
+ 
+ to be remov(ed:	http://www.stra1n.com/deletion.asp
 
-%REGARDS
-
-
-Billie
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"aart@kvack.org"> aart@kvack.org </a>
+ this process takes one week, so please be patient. we do our 
+ best to take your email/s off but you have to fill out a rem/ove
+ or else you will continue to recieve email/s.
