@@ -1,146 +1,36 @@
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by e3.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id j5MHO6og020663
-	for <linux-mm@kvack.org>; Wed, 22 Jun 2005 13:24:06 -0400
-Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
-	by d01relay04.pok.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id j5MHO6jx214052
-	for <linux-mm@kvack.org>; Wed, 22 Jun 2005 13:24:06 -0400
-Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
-	by d01av04.pok.ibm.com (8.12.11/8.13.3) with ESMTP id j5MHNun4017358
-	for <linux-mm@kvack.org>; Wed, 22 Jun 2005 13:23:56 -0400
-Subject: Re: [PATCH 2.6.12-rc5 4/10] mm: manual page migration-rc3 --
-	add-sys_migrate_pages-rc3.patch
-From: Dave Hansen <haveblue@us.ibm.com>
-In-Reply-To: <20050622163934.25515.22804.81297@tomahawk.engr.sgi.com>
-References: <20050622163908.25515.49944.65860@tomahawk.engr.sgi.com>
-	 <20050622163934.25515.22804.81297@tomahawk.engr.sgi.com>
-Content-Type: text/plain
-Date: Wed, 22 Jun 2005 10:23:33 -0700
-Message-Id: <1119461013.18457.61.camel@localhost>
-Mime-Version: 1.0
+Received: from westrelay02.boulder.ibm.com (westrelay02.boulder.ibm.com [9.17.195.11])
+	by e32.co.us.ibm.com (8.12.10/8.12.9) with ESMTP id j5MHUmRX641886
+	for <linux-mm@kvack.org>; Wed, 22 Jun 2005 13:30:49 -0400
+Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
+	by westrelay02.boulder.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id j5MHUmBj325152
+	for <linux-mm@kvack.org>; Wed, 22 Jun 2005 11:30:48 -0600
+Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av03.boulder.ibm.com (8.12.11/8.13.3) with ESMTP id j5MHUm41000916
+	for <linux-mm@kvack.org>; Wed, 22 Jun 2005 11:30:48 -0600
+Message-ID: <42B9A041.8000301@austin.ibm.com>
+Date: Wed, 22 Jun 2005 12:30:41 -0500
+From: Joel Schopp <jschopp@austin.ibm.com>
+Reply-To: jschopp@austin.ibm.com
+MIME-Version: 1.0
+Subject: Re: [Lhms-devel] [PATCH 2.6.12-rc5 2/10] mm: manual page migration-rc3
+ -- xfs-migrate-page-rc3.patch
+References: <20050622163908.25515.49944.65860@tomahawk.engr.sgi.com> <20050622163921.25515.62325.69270@tomahawk.engr.sgi.com>
+In-Reply-To: <20050622163921.25515.62325.69270@tomahawk.engr.sgi.com>
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Ray Bryant <raybry@sgi.com>
-Cc: Hirokazu Takahashi <taka@valinux.co.jp>, Marcelo Tosatti <marcelo.tosatti@cyclades.com>, Andi Kleen <ak@suse.de>, Christoph Hellwig <hch@infradead.org>, Ray Bryant <raybry@austin.rr.com>, linux-mm <linux-mm@kvack.org>, lhms <lhms-devel@lists.sourceforge.net>, Paul Jackson <pj@sgi.com>, Nathan Scott <nathans@sgi.com>
+Cc: Hirokazu Takahashi <taka@valinux.co.jp>, Dave Hansen <haveblue@us.ibm.com>, Marcelo Tosatti <marcelo.tosatti@cyclades.com>, Andi Kleen <ak@suse.de>, Christoph Hellwig <hch@infradead.org>, Ray Bryant <raybry@austin.rr.com>, linux-mm <linux-mm@kvack.org>, lhms-devel@lists.sourceforge.net, Paul Jackson <pj@sgi.com>, Nathan Scott <nathans@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2005-06-22 at 09:39 -0700, Ray Bryant wrote:
-> +asmlinkage long
-> +sys_migrate_pages(pid_t pid, __u32 count, __u32 *old_nodes, __u32 *new_nodes)
-> +{
+> However, the routine "xfs_skip_migrate_page()" is added to
+> disallow migration of xfs metadata.
 
-Should the buffers be marked __user?
-
-> +       if ((count < 1) || (count > MAX_NUMNODES))
-> +               return -EINVAL;
-
-Since you have an out_einval:, it's probably best to use it
-consistently.  There is another place or two like this.
-
-> +       for (i = 0; i < count; i++) {
-> +               int n;
-> +
-> +               n = tmp_old_nodes[i];
-> +               if ((n < 0) || (n >= MAX_NUMNODES))
-> +                       goto out_einval;
-> +               node_set(n, old_node_mask);
-> +
-> +               n = tmp_new_nodes[i];
-> +               if ((n < 0) || (n >= MAX_NUMNODES) || !node_online(n))
-> +                       goto out_einval;
-> +               node_set(n, new_node_mask);
-> +
-> +       }
-
-I know it's a simple operation, but I think I'd probably break out the
-array validation into its own function.
-
-Then, replace the above loop with this:
-
-if (!migrate_masks_valid(tmp_old_nodes, count) ||
-     migrate_masks_valid(tmp_old_nodes, count))
-	goto out_einval;
-
-for (i = 0; i < count; i++) {
-	node_set(tmp_old_nodes[i], old_node_mask);
-	node_set(tmp_new_nodes[i], new_node_mask);
-}
-
-> +static int
-> +migrate_vma(struct task_struct *task, struct mm_struct *mm,
-> +       struct vm_area_struct *vma, int *node_map)
-...
-> +       spin_lock(&mm->page_table_lock);
-> +       for (vaddr = vma->vm_start; vaddr < vma->vm_end; vaddr += PAGE_SIZE) {
-> +               page = follow_page(mm, vaddr, 0);
-> +               /*
-> +                * follow_page has been known to return pages with zero mapcount
-> +                * and NULL mapping.  Skip those pages as well
-> +                */
-> +               if (page && page_mapcount(page)) {
-> +                       if (node_map[page_to_nid(page)] >= 0) {
-> +                               if (steal_page_from_lru(page_zone(page), page,
-> +                                       &page_list))
-> +                                               count++;
-> +                               else
-> +                                       BUG();
-> +                       }
-> +               }
-> +       }
-> +       spin_unlock(&mm->page_table_lock);
-
-Personally, I dislike having so many embedded ifs, especially in a for
-loop like that.  I think it's a lot more logical to code it up as a
-series of continues, mostly because it's easy to read a continue as,
-"skip this page."  You can't always see that as easily with an if().  It
-also makes it so that you don't have to wrap the steal_page_from_lru()
-call across two lines, which is super-ugly. :)
-
-for (vaddr = vma->vm_start; vaddr < vma->vm_end; vaddr += PAGE_SIZE) {
-	page = follow_page(mm, vaddr, 0);
-	if (!page || !page_mapcount(page))
-		continue;
-
-	if (node_map[page_to_nid(page)] < 0)
-		continue;
-
-	if (steal_page_from_lru(page_zone(page), page, &page_list));
-		count++;
-	else
-		BUG();
-}
-
-The same kind of thing goes for this if: 
-
-> +       /* call the page migration code to move the pages */
-> +       if (count) {
-> +               nr_busy = try_to_migrate_pages(&page_list, node_map);
-> +
-> +               if (nr_busy < 0)
-> +                       return nr_busy;
-> +
-> +               if (nr_busy == 0)
-> +                       return count;
-> +
-> +               /* return the unmigrated pages to the LRU lists */
-> +               list_for_each_entry_safe(page, page2, &page_list, lru)
-> {
-> +                       list_del(&page->lru);
-> +                       putback_page_to_lru(page_zone(page), page);
-> +               }
-> +               return -EAGAIN;
-> +       }
-> +
-> +       return 0;
-
-It looks a lot cleaner if you just do 
-
-	if (!count)
-		return count;
-
-	... contents of the if(){} block go here
-
--- Dave
+On ppc64 we are aiming to eventually be able to migrate ALL data.  I 
+understand we aren't nearly there yet.  I'd like to keep track of what 
+we need to do to get there.  What do we need to do to be able to migrate 
+xfs metadata?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
