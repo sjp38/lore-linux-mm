@@ -1,73 +1,313 @@
-Date: Wed, 22 Jun 2005 09:39:15 -0700 (PDT)
+Date: Wed, 22 Jun 2005 09:39:35 -0700 (PDT)
 From: Ray Bryant <raybry@sgi.com>
-Message-Id: <20050622163915.25515.46440.25758@tomahawk.engr.sgi.com>
+Message-Id: <20050622163934.25515.22804.81297@tomahawk.engr.sgi.com>
 In-Reply-To: <20050622163908.25515.49944.65860@tomahawk.engr.sgi.com>
 References: <20050622163908.25515.49944.65860@tomahawk.engr.sgi.com>
-Subject: [PATCH 2.6.12-rc5 1/10] mm: hirokazu-steal_page_from_lru.patch
+Subject: [PATCH 2.6.12-rc5 4/10] mm: manual page migration-rc3 -- add-sys_migrate_pages-rc3.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Hirokazu Takahashi <taka@valinux.co.jp>, Marcelo Tosatti <marcelo.tosatti@cyclades.com>, Andi Kleen <ak@suse.de>, Dave Hansen <haveblue@us.ibm.com>
 Cc: Christoph Hellwig <hch@infradead.org>, Ray Bryant <raybry@austin.rr.com>, linux-mm <linux-mm@kvack.org>, lhms-devel@lists.sourceforge.net, Ray Bryant <raybry@sgi.com>, Paul Jackson <pj@sgi.com>, Nathan Scott <nathans@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-Hi Dave,
+This is the main patch that creates the migrate_pages() system
+call.  Note that in this case, the system call number was more
+or less arbitrarily assigned at 1279.  This number needs to
+allocated.
 
-Would you apply the following patch right after
-AA-PM-01-steal_page_from_lru.patch.
+This patch sits on top of the page migration patches from
+the Memory Hotplug project.  This particular patchset is built
+on top of the page migration subset of:
 
-This patch makes steal_page_from_lru() and putback_page_to_lru()
-check PageLRU() with zone->lur_lock held. Currently the process
-migration code, where Ray is working on, only uses this code.
+http://www.sr71.net/patches/2.6.12/2.6.12-rc5-mhp1/broken-out-2.6.12-rc5-mhp1.tar.gz
 
-Thanks,
-Hirokazu Takahashi.
+but it may apply on subsequent page migration patches as well.
+(The page migration subset of the mhp broken out patches begins
+with the first patch of the patchset above and ends with the
+patch:  AA-PM-99-x86_64-IMMOVABLE.patch.  Normally, I would use
+the patch
 
+http://www.sr71.net/patches/2.6.12/2.6.12-rc5-mhp1/page-migration/patch-2.6.12-rc5-mhp1-pm.gz
 
-Signed-off-by: Hirokazu Takahashi <taka@valinux.co.jp>
----
+for this, but this particular release of the memory hotplug
+patches, the broken out approach described above worked better.)
 
- linux-2.6.12-rc3-taka/include/linux/mm_inline.h |    8 +++++---
- 1 files changed, 5 insertions, 3 deletions
+This patch migrates all pages in the specified process (including
+shared libraries) so is mostly useful for migrating statically
+bound applications.  This is made more general by subsequent
+patches of this patchset.
 
-diff -puN include/linux/mm_inline.h~taka-steal_page_from_lru-FIX include/linux/mm_inline.h
---- linux-2.6.12-rc3/include/linux/mm_inline.h~taka-steal_page_from_lru-FIX	Mon May 23 02:26:57 2005
-+++ linux-2.6.12-rc3-taka/include/linux/mm_inline.h	Mon May 23 02:26:57 2005
-@@ -80,9 +80,10 @@ static inline int
- steal_page_from_lru(struct zone *zone, struct page *page,
- 			struct list_head *dst)
- {
--	int ret;
-+	int ret = 0;
- 	spin_lock_irq(&zone->lru_lock);
--	ret = __steal_page_from_lru(zone, page, dst);
-+	if (PageLRU(page))
-+		ret = __steal_page_from_lru(zone, page, dst);
- 	spin_unlock_irq(&zone->lru_lock);
- 	return ret;
- }
-@@ -102,7 +103,8 @@ static inline void
- putback_page_to_lru(struct zone *zone, struct page *page)
- {
- 	spin_lock_irq(&zone->lru_lock);
--	__putback_page_to_lru(zone, page);
-+	if (!PageLRU(page))
-+		__putback_page_to_lru(zone, page);
- 	spin_unlock_irq(&zone->lru_lock);
+See the patches:
+	sys_migrate_pages-migration-selection-rc4.patch
+	add-mempolicy-control-rc4.patch
+
+for details on the default kernel migration policy (this determines
+which VMAs are actually migrated) and how this policy can be overridden
+using the mbind() system call.
+
+Updates since last release of this patchset:
+
+(1)  old_nodes and new_nodes are now arrays of int instead of short.
+(2)  The wait and retry code in migrate_vma() has been replaced by
+     code that returns -EAGAIN and expects the user-level code to
+     retry.  In general, we expect this will never happen except
+     in the rare case of trunction that is happening at the same
+     time that an associated page is being migrated.
+(3)  In the case that -EAGAIN is returned from migrate_vma(), the
+     unmigrated pages are now put back onto the LRU lists.  Previously
+     this was not done.
+(3)  The mmap_semaphore is now taken during the migration operation.
+     This is to avoid an mmap() or munmap() occurring at the same
+     time as a migration (the latter could cause the mm->mmap list
+     to change underneath us, which is "Not a good thing[tm]".
+(4)  Numerous other suggestions of Paul Jackson and Christoph
+     Hellwig have been applied.
+
+Signed-off-by: Ray Bryant <raybry@sgi.com>
+--
+
+ arch/ia64/kernel/entry.S |    2 
+ kernel/sys_ni.c          |    1 
+ mm/mmigrate.c            |  181 ++++++++++++++++++++++++++++++++++++++++++++++-
+ 3 files changed, 182 insertions(+), 2 deletions(-)
+
+Index: linux-2.6.12-rc5-mhp1-page-migration-export/arch/ia64/kernel/entry.S
+===================================================================
+--- linux-2.6.12-rc5-mhp1-page-migration-export.orig/arch/ia64/kernel/entry.S	2005-06-13 10:21:40.000000000 -0700
++++ linux-2.6.12-rc5-mhp1-page-migration-export/arch/ia64/kernel/entry.S	2005-06-13 10:22:41.000000000 -0700
+@@ -1582,6 +1582,6 @@ sys_call_table:
+ 	data8 sys_ni_syscall
+ 	data8 sys_ni_syscall
+ 	data8 sys_ni_syscall
+-	data8 sys_ni_syscall
++	data8 sys_migrate_pages			// 1279
+ 
+ 	.org sys_call_table + 8*NR_syscalls	// guard against failures to increase NR_syscalls
+Index: linux-2.6.12-rc5-mhp1-page-migration-export/mm/mmigrate.c
+===================================================================
+--- linux-2.6.12-rc5-mhp1-page-migration-export.orig/mm/mmigrate.c	2005-06-13 10:22:02.000000000 -0700
++++ linux-2.6.12-rc5-mhp1-page-migration-export/mm/mmigrate.c	2005-06-13 10:43:15.000000000 -0700
+@@ -5,6 +5,9 @@
+  *
+  *  Authors:	IWAMOTO Toshihiro <iwamoto@valinux.co.jp>
+  *		Hirokazu Takahashi <taka@valinux.co.jp>
++ *
++ * sys_migrate_pages() added by Ray Bryant <raybry@sgi.com>
++ * Copyright (C) 2005, Silicon Graphics, Inc.
+  */
+ 
+ #include <linux/config.h>
+@@ -21,6 +24,8 @@
+ #include <linux/rmap.h>
+ #include <linux/mmigrate.h>
+ #include <linux/delay.h>
++#include <linux/nodemask.h>
++#include <asm/bitops.h>
+ 
+ /*
+  * The concept of memory migration is to replace a target page with
+@@ -436,7 +441,7 @@ migrate_onepage(struct page *page, int n
+ 	if (nodeid == MIGRATE_NODE_ANY)
+ 		newpage = page_cache_alloc(mapping);
+ 	else
+-		newpage = alloc_pages_node(nodeid, mapping->flags, 0);
++		newpage = alloc_pages_node(nodeid, (unsigned int)mapping->flags, 0);
+ 	if (newpage == NULL) {
+ 		unlock_page(page);
+ 		return ERR_PTR(-ENOMEM);
+@@ -587,6 +592,180 @@ int try_to_migrate_pages(struct list_hea
+ 	return nr_busy;
  }
  
-_
-
-
--------------------------------------------------------
-This SF.Net email is sponsored by Oracle Space Sweepstakes
-Want to be the first software developer in space?
-Enter now for the Oracle Space Sweepstakes!
-http://ads.osdn.com/?ad_id=7412&alloc_id=16344&op=click
-_______________________________________________
-Lhms-devel mailing list
-Lhms-devel@lists.sourceforge.net
-https://lists.sourceforge.net/lists/listinfo/lhms-devel
-
++static int
++migrate_vma(struct task_struct *task, struct mm_struct *mm,
++	struct vm_area_struct *vma, int *node_map)
++{
++	struct page *page, *page2;
++	unsigned long vaddr;
++	int count = 0, nr_busy;
++	LIST_HEAD(page_list);
++
++	/* can't migrate mlock()'d pages */
++	if (vma->vm_flags & VM_LOCKED)
++		return 0;
++
++	/*
++	 * gather all of the pages to be migrated from this vma into page_list
++	 */
++	spin_lock(&mm->page_table_lock);
++ 	for (vaddr = vma->vm_start; vaddr < vma->vm_end; vaddr += PAGE_SIZE) {
++		page = follow_page(mm, vaddr, 0);
++		/*
++		 * follow_page has been known to return pages with zero mapcount
++		 * and NULL mapping.  Skip those pages as well
++		 */
++		if (page && page_mapcount(page)) {
++			if (node_map[page_to_nid(page)] >= 0) {
++				if (steal_page_from_lru(page_zone(page), page,
++					&page_list))
++						count++;
++				else
++					BUG();
++			}
++		}
++	}
++	spin_unlock(&mm->page_table_lock);
++
++	/* call the page migration code to move the pages */
++	if (count) {
++		nr_busy = try_to_migrate_pages(&page_list, node_map);
++
++		if (nr_busy < 0)
++			return nr_busy;
++
++		if (nr_busy == 0)
++			return count;
++
++		/* return the unmigrated pages to the LRU lists */
++		list_for_each_entry_safe(page, page2, &page_list, lru) {
++			list_del(&page->lru);
++			putback_page_to_lru(page_zone(page), page);
++		}
++		return -EAGAIN;
++	}
++
++	return 0;
++
++}
++
++void lru_add_drain_per_cpu(void *info)
++{
++	lru_add_drain();
++}
++
++asmlinkage long
++sys_migrate_pages(pid_t pid, __u32 count, __u32 *old_nodes, __u32 *new_nodes)
++{
++	int i, ret = 0, migrated = 0;
++	int *tmp_old_nodes = NULL;
++	int *tmp_new_nodes = NULL;
++	int *node_map;
++	struct task_struct *task;
++	struct mm_struct *mm = NULL;
++	size_t size = count * sizeof(tmp_old_nodes[0]);
++	struct vm_area_struct *vma;
++	nodemask_t old_node_mask, new_node_mask;
++
++	if ((count < 1) || (count > MAX_NUMNODES))
++		return -EINVAL;
++
++	tmp_old_nodes = kmalloc(size, GFP_KERNEL);
++	tmp_new_nodes = kmalloc(size, GFP_KERNEL);
++	node_map = kmalloc(MAX_NUMNODES*sizeof(node_map[0]), GFP_KERNEL);
++
++	if (!tmp_old_nodes || !tmp_new_nodes || !node_map) {
++		ret = -ENOMEM;
++		goto out;
++	}
++
++	if (copy_from_user(tmp_old_nodes, (void __user *)old_nodes, size) ||
++	    copy_from_user(tmp_new_nodes, (void __user *)new_nodes, size)) {
++		ret = -EFAULT;
++		goto out;
++	}
++
++	nodes_clear(old_node_mask);
++	nodes_clear(new_node_mask);
++	for (i = 0; i < count; i++) {
++		int n;
++
++		n = tmp_old_nodes[i];
++		if ((n < 0) || (n >= MAX_NUMNODES))
++			goto out_einval;
++		node_set(n, old_node_mask);
++
++		n = tmp_new_nodes[i];
++		if ((n < 0) || (n >= MAX_NUMNODES) || !node_online(n))
++			goto out_einval;
++		node_set(n, new_node_mask);
++
++	}
++
++	/* old_nodes and new_nodes must be disjoint */
++	if (nodes_intersects(old_node_mask, new_node_mask))
++		goto out_einval;
++
++	/* find the task and mm_structs for this process */
++	read_lock(&tasklist_lock);
++	task = find_task_by_pid(pid);
++	if (task) {
++		task_lock(task);
++		mm = task->mm;
++		if (mm)
++			atomic_inc(&mm->mm_users);
++		task_unlock(task);
++	} else {
++		ret = -ESRCH;
++		read_unlock(&tasklist_lock);
++		goto out;
++	}
++	read_unlock(&tasklist_lock);
++	if (!mm)
++		goto out_einval;
++
++	/* set up the node_map array */
++	for (i = 0; i < MAX_NUMNODES; i++)
++		node_map[i] = -1;
++	for (i = 0; i < count; i++)
++		node_map[tmp_old_nodes[i]] = tmp_new_nodes[i];
++
++	/* prepare for lru list manipulation */
++  	smp_call_function(&lru_add_drain_per_cpu, NULL, 0, 1);
++	lru_add_drain();
++
++	/* actually do the migration */
++	down_read(&mm->mmap_sem);
++	for (vma = mm->mmap; vma; vma = vma->vm_next) {
++		/* migrate the pages of this vma */
++		ret = migrate_vma(task, mm, vma, node_map);
++		if (ret < 0)
++			goto out_up_mmap_sem;
++		migrated += ret;
++	}
++	up_read(&mm->mmap_sem);
++	ret = migrated;
++
++out:
++	if (mm)
++		mmput(mm);
++
++	kfree(tmp_old_nodes);
++	kfree(tmp_new_nodes);
++	kfree(node_map);
++
++	return ret;
++
++out_einval:
++	ret = -EINVAL;
++	goto out;
++
++out_up_mmap_sem:
++	up_read(&mm->mmap_sem);
++	goto out;
++
++}
++
+ EXPORT_SYMBOL(generic_migrate_page);
+ EXPORT_SYMBOL(migrate_page_common);
+ EXPORT_SYMBOL(migrate_page_buffer);
+Index: linux-2.6.12-rc5-mhp1-page-migration-export/kernel/sys_ni.c
+===================================================================
+--- linux-2.6.12-rc5-mhp1-page-migration-export.orig/kernel/sys_ni.c	2005-06-13 10:21:40.000000000 -0700
++++ linux-2.6.12-rc5-mhp1-page-migration-export/kernel/sys_ni.c	2005-06-13 10:22:41.000000000 -0700
+@@ -77,6 +77,7 @@ cond_syscall(sys_request_key);
+ cond_syscall(sys_keyctl);
+ cond_syscall(compat_sys_keyctl);
+ cond_syscall(compat_sys_socketcall);
++cond_syscall(sys_migrate_pages);
+ 
+ /* arch-specific weak syscall entries */
+ cond_syscall(sys_pciconfig_read);
 
 -- 
 Best Regards,
