@@ -1,110 +1,146 @@
-Received: from westrelay02.boulder.ibm.com (westrelay02.boulder.ibm.com [9.17.195.11])
-	by e32.co.us.ibm.com (8.12.10/8.12.9) with ESMTP id j5MGu5RX504782
-	for <linux-mm@kvack.org>; Wed, 22 Jun 2005 12:56:05 -0400
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by westrelay02.boulder.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id j5MGu5Bj323586
-	for <linux-mm@kvack.org>; Wed, 22 Jun 2005 10:56:05 -0600
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.12.11/8.13.3) with ESMTP id j5MGu4x6016607
-	for <linux-mm@kvack.org>; Wed, 22 Jun 2005 10:56:04 -0600
-Subject: Re: 2.6.12-mm1 & 2K lun testing  (JFS problem ?)
-From: Badari Pulavarty <pbadari@us.ibm.com>
-In-Reply-To: <1119448252.9262.12.camel@localhost>
-References: <1118856977.4301.406.camel@dyn9047017072.beaverton.ibm.com>
-	 <20050616002451.01f7e9ed.akpm@osdl.org>
-	 <1118951458.4301.478.camel@dyn9047017072.beaverton.ibm.com>
-	 <20050616133730.1924fca3.akpm@osdl.org>
-	 <1118965381.4301.488.camel@dyn9047017072.beaverton.ibm.com>
-	 <20050616175130.22572451.akpm@osdl.org> <42B2E7D2.9080705@us.ibm.com>
-	 <20050617141331.078e5f8f.akpm@osdl.org>
-	 <1119400494.4620.33.camel@dyn9047017102.beaverton.ibm.com>
-	 <1119448252.9262.12.camel@localhost>
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e3.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id j5MHO6og020663
+	for <linux-mm@kvack.org>; Wed, 22 Jun 2005 13:24:06 -0400
+Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
+	by d01relay04.pok.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id j5MHO6jx214052
+	for <linux-mm@kvack.org>; Wed, 22 Jun 2005 13:24:06 -0400
+Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
+	by d01av04.pok.ibm.com (8.12.11/8.13.3) with ESMTP id j5MHNun4017358
+	for <linux-mm@kvack.org>; Wed, 22 Jun 2005 13:23:56 -0400
+Subject: Re: [PATCH 2.6.12-rc5 4/10] mm: manual page migration-rc3 --
+	add-sys_migrate_pages-rc3.patch
+From: Dave Hansen <haveblue@us.ibm.com>
+In-Reply-To: <20050622163934.25515.22804.81297@tomahawk.engr.sgi.com>
+References: <20050622163908.25515.49944.65860@tomahawk.engr.sgi.com>
+	 <20050622163934.25515.22804.81297@tomahawk.engr.sgi.com>
 Content-Type: text/plain
-Date: Wed, 22 Jun 2005 09:56:03 -0700
-Message-Id: <1119459363.13376.1.camel@dyn9047017102.beaverton.ibm.com>
+Date: Wed, 22 Jun 2005 10:23:33 -0700
+Message-Id: <1119461013.18457.61.camel@localhost>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Kleikamp <shaggy@austin.ibm.com>
-Cc: Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Ray Bryant <raybry@sgi.com>
+Cc: Hirokazu Takahashi <taka@valinux.co.jp>, Marcelo Tosatti <marcelo.tosatti@cyclades.com>, Andi Kleen <ak@suse.de>, Christoph Hellwig <hch@infradead.org>, Ray Bryant <raybry@austin.rr.com>, linux-mm <linux-mm@kvack.org>, lhms <lhms-devel@lists.sourceforge.net>, Paul Jackson <pj@sgi.com>, Nathan Scott <nathans@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-I need to re-create the problem to capture stats.
-I don't see any stacks for jfsCommit, jfsSync, jfsIO
-threads in sysrq-t output (in /var/log/messages).
-Hmm. Let me re-create to capture this.
+On Wed, 2005-06-22 at 09:39 -0700, Ray Bryant wrote:
+> +asmlinkage long
+> +sys_migrate_pages(pid_t pid, __u32 count, __u32 *old_nodes, __u32 *new_nodes)
+> +{
 
-Thanks,
-Badari
+Should the buffers be marked __user?
 
-On Wed, 2005-06-22 at 08:50 -0500, Dave Kleikamp wrote:
-> On Tue, 2005-06-21 at 17:34 -0700, Badari Pulavarty wrote:
-> > Hi Andrew & Shaggy,
-> > 
-> > Here is the summary of 2K lun testing on 2.6.12-mm1.
-> > 
-> > When I tune dirty ratios and CFQ queue depths, things
-> > seems to be running fine.
-> > 
-> > 	echo 20 > /proc/sys/vm/dirty_ratio
-> > 	echo 20 > /proc/sys/vm/overcommit_ratio
-> > 	echo 4 > /sys/block/<device>/queue/nr_requests
-> > 	
-> > 
-> > But, I am running into JFS problem. I can't kill my
-> > "dd" process.
-> 
-> Assuming you built the kernel with CONFIG_JFS_STATISTICS, can you send
-> me the contents of /proc/fs/jfs/txstats?
-> 
-> > They all get stuck in:
-> > 
-> > (I am going to try ext3).
-> > 
-> > dd            D 0000000000000000     0 12943      1               12939
-> > (NOTLB)
-> > ffff81010612d8f8 0000000000000086 ffff81019677a380 000000000003ffff
-> >        00000000d5b95298 ffff81010612d918 0000000000000003
-> > ffff810169f63880
-> >        00000076d9f1ea00 0000000000000001
-> > Call Trace:<ffffffff802fb31f>{submit_bio+223} 
-> > <ffffffff8026a8e1>{txBegin+625}
-> 
-> Looks like txBegin is the problem.  Probably ran out of txBlocks.  Maybe
-> a stack trace of jfsCommit, jfsIO, and jfsSync threads might be useful
-> too.
-> 
-> >        <ffffffff80130540>{default_wake_function+0}
-> > <ffffffff80130540>{default_wake_function+0}
-> >        <ffffffff80250a8b>{jfs_commit_inode+155}
-> > <ffffffff80250daa>{jfs_write_inode+58}
-> >        <ffffffff801a8857>{__writeback_single_inode+551}
-> > <ffffffff80250929>{jfs_get_blocks+521}
-> >        <ffffffff8015dd4c>{find_get_page+92}
-> > <ffffffff80185555>{__find_get_block_slow+85}
-> >        <ffffffff801a8e7c>{generic_sync_sb_inodes+524}
-> > <ffffffff801a91cd>{writeback_inodes+125}
-> >        <ffffffff80164aa4>{balance_dirty_pages_ratelimited+228}
-> >        <ffffffff8015eb65>{generic_file_buffered_write+1221}
-> >        <ffffffff8013b3a5>{current_fs_time+85}
-> > <ffffffff801a9254>{__mark_inode_dirty+52}
-> >        <ffffffff8019e4ac>{inode_update_time+188}
-> > <ffffffff8015effa>{__generic_file_aio_write_nolock+938}
-> >        <ffffffff8016efa5>{unmap_vmas+965}
-> > <ffffffff8015f1de>{__generic_file_write_nolock+158}
-> >        <ffffffff8017149e>{zeromap_page_range+990}
-> > <ffffffff8014d0c0>{autoremove_wake_function+0}
-> >        <ffffffff802941b1>{__up_read+33}
-> > <ffffffff8015f345>{generic_file_write+101}
-> >        <ffffffff80183b39>{vfs_write+233} <ffffffff80183ce3>{sys_write
-> > +83}
-> >        <ffffffff8010dc8e>{system_call+126}
-> > 
-> 
-> > Thanks,
-> > Badari
-> 
+> +       if ((count < 1) || (count > MAX_NUMNODES))
+> +               return -EINVAL;
+
+Since you have an out_einval:, it's probably best to use it
+consistently.  There is another place or two like this.
+
+> +       for (i = 0; i < count; i++) {
+> +               int n;
+> +
+> +               n = tmp_old_nodes[i];
+> +               if ((n < 0) || (n >= MAX_NUMNODES))
+> +                       goto out_einval;
+> +               node_set(n, old_node_mask);
+> +
+> +               n = tmp_new_nodes[i];
+> +               if ((n < 0) || (n >= MAX_NUMNODES) || !node_online(n))
+> +                       goto out_einval;
+> +               node_set(n, new_node_mask);
+> +
+> +       }
+
+I know it's a simple operation, but I think I'd probably break out the
+array validation into its own function.
+
+Then, replace the above loop with this:
+
+if (!migrate_masks_valid(tmp_old_nodes, count) ||
+     migrate_masks_valid(tmp_old_nodes, count))
+	goto out_einval;
+
+for (i = 0; i < count; i++) {
+	node_set(tmp_old_nodes[i], old_node_mask);
+	node_set(tmp_new_nodes[i], new_node_mask);
+}
+
+> +static int
+> +migrate_vma(struct task_struct *task, struct mm_struct *mm,
+> +       struct vm_area_struct *vma, int *node_map)
+...
+> +       spin_lock(&mm->page_table_lock);
+> +       for (vaddr = vma->vm_start; vaddr < vma->vm_end; vaddr += PAGE_SIZE) {
+> +               page = follow_page(mm, vaddr, 0);
+> +               /*
+> +                * follow_page has been known to return pages with zero mapcount
+> +                * and NULL mapping.  Skip those pages as well
+> +                */
+> +               if (page && page_mapcount(page)) {
+> +                       if (node_map[page_to_nid(page)] >= 0) {
+> +                               if (steal_page_from_lru(page_zone(page), page,
+> +                                       &page_list))
+> +                                               count++;
+> +                               else
+> +                                       BUG();
+> +                       }
+> +               }
+> +       }
+> +       spin_unlock(&mm->page_table_lock);
+
+Personally, I dislike having so many embedded ifs, especially in a for
+loop like that.  I think it's a lot more logical to code it up as a
+series of continues, mostly because it's easy to read a continue as,
+"skip this page."  You can't always see that as easily with an if().  It
+also makes it so that you don't have to wrap the steal_page_from_lru()
+call across two lines, which is super-ugly. :)
+
+for (vaddr = vma->vm_start; vaddr < vma->vm_end; vaddr += PAGE_SIZE) {
+	page = follow_page(mm, vaddr, 0);
+	if (!page || !page_mapcount(page))
+		continue;
+
+	if (node_map[page_to_nid(page)] < 0)
+		continue;
+
+	if (steal_page_from_lru(page_zone(page), page, &page_list));
+		count++;
+	else
+		BUG();
+}
+
+The same kind of thing goes for this if: 
+
+> +       /* call the page migration code to move the pages */
+> +       if (count) {
+> +               nr_busy = try_to_migrate_pages(&page_list, node_map);
+> +
+> +               if (nr_busy < 0)
+> +                       return nr_busy;
+> +
+> +               if (nr_busy == 0)
+> +                       return count;
+> +
+> +               /* return the unmigrated pages to the LRU lists */
+> +               list_for_each_entry_safe(page, page2, &page_list, lru)
+> {
+> +                       list_del(&page->lru);
+> +                       putback_page_to_lru(page_zone(page), page);
+> +               }
+> +               return -EAGAIN;
+> +       }
+> +
+> +       return 0;
+
+It looks a lot cleaner if you just do 
+
+	if (!count)
+		return count;
+
+	... contents of the if(){} block go here
+
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
