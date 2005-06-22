@@ -1,313 +1,199 @@
-Date: Wed, 22 Jun 2005 09:39:35 -0700 (PDT)
+Date: Wed, 22 Jun 2005 09:39:41 -0700 (PDT)
 From: Ray Bryant <raybry@sgi.com>
-Message-Id: <20050622163934.25515.22804.81297@tomahawk.engr.sgi.com>
+Message-Id: <20050622163941.25515.38103.92916@tomahawk.engr.sgi.com>
 In-Reply-To: <20050622163908.25515.49944.65860@tomahawk.engr.sgi.com>
 References: <20050622163908.25515.49944.65860@tomahawk.engr.sgi.com>
-Subject: [PATCH 2.6.12-rc5 4/10] mm: manual page migration-rc3 -- add-sys_migrate_pages-rc3.patch
+Subject: [PATCH 2.6.12-rc5 5/10] mm: manual page migration-rc3 -- sys_migrate_pages-mempolicy-migration-rc3.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hirokazu Takahashi <taka@valinux.co.jp>, Marcelo Tosatti <marcelo.tosatti@cyclades.com>, Andi Kleen <ak@suse.de>, Dave Hansen <haveblue@us.ibm.com>
+To: Hirokazu Takahashi <taka@valinux.co.jp>, Dave Hansen <haveblue@us.ibm.com>, Marcelo Tosatti <marcelo.tosatti@cyclades.com>, Andi Kleen <ak@suse.de>
 Cc: Christoph Hellwig <hch@infradead.org>, Ray Bryant <raybry@austin.rr.com>, linux-mm <linux-mm@kvack.org>, lhms-devel@lists.sourceforge.net, Ray Bryant <raybry@sgi.com>, Paul Jackson <pj@sgi.com>, Nathan Scott <nathans@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-This is the main patch that creates the migrate_pages() system
-call.  Note that in this case, the system call number was more
-or less arbitrarily assigned at 1279.  This number needs to
-allocated.
-
-This patch sits on top of the page migration patches from
-the Memory Hotplug project.  This particular patchset is built
-on top of the page migration subset of:
-
-http://www.sr71.net/patches/2.6.12/2.6.12-rc5-mhp1/broken-out-2.6.12-rc5-mhp1.tar.gz
-
-but it may apply on subsequent page migration patches as well.
-(The page migration subset of the mhp broken out patches begins
-with the first patch of the patchset above and ends with the
-patch:  AA-PM-99-x86_64-IMMOVABLE.patch.  Normally, I would use
-the patch
-
-http://www.sr71.net/patches/2.6.12/2.6.12-rc5-mhp1/page-migration/patch-2.6.12-rc5-mhp1-pm.gz
-
-for this, but this particular release of the memory hotplug
-patches, the broken out approach described above worked better.)
-
-This patch migrates all pages in the specified process (including
-shared libraries) so is mostly useful for migrating statically
-bound applications.  This is made more general by subsequent
-patches of this patchset.
-
-See the patches:
-	sys_migrate_pages-migration-selection-rc4.patch
-	add-mempolicy-control-rc4.patch
-
-for details on the default kernel migration policy (this determines
-which VMAs are actually migrated) and how this policy can be overridden
-using the mbind() system call.
-
-Updates since last release of this patchset:
-
-(1)  old_nodes and new_nodes are now arrays of int instead of short.
-(2)  The wait and retry code in migrate_vma() has been replaced by
-     code that returns -EAGAIN and expects the user-level code to
-     retry.  In general, we expect this will never happen except
-     in the rare case of trunction that is happening at the same
-     time that an associated page is being migrated.
-(3)  In the case that -EAGAIN is returned from migrate_vma(), the
-     unmigrated pages are now put back onto the LRU lists.  Previously
-     this was not done.
-(3)  The mmap_semaphore is now taken during the migration operation.
-     This is to avoid an mmap() or munmap() occurring at the same
-     time as a migration (the latter could cause the mm->mmap list
-     to change underneath us, which is "Not a good thing[tm]".
-(4)  Numerous other suggestions of Paul Jackson and Christoph
-     Hellwig have been applied.
+This patch adds code that translates the memory policy structures
+as they are encountered so that they continue to represent where
+memory should be allocated after the page migration has completed.
 
 Signed-off-by: Ray Bryant <raybry@sgi.com>
 --
 
- arch/ia64/kernel/entry.S |    2 
- kernel/sys_ni.c          |    1 
- mm/mmigrate.c            |  181 ++++++++++++++++++++++++++++++++++++++++++++++-
- 3 files changed, 182 insertions(+), 2 deletions(-)
+ include/linux/mempolicy.h |    2 
+ mm/mempolicy.c            |  116 ++++++++++++++++++++++++++++++++++++++++++++++
+ mm/mmigrate.c             |   12 ++++
+ 3 files changed, 129 insertions(+), 1 deletion(-)
 
-Index: linux-2.6.12-rc5-mhp1-page-migration-export/arch/ia64/kernel/entry.S
+Index: linux-2.6.12-rc5-mhp1-page-migration-export/include/linux/mempolicy.h
 ===================================================================
---- linux-2.6.12-rc5-mhp1-page-migration-export.orig/arch/ia64/kernel/entry.S	2005-06-13 10:21:40.000000000 -0700
-+++ linux-2.6.12-rc5-mhp1-page-migration-export/arch/ia64/kernel/entry.S	2005-06-13 10:22:41.000000000 -0700
-@@ -1582,6 +1582,6 @@ sys_call_table:
- 	data8 sys_ni_syscall
- 	data8 sys_ni_syscall
- 	data8 sys_ni_syscall
--	data8 sys_ni_syscall
-+	data8 sys_migrate_pages			// 1279
+--- linux-2.6.12-rc5-mhp1-page-migration-export.orig/include/linux/mempolicy.h	2005-06-13 11:12:34.000000000 -0700
++++ linux-2.6.12-rc5-mhp1-page-migration-export/include/linux/mempolicy.h	2005-06-13 11:12:51.000000000 -0700
+@@ -152,6 +152,8 @@ struct mempolicy *mpol_shared_policy_loo
  
- 	.org sys_call_table + 8*NR_syscalls	// guard against failures to increase NR_syscalls
-Index: linux-2.6.12-rc5-mhp1-page-migration-export/mm/mmigrate.c
+ extern void numa_default_policy(void);
+ extern void numa_policy_init(void);
++extern int migrate_process_policy(struct task_struct *, unsigned int *);
++extern int migrate_vma_policy(struct vm_area_struct *, unsigned int *);
+ 
+ #else
+ 
+Index: linux-2.6.12-rc5-mhp1-page-migration-export/mm/mempolicy.c
 ===================================================================
---- linux-2.6.12-rc5-mhp1-page-migration-export.orig/mm/mmigrate.c	2005-06-13 10:22:02.000000000 -0700
-+++ linux-2.6.12-rc5-mhp1-page-migration-export/mm/mmigrate.c	2005-06-13 10:43:15.000000000 -0700
-@@ -5,6 +5,9 @@
-  *
-  *  Authors:	IWAMOTO Toshihiro <iwamoto@valinux.co.jp>
-  *		Hirokazu Takahashi <taka@valinux.co.jp>
-+ *
-+ * sys_migrate_pages() added by Ray Bryant <raybry@sgi.com>
-+ * Copyright (C) 2005, Silicon Graphics, Inc.
-  */
- 
- #include <linux/config.h>
-@@ -21,6 +24,8 @@
- #include <linux/rmap.h>
- #include <linux/mmigrate.h>
- #include <linux/delay.h>
-+#include <linux/nodemask.h>
-+#include <asm/bitops.h>
- 
- /*
-  * The concept of memory migration is to replace a target page with
-@@ -436,7 +441,7 @@ migrate_onepage(struct page *page, int n
- 	if (nodeid == MIGRATE_NODE_ANY)
- 		newpage = page_cache_alloc(mapping);
- 	else
--		newpage = alloc_pages_node(nodeid, mapping->flags, 0);
-+		newpage = alloc_pages_node(nodeid, (unsigned int)mapping->flags, 0);
- 	if (newpage == NULL) {
- 		unlock_page(page);
- 		return ERR_PTR(-ENOMEM);
-@@ -587,6 +592,180 @@ int try_to_migrate_pages(struct list_hea
- 	return nr_busy;
+--- linux-2.6.12-rc5-mhp1-page-migration-export.orig/mm/mempolicy.c	2005-06-13 11:12:34.000000000 -0700
++++ linux-2.6.12-rc5-mhp1-page-migration-export/mm/mempolicy.c	2005-06-13 11:12:51.000000000 -0700
+@@ -1136,3 +1136,119 @@ void numa_default_policy(void)
+ {
+ 	sys_set_mempolicy(MPOL_DEFAULT, NULL, 0);
  }
- 
-+static int
-+migrate_vma(struct task_struct *task, struct mm_struct *mm,
-+	struct vm_area_struct *vma, int *node_map)
++
++/*
++ * update a node mask according to a migration request
++ */
++static void migrate_node_mask(unsigned long *new_node_mask,
++			      unsigned long *old_node_mask,
++			      unsigned int  *node_map)
 +{
-+	struct page *page, *page2;
-+	unsigned long vaddr;
-+	int count = 0, nr_busy;
-+	LIST_HEAD(page_list);
++	int i;
 +
-+	/* can't migrate mlock()'d pages */
-+	if (vma->vm_flags & VM_LOCKED)
-+		return 0;
++	bitmap_zero(new_node_mask, MAX_NUMNODES);
 +
-+	/*
-+	 * gather all of the pages to be migrated from this vma into page_list
-+	 */
-+	spin_lock(&mm->page_table_lock);
-+ 	for (vaddr = vma->vm_start; vaddr < vma->vm_end; vaddr += PAGE_SIZE) {
-+		page = follow_page(mm, vaddr, 0);
-+		/*
-+		 * follow_page has been known to return pages with zero mapcount
-+		 * and NULL mapping.  Skip those pages as well
-+		 */
-+		if (page && page_mapcount(page)) {
-+			if (node_map[page_to_nid(page)] >= 0) {
-+				if (steal_page_from_lru(page_zone(page), page,
-+					&page_list))
-+						count++;
-+				else
-+					BUG();
-+			}
++	i = find_first_bit(old_node_mask, MAX_NUMNODES);
++	while(i < MAX_NUMNODES) {
++		if (node_map[i] >= 0)
++			set_bit(node_map[i], new_node_mask);
++		else
++			set_bit(i, new_node_mask);
++		i = find_next_bit(old_node_mask, MAX_NUMNODES, i+1);
++	}
++}
++
++/*
++ * update a process or vma mempolicy according to a migration request
++ */
++static struct mempolicy *
++migrate_policy(struct mempolicy *old, unsigned int *node_map)
++{
++	struct mempolicy *new;
++	DECLARE_BITMAP(old_nodes, MAX_NUMNODES);
++	DECLARE_BITMAP(new_nodes, MAX_NUMNODES);
++	struct zone *z;
++	int i;
++
++	new = kmem_cache_alloc(policy_cache, GFP_KERNEL);
++	if (!new)
++		return ERR_PTR(-ENOMEM);
++	atomic_set(&new->refcnt, 0);
++	switch(old->policy) {
++	case MPOL_DEFAULT:
++		BUG();
++	case MPOL_INTERLEAVE:
++		migrate_node_mask(new->v.nodes, old->v.nodes, node_map);
++		break;
++	case MPOL_PREFERRED:
++		if (old->v.preferred_node>=0 &&
++			(node_map[old->v.preferred_node] >= 0))
++			new->v.preferred_node = node_map[old->v.preferred_node];
++		else
++			new->v.preferred_node = old->v.preferred_node;
++		break;
++	case MPOL_BIND:
++		bitmap_zero(old_nodes, MAX_NUMNODES);
++		for (i = 0; (z = old->v.zonelist->zones[i]) != NULL; i++)
++			set_bit(z->zone_pgdat->node_id, old_nodes);
++		migrate_node_mask(new_nodes, old_nodes, node_map);
++		new->v.zonelist = bind_zonelist(new_nodes);
++		if (!new->v.zonelist) {
++			kmem_cache_free(policy_cache, new);
++			return ERR_PTR(-ENOMEM);
 +		}
 +	}
-+	spin_unlock(&mm->page_table_lock);
++	new->policy = old->policy;
++	return new;
++}
 +
-+	/* call the page migration code to move the pages */
-+	if (count) {
-+		nr_busy = try_to_migrate_pages(&page_list, node_map);
++/*
++ * update a process mempolicy based on a migration request
++ */
++int migrate_process_policy(struct task_struct *task, unsigned int  *node_map)
++{
++	struct mempolicy *new, *old = task->mempolicy;
++	int tmp;
 +
-+		if (nr_busy < 0)
-+			return nr_busy;
++	if ((!old) || (old->policy == MPOL_DEFAULT))
++		return 0;
 +
-+		if (nr_busy == 0)
-+			return count;
++	new = migrate_policy(task->mempolicy, node_map);
++	if (IS_ERR(new))
++		return (PTR_ERR(new));
 +
-+		/* return the unmigrated pages to the LRU lists */
-+		list_for_each_entry_safe(page, page2, &page_list, lru) {
-+			list_del(&page->lru);
-+			putback_page_to_lru(page_zone(page), page);
-+		}
-+		return -EAGAIN;
++	mpol_get(new);
++	task->mempolicy = new;
++	mpol_free(old);
++
++	if (task->mempolicy->policy == MPOL_INTERLEAVE) {
++		/*
++		 * If the task is still running and allocating storage, this
++		 * is racy, but there is not much that can be done about it.
++		 */
++		tmp = task->il_next;
++		if (node_map[tmp] >= 0)
++			task->il_next = node_map[tmp];
 +	}
 +
 +	return 0;
 +
 +}
 +
-+void lru_add_drain_per_cpu(void *info)
++/*
++ * update a vma mempolicy based on a migration request
++ */
++int migrate_vma_policy(struct vm_area_struct *vma, unsigned int *node_map)
 +{
-+	lru_add_drain();
++
++	struct mempolicy *new;
++
++	if (!vma->vm_policy || vma->vm_policy->policy == MPOL_DEFAULT)
++		return 0;
++
++	new = migrate_policy(vma->vm_policy, node_map);
++	if (IS_ERR(new))
++		return (PTR_ERR(new));
++
++	return(policy_vma(vma, new));
 +}
-+
-+asmlinkage long
-+sys_migrate_pages(pid_t pid, __u32 count, __u32 *old_nodes, __u32 *new_nodes)
-+{
-+	int i, ret = 0, migrated = 0;
-+	int *tmp_old_nodes = NULL;
-+	int *tmp_new_nodes = NULL;
-+	int *node_map;
-+	struct task_struct *task;
-+	struct mm_struct *mm = NULL;
-+	size_t size = count * sizeof(tmp_old_nodes[0]);
-+	struct vm_area_struct *vma;
-+	nodemask_t old_node_mask, new_node_mask;
-+
-+	if ((count < 1) || (count > MAX_NUMNODES))
-+		return -EINVAL;
-+
-+	tmp_old_nodes = kmalloc(size, GFP_KERNEL);
-+	tmp_new_nodes = kmalloc(size, GFP_KERNEL);
-+	node_map = kmalloc(MAX_NUMNODES*sizeof(node_map[0]), GFP_KERNEL);
-+
-+	if (!tmp_old_nodes || !tmp_new_nodes || !node_map) {
-+		ret = -ENOMEM;
+Index: linux-2.6.12-rc5-mhp1-page-migration-export/mm/mmigrate.c
+===================================================================
+--- linux-2.6.12-rc5-mhp1-page-migration-export.orig/mm/mmigrate.c	2005-06-13 11:12:50.000000000 -0700
++++ linux-2.6.12-rc5-mhp1-page-migration-export/mm/mmigrate.c	2005-06-13 11:12:51.000000000 -0700
+@@ -25,6 +25,7 @@
+ #include <linux/mmigrate.h>
+ #include <linux/delay.h>
+ #include <linux/nodemask.h>
++#include <linux/mempolicy.h>
+ #include <asm/bitops.h>
+ 
+ /*
+@@ -731,12 +732,21 @@ sys_migrate_pages(pid_t pid, __u32 count
+ 		node_map[tmp_old_nodes[i]] = tmp_new_nodes[i];
+ 
+ 	/* prepare for lru list manipulation */
+-  	smp_call_function(&lru_add_drain_per_cpu, NULL, 0, 1);
++	smp_call_function(&lru_add_drain_per_cpu, NULL, 0, 1);
+ 	lru_add_drain();
+ 
++	/* update the process mempolicy, if needed */
++	ret = migrate_process_policy(task, node_map);
++	if (ret < 0)
 +		goto out;
-+	}
 +
-+	if (copy_from_user(tmp_old_nodes, (void __user *)old_nodes, size) ||
-+	    copy_from_user(tmp_new_nodes, (void __user *)new_nodes, size)) {
-+		ret = -EFAULT;
-+		goto out;
-+	}
-+
-+	nodes_clear(old_node_mask);
-+	nodes_clear(new_node_mask);
-+	for (i = 0; i < count; i++) {
-+		int n;
-+
-+		n = tmp_old_nodes[i];
-+		if ((n < 0) || (n >= MAX_NUMNODES))
-+			goto out_einval;
-+		node_set(n, old_node_mask);
-+
-+		n = tmp_new_nodes[i];
-+		if ((n < 0) || (n >= MAX_NUMNODES) || !node_online(n))
-+			goto out_einval;
-+		node_set(n, new_node_mask);
-+
-+	}
-+
-+	/* old_nodes and new_nodes must be disjoint */
-+	if (nodes_intersects(old_node_mask, new_node_mask))
-+		goto out_einval;
-+
-+	/* find the task and mm_structs for this process */
-+	read_lock(&tasklist_lock);
-+	task = find_task_by_pid(pid);
-+	if (task) {
-+		task_lock(task);
-+		mm = task->mm;
-+		if (mm)
-+			atomic_inc(&mm->mm_users);
-+		task_unlock(task);
-+	} else {
-+		ret = -ESRCH;
-+		read_unlock(&tasklist_lock);
-+		goto out;
-+	}
-+	read_unlock(&tasklist_lock);
-+	if (!mm)
-+		goto out_einval;
-+
-+	/* set up the node_map array */
-+	for (i = 0; i < MAX_NUMNODES; i++)
-+		node_map[i] = -1;
-+	for (i = 0; i < count; i++)
-+		node_map[tmp_old_nodes[i]] = tmp_new_nodes[i];
-+
-+	/* prepare for lru list manipulation */
-+  	smp_call_function(&lru_add_drain_per_cpu, NULL, 0, 1);
-+	lru_add_drain();
-+
-+	/* actually do the migration */
-+	down_read(&mm->mmap_sem);
-+	for (vma = mm->mmap; vma; vma = vma->vm_next) {
-+		/* migrate the pages of this vma */
-+		ret = migrate_vma(task, mm, vma, node_map);
+ 	/* actually do the migration */
+ 	down_read(&mm->mmap_sem);
+ 	for (vma = mm->mmap; vma; vma = vma->vm_next) {
++		/* update the vma mempolicy, if needed */
++		ret = migrate_vma_policy(vma, node_map);
 +		if (ret < 0)
 +			goto out_up_mmap_sem;
-+		migrated += ret;
-+	}
-+	up_read(&mm->mmap_sem);
-+	ret = migrated;
-+
-+out:
-+	if (mm)
-+		mmput(mm);
-+
-+	kfree(tmp_old_nodes);
-+	kfree(tmp_new_nodes);
-+	kfree(node_map);
-+
-+	return ret;
-+
-+out_einval:
-+	ret = -EINVAL;
-+	goto out;
-+
-+out_up_mmap_sem:
-+	up_read(&mm->mmap_sem);
-+	goto out;
-+
-+}
-+
- EXPORT_SYMBOL(generic_migrate_page);
- EXPORT_SYMBOL(migrate_page_common);
- EXPORT_SYMBOL(migrate_page_buffer);
-Index: linux-2.6.12-rc5-mhp1-page-migration-export/kernel/sys_ni.c
-===================================================================
---- linux-2.6.12-rc5-mhp1-page-migration-export.orig/kernel/sys_ni.c	2005-06-13 10:21:40.000000000 -0700
-+++ linux-2.6.12-rc5-mhp1-page-migration-export/kernel/sys_ni.c	2005-06-13 10:22:41.000000000 -0700
-@@ -77,6 +77,7 @@ cond_syscall(sys_request_key);
- cond_syscall(sys_keyctl);
- cond_syscall(compat_sys_keyctl);
- cond_syscall(compat_sys_socketcall);
-+cond_syscall(sys_migrate_pages);
- 
- /* arch-specific weak syscall entries */
- cond_syscall(sys_pciconfig_read);
+ 		/* migrate the pages of this vma */
+ 		ret = migrate_vma(task, mm, vma, node_map);
+ 		if (ret < 0)
 
 -- 
 Best Regards,
