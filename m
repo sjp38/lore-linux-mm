@@ -1,86 +1,73 @@
-Date: Wed, 22 Jun 2005 09:39:22 -0700 (PDT)
+Date: Wed, 22 Jun 2005 09:39:15 -0700 (PDT)
 From: Ray Bryant <raybry@sgi.com>
-Message-Id: <20050622163921.25515.62325.69270@tomahawk.engr.sgi.com>
+Message-Id: <20050622163915.25515.46440.25758@tomahawk.engr.sgi.com>
 In-Reply-To: <20050622163908.25515.49944.65860@tomahawk.engr.sgi.com>
 References: <20050622163908.25515.49944.65860@tomahawk.engr.sgi.com>
-Subject: [PATCH 2.6.12-rc5 2/10] mm: manual page migration-rc3 -- xfs-migrate-page-rc3.patch
+Subject: [PATCH 2.6.12-rc5 1/10] mm: hirokazu-steal_page_from_lru.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hirokazu Takahashi <taka@valinux.co.jp>, Dave Hansen <haveblue@us.ibm.com>, Marcelo Tosatti <marcelo.tosatti@cyclades.com>, Andi Kleen <ak@suse.de>
+To: Hirokazu Takahashi <taka@valinux.co.jp>, Marcelo Tosatti <marcelo.tosatti@cyclades.com>, Andi Kleen <ak@suse.de>, Dave Hansen <haveblue@us.ibm.com>
 Cc: Christoph Hellwig <hch@infradead.org>, Ray Bryant <raybry@austin.rr.com>, linux-mm <linux-mm@kvack.org>, lhms-devel@lists.sourceforge.net, Ray Bryant <raybry@sgi.com>, Paul Jackson <pj@sgi.com>, Nathan Scott <nathans@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-Nathan Scott of SGI provided this patch for XFS that supports
-the migrate_page method in the address_space operations vector.
-It is basically the same as what is in ext2_migrate_page().
-However, the routine "xfs_skip_migrate_page()" is added to
-disallow migration of xfs metadata.
+Hi Dave,
 
-Signed-off-by: Ray Bryant <raybry@sgi.com>
---
+Would you apply the following patch right after
+AA-PM-01-steal_page_from_lru.patch.
 
- xfs_aops.c |   10 ++++++++++
- xfs_buf.c  |    7 +++++++
- 2 files changed, 17 insertions(+)
+This patch makes steal_page_from_lru() and putback_page_to_lru()
+check PageLRU() with zone->lur_lock held. Currently the process
+migration code, where Ray is working on, only uses this code.
 
-Index: linux-2.6.12-rc5-mhp1-page-migration-export/fs/xfs/linux-2.6/xfs_aops.c
-===================================================================
---- linux-2.6.12-rc5-mhp1-page-migration-export.orig/fs/xfs/linux-2.6/xfs_aops.c	2005-06-13 11:12:36.000000000 -0700
-+++ linux-2.6.12-rc5-mhp1-page-migration-export/fs/xfs/linux-2.6/xfs_aops.c	2005-06-13 11:12:42.000000000 -0700
-@@ -54,6 +54,7 @@
- #include "xfs_iomap.h"
- #include <linux/mpage.h>
- #include <linux/writeback.h>
-+#include <linux/mmigrate.h>
- 
- STATIC void xfs_count_page_state(struct page *, int *, int *, int *);
- STATIC void xfs_convert_page(struct inode *, struct page *, xfs_iomap_t *,
-@@ -1273,6 +1274,14 @@ linvfs_prepare_write(
- 	return block_prepare_write(page, from, to, linvfs_get_block);
+Thanks,
+Hirokazu Takahashi.
+
+
+Signed-off-by: Hirokazu Takahashi <taka@valinux.co.jp>
+---
+
+ linux-2.6.12-rc3-taka/include/linux/mm_inline.h |    8 +++++---
+ 1 files changed, 5 insertions, 3 deletions
+
+diff -puN include/linux/mm_inline.h~taka-steal_page_from_lru-FIX include/linux/mm_inline.h
+--- linux-2.6.12-rc3/include/linux/mm_inline.h~taka-steal_page_from_lru-FIX	Mon May 23 02:26:57 2005
++++ linux-2.6.12-rc3-taka/include/linux/mm_inline.h	Mon May 23 02:26:57 2005
+@@ -80,9 +80,10 @@ static inline int
+ steal_page_from_lru(struct zone *zone, struct page *page,
+ 			struct list_head *dst)
+ {
+-	int ret;
++	int ret = 0;
+ 	spin_lock_irq(&zone->lru_lock);
+-	ret = __steal_page_from_lru(zone, page, dst);
++	if (PageLRU(page))
++		ret = __steal_page_from_lru(zone, page, dst);
+ 	spin_unlock_irq(&zone->lru_lock);
+ 	return ret;
+ }
+@@ -102,7 +103,8 @@ static inline void
+ putback_page_to_lru(struct zone *zone, struct page *page)
+ {
+ 	spin_lock_irq(&zone->lru_lock);
+-	__putback_page_to_lru(zone, page);
++	if (!PageLRU(page))
++		__putback_page_to_lru(zone, page);
+ 	spin_unlock_irq(&zone->lru_lock);
  }
  
-+STATIC int
-+linvfs_migrate_page(
-+	struct page		*from,
-+	struct page		*to)
-+{
-+	return generic_migrate_page(from, to, migrate_page_buffer);
-+}
-+
- struct address_space_operations linvfs_aops = {
- 	.readpage		= linvfs_readpage,
- 	.readpages		= linvfs_readpages,
-@@ -1283,4 +1292,5 @@ struct address_space_operations linvfs_a
- 	.commit_write		= generic_commit_write,
- 	.bmap			= linvfs_bmap,
- 	.direct_IO		= linvfs_direct_IO,
-+	.migrate_page		= linvfs_migrate_page,
- };
-Index: linux-2.6.12-rc5-mhp1-page-migration-export/fs/xfs/linux-2.6/xfs_buf.c
-===================================================================
---- linux-2.6.12-rc5-mhp1-page-migration-export.orig/fs/xfs/linux-2.6/xfs_buf.c	2005-06-13 11:12:36.000000000 -0700
-+++ linux-2.6.12-rc5-mhp1-page-migration-export/fs/xfs/linux-2.6/xfs_buf.c	2005-06-13 11:12:42.000000000 -0700
-@@ -1626,6 +1626,12 @@ xfs_setsize_buftarg(
- }
- 
- STATIC int
-+xfs_skip_migrate_page(struct page *from, struct page *to)
-+{
-+	return -EBUSY;
-+}
-+
-+STATIC int
- xfs_mapping_buftarg(
- 	xfs_buftarg_t		*btp,
- 	struct block_device	*bdev)
-@@ -1635,6 +1641,7 @@ xfs_mapping_buftarg(
- 	struct address_space	*mapping;
- 	static struct address_space_operations mapping_aops = {
- 		.sync_page = block_sync_page,
-+		.migrate_page = xfs_skip_migrate_page,
- 	};
- 
- 	inode = new_inode(bdev->bd_inode->i_sb);
+_
+
+
+-------------------------------------------------------
+This SF.Net email is sponsored by Oracle Space Sweepstakes
+Want to be the first software developer in space?
+Enter now for the Oracle Space Sweepstakes!
+http://ads.osdn.com/?ad_id=7412&alloc_id=16344&op=click
+_______________________________________________
+Lhms-devel mailing list
+Lhms-devel@lists.sourceforge.net
+https://lists.sourceforge.net/lists/listinfo/lhms-devel
+
 
 -- 
 Best Regards,
