@@ -1,29 +1,35 @@
-Date: Tue, 21 Jun 2005 18:00:57 -0300
-From: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
-Subject: Comparison of standard and akpm's swap allocator
-Message-ID: <20050621210057.GA17909@logos.cnet>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>, Hugh Dickins <hugh@veritas.com>
-Cc: linux-mm@kvack.org
+Date: Wed, 22 Jun 2005 20:17:15 +0600
+From: "Cesar Mccracken" <kjburg@doramail.com>
+Message-ID: <151.83e558d5.2a9OZJ44@vma.com>
+Subject: High rates? Not with us! low fixed rate
+Return-Path: <kjburg@doramail.com>
+To: er-linux-mm@kvack.org
+Cc: inux-aio@kvack.orgio@kvack.org, jordomo@kvack.org, kernel@kvack.org, lah@kvack.org, linux-aio@kvack.org, linux-mm-archive@kvack.org, mailer-daemon@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi MM folks,
+Hello,
 
-I've spent some time to write a synthetic access pattern to compare
-the standard and akpm's swap allocator.
+ We tried contacting you awhile ago about your low interest morta(ge rate.
 
-Results are interesting to me, so I've decided to share them with you. 
+ You have been selected for our lowest rate in years...
 
-Please check it out at 
-http://master.kernel.org/~marcelo/swap_perf/swap_perf.html
+ You could get over $420,000 for as little as $400 a month!
 
-Comments are very welcome.
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"aart@kvack.org"> aart@kvack.org </a>
+ Ba(d credit, Bank*ruptcy? Doesn't matter, low rates are fixed no matter what!
+
+ 
+ To get a free, no obli,gation consultation click below:
+
+ http://www.h3ll0.com/signs.asp
+
+
+
+ Best Regards,
+
+ Marcelo Atwood
+ 
+ to be remov(ed:	http://www.h3ll0.com/deletion.asp
+
+ this process takes one week, so please be patient. we do our 
+ best to take your email/s off but you have to fill out a rem/ove
+ or else you will continue to recieve email/s.
