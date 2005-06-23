@@ -1,77 +1,181 @@
-Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
-	by e35.co.us.ibm.com (8.12.10/8.12.9) with ESMTP id j5ML3AtC248462
-	for <linux-mm@kvack.org>; Wed, 22 Jun 2005 17:03:10 -0400
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by d03relay04.boulder.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id j5ML398X182054
-	for <linux-mm@kvack.org>; Wed, 22 Jun 2005 15:03:09 -0600
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.12.11/8.13.3) with ESMTP id j5ML39w5031523
-	for <linux-mm@kvack.org>; Wed, 22 Jun 2005 15:03:09 -0600
-Subject: Re: 2.6.12-mm1 & 2K lun testing  (JFS problem ?)
-From: Badari Pulavarty <pbadari@us.ibm.com>
-In-Reply-To: <1119448252.9262.12.camel@localhost>
-References: <1118856977.4301.406.camel@dyn9047017072.beaverton.ibm.com>
-	 <20050616002451.01f7e9ed.akpm@osdl.org>
-	 <1118951458.4301.478.camel@dyn9047017072.beaverton.ibm.com>
-	 <20050616133730.1924fca3.akpm@osdl.org>
-	 <1118965381.4301.488.camel@dyn9047017072.beaverton.ibm.com>
-	 <20050616175130.22572451.akpm@osdl.org> <42B2E7D2.9080705@us.ibm.com>
-	 <20050617141331.078e5f8f.akpm@osdl.org>
-	 <1119400494.4620.33.camel@dyn9047017102.beaverton.ibm.com>
-	 <1119448252.9262.12.camel@localhost>
-Content-Type: text/plain
-Date: Wed, 22 Jun 2005 14:02:26 -0700
-Message-Id: <1119474166.13376.10.camel@dyn9047017102.beaverton.ibm.com>
-Mime-Version: 1.0
+Message-ID: <42BA11AF.4080302@engr.sgi.com>
+Date: Wed, 22 Jun 2005 20:34:39 -0500
+From: Ray Bryant <raybry@engr.sgi.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH 2.6.12-rc5 4/10] mm: manual page migration-rc3 --	add-sys_migrate_pages-rc3.patch
+References: <20050622163908.25515.49944.65860@tomahawk.engr.sgi.com>	 <20050622163934.25515.22804.81297@tomahawk.engr.sgi.com> <1119461013.18457.61.camel@localhost>
+In-Reply-To: <1119461013.18457.61.camel@localhost>
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Kleikamp <shaggy@austin.ibm.com>
-Cc: Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Dave Hansen <haveblue@us.ibm.com>
+Cc: Ray Bryant <raybry@sgi.com>, Hirokazu Takahashi <taka@valinux.co.jp>, Marcelo Tosatti <marcelo.tosatti@cyclades.com>, Andi Kleen <ak@suse.de>, Christoph Hellwig <hch@infradead.org>, Ray Bryant <raybry@austin.rr.com>, linux-mm <linux-mm@kvack.org>, lhms <lhms-devel@lists.sourceforge.net>, Paul Jackson <pj@sgi.com>, Nathan Scott <nathans@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2005-06-22 at 08:50 -0500, Dave Kleikamp wrote:
-
-> > But, I am running into JFS problem. I can't kill my
-> > "dd" process.
+Dave Hansen wrote:
+> On Wed, 2005-06-22 at 09:39 -0700, Ray Bryant wrote:
 > 
-> Assuming you built the kernel with CONFIG_JFS_STATISTICS, can you send
-> me the contents of /proc/fs/jfs/txstats?
+>>+asmlinkage long
+>>+sys_migrate_pages(pid_t pid, __u32 count, __u32 *old_nodes, __u32 *new_nodes)
+>>+{
+> 
+> 
+> Should the buffers be marked __user?
+> 
 
-Reproduced the problem. Here are the stats..
+I've tried it both ways, but with the __user in the system call declaration,
+you still need to have it on the copy_from_user() calls to get sparse to
+shut up, so it really doesn't appear to help much to put it in the 
+declaration.  I'm easy though.  If you think it helps, I'll add it.
 
-JFS TxStats
-===========
-calls to txBegin = 26783
-txBegin blocked by sync barrier = 0
-txBegin blocked by tlocks low = 0
-txBegin blocked by no free tid = 930528
-calls to txBeginAnon = 8700659
-txBeginAnon blocked by sync barrier = 0
-txBeginAnon blocked by tlocks low = 0
-calls to txLockAlloc = 50601
-tLockAlloc blocked by no free lock = 0
+> 
+>>+       if ((count < 1) || (count > MAX_NUMNODES))
+>>+               return -EINVAL;
+> 
+> 
+> Since you have an out_einval:, it's probably best to use it
+> consistently.  There is another place or two like this.
+>
 
+Good point.  I looked for other places like this and didn't find any, though.
 
-> Looks like txBegin is the problem.  Probably ran out of txBlocks.  Maybe
-> a stack trace of jfsCommit, jfsIO, and jfsSync threads might be useful
-> too.
+> 
+>>+       for (i = 0; i < count; i++) {
+>>+               int n;
+>>+
+>>+               n = tmp_old_nodes[i];
+>>+               if ((n < 0) || (n >= MAX_NUMNODES))
+>>+                       goto out_einval;
+>>+               node_set(n, old_node_mask);
+>>+
+>>+               n = tmp_new_nodes[i];
+>>+               if ((n < 0) || (n >= MAX_NUMNODES) || !node_online(n))
+>>+                       goto out_einval;
+>>+               node_set(n, new_node_mask);
+>>+
+>>+       }
+> 
+> 
+> I know it's a simple operation, but I think I'd probably break out the
+> array validation into its own function.
+> 
+> Then, replace the above loop with this:
+> 
+> if (!migrate_masks_valid(tmp_old_nodes, count) ||
+>      migrate_masks_valid(tmp_old_nodes, count))
+> 	goto out_einval;
+> 
+> for (i = 0; i < count; i++) {
+> 	node_set(tmp_old_nodes[i], old_node_mask);
+> 	node_set(tmp_new_nodes[i], new_node_mask);
+> }
+> 
+> 
+>>+static int
+>>+migrate_vma(struct task_struct *task, struct mm_struct *mm,
+>>+       struct vm_area_struct *vma, int *node_map)
+> 
+> ...
+> 
 
-I don't see the stacks for these jfs threads in the sysrq-t
-output. I wonder why sysrq-t is skipping them. Any Idea ?
+ok.
 
-elm3b29:/proc/sys/fs # ps -aef | grep -i jfs
-root       174     1  0 02:11 ?        00:00:00 [jfsIO]
-root       175     1  0 02:11 ?        00:00:01 [jfsCommit]
-root       176     1  0 02:11 ?        00:00:01 [jfsCommit]
-root       177     1  0 02:11 ?        00:00:02 [jfsCommit]
-root       178     1  0 02:11 ?        00:00:02 [jfsCommit]
-root       179     1  0 02:11 ?        00:00:00 [jfsSync]
-root      7200  7759  0 05:54 pts/1    00:00:00 grep -i jfs
+>>+       spin_lock(&mm->page_table_lock);
+>>+       for (vaddr = vma->vm_start; vaddr < vma->vm_end; vaddr += PAGE_SIZE) {
+>>+               page = follow_page(mm, vaddr, 0);
+>>+               /*
+>>+                * follow_page has been known to return pages with zero mapcount
+>>+                * and NULL mapping.  Skip those pages as well
+>>+                */
+>>+               if (page && page_mapcount(page)) {
+>>+                       if (node_map[page_to_nid(page)] >= 0) {
+>>+                               if (steal_page_from_lru(page_zone(page), page,
+>>+                                       &page_list))
+>>+                                               count++;
+>>+                               else
+>>+                                       BUG();
+>>+                       }
+>>+               }
+>>+       }
+>>+       spin_unlock(&mm->page_table_lock);
+> 
+> 
+> Personally, I dislike having so many embedded ifs, especially in a for
+> loop like that.  I think it's a lot more logical to code it up as a
+> series of continues, mostly because it's easy to read a continue as,
+> "skip this page."  You can't always see that as easily with an if().  It
+> also makes it so that you don't have to wrap the steal_page_from_lru()
+> call across two lines, which is super-ugly. :)
 
-Thanks,
-Badari
+ok, but I had to shorten page_list to pglist go get it to fit in 80 columns,
+anyway.
 
+> 
+> for (vaddr = vma->vm_start; vaddr < vma->vm_end; vaddr += PAGE_SIZE) {
+> 	page = follow_page(mm, vaddr, 0);
+> 	if (!page || !page_mapcount(page))
+> 		continue;
+> 
+> 	if (node_map[page_to_nid(page)] < 0)
+> 		continue;
+> 
+> 	if (steal_page_from_lru(page_zone(page), page, &page_list));
+> 		count++;
+> 	else
+> 		BUG();
+> }
+> 
+> The same kind of thing goes for this if: 
+> 
+> 
+>>+       /* call the page migration code to move the pages */
+>>+       if (count) {
+>>+               nr_busy = try_to_migrate_pages(&page_list, node_map);
+>>+
+>>+               if (nr_busy < 0)
+>>+                       return nr_busy;
+>>+
+>>+               if (nr_busy == 0)
+>>+                       return count;
+>>+
+>>+               /* return the unmigrated pages to the LRU lists */
+>>+               list_for_each_entry_safe(page, page2, &page_list, lru)
+>>{
+>>+                       list_del(&page->lru);
+>>+                       putback_page_to_lru(page_zone(page), page);
+>>+               }
+>>+               return -EAGAIN;
+>>+       }
+>>+
+>>+       return 0;
+> 
+> 
+> It looks a lot cleaner if you just do 
+> 
+> 	if (!count)
+> 		return count;
+> 
+> 	... contents of the if(){} block go here
+>
+
+ok.
+
+> -- Dave
+> 
+> 
+
+Let me make the changes and I'll send out a new set of patches in a bit.
+-- 
+Best Regards,
+Ray
+-----------------------------------------------
+                   Ray Bryant
+512-453-9679 (work)         512-507-7807 (cell)
+raybry@sgi.com             raybry@austin.rr.com
+The box said: "Requires Windows 98 or better",
+            so I installed Linux.
+-----------------------------------------------
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
