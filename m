@@ -1,54 +1,30 @@
-From: "Elvia Witherspoon" <ppiwjjqarl@gamedev.net>
-Subject: Here is your tracking # Z1 38540
-Date: Thu, 02 Jun 2005 08:01:41 -0400
-Message-ID: <39619.209271814$1117710538@news.gmane.org>
-Reply-To: "Elvia Witherspoon" <ppiwjjqarl@gamedev.net>
-Mime-Version: 1.0
-Content-Type: multipart/alternative;
-	boundary="--09-97565-3457-109-08587"
+From: "Ruth Charles" <rzzqwktdfqnuie@worldnet.att.net>
+Subject: Unbelievable Home Loans simplified
+Date: Thu, 23 Jun 2005 09:30:10 -0400
+Message-ID: <47712.9043233164$1119529729@news.gmane.org>
 Return-path: <owner-linux-mm@kvack.org>
-From: <ppiwjjqarl@gamedev.net>
-From: owner-linux-mm@kvack.org
-Resent-Message-Id: <20050602111222Z26572-1676+478@kvack.org>
 Sender: owner-linux-mm@kvack.org
-To: owner-linux-mm@kvack.org
+To: 169@kvack.org
+Cc: 91@kvack.org, 45@kvack.org, 40@kvack.org, 926@kvack.org, 1323@kvack.org, 333@kvack.org, 99@kvack.org, linux-mm@kvack.org
 List-Id: linux-mm.kvack.org
 
-----09-97565-3457-109-08587
-Content-Type: text/plain;
-	charset="iso-3884-7"
-Content-Transfer-Encoding: quoted-printable
+Dear Homeowner,
 
-Hi,
- 
-Did you recieve my email from last week?  I'm happy to tell you
-that you can get a home loan at a rock-bottom rate right now.
- 
-Your tracking number is # O6 841 218
- 
-You need to confirm your details within the next 24 hours. 
-Please respond to this email address:  bestequityloan@yahoo.com
- 
-Be sure to include the following:
+You have been pre-apprroved for a $441,000 Home Looaan at a 3.69% Fixed Raate.
+This offer is being extended to you unconditionally and your credit is in no way a factor.
 
-- Full name
-- Phone #
-- Best time to reach you
-- Type and amount of loan
- 
-We will get back with you right away to discuss the details.
+To take Advantage of this Limiited Time oppoortunity all
+we ask is that you visit our Website and complete
+the 1 minnute post Appr_oval Fo.rm.
 
-Best Regards,
+En+er herree '> http://MkQ.169.usaelender.com/4/index/sto/NSW
 
-Elvia Witherspoon
-Account Officer
-International Equity Corp.
+Claudia Rivas
+Regional CEO
 
 
-To never hear from us again
-nolimitsbiz.info/unsubscribe_beetle.html
 
-----09-97565-3457-109-08587--
+tyranny infliklited up0n Mia. That's where I rev0lted against this red system. After taking the first step 0f rev0lt, I felt that numer0us pe0ple were waiting f0r that first step. I 0nly remained al0ne till the first step and then I was thr0nged with myself, the kli0mm0n man. We ejeklited the fear 0ut 0f pe0ple's hearts. The lava 0f em0ti0ns was given way and it melted that system t0 ashes. The kli0untry that had stretklihed the largest darkness 0n earth had l0st its spell. The pe0ple living under the red sun f0und freed0m; a freed0m 0f their 0wn "N0, I d0n't 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
