@@ -1,52 +1,42 @@
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by e2.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id j5N1gF7r018422
-	for <linux-mm@kvack.org>; Wed, 22 Jun 2005 21:42:15 -0400
-Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
-	by d01relay04.pok.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id j5N1gFjx185928
-	for <linux-mm@kvack.org>; Wed, 22 Jun 2005 21:42:15 -0400
-Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
-	by d01av03.pok.ibm.com (8.12.11/8.13.3) with ESMTP id j5N1gEa3020688
-	for <linux-mm@kvack.org>; Wed, 22 Jun 2005 21:42:15 -0400
-Subject: Re: [PATCH 2.6.12-rc5 4/10] mm: manual page migration-rc3
-	--	add-sys_migrate_pages-rc3.patch
-From: Dave Hansen <haveblue@us.ibm.com>
-In-Reply-To: <42BA11AF.4080302@engr.sgi.com>
-References: <20050622163908.25515.49944.65860@tomahawk.engr.sgi.com>
-	 <20050622163934.25515.22804.81297@tomahawk.engr.sgi.com>
-	 <1119461013.18457.61.camel@localhost>  <42BA11AF.4080302@engr.sgi.com>
-Content-Type: text/plain
-Date: Wed, 22 Jun 2005 18:42:02 -0700
-Message-Id: <1119490922.18457.73.camel@localhost>
+Date: Thu, 23 Jun 2005 03:51:21 +0200
+From: Andi Kleen <ak@suse.de>
+Subject: Re: [PATCH 2.6.12-rc5 5/10] mm: manual page migration-rc3 -- sys_migrate_pages-mempolicy-migration-rc3.patch
+Message-ID: <20050623015121.GI14251@wotan.suse.de>
+References: <20050622163908.25515.49944.65860@tomahawk.engr.sgi.com> <20050622163941.25515.38103.92916@tomahawk.engr.sgi.com>
 Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20050622163941.25515.38103.92916@tomahawk.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ray Bryant <raybry@engr.sgi.com>
-Cc: Ray Bryant <raybry@sgi.com>, Hirokazu Takahashi <taka@valinux.co.jp>, Marcelo Tosatti <marcelo.tosatti@cyclades.com>, Andi Kleen <ak@suse.de>, Christoph Hellwig <hch@infradead.org>, Ray Bryant <raybry@austin.rr.com>, linux-mm <linux-mm@kvack.org>, lhms <lhms-devel@lists.sourceforge.net>, Paul Jackson <pj@sgi.com>, Nathan Scott <nathans@sgi.com>
+To: Ray Bryant <raybry@sgi.com>
+Cc: Hirokazu Takahashi <taka@valinux.co.jp>, Dave Hansen <haveblue@us.ibm.com>, Marcelo Tosatti <marcelo.tosatti@cyclades.com>, Andi Kleen <ak@suse.de>, Christoph Hellwig <hch@infradead.org>, Ray Bryant <raybry@austin.rr.com>, linux-mm <linux-mm@kvack.org>, lhms-devel@lists.sourceforge.net, Paul Jackson <pj@sgi.com>, Nathan Scott <nathans@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2005-06-22 at 20:34 -0500, Ray Bryant wrote:
-> Dave Hansen wrote:
-> > On Wed, 2005-06-22 at 09:39 -0700, Ray Bryant wrote:
-> > 
-> >>+asmlinkage long
-> >>+sys_migrate_pages(pid_t pid, __u32 count, __u32 *old_nodes, __u32 *new_nodes)
-> >>+{
-> >  
-> > Should the buffers be marked __user?
-> > 
-> 
-> I've tried it both ways, but with the __user in the system call declaration,
-> you still need to have it on the copy_from_user() calls to get sparse to
-> shut up, so it really doesn't appear to help much to put it in the 
-> declaration.  I'm easy though.  If you think it helps, I'll add it.
+On Wed, Jun 22, 2005 at 09:39:41AM -0700, Ray Bryant wrote:
+> This patch adds code that translates the memory policy structures
+> as they are encountered so that they continue to represent where
+> memory should be allocated after the page migration has completed.
 
-Looking at fs/read_write.c, the convention seems to be to put them in
-the function declaration.  That's all that I was looking at.  No big
-deal.
 
--- Dave
+That won't work for shared memory objects though (which store
+their mempolicies separately). Is that intended?
 
+> +
+> +	if (task->mempolicy->policy == MPOL_INTERLEAVE) {
+> +		/*
+> +		 * If the task is still running and allocating storage, this
+> +		 * is racy, but there is not much that can be done about it.
+> +		 */
+> +		tmp = task->il_next;
+> +		if (node_map[tmp] >= 0)
+> +			task->il_next = node_map[tmp];
+
+RCU (synchronize_kernel) could do better, but that might be slow. However the 
+code might BUG when il_next ends up in a node that is not part of 
+the policy anymore. Have you checked that?  
+
+-Andi
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
