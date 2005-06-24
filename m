@@ -1,35 +1,48 @@
-Message-ID: <409a01c5787a$fe34b8e6$d469b580@supanet.com>
-From: phil Capehart <runyan683@supanet.com>
-Subject: Part time position available
-Date: Fri, 24 Jun 2005 05:05:05 +0000
-MIME-Version: 1.0
-Content-Type: text/plain;
-    format=flowed;
-    charset="iso-8859-1";
-    reply-type=original
-Content-Transfer-Encoding: 7bit
+Date: Fri, 24 Jun 2005 01:24:32 -0700
+From: William Lee Irwin III <wli@holomorphy.com>
+Subject: Re: [patch][rfc] 5/5: core remove PageReserved
+Message-ID: <20050624082432.GF3334@holomorphy.com>
+References: <42BA5F37.6070405@yahoo.com.au> <42BA5F5C.3080101@yahoo.com.au> <42BA5F7B.30904@yahoo.com.au> <42BA5FA8.7080905@yahoo.com.au> <42BA5FC8.9020501@yahoo.com.au> <42BA5FE8.2060207@yahoo.com.au> <20050623095153.GB3334@holomorphy.com> <20050623215011.0b1e6ef2.akpm@osdl.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20050623215011.0b1e6ef2.akpm@osdl.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Andrew Morton <akpm@osdl.org>
+Cc: nickpiggin@yahoo.com.au, linux-kernel@vger.kernel.org, linux-mm@kvack.org, hugh@veritas.com, pbadari@us.ibm.com, linux-scsi@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Do you want to make money working at home? Do you need second income source?
-We need right candidates that would like to make money from home!
-No special skills required! No fees to start! We will train you.
-Your personal instructor will teach and train you how to put the internet and your computer to work.
-Work around YOUR Schedule! The more you work, the more you make.
-With good work ethic and a never give up attitude you can achieve goals with our company.
-What do we have to offer? No start up fees or training manuals to buy!
-Many successful members started with no previous experience.
-Remember there are no costs to start working with our company.
-Work Smarter, Not Harder! You CAN make a difference in your financial future!
-Take the vacation of your dreams, buy a better car, and build your dream home!
-Our extensive training and support is what makes this position so easy to run for you.
+William Lee Irwin III <wli@holomorphy.com> wrote:
+>>  An answer should be devised for this. My numerous SCSI CD-ROM devices
+>>  (I have 5 across several different machines of several different arches)
+>>  are rather unlikely to be happy with /* FIXME: XXX ... as an answer.
+[...]
+>>  Mutatis mutandis for my SCSI tape drive.
 
-APPLY NOW to find out more about this exciting opportunity.
-To continue with the application please fill out the form at:
+On Thu, Jun 23, 2005 at 09:50:11PM -0700, Andrew Morton wrote:
+> This scsi code is already rather wrong.  There isn't much point in just
+> setting PG_dirty and leaving the page marked as clean in the radix tree. 
+> As it is we'll lose data if the user reads it into a MAP_SHARED memory
+> buffer.
+> set_page_dirty_lock() should be used here.  That can sleep.
+> The above two functions are called under write_lock_irqsave() (at least)
+> and might be called from irq context (dunno).  So we cannot use
+> set_page_dirty_lock() and we don't have a ref on the page's inode.  We
+> could use set_page_dirty() and be racy against page reclaim.
+> But to get all this correct (and it's very incorrect now) we'd need to punt
+> the page dirtying up to process context, along the lines of
+> bio_check_pages_dirty().
+> Or, if st_unmap_user_pages() and sgl_unmap_user_pages() are not called from
+> irq context then we should arrange for them to be called without locks held
+> and use set_page_dirty_lock().
 
-http://www.globaltransfer.org/vacancies.html
+This all sounds very reasonable. I was originally more concerned about
+the new FIXME getting introduced but this sounds like a good way to
+resolve the preexisting FIXME's surrounding all this.
+
+
+-- wli
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
