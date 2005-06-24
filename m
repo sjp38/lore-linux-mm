@@ -1,48 +1,59 @@
-Date: Fri, 24 Jun 2005 01:24:32 -0700
-From: William Lee Irwin III <wli@holomorphy.com>
-Subject: Re: [patch][rfc] 5/5: core remove PageReserved
-Message-ID: <20050624082432.GF3334@holomorphy.com>
-References: <42BA5F37.6070405@yahoo.com.au> <42BA5F5C.3080101@yahoo.com.au> <42BA5F7B.30904@yahoo.com.au> <42BA5FA8.7080905@yahoo.com.au> <42BA5FC8.9020501@yahoo.com.au> <42BA5FE8.2060207@yahoo.com.au> <20050623095153.GB3334@holomorphy.com> <20050623215011.0b1e6ef2.akpm@osdl.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20050623215011.0b1e6ef2.akpm@osdl.org>
+Message-ID: <42BC1573.90201@engr.sgi.com>
+Date: Fri, 24 Jun 2005 09:15:15 -0500
+From: Ray Bryant <raybry@engr.sgi.com>
+MIME-Version: 1.0
+Subject: Re: [Lhms-devel] Re: [PATCH 2.6.12-rc5 0/10] mm: manual page migration-rc3
+ -- overview
+References: <20050622163908.25515.49944.65860@tomahawk.engr.sgi.com> <Pine.LNX.4.62.0506231428330.23673@graphe.net>
+In-Reply-To: <Pine.LNX.4.62.0506231428330.23673@graphe.net>
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: nickpiggin@yahoo.com.au, linux-kernel@vger.kernel.org, linux-mm@kvack.org, hugh@veritas.com, pbadari@us.ibm.com, linux-scsi@vger.kernel.org
+To: Christoph Lameter <christoph@lameter.com>
+Cc: Ray Bryant <raybry@sgi.com>, Hirokazu Takahashi <taka@valinux.co.jp>, Andi Kleen <ak@suse.de>, Dave Hansen <haveblue@us.ibm.com>, Marcelo Tosatti <marcelo.tosatti@cyclades.com>, Christoph Hellwig <hch@infradead.org>, Ray Bryant <raybry@austin.rr.com>, linux-mm <linux-mm@kvack.org>, lhms-devel@lists.sourceforge.net, Paul Jackson <pj@sgi.com>, Nathan Scott <nathans@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-William Lee Irwin III <wli@holomorphy.com> wrote:
->>  An answer should be devised for this. My numerous SCSI CD-ROM devices
->>  (I have 5 across several different machines of several different arches)
->>  are rather unlikely to be happy with /* FIXME: XXX ... as an answer.
-[...]
->>  Mutatis mutandis for my SCSI tape drive.
+Christoph Lameter wrote:
 
-On Thu, Jun 23, 2005 at 09:50:11PM -0700, Andrew Morton wrote:
-> This scsi code is already rather wrong.  There isn't much point in just
-> setting PG_dirty and leaving the page marked as clean in the radix tree. 
-> As it is we'll lose data if the user reads it into a MAP_SHARED memory
-> buffer.
-> set_page_dirty_lock() should be used here.  That can sleep.
-> The above two functions are called under write_lock_irqsave() (at least)
-> and might be called from irq context (dunno).  So we cannot use
-> set_page_dirty_lock() and we don't have a ref on the page's inode.  We
-> could use set_page_dirty() and be racy against page reclaim.
-> But to get all this correct (and it's very incorrect now) we'd need to punt
-> the page dirtying up to process context, along the lines of
-> bio_check_pages_dirty().
-> Or, if st_unmap_user_pages() and sgl_unmap_user_pages() are not called from
-> irq context then we should arrange for them to be called without locks held
-> and use set_page_dirty_lock().
+> 
+> 
+> There is PF_FREEZE flag used by the suspend feature that could 
+> be used here to send the process into the "freezer" first. Using regular 
+> signals to stop a process may cause races with user space code also doing
+> SIGSTOP SIGCONT on a process while migrating it.
+> 
+> 
 
-This all sounds very reasonable. I was originally more concerned about
-the new FIXME getting introduced but this sounds like a good way to
-resolve the preexisting FIXME's surrounding all this.
+In general, process flags are only updatable by the current process.
+There is no locking applied.  Having the migrating task set the PF_FREEZE
+bit in the migrated process runs the risk of losing the update to some other
+flags bit that is simultaneously set by the (running) migrated process.
 
+I suppose this could be fixed as well by introducing a second flags word
+in the task_struct.  But this starts to sound like a reimplemtnation of
+signals.
 
--- wli
+The other concern (probably not a problem on Altix  :-) ), is what happens
+if a process migration is underway at the time of a suspend.  When the
+resume occurs, all processes will be unfrozen, including the task that
+is under migration.
+
+At the moment, I'm not convinced that this is a better path than depending
+on SIGSTOP/SIGCONT.  It is a resonable restriction that processes eligble for
+migration are not allowed to use those signals themselves, in particular for
+the batch environment this is targeted at.
+
+-- 
+Best Regards,
+Ray
+-----------------------------------------------
+                   Ray Bryant
+512-453-9679 (work)         512-507-7807 (cell)
+raybry@sgi.com             raybry@austin.rr.com
+The box said: "Requires Windows 98 or better",
+            so I installed Linux.
+-----------------------------------------------
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
