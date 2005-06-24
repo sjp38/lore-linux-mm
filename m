@@ -1,47 +1,90 @@
-Message-ID: <42BB6627.2080102@yahoo.com.au>
-Date: Fri, 24 Jun 2005 11:47:19 +1000
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-MIME-Version: 1.0
+Date: Thu, 23 Jun 2005 21:50:11 -0700
+From: Andrew Morton <akpm@osdl.org>
 Subject: Re: [patch][rfc] 5/5: core remove PageReserved
-References: <42BA5F37.6070405@yahoo.com.au> <42BA5F5C.3080101@yahoo.com.au> <42BA5F7B.30904@yahoo.com.au> <42BA5FA8.7080905@yahoo.com.au> <42BA5FC8.9020501@yahoo.com.au> <42BA5FE8.2060207@yahoo.com.au> <20050623095153.GB3334@holomorphy.com> <42BA8FA5.2070407@yahoo.com.au> <20050623220812.GD3334@holomorphy.com> <42BB43FB.1060609@yahoo.com.au> <20050624005952.GE3334@holomorphy.com> <42BB5F29.6060802@yahoo.com.au>
-In-Reply-To: <42BB5F29.6060802@yahoo.com.au>
-Content-Type: text/plain; charset=us-ascii; format=flowed
+Message-Id: <20050623215011.0b1e6ef2.akpm@osdl.org>
+In-Reply-To: <20050623095153.GB3334@holomorphy.com>
+References: <42BA5F37.6070405@yahoo.com.au>
+	<42BA5F5C.3080101@yahoo.com.au>
+	<42BA5F7B.30904@yahoo.com.au>
+	<42BA5FA8.7080905@yahoo.com.au>
+	<42BA5FC8.9020501@yahoo.com.au>
+	<42BA5FE8.2060207@yahoo.com.au>
+	<20050623095153.GB3334@holomorphy.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: William Lee Irwin III <wli@holomorphy.com>
-Cc: linux-kernel <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>, Hugh Dickins <hugh@veritas.com>, Badari Pulavarty <pbadari@us.ibm.com>
+Cc: nickpiggin@yahoo.com.au, linux-kernel@vger.kernel.org, linux-mm@kvack.org, hugh@veritas.com, pbadari@us.ibm.com, linux-scsi@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Nick Piggin wrote:
-> William Lee Irwin III wrote:
+William Lee Irwin III <wli@holomorphy.com> wrote:
+>
+>  On Thu, Jun 23, 2005 at 05:08:24PM +1000, Nick Piggin wrote:
+>  > Index: linux-2.6/drivers/scsi/sg.c
+>  > ===================================================================
+>  > --- linux-2.6.orig/drivers/scsi/sg.c
+>  > +++ linux-2.6/drivers/scsi/sg.c
+>  > @@ -1887,9 +1887,10 @@ st_unmap_user_pages(struct scatterlist *
+>  >  	int i;
+>  >  
+>  >  	for (i=0; i < nr_pages; i++) {
+>  > -		if (dirtied && !PageReserved(sgl[i].page))
+>  > +		if (dirtied)
+>  >  			SetPageDirty(sgl[i].page);
+>  >  		/* unlock_page(sgl[i].page); */
+>  > +		/* FIXME: XXX don't dirty/unmap VM_RESERVED regions? */
+>  >  		/* FIXME: cache flush missing for rw==READ
+>  >  		 * FIXME: call the correct reference counting function
+>  >  		 */
 > 
-
->> On Fri, Jun 24, 2005 at 09:21:31AM +1000, Nick Piggin wrote:
->>
->>> I'm sorry, I don't see how 'diddling' the core will create bugs.
->>> This is a fine way to do it, and "converting" users first (whatever
->>> that means)
->>
->>
->> [cut text included in full in the following quote block]
->>
->> This is going way too far. Someone please deal with this.
->>
+>  An answer should be devised for this. My numerous SCSI CD-ROM devices
+>  (I have 5 across several different machines of several different arches)
+>  are rather unlikely to be happy with /* FIXME: XXX ... as an answer.
 > 
-> No, just tell me how it might magically create bugs in drivers
-> that didn't exist in the first place?
+> 
+>  On Thu, Jun 23, 2005 at 05:08:24PM +1000, Nick Piggin wrote:
+>  > Index: linux-2.6/drivers/scsi/st.c
+>  > ===================================================================
+>  > --- linux-2.6.orig/drivers/scsi/st.c
+>  > +++ linux-2.6/drivers/scsi/st.c
+>  > @@ -4435,8 +4435,9 @@ static int sgl_unmap_user_pages(struct s
+>  >  	int i;
+>  >  
+>  >  	for (i=0; i < nr_pages; i++) {
+>  > -		if (dirtied && !PageReserved(sgl[i].page))
+>  > +		if (dirtied)
+>  >  			SetPageDirty(sgl[i].page);
+>  > +		/* FIXME: XXX don't dirty/unmap VM_RESERVED regions? */
+>  >  		/* FIXME: cache flush missing for rw==READ
+>  >  		 * FIXME: call the correct reference counting function
+>  >  		 */
+> 
+>  Mutatis mutandis for my SCSI tape drive.
 
+This scsi code is already rather wrong.  There isn't much point in just
+setting PG_dirty and leaving the page marked as clean in the radix tree. 
+As it is we'll lose data if the user reads it into a MAP_SHARED memory
+buffer.
 
-Sorry, I got a bit carried away. That remark wasn't helpful.
+set_page_dirty_lock() should be used here.  That can sleep.
 
-What I mean is: if you see an aspect of this change that will
-cause breakage in previously correct drivers, please raise
-your specific concerns with me.
+<looks>
 
-I have tried to be careful about this, and put in bugs/warnings
-where problems in already broken code are magnified.
-Send instant messages to your online friends http://au.messenger.yahoo.com 
+The above two functions are called under write_lock_irqsave() (at least)
+and might be called from irq context (dunno).  So we cannot use
+set_page_dirty_lock() and we don't have a ref on the page's inode.  We
+could use set_page_dirty() and be racy against page reclaim.
+
+But to get all this correct (and it's very incorrect now) we'd need to punt
+the page dirtying up to process context, along the lines of
+bio_check_pages_dirty().
+
+Or, if st_unmap_user_pages() and sgl_unmap_user_pages() are not called from
+irq context then we should arrange for them to be called without locks held
+and use set_page_dirty_lock().
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
