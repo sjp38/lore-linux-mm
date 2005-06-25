@@ -1,46 +1,58 @@
-Received: from shell0.pdx.osdl.net (fw.osdl.org [65.172.181.6])
-	by smtp.osdl.org (8.12.8/8.12.8) with ESMTP id j5P1lijA020777
-	(version=TLSv1/SSLv3 cipher=EDH-RSA-DES-CBC3-SHA bits=168 verify=NO)
-	for <linux-mm@kvack.org>; Fri, 24 Jun 2005 18:47:45 -0700
-Received: from bix (shell0.pdx.osdl.net [10.9.0.31])
-	by shell0.pdx.osdl.net (8.13.1/8.11.6) with SMTP id j5P1lhlb024641
-	for <linux-mm@kvack.org>; Fri, 24 Jun 2005 18:47:44 -0700
-Date: Fri, 24 Jun 2005 18:47:21 -0700
-From: Andrew Morton <akpm@osdl.org>
-Subject: Fw: [Bug 4797] New: mmap returns nil when called
-Message-Id: <20050624184721.3e819f78.akpm@osdl.org>
+Date: Sat, 25 Jun 2005 04:51:22 +0200
+From: Pavel Machek <pavel@ucw.cz>
+Subject: Re: [RFC] Fix SMP brokenness for PF_FREEZE and make freezing usable for other purposes
+Message-ID: <20050625025122.GC22393@atrey.karlin.mff.cuni.cz>
+References: <Pine.LNX.4.62.0506241316370.30503@graphe.net>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.62.0506241316370.30503@graphe.net>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Christoph Lameter <christoph@lameter.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, raybry@engr.sgi.com, torvalds@osdl.org
 List-ID: <linux-mm.kvack.org>
 
-Anyone interested in taking this on?
+Hi!
 
-Seems that pwc_video_mmap() is working just fine, but it happens to map the
-memory buffer to virtual address zero.  According to the manpage, "The
-actual place where the object is mapped is returned by mmap, and is never
-0.", but I can find no such promise in
-http://www.opengroup.org/onlinepubs/009695399/functions/mmap.html.
+> The process freezing used by software suspend currently relies on modifying
+> current->flags from outside of the processes context. This makes freezing and
+> unfreezing SMP unsafe since a process may change the flags at any time without
+> locking. The following patch introduces a new atomic_t field in task_struct
+> to allow SMP safe freezing and unfreezing.
+> 
+> It provides a simple API for process freezing:
+> 
+> frozen(process)		Check for frozen process
+> freezing(process)	Check if a process is being frozen
+> freeze(process)		Tell a process to freeze (go to refrigerator)
+> thaw_process(process)	Restart process
+> 
+> I only know that this boots correctly since I have no system that can do 
+> suspend. But Ray needs an effective means of process suspension for 
+> his process migration patches.
 
-It's not a good idea to be putting valid stuff at address zero anyway, from
-a debuggability POV.
+Any i386 or x86-64 machine can do suspend... It should be easy to get
+some notebook... [What kind of hardware are you working on normally?]
 
+> Some of the code may still need to be moved around from kernel/power/* to 
+> kernel/*.
+> 
+> But is this the correct way to fix this?
 
+It includes whitespace changes and most of patch is nice cleanup that
+should probably go in separately. (Hint hint :-). 
 
-Begin forwarded message:
+Previous code had important property: try_to_freeze was optimized away
+in !CONFIG_PM case. Please keep that.
 
-Date: Fri, 24 Jun 2005 16:46:11 -0700
-From: bugme-daemon@kernel-bugs.osdl.org
-To: akpm@osdl.org
-Subject: [Bug 4797] New: mmap returns nil when called
-
-
-http://bugzilla.kernel.org/show_bug.cgi?id=4797
-
-            Summary: mmap returns nil when called
+Best way is to introduce macros and cleanup the code to use the
+macros, without actually changing any object code. That can go in very
+fast. Then we can switch to atomic_t ... yeah I think that's
+neccessary, but I'd like cleanups first.
+								Pavel
+-- 
+Boycott Kodak -- for their patent abuse against Java.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
