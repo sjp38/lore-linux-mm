@@ -1,38 +1,47 @@
-Subject: Re: [RFC] Fix SMP brokenness for PF_FREEZE and make freezing
-	usable for other purposes
-From: Nigel Cunningham <ncunningham@cyclades.com>
-Reply-To: ncunningham@cyclades.com
-In-Reply-To: <Pine.LNX.4.62.0506242127040.3433@graphe.net>
-References: <Pine.LNX.4.62.0506241316370.30503@graphe.net>
-	 <20050625025122.GC22393@atrey.karlin.mff.cuni.cz>
-	 <Pine.LNX.4.62.0506242127040.3433@graphe.net>
-Content-Type: text/plain
-Message-Id: <1119674790.4170.6.camel@localhost>
-Mime-Version: 1.0
-Date: Sat, 25 Jun 2005 14:46:30 +1000
+Message-ID: <42BCE792.5090507@engr.sgi.com>
+Date: Sat, 25 Jun 2005 00:11:46 -0500
+From: Ray Bryant <raybry@engr.sgi.com>
+MIME-Version: 1.0
+Subject: Re: [Lhms-devel] Re: [PATCH 2.6.12-rc5 5/10] mm: manual page migration-rc3
+ -- sys_migrate_pages-mempolicy-migration-rc3.patch
+References: <20050622163908.25515.49944.65860@tomahawk.engr.sgi.com> <20050622163941.25515.38103.92916@tomahawk.engr.sgi.com> <20050623015121.GI14251@wotan.suse.de> <42BB22C3.7070602@engr.sgi.com> <20050623210524.GN14251@wotan.suse.de>
+In-Reply-To: <20050623210524.GN14251@wotan.suse.de>
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <christoph@lameter.com>
-Cc: Pavel Machek <pavel@ucw.cz>, Linux Memory Management <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, raybry@engr.sgi.com, Linus Torvalds <torvalds@osdl.org>
+To: Andi Kleen <ak@suse.de>
+Cc: Ray Bryant <raybry@sgi.com>, Hirokazu Takahashi <taka@valinux.co.jp>, Dave Hansen <haveblue@us.ibm.com>, Marcelo Tosatti <marcelo.tosatti@cyclades.com>, Christoph Hellwig <hch@infradead.org>, Ray Bryant <raybry@austin.rr.com>, linux-mm <linux-mm@kvack.org>, lhms-devel@lists.sourceforge.net, Paul Jackson <pj@sgi.com>, Nathan Scott <nathans@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-Hi.
+Andi Kleen wrote:
 
-On Sat, 2005-06-25 at 14:31, Christoph Lameter wrote:
-> > Previous code had important property: try_to_freeze was optimized away
-> > in !CONFIG_PM case. Please keep that.
 > 
-> Obviously that will not work if we use try_to_freeze for 
-> non-power-management purposes. The code from kernel/power/process.c may 
-> have to be merged into some other kernel file. kernel/sched.c?
+> On the other hand tmpfs is not really memory belonging to a single
+> process only so it is not clear if process migration should touch
+> should a shared resource.
+> 
 
-Do you have a non-power-management purpose in mind?
+I think the way this should work is as follows:  if a VMA maps a
+shared object, and it meets the criterion for being a migratable
+VMA (e. g. vm_write is set), then we migrate the data and the
+policy.
 
-Regards,
+This isn't perfect, since pages in the shared object that are not
+mapped won't be migrated.  Perhaps we need a utility to fix that
+up after the fact.
 
-Nigel
 
+-- 
+Best Regards,
+Ray
+-----------------------------------------------
+                   Ray Bryant
+512-453-9679 (work)         512-507-7807 (cell)
+raybry@sgi.com             raybry@austin.rr.com
+The box said: "Requires Windows 98 or better",
+            so I installed Linux.
+-----------------------------------------------
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
