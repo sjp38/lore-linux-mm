@@ -1,141 +1,48 @@
-Date: Sat, 25 Jun 2005 11:35:34 +0400
-From: Kirill Korotaev <dev@sw.ru>
-Reply-To: Kirill Korotaev <dev@sw.ru>
-Message-ID: <1104805430.20050625113534@sw.ru>
+Date: Sun, 26 Jun 2005 00:37:15 +0200
+From: Pavel Machek <pavel@ucw.cz>
 Subject: Re: [RFC] Fix SMP brokenness for PF_FREEZE and make freezing usable for other purposes
-In-Reply-To: <Pine.LNX.4.62.0506241316370.30503@graphe.net>
-References: <Pine.LNX.4.62.0506241316370.30503@graphe.net>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=Windows-1251
-Content-Transfer-Encoding: 8bit
+Message-ID: <20050625223715.GA11438@atrey.karlin.mff.cuni.cz>
+References: <Pine.LNX.4.62.0506241316370.30503@graphe.net> <20050625025122.GC22393@atrey.karlin.mff.cuni.cz> <Pine.LNX.4.62.0506242127040.3433@graphe.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.62.0506242127040.3433@graphe.net>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Christoph Lameter <christoph@lameter.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, raybry@engr.sgi.com, pavel@suse.cz, torvalds@osdl.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, raybry@engr.sgi.com, torvalds@osdl.org
 List-ID: <linux-mm.kvack.org>
 
-CL> The process freezing used by software suspend currently relies on modifying
-current->>flags from outside of the processes context. This makes freezing and
-CL> unfreezing SMP unsafe since a process may change the flags at any time without
-CL> locking. The following patch introduces a new atomic_t field in task_struct
-CL> to allow SMP safe freezing and unfreezing.
+Hi!
+> > > I only know that this boots correctly since I have no system that can do 
+> > > suspend. But Ray needs an effective means of process suspension for 
+> > > his process migration patches.
+> > 
+> > Any i386 or x86-64 machine can do suspend... It should be easy to get
+> > some notebook... [What kind of hardware are you working on normally?]
+> 
+> Umm... Sorry to be so negative but that has never worked for me on lots of 
+> laptops. Usually something with ACPI or some driver I guess... After 
+> awhile I gave up trying.
 
-CL> It provides a simple API for process freezing:
+You should be able to do acpi=off if it gives you a problem. Going
+with minimal drivers help, too...
 
-CL> frozen(process)             Check for frozen process
-CL> freezing(process)   Check if a process is being frozen
-CL> freeze(process)             Tell a process to freeze (go to refrigerator)
-CL> thaw_process(process)       Restart process
+> > Previous code had important property: try_to_freeze was optimized away
+> > in !CONFIG_PM case. Please keep that.
+> 
+> Obviously that will not work if we use try_to_freeze for 
+> non-power-management purposes. The code from kernel/power/process.c may 
+> have to be merged into some other kernel file. kernel/sched.c?
 
-CL> I only know that this boots correctly since I have no system that can do
-CL> suspend. But Ray needs an effective means of process suspension for
-CL> his process migration patches.
-Just out of curiosity what patches are you talking about?
-Is it possible to take a glance at it if it is what I think of?
+You want to use it for process migration, right? Not everyone wants
+either software or process migration... We may want to keep overhead
+low for embedded systems...
 
-comments below...
+								Pavel 
 
-[skip]
-CL>  /* Refrigerator is place where frozen processes are stored :-). */
-CL> -void refrigerator(unsigned long flag)
-CL> +void refrigerator(void)
-CL>  {
-CL>  	/* Hmm, should we be allowed to suspend when there are realtime
-CL>  	   processes around? */
-CL> @@ -40,15 +40,13 @@ void refrigerator(unsigned long flag)
-CL>  	save = current->state;
-CL>  	current->state = TASK_UNINTERRUPTIBLE;
-CL>  	pr_debug("%s entered refrigerator\n", current->comm);
-CL> -	printk("=");
--	current->>flags &= ~PF_FREEZE;
- 
-CL>  	spin_lock_irq(&current->sighand->siglock);
-CL>  	recalc_sigpending(); /* We sent fake signal, clean it up */
-CL>  	spin_unlock_irq(&current->sighand->siglock);
- 
--	current->>flags |= PF_FROZEN;
--	while (current->>flags & PF_FROZEN)
-CL> +	atomic_set(&current->freeze_status, FROZEN);
-<<<< this looks unsafe... what if thaw_process() was called exactly
-before this atomic_set()? then you won't wake up anymore...
-CL> +	while (frozen(current))
-CL>  		schedule();
-CL>  	pr_debug("%s left refrigerator\n", current->comm);
-CL>  	current->state = save;
-CL> @@ -57,10 +55,10 @@ void refrigerator(unsigned long flag)
-CL>  /* 0 = success, else # of processes that we failed to stop */
-CL>  int freeze_processes(void)
-CL>  {
-CL> -       int todo;
-CL> -       unsigned long start_time;
-CL> +	int todo;
-CL> +	unsigned long start_time;
-CL>  	struct task_struct *g, *p;
-CL> -	
-CL> +
-CL>  	printk( "Stopping tasks: " );
-CL>  	start_time = jiffies;
-CL>  	do {
-CL> @@ -70,14 +68,12 @@ int freeze_processes(void)
-CL>  			unsigned long flags;
-CL>  			if (!freezeable(p))
-CL>  				continue;
--			if ((p->>flags & PF_FROZEN) ||
-CL> +			if ((frozen(p)) ||
-<<<< this looks unsafe also... i think you have to check freezing()
-instead of frozen(). otherwise you will be constantly incrementing
-freezing counter and it can potentially overflow... Though this is
-unlikely I see no reason to call freeze() if we are freezing
-already... But we can call signal_wake_up() to speed up the process...
-CL>  			    (p->state == TASK_TRACED) ||
-CL>  			    (p->state == TASK_STOPPED))
-CL>  				continue;
- 
-CL> -			/* FIXME: smp problem here: we may not access other process' flags
-CL> -			   without locking */
--			p->>flags |= PF_FREEZE;
-CL> +			freeze(p);
-CL>  			spin_lock_irqsave(&p->sighand->siglock, flags);
-CL>  			signal_wake_up(p, 0);
-CL>  			spin_unlock_irqrestore(&p->sighand->siglock, flags);
-CL> @@ -91,7 +87,7 @@ int freeze_processes(void)
-CL>  			return todo;
-CL>  		}
-CL>  	} while(todo);
-CL> -	
-CL> +
-CL>  	printk( "|\n" );
-CL>  	BUG_ON(in_atomic());
-CL>  	return 0;
-CL> @@ -106,10 +102,7 @@ void thaw_processes(void)
-CL>  	do_each_thread(g, p) {
-CL>  		if (!freezeable(p))
-CL>  			continue;
--		if (p->>flags & PF_FROZEN) {
--			p->>flags &= ~PF_FROZEN;
-CL> -			wake_up_process(p);
-CL> -		} else
-CL> +		if (!thaw_process(p))
-CL>  			printk(KERN_INFO " Strange, %s not stopped\n", p->comm );
-CL>  	} while_each_thread(g, p);
- 
-[skip]
-
-CL> Index: linux-2.6.12/arch/i386/kernel/signal.c
-CL> ===================================================================
-CL> --- linux-2.6.12.orig/arch/i386/kernel/signal.c	2005-06-24 20:03:23.000000000 +0000
-CL> +++ linux-2.6.12/arch/i386/kernel/signal.c	2005-06-24 20:03:25.000000000 +0000
-CL> @@ -608,10 +608,8 @@ int fastcall do_signal(struct pt_regs *r
-CL>  	if (!user_mode(regs))
-CL>  		return 1;
- 
--	if (current->>flags & PF_FREEZE) {
-CL> -		refrigerator(0);
-CL> +	if (try_to_freeze)
-<<<< missed ()?
-CL>  		goto no_signal;
-
-Kirill
+-- 
+Boycott Kodak -- for their patent abuse against Java.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
