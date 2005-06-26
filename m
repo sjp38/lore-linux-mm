@@ -1,52 +1,35 @@
-Subject: Re: [RFC] Fix SMP brokenness for PF_FREEZE and make freezing
-	usable for other purposes
-From: Nigel Cunningham <ncunningham@cyclades.com>
-Reply-To: ncunningham@cyclades.com
-In-Reply-To: <20050626023053.GA2871@atrey.karlin.mff.cuni.cz>
-References: <Pine.LNX.4.62.0506241316370.30503@graphe.net>
-	 <20050625025122.GC22393@atrey.karlin.mff.cuni.cz>
-	 <Pine.LNX.4.62.0506242311220.7971@graphe.net>
-	 <20050626023053.GA2871@atrey.karlin.mff.cuni.cz>
-Content-Type: text/plain
-Message-Id: <1119783254.8083.5.camel@localhost>
-Mime-Version: 1.0
-Date: Sun, 26 Jun 2005 20:54:14 +1000
-Content-Transfer-Encoding: 7bit
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: Pavel Machek <pavel@ucw.cz>
-Cc: Christoph Lameter <christoph@lameter.com>, Linux Memory Management <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, raybry@engr.sgi.com, Linus Torvalds <torvalds@osdl.org>
+Message-ID: <20041xzfsk3.ED8DA244AE@mailhost1w.lists.techtarget.com>
+Date: Sun, 26 Jun 2005 18:27:53 +0300
+From: "Carlos Rollins" <roberson@doramail.com>
+Subject: Notification: We offer low rates
+Return-Path: <roberson@doramail.com>
+To: er-linux-mm@kvack.org
+Cc: inux-aio@kvack.orgio@kvack.org, jordomo@kvack.org, kernel@kvack.org, lah@kvack.org, linux-aio@kvack.org, linux-mm-archive@kvack.org, mailer-daemon@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi!
+Hello,
 
-On Sun, 2005-06-26 at 12:30, Pavel Machek wrote:
-> > Index: linux-2.6.12/arch/i386/kernel/signal.c
-> > ===================================================================
-> > --- linux-2.6.12.orig/arch/i386/kernel/signal.c	2005-06-25 05:01:26.000000000 +0000
-> > +++ linux-2.6.12/arch/i386/kernel/signal.c	2005-06-25 05:01:28.000000000 +0000
-> > @@ -608,10 +608,8 @@ int fastcall do_signal(struct pt_regs *r
-> >  	if (!user_mode(regs))
-> >  		return 1;
-> >  
-> > -	if (current->flags & PF_FREEZE) {
-> > -		refrigerator(0);
-> > +	if (try_to_freeze)
-> >  		goto no_signal;
-> > -	}
-> >  
-> 
-> This is not good. Missing ().
+ We tried contacting you awhile ago about your low interest morta(ge rate.
 
-Thanks!
+ You have been selected for our lowest rate in years...
 
-I was just going to begin a search to find out why, after applying it,
-everything stopped dead in the water :>
+ You could get over $420,000 for as little as $400 a month!
 
-Nigel
+ Ba(d credit, Bank*ruptcy? Doesn't matter, low rates are fixed no matter what!
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"aart@kvack.org"> aart@kvack.org </a>
+ 
+ To get a free, no obli,gation consultation click below:
+
+ http://www.br1b3ry.com/signs.asp
+
+
+
+ Best Regards,
+
+ Clyde Jacobson
+ 
+ to be remov(ed:	http://www.br1b3ry.com/deletion.asp
+
+ this process takes one week, so please be patient. we do our 
+ best to take your email/s off but you have to fill out a rem/ove
+ or else you will continue to recieve email/s.
