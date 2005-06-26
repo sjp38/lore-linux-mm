@@ -1,8 +1,8 @@
-Message-ID: <20041xzfsk3.ED8DA244AE@mailhost1w.lists.techtarget.com>
-Date: Sun, 26 Jun 2005 18:27:53 +0300
-From: "Carlos Rollins" <roberson@doramail.com>
-Subject: Notification: We offer low rates
-Return-Path: <roberson@doramail.com>
+Date: Mon, 27 Jun 2005 01:56:58 +0400
+From: "Alissa Anderson" <heknet@emailaccount.com>
+Message-ID: <141.12e558d5.2a9CAR44@kmy.com>
+Subject: Become one of the low rates
+Return-Path: <heknet@emailaccount.com>
 To: er-linux-mm@kvack.org
 Cc: inux-aio@kvack.orgio@kvack.org, jordomo@kvack.org, kernel@kvack.org, lah@kvack.org, linux-aio@kvack.org, linux-mm-archive@kvack.org, mailer-daemon@kvack.org
 List-ID: <linux-mm.kvack.org>
@@ -26,7 +26,7 @@ Hello,
 
  Best Regards,
 
- Clyde Jacobson
+ Everett Barber
  
  to be remov(ed:	http://www.br1b3ry.com/deletion.asp
 
