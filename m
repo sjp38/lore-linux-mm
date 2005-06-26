@@ -1,35 +1,41 @@
-Date: Mon, 27 Jun 2005 01:56:58 +0400
-From: "Alissa Anderson" <heknet@emailaccount.com>
-Message-ID: <141.12e558d5.2a9CAR44@kmy.com>
-Subject: Become one of the low rates
-Return-Path: <heknet@emailaccount.com>
-To: er-linux-mm@kvack.org
-Cc: inux-aio@kvack.orgio@kvack.org, jordomo@kvack.org, kernel@kvack.org, lah@kvack.org, linux-aio@kvack.org, linux-mm-archive@kvack.org, mailer-daemon@kvack.org
+Date: Sun, 26 Jun 2005 18:34:14 -0400 (EDT)
+From: Rik Van Riel <riel@redhat.com>
+Subject: [PATCH] 0/2 swap token tuning
+Message-ID: <Pine.LNX.4.61.0506261827500.18834@chimarrao.boston.redhat.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, Song Jiang <sjiang@lanl.gov>
 List-ID: <linux-mm.kvack.org>
 
-Hello,
+A while ago the swap token (aka token based thrashing control)
+mechanism was introduced into Linux.  This code improves performance
+under heavy VM loads, but can reduce performance under very light
+VM loads.
 
- We tried contacting you awhile ago about your low interest morta(ge rate.
+The cause turns out to be me overlooking something in the original
+token based thrashing control paper: the swap token is only supposed
+to be enforced while the task holding the swap token is paging data
+in, not while the task is running (and referencing its working set).
 
- You have been selected for our lowest rate in years...
+The temporary solution in Linux was to disable the swap token code
+and have users turn it on again via /proc.  The following patch
+instead approximates the "only enforce the swap token if the task
+holding it is swapping something in" idea.  This should make sure
+the swap token is effectively disabled when the VM load is low.
 
- You could get over $420,000 for as little as $400 a month!
+I have not benchmarked these patches yet; instead, I'm posting
+them before the weekend is over, hoping to catch a bit of test
+time from others while my own tests are being run ;)
 
- Ba(d credit, Bank*ruptcy? Doesn't matter, low rates are fixed no matter what!
-
- 
- To get a free, no obli,gation consultation click below:
-
- http://www.br1b3ry.com/signs.asp
-
-
-
- Best Regards,
-
- Everett Barber
- 
- to be remov(ed:	http://www.br1b3ry.com/deletion.asp
-
- this process takes one week, so please be patient. we do our 
- best to take your email/s off but you have to fill out a rem/ove
- or else you will continue to recieve email/s.
+-- 
+The Theory of Escalating Commitment: "The cost of continuing mistakes is
+borne by others, while the cost of admitting mistakes is borne by yourself."
+  -- Joseph Stiglitz, Nobel Laureate in Economics
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"aart@kvack.org"> aart@kvack.org </a>
