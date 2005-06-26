@@ -1,40 +1,50 @@
-Message-ID: <42BE6A3E.8030703@yahoo.com.au>
-Date: Sun, 26 Jun 2005 18:41:34 +1000
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-MIME-Version: 1.0
-Subject: Re: [patch][rfc] 5/5: core remove PageReserved
-References: <42BA5F37.6070405@yahoo.com.au>	<42BA5F5C.3080101@yahoo.com.au>	<42BA5F7B.30904@yahoo.com.au>	<42BA5FA8.7080905@yahoo.com.au>	<42BA5FC8.9020501@yahoo.com.au>	<42BA5FE8.2060207@yahoo.com.au>	<20050623095153.GB3334@holomorphy.com> <20050623215011.0b1e6ef2.akpm@osdl.org>
-In-Reply-To: <20050623215011.0b1e6ef2.akpm@osdl.org>
-Content-Type: text/plain; charset=us-ascii; format=flowed
+Subject: Re: [RFC] Fix SMP brokenness for PF_FREEZE and make freezing
+	usable for other purposes
+From: Nigel Cunningham <ncunningham@cyclades.com>
+Reply-To: ncunningham@cyclades.com
+In-Reply-To: <20050626023053.GA2871@atrey.karlin.mff.cuni.cz>
+References: <Pine.LNX.4.62.0506241316370.30503@graphe.net>
+	 <20050625025122.GC22393@atrey.karlin.mff.cuni.cz>
+	 <Pine.LNX.4.62.0506242311220.7971@graphe.net>
+	 <20050626023053.GA2871@atrey.karlin.mff.cuni.cz>
+Content-Type: text/plain
+Message-Id: <1119783254.8083.5.camel@localhost>
+Mime-Version: 1.0
+Date: Sun, 26 Jun 2005 20:54:14 +1000
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: William Lee Irwin III <wli@holomorphy.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, hugh@veritas.com, pbadari@us.ibm.com, linux-scsi@vger.kernel.org
+To: Pavel Machek <pavel@ucw.cz>
+Cc: Christoph Lameter <christoph@lameter.com>, Linux Memory Management <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, raybry@engr.sgi.com, Linus Torvalds <torvalds@osdl.org>
 List-ID: <linux-mm.kvack.org>
 
-Andrew Morton wrote:
-> William Lee Irwin III <wli@holomorphy.com> wrote:
+Hi!
 
->> Mutatis mutandis for my SCSI tape drive.
+On Sun, 2005-06-26 at 12:30, Pavel Machek wrote:
+> > Index: linux-2.6.12/arch/i386/kernel/signal.c
+> > ===================================================================
+> > --- linux-2.6.12.orig/arch/i386/kernel/signal.c	2005-06-25 05:01:26.000000000 +0000
+> > +++ linux-2.6.12/arch/i386/kernel/signal.c	2005-06-25 05:01:28.000000000 +0000
+> > @@ -608,10 +608,8 @@ int fastcall do_signal(struct pt_regs *r
+> >  	if (!user_mode(regs))
+> >  		return 1;
+> >  
+> > -	if (current->flags & PF_FREEZE) {
+> > -		refrigerator(0);
+> > +	if (try_to_freeze)
+> >  		goto no_signal;
+> > -	}
+> >  
 > 
-> 
+> This is not good. Missing ().
 
-OK, for the VM_RESERVED case, it looks like it won't be much of a problem
-because get_user_pages faults on VM_IO regions (which is already set in
-remap_pfn_range which is used by mem.c and most drivers). So this code will
-simply not encounter VM_RESERVED regions - well obviously, get_user_pages
-should be made to explicitly check for VM_RESERVED too, but the point being
-that introducing such a check will not overly restrict drivers.
+Thanks!
 
-[snip SetPageDirty is wrong]
+I was just going to begin a search to find out why, after applying it,
+everything stopped dead in the water :>
 
-Not that this helps the existing bug...
+Nigel
 
--- 
-SUSE Labs, Novell Inc.
-
-Send instant messages to your online friends http://au.messenger.yahoo.com 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
