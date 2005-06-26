@@ -1,41 +1,40 @@
-Date: Sun, 26 Jun 2005 05:09:25 +0200
-From: Pavel Machek <pavel@ucw.cz>
-Subject: Re: [RFC] Fix SMP brokenness for PF_FREEZE and make freezing usable for other purposes
-Message-ID: <20050626030925.GA4156@atrey.karlin.mff.cuni.cz>
-References: <Pine.LNX.4.62.0506241316370.30503@graphe.net> <20050625025122.GC22393@atrey.karlin.mff.cuni.cz> <Pine.LNX.4.62.0506242311220.7971@graphe.net> <20050626023053.GA2871@atrey.karlin.mff.cuni.cz> <Pine.LNX.4.62.0506251954470.26198@graphe.net>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.62.0506251954470.26198@graphe.net>
+Message-ID: <42BE6A3E.8030703@yahoo.com.au>
+Date: Sun, 26 Jun 2005 18:41:34 +1000
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+MIME-Version: 1.0
+Subject: Re: [patch][rfc] 5/5: core remove PageReserved
+References: <42BA5F37.6070405@yahoo.com.au>	<42BA5F5C.3080101@yahoo.com.au>	<42BA5F7B.30904@yahoo.com.au>	<42BA5FA8.7080905@yahoo.com.au>	<42BA5FC8.9020501@yahoo.com.au>	<42BA5FE8.2060207@yahoo.com.au>	<20050623095153.GB3334@holomorphy.com> <20050623215011.0b1e6ef2.akpm@osdl.org>
+In-Reply-To: <20050623215011.0b1e6ef2.akpm@osdl.org>
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <christoph@lameter.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, raybry@engr.sgi.com, torvalds@osdl.org
+To: Andrew Morton <akpm@osdl.org>
+Cc: William Lee Irwin III <wli@holomorphy.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, hugh@veritas.com, pbadari@us.ibm.com, linux-scsi@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Hi!
+Andrew Morton wrote:
+> William Lee Irwin III <wli@holomorphy.com> wrote:
 
-> > > 4. Remove the argument that is no longer necessary from two function
-> > > calls.
-> > 
-> > Can you just keep the argument? Rename it to int unused or whatever,
-> > but if you do it, it stays backwards-compatible (and smaller patch,
-> > too).
+>> Mutatis mutandis for my SCSI tape drive.
 > 
-> Why do you want to specify a parameter that is never used? It was quite confusing to me 
-> and I would think that such a parameter will also be confusing to others.
+> 
 
-Well, yes, it is slightly confusing, but such patch can go in through
-different maintainers, and different pieces can come in at different
-times.
+OK, for the VM_RESERVED case, it looks like it won't be much of a problem
+because get_user_pages faults on VM_IO regions (which is already set in
+remap_pfn_range which is used by mem.c and most drivers). So this code will
+simply not encounter VM_RESERVED regions - well obviously, get_user_pages
+should be made to explicitly check for VM_RESERVED too, but the point being
+that introducing such a check will not overly restrict drivers.
 
-If you delete an argument, it is "flag day", and I'll (or you) will
-have to coordinate it with akpm as one "atomic" patch.... As lots of
-different subsystems (and => lots of maintainers) are involved, I'd
-prefer to keep the argument for now.
-								Pavel
+[snip SetPageDirty is wrong]
+
+Not that this helps the existing bug...
+
 -- 
-Boycott Kodak -- for their patent abuse against Java.
+SUSE Labs, Novell Inc.
+
+Send instant messages to your online friends http://au.messenger.yahoo.com 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
