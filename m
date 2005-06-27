@@ -1,37 +1,43 @@
-Date: Mon, 27 Jun 2005 20:05:08 +0200
-From: Pavel Machek <pavel@ucw.cz>
-Subject: Re: [RFC] Fix SMP brokenness for PF_FREEZE and make freezing usable for other purposes
-Message-ID: <20050627180507.GA28815@atrey.karlin.mff.cuni.cz>
-References: <Pine.LNX.4.62.0506241316370.30503@graphe.net> <1104805430.20050625113534@sw.ru> <42BFA591.1070503@engr.sgi.com> <20050627131709.GA30467@atrey.karlin.mff.cuni.cz> <42C01455.7020803@engr.sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <42C01455.7020803@engr.sgi.com>
+Message-Id: <200506271814.j5RIEwg22390@unix-os.sc.intel.com>
+From: "Chen, Kenneth W" <kenneth.w.chen@intel.com>
+Subject: RE: [rfc] lockless pagecache
+Date: Mon, 27 Jun 2005 11:14:58 -0700
+MIME-Version: 1.0
+Content-Type: text/plain;
+	charset="us-ascii"
+Content-Transfer-Encoding: 7bit
+In-Reply-To: <42BFC10E.50204@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ray Bryant <raybry@engr.sgi.com>
-Cc: Kirill Korotaev <dev@sw.ru>, Christoph Lameter <christoph@lameter.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, torvalds@osdl.org, lhms <lhms-devel@lists.sourceforge.net>
+To: 'Nick Piggin' <nickpiggin@yahoo.com.au>, Lincoln Dale <ltd@cisco.com>
+Cc: Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi!
-
-> >Should be very easy to solve with one semaphore. Simply make swsusp
-> >wait until all migrations are done.  
+Nick Piggin wrote on Monday, June 27, 2005 2:04 AM
+> >> However I think for Oracle and others that use shared memory like
+> >> this, they are probably not doing linear access, so that would be a
+> >> net loss. I'm not completely sure (I don't have access to real loads
+> >> at the moment), but I would have thought those guys would have looked
+> >> into fault ahead if it were a possibility.
+> > 
+> > 
+> > i thought those guys used O_DIRECT - in which case, wouldn't the page 
+> > cache not be used?
+> > 
 > 
-> This may not be needed.  If I understand things correctly, the system
-> won't suspsend until all tasks have returned from system calls and end
-> up in the refrigerator.  So if a memory migration is  running when
-> someone tries to suspend the system, the suspend won't
-> occur until the memory migration system call returns.
-> 
-> Is that correct?
+> Well I think they do use O_DIRECT for their IO, but they need to
+> use the Linux pagecache for their shared memory - that shared
+> memory being the basis for their page cache. I think. Whatever
+> the setup I believe they have issues with the tree_lock, which is
+> why it was changed to an rwlock.
 
-No, because now migration tries to using same freezer
-mechanism. Oops. Semaphore solves it nicely....
+Typically shared memory is used as db buffer cache, and O_DIRECT is
+performed on these buffer cache (hence O_DIRECT on the shared memory).
+You must be thinking some other workload.  Nevertheless, for OLTP type
+of db workload, tree_lock hasn't been a problem so far.
 
-								Pavel
--- 
-Boycott Kodak -- for their patent abuse against Java.
+- Ken
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
