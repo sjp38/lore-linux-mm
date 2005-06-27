@@ -1,29 +1,23 @@
-Message-Id: <200506271905.j5RJ5ag22991@unix-os.sc.intel.com>
-From: "Chen, Kenneth W" <kenneth.w.chen@intel.com>
+Date: Mon, 27 Jun 2005 12:22:45 -0700 (PDT)
+From: Christoph Lameter <christoph@lameter.com>
 Subject: RE: [rfc] lockless pagecache
-Date: Mon, 27 Jun 2005 12:05:36 -0700
+In-Reply-To: <200506271905.j5RJ5ag22991@unix-os.sc.intel.com>
+Message-ID: <Pine.LNX.4.62.0506271221540.21616@graphe.net>
+References: <200506271905.j5RJ5ag22991@unix-os.sc.intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="us-ascii"
-Content-Transfer-Encoding: 7bit
-In-Reply-To: <1119898264.13376.89.camel@dyn9047017102.beaverton.ibm.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: 'Badari Pulavarty' <pbadari@us.ibm.com>
-Cc: 'Nick Piggin' <nickpiggin@yahoo.com.au>, Lincoln Dale <ltd@cisco.com>, Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: "Chen, Kenneth W" <kenneth.w.chen@intel.com>
+Cc: 'Badari Pulavarty' <pbadari@us.ibm.com>, 'Nick Piggin' <nickpiggin@yahoo.com.au>, Lincoln Dale <ltd@cisco.com>, Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Badari Pulavarty wrote on Monday, June 27, 2005 11:51 AM
-> On Mon, 2005-06-27 at 11:14 -0700, Chen, Kenneth W wrote:
-> > Typically shared memory is used as db buffer cache, and O_DIRECT is
-> > performed on these buffer cache (hence O_DIRECT on the shared memory).
-> > You must be thinking some other workload.  Nevertheless, for OLTP type
-> > of db workload, tree_lock hasn't been a problem so far.
-> 
-> What about DSS ? I need to go back and verify some of the profiles
-> we have.
+On Mon, 27 Jun 2005, Chen, Kenneth W wrote:
 
-I don't recall seeing tree_lock to be a problem for DSS workload either.
+> I don't recall seeing tree_lock to be a problem for DSS workload either.
+
+I have seen the tree_lock being a problem a number of times with large 
+scale NUMA type workloads.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
