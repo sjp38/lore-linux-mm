@@ -1,31 +1,37 @@
-Date: Mon, 27 Jun 2005 10:49:24 -0700 (PDT)
-From: Christoph Lameter <christoph@lameter.com>
-Subject: Re: [rfc] lockless pagecache
-In-Reply-To: <20050627004624.53f0415e.akpm@osdl.org>
-Message-ID: <Pine.LNX.4.62.0506271048260.19550@graphe.net>
-References: <42BF9CD1.2030102@yahoo.com.au> <20050627004624.53f0415e.akpm@osdl.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Mon, 27 Jun 2005 20:05:08 +0200
+From: Pavel Machek <pavel@ucw.cz>
+Subject: Re: [RFC] Fix SMP brokenness for PF_FREEZE and make freezing usable for other purposes
+Message-ID: <20050627180507.GA28815@atrey.karlin.mff.cuni.cz>
+References: <Pine.LNX.4.62.0506241316370.30503@graphe.net> <1104805430.20050625113534@sw.ru> <42BFA591.1070503@engr.sgi.com> <20050627131709.GA30467@atrey.karlin.mff.cuni.cz> <42C01455.7020803@engr.sgi.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <42C01455.7020803@engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: Nick Piggin <nickpiggin@yahoo.com.au>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Ray Bryant <raybry@engr.sgi.com>
+Cc: Kirill Korotaev <dev@sw.ru>, Christoph Lameter <christoph@lameter.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, torvalds@osdl.org, lhms <lhms-devel@lists.sourceforge.net>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 27 Jun 2005, Andrew Morton wrote:
+Hi!
 
-> Nick Piggin <nickpiggin@yahoo.com.au> wrote:
-> >
-> > First I'll put up some numbers to get you interested - of a 64-way Altix
-> >  with 64 processes each read-faulting in their own 512MB part of a 32GB
-> >  file that is preloaded in pagecache (with the proper NUMA memory
-> >  allocation).
+> >Should be very easy to solve with one semaphore. Simply make swsusp
+> >wait until all migrations are done.  
 > 
-> I bet you can get a 5x to 10x reduction in ->tree_lock traffic by doing
-> 16-page faultahead.
+> This may not be needed.  If I understand things correctly, the system
+> won't suspsend until all tasks have returned from system calls and end
+> up in the refrigerator.  So if a memory migration is  running when
+> someone tries to suspend the system, the suspend won't
+> occur until the memory migration system call returns.
+> 
+> Is that correct?
 
-Could be working into the prefault patch.... Good idea.
+No, because now migration tries to using same freezer
+mechanism. Oops. Semaphore solves it nicely....
 
+								Pavel
+-- 
+Boycott Kodak -- for their patent abuse against Java.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
