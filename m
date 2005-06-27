@@ -1,51 +1,49 @@
-Date: Mon, 27 Jun 2005 16:13:20 +0200
-From: Pavel Machek <pavel@ucw.cz>
-Subject: Re: [RFC] Fix SMP brokenness for PF_FREEZE and make freezing usable for other purposes
-Message-ID: <20050627141320.GA4945@atrey.karlin.mff.cuni.cz>
-References: <Pine.LNX.4.62.0506241316370.30503@graphe.net> <20050625025122.GC22393@atrey.karlin.mff.cuni.cz> <Pine.LNX.4.62.0506242311220.7971@graphe.net> <20050626023053.GA2871@atrey.karlin.mff.cuni.cz> <Pine.LNX.4.62.0506251954470.26198@graphe.net> <20050626030925.GA4156@atrey.karlin.mff.cuni.cz> <Pine.LNX.4.62.0506261928010.1679@graphe.net> <Pine.LNX.4.58.0506262121070.19755@ppc970.osdl.org> <Pine.LNX.4.62.0506262249080.4374@graphe.net>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.62.0506262249080.4374@graphe.net>
+Message-ID: <42C01455.7020803@engr.sgi.com>
+Date: Mon, 27 Jun 2005 09:59:33 -0500
+From: Ray Bryant <raybry@engr.sgi.com>
+MIME-Version: 1.0
+Subject: Re: [RFC] Fix SMP brokenness for PF_FREEZE and make freezing usable
+ for other purposes
+References: <Pine.LNX.4.62.0506241316370.30503@graphe.net> <1104805430.20050625113534@sw.ru> <42BFA591.1070503@engr.sgi.com> <20050627131709.GA30467@atrey.karlin.mff.cuni.cz>
+In-Reply-To: <20050627131709.GA30467@atrey.karlin.mff.cuni.cz>
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <christoph@lameter.com>
-Cc: Linus Torvalds <torvalds@osdl.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, raybry@engr.sgi.com
+To: Pavel Machek <pavel@ucw.cz>
+Cc: Kirill Korotaev <dev@sw.ru>, Christoph Lameter <christoph@lameter.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, torvalds@osdl.org, lhms <lhms-devel@lists.sourceforge.net>
 List-ID: <linux-mm.kvack.org>
 
-Hi!
+Hi Pavel,
 
-> > It's called "work", and we have the "TIF_xxx" flags for it. That's how 
-> > "need-resched" and "sigpending" are done. There could be a 
-> > "TIF_FREEZEPENDING" thing there too..
-> 
-> Ok. Here is yet another version of the patch:
-> 
-> ---
-> The current suspend code modifies thread flags from outside the context of process.
-> This creates a SMP race.
-> 
-> The patch fixes that by introducing a TIF_FREEZE flag (for all arches). Also
-> 
-> - Uses a completion handler instead of waiting in a schedule loop in the refrigerator.
-> 
-> - Introduces a semaphore freezer_sem to provide a way that multiple kernel
->   subsystems can use the freezing ability without interfering with one another.
-> 
-> - Include necessary definitions for the migration code if CONFIG_MIGRATE is set.
-> 
-> - Removes PF_FREEZE
-> 
-> If this approach is okay then we will need to move the refrigerator() and the
-> definition of the semaphore and the completion variable out of kernel/power/process.c
-> into kernel/sched.c (right?).
+Pavel Machek wrote:
 
-Approach seems okay... Perhaps better place is something like
-kernel/freezer.c so it stays separate file? It is not really scheduler
-core, and it is only conditionally compiled...
-								Pavel
+> 
+> Should be very easy to solve with one semaphore. Simply make swsusp
+> wait until all migrations are done.  
+>
+
+This may not be needed.  If I understand things correctly, the system
+won't suspsend until all tasks have returned from system calls and end
+up in the refrigerator.  So if a memory migration is  running when
+someone tries to suspend the system, the suspend won't
+occur until the memory migration system call returns.
+
+Is that correct?
+
+What happens if a system call calls schedule() (or otherwise gets blocked,
+e. g. by trying to obtain a semaphore?)
+
 -- 
-Boycott Kodak -- for their patent abuse against Java.
+Best Regards,
+Ray
+-----------------------------------------------
+                   Ray Bryant
+512-453-9679 (work)         512-507-7807 (cell)
+raybry@sgi.com             raybry@austin.rr.com
+The box said: "Requires Windows 98 or better",
+            so I installed Linux.
+-----------------------------------------------
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
