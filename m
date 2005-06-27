@@ -1,30 +1,39 @@
-Message-Id: <200506271942.j5RJgig23410@unix-os.sc.intel.com>
-From: "Chen, Kenneth W" <kenneth.w.chen@intel.com>
-Subject: RE: [rfc] lockless pagecache
-Date: Mon, 27 Jun 2005 12:42:44 -0700
+From: "Olivier Arbogast" <Carranza@pochtamt.ru>
+Subject: Re[4]: =?koi8-r?B?7sHbwSDDxczYIM7B1d7J1Ngg19PAIPLP09PJwCDF3cUgwszJ1sUhIA==?=
+	=?koi8-r?B?7fn77OXu6eUg8PLv6fru7/vl7unlIPP06ez4IPLl/ukuLi4=?= Renes
+Date: Mon, 27 Jun 2005 15:44:14 -0100
+Message-ID: <01b301c57b50$00cf0658$a76dfa45@peru.com>
 MIME-Version: 1.0
 Content-Type: text/plain;
-	charset="us-ascii"
-Content-Transfer-Encoding: 7bit
-In-Reply-To: <Pine.LNX.4.62.0506271221540.21616@graphe.net>
+	format=flowed;
+	charset="koi8-r";
+	reply-type=original
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: 'Christoph Lameter' <christoph@lameter.com>
-Cc: 'Badari Pulavarty' <pbadari@us.ibm.com>, 'Nick Piggin' <nickpiggin@yahoo.com.au>, Lincoln Dale <ltd@cisco.com>, Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Pavlovski Dejan <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Christoph Lameter wrote on Monday, June 27, 2005 12:23 PM
-> On Mon, 27 Jun 2005, Chen, Kenneth W wrote:
-> > I don't recall seeing tree_lock to be a problem for DSS workload either.
-> 
-> I have seen the tree_lock being a problem a number of times with large 
-> scale NUMA type workloads.
+=?ISO-8859-1?Q?=F7=CE=C9=CD=C1=CE=C9=C5!!!?=
+Return-Path: <owner-linux-mm@kvack.org>
+X-Envelope-To: <"|/home/majordomo/wrapper archive -f /home/ftp/pub/archives/linux-mm/linux-mm -m -a"> (uid 0)
+X-Orcpt: rfc822;linux-mm-outgoing
+Original-Recipient: rfc822;linux-mm-outgoing
 
-I totally agree!  My earlier posts are strictly referring to industry
-standard db workloads (OLTP, DSS).  I'm not saying it's not a problem
-for everyone :-)  Obviously you just outlined a few ....
+dOAAIACAAI AUOOOI xUOTHEOO oAUCIxIOIUE AICIEEOEEE NUUE. oIEEAIOIAN IAOIAEEA IAOTHAIEN - IUUIAIEA, DOIEUIIUAIEA, OOEIO OATHE.
 
-- Ken
+aIIOUEA OEEAEE!!!
+
+/ iIOExA IAUE OAIAAEIIU OIAAOAYEA:
+IAEI-IIIO-DNOO DNOO-IAEI-xIOAIO-UAOOO
+156-0000
+
+
+
+
+
+Sanches Hagen Francey
+Hazzard Machado Batista Stalski
+Bramer Parra Mavin Okamoto
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
