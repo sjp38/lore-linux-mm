@@ -1,49 +1,48 @@
-Received: from westrelay02.boulder.ibm.com (westrelay02.boulder.ibm.com [9.17.195.11])
-	by e35.co.us.ibm.com (8.12.10/8.12.9) with ESMTP id j5RKoIOM085484
-	for <linux-mm@kvack.org>; Mon, 27 Jun 2005 16:50:22 -0400
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by westrelay02.boulder.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id j5RKoInW323824
-	for <linux-mm@kvack.org>; Mon, 27 Jun 2005 14:50:18 -0600
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.12.11/8.13.3) with ESMTP id j5RKoI9m029596
-	for <linux-mm@kvack.org>; Mon, 27 Jun 2005 14:50:18 -0600
-Subject: Re: [ckrm-tech] [PATCH 2/6] CKRM: Core framework support
-From: Chandra Seetharaman <sekharan@us.ibm.com>
-Reply-To: sekharan@us.ibm.com
-In-Reply-To: <1119685766.986231.2373.nullmailer@yamt.dyndns.org>
-References: <1119651764.5105.16.camel@linuxchandra>
-	 <1119685766.986231.2373.nullmailer@yamt.dyndns.org>
-Content-Type: text/plain
-Date: Mon, 27 Jun 2005 13:50:17 -0700
-Message-Id: <1119905417.14910.22.camel@linuxchandra>
-Mime-Version: 1.0
+From: Ed Tomlinson <tomlins@cam.org>
+Subject: Re: [PATCH] 0/2 swap token tuning
+Date: Mon, 27 Jun 2005 19:46:32 -0400
+References: <Pine.LNX.4.61.0506261827500.18834@chimarrao.boston.redhat.com>
+In-Reply-To: <Pine.LNX.4.61.0506261827500.18834@chimarrao.boston.redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain;
+  charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200506271946.33083.tomlins@cam.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: YAMAMOTO Takashi <yamamoto@valinux.co.jp>
-Cc: ckrm-tech@lists.sourceforge.net, linux-mm@kvack.org
+To: Rik Van Riel <riel@redhat.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Song Jiang <sjiang@lanl.gov>
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 2005-06-25 at 16:49 +0900, YAMAMOTO Takashi wrote:
-> > +	if (pud_none(*pud))
-> > +		return 0;
-> > +	BUG_ON(pud_bad(*pud));
-> > +	pmd = pmd_offset(pud, address);
-> > +	pgd_end = (address + PGDIR_SIZE) & PGDIR_MASK;
+On Sunday 26 June 2005 18:34, Rik Van Riel wrote:
+> A while ago the swap token (aka token based thrashing control)
+> mechanism was introduced into Linux.  This code improves performance
+> under heavy VM loads, but can reduce performance under very light
+> VM loads.
 > 
-> why didn't you introduce class_migrate_pud?
-
-Because there is no list to iterate through. 
+> The cause turns out to be me overlooking something in the original
+> token based thrashing control paper: the swap token is only supposed
+> to be enforced while the task holding the swap token is paging data
+> in, not while the task is running (and referencing its working set).
 > 
-> YAMAMOTO Takashi
--- 
+> The temporary solution in Linux was to disable the swap token code
+> and have users turn it on again via /proc.  The following patch
+> instead approximates the "only enforce the swap token if the task
+> holding it is swapping something in" idea.  This should make sure
+> the swap token is effectively disabled when the VM load is low.
+> 
+> I have not benchmarked these patches yet; instead, I'm posting
+> them before the weekend is over, hoping to catch a bit of test
+> time from others while my own tests are being run ;)
 
-----------------------------------------------------------------------
-    Chandra Seetharaman               | Be careful what you choose....
-              - sekharan@us.ibm.com   |      .......you may get it.
-----------------------------------------------------------------------
+Rik,
 
+What are the suggested  values to put into /proc/sys/vm/swap_token_timeout ?
+The docs are not at all clear about this (proc/filesystems.txt).
 
+TIA,
+Ed Tomlinson
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
