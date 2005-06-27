@@ -1,36 +1,32 @@
-Date: Mon, 27 Jun 2005 09:08:14 -0400 (EDT)
-From: Rik Van Riel <riel@redhat.com>
-Subject: Re: [PATCH] 2/2 swap token tuning
-In-Reply-To: <1119877465.25717.4.camel@lycan.lan>
-Message-ID: <Pine.LNX.4.61.0506270907110.18834@chimarrao.boston.redhat.com>
-References: <Pine.LNX.4.61.0506261827500.18834@chimarrao.boston.redhat.com>
-  <Pine.LNX.4.61.0506261835000.18834@chimarrao.boston.redhat.com>
- <1119877465.25717.4.camel@lycan.lan>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Mon, 27 Jun 2005 09:17:10 -0400
+From: Benjamin LaHaise <bcrl@kvack.org>
+Subject: Re: [rfc] lockless pagecache
+Message-ID: <20050627131710.GC13945@kvack.org>
+References: <42BF9CD1.2030102@yahoo.com.au> <20050627004624.53f0415e.akpm@osdl.org> <42BFB287.5060104@yahoo.com.au>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <42BFB287.5060104@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Martin Schlemmer <azarah@nosferatu.za.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Song Jiang <sjiang@lanl.gov>
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 27 Jun 2005, Martin Schlemmer wrote:
+On Mon, Jun 27, 2005 at 06:02:15PM +1000, Nick Piggin wrote:
+> However I think for Oracle and others that use shared memory like
+> this, they are probably not doing linear access, so that would be a
+> net loss. I'm not completely sure (I don't have access to real loads
+> at the moment), but I would have thought those guys would have looked
+> into fault ahead if it were a possibility.
 
-> -+				sem_is_read_locked(mm->mmap_sem))
-> +                               sem_is_read_locked(&mm->mmap_sem))
+Shared memory overhead doesn't show up on any of the database benchmarks 
+I've seen, as they tend to use huge pages that are locked in memory, and 
+thus don't tend to access the page cache at all after ramp up.
 
-Yes, you are right.  I sent out the patch before the weekend
-was over, before having tested it locally ;)
-
-My compile hit the error a few minutes after I sent out the
-mail, doh ;)
-
-Andrew has a fixed version of the patch already.
-
+		-ben
 -- 
-The Theory of Escalating Commitment: "The cost of continuing mistakes is
-borne by others, while the cost of admitting mistakes is borne by yourself."
-  -- Joseph Stiglitz, Nobel Laureate in Economics
+"Time is what keeps everything from happening all at once." -- John Wheeler
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
