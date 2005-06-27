@@ -1,32 +1,36 @@
-Date: Mon, 27 Jun 2005 06:04:50 -0700
-From: William Lee Irwin III <wli@holomorphy.com>
-Subject: Re: [PATCH] fix WANT_PAGE_VIRTUAL in memmap_init
-Message-ID: <20050627130450.GL3334@holomorphy.com>
-References: <20050627105829.GX23911@localhost.localdomain> <20050627125805.GK3334@holomorphy.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20050627125805.GK3334@holomorphy.com>
+Date: Mon, 27 Jun 2005 09:08:14 -0400 (EDT)
+From: Rik Van Riel <riel@redhat.com>
+Subject: Re: [PATCH] 2/2 swap token tuning
+In-Reply-To: <1119877465.25717.4.camel@lycan.lan>
+Message-ID: <Pine.LNX.4.61.0506270907110.18834@chimarrao.boston.redhat.com>
+References: <Pine.LNX.4.61.0506261827500.18834@chimarrao.boston.redhat.com>
+  <Pine.LNX.4.61.0506261835000.18834@chimarrao.boston.redhat.com>
+ <1119877465.25717.4.camel@lycan.lan>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Bob Picco <bob.picco@hp.com>
-Cc: akpm@osdl.org, linux-mm@kvack.org
+To: Martin Schlemmer <azarah@nosferatu.za.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Song Jiang <sjiang@lanl.gov>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jun 27, 2005 at 06:58:29AM -0400, Bob Picco wrote:
->> I spotted this issue while in memmap_init last week.  I can't say the
->> change has any test coverage by me.  start_pfn was formerly used in
->> main "for" loop. The fix is replace start_pfn with pfn.
+On Mon, 27 Jun 2005, Martin Schlemmer wrote:
 
-On Mon, Jun 27, 2005 at 05:58:05AM -0700, William Lee Irwin III wrote:
-> Bob, this is rather serious. Could you push this to -STABLE after it
-> goes to mainline (which hopefully is ASAP)?
+> -+				sem_is_read_locked(mm->mmap_sem))
+> +                               sem_is_read_locked(&mm->mmap_sem))
 
-False alarm, it's just a redundant counter (it's not even 6AM here).
-Looks like someone took a dump all over this code recently. Brilliant.
+Yes, you are right.  I sent out the patch before the weekend
+was over, before having tested it locally ;)
 
+My compile hit the error a few minutes after I sent out the
+mail, doh ;)
 
--- wli
+Andrew has a fixed version of the patch already.
+
+-- 
+The Theory of Escalating Commitment: "The cost of continuing mistakes is
+borne by others, while the cost of admitting mistakes is borne by yourself."
+  -- Joseph Stiglitz, Nobel Laureate in Economics
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
