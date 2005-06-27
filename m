@@ -1,80 +1,51 @@
-Date: Mon, 27 Jun 2005 07:12:20 -0700
-From: William Lee Irwin III <wli@holomorphy.com>
-Subject: Re: [patch 2] mm: speculative get_page
-Message-ID: <20050627141220.GM3334@holomorphy.com>
-References: <42BF9CD1.2030102@yahoo.com.au> <42BF9D67.10509@yahoo.com.au> <42BF9D86.90204@yahoo.com.au>
+Date: Mon, 27 Jun 2005 16:13:20 +0200
+From: Pavel Machek <pavel@ucw.cz>
+Subject: Re: [RFC] Fix SMP brokenness for PF_FREEZE and make freezing usable for other purposes
+Message-ID: <20050627141320.GA4945@atrey.karlin.mff.cuni.cz>
+References: <Pine.LNX.4.62.0506241316370.30503@graphe.net> <20050625025122.GC22393@atrey.karlin.mff.cuni.cz> <Pine.LNX.4.62.0506242311220.7971@graphe.net> <20050626023053.GA2871@atrey.karlin.mff.cuni.cz> <Pine.LNX.4.62.0506251954470.26198@graphe.net> <20050626030925.GA4156@atrey.karlin.mff.cuni.cz> <Pine.LNX.4.62.0506261928010.1679@graphe.net> <Pine.LNX.4.58.0506262121070.19755@ppc970.osdl.org> <Pine.LNX.4.62.0506262249080.4374@graphe.net>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <42BF9D86.90204@yahoo.com.au>
+In-Reply-To: <Pine.LNX.4.62.0506262249080.4374@graphe.net>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: linux-kernel <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>
+To: Christoph Lameter <christoph@lameter.com>
+Cc: Linus Torvalds <torvalds@osdl.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, raybry@engr.sgi.com
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jun 27, 2005 at 04:32:38PM +1000, Nick Piggin wrote:
-> +static inline struct page *page_cache_get_speculative(struct page **pagep)
-> +{
-> +	struct page *page;
-> +
-> +	preempt_disable();
-> +	page = *pagep;
-> +	if (!page)
-> +		goto out_failed;
-> +
-> +	if (unlikely(get_page_testone(page))) {
-> +		/* Picked up a freed page */
-> +		__put_page(page);
-> +		goto out_failed;
-> +	}
+Hi!
 
-So you pick up 0->1 refcount transitions.
+> > It's called "work", and we have the "TIF_xxx" flags for it. That's how 
+> > "need-resched" and "sigpending" are done. There could be a 
+> > "TIF_FREEZEPENDING" thing there too..
+> 
+> Ok. Here is yet another version of the patch:
+> 
+> ---
+> The current suspend code modifies thread flags from outside the context of process.
+> This creates a SMP race.
+> 
+> The patch fixes that by introducing a TIF_FREEZE flag (for all arches). Also
+> 
+> - Uses a completion handler instead of waiting in a schedule loop in the refrigerator.
+> 
+> - Introduces a semaphore freezer_sem to provide a way that multiple kernel
+>   subsystems can use the freezing ability without interfering with one another.
+> 
+> - Include necessary definitions for the migration code if CONFIG_MIGRATE is set.
+> 
+> - Removes PF_FREEZE
+> 
+> If this approach is okay then we will need to move the refrigerator() and the
+> definition of the semaphore and the completion variable out of kernel/power/process.c
+> into kernel/sched.c (right?).
 
-
-On Mon, Jun 27, 2005 at 04:32:38PM +1000, Nick Piggin wrote:
-> +	/*
-> +	 * preempt can really be enabled here (only needs to be disabled
-> +	 * because page allocation can spin on the elevated refcount, but
-> +	 * we don't want to hold a reference on an unrelated page for too
-> +	 * long, so keep preempt off until we know we have the right page
-> +	 */
-> +
-> +	if (unlikely(PageFreeing(page)) ||
-
-SetPageFreeing is only done in shrink_list(), so other pages in the
-buddy bitmaps and/or pagecache pages freed by other methods may not
-be found by this. There's also likely trouble with higher-order pages.
-
-
-On Mon, Jun 27, 2005 at 04:32:38PM +1000, Nick Piggin wrote:
-> +			unlikely(page != *pagep)) {
-> +		/* Picked up a page being freed, or one that's been reused */
-> +		put_page(page);
-> +		goto out_failed;
-> +	}
-> +	preempt_enable();
-> +
-> +	return page;
-> +
-> +out_failed:
-> +	preempt_enable();
-> +	return NULL;
-> +}
-
-page != *pagep won't be reliably tripped unless the pagecache
-modification has the appropriate memory barriers.
-
-The lockless radix tree lookups are a harder problem than this, and
-the implementation didn't look promising. I have other problems to deal
-with so I'm not going to go very far into this.
-
-While I agree that locklessness is the right direction for the
-pagecache to go, this RFC seems to have too far to go to use it to
-conclude anything about the subject.
-
-
--- wli
+Approach seems okay... Perhaps better place is something like
+kernel/freezer.c so it stays separate file? It is not really scheduler
+core, and it is only conditionally compiled...
+								Pavel
+-- 
+Boycott Kodak -- for their patent abuse against Java.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
