@@ -1,44 +1,39 @@
-Message-ID: <42BFC10E.50204@yahoo.com.au>
-Date: Mon, 27 Jun 2005 19:04:14 +1000
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-MIME-Version: 1.0
-Subject: Re: [rfc] lockless pagecache
-References: <42BF9CD1.2030102@yahoo.com.au> <20050627004624.53f0415e.akpm@osdl.org> <42BFB287.5060104@yahoo.com.au> <42BFBF5B.7080301@cisco.com>
-In-Reply-To: <42BFBF5B.7080301@cisco.com>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+Date: Mon, 27 Jun 2005 06:58:29 -0400
+From: Bob Picco <bob.picco@hp.com>
+Subject: [PATCH] fix WANT_PAGE_VIRTUAL in memmap_init
+Message-ID: <20050627105829.GX23911@localhost.localdomain>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Lincoln Dale <ltd@cisco.com>
-Cc: Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: akpm@osdl.org
+Cc: linux-mm@kvack.org, bob.picco@hp.com
 List-ID: <linux-mm.kvack.org>
 
-Lincoln Dale wrote:
-> Nick Piggin wrote:
-> [..]
-> 
->> However I think for Oracle and others that use shared memory like
->> this, they are probably not doing linear access, so that would be a
->> net loss. I'm not completely sure (I don't have access to real loads
->> at the moment), but I would have thought those guys would have looked
->> into fault ahead if it were a possibility.
-> 
-> 
-> i thought those guys used O_DIRECT - in which case, wouldn't the page 
-> cache not be used?
-> 
+I spotted this issue while in memmap_init last week.  I can't say the change has
+any test coverage by me.  start_pfn was formerly used in main "for" loop.
+The fix is replace start_pfn with pfn.
 
-Well I think they do use O_DIRECT for their IO, but they need to
-use the Linux pagecache for their shared memory - that shared
-memory being the basis for their page cache. I think. Whatever
-the setup I believe they have issues with the tree_lock, which is
-why it was changed to an rwlock.
+bob
 
--- 
-SUSE Labs, Novell Inc.
+Signed-off-by: Bob Picco <bob.picco@hp.com>
 
-
-Send instant messages to your online friends http://au.messenger.yahoo.com 
+Index: linux-2.6.12-mm1/mm/page_alloc.c
+===================================================================
+--- linux-2.6.12-mm1.orig/mm/page_alloc.c	2005-06-23 14:18:09.000000000 -0400
++++ linux-2.6.12-mm1/mm/page_alloc.c	2005-06-23 14:19:46.000000000 -0400
+@@ -1720,9 +1720,8 @@ void __init memmap_init_zone(unsigned lo
+ #ifdef WANT_PAGE_VIRTUAL
+ 		/* The shift won't overflow because ZONE_NORMAL is below 4G. */
+ 		if (!is_highmem_idx(zone))
+-			set_page_address(page, __va(start_pfn << PAGE_SHIFT));
++			set_page_address(page, __va(pfn << PAGE_SHIFT));
+ #endif
+-		start_pfn++;
+ #ifdef CONFIG_PAGE_OWNER
+ 		page->order = -1;
+ #endif
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
