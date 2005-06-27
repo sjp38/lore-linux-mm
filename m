@@ -1,69 +1,64 @@
-Date: Mon, 27 Jun 2005 15:17:09 +0200
-From: Pavel Machek <pavel@ucw.cz>
-Subject: Re: [RFC] Fix SMP brokenness for PF_FREEZE and make freezing usable for other purposes
-Message-ID: <20050627131709.GA30467@atrey.karlin.mff.cuni.cz>
-References: <Pine.LNX.4.62.0506241316370.30503@graphe.net> <1104805430.20050625113534@sw.ru> <42BFA591.1070503@engr.sgi.com>
+Subject: Re: [PATCH] 2/2 swap token tuning
+From: Martin Schlemmer <azarah@nosferatu.za.org>
+Reply-To: azarah@nosferatu.za.org
+In-Reply-To: <Pine.LNX.4.61.0506270907110.18834@chimarrao.boston.redhat.com>
+References: <Pine.LNX.4.61.0506261827500.18834@chimarrao.boston.redhat.com>
+	 <Pine.LNX.4.61.0506261835000.18834@chimarrao.boston.redhat.com>
+	 <1119877465.25717.4.camel@lycan.lan>
+	 <Pine.LNX.4.61.0506270907110.18834@chimarrao.boston.redhat.com>
+Content-Type: multipart/signed; micalg=pgp-sha1; protocol="application/pgp-signature"; boundary="=-RY7037GX8qTCBZH8iqaZ"
+Date: Mon, 27 Jun 2005 15:47:36 +0200
+Message-Id: <1119880056.10872.0.camel@lycan.lan>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <42BFA591.1070503@engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ray Bryant <raybry@engr.sgi.com>
-Cc: Kirill Korotaev <dev@sw.ru>, Christoph Lameter <christoph@lameter.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, torvalds@osdl.org, lhms <lhms-devel@lists.sourceforge.net>
+To: Rik Van Riel <riel@redhat.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Song Jiang <sjiang@lanl.gov>
 List-ID: <linux-mm.kvack.org>
 
-Hi!
+--=-RY7037GX8qTCBZH8iqaZ
+Content-Type: text/plain
+Content-Transfer-Encoding: quoted-printable
 
-> >CL> frozen(process)             Check for frozen process
-> >CL> freezing(process)   Check if a process is being frozen
-> >CL> freeze(process)             Tell a process to freeze (go to 
-> >refrigerator)
-> >CL> thaw_process(process)       Restart process
-> >
-> >CL> I only know that this boots correctly since I have no system that can 
-> >do
-> >CL> suspend. But Ray needs an effective means of process suspension for
-> >CL> his process migration patches.
-> 
-> The process migration patches that Christoph mentions are avaialable at
-> 
-> http://marc.theaimsgroup.com/?l=linux-mm&m=111945947315561&w=2
-> 
-> and subsequent notes to the -mm or lhms-devel lists.  The problem there is
-> that this code depends on user space code to suspend and then resume the
-> processes to be migrated before/after the migration.  Christoph suggested
-> using PF_FREEZE, but I pointed out that was broken on SMP so hence the
-> current patch.
-> 
-> The idea would be to use PF_FREEZE to cause the process suspension.
-> A minor flaw in this approach is what happens if a process migration
-> is in progress when the machine is suspended/resumed.  (Probably not
-> a common occurrence on Altix... :-), but anyway...).  If the processes
-> are PF_FROZEN by the migration code, then unfrozen by the resume code,
-> and then the migration code continues, then we have unstopped processes
-> being migratated again.  Not a good thing.  On the other hand, the
+On Mon, 2005-06-27 at 09:08 -0400, Rik Van Riel wrote:
+> On Mon, 27 Jun 2005, Martin Schlemmer wrote:
+>=20
+> > -+				sem_is_read_locked(mm->mmap_sem))
+> > +                               sem_is_read_locked(&mm->mmap_sem))
+>=20
+> Yes, you are right.  I sent out the patch before the weekend
+> was over, before having tested it locally ;)
+>=20
+> My compile hit the error a few minutes after I sent out the
+> mail, doh ;)
+>=20
+> Andrew has a fixed version of the patch already.
+>=20
 
-Should be very easy to solve with one semaphore. Simply make swsusp
-wait until all migrations are done.  
+Ok, thanks - wanted to test it, and just wanted to verify that my
+changes are OK.
 
-> Is the above scenario even possible?  manual page migration runs as a system
-> call.  Do system calls all complete before suspend starts?  If that is
-> the case, then the above is not something to worry about.
 
-Yes, are normal system calls complete before suspend starts -- but
-that's what refrigerator cares about.
+Regards,
 
-> Finally, how comfortable are people about using the PF_FREEZE stuff
-> to start and resume processes for purposes unrelated to suspend/resume?
+--=20
+Martin Schlemmer
 
-No problem with that...
 
-BTW smp notebooks will come, sooner or later, and 2-core 2-way-HT
-notebook is already NUMA system.
-								Pavel
--- 
-Boycott Kodak -- for their patent abuse against Java.
+--=-RY7037GX8qTCBZH8iqaZ
+Content-Type: application/pgp-signature; name=signature.asc
+Content-Description: This is a digitally signed message part
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.1 (GNU/Linux)
+
+iD8DBQBCwAN4qburzKaJYLYRAt5jAJ9hKGQ4Qgs9XKzjfjgqlKk4BqgMIACdHTMe
+JNB+oyBcAw1YbPlyg/Qw0JY=
+=CJMl
+-----END PGP SIGNATURE-----
+
+--=-RY7037GX8qTCBZH8iqaZ--
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
