@@ -1,10 +1,11 @@
-Date: Mon, 27 Jun 2005 20:04:03 -0400 (EDT)
+Date: Mon, 27 Jun 2005 20:06:16 -0400 (EDT)
 From: Rik Van Riel <riel@redhat.com>
 Subject: Re: [PATCH] 0/2 swap token tuning
-In-Reply-To: <Pine.LNX.4.61.0506271958400.3784@chimarrao.boston.redhat.com>
-Message-ID: <Pine.LNX.4.61.0506272003280.3784@chimarrao.boston.redhat.com>
+In-Reply-To: <Pine.LNX.4.61.0506272003280.3784@chimarrao.boston.redhat.com>
+Message-ID: <Pine.LNX.4.61.0506272005160.3784@chimarrao.boston.redhat.com>
 References: <Pine.LNX.4.61.0506261827500.18834@chimarrao.boston.redhat.com>
  <200506271946.33083.tomlins@cam.org> <Pine.LNX.4.61.0506271958400.3784@chimarrao.boston.redhat.com>
+ <Pine.LNX.4.61.0506272003280.3784@chimarrao.boston.redhat.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -14,21 +15,23 @@ Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Song Jiang <sjiang@lanl.go
 List-ID: <linux-mm.kvack.org>
 
 On Mon, 27 Jun 2005, Rik Van Riel wrote:
-> On Mon, 27 Jun 2005, Ed Tomlinson wrote:
-> 
-> > What are the suggested  values to put into /proc/sys/vm/swap_token_timeout ?
-> > The docs are not at all clear about this (proc/filesystems.txt).
-> 
-> Beats me ;)
-> 
-> I tried a number of values in the original implementation, and
-> 300 seconds turned out to work fine...
+> On Mon, 27 Jun 2005, Rik Van Riel wrote:
+> > On Mon, 27 Jun 2005, Ed Tomlinson wrote:
+> > 
+> > > What are the suggested  values to put into /proc/sys/vm/swap_token_timeout ?
+> > > The docs are not at all clear about this (proc/filesystems.txt).
+> > 
+> > Beats me ;)
+> > 
+> > I tried a number of values in the original implementation, and
+> > 300 seconds turned out to work fine...
 
-Hmmmm, strange.   That means I ran it with an effective
-timeout of only 2 seconds in my tests yesterday, and it
-still had an effect !
+Never mind my previous mail - after looking at kernel/sysctl.c
+it turns out that the sysctl code compensates for the jiffies
+vs. seconds difference.
 
-Interesting ;)
+Just the default in mm/thrash.c should be changed from "300"
+to "(300 * HZ)"...
 
 -- 
 The Theory of Escalating Commitment: "The cost of continuing mistakes is
