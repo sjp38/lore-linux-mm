@@ -1,40 +1,29 @@
-Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
-	by e34.co.us.ibm.com (8.12.10/8.12.9) with ESMTP id j5SG33Ww092078
-	for <linux-mm@kvack.org>; Tue, 28 Jun 2005 12:03:04 -0400
-Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
-	by d03relay04.boulder.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id j5SG33cC157608
-	for <linux-mm@kvack.org>; Tue, 28 Jun 2005 10:03:03 -0600
-Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av03.boulder.ibm.com (8.12.11/8.13.3) with ESMTP id j5SG32Fi010390
-	for <linux-mm@kvack.org>; Tue, 28 Jun 2005 10:03:02 -0600
+Date: Tue, 28 Jun 2005 10:01:21 -0700 (PDT)
+From: Christoph Lameter <christoph@lameter.com>
 Subject: Re: [patch 2] mm: speculative get_page
-From: Dave Hansen <haveblue@us.ibm.com>
-In-Reply-To: <42C14D93.7090303@yahoo.com.au>
-References: <42BF9CD1.2030102@yahoo.com.au> <42BF9D67.10509@yahoo.com.au>
-	 <42BF9D86.90204@yahoo.com.au> <42C14662.40809@shadowen.org>
-	 <42C14D93.7090303@yahoo.com.au>
-Content-Type: text/plain
-Date: Tue, 28 Jun 2005 09:02:46 -0700
-Message-Id: <1119974566.14830.111.camel@localhost>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <42C17028.6050903@yahoo.com.au>
+Message-ID: <Pine.LNX.4.62.0506280959100.10511@graphe.net>
+References: <42C0AAF8.5090700@yahoo.com.au> <20050628040608.GQ3334@holomorphy.com>
+ <42C0D717.2080100@yahoo.com.au> <20050627.220827.21920197.davem@davemloft.net>
+ <20050628141903.GR3334@holomorphy.com> <42C17028.6050903@yahoo.com.au>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Andy Whitcroft <apw@shadowen.org>, linux-kernel <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>
+Cc: William Lee Irwin III <wli@holomorphy.com>, "David S. Miller" <davem@davemloft.net>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Anton Blanchard <anton@samba.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2005-06-28 at 23:16 +1000, Nick Piggin wrote:
-> I think there are a a few ways that bits can be reclaimed if we
-> start digging. swsusp uses 2 which seems excessive though may be
-> fully justified. 
+On Wed, 29 Jun 2005, Nick Piggin wrote:
 
-They (swsusp) actually don't need the bits at all until suspend-time, at
-all.  Somebody coded up a "dynamic page flags" patch that let them kill
-the page->flags use, but it didn't really go anywhere.  Might be nice if
-someone dug it up.  I probably have a copy somewhere.
+> But nit picking aside, is it true that we need a load barrier before
+> unlock? (store barrier I agree with) The ppc64 changeset in question
+> indicates yes, but I can't quite work out why. There are noises in the
+> archives about this, but I didn't pinpoint a conclusion...
 
--- Dave
+A spinlock may be used to read a consistent set of variables. If load
+operations would be moved below the spin_unlock then one may get values
+that have been updated after another process acquired the spinlock.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
