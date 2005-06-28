@@ -1,49 +1,41 @@
-Message-ID: <42C17028.6050903@yahoo.com.au>
-Date: Wed, 29 Jun 2005 01:43:36 +1000
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-MIME-Version: 1.0
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by e34.co.us.ibm.com (8.12.10/8.12.9) with ESMTP id j5SG33Ww092078
+	for <linux-mm@kvack.org>; Tue, 28 Jun 2005 12:03:04 -0400
+Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
+	by d03relay04.boulder.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id j5SG33cC157608
+	for <linux-mm@kvack.org>; Tue, 28 Jun 2005 10:03:03 -0600
+Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av03.boulder.ibm.com (8.12.11/8.13.3) with ESMTP id j5SG32Fi010390
+	for <linux-mm@kvack.org>; Tue, 28 Jun 2005 10:03:02 -0600
 Subject: Re: [patch 2] mm: speculative get_page
-References: <42C0AAF8.5090700@yahoo.com.au> <20050628040608.GQ3334@holomorphy.com> <42C0D717.2080100@yahoo.com.au> <20050627.220827.21920197.davem@davemloft.net> <20050628141903.GR3334@holomorphy.com>
-In-Reply-To: <20050628141903.GR3334@holomorphy.com>
-Content-Type: text/plain; charset=us-ascii; format=flowed
+From: Dave Hansen <haveblue@us.ibm.com>
+In-Reply-To: <42C14D93.7090303@yahoo.com.au>
+References: <42BF9CD1.2030102@yahoo.com.au> <42BF9D67.10509@yahoo.com.au>
+	 <42BF9D86.90204@yahoo.com.au> <42C14662.40809@shadowen.org>
+	 <42C14D93.7090303@yahoo.com.au>
+Content-Type: text/plain
+Date: Tue, 28 Jun 2005 09:02:46 -0700
+Message-Id: <1119974566.14830.111.camel@localhost>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: William Lee Irwin III <wli@holomorphy.com>
-Cc: "David S. Miller" <davem@davemloft.net>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Anton Blanchard <anton@samba.org>
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Andy Whitcroft <apw@shadowen.org>, linux-kernel <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-William Lee Irwin III wrote:
-> On Mon, Jun 27, 2005 at 10:08:27PM -0700, David S. Miller wrote:
-> 
->>BTW, I disagree with this assertion.  spin_unlock() does imply a
->>memory barrier.
->>All memory operations before the release of the lock must execute
->>before the lock release memory operation is globally visible.
-> 
-> 
-> The affected architectures have only recently changed in this regard.
-> ppc64 was the most notable case, where it had a barrier for MMIO
-> (eieio) but not a general memory barrier. PA-RISC likewise formerly had
-> no such barrier and was a more normal case, with no barrier whatsoever.
-> 
-> Both have since been altered, ppc64 acquiring a heavyweight sync
-> (arch nomenclature), and PA-RISC acquiring 2 memory barriers.
-> 
+On Tue, 2005-06-28 at 23:16 +1000, Nick Piggin wrote:
+> I think there are a a few ways that bits can be reclaimed if we
+> start digging. swsusp uses 2 which seems excessive though may be
+> fully justified. 
 
-Parisc looks like it's doing the extra memory barrier to "be safe" :P
+They (swsusp) actually don't need the bits at all until suspend-time, at
+all.  Somebody coded up a "dynamic page flags" patch that let them kill
+the page->flags use, but it didn't really go anywhere.  Might be nice if
+someone dug it up.  I probably have a copy somewhere.
 
-Re the ppc64 chageset: It looks to me like lwsync is the lightweight
-sync, and eieio is just referred to as the lightER (than sync) weight
-sync. What's more, it looks like eieio does order stores to system
-memory and is not just an MMIO barrier.
+-- Dave
 
-But nit picking aside, is it true that we need a load barrier before
-unlock? (store barrier I agree with) The ppc64 changeset in question
-indicates yes, but I can't quite work out why. There are noises in the
-archives about this, but I didn't pinpoint a conclusion...
-
-Send instant messages to your online friends http://au.messenger.yahoo.com 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
