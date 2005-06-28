@@ -1,35 +1,34 @@
-Date: Tue, 28 Jun 2005 07:02:26 -0700 (PDT)
-From: Christoph Lameter <christoph@lameter.com>
-Subject: Re: [RFC] Fix SMP brokenness for PF_FREEZE and make freezing usable
- for other purposes
-In-Reply-To: <42C10690.10108@sw.ru>
-Message-ID: <Pine.LNX.4.62.0506280701560.6114@graphe.net>
-References: <Pine.LNX.4.62.0506241316370.30503@graphe.net>
- <20050625025122.GC22393@atrey.karlin.mff.cuni.cz> <Pine.LNX.4.62.0506242311220.7971@graphe.net>
- <20050626023053.GA2871@atrey.karlin.mff.cuni.cz> <Pine.LNX.4.62.0506251954470.26198@graphe.net>
- <20050626030925.GA4156@atrey.karlin.mff.cuni.cz> <Pine.LNX.4.62.0506261928010.1679@graphe.net>
- <Pine.LNX.4.58.0506262121070.19755@ppc970.osdl.org>
- <Pine.LNX.4.62.0506262249080.4374@graphe.net> <20050627141320.GA4945@atrey.karlin.mff.cuni.cz>
- <Pine.LNX.4.62.0506270804450.17400@graphe.net> <42C0EBAB.8070709@sw.ru>
- <Pine.LNX.4.62.0506272323490.30956@graphe.net> <42C0FCB3.4030205@sw.ru>
- <42C10690.10108@sw.ru>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Tue, 28 Jun 2005 07:19:03 -0700
+From: William Lee Irwin III <wli@holomorphy.com>
+Subject: Re: [patch 2] mm: speculative get_page
+Message-ID: <20050628141903.GR3334@holomorphy.com>
+References: <42C0AAF8.5090700@yahoo.com.au> <20050628040608.GQ3334@holomorphy.com> <42C0D717.2080100@yahoo.com.au> <20050627.220827.21920197.davem@davemloft.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20050627.220827.21920197.davem@davemloft.net>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Kirill Korotaev <dev@sw.ru>
-Cc: Pavel Machek <pavel@ucw.cz>, Linus Torvalds <torvalds@osdl.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, raybry@engr.sgi.com, Alexey Kuznetsov <kuznet@ms2.inr.ac.ru>
+To: "David S. Miller" <davem@davemloft.net>
+Cc: nickpiggin@yahoo.com.au, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 28 Jun 2005, Kirill Korotaev wrote:
+On Mon, Jun 27, 2005 at 10:08:27PM -0700, David S. Miller wrote:
+> BTW, I disagree with this assertion.  spin_unlock() does imply a
+> memory barrier.
+> All memory operations before the release of the lock must execute
+> before the lock release memory operation is globally visible.
 
-> Christoph I was wrong a bit. Due to use of completion you have no one race I
-> described before. If the task is leaving refrigarator with TIF_FREEZE it will
-> just visit refrigarator() once more, but won't sleep there  since completion
-> is done. BTW, I see no place where you initialize the completion.
+The affected architectures have only recently changed in this regard.
+ppc64 was the most notable case, where it had a barrier for MMIO
+(eieio) but not a general memory barrier. PA-RISC likewise formerly had
+no such barrier and was a more normal case, with no barrier whatsoever.
 
-It is initialized through the DECLARE_COMPLETION in sched.c.
+Both have since been altered, ppc64 acquiring a heavyweight sync
+(arch nomenclature), and PA-RISC acquiring 2 memory barriers.
 
+
+-- wli
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
