@@ -1,29 +1,67 @@
-Received: from [187.94.216.187] (port=4584 helo=[whimsical])
-    by 82.207.60.21 with esmtp
-    id 12274257594gabardine2899
-    for linux-mm@kvack.org; Tue, 28 Jun 2005 16:49:17 +0300
-Mime-Version: 1.0 (Apple Message framework v728)
-Content-Transfer-Encoding: 7bit
-Message-Id: <9857169069.24450119387@82.207.60.21>
-Content-Type: text/plain; charset=US-ASCII; format=flowed
-From: Sibyl <head@summitnorth.com>
-Subject: Software should be easy to use!
-Date: Tue, 28 Jun 2005 16:49:16 +0300
+Date: Tue, 28 Jun 2005 07:01:34 -0700 (PDT)
+From: Christoph Lameter <christoph@lameter.com>
+Subject: Re: [RFC] Fix SMP brokenness for PF_FREEZE and make freezing usable
+ for other purposes
+In-Reply-To: <42C0FCB3.4030205@sw.ru>
+Message-ID: <Pine.LNX.4.62.0506280649270.6114@graphe.net>
+References: <Pine.LNX.4.62.0506241316370.30503@graphe.net>
+ <20050625025122.GC22393@atrey.karlin.mff.cuni.cz> <Pine.LNX.4.62.0506242311220.7971@graphe.net>
+ <20050626023053.GA2871@atrey.karlin.mff.cuni.cz> <Pine.LNX.4.62.0506251954470.26198@graphe.net>
+ <20050626030925.GA4156@atrey.karlin.mff.cuni.cz> <Pine.LNX.4.62.0506261928010.1679@graphe.net>
+ <Pine.LNX.4.58.0506262121070.19755@ppc970.osdl.org>
+ <Pine.LNX.4.62.0506262249080.4374@graphe.net> <20050627141320.GA4945@atrey.karlin.mff.cuni.cz>
+ <Pine.LNX.4.62.0506270804450.17400@graphe.net> <42C0EBAB.8070709@sw.ru>
+ <Pine.LNX.4.62.0506272323490.30956@graphe.net> <42C0FCB3.4030205@sw.ru>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Kirill Korotaev <dev@sw.ru>
+Cc: Pavel Machek <pavel@ucw.cz>, Linus Torvalds <torvalds@osdl.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, raybry@engr.sgi.com, Alexey Kuznetsov <kuznet@ms2.inr.ac.ru>
 List-ID: <linux-mm.kvack.org>
 
-Bring on the best software...at the most reasonable prices! 
-http://loumwf.4b8j7lmx1e4tjnm.hoggishlymi.com
+On Tue, 28 Jun 2005, Kirill Korotaev wrote:
 
+> > > <<<< is it intentionaly? or you just lost CONFIG_MIGRATE?
+> > It is intentional. freeze_processes and thaw_processes are only needed for
+> > suspend. One only needs to freeze a couple of processes for process
+> > migration.
+> But PM and your migrate code can be not the only users of it.
 
+freeze_processes and thaw_processes is not needed by the migrate 
+code.
 
+> > Hmm... If we wait to clear both flags until after the completion
+> > notification then we do not have the race right? But then we need to move
+> > the signal recalc since it tests for TIF_FREEZE too.
+> It is almost ok, but it is still not fine :)
+> 
+> look what happens if you call freeze/unfreeze in a loop:
+> 
+> refrigerator:
+> awakes
+> 
+> freezer:
+> check PF_FROZEN, it is still set, skips task and thinks it is finished
+> freezing.
+> 
+> refrigerator:
+> clears PF_FROZEN and TIF_FREEZE and returns.
+> 
+> I think you can fix this by moving PF_FROZEN check and set in both places
+> under siglock.
 
-I got a garage door opener. It can't close. Just open.  
-Fix it up, wear it out, make it do, or do without. 
+I do not think this is necessary because 
+freezing and awakening are not done concurrently. First you will 
+freeze a number of processes (and no awakening occurs).
 
+Then some action occurs (migration, suspend). Then complete_all 
+is invoked. No freezing occurs during the awakening period.
 
+It would be great if you can fix this issue with a patch. But taking a 
+lock only makes sense if you can use it to coordinate multiple updates
+of variables. I.e. take siglock for clearing PF_FROZEN and TIF_FREEZE and
+then use it while checking the state of PF_FROZEN and TIF_FREEZE.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
