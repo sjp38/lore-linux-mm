@@ -1,79 +1,30 @@
-Date: Mon, 27 Jun 2005 18:22:54 -0700
+Date: Mon, 27 Jun 2005 18:26:46 -0700
 From: William Lee Irwin III <wli@holomorphy.com>
-Subject: Re: [patch 2] mm: speculative get_page
-Message-ID: <20050628012254.GO3334@holomorphy.com>
-References: <42BF9CD1.2030102@yahoo.com.au> <42BF9D67.10509@yahoo.com.au> <42BF9D86.90204@yahoo.com.au> <20050627141220.GM3334@holomorphy.com> <42C093B4.3010707@yahoo.com.au>
+Subject: Re: [rfc] lockless pagecache
+Message-ID: <20050628012646.GP3334@holomorphy.com>
+References: <42BF9CD1.2030102@yahoo.com.au> <20050627004624.53f0415e.akpm@osdl.org> <42BFB287.5060104@yahoo.com.au> <20050627131710.GC13945@kvack.org> <42C09AB3.7030907@yahoo.com.au>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <42C093B4.3010707@yahoo.com.au>
+In-Reply-To: <42C09AB3.7030907@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: linux-kernel <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>
+Cc: Benjamin LaHaise <bcrl@kvack.org>, Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-William Lee Irwin III wrote:
->> SetPageFreeing is only done in shrink_list(), so other pages in the
->> buddy bitmaps and/or pagecache pages freed by other methods may not
+Benjamin LaHaise wrote:
+>> Shared memory overhead doesn't show up on any of the database benchmarks 
+>> I've seen, as they tend to use huge pages that are locked in memory, and 
+>> thus don't tend to access the page cache at all after ramp up.
 
-On Tue, Jun 28, 2005 at 10:03:00AM +1000, Nick Piggin wrote:
-> It is also done by remove_exclusive_swap_page, although that hunk
-> leaked into a later patch (#5), sorry.
-> Other methods (eg truncate) don't seem to have an atomicity guarantee
-> anyway - ie. it is valid to pick up a reference on a page that is
-> just about to get truncated. PageFreeing is only used when some code
-> is making an assumption about the number of users of the page.
+On Tue, Jun 28, 2005 at 10:32:51AM +1000, Nick Piggin wrote:
+> To be quite honest I don't have any real workloads here that stress
+> it, however I was told that it is a problem for oracle database. If
+> there is anyone else who has problems then I'd be interested to hear
+> them as well.
 
-tmpfs
-
-
-William Lee Irwin III wrote:
->> be found by this. There's also likely trouble with higher-order pages.
-
-On Tue, Jun 28, 2005 at 10:03:00AM +1000, Nick Piggin wrote:
-> There isn't because higher order pages aren't used for pagecache.
-
-hugetlbfs
-
-
-William Lee Irwin III wrote:
->> page != *pagep won't be reliably tripped unless the pagecache
->> modification has the appropriate memory barriers.
-
-On Tue, Jun 28, 2005 at 10:03:00AM +1000, Nick Piggin wrote:
-> There are appropriate memory barriers: the radix tree is
-> modified uner the rwlock/spinlock, and this function has
-> a memory barrier before testing page != *pagep.
-
-Someone else deal with this (paulus? anton? other arch maintainers?).
-
-
-William Lee Irwin III wrote:
->> The lockless radix tree lookups are a harder problem than this, and
->> the implementation didn't look promising. I have other problems to deal
->> with so I'm not going to go very far into this.
-
-On Tue, Jun 28, 2005 at 10:03:00AM +1000, Nick Piggin wrote:
-> What's wrong with the lockless radix tree lookups?
-
-The above is as much as I wanted to go into it. I need to direct my
-capacity for the grunt work of devising adversary arguments elsewhere.
-
-
-William Lee Irwin III wrote:
->> While I agree that locklessness is the right direction for the
->> pagecache to go, this RFC seems to have too far to go to use it to
->> conclude anything about the subject.
-
-On Tue, Jun 28, 2005 at 10:03:00AM +1000, Nick Piggin wrote:
-> You don't seem to have looked enough to conclude anything about it.
-
-You requested comments. I made some.
-
-Anyhow, my review has not been comprehensive. I stopped after the first
-few things I found that needed fixing. If others could deal with the
-rest of this, I'd be much obliged.
+It's vlm-specific.
 
 
 -- wli
