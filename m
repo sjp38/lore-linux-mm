@@ -1,29 +1,32 @@
-Date: Tue, 28 Jun 2005 10:01:21 -0700 (PDT)
-From: Christoph Lameter <christoph@lameter.com>
-Subject: Re: [patch 2] mm: speculative get_page
-In-Reply-To: <42C17028.6050903@yahoo.com.au>
-Message-ID: <Pine.LNX.4.62.0506280959100.10511@graphe.net>
-References: <42C0AAF8.5090700@yahoo.com.au> <20050628040608.GQ3334@holomorphy.com>
- <42C0D717.2080100@yahoo.com.au> <20050627.220827.21920197.davem@davemloft.net>
- <20050628141903.GR3334@holomorphy.com> <42C17028.6050903@yahoo.com.au>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from [130.39.217.44] (port=4595 helo=[Fahrenheit])
+    by 200.164.36.58 with esmtp
+    id 8291937024Iceland77792
+    for linux-mm@kvack.org; Tue, 28 Jun 2005 16:49:39 -0200
+Mime-Version: 1.0 (Apple Message framework v728)
+Content-Transfer-Encoding: 7bit
+Message-Id: <109222119112.4654483898@200.164.36.58>
+Content-Type: text/plain; charset=US-ASCII; format=flowed
+From: Stanislas <had@weimar.as>
+Subject: Wish you could be better?
+Date: Tue, 28 Jun 2005 16:49:38 -0200
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: William Lee Irwin III <wli@holomorphy.com>, "David S. Miller" <davem@davemloft.net>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Anton Blanchard <anton@samba.org>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 29 Jun 2005, Nick Piggin wrote:
+Wanna be more man? Check this dude
+http://www.asdokm.com/ss/
 
-> But nit picking aside, is it true that we need a load barrier before
-> unlock? (store barrier I agree with) The ppc64 changeset in question
-> indicates yes, but I can't quite work out why. There are noises in the
-> archives about this, but I didn't pinpoint a conclusion...
 
-A spinlock may be used to read a consistent set of variables. If load
-operations would be moved below the spin_unlock then one may get values
-that have been updated after another process acquired the spinlock.
+
+
+
+Life.....is a series of dogs.        
+There is no royal road to geometry.      
+Death's brother, Sleep.          
+Never to suffer would never to have been blessed.    
+A happy childhood has spoiled many a promising life.    
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
