@@ -1,42 +1,42 @@
-Date: Mon, 27 Jun 2005 20:06:16 -0400 (EDT)
-From: Rik Van Riel <riel@redhat.com>
-Subject: Re: [PATCH] 0/2 swap token tuning
-In-Reply-To: <Pine.LNX.4.61.0506272003280.3784@chimarrao.boston.redhat.com>
-Message-ID: <Pine.LNX.4.61.0506272005160.3784@chimarrao.boston.redhat.com>
-References: <Pine.LNX.4.61.0506261827500.18834@chimarrao.boston.redhat.com>
- <200506271946.33083.tomlins@cam.org> <Pine.LNX.4.61.0506271958400.3784@chimarrao.boston.redhat.com>
- <Pine.LNX.4.61.0506272003280.3784@chimarrao.boston.redhat.com>
+Message-ID: <42C09AB3.7030907@yahoo.com.au>
+Date: Tue, 28 Jun 2005 10:32:51 +1000
+From: Nick Piggin <nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [rfc] lockless pagecache
+References: <42BF9CD1.2030102@yahoo.com.au> <20050627004624.53f0415e.akpm@osdl.org> <42BFB287.5060104@yahoo.com.au> <20050627131710.GC13945@kvack.org>
+In-Reply-To: <20050627131710.GC13945@kvack.org>
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ed Tomlinson <tomlins@cam.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Song Jiang <sjiang@lanl.gov>
+To: Benjamin LaHaise <bcrl@kvack.org>
+Cc: Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 27 Jun 2005, Rik Van Riel wrote:
-> On Mon, 27 Jun 2005, Rik Van Riel wrote:
-> > On Mon, 27 Jun 2005, Ed Tomlinson wrote:
-> > 
-> > > What are the suggested  values to put into /proc/sys/vm/swap_token_timeout ?
-> > > The docs are not at all clear about this (proc/filesystems.txt).
-> > 
-> > Beats me ;)
-> > 
-> > I tried a number of values in the original implementation, and
-> > 300 seconds turned out to work fine...
+Benjamin LaHaise wrote:
+> On Mon, Jun 27, 2005 at 06:02:15PM +1000, Nick Piggin wrote:
+> 
+>>However I think for Oracle and others that use shared memory like
+>>this, they are probably not doing linear access, so that would be a
+>>net loss. I'm not completely sure (I don't have access to real loads
+>>at the moment), but I would have thought those guys would have looked
+>>into fault ahead if it were a possibility.
+> 
+> 
+> Shared memory overhead doesn't show up on any of the database benchmarks 
+> I've seen, as they tend to use huge pages that are locked in memory, and 
+> thus don't tend to access the page cache at all after ramp up.
+> 
 
-Never mind my previous mail - after looking at kernel/sysctl.c
-it turns out that the sysctl code compensates for the jiffies
-vs. seconds difference.
-
-Just the default in mm/thrash.c should be changed from "300"
-to "(300 * HZ)"...
+To be quite honest I don't have any real workloads here that stress
+it, however I was told that it is a problem for oracle database. If
+there is anyone else who has problems then I'd be interested to hear
+them as well.
 
 -- 
-The Theory of Escalating Commitment: "The cost of continuing mistakes is
-borne by others, while the cost of admitting mistakes is borne by yourself."
-  -- Joseph Stiglitz, Nobel Laureate in Economics
+SUSE Labs, Novell Inc.
+
+Send instant messages to your online friends http://au.messenger.yahoo.com 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
