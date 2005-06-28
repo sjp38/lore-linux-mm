@@ -1,46 +1,62 @@
-From: Jesse Barnes <jbarnes@virtuousgeek.org>
-Subject: Re: [patch 2] mm: speculative get_page
-Date: Tue, 28 Jun 2005 14:32:30 -0700
-References: <42C0AAF8.5090700@yahoo.com.au> <42C0D717.2080100@yahoo.com.au> <20050627.220827.21920197.davem@davemloft.net>
-In-Reply-To: <20050627.220827.21920197.davem@davemloft.net>
+Message-ID: <42C1C627.5040404@engr.sgi.com>
+Date: Tue, 28 Jun 2005 16:50:31 -0500
+From: Ray Bryant <raybry@engr.sgi.com>
 MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
+Subject: Re: [RFC] Fix SMP brokenness for PF_FREEZE and make freezing usable
+ for other purposes
+References: <Pine.LNX.4.62.0506241316370.30503@graphe.net> <20050625025122.GC22393@atrey.karlin.mff.cuni.cz> <Pine.LNX.4.62.0506242311220.7971@graphe.net> <20050626023053.GA2871@atrey.karlin.mff.cuni.cz> <Pine.LNX.4.62.0506251954470.26198@graphe.net> <20050626030925.GA4156@atrey.karlin.mff.cuni.cz> <Pine.LNX.4.62.0506261928010.1679@graphe.net> <Pine.LNX.4.58.0506262121070.19755@ppc970.osdl.org> <Pine.LNX.4.62.0506262249080.4374@graphe.net>
+In-Reply-To: <Pine.LNX.4.62.0506262249080.4374@graphe.net>
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200506281432.30868.jbarnes@virtuousgeek.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "David S. Miller" <davem@davemloft.net>
-Cc: nickpiggin@yahoo.com.au, wli@holomorphy.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Christoph Lameter <christoph@lameter.com>
+Cc: Linus Torvalds <torvalds@osdl.org>, Pavel Machek <pavel@ucw.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Monday, June 27, 2005 10:08 pm, David S. Miller wrote:
-> From: Nick Piggin <nickpiggin@yahoo.com.au>
-> Subject: Re: [patch 2] mm: speculative get_page
-> Date: Tue, 28 Jun 2005 14:50:31 +1000
->
-> > William Lee Irwin III wrote:
-> > >On Tue, Jun 28, 2005 at 11:42:16AM +1000, Nick Piggin wrote:
-> > >
-> > >spin_unlock() does not imply a memory barrier.
-> >
-> > Intriguing...
->
-> BTW, I disagree with this assertion.  spin_unlock() does imply a
-> memory barrier.
->
-> All memory operations before the release of the lock must execute
-> before the lock release memory operation is globally visible.
+Christoph Lameter wrote:
 
-On ia64 at least, the unlock is only a one way barrier.  The store to 
-realease the lock uses release semantics (since the lock is declared 
-volatile), which implies that prior stores are visible before the 
-unlock occurs, but subsequent accesses can 'float up' above the unlock.  
-See http://www.gelato.unsw.edu.au/linux-ia64/0304/5122.html for some 
-more details.
+<snip>
 
-Jesse
+>  
+> Index: linux-2.6.12/kernel/power/process.c
+> ===================================================================
+> --- linux-2.6.12.orig/kernel/power/process.c	2005-06-27 05:20:15.000000000 +0000
+> +++ linux-2.6.12/kernel/power/process.c	2005-06-27 05:22:00.000000000 +0000
+
+<snip>
+
+> @@ -69,12 +63,12 @@ int freeze_processes(void)
+>  			unsigned long flags;
+>  			if (!freezeable(p))
+>  				continue;
+> -			if ((frozen(p)) ||
+> +			if ((p->flags & PF_FROZEN) ||
+>  			    (p->state == TASK_TRACED) ||
+>  			    (p->state == TASK_STOPPED))
+>  				continue;
+>  
+> -			freeze(p);
+> +			set_thread_flag(TIF_FREEZE);
+
+Shouldn't that be "set_ti_thread_flag(p->thread_info, TIF_FREEZE)"?
+Otherwise you freeze current, not the thread "p".
+
+>  			spin_lock_irqsave(&p->sighand->siglock, flags);
+>  			signal_wake_up(p, 0);
+>  			spin_unlock_irqrestore(&p->sighand->siglock, flags);
+>
+
+-- 
+Best Regards,
+Ray
+-----------------------------------------------
+                   Ray Bryant
+512-453-9679 (work)         512-507-7807 (cell)
+raybry@sgi.com             raybry@austin.rr.com
+The box said: "Requires Windows 98 or better",
+            so I installed Linux.
+-----------------------------------------------
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
