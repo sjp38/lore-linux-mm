@@ -1,37 +1,53 @@
-Message-ID: <42C09AB3.7030907@yahoo.com.au>
-Date: Tue, 28 Jun 2005 10:32:51 +1000
+Message-ID: <42C0A04D.9060906@yahoo.com.au>
+Date: Tue, 28 Jun 2005 10:56:45 +1000
 From: Nick Piggin <nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
-Subject: Re: [rfc] lockless pagecache
-References: <42BF9CD1.2030102@yahoo.com.au> <20050627004624.53f0415e.akpm@osdl.org> <42BFB287.5060104@yahoo.com.au> <20050627131710.GC13945@kvack.org>
-In-Reply-To: <20050627131710.GC13945@kvack.org>
+Subject: Re: [patch 2] mm: speculative get_page
+References: <42BF9CD1.2030102@yahoo.com.au> <42BF9D67.10509@yahoo.com.au> <42BF9D86.90204@yahoo.com.au> <20050627141220.GM3334@holomorphy.com> <42C093B4.3010707@yahoo.com.au>
+In-Reply-To: <42C093B4.3010707@yahoo.com.au>
 Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Benjamin LaHaise <bcrl@kvack.org>
-Cc: Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: William Lee Irwin III <wli@holomorphy.com>
+Cc: linux-kernel <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Benjamin LaHaise wrote:
-> On Mon, Jun 27, 2005 at 06:02:15PM +1000, Nick Piggin wrote:
+Nick Piggin wrote:
+> William Lee Irwin III wrote:
 > 
->>However I think for Oracle and others that use shared memory like
->>this, they are probably not doing linear access, so that would be a
->>net loss. I'm not completely sure (I don't have access to real loads
->>at the moment), but I would have thought those guys would have looked
->>into fault ahead if it were a possibility.
+>> On Mon, Jun 27, 2005 at 04:32:38PM +1000, Nick Piggin wrote:
+>>
+>>> +static inline struct page *page_cache_get_speculative(struct page 
+>>> **pagep)
+>>> +{
+>>> +    struct page *page;
+>>> +
+>>> +    preempt_disable();
+>>> +    page = *pagep;
+>>> +    if (!page)
+>>> +        goto out_failed;
+>>> +
+>>> +    if (unlikely(get_page_testone(page))) {
+>>> +        /* Picked up a freed page */
+>>> +        __put_page(page);
+>>> +        goto out_failed;
+>>> +    }
+>>
+>>
+>>
+>> So you pick up 0->1 refcount transitions.
+>>
 > 
-> 
-> Shared memory overhead doesn't show up on any of the database benchmarks 
-> I've seen, as they tend to use huge pages that are locked in memory, and 
-> thus don't tend to access the page cache at all after ramp up.
+> Yep ie. a page that's freed or being freed.
 > 
 
-To be quite honest I don't have any real workloads here that stress
-it, however I was told that it is a problem for oracle database. If
-there is anyone else who has problems then I'd be interested to hear
-them as well.
+Oh, one thing it does need is a check for PageFree(), so it also
+picks up 1->2 and other transitions without freeing the free page
+if the put()s are done out of order. Maybe that's what you were
+alluding to.
+
+I'll add that.
 
 -- 
 SUSE Labs, Novell Inc.
