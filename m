@@ -1,38 +1,32 @@
-Message-ID: <42C1D8F4.2010601@yahoo.com.au>
-Date: Wed, 29 Jun 2005 09:10:44 +1000
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-MIME-Version: 1.0
-Subject: Re: [patch 2] mm: speculative get_page
-References: <42C0AAF8.5090700@yahoo.com.au> <20050628040608.GQ3334@holomorphy.com> <42C0D717.2080100@yahoo.com.au> <20050627.220827.21920197.davem@davemloft.net> <20050628141903.GR3334@holomorphy.com> <42C17028.6050903@yahoo.com.au> <Pine.LNX.4.62.0506280959100.10511@graphe.net>
-In-Reply-To: <Pine.LNX.4.62.0506280959100.10511@graphe.net>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+Subject: Re: [ckrm-tech] [PATCH 2/6] CKRM: Core framework support
+In-Reply-To: Your message of "Mon, 27 Jun 2005 13:50:17 -0700"
+	<1119905417.14910.22.camel@linuxchandra>
+References: <1119905417.14910.22.camel@linuxchandra>
+Mime-Version: 1.0
+Content-Type: Text/Plain; charset=us-ascii
+Date: Wed, 29 Jun 2005 10:22:21 +0900
+Message-Id: <1120008141.723898.2904.nullmailer@yamt.dyndns.org>
+From: YAMAMOTO Takashi <yamamoto@valinux.co.jp>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <christoph@lameter.com>
-Cc: William Lee Irwin III <wli@holomorphy.com>, "David S. Miller" <davem@davemloft.net>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Anton Blanchard <anton@samba.org>
+To: sekharan@us.ibm.com
+Cc: ckrm-tech@lists.sourceforge.net, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Christoph Lameter wrote:
-> On Wed, 29 Jun 2005, Nick Piggin wrote:
+> > > +	if (pud_none(*pud))
+> > > +		return 0;
+> > > +	BUG_ON(pud_bad(*pud));
+> > > +	pmd = pmd_offset(pud, address);
+> > > +	pgd_end = (address + PGDIR_SIZE) & PGDIR_MASK;
+> > 
+> > why didn't you introduce class_migrate_pud?
 > 
-> 
->>But nit picking aside, is it true that we need a load barrier before
->>unlock? (store barrier I agree with) The ppc64 changeset in question
->>indicates yes, but I can't quite work out why. There are noises in the
->>archives about this, but I didn't pinpoint a conclusion...
-> 
-> 
-> A spinlock may be used to read a consistent set of variables. If load
-> operations would be moved below the spin_unlock then one may get values
-> that have been updated after another process acquired the spinlock.
-> 
-> 
+> Because there is no list to iterate through. 
 
-Of course, thanks. I was only thinking of the case where loads
-were moved from the unlocked into the locked section.
+i don't understand what you mean.
+why you don't iterate pud, while you iterate pgdir and pmd?
 
-Send instant messages to your online friends http://au.messenger.yahoo.com 
+YAMAMOTO Takashi
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
