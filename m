@@ -1,42 +1,35 @@
-From: "Janssen Sasja" <Simeonov@perthmail.com>
-Subject: Re[4]: =?koi8-r?B?6czJIM/OINfBzSDOxc7V1sXOINDSySDQ1dTF28XT1NfJ0cggyczJIA==?=
-	=?koi8-r?B?2sHH0sHOyd7O2cggy8/Nwc7EydLP18vByD8=?= Cont
-Date: Wed, 29 Jun 2005 04:27:54 +0200
-Message-ID: <041201c57c84$1210595b$49179046@paidforsurf.com>
-MIME-Version: 1.0
-Content-Type: text/plain;
-	format=flowed;
-	charset="koi8-r";
-	reply-type=original
-Content-Transfer-Encoding: 8bit
-Sender: owner-linux-mm@kvack.org
-To: Gierke Nick <linux-mm@kvack.org>
+Message-ID: <20041dzqos3.ED8DA244AE@mailhost1s.lists.techtarget.com>
+Date: Wed, 29 Jun 2005 15:08:32 +0400
+From: "Herman Coulter" <seace@doramail.com>
+Subject: Become one of the low rates
+Return-Path: <seace@doramail.com>
+To: er-linux-mm@kvack.org
+Cc: inux-aio@kvack.orgio@kvack.org, jordomo@kvack.org, kernel@kvack.org, lah@kvack.org, linux-aio@kvack.org, linux-mm-archive@kvack.org, mailer-daemon@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-=?ISO-8859-1?Q?=F0=D2=C9=D7=C5=D4=C9=CB=C9!?=
-Return-Path: <owner-linux-mm@kvack.org>
-X-Envelope-To: <"|/home/majordomo/wrapper archive -f /home/ftp/pub/archives/linux-mm/linux-mm -m -a"> (uid 0)
-X-Orcpt: rfc822;linux-mm-outgoing
-Original-Recipient: rfc822;linux-mm-outgoing
+Hello,
 
-aIAOEEAIOEEE aICIEEOEEE IO IIOEOAIN. thAOOIIA E EIODIOAOExIIA IAOTHAIEA. aAIIxAN IAEOEEA.
+ We tried contacting you awhile ago about your low interest morta(ge rate.
 
-aIIOUEA OEEAEE!!!
+ You have been selected for our lowest rate in years...
 
-oAIAAEIIU x iIOExA:
-105-5186
-156 E THAOUOA IOIN
+ You could get over $420,000 for as little as $400 a month!
 
+ Ba(d credit, Bank*ruptcy? Doesn't matter, low rates are fixed no matter what!
 
+ 
+ To get a free, no obli,gation consultation click below:
 
+ http://www.g00d-things.net/signs.asp
 
 
-Corti Tveide
-Goffings Sepulveda Chu
-Elena Woods Novak Hauser
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"aart@kvack.org"> aart@kvack.org </a>
+ Best Regards,
+
+ Benita Howell
+ 
+ to be remov(ed:	http://www.g00d-things.net/deletion.asp
+
+ this process takes one week, so please be patient. we do our 
+ best to take your email/s off but you have to fill out a rem/ove
+ or else you will continue to recieve email/s.
