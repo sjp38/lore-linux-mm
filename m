@@ -1,32 +1,40 @@
-Subject: Re: [ckrm-tech] [PATCH 2/6] CKRM: Core framework support
-In-Reply-To: Your message of "Mon, 27 Jun 2005 13:50:17 -0700"
-	<1119905417.14910.22.camel@linuxchandra>
-References: <1119905417.14910.22.camel@linuxchandra>
-Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
-Date: Wed, 29 Jun 2005 10:22:21 +0900
-Message-Id: <1120008141.723898.2904.nullmailer@yamt.dyndns.org>
-From: YAMAMOTO Takashi <yamamoto@valinux.co.jp>
+From: "Janssen Sasja" <Simeonov@perthmail.com>
+Subject: Re[4]: =?koi8-r?B?6czJIM/OINfBzSDOxc7V1sXOINDSySDQ1dTF28XT1NfJ0cggyczJIA==?=
+	=?koi8-r?B?2sHH0sHOyd7O2cggy8/Nwc7EydLP18vByD8=?= Cont
+Date: Wed, 29 Jun 2005 04:27:54 +0200
+Message-ID: <041201c57c84$1210595b$49179046@paidforsurf.com>
+MIME-Version: 1.0
+Content-Type: text/plain;
+	format=flowed;
+	charset="koi8-r";
+	reply-type=original
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: sekharan@us.ibm.com
-Cc: ckrm-tech@lists.sourceforge.net, linux-mm@kvack.org
+To: Gierke Nick <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-> > > +	if (pud_none(*pud))
-> > > +		return 0;
-> > > +	BUG_ON(pud_bad(*pud));
-> > > +	pmd = pmd_offset(pud, address);
-> > > +	pgd_end = (address + PGDIR_SIZE) & PGDIR_MASK;
-> > 
-> > why didn't you introduce class_migrate_pud?
-> 
-> Because there is no list to iterate through. 
+=?ISO-8859-1?Q?=F0=D2=C9=D7=C5=D4=C9=CB=C9!?=
+Return-Path: <owner-linux-mm@kvack.org>
+X-Envelope-To: <"|/home/majordomo/wrapper archive -f /home/ftp/pub/archives/linux-mm/linux-mm -m -a"> (uid 0)
+X-Orcpt: rfc822;linux-mm-outgoing
+Original-Recipient: rfc822;linux-mm-outgoing
 
-i don't understand what you mean.
-why you don't iterate pud, while you iterate pgdir and pmd?
+aIAOEEAIOEEE aICIEEOEEE IO IIOEOAIN. thAOOIIA E EIODIOAOExIIA IAOTHAIEA. aAIIxAN IAEOEEA.
 
-YAMAMOTO Takashi
+aIIOUEA OEEAEE!!!
+
+oAIAAEIIU x iIOExA:
+105-5186
+156 E THAOUOA IOIN
+
+
+
+
+
+Corti Tveide
+Goffings Sepulveda Chu
+Elena Woods Novak Hauser
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
