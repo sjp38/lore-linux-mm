@@ -1,21 +1,22 @@
-Received: from westrelay02.boulder.ibm.com (westrelay02.boulder.ibm.com [9.17.195.11])
-	by e35.co.us.ibm.com (8.12.10/8.12.9) with ESMTP id j5UI8SOM413148
-	for <linux-mm@kvack.org>; Thu, 30 Jun 2005 14:08:29 -0400
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by e31.co.us.ibm.com (8.12.10/8.12.9) with ESMTP id j5UIBk8D519542
+	for <linux-mm@kvack.org>; Thu, 30 Jun 2005 14:11:46 -0400
 Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by westrelay02.boulder.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id j5UI8SIr327576
-	for <linux-mm@kvack.org>; Thu, 30 Jun 2005 12:08:28 -0600
+	by d03relay04.boulder.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id j5UIBjcC158690
+	for <linux-mm@kvack.org>; Thu, 30 Jun 2005 12:11:45 -0600
 Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.12.11/8.13.3) with ESMTP id j5UI8SMc010157
-	for <linux-mm@kvack.org>; Thu, 30 Jun 2005 12:08:28 -0600
-Subject: Re: [ckrm-tech] [PATCH 2/6] CKRM: Core framework support
+	by d03av02.boulder.ibm.com (8.12.11/8.13.3) with ESMTP id j5UIBjr0020180
+	for <linux-mm@kvack.org>; Thu, 30 Jun 2005 12:11:45 -0600
+Subject: Re: [ckrm-tech] [PATCH 4/6] CKRM: Add guarantee support for mem
+	controller
 From: Chandra Seetharaman <sekharan@us.ibm.com>
 Reply-To: sekharan@us.ibm.com
-In-Reply-To: <1120008141.723898.2904.nullmailer@yamt.dyndns.org>
-References: <1119905417.14910.22.camel@linuxchandra>
-	 <1120008141.723898.2904.nullmailer@yamt.dyndns.org>
+In-Reply-To: <1120110730.479552.4689.nullmailer@yamt.dyndns.org>
+References: <1119651942.5105.21.camel@linuxchandra>
+	 <1120110730.479552.4689.nullmailer@yamt.dyndns.org>
 Content-Type: text/plain
-Date: Thu, 30 Jun 2005 11:08:27 -0700
-Message-Id: <1120154907.14910.32.camel@linuxchandra>
+Date: Thu, 30 Jun 2005 11:11:44 -0700
+Message-Id: <1120155104.14910.36.camel@linuxchandra>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -24,22 +25,26 @@ To: YAMAMOTO Takashi <yamamoto@valinux.co.jp>
 Cc: ckrm-tech@lists.sourceforge.net, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2005-06-29 at 10:22 +0900, YAMAMOTO Takashi wrote:
-> > > > +	if (pud_none(*pud))
-> > > > +		return 0;
-> > > > +	BUG_ON(pud_bad(*pud));
-> > > > +	pmd = pmd_offset(pud, address);
-> > > > +	pgd_end = (address + PGDIR_SIZE) & PGDIR_MASK;
-> > > 
-> > > why didn't you introduce class_migrate_pud?
-> > 
-> > Because there is no list to iterate through. 
+On Thu, 2005-06-30 at 14:52 +0900, YAMAMOTO Takashi wrote:
+> > +static inline void
+> > +ckrm_clear_page_class(struct page *page)
+> > +{
+> > +	struct ckrm_zone *czone = page_ckrmzone(page);
+> > +	if (czone == NULL)
+> > +		return;
+> > +	sub_use_count(czone->memcls, 0, page_zonenum(page), 1);
+> > +	kref_put(&czone->memcls->nr_users, memclass_release);
+> > +	set_page_ckrmzone(page, NULL);
+> >  }
 > 
-> i don't understand what you mean.
-> why you don't iterate pud, while you iterate pgdir and pmd?
+> are you sure if it's safe?
+> this function is called with zone->lock held,
+> and memclass_release calls kfree.
 
-what i meant was that the pmd are an array and there is no array
-w.r.t puds. correct me if i am wrong.
+i don't understand why you think it is a problem to call kfree with lock
+held( i agree calling kmalloc with wait flag when a lock is being held
+is not correct).
+
 > 
 > YAMAMOTO Takashi
 -- 
