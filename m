@@ -1,30 +1,126 @@
-From: "Ruth Charles" <rzzqwktdfqnuie@worldnet.att.net>
-Subject: Unbelievable Home Loans simplified
-Date: Thu, 23 Jun 2005 09:30:10 -0400
-Message-ID: <47712.9043233164$1119529729@news.gmane.org>
-Return-path: <owner-linux-mm@kvack.org>
+Received: from [66.66.192.184] (port=3566 helo=[analyzes])
+    by p5497423F.dip.t-dialin.net with esmtp
+    id 1248146819steamers47427
+    for linux-mm@kvack.org; Fri, 1 Jul 2005 12:54:57 +0200
+Mime-Version: 1.0 (987)
+Content-Transfer-Encoding: 7bit
+Message-Id: <5587831768.4358320571@p5497423F.dip.t-dialin.net>
+Content-Type: text/plain; charset=US-ASCII; format=flowed
+From: <Haas@rjkeller.com>
+Subject: Sterling Stox Watchers
+Date: Fri, 1 Jul 2005 12:54:56 +0200
 Sender: owner-linux-mm@kvack.org
-To: 169@kvack.org
-Cc: 91@kvack.org, 45@kvack.org, 40@kvack.org, 926@kvack.org, 1323@kvack.org, 333@kvack.org, 99@kvack.org, linux-mm@kvack.org
-List-Id: linux-mm.kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: linux-mm@kvack.org
+List-ID: <linux-mm.kvack.org>
 
-Dear Homeowner,
+Big news expected. This sto-ck will explode . Do not wait until it is too late.
 
-You have been pre-apprroved for a $441,000 Home Looaan at a 3.69% Fixed Raate.
-This offer is being extended to you unconditionally and your credit is in no way a factor.
+****LOOK AT CWTD TODAY 0.23 (10.60%) AND TRADED HIGH VOLUMN*********
 
-To take Advantage of this Limiited Time oppoortunity all
-we ask is that you visit our Website and complete
-the 1 minnute post Appr_oval Fo.rm.
+Friday will be even BIGGER
 
-En+er herree '> http://MkQ.169.usaelender.com/4/index/sto/NSW
+New news expected next week. Expected 7 day price $9.00!!!
 
-Claudia Rivas
-Regional CEO
-
+SYMBOL: CWTD
+Price: $2.42
+Short Term Target: $10 - $13
+12month Target:  $24
 
 
-tyranny infliklited up0n Mia. That's where I rev0lted against this red system. After taking the first step 0f rev0lt, I felt that numer0us pe0ple were waiting f0r that first step. I 0nly remained al0ne till the first step and then I was thr0nged with myself, the kli0mm0n man. We ejeklited the fear 0ut 0f pe0ple's hearts. The lava 0f em0ti0ns was given way and it melted that system t0 ashes. The kli0untry that had stretklihed the largest darkness 0n earth had l0st its spell. The pe0ple living under the red sun f0und freed0m; a freed0m 0f their 0wn "N0, I d0n't 
+*******************************PRESS RELEASE*****************************
+
+China World Trade Corporation Announced Strategic Partnership with
+the Foundation for Globalization Cooperation
+Tuesday June 7, 8:20 am ET
+
+TIANHE, Guangzhou, China, June 7 -- China World Trade
+Corporation (OTC Bulletin Board: CWTD - News), announced today that the
+CEO Clubs China Limited ("CEO Clubs"), a subsidiary of CWTC, signed a
+strategic alliance agreement with the Foundation for Globalization
+Cooperation (''FGC''). Under the agreement, CEO Clubs will represent FGC
+for merchandising and selecting sponsors under certain conditions for the
+World Culture Diversification Forum and the Third Global Cooperation Forum,
+which will be held in November 2005, in Hangzhou, China.
+
+China World Trade Corporation Co-Hosts the 2005 GuangDong, Hong Kong,
+Macau WTCs Golf Tournament
+
+A $1,000 dollar investment could yield a $5,000 dollar profit in
+just one trade if you trade out at the top. CWTD should be one of the most
+profitable st-ocks to trade this year. In this range the stock has potential to move
+in either direction in bigs wings. This means you should be able to buy at the
+lows and sell at the highs for months to come
+
+YOU COULD MAKE $$$THOUSANDS OF DOLLARS$$$ TRADING.
+CHMS OVER AND OVER AGAIN.
+
+CWTD is also on The REG SHO
+Threshold list, This means someone is short the s-tock. Any significant volume spike
+in CWTD could yield drastic results. If the people that are short have to
+cover, they will be buying the shares from you at higher prices. This makes this
+sto-ck a TRIPLE PLAY for profits
+
+For pennies you can participate in a st-ock that could yield results over
+and over again just based on the trading patterns.
+
+If the company is able to effectuate it.s business model, WATCH OUT!!!
+We could see a GREAT STORY IN THE MAKING.
+
+GOOD LUCK AND TRADE OUT AT THE TOP!!!!
+
+
+
+
+Disclaimer:
+Information within this email contains "forwardlooking statements" within
+the meaning of Section 27Aof the Securities Act of 1933 and Section 21B of
+theSecurities Exchange Act of 1934. Any statements that express or involve
+discussions with respect to predictions, expectations, beliefs,
+plans,projections, objectives, goals, assumptions or future events or
+performance are not statements of historical fact and may be "forward
+looking statements."Forwardlooking statements are based on
+expectations,estimates and projections at the time the statements are made
+that involve a number of risks and uncertainties which could cause actual
+results or events to differ materially from those presently anticipated.
+Forward looking statements in this action may be identified through the use
+of words such as"projects", "foresee", "expects", "will,""anticipates,"
+"estimates," "believes," understands"or that by statements indicating
+certain actions"may," "could," or "might" occur. Risk factors include
+general economic and business conditions, the ability to acquire and develop
+specific projects, the ability to fund operations and changes in consumer
+and business consumption habits and other factors overwhich the company has
+little or no control. The publisher of this newsletter does not represent
+that the information contained in this message states all material facts or
+does not omit a material fact necessary to make the statements therein not
+misleading. All information provided within this email pertaining to
+investing, sto=cks, securities must be understood as information provided and
+not investment advice. The publisher of this newsletter advises all readers
+and subscribers to seek advice from a registered professional securities
+representative before deciding to trade in s=tocks featured within this
+email. None of the material within this report shall be construed as any
+kind of investment advice or solicitation. Many of these companies are on
+the verge of bankruptcy. You can lose all your money by investing in this
+stoc=k. We urge you to read the company's SEC filings now, before you invest.
+The publisher of this newsletter is not a registered invstment advisor.
+Subscribers should not view information herein as legal, tax, accounting or
+investment advice. In compliance with the SecuritiesAct of 1933, Section
+17(b),The publisher of this newsletter is contracted to receive six hundred
+thousand free trading shares from a third party, not an officer,director or
+affiliate shareholder for the circulation of this report. Be aware of an
+inherent conflict of interest resulting from such compensation due to the
+fact that this is a paid advertisement and is not without bias.The party
+that paid us has a position in the s=tock they will sell at anytime without
+notice.This could have a negative impact on the price of the st.ock, causing
+you to lose money. All factual information in this report was gathered from
+public sources, including but not limited to SEC filings,Company Websites
+and Company Press Releases. The publisher of this newsletter believes this
+informationto be eliable but can make no guarantee as to its accuracy or
+completeness. Use of the material within this email constitutes your
+acceptance of these terms.
+
+
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
