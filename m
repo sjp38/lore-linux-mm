@@ -1,219 +1,258 @@
-Date: Fri, 1 Jul 2005 10:14:50 -0700 (PDT)
-From: Christoph Lameter <christoph@lameter.com>
-Subject: [SUSPEND 2/2] Replace PF_FROZEN with TASK_FROZEN
-In-Reply-To: <Pine.LNX.4.62.0507011004100.17205@graphe.net>
-Message-ID: <Pine.LNX.4.62.0507011009500.17205@graphe.net>
-References: <Pine.LNX.4.62.0506242311220.7971@graphe.net>
- <20050626023053.GA2871@atrey.karlin.mff.cuni.cz> <Pine.LNX.4.62.0506251954470.26198@graphe.net>
- <20050626030925.GA4156@atrey.karlin.mff.cuni.cz> <Pine.LNX.4.62.0506261928010.1679@graphe.net>
- <Pine.LNX.4.58.0506262121070.19755@ppc970.osdl.org>
- <Pine.LNX.4.62.0506262249080.4374@graphe.net> <20050627141320.GA4945@atrey.karlin.mff.cuni.cz>
- <Pine.LNX.4.62.0506270804450.17400@graphe.net> <42C0EBAB.8070709@sw.ru>
- <20050628124750.GB11129@atrey.karlin.mff.cuni.cz> <Pine.LNX.4.62.0507011004100.17205@graphe.net>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from cthulhu.engr.sgi.com (cthulhu.engr.sgi.com [192.26.80.2])
+	by omx3.sgi.com (8.12.11/8.12.9/linux-outbound_gateway-1.1) with ESMTP id j61NFZJP017876
+	for <linux-mm@kvack.org>; Fri, 1 Jul 2005 16:15:35 -0700
+Date: Fri, 1 Jul 2005 15:40:38 -0700 (PDT)
+From: Ray Bryant <raybry@sgi.com>
+Message-Id: <20050701224038.542.60558.44109@jackhammer.engr.sgi.com>
+Subject: [PATCH 2.6.13-rc1 0/11] mm: manual page migration-rc4 -- overview
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Pavel Machek <pavel@ucw.cz>
-Cc: Kirill Korotaev <dev@sw.ru>, Linus Torvalds <torvalds@osdl.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Alexey Kuznetsov <kuznet@ms2.inr.ac.ru>
+To: Hirokazu Takahashi <taka@valinux.co.jp>, Andi Kleen <ak@suse.de>, Dave Hansen <haveblue@us.ibm.com>, Marcelo Tosatti <marcelo.tosatti@cyclades.com>
+Cc: Christoph Hellwig <hch@infradead.org>, linux-mm <linux-mm@kvack.org>, Nathan Scott <nathans@sgi.com>, Ray Bryant <raybry@austin.rr.com>, lhms-devel@lists.sourceforge.net, Ray Bryant <raybry@sgi.com>, Paul Jackson <pj@sgi.com>, clameter@sgi.com
 List-ID: <linux-mm.kvack.org>
 
-Removes the PF_FROZEN flag and introduces TASK_FROZEN. This allows a simplification
-of the locking for software suspend and helps clean up race conditions.
+Summary
+-------
 
-Also remove many inline functions to follow the coding style in other locations.
+This is the -rc4 version of the manual page migration facility
+that I proposed in February and that was discussed on the
+linux-mm mailing list.  This overview is relatively short since
+the overview is effectively unchanged from what I submitted on
+April 6, 2005.  For details, see the overview I sent out then at:
 
-Beware: compiles fine not tested since I need to move on to other issues 
-now. But this is my best stab at how this could be fixed in the time that 
-I could spend with the issue.
+http://marc.theaimsgroup.com/?l=linux-mm&m=111276123522952&w=2
 
-Signed-off-by: Christoph Lameter <christoph@lameter.com>
+For details of the -rc2 version of this patcheset, see:
 
-Index: linux-2.6.12/include/linux/sched.h
-===================================================================
---- linux-2.6.12.orig/include/linux/sched.h	2005-07-01 04:50:46.000000000 +0000
-+++ linux-2.6.12/include/linux/sched.h	2005-07-01 08:58:49.000000000 +0000
-@@ -110,8 +110,9 @@ extern unsigned long nr_iowait(void);
- #define TASK_UNINTERRUPTIBLE	2
- #define TASK_STOPPED		4
- #define TASK_TRACED		8
--#define EXIT_ZOMBIE		16
--#define EXIT_DEAD		32
-+#define TASK_FROZEN		16
-+#define EXIT_ZOMBIE		32
-+#define EXIT_DEAD		64
- 
- #define __set_task_state(tsk, state_value)		\
- 	do { (tsk)->state = (state_value); } while (0)
-@@ -808,7 +809,6 @@ do { if (atomic_dec_and_test(&(tsk)->usa
- #define PF_FLUSHER	0x00001000	/* responsible for disk writeback */
- #define PF_USED_MATH	0x00002000	/* if unset the fpu must be initialized before use */
- #define PF_NOFREEZE	0x00008000	/* this thread should not be frozen */
--#define PF_FROZEN	0x00010000	/* frozen for system suspend */
- #define PF_FSTRANS	0x00020000	/* inside a filesystem transaction */
- #define PF_KSWAPD	0x00040000	/* I am kswapd */
- #define PF_SWAPOFF	0x00080000	/* I am in swapoff */
-@@ -1270,14 +1270,6 @@ extern void normalize_rt_tasks(void);
- 
- #ifdef CONFIG_PM
- /*
-- * Check if a process has been frozen
-- */
--static inline int frozen(struct task_struct *p)
--{
--	return p->flags & PF_FROZEN;
--}
--
--/*
-  * Check if there is a request to freeze a process
-  */
- static inline int freezing(struct task_struct *p)
-@@ -1285,36 +1277,6 @@ static inline int freezing(struct task_s
- 	return test_ti_thread_flag(p->thread_info, TIF_FREEZE);
- }
- 
--/*
-- * Request that a process be frozen
-- */
--static inline void freeze(struct task_struct *p)
--{
--	set_ti_thread_flag(p->thread_info, TIF_FREEZE);
--}
--
--/*
-- * Wake up a frozen process
-- */
--static inline int thaw_process(struct task_struct *p)
--{
--	if (frozen(p)) {
--		p->flags &= ~PF_FROZEN;
--		wake_up_process(p);
--		return 1;
--	}
--	return 0;
--}
--
--/*
-- * freezing is complete, mark process as frozen
-- */
--static inline void frozen_process(struct task_struct *p)
--{
--	p->flags |= PF_FROZEN;
--	clear_ti_thread_flag(p->thread_info, TIF_FREEZE);
--}
--
- extern void refrigerator(void);
- extern int freeze_processes(void);
- extern void thaw_processes(void);
-@@ -1328,11 +1290,7 @@ static inline int try_to_freeze(void)
- 		return 0;
- }
- #else
--static inline int frozen(struct task_struct *p) { return 0; }
- static inline int freezing(struct task_struct *p) { return 0; }
--static inline void freeze(struct task_struct *p) { BUG(); }
--static inline int thaw_process(struct task_struct *p) { return 1; }
--static inline void frozen_process(struct task_struct *p) { BUG(); }
- 
- static inline void refrigerator(void) {}
- static inline int freeze_processes(void) { BUG(); return 0; }
-Index: linux-2.6.12/kernel/power/process.c
-===================================================================
---- linux-2.6.12.orig/kernel/power/process.c	2005-07-01 04:50:46.000000000 +0000
-+++ linux-2.6.12/kernel/power/process.c	2005-07-01 08:58:49.000000000 +0000
-@@ -37,20 +37,21 @@ void refrigerator(void)
- 	/* Hmm, should we be allowed to suspend when there are realtime
- 	   processes around? */
- 	long save;
--	save = current->state;
--	current->state = TASK_UNINTERRUPTIBLE;
-+
- 	pr_debug("%s entered refrigerator\n", current->comm);
- 	printk("=");
- 
--	frozen_process(current);
-+	save = current->state;
-+	current->state = TASK_FROZEN;
-+	while (test_thread_flag(TIF_FREEZE))
-+		schedule();
-+	current->state = save;
-+
- 	spin_lock_irq(&current->sighand->siglock);
- 	recalc_sigpending(); /* We sent fake signal, clean it up */
- 	spin_unlock_irq(&current->sighand->siglock);
- 
--	while (frozen(current))
--		schedule();
- 	pr_debug("%s left refrigerator\n", current->comm);
--	current->state = save;
- }
- 
- /* 0 = success, else # of processes that we failed to stop */
-@@ -67,14 +68,12 @@ int freeze_processes(void)
- 		read_lock(&tasklist_lock);
- 		do_each_thread(g, p) {
- 			unsigned long flags;
--			if (!freezeable(p))
--				continue;
--			if ((frozen(p)) ||
--			    (p->state == TASK_TRACED) ||
--			    (p->state == TASK_STOPPED))
-+
-+			if (!freezeable(p) ||
-+			    (p->state & (TASK_FROZEN | TASK_TRACED | TASK_STOPPED)))
- 				continue;
- 
--			freeze(p);
-+			set_tsk_thread_flag(p, TIF_FREEZE);
- 			spin_lock_irqsave(&p->sighand->siglock, flags);
- 			signal_wake_up(p, 0);
- 			spin_unlock_irqrestore(&p->sighand->siglock, flags);
-@@ -85,6 +84,7 @@ int freeze_processes(void)
- 		if (time_after(jiffies, start_time + TIMEOUT)) {
- 			printk( "\n" );
- 			printk(KERN_ERR " stopping tasks failed (%d tasks remaining)\n", todo );
-+			thaw_processes();
- 			return todo;
- 		}
- 	} while(todo);
-@@ -103,8 +103,8 @@ void thaw_processes(void)
- 	do_each_thread(g, p) {
- 		if (!freezeable(p))
- 			continue;
--		if (!thaw_process(p))
--			printk(KERN_INFO " Strange, %s not stopped\n", p->comm );
-+		if (test_and_clear_tsk_thread_flag(p, TIF_FREEZE))
-+			wake_up_state(p, TASK_FROZEN);
- 	} while_each_thread(g, p);
- 
- 	read_unlock(&tasklist_lock);
-Index: linux-2.6.12/fs/proc/array.c
-===================================================================
---- linux-2.6.12.orig/fs/proc/array.c	2005-06-17 19:48:29.000000000 +0000
-+++ linux-2.6.12/fs/proc/array.c	2005-07-01 09:07:05.000000000 +0000
-@@ -133,8 +133,9 @@ static const char *task_state_array[] = 
- 	"D (disk sleep)",	/*  2 */
- 	"T (stopped)",		/*  4 */
- 	"T (tracing stop)",	/*  8 */
--	"Z (zombie)",		/* 16 */
--	"X (dead)"		/* 32 */
-+	"F (frozen)",		/* 16 */
-+	"Z (zombie)",		/* 32 */
-+	"X (dead)"		/* 64 */
- };
- 
- static inline const char * get_task_state(struct task_struct *tsk)
-@@ -143,7 +144,8 @@ static inline const char * get_task_stat
- 					    TASK_INTERRUPTIBLE |
- 					    TASK_UNINTERRUPTIBLE |
- 					    TASK_STOPPED |
--					    TASK_TRACED)) |
-+					    TASK_TRACED |
-+					    TASK_FROZEN)) |
- 			(tsk->exit_state & (EXIT_ZOMBIE |
- 					    EXIT_DEAD));
- 	const char **p = &task_state_array[0];
+http://marc.theaimsgroup.com/?l=linux-mm&m=111578651020174&w=2
 
+And the -rc3 version is at:
+
+http://marc.theaimsgroup.com/?l=linux-mm&m=111945947315561&w=2
+
+This patch set differs from the previous patchset in the following:
+
+(1)  The previous patch was based on 2.6.12-rc5-mhp1, this patchset
+     is based on patch-2.6.13-rc1-mhp1-pm.gz from www.sr71.net/patches/
+     2.6.12 (of the Memory Hotplug project patchset maintained by
+     Dave Hansen).
+
+(2)  Changes suggested by Dave Hansen, Hirokazu Takahashi, and
+     Andi Kleen have been incorporated into this patchset.
+
+If this patch is acceptable to the Memory Hotplug Team, I'd like
+to see it added to the page migration sequence of patches in
+the memory hotplug patch.
+
+This patch adds a parameter to try_to_migrate_pages().
+The last patch of this series:
+
+N1.2-add-nodemap-to-try_to_migrate_pages-call.patch
+
+Should be inserted in the memory hotplug patcheset after the
+patch:  N1.1-pass-page_list-to-steal_page.patch to fixup
+the call to try_to_migrate_pages() from capture_page_range()
+in mm/page_alloc.c.
+
+This is the last version of the manual page migration patch
+that I will be providing.  As of today, Christoph Lameter
+(clameter@sgi.com), will be responsible for handling this
+patchset from an SGI perspective.
+
+Suggestions, flames, etc should be directed to Christoph
+at clameter@sgi.com.  I can also continue to be reached
+at raybry@austin.rr.com for discussion of this patchset.
+
+Description of the patches in this patchset
+-------------------------------------------
+
+Recall that all of these patches apply to 2.6.13-rc1 with the
+page-migration patches applied first.  The simplest way to do
+this is to obtain the Memory Hotplug broken out patches from
+
+http://sr71.net/patches/2.6.12/2.6.12-rc5-mhp1/broken-out-2.6.12-rc5-mhp1.tar.gz
+
+And then to add patches 1-10 of this patchset to the series file
+after the patch "AA-PM-99-x86_64-IMMOVABLE.patch".  (Patch 11
+goes after N1.1-pass-page_list-to-steal_page.patch.) Then apply all
+patches up through the 10th patch of this set and turn on the
+CONFIG_MEMORY_MIGRATE option.  This works on Altix, at least;
+that is the only NUMA machine I have access to at the moment.
+
+The 11th patch is only needed if you want to try to build the
+entire mhp1 patchset after applying the manual page migration
+patches.
+
+Patch 1: hirokazu-steal_page_from_lru.patch
+	 This patch (due to Hirokazu Tokahashi) simplifies the interface
+	 to steal_page_from_lru() and is not yet present in the 2.6.12-rc5-mhp1
+	 patchset.  Unchanged since -rc3.
+
+Patch 2: xfs-migrate-page-rc4.patch
+	 This patch, due to Nathan Scott at SGI, provides a migrate_
+	 page method for XFS.  EXT2 and EXT3 already have such methods.
+	 Unchanged from -rc3.
+
+Patch 3: add-node_map-arg-to-try_to_migrate_pages-rc4.patch
+         This patch adds an additional argument to try_to_migrate_pages().
+	 The additional argument controls where pages found on specific
+	 nodes in the page_list passed into try_to_migrate_pages() are
+	 migrated to.  Unchanged from -rc3.
+
+Patch 4: add-sys_migrate_pages-rc4.patch
+	 This is the patch that adds the migrate_pages() system call.
+	 This patch provides a simple version of the system call that
+	 migrates all pages associated with a particular process, so
+	 is really only useful for programs that are statically linked
+	 (i. e. that don't map in any shared libraries).
+
+	 The following changes have been made since -rc3:
+
+	 	Suggestions from Dave Hansen and Hirokazu Takahashi
+		have been incorporated.
+
+Patch 5: sys_migrate_pages-mempolicy-migration-rc4.patch
+         This patch updates the memory policy data structures
+	 as they are encountered in accordance with the migration
+	 request.  Unchanged from -rc3.
+
+Patch 6: This patch is new in -rc4.  This patch fixes a problem
+         with the mempolicy migration code for shared objects.
+	 Andi Kleen pointed out this problem in -rc3.
+
+Patch 7: add-mempolicy-control-rc4.patch
+	 This patch extends the mbind() and get_mempolicy() system
+	 calls to support the interface to override the default
+	 kernel policy.  Unchanged from -rc3.
+
+Patch 8: sys_migrate_pages-migration-selection-rc4.patch
+	 This patch uses the migration policy bits set by the code
+	 from the last patch to control which mapped files are
+	 migrated (or not).  Unchanged from -rc3.
+
+Patch 9: sys_migrate_pages-cpuset-support-rc4.patch
+         This patch makes migrate_pages() cooperate better with
+	 cpusets.  The following change has been made since -rc3:
+
+		 The cpuset support has been split out entirely
+		 to kernel/cpuset.c with only a single callout
+		 from sys_migrate_pages().  This makes the 
+		 sys_migrate_pages() code cleaner.  This change
+		 was inspired by the changes Dave Hansen
+		 suggested.
+
+Patch 10: sys_migrate_pages-permissions-check.patch
+         This patch adds a permission check to make sure the
+	 invoking process has the necessary permissions to migrate
+	 the target task.  Unchanged from -rc3.
+
+Patch 11:N1.2-add-nodemap-to-try_to_migrate_pages-call.patch
+	 This patch fixes the call to try_to_migrate_pages()
+	 from capture_page_range() in mm/page_alloc.c that
+	 is introduced in the N1.0-memsection_migrate.patch
+	 of the memory hotplug series.  Unchanged from -rc3.
+
+
+Unresolved issues
+-----------------
+
+(1)  This version of migrate_pages() works reliably only when the
+     process to be migrated has been stopped (e. g., using SIGSTOP)
+     before the migrate_pages() system call is executed. 
+     (The system doesn't crash or oops, but sometimes the process
+     being migrated will be "Killed by VM" when it starts up again.
+     There may be a few messages put into the log as well at that time.)
+
+     At the moment, I am proposing that processes need to be
+     suspended before being migrated.  This really should not
+     be a performance concern, since the delay imposed by page
+     migration far exceeds any delay imposed by SIGSTOPing the
+     processes before migration and SIGCONTinuing them afterward.
+
+     The problem with this approach is that there is no good way
+     to enforce this.  (i. e. even if the process is stopped at
+     the start execution of the migrate_pages() system call,
+     there is no way to ensure it doesn't get started during
+     execution of the call.)
+
+     Christoph Lameter has some ideas about using PF_FREEZE to handle
+     this problem.  I will leave further work in this area to
+     Christoph.  I have provided some sample code to Christoph
+     to indicate one way to integrate his approach into the existing
+     page migration code.
+
+(2)  I'm still using system call #1279.  On ia64 this is the
+     last slot in the system call table.  A system call number
+     needs to be assigned to migrate_pages().
+
+(3)  As part of the discussion with Andi Kleen, we agreed to
+     provide some memory migration support under MPOL_MF_STRICT.
+     Currently, if one calls mbind() with the flag MPOL_MF_STRICT
+     set, and pages are found that don't follow the memory policy,
+     then the mbind() will return -EIO.  Andi would like to be
+     able cause those pages to be migrated to the correct nodes.
+     This feature is not yet part of this patchset and will
+     be added as a distinct set of patches.  I'm planning on
+     providing some sample code to Christoph indicating how
+     this might be done in the future.
+
+Background
+----------
+
+The purpose of this set of patches is to introduce the necessary kernel
+infrastructure to support "manual page migration".  That phrase is
+intended to describe a facility whereby some user program (most likely
+a batch scheduler) is given the responsibility of managing where jobs
+run on a large NUMA system.  If it turns out that a job needs to be
+run on a different set of nodes from where it is running now, then that
+user program would invoke this facility to move the job to the new set
+of nodes.
+
+We use the word "manual" here to indicate that the facility is invoked
+in a way that the kernel is told where to move things; we distinguish
+this approach from "automatic page migration" facilities which have been
+proposed in the past.  To us, "automatic page migration" implies using
+hardware counters to determine where pages should reside and having the
+O/S automatically move misplaced pages.  The utility of such facilities,
+for example, on IRIX has, been mixed, and we are not currently proposing
+such a facility for Linux.
+
+The normal sequence of events would be as follows:  A job is running
+on, say nodes 5-8, and a higher priority job arrives and the only place
+it can be run, for whatever reason, is nodes 5-8.  Then the scheduler
+would suspend the processes of the existing job (by, for example sending
+them a SIGSTOP) and start the new job on those nodes.  At some point in
+the future, other nodes become available for use, and at this point the
+batch scheduler would invoke the manual page migration facility to move
+the processes of the suspended job from nodes 5-8 to the new set of nodes.
+
+Note that not all of the pages of all of the processes will need to (or
+should) be moved.  For example, pages of shared libraries are likely to be
+shared by many processes in the system; these pages should not be moved
+merely because a few processes using these libraries have been migrated.
+As discussed above, the kernel code handles this by migrating all
+anonymous VMAs and all VMAs with the VM_WRITE bit set.  VMAs that map
+the code segments of a program don't have VM_WRITE set, so shared
+library code segments will not be migrated (by default).  Read-only mapped
+files (e. g. files in /usr/lib for National Language support) are also
+not migrated by default.
+
+The default migration decisions of the kernel migration code can be
+overridden for mmap()'d files using the extensions provided for the
+mbind() system call, as described in patches 7 and 8 above.  This call
+can be used, for example, to cause the program executable to be migrated.
+Similarly, if the user has a (non-system) data file mapped R/O, the
+mbind() system call can be used to override the kernel default and cause
+the mapped file to be migrated as well.
+
+-- 
+Best Regards,
+Ray
+-----------------------------------------------
+Ray Bryant                       raybry@sgi.com
+The box said: "Requires Windows 98 or better",
+           so I installed Linux.
+-----------------------------------------------
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
