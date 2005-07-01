@@ -1,125 +1,199 @@
 Received: from cthulhu.engr.sgi.com (cthulhu.engr.sgi.com [192.26.80.2])
-	by omx2.sgi.com (8.12.11/8.12.9/linux-outbound_gateway-1.1) with ESMTP id j620Wgl1017174
-	for <linux-mm@kvack.org>; Fri, 1 Jul 2005 17:32:42 -0700
-Date: Fri, 1 Jul 2005 15:41:29 -0700 (PDT)
+	by omx3.sgi.com (8.12.11/8.12.9/linux-outbound_gateway-1.1) with ESMTP id j61NGWer018078
+	for <linux-mm@kvack.org>; Fri, 1 Jul 2005 16:16:32 -0700
+Date: Fri, 1 Jul 2005 15:41:36 -0700 (PDT)
 From: Ray Bryant <raybry@sgi.com>
-Message-Id: <20050701224129.542.64783.62715@jackhammer.engr.sgi.com>
+Message-Id: <20050701224136.542.19987.17299@jackhammer.engr.sgi.com>
 In-Reply-To: <20050701224038.542.60558.44109@jackhammer.engr.sgi.com>
 References: <20050701224038.542.60558.44109@jackhammer.engr.sgi.com>
-Subject: [PATCH 2.6.13-rc1 8/11] mm: manual page migration-rc4 -- sys_migrate_pages-migration-selection-rc4.patch
+Subject: [PATCH 2.6.13-rc1 9/11] mm: manual page migration-rc4 -- sys_migrate_pages-cpuset-support-rc4.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hirokazu Takahashi <taka@valinux.co.jp>, Dave Hansen <haveblue@us.ibm.com>, Marcelo Tosatti <marcelo.tosatti@cyclades.com>, Andi Kleen <ak@suse.de>
+To: Hirokazu Takahashi <taka@valinux.co.jp>, Andi Kleen <ak@suse.de>, Dave Hansen <haveblue@us.ibm.com>, Marcelo Tosatti <marcelo.tosatti@cyclades.com>
 Cc: Christoph Hellwig <hch@infradead.org>, linux-mm <linux-mm@kvack.org>, Nathan Scott <nathans@sgi.com>, Ray Bryant <raybry@austin.rr.com>, lhms-devel@lists.sourceforge.net, Ray Bryant <raybry@sgi.com>, Paul Jackson <pj@sgi.com>, clameter@sgi.com
 List-ID: <linux-mm.kvack.org>
 
-This patch allows a process to override the default kernel memory
-migration policy (invoked via migrate_pages()) on a mapped file
-by mapped file basis.
+This patch adds cpuset support to the migrate_pages() system call.
 
-The default policy is to migrate all anonymous VMAs and all other
-VMAs that have the VM_WRITE bit set.  (See the patch:
-	sys_migrate_pages-migration-selection-rc4.patch
-for details on how the default policy is implemented.)
+The idea of this patch is that in order to do a migration:
 
-This policy does not cause the program executable or any mapped
-user data files that are mapped R/O to be migrated.  These problems
-can be detected and fixed in the user-level migration application,
-but that user code needs an interface to do the "fix".  This patch
-supplies that interface via an extension to the mbind() system call.
+(1)  The target task needs to be able to allocate pages on the
+     nodes that are being migrated to.
 
-The interface is as follows:
+(2)  However, the actual allocation of pages is not done by
+     the target task.  Allocation is done by the task that is
+     running the migrate_pages() system call.  Since it is 
+     expected that the migration will be done by a batch manager
+     of some kind that is authorized to control the jobs running
+     in an enclosing cpuset, we make the requirement that the
+     current task ALSO must be able to allocate pages on the
+     nodes that are being migrated to.
 
-mbind(start, length, 0, 0, 0, MPOL_MF_DO_MMIGRATE)
-mbind(start, length, 0, 0, 0, MPOL_MF_DO_NOT_MMIGRATE)
-
-These calls override the default kernel policy in
-favor of the policy specified.  These call cause the bits
-AS_DO_MMIGRATTE (or AS_DO_NOT_MMIGRATE) to be set in the
-memory object pointed to by the VMA at the specified addresses
-in the current process's address space.  Setting such a "deep"
-attribute is required so that the modification can be seen by
-all address spaces that map the object.
-
-The bits set by the above call are "sticky" in the sense that
-they will remain set so long as the memory object exists.  To
-return the migration policy for that memory object to its
-default setting is done by the following system call:
-
-mbind(start, length, 0, 0, 0, MPOL_MF_MMIGRATE_DEFAULT)
-
-The system call:
-
-get_mempolicy(&policy, NULL, 0, (int *)start, (long) MPOL_F_MMIGRATE)
-
-returns the policy migration bits from the memory object in the bottom
-two bits of "policy".
-
-Typical use by the user-level manual page migration code would
-be to:
-
-(1)  Identify the file name whose migration policy needs modified.
-(2)  Open and mmap() the file into the current address space.
-(3)  Issue the appropriate mbind() call from the above list.
-(4)  (Assuming a successful return), unmap() and close the file.
+Note well that if cpusets are not configured, the call to
+cpuset_migration_allowed() gets optimizied away.
 
 Signed-off-by: Ray Bryant <raybry@sgi.com>
 
- mmigrate.c |   31 ++++++++++++++++++++++---------
- 1 files changed, 22 insertions(+), 9 deletions(-)
+ include/linux/cpuset.h |    8 +++++++-
+ kernel/cpuset.c        |   48 +++++++++++++++++++++++++++++++++++++++++++++++-
+ mm/mmigrate.c          |   15 +++++++++++----
+ 3 files changed, 65 insertions(+), 6 deletions(-)
 
+Index: linux-2.6.12-rc5-mhp1-page-migration-export/include/linux/cpuset.h
+===================================================================
+--- linux-2.6.12-rc5-mhp1-page-migration-export.orig/include/linux/cpuset.h	2005-06-24 10:56:43.000000000 -0700
++++ linux-2.6.12-rc5-mhp1-page-migration-export/include/linux/cpuset.h	2005-06-24 11:01:59.000000000 -0700
+@@ -4,7 +4,7 @@
+  *  cpuset interface
+  *
+  *  Copyright (C) 2003 BULL SA
+- *  Copyright (C) 2004 Silicon Graphics, Inc.
++ *  Copyright (C) 2004-2005 Silicon Graphics, Inc.
+  *
+  */
+ 
+@@ -26,6 +26,7 @@ int cpuset_zonelist_valid_mems_allowed(s
+ int cpuset_zone_allowed(struct zone *z);
+ extern struct file_operations proc_cpuset_operations;
+ extern char *cpuset_task_status_allowed(struct task_struct *task, char *buffer);
++extern int cpuset_migration_allowed(nodemask_t, struct task_struct *);
+ 
+ #else /* !CONFIG_CPUSETS */
+ 
+@@ -59,6 +60,11 @@ static inline char *cpuset_task_status_a
+ 	return buffer;
+ }
+ 
++static inline int cpuset_migration_allowed(int *nodes, struct task *task)
++{
++	return 1;
++}
++
+ #endif /* !CONFIG_CPUSETS */
+ 
+ #endif /* _LINUX_CPUSET_H */
+Index: linux-2.6.12-rc5-mhp1-page-migration-export/kernel/cpuset.c
+===================================================================
+--- linux-2.6.12-rc5-mhp1-page-migration-export.orig/kernel/cpuset.c	2005-06-24 10:56:43.000000000 -0700
++++ linux-2.6.12-rc5-mhp1-page-migration-export/kernel/cpuset.c	2005-06-24 11:01:59.000000000 -0700
+@@ -4,7 +4,7 @@
+  *  Processor and Memory placement constraints for sets of tasks.
+  *
+  *  Copyright (C) 2003 BULL SA.
+- *  Copyright (C) 2004 Silicon Graphics, Inc.
++ *  Copyright (C) 2004-2005 Silicon Graphics, Inc.
+  *
+  *  Portions derived from Patrick Mochel's sysfs code.
+  *  sysfs is Copyright (c) 2001-3 Patrick Mochel
+@@ -1500,6 +1500,52 @@ int cpuset_zone_allowed(struct zone *z)
+ 		node_isset(z->zone_pgdat->node_id, current->mems_allowed);
+ }
+ 
++/**
++ * cpuset_mems_allowed - return mems_allowed mask from a tasks cpuset.
++ * @tsk: pointer to task_struct from which to obtain cpuset->mems_allowed.
++ *
++ * Description: Returns the nodemask_t mems_allowed of the cpuset
++ * attached to the specified @tsk.
++ *
++ **/
++
++static const nodemask_t cpuset_mems_allowed(const struct task_struct *tsk)
++{
++	nodemask_t mask;
++
++	down(&cpuset_sem);
++	task_lock((struct task_struct *)tsk);
++	guarantee_online_mems(tsk->cpuset, &mask);
++	task_unlock((struct task_struct *)tsk);
++	up(&cpuset_sem);
++
++	return mask;
++}
++
++/**
++ * cpuset_migration_allowed(int *nodes, struct task_struct *tsk)
++ * @mask:  pointer to nodemask of nodes to be migrated to
++ * @tsk:   pointer to task struct of task being migrated
++ *
++ * Description: Returns true if the migration should be allowed.
++ *
++ */
++int cpuset_migration_allowed(nodemask_t mask, struct task_struct *tsk)
++{
++	nodemask_t current_nodes_allowed, target_nodes_allowed;
++	current_nodes_allowed = cpuset_mems_allowed(current);
++
++	/* Obviously, the target task needs to be able to allocate on
++	 * the new set of nodes.  However, the migrated pages will
++	 * actually be allocated by the current task, so the current
++	 * task has to be able to allocate on those nodes as well */
++	target_nodes_allowed  = cpuset_mems_allowed(tsk);
++	if (!nodes_subset(mask, current_nodes_allowed) ||
++	    !nodes_subset(mask, target_nodes_allowed))
++		return 0;
++	return 1;
++}
++
+ /*
+  * proc_cpuset_show()
+  *  - Print tasks cpuset path into seq_file.
 Index: linux-2.6.12-rc5-mhp1-page-migration-export/mm/mmigrate.c
 ===================================================================
---- linux-2.6.12-rc5-mhp1-page-migration-export.orig/mm/mmigrate.c	2005-06-24 07:40:32.000000000 -0700
-+++ linux-2.6.12-rc5-mhp1-page-migration-export/mm/mmigrate.c	2005-06-24 07:44:12.000000000 -0700
-@@ -601,25 +601,38 @@ migrate_vma(struct task_struct *task, st
- 	unsigned long vaddr;
- 	int rc, count = 0, nr_busy;
- 	LIST_HEAD(pglist);
-+	struct address_space *as = NULL;
+--- linux-2.6.12-rc5-mhp1-page-migration-export.orig/mm/mmigrate.c	2005-06-24 11:01:59.000000000 -0700
++++ linux-2.6.12-rc5-mhp1-page-migration-export/mm/mmigrate.c	2005-06-24 11:02:20.000000000 -0700
+@@ -26,6 +26,7 @@
+ #include <linux/delay.h>
+ #include <linux/nodemask.h>
+ #include <linux/mempolicy.h>
++#include <linux/cpuset.h>
+ #include <asm/bitops.h>
  
--	/* can't migrate mlock()'d pages */
--	if (vma->vm_flags & VM_LOCKED)
-+	/* can't migrate these kinds of VMAs */
-+	if ((vma->vm_flags & VM_LOCKED) || (vma->vm_flags & VM_IO))
- 		return 0;
+ /*
+@@ -690,7 +691,7 @@ sys_migrate_pages(pid_t pid, __u32 count
+ 	int *tmp_old_nodes = NULL;
+ 	int *tmp_new_nodes = NULL;
+ 	int *node_map = NULL;
+-	struct task_struct *task;
++	struct task_struct *task = NULL;
+ 	struct mm_struct *mm = NULL;
+ 	size_t size = count * sizeof(tmp_old_nodes[0]);
+ 	struct vm_area_struct *vma;
+@@ -734,8 +735,10 @@ sys_migrate_pages(pid_t pid, __u32 count
+ 	if (task) {
+ 		task_lock(task);
+ 		mm = task->mm;
+-		if (mm)
++		if (mm) {
+ 			atomic_inc(&mm->mm_users);
++			get_task_struct(task);
++		}
+ 		task_unlock(task);
+ 	} else {
+ 		ret = -ESRCH;
+@@ -746,7 +749,9 @@ sys_migrate_pages(pid_t pid, __u32 count
+ 	if (!mm)
+ 		goto out_einval;
  
-+ 	/* we always migrate anonymous pages */
-+ 	if (!vma->vm_file)
-+ 		goto do_migrate;
-+ 	as = vma->vm_file->f_mapping;
-+ 	/* we have to have both AS_DO_MMIGRATE and AS_DO_MOT_MMIGRATE to
-+ 	 * give user space full ability to override the kernel's default
-+ 	 * migration decisions */
-+ 	if (test_bit(AS_DO_MMIGRATE, &as->flags))
-+ 		goto do_migrate;
-+ 	if (test_bit(AS_DO_NOT_MMIGRATE, &as->flags))
-+ 		return 0;
-+ 	if (!(vma->vm_flags & VM_WRITE))
-+		return 0;
+-	/* set up the node_map array */
++	if (!cpuset_migration_allowed(new_node_mask, task))
++		goto out_einval;
 +
-+do_migrate:
- 	/* update the vma mempolicy, if needed */
- 	rc = migrate_vma_policy(vma, node_map);
- 	if (rc < 0)
- 		return rc;
--	/*
--	 * gather all of the pages to be migrated from this vma into pglist
--	 */
-+
-+	/* gather all of the pages to be migrated from this vma into pglist */
- 	spin_lock(&mm->page_table_lock);
-  	for (vaddr = vma->vm_start; vaddr < vma->vm_end; vaddr += PAGE_SIZE) {
- 		page = follow_page(mm, vaddr, 0);
--		/*
--		 * follow_page has been known to return pages with zero mapcount
--		 * and NULL mapping.  Skip those pages as well
--		 */
-+		/* follow_page has been known to return pages with zero mapcount
-+		 * and NULL mapping.  Skip those pages as well */
- 		if (!page || !page_mapcount(page))
- 			continue;
+ 	for (i = 0; i < MAX_NUMNODES; i++)
+ 		node_map[i] = -1;
+ 	for (i = 0; i < count; i++)
+@@ -773,8 +778,10 @@ sys_migrate_pages(pid_t pid, __u32 count
+ 	ret = migrated;
  
+ out:
+-	if (mm)
++	if (mm) {
+ 		mmput(mm);
++		put_task_struct(task);
++	}
+ 
+ 	kfree(tmp_old_nodes);
+ 	kfree(tmp_new_nodes);
 
 -- 
 Best Regards,
