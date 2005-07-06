@@ -1,105 +1,43 @@
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by e6.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id j666qBOU014572
-	for <linux-mm@kvack.org>; Wed, 6 Jul 2005 02:52:11 -0400
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay04.pok.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id j666qAL3158748
-	for <linux-mm@kvack.org>; Wed, 6 Jul 2005 02:52:10 -0400
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.12.11/8.13.3) with ESMTP id j666qArI029236
-	for <linux-mm@kvack.org>; Wed, 6 Jul 2005 02:52:10 -0400
-Received: from [9.182.14.122] ([9.182.14.122])
-	by d01av02.pok.ibm.com (8.12.11/8.12.11) with ESMTP id j666q8bJ029196
-	for <linux-mm@kvack.org>; Wed, 6 Jul 2005 02:52:09 -0400
-Message-ID: <42CB812E.8060605@in.ibm.com>
-Date: Wed, 06 Jul 2005 12:28:54 +0530
-From: suzuki <suzuki@in.ibm.com>
-MIME-Version: 1.0
-Subject: [RFC] [PATCH] madvise() does not always return -EBADF on non-file
- mapped area
-Content-Type: multipart/mixed;
- boundary="------------000001090701010901090407"
+Date: Wed, 06 Jul 2005 15:58:18 +0300
+From: <Amanda_Diamond@prontomail.com>
+Subject: Huge STOCK Tip
+Message-ID: <BAY10-F236A1BA450DC2A0084D6D0B5800@phx.gbl>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm <linux-mm@kvack.org>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This is a multi-part message in MIME format.
---------------000001090701010901090407
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 8bit
+ST0CK UPDATE:
 
-hi,
+*Triton American Energy Corp. (TRAE)
+*Current Price: 0.25
+*Will it Continue Higher? Watch This One Wednesday as We Know Many of You Like Momentum..
 
-I came across the following problem. The madvise() system call returns 
--EBADF for areas which does not map to files, only for *behaviour* 
-request MADV_WILLNEED.
+Breaking News!
 
-Is this the intended behaviour of madvise() ?
+Triton American Energy Corp. (TRAE) is pleased to announce after one full year of operations, financial audits are now underway. Audits are anticipated to be completed by August 1st and will reflect fiscal year 2004 to 2005 results.
 
-According to man pages, madvise returns :
+Once audits are completed, Triton American Energy will file to move to a new, more liquid exchange and begin presenting their company to stockbrokers through out the country. 
 
-EBADF - the map exists, but the area maps something that isn?t a file.
+President and CEO, Louis Guidry states "We are now entering the stage where our acquisitions are driving in immediate residual revenues for our company. With the completion of our audits, investors will have the 0pp0rtunity to watch our growth on a quarter to quarter and year over year basis." Mr. Guidry continued to state "We value our shareholders and look forward to opening our books and allowing investors to experience the true meaning of residual revenue and income growth of a proven energy company." 
 
-I have attached a patch which could resolve the issue.
+Triton American Energy Corp. (TRAE) of Houston, TX., is pleased to announce they are now producing approximately 850,000 cubic feet of gas per day from 2 wells within the Dyersdale North Field. These wells have a life expectancy of 10 years. Currently, Triton American Energy owns 8 wells within these fields. These wells hold estimated reserves of 3 billion cubic feet of gas and 345,000 barrels of oil. Triton American Energy also owns wells within Zapata County which have proven reserves and are pulling in 1.2 billion cubic feet of gas per day. 
 
-[ There is already a bug reported in OSDL regarding this issue: Bug # 
-2995 ].
+This current production and strong forecast comes on the heels of the Energy Information Administration (EIA) projecting gas prices to remain at record levels through 2006. Triton American Energy anticipates high gas prices will fuel the companies continued month over month and year over year record revenue growth. According to the EIA "the primary factor behind the price increases is crude oil costs. High world oil demand will continue to support crude oil prices and increasee competition for gasoline imports". Triton American Energy and its investors benefit from the rising oil and gas prices. 
 
+President and CEO, Louis Guidry stated "We are very excited about the direction of where our company is headed. In the last 10 months we have acquired over 28 oil and gas wells which have proven reserves. As oil prices continue to fuel the rise of gas prices, we will seek to take full advantage of our gas wells within Zapata County and the Dyersdale North Field." Mr. Guidry continued to state, "Our goal is to have all 28 gas and oil wells online in less then one year, while acquiring additional abandon wells. We are also very confident in achieving the status of being a multi-million dollar company with strong profit margins by the second quarter of 2006. We are well on our way to reaching this milestone and will be preparing audited financials for our investors this summer". 
 
--- 
-regards,
+About Triton American Energy Corporation: 
 
-Suzuki K P
-Linux Technology Centre
-IBM Software Labs
+Triton American Energy is an independent crude oil and natural gas and oil exploration and production company based in Houston, Texas. The Company's business plan is structured to take advantage of today's rising energy cost, while reducing as much financial risk as possible. Tritons niche or specialty are the small to moderate operations (usually 1-50 well projects). These wells can be worth hundreds of millions of dollars in revenue but require more hands-on attention then the major producers are willing to give. 
 
+Conclusion:
 
---------------000001090701010901090407
-Content-Type: text/plain;
- name="madvise-ebadf-fix.patch"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline;
- filename="madvise-ebadf-fix.patch"
+The Examples Above Show The Awesome, Earning Potential of Little Known Companies That Explode Onto Investor's Radar Screens; Many of You Are Already Familiar with This. Is TRAE Poised and Positioned to Do that For You? Then You May Feel the Time Has Come to Act... And Please Watch
+this One Trade Wednesday! Go TRAE.
 
-Patch to fix madvise() syscall to return -EBADF on non-file mapped regions.
-
-Signed Off by: Suzuki K P <suzuki@in.ibm.com>
-
---- mm/madvise.c	2005-07-01 16:08:26.000000000 +0530
-+++ mm/madvise.c.new	2005-07-01 16:07:45.000000000 +0530
-@@ -62,9 +62,6 @@ static long madvise_willneed(struct vm_a
- {
- 	struct file *file = vma->vm_file;
- 
--	if (!file)
--		return -EBADF;
--
- 	start = ((start - vma->vm_start) >> PAGE_SHIFT) + vma->vm_pgoff;
- 	if (end > vma->vm_end)
- 		end = vma->vm_end;
-@@ -114,8 +111,12 @@ static long madvise_dontneed(struct vm_a
- static long madvise_vma(struct vm_area_struct * vma, unsigned long start,
- 			unsigned long end, int behavior)
- {
-+	struct file* filp = vma->vm_file;
- 	long error = -EBADF;
- 
-+	if(!filp)
-+		goto  out;
-+
- 	switch (behavior) {
- 	case MADV_NORMAL:
- 	case MADV_SEQUENTIAL:
-@@ -136,6 +137,7 @@ static long madvise_vma(struct vm_area_s
- 		break;
- 	}
- 		
-+out:	
- 	return error;
- }
- 
-
---------------000001090701010901090407--
+Penny stocks are considered highly speculative and may be unsuitable for all but very aggressive investors.  This Profile is not in any way affiliated with the featured company.  We were compensated 3000 dollars to distribute this report.  This report is for entertainment and 
+advertising purposes only and should not be used as investment advice.  If you wish to stop future mailings, or if you feel you have been wrongfully placed in our membership, send a blank e mail with No Thanks in the sub ject to 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
