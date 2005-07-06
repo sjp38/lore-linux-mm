@@ -1,19 +1,39 @@
-From: <Administrator@lordoflife.org>
-Subject: Symantec Mail Security detected a virus in a message sent from your address                                        (SYM:37213785980446986782)
-Date: Wed, 6 Jul 2005 13:16:08 -0500
-Message-ID: <000401c58256$c81c3fa0$0200000a@lordoflife.local>
+From: "Hunter Kim" <Peccia@zahav.net.il>
+Subject: Re[3]: =?koi8-r?B?4c7HzMnK08vJyiDywdrHz9fP0s7ZyiDTINDSxdDPxMHXwdTFzNHNyQ==?=
+	=?koi8-r?B?IMnaIPP74S4uLg==?= Svensson
+Date: Wed, 06 Jul 2005 21:45:55 -0200
+Message-ID: <52db01c58295$0052c732$93a354a2@tropicmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain;
-	charset="utf-8"
-Content-Transfer-Encoding: 7bit
-Content-Class: urn:content-classes:message
+	format=flowed;
+	charset="koi8-r";
+	reply-type=original
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Minnaar Anaci <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Subject of the message: Status
-Recipient of the message: "losek@lordoflife.org" <losek@lordoflife.org>
+=?ISO-8859-1?Q?=F0=D2=C9=D7=C5=D4=D3=D4=D7=D5=C0?= =?ISO-8859-1?Q?=F7=C1=D3!?=
+Return-Path: <owner-linux-mm@kvack.org>
+X-Envelope-To: <"|/home/majordomo/wrapper archive -f /home/ftp/pub/archives/linux-mm/linux-mm -m -a"> (uid 0)
+X-Orcpt: rfc822;linux-mm-outgoing
+Original-Recipient: rfc822;linux-mm-outgoing
+
+aAIOO aIAOEEAIOEICI aICIEEOEICI. dOECIAUAAI E OAAA.
+
+cECAIOOEEA OEEAEE!!! :)
+
+uxIIEOA x iIOExA:
+105 DNOO-IAEI-xIOAIO-UAOOO
+IAEI-DNOO-UAOOO 0000
+
+
+
+
+
+Bryant Cherniy Stedt
+Day Martin Gingras Frumento
+Koymen Jarek Yousuf Haggard
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
