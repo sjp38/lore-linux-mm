@@ -1,9 +1,10 @@
-Message-ID: <IPDAEZ0.tjqb2a1@gird.auspiciousym.com>
-Date: Wed, 06 Jul 2005 20:57:15 +0600
-From: "Teresa Womack" <yongue@emailaccount.com>
-Subject: Re-finance at todays low rate
-Return-Path: <yongue@emailaccount.com>
+Date: Wed, 06 Jul 2005 07:58:40 -0700
+From: "Aaron Otto" <recut@doramail.com>
+Message-ID: <769c.fsf@calle75.net>
+Subject: Just approved mortage rate
+Return-Path: <recut@doramail.com>
 To: er-linux-mm@kvack.org
+Cc: inux-aio@kvack.orgio@kvack.org, jordomo@kvack.org, kernel@kvack.org, lah@kvack.org, linux-aio@kvack.org, linux-mm-archive@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 Hello,
@@ -25,7 +26,7 @@ Hello,
 
  Best Regards,
 
- Elma Hyde
+ Earle Montgomery
  
  to be remov(ed:	http://www.m0rtgag3.com/deletion.asp
 
