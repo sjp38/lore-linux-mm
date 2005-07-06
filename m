@@ -1,57 +1,105 @@
-Date: Tue, 5 Jul 2005 11:37:08 -0400
-From: Sonny Rao <sonny@burdell.org>
-Subject: Re: [rfc] lockless pagecache
-Message-ID: <20050705153708.GA13178@kevlar.burdell.org>
-References: <Pine.LNX.4.62.0506271221540.21616@graphe.net> <200506271942.j5RJgig23410@unix-os.sc.intel.com> <20050705151119.GA12279@kevlar.burdell.org> <54750000.1120577500@[10.10.2.4]>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <54750000.1120577500@[10.10.2.4]>
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e6.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id j666qBOU014572
+	for <linux-mm@kvack.org>; Wed, 6 Jul 2005 02:52:11 -0400
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay04.pok.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id j666qAL3158748
+	for <linux-mm@kvack.org>; Wed, 6 Jul 2005 02:52:10 -0400
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.12.11/8.13.3) with ESMTP id j666qArI029236
+	for <linux-mm@kvack.org>; Wed, 6 Jul 2005 02:52:10 -0400
+Received: from [9.182.14.122] ([9.182.14.122])
+	by d01av02.pok.ibm.com (8.12.11/8.12.11) with ESMTP id j666q8bJ029196
+	for <linux-mm@kvack.org>; Wed, 6 Jul 2005 02:52:09 -0400
+Message-ID: <42CB812E.8060605@in.ibm.com>
+Date: Wed, 06 Jul 2005 12:28:54 +0530
+From: suzuki <suzuki@in.ibm.com>
+MIME-Version: 1.0
+Subject: [RFC] [PATCH] madvise() does not always return -EBADF on non-file
+ mapped area
+Content-Type: multipart/mixed;
+ boundary="------------000001090701010901090407"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Martin J. Bligh" <mbligh@mbligh.org>
-Cc: "Chen, Kenneth W" <kenneth.w.chen@intel.com>, 'Christoph Lameter' <christoph@lameter.com>, 'Badari Pulavarty' <pbadari@us.ibm.com>, 'Nick Piggin' <nickpiggin@yahoo.com.au>, Lincoln Dale <ltd@cisco.com>, Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jul 05, 2005 at 08:31:40AM -0700, Martin J. Bligh wrote:
-> >> > On Mon, 27 Jun 2005, Chen, Kenneth W wrote:
-> >> > > I don't recall seeing tree_lock to be a problem for DSS workload either.
-> >> > 
-> >> > I have seen the tree_lock being a problem a number of times with large 
-> >> > scale NUMA type workloads.
-> >> 
-> >> I totally agree!  My earlier posts are strictly referring to industry
-> >> standard db workloads (OLTP, DSS).  I'm not saying it's not a problem
-> >> for everyone :-)  Obviously you just outlined a few ....
-> > 
-> > I'm a bit late to the party here (was gone on vacation), but I do have
-> > profiles from DSS workloads using page-cache rather than O_DIRECT and
-> > I do see spin_lock_irq() in the profiles which I'm pretty certain are
-> > locks spinning for access to the radix_tree.  I'll talk about it a bit
-> > more up in Ottawa but here's the top 5 on my profile (sorry don't have
-> > the number of ticks at the momement):
-> > 
-> > 1. dedicated_idle (waiting for I/O)
-> > 2. __copy_tofrom_user
-> > 3. radix_tree_delete
-> > 4. _spin_lock_irq
-> > 5. __find_get_block
-> > 
-> > So, yes, if the page-cache is used in a DSS workload then one will see
-> > the tree-lock.  BTW, this was on a PPC64 machine w/ a fairly small
-> > NUMA factor.
-> 
-> The easiest way to confirm the spin-lock thing is to recompile with 
-> CONFIG_SPINLINE, and take a new profile, then diff the two ...
+This is a multi-part message in MIME format.
+--------------000001090701010901090407
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 8bit
 
-Yep...
+hi,
 
-Unfortunately, this is broken in PPC64 since 2.6.9-rc2 or something
-like that, I never had a chance to track down what the issue was
-exactly.  IIRC, there was a lot of churn in the spinlocking code
-around that time.
+I came across the following problem. The madvise() system call returns 
+-EBADF for areas which does not map to files, only for *behaviour* 
+request MADV_WILLNEED.
 
-Sonny
+Is this the intended behaviour of madvise() ?
+
+According to man pages, madvise returns :
+
+EBADF - the map exists, but the area maps something that isn?t a file.
+
+I have attached a patch which could resolve the issue.
+
+[ There is already a bug reported in OSDL regarding this issue: Bug # 
+2995 ].
+
+
+-- 
+regards,
+
+Suzuki K P
+Linux Technology Centre
+IBM Software Labs
+
+
+--------------000001090701010901090407
+Content-Type: text/plain;
+ name="madvise-ebadf-fix.patch"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline;
+ filename="madvise-ebadf-fix.patch"
+
+Patch to fix madvise() syscall to return -EBADF on non-file mapped regions.
+
+Signed Off by: Suzuki K P <suzuki@in.ibm.com>
+
+--- mm/madvise.c	2005-07-01 16:08:26.000000000 +0530
++++ mm/madvise.c.new	2005-07-01 16:07:45.000000000 +0530
+@@ -62,9 +62,6 @@ static long madvise_willneed(struct vm_a
+ {
+ 	struct file *file = vma->vm_file;
+ 
+-	if (!file)
+-		return -EBADF;
+-
+ 	start = ((start - vma->vm_start) >> PAGE_SHIFT) + vma->vm_pgoff;
+ 	if (end > vma->vm_end)
+ 		end = vma->vm_end;
+@@ -114,8 +111,12 @@ static long madvise_dontneed(struct vm_a
+ static long madvise_vma(struct vm_area_struct * vma, unsigned long start,
+ 			unsigned long end, int behavior)
+ {
++	struct file* filp = vma->vm_file;
+ 	long error = -EBADF;
+ 
++	if(!filp)
++		goto  out;
++
+ 	switch (behavior) {
+ 	case MADV_NORMAL:
+ 	case MADV_SEQUENTIAL:
+@@ -136,6 +137,7 @@ static long madvise_vma(struct vm_area_s
+ 		break;
+ 	}
+ 		
++out:	
+ 	return error;
+ }
+ 
+
+--------------000001090701010901090407--
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
