@@ -1,48 +1,69 @@
-Received: from punkass.com (mx2.punkass.com [38.113.3.63])
-        by cpe-024-074-185-021.carolina.res.rr.com (Postfix) with ESMTP id S7594JAJ7T
-        for <linux-mm@kvack.org>; Fri, 8 Jul 2005 14:59:44 +0000
-From: =?ISO-8859-1?Q? "=CB=E0=E2=E8=FF" ?= <darrinu@punkass.com>
-Subject: Re: =?ISO-8859-1?Q?=CF=EE?= =?ISO-8859-1?Q?=EF=EE=E2=EE=E4=F3?= =?ISO-8859-1?Q?=F1=E2=E0=E4=FC=E1=FB?=  bttu
-Date: Fri, 8 Jul 2005 14:59:44 +0000
+Subject: Re: [PATCH] Early kmalloc/kfree
+References: <20050708203807.GG27544@localhost.localdomain.suse.lists.linux.kernel>
+From: Andi Kleen <ak@suse.de>
+Date: 09 Jul 2005 00:35:13 +0200
+In-Reply-To: <20050708203807.GG27544@localhost.localdomain.suse.lists.linux.kernel>
+Message-ID: <p73zmsxncym.fsf@verdi.suse.de>
 MIME-Version: 1.0
-Content-Type: text/plain;
-        charset="Windows-1251"
-Content-Transfer-Encoding: 8bit
-Message-Id: <20050708220035Z26667-1065+4473@kvack.org>
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
-To: linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: Bob Picco <bob.picco@hp.com>
+Cc: linux-mm@kvack.org, manfred@colorfullife.com, alex.williamson@hp.com, linux-kernel@vger.kernel.org, akpm@osdl.org
 List-ID: <linux-mm.kvack.org>
 
-=?ISO-8859-1?Q?=C4=EE=E1=F0=FB=E9?= =?ISO-8859-1?Q?=E4=E5=ED=FC,?= Linux-mm
-Return-Path: <owner-linux-mm@kvack.org>
-X-Envelope-To: <"|/home/majordomo/wrapper archive -f /home/ftp/pub/archives/linux-mm/linux-mm -m -a"> (uid 0)
-X-Orcpt: rfc822;linux-mm-outgoing
-Original-Recipient: rfc822;linux-mm-outgoing
+Bob Picco <bob.picco@hp.com> writes:
 
+> We have a requirement on IA64 to run the ACPI interpreter in the setup_arch
+> function before paging_init examines the maximum DMA physical address which
+> is limited by the IOMMU.  One obstacle is the use of kmalloc/kfree by
+> ACPI.  Using the bootmem allocator is unacceptable because > 20Mb of memory
+> is wastefully allocated.  As an alternative, I investigated what
+> would be required to optionally make the slab allocator available early in
+> boot and work in an almost seamless way.
+> 
+> The patch below is a solution for early kmalloc/kfree.  An architecture which 
+> requires kmalloc/kfree use before kmem_cache_init has normally completed can 
+> perform the initialization as early as pfn_to_page is a valid operation.  Like 
+> the bootmem allocator this point in execution is well known.  An arch that
+> requires early kmalloc/kfree chooses the CONFIG_EARLY_KMALLOC option and
+> must call kmem_cache_init at the appropriate place in setup_arch.
+> 
+> The known deficiencies of this solution are similar to the bootmem allocator.
+> The placement of the call to kmem_cache_init requires arch dependent code
+> knowlege and possibly manipulation of arch dependent code for enablement. 
+> kmalloc/kmfree can't be called between when mem_init calls bootmem to free 
+> pages and the second call to kmem_cache_init made from start_kernel. A NUMA 
+> deficiency, like bootmem allocator, exists for CPU only nodes.  The NUMA node 
+> distance information isn't interrogated by bootmem allocator for memory less 
+> nodes.
+> 
+> The slab API hasn't been modified.  All hot code paths are untouched by
+> this patch.  The patch has been tested on a 2 CPU SMP box, two node NUMA
+> simulated machine with and without memory less nodes. All testing has
+> been done on ia64 but nothing prevents other architectures from using the
+> patch.
+> 
+> Manfred provided valuable early review feedback.
 
-Idaanoieo naaauaa?
+I think that is a really really bad idea.   slab is already complex enough
+and adding scary hacks like this will probably make it collapse
+under its own weight at some point.
 
- Aeaainuaiea e aeaaiiiioaae. Oioiadaoey.
+And the ACPI interpreter is big enough and has other kernel
+interactions that when you start like this you'll probably end with
+adding more and more and more such early hacks all over the kernel
+longer term. e.g. what happens when the AML creates mutexes and
+the interpreter wants to schedule? Or use PCI config space accesses? 
+Or something else in the osl layer?  Your early AML might not need
+this right now, but longer term someone will write some that 
+needs it.
 
+It's better to just not go down that slippery path.
 
-- nuaiea idiecaiaeony ia 2 oeodiaua aeaaieaiadu;
-- eiiiuthoadiue iiioaae n aiaaaeaieai dacee/iuo niaoyooaeoia, oeodia e iocuee;
+I think you need to solve this in some other way.
 
-
-- nicaaiea aeaaidyaa ec oioiadaoee;
-
-- nicaaai noaiadee aey iiioaaea; 
-- oaiaoe/aneay iaeiaeea; 
-Noieiinou idaedaniuo ainiiieiaiee anaai 4I0 o.a.
-
-
-Ide caeaca aeaainuaiee e oioiadaoa neeaea 15 %!!. :)
-Eiaeaeaoaeuiue oaid/aneee iiaoia e eaaeaiio caeaco! 
-
-
-
-Iadauaouny 8 926 225 I2 65
-
+-Andi
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
