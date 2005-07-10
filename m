@@ -1,33 +1,35 @@
-Received: from [136.208.41.138] (port=4593 helo=[safeguarded])
-    by 222-153-138-204.jetstream.xtra.co.nz with esmtp
-    id 8884137200valiant77094
-    for linux-mm@kvack.org; Mon, 11 Jul 2005 04:44:32 -0700
-Mime-Version: 1.0 (Apple Message framework v728)
+Message-ID: <0d2a01c585a2$e8de705b$fcf22c6c@ptd.net>
+From: Richmond fosorile <klein56@ptd.net>
+Subject: Part time position at home available
+Date: Sun, 10 Jul 2005 22:57:01 +0000
+MIME-Version: 1.0
+Content-Type: text/plain;
+    format=flowed;
+    charset="iso-8859-1";
+    reply-type=original
 Content-Transfer-Encoding: 7bit
-Message-Id: <12951841327.66012110200@222-153-138-204.jetstream.xtra.co.nz>
-Content-Type: text/plain; charset=US-ASCII; format=flowed
-From: Silas <prevail@faria.com>
-Subject: World first Patch Technology for penis Enlargement
-Date: Mon, 11 Jul 2005 04:44:31 -0700
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Are you happy about your size and sexual performance?
-http://www.felmuh.com/ss/
+Would you like to get rich working part-time from home? Do you want to get extra income?
+We need right candidates that would like to make money from home!
+No special skills required! No fees to start! We will train you.
+Your personal coach will explain you how to put the internet and your computer to work for you.
+Work around YOUR Schedule! The more you work, the more you make.
+With good work ethic and a never give up attitude you can achieve goals with our company.
+What do we have to offer? No start up fees or training manuals to buy!
+Finally, now you can be in control of your own income level and have more free time!
+Remember there are no costs to start working with our company.
+You can try it on for size without jeopardizing your current position!
+Spend more time with your family doing the things that bring enjoyment to your life!
+Our extensive training and support is what makes this position so easy to run for you.
 
+APPLY NOW to find out more about this exciting opportunity.
+To continue with the application please fill out the form at:
 
-
-
-
-Either war is obsolete or men are.      
-You cannot step twice into the same river.     
-Skepticism, like chastity, should not be relinquished too readily.    
-You make 'em, I amuse 'em. [children]      
-When the candles are out all women are fair.    
-
-
+http://www.globaltransfer.org/vacancies.html
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
