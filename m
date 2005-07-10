@@ -1,69 +1,29 @@
+Date: Sat, 9 Jul 2005 18:06:11 -0700 (PDT)
+From: Christoph Lameter <christoph@lameter.com>
 Subject: Re: [PATCH] Early kmalloc/kfree
+In-Reply-To: <p73zmsxncym.fsf@verdi.suse.de>
+Message-ID: <Pine.LNX.4.62.0507091801170.22975@graphe.net>
 References: <20050708203807.GG27544@localhost.localdomain.suse.lists.linux.kernel>
-From: Andi Kleen <ak@suse.de>
-Date: 09 Jul 2005 00:35:13 +0200
-In-Reply-To: <20050708203807.GG27544@localhost.localdomain.suse.lists.linux.kernel>
-Message-ID: <p73zmsxncym.fsf@verdi.suse.de>
+ <p73zmsxncym.fsf@verdi.suse.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Bob Picco <bob.picco@hp.com>
-Cc: linux-mm@kvack.org, manfred@colorfullife.com, alex.williamson@hp.com, linux-kernel@vger.kernel.org, akpm@osdl.org
+To: Andi Kleen <ak@suse.de>
+Cc: Bob Picco <bob.picco@hp.com>, linux-mm@kvack.org, manfred@colorfullife.com, alex.williamson@hp.com, linux-kernel@vger.kernel.org, akpm@osdl.org
 List-ID: <linux-mm.kvack.org>
 
-Bob Picco <bob.picco@hp.com> writes:
+On Fri, 9 Jul 2005, Andi Kleen wrote:
 
-> We have a requirement on IA64 to run the ACPI interpreter in the setup_arch
-> function before paging_init examines the maximum DMA physical address which
-> is limited by the IOMMU.  One obstacle is the use of kmalloc/kfree by
-> ACPI.  Using the bootmem allocator is unacceptable because > 20Mb of memory
-> is wastefully allocated.  As an alternative, I investigated what
-> would be required to optionally make the slab allocator available early in
-> boot and work in an almost seamless way.
-> 
-> The patch below is a solution for early kmalloc/kfree.  An architecture which 
-> requires kmalloc/kfree use before kmem_cache_init has normally completed can 
-> perform the initialization as early as pfn_to_page is a valid operation.  Like 
-> the bootmem allocator this point in execution is well known.  An arch that
-> requires early kmalloc/kfree chooses the CONFIG_EARLY_KMALLOC option and
-> must call kmem_cache_init at the appropriate place in setup_arch.
-> 
-> The known deficiencies of this solution are similar to the bootmem allocator.
-> The placement of the call to kmem_cache_init requires arch dependent code
-> knowlege and possibly manipulation of arch dependent code for enablement. 
-> kmalloc/kmfree can't be called between when mem_init calls bootmem to free 
-> pages and the second call to kmem_cache_init made from start_kernel. A NUMA 
-> deficiency, like bootmem allocator, exists for CPU only nodes.  The NUMA node 
-> distance information isn't interrogated by bootmem allocator for memory less 
-> nodes.
-> 
-> The slab API hasn't been modified.  All hot code paths are untouched by
-> this patch.  The patch has been tested on a 2 CPU SMP box, two node NUMA
-> simulated machine with and without memory less nodes. All testing has
-> been done on ia64 but nothing prevents other architectures from using the
-> patch.
-> 
-> Manfred provided valuable early review feedback.
+> I think that is a really really bad idea.   slab is already complex enough
+> and adding scary hacks like this will probably make it collapse
+> under its own weight at some point.
 
-I think that is a really really bad idea.   slab is already complex enough
-and adding scary hacks like this will probably make it collapse
-under its own weight at some point.
+Seconded.
 
-And the ACPI interpreter is big enough and has other kernel
-interactions that when you start like this you'll probably end with
-adding more and more and more such early hacks all over the kernel
-longer term. e.g. what happens when the AML creates mutexes and
-the interpreter wants to schedule? Or use PCI config space accesses? 
-Or something else in the osl layer?  Your early AML might not need
-this right now, but longer term someone will write some that 
-needs it.
-
-It's better to just not go down that slippery path.
-
-I think you need to solve this in some other way.
-
--Andi
+Maybe we can solve this by bringing the system up in a limited 
+configuration and then discover additional capabilities during ACPI 
+discovery and reconfigure.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
