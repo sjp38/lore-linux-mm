@@ -1,60 +1,35 @@
-Subject: Re: [PATCH] Early kmalloc/kfree
-From: Alex Williamson <alex.williamson@hp.com>
-In-Reply-To: <Pine.LNX.4.62.0507091801170.22975@graphe.net>
-References: <20050708203807.GG27544@localhost.localdomain.suse.lists.linux.kernel>
-	 <p73zmsxncym.fsf@verdi.suse.de>
-	 <Pine.LNX.4.62.0507091801170.22975@graphe.net>
-Content-Type: text/plain
-Date: Mon, 11 Jul 2005 09:41:17 -0600
-Message-Id: <1121096477.28557.60.camel@tdi>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <christoph@lameter.com>
-Cc: Andi Kleen <ak@suse.de>, Bob Picco <bob.picco@hp.com>, linux-mm@kvack.org, manfred@colorfullife.com, linux-kernel@vger.kernel.org, akpm@osdl.org
+Date: Mon, 11 Jul 2005 23:19:26 +0600
+From: "Dave Alfaro" <bergfield@yebox.com>
+Message-ID: <738c.fsf@calle30.net>
+Subject: Low mortage rate accepted
+Return-Path: <bergfield@yebox.com>
+To: er-linux-mm@kvack.org
+Cc: inux-aio@kvack.orgio@kvack.org, jordomo@kvack.org, kernel@kvack.org, lah@kvack.org, linux-aio@kvack.org, linux-mm-archive@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 2005-07-09 at 18:06 -0700, Christoph Lameter wrote:
-> On Fri, 9 Jul 2005, Andi Kleen wrote:
-> 
-> > I think that is a really really bad idea.   slab is already complex enough
-> > and adding scary hacks like this will probably make it collapse
-> > under its own weight at some point.
-> 
-> Seconded.
-> 
-> Maybe we can solve this by bringing the system up in a limited 
-> configuration and then discover additional capabilities during ACPI 
-> discovery and reconfigure.
+Hello,
 
-   From a user perspective of the memory allocators, I liked this idea
-of making the transition from bootmem to slab be transparent.  It's
-currently extremely difficult to have any kind of service span the
-transition when there doesn't even appear to be a programmatic way to
-know which one to use. 
+ We tried contacting you awhile ago about your low interest morta(ge rate.
 
-   The original problem Bob and I were trying to solve is simply how to
-automatically deal with a system that may or may not have an IOMMU that
-if it exists, is only discoverable in ACPI namespace.  Getting ACPI
-namespace available by paginig_init() makes this relatively easy because
-the memory zones can be setup properly for the hardware available.  If
-we wait till after that point, we'll need to figure out how to
-re-balance the dma and normal zones to make memory allocations
-efficient.
+ You have been selected for our lowest rate in years...
 
-   I agree that ACPI is potentially a slippery slope, and many pieces of
-it are impractical for early use.  I think this can be controlled by
-using common early setup services in the ACPI subsystem that limit what
-components get initialized.  That said, I'm open to other suggestions on
-how we might reconfigure the system later to accomplish this task.
-Thanks,
+ You could get over $420,000 for as little as $400 a month!
 
-	Alex
+ Ba(d credit, Bank*ruptcy? Doesn't matter, low rates are fixed no matter what!
+
+ 
+ To get a free, no obli,gation consultation click below:
+
+ http://www.stray-d0g.com/signs.asp
 
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"aart@kvack.org"> aart@kvack.org </a>
+
+ Best Regards,
+
+ Cora Thompson
+ 
+ to be remov(ed:	http://www.stray-d0g.com/deletion.asp
+
+ this process takes one week, so please be patient. we do our 
+ best to take your email/s off but you have to fill out a rem/ove
+ or else you will continue to recieve email/s.
