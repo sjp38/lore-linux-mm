@@ -1,107 +1,56 @@
-Received: from [147.61.207.163] (port=3331 helo=[beads])
-    by adsl196-191-214-206-196.adsl196-7.iam.net.ma with esmtp
-    id 5127481424Piraeus16697
-    for linux-mm@kvack.org; Sun, 11 Dec 2005 14:18:33 +0100
-Mime-Version: 1.0 (987)
+Subject: Re: [PATCH] Early kmalloc/kfree
+From: Alex Williamson <alex.williamson@hp.com>
+In-Reply-To: <Pine.LNX.4.62.0507091801170.22975@graphe.net>
+References: <20050708203807.GG27544@localhost.localdomain.suse.lists.linux.kernel>
+	 <p73zmsxncym.fsf@verdi.suse.de>
+	 <Pine.LNX.4.62.0507091801170.22975@graphe.net>
+Content-Type: text/plain
+Date: Mon, 11 Jul 2005 09:41:17 -0600
+Message-Id: <1121096477.28557.60.camel@tdi>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Message-Id: <12018562349.7331129584@adsl196-191-214-206-196.adsl196-7.iam.net.ma>
-Content-Type: text/plain; charset=US-ASCII; format=flowed
-From: Gregory <stampeded@instrumentsys.com>
-Subject: Micro-Cap Stoxs Are About Timing
-Date: Sun, 11 Dec 2005 14:18:32 +0100
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Christoph Lameter <christoph@lameter.com>
+Cc: Andi Kleen <ak@suse.de>, Bob Picco <bob.picco@hp.com>, linux-mm@kvack.org, manfred@colorfullife.com, linux-kernel@vger.kernel.org, akpm@osdl.org
 List-ID: <linux-mm.kvack.org>
 
-Inside Breaking News For Investors
-CHINA WORLD TRADE CORP.
-SYMBOL: CWTD
+On Sat, 2005-07-09 at 18:06 -0700, Christoph Lameter wrote:
+> On Fri, 9 Jul 2005, Andi Kleen wrote:
+> 
+> > I think that is a really really bad idea.   slab is already complex enough
+> > and adding scary hacks like this will probably make it collapse
+> > under its own weight at some point.
+> 
+> Seconded.
+> 
+> Maybe we can solve this by bringing the system up in a limited 
+> configuration and then discover additional capabilities during ACPI 
+> discovery and reconfigure.
 
-Ready to Run
-Is This One Ready to Explode Higher Move?
-How Will it React To This News Being Released?
-Good Luck and Succesful Trading..
+   From a user perspective of the memory allocators, I liked this idea
+of making the transition from bootmem to slab be transparent.  It's
+currently extremely difficult to have any kind of service span the
+transition when there doesn't even appear to be a programmatic way to
+know which one to use. 
 
-CWTD News cominig stock is ready to rock Company has already
-facilitated the money it need's to continue it's rapid growth
+   The original problem Bob and I were trying to solve is simply how to
+automatically deal with a system that may or may not have an IOMMU that
+if it exists, is only discoverable in ACPI namespace.  Getting ACPI
+namespace available by paginig_init() makes this relatively easy because
+the memory zones can be setup properly for the hardware available.  If
+we wait till after that point, we'll need to figure out how to
+re-balance the dma and normal zones to make memory allocations
+efficient.
 
-CURRENT PRICE 2.49
-Projection 5 to 7 Days $5.00
-Projection 8 to 12 Days $8.00
-Week of JULY 11-21 IS BREAKOUT WEEK
+   I agree that ACPI is potentially a slippery slope, and many pieces of
+it are impractical for early use.  I think this can be controlled by
+using common early setup services in the ACPI subsystem that limit what
+components get initialized.  That said, I'm open to other suggestions on
+how we might reconfigure the system later to accomplish this task.
+Thanks,
 
--CWTD- CHINA WORLD TRADE CORP.
-See Company President John Hui interview with CNN ASIA
-ALSO LOOK FOR NEW CNN INTERVIEW re: Tremendous 12 Month C0mpany
-Growth COMPLETED.
-
-
-TIANHE, Guangzhou, China, /Xinhua-PRNewswire/ -- China World
-Trade Corporation (OTC Bulletin Board: CWTD - News), announced today
-that the CEO Clubs China Limited ("CEO Clubs"), a subsidiary of CWTC,
-signed a strategic alliance agreement with the Foundation for
-Globalization Cooperation (''FGC''). Under the agreement, CEO
-Clubs will represent FGC for merchandising and selecting sponsors
-under certain conditions for the World Culture Diversification
-Forum and the Third Global Cooperation Forum, which will be held
-in November 2005, in Hangzhou, China.
-
-China World Trade outbid CTRP on acquisition of  "NEW GENERATION"
-Southern China's largest travel company.
-
-CHAIRMAN TSANG, FORMERLY OF GOLD LION HOLDINGS has taken the reins of
-CWTD and continuing his record for success. -CWTD- is here to stay.
-
-
-
-
-Disclaimer:
-Information within this email contains "forwardlooking statements" within
-the meaning of Section 27Aof the Securities Act of 1933 and Section 21B of
-theSecurities Exchange Act of 1934. Any statements that express or involve
-discussions with respect to predictions, expectations, beliefs,
-plans,projections, objectives, goals, assumptions or future events or
-performance are not statements of historical fact and may be "forward
-looking statements."Forwardlooking statements are based on
-expectations,estimates and projections at the time the statements are made
-that involve a number of risks and uncertainties which could cause actual
-results or events to differ materially from those presently anticipated.
-Forward looking statements in this action may be identified through the use
-of words such as"projects", "foresee", "expects", "will,""anticipates,"
-"estimates," "believes," understands"or that by statements indicating
-certain actions"may," "could," or "might" occur. Risk factors include
-general economic and business conditions, the ability to acquire and develop
-specific projects, the ability to fund operations and changes in consumer
-and business consumption habits and other factors overwhich the company has
-little or no control. The publisher of this newsletter does not represent
-that the information contained in this message states all material facts or
-does not omit a material fact necessary to make the statements therein not
-misleading. All information provided within this email pertaining to
-investing, stocks, securities must be understood as information provided and
-not investment advice. The publisher of this newsletter advises all readers
-and subscribers to seek advice from a registered professional securities
-representative before deciding to trade in stocks featured within this
-email. None of the material within this report shall be construed as any
-kind of investment advice or solicitation. Many of these companies are on
-the verge of bankruptcy. You can lose all your money by investing in this
-stock. We urge you to read the company's SEC filings now, before you invest.
-The publisher of this newsletter is not a registered invstment advisor.
-Subscribers should not view information herein as legal, tax, accounting or
-investment advice. In compliance with the SecuritiesAct of 1933, Section
-17(b),The publisher of this newsletter is contracted to receive six hundred
-thousand free trading shares from a third party, not an officer,director or
-affiliate shareholder for the circulation of this report. Be aware of an
-inherent conflict of interest resulting from such compensation due to the
-fact that this is a paid advertisement and is not without bias.The party
-that paid us has a position in the stock they will sell at anytime without
-notice.This could have a negative impact on the price of the stock, causing
-you to lose money. All factual information in this report was gathered from
-public sources, including but not limited to SEC filings,Company Websites
-and Company Press Releases. The publisher of this newsletter believes this
-informationto be eliable but can make no guarantee as to its accuracy or
-completeness. Use of the material within this email constitutes your
-acceptance of these terms.
+	Alex
 
 
 --
