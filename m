@@ -1,37 +1,54 @@
-Date: Mon, 11 Jul 2005 14:16:54 -0700 (PDT)
-From: Christoph Lameter <clameter@engr.sgi.com>
-Subject: Re: [NUMA] /proc/<pid>/numa_maps to show on which nodes pages reside
-In-Reply-To: <1121113875.15095.45.camel@localhost>
-Message-ID: <Pine.LNX.4.62.0507111415420.23319@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.62.0507081410520.16934@schroedinger.engr.sgi.com>
- <1121102433.15095.26.camel@localhost>  <Pine.LNX.4.62.0507111058270.21618@schroedinger.engr.sgi.com>
- <1121113875.15095.45.camel@localhost>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Mon, 11 Jul 2005 19:55:40 -0700
+From: Paul Jackson <pj@sgi.com>
+Subject: Re: [Fwd: [PATCH 2/4] cpusets new __GFP_HARDWALL flag]
+Message-Id: <20050711195540.681182d0.pj@sgi.com>
+In-Reply-To: <42D2AE0F.8020809@austin.ibm.com>
+References: <1121101013.15095.19.camel@localhost>
+	<42D2AE0F.8020809@austin.ibm.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Hansen <haveblue@us.ibm.com>
-Cc: linux-mm <linux-mm@kvack.org>, ia64 list <linux-ia64@vger.kernel.org>, pj@sgi.com
+To: Joel Schopp <jschopp@austin.ibm.com>
+Cc: haveblue@us.ibm.com, linux-mm@kvack.org, mel@csn.ul.ie
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 11 Jul 2005, Dave Hansen wrote:
+Joel wrote:
+> I wouldn't mind  changing __GFP_USERRCLM to __GFP_USERALLOC
+> or some neutral name we could share.
 
-> Well, my point was that, if we have two, the numa_maps can be completely
-> derived in userspace from the information in memory_maps plus sysfs
-> alone.  So, why increase the kernel's complexity with two
-> implementations that can do the exact same thing?  Yes, it might make
-> the batch scheduler do one more pathname lookup, but that's not the
-> kernel's problem :)
-> 
-> BTW, are you planning on using SPARSEMEM whenever NUMA is enabled in the
-> future?  
+A neutral term would be good.  Since you are ahead of me (being
+already in Andrew's tree, while I just made my first linux-mm post),
+I figure that means you get to pick the name.  Unless it is seriously
+defective for my purposes, I will just accept what is.
 
-I am not sure if we will be using SPARSEMEM or not. 
+Dave wrote:
+> The nice part about using __GFP_USER as the name is that it describes
+> how it's going to be used rather than how the kernel is going to treat
+> it.
 
-It would not be good to make the numa_maps patch depend on SPARSEMEM since
-that is an optional feature right now.
+Yup - agreed.  Though, in real life, that's hidden beneath the (no
+underscore) GFP_USER flag, so it's only a few kernel memory hackers
+we will be confusing, not the horde of driver writers.
+
+One question.  I've not actually read the memory fragmentation
+avoidance patch, so this might be a stupid question.  That
+notwithstanding, do you really need two flags, one KERN and one USER?
+Or would one flag be sufficient - to mark USER pages.  Unmarked pages
+would be KERN, presumably.  One really only needs 2 bits if one has
+3 or 4 states to track -- if that's the case, it's not clear to me
+what those 3 or 4 states are (maybe if I actually read the patch it
+would be clear ;).
+
+I intended to CC Mel on the original post -- but then forgot to.
+Thanks for passing it along to him, Dave.
 
 
+-- 
+                  I won't rest till it's the best ...
+                  Programmer, Linux Scalability
+                  Paul Jackson <pj@sgi.com> 1.925.600.0401
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
