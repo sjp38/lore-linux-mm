@@ -1,75 +1,83 @@
-Date: Tue, 12 Jul 2005 14:05:37 +0100 (IST)
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [Fwd: [PATCH 2/4] cpusets new __GFP_HARDWALL flag]
-In-Reply-To: <20050711195540.681182d0.pj@sgi.com>
-Message-ID: <Pine.LNX.4.58.0507121353470.32323@skynet>
-References: <1121101013.15095.19.camel@localhost> <42D2AE0F.8020809@austin.ibm.com>
- <20050711195540.681182d0.pj@sgi.com>
+Date: Tue, 12 Jul 2005 07:39:53 -0700
+From: "Martin J. Bligh" <mbligh@mbligh.org>
+Reply-To: "Martin J. Bligh" <mbligh@mbligh.org>
+Subject: Re: [PATCH] gurantee DMA area for alloc_bootmem_low()
+Message-ID: <9320000.1121179193@[10.10.2.4]>
+In-Reply-To: <20050712152715.44CD.Y-GOTO@jp.fujitsu.com>
+References: <20050712152715.44CD.Y-GOTO@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Paul Jackson <pj@sgi.com>
-Cc: Joel Schopp <jschopp@austin.ibm.com>, haveblue@us.ibm.com, linux-mm@kvack.org
+To: Yasunori Goto <y-goto@jp.fujitsu.com>, linux-mm <linux-mm@kvack.org>
+Cc: "Luck, Tony" <tony.luck@intel.com>, linux-ia64@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 11 Jul 2005, Paul Jackson wrote:
+> This is a patch to guarantee that alloc_bootmem_low() allocate DMA area.
+> 
+> Current alloc_bootmem_low() is just specify "goal=0". And it is 
+> used for __alloc_bootmem_core() to decide which address is better.
+> However, there is no guarantee that __alloc_bootmem_core()
+> allocate DMA area when goal=0 is specified.
+> Even if there is no DMA'ble area in searching node, it allocates
+> higher address than MAX_DMA_ADDRESS.
+> 
+> __alloc_bootmem_core() is called by order of for_each_pgdat()
+> in __alloc_bootmem(). So, if first node (node_id = 0) has
+> DMA'ble area, no trouble will occur. However, our new Itanium2 server
+> can change which node has lower address. And panic really occurred on it.
+> The message was "bounce buffer is not DMA'ble" in swiothl_map_single().
+> 
+> To avoid this panic, following patch skips no DMA'ble node when 
+> lower address is required.
+> I tested this patch on my Tiger 4 and our new server.
 
-> Joel wrote:
-> > I wouldn't mind  changing __GFP_USERRCLM to __GFP_USERALLOC
-> > or some neutral name we could share.
->
-> A neutral term would be good.
+Seems reasonable ... but do you not want to check that the returned
+ptr is actually less than MAX_DMA_ADDRESS as well? 
 
-I agree as having two flags for essentially the same thing is just
-a waste. I guess there will be some discussion on what the other
-fragmentation flags should be called.
+> Please apply.
+> 
+> Thanks.
+> 
+> Signed-off by Yasunori Goto <y-goto@jp.fujitsu.com>
+> 
+> Index: allocbootmem/mm/bootmem.c
+> ===================================================================
+> --- allocbootmem.orig/mm/bootmem.c	2005-06-30 11:57:13.000000000 +0900
+> +++ allocbootmem/mm/bootmem.c	2005-07-08 20:46:56.209040741 +0900
+> @@ -387,10 +387,16 @@
+>  	pg_data_t *pgdat = pgdat_list;
+>  	void *ptr;
+>  
+> -	for_each_pgdat(pgdat)
+> +	for_each_pgdat(pgdat){
+> +
+> +		if (goal < __pa(MAX_DMA_ADDRESS) &&
+> +		    pgdat->bdata->node_boot_start >= __pa(MAX_DMA_ADDRESS))
+> +			continue; /* Skip No DMA node */
+> +
+>  		if ((ptr = __alloc_bootmem_core(pgdat->bdata, size,
+>  						align, goal)))
+>  			return(ptr);
+> +	}
+>  
+>  	/*
+>  	 * Whoops, we cannot satisfy the allocation request.
+> 
+> -- 
+> Yasunori Goto 
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"aart@kvack.org"> aart@kvack.org </a>
+> 
+> 
 
-For consistency, we might want to rethink the name of KERNRCLM. I am still
-happy with the name as it says "this kernel allocation is something that
-will be reclaimed shortly or can be reclaimed on demand" but others might
-feel differently.
 
-> Dave wrote:
-> > The nice part about using __GFP_USER as the name is that it describes
-> > how it's going to be used rather than how the kernel is going to treat
-> > it.
->
-> Yup - agreed.  Though, in real life, that's hidden beneath the (no
-> underscore) GFP_USER flag, so it's only a few kernel memory hackers
-> we will be confusing, not the horde of driver writers.
->
-> One question.  I've not actually read the memory fragmentation
-> avoidance patch, so this might be a stupid question.  That
-> notwithstanding, do you really need two flags, one KERN and one USER?
-
-There are two GFP flags to determine three types of allocation
-
-__GFP_USERRCLM => Allocation is a user page or a disk buffer page
-__GFP_KERNRCLM => Kernel reclaimable allocation or one that is short-lived
-
-Neither flag set implies a normal kernel allocation that is not expected
-to be reclaimed.
-
-Joel, when merging the patches, there is one hack you need to watch out
-for. It is important for performance reasons but it is 100% obvious
-either.
-
-gfp_flags & (__GFP_KERNRCLM | __GFP_USERRCLM) >> __GFP_TYPE_SHIFT gives
-the type of allocation as ALLOC_USERRCLM, ALLOC_KERNRCLM, ALLOC_KERNNORCLM
-or ALLOC_FALLBACK. Th ALLOC_* values are used to index into the array of
-freelists in the struct zone.
-
-If the USER flag is shared, it means that your patches will be adding the
-__GFP_KERNRCLM flag which reverses the values. This means you will also
-need to update the values of ALLOC_* to keep the __GFP_TYPE_SHIFT hack
-working. Older patches used a switch statement on the flags but it takes a
-surprising length of time in a critical path.
-
--- 
-Mel Gorman
-Part-time Phd Student                          Java Applications Developer
-University of Limerick                         IBM Dublin Software Lab
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
