@@ -1,36 +1,69 @@
-Date: Mon, 11 Jul 2005 23:11:50 -0700
-From: Paul Jackson <pj@sgi.com>
-Subject: Re: [Fwd: [PATCH 2/4] cpusets new __GFP_HARDWALL flag]
-Message-Id: <20050711231150.4d72c8a3.pj@sgi.com>
-In-Reply-To: <1121145895.5446.1.camel@localhost>
-References: <1121101013.15095.19.camel@localhost>
-	<42D2AE0F.8020809@austin.ibm.com>
-	<20050711195540.681182d0.pj@sgi.com>
-	<1121145895.5446.1.camel@localhost>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Date: Tue, 12 Jul 2005 15:50:09 +0900
+From: Yasunori Goto <y-goto@jp.fujitsu.com>
+Subject: [PATCH] gurantee DMA area for alloc_bootmem_low()
+Message-Id: <20050712152715.44CD.Y-GOTO@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Hansen <haveblue@us.ibm.com>
-Cc: jschopp@austin.ibm.com, linux-mm@kvack.org, mel@csn.ul.ie
+To: linux-mm <linux-mm@kvack.org>
+Cc: "Luck, Tony" <tony.luck@intel.com>, linux-ia64@vger.kernel.org, "Martin J. Bligh" <mbligh@mbligh.org>
 List-ID: <linux-mm.kvack.org>
 
-Dave wrote:
-> four types ==> two GFP bits
+Hello.
 
-Ok.  Guess I should read the patch to figure out
-what these 4 types are (and which subsets thereof
-map to my 2 types USER and !USER aka KERN.)
+This is a patch to guarantee that alloc_bootmem_low() allocate DMA area.
 
-If there is not a surjective function from your
-4 types to my 2 types, then I can't so easily
-share your GFP bits.
+Current alloc_bootmem_low() is just specify "goal=0". And it is 
+used for __alloc_bootmem_core() to decide which address is better.
+However, there is no guarantee that __alloc_bootmem_core()
+allocate DMA area when goal=0 is specified.
+Even if there is no DMA'ble area in searching node, it allocates
+higher address than MAX_DMA_ADDRESS.
+
+__alloc_bootmem_core() is called by order of for_each_pgdat()
+in __alloc_bootmem(). So, if first node (node_id = 0) has
+DMA'ble area, no trouble will occur. However, our new Itanium2 server
+can change which node has lower address. And panic really occurred on it.
+The message was "bounce buffer is not DMA'ble" in swiothl_map_single().
+
+To avoid this panic, following patch skips no DMA'ble node when 
+lower address is required.
+I tested this patch on my Tiger 4 and our new server.
+
+Please apply.
+
+Thanks.
+
+Signed-off by Yasunori Goto <y-goto@jp.fujitsu.com>
+
+Index: allocbootmem/mm/bootmem.c
+===================================================================
+--- allocbootmem.orig/mm/bootmem.c	2005-06-30 11:57:13.000000000 +0900
++++ allocbootmem/mm/bootmem.c	2005-07-08 20:46:56.209040741 +0900
+@@ -387,10 +387,16 @@
+ 	pg_data_t *pgdat = pgdat_list;
+ 	void *ptr;
+ 
+-	for_each_pgdat(pgdat)
++	for_each_pgdat(pgdat){
++
++		if (goal < __pa(MAX_DMA_ADDRESS) &&
++		    pgdat->bdata->node_boot_start >= __pa(MAX_DMA_ADDRESS))
++			continue; /* Skip No DMA node */
++
+ 		if ((ptr = __alloc_bootmem_core(pgdat->bdata, size,
+ 						align, goal)))
+ 			return(ptr);
++	}
+ 
+ 	/*
+ 	 * Whoops, we cannot satisfy the allocation request.
 
 -- 
-                  I won't rest till it's the best ...
-                  Programmer, Linux Scalability
-                  Paul Jackson <pj@sgi.com> 1.925.600.0401
+Yasunori Goto 
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
