@@ -1,43 +1,43 @@
-Date: Tue, 12 Jul 2005 17:58:52 -0400
-From: "Jeannine Mack" <Jeannine.Mack.R@Bolt.com>
-Subject: Report is Ready
-Message-ID: <BAY10-F236A1BA450DC2A3634D6D0B9900@Bolt.com>
+Date: Wed, 13 Jul 2005 14:09:19 +0900
+From: Yasunori Goto <y-goto@jp.fujitsu.com>
+Subject: Re: [PATCH] gurantee DMA area for alloc_bootmem_low()
+In-Reply-To: <9320000.1121179193@[10.10.2.4]>
+References: <20050712152715.44CD.Y-GOTO@jp.fujitsu.com> <9320000.1121179193@[10.10.2.4]>
+Message-Id: <20050713110109.F796.Y-GOTO@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: "Martin J. Bligh" <mbligh@mbligh.org>
+Cc: linux-mm <linux-mm@kvack.org>, "Luck, Tony" <tony.luck@intel.com>, linux-ia64@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-The Inbox Discount Shopping Network! It's FREE to use!
+> > To avoid this panic, following patch skips no DMA'ble node when 
+> > lower address is required.
+> > I tested this patch on my Tiger 4 and our new server.
+> 
+> Seems reasonable ... but do you not want to check that the returned
+> ptr is actually less than MAX_DMA_ADDRESS as well? 
 
-The easiest way to shop online is here. Imagine having the products &
-services you're interested in come directly to your email!
+Well... If there isn't enough DMA area in a node by too much
+lower memory request or by something strange memory map in the node,
+its case might occur.
+I don't know it will really happen. But, the after check might be better
+than nothing.
 
-Here is how it works(1-2-3).
+To tell the truth, I did the after check at first
+"instead of" previous check like this patch. 
+In its patch, if its DMA check failed, 
+allocated area are should be freed by free_bootmem_core(). 
+But hung up occurred by it, and I changed my patch to previous check
+instead of deep investigation of its hung up.
 
-1. You select the products & services you want to see off our website. NO
-SIGN-UP required!
-2. We send you the latest discounted products/services in your area of
-interest via email. Saving you hours of search time.
-3. See the products/service on sale in seconds on the website.
+Ok. I'll investigate more.
 
-You will only be receiving new products or services that you specifically
-request in your area of selected interest.
-Your email is not sold or abused in any way.
-
-Use our innovative and fascinating service Free for life. We do the work
-for you.
-You can add or delete categories of interest at anytime upon receiving
-your first email.
-
-Give it a test-drive to see how easy & fun it is to use.
-http://inboxdealsonline.com
-
-
-If you have no interest in our service we will be happy to take you off
-permanently. We delete all emails that request deletion off our system
-with 3-4 business days. Thank you.
-http://inboxdealsonline.com/Site/databaseupdate.asp
-
+Thanks.
+-- 
+Yasunori Goto 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
