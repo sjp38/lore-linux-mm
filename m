@@ -1,35 +1,34 @@
-Date: Wed, 13 Jul 2005 07:44:38 -0100
-From: "Sammy Durham" <siegert@emailaccount.com>
-Message-ID: <789c.fsf@calle43.net>
-Subject: Your low mortage rate
-Return-Path: <siegert@emailaccount.com>
-To: blah@kvack.org
-Cc: kernel@kvack.org, linux-aio@kvack.org, linux-mm@kvack.org, linux-mm-archive@kvack.org, mailer-daemon@kvack.org, owner-linux-aio@kvack.org, owner-linux-mm@kvack.org, owner-majordomo@kvack.org
+Date: Wed, 13 Jul 2005 09:04:14 -0200
+From: "Gus Davidson" <Gus.Davidson.E@graffiti.net>
+Subject: Is this your email? [linux-mm@kvack.org]
+Message-ID: <BAY10-F236A1BA010DC2A5284D6D0B8100@graffiti.net>
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hello,
+July 13th 2005
 
- We tried contacting you awhile ago about your low interest morta(ge rate.
+Our Brokers have found a company that will refinance your house. 
 
- You have been selected for our lowest rate in years...
+Your L0AN Amount Options:
+$90,456 to $289, 026
 
- You could get over $420,000 for as little as $400 a month!
+Your Optional Rates:
+3.77% - 5.81%
 
- Ba(d credit, Bank*ruptcy? Doesn't matter, low rates are fixed no matter what!
+To have our broker contact you about these options please visit:
+http://www.Linux-mm.pr33n.com/formupdate.asp
 
- 
- To get a free, no obli,gation consultation click below:
+Cheers
+Gus Davidson [Ext:268]
+Pre-Approval Administration
 
- http://www.int3lligent.com/signs.asp
+Are our records incorrect?
+http://Linux-mm.pr33n.com/updaterecord.asp
 
-
-
- Best Regards,
-
- Debra Glass
- 
- to be remov(ed:	http://www.int3lligent.com/deletion.asp
-
- this process takes one week, so please be patient. we do our 
- best to take your email/s off but you have to fill out a rem/ove
- or else you will continue to recieve email/s.
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"aart@kvack.org"> aart@kvack.org </a>
