@@ -1,92 +1,84 @@
-Date: Sat, 16 Jul 2005 00:07:54 +0200
-From: Andi Kleen <ak@suse.de>
-Subject: Re: [NUMA] Display and modify the memory policy of a process through /proc/<pid>/numa_policy
-Message-ID: <20050715220753.GK15783@wotan.suse.de>
-References: <200507150452.j6F4q9g10274@unix-os.sc.intel.com> <Pine.LNX.4.62.0507142152400.2139@schroedinger.engr.sgi.com> <20050714230501.4a9df11e.pj@sgi.com> <Pine.LNX.4.62.0507150901500.8556@schroedinger.engr.sgi.com> <20050715140437.7399921f.pj@sgi.com> <20050715211210.GI15783@wotan.suse.de> <Pine.LNX.4.62.0507151413360.11563@schroedinger.engr.sgi.com> <20050715214700.GJ15783@wotan.suse.de> <Pine.LNX.4.62.0507151450570.11656@schroedinger.engr.sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.62.0507151450570.11656@schroedinger.engr.sgi.com>
+Date: Fri, 15 Jul 2005 15:30:40 -0700 (PDT)
+From: Christoph Lameter <clameter@engr.sgi.com>
+Subject: Re: [NUMA] Display and modify the memory policy of a process through
+ /proc/<pid>/numa_policy
+In-Reply-To: <20050715220753.GK15783@wotan.suse.de>
+Message-ID: <Pine.LNX.4.62.0507151518580.12160@schroedinger.engr.sgi.com>
+References: <200507150452.j6F4q9g10274@unix-os.sc.intel.com>
+ <Pine.LNX.4.62.0507142152400.2139@schroedinger.engr.sgi.com>
+ <20050714230501.4a9df11e.pj@sgi.com> <Pine.LNX.4.62.0507150901500.8556@schroedinger.engr.sgi.com>
+ <20050715140437.7399921f.pj@sgi.com> <20050715211210.GI15783@wotan.suse.de>
+ <Pine.LNX.4.62.0507151413360.11563@schroedinger.engr.sgi.com>
+ <20050715214700.GJ15783@wotan.suse.de> <Pine.LNX.4.62.0507151450570.11656@schroedinger.engr.sgi.com>
+ <20050715220753.GK15783@wotan.suse.de>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@engr.sgi.com>
-Cc: Andi Kleen <ak@suse.de>, Paul Jackson <pj@sgi.com>, kenneth.w.chen@intel.com, linux-mm@kvack.org, linux-ia64@vger.kernel.org
+To: Andi Kleen <ak@suse.de>
+Cc: Paul Jackson <pj@sgi.com>, kenneth.w.chen@intel.com, linux-mm@kvack.org, linux-ia64@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Jul 15, 2005 at 02:55:45PM -0700, Christoph Lameter wrote:
-> On Fri, 15 Jul 2005, Andi Kleen wrote:
+On Sat, 16 Jul 2005, Andi Kleen wrote:
+
+> > > I don't believe any admin will mess with virtual addresses.
+> > 
+> > No but they will mess with vma's which are only identifiable by the 
+> > starting virtual address.
 > 
-> > So for what does that batch monstrosity need to know 
-> > about the VMAs? 
+> What for? 
+
+For page migration.
+
+> > Look at the existing patches and you see a huge complexity and heuristics 
+> > because the kernel guesses which vma's to migrate. If the vma are 
+> They kernel doesn't guess, it knows exactly.
+
+Maybe you need to reread the discussion on page migration that ended up 
+with filesystem modifications?
+
+> > > Now I can see some people being interested in more fine grained
+> > > policy, but the only sane way to do that is to change the source
+> > > code and use libnuma.
+> > 
+> > Can libnuma change the memory policy and move pages of existing processes?
 > 
-> It needs to know where the memory of a process is. Thus 
+> If someone hooks it into mbind() sure. But most likely 
+> such changes would be handled by migrate_pages()
 
-For that the counters I proposed are enough.
+I cannot imagine that migrate pages make it into the kernel in its 
+current form. It combines multiple functionalities that need to be 
+separate (it does update the memory policy, clears the page cache, deals 
+with memory policy translations and then does heuristics to guess which 
+vma's to transfer) and then provides a complex function moving of pages 
+between groups of nodes.
 
+Therefore:
 
-> /proc/<pid>/numa_maps.
+1. Updating the memory policy is something that can be useful in other 
+   settings as well so it need to be separate. The patch we are discussing
+   does exactly that. The batch scheduler or the sysadmin can invoke this
+   functionality before migrating pages if necessary.
 
-All it should do is to start processes on specific nodes
-(already should work) 
-and perhaps later migrate processes from some set of specific
-nodes to another set of specific nodes (using Ray's page
-migration call) 
+2. Clearing the page cache is some work pursued by someone else. The batch
+   scheduler or the sysadmin can invoke this function if necessary before
+   migrating pages.
 
-I don't see where a knowledge of specific VMAs is needed anywhere
-in this.
+3. Memory policy translations better be done in user space. The batch
+   scheduler /sysadmin knows which node has what pages so it can easily 
+   develop page movement scheme that is optimal for the process.
 
+4. Moving pages should be a simple function like
 
+   migrate_pages(vma, from-node, nr-pages, to-node)
 
-> 
-> > I don't believe any admin will mess with virtual addresses.
-> 
-> No but they will mess with vma's which are only identifiable by the 
-> starting virtual address.
-
-What for? 
-
-
->  
-> > But for "uncooperative" programs working on bigger objects
-> > like threads/files/shm areas/processes makes much more sense. And gives
-> > much cleaner interfaces too.
-> 
-> Look at the existing patches and you see a huge complexity and heuristics 
-> because the kernel guesses which vma's to migrate. If the vma are 
-
-They kernel doesn't guess, it knows exactly.
-
-> exposed to the batch scheduler / admin then things become much easier to 
-> implement and the batch scheduler / admin has finer grained control.
-
-So you want to tear up the interface Ray came up with and we discussed
-and agreed on and replace it with something completely different and something
-that uses this ugly /proc file? I don't think that's a good idea.
+   The batch scheduler / sysadmin can invoke this function multiple times
+   to move groups of nodes or only move parts of memory from a node (which
+   was not really supported by Ray's migrate pages instead another 
+   heuristics guessed how much to move and there was no option of 
+   partial moves).
 
 
-
-> 
-> > Now I can see some people being interested in more fine grained
-> > policy, but the only sane way to do that is to change the source
-> > code and use libnuma.
-> 
-> Can libnuma change the memory policy and move pages of existing processes?
-
-If someone hooks it into mbind() sure. But most likely 
-such changes would be handled by migrate_pages()
-
-
-
->  
-> > Basically to mess with finegrained virtual addresses you need code access,
-> > and when you have that you can as well do it well and add 
-> > libnuma and recompile.
-> 
-> libnuma is pretty heavy and AFAIK does not have the functionality that is 
-
-Heavy??? You're not serious, right? 
-
--Andi
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
