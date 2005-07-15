@@ -1,54 +1,38 @@
-Message-Id: <200507150555.j6F5tMg10646@unix-os.sc.intel.com>
-From: "Chen, Kenneth W" <kenneth.w.chen@intel.com>
-Subject: RE: [NUMA] Display and modify the memory policy of a process through /proc/<pid>/numa_policy
-Date: Thu, 14 Jul 2005 22:55:21 -0700
-MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="us-ascii"
-Content-Transfer-Encoding: 7bit
+Date: Thu, 14 Jul 2005 23:05:01 -0700
+From: Paul Jackson <pj@sgi.com>
+Subject: Re: [NUMA] Display and modify the memory policy of a process
+ through /proc/<pid>/numa_policy
+Message-Id: <20050714230501.4a9df11e.pj@sgi.com>
 In-Reply-To: <Pine.LNX.4.62.0507142152400.2139@schroedinger.engr.sgi.com>
+References: <200507150452.j6F4q9g10274@unix-os.sc.intel.com>
+	<Pine.LNX.4.62.0507142152400.2139@schroedinger.engr.sgi.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: 'Christoph Lameter' <clameter@engr.sgi.com>
-Cc: linux-mm@kvack.org, linux-ia64@vger.kernel.org, pj@sgi.com
+To: Christoph Lameter <clameter@engr.sgi.com>
+Cc: kenneth.w.chen@intel.com, linux-mm@kvack.org, linux-ia64@vger.kernel.org, Andi Kleen <ak@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-Christoph Lameter wrote on Thursday, July 14, 2005 10:08 PM
-> On Thu, 14 Jul 2005, Chen, Kenneth W wrote:
-> > > Additionally the patch also adds write capability to the "numa_maps". One
-> > > can write a VMA address followed by the policy to that file to change the
-> > > mempolicy of an individual virtual memory area. i.e.
-> > 
-> > This looks a lot like a back door access to libnuma and numactl capability.
-> > Are you sure libnuma and numactl won't suite your needs?
-> 
-> The functionality offered here is different. numactl's main concern is 
-> starting processes. libnuma is mostly concerned with a process 
-> controlling its own memory allocation.
-> 
+Christoph wrote:
 > This is an implementation that deals with monitoring and managing running 
-> processes. For an effective batch scheduler we need outside control 
-> over memory policy.
+> processes.
 
-I want to warn you that controlling via external means to the app with numa
-policy is extremely unreliable and difficult.  Since in-kernel numa policy
-is enforced for the new allocation.  When pages inside the vma have already
-been touched before you echo the policy into the proc file, it has no effect.
+So is this patch roughly equivalent to adding a pid to the
+mbind/set_mempolicy/get_mempolicy system calls?
 
-That means one need some synchronization point between sys admin echo a
-desired policy into the /proc file to the time app touches the memory.  It
-sound like you have another patch in the pipeline to address that.  But
-there is always some usage model this will break down (me thinking interleave
-mode...).
+Not that I am advocating for or against adding doing that.  But this
+seems like alot of code, with new and exciting API details, just to
+add a pid argument, if such it be.
 
+Andi - could you remind us all why you chose not to have a pid argument
+in these calls?
 
-> It needs to be easy to see what is going on in the system (numa_maps)
-
-Yeah, I like the numa_maps a lot :-)
-
-
-- Ken
-
+-- 
+                  I won't rest till it's the best ...
+                  Programmer, Linux Scalability
+                  Paul Jackson <pj@sgi.com> 1.925.600.0401
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
