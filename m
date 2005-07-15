@@ -1,41 +1,42 @@
-Received: from Verale330sb730ebv7h (52.86.52.42) by ozubzymwwd882.prodigy.net
-          (InterMail vM.5.01.06.05 140-528-674-355-203-65714743) with SMTP
-          id <82032908214811.ZGX449.ozxdcos334165.prodigy.net@gladel34k920ujz335z>
-          for <linux-mm@kvack.org>; Sat, 14 May 2005 18:08:09 -0400
-Message-ID: <6176oe147yw79$82364$muk1u998@Verayg921gk65zsr7o>
-From: "Jacquelyn Aaron" <atnddhfio@netscape.net>
-Subject: Software 3000 cilia
-Date: Sun, 15 May 2005 03:02:09 +0500
-MIME-Version: 1.0
-Content-Type: multipart/alternative;
-	boundary="--legion"
+Date: Fri, 15 Jul 2005 14:04:37 -0700
+From: Paul Jackson <pj@sgi.com>
+Subject: Re: [NUMA] Display and modify the memory policy of a process
+ through /proc/<pid>/numa_policy
+Message-Id: <20050715140437.7399921f.pj@sgi.com>
+In-Reply-To: <Pine.LNX.4.62.0507150901500.8556@schroedinger.engr.sgi.com>
+References: <200507150452.j6F4q9g10274@unix-os.sc.intel.com>
+	<Pine.LNX.4.62.0507142152400.2139@schroedinger.engr.sgi.com>
+	<20050714230501.4a9df11e.pj@sgi.com>
+	<Pine.LNX.4.62.0507150901500.8556@schroedinger.engr.sgi.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Christoph Lameter <clameter@engr.sgi.com>
+Cc: kenneth.w.chen@intel.com, linux-mm@kvack.org, linux-ia64@vger.kernel.org, ak@suse.de
 List-ID: <linux-mm.kvack.org>
 
-----legion
-Content-Type: text/plain;
-Content-Transfer-Encoding: quoted-printable
+Christoph wrote:
+> I think the syscall interface is plainly wrong for monitoring and managing 
+> a process.
 
-Hello
+Well ... actually I'd have to agree with that.  I chose a filesys
+interface for cpusets for similar reasons.
 
+However in this case, the added functionality seems so close to
+mbind/mempolicy that one has to at least give consideration to
+remaining consistent with that style of interface.
 
-We got thousands software at low low price 
+These questions of interface style (filesys or syscall) probably don't
+matter, however. at least not yet.  First we need to make sense of
+the larger issues that Ken and Andi raise, of whether this is a good
+thing to do.
 
-visit us now 
-
-http://www.erevansoft.net
-
-
-
-
-phage
-
-
-----legion--
-
-
+-- 
+                  I won't rest till it's the best ...
+                  Programmer, Linux Scalability
+                  Paul Jackson <pj@sgi.com> 1.925.600.0401
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
