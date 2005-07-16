@@ -1,9 +1,9 @@
-Date: Sat, 16 Jul 2005 15:39:01 -0700
+Date: Sat, 16 Jul 2005 16:30:30 -0700
 From: Paul Jackson <pj@sgi.com>
 Subject: Re: [NUMA] Display and modify the memory policy of a process
  through /proc/<pid>/numa_policy
-Message-Id: <20050716153901.3082f1d8.pj@sgi.com>
-In-Reply-To: <Pine.LNX.4.62.0507160808570.21470@schroedinger.engr.sgi.com>
+Message-Id: <20050716163030.0147b6ba.pj@sgi.com>
+In-Reply-To: <20050716020141.GO15783@wotan.suse.de>
 References: <20050715214700.GJ15783@wotan.suse.de>
 	<Pine.LNX.4.62.0507151450570.11656@schroedinger.engr.sgi.com>
 	<20050715220753.GK15783@wotan.suse.de>
@@ -15,95 +15,73 @@ References: <20050715214700.GJ15783@wotan.suse.de>
 	<20050715234402.GN15783@wotan.suse.de>
 	<Pine.LNX.4.62.0507151647300.12832@schroedinger.engr.sgi.com>
 	<20050716020141.GO15783@wotan.suse.de>
-	<Pine.LNX.4.62.0507160808570.21470@schroedinger.engr.sgi.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@engr.sgi.com>
-Cc: ak@suse.de, kenneth.w.chen@intel.com, linux-mm@kvack.org, linux-ia64@vger.kernel.org
+To: Andi Kleen <ak@suse.de>
+Cc: clameter@engr.sgi.com, kenneth.w.chen@intel.com, linux-mm@kvack.org, linux-ia64@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Christoph wrote:
-> We can number the vma's if that makes you feel better and refer to the 
-> number of the vma.
+Andi wrote:
+> I think the per VMA approach is fundamentally wrong because
+> virtual addresses are nothing an external user can safely
+> access.
 
-I really doubt you want to go down that path.
+Earlier, he also wrote:
+> In short blocks of memory are useless here because they have no 
+> relationship to what the code actually does. 
 
-VMA's are a kernel internel detail.  They can come and go, be merged
-and split, in the dark of the night, transparent to user space.
+There are two questions here - should we and can we.
 
-One might argue that virtual address ranges (rather than VMAs) are
-appropriate to be manipulated from outside the task, on the other
-side of the position that Andi takes.  Not that I am arguing such --
-Andi is making stronger points against such than I am able to refute.
+One the one hand, I hear Andi saying we should not want to alter the
+placement of pages allocated to an external task at such a fine level
+of granularity.
 
-But VMA's are not really visible, except via diagnostic displays
-(and Andi makes a good case against even those) to user space; not
-even the VMA's within one's own task.
+On the other hand, I hear him saying we can't do it, because the
+locking cannot be safely handled.
 
-No, I don't think you want to consider numbering VMA's for the purposes
-of manipulating them.
+There is also one confusion that I sometimes succumb to, reading these
+replies - between memory policies to control future allocations and
+memory policies to relocate already allocated memory.
 
-===
+I think between the numa calls (mbind, set_mempolicy) and cpusets,
+we have a decent array of mechanisms to control future allocations.
+The full set of features required may not be complete, but the
+framework seems to be in place, and the majority of what features we
+will need are supported now.
 
-My intuition is that we are seeing a clash of computing models here.
+We are lacking in sufficient means to relocate already allocated
+user memory.
 
-Main memory is becoming hundreds, even thousands, of times slower
-than internal CPU operations.  And main memory is, under the rubric
-"NUMA", becoming no longer a monolithic resource on larger systems.
-Within a few years, high end workstations will join the ranks of
-NUMA systems, just as they have already joined the ranks of SMP
-systems.
+I'd disagree with Andi that we should not support rearranging memory
+at a fine granularity.  For most systems and most applications, Andi
+is no doubt right.  But for some systems and some applications, such
+as big long running tightly parallel applications on NUMA systems,
+placement is often well understood and closely managed at a fine
+granularity, because algorithm and memory placement closely interact,
+and can have a huge impact on performance.
 
-What was once the private business of each individual task, it's
-address space and the placement of its memory, is now becoming the
-proper business of system wide administration.  This is because memory
-placement can have substantial affects on system and job performance.
+I willingly bow to Andi's expertise when he says we can't do it now
+because memory structures and placement cannot be safely modified
+from outside a task.
 
-We see a variation of this clash on issues of how the kernel should
-consume and place its internal memory for caches, buffers and such.
-What used to be the private business of the kernel, guided by the
-rule that it is best to consume almost all available memory to
-cache something, is becoming a system problem, as it can be counter
-productive on NUMA systems.
+But I don't agree that we shouldn't look for a way to do it.
 
-Folks like SGI, on the high end of big honkin NUMA iron, are seeing
-it first.  As system architectures become more complex, and scaled
-down NUMA architectures become in more widespread use, others will
-see it as well, though with no doubt different tradeoffs and ordering
-of requirements than SGI and its competitors notice currently.
+We need a way to safely rearrange the placement of already allocated
+user memory pages, at a fine granularity (per physical page), without
+significant impact to the main body of kernel memory management code.
 
-However, I would presume that Andi is entirely correct, and that
-the architecture of the kernel does not allow one task safely to
-manipulate another's address space or memory placement there under,
-at least not in a way that us mere mortals can understand.
+I think that must mean code operating within the context of the target
+task.  I suspect that means at least a portion of this code must be
+operating within kernel space.  It should enable external, system
+administrator imposed, per-page relocation of already allocated memory.
 
-A rock and a hard place.
-
-Just brainstorming ... if one could load a kernel module that could
-be called in the context of a target task, either when it is returning
-from kernel space or was entering or leaving a timer/resched interrupt
-taken while in user space, where that module could, if it was so
-coded, munge the tasks memory placement, then would this provide a
-basis for solutions to some of these problems?
-
-I am presuming that the hooks for such a module, given it was under
-GPL license, would be modest, and of minimum burden to the great
-majority of systems that had no such need.
-
-In short, when memory management and placement has such a dominant
-impact on overall system performance, it cannot remain solely the
-private business of each application.  We need to look for a safe and
-simple means to enable external (from outside the task) management
-of a tasks memory, without requiring massive surgery on a large body
-of critical code that is (quite properly) not designed to handle such.
-
-And we have to co-exist with the folks pushing Linux in the other
-direction, embedded in wrist watches or whatever.  Those folks will
-properly refuse to waste any non-trivial number brain or CPU cycles
-on NUMA requirements.
+In some cases, the details of the code that decide what page should
+go where will be very specific to a situation, and belong in user
+space, or at most, a loadable kernel module, certainly not in main
+line kernel code.
 
 -- 
                   I won't rest till it's the best ...
