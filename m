@@ -1,9 +1,9 @@
-Date: Sat, 16 Jul 2005 20:50:38 -0700
+Date: Sat, 16 Jul 2005 21:51:21 -0700
 From: Paul Jackson <pj@sgi.com>
 Subject: Re: [NUMA] Display and modify the memory policy of a process
  through /proc/<pid>/numa_policy
-Message-Id: <20050716205038.48c05e96.pj@sgi.com>
-In-Reply-To: <Pine.LNX.4.62.0507161842090.26674@schroedinger.engr.sgi.com>
+Message-Id: <20050716215121.6c04ffb0.pj@sgi.com>
+In-Reply-To: <Pine.LNX.4.62.0507162016470.27506@schroedinger.engr.sgi.com>
 References: <20050715214700.GJ15783@wotan.suse.de>
 	<Pine.LNX.4.62.0507151450570.11656@schroedinger.engr.sgi.com>
 	<20050715220753.GK15783@wotan.suse.de>
@@ -16,7 +16,7 @@ References: <20050715214700.GJ15783@wotan.suse.de>
 	<Pine.LNX.4.62.0507151647300.12832@schroedinger.engr.sgi.com>
 	<20050716020141.GO15783@wotan.suse.de>
 	<20050716163030.0147b6ba.pj@sgi.com>
-	<Pine.LNX.4.62.0507161842090.26674@schroedinger.engr.sgi.com>
+	<Pine.LNX.4.62.0507162016470.27506@schroedinger.engr.sgi.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
@@ -27,29 +27,21 @@ Cc: ak@suse.de, kenneth.w.chen@intel.com, linux-mm@kvack.org, linux-ia64@vger.ke
 List-ID: <linux-mm.kvack.org>
 
 Christoph wrote:
-> Correct. We could implement the changing of policies via an extension
-> of the existing libnuma. That could be easily done as far as I can
-> tell. If that is done then the patch that I proposed is no longer
-> necessary. But then libnuma needs to also be extended to
-> 
-> 1. Allow the discovery of the memory policies of each vma for each
-> process
+> Here is one approach to locking using xchg.
 
-I'm missing something here.  Are you saying that just a change to
-libnuma would suffice to accomplish what you sought with this patch?
+What I see here doesn't change the behaviour of the
+kernel any - just adds some locked exchanges, right?
 
-If that's the case, we don't need a kernel patch, right?
+I thought the hard part was having some other task
+change the current tasks mempolicy.  For example,
+how does one task sync another tasks mempolicy up
+with its cpuset, or synchronously get the policies
+zonelist or preferred node set correctly?
 
-And despite Andi's urging us to only access these facilities via
-libnuma, there is no law to that affect that I know of.  At the least,
-you could present user level only code that accomplished the object
-of this patch set, with no kernel change.
+I guess that this approach is intended to show how
+to make it easy to add that hard part, right?
 
-I don't think that is possible, short of gross hackery on /dev/mem.
-I think some sort of kernel change is required to enable one task to
-change the numa policy of another task.
-
-What the heck, over ??
+... whatever ... guess I'm still missing something ...
 
 -- 
                   I won't rest till it's the best ...
