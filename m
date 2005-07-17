@@ -1,9 +1,9 @@
-Date: Sat, 16 Jul 2005 18:55:13 -0700 (PDT)
+Date: Sat, 16 Jul 2005 20:21:51 -0700 (PDT)
 From: Christoph Lameter <clameter@engr.sgi.com>
 Subject: Re: [NUMA] Display and modify the memory policy of a process through
  /proc/<pid>/numa_policy
 In-Reply-To: <20050716163030.0147b6ba.pj@sgi.com>
-Message-ID: <Pine.LNX.4.62.0507161842090.26674@schroedinger.engr.sgi.com>
+Message-ID: <Pine.LNX.4.62.0507162016470.27506@schroedinger.engr.sgi.com>
 References: <20050715214700.GJ15783@wotan.suse.de>
  <Pine.LNX.4.62.0507151450570.11656@schroedinger.engr.sgi.com>
  <20050715220753.GK15783@wotan.suse.de> <Pine.LNX.4.62.0507151518580.12160@schroedinger.engr.sgi.com>
@@ -24,55 +24,160 @@ On Sat, 16 Jul 2005, Paul Jackson wrote:
 > On the other hand, I hear him saying we can't do it, because the
 > locking cannot be safely handled.
 
-That should have been brought up earlier because the page migration 
-patches by Ray always modified the policy and Andi agreed to that.
+Here is one approach to locking using xchg. This is restricted only to the 
+policy fields on task_struct and vm_area_struct. One could also 
+synchronize by taking the alloc_lock in task_struct. I did not use xchg
+during the population of vm_area_struct and task_struct and also not 
+during the destruction of these structures.
 
-We can certainly find a way to provide proper locking for policy changes 
-if there are concerns. The most trivial would to require atomic 
-modifications via cmpxchg.
+There may be additional races that need to be dealt with depending on 
+when the task struct and vm_area_struct become visible through the /proc 
+filesystem. However, these races are then general races affecting the use 
+of other fields in the 
+/proc filesystem.
 
-However, there is a fundamental issue with the application and the one who 
-manages the process from the outside making changed to the policy.
+Signed-off-by: Christoph Lameter <clameter@sgi.com>
+
+Index: linux-2.6.13-rc3/mm/mempolicy.c
+===================================================================
+--- linux-2.6.13-rc3.orig/mm/mempolicy.c	2005-07-16 20:07:04.000000000 -0700
++++ linux-2.6.13-rc3/mm/mempolicy.c	2005-07-16 20:07:06.000000000 -0700
+@@ -349,7 +349,7 @@ check_range(struct mm_struct *mm, unsign
+ static int policy_vma(struct vm_area_struct *vma, struct mempolicy *new)
+ {
+ 	int err = 0;
+-	struct mempolicy *old = vma->vm_policy;
++	struct mempolicy *old;
  
-Currently only the application can make these changes which avoids locking
-issues but also restricts the usefulness of these policies since they then
-cannot be used from the outside to manage the memory allocation behavior
-of a process. 
-
-If both are making changes then the outside controller may find that 
-memory allocation policy suddenly changes and an application already using
-libnuma may experience unexpected changes in memory policy. However, 
-libnuma/numactl is used when memory areas are setup to define how the 
-system should treat these memory areas. The outside management always
-works with the settings already established by the application and 
-modifies those. So in practice there will be little change of 
-interference.
-
-> There is also one confusion that I sometimes succumb to, reading these
-> replies - between memory policies to control future allocations and
-> memory policies to relocate already allocated memory.
-> 
-> I think between the numa calls (mbind, set_mempolicy) and cpusets,
-> we have a decent array of mechanisms to control future allocations.
-> The full set of features required may not be complete, but the
-> framework seems to be in place, and the majority of what features we
-> will need are supported now.
-
-Correct. We could implement the changing of policies via an extension of 
-the existing libnuma. That could be easily done as far as I can tell. If 
-that is done then the patch that I proposed is no longer necessary. But 
-then libnuma needs to also be extended to
-
-1. Allow the discovery of the memory policies of each vma for each process 
-in a system. Otherwise intelligent decisions about page migration cannot 
-be made and we end up with the kernel guessing which vma's to migrate and 
-we cannot control migration of the text segments separately from the data 
-segment etc.
-
-2. Add a function call to migrate pages in a particular vma to another 
-node. I.e.
-
-sys_page_migrate(pid, address, from-node, to_node, nr-pages)
+ 	PDprintk("vma %lx-%lx/%lx vm_ops %p vm_file %p set_policy %p\n",
+ 		 vma->vm_start, vma->vm_end, vma->vm_pgoff,
+@@ -360,7 +360,7 @@ static int policy_vma(struct vm_area_str
+ 		err = vma->vm_ops->set_policy(vma, new);
+ 	if (!err) {
+ 		mpol_get(new);
+-		vma->vm_policy = new;
++		old = xchg(&vma->vm_policy, new);
+ 		mpol_free(old);
+ 	}
+ 	return err;
+@@ -451,8 +451,7 @@ asmlinkage long sys_set_mempolicy(int mo
+ 	new = mpol_new(mode, nodes);
+ 	if (IS_ERR(new))
+ 		return PTR_ERR(new);
+-	mpol_free(current->mempolicy);
+-	current->mempolicy = new;
++	mpol_free(xchg(&current->mempolicy, new));
+ 	if (new && new->policy == MPOL_INTERLEAVE)
+ 		current->il_next = find_first_bit(new->v.nodes, MAX_NUMNODES);
+ 	return 0;
+Index: linux-2.6.13-rc3/kernel/exit.c
+===================================================================
+--- linux-2.6.13-rc3.orig/kernel/exit.c	2005-07-12 21:46:46.000000000 -0700
++++ linux-2.6.13-rc3/kernel/exit.c	2005-07-16 20:07:06.000000000 -0700
+@@ -851,8 +851,7 @@ fastcall NORET_TYPE void do_exit(long co
+ 	tsk->exit_code = code;
+ 	exit_notify(tsk);
+ #ifdef CONFIG_NUMA
+-	mpol_free(tsk->mempolicy);
+-	tsk->mempolicy = NULL;
++	mpol_free(xchg(&tsk->mempolicy, NULL));
+ #endif
+ 
+ 	BUG_ON(!(current->flags & PF_DEAD));
+Index: linux-2.6.13-rc3/include/linux/mm.h
+===================================================================
+--- linux-2.6.13-rc3.orig/include/linux/mm.h	2005-07-12 21:46:46.000000000 -0700
++++ linux-2.6.13-rc3/include/linux/mm.h	2005-07-16 20:07:06.000000000 -0700
+@@ -107,7 +107,9 @@ struct vm_area_struct {
+ 	atomic_t vm_usage;		/* refcount (VMAs shared if !MMU) */
+ #endif
+ #ifdef CONFIG_NUMA
+-	struct mempolicy *vm_policy;	/* NUMA policy for the VMA */
++	struct mempolicy *vm_policy;	/* NUMA policy for the VMA, may be updated only
++					 * with xchg or cmpxchg
++					 */
+ #endif
+ };
+ 
+Index: linux-2.6.13-rc3/include/linux/sched.h
+===================================================================
+--- linux-2.6.13-rc3.orig/include/linux/sched.h	2005-07-16 19:54:14.000000000 -0700
++++ linux-2.6.13-rc3/include/linux/sched.h	2005-07-16 20:07:06.000000000 -0700
+@@ -761,7 +761,10 @@ struct task_struct {
+ 	clock_t acct_stimexpd;	/* clock_t-converted stime since last update */
+ #endif
+ #ifdef CONFIG_NUMA
+-  	struct mempolicy *mempolicy;
++  	struct mempolicy *mempolicy;	/* Only update via xchg or cmpxchg because mempolicy
++					 * may be changed from outside of the process
++					 * context
++					 */
+ 	short il_next;
+ #endif
+ #ifdef CONFIG_CPUSETS
+Index: linux-2.6.13-rc3/fs/proc/task_mmu.c
+===================================================================
+--- linux-2.6.13-rc3.orig/fs/proc/task_mmu.c	2005-07-16 20:07:04.000000000 -0700
++++ linux-2.6.13-rc3/fs/proc/task_mmu.c	2005-07-16 20:08:49.000000000 -0700
+@@ -357,7 +357,7 @@ static ssize_t numa_policy_write(struct 
+ {
+ 	struct task_struct *task = proc_task(file->f_dentry->d_inode);
+ 	char buffer[MAX_MEMPOL_STRING_SIZE], *end;
+-	struct mempolicy *pol, *old_policy;
++	struct mempolicy *pol;
+ 
+ 	if (!capable(CAP_SYS_RESOURCE))
+ 		return -EPERM;
+@@ -373,17 +373,10 @@ static ssize_t numa_policy_write(struct 
+ 	if (*end == '\n')
+ 		end++;
+ 
+-	old_policy = task->mempolicy;
++	if (pol->policy == MPOL_DEFAULT)
++		pol = NULL;
+ 
+-
+-	if (!mpol_equal(pol, old_policy)) {
+-		if (pol->policy == MPOL_DEFAULT)
+-			pol = NULL;
+-
+-		task->mempolicy = pol;
+-		mpol_free(old_policy);
+-	} else
+-		mpol_free(pol);
++	mpol_free(xchg(&task->mempolicy, pol));
+ 
+ 	return end - buffer;
+ }
+@@ -402,7 +395,7 @@ static ssize_t numa_vma_policy_write(str
+ 	unsigned long addr;
+ 	char buffer[MAX_MEMPOL_STRING_SIZE];
+ 	char *p, *end;
+-	struct mempolicy *pol, *old_policy;
++	struct mempolicy *pol;
+ 
+ 	if (!capable(CAP_SYS_RESOURCE))
+ 		return -EPERM;
+@@ -426,16 +419,10 @@ static ssize_t numa_vma_policy_write(str
+ 	if (*end == '\n')
+ 		end++;
+ 
+-	old_policy = vma->vm_policy;
++	if (pol->policy == MPOL_DEFAULT)
++		pol = NULL;
+ 
+-	if (!mpol_equal(pol, old_policy)) {
+-		if (pol->policy == MPOL_DEFAULT)
+-			pol = NULL;
+-
+-		vma->vm_policy = pol;
+-		mpol_free(old_policy);
+-	} else
+-		mpol_free(pol);
++	mpol_free(xchg(&vma->vm_policy, pol));
+ 
+ 	return end - buffer;
+ }
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
