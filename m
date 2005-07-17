@@ -1,92 +1,78 @@
-Date: Sat, 16 Jul 2005 16:30:30 -0700
-From: Paul Jackson <pj@sgi.com>
-Subject: Re: [NUMA] Display and modify the memory policy of a process
- through /proc/<pid>/numa_policy
-Message-Id: <20050716163030.0147b6ba.pj@sgi.com>
-In-Reply-To: <20050716020141.GO15783@wotan.suse.de>
+Date: Sat, 16 Jul 2005 18:55:13 -0700 (PDT)
+From: Christoph Lameter <clameter@engr.sgi.com>
+Subject: Re: [NUMA] Display and modify the memory policy of a process through
+ /proc/<pid>/numa_policy
+In-Reply-To: <20050716163030.0147b6ba.pj@sgi.com>
+Message-ID: <Pine.LNX.4.62.0507161842090.26674@schroedinger.engr.sgi.com>
 References: <20050715214700.GJ15783@wotan.suse.de>
-	<Pine.LNX.4.62.0507151450570.11656@schroedinger.engr.sgi.com>
-	<20050715220753.GK15783@wotan.suse.de>
-	<Pine.LNX.4.62.0507151518580.12160@schroedinger.engr.sgi.com>
-	<20050715223756.GL15783@wotan.suse.de>
-	<Pine.LNX.4.62.0507151544310.12371@schroedinger.engr.sgi.com>
-	<20050715225635.GM15783@wotan.suse.de>
-	<Pine.LNX.4.62.0507151602390.12530@schroedinger.engr.sgi.com>
-	<20050715234402.GN15783@wotan.suse.de>
-	<Pine.LNX.4.62.0507151647300.12832@schroedinger.engr.sgi.com>
-	<20050716020141.GO15783@wotan.suse.de>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+ <Pine.LNX.4.62.0507151450570.11656@schroedinger.engr.sgi.com>
+ <20050715220753.GK15783@wotan.suse.de> <Pine.LNX.4.62.0507151518580.12160@schroedinger.engr.sgi.com>
+ <20050715223756.GL15783@wotan.suse.de> <Pine.LNX.4.62.0507151544310.12371@schroedinger.engr.sgi.com>
+ <20050715225635.GM15783@wotan.suse.de> <Pine.LNX.4.62.0507151602390.12530@schroedinger.engr.sgi.com>
+ <20050715234402.GN15783@wotan.suse.de> <Pine.LNX.4.62.0507151647300.12832@schroedinger.engr.sgi.com>
+ <20050716020141.GO15783@wotan.suse.de> <20050716163030.0147b6ba.pj@sgi.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <ak@suse.de>
-Cc: clameter@engr.sgi.com, kenneth.w.chen@intel.com, linux-mm@kvack.org, linux-ia64@vger.kernel.org
+To: Paul Jackson <pj@sgi.com>
+Cc: Andi Kleen <ak@suse.de>, kenneth.w.chen@intel.com, linux-mm@kvack.org, linux-ia64@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Andi wrote:
-> I think the per VMA approach is fundamentally wrong because
-> virtual addresses are nothing an external user can safely
-> access.
+On Sat, 16 Jul 2005, Paul Jackson wrote:
 
-Earlier, he also wrote:
-> In short blocks of memory are useless here because they have no 
-> relationship to what the code actually does. 
+> On the other hand, I hear him saying we can't do it, because the
+> locking cannot be safely handled.
 
-There are two questions here - should we and can we.
+That should have been brought up earlier because the page migration 
+patches by Ray always modified the policy and Andi agreed to that.
 
-One the one hand, I hear Andi saying we should not want to alter the
-placement of pages allocated to an external task at such a fine level
-of granularity.
+We can certainly find a way to provide proper locking for policy changes 
+if there are concerns. The most trivial would to require atomic 
+modifications via cmpxchg.
 
-On the other hand, I hear him saying we can't do it, because the
-locking cannot be safely handled.
+However, there is a fundamental issue with the application and the one who 
+manages the process from the outside making changed to the policy.
+ 
+Currently only the application can make these changes which avoids locking
+issues but also restricts the usefulness of these policies since they then
+cannot be used from the outside to manage the memory allocation behavior
+of a process. 
 
-There is also one confusion that I sometimes succumb to, reading these
-replies - between memory policies to control future allocations and
-memory policies to relocate already allocated memory.
+If both are making changes then the outside controller may find that 
+memory allocation policy suddenly changes and an application already using
+libnuma may experience unexpected changes in memory policy. However, 
+libnuma/numactl is used when memory areas are setup to define how the 
+system should treat these memory areas. The outside management always
+works with the settings already established by the application and 
+modifies those. So in practice there will be little change of 
+interference.
 
-I think between the numa calls (mbind, set_mempolicy) and cpusets,
-we have a decent array of mechanisms to control future allocations.
-The full set of features required may not be complete, but the
-framework seems to be in place, and the majority of what features we
-will need are supported now.
+> There is also one confusion that I sometimes succumb to, reading these
+> replies - between memory policies to control future allocations and
+> memory policies to relocate already allocated memory.
+> 
+> I think between the numa calls (mbind, set_mempolicy) and cpusets,
+> we have a decent array of mechanisms to control future allocations.
+> The full set of features required may not be complete, but the
+> framework seems to be in place, and the majority of what features we
+> will need are supported now.
 
-We are lacking in sufficient means to relocate already allocated
-user memory.
+Correct. We could implement the changing of policies via an extension of 
+the existing libnuma. That could be easily done as far as I can tell. If 
+that is done then the patch that I proposed is no longer necessary. But 
+then libnuma needs to also be extended to
 
-I'd disagree with Andi that we should not support rearranging memory
-at a fine granularity.  For most systems and most applications, Andi
-is no doubt right.  But for some systems and some applications, such
-as big long running tightly parallel applications on NUMA systems,
-placement is often well understood and closely managed at a fine
-granularity, because algorithm and memory placement closely interact,
-and can have a huge impact on performance.
+1. Allow the discovery of the memory policies of each vma for each process 
+in a system. Otherwise intelligent decisions about page migration cannot 
+be made and we end up with the kernel guessing which vma's to migrate and 
+we cannot control migration of the text segments separately from the data 
+segment etc.
 
-I willingly bow to Andi's expertise when he says we can't do it now
-because memory structures and placement cannot be safely modified
-from outside a task.
+2. Add a function call to migrate pages in a particular vma to another 
+node. I.e.
 
-But I don't agree that we shouldn't look for a way to do it.
-
-We need a way to safely rearrange the placement of already allocated
-user memory pages, at a fine granularity (per physical page), without
-significant impact to the main body of kernel memory management code.
-
-I think that must mean code operating within the context of the target
-task.  I suspect that means at least a portion of this code must be
-operating within kernel space.  It should enable external, system
-administrator imposed, per-page relocation of already allocated memory.
-
-In some cases, the details of the code that decide what page should
-go where will be very specific to a situation, and belong in user
-space, or at most, a loadable kernel module, certainly not in main
-line kernel code.
-
--- 
-                  I won't rest till it's the best ...
-                  Programmer, Linux Scalability
-                  Paul Jackson <pj@sgi.com> 1.925.600.0401
+sys_page_migrate(pid, address, from-node, to_node, nr-pages)
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
