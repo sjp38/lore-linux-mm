@@ -1,55 +1,56 @@
-Date: Sat, 16 Jul 2005 23:00:12 -0700 (PDT)
-From: Christoph Lameter <clameter@engr.sgi.com>
-Subject: Re: [NUMA] Display and modify the memory policy of a process through
- /proc/<pid>/numa_policy
-In-Reply-To: <20050716215121.6c04ffb0.pj@sgi.com>
-Message-ID: <Pine.LNX.4.62.0507162256180.28788@schroedinger.engr.sgi.com>
+Date: Sun, 17 Jul 2005 00:22:41 -0700
+From: Paul Jackson <pj@sgi.com>
+Subject: Re: [NUMA] Display and modify the memory policy of a process
+ through /proc/<pid>/numa_policy
+Message-Id: <20050717002241.3224f104.pj@sgi.com>
+In-Reply-To: <Pine.LNX.4.62.0507162253020.28788@schroedinger.engr.sgi.com>
 References: <20050715214700.GJ15783@wotan.suse.de>
- <Pine.LNX.4.62.0507151450570.11656@schroedinger.engr.sgi.com>
- <20050715220753.GK15783@wotan.suse.de> <Pine.LNX.4.62.0507151518580.12160@schroedinger.engr.sgi.com>
- <20050715223756.GL15783@wotan.suse.de> <Pine.LNX.4.62.0507151544310.12371@schroedinger.engr.sgi.com>
- <20050715225635.GM15783@wotan.suse.de> <Pine.LNX.4.62.0507151602390.12530@schroedinger.engr.sgi.com>
- <20050715234402.GN15783@wotan.suse.de> <Pine.LNX.4.62.0507151647300.12832@schroedinger.engr.sgi.com>
- <20050716020141.GO15783@wotan.suse.de> <20050716163030.0147b6ba.pj@sgi.com>
- <Pine.LNX.4.62.0507162016470.27506@schroedinger.engr.sgi.com>
- <20050716215121.6c04ffb0.pj@sgi.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+	<Pine.LNX.4.62.0507151450570.11656@schroedinger.engr.sgi.com>
+	<20050715220753.GK15783@wotan.suse.de>
+	<Pine.LNX.4.62.0507151518580.12160@schroedinger.engr.sgi.com>
+	<20050715223756.GL15783@wotan.suse.de>
+	<Pine.LNX.4.62.0507151544310.12371@schroedinger.engr.sgi.com>
+	<20050715225635.GM15783@wotan.suse.de>
+	<Pine.LNX.4.62.0507151602390.12530@schroedinger.engr.sgi.com>
+	<20050715234402.GN15783@wotan.suse.de>
+	<Pine.LNX.4.62.0507151647300.12832@schroedinger.engr.sgi.com>
+	<20050716020141.GO15783@wotan.suse.de>
+	<20050716163030.0147b6ba.pj@sgi.com>
+	<Pine.LNX.4.62.0507161842090.26674@schroedinger.engr.sgi.com>
+	<20050716205038.48c05e96.pj@sgi.com>
+	<Pine.LNX.4.62.0507162253020.28788@schroedinger.engr.sgi.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Paul Jackson <pj@sgi.com>
+To: Christoph Lameter <clameter@engr.sgi.com>
 Cc: ak@suse.de, kenneth.w.chen@intel.com, linux-mm@kvack.org, linux-ia64@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 16 Jul 2005, Paul Jackson wrote:
-
-> Christoph wrote:
-> > Here is one approach to locking using xchg.
+Christoph, responding to pj:
+> > I'm missing something here.  Are you saying that just a change to
+> > libnuma would suffice to accomplish what you sought with this patch?
 > 
-> What I see here doesn't change the behaviour of the
-> kernel any - just adds some locked exchanges, right?
+> Its a quite significant change but yes of course you can do that ...
 
-Correct.
- 
-> I thought the hard part was having some other task
-> change the current tasks mempolicy.  For example,
-> how does one task sync another tasks mempolicy up
-> with its cpuset, or synchronously get the policies
-> zonelist or preferred node set correctly?
+I am totally stumped.  I have no idea how what you have in mind.
 
-Could you give me some more detail on how this should integrate with 
-cpusets? I am not aware of any thing that I would call "hard".
+The mbind, set_mempolicy and get_mempolicy system calls plainly and
+simply apply only to the current task, and it would take changes in
+kernel code and the system call API to change that fact in any
+sensible way.
 
-What do you mean by synchronously? The proc changes do best effort 
-modifications. There is no transactional behavior that allows the changes 
-of multiple items at once, nor is there any guarantee that the vma you are 
-changing is still there after you have read /proc/<pid>/numa_maps. Why 
-would such synchronicity be necessary?
+You've dropped one hint: its a quite significant change.
 
-> I guess that this approach is intended to show how
-> to make it easy to add that hard part, right?
+If you have the patience, could you drop a couple more hints on how
+to do this (make this change by just changing libnuma)?  Perhaps with
+a little more technical meat on their bones?
 
-This is intended to provide race free update of the memory policy.
+-- 
+                  I won't rest till it's the best ...
+                  Programmer, Linux Scalability
+                  Paul Jackson <pj@sgi.com> 1.925.600.0401
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
