@@ -1,10 +1,10 @@
-Date: Wed, 20 Jul 2005 18:48:43 -0400
-From: "Patrick Guy" <wojnaroski@fadmail.com>
-Message-ID: <191.73e558d5.2a9OLZ44@fgy.com>
-Subject: Mortage rates all time low
-Return-Path: <wojnaroski@fadmail.com>
-To: er-linux-mm@kvack.org
-Cc: inux-aio@kvack.orgio@kvack.org, jordomo@kvack.org, kernel@kvack.org, lah@kvack.org, linux-aio@kvack.org, linux-mm-archive@kvack.org, mailer-daemon@kvack.org
+Message-ID: <20041tkrqx3.ED8DA244AE@mailhost1d.lists.techtarget.com>
+Date: Thu, 21 Jul 2005 04:13:23 +0500
+From: "Megan Block" <gynen@yebox.com>
+Subject: Rates just dropped
+Return-Path: <gynen@yebox.com>
+To: blah@kvack.org
+Cc: kernel@kvack.org, linux-aio@kvack.org, linux-mm@kvack.org, linux-mm-archive@kvack.org, mailer-daemon@kvack.org, owner-linux-aio@kvack.org, owner-linux-mm@kvack.org, owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 Hello,
@@ -26,7 +26,7 @@ Hello,
 
  Best Regards,
 
- Jana James
+ Mae Winston
  
  to be remov(ed:	http://www.discounted-rates.com/i/LzMvaW5kZXgvaW5rL3ZnczJ0
 
