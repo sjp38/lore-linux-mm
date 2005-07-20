@@ -1,31 +1,35 @@
-Received: from [110.161.91.152] (port=4536 helo=[ambassador])
-    by adsl196-146-210-206-196.adsl196-7.iam.net.ma with esmtp
-    id 2289625307monoprogramming58599
-    for linux-mm@kvack.org; Sat, 20 Jul 2002 21:27:36 +0000
-Mime-Version: 1.0 (Apple Message framework v728)
-Content-Transfer-Encoding: 7bit
-Message-Id: <45141107242.10449215205@adsl196-146-210-206-196.adsl196-7.iam.net.ma>
-Content-Type: text/plain; charset=US-ASCII; format=flowed
-From: Baldwin <Somali@soderstrom.as>
-Subject: Same medicine, different price!
-Date: Sat, 20 Jul 2002 21:27:35 +0000
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+Date: Wed, 20 Jul 2005 18:48:43 -0400
+From: "Patrick Guy" <wojnaroski@fadmail.com>
+Message-ID: <191.73e558d5.2a9OLZ44@fgy.com>
+Subject: Mortage rates all time low
+Return-Path: <wojnaroski@fadmail.com>
+To: er-linux-mm@kvack.org
+Cc: inux-aio@kvack.orgio@kvack.org, jordomo@kvack.org, kernel@kvack.org, lah@kvack.org, linux-aio@kvack.org, linux-mm-archive@kvack.org, mailer-daemon@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-The Best Place To Find The Cheapest Medicine.
-http://jcxc.1gmu5k1cybj9n21.dcmioceneim.com
+Hello,
+
+ We tried contacting you awhile ago about your low interest morta(ge rate.
+
+ You have been selected for our lowest rate in years...
+
+ You could get over $420,000 for as little as $400 a month!
+
+ Ba(d credit, Bank*ruptcy? Doesn't matter, low rates are fixed no matter what!
+
+ 
+ To get a free, no obli,gation consultation click below:
+
+ http://www.discounted-rates.com/i/LzMvaW5kZXgvaW5rL3ZnczJ0
 
 
 
-I prefer complexity to certainty, cheerful mysteries to sullen facts.   
-We are not sent into the world to air our moral prejudices. 
-The gods help them that help themselves.      
+ Best Regards,
 
+ Jana James
+ 
+ to be remov(ed:	http://www.discounted-rates.com/i/LzMvaW5kZXgvaW5rL3ZnczJ0
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"aart@kvack.org"> aart@kvack.org </a>
+ this process takes one week, so please be patient. we do our 
+ best to take your email/s off but you have to fill out a rem/ove
+ or else you will continue to recieve email/s.
