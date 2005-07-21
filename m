@@ -1,35 +1,44 @@
-Message-ID: <20041xnmfu3.ED8DA244AE@mailhost1v.lists.techtarget.com>
-Date: Thu, 21 Jul 2005 08:26:11 +0100
-From: "Lori Bermudez" <odylic@doramail.com>
-Subject: Re-finance at todays low rate
-Return-Path: <odylic@doramail.com>
-To: er-linux-mm@kvack.org
-Cc: inux-aio@kvack.orgio@kvack.org, jordomo@kvack.org, kernel@kvack.org, lah@kvack.org, linux-aio@kvack.org, linux-mm-archive@kvack.org, mailer-daemon@kvack.org
+Received: from asistencia.org (asistencia-org-bk.mr.outblaze.com [64.62.181.93])
+	by YahooBB218122000066.bbtec.net (Postfix) with ESMTP id 5898958762
+	for <linux-mm@kvack.org>; Wed, 20 Jul 2005 21:47:41 -0500
+From: "Larding C. Propagandists" <Tim@asistencia.org>
+Subject: Microsoft, Adobe, Macromedia, Corel software. Up to 80% discount.
+Date: Wed, 20 Jul 2005 21:47:41 -0500
+Message-ID: <000101c58d9e$aecbc722$36f1ad0f@asistencia.org>
+MIME-Version: 1.0
+Content-Type: text/plain
+Content-Transfer-Encoding: 7bit
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: Linux <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Hello,
+New sofware on our site:
 
- We tried contacting you awhile ago about your low interest morta(ge rate.
+Windows NT 4.0 Terminal Server  $49.95 
+MS Visual Studio .NET Architect Edition (8CD)  $139.95 
+Macromedia Fireworks MX 2004 (Apple Macintosh)  $69.95 
+Corel WordPerfect Office 10  $69.95 
+Macromedia Flash MX 2004 (Apple Macintosh)  $69.95 
+Flash MX 2004  $69.95 
+Fireworks MX 2004  $69.95 
+Office 97 SR2  $49.95 
+Freehand MX 11  $69.95 
+FileMaker 7.0 Professional  $69.95 
+Corel Painter 8 (Apple Macintosh)  $59.95 
+Office XP Professional  $79.95 
+Macromedia Flash MX 2004 (Apple Macintosh)  $69.95 
+PageMaker 7 (2CD)  $69.95 
+MS Works 7  $69.95 
+Windows 98 Second Edition  $49.95 
+Adobe Premiere 6.5 (Apple Macintosh)  $89.95 
+Windows NT 4.0 Server  $49.95 
 
- You have been selected for our lowest rate in years...
+And more. Our site:
+http://variousus.net/?ABACNAXVtdQU0cX150XkdTUF8bXkBU
 
- You could get over $420,000 for as little as $400 a month!
-
- Ba(d credit, Bank*ruptcy? Doesn't matter, low rates are fixed no matter what!
-
- 
- To get a free, no obli,gation consultation click below:
-
- http://www.123m0rtgages.com/i/LzMvaW5kZXgvaW5rLzc1eno5OHB4dHFldDhtcHdzcTQy
-
-
-
- Best Regards,
-
- Marisa Randall
- 
- to be remov(ed:	http://www.123m0rtgages.com/i/LzMvaW5kZXgvaW5rLzc1eno5OHB4dHFldDhtcHdzcTQy
-
- this process takes one week, so please be patient. we do our 
- best to take your email/s off but you have to fill out a rem/ove
- or else you will continue to recieve email/s.
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"aart@kvack.org"> aart@kvack.org </a>
