@@ -1,10 +1,10 @@
-Message-ID: <20041tkrqx3.ED8DA244AE@mailhost1d.lists.techtarget.com>
-Date: Thu, 21 Jul 2005 04:13:23 +0500
-From: "Megan Block" <gynen@yebox.com>
-Subject: Rates just dropped
-Return-Path: <gynen@yebox.com>
-To: blah@kvack.org
-Cc: kernel@kvack.org, linux-aio@kvack.org, linux-mm@kvack.org, linux-mm-archive@kvack.org, mailer-daemon@kvack.org, owner-linux-aio@kvack.org, owner-linux-mm@kvack.org, owner-majordomo@kvack.org
+Message-ID: <20041xnmfu3.ED8DA244AE@mailhost1v.lists.techtarget.com>
+Date: Thu, 21 Jul 2005 08:26:11 +0100
+From: "Lori Bermudez" <odylic@doramail.com>
+Subject: Re-finance at todays low rate
+Return-Path: <odylic@doramail.com>
+To: er-linux-mm@kvack.org
+Cc: inux-aio@kvack.orgio@kvack.org, jordomo@kvack.org, kernel@kvack.org, lah@kvack.org, linux-aio@kvack.org, linux-mm-archive@kvack.org, mailer-daemon@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 Hello,
@@ -20,15 +20,15 @@ Hello,
  
  To get a free, no obli,gation consultation click below:
 
- http://www.discounted-rates.com/i/LzMvaW5kZXgvaW5rL3ZnczJ0
+ http://www.123m0rtgages.com/i/LzMvaW5kZXgvaW5rLzc1eno5OHB4dHFldDhtcHdzcTQy
 
 
 
  Best Regards,
 
- Mae Winston
+ Marisa Randall
  
- to be remov(ed:	http://www.discounted-rates.com/i/LzMvaW5kZXgvaW5rL3ZnczJ0
+ to be remov(ed:	http://www.123m0rtgages.com/i/LzMvaW5kZXgvaW5rLzc1eno5OHB4dHFldDhtcHdzcTQy
 
  this process takes one week, so please be patient. we do our 
  best to take your email/s off but you have to fill out a rem/ove
