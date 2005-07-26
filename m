@@ -1,75 +1,70 @@
-Date: Tue, 26 Jul 2005 09:34:15 -0700
-From: "Martin J. Bligh" <mbligh@mbligh.org>
-Reply-To: "Martin J. Bligh" <mbligh@mbligh.org>
-Subject: Re: Question about OOM-Killer
-Message-ID: <19000000.1122395655@[10.10.2.4]>
-In-Reply-To: <20050726151754.GA9691@muc.de>
-References: <20050725173514.107aaa1b.washer@trlp.com> <733170000.1122384572@[10.10.2.4]> <20050726151754.GA9691@muc.de>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by e34.co.us.ibm.com (8.12.10/8.12.9) with ESMTP id j6QHZiRX375782
+	for <linux-mm@kvack.org>; Tue, 26 Jul 2005 13:35:44 -0400
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d03relay04.boulder.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id j6QHZkuN096366
+	for <linux-mm@kvack.org>; Tue, 26 Jul 2005 11:35:46 -0600
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.12.11/8.13.3) with ESMTP id j6QHZhtW012107
+	for <linux-mm@kvack.org>; Tue, 26 Jul 2005 11:35:43 -0600
+Subject: Memory pressure handling with iSCSI
+From: Badari Pulavarty <pbadari@us.ibm.com>
+Content-Type: multipart/mixed; boundary="=-Xm32wxTW65S3Kwp+ug1O"
+Date: Tue, 26 Jul 2005 10:35:30 -0700
+Message-Id: <1122399331.6433.29.camel@dyn9047017102.beaverton.ibm.com>
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <ak@muc.de>
-Cc: James Washer <washer@trlp.com>, marcelo.tosatti@cyclades.com, linux-mm@kvack.org, James Bottomley <James.Bottomley@SteelEye.com>, linux-kernel <linux-kernel@vger.kernel.org>
+To: lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+Cc: akpm@osdl.org
 List-ID: <linux-mm.kvack.org>
 
+--=-Xm32wxTW65S3Kwp+ug1O
+Content-Type: text/plain
+Content-Transfer-Encoding: 7bit
 
---Andi Kleen <ak@muc.de> wrote (on Tuesday, July 26, 2005 17:17:54 +0200):
+Hi Andrew,
 
->> But that's really for ISA DMA, which nobody uses any more apart from the
->> floppy disk, and the stone-tablet adaptor. For now, I'm guessing that if
->> you remove that __GFP_DMA, your machine will be happier, but it's not
->> the right fix. 
-> 
-> iirc the reason for that was that someone could load an old ISA SCSI controller
-> later as a module and it needs to handle that. Perhaps make it dependent
-> on CONFIG_ISA ? But even that would not help on distribution kernels.
-> Another way would be to check in PCI systems if there is a ISA 
-> bridge and for others assume ISA is there.
+After KS & OLS discussions about memory pressure, I wanted to re-do
+iSCSI testing with "dd"s to see if we are throttling writes.  
 
-Yeah, the CONFIG_ISA thing makes a lot of sense to me ... however, would
-be even better if we can work out (easily) what the disk is attatched to.
-Pah, ISA is so shit. Generically, might be useful if we had a 
-__GFP_DMA_IF_ISA or something defined in the header files, rather than
-just shoving ifdef's all over the place.
+I created 50 10-GB ext3 filesystems on iSCSI luns. Test is simple
+50 dds (one per filesystem). System seems to throttle memory properly
+and making progress. (Machine doesn't respond very well for anything
+else, but my vmstat keeps running - 100% sys time).
 
-OTOH, Jim is right ... the OOM killer is being somewhat psycopathic. Seems
-we need 2 fixes ;-)
+Thanks,
+Badari
 
-M.
 
-PS. Warning, this is wholly untested, and generally a bit shit.
-PPS. jejb ... your mail bounces.
 
-diff -aurpN -X /home/fletch/.diff.exclude virgin/drivers/scsi/sd.c isa_dma/drivers/scsi/sd.c
---- virgin/drivers/scsi/sd.c	2005-07-26 09:25:40.000000000 -0700
-+++ isa_dma/drivers/scsi/sd.c	2005-07-26 09:32:05.000000000 -0700
-@@ -1468,7 +1468,7 @@ static int sd_revalidate_disk(struct gen
- 		goto out;
- 	}
- 
--	buffer = kmalloc(512, GFP_KERNEL | __GFP_DMA);
-+	buffer = kmalloc(512, GFP_KERNEL | __GFP_DMA_IF_ISA);
- 	if (!buffer) {
- 		printk(KERN_WARNING "(sd_revalidate_disk:) Memory allocation "
- 		       "failure.\n");
-diff -aurpN -X /home/fletch/.diff.exclude virgin/include/linux/gfp.h isa_dma/include/linux/gfp.h
---- virgin/include/linux/gfp.h	2005-07-26 09:26:02.000000000 -0700
-+++ isa_dma/include/linux/gfp.h	2005-07-26 09:29:38.000000000 -0700
-@@ -13,6 +13,11 @@ struct vm_area_struct;
-  */
- /* Zone modifiers in GFP_ZONEMASK (see linux/mmzone.h - low two bits) */
- #define __GFP_DMA	0x01
-+#ifdef CONFIG_ISA
-+  #define __GFP_DMA_IF_ISA	__GFP_DMA
-+#else
-+  #define __GFP_DMA_IF_ISA	0
-+#endif
- #define __GFP_HIGHMEM	0x02
- 
- /*
+--=-Xm32wxTW65S3Kwp+ug1O
+Content-Disposition: attachment; filename=vmstat.out
+Content-Type: text/plain; name=vmstat.out; charset=UTF-8
+Content-Transfer-Encoding: 7bit
+
+procs -----------memory---------- ---swap-- -----io---- --system-- ----cpu----
+ r  b   swpd   free   buff  cache   si   so    bi    bo   in    cs us sy id wa
+38 96  30500  43360  16612 6671064    2    0   103 11079 9860  2960  0 100  0  0
+43 94  30500  43872  16704 6670460    0    0   124 11232 10993  3624  0 100  0  0
+41 95  30500  44756  16780 6670304   22    0    41 11615 10864  3702  0 100  0  0
+43 91  30500  43392  16580 6672096    6    0    11 10885 9736  2528  0 100  0  0
+44 88  30500  43268  16468 6672204    6    0    14 12084 10361  1971  0 100  0  0
+42 90  30500  43640  16556 6672116    0    0    26 12094 10447  3550  0 100  0  0
+45 90  30500  46120  16584 6670016    6    0    22 11546 10690  3815  0 100  0  0
+42 89  30500  43516  16560 6672564   11    0    48 12902 9368  3464  0 100  0  0
+40 91  30500  43640  16572 6671540    6    0    87 10866 9253  2943  0 100  0  0
+37 90  30500  43516  16608 6672040    6    0    25 14411 9374  2595  0 100  0  0
+36 99  30500  43268  16568 6672080    0    0    23 14071 9524  2401  0 100  0  0
+36 93  30500  43268  16596 6671504    6    0    16 11502 9403  3185  0 100  0  0
+33 91  30500  43392  16588 6671540    0    0    11 10191 9837  3374  0 100  0  0
+33 91  30500  43392  16552 6672092    0    0    15 11762 9703  2915  0 100  0  0
+33 90  30500  43268  16648 6671480    0    0   131 11692 9784  3154  0 100  0  0
+33 97  30500  43640  16640 6672004    0    0    18  9253 9491  1998  0 100  0  0
+
+
+
+--=-Xm32wxTW65S3Kwp+ug1O--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
