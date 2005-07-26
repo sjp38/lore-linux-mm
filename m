@@ -1,23 +1,34 @@
+Date: Tue, 26 Jul 2005 11:11:10 -0700
+From: Andrew Morton <akpm@osdl.org>
 Subject: Re: Memory pressure handling with iSCSI
+Message-Id: <20050726111110.6b9db241.akpm@osdl.org>
+In-Reply-To: <1122399331.6433.29.camel@dyn9047017102.beaverton.ibm.com>
 References: <1122399331.6433.29.camel@dyn9047017102.beaverton.ibm.com>
-From: Roland Dreier <rolandd@cisco.com>
-Date: Tue, 26 Jul 2005 11:04:58 -0700
-In-Reply-To: <1122399331.6433.29.camel@dyn9047017102.beaverton.ibm.com> (Badari
- Pulavarty's message of "Tue, 26 Jul 2005 10:35:30 -0700")
-Message-ID: <52wtndfnp1.fsf@topspin.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Badari Pulavarty <pbadari@us.ibm.com>
-Cc: lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, akpm@osdl.org
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Thanks, this is a good test.  It would be interesting to know if the
-system does eventually deadlock with less system memory or with even
-more filesystems.
+Badari Pulavarty <pbadari@us.ibm.com> wrote:
+>
+> After KS & OLS discussions about memory pressure, I wanted to re-do
+>  iSCSI testing with "dd"s to see if we are throttling writes.  
+> 
+>  I created 50 10-GB ext3 filesystems on iSCSI luns. Test is simple
+>  50 dds (one per filesystem). System seems to throttle memory properly
+>  and making progress. (Machine doesn't respond very well for anything
+>  else, but my vmstat keeps running - 100% sys time).
 
- - R.
+It's important to monitor /proc/meminfo too - the amount of dirty/writeback
+pages, etc.
+
+btw, 100% system time is quite appalling.  Are you sure vmstat is telling
+the truth?  If so, where's it all being spent?
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
