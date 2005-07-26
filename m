@@ -1,174 +1,34 @@
-Date: Tue, 26 Jul 2005 06:29:32 -0700
-From: "Martin J. Bligh" <mbligh@mbligh.org>
-Reply-To: "Martin J. Bligh" <mbligh@mbligh.org>
+Date: 26 Jul 2005 15:53:07 +0200
+Date: Tue, 26 Jul 2005 15:53:07 +0200
+From: Andi Kleen <ak@muc.de>
 Subject: Re: Question about OOM-Killer
-Message-ID: <733170000.1122384572@[10.10.2.4]>
-In-Reply-To: <20050725173514.107aaa1b.washer@trlp.com>
-References: <20050718122101.751125ef.washer@trlp.com><20050718123650.01a49f31.washer@trlp.com><20050723130048.GA16460@dmt.cnet><20050725121130.5fed7286.washer@trlp.com><73740000.1122331287@flay> <20050725173514.107aaa1b.washer@trlp.com>
-MIME-Version: 1.0
+Message-ID: <20050726135307.GB96994@muc.de>
+References: <20050718122101.751125ef.washer@trlp.com> <20050718123650.01a49f31.washer@trlp.com> <20050723130048.GA16460@dmt.cnet>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
+In-Reply-To: <20050723130048.GA16460@dmt.cnet>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: James Washer <washer@trlp.com>
-Cc: marcelo.tosatti@cyclades.com, linux-mm@kvack.org, ak@muc.de, James Bottomley <James.Bottomley@SteelEye.com>
+To: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
+Cc: James Washer <washer@trlp.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> Already been done... but I'd not had much time to chase it.. This is 
-> my desktop/workstation, so difficult for me to refine the debugging, 
-> in any event, here's the backtrace. This is consistent across about 
-> 20 events.
-
-Humpf. Not sure why generic scsi code would decide it needed __GFP_DMA:
-
-static int sd_revalidate_disk(struct gendisk *disk) {
-...
-        buffer = kmalloc(512, GFP_KERNEL | __GFP_DMA);
-        if (!buffer) {
-                printk(KERN_WARNING "(sd_revalidate_disk:) Memory allocation "
-                       "failure.\n");
-                goto out_release_request;
-        }
-
-Trouble is, ZONE_DMA seems to mean different things on different platforms.
-There's even a comment reflecting this crappiness above __kmalloc:
-
- * Additionally, the %GFP_DMA flag may be set to indicate the memory
- * must be suitable for DMA.  This can mean different things on different
- * platforms.  For example, on i386, it means that the memory must come
- * from the first 16MB.
-
-But that's really for ISA DMA, which nobody uses any more apart from the
-floppy disk, and the stone-tablet adaptor. For now, I'm guessing that if
-you remove that __GFP_DMA, your machine will be happier, but it's not
-the right fix. 
-
-James, am I right in thinking you really want something else there,
-maybe dependant on the device (which I doubt you even know in sd.c?)
-
-M.
-
-
->  kernel: Call Trace:<ffffffff80156ba8>{out_of_memory+275} <ffffffff80147fe5>{autoremove_wake_function+0}
->  kernel:        <ffffffff80157e8b>{__alloc_pages+793} <ffffffff8015a99b>{cache_grow+269}
->  kernel:        <ffffffff8015adf4>{cache_alloc_refill+442} <ffffffff8015a883>{kmem_cache_alloc+92}
->  kernel:        <ffffffff88000f0b>{:sd_mod:sd_revalidate_disk+155}
->  kernel:        <ffffffff8015d549>{pagevec_lookup+23} <ffffffff8015d9a0>{invalidate_mapping_pages+208}
->  kernel:        <ffffffff80176292>{invalidate_bh_lru+0} <ffffffff8011b9ef>{flat_send_IPI_allbutself+20}
->  kernel:        <ffffffff801198df>{smp_call_function+62} <ffffffff8017b466>{check_disk_change+89}
->  kernel:        <ffffffff88000625>{:sd_mod:sd_open+257} <ffffffff8017b73e>{do_open+190}
->  kernel:        <ffffffff8017bb02>{blkdev_open+33} <ffffffff80173768>{dentry_open+224}
->  kernel:        <ffffffff801738a2>{filp_open+63} <ffffffff8017398a>{get_unused_fd+220}
->  kernel:        <ffffffff80173a8b>{sys_open+62} <ffffffff8010e29e>{system_call+126}
->  kernel:        
+On Sat, Jul 23, 2005 at 10:00:48AM -0300, Marcelo Tosatti wrote:
 > 
+> James,
 > 
-> On Mon, 25 Jul 2005 15:41:27 -0700
-> "Martin J. Bligh" <mbligh@mbligh.org> wrote:
+> Can you send the OOM killer output? 
 > 
->> Jim, does seem bloody silly to be shooting stuff here, and is
->> probably simple to fix ... however, would be useful to see where
->> the DMA allocs are coming from as well, any chance you could dump
->> a stack backtrace in __alloc_pages when we spec a mask for DMA alloc?
->> 
->> M.
->> 
->> --On Monday, July 25, 2005 12:11:30 -0700 James Washer <washer@trlp.com> wrote:
->> 
->> > Pretty typical message here...
->> > Jul  6 17:31:27 p6 kernel: oom-killer: gfp_mask=0xd1
->> > Jul  6 17:31:27 p6 kernel: Node 0 DMA per-cpu:
->> > Jul  6 17:31:27 p6 kernel: cpu 0 hot: low 2, high 6, batch 1
->> > Jul  6 17:31:27 p6 kernel: cpu 0 cold: low 0, high 2, batch 1 
->> > Jul  6 17:31:27 p6 kernel: cpu 1 hot: low 2, high 6, batch 1
->> > Jul  6 17:31:27 p6 kernel: cpu 1 cold: low 0, high 2, batch 1 
->> > Jul  6 17:31:27 p6 kernel: Node 0 Normal per-cpu:
->> > Jul  6 17:31:27 p6 kernel: cpu 0 hot: low 32, high 96, batch 16
->> > Jul  6 17:31:27 p6 kernel: cpu 0 cold: low 0, high 32, batch 16
->> > Jul  6 17:31:27 p6 kernel: cpu 1 hot: low 32, high 96, batch 16
->> > Jul  6 17:31:27 p6 kernel: cpu 1 cold: low 0, high 32, batch 16
->> > Jul  6 17:31:27 p6 kernel: Node 0 HighMem per-cpu: empty
->> > Jul  6 17:31:27 p6 kernel: 
->> > Jul  6 17:31:31 p6 gconfd (washer-7174): SIGHUP received, reloading all databases
->> > Jul  6 17:31:37 p6 kernel: Free pages:       16236kB (0kB HighMem)
->> > Jul  6 17:31:38 p6 su(pam_unix)[9041]: session closed for user root
->> > Jul  6 17:31:38 p6 su(pam_unix)[10645]: session closed for user root
->> > Jul  6 17:31:38 p6 su(pam_unix)[8044]: session closed for user root
->> > Jul  6 17:31:38 p6 su(pam_unix)[7228]: session closed for user root
->> > Jul  6 17:31:38 p6 su(pam_unix)[16136]: session closed for user root
->> > Jul  6 17:31:48 p6 gconfd (washer-7174): Resolved address "xml:readonly:/etc/gconf/gconf.xml.mandatory" to a read-only configuration source at position 0
->> > Jul  6 17:31:49 p6 kernel: Active:596167 inactive:854867 dirty:624740 writeback:0 unstable:0 free:4059 slab:52688 mapped:595231 pagetables:4862
->> > Jul  6 17:32:00 p6 gconfd (washer-7174): Resolved address "xml:readwrite:/home/washer/.gconf" to a writable configuration source at position 1
->> > Jul  6 17:32:02 p6 kernel: Node 0 DMA free:20kB min:24kB low:28kB high:36kB active:0kB inactive:0kB present:16384kB pages_scanned:1 all_unreclaimable? yes
->> > Jul  6 17:32:04 p6 gconfd (washer-7174): Resolved address "xml:readonly:/etc/gconf/gconf.xml.defaults" to a read-only configuration source at position 2
->> > Jul  6 17:32:06 p6 kernel: lowmem_reserve[]: 0 7152 7152
->> > Jul  6 17:32:11 p6 kernel: Node 0 Normal free:16216kB min:10808kB low:13508kB high:16212kB active:2384668kB inactive:3419468kB present:7323648kB pages_scanned:0 all_unreclaimable? no
->> > Jul  6 17:32:13 p6 kernel: lowmem_reserve[]: 0 0 0
->> > Jul  6 17:32:13 p6 kernel: Node 0 HighMem free:0kB min:128kB low:160kB high:192kB active:0kB inactive:0kB present:0kB pages_scanned:0 all_unreclaimable? no
->> > Jul  6 17:32:13 p6 kernel: lowmem_reserve[]: 0 0 0 
->> > Jul  6 17:32:13 p6 kernel: Node 0 DMA: 1*4kB 0*8kB 1*16kB 0*32kB 0*64kB 0*128kB 0*256kB 0*512kB 0*1024kB 0*2048kB 0*4096kB = 20kB
->> > Jul  6 17:32:13 p6 kernel: Node 0 Normal: 34*4kB 192*8kB 53*16kB 92*32kB 2*64kB 1*128kB 1*256kB 0*512kB 0*1024kB 1*2048kB 2*4096kB = 16216kB
->> > Jul  6 17:32:13 p6 kernel: Node 0 HighMem: empty
->> > Jul  6 17:32:13 p6 kernel: Swap cache: add 48, delete 48, find 0/0, race 0+0
->> > Jul  6 17:32:13 p6 kernel: Free swap  = 8385728kB
->> > Jul  6 17:32:13 p6 kernel: Total swap = 8385920kB
->> > Jul  6 17:32:13 p6 kernel: Out of Memory: Killed process 10475 (firefox-bin).
->> > 
->> > 
->> > On Sat, 23 Jul 2005 10:00:48 -0300
->> > Marcelo Tosatti <marcelo.tosatti@cyclades.com> wrote:
->> > 
->> >> 
->> >> James,
->> >> 
->> >> Can you send the OOM killer output? 
->> >> 
->> >> I dont know which devices part of an x86-64 system should 
->> >> be limited to 16Mb of physical addressing. Andi? 
->> >> 
->> >> I don't think that any devices should have 16MB limitation
->> >> 
->> >> On Mon, Jul 18, 2005 at 12:36:50PM -0700, James Washer wrote:
->> >> > Sorry, I should have added... 
->> >> > 	2.6.11.10, 
->> >> > 	x86-64 dual proc (Intel Xeon 3.4GHz)
->> >> > 	6GiB ram
->> >> > 	Intel Corporation 82801EB (ICH5) SATA Controller (rev 0)
->> >> > 	Host: scsi0 Channel: 00 Id: 00 Lun: 00
->> >> > 		Vendor: ATA      Model: Maxtor 6Y160M0   Rev: YAR5
->> >> > 		Type:   Direct-Access                    ANSI SCSI revision: 05
->> >> > 	Host: scsi0 Channel: 00 Id: 01 Lun: 00
->> >> > 		Vendor: ATA      Model: Maxtor 7Y250M0   Rev: YAR5
->> >> > 		Type:   Direct-Access                    ANSI SCSI revision: 05
->> >> > 
->> >> > 
->> >> > On Mon, 18 Jul 2005 12:21:01 -0700
->> >> > James Washer <washer@trlp.com> wrote:
->> >> > 
->> >> > > I'm chasing down a system problem where the DMA memory (x86-64, god knows why it is using DMA memory)
->> >> > drops below the minimum, and the OOM-Killer is fired off.
->> >> > > 
->> >> > > It just strikes me odd that the OOM-Killer would be called at all for DMA memory. 
->> >> > What's the chance of regaining DMA memory by killing user land processes?
->> >> > > 
->> >> > > I'll admit, I know very little about linux VM, so perhaps I'm missing how oom killing can be helpful here.  
->> > --
->> > To unsubscribe, send a message with 'unsubscribe linux-mm' in
->> > the body to majordomo@kvack.org.  For more info on Linux MM,
->> > see: http://www.linux-mm.org/ .
->> > Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
->> > 
->> > 
->> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
-> 
+> I dont know which devices part of an x86-64 system should 
+> be limited to 16Mb of physical addressing. Andi? 
 
+Could be old devices like the floppy (it does a single GFP_DMA
+allocation). Or a few devices that have >16MB limits (like aacraid
+or some old sound chips) but there is no other zone for them
+right now.
+
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
