@@ -1,93 +1,33 @@
-Date: Tue, 26 Jul 2005 11:48:24 -0700
+Date: Tue, 26 Jul 2005 12:12:50 -0700
 From: Andrew Morton <akpm@osdl.org>
 Subject: Re: Memory pressure handling with iSCSI
-Message-Id: <20050726114824.136d3dad.akpm@osdl.org>
-In-Reply-To: <1122403152.6433.39.camel@dyn9047017102.beaverton.ibm.com>
+Message-Id: <20050726121250.0ba7d744.akpm@osdl.org>
+In-Reply-To: <20050726114824.136d3dad.akpm@osdl.org>
 References: <1122399331.6433.29.camel@dyn9047017102.beaverton.ibm.com>
 	<20050726111110.6b9db241.akpm@osdl.org>
 	<1122403152.6433.39.camel@dyn9047017102.beaverton.ibm.com>
+	<20050726114824.136d3dad.akpm@osdl.org>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Badari Pulavarty <pbadari@us.ibm.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: pbadari@us.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Badari Pulavarty <pbadari@us.ibm.com> wrote:
+Andrew Morton <akpm@osdl.org> wrote:
 >
-> On Tue, 2005-07-26 at 11:11 -0700, Andrew Morton wrote:
-> > Badari Pulavarty <pbadari@us.ibm.com> wrote:
-> > >
-> > > After KS & OLS discussions about memory pressure, I wanted to re-do
-> > >  iSCSI testing with "dd"s to see if we are throttling writes.  
-> > > 
-> > >  I created 50 10-GB ext3 filesystems on iSCSI luns. Test is simple
-> > >  50 dds (one per filesystem). System seems to throttle memory properly
-> > >  and making progress. (Machine doesn't respond very well for anything
-> > >  else, but my vmstat keeps running - 100% sys time).
-> > 
-> > It's important to monitor /proc/meminfo too - the amount of dirty/writeback
-> > pages, etc.
-> > 
-> > btw, 100% system time is quite appalling.  Are you sure vmstat is telling
-> > the truth?  If so, where's it all being spent?
-> > 
-> > 
-> 
-> Well, profile doesn't show any time in "default_idle". So
-> I believe, vmstat is telling the truth.
-> 
-> # cat /proc/meminfo
-> MemTotal:      7143628 kB
-> MemFree:         43252 kB
-> Buffers:         16736 kB
-> Cached:        6683348 kB
-> SwapCached:       5336 kB
-> Active:          14460 kB
-> Inactive:      6686928 kB
-> HighTotal:           0 kB
-> HighFree:            0 kB
-> LowTotal:      7143628 kB
-> LowFree:         43252 kB
-> SwapTotal:     1048784 kB
-> SwapFree:      1017920 kB
-> Dirty:         6225664 kB
-> Writeback:      447272 kB
-> Mapped:          10460 kB
-> Slab:           362136 kB
-> CommitLimit:   4620596 kB
-> Committed_AS:   168616 kB
-> PageTables:       2452 kB
-> VmallocTotal: 34359738367 kB
-> VmallocUsed:      9888 kB
-> VmallocChunk: 34359728447 kB
-> HugePages_Total:     0
-> HugePages_Free:      0
-> Hugepagesize:     2048 kB
-> 
+> Can you please reduce the number of filesystems, see if that reduces the
+>  dirty levels?
 
-That is extremely wrong.  dirty memory is *way* too high.
+Also, it's conceivable that ext3 is implicated here, so it might be saner
+to perform initial investigation on ext2.
 
-> 
-> # echo 2 > /proc/profile; sleep 5;  readprofile -
-> m /usr/src/*12.3/System.map | sort -nr
-> 1634737 total                                      0.5464
-> 1468569 shrink_zone                              390.5769
->  21203 unlock_page                              331.2969
->  19497 release_pages                             46.8678
->  19061 __wake_up_bit                            397.1042
->  17936 page_referenced                           53.3810
->  10679 lru_add_drain                            133.4875
-
-And so page reclaim has gone crazy.
-
-We need to work out why the dirty memory levels are so high.
-
-Can you please reduce the number of filesystems, see if that reduces the
-dirty levels?
-
+(when kjournald writes back a page via its buffers, the page remains
+"dirty" as far as the VFS is concerned.  Later, someone tries to do a
+writepage() on it and we'll discover the buffers' cleanness and the page
+will be cleaned without any I/O being performed.  All the throttling
+_should_ work OK in this case.  But ext2 is more straightforward.)
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
