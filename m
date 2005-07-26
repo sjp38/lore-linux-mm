@@ -1,143 +1,227 @@
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e4.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id j6QM9sh1023521
-	for <linux-mm@kvack.org>; Tue, 26 Jul 2005 18:09:54 -0400
-Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
-	by d01relay02.pok.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id j6QM9s6d257954
-	for <linux-mm@kvack.org>; Tue, 26 Jul 2005 18:09:54 -0400
-Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
-	by d01av03.pok.ibm.com (8.12.11/8.13.3) with ESMTP id j6QM9six001647
-	for <linux-mm@kvack.org>; Tue, 26 Jul 2005 18:09:54 -0400
+Received: from westrelay02.boulder.ibm.com (westrelay02.boulder.ibm.com [9.17.195.11])
+	by e33.co.us.ibm.com (8.12.10/8.12.9) with ESMTP id j6QMmMju726624
+	for <linux-mm@kvack.org>; Tue, 26 Jul 2005 18:48:22 -0400
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by westrelay02.boulder.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id j6QMmL9v411528
+	for <linux-mm@kvack.org>; Tue, 26 Jul 2005 16:48:21 -0600
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.12.11/8.13.3) with ESMTP id j6QMmLBG030511
+	for <linux-mm@kvack.org>; Tue, 26 Jul 2005 16:48:21 -0600
 Subject: Re: Memory pressure handling with iSCSI
-From: Adam Litke <agl@us.ibm.com>
-In-Reply-To: <148380000.1122413605@flay>
+From: Badari Pulavarty <pbadari@us.ibm.com>
+In-Reply-To: <20050726151003.6aa3aecb.akpm@osdl.org>
 References: <1122399331.6433.29.camel@dyn9047017102.beaverton.ibm.com>
-	 <Pine.LNX.4.61.0507261659250.1786@chimarrao.boston.redhat.com>
-	 <1122411949.6433.50.camel@dyn9047017102.beaverton.ibm.com>
-	 <148380000.1122413605@flay>
-Content-Type: text/plain
-Message-Id: <1122415509.3274.102.camel@localhost.localdomain>
+	 <20050726111110.6b9db241.akpm@osdl.org>
+	 <1122403152.6433.39.camel@dyn9047017102.beaverton.ibm.com>
+	 <20050726114824.136d3dad.akpm@osdl.org>
+	 <20050726121250.0ba7d744.akpm@osdl.org>
+	 <1122412301.6433.54.camel@dyn9047017102.beaverton.ibm.com>
+	 <20050726142410.4ff2e56a.akpm@osdl.org>
+	 <1122414300.6433.57.camel@dyn9047017102.beaverton.ibm.com>
+	 <20050726151003.6aa3aecb.akpm@osdl.org>
+Content-Type: multipart/mixed; boundary="=-QfRwilUKhN6W2dGZQD/R"
+Date: Tue, 26 Jul 2005 15:48:08 -0700
+Message-Id: <1122418089.6433.62.camel@dyn9047017102.beaverton.ibm.com>
 Mime-Version: 1.0
-Date: Tue, 26 Jul 2005 17:05:09 -0500
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Martin J. Bligh" <mbligh@mbligh.org>
-Cc: "Badari Pulavarty [imap]" <pbadari@us.ibm.com>, Rik van Riel <riel@redhat.com>, lkml <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@osdl.org>
+To: Andrew Morton <akpm@osdl.org>
+Cc: lkml <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2005-07-26 at 16:33, Martin J. Bligh wrote:
-> >> > After KS & OLS discussions about memory pressure, I wanted to re-do
-> >> > iSCSI testing with "dd"s to see if we are throttling writes.  
-> >> 
-> >> Could you also try with shared writable mmap, to see if that
-> >> works ok or triggers a deadlock ?
+--=-QfRwilUKhN6W2dGZQD/R
+Content-Type: text/plain
+Content-Transfer-Encoding: 7bit
+
+On Tue, 2005-07-26 at 15:10 -0700, Andrew Morton wrote:
+> Badari Pulavarty <pbadari@us.ibm.com> wrote:
+> >
+> > On Tue, 2005-07-26 at 14:24 -0700, Andrew Morton wrote:
+> > > Badari Pulavarty <pbadari@us.ibm.com> wrote:
+> > > >
+> > > > ext2 is incredibly better. Machine is very responsive. 
+> > > > 
+> > > 
+> > > OK.  Please, always monitor and send /proc/meminfo.  I assume that the
+> > > dirty-memory clamping is working OK with ext2 and that perhaps it'll work
+> > > OK with ext3/data=writeback.
 > > 
-> > 
-> > I can, but lets finish addressing one issue at a time. Last time,
-> > I changed too many things at the same time and got no where :(
+> > Nope. Dirty is still very high..
 > 
-> Adam is working that one, but not over iSCSI.
+> That's a relief in a way.  Can you please try decreasing the number of
+> filesystems now?
 
-I wrote a simple/ugly C program to demonstrate the MAP_SHARED,PROT_WRITE
-case.  I was able to saturate the system with 75% of all memory in dirty
-pages before I got bored.
+Here is the data with 5 ext2 filesystems. I also collected /proc/meminfo
+every 5 seconds. As you can see, we seem to dirty 6GB of data in 20
+seconds of starting the test. I am not sure if its bad, since we have
+lots of free memory..
 
-To reproduce:
-- Create a 3GB file with dd
-- ./map-shared-dirty bigfile <number of chunks>
+Thanks,
+Badari
 
-I break up the mmap & dirty operation into chunks in case the system is
-tight on memory.  Choose a large enough number of chunks so the
-individual mmaps will be small enough for your system to accomodate.
 
--- 
 
-MemTotal:      4092492 kB
-MemFree:        786988 kB
-Buffers:          6372 kB
-Cached:        3211388 kB
+--=-QfRwilUKhN6W2dGZQD/R
+Content-Disposition: attachment; filename=vmstat-5-ext2.out
+Content-Type: text/plain; name=vmstat-5-ext2.out; charset=utf-8
+Content-Transfer-Encoding: 7bit
+
+procs -----------memory---------- ---swap-- -----io---- --system-- ----cpu----
+ r  b   swpd   free   buff  cache   si   so    bi    bo   in    cs us sy id wa
+ 2 11    120  32912  10624 6813476    0    0     0  6766 10364   485  0  4  0 96
+ 0 11    120  33036  10652 6813964    0    0     2  8889 10079   475  0  4  0 96
+ 0 11    120  33036  10712 6813904    0    0     0  8077 9984   469  0  4  0 96
+ 0 11    120  32912  10752 6814380    0    0     0 15576 10226   514  0  4  0 95
+ 0 11    120  33036  10668 6813432    0    0     0 11334 10112   488  0  4  0 96
+ 0 11    120  33656  10600 6813500    0    0     0 11811 10238   497  0  4  0 96
+ 0 11    120  33036  10596 6814020    0    0     0 12713 10191   489  0  4  0 96
+ 0 11    120  33036  10648 6813968    0    0     1 15775 10195   508  0  4  0 96
+ 0 10    120  33780  10656 6812928    0    0     2  5390 10265   503  0  3  5 92
+ 0 11    120  33036  10660 6813440    0    0     0  9700 10217   518  0  4  2 94
+
+
+
+--=-QfRwilUKhN6W2dGZQD/R
+Content-Disposition: inline; filename=meminfo.out
+Content-Type: text/plain; name=meminfo.out; charset=utf-8
+Content-Transfer-Encoding: 7bit
+
+MemTotal:      7143628 kB
+MemFree:       7001860 kB
+Buffers:          5080 kB
+Cached:          23300 kB
 SwapCached:          0 kB
-Active:        3197428 kB
-Inactive:        36696 kB
-HighTotal:     3211264 kB
-HighFree:         1024 kB
-LowTotal:       881228 kB
-LowFree:        785964 kB
-SwapTotal:           0 kB
-SwapFree:            0 kB
-Dirty:         3117300 kB
-Writeback:        3568 kB
-Mapped:          24780 kB
-Slab:            59316 kB
-Committed_AS:    49760 kB
-PageTables:        780 kB
-VmallocTotal:   114680 kB
-VmallocUsed:        32 kB
-VmallocChunk:   114648 kB
+Active:          48600 kB
+Inactive:         5872 kB
+HighTotal:           0 kB
+HighFree:            0 kB
+LowTotal:      7143628 kB
+LowFree:       7001860 kB
+SwapTotal:     1048784 kB
+SwapFree:      1048780 kB
+Dirty:               0 kB
+Writeback:           0 kB
+Mapped:          45948 kB
+Slab:            56348 kB
+CommitLimit:   4620596 kB
+Committed_AS:   148436 kB
+PageTables:       1544 kB
+VmallocTotal: 34359738367 kB
+VmallocUsed:      9888 kB
+VmallocChunk: 34359728447 kB
+HugePages_Total:     0
+HugePages_Free:      0
+Hugepagesize:     2048 kB
 
-/*
- * map-shared-dirty.c - Demonstrate a loophole in dirty-ratio when 
- * heavily dirtying MAP_SHARED memory.
- *
- * Usage: (I know it's ugly)
- * ./map-shared-dirty <large file> <number of chunks>
- */
+MemTotal:      7143628 kB
+MemFree:       4871864 kB
+Buffers:         14564 kB
+Cached:        2091232 kB
+SwapCached:          0 kB
+Active:          51380 kB
+Inactive:      2081780 kB
+HighTotal:           0 kB
+HighFree:            0 kB
+LowTotal:      7143628 kB
+LowFree:       4871864 kB
+SwapTotal:     1048784 kB
+SwapFree:      1048780 kB
+Dirty:         2070752 kB
+Writeback:           0 kB
+Mapped:          46368 kB
+Slab:           107912 kB
+CommitLimit:   4620596 kB
+Committed_AS:   148524 kB
+PageTables:       1608 kB
+VmallocTotal: 34359738367 kB
+VmallocUsed:      9888 kB
+VmallocChunk: 34359728447 kB
+HugePages_Total:     0
+HugePages_Free:      0
+Hugepagesize:     2048 kB
 
-#include <string.h>
-#include <fcntl.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <unistd.h>
-#include <sys/mman.h>
-#include <stdio.h>
+MemTotal:      7143628 kB
+MemFree:        406384 kB
+Buffers:         18940 kB
+Cached:        6443960 kB
+SwapCached:          0 kB
+Active:          55688 kB
+Inactive:      6435048 kB
+HighTotal:           0 kB
+HighFree:            0 kB
+LowTotal:      7143628 kB
+LowFree:        406384 kB
+SwapTotal:     1048784 kB
+SwapFree:      1048780 kB
+Dirty:         6144652 kB
+Writeback:      252152 kB
+Mapped:          46380 kB
+Slab:           216580 kB
+CommitLimit:   4620596 kB
+Committed_AS:   148756 kB
+PageTables:       1608 kB
+VmallocTotal: 34359738367 kB
+VmallocUsed:      9888 kB
+VmallocChunk: 34359728447 kB
+HugePages_Total:     0
+HugePages_Free:      0
+Hugepagesize:     2048 kB
 
-size_t page_size;
+MemTotal:      7143628 kB
+MemFree:         32772 kB
+Buffers:         10028 kB
+Cached:        6817680 kB
+SwapCached:          4 kB
+Active:          48180 kB
+Inactive:      6804552 kB
+HighTotal:           0 kB
+HighFree:            0 kB
+LowTotal:      7143628 kB
+LowFree:         32772 kB
+SwapTotal:     1048784 kB
+SwapFree:      1048664 kB
+Dirty:         6489496 kB
+Writeback:      285264 kB
+Mapped:          46000 kB
+Slab:           228172 kB
+CommitLimit:   4620596 kB
+Committed_AS:   148756 kB
+PageTables:       1608 kB
+VmallocTotal: 34359738367 kB
+VmallocUsed:      9888 kB
+VmallocChunk: 34359728447 kB
+HugePages_Total:     0
+HugePages_Free:      0
+Hugepagesize:     2048 kB
 
-void dirty_file(int fd, unsigned long bytes, size_t map_offset) {
-	char *addr;
-	
-	addr = mmap(NULL, bytes, PROT_READ|PROT_WRITE, MAP_SHARED, fd, map_offset);
-	if (addr == MAP_FAILED) {
-		fprintf(stderr, "Failed to map file\n");
-		fprintf(stderr, "bytes: %i offset: %i\n", bytes,map_offset);
-		exit(1);
-	}
-	
-	/* Dirty the pages */
-	memset(addr, map_offset%255, bytes);
+MemTotal:      7143628 kB
+MemFree:         32524 kB
+Buffers:         10056 kB
+Cached:        6816620 kB
+SwapCached:          4 kB
+Active:          48672 kB
+Inactive:      6803212 kB
+HighTotal:           0 kB
+HighFree:            0 kB
+LowTotal:      7143628 kB
+LowFree:         32524 kB
+SwapTotal:     1048784 kB
+SwapFree:      1048664 kB
+Dirty:         6465124 kB
+Writeback:      268876 kB
+Mapped:          46008 kB
+Slab:           229580 kB
+CommitLimit:   4620596 kB
+Committed_AS:   148996 kB
+PageTables:       1608 kB
+VmallocTotal: 34359738367 kB
+VmallocUsed:      9888 kB
+VmallocChunk: 34359728447 kB
+HugePages_Total:     0
+HugePages_Free:      0
+Hugepagesize:     2048 kB
 
-	munmap(addr, bytes);
-}
-
-int main(int argc, char **argv)
-{
-	char *filename = argv[1];
-	int chunks = atoi(argv[2]);
-	int fd;
-	unsigned long i, chunk_size, bytes;
-	struct stat file_info;
-
-	fd = open(filename, O_RDWR|0100000); /* O_LARGEFILE */
-	if (fd <= 0) {
-		fprintf(stderr, "Failed to open file\n");
-		exit(1);
-	}
-	fstat(fd, &file_info);
-	bytes = file_info.st_size;
-	
-	page_size = getpagesize();
-	chunk_size = (bytes / chunks) & ~(page_size - 1);
-	printf("Chunk size = %i\n", chunk_size);
-	for (i = 0; i < bytes; i+=chunk_size)
-		dirty_file(fd, chunk_size, i);
-	
-	exit(0);
-}
-
-
--- 
-Adam Litke - (agl at us.ibm.com)
-IBM Linux Technology Center
+--=-QfRwilUKhN6W2dGZQD/R--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
