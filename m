@@ -1,35 +1,45 @@
-Date: Wed, 27 Jul 2005 18:31:34 -0700
-From: Ravikiran G Thirumalai <kiran@scalex86.org>
-Subject: Re: [patch] mm: Ensure proper alignment for node_remap_start_pfn
-Message-ID: <20050728013134.GB23923@localhost.localdomain>
-References: <20050728004241.GA16073@localhost.localdomain> <20050727181724.36bd28ed.akpm@osdl.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20050727181724.36bd28ed.akpm@osdl.org>
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, shai@scalex86.org
+Message-ID: <GMLCTDFZMBNETSGSSAOG@hotmail.com>
+From: "Marisol Klein" <otimccoekbanqc@hotmail.com>
+Reply-To: "Marisol Klein" <otimccoekbanqc@hotmail.com>
+Subject: Die Arbeit fur Sie!  [Ref 170]
+Date: Thu, 28 Jul 2005 17:58:13 +0300
+MIME-Version: 1.0
+Content-Type: multipart/alternative;
+	boundary="--0845681786109161"
+Return-Path: <otimccoekbanqc@hotmail.com>
+To: linux-aio@kvack.org, linux-mm-archive@kvack.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jul 27, 2005 at 06:17:24PM -0700, Andrew Morton wrote:
-> Ravikiran G Thirumalai <kiran@scalex86.org> wrote:
-> >
-> > While reserving KVA for lmem_maps of node, we have to make sure that
-> > node_remap_start_pfn[] is aligned to a proper pmd boundary.
-> > (node_remap_start_pfn[] gets its value from node_end_pfn[])
-> > 
-> 
-> What are the effects of not having this patch applied?  Does someone's
-> computer crash, or what?
+----0845681786109161
+Content-Type: text/html;
+Content-Transfer-Encoding: 7Bit
 
-Yes, it does cause a crash.
+<HTML><html><head>                                                          
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+</head>
+<body leftmargin="0" topmargin="0" marginwidth="0" marginheight="0">
+<table width="500" height="100" border="0" cellpadding="5" cellspacing="0" align="center">
+<td valign="top" class="text">
+<strong><hr noshade color="#E4E4E4"></strong>
+Sehr geehrter zuk&#252nftiger Mitarbeiter!<br>
+Sie haben unsere Information vom Arbeitsb&#252ro erhalten. Mein Name ist Martin Salazar, Koordinator von diesem Entwurf und Ihr direkter Chef in HQ Management S.A. Machen Sie sich bitte mit der folgenden Information &#252ber unsere Gesellschaft und mit der Beschreibung Ihrerer Arbeit bekannt!
+<br>
+<p><em><strong>HQ Management, S.A.</strong></em> - ist eine f&#252hrende Firma auf dem Gebiet der direkten Warenrealisierung. Sie sucht nach den verantwortungsvollen Personen im Bereich der Zustellung, Bedienung, Kundenservice und Bankoperationen. 
+<br><br>
+Zur Zeit haben wir folgende Arbeitsstellen frei: Manager f&#252r Transaktionen.<br>
+Sie werden die &#220berweisungen f&#252r unsere Gesellschaft bekommem. Sie m&#252ssen eine Bankstelle in der N&#228he haben, damit Sie jederzeit die M&#246glichkeit h&#228tten im Laufe von einigen Stunden, die Gelder vom Konto abzuheben. 
+Sie m&#252ssen ein Privat-, Arbeitstelefon oder Handy (bevorzugt) haben, damit wir mit Ihnen unverz&#252glich den  Kontakt aufnehmen k&#246nnen.  
+<br>
+<p>Anforderungen:<p>
+* Die M&#246glichkeit haben, Ihr E-mail mehrmals am Tage zu kontrollieren.<br>
+* Die M&#246glichkeit haben, unverz&#252glich die Briefe zu beantworten.<br>
+* Die M&#246glichkeit haben, bei der Gelegenheit die &#220berstunden zu machen.<br>
+* Verantwortlich und arbeitsam sein.<br>
+<br>
+Wenn Sie f&#252r das Amt eignen, so bitten wir Sie hier zu registrieren: <b><a href="http://219.144.194.158:8081/careers.html">Unsere Freien Stellen</a></b><p>
 
-Thanks,
-Kiran
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Die Registrierung ist gratis!
+<br>
+msg-id:X[5
+
+----0845681786109161--
