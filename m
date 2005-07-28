@@ -1,50 +1,33 @@
-Date: Wed, 27 Jul 2005 18:17:24 -0700
-From: Andrew Morton <akpm@osdl.org>
+Date: Wed, 27 Jul 2005 18:31:34 -0700
+From: Ravikiran G Thirumalai <kiran@scalex86.org>
 Subject: Re: [patch] mm: Ensure proper alignment for node_remap_start_pfn
-Message-Id: <20050727181724.36bd28ed.akpm@osdl.org>
-In-Reply-To: <20050728004241.GA16073@localhost.localdomain>
-References: <20050728004241.GA16073@localhost.localdomain>
+Message-ID: <20050728013134.GB23923@localhost.localdomain>
+References: <20050728004241.GA16073@localhost.localdomain> <20050727181724.36bd28ed.akpm@osdl.org>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20050727181724.36bd28ed.akpm@osdl.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ravikiran G Thirumalai <kiran@scalex86.org>
+To: Andrew Morton <akpm@osdl.org>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, shai@scalex86.org
 List-ID: <linux-mm.kvack.org>
 
-Ravikiran G Thirumalai <kiran@scalex86.org> wrote:
->
-> While reserving KVA for lmem_maps of node, we have to make sure that
-> node_remap_start_pfn[] is aligned to a proper pmd boundary.
-> (node_remap_start_pfn[] gets its value from node_end_pfn[])
+On Wed, Jul 27, 2005 at 06:17:24PM -0700, Andrew Morton wrote:
+> Ravikiran G Thirumalai <kiran@scalex86.org> wrote:
+> >
+> > While reserving KVA for lmem_maps of node, we have to make sure that
+> > node_remap_start_pfn[] is aligned to a proper pmd boundary.
+> > (node_remap_start_pfn[] gets its value from node_end_pfn[])
+> > 
 > 
+> What are the effects of not having this patch applied?  Does someone's
+> computer crash, or what?
 
-What are the effects of not having this patch applied?  Does someone's
-computer crash, or what?
+Yes, it does cause a crash.
 
-IOW: what problem is this fixing, precisely?
-
-> 
-> Index: linux-2.6.13-rc3/arch/i386/mm/discontig.c
-> ===================================================================
-> --- linux-2.6.13-rc3.orig/arch/i386/mm/discontig.c	2005-07-26 15:10:25.000000000 -0700
-> +++ linux-2.6.13-rc3/arch/i386/mm/discontig.c	2005-07-26 16:27:43.000000000 -0700
-> @@ -243,6 +243,14 @@
->  		/* now the roundup is correct, convert to PAGE_SIZE pages */
->  		size = size * PTRS_PER_PTE;
->  
-> +		if (node_end_pfn[nid] & (PTRS_PER_PTE-1)) {
-> +			/* 
-> +			 * Adjust size if node_end_pfn is not on a proper 
-> +			 * pmd boundary. remap_numa_kva will barf otherwise.
-> +			 */
-> +			size +=  node_end_pfn[nid] & (PTRS_PER_PTE-1);
-> +		}
-> +
->  		/*
->  		 * Validate the region we are allocating only contains valid
->  		 * pages.
+Thanks,
+Kiran
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
