@@ -1,54 +1,156 @@
-Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
-	by e31.co.us.ibm.com (8.12.10/8.12.9) with ESMTP id j6SIPPIY537234
-	for <linux-mm@kvack.org>; Thu, 28 Jul 2005 14:25:25 -0400
-Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
-	by d03relay04.boulder.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id j6SIPSb4168302
-	for <linux-mm@kvack.org>; Thu, 28 Jul 2005 12:25:28 -0600
-Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av03.boulder.ibm.com (8.12.11/8.13.3) with ESMTP id j6SIPOYU003920
-	for <linux-mm@kvack.org>; Thu, 28 Jul 2005 12:25:24 -0600
-Subject: Re: [patch] mm: Ensure proper alignment for node_remap_start_pfn
-From: Dave Hansen <haveblue@us.ibm.com>
-In-Reply-To: <20050728181421.GA3842@localhost.localdomain>
-References: <20050728004241.GA16073@localhost.localdomain>
-	 <20050727181724.36bd28ed.akpm@osdl.org>
-	 <20050728013134.GB23923@localhost.localdomain>
-	 <1122571226.23386.44.camel@localhost>
-	 <20050728181421.GA3842@localhost.localdomain>
-Content-Type: text/plain
-Date: Thu, 28 Jul 2005 11:25:22 -0700
-Message-Id: <1122575122.20800.32.camel@localhost>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Message-Id: <200507290110.j6T1AlsW000482@shell0.pdx.osdl.net>
+Subject: x86-ptep-clear-optimization.patch added to -mm tree
+From: akpm@osdl.org
+Date: Thu, 28 Jul 2005 18:09:49 -0700
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ravikiran G Thirumalai <kiran@scalex86.org>
-Cc: Andrew Morton <akpm@osdl.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, shai@scalex86.org
+To: zach@vmware.com, christoph@lameter.com, linux-mm@kvack.org, mm-commits@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2005-07-28 at 11:14 -0700, Ravikiran G Thirumalai wrote:
-> SRAT need not guarantee any alignment at all in the memory affinity 
-> structure (the address in 64-bit byte address)
+The patch titled
 
-The Summit machines (the only x86 user of the SRAT) have other hardware
-guarantees about alignment, so I guess that's why we've never
-encountered it.  Are you using the SRAT on non-Summit hardware?  That
-doesn't seem possible:
+     x86: ptep_clear optimization
 
-arch/i386/Kconfig:
-        config ACPI_SRAT
-                bool
-                default y
-                depends on NUMA && (X86_SUMMIT || X86_GENERICARCH)
-        
-> And yes, there are x86-numa
-> machines that run the latest kernel tree and face this problem.
+has been added to the -mm tree.  Its filename is
 
-I didn't say "run the latest kernel tree".  *In* the latest kernel
-tree :)
+     x86-ptep-clear-optimization.patch
 
--- Dave
+Patches currently in -mm which might be from zach@vmware.com are
 
+x86-ptep-clear-optimization.patch
+
+
+
+From: Zachary Amsden <zach@vmware.com>
+
+Add a new accessor for PTEs, which passes the full hint from the mmu_gather
+struct; this allows architectures with hardware pagetables to optimize away
+atomic PTE operations when destroying an address space.  Removing the
+locked operation should allow better pipelining of memory access in this
+loop.  I measured an average savings of 30-35 cycles per zap_pte_range on
+the first 500 destructions on Pentium-M, but I believe the optimization
+would win more on older processors which still assert the bus lock on xchg
+for an exclusive cacheline.
+
+Update: I made some new measurements, and this saves exactly 26 cycles over
+ptep_get_and_clear on Pentium M.  On P4, with a PAE kernel, this saves 180
+cycles per ptep_get_and_clear, for a whopping 92160 cycles savings for a
+full address space destruction.
+
+pte_clear_full is not yet used, but is provided for future optimizations
+(in particular, when running inside of a hypervisor that queues page table
+updates, the full hint allows us to avoid queueing unnecessary page table
+update for an address space in the process of being destroyed.
+
+This is not a huge win, but it does help a bit, and sets the stage for
+further hypervisor optimization of the mm layer on all architectures.
+
+Cc: Christoph Lameter <christoph@lameter.com>
+Cc: <linux-mm@kvack.org>
+Signed-off-by: Andrew Morton <akpm@osdl.org>
+---
+
+ include/asm-generic/pgtable.h |   16 ++++++++++++++++
+ include/asm-i386/pgtable.h    |   13 +++++++++++++
+ mm/memory.c                   |   17 ++++++++++-------
+ 3 files changed, 39 insertions(+), 7 deletions(-)
+
+diff -puN include/asm-generic/pgtable.h~x86-ptep-clear-optimization include/asm-generic/pgtable.h
+--- devel/include/asm-generic/pgtable.h~x86-ptep-clear-optimization	2005-07-28 18:09:34.000000000 -0700
++++ devel-akpm/include/asm-generic/pgtable.h	2005-07-28 18:09:34.000000000 -0700
+@@ -101,6 +101,22 @@ do {				  					  \
+ })
+ #endif
+ 
++#ifndef __HAVE_ARCH_PTEP_GET_AND_CLEAR_FULL
++#define ptep_get_and_clear_full(__mm, __address, __ptep, __full)	\
++({									\
++	pte_t __pte;							\
++	__pte = ptep_get_and_clear((__mm), (__address), (__ptep));	\
++	__pte;								\
++})
++#endif
++
++#ifndef __HAVE_ARCH_PTE_CLEAR_FULL
++#define pte_clear_full(__tlb, __address, __ptep, __full)		\
++do {									\
++	pte_clear((__tlb)->mm, (__address), (__ptep));			\
++} while (0)
++#endif
++
+ #ifndef __HAVE_ARCH_PTEP_CLEAR_FLUSH
+ #define ptep_clear_flush(__vma, __address, __ptep)			\
+ ({									\
+diff -puN include/asm-i386/pgtable.h~x86-ptep-clear-optimization include/asm-i386/pgtable.h
+--- devel/include/asm-i386/pgtable.h~x86-ptep-clear-optimization	2005-07-28 18:09:34.000000000 -0700
++++ devel-akpm/include/asm-i386/pgtable.h	2005-07-28 18:09:34.000000000 -0700
+@@ -258,6 +258,18 @@ static inline int ptep_test_and_clear_yo
+ 	return test_and_clear_bit(_PAGE_BIT_ACCESSED, &ptep->pte_low);
+ }
+ 
++static inline pte_t ptep_get_and_clear_full(struct mm_struct *mm, unsigned long addr, pte_t *ptep, int full)
++{
++	pte_t pte;
++	if (full) {
++		pte = *ptep;
++		*ptep = __pte(0);
++	} else {
++		pte = ptep_get_and_clear(mm, addr, ptep);
++	}
++	return pte;
++}
++
+ static inline void ptep_set_wrprotect(struct mm_struct *mm, unsigned long addr, pte_t *ptep)
+ {
+ 	clear_bit(_PAGE_BIT_RW, &ptep->pte_low);
+@@ -415,6 +427,7 @@ extern void noexec_setup(const char *str
+ #define __HAVE_ARCH_PTEP_TEST_AND_CLEAR_YOUNG
+ #define __HAVE_ARCH_PTEP_TEST_AND_CLEAR_DIRTY
+ #define __HAVE_ARCH_PTEP_GET_AND_CLEAR
++#define __HAVE_ARCH_PTEP_GET_AND_CLEAR_FULL
+ #define __HAVE_ARCH_PTEP_SET_WRPROTECT
+ #define __HAVE_ARCH_PTE_SAME
+ #include <asm-generic/pgtable.h>
+diff -puN mm/memory.c~x86-ptep-clear-optimization mm/memory.c
+--- devel/mm/memory.c~x86-ptep-clear-optimization	2005-07-28 18:09:34.000000000 -0700
++++ devel-akpm/mm/memory.c	2005-07-28 18:09:34.000000000 -0700
+@@ -554,17 +554,20 @@ static void zap_pte_range(struct mmu_gat
+ 					continue;
+ 			}
+ 			if (unlikely(!page)) {
+-				ptent = ptep_get_and_clear(tlb->mm, addr, pte);
++				ptent = ptep_get_and_clear_full(tlb->mm, addr,
++							pte, tlb->fullmm);
+ 				tlb_remove_tlb_entry(tlb, pte, addr);
+ 				continue;
+ 			}
+-			if (unlikely(details) && details->nonlinear_vma
+-			    && linear_page_index(details->nonlinear_vma,
+-						addr) != page->index)
++			if (unlikely(details) && details->nonlinear_vma &&
++				linear_page_index(details->nonlinear_vma,
++						addr) != page->index) {
+ 				ptent = ptep_xchg(tlb->mm, addr, pte,
+ 						  pgoff_to_pte(page->index));
+-			else
+-				ptent = ptep_get_and_clear(tlb->mm, addr, pte);
++			} else {
++				ptent = ptep_get_and_clear_full(tlb->mm, addr,
++							pte, tlb->fullmm);
++			}
+ 			tlb_remove_tlb_entry(tlb, pte, addr);
+ 			if (pte_dirty(ptent))
+ 				set_page_dirty(page);
+@@ -585,7 +588,7 @@ static void zap_pte_range(struct mmu_gat
+ 			continue;
+ 		if (!pte_file(ptent))
+ 			free_swap_and_cache(pte_to_swp_entry(ptent));
+-		pte_clear(tlb->mm, addr, pte);
++		pte_clear_full(tlb->mm, addr, pte, tlb->fullmm);
+ 	} while (pte++, addr += PAGE_SIZE, addr != end);
+ 	pte_unmap(pte - 1);
+ }
+_
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
