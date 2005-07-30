@@ -1,62 +1,49 @@
-Message-Id: <q45951$30sf@ot05.testy.STZZHPIGSHA@hush.com>
-Reply-To: "like876" <STZZHPIGSHA@hush.com>
-From: "like876" <STZZHPIGSHA@hush.com>
-Subject: Infection by Spyware. Stronger-than-expected data lift stocks
-Date: Sun, 31 Jul 2005 07:08:22 +0000
-MIME-Version: 1.0
-Content-Type: multipart/alternative;
-	boundary="--921516001225342"
+Received: from flecktone.americas.sgi.com (flecktone.americas.sgi.com [198.149.16.15])
+	by omx1.americas.sgi.com (8.12.10/8.12.9/linux-outbound_gateway-1.1) with ESMTP id j6UKrZxT010111
+	for <linux-mm@kvack.org>; Sat, 30 Jul 2005 15:53:35 -0500
+Received: from thistle-e236.americas.sgi.com (thistle-e236.americas.sgi.com [128.162.236.204])
+	by flecktone.americas.sgi.com (8.12.9/8.12.10/SGI_generic_relay-1.2) with ESMTP id j6UKrYDN13264255
+	for <linux-mm@kvack.org>; Sat, 30 Jul 2005 15:53:35 -0500 (CDT)
+Received: from lnx-holt.americas.sgi.com (lnx-holt.americas.sgi.com [128.162.233.109]) by thistle-e236.americas.sgi.com (8.12.9/SGI-server-1.8) with ESMTP id j6UKrYNi38023315 for <linux-mm@kvack.org>; Sat, 30 Jul 2005 15:53:34 -0500 (CDT)
+Received: from lnx-holt.americas.sgi.com (localhost.localdomain [127.0.0.1])
+	by lnx-holt.americas.sgi.com (8.13.4/8.13.4) with ESMTP id j6UKrKUr003908
+	for <linux-mm@kvack.org>; Sat, 30 Jul 2005 15:53:20 -0500
+Received: (from holt@localhost)
+	by lnx-holt.americas.sgi.com (8.13.4/8.13.4/Submit) id j6UKrJF8003903
+	for linux-mm@kvack.org; Sat, 30 Jul 2005 15:53:19 -0500
+Date: Sat, 30 Jul 2005 15:53:19 -0500
+From: Robin Holt <holt@sgi.com>
+Subject: get_user_pages() with write=1 and force=1 gets read-only pages.
+Message-ID: <20050730205319.GA1233@lnx-holt.americas.sgi.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-----921516001225342
-Content-Type: text/plain;
-	charset="iso-5783-8"
-Content-Transfer-Encoding: 7bit
+I am chasing a bug which I think I understand, but would like some
+confirmation.
 
-Hi linux-mm,
+I believe I have two processes calling get_user_pages at approximately
+the same time.  One is calling with write=0.  The other with write=1
+and force=1.  The vma has the vm_ops->nopage set to filemap_nopage.
 
-You are INFECTED. With Spyware that can't be deleted by your Anti-Virus.
-Download our award winning Anti-Spyware Software. 
+Both faulters get to the point in do_no_page of being ready to insert
+the pte.  The first one to get the mm->page_table_lock must be the reader.
+The readable pte gets inserted and results in the writer detecting the
+pte and returning VM_FAULT_MINOR.
 
-http://textile.ekillspyware.com/ad/
+Upon return, the writer the does 'lookup_write = write && !force;'
+and then calls follow_page without having the write flag set.
 
-Check if you're infected
-Find out right now with our FREE Spyware Scan.
+Am I on the right track with this?  Is the correct fix to not just pass
+in the write flag untouched?  I believe the change was made by Roland
+McGrath, but I don't see an email address for him.
 
-
-
-
-
-Until Ja started yappin' in magazines how we stabbed him
-I spent too much energy on it, honestly I'm exhausted
-We'll be friends!?
-
-Brooklyn Fire Kills Boy, 3, and Leaves 2 Siblings Hurt
-http://www.msnbc.msn.com/id/8432123/
-
-Stewart?s first win at Daytona worth the wait | Video
-http://www.times.com/pages/world/index.html
-
-For the Poor in Iran, Voting Was About Making Ends Meet
-http://g.msn.com/0MNMAN27/1?http://www.msnbc.msn.com/id/3891881/&amp;&amp;CM=CoverQuicklinks&amp;CE=2&amp;HL=corrections
-
-It was crazy... this shit be way beyond some Jay-z and Nas shit
-They call me Superman??
-And talkin' about something that I knew nothing about
-
-Square Feet: A Mall in Decline Eyes Fish-Market Space
-http://www.msnbc.msn.com/id/8444603/
-
-Stronger-than-expected data lift stocks
-http://www.times.com/pages/nyregion/index.html
-
-Were the Good Old Days That Good?
-http://g.msn.com/0MNMAN27/1?http://www.msnbc.com/tools/newstools/e/EmailExtra.asp?nfeature=23&amp;&amp;CM=CoverQuicklinks&amp;CE=4&amp;HL=newsletters
-
-----921516001225342--
+Thanks,
+Robin Holt
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
