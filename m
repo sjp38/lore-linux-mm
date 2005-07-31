@@ -1,30 +1,66 @@
-From: "Mary Nora" <mary_nora01@walla.com>
-Reply-To: mary_nora@walla.com
-Date: Sun, 31 Jul 2005 20:42:24 +0200
-Subject: Investment Proposal
+Message-ID: <42ED503A.6060101@yahoo.com.au>
+Date: Mon, 01 Aug 2005 08:27:06 +1000
+From: Nick Piggin <nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: 8BIT
-Message-Id: <20050731193929Z26659-1043+759@kvack.org>
+Subject: Re: get_user_pages() with write=1 and force=1 gets read-only pages.
+References: <20050730205319.GA1233@lnx-holt.americas.sgi.com> <Pine.LNX.4.61.0507302255390.5143@goblin.wat.veritas.com> <42EC2ED6.2070700@yahoo.com.au> <20050731105234.GA2254@lnx-holt.americas.sgi.com> <42ECB0EC.4000808@yahoo.com.au> <20050731113059.GC2254@lnx-holt.americas.sgi.com> <20050731120900.GE2254@lnx-holt.americas.sgi.com>
+In-Reply-To: <20050731120900.GE2254@lnx-holt.americas.sgi.com>
+Content-Type: multipart/mixed;
+ boundary="------------010900010107060104090306"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Robin Holt <holt@sgi.com>
+Cc: Hugh Dickins <hugh@veritas.com>, Roland McGrath <roland@redhat.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hello, 
+This is a multi-part message in MIME format.
+--------------010900010107060104090306
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 
-Please, consider this mail as very important and do let me know your honest response within the shortest time possible?Obviously, you have no knowledge of who I am, but I am Ms Mary Nora, from Sierra Leone, but resident in Senegal (West Africa). 
+Robin Holt wrote:
 
-I am interested in investing in any lucrative business enterprise in your country and do want to use this opportunity to seek your advice on the possibility of investment in your area. Over the recent years, there have been cases of political instability in most countries here in Africa and as a result, I am afraid to invest my money here. On this note, I have decided to look else where for possible investment opportunities, hoping that I would achieve this goal with the assistance of a reliable person. 
+> So far, I think the case for setting VM_FAULT_RACE only when there
+> is a conflict for writable seems strong.
+> 
 
-I would like to know if it would be secured and lucrative to invest in your country and after a careful feasibility study of the various possible fields or industries in your country by your kind assistance, I would transfer my funds to your country for investment. In a nutshell, I do have a large amount of money to establish an ultra modern company in your country, but I will like to know the possible channels available in your area. Please, do assist me carry out a careful survey and get back to me on the various possibilities. If you do not have any much knowledge about investment or business, I will appreciate if you could recommend me to some business experts individuals/companies/business consultants) in your area, who might be of help to me. 
-I do hope to know you better in the course of time and if trust is established between us, I might need you to be actively and directly involved in this proposed venture. But for the time being, I would like to know you better and hope we could get acquainted within the shortest time possible. In my next correspondence with you, I will give you a clue of how much I intend to invest in your country, but for now, I look forward to receiving your response and hope this opportunity would bring us closer for a possible business relationship between us in the near future. 
+But that's 1162 collisions out of how many faults? And only
+on the get_user_pages faults does the return value really
+make a difference.
 
-Have a nice day and best regards, 
+How about the following? This should catch some cases. You
+still miss the case where you're racing with anotyher writer
+though.
 
-Ms Mary Nora. 
+-- 
+SUSE Labs, Novell Inc.
 
 
+--------------010900010107060104090306
+Content-Type: text/plain;
+ name="mm-gup-write-fix.patch"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline;
+ filename="mm-gup-write-fix.patch"
+
+Index: linux-2.6/mm/memory.c
+===================================================================
+--- linux-2.6.orig/mm/memory.c	2005-07-31 11:49:35.000000000 +1000
++++ linux-2.6/mm/memory.c	2005-08-01 08:21:21.000000000 +1000
+@@ -971,7 +971,9 @@ int get_user_pages(struct task_struct *t
+ 					 * that we have actually performed
+ 					 * the write fault (below).
+ 					 */
+-					continue;
++					if (write)
++						continue;
++					break;
+ 				default:
+ 					BUG();
+ 				}
+
+--------------010900010107060104090306--
+Send instant messages to your online friends http://au.messenger.yahoo.com 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
