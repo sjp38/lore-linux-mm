@@ -1,62 +1,168 @@
-Date: Sat, 30 Jul 2005 23:13:06 +0100 (BST)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: get_user_pages() with write=1 and force=1 gets read-only pages.
-In-Reply-To: <20050730205319.GA1233@lnx-holt.americas.sgi.com>
-Message-ID: <Pine.LNX.4.61.0507302255390.5143@goblin.wat.veritas.com>
-References: <20050730205319.GA1233@lnx-holt.americas.sgi.com>
+Message-ID: <42EC2ED6.2070700@yahoo.com.au>
+Date: Sun, 31 Jul 2005 11:52:22 +1000
+From: Nick Piggin <nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: get_user_pages() with write=1 and force=1 gets read-only pages.
+References: <20050730205319.GA1233@lnx-holt.americas.sgi.com> <Pine.LNX.4.61.0507302255390.5143@goblin.wat.veritas.com>
+In-Reply-To: <Pine.LNX.4.61.0507302255390.5143@goblin.wat.veritas.com>
+Content-Type: multipart/mixed;
+ boundary="------------060409040509070201000705"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Robin Holt <holt@sgi.com>
-Cc: Roland McGrath <roland@redhat.com>, linux-mm@kvack.org
+To: Hugh Dickins <hugh@veritas.com>
+Cc: Robin Holt <holt@sgi.com>, Roland McGrath <roland@redhat.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 30 Jul 2005, Robin Holt wrote:
+This is a multi-part message in MIME format.
+--------------060409040509070201000705
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 
-> I am chasing a bug which I think I understand, but would like some
-> confirmation.
+Hugh Dickins wrote:
+
+> get_user_pages is hard!  I don't know the right answer offhand,
+> but thank you for posing a good question.
 > 
-> I believe I have two processes calling get_user_pages at approximately
-> the same time.  One is calling with write=0.  The other with write=1
-> and force=1.  The vma has the vm_ops->nopage set to filemap_nopage.
-> 
-> Both faulters get to the point in do_no_page of being ready to insert
-> the pte.  The first one to get the mm->page_table_lock must be the reader.
-> The readable pte gets inserted and results in the writer detecting the
-> pte and returning VM_FAULT_MINOR.
-> 
-> Upon return, the writer the does 'lookup_write = write && !force;'
-> and then calls follow_page without having the write flag set.
-> 
-> Am I on the right track with this?
 
-I do believe you are.  Twice I've inserted fault code to cope with that
-"surely no longer have a shared page we shouldn't write" assumption,
-but I think you've just demonstrated that it's inherently unsafe.
+Detect the racing fault perhaps, and retry until we're sure
+that a write fault has gone through?
 
-Certainly goes against the traditional grain of fault handlers, which can
-just try again when in doubt - as in the pte_same checks you've observed.
+-- 
+SUSE Labs, Novell Inc.
 
-> Is the correct fix to not just pass in the write flag untouched?
 
-I don't understand you there.  Suspect you're confusing me with that
-"not", which perhaps expresses hesitancy, but shouldn't be there?
+--------------060409040509070201000705
+Content-Type: text/plain;
+ name="mm-gup-fix.patch"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline;
+ filename="mm-gup-fix.patch"
 
-But the correct fix would not be to pass in the write flag untouched:
-it's trying to avoid an endless loop of finding the pte not writable
-when ptrace is modifying a page which the user is currently protected
-against writing to (setting a breakpoint in readonly text, perhaps?).
+Index: linux-2.6/include/linux/mm.h
+===================================================================
+--- linux-2.6.orig/include/linux/mm.h	2005-07-28 19:04:34.000000000 +1000
++++ linux-2.6/include/linux/mm.h	2005-07-31 11:40:24.000000000 +1000
+@@ -625,6 +625,7 @@ static inline int page_mapped(struct pag
+  * Used to decide whether a process gets delivered SIGBUS or
+  * just gets major/minor fault counters bumped up.
+  */
++#define VM_FAULT_RACE	(-2)
+ #define VM_FAULT_OOM	(-1)
+ #define VM_FAULT_SIGBUS	0
+ #define VM_FAULT_MINOR	1
+Index: linux-2.6/mm/memory.c
+===================================================================
+--- linux-2.6.orig/mm/memory.c	2005-07-28 19:04:37.000000000 +1000
++++ linux-2.6/mm/memory.c	2005-07-31 11:49:35.000000000 +1000
+@@ -964,6 +964,14 @@ int get_user_pages(struct task_struct *t
+ 					return i ? i : -EFAULT;
+ 				case VM_FAULT_OOM:
+ 					return i ? i : -ENOMEM;
++				case VM_FAULT_RACE:
++					/*
++					 * Someone else got there first.
++					 * Must retry before we can assume
++					 * that we have actually performed
++					 * the write fault (below).
++					 */
++					continue;
+ 				default:
+ 					BUG();
+ 				}
+@@ -1224,6 +1232,7 @@ static int do_wp_page(struct mm_struct *
+ 	struct page *old_page, *new_page;
+ 	unsigned long pfn = pte_pfn(pte);
+ 	pte_t entry;
++	int ret;
+ 
+ 	if (unlikely(!pfn_valid(pfn))) {
+ 		/*
+@@ -1280,7 +1289,9 @@ static int do_wp_page(struct mm_struct *
+ 	 */
+ 	spin_lock(&mm->page_table_lock);
+ 	page_table = pte_offset_map(pmd, address);
++	ret = VM_FAULT_RACE;
+ 	if (likely(pte_same(*page_table, pte))) {
++		ret = VM_FAULT_MINOR;
+ 		if (PageAnon(old_page))
+ 			dec_mm_counter(mm, anon_rss);
+ 		if (PageReserved(old_page))
+@@ -1299,7 +1310,7 @@ static int do_wp_page(struct mm_struct *
+ 	page_cache_release(new_page);
+ 	page_cache_release(old_page);
+ 	spin_unlock(&mm->page_table_lock);
+-	return VM_FAULT_MINOR;
++	return ret;
+ 
+ no_new_page:
+ 	page_cache_release(old_page);
+@@ -1654,7 +1665,7 @@ static int do_swap_page(struct mm_struct
+ 			if (likely(pte_same(*page_table, orig_pte)))
+ 				ret = VM_FAULT_OOM;
+ 			else
+-				ret = VM_FAULT_MINOR;
++				ret = VM_FAULT_RACE;
+ 			pte_unmap(page_table);
+ 			spin_unlock(&mm->page_table_lock);
+ 			goto out;
+@@ -1676,7 +1687,7 @@ static int do_swap_page(struct mm_struct
+ 	spin_lock(&mm->page_table_lock);
+ 	page_table = pte_offset_map(pmd, address);
+ 	if (unlikely(!pte_same(*page_table, orig_pte))) {
+-		ret = VM_FAULT_MINOR;
++		ret = VM_FAULT_RACE;
+ 		goto out_nomap;
+ 	}
+ 
+@@ -1737,6 +1748,7 @@ do_anonymous_page(struct mm_struct *mm, 
+ {
+ 	pte_t entry;
+ 	struct page * page = ZERO_PAGE(addr);
++	int ret = VM_FAULT_MINOR;
+ 
+ 	/* Read-only mapping of ZERO_PAGE. */
+ 	entry = pte_wrprotect(mk_pte(ZERO_PAGE(addr), vma->vm_page_prot));
+@@ -1760,6 +1772,7 @@ do_anonymous_page(struct mm_struct *mm, 
+ 			pte_unmap(page_table);
+ 			page_cache_release(page);
+ 			spin_unlock(&mm->page_table_lock);
++			ret = VM_FAULT_RACE;
+ 			goto out;
+ 		}
+ 		inc_mm_counter(mm, rss);
+@@ -1779,7 +1792,7 @@ do_anonymous_page(struct mm_struct *mm, 
+ 	lazy_mmu_prot_update(entry);
+ 	spin_unlock(&mm->page_table_lock);
+ out:
+-	return VM_FAULT_MINOR;
++	return ret;
+ no_mem:
+ 	return VM_FAULT_OOM;
+ }
+@@ -1897,6 +1910,7 @@ retry:
+ 		pte_unmap(page_table);
+ 		page_cache_release(new_page);
+ 		spin_unlock(&mm->page_table_lock);
++		ret = VM_FAULT_RACE;
+ 		goto out;
+ 	}
+ 
+Index: linux-2.6/arch/i386/mm/fault.c
+===================================================================
+--- linux-2.6.orig/arch/i386/mm/fault.c	2005-07-28 19:03:48.000000000 +1000
++++ linux-2.6/arch/i386/mm/fault.c	2005-07-31 11:47:48.000000000 +1000
+@@ -351,6 +351,8 @@ good_area:
+ 			goto do_sigbus;
+ 		case VM_FAULT_OOM:
+ 			goto out_of_memory;
++		case VM_FAULT_RACE:
++			break;
+ 		default:
+ 			BUG();
+ 	}
 
-get_user_pages is hard!  I don't know the right answer offhand,
-but thank you for posing a good question.
-
-> I believe the change was made by Roland
-> McGrath, but I don't see an email address for him.
-
-I've CC'ed roland@redhat.com
-
-Hugh
+--------------060409040509070201000705--
+Send instant messages to your online friends http://au.messenger.yahoo.com 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
