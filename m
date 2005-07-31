@@ -1,26 +1,62 @@
-Received: from celineclub.com (celineclub-com.mr.outblaze.com [205.158.62.181])
-	by APoitiers-152-1-20-216.w83-193.abo.wanadoo.fr with esmtp
-	id 0B056B089B for <linux-mm@kvack.org>; Sat, 30 Jul 2005 14:43:15 -0700
-Date: Sat, 30 Jul 2005 14:43:15 -0700
-From: mocnik@celineclub.com
-Message-ID: <2175467721.20050730144315@celineclub.com>
-Subject: Linux, wonder! - 18-19 y.o. barely-legal girls show pussies
+Message-Id: <q45951$30sf@ot05.testy.STZZHPIGSHA@hush.com>
+Reply-To: "like876" <STZZHPIGSHA@hush.com>
+From: "like876" <STZZHPIGSHA@hush.com>
+Subject: Infection by Spyware. Stronger-than-expected data lift stocks
+Date: Sun, 31 Jul 2005 07:08:22 +0000
 MIME-Version: 1.0
-Content-Type: text/plain
-Content-Transfer-Encoding: 7bit
+Content-Type: multipart/alternative;
+	boundary="--921516001225342"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linux <linux-mm@kvack.org>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hello,
+----921516001225342
+Content-Type: text/plain;
+	charset="iso-5783-8"
+Content-Transfer-Encoding: 7bit
 
-Best youngest porn free collection 
+Hi linux-mm,
 
-http://pLC60.bestkingplace.net/02
+You are INFECTED. With Spyware that can't be deleted by your Anti-Virus.
+Download our award winning Anti-Spyware Software. 
 
-Uncensorded teen hardcore, exclusive video and photo series
+http://textile.ekillspyware.com/ad/
 
+Check if you're infected
+Find out right now with our FREE Spyware Scan.
+
+
+
+
+
+Until Ja started yappin' in magazines how we stabbed him
+I spent too much energy on it, honestly I'm exhausted
+We'll be friends!?
+
+Brooklyn Fire Kills Boy, 3, and Leaves 2 Siblings Hurt
+http://www.msnbc.msn.com/id/8432123/
+
+Stewart?s first win at Daytona worth the wait | Video
+http://www.times.com/pages/world/index.html
+
+For the Poor in Iran, Voting Was About Making Ends Meet
+http://g.msn.com/0MNMAN27/1?http://www.msnbc.msn.com/id/3891881/&amp;&amp;CM=CoverQuicklinks&amp;CE=2&amp;HL=corrections
+
+It was crazy... this shit be way beyond some Jay-z and Nas shit
+They call me Superman??
+And talkin' about something that I knew nothing about
+
+Square Feet: A Mall in Decline Eyes Fish-Market Space
+http://www.msnbc.msn.com/id/8444603/
+
+Stronger-than-expected data lift stocks
+http://www.times.com/pages/nyregion/index.html
+
+Were the Good Old Days That Good?
+http://g.msn.com/0MNMAN27/1?http://www.msnbc.com/tools/newstools/e/EmailExtra.asp?nfeature=23&amp;&amp;CM=CoverQuicklinks&amp;CE=4&amp;HL=newsletters
+
+----921516001225342--
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
