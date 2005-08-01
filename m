@@ -1,66 +1,90 @@
-Date: Mon, 1 Aug 2005 21:03:25 +0100 (BST)
-From: Hugh Dickins <hugh@veritas.com>
+Date: Mon, 1 Aug 2005 13:08:54 -0700 (PDT)
+From: Linus Torvalds <torvalds@osdl.org>
 Subject: Re: [patch 2.6.13-rc4] fix get_user_pages bug
-In-Reply-To: <42EDDB82.1040900@yahoo.com.au>
-Message-ID: <Pine.LNX.4.61.0508012045050.5373@goblin.wat.veritas.com>
+In-Reply-To: <Pine.LNX.4.61.0508012030050.5373@goblin.wat.veritas.com>
+Message-ID: <Pine.LNX.4.58.0508011250210.3341@g5.osdl.org>
 References: <20050801032258.A465C180EC0@magilla.sf.frob.com>
- <42EDDB82.1040900@yahoo.com.au>
+ <42EDDB82.1040900@yahoo.com.au> <20050801091956.GA3950@elte.hu>
+ <42EDEAFE.1090600@yahoo.com.au> <20050801101547.GA5016@elte.hu>
+ <42EE0021.3010208@yahoo.com.au> <Pine.LNX.4.61.0508012030050.5373@goblin.wat.veritas.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Robin Holt <holt@sgi.com>, Andrew Morton <akpm@osdl.org>, Linus Torvalds <torvalds@osdl.org>, Ingo Molnar <mingo@elte.hu>, Roland McGrath <roland@redhat.com>, linux-mm@kvack.org, linux-kernel <linux-kernel@vger.kernel.org>
+To: Hugh Dickins <hugh@veritas.com>
+Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Ingo Molnar <mingo@elte.hu>, Robin Holt <holt@sgi.com>, Andrew Morton <akpm@osdl.org>, Roland McGrath <roland@redhat.com>, linux-mm@kvack.org, linux-kernel <linux-kernel@vger.kernel.org>, Martin Schwidefsky <schwidefsky@de.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 1 Aug 2005, Nick Piggin wrote:
+
+On Mon, 1 Aug 2005, Hugh Dickins wrote:
 > 
-> This was tested by Robin and appears to solve the problem. Roland
-> had a quick look and thought the basic idea was sound. I'd like to
-> get a couple more acks before going forward, and in particular
-> Robin was contemplating possible efficiency improvements (although
-> efficiency can wait on correctness).
+> > Aside, that brings up an interesting question - why should readonly
+> > mappings of writeable files (with VM_MAYWRITE set) disallow ptrace
+> > write access while readonly mappings of readonly files not? Or am I
+> > horribly confused?
+> 
+> Either you or I.  You'll have to spell that out to me in more detail,
+> I don't see it that way.
 
-I'd much prefer a solution that doesn't invade all the arches, but
-I don't think Linus' pte_dirty method will work on s390 (unless we
-change s390 in a less obvious way than your patch), so it looks
-like we do need something like yours.
+We have always just done a COW if it's read-only - even if it's shared.
 
-Comments:
+The point being that if a process mapped did a read-only mapping, and a 
+tracer wants to modify memory, the tracer is always allowed to do so, but 
+it's _not_ going to write anything back to the filesystem.  Writing 
+something back to an executable just because the user happened to mmap it 
+with MAP_SHARED (but read-only) _and_ the user had the right to write to 
+that fd is _not_ ok.
 
-There are currently 21 architectures,
-but so far your patch only updates 14 of them?
+So VM_MAYWRITE is totally immaterial. We _will_not_write_ (and must not do
+so) to the backing store through ptrace unless it was literally a writable
+mapping (in which case VM_WRITE will be set, and the page table should be
+marked writable in the first case).
 
-Personally (rather like Robin) I'd have preferred a return code more
-directed to the issue at hand, than your VM_FAULT_RACE.  Not for
-efficiency reasons, I think you're right that's not a real issue,
-but more to document the peculiar case we're addressing.  Perhaps a
-code that says do_wp_page has gone all the way through, even though
-it hasn't set the writable bit.
+So we have two choices:
 
-That would require less change in mm/memory.c, but I've no strong
-reason to argue that you change your approach in that way.  Perhaps
-others prefer the race case singled out, to gather statistics on that.
-Assuming we stick with your VM_FAULT_RACE...
+ - not allow the write at all in ptrace (which I think we did at some 
+   point)
 
-Could we define VM_FAULT_RACE as 3 rather than -2?  I think there's 
-some historical reason why VM_FAULT_OOM is -1, but see no cause to
-extend the range in that strange direction.
+   This ends up being really inconvenient, and people seem to really 
+   expect to be able to write to readonly areas in debuggers. And doign 
+   "MAP_SHARED, PROT_READ" seems to be a common thing (Linux has supported 
+   that pretty much since day #1 when mmap was supported - long before
+   writable shared mappings were supported, Linux accepted MAP_SHARED +
+   PROT_READ not just because we could, but because Unix apps do use it).
 
-VM_FAULT_RACE is a particular subcase of VM_FAULT_MINOR: throughout
-the arches I think they should just be adjacent cases of the switch
-statement, both doing the min_flt++.
+or
 
-Your continue in get_user_pages skips page_table_lock as Linus noted.
+ - turn a shared read-only page into a private page on ptrace write
 
-The do_wp_page call from do_swap_page needs to be adjusted, to return
-VM_FAULT_RACE if that's what it returned.
+   This is what we've been doing. It's strange, and it _does_ change 
+   semantics (it's not shared any more, so the debugger writing to it 
+   means that now you don't see changes to that file by others), so it's 
+   clearly not "correct" either, but it's certainly a million times better
+   than writing out breakpoints to shared files..
 
-If VM_FAULT_RACE is really recording races, then the bottom return
-value from handle_pte_fault ought to be VM_FAULT_RACE rather than
-VM_FAULT_MINOR.
+At some point (for the longest time), when a debugger was used to modify a
+read-only page, we also made it writable to the user, which was much
+easier from a VM standpoint. Now we have this "maybe_mkwrite()" thing,
+which is part of the reason for this particular problem.
 
-Hugh
+Using the dirty flag for a "page is _really_ writable" is admittedly kind
+of hacky, but it does have the advantage of working even when the -real-
+write bit isn't set due to "maybe_mkwrite()". If it forces the s390 people 
+to add some more hacks for their strange VM, so be it..
+
+[ Btw, on a totally unrelated note: anybody who is a git user and looks 
+  for when this maybe_mkwrite() thing happened, just doing
+
+	git-whatchanged -p -Smaybe_mkwrite mm/memory.c
+
+  in the bkcvs conversion pinpoints it immediately. Very useful git trick 
+  in case you ever have that kind of question. ]
+
+I added Martin Schwidefsky to the Cc: explicitly, so that he can ping 
+whoever in the s390 team needs to figure out what the right thing is for 
+s390 and the dirty bit semantic change. Thanks for pointing it out.
+
+		Linus
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
