@@ -1,35 +1,110 @@
-Date: Mon, 1 Aug 2005 12:48:40 -0700 (PDT)
-From: Linus Torvalds <torvalds@osdl.org>
+Date: Mon, 1 Aug 2005 12:57:00 -0700
+From: Andrew Morton <akpm@osdl.org>
 Subject: Re: [patch 2.6.13-rc4] fix get_user_pages bug
+Message-Id: <20050801125700.4ba0807b.akpm@osdl.org>
 In-Reply-To: <Pine.LNX.4.61.0508012024330.5373@goblin.wat.veritas.com>
-Message-ID: <Pine.LNX.4.58.0508011238330.3341@g5.osdl.org>
 References: <20050801032258.A465C180EC0@magilla.sf.frob.com>
- <42EDDB82.1040900@yahoo.com.au> <Pine.LNX.4.58.0508010833250.14342@g5.osdl.org>
- <Pine.LNX.4.61.0508012024330.5373@goblin.wat.veritas.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+	<42EDDB82.1040900@yahoo.com.au>
+	<Pine.LNX.4.58.0508010833250.14342@g5.osdl.org>
+	<Pine.LNX.4.61.0508012024330.5373@goblin.wat.veritas.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Hugh Dickins <hugh@veritas.com>
-Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Robin Holt <holt@sgi.com>, Andrew Morton <akpm@osdl.org>, Roland McGrath <roland@redhat.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, linux-mm@kvack.org, linux-kernel <linux-kernel@vger.kernel.org>
+Cc: torvalds@osdl.org, nickpiggin@yahoo.com.au, holt@sgi.com, roland@redhat.com, schwidefsky@de.ibm.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-
-On Mon, 1 Aug 2005, Hugh Dickins wrote:
+Hugh Dickins <hugh@veritas.com> wrote:
+>
+> On Mon, 1 Aug 2005, Linus Torvalds wrote:
+> > 
+> > that "continue" will continue without the spinlock held, and now do 
+> 
+> Yes, I was at last about to reply on that point and others.
+> I'll make those comments in a separate mail to Nick and all.
+> 
+> > Instead, I'd suggest changing the logic for "lookup_write". Make it 
+> > require that the page table entry is _dirty_ (not writable), and then 
 > 
 > Attractive, I very much wanted to do that rather than change all the
 > arches, but I think s390 rules it out: its pte_mkdirty does nothing,
 > its pte_dirty just says no.
+> 
+> Whether your patch suits all other uses of (__)follow_page I've not
+> investigated (and I don't see how you can go without the set_page_dirty
+> if it was necessary before);
 
-How does s390 work at all?
+That was introduced 19 months ago by the s390 guys (see patch below).  I
+don't really see why Martin decided to mark the page software-dirty at that
+stage.
 
+It's a nice thing to do from the VM dirty-memory accounting POV, but I
+don't see that it's essential.
+
+> but at present see no alternative to
+> something like Nick's patch, though I'd much prefer smaller.
+> 
 > Or should we change s390 to set a flag in the pte just for this purpose?
 
-If the choice is between a broken and ugly implementation for everybody 
-else, then hell yes. Even if it's a purely sw bit that nothing else 
-actually cares about.. I hope they have an extra bit around somewhere.
+That would be a good approach IMO, if possible.
 
-			Linus
+
+From: Martin Schwidefsky <schwidefsky@de.ibm.com>
+
+Fix endless loop in get_user_pages() on s390.  It happens only on s/390
+because pte_dirty always returns 0.  For all other architectures this is an
+optimization.
+
+In the case of "write && !pte_dirty(pte)" follow_page() returns NULL.  On all
+architectures except s390 handle_pte_fault() will then create a pte with
+pte_dirty(pte)==1 because write_access==1.  In the following, second call to
+follow_page() all is fine.  With the physical dirty bit patch pte_dirty() is
+always 0 for s/390 because the dirty bit doesn't live in the pte.
+
+
+
+
+---
+
+ mm/memory.c |   21 +++++++++++++--------
+ 1 files changed, 13 insertions(+), 8 deletions(-)
+
+diff -puN mm/memory.c~s390-16-follow_page-lockup-fix mm/memory.c
+--- 25/mm/memory.c~s390-16-follow_page-lockup-fix	2004-01-18 22:36:00.000000000 -0800
++++ 25-akpm/mm/memory.c	2004-01-18 22:36:00.000000000 -0800
+@@ -651,14 +651,19 @@ follow_page(struct mm_struct *mm, unsign
+ 	pte = *ptep;
+ 	pte_unmap(ptep);
+ 	if (pte_present(pte)) {
+-		if (!write || (pte_write(pte) && pte_dirty(pte))) {
+-			pfn = pte_pfn(pte);
+-			if (pfn_valid(pfn)) {
+-				struct page *page = pfn_to_page(pfn);
+-
+-				mark_page_accessed(page);
+-				return page;
+-			}
++		if (write && !pte_write(pte))
++			goto out;
++		if (write && !pte_dirty(pte)) {
++			struct page *page = pte_page(pte);
++			if (!PageDirty(page))
++				set_page_dirty(page);
++		}
++		pfn = pte_pfn(pte);
++		if (pfn_valid(pfn)) {
++			struct page *page = pfn_to_page(pfn);
++			
++			mark_page_accessed(page);
++			return page;
+ 		}
+ 	}
+ 
+
+_
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
