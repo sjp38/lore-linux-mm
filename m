@@ -1,44 +1,46 @@
-Received: from afternic.com (s6.afternic.com [69.64.176.170])
-	by momhut.com (Postfix) with ESMTP id 7410DBCABC
-	for <linux-mm@kvack.org>; Mon, 01 Aug 2005 16:53:57 -0500
-From: Finance Service Inc. <cben@afternic.com>
-Subject: Job.
-Date: Mon, 01 Aug 2005 16:53:57 -0500
-Message-ID: <010101c596e3$063d2903$e1f7b3ee@afternic.com>
+Date: Mon, 1 Aug 2005 15:01:24 -0700 (PDT)
+From: Linus Torvalds <torvalds@osdl.org>
+Subject: Re: [patch 2.6.13-rc4] fix get_user_pages bug
+In-Reply-To: <Pine.LNX.4.58.0508011438450.3341@g5.osdl.org>
+Message-ID: <Pine.LNX.4.58.0508011455520.3341@g5.osdl.org>
+References: <20050801032258.A465C180EC0@magilla.sf.frob.com>
+ <42EDDB82.1040900@yahoo.com.au> <20050801091956.GA3950@elte.hu>
+ <42EDEAFE.1090600@yahoo.com.au> <20050801101547.GA5016@elte.hu>
+ <42EE0021.3010208@yahoo.com.au> <Pine.LNX.4.61.0508012030050.5373@goblin.wat.veritas.com>
+ <Pine.LNX.4.58.0508011250210.3341@g5.osdl.org>
+ <Pine.LNX.4.61.0508012153570.6323@goblin.wat.veritas.com>
+ <Pine.LNX.4.58.0508011438450.3341@g5.osdl.org>
 MIME-Version: 1.0
-Content-Type: text/plain
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linux <linux-mm@kvack.org>
+To: Hugh Dickins <hugh@veritas.com>
+Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Ingo Molnar <mingo@elte.hu>, Robin Holt <holt@sgi.com>, Andrew Morton <akpm@osdl.org>, Roland McGrath <roland@redhat.com>, linux-mm@kvack.org, linux-kernel <linux-kernel@vger.kernel.org>, Martin Schwidefsky <schwidefsky@de.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-Hello dear friend! 
 
-We are happy to announce about the upcoming employee recruiting at the Service Finance Inc. Yes, the vital moment has come and Your chance of getting the top-rated financial manager position is as close as never before. The primary concern of all employees of Service Finance Inc. is our continuous effort for complete satisfaction of our customers in terms of service, for maintaining the highest level of quality and reliability of the services we provide. 
+On Mon, 1 Aug 2005, Linus Torvalds wrote:
+> 
+> Of course, if VM_MAYWRITE is not set, you could just convert it silently
+> to a MAP_PRIVATE at the VM level (that's literally what we used to do, 
+> back when we didn't support writable shared mappings at all, all those 
+> years ago), so at least now the COW behaviour would match the vma_flags.
 
-For the initial period we are offering a part-time employment, later depending on your activity results you can turn to the full-time employment. As for now, the position of the Service Finance Inc. abroad financial manager that is based on punctuality, managerial abilities and responsibility includes the following requirements: 
-1. Be able to check your email several times a day
-2. Be able to respond to emails immediately
-3. Be able to work overtime if needed
-4. Be responsible and hard working
-5. Be able to open bank accounts for company needs (if needed) 
-6. Should have personal bank account
-You will also receive detailed instructions for subsequent actions from our manager with information how to receive/transfer the money. 
-The entire process is quite simple. Enter our site below and enter the required personal information. We guarantee that no other third party will have an access to any source with your personal information storage. After that You will have to open an account in one of the banks Finance Service Inc. is working with. You will receive payments from our clients to Your bank account and after the withdrawal the money should be sent to our abroad agents either via the Western Union money transfer service or via the Money Gram postal/financial transfer office. These services are most popular and convenient in today's world of intense financial activity and the purpose of increasing the customers' satisfaction. 
+Heh. I just checked. We still do exactly that:
 
-Payment for Your services:
-You will receive from 5% to 10% from the total amount of money You receive to Your bank account for every successive transaction. Your Finance Service Inc. activity will take no more that 8-10 hours per week and approximately Your weekly income will be around 500-800 AU dollars. You bear the responsibility for safety of this money. We also examine the money origin and the customer's honesty to provide legality and safety of our business for all our abroad employees. Our reputation is very important to us, therefore think twice before accepting our offer. We only work with honest and responsible people. 
+                        if (!(file->f_mode & FMODE_WRITE))
+                                vm_flags &= ~(VM_MAYWRITE | VM_SHARED);
 
-Don't hesitate to contact us and ask any questions.
-We are looking forward to hearing from you soon. 
-Now enter the site to look through all the information You need here!
+some code never dies ;)
 
-Send Your resume to mail : maurojobs@hotmail.com
+However, we still set the VM_MAYSHARE bit, and thats' the one that
+mm/rmap.c checks for some reason. I don't see quite why - VM_MAYSHARE
+doesn't actually ever do anything else than make sure that we try to
+allocate a mremap() mapping in a cache-coherent space, I think (ie it's a
+total no-op on any sane architecture, and as far as rmap is concerned on
+all of them).
 
-P.S 
-If You prove to be a well-motivated and diligent employee of Finance Service Inc. , we might open our branch in Your home-town with You taking the leading position in this business affair. It's all up to You whether You want to live Your life with respect and high-financial ground or not.
-
+		Linus
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
