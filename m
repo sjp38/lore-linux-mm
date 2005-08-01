@@ -1,102 +1,40 @@
-Date: Mon, 1 Aug 2005 08:42:27 -0700 (PDT)
-From: Linus Torvalds <torvalds@osdl.org>
-Subject: Re: [patch 2.6.13-rc4] fix get_user_pages bug
-In-Reply-To: <42EDDB82.1040900@yahoo.com.au>
-Message-ID: <Pine.LNX.4.58.0508010833250.14342@g5.osdl.org>
-References: <20050801032258.A465C180EC0@magilla.sf.frob.com>
- <42EDDB82.1040900@yahoo.com.au>
+Received: from imp5-q.free.fr (imp5-q.free.fr [212.27.42.5])
+	by postfix4-1.free.fr (Postfix) with ESMTP id 6CF62319D27
+	for <linux-mm@kvack.org>; Mon,  1 Aug 2005 18:05:00 +0200 (CEST)
+Message-ID: <1122912299.42ee482bdfadf@imp5-q.free.fr>
+Date: Mon, 01 Aug 2005 18:04:59 +0200
+From: renaud.lienhart@free.fr
+Subject: page_alloc.c: free_pages_bulk() comment is incorrect
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=ISO-8859-15
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Robin Holt <holt@sgi.com>, Andrew Morton <akpm@osdl.org>, Roland McGrath <roland@redhat.com>, Hugh Dickins <hugh@veritas.com>, linux-mm@kvack.org, linux-kernel <linux-kernel@vger.kernel.org>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+"'count' is the number of pages to free, or 0 for all on the list."
 
-On Mon, 1 Aug 2005, Nick Piggin wrote:
-> 
-> Not sure if this should be fixed for 2.6.13. It can result in
-> pagecache corruption: so I guess that answers my own question.
+However, when looking carefully at the loop of this function, we can
+see that it exits immediately if count == 0, thus defeating the purpose
+of freeing the entire list.
+If I am wrong, please correct me.
 
-Hell no.
+Anyway, this behaviour seems mostly harmless as no user calls it
+with an explicit "0". Or perhaps the callers assumed the current behaviour
+and ignored the comment.
 
-This patch is clearly untested and must _not_ be applied:
+So we have two solutions:
+- Fix free_pages_bulk() to adopt the "0 frees all" behaviour.
+- Remove the confusing comment and pray that nobody used this feature
+  (and by "nobody" I mean the only 3 callers).
 
-+                               case VM_FAULT_RACE:
-+                                       /*
-+                                        * Someone else got there first.
-+                                        * Must retry before we can assume
-+                                        * that we have actually performed
-+                                        * the write fault (below).
-+                                        */
-+                                       if (write)
-+                                               continue;
-+                                       break;
+I am not familiar enough with the mm subsystem, but I will be glad to
+provide a patch to fix it once I know the correct fix.
 
-that "continue" will continue without the spinlock held, and now do 
-follow_page() will run without page_table_lock, _and_ it will release the 
-spinlock once more afterwards, so if somebody else is racing on this, we 
-might remove the spinlock for them too.
+Thanks and excuse my poor english,
 
-Don't do it.
-
-Instead, I'd suggest changing the logic for "lookup_write". Make it 
-require that the page table entry is _dirty_ (not writable), and then 
-remove the line that says:
-
-	lookup_write = write && !force;
-
-and you're now done. A successful mm fault for write _should_ always have 
-marked the PTE dirty (and yes, part of testing this would be to verify 
-that this is true - but since architectures that don't have HW dirty 
-bits depend on this anyway, I'm pretty sure it _is_ true).
-
-Ie something like the below (which is totally untested, obviously, but I 
-think conceptually is a lot more correct, and obviously a lot simpler).
-
-		Linus
-
-----
-diff --git a/mm/memory.c b/mm/memory.c
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -811,18 +811,15 @@ static struct page *__follow_page(struct
- 	pte = *ptep;
- 	pte_unmap(ptep);
- 	if (pte_present(pte)) {
--		if (write && !pte_write(pte))
-+		if (write && !pte_dirty(pte))
- 			goto out;
- 		if (read && !pte_read(pte))
- 			goto out;
- 		pfn = pte_pfn(pte);
- 		if (pfn_valid(pfn)) {
- 			page = pfn_to_page(pfn);
--			if (accessed) {
--				if (write && !pte_dirty(pte) &&!PageDirty(page))
--					set_page_dirty(page);
-+			if (accessed)
- 				mark_page_accessed(page);
--			}
- 			return page;
- 		}
- 	}
-@@ -972,14 +969,6 @@ int get_user_pages(struct task_struct *t
- 				default:
- 					BUG();
- 				}
--				/*
--				 * Now that we have performed a write fault
--				 * and surely no longer have a shared page we
--				 * shouldn't write, we shouldn't ignore an
--				 * unwritable page in the page table if
--				 * we are forcing write access.
--				 */
--				lookup_write = write && !force;
- 				spin_lock(&mm->page_table_lock);
- 			}
- 			if (pages) {
+        Renaud
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
