@@ -1,90 +1,39 @@
-Date: Mon, 1 Aug 2005 13:08:54 -0700 (PDT)
-From: Linus Torvalds <torvalds@osdl.org>
+Date: Mon, 1 Aug 2005 13:12:40 -0700
+From: Andrew Morton <akpm@osdl.org>
 Subject: Re: [patch 2.6.13-rc4] fix get_user_pages bug
-In-Reply-To: <Pine.LNX.4.61.0508012030050.5373@goblin.wat.veritas.com>
-Message-ID: <Pine.LNX.4.58.0508011250210.3341@g5.osdl.org>
+Message-Id: <20050801131240.4e8b1873.akpm@osdl.org>
+In-Reply-To: <Pine.LNX.4.61.0508012045050.5373@goblin.wat.veritas.com>
 References: <20050801032258.A465C180EC0@magilla.sf.frob.com>
- <42EDDB82.1040900@yahoo.com.au> <20050801091956.GA3950@elte.hu>
- <42EDEAFE.1090600@yahoo.com.au> <20050801101547.GA5016@elte.hu>
- <42EE0021.3010208@yahoo.com.au> <Pine.LNX.4.61.0508012030050.5373@goblin.wat.veritas.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+	<42EDDB82.1040900@yahoo.com.au>
+	<Pine.LNX.4.61.0508012045050.5373@goblin.wat.veritas.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Hugh Dickins <hugh@veritas.com>
-Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Ingo Molnar <mingo@elte.hu>, Robin Holt <holt@sgi.com>, Andrew Morton <akpm@osdl.org>, Roland McGrath <roland@redhat.com>, linux-mm@kvack.org, linux-kernel <linux-kernel@vger.kernel.org>, Martin Schwidefsky <schwidefsky@de.ibm.com>
+Cc: nickpiggin@yahoo.com.au, holt@sgi.com, torvalds@osdl.org, mingo@elte.hu, roland@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
+Hugh Dickins <hugh@veritas.com> wrote:
+>
+> There are currently 21 architectures,
+> but so far your patch only updates 14 of them?
 
-On Mon, 1 Aug 2005, Hugh Dickins wrote:
-> 
-> > Aside, that brings up an interesting question - why should readonly
-> > mappings of writeable files (with VM_MAYWRITE set) disallow ptrace
-> > write access while readonly mappings of readonly files not? Or am I
-> > horribly confused?
-> 
-> Either you or I.  You'll have to spell that out to me in more detail,
-> I don't see it that way.
+We could just do:
 
-We have always just done a COW if it's read-only - even if it's shared.
+static inline int handle_mm_fault(...)
+{
+	int ret = __handle_mm_fault(...);
 
-The point being that if a process mapped did a read-only mapping, and a 
-tracer wants to modify memory, the tracer is always allowed to do so, but 
-it's _not_ going to write anything back to the filesystem.  Writing 
-something back to an executable just because the user happened to mmap it 
-with MAP_SHARED (but read-only) _and_ the user had the right to write to 
-that fd is _not_ ok.
+	if (unlikely(ret == VM_FAULT_RACE))
+		ret = VM_FAULT_MINOR;
+	return ret;
+}
 
-So VM_MAYWRITE is totally immaterial. We _will_not_write_ (and must not do
-so) to the backing store through ptrace unless it was literally a writable
-mapping (in which case VM_WRITE will be set, and the page table should be
-marked writable in the first case).
+because VM_FAULT_RACE is some internal private thing.
 
-So we have two choices:
-
- - not allow the write at all in ptrace (which I think we did at some 
-   point)
-
-   This ends up being really inconvenient, and people seem to really 
-   expect to be able to write to readonly areas in debuggers. And doign 
-   "MAP_SHARED, PROT_READ" seems to be a common thing (Linux has supported 
-   that pretty much since day #1 when mmap was supported - long before
-   writable shared mappings were supported, Linux accepted MAP_SHARED +
-   PROT_READ not just because we could, but because Unix apps do use it).
-
-or
-
- - turn a shared read-only page into a private page on ptrace write
-
-   This is what we've been doing. It's strange, and it _does_ change 
-   semantics (it's not shared any more, so the debugger writing to it 
-   means that now you don't see changes to that file by others), so it's 
-   clearly not "correct" either, but it's certainly a million times better
-   than writing out breakpoints to shared files..
-
-At some point (for the longest time), when a debugger was used to modify a
-read-only page, we also made it writable to the user, which was much
-easier from a VM standpoint. Now we have this "maybe_mkwrite()" thing,
-which is part of the reason for this particular problem.
-
-Using the dirty flag for a "page is _really_ writable" is admittedly kind
-of hacky, but it does have the advantage of working even when the -real-
-write bit isn't set due to "maybe_mkwrite()". If it forces the s390 people 
-to add some more hacks for their strange VM, so be it..
-
-[ Btw, on a totally unrelated note: anybody who is a git user and looks 
-  for when this maybe_mkwrite() thing happened, just doing
-
-	git-whatchanged -p -Smaybe_mkwrite mm/memory.c
-
-  in the bkcvs conversion pinpoints it immediately. Very useful git trick 
-  in case you ever have that kind of question. ]
-
-I added Martin Schwidefsky to the Cc: explicitly, so that he can ping 
-whoever in the s390 team needs to figure out what the right thing is for 
-s390 and the dirty bit semantic change. Thanks for pointing it out.
-
-		Linus
+It does add another test-n-branch to the pagefault path though.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
