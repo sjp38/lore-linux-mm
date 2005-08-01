@@ -1,39 +1,52 @@
-Date: Mon, 1 Aug 2005 13:12:40 -0700
-From: Andrew Morton <akpm@osdl.org>
+Date: Mon, 1 Aug 2005 13:16:20 -0700 (PDT)
+From: Linus Torvalds <torvalds@osdl.org>
 Subject: Re: [patch 2.6.13-rc4] fix get_user_pages bug
-Message-Id: <20050801131240.4e8b1873.akpm@osdl.org>
-In-Reply-To: <Pine.LNX.4.61.0508012045050.5373@goblin.wat.veritas.com>
+In-Reply-To: <20050801125700.4ba0807b.akpm@osdl.org>
+Message-ID: <Pine.LNX.4.58.0508011311260.3341@g5.osdl.org>
 References: <20050801032258.A465C180EC0@magilla.sf.frob.com>
-	<42EDDB82.1040900@yahoo.com.au>
-	<Pine.LNX.4.61.0508012045050.5373@goblin.wat.veritas.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+ <42EDDB82.1040900@yahoo.com.au> <Pine.LNX.4.58.0508010833250.14342@g5.osdl.org>
+ <Pine.LNX.4.61.0508012024330.5373@goblin.wat.veritas.com>
+ <20050801125700.4ba0807b.akpm@osdl.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: nickpiggin@yahoo.com.au, holt@sgi.com, torvalds@osdl.org, mingo@elte.hu, roland@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@osdl.org>
+Cc: Hugh Dickins <hugh@veritas.com>, nickpiggin@yahoo.com.au, holt@sgi.com, roland@redhat.com, schwidefsky@de.ibm.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Hugh Dickins <hugh@veritas.com> wrote:
->
-> There are currently 21 architectures,
-> but so far your patch only updates 14 of them?
 
-We could just do:
+On Mon, 1 Aug 2005, Andrew Morton wrote:
+> 
+> That was introduced 19 months ago by the s390 guys (see patch below). 
 
-static inline int handle_mm_fault(...)
-{
-	int ret = __handle_mm_fault(...);
+This really is a very broken patch, btw. 
 
-	if (unlikely(ret == VM_FAULT_RACE))
-		ret = VM_FAULT_MINOR;
-	return ret;
-}
+> +		if (write && !pte_write(pte))
+> +			goto out;
+> +		if (write && !pte_dirty(pte)) {
+> +			struct page *page = pte_page(pte);
+> +			if (!PageDirty(page))
+> +				set_page_dirty(page);
+> +		}
+> +		pfn = pte_pfn(pte);
+> +		if (pfn_valid(pfn)) {
+> +			struct page *page = pfn_to_page(pfn);
+> +			
+> +			mark_page_accessed(page);
+> +			return page;
 
-because VM_FAULT_RACE is some internal private thing.
+Note how it doesn't do any "pfn_valid()" stuff for the dirty bit setting, 
+so it will set random bits in memory if the pte points to some IO page. 
 
-It does add another test-n-branch to the pagefault path though.
+Maybe that doesn't happen on s390, but..
+
+Anyway, if the s390 people just have a sw-writable bit in their page table
+layout, I bet they can fix their problem by just having a "sw dirty"  
+bit, and then make "pte_mkdirty()" set that bit. Nobody else will care, 
+but ptrace will then just work correctly for them too.
+
+		Linus
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
