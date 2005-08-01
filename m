@@ -1,84 +1,36 @@
-Date: Mon, 1 Aug 2005 11:19:56 +0200
-From: Ingo Molnar <mingo@elte.hu>
+Message-ID: <42EDEAFE.1090600@yahoo.com.au>
+Date: Mon, 01 Aug 2005 19:27:26 +1000
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+MIME-Version: 1.0
 Subject: Re: [patch 2.6.13-rc4] fix get_user_pages bug
-Message-ID: <20050801091956.GA3950@elte.hu>
-References: <20050801032258.A465C180EC0@magilla.sf.frob.com> <42EDDB82.1040900@yahoo.com.au>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <42EDDB82.1040900@yahoo.com.au>
+References: <20050801032258.A465C180EC0@magilla.sf.frob.com> <42EDDB82.1040900@yahoo.com.au> <20050801091956.GA3950@elte.hu>
+In-Reply-To: <20050801091956.GA3950@elte.hu>
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
+To: Ingo Molnar <mingo@elte.hu>
 Cc: Robin Holt <holt@sgi.com>, Andrew Morton <akpm@osdl.org>, Linus Torvalds <torvalds@osdl.org>, Roland McGrath <roland@redhat.com>, Hugh Dickins <hugh@veritas.com>, linux-mm@kvack.org, linux-kernel <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-* Nick Piggin <nickpiggin@yahoo.com.au> wrote:
+Ingo Molnar wrote:
+> * Nick Piggin <nickpiggin@yahoo.com.au> wrote:
 
-> Hi,
+>>Feedback please, anyone.
 > 
-> Not sure if this should be fixed for 2.6.13. It can result in 
-> pagecache corruption: so I guess that answers my own question.
 > 
-> This was tested by Robin and appears to solve the problem. Roland had 
-> a quick look and thought the basic idea was sound. I'd like to get a 
-> couple more acks before going forward, and in particular Robin was 
-> contemplating possible efficiency improvements (although efficiency 
-> can wait on correctness).
-> 
-> Feedback please, anyone.
+> it looks good to me, but wouldnt it be simpler (in terms of patch and 
+> architecture impact) to always retry the follow_page() in 
+> get_user_pages(), in case of a minor fault? The sequence of minor faults 
 
-it looks good to me, but wouldnt it be simpler (in terms of patch and 
-architecture impact) to always retry the follow_page() in 
-get_user_pages(), in case of a minor fault? The sequence of minor faults 
-must always be finite so it's a safe solution, and should solve the race 
-too. The extra overhead of an additional follow_page() is small.
+I believe this can break some things. Hugh posted an example
+in his recent post to linux-mm (ptrace setting a breakpoint
+in read-only text). I think?
 
-Especially with 2.6.13 being close this looks like the safest bet, any 
-improvement to this (i.e. your patch) can then be done in 2.6.14.
+-- 
+SUSE Labs, Novell Inc.
 
-	Ingo
-
-
-When get_user_pages for write access races with another process in the page
-fault handler that has established the pte for read access, handle_mm_fault
-in get_user_pages will return VM_FAULT_MINOR even if it hasn't made the page
-correctly writeable (for example, broken COW).
-
-Thus the assumption that get_user_pages has a writeable page at the mapping
-after handle_mm_fault returns is incorrect. Fix this by retrying the lookup
-and fault in get_user_pages before making the assumption that we have a
-writeable page.
-
-Great work by Robin Holt <holt@sgi.com> to debug the problem.
-
-Originally-from: Nick Piggin <npiggin@suse.de>
-
-simplified the patch into a two-liner:
-
-Signed-off-by: Ingo Molnar <mingo@elte.hu>
-
- mm/memory.c |    7 +++++++
- 1 files changed, 7 insertions(+)
-
-Index: linux-sched-curr/mm/memory.c
-===================================================================
---- linux-sched-curr.orig/mm/memory.c
-+++ linux-sched-curr/mm/memory.c
-@@ -961,6 +961,13 @@ int get_user_pages(struct task_struct *t
- 				switch (handle_mm_fault(mm,vma,start,write)) {
- 				case VM_FAULT_MINOR:
- 					tsk->min_flt++;
-+					/*
-+					 * We might have raced with a readonly
-+					 * pagefault, retry to make sure we
-+					 * got write access:
-+					 */
-+					if (write)
-+						continue;
- 					break;
- 				case VM_FAULT_MAJOR:
- 					tsk->maj_flt++;
+Send instant messages to your online friends http://au.messenger.yahoo.com 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
