@@ -1,49 +1,49 @@
 Received: from d12nrmr1607.megacenter.de.ibm.com (d12nrmr1607.megacenter.de.ibm.com [9.149.167.49])
-	by mtagate1.de.ibm.com (8.12.10/8.12.10) with ESMTP id j7287Txt124776
-	for <linux-mm@kvack.org>; Tue, 2 Aug 2005 08:07:29 GMT
+	by mtagate3.de.ibm.com (8.12.10/8.12.10) with ESMTP id j72C1Tmp156848
+	for <linux-mm@kvack.org>; Tue, 2 Aug 2005 12:01:29 GMT
 Received: from d12av04.megacenter.de.ibm.com (d12av04.megacenter.de.ibm.com [9.149.165.229])
-	by d12nrmr1607.megacenter.de.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id j7287TeZ188242
-	for <linux-mm@kvack.org>; Tue, 2 Aug 2005 10:07:29 +0200
+	by d12nrmr1607.megacenter.de.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id j72C1TeZ143828
+	for <linux-mm@kvack.org>; Tue, 2 Aug 2005 14:01:29 +0200
 Received: from d12av04.megacenter.de.ibm.com (loopback [127.0.0.1])
-	by d12av04.megacenter.de.ibm.com (8.12.11/8.13.3) with ESMTP id j7287Thm027279
-	for <linux-mm@kvack.org>; Tue, 2 Aug 2005 10:07:29 +0200
-In-Reply-To: <Pine.LNX.4.58.0508011238330.3341@g5.osdl.org>
+	by d12av04.megacenter.de.ibm.com (8.12.11/8.13.3) with ESMTP id j72C1SpF028987
+	for <linux-mm@kvack.org>; Tue, 2 Aug 2005 14:01:29 +0200
+In-Reply-To: <Pine.LNX.4.58.0508011455520.3341@g5.osdl.org>
 Subject: Re: [patch 2.6.13-rc4] fix get_user_pages bug
-Message-ID: <OFAD9E831B.5D9FB95C-ON42257051.002BC8C3-42257051.002CA1EB@de.ibm.com>
+Message-ID: <OF3BCB86B7.69087CF8-ON42257051.003DCC6C-42257051.00420E16@de.ibm.com>
 From: Martin Schwidefsky <schwidefsky@de.ibm.com>
-Date: Tue, 2 Aug 2005 10:07:30 +0200
+Date: Tue, 2 Aug 2005 14:01:29 +0200
 MIME-Version: 1.0
 Content-type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Linus Torvalds <torvalds@osdl.org>
-Cc: Andrew Morton <akpm@osdl.org>, Robin Holt <holt@sgi.com>, Hugh Dickins <hugh@veritas.com>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Nick Piggin <nickpiggin@yahoo.com.au>, Roland McGrath <roland@redhat.com>
+Cc: Andrew Morton <akpm@osdl.org>, Robin Holt <holt@sgi.com>, Hugh Dickins <hugh@veritas.com>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Ingo Molnar <mingo@elte.hu>, Nick Piggin <nickpiggin@yahoo.com.au>, Roland McGrath <roland@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-Linus Torvalds <torvalds@osdl.org> wrote on 08/01/2005 09:48:40 PM:
-
-> > Attractive, I very much wanted to do that rather than change all the
-> > arches, but I think s390 rules it out: its pte_mkdirty does nothing,
-> > its pte_dirty just says no.
+> > Any chance you can change the __follow_page test to account for
+> > writeable clean ptes? Something like
+> >
+> >       if (write && !pte_dirty(pte) && !pte_write(pte))
+> >               goto out;
+> >
+> > And then you would re-add the set_page_dirty logic further on.
 >
-> How does s390 work at all?
-
-The big difference between s390 and your standard architecture is that
-s390 keeps the dirty and reference bits in the storage key. That is
-per physical page and not per mapping. The primitive pte_dirty() just
-doesn't make any sense for s390. A pte never contains any information
-about dirty/reference state of a page. The "page" itself contains it,
-you access the information with some instructions (sske, iske & rrbe)
-which get the page frame address as parameter.
-
-> > Or should we change s390 to set a flag in the pte just for this purpose?
+> Hmm.. That should be possible. I wanted to do the simplest possible code
+> sequence, but yeah, I guess there's nothing wrong with allowing the code
+> to dirty the page.
 >
-> If the choice is between a broken and ugly implementation for everybody
-> else, then hell yes. Even if it's a purely sw bit that nothing else
-> actually cares about.. I hope they have an extra bit around somewhere.
+> Somebody want to send me a proper patch? Also, I haven't actually heard
+> from whoever actually noticed the problem in the first place (Robin?)
+> whether the fix does fix it. It "obviously does", but testing is always
+> good ;)
 
-Urg, depending on the pte type there are no bits available. For valid ptes
-there are some bits we could use but it wouldn't be nice.
+Why do we require the !pte_dirty(pte) check? I don't get it. If a writeable
+clean pte is just fine then why do we check the dirty bit at all? Doesn't
+pte_dirty() imply pte_write()?
+
+With the additional !pte_write(pte) check (and if I haven't overlooked
+something which is not unlikely) s390 should work fine even without the
+software-dirty bit hack.
 
 blue skies,
    Martin
@@ -51,6 +51,7 @@ blue skies,
 Martin Schwidefsky
 Linux for zSeries Development & Services
 IBM Deutschland Entwicklung GmbH
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
