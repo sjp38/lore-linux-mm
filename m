@@ -1,35 +1,30 @@
-Date: Tue, 2 Aug 2005 11:47:59 -0700 (PDT)
-From: Linus Torvalds <torvalds@osdl.org>
-Subject: Re: [patch 2.6.13-rc4] fix get_user_pages bug
-In-Reply-To: <Pine.LNX.4.61.0508021809530.5659@goblin.wat.veritas.com>
-Message-ID: <Pine.LNX.4.58.0508021127120.3341@g5.osdl.org>
-References: <OF3BCB86B7.69087CF8-ON42257051.003DCC6C-42257051.00420E16@de.ibm.com>
- <Pine.LNX.4.58.0508020829010.3341@g5.osdl.org>
- <Pine.LNX.4.61.0508021645050.4921@goblin.wat.veritas.com>
- <Pine.LNX.4.58.0508020911480.3341@g5.osdl.org>
- <Pine.LNX.4.61.0508021809530.5659@goblin.wat.veritas.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: by wproxy.gmail.com with SMTP id i6so1373340wra
+        for <linux-mm@kvack.org>; Tue, 02 Aug 2005 12:02:28 -0700 (PDT)
+Message-ID: <4119669c050802120252c4a2f2@mail.gmail.com>
+Date: Tue, 2 Aug 2005 15:02:26 -0400
+From: Raghu Vadapalli <raghuvadapalli@gmail.com>
+Reply-To: Raghu Vadapalli <raghuvadapalli@gmail.com>
+Subject: firefox search plugin for http://lxr.linux.no/source/
+Mime-Version: 1.0
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 8BIT
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: Martin Schwidefsky <schwidefsky@de.ibm.com>, Andrew Morton <akpm@osdl.org>, Robin Holt <holt@sgi.com>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Ingo Molnar <mingo@elte.hu>, Nick Piggin <nickpiggin@yahoo.com.au>, Roland McGrath <roland@redhat.com>
+To: linux-mm@kvack.org
+Cc: raghuvadapalli@gmail.com
 List-ID: <linux-mm.kvack.org>
 
-
-On Tue, 2 Aug 2005, Hugh Dickins wrote:
-> 
-> It might not be so bad.  It's going to access the struct page anyway.
-> And clearing dirty from parent and child at fork time could save two
-> set_page_dirtys at exit time.  But I'm not sure that we could batch the
-> the dirty bit clearing into one TLB flush like we do the write protection.
-
-Yes, good point. If the thing is still marked dirty in the TLB, some other 
-thread might be writing to the page after we've cleared dirty but before 
-we've flushed the TLB - causing the new dirty bit to be lost. I think.
-
-		Linus
-
+Cross Reference site.  http://lxr.linux.no/source/.  I am not really
+good at firefox plugins but these plugins do work for me. So I just
+thought of sharing with you all. Let me know if you folks find it
+useful/working . You can always modify it for the kernel version you
+want it.
+ 
+ http://kernel.jot.com/FirefoxSearchPlugins
+  
+  Thanks
+  Raghu.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
