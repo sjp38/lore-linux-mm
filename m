@@ -1,5 +1,5 @@
-Message-ID: <42EEBAE1.7050002@yahoo.com.au>
-Date: Tue, 02 Aug 2005 10:14:25 +1000
+Message-ID: <42EECC1F.9000902@yahoo.com.au>
+Date: Tue, 02 Aug 2005 11:27:59 +1000
 From: Nick Piggin <nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
 Subject: Re: [patch 2.6.13-rc4] fix get_user_pages bug
@@ -16,23 +16,44 @@ List-ID: <linux-mm.kvack.org>
 Linus Torvalds wrote:
 
 >
->On Mon, 1 Aug 2005, Nick Piggin wrote:
+>Instead, I'd suggest changing the logic for "lookup_write". Make it 
+>require that the page table entry is _dirty_ (not writable), and then 
+>remove the line that says:
 >
->>Not sure if this should be fixed for 2.6.13. It can result in
->>pagecache corruption: so I guess that answers my own question.
->>
+>	lookup_write = write && !force;
 >
->Hell no.
+>and you're now done. A successful mm fault for write _should_ always have 
+>marked the PTE dirty (and yes, part of testing this would be to verify 
+>that this is true - but since architectures that don't have HW dirty 
+>bits depend on this anyway, I'm pretty sure it _is_ true).
 >
->This patch is clearly untested and must _not_ be applied:
+>Ie something like the below (which is totally untested, obviously, but I 
+>think conceptually is a lot more correct, and obviously a lot simpler).
 >
 >
 
-Yes, I meant that the problem should be fixed, not that the
-patch should be applied straight away.
+Surely this introduces integrity problems when `force` is not set?
+Security holes? Perhaps not, but I wouldn't guarantee it.
 
-I wanted to get discussion going ASAP. Looks like it worked :)
-I'll catch up on it now.
+However: I like your idea. And getting rid of the lookup_write logic is
+a good thing.
+
+I don't much like that it changes the semantics of follow_page for
+write on a readonly pte, and that is where your problem is introduced.
+I think to go down this route you'd at least need a follow_page check
+that is distinct from 'write'. 'writeable', maybe.
+
+Then, having a 'writeable' flag lets you neatly "comment" your idea of
+what might constitute a writeable pte, as opposed to the current code
+which basically looks like black magic to a reader, and gives no indication
+of how it satisfies the get_user_pages requirements.
+
+A minor issue: I don't much like the proliferation of __follow_page flags
+either. Why not make __follow_page take a bitmask, and be used directly by
+get_user_pages, which would also allow removal of the 'write' argument from
+follow_page.
+
+I would cook you some patches, but I'm not in front of the source tree.
 
 
 Send instant messages to your online friends http://au.messenger.yahoo.com 
