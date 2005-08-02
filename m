@@ -1,8 +1,8 @@
-Date: Tue, 2 Aug 2005 10:02:10 -0700 (PDT)
-From: Linus Torvalds <torvalds@osdl.org>
+Date: Tue, 2 Aug 2005 18:21:09 +0100 (BST)
+From: Hugh Dickins <hugh@veritas.com>
 Subject: Re: [patch 2.6.13-rc4] fix get_user_pages bug
 In-Reply-To: <Pine.LNX.4.58.0508020911480.3341@g5.osdl.org>
-Message-ID: <Pine.LNX.4.58.0508020942360.3341@g5.osdl.org>
+Message-ID: <Pine.LNX.4.61.0508021809530.5659@goblin.wat.veritas.com>
 References: <OF3BCB86B7.69087CF8-ON42257051.003DCC6C-42257051.00420E16@de.ibm.com>
  <Pine.LNX.4.58.0508020829010.3341@g5.osdl.org>
  <Pine.LNX.4.61.0508021645050.4921@goblin.wat.veritas.com>
@@ -11,43 +11,47 @@ MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
+To: Linus Torvalds <torvalds@osdl.org>
 Cc: Martin Schwidefsky <schwidefsky@de.ibm.com>, Andrew Morton <akpm@osdl.org>, Robin Holt <holt@sgi.com>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Ingo Molnar <mingo@elte.hu>, Nick Piggin <nickpiggin@yahoo.com.au>, Roland McGrath <roland@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-
 On Tue, 2 Aug 2005, Linus Torvalds wrote:
+> On Tue, 2 Aug 2005, Hugh Dickins wrote:
+> > 
+> > But have I just realized a non-s390 problem with your pte_dirty
+> > technique?  The ptep_set_wrprotect in fork's copy_one_pte.
+> > 
+> > That's specifically write-protecting the pte to force COW, but leaving
+> > the dirty bit: so now get_user_pages will skip COW-ing it (in all write
+> > cases, not just the peculiar ptrace force one).
 > 
+> Damn, you're right. We could obviously move the dirty bit from the page
+> tables to the "struct page" in fork() (that may have other advantages:  
+> we're scanning the dang thing anyway, after all) to avoid that special
+> case, but yes, that's nasty.
+
+It might not be so bad.  It's going to access the struct page anyway.
+And clearing dirty from parent and child at fork time could save two
+set_page_dirtys at exit time.  But I'm not sure that we could batch the
+the dirty bit clearing into one TLB flush like we do the write protection.
+
 > In fact, that brings up another race altogether: a thread that does a
-> fork() at the same time [...]
+> fork() at the same time as get_user_pages() will have the exact same
+> issues. Even with the old code. Simply because we test the permissions on
+> the page long before we actually do the real access (ie it may be dirty
+> and writable when we get it, but by the time the write happens, it might
+> have become COW-shared).
+> 
+> Now, that's probably not worth worrying about, but it's kind of 
+> interesting.
 
-You don't even need that, actually. There's another race by which the 
-write could have gotten lost both with the new code _and_ the old code.
+Not worth worrying about in this context: it's one aspect of the
+InfiniBand (RDMA) issue I was referring to, to be addressed another time.
 
-Since we will have dropped the page table lock when calling
-handle_mm_fault() (which will just re-get the lock and then drop it 
-again) _and_ since we don't actually mark the page dirty if it was 
-writable, it's entirely possible that the VM scanner comes in and just 
-drops the page from the page tables.
+Or is it even possible?  We do require the caller of get_user_pages to
+down_read(&mm->mmap_sem), and fork parent has down_write(&mm->mmap_sem).
 
-Now, that doesn't sound so bad, but what we have then is a page that is
-marked dirty in the "struct page", but hasn't been actually dirtied yet.  
-It could get written out and marked clean (can anybody say "preemptible
-kernel"?) before we ever actually do the write to the page.
-
-The thing is, we should always set the dirty bit either atomically with
-the access (normal "CPU sets the dirty bit on write") _or_ we should set
-it after the write (having kept a reference to the page).
-
-Or does anybody see anything that protects us here?
-
-Now, I don't think we can fix that race (which is probably pretty much 
-impossible to hit in practice) in the 2.6.13 timeframe.
-
-Maybe I'll have to just accept the horrid "VM_FAULT_RACE" patch. I don't
-much like it, but.. 
-
-			Linus
+Hugh
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
