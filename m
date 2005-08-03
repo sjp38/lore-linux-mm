@@ -1,41 +1,44 @@
-Received: from Luisad2skd918nt607kkl (188.92.208.224) by haci19.prodigy.net
-          (InterMail vM.5.01.06.05 033-136-471-128-414-944805222) with SMTP
-          id <0907873091143.IRYHY88.apxqnvu7760.prodigy.net@appianfu97i112ly5qpj>
-          for <linux-mm@kvack.org>; Wed, 03 Aug 2005 17:29:41 +0200
-Message-ID: <4936us2p697$959848$e82q97@Luisax50f2p05xz>
-From: "Clarence Winkler" <AJIXFKWXAUT@prodigy.net>
-Subject: Software 3000 preside
-Date: Wed, 03 Aug 2005 16:37:41 +0100
-MIME-Version: 1.0
-Content-Type: multipart/alternative;
-	boundary="--galaxy"
+Date: Wed, 3 Aug 2005 16:38:55 +0200
+From: Andi Kleen <ak@suse.de>
+Subject: Re: [PATCH] VM: add vm.free_node_memory sysctl
+Message-ID: <20050803143855.GA10895@wotan.suse.de>
+References: <20050801113913.GA7000@elte.hu> <20050801102903.378da54f.akpm@osdl.org> <20050801195426.GA17548@elte.hu> <20050802171050.GG26803@localhost> <20050802210746.GA26494@elte.hu> <20050803135646.GO26803@localhost> <20050803141529.GX10895@wotan.suse.de> <20050803142440.GQ26803@localhost>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20050803142440.GQ26803@localhost>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Martin Hicks <mort@sgi.com>
+Cc: Andi Kleen <ak@suse.de>, Ingo Molnar <mingo@elte.hu>, Linux MM <linux-mm@kvack.org>, Andrew Morton <akpm@osdl.org>, torvalds@osdl.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-----galaxy
-Content-Type: text/plain;
-Content-Transfer-Encoding: quoted-printable
+On Wed, Aug 03, 2005 at 10:24:40AM -0400, Martin Hicks wrote:
+> 
+> On Wed, Aug 03, 2005 at 04:15:29PM +0200, Andi Kleen wrote:
+> > On Wed, Aug 03, 2005 at 09:56:46AM -0400, Martin Hicks wrote:
+> > > 
+> > > Here's the promised sysctl to dump a node's pagecache.  Please review!
+> > > 
+> > > This patch depends on the zone reclaim atomic ops cleanup:
+> > > http://marc.theaimsgroup.com/?l=linux-mm&m=112307646306476&w=2
+> > 
+> > Doesn't numactl --bind=node memhog nodesize-someslack do the same?
+> > 
+> > It just might kick in the oom killer if someslack is too small
+> > or someone has unfreeable data there. But then there should be 
+> > already an sysctl to turn that one off.
+> 
+> Doesn't the memhog hack also cause the machine to swap a lot?  The
 
-Hello
+Hack? - compared to your "solutions" it looks very clean to me.
 
+> zone_reclaim() path doesn't let the memory reclaim code swap.
 
-We got thousands software at low low price 
+reclaim with bound policy should only swap on the bound nodemask
+(or at least it did when I originally implemented NUMA policy) 
 
-visit us now 
-
-erevansoft.net
-
-
-
-
-savagery
-
-
-----galaxy--
-
-
+-Andi
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
