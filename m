@@ -1,60 +1,46 @@
-Date: Wed, 3 Aug 2005 22:08:08 +0200
-From: Andi Kleen <ak@suse.de>
-Subject: Re: [PATCH] VM: add vm.free_node_memory sysctl
-Message-ID: <20050803200808.GE8266@wotan.suse.de>
-References: <20050801113913.GA7000@elte.hu> <20050803142440.GQ26803@localhost> <20050803143855.GA10895@wotan.suse.de> <200508031459.22834.raybry@mpdtxmail.amd.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <200508031459.22834.raybry@mpdtxmail.amd.com>
+Message-ID: <42F14D5F.7040603@yahoo.com.au>
+Date: Thu, 04 Aug 2005 09:03:59 +1000
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+MIME-Version: 1.0
+Subject: Re: [patch 2.6.13-rc4] fix get_user_pages bug
+References: <OF3BCB86B7.69087CF8-ON42257051.003DCC6C-42257051.00420E16@de.ibm.com> <Pine.LNX.4.58.0508020829010.3341@g5.osdl.org> <Pine.LNX.4.61.0508021645050.4921@goblin.wat.veritas.com> <Pine.LNX.4.58.0508020911480.3341@g5.osdl.org> <Pine.LNX.4.61.0508021809530.5659@goblin.wat.veritas.com> <Pine.LNX.4.58.0508021127120.3341@g5.osdl.org> <Pine.LNX.4.61.0508022001420.6744@goblin.wat.veritas.com> <Pine.LNX.4.58.0508021244250.3341@g5.osdl.org> <Pine.LNX.4.61.0508022150530.10815@goblin.wat.veritas.com> <42F09B41.3050409@yahoo.com.au> <Pine.LNX.4.58.0508030902380.3341@g5.osdl.org>
+In-Reply-To: <Pine.LNX.4.58.0508030902380.3341@g5.osdl.org>
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ray Bryant <raybry@mpdtxmail.amd.com>
-Cc: Andi Kleen <ak@suse.de>, Martin Hicks <mort@sgi.com>, Ingo Molnar <mingo@elte.hu>, Linux MM <linux-mm@kvack.org>, Andrew Morton <akpm@osdl.org>, torvalds@osdl.org, linux-kernel@vger.kernel.org
+To: Linus Torvalds <torvalds@osdl.org>
+Cc: Hugh Dickins <hugh@veritas.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Andrew Morton <akpm@osdl.org>, Robin Holt <holt@sgi.com>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Ingo Molnar <mingo@elte.hu>, Roland McGrath <roland@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Aug 03, 2005 at 02:59:22PM -0500, Ray Bryant wrote:
-> On Wednesday 03 August 2005 09:38, Andi Kleen wrote:
-> > On Wed, Aug 03, 2005 at 10:24:40AM -0400, Martin Hicks wrote:
-> > > On Wed, Aug 03, 2005 at 04:15:29PM +0200, Andi Kleen wrote:
-> > > > On Wed, Aug 03, 2005 at 09:56:46AM -0400, Martin Hicks wrote:
-> > > > > Here's the promised sysctl to dump a node's pagecache.  Please
-> > > > > review!
-> > > > >
-> > > > > This patch depends on the zone reclaim atomic ops cleanup:
-> > > > > http://marc.theaimsgroup.com/?l=linux-mm&m=112307646306476&w=2
-> > > >
-> > > > Doesn't numactl --bind=node memhog nodesize-someslack do the same?
-> > > >
-> > > > It just might kick in the oom killer if someslack is too small
-> > > > or someone has unfreeable data there. But then there should be
-> > > > already an sysctl to turn that one off.
-> > >
-> Hmmm.... What happens if there are already mapped pages (e. g. mapped in the 
-> sense that pages are mapped into an address space) on the node and you want 
-> to allocate some more, but can't because the node is full of clean page cache 
-> pages?   Then one would have to set the memhog argument to the right thing to 
+Linus Torvalds wrote:
+> 
+> On Wed, 3 Aug 2005, Nick Piggin wrote:
+> 
+>>Oh, it gets rid of the -1 for VM_FAULT_OOM. Doesn't seem like there
+>>is a good reason for it, but might that break out of tree drivers?
+> 
+> 
+> Ok, I applied this because it was reasonably pretty and I liked the 
+> approach. It seems buggy, though, since it was using "switch ()" to test 
+> the bits (wrongly, afaik),
 
-If you have a bind policy in the memory grabbing program then the standard try_to_free_pages
-should DTRT. That is because we generated a custom zone list only containing nodes
-in that zone and the zone reclaim only looks into those.
+Oops, thanks.
 
-With prefered or other policies it's different though, in that cases t_t_f_p
-will also look into other nodes because the policy is not binding.
+> and I'm going to apply the appended on top of 
+> it. Holler quickly if you disagreee..
+> 
 
-That said it might be probably possible to even make non bind policies more
-aggressive at freeing in the current node before looking into other nodes. 
-I think the zone balancing has been mostly tuned on non NUMA systems, so
-some improvements might be possible here.
+No that looks fine. Should really be credited to Hugh... well
+I guess everyone had some input into it though (Andrew, Hugh,
+you, me). It probably doesn't matter too much.
 
-Most people don't use BIND and changing the default policies like this 
-might give NUMA systems a better "out of the box" experience.  However this 
-memory balance is very subtle code and easy to break, so this would need some
-care.
+Thanks everyone.
 
-I don't think sysctls or new syscalls are the way to go here though.
+-- 
+SUSE Labs, Novell Inc.
 
--Andi
+Send instant messages to your online friends http://au.messenger.yahoo.com 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
