@@ -1,30 +1,69 @@
-Date: Wed, 3 Aug 2005 12:57:03 +0100 (BST)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: [patch 2.6.13-rc4] fix get_user_pages bug
-In-Reply-To: <OFE9263DCA.5243AC8F-ON42257052.0038D22F-42257052.00392CDD@de.ibm.com>
-Message-ID: <Pine.LNX.4.61.0508031251140.14149@goblin.wat.veritas.com>
-References: <OFE9263DCA.5243AC8F-ON42257052.0038D22F-42257052.00392CDD@de.ibm.com>
+Message-ID: <42F0B4D6.5030604@yahoo.com.au>
+Date: Wed, 03 Aug 2005 22:13:10 +1000
+From: Nick Piggin <nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [patch 2.6.13-rc4] fix get_user_pages bug
+References: <OF3BCB86B7.69087CF8-ON42257051.003DCC6C-42257051.00420E16@de.ibm.com> <Pine.LNX.4.58.0508020829010.3341@g5.osdl.org> <Pine.LNX.4.61.0508021645050.4921@goblin.wat.veritas.com> <Pine.LNX.4.58.0508020911480.3341@g5.osdl.org> <Pine.LNX.4.61.0508021809530.5659@goblin.wat.veritas.com> <Pine.LNX.4.58.0508021127120.3341@g5.osdl.org> <Pine.LNX.4.61.0508022001420.6744@goblin.wat.veritas.com> <Pine.LNX.4.58.0508021244250.3341@g5.osdl.org> <Pine.LNX.4.61.0508022150530.10815@goblin.wat.veritas.com> <42F09B41.3050409@yahoo.com.au> <Pine.LNX.4.61.0508031231540.13845@goblin.wat.veritas.com>
+In-Reply-To: <Pine.LNX.4.61.0508031231540.13845@goblin.wat.veritas.com>
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Martin Schwidefsky <schwidefsky@de.ibm.com>
-Cc: Andrew Morton <akpm@osdl.org>, Robin Holt <holt@sgi.com>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Ingo Molnar <mingo@elte.hu>, Nick Piggin <nickpiggin@yahoo.com.au>, Roland McGrath <roland@redhat.com>, Linus Torvalds <torvalds@osdl.org>
+To: Hugh Dickins <hugh@veritas.com>
+Cc: Linus Torvalds <torvalds@osdl.org>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Andrew Morton <akpm@osdl.org>, Robin Holt <holt@sgi.com>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Ingo Molnar <mingo@elte.hu>, Roland McGrath <roland@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 3 Aug 2005, Martin Schwidefsky wrote:
-> Hugh Dickins <hugh@veritas.com> wrote on 08/02/2005 10:55:31 PM:
-> >
-> > Here we are: get_user_pages quite untested, let alone the racy case,
+Hugh Dickins wrote:
+
+> Stupidity was the reason I thought handle_mm_fault couldn't be inline:
+> I was picturing it static inline within mm/memory.c, failed to make the
+> great intellectual leap you've achieved by moving it to include/linux/mm.h.
 > 
-> Ahh, just tested it and everythings seems to work (even for s390)..
-> I'm happy :-)
 
-Thanks for testing, Martin.  Your happiness is my bliss.  Whether
-we go with Nick's mods on mine or not, I think you can now safely
-assume we've given up demanding a sudden change at the s390 end.
+Well it was one of my finer moments, so don't be too hard on
+yourself.
 
-Hugh
+> 
+> No, I don't think it would break anything: it's just an historic oddity,
+> used to be -1 for failure, and only got given a name recently, I think
+> when wli added the proper major/minor counting.
+> 
+> Your version of the patch looks less hacky to me (not requiring
+> VM_FAULT_WRITE_EXPECTED arg), though we could perfectly well remove
+> that at leisure by adding VM_FAULT_WRITE case into all the arches in
+> 2.6.14 (which might be preferable to leaving the __inline obscurity?).
+> 
+
+Well depends on what they want I suppose. Does it even make sense
+to expose VM_FAULT_WRITE to arch code if it will just fall through
+to VM_FAULT_MINOR?
+
+With my earlier VM_FAULT_RACE thing, you can squint and say that's
+a different case to VM_FAULT_MINOR - and accordingly not increment
+the minor fault count. Afterall, minor faults *seem* to track count
+of modifications made to the pte entry minus major faults, rather
+than the number of times the hardware traps. I say this because we
+increment the number in get_user_pages too.
+
+But...
+
+> I don't mind either way, but since you've not yet found an actual
+> error in mine, I'd prefer you to make yours a tidyup patch on top,
+> Signed-off-by your own good self, and let Linus decide whether he
+> wants to apply yours on top or not.  Or perhaps the decision rests
+> for the moment with Robin, whether he gets his customer to test
+> yours or mine - whichever is tested is the one which should go in.
+> 
+
+I agree that for the moment we probably just want something that
+works. I'd be just as happy to go with your patch as is for now.
+
+Nick
+
+-- 
+SUSE Labs, Novell Inc.
+
+Send instant messages to your online friends http://au.messenger.yahoo.com 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
