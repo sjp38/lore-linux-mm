@@ -1,81 +1,71 @@
-Subject: Re: [RFC] Net vm deadlock fix (preliminary)
-From: Martin Josefsson <gandalf@wlug.westbo.se>
-In-Reply-To: <200508040336.25761.phillips@istop.com>
-References: <200508031657.34948.phillips@istop.com>
-	 <Pine.LNX.4.58.0508030826230.23501@tux.rsn.bth.se>
-	 <200508040336.25761.phillips@istop.com>
-Content-Type: multipart/signed; micalg=pgp-sha1; protocol="application/pgp-signature"; boundary="=-xaqxaSQCaD+3ipXjL+Yk"
-Date: Wed, 03 Aug 2005 20:21:45 +0200
-Message-Id: <1123093305.11483.21.camel@localhost.localdomain>
-Mime-Version: 1.0
+From: "Ray Bryant" <raybry@mpdtxmail.amd.com>
+Subject: Re: [PATCH] VM: add vm.free_node_memory sysctl
+Date: Wed, 3 Aug 2005 14:59:22 -0500
+References: <20050801113913.GA7000@elte.hu>
+ <20050803142440.GQ26803@localhost>
+ <20050803143855.GA10895@wotan.suse.de>
+In-Reply-To: <20050803143855.GA10895@wotan.suse.de>
+MIME-Version: 1.0
+Message-ID: <200508031459.22834.raybry@mpdtxmail.amd.com>
+Content-Type: text/plain;
+ charset=iso-8859-1
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Daniel Phillips <phillips@istop.com>
-Cc: netdev@vger.kernel.org, linux-mm@kvack.org
+To: Andi Kleen <ak@suse.de>
+Cc: Martin Hicks <mort@sgi.com>, Ingo Molnar <mingo@elte.hu>, Linux MM <linux-mm@kvack.org>, Andrew Morton <akpm@osdl.org>, torvalds@osdl.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
---=-xaqxaSQCaD+3ipXjL+Yk
-Content-Type: text/plain
-Content-Transfer-Encoding: quoted-printable
+On Wednesday 03 August 2005 09:38, Andi Kleen wrote:
+> On Wed, Aug 03, 2005 at 10:24:40AM -0400, Martin Hicks wrote:
+> > On Wed, Aug 03, 2005 at 04:15:29PM +0200, Andi Kleen wrote:
+> > > On Wed, Aug 03, 2005 at 09:56:46AM -0400, Martin Hicks wrote:
+> > > > Here's the promised sysctl to dump a node's pagecache.  Please
+> > > > review!
+> > > >
+> > > > This patch depends on the zone reclaim atomic ops cleanup:
+> > > > http://marc.theaimsgroup.com/?l=linux-mm&m=112307646306476&w=2
+> > >
+> > > Doesn't numactl --bind=node memhog nodesize-someslack do the same?
+> > >
+> > > It just might kick in the oom killer if someslack is too small
+> > > or someone has unfreeable data there. But then there should be
+> > > already an sysctl to turn that one off.
+> >
+Hmmm.... What happens if there are already mapped pages (e. g. mapped in the 
+sense that pages are mapped into an address space) on the node and you want 
+to allocate some more, but can't because the node is full of clean page cache 
+pages?   Then one would have to set the memhog argument to the right thing to 
+keep the existing mapped memory from being swapped out, right?  Is the data 
+to set that argument readily available to user space?  Martin's patch has the 
+advantage of targeting just the clean page cache pages.
 
-On Thu, 2005-08-04 at 03:36 +1000, Daniel Phillips wrote:
+The way I see this, the problem is that clean page cache pages >>should<< be 
+easily available to be used to satisfy a request for mapped pages.   This 
+works correctly in non-NUMA Linux systems.  But in NUMA Linux systems, we 
+keep tripping over this problem all the time, particularly in the  HPC space, 
+and patches like Martin's come about as an attempt to solve this in the VMM.
+(We trip over this in the sense that we end up allocating off node storage 
+because the current node is full of page cache pages.)
 
-> I can think of two ways to deal with this:
->=20
->   1) Mindlessly include the entire maximum memory usage of the rx-ring in
->      the reserve requirement (e.g., (maxskbs * (MTU + k)) / PAGE_SIZE).
+The best answer we have at the present time is to run a memory hog program 
+that forces the clean page cache pages to be reclaimed by putting the node in 
+question under memory pressure, but this seems like an indirect way to solve 
+the problem at hand which is, really, to quickly release those page cache 
+pages and make them available for user programs to allocate.  So the most 
+direct way to fix this is to fix it in the VMM rather than depending on a 
+memory hog based work-around of some kind.   Perhaps we haven't gotten the 
+right set of patches together to do this, but my take is that is where the 
+fix belongs. 
 
-Would be dependent on the numberof interfaces as well.
-
->   2) Never refill the rx-ring from the reserve.  Instead, if the skbs eve=
-r
->      run out (because e1000_alloc_rx_buffers had too many GFP_ATOMIC allo=
-c
->      failures) then use __GFP_MEMALLOC instead of just giving up at that
->      point.
-
-This is how e1000 currently works (suggestions have been made to change
-this to work like the tg3 driver does which has copybreak support etc)
-
-1. Allocate skbs filling the rx-ring as much as possible
-2. tell hardware there's new skbs to DMA packets into
-3. note that an skb has been filled with data (interrupt or polling)
-4. remove that skb from the rx-ring
-5. pass the skb up the stack
-6. goto 3 if quota hasn't been filled
-7. goto 1 if quota has been filled
-
-The skbs allocated to fill the rx-ring are the _same_ skbs that are
-passed up the stack. So you won't see __GFP_MEMALLOC allocated skbs
-until RX_RINGSIZE packets after we got low on memory (fifo ring). I
-can't really say I see how #2 above solves that since we _have_ to
-allocate skbs to fill the rx-ring, otherwise the NIC won't have anywhere
-to put the received packets and will thus drop them in hardware.
-
-Or are you suggesting to let the rx-ring deplete until completely empty
-(or nearly empty) if we are low on memory, and only then start falling
-back to allocating with __GFP_MEMALLOC if GFP_ATOMIC fails?
-That could and probably would cause hardware to drop packets because it
-can run out of fresh rx-descriptors before we manage to start allocating
-with __GFP_MEMALLOC if the packetrate is high, at least it makes it much
-more likely to happen.
-
---=20
-/Martin
-
---=-xaqxaSQCaD+3ipXjL+Yk
-Content-Type: application/pgp-signature; name=signature.asc
-Content-Description: This is a digitally signed message part
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.1 (GNU/Linux)
-
-iD8DBQBC8Qs5Wm2vlfa207ERAvvgAJ0YUhV68n1hnqwsDf85YqH5bdEnwQCfTpUk
-6Z4NMtqv8i4WWs/mQ63ij0Q=
-=Fre2
------END PGP SIGNATURE-----
-
---=-xaqxaSQCaD+3ipXjL+Yk--
+And, just for the record (  :-)  ), this is not just an Altix problem.  
+Opterons are NUMA systems too, and we encounter exactly this same problem in 
+the HPC space on 4-node systems.  
+-- 
+Ray Bryant
+AMD Performance Labs                   Austin, Tx
+512-602-0038 (o)                 512-507-7807 (c)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
