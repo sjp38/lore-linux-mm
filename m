@@ -1,72 +1,92 @@
-From: "Ray Bryant" <raybry@mpdtxmail.amd.com>
-Subject: Re: [PATCH] VM: add vm.free_node_memory sysctl
-Date: Wed, 3 Aug 2005 14:59:22 -0500
-References: <20050801113913.GA7000@elte.hu>
- <20050803142440.GQ26803@localhost>
- <20050803143855.GA10895@wotan.suse.de>
-In-Reply-To: <20050803143855.GA10895@wotan.suse.de>
+From: Daniel Phillips <phillips@istop.com>
+Subject: Re: [RFC] Net vm deadlock fix (preliminary)
+Date: Thu, 4 Aug 2005 06:06:07 +1000
+References: <200508031657.34948.phillips@istop.com> <200508040336.25761.phillips@istop.com> <1123093305.11483.21.camel@localhost.localdomain>
+In-Reply-To: <1123093305.11483.21.camel@localhost.localdomain>
 MIME-Version: 1.0
-Message-ID: <200508031459.22834.raybry@mpdtxmail.amd.com>
 Content-Type: text/plain;
- charset=iso-8859-1
+  charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
+Message-Id: <200508040606.07769.phillips@istop.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <ak@suse.de>
-Cc: Martin Hicks <mort@sgi.com>, Ingo Molnar <mingo@elte.hu>, Linux MM <linux-mm@kvack.org>, Andrew Morton <akpm@osdl.org>, torvalds@osdl.org, linux-kernel@vger.kernel.org
+To: Martin Josefsson <gandalf@wlug.westbo.se>
+Cc: netdev@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wednesday 03 August 2005 09:38, Andi Kleen wrote:
-> On Wed, Aug 03, 2005 at 10:24:40AM -0400, Martin Hicks wrote:
-> > On Wed, Aug 03, 2005 at 04:15:29PM +0200, Andi Kleen wrote:
-> > > On Wed, Aug 03, 2005 at 09:56:46AM -0400, Martin Hicks wrote:
-> > > > Here's the promised sysctl to dump a node's pagecache.  Please
-> > > > review!
-> > > >
-> > > > This patch depends on the zone reclaim atomic ops cleanup:
-> > > > http://marc.theaimsgroup.com/?l=linux-mm&m=112307646306476&w=2
-> > >
-> > > Doesn't numactl --bind=node memhog nodesize-someslack do the same?
-> > >
-> > > It just might kick in the oom killer if someslack is too small
-> > > or someone has unfreeable data there. But then there should be
-> > > already an sysctl to turn that one off.
+On Thursday 04 August 2005 04:21, Martin Josefsson wrote:
+> On Thu, 2005-08-04 at 03:36 +1000, Daniel Phillips wrote:
+> > I can think of two ways to deal with this:
 > >
-Hmmm.... What happens if there are already mapped pages (e. g. mapped in the 
-sense that pages are mapped into an address space) on the node and you want 
-to allocate some more, but can't because the node is full of clean page cache 
-pages?   Then one would have to set the memhog argument to the right thing to 
-keep the existing mapped memory from being swapped out, right?  Is the data 
-to set that argument readily available to user space?  Martin's patch has the 
-advantage of targeting just the clean page cache pages.
+> >   1) Mindlessly include the entire maximum memory usage of the rx-ring in
+> >      the reserve requirement (e.g., (maxskbs * (MTU + k)) / PAGE_SIZE).
+>
+> Would be dependent on the numberof interfaces as well.
 
-The way I see this, the problem is that clean page cache pages >>should<< be 
-easily available to be used to satisfy a request for mapped pages.   This 
-works correctly in non-NUMA Linux systems.  But in NUMA Linux systems, we 
-keep tripping over this problem all the time, particularly in the  HPC space, 
-and patches like Martin's come about as an attempt to solve this in the VMM.
-(We trip over this in the sense that we end up allocating off node storage 
-because the current node is full of page cache pages.)
+Actually, just the number of interfaces being used by network block IO.  
+Theoretically unbounded, but not an immediate problem.  This goes on the 
+"must fix in order to be perfect" list.
 
-The best answer we have at the present time is to run a memory hog program 
-that forces the clean page cache pages to be reclaimed by putting the node in 
-question under memory pressure, but this seems like an indirect way to solve 
-the problem at hand which is, really, to quickly release those page cache 
-pages and make them available for user programs to allocate.  So the most 
-direct way to fix this is to fix it in the VMM rather than depending on a 
-memory hog based work-around of some kind.   Perhaps we haven't gotten the 
-right set of patches together to do this, but my take is that is where the 
-fix belongs. 
+> >   2) Never refill the rx-ring from the reserve.  Instead, if the skbs
+> > ever run out (because e1000_alloc_rx_buffers had too many GFP_ATOMIC
+> > alloc failures) then use __GFP_MEMALLOC instead of just giving up at that
+> > point.
+>
+> This is how e1000 currently works (suggestions have been made to change
+> this to work like the tg3 driver does which has copybreak support etc)
+>
+> 1. Allocate skbs filling the rx-ring as much as possible
+> 2. tell hardware there's new skbs to DMA packets into
+> 3. note that an skb has been filled with data (interrupt or polling)
+> 4. remove that skb from the rx-ring
+> 5. pass the skb up the stack
+> 6. goto 3 if quota hasn't been filled
+> 7. goto 1 if quota has been filled
 
-And, just for the record (  :-)  ), this is not just an Altix problem.  
-Opterons are NUMA systems too, and we encounter exactly this same problem in 
-the HPC space on 4-node systems.  
--- 
-Ray Bryant
-AMD Performance Labs                   Austin, Tx
-512-602-0038 (o)                 512-507-7807 (c)
+Thanks, I originally missed the part about the hardware requiring at least one 
+skb in the ring, or else it will drop a packet.
 
+> The skbs allocated to fill the rx-ring are the _same_ skbs that are
+> passed up the stack. So you won't see __GFP_MEMALLOC allocated skbs
+> until RX_RINGSIZE packets after we got low on memory (fifo ring). I
+> can't really say I see how #2 above solves that since we _have_ to
+> allocate skbs to fill the rx-ring, otherwise the NIC won't have anywhere
+> to put the received packets and will thus drop them in hardware.
+>
+> Or are you suggesting to let the rx-ring deplete until completely empty
+> (or nearly empty) if we are low on memory, and only then start falling
+> back to allocating with __GFP_MEMALLOC if GFP_ATOMIC fails?
+
+Yes, exactly.  Except as you point out "completely empty" won't do.  We will 
+use the __GFP_MEMALLOC (or alternatively, mempool) to ensure that the rx_ring 
+always has at least some minimum number N of packets in it, and reserve N*MTU 
+pages for the interface.  Actually, we will reserve considerably more than 
+that, because we want to be able to have a fairly large number of packets in 
+flight on the block IO path, particularly under memory pressure.
+
+It doesn't actually matter which packet we return to the reserve, so we might 
+want to just count the number of __GFP_MEMALLOC packets in the ring and 
+deliver on the direct (non-softnet) path until the count drops to zero.  
+Which implies a slightly different approach to the is_memalloc_skb flagging.  
+This is just a refinement though, it does not really matter when we reclaim a 
+reserve buffer as long as we are certain to reclaim it.
+
+> That could and probably would cause hardware to drop packets because it
+> can run out of fresh rx-descriptors before we manage to start allocating
+> with __GFP_MEMALLOC if the packetrate is high, at least it makes it much
+> more likely to happen.
+
+It is a matter of setting N, the minimum number of packets in the rx ring high 
+enough, no?
+
+OK, the next step is to reroll the patch and make it specific to e1000, which 
+I happen to have here and can test.  Also, I will use a mempool this time, so 
+we will see how that code looks.
+
+Regards,
+
+Daniel
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
