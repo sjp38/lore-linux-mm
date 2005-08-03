@@ -1,69 +1,106 @@
-Message-ID: <42F0B4D6.5030604@yahoo.com.au>
-Date: Wed, 03 Aug 2005 22:13:10 +1000
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-MIME-Version: 1.0
-Subject: Re: [patch 2.6.13-rc4] fix get_user_pages bug
-References: <OF3BCB86B7.69087CF8-ON42257051.003DCC6C-42257051.00420E16@de.ibm.com> <Pine.LNX.4.58.0508020829010.3341@g5.osdl.org> <Pine.LNX.4.61.0508021645050.4921@goblin.wat.veritas.com> <Pine.LNX.4.58.0508020911480.3341@g5.osdl.org> <Pine.LNX.4.61.0508021809530.5659@goblin.wat.veritas.com> <Pine.LNX.4.58.0508021127120.3341@g5.osdl.org> <Pine.LNX.4.61.0508022001420.6744@goblin.wat.veritas.com> <Pine.LNX.4.58.0508021244250.3341@g5.osdl.org> <Pine.LNX.4.61.0508022150530.10815@goblin.wat.veritas.com> <42F09B41.3050409@yahoo.com.au> <Pine.LNX.4.61.0508031231540.13845@goblin.wat.veritas.com>
-In-Reply-To: <Pine.LNX.4.61.0508031231540.13845@goblin.wat.veritas.com>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+Date: Wed, 3 Aug 2005 09:39:09 -0400
+From: Martin Hicks <mort@bork.org>
+Subject: [PATCH] VM: zone reclaim atomic ops cleanup
+Message-ID: <20050803133909.GN26803@localhost>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: Linus Torvalds <torvalds@osdl.org>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Andrew Morton <akpm@osdl.org>, Robin Holt <holt@sgi.com>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Ingo Molnar <mingo@elte.hu>, Roland McGrath <roland@redhat.com>
+To: Linux MM <linux-mm@kvack.org>, Andrew Morton <akpm@osdl.org>
+Cc: marcelo.tosatti@cyclades.com, Christoph Lameter <clameter@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-Hugh Dickins wrote:
+Hi,
 
-> Stupidity was the reason I thought handle_mm_fault couldn't be inline:
-> I was picturing it static inline within mm/memory.c, failed to make the
-> great intellectual leap you've achieved by moving it to include/linux/mm.h.
-> 
+This is a cleanup that was requested by Marcelo and Christoph Lameter.
+It is against a recent git tree, but should apply to anything recent.
 
-Well it was one of my finer moments, so don't be too hard on
-yourself.
-
-> 
-> No, I don't think it would break anything: it's just an historic oddity,
-> used to be -1 for failure, and only got given a name recently, I think
-> when wli added the proper major/minor counting.
-> 
-> Your version of the patch looks less hacky to me (not requiring
-> VM_FAULT_WRITE_EXPECTED arg), though we could perfectly well remove
-> that at leisure by adding VM_FAULT_WRITE case into all the arches in
-> 2.6.14 (which might be preferable to leaving the __inline obscurity?).
-> 
-
-Well depends on what they want I suppose. Does it even make sense
-to expose VM_FAULT_WRITE to arch code if it will just fall through
-to VM_FAULT_MINOR?
-
-With my earlier VM_FAULT_RACE thing, you can squint and say that's
-a different case to VM_FAULT_MINOR - and accordingly not increment
-the minor fault count. Afterall, minor faults *seem* to track count
-of modifications made to the pte entry minus major faults, rather
-than the number of times the hardware traps. I say this because we
-increment the number in get_user_pages too.
-
-But...
-
-> I don't mind either way, but since you've not yet found an actual
-> error in mine, I'd prefer you to make yours a tidyup patch on top,
-> Signed-off-by your own good self, and let Linus decide whether he
-> wants to apply yours on top or not.  Or perhaps the decision rests
-> for the moment with Robin, whether he gets his customer to test
-> yours or mine - whichever is tested is the one which should go in.
-> 
-
-I agree that for the moment we probably just want something that
-works. I'd be just as happy to go with your patch as is for now.
-
-Nick
+thanks
+mh
 
 -- 
-SUSE Labs, Novell Inc.
+Martin Hicks   ||   Silicon Graphics Inc.   ||   mort@sgi.com
 
-Send instant messages to your online friends http://au.messenger.yahoo.com 
+
+
+Christoph Lameter and Marcelo Tosatti asked to get rid of the
+atomic_inc_and_test() to cleanup the atomic ops in the zone
+reclaim code.
+
+Signed-off-by:  Martin Hicks <mort@sgi.com>
+Signed-off-by:  Christoph Lameter <clameter@sgi.com>
+
+---
+commit 414acb15f0f237cbf560bfa56c74ca9d19c5cd5a
+tree 2092de012fbfb1bc93293b90a584220672713c87
+parent d7ed538a02c219119adb20f1dccbf0f8015e53f3
+author Martin Hicks,,,,,,,engr <mort@tomahawk.engr.sgi.com> Wed, 03 Aug 2005 06:31:13 -0700
+committer Martin Hicks,,,,,,,engr <mort@tomahawk.engr.sgi.com> Wed, 03 Aug 2005 06:31:13 -0700
+
+ mm/page_alloc.c |    2 +-
+ mm/vmscan.c     |    9 +++++----
+ 2 files changed, 6 insertions(+), 5 deletions(-)
+
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -1909,7 +1909,7 @@ static void __init free_area_init_core(s
+ 		zone->nr_scan_inactive = 0;
+ 		zone->nr_active = 0;
+ 		zone->nr_inactive = 0;
+-		atomic_set(&zone->reclaim_in_progress, -1);
++		atomic_set(&zone->reclaim_in_progress, 0);
+ 		if (!size)
+ 			continue;
+ 
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -822,6 +822,8 @@ shrink_zone(struct zone *zone, struct sc
+ 	unsigned long nr_active;
+ 	unsigned long nr_inactive;
+ 
++	atomic_inc(&zone->reclaim_in_progress);
++
+ 	/*
+ 	 * Add one to `nr_to_scan' just to make sure that the kernel will
+ 	 * slowly sift through the active list.
+@@ -861,6 +863,8 @@ shrink_zone(struct zone *zone, struct sc
+ 	}
+ 
+ 	throttle_vm_writeout();
++
++	atomic_dec(&zone->reclaim_in_progress);
+ }
+ 
+ /*
+@@ -900,9 +904,7 @@ shrink_caches(struct zone **zones, struc
+ 		if (zone->all_unreclaimable && sc->priority != DEF_PRIORITY)
+ 			continue;	/* Let kswapd poll it */
+ 
+-		atomic_inc(&zone->reclaim_in_progress);
+ 		shrink_zone(zone, sc);
+-		atomic_dec(&zone->reclaim_in_progress);
+ 	}
+ }
+  
+@@ -1358,14 +1360,13 @@ int zone_reclaim(struct zone *zone, unsi
+ 		sc.swap_cluster_max = SWAP_CLUSTER_MAX;
+ 
+ 	/* Don't reclaim the zone if there are other reclaimers active */
+-	if (!atomic_inc_and_test(&zone->reclaim_in_progress))
++	if (atomic_read(&zone->reclaim_in_progress) > 0)
+ 		goto out;
+ 
+ 	shrink_zone(zone, &sc);
+ 	total_reclaimed = sc.nr_reclaimed;
+ 
+  out:
+-	atomic_dec(&zone->reclaim_in_progress);
+ 	return total_reclaimed;
+ }
+ 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
