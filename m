@@ -1,8 +1,8 @@
-Date: Wed, 3 Aug 2005 09:39:03 -0700 (PDT)
+Date: Wed, 3 Aug 2005 09:42:59 -0700 (PDT)
 From: Linus Torvalds <torvalds@osdl.org>
 Subject: Re: [patch 2.6.13-rc4] fix get_user_pages bug
-In-Reply-To: <Pine.LNX.4.58.0508030902380.3341@g5.osdl.org>
-Message-ID: <Pine.LNX.4.58.0508030933130.4370@g5.osdl.org>
+In-Reply-To: <Pine.LNX.4.58.0508030933130.4370@g5.osdl.org>
+Message-ID: <Pine.LNX.4.58.0508030942140.3258@g5.osdl.org>
 References: <OF3BCB86B7.69087CF8-ON42257051.003DCC6C-42257051.00420E16@de.ibm.com>
  <Pine.LNX.4.58.0508020829010.3341@g5.osdl.org>
  <Pine.LNX.4.61.0508021645050.4921@goblin.wat.veritas.com>
@@ -13,6 +13,7 @@ References: <OF3BCB86B7.69087CF8-ON42257051.003DCC6C-42257051.00420E16@de.ibm.co
  <Pine.LNX.4.58.0508021244250.3341@g5.osdl.org>
  <Pine.LNX.4.61.0508022150530.10815@goblin.wat.veritas.com>
  <42F09B41.3050409@yahoo.com.au> <Pine.LNX.4.58.0508030902380.3341@g5.osdl.org>
+ <Pine.LNX.4.58.0508030933130.4370@g5.osdl.org>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -24,18 +25,10 @@ List-ID: <linux-mm.kvack.org>
 
 On Wed, 3 Aug 2005, Linus Torvalds wrote:
 > 
-> Ok, I applied this because it was reasonably pretty and I liked the 
-> approach. It seems buggy, though, since it was using "switch ()" to test 
-> the bits (wrongly, afaik), and I'm going to apply the appended on top of 
-> it. Holler quickly if you disagreee..
+> What makes us not get into an infinite loop there? 
 
-Another problem I just thought of.
-
-What about PROT_NONE pages? Afaik, they have _exactly_ the same issue on 
-the read side as a PROT_READ page has on the write side: pte_read() may 
-fail on them.
-
-What makes us not get into an infinite loop there? 
+Ahh, never mind, I didn't notice that we never set the "read" thing at 
+all, so ptrace will never care if it's readable or not. No problem.
 
 		Linus
 --
