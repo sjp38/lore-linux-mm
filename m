@@ -1,53 +1,96 @@
-Date: Thu, 4 Aug 2005 17:19:38 +0200
-From: Andi Kleen <ak@suse.de>
-Subject: Re: Getting rid of SHMMAX/SHMALL ?
-Message-ID: <20050804151938.GZ8266@wotan.suse.de>
-References: <20050804113941.GP8266@wotan.suse.de> <Pine.LNX.4.61.0508041409540.3500@goblin.wat.veritas.com> <20050804132338.GT8266@wotan.suse.de> <20050804142040.GB22165@mea-ext.zmailer.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20050804142040.GB22165@mea-ext.zmailer.org>
+Date: Thu, 4 Aug 2005 16:35:06 +0100 (BST)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: Re: [patch 2.6.13-rc4] fix get_user_pages bug
+In-Reply-To: <20050804150053.GA1346@localhost.localdomain>
+Message-ID: <Pine.LNX.4.61.0508041618020.4668@goblin.wat.veritas.com>
+References: <Pine.LNX.4.58.0508020911480.3341@g5.osdl.org>
+ <Pine.LNX.4.61.0508021809530.5659@goblin.wat.veritas.com>
+ <Pine.LNX.4.58.0508021127120.3341@g5.osdl.org>
+ <Pine.LNX.4.61.0508022001420.6744@goblin.wat.veritas.com>
+ <Pine.LNX.4.58.0508021244250.3341@g5.osdl.org>
+ <Pine.LNX.4.61.0508022150530.10815@goblin.wat.veritas.com>
+ <42F09B41.3050409@yahoo.com.au> <Pine.LNX.4.58.0508030902380.3341@g5.osdl.org>
+ <20050804141457.GA1178@localhost.localdomain> <42F2266F.30008@yahoo.com.au>
+ <20050804150053.GA1346@localhost.localdomain>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Matti Aarnio <matti.aarnio@zmailer.org>
-Cc: Andi Kleen <ak@suse.de>, Hugh Dickins <hugh@veritas.com>, linux-kernel@vger.kernel.org, Anton Blanchard <anton@samba.org>, cr@sap.com, linux-mm@kvack.org
+To: Alexander Nyberg <alexn@telia.com>, Linus Torvalds <torvalds@osdl.org>
+Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Russell King <rmk@arm.linux.org.uk>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Andrew Morton <akpm@osdl.org>, Robin Holt <holt@sgi.com>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Ingo Molnar <mingo@elte.hu>, Roland McGrath <roland@redhat.com>, Andi Kleen <ak@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Aug 04, 2005 at 05:20:40PM +0300, Matti Aarnio wrote:
-> SHM resources are non-swappable, thus I would not by default
-
-Not true.
-
-> let user programs go and allocate very much SHM spaces at all.
-> Such is usually spelled as: "denial-of-service-attack"
-> For that reason I would not raise builtin defaults either.
-
-It is equivalent to allocating anymous memory in programs.
-
-In theory you could limit it for each user by RLIMIT_NPROC*RLIMIT_AS,
-but in practice that would be usually
-If Linux ever gets a "max memory total used per user" rlimit it may make
-sense to limit the shm growth caused by them to that, but that is not
-there yet. In addition I want to point out that there are a zillion
-of subsystems which can be used to allocate quite a lot of memory
-(e.g. fill the socket buffers of a few hundred sockets)
-So far nobody knows how to limit all of these and it's probably too hard
-to do. The general wisdom is that if you want strong isolation like
-that use a virtualized environment.
-
-> > 
-> > I think we should just get rid of the per process limit and keep
-> > the global limit, but make it auto tuning based on available memory.
+On Thu, 4 Aug 2005, Alexander Nyberg wrote:
 > 
-> Err...  No thanks!   I would prefer to have even finer grained control
-> of how much SHM somebody can allocate.  For normal user the value
-> might be zero, but for users in a group "SHM1" there could be a level
-> of N MB, etc.  (Except that such mechanisms are rather complex...)
+> Hardcoding is evil so it's good it gets cleaned up anyway.
+> 
+> > parisc, cris, m68k, frv, sh64, arm26 are also broken.
+> > Would you mind resending a patch that fixes them all?
+> 
+> Remove the hardcoding in return value checking of handle_mm_fault()
 
-shmmni will stay, although the defaults will be larger. If you really
-want you can lower it, but in practice it won't buy you much if anything.
+Your patch looks right to me, and bless you for catching this.
+But it does get into changing lots of arches, which we were
+trying to avoid at this moment.  Well, that's up to Linus.
 
--Andi
+And it does miss arm, the only arch which actually needs changing
+right now, if we simply restore the original values which Nick shifted
+- although arm references the VM_FAULT_ codes in some places, it also
+uses "> 0".  arm26 looks at first as if it needs changing too, but
+a closer look shows it's remapping the faults and is okay - agreed?
+
+I suggest for now the patch below, which does need to be applied
+for the arm case, and makes applying your good cleanup less urgent.
+
+
+Restore VM_FAULT_SIGBUS, VM_FAULT_MINOR and VM_FAULT_MAJOR to their
+original values, so that arches which have them hardcoded will still
+work before they're cleaned up.  And correct arm to use the VM_FAULT_
+codes throughout, not assuming MINOR and MAJOR are the only ones > 0.
+
+Signed-off-by: Hugh Dickins <hugh@veritas.com>
+
+--- 2.6.13-rc5-git2/arch/arm/mm/fault.c	2005-08-02 12:06:28.000000000 +0100
++++ linux/arch/arm/mm/fault.c	2005-08-04 16:06:57.000000000 +0100
+@@ -240,8 +240,11 @@ do_page_fault(unsigned long addr, unsign
+ 	/*
+ 	 * Handle the "normal" case first
+ 	 */
+-	if (fault > 0)
++	switch (fault) {
++	case VM_FAULT_MINOR:
++	case VM_FAULT_MAJOR:
+ 		return 0;
++	}
+ 
+ 	/*
+ 	 * If we are in kernel mode at this point, we
+@@ -261,7 +264,7 @@ do_page_fault(unsigned long addr, unsign
+ 		do_exit(SIGKILL);
+ 		return 0;
+ 
+-	case 0:
++	case VM_FAULT_SIGBUS:
+ 		/*
+ 		 * We had some memory, but were unable to
+ 		 * successfully fix up this page fault.
+--- 2.6.13-rc5-git2/include/linux/mm.h	2005-08-04 15:20:20.000000000 +0100
++++ linux/include/linux/mm.h	2005-08-04 15:52:34.000000000 +0100
+@@ -625,10 +625,10 @@ static inline int page_mapped(struct pag
+  * Used to decide whether a process gets delivered SIGBUS or
+  * just gets major/minor fault counters bumped up.
+  */
+-#define VM_FAULT_OOM	0x00
+-#define VM_FAULT_SIGBUS	0x01
+-#define VM_FAULT_MINOR	0x02
+-#define VM_FAULT_MAJOR	0x03
++#define VM_FAULT_SIGBUS	0x00
++#define VM_FAULT_MINOR	0x01
++#define VM_FAULT_MAJOR	0x02
++#define VM_FAULT_OOM	0x03
+ 
+ /* 
+  * Special case for get_user_pages.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
