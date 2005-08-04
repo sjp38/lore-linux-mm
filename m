@@ -1,8 +1,8 @@
-Date: Thu, 4 Aug 2005 16:35:06 +0100 (BST)
-From: Hugh Dickins <hugh@veritas.com>
+Date: Thu, 4 Aug 2005 08:36:09 -0700 (PDT)
+From: Linus Torvalds <torvalds@osdl.org>
 Subject: Re: [patch 2.6.13-rc4] fix get_user_pages bug
 In-Reply-To: <20050804150053.GA1346@localhost.localdomain>
-Message-ID: <Pine.LNX.4.61.0508041618020.4668@goblin.wat.veritas.com>
+Message-ID: <Pine.LNX.4.58.0508040834400.3258@g5.osdl.org>
 References: <Pine.LNX.4.58.0508020911480.3341@g5.osdl.org>
  <Pine.LNX.4.61.0508021809530.5659@goblin.wat.veritas.com>
  <Pine.LNX.4.58.0508021127120.3341@g5.osdl.org>
@@ -16,81 +16,29 @@ MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Alexander Nyberg <alexn@telia.com>, Linus Torvalds <torvalds@osdl.org>
-Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Russell King <rmk@arm.linux.org.uk>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Andrew Morton <akpm@osdl.org>, Robin Holt <holt@sgi.com>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Ingo Molnar <mingo@elte.hu>, Roland McGrath <roland@redhat.com>, Andi Kleen <ak@suse.de>
+To: Alexander Nyberg <alexn@telia.com>
+Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Hugh Dickins <hugh@veritas.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Andrew Morton <akpm@osdl.org>, Robin Holt <holt@sgi.com>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Ingo Molnar <mingo@elte.hu>, Roland McGrath <roland@redhat.com>, Andi Kleen <ak@suse.de>
 List-ID: <linux-mm.kvack.org>
+
 
 On Thu, 4 Aug 2005, Alexander Nyberg wrote:
 > 
 > Hardcoding is evil so it's good it gets cleaned up anyway.
-> 
-> > parisc, cris, m68k, frv, sh64, arm26 are also broken.
-> > Would you mind resending a patch that fixes them all?
+
+Yes.
+
+> > parisc, cris, m68k, frv, sh64, arm26 are also broken. Would you mind
+> > resending a patch that fixes them all?
 > 
 > Remove the hardcoding in return value checking of handle_mm_fault()
 
-Your patch looks right to me, and bless you for catching this.
-But it does get into changing lots of arches, which we were
-trying to avoid at this moment.  Well, that's up to Linus.
+I only saw this one when I had already done it myself.
 
-And it does miss arm, the only arch which actually needs changing
-right now, if we simply restore the original values which Nick shifted
-- although arm references the VM_FAULT_ codes in some places, it also
-uses "> 0".  arm26 looks at first as if it needs changing too, but
-a closer look shows it's remapping the faults and is okay - agreed?
+Your arm26 conversion was only partial, btw. Notice how it returns the 
+fault number (with a few extensions of its own) and processes it further? 
+I think I got that right.
 
-I suggest for now the patch below, which does need to be applied
-for the arm case, and makes applying your good cleanup less urgent.
-
-
-Restore VM_FAULT_SIGBUS, VM_FAULT_MINOR and VM_FAULT_MAJOR to their
-original values, so that arches which have them hardcoded will still
-work before they're cleaned up.  And correct arm to use the VM_FAULT_
-codes throughout, not assuming MINOR and MAJOR are the only ones > 0.
-
-Signed-off-by: Hugh Dickins <hugh@veritas.com>
-
---- 2.6.13-rc5-git2/arch/arm/mm/fault.c	2005-08-02 12:06:28.000000000 +0100
-+++ linux/arch/arm/mm/fault.c	2005-08-04 16:06:57.000000000 +0100
-@@ -240,8 +240,11 @@ do_page_fault(unsigned long addr, unsign
- 	/*
- 	 * Handle the "normal" case first
- 	 */
--	if (fault > 0)
-+	switch (fault) {
-+	case VM_FAULT_MINOR:
-+	case VM_FAULT_MAJOR:
- 		return 0;
-+	}
- 
- 	/*
- 	 * If we are in kernel mode at this point, we
-@@ -261,7 +264,7 @@ do_page_fault(unsigned long addr, unsign
- 		do_exit(SIGKILL);
- 		return 0;
- 
--	case 0:
-+	case VM_FAULT_SIGBUS:
- 		/*
- 		 * We had some memory, but were unable to
- 		 * successfully fix up this page fault.
---- 2.6.13-rc5-git2/include/linux/mm.h	2005-08-04 15:20:20.000000000 +0100
-+++ linux/include/linux/mm.h	2005-08-04 15:52:34.000000000 +0100
-@@ -625,10 +625,10 @@ static inline int page_mapped(struct pag
-  * Used to decide whether a process gets delivered SIGBUS or
-  * just gets major/minor fault counters bumped up.
-  */
--#define VM_FAULT_OOM	0x00
--#define VM_FAULT_SIGBUS	0x01
--#define VM_FAULT_MINOR	0x02
--#define VM_FAULT_MAJOR	0x03
-+#define VM_FAULT_SIGBUS	0x00
-+#define VM_FAULT_MINOR	0x01
-+#define VM_FAULT_MAJOR	0x02
-+#define VM_FAULT_OOM	0x03
- 
- /* 
-  * Special case for get_user_pages.
+		Linus
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
