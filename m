@@ -1,46 +1,38 @@
-Message-ID: <42F14D5F.7040603@yahoo.com.au>
-Date: Thu, 04 Aug 2005 09:03:59 +1000
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-MIME-Version: 1.0
-Subject: Re: [patch 2.6.13-rc4] fix get_user_pages bug
-References: <OF3BCB86B7.69087CF8-ON42257051.003DCC6C-42257051.00420E16@de.ibm.com> <Pine.LNX.4.58.0508020829010.3341@g5.osdl.org> <Pine.LNX.4.61.0508021645050.4921@goblin.wat.veritas.com> <Pine.LNX.4.58.0508020911480.3341@g5.osdl.org> <Pine.LNX.4.61.0508021809530.5659@goblin.wat.veritas.com> <Pine.LNX.4.58.0508021127120.3341@g5.osdl.org> <Pine.LNX.4.61.0508022001420.6744@goblin.wat.veritas.com> <Pine.LNX.4.58.0508021244250.3341@g5.osdl.org> <Pine.LNX.4.61.0508022150530.10815@goblin.wat.veritas.com> <42F09B41.3050409@yahoo.com.au> <Pine.LNX.4.58.0508030902380.3341@g5.osdl.org>
-In-Reply-To: <Pine.LNX.4.58.0508030902380.3341@g5.osdl.org>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+Date: Thu, 4 Aug 2005 13:39:41 +0200
+From: Andi Kleen <ak@suse.de>
+Subject: Getting rid of SHMMAX/SHMALL ?
+Message-ID: <20050804113941.GP8266@wotan.suse.de>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@osdl.org>
-Cc: Hugh Dickins <hugh@veritas.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Andrew Morton <akpm@osdl.org>, Robin Holt <holt@sgi.com>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Ingo Molnar <mingo@elte.hu>, Roland McGrath <roland@redhat.com>
+To: linux-kernel@vger.kernel.org
+Cc: cr@sap.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Linus Torvalds wrote:
-> 
-> On Wed, 3 Aug 2005, Nick Piggin wrote:
-> 
->>Oh, it gets rid of the -1 for VM_FAULT_OOM. Doesn't seem like there
->>is a good reason for it, but might that break out of tree drivers?
-> 
-> 
-> Ok, I applied this because it was reasonably pretty and I liked the 
-> approach. It seems buggy, though, since it was using "switch ()" to test 
-> the bits (wrongly, afaik),
+I noticed that even 64bit architectures have a ridiculously low 
+max limit on shared memory segments by default:
 
-Oops, thanks.
+#define SHMMAX 0x2000000                 /* max shared seg size (bytes) */
+#define SHMMNI 4096                      /* max num of segs system wide */
+#define SHMALL (SHMMAX/PAGE_SIZE*(SHMMNI/16)) /* max shm system wide (pages) */
 
-> and I'm going to apply the appended on top of 
-> it. Holler quickly if you disagreee..
-> 
+Even on 32bit architectures it is far too small and doesn't
+make much sense. Does anybody remember why we even have this limit?
 
-No that looks fine. Should really be credited to Hugh... well
-I guess everyone had some input into it though (Andrew, Hugh,
-you, me). It probably doesn't matter too much.
+IMHO per process shm mappings should just be controlled by the normal
+process and global mappings with the same heuristics as tmpfs
+(by default max memory / 2 or more if shmfs is mounted with more)
+Actually I suspect databases will usually want to use more 
+so it might even make sense to support max memory - 1/8*max_memory
 
-Thanks everyone.
+I would propose to get rid of of shmmax completely
+and only keep the old shmall sysctl for compatibility.
 
--- 
-SUSE Labs, Novell Inc.
+Comments?
 
-Send instant messages to your online friends http://au.messenger.yahoo.com 
+-Andi
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
