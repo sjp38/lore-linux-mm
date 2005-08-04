@@ -1,46 +1,64 @@
-Date: Thu, 4 Aug 2005 17:32:16 +0100
-From: Russell King <rmk+lkml@arm.linux.org.uk>
-Subject: Re: [patch 2.6.13-rc4] fix get_user_pages bug
-Message-ID: <20050804173215.I32154@flint.arm.linux.org.uk>
-References: <Pine.LNX.4.58.0508021127120.3341@g5.osdl.org> <Pine.LNX.4.61.0508022001420.6744@goblin.wat.veritas.com> <Pine.LNX.4.58.0508021244250.3341@g5.osdl.org> <Pine.LNX.4.61.0508022150530.10815@goblin.wat.veritas.com> <42F09B41.3050409@yahoo.com.au> <Pine.LNX.4.58.0508030902380.3341@g5.osdl.org> <20050804141457.GA1178@localhost.localdomain> <42F2266F.30008@yahoo.com.au> <20050804150053.GA1346@localhost.localdomain> <Pine.LNX.4.61.0508041618020.4668@goblin.wat.veritas.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.61.0508041618020.4668@goblin.wat.veritas.com>; from hugh@veritas.com on Thu, Aug 04, 2005 at 04:35:06PM +0100
+Date: Thu, 4 Aug 2005 10:34:24 -0700 (PDT)
+From: Christoph Lameter <christoph@lameter.com>
+Subject: NUMA policy interface
+In-Reply-To: <20050804170803.GB8266@wotan.suse.de>
+Message-ID: <Pine.LNX.4.62.0508041011590.7314@graphe.net>
+References: <20050730181418.65caed1f.pj@sgi.com> <Pine.LNX.4.62.0507301814540.31359@graphe.net>
+ <20050730190126.6bec9186.pj@sgi.com> <Pine.LNX.4.62.0507301904420.31882@graphe.net>
+ <20050730191228.15b71533.pj@sgi.com> <Pine.LNX.4.62.0508011147030.5541@graphe.net>
+ <20050803084849.GB10895@wotan.suse.de> <Pine.LNX.4.62.0508040704590.3319@graphe.net>
+ <20050804142942.GY8266@wotan.suse.de> <Pine.LNX.4.62.0508040922110.6650@graphe.net>
+ <20050804170803.GB8266@wotan.suse.de>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: Alexander Nyberg <alexn@telia.com>, Linus Torvalds <torvalds@osdl.org>, Nick Piggin <nickpiggin@yahoo.com.au>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Andrew Morton <akpm@osdl.org>, Robin Holt <holt@sgi.com>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Ingo Molnar <mingo@elte.hu>, Roland McGrath <roland@redhat.com>, Andi Kleen <ak@suse.de>
+To: Andi Kleen <ak@suse.de>
+Cc: Paul Jackson <pj@sgi.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Aug 04, 2005 at 04:35:06PM +0100, Hugh Dickins wrote:
-> And it does miss arm, the only arch which actually needs changing
-> right now, if we simply restore the original values which Nick shifted
-> - although arm references the VM_FAULT_ codes in some places, it also
-> uses "> 0".  arm26 looks at first as if it needs changing too, but
-> a closer look shows it's remapping the faults and is okay - agreed?
+On Thu, 4 Aug 2005, Andi Kleen wrote:
 
-Your patch doesn't look right.  Firstly, I'd rather stay away from
-switch() if at all possible - past experience has shown that it
-generates inherently poor code on ARM.  Whether that's still true
-or not I've no idea, but I don't particularly want to find out at
-the moment.
+> > So your point of view is that there will be no control and monitoring of 
+> > the memory usage and policies?
+> 
+> External control is implemented for named objects and for process policy.
+> A process can also monitor its own policies if it wants.
 
-> Restore VM_FAULT_SIGBUS, VM_FAULT_MINOR and VM_FAULT_MAJOR to their
-> original values, so that arches which have them hardcoded will still
-> work before they're cleaned up.  And correct arm to use the VM_FAULT_
-> codes throughout, not assuming MINOR and MAJOR are the only ones > 0.
+Named objects like files and not processes and/or threads? But then these 
+named objects do not have memory allocated to them.
 
-And the above rules this out.
+> I think the payoff for external monitoring of policies vs complexity 
+> and cleanliness of interface and long term code impact is too bad to make 
+> it an attractive option.
 
-As I say, I fixed ARM this morning, so changing these constants will
-break it again.  Let's just wait for things to stabilise instead of
-trying to race with architecture maintainers...
+Well the implementation has the following issues right now:
 
--- 
-Russell King
- Linux kernel    2.6 ARM Linux   - http://www.arm.linux.org.uk/
- maintainer of:  2.6 Serial core
+1. BIND policy implemented in a way that fills up nodes from the lowest 
+   to the higest instead of allocating memory on the local node.
+
+2. No separation between sys_ and do_ functions. Therefore difficult
+   to use from kernel context.
+
+3. Functions have weird side effect (f.e. get_nodes updating 
+   and using cpuset policies). Code is therefore difficult 
+   to maintain.
+
+4. Uses bitmaps instead of nodemask_t.
+
+5. No means to figure out where the memory was allocated although
+   mempoliy.c implements scans over ptes that would allow that 
+   determination.
+ 
+6. Needs hook into page migration layer to move pages to either conform
+   to policy or to move them menually.
+
+The long term impact of this missing functionality is already showing 
+in the numbers of workarounds that I have seen at a various sites, 
+
+The code is currently complex and difficult to handle because some of the 
+issues mentioned above. We need to fix this in order to have clean code 
+and in order to control future complexity.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
