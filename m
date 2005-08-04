@@ -1,42 +1,41 @@
-Date: Thu, 4 Aug 2005 17:29:20 +0100
+Date: Thu, 4 Aug 2005 17:32:16 +0100
 From: Russell King <rmk+lkml@arm.linux.org.uk>
 Subject: Re: [patch 2.6.13-rc4] fix get_user_pages bug
-Message-ID: <20050804172920.H32154@flint.arm.linux.org.uk>
-References: <Pine.LNX.4.58.0508020911480.3341@g5.osdl.org> <Pine.LNX.4.61.0508021809530.5659@goblin.wat.veritas.com> <Pine.LNX.4.58.0508021127120.3341@g5.osdl.org> <Pine.LNX.4.61.0508022001420.6744@goblin.wat.veritas.com> <Pine.LNX.4.58.0508021244250.3341@g5.osdl.org> <Pine.LNX.4.61.0508022150530.10815@goblin.wat.veritas.com> <42F09B41.3050409@yahoo.com.au> <Pine.LNX.4.58.0508030902380.3341@g5.osdl.org> <20050804141457.GA1178@localhost.localdomain> <42F2266F.30008@yahoo.com.au>
+Message-ID: <20050804173215.I32154@flint.arm.linux.org.uk>
+References: <Pine.LNX.4.58.0508021127120.3341@g5.osdl.org> <Pine.LNX.4.61.0508022001420.6744@goblin.wat.veritas.com> <Pine.LNX.4.58.0508021244250.3341@g5.osdl.org> <Pine.LNX.4.61.0508022150530.10815@goblin.wat.veritas.com> <42F09B41.3050409@yahoo.com.au> <Pine.LNX.4.58.0508030902380.3341@g5.osdl.org> <20050804141457.GA1178@localhost.localdomain> <42F2266F.30008@yahoo.com.au> <20050804150053.GA1346@localhost.localdomain> <Pine.LNX.4.61.0508041618020.4668@goblin.wat.veritas.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <42F2266F.30008@yahoo.com.au>; from nickpiggin@yahoo.com.au on Fri, Aug 05, 2005 at 12:30:07AM +1000
+In-Reply-To: <Pine.LNX.4.61.0508041618020.4668@goblin.wat.veritas.com>; from hugh@veritas.com on Thu, Aug 04, 2005 at 04:35:06PM +0100
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Alexander Nyberg <alexn@telia.com>, Linus Torvalds <torvalds@osdl.org>, Hugh Dickins <hugh@veritas.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Andrew Morton <akpm@osdl.org>, Robin Holt <holt@sgi.com>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Ingo Molnar <mingo@elte.hu>, Roland McGrath <roland@redhat.com>, Andi Kleen <ak@suse.de>
+To: Hugh Dickins <hugh@veritas.com>
+Cc: Alexander Nyberg <alexn@telia.com>, Linus Torvalds <torvalds@osdl.org>, Nick Piggin <nickpiggin@yahoo.com.au>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Andrew Morton <akpm@osdl.org>, Robin Holt <holt@sgi.com>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Ingo Molnar <mingo@elte.hu>, Roland McGrath <roland@redhat.com>, Andi Kleen <ak@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Aug 05, 2005 at 12:30:07AM +1000, Nick Piggin wrote:
-> Alexander Nyberg wrote:
-> > On Wed, Aug 03, 2005 at 09:12:37AM -0700 Linus Torvalds wrote:
-> > 
-> > 
-> >>
-> >>Ok, I applied this because it was reasonably pretty and I liked the 
-> >>approach. It seems buggy, though, since it was using "switch ()" to test 
-> >>the bits (wrongly, afaik), and I'm going to apply the appended on top of 
-> >>it. Holler quickly if you disagreee..
-> >>
-> > 
-> > 
-> > x86_64 had hardcoded the VM_ numbers so it broke down when the numbers
-> > were changed.
-> > 
-> 
-> Ugh, sorry I should have audited this but I really wasn't expecting
-> it (famous last words). Hasn't been a good week for me.
-> 
-> parisc, cris, m68k, frv, sh64, arm26 are also broken.
-> Would you mind resending a patch that fixes them all?
+On Thu, Aug 04, 2005 at 04:35:06PM +0100, Hugh Dickins wrote:
+> And it does miss arm, the only arch which actually needs changing
+> right now, if we simply restore the original values which Nick shifted
+> - although arm references the VM_FAULT_ codes in some places, it also
+> uses "> 0".  arm26 looks at first as if it needs changing too, but
+> a closer look shows it's remapping the faults and is okay - agreed?
 
-ARM as well - fix is pending Linus pulling my tree...
+Your patch doesn't look right.  Firstly, I'd rather stay away from
+switch() if at all possible - past experience has shown that it
+generates inherently poor code on ARM.  Whether that's still true
+or not I've no idea, but I don't particularly want to find out at
+the moment.
+
+> Restore VM_FAULT_SIGBUS, VM_FAULT_MINOR and VM_FAULT_MAJOR to their
+> original values, so that arches which have them hardcoded will still
+> work before they're cleaned up.  And correct arm to use the VM_FAULT_
+> codes throughout, not assuming MINOR and MAJOR are the only ones > 0.
+
+And the above rules this out.
+
+As I say, I fixed ARM this morning, so changing these constants will
+break it again.  Let's just wait for things to stabilise instead of
+trying to race with architecture maintainers...
 
 -- 
 Russell King
