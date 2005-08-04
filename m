@@ -1,67 +1,60 @@
-Date: Thu, 4 Aug 2005 14:21:09 -0700 (PDT)
-From: Christoph Lameter <christoph@lameter.com>
+Date: Thu, 4 Aug 2005 23:41:32 +0200
+From: Andi Kleen <ak@suse.de>
 Subject: Re: NUMA policy interface
-In-Reply-To: <20050804211445.GE8266@wotan.suse.de>
-Message-ID: <Pine.LNX.4.62.0508041416490.10150@graphe.net>
-References: <20050730190126.6bec9186.pj@sgi.com> <Pine.LNX.4.62.0507301904420.31882@graphe.net>
- <20050730191228.15b71533.pj@sgi.com> <Pine.LNX.4.62.0508011147030.5541@graphe.net>
- <20050803084849.GB10895@wotan.suse.de> <Pine.LNX.4.62.0508040704590.3319@graphe.net>
- <20050804142942.GY8266@wotan.suse.de> <Pine.LNX.4.62.0508040922110.6650@graphe.net>
- <20050804170803.GB8266@wotan.suse.de> <Pine.LNX.4.62.0508041011590.7314@graphe.net>
- <20050804211445.GE8266@wotan.suse.de>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Message-ID: <20050804214132.GF8266@wotan.suse.de>
+References: <20050730191228.15b71533.pj@sgi.com> <Pine.LNX.4.62.0508011147030.5541@graphe.net> <20050803084849.GB10895@wotan.suse.de> <Pine.LNX.4.62.0508040704590.3319@graphe.net> <20050804142942.GY8266@wotan.suse.de> <Pine.LNX.4.62.0508040922110.6650@graphe.net> <20050804170803.GB8266@wotan.suse.de> <Pine.LNX.4.62.0508041011590.7314@graphe.net> <20050804211445.GE8266@wotan.suse.de> <Pine.LNX.4.62.0508041416490.10150@graphe.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.62.0508041416490.10150@graphe.net>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <ak@suse.de>
-Cc: Paul Jackson <pj@sgi.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Christoph Lameter <christoph@lameter.com>
+Cc: Andi Kleen <ak@suse.de>, Paul Jackson <pj@sgi.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 4 Aug 2005, Andi Kleen wrote:
-
-> > 1. BIND policy implemented in a way that fills up nodes from the lowest 
-> >    to the higest instead of allocating memory on the local node.
+On Thu, Aug 04, 2005 at 02:21:09PM -0700, Christoph Lameter wrote:
+> Yes he mentioned that patch earlier in this thread.
 > 
-> Hmm, there was a patch from PJ for that at some point. Not sure why it 
-> was not merged. iirc the first implementation was too complex, but
-> there was a second reasonable one.
-
-Yes he mentioned that patch earlier in this thread.
-
-> > 5. No means to figure out where the memory was allocated although
-> >    mempoliy.c implements scans over ptes that would allow that 
-> >    determination.
+> > > 5. No means to figure out where the memory was allocated although
+> > >    mempoliy.c implements scans over ptes that would allow that 
+> > >    determination.
+> > 
+> > You lost me here.
 > 
-> You lost me here.
+> There is this scan over the page table that verifies if all nodes are 
+> allocated according to the policy. That scan could easily be used to 
+> provide a map to the application (and to /proc/<pid>/smap) of where the
 
-There is this scan over the page table that verifies if all nodes are 
-allocated according to the policy. That scan could easily be used to 
-provide a map to the application (and to /proc/<pid>/smap) of where the
-memory was allocated.
- 
-> > 6. Needs hook into page migration layer to move pages to either conform
-> >    to policy or to move them menually.
+The application can already get it. But it's an ugly feature
+that I only used for debugging and I was actually considering
+to remove it.
+
+Doing it for external users is a completely different thing though.
+I still think those have business in messing with other people's
+virtual addresses. In addition I expect it will cause problems
+longer term
+(did you ever look why mmap on /proc/*/mem is not allowed - it used
+to be long ago, but it was impossible to make it work race free and
+before that was always a gapping security hole) 
+
+> > > The long term impact of this missing functionality is already showing 
+> > > in the numbers of workarounds that I have seen at a various sites, 
+> > 
+> > Examples? 
 > 
-> Does it really? So far my feedback from all users I talked to is that they only
-> use a small subset of the functionality, even what is there is too complex.
-> Nobody with a real app so far has asked me for page migration.
+> Two of the high profile ones are NASA and APA. One person from the APA 
+> posted in one of our earlier discussions.
 
-Maybe we have different customers. My feedback is consistently that this 
-is a very urgently feature needed.
- 
-> There was one implementation of simple page migration in Steve L.'s patches,
-> but that was just because it was too hard to handle one corner case
-> otherwise.
+Ok. I think for those the swapoff per process is the right because
+simplest and easiest solution. No complex patch sets needed,
+just some changes to an existing code path.
 
-There is a page migration implementation in the hotplug patchset.
+If they cannot afford enough disk space it might be possible
+to do the page migration in swap cache like Hugh proposed.
 
-> > The long term impact of this missing functionality is already showing 
-> > in the numbers of workarounds that I have seen at a various sites, 
-> 
-> Examples? 
+-Andi
 
-Two of the high profile ones are NASA and APA. One person from the APA 
-posted in one of our earlier discussions.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
