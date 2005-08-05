@@ -1,8 +1,8 @@
-Date: Fri, 5 Aug 2005 07:52:27 -0700 (PDT)
+Date: Fri, 5 Aug 2005 07:58:31 -0700 (PDT)
 From: Christoph Lameter <christoph@lameter.com>
 Subject: Re: NUMA policy interface
 In-Reply-To: <20050805091630.GL8266@wotan.suse.de>
-Message-ID: <Pine.LNX.4.62.0508050750560.27054@graphe.net>
+Message-ID: <Pine.LNX.4.62.0508050756130.27054@graphe.net>
 References: <20050804142942.GY8266@wotan.suse.de> <Pine.LNX.4.62.0508040922110.6650@graphe.net>
  <20050804170803.GB8266@wotan.suse.de> <Pine.LNX.4.62.0508041011590.7314@graphe.net>
  <20050804211445.GE8266@wotan.suse.de> <Pine.LNX.4.62.0508041416490.10150@graphe.net>
@@ -19,20 +19,14 @@ List-ID: <linux-mm.kvack.org>
 
 On Fri, 5 Aug 2005, Andi Kleen wrote:
 
-> > Address space migration? That is something new in this discussion. So 
-> > could you explain what you mean by that? I have looked at page migration 
-> > in a variety of contexts and could not see much difference.
+> > a clean way. It cannot even deliver the functionality it was designed to 
+> > deliver (see BIND).
 > 
-> MCE page migration just puts a physical page to somewhere else.
-> memory hotplug migration does the same for multiple pages from
-> different processes.
-> 
-> Page migration like you're asking for migrates whole processes.
+> That seems like a unfair description to me. While things are not
+> perfect they are definitely not as bad as you're trying to paint them.
 
-No I am asking for the migration of parts of a process. Hotplug migration 
-and MCE page migration do the same.
-
-
+Sorry this went to far in the heat of the discussion. But 
+the BIND functionality is truly not where its supposed to be.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
