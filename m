@@ -1,39 +1,42 @@
-Date: Thu, 4 Aug 2005 16:49:33 -0700 (PDT)
-From: Christoph Lameter <christoph@lameter.com>
-Subject: Re: NUMA policy interface
-In-Reply-To: <20050804234025.GJ8266@wotan.suse.de>
-Message-ID: <Pine.LNX.4.62.0508041642130.15157@graphe.net>
-References: <20050803084849.GB10895@wotan.suse.de> <Pine.LNX.4.62.0508040704590.3319@graphe.net>
- <20050804142942.GY8266@wotan.suse.de> <Pine.LNX.4.62.0508040922110.6650@graphe.net>
- <20050804170803.GB8266@wotan.suse.de> <Pine.LNX.4.62.0508041011590.7314@graphe.net>
- <20050804211445.GE8266@wotan.suse.de> <Pine.LNX.4.62.0508041416490.10150@graphe.net>
- <20050804214132.GF8266@wotan.suse.de> <Pine.LNX.4.62.0508041509330.10813@graphe.net>
- <20050804234025.GJ8266@wotan.suse.de>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Fri, 05 Aug 2005 02:33:25 -0700
+In-Reply-To: <20031128143048.B6061@.doit.wisc.edu>
+Message-ID: <20031129233551.K36410@.noc.ntua.gr>
+References: <27430224173406.A16324@.doit.wisc.edu>
+From: "Delbert Hollis" <VTCKXZIVRWHUGS@hotmail.com>
+Subject: Wow...Nice Body Figure F9iNqM
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <ak@suse.de>
-Cc: Paul Jackson <pj@sgi.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: linux-mm@kvack.org, owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 5 Aug 2005, Andi Kleen wrote:
+Natural Weight-L0ss Diet Formula Guuaranttes:
 
-> None of them seem very attractive to me.  I would prefer to just
-> not support external accesses keeping things lean and fast.
+- results in 2-4 weeks
+- burn fat naturally, and never gain it back
+- much effective than running 10 miles per week
+- expel toxins, dissolve ugly fat cells from yuor body
+- 100% safe to take (no drugs and chemicals)
+- used by millions of people worldwide...
 
-That is a surprising statement given what we just discussed. Things 
-are not lean and fast but weirdly screwed up. The policy layer is 
-significantly impacted by historical contingencies rather than designed in 
-a clean way. It cannot even deliver the functionality it was designed to 
-deliver (see BIND).
+Why waiiting?? 
 
-> Individual physical page migration is quite different from
-> address space migration.
+http://247elite.com
 
-Address space migration? That is something new in this discussion. So 
-could you explain what you mean by that? I have looked at page migration 
-in a variety of contexts and could not see much difference.
+
+
+
+
+
+
+
+
+
+
+re mmoved from maiiling:
+http://247elite.com/r
+
+ddn
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
