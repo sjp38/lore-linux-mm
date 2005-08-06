@@ -1,71 +1,75 @@
-From: Daniel Phillips <phillips@istop.com>
-Subject: Re: [RFC] Net vm deadlock fix (take two)
-Date: Sun, 7 Aug 2005 03:46:36 +1000
-References: <200508061722.24106.phillips@istop.com> <20050806160718.GB17136@havoc.gtf.org>
-In-Reply-To: <20050806160718.GB17136@havoc.gtf.org>
-MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200508070346.37453.phillips@istop.com>
+From: Mrs. Adilana Solomon <mrs.adilanasolomon@caramail.com>
+Subject: Mrs. Adilana Solomon
+Reply-To: Mrs. Adilana Solomon <mrs.adilanasolomon@caramail.com>
+mime-version: 1.0
+content-type: multipart/mixed;
+	boundary="qzsoft_directmail_seperator"
+Message-Id: <20050806184041Z26642-1043+1975@kvack.org>
+Date: Sat, 6 Aug 2005 14:40:36 -0400
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jeff Garzik <jgarzik@pobox.com>
-Cc: netdev@vger.kernel.org, linux-mm@kvack.org
+To: linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Sunday 07 August 2005 02:07, Jeff Garzik wrote:
-> > +static inline struct sk_buff *__dev_memalloc_skb(struct net_device *dev,
-> > +	unsigned length, int gfp_mask)
-> > +{
-> > +	struct sk_buff *skb = __dev_alloc_skb(length, gfp_mask);
-> > +	if (skb)
-> > +		goto done;
-> > +	if (dev->rx_reserve_used >= dev->rx_reserve)
-> > +		return NULL;
-> > +	if (!__dev_alloc_skb(length, gfp_mask|__GFP_MEMALLOC))
-> > +		return NULL;;
-> > +	dev->rx_reserve_used++;
->
-> why bother with rx_reserve at all?  Why not just let the second
-> allocation fail, without the rx_reserve_used test?
+--qzsoft_directmail_seperator
+Content-Type: text/plain;
+	charset="DEFAULT"
+Content-Transfer-Encoding: base64
 
-Because that would allow unbounded reserve use, either because of a leak or 
-because of a legitimate backup in the softnet queues.  It is not worth it to 
-run the risk of wedging the whole system just to save this check.  If we were 
-using a mempool here, it would fail with a similar check.
+Ckdvb2QgZGF5LCAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgCkkgYW0g
+dGhlIGFib3ZlIG5hbWVkIHBlcnNvbiBmcm9tIEt1d2FpdC4gSSBhbSBtYXJyaWVkIHRvIE1yLiBT
+b2xvbW9uIEFuZHJldywgd2hvIHdvcmtlZCB3aXRoIEt1d2FpdCBlbWJhc3N5IGluIEl2b3J5IENv
+YXN0IGZvciBuaW5lIHllYXJzIGJlZm9yZSBoZSBkaWVkIGluIHRoZSB5ZWFyIDIwMDMuIFdlIHdl
+cmUgbWFycmllZCBmb3IgZWxldmVuIHllYXJzIHdpdGhvdXQgYSBjaGlsZC4gSGUgZGllZCBhZnRl
+ciBhIGJyaWVmIGlsbG5lc3MgdGhhdCBsYXN0ZWQgZm9yIG9ubHkgZm91ciBkYXlzLiBCZWZvcmUg
+aGlzIGRlYXRoIHdlIHdlcmUgYm90aCBib3JuIGFnYWluIENocmlzdGlhbi4gU2luY2UgaGlzIGRl
+YXRoIEkgZGVjaWRlZCBub3QgdG8gcmVtYXJyeSBvciBnZXQgYSBjaGlsZCBvdXRzaWRlIG15IG1h
+dHJpbW9uaWFsIGhvbWUgd2hpY2ggdGhlIEJpYmxlIGlzIGFnYWluc3QuIFdoZW4gbXkgbGF0ZSBo
+dXNiYW5kIHdhcyBhbGl2ZSBoZSBkZXBvc2l0ZWQgb25lIHRydWNrIEJveCBjb250YWluaW5nIHRo
+ZSBzdW0gb2YgJDUsMDAwIDAwMC4wMCBNaWxsaW9uIChGSVZFIE1pbGxpb24gVS5TLiBEb2xsYXJz
+KSBXaXRoIGEgR29sZCBhbmQgRGlhbW9uZCB3b3J0aCAkMiwwMDAsMDAwLjAwIE1pbGxpb24gVS5T
+IERvbGxhcnMsICBhcyBhIGZhbWlseSB2YWx1YWJsZSBpbiBvbmUgb2YgdGhlIEZpbmFuY2Ugc2Vj
+dXJpdHkgY29tcGFueSAgaW4gQUNDUkEgR0hBTkEgcHJlc2VudGx5LCB0aGlzIEJveCBpcyB0aWxs
+IHdpdGggdGhlIEZpbmFuY2Ugc2VjdXJpdHkgY29tcGFueSAgaW4gR0hBTkEuIFJlY2VudGx5LCBt
+eSBEb2N0b3IgdG9sZCBtZSB0aGF0IGkgaGF2ZSBzZXJpb3VzIHNpY2tuZXNzIHdoaWNoIGlzIGNh
+bmNlciBwcm9ibGVtLgoKVGhlIG9uZSB0aGF0IGRpc3R1cmJzIG1lIG1vc3QgaXMgdGhlIGhpZ2gg
+Ymxvb2QgcHJlc3N1cmUgc2lja25lc3MuIEhhdmluZyBrbm93biBteSBjb25kaXRpb24gSSBkZWNp
+ZGVkIHRvIGRvbmF0ZSB0aGlzIGZ1bmQgdG8gYSBjaHVyY2ggb3IgaW5kaXZpZHVhbCB0aGF0IHdp
+bGwgdXRpbGl6ZSB0aGlzIG1vbmV5IHRoZSB3YXkgSSBhbSBnb2luZyB0byBpbnN0cnVjdCBoZXJl
+IGluLiBJIHdhbnQgYSBjaHVyY2ggdGhhdCB3aWxsIHVzZSB0aGlzIGZ1bmQgZm9yIG9ycGhhbmFn
+ZXMsIHdpZG93cywgcHJvcGFnYXRpbmcgdGhlIHdvcmQgb2YgR29kIGFuZCB0byBlbmRlYXZvdXIg
+dGhhdCB0aGUgaG91c2Ugb2YgR29kIGlzIG1haW50YWluZWQuClRoZSBCaWJsZSBtYWRlIHVzIHRv
+IHVuZGVyc3RhbmQgdGhhdCBibGVzc2VkIGlzIHRoZSBoYW5kIHRoYXQgZ2l2ZXMuIEkgdG9vayB0
+aGlzIGRlY2lzaW9uIGJlY2F1c2UgSSBkb26SdCBoYXZlIGFueSBjaGlsZCB0aGF0IHdpbGwgaW5o
+ZXJpdCB0aGlzIG1vbmV5IGFuZCBteSBodXNiYW5kIHJlbGF0aXZlcyBhcmUgbm90IENocmlzdGlh
+bnMgYW5kIEkgZG9uknQgd2FudCBteSBodXNiYW5kIGVmZm9ydHMgdG8gYmUgdXNlZCBieSB1bmJl
+bGlldmVycy4gSSBkb26SdCB3YW50IGEgc2l0dWF0aW9uIHdoZXJlIHRoaXMgbW9uZXkgd2lsbCBi
+ZSB1c2VkIGluIGFuIHVuZ29kbHkgd2F5LgpUaGlzIGlzIHdoeSBJIGFtIHRha2luZyB0aGlzIGRl
+Y2lzaW9uLiBJIGFtIG5vdCBhZnJhaWQgb2YgZGVhdGggaGVuY2UgSSBrbm93IHdoZXJlIEkgYW0g
+Z29pbmcuIEkga25vdyB0aGF0IEkgYW0gZ29pbmcgdG8gYmUgaW4gdGhlIGJvc29tIG9mIHRoZSBM
+b3JkLiBFeG9kdXMgMTQgVlMgMTQgc2F5cyB0aGF0IHRoZSBsb3JkIHdpbGwgZmlnaHQgbXkgY2Fz
+ZSBhbmQgSSBzaGFsbCBob2xkIG15IHBlYWNlLiBJIGRvbpJ0IG5lZWQgYW55IHRlbGVwaG9uZSBj
+b21tdW5pY2F0aW9uIGluIHRoaXMgcmVnYXJkIGJlY2F1c2Ugb2YgbXkgaGVhbHRoIGhlbmNlIHRo
+ZSBwcmVzZW5jZSBvZiBteSBodXNiYW5kIHJlbGF0aXZlcyBhcm91bmQgbWUgYWx3YXlzLiBJIGRv
+bpJ0IHdhbnQgdGhlbSB0byBrbm93IGFib3V0IHRoaXMgZGV2ZWxvcG1lbnQuIFdpdGggR29kIGFs
+bCB0aGluZ3MgYXJlIHBvc3NpYmxlLiAKCkFzIHNvb24gYXMgSSByZWNlaXZlIHlvdXIgcmVwbHkg
+SSBzaGFsbCBnaXZlIHlvdSB0aGUgY29udGFjdCBvZiB0aGUgRmluYW5jZSBTZWN1cml0eSBDb21w
+YW55IHdoZXJlIHRoZXNlIGFyZSBrZXB0LiBJIHdpbGwgYWxzbyBpc3N1ZSB5b3UgYW4gYXV0aG9y
+aXR5IGxldHRlciB0aGF0IHdpbGwgcHJvdmUgeW91IHRoZSBwcmVzZW50IGJlbmVmaWNpYXJ5IG9m
+IHRoaXMgZnVuZC4gSSB3YW50IHlvdSBhbmQgdGhlIGNodXJjaCB0byBhbHdheXMgcHJheSBmb3Ig
+bWUgYmVjYXVzZSB0aGUgbG9yZCBpcyBteSBzaGVwaGVyZC4gTXkgaGFwcGluZXNzIGlzIHRoYXQg
+SSBsaXZlZCBhIGxpZmUgb2YgYSB3b3J0aHkgQ2hyaXN0aWFuLiBXaG9ldmVyIHRoYXQgd2FudHMg
+dG8gc2VydmUgdGhlIExvcmQgbXVzdCBzZXJ2ZSBoaW0gaW4gc3Bpcml0IGFuZCBUcnV0aC4gUGxl
+YXNlIGFsd2F5cyBiZSBwcmF5ZXJmdWwgYWxsIHRocm91Z2ggeW91ciBsaWZlLiBDb250YWN0IG1l
+IG9uIHRoZSBhYm92ZSBlbWFpbCBhZGRyZXNzIGZvciBtb3JlIGluZm9ybWF0aW9uOyBhbnkgZGVs
+YXkgaW4geW91ciByZXBseSB3aWxsIGdpdmUgbWUgcm9vbSBpbiBzb3VyY2luZyBhbm90aGVyIGNo
+dXJjaCBmb3IgdGhpcyBzYW1lIHB1cnBvc2UuCgpQbGVhc2UgYXNzdXJlIG1lIHRoYXQgeW91IHdp
+bGwgYWN0IGFjY29yZGluZ2x5IGFzIEkgU3RhdGVkIGhlcmVpbi4gSG9waW5nIHRvIHJlY2VpdmUg
+eW91ciByZXBseS4gUmVtYWluIGJsZXNzZWQgaW4gdGhlIExvcmQuIAoKWW91cnMgaW4gQ2hyaXN0
+LAoKTXJzLiBBZGlsYW5hIFNvbG9tb24KbXJzLmFkaWxhbmFzb2xvbW9uQGNhcmFtYWlsLmNvbQo=
 
-> Additionally, I think the rx_reserve_used accounting is wrong, since I
-> could simply free the skb
+--qzsoft_directmail_seperator--
 
-Good point, I should provide a kfree_skb variant that does the reserve 
-accounting (dev_free_skb) in case some driver wants to do this.  Anyway, if 
-somebody does free an skb in the delivery path without doing the accounting 
-it is not a memory leak, but might cause a non-blockio packet to be 
-unnecessarily dropped later.
-
-> -- but doing so would cause a rx_reserve_used 
-> leak in your code, since you only decrement the counter in the TCP IPv4
-> path.
-
-Reserve checks are needed not just on the IPv4 path but on every protocol path 
-that is allowed to co-exist on the same wire as block IO.  I will add udp and 
-sctp to the patch next.
-
-If an unhandled protocol does get onto the wire, the consequences are not 
-severe.  There is just a risk that the entire reserve may be consumed 
-(another reason we need the limit check above) and we just fall back to the 
-old unreliable block IO behavior.
-
-Eventually this needs to be enforced automatically so that normal users don't 
-have to worry about exactly what protocols they are running on an interface, 
-but cluster users will just take care to run only supported protocols, they 
-can already benefit from this without fancy checking.
-
-Regards,
-
-Daniel
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
