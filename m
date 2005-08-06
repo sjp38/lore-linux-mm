@@ -1,151 +1,71 @@
-Date: Sat, 6 Aug 2005 12:07:18 -0400
-From: Jeff Garzik <jgarzik@pobox.com>
+From: Daniel Phillips <phillips@istop.com>
 Subject: Re: [RFC] Net vm deadlock fix (take two)
-Message-ID: <20050806160718.GB17136@havoc.gtf.org>
-References: <200508061722.24106.phillips@istop.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Date: Sun, 7 Aug 2005 03:46:36 +1000
+References: <200508061722.24106.phillips@istop.com> <20050806160718.GB17136@havoc.gtf.org>
+In-Reply-To: <20050806160718.GB17136@havoc.gtf.org>
+MIME-Version: 1.0
+Content-Type: text/plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <200508061722.24106.phillips@istop.com>
+Message-Id: <200508070346.37453.phillips@istop.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Daniel Phillips <phillips@istop.com>
+To: Jeff Garzik <jgarzik@pobox.com>
 Cc: netdev@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, Aug 06, 2005 at 05:22:23PM +1000, Daniel Phillips wrote:
-> Daniel
-> 
-> diff -up --recursive 2.6.12.3.clean/include/linux/gfp.h 2.6.12.3/include/linux/gfp.h
-> --- 2.6.12.3.clean/include/linux/gfp.h	2005-07-15 17:18:57.000000000 -0400
-> +++ 2.6.12.3/include/linux/gfp.h	2005-08-05 21:53:09.000000000 -0400
-> @@ -39,6 +39,7 @@ struct vm_area_struct;
->  #define __GFP_COMP	0x4000u	/* Add compound page metadata */
->  #define __GFP_ZERO	0x8000u	/* Return zeroed page on success */
->  #define __GFP_NOMEMALLOC 0x10000u /* Don't use emergency reserves */
-> +#define __GFP_MEMALLOC  0x20000u /* Use emergency reserves */
->  
->  #define __GFP_BITS_SHIFT 20	/* Room for 20 __GFP_FOO bits */
->  #define __GFP_BITS_MASK ((1 << __GFP_BITS_SHIFT) - 1)
-> diff -up --recursive 2.6.12.3.clean/include/linux/netdevice.h 2.6.12.3/include/linux/netdevice.h
-> --- 2.6.12.3.clean/include/linux/netdevice.h	2005-07-15 17:18:57.000000000 -0400
-> +++ 2.6.12.3/include/linux/netdevice.h	2005-08-06 01:06:18.000000000 -0400
-> @@ -371,6 +371,8 @@ struct net_device
->  	struct Qdisc		*qdisc_ingress;
->  	struct list_head	qdisc_list;
->  	unsigned long		tx_queue_len;	/* Max frames per queue allowed */
-> +	int			rx_reserve;
-> +	int			rx_reserve_used;
->  
->  	/* ingress path synchronizer */
->  	spinlock_t		ingress_lock;
-> @@ -929,6 +931,28 @@ extern void		net_disable_timestamp(void)
->  extern char *net_sysctl_strdup(const char *s);
->  #endif
->  
-> +static inline struct sk_buff *__dev_memalloc_skb(struct net_device *dev,
-> +	unsigned length, int gfp_mask)
-> +{
-> +	struct sk_buff *skb = __dev_alloc_skb(length, gfp_mask);
-> +	if (skb)
-> +		goto done;
-> +	if (dev->rx_reserve_used >= dev->rx_reserve)
-> +		return NULL;
-> +	if (!__dev_alloc_skb(length, gfp_mask|__GFP_MEMALLOC))
-> +		return NULL;;
-> +	dev->rx_reserve_used++;
+On Sunday 07 August 2005 02:07, Jeff Garzik wrote:
+> > +static inline struct sk_buff *__dev_memalloc_skb(struct net_device *dev,
+> > +	unsigned length, int gfp_mask)
+> > +{
+> > +	struct sk_buff *skb = __dev_alloc_skb(length, gfp_mask);
+> > +	if (skb)
+> > +		goto done;
+> > +	if (dev->rx_reserve_used >= dev->rx_reserve)
+> > +		return NULL;
+> > +	if (!__dev_alloc_skb(length, gfp_mask|__GFP_MEMALLOC))
+> > +		return NULL;;
+> > +	dev->rx_reserve_used++;
+>
+> why bother with rx_reserve at all?  Why not just let the second
+> allocation fail, without the rx_reserve_used test?
 
-why bother with rx_reserve at all?  Why not just let the second
-allocation fail, without the rx_reserve_used test?
+Because that would allow unbounded reserve use, either because of a leak or 
+because of a legitimate backup in the softnet queues.  It is not worth it to 
+run the risk of wedging the whole system just to save this check.  If we were 
+using a mempool here, it would fail with a similar check.
 
-Additionally, I think the rx_reserve_used accounting is wrong, since I
-could simply free the skb -- but doing so would cause a rx_reserve_used
-leak in your code, since you only decrement the counter in the TCP IPv4
-path.
+> Additionally, I think the rx_reserve_used accounting is wrong, since I
+> could simply free the skb
 
+Good point, I should provide a kfree_skb variant that does the reserve 
+accounting (dev_free_skb) in case some driver wants to do this.  Anyway, if 
+somebody does free an skb in the delivery path without doing the accounting 
+it is not a memory leak, but might cause a non-blockio packet to be 
+unnecessarily dropped later.
 
-> +done:
-> +	skb->dev = dev;
-> +	return skb;
-> +}
-> +
-> +static inline struct sk_buff *dev_alloc_skb_reserve(struct net_device *dev,
-> +	unsigned length)
-> +{
-> +	return __dev_memalloc_skb(dev, length, GFP_ATOMIC);
-> +}
+> -- but doing so would cause a rx_reserve_used 
+> leak in your code, since you only decrement the counter in the TCP IPv4
+> path.
 
-unused function
+Reserve checks are needed not just on the IPv4 path but on every protocol path 
+that is allowed to co-exist on the same wire as block IO.  I will add udp and 
+sctp to the patch next.
 
+If an unhandled protocol does get onto the wire, the consequences are not 
+severe.  There is just a risk that the entire reserve may be consumed 
+(another reason we need the limit check above) and we just fall back to the 
+old unreliable block IO behavior.
 
-> +
->  #endif /* __KERNEL__ */
->  
->  #endif	/* _LINUX_DEV_H */
-> diff -up --recursive 2.6.12.3.clean/include/net/sock.h 2.6.12.3/include/net/sock.h
-> --- 2.6.12.3.clean/include/net/sock.h	2005-07-15 17:18:57.000000000 -0400
-> +++ 2.6.12.3/include/net/sock.h	2005-08-05 21:53:09.000000000 -0400
-> @@ -382,6 +382,7 @@ enum sock_flags {
->  	SOCK_NO_LARGESEND, /* whether to sent large segments or not */
->  	SOCK_LOCALROUTE, /* route locally only, %SO_DONTROUTE setting */
->  	SOCK_QUEUE_SHRUNK, /* write queue has been shrunk recently */
-> +	SOCK_MEMALLOC, /* protocol can use memalloc reserve */
->  };
->  
->  static inline void sock_set_flag(struct sock *sk, enum sock_flags flag)
-> @@ -399,6 +400,11 @@ static inline int sock_flag(struct sock 
->  	return test_bit(flag, &sk->sk_flags);
->  }
->  
-> +static inline int is_memalloc_sock(struct sock *sk)
-> +{
-> +	return sock_flag(sk, SOCK_MEMALLOC);
-> +}
-> +
->  static inline void sk_acceptq_removed(struct sock *sk)
->  {
->  	sk->sk_ack_backlog--;
-> diff -up --recursive 2.6.12.3.clean/mm/page_alloc.c 2.6.12.3/mm/page_alloc.c
-> --- 2.6.12.3.clean/mm/page_alloc.c	2005-07-15 17:18:57.000000000 -0400
-> +++ 2.6.12.3/mm/page_alloc.c	2005-08-05 21:53:09.000000000 -0400
-> @@ -802,8 +802,8 @@ __alloc_pages(unsigned int __nocast gfp_
->  
->  	/* This allocation should allow future memory freeing. */
->  
-> -	if (((p->flags & PF_MEMALLOC) || unlikely(test_thread_flag(TIF_MEMDIE)))
-> -			&& !in_interrupt()) {
-> +	if ((((p->flags & PF_MEMALLOC) || unlikely(test_thread_flag(TIF_MEMDIE)))
-> +			&& !in_interrupt()) || (gfp_mask & __GFP_MEMALLOC)) {
->  		if (!(gfp_mask & __GFP_NOMEMALLOC)) {
->  			/* go through the zonelist yet again, ignoring mins */
->  			for (i = 0; (z = zones[i]) != NULL; i++) {
-> diff -up --recursive 2.6.12.3.clean/net/ethernet/eth.c 2.6.12.3/net/ethernet/eth.c
-> --- 2.6.12.3.clean/net/ethernet/eth.c	2005-07-15 17:18:57.000000000 -0400
-> +++ 2.6.12.3/net/ethernet/eth.c	2005-08-06 02:32:02.000000000 -0400
-> @@ -281,6 +281,7 @@ void ether_setup(struct net_device *dev)
->  	dev->mtu		= 1500; /* eth_mtu */
->  	dev->addr_len		= ETH_ALEN;
->  	dev->tx_queue_len	= 1000;	/* Ethernet wants good queues */	
-> +	dev->rx_reserve		= 50;
->  	dev->flags		= IFF_BROADCAST|IFF_MULTICAST;
->  	
->  	memset(dev->broadcast,0xFF, ETH_ALEN);
-> diff -up --recursive 2.6.12.3.clean/net/ipv4/tcp_ipv4.c 2.6.12.3/net/ipv4/tcp_ipv4.c
-> --- 2.6.12.3.clean/net/ipv4/tcp_ipv4.c	2005-07-15 17:18:57.000000000 -0400
-> +++ 2.6.12.3/net/ipv4/tcp_ipv4.c	2005-08-06 00:45:07.000000000 -0400
-> @@ -1766,6 +1766,12 @@ int tcp_v4_rcv(struct sk_buff *skb)
->  	if (!sk)
->  		goto no_tcp_socket;
->  
-> +	if (skb->dev->rx_reserve_used) {
-> +		skb->dev->rx_reserve_used--; // racy
+Eventually this needs to be enforced automatically so that normal users don't 
+have to worry about exactly what protocols they are running on an interface, 
+but cluster users will just take care to run only supported protocols, they 
+can already benefit from this without fancy checking.
 
-if its racy, use atomic_t or somesuch :)
+Regards,
 
-	Jeff
-
-
-
+Daniel
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
