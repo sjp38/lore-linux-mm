@@ -1,75 +1,41 @@
-From: Mrs. Adilana Solomon <mrs.adilanasolomon@caramail.com>
-Subject: Mrs. Adilana Solomon
-Reply-To: Mrs. Adilana Solomon <mrs.adilanasolomon@caramail.com>
-mime-version: 1.0
-content-type: multipart/mixed;
-	boundary="qzsoft_directmail_seperator"
-Message-Id: <20050806184041Z26642-1043+1975@kvack.org>
-Date: Sat, 6 Aug 2005 14:40:36 -0400
+Message-ID: <c62c01c59ab9$829d2459$66d57958@chello.be>
+From: Scott Bartel <charles094@chello.be>
+Subject: Extra income working from home
+Date: Sat, 06 Aug 2005 19:02:46 +0000
+MIME-Version: 1.0
+Content-Type: text/plain;
+    format=flowed;
+    charset="iso-8859-1";
+    reply-type=original
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm <linux-mm@kvack.org>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
---qzsoft_directmail_seperator
-Content-Type: text/plain;
-	charset="DEFAULT"
-Content-Transfer-Encoding: base64
+Good day, 
+ 
+We thought that you might be interested in administrative support/assistant position with our company. 
+ 
+Fast growing consulting and outsourcing company is looking for part time administrative assistants to work from home to help manage expanding business in United Kingdom! 
+ 
+We require at least 4h per day commitment. You can work around your schedule at home. No experience required, training will be provided, however high school diploma is a plus! Also you must be teachable, goal oriented and ready to follow instructions from the management! Strong work ethics are required to be successful in this position. 
 
-Ckdvb2QgZGF5LCAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgCkkgYW0g
-dGhlIGFib3ZlIG5hbWVkIHBlcnNvbiBmcm9tIEt1d2FpdC4gSSBhbSBtYXJyaWVkIHRvIE1yLiBT
-b2xvbW9uIEFuZHJldywgd2hvIHdvcmtlZCB3aXRoIEt1d2FpdCBlbWJhc3N5IGluIEl2b3J5IENv
-YXN0IGZvciBuaW5lIHllYXJzIGJlZm9yZSBoZSBkaWVkIGluIHRoZSB5ZWFyIDIwMDMuIFdlIHdl
-cmUgbWFycmllZCBmb3IgZWxldmVuIHllYXJzIHdpdGhvdXQgYSBjaGlsZC4gSGUgZGllZCBhZnRl
-ciBhIGJyaWVmIGlsbG5lc3MgdGhhdCBsYXN0ZWQgZm9yIG9ubHkgZm91ciBkYXlzLiBCZWZvcmUg
-aGlzIGRlYXRoIHdlIHdlcmUgYm90aCBib3JuIGFnYWluIENocmlzdGlhbi4gU2luY2UgaGlzIGRl
-YXRoIEkgZGVjaWRlZCBub3QgdG8gcmVtYXJyeSBvciBnZXQgYSBjaGlsZCBvdXRzaWRlIG15IG1h
-dHJpbW9uaWFsIGhvbWUgd2hpY2ggdGhlIEJpYmxlIGlzIGFnYWluc3QuIFdoZW4gbXkgbGF0ZSBo
-dXNiYW5kIHdhcyBhbGl2ZSBoZSBkZXBvc2l0ZWQgb25lIHRydWNrIEJveCBjb250YWluaW5nIHRo
-ZSBzdW0gb2YgJDUsMDAwIDAwMC4wMCBNaWxsaW9uIChGSVZFIE1pbGxpb24gVS5TLiBEb2xsYXJz
-KSBXaXRoIGEgR29sZCBhbmQgRGlhbW9uZCB3b3J0aCAkMiwwMDAsMDAwLjAwIE1pbGxpb24gVS5T
-IERvbGxhcnMsICBhcyBhIGZhbWlseSB2YWx1YWJsZSBpbiBvbmUgb2YgdGhlIEZpbmFuY2Ugc2Vj
-dXJpdHkgY29tcGFueSAgaW4gQUNDUkEgR0hBTkEgcHJlc2VudGx5LCB0aGlzIEJveCBpcyB0aWxs
-IHdpdGggdGhlIEZpbmFuY2Ugc2VjdXJpdHkgY29tcGFueSAgaW4gR0hBTkEuIFJlY2VudGx5LCBt
-eSBEb2N0b3IgdG9sZCBtZSB0aGF0IGkgaGF2ZSBzZXJpb3VzIHNpY2tuZXNzIHdoaWNoIGlzIGNh
-bmNlciBwcm9ibGVtLgoKVGhlIG9uZSB0aGF0IGRpc3R1cmJzIG1lIG1vc3QgaXMgdGhlIGhpZ2gg
-Ymxvb2QgcHJlc3N1cmUgc2lja25lc3MuIEhhdmluZyBrbm93biBteSBjb25kaXRpb24gSSBkZWNp
-ZGVkIHRvIGRvbmF0ZSB0aGlzIGZ1bmQgdG8gYSBjaHVyY2ggb3IgaW5kaXZpZHVhbCB0aGF0IHdp
-bGwgdXRpbGl6ZSB0aGlzIG1vbmV5IHRoZSB3YXkgSSBhbSBnb2luZyB0byBpbnN0cnVjdCBoZXJl
-IGluLiBJIHdhbnQgYSBjaHVyY2ggdGhhdCB3aWxsIHVzZSB0aGlzIGZ1bmQgZm9yIG9ycGhhbmFn
-ZXMsIHdpZG93cywgcHJvcGFnYXRpbmcgdGhlIHdvcmQgb2YgR29kIGFuZCB0byBlbmRlYXZvdXIg
-dGhhdCB0aGUgaG91c2Ugb2YgR29kIGlzIG1haW50YWluZWQuClRoZSBCaWJsZSBtYWRlIHVzIHRv
-IHVuZGVyc3RhbmQgdGhhdCBibGVzc2VkIGlzIHRoZSBoYW5kIHRoYXQgZ2l2ZXMuIEkgdG9vayB0
-aGlzIGRlY2lzaW9uIGJlY2F1c2UgSSBkb26SdCBoYXZlIGFueSBjaGlsZCB0aGF0IHdpbGwgaW5o
-ZXJpdCB0aGlzIG1vbmV5IGFuZCBteSBodXNiYW5kIHJlbGF0aXZlcyBhcmUgbm90IENocmlzdGlh
-bnMgYW5kIEkgZG9uknQgd2FudCBteSBodXNiYW5kIGVmZm9ydHMgdG8gYmUgdXNlZCBieSB1bmJl
-bGlldmVycy4gSSBkb26SdCB3YW50IGEgc2l0dWF0aW9uIHdoZXJlIHRoaXMgbW9uZXkgd2lsbCBi
-ZSB1c2VkIGluIGFuIHVuZ29kbHkgd2F5LgpUaGlzIGlzIHdoeSBJIGFtIHRha2luZyB0aGlzIGRl
-Y2lzaW9uLiBJIGFtIG5vdCBhZnJhaWQgb2YgZGVhdGggaGVuY2UgSSBrbm93IHdoZXJlIEkgYW0g
-Z29pbmcuIEkga25vdyB0aGF0IEkgYW0gZ29pbmcgdG8gYmUgaW4gdGhlIGJvc29tIG9mIHRoZSBM
-b3JkLiBFeG9kdXMgMTQgVlMgMTQgc2F5cyB0aGF0IHRoZSBsb3JkIHdpbGwgZmlnaHQgbXkgY2Fz
-ZSBhbmQgSSBzaGFsbCBob2xkIG15IHBlYWNlLiBJIGRvbpJ0IG5lZWQgYW55IHRlbGVwaG9uZSBj
-b21tdW5pY2F0aW9uIGluIHRoaXMgcmVnYXJkIGJlY2F1c2Ugb2YgbXkgaGVhbHRoIGhlbmNlIHRo
-ZSBwcmVzZW5jZSBvZiBteSBodXNiYW5kIHJlbGF0aXZlcyBhcm91bmQgbWUgYWx3YXlzLiBJIGRv
-bpJ0IHdhbnQgdGhlbSB0byBrbm93IGFib3V0IHRoaXMgZGV2ZWxvcG1lbnQuIFdpdGggR29kIGFs
-bCB0aGluZ3MgYXJlIHBvc3NpYmxlLiAKCkFzIHNvb24gYXMgSSByZWNlaXZlIHlvdXIgcmVwbHkg
-SSBzaGFsbCBnaXZlIHlvdSB0aGUgY29udGFjdCBvZiB0aGUgRmluYW5jZSBTZWN1cml0eSBDb21w
-YW55IHdoZXJlIHRoZXNlIGFyZSBrZXB0LiBJIHdpbGwgYWxzbyBpc3N1ZSB5b3UgYW4gYXV0aG9y
-aXR5IGxldHRlciB0aGF0IHdpbGwgcHJvdmUgeW91IHRoZSBwcmVzZW50IGJlbmVmaWNpYXJ5IG9m
-IHRoaXMgZnVuZC4gSSB3YW50IHlvdSBhbmQgdGhlIGNodXJjaCB0byBhbHdheXMgcHJheSBmb3Ig
-bWUgYmVjYXVzZSB0aGUgbG9yZCBpcyBteSBzaGVwaGVyZC4gTXkgaGFwcGluZXNzIGlzIHRoYXQg
-SSBsaXZlZCBhIGxpZmUgb2YgYSB3b3J0aHkgQ2hyaXN0aWFuLiBXaG9ldmVyIHRoYXQgd2FudHMg
-dG8gc2VydmUgdGhlIExvcmQgbXVzdCBzZXJ2ZSBoaW0gaW4gc3Bpcml0IGFuZCBUcnV0aC4gUGxl
-YXNlIGFsd2F5cyBiZSBwcmF5ZXJmdWwgYWxsIHRocm91Z2ggeW91ciBsaWZlLiBDb250YWN0IG1l
-IG9uIHRoZSBhYm92ZSBlbWFpbCBhZGRyZXNzIGZvciBtb3JlIGluZm9ybWF0aW9uOyBhbnkgZGVs
-YXkgaW4geW91ciByZXBseSB3aWxsIGdpdmUgbWUgcm9vbSBpbiBzb3VyY2luZyBhbm90aGVyIGNo
-dXJjaCBmb3IgdGhpcyBzYW1lIHB1cnBvc2UuCgpQbGVhc2UgYXNzdXJlIG1lIHRoYXQgeW91IHdp
-bGwgYWN0IGFjY29yZGluZ2x5IGFzIEkgU3RhdGVkIGhlcmVpbi4gSG9waW5nIHRvIHJlY2VpdmUg
-eW91ciByZXBseS4gUmVtYWluIGJsZXNzZWQgaW4gdGhlIExvcmQuIAoKWW91cnMgaW4gQ2hyaXN0
-LAoKTXJzLiBBZGlsYW5hIFNvbG9tb24KbXJzLmFkaWxhbmFzb2xvbW9uQGNhcmFtYWlsLmNvbQo=
+Duties will include providing support for management including answering calls, preparing reports, preparing financial data and customer and vendor relations.
+ 
+We offer 15 GBP per hour compensation for right candidates! 
+ 
+Flexible Work Hours, Work Around YOUR Schedule! 
+ 
+To find out more please visit our website and sign up for more information. 
 
---qzsoft_directmail_seperator--
+www.beech-street-consulting.com/careers.html
 
+Regards,
+Mike Davidson
+Beech Street Consulting
+
+** This email and any files transmitted with it are confidential and intended solely for the use of the individual or entity to whom they are addressed. If you have received this email in error please notify the system manager. This footnote also confirms that this email message has been swept by MIMEsweeper for the presence of computer viruses.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
