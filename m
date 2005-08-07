@@ -1,40 +1,67 @@
-Message-ID: <42F57FCA.9040805@yahoo.com.au>
-Date: Sun, 07 Aug 2005 13:28:10 +1000
+Message-ID: <42F5802F.3050500@yahoo.com.au>
+Date: Sun, 07 Aug 2005 13:29:51 +1000
 From: Nick Piggin <nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
-Subject: [RFC][patch 0/2] mm: remove PageReserved
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+Subject: [patch 1/2] mm: remap ZERO_PAGE mappings
+References: <42F57FCA.9040805@yahoo.com.au>
+In-Reply-To: <42F57FCA.9040805@yahoo.com.au>
+Content-Type: multipart/mixed;
+ boundary="------------030508080500010800060405"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-kernel <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>, Hugh Dickins <hugh@veritas.com>, Linus Torvalds <torvalds@osdl.org>, Andrew Morton <akpm@osdl.org>, Andrea Arcangeli <andrea@suse.de>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
+To: linux-kernel <linux-kernel@vger.kernel.org>
+Cc: Linux Memory Management <linux-mm@kvack.org>, Hugh Dickins <hugh@veritas.com>, Linus Torvalds <torvalds@osdl.org>, Andrew Morton <akpm@osdl.org>, Andrea Arcangeli <andrea@suse.de>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+This is a multi-part message in MIME format.
+--------------030508080500010800060405
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 
-I'll be looking to send these off to Andrew after 2.6.14 opens,
-with the aim of having them merged by 2.6.15 hopefully.
+1/2
 
-It doesn't look like they'll be able to easily free up a page
-flag for 2 reasons. First, PageReserved will probably be kept
-around for at least one release. Second, swsusp and some arch
-code (ioremap) wants to know about struct pages that don't point
-to valid RAM - currently they use PageReserved, but we'll probably
-just introduce a PageValidRAM or something when PageReserved goes.
-
-I believe this makes memory management cleaner and easier to
-understand. My other reason behind this is that the lockless
-pagecache patches needs it for sane page refcounting.
-
-If anyone has an issue with the patches or my merge plan, let's
-get some discussion going.
-
-Thanks,
-Nick
+I think this is already in -mm (and can probably go
+into 2.6.14). Included here for completeness.
 
 -- 
 SUSE Labs, Novell Inc.
 
+
+--------------030508080500010800060405
+Content-Type: text/plain;
+ name="mm-remap-ZERO_PAGE-mappings.patch"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline;
+ filename="mm-remap-ZERO_PAGE-mappings.patch"
+
+Remap ZERO_PAGE ptes when remapping memory. This is currently just an
+optimisation for MIPS, which is the only architecture with multiple
+zero pages - it now retains the mapping it needs for good cache performance,
+and as well do_wp_page is now able to always correctly detect and
+optimise zero page COW faults.
+
+This change is required in order to be able to detect whether a pte
+points to a ZERO_PAGE using only its (pte, vaddr) pair.
+
+Signed-off-by: Nick Piggin <npiggin@suse.de>
+
+Index: linux-2.6/mm/mremap.c
+===================================================================
+--- linux-2.6.orig/mm/mremap.c
++++ linux-2.6/mm/mremap.c
+@@ -141,6 +141,10 @@ move_one_page(struct vm_area_struct *vma
+ 			if (dst) {
+ 				pte_t pte;
+ 				pte = ptep_clear_flush(vma, old_addr, src);
++				/* ZERO_PAGE can be dependant on virtual addr */
++				if (pfn_valid(pte_pfn(pte)) &&
++					pte_page(pte) == ZERO_PAGE(old_addr))
++					pte = pte_wrprotect(mk_pte(ZERO_PAGE(new_addr), new_vma->vm_page_prot));
+ 				set_pte_at(mm, new_addr, dst, pte);
+ 			} else
+ 				error = -ENOMEM;
+
+--------------030508080500010800060405--
 Send instant messages to your online friends http://au.messenger.yahoo.com 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
