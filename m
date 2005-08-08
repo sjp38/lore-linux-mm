@@ -1,43 +1,68 @@
-Date: Mon, 8 Aug 2005 16:30:17 -0400 (EDT)
-From: Rik van Riel <riel@surriel.com>
-Subject: Re: [RFC 1/3] non-resident page tracking
-In-Reply-To: <20050808.132603.93023622.davem@davemloft.net>
-Message-ID: <Pine.LNX.4.61L.0508081628580.15038@imladris.surriel.com>
-References: <20050808201416.450491000@jumble.boston.redhat.com>
- <20050808202110.744344000@jumble.boston.redhat.com>
- <20050808.132603.93023622.davem@davemloft.net>
+From: Daniel Phillips <phillips@arcor.de>
+Subject: Re: [RFC][patch 0/2] mm: remove PageReserved
+Date: Tue, 9 Aug 2005 07:09:59 +1000
+References: <42F57FCA.9040805@yahoo.com.au>
+In-Reply-To: <42F57FCA.9040805@yahoo.com.au>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200508090710.00637.phillips@arcor.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "David S. Miller" <davem@davemloft.net>, Rik van Riel <riel@redhat.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: linux-kernel <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>, Hugh Dickins <hugh@veritas.com>, Linus Torvalds <torvalds@osdl.org>, Andrew Morton <akpm@osdl.org>, Andrea Arcangeli <andrea@suse.de>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 8 Aug 2005, David S. Miller wrote:
+On Sunday 07 August 2005 13:28, Nick Piggin wrote:
+> Hi,
+>
+> I'll be looking to send these off to Andrew after 2.6.14 opens,
+> with the aim of having them merged by 2.6.15 hopefully.
+>
+> It doesn't look like they'll be able to easily free up a page
+> flag for 2 reasons. First, PageReserved will probably be kept
+> around for at least one release. Second, swsusp and some arch
+> code (ioremap) wants to know about struct pages that don't point
+> to valid RAM - currently they use PageReserved, but we'll probably
+> just introduce a PageValidRAM or something when PageReserved goes.
+>
+> I believe this makes memory management cleaner and easier to
+> understand.
 
-> > @@ -359,7 +362,10 @@ struct page *read_swap_cache_async(swp_e
+Agreed, I've always looked askance at that particular page flag.  (Suggestion 
+for your next act: 
 
-> > -			lru_cache_add_active(new_page);
-> > +			if (activate >= 0)
-> > +				lru_cache_add_active(new_page);
-> > +			else
-> > +				lru_cache_add(new_page);
-> 
-> This change is totally unrelated to the rest of the
-> patch, and is not mentioned in the changelog.  Could
-> you explain it?
+> My other reason behind this is that the lockless 
+> pagecache patches needs it for sane page refcounting.
+>
+> If anyone has an issue with the patches or my merge plan, let's
+> get some discussion going.
 
-Oops, you're right.  This is part of the replacement policy in
-CLOCK-Pro, ARC, CART, etc. and should have been in a separate
-patch.
+You forgot to mention what replaces PageReserved: the VM_RESERVED vma flag, 
+which is now added to the whole zap_pte call chain.  A slight efficiency win?  
+Anyway, it looks like forward progress because some inner loops are a little 
+straighter.  I've always wondered what PG_reserved was actually doing, and 
+now I know: compensating for the missing vma parameter in the zap call 
+chains.
 
-This is what I get for pulling an all-nighter. ;)
+Why don't you pass the vma in zap_details?  For that matter, why are addr and 
+end still passed down the zap chain when zap_details appears to duplicate 
+that information?  OK, it is because zap_details is NULL in about twice as 
+many places as it carries data.  But since the details parameter is already 
+there, would it not make sense to press it into service to slim down those 
+parameter lists a little?
 
--- 
-"Debugging is twice as hard as writing the code in the first place.
-Therefore, if you write the code as cleverly as possible, you are,
-by definition, not smart enough to debug it." - Brian W. Kernighan
+What stops swsusp from also using the vma flag?  Why does swsusp need both 
+PG_reserved and PG_nosave?
+
+Is there automated testing planned for this one?  It looks right as closely as 
+I've read, but it tickles an awful lot of code.
+
+Regards,
+
+Daniel
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
