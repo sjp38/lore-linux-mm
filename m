@@ -1,49 +1,36 @@
-From: Daniel Phillips <phillips@arcor.de>
+Date: Tue, 09 Aug 2005 14:51:40 -0700
+From: "Martin J. Bligh" <mbligh@mbligh.org>
+Reply-To: "Martin J. Bligh" <mbligh@mbligh.org>
 Subject: Re: [RFC][patch 0/2] mm: remove PageReserved
-Date: Wed, 10 Aug 2005 07:27:46 +1000
-References: <42F57FCA.9040805@yahoo.com.au> <1123598952.30257.213.camel@gaston> <Pine.LNX.4.61.0508091621220.14003@goblin.wat.veritas.com>
-In-Reply-To: <Pine.LNX.4.61.0508091621220.14003@goblin.wat.veritas.com>
+Message-ID: <1178630000.1123624300@flay>
+In-Reply-To: <1162240000.1123622197@flay>
+References: <42F57FCA.9040805@yahoo.com.au> <200508090710.00637.phillips@arcor.de> <1123562392.4370.112.camel@localhost> <42F83849.9090107@yahoo.com.au> <20050809080853.A25492@flint.arm.linux.org.uk> <523240000.1123598289@[10.10.2.4]> <20050809204100.B29945@flint.arm.linux.org.uk> <1162240000.1123622197@flay>
 MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
+Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-Message-Id: <200508100727.47698.phillips@arcor.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>, Nick Piggin <nickpiggin@yahoo.com.au>, linux-kernel <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>, Linus Torvalds <torvalds@osdl.org>, Andrew Morton <akpm@osdl.org>, Andrea Arcangeli <andrea@suse.de>
+To: Russell King <rmk+lkml@arm.linux.org.uk>
+Cc: Nick Piggin <nickpiggin@yahoo.com.au>, ncunningham@cyclades.com, Daniel Phillips <phillips@arcor.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>, Hugh Dickins <hugh@veritas.com>, Linus Torvalds <torvalds@osdl.org>, Andrew Morton <akpm@osdl.org>, Andrea Arcangeli <andrea@suse.de>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wednesday 10 August 2005 01:36, Hugh Dickins wrote:
-> On Tue, 9 Aug 2005, Benjamin Herrenschmidt wrote:
-> >  - We already have a refcount
-> >  - We have a field where putting a flag isn't that much of a problem
-> >  - It can be difficult to get page refcounting right when dealing with
-> >    such things, really.
->
-> Probably easier to get the page refcounting right with these than with
-> most.  Getting refcounting wrong is always bad.
+>> On Tue, Aug 09, 2005 at 07:38:52AM -0700, Martin J. Bligh wrote:
+>>> pfn_valid() doesn't tell you it's RAM or not - it tells you whether you
+>>> have a backing struct page for that address. Could be an IO mapped device,
+>>> a small memory hole, whatever.
+>> 
+>> The only things which have a struct page is RAM.  Nothing else does.
+> 
+> That's not true at all. Every physical address covered by the machine
+> that we may need to access, plus every small hole we didn't use 
+> discontigmem to exclude has a backing struct page. See e820 maps.
 
-He seems to be arguing for a new debug option.
+OK, on second thoughts, that's not quite true. Not every phys address
+will (eg PCI window etc). but it's certianly not just RAM pages.
 
-> > In that case, we basically have an _easy_ way to trigger a useful BUG()
-> > in the page free path when it's a page that should never be returned to
-> > the pool.
->
-> As bad_page already does on various other flags (though it clears those,
-> whereas this one you'd prefer not to clear).   Hmm, okay, though I'm not
-> sure it's worth its own page flag if they're in short supply.
+M.
 
-Nineteen out of 32 officially spoken for so far, with some out of tree patches 
-regarding the remainder with desirous eyes no doubt.  I think that qualifies 
-as short supply.  But it is not just that, it is the extra cost of 
-understanding and auditing the features implied by the flags, particularly 
-bogus features.
-
-Regards,
-
-Daniel
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
