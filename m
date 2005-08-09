@@ -1,44 +1,41 @@
 Subject: Re: [RFC][patch 0/2] mm: remove PageReserved
-From: Arjan van de Ven <arjan@infradead.org>
-In-Reply-To: <20050809080853.A25492@flint.arm.linux.org.uk>
+From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+In-Reply-To: <42F7F5AE.6070403@yahoo.com.au>
 References: <42F57FCA.9040805@yahoo.com.au>
-	 <200508090710.00637.phillips@arcor.de>
-	 <1123562392.4370.112.camel@localhost> <42F83849.9090107@yahoo.com.au>
-	 <20050809080853.A25492@flint.arm.linux.org.uk>
+	 <200508090710.00637.phillips@arcor.de>  <42F7F5AE.6070403@yahoo.com.au>
 Content-Type: text/plain
-Date: Tue, 09 Aug 2005 10:38:39 +0200
-Message-Id: <1123576719.3839.13.camel@laptopd505.fenrus.org>
+Date: Tue, 09 Aug 2005 10:51:48 +0200
+Message-Id: <1123577509.30257.173.camel@gaston>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Russell King <rmk+lkml@arm.linux.org.uk>
-Cc: Nick Piggin <nickpiggin@yahoo.com.au>, ncunningham@cyclades.com, Daniel Phillips <phillips@arcor.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>, Hugh Dickins <hugh@veritas.com>, Linus Torvalds <torvalds@osdl.org>, Andrew Morton <akpm@osdl.org>, Andrea Arcangeli <andrea@suse.de>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Daniel Phillips <phillips@arcor.de>, linux-kernel <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>, Hugh Dickins <hugh@veritas.com>, Linus Torvalds <torvalds@osdl.org>, Andrew Morton <akpm@osdl.org>, Andrea Arcangeli <andrea@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2005-08-09 at 08:08 +0100, Russell King wrote:
-> On Tue, Aug 09, 2005 at 02:59:53PM +1000, Nick Piggin wrote:
-> > That would work for swsusp, but there are other users that want to
-> > know if a struct page is valid ram (eg. ioremap), so in that case
-> > swsusp would not be able to mess with the flag.
-> 
-> The usage of "valid ram" here is confusing - that's not what PageReserved
-> is all about.  It's about valid RAM which is managed by method other
-> than the usual page counting.  Non-reserved RAM is also valid RAM, but
-> is managed by the kernel in the usual way.
-> 
-> The former is available for remap_pfn_range and ioremap, the latter is
-> not.
-> 
-> On the other hand, the validity of an apparant RAM address can only be
-> tested using its pfn with pfn_valid().
-> 
-> Can we straighten out the terminology so it's less confusing please?
-> 
 
-and..... can we make a general page_is_ram() function that does what it
-says? on x86 it can go via the e820 table, other architectures can do
-whatever they need....
+> Basically, it was doing a whole lot of vaguely related things. It
+> was set for ZERO_PAGE pages. It was (and still is) set for struct
+> pages that don't point to valid ram. Drivers set it, hoping it will
+> do something magical for them.
+> 
+> And yes, the VM_RESERVED flag is able to replace most usages.
+> Checking (pte_page(pte) == ZERO_PAGE(addr)) picks up others.
+> 
+> What we don't have is something to indicate the page does not point
+> to valid ram.
+
+I have no problem keeping PG_reserved for that, and _ONLY_ for that.
+(though i'd rather see it renamed then). I'm just afraid by doing so,
+some drivers will jump in the gap and abuse it again... Also, we should
+make sure we kill the "trick" of refcounting only in one direction.
+Either we refcount both (but do nothing, or maybe just BUG_ON if the
+page is "reserved" -> not valid RAM), or we don't refcount at all.
+
+For things like Cell, We'll really end up needing struct page covering
+the SPUs for example. That is not valid RAM, shouldn't be refcounted,
+but we need to be able to have nopage() returning these etc...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
