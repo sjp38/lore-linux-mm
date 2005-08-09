@@ -1,65 +1,62 @@
+Message-ID: <42F83D04.7090802@yahoo.com.au>
+Date: Tue, 09 Aug 2005 15:20:04 +1000
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+MIME-Version: 1.0
 Subject: Re: [RFC][patch 0/2] mm: remove PageReserved
-From: Nigel Cunningham <ncunningham@cyclades.com>
-Reply-To: ncunningham@cyclades.com
-In-Reply-To: <42F83849.9090107@yahoo.com.au>
-References: <42F57FCA.9040805@yahoo.com.au>
-	 <200508090710.00637.phillips@arcor.de>
-	 <1123562392.4370.112.camel@localhost>  <42F83849.9090107@yahoo.com.au>
-Content-Type: text/plain
-Message-Id: <1123564294.4370.119.camel@localhost>
-Mime-Version: 1.0
-Date: Tue, 09 Aug 2005 15:11:34 +1000
+References: <42F57FCA.9040805@yahoo.com.au>	 <200508090710.00637.phillips@arcor.de>	 <1123562392.4370.112.camel@localhost>  <42F83849.9090107@yahoo.com.au> <1123564294.4370.119.camel@localhost>
+In-Reply-To: <1123564294.4370.119.camel@localhost>
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
+To: ncunningham@cyclades.com
 Cc: Daniel Phillips <phillips@arcor.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>, Hugh Dickins <hugh@veritas.com>, Linus Torvalds <torvalds@osdl.org>, Andrew Morton <akpm@osdl.org>, Andrea Arcangeli <andrea@suse.de>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi Nick et al.
-
-On Tue, 2005-08-09 at 14:59, Nick Piggin wrote:
-> Nigel Cunningham wrote:
-> > Hi.
-> > 
-> > On Tue, 2005-08-09 at 07:09, Daniel Phillips wrote:
-> > 
-> >>>It doesn't look like they'll be able to easily free up a page
-> >>>flag for 2 reasons. First, PageReserved will probably be kept
-> >>>around for at least one release. Second, swsusp and some arch
-> >>>code (ioremap) wants to know about struct pages that don't point
-> >>>to valid RAM - currently they use PageReserved, but we'll probably
-> >>>just introduce a PageValidRAM or something when PageReserved goes.
-> > 
-> > 
-> > Changing the e820 code so it sets PageNosave instead of PageReserved,
-> > along with a couple of modifications in swsusp itself should get rid of
-> > the swsusp dependency.
-> > 
+Nigel Cunningham wrote:
+> Hi Nick et al.
 > 
-> That would work for swsusp, but there are other users that want to
-> know if a struct page is valid ram (eg. ioremap), so in that case
-> swsusp would not be able to mess with the flag.
+> On Tue, 2005-08-09 at 14:59, Nick Piggin wrote:
 
-Um. Mess with which flag? I guess you mean Reserved. I was saying that
-imaging Reserved going away, so for the short term I'd be meaning making
-the e820 set both Nosave and Reserved for those pages (which is what the
-Suspend2 patches do so as to play nicely with swsusp - I don't use
-Reserved at all).
+>>>Changing the e820 code so it sets PageNosave instead of PageReserved,
+>>>along with a couple of modifications in swsusp itself should get rid of
+>>>the swsusp dependency.
+>>>
+>>
+>>That would work for swsusp, but there are other users that want to
+>>know if a struct page is valid ram (eg. ioremap), so in that case
+>>swsusp would not be able to mess with the flag.
+> 
+> 
+> Um. Mess with which flag? I guess you mean Reserved. I was saying that
 
-> I do think swsusp should (and can, quite easily though I may have
-> missed something) consolidate PG_nosave and PG_nosave_free, however
-> that's out of the scope of this patch.
+Mess with PageNosave (if that is what we used to denote a struct page
+not pointing to valid RAM).
 
-I won't comment here. I don't start at swsusp code that much :>
+Ie. when swsusp allocates its save map (or whatever it calls it), setting
+PageNosave would make other parts of the kernel think the area is not
+valid ram.
 
-Nigel
+In other words - we can't combine swsusp's PageNosave with our mythical
+PageValidRAM.
+
+> imaging Reserved going away, so for the short term I'd be meaning making
+> the e820 set both Nosave and Reserved for those pages (which is what the
+> Suspend2 patches do so as to play nicely with swsusp - I don't use
+> Reserved at all).
+> 
+
+In the short term, PageReserved can stay around - swsusp does still
+work if I hadn't made that clear.
+
+By the way - how does swsusp2 handle this problem if not using
+PageReserved?
+
+
 -- 
-Evolution.
-Enumerate the requirements.
-Consider the interdependencies.
-Calculate the probabilities.
+SUSE Labs, Novell Inc.
 
+Send instant messages to your online friends http://au.messenger.yahoo.com 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
