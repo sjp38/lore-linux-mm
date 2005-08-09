@@ -1,36 +1,42 @@
-Date: Tue, 9 Aug 2005 13:51:55 -0700 (PDT)
-From: Linus Torvalds <torvalds@osdl.org>
-Subject: Re: [RFC][patch 0/2] mm: remove PageReserved
-In-Reply-To: <20050809204100.B29945@flint.arm.linux.org.uk>
-Message-ID: <Pine.LNX.4.58.0508091351170.3258@g5.osdl.org>
-References: <42F57FCA.9040805@yahoo.com.au> <200508090710.00637.phillips@arcor.de>
- <1123562392.4370.112.camel@localhost> <42F83849.9090107@yahoo.com.au>
- <20050809080853.A25492@flint.arm.linux.org.uk> <523240000.1123598289@[10.10.2.4]>
- <20050809204100.B29945@flint.arm.linux.org.uk>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by e33.co.us.ibm.com (8.12.10/8.12.9) with ESMTP id j79LF6xk709850
+	for <linux-mm@kvack.org>; Tue, 9 Aug 2005 17:15:07 -0400
+Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
+	by d03relay04.boulder.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id j79LFJFI268552
+	for <linux-mm@kvack.org>; Tue, 9 Aug 2005 15:15:19 -0600
+Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av03.boulder.ibm.com (8.12.11/8.13.3) with ESMTP id j79LF6kW024358
+	for <linux-mm@kvack.org>; Tue, 9 Aug 2005 15:15:06 -0600
+Date: Tue, 9 Aug 2005 14:15:02 -0700
+From: Mike Kravetz <kravetz@us.ibm.com>
+Subject: Re: [PATCH] gurantee DMA area for alloc_bootmem_low() ver. 2.
+Message-ID: <20050809211501.GB6235@w-mikek2.ibm.com>
+References: <20050809194115.C370.Y-GOTO@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20050809194115.C370.Y-GOTO@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Russell King <rmk+lkml@arm.linux.org.uk>
-Cc: "Martin J. Bligh" <mbligh@mbligh.org>, Nick Piggin <nickpiggin@yahoo.com.au>, ncunningham@cyclades.com, Daniel Phillips <phillips@arcor.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>, Hugh Dickins <hugh@veritas.com>, Andrew Morton <akpm@osdl.org>, Andrea Arcangeli <andrea@suse.de>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
+To: Yasunori Goto <y-goto@jp.fujitsu.com>
+Cc: linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@osdl.org>, "Martin J. Bligh" <mbligh@mbligh.org>, linux-ia64@vger.kernel.org, "Luck, Tony" <tony.luck@intel.com>
 List-ID: <linux-mm.kvack.org>
 
+On Tue, Aug 09, 2005 at 08:11:20PM +0900, Yasunori Goto wrote:
+> I modified the patch which guarantees allocation of DMA area
+> at alloc_bootmem_low().
 
-On Tue, 9 Aug 2005, Russell King wrote:
+Thanks!
 
-> On Tue, Aug 09, 2005 at 07:38:52AM -0700, Martin J. Bligh wrote:
-> > pfn_valid() doesn't tell you it's RAM or not - it tells you whether you
-> > have a backing struct page for that address. Could be an IO mapped device,
-> > a small memory hole, whatever.
-> 
-> The only things which have a struct page is RAM.  Nothing else does.
+I was going to replace more instances of __pa(MAX_DMA_ADDRESS) with
+max_dma_physaddr().  However, when grepping for MAX_DMA_ADDRESS I
+noticed instances of virt_to_phys(MAX_DMA_ADDRESS) as well.  Can
+someone tell me what the differences are between __pa() and virt_to_phys().
+I noticed that on some archs they are the same, but are different on
+others.
 
-That's not true.
-
-We have "struct page" show up for the ISA legacy MMIO region too, for 
-example.
-
-		Linus
+-- 
+Mike
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
