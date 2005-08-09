@@ -1,6 +1,6 @@
 Subject: Re: [RFC][patch 0/2] mm: remove PageReserved
-From: Arjan van de Ven <arjan@infradead.org>
-In-Reply-To: <42F8AC87.5060403@yahoo.com.au>
+From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+In-Reply-To: <Pine.LNX.4.61.0508091145570.11660@goblin.wat.veritas.com>
 References: <42F57FCA.9040805@yahoo.com.au>
 	 <200508090710.00637.phillips@arcor.de>
 	 <1123562392.4370.112.camel@localhost> <42F83849.9090107@yahoo.com.au>
@@ -8,35 +8,65 @@ References: <42F57FCA.9040805@yahoo.com.au>
 	 <Pine.LNX.4.61.0508091012480.10693@goblin.wat.veritas.com>
 	 <42F88514.9080104@yahoo.com.au>
 	 <Pine.LNX.4.61.0508091145570.11660@goblin.wat.veritas.com>
-	 <42F8AC87.5060403@yahoo.com.au>
 Content-Type: text/plain
-Date: Tue, 09 Aug 2005 15:26:35 +0200
-Message-Id: <1123593996.3839.27.camel@laptopd505.fenrus.org>
+Date: Tue, 09 Aug 2005 16:28:23 +0200
+Message-Id: <1123597704.30257.200.camel@gaston>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Hugh Dickins <hugh@veritas.com>, Russell King <rmk+lkml@arm.linux.org.uk>, ncunningham@cyclades.com, Daniel Phillips <phillips@arcor.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>, Linus Torvalds <torvalds@osdl.org>, Andrew Morton <akpm@osdl.org>, Andrea Arcangeli <andrea@suse.de>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
+To: Hugh Dickins <hugh@veritas.com>
+Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Russell King <rmk+lkml@arm.linux.org.uk>, ncunningham@cyclades.com, Daniel Phillips <phillips@arcor.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>, Linus Torvalds <torvalds@osdl.org>, Andrew Morton <akpm@osdl.org>, Andrea Arcangeli <andrea@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2005-08-09 at 23:15 +1000, Nick Piggin wrote:
+> Who can tell?  rmk's mail sugggests it should work on some valid RAM.
 
-> I understand what you mean, and I agree. Though as far away from the
-> business end of the drivers I am, I tend to get the feeling that
-> drivers need the most hand holding.
+Not really. If I understand Russell here, that RAM has been "put aside"
+for use by fancy stuff and is de-facto out of control of the normal page
+allocator and refcounting. In this case, I see no reason why it couldn't
+be considered as MMIO and ioremap'able :)
 
-they do. It's important to make driver APIs as fool proof as possible.
+> ioremap is making a similar check to the one remap_pfn_range used
+> to make; but I see no good reason for it at all.  ioremap should be
+> allowed to map whatever the caller asked, just as memset is allowed
+> to set whatever the caller asked.
 
+This is dodgy actually. memset can't be guaranteed to work on IOs or
+other non-cacheable memory (including real RAM that has been mapped
+non-cacheable, typically RAM that has been "set aside" for other uses as
+described above, wether it's for AGP, or for some weird processor DMA
+bounce buffers or whatever ..., that is RAM that is out of the normal
+kernel control).
+
+>   It's up to the caller to get it
+> right, not for the function to demand the added reassurance of some
+> mysterious page flag being set.
 > 
-> Anyway, I guess the way to understand the problem is finding the
-> reason why ioremap checks PageReserved, and whether or not ioremap
-> should be expected (or allowed) to remap physical RAM in use by
-> the kernel.
-
-I can't think of ANY valid reason for that, in fact, it'll break a lot
-due to cache aliases etc etc, on various cpus if not even on x86
-
+> (But in what I said earlier about VM_RESERVE making sure wrong pages
+> not freed, I was confused and confusing ioremap with remap_pfn_range.)
+> 
+> > I thought the fact that it *won't* bail out when encountering
+> > kernel text or remap_pfn_range'ed pages was only due to PG_reserved
+> > being the proverbial jack of all trades, master of none.
+> > 
+> > I could be wrong here though.
+> > 
+> > But in either case: I agree that it is probably not a great loss
+> > to remove the check, although considering it will be needed for
+> > swsusp anyway...
+> 
+> swsusp (and I think crashdump has a similar need) is a very different
+> case: it's approaching memory from the zone/mem_map end, with no(?) idea
+> of how the different pages are used: needs to save all the info while
+> avoiding those areas which would give trouble.  I can well imagine it
+> needs either a page flag or a table lookup to decide that.
+> 
+> But ioremap and remap_pfn_range are coming from drivers which (we hope)
+> know what they're mapping these particular areas for.  If it's provable
+> that the meaning which swsusp needs is equally usable for a little sanity
+> check in ioremap, okay, but I'm sceptical.
+> 
+> Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
