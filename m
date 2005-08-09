@@ -1,71 +1,49 @@
-Date: Tue, 9 Aug 2005 18:13:05 -0300
-From: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
-Subject: Re: [RFC 1/3] non-resident page tracking
-Message-ID: <20050809211305.GA23675@dmt.cnet>
-References: <20050808201416.450491000@jumble.boston.redhat.com> <20050808202110.744344000@jumble.boston.redhat.com> <20050809182517.GA20644@dmt.cnet> <1123614926.17222.19.camel@twins>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+From: Daniel Phillips <phillips@arcor.de>
+Subject: Re: [RFC][patch 0/2] mm: remove PageReserved
+Date: Wed, 10 Aug 2005 07:27:46 +1000
+References: <42F57FCA.9040805@yahoo.com.au> <1123598952.30257.213.camel@gaston> <Pine.LNX.4.61.0508091621220.14003@goblin.wat.veritas.com>
+In-Reply-To: <Pine.LNX.4.61.0508091621220.14003@goblin.wat.veritas.com>
+MIME-Version: 1.0
+Content-Type: text/plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <1123614926.17222.19.camel@twins>
+Message-Id: <200508100727.47698.phillips@arcor.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>
+To: Hugh Dickins <hugh@veritas.com>
+Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>, Nick Piggin <nickpiggin@yahoo.com.au>, linux-kernel <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>, Linus Torvalds <torvalds@osdl.org>, Andrew Morton <akpm@osdl.org>, Andrea Arcangeli <andrea@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Aug 09, 2005 at 09:15:26PM +0200, Peter Zijlstra wrote:
-> On Tue, 2005-08-09 at 15:25 -0300, Marcelo Tosatti wrote:
-> > Hi Rik,
-> > 
-> > Two hopefully useful comments:
-> > 
-> > i) ARC and its variants requires additional information about page
-> > replacement (namely whether the page has been reclaimed from the L1 or
-> > L2 lists).
-> > 
-> > How costly would it be to add this information to the hash table?
-> > 
-> I've been thinking on reserving another word in the cache-line and use
-> that as a bit-array to keep that information; the only problems with
-> that would be atomicy of the {bucket,bit} tuple and very large
-> cachelines where NUM_NR > 32. 
+On Wednesday 10 August 2005 01:36, Hugh Dickins wrote:
+> On Tue, 9 Aug 2005, Benjamin Herrenschmidt wrote:
+> >  - We already have a refcount
+> >  - We have a field where putting a flag isn't that much of a problem
+> >  - It can be difficult to get page refcounting right when dealing with
+> >    such things, really.
+>
+> Probably easier to get the page refcounting right with these than with
+> most.  Getting refcounting wrong is always bad.
 
-The chance for a lookup hit to happen on a hash value which is in a
-modified-state in a different CPU's cacheline should be pretty small
-(depends on the architecture also, but shouldnt be much of an issue I
-guess).
+He seems to be arguing for a new debug option.
 
-Hoping on that, guaranteed validity of data is not necessary, it is OK
-to be incorrect occasionally.
+> > In that case, we basically have an _easy_ way to trigger a useful BUG()
+> > in the page free path when it's a page that should never be returned to
+> > the pool.
+>
+> As bad_page already does on various other flags (though it clears those,
+> whereas this one you'd prefer not to clear).   Hmm, okay, though I'm not
+> sure it's worth its own page flag if they're in short supply.
 
-> > ii) From my reading of the patch, the provided "distance" information is
-> > relative to each hash bucket. I'm unable to understand the distance metric
-> > being useful if measured per-hash-bucket instead of globally?
-> 
-> The assumption is that IFF the hash function has good distribution
-> properties the per bucket distance is a good approximation of
-> (distance >> nonres_shift).
+Nineteen out of 32 officially spoken for so far, with some out of tree patches 
+regarding the remainder with desirous eyes no doubt.  I think that qualifies 
+as short supply.  But it is not just that, it is the extra cost of 
+understanding and auditing the features implied by the flags, particularly 
+bogus features.
 
-Well, not really "good approximation" it sounds to me, the sensibility
-goes down to L1_CACHE_LINE/sizeof(u32), which is:
+Regards,
 
-- 8 on 32-byte cacheline
-- 16 on 64-byte cacheline 
-- 32 on 128-byte cacheline
-
-Right?
-
-So the (nice!) refault histogram gets limited to those values?
-
-> > PS: Since remember_page() is always called with the zone->lru_lock held,
-> > the preempt_disable/enable pair is unecessary at the moment... still, 
-> > might be better to leave it there for safety reasons.
-> > 
-> 
-> There being multiple zones; owning zone->lru_lock does not guarantee
-> uniqueness on the remember_page() path as its a global structure.
-
-True, but it guarantees disabled preemption. No big deal...
+Daniel
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
