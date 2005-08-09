@@ -1,151 +1,65 @@
-Date: Tue, 09 Aug 2005 20:11:20 +0900
-From: Yasunori Goto <y-goto@jp.fujitsu.com>
-Subject: [PATCH] gurantee DMA area for alloc_bootmem_low() ver. 2.
-Message-Id: <20050809194115.C370.Y-GOTO@jp.fujitsu.com>
+Date: Tue, 9 Aug 2005 12:15:19 +0100 (BST)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: Re: [RFC][patch 0/2] mm: remove PageReserved
+In-Reply-To: <42F88514.9080104@yahoo.com.au>
+Message-ID: <Pine.LNX.4.61.0508091145570.11660@goblin.wat.veritas.com>
+References: <42F57FCA.9040805@yahoo.com.au> <200508090710.00637.phillips@arcor.de>
+ <1123562392.4370.112.camel@localhost> <42F83849.9090107@yahoo.com.au>
+ <20050809080853.A25492@flint.arm.linux.org.uk>
+ <Pine.LNX.4.61.0508091012480.10693@goblin.wat.veritas.com>
+ <42F88514.9080104@yahoo.com.au>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@osdl.org>
-Cc: "Martin J. Bligh" <mbligh@mbligh.org>, linux-ia64@vger.kernel.org, Mike Kravetz <kravetz@us.ibm.com>, "Luck, Tony" <tony.luck@intel.com>
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Russell King <rmk+lkml@arm.linux.org.uk>, ncunningham@cyclades.com, Daniel Phillips <phillips@arcor.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>, Linus Torvalds <torvalds@osdl.org>, Andrew Morton <akpm@osdl.org>, Andrea Arcangeli <andrea@suse.de>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
 List-ID: <linux-mm.kvack.org>
 
-Hello.
+On Tue, 9 Aug 2005, Nick Piggin wrote:
+> Hugh Dickins wrote:
+> > I think Nick is treating the "use" of PageReserved in ioremap much too
+> > reverentially.  Fine to leave its removal from there to a later stage,
+> > but why shouldn't that also be removed?
+> 
+> Well, as far as I had been able to gather, ioremap is trying to
+> ensure it does indeed only hit one of these holes, and not valid
+> RAM.
 
-I modified the patch which guarantees allocation of DMA area
-at alloc_bootmem_low().
+Who can tell?  rmk's mail sugggests it should work on some valid RAM.
 
-I tested this patch. Please apply.
+ioremap is making a similar check to the one remap_pfn_range used
+to make; but I see no good reason for it at all.  ioremap should be
+allowed to map whatever the caller asked, just as memset is allowed
+to set whatever the caller asked.  It's up to the caller to get it
+right, not for the function to demand the added reassurance of some
+mysterious page flag being set.
 
-The differences from previous one are ....
-  - Confirmation that allocated area is really DMA area.
-  - max_dma_physaddr() is defined for some architecture that
-    all of memory is DMA area.
+(But in what I said earlier about VM_RESERVE making sure wrong pages
+not freed, I was confused and confusing ioremap with remap_pfn_range.)
 
-    (Note: Mike Kravez-san's code was defined by MACRO like this.
-        #ifndef MAX_DMA_PHYSADDR
-        #if MAX_DMA_ADDRESS == ~0UL
-                :
-                :
-      However, MAX_DMA_ADDRESS is defined with cast "(unsigned long)"
-      in some architecture like i386. And, preprocessor doesn't like 
-      this cast in #IF sentence and displays error message as
-      "missing binary operator befor token "long"".
-      So, I changed it to static inline function.)
+> I thought the fact that it *won't* bail out when encountering
+> kernel text or remap_pfn_range'ed pages was only due to PG_reserved
+> being the proverbial jack of all trades, master of none.
+> 
+> I could be wrong here though.
+> 
+> But in either case: I agree that it is probably not a great loss
+> to remove the check, although considering it will be needed for
+> swsusp anyway...
 
-Thanks.
+swsusp (and I think crashdump has a similar need) is a very different
+case: it's approaching memory from the zone/mem_map end, with no(?) idea
+of how the different pages are used: needs to save all the info while
+avoiding those areas which would give trouble.  I can well imagine it
+needs either a page flag or a table lookup to decide that.
 
-----------------------
+But ioremap and remap_pfn_range are coming from drivers which (we hope)
+know what they're mapping these particular areas for.  If it's provable
+that the meaning which swsusp needs is equally usable for a little sanity
+check in ioremap, okay, but I'm sceptical.
 
-This is a patch to guarantee that alloc_bootmem_low() allocate DMA area.
-
-Current alloc_bootmem_low() is just specify "goal=0". And it is 
-used for __alloc_bootmem_core() to decide which address is better.
-However, there is no guarantee that __alloc_bootmem_core()
-allocate DMA area when goal=0 is specified.
-Even if there is no DMA'ble area in searching node, it allocates
-higher address than MAX_DMA_ADDRESS.
-
-__alloc_bootmem_core() is called by order of for_each_pgdat()
-in __alloc_bootmem(). So, if first node (node_id = 0) has
-DMA'ble area, no trouble will occur. However, our new Itanium2 server
-can change which node has lower address. And panic really occurred on it.
-The message was "bounce buffer is not DMA'ble" in swiothl_map_single().
-
-To avoid this panic, following patch confirms allocated area, and retry
-if it is not in DMA.
-I tested this patch on my Tiger 4 and our new server.
-
-
-Signed-off by Yasunori Goto <y-goto@jp.fujitsu.com>
-
--------------------------------------------------------------------
-Index: bootmem/mm/bootmem.c
-===================================================================
---- bootmem.orig/mm/bootmem.c	2005-08-09 15:50:06.000000000 +0900
-+++ bootmem/mm/bootmem.c	2005-08-09 16:11:57.076880203 +0900
-@@ -374,10 +374,25 @@ void * __init __alloc_bootmem (unsigned 
- 	pg_data_t *pgdat = pgdat_list;
- 	void *ptr;
- 
--	for_each_pgdat(pgdat)
--		if ((ptr = __alloc_bootmem_core(pgdat->bdata, size,
--						align, goal)))
--			return(ptr);
-+	for_each_pgdat(pgdat){
-+
-+		ptr = __alloc_bootmem_core(pgdat->bdata, size,
-+					   align, goal);
-+
-+		if (!ptr)
-+			continue;
-+
-+		if (goal < max_dma_physaddr() &&
-+		    (unsigned long)ptr >= MAX_DMA_ADDRESS){
-+			/* DMA area is required, but ptr is not DMA area.
-+			   Trying other nodes */
-+
-+			free_bootmem_core(pgdat->bdata, virt_to_phys(ptr), size);
-+			continue;
-+		}
-+
-+		return(ptr);
-+
-+	}
- 
- 	/*
- 	 * Whoops, we cannot satisfy the allocation request.
-Index: bootmem/include/linux/bootmem.h
-===================================================================
---- bootmem.orig/include/linux/bootmem.h	2005-08-09 15:50:06.000000000 +0900
-+++ bootmem/include/linux/bootmem.h	2005-08-09 16:05:17.929424155 +0900
-@@ -36,6 +36,15 @@ typedef struct bootmem_data {
- 					 * up searching */
- } bootmem_data_t;
- 
-+static inline unsigned long max_dma_physaddr(void)
-+{
-+
-+	if (MAX_DMA_ADDRESS == ~0UL)
-+		return MAX_DMA_ADDRESS;
-+	else
-+		return __pa(MAX_DMA_ADDRESS);
-+}
-+
- extern unsigned long __init bootmem_bootmap_pages (unsigned long);
- extern unsigned long __init init_bootmem (unsigned long addr, unsigned long memend);
- extern void __init free_bootmem (unsigned long addr, unsigned long size);
-@@ -43,11 +52,11 @@ extern void * __init __alloc_bootmem (un
- #ifndef CONFIG_HAVE_ARCH_BOOTMEM_NODE
- extern void __init reserve_bootmem (unsigned long addr, unsigned long size);
- #define alloc_bootmem(x) \
--	__alloc_bootmem((x), SMP_CACHE_BYTES, __pa(MAX_DMA_ADDRESS))
-+	__alloc_bootmem((x), SMP_CACHE_BYTES, max_dma_physaddr())
- #define alloc_bootmem_low(x) \
- 	__alloc_bootmem((x), SMP_CACHE_BYTES, 0)
- #define alloc_bootmem_pages(x) \
--	__alloc_bootmem((x), PAGE_SIZE, __pa(MAX_DMA_ADDRESS))
-+	__alloc_bootmem((x), PAGE_SIZE, max_dma_physaddr())
- #define alloc_bootmem_low_pages(x) \
- 	__alloc_bootmem((x), PAGE_SIZE, 0)
- #endif /* !CONFIG_HAVE_ARCH_BOOTMEM_NODE */
-@@ -60,9 +69,9 @@ extern unsigned long __init free_all_boo
- extern void * __init __alloc_bootmem_node (pg_data_t *pgdat, unsigned long size, unsigned long align, unsigned long goal);
- #ifndef CONFIG_HAVE_ARCH_BOOTMEM_NODE
- #define alloc_bootmem_node(pgdat, x) \
--	__alloc_bootmem_node((pgdat), (x), SMP_CACHE_BYTES, __pa(MAX_DMA_ADDRESS))
-+	__alloc_bootmem_node((pgdat), (x), SMP_CACHE_BYTES, max_dma_physaddr())
- #define alloc_bootmem_pages_node(pgdat, x) \
--	__alloc_bootmem_node((pgdat), (x), PAGE_SIZE, __pa(MAX_DMA_ADDRESS))
-+	__alloc_bootmem_node((pgdat), (x), PAGE_SIZE, max_dma_physaddr())
- #define alloc_bootmem_low_pages_node(pgdat, x) \
- 	__alloc_bootmem_node((pgdat), (x), PAGE_SIZE, 0)
- #endif /* !CONFIG_HAVE_ARCH_BOOTMEM_NODE */
-
--- 
-Yasunori Goto 
-
+Hugh
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
