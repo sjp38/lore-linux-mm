@@ -1,29 +1,58 @@
+Date: Tue, 9 Aug 2005 10:15:51 +0100 (BST)
+From: Hugh Dickins <hugh@veritas.com>
 Subject: Re: [RFC][patch 0/2] mm: remove PageReserved
-From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
 In-Reply-To: <20050809080853.A25492@flint.arm.linux.org.uk>
-References: <42F57FCA.9040805@yahoo.com.au>
-	 <200508090710.00637.phillips@arcor.de>
-	 <1123562392.4370.112.camel@localhost> <42F83849.9090107@yahoo.com.au>
-	 <20050809080853.A25492@flint.arm.linux.org.uk>
-Content-Type: text/plain
-Date: Tue, 09 Aug 2005 10:53:49 +0200
-Message-Id: <1123577631.30257.175.camel@gaston>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Message-ID: <Pine.LNX.4.61.0508091012480.10693@goblin.wat.veritas.com>
+References: <42F57FCA.9040805@yahoo.com.au> <200508090710.00637.phillips@arcor.de>
+ <1123562392.4370.112.camel@localhost> <42F83849.9090107@yahoo.com.au>
+ <20050809080853.A25492@flint.arm.linux.org.uk>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Russell King <rmk+lkml@arm.linux.org.uk>
-Cc: Nick Piggin <nickpiggin@yahoo.com.au>, ncunningham@cyclades.com, Daniel Phillips <phillips@arcor.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>, Hugh Dickins <hugh@veritas.com>, Linus Torvalds <torvalds@osdl.org>, Andrew Morton <akpm@osdl.org>, Andrea Arcangeli <andrea@suse.de>
+Cc: Nick Piggin <nickpiggin@yahoo.com.au>, ncunningham@cyclades.com, Daniel Phillips <phillips@arcor.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>, Linus Torvalds <torvalds@osdl.org>, Andrew Morton <akpm@osdl.org>, Andrea Arcangeli <andrea@suse.de>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
 List-ID: <linux-mm.kvack.org>
 
-> Can we straighten out the terminology so it's less confusing please?
+On Tue, 9 Aug 2005, Russell King wrote:
+> On Tue, Aug 09, 2005 at 02:59:53PM +1000, Nick Piggin wrote:
+> > That would work for swsusp, but there are other users that want to
+> > know if a struct page is valid ram (eg. ioremap), so in that case
+> > swsusp would not be able to mess with the flag.
+> 
+> The usage of "valid ram" here is confusing - that's not what PageReserved
+> is all about.  It's about valid RAM which is managed by method other
+> than the usual page counting.
 
-Well, RAM that isn't managed by standard page counting could be
-considered a some sort of weird MMIO :) 
+You're right (though I imagine might sometimes be holes rather than RAM).
 
-Ben.
+PageReserved is about those pages which are managed by PageReserved.
+But quite what it means is unclear, one of the reasons to eliminate it.
+(Why is kernel text PageReserved?)
 
+> Non-reserved RAM is also valid RAM, but
+> is managed by the kernel in the usual way.
+> 
+> The former is available for remap_pfn_range and ioremap, the latter is
+> not.
 
+And the caller of remap_pfn_range (and occasionally ioremap?) uses
+SetPageReserved to move pages from the latter to the former category,
+so that they will work successfully on it.
+
+Seems very silly to me.  A little key we give the caller,
+so the caller can reassure us "I know what I'm doing".
+
+I think Nick is treating the "use" of PageReserved in ioremap much too
+reverentially.  Fine to leave its removal from there to a later stage,
+but why shouldn't that also be removed?
+
+With or without PageReserved, driver writers should be careful to apply
+ioremap to the areas they intend.  And when they do get it wrong (setting
+a window on the wrong range of RAM), the new VM_RESERVED handling makes
+sure that at least those wrong pages won't be freed when unmapped.
+
+Hugh
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
