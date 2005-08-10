@@ -1,37 +1,39 @@
-Date: Wed, 10 Aug 2005 04:40:28 -0400 (EDT)
-From: Rik van Riel <riel@redhat.com>
-Subject: Re: [RFC 1/3] non-resident page tracking
-In-Reply-To: <20050809211305.GA23675@dmt.cnet>
-Message-ID: <Pine.LNX.4.61.0508100439510.1888@chimarrao.boston.redhat.com>
-References: <20050808201416.450491000@jumble.boston.redhat.com>
- <20050808202110.744344000@jumble.boston.redhat.com> <20050809182517.GA20644@dmt.cnet>
- <1123614926.17222.19.camel@twins> <20050809211305.GA23675@dmt.cnet>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [RFC][patch 0/2] mm: remove PageReserved
+From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+In-Reply-To: <20050809204100.B29945@flint.arm.linux.org.uk>
+References: <42F57FCA.9040805@yahoo.com.au>
+	 <200508090710.00637.phillips@arcor.de>
+	 <1123562392.4370.112.camel@localhost> <42F83849.9090107@yahoo.com.au>
+	 <20050809080853.A25492@flint.arm.linux.org.uk>
+	 <523240000.1123598289@[10.10.2.4]>
+	 <20050809204100.B29945@flint.arm.linux.org.uk>
+Content-Type: text/plain
+Date: Wed, 10 Aug 2005 11:27:24 +0200
+Message-Id: <1123666046.30257.226.camel@gaston>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Russell King <rmk+lkml@arm.linux.org.uk>
+Cc: "Martin J. Bligh" <mbligh@mbligh.org>, Nick Piggin <nickpiggin@yahoo.com.au>, ncunningham@cyclades.com, Daniel Phillips <phillips@arcor.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>, Hugh Dickins <hugh@veritas.com>, Linus Torvalds <torvalds@osdl.org>, Andrew Morton <akpm@osdl.org>, Andrea Arcangeli <andrea@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 9 Aug 2005, Marcelo Tosatti wrote:
-
-> Well, not really "good approximation" it sounds to me, the sensibility
-> goes down to L1_CACHE_LINE/sizeof(u32), which is:
+On Tue, 2005-08-09 at 20:41 +0100, Russell King wrote:
+> On Tue, Aug 09, 2005 at 07:38:52AM -0700, Martin J. Bligh wrote:
+> > pfn_valid() doesn't tell you it's RAM or not - it tells you whether you
+> > have a backing struct page for that address. Could be an IO mapped device,
+> > a small memory hole, whatever.
 > 
-> - 8 on 32-byte cacheline
-> - 16 on 64-byte cacheline 
-> - 32 on 128-byte cacheline
-> 
-> Right?
-> 
-> So the (nice!) refault histogram gets limited to those values?
+> The only things which have a struct page is RAM.  Nothing else does.
 
-I agree that 7 would be too small.  I guess I should limit the
-minimum size of the nonresident hash bucket to 15 entries...
+Well, not anymore :)
 
--- 
-All Rights Reversed
+With sparsemem, you can cheat now and have struct page for non-RAM, and
+this is actually useful. I want some IO space to be "context switchable"
+and thus map it with nopage() functionality, etc...
+
+Ben.
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
