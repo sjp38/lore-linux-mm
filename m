@@ -1,35 +1,70 @@
 From: Daniel Phillips <phillips@arcor.de>
-Subject: Re: [RFC][PATCH] Rename PageChecked as PageMiscFS
-Date: Thu, 11 Aug 2005 08:57:05 +1000
-References: <42F57FCA.9040805@yahoo.com.au> <200508110823.53593.phillips@arcor.de> <1123713258.10292.109.camel@lade.trondhjem.org>
-In-Reply-To: <1123713258.10292.109.camel@lade.trondhjem.org>
+Subject: Re: [RFC][patch 0/2] mm: remove PageReserved
+Date: Thu, 11 Aug 2005 09:19:13 +1000
+References: <200508102334.43662.phillips@arcor.de> <31567.1123679613@warthog.cambridge.redhat.com> <21701.1123684072@warthog.cambridge.redhat.com>
+In-Reply-To: <21701.1123684072@warthog.cambridge.redhat.com>
 MIME-Version: 1.0
+Content-Disposition: inline
 Content-Type: text/plain;
   charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200508110857.06539.phillips@arcor.de>
+Message-Id: <200508110919.13897.phillips@arcor.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Trond Myklebust <trond.myklebust@fys.uio.no>
-Cc: Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Hugh Dickins <hugh@veritas.com>, David Howells <dhowells@redhat.com>
+To: David Howells <dhowells@redhat.com>
+Cc: Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, hugh@veritas.com
 List-ID: <linux-mm.kvack.org>
 
-Hi Trond,
-
-On Thursday 11 August 2005 08:34, Trond Myklebust wrote:
-> to den 11.08.2005 Klokka 08:23 (+1000) skreiv Daniel Phillips:
-> > Note: I have not fully audited the NFS-related colliding use of page
-> > flags bit 8, to verify that it really does not escape into VFS or MM from
-> > NFS, in fact I have misgivings about end_page_fs_misc which uses this
-> > flag but has no in-tree users to show how it is used and, hmm, isn't even
-> > _GPL.  What is up?
+On Thursday 11 August 2005 00:27, David Howells wrote:
+> What happens is this:
 >
-> What "NFS-related colliding use of page flags bit 8"?
+>  (1) readpage() is issued against NFS (for example).
+>
+>  (2) NFS consults the local cache, and finds the page isn't available
+> there.
+>
+>  (3) NFS reads the page from the server.
+>
+>  (4) NFS sets PG_fs_misc and tells the cache to store the page.
+>
+>  (5) NFS sets PG_uptodate and unlocks the page.
+>
+> Some time later, the cache finishes writing the page to disk:
+>
+>  (6) The cache calls NFS to say that it's finished writing the page.
+>
+>  (7) NFS calls end_page_fs_misc() - which clears PG_fs_misc - to indicate
+> to any waiters that the page can now be written to.
+>
+> Now: any PTEs set up to point to this page start life read-only. If they're
+> part of a shared-writable mapping, then the MMU will generate a WP fault
+> when someone attempts to write to the page through that mapping:
+>
+>  (a) do_wp_page() gets called.
+>
+>  (b) do_wp_page() sees that the page's host has registered an interest in
+>      knowing that the page is becoming writable:
+>
+> 	vm_operations_struct::page_mkwrite()
+>
+>  (c) do_wp_page() calls out to the filesystem.
+>
+>  (d) NFS sees the page is wanting to become writable and waits for the
+>      PG_fs_misc flag to become cleared.
+>
+>  (e) NFS returns to the caller and things proceed as normal.
+>
+> Doing this permits the cache state to be more predictable in the event of
+> power loss because we know that userspace won't have scribbled on this page
+> whilst the cache was trying to write it to disk.
 
-As explained to me:
+Hi David,
 
-http://marc.theaimsgroup.com/?l=linux-kernel&m=112368417412580&w=2
+To be honest I'm having some trouble following this through logically.  I'll 
+read through a few more times and see if that fixes the problem.  This seems 
+cluster-related, so I have an interest.
+
+Who is using this interface?
 
 Regards,
 
