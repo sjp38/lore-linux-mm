@@ -1,69 +1,46 @@
-From: David Howells <dhowells@redhat.com>
-In-Reply-To: <200508102334.43662.phillips@arcor.de> 
-References: <200508102334.43662.phillips@arcor.de>  <20050808145430.15394c3c.akpm@osdl.org> <200508090724.30962.phillips@arcor.de> <31567.1123679613@warthog.cambridge.redhat.com> 
-Subject: Re: [RFC][patch 0/2] mm: remove PageReserved 
-Date: Wed, 10 Aug 2005 15:27:52 +0100
-Message-ID: <21701.1123684072@warthog.cambridge.redhat.com>
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e5.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id j7AGNpOY012200
+	for <linux-mm@kvack.org>; Wed, 10 Aug 2005 12:23:51 -0400
+Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
+	by d01relay04.pok.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id j7AGNl1t182116
+	for <linux-mm@kvack.org>; Wed, 10 Aug 2005 12:23:51 -0400
+Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
+	by d01av04.pok.ibm.com (8.12.11/8.13.3) with ESMTP id j7AGNldk000757
+	for <linux-mm@kvack.org>; Wed, 10 Aug 2005 12:23:47 -0400
+Subject: Re: [PATCH] gurantee DMA area for alloc_bootmem_low() ver. 2.
+From: Dave Hansen <haveblue@us.ibm.com>
+In-Reply-To: <1123643188.7069.8.camel@localhost>
+References: <20050809194115.C370.Y-GOTO@jp.fujitsu.com>
+	 <20050809211501.GB6235@w-mikek2.ibm.com>
+	 <1123643188.7069.8.camel@localhost>
+Content-Type: text/plain
+Date: Wed, 10 Aug 2005 09:23:41 -0700
+Message-Id: <1123691021.11313.2.camel@localhost>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Daniel Phillips <phillips@arcor.de>
-Cc: David Howells <dhowells@redhat.com>, Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, hugh@veritas.com
+To: Mike Kravetz <kravetz@us.ibm.com>
+Cc: Yasunori Goto <y-goto@jp.fujitsu.com>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@osdl.org>, "Martin J. Bligh" <mbligh@mbligh.org>, ia64 list <linux-ia64@vger.kernel.org>, "Luck, Tony" <tony.luck@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-Daniel Phillips <phillips@arcor.de> wrote:
+On Tue, 2005-08-09 at 20:06 -0700, Dave Hansen wrote: 
+> On Tue, 2005-08-09 at 14:15 -0700, Mike Kravetz wrote:
+> > On Tue, Aug 09, 2005 at 08:11:20PM +0900, Yasunori Goto wrote:
+> > > I modified the patch which guarantees allocation of DMA area
+> > > at alloc_bootmem_low().
+> > 
+> > I was going to replace more instances of __pa(MAX_DMA_ADDRESS) with
+> > max_dma_physaddr().  However, when grepping for MAX_DMA_ADDRESS I
+> > noticed instances of virt_to_phys(MAX_DMA_ADDRESS) as well.  Can
+> > someone tell me what the differences are between __pa() and virt_to_phys().
 
-> > An extra page flag beyond PG_uptodate, PG_lock and PG_writeback is
-> > required to make readpage through the cache non-synchronous.
+One more thing is the obvious: __pa() is always a macro, and
+virt_to_phys() is sometimes a function.  __pa() can, therefore, be used
+in assembly.
 
-Sorry, I meant to say "filesystem cache": FS-Cache/CacheFS.
+-- Dave
 
-> Interesting, have you got a pointer to a full explanation?  Is this about aio?
-
-No, it's nothing to do with AIO. This is to do with using local disk to cache
-network filesystems and other relatively slow devices.
-
-What happens is this:
-
- (1) readpage() is issued against NFS (for example).
-
- (2) NFS consults the local cache, and finds the page isn't available there.
-
- (3) NFS reads the page from the server.
-
- (4) NFS sets PG_fs_misc and tells the cache to store the page.
-
- (5) NFS sets PG_uptodate and unlocks the page.
-
-Some time later, the cache finishes writing the page to disk:
-
- (6) The cache calls NFS to say that it's finished writing the page.
-
- (7) NFS calls end_page_fs_misc() - which clears PG_fs_misc - to indicate to
-     any waiters that the page can now be written to.
-
-Now: any PTEs set up to point to this page start life read-only. If they're
-part of a shared-writable mapping, then the MMU will generate a WP fault when
-someone attempts to write to the page through that mapping:
-
- (a) do_wp_page() gets called.
-
- (b) do_wp_page() sees that the page's host has registered an interest in
-     knowing that the page is becoming writable:
-
-	vm_operations_struct::page_mkwrite()
-
- (c) do_wp_page() calls out to the filesystem.
-
- (d) NFS sees the page is wanting to become writable and waits for the
-     PG_fs_misc flag to become cleared.
-
- (e) NFS returns to the caller and things proceed as normal.
-
-Doing this permits the cache state to be more predictable in the event of
-power loss because we know that userspace won't have scribbled on this page
-whilst the cache was trying to write it to disk.
-
-David
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
