@@ -1,41 +1,50 @@
-Date: Tue, 9 Aug 2005 19:52:14 -0400 (EDT)
-From: Rik van Riel <riel@redhat.com>
-Subject: Re: [RFC 1/3] non-resident page tracking
-In-Reply-To: <20050809182517.GA20644@dmt.cnet>
-Message-ID: <Pine.LNX.4.61.0508091950430.1888@chimarrao.boston.redhat.com>
-References: <20050808201416.450491000@jumble.boston.redhat.com>
- <20050808202110.744344000@jumble.boston.redhat.com> <20050809182517.GA20644@dmt.cnet>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by e34.co.us.ibm.com (8.12.10/8.12.9) with ESMTP id j7A36YRX512050
+	for <linux-mm@kvack.org>; Tue, 9 Aug 2005 23:06:34 -0400
+Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
+	by d03relay04.boulder.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id j7A36kFI243312
+	for <linux-mm@kvack.org>; Tue, 9 Aug 2005 21:06:46 -0600
+Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av01.boulder.ibm.com (8.12.11/8.13.3) with ESMTP id j7A36XKZ016562
+	for <linux-mm@kvack.org>; Tue, 9 Aug 2005 21:06:33 -0600
+Subject: Re: [PATCH] gurantee DMA area for alloc_bootmem_low() ver. 2.
+From: Dave Hansen <haveblue@us.ibm.com>
+In-Reply-To: <20050809211501.GB6235@w-mikek2.ibm.com>
+References: <20050809194115.C370.Y-GOTO@jp.fujitsu.com>
+	 <20050809211501.GB6235@w-mikek2.ibm.com>
+Content-Type: text/plain
+Date: Tue, 09 Aug 2005 20:06:28 -0700
+Message-Id: <1123643188.7069.8.camel@localhost>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Mike Kravetz <kravetz@us.ibm.com>
+Cc: Yasunori Goto <y-goto@jp.fujitsu.com>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@osdl.org>, "Martin J. Bligh" <mbligh@mbligh.org>, ia64 list <linux-ia64@vger.kernel.org>, "Luck, Tony" <tony.luck@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 9 Aug 2005, Marcelo Tosatti wrote:
-
-> Two hopefully useful comments:
+On Tue, 2005-08-09 at 14:15 -0700, Mike Kravetz wrote:
+> On Tue, Aug 09, 2005 at 08:11:20PM +0900, Yasunori Goto wrote:
+> > I modified the patch which guarantees allocation of DMA area
+> > at alloc_bootmem_low().
 > 
-> i) ARC and its variants requires additional information about page
-> replacement (namely whether the page has been reclaimed from the L1 or
-> L2 lists).
-> 
-> How costly would it be to add this information to the hash table?
+> I was going to replace more instances of __pa(MAX_DMA_ADDRESS) with
+> max_dma_physaddr().  However, when grepping for MAX_DMA_ADDRESS I
+> noticed instances of virt_to_phys(MAX_DMA_ADDRESS) as well.  Can
+> someone tell me what the differences are between __pa() and virt_to_phys().
 
-Not at all.  Simply reduce the hash to 31 bits and use the remaining
-bit to store that value.
+At least one is that virt_to_phys()'s argument is usually 'volatile'
+while __pa() is not.  This, of course, varies from arch to arch. 
 
-> ii) From my reading of the patch, the provided "distance" information is
-> relative to each hash bucket. I'm unable to understand the distance metric
-> being useful if measured per-hash-bucket instead of globally?
+If somebody wants to go and rip __pa() out from all of the arches, I
+won't be especially sorry :)
 
-The idea is that the hash function spreads things around evenly
-enough for the different buckets to rotate at roughly the same
-speed.
+Actually, it would be nice to have one arch-generic version which is
+just the usual (vaddr - PAGE_OFFSET).  That would probably take care of
+80% of the individual implementations.
 
--- 
-All Rights Reversed
+-- Dave
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
