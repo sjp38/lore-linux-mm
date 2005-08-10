@@ -1,42 +1,37 @@
-From: Daniel Phillips <phillips@arcor.de>
-Subject: Re: [RFC][PATCH] Rename PageChecked as PageMiscFS
-Date: Wed, 10 Aug 2005 18:06:09 +1000
-References: <42F57FCA.9040805@yahoo.com.au> <200508100923.55749.phillips@arcor.de> <Pine.LNX.4.61.0508100843420.18223@goblin.wat.veritas.com>
-In-Reply-To: <Pine.LNX.4.61.0508100843420.18223@goblin.wat.veritas.com>
+Date: Wed, 10 Aug 2005 04:40:28 -0400 (EDT)
+From: Rik van Riel <riel@redhat.com>
+Subject: Re: [RFC 1/3] non-resident page tracking
+In-Reply-To: <20050809211305.GA23675@dmt.cnet>
+Message-ID: <Pine.LNX.4.61.0508100439510.1888@chimarrao.boston.redhat.com>
+References: <20050808201416.450491000@jumble.boston.redhat.com>
+ <20050808202110.744344000@jumble.boston.redhat.com> <20050809182517.GA20644@dmt.cnet>
+ <1123614926.17222.19.camel@twins> <20050809211305.GA23675@dmt.cnet>
 MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200508101806.09532.phillips@arcor.de>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wednesday 10 August 2005 17:48, Hugh Dickins wrote:
-> On Wed, 10 Aug 2005, Daniel Phillips wrote:
-> > --- 2.6.13-rc5-mm1.clean/include/linux/page-flags.h	2005-08-09
-> > 18:23:31.000000000 -0400 +++
-> > 2.6.13-rc5-mm1/include/linux/page-flags.h	2005-08-09 18:59:57.000000000
-> > -0400 @@ -61,7 +61,7 @@
-> >  #define PG_active		 6
-> >  #define PG_slab			 7	/* slab debug (Suparna wants this) */
-> >
-> > -#define PG_checked		 8	/* kill me in 2.5.<early>. */
-> > +#define PG_miscfs		 8	/* kill me in 2.5.<early>. */
-> >  #define PG_fs_misc		 8
->
-> And all those PageMiscFS macros you're adding to the PageFsMisc ones:
-> doesn't look like progress to me ;)
+On Tue, 9 Aug 2005, Marcelo Tosatti wrote:
 
-Heh, it looks like part of a patch did creep into Andrew's tree already.  I'll 
-fix it on the morrow.
+> Well, not really "good approximation" it sounds to me, the sensibility
+> goes down to L1_CACHE_LINE/sizeof(u32), which is:
+> 
+> - 8 on 32-byte cacheline
+> - 16 on 64-byte cacheline 
+> - 32 on 128-byte cacheline
+> 
+> Right?
+> 
+> So the (nice!) refault histogram gets limited to those values?
 
-Regards,
+I agree that 7 would be too small.  I guess I should limit the
+minimum size of the nonresident hash bucket to 15 entries...
 
-Daniel
+-- 
+All Rights Reversed
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
