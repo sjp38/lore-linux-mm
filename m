@@ -1,40 +1,69 @@
-From: Daniel Phillips <phillips@arcor.de>
-Subject: Re: [RFC][patch 0/2] mm: remove PageReserved
-Date: Wed, 10 Aug 2005 23:34:42 +1000
-References: <20050808145430.15394c3c.akpm@osdl.org> <200508090724.30962.phillips@arcor.de> <31567.1123679613@warthog.cambridge.redhat.com>
-In-Reply-To: <31567.1123679613@warthog.cambridge.redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200508102334.43662.phillips@arcor.de>
+From: David Howells <dhowells@redhat.com>
+In-Reply-To: <200508102334.43662.phillips@arcor.de> 
+References: <200508102334.43662.phillips@arcor.de>  <20050808145430.15394c3c.akpm@osdl.org> <200508090724.30962.phillips@arcor.de> <31567.1123679613@warthog.cambridge.redhat.com> 
+Subject: Re: [RFC][patch 0/2] mm: remove PageReserved 
+Date: Wed, 10 Aug 2005 15:27:52 +0100
+Message-ID: <21701.1123684072@warthog.cambridge.redhat.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: David Howells <dhowells@redhat.com>
-Cc: Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, hugh@veritas.com
+To: Daniel Phillips <phillips@arcor.de>
+Cc: David Howells <dhowells@redhat.com>, Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, hugh@veritas.com
 List-ID: <linux-mm.kvack.org>
 
-On Wednesday 10 August 2005 23:13, David Howells wrote:
-> Andrew Morton <akpm@osdl.org> wrote:
-> > > ...kill PG_checked please :)  Or at least keep it from spreading.
-> >
-> > It already spread - ext3 is using it and I think reiser4.  I thought I
-> > had a patch to rename it to PG_misc1 or somesuch, but no.  It's mandate
-> > becomes "filesystem-specific page flag".
->
-> You're carrying a patch to stick a flag called PG_fs_misc, but that has the
-> same value as PG_checked. An extra page flag beyond PG_uptodate, PG_lock
-> and PG_writeback is required to make readpage through the cache
-> non-synchronous.
+Daniel Phillips <phillips@arcor.de> wrote:
 
-David,
+> > An extra page flag beyond PG_uptodate, PG_lock and PG_writeback is
+> > required to make readpage through the cache non-synchronous.
 
-Interesting, have you got a pointer to a full explanation?  Is this about aio?
+Sorry, I meant to say "filesystem cache": FS-Cache/CacheFS.
 
-Regards,
+> Interesting, have you got a pointer to a full explanation?  Is this about aio?
 
-Daniel
+No, it's nothing to do with AIO. This is to do with using local disk to cache
+network filesystems and other relatively slow devices.
+
+What happens is this:
+
+ (1) readpage() is issued against NFS (for example).
+
+ (2) NFS consults the local cache, and finds the page isn't available there.
+
+ (3) NFS reads the page from the server.
+
+ (4) NFS sets PG_fs_misc and tells the cache to store the page.
+
+ (5) NFS sets PG_uptodate and unlocks the page.
+
+Some time later, the cache finishes writing the page to disk:
+
+ (6) The cache calls NFS to say that it's finished writing the page.
+
+ (7) NFS calls end_page_fs_misc() - which clears PG_fs_misc - to indicate to
+     any waiters that the page can now be written to.
+
+Now: any PTEs set up to point to this page start life read-only. If they're
+part of a shared-writable mapping, then the MMU will generate a WP fault when
+someone attempts to write to the page through that mapping:
+
+ (a) do_wp_page() gets called.
+
+ (b) do_wp_page() sees that the page's host has registered an interest in
+     knowing that the page is becoming writable:
+
+	vm_operations_struct::page_mkwrite()
+
+ (c) do_wp_page() calls out to the filesystem.
+
+ (d) NFS sees the page is wanting to become writable and waits for the
+     PG_fs_misc flag to become cleared.
+
+ (e) NFS returns to the caller and things proceed as normal.
+
+Doing this permits the cache state to be more predictable in the event of
+power loss because we know that userspace won't have scribbled on this page
+whilst the cache was trying to write it to disk.
+
+David
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
