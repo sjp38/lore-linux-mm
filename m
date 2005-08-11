@@ -1,121 +1,29 @@
-From: David Howells <dhowells@redhat.com>
-In-Reply-To: <200508110919.13897.phillips@arcor.de>
-References: <200508110919.13897.phillips@arcor.de>  <200508102334.43662.phillips@arcor.de> <31567.1123679613@warthog.cambridge.redhat.com> <21701.1123684072@warthog.cambridge.redhat.com>
-Subject: Re: [RFC][patch 0/2] mm: remove PageReserved
-Date: Thu, 11 Aug 2005 11:49:20 +0100
-Message-ID: <3521.1123757360@warthog.cambridge.redhat.com>
+Date: Thu, 11 Aug 2005 13:46:22 -0700 (PDT)
+From: Christoph Lameter <christoph@lameter.com>
+Subject: Re: [PATCH] gurantee DMA area for alloc_bootmem_low() ver. 2.
+In-Reply-To: <20050809211501.GB6235@w-mikek2.ibm.com>
+Message-ID: <Pine.LNX.4.62.0508111343300.19728@graphe.net>
+References: <20050809194115.C370.Y-GOTO@jp.fujitsu.com>
+ <20050809211501.GB6235@w-mikek2.ibm.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Daniel Phillips <phillips@arcor.de>
-Cc: David Howells <dhowells@redhat.com>, Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, hugh@veritas.com
+To: Mike Kravetz <kravetz@us.ibm.com>
+Cc: Yasunori Goto <y-goto@jp.fujitsu.com>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@osdl.org>, "Martin J. Bligh" <mbligh@mbligh.org>, linux-ia64@vger.kernel.org, "Luck, Tony" <tony.luck@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-Daniel Phillips <phillips@arcor.de> wrote:
+On Tue, 9 Aug 2005, Mike Kravetz wrote:
 
-> To be honest I'm having some trouble following this through logically.  I'll
-> read through a few more times and see if that fixes the problem.  This seems
-> cluster-related, so I have an interest.
+> I was going to replace more instances of __pa(MAX_DMA_ADDRESS) with
+> max_dma_physaddr().  However, when grepping for MAX_DMA_ADDRESS I
+> noticed instances of virt_to_phys(MAX_DMA_ADDRESS) as well.  Can
+> someone tell me what the differences are between __pa() and virt_to_phys().
+> I noticed that on some archs they are the same, but are different on
+> others.
 
-Well, perhaps I can explain the function for which I'm using this page flag
-more clearly. You'll have to excuse me if it's covering stuff you don't know,
-but I want to take it from first principles; plus this stuff might well find
-its way into the kernel docs.
+On which arches do they differ?
 
-
-We want to use a relatively fast medium (such as RAM or local disk) to speed
-up repeated accesses to a relatively slow medium (such as NFS, NBD, CDROM) by
-means of caching the results of previous accesses to the slow medium on the
-fast medium.
-
-Now we already do this at one level: RAM. The page cache _is_ such a cache,
-but whilst it's much faster than a disk, it is severely restricted in size
-compared to media such as disks, it's more expensive, and it's contents
-generally don't last over power failure or reboots. The major attribute of the
-page cache is that the CPU can access it directly.
-
-So we want to add another level: local disk. The FS-Cache/CacheFS patches
-permit such as AFS and NFS to use local disk as a cache.
-
-
-So, assume that NFS is using a local disk cache (it doesn't matter whether
-it's CacheFS, CacheFiles, or something else), and assume a process has a file
-open through NFS.
-
-The process attempts to read from the file. This causes the NFS readpage() or
-readpages() operation to be invoked to load the data into the page cache so
-that the CPU can make use of it.
-
-So the NFS page reading algorithm first consults the disk cache. Assume this
-returns a negative response - NFS will then read from the server into the page
-cache. Under cacheless operation, it would then unlock the page and the kernel
-could then let userspace play with it, but we're dealing with a cache, and so
-the newly fetched data must be stored in the disk cache for future retrieval.
-
-NFS now has three choices:
-
- (1) It could institigate a write to the disk cache and wait for that to
-     complete before unlocking the page and letting userspace see it, but we
-     don't know how long that might take.
-
-     CacheFS immediately dispatches a write BIO to get it DMA'd to the disk as
-     soon as possible, but something like CacheFiles is dependent on an
-     underlying filesystem - be it EXT3, ReiserFS, XFS, etc. - to perform the
-     write, and we've no control over that.
-
-	Time to unlock: CacheMiss + NetRead + CacheWrite
-	Cache reliable: Yes
-
- (2) It could just unlock the page and let userspace scribble on it whilst
-     simultaneously writing it to the cache. But that means the DMA to the
-     disk may pick up some of userspace's scribblings, and that means you
-     can't trust what's in the cache in the event of a power loss.
-
-     This can be alleviated by marking untrustworthy files in the cache, but
-     that then extends the management time in several ways.
-
-	Time to unlock: CacheMiss + NetRead
-	Cache reliable: No
-
- (3) It could tell the cache that the page needs writing to disk and then
-     unlock it for userspace to read, but intercept the change of a PTE
-     pointing to this page when it loses its write protection (PTEs start off
-     read-only, generating a write protection fault on the first write).
-
-     The interceptor would then force userspace to wait for the cache to
-     finish DMA'ing the page before writing to it.
-
-     Similarly, the write() or prepare_write() operations would wait for the
-     cache to finish with that page.
-
-	Time to unlock: CacheMiss + NetRead
-	Cache reliable: Yes
-
-I originally chose option (1), but then I saw just how much it affected
-performance and worked on option (3).
-
-I discarded option (2) because I want to be able to have some surety about the
-state in the cache - I don't want to have to reinitialise it after a power
-failure. Imagine if you cache /usr... Imagine if everyone in a very large
-office caches /usr...
-
-
-So, the way I implemented (3) is to use an extra page flag to indicate a write
-underway to the cache, and thus allow cache write status to be determined when
-someone wants to scribble on a page.
-
-The fscache_write_page() function takes a pointer to a callback function. In
-NFS this function clears the PG_fs_misc bit on the appropriate pages and wakes
-up anyone who was waiting for this event (end_page_fs_misc()).
-
-The NFS page_mkwrite() VMA op calls wait_on_page_fs_misc() to wait on that
-page bit if it is set.
-
-> Who is using this interface?
-
-AFS and NFS will both use it. There may be others eventually who use it for
-the same purpose. CacheFS has a different use for it internally.
-
-David
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
