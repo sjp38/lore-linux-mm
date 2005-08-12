@@ -1,63 +1,43 @@
-Message-ID: <KLOACLNEOLECHMJLKJKMGADGKIAB.colesmithym@cnicapital.com>
-From: "Cole Smith" <colesmithym@cnicapital.com>
-Subject: Huge movement in oil stocks
-Date: Fri, 12 Aug 2005 18:40:29 +0000
-MIME-Version: 1.0
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e3.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id j7CElBUB005335
+	for <linux-mm@kvack.org>; Fri, 12 Aug 2005 10:47:11 -0400
+Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
+	by d01relay04.pok.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id j7CElBZv145280
+	for <linux-mm@kvack.org>; Fri, 12 Aug 2005 10:47:11 -0400
+Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
+	by d01av01.pok.ibm.com (8.12.11/8.13.3) with ESMTP id j7CElA9Y008435
+	for <linux-mm@kvack.org>; Fri, 12 Aug 2005 10:47:10 -0400
+Subject: [RFC][PATCH 00/12] memory hotplug
+From: Dave Hansen <haveblue@us.ibm.com>
 Content-Type: text/plain
-Content-Transfer-Encoding: base64
+Date: Fri, 12 Aug 2005 07:47:06 -0700
+Message-Id: <1123858026.30202.5.camel@localhost>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: bcrl@kvack.org, linux-mm@kvack.org
+To: linux-mm <linux-mm@kvack.org>
+Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, lhms <lhms-devel@lists.sourceforge.net>
 List-ID: <linux-mm.kvack.org>
 
-RU5FUkdZIEZJTkRFUlMgSU5DIChFR1lGKQ0KQSBVLlMuLWJhc2VkIGNvbXBh
-bnkgZGVkaWNhdGVkIHRvIHRoZSBnb2FsIG9mIGJlaW5nIGEgbGFyZ2UgaW5k
-ZXBlbmRlbnQNCmluIHRoZSBleHBsb3JhdGlvbiBhbmQgcHJvZHVjdGlvbiBv
-ZiBvaWwgYW5kIG5hdHVyYWwgZ2FzLg0KDQpDdXJyZW50IFByaWNlOiAxLjMw
-DQoNCldpbGwgaXQgc3RpbGwgR28gSGlnaGVyPyBEb2VzIGl0IFNvdW5kIE5l
-dyBhbmQgRXhjaXRpbmcgdG8gWW91PyAgUGxlYXNlDQpSZXZpZXcgRXhhY3Rs
-eSBXaGF0IHRoaXMgQ29tcGFueSBEb2VzLg0KIA0KUHJlc3MgUmVsZWFzZSBT
-b3VyY2U6IEVORVJHWSBGSU5ERVJTIElOQyAoIDBpbCAmIEdhcyBDb21wYW55
-ICkNCiANCkF1ZyAxMSwgMjAwNQ0KRW5lcmd5IEZpbmRlcnMsIEluYy4gRW50
-ZXJzIEludG8gTmVnb3RpYXRpb25zIGZvciBBY3F1aXNpdGlvbg0KDQpFbmVy
-Z3kgRmluZGVycywgSW5jLiwgKE90aGVyIE9UQzpFR1lGLlBLIC0gTmV3cykg
-YSBGbG9yaWRhIGNvcnBvcmF0aW9uLA0KaXMgcGxlYXNlZCB0byBhbm5vdW5j
-ZSB0aGF0IGl0IGhhcyBlbnRlcmVkIGludG8gbmVnb3RpYXRpb25zIGZvciB0
-aGUNCmFjcXVpc2l0aW9uIG9mIGFuIG9pbCBhbmQgZ2FzIHByb3BlcnR5IGxv
-Y2F0ZWQgaW4gc291dGh3ZXN0IFRleGFzLg0KVGhlIHByb2plY3QgaXMgaWRl
-bnRpZmllZCBhcyB0aGUgTWVnYS1XZXN0IFByb2plY3QgYW5kIGlzIGxvY2F0
-ZWQNCndlc3Qgb2YgU2FuIEFudG9uaW8sIFRleGFzLiBUaGUgaW5pdGlhbCBi
-bG9jayBvZiBvaWwgYW5kIGdhcyBsZWFzZXMNCndpbGwgY29uc2lzdCBvZiBh
-cHByb3hpbWF0ZWx5IDE0LDAwMCBhY3Jlcy4gUHJlbGltaW5hcnkgZ2VvbG9n
-aWNhbA0KaW5mb3JtYXRpb24gaWRlbnRpZmllcyBudW1lcm91cyBpbi1maWVs
-ZCBkcmlsbGluZyBsb2NhdGlvbnMgZm9yIGZ1cnRoZXINCmRldmVsb3BtZW50
-IG9mIHRoaXMgYWNyZWFnZS4gVGhlIGNvcnBvcmF0aW9uIGlzIGluIGl0cyBk
-aWxpZ2VuY2UgcGhhc2UNCmFuZCBpZiBpdCBwcm92ZXMgdG8gYmUgZmF2b3Jh
-YmxlLCB3aWxsIGF0dGVtcHQgdG8gY29tcGxldGUgdGhlDQphY3F1aXNpdGlv
-biBvZiB0aGlzIHByb3BlcnR5IGFuZCBiZWdpbiBvcGVyYXRpb25zIGFuZCBk
-ZXZlbG9wbWVudA0KYXMgc29vbiBhcyBwb3NzaWJsZS4NCiANCkFib3V0IHRo
-ZSBDb21wYW55DQogDQpFbmVyZ3kgRmluZGVycywgSW5jLiBpcyBhIFUuUy4t
-YmFzZWQgY29tcGFueSBkZWRpY2F0ZWQgdG8gdGhlIGdvYWwgb2YgYmVpbmcN
-CmEgbGFyZ2UgaW5kZXBlbmRlbnQgaW4gdGhlIGV4cGxvcmF0aW9uIGFuZCBw
-cm9kdWN0aW9uIG9mIG9pbCBhbmQgbmF0dXJhbCBnYXMuDQpUaGUgY29tcGFu
-eSdzIG1pc3Npb24gaXMgdG8gY3JlYXRlIHZhbHVlIGZvciBvdXIgc2hhcmVo
-b2xkZXJzIGJ5IGFwcGx5aW5nDQpzdHJvbmcgdGVjaG5pY2FsIGV4cGVydGlz
-ZSB0byBzdHJhdGVnaWVzIHRoYXQgd2lsbCB1bmxvY2sgc3Vic3RhbnRpYWwg
-b2lsDQphbmQgZ2FzIHJlc291cmNlcyBpbiBhcmVhcyB3aGVyZSBwcm9kdWN0
-aW9uIGNhbiBiZSBhY2hpZXZlZCBxdWlja2x5IGFuZCBlZmZpY2llbnRseS4N
-Cg0KDQpQZW5ueSBzdG9ja3MgYXJlIGNvbnNpZGVyZWQgaGlnaGx5IHNwZWN1
-bGF0aXZlIGFuZCBtYXkgYmUgdW5zdWl0YWJsZQ0KZm9yIGFsbCBidXQgdmVy
-eSBhZ2dyZXNzaXZlIGludmVzdG9ycy4gIFRoaXMgUHJvZmlsZSBpcyBub3Qg
-aW4gYW55IHdheQ0KYWZmaWxpYXRlZCB3aXRoIHRoZSBmZWF0dXJlZCBjb21w
-YW55LiAgV2Ugd2VyZSBjb21wZW5zYXRlZCAzMDAwIGRvbGxhcnMNCnRvIGRp
-c3RyaWJ1dGUgdGhpcyByZXBvcnQuICBUaGlzIHJlcG9ydCBpcyBmb3IgZW50
-ZXJ0YWlubWVudCBhbmQNCmFkdmVydGlzaW5nIHB1cnBvc2VzIG9ubHkgYW5k
-IHNob3VsZCBub3QgYmUgdXNlZCBhcyBpbnZlc3RtZW50IGFkdmljZS4gDQpJ
-ZiB5b3Ugd2lzaCB0byBzdG9wIGZ1dHVyZSBtYWlsaW5ncywgb3IgaWYgeW91
-IGZlZWwgeW91IGhhdmUgYmVlbg0Kd3JvbmdmdWxseSBwbGFjZWQgaW4gb3Vy
-IG1lbWJlcnNoaXAsIHNlbmQgYSBibGFuayBlIG1haWwgd2l0aCBObyBUaGFu
-a3MgaW4NCnRoZSBzdWIgamVjdCB0byByZW0wdmVtZW4wdyBAIHlhaG9vLmNv
-bSA=
+The following patches are apply to 2.6.13-rc6, or to 2.6.13-rc5-mm1 (if
+you back out the existing sparsemem-extreme.patch and apply the stuff I
+posted yesterday).  Barring any serious objections, I think they're just
+about ready for a run in -mm.
+
+The following series implements memory hot-add for ppc64 and i386.
+There are x86_64 and ia64 implementations that will be submitted shortly
+as well.
+
+There are some debugging patches that I use on i386 to do "fake"
+hotplug, so I can share those if anybody wants to just play around with
+it.
+
+BTW, thanks to everybody who has sent code in and contributed little
+bits and pieces to this.  Too numerous to name, but there were certainly
+a lot more people than just me.
+
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
