@@ -1,228 +1,252 @@
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by e6.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id j7BMmAnW019777
-	for <linux-mm@kvack.org>; Thu, 11 Aug 2005 18:48:10 -0400
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay04.pok.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id j7BMmArR235074
-	for <linux-mm@kvack.org>; Thu, 11 Aug 2005 18:48:10 -0400
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.12.11/8.13.3) with ESMTP id j7BMmAIK028653
-	for <linux-mm@kvack.org>; Thu, 11 Aug 2005 18:48:10 -0400
-Subject: [PATCH 1/2] sparsemem extreme implementation
-From: Dave Hansen <haveblue@us.ibm.com>
-Date: Thu, 11 Aug 2005 15:48:07 -0700
-Message-Id: <20050811224807.D1B56AC2@kernel.beaverton.ibm.com>
+From: David Howells <dhowells@redhat.com>
+In-Reply-To: <200508121234.13951.phillips@arcor.de> 
+References: <200508121234.13951.phillips@arcor.de>  <20050810234246.GT4006@stusta.de> <200508110823.53593.phillips@arcor.de> <27057.1123753592@warthog.cambridge.redhat.com> 
+Subject: Re: [RFC][PATCH] Rename PageChecked as PageMiscFS 
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="=-=-="
+Date: Fri, 12 Aug 2005 13:32:32 +0100
+Message-ID: <5083.1123849952@warthog.cambridge.redhat.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: akpm@osdl.org, linux-mm@kvack.org
+To: Daniel Phillips <phillips@arcor.de>
+Cc: David Howells <dhowells@redhat.com>, Adrian Bunk <bunk@stusta.de>, Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Hugh Dickins <hugh@veritas.com>
 List-ID: <linux-mm.kvack.org>
 
-This applies to 2.6.13-rc5-mm1 and replaces the existing
-sparsemem-extreme.patch
+--=-=-=
 
-----
+Daniel Phillips <phillips@arcor.de> wrote:
 
-From: Bob Picco <bob.picco@hp.com>
-With cleanups from Dave Hansen <haveblue@us.ibm.com>
+> > I know you want to ruthlessly trim out anything that isn't used, but please
+> > be patient:-)
+> 
+> Are you sure CacheFS is even the right way to do client-side caching?
 
-SPARSEMEM_EXTREME makes mem_section a one dimensional array of
-pointers to mem_sections. This two level layout scheme is able to achieve
-smaller memory requirements for SPARSEMEM with the tradeoff of an additional
-shift and load when fetching the memory section.  The current SPARSEMEM
-implementation is a one dimensional array of mem_sections which is the default 
-SPARSEMEM configuration.  The patch attempts isolates the implementation details
-of the physical layout of the sparsemem section array.
+It's just one way. See the attached document for how it works.
 
-SPARSEMEM_EXTREME requires bootmem to be functioning at the time of
-memory_present() calls.  This is not always feasible, so architectures which
-do not need it may allocate everything statically by using SPARSEMEM_STATIC.
+> What is wrong with handling the backing store directly in your network
+> filesystem?
 
-Signed-off-by: Andy Whitcroft <apw@shadowen.org>
-Signed-off-by: Bob Picco <bob.picco@hp.com>
-Signed-off-by: Dave Hansen <haveblue@us.ibm.com>
----
+What do you mean by "handle the backing store"? Note that the system I'm
+proposing involves directly moving data between netfs pages and the cache. I'm
+trying very hard to avoid copying the data any more than I have to.
 
- memhotplug-dave/arch/i386/Kconfig      |    1 
- memhotplug-dave/include/linux/mmzone.h |   24 ++++++++++++++---
- memhotplug-dave/mm/Kconfig             |   22 +++++++++++++++
- memhotplug-dave/mm/sparse.c            |   46 ++++++++++++++++++++++++++++-----
- 4 files changed, 83 insertions(+), 10 deletions(-)
+> You have to hack your filesystem to use CacheFS anyway, so why not write
+> some library functions to handle the backing store mapping and turn the hack
+> into a few library calls instead?
 
-diff -puN include/linux/mmzone.h~A3-sparsemem-extreme include/linux/mmzone.h
---- memhotplug/include/linux/mmzone.h~A3-sparsemem-extreme	2005-08-11 15:46:16.000000000 -0700
-+++ memhotplug-dave/include/linux/mmzone.h	2005-08-11 15:46:16.000000000 -0700
-@@ -487,11 +487,27 @@ struct mem_section {
- 	unsigned long section_mem_map;
- };
- 
--extern struct mem_section mem_section[NR_MEM_SECTIONS];
-+#ifdef CONFIG_SPARSEMEM_EXTREME
-+#define SECTIONS_PER_ROOT       (PAGE_SIZE / sizeof (struct mem_section))
-+#else
-+#define SECTIONS_PER_ROOT	1
-+#endif
-+
-+#define SECTION_NR_TO_ROOT(sec)	((sec) / SECTIONS_PER_ROOT)
-+#define NR_SECTION_ROOTS	(NR_MEM_SECTIONS / SECTIONS_PER_ROOT)
-+#define SECTION_ROOT_MASK	(SECTIONS_PER_ROOT - 1)
-+
-+#ifdef CONFIG_SPARSEMEM_EXTREME
-+extern struct mem_section *mem_section[NR_SECTION_ROOTS];
-+#else
-+extern struct mem_section mem_section[NR_SECTION_ROOTS][SECTIONS_PER_ROOT];
-+#endif
- 
- static inline struct mem_section *__nr_to_section(unsigned long nr)
- {
--	return &mem_section[nr];
-+	if (!mem_section[SECTION_NR_TO_ROOT(nr)])
-+		return NULL;
-+	return &mem_section[SECTION_NR_TO_ROOT(nr)][nr & SECTION_ROOT_MASK];
- }
- 
- /*
-@@ -513,12 +529,12 @@ static inline struct page *__section_mem
- 
- static inline int valid_section(struct mem_section *section)
- {
--	return (section->section_mem_map & SECTION_MARKED_PRESENT);
-+	return (section && (section->section_mem_map & SECTION_MARKED_PRESENT));
- }
- 
- static inline int section_has_mem_map(struct mem_section *section)
- {
--	return (section->section_mem_map & SECTION_HAS_MEM_MAP);
-+	return (section && (section->section_mem_map & SECTION_HAS_MEM_MAP));
- }
- 
- static inline int valid_section_nr(unsigned long nr)
-diff -puN mm/Kconfig~A3-sparsemem-extreme mm/Kconfig
---- memhotplug/mm/Kconfig~A3-sparsemem-extreme	2005-08-11 15:46:16.000000000 -0700
-+++ memhotplug-dave/mm/Kconfig	2005-08-11 15:46:16.000000000 -0700
-@@ -89,3 +89,25 @@ config NEED_MULTIPLE_NODES
- config HAVE_MEMORY_PRESENT
- 	def_bool y
- 	depends on ARCH_HAVE_MEMORY_PRESENT || SPARSEMEM
-+
-+#
-+# SPARSEMEM_EXTREME (which is the default) does some bootmem
-+# allocations when memory_present() is called.  If this can not
-+# be done on your architecture, select this option.  However,
-+# statically allocating the mem_section[] array can potentially
-+# consume vast quantities of .bss, so be careful.
-+#
-+# This option will also potentially produce smaller runtime code
-+# with gcc 3.4 and later.
-+#
-+config SPARSEMEM_STATIC
-+	def_bool n
-+
-+#
-+# Architectecture platforms which require a two level mem_section in SPARSEMEM
-+# must select this option. This is usually for architecture platforms with
-+# an extremely sparse physical address space.
-+#
-+config SPARSEMEM_EXTREME
-+	def_bool y
-+	depends on SPARSEMEM && !SPARSEMEM_STATIC
-diff -puN mm/sparse.c~A3-sparsemem-extreme mm/sparse.c
---- memhotplug/mm/sparse.c~A3-sparsemem-extreme	2005-08-11 15:46:16.000000000 -0700
-+++ memhotplug-dave/mm/sparse.c	2005-08-11 15:46:16.000000000 -0700
-@@ -13,9 +13,36 @@
-  *
-  * 1) mem_section	- memory sections, mem_map's for valid memory
-  */
--struct mem_section mem_section[NR_MEM_SECTIONS];
-+#ifdef CONFIG_SPARSEMEM_EXTREME
-+struct mem_section *mem_section[NR_SECTION_ROOTS]
-+	____cacheline_maxaligned_in_smp;
-+#else
-+struct mem_section mem_section[NR_SECTION_ROOTS][SECTIONS_PER_ROOT]
-+	____cacheline_maxaligned_in_smp;
-+#endif
- EXPORT_SYMBOL(mem_section);
- 
-+static void sparse_alloc_root(unsigned long root, int nid)
-+{
-+#ifdef CONFIG_SPARSEMEM_EXTREME
-+	mem_section[root] = alloc_bootmem_node(NODE_DATA(nid), PAGE_SIZE);
-+#endif
-+}
-+
-+static void sparse_index_init(unsigned long section, int nid)
-+{
-+	unsigned long root = SECTION_NR_TO_ROOT(section);
-+
-+	if (mem_section[root])
-+		return;
-+
-+	sparse_alloc_root(root, nid);
-+
-+	if (mem_section[root])
-+		memset(mem_section[root], 0, PAGE_SIZE);
-+	else
-+		panic("memory_present: NO MEMORY\n");
-+}
- /* Record a memory area against a node. */
- void memory_present(int nid, unsigned long start, unsigned long end)
- {
-@@ -24,8 +51,13 @@ void memory_present(int nid, unsigned lo
- 	start &= PAGE_SECTION_MASK;
- 	for (pfn = start; pfn < end; pfn += PAGES_PER_SECTION) {
- 		unsigned long section = pfn_to_section_nr(pfn);
--		if (!mem_section[section].section_mem_map)
--			mem_section[section].section_mem_map = SECTION_MARKED_PRESENT;
-+		struct mem_section *ms;
-+
-+		sparse_index_init(section, nid);
-+
-+		ms = __nr_to_section(section);
-+		if (!ms->section_mem_map)
-+			ms->section_mem_map = SECTION_MARKED_PRESENT;
- 	}
- }
- 
-@@ -85,6 +117,7 @@ static struct page *sparse_early_mem_map
- {
- 	struct page *map;
- 	int nid = early_pfn_to_nid(section_nr_to_pfn(pnum));
-+	struct mem_section *ms = __nr_to_section(pnum);
- 
- 	map = alloc_remap(nid, sizeof(struct page) * PAGES_PER_SECTION);
- 	if (map)
-@@ -96,7 +129,7 @@ static struct page *sparse_early_mem_map
- 		return map;
- 
- 	printk(KERN_WARNING "%s: allocation failed\n", __FUNCTION__);
--	mem_section[pnum].section_mem_map = 0;
-+	ms->section_mem_map = 0;
- 	return NULL;
- }
- 
-@@ -114,8 +147,9 @@ void sparse_init(void)
- 			continue;
- 
- 		map = sparse_early_mem_map_alloc(pnum);
--		if (map)
--			sparse_init_one_section(&mem_section[pnum], pnum, map);
-+		if (!map)
-+			continue;
-+		sparse_init_one_section(__nr_to_section(pnum), pnum, map);
- 	}
- }
- 
-diff -puN arch/i386/Kconfig~A3-sparsemem-extreme arch/i386/Kconfig
---- memhotplug/arch/i386/Kconfig~A3-sparsemem-extreme	2005-08-11 15:46:16.000000000 -0700
-+++ memhotplug-dave/arch/i386/Kconfig	2005-08-11 15:46:16.000000000 -0700
-@@ -754,6 +754,7 @@ config NUMA
- 	depends on SMP && HIGHMEM64G && (X86_NUMAQ || X86_GENERICARCH || (X86_SUMMIT && ACPI))
- 	default n if X86_PC
- 	default y if (X86_NUMAQ || X86_SUMMIT)
-+	select SPARSEMEM_STATIC
- 
- # Need comments to help the hapless user trying to turn on NUMA support
- comment "NUMA (NUMA-Q) requires SMP, 64GB highmem support"
-_
+FS-Cache is just that. CacheFS is one of a number of proposed backends.
 
+> I just don't see how turning this functionality into a filesystem is the
+> right abstraction.  What actual advantage is there?  I noticed somebody out
+> there on the web waxing poetic about how the administrator can look into the
+> cache, see what is cached, and even delete some of it.  That just makes me
+> cringe.
+
+Well... With CacheFS you can't do that; not now, at least.
+
+Using a block device has the very great advantage that it's a lot easier to
+provide guarantees about service quality. Reading an NFS file through CacheFS
+on a blockdev seems to be somewhat faster than reading the same file from
+EXT2. I'm not sure why, but I'm sure Stephen and others will be very
+interested if I find out.
+
+The downside of using a block device is that you have to have one available,
+and it can't easily be used for something else. Actually, this last isn't
+entirely true: CacheFS is a filesystem after all...
+
+Actually, given that CacheFS is a filesystem, that makes the userspace UI for
+using it very simple...
+
+Besides, who says CacheFS will be the only back end? CacheFiles is coming too,
+but CacheFiles is, in many ways, a lot harder as I have to work through an
+existing filesystem, using existing access functions. Not only that, but
+CacheFiles can't provide a guarantee of minimum space and can't provide
+reservations. CacheFiles has to be able to use O_DIRECT (which I have a patch
+for), but has to be able to detect holes in the backing file.
+
+What ever you do, do not forget the following hard requirements:
+
+ (1) It must be trivially possible run without a cache.
+
+ (2) It must be possible to access a file that's larger than the maximum size
+     of the cache.
+
+ (3) It must be possible to simultaneously access a set of files that are
+     larger than the maximum size of the cache.
+
+ (4) It mustn't take hours to open a huge file, just so you can access one
+     block.
+
+ (5) The cache must be able to survive power failure, and be recovered into a
+     known state.
+
+ (6) It must be possible to ignore I/O errors on the cache.
+
+ (7) There mustn't be too much change to the netfs. FS-Cache doesn't really
+     have that much of an impact on any filesystem that wishes to use it.
+
+Note that if you're thinking of using i_host on the netfs inode to point at
+the cache inode, and downloading the entire file on iget(), possibly in
+userspace, then forget it: that violates (2), (3), (4) and (6) at the very
+least.
+
+David
+
+--=-=-=
+Content-Disposition: attachment; filename=fscache.txt
+
+			  ==========================
+			  General Filesystem Caching
+			  ==========================
+
+========
+OVERVIEW
+========
+
+This facility is a general purpose cache for network filesystems, though it
+could be used for caching other things such as ISO9660 filesystems too.
+
+FS-Cache mediates between cache backends (such as CacheFS) and network
+filesystems:
+
+	+---------+
+	|         |                        +-----------+
+	|   NFS   |--+                     |           |
+	|         |  |                 +-->|  CacheFS  |
+	+---------+  |   +----------+  |   | /dev/hda5 |
+	             |   |          |  |   +-----------+
+	+---------+  +-->|          |  |
+	|         |      |          |--+   +-------------+
+	|   AFS   |----->| FS-Cache |      |             |
+	|         |      |          |----->| Cache Files |
+	+---------+  +-->|          |      | /var/cache  |
+	             |   |          |--+   +-------------+
+	+---------+  |   +----------+  |
+	|         |  |                 |   +-------------+
+	|  ISOFS  |--+                 |   |             |
+	|         |                    +-->| ReiserCache |
+	+---------+                        | /           |
+	                                   +-------------+
+
+FS-Cache does not follow the idea of completely loading every netfs file
+opened in its entirety into a cache before permitting it to be accessed and
+then serving the pages out of that cache rather than the netfs inode because:
+
+ (1) It must be practical to operate without a cache.
+
+ (2) The size of any accessible file must not be limited to the size of the
+     cache.
+
+ (3) The combined size of all opened files (this includes mapped libraries)
+     must not be limited to the size of the cache.
+
+ (4) The user should not be forced to download an entire file just to do a
+     one-off access of a small portion of it (such as might be done with the
+     "file" program).
+
+It instead serves the cache out in PAGE_SIZE chunks as and when requested by
+the netfs('s) using it.
+
+
+FS-Cache provides the following facilities:
+
+ (1) More than one cache can be used at once. Caches can be selected explicitly
+     by use of tags.
+
+ (2) Caches can be added / removed at any time.
+
+ (3) The netfs is provided with an interface that allows either party to
+     withdraw caching facilities from a file (required for (2)).
+
+ (4) The interface to the netfs returns as few errors as possible, preferring
+     rather to let the netfs remain oblivious.
+
+ (5) Cookies are used to represent indexes, files and other objects to the
+     netfs. The simplest cookie is just a NULL pointer - indicating nothing
+     cached there.
+
+ (6) The netfs is allowed to propose - dynamically - any index hierarchy it
+     desires, though it must be aware that the index search function is
+     recursive, stack space is limited, and indexes can only be children of
+     indexes.
+
+ (7) Data I/O is done direct to and from the netfs's pages. The netfs indicates
+     that page A is at index B of the data-file represented by cookie C, and
+     that it should be read or written. The cache backend may or may not start
+     I/O on that page, but if it does, a netfs callback will be invoked to
+     indicate completion. The I/O may be either synchronous or asynchronous.
+
+ (8) Cookies can be "retired" upon release. At this point FS-Cache will mark
+     them as obsolete and the index hierarchy rooted at that point will get
+     recycled.
+
+ (9) The netfs provides a "match" function for index searches. In addition to
+     saying whether a match was made or not, this can also specify that an
+     entry should be updated or deleted.
+
+
+FS-Cache maintains a virtual indexing tree in which all indexes, files, objects
+and pages are kept. Bits of this tree may actually reside in one or more
+caches.
+
+                                           FSDEF
+                                             |
+                        +------------------------------------+
+                        |                                    |
+                       NFS                                  AFS
+                        |                                    |
+           +--------------------------+                +-----------+
+           |                          |                |           |
+        homedir                     mirror          afs.org   redhat.com
+           |                          |                            |
+     +------------+           +---------------+              +----------+
+     |            |           |               |              |          |
+   00001        00002       00007           00125        vol00001   vol00002
+     |            |           |               |                         |
+ +---+---+     +-----+      +---+      +------+------+            +-----+----+
+ |   |   |     |     |      |   |      |      |      |            |     |    |
+PG0 PG1 PG2   PG0  XATTR   PG0 PG1   DIRENT DIRENT DIRENT        R/W   R/O  Bak
+                     |                                            |
+                    PG0                                       +-------+
+                                                              |       |
+                                                            00001   00003
+                                                              |
+                                                          +---+---+
+                                                          |   |   |
+                                                         PG0 PG1 PG2
+
+In the example above, you can see two netfs's being backed: NFS and AFS. These
+have different index hierarchies:
+
+ (*) The NFS primary index contains per-server indexes. Each server index is
+     indexed by NFS file handles to get data file objects. Each data file
+     objects can have an array of pages, but may also have further child
+     objects, such as extended attributes and directory entries. Extended
+     attribute objects themselves have page-array contents.
+
+ (*) The AFS primary index contains per-cell indexes. Each cell index contains
+     per-logical-volume indexes. Each of volume index contains up to three
+     indexes for the read-write, read-only and backup mirrors of those
+     volumes. Each of these contains vnode data file objects, each of which
+     contains an array of pages.
+
+The very top index is the FS-Cache master index in which individual netfs's
+have entries.
+
+Any index object may reside in more than one cache, provided it only has index
+children. Any index with non-index object children will be assumed to only
+reside in one cache.
+
+
+The netfs API to FS-Cache can be found in:
+
+	Documentation/filesystems/caching/netfs-api.txt
+
+The cache backend API to FS-Cache can be found in:
+
+	Documentation/filesystems/caching/backend-api.txt
+
+--=-=-=--
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
