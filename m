@@ -1,43 +1,35 @@
-From: Daniel Phillips <phillips@arcor.de>
+From: Daniel Phillips <phillips@istop.com>
 Subject: Re: [RFC][PATCH] Rename PageChecked as PageMiscFS
-Date: Fri, 12 Aug 2005 12:34:13 +1000
-References: <20050810234246.GT4006@stusta.de> <200508110823.53593.phillips@arcor.de> <27057.1123753592@warthog.cambridge.redhat.com>
-In-Reply-To: <27057.1123753592@warthog.cambridge.redhat.com>
+Date: Fri, 12 Aug 2005 13:29:46 +1000
+References: <200508110812.59986.phillips@arcor.de> <20050808145430.15394c3c.akpm@osdl.org> <26569.1123752390@warthog.cambridge.redhat.com>
+In-Reply-To: <26569.1123752390@warthog.cambridge.redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain;
   charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-Message-Id: <200508121234.13951.phillips@arcor.de>
+Message-Id: <200508121329.46533.phillips@istop.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: David Howells <dhowells@redhat.com>
-Cc: Adrian Bunk <bunk@stusta.de>, Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Hugh Dickins <hugh@veritas.com>
+Cc: Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Hugh Dickins <hugh@veritas.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thursday 11 August 2005 19:46, David Howells wrote:
-> Adrian Bunk <bunk@stusta.de> wrote:
-> > Since this was done only for CacheFS, and Andrew dropped CacheFS from
-> > -mm he could drop this patch as well.
+On Thursday 11 August 2005 19:26, David Howells wrote:
+> Daniel Phillips <phillips@arcor.de> wrote:
+> > +	SetPageMiscFS(page);
 >
-> I asked him not to. Somewhat at his instigation, I requested that he drop
-> the filesystem caching patches for the moment. I'm updating them and
-> they'll be back soon. Taking out this and the other remaining patch means
-> he'll just be given them back again shortly.
+> Can you please retain the *PageFsMisc names I've been using in my stuff?
 >
-> I know you want to ruthlessly trim out anything that isn't used, but please
-> be patient:-)
+> In my opinion putting the "Fs" bit first gives a clearer indication that
+> this is a bit exclusively for the use of filesystems in general.
 
-Are you sure CacheFS is even the right way to do client-side caching?  What is 
-wrong with handling the backing store directly in your network filesystem?  
-You have to hack your filesystem to use CacheFS anyway, so why not write some 
-library functions to handle the backing store mapping and turn the hack into 
-a few library calls instead?
+You also achieved some sort of new low point in the abuse of StudlyCaps there. 
+Please, let's not get started on mixed case acronyms.
 
-I just don't see how turning this functionality into a filesystem is the right 
-abstraction.  What actual advantage is there?  I noticed somebody out there 
-on the web waxing poetic about how the administrator can look into the cache, 
-see what is cached, and even delete some of it.  That just makes me cringe.
+Anyway, it sounds like you want to bless the use of private page flags in 
+filesystems.  That is most probably a bad idea.  Take a browse through the 
+existing users and feast your eyes on the spectacular lack of elegance.
 
 Regards,
 
