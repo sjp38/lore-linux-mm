@@ -1,44 +1,49 @@
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by e3.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id j7CElBUB005335
-	for <linux-mm@kvack.org>; Fri, 12 Aug 2005 10:47:11 -0400
-Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
-	by d01relay04.pok.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id j7CElBZv145280
-	for <linux-mm@kvack.org>; Fri, 12 Aug 2005 10:47:11 -0400
-Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
-	by d01av01.pok.ibm.com (8.12.11/8.13.3) with ESMTP id j7CElA9Y008435
-	for <linux-mm@kvack.org>; Fri, 12 Aug 2005 10:47:10 -0400
-Subject: [RFC][PATCH 00/12] memory hotplug
-From: Dave Hansen <haveblue@us.ibm.com>
-Content-Type: text/plain
-Date: Fri, 12 Aug 2005 07:47:06 -0700
-Message-Id: <1123858026.30202.5.camel@localhost>
+Received: by zproxy.gmail.com with SMTP id x7so463224nzc
+        for <linux-mm@kvack.org>; Fri, 12 Aug 2005 07:54:57 -0700 (PDT)
+Message-ID: <aa863ca80508120754655f3200@mail.gmail.com>
+Date: Fri, 12 Aug 2005 22:54:57 +0800
+From: ren zhy <zhyu.ren@gmail.com>
+Subject: page->_count in shrink_cache() and shrink_list() ??
 Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 8BIT
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm <linux-mm@kvack.org>
-Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, lhms <lhms-devel@lists.sourceforge.net>
 List-ID: <linux-mm.kvack.org>
 
-The following patches are apply to 2.6.13-rc6, or to 2.6.13-rc5-mm1 (if
-you back out the existing sparsemem-extreme.patch and apply the stuff I
-posted yesterday).  Barring any serious objections, I think they're just
-about ready for a run in -mm.
+Hi,I am a kernel newbie and have a question about page_count in
+shrink_list() ( 2.6.11 source code ).
+  When kswapd began to shrink_cache(),it will first collect the pages
+in zone->inactive_list which are not about to free into a temp
+list:page_list .
+565 if (get_page_testone(page)) { 
+569 __put_page(page); 
+570 SetPageLRU(page); 
+571 list_add(&page->lru, &zone->inactive_list); 
+572 continue; 
+573 } 
+574 list_add(&page->lru, &page_list); 
+...
+Then shrink_list() will check and try to free some fit pages.
+589 nr_freed = shrink_list(&page_list, sc); 
 
-The following series implements memory hot-add for ppc64 and i386.
-There are x86_64 and ia64 implementations that will be submitted shortly
-as well.
-
-There are some debugging patches that I use on i386 to do "fake"
-hotplug, so I can share those if anybody wants to just play around with
-it.
-
-BTW, thanks to everybody who has sent code in and contributed little
-bits and pieces to this.  Too numerous to name, but there were certainly
-a lot more people than just me.
-
--- Dave
-
+in shrink_list(),I dont know why kernel will judge the expression
+if(page_count(page)!=2) before doing something with this page.
+After a page is allocated ,its page_count() is 1 and again  kernel add
+1  in shrink_cache (line 565).So I think if the page is in page cache
+or swap cache ,its page_count() is at least 3 and line 485 will not
+satisfied.
+480 /* 
+481 * The non-racy check for busy page. It is critical to check 
+482 * PageDirty _after_ making sure that the page is freeable and 
+483 * not in use by anybody. (pagecache + us == 2) 
+484 */ 
+485 if (page_count(page) != 2 || PageDirty(page)) { 
+486 spin_unlock_irq(&mapping->tree_lock); 
+487 goto keep_locked; 
+488 }
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
