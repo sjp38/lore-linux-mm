@@ -1,81 +1,60 @@
-Date: Fri, 12 Aug 2005 20:08:25 -0300
-From: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
-Subject: Re: Zoned CART
-Message-ID: <20050812230825.GB11168@dmt.cnet>
-References: <1123857429.14899.59.camel@twins> <42FCC359.20200@andrew.cmu.edu>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Received: from mail.sisk.pl ([127.0.0.1])
+ by localhost (grendel [127.0.0.1]) (amavisd-new, port 10024) with SMTP
+ id 16120-10 for <linux-mm@kvack.org>; Sat, 13 Aug 2005 09:02:58 +0200 (CEST)
+From: "Rafael J. Wysocki" <rjw@sisk.pl>
+Subject: Re: [RFC][patch 0/2] mm: remove PageReserved
+Date: Sat, 13 Aug 2005 09:06:42 +0200
+References: <42F57FCA.9040805@yahoo.com.au> <200508130020.11864.rjw@sisk.pl> <200508130904.41438.phillips@arcor.de>
+In-Reply-To: <200508130904.41438.phillips@arcor.de>
+MIME-Version: 1.0
+Content-Type: text/plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <42FCC359.20200@andrew.cmu.edu>
+Message-Id: <200508130906.44088.rjw@sisk.pl>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rahul Iyer <rni@andrew.cmu.edu>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>
+To: Daniel Phillips <phillips@arcor.de>
+Cc: linux-kernel@vger.kernel.org, "Martin J. Bligh" <mbligh@mbligh.org>, Pavel Machek <pavel@suse.cz>, Nick Piggin <nickpiggin@yahoo.com.au>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Linux Memory Management <linux-mm@kvack.org>, Hugh Dickins <hugh@veritas.com>, Linus Torvalds <torvalds@osdl.org>, Andrew Morton <akpm@osdl.org>, Andrea Arcangeli <andrea@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Aug 12, 2005 at 11:42:17AM -0400, Rahul Iyer wrote:
-> Hi Peter,
-> I have recently released another patch...
-> both patches are at http://www.cs.cmu.edu/~412/projects/CART/
-> Thanks
-> Rahul
+On Saturday, 13 of August 2005 01:04, Daniel Phillips wrote:
+> On Saturday 13 August 2005 08:20, Rafael J. Wysocki wrote:
+> > On Friday, 12 of August 2005 21:56, Daniel Phillips wrote:
+> > > I still don't see why you can't lift your flags up into the VMA.  The
+> > > rmap mechanism is there precisely to let you get from the physical page
+> > > to the users and user data, including VMAs.
+> >
+> > I'm not sure if I understand the issue, but swsusp works on a different
+> > level. It only needs to figure out which physical pages, as represented by
+> > struct page objects, should be saved to swap before suspend.  We browse all
+> > zones (once) and create a list of page frames that should be saved on the
+> > basis of the contents of the struct page objects alone.  IMHO if we needed
+> > to use any additional mechanisms here, it would be less efficient than just
+> > checking the page flags.
+> 
+> Isn't that what hash tables are for?  It seems to me obvious that you don't 
+> absolutely need to reserve page flag bits, but you think this is better, 
+> maybe enough faster to make a perceptible difference.  How about testing with 
+> a hash table?  If it dims the lights then you have all the argument you need.
+> 
+> Admittedly, page flags have not gotten really tight just yet, and this is 
+> something you can change later if they do become tight.  But it would be very 
+> nice to know just which of those page flags are really needed (like uptodate) 
+> versus which are just there for convenience.  I think yours fall in the 
+> latter category.
 
-Hi Rahul,
+Well, I think we can do without PG_nosave in swsusp, although it would require
+a considerable effort to remove it.
 
-Have some comments on the CART v2 patch
+Greets,
+Rafael
 
-I find it a very interesting idea to split the active list in two!  
 
-+#define EVICTED_ACTIVE                 1
-+#define EVICTED_LONGTERM       2
-+#define ACTIVE                 3
-+#define ACTIVE_LONGTERM                4
-
-You have different definitions using the same bit positions.
-Those values should be 1, 2, 4 and 8.
-
-+#define EvictedActive(location)                location & EVICTED_ACTIVE
-+#define EvictedLongterm(location)      location & EVICTED_LONGTERM
-+#define Active(location)               location & ACTIVE
-+#define ActiveLongterm(location)       location & ACTIVE_LONGTERM
-
-(location  & xxxx) looks nicer.
-
-+struct non_res_list_node {
-+	struct list_head list;
-+	struct list_head hash;
-+	unsigned long mapping;
-+	unsigned long offset;
-+	unsigned long inode;
-+}; 
-
-+	node->offset = page->index;
-+	node->mapping = (unsigned long) page->mapping;
-+	node->inode = get_inode_num(page->mapping);
-
-You can compress these tree fields into a single one with a hash function.
-
-+/* The replace function. This function serches the active and longterm
-+lists and looks for a candidate for replacement. This function selects
-+the candidate and returns the corresponding structpage or returns
-+NULL in case no page can be freed. The *where argument is used to
-+indicate the parent list of the page so that, in case it cannot be
-+written back, it can be placed back on the correct list */ 
-+struct page *replace(struct zone *zone, int *where)
-
-+	list = list->next;
-+	while (list !=&zone->active_longterm) {
-+		page = list_entry(list, struct page, lru);
-+
-+		if (!PageReferenced(page))
-+			break;
-+		
-+		ClearPageReferenced(page);
-+		del_page_from_active_longterm(zone, page);
-+		add_page_to_active_list_tail(zone, page);
-
-This sounds odd. If a page is referenced you remove it from the longterm list
-"unpromoting" it to the active list? Shouldnt be the other way around?
+-- 
+- Would you tell me, please, which way I ought to go from here?
+- That depends a good deal on where you want to get to.
+		-- Lewis Carroll "Alice's Adventures in Wonderland"
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
