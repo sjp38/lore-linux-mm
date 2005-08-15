@@ -1,48 +1,32 @@
-Subject: Re: Zoned CART
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-In-Reply-To: <20050812230825.GB11168@dmt.cnet>
-References: <1123857429.14899.59.camel@twins>
-	 <42FCC359.20200@andrew.cmu.edu>  <20050812230825.GB11168@dmt.cnet>
-Content-Type: text/plain
-Date: Sun, 14 Aug 2005 20:31:05 +0200
-Message-Id: <1124044265.30836.32.camel@twins>
+Received: from [80.228.91.145] (port=4440 helo=[fatten])
+    by static.host898.sulanet.net with esmtp
+    id 84504127933staunch128909
+    for linux-mm@kvack.org; Sun, 14 Aug 2005 19:56:28 -0600
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
+Message-Id: <11133054169.332411409@static.host898.sulanet.net>
+Content-Type: text/plain; charset=US-ASCII; format=flowed
+From: Dinah <battlement@paonline.com>
+Subject: Finally a Patch that works!
+Date: Sun, 14 Aug 2005 19:56:27 -0600
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
-Cc: Rahul Iyer <rni@andrew.cmu.edu>, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2005-08-12 at 20:08 -0300, Marcelo Tosatti wrote:
+Hey man, stop throwing away your money
+http://www.qumefi.com/pt/?9&elementary
 
-> +/* The replace function. This function serches the active and longterm
-> +lists and looks for a candidate for replacement. This function selects
-> +the candidate and returns the corresponding structpage or returns
-> +NULL in case no page can be freed. The *where argument is used to
-> +indicate the parent list of the page so that, in case it cannot be
-> +written back, it can be placed back on the correct list */ 
-> +struct page *replace(struct zone *zone, int *where)
-> 
-> +	list = list->next;
-> +	while (list !=&zone->active_longterm) {
-> +		page = list_entry(list, struct page, lru);
-> +
-> +		if (!PageReferenced(page))
-> +			break;
-> +		
-> +		ClearPageReferenced(page);
-> +		del_page_from_active_longterm(zone, page);
-> +		add_page_to_active_list_tail(zone, page);
-> 
-> This sounds odd. If a page is referenced you remove it from the longterm list
-> "unpromoting" it to the active list? Shouldnt be the other way around?
 
-This is correct, the longterm list (T2) is essentially a FIFO. All it
-does is delay the re-evaluation of the page.
 
--- 
-Peter Zijlstra <a.p.zijlstra@chello.nl>
+
+
+Only a life lived for others is a life worth while.  
+Courage is not the absence of fear, but the conquest of it. 
+Business today consists in persuading crowds.       
+Because it's there.          
+Only fools are positive.         
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
