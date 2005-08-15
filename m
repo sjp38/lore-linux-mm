@@ -1,83 +1,171 @@
-Date: Mon, 15 Aug 2005 12:05:37 -0400
+Date: Mon, 15 Aug 2005 13:27:31 -0400
 From: Martin Hicks <mort@sgi.com>
-Subject: Re: [PATCH] VM: add vm.free_node_memory sysctl
-Message-ID: <20050815160537.GC13449@localhost>
-References: <20050801113913.GA7000@elte.hu> <200508031459.22834.raybry@mpdtxmail.amd.com> <20050803200808.GE8266@wotan.suse.de> <200508051245.59528.raybry@mpdtxmail.amd.com> <20050805214857.GD8266@wotan.suse.de>
+Subject: [PATCH] VM: add page_state info to per-node meminfo
+Message-ID: <20050815172731.GF13449@localhost>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20050805214857.GD8266@wotan.suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <ak@suse.de>
-Cc: Ray Bryant <raybry@mpdtxmail.amd.com>, Martin Hicks <mort@sgi.com>, Ingo Molnar <mingo@elte.hu>, Linux MM <linux-mm@kvack.org>, Andrew Morton <akpm@osdl.org>, torvalds@osdl.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@osdl.org>, ak@suse.de, Ray Bryant <raybry@mpdtxmail.amd.com>
+Cc: Linux MM <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Aug 05, 2005 at 11:48:58PM +0200, Andi Kleen wrote:
-> On Fri, Aug 05, 2005 at 12:45:58PM -0500, Ray Bryant wrote:
-> 
-> > discarded.  I think what Martin and I would prefer to see is an interface 
-> > that allows one to just get rid of the clean page cache (or at least enough 
-> > of it) so that additional mapped page allocations will occur locally to the 
-> > node without causing swapping.
-> 
-> That seems like a very special narrow case. But have you tried if  memhog
-> really doesn't work this way?
 
-Yes.  This *is* a very special narrow case.  This doesn't really apply
-to a desktop machine, nor to a normal unix server load.
+Add page_state info to the per-node meminfo file in sysfs.
+This is mostly just for informational purposes.
 
-It *does* apply to cleaning up a node (or set of nodes) before running HPC
-apps which really need to get local memory to perform correctly.
+The lack of this information was brought up recently during a
+discussion regarding pagecache clearing, and I put this patch
+together to test out one of the suggestions.
 
-I'm not suggesting that this is something useful for your average
-computer, but it is a feature that would make life a lot easier on big
-machines running HPC apps.
+It seems like interesting info to have, so I'm submitting the
+patch.
 
-The memhog approach works, but it may negatively impact the performance
-of other jobs on the same node (by swapping or needlessly forcing the
-node into memory reclaim and dirty page writeback).
+Signed-off-by: Martin Hicks <mort@sgi.com>
 
-> > 
-> > AFAIK, the number of mapped pages on the node is not exported to user space 
-> > (by, for example, /sys).   So there is no good way to size the "slop" to 
-> > allow for an existing allocation.  If there was, then using a bound memory 
-> > hog would likely be a reasonable replacement for Martin's syscall to release 
-> > all free page cache, at least for small to medium sized sized systems.
-> 
-> I guess it could be exported without too much trouble.
+---
+commit 24ecf7aeeb0b9abc84e23cc67c3ddcc2a7b51645
+tree 8434482129ede191de950fce8620fbbccd0b8ed9
+parent 2ba84684e8cf6f980e4e95a2300f53a505eb794e
+author Martin Hicks,,,,,,,engr <mort@tomahawk.engr.sgi.com> Mon, 15 Aug 2005 10:15:01 -0700
+committer Martin Hicks,,,,,,,engr <mort@tomahawk.engr.sgi.com> Mon, 15 Aug 2005 10:15:01 -0700
 
-I did this to test out the memhog method.
+ drivers/base/node.c        |   24 ++++++++++++++++++++++--
+ include/linux/page-flags.h |    1 +
+ mm/page_alloc.c            |   25 ++++++++++++++++++++-----
+ 3 files changed, 43 insertions(+), 7 deletions(-)
 
-> > The reason we ended up with a sysctl/syscall (to control the aggressiveness 
-> > with which __alloc_pages will try to free page cache before spilling) is that 
-> > deciding whether or not  to spend the effort to free up page cache pages on 
-> > the local node before  spilling is a workload dependent optimization.   For 
-> > an HPC application it is  typically worth the effort to try to free local 
-> > node page cache before spilling off node because the program will run 
-> > sufficiently long to make the improvement due to getting local storage 
-> > dominates the extra cost of doing the page allocation.   For file server 
-> > workloads, for example, it is typically important to minimize the time to do 
-> > the page allocation; if it turns out to be on a remote node it really doesn't 
-> > matter that much.   So it seems to me that we need some way for the 
-> > application to tell the system which approach it prefers based on the type of 
-> > workload it is -- hence the sysctl or syscall approach.
-> 
-> Ideally it should just work transparently. Maybe NUMA allocation
-> should be a bit more aggressive at cleaning local pages before fallback.
-> Problem is that it potentially makes the fast path slow.
+diff --git a/drivers/base/node.c b/drivers/base/node.c
+--- a/drivers/base/node.c
++++ b/drivers/base/node.c
+@@ -39,13 +39,25 @@ static ssize_t node_read_meminfo(struct 
+ 	int n;
+ 	int nid = dev->id;
+ 	struct sysinfo i;
++	struct page_state ps;
+ 	unsigned long inactive;
+ 	unsigned long active;
+ 	unsigned long free;
+ 
+ 	si_meminfo_node(&i, nid);
++	get_page_state_node(&ps, nid);
+ 	__get_zone_counts(&active, &inactive, &free, NODE_DATA(nid));
+ 
++	/* Check for negative values in these approximate counters */
++	if ((long)ps.nr_dirty < 0)
++		ps.nr_dirty = 0;
++	if ((long)ps.nr_writeback < 0)
++		ps.nr_writeback = 0;
++	if ((long)ps.nr_mapped < 0)
++		ps.nr_mapped = 0;
++	if ((long)ps.nr_slab < 0)
++		ps.nr_slab = 0;
++
+ 	n = sprintf(buf, "\n"
+ 		       "Node %d MemTotal:     %8lu kB\n"
+ 		       "Node %d MemFree:      %8lu kB\n"
+@@ -55,7 +67,11 @@ static ssize_t node_read_meminfo(struct 
+ 		       "Node %d HighTotal:    %8lu kB\n"
+ 		       "Node %d HighFree:     %8lu kB\n"
+ 		       "Node %d LowTotal:     %8lu kB\n"
+-		       "Node %d LowFree:      %8lu kB\n",
++		       "Node %d LowFree:      %8lu kB\n"
++		       "Node %d Dirty:        %8lu kB\n"
++		       "Node %d Writeback:    %8lu kB\n"
++		       "Node %d Mapped:       %8lu kB\n"
++		       "Node %d Slab:         %8lu kB\n",
+ 		       nid, K(i.totalram),
+ 		       nid, K(i.freeram),
+ 		       nid, K(i.totalram - i.freeram),
+@@ -64,7 +80,11 @@ static ssize_t node_read_meminfo(struct 
+ 		       nid, K(i.totalhigh),
+ 		       nid, K(i.freehigh),
+ 		       nid, K(i.totalram - i.totalhigh),
+-		       nid, K(i.freeram - i.freehigh));
++		       nid, K(i.freeram - i.freehigh),
++		       nid, K(ps.nr_dirty),
++		       nid, K(ps.nr_writeback),
++		       nid, K(ps.nr_mapped),
++		       nid, K(ps.nr_slab));
+ 	n += hugetlb_report_node_meminfo(nid, buf + n);
+ 	return n;
+ }
+diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
+--- a/include/linux/page-flags.h
++++ b/include/linux/page-flags.h
+@@ -134,6 +134,7 @@ struct page_state {
+ };
+ 
+ extern void get_page_state(struct page_state *ret);
++extern void get_page_state_node(struct page_state *ret, int node);
+ extern void get_full_page_state(struct page_state *ret);
+ extern unsigned long __read_page_state(unsigned long offset);
+ extern void __mod_page_state(unsigned long offset, unsigned long delta);
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -1130,19 +1130,20 @@ EXPORT_SYMBOL(nr_pagecache);
+ DEFINE_PER_CPU(long, nr_pagecache_local) = 0;
+ #endif
+ 
+-void __get_page_state(struct page_state *ret, int nr)
++void __get_page_state(struct page_state *ret, int nr, cpumask_t *cpumask)
+ {
+ 	int cpu = 0;
+ 
+ 	memset(ret, 0, sizeof(*ret));
++	cpus_and(*cpumask, *cpumask, cpu_online_map);
+ 
+-	cpu = first_cpu(cpu_online_map);
++	cpu = first_cpu(*cpumask);
+ 	while (cpu < NR_CPUS) {
+ 		unsigned long *in, *out, off;
+ 
+ 		in = (unsigned long *)&per_cpu(page_states, cpu);
+ 
+-		cpu = next_cpu(cpu, cpu_online_map);
++		cpu = next_cpu(cpu, *cpumask);
+ 
+ 		if (cpu < NR_CPUS)
+ 			prefetch(&per_cpu(page_states, cpu));
+@@ -1153,19 +1154,33 @@ void __get_page_state(struct page_state 
+ 	}
+ }
+ 
++void get_page_state_node(struct page_state *ret, int node)
++{
++	int nr;
++	cpumask_t mask = node_to_cpumask(node);
++
++	nr = offsetof(struct page_state, GET_PAGE_STATE_LAST);
++	nr /= sizeof(unsigned long);
++
++	__get_page_state(ret, nr+1, &mask);
++}
++
+ void get_page_state(struct page_state *ret)
+ {
+ 	int nr;
++	cpumask_t mask = CPU_MASK_ALL;
+ 
+ 	nr = offsetof(struct page_state, GET_PAGE_STATE_LAST);
+ 	nr /= sizeof(unsigned long);
+ 
+-	__get_page_state(ret, nr + 1);
++	__get_page_state(ret, nr + 1, &mask);
+ }
+ 
+ void get_full_page_state(struct page_state *ret)
+ {
+-	__get_page_state(ret, sizeof(*ret) / sizeof(unsigned long));
++	cpumask_t mask = CPU_MASK_ALL;
++
++	__get_page_state(ret, sizeof(*ret) / sizeof(unsigned long), &mask);
+ }
+ 
+ unsigned long __read_page_state(unsigned long offset)
 
-This is what we need:  a better level of control over how NUMA
-allocations work.  In some cases we *really* would prefer local pages,
-even at the cost of page cache.
-
-It does have the potential to make the fast path slower.  Some workloads
-are willing to make this sacrifice.
-
-mh
-
--- 
-Martin Hicks   ||   Silicon Graphics Inc.   ||   mort@sgi.com
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
