@@ -1,19 +1,19 @@
-Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
-	by e35.co.us.ibm.com (8.12.10/8.12.9) with ESMTP id j7HJ8RQH641206
-	for <linux-mm@kvack.org>; Wed, 17 Aug 2005 15:08:29 -0400
-Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
-	by d03relay04.boulder.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id j7HJ8Tvx196060
-	for <linux-mm@kvack.org>; Wed, 17 Aug 2005 13:08:29 -0600
-Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av03.boulder.ibm.com (8.12.11/8.13.3) with ESMTP id j7HJ8JVM028821
-	for <linux-mm@kvack.org>; Wed, 17 Aug 2005 13:08:20 -0600
-Subject: [PATCH 1/4] x86-pte_huge
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by e6.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id j7HJ93N2028656
+	for <linux-mm@kvack.org>; Wed, 17 Aug 2005 15:09:03 -0400
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay02.pok.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id j7HJ93Fv186476
+	for <linux-mm@kvack.org>; Wed, 17 Aug 2005 15:09:03 -0400
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.12.11/8.13.3) with ESMTP id j7HJ927O030488
+	for <linux-mm@kvack.org>; Wed, 17 Aug 2005 15:09:03 -0400
+Subject: [PATCH 2/4] x86-move-stale-pgtable
 From: Adam Litke <agl@us.ibm.com>
 In-Reply-To: <1124304966.3139.37.camel@localhost.localdomain>
 References: <1124304966.3139.37.camel@localhost.localdomain>
 Content-Type: text/plain
-Date: Wed, 17 Aug 2005 14:03:04 -0500
-Message-Id: <1124305384.3139.39.camel@localhost.localdomain>
+Date: Wed, 17 Aug 2005 14:03:47 -0500
+Message-Id: <1124305427.3139.41.camel@localhost.localdomain>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -24,64 +24,70 @@ List-ID: <linux-mm.kvack.org>
 
 Initial Post (Wed, 17 Aug 2005)
 
-This patch adds a macro pte_huge(pte) for i386/x86_64  which is needed by a
-patch later in the series.  Instead of repeating (_PAGE_PRESENT | _PAGE_PSE),
-I've added __LARGE_PTE to i386 to match x86_64.
+This patch moves the
+	if (! pte_none(*pte))
+		hugetlb_clean_stale_pgtable(pte);
+logic into huge_pte_alloc() so all of its callers can be immune to the bug
+described by Kenneth Chen at http://lkml.org/lkml/2004/6/16/246
+
+> It turns out there is a bug in hugetlb_prefault(): with 3 level page table,
+> huge_pte_alloc() might return a pmd that points to a PTE page. It happens
+> if the virtual address for hugetlb mmap is recycled from previously used
+> normal page mmap. free_pgtables() might not scrub the pmd entry on
+> munmap and hugetlb_prefault skips on any pmd presence regardless what type 
+> it is.
+
+Unless I am missing something, it seems more correct to place the check inside
+huge_pte_alloc() to prevent a the same bug wherever a huge pte is allocated.
+It also allows checking for this condition when lazily faulting huge pages
+later in the series.
 
 Diffed against 2.6.13-rc6-git7
 
 Signed-off-by: Adam Litke <agl@us.ibm.com>
 ---
- asm-i386/pgtable.h   |    4 +++-
- asm-x86_64/pgtable.h |    3 ++-
- 2 files changed, 5 insertions(+), 2 deletions(-)
-diff -upN reference/include/asm-i386/pgtable.h current/include/asm-i386/pgtable.h
---- reference/include/asm-i386/pgtable.h
-+++ current/include/asm-i386/pgtable.h
-@@ -215,11 +215,13 @@ extern unsigned long pg0[];
-  * The following only work if pte_present() is true.
-  * Undefined behaviour if not..
-  */
-+#define __LARGE_PTE (_PAGE_PSE | _PAGE_PRESENT)
- static inline int pte_user(pte_t pte)		{ return (pte).pte_low & _PAGE_USER; }
- static inline int pte_read(pte_t pte)		{ return (pte).pte_low & _PAGE_USER; }
- static inline int pte_dirty(pte_t pte)		{ return (pte).pte_low & _PAGE_DIRTY; }
- static inline int pte_young(pte_t pte)		{ return (pte).pte_low & _PAGE_ACCESSED; }
- static inline int pte_write(pte_t pte)		{ return (pte).pte_low & _PAGE_RW; }
-+static inline int pte_huge(pte_t pte)		{ return ((pte).pte_low & __LARGE_PTE) == __LARGE_PTE; }
+ arch/i386/mm/hugetlbpage.c |   13 +++++++++++--
+ mm/hugetlb.c               |    2 --
+ 2 files changed, 11 insertions(+), 4 deletions(-)
+diff -upN reference/arch/i386/mm/hugetlbpage.c current/arch/i386/mm/hugetlbpage.c
+--- reference/arch/i386/mm/hugetlbpage.c
++++ current/arch/i386/mm/hugetlbpage.c
+@@ -22,12 +22,21 @@ pte_t *huge_pte_alloc(struct mm_struct *
+ {
+ 	pgd_t *pgd;
+ 	pud_t *pud;
+-	pmd_t *pmd = NULL;
++	pmd_t *pmd;
++	pte_t *pte = NULL;
  
- /*
-  * The following only works if pte_present() is not true.
-@@ -236,7 +238,7 @@ static inline pte_t pte_mkexec(pte_t pte
- static inline pte_t pte_mkdirty(pte_t pte)	{ (pte).pte_low |= _PAGE_DIRTY; return pte; }
- static inline pte_t pte_mkyoung(pte_t pte)	{ (pte).pte_low |= _PAGE_ACCESSED; return pte; }
- static inline pte_t pte_mkwrite(pte_t pte)	{ (pte).pte_low |= _PAGE_RW; return pte; }
--static inline pte_t pte_mkhuge(pte_t pte)	{ (pte).pte_low |= _PAGE_PRESENT | _PAGE_PSE; return pte; }
-+static inline pte_t pte_mkhuge(pte_t pte)	{ (pte).pte_low |= __LARGE_PTE; return pte; }
+ 	pgd = pgd_offset(mm, addr);
+ 	pud = pud_alloc(mm, pgd, addr);
+ 	pmd = pmd_alloc(mm, pud, addr);
+-	return (pte_t *) pmd;
++
++	if (!pmd)
++		goto out;
++	
++	pte = (pte_t *) pmd;
++	if (!pte_none(*pte) && !pte_huge(*pte))
++		hugetlb_clean_stale_pgtable(pte);
++out:
++	return pte;
+ }
  
- #ifdef CONFIG_X86_PAE
- # include <asm/pgtable-3level.h>
-diff -upN reference/include/asm-x86_64/pgtable.h current/include/asm-x86_64/pgtable.h
---- reference/include/asm-x86_64/pgtable.h
-+++ current/include/asm-x86_64/pgtable.h
-@@ -247,6 +247,7 @@ static inline pte_t pfn_pte(unsigned lon
-  * The following only work if pte_present() is true.
-  * Undefined behaviour if not..
-  */
-+#define __LARGE_PTE (_PAGE_PSE|_PAGE_PRESENT)
- static inline int pte_user(pte_t pte)		{ return pte_val(pte) & _PAGE_USER; }
- extern inline int pte_read(pte_t pte)		{ return pte_val(pte) & _PAGE_USER; }
- extern inline int pte_exec(pte_t pte)		{ return pte_val(pte) & _PAGE_USER; }
-@@ -254,8 +255,8 @@ extern inline int pte_dirty(pte_t pte)		
- extern inline int pte_young(pte_t pte)		{ return pte_val(pte) & _PAGE_ACCESSED; }
- extern inline int pte_write(pte_t pte)		{ return pte_val(pte) & _PAGE_RW; }
- static inline int pte_file(pte_t pte)		{ return pte_val(pte) & _PAGE_FILE; }
-+static inline int pte_huge(pte_t pte)           { return (pte_val(pte) & __LARGE_PTE) == __LARGE_PTE; }
+ pte_t *huge_pte_offset(struct mm_struct *mm, unsigned long addr)
+diff -upN reference/mm/hugetlb.c current/mm/hugetlb.c
+--- reference/mm/hugetlb.c
++++ current/mm/hugetlb.c
+@@ -360,8 +360,6 @@ int hugetlb_prefault(struct address_spac
+ 			ret = -ENOMEM;
+ 			goto out;
+ 		}
+-		if (! pte_none(*pte))
+-			hugetlb_clean_stale_pgtable(pte);
  
--#define __LARGE_PTE (_PAGE_PSE|_PAGE_PRESENT)
- extern inline pte_t pte_rdprotect(pte_t pte)	{ set_pte(&pte, __pte(pte_val(pte) & ~_PAGE_USER)); return pte; }
- extern inline pte_t pte_exprotect(pte_t pte)	{ set_pte(&pte, __pte(pte_val(pte) & ~_PAGE_USER)); return pte; }
- extern inline pte_t pte_mkclean(pte_t pte)	{ set_pte(&pte, __pte(pte_val(pte) & ~_PAGE_DIRTY)); return pte; }
+ 		idx = ((addr - vma->vm_start) >> HPAGE_SHIFT)
+ 			+ (vma->vm_pgoff >> (HPAGE_SHIFT - PAGE_SHIFT));
 
 
 --
