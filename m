@@ -1,56 +1,44 @@
-Date: Tue, 16 Aug 2005 13:49:34 -0700 (PDT)
-From: Christoph Lameter <clameter@engr.sgi.com>
-Subject: Re: Zoned CART
-In-Reply-To: <43024435.90503@andrew.cmu.edu>
-Message-ID: <Pine.LNX.4.62.0508161318420.7906@schroedinger.engr.sgi.com>
-References: <1123857429.14899.59.camel@twins>  <1124024312.30836.26.camel@twins>
- <1124141492.15180.22.camel@twins> <43024435.90503@andrew.cmu.edu>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from westrelay02.boulder.ibm.com (westrelay02.boulder.ibm.com [9.17.195.11])
+	by e33.co.us.ibm.com (8.12.10/8.12.9) with ESMTP id j7HJ1NpR225474
+	for <linux-mm@kvack.org>; Wed, 17 Aug 2005 15:01:25 -0400
+Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
+	by westrelay02.boulder.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id j7HJ10KM507734
+	for <linux-mm@kvack.org>; Wed, 17 Aug 2005 13:01:00 -0600
+Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av04.boulder.ibm.com (8.12.11/8.13.3) with ESMTP id j7HJ1MmJ016410
+	for <linux-mm@kvack.org>; Wed, 17 Aug 2005 13:01:22 -0600
+Subject: [PATCH 0/4] Demand faunting for huge pages
+From: Adam Litke <agl@us.ibm.com>
+Content-Type: text/plain
+Date: Wed, 17 Aug 2005 13:56:06 -0500
+Message-Id: <1124304966.3139.37.camel@localhost.localdomain>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rahul Iyer <rni@andrew.cmu.edu>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Marcelo Tosatti <marcelo.tosatti@cyclades.com>
+To: linux-mm@kvack.org
+Cc: agl@us.ibm.com, christoph@lameter.com, ak@suse.de, kenneth.w.chen@intel.com, david@gibson.dropbear.id.au
 List-ID: <linux-mm.kvack.org>
 
-Hmm. I am a bit concerned about the proliferation of counters in CART 
-because these may lead to bouncing cachelines.
+The following patch set implements demand faulting for huge pages.  In
+response to helpful feedback from Christoph Lameter, Kenneth Chen, and
+Andi Kleen, I've split up the demand fault patch (previously posted on
+LKML: http://lkml.org/lkml/2005/8/5/154 ) into a smaller, more
+digestible set.
 
-The paper mentions some relationships between the different values. 
+The first three patches should be pretty clear-cut and harmless and just
+make way for a neater switch to demand faulting.  The code touched by
+the x86 patches is either already present or (AFAICT) not needed for
+other architectures.  Comments?  Anyone want to try this out on their
+specific huge page workload and architecture combinati?
 
-If we had a counter for the number of pages resident (nr_rpages) 
-(|T1|+|T2|) then that counter would gradually approach c and then no 
-longer change.
+The patches are:
+  x86-pte_huge - Create pte_huge() test function
+  x86-move-stale-pgtable - Check for stale pte in huge_pte_alloc()
+  x86-walk-check - Check for not present huge page table entries
+  htlb-fault - Demand faulting for huge pages
 
-Then
-
-|T2| = nr_rpages - |T1|
-
-Similarly if we had a counter for the number of pages on the evicted 
-list (nr_evicted) then that counter would also gradually approach c and 
-then stay constant. nr_evicted would only increase if nr_rpages has 
-already reached c which is another good thing to avoid bouncing 
-cachelines.
-
-Then also
-
-|B2| = nr_evicted - |B1|
-
-Thus we could reduce the frequency of counter increments on a fully 
-loaded system (where nr_rpages = c and nr_eviced = c) by 
-calculating some variables:
-
-#define nr_inactive (nr_rpages - nr_active)
-#define nr_evicted_longterm (nr_evicted - nr_evicted_shortterm)
-
-There is also a relationship between |S| and |L| since these attributes 
-are only used on resident pages.
-
-|L| = nr_rpages - |S|
-
-So
-
-#define nr_longterm (nr_rpages - nr_shortterm)
+Patches coming soon in reply to this message.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
