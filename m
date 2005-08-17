@@ -1,44 +1,88 @@
-Received: from westrelay02.boulder.ibm.com (westrelay02.boulder.ibm.com [9.17.195.11])
-	by e33.co.us.ibm.com (8.12.10/8.12.9) with ESMTP id j7HJ1NpR225474
-	for <linux-mm@kvack.org>; Wed, 17 Aug 2005 15:01:25 -0400
-Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
-	by westrelay02.boulder.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id j7HJ10KM507734
-	for <linux-mm@kvack.org>; Wed, 17 Aug 2005 13:01:00 -0600
-Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av04.boulder.ibm.com (8.12.11/8.13.3) with ESMTP id j7HJ1MmJ016410
-	for <linux-mm@kvack.org>; Wed, 17 Aug 2005 13:01:22 -0600
-Subject: [PATCH 0/4] Demand faunting for huge pages
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by e35.co.us.ibm.com (8.12.10/8.12.9) with ESMTP id j7HJ8RQH641206
+	for <linux-mm@kvack.org>; Wed, 17 Aug 2005 15:08:29 -0400
+Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
+	by d03relay04.boulder.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id j7HJ8Tvx196060
+	for <linux-mm@kvack.org>; Wed, 17 Aug 2005 13:08:29 -0600
+Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av03.boulder.ibm.com (8.12.11/8.13.3) with ESMTP id j7HJ8JVM028821
+	for <linux-mm@kvack.org>; Wed, 17 Aug 2005 13:08:20 -0600
+Subject: [PATCH 1/4] x86-pte_huge
 From: Adam Litke <agl@us.ibm.com>
+In-Reply-To: <1124304966.3139.37.camel@localhost.localdomain>
+References: <1124304966.3139.37.camel@localhost.localdomain>
 Content-Type: text/plain
-Date: Wed, 17 Aug 2005 13:56:06 -0500
-Message-Id: <1124304966.3139.37.camel@localhost.localdomain>
+Date: Wed, 17 Aug 2005 14:03:04 -0500
+Message-Id: <1124305384.3139.39.camel@localhost.localdomain>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
-Cc: agl@us.ibm.com, christoph@lameter.com, ak@suse.de, kenneth.w.chen@intel.com, david@gibson.dropbear.id.au
+Cc: christoph@lameter.com, ak@suse.de, kenneth.w.chen@intel.com, david@gibson.dropbear.id.au
 List-ID: <linux-mm.kvack.org>
 
-The following patch set implements demand faulting for huge pages.  In
-response to helpful feedback from Christoph Lameter, Kenneth Chen, and
-Andi Kleen, I've split up the demand fault patch (previously posted on
-LKML: http://lkml.org/lkml/2005/8/5/154 ) into a smaller, more
-digestible set.
+Initial Post (Wed, 17 Aug 2005)
 
-The first three patches should be pretty clear-cut and harmless and just
-make way for a neater switch to demand faulting.  The code touched by
-the x86 patches is either already present or (AFAICT) not needed for
-other architectures.  Comments?  Anyone want to try this out on their
-specific huge page workload and architecture combinati?
+This patch adds a macro pte_huge(pte) for i386/x86_64  which is needed by a
+patch later in the series.  Instead of repeating (_PAGE_PRESENT | _PAGE_PSE),
+I've added __LARGE_PTE to i386 to match x86_64.
 
-The patches are:
-  x86-pte_huge - Create pte_huge() test function
-  x86-move-stale-pgtable - Check for stale pte in huge_pte_alloc()
-  x86-walk-check - Check for not present huge page table entries
-  htlb-fault - Demand faulting for huge pages
+Diffed against 2.6.13-rc6-git7
 
-Patches coming soon in reply to this message.
+Signed-off-by: Adam Litke <agl@us.ibm.com>
+---
+ asm-i386/pgtable.h   |    4 +++-
+ asm-x86_64/pgtable.h |    3 ++-
+ 2 files changed, 5 insertions(+), 2 deletions(-)
+diff -upN reference/include/asm-i386/pgtable.h current/include/asm-i386/pgtable.h
+--- reference/include/asm-i386/pgtable.h
++++ current/include/asm-i386/pgtable.h
+@@ -215,11 +215,13 @@ extern unsigned long pg0[];
+  * The following only work if pte_present() is true.
+  * Undefined behaviour if not..
+  */
++#define __LARGE_PTE (_PAGE_PSE | _PAGE_PRESENT)
+ static inline int pte_user(pte_t pte)		{ return (pte).pte_low & _PAGE_USER; }
+ static inline int pte_read(pte_t pte)		{ return (pte).pte_low & _PAGE_USER; }
+ static inline int pte_dirty(pte_t pte)		{ return (pte).pte_low & _PAGE_DIRTY; }
+ static inline int pte_young(pte_t pte)		{ return (pte).pte_low & _PAGE_ACCESSED; }
+ static inline int pte_write(pte_t pte)		{ return (pte).pte_low & _PAGE_RW; }
++static inline int pte_huge(pte_t pte)		{ return ((pte).pte_low & __LARGE_PTE) == __LARGE_PTE; }
+ 
+ /*
+  * The following only works if pte_present() is not true.
+@@ -236,7 +238,7 @@ static inline pte_t pte_mkexec(pte_t pte
+ static inline pte_t pte_mkdirty(pte_t pte)	{ (pte).pte_low |= _PAGE_DIRTY; return pte; }
+ static inline pte_t pte_mkyoung(pte_t pte)	{ (pte).pte_low |= _PAGE_ACCESSED; return pte; }
+ static inline pte_t pte_mkwrite(pte_t pte)	{ (pte).pte_low |= _PAGE_RW; return pte; }
+-static inline pte_t pte_mkhuge(pte_t pte)	{ (pte).pte_low |= _PAGE_PRESENT | _PAGE_PSE; return pte; }
++static inline pte_t pte_mkhuge(pte_t pte)	{ (pte).pte_low |= __LARGE_PTE; return pte; }
+ 
+ #ifdef CONFIG_X86_PAE
+ # include <asm/pgtable-3level.h>
+diff -upN reference/include/asm-x86_64/pgtable.h current/include/asm-x86_64/pgtable.h
+--- reference/include/asm-x86_64/pgtable.h
++++ current/include/asm-x86_64/pgtable.h
+@@ -247,6 +247,7 @@ static inline pte_t pfn_pte(unsigned lon
+  * The following only work if pte_present() is true.
+  * Undefined behaviour if not..
+  */
++#define __LARGE_PTE (_PAGE_PSE|_PAGE_PRESENT)
+ static inline int pte_user(pte_t pte)		{ return pte_val(pte) & _PAGE_USER; }
+ extern inline int pte_read(pte_t pte)		{ return pte_val(pte) & _PAGE_USER; }
+ extern inline int pte_exec(pte_t pte)		{ return pte_val(pte) & _PAGE_USER; }
+@@ -254,8 +255,8 @@ extern inline int pte_dirty(pte_t pte)		
+ extern inline int pte_young(pte_t pte)		{ return pte_val(pte) & _PAGE_ACCESSED; }
+ extern inline int pte_write(pte_t pte)		{ return pte_val(pte) & _PAGE_RW; }
+ static inline int pte_file(pte_t pte)		{ return pte_val(pte) & _PAGE_FILE; }
++static inline int pte_huge(pte_t pte)           { return (pte_val(pte) & __LARGE_PTE) == __LARGE_PTE; }
+ 
+-#define __LARGE_PTE (_PAGE_PSE|_PAGE_PRESENT)
+ extern inline pte_t pte_rdprotect(pte_t pte)	{ set_pte(&pte, __pte(pte_val(pte) & ~_PAGE_USER)); return pte; }
+ extern inline pte_t pte_exprotect(pte_t pte)	{ set_pte(&pte, __pte(pte_val(pte) & ~_PAGE_USER)); return pte; }
+ extern inline pte_t pte_mkclean(pte_t pte)	{ set_pte(&pte, __pte(pte_val(pte) & ~_PAGE_DIRTY)); return pte; }
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
