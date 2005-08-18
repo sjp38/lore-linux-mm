@@ -1,138 +1,65 @@
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by e4.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id j7IKchqm027813
-	for <linux-mm@kvack.org>; Thu, 18 Aug 2005 16:38:43 -0400
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay04.pok.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id j7IKchH6280492
-	for <linux-mm@kvack.org>; Thu, 18 Aug 2005 16:38:43 -0400
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.12.11/8.13.3) with ESMTP id j7IKchvo011362
-	for <linux-mm@kvack.org>; Thu, 18 Aug 2005 16:38:43 -0400
-Subject: Re: [PATCH 0/4] Demand faunting for huge pages
-From: Adam Litke <agl@us.ibm.com>
-In-Reply-To: <20050818003548.GV3996@wotan.suse.de>
-References: <1124304966.3139.37.camel@localhost.localdomain>
-	 <20050817210431.GR3996@wotan.suse.de>
-	 <20050818003302.GE7103@localhost.localdomain>
-	 <20050818003548.GV3996@wotan.suse.de>
-Content-Type: text/plain
-Date: Thu, 18 Aug 2005 15:33:27 -0500
-Message-Id: <1124397207.3152.10.camel@localhost.localdomain>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Subject: Re: [PATCH] gurantee DMA area for alloc_bootmem_low() ver. 2.
+References: <20050809194115.C370.Y-GOTO@jp.fujitsu.com>
+	<17145.13835.592008.577583@wombat.chubb.wattle.id.au>
+	<20050810145550.740D.Y-GOTO@jp.fujitsu.com>
+	<20050818125236.4ffe1053.akpm@osdl.org>
+From: Andi Kleen <ak@suse.de>
+Date: 18 Aug 2005 23:39:27 +0200
+In-Reply-To: <20050818125236.4ffe1053.akpm@osdl.org>
+Message-ID: <p73y86ysz5c.fsf@verdi.suse.de>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <ak@suse.de>
-Cc: David Gibson <david@gibson.dropbear.id.au>, linux-mm@kvack.org, christoph@lameter.com, kenneth.w.chen@intel.com
+To: Andrew Morton <akpm@osdl.org>
+Cc: peterc@gelato.unsw.edu.au, linux-mm@kvack.org, mbligh@mbligh.org, linux-ia64@vger.kernel.org, kravetz@us.ibm.com, tony.luck@intel.com
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2005-08-18 at 02:35 +0200, Andi Kleen wrote:
-> I disagree. With Linux's primitive hugepage allocation scheme (static
-> pool that is usually too small) at least simple overcommit check
-> is absolutely essential.
+Andrew Morton <akpm@osdl.org> writes:
+> > 
+> >  To avoid this panic, following patch confirm allocated area, and retry
+> >  if it is not in DMA.
+> >  I tested this patch on my Tiger 4 and our new server.
 > 
-> > Strict accounting leads to nicer behaviour in some cases - you'll tend
-> > to die early rather than late - but it seems an awful lot of work for
-> > a fairly small improvement in behaviour.
-> 
-> Strict is a lot of work, but a simple "right in 99% of all cases, but racy" 
-> check is quite easy.
+> It kills my x86_64 box:
 
-How about something like the following?
----
-Initial Post (Thu, 18 Aug 2005)
 
-Basic overcommit checking for hugetlb_file_map() based on an implementation
-used with demand faulting in SLES9.
+Funny I ran into a similar problem recently. On a multi node x86-64
+system when swiotlb is forced (normally those are AMD systems which
+use the AMD hardware IOMMU) the bootmem_alloc in swiotlb.c would
+allocate from the last node. Why? Because alloc_bootmem just
+does for_each_pgdat() and tries each node and the pgdat list
+starts with the highest node going down to the lowest.
 
-Since demand faulting can't guarantee the availability of pages at mmap time,
-this patch implements a basic sanity check to ensure that the number of huge
-pages required to satisfy the mmap are currently available.  Despite the
-obvious race, I think it is a good start on doing proper accounting.  I'd like
-to work towards an accounting system that mimics the semantics of normal pages
-(especially for the MAP_PRIVATE/COW case).  That work is underway and builds on
-what this patch starts.
+I just changed the ordering of the pgdat list that made bootmem 
+work again.
 
-Huge page shared memory segments are simpler and still maintain their commit on shmget semantics.
+-Andi
 
-Diffed against 2.6.13-rc6-git7
-
-Signed-off-by: Adam Litke <agl@us.ibm.com>
-
----
- fs/hugetlbfs/inode.c    |   36 ++++++++++++++++++++++++++++++++++++
- include/linux/hugetlb.h |    3 +++
- 2 files changed, 39 insertions(+)
-diff -upN reference/fs/hugetlbfs/inode.c current/fs/hugetlbfs/inode.c
---- reference/fs/hugetlbfs/inode.c
-+++ current/fs/hugetlbfs/inode.c
-@@ -45,9 +45,41 @@ static struct backing_dev_info hugetlbfs
- 
- int sysctl_hugetlb_shm_group;
- 
-+static void huge_pagevec_release(struct pagevec *pvec);
-+
-+unsigned long
-+huge_pages_needed(struct address_space *mapping, struct vm_area_struct *vma,
-+		unsigned long start, unsigned long end)
-+{
-+	int i;
-+	struct pagevec pvec;
-+	unsigned long hugepages = (end - start) >> HPAGE_SHIFT;
-+	pgoff_t next = vma->vm_pgoff + ((start - vma->vm_start)>>PAGE_SHIFT);
-+	pgoff_t endpg = next + ((end - start) >> PAGE_SHIFT);
-+
-+	pagevec_init(&pvec, 0);
-+	while (next < endpg) {
-+		if (!pagevec_lookup(&pvec, mapping, next, PAGEVEC_SIZE))
-+			break;
-+		for (i = 0; i < pagevec_count(&pvec); i++) {
-+			struct page *page = pvec.pages[i];
-+			if (page->index > next)
-+				next = page->index;
-+			if (page->index >= endpg)
-+				break;
-+			next++;
-+			hugepages--;
-+		}
-+		huge_pagevec_release(&pvec);
-+	}
-+	return hugepages << HPAGE_SHIFT;
-+}
-+
- static int hugetlbfs_file_mmap(struct file *file, struct vm_area_struct *vma)
+Index: linux/mm/bootmem.c
+===================================================================
+--- linux.orig/mm/bootmem.c
++++ linux/mm/bootmem.c
+@@ -61,9 +61,17 @@ static unsigned long __init init_bootmem
  {
- 	struct inode *inode = file->f_dentry->d_inode;
-+	struct address_space *mapping = inode->i_mapping;
-+	unsigned long bytes;
- 	loff_t len, vma_len;
- 	int ret;
+ 	bootmem_data_t *bdata = pgdat->bdata;
+ 	unsigned long mapsize = ((end - start)+7)/8;
++	static struct pglist_data *pgdat_last;
  
-@@ -66,6 +98,10 @@ static int hugetlbfs_file_mmap(struct fi
- 	if (vma->vm_end - vma->vm_start < HPAGE_SIZE)
- 		return -EINVAL;
+-	pgdat->pgdat_next = pgdat_list;
+-	pgdat_list = pgdat;
++	pgdat->pgdat_next = NULL;
++	/* Add new nodes last so that bootmem always starts 
++	   searching in the first nodes, not the last ones */
++	if (pgdat_last)
++		pgdat_last->pgdat_next = pgdat;
++	else {
++		pgdat_list = pgdat; 	
++		pgdat_last = pgdat;
++	}
  
-+	bytes = huge_pages_needed(mapping, vma, vma->vm_start, vma->vm_end);
-+	if (!is_hugepage_mem_enough(bytes))
-+		return -ENOMEM;
-+
- 	vma_len = (loff_t)(vma->vm_end - vma->vm_start);
- 
- 	down(&inode->i_sem);
-diff -upN reference/include/linux/hugetlb.h current/include/linux/hugetlb.h
---- reference/include/linux/hugetlb.h
-+++ current/include/linux/hugetlb.h
-@@ -42,6 +42,9 @@ struct page *follow_huge_pmd(struct mm_s
- 				pmd_t *pmd, int write);
- int is_aligned_hugepage_range(unsigned long addr, unsigned long len);
- int pmd_huge(pmd_t pmd);
-+unsigned long huge_pages_needed(struct address_space *mapping,
-+			struct vm_area_struct *vma,
-+			unsigned long start, unsigned long end);
- 
- #ifndef ARCH_HAS_HUGEPAGE_ONLY_RANGE
- #define is_hugepage_only_range(mm, addr, len)	0
-
-
+ 	mapsize = ALIGN(mapsize, sizeof(long));
+ 	bdata->node_bootmem_map = phys_to_virt(mapstart << PAGE_SHIFT);
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
