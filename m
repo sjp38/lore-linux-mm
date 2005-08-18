@@ -1,41 +1,40 @@
-Date: Wed, 17 Aug 2005 19:48:22 -0700 (PDT)
-Message-Id: <20050817.194822.92757361.davem@davemloft.net>
+Date: Wed, 17 Aug 2005 21:05:32 -0700
+From: Andrew Morton <akpm@osdl.org>
 Subject: Re: [PATCH/RFT 4/5] CLOCK-Pro page replacement
-From: "David S. Miller" <davem@davemloft.net>
-In-Reply-To: <20050817173818.098462b5.akpm@osdl.org>
+Message-Id: <20050817210532.54ace193.akpm@osdl.org>
+In-Reply-To: <20050817.194822.92757361.davem@davemloft.net>
 References: <20050810200943.809832000@jumble.boston.redhat.com>
 	<20050810.133125.08323684.davem@davemloft.net>
 	<20050817173818.098462b5.akpm@osdl.org>
+	<20050817.194822.92757361.davem@davemloft.net>
 Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-From: Andrew Morton <akpm@osdl.org>
-Date: Wed, 17 Aug 2005 17:38:18 -0700
 Return-Path: <owner-linux-mm@kvack.org>
-To: akpm@osdl.org
-Cc: riel@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: "David S. Miller" <davem@davemloft.net>
+Cc: riel@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Rusty Russell <rusty@rustcorp.com.au>
 List-ID: <linux-mm.kvack.org>
 
-> I'm prety sure we fixed that somehow.  But I forget how.
+"David S. Miller" <davem@davemloft.net> wrote:
+>
+> From: Andrew Morton <akpm@osdl.org>
+> Date: Wed, 17 Aug 2005 17:38:18 -0700
+> 
+> > I'm prety sure we fixed that somehow.  But I forget how.
+> 
+> I wish you could remember :-)  I honestly don't think we did.
+> The DEFINE_PER_CPU() definition still looks the same, and the
+> way the .data.percpu section is layed out in the vmlinux.lds.S
+> is still the same as well.
 
-I wish you could remember :-)  I honestly don't think we did.
-The DEFINE_PER_CPU() definition still looks the same, and the
-way the .data.percpu section is layed out in the vmlinux.lds.S
-is still the same as well.
+Argh, can't remember, can't find it with archive grep.  I just have a
+mental note that it got fixed somehow.  Perhaps by uprevving the compiler
+version?  We certainly have a ton of uninitialised DEFINE_PER_CPUs in there
+nowadays and people's kernels aren't crashing.
 
-The places which are not handled currently are in not-often-used areas
-such as IPVS, some S390 drivers, and some other platform specific
-code (likely platforms where the gcc problem in question never
-existed).
-
-I do note two important spots where the initialization is not
-present, the loopback driver statistics and the scsi_done_q.
-Hmmm...
-
-If we are handling it somehow, that would be nice to know for
-certain, because we could thus remove all of the ugly
-initializers.
+Rusty, do you recall if/how we fixed the
+DEFINE_PER_CPU-needs-explicit-initialisation thing?
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
