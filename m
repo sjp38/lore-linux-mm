@@ -1,34 +1,38 @@
-Date: Wed, 17 Aug 2005 17:38:18 -0700
+Date: Wed, 17 Aug 2005 17:43:59 -0700
 From: Andrew Morton <akpm@osdl.org>
-Subject: Re: [PATCH/RFT 4/5] CLOCK-Pro page replacement
-Message-Id: <20050817173818.098462b5.akpm@osdl.org>
-In-Reply-To: <20050810.133125.08323684.davem@davemloft.net>
-References: <20050810200216.644997000@jumble.boston.redhat.com>
-	<20050810200943.809832000@jumble.boston.redhat.com>
-	<20050810.133125.08323684.davem@davemloft.net>
+Subject: Re: pagefault scalability patches
+Message-Id: <20050817174359.0efc7a6a.akpm@osdl.org>
+In-Reply-To: <20050817151723.48c948c7.akpm@osdl.org>
+References: <20050817151723.48c948c7.akpm@osdl.org>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "David S. Miller" <davem@davemloft.net>
-Cc: riel@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: torvalds@osdl.org, hugh@veritas.com, clameter@engr.sgi.com, piggin@cyberone.com.au, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-"David S. Miller" <davem@davemloft.net> wrote:
+Andrew Morton <akpm@osdl.org> wrote:
 >
-> > +DEFINE_PER_CPU(unsigned long, evicted_pages);
+> I have vague feelings of ickiness with the patches wrt:
 > 
-> DEFINE_PER_CPU() needs an explicit initializer to work
-> around some bugs in gcc-2.95, wherein on some platforms
-> if you let it end up as a BSS candidate it won't end up
-> in the per-cpu section properly.
+>  a) general increase of complexity
 > 
-> I'm actually happy you made this mistake as it forced me
-> to audit the whole current 2.6.x tree and there are few
-> missing cases in there which I'll fix up and send to Linus.
+>  b) the fact that they only partially address the problem: anonymous page
+>     faults are addressed, but lots of other places aren't.
+> 
+>  c) the fact that they address one particular part of one particular
+>     workload on exceedingly rare machines.
 
-I'm prety sure we fixed that somehow.  But I forget how.
+d) the fact that some architectures will be using atomic pte ops and
+   others will be using page_table_lock in core MM code.
+
+   Using different locking/atomicity schemes in different architectures
+   has obvious complexity and test coverage drawbacks.
+
+   Is it still the case that some architectures must retain the
+   page_table_lock approach because they use it to lock other arch-internal
+   things?
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
