@@ -1,65 +1,38 @@
-Subject: Re: [PATCH] gurantee DMA area for alloc_bootmem_low() ver. 2.
-References: <20050809194115.C370.Y-GOTO@jp.fujitsu.com>
-	<17145.13835.592008.577583@wombat.chubb.wattle.id.au>
-	<20050810145550.740D.Y-GOTO@jp.fujitsu.com>
-	<20050818125236.4ffe1053.akpm@osdl.org>
-From: Andi Kleen <ak@suse.de>
-Date: 18 Aug 2005 23:39:27 +0200
-In-Reply-To: <20050818125236.4ffe1053.akpm@osdl.org>
-Message-ID: <p73y86ysz5c.fsf@verdi.suse.de>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Received: by wproxy.gmail.com with SMTP id i6so634561wra
+        for <linux-mm@kvack.org>; Thu, 18 Aug 2005 14:58:57 -0700 (PDT)
+Message-ID: <e692861c05081814582671a6a3@mail.gmail.com>
+Date: Thu, 18 Aug 2005 17:58:57 -0400
+From: Gregory Maxwell <gmaxwell@gmail.com>
+Subject: Preswapping
+Mime-Version: 1.0
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 8BIT
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: peterc@gelato.unsw.edu.au, linux-mm@kvack.org, mbligh@mbligh.org, linux-ia64@vger.kernel.org, kravetz@us.ibm.com, tony.luck@intel.com
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Andrew Morton <akpm@osdl.org> writes:
-> > 
-> >  To avoid this panic, following patch confirm allocated area, and retry
-> >  if it is not in DMA.
-> >  I tested this patch on my Tiger 4 and our new server.
-> 
-> It kills my x86_64 box:
+With the ability to measure something approximating least frequently
+used inactive pages now, would it not make sense to begin more
+aggressive nonevicting preswapping?
 
+For example, if the swap disks are not busy, we scan the least
+frequently used inactive pages, and write them out in nice large
+chunks. The pages are moved to another list, but not evicted from
+memory. The normal swapping algorithm is used to decide when/if to
+actually evict these pages from memory.  If they are used prior to
+being evicted, they can be remarked active (and their blocks on swap
+marked as unused) without a disk seek.
 
-Funny I ran into a similar problem recently. On a multi node x86-64
-system when swiotlb is forced (normally those are AMD systems which
-use the AMD hardware IOMMU) the bootmem_alloc in swiotlb.c would
-allocate from the last node. Why? Because alloc_bootmem just
-does for_each_pgdat() and tries each node and the pgdat list
-starts with the highest node going down to the lowest.
-
-I just changed the ordering of the pgdat list that made bootmem 
-work again.
-
--Andi
-
-Index: linux/mm/bootmem.c
-===================================================================
---- linux.orig/mm/bootmem.c
-+++ linux/mm/bootmem.c
-@@ -61,9 +61,17 @@ static unsigned long __init init_bootmem
- {
- 	bootmem_data_t *bdata = pgdat->bdata;
- 	unsigned long mapsize = ((end - start)+7)/8;
-+	static struct pglist_data *pgdat_last;
- 
--	pgdat->pgdat_next = pgdat_list;
--	pgdat_list = pgdat;
-+	pgdat->pgdat_next = NULL;
-+	/* Add new nodes last so that bootmem always starts 
-+	   searching in the first nodes, not the last ones */
-+	if (pgdat_last)
-+		pgdat_last->pgdat_next = pgdat;
-+	else {
-+		pgdat_list = pgdat; 	
-+		pgdat_last = pgdat;
-+	}
- 
- 	mapsize = ALIGN(mapsize, sizeof(long));
- 	bdata->node_bootmem_map = phys_to_virt(mapstart << PAGE_SHIFT);
+This approach makes sense because swapping performance is often
+limited by seeks rather than disk throughput or capacity. While under
+memory pressure a system with preswapping has a substantial head start
+on other systems because it is likely that majority of the unneeded 
+pages are going to already be on disk, all that is needed is to evict
+them. Also, this process allows us to be very aggressive in what we
+write to disk so that the truly useless pages get out, but not run the
+risk of overswapping on a system with plenty of free memory.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
