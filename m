@@ -1,51 +1,50 @@
-From: David Howells <dhowells@redhat.com>
-In-Reply-To: <20050816135900.GA3326@elf.ucw.cz> 
-References: <20050816135900.GA3326@elf.ucw.cz>  <200508121329.46533.phillips@istop.com> <200508110812.59986.phillips@arcor.de> <20050808145430.15394c3c.akpm@osdl.org> <26569.1123752390@warthog.cambridge.redhat.com> <5278.1123850479@warthog.cambridge.redhat.com> 
-Subject: Re: [RFC][PATCH] Rename PageChecked as PageMiscFS 
-Date: Thu, 18 Aug 2005 15:33:18 +0100
-Message-ID: <7489.1124375598@warthog.cambridge.redhat.com>
+From: "Ray Bryant" <raybry@mpdtxmail.amd.com>
+Subject: Re: [PATCH 0/4] Demand faunting for huge pages
+Date: Thu, 18 Aug 2005 10:29:00 -0500
+References: <1124304966.3139.37.camel@localhost.localdomain>
+ <20050817210431.GR3996@wotan.suse.de>
+ <20050818003302.GE7103@localhost.localdomain>
+In-Reply-To: <20050818003302.GE7103@localhost.localdomain>
+MIME-Version: 1.0
+Message-ID: <200508181029.01238.raybry@mpdtxmail.amd.com>
+Content-Type: text/plain;
+ charset=iso-8859-1
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Pavel Machek <pavel@ucw.cz>
-Cc: David Howells <dhowells@redhat.com>, Daniel Phillips <phillips@istop.com>, Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Hugh Dickins <hugh@veritas.com>
+To: David Gibson <david@gibson.dropbear.id.au>
+Cc: Andi Kleen <ak@suse.de>, Adam Litke <agl@us.ibm.com>, linux-mm@kvack.org, christoph@lameter.com, kenneth.w.chen@intel.com, akpm@osdl.org
 List-ID: <linux-mm.kvack.org>
 
-Pavel Machek <pavel@ucw.cz> wrote:
+On Wednesday 17 August 2005 19:33, David Gibson wrote:
 
-> > My patch has been around for quite a while, and no-one else has
-> > complained, not even you before this point. Plus, you don't seem to be
-> > complaining about PageSwapCache... nor even PageLocked.
-> 
-> PageFsMisc really *is* ugly and hard to read. PageLocked etc. look
-> bad, too but ThIs iS rEaLlY WrOnG.
+>
+> Strict accounting leads to nicer behaviour in some cases - you'll tend
+> to die early rather than late - but it seems an awful lot of work for
+> a fairly small improvement in behaviour.
+>
 
-And PageMappedToDisk()?
+The last time we went around on this (April 2004?) Andrew thought that adding 
+demand allocation for hugetlb pages without strict accounting was effectively 
+an ABI change -- in the current approach the mmap() will fail if you ask for 
+too many hugetlb pages whilst in the demand fault approach you will get 
+SIGBUS at a later point in time.   At one time this was considered serious 
+enough to fix.
 
-I disagree. For the most part weird capsage is wrong, but this is readable.
-Whilst it could make it page_fs_misc() instead, that'd be against the style of
-the rest of the file, though maybe you want to go through and change all of
-that too.
+Andy Whitcroft provided some code for the patch that Ken and I did back in
+April 2004 time frame.   I can't find that one but the following patch from
+Christoph Lameter appears to be the code.  The idea is that at mmap() time
+a strict reservation is made that guarantees the necessary number of 
+hugetlb pages is available. 
 
-Maybe you'd prefer bPageFsMisc()? :-)
+http://marc.theaimsgroup.com/?l=linux-kernel&m=109842250714489&w=2
 
-Actually, all these functions should really be called something like
-IsPageXxxx() to note they're asking a question rather than giving a command.
+-- 
+Ray Bryant
+AMD Performance Labs                   Austin, Tx
+512-602-0038 (o)                 512-507-7807 (c)
 
-> PageMisc would look less ugly
-
-I disagree again. I don't think PageFsMisc() is particularly ugly or
-unreadable; and it makes it a touch more likely that someone reading code that
-uses it will notice that it's a miscellaneous flag specifically for filesystem
-use (you can't rely on them going and looking in the header file for a
-comment).
-
-> , make note in a comment that it is for filesystems only.
-
-There should be a comment as well, I suppose. I'll amend the patch for Andrew.
-
-All this should also be documented in Documentation/ somewhere too, I suppose.
-
-David
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
