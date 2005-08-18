@@ -1,38 +1,23 @@
-Message-ID: <430448F8.3090502@yahoo.com.au>
-Date: Thu, 18 Aug 2005 18:38:16 +1000
-From: Nick Piggin <nickpiggin@yahoo.com.au>
+Received: from user-5594.l3.c3.dsl.pol.co.uk ([81.79.85.218] helo=kevin-vh06p3ns1)
+	by cmailg4.svr.pol.co.uk with esmtp (Exim 4.41)
+	id 1E5iqH-00053V-PU
+	for linux-mm@kvack.org; Thu, 18 Aug 2005 12:45:54 +0100
+Message-ID: <4118-220058418114553708@kevin-vh06p3ns1>
+From: "John Silkstone" <john_silkstone@yahoo.co.uk>
+Subject: I Urge You To Check This Out !!
+Date: Thu, 18 Aug 2005 12:45:53 +0100
 MIME-Version: 1.0
-Subject: Re: pagefault scalability patches
-References: <20050817151723.48c948c7.akpm@osdl.org> <4303EBC2.4030603@yahoo.com.au>
-In-Reply-To: <4303EBC2.4030603@yahoo.com.au>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 8BIT
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: Linus Torvalds <torvalds@osdl.org>, Hugh Dickins <hugh@veritas.com>, Christoph Lameter <clameter@engr.sgi.com>, Nick Piggin <piggin@cyberone.com.au>, linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Nick Piggin wrote:
+$3,000 - $7,000 per week!. No BULL! It works!!
+The most lucrative home based business ever!., Work from home. Internet Based. Powerful AUTOMATED marketing system. Earn $1,000 PER DAY.FACT! (Many people have earned over $100,000 in their first 3 months!) NOT MLM OR NETWORK MARKETING OR OTHER NONSENSE!. Go to my site, enter your details and go through everything. I urge you to check this out.
+<http://www.jumboprofits.com
 
-> If the big ticket item is taking the ptl out of the anonymous fault
-> path, then we probably should forget my stuff
-
-( for now :) )
-
-> and consider Christoph's
-> on its own merits.
-> 
-> FWIW, I don't think it is an unreasonable approach to solving the
-> problem at hand in a fairly unintrusive manner.
-> 
-
-To be clear: by "it" I mean Christoph's patches, not mine.
-
--- 
-SUSE Labs, Novell Inc.
-
-Send instant messages to your online friends http://au.messenger.yahoo.com 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
