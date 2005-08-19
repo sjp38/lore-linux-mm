@@ -1,42 +1,37 @@
-Date: Thu, 18 Aug 2005 21:49:24 -0700 (PDT)
-From: Linus Torvalds <torvalds@osdl.org>
-Subject: Re: [RFC] Concept for delayed counter updates in mm_struct
-In-Reply-To: <20050818212939.7dca44c3.akpm@osdl.org>
-Message-ID: <Pine.LNX.4.58.0508182141250.3412@g5.osdl.org>
-References: <20050817151723.48c948c7.akpm@osdl.org> <20050817174359.0efc7a6a.akpm@osdl.org>
- <Pine.LNX.4.61.0508182116110.11409@goblin.wat.veritas.com>
- <Pine.LNX.4.62.0508182052120.10236@schroedinger.engr.sgi.com>
- <20050818212939.7dca44c3.akpm@osdl.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH/RFT 4/5] CLOCK-Pro page replacement
+From: Rusty Russell <rusty@rustcorp.com.au>
+In-Reply-To: <20050817.214845.120320066.davem@davemloft.net>
+References: <20050817173818.098462b5.akpm@osdl.org>
+	 <20050817.194822.92757361.davem@davemloft.net>
+	 <20050817210532.54ace193.akpm@osdl.org>
+	 <20050817.214845.120320066.davem@davemloft.net>
+Content-Type: text/plain
+Date: Fri, 19 Aug 2005 17:03:47 +1000
+Message-Id: <1124435027.23757.0.camel@localhost.localdomain>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: Christoph Lameter <clameter@engr.sgi.com>, hugh@veritas.com, nickpiggin@yahoo.com.au, linux-mm@kvack.org
+To: "David S. Miller" <davem@davemloft.net>
+Cc: akpm@osdl.org, riel@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-
-On Thu, 18 Aug 2005, Andrew Morton wrote:
-> Christoph Lameter <clameter@engr.sgi.com> wrote:
->
-> > What is missing in this patch are points were mm_counter_catchup can be called.
-> > These points must be code where the page table lock is held. One way of providing
-> > these would be to call mm_counter_catchup when a task is in the scheduler.
-> > 
+On Wed, 2005-08-17 at 21:48 -0700, David S. Miller wrote:
+> From: Andrew Morton <akpm@osdl.org>
+> Date: Wed, 17 Aug 2005 21:05:32 -0700
 > 
-> That sounds sane.
+> > Perhaps by uprevving the compiler version?
+> 
+> Can't be, we definitely support gcc-2.95 and that compiler
+> definitely has the bug on sparc64.
 
-But that patch doesn't work.
+I believe we just ignored sparc64.  That usually works for solving these
+kind of bugs. 8)
 
-There's no locking around the scheduler. It's all per-CPU, and the only 
-exclusivity is in the per-rq locking.
+Rusty.
+-- 
+A bad analogy is like a leaky screwdriver -- Richard Braakman
 
-So if you gather the mm counters in the scheduler, you'd need to do it all 
-with atomic ops. But you're still using the non-atomic add_mm_counter..
-
-So you need to make those mm counters really atomic now. 
-
-		Linus
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
