@@ -1,29 +1,29 @@
-Date: Fri, 19 Aug 2005 05:03:54 +0200
-From: Andi Kleen <ak@suse.de>
-Subject: Re: [PATCH] gurantee DMA area for alloc_bootmem_low() ver. 2.
-Message-ID: <20050819030354.GG22993@wotan.suse.de>
-References: <20050818125236.4ffe1053.akpm@osdl.org> <p73y86ysz5c.fsf@verdi.suse.de> <20050819102706.62C7.Y-GOTO@jp.fujitsu.com>
+Date: Thu, 18 Aug 2005 20:17:19 -0700
+From: Andrew Morton <akpm@osdl.org>
+Subject: Re: [PATCH] use mm_counter macros for nr_pte since its also under
+ ptl
+Message-Id: <20050818201719.25443ae1.akpm@osdl.org>
+In-Reply-To: <Pine.LNX.4.62.0508181818100.2740@schroedinger.engr.sgi.com>
+References: <20050817151723.48c948c7.akpm@osdl.org>
+	<20050817174359.0efc7a6a.akpm@osdl.org>
+	<Pine.LNX.4.61.0508182116110.11409@goblin.wat.veritas.com>
+	<Pine.LNX.4.62.0508181818100.2740@schroedinger.engr.sgi.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20050819102706.62C7.Y-GOTO@jp.fujitsu.com>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Yasunori Goto <y-goto@jp.fujitsu.com>
-Cc: Andi Kleen <ak@suse.de>, Andrew Morton <akpm@osdl.org>, peterc@gelato.unsw.edu.au, linux-mm@kvack.org, mbligh@mbligh.org, linux-ia64@vger.kernel.org, kravetz@us.ibm.com, tony.luck@intel.com
+To: Christoph Lameter <clameter@engr.sgi.com>
+Cc: hugh@veritas.com, torvalds@osdl.org, piggin@yahoo.com.au, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Aug 19, 2005 at 11:29:32AM +0900, Yasunori Goto wrote:
-> To hot-add a node, it is better that pgdat link list is removed.
-> (Hot add code will set JUST node_online_map by it.)
-> I posted a patch to remove this link list 3 month ago.
-> http://marc.theaimsgroup.com/?l=linux-mm&m=111596924629564&w=2
-> http://marc.theaimsgroup.com/?l=linux-mm&m=111596953711780&w=2
+Christoph Lameter <clameter@engr.sgi.com> wrote:
+>
+> Actually this is a bug already present in Linus' tree (but still my 
+>  fault). nr_pte's needs to be managed through the mm counter macros like
+>  other counters protected by the page table fault. 
 
-Agreed that's a better solution than my patch, and should
-fix that bug too.
-
--Andi
+Does that mean that Linus's tree can presently go BUG?
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
