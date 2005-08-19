@@ -1,95 +1,84 @@
-Date: Thu, 18 Aug 2005 18:33:14 -0700 (PDT)
-From: Christoph Lameter <clameter@engr.sgi.com>
-Subject: Re: pagefault scalability patches
-In-Reply-To: <Pine.LNX.4.61.0508182116110.11409@goblin.wat.veritas.com>
-Message-ID: <Pine.LNX.4.62.0508181822520.2740@schroedinger.engr.sgi.com>
-References: <20050817151723.48c948c7.akpm@osdl.org> <20050817174359.0efc7a6a.akpm@osdl.org>
- <Pine.LNX.4.61.0508182116110.11409@goblin.wat.veritas.com>
+Date: Fri, 19 Aug 2005 11:29:32 +0900
+From: Yasunori Goto <y-goto@jp.fujitsu.com>
+Subject: Re: [PATCH] gurantee DMA area for alloc_bootmem_low() ver. 2.
+In-Reply-To: <p73y86ysz5c.fsf@verdi.suse.de>
+References: <20050818125236.4ffe1053.akpm@osdl.org> <p73y86ysz5c.fsf@verdi.suse.de>
+Message-Id: <20050819102706.62C7.Y-GOTO@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: Andrew Morton <akpm@osdl.org>, torvalds@osdl.org, piggin@yahoo.com.au, linux-mm@kvack.org
+To: Andi Kleen <ak@suse.de>
+Cc: Andrew Morton <akpm@osdl.org>, peterc@gelato.unsw.edu.au, linux-mm@kvack.org, mbligh@mbligh.org, linux-ia64@vger.kernel.org, kravetz@us.ibm.com, tony.luck@intel.com
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 18 Aug 2005, Hugh Dickins wrote:
+Hi, Andi-san.
 
-> There's a lot about atomic pte ops in this thread, but it's a pte
-> cmpxchg which do_anonymous_page has to do - if I remember PaulMcK's
-> bogroll rightly, cmpxchgs are extra bad news.
+> Andrew Morton <akpm@osdl.org> writes:
+> > > 
+> > >  To avoid this panic, following patch confirm allocated area, and retry
+> > >  if it is not in DMA.
+> > >  I tested this patch on my Tiger 4 and our new server.
+> > 
+> > It kills my x86_64 box:
+> 
+> 
+> Funny I ran into a similar problem recently. On a multi node x86-64
+> system when swiotlb is forced (normally those are AMD systems which
+> use the AMD hardware IOMMU) the bootmem_alloc in swiotlb.c would
+> allocate from the last node. Why? Because alloc_bootmem just
+> does for_each_pgdat() and tries each node and the pgdat list
+> starts with the highest node going down to the lowest.
+> 
+> I just changed the ordering of the pgdat list that made bootmem 
+> work again.
 
-Same badness as spin_lock yes but they serialize for extremely small time 
-periods. So they are better than spinlock.
+It was another candidate for modification indeed.
+But, if new node is hot-added (I'm working for it),
+pgdat list should be sorted by order of memory.
+I suppose it is a bit messy.
+At least, I think the order of pgdat link list must not depend on 
+memory address.
 
-> Christoph and Nick are keen to go further, deeper into the atomics
-> and cmpxchgs, away from the page table lock.  Is that sensible when
-> we have batch operations like zap_pte_range and copy_pte_range?
+To hot-add a node, it is better that pgdat link list is removed.
+(Hot add code will set JUST node_online_map by it.)
+I posted a patch to remove this link list 3 month ago.
+http://marc.theaimsgroup.com/?l=linux-mm&m=111596924629564&w=2
+http://marc.theaimsgroup.com/?l=linux-mm&m=111596953711780&w=2
 
-I did a batch faulting scheme last year too. See 
-http://marc.theaimsgroup.com/?l=linux-kernel&m=110488578521535&w=2
+Thanks for your comment. 
+Bye.
 
-> How many architectures have been converted to ATOMIC_TABLE_OPS
-> (could we call that ATOMIC_PAGE_TABLE_OPS?): just ia64, x86_64
-> and i386.  i386 being a joke, since it's only the non-PAE case
-> which is converted, yet surely anyone getting into a serious
-> number of cpus on i386 will be using PAE?
+> 
+> Index: linux/mm/bootmem.c
+> ===================================================================
+> --- linux.orig/mm/bootmem.c
+> +++ linux/mm/bootmem.c
+> @@ -61,9 +61,17 @@ static unsigned long __init init_bootmem
+>  {
+>  	bootmem_data_t *bdata = pgdat->bdata;
+>  	unsigned long mapsize = ((end - start)+7)/8;
+> +	static struct pglist_data *pgdat_last;
+>  
+> -	pgdat->pgdat_next = pgdat_list;
+> -	pgdat_list = pgdat;
+> +	pgdat->pgdat_next = NULL;
+> +	/* Add new nodes last so that bootmem always starts 
+> +	   searching in the first nodes, not the last ones */
+> +	if (pgdat_last)
+> +		pgdat_last->pgdat_next = pgdat;
+> +	else {
+> +		pgdat_list = pgdat; 	
+> +		pgdat_last = pgdat;
+> +	}
+>  
+>  	mapsize = ALIGN(mapsize, sizeof(long));
+>  	bdata->node_bootmem_map = phys_to_virt(mapstart << PAGE_SHIFT);
 
-Right. This is just a start. If it would be in the kernel then other 
-people will do the work as I have heard repeatedly. Chicken-Egg.
+-- 
+Yasunori Goto 
 
-> I may well be to blame for this.  Perhaps my hostility has
-> discouraged others from doing the work to add to what's there.
-> Certainly it was me who advised Christoph to drop the i386 PAE
-> support he originally had, since it was too ugly and buggy.
-
-PAE support can be added within the framework provided by these 
-patches.
-
-> And it was probably my resistance to the per-task rss patch which
-> has led him to hold that back for now.  I think wisely, that is a
-> separate issue.  But from what Linus says, it does rather look like
-> we can't sensibly go forward with anonymous pte cmpxchging, without
-> a matching rss solution.
-
-I am working on getting the bit rot out of my old patches. This is going 
-to take a few days.
-
-> matter.  (There were three places in rmap.c which avoided rss 0 mms,
-> but that was a historic necessity: I've deleted those checks from the
-> rmap.c waiting in -mm.)  Can't we just let them be racy?
-
-Its great that these are gone. I just tried to find them and was happy to 
-discover they were already gone.
-
-> With the page table lock moved inward, we can then easily choose to
-> use a per-pagetable lock, to handle the page fault scalability issue
-> without departing far from our existing locking conventions.  Indeed,
-> I have a working prototype for that, but I don't have equipment to test
-> scalability on SGI's scale, and on my 2*HT*Xeons the best results are
-> coming from just narrowing the page table lock, not from splitting it.
-
-I have tried that last year too. I thought you helped me see the light on 
-the futility of that approach?
-
-> I find proceeding in this way easier to understand, and would myself
-> prefer Christoph's patches removed from -mm, so we can build the
-> narrower page_table_lock solution there, then see what works best
-> as a scalability solution on top - per-pagetable locking, or pte
-> cmpxchging.  But we all find our own ways easier to understand.
-
-Oh no. We have been there before and I fear that if this gets removed then there 
-will be no progress for a long time like before. Please at least leave the 
-first patch in which provides an infrastructure for atomic pte operations 
-that may then be deployed in a variety of ways and be useful for 
-approaches that Hugh or Nick may come up with.
-
-> You might like me to post my patch for testing (not for merging into
-> any tree at this stage): please give me a couple of days to jiggle
-> around with it first.
-
-I'd be interested to see if you can really come up with anything that we 
-have not tried yet.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
