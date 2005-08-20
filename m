@@ -1,29 +1,34 @@
-Message-id: <007e01c5a643$8f0fbc80$d9833f2a@lccug>
-From: "Carmella Wolf" <uvhewxe@bessinc.com>
-Subject: Express your love to him,buy him A Perrelet Watch
-Date: Sun, 21 Aug 2005 04:58:07 -0800
-MIME-version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7Bit
+From: Daniel Phillips <phillips@istop.com>
+Subject: Re: [RFC][PATCH] Rename PageChecked as PageMiscFS
+Date: Sun, 21 Aug 2005 06:21:52 +1000
+References: <200508200231.19341.phillips@istop.com> <8880.1124445882@warthog.cambridge.redhat.com> <24247.1124534747@warthog.cambridge.redhat.com>
+In-Reply-To: <24247.1124534747@warthog.cambridge.redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200508210621.53456.phillips@istop.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: David Howells <dhowells@redhat.com>
+Cc: Pavel Machek <pavel@suse.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Hugh Dickins <hugh@veritas.com>
 List-ID: <linux-mm.kvack.org>
 
-Beautiful and elegant watches like Chanel
+On Saturday 20 August 2005 20:45, David Howells wrote:
+> Daniel Phillips <phillips@istop.com> wrote:
+> > Biased.  Fs is a mixed case acronym, nuff said.
+>
+> But I'm still right:-)
 
-All Watches arrive in a Luxury gift box - The Perfect Gift!
+Of course you are!  We're only impugning your taste, not your logic ;-)
 
-We Have in st0ck Watches like:
-Baume et Mercier
-Perrelet
-Piaget
+OK, the questions re your global consistency model are a bazillion times more 
+significant.  I have not forgotten about that, please stay tuned.
 
-contact :  http://037.edvan1cedwanow4right.com
+Regards,
 
-
-E..n..o..u..g..h :  http://037.edva3ncedwanow45right.com/rm
-
+Daniel
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
