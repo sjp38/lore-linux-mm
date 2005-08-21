@@ -1,37 +1,31 @@
-Message-Id: <200508191304.j7JD4utA010195@laptop11.inf.utfsm.cl>
-Subject: Re: [PATCH/RFT 4/5] CLOCK-Pro page replacement 
-In-Reply-To: Message from Rusty Russell <rusty@rustcorp.com.au>
-   of "Fri, 19 Aug 2005 17:27:06 +1000." <1124436426.23757.5.camel@localhost.localdomain>
-Date: Fri, 19 Aug 2005 09:04:56 -0400
-From: Horst von Brand <vonbrand@inf.utfsm.cl>
+Received: from surfeador.com (surfeador-com-bk.mr.outblaze.com [64.62.181.94])
+	by bellsouth.net with esmtp
+	id D0E42850D2 for <linux-mm@kvack.org>; Sun, 21 Aug 2005 00:48:31 -0700
+Date: Sun, 21 Aug 2005 00:48:31 -0700
+From: lintux@surfeador.com
+Message-ID: <5464289334.20050821004831@surfeador.com>
+Subject: L.o.l.i.t.a.
+MIME-Version: 1.0
+Content-Type: text/plain
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rusty Russell <rusty@rustcorp.com.au>
-Cc: Andrew Morton <akpm@osdl.org>, davem@davemloft.net, riel@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Linux <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Rusty Russell <rusty@rustcorp.com.au> wrote:
-> On Fri, 2005-08-19 at 00:10 -0700, Andrew Morton wrote:
-> > Rusty Russell <rusty@rustcorp.com.au> wrote:
-> > > I believe we just ignored sparc64.  That usually works for solving these
-> > > kind of bugs. 8)
-> > 
-> > heh.  iirc, it was demonstrable on x86 also.
-> 
-> No.  gcc-2.95 on Sparc64 put uninititialized vars into the bss, ignoring
-> the __attribute__((section(".data.percpu"))) directive.  x86 certainly
-> doesn't have this, I just tested it w/2.95.
-> 
-> Really, it's Sparc64 + gcc-2.95.  Send an urgent telegram to the user
-> telling them to upgrade.
+Hi, buddy!
+New kid pics and movies collection!
+Little and Hard photo collection
 
-I recently asked if gcc-2.95 was really still supported, and was told that
-it is in common use for its speed...
--- 
-Dr. Horst H. von Brand                   User #22616 counter.li.org
-Departamento de Informatica                     Fono: +56 32 654431
-Universidad Tecnica Federico Santa Maria              +56 32 654239
-Casilla 110-V, Valparaiso, Chile                Fax:  +56 32 797513
+http://ultramegasuper-site.com/02/01/777
+
+Incredible galleries of 
+children sucking dicks of parents and fucked by their fathers:
+
+* large free tour
+* weekly updates
+* total confidentiality
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
