@@ -1,44 +1,47 @@
 Subject: Re: pagefault scalability patches
 From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-In-Reply-To: <Pine.LNX.4.62.0508180916260.25946@schroedinger.engr.sgi.com>
+In-Reply-To: <20050817174359.0efc7a6a.akpm@osdl.org>
 References: <20050817151723.48c948c7.akpm@osdl.org>
-	 <4303EBC2.4030603@yahoo.com.au> <430448F8.3090502@yahoo.com.au>
-	 <Pine.LNX.4.62.0508180916260.25946@schroedinger.engr.sgi.com>
+	 <20050817174359.0efc7a6a.akpm@osdl.org>
 Content-Type: text/plain
-Date: Mon, 22 Aug 2005 12:04:53 +1000
-Message-Id: <1124676293.5159.4.camel@gaston>
+Date: Mon, 22 Aug 2005 12:09:39 +1000
+Message-Id: <1124676579.5189.10.camel@gaston>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@engr.sgi.com>
-Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Andrew Morton <akpm@osdl.org>, Linus Torvalds <torvalds@osdl.org>, Hugh Dickins <hugh@veritas.com>, Nick Piggin <piggin@cyberone.com.au>, linux-mm@kvack.org
+To: Andrew Morton <akpm@osdl.org>
+Cc: torvalds@osdl.org, hugh@veritas.com, clameter@engr.sgi.com, piggin@cyberone.com.au, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2005-08-18 at 09:17 -0700, Christoph Lameter wrote:
-> On Thu, 18 Aug 2005, Nick Piggin wrote:
+On Wed, 2005-08-17 at 17:43 -0700, Andrew Morton wrote:
+> Andrew Morton <akpm@osdl.org> wrote:
+
+> d) the fact that some architectures will be using atomic pte ops and
+>    others will be using page_table_lock in core MM code.
 > 
-> > Nick Piggin wrote:
-> > 
-> > > If the big ticket item is taking the ptl out of the anonymous fault
-> > > path, then we probably should forget my stuff
-> > 
-> > ( for now :) )
+>    Using different locking/atomicity schemes in different architectures
+>    has obvious complexity and test coverage drawbacks.
 > 
-> I think we can gradually work atomic operations into various code paths 
-> where this will be advantageous and your work may be a very important base 
-> to get there.
+>    Is it still the case that some architectures must retain the
+>    page_table_lock approach because they use it to lock other arch-internal
+>    things?
 
-Don't forget however that when doing things like tearing down page
-tables, it's a lot more efficient to take 1 lock, then do a bunch of
-things non-atomically, then drop that lock.
+Yes. The ppc64 case for example isn't trivial due to the difference
+between manipulating the linux page tables, and sync'ing the hash
+table. 
 
-At least on PPC, the cost of a lock is approx. equivalent to the cost of
-an atomic, and is measurable on such things.
+If we go toward non-PTL page faults, I'll need to review all the hash
+management code path that assume that thanks to the PTL, nothing will be
+happening to the page tables between a PTL update and the matching hash
+flush.
 
-That said, I think your approach for the anonymous page case is a good
-first step for now. I'll have to adapt ppc64 to it but it shouldn't be
-too hard.
+I think it shouldn't be too bad though as long as we are only ever doing
+that to fill a previously !present PTE (no hash flush necessary). If we
+ever want that for the COW case as well (where set_pte is called for an
+already present PTE), then things would get more complicated and I may
+have to rely more on the per-PTE locking mecanism we have (which is
+currently mostly used to avoid duplicates in the hash table).
 
 Ben.
 
