@@ -1,63 +1,74 @@
-Date: Mon, 22 Aug 2005 15:29:03 -0700 (PDT)
-From: Christoph Lameter <clameter@engr.sgi.com>
-Subject: Re: [RFT][PATCH 0/2] pagefault scalability alternative
-In-Reply-To: <Pine.LNX.4.61.0508222221280.22924@goblin.wat.veritas.com>
-Message-ID: <Pine.LNX.4.62.0508221448480.8933@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.61.0508222221280.22924@goblin.wat.veritas.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Mon, 22 Aug 2005 19:48:22 -0300
+From: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
+Subject: Re: Preswapping
+Message-ID: <20050822224822.GA8925@dmt.cnet>
+References: <e692861c05081814582671a6a3@mail.gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <e692861c05081814582671a6a3@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Linus Torvalds <torvalds@osdl.org>, Andrew Morton <akpm@osdl.org>, linux-mm@kvack.org
+To: Gregory Maxwell <gmaxwell@gmail.com>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 22 Aug 2005, Hugh Dickins wrote:
+On Thu, Aug 18, 2005 at 05:58:57PM -0400, Gregory Maxwell wrote:
+> With the ability to measure something approximating least frequently
+> used inactive pages now, would it not make sense to begin more
+> aggressive nonevicting preswapping?
 
-> Here's my alternative to Christoph's pagefault scalability patches:
-> no pte xchging, just narrowing the scope of the page_table_lock and
-> (if CONFIG_SPLIT_PTLOCK=y when SMP) splitting it up per page table.
+I think that some kind of applications might benefit while others
+can be hurt. One factor is whether or not there is locality.
+If the accesses are very random increasing readahead might hurt?
 
-The basic idea is to have a spinlock per page table entry it seems. I 
-think that is a good idea since it avoids atomic operations and I hope it 
-will bring the same performance as my patches (seems that the 
-page_table_lock can now be cached on the node that the fault is 
-happening). However, these are very extensive changes to the vm.
+Why don't you do some testing? The default readahead is (1 << page_cluster)
 
-The vm code in various places expects the page table lock to lock the 
-complete page table. How do the page based ptl's and the real ptl 
-interact?
+mm/swap.c
+        /* Use a smaller cluster for small-memory machines */
+        if (megs < 16)
+                page_cluster = 2;
+        else
+                page_cluster = 3;
 
-There are these various hackish things in there that will hopefully be 
-taken care of. F.e. there really should be a spinlock_t ptl in the struct 
-page. Spinlock_t is often much bigger than an unsigned long.
+Which is 8 pages (32bytes) on machines with more than 16Mb.
 
-The patch generally drops the first acquisition of the page 
-table lock from handle_mm_fault that is used to protect the read 
-operations on the page table. I doubt that this works with i386 PAE since 
-the page table read operations are not protected by the ptl. These are 64 
-bit which cannot be reliably retrieved in an 32 bit operation on i386 as 
-you pointed out last fall. There may be concurrent writes so that one 
-gets two pieces that do not fit. PAE mode either needs to fall back to 
-take the page_table_lock for reads or use some tricks to guarantee 64bit 
-atomicity.
+The qsbench test should be pretty random (it does a quick sort on 
+large amounts data). And then you could use a workload where locality
+is more significant (few parallel fillmem's for example).
 
-I have various bad feelings about some elements but I like the general 
-direction.
+> For example, if the swap disks are not busy, we scan the least
+> frequently used inactive pages, and write them out in nice large
+> chunks. 
 
-> Certainly not to be considered for merging into -mm yet: contains
-> various tangential mods (e.g. mremap move speedup) which should be
-> split off into separate patches for description, review and merge.
+Yes, that could be done for every pagecache page on VM reclaim path
+(and probably the pdflush path too, which controls the dirty limits
+and buffer age).
 
-Could you modularize these patches? Its difficult to review as one. Maybe 
-separate the narrowing and the splitting and the miscellaneous things?
+And you can relatively easy find contiguous dirty pages in the per-inode
+mapping via the radix tree with radix_tree_lookup_gang().
 
-> Presented as a Request For Testing - any chance, Christoph, that you
-> could get someone to run it up on SGI's ia64 512-ways, to compare
-> against the vanilla 2.6.13-rc6-mm1 including your patches?  Thanks!
+Hopefully the pages are contiguous on disk too, could discard IO 
+otherwise. 
 
-Compiles and boots fine on ia64. Survives my benchmark on a smaller box. 
-Numbers and more details will follow later. It takes some time to get a bigger iron. 
+> The pages are moved to another list, but not evicted from
+> memory. The normal swapping algorithm is used to decide when/if to
+> actually evict these pages from memory.  If they are used prior to
+> being evicted, they can be remarked active (and their blocks on swap
+> marked as unused) without a disk seek.
+> 
+> This approach makes sense because swapping performance is often
+> limited by seeks rather than disk throughput or capacity. While under
+> memory pressure a system with preswapping has a substantial head start
+> on other systems because it is likely that majority of the unneeded 
+> pages are going to already be on disk, all that is needed is to evict
+> them. Also, this process allows us to be very aggressive in what we
+> write to disk so that the truly useless pages get out, but not run the
+> risk of overswapping on a system with plenty of free memory.
+
+Yes it probably helps - you should try it out.
+
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
