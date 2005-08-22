@@ -1,43 +1,44 @@
-Subject: Re: pagefault scalability patches
-From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-In-Reply-To: <Pine.LNX.4.62.0508171550001.19273@schroedinger.engr.sgi.com>
-References: <20050817151723.48c948c7.akpm@osdl.org>
-	 <Pine.LNX.4.58.0508171529530.3553@g5.osdl.org>
-	 <Pine.LNX.4.62.0508171550001.19273@schroedinger.engr.sgi.com>
-Content-Type: text/plain
-Date: Mon, 22 Aug 2005 12:13:43 +1000
-Message-Id: <1124676823.5159.12.camel@gaston>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Date: Sun, 21 Aug 2005 20:32:37 -0700 (PDT)
+From: Christoph Lameter <clameter@engr.sgi.com>
+Subject: Re: [PATCH] Use deltas to replace atomic inc
+In-Reply-To: <20050820005843.21ba4d9b.akpm@osdl.org>
+Message-ID: <Pine.LNX.4.62.0508212030020.2093@schroedinger.engr.sgi.com>
+References: <20050817151723.48c948c7.akpm@osdl.org> <20050817174359.0efc7a6a.akpm@osdl.org>
+ <Pine.LNX.4.61.0508182116110.11409@goblin.wat.veritas.com>
+ <Pine.LNX.4.62.0508182052120.10236@schroedinger.engr.sgi.com>
+ <20050818212939.7dca44c3.akpm@osdl.org> <Pine.LNX.4.58.0508182141250.3412@g5.osdl.org>
+ <Pine.LNX.4.62.0508200033420.20471@schroedinger.engr.sgi.com>
+ <20050820005843.21ba4d9b.akpm@osdl.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@engr.sgi.com>
-Cc: Linus Torvalds <torvalds@osdl.org>, Andrew Morton <akpm@osdl.org>, Hugh Dickins <hugh@veritas.com>, Nick Piggin <piggin@cyberone.com.au>, linux-mm@kvack.org
+To: Andrew Morton <akpm@osdl.org>
+Cc: torvalds@osdl.org, hugh@veritas.com, nickpiggin@yahoo.com.au, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2005-08-17 at 15:51 -0700, Christoph Lameter wrote:
-> On Wed, 17 Aug 2005, Linus Torvalds wrote:
+On Sat, 20 Aug 2005, Andrew Morton wrote:
+
+> Christoph Lameter <clameter@engr.sgi.com> wrote:
+> >
+> >  @@ -508,6 +508,16 @@ static int unuse_mm(struct mm_struct *mm
+> >   {
+> >   	struct vm_area_struct *vma;
+> >   
+> >  +	/*
+> >  +	 * Ensure that existing deltas are charged to the current mm since
+> >  +	 * we will charge the next batch manually to the target mm
+> >  +	 */
+> >  +	if (current->mm && mm_counter_updates_pending(current)) {
 > 
-> > HOWEVER, the fact that it makes the mm counters be atomic just makes it
-> > pointless. It may help scalability, but it loses the attribute that I
-> > considered a big win above - it no longer helps the non-contended case (at
-> > least on x86, a uncontended spinlock is about as expensive as a atomic
-> > op).
-> 
-> We are trading 2x (spinlock(page_table_lock), 
-> spin_unlock(page_table_lock)) against one atomic inc.
+> Is there a race window right here?
 
-At least on ppc, unlock isn't atomic
+Why? current is tied to a thread.
 
-> > I thought Christoph (Nick?) had a patch to make the counters be
-> > per-thread, and then just folded back into the mm-struct every once in a
-> > while?
-> 
-> Yes I do but I did want want to risk that can of worms becoming entwined 
-> with the page fault scalability patches.
-
-
-
+The thing that bothers me more is that schedule() can be called both by 
+handle_mm_fault as well as during unuse_mm. We may need some flag 
+PF_NO_COUNTER_UPDATES or so there to insure that schedule() does not add 
+deltas to the current->mm.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
