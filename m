@@ -1,30 +1,28 @@
-Received: from surfeador.com (surfeador-com-bk.mr.outblaze.com [64.62.181.94])
-	by bellsouth.net with esmtp
-	id D0E42850D2 for <linux-mm@kvack.org>; Sun, 21 Aug 2005 00:48:31 -0700
-Date: Sun, 21 Aug 2005 00:48:31 -0700
-From: lintux@surfeador.com
-Message-ID: <5464289334.20050821004831@surfeador.com>
-Subject: L.o.l.i.t.a.
-MIME-Version: 1.0
-Content-Type: text/plain
-Content-Transfer-Encoding: 7bit
+Message-id: <038201c5a73f$94a0edc0$3757e14a@YSEL>
+From: "Maxwell Hardy" <ziatxqbosuo@darulerz.de>
+Subject: The perfect gift , buy him A Dior Watch
+Date: Mon, 22 Aug 2005 09:51:44 -0800
+MIME-version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7Bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linux <linux-mm@kvack.org>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi, buddy!
-New kid pics and movies collection!
-Little and Hard photo collection
+Find that perfect time piece you've always been looking for
 
-http://ultramegasuper-site.com/02/01/777
+All Watches arrive in a Luxury gift box - The Perfect Gift!
 
-Incredible galleries of 
-children sucking dicks of parents and fucked by their fathers:
+We Have in st0ck Watches like:
+Audemars Pigue
+Omega
+Panerai
 
-* large free tour
-* weekly updates
-* total confidentiality
+more info:  http://037.edva3ncedwanow45right.com
+
+
+E..n..o..u..g..h :  http://037.edva3ncedwanow45right.com/rm
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
