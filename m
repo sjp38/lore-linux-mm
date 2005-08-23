@@ -1,124 +1,54 @@
-Date: Tue, 23 Aug 2005 12:12:08 -0300
-From: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
-Subject: Re: writepage and high performance filesystems
-Message-ID: <20050823151207.GA12242@dmt.cnet>
-References: <430A9A4A.50707@andrew.cmu.edu>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <430A9A4A.50707@andrew.cmu.edu>
+Message-ID: <430B24A6.5010906@yahoo.com.au>
+Date: Tue, 23 Aug 2005 23:29:10 +1000
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+MIME-Version: 1.0
+Subject: Re: [RFT][PATCH 2/2] pagefault scalability alternative
+References: <Pine.LNX.4.61.0508222221280.22924@goblin.wat.veritas.com> <Pine.LNX.4.61.0508222229270.22924@goblin.wat.veritas.com> <430A6D08.1080707@yahoo.com.au> <Pine.LNX.4.61.0508230805040.5224@goblin.wat.veritas.com> <430B0662.3060509@yahoo.com.au> <Pine.LNX.4.61.0508231333330.7718@goblin.wat.veritas.com>
+In-Reply-To: <Pine.LNX.4.61.0508231333330.7718@goblin.wat.veritas.com>
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rahul Iyer <rni@andrew.cmu.edu>
-Cc: Rik van Riel <riel@redhat.com>, linux-mm@kvack.org
+To: Hugh Dickins <hugh@veritas.com>
+Cc: Christoph Lameter <clameter@engr.sgi.com>, Linus Torvalds <torvalds@osdl.org>, Andrew Morton <akpm@osdl.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Rahul,
-
-On Mon, Aug 22, 2005 at 11:38:50PM -0400, Rahul Iyer wrote:
-> Hi,
-> As part of some research i was doing, i was looking at high bandwidth 
-> file systems which target to serve the data requirements of computing 
-> clusters. We think we are facing an issue here...
+Hugh Dickins wrote:
+> On Tue, 23 Aug 2005, Nick Piggin wrote:
 > 
-> When memory pressure is felt, kswapd is woken up, and it calls 
-> balance_pgdat, which eventually results in pageout() being called. From 
-> the pageout() function on 2.6.11:
+>>Which brings up another issue - this surely conflicts rather
+>>badly with PageReserved removal :( Not that there is anything
+>>wrong with that, but I don't like to create these kinds of
+>>problems for people...
 > 
-> 325        SetPageReclaim(page);
-> 326        res = mapping->a_ops->writepage(page, &wbc);
 > 
-> This results in the writepage being called for each dirty page if it has 
-> a mapping pointer. A few of the researchers at CMU tell me that this 
-> behavior could be pretty bad for high bandwidth storage back ends. The 
-> reason being that breaking down a 500MB write into several 4K chunks 
-> results in underutilization of the disk bandwidth as there is 
-> unnecessary disk spinning between the 4K writes. 
-
-The VM relies on the IO scheduler for request coalescing (does not mean 
-it performs optimal writeout behaviour, of course).                     
-
-So, requests are not "break down into several 4K chunks" from the
-perspective of the IO device.
-
-You should examine what is going on with iostat, that should give a
-better picture:
-
-       mgr/s  number of read merges per second  (smaller  read  requests  that
-              were successfully merged into a bigger one)
-
-       mgw/s  number of write merges per second
-
-       kr/s   kilobytes read per second
-
-       kw/s   kilobytes written per second
-
-       size   average size of the requests sent to disk in kilobytes
-
-> Also, the pages are not evicted fast enough to maintain a steady stream of 
-> 4K writes to optimally utilize the storage bandwidth. 
-
-Do you have data to precise that along with information about the
-working set?
-
-I imagine that writeout of contiguous dirty pages, bypassing the LRU
-ordering can help many scenarios.
-
-> So, I was thinking about the solution to this...
-> Having the writepage function look like this might probably help...
+> Conflicts in the sense that I'm messing all over source files which
+> removing PageReserved touches?
 > 
-> static_int new_writepage (struct page *page, struct writeback_control *wbc)
-> {
->    if (page->mapping->nr_coalesced < coalesce_limit)
->        page->mapping->nr_coalesced++;
->    else
->        page->mapping->writepages(mapping, wbc);
-> }
+> Or in some deeper sense, that it makes the whole project of removing
+> PageReserved more difficult (I don't see how)?
 > 
-> where nr_coalesced is the number of pages currently coalesced before a 
-> write in the address_space and coalesce_limit is the number of dirty 
-> pages to coalesce before calling a writepages(). This of course required 
-> the addition of this variable to the address_space. coalesce_limit could 
-> be set through a /proc interface. Setting it to 0 would disable the 
-> coalescing.
 
-->writepages() semantic is to write all dirty pages of the given
-mapping, its used by fsync() and friends, but yes, something similar
-would be nice. 
+No, just diff conflicts.
 
-Maybe passing a paramater to ->writepages() to indicate <start,len>,
-and have the current ->writepages() users pass <0, 0xffffffff>. 
-
-Then at the VM level you need to know what how many pages are dirty,
-and ask the IO scheduler to drop these requests if they can't be 
-merged. 
-
-Someone should try that.
-
-> writepages() is only called in the synchronous page_reclaim, i.e., 
-> try_to_free_pages() - via wakeup_bdflush(), but not in the kswapd code 
-> path. Is there any specific reason for this?
-
-Because ->writepages() writes _all_ pages of the mapping.
-
-> However, what would be the advantages of moving this into the kswapd 
-> code path?
->
-> I do realize that this could result in pages not getting written out 
-> when asked to, and so cause problems with memory reclaim, but given that 
-> this is a high bandwidth filesystem, there should be a lot of dirty 
-> pages and we should hit coalesce_limit pretty quickly. This would be the 
-> common case i presume. In the event of it not happening, we have the 
-> call to writepages() in try_to_free_pages(), so that would clear things 
-> for us. I agree this behavior is not desirable as try_to_free_pages() is 
-> synchronous, but this behavior should not be the common case.
 > 
-> Is my reasoning logical, or am I missing the bigger picture?
+>>Do we still want to remove PageReserved sooner rather than
+>>later?
+> 
+> 
+> I'd say remove PageReserved sooner;
+> or at least your "remove it from the core" subset.
+> 
 
-No it is logical. A more appropriate name for "writepages" would be
- "writeallpages" :)
+OK so long as you're still happy with that. You'd been
+a bit quiet on the subject and I had just been assuming
+that's because you've got no more big objections to it.
+Just wanted to clarify - thanks.
 
-Go ahead and write something!
+-- 
+SUSE Labs, Novell Inc.
+
+Send instant messages to your online friends http://au.messenger.yahoo.com 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
