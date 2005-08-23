@@ -1,39 +1,38 @@
-Message-ID: <430A6D08.1080707@yahoo.com.au>
-Date: Tue, 23 Aug 2005 10:25:44 +1000
+Message-ID: <430A6EB5.2000408@yahoo.com.au>
+Date: Tue, 23 Aug 2005 10:32:53 +1000
 From: Nick Piggin <nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
-Subject: Re: [RFT][PATCH 2/2] pagefault scalability alternative
-References: <Pine.LNX.4.61.0508222221280.22924@goblin.wat.veritas.com> <Pine.LNX.4.61.0508222229270.22924@goblin.wat.veritas.com>
-In-Reply-To: <Pine.LNX.4.61.0508222229270.22924@goblin.wat.veritas.com>
+Subject: Re: [RFT][PATCH 0/2] pagefault scalability alternative
+References: <Pine.LNX.4.61.0508222221280.22924@goblin.wat.veritas.com> <Pine.LNX.4.62.0508221448480.8933@schroedinger.engr.sgi.com>
+In-Reply-To: <Pine.LNX.4.62.0508221448480.8933@schroedinger.engr.sgi.com>
 Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: Christoph Lameter <clameter@engr.sgi.com>, Linus Torvalds <torvalds@osdl.org>, Andrew Morton <akpm@osdl.org>, linux-mm@kvack.org
+To: Christoph Lameter <clameter@engr.sgi.com>
+Cc: Hugh Dickins <hugh@veritas.com>, Linus Torvalds <torvalds@osdl.org>, Andrew Morton <akpm@osdl.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hugh Dickins wrote:
-> Then add Hugh's pagefault scalability alternative on top.
+Christoph Lameter wrote:
+
+> The patch generally drops the first acquisition of the page 
+> table lock from handle_mm_fault that is used to protect the read 
+> operations on the page table. I doubt that this works with i386 PAE since 
+> the page table read operations are not protected by the ptl. These are 64 
+> bit which cannot be reliably retrieved in an 32 bit operation on i386 as 
+> you pointed out last fall. There may be concurrent writes so that one 
+> gets two pieces that do not fit. PAE mode either needs to fall back to 
+> take the page_table_lock for reads or use some tricks to guarantee 64bit 
+> atomicity.
 > 
 
-I like this. It is very like what I did, and having the 'fallback'
-case still take the "narrowed" lock eliminates some of the complexity
-I had. So it should be fairly easy to add the per-pte locks on top
-of this.
+Oh yes, you need 64-bit atomic reads and writes for that.
 
-I had preempt_disable() in tlb_gather_mmu which I thought was nice,
-but maybe you don't?
+We actually did see that load in handle_pte_fault being cut
+in half by a store.
 
-> +
-> +#ifdef CONFIG_SPLIT_PTLOCK
-> +#define __pte_lockptr(page)	((spinlock_t *)&((page)->private))
-> +#define pte_lock_init(page)	spin_lock_init(__pte_lockptr(page))
-> +#define pte_lock_deinit(page)	((page)->mapping = NULL)
-
-Do you mean page->private?
-
-But I haven't given it a really good look yet.
+I wouldn't be too worried about that though, as it's only
+for PAE.
 
 -- 
 SUSE Labs, Novell Inc.
