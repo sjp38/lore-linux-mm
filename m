@@ -1,58 +1,65 @@
-Message-ID: <430D1C03.4000200@yahoo.com.au>
-Date: Thu, 25 Aug 2005 11:16:51 +1000
-From: Nick Piggin <nickpiggin@yahoo.com.au>
+Date: Thu, 25 Aug 2005 18:15:21 +0900
+From: Yasunori Goto <y-goto@jp.fujitsu.com>
+Subject: Re: [PATCH] gurantee DMA area for alloc_bootmem_low() ver. 2.
+In-Reply-To: <20050818125236.4ffe1053.akpm@osdl.org>
+References: <20050810145550.740D.Y-GOTO@jp.fujitsu.com> <20050818125236.4ffe1053.akpm@osdl.org>
+Message-Id: <20050825162423.2A0D.Y-GOTO@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [fucillo@intersystems.com: process creation time increases linearly
- with shmem]
-References: <20050824181409.GC6932@linux.intel.com>
-In-Reply-To: <20050824181409.GC6932@linux.intel.com>
-Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Benjamin LaHaise <bcrl@linux.intel.com>
-Cc: linux-mm@kvack.org
+To: Andrew Morton <akpm@osdl.org>
+Cc: linux-mm@kvack.org, mbligh@mbligh.org, kravetz@us.ibm.com, Andi Kleen <ak@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-FYI, see my reply on lkml too (it might start a thread of its own).
+Hello. Andrew-san.
 
-I recently had a quick look into why this is so when I heard some
-other operating systems do better than us here.
+I could rent a x86_64 box, and tried this panic.
+But, it hasn't occurred in my box.
+Could you add following patch and retry with my previous one
+to get more information?
 
-I believe it is because we copy all page tables though we need not
-copy those that are filebacked MAP_SHARED. The patch to change this
-is fairly trivial, though I didn't have a real world test to justify
-any improvement.
+Your .config didn't set CONFIG_NUMA, so kernel tried allocation
+just one node which had all of memory.
+And your console message displayed that required size was 67Mbytes.
+Now, I guess that one function called alloc_bootmem_low() 
+by size = 67Mbytes. But, it is impossible because x86_64's DMA area
+size is just 16Mbytes. So, caller got "non DMA" area in spite of
+its requirement in current code, but my patch refused it and panic was
+occured.
 
-Actually, it may be worthwhile for another reason on large NUMA
-systems so their leaf page tables get allocated on the same node
-in which the memory is used.
+I would like to make sure my assumption and would like to know
+which function call it.
 
-Benjamin LaHaise wrote:
-> ----- Forwarded message from Ray Fucillo <fucillo@intersystems.com> -----
-> 
-> Subject: process creation time increases linearly with shmem
-> From: Ray Fucillo <fucillo@intersystems.com>
-> To: linux-kernel@vger.kernel.org
-> Date: 	Wed, 24 Aug 2005 14:43:29 -0400
-> Resent-Message-Id: <200508241914.j7OJE7wm027367@orsfmr002.jf.intel.com>
-> Resent-Sender: Benjamin LaHaise <bcrl@kvack.org>
-> Resent-From: bcrl@kvack.org
-> Resent-Date: Wed, 24 Aug 2005 15:13:51 -0400
-> Resent-To: bcrl@linux.intel.com
-> 
-> I am seeing process creation time increase linearly with the size of the 
-> shared memory segment that the parent touches.  The attached forktest.c 
-> is a very simple user program that illustrates this behavior, which I 
-> have tested on various kernel versions from 2.4 through 2.6.  Is this a 
-> known issue, and is it solvable?
+Thanks.
 
-[snip]
+
+Signed-off-by: Yasunori Goto <y-goto@jp.fujitsu.com>
+---
+
+ alloc_bootmem-goto/mm/bootmem.c |    4 +++-
+ 1 files changed, 3 insertions(+), 1 deletion(-)
+
+diff -puN mm/bootmem.c~info mm/bootmem.c
+--- alloc_bootmem/mm/bootmem.c~info	2005-08-24 20:30:57.000000000 +0900
++++ alloc_bootmem-goto/mm/bootmem.c	2005-08-24 20:38:12.000000000 +0900
+@@ -410,7 +410,9 @@ void * __init __alloc_bootmem (unsigned 
+ 	/*
+ 	 * Whoops, we cannot satisfy the allocation request.
+ 	 */
+-	printk(KERN_ALERT "bootmem alloc of %lu bytes failed!\n", size);
++	printk(KERN_ALERT "bootmem alloc of %lu bytes %s failed!\n",
++	       size, goal < max_dma_physaddr() ? "DMA" : "No DMA");
++	dump_stack();
+ 	panic("Out of memory");
+ 	return NULL;
+ }
+_
 
 -- 
-SUSE Labs, Novell Inc.
+Yasunori Goto 
 
-Send instant messages to your online friends http://au.messenger.yahoo.com 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
