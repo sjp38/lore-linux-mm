@@ -1,65 +1,44 @@
-Date: Thu, 25 Aug 2005 18:15:21 +0900
-From: Yasunori Goto <y-goto@jp.fujitsu.com>
-Subject: Re: [PATCH] gurantee DMA area for alloc_bootmem_low() ver. 2.
-In-Reply-To: <20050818125236.4ffe1053.akpm@osdl.org>
-References: <20050810145550.740D.Y-GOTO@jp.fujitsu.com> <20050818125236.4ffe1053.akpm@osdl.org>
-Message-Id: <20050825162423.2A0D.Y-GOTO@jp.fujitsu.com>
+Date: Thu, 25 Aug 2005 13:14:26 -0700 (PDT)
+From: Christoph Lameter <clameter@engr.sgi.com>
+Subject: [PATCH] Only process_die notifier in ia64_do_page_fault if KPROBES
+ is configured.
+Message-ID: <Pine.LNX.4.62.0508251312010.7100@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: linux-mm@kvack.org, mbligh@mbligh.org, kravetz@us.ibm.com, Andi Kleen <ak@suse.de>
+To: linux-ia64@vger.kernel.org
+Cc: linux-mm@kvack.org, prasanna@in.ibm.com
 List-ID: <linux-mm.kvack.org>
 
-Hello. Andrew-san.
+ia64_do_page_fault is a path critical for system performance. The code to call
+notify_die() should not be compiled into that critical path if the system
+is not configured to use KPROBES.
 
-I could rent a x86_64 box, and tried this panic.
-But, it hasn't occurred in my box.
-Could you add following patch and retry with my previous one
-to get more information?
+Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
-Your .config didn't set CONFIG_NUMA, so kernel tried allocation
-just one node which had all of memory.
-And your console message displayed that required size was 67Mbytes.
-Now, I guess that one function called alloc_bootmem_low() 
-by size = 67Mbytes. But, it is impossible because x86_64's DMA area
-size is just 16Mbytes. So, caller got "non DMA" area in spite of
-its requirement in current code, but my patch refused it and panic was
-occured.
-
-I would like to make sure my assumption and would like to know
-which function call it.
-
-Thanks.
-
-
-Signed-off-by: Yasunori Goto <y-goto@jp.fujitsu.com>
----
-
- alloc_bootmem-goto/mm/bootmem.c |    4 +++-
- 1 files changed, 3 insertions(+), 1 deletion(-)
-
-diff -puN mm/bootmem.c~info mm/bootmem.c
---- alloc_bootmem/mm/bootmem.c~info	2005-08-24 20:30:57.000000000 +0900
-+++ alloc_bootmem-goto/mm/bootmem.c	2005-08-24 20:38:12.000000000 +0900
-@@ -410,7 +410,9 @@ void * __init __alloc_bootmem (unsigned 
+Index: linux-2.6.13-rc7/arch/ia64/mm/fault.c
+===================================================================
+--- linux-2.6.13-rc7.orig/arch/ia64/mm/fault.c	2005-08-23 20:39:14.000000000 -0700
++++ linux-2.6.13-rc7/arch/ia64/mm/fault.c	2005-08-25 13:04:57.000000000 -0700
+@@ -103,12 +103,16 @@ ia64_do_page_fault (unsigned long addres
+ 		goto bad_area_no_up;
+ #endif
+ 
++#ifdef CONFIG_KPROBES
  	/*
- 	 * Whoops, we cannot satisfy the allocation request.
+-	 * This is to handle the kprobes on user space access instructions
++	 * This is to handle the kprobes on user space access instructions.
++	 * This is a path criticial for system performance. So only
++	 * process this notifier if we are compiled with kprobes support.
  	 */
--	printk(KERN_ALERT "bootmem alloc of %lu bytes failed!\n", size);
-+	printk(KERN_ALERT "bootmem alloc of %lu bytes %s failed!\n",
-+	       size, goal < max_dma_physaddr() ? "DMA" : "No DMA");
-+	dump_stack();
- 	panic("Out of memory");
- 	return NULL;
- }
-_
-
--- 
-Yasunori Goto 
-
+ 	if (notify_die(DIE_PAGE_FAULT, "page fault", regs, code, TRAP_BRKPT,
+ 					SIGSEGV) == NOTIFY_STOP)
+ 		return;
++#endif
+ 
+ 	down_read(&mm->mmap_sem);
+ 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
