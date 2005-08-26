@@ -1,32 +1,77 @@
-Date: Fri, 26 Aug 2005 08:24:57 -0400 (EDT)
-From: Rik van Riel <riel@redhat.com>
-Subject: Re: Zoned CART
-In-Reply-To: <1125040173.20161.39.camel@twins>
-Message-ID: <Pine.LNX.4.63.0508260824400.23210@cuia.boston.redhat.com>
-References: <1123857429.14899.59.camel@twins>  <1124024312.30836.26.camel@twins>
- <1124141492.15180.22.camel@twins>  <43024435.90503@andrew.cmu.edu>
- <Pine.LNX.4.62.0508161318420.7906@schroedinger.engr.sgi.com>
- <1125009555.20161.33.camel@twins>  <Pine.LNX.4.62.0508251657530.8955@schroedinger.engr.sgi.com>
- <1125040173.20161.39.camel@twins>
+Date: Fri, 26 Aug 2005 17:18:34 +0300
+From: Alexandra <Mikaela@y105fm.com>
+Message-ID: <12051694394.2005081888201@host-62-135-104-118.link.net>
+Subject: Will this stock be a SuperNova?
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=iso-8859-1
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Christoph Lameter <clameter@engr.sgi.com>, Rahul Iyer <rni@andrew.cmu.edu>, linux-mm@kvack.org, Marcelo Tosatti <marcelo.tosatti@cyclades.com>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 26 Aug 2005, Peter Zijlstra wrote:
+***BREAKING NEWS ALERT ISSUED****
+WORLDWIDE BIOTECH & PHARMACEUTICAL CO MAKES MAJOR MOVE !!!!
 
->  zone->present_pages - zone->free_pages = 
->                            zone->nr_active + zone->nr_inactive
-> 
-> Or is there some other place the pages can go?
 
-Slab cache, page tables, ...
+Symbol: WWBP
+Price: $3.00
+Target: $8  or more
 
--- 
-All Rights Reversed
+
+****You may not be aware of  (WWBP), but you should be, 
+because this company represents a terrific profit opportunity for early investors
+
+Worldwide Biotech & Pharmaceutical Obtains the China Patent Golden Medal 
+For Its "Intact Hepatitis C Virus (HCV) and Method for Culturing HCV 
+in Vitro by Cell Culture"
+
+Thursday August 25, 9:00 am ET  
+Marks the Highest Award Over the Past 10 Years 
+in the Biomedical Sciences Industry in China 
+
+XI'AN, China, Aug. 25 /Xinhua-PRNewswire/ -- 
+Worldwide Biotech & Pharmaceutical Company (OTC Bulletin Board: WWBP - News; "WWBP") 
+has obtained the China Patent Golden Medal for ''the Intact Hepatitis C Virus (HCV) 
+and Method for Culturing HCV in Vitro by Cell Culture. 
+"The project "The Intact Hepatitis C Virus (HCV) and Method for Culturing HCV 
+in vitro by Cell Culture" was awarded the Chinese Patent by China Patent Bureau 
+on October 23rd, 2002. The patent was then awarded the prestigious 
+China Patent Golden Medal (Chinese Patent No. 01124001.6) 
+in the 8th China Patent Assessment organized by both 
+General World Intellectual Property Organization (WIPO) and the China Patent Office. 
+Importantly, this patent was recognized by the World Intellectual Property Organization 
+(WIPO), issued as an outstanding Chinese Patented Invention, and was the highest 
+award issued for achievements in the biomedical sciences industry over 
+the past 10 years in China.
+ 
+"We are highly encouraged with our patent which is recognized by the WIPO and 
+it is such a great achievement for the whole company. It's a great milestone," 
+said WenXia Guo, CEO and President of WWBP, "the success 
+of this patented invention leads our company to a worldwide market, 
+we will continue our development and research of new inventions and 
+bring health to every customer."
+
+THIS IS AN ONLINE INTERNET IPO THATS 4 DAYS OLD. IF YOU ARE RECEIVING THIS EMAIL, 
+YOU ARE AMONG THE FIRST PUBLIC INVESTORS TO KNOW ABOUT WWBP !!!!
+
+A $1,000 dollar investment could yield a $5,000 dollar profit in
+just ONE trade if you trade out at the top.  WWBP  should be one of the most
+profitable stocks to trade this year.
+
+It is only a matter of time before it is released out into 
+the investment community and they take it to the moon..
+
+$ GET IN NOW!!! You know the old saying, buy the
+rumor and sell on the news. Once the news is out it is time to get 
+ready for next rally...JUST DO YOURSELF A FAVOR AND WATCH WWBP again 
+and DON'T SAY WE DIDN'T TELL YOU.
+
+
+WE SEE BIG THINGS HAPPENING EVERYDAY, SO WE SAY KEEP YOUR EYE ON WWBP 
+AND WATCH FOR A BIG MOVEMENT  !!!
+
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
