@@ -1,42 +1,61 @@
-Subject: Re: Zoned CART
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-In-Reply-To: <Pine.LNX.4.62.0508251657530.8955@schroedinger.engr.sgi.com>
-References: <1123857429.14899.59.camel@twins>
-	 <1124024312.30836.26.camel@twins> <1124141492.15180.22.camel@twins>
-	 <43024435.90503@andrew.cmu.edu>
-	 <Pine.LNX.4.62.0508161318420.7906@schroedinger.engr.sgi.com>
-	 <1125009555.20161.33.camel@twins>
-	 <Pine.LNX.4.62.0508251657530.8955@schroedinger.engr.sgi.com>
-Content-Type: text/plain
-Date: Fri, 26 Aug 2005 09:09:33 +0200
-Message-Id: <1125040173.20161.39.camel@twins>
-Mime-Version: 1.0
+Message-ID: <01E1B3B0.6801EE1@yahoo.com.br>
+Date: Fri, 26 Aug 2005 17:02:48 -0700
+Reply-To: "CONVERSAO DE FILMES" <yuuyuyu01ji@yahoo.com.br>
+From: "CONVERSAO DE FILMES" <yuuyuyu01ji@yahoo.com.br>
+MIME-Version: 1.0
+Subject: CONVERSAO DE FILMES - BACKUPS DE k7 E LPs
+Content-Type: text/plain;
+	charset="us-ascii"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@engr.sgi.com>
-Cc: Rahul Iyer <rni@andrew.cmu.edu>, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Marcelo Tosatti <marcelo.tosatti@cyclades.com>
+To: BACKUPS k7 E LPs <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2005-08-25 at 17:01 -0700, Christoph Lameter wrote:
-> On Fri, 26 Aug 2005, Peter Zijlstra wrote:
-> 
-> > This is with a rahul's 3 list approach:
-> >   active_list <-> T1, 
-> >   active_longterm <-> T2
-> 
-> longterm == T2? That wont work. longterm (L) is composed of T2 and a 
-> subset of T1.
+ COPIAS - CONVERSAO - BACKUPS
 
-As Rahul said, this is a misnomer, the list is actually used as T2,
-but my question remains should (on a stock kernel):
+ Para falar conosco nao clique em responder no seu programa de e-mail,
+acesse o nosso site:
+ http://www.internet2005.adm.br/dvd/index.html 
+ 
+ 1 - Conheca os servicos de copias, conversao ou backups de CD, VHS, DVD,
+Minidv, fita 8 mm, Super 8, 16 mm, fita cassete e LPs (vinil), prestados
+pela nossa empresa, com a finalidade de preservar, o conteudo de matrizes
+produzidas e fornecidas por voce, como por exemplo, apresentacao de sua
+empresa, festa de casamento, de aniversario, viagens. Edicao, Legendagem e
+Digitalizacao.  
+  
+ - CD
+ - VCD
+ - SVCD
+ - DVD
+ - VHS para DVD
+ - VHS para VHS
+ - DVD para VHS
+ - Minidv para DVD
+ - Fita 8 mm para DVD
+ - Super 8 para DVD
+ - 16 mm para DVD
+ - Slide para DVD
+ - LPs antigos para CD ( backups )
+ - Cassetes antigos para CD ( backups )
+ - Edicao
+ - Legendagem
+ - Digitalizacao
+ - Impressao e criacao de etiquetas e capas
+ - Impressao de imagens na superficie de seu CD ou DVD  
 
- zone->present_pages - zone->free_pages = 
-                           zone->nr_active + zone->nr_inactive
+ 2 - Voce sabia que:
 
-Or is there some other place the pages can go?
--- 
-Peter Zijlstra <a.p.zijlstra@chello.nl>
+ CDs / DVDs / Discos de Vinil riscam, VHS / Cassetes sao atacados por
+fungos, ou podem ser danificados por manuseio incorreto.
+
+ 3 - Nos lhes asseguramos confidencialidade e rapidez.
+
+ Conheca mais detalhes acessando o nosso site >>>
+ http://www.internet2005.adm.br/dvd/index.html
+
+ Tel. (11) 5579-2815
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
