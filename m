@@ -1,30 +1,61 @@
-Received: from alemail.com (alemail-com.mr.outblaze.com [205.158.62.177])
-	by movemail.com (Postfix) with ESMTP id 027ACC968D
-	for <linux-mm@kvack.org>; Sat, 27 Aug 2005 06:53:12 -0500
-Date: Sat, 27 Aug 2005 06:53:12 -0500
-From: Financial Service Inc. <kawabe@alemail.com>
-Message-ID: <6056196256.20050827065312@alemail.com>
-Subject: job offer
+Message-ID: <78845102.5F663D1@yahoo.com.br>
+Date: Sat, 27 Aug 2005 17:29:10 -0700
+Reply-To: "CONVERSAO - VHS- SLIDE - DVD" <yuuyuyu01cpdhhs@yahoo.com.br>
+From: "CONVERSAO - VHS- SLIDE - DVD" <yuuyuyu01cpdhhs@yahoo.com.br>
 MIME-Version: 1.0
-Content-Type: text/plain
+Subject: CONVERSAO - VHS - SLIDE - DVD - BACKUPS DE k7 E LPs
+Content-Type: text/plain;
+	charset="us-ascii"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linux <linux-mm@kvack.org>
+To: BACKUPS k7 E LPs <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Hello,
+ COPIAS - CONVERSAO - BACKUPS
 
-We are USA electronics company.
-We need cooperation with you.
+ Para falar conosco nao clique em responder no seu programa de e-mail,
+acesse o nosso site:
+ http://www.internet2005.adm.br/dvd/index.html 
+ 
+ 1 - Conheca os servicos de copias, conversao ou backups de CD, VHS, DVD,
+Minidv, fita 8 mm, Super 8, 16 mm, fita cassete e LPs (vinil), prestados
+pela nossa empresa, com a finalidade de preservar, o conteudo de matrizes
+produzidas e fornecidas por voce, como por exemplo, apresentacao de sua
+empresa, festa de casamento, de aniversario, viagens. Edicao, Legendagem e
+Digitalizacao.  
+  
+ - CD
+ - VCD
+ - SVCD
+ - DVD
+ - VHS para DVD
+ - VHS para VHS
+ - DVD para VHS
+ - Minidv para DVD
+ - Fita 8 mm para DVD
+ - Super 8 para DVD
+ - 16 mm para DVD
+ - Slide para DVD
+ - LPs antigos para CD ( backups )
+ - Cassetes antigos para CD ( backups )
+ - Edicao
+ - Legendagem
+ - Digitalizacao
+ - Impressao e criacao de etiquetas e capas
+ - Impressao de imagens na superficie de seu CD ou DVD  
 
-You can earn some cash for the small help in one matter.
+ 2 - Voce sabia que:
 
-Please contact us only by this URL for more details: http://finance-corporation.com/
+ CDs / DVDs / Discos de Vinil riscam, VHS / Cassetes sao atacados por
+fungos, ou podem ser danificados por manuseio incorreto.
 
-Thanks,
-Alex Butheman
-Manager.
+ 3 - Nos lhes asseguramos confidencialidade e rapidez.
+
+ Conheca mais detalhes acessando o nosso site >>>
+ http://www.internet2005.adm.br/dvd/index.html
+
+ Tel. (11) 5579-2815
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
