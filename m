@@ -1,7 +1,7 @@
-Message-Id: <200508292245.j7TMjcwk029212@shell0.pdx.osdl.net>
-Subject: hugetlb-move-stale-pte-check-into-huge_pte_alloc.patch added to -mm tree
+Message-Id: <200508292245.j7TMjaaZ029207@shell0.pdx.osdl.net>
+Subject: hugetlb-add-pte_huge-macro.patch added to -mm tree
 From: akpm@osdl.org
-Date: Mon, 29 Aug 2005 15:48:05 -0700
+Date: Mon, 29 Aug 2005 15:48:03 -0700
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: agl@us.ibm.com, linux-mm@kvack.org, mm-commits@vger.kernel.org
@@ -9,11 +9,11 @@ List-ID: <linux-mm.kvack.org>
 
 The patch titled
 
-     hugetlb: move stale pte check into huge_pte_alloc()
+     hugetlb: add pte_huge() macro
 
 has been added to the -mm tree.  Its filename is
 
-     hugetlb-move-stale-pte-check-into-huge_pte_alloc.patch
+     hugetlb-add-pte_huge-macro.patch
 
 Patches currently in -mm which might be from agl@us.ibm.com are
 
@@ -25,74 +25,66 @@ hugetlb-check-pd_present-in-huge_pte_offset.patch
 
 From: Adam Litke <agl@us.ibm.com>
 
-Initial Post (Wed, 17 Aug 2005)
-
-This patch moves the
-	if (! pte_none(*pte))
-		hugetlb_clean_stale_pgtable(pte);
-logic into huge_pte_alloc() so all of its callers can be immune to the bug
-described by Kenneth Chen at http://lkml.org/lkml/2004/6/16/246
-
-> It turns out there is a bug in hugetlb_prefault(): with 3 level page table,
-> huge_pte_alloc() might return a pmd that points to a PTE page. It happens
-> if the virtual address for hugetlb mmap is recycled from previously used
-> normal page mmap. free_pgtables() might not scrub the pmd entry on
-> munmap and hugetlb_prefault skips on any pmd presence regardless what type 
-> it is.
-
-Unless I am missing something, it seems more correct to place the check inside
-huge_pte_alloc() to prevent a the same bug wherever a huge pte is allocated.
-It also allows checking for this condition when lazily faulting huge pages
-later in the series.
+This patch adds a macro pte_huge(pte) for i386/x86_64 which is needed by a
+patch later in the series.  Instead of repeating (_PAGE_PRESENT |
+_PAGE_PSE), I've added __LARGE_PTE to i386 to match x86_64.
 
 Signed-off-by: Adam Litke <agl@us.ibm.com>
 Cc: <linux-mm@kvack.org>
 Signed-off-by: Andrew Morton <akpm@osdl.org>
 ---
 
- arch/i386/mm/hugetlbpage.c |   13 +++++++++++--
- mm/hugetlb.c               |    2 --
- 2 files changed, 11 insertions(+), 4 deletions(-)
+ include/asm-i386/pgtable.h   |    4 +++-
+ include/asm-x86_64/pgtable.h |    3 ++-
+ 2 files changed, 5 insertions(+), 2 deletions(-)
 
-diff -puN arch/i386/mm/hugetlbpage.c~hugetlb-move-stale-pte-check-into-huge_pte_alloc arch/i386/mm/hugetlbpage.c
---- 25/arch/i386/mm/hugetlbpage.c~hugetlb-move-stale-pte-check-into-huge_pte_alloc	Mon Aug 29 15:48:03 2005
-+++ 25-akpm/arch/i386/mm/hugetlbpage.c	Mon Aug 29 15:48:03 2005
-@@ -22,12 +22,21 @@ pte_t *huge_pte_alloc(struct mm_struct *
- {
- 	pgd_t *pgd;
- 	pud_t *pud;
--	pmd_t *pmd = NULL;
-+	pmd_t *pmd;
-+	pte_t *pte = NULL;
+diff -puN include/asm-i386/pgtable.h~hugetlb-add-pte_huge-macro include/asm-i386/pgtable.h
+--- 25/include/asm-i386/pgtable.h~hugetlb-add-pte_huge-macro	Mon Aug 29 15:48:01 2005
++++ 25-akpm/include/asm-i386/pgtable.h	Mon Aug 29 15:48:01 2005
+@@ -215,11 +215,13 @@ extern unsigned long pg0[];
+  * The following only work if pte_present() is true.
+  * Undefined behaviour if not..
+  */
++#define __LARGE_PTE (_PAGE_PSE | _PAGE_PRESENT)
+ static inline int pte_user(pte_t pte)		{ return (pte).pte_low & _PAGE_USER; }
+ static inline int pte_read(pte_t pte)		{ return (pte).pte_low & _PAGE_USER; }
+ static inline int pte_dirty(pte_t pte)		{ return (pte).pte_low & _PAGE_DIRTY; }
+ static inline int pte_young(pte_t pte)		{ return (pte).pte_low & _PAGE_ACCESSED; }
+ static inline int pte_write(pte_t pte)		{ return (pte).pte_low & _PAGE_RW; }
++static inline int pte_huge(pte_t pte)		{ return ((pte).pte_low & __LARGE_PTE) == __LARGE_PTE; }
  
- 	pgd = pgd_offset(mm, addr);
- 	pud = pud_alloc(mm, pgd, addr);
- 	pmd = pmd_alloc(mm, pud, addr);
--	return (pte_t *) pmd;
-+
-+	if (!pmd)
-+		goto out;
-+
-+	pte = (pte_t *) pmd;
-+	if (!pte_none(*pte) && !pte_huge(*pte))
-+		hugetlb_clean_stale_pgtable(pte);
-+out:
-+	return pte;
- }
+ /*
+  * The following only works if pte_present() is not true.
+@@ -236,7 +238,7 @@ static inline pte_t pte_mkexec(pte_t pte
+ static inline pte_t pte_mkdirty(pte_t pte)	{ (pte).pte_low |= _PAGE_DIRTY; return pte; }
+ static inline pte_t pte_mkyoung(pte_t pte)	{ (pte).pte_low |= _PAGE_ACCESSED; return pte; }
+ static inline pte_t pte_mkwrite(pte_t pte)	{ (pte).pte_low |= _PAGE_RW; return pte; }
+-static inline pte_t pte_mkhuge(pte_t pte)	{ (pte).pte_low |= _PAGE_PRESENT | _PAGE_PSE; return pte; }
++static inline pte_t pte_mkhuge(pte_t pte)	{ (pte).pte_low |= __LARGE_PTE; return pte; }
  
- pte_t *huge_pte_offset(struct mm_struct *mm, unsigned long addr)
-diff -puN mm/hugetlb.c~hugetlb-move-stale-pte-check-into-huge_pte_alloc mm/hugetlb.c
---- 25/mm/hugetlb.c~hugetlb-move-stale-pte-check-into-huge_pte_alloc	Mon Aug 29 15:48:03 2005
-+++ 25-akpm/mm/hugetlb.c	Mon Aug 29 15:48:03 2005
-@@ -360,8 +360,6 @@ int hugetlb_prefault(struct address_spac
- 			ret = -ENOMEM;
- 			goto out;
- 		}
--		if (! pte_none(*pte))
--			hugetlb_clean_stale_pgtable(pte);
+ #ifdef CONFIG_X86_PAE
+ # include <asm/pgtable-3level.h>
+diff -puN include/asm-x86_64/pgtable.h~hugetlb-add-pte_huge-macro include/asm-x86_64/pgtable.h
+--- 25/include/asm-x86_64/pgtable.h~hugetlb-add-pte_huge-macro	Mon Aug 29 15:48:01 2005
++++ 25-akpm/include/asm-x86_64/pgtable.h	Mon Aug 29 15:48:01 2005
+@@ -247,6 +247,7 @@ static inline pte_t pfn_pte(unsigned lon
+  * The following only work if pte_present() is true.
+  * Undefined behaviour if not..
+  */
++#define __LARGE_PTE (_PAGE_PSE|_PAGE_PRESENT)
+ static inline int pte_user(pte_t pte)		{ return pte_val(pte) & _PAGE_USER; }
+ extern inline int pte_read(pte_t pte)		{ return pte_val(pte) & _PAGE_USER; }
+ extern inline int pte_exec(pte_t pte)		{ return pte_val(pte) & _PAGE_USER; }
+@@ -254,8 +255,8 @@ extern inline int pte_dirty(pte_t pte)		
+ extern inline int pte_young(pte_t pte)		{ return pte_val(pte) & _PAGE_ACCESSED; }
+ extern inline int pte_write(pte_t pte)		{ return pte_val(pte) & _PAGE_RW; }
+ static inline int pte_file(pte_t pte)		{ return pte_val(pte) & _PAGE_FILE; }
++static inline int pte_huge(pte_t pte)		{ return (pte_val(pte) & __LARGE_PTE) == __LARGE_PTE; }
  
- 		idx = ((addr - vma->vm_start) >> HPAGE_SHIFT)
- 			+ (vma->vm_pgoff >> (HPAGE_SHIFT - PAGE_SHIFT));
+-#define __LARGE_PTE (_PAGE_PSE|_PAGE_PRESENT)
+ extern inline pte_t pte_rdprotect(pte_t pte)	{ set_pte(&pte, __pte(pte_val(pte) & ~_PAGE_USER)); return pte; }
+ extern inline pte_t pte_exprotect(pte_t pte)	{ set_pte(&pte, __pte(pte_val(pte) & ~_PAGE_USER)); return pte; }
+ extern inline pte_t pte_mkclean(pte_t pte)	{ set_pte(&pte, __pte(pte_val(pte) & ~_PAGE_DIRTY)); return pte; }
 _
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
