@@ -1,62 +1,41 @@
-From: Arouna <arounagoudale2@hotmail.com>
-Reply-To: arounagoudale2@hotmail.com
-Subject: Wealth of Experience Is Needed. 
-Date: Sun, 28 Aug 2005 20:59:57 +0200
+Date: Sun, 28 Aug 2005 23:02:31 -0400 (EDT)
+From: Rik van Riel <riel@redhat.com>
+Subject: Re: [RFC][PATCH 2/6] CART Implementation
+In-Reply-To: <20050827220300.688094000@twins>
+Message-ID: <Pine.LNX.4.63.0508282301390.13831@cuia.boston.redhat.com>
+References: <20050827215756.726585000@twins> <20050827220300.688094000@twins>
 MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="fb0ebc65-89ef-4a5a-a449-ac775092d6b2"
-Message-Id: <20050828210003Z26582-957+1258@kvack.org>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: a.p.zijlstra@chello.nl
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This is a multi-part message in MIME format
---fb0ebc65-89ef-4a5a-a449-ac775092d6b2
-Content-Type: text/plain; charset=iso-8859-1
-Content-Transfer-Encoding: quoted-printable
+On Sat, 27 Aug 2005, a.p.zijlstra@chello.nl wrote:
 
-Hello Dear
-I am contacting you believing you are a honest and trustworthy person.I =
-believe you will not betray the confidence I am willing to repose in you, for =
-me to have contacted you even though we've not met before.
-My name is Arouna  Goudal=E9,the only son of late Mr.Hassan Goudal=E9  who =
-was the chairman /President/CEO,Cacao-Cafe & Agro-Alimentary industries =
-plc.SCAFECAO)"Bouake" and ex-owner of Polyclinic LA-MADONNE, of the Republic =
-of Cote d'Ivoire,please if possible you can send phone contact for good =
-cominucation.
-You can find the story on this =
-website:http://news.bbc.co.uk/2/hi/africa/2269238.stm
-On 19th of September 2002,a group of so called rebels took over the city of =
-Bouake to over-throw the Government of Mr.Laurent Gbagbo the President of =
-Cote d'Ivoire. On the 20th day morning at about 4:18am some fractions of the =
-same group of rebels break into our house and killed our security guard and =
-pass-through the gate entrance to the main building and took my father away =
-to an un-known destination.
-After about four hours later we found him (my father) at the road side, by =
-then he had been totally beaten and was bleeding to death lying in the pool =
-of his own blood. From there, we rushed him to a near by hospital and hours =
-later he sent for my mother. So he told her that he can not make it from the =
-doctors diagnosis, he also told her that it was because he (my father) was =
-not from the northern part of the country that he has been treated this way =
-and also being a political activist. And again he said he is suspecting some =
-of his business partners for conspiracy and this sort of brutality. He also =
-told my mother that he deposited a huge amount of money in a Finance house in =
-the Capital city of Senegal (Dakar) and also told her where he kept the whole =
-documents concerning this deposit that is made for investment purpose in the =
-western world.
-That same day, he (my father) gave up the ghost. Then with the help of the =
-French soldiers, we escaped to Senegal, where we are now. I am now contacting =
-you believing you are honest and trustworthy to help us to receive the money =
-in your account for investment, I and my mother has decided in compensating =
-you 20%of the total amount for your assistance .
-Please do take your time to go through the mail and get back to us, so that I =
-will simply introduce to the Finance house where the fund are being kept now =
-for onward transfer.
-I am waiting for your response.
-  Thanks and God bless.
-     Arouna Goudal=E9 .  
---fb0ebc65-89ef-4a5a-a449-ac775092d6b2--
+> +static void bucket_stats(struct nr_bucket * nr_bucket, int * b1, int * b2)
+> +{
+> +	unsigned int i, b[2] = {0, 0};
+> +	for (i = 0; i < 2; ++i) {
+> +		unsigned int j = nr_bucket->hand[i];
+> +		do
+> +		{
+> +			u32 *slot = &nr_bucket->slot[j];
+> +			if (!!(GET_FLAGS(*slot) & NR_list) != !!i)
+> +				break;
+> +
+> +			j = GET_INDEX(*slot);
+> +			++b[i];
+> +		} while (j != nr_bucket->hand[i]);
 
+Does this properly skip empty slots ?
+
+Remember that a page that got paged in leaves a zeroed
+out slot in the bucket...
+
+-- 
+All Rights Reversed
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
