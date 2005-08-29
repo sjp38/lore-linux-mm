@@ -1,73 +1,67 @@
-Message-ID: <LMOOBNCKLGMINILLEIMGGAMFOLAB.wwolfeqn@univ-lille3.fr>
-From: "Wallace Wolfe" <wwolfeqn@univ-lille3.fr>
-Subject: Bull's Eye Investing
-Date: Mon, 29 Aug 2005 17:47:21 +0000
-MIME-Version: 1.0
+Subject: Re: [RFC][PATCH 2/6] CART Implementation
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+In-Reply-To: <1125288907.20161.111.camel@twins>
+References: <20050827215756.726585000@twins>
+	 <20050827220300.688094000@twins>
+	 <Pine.LNX.4.63.0508282301390.13831@cuia.boston.redhat.com>
+	 <1125288907.20161.111.camel@twins>
 Content-Type: text/plain
-Content-Transfer-Encoding: base64
+Date: Mon, 29 Aug 2005 08:20:40 +0200
+Message-Id: <1125296440.20824.82.camel@localhost.localdomain>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: bcrl@kvack.org, linux-mm@kvack.org
+To: Rik van Riel <riel@redhat.com>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-VGhlIFNvbHZpcyBHcm91cCBJbmMsDQooU0xWRykNCg0KUmVjZW50IFByaWNl
-OgkkLjAzCQkJNTIgV2VlayBIaS1Mb3c6ICAgCSQuMDc1LyQuMDAwMQ0KUmVj
-ZW50IEJpZDoJJC4wNDUJCQlPdXRzdGFuZGluZyBTaGFyZXM6IAkxMCwyOTcs
-MDAwDQpSZWNlbnQgQXNrOgkkLjA2CQkJRXN0aW1hdGVkIEZsb2F0OiAJOSBt
-aWxsaW9uDQoNCk1ham9yIEJyZWFraW5nIE5ld3Mgd2FzIHJlbGVhc2VkIHJp
-Z2h0IGFmdGVyIG1hcmtldCBjbG9zZSB0b2RheSENCmh0dHA6Ly9maW5hbmNl
-LnlhaG9vLmNvbS9xP3M9U0xWRy5QSw0KQU5BSEVJTSwgQ0EsIEF1Z3VzdCAy
-NiwgMjAwNSAtIChQUiBORVdTV0lSRSkgLSBUaGUgU29sdmlzIEdyb3VwLCAo
-T1RDOiBTTFZHKSB0b2RheSANCmFubm91bmNlZCB0aGF0IGl0cyBjdXJyZW50
-IHJldmVudWVzIGZvciB0aGUgbmluZSBtb250aCBwZXJpb2QgZW5kaW5nIEp1
-bmUgMzAsIDIwMDUgDQp3ZXJlIGluIGV4Y2VzcyBvZiAkMTIgbWlsbGlvbiBk
-b2xsYXJzICh1bmF1ZGl0ZWQpLiANCkdyb3NzIHByb2ZpdHMgd2VyZSBhcHBy
-b3hpbWF0ZWx5ICQxLjQgbWlsbGlvbiBkb2xsYXJzLg0KDQoiR3Jvc3MgcHJv
-Zml0cyB3ZXJlIGFwcHJveGltYXRlbHkgJDEuNCBtaWxsaW9uIGRvbGxhcnMu
-Ig0KIA0KCQkJCQ0KTmV3ICJTdHJhdGVnaWMgQWxsaWFuY2UiIFByb2dyYW0g
-RXhwZWN0ZWQgdG8gUHJvdmlkZSBTaWduaWZpY2FudCBBZGRpdGlvbmFsIFJl
-dmVudWVzLg0KDQpUSEUgU09MVklTIEdST1VQIFRISVJEIFFVQVJURVIgUkVW
-RU5VRVMgRVhDRUVEICQxMiBNSUxMSU9ODQoNClRoZSBjb21wYW55IGlzIGFu
-dGljaXBhdGluZyAiJDUwIG1pbGxpb24gaW4gcmV2ZW51ZXMgaW4gdGhlIG5l
-eHQgZmlzY2FsIHllYXIiDQoNClNvbHZpcyBHcm91cCBpcyBzaG93aW5nIGdy
-ZWF0IGdyb3d0aCBhbmQgZXZlbiBncmVhdGVyIGdyb3d0aCBwb3RlbnRpYWwu
-DQpUaGUgU0xWRyBiYW5kd2Fnb24gaXMgZ29pbmcgdG8gc3RhcnQgcm9sbGlu
-ZyBhbmQgdGhpcyBjb3VsZCBiZSB5b3VyIENIQU5DRSB0byBwYXJ0aWNpcGF0
-ZSBpbiB0aGlzIGdyb3dpbmcgd2lubmVyLg0KDQpTby1saXN0ZW4gdXAuIFdl
-IGhhdmUgb25lIGZvciB5b3UgdG8gd2F0Y2ggcmlnaHQgbm93Lg0KDQoNCiJP
-dXIgU3RyYXRlZ2ljIEFsbGlhbmNlIHByb2dyYW0gbGV2ZXJhZ2VzIG91ciBz
-YWxlcyBhbmQgbWFya2V0aW5nIHJlbGF0aW9uc2hpcHMNCiB3aXRoIGJyb2tl
-cnMgYW5kIGFnZW50cyB0aHJvdWdob3V0IHRoZSBVbml0ZWQgU3RhdGVzIHdp
-dGggdGhlIG9iamVjdGl2ZSBvZiBwcm92aWRpbmcgDQogaW4gZXhjZXNzIG9m
-ICQ1MCBtaWxsaW9uIGluIHJldmVudWVzIGluIHRoZSBuZXh0IGZpc2NhbCB5
-ZWFyLCIgc2FpZCBEci4gUmljaGFyZCBHcmVlbiwgDQogQ2hhaXJtYW4gb2Yg
-U29sdmlzDQoNCkFib3V0IFRoZSBTb2x2aXMgR3JvdXA6DQoNClRoZSBTb2x2
-aXMgR3JvdXAsIGEgc3Vic2lkaWFyeSBvZiBEYWxyYWRhIEZpbmFuY2lhbCBD
-b3Jwb3JhdGlvbiAoRFJERi5PQiksIGluY2x1ZGVzIA0KYSBudW1iZXIgb2Yg
-b3BlcmF0aW5nIHVuaXRzLCBpbmNsdWRpbmcgTSZNIE51cnNpbmcgU2Vydmlj
-ZXMsIENhbGxDZW50ZXJIUpksIGFuZCBKYWNrc29uIFN0YWZmaW5nLiANClRo
-ZSBDb21wYW55IHByb3ZpZGVzIGEgdmFyaWV0eSBvZiBpbm5vdmF0aXZlIGZp
-bmFuY2lhbCBzZXJ2aWNlcyB0byBidXNpbmVzc2VzLCBpbmNsdWRpbmcgY29t
-cHJlaGVuc2l2ZSANCmh1bWFuIHJlc291cmNlIGFkbWluaXN0cmF0aW9uIGlu
-Y2x1ZGluZyBwYXlyb2xsIGFuZCB3b3JrZXJzIGNvbXBlbnNhdGlvbiBpbnN1
-cmFuY2U7IGFuZCBlbXBsb3llZSBiZW5lZml0cyANCnN1Y2ggYXMgaGVhbHRo
-IGluc3VyYW5jZSwgc3VwcGxlbWVudGFsIGluc3VyYW5jZSwgSFNBIHNhdmlu
-Z3MgcGxhbnMsIDEyNSBjYWZldGVyaWEgcGxhbnMsIGFuZCA0MDEoaykgcGxh
-bnMuIA0KVGhlIENvbXBhbnkgYWxzbyBvZmZlcnMgZGViaXQgY2FyZCBwYXly
-b2xsIGFjY291bnRzIGFuZCBwYXlyb2xsIGFkdmFuY2VzLiBUaGVzZSBzZXJ2
-aWNlcyBlbmFibGUgc21hbGwgZW1wbG95ZXJzIA0KdG8gb2ZmZXIgYmVuZWZp
-dHMgYW5kIHNlcnZpY2VzIHRvIHRoZWlyIGVtcGxveWVlcyB0aGF0IGFyZSBn
-ZW5lcmFsbHkgYXZhaWxhYmxlIG9ubHkgdG8gbGFyZ2UgY29tcGFuaWVzLiAN
-Cg0KVGhlIENvbXBhbnkgYWxzbyBpbmNsdWRlcyBhbiBpbWFnaW5nIHByb2R1
-Y3RzIGFuZCBzZXJ2aWNlcyB1bml0LCBJbWFnaW5nIFRlY2gsIEluYy4sIA0K
-d2hpY2ggcHJvdmlkZXMgYSB2YXJpZXR5IG9mIGlubm92YXRpbmcgcHJvZHVj
-dHMgYW5kIHNlcnZpY2VzIGFzc29jaWF0ZWQgd2l0aCBncmFwaGljcywgDQpw
-aG90b2dyYXBoeSwgYW5kIGNvbG9yIG1hbmFnZW1lbnQuIEl0cyB0ZWNobm9s
-b2dpZXMgaW5jbHVkZSBDb2xvckJsaW5kriBzb2Z0d2FyZSBhbmQgUGhvdG9N
-b3Rpb24gSW1hZ2VzmS4gDQpGb3IgbW9yZSBpbmZvcm1hdGlvbiB2aXNpdCBU
-aGUgU29sdmlzIEdyb3VwIHdlYnNpdGVzIGF0OiB3d3cudGhlc29sdmlzZ3Jv
-dXAuY29tLCB3d3cubWFuZG1udXJzaW5nLmNvbSwgDQp3d3cuY29sb3J2aXN1
-YWxzLmNvbSwgYW5kIC53d3cuY29sb3IuY29tDQo=
+I'm being dense again. I really should not write these mails at 6am :-{
+
+On Mon, 2005-08-29 at 06:15 +0200, Peter Zijlstra wrote:
+> On Sun, 2005-08-28 at 23:02 -0400, Rik van Riel wrote:
+> > On Sat, 27 Aug 2005, a.p.zijlstra@chello.nl wrote:
+> > 
+> > > +static void bucket_stats(struct nr_bucket * nr_bucket, int * b1, int * b2)
+> > > +{
+> > > +	unsigned int i, b[2] = {0, 0};
+> > > +	for (i = 0; i < 2; ++i) {
+> > > +		unsigned int j = nr_bucket->hand[i];
+> > > +		do
+> > > +		{
+> > > +			u32 *slot = &nr_bucket->slot[j];
+> > > +			if (!!(GET_FLAGS(*slot) & NR_list) != !!i)
+> > > +				break;
+> > > +
+> > > +			j = GET_INDEX(*slot);
+> > > +			++b[i];
+> > > +		} while (j != nr_bucket->hand[i]);
+> > 
+> > Does this properly skip empty slots ?
+> 
+I should idd skip 0 cookie slots for the stats. The hidden assumption
+was that the balance would not be disturbed by these null cookies; which
+is not obvious true. Thanks for the hint.
+
+> There are no empty slots. This thing always has B1_j + B2_j = NR_SLOTS.
+> I couldn't manage keeping track of two lists and empty slots. It doesn't
+> really matter though. I just have to start out with |B1| = 0 and |B2| =
+> c. I fill B2_j with zero cookies, so getting a hit there is very
+> unlikely, that way they just get overwritten due to old age and all is
+> well.
+> 
+I could ofcourse make the head 1 byte and have 4 list heads in there,
+that way I even have 1 spare. I'll see what kind of mess that would
+give ;-).
+
+> > 
+> > Remember that a page that got paged in leaves a zeroed
+> > out slot in the bucket...
+> > 
+> Yeah, I was playing aroung with that. I'll change that back because it
+> does indeed generate a problem elsewhere.
+
+should be there again in the second series I send out earlier.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
