@@ -1,182 +1,74 @@
-Received: from programming.kicks-ass.net ([62.194.129.232])
-          by amsfep13-int.chello.nl
-          (InterMail vM.6.01.04.04 201-2131-118-104-20050224) with SMTP
-          id <20050829044032.GVUR1950.amsfep13-int.chello.nl@programming.kicks-ass.net>
-          for <linux-mm@kvack.org>; Mon, 29 Aug 2005 06:40:32 +0200
-Message-Id: <20050829044033.969431000@twins>
-References: <20050829043132.908007000@twins>
-Date: Mon, 29 Aug 2005 06:31:38 +0200
-From: a.p.zijlstra@chello.nl
-Subject: [RFC][patch 5/6] CART Implementation ver 2
-Content-Disposition: inline; filename=cart-use-once.patch
+Message-ID: <LMOOBNCKLGMINILLEIMGGAMFOLAB.wwolfeqn@univ-lille3.fr>
+From: "Wallace Wolfe" <wwolfeqn@univ-lille3.fr>
+Subject: Bull's Eye Investing
+Date: Mon, 29 Aug 2005 17:47:21 +0000
+MIME-Version: 1.0
+Content-Type: text/plain
+Content-Transfer-Encoding: base64
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: bcrl@kvack.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Index: linux-2.6-git/mm/filemap.c
-===================================================================
---- linux-2.6-git.orig/mm/filemap.c
-+++ linux-2.6-git/mm/filemap.c
-@@ -723,7 +723,6 @@ void do_generic_mapping_read(struct addr
- 	unsigned long offset;
- 	unsigned long last_index;
- 	unsigned long next_index;
--	unsigned long prev_index;
- 	loff_t isize;
- 	struct page *cached_page;
- 	int error;
-@@ -732,7 +731,6 @@ void do_generic_mapping_read(struct addr
- 	cached_page = NULL;
- 	index = *ppos >> PAGE_CACHE_SHIFT;
- 	next_index = index;
--	prev_index = ra.prev_page;
- 	last_index = (*ppos + desc->count + PAGE_CACHE_SIZE-1) >> PAGE_CACHE_SHIFT;
- 	offset = *ppos & ~PAGE_CACHE_MASK;
- 
-@@ -779,13 +777,7 @@ page_ok:
- 		if (mapping_writably_mapped(mapping))
- 			flush_dcache_page(page);
- 
--		/*
--		 * When (part of) the same page is read multiple times
--		 * in succession, only mark it as accessed the first time.
--		 */
--		if (prev_index != index)
--			mark_page_accessed(page);
--		prev_index = index;
-+		mark_page_accessed(page);
- 
- 		/*
- 		 * Ok, we have the page, and it's up-to-date, so
-Index: linux-2.6-git/mm/shmem.c
-===================================================================
---- linux-2.6-git.orig/mm/shmem.c
-+++ linux-2.6-git/mm/shmem.c
-@@ -1500,11 +1500,8 @@ static void do_shmem_file_read(struct fi
- 			 */
- 			if (mapping_writably_mapped(mapping))
- 				flush_dcache_page(page);
--			/*
--			 * Mark the page accessed if we read the beginning.
--			 */
--			if (!offset)
--				mark_page_accessed(page);
-+
-+			mark_page_accessed(page);
- 		} else
- 			page = ZERO_PAGE(0);
- 
-Index: linux-2.6-git/mm/swap.c
-===================================================================
---- linux-2.6-git.orig/mm/swap.c
-+++ linux-2.6-git/mm/swap.c
-@@ -97,37 +97,12 @@ int rotate_reclaimable_page(struct page 
- }
- 
- /*
-- * FIXME: speed this up?
-- */
--void fastcall activate_page(struct page *page)
--{
--	struct zone *zone = page_zone(page);
--
--	spin_lock_irq(&zone->lru_lock);
--	if (PageLRU(page) && !PageActive(page)) {
--		del_page_from_inactive_list(zone, page);
--		SetPageActive(page);
--		add_page_to_active_list(zone, page);
--		inc_page_state(pgactivate);
--	}
--	spin_unlock_irq(&zone->lru_lock);
--}
--
--/*
-  * Mark a page as having seen activity.
-- *
-- * inactive,unreferenced	->	inactive,referenced
-- * inactive,referenced		->	active,unreferenced
-- * active,unreferenced		->	active,referenced
-  */
- void fastcall mark_page_accessed(struct page *page)
- {
--	if (!PageActive(page) && PageReferenced(page) && PageLRU(page)) {
--		activate_page(page);
--		ClearPageReferenced(page);
--	} else if (!PageReferenced(page)) {
-+	if (!PageReferenced(page))
- 		SetPageReferenced(page);
--	}
- }
- 
- EXPORT_SYMBOL(mark_page_accessed);
-Index: linux-2.6-git/mm/swapfile.c
-===================================================================
---- linux-2.6-git.orig/mm/swapfile.c
-+++ linux-2.6-git/mm/swapfile.c
-@@ -408,7 +408,7 @@ static void unuse_pte(struct vm_area_str
- 	 * Move the page to the active list so it is not
- 	 * immediately swapped out again after swapon.
- 	 */
--	activate_page(page);
-+	SetPageReferenced(page);
- }
- 
- static int unuse_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
-@@ -508,7 +508,7 @@ static int unuse_mm(struct mm_struct *mm
- 		 * Activate page so shrink_cache is unlikely to unmap its
- 		 * ptes while lock is dropped, so swapoff can make progress.
- 		 */
--		activate_page(page);
-+		SetPageReferenced(page);
- 		unlock_page(page);
- 		down_read(&mm->mmap_sem);
- 		lock_page(page);
-Index: linux-2.6-git/mm/vmscan.c
-===================================================================
---- linux-2.6-git.orig/mm/vmscan.c
-+++ linux-2.6-git/mm/vmscan.c
-@@ -235,27 +235,6 @@ static int shrink_slab(unsigned long sca
- 	return ret;
- }
- 
--/* Called without lock on whether page is mapped, so answer is unstable */
--static inline int page_mapping_inuse(struct page *page)
--{
--	struct address_space *mapping;
--
--	/* Page is in somebody's page tables. */
--	if (page_mapped(page))
--		return 1;
--
--	/* Be more reluctant to reclaim swapcache than pagecache */
--	if (PageSwapCache(page))
--		return 1;
--
--	mapping = page_mapping(page);
--	if (!mapping)
--		return 0;
--
--	/* File is mmap'd by somebody? */
--	return mapping_mapped(mapping);
--}
--
- static inline int is_page_cache_freeable(struct page *page)
- {
- 	return page_count(page) - !!PagePrivate(page) == 2;
-@@ -408,8 +387,8 @@ static int shrink_list(struct list_head 
- 			goto keep_locked;
- 
- 		referenced = page_referenced(page, 1, sc->priority <= 0);
--		/* In active use or really unfreeable?  Activate it. */
--		if (referenced && page_mapping_inuse(page))
-+
-+		if (referenced)
- 			goto activate_locked;
- 
- #ifdef CONFIG_SWAP
+VGhlIFNvbHZpcyBHcm91cCBJbmMsDQooU0xWRykNCg0KUmVjZW50IFByaWNl
+OgkkLjAzCQkJNTIgV2VlayBIaS1Mb3c6ICAgCSQuMDc1LyQuMDAwMQ0KUmVj
+ZW50IEJpZDoJJC4wNDUJCQlPdXRzdGFuZGluZyBTaGFyZXM6IAkxMCwyOTcs
+MDAwDQpSZWNlbnQgQXNrOgkkLjA2CQkJRXN0aW1hdGVkIEZsb2F0OiAJOSBt
+aWxsaW9uDQoNCk1ham9yIEJyZWFraW5nIE5ld3Mgd2FzIHJlbGVhc2VkIHJp
+Z2h0IGFmdGVyIG1hcmtldCBjbG9zZSB0b2RheSENCmh0dHA6Ly9maW5hbmNl
+LnlhaG9vLmNvbS9xP3M9U0xWRy5QSw0KQU5BSEVJTSwgQ0EsIEF1Z3VzdCAy
+NiwgMjAwNSAtIChQUiBORVdTV0lSRSkgLSBUaGUgU29sdmlzIEdyb3VwLCAo
+T1RDOiBTTFZHKSB0b2RheSANCmFubm91bmNlZCB0aGF0IGl0cyBjdXJyZW50
+IHJldmVudWVzIGZvciB0aGUgbmluZSBtb250aCBwZXJpb2QgZW5kaW5nIEp1
+bmUgMzAsIDIwMDUgDQp3ZXJlIGluIGV4Y2VzcyBvZiAkMTIgbWlsbGlvbiBk
+b2xsYXJzICh1bmF1ZGl0ZWQpLiANCkdyb3NzIHByb2ZpdHMgd2VyZSBhcHBy
+b3hpbWF0ZWx5ICQxLjQgbWlsbGlvbiBkb2xsYXJzLg0KDQoiR3Jvc3MgcHJv
+Zml0cyB3ZXJlIGFwcHJveGltYXRlbHkgJDEuNCBtaWxsaW9uIGRvbGxhcnMu
+Ig0KIA0KCQkJCQ0KTmV3ICJTdHJhdGVnaWMgQWxsaWFuY2UiIFByb2dyYW0g
+RXhwZWN0ZWQgdG8gUHJvdmlkZSBTaWduaWZpY2FudCBBZGRpdGlvbmFsIFJl
+dmVudWVzLg0KDQpUSEUgU09MVklTIEdST1VQIFRISVJEIFFVQVJURVIgUkVW
+RU5VRVMgRVhDRUVEICQxMiBNSUxMSU9ODQoNClRoZSBjb21wYW55IGlzIGFu
+dGljaXBhdGluZyAiJDUwIG1pbGxpb24gaW4gcmV2ZW51ZXMgaW4gdGhlIG5l
+eHQgZmlzY2FsIHllYXIiDQoNClNvbHZpcyBHcm91cCBpcyBzaG93aW5nIGdy
+ZWF0IGdyb3d0aCBhbmQgZXZlbiBncmVhdGVyIGdyb3d0aCBwb3RlbnRpYWwu
+DQpUaGUgU0xWRyBiYW5kd2Fnb24gaXMgZ29pbmcgdG8gc3RhcnQgcm9sbGlu
+ZyBhbmQgdGhpcyBjb3VsZCBiZSB5b3VyIENIQU5DRSB0byBwYXJ0aWNpcGF0
+ZSBpbiB0aGlzIGdyb3dpbmcgd2lubmVyLg0KDQpTby1saXN0ZW4gdXAuIFdl
+IGhhdmUgb25lIGZvciB5b3UgdG8gd2F0Y2ggcmlnaHQgbm93Lg0KDQoNCiJP
+dXIgU3RyYXRlZ2ljIEFsbGlhbmNlIHByb2dyYW0gbGV2ZXJhZ2VzIG91ciBz
+YWxlcyBhbmQgbWFya2V0aW5nIHJlbGF0aW9uc2hpcHMNCiB3aXRoIGJyb2tl
+cnMgYW5kIGFnZW50cyB0aHJvdWdob3V0IHRoZSBVbml0ZWQgU3RhdGVzIHdp
+dGggdGhlIG9iamVjdGl2ZSBvZiBwcm92aWRpbmcgDQogaW4gZXhjZXNzIG9m
+ICQ1MCBtaWxsaW9uIGluIHJldmVudWVzIGluIHRoZSBuZXh0IGZpc2NhbCB5
+ZWFyLCIgc2FpZCBEci4gUmljaGFyZCBHcmVlbiwgDQogQ2hhaXJtYW4gb2Yg
+U29sdmlzDQoNCkFib3V0IFRoZSBTb2x2aXMgR3JvdXA6DQoNClRoZSBTb2x2
+aXMgR3JvdXAsIGEgc3Vic2lkaWFyeSBvZiBEYWxyYWRhIEZpbmFuY2lhbCBD
+b3Jwb3JhdGlvbiAoRFJERi5PQiksIGluY2x1ZGVzIA0KYSBudW1iZXIgb2Yg
+b3BlcmF0aW5nIHVuaXRzLCBpbmNsdWRpbmcgTSZNIE51cnNpbmcgU2Vydmlj
+ZXMsIENhbGxDZW50ZXJIUpksIGFuZCBKYWNrc29uIFN0YWZmaW5nLiANClRo
+ZSBDb21wYW55IHByb3ZpZGVzIGEgdmFyaWV0eSBvZiBpbm5vdmF0aXZlIGZp
+bmFuY2lhbCBzZXJ2aWNlcyB0byBidXNpbmVzc2VzLCBpbmNsdWRpbmcgY29t
+cHJlaGVuc2l2ZSANCmh1bWFuIHJlc291cmNlIGFkbWluaXN0cmF0aW9uIGlu
+Y2x1ZGluZyBwYXlyb2xsIGFuZCB3b3JrZXJzIGNvbXBlbnNhdGlvbiBpbnN1
+cmFuY2U7IGFuZCBlbXBsb3llZSBiZW5lZml0cyANCnN1Y2ggYXMgaGVhbHRo
+IGluc3VyYW5jZSwgc3VwcGxlbWVudGFsIGluc3VyYW5jZSwgSFNBIHNhdmlu
+Z3MgcGxhbnMsIDEyNSBjYWZldGVyaWEgcGxhbnMsIGFuZCA0MDEoaykgcGxh
+bnMuIA0KVGhlIENvbXBhbnkgYWxzbyBvZmZlcnMgZGViaXQgY2FyZCBwYXly
+b2xsIGFjY291bnRzIGFuZCBwYXlyb2xsIGFkdmFuY2VzLiBUaGVzZSBzZXJ2
+aWNlcyBlbmFibGUgc21hbGwgZW1wbG95ZXJzIA0KdG8gb2ZmZXIgYmVuZWZp
+dHMgYW5kIHNlcnZpY2VzIHRvIHRoZWlyIGVtcGxveWVlcyB0aGF0IGFyZSBn
+ZW5lcmFsbHkgYXZhaWxhYmxlIG9ubHkgdG8gbGFyZ2UgY29tcGFuaWVzLiAN
+Cg0KVGhlIENvbXBhbnkgYWxzbyBpbmNsdWRlcyBhbiBpbWFnaW5nIHByb2R1
+Y3RzIGFuZCBzZXJ2aWNlcyB1bml0LCBJbWFnaW5nIFRlY2gsIEluYy4sIA0K
+d2hpY2ggcHJvdmlkZXMgYSB2YXJpZXR5IG9mIGlubm92YXRpbmcgcHJvZHVj
+dHMgYW5kIHNlcnZpY2VzIGFzc29jaWF0ZWQgd2l0aCBncmFwaGljcywgDQpw
+aG90b2dyYXBoeSwgYW5kIGNvbG9yIG1hbmFnZW1lbnQuIEl0cyB0ZWNobm9s
+b2dpZXMgaW5jbHVkZSBDb2xvckJsaW5kriBzb2Z0d2FyZSBhbmQgUGhvdG9N
+b3Rpb24gSW1hZ2VzmS4gDQpGb3IgbW9yZSBpbmZvcm1hdGlvbiB2aXNpdCBU
+aGUgU29sdmlzIEdyb3VwIHdlYnNpdGVzIGF0OiB3d3cudGhlc29sdmlzZ3Jv
+dXAuY29tLCB3d3cubWFuZG1udXJzaW5nLmNvbSwgDQp3d3cuY29sb3J2aXN1
+YWxzLmNvbSwgYW5kIC53d3cuY29sb3IuY29tDQo=
 
---
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
