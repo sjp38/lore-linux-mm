@@ -1,29 +1,40 @@
-Date: Mon, 29 Aug 2005 20:28:28 -0700 (PDT)
-From: Christoph Lameter <clameter@engr.sgi.com>
-Subject: Re: [PATCH] Only process_die notifier in ia64_do_page_fault if
- KPROBES is configured.
-In-Reply-To: <20050830001905.GA18279@linux.jf.intel.com>
-Message-ID: <Pine.LNX.4.62.0508292026460.10009@schroedinger.engr.sgi.com>
-References: <200508262246.j7QMkEoT013490@linux.jf.intel.com>
- <Pine.LNX.4.62.0508261559450.17433@schroedinger.engr.sgi.com>
- <200508270224.26423.ak@suse.de> <20050830001905.GA18279@linux.jf.intel.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from TISCALI (83.156.177.15) by mail.libertysurf.net (7.1.026)
+        id 430C45430011CBA4 for linux-mm@kvack.org; Tue, 30 Aug 2005 19:32:01 +0200
+Message-ID: <430C45430011CBA4@mail07.pds.libertysurf.fr> (added by
+	    postmaster@libertysurf.fr)
+From: news@travelmedia.fr <news@travelmedia.fr>
+Reply-To: news@travelmedia.fr <news@travelmedia.fr>
+Subject: FW: ..get your ChateauToChateau The Club  registration
+Date: Wen, 20 Jul 2005 09:45:33 +0100
+Mime-Version: 1.0
+Content-Type: multipart/mixed; boundary="--=5657-khui-7485-inqn"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rusty Lynch <rusty@linux.intel.com>
-Cc: Andi Kleen <ak@suse.de>, Rusty Lynch <rusty.lynch@intel.com>, linux-mm@kvack.org, prasanna@in.ibm.com, linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org, anil.s.keshavamurthy@intel.com
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 29 Aug 2005, Rusty Lynch wrote:
+This is a multipart message in MIME format
 
-> So, assuming inlining the notifier_call_chain would address Christoph's
-> conserns, is the following patch something like what you are sugesting?  
-> This would make all the kdebug.h::notify_die() calls use the inline version. 
+----=5657-khui-7485-inqn
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: quoted-printable
 
-Please do not generate any code if the feature cannot ever be 
-used (CONFIG_KPROBES off). With this patch we still have lots of 
-unnecessary code being executed on each page fault.
+Chateau To Chateau, leader in tours and vacations in France
+with chateaux accommodation is very happy to propose
+ChateauToChateau The Club new free registration
+http://www.ChateauToChateau.com
+
+Paris and France Visits - Wine Tours - Perfume Tours - Cycling Tours
+ Advantages - Events - Special Tours
+
+to unsubscribe send a blank email to leavesub@travelmedia.fr
+
+
+
+----=5657-khui-7485-inqn--
+
+
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
