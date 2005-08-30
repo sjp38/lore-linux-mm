@@ -1,176 +1,32 @@
-Date: Mon, 29 Aug 2005 17:19:05 -0700
-From: Rusty Lynch <rusty@linux.intel.com>
+From: Andi Kleen <ak@suse.de>
 Subject: Re: [PATCH] Only process_die notifier in ia64_do_page_fault if KPROBES is configured.
-Message-ID: <20050830001905.GA18279@linux.jf.intel.com>
-References: <200508262246.j7QMkEoT013490@linux.jf.intel.com> <Pine.LNX.4.62.0508261559450.17433@schroedinger.engr.sgi.com> <200508270224.26423.ak@suse.de>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Date: Tue, 30 Aug 2005 03:08:44 +0200
+References: <200508262246.j7QMkEoT013490@linux.jf.intel.com> <200508270224.26423.ak@suse.de> <20050830001905.GA18279@linux.jf.intel.com>
+In-Reply-To: <20050830001905.GA18279@linux.jf.intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <200508270224.26423.ak@suse.de>
+Message-Id: <200508300308.44706.ak@suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <ak@suse.de>
+To: Rusty Lynch <rusty@linux.intel.com>
 Cc: Christoph Lameter <clameter@engr.sgi.com>, Rusty Lynch <rusty.lynch@intel.com>, linux-mm@kvack.org, prasanna@in.ibm.com, linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org, anil.s.keshavamurthy@intel.com
 List-ID: <linux-mm.kvack.org>
 
-On Sat, Aug 27, 2005 at 02:24:25AM +0200, Andi Kleen wrote:
-> On Saturday 27 August 2005 01:05, Christoph Lameter wrote:
-> > On Fri, 26 Aug 2005, Rusty Lynch wrote:
-> > > Just to be sure everyone understands the overhead involved, kprobes only
-> > > registers a single notifier.  If kprobes is disabled (CONFIG_KPROBES is
-> > > off) then the overhead on a page fault is the overhead to execute an
-> > > empty notifier chain.
-> >
-> > Its the overhead of using registers to pass parameters, performing a
-> > function call that does nothing etc. A waste of computing resources. All
-> > of that unconditionally in a performance critical execution path that
-> > is executed a gazillion times for an optional feature that I frankly
-> > find not useful at all and that is disabled by default.
-> 
-> In the old days notifier_call_chain used to be inline. Then someone looking
-> at code size out of lined it. Perhaps it should be inlined again or notifier.h
-> could supply a special faster inline version for time critical code.
-> 
-> Then it would be simple if (global_var != NULL) { ... } in the fast path.
-> In addition the call chain could be declared __read_mostly.
-> 
-> I suspect with these changes Christoph's concerns would go away, right?
-> 
-> -Andi
+On Tuesday 30 August 2005 02:19, Rusty Lynch wrote:
 
-So, assuming inlining the notifier_call_chain would address Christoph's
-conserns, is the following patch something like what you are sugesting?  
-This would make all the kdebug.h::notify_die() calls use the inline version. 
+>
+> So, assuming inlining the notifier_call_chain would address Christoph's
+> conserns, is the following patch something like what you are sugesting?
 
-(WARNING:  The following has only been tested on ia64.)
+Yes.
 
- include/asm-i386/kdebug.h    |    2 +-
- include/asm-ia64/kdebug.h    |    2 +-
- include/asm-ppc64/kdebug.h   |    2 +-
- include/asm-sparc64/kdebug.h |    2 +-
- include/asm-x86_64/kdebug.h  |    2 +-
- include/linux/notifier.h     |   18 ++++++++++++++++++
- kernel/sys.c                 |   14 +-------------
- 7 files changed, 24 insertions(+), 18 deletions(-)
+Well in theory you could make fast and slow notify_die too, but that's
+probably not worth it.
 
-Index: linux-2.6.13/include/linux/notifier.h
-===================================================================
---- linux-2.6.13.orig/include/linux/notifier.h
-+++ linux-2.6.13/include/linux/notifier.h
-@@ -72,5 +72,23 @@ extern int notifier_call_chain(struct no
- #define CPU_DOWN_FAILED		0x0006 /* CPU (unsigned)v NOT going down */
- #define CPU_DEAD		0x0007 /* CPU (unsigned)v dead */
- 
-+static inline int fast_notifier_call_chain(struct notifier_block **n,
-+					   unsigned long val, void *v)
-+{
-+	int ret=NOTIFY_DONE;
-+	struct notifier_block *nb = *n;
-+
-+	while(nb)
-+	{
-+		ret=nb->notifier_call(nb,val,v);
-+		if(ret&NOTIFY_STOP_MASK)
-+		{
-+			return ret;
-+		}
-+		nb=nb->next;
-+	}
-+	return ret;
-+}
-+
- #endif /* __KERNEL__ */
- #endif /* _LINUX_NOTIFIER_H */
-Index: linux-2.6.13/kernel/sys.c
-===================================================================
---- linux-2.6.13.orig/kernel/sys.c
-+++ linux-2.6.13/kernel/sys.c
-@@ -169,19 +169,7 @@ EXPORT_SYMBOL(notifier_chain_unregister)
-  
- int notifier_call_chain(struct notifier_block **n, unsigned long val, void *v)
- {
--	int ret=NOTIFY_DONE;
--	struct notifier_block *nb = *n;
--
--	while(nb)
--	{
--		ret=nb->notifier_call(nb,val,v);
--		if(ret&NOTIFY_STOP_MASK)
--		{
--			return ret;
--		}
--		nb=nb->next;
--	}
--	return ret;
-+	return fast_notifier_call_chain(n, val, v);
- }
- 
- EXPORT_SYMBOL(notifier_call_chain);
-Index: linux-2.6.13/include/asm-ia64/kdebug.h
-===================================================================
---- linux-2.6.13.orig/include/asm-ia64/kdebug.h
-+++ linux-2.6.13/include/asm-ia64/kdebug.h
-@@ -55,7 +55,7 @@ static inline int notify_die(enum die_va
- 		.signr  = sig
- 	};
- 
--	return notifier_call_chain(&ia64die_chain, val, &args);
-+	return fast_notifier_call_chain(&ia64die_chain, val, &args);
- }
- 
- #endif
-Index: linux-2.6.13/include/asm-i386/kdebug.h
-===================================================================
---- linux-2.6.13.orig/include/asm-i386/kdebug.h
-+++ linux-2.6.13/include/asm-i386/kdebug.h
-@@ -44,7 +44,7 @@ enum die_val {
- static inline int notify_die(enum die_val val,char *str,struct pt_regs *regs,long err,int trap, int sig)
- {
- 	struct die_args args = { .regs=regs, .str=str, .err=err, .trapnr=trap,.signr=sig };
--	return notifier_call_chain(&i386die_chain, val, &args);
-+	return fast_notifier_call_chain(&i386die_chain, val, &args);
- }
- 
- #endif
-Index: linux-2.6.13/include/asm-ppc64/kdebug.h
-===================================================================
---- linux-2.6.13.orig/include/asm-ppc64/kdebug.h
-+++ linux-2.6.13/include/asm-ppc64/kdebug.h
-@@ -37,7 +37,7 @@ enum die_val {
- static inline int notify_die(enum die_val val,char *str,struct pt_regs *regs,long err,int trap, int sig)
- {
- 	struct die_args args = { .regs=regs, .str=str, .err=err, .trapnr=trap,.signr=sig };
--	return notifier_call_chain(&ppc64_die_chain, val, &args);
-+	return fast_notifier_call_chain(&ppc64_die_chain, val, &args);
- }
- 
- #endif
-Index: linux-2.6.13/include/asm-sparc64/kdebug.h
-===================================================================
---- linux-2.6.13.orig/include/asm-sparc64/kdebug.h
-+++ linux-2.6.13/include/asm-sparc64/kdebug.h
-@@ -46,7 +46,7 @@ static inline int notify_die(enum die_va
- 				 .trapnr	= trap,
- 				 .signr		= sig };
- 
--	return notifier_call_chain(&sparc64die_chain, val, &args);
-+	return fast_notifier_call_chain(&sparc64die_chain, val, &args);
- }
- 
- #endif
-Index: linux-2.6.13/include/asm-x86_64/kdebug.h
-===================================================================
---- linux-2.6.13.orig/include/asm-x86_64/kdebug.h
-+++ linux-2.6.13/include/asm-x86_64/kdebug.h
-@@ -38,7 +38,7 @@ enum die_val { 
- static inline int notify_die(enum die_val val,char *str,struct pt_regs *regs,long err,int trap, int sig)
- { 
- 	struct die_args args = { .regs=regs, .str=str, .err=err, .trapnr=trap,.signr=sig }; 
--	return notifier_call_chain(&die_chain, val, &args); 
-+	return fast_notifier_call_chain(&die_chain, val, &args);
- } 
- 
- extern int printk_address(unsigned long address);
+-Andi
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
