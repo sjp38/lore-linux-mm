@@ -1,60 +1,176 @@
-Message-Id: <200508292245.j7TMjfZc029237@shell0.pdx.osdl.net>
-Subject: hugetlb-check-pd_present-in-huge_pte_offset.patch added to -mm tree
-From: akpm@osdl.org
-Date: Mon, 29 Aug 2005 15:48:08 -0700
+Date: Mon, 29 Aug 2005 17:19:05 -0700
+From: Rusty Lynch <rusty@linux.intel.com>
+Subject: Re: [PATCH] Only process_die notifier in ia64_do_page_fault if KPROBES is configured.
+Message-ID: <20050830001905.GA18279@linux.jf.intel.com>
+References: <200508262246.j7QMkEoT013490@linux.jf.intel.com> <Pine.LNX.4.62.0508261559450.17433@schroedinger.engr.sgi.com> <200508270224.26423.ak@suse.de>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <200508270224.26423.ak@suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: agl@us.ibm.com, linux-mm@kvack.org, mm-commits@vger.kernel.org
+To: Andi Kleen <ak@suse.de>
+Cc: Christoph Lameter <clameter@engr.sgi.com>, Rusty Lynch <rusty.lynch@intel.com>, linux-mm@kvack.org, prasanna@in.ibm.com, linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org, anil.s.keshavamurthy@intel.com
 List-ID: <linux-mm.kvack.org>
 
-The patch titled
+On Sat, Aug 27, 2005 at 02:24:25AM +0200, Andi Kleen wrote:
+> On Saturday 27 August 2005 01:05, Christoph Lameter wrote:
+> > On Fri, 26 Aug 2005, Rusty Lynch wrote:
+> > > Just to be sure everyone understands the overhead involved, kprobes only
+> > > registers a single notifier.  If kprobes is disabled (CONFIG_KPROBES is
+> > > off) then the overhead on a page fault is the overhead to execute an
+> > > empty notifier chain.
+> >
+> > Its the overhead of using registers to pass parameters, performing a
+> > function call that does nothing etc. A waste of computing resources. All
+> > of that unconditionally in a performance critical execution path that
+> > is executed a gazillion times for an optional feature that I frankly
+> > find not useful at all and that is disabled by default.
+> 
+> In the old days notifier_call_chain used to be inline. Then someone looking
+> at code size out of lined it. Perhaps it should be inlined again or notifier.h
+> could supply a special faster inline version for time critical code.
+> 
+> Then it would be simple if (global_var != NULL) { ... } in the fast path.
+> In addition the call chain could be declared __read_mostly.
+> 
+> I suspect with these changes Christoph's concerns would go away, right?
+> 
+> -Andi
 
-     hugetlb: check p?d_present in huge_pte_offset()
+So, assuming inlining the notifier_call_chain would address Christoph's
+conserns, is the following patch something like what you are sugesting?  
+This would make all the kdebug.h::notify_die() calls use the inline version. 
 
-has been added to the -mm tree.  Its filename is
+(WARNING:  The following has only been tested on ia64.)
 
-     hugetlb-check-pd_present-in-huge_pte_offset.patch
+ include/asm-i386/kdebug.h    |    2 +-
+ include/asm-ia64/kdebug.h    |    2 +-
+ include/asm-ppc64/kdebug.h   |    2 +-
+ include/asm-sparc64/kdebug.h |    2 +-
+ include/asm-x86_64/kdebug.h  |    2 +-
+ include/linux/notifier.h     |   18 ++++++++++++++++++
+ kernel/sys.c                 |   14 +-------------
+ 7 files changed, 24 insertions(+), 18 deletions(-)
 
-Patches currently in -mm which might be from agl@us.ibm.com are
-
-hugetlb-add-pte_huge-macro.patch
-hugetlb-move-stale-pte-check-into-huge_pte_alloc.patch
-hugetlb-check-pd_present-in-huge_pte_offset.patch
-
-
-
-From: Adam Litke <agl@us.ibm.com>
-
-For demand faulting, we cannot assume that the page tables will be
-populated.  Do what the rest of the architectures do and test p?d_present()
-while walking down the page table.
-
-Signed-off-by: Adam Litke <agl@us.ibm.com>
-Cc: <linux-mm@kvack.org>
-Signed-off-by: Andrew Morton <akpm@osdl.org>
----
-
- arch/i386/mm/hugetlbpage.c |    7 +++++--
- 1 files changed, 5 insertions(+), 2 deletions(-)
-
-diff -puN arch/i386/mm/hugetlbpage.c~hugetlb-check-pd_present-in-huge_pte_offset arch/i386/mm/hugetlbpage.c
---- 25/arch/i386/mm/hugetlbpage.c~hugetlb-check-pd_present-in-huge_pte_offset	Mon Aug 29 15:48:06 2005
-+++ 25-akpm/arch/i386/mm/hugetlbpage.c	Mon Aug 29 15:48:06 2005
-@@ -46,8 +46,11 @@ pte_t *huge_pte_offset(struct mm_struct 
- 	pmd_t *pmd = NULL;
+Index: linux-2.6.13/include/linux/notifier.h
+===================================================================
+--- linux-2.6.13.orig/include/linux/notifier.h
++++ linux-2.6.13/include/linux/notifier.h
+@@ -72,5 +72,23 @@ extern int notifier_call_chain(struct no
+ #define CPU_DOWN_FAILED		0x0006 /* CPU (unsigned)v NOT going down */
+ #define CPU_DEAD		0x0007 /* CPU (unsigned)v dead */
  
- 	pgd = pgd_offset(mm, addr);
--	pud = pud_offset(pgd, addr);
--	pmd = pmd_offset(pud, addr);
-+	if (pgd_present(*pgd)) {
-+		pud = pud_offset(pgd, addr);
-+		if (pud_present(*pud))
-+			pmd = pmd_offset(pud, addr);
++static inline int fast_notifier_call_chain(struct notifier_block **n,
++					   unsigned long val, void *v)
++{
++	int ret=NOTIFY_DONE;
++	struct notifier_block *nb = *n;
++
++	while(nb)
++	{
++		ret=nb->notifier_call(nb,val,v);
++		if(ret&NOTIFY_STOP_MASK)
++		{
++			return ret;
++		}
++		nb=nb->next;
 +	}
- 	return (pte_t *) pmd;
++	return ret;
++}
++
+ #endif /* __KERNEL__ */
+ #endif /* _LINUX_NOTIFIER_H */
+Index: linux-2.6.13/kernel/sys.c
+===================================================================
+--- linux-2.6.13.orig/kernel/sys.c
++++ linux-2.6.13/kernel/sys.c
+@@ -169,19 +169,7 @@ EXPORT_SYMBOL(notifier_chain_unregister)
+  
+ int notifier_call_chain(struct notifier_block **n, unsigned long val, void *v)
+ {
+-	int ret=NOTIFY_DONE;
+-	struct notifier_block *nb = *n;
+-
+-	while(nb)
+-	{
+-		ret=nb->notifier_call(nb,val,v);
+-		if(ret&NOTIFY_STOP_MASK)
+-		{
+-			return ret;
+-		}
+-		nb=nb->next;
+-	}
+-	return ret;
++	return fast_notifier_call_chain(n, val, v);
  }
  
-_
+ EXPORT_SYMBOL(notifier_call_chain);
+Index: linux-2.6.13/include/asm-ia64/kdebug.h
+===================================================================
+--- linux-2.6.13.orig/include/asm-ia64/kdebug.h
++++ linux-2.6.13/include/asm-ia64/kdebug.h
+@@ -55,7 +55,7 @@ static inline int notify_die(enum die_va
+ 		.signr  = sig
+ 	};
+ 
+-	return notifier_call_chain(&ia64die_chain, val, &args);
++	return fast_notifier_call_chain(&ia64die_chain, val, &args);
+ }
+ 
+ #endif
+Index: linux-2.6.13/include/asm-i386/kdebug.h
+===================================================================
+--- linux-2.6.13.orig/include/asm-i386/kdebug.h
++++ linux-2.6.13/include/asm-i386/kdebug.h
+@@ -44,7 +44,7 @@ enum die_val {
+ static inline int notify_die(enum die_val val,char *str,struct pt_regs *regs,long err,int trap, int sig)
+ {
+ 	struct die_args args = { .regs=regs, .str=str, .err=err, .trapnr=trap,.signr=sig };
+-	return notifier_call_chain(&i386die_chain, val, &args);
++	return fast_notifier_call_chain(&i386die_chain, val, &args);
+ }
+ 
+ #endif
+Index: linux-2.6.13/include/asm-ppc64/kdebug.h
+===================================================================
+--- linux-2.6.13.orig/include/asm-ppc64/kdebug.h
++++ linux-2.6.13/include/asm-ppc64/kdebug.h
+@@ -37,7 +37,7 @@ enum die_val {
+ static inline int notify_die(enum die_val val,char *str,struct pt_regs *regs,long err,int trap, int sig)
+ {
+ 	struct die_args args = { .regs=regs, .str=str, .err=err, .trapnr=trap,.signr=sig };
+-	return notifier_call_chain(&ppc64_die_chain, val, &args);
++	return fast_notifier_call_chain(&ppc64_die_chain, val, &args);
+ }
+ 
+ #endif
+Index: linux-2.6.13/include/asm-sparc64/kdebug.h
+===================================================================
+--- linux-2.6.13.orig/include/asm-sparc64/kdebug.h
++++ linux-2.6.13/include/asm-sparc64/kdebug.h
+@@ -46,7 +46,7 @@ static inline int notify_die(enum die_va
+ 				 .trapnr	= trap,
+ 				 .signr		= sig };
+ 
+-	return notifier_call_chain(&sparc64die_chain, val, &args);
++	return fast_notifier_call_chain(&sparc64die_chain, val, &args);
+ }
+ 
+ #endif
+Index: linux-2.6.13/include/asm-x86_64/kdebug.h
+===================================================================
+--- linux-2.6.13.orig/include/asm-x86_64/kdebug.h
++++ linux-2.6.13/include/asm-x86_64/kdebug.h
+@@ -38,7 +38,7 @@ enum die_val { 
+ static inline int notify_die(enum die_val val,char *str,struct pt_regs *regs,long err,int trap, int sig)
+ { 
+ 	struct die_args args = { .regs=regs, .str=str, .err=err, .trapnr=trap,.signr=sig }; 
+-	return notifier_call_chain(&die_chain, val, &args); 
++	return fast_notifier_call_chain(&die_chain, val, &args);
+ } 
+ 
+ extern int printk_address(unsigned long address);
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
