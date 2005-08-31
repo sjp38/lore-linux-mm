@@ -1,10 +1,10 @@
-Date: Wed, 31 Aug 2005 08:39:13 -0700
-From: "Martin J. Bligh" <mbligh@mbligh.org>
-Reply-To: "Martin J. Bligh" <mbligh@mbligh.org>
+Date: Wed, 31 Aug 2005 11:40:28 -0500
+From: Dave McCracken <dmccr@us.ibm.com>
 Subject: Re: [PATCH 1/1] Implement shared page tables
-Message-ID: <19490000.1125502753@[10.10.2.4]>
-In-Reply-To: <Pine.LNX.4.61.0508311557190.17726@goblin.wat.veritas.com>
-References: <7C49DFF721CB4E671DB260F9@[10.1.1.4]><Pine.LNX.4.61.0508311143340.15467@goblin.wat.veritas.com><1125489077.3213.12.camel@laptopd505.fenrus.org><Pine.LNX.4.61.0508311437070.16834@goblin.wat.veritas.com><16640000.1125498711@[10.10.2.4]> <Pine.LNX.4.61.0508311557190.17726@goblin.wat.veritas.com>
+Message-ID: <6E5E4C275EEB99E7C5D096D9@[10.1.1.4]>
+In-Reply-To: <Pine.LNX.4.61.0508311143340.15467@goblin.wat.veritas.com>
+References: <7C49DFF721CB4E671DB260F9@[10.1.1.4]>
+ <Pine.LNX.4.61.0508311143340.15467@goblin.wat.veritas.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
@@ -12,35 +12,83 @@ Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Hugh Dickins <hugh@veritas.com>
-Cc: Arjan van de Ven <arjan@infradead.org>, Dave McCracken <dmccr@us.ibm.com>, Andrew Morton <akpm@osdl.org>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>
+Cc: Andrew Morton <akpm@osdl.org>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
->> They're incompatible, but you could be left to choose one or the other
->> via config option.
+--On Wednesday, August 31, 2005 12:44:24 +0100 Hugh Dickins
+<hugh@veritas.com> wrote:
+
+> So you don't have Nick's test at the start of copy_page_range():
+> 	if (!(vma->vm_flags & (VM_HUGETLB|VM_NONLINEAR|VM_RESERVED))) {
+> 		if (!vma->anon_vma)
+> 			return 0;
+> 	}
+> Experimental, yes, but Linus likes it enough to have fast-tracked it into
+> his tree for 2.6.14.  My guess is that that patch (if its downsides prove
+> manageable) takes away a lot of the point of shared page tables -
+> I wonder how much of your "3% improvement".
+
+Very little, actually.  The test does not create new processes as part of
+the run.  The improvement is due to sharing of existing areas.
+
+> I was going to say, doesn't randomize_va_space take away the rest of
+> the point?  But no, it appears "randomize_va_space", as it currently
+> appears in mainline anyway, is somewhat an exaggeration: it just shifts
+> the stack a little, with no effect on the rest of the va space.
+> But if it is to do more later, it may conflict with your interest.
+
+I've been considering a future enhancement to my patch where it could share
+page tables of any areas that share alignment, not just the same virtual
+address.  That might allow sharing with randomization if the randomization
+aligns things properly.
+
+> The pud sharing and pmd sharing: perhaps they complicate the patch for
+> negligible benefit?
+
+The pmd sharing is necessary for ppc64 since it has to share at segment
+size, plus it will be useful for very large regions.  I did pud for
+completeness but you may be right that it's not useful.  It's all
+configurable in any event.
+
+>> +		if ((vma->vm_start <= base) &&
+>> +	    (vma->vm_end >= end))
+>> +		return 1;
+>> 
+> New Adventures in Coding Style ;)
+
+New Adventures in Typos, actually :)  I'll fix.
+
+> But most seriously: search the patch for the string "lock" and I find
+> no change whatever to locking.  You're introducing page tables shared
+> between different mms yet relying on the old mm->page_table_lock?
+> You're searching a prio_tree for suitable matches to share, but
+> taking no lock on that?  You're counting shares in an atomic,
+> but not detecting when the count falls to 0 atomically?
 > 
-> Wouldn't need config option: there's /proc/sys/kernel/randomize_va_space
-> for the whole running system, compatibility check on the ELFs run, and
-> the infinite stack rlimit: enough ways to suppress randomization if it
-> doesn't suit you.
+> And allied with that point on locking mms: there's no change to rmap.c,
+> so how is its TLB flushing and cache flushing now supposed to work?
+> page_referenced_one and try_to_unmap_one will visit all the vmas
+> sharing the page table, yes, but (usually) only the first will
+> satisfy the conditions and get flushed.
 
-Even better - much easier to deal with distro stuff if we can do it at
-runtime.
- 
->> 3% on "a certain industry-standard database benchmark" (cough) is huge,
->> and we expect the benefit for PPC64 will be larger as we can share the
->> underlying hardware PTEs without TLB flushing as well.
-> 
-> Okay - and you're implying that 3% comes from _using_ the shared page
-> tables, rather than from avoiding the fork/exit overhead of setting
-> them up and tearing them down.  And it can't use huge TLB pages
-> because...  fragmentation?
+I'll go over the locking again.
 
-Yes - as I understand it, that was a straight measurement with/without the
-patch, and the shmem segment was already using hugetlb (in both cases). 
-Yes, I find that a bit odd as to why as well - they are still trying 
-to get some detailed profiling to explain. 
+> I'm not sure if it's worth pursuing shared page tables again or not.
 
-M.
+The immediate clear benefits I see are a reduction in the number of page
+table pages and a reduction in minor faults.  Keep in mind that faulting a
+page into a shared page table makes it available to all other processes
+sharing that area, eliminating the need for them to also take faults on it.
+
+> You certainly need to sort the locking out to do so.  Wait a couple
+> of weeks and I should have sent all the per-page-table-page locking
+> in to -mm (to replace the pte xchging currently there): that should
+> give what you need for locking pts independent of the mm.
+
+I'll look things over in more detail.  I thought I had the locking issues
+settled, but you raised some points I should revisit.
+
+Dave McCracken
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
