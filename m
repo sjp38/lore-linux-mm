@@ -1,95 +1,80 @@
-Date: Wed, 31 Aug 2005 11:40:28 -0500
-From: Dave McCracken <dmccr@us.ibm.com>
-Subject: Re: [PATCH 1/1] Implement shared page tables
-Message-ID: <6E5E4C275EEB99E7C5D096D9@[10.1.1.4]>
-In-Reply-To: <Pine.LNX.4.61.0508311143340.15467@goblin.wat.veritas.com>
-References: <7C49DFF721CB4E671DB260F9@[10.1.1.4]>
- <Pine.LNX.4.61.0508311143340.15467@goblin.wat.veritas.com>
+Date: Wed, 31 Aug 2005 12:53:18 -0700 (PDT)
+From: Christoph Lameter <clameter@engr.sgi.com>
+Subject: [PATCH] remove die_notifiers if CONFIG_DEBUG_KERNEL not set
+Message-ID: <Pine.LNX.4.62.0508311247130.28674@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: Andrew Morton <akpm@osdl.org>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>
+To: Andi Kleen <ak@suse.de>
+Cc: "Lynch, Rusty" <rusty.lynch@intel.com>, linux-mm@kvack.org, prasanna@in.ibm.com, linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org, "Keshavamurthy, Anil S" <anil.s.keshavamurthy@intel.com>, "Luck, Tony" <tony.luck@intel.com>
 List-ID: <linux-mm.kvack.org>
 
---On Wednesday, August 31, 2005 12:44:24 +0100 Hugh Dickins
-<hugh@veritas.com> wrote:
+Use of die_notifiers is a debugging feature that is only used if 
+CONFIG_DEBUG_KERNEL is set. For a kernel without debugging there is no 
+need of die notifiers. This will generate no code for notify_die if 
+debugging is not on. Seems that there is an expectation that future distro 
+releases will have CONFIG_KPROBES on. They will therefore also have 
+CONFIG_DEBUG_KERNEL set and thus the die notifiers will work and the 
+notifier will be enabled in do_ia64_page_fault.
 
-> So you don't have Nick's test at the start of copy_page_range():
-> 	if (!(vma->vm_flags & (VM_HUGETLB|VM_NONLINEAR|VM_RESERVED))) {
-> 		if (!vma->anon_vma)
-> 			return 0;
-> 	}
-> Experimental, yes, but Linus likes it enough to have fast-tracked it into
-> his tree for 2.6.14.  My guess is that that patch (if its downsides prove
-> manageable) takes away a lot of the point of shared page tables -
-> I wonder how much of your "3% improvement".
+Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
-Very little, actually.  The test does not create new processes as part of
-the run.  The improvement is due to sharing of existing areas.
-
-> I was going to say, doesn't randomize_va_space take away the rest of
-> the point?  But no, it appears "randomize_va_space", as it currently
-> appears in mainline anyway, is somewhat an exaggeration: it just shifts
-> the stack a little, with no effect on the rest of the va space.
-> But if it is to do more later, it may conflict with your interest.
-
-I've been considering a future enhancement to my patch where it could share
-page tables of any areas that share alignment, not just the same virtual
-address.  That might allow sharing with randomization if the randomization
-aligns things properly.
-
-> The pud sharing and pmd sharing: perhaps they complicate the patch for
-> negligible benefit?
-
-The pmd sharing is necessary for ppc64 since it has to share at segment
-size, plus it will be useful for very large regions.  I did pud for
-completeness but you may be right that it's not useful.  It's all
-configurable in any event.
-
->> +		if ((vma->vm_start <= base) &&
->> +	    (vma->vm_end >= end))
->> +		return 1;
->> 
-> New Adventures in Coding Style ;)
-
-New Adventures in Typos, actually :)  I'll fix.
-
-> But most seriously: search the patch for the string "lock" and I find
-> no change whatever to locking.  You're introducing page tables shared
-> between different mms yet relying on the old mm->page_table_lock?
-> You're searching a prio_tree for suitable matches to share, but
-> taking no lock on that?  You're counting shares in an atomic,
-> but not detecting when the count falls to 0 atomically?
-> 
-> And allied with that point on locking mms: there's no change to rmap.c,
-> so how is its TLB flushing and cache flushing now supposed to work?
-> page_referenced_one and try_to_unmap_one will visit all the vmas
-> sharing the page table, yes, but (usually) only the first will
-> satisfy the conditions and get flushed.
-
-I'll go over the locking again.
-
-> I'm not sure if it's worth pursuing shared page tables again or not.
-
-The immediate clear benefits I see are a reduction in the number of page
-table pages and a reduction in minor faults.  Keep in mind that faulting a
-page into a shared page table makes it available to all other processes
-sharing that area, eliminating the need for them to also take faults on it.
-
-> You certainly need to sort the locking out to do so.  Wait a couple
-> of weeks and I should have sent all the per-page-table-page locking
-> in to -mm (to replace the pte xchging currently there): that should
-> give what you need for locking pts independent of the mm.
-
-I'll look things over in more detail.  I thought I had the locking issues
-settled, but you raised some points I should revisit.
-
-Dave McCracken
-
+Index: linux-2.6.13/include/asm-ia64/kdebug.h
+===================================================================
+--- linux-2.6.13.orig/include/asm-ia64/kdebug.h	2005-08-28 16:41:01.000000000 -0700
++++ linux-2.6.13/include/asm-ia64/kdebug.h	2005-08-31 12:35:17.000000000 -0700
+@@ -35,14 +35,15 @@ struct die_args {
+ 	int signr;
+ };
+ 
+-int register_die_notifier(struct notifier_block *nb);
+-extern struct notifier_block *ia64die_chain;
+-
+ enum die_val {
+ 	DIE_BREAK = 1,
+ 	DIE_SS,
+ 	DIE_PAGE_FAULT,
+ };
++#ifdef CONFIG_DEBUG_KERNEL
++extern struct notifier_block *ia64die_chain;
++
++int register_die_notifier(struct notifier_block *nb);
+ 
+ static inline int notify_die(enum die_val val, char *str, struct pt_regs *regs,
+ 			     long err, int trap, int sig)
+@@ -57,5 +58,11 @@ static inline int notify_die(enum die_va
+ 
+ 	return notifier_call_chain(&ia64die_chain, val, &args);
+ }
++#else
++
++#define notify_die(val, str, regs, err, trap, sig) 0
++#define register_die_notifier(nb) do { } while (0)
++
++#endif
+ 
+ #endif
+Index: linux-2.6.13/arch/ia64/kernel/traps.c
+===================================================================
+--- linux-2.6.13.orig/arch/ia64/kernel/traps.c	2005-08-28 16:41:01.000000000 -0700
++++ linux-2.6.13/arch/ia64/kernel/traps.c	2005-08-31 12:35:17.000000000 -0700
+@@ -28,6 +28,7 @@ extern spinlock_t timerlist_lock;
+ fpswa_interface_t *fpswa_interface;
+ EXPORT_SYMBOL(fpswa_interface);
+ 
++#ifdef CONFIG_DEBUG_KERNEL
+ struct notifier_block *ia64die_chain;
+ static DEFINE_SPINLOCK(die_notifier_lock);
+ 
+@@ -40,6 +41,7 @@ int register_die_notifier(struct notifie
+ 	spin_unlock_irqrestore(&die_notifier_lock, flags);
+ 	return err;
+ }
++#endif
+ 
+ void __init
+ trap_init (void)
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
