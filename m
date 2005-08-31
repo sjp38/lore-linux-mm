@@ -1,131 +1,77 @@
-Message-Id: <200508310039.j7V0dIg00416@unix-os.sc.intel.com>
-From: "Chen, Kenneth W" <kenneth.w.chen@intel.com>
-Subject: RE: hugetlb-move-stale-pte-check-into-huge_pte_alloc.patch added to -mm tree
-Date: Tue, 30 Aug 2005 17:38:37 -0700
+Date: Wed, 31 Aug 2005 12:44:24 +0100 (BST)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: Re: [PATCH 1/1] Implement shared page tables
+In-Reply-To: <7C49DFF721CB4E671DB260F9@[10.1.1.4]>
+Message-ID: <Pine.LNX.4.61.0508311143340.15467@goblin.wat.veritas.com>
+References: <7C49DFF721CB4E671DB260F9@[10.1.1.4]>
 MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="us-ascii"
-Content-Transfer-Encoding: 7bit
-In-Reply-To: <200508292245.j7TMjcwk029212@shell0.pdx.osdl.net>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: akpm@osdl.org, agl@us.ibm.com, linux-mm@kvack.org
+To: Dave McCracken <dmccr@us.ibm.com>
+Cc: Andrew Morton <akpm@osdl.org>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-akpm@osdl.org wrote on Monday, August 29, 2005 3:48 PM
-> The patch titled
+On Tue, 30 Aug 2005, Dave McCracken wrote:
 > 
->      hugetlb: move stale pte check into huge_pte_alloc()
+> This patch implements page table sharing for all shared memory regions that
+> span an entire page table page.  It supports sharing at multiple page
+> levels, depending on the architecture.
 > 
-> has been added to the -mm tree.  Its filename is
+> Performance testing has shown no degradation with this patch for tests with
+> small processes.  Preliminary tests with large benchmarks have shown as
+> much as 3% improvement in overall results.
+
+Hmm.  A few points.
+
+> The patch is against 2.6.13.
+
+So you don't have Nick's test at the start of copy_page_range():
+	if (!(vma->vm_flags & (VM_HUGETLB|VM_NONLINEAR|VM_RESERVED))) {
+		if (!vma->anon_vma)
+			return 0;
+	}
+Experimental, yes, but Linus likes it enough to have fast-tracked it into
+his tree for 2.6.14.  My guess is that that patch (if its downsides prove
+manageable) takes away a lot of the point of shared page tables -
+I wonder how much of your "3% improvement".
+
+I was going to say, doesn't randomize_va_space take away the rest of
+the point?  But no, it appears "randomize_va_space", as it currently
+appears in mainline anyway, is somewhat an exaggeration: it just shifts
+the stack a little, with no effect on the rest of the va space.
+But if it is to do more later, it may conflict with your interest.
+
+The pud sharing and pmd sharing: perhaps they complicate the patch for
+negligible benefit?
+
+> +		if ((vma->vm_start <= base) &&
+> +	    (vma->vm_end >= end))
+> +		return 1;
 > 
->      hugetlb-move-stale-pte-check-into-huge_pte_alloc.patch
-> 
-> Patches currently in -mm which might be from agl@us.ibm.com are
-> 
-> hugetlb-add-pte_huge-macro.patch
-> hugetlb-move-stale-pte-check-into-huge_pte_alloc.patch
-> hugetlb-check-pd_present-in-huge_pte_offset.patch
+New Adventures in Coding Style ;)
 
-I don't think we need to call hugetlb_clean_stale_pgtable() anymore
-in 2.6.13 because of the rework with free_pgtables().  It now collect
-all the pte page at the time of munmap.  It used to only collect page
-table pages when entire one pgd can be freed and left with staled pte
-pages.  Not anymore with 2.6.13.  This function will never be called
-and We should turn it into a BUG_ON.
+But most seriously: search the patch for the string "lock" and I find
+no change whatever to locking.  You're introducing page tables shared
+between different mms yet relying on the old mm->page_table_lock?
+You're searching a prio_tree for suitable matches to share, but
+taking no lock on that?  You're counting shares in an atomic,
+but not detecting when the count falls to 0 atomically?
 
-I also spotted two problems here, not Adam's fault :-)
-(1) in huge_pte_alloc(), it looks like a bug to me that pud is not
-    checked before calling pmd_alloc()
-(2) in hugetlb_clean_stale_pgtable(), it also missed a call to
-    pmd_free_tlb.  I think a tlb flush is required to flush the mapping
-    for the page table itself when we clear out the pmd pointing to a
-    pte page.  However, since hugetlb_clean_stale_pgtable() is never
-    called, so it won't trigger the bug.
+And allied with that point on locking mms: there's no change to rmap.c,
+so how is its TLB flushing and cache flushing now supposed to work?
+page_referenced_one and try_to_unmap_one will visit all the vmas
+sharing the page table, yes, but (usually) only the first will
+satisfy the conditions and get flushed.
 
-Patch to remove hugetlb_clean_stale_pgtable() and fix huge_pte_alloc().
-Signed-off-by: Ken Chen <kenneth.w.chen@intel.com>
+I'm not sure if it's worth pursuing shared page tables again or not.
 
---- ./arch/i386/mm/hugetlbpage.c.orig	2005-08-30 17:24:09.691156277 -0700
-+++ ./arch/i386/mm/hugetlbpage.c	2005-08-30 17:24:33.016351304 -0700
-@@ -22,20 +22,14 @@ pte_t *huge_pte_alloc(struct mm_struct *
- {
- 	pgd_t *pgd;
- 	pud_t *pud;
--	pmd_t *pmd;
- 	pte_t *pte = NULL;
- 
- 	pgd = pgd_offset(mm, addr);
- 	pud = pud_alloc(mm, pgd, addr);
--	pmd = pmd_alloc(mm, pud, addr);
-+	if (pud)
-+		pte = (pte_t *) pmd_alloc(mm, pud, addr);
-+	BUG_ON(pte && !pte_none(*pte) && !pte_huge(*pte));
- 
--	if (!pmd)
--		goto out;
--
--	pte = (pte_t *) pmd;
--	if (!pte_none(*pte) && !pte_huge(*pte))
--		hugetlb_clean_stale_pgtable(pte);
--out:
- 	return pte;
- }
- 
-@@ -130,17 +124,6 @@ follow_huge_pmd(struct mm_struct *mm, un
- }
- #endif
- 
--void hugetlb_clean_stale_pgtable(pte_t *pte)
--{
--	pmd_t *pmd = (pmd_t *) pte;
--	struct page *page;
--
--	page = pmd_page(*pmd);
--	pmd_clear(pmd);
--	dec_page_state(nr_page_table_pages);
--	page_cache_release(page);
--}
--
- /* x86_64 also uses this file */
- 
- #ifdef HAVE_ARCH_HUGETLB_UNMAPPED_AREA
---- ./include/asm-i386/page.h.orig	2005-08-30 17:24:43.008538682 -0700
-+++ ./include/asm-i386/page.h	2005-08-30 17:24:48.427483928 -0700
-@@ -68,7 +68,6 @@ typedef struct { unsigned long pgprot; }
- #define HPAGE_MASK	(~(HPAGE_SIZE - 1))
- #define HUGETLB_PAGE_ORDER	(HPAGE_SHIFT - PAGE_SHIFT)
- #define HAVE_ARCH_HUGETLB_UNMAPPED_AREA
--#define ARCH_HAS_HUGETLB_CLEAN_STALE_PGTABLE
- #endif
- 
- #define pgd_val(x)	((x).pgd)
---- ./include/asm-x86_64/page.h.orig	2005-08-30 17:24:57.657952565 -0700
-+++ ./include/asm-x86_64/page.h	2005-08-30 17:25:03.637444679 -0700
-@@ -28,7 +28,6 @@
- #define HPAGE_SIZE	((1UL) << HPAGE_SHIFT)
- #define HPAGE_MASK	(~(HPAGE_SIZE - 1))
- #define HUGETLB_PAGE_ORDER	(HPAGE_SHIFT - PAGE_SHIFT)
--#define ARCH_HAS_HUGETLB_CLEAN_STALE_PGTABLE
- 
- #ifdef __KERNEL__
- #ifndef __ASSEMBLY__
---- ./include/linux/hugetlb.h.orig	2005-08-28 16:41:01.000000000 -0700
-+++ ./include/linux/hugetlb.h	2005-08-30 17:24:33.017327867 -0700
-@@ -70,12 +70,6 @@ pte_t huge_ptep_get_and_clear(struct mm_
- void hugetlb_prefault_arch_hook(struct mm_struct *mm);
- #endif
- 
--#ifndef ARCH_HAS_HUGETLB_CLEAN_STALE_PGTABLE
--#define hugetlb_clean_stale_pgtable(pte)	BUG()
--#else
--void hugetlb_clean_stale_pgtable(pte_t *pte);
--#endif
--
- #else /* !CONFIG_HUGETLB_PAGE */
- 
- static inline int is_vm_hugetlb_page(struct vm_area_struct *vma)
+You certainly need to sort the locking out to do so.  Wait a couple
+of weeks and I should have sent all the per-page-table-page locking
+in to -mm (to replace the pte xchging currently there): that should
+give what you need for locking pts independent of the mm.
 
+Hugh
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
