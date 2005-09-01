@@ -5,13 +5,13 @@ Content-Type: text/plain; charset="ISO-8859-1"
 Date: Fri, 2 Sep 2005 05:44:45 +0800
 Reply-To: "Bob" <kezunli666@enorth.com.cn>
 Content-Transfer-Encoding: 8bit
-Message-Id: <20050901214436Z26657-958+155@kvack.org>
+Message-Id: <20050901214436Z26699-957+1979@kvack.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: linux-MM@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Dear linux-mm@kvack.org:
+Dear linux-MM@kvack.org:
 
 We specializing in Email Marketing.
 
