@@ -1,80 +1,39 @@
-Date: Wed, 31 Aug 2005 12:53:18 -0700 (PDT)
-From: Christoph Lameter <clameter@engr.sgi.com>
-Subject: [PATCH] remove die_notifiers if CONFIG_DEBUG_KERNEL not set
-Message-ID: <Pine.LNX.4.62.0508311247130.28674@schroedinger.engr.sgi.com>
+Received: from scan04.yourhostingaccount.com ([10.1.1.234] helo=scan04.yourhostingaccount.com)
+	by mailout03.yourhostingaccount.com with esmtp (Exim)
+	id 1EApMb-0008Ih-4Q
+	for linux-mm@kvack.org; Thu, 01 Sep 2005 09:44:21 -0400
+Received: from cgi01.yourhostingaccount.com ([10.1.1.207] ident=exim)
+	by scan04.yourhostingaccount.com with spamscanlookuphost (Exim)
+	id 1EApMa-00058v-RT
+	for linux-mm@kvack.org; Thu, 01 Sep 2005 09:44:20 -0400
+Received: from cgi01.yourhostingaccount.com ([10.1.1.207] helo=yourhostingaccount.com)
+	by scan04.yourhostingaccount.com with esmtp (Exim)
+	id 1EApMX-000566-Gy
+	for linux-mm@kvack.org; Thu, 01 Sep 2005 09:44:17 -0400
+Received: from server.yourhostingaccount.com with local
+	for linux-mm@kvack.org
+	id 1EApMR-0004QP-Qg (17013); Thu, 01 Sep 2005 09:44:11 -0400
+Subject: Free Downloads and more
+From: Free Downloads <freedownloads@kingsofchaos.com>
+Reply-To: freedownloads@kingsofchaos.com
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain
+Content-Transfer-Encoding: 8bit
+Message-Id: <E1EApMR-0004QP-Qg@yourhostingaccount.com>
+Date: Thu, 01 Sep 2005 09:44:11 -0400
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <ak@suse.de>
-Cc: "Lynch, Rusty" <rusty.lynch@intel.com>, linux-mm@kvack.org, prasanna@in.ibm.com, linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org, "Keshavamurthy, Anil S" <anil.s.keshavamurthy@intel.com>, "Luck, Tony" <tony.luck@intel.com>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Use of die_notifiers is a debugging feature that is only used if 
-CONFIG_DEBUG_KERNEL is set. For a kernel without debugging there is no 
-need of die notifiers. This will generate no code for notify_die if 
-debugging is not on. Seems that there is an expectation that future distro 
-releases will have CONFIG_KPROBES on. They will therefore also have 
-CONFIG_DEBUG_KERNEL set and thus the die notifiers will work and the 
-notifier will be enabled in do_ia64_page_fault.
+Hello,
+I know everybody wants to download something for free, because the price is too high, now you can, just click on this link and then on the given number:
+http://www.kingsofchaos.com/recruit.php?uniqid=2pu5bhny
 
-Signed-off-by: Christoph Lameter <clameter@sgi.com>
+Thank you for your support
 
-Index: linux-2.6.13/include/asm-ia64/kdebug.h
-===================================================================
---- linux-2.6.13.orig/include/asm-ia64/kdebug.h	2005-08-28 16:41:01.000000000 -0700
-+++ linux-2.6.13/include/asm-ia64/kdebug.h	2005-08-31 12:35:17.000000000 -0700
-@@ -35,14 +35,15 @@ struct die_args {
- 	int signr;
- };
- 
--int register_die_notifier(struct notifier_block *nb);
--extern struct notifier_block *ia64die_chain;
--
- enum die_val {
- 	DIE_BREAK = 1,
- 	DIE_SS,
- 	DIE_PAGE_FAULT,
- };
-+#ifdef CONFIG_DEBUG_KERNEL
-+extern struct notifier_block *ia64die_chain;
-+
-+int register_die_notifier(struct notifier_block *nb);
- 
- static inline int notify_die(enum die_val val, char *str, struct pt_regs *regs,
- 			     long err, int trap, int sig)
-@@ -57,5 +58,11 @@ static inline int notify_die(enum die_va
- 
- 	return notifier_call_chain(&ia64die_chain, val, &args);
- }
-+#else
-+
-+#define notify_die(val, str, regs, err, trap, sig) 0
-+#define register_die_notifier(nb) do { } while (0)
-+
-+#endif
- 
- #endif
-Index: linux-2.6.13/arch/ia64/kernel/traps.c
-===================================================================
---- linux-2.6.13.orig/arch/ia64/kernel/traps.c	2005-08-28 16:41:01.000000000 -0700
-+++ linux-2.6.13/arch/ia64/kernel/traps.c	2005-08-31 12:35:17.000000000 -0700
-@@ -28,6 +28,7 @@ extern spinlock_t timerlist_lock;
- fpswa_interface_t *fpswa_interface;
- EXPORT_SYMBOL(fpswa_interface);
- 
-+#ifdef CONFIG_DEBUG_KERNEL
- struct notifier_block *ia64die_chain;
- static DEFINE_SPINLOCK(die_notifier_lock);
- 
-@@ -40,6 +41,7 @@ int register_die_notifier(struct notifie
- 	spin_unlock_irqrestore(&die_notifier_lock, flags);
- 	return err;
- }
-+#endif
- 
- void __init
- trap_init (void)
+
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
