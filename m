@@ -1,36 +1,29 @@
-Message-ID: <4317F50B.6080005@yahoo.com.au>
-Date: Fri, 02 Sep 2005 16:45:31 +1000
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-MIME-Version: 1.0
-Subject: Re: New lockless pagecache
-References: <4317F071.1070403@yahoo.com.au>
-In-Reply-To: <4317F071.1070403@yahoo.com.au>
-Content-Type: text/plain; charset=us-ascii; format=flowed
+Subject: Re: [PATCH 2.6.13] lockless pagecache 2/7
+From: Alan Cox <alan@lxorguk.ukuu.org.uk>
+In-Reply-To: <4317F136.4040601@yahoo.com.au>
+References: <4317F071.1070403@yahoo.com.au> <4317F0F9.1080602@yahoo.com.au>
+	 <4317F136.4040601@yahoo.com.au>
+Content-Type: text/plain
 Content-Transfer-Encoding: 7bit
+Date: Fri, 02 Sep 2005 14:08:06 +0100
+Message-Id: <1125666486.30867.11.camel@localhost.localdomain>
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linux Memory Management <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Linux Memory Management <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Nick Piggin wrote:
+On Gwe, 2005-09-02 at 16:29 +1000, Nick Piggin wrote:
+> 2/7
+> Implement atomic_cmpxchg for i386 and ppc64. Is there any
+> architecture that won't be able to implement such an operation?
 
-> I think this is getting pretty stable. No guarantees of course,
-> but it would be great if anyone gave it a test.
-> 
+i386, sun4c, ....
 
-Or review, I might add. While I understand such a review is
-still quite difficult, this code really is far less complex
-than the previous lockless pagecache patches.
+Yeah quite a few. I suspect most MIPS also would have a problem in this
+area.
 
-(Ignore 1/7 though, which is a rollup - a broken out patchset
-can be provided on request)
-
-Nick
-
--- 
-SUSE Labs, Novell Inc.
-
-Send instant messages to your online friends http://au.messenger.yahoo.com 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
