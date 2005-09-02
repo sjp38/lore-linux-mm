@@ -1,40 +1,52 @@
-Date: Fri, 02 Sep 2005 11:40:12 -0500
-From: Dave McCracken <dmccr@us.ibm.com>
-Subject: RE: [PATCH 1/1] Implement shared page tables
-Message-ID: <3251CEDFF07A229DBFB81CE0@[10.1.1.4]>
-In-Reply-To: <200509020158.j821wtg00465@unix-os.sc.intel.com>
-References: <200509020158.j821wtg00465@unix-os.sc.intel.com>
+From: "Dawabe Gabriel" <Edwards@a4.no>
+Subject: Re[9]: =?koi8-r?B?8sHax8/Xz9LO2cogwc7HzMnK08vJyiDR2tnLIGMg0NLF0M/EwdfB1MXM0c0=?=
+	=?koi8-r?B?ySDJ2iDz++E=?= Mijuskovic
+Date: Fri, 02 Sep 2005 17:23:23 +0000
+Message-ID: <00d101c5afe3$0fc82e23$772184d9@fx.ro>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
+Content-Type: text/plain;
+	format=flowed;
+	charset="koi8-r";
+	reply-type=original
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: "Chen, Kenneth W" <kenneth.w.chen@intel.com>
-Cc: Andrew Morton <akpm@osdl.org>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>
+To: Butler Roger <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
---On Thursday, September 01, 2005 18:58:23 -0700 "Chen, Kenneth W"
-<kenneth.w.chen@intel.com> wrote:
+=?ISO-8859-1?Q?=E4=CF=C2=D2=D9=CA?= =?ISO-8859-1?Q?=C4=C5=CE=D8!?=
+Return-Path: <owner-linux-mm@kvack.org>
+X-Envelope-To: <"|/home/majordomo/wrapper archive -f /home/ftp/pub/archives/linux-mm/linux-mm -m -a"> (uid 0)
+X-Orcpt: rfc822;linux-mm-outgoing
+Original-Recipient: rfc822;linux-mm-outgoing
 
->> +		prio_tree_iter_init(&iter, &mapping->i_mmap,
->> +				    vma->vm_start, vma->vm_end);
-> 
-> 
-> I think this is a bug.  The radix priority tree for address_space->
-> i_mmap is keyed on vma->vm_pgoff.  Your patch uses the vma virtual
-> address to find a shareable range, Which will always fail a match
-> even though there is one.
->
-> Do you really have to iterate through all the vma?  Can't you just break
-> out of the while loop on first successful match and populating the pmd?
-> I would think you will find them to be the same pte page. Or did I miss
-> some thing?
+uA  OAIIA EIOIOEIA xOAIN E DOEIIOEx IEIEIOI OOEIEE, /U AIOOECIAOA OICI
+OOIxIN   xIAAAIEN   NUUEII,   EIOIOUE  DIUxIIEO  /AI  xUDIIIEOO  IAAOA
+DIOOAxIAIIOA UAAATHO - AOAO OI AIOOEOAIEA xUOIEICI OAUOIOOAOA DOE OAATHA
+OOAIAAOOIUE  AIAOEEAIOEEE  EIE  AOEOAIOEEE  OAOOIx,  EIE DIOOODIAIEA x
+DOAOOEOIUE  /ou.  /U  DOAOODAAOA  x  xAAAIEE DAOACIxIOIx IA AICIEEOEII
+NUUEA,  DIIOTHEOA OAIAAIOA xUOIEIIDIATHExAAIOA OAAIOO, DITHOxOOxOAOA OAAN
+OxAOAIII  UA COAIEAAE, A CIAxIIA - DIIOTHEOA OAIxIIOOOxEA IO OxAOAIIICI
+xIAAAIEN NUUEII E IIxUE xIUIIOIIOOAE.
 
-Man, I spaced that whole search code.  I was sure I'd tested to make sure
-it was finding matches.  I'll fix all that up in my next release.
+eAEOA  AU  UAAATHO  /U DAOAA OIAIE IE OOAxEIE: DIOOODIAIEA x OIOOEEOEEE
+EIE    AIAOEEAIOEEE   OIExAOOEOAO,   xUOIEEE   OAUOIOOAO   DOE   OAATHA
+IAOAOIAOIAIICI  UEUAIAIA,  DIACIOIxEA  E  IOssAUAO  UA OOAAO, IxIAAAIEA
+AEUIAO-IAEOEEIE   EIE  OAIIOIxAOUAIOOxIxAIEA-  AAIO  AOAAO  AIOOECIOOA
+AUOOOI E UAEAEAEOExII.
 
-Dave McCracken
+o IAO OEEAEE!!!
+
+iU OAGBPI /AUACI UxIIEA x iIOExA:
+IAEI-IIIO-DNOO 5186
+AxA-OOE-xIOAIO-OOE-OOE-xIOAIO-UAOOO
+
+
+
+
+
+Hossam Evans
+Olsson Tkachenko Fundak
+Casillas Jaiswal Lamb Topaloglu
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
