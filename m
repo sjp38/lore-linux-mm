@@ -1,43 +1,63 @@
-Date: Fri, 02 Sep 2005 14:12:55 -0700 (PDT)
-Message-Id: <20050902.141255.50099210.davem@davemloft.net>
+Message-ID: <4318C28A.5010000@yahoo.com.au>
+Date: Sat, 03 Sep 2005 07:22:18 +1000
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+MIME-Version: 1.0
 Subject: Re: [PATCH 2.6.13] lockless pagecache 2/7
-From: "David S. Miller" <davem@davemloft.net>
+References: <4317F071.1070403@yahoo.com.au> <4317F0F9.1080602@yahoo.com.au>	<4317F136.4040601@yahoo.com.au>	<1125666486.30867.11.camel@localhost.localdomain> <p73k6hzqk1w.fsf@verdi.suse.de>
 In-Reply-To: <p73k6hzqk1w.fsf@verdi.suse.de>
-References: <4317F136.4040601@yahoo.com.au>
-	<1125666486.30867.11.camel@localhost.localdomain>
-	<p73k6hzqk1w.fsf@verdi.suse.de>
-Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-From: Andi Kleen <ak@suse.de>
-Date: 02 Sep 2005 22:41:31 +0200
 Return-Path: <owner-linux-mm@kvack.org>
-To: ak@suse.de
-Cc: alan@lxorguk.ukuu.org.uk, linux-mm@kvack.org, linux-kernel@vger.kernel.org, nickpiggin@yahoo.com.au
+To: Andi Kleen <ak@suse.de>
+Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, Linux Memory Management <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-> > Yeah quite a few. I suspect most MIPS also would have a problem in this
-> > area.
+Andi Kleen wrote:
+> Alan Cox <alan@lxorguk.ukuu.org.uk> writes:
+> 
+> 
+>>On Gwe, 2005-09-02 at 16:29 +1000, Nick Piggin wrote:
+>>
+>>>2/7
+>>>Implement atomic_cmpxchg for i386 and ppc64. Is there any
+>>>architecture that won't be able to implement such an operation?
+>>
+>>i386, sun4c, ....
+> 
+> 
+> Actually we have cmpxchg on i386 these days - we don't support
+> any SMP i386s so it's just done non atomically.
+>  
+
+Yes, I guess that's what Alan must have meant.
+
+This atomic_cmpxchg, unlike a "regular" cmpxchg, has the advantage
+that the memory altered should always be going through the atomic_
+accessors, and thus should be implementable with spinlocks.
+
+See for example, arch/sparc/lib/atomic32.c
+
+At least, that's what I'm hoping for.
+
+> 
+>>Yeah quite a few. I suspect most MIPS also would have a problem in this
+>>area.
+> 
 > 
 > cmpxchg can be done with LL/SC can't it? Any MIPS should have that.
+> 
 
-Right.
+Yes, and indeed it does. However it also tests for "cpu_has_llsc",
+but I suspect that SMP isn't supported on those CPUs without ll/sc,
+and thus an atomic_cmpxchg could be emulated by disabling interrupts.
 
-On PARISC, I don't see where they are emulating compare and swap
-as indicated.  They are doing the funny hashed spinlocks for the
-atomic_t operations and bitops, but that is entirely different.
+Nick
 
-cmpxchg() has to operate in an environment where, unlike the atomic_t
-and bitops, you cannot control the accessors to the object at all.
+-- 
+SUSE Labs, Novell Inc.
 
-The DRM is the only place in the kernel that requires cmpxchg()
-and you can thus make a list of what platform can provide cmpxchg()
-by which ones support DRM and thus provide the cmpxchg() macro already
-in asm/system.h
-
-We really can't require support for this primitive kernel wide, it's
-simply not possible on a couple chips.
+Send instant messages to your online friends http://au.messenger.yahoo.com 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
