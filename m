@@ -1,46 +1,39 @@
-Message-ID: <4318C395.1080203@yahoo.com.au>
-Date: Sat, 03 Sep 2005 07:26:45 +1000
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-MIME-Version: 1.0
+Date: Fri, 02 Sep 2005 14:31:49 -0700 (PDT)
+Message-Id: <20050902.143149.08652495.davem@davemloft.net>
 Subject: Re: [PATCH 2.6.13] lockless pagecache 2/7
-References: <4317F071.1070403@yahoo.com.au> <4317F0F9.1080602@yahoo.com.au> <4317F136.4040601@yahoo.com.au> <Pine.LNX.4.62.0509021123290.15836@schroedinger.engr.sgi.com>
-In-Reply-To: <Pine.LNX.4.62.0509021123290.15836@schroedinger.engr.sgi.com>
-Content-Type: text/plain; charset=us-ascii; format=flowed
+From: "David S. Miller" <davem@davemloft.net>
+In-Reply-To: <4318C28A.5010000@yahoo.com.au>
+References: <1125666486.30867.11.camel@localhost.localdomain>
+	<p73k6hzqk1w.fsf@verdi.suse.de>
+	<4318C28A.5010000@yahoo.com.au>
+Mime-Version: 1.0
+Content-Type: Text/Plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+Date: Sat, 03 Sep 2005 07:22:18 +1000
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@engr.sgi.com>
-Cc: Linux Memory Management <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
+To: nickpiggin@yahoo.com.au
+Cc: ak@suse.de, alan@lxorguk.ukuu.org.uk, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Christoph Lameter wrote:
-> On Fri, 2 Sep 2005, Nick Piggin wrote:
+> This atomic_cmpxchg, unlike a "regular" cmpxchg, has the advantage
+> that the memory altered should always be going through the atomic_
+> accessors, and thus should be implementable with spinlocks.
 > 
+> See for example, arch/sparc/lib/atomic32.c
 > 
->>Implement atomic_cmpxchg for i386 and ppc64. Is there any
->>architecture that won't be able to implement such an operation?
-> 
-> 
-> Something like that used to be part of the page fault scalability 
-> patchset. You contributed to it last year. Here is the latest version of 
-> that. May need some work though.
-> 
+> At least, that's what I'm hoping for.
 
-Thanks Christoph, I think this will be required to support 386.
-In the worst case, we could provide a fallback path and take
-->tree_lock in pagecache lookups if there is no atomic_cmpxchg,
-however I would much prefer all architectures get an atomic_cmpxchg,
-and I think it should turn out to be a generally useful primitive.
+Ok, as long as the rule is that all accesses have to go
+through accessor macros, it would work.  This is not true
+for existing uses of cmpxchg() btw, userland accesses shared
+locks with the kernel would using any kind of accessors we
+can control.
 
-I may trim this down to only provide what is needed for atomic_cmpxchg
-if that is OK?
-
-Nick
-
--- 
-SUSE Labs, Novell Inc.
-
-Send instant messages to your online friends http://au.messenger.yahoo.com 
+This means that your atomic_cmpxchg() cannot be used for locking
+objects shared with userland, as DRM wants, since the hashed spinlock
+trick does not work in such a case.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
