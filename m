@@ -1,47 +1,22 @@
-Message-ID: <4318FF2B.6000805@yahoo.com.au>
-Date: Sat, 03 Sep 2005 11:40:59 +1000
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-MIME-Version: 1.0
-Subject: Re: [PATCH 2.6.13] lockless pagecache 2/7
-References: <4317F071.1070403@yahoo.com.au> <4317F0F9.1080602@yahoo.com.au>	 <4317F136.4040601@yahoo.com.au>	 <1125666486.30867.11.camel@localhost.localdomain>	 <p73k6hzqk1w.fsf@verdi.suse.de>  <4318C28A.5010000@yahoo.com.au> <1125705471.30867.40.camel@localhost.localdomain>
-In-Reply-To: <1125705471.30867.40.camel@localhost.localdomain>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+From: "Fina Grieco & Luis =?ISO-8859-1?Q?Garc=EDa" ?=
+	<legfermin@intercable.net.ve>
+Subject: Busco socios en su ciudad
+Reply-To: legfermin@intercable.net.ve
+Date: Fri, 2 Sep 2005 18:56:28 -0700
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Message-Id: <20050903015642Z26672-957+2162@kvack.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Alan Cox <alan@lxorguk.ukuu.org.uk>
-Cc: Andi Kleen <ak@suse.de>, Linux Memory Management <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Alan Cox wrote:
+Saludos:
+Compania Americana en  proceso de expansion solicita en su ciudad personas interesadas en agregar a sus ingresos $1000 a tiempo parcial o $3000 a tiempo completo desarrollando actividades relacionadas a nuestra empresa, toda la informacion de trabajo la encontrara en www.ingresoya.com ,
 
->>but I suspect that SMP isn't supported on those CPUs without ll/sc,
->>and thus an atomic_cmpxchg could be emulated by disabling interrupts.
-> 
-> 
-> It's obviously emulatable on any platform - the question is at what
-> cost. For x86 it probably isn't a big problem as there are very very few
-> people who need to build for 386 any more and there is already a big
-> penalty for such chips.
-> 
-> 
-
-Thanks Alan, Dave, others.
-
-We'll see how things go. I'm fairly sure that for my usage it will
-be a win even if it is costly. It is replacing an atomic_inc_return,
-and a read_lock/read_unlock pair.
-
-But if it does one day get merged, and proves to be very costly on
-some architectures then we'll need to be careful about where it gets
-used.
-
-Nick
-
--- 
-SUSE Labs, Novell Inc.
-
-Send instant messages to your online friends http://au.messenger.yahoo.com 
+Atentamente,
+Luis Eduardo Garcia & Fina Grieco
+HBL International.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
