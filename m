@@ -1,7 +1,7 @@
-Message-Id: <200509032256.j83Mub0t023216@shell0.pdx.osdl.net>
-Subject: [patch 038/220] hugetlb: add pte_huge() macro
+Message-Id: <200509032256.j83Mud0B023224@shell0.pdx.osdl.net>
+Subject: [patch 040/220] hugetlb: check p?d_present in huge_pte_offset()
 From: akpm@osdl.org
-Date: Sat, 03 Sep 2005 15:54:59 -0700
+Date: Sat, 03 Sep 2005 15:55:01 -0700
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: torvalds@osdl.org
@@ -10,66 +10,35 @@ List-ID: <linux-mm.kvack.org>
 
 From: Adam Litke <agl@us.ibm.com>
 
-This patch adds a macro pte_huge(pte) for i386/x86_64 which is needed by a
-patch later in the series.  Instead of repeating (_PAGE_PRESENT |
-_PAGE_PSE), I've added __LARGE_PTE to i386 to match x86_64.
+For demand faulting, we cannot assume that the page tables will be
+populated.  Do what the rest of the architectures do and test p?d_present()
+while walking down the page table.
 
 Signed-off-by: Adam Litke <agl@us.ibm.com>
 Cc: <linux-mm@kvack.org>
 Signed-off-by: Andrew Morton <akpm@osdl.org>
 ---
 
- include/asm-i386/pgtable.h   |    4 +++-
- include/asm-x86_64/pgtable.h |    3 ++-
- 2 files changed, 5 insertions(+), 2 deletions(-)
+ arch/i386/mm/hugetlbpage.c |    7 +++++--
+ 1 files changed, 5 insertions(+), 2 deletions(-)
 
-diff -puN include/asm-i386/pgtable.h~hugetlb-add-pte_huge-macro include/asm-i386/pgtable.h
---- devel/include/asm-i386/pgtable.h~hugetlb-add-pte_huge-macro	2005-09-03 15:46:14.000000000 -0700
-+++ devel-akpm/include/asm-i386/pgtable.h	2005-09-03 15:52:25.000000000 -0700
-@@ -215,11 +215,13 @@ extern unsigned long pg0[];
-  * The following only work if pte_present() is true.
-  * Undefined behaviour if not..
-  */
-+#define __LARGE_PTE (_PAGE_PSE | _PAGE_PRESENT)
- static inline int pte_user(pte_t pte)		{ return (pte).pte_low & _PAGE_USER; }
- static inline int pte_read(pte_t pte)		{ return (pte).pte_low & _PAGE_USER; }
- static inline int pte_dirty(pte_t pte)		{ return (pte).pte_low & _PAGE_DIRTY; }
- static inline int pte_young(pte_t pte)		{ return (pte).pte_low & _PAGE_ACCESSED; }
- static inline int pte_write(pte_t pte)		{ return (pte).pte_low & _PAGE_RW; }
-+static inline int pte_huge(pte_t pte)		{ return ((pte).pte_low & __LARGE_PTE) == __LARGE_PTE; }
+diff -puN arch/i386/mm/hugetlbpage.c~hugetlb-check-pd_present-in-huge_pte_offset arch/i386/mm/hugetlbpage.c
+--- devel/arch/i386/mm/hugetlbpage.c~hugetlb-check-pd_present-in-huge_pte_offset	2005-09-03 15:46:14.000000000 -0700
++++ devel-akpm/arch/i386/mm/hugetlbpage.c	2005-09-03 15:52:25.000000000 -0700
+@@ -46,8 +46,11 @@ pte_t *huge_pte_offset(struct mm_struct 
+ 	pmd_t *pmd = NULL;
  
- /*
-  * The following only works if pte_present() is not true.
-@@ -236,7 +238,7 @@ static inline pte_t pte_mkexec(pte_t pte
- static inline pte_t pte_mkdirty(pte_t pte)	{ (pte).pte_low |= _PAGE_DIRTY; return pte; }
- static inline pte_t pte_mkyoung(pte_t pte)	{ (pte).pte_low |= _PAGE_ACCESSED; return pte; }
- static inline pte_t pte_mkwrite(pte_t pte)	{ (pte).pte_low |= _PAGE_RW; return pte; }
--static inline pte_t pte_mkhuge(pte_t pte)	{ (pte).pte_low |= _PAGE_PRESENT | _PAGE_PSE; return pte; }
-+static inline pte_t pte_mkhuge(pte_t pte)	{ (pte).pte_low |= __LARGE_PTE; return pte; }
+ 	pgd = pgd_offset(mm, addr);
+-	pud = pud_offset(pgd, addr);
+-	pmd = pmd_offset(pud, addr);
++	if (pgd_present(*pgd)) {
++		pud = pud_offset(pgd, addr);
++		if (pud_present(*pud))
++			pmd = pmd_offset(pud, addr);
++	}
+ 	return (pte_t *) pmd;
+ }
  
- #ifdef CONFIG_X86_PAE
- # include <asm/pgtable-3level.h>
-diff -puN include/asm-x86_64/pgtable.h~hugetlb-add-pte_huge-macro include/asm-x86_64/pgtable.h
---- devel/include/asm-x86_64/pgtable.h~hugetlb-add-pte_huge-macro	2005-09-03 15:46:14.000000000 -0700
-+++ devel-akpm/include/asm-x86_64/pgtable.h	2005-09-03 15:52:25.000000000 -0700
-@@ -247,6 +247,7 @@ static inline pte_t pfn_pte(unsigned lon
-  * The following only work if pte_present() is true.
-  * Undefined behaviour if not..
-  */
-+#define __LARGE_PTE (_PAGE_PSE|_PAGE_PRESENT)
- static inline int pte_user(pte_t pte)		{ return pte_val(pte) & _PAGE_USER; }
- extern inline int pte_read(pte_t pte)		{ return pte_val(pte) & _PAGE_USER; }
- extern inline int pte_exec(pte_t pte)		{ return pte_val(pte) & _PAGE_USER; }
-@@ -254,8 +255,8 @@ extern inline int pte_dirty(pte_t pte)		
- extern inline int pte_young(pte_t pte)		{ return pte_val(pte) & _PAGE_ACCESSED; }
- extern inline int pte_write(pte_t pte)		{ return pte_val(pte) & _PAGE_RW; }
- static inline int pte_file(pte_t pte)		{ return pte_val(pte) & _PAGE_FILE; }
-+static inline int pte_huge(pte_t pte)		{ return (pte_val(pte) & __LARGE_PTE) == __LARGE_PTE; }
- 
--#define __LARGE_PTE (_PAGE_PSE|_PAGE_PRESENT)
- extern inline pte_t pte_rdprotect(pte_t pte)	{ set_pte(&pte, __pte(pte_val(pte) & ~_PAGE_USER)); return pte; }
- extern inline pte_t pte_exprotect(pte_t pte)	{ set_pte(&pte, __pte(pte_val(pte) & ~_PAGE_USER)); return pte; }
- extern inline pte_t pte_mkclean(pte_t pte)	{ set_pte(&pte, __pte(pte_val(pte) & ~_PAGE_DIRTY)); return pte; }
 _
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
