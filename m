@@ -1,7 +1,7 @@
-Message-Id: <200509032256.j83Mud0B023224@shell0.pdx.osdl.net>
-Subject: [patch 040/220] hugetlb: check p?d_present in huge_pte_offset()
+Message-Id: <200509032256.j83Muda2023220@shell0.pdx.osdl.net>
+Subject: [patch 039/220] hugetlb: move stale pte check into huge_pte_alloc()
 From: akpm@osdl.org
-Date: Sat, 03 Sep 2005 15:55:01 -0700
+Date: Sat, 03 Sep 2005 15:55:00 -0700
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: torvalds@osdl.org
@@ -10,35 +10,74 @@ List-ID: <linux-mm.kvack.org>
 
 From: Adam Litke <agl@us.ibm.com>
 
-For demand faulting, we cannot assume that the page tables will be
-populated.  Do what the rest of the architectures do and test p?d_present()
-while walking down the page table.
+Initial Post (Wed, 17 Aug 2005)
+
+This patch moves the
+	if (! pte_none(*pte))
+		hugetlb_clean_stale_pgtable(pte);
+logic into huge_pte_alloc() so all of its callers can be immune to the bug
+described by Kenneth Chen at http://lkml.org/lkml/2004/6/16/246
+
+> It turns out there is a bug in hugetlb_prefault(): with 3 level page table,
+> huge_pte_alloc() might return a pmd that points to a PTE page. It happens
+> if the virtual address for hugetlb mmap is recycled from previously used
+> normal page mmap. free_pgtables() might not scrub the pmd entry on
+> munmap and hugetlb_prefault skips on any pmd presence regardless what type 
+> it is.
+
+Unless I am missing something, it seems more correct to place the check inside
+huge_pte_alloc() to prevent a the same bug wherever a huge pte is allocated.
+It also allows checking for this condition when lazily faulting huge pages
+later in the series.
 
 Signed-off-by: Adam Litke <agl@us.ibm.com>
 Cc: <linux-mm@kvack.org>
 Signed-off-by: Andrew Morton <akpm@osdl.org>
 ---
 
- arch/i386/mm/hugetlbpage.c |    7 +++++--
- 1 files changed, 5 insertions(+), 2 deletions(-)
+ arch/i386/mm/hugetlbpage.c |   13 +++++++++++--
+ mm/hugetlb.c               |    2 --
+ 2 files changed, 11 insertions(+), 4 deletions(-)
 
-diff -puN arch/i386/mm/hugetlbpage.c~hugetlb-check-pd_present-in-huge_pte_offset arch/i386/mm/hugetlbpage.c
---- devel/arch/i386/mm/hugetlbpage.c~hugetlb-check-pd_present-in-huge_pte_offset	2005-09-03 15:46:14.000000000 -0700
+diff -puN arch/i386/mm/hugetlbpage.c~hugetlb-move-stale-pte-check-into-huge_pte_alloc arch/i386/mm/hugetlbpage.c
+--- devel/arch/i386/mm/hugetlbpage.c~hugetlb-move-stale-pte-check-into-huge_pte_alloc	2005-09-03 15:46:14.000000000 -0700
 +++ devel-akpm/arch/i386/mm/hugetlbpage.c	2005-09-03 15:52:25.000000000 -0700
-@@ -46,8 +46,11 @@ pte_t *huge_pte_offset(struct mm_struct 
- 	pmd_t *pmd = NULL;
+@@ -22,12 +22,21 @@ pte_t *huge_pte_alloc(struct mm_struct *
+ {
+ 	pgd_t *pgd;
+ 	pud_t *pud;
+-	pmd_t *pmd = NULL;
++	pmd_t *pmd;
++	pte_t *pte = NULL;
  
  	pgd = pgd_offset(mm, addr);
--	pud = pud_offset(pgd, addr);
--	pmd = pmd_offset(pud, addr);
-+	if (pgd_present(*pgd)) {
-+		pud = pud_offset(pgd, addr);
-+		if (pud_present(*pud))
-+			pmd = pmd_offset(pud, addr);
-+	}
- 	return (pte_t *) pmd;
+ 	pud = pud_alloc(mm, pgd, addr);
+ 	pmd = pmd_alloc(mm, pud, addr);
+-	return (pte_t *) pmd;
++
++	if (!pmd)
++		goto out;
++
++	pte = (pte_t *) pmd;
++	if (!pte_none(*pte) && !pte_huge(*pte))
++		hugetlb_clean_stale_pgtable(pte);
++out:
++	return pte;
  }
  
+ pte_t *huge_pte_offset(struct mm_struct *mm, unsigned long addr)
+diff -puN mm/hugetlb.c~hugetlb-move-stale-pte-check-into-huge_pte_alloc mm/hugetlb.c
+--- devel/mm/hugetlb.c~hugetlb-move-stale-pte-check-into-huge_pte_alloc	2005-09-03 15:46:14.000000000 -0700
++++ devel-akpm/mm/hugetlb.c	2005-09-03 15:46:14.000000000 -0700
+@@ -360,8 +360,6 @@ int hugetlb_prefault(struct address_spac
+ 			ret = -ENOMEM;
+ 			goto out;
+ 		}
+-		if (! pte_none(*pte))
+-			hugetlb_clean_stale_pgtable(pte);
+ 
+ 		idx = ((addr - vma->vm_start) >> HPAGE_SHIFT)
+ 			+ (vma->vm_pgoff >> (HPAGE_SHIFT - PAGE_SHIFT));
 _
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
