@@ -1,40 +1,60 @@
-Subject: Re: [PATCH 2.6.13] lockless pagecache 2/7
-From: Alan Cox <alan@lxorguk.ukuu.org.uk>
-In-Reply-To: <4318C28A.5010000@yahoo.com.au>
-References: <4317F071.1070403@yahoo.com.au> <4317F0F9.1080602@yahoo.com.au>
-	 <4317F136.4040601@yahoo.com.au>
-	 <1125666486.30867.11.camel@localhost.localdomain>
-	 <p73k6hzqk1w.fsf@verdi.suse.de>  <4318C28A.5010000@yahoo.com.au>
+Received: from lopezclub.com (lopezclub-com-bk.mr.outblaze.com [205.158.62.181])
+	by cncln.online.ln.cn (Postfix) with ESMTP id 03904C7CD0
+	for <linux-mm@kvack.org>; Fri, 02 Sep 2005 21:15:24 -0400
+From: Sateny Finance Group <Winton@lopezclub.com>
+Subject: It's me
+Date: Fri, 02 Sep 2005 21:15:24 -0400
+Message-ID: <000101c5b024$97760073$ab585dbe@lopezclub.com>
+MIME-Version: 1.0
 Content-Type: text/plain
 Content-Transfer-Encoding: 7bit
-Date: Sat, 03 Sep 2005 00:57:51 +0100
-Message-Id: <1125705471.30867.40.camel@localhost.localdomain>
-Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Andi Kleen <ak@suse.de>, Linux Memory Management <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
+To: Linux <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Sad, 2005-09-03 at 07:22 +1000, Nick Piggin wrote:
-> > Actually we have cmpxchg on i386 these days - we don't support
-> > any SMP i386s so it's just done non atomically.
-> 
-> Yes, I guess that's what Alan must have meant.
+Sateny Finance Group can help you make your dreams come true while getting a monthly wage working on the Internet.
 
-Well I was thinking about things like pre-empt. Also the x86 cmpxchg()
-is defined for non i386 processors to allow certain things to use it
-(ACPI, DRM etc) which know they won't be on a 386. The implementation in
-this case will blow up on a 386 and the __HAVE_ARCH_CMPXCHG remains
-false.
 
-> but I suspect that SMP isn't supported on those CPUs without ll/sc,
-> and thus an atomic_cmpxchg could be emulated by disabling interrupts.
 
-It's obviously emulatable on any platform - the question is at what
-cost. For x86 it probably isn't a big problem as there are very very few
-people who need to build for 386 any more and there is already a big
-penalty for such chips.
+As everything you need to work with SATENY FINANCE GROUP is:
+
+-  being a US, UK, Germany, Italy or Spain citizen
+
+-  having a bank account 
+
+-  having a computer connected to the Internet
+
+-  a little of your spare time
+
+
+
+How it works:
+
+
+
+Working for us as a Payment Processing Manager, you will become a part
+
+of the new trend in the world banking system. Duties of the
+
+position are simple, and income depends only on your efforts. All you
+
+have to do is transfer payments between our clients getting your interest from each operation.
+
+
+
+Basically it will be 5%, with each transfer your interest will grow. Our clients normally receive USD 1000 to 50000 and
+
+more.
+
+
+
+If want to work with us, contact your personal manager  Ms. Kelly
+
+Johnson, e-mail: manager@sateny-group.com
+
+ateny Finance Group cares about your prosperity. Make your life better together with Sateny Finance Group!
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
