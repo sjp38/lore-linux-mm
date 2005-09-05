@@ -1,86 +1,88 @@
-From: Mrs. Joy Gerang <jgerang@indiatimes.com>
-Reply-To: jgerang@voila.fr
-Subject: From Mrs. J. Gerang
-Date: Mon, 05 Sep 2005 10:05:31 +0400
-MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="7d475730-b929-4484-b4b6-a61a7a1538ef"
-Message-Id: <20050905060525Z26612-958+181@kvack.org>
+Message-Id: <200509050925.j859PvWn000459@shell0.pdx.osdl.net>
+Subject: hugetlb-add-pte_huge-macro.patch removed from -mm tree
+From: akpm@osdl.org
+Date: Mon, 05 Sep 2005 02:24:17 -0700
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: agl@us.ibm.com, linux-mm@kvack.org, mm-commits@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-This is a multi-part message in MIME format
---7d475730-b929-4484-b4b6-a61a7a1538ef
-Content-Type: text/plain; charset=iso-8859-1
-Content-Transfer-Encoding: quoted-printable
+The patch titled
 
->From : Mrs. Joy Gerang
-FMC Quatters =96 Sudan
-Email: jgerang@myway.com
+     hugetlb: add pte_huge() macro
 
-Dear Friend,
+has been removed from the -mm tree.  Its filename is
 
-I got to know about you in my desperate search for a reputable
-person/persons/company to assist me in a confidential business deal requirin
-utmost trust and urgency. I am Mrs. Joy Gerang, wife of the late War =
-Lord/first vice president of suden.
-I as a matter of urgency is in search of a reliable and trustworthy foreign =
-partner, who will
-help me receive some funds which I have in cash totaling US$16M (sixteen =
-Million
-Dollars) and a box containing Gold into a personal/ company or any reliable
-foreign bank account for safe keeping for a short period of time, my family =
-bank accounts within and outside the country are been monitored by the =
-authorities.
+     hugetlb-add-pte_huge-macro.patch
 
-If you have been listening to CNN, BBC, VOA and international news agencies =
-you
-would have heard about Dr. John Gerang and his twenty one (21) year rebel led
-=
+Patches currently in -mm which might be from agl@us.ibm.com are
 
-war against the federal government and the final peace deal which saw him =
-into
-the government as the first vice resident on the 9th day of July 2005 and his =
-death via a controversial helicopter crash on the, 1st day of August 2005
-precisely after three weeks in office(may his soul rest in peace).
-This money in question (US$16M) and the Box of Gold has however been =
-comfortably
-moved out of the country beyond the knowledge of any one and it is presently
-lodged with a private security company in Ghana which has its branches in
-all the Continents of the world.
-Worthy to note is that the federal government of Sudan lead by Omar Hassan =
-Ahmad
-al-Bashir in her bid to frustrate my late husband's family has placed us =
-under
-partial house arrest with all our international travelers' documents =
-withdrawn
-pending when the current face-off between opposition and the present
-administration, which from all indications is creating fear on the federal
-government based on the unrest emanating from my husband's controversial =
-death.
-I have decided to offer anybody who will be willing to render this tremendous
-=
 
-assistance 20% of the total sum while a refund of all your expenses will be =
-made
-to you as soon as this fund is cleared from the security company.
-Note: this transaction involves no risk especially now that you are not going =
-to
-have any dealings whatsoever with anybody in Sudan rather you are going to =
-deal
-with me or lawyer directly.
-I shall let you into the complete picture of this mutual beneficial =
-transaction
-when I hear from you on the above email address with hope
-you are still going to treat this letter as urgent and confidential.
 
-Best regards,
 
-Mrs. Joy Gerang
-  
---7d475730-b929-4484-b4b6-a61a7a1538ef--
+From: Adam Litke <agl@us.ibm.com>
 
+This patch adds a macro pte_huge(pte) for i386/x86_64 which is needed by a
+patch later in the series.  Instead of repeating (_PAGE_PRESENT |
+_PAGE_PSE), I've added __LARGE_PTE to i386 to match x86_64.
+
+Signed-off-by: Adam Litke <agl@us.ibm.com>
+Cc: <linux-mm@kvack.org>
+Signed-off-by: Andrew Morton <akpm@osdl.org>
+---
+
+ include/asm-i386/pgtable.h   |    4 +++-
+ include/asm-x86_64/pgtable.h |    3 ++-
+ 2 files changed, 5 insertions(+), 2 deletions(-)
+
+diff -puN include/asm-i386/pgtable.h~hugetlb-add-pte_huge-macro include/asm-i386/pgtable.h
+--- devel/include/asm-i386/pgtable.h~hugetlb-add-pte_huge-macro	2005-09-03 15:46:14.000000000 -0700
++++ devel-akpm/include/asm-i386/pgtable.h	2005-09-03 15:52:25.000000000 -0700
+@@ -215,11 +215,13 @@ extern unsigned long pg0[];
+  * The following only work if pte_present() is true.
+  * Undefined behaviour if not..
+  */
++#define __LARGE_PTE (_PAGE_PSE | _PAGE_PRESENT)
+ static inline int pte_user(pte_t pte)		{ return (pte).pte_low & _PAGE_USER; }
+ static inline int pte_read(pte_t pte)		{ return (pte).pte_low & _PAGE_USER; }
+ static inline int pte_dirty(pte_t pte)		{ return (pte).pte_low & _PAGE_DIRTY; }
+ static inline int pte_young(pte_t pte)		{ return (pte).pte_low & _PAGE_ACCESSED; }
+ static inline int pte_write(pte_t pte)		{ return (pte).pte_low & _PAGE_RW; }
++static inline int pte_huge(pte_t pte)		{ return ((pte).pte_low & __LARGE_PTE) == __LARGE_PTE; }
+ 
+ /*
+  * The following only works if pte_present() is not true.
+@@ -236,7 +238,7 @@ static inline pte_t pte_mkexec(pte_t pte
+ static inline pte_t pte_mkdirty(pte_t pte)	{ (pte).pte_low |= _PAGE_DIRTY; return pte; }
+ static inline pte_t pte_mkyoung(pte_t pte)	{ (pte).pte_low |= _PAGE_ACCESSED; return pte; }
+ static inline pte_t pte_mkwrite(pte_t pte)	{ (pte).pte_low |= _PAGE_RW; return pte; }
+-static inline pte_t pte_mkhuge(pte_t pte)	{ (pte).pte_low |= _PAGE_PRESENT | _PAGE_PSE; return pte; }
++static inline pte_t pte_mkhuge(pte_t pte)	{ (pte).pte_low |= __LARGE_PTE; return pte; }
+ 
+ #ifdef CONFIG_X86_PAE
+ # include <asm/pgtable-3level.h>
+diff -puN include/asm-x86_64/pgtable.h~hugetlb-add-pte_huge-macro include/asm-x86_64/pgtable.h
+--- devel/include/asm-x86_64/pgtable.h~hugetlb-add-pte_huge-macro	2005-09-03 15:46:14.000000000 -0700
++++ devel-akpm/include/asm-x86_64/pgtable.h	2005-09-03 15:52:25.000000000 -0700
+@@ -247,6 +247,7 @@ static inline pte_t pfn_pte(unsigned lon
+  * The following only work if pte_present() is true.
+  * Undefined behaviour if not..
+  */
++#define __LARGE_PTE (_PAGE_PSE|_PAGE_PRESENT)
+ static inline int pte_user(pte_t pte)		{ return pte_val(pte) & _PAGE_USER; }
+ extern inline int pte_read(pte_t pte)		{ return pte_val(pte) & _PAGE_USER; }
+ extern inline int pte_exec(pte_t pte)		{ return pte_val(pte) & _PAGE_USER; }
+@@ -254,8 +255,8 @@ extern inline int pte_dirty(pte_t pte)		
+ extern inline int pte_young(pte_t pte)		{ return pte_val(pte) & _PAGE_ACCESSED; }
+ extern inline int pte_write(pte_t pte)		{ return pte_val(pte) & _PAGE_RW; }
+ static inline int pte_file(pte_t pte)		{ return pte_val(pte) & _PAGE_FILE; }
++static inline int pte_huge(pte_t pte)		{ return (pte_val(pte) & __LARGE_PTE) == __LARGE_PTE; }
+ 
+-#define __LARGE_PTE (_PAGE_PSE|_PAGE_PRESENT)
+ extern inline pte_t pte_rdprotect(pte_t pte)	{ set_pte(&pte, __pte(pte_val(pte) & ~_PAGE_USER)); return pte; }
+ extern inline pte_t pte_exprotect(pte_t pte)	{ set_pte(&pte, __pte(pte_val(pte) & ~_PAGE_USER)); return pte; }
+ extern inline pte_t pte_mkclean(pte_t pte)	{ set_pte(&pte, __pte(pte_val(pte) & ~_PAGE_DIRTY)); return pte; }
+_
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
