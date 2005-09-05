@@ -1,56 +1,86 @@
-Message-ID: <431A4767.4030403@yahoo.com.au>
-Date: Sun, 04 Sep 2005 11:01:27 +1000
-From: Nick Piggin <nickpiggin@yahoo.com.au>
+From: Mrs. Joy Gerang <jgerang@indiatimes.com>
+Reply-To: jgerang@voila.fr
+Subject: From Mrs. J. Gerang
+Date: Mon, 05 Sep 2005 10:05:31 +0400
 MIME-Version: 1.0
-Subject: Re: [PATCH 2.6.13] lockless pagecache 2/7
-References: <4317F071.1070403@yahoo.com.au> <4317F0F9.1080602@yahoo.com.au>	 <4317F136.4040601@yahoo.com.au>	 <1125666486.30867.11.camel@localhost.localdomain>	 <p73k6hzqk1w.fsf@verdi.suse.de>  <4318C28A.5010000@yahoo.com.au>	 <1125705471.30867.40.camel@localhost.localdomain>	 <4318FF2B.6000805@yahoo.com.au> <1125768697.14987.7.camel@localhost.localdomain>
-In-Reply-To: <1125768697.14987.7.camel@localhost.localdomain>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: multipart/mixed; boundary="7d475730-b929-4484-b4b6-a61a7a1538ef"
+Message-Id: <20050905060525Z26612-958+181@kvack.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Alan Cox <alan@lxorguk.ukuu.org.uk>
-Cc: Andi Kleen <ak@suse.de>, Linux Memory Management <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Alan Cox wrote:
-> On Sad, 2005-09-03 at 11:40 +1000, Nick Piggin wrote:
-> 
->>We'll see how things go. I'm fairly sure that for my usage it will
->>be a win even if it is costly. It is replacing an atomic_inc_return,
->>and a read_lock/read_unlock pair.
-> 
-> 
-> Make sure you bench both AMD and Intel - I'd expect it to be a big loss
-> on AMD because the AMD stuff will perform atomic locked operations very
-> efficiently if they are already exclusive on this CPU or a prefetch_w()
-> on them was done 200+ clocks before.
-> 
+This is a multi-part message in MIME format
+--7d475730-b929-4484-b4b6-a61a7a1538ef
+Content-Type: text/plain; charset=iso-8859-1
+Content-Transfer-Encoding: quoted-printable
 
-I will try to get numbers for both.
+>From : Mrs. Joy Gerang
+FMC Quatters =96 Sudan
+Email: jgerang@myway.com
 
-I would be surprised if it was a big loss... but I'm assuming
-a locked cmpxchg isn't outlandishly expensive. Basically:
+Dear Friend,
 
-   read_lock_irqsave(cacheline1);
-   atomic_inc_return(cacheline2);
-   read_unlock_irqrestore(cacheline1);
+I got to know about you in my desperate search for a reputable
+person/persons/company to assist me in a confidential business deal requirin
+utmost trust and urgency. I am Mrs. Joy Gerang, wife of the late War =
+Lord/first vice president of suden.
+I as a matter of urgency is in search of a reliable and trustworthy foreign =
+partner, who will
+help me receive some funds which I have in cash totaling US$16M (sixteen =
+Million
+Dollars) and a box containing Gold into a personal/ company or any reliable
+foreign bank account for safe keeping for a short period of time, my family =
+bank accounts within and outside the country are been monitored by the =
+authorities.
 
-Turns into
+If you have been listening to CNN, BBC, VOA and international news agencies =
+you
+would have heard about Dr. John Gerang and his twenty one (21) year rebel led
+=
 
-   atomic_cmpxchg();
+war against the federal government and the final peace deal which saw him =
+into
+the government as the first vice resident on the 9th day of July 2005 and his =
+death via a controversial helicopter crash on the, 1st day of August 2005
+precisely after three weeks in office(may his soul rest in peace).
+This money in question (US$16M) and the Box of Gold has however been =
+comfortably
+moved out of the country beyond the knowledge of any one and it is presently
+lodged with a private security company in Ghana which has its branches in
+all the Continents of the world.
+Worthy to note is that the federal government of Sudan lead by Omar Hassan =
+Ahmad
+al-Bashir in her bid to frustrate my late husband's family has placed us =
+under
+partial house arrest with all our international travelers' documents =
+withdrawn
+pending when the current face-off between opposition and the present
+administration, which from all indications is creating fear on the federal
+government based on the unrest emanating from my husband's controversial =
+death.
+I have decided to offer anybody who will be willing to render this tremendous
+=
 
-I'll do some microbenchmarks and get back to you. I'm quite
-interested now ;) What sort of AMDs did you have in mind,
-Opterons?
+assistance 20% of the total sum while a refund of all your expenses will be =
+made
+to you as soon as this fund is cleared from the security company.
+Note: this transaction involves no risk especially now that you are not going =
+to
+have any dealings whatsoever with anybody in Sudan rather you are going to =
+deal
+with me or lawyer directly.
+I shall let you into the complete picture of this mutual beneficial =
+transaction
+when I hear from you on the above email address with hope
+you are still going to treat this letter as urgent and confidential.
 
-Thanks,
-Nick
+Best regards,
 
--- 
-SUSE Labs, Novell Inc.
+Mrs. Joy Gerang
+  
+--7d475730-b929-4484-b4b6-a61a7a1538ef--
 
-Send instant messages to your online friends http://au.messenger.yahoo.com 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
