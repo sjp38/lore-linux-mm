@@ -1,142 +1,156 @@
-Message-ID: <HNMCHMABEOEFJJHAIBNIFDBACCAA.meganfoxkn@enermet.fi>
-From: "Megan Fox" <meganfoxkn@enermet.fi>
-Subject: Investment Tracker Stock Report
-Date: Tue, 06 Sep 2005 18:52:36 +0000
+Date: Tue, 6 Sep 2005 11:31:44 -0700 (PDT)
+From: Christoph Lameter <clameter@engr.sgi.com>
+Subject: Hugh's alternate page fault scalability approach on 512p Altix
+Message-ID: <Pine.LNX.4.62.0509061129380.16939@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
-Content-Type: text/plain
-Content-Transfer-Encoding: base64
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org, bcrl@kvack.org
+To: torvalds@osdl.org
+Cc: akpm@osdl.org, nickpiggin@yahoo.com.au, hugh@veritas.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-SXNzdWU6ICBTZXB0ZW1iZXIsIDIwMDUNCg0KV2Ugd291bGQgbGlrZSB0byBw
-cmVzZW50IGEgdmVyeSBzcGVjaWFsIGNvbXBhbnkNCm9wZXJhdGluZyBpbiBh
-biBleHRyZW1lbHkgcHJvZml0YWJsZSBidXNpbmVzcyBzZWN0b3IuDQoNCg0K
-VGhlIFNvbHZpcyBHcm91cCBGaW5hbmNpYWwgQ29ycG9yYXRpb24gKFNMVkcp
-DQpzcGVjaWFsaXplcyBpbiBwcm92aWRpbmcgY29tcHJlaGVuc2l2ZSANCnBl
-cnNvbm5lbCBtYW5hZ2VtZW50IHNlcnZpY2VzDQoNCipTeW1ib2w6IFNMVkcg
-LiBQSw0KKkN1cnJlbnQtUHJpY2U6ICAgICAgIC4wNw0KKjMgdG8gNCBEYXkg
-dGFyZ2V0OiAgLjE1DQoqNCB3ZWVrIHRhcmdldDogICAgICAuMzUNCg0KSXMg
-dGhpcyBhbiB1bmRpc2NvdmVyZWQgR2VtIGFib3V0IHRvIEJsb3cgVXA/DQoN
-ClJlYWQgb24gdG8gZmluZCBvdXQgd2h5IFdTUk0gaXMgb3VyIFRPUCBwaWNr
-IHRoaXMNCndlZWsuDQoNCkEgSHVnZSBQUiBjYW1wYWlnbiBpcyBnb2luZyB0
-byBzdGFydCB0byBibG93IHVwIA0KdGhpcyBzeW1ib2wgc28gR3JhYiBhcyBt
-dWNoIGFzIHlvdSBjYW4gd2hlbiANCnRoZSBtYXJrZXQgb3BlbnMgdHVlc2Rh
-eSBiZWNhdXNlLCANCg0KKioqIFR1ZXNkYXkgaXMgZ29pbmcgdG8gYmUgYSBy
-ZWFsbHkgQklHIERBWS4qKiogDQoNCldlIGFsbCBrbm93IGl0J3MgdGhlIGJp
-ZyBhbm5vdW5jZW1lbnRzIHRoYXQgbWFrZSANCnRoZXNlIHNtYWxsIGdlbXMg
-bW92ZS4gV0FUQ0ggVEhJUyBPTkUgQUxMIFdFRUshIQ0KDQoNCiAgICAgICAg
-KioqIENvbXBhbnkgTmV3cyEgKioqICANCg0KICBSZWFkIG9uIHRvIGZpbmQg
-b3V0IHdoeSB3ZQ0KZXhwZWN0IFNMVkcgdG8gdGFrZSBvZmYgdGhpcyB1cGNv
-bWluZyB3ZWVrIQ0KDQoNCkFOQUhFSU0sIENhbGlmLiwgQXVnLiAyNiAvUFJO
-ZXdzd2lyZS1GaXJzdENhbGwvIC0tDQoNClRoZSBTb2x2aXMgR3JvdXAsIChP
-VEM6IFNMVkcgLSBOZXdzKSwgDQp0b2RheSBhbm5vdW5jZWQgdGhhdCBpdHMg
-Y3VycmVudCByZXZlbnVlcyANCmZvciB0aGUgbmluZSBtb250aCBwZXJpb2Qg
-ZW5kaW5nIEp1bmUgMzAsIDIwMDUgDQp3ZXJlIGluIGV4Y2VzcyBvZiAkMTIg
-bWlsbGlvbiBkb2xsYXJzICh1bmF1ZGl0ZWQpLiANCkdyb3NzIHByb2ZpdHMg
-d2VyZSBhcHByb3hpbWF0ZWx5ICQxLjQgbWlsbGlvbiBkb2xsYXJzLg0KDQpN
-YW5hZ2VtZW50IGFsc28gYW5ub3VuY2VkIHRoZSBsYXVuY2ggb2YgYSANCiJT
-dHJhdGVnaWMgQWxsaWFuY2UiIGluaXRpYXRpdmUsIHdoaWNoIGlzIGV4cGVj
-dGVkIA0KdG8gYWRkIHNpZ25pZmljYW50IHJldmVudWVzIGFzc29jaWF0ZWQg
-d2l0aCBpdHMgDQpzdGFmZmluZyBidXNpbmVzcy4NCg0KIk91ciBTdHJhdGVn
-aWMgQWxsaWFuY2UgcHJvZ3JhbSBsZXZlcmFnZXMgb3VyIA0Kc2FsZXMgYW5k
-IG1hcmtldGluZyByZWxhdGlvbnNoaXBzIHdpdGggYnJva2VycyANCmFuZCBh
-Z2VudHMgdGhyb3VnaG91dCB0aGUgVW5pdGVkIFN0YXRlcyB3aXRoIHRoZSAN
-Cm9iamVjdGl2ZSBvZiBwcm92aWRpbmcgaW4gZXhjZXNzIG9mICQ1MCBtaWxs
-aW9uIA0KaW4gcmV2ZW51ZXMgaW4gdGhlIG5leHQgZmlzY2FsIHllYXIsIiBz
-YWlkIERyLiANClJpY2hhcmQgR3JlZW4sIENoYWlybWFuIG9mIFNvbHZpcy4N
-Cg0KIldlIGNvbnRpbnVlIHRvIHdvcmsgb24gY29tcGxldGluZyB0aGUgd29y
-ayANCmFzc29jaWF0ZWQgd2l0aCBhdWRpdGluZyBvdXIgZmluYW5jaWFsIHJl
-c3VsdHMgDQpmb3IgdGhlIHBhc3QgZmV3IHllYXJzIGluIG9yZGVyIHRvIHJl
-dHVybiB0byANCnRyYWRpbmcgb24gdGhlIE5BU0QgRWxlY3Ryb25pYyBCdWxs
-ZXRpbiBCb2FyZCwiIA0Kc2FpZCBHcmVlbi4gT25jZSBjb21wbGV0ZWQsIHNo
-YXJlaG9sZGVycyBjYW4gDQpleHBlY3QgcmVndWxhciByZXBvcnRzIG9uIG91
-ciBmaW5hbmNpYWwgcmVzdWx0cyANCmFuZCBvdGhlciBkZXZlbG9wbWVudHMg
-YXMgVGhlIFNvbHZpcyBHcm91cCBncm93cywiIA0KaGUgYWRkZWQuDQoNCg0K
-DQpBTkFIRUlNLCBDYWxpZi4sIEF1Zy4gMiAvUFJOZXdzd2lyZS1GaXJzdENh
-bGwvIC0tIA0KDQpUaGUgU29sdmlzIEdyb3VwLCBJbmMuIChmb3JtZXJseSBR
-dWlrIFBpeCwgSW5jLikgDQphbm5vdW5jZWQgdG9kYXksIGVmZmVjdGl2ZSBp
-bW1lZGlhdGVseSwgaXRzIGNvbW1vbiANCnN0b2NrIHdpbGwgdHJhZGUgb24g
-dGhlIFBpbmsgU2hlZXRzIHVuZGVyIHRoZSANCnN5bWJvbCAoT1RDOiBTTFZH
-IC0gTmV3cykuIFRoZSBwcmV2aW91cyBzeW1ib2wgDQp3YXMgKE9UQzogUVBJ
-WCAtIE5ld3MpLg0KDQoNCiJUaGUgY2hhbmdlIGluIHRoZSBzdG9jayBzeW1i
-b2wgYXBwcm9wcmlhdGVseQ0KcmVmbGVjdHMgdGhlIGNoYW5nZSBpbiBjb3Jw
-b3JhdGUgaWRlbnRpdHkgDQpzaW5jZSB0aGUgYWNxdWlzaXRpb24gb2YgVGhl
-IFNvbHZpcyBHcm91cCBmcm9tDQpEYWxyYWRhIEZpbmFuY2lhbCBDb3Jwb3Jh
-dGlvbiwiIHNhaWQgQnJpYW4gQm9uYXIsDQpDaGFpcm1hbiBhbmQgQ0VPIG9m
-IFNvbHZpcy4gIlRoZSBDb21wYW55IGlzIA0KZ3Jvd2luZyByYXBpZGx5IGFu
-ZCB3ZSBjb250aW51ZSB0byB3b3JrIHRvd2FyZCANCnJlLWxpc3Rpbmcgb24g
-dGhlIE5BU0QgT1RDIEJ1bGxldGluIEJvYXJkLCB3aGljaA0Kd2UgaG9wZSB0
-byBhY2NvbXBsaXNoIGJ5IHRoZSBlbmQgb2YgMjAwNSwiIGhlIGFkZGVkLg0K
-DQoNCg0KQWJvdXQgVGhlIFNvbHZpcyBHcm91cDoNCg0KVGhlIFNvbHZpcyBH
-cm91cCwgaXMgYSBzdWJzaWRpYXJ5IG9mIERhbHJhZGENCkZpbmFuY2lhbCBD
-b3Jwb3JhdGlvbiAoRFJERiksIGluY2x1ZGVzIA0KYSBudW1iZXIgb2Ygb3Bl
-cmF0aW5nIHVuaXRzLCBpbmNsdWRpbmcgTSZNIE51cnNpbmcgDQpTZXJ2aWNl
-cywgQ2FsbENlbnRlckhSKFRNKSwgYW5kIEphY2tzb24gU3RhZmZpbmcuIA0K
-VGhlIENvbXBhbnkgcHJvdmlkZXMgYSB2YXJpZXR5IG9mIGlubm92YXRpdmUg
-DQpmaW5hbmNpYWwgc2VydmljZXMgdG8gYnVzaW5lc3NlcywgaW5jbHVkaW5n
-IA0KY29tcHJlaGVuc2l2ZSBodW1hbiByZXNvdXJjZSBhZG1pbmlzdHJhdGlv
-biBpbmNsdWRpbmcgDQpwYXlyb2xsIGFuZCB3b3JrZXJzIGNvbXBlbnNhdGlv
-biBpbnN1cmFuY2U7IGFuZCANCmVtcGxveWVlIGJlbmVmaXRzIHN1Y2ggYXMg
-aGVhbHRoIGluc3VyYW5jZSwgDQpzdXBwbGVtZW50YWwgaW5zdXJhbmNlLCBI
-U0Egc2F2aW5ncyBwbGFucywgDQoxMjUgY2FmZXRlcmlhIHBsYW5zLCBhbmQg
-NDAxKGspIHBsYW5zLiANClRoZSBDb21wYW55IGFsc28gb2ZmZXJzIGRlYml0
-IGNhcmQgcGF5cm9sbCBhY2NvdW50cyANCmFuZCBwYXlyb2xsIGFkdmFuY2Vz
-LiBUaGVzZSBzZXJ2aWNlcyBlbmFibGUgc21hbGwgDQplbXBsb3llcnMgdG8g
-b2ZmZXIgYmVuZWZpdHMgYW5kIHNlcnZpY2VzIHRvIHRoZWlyIA0KZW1wbG95
-ZWVzIHRoYXQgYXJlIGdlbmVyYWxseSBhdmFpbGFibGUgb25seQ0KdG8gbGFy
-Z2UgY29tcGFuaWVzLg0KDQoNCkNvbmNsdXNpb246DQoNClRoZSBFeGFtcGxl
-cyBBYm92ZSBTaG93IFRoZSBBd2Vzb21lLCBFYXJuaW5nIA0KUG90ZW50aWFs
-IG9mIExpdHRsZSBLbm93biBDb21wYW5pZXMuDQpJcyBTTFZHIFBvaXNlZCBh
-bmQgUG9zaXRpb25lZCB0byBCbG93IHVwPyANClRoZW4gWW91IE1heSBGZWVs
-IHRoZSBUaW1lIEhhcyBDb21lIHRvIEFjdC4uLiANClBsZWFzZSBXYXRjaCB0
-aGlzIE9uZSBUcmFkZSBUdWVzZGF5IA0KYW5kIGFsbCBuZXh0IHdlZWshIEdv
-IFNMVkcuDQoNCl9fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19f
-X19fX19fX19fXw0KDQoNCkluZjBybWF0aW9uIHdpdGhpbiB0aGlzIGVtNGls
-IGNvbnQ0aW5zICJmMHJ3YXJkX2wwMGtpbmcNCl9zdDR0ZW1lbnRzIiB3aXRo
-aW4gdGhlIG1lYW5pbmcgb2YgU2VjdGlvbiAyN0Egb2YgDQp0aGUgU2VjdXJp
-dGllcyBBY3Qgb2YgMTkzMyBhbmQgU2VjdGlvbiAyMUIgb2YNCnRoZSBTZWN1
-cml0aWVzIEV4Y2hhbmdlIEFjdCBvZiAxOTM0LiBBbnkgc3RhdGVtZW50cyAN
-CnRoYXQgZXhwcmVzcyBvciBpbnZvbHZlIGRpc2N1c3Npb25zIHdpdGggcmVz
-cGVjdCB0bw0KcHJlZGljdGlvbnMsIGdvYWxzLGV4cGVjdGF0aW9ucywgYmVs
-aWVmcywgcGxhbnMsIA0KcHJvamVjdGlvbnMsIG9iamVjdGl2ZXMsIGFzc3Vt
-cHRpb25zIG9yIGZ1dHVyZQ0KZXZlbnRzIG9yIHBlcmZvcm1hbmNlIGFyZSBu
-b3Qgc3RhdGVtZW50cyBvZiBoaXN0b3JpY2FsIA0KZmFjdCBhbmQgbWF5IGJl
-ICJmMHJ3YXJkX2wwMGtpbmdfc3Q0dGVtZW50cy4iDQpGMHJ3YXJkX2wwMGtp
-bmdfc3Q0dGVtZW50cyBhcmUgYmFzZWQgb24gZXhwZWN0YXRpb25zLCANCmVz
-dGltYXRlcyBhbmQgcHJvamVjdGlvbnMgYXQgdGhlIHRpbWUgdGhlIHN0YXRl
-bWVudHMgDQphcmUgbWFkZSB0aGF0IGludm9sdmUgYSBudW1iZXIgb2Ygcmlz
-a3MgYW5kIA0KdW5jZXJ0YWludGllcyB3aGljaCBjb3VsZCBjYXVzZSBhY3R1
-YWwgcmVzdWx0cyBvciANCmV2ZW50cyB0byBkaWZmZXIgbWF0ZXJpYWxseSBm
-cm9tIHRob3NlIHByZXNlbnRseSANCmFudGljaXBhdGVkLiBGMHJ3YXJkX2ww
-MGtpbmdfc3Q0dGVtZW50cyBpbiB0aGlzIGFjdGlvbiANCm1heSBiZSBpZGVu
-dGlmaWVkIHRocm91Z2ggdGhlIHVzZSBvZiB3b3JkcyBzdWNoIGFzOiANCiJw
-cm9qZWN0cyIsICJmb3Jlc2VlIiwgImV4cGVjdHMiLCAiZXN0aW1hdGVzLCIg
-DQoiYmVsaWV2ZXMsIiJ1bmRlcnN0YW5kcyIgIndpbGwsIiAicGFydCBvZjog
-Ig0KYW50aWNpcGF0ZXMsIiBvciB0aGF0IGJ5IHN0YXRlbWVudHMgaW5kaWNh
-dGluZyBjZXJ0YWluDQphY3Rpb25zICJtYXksIiAiY291bGQsIiBvciAibWln
-aHQiIG9jY3VyLiBBbGwgDQppbmZvcm1hdGlvbiBwcm92aWRlZCB3aXRoaW4g
-dGhpcyBlbTRpbCBwZXJ0YWluaW5nIA0KdG8gaW52ZXN0aW5nLCBzdDBjLmtz
-LCBzZWN1cml0aWVzIG11c3QNCmJlIHVuZGVyc3Rvb2QgYXMgaW5mb3JtYXRp
-b24gcHJvdmlkZWQgYW5kIG5vdCANCmludmVzdG1lbnQgYWR2aWNlLiBFbWVy
-Z2luZyBFcXVpdHkgQWxlcnQgYWR2aXNlcyBhbGwgDQpyZWFkZXJzIGFuZCBz
-dWJzY3JpYmVycyB0byBzZWVrIGFkdmljZSBmcm9tIGEgDQpyM2dpc3RlcmVk
-IHByb2Zlc3Npb25hbCBzZWN1cml0aWVzIHJlcHJlc2VudGF0aXZlIA0KYmVm
-b3JlIGRlY2lkaW5nIHRvIHRyYWRlIGluIHN0MGMua3MgZmVhdHVyZWQgd2l0
-aGluDQogdGhpcyBlbWFpbC4gTm9uZSBvZiB0aGUgbWF0ZXJpYWwgd2l0aGlu
-IHRoaXMgcmVwb3J0IA0Kc2hhbGwgYmUgY29uc3RydWVkIGFzIGFueSBraW5k
-IG9mIGludmVzdG1lbnQgYWR2aWNlLiANClBsZWFzZSBoYXZlaW4gbWluZCB0
-aGF0IHRoZSBpbnRlcnByZXRhdGlvbiBvZiB0aGUgDQp3cml0ZXIgb2YgdGhp
-cyBuZXdzbGV0dGVyIGFib3V0IHRoZSBuZXdzIHB1Ymxpc2hlZA0KYnkgdGhl
-IGNvbXBhbnkgZG9lcyBub3QgcmVwcmVzZW50IHRoZSBjb21wYW55IA0Kb2Zm
-aWNpYWwgc3RhdGVtZW50IGFuZCBpbiBmYWN0IG1heSBkaWZmZXIgZnJvbSAN
-CnRoZSByZWFsIG1lYW5pbmcgb2Ygd2hhdCB0aGUgbmV3cyByZWxlYXNlIG1l
-YW50IHRvIA0Kc2F5LiAgTG9vayBhdCB0aGUgbmV3cyByZWxlYXNlIGJ5IHlv
-dXJzZWxmIGFuZCANCmp1ZGdlIGJ5IHlvdXJzZWxmIGFib3V0IHRoZSBkZXRh
-aWxzIGluIGl0Lg0KSWYgeW91IHdpc2ggdG8gc3RvcCBmdXR1cmUgbTRpbGlu
-Z3MsDQpwbGVhc2UgbTRpbCB0bzogbm90MXBzZjBybWUgQCB5YWhvby5jb20N
-CiAgICAgICA=
+This is going to be a bit long so lets just first summarize the important 
+conclusions (if you are easily offended by the mentioning of large numbers 
+of processors or large amounts of memory then please stop reading right 
+now):
+
+1. Hugh's approach is able to replicate all the performance gain that I 
+   was able to get with the atomic operations. Given the broader scope and 
+   cleaner way of handling things I still favor his patchset. Both 
+   patchsets can reach 1.2 million page faults per second which translates 
+   into the ability to fault in 19.6 Gigabytes of memory per second.
+
+2. The use rss and anon_rss deltas instead of atomic incs brings small 
+   performance enhancements in the lower cpu ranges (1-32) but hurt (%50 
+   performance drop at 512 processors) in the high range. The hurting may
+   be due to the percularities of SGIs NUMA router architecture and the 
+   NUMA cabling scheme employed that allows the effective negotiation for
+   two bouncing cachelines on two separate planes of the NUMA router
+   structure. If there is only one bouncing cacheline then only one plane
+   is used continually by all processors causing more contention and
+   reducing performance.
+
+   Some other NUMA architectures as well as other cabling schemes for 
+   SGI numa machines may have different features and benefit
+   from deltas but I think the deltas should only be an optional 
+   feature.
+
+Results of performance tests (concurrent anonymous page faults with an 
+increasing number of processors) on a 512p Altix system with 1 TB of main 
+memory with the standard NUMA link cabling scheme. 2.6.13-rc6-mm1 patches 
+with Hugh Dickin's page locking approach:
+
+64 GB:
+
+ Gb Rep Thr CLine  User      System   Wall  flt/cpu/s fault/wsec
+ 64  3    1   1    2.58s    219.51s 222.40s 56655.284  56576.495
+ 64  3    2   1    2.53s    231.22s 122.20s 53828.337 102966.891
+ 64  3    4   1    2.54s    236.78s  70.13s 52575.134 179422.164
+ 64  3    8   1    2.63s    231.58s  40.12s 53723.537 313592.049
+ 64  3   16   1    2.56s    269.22s  29.01s 46298.153 433740.239
+ 64  3   32   1    9.41s    696.20s  35.08s 17832.521 358633.093
+ 64  3   64   1   38.95s   1608.78s  41.49s  7636.504 303228.550
+ 64  3  128   1  166.95s   3894.60s  48.74s  3098.052 258129.528
+ 64  3  256   1  211.69s   2151.12s  28.21s  5325.388 445952.767
+ 64  3  512   1  104.45s   1137.74s  15.09s 10129.571 833348.748
+
+Performance increases to a first peak at 16 processors using on brick
+routing. Beyond 16 processors metarouters have to be used for NUMA link
+traffic which reduces performance. Increasing the number of processors
+gradually increases the number of metarouter hops that need to be taken
+until all hops are in operation at 128 processors.
+
+No increase in the number of metarouters takes place between 128 and
+512 processors, the load is simply balanced by the NUMA router structure
+and therefore the page fault handler scales linearly.
+
+At 512 processors each processor will only allocate 64/512 = 128 MB
+which (given the likely overlap and scheduler functions while starting and 
+stopping threads) may not reflect the full performance potential. Thus we 
+increase the amount of memory allocated:
+
+256 GB:
+
+Gb Rep Thr CLine  User      System   Wall  flt/cpu/s fault/wsec
+256  3    8   1   10.68s   1207.99s 203.56s 41299.999 247253.752
+256  3   16   1   11.00s   1269.70s 127.72s 39299.617 394057.354
+256  3   32   1   17.93s   2731.18s 133.69s 18308.303 376461.848
+256  3   64   1   62.52s   5761.57s 143.67s  8641.962 350324.172
+256  3  128   1  273.98s  13003.28s 159.25s  3790.812 316049.363
+256  3  256   1  147.31s   6900.22s  83.08s  7141.733 605791.086
+256  3  512   1  125.41s   3819.76s  46.14s 12757.783 1090653.570
+
+The high score increases to 1 mio faults per second. We can get to higher 
+numbers by allocating half the available memory:
+
+1/2 TB:
+
+ Gb Rep Thr CLine  User      System   Wall  flt/cpu/s fault/wsec
+512  1   64   1   12.24s   3628.84s  92.97s  9215.486 360908.603
+512  1  128   1   76.72s   8212.86s  99.06s  4047.780 338727.151
+512  1  256   1   24.89s   4493.71s  52.26s  7425.834 641964.130
+512  1  512   1   28.84s   2353.45s  27.76s 14084.866 1208616.196
+
+This yields the high score of 1.2 million faults per second.
+
+The version with atomic ops (2.6.13-rc6-mm1 straight) yields:
+
+ Gb Rep Thr CLine  User      System   Wall  flt/cpu/s fault/wsec
+512  1   64   1   18.42s   3656.81s  94.88s  9129.852 353624.946
+512  1  128   1   73.01s   8118.54s  99.91s  4096.222 335823.722
+512  1  256   1   51.60s   4402.05s  52.02s  7534.132 644918.557
+512  1  512   1   51.00s   2333.38s  27.72s 14072.603 1210256.600
+
+A kernel with atomic ops plus the delta counters cannot reach the same 
+performance in the high range:
+
+ Gb Rep Thr CLine  User      System   Wall  flt/cpu/s fault/wsec
+512  1   64   1   29.49s   5467.86s 126.72s  6103.740 264785.328
+512  1  256   1  249.79s   3193.13s  71.78s  9745.911 467453.886
+512  1  512   1  440.32s   1687.16s  41.71s 15771.855 804340.746
+
+The analysis of the performance bottleneck shows two hotspots in 
+ia64_do_page_fault. One is the down_read(mmap_sem) and the other 
+is up_read(mmap_sem). 
+
+In the low range the delta counters increase performance somewhat
+but the effect is less than 10%:
+
+ Gb Rep Thr CLine  User      System   Wall  flt/cpu/s fault/wsec
+256  3    8   1   11.14s   1149.21s 191.03s 43376.040 263470.278
+256  3   16   1   10.98s   1257.98s 125.99s 39663.324 399475.518
+256  3   32   1   16.38s   2623.76s 129.37s 19063.949 389039.107
+
+If we had only a single NUMA link plane then I guess that the counter
+deltas would show up as a significant effect.
+
+We could increase performance further by avoiding bouncing cachelines on
+mmap_sem but so far no one has an idea how that could be accomplished. The 
+cost is already minimal since the locking operations on mmap_sem 
+translate into simple atomic_add / atomic_sub operations.
+
+Architecture specific performance characteristics (numa router delays, 
+multiple numa link planes) become significant in the high range.
+
+Other methods that I have proposed last year (gang scheduling page
+faults, prezeroing) may be used to increase the fault rate even more but
+these have some drawbacks.
+
+Anticipatory prefaulting raises the highest fault rate obtainable three-fold
+through gang scheduling faults but may allocate some pages to a task that are
+not needed.
+http://marc.theaimsgroup.com/?t=110252674900001&r=1&w=2
+http://marc.theaimsgroup.com/?l=linux-kernel&m=110252687129267&w=2
+
+Prezeroing raises the fault rate depending on the amount of cachelines
+later used of the page by not having to zero a page in the page fault
+handler. It makes most sense in sparse memory applications, requires a
+separate zeroing mechanism (that can be done in hardware on some platforms)
+and a way to track zeroed pages.
+
+http://marc.theaimsgroup.com/?l=linux-kernel&m=111109628913948&w=2
+http://marc.theaimsgroup.com/?l=linux-kernel&m=110383038322893&w=2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
