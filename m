@@ -1,29 +1,31 @@
-From: Magnus Damm <magnus@valinux.co.jp>
-Message-Id: <20050907071440.3015.76396.sendpatchset@cherry.local>
-Subject: [PATCH] i386: CONFIG_ACPI_SRAT typo fix
-Date: Wed,  7 Sep 2005 16:15:39 +0900 (JST)
+Date: Wed, 07 Sep 2005 07:28:44 -0700
+From: "Martin J. Bligh" <mbligh@mbligh.org>
+Reply-To: "Martin J. Bligh" <mbligh@mbligh.org>
+Subject: Re: Hugh's alternate page fault scalability approach on 512p Altix
+Message-ID: <20660000.1126103324@[10.10.2.4]>
+In-Reply-To: <Pine.LNX.4.62.0509061129380.16939@schroedinger.engr.sgi.com>
+References: <Pine.LNX.4.62.0509061129380.16939@schroedinger.engr.sgi.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, Magnus Damm <magnus@valinux.co.jp>
+To: Christoph Lameter <clameter@engr.sgi.com>, torvalds@osdl.org
+Cc: akpm@osdl.org, nickpiggin@yahoo.com.au, hugh@veritas.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-This patch for 2.6.13-git6 fixes a typo involving CONFIG_ACPI_SRAT.
+> Anticipatory prefaulting raises the highest fault rate obtainable three-fold
+> through gang scheduling faults but may allocate some pages to a task that are
+> not needed.
 
-Signed-off-by: Magnus Damm <magnus@valinux.co.jp>
-----
+IIRC that costed more than it saved, at least for forky workloads like a
+kernel compile - extra cost in zap_pte_range etc. If things have changed
+substantially in that path, I guess we could run the numbers again - has
+been a couple of years.
 
---- from-0005/include/asm-i386/mmzone.h
-+++ to-0008/include/asm-i386/mmzone.h	2005-09-07 15:06:52.000000000 +0900
-@@ -29,7 +29,7 @@ static inline void get_memcfg_numa(void)
- #ifdef CONFIG_X86_NUMAQ
- 	if (get_memcfg_numaq())
- 		return;
--#elif CONFIG_ACPI_SRAT
-+#elif defined(CONFIG_ACPI_SRAT)
- 	if (get_memcfg_from_srat())
- 		return;
- #endif
+M.
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
