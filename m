@@ -1,47 +1,43 @@
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e6.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id j87HTDPV014411
-	for <linux-mm@kvack.org>; Wed, 7 Sep 2005 13:29:13 -0400
-Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
-	by d01relay02.pok.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id j87HTApu080530
-	for <linux-mm@kvack.org>; Wed, 7 Sep 2005 13:29:13 -0400
-Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
-	by d01av03.pok.ibm.com (8.12.11/8.13.3) with ESMTP id j87HTAnp010149
-	for <linux-mm@kvack.org>; Wed, 7 Sep 2005 13:29:10 -0400
-Subject: Re: [PATCH] i386: single node SPARSEMEM fix
-From: Dave Hansen <haveblue@us.ibm.com>
-In-Reply-To: <20050906035531.31603.46449.sendpatchset@cherry.local>
-References: <20050906035531.31603.46449.sendpatchset@cherry.local>
-Content-Type: text/plain
-Date: Wed, 07 Sep 2005 10:28:36 -0700
-Message-Id: <1126114116.7329.16.camel@localhost>
-Mime-Version: 1.0
+Date: Wed, 07 Sep 2005 11:19:33 -0700
+From: "Martin J. Bligh" <mbligh@mbligh.org>
+Reply-To: "Martin J. Bligh" <mbligh@mbligh.org>
+Subject: Re: Hugh's alternate page fault scalability approach on 512p Altix
+Message-ID: <508740000.1126117173@flay>
+In-Reply-To: <Pine.LNX.4.62.0509070838240.21170@schroedinger.engr.sgi.com>
+References: <Pine.LNX.4.62.0509061129380.16939@schroedinger.engr.sgi.com><20660000.1126103324@[10.10.2.4]> <Pine.LNX.4.62.0509070838240.21170@schroedinger.engr.sgi.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Magnus Damm <magnus@valinux.co.jp>
-Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, "A. P. Whitcroft [imap]" <andyw@uk.ibm.com>
+To: Christoph Lameter <clameter@engr.sgi.com>
+Cc: torvalds@osdl.org, akpm@osdl.org, nickpiggin@yahoo.com.au, hugh@veritas.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2005-09-06 at 12:56 +0900, Magnus Damm wrote:
-> This patch for 2.6.13-git5 fixes single node sparsemem support. In the case
-> when multiple nodes are used, setup_memory() in arch/i386/mm/discontig.c calls
-> get_memcfg_numa() which calls memory_present(). The single node case with
-> setup_memory() in arch/i386/kernel/setup.c does not call memory_present()
-> without this patch, which breaks single node support.
+>> > Anticipatory prefaulting raises the highest fault rate obtainable three-fold
+>> > through gang scheduling faults but may allocate some pages to a task that are
+>> > not needed.
+>> 
+>> IIRC that costed more than it saved, at least for forky workloads like a
+>> kernel compile - extra cost in zap_pte_range etc. If things have changed
+>> substantially in that path, I guess we could run the numbers again - has
+>> been a couple of years.
+> 
+> Right. The costs come about through wrong anticipations installing useless 
+> mappings. The patches that I posted have this feature off by default. Gang 
+> scheduling can be enabled by modifying a value in /proc. But I guess the 
+> approach is essentially dead unless others want this feature too. The 
+> current page fault scalability approach should be fine for a couple of 
+> years and who knows what direction mmu technology has taken then.
 
-First of all, this is really a feature addition, not a bug fix. :)
+It would seem to depends on the locality of reference in the affected files.
+Which implies to me that the locality of libc, etc probably sucks, though
+we had a simple debug patch somewhere to print out a bitmap of which pages
+are faulted in and which are not ... was somewhere, I'll see if I can find
+it.
 
-The reason we haven't included this so far is that we don't really have
-any machines that need sparsemem on i386 that aren't NUMA.  So, we
-disabled it for now, and probably need to decide first why we need it
-before a patch like that goes in.
-
-I actually have exactly the same patch that you sent out in my tree, but
-it's just for testing.  Magnus, perhaps we can get some of my testing
-patches in good enough shape to put them in -mm so that the non-NUMA
-folks can do more sparsemem testing.  
-
--- Dave
+M.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
