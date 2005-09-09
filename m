@@ -1,52 +1,44 @@
-Message-ID: <43212A1F.5040202@yahoo.com.au>
-Date: Fri, 09 Sep 2005 16:22:23 +1000
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-MIME-Version: 1.0
-Subject: Re: [PATCH 2.6.13] lockless pagecache 5/7
-References: <4317F071.1070403@yahoo.com.au> <4317F0F9.1080602@yahoo.com.au> <4317F136.4040601@yahoo.com.au> <4317F17F.5050306@yahoo.com.au> <4317F1A2.8030605@yahoo.com.au> <4317F1BD.8060808@yahoo.com.au> <Pine.LNX.4.62.0509082227550.6098@schroedinger.engr.sgi.com>
-In-Reply-To: <Pine.LNX.4.62.0509082227550.6098@schroedinger.engr.sgi.com>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+Received: from ditzelrtemplates4@tattletale.com ([14.14.208.140])
+ by tdimso96.backend.cryptogram.cl
+ (Sun ONE Messaging Server 6.0 Patch 1 (built Jan 28 2004))
+ with SMTP9 id <0I5S047OYTOIPY99@tdimso92.backend.wallboard.cl> for
+ linux-mm@kvack.org; Fri, 09 Sep 2005 16:17:57 +0500
+Message-id: <0I5S900TUTXZPY90@tdimso50.backend.salient.cl>
+From: "Madge Snow" <dxmerouvvawpe@mexcom.com>
+Date: Fri, 09 Sep 2005 12:21:57 +0100
+Subject: Entinxedg Morggteas wtih esae
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@engr.sgi.com>
-Cc: Linux Memory Management <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Christoph Lameter wrote:
-> I wonder if it may not be better to use a seqlock for the tree_lock? A
-> seqlock requires no writes at all if the tree has not been changed. RCU 
-> still requires the incrementing of a (local) counter.
-> 
+Good day to you sir,
 
-Ah, but the seqlock's write side will cause cacheline bouncing in
-the readside. Currently the lockless pagecache patches allow IO to
-be busily populating one part of the cache while readers can look
-up another part without any cacheline transfers.
+!!! Now Is The Time To Reflnance Your M0rtgage !!! 
 
-Presumably you mean rcu_read_lock's preempt_disable(), however this
-is a noop on non preempt kernels, and will almost certainly be hot
-in cache in preempt kernels. What's more it should not cause bouncing.
 
-> Using seqlocks would require reworking the readers so that they can 
-> retry. Seqlocks provide already a verification that no update took place
-> while the operation was in process. Thus we would be using an established 
-> framework that insures that the speculation was successful.
-> 
-> The problem is then though to guarantee that the radix trees are always 
-> traversable since the seqlock's retry rather than block. This would 
-> require sequencing of inserts and pose a big problem for deletes and 
-> updates.
-> 
+USA M0rtgage Rates Have Simply Never Been L0wer 
+You Don't Have To Throw Your Money Away Each Month 
+Why Pay An Inflated Rate? 
+When We are offering Second Morgages at 2.88%!!! 
 
-Well the lockless radix tree read side patches (which I have actually
-updated to fix some bugs and be rebased on top of your nice cleanup)
-do provide that the radix trees are always traversable.
 
--- 
-SUSE Labs, Novell Inc.
+Visit Our Website by Pressing Here --> http://vwb.rightful.zpnow.com/?ra=jfuse <-- 
 
-Send instant messages to your online friends http://au.messenger.yahoo.com 
+
+Fill Out The Instant Quote Form for up to 5 Quotes from interested lenders. 
+We Make it Simple with: Zero Ob.lig.ation, Zero Risk, Zero Ha.ssle 
+
+
+
+
+
+
+It's official. Adobe has purchased Macromedia. They will now be a massive player in the publishing software industry, capable of competing with Microsoft. Is this what it takes? Fighting a humongous corporation with a mega company? It does make sense. Years of protest and boycotts by lefties, techies and generally disgruntled users have failed miserably in their quest to make Microsoft an insignificant (or even markedly less noticeable) market force. But it makes me sad - not one week after I'd just been so impressed by Adobe.3
+
+Thanks, 
+
+Dina Pena
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
