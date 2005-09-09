@@ -1,44 +1,25 @@
-Received: from ditzelrtemplates4@tattletale.com ([14.14.208.140])
- by tdimso96.backend.cryptogram.cl
- (Sun ONE Messaging Server 6.0 Patch 1 (built Jan 28 2004))
- with SMTP9 id <0I5S047OYTOIPY99@tdimso92.backend.wallboard.cl> for
- linux-mm@kvack.org; Fri, 09 Sep 2005 16:17:57 +0500
-Message-id: <0I5S900TUTXZPY90@tdimso50.backend.salient.cl>
-From: "Madge Snow" <dxmerouvvawpe@mexcom.com>
-Date: Fri, 09 Sep 2005 12:21:57 +0100
-Subject: Entinxedg Morggteas wtih esae
+Date: Fri, 9 Sep 2005 06:00:15 -0700 (PDT)
+From: Christoph Lameter <clameter@engr.sgi.com>
+Subject: Re: [PATCH 2.6.13] lockless pagecache 7/7
+In-Reply-To: <4317F203.7060109@yahoo.com.au>
+Message-ID: <Pine.LNX.4.62.0509090549110.7332@schroedinger.engr.sgi.com>
+References: <4317F071.1070403@yahoo.com.au> <4317F0F9.1080602@yahoo.com.au>
+ <4317F136.4040601@yahoo.com.au> <4317F17F.5050306@yahoo.com.au>
+ <4317F1A2.8030605@yahoo.com.au> <4317F1BD.8060808@yahoo.com.au>
+ <4317F1E2.7030608@yahoo.com.au> <4317F203.7060109@yahoo.com.au>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Linux Memory Management <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Good day to you sir,
+For Itanium (and I guess also for ppc64 and sparch64) the performance of 
+write_lock/unlock is the same as spin_lock/unlock. There is at least 
+one case where concurrent reads would be allowed without this patch. 
 
-!!! Now Is The Time To Reflnance Your M0rtgage !!! 
-
-
-USA M0rtgage Rates Have Simply Never Been L0wer 
-You Don't Have To Throw Your Money Away Each Month 
-Why Pay An Inflated Rate? 
-When We are offering Second Morgages at 2.88%!!! 
-
-
-Visit Our Website by Pressing Here --> http://vwb.rightful.zpnow.com/?ra=jfuse <-- 
-
-
-Fill Out The Instant Quote Form for up to 5 Quotes from interested lenders. 
-We Make it Simple with: Zero Ob.lig.ation, Zero Risk, Zero Ha.ssle 
-
-
-
-
-
-
-It's official. Adobe has purchased Macromedia. They will now be a massive player in the publishing software industry, capable of competing with Microsoft. Is this what it takes? Fighting a humongous corporation with a mega company? It does make sense. Years of protest and boycotts by lefties, techies and generally disgruntled users have failed miserably in their quest to make Microsoft an insignificant (or even markedly less noticeable) market force. But it makes me sad - not one week after I'd just been so impressed by Adobe.3
-
-Thanks, 
-
-Dina Pena
+Maybe keep the rwlock_t there?
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
