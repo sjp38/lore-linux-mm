@@ -1,47 +1,32 @@
-Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
-	by e31.co.us.ibm.com (8.12.10/8.12.9) with ESMTP id j88HivDC310532
-	for <linux-mm@kvack.org>; Thu, 8 Sep 2005 13:44:57 -0400
-Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
-	by d03relay04.boulder.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id j88HjDui524200
-	for <linux-mm@kvack.org>; Thu, 8 Sep 2005 11:45:14 -0600
-Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av03.boulder.ibm.com (8.12.11/8.13.3) with ESMTP id j88HipQK006489
-	for <linux-mm@kvack.org>; Thu, 8 Sep 2005 11:44:51 -0600
-Subject: Re: [PATCH] i386: single node SPARSEMEM fix
-From: Dave Hansen <haveblue@us.ibm.com>
-In-Reply-To: <20050907164945.14aba736.akpm@osdl.org>
-References: <20050906035531.31603.46449.sendpatchset@cherry.local>
-	 <1126114116.7329.16.camel@localhost> <512850000.1126117362@flay>
-	 <1126117674.7329.27.camel@localhost> <521510000.1126118091@flay>
-	 <20050907164945.14aba736.akpm@osdl.org>
-Content-Type: text/plain
-Date: Wed, 07 Sep 2005 17:46:34 -0700
-Message-Id: <1126140395.6354.14.camel@localhost>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Date: Thu, 8 Sep 2005 22:36:25 -0700 (PDT)
+From: Christoph Lameter <clameter@engr.sgi.com>
+Subject: Re: [PATCH 2.6.13] lockless pagecache 5/7
+In-Reply-To: <4317F1BD.8060808@yahoo.com.au>
+Message-ID: <Pine.LNX.4.62.0509082227550.6098@schroedinger.engr.sgi.com>
+References: <4317F071.1070403@yahoo.com.au> <4317F0F9.1080602@yahoo.com.au>
+ <4317F136.4040601@yahoo.com.au> <4317F17F.5050306@yahoo.com.au>
+ <4317F1A2.8030605@yahoo.com.au> <4317F1BD.8060808@yahoo.com.au>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: "Martin J. Bligh" <mbligh@mbligh.org>, magnus@valinux.co.jp, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, "A. P. Whitcroft [imap]" <andyw@uk.ibm.com>
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Linux Memory Management <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2005-09-07 at 16:49 -0700, Andrew Morton wrote:
-> "Martin J. Bligh" <mbligh@mbligh.org> wrote:
-> > Ah, OK - makes more sense. However, some machines do have large holes
-> > in e820 map setups - is not really critical, more of an efficiency
-> > thing.
-> 
-> Confused.   Does all this mean that we want the patch, or not?
+I wonder if it may not be better to use a seqlock for the tree_lock? A
+seqlock requires no writes at all if the tree has not been changed. RCU 
+still requires the incrementing of a (local) counter.
 
-I say we wait on it.
+Using seqlocks would require reworking the readers so that they can 
+retry. Seqlocks provide already a verification that no update took place
+while the operation was in process. Thus we would be using an established 
+framework that insures that the speculation was successful.
 
-Martin brings up a scenario in which SPARSEMEM is useful without NUMA,
-but it Magnus's patch doesn't actually deal with systems like that.
-Let's do it right, and base the memory_present() calls off of real data
-from the e820 or efi data.
-
--- Dave
-
+The problem is then though to guarantee that the radix trees are always 
+traversable since the seqlock's retry rather than block. This would 
+require sequencing of inserts and pose a big problem for deletes and 
+updates.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
