@@ -1,40 +1,85 @@
-Message-ID: <4321A8EE.9080206@yahoo.com.au>
-Date: Sat, 10 Sep 2005 01:23:26 +1000
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-MIME-Version: 1.0
-Subject: Re: [PATCH 2.6.13] lockless pagecache 7/7
-References: <4317F071.1070403@yahoo.com.au> <4317F0F9.1080602@yahoo.com.au> <4317F136.4040601@yahoo.com.au> <4317F17F.5050306@yahoo.com.au> <4317F1A2.8030605@yahoo.com.au> <4317F1BD.8060808@yahoo.com.au> <4317F1E2.7030608@yahoo.com.au> <4317F203.7060109@yahoo.com.au> <Pine.LNX.4.62.0509090549110.7332@schroedinger.engr.sgi.com>
-In-Reply-To: <Pine.LNX.4.62.0509090549110.7332@schroedinger.engr.sgi.com>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+Message-Id: <200509100848.j8A8mtwf007883@shell0.pdx.osdl.net>
+Subject: mm-try-to-allocate-higher-order-pages-in-rmqueue_bulk-fix.patch added to -mm tree
+From: akpm@osdl.org
+Date: Sat, 10 Sep 2005 01:48:31 -0700
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@engr.sgi.com>
-Cc: Linux Memory Management <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
+To: akpm@osdl.org, linux-mm@kvack.org, rohit.seth@intel.com, mm-commits@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Christoph Lameter wrote:
-> For Itanium (and I guess also for ppc64 and sparch64) the performance of 
-> write_lock/unlock is the same as spin_lock/unlock. There is at least 
-> one case where concurrent reads would be allowed without this patch. 
-> 
+The patch titled
 
-Yep, I picked up another one that was easy to make lockless (I'll send
-out a new patchset soon), however the tagged lookup that was under read
-lock is changed to a spin lock.
+     mm-try-to-allocate-higher-order-pages-in-rmqueue_bulk fix
 
-It shouldn't be too difficult to make the tag lookups (find_get_pages_tag)
-lockless, however I just haven't gotten around to looking at the write
-side of the tagging yet.
+has been added to the -mm tree.  Its filename is
 
-When that is done, there should be no more read locks at all.
+     mm-try-to-allocate-higher-order-pages-in-rmqueue_bulk-fix.patch
 
-Nick
+ntfs-build-fix.patch
+timeh-remove-ifdefs.patch
+seclvl-use-securityfs-tidy.patch
+git-ia64-fixup.patch
+git-input-fixup.patch
+git-jfs-fixup.patch
+git-ocfs2-prep.patch
+pci-block-config-access-during-bist-fix-42.patch
+x86_64-msr-merge-fix.patch
+mm-try-to-allocate-higher-order-pages-in-rmqueue_bulk-fix.patch
+memory-hotplug-i386-addition-functions-warning-fix.patch
+pcnet32-set_ringparam-implementation-tidy.patch
+s2io-warning-fixes.patch
+acx1xx-wireless-driver-usb-is-bust.patch
+acx1xx-allow-modular-build.patch
+acx1xx-wireless-driver-spy_offset-went-away.patch
+x86-cache-pollution-aware-__copy_from_user_ll-tidy.patch
+x86-cache-pollution-aware-__copy_from_user_ll-build-fix.patch
+x86-cache-pollution-aware-__copy_from_user_ll-build-fix-2.patch
+x86_64-div-by-zero-fix.patch
+serial-console-touch-nmi-watchdog.patch
+ide-scsi-highmem-cleanup.patch
+free-initrd-mem-adjustment-fix.patch
+parport-constification-fix.patch
+dlm-use-configfs-fix.patch
+pcmcia-new-suspend-core-dev_to_instance-fix.patch
+ingo-nfs-stuff-fix.patch
+nr_blockdev_pages-in_interrupt-warning.patch
+sysfs-crash-debugging.patch
+device-suspend-debug.patch
+add-stack-field-to-task_struct-ia64-fix.patch
+reiser4-swsusp-build-fix.patch
+reiser4-printk-warning-fix.patch
+reiser4-mm-remove-pg_highmem-fix.patch
 
--- 
-SUSE Labs, Novell Inc.
 
-Send instant messages to your online friends http://au.messenger.yahoo.com 
+
+From: Andrew Morton <akpm@osdl.org>
+
+It was wrong for (order > 0).
+
+Signed-off-by: Rohit Seth <rohit.seth@intel.com>
+Cc: <linux-mm@kvack.org>
+Signed-off-by: Andrew Morton <akpm@osdl.org>
+---
+
+ mm/page_alloc.c |    2 +-
+ 1 files changed, 1 insertion(+), 1 deletion(-)
+
+diff -puN mm/page_alloc.c~mm-try-to-allocate-higher-order-pages-in-rmqueue_bulk-fix mm/page_alloc.c
+--- devel/mm/page_alloc.c~mm-try-to-allocate-higher-order-pages-in-rmqueue_bulk-fix	2005-09-10 01:47:24.000000000 -0700
++++ devel-akpm/mm/page_alloc.c	2005-09-10 01:47:24.000000000 -0700
+@@ -520,7 +520,7 @@ static int rmqueue_bulk(struct zone *zon
+ 		page = __rmqueue(zone, norder);
+ 		if (page != NULL) {
+ 			allocated += (1 << norder);
+-			for (i = 0; i < (1 << norder); i++)
++			for (i = 0; i < (1 << norder); i += (1 << order))
+ 				list_add_tail(&page[i].lru, list);
+ 			norder++;
+ 		}
+_
+
+Patches currently in -mm which might be from akpm@osdl.org are
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
