@@ -1,153 +1,139 @@
 Received: from programming.kicks-ass.net ([62.194.129.232])
-          by amsfep19-int.chello.nl
+          by amsfep12-int.chello.nl
           (InterMail vM.6.01.04.04 201-2131-118-104-20050224) with SMTP
-          id <20050911203435.WVSK1345.amsfep19-int.chello.nl@programming.kicks-ass.net>
-          for <linux-mm@kvack.org>; Sun, 11 Sep 2005 22:34:35 +0200
-Message-Id: <20050911203439.169038000@twins>
+          id <20050911203429.SOHU2093.amsfep12-int.chello.nl@programming.kicks-ass.net>
+          for <linux-mm@kvack.org>; Sun, 11 Sep 2005 22:34:29 +0200
+Message-Id: <20050911203433.243939000@twins>
 References: <20050911202540.581022000@twins>
-Date: Sun, 11 Sep 2005 22:25:45 +0200
+Date: Sun, 11 Sep 2005 22:25:44 +0200
 From: a.p.zijlstra@chello.nl
-Subject: [RFC][PATCH 5/7] CART Implementation v3
-Content-Disposition: inline; filename=cart-cart-stats.patch
+Subject: [RFC][PATCH 4/7] CART Implementation v3
+Content-Disposition: inline; filename=cart-cart-r.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Index: linux-2.6-git/fs/proc/proc_misc.c
-===================================================================
---- linux-2.6-git.orig/fs/proc/proc_misc.c
-+++ linux-2.6-git/fs/proc/proc_misc.c
-@@ -233,6 +233,20 @@ static struct file_operations proc_zonei
- 	.release	= seq_release,
- };
- 
-+extern struct seq_operations cart_op;
-+static int cart_open(struct inode *inode, struct file *file)
-+{
-+       (void)inode;
-+       return seq_open(file, &cart_op);
-+}
-+
-+static struct file_operations cart_file_operations = {
-+       .open           = cart_open,
-+       .read           = seq_read,
-+       .llseek         = seq_lseek,
-+       .release        = seq_release,
-+};
-+
- extern struct seq_operations nonresident_op;
- static int nonresident_open(struct inode *inode, struct file *file)
- {
-@@ -616,6 +630,7 @@ void __init proc_misc_init(void)
- 	create_seq_entry("interrupts", 0, &proc_interrupts_operations);
- 	create_seq_entry("slabinfo",S_IWUSR|S_IRUGO,&proc_slabinfo_operations);
- 	create_seq_entry("buddyinfo",S_IRUGO, &fragmentation_file_operations);
-+	create_seq_entry("cart",S_IRUGO, &cart_file_operations);
- 	create_seq_entry("nonresident",S_IRUGO, &nonresident_file_operations);
- 	create_seq_entry("vmstat",S_IRUGO, &proc_vmstat_file_operations);
- 	create_seq_entry("zoneinfo",S_IRUGO, &proc_zoneinfo_file_operations);
 Index: linux-2.6-git/mm/cart.c
 ===================================================================
 --- linux-2.6-git.orig/mm/cart.c
 +++ linux-2.6-git/mm/cart.c
-@@ -653,3 +653,96 @@ void __cart_remember(struct zone *zone, 
- 			break;
+@@ -63,6 +63,7 @@
+ 
+ #define cart_p ((zone)->nr_p)
+ #define cart_q ((zone)->nr_q)
++#define cart_r ((zone)->nr_r)
+ 
+ #define size_B1 ((zone)->nr_evicted_active)
+ #define size_B2 ((zone)->nr_evicted_inactive)
+@@ -81,6 +82,7 @@ void __init cart_init(void)
+ 		zone->nr_shortterm = 0;
+ 		zone->nr_p = 0;
+ 		zone->nr_q = 0;
++		zone->nr_r = 0;
  	}
  }
+ 
+@@ -123,6 +125,12 @@ void __cart_insert(struct zone *zone, st
+ 	rflags = nonresident_find(page_mapping(page), page_index(page));
+ 
+ 	if (rflags & NR_found) {
++		ratio = (nr_Nl / (nr_Ns + 1)) ?: 1;
++		if (cart_r > ratio)
++			cart_r -= ratio;
++		else
++			cart_r = 0UL;
 +
-+#ifdef CONFIG_PROC_FS
+ 		rflags &= NR_listid;
+ 		if (rflags == NR_b1) {
+ 			if (likely(size_B1)) --size_B1;
+@@ -149,6 +157,11 @@ void __cart_insert(struct zone *zone, st
+ 		}
+ 		/* ++nr_Nl; */
+ 	} else {
++		ratio = (nr_Ns / (nr_Nl + 1)) ?: 1;
++		cart_r += ratio;
++		if (cart_r > cart_cT)
++			cart_r = cart_cT;
 +
-+#include <linux/seq_file.h>
+ 		ClearPageLongTerm(page);
+ 		++nr_Ns;
+ 	}
+@@ -360,6 +373,7 @@ static unsigned long cart_rebalance_T2(s
+  * returns whether there are pages on @l_t1_head
+  */
+ static unsigned long cart_rebalance_T1(struct zone *zone, struct list_head *l_t1_head,
++				       struct list_head *l_new,
+ 				       unsigned long nr_dst, unsigned long *nr_scanned,
+ 				       struct pagevec *pvec)
+ {
+@@ -384,7 +398,11 @@ static unsigned long cart_rebalance_T1(s
+ 			referenced = page_referenced(page, 0, 0);
+ 			new = TestClearPageNew(page);
+ 
+-			if (referenced) {
++			if (cart_r < nr_Nl && PageLongTerm(page) && new) {
++				list_move_tail(&page->lru, l_new);
++				ClearPageActive(page);
++				++dq;
++			} else if (referenced) {
+ 				list_move_tail(&page->lru, &l_t1);
+ 				// XXX: we race a bit here; do we mind and put it under lru_lock?
+ 				/* ( |T1| >= min(p + 1, |B1|) ) and ( filter = 'S' ) */
+@@ -432,6 +450,7 @@ unsigned long cart_replace(struct zone *
+ 			   unsigned long nr_dst, unsigned long *nr_scanned)
+ {
+ 	struct page *page;
++	LIST_HEAD(l_new);
+ 	LIST_HEAD(l_t1);
+ 	LIST_HEAD(l_t2);
+ 	struct pagevec pvec;
+@@ -454,12 +473,24 @@ unsigned long cart_replace(struct zone *
+ 		if (list_empty(&l_t2))
+ 			cart_rebalance_T2(zone, &l_t2, nr_dst/2, nr_scanned, &pvec);
+ 		if (list_empty(&l_t1))
+-			cart_rebalance_T1(zone, &l_t1, nr_dst/2, nr_scanned, &pvec);
++			cart_rebalance_T1(zone, &l_t1, &l_new, nr_dst/2, nr_scanned, &pvec);
+ 
+ 		if (list_empty(&l_t1) && list_empty(&l_t2))
+ 			break;
+ 
+ 		spin_lock_irq(&zone->lru_lock);
++		while (!list_empty(&l_new) && nr < nr_dst) {
++			page = head_to_page(&l_new);
++			prefetchw_next_lru_page(page, &l_new, flags);
 +
-+static void *stats_start(struct seq_file *m, loff_t *pos)
-+{
-+	if (*pos != 0)
-+		return NULL;
-+
-+	lru_add_drain();
-+
-+	return pos;
-+}
-+
-+static void *stats_next(struct seq_file *m, void *arg, loff_t *pos)
-+{
-+	return NULL;
-+}
-+
-+static void stats_stop(struct seq_file *m, void *arg)
-+{
-+}
-+
-+static int stats_show(struct seq_file *m, void *arg)
-+{
-+	struct zone *zone;
-+	for_each_zone(zone) {
-+		spin_lock_irq(&zone->lru_lock);
-+		seq_printf(m, "\n\n======> zone: %lu <=====\n", (unsigned long)zone);
-+		seq_printf(m, "struct zone values:\n");
-+		seq_printf(m, "  zone->nr_active: %lu\n", zone->nr_active);
-+		seq_printf(m, "  zone->nr_inactive: %lu\n", zone->nr_inactive);
-+		seq_printf(m, "  zone->nr_evicted_active: %lu\n", zone->nr_evicted_active);
-+		seq_printf(m, "  zone->nr_evicted_inactive: %lu\n", zone->nr_evicted_inactive);
-+		seq_printf(m, "  zone->nr_shortterm: %lu\n", zone->nr_shortterm);
-+		seq_printf(m, "  zone->cart_p: %lu\n", zone->nr_p);
-+		seq_printf(m, "  zone->cart_q: %lu\n", zone->nr_q);
-+		seq_printf(m, "  zone->cart_r: %lu\n", zone->nr_r);
-+		seq_printf(m, "  zone->present_pages: %lu\n", zone->present_pages);
-+		seq_printf(m, "  zone->free_pages: %lu\n", zone->free_pages);
-+		seq_printf(m, "  zone->pages_min: %lu\n", zone->pages_min);
-+		seq_printf(m, "  zone->pages_low: %lu\n", zone->pages_low);
-+		seq_printf(m, "  zone->pages_high: %lu\n", zone->pages_high);
-+
-+		seq_printf(m, "\n");
-+		seq_printf(m, "implicit values:\n");
-+		seq_printf(m, "  zone->nr_longterm: %lu\n", nr_Nl);
-+		seq_printf(m, "  zone->cart_cT: %lu\n", cart_cT);
-+		seq_printf(m, "  zone->cart_cB: %lu\n", cart_cB);
-+
-+		seq_printf(m, "\n");
-+		seq_printf(m, "counted values:\n");
-+
-+		{
-+			struct page *page;
-+			unsigned long active = 0, s1 = 0, l1 = 0;
-+			unsigned long inactive = 0, s2 = 0, l2 = 0;
-+			unsigned long a1=0,i1=0,a2=0,i2=0;
-+			list_for_each_entry(page, &zone->active_list, lru) {
-+				++active;
-+				if (PageLongTerm(page)) ++l1;
-+				else ++s1;
-+				if (PageActive(page)) ++a1;
-+				else ++i1;
-+			}
-+			list_for_each_entry(page, &zone->inactive_list, lru) {
-+				++inactive;
-+				if (PageLongTerm(page)) ++l2;
-+				else ++s2;
-+				if (PageActive(page)) ++a2;
-+				else ++i2;
-+			}
-+			seq_printf(m, "  zone->nr_active: %lu (%lu, %lu)(%lu, %lu)\n", active, s1, l1, a1, i1);
-+			seq_printf(m, "  zone->nr_inactive: %lu (%lu, %lu)(%lu, %lu)\n", inactive, s2, l2, a2, i2);
-+			seq_printf(m, "  zone->nr_shortterm: %lu\n", s1+s2);
-+			seq_printf(m, "  zone->nr_longterm: %lu\n", l1+l2);
++			if (!TestClearPageLRU(page))
++				BUG();
++			if (!PageLongTerm(page))
++				BUG();
++			--size_T2;
++			++nr;
++			list_move(&page->lru, dst);
 +		}
-+
-+		spin_unlock_irq(&zone->lru_lock);
-+	}
-+
-+	return 0;
-+}
-+
-+struct seq_operations cart_op = {
-+	.start = stats_start,
-+	.next = stats_next,
-+	.stop = stats_stop,
-+	.show = stats_show,
-+};
-+
-+#endif /* CONFIG_PROC_FS */
+ 		while (!list_empty(&l_t1) &&
+ 		       (size_T1 > cart_p || !size_T2) && nr < nr_dst) {
+ 			page = head_to_page(&l_t1);
+@@ -496,6 +527,7 @@ unsigned long cart_replace(struct zone *
+ 	spin_lock_irq(&zone->lru_lock);
+ 	__cart_list_splice_release(zone, &l_t1, list_T1, &pvec);
+ 	__cart_list_splice_release(zone, &l_t2, list_T2, &pvec);
++	__cart_list_splice_release(zone, &l_new, list_T2, &pvec);
+ 	spin_unlock_irq(&zone->lru_lock);
+ 	pagevec_release(&pvec);
+ 
+Index: linux-2.6-git/include/linux/mmzone.h
+===================================================================
+--- linux-2.6-git.orig/include/linux/mmzone.h
++++ linux-2.6-git/include/linux/mmzone.h
+@@ -155,6 +155,7 @@ struct zone {
+ 	unsigned long 		nr_shortterm;	/* number of short term pages */
+ 	unsigned long		nr_p;		/* p from the CART paper */
+ 	unsigned long 		nr_q;		/* q from the cart paper */
++	unsigned long		nr_r;
+ 	unsigned long		pages_scanned;	   /* since last reclaim */
+ 	int			all_unreclaimable; /* All pages pinned */
+ 
 
 --
 --
