@@ -1,71 +1,473 @@
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e3.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id j8BC6EeH020447
-	for <linux-mm@kvack.org>; Sun, 11 Sep 2005 08:06:14 -0400
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay02.pok.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id j8BC6EHp090120
-	for <linux-mm@kvack.org>; Sun, 11 Sep 2005 08:06:14 -0400
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.12.11/8.13.3) with ESMTP id j8BC6ErV032688
-	for <linux-mm@kvack.org>; Sun, 11 Sep 2005 08:06:14 -0400
-Date: Sun, 11 Sep 2005 17:30:46 +0530
-From: Dipankar Sarma <dipankar@in.ibm.com>
-Subject: Re: VM balancing issues on 2.6.13: dentry cache not getting shrunk enough
-Message-ID: <20050911120045.GA4477@in.ibm.com>
-Reply-To: dipankar@in.ibm.com
-References: <20050911105709.GA16369@thunk.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20050911105709.GA16369@thunk.org>
+Received: from programming.kicks-ass.net ([62.194.129.232])
+          by amsfep19-int.chello.nl
+          (InterMail vM.6.01.04.04 201-2131-118-104-20050224) with SMTP
+          id <20050911203412.WVLU1345.amsfep19-int.chello.nl@programming.kicks-ass.net>
+          for <linux-mm@kvack.org>; Sun, 11 Sep 2005 22:34:12 +0200
+Message-Id: <20050911203416.647082000@twins>
+References: <20050911202540.581022000@twins>
+Date: Sun, 11 Sep 2005 22:25:41 +0200
+From: a.p.zijlstra@chello.nl
+Subject: [RFC][PATCH 1/7] CART Implementation v3
+Content-Disposition: inline; filename=cart-nonresident.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Theodore Ts'o <tytso@mit.edu>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: "Bharata B. Rao" <bharata@in.ibm.com>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Ted,
+Index: linux-2.6-git/include/linux/swap.h
+===================================================================
+--- linux-2.6-git.orig/include/linux/swap.h
++++ linux-2.6-git/include/linux/swap.h
+@@ -154,6 +154,22 @@ extern void out_of_memory(unsigned int _
+ /* linux/mm/memory.c */
+ extern void swapin_readahead(swp_entry_t, unsigned long, struct vm_area_struct *);
+ 
++/* linux/mm/nonresident.c */
++#define NR_b1		0
++#define NR_b2		1
++#define NR_free		2
++#define NR_lost		3
++
++#define NR_listid	3
++#define NR_found	0x80000000
++
++
++extern int nonresident_put(struct address_space *, unsigned long, int, int);
++extern int nonresident_find(struct address_space *, unsigned long);
++extern unsigned int nonresident_count(int);
++extern unsigned int nonresident_total(void);
++extern void nonresident_init(void);
++
+ /* linux/mm/page_alloc.c */
+ extern unsigned long totalram_pages;
+ extern unsigned long totalhigh_pages;
+@@ -292,6 +308,13 @@ static inline swp_entry_t get_swap_page(
+ #define grab_swap_token()  do { } while(0)
+ #define has_swap_token(x) 0
+ 
++/* linux/mm/nonresident.c */
++#define nonresident_put(w,x,y,z) 0
++#define nonresident_find(x,y) 0
++#define nonresident_count(x) 0
++#define nonresident_total() 0
++#define nonresident_init() do { } while (0)
++
+ #endif /* CONFIG_SWAP */
+ #endif /* __KERNEL__*/
+ #endif /* _LINUX_SWAP_H */
+Index: linux-2.6-git/init/main.c
+===================================================================
+--- linux-2.6-git.orig/init/main.c
++++ linux-2.6-git/init/main.c
+@@ -47,6 +47,7 @@
+ #include <linux/rmap.h>
+ #include <linux/mempolicy.h>
+ #include <linux/key.h>
++#include <linux/swap.h>
+ 
+ #include <asm/io.h>
+ #include <asm/bugs.h>
+@@ -494,6 +495,7 @@ asmlinkage void __init start_kernel(void
+ 	}
+ #endif
+ 	vfs_caches_init_early();
++	nonresident_init();
+ 	mem_init();
+ 	kmem_cache_init();
+ 	setup_per_cpu_pageset();
+Index: linux-2.6-git/mm/Makefile
+===================================================================
+--- linux-2.6-git.orig/mm/Makefile
++++ linux-2.6-git/mm/Makefile
+@@ -12,7 +12,8 @@ obj-y			:= bootmem.o filemap.o mempool.o
+ 			   readahead.o slab.o swap.o truncate.o vmscan.o \
+ 			   prio_tree.o $(mmu-y)
+ 
+-obj-$(CONFIG_SWAP)	+= page_io.o swap_state.o swapfile.o thrash.o
++obj-$(CONFIG_SWAP)	+= page_io.o swap_state.o swapfile.o thrash.o \
++				nonresident.o
+ obj-$(CONFIG_HUGETLBFS)	+= hugetlb.o
+ obj-$(CONFIG_NUMA) 	+= mempolicy.o
+ obj-$(CONFIG_SPARSEMEM)	+= sparse.o
+Index: linux-2.6-git/mm/nonresident.c
+===================================================================
+--- /dev/null
++++ linux-2.6-git/mm/nonresident.c
+@@ -0,0 +1,372 @@
++/*
++ * mm/nonresident.c
++ * (C) 2004,2005 Red Hat, Inc
++ * Written by Rik van Riel <riel@redhat.com>
++ * Released under the GPL, see the file COPYING for details.
++ * Adapted by Peter Zijlstra <a.p.zijlstra@chello.nl> for use by ARC
++ * like algorithms.
++ *
++ * Keeps track of whether a non-resident page was recently evicted
++ * and should be immediately promoted to the active list. This also
++ * helps automatically tune the inactive target.
++ *
++ * The pageout code stores a recently evicted page in this cache
++ * by calling remember_page(mapping/mm, index/vaddr)
++ * and can look it up in the cache by calling recently_evicted()
++ * with the same arguments.
++ *
++ * Note that there is no way to invalidate pages after eg. truncate
++ * or exit, we let the pages fall out of the non-resident set through
++ * normal replacement.
++ *
++ *
++ * Modified to work with ARC like algorithms who:
++ *  - need to balance two FIFOs; |b1| + |b2| = c,
++ *
++ * The bucket contains four single linked cyclic lists (CLOCKS) and each
++ * clock has a tail hand. By selecting a victim clock upon insertion it
++ * is possible to balance them.
++ *
++ * The first two lists are used for B1/B2 and a third for a free slot list.
++ * The fourth list is unused.
++ *
++ * The slot looks like this:
++ * struct slot_t {
++ *         u32 cookie : 24; // LSB
++ *         u32 index  :  6;
++ *         u32 listid :  2;
++ * };
++ *
++ * The bucket is guarded by a spinlock.
++ */
++#include <linux/swap.h>
++#include <linux/mm.h>
++#include <linux/cache.h>
++#include <linux/spinlock.h>
++#include <linux/bootmem.h>
++#include <linux/hash.h>
++#include <linux/prefetch.h>
++#include <linux/kernel.h>
++
++#define TARGET_SLOTS	64
++#define NR_CACHELINES  (TARGET_SLOTS*sizeof(u32) / L1_CACHE_BYTES)
++#define NR_SLOTS	(((NR_CACHELINES * L1_CACHE_BYTES) - sizeof(spinlock_t) - 2*sizeof(u16)) / sizeof(u32))
++#if 0
++#if NR_SLOTS < (TARGET_SLOTS / 2)
++#warning very small slot size
++#if NR_SLOTS <= 0
++#error no room for slots left
++#endif
++#endif
++#endif
++
++#define BUILD_MASK(bits, shift) (((1 << (bits)) - 1) << (shift))
++
++#define LISTID_BITS		2
++#define LISTID_SHIFT		(sizeof(u32)*8 - LISTID_BITS)
++#define LISTID_MASK		BUILD_MASK(LISTID_BITS, LISTID_SHIFT)
++
++#define SET_LISTID(x, flg)	((x) = ((x) & ~LISTID_MASK) | ((flg) << LISTID_SHIFT))
++#define GET_LISTID(x)		(((x) & LISTID_MASK) >> LISTID_SHIFT)
++
++#define INDEX_BITS		6  /* ceil(log2(NR_SLOTS)) */
++#define INDEX_SHIFT		(LISTID_SHIFT - INDEX_BITS)
++#define INDEX_MASK		BUILD_MASK(INDEX_BITS, INDEX_SHIFT)
++
++#define SET_INDEX(x, idx)	((x) = ((x) & ~INDEX_MASK) | ((idx) << INDEX_SHIFT))
++#define GET_INDEX(x)		(((x) & INDEX_MASK) >> INDEX_SHIFT)
++
++#define COOKIE_MASK		BUILD_MASK(sizeof(u32)*8 - LISTID_BITS - INDEX_BITS, 0)
++
++struct nr_bucket
++{
++	spinlock_t lock;
++	u8 hand[4];
++	u32 slot[NR_SLOTS];
++} ____cacheline_aligned;
++
++/* The non-resident page hash table. */
++static struct nr_bucket * nonres_table;
++static unsigned int nonres_shift;
++static unsigned int nonres_mask;
++
++/* hash the address into a bucket */
++static struct nr_bucket * nr_hash(void * mapping, unsigned long index)
++{
++	unsigned long bucket;
++	unsigned long hash;
++
++	hash = (unsigned long)mapping + 37 * index;
++	bucket = hash_long(hash, nonres_shift);
++
++	return nonres_table + bucket;
++}
++
++/* hash the address and inode into a cookie */
++static u32 nr_cookie(struct address_space * mapping, unsigned long index)
++{
++	unsigned long hash;
++
++	hash = 37 * (unsigned long)mapping + index;
++
++	if (mapping && mapping->host)
++		hash = 37 * hash + mapping->host->i_ino;
++
++	return hash_long(hash, sizeof(u32)*8 - LISTID_BITS - INDEX_BITS);
++}
++
++static DEFINE_PER_CPU(unsigned int[4], nonres_count);
++
++/*
++ * remove current (b from 'abc'):
++ *
++ *    initial        swap(2,3)
++ *
++ *   1: -> [2],a     1: -> [2],a
++ * * 2: -> [3],b     2: -> [1],c
++ *   3: -> [1],c   * 3: -> [3],b
++ *
++ *   3 is now free for use.
++ *
++ * @nr_bucket: bucket to operate in
++ * @listid: list that the deletee belongs to
++ * @pos: slot position of deletee
++ * @slot: possible pointer to slot
++ *
++ * returns pointer to removed slot, NULL when list empty.
++ */
++static u32 * __nonresident_del(struct nr_bucket *nr_bucket, int listid, u8 pos, u32 *slot)
++{
++	int next_pos;
++	u32 *next;
++
++	if (slot == NULL) {
++		slot = &nr_bucket->slot[pos];
++		if (GET_LISTID(*slot) != listid)
++			return NULL;
++	}
++
++	--__get_cpu_var(nonres_count[listid]);
++
++	next_pos = GET_INDEX(*slot);
++	if (pos == next_pos) {
++		next = slot;
++		goto out;
++	}
++
++	next = &nr_bucket->slot[next_pos];
++	*next = xchg(slot, *next);
++
++	if (next_pos == nr_bucket->hand[listid])
++		nr_bucket->hand[listid] = pos;
++out:
++	BUG_ON(GET_INDEX(*next) != next_pos);
++	return next;
++}
++
++static inline u32 * __nonresident_pop(struct nr_bucket *nr_bucket, int listid)
++{
++	return __nonresident_del(nr_bucket, listid, nr_bucket->hand[listid], NULL);
++}
++
++/*
++ * insert before (d before b in 'abc')
++ *
++ *    initial          set 4         swap(2,4)
++ *
++ *   1: -> [2],a     1: -> [2],a    1: -> [2],a
++ * * 2: -> [3],b     2: -> [3],b    2: -> [4],d
++ *   3: -> [1],c     3: -> [1],c    3: -> [1],c
++ *   4: -> [4],nil   4: -> [4],d  * 4: -> [3],b
++ *
++ *   leaving us with 'adbc'.
++ *
++ * @nr_bucket: bucket to operator in
++ * @listid: list to insert into
++ * @pos: position to insert before
++ * @slot: slot to insert
++ */
++static void __nonresident_insert(struct nr_bucket *nr_bucket, int listid, u8 *pos, u32 *slot)
++{
++	u32 *head;
++
++	SET_LISTID(*slot, listid);
++
++	head = &nr_bucket->slot[*pos];
++
++	*pos = GET_INDEX(*slot);
++	if (GET_LISTID(*head) == listid)
++		*slot = xchg(head, *slot);
++
++	++__get_cpu_var(nonres_count[listid]);
++}
++
++static inline void __nonresident_push(struct nr_bucket *nr_bucket, int listid, u32 *slot)
++{
++	__nonresident_insert(nr_bucket, listid, &nr_bucket->hand[listid], slot);
++}
++
++/*
++ * Remembers a page by putting a hash-cookie on the @listid list.
++ *
++ * @mapping: page_mapping()
++ * @index: page_index()
++ * @listid: list to put the page on (NR_b1, NR_b2 and NR_free).
++ * @listid_evict: list to get a free page from when NR_free is empty.
++ *
++ * returns the list an empty page was taken from.
++ */
++int nonresident_put(struct address_space * mapping, unsigned long index, int listid, int listid_evict)
++{
++	struct nr_bucket *nr_bucket;
++	u32 cookie;
++	unsigned long flags;
++	u32 *slot;
++	int evict = NR_free;
++
++	prefetch(mapping->host);
++	nr_bucket = nr_hash(mapping, index);
++
++	spin_lock_prefetch(nr_bucket); // prefetchw_range(nr_bucket, NR_CACHELINES);
++	cookie = nr_cookie(mapping, index);
++
++	spin_lock_irqsave(&nr_bucket->lock, flags);
++	slot = __nonresident_pop(nr_bucket, evict);
++	if (!slot) {
++		evict = listid_evict;
++		slot = __nonresident_pop(nr_bucket, evict);
++		if (!slot) {
++			evict ^= 1;
++			slot = __nonresident_pop(nr_bucket, evict);
++		}
++	}
++	BUG_ON(!slot);
++	SET_INDEX(cookie, GET_INDEX(*slot));
++	cookie = xchg(slot, cookie);
++	__nonresident_push(nr_bucket, listid, slot);
++	spin_unlock_irqrestore(&nr_bucket->lock, flags);
++
++	return evict;
++}
++
++/*
++ * Searches a page on the first two lists, and places it on the free list.
++ *
++ * @mapping: page_mapping()
++ * @index: page_index()
++ *
++ * returns listid of the list the item was found on with NR_found set if found.
++ */
++int nonresident_find(struct address_space * mapping, unsigned long index)
++{
++	struct nr_bucket * nr_bucket;
++	u32 wanted;
++	int j;
++	u8 i;
++	unsigned long flags;
++
++	prefetch(mapping->host);
++	nr_bucket = nr_hash(mapping, index);
++
++	spin_lock_prefetch(nr_bucket); // prefetch_range(nr_bucket, NR_CACHELINES);
++	wanted = nr_cookie(mapping, index) & COOKIE_MASK;
++
++	spin_lock_irqsave(&nr_bucket->lock, flags);
++	for (i = 0; i < 2; ++i) {
++		j = nr_bucket->hand[i];
++		do {
++			u32 *slot = &nr_bucket->slot[j];
++			if (GET_LISTID(*slot) != i)
++				break;
++
++			if ((*slot & COOKIE_MASK) == wanted) {
++				slot = __nonresident_del(nr_bucket, i, j, slot);
++				/* __nonresident_push(nr_bucket, i, slot); */
++				__nonresident_push(nr_bucket, NR_free, slot);
++				return i | NR_found;
++			}
++
++			j = GET_INDEX(*slot);
++		} while (j != nr_bucket->hand[i]);
++	}
++	spin_unlock_irqrestore(&nr_bucket->lock, flags);
++
++	return 0;
++}
++
++unsigned int nonresident_count(int listid)
++{
++	unsigned int ret = 0;
++	int cpu;
++
++	preempt_disable();
++	for_each_cpu(cpu) {
++		ret += per_cpu(nonres_count[listid], cpu);
++	}
++	preempt_enable();
++
++	return ret;
++}
++
++unsigned int nonresident_total(void)
++{
++	return (1 << nonres_shift) * NR_SLOTS;
++}
++
++/*
++ * For interactive workloads, we remember about as many non-resident pages
++ * as we have actual memory pages.  For server workloads with large inter-
++ * reference distances we could benefit from remembering more.
++ */
++static __initdata unsigned long nonresident_factor = 1;
++void __init nonresident_init(void)
++{
++	int target;
++	int i, j;
++
++	/*
++	 * Calculate the non-resident hash bucket target. Use a power of
++	 * two for the division because alloc_large_system_hash rounds up.
++	 */
++	target = nr_all_pages * nonresident_factor;
++	target /= (sizeof(struct nr_bucket) / sizeof(u32));
++
++	nonres_table = alloc_large_system_hash("Non-resident page tracking",
++					sizeof(struct nr_bucket),
++					target,
++					0,
++					HASH_EARLY | HASH_HIGHMEM,
++					&nonres_shift,
++					&nonres_mask,
++					0);
++
++	for (i = 0; i < (1 << nonres_shift); i++) {
++		spin_lock_init(&nonres_table[i].lock);
++		for (j = 0; j < 4; ++j)
++			nonres_table[i].hand[j] = 0;
++
++		for (j = 0; j < NR_SLOTS; ++j) {
++			nonres_table[i].slot[j] = 0;
++			SET_LISTID(nonres_table[i].slot[j], NR_free);
++			if (j < NR_SLOTS - 1)
++				SET_INDEX(nonres_table[i].slot[j], j+1);
++			else /* j == NR_SLOTS - 1 */
++				SET_INDEX(nonres_table[i].slot[j], 0);
++		}
++	}
++
++	for_each_cpu(i) {
++		for (j=0; j<4; ++j)
++			per_cpu(nonres_count[j], i) = 0;
++	}
++}
++
++static int __init set_nonresident_factor(char * str)
++{
++	if (!str)
++		return 0;
++	nonresident_factor = simple_strtoul(str, &str, 0);
++	return 1;
++}
++
++__setup("nonresident_factor=", set_nonresident_factor);
 
-On Sun, Sep 11, 2005 at 06:57:09AM -0400, Theodore Ts'o wrote:
-> 
-> I have a T40 laptop (Pentium M processor) with 2 gigs of memory, and
-> from time to time, after the system has been up for a while, the
-> dentry cache grows huge, as does the ext3_inode_cache:
-> 
-> slabinfo - version: 2.1
-> # name            <active_objs> <num_objs> <objsize> <objperslab> <pagesperslab> : tunables <limit> <batchcount> <sharedfactor> : slabdata <active_slabs> <num_slabs> <sharedavail>
-> dentry_cache      434515 514112    136   29    1 : tunables  120   60    0 : slabdata  17728  17728      0
-> ext3_inode_cache  587635 589992    464    8    1 : tunables   54   27    0 : slabdata  73748  73749      0
-> 
-> Leading to an impending shortage in low memory:
-> 
-> LowFree:          9268 kB
-
-Do you have the /proc/sys/fs/dentry-state output when such lowmem
-shortage happens ?
-
-> 
-> It turns out I can head off the system lockup by requesting the
-> formation of hugepages, which will immediately cause a dramatic
-> reduction of memory usage in both high- and low- memory as various
-> caches and flushed:
-> 
-> 	echo 100 > /proc/sys/vm/nr_hugepages
-> 	echo 0 > /proc/sys/vm/nr_hugepages
-> 
-> The question is why isn't the kernel able to figure out how to do
-> release dentry cache entries automatically when it starts thrashing due
-> to a lack of low memory?   Clearly it can, since requesting hugepages
-> does shrink the dentry cache:
-
-This is a problem that Bharata has been investigating at the moment.
-But he hasn't seen anything that can't be cured by a small memory
-pressure - IOW, dentries do get freed under memory pressure. So
-your case might be very useful. Bharata is maintaing an instrumentation
-patch to collect more information and an alternative dentry aging patch 
-(using rbtree). Perhaps you could try with those.
-
-Thanks
-Dipankar
+--
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
