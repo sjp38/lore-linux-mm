@@ -1,131 +1,40 @@
-Received: from twins ([62.194.129.232]) by amsfep13-int.chello.nl
-          (InterMail vM.6.01.04.04 201-2131-118-104-20050224) with ESMTP
-          id <20050911230456.MRUM22129.amsfep13-int.chello.nl@twins>
-          for <linux-mm@kvack.org>; Mon, 12 Sep 2005 01:04:56 +0200
-Subject: Re: [RFC][PATCH 0/7] CART Implementation v3
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-In-Reply-To: <20050911202540.581022000@twins>
-References: <20050911202540.581022000@twins>
-Content-Type: multipart/mixed; boundary="=-aeAcST8wIPN2+02Wp+UA"
-Date: Mon, 12 Sep 2005 01:05:00 +0200
-Message-Id: <1126479900.20161.185.camel@twins>
+Date: Sun, 11 Sep 2005 23:16:36 -0400
+From: Theodore Ts'o <tytso@mit.edu>
+Subject: Re: VM balancing issues on 2.6.13: dentry cache not getting shrunk enough
+Message-ID: <20050912031636.GB16758@thunk.org>
+References: <20050911105709.GA16369@thunk.org> <20050911120045.GA4477@in.ibm.com>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20050911120045.GA4477@in.ibm.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Dipankar Sarma <dipankar@in.ibm.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Bharata B. Rao" <bharata@in.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
---=-aeAcST8wIPN2+02Wp+UA
-Content-Type: text/plain
-Content-Transfer-Encoding: 7bit
+On Sun, Sep 11, 2005 at 05:30:46PM +0530, Dipankar Sarma wrote:
+> Do you have the /proc/sys/fs/dentry-state output when such lowmem
+> shortage happens ?
 
-On Sun, 2005-09-11 at 22:25 +0200, a.p.zijlstra@chello.nl wrote:
-> Hi All,
-> 
-> Here my latest efforts on implementing CART, an advanced page replacement 
-> policy.
-> 
-> It seems pretty stable, except for a spurious OOM. However it yet has to
-> run on something other than UML.
-> 
-> A complete CART implementation should be present in cart-cart.patch. 
-> The cart-cart-r.patch improves thereon by keeping a 3th adaptive parameter
-> which measures the amount of fresh pages (not in |T1| u |T2| u |B1| u |B2|).
-> When the amount of fresh pages drops below the number of longterm pages
-> we start to reclaim pages that have just been inserted.
-> 
-> This works very well for a simple looped linear scan larger than the total 
-> resident set. Also it doesn't seem to regress normal workloads.
-> 
+Not yet, but the situation occurs on my laptop about 2 or 3 times
+(when I'm not travelling and so it doesn't get rebooted).  So
+reproducing it isn't utterly trivial, but it's does happen often
+enough that it should be possible to get the necessary data.
 
-Some numbers. All run in an UML with mem=64M and 128M of swapspace, sync
-ubd.
+> This is a problem that Bharata has been investigating at the moment.
+> But he hasn't seen anything that can't be cured by a small memory
+> pressure - IOW, dentries do get freed under memory pressure. So
+> your case might be very useful. Bharata is maintaing an instrumentation
+> patch to collect more information and an alternative dentry aging patch 
+> (using rbtree). Perhaps you could try with those.
 
-linux-2.6.13-rc7
+Send it to me, and I'd be happy to try either the instrumentation
+patch or the dentry aging patch.
 
-make -j4
+Thanks, regards,
 
-real    107m15.351s
-user    24m4.820s
-sys     12m16.590s
-
-scan 60 16
-
-real    3m39.432s
-user    0m4.990s
-sys     0m21.920s
-
-linux-2.6.13-rc7-cart
-
-make -j4 
-
-real    93m18.035s
-user    22m44.280s
-sys     9m20.220s
-
-scan 60 16
-
-real    1m47.857s
-user    0m4.690s
-sys     0m11.690s
-
-
--- 
-Peter Zijlstra <a.p.zijlstra@chello.nl>
-
---=-aeAcST8wIPN2+02Wp+UA
-Content-Disposition: attachment; filename=scan.c
-Content-Type: text/x-csrc; name=scan.c; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <sys/mman.h>
-
-int main(int argc, char **argv)
-{
-	char *ptr;
-	int size = -1;
-	int loops = -1;
-	if (argc > 1) {
-		size = atoi(argv[1]);
-	}
-	if (argc > 2) {
-		loops = atoi(argv[2]);
-	}
-
-	if (size < 0) {
-		printf("no size specified\n");
-		return 0;
-	}
-	if (loops < 0) {
-		printf("no loops specified\n");
-		return 0;
-	}
-
-	printf("Size: %dMB\n", size);
-	printf("Loops: %d\n", loops);
-	size *= 1024*1024;
-
-	ptr = (char*)mmap(0, size, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, 0, 0);
-	if (ptr) {
-		for (;loops; --loops) {
-			int i;
-			for (i=0; i<size; ++i) {
-				*(ptr + i) = loops;
-			}
-			printf(".");
-			fflush(stdout);
-		}
-		printf("\n");
-		munmap(ptr, size);
-	}
-	return 0;
-}
-
---=-aeAcST8wIPN2+02Wp+UA--
-
+							- Ted
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
