@@ -1,64 +1,53 @@
-Received: from westrelay02.boulder.ibm.com (westrelay02.boulder.ibm.com [9.17.195.11])
-	by e33.co.us.ibm.com (8.12.10/8.12.9) with ESMTP id j8CCrdvd019366
-	for <linux-mm@kvack.org>; Mon, 12 Sep 2005 08:53:40 -0400
-Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
-	by westrelay02.boulder.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id j8CCrdHk468560
-	for <linux-mm@kvack.org>; Mon, 12 Sep 2005 06:53:39 -0600
-Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av03.boulder.ibm.com (8.12.11/8.13.3) with ESMTP id j8CCrcIT007823
-	for <linux-mm@kvack.org>; Mon, 12 Sep 2005 06:53:38 -0600
-Date: Mon, 12 Sep 2005 18:23:28 +0530
-From: Bharata B Rao <bharata@in.ibm.com>
-Subject: Re: VM balancing issues on 2.6.13: dentry cache not getting shrunk enough
-Message-ID: <20050912125327.GB3804@in.ibm.com>
-Reply-To: bharata@in.ibm.com
-References: <20050911105709.GA16369@thunk.org> <20050911120045.GA4477@in.ibm.com> <20050912031636.GB16758@thunk.org> <210180000.1126505790@[10.10.2.4]>
+Subject: [PATCH] shrink_list skip anon pages if not may_swap
+From: Lee Schermerhorn <lee.schermerhorn@hp.com>
+Reply-To: lee.schermerhorn@hp.com
+Content-Type: text/plain
+Date: Mon, 12 Sep 2005 13:29:51 -0400
+Message-Id: <1126546191.5182.29.camel@localhost.localdomain>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <210180000.1126505790@[10.10.2.4]>
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Martin J. Bligh" <mbligh@mbligh.org>
-Cc: Theodore Ts'o <tytso@mit.edu>, Dipankar Sarma <dipankar@in.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: linux-mm <linux-mm@kvack.org>
+Cc: Martin Hicks <mort@sgi.com>, lhms-devel <lhms-devel@lists.sourceforge.net>
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Sep 11, 2005 at 11:16:30PM -0700, Martin J. Bligh wrote:
-> 
-> 
-> --Theodore Ts'o <tytso@mit.edu> wrote (on Sunday, September 11, 2005 23:16:36 -0400):
-> 
-> > On Sun, Sep 11, 2005 at 05:30:46PM +0530, Dipankar Sarma wrote:
-> >> Do you have the /proc/sys/fs/dentry-state output when such lowmem
-> >> shortage happens ?
-> > 
-> > Not yet, but the situation occurs on my laptop about 2 or 3 times
-> > (when I'm not travelling and so it doesn't get rebooted).  So
-> > reproducing it isn't utterly trivial, but it's does happen often
-> > enough that it should be possible to get the necessary data.
-> >
-> >> This is a problem that Bharata has been investigating at the moment.
-> >> But he hasn't seen anything that can't be cured by a small memory
-> >> pressure - IOW, dentries do get freed under memory pressure. So
-> >> your case might be very useful. Bharata is maintaing an instrumentation
-> >> patch to collect more information and an alternative dentry aging patch 
-> >> (using rbtree). Perhaps you could try with those.
-> > 
-> > Send it to me, and I'd be happy to try either the instrumentation
-> > patch or the dentry aging patch.
-> 
-> Other thing that might be helpful is to shove a printk in prune_dcache
-> so we can see when it's getting called, and how successful it is, if the
-> more sophisticated stuff doesn't help ;-)
-> 
+Martin Hicks' page cache reclaim patch added the 'may_swap' flag to the
+scan_control struct; and modified shrink_list() not to add anon pages to
+the swap cache if may_swap is not asserted. 
 
-I have incorporated this in the dcache stats patch I have. I will 
-post it tommorrow after adding some more instrumentation data
-(number of inuse and free dentries in lru list) and after a bit of
-cleanup and testing.
+Ref:  http://marc.theaimsgroup.com/?l=linux-mm&m=111461480725322&w=4
 
-Regards,
-Bharata.
+However, further down, if the page is mapped, shrink_list() calls
+try_to_unmap() which will call try_to_unmap_one() via try_to_unmap_anon
+().  try_to_unmap_one() will BUG_ON() an anon page that is NOT in the
+swap cache.  Martin says he never encountered this path in his testing,
+but agrees that it might happen.  
+
+This patch modifies shrink_list() to skip anon pages that are not
+already in the swap cache when !may_swap, rather than just not adding
+them to the cache.
+
+Cc to lhms-devel because memory hotplug page migration also uses
+shrink_list.
+
+Signed-off-by:  Lee Schermerhorn <lee.schermerhorn@hp.com>
+============================================================
+--- shrink_list-skip-anon-pages-if-not-may_swap/mm/vmscan.c~original	2005-08-28 19:41:01.000000000 -0400
++++ shrink_list-skip-anon-pages-if-not-may_swap/mm/vmscan.c	2005-09-12 10:17:01.000000000 -0400
+@@ -417,7 +417,9 @@ static int shrink_list(struct list_head 
+ 		 * Anonymous process memory has backing store?
+ 		 * Try to allocate it some swap space here.
+ 		 */
+-		if (PageAnon(page) && !PageSwapCache(page) && sc->may_swap) {
++		if (PageAnon(page) && !PageSwapCache(page)) {
++			if (!sc->may_swap)
++				goto keep_locked;
+ 			if (!add_to_swap(page))
+ 				goto activate_locked;
+ 		}
+
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
