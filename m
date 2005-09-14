@@ -1,62 +1,62 @@
-Date: Thu, 15 Sep 2005 08:48:05 +1000
-From: David Chinner <dgc@sgi.com>
+Date: Wed, 14 Sep 2005 20:08:43 -0300
+From: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
 Subject: Re: VM balancing issues on 2.6.13: dentry cache not getting shrunk enough
-Message-ID: <20050914224805.GB2265486@melbourne.sgi.com>
-References: <20050911105709.GA16369@thunk.org> <20050913084752.GC4474@in.ibm.com> <20050913215932.GA1654338@melbourne.sgi.com> <200509141101.16781.ak@suse.de>
+Message-ID: <20050914230843.GA11748@dmt.cnet>
+References: <20050911105709.GA16369@thunk.org> <20050911120045.GA4477@in.ibm.com> <20050912031636.GB16758@thunk.org> <20050913084752.GC4474@in.ibm.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <200509141101.16781.ak@suse.de>
+In-Reply-To: <20050913084752.GC4474@in.ibm.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <ak@suse.de>
-Cc: Bharata B Rao <bharata@in.ibm.com>, Theodore Ts'o <tytso@mit.edu>, Dipankar Sarma <dipankar@in.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, manfred@colorfullife.com
+To: Bharata B Rao <bharata@in.ibm.com>
+Cc: Theodore Ts'o <tytso@mit.edu>, Dipankar Sarma <dipankar@in.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Sep 14, 2005 at 11:01:15AM +0200, Andi Kleen wrote:
-> On Tuesday 13 September 2005 23:59, David Chinner wrote:
-> > On Tue, Sep 13, 2005 at 02:17:52PM +0530, Bharata B Rao wrote:
-> > > Second is Sonny Rao's rbtree dentry reclaim patch which is an attempt
-> > > to improve this dcache fragmentation problem.
-> >
-> > FYI, in the past I've tried this patch to reduce dcache fragmentation on
-> > an Altix (16k pages, 62 dentries to a slab page) under heavy
-> > fileserver workloads and it had no measurable effect. It appeared
-> > that there was almost always at least one active dentry on each page
-> > in the slab.  The story may very well be different on 4k page
-> > machines, however.
+On Tue, Sep 13, 2005 at 02:17:52PM +0530, Bharata B Rao wrote:
+> On Sun, Sep 11, 2005 at 11:16:36PM -0400, Theodore Ts'o wrote:
+> > On Sun, Sep 11, 2005 at 05:30:46PM +0530, Dipankar Sarma wrote:
+> > > Do you have the /proc/sys/fs/dentry-state output when such lowmem
+> > > shortage happens ?
+> > 
+> > Not yet, but the situation occurs on my laptop about 2 or 3 times
+> > (when I'm not travelling and so it doesn't get rebooted).  So
+> > reproducing it isn't utterly trivial, but it's does happen often
+> > enough that it should be possible to get the necessary data.
+> > 
+> > > This is a problem that Bharata has been investigating at the moment.
+> > > But he hasn't seen anything that can't be cured by a small memory
+> > > pressure - IOW, dentries do get freed under memory pressure. So
+> > > your case might be very useful. Bharata is maintaing an instrumentation
+> > > patch to collect more information and an alternative dentry aging patch 
+> > > (using rbtree). Perhaps you could try with those.
+> > 
+> > Send it to me, and I'd be happy to try either the instrumentation
+> > patch or the dentry aging patch.
+> > 
 > 
-> I always thought dentry freeing would work much better if it
-> was turned upside down.
+> Ted,
 > 
-> Instead of starting from the high level dcache lists it could
-> be driven by slab: on memory pressure slab tries to return pages with unused 
-> cache objects. In that case it should check if there are only
-> a small number of pinned objects on the page set left, and if 
-> yes use a new callback to the higher level user (=dcache) and ask them
-> to free the object.
+> I am sending two patches here.
+> 
+> First is dentry_stats patch which collects some dcache statistics
+> and puts it into /proc/meminfo. This patch provides information 
+> about how dentries are distributed in dcache slab pages, how many
+> free and in use dentries are present in dentry_unused lru list and
+> how prune_dcache() performs with respect to freeing the requested
+> number of dentries.
 
-If you add a slab free object callback, then you have the beginnings
-of a more flexible solution to memory reclaim from the slabs.
+Bharata, 
 
-For example, you can easily implement a reclaim-not-allocate method
-for new slab allocations for when there is no memory available or the
-size of the slab is passed some configurable high water mark...
+Ideally one should move the "nr_requested/nr_freed" counters from your
+stats patch into "struct shrinker" (or somewhere else more appropriate
+in which per-shrinkable-cache stats are maintained), and use the
+"mod_page_state" infrastructure to do lockless per-CPU accounting. ie.
+break /proc/vmstats's "slabs_scanned" apart in meaningful pieces.
 
-Right now these is no way to control the size of a slab cache.  Part
-of the reason for the fragmentation I have seen is the massive
-changes in size of the caches due to the OS making wrong decisions
-about memory reclaim when small changes in the workload occur. We
-currently have no way to provide hints to help the OS make the right
-decision for a given workload....
-
-Cheers,
-
-Dave.
--- 
-Dave Chinner
-R&D Software Enginner
-SGI Australian Software Group
+IMO something along that line should be merged into mainline to walk
+away from the "what the fuck is going on" state of things.
+ 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
