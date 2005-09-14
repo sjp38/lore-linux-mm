@@ -1,62 +1,63 @@
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e6.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id j8E9veYn015760
-	for <linux-mm@kvack.org>; Wed, 14 Sep 2005 05:57:40 -0400
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay02.pok.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id j8E9vemZ086282
-	for <linux-mm@kvack.org>; Wed, 14 Sep 2005 05:57:40 -0400
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.12.11/8.13.3) with ESMTP id j8E9veJo030544
-	for <linux-mm@kvack.org>; Wed, 14 Sep 2005 05:57:40 -0400
-Date: Wed, 14 Sep 2005 15:22:07 +0530
-From: Dipankar Sarma <dipankar@in.ibm.com>
+Date: Wed, 14 Sep 2005 06:57:56 -0700
+From: "Martin J. Bligh" <mbligh@mbligh.org>
+Reply-To: "Martin J. Bligh" <mbligh@mbligh.org>
 Subject: Re: VM balancing issues on 2.6.13: dentry cache not getting shrunk enough
-Message-ID: <20050914095207.GA4833@in.ibm.com>
-Reply-To: dipankar@in.ibm.com
-References: <20050911105709.GA16369@thunk.org> <20050913084752.GC4474@in.ibm.com> <20050913215932.GA1654338@melbourne.sgi.com> <200509141101.16781.ak@suse.de> <4327EA6B.6090102@colorfullife.com> <20050914024313.1e70f2a3.akpm@osdl.org>
-Mime-Version: 1.0
+Message-ID: <313480000.1126706276@[10.10.2.4]>
+In-Reply-To: <200509141101.16781.ak@suse.de>
+References: <20050911105709.GA16369@thunk.org> <20050913084752.GC4474@in.ibm.com> <20050913215932.GA1654338@melbourne.sgi.com> <200509141101.16781.ak@suse.de>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <20050914024313.1e70f2a3.akpm@osdl.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: Manfred Spraul <manfred@colorfullife.com>, ak@suse.de, dgc@sgi.com, bharata@in.ibm.com, tytso@mit.edu, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andi Kleen <ak@suse.de>, David Chinner <dgc@sgi.com>
+Cc: Bharata B Rao <bharata@in.ibm.com>, Theodore Ts'o <tytso@mit.edu>, Dipankar Sarma <dipankar@in.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, manfred@colorfullife.com
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Sep 14, 2005 at 02:43:13AM -0700, Andrew Morton wrote:
-> Manfred Spraul <manfred@colorfullife.com> wrote:
-> >
-> > One tricky point are directory dentries: As far as I see, they are 
-> >  pinned and unfreeable if a (freeable) directory entry is in the cache.
-> >
-> I don't think it's been demonstrated that Ted's problem was caused by
-> internal fragementation, btw.  Ted, could you run slabtop, see what the
-> dcache occupancy is?  Monitor it as you start to manually apply pressure? 
-> If the occupancy falls to 10% and not many slab pages are freed up yet then
-> yup, it's internal fragmentation.
+>> > Second is Sonny Rao's rbtree dentry reclaim patch which is an attempt
+>> > to improve this dcache fragmentation problem.
+>> 
+>> FYI, in the past I've tried this patch to reduce dcache fragmentation on
+>> an Altix (16k pages, 62 dentries to a slab page) under heavy
+>> fileserver workloads and it had no measurable effect. It appeared
+>> that there was almost always at least one active dentry on each page
+>> in the slab.  The story may very well be different on 4k page
+>> machines, however.
 > 
-> I've found that internal fragmentation due to pinned directory dentries can
-> be very high if you're running silly benchmarks which create some
-> regular-shaped directory tree which can easily create pathological
-> patterns.  For real-world things with irregular creation and access
-> patterns and irregular directory sizes the fragmentation isn't as easy to
-> demonstrate.
+> I always thought dentry freeing would work much better if it
+> was turned upside down.
 > 
-> Another approach would be to do an aging round on a directory's children
-> when an unfreeable dentry is encountered on the LRU.  Something like that. 
-> If internal fragmentation is indeed the problem.
+> Instead of starting from the high level dcache lists it could
+> be driven by slab: on memory pressure slab tries to return pages with unused 
+> cache objects. In that case it should check if there are only
+> a small number of pinned objects on the page set left, and if 
+> yes use a new callback to the higher level user (=dcache) and ask them
+> to free the object.
+> 
+> The slab datastructures are not completely suited for this right now,
+> but it could be done by using one more of the list_heads in struct page
+> for slab backing pages.
+> 
+> It would probably not be very LRU but a simple hack of having slowly 
+> increasing dcache generations. Each dentry use updates the generation.
+> First slab memory freeing pass only frees objects with older generations.
 
-One other point to look at is whether fragmentation is due to pinned
-dentries or not. We can get that information only from dcache itself.
-That is what we need to acertain first using the instrumentation
-patch. Solving the problem of large # of pinned dentries and large # of LRU 
-free dentries will likely require different approaches. Even the
-LRU dentries are sometimes pinned due to the lazy-lru stuff that
-we did for lock-free dcache. Let us get some accurate dentry
-stats first from the instrumentation patch.
+If they're freeable, we should easily be able to move them, and therefore 
+compact a fragmented slab. That way we can preserve the LRU'ness of it.
+Stage 1: free the oldest entries. Stage 2: compact the slab into whole
+pages. Stage 3: free whole pages back to teh page allocator.
 
-Thanks
-Dipankar
+> Using slowly increasing generations has the advantage of timestamps
+> that you can avoid dirtying cache lines in the common case when 
+> the generation doesn't change on access (= no additional cache line bouncing)
+> and it would easily allow to tune the aging rate under stress by changing the 
+> length of the generation.
+
+LRU algorithm may need general tweaking like this anyway ... strict LRU
+is expensive to keep.
+
+M.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
