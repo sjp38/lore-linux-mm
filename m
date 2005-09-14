@@ -1,53 +1,57 @@
-Date: Wed, 14 Sep 2005 07:59:32 +1000
-From: David Chinner <dgc@sgi.com>
+From: Andi Kleen <ak@suse.de>
 Subject: Re: VM balancing issues on 2.6.13: dentry cache not getting shrunk enough
-Message-ID: <20050913215932.GA1654338@melbourne.sgi.com>
-References: <20050911105709.GA16369@thunk.org> <20050911120045.GA4477@in.ibm.com> <20050912031636.GB16758@thunk.org> <20050913084752.GC4474@in.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Date: Wed, 14 Sep 2005 11:01:15 +0200
+References: <20050911105709.GA16369@thunk.org> <20050913084752.GC4474@in.ibm.com> <20050913215932.GA1654338@melbourne.sgi.com>
+In-Reply-To: <20050913215932.GA1654338@melbourne.sgi.com>
+MIME-Version: 1.0
+Content-Type: text/plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <20050913084752.GC4474@in.ibm.com>
+Message-Id: <200509141101.16781.ak@suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Bharata B Rao <bharata@in.ibm.com>
-Cc: Theodore Ts'o <tytso@mit.edu>, Dipankar Sarma <dipankar@in.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: David Chinner <dgc@sgi.com>
+Cc: Bharata B Rao <bharata@in.ibm.com>, Theodore Ts'o <tytso@mit.edu>, Dipankar Sarma <dipankar@in.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, manfred@colorfullife.com
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Sep 13, 2005 at 02:17:52PM +0530, Bharata B Rao wrote:
-> 
-> Second is Sonny Rao's rbtree dentry reclaim patch which is an attempt
-> to improve this dcache fragmentation problem.
+On Tuesday 13 September 2005 23:59, David Chinner wrote:
+> On Tue, Sep 13, 2005 at 02:17:52PM +0530, Bharata B Rao wrote:
+> > Second is Sonny Rao's rbtree dentry reclaim patch which is an attempt
+> > to improve this dcache fragmentation problem.
+>
+> FYI, in the past I've tried this patch to reduce dcache fragmentation on
+> an Altix (16k pages, 62 dentries to a slab page) under heavy
+> fileserver workloads and it had no measurable effect. It appeared
+> that there was almost always at least one active dentry on each page
+> in the slab.  The story may very well be different on 4k page
+> machines, however.
 
-FYI, in the past I've tried this patch to reduce dcache fragmentation on
-an Altix (16k pages, 62 dentries to a slab page) under heavy
-fileserver workloads and it had no measurable effect. It appeared
-that there was almost always at least one active dentry on each page
-in the slab.  The story may very well be different on 4k page
-machines, however.
+I always thought dentry freeing would work much better if it
+was turned upside down.
 
-Typically, fragmentation was bad enough that reclaim removed ~90% of
-the working set of dentries to free about 1% of the memory in the
-dentry slab. We had to get down to freeing > 95% of the dentry cache
-before fragmentation started to reduce and the system stopped trying to
-reclaim the dcache which we then spent the next 10 minutes
-repopulating......
+Instead of starting from the high level dcache lists it could
+be driven by slab: on memory pressure slab tries to return pages with unused 
+cache objects. In that case it should check if there are only
+a small number of pinned objects on the page set left, and if 
+yes use a new callback to the higher level user (=dcache) and ask them
+to free the object.
 
-We also tried separating out directory dentries into a separate slab
-so that (potentially) longer lived dentries were clustered together
-rather than sparsely distributed around the slab cache.  Once again,
-it had no measurable effect on the level of fragmentation (with or
-without the rbtree patch).
+The slab datastructures are not completely suited for this right now,
+but it could be done by using one more of the list_heads in struct page
+for slab backing pages.
 
-FWIW, the inode cache was showing very similar levels of fragmentation
-under reclaim as well.
+It would probably not be very LRU but a simple hack of having slowly 
+increasing dcache generations. Each dentry use updates the generation.
+First slab memory freeing pass only frees objects with older generations.
 
-Cheers,
+Using slowly increasing generations has the advantage of timestamps
+that you can avoid dirtying cache lines in the common case when 
+the generation doesn't change on access (= no additional cache line bouncing)
+and it would easily allow to tune the aging rate under stress by changing the 
+length of the generation.
 
-Dave.
--- 
-Dave Chinner
-R&D Software Enginner
-SGI Australian Software Group
+-Andi
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
