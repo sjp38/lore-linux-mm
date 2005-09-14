@@ -1,63 +1,47 @@
-Date: Wed, 14 Sep 2005 02:35:29 -0700
+Date: Wed, 14 Sep 2005 02:43:13 -0700
 From: Andrew Morton <akpm@osdl.org>
 Subject: Re: VM balancing issues on 2.6.13: dentry cache not getting shrunk
  enough
-Message-Id: <20050914023529.4eabf014.akpm@osdl.org>
-In-Reply-To: <200509141101.16781.ak@suse.de>
+Message-Id: <20050914024313.1e70f2a3.akpm@osdl.org>
+In-Reply-To: <4327EA6B.6090102@colorfullife.com>
 References: <20050911105709.GA16369@thunk.org>
 	<20050913084752.GC4474@in.ibm.com>
 	<20050913215932.GA1654338@melbourne.sgi.com>
 	<200509141101.16781.ak@suse.de>
+	<4327EA6B.6090102@colorfullife.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <ak@suse.de>
-Cc: dgc@sgi.com, bharata@in.ibm.com, tytso@mit.edu, dipankar@in.ibm.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, manfred@colorfullife.com
+To: Manfred Spraul <manfred@colorfullife.com>
+Cc: ak@suse.de, dgc@sgi.com, bharata@in.ibm.com, tytso@mit.edu, dipankar@in.ibm.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Andi Kleen <ak@suse.de> wrote:
+Manfred Spraul <manfred@colorfullife.com> wrote:
 >
-> On Tuesday 13 September 2005 23:59, David Chinner wrote:
-> > On Tue, Sep 13, 2005 at 02:17:52PM +0530, Bharata B Rao wrote:
-> > > Second is Sonny Rao's rbtree dentry reclaim patch which is an attempt
-> > > to improve this dcache fragmentation problem.
-> >
-> > FYI, in the past I've tried this patch to reduce dcache fragmentation on
-> > an Altix (16k pages, 62 dentries to a slab page) under heavy
-> > fileserver workloads and it had no measurable effect. It appeared
-> > that there was almost always at least one active dentry on each page
-> > in the slab.  The story may very well be different on 4k page
-> > machines, however.
-> 
-> I always thought dentry freeing would work much better if it
-> was turned upside down.
-> 
-> Instead of starting from the high level dcache lists it could
-> be driven by slab: on memory pressure slab tries to return pages with unused 
-> cache objects. In that case it should check if there are only
-> a small number of pinned objects on the page set left, and if 
-> yes use a new callback to the higher level user (=dcache) and ask them
-> to free the object.
+> One tricky point are directory dentries: As far as I see, they are 
+>  pinned and unfreeable if a (freeable) directory entry is in the cache.
+>
 
-Considered doing that with buffer_heads a few years ago.  It's impossible
-unless you have a global lock, which bh's don't have.  dentries _do_ have a
-global lock, and we'd be tied to having it for ever more.
+Well.  That's the whole problem.
 
-The shrinking code would have be able to deal with a dentry which is going
-through destruction by other call paths, so dcache_lock coverage would have
-to be extended considerably - it would have to cover the kmem_cache_free(),
-for example.   Or we put some i_am_alive flag into the dentry.
+I don't think it's been demonstrated that Ted's problem was caused by
+internal fragementation, btw.  Ted, could you run slabtop, see what the
+dcache occupancy is?  Monitor it as you start to manually apply pressure? 
+If the occupancy falls to 10% and not many slab pages are freed up yet then
+yup, it's internal fragmentation.
 
-> The slab datastructures are not completely suited for this right now,
-> but it could be done by using one more of the list_heads in struct page
-> for slab backing pages.
+I've found that internal fragmentation due to pinned directory dentries can
+be very high if you're running silly benchmarks which create some
+regular-shaped directory tree which can easily create pathological
+patterns.  For real-world things with irregular creation and access
+patterns and irregular directory sizes the fragmentation isn't as easy to
+demonstrate.
 
-Yes, some help would be needed in the slab code.
-
-There's only one list_head in struct page and slab is already using it.
-
+Another approach would be to do an aging round on a directory's children
+when an unfreeable dentry is encountered on the LRU.  Something like that. 
+If internal fragmentation is indeed the problem.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
