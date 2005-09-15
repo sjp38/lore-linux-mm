@@ -1,62 +1,66 @@
-Date: Wed, 14 Sep 2005 20:08:43 -0300
-From: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
+Date: Thu, 15 Sep 2005 11:14:38 +1000
+From: David Chinner <dgc@sgi.com>
 Subject: Re: VM balancing issues on 2.6.13: dentry cache not getting shrunk enough
-Message-ID: <20050914230843.GA11748@dmt.cnet>
-References: <20050911105709.GA16369@thunk.org> <20050911120045.GA4477@in.ibm.com> <20050912031636.GB16758@thunk.org> <20050913084752.GC4474@in.ibm.com>
+Message-ID: <20050915011437.GF2265486@melbourne.sgi.com>
+References: <20050911105709.GA16369@thunk.org> <20050911120045.GA4477@in.ibm.com> <20050912031636.GB16758@thunk.org> <20050913084752.GC4474@in.ibm.com> <20050913215932.GA1654338@melbourne.sgi.com> <20050914154852.GB6172@kevlar.burdell.org> <20050914220222.GA2265486@melbourne.sgi.com> <20050914224040.GA16627@kevlar.burdell.org>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20050913084752.GC4474@in.ibm.com>
+In-Reply-To: <20050914224040.GA16627@kevlar.burdell.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Bharata B Rao <bharata@in.ibm.com>
-Cc: Theodore Ts'o <tytso@mit.edu>, Dipankar Sarma <dipankar@in.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Sonny Rao <sonny@burdell.org>
+Cc: Bharata B Rao <bharata@in.ibm.com>, Theodore Ts'o <tytso@mit.edu>, Dipankar Sarma <dipankar@in.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Sep 13, 2005 at 02:17:52PM +0530, Bharata B Rao wrote:
-> On Sun, Sep 11, 2005 at 11:16:36PM -0400, Theodore Ts'o wrote:
-> > On Sun, Sep 11, 2005 at 05:30:46PM +0530, Dipankar Sarma wrote:
-> > > Do you have the /proc/sys/fs/dentry-state output when such lowmem
-> > > shortage happens ?
-> > 
-> > Not yet, but the situation occurs on my laptop about 2 or 3 times
-> > (when I'm not travelling and so it doesn't get rebooted).  So
-> > reproducing it isn't utterly trivial, but it's does happen often
-> > enough that it should be possible to get the necessary data.
-> > 
-> > > This is a problem that Bharata has been investigating at the moment.
-> > > But he hasn't seen anything that can't be cured by a small memory
-> > > pressure - IOW, dentries do get freed under memory pressure. So
-> > > your case might be very useful. Bharata is maintaing an instrumentation
-> > > patch to collect more information and an alternative dentry aging patch 
-> > > (using rbtree). Perhaps you could try with those.
-> > 
-> > Send it to me, and I'd be happy to try either the instrumentation
-> > patch or the dentry aging patch.
-> > 
+On Wed, Sep 14, 2005 at 06:40:40PM -0400, Sonny Rao wrote:
+> On Thu, Sep 15, 2005 at 08:02:22AM +1000, David Chinner wrote:
+> > Right now our only solution to prevent fragmentation on reclaim is
+> > to throw more memory at the machine to prevent reclaim from
+> > happening as the workload changes.
 > 
-> Ted,
+> That is unfortunate, but interesting because I didn't know if this was
+> not a "real-problem" as some have contended.  I know SPEC SFS is a
+> somewhat questionable workload (really, what isn't though?), so the
+> evidence gathered from that didn't seem to convince many people.  
 > 
-> I am sending two patches here.
-> 
-> First is dentry_stats patch which collects some dcache statistics
-> and puts it into /proc/meminfo. This patch provides information 
-> about how dentries are distributed in dcache slab pages, how many
-> free and in use dentries are present in dentry_unused lru list and
-> how prune_dcache() performs with respect to freeing the requested
-> number of dentries.
+> What kind of (real) workload are you seeing this on?
 
-Bharata, 
+Nothing special. Here's an example from a local altix build
+server (8p, 12GiB RAM):
 
-Ideally one should move the "nr_requested/nr_freed" counters from your
-stats patch into "struct shrinker" (or somewhere else more appropriate
-in which per-shrinkable-cache stats are maintained), and use the
-"mod_page_state" infrastructure to do lockless per-CPU accounting. ie.
-break /proc/vmstats's "slabs_scanned" apart in meaningful pieces.
+linvfs_icache     3376574 3891360    672   24    1 : tunables   54   27    8 : slabdata 162140 162140      0
+dentry_cache      2632811 3007186    256   62    1 : tunables  120   60    8 : slabdata  48503  48503      0
 
-IMO something along that line should be merged into mainline to walk
-away from the "what the fuck is going on" state of things.
- 
+I just copied and untarred some stuff I need to look at (~2GiB
+data) and when that completed we now have:
+
+linvfs_icache     590840 2813328    672   24    1 : tunables   54   27    8 : slabdata 117222 117222
+dentry_cache      491984 2717708    256   62    1 : tunables  120   60    8 : slabdata  43834  43834
+
+A few minutes later, with ppl doing normal work (rsync, kernel and
+userspace package builds, tar, etc), a bit more had been reclaimed:
+
+linvfs_icache     580589 2797992    672   24    1 : tunables   54   27    8 : slabdata 116583 116583      0
+dentry_cache      412009 2418558    256   62    1 : tunables  120   60    8 : slabdata  39009  39009      0
+
+We started with ~2.9GiB of active slab objects in ~210k pages
+(3.3GiB RAM) in these two slabs. We've trimmed their active size
+down to ~500MiB, but we still have 155k pages (2.5GiB) allocated to
+the slabs. 
+
+I've seen much worse than this on build servers with more memory and
+larger filesystems, especially after the filesystems have been
+crawled by a backup program over night and we've ended up with > 10
+million objects in each of these caches. 
+
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+R&D Software Enginner
+SGI Australian Software Group
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
