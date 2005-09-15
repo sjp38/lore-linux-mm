@@ -1,66 +1,119 @@
-Date: Thu, 15 Sep 2005 11:14:38 +1000
-From: David Chinner <dgc@sgi.com>
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by e31.co.us.ibm.com (8.12.10/8.12.9) with ESMTP id j8F4SnC6180948
+	for <linux-mm@kvack.org>; Thu, 15 Sep 2005 00:28:49 -0400
+Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
+	by d03relay04.boulder.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id j8F4TGQZ501086
+	for <linux-mm@kvack.org>; Wed, 14 Sep 2005 22:29:16 -0600
+Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av01.boulder.ibm.com (8.12.11/8.13.3) with ESMTP id j8F4Sncw000734
+	for <linux-mm@kvack.org>; Wed, 14 Sep 2005 22:28:49 -0600
+Date: Thu, 15 Sep 2005 09:58:38 +0530
+From: Bharata B Rao <bharata@in.ibm.com>
 Subject: Re: VM balancing issues on 2.6.13: dentry cache not getting shrunk enough
-Message-ID: <20050915011437.GF2265486@melbourne.sgi.com>
-References: <20050911105709.GA16369@thunk.org> <20050911120045.GA4477@in.ibm.com> <20050912031636.GB16758@thunk.org> <20050913084752.GC4474@in.ibm.com> <20050913215932.GA1654338@melbourne.sgi.com> <20050914154852.GB6172@kevlar.burdell.org> <20050914220222.GA2265486@melbourne.sgi.com> <20050914224040.GA16627@kevlar.burdell.org>
+Message-ID: <20050915042838.GB3869@in.ibm.com>
+Reply-To: bharata@in.ibm.com
+References: <20050911105709.GA16369@thunk.org> <20050911120045.GA4477@in.ibm.com> <20050912031636.GB16758@thunk.org> <20050913084752.GC4474@in.ibm.com> <20050914213404.GC9808@dmt.cnet>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20050914224040.GA16627@kevlar.burdell.org>
+In-Reply-To: <20050914213404.GC9808@dmt.cnet>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Sonny Rao <sonny@burdell.org>
-Cc: Bharata B Rao <bharata@in.ibm.com>, Theodore Ts'o <tytso@mit.edu>, Dipankar Sarma <dipankar@in.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
+Cc: Theodore Ts'o <tytso@mit.edu>, Dipankar Sarma <dipankar@in.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Sep 14, 2005 at 06:40:40PM -0400, Sonny Rao wrote:
-> On Thu, Sep 15, 2005 at 08:02:22AM +1000, David Chinner wrote:
-> > Right now our only solution to prevent fragmentation on reclaim is
-> > to throw more memory at the machine to prevent reclaim from
-> > happening as the workload changes.
+On Wed, Sep 14, 2005 at 06:34:04PM -0300, Marcelo Tosatti wrote:
+> On Tue, Sep 13, 2005 at 02:17:52PM +0530, Bharata B Rao wrote:
+> > On Sun, Sep 11, 2005 at 11:16:36PM -0400, Theodore Ts'o wrote:
+> > > On Sun, Sep 11, 2005 at 05:30:46PM +0530, Dipankar Sarma wrote:
+> > > > Do you have the /proc/sys/fs/dentry-state output when such lowmem
+> > > > shortage happens ?
+> > > 
+> > > Not yet, but the situation occurs on my laptop about 2 or 3 times
+> > > (when I'm not travelling and so it doesn't get rebooted).  So
+> > > reproducing it isn't utterly trivial, but it's does happen often
+> > > enough that it should be possible to get the necessary data.
+> > > 
+> > > > This is a problem that Bharata has been investigating at the moment.
+> > > > But he hasn't seen anything that can't be cured by a small memory
+> > > > pressure - IOW, dentries do get freed under memory pressure. So
+> > > > your case might be very useful. Bharata is maintaing an instrumentation
+> > > > patch to collect more information and an alternative dentry aging patch 
+> > > > (using rbtree). Perhaps you could try with those.
+> > > 
+> > > Send it to me, and I'd be happy to try either the instrumentation
+> > > patch or the dentry aging patch.
+> > > 
+> > 
+> > Ted,
+> > 
+> > I am sending two patches here.
+> > 
+> > First is dentry_stats patch which collects some dcache statistics
+> > and puts it into /proc/meminfo. This patch provides information 
+> > about how dentries are distributed in dcache slab pages, how many
+> > free and in use dentries are present in dentry_unused lru list and
+> > how prune_dcache() performs with respect to freeing the requested
+> > number of dentries.
 > 
-> That is unfortunate, but interesting because I didn't know if this was
-> not a "real-problem" as some have contended.  I know SPEC SFS is a
-> somewhat questionable workload (really, what isn't though?), so the
-> evidence gathered from that didn't seem to convince many people.  
+> Hi Bharata,
 > 
-> What kind of (real) workload are you seeing this on?
+> +void get_dstat_info(void)
+> +{
+> +       struct dentry *dentry;
+> +
+> +       lru_dentry_stat.nr_total = lru_dentry_stat.nr_inuse = 0;
+> +       lru_dentry_stat.nr_ref = lru_dentry_stat.nr_free = 0;
+> +
+> +       spin_lock(&dcache_lock);
+> +       list_for_each_entry(dentry, &dentry_unused, d_lru) {
+> +               if (atomic_read(&dentry->d_count))
+> +                       lru_dentry_stat.nr_inuse++;
+> 
+> Dentries on dentry_unused list with d_count positive? Is that possible 
+> at all? As far as my limited understanding goes, only dentries with zero 
+> count can be part of the dentry_unused list.
 
-Nothing special. Here's an example from a local altix build
-server (8p, 12GiB RAM):
+As Dipankar mentioned, its now possible to have positive d_count dentires
+on unused_list. BTW I think we need a better way to get this data than
+going through the entire unused_list linearly, which might not be 
+scalable with huge number of dentries.
 
-linvfs_icache     3376574 3891360    672   24    1 : tunables   54   27    8 : slabdata 162140 162140      0
-dentry_cache      2632811 3007186    256   62    1 : tunables  120   60    8 : slabdata  48503  48503      0
+> 
+> +               if (dentry->d_flags & DCACHE_REFERENCED)
+> +                       lru_dentry_stat.nr_ref++;
+> +       }
+> 
+> 
+> @@ -393,6 +430,9 @@ static inline void prune_one_dentry(stru
+> 
+>  static void prune_dcache(int count)
+>  {
+> +       int nr_requested = count;
+> +       int nr_freed = 0;
+> +
+>         spin_lock(&dcache_lock);
+>         for (; count ; count--) {
+>                 struct dentry *dentry;
+> @@ -427,8 +467,13 @@ static void prune_dcache(int count)
+>                         continue;
+>                 }
+>                 prune_one_dentry(dentry);
+> +               nr_freed++;
+>         }
+>         spin_unlock(&dcache_lock);
+> +       spin_lock(&prune_dcache_lock);
+> +       lru_dentry_stat.dprune_req = nr_requested;
+> +       lru_dentry_stat.dprune_freed = nr_freed;
+> 
+> Don't you mean "+=" ? 
 
-I just copied and untarred some stuff I need to look at (~2GiB
-data) and when that completed we now have:
+No. Actually here I am capturing the number of dentries freed
+per invocation of prune_dcache.
 
-linvfs_icache     590840 2813328    672   24    1 : tunables   54   27    8 : slabdata 117222 117222
-dentry_cache      491984 2717708    256   62    1 : tunables  120   60    8 : slabdata  43834  43834
-
-A few minutes later, with ppl doing normal work (rsync, kernel and
-userspace package builds, tar, etc), a bit more had been reclaimed:
-
-linvfs_icache     580589 2797992    672   24    1 : tunables   54   27    8 : slabdata 116583 116583      0
-dentry_cache      412009 2418558    256   62    1 : tunables  120   60    8 : slabdata  39009  39009      0
-
-We started with ~2.9GiB of active slab objects in ~210k pages
-(3.3GiB RAM) in these two slabs. We've trimmed their active size
-down to ~500MiB, but we still have 155k pages (2.5GiB) allocated to
-the slabs. 
-
-I've seen much worse than this on build servers with more memory and
-larger filesystems, especially after the filesystems have been
-crawled by a backup program over night and we've ended up with > 10
-million objects in each of these caches. 
-
-Cheers,
-
-Dave.
--- 
-Dave Chinner
-R&D Software Enginner
-SGI Australian Software Group
+Regards,
+Bharata.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
