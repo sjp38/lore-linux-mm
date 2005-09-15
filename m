@@ -1,52 +1,122 @@
-Received: from westrelay02.boulder.ibm.com (westrelay02.boulder.ibm.com [9.17.195.11])
-	by e32.co.us.ibm.com (8.12.10/8.12.9) with ESMTP id j8FGgMwP196028
-	for <linux-mm@kvack.org>; Thu, 15 Sep 2005 12:42:24 -0400
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by e33.co.us.ibm.com (8.12.10/8.12.9) with ESMTP id j8FGhd6c334700
+	for <linux-mm@kvack.org>; Thu, 15 Sep 2005 12:43:42 -0400
 Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by westrelay02.boulder.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id j8FGgKab532702
-	for <linux-mm@kvack.org>; Thu, 15 Sep 2005 10:42:20 -0600
+	by d03relay04.boulder.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id j8FGgmEX291084
+	for <linux-mm@kvack.org>; Thu, 15 Sep 2005 10:42:48 -0600
 Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.12.11/8.13.3) with ESMTP id j8FGgJlw030615
-	for <linux-mm@kvack.org>; Thu, 15 Sep 2005 10:42:19 -0600
-Subject: [PATCH 1/2] fix mm/Kconfig spelling
+	by d03av02.boulder.ibm.com (8.12.11/8.13.3) with ESMTP id j8FGgK77030661
+	for <linux-mm@kvack.org>; Thu, 15 Sep 2005 10:42:20 -0600
+Subject: [PATCH 2/2] memory hotplug: make more things static
 From: Dave Hansen <haveblue@us.ibm.com>
-Date: Thu, 15 Sep 2005 09:42:18 -0700
-Message-Id: <20050915164218.AD02EDC0@kernel.beaverton.ibm.com>
+Date: Thu, 15 Sep 2005 09:42:19 -0700
+References: <20050915164218.AD02EDC0@kernel.beaverton.ibm.com>
+In-Reply-To: <20050915164218.AD02EDC0@kernel.beaverton.ibm.com>
+Message-Id: <20050915164219.324FF3C1@kernel.beaverton.ibm.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@osdl.org
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Dave Hansen <haveblue@us.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-I might let this slide in a comment, but it's in a top-level
-Kconfig option.
+This is a result of reviewing all of the memory hotplug
+functions for what can be made static with findstatic.pl.
 
 Signed-off-by: Dave Hansen <haveblue@us.ibm.com>
 ---
 
- memhotplug-dave/mm/Kconfig |    4 ++--
- 1 files changed, 2 insertions(+), 2 deletions(-)
+ memhotplug-dave/drivers/base/memory.c |   20 ++++++++++----------
+ memhotplug-dave/mm/memory_hotplug.c   |    2 +-
+ 2 files changed, 11 insertions(+), 11 deletions(-)
 
-diff -puN mm/Kconfig~A1-icantspell mm/Kconfig
---- memhotplug/mm/Kconfig~A1-icantspell	2005-09-14 09:32:36.000000000 -0700
-+++ memhotplug-dave/mm/Kconfig	2005-09-14 09:32:36.000000000 -0700
-@@ -29,7 +29,7 @@ config FLATMEM_MANUAL
- 	  If unsure, choose this option (Flat Memory) over any other.
+diff -puN drivers/base/memory.c~A2-memory-hotplug-make-things-static drivers/base/memory.c
+--- memhotplug/drivers/base/memory.c~A2-memory-hotplug-make-things-static	2005-09-15 09:41:38.000000000 -0700
++++ memhotplug-dave/drivers/base/memory.c	2005-09-15 09:41:38.000000000 -0700
+@@ -25,7 +25,7 @@
  
- config DISCONTIGMEM_MANUAL
--	bool "Discontigious Memory"
-+	bool "Discontiguous Memory"
- 	depends on ARCH_DISCONTIGMEM_ENABLE
- 	help
- 	  This option provides enhanced support for discontiguous
-@@ -52,7 +52,7 @@ config SPARSEMEM_MANUAL
- 	  memory hotplug systems.  This is normal.
+ #define MEMORY_CLASS_NAME	"memory"
  
- 	  For many other systems, this will be an alternative to
--	  "Discontigious Memory".  This option provides some potential
-+	  "Discontiguous Memory".  This option provides some potential
- 	  performance benefits, along with decreased code complexity,
- 	  but it is newer, and more experimental.
+-struct sysdev_class memory_sysdev_class = {
++static struct sysdev_class memory_sysdev_class = {
+ 	set_kset_name(MEMORY_CLASS_NAME),
+ };
+ EXPORT_SYMBOL(memory_sysdev_class);
+@@ -50,12 +50,12 @@ static struct kset_hotplug_ops memory_ho
  
+ static struct notifier_block *memory_chain;
+ 
+-int register_memory_notifier(struct notifier_block *nb)
++static int register_memory_notifier(struct notifier_block *nb)
+ {
+         return notifier_chain_register(&memory_chain, nb);
+ }
+ 
+-void unregister_memory_notifier(struct notifier_block *nb)
++static void unregister_memory_notifier(struct notifier_block *nb)
+ {
+         notifier_chain_unregister(&memory_chain, nb);
+ }
+@@ -63,7 +63,7 @@ void unregister_memory_notifier(struct n
+ /*
+  * register_memory - Setup a sysfs device for a memory block
+  */
+-int
++static int
+ register_memory(struct memory_block *memory, struct mem_section *section,
+ 		struct node *root)
+ {
+@@ -82,7 +82,7 @@ register_memory(struct memory_block *mem
+ 	return error;
+ }
+ 
+-void
++static void
+ unregister_memory(struct memory_block *memory, struct mem_section *section,
+ 		struct node *root)
+ {
+@@ -270,9 +270,9 @@ static ssize_t show_phys_device(struct s
+ 	return sprintf(buf, "%d\n", mem->phys_device);
+ }
+ 
+-SYSDEV_ATTR(phys_index, 0444, show_mem_phys_index, NULL);
+-SYSDEV_ATTR(state, 0644, show_mem_state, store_mem_state);
+-SYSDEV_ATTR(phys_device, 0444, show_phys_device, NULL);
++static SYSDEV_ATTR(phys_index, 0444, show_mem_phys_index, NULL);
++static SYSDEV_ATTR(state, 0644, show_mem_state, store_mem_state);
++static SYSDEV_ATTR(phys_device, 0444, show_phys_device, NULL);
+ 
+ #define mem_create_simple_file(mem, attr_name)	\
+ 	sysdev_create_file(&mem->sysdev, &attr_##attr_name)
+@@ -337,7 +337,7 @@ static int memory_probe_init(void)
+  * section belongs to...
+  */
+ 
+-int add_memory_block(unsigned long node_id, struct mem_section *section,
++static int add_memory_block(unsigned long node_id, struct mem_section *section,
+ 		     unsigned long state, int phys_device)
+ {
+ 	size_t size = sizeof(struct memory_block);
+@@ -373,7 +373,7 @@ int add_memory_block(unsigned long node_
+  *
+  * This could be made generic for all sysdev classes.
+  */
+-struct memory_block *find_memory_block(struct mem_section *section)
++static struct memory_block *find_memory_block(struct mem_section *section)
+ {
+ 	struct kobject *kobj;
+ 	struct sys_device *sysdev;
+diff -puN mm/memory_hotplug.c~A2-memory-hotplug-make-things-static mm/memory_hotplug.c
+--- memhotplug/mm/memory_hotplug.c~A2-memory-hotplug-make-things-static	2005-09-15 09:41:38.000000000 -0700
++++ memhotplug-dave/mm/memory_hotplug.c	2005-09-15 09:41:38.000000000 -0700
+@@ -40,7 +40,7 @@ static void __add_zone(struct zone *zone
+ 
+ extern int sparse_add_one_section(struct zone *zone, unsigned long start_pfn,
+ 				  struct page *mem_map);
+-int __add_section(struct zone *zone, unsigned long phys_start_pfn)
++static int __add_section(struct zone *zone, unsigned long phys_start_pfn)
+ {
+ 	struct pglist_data *pgdat = zone->zone_pgdat;
+ 	int nr_pages = PAGES_PER_SECTION;
 _
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
