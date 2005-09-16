@@ -1,68 +1,78 @@
-From: ADRIAN KAMBIDA <adriankambida1@easyinfomail.co.za>
-Subject: Request For Join Venture Business
-Reply-To: ADRIAN KAMBIDA <adriankambida1@easyinfomail.co.za>
-mime-version: 1.0
-content-type: multipart/mixed;
-	boundary="qzsoft_directmail_seperator"
-Message-Id: <20050915225132Z26586-957+4266@kvack.org>
-Date: Thu, 15 Sep 2005 18:51:29 -0400
+Date: Fri, 16 Sep 2005 10:48:35 +0900
+From: Yasunori Goto <y-goto@jp.fujitsu.com>
+Subject: Fix interface for memory hotplug in 2.6.13-mm3
+Message-Id: <20050916101541.D1B1.Y-GOTO@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm <linux-mm@kvack.org>
+To: Andrew Morton <akpm@osdl.org>
+Cc: Dave Hansen <haveblue@us.ibm.com>, Linux Kernel ML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
---qzsoft_directmail_seperator
-Content-Type: text/plain;
-	charset="DEFAULT"
-Content-Transfer-Encoding: base64
+Hi Andrew-san.
 
-RlJPTTogQURSSUFOIEtBTUJJREEgClRFTDogMjctODMtNDcyLTk2ODUgCkZBWDogMjctMTEtNTA3
-LTYzOTYgCgoKQVRUTkVOVElPTjogCiAgICAgICAgICAgICAgICAgICAgICAgICAgICBHUkVFVElO
-R1MgCgpJIGtub3cgeW91IHdpbGwgYmUgc3VycHJpc2UgdG8gcmVjZWl2ZSB0aGlzIGxldHRlci4g
-SSBhbSAKTVIuQURSSUFOIEtBTUJJREE7IHRoZSBvbmx5IHNvbiBvZiB0aGUgR2VuZXJhbCBET05B
-TEQgCktBTUJJREEgd2hvIHdhcyBraWxsZWQgZHVyaW5nIGEgYmxvb2R5IHNob290IG91dCBjbGFp
-bWVkIAp0aGUgbGl2ZXMgb2YgMjQgQ29scyBhbmQgR2VuZXJhbHMgaW5jbHVkaW5nIHRoZSBsaWZl
-IG9mIHRoZSAKbGF0ZSBKT05BUyBTQVZJTUJJIG9mIHJlcHVibGljIG9mIEFOR09MQS4gCgpJIGdv
-dCB5b3VyIGNvbnRhY3QgdGhyb3VnaCB0aGUgU291dGggQWZyaWNhbiBpbmZvcm1hdGlvbiBvZiAK
-RXhjaGFuZ2UgKFMuQS5JLkUpIHJlZ2FyZGluZyB5b3VyIHRydXN0IHdvcnRoeSwgYXMgc3VjaDsg
-SSAKZGVjaWRlZCB0byBhc2sgZm9yIHlvdXIgYXNzaXN0YW5jZSB0byB0cmFuc2ZlciBzb21lIG1v
-bmV5IApPdXQgb2YgU291dGggQWZyaWNhIGludG8geW91ciBwZXJzb25hbCBvciBjb21wYW55IGFj
-Y291bnQuIAoKQmVmb3JlIG15IGZhdGhlcidzIGRlYXRoLCBoZSB3YXMgdGhlIEdlbmVyYWwgaW4g
-Y2hhcmdlIG9mIApBcm1zIGFuZCBBbW11bml0aW9uIHB1cmNoYXNlIGZvciB0aGUgUmVwdWJsaWMg
-b2YgQW5nb2xhIApBcm1zIEZvcmNlcy4gQW5kIGluIGhpcyB3aWxsIGhlIHNwZWNpZmljYWxseSBk
-cmV3IG15IAphdHRlbnRpb24gdG8gdGhlIHN1bSBvZiBVUyQzNS43IE1JTExJT04gVW5pdGVkIFN0
-YXRlIApEb2xsYXJzKSB3aGljaCBkZXBvc2l0ZWQgaW4gYSBwcml2YXRlIFNlY3VyaXR5IGFuZCBm
-aW5hbmNlIApjb21wYW55IGluIFNvdXRoIEFmcmljYS4gCgpJTiBGQUNUIE1ZIEZBVEhFUiBTQUlE
-IElOIEhJUyAiV0lMTCJBTkQgSSBRVU9URS4gTVkgQkVMT1ZFRCAKU09OLCBJIFdJU0ggVE8gRFJB
-VyBZT1VSIEFUVEVOVElPTiBUTyBUSEUgU1VNIE9GIFVTJDM1LjcgCk1JTElPTiwgV0hJQ0ggSSBE
-RVBPU0lURUQgSU4gUFJJVkFURSBTRUNVUklUWSBBTkQgRklOQU5DRSAKQ09NUEFOWSBJTiBTT1VU
-SCBBRlJJQ0EgKEpPSEFOTkVTQlVSRykgTElGRSBCRUlORyAKVU5QUkVESUNUQUJMRSBFU1BFQ0lB
-TExZIElOIFRIRSBNSUxMSVRBUlkuIElOQ0FTRSBPRiAKQU5ZVEhJTkcgVE9NTU9SUk9XIERPIFRB
-S0UgQ0FSRSBPRiBZT1VSIE1PVEhFUiBBTkQgWU9VUiAKU0lTVEVSUyBBTkQgTUFLRSBTVVJFIFRI
-RVkgRE8gTk9UIExBQ0sgQU5ZVEhJTkcuIAoKRnJvbSB0aGUgYWJvdmUsIHlvdSB3aWxsIHVuZGVy
-c3RhbmQgdGhhdCB0aGUgbGl2ZXMgYW5kIHRoZSAKZnV0dXJlIG9mIG15IEZhbWlseSBkZXBlbmQg
-b24gdGhpcyBtb25leSwgYXMgc3VjaCB3ZSB3aWxsIApiZSB2ZXJ5IGdyYXRlZnVsIGlmIHlvdSBj
-YW4gYXNzaXN0IHVzLiBXZSBhcmUgbm93IGxlYXZpbmcgCmluIFNvdXRoIEFmcmljYSBhcyBwb2xp
-dGljYWwgYXN5bHVtIFNlZWtlcnMgYW5kIGZpbmFuY2lhbCAKbGF3IG9mIHJlcHVibGljIG9mIFNv
-dXRoIEFmcmljYSBkbyBub3QgYWxsb3cgQXN5bHVtIHNlZWtlcnMgCmNlcnRhaW4gZmluYW5jaWFs
-IHJpZ2h0IHRvIHN1Y2ggaHVnZSBhbW91bnQgb2YgbW9uZXkuIEluIAp2aWV3IG9mIHRoaXMsIEkg
-Y2Fubm90IGludmVzdCB0aGlzIG1vbmV5IGluIFNvdXRoIEFmcmljYSwgCmhlbmNlIG15IGFza2lu
-ZyB5b3UgdG8gYXNzaXN0IG1lIHRvIHRyYW5zZmVyIHRoaXMgbW9uZXkgb3V0IApvZiBTb3V0aCBB
-ZnJpY2EgdG8geW91ciBvd24gcGVyc29uYWwgb3IgQ29tcGFueSBhY2NvdW50IApvdmVyc2VhcyBm
-b3IgaW52ZXN0bWVudCBwdXJwb3Nlcy4gCgpGb3IgeW91ciBlZmZvcnQgbXkgZmFtaWx5IGlzIHdp
-bGxpbmcgdG8gb2ZmZXIgeW91IDIwJSBvZiAKdGhlIHRvdGFsIE1vbmV5LCB3aGlsZSA1JSB3aWxs
-IGJlIHB1dCBhc2lkZSBmb3IgbG9jYWwgYW5kIAppbnRlcm5hdGlvbmFsIGV4cGVuc2VzIEluY3Vy
-cmVkIGR1cmluZyB0aGUgdHJhbnNhY3Rpb24gYW5kIAp0aGUgYmFsYW5jZSBJIGludGVuZCB0byBp
-bnZlc3QgaW4gYSBQcm9maXRhYmxlIHZlbnR1cmUgaW4gCnlvdXIgY291bnRyeSBvciBlbHNlIHdo
-ZXJlIHlvdSBtYXkgYWR2aWNlLiBQbGVhc2UgTm90ZSB0aGF0IAp0aGlzIHRyYW5zYWN0aW9uIGlz
-IDEwMCUgcmlzayBmcmVlLCB0aGUgbWFqb3IgdGhpbmcgSSAKcmVxdWlyZSBmcm9tIHlvdSBpcyBh
-YnNvbHV0ZSBBU1NVUkFOQ0UgdGhhdCB0aGUgbW9uZXkgd2lsbCAKYmUgc2FmZSB3aGVuIHRyYW5z
-ZmVycmVkIHRvIHlvdXIgYWNjb3VudCAKCkZpbmFsbHksIG1vZGFsaXRpZXMgb24gaG93IHRvIHRy
-YW5zZmVyIHRoaXMgbW9uZXkgd2lsbCBiZSAKZGlzY3Vzc2VkIE9uY2UgYSBnZW51aW5lIGludGVy
-ZXN0IGZyb20geW91IGlzIHNob3duLiAKClRoYW5rcyBhbmQgR29kIEJsZXNzIFlvdSwgCgpCZXN0
-IFJlZ2FyZHMuIAoKTVIuIEFEUklBTiBLQU1CSURBLiAKCg==
+I found old unsuitable interfaces for memory hotplug in 2.6.13-mm3.
 
---qzsoft_directmail_seperator--
+The third argument of sparse_add_one_section() was changed from mem_map
+to nr_pages. And the third argument of add/remove_memory() was removed.
+However, both still remain at a few place.
+
+Could you apply this patch?
+
+Thanks.
+
+Signed-off-by: Yasunori Goto <y-goto@jp.fujitsu.com>
+
+Index: linux-2.6.13-mm3/mm/memory_hotplug.c
+===================================================================
+--- linux-2.6.13-mm3.orig/mm/memory_hotplug.c	2005-09-15 19:51:36.000000000 +0900
++++ linux-2.6.13-mm3/mm/memory_hotplug.c	2005-09-15 20:19:00.000000000 +0900
+@@ -39,15 +39,14 @@ static void __add_zone(struct zone *zone
+ }
+ 
+ extern int sparse_add_one_section(struct zone *zone, unsigned long start_pfn,
+-				  struct page *mem_map);
++				  int nr_pages);
+ int __add_section(struct zone *zone, unsigned long phys_start_pfn)
+ {
+ 	struct pglist_data *pgdat = zone->zone_pgdat;
+ 	int nr_pages = PAGES_PER_SECTION;
+-	struct page *memmap;
+ 	int ret;
+ 
+-	ret = sparse_add_one_section(zone, phys_start_pfn, memmap);
++	ret = sparse_add_one_section(zone, phys_start_pfn, nr_pages);
+ 
+ 	if (ret < 0)
+ 		return ret;
+Index: linux-2.6.13-mm3/drivers/acpi/acpi_memhotplug.c
+===================================================================
+--- linux-2.6.13-mm3.orig/drivers/acpi/acpi_memhotplug.c	2005-09-15 19:51:31.000000000 +0900
++++ linux-2.6.13-mm3/drivers/acpi/acpi_memhotplug.c	2005-09-15 20:21:21.000000000 +0900
+@@ -200,8 +200,7 @@ static int acpi_memory_enable_device(str
+ 	 * Note: Assume that this function returns zero on success
+ 	 */
+ 	result = add_memory(mem_device->start_addr,
+-			    (mem_device->end_addr - mem_device->start_addr) + 1,
+-			    mem_device->read_write_attribute);
++			    (mem_device->end_addr - mem_device->start_addr) + 1);
+ 	if (result) {
+ 		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "\nadd_memory failed\n"));
+ 		mem_device->state = MEMORY_INVALID_STATE;
+@@ -259,7 +258,7 @@ static int acpi_memory_disable_device(st
+ 	 * Ask the VM to offline this memory range.
+ 	 * Note: Assume that this function returns zero on success
+ 	 */
+-	result = remove_memory(start, len, attr);
++	result = remove_memory(start, len);
+ 	if (result) {
+ 		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "Hot-Remove failed.\n"));
+ 		return_VALUE(result);
+
+-- 
+Yasunori Goto 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
