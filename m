@@ -1,62 +1,101 @@
-Message-ID: <6a6f01c5bc07$23ae0fd0$9ff8078e@lllyuyu03jghj>
-Reply-To: "CONVERSAO - VHS- SLIDE - DVD" <lllyuyu03jghj@yahoo.com.br>
-From: "CONVERSAO - VHS- SLIDE - DVD" <lllyuyu03jghj@yahoo.com.br>
-Subject: CONVERSAO - VHS - SLIDE - DVD - BACKUPS DE k7 E LPs
-Date: Sun, 18 Sep 2005 04:12:09 -0100
+Message-ID: <GCDNFOJCLDFEJGKMBHNHHLNPBDAA.s.kendrickjl@roedlusa.com>
+From: "Malinda S. Kendrick" <s.kendrickjl@roedlusa.com>
+Subject: Sage Stock Watch
+Date: Sun, 18 Sep 2005 06:29:56 +0000
 MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="us-ascii"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain
+Content-Transfer-Encoding: base64
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: BACKUPS k7 E LPs <linux-mm@kvack.org>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
- COPIAS - CONVERSAO - BACKUPS
-
- Para falar conosco nao clique em responder no seu programa de e-mail,
-acesse o nosso site:
- http://www.internet2005.adm.br/dvd/index.html 
- 
- 1 - Conheca os servicos de copias, conversao ou backups de CD, VHS, DVD,
-Minidv, fita 8 mm, Super 8, 16 mm, fita cassete e LPs (vinil), prestados
-pela nossa empresa, com a finalidade de preservar, o conteudo de matrizes
-produzidas e fornecidas por voce, como por exemplo, apresentacao de sua
-empresa, festa de casamento, de aniversario, viagens. Edicao, Legendagem e
-Digitalizacao.  
-  
- - CD
- - VCD
- - SVCD
- - DVD
- - VHS para DVD
- - VHS para VHS
- - DVD para VHS
- - Minidv para DVD
- - Fita 8 mm para DVD
- - Super 8 para DVD
- - 16 mm para DVD
- - Slide para DVD
- - LPs antigos para CD ( backups )
- - Cassetes antigos para CD ( backups )
- - Edicao
- - Legenda
- - Digitalizacao
- - Impressao e criacao de etiquetas e capas
- - Impressao de imagens na superficie de seu CD ou DVD  
-
- 2 - Voce sabia que:
-
- CDs / DVDs / Discos de Vinil riscam, VHS / Cassetes sao atacados por
-fungos, ou podem ser danificados por manuseio incorreto..;
-
- 3 - Nos lhes asseguramos confidencialidade e rapidez.
-
- Conheca mais detalhes acessando o nosso site >>>
- http://www.internet2005.adm.br/dvd/index.html
-
- Tel. (11) 5579-2815
-
+KyBNWE9OKioqTVhPTioqKipNWE9OKioqKk1YT04qKioqTVhPTioqKipNWE9O
+ICsNCg0KKysrKysrKysrKytDdXJyZW50IFByb2ZpbGUrKysrKysrKysrKysr
+DQoNCk1BWFhPTiBJTkMuIChPVEM6TVhPTikNClN5bWJvbDogTVhPTi4gUEsN
+Cg0KQ3VycmVudCBQcmljZTogJDAuMDIgDQoyLTMgRGF5IFRhcmdldDokMC4w
+OA0KKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrDQoN
+CldlIGFyZSBwdXR0aW5nIGludmVzdG9ycyBvbiBISUdIIEFMRVJULCBwdXQg
+DQp5b3VyIHNpZ2h0cyBvbiBNWE9OLi5UcmFkaW5nIGF0IHVuZGVyIGEgbmlj
+a2VsIA0KdGhlIGdhaW5zIGNvdWxkIGJlIEh1Z2UhDQoNCiogQWN0IFZlcnkg
+UXVpY2sgKg0KDQpUaGlzIHN0b2NrIGlzIHBvaXNlZCBmb3IgYSBIVUdFIEJS
+RUFLIE9VVCwgYmVjYXVzZSANCm9mIHRoZSBsb3cgcHJpY2UsIGFuZCByZWNl
+bnQgbmV3cy4gTVhPTiBjb3VsZCBiZSANCm9uZSBvZiB0aGUgMSwwMDBfJV9n
+YWluZXJzIHdlIGFyZSBhbGwgdGFsa2luZyBhYm91dCANCmxhdGVyIHRoaXMg
+eWVhci4NCg0KVW5saWtlIGludmVzdGluZyBpbiBpbnRlcm5ldCBzdDBja3Mg
+aW4gdGhlIDkwknMsDQpmaW5kaW5nIGEgc3RvY2sgdG9kYXkgd2l0aCB0aGUg
+cG90ZW50aWFsIHRvIHJldHVybg0KMTAwMCUgb3IgYmV0dGVyIGlzIGxpa2Ug
+ZmluZGluZyBhIG5lZWRsZSBpbiBhDQpoYXlzdGFjaywgdW5sZXNzIHRoZSBo
+YXlzdGFjayBpcyBhbHNvIGtub3duIGFzIHRoZQ0KbW9yZSB0aGVuICQyVHJp
+bGxpMG4sIGluIG1hcmtldCB2YWx1ZSBIZWFsdGggQ2FyZQ0KSW5kdXN0cnkg
+YW5kIHRoYW5rcyB0byBNYXh4b26ScyA6KCBNWE9OKSBkaXNwb3NhYmxlDQpy
+ZXRyYWN0YWJsZSBzeXJpbmdlIGFuZCBzYWZldHkgc2NhbHBlbCBkZXZpY2Us
+IHdoaWNoDQp1c2VzIHByb3ByaWV0YXJ5IHBhdGVudGVkIHRlY2hub2xvZ3kg
+aW4gd2hpY2ggYSANCnZhY3V1bSBjYXVzZXMgdGhlIG5lZWRsZSB0byByZXRy
+YWN0IGFuZCBsb2NrIGluIHBsYWNlIA0KaW50byB0aGUgYmFycmVsIG9mIHRo
+ZSBzeXJpbmdlIG9yIGRldmljZSBhZnRlciBhbiANCmluamVjdGlvbiBpcyBh
+ZG1pbmlzdGVyZWQgb3IgYmxvb2QgaXMgZHJhd24sIHlvdSANCm5lZWQgbm90
+IGZlYXIgYmVpbmcgc3RhYmJlZCBhbmQgDQppbmZlY3RlZCBieSB0aGUgbmVl
+ZGxlLg0KDQpMZXSScyBnZXQgdG8gdGhlIHBvaW50LCB0aGlzIHRlY2hub2xv
+Z3kgaXMgYmVpbmcNCm1hbmRhdGVkLiBPU0hBIGVzdGltYXRlcyB0aGF0IDgg
+bWlsbGlvbiB3b3JrZXJzIGluIHRoZQ0KaGVhbHRoIGNhcmUgaW5kdXN0cnkg
+YW5kIHJlbGF0ZWQgb2NjdXBhdGlvbnMgYXJlIGF0DQpyaXNrIG9mIG9jY3Vw
+YXRpb25hbCBleHBvc3VyZSB0byBibG9vZCBib3JuIHBhdGhvZ2VucywNCmlu
+Y2x1ZGluZyBISVYsIEhlcGF0aXRpcyAoQ2FycmllZCBieSBhdCBsZWFzdCA0
+DQptaWxsaW9uIEFtZXJpY2FucykgYW5kIG90aGVycy4gSW4gZmFjdCwgYSB0
+eXBpY2FsDQpuZWVkbGUgY2FuIGhhcmJvciBtb3JlIHRoYW4gMjAgZGlzZWFz
+ZXMuIFRoZSBOYXRpb25hbA0KSW5zdGl0dXRlIGZvciBPY2N1cGF0aW9uYWwg
+U2FmZXR5ICYgSGVhbHRoIChOSU9TSCkNCmVzdGltYXRlcyB0aGF0IDYwMCww
+MDAgdG8gODAwLDAwMCBuZWVkbGUgc3RpY2sNCmluanVyaWVzIG9jY3VyIGFu
+bnVhbGx5IGluIHRoZSBob3NwaXRhbCBzZXR0aW5nIHdpdGgNCm51cnNpbmcg
+c3RhZmYgYmVpbmcgdGhlIG1vc3QgZnJlcXVlbnRseSBpbmp1cmVkLA0KcmVz
+dWx0aW5nIGluIHRob3VzYW5kcyBvZiBVLlMuIGhlYWx0aGNhcmUgd29ya2Vy
+cw0KYmVjb21pbmcgaW5mZWN0ZWQgYmVjYXVzZSBvZiB0aGVzZSBzaGFycHMg
+aW5qdXJpZXMNCmV2ZXJ5IHllYXIuIEl0IG1heSBldmVuIGJlIHdvcnNlIHRo
+ZW4gdGhhdCwgYWNjb3JkaW5nDQp0byBDZW50ZXJzIGZvciBEaXNlYXNlIENv
+bnRyb2wgKENEQykgZGF0YSwgdGhlIG51bWJlcg0Kb2YgbmVlZGxlIHN0aWNr
+IGFuZCBvdGhlciBwZXJjdXRhbmVvdXMgaW5qdXJpZXMgYW1vbmcNCmhlYWx0
+aGNhcmUgd29ya2VycyBpcyBncm93aW5nIGV2ZXJ5IHllYXIuICBBYm91dCBo
+YWxmDQpvZiB0aGVzZSBpbmp1cmllcyBhcmUgdW5yZXBvcnRlZC4gIEF0IGFu
+IGF2ZXJhZ2UNCmhvc3BpdGFsLCB3b3JrZXJzIGluY3VyIGFwcHJveGltYXRl
+bHkgMzAgbmVlZGxlIHN0aWNrDQppbmp1cmllcyBwZXIgMTAwIGJlZHMgcGVy
+IHllYXIuICBJbiBvbmUgc3R1ZHksIG5lZWRsZQ0Kc3RpY2sgaW5qdXJpZXMg
+d2VyZSByZWR1Y2VkIGFueXdoZXJlIGZyb20gMjMlIHRvIDc2JQ0KYnkgdXNp
+bmcgc2FmZXIgbmVlZGxlcy4NCg0KVGhlIHNhZmV0eSBuZWVkbGVzIGFuZCBz
+eXJpbmdlcyBtYXJrZXQgcmVwcmVzZW50cyBhDQpsYXJnZSBhbmQgZ3Jvd2lu
+ZyBzZWdtZW50IG9mIHRoZSBoZWFsdGhjYXJlIGluZHVzdHJ5Lg0KSW4gMTk5
+OSwgdG90YWwgc2FsZXMgb2YgbmVlZGxlcyBhbmQgc3lyaW5nZXMgaW4gdGhl
+DQpVLlMuIHJlYWNoZWQgYSByZWNvcmQgaGlnaCBvZiAkNzU5IG1pbGxpb24u
+IFRoaXMNCmZpZ3VyZSBpcyBleHBlY3RlZCB0byBpbmNyZWFzZSB0byAkMS4w
+NSBiaWxsaW9uIGJ5DQoyMDA2LiBSYXBpZCBhY2NlcHRhbmNlIG9mIGl0cyBT
+YWZldHktZW5naW5lZXJlZCBtZWRpY2FsDQpkZXZpY2VzIChTRU1EcykgYW5k
+IEZEQSA1MTBLIEFwcGxpY2F0aW9uIGFzIHdlbGwgYXMNCmFwcHJvdmFsIG9m
+IEZvcmVpZ24gTGljZW5zZXMgbGF0ZXIgdGhpcyB5ZWFyIHdpbGwgbWVhbg0K
+c3RvY2sgcHJpY2UgbGlmdCBvZmYuDQoNCk1YT04gd2lsbCB0YWtlIHRoZSBo
+ZWFsdGhjYXJlIHNhZmV0eSBkZXZpY2UgaW5kdXN0cnkNCmJ5IHN0b3JtLCBv
+bmNlIHRoZSBwcm9kdWN0IGlzIGJlaW5nIG1hbnVmYWN0dXJlZCBvbiBhDQps
+YXJnZSBzY2FsZSAsIGFuZCBmYXN0IHRyYWNrIGFwcHJvdmVkLCB1IGNvdWxk
+IGJlDQpzZWVpbmcgdGhpcyBwcm9kdWN0IHRoZSBuZXh0IHRpbWUgeW91IGdv
+IHRvIHRoZQ0KZG9jdG9ycyBvZmZpY2UsIGFuZCB3aGVuIHUgbGVhdmUgdSB3
+aWxsIGtub3cgdGhlDQpkZXZpY2Ugd2lsbCBuZXZlciBzdGljayBhbnlvbmUg
+ZWxzZS4gVHJhZGUgdGhlIGNoYXJ0cw0Kb24gdGhpcyBvbmUsIGVhc3kgMjAw
+LTMwMCUgZ2FpbnMsIG9uIHRoZSBjaGFydCBhbG9uZS4NCg0KX19fX19fX19f
+X19fX19fX19fX19fX19fX19fX19fX19fXw0KRDFzY2w0aW1lcjoNCm5ldG5l
+d3Mgc2VuZHMgb3V0IHB1YmxpYyBhbm5vdW5jZW1lbnRzIHByb3ZpZGluZw0K
+aW5mb3JtYXRpb24gb24gc2VsZWN0ZWQgY29tcGFuaWVzLiBuZXRuZXdzIGlz
+IG4wdF9hDQotcjNnMXN0ZXJlZCAxbnZlc3RtZW50IGFkdmlzMHIgb3IgYnJv
+a2VyLWRlYWxlci4gVGhpcw0KcmVwb3J0IGlzIHByb3ZpZGVkIGFzIGFuIGlu
+Zm9ybWF0aW9uIHNlcnZpY2Ugb25seSBhbmQNCnRoZSBzdGF0ZW1lbnRzIGFu
+ZCBvcGluaW9ucyBpbiB0aGlzIHJlcG9ydCBzaG91bGQgbm90DQpiZSBjb25z
+dHJ1ZWQgYXMgYW4gb2ZmZXIgb3IgczBsaWNpdGF0aW9uIHRvIGJ1eSBvcg0K
+c2VsbCBhbnkgc2VjdXJpdHkuIG5ldG5ld3MgYWNjZXB0cyBubyBsaWFiaWxp
+dHkgZm9yDQphbnkgbG9zcyBhcmlzaW5nIGZyb20gYW4gaW52ZXN0b3IncyBy
+ZWxpYW5jZSBvbiBvciB1c2UNCm9mIHRoaXMgYW5ub3VuY2VtZW50LiBBbiBp
+bnZlc3RtZW50IGlzIGNvbnNpZGVyZWQgdG8NCmJlIGhpZ2hseSBzcGVjdWxh
+dGl2ZSBhbmQgc2hvdWxkIG5vdCBiZSBjb25zaWRlcmVkDQp1bmxlc3MgYSBw
+ZXJzb24gY2FuIGFmZm9yZCBhIGNvbXBsZXRlIGwwc3Mgb2YNCmludmVzdG1l
+bnQuIG9uZXRuZXdzIGhhcyBiZWVuIGNvbXBlbnNhdGVkIHRocjNlDQp0aDB1
+czRuZF90d2VudHlfZDBsbDRycyBmb3IgdGhpcyByZXBvcnQu
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
