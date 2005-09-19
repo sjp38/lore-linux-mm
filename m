@@ -1,60 +1,28 @@
-Date: Mon, 19 Sep 2005 11:22:04 -0700 (PDT)
-From: Christoph Lameter <clameter@engr.sgi.com>
-Subject: Re: [PATCH] Only process_die notifier in ia64_do_page_fault if
- KPROBES is configured.
-In-Reply-To: <20050830111830.GI26314@parcelfarce.linux.theplanet.co.uk>
-Message-ID: <Pine.LNX.4.62.0509191119020.25963@schroedinger.engr.sgi.com>
-References: <200508262246.j7QMkEoT013490@linux.jf.intel.com>
- <Pine.LNX.4.62.0508261559450.17433@schroedinger.engr.sgi.com>
- <200508270224.26423.ak@suse.de> <20050830001905.GA18279@linux.jf.intel.com>
- <20050830111830.GI26314@parcelfarce.linux.theplanet.co.uk>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Mon, 19 Sep 2005 14:46:40 -0400
+From: Benjamin LaHaise <bcrl@kvack.org>
+Subject: [bcrl@kvack.org: new spam filtering]
+Message-ID: <20050919184640.GB30919@kvack.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Matthew Wilcox <matthew@wil.cx>
-Cc: Rusty Lynch <rusty@linux.intel.com>, Andi Kleen <ak@suse.de>, Rusty Lynch <rusty.lynch@intel.com>, linux-mm@kvack.org, prasanna@in.ibm.com, linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org, anil.s.keshavamurthy@intel.com
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 30 Aug 2005, Matthew Wilcox wrote:
+Hello all,
 
-> On Mon, Aug 29, 2005 at 05:19:05PM -0700, Rusty Lynch wrote:
-> > So, assuming inlining the notifier_call_chain would address Christoph's
-> > conserns, is the following patch something like what you are sugesting?  
-> > This would make all the kdebug.h::notify_die() calls use the inline version. 
-> 
-> I think we need something more like this ...
-> 
-> include/linux/notifier.h:
-> +static inline int notifier_call_chain(struct notifier_block **n,
-> +					unsigned long val, void *v)
-> +{
-> +	if (n)
-> +		return __notifier_call_chain(n, val, v);
-> +	return NOTIFY_DONE;
-> +}
-> kernel/sys.c:
-> -int notifier_call_chain(struct notifier_block **n, unsigned long val, void *v)
-> +int __notifier_call_chain(struct notifier_block **n, unsigned long val, void *v)
-> -EXPORT_SYMBOL(notifier_call_chain);
-> +EXPORT_SYMBOL(__notifier_call_chain);
-> 
-> That way everyone gets both the quick test and the global size reduction.
+As a result of the increase in spam lately, I've implemented a new set 
+of spam filters for the mailing lists.  This may result in postings 
+getting delayed if they look like spam, but that hasn't been an issue 
+for most of the past few thousand messages.  Also, a new mail server 
+will be put in place soon, which will result in the lists being moved to 
+@lists.kvack.org, so some procmail recipies will need to get updated.  
+Cheers,
 
-And then do
-
-#ifndef CONFIG_KPROBES
-
-#define ia64die_chain 0
-
-#endif
-
-in include/asm-ia64/kdebug.h?
-
-Otherwise we still check a notifier chain that cannot ever be 
-activated.
-
-But then the patch is essentially the same as the last one I proposed.
+		-ben
+-- 
+"Time is what keeps everything from happening all at once." -- John Wheeler
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
