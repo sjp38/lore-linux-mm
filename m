@@ -1,5 +1,5 @@
-Message-ID: <432F9DFC.9000702@ccoss.com.cn>
-Date: Tue, 20 Sep 2005 13:28:28 +0800
+Message-ID: <432FA5AF.2040309@ccoss.com.cn>
+Date: Tue, 20 Sep 2005 14:01:19 +0800
 From: liyu <liyu@ccoss.com.cn>
 MIME-Version: 1.0
 Subject: Re: [Question] How to understand Clock-Pro algorithm?
@@ -10,22 +10,25 @@ Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Song Jiang <sjiang@lanl.gov>
-Cc: LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
+Cc: Linux-MM <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
 Hi, All.
-   
-    In my words, pages in memory is either resident or non-resident.
-In linux internal, mapped or unmapped.
-   
-    So number of non-resident pages is alway less than total number
-of pages in memory.
 
-    Is your pages physics pages? or, it is Logical pages?   However,
-I think both is same here.
+
+ >   So number of non-resident pages is alway less than total number
+ >of pages in memory.
+	
+     More clearly. I think this condition can not be satisfied forever. 
+beacause
+of number of non-residnent pages can not more than total number of memory
+pages.
+
+    But, I think there must have one or more errors in my words. But 
+where's bug?
 
     Waitting for your answer.
-   
+
     Thanks.
 
 
@@ -73,6 +76,13 @@ Song Jiang Wrote:
 >
 >  
 >
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
