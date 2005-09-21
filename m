@@ -1,53 +1,45 @@
-Date: Wed, 21 Sep 2005 12:10:36 -0700
-From: Andrew Morton <akpm@osdl.org>
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e3.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id j8LJZIct002915
+	for <linux-mm@kvack.org>; Wed, 21 Sep 2005 15:35:18 -0400
+Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
+	by d01relay04.pok.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id j8LJZI5x097676
+	for <linux-mm@kvack.org>; Wed, 21 Sep 2005 15:35:18 -0400
+Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
+	by d01av01.pok.ibm.com (8.12.11/8.13.3) with ESMTP id j8LJZIqU008417
+	for <linux-mm@kvack.org>; Wed, 21 Sep 2005 15:35:18 -0400
 Subject: Re: [PATCH 1/4] hugetlbfs: move free_inodes accounting
-Message-Id: <20050921121036.416bdbfb.akpm@osdl.org>
+From: Dave Hansen <haveblue@us.ibm.com>
 In-Reply-To: <20050921092156.GA22544@lst.de>
 References: <20050921092156.GA22544@lst.de>
+Content-Type: text/plain
+Date: Wed, 21 Sep 2005 12:34:57 -0700
+Message-Id: <1127331297.10664.6.camel@localhost>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Christoph Hellwig <hch@lst.de>
-Cc: viro@ftp.linux.org.uk, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, William Lee Irwin III <wli@holomorphy.com>
+Cc: Andrew Morton <akpm@osdl.org>, viro@ftp.linux.org.uk, linux-fsdevel@vger.kernel.org, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Christoph Hellwig <hch@lst.de> wrote:
->
-> +static inline int hugetlbfs_inc_free_inodes(struct hugetlbfs_sb_info *sbinfo)
->  +{
->  +	if (sbinfo->free_inodes >= 0) {
->  +		spin_lock(&sbinfo->stat_lock);
->  +		if (unlikely(!sbinfo->free_inodes)) {
->  +			spin_unlock(&sbinfo->stat_lock);
->  +			return 0;
->  +		}
->  +		sbinfo->free_inodes--;
->  +		spin_unlock(&sbinfo->stat_lock);
->  +	}
->  +
->  +	return 1;
->  +}
->  +
->  +static void hugetlbfs_dec_free_inodes(struct hugetlbfs_sb_info *sbinfo)
->  +{
->  +	if (sbinfo->free_inodes >= 0) {
->  +		spin_lock(&sbinfo->stat_lock);
->  +		sbinfo->free_inodes++;
->  +		spin_unlock(&sbinfo->stat_lock);
->  +	}
->  +}
->  +
+On Wed, 2005-09-21 at 11:21 +0200, Christoph Hellwig wrote:
+> +static inline int hugetlbfs_inc_free_inodes(struct hugetlbfs_sb_info
+> *sbinfo)
+> +{
+> +       if (sbinfo->free_inodes >= 0) {
+> +               spin_lock(&sbinfo->stat_lock);
+> +               if (unlikely(!sbinfo->free_inodes)) {
+> +                       spin_unlock(&sbinfo->stat_lock);
+> +                       return 0;
+> +               }
+> +               sbinfo->free_inodes--;
+> +               spin_unlock(&sbinfo->stat_lock);
+> +       }
 
+Does that really need the unlikely()?  Doesn't seem horribly performance
+critical.  
 
-These functions seem to be called from the right places, but the naming is
-most confusing.
-
-The test for the current value of sbinfo->free_inodes in
-hugetlbfs_dec_free_inodes() looks racy and the logic simply escapes me. 
-Does anyone remember why we have special-case handling in there for
-(sbinfo->free_inodes < 0)?
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
