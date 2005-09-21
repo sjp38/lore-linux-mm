@@ -1,7 +1,7 @@
-Date: Wed, 21 Sep 2005 11:25:15 +0200
+Date: Wed, 21 Sep 2005 11:26:44 +0200
 From: Christoph Hellwig <hch@lst.de>
-Subject: [PATCH 3/4] kill hugelbfs_do_delete_inode
-Message-ID: <20050921092515.GC22544@lst.de>
+Subject: [PATCH 4/4] cleanup hugelbfs_forget_inode
+Message-ID: <20050921092644.GD22544@lst.de>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
@@ -11,67 +11,70 @@ To: akpm@osdl.org, viro@ftp.linux.org.uk
 Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-hugetlbfs_do_delete_inode is the same as generic_delete_inode now, so
-remove it in favour of the latter.
+Reformat hugelbfs_forget_inode and add the missing but harmless
+write_inode_now call.  It looks the same as generic_forget_inode now
+except for the call to truncate_hugepages instead of
+truncate_inode_pages.
 
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 
 Index: linux-2.6/fs/hugetlbfs/inode.c
 ===================================================================
---- linux-2.6.orig/fs/hugetlbfs/inode.c	2005-09-19 12:53:32.000000000 +0200
-+++ linux-2.6/fs/hugetlbfs/inode.c	2005-09-19 12:54:28.000000000 +0200
-@@ -229,42 +229,6 @@
- 	clear_inode(inode);
- }
+--- linux-2.6.orig/fs/hugetlbfs/inode.c	2005-09-21 00:01:50.000000000 +0200
++++ linux-2.6/fs/hugetlbfs/inode.c	2005-09-21 11:09:23.000000000 +0200
+@@ -231,25 +231,28 @@
  
--static void hugetlbfs_do_delete_inode(struct inode *inode)
--{
--	struct super_operations *op = inode->i_sb->s_op;
--
--	list_del_init(&inode->i_list);
--	list_del_init(&inode->i_sb_list);
--	inode->i_state |= I_FREEING;
--	inodes_stat.nr_inodes--;
--	spin_unlock(&inode_lock);
--
--	security_inode_delete(inode);
--
--	if (op->delete_inode) {
--		void (*delete)(struct inode *) = op->delete_inode;
--		if (!is_bad_inode(inode))
--			DQUOT_INIT(inode);
--		/* Filesystems implementing their own
--		 * s_op->delete_inode are required to call
--		 * truncate_inode_pages and clear_inode()
--		 * internally
--		 */
--		delete(inode);
--	} else {
--		truncate_inode_pages(&inode->i_data, 0);
--		clear_inode(inode);
--	}
--
--	spin_lock(&inode_lock);
--	hlist_del_init(&inode->i_hash);
--	spin_unlock(&inode_lock);
--	wake_up_inode(inode);
--	if (inode->i_state != I_CLEAR)
--		BUG();
--	destroy_inode(inode);
--}
--
  static void hugetlbfs_forget_inode(struct inode *inode)
  {
- 	struct super_block *super_block = inode->i_sb;
-@@ -301,7 +265,7 @@
- static void hugetlbfs_drop_inode(struct inode *inode)
- {
- 	if (!inode->i_nlink)
--		hugetlbfs_do_delete_inode(inode);
-+		generic_delete_inode(inode);
- 	else
- 		hugetlbfs_forget_inode(inode);
+-	struct super_block *super_block = inode->i_sb;
++	struct super_block *sb = inode->i_sb;
+ 
+-	if (hlist_unhashed(&inode->i_hash))
+-		goto out_truncate;
+-
+-	if (!(inode->i_state & (I_DIRTY|I_LOCK))) {
+-		list_del(&inode->i_list);
+-		list_add(&inode->i_list, &inode_unused);
+-	}
+-	inodes_stat.nr_unused++;
+-	if (!super_block || (super_block->s_flags & MS_ACTIVE)) {
++	if (!hlist_unhashed(&inode->i_hash)) {
++		if (!(inode->i_state & (I_DIRTY|I_LOCK)))
++			list_move(&inode->i_list, &inode_unused);
++		inodes_stat.nr_unused++;
++		if (!sb || (sb->s_flags & MS_ACTIVE)) {
++			spin_unlock(&inode_lock);
++			return;
++		}
++		inode->i_state |= I_WILL_FREE;
+ 		spin_unlock(&inode_lock);
+-		return;
++		/*
++		 * write_inode_now is a noop as we set BDI_CAP_NO_WRITEBACK
++		 * in our backing_dev_info.
++		 */
++		write_inode_now(inode, 1);
++		spin_lock(&inode_lock);
++		inode->i_state &= ~I_WILL_FREE;
++		inodes_stat.nr_unused--;
++		hlist_del_init(&inode->i_hash);
+ 	}
+-
+-	/* write_inode_now() ? */
+-	inodes_stat.nr_unused--;
+-	hlist_del_init(&inode->i_hash);
+-out_truncate:
+ 	list_del_init(&inode->i_list);
+ 	list_del_init(&inode->i_sb_list);
+ 	inode->i_state |= I_FREEING;
+@@ -257,7 +260,6 @@
+ 	spin_unlock(&inode_lock);
+ 	if (inode->i_data.nrpages)
+ 		truncate_hugepages(&inode->i_data, 0);
+-
+ 	clear_inode(inode);
+ 	destroy_inode(inode);
  }
 
 --
