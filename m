@@ -1,134 +1,168 @@
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by e6.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id j8KHNEAK019509
-	for <linux-mm@kvack.org>; Tue, 20 Sep 2005 13:23:14 -0400
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay04.pok.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id j8KHNDwa086556
-	for <linux-mm@kvack.org>; Tue, 20 Sep 2005 13:23:14 -0400
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.12.11/8.13.3) with ESMTP id j8KHNDEp013130
-	for <linux-mm@kvack.org>; Tue, 20 Sep 2005 13:23:13 -0400
-Subject: [RFC][PATCH 4/4] unify both copies of build_zonelists()
-From: Dave Hansen <haveblue@us.ibm.com>
-Date: Tue, 20 Sep 2005 10:23:12 -0700
-References: <20050920172303.8CD9190C@kernel.beaverton.ibm.com>
-In-Reply-To: <20050920172303.8CD9190C@kernel.beaverton.ibm.com>
-Message-Id: <20050920172312.24651DBA@kernel.beaverton.ibm.com>
+Date: Wed, 21 Sep 2005 11:21:56 +0200
+From: Christoph Hellwig <hch@lst.de>
+Subject: [PATCH 1/4] hugetlbfs: move free_inodes accounting
+Message-ID: <20050921092156.GA22544@lst.de>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, Dave Hansen <haveblue@us.ibm.com>
+To: akpm@osdl.org, viro@ftp.linux.org.uk
+Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Once the last three patches are applied, find_next_best_node()
-has three properties which make its behavior identical to the
-way that the !NUMA build_zonelists() functions.
+Move hugetlbfs accounting into ->alloc_inode / ->destroy_inode.  This
+keeps the code simpler, fixes a loeak where a failing inode allocation
+wouldn't decrement the counter and moves hugetlbfs_delete_inode and
+hugetlbfs_forget_inode closer to their generic counterparts.
 
-First, this code from build_zonelists():
 
-	j = 0;
-	k = zone_index_to_type(i);
-	j = build_zonelists_node(pgdat, zonelist, j, k);
-	
-makes sure that the node for which we're building a zonelist is
-first in that zone's list.  That is functionally equivalent to
-this code in find_next_best_node():
+Signed-off-by: Christoph Hellwig <hch@lst.de>
 
-	/* Use the local node if we haven't already */
-	if (!node_isset(node, *used_node_mask)) {
-		best_node = node;
-		break;
-	}
-
-Next, the !NUMA build_zonelists() starts at the local node,
-and searches all larger-numbered nodes, then searches all
-nodes from 0 back up to the local node:
-
-        for (node = local_node + 1; node < MAX_NUMNODES; node++) {
-                if (!node_online(node))
-          	     	continue;
-        	j = build_zonelists_node(NODE_DATA(node), zonelist, j, k);
-        }
-        for (node = 0; node < local_node; node++) {
-                if (!node_online(node))
-                	continue;
-                j = build_zonelists_node(NODE_DATA(node), zonelist, j, k);
-        }
-
-Instead of doing this explicitly, find_next_best_node()
-uses a modulo but, again, the behavior is the same:
-
-        /* Start from local node */
-        n = (node+i) % num_online_nodes();
-
-Lastly, "val" will be equivalent for each find_next_best_node() loop
-iteration because:
-1. node_distance() always return the same value (except when
-   node == n, but that never happens because of the local node
-   check above)
-2. The 'if (!cpus_empty(tmp))' check will never succeed because
-   the cpumask for !NUMA is cpu_online_map, which is never empty.
-3. (MAX_NODE_LOAD*MAX_NUMNODES) == 1
-4. get_node_load() == 0
-
-Signed-off-by: Dave Hansen <haveblue@us.ibm.com>
----
-
- memhotplug-dave/mm/page_alloc.c |   41 ----------------------------------------
- 1 files changed, 41 deletions(-)
-
-diff -puN mm/page_alloc.c~B1.3-build_zonelists_unification mm/page_alloc.c
---- memhotplug/mm/page_alloc.c~B1.3-build_zonelists_unification	2005-09-14 09:32:39.000000000 -0700
-+++ memhotplug-dave/mm/page_alloc.c	2005-09-14 09:32:39.000000000 -0700
-@@ -1577,47 +1577,6 @@ static void __init build_zonelists(pg_da
+Index: linux-2.6/fs/hugetlbfs/inode.c
+===================================================================
+--- linux-2.6.orig/fs/hugetlbfs/inode.c	2005-09-18 13:47:32.000000000 +0200
++++ linux-2.6/fs/hugetlbfs/inode.c	2005-09-19 12:41:37.000000000 +0200
+@@ -224,8 +224,6 @@
+ 
+ static void hugetlbfs_delete_inode(struct inode *inode)
+ {
+-	struct hugetlbfs_sb_info *sbinfo = HUGETLBFS_SB(inode->i_sb);
+-
+ 	hlist_del_init(&inode->i_hash);
+ 	list_del_init(&inode->i_list);
+ 	list_del_init(&inode->i_sb_list);
+@@ -238,12 +236,6 @@
+ 
+ 	security_inode_delete(inode);
+ 
+-	if (sbinfo->free_inodes >= 0) {
+-		spin_lock(&sbinfo->stat_lock);
+-		sbinfo->free_inodes++;
+-		spin_unlock(&sbinfo->stat_lock);
+-	}
+-
+ 	clear_inode(inode);
+ 	destroy_inode(inode);
+ }
+@@ -251,7 +243,6 @@
+ static void hugetlbfs_forget_inode(struct inode *inode)
+ {
+ 	struct super_block *super_block = inode->i_sb;
+-	struct hugetlbfs_sb_info *sbinfo = HUGETLBFS_SB(super_block);
+ 
+ 	if (hlist_unhashed(&inode->i_hash))
+ 		goto out_truncate;
+@@ -278,12 +269,6 @@
+ 	if (inode->i_data.nrpages)
+ 		truncate_hugepages(&inode->i_data, 0);
+ 
+-	if (sbinfo->free_inodes >= 0) {
+-		spin_lock(&sbinfo->stat_lock);
+-		sbinfo->free_inodes++;
+-		spin_unlock(&sbinfo->stat_lock);
+-	}
+-
+ 	clear_inode(inode);
+ 	destroy_inode(inode);
+ }
+@@ -379,17 +364,6 @@
+ 					gid_t gid, int mode, dev_t dev)
+ {
+ 	struct inode *inode;
+-	struct hugetlbfs_sb_info *sbinfo = HUGETLBFS_SB(sb);
+-
+-	if (sbinfo->free_inodes >= 0) {
+-		spin_lock(&sbinfo->stat_lock);
+-		if (!sbinfo->free_inodes) {
+-			spin_unlock(&sbinfo->stat_lock);
+-			return NULL;
+-		}
+-		sbinfo->free_inodes--;
+-		spin_unlock(&sbinfo->stat_lock);
+-	}
+ 
+ 	inode = new_inode(sb);
+ 	if (inode) {
+@@ -531,29 +505,51 @@
  	}
  }
  
--#else	/* CONFIG_NUMA */
--
--static void __init build_zonelists(pg_data_t *pgdat)
++static inline int hugetlbfs_inc_free_inodes(struct hugetlbfs_sb_info *sbinfo)
++{
++	if (sbinfo->free_inodes >= 0) {
++		spin_lock(&sbinfo->stat_lock);
++		if (unlikely(!sbinfo->free_inodes)) {
++			spin_unlock(&sbinfo->stat_lock);
++			return 0;
++		}
++		sbinfo->free_inodes--;
++		spin_unlock(&sbinfo->stat_lock);
++	}
++
++	return 1;
++}
++
++static void hugetlbfs_dec_free_inodes(struct hugetlbfs_sb_info *sbinfo)
++{
++	if (sbinfo->free_inodes >= 0) {
++		spin_lock(&sbinfo->stat_lock);
++		sbinfo->free_inodes++;
++		spin_unlock(&sbinfo->stat_lock);
++	}
++}
++
++
+ static kmem_cache_t *hugetlbfs_inode_cachep;
+ 
+ static struct inode *hugetlbfs_alloc_inode(struct super_block *sb)
+ {
++	struct hugetlbfs_sb_info *sbinfo = HUGETLBFS_SB(sb);
+ 	struct hugetlbfs_inode_info *p;
+ 
++	if (unlikely(!hugetlbfs_inc_free_inodes(sbinfo)))
++		return NULL;
+ 	p = kmem_cache_alloc(hugetlbfs_inode_cachep, SLAB_KERNEL);
+-	if (!p)
++	if (unlikely(!p)) {
++		hugetlbfs_dec_free_inodes(sbinfo);
+ 		return NULL;
++	}
+ 	return &p->vfs_inode;
+ }
+ 
+-static void init_once(void *foo, kmem_cache_t *cachep, unsigned long flags)
 -{
--	int i, j, k, node, local_node;
+-	struct hugetlbfs_inode_info *ei = (struct hugetlbfs_inode_info *)foo;
 -
--	local_node = pgdat->node_id;
--	for (i = 0; i < GFP_ZONETYPES; i++) {
--		struct zonelist *zonelist;
--
--		zonelist = pgdat->node_zonelists + i;
--
--		j = 0;
--		k = zone_index_to_type(i);
--
-- 		j = build_zonelists_node(pgdat, zonelist, j, k);
-- 		/*
-- 		 * Now we build the zonelist so that it contains the zones
-- 		 * of all the other nodes.
-- 		 * We don't want to pressure a particular node, so when
-- 		 * building the zones for node N, we make sure that the
-- 		 * zones coming right after the local ones are those from
-- 		 * node N+1 (modulo N)
-- 		 */
--		for (node = local_node + 1; node < MAX_NUMNODES; node++) {
--			if (!node_online(node))
--				continue;
--			j = build_zonelists_node(NODE_DATA(node), zonelist, j, k);
--		}
--		for (node = 0; node < local_node; node++) {
--			if (!node_online(node))
--				continue;
--			j = build_zonelists_node(NODE_DATA(node), zonelist, j, k);
--		}
--
--		zonelist->zones[j] = NULL;
--	}
+-	if ((flags & (SLAB_CTOR_VERIFY|SLAB_CTOR_CONSTRUCTOR)) ==
+-	    SLAB_CTOR_CONSTRUCTOR)
+-		inode_init_once(&ei->vfs_inode);
 -}
 -
--#endif	/* CONFIG_NUMA */
--
- void __init build_all_zonelists(void)
+ static void hugetlbfs_destroy_inode(struct inode *inode)
  {
- 	int i;
-diff -L b.txt -puN /dev/null /dev/null
-_
++	hugetlbfs_dec_free_inodes(HUGETLBFS_SB(inode->i_sb));
+ 	mpol_free_shared_policy(&HUGETLBFS_I(inode)->policy);
+ 	kmem_cache_free(hugetlbfs_inode_cachep, HUGETLBFS_I(inode));
+ }
+@@ -565,6 +561,16 @@
+ 	.set_page_dirty	= hugetlbfs_set_page_dirty,
+ };
+ 
++
++static void init_once(void *foo, kmem_cache_t *cachep, unsigned long flags)
++{
++	struct hugetlbfs_inode_info *ei = (struct hugetlbfs_inode_info *)foo;
++
++	if ((flags & (SLAB_CTOR_VERIFY|SLAB_CTOR_CONSTRUCTOR)) ==
++	    SLAB_CTOR_CONSTRUCTOR)
++		inode_init_once(&ei->vfs_inode);
++}
++
+ struct file_operations hugetlbfs_file_operations = {
+ 	.mmap			= hugetlbfs_file_mmap,
+ 	.fsync			= simple_sync_file,
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
