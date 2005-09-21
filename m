@@ -1,7 +1,7 @@
-Date: Wed, 21 Sep 2005 11:21:56 +0200
+Date: Wed, 21 Sep 2005 11:24:23 +0200
 From: Christoph Hellwig <hch@lst.de>
-Subject: [PATCH 1/4] hugetlbfs: move free_inodes accounting
-Message-ID: <20050921092156.GA22544@lst.de>
+Subject: [PATCH 2/4] hugetlbfs: clean up hugetlbfs_delete_inode
+Message-ID: <20050921092423.GB22544@lst.de>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
@@ -11,158 +11,85 @@ To: akpm@osdl.org, viro@ftp.linux.org.uk
 Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Move hugetlbfs accounting into ->alloc_inode / ->destroy_inode.  This
-keeps the code simpler, fixes a loeak where a failing inode allocation
-wouldn't decrement the counter and moves hugetlbfs_delete_inode and
-hugetlbfs_forget_inode closer to their generic counterparts.
+Make hugetlbfs looks the same as generic_detelte_inode, fixing a bunch
+of missing updates to it at the same time. Rename it to
+hugetlbfs_do_delete_inode and add a real hugetlbfs_delete_inode that
+implements ->delete_inode.
 
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 
 Index: linux-2.6/fs/hugetlbfs/inode.c
 ===================================================================
---- linux-2.6.orig/fs/hugetlbfs/inode.c	2005-09-18 13:47:32.000000000 +0200
-+++ linux-2.6/fs/hugetlbfs/inode.c	2005-09-19 12:41:37.000000000 +0200
-@@ -224,8 +224,6 @@
+--- linux-2.6.orig/fs/hugetlbfs/inode.c	2005-09-19 12:46:30.000000000 +0200
++++ linux-2.6/fs/hugetlbfs/inode.c	2005-09-20 23:57:52.000000000 +0200
+@@ -224,19 +224,44 @@
  
  static void hugetlbfs_delete_inode(struct inode *inode)
  {
--	struct hugetlbfs_sb_info *sbinfo = HUGETLBFS_SB(inode->i_sb);
--
- 	hlist_del_init(&inode->i_hash);
+-	hlist_del_init(&inode->i_hash);
++	if (inode->i_data.nrpages)
++		truncate_hugepages(&inode->i_data, 0);
++	clear_inode(inode);
++}
++
++static void hugetlbfs_do_delete_inode(struct inode *inode)
++{
++	struct super_operations *op = inode->i_sb->s_op;
++
  	list_del_init(&inode->i_list);
  	list_del_init(&inode->i_sb_list);
-@@ -238,12 +236,6 @@
+ 	inode->i_state |= I_FREEING;
+ 	inodes_stat.nr_inodes--;
+ 	spin_unlock(&inode_lock);
  
+-	if (inode->i_data.nrpages)
+-		truncate_hugepages(&inode->i_data, 0);
+-
  	security_inode_delete(inode);
  
--	if (sbinfo->free_inodes >= 0) {
--		spin_lock(&sbinfo->stat_lock);
--		sbinfo->free_inodes++;
--		spin_unlock(&sbinfo->stat_lock);
--	}
--
- 	clear_inode(inode);
+-	clear_inode(inode);
++	if (op->delete_inode) {
++		void (*delete)(struct inode *) = op->delete_inode;
++		if (!is_bad_inode(inode))
++			DQUOT_INIT(inode);
++		/* Filesystems implementing their own
++		 * s_op->delete_inode are required to call
++		 * truncate_inode_pages and clear_inode()
++		 * internally
++		 */
++		delete(inode);
++	} else {
++		truncate_inode_pages(&inode->i_data, 0);
++		clear_inode(inode);
++	}
++
++	spin_lock(&inode_lock);
++	hlist_del_init(&inode->i_hash);
++	spin_unlock(&inode_lock);
++	wake_up_inode(inode);
++	if (inode->i_state != I_CLEAR)
++		BUG();
  	destroy_inode(inode);
  }
-@@ -251,7 +243,6 @@
- static void hugetlbfs_forget_inode(struct inode *inode)
+ 
+@@ -276,7 +301,7 @@
+ static void hugetlbfs_drop_inode(struct inode *inode)
  {
- 	struct super_block *super_block = inode->i_sb;
--	struct hugetlbfs_sb_info *sbinfo = HUGETLBFS_SB(super_block);
- 
- 	if (hlist_unhashed(&inode->i_hash))
- 		goto out_truncate;
-@@ -278,12 +269,6 @@
- 	if (inode->i_data.nrpages)
- 		truncate_hugepages(&inode->i_data, 0);
- 
--	if (sbinfo->free_inodes >= 0) {
--		spin_lock(&sbinfo->stat_lock);
--		sbinfo->free_inodes++;
--		spin_unlock(&sbinfo->stat_lock);
--	}
--
- 	clear_inode(inode);
- 	destroy_inode(inode);
+ 	if (!inode->i_nlink)
+-		hugetlbfs_delete_inode(inode);
++		hugetlbfs_do_delete_inode(inode);
+ 	else
+ 		hugetlbfs_forget_inode(inode);
  }
-@@ -379,17 +364,6 @@
- 					gid_t gid, int mode, dev_t dev)
- {
- 	struct inode *inode;
--	struct hugetlbfs_sb_info *sbinfo = HUGETLBFS_SB(sb);
--
--	if (sbinfo->free_inodes >= 0) {
--		spin_lock(&sbinfo->stat_lock);
--		if (!sbinfo->free_inodes) {
--			spin_unlock(&sbinfo->stat_lock);
--			return NULL;
--		}
--		sbinfo->free_inodes--;
--		spin_unlock(&sbinfo->stat_lock);
--	}
- 
- 	inode = new_inode(sb);
- 	if (inode) {
-@@ -531,29 +505,51 @@
- 	}
- }
- 
-+static inline int hugetlbfs_inc_free_inodes(struct hugetlbfs_sb_info *sbinfo)
-+{
-+	if (sbinfo->free_inodes >= 0) {
-+		spin_lock(&sbinfo->stat_lock);
-+		if (unlikely(!sbinfo->free_inodes)) {
-+			spin_unlock(&sbinfo->stat_lock);
-+			return 0;
-+		}
-+		sbinfo->free_inodes--;
-+		spin_unlock(&sbinfo->stat_lock);
-+	}
-+
-+	return 1;
-+}
-+
-+static void hugetlbfs_dec_free_inodes(struct hugetlbfs_sb_info *sbinfo)
-+{
-+	if (sbinfo->free_inodes >= 0) {
-+		spin_lock(&sbinfo->stat_lock);
-+		sbinfo->free_inodes++;
-+		spin_unlock(&sbinfo->stat_lock);
-+	}
-+}
-+
-+
- static kmem_cache_t *hugetlbfs_inode_cachep;
- 
- static struct inode *hugetlbfs_alloc_inode(struct super_block *sb)
- {
-+	struct hugetlbfs_sb_info *sbinfo = HUGETLBFS_SB(sb);
- 	struct hugetlbfs_inode_info *p;
- 
-+	if (unlikely(!hugetlbfs_inc_free_inodes(sbinfo)))
-+		return NULL;
- 	p = kmem_cache_alloc(hugetlbfs_inode_cachep, SLAB_KERNEL);
--	if (!p)
-+	if (unlikely(!p)) {
-+		hugetlbfs_dec_free_inodes(sbinfo);
- 		return NULL;
-+	}
- 	return &p->vfs_inode;
- }
- 
--static void init_once(void *foo, kmem_cache_t *cachep, unsigned long flags)
--{
--	struct hugetlbfs_inode_info *ei = (struct hugetlbfs_inode_info *)foo;
--
--	if ((flags & (SLAB_CTOR_VERIFY|SLAB_CTOR_CONSTRUCTOR)) ==
--	    SLAB_CTOR_CONSTRUCTOR)
--		inode_init_once(&ei->vfs_inode);
--}
--
- static void hugetlbfs_destroy_inode(struct inode *inode)
- {
-+	hugetlbfs_dec_free_inodes(HUGETLBFS_SB(inode->i_sb));
- 	mpol_free_shared_policy(&HUGETLBFS_I(inode)->policy);
- 	kmem_cache_free(hugetlbfs_inode_cachep, HUGETLBFS_I(inode));
- }
-@@ -565,6 +561,16 @@
- 	.set_page_dirty	= hugetlbfs_set_page_dirty,
+@@ -598,6 +623,7 @@
+ 	.alloc_inode    = hugetlbfs_alloc_inode,
+ 	.destroy_inode  = hugetlbfs_destroy_inode,
+ 	.statfs		= hugetlbfs_statfs,
++	.delete_inode	= hugetlbfs_delete_inode,
+ 	.drop_inode	= hugetlbfs_drop_inode,
+ 	.put_super	= hugetlbfs_put_super,
  };
- 
-+
-+static void init_once(void *foo, kmem_cache_t *cachep, unsigned long flags)
-+{
-+	struct hugetlbfs_inode_info *ei = (struct hugetlbfs_inode_info *)foo;
-+
-+	if ((flags & (SLAB_CTOR_VERIFY|SLAB_CTOR_CONSTRUCTOR)) ==
-+	    SLAB_CTOR_CONSTRUCTOR)
-+		inode_init_once(&ei->vfs_inode);
-+}
-+
- struct file_operations hugetlbfs_file_operations = {
- 	.mmap			= hugetlbfs_file_mmap,
- 	.fsync			= simple_sync_file,
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
