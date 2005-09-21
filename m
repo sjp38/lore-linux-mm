@@ -1,162 +1,53 @@
-Message-ID: <4331AF5D.8060105@redhat.com>
-Date: Wed, 21 Sep 2005 15:07:09 -0400
-From: Hideo AOKI <haoki@redhat.com>
-MIME-Version: 1.0
-Subject: [PATCH 2.6.14-rc1-mm1] mm: OVERCOMMIT_GUESS considers lowmem_reserve_ratio.
+Date: Wed, 21 Sep 2005 12:10:36 -0700
+From: Andrew Morton <akpm@osdl.org>
+Subject: Re: [PATCH 1/4] hugetlbfs: move free_inodes accounting
+Message-Id: <20050921121036.416bdbfb.akpm@osdl.org>
+In-Reply-To: <20050921092156.GA22544@lst.de>
+References: <20050921092156.GA22544@lst.de>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org
+To: Christoph Hellwig <hch@lst.de>
+Cc: viro@ftp.linux.org.uk, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, William Lee Irwin III <wli@holomorphy.com>
 List-ID: <linux-mm.kvack.org>
 
- 
-Content-Type: multipart/mixed;
- boundary="------------050603000508070300020009"
-
-This is a multi-part message in MIME format.
---------------050603000508070300020009
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
-
-Hello,
-
-Attached patch is an enhancement to avoid overcommitting anonymous 
-pages. Please review.
-
-BTW, does anyone know any good tools to test overcommitted situation?
-
-Best regards,
-Hideo Aoki
-
----
-Hideo Aoki, Hitachi Computer Products (America) Inc.
-
---------------050603000508070300020009
-Content-Type: text/x-patch;
- name="mm_overcommit_guess_fix1_take1.patch"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline;
- filename="mm_overcommit_guess_fix1_take1.patch"
-
-This patch is an enhancement of OVERCOMMIT_GUESS algorithm in
-__vm_enough_memory(). 
+Christoph Hellwig <hch@lst.de> wrote:
+>
+> +static inline int hugetlbfs_inc_free_inodes(struct hugetlbfs_sb_info *sbinfo)
+>  +{
+>  +	if (sbinfo->free_inodes >= 0) {
+>  +		spin_lock(&sbinfo->stat_lock);
+>  +		if (unlikely(!sbinfo->free_inodes)) {
+>  +			spin_unlock(&sbinfo->stat_lock);
+>  +			return 0;
+>  +		}
+>  +		sbinfo->free_inodes--;
+>  +		spin_unlock(&sbinfo->stat_lock);
+>  +	}
+>  +
+>  +	return 1;
+>  +}
+>  +
+>  +static void hugetlbfs_dec_free_inodes(struct hugetlbfs_sb_info *sbinfo)
+>  +{
+>  +	if (sbinfo->free_inodes >= 0) {
+>  +		spin_lock(&sbinfo->stat_lock);
+>  +		sbinfo->free_inodes++;
+>  +		spin_unlock(&sbinfo->stat_lock);
+>  +	}
+>  +}
+>  +
 
 
-- why the kernel needed patching
+These functions seem to be called from the right places, but the naming is
+most confusing.
 
-  In the OVERCOMMIT_GUESS algorithm, when page caches and swapable
-  pages are not enough, the algorithm calculates number of free
-  pages. If the number of free pages is more than required pages, the
-  algorithm judges to be able to overcommit. 
-
-  However, there are reserved free pages in free pages. The number of
-  reserved pages is specified by /proc/sys/vm/lowmem_reserve_ratio. If
-  all free pages are assigned to anonymous pages, the VM has to
-  reclaim free pages and VM pressure probably rises. 
-  
-
-- the overall design approach in the patch
-
-  When the OVERCOMMET_GUESS algorithm calculates number of free pages,
-  the reserved free pages regard for non-free pages.
-
-
-- implementation details
-
-  This patch changes the following two things.
-
-  1) When the OVERCOMMIT_GUESS algorithm calculates the number of free
-     pages, the algorithm subtracts the number of reserved pages from 
-     the result nr_free_pages().
-
-  2) Adding a global variable, totalreserve_pages, to store the number
-     of reserved pages. The variable is calculated when the VM
-     initializes and /proc/sys/vm/lowmem_reserve_ratio is changed.
-
-
-- testing results
-
-  I checked that this patch can pass compile. 
- 
----
-
-Signed-off-by: Hideo Aoki <haoki@redhat.com>
-
----
-
- include/linux/swap.h |    1 +
- mm/mmap.c            |   13 +++++++++++++
- mm/page_alloc.c      |    4 ++++
- 3 files changed, 18 insertions(+)
-
-diff -uprN linux-2.6.14-rc1-mm1/include/linux/swap.h linux-2.6.14-rc1-mm1-vm-overcommit-fix/include/linux/swap.h
---- linux-2.6.14-rc1-mm1/include/linux/swap.h	2005-09-19 16:05:19.000000000 -0400
-+++ linux-2.6.14-rc1-mm1-vm-overcommit-fix/include/linux/swap.h	2005-09-19 16:15:21.000000000 -0400
-@@ -155,6 +155,7 @@ extern void swapin_readahead(swp_entry_t
- /* linux/mm/page_alloc.c */
- extern unsigned long totalram_pages;
- extern unsigned long totalhigh_pages;
-+extern unsigned long totalreserve_pages;
- extern long nr_swap_pages;
- extern unsigned int nr_free_pages(void);
- extern unsigned int nr_free_pages_pgdat(pg_data_t *pgdat);
-diff -uprN linux-2.6.14-rc1-mm1/mm/mmap.c linux-2.6.14-rc1-mm1-vm-overcommit-fix/mm/mmap.c
---- linux-2.6.14-rc1-mm1/mm/mmap.c	2005-09-19 16:11:45.000000000 -0400
-+++ linux-2.6.14-rc1-mm1-vm-overcommit-fix/mm/mmap.c	2005-09-19 16:15:21.000000000 -0400
-@@ -120,6 +120,19 @@ int __vm_enough_memory(long pages, int c
- 		 * only call if we're about to fail.
- 		 */
- 		n = nr_free_pages();
-+
-+		/*
-+		 * Leave the lowmem_reserve pages. The pages are not
-+		 * for anonymous pages.
-+		 */
-+		if (n <= totalreserve_pages)
-+			return 0;
-+		else
-+			n -= totalreserve_pages;
-+
-+		/*
-+		 * Leave the last 3% for root
-+		 */
- 		if (!cap_sys_admin)
- 			n -= n / 32;
- 		free += n;
-diff -uprN linux-2.6.14-rc1-mm1/mm/page_alloc.c linux-2.6.14-rc1-mm1-vm-overcommit-fix/mm/page_alloc.c
---- linux-2.6.14-rc1-mm1/mm/page_alloc.c	2005-09-19 16:11:45.000000000 -0400
-+++ linux-2.6.14-rc1-mm1-vm-overcommit-fix/mm/page_alloc.c	2005-09-19 16:22:09.000000000 -0400
-@@ -51,6 +51,7 @@ EXPORT_SYMBOL(node_possible_map);
- struct pglist_data *pgdat_list __read_mostly;
- unsigned long totalram_pages __read_mostly;
- unsigned long totalhigh_pages __read_mostly;
-+unsigned long totalreserve_pages __read_mostly;
- long nr_swap_pages;
- 
- /*
-@@ -2454,6 +2455,7 @@ void __init page_alloc_init(void)
- static void setup_per_zone_lowmem_reserve(void)
- {
- 	struct pglist_data *pgdat;
-+	unsigned long reserve_pages = 0;
- 	int j, idx;
- 
- 	for_each_pgdat(pgdat) {
-@@ -2472,10 +2474,12 @@ static void setup_per_zone_lowmem_reserv
- 				lower_zone = pgdat->node_zones + idx;
- 				lower_zone->lowmem_reserve[j] = present_pages /
- 					sysctl_lowmem_reserve_ratio[idx];
-+				reserve_pages += lower_zone->lowmem_reserve[j];
- 				present_pages += lower_zone->present_pages;
- 			}
- 		}
- 	}
-+	totalreserve_pages = reserve_pages;
- }
- 
- /*
-
---------------050603000508070300020009--
+The test for the current value of sbinfo->free_inodes in
+hugetlbfs_dec_free_inodes() looks racy and the logic simply escapes me. 
+Does anyone remember why we have special-case handling in there for
+(sbinfo->free_inodes < 0)?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
