@@ -1,36 +1,26 @@
-Date: Thu, 22 Sep 2005 13:07:47 -0700 (PDT)
-From: Christoph Lameter <clameter@engr.sgi.com>
-Subject: [PATCH] Increase maximum kmalloc size to 256K
-Message-ID: <Pine.LNX.4.62.0509221306380.18133@schroedinger.engr.sgi.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Thu, 22 Sep 2005 13:15:21 -0700
+From: Andrew Morton <akpm@osdl.org>
+Subject: Re: [PATCH] Increase maximum kmalloc size to 256K
+Message-Id: <20050922131521.77da1684.akpm@osdl.org>
+In-Reply-To: <Pine.LNX.4.62.0509221306380.18133@schroedinger.engr.sgi.com>
+References: <Pine.LNX.4.62.0509221306380.18133@schroedinger.engr.sgi.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: akpm@osdl.org
+To: Christoph Lameter <clameter@engr.sgi.com>
 Cc: linux-mm@kvack.org, linux-ia64@vger.kernel.org, manfred@colorfulllife.com
 List-ID: <linux-mm.kvack.org>
 
-The workqueue structure can grow larger than 128k under 2.6.14-rc2 (with 
-all debugging features enabled on 64 bit platforms) which will make 
-kzalloc for workqueue structure entries fail. This patch increases the 
-maximum slab entry size to 256K.
+Christoph Lameter <clameter@engr.sgi.com> wrote:
+>
+>  The workqueue structure can grow larger than 128k under 2.6.14-rc2 (with 
+>  all debugging features enabled on 64 bit platforms)
 
-Signed-off-by: Christoph Lameter <clameter@sgi.com>
-
-Index: linux-2.6.14-rc2/include/linux/kmalloc_sizes.h
-===================================================================
---- linux-2.6.14-rc2.orig/include/linux/kmalloc_sizes.h	2005-09-19 20:00:41.000000000 -0700
-+++ linux-2.6.14-rc2/include/linux/kmalloc_sizes.h	2005-09-22 12:41:19.000000000 -0700
-@@ -19,8 +19,8 @@
- 	CACHE(32768)
- 	CACHE(65536)
- 	CACHE(131072)
--#ifndef CONFIG_MMU
- 	CACHE(262144)
-+#ifndef CONFIG_MMU
- 	CACHE(524288)
- 	CACHE(1048576)
- #ifdef CONFIG_LARGE_ALLOCS
+Would it be better to use alloc_percpu() in there?  Bearing in mind that
+one day we'll probably have an alloc_percpu() which incurs one less
+indirection and which allocates things node-affinely.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
