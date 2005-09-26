@@ -1,46 +1,42 @@
-Subject: update_mmu_cache(): fault or not fault ?
-From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Content-Type: text/plain
-Date: Mon, 26 Sep 2005 16:22:05 +1000
-Message-Id: <1127715725.15882.43.camel@gaston>
+Date: Mon, 26 Sep 2005 00:41:23 -0700 (PDT)
+Message-Id: <20050926.004123.47346085.davem@davemloft.net>
+Subject: Re: update_mmu_cache(): fault or not fault ?
+From: "David S. Miller" <davem@davemloft.net>
+In-Reply-To: <1127715725.15882.43.camel@gaston>
+References: <1127715725.15882.43.camel@gaston>
 Mime-Version: 1.0
+Content-Type: Text/Plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
+From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Date: Mon, 26 Sep 2005 16:22:05 +1000
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
-Cc: Linux Kernel list <linux-kernel@vger.kernel.org>
+To: benh@kernel.crashing.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Hi !
+> The problem is that want to only ever do that kind of hw TLB pre-fill
+> when update_mmu_cache() is called as the result an actual fault.
+> However, for some reasons that I'm not 100% sure about (*)
+> update_mmu_cache() is called from other places, typically in mm/fremap.c
+> which aren't directly results of faults.
+> 
+> So I suggest adding an argument to it "int is_fault", that would
+> basically be '1' on all the call sites in mm/memory.c and '0' in all the
+> call sites in mm/fremap.c.
 
-I been toying with using update_mmu_cache() to actually fill the TLB
-entry directly when taking a fault on some PPC CPUs with software TLB
-reload (among other optims I have in mind). Most of CPUs with software
-TLB reload currently take double TLB faults on linux page faults.
+You can track this in your port specific code.  That's what I do on
+sparc64 to deal with this case.  I record the TLB miss type (D or I
+tlb), and also whether a write occurred, in a bitmask.  Then I check
+this in update_mmu_cache() to decide whether to prefill.
 
-The problem is that want to only ever do that kind of hw TLB pre-fill
-when update_mmu_cache() is called as the result an actual fault.
-However, for some reasons that I'm not 100% sure about (*)
-update_mmu_cache() is called from other places, typically in mm/fremap.c
-which aren't directly results of faults.
+I store it in current_thread_info() and clear it at the end of fault
+processing.
 
-So I suggest adding an argument to it "int is_fault", that would
-basically be '1' on all the call sites in mm/memory.c and '0' in all the
-call sites in mm/fremap.c.
+Just grep for "FAULT_CODE_*" in the sparc64 code to see how this
+works.
 
-Any objection, comment, whatever, before I come up with a patch adding
-it to all archs ?
-
-Ben.
-
-(*) I suspect because update_mmu_cache() has historically been hijacked
-to do the icache/dcache sync on some architecture, and thus was added to
-all call sites that can populate a PTE out of the blue, though it's a
-bit dodgy that it's not called in mremap(), thus people with hw execute
-permission using that trick should be careful... but then, if you have
-execute permission, you probably don't need that trick. This is what
-ppc32 and ppc64 old older CPUs do, in an SMP racy way even ;) But that's
-a different discussion and I'll have to fix it some day.
+Although, I'm ambivalent as to whether prefilling helps at all.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
