@@ -1,75 +1,94 @@
-Date: Mon, 26 Sep 2005 12:52:03 -0700 (PDT)
-Message-Id: <20050926.125203.132216841.davem@davemloft.net>
-Subject: Re: update_mmu_cache(): fault or not fault ?
-From: "David S. Miller" <davem@davemloft.net>
-In-Reply-To: <1127721788.15882.64.camel@gaston>
-References: <1127715725.15882.43.camel@gaston>
-	<20050926.004123.47346085.davem@davemloft.net>
-	<1127721788.15882.64.camel@gaston>
-Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by e1.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id j8QK18J9032609
+	for <linux-mm@kvack.org>; Mon, 26 Sep 2005 16:01:08 -0400
+Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
+	by d01relay02.pok.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id j8QK18dF090788
+	for <linux-mm@kvack.org>; Mon, 26 Sep 2005 16:01:08 -0400
+Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
+	by d01av03.pok.ibm.com (8.12.11/8.13.3) with ESMTP id j8QK18Ej022359
+	for <linux-mm@kvack.org>; Mon, 26 Sep 2005 16:01:08 -0400
+Message-ID: <4338537E.8070603@austin.ibm.com>
+Date: Mon, 26 Sep 2005 15:01:02 -0500
+From: Joel Schopp <jschopp@austin.ibm.com>
+MIME-Version: 1.0
+Subject: [PATCH 0/9] fragmentation avoidance
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Date: Mon, 26 Sep 2005 18:03:08 +1000
 Return-Path: <owner-linux-mm@kvack.org>
-To: benh@kernel.crashing.org
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@osdl.org>
+Cc: lhms <lhms-devel@lists.sourceforge.net>, Linux Memory Management List <linux-mm@kvack.org>, linux-kernel@vger.kernel.org, Mel Gorman <mel@csn.ul.ie>, Mike Kravetz <kravetz@us.ibm.com>, jschopp@austin.ibm.com
 List-ID: <linux-mm.kvack.org>
 
-> > Although, I'm ambivalent as to whether prefilling helps at all.
-> 
-> If it's really only ever done on faults, I fail to see how it can hurt
-> at least, since we are basically just removing the cost of a second
-> exception. Wether it's useful in practice probably depends on the cost
-> of taking such an exception on a given CPU. Difficult to say without
-> some benchmarking...
+The buddy system provides an efficient algorithm for managing a set of pages
+within each zone. Despite the proven effectiveness of the algorithm in its
+current form as used in the kernel, it is not possible to aggregate a subset
+of pages within a zone according to specific allocation types. As a result,
+two physically contiguous page frames (or sets of page frames) may satisfy
+allocation requests that are drastically different. For example, one page
+frame may contain data that is only temporarily used by an application while
+the other is in use for a kernel device driver.  This can result in heavy
+system fragmentation.
 
-I guess my ambivalence comes from some aspects of how sparc64 TLB
-refilling works.
+This series of patches is designed to reduce fragmentation in the standard
+buddy allocator without impairing the performance of the allocator. High
+fragmentation in the standard binary buddy allocator means that high-order
+allocations can rarely be serviced. These patches work by dividing allocations
+into three different types of allocations;
 
-When you take the TLB miss, the cpu sets up all of these things for
-the TLB reload that you have to do by hand if you want to do the
-TLB refill in some other context.
+UserReclaimable - These are userspace pages that are easily reclaimable. Right
+	now, all allocations of GFP_USER, GFP_HIGHUSER and disk buffers are
+	in this category. These pages are trivially reclaimed by writing
+	the page out to swap or syncing with backing storage
 
-There is an MMU register which holds the page aligned virtual address
-and the MMU context value.  Next, there is a register where you
-write the TLB "tag" which contains the PTE entry and, the write to
-this register is what performs the TLB load up.  (it uses the virtual
-address + context value to figure out where to place the PTE entry,
-and the PTE itself comes from the store source register)
+KernelReclaimable - These are pages allocated by the kernel that are easily
+	reclaimed. This is stuff like inode caches, dcache, buffer_heads etc.
+	These type of pages potentially could be reclaimed by dumping the
+	caches and reaping the slabs
 
-At TLB miss time, the MMU automatically fills in the virutal address
-+ context register, and all you have to do is store the PTE value
-and you're done.  Whereas in a context like update_mmu_cache() I
-have to setup that value as well.
+KernelNonReclaimable - These are pages that are allocated by the kernel that
+	are not trivially reclaimed. For example, the memory allocated for a
+	loaded module would be in this category. By default, allocations are
+	considered to be of this type
 
-Things get more complicated on UltraSPARC-III+ and later, which have
-one 16-entry CAM D-TLB and two indexed 512-entry D-TLBs.  You can
-configure each 512-entry D-TLB to hold a parituclar page size.  (So
-for the kernel, for example, I configure the first one to hold 4MB
-pages, and the second one for 8K pages) It is configurable by context.
-So to do a TLB refill on these chips it has to know which of these 3
-TLBs gets the write enable when you load in the PTE value.  It does
-this with a register that holds the page size configuration for the
-active context at the time of the TLB miss.
+Instead of having one global MAX_ORDER-sized array of free lists, there
+are four, one for each type of allocation and another 12.5% reserve for
+fallbacks. Finally, there is a list of pages of size 2^MAX_ORDER which is
+a global pool of the largest pages the kernel deals with.
 
-So this is yet another register I'd have to load by hand to load the
-TLB at update_mmu_cache() time.
+Once a 2^MAX_ORDER block of pages it split for a type of allocation, it is
+added to the free-lists for that type, in effect reserving it. Hence, over
+time, pages of the different types can be clustered together. This means that
+if we wanted 2^MAX_ORDER number of pages, we could linearly scan a block of
+pages allocated for UserReclaimable and page each of them out.
 
-I also have to disable interrupts so that TLB loading (which requires
-multiple stores and is thus not atomic) does not get interrupted by a
-cross-cpu call that flushes the TLB or similar.
+Fallback is used when there are no 2^MAX_ORDER pages available and there
+are no free pages of the desired type. The fallback lists were chosen in a
+way that keeps the most easily reclaimable pages together.
 
-So this is a ton of complication, which is straightforwardly done in
-the TLB miss handler.  And if you think about it, since we've been
-writing the PTE entries and walking the page tables for fault
-processing, all of this will be hot in the L2 cache when we take
-the nearly immediate TLB miss.
+These patches originally were discussed as "Avoiding external fragmentation
+with a placement policy" as authored by Mel Gorman and went through about 13
+revisions on lkml and linux-mm.  Then with Mel's permission I have been
+reworking these patches for easier mergability, readability, maintainability,
+etc.  Several revisions have been posted on lhms-devel, as the Linux memory
+hotplug community will be a major beneficiary of these patches.  All of the
+various revisions have been tested on various platforms and shown to perform
+well.  I believe the patches are now ready for inclusion in -mm, and after
+wider testing inclusion in the mainline kernel.
 
-Anyways, I'm very likely going to remove the prefilling of TLB entries
-on sparc64.  I hope it's more beneficial and less complicated for ppc64
-:-)
+The patch set consists of 9 patches that can be merged in 4 separate blocks,
+with the only dependency being that the lower numbered patches are merged
+first.  All are against 2.6.13.
+Patch 1 defines the allocation flags and adds them to the allocator calls.
+Patch 2 defines some new structures and the macros used to access them.
+Patch 3-8 implement the fully functional fragmentation avoidance.
+Patch 9 is trivial but useful for memory hotplug remove.
+---
+Patch 10 -- not ready for merging -- extends fragmentation avoidance to the
+percpu allocator.  This patch works on 2.6.13-rc1 but only with NUMA off on
+2.6.13; I am having a great deal of trouble tracking down why, help would be
+appreciated.  I include the patch for review and test purposes as I plan to
+submit it for merging after resolving the NUMA issues.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
