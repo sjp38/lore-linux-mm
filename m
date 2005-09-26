@@ -1,57 +1,46 @@
-Date: Sat, 24 Sep 2005 13:12:34 -0700
-From: Paul Jackson <pj@sgi.com>
-Subject: Re: [PATCH] Use node macros for memory policies
-Message-Id: <20050924131234.427e40ef.pj@sgi.com>
-In-Reply-To: <Pine.LNX.4.62.0509241119490.29070@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.62.0509231109001.22542@schroedinger.engr.sgi.com>
-	<20050923145746.77a846b7.akpm@osdl.org>
-	<Pine.LNX.4.62.0509241119490.29070@schroedinger.engr.sgi.com>
+Subject: update_mmu_cache(): fault or not fault ?
+From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Content-Type: text/plain
+Date: Mon, 26 Sep 2005 16:22:05 +1000
+Message-Id: <1127715725.15882.43.camel@gaston>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@engr.sgi.com>
-Cc: akpm@osdl.org, ak@suse.de, linux-mm@kvack.org
+To: linux-mm@kvack.org
+Cc: Linux Kernel list <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Andrew inquired:
-> Which typedef weenie inflicted nodemask_t upon us anyway?
+Hi !
 
-I believe it was Matthew Dobson and myself, with forced labor
-contributions from several others, as part of a larger effort
-to overhaul bitmaps and cpumasks.
+I been toying with using update_mmu_cache() to actually fill the TLB
+entry directly when taking a fault on some PPC CPUs with software TLB
+reload (among other optims I have in mind). Most of CPUs with software
+TLB reload currently take double TLB faults on linux page faults.
 
+The problem is that want to only ever do that kind of hw TLB pre-fill
+when update_mmu_cache() is called as the result an actual fault.
+However, for some reasons that I'm not 100% sure about (*)
+update_mmu_cache() is called from other places, typically in mm/fremap.c
+which aren't directly results of faults.
 
-Christoph wrote:
-> One hunk is missing in Andi's patchset. This covers the cpuset->mempolicy 
-> interface.
+So I suggest adding an argument to it "int is_fault", that would
+basically be '1' on all the call sites in mm/memory.c and '0' in all the
+call sites in mm/fremap.c.
 
-If you had taken a look at the lkml thread where Andi submitted his
-patch to convert mempolicy to nodemask, and I reviewed it, we agreed to
-send in the remaining couple of pieces after Andi's patch had worked
-its way through the system, to avoid wasting the couple of minutes of
-Andrews time that it would take him to deal with possible merge
-conflicts.
+Any objection, comment, whatever, before I come up with a patch adding
+it to all archs ?
 
+Ben.
 
-I don't see where your patch deals with the following two lines, at the
-point in mm/mempolicy.c where cpuset_restrict_to_mems_allowed is called
-(the latest *-mm version with Andi's patch nodemask mempolicy patch):
-
-        /* AK: shouldn't this error out instead? */
-        cpuset_restrict_to_mems_allowed(nodes_addr(*nodes));
-
-I agreed with Andi that this should error out, and I accepted his
-suggestion that I fix this, later on.
-
-Surely it is not a good idea to change the type of parameter a function
-accepts, without changing the places that call that function.
-
--- 
-                  I won't rest till it's the best ...
-                  Programmer, Linux Scalability
-                  Paul Jackson <pj@sgi.com> 1.925.600.0401
+(*) I suspect because update_mmu_cache() has historically been hijacked
+to do the icache/dcache sync on some architecture, and thus was added to
+all call sites that can populate a PTE out of the blue, though it's a
+bit dodgy that it's not called in mremap(), thus people with hw execute
+permission using that trick should be careful... but then, if you have
+execute permission, you probably don't need that trick. This is what
+ppc32 and ppc64 old older CPUs do, in an SMP racy way even ;) But that's
+a different discussion and I'll have to fix it some day.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
