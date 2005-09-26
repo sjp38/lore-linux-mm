@@ -1,87 +1,186 @@
-Received: from westrelay02.boulder.ibm.com (westrelay02.boulder.ibm.com [9.17.195.11])
-	by e35.co.us.ibm.com (8.12.11/8.12.11) with ESMTP id j8QKCRBk001106
-	for <linux-mm@kvack.org>; Mon, 26 Sep 2005 16:12:27 -0400
-Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
-	by westrelay02.boulder.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id j8QKEirJ398670
-	for <linux-mm@kvack.org>; Mon, 26 Sep 2005 14:14:44 -0600
-Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av03.boulder.ibm.com (8.12.11/8.13.3) with ESMTP id j8QKEiBn011832
-	for <linux-mm@kvack.org>; Mon, 26 Sep 2005 14:14:44 -0600
-Message-ID: <433856B2.8030906@austin.ibm.com>
-Date: Mon, 26 Sep 2005 15:14:42 -0500
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e3.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id j8QKGL9t029639
+	for <linux-mm@kvack.org>; Mon, 26 Sep 2005 16:16:21 -0400
+Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
+	by d01relay04.pok.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id j8QKGLEZ101904
+	for <linux-mm@kvack.org>; Mon, 26 Sep 2005 16:16:21 -0400
+Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
+	by d01av03.pok.ibm.com (8.12.11/8.13.3) with ESMTP id j8QKGLUd011597
+	for <linux-mm@kvack.org>; Mon, 26 Sep 2005 16:16:21 -0400
+Message-ID: <4338570E.6050101@austin.ibm.com>
+Date: Mon, 26 Sep 2005 15:16:14 -0500
 From: Joel Schopp <jschopp@austin.ibm.com>
 MIME-Version: 1.0
-Subject: [PATCH 7/9] try harder on large allocations
+Subject: [PATCH 8/9] defrag fallback
 References: <4338537E.8070603@austin.ibm.com>
 In-Reply-To: <4338537E.8070603@austin.ibm.com>
 Content-Type: multipart/mixed;
- boundary="------------000108080207090403000102"
+ boundary="------------070601010804010804050400"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: Joel Schopp <jschopp@austin.ibm.com>, lhms <lhms-devel@lists.sourceforge.net>, Linux Memory Management List <linux-mm@kvack.org>, linux-kernel@vger.kernel.org, Mel Gorman <mel@csn.ul.ie>, Mike Kravetz <kravetz@us.ibm.com>
+To: Joel Schopp <jschopp@austin.ibm.com>
+Cc: Andrew Morton <akpm@osdl.org>, lhms <lhms-devel@lists.sourceforge.net>, Linux Memory Management List <linux-mm@kvack.org>, linux-kernel@vger.kernel.org, Mel Gorman <mel@csn.ul.ie>, Mike Kravetz <kravetz@us.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
 This is a multi-part message in MIME format.
---------------000108080207090403000102
+--------------070601010804010804050400
 Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 
-Fragmentation avoidance patches increase our chances of satisfying high order
-allocations.  So this patch takes more than one iteration at trying to fulfill
-those allocations because unlike before the extra iterations are often useful.
+When we can't allocate from the preferred allocation type we need fallback to
+other allocation types.  This patch determines which allocation types we try
+to fallback to in which order.  It also adds a special fallback type that is
+designed to minimize the fragmentation caused by fallback between the other
+types.
+
+There is an implicit tradeoff being made here between avoiding fragmentation
+and satisfying allocations.  This patch aims to keep existing behavior of
+satisfying allocations if there is any free memory of any type to satisfy them.
+It does a reasonable job of trying to minimize the fragmentation, and certainly
+does better than a stock kernel in all situations.
+
+However, it would not be hard to imagine scenarios where a different fallback
+algorithm that fails more allocations was able to keep fragmentation down much
+better, and on some systems this decreased fragmentation might even be worth
+the cost of failing allocations.  Systems doing memory hotplug remove for
+example.  This patch is designed so that the static function
+fallback_alloc() can be easily replaced with an alternate implementation (under
+a config option perhaps) in the future.
 
 Signed-off-by: Mel Gorman <mel@csn.ul.ie>
 Signed-off-by: Joel Schopp <jschopp@austin.ibm.com>
 
---------------000108080207090403000102
+--------------070601010804010804050400
 Content-Type: text/plain;
- name="7_large_alloc_try_harder"
+ name="8_defrag_fallback"
 Content-Transfer-Encoding: 7bit
 Content-Disposition: inline;
- filename="7_large_alloc_try_harder"
+ filename="8_defrag_fallback"
 
 Index: 2.6.13-joel2/mm/page_alloc.c
 ===================================================================
---- 2.6.13-joel2.orig/mm/page_alloc.c	2005-09-21 11:13:14.%N -0500
-+++ 2.6.13-joel2/mm/page_alloc.c	2005-09-21 11:14:49.%N -0500
-@@ -944,7 +944,8 @@ __alloc_pages(unsigned int __nocast gfp_
- 	int can_try_harder;
- 	int did_some_progress;
- 	int alloctype;
-- 
-+	int highorder_retry = 3;
+--- 2.6.13-joel2.orig/mm/page_alloc.c	2005-09-21 11:14:49.%N -0500
++++ 2.6.13-joel2/mm/page_alloc.c	2005-09-21 11:17:23.%N -0500
+@@ -39,6 +39,17 @@
+ #include "internal.h"
+ 
+ /*
++ * fallback_allocs contains the fallback types for low memory conditions
++ * where the preferred alloction type if not available.
++ */
++int fallback_allocs[RCLM_TYPES][RCLM_TYPES+1] = {
++	{RCLM_NORCLM,RCLM_FALLBACK,  RCLM_KERN,  RCLM_USER,-1},
++	{RCLM_KERN,  RCLM_FALLBACK,  RCLM_NORCLM,RCLM_USER,-1},
++	{RCLM_USER,  RCLM_FALLBACK,  RCLM_NORCLM,RCLM_KERN,-1},
++	{RCLM_FALLBACK,  RCLM_NORCLM,RCLM_KERN,  RCLM_USER,-1}
++};
 +
- 	alloctype = (gfp_mask & __GFP_RCLM_BITS);
- 	might_sleep_if(wait);
++/*
+  * MCD - HACK: Find somewhere to initialize this EARLY, or make this
+  * initializer cleaner
+  */
+@@ -576,13 +587,86 @@ static inline struct page
+ }
  
-@@ -1090,7 +1091,14 @@ rebalance:
- 				goto got_pg;
- 		}
  
--		out_of_memory(gfp_mask, order);
-+		if (order < MAX_ORDER/2) out_of_memory(gfp_mask, order);
-+		/*
-+		 * Due to low fragmentation efforts, we should try a little
-+		 * harder to satisfy high order allocations
-+		 */
-+		if (order >= MAX_ORDER/2 && --highorder_retry > 0)
-+			goto rebalance;
++/*
++ * If we are falling back, and the allocation is KERNNORCLM,
++ * then reserve any buddies for the KERNNORCLM pool. These
++ * allocations fragment the worst so this helps keep them
++ * in the one place
++ */
++static inline void
++fallback_buddy_reserve(int start_alloctype, struct zone *zone,
++		       unsigned int current_order, struct page *page)
++{
++	int reserve_type = RCLM_NORCLM;
++	struct free_area *area;
 +
- 		goto restart;
- 	}
++	if (start_alloctype == RCLM_NORCLM) {
++		area = zone->free_area_lists[RCLM_NORCLM] + current_order;
++
++		/* Reserve the whole block if this is a large split */
++		if (current_order >= MAX_ORDER / 2) {
++			dec_reserve_count(zone, get_pageblock_type(zone,page));
++
++			/*
++			 * Use this block for fallbacks if the
++			 * minimum reserve is not being met
++			 */
++			if (!is_min_fallback_reserved(zone))
++				reserve_type = RCLM_FALLBACK;
++
++			set_pageblock_type(zone, page, reserve_type);
++			inc_reserve_count(zone, reserve_type);
++		}
++
++	}
++
++}
++
+ static struct page *
+ fallback_alloc(int alloctype, struct zone *zone, unsigned int order)
+ {
+-	/* Stub out for seperate review, NULL equates to no fallback*/
++	int *fallback_list;
++	int start_alloctype;
++	unsigned int current_order;
++	struct free_area *area;
++	struct page* page;
++
++	/* Ok, pick the fallback order based on the type */
++	fallback_list = fallback_allocs[alloctype];
++	start_alloctype = alloctype;
++
++
++	/*
++	 * Here, the alloc type lists has been depleted as well as the global
++	 * pool, so fallback. When falling back, the largest possible block
++	 * will be taken to keep the fallbacks clustered if possible
++	 */
++	while ((alloctype = *(++fallback_list)) != -1) {
++
++		/* Find a block to allocate */
++		area = zone->free_area_lists[alloctype] + MAX_ORDER;
++		current_order=MAX_ORDER;
++		do {
++			current_order--;
++			area--;
++			if (!list_empty(&area->free_list)) {
++				page = list_entry(area->free_list.next,
++						  struct page, lru);
++				area->nr_free--;
++				fallback_buddy_reserve(start_alloctype, zone,
++						       current_order, page);
++				return remove_page(zone, page, order,
++						   current_order, area);
++			}
++
++		} while (current_order != order);
++
++	}
++
+ 	return NULL;
  
-@@ -1107,6 +1115,8 @@ rebalance:
- 			do_retry = 1;
- 		if (gfp_mask & __GFP_NOFAIL)
- 			do_retry = 1;
-+		if (order >= MAX_ORDER/2 && --highorder_retry > 0)
-+			do_retry = 1;
- 	}
- 	if (do_retry) {
- 		blk_congestion_wait(WRITE, HZ/50);
+ }
++
+ /* 
+  * Do the hard work of removing an element from the buddy allocator.
+  * Call me with the zone->lock already held.
+@@ -2101,6 +2185,11 @@ static void __init free_area_init_core(s
+ 		spin_lock_init(&zone->lru_lock);
+ 		zone->zone_pgdat = pgdat;
+ 		zone->free_pages = 0;
++		zone->fallback_reserve = 0;
++
++		/* Set the balance so about 12.5% will be used for fallbacks */
++		zone->fallback_balance = (realsize >> (MAX_ORDER-1)) -
++					 (realsize >> (MAX_ORDER+2));
+ 
+ 		zone->temp_priority = zone->prev_priority = DEF_PRIORITY;
+ 
 
---------------000108080207090403000102--
+--------------070601010804010804050400--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
