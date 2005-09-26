@@ -1,94 +1,181 @@
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e1.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id j8QK18J9032609
-	for <linux-mm@kvack.org>; Mon, 26 Sep 2005 16:01:08 -0400
-Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
-	by d01relay02.pok.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id j8QK18dF090788
-	for <linux-mm@kvack.org>; Mon, 26 Sep 2005 16:01:08 -0400
-Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
-	by d01av03.pok.ibm.com (8.12.11/8.13.3) with ESMTP id j8QK18Ej022359
-	for <linux-mm@kvack.org>; Mon, 26 Sep 2005 16:01:08 -0400
-Message-ID: <4338537E.8070603@austin.ibm.com>
-Date: Mon, 26 Sep 2005 15:01:02 -0500
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by e32.co.us.ibm.com (8.12.11/8.12.11) with ESMTP id j8QK42eW017077
+	for <linux-mm@kvack.org>; Mon, 26 Sep 2005 16:04:02 -0400
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d03relay04.boulder.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id j8QK5CHU518404
+	for <linux-mm@kvack.org>; Mon, 26 Sep 2005 14:05:12 -0600
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.12.11/8.13.3) with ESMTP id j8QK4ZXi014482
+	for <linux-mm@kvack.org>; Mon, 26 Sep 2005 14:04:36 -0600
+Message-ID: <43385412.5080506@austin.ibm.com>
+Date: Mon, 26 Sep 2005 15:03:30 -0500
 From: Joel Schopp <jschopp@austin.ibm.com>
 MIME-Version: 1.0
-Subject: [PATCH 0/9] fragmentation avoidance
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+Subject: [PATCH 1/9] add defrag flags
+References: <4338537E.8070603@austin.ibm.com>
+In-Reply-To: <4338537E.8070603@austin.ibm.com>
+Content-Type: multipart/mixed;
+ boundary="------------060207000900010809020004"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@osdl.org>
-Cc: lhms <lhms-devel@lists.sourceforge.net>, Linux Memory Management List <linux-mm@kvack.org>, linux-kernel@vger.kernel.org, Mel Gorman <mel@csn.ul.ie>, Mike Kravetz <kravetz@us.ibm.com>, jschopp@austin.ibm.com
+Cc: Joel Schopp <jschopp@austin.ibm.com>, lhms <lhms-devel@lists.sourceforge.net>, Linux Memory Management List <linux-mm@kvack.org>, linux-kernel@vger.kernel.org, Mel Gorman <mel@csn.ul.ie>, Mike Kravetz <kravetz@us.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-The buddy system provides an efficient algorithm for managing a set of pages
-within each zone. Despite the proven effectiveness of the algorithm in its
-current form as used in the kernel, it is not possible to aggregate a subset
-of pages within a zone according to specific allocation types. As a result,
-two physically contiguous page frames (or sets of page frames) may satisfy
-allocation requests that are drastically different. For example, one page
-frame may contain data that is only temporarily used by an application while
-the other is in use for a kernel device driver.  This can result in heavy
-system fragmentation.
+This is a multi-part message in MIME format.
+--------------060207000900010809020004
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 
-This series of patches is designed to reduce fragmentation in the standard
-buddy allocator without impairing the performance of the allocator. High
-fragmentation in the standard binary buddy allocator means that high-order
-allocations can rarely be serviced. These patches work by dividing allocations
-into three different types of allocations;
+This patch adds 2 new GFP flags to correspond to the 3 allocation types.  The
+third state is indicated by neither flag corresponding to the first two states
+being set. It then modifies appropriate allocator calls to use these new flags.
+The flags are:
+__GFP_USER, which corresponds to easily reclaimable pages
+__GFP_KERNRCLM, which corresponds to userspace pages
 
-UserReclaimable - These are userspace pages that are easily reclaimable. Right
-	now, all allocations of GFP_USER, GFP_HIGHUSER and disk buffers are
-	in this category. These pages are trivially reclaimed by writing
-	the page out to swap or syncing with backing storage
+Also note that the __GFP_USER flag should be reusable by the HARDWALL folks as
+well.
 
-KernelReclaimable - These are pages allocated by the kernel that are easily
-	reclaimed. This is stuff like inode caches, dcache, buffer_heads etc.
-	These type of pages potentially could be reclaimed by dumping the
-	caches and reaping the slabs
+This patch was originally authored by Mel Gorman, and heavily modified by me.
 
-KernelNonReclaimable - These are pages that are allocated by the kernel that
-	are not trivially reclaimed. For example, the memory allocated for a
-	loaded module would be in this category. By default, allocations are
-	considered to be of this type
+Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+Signed-off-by: Joel Schopp <jschopp@austin.ibm.com>
 
-Instead of having one global MAX_ORDER-sized array of free lists, there
-are four, one for each type of allocation and another 12.5% reserve for
-fallbacks. Finally, there is a list of pages of size 2^MAX_ORDER which is
-a global pool of the largest pages the kernel deals with.
+--------------060207000900010809020004
+Content-Type: text/plain;
+ name="1_add_defrag_flags"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline;
+ filename="1_add_defrag_flags"
 
-Once a 2^MAX_ORDER block of pages it split for a type of allocation, it is
-added to the free-lists for that type, in effect reserving it. Hence, over
-time, pages of the different types can be clustered together. This means that
-if we wanted 2^MAX_ORDER number of pages, we could linearly scan a block of
-pages allocated for UserReclaimable and page each of them out.
+Index: 2.6.13-joel2/fs/buffer.c
+===================================================================
+--- 2.6.13-joel2.orig/fs/buffer.c	2005-09-13 14:54:13.%N -0500
++++ 2.6.13-joel2/fs/buffer.c	2005-09-13 15:02:01.%N -0500
+@@ -1119,7 +1119,8 @@ grow_dev_page(struct block_device *bdev,
+ 	struct page *page;
+ 	struct buffer_head *bh;
+ 
+-	page = find_or_create_page(inode->i_mapping, index, GFP_NOFS);
++	page = find_or_create_page(inode->i_mapping, index,
++				   GFP_NOFS | __GFP_USER);
+ 	if (!page)
+ 		return NULL;
+ 
+@@ -3044,7 +3045,8 @@ static void recalc_bh_state(void)
+ 	
+ struct buffer_head *alloc_buffer_head(unsigned int __nocast gfp_flags)
+ {
+-	struct buffer_head *ret = kmem_cache_alloc(bh_cachep, gfp_flags);
++	struct buffer_head *ret = kmem_cache_alloc(bh_cachep,
++						   gfp_flags|__GFP_KERNRCLM);
+ 	if (ret) {
+ 		preempt_disable();
+ 		__get_cpu_var(bh_accounting).nr++;
+Index: 2.6.13-joel2/fs/dcache.c
+===================================================================
+--- 2.6.13-joel2.orig/fs/dcache.c	2005-09-13 14:54:14.%N -0500
++++ 2.6.13-joel2/fs/dcache.c	2005-09-13 15:02:01.%N -0500
+@@ -721,7 +721,7 @@ struct dentry *d_alloc(struct dentry * p
+ 	struct dentry *dentry;
+ 	char *dname;
+ 
+-	dentry = kmem_cache_alloc(dentry_cache, GFP_KERNEL); 
++	dentry = kmem_cache_alloc(dentry_cache, GFP_KERNEL|__GFP_KERNRCLM);
+ 	if (!dentry)
+ 		return NULL;
+ 
+Index: 2.6.13-joel2/fs/ext2/super.c
+===================================================================
+--- 2.6.13-joel2.orig/fs/ext2/super.c	2005-09-13 14:54:14.%N -0500
++++ 2.6.13-joel2/fs/ext2/super.c	2005-09-13 15:02:01.%N -0500
+@@ -138,7 +138,8 @@ static kmem_cache_t * ext2_inode_cachep;
+ static struct inode *ext2_alloc_inode(struct super_block *sb)
+ {
+ 	struct ext2_inode_info *ei;
+-	ei = (struct ext2_inode_info *)kmem_cache_alloc(ext2_inode_cachep, SLAB_KERNEL);
++	ei = (struct ext2_inode_info *)kmem_cache_alloc(ext2_inode_cachep,
++						SLAB_KERNEL|__GFP_KERNRCLM);
+ 	if (!ei)
+ 		return NULL;
+ #ifdef CONFIG_EXT2_FS_POSIX_ACL
+Index: 2.6.13-joel2/fs/ext3/super.c
+===================================================================
+--- 2.6.13-joel2.orig/fs/ext3/super.c	2005-09-13 14:54:14.%N -0500
++++ 2.6.13-joel2/fs/ext3/super.c	2005-09-13 15:02:01.%N -0500
+@@ -440,7 +440,7 @@ static struct inode *ext3_alloc_inode(st
+ {
+ 	struct ext3_inode_info *ei;
+ 
+-	ei = kmem_cache_alloc(ext3_inode_cachep, SLAB_NOFS);
++	ei = kmem_cache_alloc(ext3_inode_cachep, SLAB_NOFS|__GFP_KERNRCLM);
+ 	if (!ei)
+ 		return NULL;
+ #ifdef CONFIG_EXT3_FS_POSIX_ACL
+Index: 2.6.13-joel2/fs/ntfs/inode.c
+===================================================================
+--- 2.6.13-joel2.orig/fs/ntfs/inode.c	2005-09-13 14:54:14.%N -0500
++++ 2.6.13-joel2/fs/ntfs/inode.c	2005-09-13 15:05:53.%N -0500
+@@ -317,7 +317,7 @@ struct inode *ntfs_alloc_big_inode(struc
+ 	ntfs_inode *ni;
+ 
+ 	ntfs_debug("Entering.");
+-	ni = kmem_cache_alloc(ntfs_big_inode_cache, SLAB_NOFS);
++	ni = kmem_cache_alloc(ntfs_big_inode_cache, SLAB_NOFS|__GFP_KERNRCLM);
+ 	if (likely(ni != NULL)) {
+ 		ni->state = 0;
+ 		return VFS_I(ni);
+@@ -342,7 +342,7 @@ static inline ntfs_inode *ntfs_alloc_ext
+ 	ntfs_inode *ni;
+ 
+ 	ntfs_debug("Entering.");
+-	ni = kmem_cache_alloc(ntfs_inode_cache, SLAB_NOFS);
++	ni = kmem_cache_alloc(ntfs_inode_cache, SLAB_NOFS|__GFP_KERNRCLM);
+ 	if (likely(ni != NULL)) {
+ 		ni->state = 0;
+ 		return ni;
+Index: 2.6.13-joel2/include/linux/gfp.h
+===================================================================
+--- 2.6.13-joel2.orig/include/linux/gfp.h	2005-09-13 14:54:17.%N -0500
++++ 2.6.13-joel2/include/linux/gfp.h	2005-09-13 15:02:01.%N -0500
+@@ -41,21 +41,30 @@ struct vm_area_struct;
+ #define __GFP_NOMEMALLOC 0x10000u /* Don't use emergency reserves */
+ #define __GFP_NORECLAIM  0x20000u /* No realy zone reclaim during allocation */
+ 
+-#define __GFP_BITS_SHIFT 20	/* Room for 20 __GFP_FOO bits */
++/* Allocation type modifiers, group together if possible
++ * __GPF_USER: Allocation for user page or a buffer page
++ * __GFP_KERNRCLM: Short-lived or reclaimable kernel allocation
++ */
++#define __GFP_USER	0x40000u /* Kernel page that is easily reclaimable */
++#define __GFP_KERNRCLM	0x80000u /* User is a userspace user */
++#define __GFP_RCLM_BITS (__GFP_USER|__GFP_KERNRCLM)
++
++#define __GFP_BITS_SHIFT 21	/* Room for 20 __GFP_FOO bits */
+ #define __GFP_BITS_MASK ((1 << __GFP_BITS_SHIFT) - 1)
+ 
+ /* if you forget to add the bitmask here kernel will crash, period */
+ #define GFP_LEVEL_MASK (__GFP_WAIT|__GFP_HIGH|__GFP_IO|__GFP_FS| \
+ 			__GFP_COLD|__GFP_NOWARN|__GFP_REPEAT| \
+ 			__GFP_NOFAIL|__GFP_NORETRY|__GFP_NO_GROW|__GFP_COMP| \
+-			__GFP_NOMEMALLOC|__GFP_NORECLAIM)
++			__GFP_NOMEMALLOC|__GFP_KERNRCLM|__GFP_USER)
+ 
+ #define GFP_ATOMIC	(__GFP_HIGH)
+ #define GFP_NOIO	(__GFP_WAIT)
+ #define GFP_NOFS	(__GFP_WAIT | __GFP_IO)
+ #define GFP_KERNEL	(__GFP_WAIT | __GFP_IO | __GFP_FS)
+-#define GFP_USER	(__GFP_WAIT | __GFP_IO | __GFP_FS)
+-#define GFP_HIGHUSER	(__GFP_WAIT | __GFP_IO | __GFP_FS | __GFP_HIGHMEM)
++#define GFP_USER	(__GFP_WAIT | __GFP_IO | __GFP_FS | __GFP_USER)
++#define GFP_HIGHUSER	(__GFP_WAIT | __GFP_IO | __GFP_FS | __GFP_HIGHMEM | \
++			 __GFP_USER)
+ 
+ /* Flag - indicates that the buffer will be suitable for DMA.  Ignored on some
+    platforms, used as appropriate on others */
 
-Fallback is used when there are no 2^MAX_ORDER pages available and there
-are no free pages of the desired type. The fallback lists were chosen in a
-way that keeps the most easily reclaimable pages together.
-
-These patches originally were discussed as "Avoiding external fragmentation
-with a placement policy" as authored by Mel Gorman and went through about 13
-revisions on lkml and linux-mm.  Then with Mel's permission I have been
-reworking these patches for easier mergability, readability, maintainability,
-etc.  Several revisions have been posted on lhms-devel, as the Linux memory
-hotplug community will be a major beneficiary of these patches.  All of the
-various revisions have been tested on various platforms and shown to perform
-well.  I believe the patches are now ready for inclusion in -mm, and after
-wider testing inclusion in the mainline kernel.
-
-The patch set consists of 9 patches that can be merged in 4 separate blocks,
-with the only dependency being that the lower numbered patches are merged
-first.  All are against 2.6.13.
-Patch 1 defines the allocation flags and adds them to the allocator calls.
-Patch 2 defines some new structures and the macros used to access them.
-Patch 3-8 implement the fully functional fragmentation avoidance.
-Patch 9 is trivial but useful for memory hotplug remove.
----
-Patch 10 -- not ready for merging -- extends fragmentation avoidance to the
-percpu allocator.  This patch works on 2.6.13-rc1 but only with NUMA off on
-2.6.13; I am having a great deal of trouble tracking down why, help would be
-appreciated.  I include the patch for review and test purposes as I plan to
-submit it for merging after resolving the NUMA issues.
+--------------060207000900010809020004--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
