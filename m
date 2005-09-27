@@ -1,239 +1,50 @@
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e6.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id j8RIcQ2E011515
-	for <linux-mm@kvack.org>; Tue, 27 Sep 2005 14:38:26 -0400
-Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
-	by d01relay02.pok.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id j8RIcQrv089946
-	for <linux-mm@kvack.org>; Tue, 27 Sep 2005 14:38:26 -0400
-Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
-	by d01av01.pok.ibm.com (8.12.11/8.13.3) with ESMTP id j8RIcPgV027831
-	for <linux-mm@kvack.org>; Tue, 27 Sep 2005 14:38:26 -0400
-Message-ID: <433991A0.7000803@austin.ibm.com>
-Date: Tue, 27 Sep 2005 13:38:24 -0500
-From: Joel Schopp <jschopp@austin.ibm.com>
-MIME-Version: 1.0
+Date: Tue, 27 Sep 2005 12:30:55 -0700
+From: Paul Jackson <pj@sgi.com>
 Subject: Re: [PATCH 1/9] add defrag flags
-References: <4338537E.8070603@austin.ibm.com>	<43385412.5080506@austin.ibm.com>	<21024267-29C3-4657-9C45-17D186EAD808@mac.com>	<1127780648.10315.12.camel@localhost> <20050926224439.056eaf8d.pj@sgi.com>
-In-Reply-To: <20050926224439.056eaf8d.pj@sgi.com>
-Content-Type: multipart/mixed;
- boundary="------------060707030501090409030209"
+Message-Id: <20050927123055.0ad9c2b4.pj@sgi.com>
+In-Reply-To: <433991A0.7000803@austin.ibm.com>
+References: <4338537E.8070603@austin.ibm.com>
+	<43385412.5080506@austin.ibm.com>
+	<21024267-29C3-4657-9C45-17D186EAD808@mac.com>
+	<1127780648.10315.12.camel@localhost>
+	<20050926224439.056eaf8d.pj@sgi.com>
+	<433991A0.7000803@austin.ibm.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Paul Jackson <pj@sgi.com>
-Cc: Dave Hansen <haveblue@us.ibm.com>, mrmacman_g4@mac.com, akpm@osdl.org, lhms-devel@lists.sourceforge.net, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mel@csn.ul.ie, kravetz@us.ibm.com
+To: Joel Schopp <jschopp@austin.ibm.com>
+Cc: haveblue@us.ibm.com, mrmacman_g4@mac.com, akpm@osdl.org, lhms-devel@lists.sourceforge.net, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mel@csn.ul.ie, kravetz@us.ibm.com
 List-ID: <linux-mm.kvack.org>
 
-This is a multi-part message in MIME format.
---------------060707030501090409030209
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+Joel wrote:
+> We may not be able to use the same flag after all due to our need to mark buffer 
+> pages as user.
 
-> Looks like he made the same mistake in the actual code comments:
+Agreed - we have separate flags.  I want exactly user address space
+pages.  You want really easy to reclaim pages.  You have good
+performance justifications for your choice.  I have just "design
+purity", so if for some reason there was a dire shortage of GFP bits,
+I suspect it is I who should give, not you.
+
+> > +#define __GFP_BITS_SHIFT 21	/* Room for 20 __GFP_FOO bits */
 > 
-> +/* Allocation type modifiers, group together if possible
-> + * __GPF_USER: Allocation for user page or a buffer page
-> + * __GFP_KERNRCLM: Short-lived or reclaimable kernel allocation
-> + */
-> +#define __GFP_USER	0x40000u /* Kernel page that is easily reclaimable */
-> +#define __GFP_KERNRCLM	0x80000u /* User is a userspace user */
-> 
-> I'd guess you meant to write more like the following:
-> 
-> #define __GFP_USER   0x40000u /* Page for user address space */
-> #define __GFP_KERNRCLM 0x80000u /* Kernel page that is easily reclaimable */
+> Yep.
 
-Yep.
+Once this is merged with current Linux, which already has GFP_HARDWALL,
+I presume you will be back up to 21 bits, code and comment.
 
-> 
-> And the block comment seems to needlessly repeat the inline comments,
-> add a dubious claim, and omit the interesting stuff ...  In other words:
-> 
->     Does it actually matter if these two bits are grouped, or not?  I
->     suspect that some of your other code, such as shifting the gfpmask by
->     RCLM_SHIFT bits, _requires_ that these two bits be adjacent.  So the
->     "if possible" in the comment above is misleading.
-> 
->     And I suspect that gfp.h should contain the RCLM_SHIFT define, or
->     at least mention in comment that RCLM_SHIFT depends on the position
->     of the above two __GFP_* bits.
+As I noted in another message the "USER" and the comment in:
 
-I'll add a comment here.
+#define __GFP_USER	0x40000u /* User is a userspace user */
 
-> 
->     And I don't see any mention in the comments in gfp.h that these
->     two bits, in tandem, have an additional meaning - both bits off
->     means, I guess, not reclaimable, well at least not easily.
+are a bit misleading now.  Perhaps GFP_EASYRCLM?
 
-Yep, adding comment now.
-
-> 
-> My HARDWALL patch appears to already be in Linus's kernel, so you
-> probably also need to do a global substitute of all instances in
-> the kernel of __GFP_HARDWALL, replacing it with __GFP_USER.  Here
-> is the list of files I see affected, with a count of the number of
-> __GFP_HARDWALL strings in each:
-> 
->     include/linux/gfp.h:4
->     kernel/cpuset.c:6
->     mm/page_alloc.c:2
->     mm/vmscan.c:4
-
-We may not be able to use the same flag after all due to our need to mark buffer 
-pages as user.
-
-> 
-> The comment in the next line looks like it needs to be changed to match
-> the code change:
-> 
-> +#define __GFP_BITS_SHIFT 21	/* Room for 20 __GFP_FOO bits */
-
-Yep.
-
-> 
-> On the other hand, why did you change __GFP_BITS_SHIFT?  Isn't 20
-> enough - just enough?
-
-Yep.
-
-Fixed patch attached.
-
-Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-Signed-off-by: Joel Schopp <jschopp@austin.ibm.com>
-
---------------060707030501090409030209
-Content-Type: text/plain;
- name="1_add_defrag_flags"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline;
- filename="1_add_defrag_flags"
-
-Index: 2.6.13-joel2/fs/buffer.c
-===================================================================
---- 2.6.13-joel2.orig/fs/buffer.c	2005-09-13 14:54:13.%N -0500
-+++ 2.6.13-joel2/fs/buffer.c	2005-09-13 15:02:01.%N -0500
-@@ -1119,7 +1119,8 @@ grow_dev_page(struct block_device *bdev,
- 	struct page *page;
- 	struct buffer_head *bh;
- 
--	page = find_or_create_page(inode->i_mapping, index, GFP_NOFS);
-+	page = find_or_create_page(inode->i_mapping, index,
-+				   GFP_NOFS | __GFP_USER);
- 	if (!page)
- 		return NULL;
- 
-@@ -3044,7 +3045,8 @@ static void recalc_bh_state(void)
- 	
- struct buffer_head *alloc_buffer_head(unsigned int __nocast gfp_flags)
- {
--	struct buffer_head *ret = kmem_cache_alloc(bh_cachep, gfp_flags);
-+	struct buffer_head *ret = kmem_cache_alloc(bh_cachep,
-+						   gfp_flags|__GFP_KERNRCLM);
- 	if (ret) {
- 		preempt_disable();
- 		__get_cpu_var(bh_accounting).nr++;
-Index: 2.6.13-joel2/fs/dcache.c
-===================================================================
---- 2.6.13-joel2.orig/fs/dcache.c	2005-09-13 14:54:14.%N -0500
-+++ 2.6.13-joel2/fs/dcache.c	2005-09-13 15:02:01.%N -0500
-@@ -721,7 +721,7 @@ struct dentry *d_alloc(struct dentry * p
- 	struct dentry *dentry;
- 	char *dname;
- 
--	dentry = kmem_cache_alloc(dentry_cache, GFP_KERNEL); 
-+	dentry = kmem_cache_alloc(dentry_cache, GFP_KERNEL|__GFP_KERNRCLM);
- 	if (!dentry)
- 		return NULL;
- 
-Index: 2.6.13-joel2/fs/ext2/super.c
-===================================================================
---- 2.6.13-joel2.orig/fs/ext2/super.c	2005-09-13 14:54:14.%N -0500
-+++ 2.6.13-joel2/fs/ext2/super.c	2005-09-13 15:02:01.%N -0500
-@@ -138,7 +138,8 @@ static kmem_cache_t * ext2_inode_cachep;
- static struct inode *ext2_alloc_inode(struct super_block *sb)
- {
- 	struct ext2_inode_info *ei;
--	ei = (struct ext2_inode_info *)kmem_cache_alloc(ext2_inode_cachep, SLAB_KERNEL);
-+	ei = (struct ext2_inode_info *)kmem_cache_alloc(ext2_inode_cachep,
-+						SLAB_KERNEL|__GFP_KERNRCLM);
- 	if (!ei)
- 		return NULL;
- #ifdef CONFIG_EXT2_FS_POSIX_ACL
-Index: 2.6.13-joel2/fs/ext3/super.c
-===================================================================
---- 2.6.13-joel2.orig/fs/ext3/super.c	2005-09-13 14:54:14.%N -0500
-+++ 2.6.13-joel2/fs/ext3/super.c	2005-09-13 15:02:01.%N -0500
-@@ -440,7 +440,7 @@ static struct inode *ext3_alloc_inode(st
- {
- 	struct ext3_inode_info *ei;
- 
--	ei = kmem_cache_alloc(ext3_inode_cachep, SLAB_NOFS);
-+	ei = kmem_cache_alloc(ext3_inode_cachep, SLAB_NOFS|__GFP_KERNRCLM);
- 	if (!ei)
- 		return NULL;
- #ifdef CONFIG_EXT3_FS_POSIX_ACL
-Index: 2.6.13-joel2/fs/ntfs/inode.c
-===================================================================
---- 2.6.13-joel2.orig/fs/ntfs/inode.c	2005-09-13 14:54:14.%N -0500
-+++ 2.6.13-joel2/fs/ntfs/inode.c	2005-09-13 15:05:53.%N -0500
-@@ -317,7 +317,7 @@ struct inode *ntfs_alloc_big_inode(struc
- 	ntfs_inode *ni;
- 
- 	ntfs_debug("Entering.");
--	ni = kmem_cache_alloc(ntfs_big_inode_cache, SLAB_NOFS);
-+	ni = kmem_cache_alloc(ntfs_big_inode_cache, SLAB_NOFS|__GFP_KERNRCLM);
- 	if (likely(ni != NULL)) {
- 		ni->state = 0;
- 		return VFS_I(ni);
-@@ -342,7 +342,7 @@ static inline ntfs_inode *ntfs_alloc_ext
- 	ntfs_inode *ni;
- 
- 	ntfs_debug("Entering.");
--	ni = kmem_cache_alloc(ntfs_inode_cache, SLAB_NOFS);
-+	ni = kmem_cache_alloc(ntfs_inode_cache, SLAB_NOFS|__GFP_KERNRCLM);
- 	if (likely(ni != NULL)) {
- 		ni->state = 0;
- 		return ni;
-Index: 2.6.13-joel2/include/linux/gfp.h
-===================================================================
---- 2.6.13-joel2.orig/include/linux/gfp.h	2005-09-13 14:54:17.%N -0500
-+++ 2.6.13-joel2/include/linux/gfp.h	2005-09-27 12:53:13.%N -0500
-@@ -41,6 +41,16 @@ struct vm_area_struct;
- #define __GFP_NOMEMALLOC 0x10000u /* Don't use emergency reserves */
- #define __GFP_NORECLAIM  0x20000u /* No realy zone reclaim during allocation */
- 
-+/* Allocation type modifiers, these are required to be adjacent
-+ * __GPF_USER: Allocation for user page or a buffer page
-+ * __GFP_KERNRCLM: Short-lived or reclaimable kernel allocation
-+ * Both bits off: Kernel non-reclaimable or very hard to reclaim
-+ * RCLM_SHIFT (defined elsewhere) depends on the location of these bits
-+ */
-+#define __GFP_USER	0x40000u /* User is a userspace user */
-+#define __GFP_KERNRCLM	0x80000u /* Kernel page that is easily reclaimable */
-+#define __GFP_RCLM_BITS (__GFP_USER|__GFP_KERNRCLM)
-+
- #define __GFP_BITS_SHIFT 20	/* Room for 20 __GFP_FOO bits */
- #define __GFP_BITS_MASK ((1 << __GFP_BITS_SHIFT) - 1)
- 
-@@ -48,14 +58,15 @@ struct vm_area_struct;
- #define GFP_LEVEL_MASK (__GFP_WAIT|__GFP_HIGH|__GFP_IO|__GFP_FS| \
- 			__GFP_COLD|__GFP_NOWARN|__GFP_REPEAT| \
- 			__GFP_NOFAIL|__GFP_NORETRY|__GFP_NO_GROW|__GFP_COMP| \
--			__GFP_NOMEMALLOC|__GFP_NORECLAIM)
-+			__GFP_NOMEMALLOC|__GFP_KERNRCLM|__GFP_USER)
- 
- #define GFP_ATOMIC	(__GFP_HIGH)
- #define GFP_NOIO	(__GFP_WAIT)
- #define GFP_NOFS	(__GFP_WAIT | __GFP_IO)
- #define GFP_KERNEL	(__GFP_WAIT | __GFP_IO | __GFP_FS)
--#define GFP_USER	(__GFP_WAIT | __GFP_IO | __GFP_FS)
--#define GFP_HIGHUSER	(__GFP_WAIT | __GFP_IO | __GFP_FS | __GFP_HIGHMEM)
-+#define GFP_USER	(__GFP_WAIT | __GFP_IO | __GFP_FS | __GFP_USER)
-+#define GFP_HIGHUSER	(__GFP_WAIT | __GFP_IO | __GFP_FS | __GFP_HIGHMEM | \
-+			 __GFP_USER)
- 
- /* Flag - indicates that the buffer will be suitable for DMA.  Ignored on some
-    platforms, used as appropriate on others */
-
---------------060707030501090409030209--
+-- 
+                  I won't rest till it's the best ...
+                  Programmer, Linux Scalability
+                  Paul Jackson <pj@sgi.com> 1.925.600.0401
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
