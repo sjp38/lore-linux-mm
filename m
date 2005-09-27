@@ -1,38 +1,25 @@
-Date: Tue, 27 Sep 2005 15:45:17 -0700
-From: Paul Jackson <pj@sgi.com>
-Subject: Re: [Lhms-devel] Re: [PATCH 1/9] add defrag flags
-Message-Id: <20050927154517.4b6f5e70.pj@sgi.com>
-In-Reply-To: <4339C1C6.8040202@austin.ibm.com>
-References: <4338537E.8070603@austin.ibm.com>
-	<43385412.5080506@austin.ibm.com>
-	<21024267-29C3-4657-9C45-17D186EAD808@mac.com>
-	<1127780648.10315.12.camel@localhost>
-	<20050926224439.056eaf8d.pj@sgi.com>
-	<433991A0.7000803@austin.ibm.com>
-	<20050927123055.0ad9c2b4.pj@sgi.com>
-	<4339B2F6.1070806@austin.ibm.com>
-	<20050927142355.232f6e95.pj@sgi.com>
-	<4339C1C6.8040202@austin.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Date: Tue, 27 Sep 2005 16:35:54 -0700 (PDT)
+From: Christoph Lameter <clameter@engr.sgi.com>
+Subject: Re: 2.6.14-rc2 early boot OOPS (mm/slab.c:1767)
+In-Reply-To: <20050927202858.GG1046@vega.lnet.lut.fi>
+Message-ID: <Pine.LNX.4.62.0509271630050.11040@schroedinger.engr.sgi.com>
+References: <20050927202858.GG1046@vega.lnet.lut.fi>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Joel Schopp <jschopp@austin.ibm.com>
-Cc: haveblue@us.ibm.com, mrmacman_g4@mac.com, akpm@osdl.org, lhms-devel@lists.sourceforge.net, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mel@csn.ul.ie, kravetz@us.ibm.com
+To: Tomi Lapinlampi <lapinlam@vega.lnet.lut.fi>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, alokk@calsoftinc.com
 List-ID: <linux-mm.kvack.org>
 
-+	 * Mark as __GFP_USER because from a fragmentation avoidance and
-+	 * reclimation point of view this memory behaves like user memory.
+On Tue, 27 Sep 2005, Tomi Lapinlampi wrote:
 
-You misspelled reclamation.
+> I'm getting the following OOPS with 2.6.14-rc2 on an Alpha.
 
-(Nice comment - I had to bitch about something ;).
+Hmmm. I am not familiar with Alpha. The .config looks as if this is a 
+uniprocessor configuration? No NUMA? 
 
--- 
-                  I won't rest till it's the best ...
-                  Programmer, Linux Scalability
-                  Paul Jackson <pj@sgi.com> 1.925.600.0401
+What is the value of MAX_NUMNODES?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
