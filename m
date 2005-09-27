@@ -1,44 +1,38 @@
-Date: Mon, 26 Sep 2005 23:29:01 +0100
-From: Alex Bligh - linux-kernel <linux-kernel@alex.org.uk>
-Reply-To: Alex Bligh - linux-kernel <linux-kernel@alex.org.uk>
-Subject: Re: [PATCH 4/9] defrag helper functions
-Message-ID: <C50046EE58FA62242E92877C@[192.168.100.25]>
-In-Reply-To: <43385594.3080303@austin.ibm.com>
-References: <4338537E.8070603@austin.ibm.com>
- <43385594.3080303@austin.ibm.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii; format=flowed
+In-Reply-To: <43385412.5080506@austin.ibm.com>
+References: <4338537E.8070603@austin.ibm.com> <43385412.5080506@austin.ibm.com>
+Mime-Version: 1.0 (Apple Message framework v734)
+Content-Type: text/plain; charset=US-ASCII; delsp=yes; format=flowed
+Message-Id: <21024267-29C3-4657-9C45-17D186EAD808@mac.com>
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
+From: Kyle Moffett <mrmacman_g4@mac.com>
+Subject: Re: [PATCH 1/9] add defrag flags
+Date: Mon, 26 Sep 2005 20:16:03 -0400
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Joel Schopp <jschopp@austin.ibm.com>, Andrew Morton <akpm@osdl.org>
-Cc: lhms <lhms-devel@lists.sourceforge.net>, Linux Memory Management List <linux-mm@kvack.org>, linux-kernel@vger.kernel.org, Mel Gorman <mel@csn.ul.ie>, Mike Kravetz <kravetz@us.ibm.com>, Alex Bligh - linux-kernel <linux-kernel@alex.org.uk>
+To: Joel Schopp <jschopp@austin.ibm.com>
+Cc: Andrew Morton <akpm@osdl.org>, lhms <lhms-devel@lists.sourceforge.net>, Linux Memory Management List <linux-mm@kvack.org>, linux-kernel@vger.kernel.org, Mel Gorman <mel@csn.ul.ie>, Mike Kravetz <kravetz@us.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
+On Sep 26, 2005, at 16:03:30, Joel Schopp wrote:
+> The flags are:
+> __GFP_USER, which corresponds to easily reclaimable pages
+> __GFP_KERNRCLM, which corresponds to userspace pages
 
---On 26 September 2005 15:09 -0500 Joel Schopp <jschopp@austin.ibm.com> 
-wrote:
+Uhh, call me crazy, but don't those flags look a little backwards to  
+you?  Maybe it's just me, but wouldn't it make sense to expect  
+__GFP_USER to be a userspace allocation and __GFP_KERNRCLM to be an  
+easily reclaimable kernel page?
 
-> +void assign_bit(int bit_nr, unsigned long* map, int value)
+Cheers,
+Kyle Moffett
 
-Maybe:
-static inline void assign_bit(int bit_nr, unsigned long* map, int value)
+-----BEGIN GEEK CODE BLOCK-----
+Version: 3.12
+GCM/CS/IT/U d- s++: a18 C++++>$ UB/L/X/*++++(+)>$ P+++(++++)>$ L++++(+ 
+++) E W++(+) N+++(++) o? K? w--- O? M++ V? PS+() PE+(-) Y+ PGP+++ t+(+ 
+++) 5 X R? tv-(--) b++++(++) DI+ D+ G e->++++$ h!*()>++$ r  !y?(-)
+------END GEEK CODE BLOCK------
 
-it's short enough
-
->  +static struct page *
-> +fallback_alloc(int alloctype, struct zone *zone, unsigned int order)
-> +{
-> +       /* Stub out for seperate review, NULL equates to no fallback*/
-> +       return NULL;
-> +
-> +}
-
-Maybe "static inline" too.
-
---
-Alex Bligh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
