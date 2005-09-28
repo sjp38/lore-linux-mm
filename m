@@ -1,36 +1,43 @@
-Date: Wed, 28 Sep 2005 10:08:14 -0700 (PDT)
-From: Christoph Lameter <clameter@engr.sgi.com>
-Subject: Re: 2.6.14-rc2 early boot OOPS (mm/slab.c:1767)
-In-Reply-To: <20050928063017.GI1046@vega.lnet.lut.fi>
-Message-ID: <Pine.LNX.4.62.0509281006270.14264@schroedinger.engr.sgi.com>
-References: <20050927202858.GG1046@vega.lnet.lut.fi>
- <Pine.LNX.4.62.0509271630050.11040@schroedinger.engr.sgi.com>
- <20050928063017.GI1046@vega.lnet.lut.fi>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Wed, 28 Sep 2005 10:50:09 -0700
+From: "Seth, Rohit" <rohit.seth@intel.com>
+Subject: [patch] Reset the high water marks in CPUs pcp list
+Message-ID: <20050928105009.B29282@unix-os.sc.intel.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Tomi Lapinlampi <lapinlam@vega.lnet.lut.fi>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, alokk@calsoftinc.com
+To: akpm@osdl.org
+Cc: "Seth, Rohit" <rohit.seth@intel.com>, linux-mm@kvack.org, Mattia Dongili <malattia@linux.it>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 28 Sep 2005, Tomi Lapinlampi wrote:
+Recent changes in page allocations for pcps has increased the high watermark for these lists.  This has resulted in scenarios where pcp lists could be having bigger number of free pages even under low memory conditions. 
 
-> > Hmmm. I am not familiar with Alpha. The .config looks as if this is a 
-> > uniprocessor configuration? No NUMA? 
-> 
-> This is a simple uniprocessor configuration, no NUMA, no SMP. 
-> 
-> > What is the value of MAX_NUMNODES?
-> 
-> I'm not familiar with NUMA, where can I check this (or does this question
-> even apply since it's not a NUMA system) ?
+ 	[PATCH]: Reduce the high mark in cpu's pcp lists.
+ 
+ 	Signed-off-by: Rohit Seth <rohit.seth@intel.com>
 
-Well, one use of memory nodes is to describe discontiguous memory on some 
-architectures. Thus the number of nodes may be more than one even if 
-CONFIG_NUMA is off. This is the case f.e. on ppc64. There may be some arch 
-specific settings that cause problems here. 
 
+--- linux-2.6.14-rc2-mm1.org/mm/page_alloc.c	2005-09-27 10:03:51.000000000 -0700
++++ linux-2.6.14-rc2-mm1/mm/page_alloc.c	2005-09-27 18:01:21.000000000 -0700
+@@ -1859,15 +1859,15 @@
+ 	pcp = &p->pcp[0];		/* hot */
+ 	pcp->count = 0;
+ 	pcp->low = 0;
+-	pcp->high = 6 * batch;
++	pcp->high = 4 * batch;
+ 	pcp->batch = max(1UL, 1 * batch);
+ 	INIT_LIST_HEAD(&pcp->list);
+ 
+ 	pcp = &p->pcp[1];		/* cold*/
+ 	pcp->count = 0;
+ 	pcp->low = 0;
+-	pcp->high = 2 * batch;
+ 	pcp->batch = max(1UL, batch/2);
++	pcp->high = pcp->batch + 1;
+ 	INIT_LIST_HEAD(&pcp->list);
+ }
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
