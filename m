@@ -1,43 +1,25 @@
-Date: Wed, 28 Sep 2005 10:50:09 -0700
-From: "Seth, Rohit" <rohit.seth@intel.com>
-Subject: [patch] Reset the high water marks in CPUs pcp list
-Message-ID: <20050928105009.B29282@unix-os.sc.intel.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Date: Wed, 28 Sep 2005 13:01:23 -0700 (PDT)
+From: Christoph Lameter <clameter@engr.sgi.com>
+Subject: Re: [patch] Reset the high water marks in CPUs pcp list
+In-Reply-To: <20050928105009.B29282@unix-os.sc.intel.com>
+Message-ID: <Pine.LNX.4.62.0509281259550.14892@schroedinger.engr.sgi.com>
+References: <20050928105009.B29282@unix-os.sc.intel.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: akpm@osdl.org
-Cc: "Seth, Rohit" <rohit.seth@intel.com>, linux-mm@kvack.org, Mattia Dongili <malattia@linux.it>, linux-kernel@vger.kernel.org
+To: "Seth, Rohit" <rohit.seth@intel.com>
+Cc: akpm@osdl.org, linux-mm@kvack.org, Mattia Dongili <malattia@linux.it>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Recent changes in page allocations for pcps has increased the high watermark for these lists.  This has resulted in scenarios where pcp lists could be having bigger number of free pages even under low memory conditions. 
+On Wed, 28 Sep 2005, Seth, Rohit wrote:
 
- 	[PATCH]: Reduce the high mark in cpu's pcp lists.
- 
- 	Signed-off-by: Rohit Seth <rohit.seth@intel.com>
+> Recent changes in page allocations for pcps has increased the high watermark for these lists.  This has resulted in scenarios where pcp lists could be having bigger number of free pages even under low memory conditions. 
+> 
+>  	[PATCH]: Reduce the high mark in cpu's pcp lists.
 
-
---- linux-2.6.14-rc2-mm1.org/mm/page_alloc.c	2005-09-27 10:03:51.000000000 -0700
-+++ linux-2.6.14-rc2-mm1/mm/page_alloc.c	2005-09-27 18:01:21.000000000 -0700
-@@ -1859,15 +1859,15 @@
- 	pcp = &p->pcp[0];		/* hot */
- 	pcp->count = 0;
- 	pcp->low = 0;
--	pcp->high = 6 * batch;
-+	pcp->high = 4 * batch;
- 	pcp->batch = max(1UL, 1 * batch);
- 	INIT_LIST_HEAD(&pcp->list);
- 
- 	pcp = &p->pcp[1];		/* cold*/
- 	pcp->count = 0;
- 	pcp->low = 0;
--	pcp->high = 2 * batch;
- 	pcp->batch = max(1UL, batch/2);
-+	pcp->high = pcp->batch + 1;
- 	INIT_LIST_HEAD(&pcp->list);
- }
- 
+There is no need for such a patch. The pcp lists are regularly flushed.
+See drain_remote_pages.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
