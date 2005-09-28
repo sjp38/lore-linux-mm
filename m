@@ -1,48 +1,36 @@
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by e3.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id j8SGgcZr023376
-	for <linux-mm@kvack.org>; Wed, 28 Sep 2005 12:42:38 -0400
-Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
-	by d01relay04.pok.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id j8SGgYbd104138
-	for <linux-mm@kvack.org>; Wed, 28 Sep 2005 12:42:38 -0400
-Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
-	by d01av01.pok.ibm.com (8.12.11/8.13.3) with ESMTP id j8SGgYB7020960
-	for <linux-mm@kvack.org>; Wed, 28 Sep 2005 12:42:34 -0400
-Subject: Re: [patch] bug of pgdat_list connection in init_bootmem()
-From: Dave Hansen <haveblue@us.ibm.com>
-In-Reply-To: <20050928223844.8655.Y-GOTO@jp.fujitsu.com>
-References: <20050928223844.8655.Y-GOTO@jp.fujitsu.com>
-Content-Type: text/plain
-Date: Wed, 28 Sep 2005 09:42:15 -0700
-Message-Id: <1127925735.10315.232.camel@localhost>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Date: Wed, 28 Sep 2005 10:08:14 -0700 (PDT)
+From: Christoph Lameter <clameter@engr.sgi.com>
+Subject: Re: 2.6.14-rc2 early boot OOPS (mm/slab.c:1767)
+In-Reply-To: <20050928063017.GI1046@vega.lnet.lut.fi>
+Message-ID: <Pine.LNX.4.62.0509281006270.14264@schroedinger.engr.sgi.com>
+References: <20050927202858.GG1046@vega.lnet.lut.fi>
+ <Pine.LNX.4.62.0509271630050.11040@schroedinger.engr.sgi.com>
+ <20050928063017.GI1046@vega.lnet.lut.fi>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Yasunori Goto <y-goto@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@osdl.org>, linux-mm <linux-mm@kvack.org>
+To: Tomi Lapinlampi <lapinlam@vega.lnet.lut.fi>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, alokk@calsoftinc.com
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2005-09-28 at 22:50 +0900, Yasunori Goto wrote:
->   I would like to remove this pgdat_list, to simplify hot-add/remove
->   a node. and posted patch before.
->    http://marc.theaimsgroup.com/?l=linux-mm&m=111596924629564&w=2
->    http://marc.theaimsgroup.com/?l=linux-mm&m=111596953711780&w=2
+On Wed, 28 Sep 2005, Tomi Lapinlampi wrote:
+
+> > Hmmm. I am not familiar with Alpha. The .config looks as if this is a 
+> > uniprocessor configuration? No NUMA? 
 > 
->   I would like to repost after getting performance impact by this.
->   But it is very hard that I can get time to use big NUMA machine now.
->   So, I don't know when I will be able to repost it.
+> This is a simple uniprocessor configuration, no NUMA, no SMP. 
 > 
->   Anyway, this should be modified before remove pgdat_list.
+> > What is the value of MAX_NUMNODES?
+> 
+> I'm not familiar with NUMA, where can I check this (or does this question
+> even apply since it's not a NUMA system) ?
 
-Could you resync those to a current kernel and resend them?  I'll take
-them into -mhp for a bit.
+Well, one use of memory nodes is to describe discontiguous memory on some 
+architectures. Thus the number of nodes may be more than one even if 
+CONFIG_NUMA is off. This is the case f.e. on ppc64. There may be some arch 
+specific settings that cause problems here. 
 
-I'd be very skeptical that it would hurt performance.  If nothing else,
-it just makes the pgdat smaller, and the likelyhood of having the next
-bit in a bitmask and the NODE_DATA() entry in your cache is slightly
-higher than some random pgdat->list.
-
--- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
