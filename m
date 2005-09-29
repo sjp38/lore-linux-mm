@@ -1,44 +1,49 @@
-Date: Thu, 29 Sep 2005 10:06:23 +0900
-From: Yasunori Goto <y-goto@jp.fujitsu.com>
-Subject: Re: [patch] bug of pgdat_list connection in init_bootmem()
-In-Reply-To: <1127925735.10315.232.camel@localhost>
-References: <20050928223844.8655.Y-GOTO@jp.fujitsu.com> <1127925735.10315.232.camel@localhost>
-Message-Id: <20050929095955.7ACF.Y-GOTO@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+Date: Wed, 28 Sep 2005 23:09:17 -0700
+From: Andrew Morton <akpm@osdl.org>
+Subject: Re: [PATCH 2/3 htlb-fault] Demand faulting for huge pages
+Message-Id: <20050928230917.2be72d69.akpm@osdl.org>
+In-Reply-To: <1127939538.26401.36.camel@localhost.localdomain>
+References: <1127939141.26401.32.camel@localhost.localdomain>
+	<1127939538.26401.36.camel@localhost.localdomain>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Hansen <haveblue@us.ibm.com>
-Cc: Andrew Morton <akpm@osdl.org>, linux-mm <linux-mm@kvack.org>
+To: Adam Litke <agl@us.ibm.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> On Wed, 2005-09-28 at 22:50 +0900, Yasunori Goto wrote:
-> >   I would like to remove this pgdat_list, to simplify hot-add/remove
-> >   a node. and posted patch before.
-> >    http://marc.theaimsgroup.com/?l=linux-mm&m=111596924629564&w=2
-> >    http://marc.theaimsgroup.com/?l=linux-mm&m=111596953711780&w=2
-> > 
-> >   I would like to repost after getting performance impact by this.
-> >   But it is very hard that I can get time to use big NUMA machine now.
-> >   So, I don't know when I will be able to repost it.
-> > 
-> >   Anyway, this should be modified before remove pgdat_list.
-> 
-> Could you resync those to a current kernel and resend them?  I'll take
-> them into -mhp for a bit.
-> 
-> I'd be very skeptical that it would hurt performance.  If nothing else,
-> it just makes the pgdat smaller, and the likelyhood of having the next
-> bit in a bitmask and the NODE_DATA() entry in your cache is slightly
-> higher than some random pgdat->list.
+Adam Litke <agl@us.ibm.com> wrote:
+>
+> +static struct page *find_get_huge_page(struct address_space *mapping,
+>  +			unsigned long idx)
+>  +{
+>  +	struct page *page = NULL;
+>  +
+>  +retry:
+>  +	page = find_get_page(mapping, idx);
+>  +	if (page)
+>  +		goto out;
+>  +
+>  +	if (hugetlb_get_quota(mapping))
+>  +		goto out;
+>  +	page = alloc_huge_page();
+>  +	if (!page) {
+>  +		hugetlb_put_quota(mapping);
+>  +		goto out;
+>  +	}
+>  +
+>  +	if (add_to_page_cache(page, mapping, idx, GFP_ATOMIC)) {
+>  +		put_page(page);
+>  +		hugetlb_put_quota(mapping);
+>  +		goto retry;
 
-Ok! I'll do it. :-)
+If add_to_page_cache() fails due to failure in radix_tree_preload(), this
+code will lock up.
 
-Thanks.
-
--- 
-Yasunori Goto 
+A lame fix is to check for -ENOMEM and bale.  A better fix would be to use
+GFP_KERNEL.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
