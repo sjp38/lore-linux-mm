@@ -1,43 +1,34 @@
-Message-ID: <433B8E76.9080005@yahoo.com.au>
-Date: Thu, 29 Sep 2005 16:49:26 +1000
-From: Nick Piggin <nickpiggin@yahoo.com.au>
+Subject: Re: [PATCH 3/3 htlb-acct] Demand faulting for huge pages
+References: <1127939141.26401.32.camel@localhost.localdomain>
+	<1127939593.26401.38.camel@localhost.localdomain>
+	<20050928232027.28e1bb93.akpm@osdl.org>
+From: Andi Kleen <ak@suse.de>
+Date: 29 Sep 2005 11:45:12 +0200
+In-Reply-To: <20050928232027.28e1bb93.akpm@osdl.org>
+Message-ID: <p73k6h0jjh3.fsf@verdi.suse.de>
 MIME-Version: 1.0
-Subject: Re: [patch] Reset the high water marks in CPUs pcp list
-References: <20050928105009.B29282@unix-os.sc.intel.com>  <Pine.LNX.4.62.0509281259550.14892@schroedinger.engr.sgi.com>  <1127939185.5046.17.camel@akash.sc.intel.com>  <Pine.LNX.4.62.0509281408480.15213@schroedinger.engr.sgi.com> <1127943168.5046.39.camel@akash.sc.intel.com> <Pine.LNX.4.62.0509281455310.15902@schroedinger.engr.sgi.com>
-In-Reply-To: <Pine.LNX.4.62.0509281455310.15902@schroedinger.engr.sgi.com>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@engr.sgi.com>
-Cc: Rohit Seth <rohit.seth@intel.com>, akpm@osdl.org, linux-mm@kvack.org, Mattia Dongili <malattia@linux.it>, linux-kernel@vger.kernel.org, steiner@sgi.com
+To: Andrew Morton <akpm@osdl.org>
+Cc: agl@us.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Christoph Lameter wrote:
+Andrew Morton <akpm@osdl.org> writes:
 
->
->I know that Jack and Nick did something with those counts to insure that 
->page coloring effects are avoided. Would you comment?
->
->
+(having written the original SLES9 code I will chime in ...) 
 
-The 'batch' argument to setup_pageset should be clamped to a power
-of 2 minus 1 (ie. 15, 31, etc), which was found to avoid the worst
-of the colouring problems.
+> > +unsigned long
+> > +huge_pages_needed(struct address_space *mapping, struct vm_area_struct *vma)
+> > +{
+> 
+> What does this function do?  Seems to count all the present pages within a
+> vma which are backed by a particular hugetlbfs file?  Or something?
 
-pcp->high of the hotlist IMO should have been reduced to 4 anyway
-after its pcp->low was reduced from 2 to 0.
+It counts how many huge pages are still needed to fill up a mapping completely.
+In short it counts the holes. I think the name fits.
 
-I don't see that there would be any problems with playing with the
-->high and ->low numbers so long as they are a reasonable multiple
-of batch, however I would question the merit of setting the high
-watermark of the cold queue to ->batch + 1 (should really stay at
-2*batch IMO).
-
-Nick
-
-
-Send instant messages to your online friends http://au.messenger.yahoo.com 
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
