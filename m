@@ -1,58 +1,29 @@
-Date: Thu, 29 Sep 2005 15:48:29 -0700
-From: "Martin J. Bligh" <mbligh@mbligh.org>
-Reply-To: "Martin J. Bligh" <mbligh@mbligh.org>
-Subject: Re: [PATCH] earlier allocation of order 0 pages from pcp in __alloc_pages
-Message-ID: <719460000.1128034108@[10.10.2.4]>
+Received: from westrelay02.boulder.ibm.com (westrelay02.boulder.ibm.com [9.17.195.11])
+	by e34.co.us.ibm.com (8.12.11/8.12.11) with ESMTP id j8TMmU2A020588
+	for <linux-mm@kvack.org>; Thu, 29 Sep 2005 18:48:30 -0400
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by westrelay02.boulder.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id j8TMo5f4500182
+	for <linux-mm@kvack.org>; Thu, 29 Sep 2005 16:50:05 -0600
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.12.11/8.13.3) with ESMTP id j8TMo562021683
+	for <linux-mm@kvack.org>; Thu, 29 Sep 2005 16:50:05 -0600
+Subject: Re: [PATCH] earlier allocation of order 0 pages from pcp in
+	__alloc_pages
+From: Dave Hansen <haveblue@us.ibm.com>
 In-Reply-To: <20050929150155.A15646@unix-os.sc.intel.com>
 References: <20050929150155.A15646@unix-os.sc.intel.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain
+Date: Thu, 29 Sep 2005 15:50:02 -0700
+Message-Id: <1128034202.6145.2.camel@localhost>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Seth, Rohit" <rohit.seth@intel.com>, akpm@osdl.org
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: "Seth, Rohit" <rohit.seth@intel.com>
+Cc: Andrew Morton <akpm@osdl.org>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
->         Try to service a order 0 page request from pcp list.  This will allow us to not check and possibly start the reclaim activity when there are free pages present on the pcp.  This early allocation does not try to replenish an empty pcp.
-> 
->         Signed-off-by: Rohit Seth <rohit.seth@intel.com>
-
-It seems a bit odd to copy more code to do this, which I think we already
-have in buffered_rmqueue? Can we clean up the flow a bit here ... it 
-is already looking messy in __alloc_pages with various gotos and crud
-there. I'm not saying what you're trying to do is bad, but the flow
-in there is getting more and move convoluted, and we perhaps need to
-straighten it. 
-
-It looks like we're now dropping into direct reclaim as the first thing
-in __alloc_pages before even trying to kick off kswapd. When the hell
-did that start? Or is that only meant to trigger if we're already below
-the low watermark level?
-
-What do we want to do at a higher level?
-
-	if (order 0) and (have stuff in the local lists)
-		take from local lists
-	else if (we're under a little pressure)
-		do kswapd reclaim
-	else if (we're under a lot of pressure)
-		do direct reclaim?
-
-That whole code area seems to have been turned into spagetti, without
-any clear comments.
-
-M.
-	
-	
- 
-> --- linux-2.6.14-rc2-mm1.org/mm/page_alloc.c	2005-09-27 10:03:51.000000000 -0700
-> +++ linux-2.6.14-rc2-mm1/mm/page_alloc.c	2005-09-28 17:38:15.000000000 -0700
-> @@ -716,6 +716,39 @@
->  		clear_highpage(page + i);
->  }
->  
+On Thu, 2005-09-29 at 15:01 -0700, Seth, Rohit wrote:
 > +/* This routine allocates a order 0 page from cpu's pcp list when one is present.
 > + * It does not try to remove the pages from zone_free_list as the zone low
 > + * water mark has not yet been checked.
@@ -86,31 +57,12 @@ M.
 > +	return page;
 > +}
 > +
->  /*
->   * Really, prep_compound_page() should be called from __rmqueue_bulk().  But
->   * we cheat by calling it from here, in the order > 0 path.  Saves a branch
-> @@ -905,6 +938,12 @@
->  		if (!cpuset_zone_allowed(z, __GFP_HARDWALL))
->  			continue;
->  
-> +		if (order == 0) {
-> +			page = remove_from_pcp(z, gfp_mask);
-> +			if (page)
-> +				goto got_pg;
-> +		}
-> +
->  		/*
->  		 * If the zone is to attempt early page reclaim then this loop
->  		 * will try to reclaim pages and check the watermark a second
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
-> 
 
+That looks to share a decent amount of logic with the pcp code in
+buffered_rmqueue.  Any chance it could be consolidated instead of
+copy/pasting?
+
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
