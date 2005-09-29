@@ -1,195 +1,188 @@
-Message-Id: <20050929181632.736493250@twins>
+Message-Id: <20050929181642.481684197@twins>
 References: <20050929180845.910895444@twins>
-Date: Thu, 29 Sep 2005 20:08:49 +0200
+Date: Thu, 29 Sep 2005 20:08:51 +0200
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [PATCH 4/7] CART - an advanced page replacement policy
-Content-Disposition: inline; filename=cart-cart-r.patch
+Subject: [PATCH 6/7] CART - an advanced page replacement policy
+Content-Disposition: inline; filename=cart-use-once.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-An improvement to CART.
-
-This patch introduces yet another adaptive parameter: 'r'.
-'r' measures the influx of fresh pages in ns/nl space; 
-ie. those pages not in: T1 u T2 u B1 u B2.
-
-When 'r' drops below nl we start reclaiming 'new' 'L' pages
-(from T1).
-
-This elevates the typical scan problem of eating your own tail.
-
-One possible improvement on this scheme: when it is
-found that we start reclaiming 'new' pages too soon ('p' > |T1|)
-we can give referenced 'new' 'L' pages one extra cycle and promote
-them to regular 'L' pages instead of reclaiming them when they
-are again referenced.
-
+This patch started live as a rework of the use-once code by
+Rik van Riel. I (ab)used it to remove the use-once code.
 
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 
- include/linux/mmzone.h |    1 +
- mm/cart.c              |   41 ++++++++++++++++++++++++++++++++++++++---
- 2 files changed, 39 insertions(+), 3 deletions(-)
+ mm/filemap.c  |   10 +---------
+ mm/shmem.c    |    7 ++-----
+ mm/swap.c     |   27 +--------------------------
+ mm/swapfile.c |    4 ++--
+ mm/vmscan.c   |   25 ++-----------------------
+ 5 files changed, 8 insertions(+), 65 deletions(-)
 
-Index: linux-2.6-git/mm/cart.c
+Index: linux-2.6-git/mm/filemap.c
 ===================================================================
---- linux-2.6-git.orig/mm/cart.c
-+++ linux-2.6-git/mm/cart.c
-@@ -64,6 +64,7 @@
+--- linux-2.6-git.orig/mm/filemap.c
++++ linux-2.6-git/mm/filemap.c
+@@ -723,7 +723,6 @@ void do_generic_mapping_read(struct addr
+ 	unsigned long offset;
+ 	unsigned long last_index;
+ 	unsigned long next_index;
+-	unsigned long prev_index;
+ 	loff_t isize;
+ 	struct page *cached_page;
+ 	int error;
+@@ -732,7 +731,6 @@ void do_generic_mapping_read(struct addr
+ 	cached_page = NULL;
+ 	index = *ppos >> PAGE_CACHE_SHIFT;
+ 	next_index = index;
+-	prev_index = ra.prev_page;
+ 	last_index = (*ppos + desc->count + PAGE_CACHE_SIZE-1) >> PAGE_CACHE_SHIFT;
+ 	offset = *ppos & ~PAGE_CACHE_MASK;
  
- #define cart_p ((zone)->nr_p)
- #define cart_q ((zone)->nr_q)
-+#define cart_r ((zone)->nr_r)
+@@ -779,13 +777,7 @@ page_ok:
+ 		if (mapping_writably_mapped(mapping))
+ 			flush_dcache_page(page);
  
- #define size_B1 ((zone)->nr_evicted_active)
- #define size_B2 ((zone)->nr_evicted_inactive)
-@@ -81,6 +82,7 @@ void __init cart_init(void)
- 		zone->nr_shortterm = 0;
- 		zone->nr_p = 0;
- 		zone->nr_q = 0;
-+		zone->nr_r = 0;
- 	}
+-		/*
+-		 * When (part of) the same page is read multiple times
+-		 * in succession, only mark it as accessed the first time.
+-		 */
+-		if (prev_index != index)
+-			mark_page_accessed(page);
+-		prev_index = index;
++		mark_page_accessed(page);
+ 
+ 		/*
+ 		 * Ok, we have the page, and it's up-to-date, so
+Index: linux-2.6-git/mm/shmem.c
+===================================================================
+--- linux-2.6-git.orig/mm/shmem.c
++++ linux-2.6-git/mm/shmem.c
+@@ -1500,11 +1500,8 @@ static void do_shmem_file_read(struct fi
+ 			 */
+ 			if (mapping_writably_mapped(mapping))
+ 				flush_dcache_page(page);
+-			/*
+-			 * Mark the page accessed if we read the beginning.
+-			 */
+-			if (!offset)
+-				mark_page_accessed(page);
++
++			mark_page_accessed(page);
+ 		} else
+ 			page = ZERO_PAGE(0);
+ 
+Index: linux-2.6-git/mm/swap.c
+===================================================================
+--- linux-2.6-git.orig/mm/swap.c
++++ linux-2.6-git/mm/swap.c
+@@ -97,37 +97,12 @@ int rotate_reclaimable_page(struct page 
  }
  
-@@ -123,6 +125,12 @@ void __cart_insert(struct zone *zone, st
- 	rflags = nonresident_find(page_mapping(page), page_index(page));
- 
- 	if (rflags & NR_found) {
-+		ratio = (nr_Nl / (nr_Ns + 1)) ?: 1;
-+		if (cart_r > ratio)
-+			cart_r -= ratio;
-+		else
-+			cart_r = 0UL;
-+
- 		rflags &= NR_listid;
- 		if (rflags == NR_b1) {
- 			if (likely(size_B1)) --size_B1;
-@@ -149,6 +157,11 @@ void __cart_insert(struct zone *zone, st
- 		}
- 		/* ++nr_Nl; */
- 	} else {
-+		ratio = (nr_Ns / (nr_Nl + 1)) ?: 1;
-+		cart_r += ratio;
-+		if (cart_r > cart_cT)
-+			cart_r = cart_cT;
-+
- 		ClearPageLongTerm(page);
- 		++nr_Ns;
- 	}
-@@ -355,12 +368,14 @@ static int cart_rebalance_T2(struct zone
- 
  /*
-  * Rebalance the T1 list:
-+ *  take 'new' 'L' pages for reclaim when r < nl,
-  *  move referenced pages to tail and possibly mark 'L',
-  *  move unreffed 'L' pages to tail T2,
-  *  take unreffed 'S' pages for reclaim.
-  *
-  * @zone: target zone.
-  * @l_t1_head: temp list of reclaimable pages (1 ref).
-+ * @l_new: temp list of 'new' pages.
-  * @nr_dst: quantum of pages.
-  * @nr_scanned: counter that keeps the number of pages touched.
-  * @pvec: pagevec used to release pages.
-@@ -369,6 +384,7 @@ static int cart_rebalance_T2(struct zone
-  * returns if we encountered more PG_writeback pages than reclaimable pages.
+- * FIXME: speed this up?
+- */
+-void fastcall activate_page(struct page *page)
+-{
+-	struct zone *zone = page_zone(page);
+-
+-	spin_lock_irq(&zone->lru_lock);
+-	if (PageLRU(page) && !PageActive(page)) {
+-		del_page_from_inactive_list(zone, page);
+-		SetPageActive(page);
+-		add_page_to_active_list(zone, page);
+-		inc_page_state(pgactivate);
+-	}
+-	spin_unlock_irq(&zone->lru_lock);
+-}
+-
+-/*
+  * Mark a page as having seen activity.
+- *
+- * inactive,unreferenced	->	inactive,referenced
+- * inactive,referenced		->	active,unreferenced
+- * active,unreferenced		->	active,referenced
   */
- static int cart_rebalance_T1(struct zone *zone, struct list_head *l_t1_head,
-+			     struct list_head *l_new,
- 			     unsigned long nr_dst, unsigned long *nr_scanned,
- 			     struct pagevec *pvec, int ignore_token)
+ void fastcall mark_page_accessed(struct page *page)
  {
-@@ -394,8 +410,13 @@ static int cart_rebalance_T1(struct zone
- 			referenced = page_referenced(page, 0, ignore_token);
- 			new = TestClearPageNew(page);
+-	if (!PageActive(page) && PageReferenced(page) && PageLRU(page)) {
+-		activate_page(page);
+-		ClearPageReferenced(page);
+-	} else if (!PageReferenced(page)) {
++	if (!PageReferenced(page))
+ 		SetPageReferenced(page);
+-	}
+ }
  
--			if (referenced ||
--			    (PageWriteback(page) && ++nr_writeback)) {
-+			if (cart_r < (nr_Nl + dsl) && PageLongTerm(page) && new) {
-+				list_move_tail(&page->lru, l_new);
-+				ClearPageActive(page);
-+				++dq;
-+				++nr_reclaim;
-+			} else if (referenced ||
-+				   (PageWriteback(page) && ++nr_writeback)) {
- 				list_move_tail(&page->lru, &l_t1);
- 
- 				// XXX: we race a bit here; 
-@@ -432,6 +453,7 @@ static int cart_rebalance_T1(struct zone
- 
- /*
-  * Try to reclaim a specified number of pages.
-+ * Prefer 'new' pages when available, otherwise let p be the judge.
-  *
-  * Clears PG_lru of reclaimed pages, but does take 1 reference.
-  *
-@@ -448,6 +470,7 @@ unsigned long cart_replace(struct zone *
- 			   int ignore_token)
- {
- 	struct page *page;
-+	LIST_HEAD(l_new);
- 	LIST_HEAD(l_t1);
- 	LIST_HEAD(l_t2);
- 	struct pagevec pvec;
-@@ -472,13 +495,26 @@ unsigned long cart_replace(struct zone *
- 			wr2 = cart_rebalance_T2(zone, &l_t2, nr_dst/2, nr_scanned,
- 						&pvec, ignore_token);
- 		if (list_empty(&l_t1))
--			wr1 = cart_rebalance_T1(zone, &l_t1, nr_dst/2, nr_scanned,
-+			wr1 = cart_rebalance_T1(zone, &l_t1, &l_new, nr_dst/2, nr_scanned,
- 						&pvec, ignore_token);
- 
- 		if (list_empty(&l_t1) && list_empty(&l_t2))
- 			break;
- 
- 		spin_lock_irq(&zone->lru_lock);
-+		while (!list_empty(&l_new) && nr < nr_dst) {
-+			page = head_to_page(&l_new);
-+			prefetchw_next_lru_page(page, &l_new, flags);
-+
-+			if (!TestClearPageLRU(page))
-+				BUG();
-+			if (!PageLongTerm(page))
-+				BUG();
-+			/* --nr_Nl; */
-+			--size_T2;
-+			++nr;
-+			list_move(&page->lru, dst);
-+		}
- 		while (!list_empty(&l_t1) &&
- 		       (size_T1 > cart_p || !size_T2 || wr2) && nr < nr_dst) {
- 			page = head_to_page(&l_t1);
-@@ -515,6 +551,7 @@ unsigned long cart_replace(struct zone *
- 	spin_lock_irq(&zone->lru_lock);
- 	__cart_list_splice_release(zone, &l_t1, list_T1, &pvec);
- 	__cart_list_splice_release(zone, &l_t2, list_T2, &pvec);
-+	__cart_list_splice_release(zone, &l_new, list_T2, &pvec);
- 	spin_unlock_irq(&zone->lru_lock);
- 	pagevec_release(&pvec);
- 
-@@ -562,7 +599,6 @@ void cart_reinsert(struct zone *zone, st
- 			list_move_tail(&page->lru, list_T1);
- 			++size_T1;
- 
--			/* ( |T1| >= min(p + 1, |B1| ) and ( filter = 'S' ) */
- 			/*
- 			 * Don't modify page state; it wasn't actually referenced
- 			 */
-Index: linux-2.6-git/include/linux/mmzone.h
+ EXPORT_SYMBOL(mark_page_accessed);
+Index: linux-2.6-git/mm/swapfile.c
 ===================================================================
---- linux-2.6-git.orig/include/linux/mmzone.h
-+++ linux-2.6-git/include/linux/mmzone.h
-@@ -155,6 +155,7 @@ struct zone {
- 	unsigned long 		nr_shortterm;	/* number of short term pages */
- 	unsigned long		nr_p;		/* p from the CART paper */
- 	unsigned long 		nr_q;		/* q from the cart paper */
-+	unsigned long		nr_r;
- 	unsigned long		pages_scanned;	   /* since last reclaim */
- 	int			all_unreclaimable; /* All pages pinned */
+--- linux-2.6-git.orig/mm/swapfile.c
++++ linux-2.6-git/mm/swapfile.c
+@@ -408,7 +408,7 @@ static void unuse_pte(struct vm_area_str
+ 	 * Move the page to the active list so it is not
+ 	 * immediately swapped out again after swapon.
+ 	 */
+-	activate_page(page);
++	SetPageReferenced(page);
+ }
  
+ static int unuse_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
+@@ -508,7 +508,7 @@ static int unuse_mm(struct mm_struct *mm
+ 		 * Activate page so shrink_cache is unlikely to unmap its
+ 		 * ptes while lock is dropped, so swapoff can make progress.
+ 		 */
+-		activate_page(page);
++		SetPageReferenced(page);
+ 		unlock_page(page);
+ 		down_read(&mm->mmap_sem);
+ 		lock_page(page);
+Index: linux-2.6-git/mm/vmscan.c
+===================================================================
+--- linux-2.6-git.orig/mm/vmscan.c
++++ linux-2.6-git/mm/vmscan.c
+@@ -235,27 +235,6 @@ static int shrink_slab(unsigned long sca
+ 	return ret;
+ }
+ 
+-/* Called without lock on whether page is mapped, so answer is unstable */
+-static inline int page_mapping_inuse(struct page *page)
+-{
+-	struct address_space *mapping;
+-
+-	/* Page is in somebody's page tables. */
+-	if (page_mapped(page))
+-		return 1;
+-
+-	/* Be more reluctant to reclaim swapcache than pagecache */
+-	if (PageSwapCache(page))
+-		return 1;
+-
+-	mapping = page_mapping(page);
+-	if (!mapping)
+-		return 0;
+-
+-	/* File is mmap'd by somebody? */
+-	return mapping_mapped(mapping);
+-}
+-
+ static inline int is_page_cache_freeable(struct page *page)
+ {
+ 	return page_count(page) - !!PagePrivate(page) == 2;
+@@ -408,8 +387,8 @@ static int shrink_list(struct list_head 
+ 			goto keep_locked;
+ 
+ 		referenced = page_referenced(page, 1, sc->priority <= 0);
+-		/* In active use or really unfreeable?  Activate it. */
+-		if (referenced && page_mapping_inuse(page))
++
++		if (referenced)
+ 			goto activate_locked;
+ 
+ #ifdef CONFIG_SWAP
 
 --
 
