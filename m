@@ -1,64 +1,90 @@
-Date: Thu, 29 Sep 2005 14:32:01 +0100 (BST)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: [PATCH 0/3] Demand faulting for huge pages
-In-Reply-To: <1127939141.26401.32.camel@localhost.localdomain>
-Message-ID: <Pine.LNX.4.61.0509291420150.27691@goblin.wat.veritas.com>
-References: <1127939141.26401.32.camel@localhost.localdomain>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from sirius.cs.amherst.edu (localhost.localdomain [127.0.0.1])
+	by sirius.cs.amherst.edu (8.12.11/8.12.11) with ESMTP id j8TDtiQL016252
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-SHA bits=256 verify=NO)
+	for <linux-mm@kvack.org>; Thu, 29 Sep 2005 09:55:44 -0400
+Received: (from sfkaplan@localhost)
+	by sirius.cs.amherst.edu (8.12.11/8.12.11/Submit) id j8TDtiiG016249
+	for linux-mm@kvack.org; Thu, 29 Sep 2005 09:55:44 -0400
+Date: Thu, 29 Sep 2005 09:55:44 -0400
+From: "Scott F. H. Kaplan" <sfkaplan@cs.amherst.edu>
+Subject: Re: vmtrace
+Message-ID: <20050929135544.GA15331@sirius.cs.amherst.edu>
+References: <20050928192929.GA19059@logos.cnet>
+Mime-Version: 1.0
+Content-Type: multipart/signed; micalg=pgp-sha1;
+	protocol="application/pgp-signature"; boundary="YZ5djTAD1cGYuMQK"
+Content-Disposition: inline
+In-Reply-To: <20050928192929.GA19059@logos.cnet>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: Adam Litke <agl@us.ibm.com>, William Irwin <wli@holomorphy.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 28 Sep 2005, Adam Litke wrote:
+--YZ5djTAD1cGYuMQK
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 
-> Hi Andrew.  Can we give hugetlb demand faulting a spin in the mm tree?
-> And could people with alpha, sparc, and ia64 machines give them a good
-> spin?  I haven't been able to test those arches yet.
+Hello Marcelo (and everyone on linux-mm),
 
-It's going to be a little confusing if these go in while I'm moving
-the page_table_lock inwards.  My patches don't make a big difference
-to hugetlb (I've not attempted splitting the lock at all for hugetlb -
-there would be per-arch implementation issues and very little point -
-though more point if we do move to hugetlb faulting).  But I'm ill at
-ease with changing the locking at one end while it's unclear whether
-it's right at the other end.
+On Wed, Sep 28, 2005 at 04:29:29PM -0300, Marcelo Tosatti wrote:
 
-Currently Adam's patches don't include my hugetlb changes already in
--mm; and I don't see any attention in his patches to the issue of
-hugetlb file truncation, which I was fixing up in those.
+> We've been talking on IRC on how to generate reference traces for
+> memory accesses, and a suggestion came up to periodically unmap all
+> present pte's of a given process.
 
-The current hugetlb_prefault guards against this with i_sem held:
-which _appears_ to be a lock ordering violation, but may not be,
-since the official lock ordering is determined by the possibility
-of fault within write, whereas hugetlb mmaps were never faulting.
+There are known accuracy limitations to this approach.  Most
+importantly, during any phase change, if you don't unmap the present
+PTE's often enough, you will introduce substantial error into any
+simulations that use these traces.
 
-Presumably on-demand hugetlb faulting would entail truncate_count
-checking like do_no_page, and corresponding code in hugetlbfs.
+> Note: The patch lacks "pte_disable"/"pte_enable" macro pair (those
+> are supposed to operate on a free bit in the flags field of the page
+> table which was defined as PTE_DISABLE) and "pte_presprotect" macro
+> to disable the PTE_PRESENT bit. I had that written down but _I LOST
+> MY LAPTOP_ with the complete patch inside :(
 
-I've no experience of hugetlb use.  Personally, I'd be very happy with
-a decision to disallow truncation of hugetlb files (seems odd to allow
-ftruncate when read and write are not allowed, and the size normally
-determined automatically by mmap size); but I have to assume that it's
-been allowed for good reason.
+Ugh!  Sorry to hear that.  I do have my own PTE_DISABLE and PTE_ENABLE
+in the kVMTrace patch that should be easy to extract.  Note, though,
+that I found it necessary to use two bits -- one to denote a PTE
+disabled by the trace-gathering mechanism, and one to denote a PTE
+disabled by a user-level mprotect() request.  This differentiation is
+necessary for correctness.
 
-> - htlb-get_user_pages removes an optimization that is no longer valid
-> when demand faulting huge pages
-> 
-> - htlb-fault moves the fault logic from hugetlb_prefault() to
-> hugetlb_pte_fault() and find_get_huge_page().
-> 
-> - htlb-acct adds an overcommit check to maintain the no-overcommit
-> semantics provided by hugetlb_prefault()
+> Scott, do you have any plans to port your work to v2.6? Relayfs
+> (present in recent v2.6 kernels) implements a mechanism to send data
+> to userspace which is very convenient.
 
-Yes, I found that last one rather strange too.  Doing it at creation
-time based on i_size (and updating if i_size is allowed to change) is
-one possibility; doing it at fault time whenever newly allocated is
-another possibility; but these pagevec lookups at mmap time seem odd.
+If by ``plans'' you mean ``desire'', then yes; if you mean ``an
+organized timeline'', then no.  I must say, though, that the relayfs
+sounds as though it will make the porting much easier, allowing me to
+strip out the ad-hoc in-kernel logging mechanism that I use in the
+2.4-based kVMTrace.
 
-Hugh
+I'm using kVMTrace actively to drive some research.  If there's a
+demand for a 2.6-based version of it, then I'm certainly interested in
+porting it forward, *especially* if there's anyone out there who would
+like to help me along! :-) Most of the hard work isn't in the kernel
+-- that portion is simple.  The bulk of the work is in the
+post-processing utility that reconstructs the state of every task in
+order to attribute each reference to the task that performed it and to
+identify all uses of shared memory.  I am hopeful, though, that the
+changes from 2.4 to 2.6 won't be all that onerous in this respect.
+
+Scott
+
+--YZ5djTAD1cGYuMQK
+Content-Type: application/pgp-signature
+Content-Disposition: inline
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.2.1 (GNU/Linux)
+
+iD8DBQFDO/Jg8eFdWQtoOmgRAtcWAKCUAyPms183qTJwli9g4nVsvn2HqQCgmVKV
+lwaccALKoMuyRJDhNuUmnXY=
+=ZVGv
+-----END PGP SIGNATURE-----
+
+--YZ5djTAD1cGYuMQK--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
