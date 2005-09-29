@@ -1,35 +1,75 @@
-Message-ID: <433C4343.20205@tmr.com>
-Date: Thu, 29 Sep 2005 15:40:51 -0400
-From: Bill Davidsen <davidsen@tmr.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH 0/7] CART - an advanced page replacement policy
-References: <20050929180845.910895444@twins>
-In-Reply-To: <20050929180845.910895444@twins>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+Date: Thu, 29 Sep 2005 15:01:55 -0700
+From: "Seth, Rohit" <rohit.seth@intel.com>
+Subject: [PATCH] earlier allocation of order 0 pages from pcp in __alloc_pages
+Message-ID: <20050929150155.A15646@unix-os.sc.intel.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: akpm@osdl.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Peter Zijlstra wrote:
-> Multiple memory zone CART implementation for Linux.
-> An advanced page replacement policy.
-> 
-> http://www.almaden.ibm.com/cs/people/dmodha/clockfast.pdf
-> (IBM does hold patent rights to the base algorithm ARC)
+        Try to service a order 0 page request from pcp list.  This will allow us to not check and possibly start the reclaim activity when there are free pages present on the pcp.  This early allocation does not try to replenish an empty pcp.
 
-Peter, this is a large patch, perhaps you could describe what configs 
-benefit, how much, and what the right to use status of the patent might 
-be. In other words, why would a reader of LKML put in this patch and try it?
+        Signed-off-by: Rohit Seth <rohit.seth@intel.com>
 
-The description of how it works is clear, but the problem solved isn't.
-
--- 
-    -bill davidsen (davidsen@tmr.com)
-"The secret to procrastination is to put things off until the
-  last possible moment - but no longer"  -me
+--- linux-2.6.14-rc2-mm1.org/mm/page_alloc.c	2005-09-27 10:03:51.000000000 -0700
++++ linux-2.6.14-rc2-mm1/mm/page_alloc.c	2005-09-28 17:38:15.000000000 -0700
+@@ -716,6 +716,39 @@
+ 		clear_highpage(page + i);
+ }
+ 
++/* This routine allocates a order 0 page from cpu's pcp list when one is present.
++ * It does not try to remove the pages from zone_free_list as the zone low
++ * water mark has not yet been checked.
++ */
++
++static struct page *
++remove_from_pcp(struct zone *zone, unsigned int __nocast gfp_flags)
++{
++	unsigned long flags;
++	struct per_cpu_pages *pcp;
++	struct page *page = NULL;
++	int cold = !!(gfp_flags & __GFP_COLD);
++
++	pcp = &zone_pcp(zone, get_cpu())->pcp[cold];
++	local_irq_save(flags);
++	if (pcp->count > pcp->low) {
++		page = list_entry(pcp->list.next, struct page, lru);
++		list_del(&page->lru);
++		pcp->count--;
++	}
++	local_irq_restore(flags);
++	put_cpu();
++
++	if (page != NULL) {
++		mod_page_state_zone(zone, pgalloc, 1 );
++		prep_new_page(page, 0);
++
++		if (gfp_flags & __GFP_ZERO)
++			prep_zero_page(page, 0, gfp_flags);
++	}
++	return page;
++}
++
+ /*
+  * Really, prep_compound_page() should be called from __rmqueue_bulk().  But
+  * we cheat by calling it from here, in the order > 0 path.  Saves a branch
+@@ -905,6 +938,12 @@
+ 		if (!cpuset_zone_allowed(z, __GFP_HARDWALL))
+ 			continue;
+ 
++		if (order == 0) {
++			page = remove_from_pcp(z, gfp_mask);
++			if (page)
++				goto got_pg;
++		}
++
+ 		/*
+ 		 * If the zone is to attempt early page reclaim then this loop
+ 		 * will try to reclaim pages and check the watermark a second
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
