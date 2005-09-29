@@ -1,47 +1,44 @@
-Subject: Re: [patch] Reset the high water marks in CPUs pcp list
-From: Rohit Seth <rohit.seth@intel.com>
-In-Reply-To: <Pine.LNX.4.62.0509281455310.15902@schroedinger.engr.sgi.com>
-References: <20050928105009.B29282@unix-os.sc.intel.com>
-	 <Pine.LNX.4.62.0509281259550.14892@schroedinger.engr.sgi.com>
-	 <1127939185.5046.17.camel@akash.sc.intel.com>
-	 <Pine.LNX.4.62.0509281408480.15213@schroedinger.engr.sgi.com>
-	 <1127943168.5046.39.camel@akash.sc.intel.com>
-	 <Pine.LNX.4.62.0509281455310.15902@schroedinger.engr.sgi.com>
-Content-Type: text/plain
-Date: Wed, 28 Sep 2005 18:12:56 -0700
-Message-Id: <1127956376.5046.44.camel@akash.sc.intel.com>
-Mime-Version: 1.0
+Date: Thu, 29 Sep 2005 10:06:23 +0900
+From: Yasunori Goto <y-goto@jp.fujitsu.com>
+Subject: Re: [patch] bug of pgdat_list connection in init_bootmem()
+In-Reply-To: <1127925735.10315.232.camel@localhost>
+References: <20050928223844.8655.Y-GOTO@jp.fujitsu.com> <1127925735.10315.232.camel@localhost>
+Message-Id: <20050929095955.7ACF.Y-GOTO@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@engr.sgi.com>
-Cc: akpm@osdl.org, linux-mm@kvack.org, Mattia Dongili <malattia@linux.it>, linux-kernel@vger.kernel.org, steiner@sgi.com, nickpiggin@yahoo.com.au
+To: Dave Hansen <haveblue@us.ibm.com>
+Cc: Andrew Morton <akpm@osdl.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2005-09-28 at 14:56 -0700, Christoph Lameter wrote:
-> On Wed, 28 Sep 2005, Rohit Seth wrote:
+> On Wed, 2005-09-28 at 22:50 +0900, Yasunori Goto wrote:
+> >   I would like to remove this pgdat_list, to simplify hot-add/remove
+> >   a node. and posted patch before.
+> >    http://marc.theaimsgroup.com/?l=linux-mm&m=111596924629564&w=2
+> >    http://marc.theaimsgroup.com/?l=linux-mm&m=111596953711780&w=2
+> > 
+> >   I would like to repost after getting performance impact by this.
+> >   But it is very hard that I can get time to use big NUMA machine now.
+> >   So, I don't know when I will be able to repost it.
+> > 
+> >   Anyway, this should be modified before remove pgdat_list.
 > 
-> > On Wed, 2005-09-28 at 14:09 -0700, Christoph Lameter wrote:
-> > > On Wed, 28 Sep 2005, Rohit Seth wrote:
-> > > 
-> > > > CONFIG_NUMA needs to be defined for that.  And then too for flushing the
-> > > > remote pages.  Also, when are you flushing the local pcps.  Also note
-> > > > that this patch is just bringing the free pages on the pcp list closer
-> > > > to what used to be the number earlier.
-> > > 
-> > > What was the reason for the increase of those numbers?
-> > Bugger batch size to possibly get more physical contiguous pages.  That
-> > indirectly increased the high water marks for the pcps.
+> Could you resync those to a current kernel and resend them?  I'll take
+> them into -mhp for a bit.
 > 
-> I know that Jack and Nick did something with those counts to insure that 
-> page coloring effects are avoided. Would you comment?
-> 
+> I'd be very skeptical that it would hurt performance.  If nothing else,
+> it just makes the pgdat smaller, and the likelyhood of having the next
+> bit in a bitmask and the NODE_DATA() entry in your cache is slightly
+> higher than some random pgdat->list.
 
-About 10% performance variation was seen from run to run with original
-setting with certain workloads on x86 and IA-64 platforms.  And this
-variation came down to about 2% with new settings.
+Ok! I'll do it. :-)
 
--rohit
+Thanks.
+
+-- 
+Yasunori Goto 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
