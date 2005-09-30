@@ -1,55 +1,57 @@
 From: Magnus Damm <magnus@valinux.co.jp>
-Message-Id: <20050930073253.10631.12029.sendpatchset@cherry.local>
+Message-Id: <20050930073258.10631.74982.sendpatchset@cherry.local>
 In-Reply-To: <20050930073232.10631.63786.sendpatchset@cherry.local>
 References: <20050930073232.10631.63786.sendpatchset@cherry.local>
-Subject: [PATCH 04/07] i386: numa warning fix
-Date: Fri, 30 Sep 2005 16:33:36 +0900 (JST)
+Subject: [PATCH 05/07] i386: sparsemem on pc
+Date: Fri, 30 Sep 2005 16:33:41 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-From: Isaku Yamahata <yamahata@valinux.co.jp>
+From: Magnus Damm <magnus@valinux.co.jp>
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 Cc: Magnus Damm <magnus@valinux.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-This patch contains a warning fix for the NUMA patch written by Dave Hansen 
-which was posted to lkml and linux-mm at September 13:th 2005.
+This patch for enables and fixes sparsemem support on i386. This is the
+same patch that was sent to linux-kernel on September 6:th 2005, but this 
+patch includes up-porting to fit on top of the patches written by Dave Hansen.
 
-[snip]
-  CC      arch/i386/mm/numa.o
-arch/i386/mm/numa.c: In function `remap_numa_kva':
-arch/i386/mm/numa.c:85: warning: implicit declaration of function `set_pmd_pfn'
-  LD      arch/i386/mm/built-in.o
-[snip]
-
-Signed-off-by: Isaku Yamahata <yamahata@valinux.co.jp>
 Signed-off-by: Magnus Damm <magnus@valinux.co.jp>
 ---
 
- pgtable-3level.h |    1 -
- pgtable.h        |    2 ++
- 2 files changed, 2 insertions(+), 1 deletion(-)
+ Kconfig        |    4 ++--
+ kernel/setup.c |    1 +
+ 2 files changed, 3 insertions(+), 2 deletions(-)
 
---- from-0006/include/asm-i386/pgtable-3level.h
-+++ to-work/include/asm-i386/pgtable-3level.h	2005-09-28 16:30:09.000000000 +0900
-@@ -65,7 +65,6 @@ static inline void set_pte(pte_t *ptep, 
- 		set_64bit((unsigned long long *)(pmdptr),pmd_val(pmdval))
- #define set_pud(pudptr,pudval) \
- 		(*(pudptr) = (pudval))
--extern void set_pmd_pfn(unsigned long vaddr, unsigned long pfn, pgprot_t flags);
+--- from-0002/arch/i386/Kconfig
++++ to-work/arch/i386/Kconfig	2005-09-28 16:32:47.000000000 +0900
+@@ -762,7 +762,6 @@ config NUMA
+ 	depends on SMP && HIGHMEM64G && (X86_NUMAQ || X86_GENERICARCH || (X86_SUMMIT && ACPI))
+ 	default n if X86_PC
+ 	default y if (X86_NUMAQ || X86_SUMMIT)
+-	select SPARSEMEM_STATIC
  
- /*
-  * Pentium-II erratum A13: in PAE mode we explicitly have to flush
---- from-0002/include/asm-i386/pgtable.h
-+++ to-work/include/asm-i386/pgtable.h	2005-09-28 16:30:09.000000000 +0900
-@@ -327,6 +327,8 @@ static inline pte_t pte_modify(pte_t pte
- #define pmd_large(pmd) \
- ((pmd_val(pmd) & (_PAGE_PSE|_PAGE_PRESENT)) == (_PAGE_PSE|_PAGE_PRESENT))
+ # Need comments to help the hapless user trying to turn on NUMA support
+ comment "NUMA (NUMA-Q) requires SMP, 64GB highmem support"
+@@ -801,7 +800,8 @@ config ARCH_DISCONTIGMEM_DEFAULT
  
-+extern void set_pmd_pfn(unsigned long vaddr, unsigned long pfn, pgprot_t flags);
-+
- /*
-  * the pgd page can be thought of an array like this: pgd_t[PTRS_PER_PGD]
-  *
+ config ARCH_SPARSEMEM_ENABLE
+ 	def_bool y
+-	depends on NUMA
++	depends on NUMA || (X86_PC && EXPERIMENTAL)
++	select SPARSEMEM_STATIC
+ 
+ config ARCH_SELECT_MEMORY_MODEL
+ 	def_bool y
+--- from-0006/arch/i386/kernel/setup.c
++++ to-work/arch/i386/kernel/setup.c	2005-09-28 16:32:47.000000000 +0900
+@@ -390,6 +390,7 @@ int __init get_memcfg_numa_flat(void)
+ 	/* Run the memory configuration and find the top of memory. */
+ 	node_start_pfn[0] = 0;
+ 	node_end_pfn[0] = max_pfn;
++	memory_present(0, 0, max_pfn);
+ 
+         /* Indicate there is one node available. */
+ 	nodes_clear(node_online_map);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
