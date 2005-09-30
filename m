@@ -1,180 +1,80 @@
-Received: from westrelay02.boulder.ibm.com (westrelay02.boulder.ibm.com [9.17.195.11])
-	by e34.co.us.ibm.com (8.12.11/8.12.11) with ESMTP id j8UG5oBt018293
-	for <linux-mm@kvack.org>; Fri, 30 Sep 2005 12:05:50 -0400
-Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
-	by westrelay02.boulder.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id j8UG7ReE138398
-	for <linux-mm@kvack.org>; Fri, 30 Sep 2005 10:07:27 -0600
-Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av03.boulder.ibm.com (8.12.11/8.13.3) with ESMTP id j8UG7RwN020053
-	for <linux-mm@kvack.org>; Fri, 30 Sep 2005 10:07:27 -0600
-Subject: Re: [PATCH]Remove pgdat list ver.2 [1/2]
-From: Dave Hansen <haveblue@us.ibm.com>
-In-Reply-To: <20050930205919.7019.Y-GOTO@jp.fujitsu.com>
-References: <20050930205919.7019.Y-GOTO@jp.fujitsu.com>
-Content-Type: multipart/mixed; boundary="=-3h7T//jpab1Af9qtgb8B"
-Date: Fri, 30 Sep 2005 09:07:25 -0700
-Message-Id: <1128096445.6145.36.camel@localhost>
+Date: Fri, 30 Sep 2005 15:44:04 -0300
+From: Marcelo <marcelo.tosatti@cyclades.com>
+Subject: Re: [PATCH 3/7] CART - an advanced page replacement policy
+Message-ID: <20050930184404.GA16812@xeon.cnet>
+References: <20050929180845.910895444@twins> <20050929181622.780879649@twins>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20050929181622.780879649@twins>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Yasunori Goto <y-goto@jp.fujitsu.com>
-Cc: linux-mm <linux-mm@kvack.org>, ia64 list <linux-ia64@vger.kernel.org>
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
---=-3h7T//jpab1Af9qtgb8B
-Content-Type: text/plain
-Content-Transfer-Encoding: 7bit
+Hi Peter,
 
-This works around my compile problem for now.  But, it might cause some
-more issues.  Can you take a closer look?
+On Thu, Sep 29, 2005 at 08:08:48PM +0200, Peter Zijlstra wrote:
+> The flesh of the CART implementation. Again comments in the file should be
+> clear.
 
+Having per-zone "B1" target accounted at fault-time instead of a global target
+strikes me.
 
+The ARC algorithm adjusts the B1 target based on the fact that being-faulted-pages
+were removed from the same memory region where such pages will reside.
 
--- Dave
+The per-zone "B1" target as you implement it means that the B1 target accounting
+happens for the zone in which the page for the faulting data has been allocated,
+_not_ on the zone from which the data has been evicted. Seems quite unfair.
 
---=-3h7T//jpab1Af9qtgb8B
-Content-Disposition: attachment; filename=no-pgdat-list-fix.patch
-Content-Type: text/x-patch; name=no-pgdat-list-fix.patch; charset=ANSI_X3.4-1968
-Content-Transfer-Encoding: 7bit
+So for example, if a page gets removed from the HighMem zone while in the 
+B1 list, and the same data gets faulted in later on a page from the normal
+zone, Normal will have its "B1" target erroneously increased.
 
+A global inactive target scaled to the zone size would get rid of that problem.
 
+Another issue is testing: You had some very interesting numbers before, 
+how are things now?
 
----
+> Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+> 
+>  mm/cart.c                  |  631 +++++++++++++++++++++++++++++++++++++++++++++
+>  7 files changed, 682 insertions(+), 35 deletions(-)
+> 
+> Index: linux-2.6-git/mm/cart.c
+> ===================================================================
+> --- /dev/null
+> +++ linux-2.6-git/mm/cart.c
+> @@ -0,0 +1,639 @@
 
- memhotplug-dave/include/linux/mmzone.h |  104 ++++++++++++++++-----------------
- 1 files changed, 53 insertions(+), 51 deletions(-)
+<snip>
 
-diff -puN include/linux/mmzone.h~no-pgdat-list-fix include/linux/mmzone.h
---- memhotplug/include/linux/mmzone.h~no-pgdat-list-fix	2005-09-30 08:59:56.000000000 -0700
-+++ memhotplug-dave/include/linux/mmzone.h	2005-09-30 09:06:10.000000000 -0700
-@@ -15,6 +15,7 @@
- #include <linux/init.h>
- #include <linux/seqlock.h>
- #include <asm/atomic.h>
-+#include <asm/mmzone.h>
- #include <asm/semaphore.h>
- 
- /* Free memory management - zoned buddy allocator.  */
-@@ -342,6 +343,58 @@ static inline void memory_present(int ni
- unsigned long __init node_memmap_size_bytes(int, unsigned long, unsigned long);
- #endif
- 
-+static inline int is_highmem_idx(int idx)
-+{
-+	return (idx == ZONE_HIGHMEM);
-+}
-+
-+static inline int is_normal_idx(int idx)
-+{
-+	return (idx == ZONE_NORMAL);
-+}
-+/**
-+ * is_highmem - helper function to quickly check if a struct zone is a 
-+ *              highmem zone or not.  This is an attempt to keep references
-+ *              to ZONE_{DMA/NORMAL/HIGHMEM/etc} in general code to a minimum.
-+ * @zone - pointer to struct zone variable
-+ */
-+static inline int is_highmem(struct zone *zone)
-+{
-+	return zone == zone->zone_pgdat->node_zones + ZONE_HIGHMEM;
-+}
-+
-+static inline int is_normal(struct zone *zone)
-+{
-+	return zone == zone->zone_pgdat->node_zones + ZONE_NORMAL;
-+}
-+
-+/* These two functions are used to setup the per zone pages min values */
-+struct ctl_table;
-+struct file;
-+int min_free_kbytes_sysctl_handler(struct ctl_table *, int, struct file *, 
-+					void __user *, size_t *, loff_t *);
-+extern int sysctl_lowmem_reserve_ratio[MAX_NR_ZONES-1];
-+int lowmem_reserve_ratio_sysctl_handler(struct ctl_table *, int, struct file *,
-+					void __user *, size_t *, loff_t *);
-+
-+#include <linux/topology.h>
-+/* Returns the number of the current Node. */
-+#define numa_node_id()		(cpu_to_node(raw_smp_processor_id()))
-+
-+#ifndef CONFIG_NEED_MULTIPLE_NODES
-+
-+extern struct pglist_data contig_page_data;
-+#define NODE_DATA(nid)		(&contig_page_data)
-+#define NODE_MEM_MAP(nid)	mem_map
-+#define MAX_NODES_SHIFT		1
-+#define pfn_to_nid(pfn)		(0)
-+
-+#else /* CONFIG_NEED_MULTIPLE_NODES */
-+
-+#include <asm/mmzone.h>
-+
-+#endif /* !CONFIG_NEED_MULTIPLE_NODES */
-+
- /*
-  * zone_idx() returns 0 for the ZONE_DMA zone, 1 for the ZONE_NORMAL zone, etc.
-  */
-@@ -408,57 +461,6 @@ static inline struct zone *next_zone(str
- 	for (zone = first_online_pgdat()->node_zones;	\
- 	     zone; zone = next_zone(zone))
- 
--static inline int is_highmem_idx(int idx)
--{
--	return (idx == ZONE_HIGHMEM);
--}
--
--static inline int is_normal_idx(int idx)
--{
--	return (idx == ZONE_NORMAL);
--}
--/**
-- * is_highmem - helper function to quickly check if a struct zone is a 
-- *              highmem zone or not.  This is an attempt to keep references
-- *              to ZONE_{DMA/NORMAL/HIGHMEM/etc} in general code to a minimum.
-- * @zone - pointer to struct zone variable
-- */
--static inline int is_highmem(struct zone *zone)
--{
--	return zone == zone->zone_pgdat->node_zones + ZONE_HIGHMEM;
--}
--
--static inline int is_normal(struct zone *zone)
--{
--	return zone == zone->zone_pgdat->node_zones + ZONE_NORMAL;
--}
--
--/* These two functions are used to setup the per zone pages min values */
--struct ctl_table;
--struct file;
--int min_free_kbytes_sysctl_handler(struct ctl_table *, int, struct file *, 
--					void __user *, size_t *, loff_t *);
--extern int sysctl_lowmem_reserve_ratio[MAX_NR_ZONES-1];
--int lowmem_reserve_ratio_sysctl_handler(struct ctl_table *, int, struct file *,
--					void __user *, size_t *, loff_t *);
--
--#include <linux/topology.h>
--/* Returns the number of the current Node. */
--#define numa_node_id()		(cpu_to_node(raw_smp_processor_id()))
--
--#ifndef CONFIG_NEED_MULTIPLE_NODES
--
--extern struct pglist_data contig_page_data;
--#define NODE_DATA(nid)		(&contig_page_data)
--#define NODE_MEM_MAP(nid)	mem_map
--#define MAX_NODES_SHIFT		1
--#define pfn_to_nid(pfn)		(0)
--
--#else /* CONFIG_NEED_MULTIPLE_NODES */
--
--#include <asm/mmzone.h>
--
--#endif /* !CONFIG_NEED_MULTIPLE_NODES */
- 
- #ifdef CONFIG_SPARSEMEM
- #include <asm/sparsemem.h>
-_
+> +#define cart_cT ((zone)->nr_active + (zone)->nr_inactive + (zone)->free_pages)
+> +#define cart_cB ((zone)->present_pages)
+> +
+> +#define T2B(x) (((x) * cart_cB) / cart_cT)
+> +#define B2T(x) (((x) * cart_cT) / cart_cB)
+> +
+> +#define size_T1 ((zone)->nr_active)
+> +#define size_T2 ((zone)->nr_inactive)
+> +
+> +#define list_T1 (&(zone)->active_list)
+> +#define list_T2 (&(zone)->inactive_list)
+> +
+> +#define cart_p ((zone)->nr_p)
+> +#define cart_q ((zone)->nr_q)
+> +
+> +#define size_B1 ((zone)->nr_evicted_active)
+> +#define size_B2 ((zone)->nr_evicted_inactive)
+> +
+> +#define nr_Ns ((zone)->nr_shortterm)
+> +#define nr_Nl (size_T1 + size_T2 - nr_Ns)
 
---=-3h7T//jpab1Af9qtgb8B--
+These defines are not not easy to read inside the code which
+uses them, I personally think that "zone->nr_.." explicitly is 
+much clearer.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
