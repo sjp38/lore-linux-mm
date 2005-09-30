@@ -1,58 +1,70 @@
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by e4.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id j8UFPZTI023359
-	for <linux-mm@kvack.org>; Fri, 30 Sep 2005 11:25:35 -0400
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay04.pok.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id j8UFPZon089734
-	for <linux-mm@kvack.org>; Fri, 30 Sep 2005 11:25:35 -0400
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.12.11/8.13.3) with ESMTP id j8UFPYLY020110
-	for <linux-mm@kvack.org>; Fri, 30 Sep 2005 11:25:34 -0400
-Subject: [PATCH 2/2] memhotplug testing: enable sparsemem on flat systems
-From: Dave Hansen <haveblue@us.ibm.com>
-Date: Fri, 30 Sep 2005 08:25:32 -0700
-References: <20050930152531.3FDB46D3@kernel.beaverton.ibm.com>
-In-Reply-To: <20050930152531.3FDB46D3@kernel.beaverton.ibm.com>
-Message-Id: <20050930152532.9FDF34BD@kernel.beaverton.ibm.com>
+Subject: Re: [PATCH 0/7] CART - an advanced page replacement policy
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+In-Reply-To: <433C4343.20205@tmr.com>
+References: <20050929180845.910895444@twins>  <433C4343.20205@tmr.com>
+Content-Type: text/plain
+Date: Fri, 30 Sep 2005 17:26:32 +0200
+Message-Id: <1128093992.14695.22.camel@twins>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: magnus@valinux.co.jp
-Cc: linux-mm@kvack.org, Dave Hansen <haveblue@us.ibm.com>
+To: Paul.McKenney@us.ibm.com, Bill Davidsen <davidsen@tmr.com>
+Cc: linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
----
+On Thu, 2005-09-29 at 15:40 -0400, Bill Davidsen wrote:
+> Peter Zijlstra wrote:
+> > Multiple memory zone CART implementation for Linux.
+> > An advanced page replacement policy.
+> > 
+> > http://www.almaden.ibm.com/cs/people/dmodha/clockfast.pdf
+> > (IBM does hold patent rights to the base algorithm ARC)
+> 
+> Peter, this is a large patch, perhaps you could describe what configs 
+> benefit, 
 
- memhotplug-dave/arch/i386/Kconfig |   16 +++++++++++++++-
- 1 files changed, 15 insertions(+), 1 deletion(-)
+All those that use swap. Those that exploit the weak side of LRU more
+than others.
 
-diff -puN arch/i386/Kconfig~C2-enable-i386-sparsemem-debug arch/i386/Kconfig
---- memhotplug/arch/i386/Kconfig~C2-enable-i386-sparsemem-debug	2005-09-29 12:40:42.000000000 -0700
-+++ memhotplug-dave/arch/i386/Kconfig	2005-09-29 12:41:22.000000000 -0700
-@@ -799,9 +799,23 @@ config ARCH_DISCONTIGMEM_DEFAULT
- 	def_bool y
- 	depends on NUMA
- 
-+config X86_SPARSEMEM_DEBUG_NONUMA
-+	bool "Enable SPARSEMEM on flat systems (debugging only)"
-+	depends on !NUMA && EXPERIMENTAL
-+	select SPARSEMEM_STATIC
-+	select SPARSEMEM_MANUAL
-+
-+config ARCH_MEMORY_PROBE
-+	def_bool y
-+	depends on X86_SPARSEMEM_DEBUG_NONUMA
-+
-+config ARCH_SPARSEMEM_DEFAULT
-+	def_bool y
-+	depends on X86_SPARSEMEM_DEBUG_NONUMA
-+
- config ARCH_SPARSEMEM_ENABLE
- 	def_bool y
--	depends on NUMA
-+	depends on NUMA || X86_SPARSEMEM_DEBUG_NONUMA
- 
- config ARCH_SELECT_MEMORY_MODEL
- 	def_bool y
-_
+CART is an adaptive algorithm that will act like LFU on one side and LRU
+on the other, capturing both behaviours. Therefore it is also scan
+proof, eg. 'use once' scans should not flush the full cache.
+
+Hence people with LFU friendly applications will see an improvement
+while those who have an LRU friendly application should see no decrease
+in swap performance.
+
+Non of the algorithms handle cyclic access very well, that is what patch
+5 tries to tackle.
+
+> how much, 
+
+In the cyclic case (n+a: a << n) I've seen speedups of over 300%. Other
+cases much less. However I've yet to encounter a case where it gives
+worse performance.
+
+I'm still constructing some corner case tests to give more hard numbers.
+
+> and what the right to use status of the patent might 
+> be. 
+
+AFAIK IBM allows Linux implementation of their patents.
+See: http://news.com.com/IBM+pledges+no+patent+attacks+against+Linux/2100-7344_3-5296787.html
+
+> In other words, why would a reader of LKML put in this patch and try it?
+> The description of how it works is clear, but the problem solved isn't.
+
+I hope to have answered these questions. If any questions still remain,
+please let me know.
+
+Kind regards,
+
+Peter Zijlstra
+
+
+-- 
+Peter Zijlstra <a.p.zijlstra@chello.nl>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
