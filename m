@@ -1,42 +1,47 @@
-Subject: Re: [PATCH] earlier allocation of order 0 pages from pcp in
-	__alloc_pages
-From: Rohit Seth <rohit.seth@intel.com>
-In-Reply-To: <20050929161118.27f9f1eb.akpm@osdl.org>
-References: <20050929150155.A15646@unix-os.sc.intel.com>
-	 <719460000.1128034108@[10.10.2.4]>  <20050929161118.27f9f1eb.akpm@osdl.org>
-Content-Type: text/plain
-Date: Thu, 29 Sep 2005 18:58:25 -0700
-Message-Id: <1128045505.3735.31.camel@akash.sc.intel.com>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+From: Magnus Damm <magnus@valinux.co.jp>
+Message-Id: <20050930073232.10631.63786.sendpatchset@cherry.local>
+Subject: [PATCH 00/07][RFC] i386: NUMA emulation
+Date: Fri, 30 Sep 2005 16:33:15 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: "Martin J. Bligh" <mbligh@mbligh.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Martin Hicks <mort@sgi.com>
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Magnus Damm <magnus@valinux.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2005-09-29 at 16:11 -0700, Andrew Morton wrote:
-> "Martin J. Bligh" <mbligh@mbligh.org> wrote:
-> >
-> > It looks like we're now dropping into direct reclaim as the first thing
-> > in __alloc_pages before even trying to kick off kswapd. When the hell
-> > did that start? Or is that only meant to trigger if we're already below
-> > the low watermark level?
-> 
-> That's all the numa goop which Martin Hicks added.  It's all disabled if
-> z->reclaim_pages is zero (it is).  However we could be testing that flag a
-> bit earlier, I think.
-> 
-> And yeah, some de-spaghettification would be nice.  Certainly before adding
-> more logic.
-> 
-> Martin, should we take out the early zone reclaim logic?  It's all
-> unreachable at present anyway.
-> 
-...yeah just like sys_set_zone_reclaim.  was it intended to be added as
-a system call?
+These patches implement NUMA memory node emulation for regular i386 PC:s.
 
--rohit
+NUMA emulation could be used to provide coarse-grained memory resource control
+using CPUSETS. Another use is as a test environment for NUMA memory code or
+CPUSETS using an i386 emulator such as QEMU.
+
+A similar feature was accepted for x86_64 back in 2.6.9. These patches use the
+same config options and kernel command line parameters as the x86_64 code.
+
+Patches that depend on 2.6.14-rc2:
+
+[PATCH 01/07] i386: srat non acpi
+[PATCH 02/07] i386: numa on non-smp
+[PATCH 03/07] cpuset: smp or numa
+
+Patches that depend on 2.6.14-rc2 plus two patches written by Dave Hansen and 
+posted to lkml and linux-mm at Sep 13 2005:
+
+i386: consolidate discontig functions into normal ones
+i386: move NUMA code into numa.c
+
+[PATCH 04/07] i386: numa warning fix
+[PATCH 05/07] i386: sparsemem on pc
+[PATCH 06/07] i386: discontigmem on pc
+[PATCH 07/07] i386: numa emulation on pc
+
+To test, configure your i386 kernel with CONFIG_X86_PC, CONFIG_NUMA_EMU and 
+CONFIG_NUMA all set and pass "numa=fake=2" to the kernel to emulate two nodes.
+
+Feedback is very appreciated.
+
+Thanks,
+
+/ magnus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
