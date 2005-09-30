@@ -1,38 +1,72 @@
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by e4.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id j8UFPWtW023261
-	for <linux-mm@kvack.org>; Fri, 30 Sep 2005 11:25:32 -0400
-Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
-	by d01relay04.pok.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id j8UFPWon090166
-	for <linux-mm@kvack.org>; Fri, 30 Sep 2005 11:25:32 -0400
-Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
-	by d01av03.pok.ibm.com (8.12.11/8.13.3) with ESMTP id j8UFPWIS000979
-	for <linux-mm@kvack.org>; Fri, 30 Sep 2005 11:25:32 -0400
-Subject: Re: [PATCH 05/07] i386: sparsemem on pc
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by e35.co.us.ibm.com (8.12.11/8.12.11) with ESMTP id j8UFN555027800
+	for <linux-mm@kvack.org>; Fri, 30 Sep 2005 11:23:05 -0400
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d03relay04.boulder.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id j8UFQC8P549568
+	for <linux-mm@kvack.org>; Fri, 30 Sep 2005 09:26:12 -0600
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.12.11/8.13.3) with ESMTP id j8UFPXBC015068
+	for <linux-mm@kvack.org>; Fri, 30 Sep 2005 09:25:33 -0600
+Subject: [PATCH 1/2] memhotplug testing: hack for flat systems
 From: Dave Hansen <haveblue@us.ibm.com>
-In-Reply-To: <20050930073258.10631.74982.sendpatchset@cherry.local>
-References: <20050930073232.10631.63786.sendpatchset@cherry.local>
-	 <20050930073258.10631.74982.sendpatchset@cherry.local>
-Content-Type: text/plain
-Date: Fri, 30 Sep 2005 08:25:29 -0700
-Message-Id: <1128093929.6145.27.camel@localhost>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Date: Fri, 30 Sep 2005 08:25:31 -0700
+Message-Id: <20050930152531.3FDB46D3@kernel.beaverton.ibm.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Magnus Damm <magnus@valinux.co.jp>
-Cc: linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: magnus@valinux.co.jp
+Cc: linux-mm@kvack.org, Dave Hansen <haveblue@us.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2005-09-30 at 16:33 +0900, Magnus Damm wrote:
-> This patch for enables and fixes sparsemem support on i386. This is the
-> same patch that was sent to linux-kernel on September 6:th 2005, but this 
-> patch includes up-porting to fit on top of the patches written by Dave Hansen.
+Before this patch, the sparse code is only hooked into the NUMA
+subarchitectures on i386.  This patch makes sure that normal,
+contiguous systems get their memory put into sparsemem correctly.
 
-I'll post a more comprehensive way to do this in just a moment.  
+Signed-off-by: Dave Hansen <haveblue@us.ibm.com>
+---
 
-	Subject: memhotplug testing: hack for flat systems
+ arch/i386/mach-default/setup.c           |    0 
+ memhotplug-dave/arch/i386/kernel/setup.c |    8 ++++++++
+ 2 files changed, 8 insertions(+)
 
--- Dave
+diff -puN arch/i386/kernel/setup.c~C1-memory_present-for-contig-systems arch/i386/kernel/setup.c
+--- memhotplug/arch/i386/kernel/setup.c~C1-memory_present-for-contig-systems	2005-09-29 12:33:19.000000000 -0700
++++ memhotplug-dave/arch/i386/kernel/setup.c	2005-09-29 12:33:19.000000000 -0700
+@@ -978,6 +978,12 @@ efi_find_max_pfn(unsigned long start, un
+ 	return 0;
+ }
+ 
++static int __init
++efi_memory_present_wrapper(unsigned long start, unsigned long end, void *arg)
++{
++	memory_present(0, start, end);
++	return 0;
++}
+ 
+ /*
+  * Find the highest page frame number we have available
+@@ -989,6 +995,7 @@ void __init find_max_pfn(void)
+ 	max_pfn = 0;
+ 	if (efi_enabled) {
+ 		efi_memmap_walk(efi_find_max_pfn, &max_pfn);
++		efi_memmap_walk(efi_memory_present_wrapper, NULL);
+ 		return;
+ 	}
+ 
+@@ -1003,6 +1010,7 @@ void __init find_max_pfn(void)
+ 			continue;
+ 		if (end > max_pfn)
+ 			max_pfn = end;
++		memory_present(0, start, end);
+ 	}
+ }
+ 
+diff -puN mm/Kconfig~C1-memory_present-for-contig-systems mm/Kconfig
+diff -puN mm/page_alloc.c~C1-memory_present-for-contig-systems mm/page_alloc.c
+diff -L build_zonelists_fix -puN /dev/null /dev/null
+diff -puN arch/i386/mm/init.c~C1-memory_present-for-contig-systems arch/i386/mm/init.c
+diff -puN arch/i386/mach-default/setup.c~C1-memory_present-for-contig-systems arch/i386/mach-default/setup.c
+diff -L arch/i386/mm/setup.c -puN /dev/null /dev/null
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
