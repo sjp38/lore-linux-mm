@@ -1,9 +1,9 @@
 From: Magnus Damm <magnus@valinux.co.jp>
-Message-Id: <20050930073258.10631.74982.sendpatchset@cherry.local>
+Message-Id: <20050930073303.10631.81661.sendpatchset@cherry.local>
 In-Reply-To: <20050930073232.10631.63786.sendpatchset@cherry.local>
 References: <20050930073232.10631.63786.sendpatchset@cherry.local>
-Subject: [PATCH 05/07] i386: sparsemem on pc
-Date: Fri, 30 Sep 2005 16:33:41 +0900 (JST)
+Subject: [PATCH 06/07] i386: discontigmem on pc
+Date: Fri, 30 Sep 2005 16:33:46 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 From: Magnus Damm <magnus@valinux.co.jp>
 Return-Path: <owner-linux-mm@kvack.org>
@@ -11,47 +11,100 @@ To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 Cc: Magnus Damm <magnus@valinux.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-This patch for enables and fixes sparsemem support on i386. This is the
-same patch that was sent to linux-kernel on September 6:th 2005, but this 
-patch includes up-porting to fit on top of the patches written by Dave Hansen.
+This patch enables and fixes discontigmem support for i386.
 
 Signed-off-by: Magnus Damm <magnus@valinux.co.jp>
 ---
 
- Kconfig        |    4 ++--
- kernel/setup.c |    1 +
- 2 files changed, 3 insertions(+), 2 deletions(-)
+ arch/i386/Kconfig         |    8 ++++++--
+ include/asm-i386/mmzone.h |    3 ++-
+ include/linux/mmzone.h    |    5 +++++
+ include/linux/numa.h      |    2 +-
+ mm/Kconfig                |    2 +-
+ 5 files changed, 15 insertions(+), 5 deletions(-)
 
---- from-0002/arch/i386/Kconfig
-+++ to-work/arch/i386/Kconfig	2005-09-28 16:32:47.000000000 +0900
-@@ -762,7 +762,6 @@ config NUMA
- 	depends on SMP && HIGHMEM64G && (X86_NUMAQ || X86_GENERICARCH || (X86_SUMMIT && ACPI))
- 	default n if X86_PC
- 	default y if (X86_NUMAQ || X86_SUMMIT)
--	select SPARSEMEM_STATIC
+--- from-0008/arch/i386/Kconfig
++++ to-work/arch/i386/Kconfig	2005-09-28 16:33:21.000000000 +0900
+@@ -790,9 +790,13 @@ config HAVE_ARCH_ALLOC_REMAP
+ 	depends on NUMA
+ 	default y
  
- # Need comments to help the hapless user trying to turn on NUMA support
- comment "NUMA (NUMA-Q) requires SMP, 64GB highmem support"
-@@ -801,7 +800,8 @@ config ARCH_DISCONTIGMEM_DEFAULT
- 
- config ARCH_SPARSEMEM_ENABLE
++config ARCH_FLATMEM_ENABLE
++	def_bool y
++	depends on X86_PC
++
+ config ARCH_DISCONTIGMEM_ENABLE
  	def_bool y
 -	depends on NUMA
 +	depends on NUMA || (X86_PC && EXPERIMENTAL)
-+	select SPARSEMEM_STATIC
  
- config ARCH_SELECT_MEMORY_MODEL
+ config ARCH_DISCONTIGMEM_DEFAULT
  	def_bool y
---- from-0006/arch/i386/kernel/setup.c
-+++ to-work/arch/i386/kernel/setup.c	2005-09-28 16:32:47.000000000 +0900
-@@ -390,6 +390,7 @@ int __init get_memcfg_numa_flat(void)
- 	/* Run the memory configuration and find the top of memory. */
- 	node_start_pfn[0] = 0;
- 	node_end_pfn[0] = max_pfn;
-+	memory_present(0, 0, max_pfn);
+@@ -812,7 +816,7 @@ source "mm/Kconfig"
+ config HAVE_ARCH_EARLY_PFN_TO_NID
+ 	bool
+ 	default y
+-	depends on NUMA
++	depends on NUMA || DISCONTIGMEM
  
-         /* Indicate there is one node available. */
- 	nodes_clear(node_online_map);
+ config HIGHPTE
+ 	bool "Allocate 3rd-level pagetables from highmem"
+--- from-0006/include/asm-i386/mmzone.h
++++ to-work/include/asm-i386/mmzone.h	2005-09-28 16:33:21.000000000 +0900
+@@ -75,7 +75,7 @@ static inline int pfn_to_nid(unsigned lo
+ #endif
+ }
+ 
+-#define node_localnr(pfn, nid)		((pfn) - node_data[nid]->node_start_pfn)
++#define node_localnr(pfn, nid)		((pfn) - NODE_DATA(nid)->node_start_pfn)
+ 
+ /*
+  * Following are macros that each numa implmentation must define.
+@@ -106,6 +106,7 @@ static inline int pfn_to_nid(unsigned lo
+ ({									\
+ 	unsigned long __pfn = pfn;					\
+ 	int __node  = pfn_to_nid(__pfn);				\
++	int foo = (&foo == &__node); /* disable unused warning */	\
+ 	&NODE_DATA(__node)->node_mem_map[node_localnr(__pfn,__node)];	\
+ })
+ 
+--- from-0002/include/linux/mmzone.h
++++ to-work/include/linux/mmzone.h	2005-09-28 16:33:21.000000000 +0900
+@@ -414,7 +414,12 @@ extern struct pglist_data contig_page_da
+ #define NODE_DATA(nid)		(&contig_page_data)
+ #define NODE_MEM_MAP(nid)	mem_map
+ #define MAX_NODES_SHIFT		1
++
++#ifdef CONFIG_DISCONTIGMEM
++#include <asm/mmzone.h>
++#else
+ #define pfn_to_nid(pfn)		(0)
++#endif
+ 
+ #else /* CONFIG_NEED_MULTIPLE_NODES */
+ 
+--- from-0001/include/linux/numa.h
++++ to-work/include/linux/numa.h	2005-09-28 16:33:21.000000000 +0900
+@@ -3,7 +3,7 @@
+ 
+ #include <linux/config.h>
+ 
+-#ifndef CONFIG_FLATMEM
++#ifdef CONFIG_NUMA
+ #include <asm/numnodes.h>
+ #endif
+ 
+--- from-0002/mm/Kconfig
++++ to-work/mm/Kconfig	2005-09-28 16:33:21.000000000 +0900
+@@ -84,7 +84,7 @@ config FLAT_NODE_MEM_MAP
+ #
+ config NEED_MULTIPLE_NODES
+ 	def_bool y
+-	depends on DISCONTIGMEM || NUMA
++	depends on NUMA
+ 
+ config HAVE_MEMORY_PRESENT
+ 	def_bool y
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
