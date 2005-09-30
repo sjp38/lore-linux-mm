@@ -1,9 +1,9 @@
 From: Magnus Damm <magnus@valinux.co.jp>
-Message-Id: <20050930073237.10631.27035.sendpatchset@cherry.local>
+Message-Id: <20050930073248.10631.19432.sendpatchset@cherry.local>
 In-Reply-To: <20050930073232.10631.63786.sendpatchset@cherry.local>
 References: <20050930073232.10631.63786.sendpatchset@cherry.local>
-Subject: [PATCH 01/07] i386: srat non acpi
-Date: Fri, 30 Sep 2005 16:33:21 +0900 (JST)
+Subject: [PATCH 03/07] cpuset: smp or numa
+Date: Fri, 30 Sep 2005 16:33:31 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 From: Magnus Damm <magnus@valinux.co.jp>
 Return-Path: <owner-linux-mm@kvack.org>
@@ -11,32 +11,45 @@ To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 Cc: Magnus Damm <magnus@valinux.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-This patch adds code to check the return value of acpi_find_root_pointer().
-Without this patch systems without ACPI support such as QEMU crashes when 
-booting a NUMA kernel configured with CONFIG_ACPI_SRAT=y.
+This patch for makes it possible to compile and use CONFIG_CPUSETS without 
+CONFIG_SMP. Useful for NUMA emulation on real or emulated UP hardware.
 
 Signed-off-by: Magnus Damm <magnus@valinux.co.jp>
 ---
 
- srat.c |    7 ++++++-
- 1 files changed, 6 insertions(+), 1 deletion(-)
+ init/Kconfig    |    2 +-
+ kernel/cpuset.c |    2 ++
+ 2 files changed, 3 insertions(+), 1 deletion(-)
 
---- from-0002/arch/i386/kernel/srat.c
-+++ to-work/arch/i386/kernel/srat.c	2005-09-28 15:59:13.000000000 +0900
-@@ -327,7 +327,12 @@ int __init get_memcfg_from_srat(void)
- 	int tables = 0;
- 	int i = 0;
+--- from-0002/init/Kconfig
++++ to-work/init/Kconfig	2005-09-28 17:07:31.000000000 +0900
+@@ -245,7 +245,7 @@ config IKCONFIG_PROC
  
--	acpi_find_root_pointer(ACPI_PHYSICAL_ADDRESSING, rsdp_address);
-+	if (ACPI_FAILURE(acpi_find_root_pointer(ACPI_PHYSICAL_ADDRESSING, 
-+						rsdp_address))) {
-+		printk("%s: System description tables not found\n",
-+		       __FUNCTION__);
-+		goto out_err;
-+	}
+ config CPUSETS
+ 	bool "Cpuset support"
+-	depends on SMP
++	depends on SMP || NUMA
+ 	help
+ 	  This option will let you create and manage CPUSETs which
+ 	  allow dynamically partitioning a system into sets of CPUs and
+--- from-0002/kernel/cpuset.c
++++ to-work/kernel/cpuset.c	2005-09-28 17:07:31.000000000 +0900
+@@ -657,6 +657,7 @@ static int validate_change(const struct 
  
- 	if (rsdp_address->pointer_type == ACPI_PHYSICAL_POINTER) {
- 		printk("%s: assigning address to rsdp\n", __FUNCTION__);
+ static void update_cpu_domains(struct cpuset *cur)
+ {
++#ifdef CONFIG_SMP
+ 	struct cpuset *c, *par = cur->parent;
+ 	cpumask_t pspan, cspan;
+ 
+@@ -694,6 +695,7 @@ static void update_cpu_domains(struct cp
+ 	lock_cpu_hotplug();
+ 	partition_sched_domains(&pspan, &cspan);
+ 	unlock_cpu_hotplug();
++#endif
+ }
+ 
+ static int update_cpumask(struct cpuset *cs, char *buf)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
