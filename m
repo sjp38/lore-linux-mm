@@ -1,107 +1,97 @@
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e6.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id j8UItF6Z020962
-	for <linux-mm@kvack.org>; Fri, 30 Sep 2005 14:55:15 -0400
-Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
-	by d01relay02.pok.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id j8UItFZQ090576
-	for <linux-mm@kvack.org>; Fri, 30 Sep 2005 14:55:15 -0400
-Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
-	by d01av03.pok.ibm.com (8.12.11/8.13.3) with ESMTP id j8UItFTc006255
-	for <linux-mm@kvack.org>; Fri, 30 Sep 2005 14:55:15 -0400
-Subject: Re: [PATCH 07/07] i386: numa emulation on pc
-From: Dave Hansen <haveblue@us.ibm.com>
-In-Reply-To: <20050930073308.10631.24247.sendpatchset@cherry.local>
-References: <20050930073232.10631.63786.sendpatchset@cherry.local>
-	 <20050930073308.10631.24247.sendpatchset@cherry.local>
+Subject: Re: [PATCH 3/7] CART - an advanced page replacement policy
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+In-Reply-To: <20050930184404.GA16812@xeon.cnet>
+References: <20050929180845.910895444@twins>
+	 <20050929181622.780879649@twins>  <20050930184404.GA16812@xeon.cnet>
 Content-Type: text/plain
-Date: Fri, 30 Sep 2005 11:55:11 -0700
-Message-Id: <1128106512.8123.26.camel@localhost>
+Date: Fri, 30 Sep 2005 21:16:20 +0200
+Message-Id: <1128107781.14695.32.camel@twins>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Magnus Damm <magnus@valinux.co.jp>, Isaku Yamahata <yamahata@valinux.co.jp>
-Cc: linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Marcelo <marcelo.tosatti@cyclades.com>
+Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2005-09-30 at 16:33 +0900, Magnus Damm wrote:
->  void __init nid_zone_sizes_init(int nid)
->  {
->  	unsigned long zones_size[MAX_NR_ZONES] = {0, 0, 0};
-> -	unsigned long max_dma;
-> +	unsigned long max_dma = min(max_hardware_dma_pfn(), max_low_pfn);
->  	unsigned long start = node_start_pfn[nid];
->  	unsigned long end = node_end_pfn[nid];
->  
->  	if (node_has_online_mem(nid)){
-> -		if (nid_starts_in_highmem(nid)) {
-> -			zones_size[ZONE_HIGHMEM] = nid_size_pages(nid);
-> -		} else {
-> -			max_dma = min(max_hardware_dma_pfn(), max_low_pfn);
-> -			zones_size[ZONE_DMA] = max_dma;
-> -			zones_size[ZONE_NORMAL] = max_low_pfn - max_dma;
-> -			zones_size[ZONE_HIGHMEM] = end - max_low_pfn;
-> +		if (start < max_dma) {
-> +			zones_size[ZONE_DMA] = min(end, max_dma) - start;
-> +		}
-> +		if (start < max_low_pfn && max_dma < end) {
-> +			zones_size[ZONE_NORMAL] = min(end, max_low_pfn) - max(start, max_dma);
-> +		}
-> +		if (max_low_pfn <= end) {
-> +			zones_size[ZONE_HIGHMEM] = end - max(start, max_low_pfn);
->  		}
->  	}
+On Fri, 2005-09-30 at 15:44 -0300, Marcelo wrote:
+> Hi Peter,
+> 
+> On Thu, Sep 29, 2005 at 08:08:48PM +0200, Peter Zijlstra wrote:
+> > The flesh of the CART implementation. Again comments in the file should be
+> > clear.
+> 
+> Having per-zone "B1" target accounted at fault-time instead of a global target
+> strikes me.
+> 
+> The ARC algorithm adjusts the B1 target based on the fact that being-faulted-pages
+> were removed from the same memory region where such pages will reside.
+> 
+> The per-zone "B1" target as you implement it means that the B1 target accounting
+> happens for the zone in which the page for the faulting data has been allocated,
+> _not_ on the zone from which the data has been evicted. Seems quite unfair.
+> 
+> So for example, if a page gets removed from the HighMem zone while in the 
+> B1 list, and the same data gets faulted in later on a page from the normal
+> zone, Normal will have its "B1" target erroneously increased.
+> 
+> A global inactive target scaled to the zone size would get rid of that problem.
 
-That is a decent cleanup all by itself.  You might want to break it out.
-Take a look at the patches I just sent out.  They do some similar things
-to the same code.
+Good, good, I'll think this though, this probably means the other
+targets: 'p' and 'r' would similarly benefit.
 
-> @@ -1270,7 +1273,12 @@ void __init setup_bootmem_allocator(void
->  	/*
->  	 * Initialize the boot-time allocator (with low memory only):
->  	 */
-> +#ifdef CONFIG_NUMA_EMU
-> +	bootmap_size = init_bootmem(max(min_low_pfn, node_start_pfn[0]),
-> +				    min(max_low_pfn, node_end_pfn[0]));
-> +#else
->  	bootmap_size = init_bootmem(min_low_pfn, max_low_pfn);
-> +#endif
+> Another issue is testing: You had some very interesting numbers before, 
+> how are things now?
 
-This shouldn't be necessary.  Again, take a look at my discontig
-separation patches and see if what I did works for you here.
+I managed to reproduce that 10% gain on the kernel build time once more,
+however it seems very unstable, I generally get only 2-3%.
 
->  	register_bootmem_low_pages(max_low_pfn);
->  
-> --- from-0006/arch/i386/mm/numa.c
-> +++ to-work/arch/i386/mm/numa.c	2005-09-28 17:49:53.000000000 +0900
-> @@ -165,3 +165,103 @@ int early_pfn_to_nid(unsigned long pfn)
->  
->  	return 0;
->  }
-> +
-> +#ifdef CONFIG_NUMA_EMU
-...
-> +#endif
+> > Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+> > 
+> >  mm/cart.c                  |  631 +++++++++++++++++++++++++++++++++++++++++++++
+> >  7 files changed, 682 insertions(+), 35 deletions(-)
+> > 
+> > Index: linux-2.6-git/mm/cart.c
+> > ===================================================================
+> > --- /dev/null
+> > +++ linux-2.6-git/mm/cart.c
+> > @@ -0,0 +1,639 @@
+> 
+> <snip>
+> 
+> > +#define cart_cT ((zone)->nr_active + (zone)->nr_inactive + (zone)->free_pages)
+> > +#define cart_cB ((zone)->present_pages)
+> > +
+> > +#define T2B(x) (((x) * cart_cB) / cart_cT)
+> > +#define B2T(x) (((x) * cart_cT) / cart_cB)
+> > +
+> > +#define size_T1 ((zone)->nr_active)
+> > +#define size_T2 ((zone)->nr_inactive)
+> > +
+> > +#define list_T1 (&(zone)->active_list)
+> > +#define list_T2 (&(zone)->inactive_list)
+> > +
+> > +#define cart_p ((zone)->nr_p)
+> > +#define cart_q ((zone)->nr_q)
+> > +
+> > +#define size_B1 ((zone)->nr_evicted_active)
+> > +#define size_B2 ((zone)->nr_evicted_inactive)
+> > +
+> > +#define nr_Ns ((zone)->nr_shortterm)
+> > +#define nr_Nl (size_T1 + size_T2 - nr_Ns)
+> 
+> These defines are not not easy to read inside the code which
+> uses them, I personally think that "zone->nr_.." explicitly is 
+> much clearer.
 
-Ewwwwww :)  No real need to put new function in a big #ifdef like that.
-Can you just create a new file for NUMA emulation?
+Yes, I plan to replace them by explicit referenced, however they were
+handy while playing with the definitions. And since nobody outside of
+the cart code still refers to them I plan to rename the struct zone
+members to match these names; zone->nr_active to zone->size_T1 and
+zone->active_list to zone->list_T1.
 
-> --- from-0001/include/asm-i386/numnodes.h
-> +++ to-work/include/asm-i386/numnodes.h	2005-09-28 17:49:53.000000000 +0900
-> @@ -8,7 +8,7 @@
->  /* Max 16 Nodes */
->  #define NODES_SHIFT	4
->  
-> -#elif defined(CONFIG_ACPI_SRAT)
-> +#elif defined(CONFIG_ACPI_SRAT) || defined(CONFIG_NUMA_EMU)
->  
->  /* Max 8 Nodes */
->  #define NODES_SHIFT	3
-
-Geez.  We should probably just do those in the Kconfig files.  Would
-look much simpler.  But, that's a patch for another day.  This is fine
-by itself.
-
--- Dave
+-- 
+Peter Zijlstra <a.p.zijlstra@chello.nl>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
