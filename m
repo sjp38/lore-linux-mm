@@ -1,9 +1,9 @@
 From: Magnus Damm <magnus@valinux.co.jp>
-Message-Id: <20050930073248.10631.19432.sendpatchset@cherry.local>
+Message-Id: <20050930073242.10631.47460.sendpatchset@cherry.local>
 In-Reply-To: <20050930073232.10631.63786.sendpatchset@cherry.local>
 References: <20050930073232.10631.63786.sendpatchset@cherry.local>
-Subject: [PATCH 03/07] cpuset: smp or numa
-Date: Fri, 30 Sep 2005 16:33:31 +0900 (JST)
+Subject: [PATCH 02/07] i386: numa on non-smp
+Date: Fri, 30 Sep 2005 16:33:26 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 From: Magnus Damm <magnus@valinux.co.jp>
 Return-Path: <owner-linux-mm@kvack.org>
@@ -11,45 +11,51 @@ To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 Cc: Magnus Damm <magnus@valinux.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-This patch for makes it possible to compile and use CONFIG_CPUSETS without 
-CONFIG_SMP. Useful for NUMA emulation on real or emulated UP hardware.
+This patch makes it possible to compile and use CONFIG_NUMA without CONFIG_SMP.
+Useful for NUMA emulation on real or emulated UP hardware.
 
 Signed-off-by: Magnus Damm <magnus@valinux.co.jp>
 ---
 
- init/Kconfig    |    2 +-
- kernel/cpuset.c |    2 ++
- 2 files changed, 3 insertions(+), 1 deletion(-)
+ asm-i386/topology.h |    7 ++++++-
+ linux/topology.h    |    2 +-
+ 2 files changed, 7 insertions(+), 2 deletions(-)
 
---- from-0002/init/Kconfig
-+++ to-work/init/Kconfig	2005-09-28 17:07:31.000000000 +0900
-@@ -245,7 +245,7 @@ config IKCONFIG_PROC
+--- from-0002/include/asm-i386/topology.h
++++ to-work/include/asm-i386/topology.h	2005-09-28 16:26:20.000000000 +0900
+@@ -29,8 +29,9 @@
  
- config CPUSETS
- 	bool "Cpuset support"
--	depends on SMP
-+	depends on SMP || NUMA
- 	help
- 	  This option will let you create and manage CPUSETs which
- 	  allow dynamically partitioning a system into sets of CPUs and
---- from-0002/kernel/cpuset.c
-+++ to-work/kernel/cpuset.c	2005-09-28 17:07:31.000000000 +0900
-@@ -657,6 +657,7 @@ static int validate_change(const struct 
+ #ifdef CONFIG_NUMA
  
- static void update_cpu_domains(struct cpuset *cur)
- {
+-#include <asm/mpspec.h>
 +#ifdef CONFIG_SMP
- 	struct cpuset *c, *par = cur->parent;
- 	cpumask_t pspan, cspan;
  
-@@ -694,6 +695,7 @@ static void update_cpu_domains(struct cp
- 	lock_cpu_hotplug();
- 	partition_sched_domains(&pspan, &cspan);
- 	unlock_cpu_hotplug();
-+#endif
++#include <asm/mpspec.h>
+ #include <linux/cpumask.h>
+ 
+ /* Mappings between logical cpu number and node number */
+@@ -88,6 +89,10 @@ static inline int node_to_first_cpu(int 
+ 	.nr_balance_failed	= 0,			\
  }
  
- static int update_cpumask(struct cpuset *cs, char *buf)
++#else
++#include <asm-generic/topology.h>
++#endif
++
+ extern unsigned long node_start_pfn[];
+ extern unsigned long node_end_pfn[];
+ extern unsigned long node_remap_size[];
+--- from-0002/include/linux/topology.h
++++ to-work/include/linux/topology.h	2005-09-28 16:26:20.000000000 +0900
+@@ -158,7 +158,7 @@
+ 	.nr_balance_failed	= 0,			\
+ }
+ 
+-#ifdef CONFIG_NUMA
++#if defined(CONFIG_NUMA) && defined(CONFIG_SMP)
+ #ifndef SD_NODE_INIT
+ #error Please define an appropriate SD_NODE_INIT in include/asm/topology.h!!!
+ #endif
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
