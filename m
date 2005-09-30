@@ -1,71 +1,57 @@
-Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
-	by e35.co.us.ibm.com (8.12.11/8.12.11) with ESMTP id j8UFN555027800
-	for <linux-mm@kvack.org>; Fri, 30 Sep 2005 11:23:05 -0400
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by d03relay04.boulder.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id j8UFQC8P549568
-	for <linux-mm@kvack.org>; Fri, 30 Sep 2005 09:26:12 -0600
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.12.11/8.13.3) with ESMTP id j8UFPXBC015068
-	for <linux-mm@kvack.org>; Fri, 30 Sep 2005 09:25:33 -0600
-Subject: [PATCH 1/2] memhotplug testing: hack for flat systems
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e4.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id j8UFPZTI023359
+	for <linux-mm@kvack.org>; Fri, 30 Sep 2005 11:25:35 -0400
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay04.pok.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id j8UFPZon089734
+	for <linux-mm@kvack.org>; Fri, 30 Sep 2005 11:25:35 -0400
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.12.11/8.13.3) with ESMTP id j8UFPYLY020110
+	for <linux-mm@kvack.org>; Fri, 30 Sep 2005 11:25:34 -0400
+Subject: [PATCH 2/2] memhotplug testing: enable sparsemem on flat systems
 From: Dave Hansen <haveblue@us.ibm.com>
-Date: Fri, 30 Sep 2005 08:25:31 -0700
-Message-Id: <20050930152531.3FDB46D3@kernel.beaverton.ibm.com>
+Date: Fri, 30 Sep 2005 08:25:32 -0700
+References: <20050930152531.3FDB46D3@kernel.beaverton.ibm.com>
+In-Reply-To: <20050930152531.3FDB46D3@kernel.beaverton.ibm.com>
+Message-Id: <20050930152532.9FDF34BD@kernel.beaverton.ibm.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: magnus@valinux.co.jp
 Cc: linux-mm@kvack.org, Dave Hansen <haveblue@us.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-Before this patch, the sparse code is only hooked into the NUMA
-subarchitectures on i386.  This patch makes sure that normal,
-contiguous systems get their memory put into sparsemem correctly.
-
-Signed-off-by: Dave Hansen <haveblue@us.ibm.com>
 ---
 
- arch/i386/mach-default/setup.c           |    0 
- memhotplug-dave/arch/i386/kernel/setup.c |    8 ++++++++
- 2 files changed, 8 insertions(+)
+ memhotplug-dave/arch/i386/Kconfig |   16 +++++++++++++++-
+ 1 files changed, 15 insertions(+), 1 deletion(-)
 
-diff -puN arch/i386/kernel/setup.c~C1-memory_present-for-contig-systems arch/i386/kernel/setup.c
---- memhotplug/arch/i386/kernel/setup.c~C1-memory_present-for-contig-systems	2005-09-29 12:33:19.000000000 -0700
-+++ memhotplug-dave/arch/i386/kernel/setup.c	2005-09-29 12:33:19.000000000 -0700
-@@ -978,6 +978,12 @@ efi_find_max_pfn(unsigned long start, un
- 	return 0;
- }
+diff -puN arch/i386/Kconfig~C2-enable-i386-sparsemem-debug arch/i386/Kconfig
+--- memhotplug/arch/i386/Kconfig~C2-enable-i386-sparsemem-debug	2005-09-29 12:40:42.000000000 -0700
++++ memhotplug-dave/arch/i386/Kconfig	2005-09-29 12:41:22.000000000 -0700
+@@ -799,9 +799,23 @@ config ARCH_DISCONTIGMEM_DEFAULT
+ 	def_bool y
+ 	depends on NUMA
  
-+static int __init
-+efi_memory_present_wrapper(unsigned long start, unsigned long end, void *arg)
-+{
-+	memory_present(0, start, end);
-+	return 0;
-+}
++config X86_SPARSEMEM_DEBUG_NONUMA
++	bool "Enable SPARSEMEM on flat systems (debugging only)"
++	depends on !NUMA && EXPERIMENTAL
++	select SPARSEMEM_STATIC
++	select SPARSEMEM_MANUAL
++
++config ARCH_MEMORY_PROBE
++	def_bool y
++	depends on X86_SPARSEMEM_DEBUG_NONUMA
++
++config ARCH_SPARSEMEM_DEFAULT
++	def_bool y
++	depends on X86_SPARSEMEM_DEBUG_NONUMA
++
+ config ARCH_SPARSEMEM_ENABLE
+ 	def_bool y
+-	depends on NUMA
++	depends on NUMA || X86_SPARSEMEM_DEBUG_NONUMA
  
- /*
-  * Find the highest page frame number we have available
-@@ -989,6 +995,7 @@ void __init find_max_pfn(void)
- 	max_pfn = 0;
- 	if (efi_enabled) {
- 		efi_memmap_walk(efi_find_max_pfn, &max_pfn);
-+		efi_memmap_walk(efi_memory_present_wrapper, NULL);
- 		return;
- 	}
- 
-@@ -1003,6 +1010,7 @@ void __init find_max_pfn(void)
- 			continue;
- 		if (end > max_pfn)
- 			max_pfn = end;
-+		memory_present(0, start, end);
- 	}
- }
- 
-diff -puN mm/Kconfig~C1-memory_present-for-contig-systems mm/Kconfig
-diff -puN mm/page_alloc.c~C1-memory_present-for-contig-systems mm/page_alloc.c
-diff -L build_zonelists_fix -puN /dev/null /dev/null
-diff -puN arch/i386/mm/init.c~C1-memory_present-for-contig-systems arch/i386/mm/init.c
-diff -puN arch/i386/mach-default/setup.c~C1-memory_present-for-contig-systems arch/i386/mach-default/setup.c
-diff -L arch/i386/mm/setup.c -puN /dev/null /dev/null
+ config ARCH_SELECT_MEMORY_MODEL
+ 	def_bool y
 _
 
 --
