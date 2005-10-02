@@ -1,58 +1,59 @@
-Date: Sat, 1 Oct 2005 18:52:54 -0300
-From: Marcelo <marcelo.tosatti@cyclades.com>
-Subject: Re: [PATCH] per-page SLAB freeing (only dcache for now)
-Message-ID: <20051001215254.GA19736@xeon.cnet>
-References: <20050930193754.GB16812@xeon.cnet> <Pine.LNX.4.62.0509301934390.31011@schroedinger.engr.sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.62.0509301934390.31011@schroedinger.engr.sgi.com>
+Message-ID: <433F4F67.4090800@yahoo.com.au>
+Date: Sun, 02 Oct 2005 13:09:27 +1000
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+MIME-Version: 1.0
+Subject: Re: [PATCH]: Clean up of __alloc_pages
+References: <20051001120023.A10250@unix-os.sc.intel.com>
+In-Reply-To: <20051001120023.A10250@unix-os.sc.intel.com>
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@engr.sgi.com>
-Cc: Marcelo <marcelo.tosatti@cyclades.com>, linux-mm@kvack.org, akpm@osdl.org, dgc@sgi.com, dipankar@in.ibm.com, mbligh@mbligh.org, manfred@colorfullife.com
+To: "Seth, Rohit" <rohit.seth@intel.com>
+Cc: akpm@osdl.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Sep 30, 2005 at 07:46:31PM -0700, Christoph Lameter wrote:
-> On Fri, 30 Sep 2005, Marcelo wrote:
+Seth, Rohit wrote:
+> 	[PATCH]: Below is the cleaning up of __alloc_pages code.  Few 
+> 		 things different from original version are
 > 
-> > I don't see any fundamental problems with this approach, are there any?
-> > I'll clean it up and proceed to write the inode cache equivalent 
-> > if there aren't.
+> 	1: remove the initial direct reclaim logic 
+> 	2: order zero pages are now first looked into pcp list upfront
+> 	3: GFP_HIGH pages are allowed to go little below low watermark sooner
+> 	4: Search for free pages unconditionally after direct reclaim
 > 
-> Hmm. I think this needs to be some generic functionality in the slab 
-> allocator. If the allocator determines that the number of entries in a 
-> page become reasonably low then call a special function provided at 
-> slab creation time to try to free up the leftover entries.
+> 	Signed-off-by: Rohit Seth <rohit.seth@intel.com>
 > 
-> Something like
-> 
-> int slab_try_free(void *);
-> 
-> ?
-> 
-> return true/false depending on success of attempt to free the entry.
 
-I thought about having a mini-API for this such as "struct slab_reclaim_ops" 
-implemented by each reclaimable cache, invoked by a generic SLAB function.
+Hi,
 
-Problem is that locking involved into looking at the SLAB elements is 
-cache specific (eg dcache_lock for the dcache, inode_lock for the icache, 
-and so on), so making a generic function seems pretty tricky, ie. you 
-need cache specific information in the generic function which is not so 
-easily "generifiable", if there's such a word.
-                                                                                                                                               
-> This method may also be useful to attempt to migrate slab pages to
-> different nodes. If such a method is available then one can try to free
-> all entries in a page relying on their recreation on another node if they
-> are needed again.
+Seems pretty good at a quick glance.
 
-Yep, haven't thought of that before, but it might be interesting to have 
-NUMA migration of cache elements.
+Perhaps splitting it into 2 would be a good idea - ie. first
+patch does the cleanup, second does the direct pcp list alloc.
 
-Additionaly one can try to migrate recently referenced elements, instead 
-of freeing them, moving them to some partially used SLAB free slot 
-(Martin suggested that on IRC).
+Regarding the direct pcp list allocation - I think it is a good
+idea, because we're currently already accounting pcp list pages
+as being 'allocated' for the purposes of the reclaim watermarks.
+
+Also, the structure is there to avoid touching cachelines whenever
+possible so it makes sense to use it early here. Do you have any
+performance numbers or allocation statistics (e.g. %pcp hits) to
+show?
+
+Also, I would really think about uninlining get_page_from_freelist,
+and inlining buffered_rmqueue, so that the constant 'replenish'
+argument can be propogated into buffered_rmqueue and should allow
+for some nice optimisations. While not bloating the code too much
+because your get_page_from_freelist becomes out of line.
+
+Thanks,
+Nick
+
+-- 
+SUSE Labs, Novell Inc.
+
+Send instant messages to your online friends http://au.messenger.yahoo.com 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
