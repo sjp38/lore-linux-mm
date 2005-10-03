@@ -1,55 +1,57 @@
-From: David Lang <david.lang@digitalinsight.com>
-In-Reply-To: <93300000.1128354870@[10.10.2.4]>
-References: dlang@dlang.diginsite.com <Pine.LNX.4.62.0510030802090.11541@qynat.qvtvafvgr.pbz> <83890000.1128352138@[10.10.2.4]> <Pine.LNX.4.62.0510030810290.11541@qynat.qvtvafvgr.pbz> <86300000.1128353125@[10.10.2.4]> <Pine.LNX.4.62.0510030831550.11541@qynat.qvtvafvgr.pbz> <93300000.1128354870@[10.10.2.4]>
-Date: Mon, 3 Oct 2005 09:44:26 -0700 (PDT)
-Subject: Re: [PATCH 00/07][RFC] i386: NUMA emulation
-In-Reply-To: <93300000.1128354870@[10.10.2.4]>
-Message-ID: <Pine.LNX.4.62.0510030942551.11541@qynat.qvtvafvgr.pbz>
-References: dlang@dlang.diginsite.com <Pine.LNX.4.62.0510030802090.11541@qynat.qvtvafvgr.pbz>
- <83890000.1128352138@[10.10.2.4]> <Pine.LNX.4.62.0510030810290.11541@qynat.qvtvafvgr.pbz>
- <86300000.1128353125@[10.10.2.4]> <Pine.LNX.4.62.0510030831550.11541@qynat.qvtvafvgr.pbz>
- <93300000.1128354870@[10.10.2.4]>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII; format=flowed
+Subject: Re: [PATCH]: Clean up of __alloc_pages
+From: Rohit Seth <rohit.seth@intel.com>
+In-Reply-To: <Pine.LNX.4.62.0510030828400.7812@schroedinger.engr.sgi.com>
+References: <20051001120023.A10250@unix-os.sc.intel.com>
+	 <Pine.LNX.4.62.0510030828400.7812@schroedinger.engr.sgi.com>
+Content-Type: text/plain
+Date: Mon, 03 Oct 2005 09:55:58 -0700
+Message-Id: <1128358558.8472.13.camel@akash.sc.intel.com>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Martin J. Bligh" <mbligh@mbligh.org>
-Cc: Magnus Damm <magnus.damm@gmail.com>, Dave Hansen <haveblue@us.ibm.com>, Magnus Damm <magnus@valinux.co.jp>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Christoph Lameter <clameter@engr.sgi.com>
+Cc: akpm@osdl.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 3 Oct 2005, Martin J. Bligh wrote:
+On Mon, 2005-10-03 at 08:34 -0700, Christoph Lameter wrote:
+> On Sat, 1 Oct 2005, Seth, Rohit wrote:
+> 
+> > -				goto zone_reclaim_retry;
+> > -			}
+> > +	if (order == 0) {
+> > +		for (i = 0; (z = zones[i]) != NULL; i++) {
+> > +			page = buffered_rmqueue(z, 0, gfp_mask, 0);
+> > +			if (page) 
+> > +				goto got_pg;
+> >  		}
+> > -
+> 
+> This is checking all zones for pages on the pcp before going the more 
+> expensive route?
+> 
 
->>>>>
->>>>> Not noticed that, and I can't see why it should be the case in general,
->>>>> though I suppose some machines might be odd. Got any numbers?
->>>>
->>>> just the fact that the system boot memory test takes 3-4 times as long with 8G or ram then with 4G of ram. I then boot a 64 bit kernel on the system and never use PAE mode again :-)
->>>>
->>>> if you can point me at a utility that will test the speed of the memory in different chunks I'll do some testing on the Opteron systems I have available. unfortunantly I don't have any Xeon systems to test this on.
->>>
->>> Mmm. 64-bit uniproc systems, with > 4GB of RAM, running a 32 bit kernel
->>> don't really strike me as a huge market segment ;-)
->>
->> true, but there are a lot of 32-bit uniproc systems sold by Intel that have (or can have) more then 4G of ram. These are the machines I was thinking of.
->
-> Does your opteron box have more than 1 socket? that'd explain it.
+That is right.
 
-yes, but I see the same 4G breakpoint no matter what the memory config 
-(including one dual proc machine with 16G, if it was a matter of hitting 
-memory connected to the other socket I would expect the slowdown at 8G, 
-not at 4G)
+> Seems that this removes the logic intended to prefer local 
+> allocations over remote pages present in the existing alloc_pages? There 
+> is the danger that this modification will lead to the allocation of remote 
+> pages even if local pages are available. Thus reducing performance.
+> 
 
-> Anyway, it shouldn't happen on any normal platform. Until we get
-> numbers that prove that it does (and understand why), I don't think
-> we need NUMA for PAE.
+Good catch.  I will up level the cpuset check in buffered_rmqueue rather
+then doing it in get_page_from_freelist.  That should retain the current
+preferences for local pages.
 
-Ok, if nobody else is seeing any slowdown.
+> I would suggest to just check the first zone's pcp instead of all zones.
+> 
 
-David Lang
+Na. This for most cases will be ZONE_DMA pcp list having nothing much
+most of the time.  And picking any other zone randomly will be exposed
+to faulty behavior.
 
--- 
-There are two ways of constructing a software design. One way is to make it so simple that there are obviously no deficiencies. And the other way is to make it so complicated that there are no obvious deficiencies.
-  -- C.A.R. Hoare
+Thanks,
+-rohit
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
