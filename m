@@ -1,7 +1,7 @@
-Date: Sun, 2 Oct 2005 22:33:52 -0700
+Date: Sun, 2 Oct 2005 22:34:45 -0700
 From: Paul Jackson <pj@sgi.com>
 Subject: Re: [PATCH 00/07][RFC] i386: NUMA emulation
-Message-Id: <20051002223352.6d21a8bc.pj@sgi.com>
+Message-Id: <20051002223445.50677505.pj@sgi.com>
 In-Reply-To: <aec7e5c30510022205o770b6335o96d9a9d9cc5d7397@mail.gmail.com>
 References: <20050930073232.10631.63786.sendpatchset@cherry.local>
 	<1128093825.6145.26.camel@localhost>
@@ -17,14 +17,9 @@ Cc: haveblue@us.ibm.com, magnus@valinux.co.jp, linux-mm@kvack.org, linux-kernel@
 List-ID: <linux-mm.kvack.org>
 
 Magnus wrote:
-> So, Paul, please let me know if you prefer SMP || NUMA or no
-> depencencies in the Kconfig.
+> I sent my patches both to lkml and linux-mm...
 
-In theory, I prefer none.  But the devil is in the details here,
-and I really don't care that much.
-
-So pick whichever you prefer, or whichever provides the nicest
-looking code or patch, or flip a coin ;).
+Must be confusion on my end then.  Sorry.
 
 -- 
                   I won't rest till it's the best ...
