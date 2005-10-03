@@ -1,30 +1,35 @@
-Date: Sun, 2 Oct 2005 22:34:45 -0700
-From: Paul Jackson <pj@sgi.com>
-Subject: Re: [PATCH 00/07][RFC] i386: NUMA emulation
-Message-Id: <20051002223445.50677505.pj@sgi.com>
-In-Reply-To: <aec7e5c30510022205o770b6335o96d9a9d9cc5d7397@mail.gmail.com>
-References: <20050930073232.10631.63786.sendpatchset@cherry.local>
-	<1128093825.6145.26.camel@localhost>
-	<20051002202157.7b54253d.pj@sgi.com>
-	<aec7e5c30510022205o770b6335o96d9a9d9cc5d7397@mail.gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: by zproxy.gmail.com with SMTP id k1so211645nzf
+        for <linux-mm@kvack.org>; Sun, 02 Oct 2005 22:40:11 -0700 (PDT)
+Message-ID: <aec7e5c30510022240p1a7e7189gf2b72c209c76b5ee@mail.gmail.com>
+Date: Mon, 3 Oct 2005 14:40:09 +0900
+From: Magnus Damm <magnus.damm@gmail.com>
+Reply-To: Magnus Damm <magnus.damm@gmail.com>
+Subject: Re: [PATCH 2/2] memhotplug testing: enable sparsemem on flat systems
+In-Reply-To: <20050930152532.9FDF34BD@kernel.beaverton.ibm.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 8BIT
+Content-Disposition: inline
+References: <20050930152531.3FDB46D3@kernel.beaverton.ibm.com>
+	 <20050930152532.9FDF34BD@kernel.beaverton.ibm.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Magnus Damm <magnus.damm@gmail.com>
-Cc: haveblue@us.ibm.com, magnus@valinux.co.jp, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Dave Hansen <haveblue@us.ibm.com>
+Cc: magnus@valinux.co.jp, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Magnus wrote:
-> I sent my patches both to lkml and linux-mm...
+Hi again,
 
-Must be confusion on my end then.  Sorry.
+I've tested this patch together with the "hack for flat
+systems"-patch, and they seem to work correctly both configured as
+single-node sparsemem PC and configured as emulated NUMA system
+together with the NUMA emulation patches.
 
--- 
-                  I won't rest till it's the best ...
-                  Programmer, Linux Scalability
-                  Paul Jackson <pj@sgi.com> 1.925.600.0401
+So these patches replace my patch "[PATCH 05/07] i386: sparsemem on pc".
+
+Thanks,
+
+/ magnus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
