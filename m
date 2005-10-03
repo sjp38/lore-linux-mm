@@ -1,52 +1,35 @@
-Date: Mon, 03 Oct 2005 14:26:49 +0900 (JST)
-Message-Id: <20051003.142649.56153089.taka@valinux.co.jp>
+Date: Sun, 2 Oct 2005 22:33:52 -0700
+From: Paul Jackson <pj@sgi.com>
 Subject: Re: [PATCH 00/07][RFC] i386: NUMA emulation
-From: Hirokazu Takahashi <taka@valinux.co.jp>
+Message-Id: <20051002223352.6d21a8bc.pj@sgi.com>
 In-Reply-To: <aec7e5c30510022205o770b6335o96d9a9d9cc5d7397@mail.gmail.com>
-References: <1128093825.6145.26.camel@localhost>
+References: <20050930073232.10631.63786.sendpatchset@cherry.local>
+	<1128093825.6145.26.camel@localhost>
 	<20051002202157.7b54253d.pj@sgi.com>
 	<aec7e5c30510022205o770b6335o96d9a9d9cc5d7397@mail.gmail.com>
 Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: pj@sgi.com
-Cc: magnus.damm@gmail.com, haveblue@us.ibm.com, magnus@valinux.co.jp, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Magnus Damm <magnus.damm@gmail.com>
+Cc: haveblue@us.ibm.com, magnus@valinux.co.jp, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
-
-> > In theory at least, I applaud Magnus's work here.  The assymetry of the
-> > SMP/NUMA define structure has always annoyed me slightly, and only been
-> > explainable in my view as a consequence of the historical order of
-> > development.  I had a PC with a second memory board in an ISA slot,
-> > which would qualify as a one CPU, two Memory Node system.
-> >
-> > Or what byte us in the future (that PC was a long time ago), the kinks
-> > in the current setup might be a hitch in our side as we extend to
-> > increasingly interesting architectures.
-> 
-> Nice to hear that you like the idea.
-> 
-> Maybe I should have broken down my patches into three smaller sets:
-> 
-> 1) i386: NUMA without SMP
-> 2) CPUSETS: NUMA || SMP
-> 3) i386: NUMA emulation
-> 
-> If people like 1) then it's probably a good idea to convert other
-> architectures too. Both 2) and 3) above are separate but related
-> issues. And now seems like a good time to solve 2).
-> 
+Magnus wrote:
 > So, Paul, please let me know if you prefer SMP || NUMA or no
-> depencencies in the Kconfig. When I know that I will create a new
-> patch that hopefully can get into -mm later on.
+> depencencies in the Kconfig.
 
-The latter seems a good idea to me if you're going to enhance CPUSETS
-acceptable for CPUMETER or something like that.
+In theory, I prefer none.  But the devil is in the details here,
+and I really don't care that much.
 
-Thanks.
+So pick whichever you prefer, or whichever provides the nicest
+looking code or patch, or flip a coin ;).
+
+-- 
+                  I won't rest till it's the best ...
+                  Programmer, Linux Scalability
+                  Paul Jackson <pj@sgi.com> 1.925.600.0401
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
