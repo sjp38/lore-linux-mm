@@ -1,31 +1,38 @@
-Received: by zproxy.gmail.com with SMTP id k1so368221nzf
-        for <linux-mm@kvack.org>; Tue, 04 Oct 2005 02:49:29 -0700 (PDT)
-Message-ID: <aec7e5c30510040249x7246284fv26e1f281a690a087@mail.gmail.com>
-Date: Tue, 4 Oct 2005 18:49:29 +0900
-From: Magnus Damm <magnus.damm@gmail.com>
-Reply-To: Magnus Damm <magnus.damm@gmail.com>
-Subject: Re: [PATCH 07/07] i386: numa emulation on pc
-In-Reply-To: <20051004.165216.94769788.taka@valinux.co.jp>
+Subject: Re: [PATCH]: Clean up of __alloc_pages
+References: <20051001120023.A10250@unix-os.sc.intel.com>
+	<Pine.LNX.4.62.0510030828400.7812@schroedinger.engr.sgi.com>
+	<1128358558.8472.13.camel@akash.sc.intel.com>
+	<Pine.LNX.4.62.0510030952520.8266@schroedinger.engr.sgi.com>
+	<1128361714.8472.44.camel@akash.sc.intel.com>
+From: Andi Kleen <ak@suse.de>
+Date: 04 Oct 2005 15:27:08 +0200
+In-Reply-To: <1128361714.8472.44.camel@akash.sc.intel.com>
+Message-ID: <p733bnh1kgj.fsf@verdi.suse.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 8BIT
-Content-Disposition: inline
-References: <20050930073232.10631.63786.sendpatchset@cherry.local>
-	 <20050930073308.10631.24247.sendpatchset@cherry.local>
-	 <20051004.165216.94769788.taka@valinux.co.jp>
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hirokazu Takahashi <taka@valinux.co.jp>
-Cc: magnus@valinux.co.jp, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Rohit Seth <rohit.seth@intel.com>
+Cc: akpm@osdl.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On 10/4/05, Hirokazu Takahashi <taka@valinux.co.jp> wrote:
-> It seems like you've forgot to bind cpus with emulated nodes as linux for
-> x86_64 does. I don't think it's your intention.
+Rohit Seth <rohit.seth@intel.com> writes:
+> 
+> I think conceptually this ask for a new flag __GFP_NODEONLY that
+> indicate allocations to come from current node only. 
+> 
+> This definitely though means I will need to separate out the allocation
+> from pcp patch (as Nick suggested earlier).
 
-True, not my intention. I will have a look at that. Thanks.
+This reminds me - the current logic is currently a bit suboptimal on
+many NUMA systems. Often it would be better to be a bit more
+aggressive at freeing memory (maybe do a very low overhead light try to
+free pages) in the first node before falling back to other nodes. What
+right now happens is that when you have even minor memory pressure
+because e.g. you node is filled up with disk cache the local memory
+affinity doesn't work too well anymore.
 
-/ magnus
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
