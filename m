@@ -1,58 +1,54 @@
-Message-ID: <434292D3.2040105@shadowen.org>
-Date: Tue, 04 Oct 2005 15:33:55 +0100
-From: Andy Whitcroft <apw@shadowen.org>
+From: "Ray Bryant" <raybry@mpdtxmail.amd.com>
+Subject: Re: [PATCH]: Clean up of __alloc_pages
+Date: Tue, 4 Oct 2005 11:26:52 -0500
+References: <20051001120023.A10250@unix-os.sc.intel.com>
+ <1128361714.8472.44.camel@akash.sc.intel.com>
+ <p733bnh1kgj.fsf@verdi.suse.de>
+In-Reply-To: <p733bnh1kgj.fsf@verdi.suse.de>
 MIME-Version: 1.0
-Subject: Re: sparsemem & sparsemem extreme question
-References: <20051004065030.GA21741@osiris.boeblingen.de.ibm.com>
-In-Reply-To: <20051004065030.GA21741@osiris.boeblingen.de.ibm.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Message-ID: <200510041126.53247.raybry@mpdtxmail.amd.com>
+Content-Type: text/plain;
+ charset=iso-8859-1
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Heiko Carstens <heiko.carstens@de.ibm.com>
-Cc: linux-mm@kvack.org
+To: Andi Kleen <ak@suse.de>
+Cc: Rohit Seth <rohit.seth@intel.com>, akpm@osdl.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Heiko Carstens wrote:
+On Tuesday 04 October 2005 08:27, Andi Kleen wrote:
+> Rohit Seth <rohit.seth@intel.com> writes:
+> > I think conceptually this ask for a new flag __GFP_NODEONLY that
+> > indicate allocations to come from current node only.
+> >
+> > This definitely though means I will need to separate out the allocation
+> > from pcp patch (as Nick suggested earlier).
+>
+> This reminds me - the current logic is currently a bit suboptimal on
+> many NUMA systems. Often it would be better to be a bit more
+> aggressive at freeing memory (maybe do a very low overhead light try to
+> free pages) in the first node before falling back to other nodes. What
+> right now happens is that when you have even minor memory pressure
+> because e.g. you node is filled up with disk cache the local memory
+> affinity doesn't work too well anymore.
+>
+> -Andi
+>
+That's exactly what Martin Hick's additions to __alloc_pages() were trying to 
+achieve.   However, we've never figured out how to make the "very low 
+overhead light try to free pages" thing work with low enough overhead that it 
+can be left on all of the time.    As soon as we make this the least bit more 
+expensive, then this hurts those workloads (file servers being one example) 
+who don't care about local, but who need the fastest possible allocations. 
 
-> I did an implementation of CONFIG_SPARSEMEM for s390, which indeed was quite
-> easy. Just to find out that it was not sufficient :)
-> SPARSEMEM_EXTREME looks better but unfortunately adds another layer of
-> indirection.
-> I'm just wondering why there is all this indirection stuff here and why not
-> have one contiguous aray of struct pages (residing in the vmalloc area) that
-> deals with whatever size of memory an architecture wants to support.
-> Unused areas just wouldn't have any backing with real pages and on access
-> generate a page fault (nobody is supposed to access these pages anyway).
-> This would have the advantage that all the primitives like e.g. pfn_to_page
-> would be as simple as before, no need to waste large parts of the page flags
-> and in addition it would easily allow for memory hotplug on page size
-> granularity.
-> The only drawbacks are (as far as I can see) a _huge_ virtual mem_map array,
-> but that shouldn't matter too much. A real problem could be that the mem_map
-> array and therefore the vmalloc area need to be generated quiete early.
-> 
-> Most probably this has already been thought about before, but I couldn't find
-> anything in the achives.
-
-During the implementation of SPARSEMEM_EXTREME other layouts such as the
-huge 'partially populated' mem_map were considered.  For a number of our
-target architectures kernel virtual address is at a premium so this
-would not be suitable for them.  We did consider whether to have
-different mechanisms for KVA rich architectures but (if I remember
-correctly) benchmarking the implementation seemed to indicate that the
-additional indirection was insignificant if even detectable.
-
-The architecture of sparsemem is supposed to allow architecture specific
-implementations should that be necessary but I've not yet seen a
-compelling arguement for one yet.
-
-On the subject of page flags, I would point out that SPARSEMEM either
-reuses already used bits for 32 bit architectures, or makes use of
-unused bits in the 64 case.  It doesn't reduce the number of flags bits
-available.
-
--apw
+This problem is often a showstopper on larger NUMA systems, at least for HPC 
+type applications, where the inability to guarantee local storage allocation 
+when it is requested can make the application run significantly slower.
+-- 
+Ray Bryant
+AMD Performance Labs                   Austin, Tx
+512-602-0038 (o)                 512-507-7807 (c)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
