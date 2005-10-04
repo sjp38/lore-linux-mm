@@ -1,58 +1,44 @@
-Date: Tue, 04 Oct 2005 09:10:48 -0700
-From: "Martin J. Bligh" <mbligh@mbligh.org>
-Reply-To: "Martin J. Bligh" <mbligh@mbligh.org>
-Subject: Re: [PATCH]: Clean up of __alloc_pages
-Message-ID: <138020000.1128442248@[10.10.2.4]>
-In-Reply-To: <200510041126.53247.raybry@mpdtxmail.amd.com>
-References: <20051001120023.A10250@unix-os.sc.intel.com><1128361714.8472.44.camel@akash.sc.intel.com><p733bnh1kgj.fsf@verdi.suse.de> <200510041126.53247.raybry@mpdtxmail.amd.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e1.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id j94GFCUd012820
+	for <linux-mm@kvack.org>; Tue, 4 Oct 2005 12:15:12 -0400
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay04.pok.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id j94GFChH104350
+	for <linux-mm@kvack.org>; Tue, 4 Oct 2005 12:15:12 -0400
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.12.11/8.13.3) with ESMTP id j94GFBMa018239
+	for <linux-mm@kvack.org>; Tue, 4 Oct 2005 12:15:11 -0400
+Subject: Re: sparsemem & sparsemem extreme question
+From: Dave Hansen <haveblue@us.ibm.com>
+In-Reply-To: <20051004065030.GA21741@osiris.boeblingen.de.ibm.com>
+References: <20051004065030.GA21741@osiris.boeblingen.de.ibm.com>
+Content-Type: text/plain
+Date: Tue, 04 Oct 2005 09:15:02 -0700
+Message-Id: <1128442502.20208.6.camel@localhost>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ray Bryant <raybry@mpdtxmail.amd.com>, Andi Kleen <ak@suse.de>
-Cc: Rohit Seth <rohit.seth@intel.com>, akpm@osdl.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Heiko Carstens <heiko.carstens@de.ibm.com>
+Cc: linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
+On Tue, 2005-10-04 at 08:50 +0200, Heiko Carstens wrote:
+> I'm just wondering why there is all this indirection stuff here and why not
+> have one contiguous aray of struct pages (residing in the vmalloc area) that
+> deals with whatever size of memory an architecture wants to support.
 
---Ray Bryant <raybry@mpdtxmail.amd.com> wrote (on Tuesday, October 04, 2005 11:26:52 -0500):
+This is exactly what ia64 does today.  Programatically, it does remove a
+layer of indirection.  However, there are some data structures that have
+to be traversed during a lookup: the page tables.  Granted, the TLB will
+provide some caching, but a lookup on ia64 can potentially be much more
+expensive than the two cacheline misses that sparsemem extreme might
+have.
 
-> On Tuesday 04 October 2005 08:27, Andi Kleen wrote:
->> Rohit Seth <rohit.seth@intel.com> writes:
->> > I think conceptually this ask for a new flag __GFP_NODEONLY that
->> > indicate allocations to come from current node only.
->> > 
->> > This definitely though means I will need to separate out the allocation
->> > from pcp patch (as Nick suggested earlier).
->> 
->> This reminds me - the current logic is currently a bit suboptimal on
->> many NUMA systems. Often it would be better to be a bit more
->> aggressive at freeing memory (maybe do a very low overhead light try to
->> free pages) in the first node before falling back to other nodes. What
->> right now happens is that when you have even minor memory pressure
->> because e.g. you node is filled up with disk cache the local memory
->> affinity doesn't work too well anymore.
->> 
->> -Andi
->> 
-> That's exactly what Martin Hick's additions to __alloc_pages() were trying to 
-> achieve.   However, we've never figured out how to make the "very low 
-> overhead light try to free pages" thing work with low enough overhead that it 
-> can be left on all of the time.    As soon as we make this the least bit more 
-> expensive, then this hurts those workloads (file servers being one example) 
-> who don't care about local, but who need the fastest possible allocations. 
-> 
-> This problem is often a showstopper on larger NUMA systems, at least for HPC 
-> type applications, where the inability to guarantee local storage allocation 
-> when it is requested can make the application run significantly slower.
+In the end no one has ever produced any compelling performance reason to
+use a vmem_map (as ia64 calls it).  In addition, sparsemem doesn't cause
+any known performance regressions, either.  
 
-Can we not do some migration / more targeted pressure balancing in kswapd?
-Ie if we had a constant measure of per-node pressure, we could notice an
-imbalance, and start migrating the least recently used pages from the node
-under most pressure to the node under least ...
-
-M.
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
