@@ -1,44 +1,93 @@
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by e1.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id j94GFCUd012820
-	for <linux-mm@kvack.org>; Tue, 4 Oct 2005 12:15:12 -0400
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay04.pok.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id j94GFChH104350
-	for <linux-mm@kvack.org>; Tue, 4 Oct 2005 12:15:12 -0400
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.12.11/8.13.3) with ESMTP id j94GFBMa018239
-	for <linux-mm@kvack.org>; Tue, 4 Oct 2005 12:15:11 -0400
-Subject: Re: sparsemem & sparsemem extreme question
-From: Dave Hansen <haveblue@us.ibm.com>
-In-Reply-To: <20051004065030.GA21741@osiris.boeblingen.de.ibm.com>
-References: <20051004065030.GA21741@osiris.boeblingen.de.ibm.com>
-Content-Type: text/plain
-Date: Tue, 04 Oct 2005 09:15:02 -0700
-Message-Id: <1128442502.20208.6.camel@localhost>
-Mime-Version: 1.0
+From: "Ray Bryant" <raybry@mpdtxmail.amd.com>
+Subject: Re: [PATCH]: Clean up of __alloc_pages
+Date: Tue, 4 Oct 2005 12:02:52 -0500
+References: <20051001120023.A10250@unix-os.sc.intel.com>
+ <200510041126.53247.raybry@mpdtxmail.amd.com>
+ <138020000.1128442248@[10.10.2.4]>
+In-Reply-To: <138020000.1128442248@[10.10.2.4]>
+MIME-Version: 1.0
+Message-ID: <200510041202.53016.raybry@mpdtxmail.amd.com>
+Content-Type: text/plain;
+ charset=iso-8859-1
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Heiko Carstens <heiko.carstens@de.ibm.com>
-Cc: linux-mm <linux-mm@kvack.org>
+To: "Martin J. Bligh" <mbligh@mbligh.org>
+Cc: Andi Kleen <ak@suse.de>, Rohit Seth <rohit.seth@intel.com>, akpm@osdl.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2005-10-04 at 08:50 +0200, Heiko Carstens wrote:
-> I'm just wondering why there is all this indirection stuff here and why not
-> have one contiguous aray of struct pages (residing in the vmalloc area) that
-> deals with whatever size of memory an architecture wants to support.
+On Tuesday 04 October 2005 11:10, Martin J. Bligh wrote:
+> --Ray Bryant <raybry@mpdtxmail.amd.com> wrote (on Tuesday, October 04, 2005 
+>
+ <snip> 
 
-This is exactly what ia64 does today.  Programatically, it does remove a
-layer of indirection.  However, there are some data structures that have
-to be traversed during a lookup: the page tables.  Granted, the TLB will
-provide some caching, but a lookup on ia64 can potentially be much more
-expensive than the two cacheline misses that sparsemem extreme might
-have.
+> >
+> > That's exactly what Martin Hick's additions to __alloc_pages() were
+> > trying to achieve.   However, we've never figured out how to make the
+> > "very low overhead light try to free pages" thing work with low enough
+> > overhead that it can be left on all of the time.    As soon as we make
+> > this the least bit more expensive, then this hurts those workloads (file
+> > servers being one example) who don't care about local, but who need the
+> > fastest possible allocations.
+> >
+> > This problem is often a showstopper on larger NUMA systems, at least for
+> > HPC type applications, where the inability to guarantee local storage
+> > allocation when it is requested can make the application run
+> > significantly slower.
+>
+> Can we not do some migration / more targeted pressure balancing in kswapd?
+> Ie if we had a constant measure of per-node pressure, we could notice an
+> imbalance, and start migrating the least recently used pages from the node
+> under most pressure to the node under least ...
+>
+> M.
+>
 
-In the end no one has ever produced any compelling performance reason to
-use a vmem_map (as ia64 calls it).  In addition, sparsemem doesn't cause
-any known performance regressions, either.  
+Unfortunately, I think that anything that doesn't happen synchronously (with 
+the original allocation request) happens to late.    In order to make this 
+work we'd have to not only migrate the excess page cache pages off of the 
+loaded nodes, but find the supposed-to-be-local pages that got allocated off 
+node and migrate them back.   I'm not sure how to do all of that.  :-)
 
--- Dave
+(Another way to think about this is that if we truly balanced page cache 
+allocations across nodes via migration, then we could have equally as well 
+originally allocated the page cache pages round-robin across the nodes and 
+gotten the balancing for free.)
+
+Another idea that I have been kicking around for some time is the notion of a
+MPOL_LOCAL memory policy.    MPOL_LOCAL would be kind of like a dynamic 
+MPOL_BIND in the sense that the policy would allow allocation only on a 
+single node, but that signal node would be dynamically set to the current 
+node (rather than statically set ala MPOL_BIND).    The result of such  an 
+allocation policy would be that if a local allocation can't be made, then the 
+current task will end up in synchronous page reclaim until some memory 
+becomes free.  That would force clean page cache pages to be discarded.
+(This idea is similar, in spirit, to Rohit's suggestion for __GFP_NODEONLY...)
+
+The intent of this is for an otherwise mempolicy unaware application to be run 
+under numactl and MPOL_LOCAL if it requires local storage allocations.
+File server applications (or other applications that demand the fastest 
+storage allocation without regard to local) would chose not to be run in such 
+a fashion.
+
+The down side of this is that a task that requests more memory than is 
+available on a node (and is running under MPOL_LOCAL) could invoke the OOM 
+handler.    We'd have to special case this under the OOM handler, I would 
+imagine, although a similar problem may exist with MPOL_BIND at the present 
+time, anyway.
+
+
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+
+-- 
+Ray Bryant
+AMD Performance Labs                   Austin, Tx
+512-602-0038 (o)                 512-507-7807 (c)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
