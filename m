@@ -1,82 +1,65 @@
-Date: Wed, 05 Oct 2005 08:10:05 -0700
-From: "Martin J. Bligh" <mbligh@mbligh.org>
-Reply-To: "Martin J. Bligh" <mbligh@mbligh.org>
-Subject: Re: [PATCH] i386: nid_zone_sizes_init() update
-Message-ID: <189750000.1128525005@[10.10.2.4]>
-In-Reply-To: <20051005083515.4305.16399.sendpatchset@cherry.local>
-References: <20051005083515.4305.16399.sendpatchset@cherry.local>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Received: from westrelay02.boulder.ibm.com (westrelay02.boulder.ibm.com [9.17.195.11])
+	by e31.co.us.ibm.com (8.12.11/8.12.11) with ESMTP id j95Fq0eO016061
+	for <linux-mm@kvack.org>; Wed, 5 Oct 2005 11:52:00 -0400
+Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
+	by westrelay02.boulder.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id j95FqpfK524106
+	for <linux-mm@kvack.org>; Wed, 5 Oct 2005 09:52:51 -0600
+Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av03.boulder.ibm.com (8.12.11/8.13.3) with ESMTP id j95FqoWu004001
+	for <linux-mm@kvack.org>; Wed, 5 Oct 2005 09:52:50 -0600
+Subject: Re: sparsemem & sparsemem extreme question
+From: Dave Hansen <haveblue@us.ibm.com>
+In-Reply-To: <20051005063909.GA9699@osiris.boeblingen.de.ibm.com>
+References: <20051004065030.GA21741@osiris.boeblingen.de.ibm.com>
+	 <1128442502.20208.6.camel@localhost>
+	 <20051005063909.GA9699@osiris.boeblingen.de.ibm.com>
+Content-Type: text/plain
+Date: Wed, 05 Oct 2005 08:52:34 -0700
+Message-Id: <1128527554.26009.2.camel@localhost>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Magnus Damm <magnus@valinux.co.jp>, linux-mm@kvack.org
+To: Heiko Carstens <heiko.carstens@de.ibm.com>
+Cc: linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-> Broken out nid_zone_sizes_init() change from i386 NUMA emulation code.
+On Wed, 2005-10-05 at 08:39 +0200, Heiko Carstens wrote:
+> > > I'm just wondering why there is all this indirection stuff here and why not
+> > > have one contiguous aray of struct pages (residing in the vmalloc area) that
+> > > deals with whatever size of memory an architecture wants to support.
+> > This is exactly what ia64 does today.  Programatically, it does remove a
+> > layer of indirection.  However, there are some data structures that have
+> > to be traversed during a lookup: the page tables.  Granted, the TLB will
+> > provide some caching, but a lookup on ia64 can potentially be much more
+> > expensive than the two cacheline misses that sparsemem extreme might
+> > have.
+> 
+> Sure, just that on s390 we have a 1:1 mapping anyway. So these lookups would
+> be more or less for free for us (compared to what we have now).
 
-Mmmm. what's the purpose of this change? Not sure I understand what
-you're trying to acheive here ... looks like you're just removing
-some abstractions? To me, they made the code a bit easier to read.
- 
-> Signed-off-by: Magnus Damm <magnus@valinux.co.jp>
-> ---
-> 
-> Applies on top of linux-2.6.14-rc2-git8-mhp1
-> 
-> --- from-0053/arch/i386/kernel/setup.c
-> +++ to-work/arch/i386/kernel/setup.c	2005-10-04 15:18:54.000000000 +0900
-> @@ -1215,31 +1215,24 @@ static inline unsigned long max_hardware
->  {
->  	return virt_to_phys((char *)MAX_DMA_ADDRESS) >> PAGE_SHIFT;
->  }
-> -static inline unsigned long  nid_size_pages(int nid)
-> -{
-> -	return node_end_pfn[nid] - node_start_pfn[nid];
-> -}
-> -static inline int nid_starts_in_highmem(int nid)
-> -{
-> -	return node_start_pfn[nid] >= max_low_pfn;
-> -}
->  
->  void __init nid_zone_sizes_init(int nid)
->  {
->  	unsigned long zones_size[MAX_NR_ZONES] = {0, 0, 0};
-> -	unsigned long max_dma;
-> +	unsigned long max_dma = min(max_hardware_dma_pfn(), max_low_pfn);
->  	unsigned long start = node_start_pfn[nid];
->  	unsigned long end = node_end_pfn[nid];
->  
->  	if (node_has_online_mem(nid)){
-> -		if (nid_starts_in_highmem(nid)) {
-> -			zones_size[ZONE_HIGHMEM] = nid_size_pages(nid);
-> -		} else {
-> -			max_dma = min(max_hardware_dma_pfn(), max_low_pfn);
-> -			zones_size[ZONE_DMA] = max_dma;
-> -			zones_size[ZONE_NORMAL] = max_low_pfn - max_dma;
-> -			zones_size[ZONE_HIGHMEM] = end - max_low_pfn;
-> +		if (start < max_dma) {
-> +			zones_size[ZONE_DMA] = min(end, max_dma) - start;
-> +		}
-> +		if (start < max_low_pfn && max_dma < end) {
-> +			zones_size[ZONE_NORMAL] = min(end, max_low_pfn) - max(start, max_dma);
->  		}
-> +		if (max_low_pfn <= end) {
-> +			zones_size[ZONE_HIGHMEM] = end - max(start, max_low_pfn);
-> +               }
->  	}
->  
->  	free_area_init_node(nid, NODE_DATA(nid), zones_size, start,
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
-> 
+Is the 1:1 mapping done with pagetables?  If so, it is not free.
 
+> > In the end no one has ever produced any compelling performance reason to
+> > use a vmem_map (as ia64 calls it).  In addition, sparsemem doesn't cause
+> > any known performance regressions, either.
+> 
+> As far as I understand the memory hotplug patches they won't work without
+> SPARSEMEM support. So the ia64 approach with a vmem_map will not work here,
+> right?
+
+If we had vmem_map implemented for every arch that supported memory
+hotplug, and it didn't have performance implications, then we could have
+vmem_map everywhere, and use it for hotplug.
+
+> Actually my concern is that whenever the address space that is covered with
+> SPARSEMEM_EXTREME is not sufficient just another layer of indirection needs
+> to be added.
+
+Do you have any performance numbers to back up your concerns, or is it
+more about the code complexity?
+
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
