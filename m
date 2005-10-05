@@ -1,80 +1,131 @@
-Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
-	by e34.co.us.ibm.com (8.12.11/8.12.11) with ESMTP id j96CR9pr015443
-	for <linux-mm@kvack.org>; Thu, 6 Oct 2005 08:27:09 -0400
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by d03relay04.boulder.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id j96CTf9L549958
-	for <linux-mm@kvack.org>; Thu, 6 Oct 2005 06:29:41 -0600
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.12.11/8.13.3) with ESMTP id j96CSvOo007529
-	for <linux-mm@kvack.org>; Thu, 6 Oct 2005 06:28:57 -0600
-Subject: Re: [PATCH] dcache: separate slab for directory dentries
-From: Dave Kleikamp <shaggy@austin.ibm.com>
-In-Reply-To: <20051006062739.GP9519161@melbourne.sgi.com>
-References: <20050911105709.GA16369@thunk.org>
-	 <20050911120045.GA4477@in.ibm.com> <20050912031636.GB16758@thunk.org>
-	 <20050913084752.GC4474@in.ibm.com>
-	 <20050913215932.GA1654338@melbourne.sgi.com>
-	 <20051006062739.GP9519161@melbourne.sgi.com>
-Content-Type: text/plain
-Date: Thu, 06 Oct 2005 07:28:50 -0500
-Message-Id: <1128601731.9358.2.camel@kleikamp.austin.ibm.com>
+Date: Wed, 5 Oct 2005 18:25:51 -0300
+From: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
+Subject: Re: shrinkable cache statistics [was Re: VM balancing issues on 2.6.13: dentry cache not getting shrunk enough]
+Message-ID: <20051005212551.GA10057@logos.cnet>
+References: <20050911105709.GA16369@thunk.org> <20050911120045.GA4477@in.ibm.com> <20050912031636.GB16758@thunk.org> <20050913084752.GC4474@in.ibm.com> <20050914230843.GA11748@dmt.cnet> <20050915093945.GD3869@in.ibm.com> <20050915132910.GA6806@dmt.cnet> <20051002163229.GB5190@in.ibm.com> <20051002200640.GB9865@xeon.cnet> <20051004133635.GA23575@in.ibm.com>
 Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20051004133635.GA23575@in.ibm.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: gnb@sgi.com, David Chinner <dgc@sgi.com>
-Cc: Bharata B Rao <bharata@in.ibm.com>, Dipankar Sarma <dipankar@in.ibm.com>, linux-mm@kvack.org
+To: Bharata B Rao <bharata@in.ibm.com>
+Cc: Theodore Ts'o <tytso@mit.edu>, Dipankar Sarma <dipankar@in.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2005-10-06 at 16:27 +1000, David Chinner wrote:
-> +/*
-> + * If the given dentry is not suitable for the inode, reallocate
-> + * it, copy across the dentry's data and return the new one.  Only
-> + * useful when the dentry has not yet been attached to inode or
-> + * hashed, which is why it's a lot simpler than d_move().  Returns
-> + * NULL if the dentry is suitable,  Called with dcache_lock, drops
-> + * and regains.
-> + */
-> +static struct dentry * d_realloc_for_inode(struct dentry * dentry,
-> +					   struct inode *inode)
-> +{
-> +	int flags = 0;
-> +	struct dentry *new;
-> +	struct dentry *parent;
-> +	
-> +	BUG_ON(dentry == NULL);
-> +	BUG_ON(dentry->d_inode != NULL);
-> +	BUG_ON(inode == NULL);
-> +	BUG_ON(dentry->d_parent == NULL || dentry->d_parent == dentry);
-> +
-> +	if (S_ISDIR(inode->i_mode))
-> +		flags |= DCACHE_DIRSLAB;
-> +	if ((flags & DCACHE_DIRSLAB) == (dentry->d_flags & DCACHE_DIRSLAB))
-> +		return NULL;	/* dentry is suitable */
-> +
-> +	parent = dentry->d_parent;
-> +	list_del_init(&dentry->d_child);
-> +
-> +	spin_unlock(&dcache_lock);
-> +	
-> +	new = __d_alloc(parent, &dentry->d_name, dentry->d_flags | flags);
-> +
-> +	spin_lock(&dcache_lock);
-> +
-> +	BUG_ON(new == NULL);	/* TODO */
-> +	if (new) {
-> +//		new->d_op = dentry->d_op;
-> +//		new->d_fsdata = dentry->d_fsdata;
-> +	}
-> +	
-> +	return new;
-> +}
+Hi Bharata,
 
-Isn't this leaking the original dentry?  Shouldn't it be doing a dput or
-at least a d_free here?
--- 
-David Kleikamp
-IBM Linux Technology Center
+On Tue, Oct 04, 2005 at 07:06:35PM +0530, Bharata B Rao wrote:
+> Marcelo,
+> 
+> Here's my next attempt in breaking the "slabs_scanned" from /proc/vmstat
+> into meaningful per cache statistics. Now I have the statistics counters
+> as percpu. [an issue remaining is that there are more than one cache as
+> part of mbcache and they all have a common shrinker routine and I am
+> displaying the collective shrinker stats info on each of them in
+> /proc/slabinfo ==> some kind of duplication]
+
+Looks good to me! IMO it should be a candidate for -mm/mainline.
+
+Nothing useful to suggest on the mbcache issue... sorry.
+
+> With this patch (and my earlier dcache stats patch) I observed some
+> interesting results with the following test scenario on a 8cpu p3 box:
+> 
+> - Ran an application which consumes 40% of the total memory.
+> - Ran dbench on tmpfs with 128 clients twice (serially).
+> - Ran a find on a ext3 partition having ~9.5million entries (files and
+>   directories included)
+> 
+> At the end of this run, I have the following results:
+> 
+> [root@llm09 bharata]# cat /proc/meminfo
+> MemTotal:      3872528 kB
+> MemFree:       1420940 kB
+> Buffers:        714068 kB
+> Cached:          21536 kB
+> SwapCached:       2264 kB
+> Active:        1672680 kB
+> Inactive:       637460 kB
+> HighTotal:     3014616 kB
+> HighFree:      1411740 kB
+> LowTotal:       857912 kB
+> LowFree:          9200 kB
+> SwapTotal:     2096472 kB
+> SwapFree:      2051408 kB
+> Dirty:             172 kB
+> Writeback:           0 kB
+> Mapped:        1583680 kB
+> Slab:           119564 kB
+> CommitLimit:   4032736 kB
+> Committed_AS:  1647260 kB
+> PageTables:       2248 kB
+> VmallocTotal:   114680 kB
+> VmallocUsed:      1264 kB
+> VmallocChunk:   113384 kB
+> nr_dentries/page        nr_pages        nr_inuse
+>          0              0               0
+>          1              5               2
+>          2              12              4
+>          3              26              9
+>          4              46              18
+>          5              76              40
+>          6              82              47
+>          7              91              59
+>          8              122             93
+>          9              114             102
+>         10              142             136
+>         11              138             185
+>         12              118             164
+>         13              128             206
+>         14              126             208
+>         15              120             219
+>         16              136             261
+>         17              159             315
+>         18              145             311
+>         19              179             379
+>         20              192             407
+>         21              256             631
+>         22              286             741
+>         23              316             816
+>         24              342             934
+>         25              381             1177
+>         26              664             2813
+>         27              0               0
+>         28              0               0
+>         29              0               0
+> Total:                  4402            10277
+> dcache lru: total 75369 inuse 3599
+> 
+> [Here,
+> nr_dentries/page - Number of dentries per page
+> nr_pages - Number of pages with given number of dentries
+> nr_inuse - Number of inuse dentries in those pages.
+> Eg: From the above data, there are 26 pages with 3 dentries each
+> and out of 78 total dentries in these 3 pages, 9 dentries are in use.]
+> 
+> [root@llm09 bharata]# grep shrinker /proc/slabinfo
+> # name            <active_objs> <num_objs> <objsize> <objperslab> <pagesperslab> : tunables <limit> <batchcount> <sharedfactor> : slabdata <active_slabs> <num_slabs> <sharedavail> : shrinker stat <nr requested> <nr freed>
+> ext3_xattr             0      0     48   78    1 : tunables  120   60    8 : slabdata      0      0      0 : shrinker stat       0       0
+> dquot                  0      0    160   24    1 : tunables  120   60    8 : slabdata      0      0      0 : shrinker stat       0       0
+> inode_cache         1301   1390    400   10    1 : tunables   54   27    8 : slabdata    139    139      0 : shrinker stat  682752  681900
+> dentry_cache       82110 114452    152   26    1 : tunables  120   60    8 : slabdata   4402   4402      0 : shrinker stat 1557760  760100
+> 
+> [root@llm09 bharata]# grep slabs_scanned /proc/vmstat
+> slabs_scanned 2240512
+> 
+> [root@llm09 bharata]# cat /proc/sys/fs/dentry-state
+> 82046   75369   45      0       3599    0
+> [The order of dentry-state o/p is like this:
+> total dentries in dentry hash list, total dentries in lru list, age limit,
+> want_pages, inuse dentries in lru list, dummy]
+> 
+> So, we can see that with low memory pressure, even though the
+> shrinker runs on dcache repeatedly, not many dentries are freed
+> by dcache. And dcache lru list still has huge number of free
+> dentries.
+
+The success/attempt ratio is about 1/2, which seems alright? 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
