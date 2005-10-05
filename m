@@ -1,63 +1,48 @@
-Date: Wed, 5 Oct 2005 18:45:59 +0100 (IST)
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 3/7] Fragmentation Avoidance V16: 003_fragcore
-In-Reply-To: <1128532920.26009.43.camel@localhost>
-Message-ID: <Pine.LNX.4.58.0510051834250.16421@skynet>
-References: <20051005144546.11796.1154.sendpatchset@skynet.csn.ul.ie>
- <20051005144602.11796.53850.sendpatchset@skynet.csn.ul.ie>
- <1128530908.26009.28.camel@localhost>  <Pine.LNX.4.58.0510051812040.16421@skynet>
- <1128532920.26009.43.camel@localhost>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from d12nrmr1607.megacenter.de.ibm.com (d12nrmr1607.megacenter.de.ibm.com [9.149.167.49])
+	by mtagate2.de.ibm.com (8.12.10/8.12.10) with ESMTP id j95Hkad7107336
+	for <linux-mm@kvack.org>; Wed, 5 Oct 2005 17:46:36 GMT
+Received: from d12av02.megacenter.de.ibm.com (d12av02.megacenter.de.ibm.com [9.149.165.228])
+	by d12nrmr1607.megacenter.de.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id j95HkZvk163648
+	for <linux-mm@kvack.org>; Wed, 5 Oct 2005 19:46:35 +0200
+Received: from d12av02.megacenter.de.ibm.com (loopback [127.0.0.1])
+	by d12av02.megacenter.de.ibm.com (8.12.11/8.13.3) with ESMTP id j95HkZHA008184
+	for <linux-mm@kvack.org>; Wed, 5 Oct 2005 19:46:35 +0200
+Date: Wed, 5 Oct 2005 19:45:42 +0200
+From: Heiko Carstens <heiko.carstens@de.ibm.com>
+Subject: Re: sparsemem & sparsemem extreme question
+Message-ID: <20051005174542.GB10204@osiris.ibm.com>
+References: <20051004065030.GA21741@osiris.boeblingen.de.ibm.com> <1128442502.20208.6.camel@localhost> <20051005063909.GA9699@osiris.boeblingen.de.ibm.com> <1128527554.26009.2.camel@localhost> <20051005155823.GA10119@osiris.ibm.com> <1128528340.26009.8.camel@localhost> <20051005161009.GA10146@osiris.ibm.com> <1128529222.26009.16.camel@localhost> <20051005171230.GA10204@osiris.ibm.com> <1128532809.26009.39.camel@localhost>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1128532809.26009.39.camel@localhost>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Dave Hansen <haveblue@us.ibm.com>
-Cc: linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@osdl.org>, kravetz@us.ibm.com, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, jschopp@austin.ibm.com, lhms <lhms-devel@lists.sourceforge.net>
+Cc: linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 5 Oct 2005, Dave Hansen wrote:
+> > Anything specific you need to know about the memory layout?
+> How sparse is it?  How few present pages can be there be in a worst-case
+> physical area?
 
-> On Wed, 2005-10-05 at 18:14 +0100, Mel Gorman wrote:
-> > On Wed, 5 Oct 2005, Dave Hansen wrote:
-> > > On Wed, 2005-10-05 at 15:46 +0100, Mel Gorman wrote:
-> > > >
-> > > > @@ -1483,8 +1540,10 @@ void show_free_areas(void)
-> > > >
-> > > >                 spin_lock_irqsave(&zone->lock, flags);
-> > > >                 for (order = 0; order < MAX_ORDER; order++) {
-> > > > -                       nr = zone->free_area[order].nr_free;
-> > > > -                       total += nr << order;
-> > > > +                       for (type=0; type < RCLM_TYPES; type++) {
-> > > > +                               nr = zone->free_area_lists[type][order].nr_free;
-> > > > +                               total += nr << order;
-> > > > +                       }
-> > >
-> > > Can that use the new for_each_ macro?
-> >
-> > Now I remember why, it's because of the printf below "for (type=0" . The
-> > printf has to happen once for each order. With the for_each_macro, it
-> > would happen for each type *and* order.
->
-> Actually, that's for debugging, so we might want to do that anyway.  Can
-> you put it in a separate patch and explain?
->
+Worst case that is already currently valid is that you can have 1 MB
+segments whereever you want in address space.
 
-To print out for each type and order, I'll need the type_names[] array
-from 007_stats but I don't see it as a problem.
+For instance I just configured a virtual machine that has the following
+memory layout:
 
-The problem is that by putting all the changes to this function in another
-patch, the kernel will not build after applying 003_fragcore. I am
-assuming that is bad. I think it makes sense to leave this patch as it is,
-but have a 004_showfree patch that adds the type_names[] array and a more
-detailed printout in show_free_areas. The remaining patches get bumped up
-a number.
+Address Range
+-----------------------------------
+0000000000000000 - 00000000000FFFFF
+000000FFC0000000 - 000000FFC00FFFFF
 
-Would you be happy with that?
+Even though it's currently not possible to define memory segments above
+1TB, this limit is likely to go away.
+In addition if running in a logical partition we always have a small gap
+at the 2GB barrier. Not sure how large that gap is, I'll check tomorrow.
 
--- 
-Mel Gorman
-Part-time Phd Student                          Java Applications Developer
-University of Limerick                         IBM Dublin Software Lab
+Heiko
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
