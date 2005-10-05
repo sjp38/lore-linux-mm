@@ -1,253 +1,255 @@
 From: Mel Gorman <mel@csn.ul.ie>
-Message-Id: <20051005144546.11796.1154.sendpatchset@skynet.csn.ul.ie>
-Subject: [PATCH 0/7] Fragmentation Avoidance V16
-Date: Wed,  5 Oct 2005 15:45:47 +0100 (IST)
+Message-Id: <20051005144623.11796.99869.sendpatchset@skynet.csn.ul.ie>
+In-Reply-To: <20051005144546.11796.1154.sendpatchset@skynet.csn.ul.ie>
+References: <20051005144546.11796.1154.sendpatchset@skynet.csn.ul.ie>
+Subject: [PATCH 7/7] Fragmentation Avoidance V16: 007_stats
+Date: Wed,  5 Oct 2005 15:46:23 +0100 (IST)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 Cc: akpm@osdl.org, Mel Gorman <mel@csn.ul.ie>, kravetz@us.ibm.com, linux-kernel@vger.kernel.org, jschopp@austin.ibm.com, lhms-devel@lists.sourceforge.net
 List-ID: <linux-mm.kvack.org>
 
-Changelog since V14 (V15 not released)
-o Update against 2.6.14-rc3
-o Resync with Joel's work. All suggestions made on fix-ups to his last
-  set of patches should also be in here. e.g. __GFP_USER is still __GFP_USER
-  but is better commented.
-o Large amount of CodingStyle, readability cleanups and corrections pointed
-  out by Dave Hansen.
-o Fix CONFIG_NUMA error that corrupted per-cpu lists
-o Patches broken out to have one-feature-per-patch rather than
-  more-code-per-patch
-o Fix fallback bug where pages for RCLM_NORCLM end up on random other
-  free lists.
+It is not necessary to apply this patch to get all the anti-fragmentation
+code. This patch adds a new config option called CONFIG_ALLOCSTATS. If
+set, a number of new bean counters are added that are related to the
+anti-fragmentation code. The information is exported via /proc/buddyinfo. This
+is very useful when debugging why high-order pages are not available for
+allocation.
 
-Changelog since V13
-o Patches are now broken out
-o Added per-cpu draining of userrclm pages
-o Brought the patch more in line with memory hotplug work
-o Fine-grained use of the __GFP_USER and __GFP_KERNRCLM flags
-o Many coding-style corrections
-o Many whitespace-damage corrections
-
-Changelog since V12
-o Minor whitespace damage fixed as pointed by Joel Schopp
-
-Changelog since V11
-o Mainly a redefiff against 2.6.12-rc5
-o Use #defines for indexing into pcpu lists
-o Fix rounding error in the size of usemap
-
-Changelog since V10
-o All allocation types now use per-cpu caches like the standard allocator
-o Removed all the additional buddy allocator statistic code
-o Elimated three zone fields that can be lived without
-o Simplified some loops
-o Removed many unnecessary calculations
-
-Changelog since V9
-o Tightened what pools are used for fallbacks, less likely to fragment
-o Many micro-optimisations to have the same performance as the standard 
-  allocator. Modified allocator now faster than standard allocator using
-  gcc 3.3.5
-o Add counter for splits/coalescing
-
-Changelog since V8
-o rmqueue_bulk() allocates pages in large blocks and breaks it up into the
-  requested size. Reduces the number of calls to __rmqueue()
-o Beancounters are now a configurable option under "Kernel Hacking"
-o Broke out some code into inline functions to be more Hotplug-friendly
-o Increased the size of reserve for fallbacks from 10% to 12.5%. 
-
-Changelog since V7
-o Updated to 2.6.11-rc4
-o Lots of cleanups, mainly related to beancounters
-o Fixed up a miscalculation in the bitmap size as pointed out by Mike Kravetz
-  (thanks Mike)
-o Introduced a 10% reserve for fallbacks. Drastically reduces the number of
-  kernnorclm allocations that go to the wrong places
-o Don't trigger OOM when large allocations are involved
-
-Changelog since V6
-o Updated to 2.6.11-rc2
-o Minor change to allow prezeroing to be a cleaner looking patch
-
-Changelog since V5
-o Fixed up gcc-2.95 errors
-o Fixed up whitespace damage
-
-Changelog since V4
-o No changes. Applies cleanly against 2.6.11-rc1 and 2.6.11-rc1-bk6. Applies
-  with offsets to 2.6.11-rc1-mm1
-
-Changelog since V3
-o inlined get_pageblock_type() and set_pageblock_type()
-o set_pageblock_type() now takes a zone parameter to avoid a call to page_zone()
-o When taking from the global pool, do not scan all the low-order lists
-
-Changelog since V2
-o Do not to interfere with the "min" decay
-o Update the __GFP_BITS_SHIFT properly. Old value broke fsync and probably
-  anything to do with asynchronous IO
-  
-Changelog since V1
-o Update patch to 2.6.11-rc1
-o Cleaned up bug where memory was wasted on a large bitmap
-o Remove code that needed the binary buddy bitmaps
-o Update flags to avoid colliding with __GFP_ZERO changes
-o Extended fallback_count bean counters to show the fallback count for each
-  allocation type
-o In-code documentation
-
-Version 1
-o Initial release against 2.6.9
-
-This patch is designed to reduce fragmentation in the standard buddy allocator
-without impairing the performance of the allocator. High fragmentation in
-the standard binary buddy allocator means that high-order allocations can
-rarely be serviced. This patch works by dividing allocations into three
-different types of allocations;
-
-UserReclaimable - These are userspace pages that are easily reclaimable. This
-	flag is set when it is known that the pages will be trivially reclaimed
-	by writing the page out to swap or syncing with backing storage
-
-KernelReclaimable - These are pages allocated by the kernel that are easily
-	reclaimed. This is stuff like inode caches, dcache, buffer_heads etc.
-	These type of pages potentially could be reclaimed by dumping the
-	caches and reaping the slabs
-
-KernelNonReclaimable - These are pages that are allocated by the kernel that
-	are not trivially reclaimed. For example, the memory allocated for a
-	loaded module would be in this category. By default, allocations are
-	considered to be of this type
-
-Instead of having one global MAX_ORDER-sized array of free lists,
-there are four, one for each type of allocation and another reserve for
-fallbacks. 
-
-Once a 2^MAX_ORDER block of pages it split for a type of allocation, it is
-added to the free-lists for that type, in effect reserving it. Hence, over
-time, pages of the different types can be clustered together. This means that
-if 2^MAX_ORDER number of pages were required, the system could linearly scan
-a block of pages allocated for UserReclaimable and page each of them out.
-
-Fallback is used when there are no 2^MAX_ORDER pages available and there
-are no free pages of the desired type. The fallback lists were chosen in a
-way that keeps the most easily reclaimable pages together.
-
-Three benchmark results are included all based on a 2.6.14-rc3 kernel
-compiled with gcc 3.4 (it is known that gcc 2.95 produces different results).
-The first is the output of portions of AIM9 for the vanilla allocator and
-the modified one;
-
-(Tests run with bench-aim9.sh from VMRegress 0.14)
-2.6.14-rc3
-------------------------------------------------------------------------------------------------------------
- Test        Test        Elapsed  Iteration    Iteration          Operation
-Number       Name      Time (sec)   Count   Rate (loops/sec)    Rate (ops/sec)
-------------------------------------------------------------------------------------------------------------
-     1 creat-clo           60.04        963   16.03931        16039.31 File Creations and Closes/second
-     2 page_test           60.01       4194   69.88835       118810.20 System Allocations & Pages/second
-     3 brk_test            60.03       1573   26.20356       445460.60 System Memory Allocations/second
-     4 jmp_test            60.01     251144 4185.03583      4185035.83 Non-local gotos/second
-     5 signal_test         60.02       5118   85.27158        85271.58 Signal Traps/second
-     6 exec_test           60.03        758   12.62702           63.14 Program Loads/second
-     7 fork_test           60.03        820   13.65984         1365.98 Task Creations/second
-     8 link_test           60.02       5326   88.73709         5590.44 Link/Unlink Pairs/second
-
-2.6.14-rc3-mbuddy-v16
-------------------------------------------------------------------------------------------------------------
- Test        Test        Elapsed  Iteration    Iteration          Operation
-Number       Name      Time (sec)   Count   Rate (loops/sec)    Rate (ops/sec)
-------------------------------------------------------------------------------------------------------------
-     1 creat-clo           60.06        959   15.96737        15967.37 File Creations and Closes/second
-     2 page_test           60.02       4067   67.76075       115193.27 System Allocations & Pages/second
-     3 brk_test            60.01       1578   26.29562       447025.50 System Memory Allocations/second
-     4 jmp_test            60.01     251498 4190.93484      4190934.84 Non-local gotos/second
-     5 signal_test         60.01       5127   85.43576        85435.76 Signal Traps/second
-     6 exec_test           60.03        753   12.54373           62.72 Program Loads/second
-     7 fork_test           60.02        802   13.36221         1336.22 Task Creations/second
-     8 link_test           60.01       5307   88.43526         5571.42 Link/Unlink Pairs/second
-
-Difference in performance operations report generated by diff-aim9.sh
-                   Clean   mbuddy-v16
-                ---------- ----------
- 1 creat-clo      16039.31   15967.37     -71.94 -0.45% File Creations and Closes/second
- 2 page_test     118810.20  115193.27   -3616.93 -3.04% System Allocations & Pages/second
- 3 brk_test      445460.60  447025.50    1564.90  0.35% System Memory Allocations/second
- 4 jmp_test     4185035.83 4190934.84    5899.01  0.14% Non-local gotos/second
- 5 signal_test    85271.58   85435.76     164.18  0.19% Signal Traps/second
- 6 exec_test         63.14      62.72      -0.42 -0.67% Program Loads/second
- 7 fork_test       1365.98    1336.22     -29.76 -2.18% Task Creations/second
- 8 link_test       5590.44    5571.42     -19.02 -0.34% Link/Unlink Pairs/second
-
-In this test, there were regressions in the page_test. However, it is known
-that different kernel configurations, compilers and even different runs show
-similar varianes of +/- 3% . I do not consider it significant.
-
-The second benchmark tested the CPU cache usage to make sure it was not
-getting clobbered. The test was to repeatedly render a large postscript file
-10 times and get the average. The result is;
-
-2.6.13-clean:      Average: 42.725 real, 42.626 user, 0.041 sys
-2.6.13-mbuddy-v14: Average: 42.793 real, 42.695 user, 0.034 sys
-
-So there are no adverse cache effects. The last test is to show that the
-allocator can satisfy more high-order allocations, especially under load,
-than the standard allocator. The test performs the following;
-
-1. Start updatedb running in the background
-2. Load kernel modules that tries to allocate high-order blocks on demand
-3. Clean a kernel tree
-4. Make 4 copies of the tree. As each copy finishes, a compile starts at -j4
-5. Start compiling the primary tree
-6. Sleep 3 minutes while the 5 trees are being compiled
-7. Use the kernel module to attempt 160 times to allocate a 2^10 block of pages
-    - note, it only attempts 160 times, no matter how often it succeeds
-    - An allocation is attempted every 1/10th of a second
-    - Performance will get badly shot as it forces consider amounts of pageout
-
-The result of the allocations under load (load averaging 18) were;
-
-2.6.14-rc3 Clean
-Order:                 10
-Allocation type:       HighMem
-Attempted allocations: 160
-Success allocs:        46
-Failed allocs:         114
-DMA zone allocs:       1
-Normal zone allocs:    32
-HighMem zone allocs:   13
-% Success:            28
-
-2.6.14-rc3 MBuddy V14
-Order:                 10
-Allocation type:       HighMem
-Attempted allocations: 160
-Success allocs:        97
-Failed allocs:         63
-DMA zone allocs:       1
-Normal zone allocs:    89
-HighMem zone allocs:   7
-% Success:            60
-
-
-One thing that had to be changed in the 2.6.14-rc3-clean test was to disable
-the OOM killer. During one test, the OOM killer had better results but invoked
-the OOM killer 457 times to achieve it. The patch with the placement policy
-never invoked the OOM killer.
-
-When the system is at rest after the test and the kernel trees deleted, the
-standard allocator was able to allocate 54 order-10 pages and the modified
-allocator allocated 159.
-
-The results show that the modified allocator has comparable speed has
-no adverse cache effects but is far less fragmented and able to satisfy
-high-order allocations.
--- 
-Mel Gorman
-Part-time Phd Student                          Java Applications Developer
-University of Limerick                         IBM Dublin Software Lab
+Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+diff -rup -X /usr/src/patchset-0.5/bin//dontdiff linux-2.6.14-rc3-006_percpu/include/linux/mmzone.h linux-2.6.14-rc3-007_stats/include/linux/mmzone.h
+--- linux-2.6.14-rc3-006_percpu/include/linux/mmzone.h	2005-10-05 12:26:56.000000000 +0100
++++ linux-2.6.14-rc3-007_stats/include/linux/mmzone.h	2005-10-05 12:29:57.000000000 +0100
+@@ -176,6 +176,19 @@ struct zone {
+ 	unsigned long		fallback_reserve;
+ 	long			fallback_balance;
+ 
++#ifdef CONFIG_ALLOCSTATS
++	/*
++	 * These are beancounters that track how the placement policy
++	 * of the buddy allocator is performing
++	 */
++	unsigned long fallback_count[RCLM_TYPES];
++	unsigned long alloc_count[RCLM_TYPES];
++	unsigned long reserve_count[RCLM_TYPES];
++	unsigned long kernnorclm_full_steal;
++	unsigned long kernnorclm_partial_steal;
++#endif
++
++
+ 	ZONE_PADDING(_pad1_)
+ 
+ 	/* Fields commonly accessed by the page reclaim scanner */
+@@ -265,6 +278,17 @@ struct zone {
+ 	char			*name;
+ } ____cacheline_maxaligned_in_smp;
+ 
++#ifdef CONFIG_ALLOCSTATS
++#define inc_fallback_count(zone, type) zone->fallback_count[type]++
++#define inc_alloc_count(zone, type) zone->alloc_count[type]++
++#define inc_kernnorclm_partial_steal(zone) zone->kernnorclm_partial_steal++
++#define inc_kernnorclm_full_steal(zone) zone->kernnorclm_full_steal++
++#else
++#define inc_fallback_count(zone, type) do {} while (0)
++#define inc_alloc_count(zone, type) do {} while (0)
++#define inc_kernnorclm_partial_steal(zone) do {} while (0)
++#define inc_kernnorclm_full_steal(zone) do {} while (0)
++#endif
+ 
+ /*
+  * The "priority" of VM scanning is how much of the queues we will scan in one
+diff -rup -X /usr/src/patchset-0.5/bin//dontdiff linux-2.6.14-rc3-006_percpu/lib/Kconfig.debug linux-2.6.14-rc3-007_stats/lib/Kconfig.debug
+--- linux-2.6.14-rc3-006_percpu/lib/Kconfig.debug	2005-10-04 22:58:34.000000000 +0100
++++ linux-2.6.14-rc3-007_stats/lib/Kconfig.debug	2005-10-05 12:29:57.000000000 +0100
+@@ -77,6 +77,17 @@ config SCHEDSTATS
+ 	  application, you can say N to avoid the very slight overhead
+ 	  this adds.
+ 
++config ALLOCSTATS
++	bool "Collection buddy allocator statistics"
++	depends on DEBUG_KERNEL && PROC_FS
++	help
++	  If you say Y here, additional code will be inserted into the
++	  page allocator routines to collect statistics on the allocator
++	  behavior and provide them in /proc/buddyinfo. These stats are
++	  useful for measuring fragmentation in the buddy allocator. If
++	  you are not debugging or measuring the allocator, you can say N
++	  to avoid the slight overhead this adds.
++
+ config DEBUG_SLAB
+ 	bool "Debug memory allocations"
+ 	depends on DEBUG_KERNEL
+diff -rup -X /usr/src/patchset-0.5/bin//dontdiff linux-2.6.14-rc3-006_percpu/mm/page_alloc.c linux-2.6.14-rc3-007_stats/mm/page_alloc.c
+--- linux-2.6.14-rc3-006_percpu/mm/page_alloc.c	2005-10-05 12:27:48.000000000 +0100
++++ linux-2.6.14-rc3-007_stats/mm/page_alloc.c	2005-10-05 12:29:57.000000000 +0100
+@@ -191,6 +191,11 @@ EXPORT_SYMBOL(zone_table);
+ static char *zone_names[MAX_NR_ZONES] = { "DMA", "Normal", "HighMem" };
+ int min_free_kbytes = 1024;
+ 
++#ifdef CONFIG_ALLOCSTATS
++static char *type_names[RCLM_TYPES] = { "KernNoRclm", "UserRclm",
++					"KernRclm", "Fallback"};
++#endif /* CONFIG_ALLOCSTATS */
++
+ unsigned long __initdata nr_kernel_pages;
+ unsigned long __initdata nr_all_pages;
+ 
+@@ -675,6 +680,9 @@ fallback_buddy_reserve(int start_allocty
+ 
+ 		set_pageblock_type(zone, page, reserve_type);
+ 		inc_reserve_count(zone, reserve_type);
++		inc_kernnorclm_full_steal(zone);
++	} else {
++		inc_kernnorclm_partial_steal(zone);
+ 	}
+ 	return area;
+ }
+@@ -714,6 +722,15 @@ fallback_alloc(int alloctype, struct zon
+ 					current_order, area);
+ 
+ 		}
++
++		/*
++		 * If the current alloctype is RCLM_FALLBACK, it means
++		 * that the requested pool and fallback pool are both
++		 * depleted and we are falling back to other pools.
++		 * At this point, pools are starting to get fragmented
++		 */
++		if (alloctype == RCLM_FALLBACK)
++			inc_fallback_count(zone, start_alloctype);
+ 	}
+ 
+ 	return NULL;
+@@ -730,6 +747,8 @@ static struct page *__rmqueue(struct zon
+ 	unsigned int current_order;
+ 	struct page *page;
+ 
++	inc_alloc_count(zone, alloctype);
++
+ 	for (current_order = order; current_order < MAX_ORDER; ++current_order) {
+ 		area = &(zone->free_area_lists[alloctype][current_order]);
+ 		if (list_empty(&area->free_list))
+@@ -2319,6 +2338,20 @@ static void __init free_area_init_core(s
+ 		zone_start_pfn += size;
+ 
+ 		zone_init_free_lists(pgdat, zone, zone->spanned_pages);
++
++#ifdef CONFIG_ALLOCSTAT
++		memset((unsigned long *)zone->fallback_count, 0,
++				sizeof(zone->fallback_count));
++		memset((unsigned long *)zone->alloc_count, 0,
++				sizeof(zone->alloc_count));
++		memset((unsigned long *)zone->alloc_count, 0,
++				sizeof(zone->alloc_count));
++		zone->kernnorclm_partial_steal=0;
++		zone->kernnorclm_full_steal=0;
++		zone->reserve_count[RCLM_NORCLM] =
++				realsize >> (MAX_ORDER-1);
++#endif
++
+ 	}
+ }
+ 
+@@ -2415,6 +2448,18 @@ static int frag_show(struct seq_file *m,
+ 	int order, type;
+ 	struct free_area *area;
+ 	unsigned long nr_bufs = 0;
++#ifdef CONFIG_ALLOCSTATS
++	int i;
++	unsigned long kernnorclm_full_steal=0;
++	unsigned long kernnorclm_partial_steal=0;
++	unsigned long reserve_count[RCLM_TYPES];
++	unsigned long fallback_count[RCLM_TYPES];
++	unsigned long alloc_count[RCLM_TYPES];
++
++	memset(reserve_count, 0, sizeof(reserve_count));
++	memset(fallback_count, 0, sizeof(fallback_count));
++	memset(alloc_count, 0, sizeof(alloc_count));
++#endif
+ 
+ 	for (zone = node_zones; zone - node_zones < MAX_NR_ZONES; ++zone) {
+ 		if (!zone->present_pages)
+@@ -2435,6 +2480,79 @@ static int frag_show(struct seq_file *m,
+ 		spin_unlock_irqrestore(&zone->lock, flags);
+ 		seq_putc(m, '\n');
+ 	}
++
++#ifdef CONFIG_ALLOCSTATS
++ 	/* Show statistics for each allocation type */
++ 	seq_printf(m, "\nPer-allocation-type statistics");
++ 	for (zone = node_zones; zone - node_zones < MAX_NR_ZONES; ++zone) {
++ 		if (!zone->present_pages)
++ 			continue;
++ 
++ 		spin_lock_irqsave(&zone->lock, flags);
++ 		for (type=0; type < RCLM_TYPES; type++) {
++			struct list_head *elem;
++ 			seq_printf(m, "\nNode %d, zone %8s, type %10s ", 
++ 					pgdat->node_id, zone->name,
++ 					type_names[type]);
++ 			for (order = 0; order < MAX_ORDER; ++order) {
++ 				nr_bufs = 0;
++
++ 				list_for_each(elem, &(zone->free_area_lists[type][order].free_list))
++ 					++nr_bufs;
++ 				seq_printf(m, "%6lu ", nr_bufs);
++ 			}
++		}
++ 
++ 		/* Scan global list */
++ 		seq_printf(m, "\n");
++ 		seq_printf(m, "Node %d, zone %8s, type %10s", 
++ 					pgdat->node_id, zone->name,
++ 					"MAX_ORDER");
++		nr_bufs = 0;
++		for (type=0; type < RCLM_TYPES; type++) {
++			nr_bufs += zone->free_area_lists[type][MAX_ORDER-1].nr_free;
++		}
++ 		seq_printf(m, "%6lu ", nr_bufs);
++		seq_printf(m, "\n");
++
++ 		seq_printf(m, "%s Zone beancounters\n", zone->name);
++		seq_printf(m, "Fallback balance: %d\n", (int)zone->fallback_balance);
++		seq_printf(m, "Fallback reserve: %d\n", (int)zone->fallback_reserve);
++		seq_printf(m, "Partial steal:    %lu\n", zone->kernnorclm_partial_steal);
++		seq_printf(m, "Full steal:       %lu\n", zone->kernnorclm_full_steal);
++
++		kernnorclm_partial_steal += zone->kernnorclm_partial_steal;
++		kernnorclm_full_steal += zone->kernnorclm_full_steal;
++		seq_putc(m, '\n');
++
++		for (i=0; i< RCLM_TYPES; i++) {
++			seq_printf(m, "%-10s Allocs: %-10lu Reserve: %-10lu Fallbacks: %-10lu\n",
++					type_names[i],
++					zone->alloc_count[i],
++					zone->reserve_count[i],
++					zone->fallback_count[i]);
++			alloc_count[i] += zone->alloc_count[i];
++			reserve_count[i] += zone->reserve_count[i];
++			fallback_count[i] += zone->fallback_count[i];
++		}
++
++		spin_unlock_irqrestore(&zone->lock, flags);
++	}
++
++
++ 	/* Show bean counters */
++ 	seq_printf(m, "\nGlobal beancounters\n");
++	seq_printf(m, "Partial steal:    %lu\n", kernnorclm_partial_steal);
++	seq_printf(m, "Full steal:       %lu\n", kernnorclm_full_steal);
++
++	for (i=0; i< RCLM_TYPES; i++) {
++ 		seq_printf(m, "%-10s Allocs: %-10lu Reserve: %-10lu Fallbacks: %-10lu\n", 
++				type_names[i], 
++				alloc_count[i],
++				reserve_count[i],
++				fallback_count[i]);
++	}
++#endif /* CONFIG_ALLOCSTATS */
+ 	return 0;
+ }
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
