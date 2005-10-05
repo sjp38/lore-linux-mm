@@ -1,43 +1,57 @@
 Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e3.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id j95HpMV9024750
-	for <linux-mm@kvack.org>; Wed, 5 Oct 2005 13:51:22 -0400
-Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
-	by d01relay02.pok.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id j95HpMt2079504
-	for <linux-mm@kvack.org>; Wed, 5 Oct 2005 13:51:22 -0400
-Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
-	by d01av03.pok.ibm.com (8.12.11/8.13.3) with ESMTP id j95HpMR7013507
-	for <linux-mm@kvack.org>; Wed, 5 Oct 2005 13:51:22 -0400
-Subject: Re: [PATCH 3/7] Fragmentation Avoidance V16: 003_fragcore
+	by e3.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id j95Hvh5J002485
+	for <linux-mm@kvack.org>; Wed, 5 Oct 2005 13:57:43 -0400
+Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
+	by d01relay02.pok.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id j95Hvgt2094050
+	for <linux-mm@kvack.org>; Wed, 5 Oct 2005 13:57:42 -0400
+Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
+	by d01av04.pok.ibm.com (8.12.11/8.13.3) with ESMTP id j95Hvf8R008565
+	for <linux-mm@kvack.org>; Wed, 5 Oct 2005 13:57:42 -0400
+Subject: Re: sparsemem & sparsemem extreme question
 From: Dave Hansen <haveblue@us.ibm.com>
-In-Reply-To: <Pine.LNX.4.58.0510051834250.16421@skynet>
-References: <20051005144546.11796.1154.sendpatchset@skynet.csn.ul.ie>
-	 <20051005144602.11796.53850.sendpatchset@skynet.csn.ul.ie>
-	 <1128530908.26009.28.camel@localhost>
-	 <Pine.LNX.4.58.0510051812040.16421@skynet>
-	 <1128532920.26009.43.camel@localhost>
-	 <Pine.LNX.4.58.0510051834250.16421@skynet>
+In-Reply-To: <20051005174542.GB10204@osiris.ibm.com>
+References: <20051004065030.GA21741@osiris.boeblingen.de.ibm.com>
+	 <1128442502.20208.6.camel@localhost>
+	 <20051005063909.GA9699@osiris.boeblingen.de.ibm.com>
+	 <1128527554.26009.2.camel@localhost>
+	 <20051005155823.GA10119@osiris.ibm.com>
+	 <1128528340.26009.8.camel@localhost>
+	 <20051005161009.GA10146@osiris.ibm.com>
+	 <1128529222.26009.16.camel@localhost>
+	 <20051005171230.GA10204@osiris.ibm.com>
+	 <1128532809.26009.39.camel@localhost>
+	 <20051005174542.GB10204@osiris.ibm.com>
 Content-Type: text/plain
-Date: Wed, 05 Oct 2005 10:51:10 -0700
-Message-Id: <1128534670.26009.48.camel@localhost>
+Date: Wed, 05 Oct 2005 10:57:34 -0700
+Message-Id: <1128535054.26009.53.camel@localhost>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@osdl.org>, kravetz@us.ibm.com, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, jschopp@austin.ibm.com, lhms <lhms-devel@lists.sourceforge.net>
+To: Heiko Carstens <heiko.carstens@de.ibm.com>
+Cc: linux-mm <linux-mm@kvack.org>, Bob Picco <bob.picco@hp.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2005-10-05 at 18:45 +0100, Mel Gorman wrote:
-> The problem is that by putting all the changes to this function in another
-> patch, the kernel will not build after applying 003_fragcore. I am
-> assuming that is bad. I think it makes sense to leave this patch as it is,
-> but have a 004_showfree patch that adds the type_names[] array and a more
-> detailed printout in show_free_areas. The remaining patches get bumped up
-> a number.
+On Wed, 2005-10-05 at 19:45 +0200, Heiko Carstens wrote:
+> > > Anything specific you need to know about the memory layout?
+> > How sparse is it?  How few present pages can be there be in a worst-case
+> > physical area?
 > 
-> Would you be happy with that?
+> Worst case that is already currently valid is that you can have 1 MB
+> segments whereever you want in address space.
+...
+> Even though it's currently not possible to define memory segments above
+> 1TB, this limit is likely to go away.
 
-Seems reasonable to me.
+Go away, or get moved up?
+
+ia64 today is designed to work with 50 bits of physical address space,
+and 30 bit sections.  That's exactly the same scale that you're talking
+about with 1MB sections and 1TB of physical space.  So, sparsemem
+extreme should be perfectly fine for that case (that's explicitly what
+it was designed for).
+
+How much bigger than 1TB will it go?
 
 -- Dave
 
