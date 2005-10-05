@@ -1,46 +1,38 @@
-Received: from westrelay02.boulder.ibm.com (westrelay02.boulder.ibm.com [9.17.195.11])
-	by e35.co.us.ibm.com (8.12.11/8.12.11) with ESMTP id j95GHpgG030353
-	for <linux-mm@kvack.org>; Wed, 5 Oct 2005 12:17:51 -0400
-Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
-	by westrelay02.boulder.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id j95GKYfK547560
-	for <linux-mm@kvack.org>; Wed, 5 Oct 2005 10:20:34 -0600
-Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av03.boulder.ibm.com (8.12.11/8.13.3) with ESMTP id j95GKYej031892
-	for <linux-mm@kvack.org>; Wed, 5 Oct 2005 10:20:34 -0600
-Subject: Re: sparsemem & sparsemem extreme question
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by e33.co.us.ibm.com (8.12.11/8.12.11) with ESMTP id j95GNcDj014337
+	for <linux-mm@kvack.org>; Wed, 5 Oct 2005 12:23:38 -0400
+Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
+	by d03relay04.boulder.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id j95GPqx4538230
+	for <linux-mm@kvack.org>; Wed, 5 Oct 2005 10:25:53 -0600
+Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av01.boulder.ibm.com (8.12.11/8.13.3) with ESMTP id j95GP9xL002956
+	for <linux-mm@kvack.org>; Wed, 5 Oct 2005 10:25:09 -0600
+Subject: Re: [PATCH] i386: nid_zone_sizes_init() update
 From: Dave Hansen <haveblue@us.ibm.com>
-In-Reply-To: <20051005161009.GA10146@osiris.ibm.com>
-References: <20051004065030.GA21741@osiris.boeblingen.de.ibm.com>
-	 <1128442502.20208.6.camel@localhost>
-	 <20051005063909.GA9699@osiris.boeblingen.de.ibm.com>
-	 <1128527554.26009.2.camel@localhost>
-	 <20051005155823.GA10119@osiris.ibm.com>
-	 <1128528340.26009.8.camel@localhost>
-	 <20051005161009.GA10146@osiris.ibm.com>
+In-Reply-To: <189750000.1128525005@[10.10.2.4]>
+References: <20051005083515.4305.16399.sendpatchset@cherry.local>
+	 <189750000.1128525005@[10.10.2.4]>
 Content-Type: text/plain
-Date: Wed, 05 Oct 2005 09:20:22 -0700
-Message-Id: <1128529222.26009.16.camel@localhost>
+Date: Wed, 05 Oct 2005 09:25:02 -0700
+Message-Id: <1128529502.26009.20.camel@localhost>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Heiko Carstens <heiko.carstens@de.ibm.com>
-Cc: linux-mm <linux-mm@kvack.org>
+To: "Martin J. Bligh" <mbligh@mbligh.org>
+Cc: Magnus Damm <magnus@valinux.co.jp>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2005-10-05 at 18:10 +0200, Heiko Carstens wrote:
-> > > No, my concern is actually that the s390 archticture actually will come up
-> > > with some sort of memory that's present in the physical address space where
-> > > the most significant bit of the addresses will be turned _on_.
-> > 
-> > Why do you think this?
+On Wed, 2005-10-05 at 08:10 -0700, Martin J. Bligh wrote:
+> > Broken out nid_zone_sizes_init() change from i386 NUMA emulation code.
 > 
-> That's a matter of fact and what the Specs say...
+> Mmmm. what's the purpose of this change? Not sure I understand what
+> you're trying to acheive here ... looks like you're just removing
+> some abstractions? To me, they made the code a bit easier to read.
 
-I'd appreciate any pointer to the relevant information, especially the
-stuff that explains just how sparse a physical address space can be on
-that architecture.  What would discontigmem have done with the same
-layout?  Does s390 even support discontigmem?
+Thanks for the compliment.  Perhaps we should merge this patch upstream:
+
+http://www.sr71.net/patches/2.6.14/2.6.14-rc2-git8-mhp1/broken-out/B2.1-i386-discontig-consolidation.patch
 
 -- Dave
 
