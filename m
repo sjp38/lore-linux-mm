@@ -1,49 +1,39 @@
-Received: from westrelay02.boulder.ibm.com (westrelay02.boulder.ibm.com [9.17.195.11])
-	by e33.co.us.ibm.com (8.12.11/8.12.11) with ESMTP id j95HNuUg032017
-	for <linux-mm@kvack.org>; Wed, 5 Oct 2005 13:23:56 -0400
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by westrelay02.boulder.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id j95HPVfK543012
-	for <linux-mm@kvack.org>; Wed, 5 Oct 2005 11:25:31 -0600
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.12.11/8.13.3) with ESMTP id j95HPU7r008562
-	for <linux-mm@kvack.org>; Wed, 5 Oct 2005 11:25:30 -0600
+Date: Wed, 5 Oct 2005 18:32:27 +0100 (IST)
+From: Mel Gorman <mel@csn.ul.ie>
 Subject: Re: [PATCH 5/7] Fragmentation Avoidance V16: 005_fallback
-From: Dave Hansen <haveblue@us.ibm.com>
-In-Reply-To: <Pine.LNX.4.58.0510051817560.16421@skynet>
+In-Reply-To: <1128532859.26009.41.camel@localhost>
+Message-ID: <Pine.LNX.4.58.0510051831270.16421@skynet>
 References: <20051005144546.11796.1154.sendpatchset@skynet.csn.ul.ie>
-	 <20051005144612.11796.35309.sendpatchset@skynet.csn.ul.ie>
-	 <1128531235.26009.35.camel@localhost>
-	 <Pine.LNX.4.58.0510051817560.16421@skynet>
-Content-Type: text/plain
-Date: Wed, 05 Oct 2005 10:25:22 -0700
-Message-Id: <1128533122.26009.46.camel@localhost>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+ <20051005144612.11796.35309.sendpatchset@skynet.csn.ul.ie>
+ <1128531115.26009.32.camel@localhost>  <Pine.LNX.4.58.0510051815370.16421@skynet>
+ <1128532859.26009.41.camel@localhost>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
+To: Dave Hansen <haveblue@us.ibm.com>
 Cc: linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@osdl.org>, kravetz@us.ibm.com, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, jschopp@austin.ibm.com, lhms <lhms-devel@lists.sourceforge.net>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2005-10-05 at 18:20 +0100, Mel Gorman wrote:
-> Changed to
-> 
-> for (i = 0; (alloctype = fallback_list[i]) != -1; i++) {
-> 
-> where i is declared a the start of the function. It's essentially the same
-> as how we move through the zones fallback list so should seem familiar. Is
-> that better?
+On Wed, 5 Oct 2005, Dave Hansen wrote:
 
-Yep, at least I understand what it's doing :)
+> On Wed, 2005-10-05 at 18:16 +0100, Mel Gorman wrote:
+> >
+> > +               reserve_type=RCLM_NORCLM;
+> >
+> > (Ignore the whitespace damage, cutting and pasting just so you can see
+> > it)
+>
+> Sorry, should have been more specific.  You need spaces around the '='.
+>
 
-One thing you might consider is not doing the assignment in the for()
-body:
+Ah. It's now added to my growing list of "Highlight bad style in red"
+list of vim macros. Sholdn't happen again.
 
-	for (i = 0; fallback_list[i] != -1; i++) {
-		alloctype = fallback_list[i];
-		...
-
--- Dave
+-- 
+Mel Gorman
+Part-time Phd Student                          Java Applications Developer
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
