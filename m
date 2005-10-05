@@ -1,37 +1,38 @@
-Date: Wed, 5 Oct 2005 18:11:06 +0100 (IST)
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 5/7] Fragmentation Avoidance V16: 005_fallback
-In-Reply-To: <1128530989.26009.30.camel@localhost>
-Message-ID: <Pine.LNX.4.58.0510051759240.16421@skynet>
-References: <20051005144546.11796.1154.sendpatchset@skynet.csn.ul.ie>
- <20051005144612.11796.35309.sendpatchset@skynet.csn.ul.ie>
- <1128530989.26009.30.camel@localhost>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from d12nrmr1607.megacenter.de.ibm.com (d12nrmr1607.megacenter.de.ibm.com [9.149.167.49])
+	by mtagate2.de.ibm.com (8.12.10/8.12.10) with ESMTP id j95HDPd7081438
+	for <linux-mm@kvack.org>; Wed, 5 Oct 2005 17:13:25 GMT
+Received: from d12av02.megacenter.de.ibm.com (d12av02.megacenter.de.ibm.com [9.149.165.228])
+	by d12nrmr1607.megacenter.de.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id j95HDPvk160982
+	for <linux-mm@kvack.org>; Wed, 5 Oct 2005 19:13:25 +0200
+Received: from d12av02.megacenter.de.ibm.com (loopback [127.0.0.1])
+	by d12av02.megacenter.de.ibm.com (8.12.11/8.13.3) with ESMTP id j95HDPr2018711
+	for <linux-mm@kvack.org>; Wed, 5 Oct 2005 19:13:25 +0200
+Date: Wed, 5 Oct 2005 19:12:30 +0200
+From: Heiko Carstens <heiko.carstens@de.ibm.com>
+Subject: Re: sparsemem & sparsemem extreme question
+Message-ID: <20051005171230.GA10204@osiris.ibm.com>
+References: <20051004065030.GA21741@osiris.boeblingen.de.ibm.com> <1128442502.20208.6.camel@localhost> <20051005063909.GA9699@osiris.boeblingen.de.ibm.com> <1128527554.26009.2.camel@localhost> <20051005155823.GA10119@osiris.ibm.com> <1128528340.26009.8.camel@localhost> <20051005161009.GA10146@osiris.ibm.com> <1128529222.26009.16.camel@localhost>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1128529222.26009.16.camel@localhost>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Dave Hansen <haveblue@us.ibm.com>
-Cc: linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@osdl.org>, kravetz@us.ibm.com, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, jschopp@austin.ibm.com, lhms <lhms-devel@lists.sourceforge.net>
+Cc: linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 5 Oct 2005, Dave Hansen wrote:
+> > That's a matter of fact and what the Specs say...
+> I'd appreciate any pointer to the relevant information, especially the
+> stuff that explains just how sparse a physical address space can be on
+> that architecture.  What would discontigmem have done with the same
+> layout?  Does s390 even support discontigmem?
 
-> On Wed, 2005-10-05 at 15:46 +0100, Mel Gorman wrote:
-> >
-> > +#ifdef CONFIG_ALLOCSTATS
-> > +       zone->reserve_count[type]++;
-> > +#endif
->
-> Did this sneak up from another patch?
->
+s390 does not support discontigmem at all. And unfortunately the
+documentation is not publicly available yet, sorry.
+Anything specific you need to know about the memory layout?
 
-Worse, it is not active until a later patch - 007_stats. Both patches
-fixed now.
-
--- 
-Mel Gorman
-Part-time Phd Student                          Java Applications Developer
-University of Limerick                         IBM Dublin Software Lab
+Heiko
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
