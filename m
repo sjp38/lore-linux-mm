@@ -1,11 +1,11 @@
-Date: Wed, 5 Oct 2005 18:16:06 +0100 (IST)
+Date: Wed, 5 Oct 2005 18:20:00 +0100 (IST)
 From: Mel Gorman <mel@csn.ul.ie>
 Subject: Re: [PATCH 5/7] Fragmentation Avoidance V16: 005_fallback
-In-Reply-To: <1128531115.26009.32.camel@localhost>
-Message-ID: <Pine.LNX.4.58.0510051815370.16421@skynet>
+In-Reply-To: <1128531235.26009.35.camel@localhost>
+Message-ID: <Pine.LNX.4.58.0510051817560.16421@skynet>
 References: <20051005144546.11796.1154.sendpatchset@skynet.csn.ul.ie>
  <20051005144612.11796.35309.sendpatchset@skynet.csn.ul.ie>
- <1128531115.26009.32.camel@localhost>
+ <1128531235.26009.35.camel@localhost>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -17,43 +17,29 @@ List-ID: <linux-mm.kvack.org>
 On Wed, 5 Oct 2005, Dave Hansen wrote:
 
 > On Wed, 2005-10-05 at 15:46 +0100, Mel Gorman wrote:
-> >
-> > + */
-> > +static inline struct free_area *
-> > +fallback_buddy_reserve(int start_alloctype, struct zone *zone,
-> > +                       unsigned int current_order, struct page *page,
-> > +                       struct free_area *area)
-> > +{
-> > +       if (start_alloctype != RCLM_NORCLM)
-> > +               return area;
-> > +
-> > +       area = &(zone->free_area_lists[RCLM_NORCLM][current_order]);
-> > +
-> > +       /* Reserve the whole block if this is a large split */
-> > +       if (current_order >= MAX_ORDER / 2) {
-> > +               int reserve_type=RCLM_NORCLM;
+> > +static struct page *
+> > +fallback_alloc(int alloctype, struct zone *zone, unsigned int order)
+> > {
+> ...
+> > +       /*
+> > +        * Here, the alloc type lists has been depleted as well as the global
+> > +        * pool, so fallback. When falling back, the largest possible block
+> > +        * will be taken to keep the fallbacks clustered if possible
+> > +        */
+> > +       while ((alloctype = *(++fallback_list)) != -1) {
 >
-> -EBADCODINGSTYLE.
+> That's a bit obtuse.  Is there no way to simplify it?  Just keeping an
+> index instead of a fallback_list pointer should make it quite a bit
+> easier to grok.
 >
 
-Changed to;
+Changed to
 
-+static inline struct free_area *
-+fallback_buddy_reserve(int start_alloctype, struct zone *zone,
-+                       unsigned int current_order, struct page *page,
-+                       struct free_area *area)
-+{
-+       int reserve_type;
-+       if (start_alloctype != RCLM_NORCLM)
-+               return area;
-+
-+       area = &(zone->free_area_lists[RCLM_NORCLM][current_order]);
-+
-+       /* Reserve the whole block if this is a large split */
-+       if (current_order >= MAX_ORDER / 2) {
-+               reserve_type=RCLM_NORCLM;
+for (i = 0; (alloctype = fallback_list[i]) != -1; i++) {
 
-(Ignore the whitespace damage, cutting and pasting just so you can see it)
+where i is declared a the start of the function. It's essentially the same
+as how we move through the zones fallback list so should seem familiar. Is
+that better?
 
 -- 
 Mel Gorman
