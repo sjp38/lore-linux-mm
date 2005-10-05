@@ -1,332 +1,258 @@
 From: Mel Gorman <mel@csn.ul.ie>
-Message-Id: <20051005144602.11796.53850.sendpatchset@skynet.csn.ul.ie>
+Message-Id: <20051005144612.11796.35309.sendpatchset@skynet.csn.ul.ie>
 In-Reply-To: <20051005144546.11796.1154.sendpatchset@skynet.csn.ul.ie>
 References: <20051005144546.11796.1154.sendpatchset@skynet.csn.ul.ie>
-Subject: [PATCH 3/7] Fragmentation Avoidance V16: 003_fragcore
-Date: Wed,  5 Oct 2005 15:46:02 +0100 (IST)
+Subject: [PATCH 5/7] Fragmentation Avoidance V16: 005_fallback
+Date: Wed,  5 Oct 2005 15:46:12 +0100 (IST)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 Cc: akpm@osdl.org, Mel Gorman <mel@csn.ul.ie>, kravetz@us.ibm.com, linux-kernel@vger.kernel.org, jschopp@austin.ibm.com, lhms-devel@lists.sourceforge.net
 List-ID: <linux-mm.kvack.org>
 
-This patch adds the core of the anti-fragmentation strategy. It works by
-grouping related allocation types together. The idea is that large groups of
-pages that may be reclaimed are placed near each other. The zone->free_area
-list is broken into three free lists for each RCLM_TYPE.
+This patch implements fallback logic. In the event there is no 2^(MAX_ORDER-1)
+blocks of pages left, this will help the system decide what list to use. The
+highlights of the patch are;
+
+o Define a RCLM_FALLBACK type for fallbacks
+o Use a percentage of each zone for fallbacks. When a reserved pool of pages
+  is depleted, it will try and use RCLM_FALLBACK before using anything else.
+  This greatly reduces the amount of fallbacks causing fragmentation without
+  needing complex balancing algorithms
+o Add a fallback_reserve and fallback_balance so that the system knows how
+  may 2^(MAX_ORDER-1) blocks are being used for fallbacks and if more need
+  to be reserved.
+o Adds a fallback_allocs[] array that determines the order of freelists are
+  used for each allocation type
 
 Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-diff -rup -X /usr/src/patchset-0.5/bin//dontdiff linux-2.6.14-rc3-002_usemap/include/linux/mmzone.h linux-2.6.14-rc3-003_fragcore/include/linux/mmzone.h
---- linux-2.6.14-rc3-002_usemap/include/linux/mmzone.h	2005-10-05 12:14:02.000000000 +0100
-+++ linux-2.6.14-rc3-003_fragcore/include/linux/mmzone.h	2005-10-05 12:14:44.000000000 +0100
-@@ -148,7 +148,6 @@ struct zone {
- 	 * free areas of different sizes
- 	 */
- 	spinlock_t		lock;
--	struct free_area	free_area[MAX_ORDER];
+diff -rup -X /usr/src/patchset-0.5/bin//dontdiff linux-2.6.14-rc3-004_largealloc_tryharder/include/linux/mmzone.h linux-2.6.14-rc3-005_fallback/include/linux/mmzone.h
+--- linux-2.6.14-rc3-004_largealloc_tryharder/include/linux/mmzone.h	2005-10-05 12:14:44.000000000 +0100
++++ linux-2.6.14-rc3-005_fallback/include/linux/mmzone.h	2005-10-05 12:16:05.000000000 +0100
+@@ -29,7 +29,8 @@
+ #define RCLM_NORCLM   0
+ #define RCLM_USER     1
+ #define RCLM_KERN     2
+-#define RCLM_TYPES    3
++#define RCLM_FALLBACK 3
++#define RCLM_TYPES    4
+ #define BITS_PER_RCLM_TYPE 2
  
- #ifndef CONFIG_SPARSEMEM
- 	/*
-@@ -158,6 +157,8 @@ struct zone {
- 	unsigned long		*free_area_usemap;
- #endif
+ struct free_area {
+@@ -159,6 +160,13 @@ struct zone {
  
-+	struct free_area	free_area_lists[RCLM_TYPES][MAX_ORDER];
+ 	struct free_area	free_area_lists[RCLM_TYPES][MAX_ORDER];
+ 
++	/*
++	 * Track what percentage of the zone should be used for fallbacks and
++	 * how much is being currently used
++	 */
++	unsigned long		fallback_reserve;
++	long			fallback_balance;
 +
  	ZONE_PADDING(_pad1_)
  
  	/* Fields commonly accessed by the page reclaim scanner */
-diff -rup -X /usr/src/patchset-0.5/bin//dontdiff linux-2.6.14-rc3-002_usemap/mm/page_alloc.c linux-2.6.14-rc3-003_fragcore/mm/page_alloc.c
---- linux-2.6.14-rc3-002_usemap/mm/page_alloc.c	2005-10-05 12:14:02.000000000 +0100
-+++ linux-2.6.14-rc3-003_fragcore/mm/page_alloc.c	2005-10-05 12:14:44.000000000 +0100
-@@ -316,6 +316,16 @@ __find_combined_index(unsigned long page
- }
+@@ -271,6 +279,24 @@ struct zonelist {
+ 	struct zone *zones[MAX_NUMNODES * MAX_NR_ZONES + 1]; // NULL delimited
+ };
+ 
++static inline void inc_reserve_count(struct zone* zone, int type)
++{
++	if (type == RCLM_FALLBACK)
++		zone->fallback_reserve++;
++#ifdef CONFIG_ALLOCSTATS
++	zone->reserve_count[type]++;
++#endif
++}
++
++static inline void dec_reserve_count(struct zone* zone, int type)
++{
++	if (type == RCLM_FALLBACK && zone->fallback_reserve)
++		zone->fallback_reserve--;
++#ifdef CONFIG_ALLOCSTATS
++	if (zone->reserve_count[type] > 0)
++		zone->reserve_count[type]--;
++#endif
++}
  
  /*
-+ * Return the free list for a given page within a zone
+  * The pg_data_t structure is used in machines with CONFIG_DISCONTIGMEM
+diff -rup -X /usr/src/patchset-0.5/bin//dontdiff linux-2.6.14-rc3-004_largealloc_tryharder/mm/page_alloc.c linux-2.6.14-rc3-005_fallback/mm/page_alloc.c
+--- linux-2.6.14-rc3-004_largealloc_tryharder/mm/page_alloc.c	2005-10-05 12:15:23.000000000 +0100
++++ linux-2.6.14-rc3-005_fallback/mm/page_alloc.c	2005-10-05 12:16:05.000000000 +0100
+@@ -53,6 +53,38 @@ unsigned long totalhigh_pages __read_mos
+ long nr_swap_pages;
+ 
+ /*
++ * fallback_allocs contains the fallback types for low memory conditions
++ * where the preferred alloction type if not available.
 + */
-+static inline struct free_area *__page_find_freelist(struct zone *zone,
-+						struct page *page)
-+{
-+	int type = get_pageblock_type(zone, page);
-+	return zone->free_area_lists[type];
++int fallback_allocs[RCLM_TYPES][RCLM_TYPES+1] = {
++	{RCLM_NORCLM,RCLM_FALLBACK,  RCLM_KERN,  RCLM_USER,-1},
++	{RCLM_KERN,  RCLM_FALLBACK,  RCLM_NORCLM,RCLM_USER,-1},
++	{RCLM_USER,  RCLM_FALLBACK,  RCLM_NORCLM,RCLM_KERN,-1},
++	{RCLM_FALLBACK,  RCLM_NORCLM,RCLM_KERN,  RCLM_USER,-1}
++};
++
++/*
++ * Returns 1 if the required presentage of the zone if reserved for fallbacks
++ *
++ * fallback_balance and fallback_reserve are used to detect when the required
++ * percentage is reserved. fallback_balance is decremented when a
++ * 2^(MAX_ORDER-1) block is split and incremented when coalesced.
++ * fallback_reserve is incremented when a block is reserved for fallbacks
++ * and decremented when reassigned elsewhere.
++ *
++ * When fallback_balance is negative, a reserve is required. The number
++ * of reserved blocks required is related to the negative value of
++ * fallback_balance
++ */
++static inline int min_fallback_reserved(struct zone *zone) {
++	/* If fallback_balance is positive, we do not need to reserve */
++	if (zone->fallback_balance > 0)
++		return 1;
++
++	return -(zone->fallback_balance) < zone->fallback_reserve;
 +}
 +
 +/*
-  * This function checks whether a page is free && is the buddy
-  * we can do coalesce a page and its buddy if
-  * (a) the buddy is free &&
-@@ -363,6 +373,8 @@ static inline void __free_pages_bulk (st
- {
- 	unsigned long page_idx;
- 	int order_size = 1 << order;
-+	struct free_area *area;
-+	struct free_area *freelist;
- 
- 	if (unlikely(order))
- 		destroy_compound_page(page, order);
-@@ -372,10 +384,11 @@ static inline void __free_pages_bulk (st
- 	BUG_ON(page_idx & (order_size - 1));
- 	BUG_ON(bad_range(zone, page));
- 
-+	freelist = __page_find_freelist(zone, page);
-+
- 	zone->free_pages += order_size;
- 	while (order < MAX_ORDER-1) {
- 		unsigned long combined_idx;
--		struct free_area *area;
- 		struct page *buddy;
- 
- 		combined_idx = __find_combined_index(page_idx, order);
-@@ -386,7 +399,7 @@ static inline void __free_pages_bulk (st
- 		if (!page_is_buddy(buddy, order))
- 			break;		/* Move the buddy up one level. */
- 		list_del(&buddy->lru);
--		area = zone->free_area + order;
-+		area = &(freelist[order]);
- 		area->nr_free--;
- 		rmv_page_order(buddy);
- 		page = page + (combined_idx - page_idx);
-@@ -394,8 +407,8 @@ static inline void __free_pages_bulk (st
+  * results with 256, 32 in the lowmem_reserve sysctl:
+  *	1G machine -> (16M dma, 800M-16M normal, 1G-800M high)
+  *	1G machine -> (16M dma, 784M normal, 224M high)
+@@ -406,6 +438,8 @@ static inline void __free_pages_bulk (st
+ 		page_idx = combined_idx;
  		order++;
  	}
++	if (unlikely(order == MAX_ORDER-1))
++		zone->fallback_balance++;
  	set_page_order(page, order);
--	list_add(&page->lru, &zone->free_area[order].free_list);
--	zone->free_area[order].nr_free++;
-+	list_add_tail(&page->lru, &freelist[order].free_list);
-+	freelist[order].nr_free++;
- }
+ 	list_add_tail(&page->lru, &freelist[order].free_list);
+ 	freelist[order].nr_free++;
+@@ -587,7 +621,12 @@ struct page* steal_largepage(struct zone
+ 	page = list_entry(area->free_list.next, struct page, lru);
+ 	area->nr_free--;
  
- static inline void free_pages_check(const char *function, struct page *page)
-@@ -550,6 +563,47 @@ static void prep_new_page(struct page *p
- 	kernel_map_pages(page, 1 << order, 1);
++	if (!min_fallback_reserved(zone))
++		alloctype = RCLM_FALLBACK;
++
+ 	set_pageblock_type(zone, page, alloctype);
++	dec_reserve_count(zone, i);
++	inc_reserve_count(zone, alloctype);
+ 
+ 	return page;
+ }
+@@ -597,6 +636,8 @@ static inline struct page *
+ remove_page(struct zone *zone, struct page *page, unsigned int order,
+ 		unsigned int current_order, struct free_area *area)
+ {
++	if (unlikely(current_order == MAX_ORDER-1))
++		zone->fallback_balance--;
+ 	list_del(&page->lru);
+ 	rmv_page_order(page);
+ 	zone->free_pages -= 1UL << order;
+@@ -604,6 +645,80 @@ remove_page(struct zone *zone, struct pa
+ 
  }
  
 +/*
-+ * Find a list that has a 2^MAX_ORDER-1 block of pages available and
-+ * return it
++ * If we are falling back, and the allocation is KERNNORCLM,
++ * then reserve any buddies for the KERNNORCLM pool. These
++ * allocations fragment the worst so this helps keep them
++ * in the one place
 + */
-+struct page* steal_largepage(struct zone *zone, int alloctype)
++static inline struct free_area *
++fallback_buddy_reserve(int start_alloctype, struct zone *zone,
++			unsigned int current_order, struct page *page,
++			struct free_area *area)
 +{
-+	struct page *page;
-+	struct free_area *area = NULL;
-+	int i=0;
++	if (start_alloctype != RCLM_NORCLM)
++		return area;
 +
-+	for(i = 0; i < RCLM_TYPES; i++) {
-+		if(i == alloctype)
-+			continue;
++	area = &(zone->free_area_lists[RCLM_NORCLM][current_order]);
 +
-+		area = &zone->free_area_lists[i][MAX_ORDER-1];
-+		if (!list_empty(&area->free_list))
-+			break;
++	/* Reserve the whole block if this is a large split */
++	if (current_order >= MAX_ORDER / 2) {
++		int reserve_type=RCLM_NORCLM;
++		dec_reserve_count(zone, get_pageblock_type(zone,page));
++
++		/*
++		 * Use this block for fallbacks if the
++		 * minimum reserve is not being met
++		 */
++		if (!min_fallback_reserved(zone))
++			reserve_type = RCLM_FALLBACK;
++
++		set_pageblock_type(zone, page, reserve_type);
++		inc_reserve_count(zone, reserve_type);
 +	}
-+	if (i == RCLM_TYPES) 
-+		return NULL;
-+
-+	page = list_entry(area->free_list.next, struct page, lru);
-+	area->nr_free--;
-+
-+	set_pageblock_type(zone, page, alloctype);
-+
-+	return page;
++	return area;
 +}
 +
++static struct page *
++fallback_alloc(int alloctype, struct zone *zone, unsigned int order) {
++	int *fallback_list;
++	int start_alloctype = alloctype;
++	struct free_area *area;
++	unsigned int current_order;
++	struct page *page;
 +
-+static inline struct page *
-+remove_page(struct zone *zone, struct page *page, unsigned int order,
-+		unsigned int current_order, struct free_area *area)
-+{
-+	list_del(&page->lru);
-+	rmv_page_order(page);
-+	zone->free_pages -= 1UL << order;
-+	return expand(zone, page, order, current_order, area);
++	/* Ok, pick the fallback order based on the type */
++	BUG_ON(alloctype < 0 || alloctype >= RCLM_TYPES);
++	fallback_list = fallback_allocs[alloctype];
 +
++	/*
++	 * Here, the alloc type lists has been depleted as well as the global
++	 * pool, so fallback. When falling back, the largest possible block
++	 * will be taken to keep the fallbacks clustered if possible
++	 */
++	while ((alloctype = *(++fallback_list)) != -1) {
++
++		/* Find a block to allocate */
++		area = &(zone->free_area_lists[alloctype][MAX_ORDER-1]);
++		for (current_order = MAX_ORDER - 1; current_order > order;
++				current_order--, area--) {
++			if (list_empty(&area->free_list))
++				continue;
++
++			page = list_entry(area->free_list.next, 
++						struct page, lru);
++			area->nr_free--;
++			area = fallback_buddy_reserve(start_alloctype, zone,
++					current_order, page, area);
++			return remove_page(zone, page, order,
++					current_order, area);
++
++		}
++	}
++
++	return NULL;
 +}
 +
  /* 
   * Do the hard work of removing an element from the buddy allocator.
   * Call me with the zone->lock already held.
-@@ -557,31 +611,25 @@ static void prep_new_page(struct page *p
- static struct page *__rmqueue(struct zone *zone, unsigned int order, 
- 		int alloctype)
- {
--	struct free_area * area;
-+	struct free_area * area = NULL;
- 	unsigned int current_order;
- 	struct page *page;
+@@ -630,7 +745,8 @@ static struct page *__rmqueue(struct zon
+ 	if (page != NULL)
+ 		return remove_page(zone, page, order, MAX_ORDER-1, area);
  
- 	for (current_order = order; current_order < MAX_ORDER; ++current_order) {
--		area = zone->free_area + current_order;
-+		area = &(zone->free_area_lists[alloctype][current_order]);
- 		if (list_empty(&area->free_list))
- 			continue;
+-	return NULL;
++	/* Try falling back */
++	return fallback_alloc(alloctype, zone, order);
+ }
  
- 		page = list_entry(area->free_list.next, struct page, lru);
--		list_del(&page->lru);
--		rmv_page_order(page);
- 		area->nr_free--;
--		zone->free_pages -= 1UL << order;
--
--		/*
--		 * If splitting a large block, record what the block is being
--		 * used for in the usemap
--		 */
--		if (current_order == MAX_ORDER-1)
--			set_pageblock_type(zone, page, alloctype);
--
--		return expand(zone, page, order, current_order, area);
-+		return remove_page(zone, page, order, current_order, area);
- 	}
- 
-+	/* Allocate a MAX_ORDER block */
-+	page = steal_largepage(zone, alloctype);
-+	if (page != NULL)
-+		return remove_page(zone, page, order, MAX_ORDER-1, area);
+ /* 
+@@ -2109,6 +2225,10 @@ static void __init free_area_init_core(s
+ 		spin_lock_init(&zone->lru_lock);
+ 		zone->zone_pgdat = pgdat;
+ 		zone->free_pages = 0;
++		zone->fallback_reserve = 0;
 +
- 	return NULL;
- }
++		/* Set the balance so about 12.5% will be used for fallbacks */
++		zone->fallback_balance = -(realsize >> (MAX_ORDER+2));
  
-@@ -662,14 +710,17 @@ static void __drain_pages(unsigned int c
- }
- #endif /* CONFIG_PM || CONFIG_HOTPLUG_CPU */
+ 		zone->temp_priority = zone->prev_priority = DEF_PRIORITY;
  
-+#define for_each_rclmtype_order(type, order) \
-+	for (type=0; type < RCLM_TYPES; type++) \
-+		for (order = MAX_ORDER - 1; order >= 0; order--)
-+	
- #ifdef CONFIG_PM
--
- void mark_free_pages(struct zone *zone)
- {
- 	unsigned long zone_pfn, flags;
--	int order;
-+	int order, t;
-+	unsigned long start_pfn, i;
- 	struct list_head *curr;
--
- 	if (!zone->spanned_pages)
- 		return;
- 
-@@ -677,14 +728,12 @@ void mark_free_pages(struct zone *zone)
- 	for (zone_pfn = 0; zone_pfn < zone->spanned_pages; ++zone_pfn)
- 		ClearPageNosaveFree(pfn_to_page(zone_pfn + zone->zone_start_pfn));
- 
--	for (order = MAX_ORDER - 1; order >= 0; --order)
--		list_for_each(curr, &zone->free_area[order].free_list) {
--			unsigned long start_pfn, i;
--
-+	for_each_rclmtype_order(t, order) {
-+		list_for_each(curr,&zone->free_area_lists[t][order].free_list){
- 			start_pfn = page_to_pfn(list_entry(curr, struct page, lru));
--
- 			for (i=0; i < (1<<order); i++)
- 				SetPageNosaveFree(pfn_to_page(start_pfn+i));
-+		}
- 	}
- 	spin_unlock_irqrestore(&zone->lock, flags);
- }
-@@ -835,6 +884,7 @@ int zone_watermark_ok(struct zone *z, in
- 	/* free_pages my go negative - that's OK */
- 	long min = mark, free_pages = z->free_pages - (1 << order) + 1;
- 	int o;
-+	struct free_area *kernnorclm, *kernrclm, *userrclm;
- 
- 	if (gfp_high)
- 		min -= min / 2;
-@@ -843,15 +893,21 @@ int zone_watermark_ok(struct zone *z, in
- 
- 	if (free_pages <= min + z->lowmem_reserve[classzone_idx])
- 		return 0;
-+	kernnorclm = z->free_area_lists[RCLM_NORCLM];
-+	kernrclm = z->free_area_lists[RCLM_KERN];
-+	userrclm = z->free_area_lists[RCLM_USER];
- 	for (o = 0; o < order; o++) {
- 		/* At the next order, this order's pages become unavailable */
--		free_pages -= z->free_area[o].nr_free << o;
--
-+		free_pages -= (kernnorclm->nr_free + kernrclm->nr_free +
-+				userrclm->nr_free) << o;
- 		/* Require fewer higher order pages to be free */
- 		min >>= 1;
- 
- 		if (free_pages <= min)
- 			return 0;
-+		kernnorclm++;
-+		kernrclm++;
-+		userrclm++;
- 	}
- 	return 1;
- }
-@@ -1390,6 +1446,7 @@ void show_free_areas(void)
- 	unsigned long inactive;
- 	unsigned long free;
- 	struct zone *zone;
-+	int type;
- 
- 	for_each_zone(zone) {
- 		show_node(zone);
-@@ -1483,8 +1540,10 @@ void show_free_areas(void)
- 
- 		spin_lock_irqsave(&zone->lock, flags);
- 		for (order = 0; order < MAX_ORDER; order++) {
--			nr = zone->free_area[order].nr_free;
--			total += nr << order;
-+			for (type=0; type < RCLM_TYPES; type++) {
-+				nr = zone->free_area_lists[type][order].nr_free;
-+				total += nr << order;
-+			}
- 			printk("%lu*%lukB ", nr, K(1UL) << order);
- 		}
- 		spin_unlock_irqrestore(&zone->lock, flags);
-@@ -1785,9 +1844,14 @@ void zone_init_free_lists(struct pglist_
- 				unsigned long size)
- {
- 	int order;
--	for (order = 0; order < MAX_ORDER ; order++) {
--		INIT_LIST_HEAD(&zone->free_area[order].free_list);
--		zone->free_area[order].nr_free = 0;
-+	int type;
-+	struct free_area *area;
-+
-+	/* Initialse the three size ordered lists of free_areas */
-+	for_each_rclmtype_order(type, order) {
-+		area = &(zone->free_area_lists[type][order]);
-+		INIT_LIST_HEAD(&area->free_list);
-+		area->nr_free = 0;
- 	}
- }
- 
-@@ -2179,16 +2243,26 @@ static int frag_show(struct seq_file *m,
- 	struct zone *zone;
- 	struct zone *node_zones = pgdat->node_zones;
- 	unsigned long flags;
--	int order;
-+	int order, type;
-+	struct free_area *area;
-+	unsigned long nr_bufs = 0;
- 
- 	for (zone = node_zones; zone - node_zones < MAX_NR_ZONES; ++zone) {
- 		if (!zone->present_pages)
- 			continue;
- 
- 		spin_lock_irqsave(&zone->lock, flags);
--		seq_printf(m, "Node %d, zone %8s ", pgdat->node_id, zone->name);
--		for (order = 0; order < MAX_ORDER; ++order)
--			seq_printf(m, "%6lu ", zone->free_area[order].nr_free);
-+		seq_printf(m, "Node %d, zone %8s", pgdat->node_id, zone->name);
-+		for (order = 0; order < MAX_ORDER; ++order) {
-+			nr_bufs = 0;
-+
-+			for (type=0; type < RCLM_TYPES; type++) {
-+				area = &(zone->free_area_lists[type][order]);
-+				nr_bufs += area->nr_free;
-+			}
-+			seq_printf(m, "%6lu ", nr_bufs);
-+		}
-+
- 		spin_unlock_irqrestore(&zone->lock, flags);
- 		seq_putc(m, '\n');
- 	}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
