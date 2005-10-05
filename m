@@ -1,11 +1,11 @@
-Date: Wed, 5 Oct 2005 17:57:03 +0100 (IST)
+Date: Wed, 5 Oct 2005 18:11:06 +0100 (IST)
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 3/7] Fragmentation Avoidance V16: 003_fragcore
-In-Reply-To: <1128530908.26009.28.camel@localhost>
-Message-ID: <Pine.LNX.4.58.0510051749510.16421@skynet>
+Subject: Re: [PATCH 5/7] Fragmentation Avoidance V16: 005_fallback
+In-Reply-To: <1128530989.26009.30.camel@localhost>
+Message-ID: <Pine.LNX.4.58.0510051759240.16421@skynet>
 References: <20051005144546.11796.1154.sendpatchset@skynet.csn.ul.ie>
- <20051005144602.11796.53850.sendpatchset@skynet.csn.ul.ie>
- <1128530908.26009.28.camel@localhost>
+ <20051005144612.11796.35309.sendpatchset@skynet.csn.ul.ie>
+ <1128530989.26009.30.camel@localhost>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -18,21 +18,15 @@ On Wed, 5 Oct 2005, Dave Hansen wrote:
 
 > On Wed, 2005-10-05 at 15:46 +0100, Mel Gorman wrote:
 > >
-> > @@ -1483,8 +1540,10 @@ void show_free_areas(void)
-> >
-> >                 spin_lock_irqsave(&zone->lock, flags);
-> >                 for (order = 0; order < MAX_ORDER; order++) {
-> > -                       nr = zone->free_area[order].nr_free;
-> > -                       total += nr << order;
-> > +                       for (type=0; type < RCLM_TYPES; type++) {
-> > +                               nr = zone->free_area_lists[type][order].nr_free;
-> > +                               total += nr << order;
-> > +                       }
+> > +#ifdef CONFIG_ALLOCSTATS
+> > +       zone->reserve_count[type]++;
+> > +#endif
 >
-> Can that use the new for_each_ macro?
+> Did this sneak up from another patch?
 >
 
-Yes, yes it can. Not sure why I dismissed it the first time around.
+Worse, it is not active until a later patch - 007_stats. Both patches
+fixed now.
 
 -- 
 Mel Gorman
