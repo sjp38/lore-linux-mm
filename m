@@ -1,53 +1,30 @@
-Received: from d12nrmr1607.megacenter.de.ibm.com (d12nrmr1607.megacenter.de.ibm.com [9.149.167.49])
-	by mtagate2.de.ibm.com (8.12.10/8.12.10) with ESMTP id j956e7d7179720
-	for <linux-mm@kvack.org>; Wed, 5 Oct 2005 06:40:07 GMT
-Received: from d12av02.megacenter.de.ibm.com (d12av02.megacenter.de.ibm.com [9.149.165.228])
-	by d12nrmr1607.megacenter.de.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id j956e7vk162946
-	for <linux-mm@kvack.org>; Wed, 5 Oct 2005 08:40:07 +0200
-Received: from d12av02.megacenter.de.ibm.com (loopback [127.0.0.1])
-	by d12av02.megacenter.de.ibm.com (8.12.11/8.13.3) with ESMTP id j956e7HD031403
-	for <linux-mm@kvack.org>; Wed, 5 Oct 2005 08:40:07 +0200
-Date: Wed, 5 Oct 2005 08:39:09 +0200
-From: Heiko Carstens <heiko.carstens@de.ibm.com>
-Subject: Re: sparsemem & sparsemem extreme question
-Message-ID: <20051005063909.GA9699@osiris.boeblingen.de.ibm.com>
-References: <20051004065030.GA21741@osiris.boeblingen.de.ibm.com> <1128442502.20208.6.camel@localhost>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1128442502.20208.6.camel@localhost>
+From: Magnus Damm <magnus@valinux.co.jp>
+Message-Id: <20051005082911.4287.58960.sendpatchset@cherry.local>
+Subject: [PATCH] remove MAX_NODES_SHIFT
+Date: Wed,  5 Oct 2005 17:29:42 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Hansen <haveblue@us.ibm.com>
-Cc: linux-mm <linux-mm@kvack.org>
+To: linux-mm@kvack.org
+Cc: Magnus Damm <magnus@valinux.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-> > I'm just wondering why there is all this indirection stuff here and why not
-> > have one contiguous aray of struct pages (residing in the vmalloc area) that
-> > deals with whatever size of memory an architecture wants to support.
-> This is exactly what ia64 does today.  Programatically, it does remove a
-> layer of indirection.  However, there are some data structures that have
-> to be traversed during a lookup: the page tables.  Granted, the TLB will
-> provide some caching, but a lookup on ia64 can potentially be much more
-> expensive than the two cacheline misses that sparsemem extreme might
-> have.
+Remove old unused MAX_NODES_SHIFT definition.
 
-Sure, just that on s390 we have a 1:1 mapping anyway. So these lookups would
-be more or less for free for us (compared to what we have now).
+Signed-off-by: Magnus Damm <magnus@valinux.co.jp>
+---
 
-> In the end no one has ever produced any compelling performance reason to
-> use a vmem_map (as ia64 calls it).  In addition, sparsemem doesn't cause
-> any known performance regressions, either.
+Applies on top of linux-2.6.14-rc2-git8-mhp1
 
-As far as I understand the memory hotplug patches they won't work without
-SPARSEMEM support. So the ia64 approach with a vmem_map will not work here,
-right?
-
-Actually my concern is that whenever the address space that is covered with
-SPARSEMEM_EXTREME is not sufficient just another layer of indirection needs
-to be added.
-
-Heiko
+--- from-0054/include/linux/mmzone.h
++++ to-work/include/linux/mmzone.h	2005-10-04 15:59:37.000000000 +0900
+@@ -384,7 +384,6 @@ int lowmem_reserve_ratio_sysctl_handler(
+ extern struct pglist_data contig_page_data;
+ #define NODE_DATA(nid)		(&contig_page_data)
+ #define NODE_MEM_MAP(nid)	mem_map
+-#define MAX_NODES_SHIFT		1
+ #define pfn_to_nid(pfn)		(0)
+ 
+ #else /* CONFIG_NEED_MULTIPLE_NODES */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
