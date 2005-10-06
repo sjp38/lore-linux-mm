@@ -1,72 +1,165 @@
-Received: from e4.ny.us.ibm.com ([9.56.232.144])
-	by bldfb.esmtp.ibm.com (8.12.11/8.12.11) with ESMTP id j96FTGUV009458
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-SHA bits=256 verify=OK)
-	for <linux-mm@kvack.org>; Thu, 6 Oct 2005 11:29:17 -0400
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e4.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id j96FNFtJ029790
-	for <linux-mm@kvack.org>; Thu, 6 Oct 2005 11:23:15 -0400
-Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
-	by d01relay02.pok.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id j96FNBXV088170
-	for <linux-mm@kvack.org>; Thu, 6 Oct 2005 11:23:14 -0400
-Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
-	by d01av04.pok.ibm.com (8.12.11/8.13.3) with ESMTP id j96FN1gh029263
-	for <linux-mm@kvack.org>; Thu, 6 Oct 2005 11:23:01 -0400
-Subject: Re: [PATCH 0/3] Demand faulting for huge pages
-From: Adam Litke <agl@us.ibm.com>
-In-Reply-To: <Pine.LNX.4.61.0509291420150.27691@goblin.wat.veritas.com>
-References: <1127939141.26401.32.camel@localhost.localdomain>
-	 <Pine.LNX.4.61.0509291420150.27691@goblin.wat.veritas.com>
-Content-Type: text/plain
-Date: Thu, 06 Oct 2005 10:22:49 -0500
-Message-Id: <1128612169.10109.12.camel@localhost.localdomain>
+Date: Thu, 6 Oct 2005 13:01:15 -0300
+From: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
+Subject: Re: [PATCH] per-page SLAB freeing (only dcache for now)
+Message-ID: <20051006160115.GA30677@logos.cnet>
+References: <20050930193754.GB16812@xeon.cnet> <Pine.LNX.4.62.0509301934390.31011@schroedinger.engr.sgi.com> <20051001215254.GA19736@xeon.cnet> <Pine.LNX.4.62.0510030823420.7812@schroedinger.engr.sgi.com> <43419686.60600@colorfullife.com> <20051003221743.GB29091@logos.cnet> <4342B623.3060007@colorfullife.com>
 Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4342B623.3060007@colorfullife.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: "David Gibson david"@gibson.dropbear.id.au, Andrew Morton <akpm@osdl.org>, William Irwin <wli@holomorphy.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Manfred Spraul <manfred@colorfullife.com>
+Cc: Christoph Lameter <clameter@engr.sgi.com>, linux-mm@kvack.org, akpm@osdl.org, dgc@sgi.com, dipankar@in.ibm.com, mbligh@mbligh.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2005-09-29 at 14:32 +0100, Hugh Dickins wrote:
-> On Wed, 28 Sep 2005, Adam Litke wrote:
+On Tue, Oct 04, 2005 at 07:04:35PM +0200, Manfred Spraul wrote:
+> Marcelo Tosatti wrote:
 > 
-> > Hi Andrew.  Can we give hugetlb demand faulting a spin in the mm tree?
-> > And could people with alpha, sparc, and ia64 machines give them a good
-> > spin?  I haven't been able to test those arches yet.
-> 
-> It's going to be a little confusing if these go in while I'm moving
-> the page_table_lock inwards.  My patches don't make a big difference
-> to hugetlb (I've not attempted splitting the lock at all for hugetlb -
-> there would be per-arch implementation issues and very little point -
-> though more point if we do move to hugetlb faulting).  But I'm ill at
-> ease with changing the locking at one end while it's unclear whether
-> it's right at the other end.
-> 
-> Currently Adam's patches don't include my hugetlb changes already in
-> -mm; and I don't see any attention in his patches to the issue of
-> hugetlb file truncation, which I was fixing up in those.
-> 
-> The current hugetlb_prefault guards against this with i_sem held:
-> which _appears_ to be a lock ordering violation, but may not be,
-> since the official lock ordering is determined by the possibility
-> of fault within write, whereas hugetlb mmaps were never faulting.
-> 
-> Presumably on-demand hugetlb faulting would entail truncate_count
-> checking like do_no_page, and corresponding code in hugetlbfs.
-> 
-> I've no experience of hugetlb use.  Personally, I'd be very happy with
-> a decision to disallow truncation of hugetlb files (seems odd to allow
-> ftruncate when read and write are not allowed, and the size normally
-> determined automatically by mmap size); but I have to assume that it's
-> been allowed for good reason.
+> >Hi Manfred,
+> >
+> >On Mon, Oct 03, 2005 at 10:37:26PM +0200, Manfred Spraul wrote:
+> > 
+> >
+> >>Christoph Lameter wrote:
+> >>
+> >>   
+> >>
+> >>>On Sat, 1 Oct 2005, Marcelo wrote:
+> >>>
+> >>>
+> >>>
+> >>>     
+> >>>
+> >>>>I thought about having a mini-API for this such as "struct 
+> >>>>slab_reclaim_ops" implemented by each reclaimable cache, invoked by a 
+> >>>>generic SLAB function.
+> >>>>
+> >>>> 
+> >>>>
+> >>>>       
+> >>>>
+> >>Which functions would be needed?
+> >>- lock_cache(): No more alive/dead changes
+> >>- objp_is_alive()
+> >>- objp_is_killable()
+> >>- objp_kill() 
+> >>   
+> >>
+> >
+> >Yep something along that line. I'll come up with something more precise
+> >tomorrow.
+> >
+> > 
+> >
+> >>I think it would be simpler if the caller must mark the objects as 
+> >>alive/dead before/after calling kmem_cache_alloc/free: I don't think 
+> >>it's a good idea to add special case code and branches to the normal 
+> >>kmem_cache_alloc codepath. And especially: It would mean that 
+> >>kmem_cache_alloc must perform a slab lookup  in each alloc call, this 
+> >>could be slow.
+> >>The slab users could store the alive status somewhere in the object. And 
+> >>they could set the flag early, e.g. disable alive as soon as an object 
+> >>is put on the rcu aging list.
+> >>   
+> >>
+> >
+> >The "i_am_alive" flag purpose at the moment is to avoid interpreting
+> >uninitialized data (in the dentry cache, the reference counter is bogus
+> >in such case). It was just a quick hack to watch it work, it seemed to
+> >me it could be done within SLAB code.
+> >
+> >This information ("liveness" of objects) is managed inside the SLAB
+> >generic code, and it seems to be available already through the
+> >kmembufctl array which is part of the management data, right?
+> >
+> > 
+> >
+> Not really. The array is only updated when the free status reaches the 
+> slab structure, which is quite late. 
 
-If I were to spend time coding up a patch to remove truncation support
-for hugetlbfs, would it be something other people would want to see
-merged as well?
+Thats fine, the usage information inside the array is only going to be used 
+to avoid interpretation of uninitialized objects. Its safe to say
+that unallocated objects will have their corresponding kmembufctl array 
+entry consistent (marked as freed) at all times, right?
 
--- 
-Adam Litke - (agl at us.ibm.com)
-IBM Linux Technology Center
+Actual per-object live/dead information must reside inside the objp itself
+as you suggest, with guaranteed synchronization.
+
+For the dcache its possible to use the D_UNHASHED flag (or some other 
+field which describes validity).
+
+> kmem_cache_free
+> - puts the object into a per-cpu array. No locking at all, each cpu can 
+> only read it's own array.
+> - when that array is full, then it's put into a global array (->shared).
+> - when the global array is full, then the object is marked as free in 
+> the slab structure.
+> - when add objects from a slab are free, then the slab is placed on the 
+> free slab list
+> - when there is memory pressure, then the pages from the free slab list 
+> are reclaimed.
+> 
+> >Suppose there's no need for the cache specific functions to be aware of
+> >liveness, ie. its SLAB specific information.
+> >
+> > 
+> >
+> What about RCU? We have dying objects: Still alive, because someone 
+> might have a pointer to it, but already on the rcu list and will be 
+> released after the next quiescent state. slab can't know that.
+
+Objects waiting for the next RCU quiescent state cannot have references
+attached, and can't be reused either. When they reach the RCU list
+they are already invalid (DCACHE_UNHASHED in dcache's case).
+
+The only references they can have at this point is against the list_head
+fields.
+
+> >Another issue is synchronization between multiple threads in this 
+> >level of the reclaim path. Can be dealt with PageLock: if the bit is set,
+> >don't bother checking the page, someone else is already doing
+> >so.
+> >
+> >You mention
+> >
+> > 
+> >
+> >>- lock_cache(): No more alive/dead changes
+> >>   
+> >>
+> >
+> >With the PageLock bit, you can instruct kmem_cache_alloc() to skip partial
+> >but Locked pages (thus avoiding any object allocations within that page).
+> >Hum, what about higher order SLABs?
+> >
+> > 
+> >
+> You have misunderstood my question: I was thinking about object 
+> dead/alive changes.
+> There are two questions: First figure out how many objects from a 
+> certain slab are alive. Then, if it's below a threshold, try to free 
+> them. With this approach, you need lock(), is_objp_alive(), release_objp().
+
+I'm thinking over this, will be sending something soon. 
+
+> >Well, kmem_cache_alloc() can be a little bit smarter at this point, since 
+> >its already a slow path, no? Its refill time, per-CPU cache is exhausted...
+> >
+> > 
+> >
+> Definitively. Fast path is only kmem_cache_alloc and kmem_cache_free. No 
+> global cache line writes in these functions. They were down to 1 
+> conditional branch and 2-3 cachelines, One of them read-only, the 
+> other(s) are read/write, but per-cpu. I'm not sure how much changed with 
+> the NUMA patches, but the non-numa case should try to remain simple. And 
+> e.g. looking up the bufctl means an integer division. Just that 
+> instruction could nearly double the runtime of kmem_cache_free().
+> The shared_array part from cache_flusharray and cache_alloc_refill are 
+> partially fast path: If we slow that down, then it will affect packet 
+> routing. The rest is slow path.
+
+OK fine, thanks for all your help up to now!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
