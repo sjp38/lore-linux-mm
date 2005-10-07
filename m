@@ -1,71 +1,46 @@
 Received: from westrelay02.boulder.ibm.com (westrelay02.boulder.ibm.com [9.17.195.11])
-	by e31.co.us.ibm.com (8.12.11/8.12.11) with ESMTP id j97D0280002531
-	for <linux-mm@kvack.org>; Fri, 7 Oct 2005 09:00:02 -0400
-Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
-	by westrelay02.boulder.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id j97D0wvl515850
-	for <linux-mm@kvack.org>; Fri, 7 Oct 2005 07:00:58 -0600
-Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av01.boulder.ibm.com (8.12.11/8.13.3) with ESMTP id j97D0vES002911
-	for <linux-mm@kvack.org>; Fri, 7 Oct 2005 07:00:58 -0600
-Subject: Re: [PATCH] dcache: separate slab for directory dentries
-From: Dave Kleikamp <shaggy@austin.ibm.com>
-In-Reply-To: <1128657277.6710.826.camel@hole.melbourne.sgi.com>
-References: <20050911105709.GA16369@thunk.org>
-	 <20050911120045.GA4477@in.ibm.com> <20050912031636.GB16758@thunk.org>
-	 <20050913084752.GC4474@in.ibm.com>
-	 <20050913215932.GA1654338@melbourne.sgi.com>
-	 <20051006062739.GP9519161@melbourne.sgi.com>
-	 <1128601731.9358.2.camel@kleikamp.austin.ibm.com>
-	 <1128657277.6710.826.camel@hole.melbourne.sgi.com>
+	by e34.co.us.ibm.com (8.12.11/8.12.11) with ESMTP id j97DQNdk031104
+	for <linux-mm@kvack.org>; Fri, 7 Oct 2005 09:26:23 -0400
+Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
+	by westrelay02.boulder.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id j97DSDvl495786
+	for <linux-mm@kvack.org>; Fri, 7 Oct 2005 07:28:13 -0600
+Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av04.boulder.ibm.com (8.12.11/8.13.3) with ESMTP id j97DSDjJ028647
+	for <linux-mm@kvack.org>; Fri, 7 Oct 2005 07:28:13 -0600
+Subject: Re: [PATCH] i386: srat and numaq cleanup
+From: Dave Hansen <haveblue@us.ibm.com>
+In-Reply-To: <aec7e5c30510070054u469e79a0xb7a58f3dad81609b@mail.gmail.com>
+References: <20051005083846.4308.37575.sendpatchset@cherry.local>
+	 <1128530262.26009.27.camel@localhost>
+	 <aec7e5c30510060329kb59edagb619f00b8a58bf3e@mail.gmail.com>
+	 <1128610585.8401.15.camel@localhost>
+	 <aec7e5c30510070054u469e79a0xb7a58f3dad81609b@mail.gmail.com>
 Content-Type: text/plain
-Date: Fri, 07 Oct 2005 08:00:56 -0500
-Message-Id: <1128690056.9383.4.camel@kleikamp.austin.ibm.com>
+Date: Fri, 07 Oct 2005 06:28:06 -0700
+Message-Id: <1128691686.8401.45.camel@localhost>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Greg Banks <gnb@melbourne.sgi.com>
-Cc: David Chinner <dgc@sgi.com>, Bharata B Rao <bharata@in.ibm.com>, Dipankar Sarma <dipankar@in.ibm.com>, linux-mm@kvack.org
+To: Magnus Damm <magnus.damm@gmail.com>
+Cc: Magnus Damm <magnus@valinux.co.jp>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2005-10-07 at 13:54 +1000, Greg Banks wrote:
-> On Thu, 2005-10-06 at 22:28, Dave Kleikamp wrote:
-> > On Thu, 2005-10-06 at 16:27 +1000, David Chinner wrote:
-> > > +static struct dentry * d_realloc_for_inode(struct dentry * dentry,
-> > > +					   struct inode *inode)
-> > > +{
-> > > +	int flags = 0;
-> > > +	struct dentry *new;
-> > > [...]
-> > > +	new = __d_alloc(parent, &dentry->d_name, dentry->d_flags | flags);
-> > > +
-> > > +	spin_lock(&dcache_lock);
-> > > +
-> > > +	BUG_ON(new == NULL);	/* TODO */
-> > > +	if (new) {
-> > > +//		new->d_op = dentry->d_op;
-> > > +//		new->d_fsdata = dentry->d_fsdata;
-> > > +	}
-> > > +	
-> > > +	return new;
-> > > +}
-> > 
-> > Isn't this leaking the original dentry?  Shouldn't it be doing a dput or
-> > at least a d_free here?
+On Fri, 2005-10-07 at 16:54 +0900, Magnus Damm wrote:
 > 
-> While it has been some months since I wrote this, and it was not
-> intended to be a production patch, I don't believe it leaks dentries.
+> > get_zholes_size_numaq() is *ALWAYS* empty/false, right?  There's no
+> need
+> > to have a stub for it.
 > 
-> The function is called on the path real_lookup() to i_op->lookup() to
-> d_splice_alias(), and the original dentry allocated in real_lookup()
-> is d_put() there if a non-NULL new dentry pointer is passed back up
-> via d_splice_alias() and i_op->lookup().
+> That is correct. I just kept it there to make the srat and numaq code
+> more similar, but I'd be happy to remove it. If you still consider
+> this as a cleanup, please let me know and I will generate a new patch.
 
-Yes, you are right.  I've always found the dcache code a little
-confusing.  Your patch looks good to me.
--- 
-David Kleikamp
-IBM Linux Technology Center
+I'd pull it.  No need to add new code just for parity.
+
+Thanks,
+
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
