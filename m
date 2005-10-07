@@ -1,165 +1,93 @@
-Date: Thu, 6 Oct 2005 13:01:15 -0300
-From: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
-Subject: Re: [PATCH] per-page SLAB freeing (only dcache for now)
-Message-ID: <20051006160115.GA30677@logos.cnet>
-References: <20050930193754.GB16812@xeon.cnet> <Pine.LNX.4.62.0509301934390.31011@schroedinger.engr.sgi.com> <20051001215254.GA19736@xeon.cnet> <Pine.LNX.4.62.0510030823420.7812@schroedinger.engr.sgi.com> <43419686.60600@colorfullife.com> <20051003221743.GB29091@logos.cnet> <4342B623.3060007@colorfullife.com>
+Subject: Re: [PATCH] dcache: separate slab for directory dentries
+From: Greg Banks <gnb@melbourne.sgi.com>
+In-Reply-To: <1128601731.9358.2.camel@kleikamp.austin.ibm.com>
+References: <20050911105709.GA16369@thunk.org>
+	 <20050911120045.GA4477@in.ibm.com> <20050912031636.GB16758@thunk.org>
+	 <20050913084752.GC4474@in.ibm.com>
+	 <20050913215932.GA1654338@melbourne.sgi.com>
+	 <20051006062739.GP9519161@melbourne.sgi.com>
+	 <1128601731.9358.2.camel@kleikamp.austin.ibm.com>
+Content-Type: text/plain
+Message-Id: <1128657277.6710.826.camel@hole.melbourne.sgi.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4342B623.3060007@colorfullife.com>
+Date: Fri, 07 Oct 2005 13:54:37 +1000
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Manfred Spraul <manfred@colorfullife.com>
-Cc: Christoph Lameter <clameter@engr.sgi.com>, linux-mm@kvack.org, akpm@osdl.org, dgc@sgi.com, dipankar@in.ibm.com, mbligh@mbligh.org
+To: Dave Kleikamp <shaggy@austin.ibm.com>
+Cc: David Chinner <dgc@sgi.com>, Bharata B Rao <bharata@in.ibm.com>, Dipankar Sarma <dipankar@in.ibm.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Oct 04, 2005 at 07:04:35PM +0200, Manfred Spraul wrote:
-> Marcelo Tosatti wrote:
+On Thu, 2005-10-06 at 22:28, Dave Kleikamp wrote:
+> On Thu, 2005-10-06 at 16:27 +1000, David Chinner wrote:
+> > +static struct dentry * d_realloc_for_inode(struct dentry * dentry,
+> > +					   struct inode *inode)
+> > +{
+> > +	int flags = 0;
+> > +	struct dentry *new;
+> > [...]
+> > +	new = __d_alloc(parent, &dentry->d_name, dentry->d_flags | flags);
+> > +
+> > +	spin_lock(&dcache_lock);
+> > +
+> > +	BUG_ON(new == NULL);	/* TODO */
+> > +	if (new) {
+> > +//		new->d_op = dentry->d_op;
+> > +//		new->d_fsdata = dentry->d_fsdata;
+> > +	}
+> > +	
+> > +	return new;
+> > +}
 > 
-> >Hi Manfred,
-> >
-> >On Mon, Oct 03, 2005 at 10:37:26PM +0200, Manfred Spraul wrote:
-> > 
-> >
-> >>Christoph Lameter wrote:
-> >>
-> >>   
-> >>
-> >>>On Sat, 1 Oct 2005, Marcelo wrote:
-> >>>
-> >>>
-> >>>
-> >>>     
-> >>>
-> >>>>I thought about having a mini-API for this such as "struct 
-> >>>>slab_reclaim_ops" implemented by each reclaimable cache, invoked by a 
-> >>>>generic SLAB function.
-> >>>>
-> >>>> 
-> >>>>
-> >>>>       
-> >>>>
-> >>Which functions would be needed?
-> >>- lock_cache(): No more alive/dead changes
-> >>- objp_is_alive()
-> >>- objp_is_killable()
-> >>- objp_kill() 
-> >>   
-> >>
-> >
-> >Yep something along that line. I'll come up with something more precise
-> >tomorrow.
-> >
-> > 
-> >
-> >>I think it would be simpler if the caller must mark the objects as 
-> >>alive/dead before/after calling kmem_cache_alloc/free: I don't think 
-> >>it's a good idea to add special case code and branches to the normal 
-> >>kmem_cache_alloc codepath. And especially: It would mean that 
-> >>kmem_cache_alloc must perform a slab lookup  in each alloc call, this 
-> >>could be slow.
-> >>The slab users could store the alive status somewhere in the object. And 
-> >>they could set the flag early, e.g. disable alive as soon as an object 
-> >>is put on the rcu aging list.
-> >>   
-> >>
-> >
-> >The "i_am_alive" flag purpose at the moment is to avoid interpreting
-> >uninitialized data (in the dentry cache, the reference counter is bogus
-> >in such case). It was just a quick hack to watch it work, it seemed to
-> >me it could be done within SLAB code.
-> >
-> >This information ("liveness" of objects) is managed inside the SLAB
-> >generic code, and it seems to be available already through the
-> >kmembufctl array which is part of the management data, right?
-> >
-> > 
-> >
-> Not really. The array is only updated when the free status reaches the 
-> slab structure, which is quite late. 
+> Isn't this leaking the original dentry?  Shouldn't it be doing a dput or
+> at least a d_free here?
 
-Thats fine, the usage information inside the array is only going to be used 
-to avoid interpretation of uninitialized objects. Its safe to say
-that unallocated objects will have their corresponding kmembufctl array 
-entry consistent (marked as freed) at all times, right?
+While it has been some months since I wrote this, and it was not
+intended to be a production patch, I don't believe it leaks dentries.
 
-Actual per-object live/dead information must reside inside the objp itself
-as you suggest, with guaranteed synchronization.
+The function is called on the path real_lookup() to i_op->lookup() to
+d_splice_alias(), and the original dentry allocated in real_lookup()
+is d_put() there if a non-NULL new dentry pointer is passed back up
+via d_splice_alias() and i_op->lookup().
 
-For the dcache its possible to use the D_UNHASHED flag (or some other 
-field which describes validity).
+>From the 2.6.5-based tree this patch was developed in:
 
-> kmem_cache_free
-> - puts the object into a per-cpu array. No locking at all, each cpu can 
-> only read it's own array.
-> - when that array is full, then it's put into a global array (->shared).
-> - when the global array is full, then the object is marked as free in 
-> the slab structure.
-> - when add objects from a slab are free, then the slab is placed on the 
-> free slab list
-> - when there is memory pressure, then the pages from the free slab list 
-> are reclaimed.
-> 
-> >Suppose there's no need for the cache specific functions to be aware of
-> >liveness, ie. its SLAB specific information.
-> >
-> > 
-> >
-> What about RCU? We have dying objects: Still alive, because someone 
-> might have a pointer to it, but already on the rcu list and will be 
-> released after the next quiescent state. slab can't know that.
+static struct dentry * real_lookup(struct dentry * parent, struct qstr *
+name, struct nameidata *nd)
+{
+...
+                struct dentry * dentry = d_alloc(parent, name);
+                result = ERR_PTR(-ENOMEM);
+                if (dentry) {
+                        result = dir->i_op->lookup(dir, dentry, nd);
+                        if (result)
+                                dput(dentry);
+                        else
+                                result = dentry;
+                }
+...
+}
 
-Objects waiting for the next RCU quiescent state cannot have references
-attached, and can't be reused either. When they reach the RCU list
-they are already invalid (DCACHE_UNHASHED in dcache's case).
+STATIC struct dentry *
+linvfs_lookup(
+        struct inode    *dir,
+        struct dentry   *dentry,
+        struct nameidata *nd)
+{
+...
+        VOP_LOOKUP(vp, dentry, &cvp, 0, NULL, NULL, error);
+...                                                              
+        return d_splice_alias(LINVFS_GET_IP(cvp), dentry);
+}
 
-The only references they can have at this point is against the list_head
-fields.
+Had this been a production patch I might have mentioned this
+subtlety in the comments ;-)
 
-> >Another issue is synchronization between multiple threads in this 
-> >level of the reclaim path. Can be dealt with PageLock: if the bit is set,
-> >don't bother checking the page, someone else is already doing
-> >so.
-> >
-> >You mention
-> >
-> > 
-> >
-> >>- lock_cache(): No more alive/dead changes
-> >>   
-> >>
-> >
-> >With the PageLock bit, you can instruct kmem_cache_alloc() to skip partial
-> >but Locked pages (thus avoiding any object allocations within that page).
-> >Hum, what about higher order SLABs?
-> >
-> > 
-> >
-> You have misunderstood my question: I was thinking about object 
-> dead/alive changes.
-> There are two questions: First figure out how many objects from a 
-> certain slab are alive. Then, if it's below a threshold, try to free 
-> them. With this approach, you need lock(), is_objp_alive(), release_objp().
+Greg.
+-- 
+Greg Banks, R&D Software Engineer, SGI Australian Software Group.
+I don't speak for SGI.
 
-I'm thinking over this, will be sending something soon. 
-
-> >Well, kmem_cache_alloc() can be a little bit smarter at this point, since 
-> >its already a slow path, no? Its refill time, per-CPU cache is exhausted...
-> >
-> > 
-> >
-> Definitively. Fast path is only kmem_cache_alloc and kmem_cache_free. No 
-> global cache line writes in these functions. They were down to 1 
-> conditional branch and 2-3 cachelines, One of them read-only, the 
-> other(s) are read/write, but per-cpu. I'm not sure how much changed with 
-> the NUMA patches, but the non-numa case should try to remain simple. And 
-> e.g. looking up the bufctl means an integer division. Just that 
-> instruction could nearly double the runtime of kmem_cache_free().
-> The shared_array part from cache_flusharray and cache_alloc_refill are 
-> partially fast path: If we slow that down, then it will affect packet 
-> routing. The rest is slow path.
-
-OK fine, thanks for all your help up to now!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
