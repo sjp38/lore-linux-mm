@@ -1,58 +1,35 @@
-Received: from e1.ny.us.ibm.com ([192.168.1.101])
-	by pokfb.esmtp.ibm.com (8.12.11/8.12.11) with ESMTP id j96ExmFl032470
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-SHA bits=256 verify=OK)
-	for <linux-mm@kvack.org>; Thu, 6 Oct 2005 10:59:55 -0400
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by e1.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id j96EuZpi029063
-	for <linux-mm@kvack.org>; Thu, 6 Oct 2005 10:56:35 -0400
-Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
-	by d01relay04.pok.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id j96EuZvf101856
-	for <linux-mm@kvack.org>; Thu, 6 Oct 2005 10:56:35 -0400
-Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
-	by d01av04.pok.ibm.com (8.12.11/8.13.3) with ESMTP id j96EuZrY012752
-	for <linux-mm@kvack.org>; Thu, 6 Oct 2005 10:56:35 -0400
-Subject: Re: [PATCH] i386: srat and numaq cleanup
-From: Dave Hansen <haveblue@us.ibm.com>
-In-Reply-To: <aec7e5c30510060329kb59edagb619f00b8a58bf3e@mail.gmail.com>
-References: <20051005083846.4308.37575.sendpatchset@cherry.local>
-	 <1128530262.26009.27.camel@localhost>
-	 <aec7e5c30510060329kb59edagb619f00b8a58bf3e@mail.gmail.com>
+Subject: Re: FW: [PATCH 0/3] Demand faulting for huge pages
+From: Rohit Seth <rohit.seth@intel.com>
+In-Reply-To: <B05667366EE6204181EABE9C1B1C0EB5086AF0DF@scsmsx401.amr.corp.intel.com>
+References: <B05667366EE6204181EABE9C1B1C0EB5086AF0DF@scsmsx401.amr.corp.intel.com>
 Content-Type: text/plain
-Date: Thu, 06 Oct 2005 07:56:25 -0700
-Message-Id: <1128610585.8401.15.camel@localhost>
+Date: Fri, 07 Oct 2005 14:28:37 -0700
+Message-Id: <1128720518.32679.15.camel@akash.sc.intel.com>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Magnus Damm <magnus.damm@gmail.com>
-Cc: Magnus Damm <magnus@valinux.co.jp>, linux-mm <linux-mm@kvack.org>
+To: hugh@veritas.com, agl@us.ibm.com, linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, akpm@osdl.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2005-10-06 at 19:29 +0900, Magnus Damm wrote:
-> On 10/6/05, Dave Hansen <haveblue@us.ibm.com> wrote:
-> > I'm highly suspicious of any "cleanup" that adds more code than it
-> > deletes.  What does this clean up?
->
-> The patch removes #ifdefs from get_memcfg_numa() and introduces an
-> inline get_zholes_size(). The #ifdefs are moved down one level to the
-> files srat.h and numaq.h and empty inline functions are added. These
-> empty inline function are probably the reason for the added lines.
+On Fri, 2005-10-07 at 10:47 -0700, Adam Litke wrote:
+>  
+> 
+> If I were to spend time coding up a patch to remove truncation support
+> for hugetlbfs, would it be something other people would want to see
+> merged as well?
+> 
 
-It does remove two #ifdefs, but it adds two #else blocks in other
-places.
+In its current form, there is very little use of huegtlb truncate
+functionality.  Currently it only allows reducing the size of hugetlb
+backing file.   
 
-I also noticed that acpi20_parse_srat() can fail.  So, has_srat may
-belong in that function, not in get_memcfg_from_srat()
+IMO it will be useful to keep and enhance this capability so that apps
+can dynamically reduce or increase the size of backing files (for
+example based on availability of memory at any time).
 
-Why ever have this block?
-
-> +       if ((ret = get_zholes_size_numaq(nid)))
-> +               return ret;
-
-get_zholes_size_numaq() is *ALWAYS* empty/false, right?  There's no need
-to have a stub for it.
-
--- Dave
+-rohit
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
