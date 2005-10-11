@@ -1,39 +1,37 @@
-From: Andi Kleen <ak@suse.de>
+Date: Mon, 10 Oct 2005 21:04:00 -0400 (EDT)
+From: Rik van Riel <riel@redhat.com>
 Subject: Re: Benchmarks to exploit LRU deficiencies
-Date: Tue, 11 Oct 2005 02:41:41 +0200
-References: <20051010184636.GA15415@logos.cnet> <200510110213.29937.ak@suse.de> <20051010202614.GB15631@logos.cnet>
-In-Reply-To: <20051010202614.GB15631@logos.cnet>
+In-Reply-To: <200510110213.29937.ak@suse.de>
+Message-ID: <Pine.LNX.4.63.0510102102260.20944@cuia.boston.redhat.com>
+References: <20051010184636.GA15415@logos.cnet> <200510110213.29937.ak@suse.de>
 MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200510110241.42225.ak@suse.de>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
-Cc: linux-mm@kvack.org, sjiang@lanl.gov, rni@andrew.cmu.edu, a.p.zijlstra@chello.nl, riel@redhat.com
+To: Andi Kleen <ak@suse.de>
+Cc: Marcelo Tosatti <marcelo.tosatti@cyclades.com>, linux-mm@kvack.org, sjiang@lanl.gov, rni@andrew.cmu.edu, a.p.zijlstra@chello.nl
 List-ID: <linux-mm.kvack.org>
 
-On Monday 10 October 2005 22:26, Marcelo Tosatti wrote:
+On Tue, 11 Oct 2005, Andi Kleen wrote:
 
-> But other than that it works fine AFAIK.
+> I think if you want to really see advantages you should not implement
+> the advanced algorithms for the page cache,
 
-I don't think so.
+I suspect the page cache really wants it too, especially
+for database workloads.
 
->
-> > We seem to have far more problems in this area than with the
-> > standard page cache.
->
-> How's that?
+> but for the inode/dentry cache. We seem to have far more problems in 
+> this area than with the standard page cache.
 
-At least in many cases where i've seen machines becomming unusable
-the problem was dcache/inode pollution, not page cache getting
-unbalanced.
+However, I agree with you that the inode/dentry cache
+probably needs it more on file and web server workloads.
 
-Good example is running rsync.
+The page cache getting invalidated whole inodes at a
+time, even when the inode is getting referenced frequently,
+could be a performance problem on some systems.
 
--Andi
+-- 
+All Rights Reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
