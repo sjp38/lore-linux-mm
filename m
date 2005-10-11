@@ -1,42 +1,35 @@
-Date: Mon, 10 Oct 2005 20:21:04 -0300
-From: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
+From: Andi Kleen <ak@suse.de>
 Subject: Re: Benchmarks to exploit LRU deficiencies
-Message-ID: <20051010232104.GB4946@logos.cnet>
-References: <20051010184636.GA15415@logos.cnet> <200510110213.29937.ak@suse.de> <20051010202614.GB15631@logos.cnet> <200510110241.42225.ak@suse.de>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Date: Tue, 11 Oct 2005 10:10:06 +0200
+References: <20051010184636.GA15415@logos.cnet> <200510110241.42225.ak@suse.de> <20051010232104.GB4946@logos.cnet>
+In-Reply-To: <20051010232104.GB4946@logos.cnet>
+MIME-Version: 1.0
+Content-Type: text/plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <200510110241.42225.ak@suse.de>
+Message-Id: <200510111010.06650.ak@suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <ak@suse.de>
+To: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
 Cc: linux-mm@kvack.org, sjiang@lanl.gov, rni@andrew.cmu.edu, a.p.zijlstra@chello.nl, riel@redhat.com
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Oct 11, 2005 at 02:41:41AM +0200, Andi Kleen wrote:
-> On Monday 10 October 2005 22:26, Marcelo Tosatti wrote:
-> 
-> > But other than that it works fine AFAIK.
-> 
-> I don't think so.
-> 
-> >
-> > > We seem to have far more problems in this area than with the
-> > > standard page cache.
-> >
-> > How's that?
-> 
-> At least in many cases where i've seen machines becomming unusable
-> the problem was dcache/inode pollution, not page cache getting
-> unbalanced.
-> 
-> Good example is running rsync.
+On Tuesday 11 October 2005 01:21, Marcelo Tosatti wrote:
 
-You mean rsync kicks out your pagecache working set?
+> You mean rsync kicks out your pagecache working set?
 
-How come the machine is unusable?
+Yes.
 
-How can the problem be reproduced? Run rsync is too vague I guess.
+> How come the machine is unusable?
+
+Everything is very slow.
+
+> How can the problem be reproduced? Run rsync is too vague I guess.
+
+Is it? Just try it. 
+
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
