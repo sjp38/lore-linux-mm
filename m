@@ -1,357 +1,362 @@
 From: Mel Gorman <mel@csn.ul.ie>
-Message-Id: <20051011151236.16178.34456.sendpatchset@skynet.csn.ul.ie>
+Message-Id: <20051011151231.16178.58396.sendpatchset@skynet.csn.ul.ie>
 In-Reply-To: <20051011151221.16178.67130.sendpatchset@skynet.csn.ul.ie>
 References: <20051011151221.16178.67130.sendpatchset@skynet.csn.ul.ie>
-Subject: [PATCH 3/8] Fragmentation Avoidance V17: 003_fragcore
-Date: Tue, 11 Oct 2005 16:12:36 +0100 (IST)
+Subject: [PATCH 2/8] Fragmentation Avoidance V17: 002_usemap
+Date: Tue, 11 Oct 2005 16:12:31 +0100 (IST)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@osdl.org
 Cc: jschopp@austin.ibm.com, Mel Gorman <mel@csn.ul.ie>, kravetz@us.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, lhms-devel@lists.sourceforge.net
 List-ID: <linux-mm.kvack.org>
 
-This patch adds the core of the anti-fragmentation strategy. It works by
-grouping related allocation types together. The idea is that large groups of
-pages that may be reclaimed are placed near each other. The zone->free_area
-list is broken into three free lists for each RCLM_TYPE.
+This patch adds a "usemap" to the allocator. When a PAGE_PER_MAXORDER block
+of pages (i.e. 2^(MAX_ORDER-1)) is split, the usemap is updated with the
+type of allocation when splitting. This information is used in an 
+anti-fragmentation patch to group related allocation types together.
+
+The __GFP_USER and __GFP_KERNRCLM bits are used to enumerate three allocation
+types;
+
+RCLM_NORLM:	These are kernel allocations that cannot be reclaimed
+		on demand.
+RCLM_USER:	These are pages allocated with __GFP_USER flag set. They are
+		considered to be user and other easily reclaimed pages such
+		as buffers
+RCLM_KERN:	Allocated for the kernel but for caches that can be reclaimed
+		on demand.
+
+gfpflags_to_rclmtype() converts gfp_flags to their corresponding RCLM_TYPE
+by masking out irrelevant bits and shifting the result right by RCLM_SHIFT.
+Compile-time checks are made on RCLM_SHIFT to ensure gfpflags_to_rclmtype()
+keeps working. ffz() could be used to avoid static checks, but it would be
+runtime overhead for a compile-time constant.
 
 Signed-off-by: Mel Gorman <mel@csn.ul.ie>
 Signed-off-by: Mike Kravetz <kravetz@us.ibm.com>
 Signed-off-by: Joel Schopp <jschopp@austin.ibm.com>
-diff -rup -X /usr/src/patchset-0.5/bin//dontdiff linux-2.6.14-rc3-002_usemap/include/linux/mmzone.h linux-2.6.14-rc3-003_fragcore/include/linux/mmzone.h
---- linux-2.6.14-rc3-002_usemap/include/linux/mmzone.h	2005-10-11 12:07:26.000000000 +0100
-+++ linux-2.6.14-rc3-003_fragcore/include/linux/mmzone.h	2005-10-11 12:08:07.000000000 +0100
-@@ -32,6 +32,10 @@
- #define RCLM_TYPES    3
- #define BITS_PER_RCLM_TYPE 2
- 
-+#define for_each_rclmtype_order(type, order) \
-+	for (order = 0; order < MAX_ORDER; order++) \
-+		for (type = 0; type < RCLM_TYPES; type++)
-+
- struct free_area {
- 	struct list_head	free_list;
- 	unsigned long		nr_free;
-@@ -148,7 +152,6 @@ struct zone {
- 	 * free areas of different sizes
- 	 */
- 	spinlock_t		lock;
--	struct free_area	free_area[MAX_ORDER];
- 
- #ifndef CONFIG_SPARSEMEM
- 	/*
-@@ -158,6 +161,8 @@ struct zone {
- 	unsigned long		*free_area_usemap;
+diff -rup -X /usr/src/patchset-0.5/bin//dontdiff linux-2.6.14-rc3-001_antidefrag_flags/include/linux/mm.h linux-2.6.14-rc3-002_usemap/include/linux/mm.h
+--- linux-2.6.14-rc3-001_antidefrag_flags/include/linux/mm.h	2005-10-04 22:58:34.000000000 +0100
++++ linux-2.6.14-rc3-002_usemap/include/linux/mm.h	2005-10-11 12:07:26.000000000 +0100
+@@ -522,6 +522,13 @@ static inline void set_page_links(struct
+ extern struct page *mem_map;
  #endif
  
-+	struct free_area	free_area_lists[RCLM_TYPES][MAX_ORDER];
++/*
++ * Return what type of page is being allocated from this 2^MAX_ORDER-1 block
++ * of pages.
++ */
++extern int get_pageblock_type(struct zone *zone,
++						struct page *page);
 +
+ static inline void *lowmem_page_address(struct page *page)
+ {
+ 	return __va(page_to_pfn(page) << PAGE_SHIFT);
+diff -rup -X /usr/src/patchset-0.5/bin//dontdiff linux-2.6.14-rc3-001_antidefrag_flags/include/linux/mmzone.h linux-2.6.14-rc3-002_usemap/include/linux/mmzone.h
+--- linux-2.6.14-rc3-001_antidefrag_flags/include/linux/mmzone.h	2005-10-04 22:58:34.000000000 +0100
++++ linux-2.6.14-rc3-002_usemap/include/linux/mmzone.h	2005-10-11 12:07:26.000000000 +0100
+@@ -20,6 +20,17 @@
+ #else
+ #define MAX_ORDER CONFIG_FORCE_MAX_ZONEORDER
+ #endif
++#define PAGES_PER_MAXORDER (1 << (MAX_ORDER-1))
++
++/*
++ * The two bit field __GFP_RECLAIMBITS enumerates the following 4 kinds of
++ * page reclaimability.
++ */
++#define RCLM_NORCLM   0
++#define RCLM_USER     1
++#define RCLM_KERN     2
++#define RCLM_TYPES    3
++#define BITS_PER_RCLM_TYPE 2
+ 
+ struct free_area {
+ 	struct list_head	free_list;
+@@ -139,6 +150,13 @@ struct zone {
+ 	spinlock_t		lock;
+ 	struct free_area	free_area[MAX_ORDER];
+ 
++#ifndef CONFIG_SPARSEMEM
++	/*
++	 * The map tracks what each 2^MAX_ORDER-1 sized block is being used for.
++	 * Each 2^MAX_ORDER block of pages uses BITS_PER_RCLM_TYPE bits
++	 */
++	unsigned long		*free_area_usemap;
++#endif
+ 
  	ZONE_PADDING(_pad1_)
  
- 	/* Fields commonly accessed by the page reclaim scanner */
-diff -rup -X /usr/src/patchset-0.5/bin//dontdiff linux-2.6.14-rc3-002_usemap/mm/page_alloc.c linux-2.6.14-rc3-003_fragcore/mm/page_alloc.c
---- linux-2.6.14-rc3-002_usemap/mm/page_alloc.c	2005-10-11 12:07:26.000000000 +0100
-+++ linux-2.6.14-rc3-003_fragcore/mm/page_alloc.c	2005-10-11 12:08:07.000000000 +0100
-@@ -314,6 +314,16 @@ __find_combined_index(unsigned long page
+@@ -473,6 +491,15 @@ extern struct pglist_data contig_page_da
+ #if (MAX_ORDER - 1 + PAGE_SHIFT) > SECTION_SIZE_BITS
+ #error Allocator MAX_ORDER exceeds SECTION_SIZE
+ #endif
++#if ((SECTION_SIZE_BITS - MAX_ORDER) * BITS_PER_RCLM_TYPE) > 64
++#error free_area_usemap is not big enough
++#endif
++
++/* Usemap initialisation */
++#ifdef CONFIG_SPARSEMEM
++static inline void setup_usemap(struct pglist_data *pgdat,
++				struct zone *zone, unsigned long zonesize) {}
++#endif /* CONFIG_SPARSEMEM */
+ 
+ struct page;
+ struct mem_section {
+@@ -485,6 +512,7 @@ struct mem_section {
+ 	 * before using it wrong.
+ 	 */
+ 	unsigned long section_mem_map;
++	DECLARE_BITMAP(free_area_usemap,64);
+ };
+ 
+ #ifdef CONFIG_SPARSEMEM_EXTREME
+@@ -552,6 +580,17 @@ static inline struct mem_section *__pfn_
+ 	return __nr_to_section(pfn_to_section_nr(pfn));
  }
+ 
++static inline unsigned long *pfn_to_usemap(struct zone *zone, unsigned long pfn)
++{
++	return &__pfn_to_section(pfn)->free_area_usemap[0];
++}
++
++static inline int pfn_to_bitidx(struct zone *zone, unsigned long pfn)
++{
++	pfn &= (PAGES_PER_SECTION-1);
++	return (int)((pfn >> (MAX_ORDER-1)) * BITS_PER_RCLM_TYPE);
++}
++
+ #define pfn_to_page(pfn) 						\
+ ({ 									\
+ 	unsigned long __pfn = (pfn);					\
+@@ -589,6 +628,16 @@ void sparse_init(void);
+ #else
+ #define sparse_init()	do {} while (0)
+ #define sparse_index_init(_sec, _nid)  do {} while (0)
++static inline unsigned long *pfn_to_usemap(struct zone *zone, 
++						unsigned long pfn)
++{
++	return (zone->free_area_usemap);
++}
++static inline int pfn_to_bitidx(struct zone *zone, unsigned long pfn)
++{
++	pfn = pfn - zone->zone_start_pfn;
++	return (int)((pfn >> (MAX_ORDER-1)) * BITS_PER_RCLM_TYPE);
++}
+ #endif /* CONFIG_SPARSEMEM */
+ 
+ #ifdef CONFIG_NODES_SPAN_OTHER_NODES
+diff -rup -X /usr/src/patchset-0.5/bin//dontdiff linux-2.6.14-rc3-001_antidefrag_flags/mm/page_alloc.c linux-2.6.14-rc3-002_usemap/mm/page_alloc.c
+--- linux-2.6.14-rc3-001_antidefrag_flags/mm/page_alloc.c	2005-10-04 22:58:34.000000000 +0100
++++ linux-2.6.14-rc3-002_usemap/mm/page_alloc.c	2005-10-11 12:07:26.000000000 +0100
+@@ -66,6 +66,88 @@ EXPORT_SYMBOL(totalram_pages);
+ EXPORT_SYMBOL(nr_swap_pages);
  
  /*
-+ * Return the free list for a given page within a zone
++ * RCLM_SHIFT is the number of bits that a gfp_mask has to be shifted right
++ * to have just the __GFP_USER and __GFP_KERNRCLM bits. The static check is
++ * made afterwards in case the GFP flags are not updated without updating 
++ * this number
 + */
-+static inline struct free_area *__page_find_freelist(struct zone *zone,
++#define RCLM_SHIFT 19
++#if (__GFP_USER >> RCLM_SHIFT) != RCLM_USER
++#error __GFP_USER not mapping to RCLM_USER
++#endif
++#if (__GFP_KERNRCLM >> RCLM_SHIFT) != RCLM_KERN
++#error __GFP_KERNRCLM not mapping to RCLM_KERN
++#endif
++
++/*
++ * This function maps gfpflags to their RCLM_TYPE. It makes assumptions
++ * on the location of the GFP flags
++ */
++static inline unsigned long gfpflags_to_rclmtype(unsigned long gfp_flags) {
++	return (gfp_flags & __GFP_RCLM_BITS) >> RCLM_SHIFT;
++}
++
++/*
++ * copy_bits - Copy bits between bitmaps
++ * @dstaddr: The destination bitmap to copy to
++ * @srcaddr: The source bitmap to copy from
++ * @sindex_dst: The start bit index within the destination map to copy to
++ * @sindex_src: The start bit index within the source map to copy from
++ * @nr: The number of bits to copy
++ */
++static inline void copy_bits(unsigned long *dstaddr,
++		unsigned long *srcaddr, 
++		int sindex_dst, 
++		int sindex_src,
++		int nr)
++{
++	/*
++	 * Written like this to take advantage of arch-specific 
++	 * set_bit() and clear_bit() functions
++	 */
++	for (nr = nr-1; nr >= 0; nr--) {
++		int bit = test_bit(sindex_src + nr, srcaddr);
++		if (bit)
++			set_bit(sindex_dst + nr, dstaddr);
++		else
++			clear_bit(sindex_dst + nr, dstaddr);
++	}
++}
++
++int get_pageblock_type(struct zone *zone,
 +						struct page *page)
 +{
-+	int type = (int)get_pageblock_type(zone, page);
-+	return zone->free_area_lists[type];
++	unsigned long pfn = page_to_pfn(page);
++	unsigned long type = 0;
++	unsigned long *usemap;
++	int bitidx;
++
++	bitidx = pfn_to_bitidx(zone, pfn);
++	usemap = pfn_to_usemap(zone, pfn);
++
++	copy_bits(&type, usemap, 0, bitidx, BITS_PER_RCLM_TYPE);
++
++	return (int)type;
 +}
 +
 +/*
-  * This function checks whether a page is free && is the buddy
-  * we can do coalesce a page and its buddy if
-  * (a) the buddy is free &&
-@@ -361,6 +371,8 @@ static inline void __free_pages_bulk (st
- {
- 	unsigned long page_idx;
- 	int order_size = 1 << order;
-+	struct free_area *area;
-+	struct free_area *freelist;
- 
- 	if (unlikely(order))
- 		destroy_compound_page(page, order);
-@@ -370,10 +382,11 @@ static inline void __free_pages_bulk (st
- 	BUG_ON(page_idx & (order_size - 1));
- 	BUG_ON(bad_range(zone, page));
- 
-+	freelist = __page_find_freelist(zone, page);
-+
- 	zone->free_pages += order_size;
- 	while (order < MAX_ORDER-1) {
- 		unsigned long combined_idx;
--		struct free_area *area;
- 		struct page *buddy;
- 
- 		combined_idx = __find_combined_index(page_idx, order);
-@@ -384,7 +397,7 @@ static inline void __free_pages_bulk (st
- 		if (!page_is_buddy(buddy, order))
- 			break;		/* Move the buddy up one level. */
- 		list_del(&buddy->lru);
--		area = zone->free_area + order;
-+		area = &(freelist[order]);
- 		area->nr_free--;
- 		rmv_page_order(buddy);
- 		page = page + (combined_idx - page_idx);
-@@ -392,8 +405,8 @@ static inline void __free_pages_bulk (st
- 		order++;
- 	}
- 	set_page_order(page, order);
--	list_add(&page->lru, &zone->free_area[order].free_list);
--	zone->free_area[order].nr_free++;
-+	list_add_tail(&page->lru, &freelist[order].free_list);
-+	freelist[order].nr_free++;
- }
- 
- static inline void free_pages_check(const char *function, struct page *page)
-@@ -548,6 +561,47 @@ static void prep_new_page(struct page *p
- 	kernel_map_pages(page, 1 << order, 1);
- }
- 
-+/*
-+ * Find a list that has a 2^MAX_ORDER-1 block of pages available and
-+ * return it
++ * Reserve a block of pages for an allocation type & enforce function
++ * being changed if more bits are added to keep track of additional types
 + */
-+struct page* steal_largepage(struct zone *zone, int alloctype)
++static inline void set_pageblock_type(struct zone *zone, struct page *page,
++					unsigned long type)
 +{
-+	struct page *page;
-+	struct free_area *area = NULL;
-+	int i = 0;
++	unsigned long pfn = page_to_pfn(page);
++	unsigned long *usemap;
++	int bitidx;
 +
-+	for(i = 0; i < RCLM_TYPES; i++) {
-+		if (i == alloctype)
-+			continue;
++	bitidx = pfn_to_bitidx(zone, pfn);
++	usemap = pfn_to_usemap(zone, pfn);
 +
-+		area = &zone->free_area_lists[i][MAX_ORDER-1];
-+		if (!list_empty(&area->free_list))
-+			break;
-+	}
-+	if (i == RCLM_TYPES) 
-+		return NULL;
-+
-+	page = list_entry(area->free_list.next, struct page, lru);
-+	area->nr_free--;
-+
-+	set_pageblock_type(zone, page, (unsigned long)alloctype);
-+
-+	return page;
++	copy_bits(usemap, &type, bitidx, 0, BITS_PER_RCLM_TYPE);
 +}
 +
-+
-+static inline struct page *
-+remove_page(struct zone *zone, struct page *page, unsigned int order,
-+		unsigned int current_order, struct free_area *area)
-+{
-+	list_del(&page->lru);
-+	rmv_page_order(page);
-+	zone->free_pages -= 1UL << order;
-+	return expand(zone, page, order, current_order, area);
-+
-+}
-+
- /* 
++/*
+  * Used by page_zone() to look up the address of the struct zone whose
+  * id is encoded in the upper bits of page->flags
+  */
+@@ -470,7 +552,8 @@ static void prep_new_page(struct page *p
   * Do the hard work of removing an element from the buddy allocator.
   * Call me with the zone->lock already held.
-@@ -555,32 +609,25 @@ static void prep_new_page(struct page *p
- static struct page *__rmqueue(struct zone *zone, unsigned int order, 
- 		int alloctype)
+  */
+-static struct page *__rmqueue(struct zone *zone, unsigned int order)
++static struct page *__rmqueue(struct zone *zone, unsigned int order, 
++		int alloctype)
  {
--	struct free_area * area;
-+	struct free_area * area = NULL;
+ 	struct free_area * area;
  	unsigned int current_order;
- 	struct page *page;
- 
- 	for (current_order = order; current_order < MAX_ORDER; ++current_order) {
--		area = zone->free_area + current_order;
-+		area = &(zone->free_area_lists[alloctype][current_order]);
- 		if (list_empty(&area->free_list))
- 			continue;
- 
- 		page = list_entry(area->free_list.next, struct page, lru);
--		list_del(&page->lru);
--		rmv_page_order(page);
+@@ -486,6 +569,15 @@ static struct page *__rmqueue(struct zon
+ 		rmv_page_order(page);
  		area->nr_free--;
--		zone->free_pages -= 1UL << order;
--
--		/*
--		 * If splitting a large block, record what the block is being
--		 * used for in the usemap
--		 */
--		if (current_order == MAX_ORDER-1)
--			set_pageblock_type(zone, page, 
--						(unsigned long)alloctype);
--
--		return expand(zone, page, order, current_order, area);
-+		return remove_page(zone, page, order, current_order, area);
+ 		zone->free_pages -= 1UL << order;
++
++		/*
++		 * If splitting a large block, record what the block is being
++		 * used for in the usemap
++		 */
++		if (current_order == MAX_ORDER-1)
++			set_pageblock_type(zone, page, 
++						(unsigned long)alloctype);
++
+ 		return expand(zone, page, order, current_order, area);
  	}
  
-+	/* Allocate a MAX_ORDER block */
-+	page = steal_largepage(zone, alloctype);
-+	if (page != NULL)
-+		return remove_page(zone, page, order, MAX_ORDER-1, area);
-+
- 	return NULL;
- }
- 
-@@ -666,9 +713,9 @@ static void __drain_pages(unsigned int c
- void mark_free_pages(struct zone *zone)
+@@ -498,7 +590,8 @@ static struct page *__rmqueue(struct zon
+  * Returns the number of new pages which were placed at *list.
+  */
+ static int rmqueue_bulk(struct zone *zone, unsigned int order, 
+-			unsigned long count, struct list_head *list)
++			unsigned long count, struct list_head *list,
++			int alloctype)
  {
- 	unsigned long zone_pfn, flags;
--	int order;
-+	int order, t;
-+	unsigned long start_pfn, i;
- 	struct list_head *curr;
--
- 	if (!zone->spanned_pages)
- 		return;
- 
-@@ -676,14 +723,12 @@ void mark_free_pages(struct zone *zone)
- 	for (zone_pfn = 0; zone_pfn < zone->spanned_pages; ++zone_pfn)
- 		ClearPageNosaveFree(pfn_to_page(zone_pfn + zone->zone_start_pfn));
- 
--	for (order = MAX_ORDER - 1; order >= 0; --order)
--		list_for_each(curr, &zone->free_area[order].free_list) {
--			unsigned long start_pfn, i;
--
-+	for_each_rclmtype_order(t, order) {
-+		list_for_each(curr,&zone->free_area_lists[t][order].free_list){
- 			start_pfn = page_to_pfn(list_entry(curr, struct page, lru));
--
- 			for (i=0; i < (1<<order); i++)
- 				SetPageNosaveFree(pfn_to_page(start_pfn+i));
-+		}
- 	}
- 	spin_unlock_irqrestore(&zone->lock, flags);
- }
-@@ -834,6 +879,7 @@ int zone_watermark_ok(struct zone *z, in
- 	/* free_pages my go negative - that's OK */
- 	long min = mark, free_pages = z->free_pages - (1 << order) + 1;
- 	int o;
-+	struct free_area *kernnorclm, *kernrclm, *userrclm;
- 
- 	if (gfp_high)
- 		min -= min / 2;
-@@ -842,15 +888,21 @@ int zone_watermark_ok(struct zone *z, in
- 
- 	if (free_pages <= min + z->lowmem_reserve[classzone_idx])
- 		return 0;
-+	kernnorclm = z->free_area_lists[RCLM_NORCLM];
-+	kernrclm = z->free_area_lists[RCLM_KERN];
-+	userrclm = z->free_area_lists[RCLM_USER];
- 	for (o = 0; o < order; o++) {
- 		/* At the next order, this order's pages become unavailable */
--		free_pages -= z->free_area[o].nr_free << o;
--
-+		free_pages -= (kernnorclm->nr_free + kernrclm->nr_free +
-+				userrclm->nr_free) << o;
- 		/* Require fewer higher order pages to be free */
- 		min >>= 1;
- 
- 		if (free_pages <= min)
- 			return 0;
-+		kernnorclm++;
-+		kernrclm++;
-+		userrclm++;
- 	}
- 	return 1;
- }
-@@ -1389,6 +1441,7 @@ void show_free_areas(void)
- 	unsigned long inactive;
- 	unsigned long free;
- 	struct zone *zone;
-+	int type;
- 
- 	for_each_zone(zone) {
- 		show_node(zone);
-@@ -1471,7 +1524,9 @@ void show_free_areas(void)
- 	}
- 
- 	for_each_zone(zone) {
-- 		unsigned long nr, flags, order, total = 0;
-+ 		unsigned long nr = 0;
-+		unsigned long total = 0;
-+		unsigned long flags,order;
- 
- 		show_node(zone);
- 		printk("%s: ", zone->name);
-@@ -1481,10 +1536,18 @@ void show_free_areas(void)
- 		}
- 
- 		spin_lock_irqsave(&zone->lock, flags);
--		for (order = 0; order < MAX_ORDER; order++) {
--			nr = zone->free_area[order].nr_free;
-+		for_each_rclmtype_order(type, order) {
-+			nr += zone->free_area_lists[type][order].nr_free;
- 			total += nr << order;
--			printk("%lu*%lukB ", nr, K(1UL) << order);
-+
-+			/*
-+			 * if type had reached RCLM_TYPE, the free pages
-+			 * for this order have been summed up
-+			 */
-+			if (type == RCLM_TYPES-1) {
-+				printk("%lu*%lukB ", nr, K(1UL) << order);
-+				nr = 0;
-+			}
- 		}
- 		spin_unlock_irqrestore(&zone->lock, flags);
- 		printk("= %lukB\n", K(total));
-@@ -1784,9 +1847,14 @@ void zone_init_free_lists(struct pglist_
- 				unsigned long size)
- {
- 	int order;
--	for (order = 0; order < MAX_ORDER ; order++) {
--		INIT_LIST_HEAD(&zone->free_area[order].free_list);
--		zone->free_area[order].nr_free = 0;
-+	int type;
-+	struct free_area *area;
-+
-+	/* Initialse the three size ordered lists of free_areas */
-+	for_each_rclmtype_order(type, order) {
-+		area = &(zone->free_area_lists[type][order]);
-+		INIT_LIST_HEAD(&area->free_list);
-+		area->nr_free = 0;
- 	}
- }
- 
-@@ -2178,16 +2246,26 @@ static int frag_show(struct seq_file *m,
- 	struct zone *zone;
- 	struct zone *node_zones = pgdat->node_zones;
  	unsigned long flags;
--	int order;
-+	int order, type;
-+	struct free_area *area;
-+	unsigned long nr_bufs = 0;
+ 	int i;
+@@ -507,7 +600,7 @@ static int rmqueue_bulk(struct zone *zon
+ 	
+ 	spin_lock_irqsave(&zone->lock, flags);
+ 	for (i = 0; i < count; ++i) {
+-		page = __rmqueue(zone, order);
++		page = __rmqueue(zone, order, alloctype);
+ 		if (page == NULL)
+ 			break;
+ 		allocated++;
+@@ -691,7 +784,8 @@ buffered_rmqueue(struct zone *zone, int 
+ 	unsigned long flags;
+ 	struct page *page = NULL;
+ 	int cold = !!(gfp_flags & __GFP_COLD);
+-
++	int alloctype = (int)gfpflags_to_rclmtype(gfp_flags);
++	
+ 	if (order == 0) {
+ 		struct per_cpu_pages *pcp;
  
- 	for (zone = node_zones; zone - node_zones < MAX_NR_ZONES; ++zone) {
- 		if (!zone->present_pages)
- 			continue;
+@@ -699,7 +793,8 @@ buffered_rmqueue(struct zone *zone, int 
+ 		local_irq_save(flags);
+ 		if (pcp->count <= pcp->low)
+ 			pcp->count += rmqueue_bulk(zone, 0,
+-						pcp->batch, &pcp->list);
++						pcp->batch, &pcp->list,
++						alloctype);
+ 		if (pcp->count) {
+ 			page = list_entry(pcp->list.next, struct page, lru);
+ 			list_del(&page->lru);
+@@ -711,7 +806,7 @@ buffered_rmqueue(struct zone *zone, int 
  
+ 	if (page == NULL) {
  		spin_lock_irqsave(&zone->lock, flags);
--		seq_printf(m, "Node %d, zone %8s ", pgdat->node_id, zone->name);
--		for (order = 0; order < MAX_ORDER; ++order)
--			seq_printf(m, "%6lu ", zone->free_area[order].nr_free);
-+		seq_printf(m, "Node %d, zone %8s", pgdat->node_id, zone->name);
-+		for_each_rclmtype_order(type, order) {
-+			area = &(zone->free_area_lists[type][order]);
-+			nr_bufs += area->nr_free;
-+
-+			if (type == RCLM_TYPES-1) {
-+				seq_printf(m, "%6lu ", nr_bufs);
-+				nr_bufs = 0;
-+			}
-+		}
-+
+-		page = __rmqueue(zone, order);
++		page = __rmqueue(zone, order, alloctype);
  		spin_unlock_irqrestore(&zone->lock, flags);
- 		seq_putc(m, '\n');
  	}
+ 
+@@ -1870,6 +1965,36 @@ void __init setup_per_cpu_pageset()
+ 
+ #endif
+ 
++#ifndef CONFIG_SPARSEMEM
++#define roundup(x, y) ((((x)+((y)-1))/(y))*(y))
++/*
++ * Calculate the size of the zone->usemap in bytes rounded to an unsigned long
++ * Start by making sure zonesize is a multiple of MAX_ORDER-1 by rounding up
++ * Then figure 1 RCLM_TYPE worth of bits per MAX_ORDER-1, finally round up
++ * what is now in bits to nearest long in bits, then return it in bytes.
++ */
++static unsigned long __init usemap_size(unsigned long zonesize)
++{
++	unsigned long usemapsize;
++
++	usemapsize = roundup(zonesize, PAGES_PER_MAXORDER);
++	usemapsize = usemapsize >> (MAX_ORDER-1);
++	usemapsize *= BITS_PER_RCLM_TYPE;
++	usemapsize = roundup(usemapsize, 8 * sizeof(unsigned long));
++
++	return usemapsize / 8;
++}
++
++static void __init setup_usemap(struct pglist_data *pgdat,
++				struct zone *zone, unsigned long zonesize)
++{
++	unsigned long usemapsize = usemap_size(zonesize);
++	zone->free_area_usemap = alloc_bootmem_node(pgdat, usemapsize);
++	memset(zone->free_area_usemap, RCLM_NORCLM, usemapsize);
++}
++#endif /* CONFIG_SPARSEMEM */
++
++
+ /*
+  * Set up the zone data structures:
+  *   - mark all pages reserved
+@@ -1955,6 +2080,7 @@ static void __init free_area_init_core(s
+ 		memmap_init(size, nid, j, zone_start_pfn);
+ 
+ 		zonetable_add(zone, nid, j, zone_start_pfn, size);
++		setup_usemap(pgdat, zone, size);
+ 
+ 		zone_start_pfn += size;
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
