@@ -1,273 +1,145 @@
 Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e4.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id j9BIWhF1008693
-	for <linux-mm@kvack.org>; Tue, 11 Oct 2005 14:32:43 -0400
-Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
-	by d01relay02.pok.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id j9BIWhgA109754
-	for <linux-mm@kvack.org>; Tue, 11 Oct 2005 14:32:43 -0400
-Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
-	by d01av01.pok.ibm.com (8.12.11/8.13.3) with ESMTP id j9BIWhW3000889
-	for <linux-mm@kvack.org>; Tue, 11 Oct 2005 14:32:43 -0400
-Subject: [PATCH 2/3] hugetlb: Demand fault handler
+	by e4.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id j9BIXmDo011704
+	for <linux-mm@kvack.org>; Tue, 11 Oct 2005 14:33:48 -0400
+Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
+	by d01relay02.pok.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id j9BIXmgA108840
+	for <linux-mm@kvack.org>; Tue, 11 Oct 2005 14:33:48 -0400
+Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
+	by d01av04.pok.ibm.com (8.12.11/8.13.3) with ESMTP id j9BIXmxA010597
+	for <linux-mm@kvack.org>; Tue, 11 Oct 2005 14:33:48 -0400
+Subject: [PATCH 3/3] hugetlb: Simple overcommit check
 From: Adam Litke <agl@us.ibm.com>
 In-Reply-To: <1129055057.22182.8.camel@localhost.localdomain>
 References: <1129055057.22182.8.camel@localhost.localdomain>
 Content-Type: text/plain
-Date: Tue, 11 Oct 2005 13:32:38 -0500
-Message-Id: <1129055559.22182.12.camel@localhost.localdomain>
+Date: Tue, 11 Oct 2005 13:33:44 -0500
+Message-Id: <1129055624.22182.15.camel@localhost.localdomain>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@osdl.org
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, David Gibson <david@gibson.dropbear.id.au>, ak@suse.de, hugh@veritas.com
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, David Gibson <david@gibson.dropbear.id.au>, ak@suse.de, hugh@veritas.com, agl@us.ibm.com
 List-ID: <linux-mm.kvack.org>
 
-Version 5 (Tue, 11 Oct 2005)
-	Deal with hugetlbfs file truncation in find_get_huge_page()
-Version 4 (Mon, 03 Oct 2005)
-	Make find_get_huge_page bale properly when add_to_page_cache fails
-	  due to OOM conditions
-Version 3 (Thu, 08 Sep 2005)
-        Organized logic in hugetlb_pte_fault() by breaking out
-          find_get_page/alloc_huge_page logic into separate function
-        Removed a few more paranoid checks  ( Thanks       )
-        Fixed tlb flushing in a race case   ( Yanmin Zhang )
+Initial Post (Thu, 18 Aug 2005)
 
-Version 2 (Wed, 17 Aug 2005)
-        Removed spurious WARN_ON()
-    Patches added earlier in the series (now in mainline):
-        Check for p?d_none() in arch/i386/mm/hugetlbpage.c:huge_pte_offset()
-        Move i386 stale pte check into huge_pte_alloc()
+Basic overcommit checking for hugetlb_file_map() based on an implementation
+used with demand faulting in SLES9.
 
-Initial Post (Fri, 05 Aug 2005)
+Since we're not prefaulting the pages at mmap time, some extra accounting is
+needed.  This patch implements a basic sanity check to ensure that the number
+of huge pages required to satisfy the mmap are currently available.  Of course
+this method doesn't guarantee that the pages will be available at fault time,
+but I think it is a good start on doing proper accounting and solves 90% of the
+overcommit problems I see in practice.
 
-Below is a patch to implement demand faulting for huge pages.  The main
-motivation for changing from prefaulting to demand faulting is so that
-huge page memory areas can be allocated according to NUMA policy.
-
-Thanks to consolidated hugetlb code, switching the behavior requires changing
-only one fault handler.  The bulk of the patch just moves the logic from 
-hugelb_prefault() to hugetlb_pte_fault() and find_get_huge_page().
+Huge page shared memory segments are simpler and still maintain their commit on
+shmget semantics.
 
 Signed-off-by: Adam Litke <agl@us.ibm.com>
 ---
- fs/hugetlbfs/inode.c    |    6 --
- include/linux/hugetlb.h |    2 
- mm/hugetlb.c            |  139 ++++++++++++++++++++++++++++++++----------------
- mm/memory.c             |    2 
- 4 files changed, 98 insertions(+), 51 deletions(-)
+ inode.c |   65 ++++++++++++++++++++++++++++++++++++++++++++++++++++++----------
+ 1 files changed, 55 insertions(+), 10 deletions(-)
 diff -upN reference/fs/hugetlbfs/inode.c current/fs/hugetlbfs/inode.c
 --- reference/fs/hugetlbfs/inode.c
 +++ current/fs/hugetlbfs/inode.c
-@@ -48,7 +48,6 @@ int sysctl_hugetlb_shm_group;
+@@ -45,9 +45,59 @@ static struct backing_dev_info hugetlbfs
+ 
+ int sysctl_hugetlb_shm_group;
+ 
++static void huge_pagevec_release(struct pagevec *pvec)
++{
++	int i;
++
++	for (i = 0; i < pagevec_count(pvec); ++i)
++		put_page(pvec->pages[i]);
++
++	pagevec_reinit(pvec);
++}
++
++unsigned long
++huge_pages_needed(struct address_space *mapping, struct vm_area_struct *vma)
++{
++	int i;
++	struct pagevec pvec;
++	unsigned long start = vma->vm_start;
++	unsigned long end = vma->vm_end;
++	unsigned long hugepages = (end - start) >> HPAGE_SHIFT;
++	pgoff_t next = vma->vm_pgoff;
++	pgoff_t endpg = next + ((end - start) >> PAGE_SHIFT);
++	struct inode *inode = vma->vm_file->f_dentry->d_inode;
++
++	/*
++	 * Shared memory segments are accounted for at shget time,
++	 * not at shmat (when the mapping is actually created) so 
++	 * check here if the memory has already been accounted for.
++	 */
++	if (inode->i_blocks != 0)
++		return 0;
++
++	pagevec_init(&pvec, 0);
++	while (next < endpg) {
++		if (!pagevec_lookup(&pvec, mapping, next, PAGEVEC_SIZE))
++			break;
++		for (i = 0; i < pagevec_count(&pvec); i++) {
++			struct page *page = pvec.pages[i];
++			if (page->index > next)
++				next = page->index;
++			if (page->index >= endpg)
++				break;
++			next++;
++			hugepages--;
++		}
++		huge_pagevec_release(&pvec);
++	}
++	return hugepages << HPAGE_SHIFT;
++}
++
  static int hugetlbfs_file_mmap(struct file *file, struct vm_area_struct *vma)
  {
  	struct inode *inode = file->f_dentry->d_inode;
--	struct address_space *mapping = inode->i_mapping;
++	struct address_space *mapping = inode->i_mapping;
++	unsigned long bytes;
  	loff_t len, vma_len;
  	int ret;
  
-@@ -79,10 +78,7 @@ static int hugetlbfs_file_mmap(struct fi
- 	if (!(vma->vm_flags & VM_WRITE) && len > inode->i_size)
- 		goto out;
+@@ -66,6 +116,10 @@ static int hugetlbfs_file_mmap(struct fi
+ 	if (vma->vm_end - vma->vm_start < HPAGE_SIZE)
+ 		return -EINVAL;
  
--	ret = hugetlb_prefault(mapping, vma);
--	if (ret)
--		goto out;
++	bytes = huge_pages_needed(mapping, vma);
++	if (!is_hugepage_mem_enough(bytes))
++		return -ENOMEM;
++
+ 	vma_len = (loff_t)(vma->vm_end - vma->vm_start);
+ 
+ 	down(&inode->i_sem);
+@@ -167,16 +221,6 @@ static int hugetlbfs_commit_write(struct
+ 	return -EINVAL;
+ }
+ 
+-static void huge_pagevec_release(struct pagevec *pvec)
+-{
+-	int i;
 -
-+	ret = 0;
- 	if (inode->i_size < len)
- 		inode->i_size = len;
- out:
-diff -upN reference/include/linux/hugetlb.h current/include/linux/hugetlb.h
---- reference/include/linux/hugetlb.h
-+++ current/include/linux/hugetlb.h
-@@ -25,6 +25,8 @@ int is_hugepage_mem_enough(size_t);
- unsigned long hugetlb_total_pages(void);
- struct page *alloc_huge_page(void);
- void free_huge_page(struct page *);
-+int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct * vma,
-+			unsigned long address, int write_access);
- 
- extern unsigned long max_huge_pages;
- extern const unsigned long hugetlb_zero, hugetlb_infinity;
-diff -upN reference/mm/hugetlb.c current/mm/hugetlb.c
---- reference/mm/hugetlb.c
-+++ current/mm/hugetlb.c
-@@ -312,9 +312,8 @@ void unmap_hugepage_range(struct vm_area
- 	for (address = start; address < end; address += HPAGE_SIZE) {
- 		ptep = huge_pte_offset(mm, address);
- 		if (! ptep)
--			/* This can happen on truncate, or if an
--			 * mmap() is aborted due to an error before
--			 * the prefault */
-+			/* This can happen on truncate, or for pages
-+			 * not yet faulted in */
- 			continue;
- 
- 		pte = huge_ptep_get_and_clear(mm, address, ptep);
-@@ -338,57 +337,107 @@ void zap_hugepage_range(struct vm_area_s
- 	spin_unlock(&mm->page_table_lock);
- }
- 
--int hugetlb_prefault(struct address_space *mapping, struct vm_area_struct *vma)
-+static struct page *find_get_huge_page(struct address_space *mapping,
-+			unsigned long idx)
+-	for (i = 0; i < pagevec_count(pvec); ++i)
+-		put_page(pvec->pages[i]);
+-
+-	pagevec_reinit(pvec);
+-}
+-
+ static void truncate_huge_page(struct page *page)
  {
--	struct mm_struct *mm = current->mm;
--	unsigned long addr;
--	int ret = 0;
-+	struct page *page = NULL;
-+	int rc;
-+	struct inode *inode = mapping->host;
-+	unsigned long size;
-+
-+retry:
-+	page = find_get_page(mapping, idx);
-+	if (page)
-+		goto out;
-+
-+	/* Check to make sure the mapping hasn't been truncated */
-+	size = i_size_read(inode) >> HPAGE_SHIFT;
-+	if (idx >= size)
-+		goto out;
-+	
-+	if (hugetlb_get_quota(mapping))
-+		goto out;
-+	page = alloc_huge_page();
-+	if (!page) {
-+		hugetlb_put_quota(mapping);
-+		goto out;
-+	}
-+
-+	/* 
-+	 * It would be better to use GFP_KERNEL here but then we'd need to
-+	 * drop the page_table_lock and handle several race conditions.
-+	 */
-+	rc = add_to_page_cache(page, mapping, idx, GFP_ATOMIC);
-+	if (rc) {
-+		put_page(page);
-+		page = NULL;
-+		hugetlb_put_quota(mapping);
-+		if (rc == -ENOMEM)
-+			goto out;
-+		else
-+			goto retry;
-+	}
-+	unlock_page(page);
-+out:
-+	return page;
-+}
-+
-+static int hugetlb_pte_fault(struct mm_struct *mm, struct vm_area_struct *vma,
-+			unsigned long address, int write_access)
-+{
-+	int ret = VM_FAULT_MINOR;
-+	unsigned long idx;
-+	pte_t *pte;
-+	struct page *page;
-+	struct address_space *mapping;
- 
--	WARN_ON(!is_vm_hugetlb_page(vma));
- 	BUG_ON(vma->vm_start & ~HPAGE_MASK);
- 	BUG_ON(vma->vm_end & ~HPAGE_MASK);
-+	BUG_ON(!vma->vm_file);
- 
--	hugetlb_prefault_arch_hook(mm);
-+	pte = huge_pte_offset(mm, address);
-+	if (!pte) {
-+		ret = VM_FAULT_SIGBUS;
-+		goto out;
-+	}
-+	if (!pte_none(*pte))
-+		goto out;
- 
--	spin_lock(&mm->page_table_lock);
--	for (addr = vma->vm_start; addr < vma->vm_end; addr += HPAGE_SIZE) {
--		unsigned long idx;
--		pte_t *pte = huge_pte_alloc(mm, addr);
--		struct page *page;
-+	mapping = vma->vm_file->f_mapping;
-+	idx = ((address - vma->vm_start) >> HPAGE_SHIFT)
-+		+ (vma->vm_pgoff >> (HPAGE_SHIFT - PAGE_SHIFT));
-+
-+	page = find_get_huge_page(mapping, idx);
-+	if (!page) {
-+		ret = VM_FAULT_SIGBUS;
-+		goto out;
-+	}
- 
--		if (!pte) {
--			ret = -ENOMEM;
--			goto out;
--		}
-+	add_mm_counter(mm, file_rss, HPAGE_SIZE / PAGE_SIZE);
-+	set_huge_pte_at(mm, address, pte, make_huge_pte(vma, page));
-+out:
-+	return ret;
-+}
- 
--		idx = ((addr - vma->vm_start) >> HPAGE_SHIFT)
--			+ (vma->vm_pgoff >> (HPAGE_SHIFT - PAGE_SHIFT));
--		page = find_get_page(mapping, idx);
--		if (!page) {
--			/* charge the fs quota first */
--			if (hugetlb_get_quota(mapping)) {
--				ret = -ENOMEM;
--				goto out;
--			}
--			page = alloc_huge_page();
--			if (!page) {
--				hugetlb_put_quota(mapping);
--				ret = -ENOMEM;
--				goto out;
--			}
--			ret = add_to_page_cache(page, mapping, idx, GFP_ATOMIC);
--			if (! ret) {
--				unlock_page(page);
--			} else {
--				hugetlb_put_quota(mapping);
--				free_huge_page(page);
--				goto out;
--			}
--		}
--		add_mm_counter(mm, file_rss, HPAGE_SIZE / PAGE_SIZE);
--		set_huge_pte_at(mm, addr, pte, make_huge_pte(vma, page));
-+int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
-+			unsigned long address, int write_access)
-+{
-+	pte_t *ptep;
-+	int rc = VM_FAULT_MINOR;
-+
-+	spin_lock(&mm->page_table_lock);
-+
-+	ptep = huge_pte_alloc(mm, address);
-+	if (!ptep) {
-+		rc = VM_FAULT_SIGBUS;
-+		goto out;
- 	}
-+	if (pte_none(*ptep))
-+		rc = hugetlb_pte_fault(mm, vma, address, write_access);
-+	
-+	if (rc == VM_FAULT_MINOR)
-+		flush_tlb_page(vma, address);
- out:
- 	spin_unlock(&mm->page_table_lock);
--	return ret;
-+	return rc;
- }
-diff -upN reference/mm/memory.c current/mm/memory.c
---- reference/mm/memory.c
-+++ current/mm/memory.c
-@@ -2040,7 +2040,7 @@ int __handle_mm_fault(struct mm_struct *
- 	inc_page_state(pgfault);
- 
- 	if (is_vm_hugetlb_page(vma))
--		return VM_FAULT_SIGBUS;	/* mapping truncation does this. */
-+		return hugetlb_fault(mm, vma, address, write_access);
- 
- 	/*
- 	 * We need the page table lock to synchronize with kswapd
+ 	clear_page_dirty(page);
+@@ -792,6 +836,7 @@ struct file *hugetlb_zero_setup(size_t s
+ 	d_instantiate(dentry, inode);
+ 	inode->i_size = size;
+ 	inode->i_nlink = 0;
++	inode->i_blocks = 1;
+ 	file->f_vfsmnt = mntget(hugetlbfs_vfsmount);
+ 	file->f_dentry = dentry;
+ 	file->f_mapping = inode->i_mapping;
 
 -- 
 Adam Litke - (agl at us.ibm.com)
