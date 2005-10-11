@@ -1,265 +1,257 @@
 From: Mel Gorman <mel@csn.ul.ie>
-Message-Id: <20051011151221.16178.67130.sendpatchset@skynet.csn.ul.ie>
-Subject: [PATCH 0/8] Fragmentation Avoidance V17
-Date: Tue, 11 Oct 2005 16:12:21 +0100 (IST)
+Message-Id: <20051011151226.16178.95510.sendpatchset@skynet.csn.ul.ie>
+In-Reply-To: <20051011151221.16178.67130.sendpatchset@skynet.csn.ul.ie>
+References: <20051011151221.16178.67130.sendpatchset@skynet.csn.ul.ie>
+Subject: [PATCH 1/8] Fragmentation Avoidance V17: 001_antidefrag_flags
+Date: Tue, 11 Oct 2005 16:12:26 +0100 (IST)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@osdl.org
 Cc: jschopp@austin.ibm.com, Mel Gorman <mel@csn.ul.ie>, kravetz@us.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, lhms-devel@lists.sourceforge.net
 List-ID: <linux-mm.kvack.org>
 
-Changlog since v16
-o Variables using bit operations now are unsigned long. Note that when used
-  as indices, they are integers and cast to unsigned long when necessary.
-  This is because aim9 shows regressions when used as unsigned longs 
-  throughout (~10% slowdown)
-o 004_showfree added to provide more debugging information
-o 008_stats dropped. Even with CONFIG_ALLOCSTATS disabled, it is causing 
-  severe performance regressions. No explanation as to why
-o for_each_rclmtype_order moved to header
-o More coding style cleanups
+This patch adds two flags __GFP_USER and __GFP_KERNRCLM that are used to trap
+the type of allocation the caller is made. Allocations using the __GFP_USER
+flag are expected to be easily reclaimed by syncing with backing storage (be
+it a file or swap) or cleaning the buffers and discarding. Allocations using
+the __GFP_KERNRCLM flag belong to slab caches that can be shrunk by the kernel.
 
-Changelog since V14 (V15 not released)
-o Update against 2.6.14-rc3
-o Resync with Joel's work. All suggestions made on fix-ups to his last
-  set of patches should also be in here. e.g. __GFP_USER is still __GFP_USER
-  but is better commented.
-o Large amount of CodingStyle, readability cleanups and corrections pointed
-  out by Dave Hansen.
-o Fix CONFIG_NUMA error that corrupted per-cpu lists
-o Patches broken out to have one-feature-per-patch rather than
-  more-code-per-patch
-o Fix fallback bug where pages for RCLM_NORCLM end up on random other
-  free lists.
-
-Changelog since V13
-o Patches are now broken out
-o Added per-cpu draining of userrclm pages
-o Brought the patch more in line with memory hotplug work
-o Fine-grained use of the __GFP_USER and __GFP_KERNRCLM flags
-o Many coding-style corrections
-o Many whitespace-damage corrections
-
-Changelog since V12
-o Minor whitespace damage fixed as pointed by Joel Schopp
-
-Changelog since V11
-o Mainly a redefiff against 2.6.12-rc5
-o Use #defines for indexing into pcpu lists
-o Fix rounding error in the size of usemap
-
-Changelog since V10
-o All allocation types now use per-cpu caches like the standard allocator
-o Removed all the additional buddy allocator statistic code
-o Elimated three zone fields that can be lived without
-o Simplified some loops
-o Removed many unnecessary calculations
-
-Changelog since V9
-o Tightened what pools are used for fallbacks, less likely to fragment
-o Many micro-optimisations to have the same performance as the standard 
-  allocator. Modified allocator now faster than standard allocator using
-  gcc 3.3.5
-o Add counter for splits/coalescing
-
-Changelog since V8
-o rmqueue_bulk() allocates pages in large blocks and breaks it up into the
-  requested size. Reduces the number of calls to __rmqueue()
-o Beancounters are now a configurable option under "Kernel Hacking"
-o Broke out some code into inline functions to be more Hotplug-friendly
-o Increased the size of reserve for fallbacks from 10% to 12.5%. 
-
-Changelog since V7
-o Updated to 2.6.11-rc4
-o Lots of cleanups, mainly related to beancounters
-o Fixed up a miscalculation in the bitmap size as pointed out by Mike Kravetz
-  (thanks Mike)
-o Introduced a 10% reserve for fallbacks. Drastically reduces the number of
-  kernnorclm allocations that go to the wrong places
-o Don't trigger OOM when large allocations are involved
-
-Changelog since V6
-o Updated to 2.6.11-rc2
-o Minor change to allow prezeroing to be a cleaner looking patch
-
-Changelog since V5
-o Fixed up gcc-2.95 errors
-o Fixed up whitespace damage
-
-Changelog since V4
-o No changes. Applies cleanly against 2.6.11-rc1 and 2.6.11-rc1-bk6. Applies
-  with offsets to 2.6.11-rc1-mm1
-
-Changelog since V3
-o inlined get_pageblock_type() and set_pageblock_type()
-o set_pageblock_type() now takes a zone parameter to avoid a call to page_zone()
-o When taking from the global pool, do not scan all the low-order lists
-
-Changelog since V2
-o Do not to interfere with the "min" decay
-o Update the __GFP_BITS_SHIFT properly. Old value broke fsync and probably
-  anything to do with asynchronous IO
-  
-Changelog since V1
-o Update patch to 2.6.11-rc1
-o Cleaned up bug where memory was wasted on a large bitmap
-o Remove code that needed the binary buddy bitmaps
-o Update flags to avoid colliding with __GFP_ZERO changes
-o Extended fallback_count bean counters to show the fallback count for each
-  allocation type
-o In-code documentation
-
-Version 1
-o Initial release against 2.6.9
-
-This patch is designed to reduce fragmentation in the standard buddy allocator
-without impairing the performance of the allocator. High fragmentation in
-the standard binary buddy allocator means that high-order allocations can
-rarely be serviced. This patch works by dividing allocations into three
-different types of allocations;
-
-UserReclaimable - These are userspace pages that are easily reclaimable. This
-	flag is set when it is known that the pages will be trivially reclaimed
-	by writing the page out to swap or syncing with backing storage
-
-KernelReclaimable - These are pages allocated by the kernel that are easily
-	reclaimed. This is stuff like inode caches, dcache, buffer_heads etc.
-	These type of pages potentially could be reclaimed by dumping the
-	caches and reaping the slabs
-
-KernelNonReclaimable - These are pages that are allocated by the kernel that
-	are not trivially reclaimed. For example, the memory allocated for a
-	loaded module would be in this category. By default, allocations are
-	considered to be of this type
-
-Instead of having one global MAX_ORDER-sized array of free lists,
-there are four, one for each type of allocation and another reserve for
-fallbacks. 
-
-Once a 2^MAX_ORDER block of pages it split for a type of allocation, it is
-added to the free-lists for that type, in effect reserving it. Hence, over
-time, pages of the different types can be clustered together. This means that
-if 2^MAX_ORDER number of pages were required, the system could linearly scan
-a block of pages allocated for UserReclaimable and page each of them out.
-
-Fallback is used when there are no 2^MAX_ORDER pages available and there
-are no free pages of the desired type. The fallback lists were chosen in a
-way that keeps the most easily reclaimable pages together.
-
-Three benchmark results are included all based on a 2.6.14-rc3 kernel
-compiled with gcc 3.4 (it is known that gcc 2.95 produces different results).
-The first is the output of portions of AIM9 for the vanilla allocator and
-the modified one;
-
-(Tests run with bench-aim9.sh from VMRegress 0.14)
-2.6.14-rc3
-------------------------------------------------------------------------------------------------------------
- Test        Test        Elapsed  Iteration    Iteration          Operation
-Number       Name      Time (sec)   Count   Rate (loops/sec)    Rate (ops/sec)
-------------------------------------------------------------------------------------------------------------
-     1 creat-clo           60.04        963   16.03931        16039.31 File Creations and Closes/second
-     2 page_test           60.01       4194   69.88835       118810.20 System Allocations & Pages/second
-     3 brk_test            60.03       1573   26.20356       445460.60 System Memory Allocations/second
-     4 jmp_test            60.01     251144 4185.03583      4185035.83 Non-local gotos/second
-     5 signal_test         60.02       5118   85.27158        85271.58 Signal Traps/second
-     6 exec_test           60.03        758   12.62702           63.14 Program Loads/second
-     7 fork_test           60.03        820   13.65984         1365.98 Task Creations/second
-     8 link_test           60.02       5326   88.73709         5590.44 Link/Unlink Pairs/second
-
-2.6.14-rc3-mbuddy-v17
-------------------------------------------------------------------------------------------------------------
- Test        Test        Elapsed  Iteration    Iteration          Operation   
-Number       Name      Time (sec)   Count   Rate (loops/sec)    Rate (ops/sec)                              
-------------------------------------------------------------------------------------------------------------
-     1 creat-clo           60.04        964   16.05596        16055.96 File Creations and Closes/second 
-     2 page_test           60.02       4157   69.26025       117742.42 System Allocations & Pages/second
-     3 brk_test            60.01       1579   26.31228       447308.78 System Memory Allocations/second
-     4 jmp_test            60.01     251483 4190.68489      4190684.89 Non-local gotos/second
-     5 signal_test         60.02       5182   86.33789        86337.89 Signal Traps/second 
-     6 exec_test           60.03        757   12.61036           63.05 Program Loads/second 
-     7 fork_test           60.02        806   13.42886         1342.89 Task Creations/second   
-     8 link_test           60.02       5328   88.77041         5592.54 Link/Unlink Pairs/second
-
-
-Difference in performance operations report generated by diff-aim9.sh
-                   Clean   mbuddy-v17
-                ---------- ----------
- 1 creat-clo      16039.31   16055.96      16.65  0.10% File Creations and Closes/second
- 2 page_test     118810.20  117742.42   -1067.78 -0.90% System Allocations & Pages/second
- 3 brk_test      445460.60  447308.78    1848.18  0.41% System Memory Allocations/second
- 4 jmp_test     4185035.83 4190684.89    5649.06  0.13% Non-local gotos/second
- 5 signal_test    85271.58   86337.89    1066.31  1.25% Signal Traps/second
- 6 exec_test         63.14      63.05      -0.09 -0.14% Program Loads/second
- 7 fork_test       1365.98    1342.89     -23.09 -1.69% Task Creations/second
- 8 link_test       5590.44    5592.54       2.10  0.04% Link/Unlink Pairs/second
-
-
-In this test, there were regressions in the page_test. However, it is known
-that different kernel configurations, compilers and even different runs show
-similar varianes of +/- 3% . I do not consider it significant.
-
-The second benchmark tested the CPU cache usage to make sure it was not
-getting clobbered. The test was to repeatedly render a large postscript file
-10 times and get the average. The result is;
-
-2.6.13-clean:      Average: 42.725 real, 42.626 user, 0.041 sys
-2.6.13-mbuddy-v17: Average: 42.793 real, 42.695 user, 0.034 sys
-
-So there are no adverse cache effects. The last test is to show that the
-allocator can satisfy more high-order allocations, especially under load,
-than the standard allocator. The test performs the following;
-
-1. Start updatedb running in the background
-2. Load kernel modules that tries to allocate high-order blocks on demand
-3. Clean a kernel tree
-4. Make 4 copies of the tree. As each copy finishes, a compile starts at -j4
-5. Start compiling the primary tree
-6. Sleep 3 minutes while the 5 trees are being compiled
-7. Use the kernel module to attempt 160 times to allocate a 2^10 block of pages
-    - note, it only attempts 160 times, no matter how often it succeeds
-    - An allocation is attempted every 1/10th of a second
-    - Performance will get badly shot as it forces consider amounts of pageout
-
-The result of the allocations under load (load averaging 18) were;
-
-2.6.14-rc3 Clean
-Order:                 10
-Allocation type:       HighMem
-Attempted allocations: 160
-Success allocs:        46
-Failed allocs:         114
-DMA zone allocs:       1
-Normal zone allocs:    32
-HighMem zone allocs:   13
-% Success:            28
-
-2.6.14-rc3 MBuddy V17
-Order:                 10
-Allocation type:       HighMem
-Attempted allocations: 160
-Success allocs:        88
-Failed allocs:         72
-DMA zone allocs:       1
-Normal zone allocs:    76
-HighMem zone allocs:   11
-% Success:            55
-
-One thing that had to be changed in the 2.6.14-rc3-clean test was to disable
-the OOM killer. During one test, the OOM killer had better results but invoked
-the OOM killer 457 times to achieve it. The patch with the placement policy
-never invoked the OOM killer.
-
-When the system is at rest after the test and the kernel trees deleted, the
-standard allocator was able to allocate 54 order-10 pages and the modified
-allocator allocated 153.
-
-The results show that the modified allocator has comparable speed, has no
-adverse cache effects but is far less fragmented and in a better position
-to satisfy high-order allocations.
--- 
-Mel Gorman
-Part-time Phd Student                          Java Applications Developer
-University of Limerick                         IBM Dublin Software Lab
+Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+Signed-off-by: Mike Kravetz <kravetz@us.ibm.com>
+Signed-off-by: Joel Schopp <jschopp@austin.ibm.com>
+diff -rup -X /usr/src/patchset-0.5/bin//dontdiff linux-2.6.14-rc3-clean/fs/buffer.c linux-2.6.14-rc3-001_antidefrag_flags/fs/buffer.c
+--- linux-2.6.14-rc3-clean/fs/buffer.c	2005-10-04 22:58:33.000000000 +0100
++++ linux-2.6.14-rc3-001_antidefrag_flags/fs/buffer.c	2005-10-11 12:06:46.000000000 +0100
+@@ -1119,7 +1119,12 @@ grow_dev_page(struct block_device *bdev,
+ 	struct page *page;
+ 	struct buffer_head *bh;
+ 
+-	page = find_or_create_page(inode->i_mapping, index, GFP_NOFS);
++	/*
++	 * Mark as __GFP_USER because from a fragmentation avoidance and
++	 * reclamation point of view this memory behaves like user memory.
++	 */
++	page = find_or_create_page(inode->i_mapping, index,
++				   GFP_NOFS | __GFP_USER);
+ 	if (!page)
+ 		return NULL;
+ 
+@@ -3047,7 +3052,8 @@ static void recalc_bh_state(void)
+ 	
+ struct buffer_head *alloc_buffer_head(unsigned int __nocast gfp_flags)
+ {
+-	struct buffer_head *ret = kmem_cache_alloc(bh_cachep, gfp_flags);
++	struct buffer_head *ret = kmem_cache_alloc(bh_cachep,
++						   gfp_flags|__GFP_KERNRCLM);
+ 	if (ret) {
+ 		get_cpu_var(bh_accounting).nr++;
+ 		recalc_bh_state();
+diff -rup -X /usr/src/patchset-0.5/bin//dontdiff linux-2.6.14-rc3-clean/fs/compat.c linux-2.6.14-rc3-001_antidefrag_flags/fs/compat.c
+--- linux-2.6.14-rc3-clean/fs/compat.c	2005-10-04 22:58:33.000000000 +0100
++++ linux-2.6.14-rc3-001_antidefrag_flags/fs/compat.c	2005-10-11 12:06:46.000000000 +0100
+@@ -1352,7 +1352,7 @@ static int compat_copy_strings(int argc,
+ 			page = bprm->page[i];
+ 			new = 0;
+ 			if (!page) {
+-				page = alloc_page(GFP_HIGHUSER);
++				page = alloc_page(GFP_HIGHUSER|__GFP_USER);
+ 				bprm->page[i] = page;
+ 				if (!page) {
+ 					ret = -ENOMEM;
+diff -rup -X /usr/src/patchset-0.5/bin//dontdiff linux-2.6.14-rc3-clean/fs/dcache.c linux-2.6.14-rc3-001_antidefrag_flags/fs/dcache.c
+--- linux-2.6.14-rc3-clean/fs/dcache.c	2005-10-04 22:58:33.000000000 +0100
++++ linux-2.6.14-rc3-001_antidefrag_flags/fs/dcache.c	2005-10-11 12:06:46.000000000 +0100
+@@ -714,7 +714,7 @@ struct dentry *d_alloc(struct dentry * p
+ 	struct dentry *dentry;
+ 	char *dname;
+ 
+-	dentry = kmem_cache_alloc(dentry_cache, GFP_KERNEL); 
++	dentry = kmem_cache_alloc(dentry_cache, GFP_KERNEL|__GFP_KERNRCLM);
+ 	if (!dentry)
+ 		return NULL;
+ 
+diff -rup -X /usr/src/patchset-0.5/bin//dontdiff linux-2.6.14-rc3-clean/fs/exec.c linux-2.6.14-rc3-001_antidefrag_flags/fs/exec.c
+--- linux-2.6.14-rc3-clean/fs/exec.c	2005-10-04 22:58:33.000000000 +0100
++++ linux-2.6.14-rc3-001_antidefrag_flags/fs/exec.c	2005-10-11 12:06:46.000000000 +0100
+@@ -237,7 +237,7 @@ static int copy_strings(int argc, char _
+ 			page = bprm->page[i];
+ 			new = 0;
+ 			if (!page) {
+-				page = alloc_page(GFP_HIGHUSER);
++				page = alloc_page(GFP_HIGHUSER|__GFP_USER);
+ 				bprm->page[i] = page;
+ 				if (!page) {
+ 					ret = -ENOMEM;
+diff -rup -X /usr/src/patchset-0.5/bin//dontdiff linux-2.6.14-rc3-clean/fs/ext2/super.c linux-2.6.14-rc3-001_antidefrag_flags/fs/ext2/super.c
+--- linux-2.6.14-rc3-clean/fs/ext2/super.c	2005-10-04 22:58:33.000000000 +0100
++++ linux-2.6.14-rc3-001_antidefrag_flags/fs/ext2/super.c	2005-10-11 12:06:46.000000000 +0100
+@@ -141,7 +141,8 @@ static kmem_cache_t * ext2_inode_cachep;
+ static struct inode *ext2_alloc_inode(struct super_block *sb)
+ {
+ 	struct ext2_inode_info *ei;
+-	ei = (struct ext2_inode_info *)kmem_cache_alloc(ext2_inode_cachep, SLAB_KERNEL);
++	ei = (struct ext2_inode_info *)kmem_cache_alloc(ext2_inode_cachep,
++						SLAB_KERNEL|__GFP_KERNRCLM);
+ 	if (!ei)
+ 		return NULL;
+ #ifdef CONFIG_EXT2_FS_POSIX_ACL
+diff -rup -X /usr/src/patchset-0.5/bin//dontdiff linux-2.6.14-rc3-clean/fs/ext3/super.c linux-2.6.14-rc3-001_antidefrag_flags/fs/ext3/super.c
+--- linux-2.6.14-rc3-clean/fs/ext3/super.c	2005-10-04 22:58:33.000000000 +0100
++++ linux-2.6.14-rc3-001_antidefrag_flags/fs/ext3/super.c	2005-10-11 12:06:46.000000000 +0100
+@@ -441,7 +441,7 @@ static struct inode *ext3_alloc_inode(st
+ {
+ 	struct ext3_inode_info *ei;
+ 
+-	ei = kmem_cache_alloc(ext3_inode_cachep, SLAB_NOFS);
++	ei = kmem_cache_alloc(ext3_inode_cachep, SLAB_NOFS|__GFP_KERNRCLM);
+ 	if (!ei)
+ 		return NULL;
+ #ifdef CONFIG_EXT3_FS_POSIX_ACL
+diff -rup -X /usr/src/patchset-0.5/bin//dontdiff linux-2.6.14-rc3-clean/fs/inode.c linux-2.6.14-rc3-001_antidefrag_flags/fs/inode.c
+--- linux-2.6.14-rc3-clean/fs/inode.c	2005-10-04 22:58:33.000000000 +0100
++++ linux-2.6.14-rc3-001_antidefrag_flags/fs/inode.c	2005-10-11 12:06:46.000000000 +0100
+@@ -146,7 +146,7 @@ static struct inode *alloc_inode(struct 
+ 		mapping->a_ops = &empty_aops;
+  		mapping->host = inode;
+ 		mapping->flags = 0;
+-		mapping_set_gfp_mask(mapping, GFP_HIGHUSER);
++		mapping_set_gfp_mask(mapping, GFP_HIGHUSER|__GFP_USER);
+ 		mapping->assoc_mapping = NULL;
+ 		mapping->backing_dev_info = &default_backing_dev_info;
+ 
+diff -rup -X /usr/src/patchset-0.5/bin//dontdiff linux-2.6.14-rc3-clean/fs/ntfs/inode.c linux-2.6.14-rc3-001_antidefrag_flags/fs/ntfs/inode.c
+--- linux-2.6.14-rc3-clean/fs/ntfs/inode.c	2005-10-04 22:58:33.000000000 +0100
++++ linux-2.6.14-rc3-001_antidefrag_flags/fs/ntfs/inode.c	2005-10-11 12:06:46.000000000 +0100
+@@ -317,7 +317,7 @@ struct inode *ntfs_alloc_big_inode(struc
+ 	ntfs_inode *ni;
+ 
+ 	ntfs_debug("Entering.");
+-	ni = kmem_cache_alloc(ntfs_big_inode_cache, SLAB_NOFS);
++	ni = kmem_cache_alloc(ntfs_big_inode_cache, SLAB_NOFS|__GFP_KERNRCLM);
+ 	if (likely(ni != NULL)) {
+ 		ni->state = 0;
+ 		return VFS_I(ni);
+@@ -342,7 +342,7 @@ static inline ntfs_inode *ntfs_alloc_ext
+ 	ntfs_inode *ni;
+ 
+ 	ntfs_debug("Entering.");
+-	ni = kmem_cache_alloc(ntfs_inode_cache, SLAB_NOFS);
++	ni = kmem_cache_alloc(ntfs_inode_cache, SLAB_NOFS|__GFP_KERNRCLM);
+ 	if (likely(ni != NULL)) {
+ 		ni->state = 0;
+ 		return ni;
+diff -rup -X /usr/src/patchset-0.5/bin//dontdiff linux-2.6.14-rc3-clean/include/asm-i386/page.h linux-2.6.14-rc3-001_antidefrag_flags/include/asm-i386/page.h
+--- linux-2.6.14-rc3-clean/include/asm-i386/page.h	2005-10-04 22:58:34.000000000 +0100
++++ linux-2.6.14-rc3-001_antidefrag_flags/include/asm-i386/page.h	2005-10-11 12:06:46.000000000 +0100
+@@ -36,7 +36,7 @@
+ #define clear_user_page(page, vaddr, pg)	clear_page(page)
+ #define copy_user_page(to, from, vaddr, pg)	copy_page(to, from)
+ 
+-#define alloc_zeroed_user_highpage(vma, vaddr) alloc_page_vma(GFP_HIGHUSER | __GFP_ZERO, vma, vaddr)
++#define alloc_zeroed_user_highpage(vma, vaddr) alloc_page_vma(GFP_HIGHUSER | __GFP_ZERO | __GFP_USER, vma, vaddr)
+ #define __HAVE_ARCH_ALLOC_ZEROED_USER_HIGHPAGE
+ 
+ /*
+diff -rup -X /usr/src/patchset-0.5/bin//dontdiff linux-2.6.14-rc3-clean/include/linux/gfp.h linux-2.6.14-rc3-001_antidefrag_flags/include/linux/gfp.h
+--- linux-2.6.14-rc3-clean/include/linux/gfp.h	2005-10-04 22:58:34.000000000 +0100
++++ linux-2.6.14-rc3-001_antidefrag_flags/include/linux/gfp.h	2005-10-11 12:06:46.000000000 +0100
+@@ -42,14 +42,26 @@ struct vm_area_struct;
+ #define __GFP_NORECLAIM  0x20000u /* No realy zone reclaim during allocation */
+ #define __GFP_HARDWALL   0x40000u /* Enforce hardwall cpuset memory allocs */
+ 
+-#define __GFP_BITS_SHIFT 20	/* Room for 20 __GFP_FOO bits */
++/*
++ * Allocation type modifiers, these are required to be adjacent
++ * __GPF_USER: Allocation for user page or a buffer page
++ * __GFP_KERNRCLM: Short-lived or reclaimable kernel allocation
++ * Both bits off: Kernel non-reclaimable or very hard to reclaim
++ * RCLM_SHIFT (defined elsewhere) depends on the location of these bits
++ */
++#define __GFP_USER       0x80000u  /* User and other easily reclaimed pages */
++#define __GFP_KERNRCLM   0x100000u /* Kernel page that is reclaimable */
++#define __GFP_RCLM_BITS  (__GFP_USER|__GFP_KERNRCLM)
++
++#define __GFP_BITS_SHIFT 21	/* Room for 21 __GFP_FOO bits */
+ #define __GFP_BITS_MASK ((1 << __GFP_BITS_SHIFT) - 1)
+ 
+ /* if you forget to add the bitmask here kernel will crash, period */
+ #define GFP_LEVEL_MASK (__GFP_WAIT|__GFP_HIGH|__GFP_IO|__GFP_FS| \
+ 			__GFP_COLD|__GFP_NOWARN|__GFP_REPEAT| \
+ 			__GFP_NOFAIL|__GFP_NORETRY|__GFP_NO_GROW|__GFP_COMP| \
+-			__GFP_NOMEMALLOC|__GFP_NORECLAIM|__GFP_HARDWALL)
++			__GFP_NOMEMALLOC|__GFP_NORECLAIM|__GFP_HARDWALL | \
++			__GFP_USER | __GFP_KERNRCLM)
+ 
+ #define GFP_ATOMIC	(__GFP_HIGH)
+ #define GFP_NOIO	(__GFP_WAIT)
+diff -rup -X /usr/src/patchset-0.5/bin//dontdiff linux-2.6.14-rc3-clean/include/linux/highmem.h linux-2.6.14-rc3-001_antidefrag_flags/include/linux/highmem.h
+--- linux-2.6.14-rc3-clean/include/linux/highmem.h	2005-08-29 00:41:01.000000000 +0100
++++ linux-2.6.14-rc3-001_antidefrag_flags/include/linux/highmem.h	2005-10-11 12:06:46.000000000 +0100
+@@ -47,7 +47,7 @@ static inline void clear_user_highpage(s
+ static inline struct page *
+ alloc_zeroed_user_highpage(struct vm_area_struct *vma, unsigned long vaddr)
+ {
+-	struct page *page = alloc_page_vma(GFP_HIGHUSER, vma, vaddr);
++	struct page *page = alloc_page_vma(GFP_HIGHUSER|__GFP_USER, vma, vaddr);
+ 
+ 	if (page)
+ 		clear_user_highpage(page, vaddr);
+diff -rup -X /usr/src/patchset-0.5/bin//dontdiff linux-2.6.14-rc3-clean/mm/memory.c linux-2.6.14-rc3-001_antidefrag_flags/mm/memory.c
+--- linux-2.6.14-rc3-clean/mm/memory.c	2005-10-04 22:58:34.000000000 +0100
++++ linux-2.6.14-rc3-001_antidefrag_flags/mm/memory.c	2005-10-11 12:06:46.000000000 +0100
+@@ -1296,7 +1296,8 @@ static int do_wp_page(struct mm_struct *
+ 		if (!new_page)
+ 			goto no_new_page;
+ 	} else {
+-		new_page = alloc_page_vma(GFP_HIGHUSER, vma, address);
++		new_page = alloc_page_vma(GFP_HIGHUSER|__GFP_USER,
++							vma, address);
+ 		if (!new_page)
+ 			goto no_new_page;
+ 		copy_user_highpage(new_page, old_page, address);
+@@ -1871,7 +1872,7 @@ retry:
+ 
+ 		if (unlikely(anon_vma_prepare(vma)))
+ 			goto oom;
+-		page = alloc_page_vma(GFP_HIGHUSER, vma, address);
++		page = alloc_page_vma(GFP_HIGHUSER | __GFP_USER, vma, address);
+ 		if (!page)
+ 			goto oom;
+ 		copy_user_highpage(page, new_page, address);
+diff -rup -X /usr/src/patchset-0.5/bin//dontdiff linux-2.6.14-rc3-clean/mm/shmem.c linux-2.6.14-rc3-001_antidefrag_flags/mm/shmem.c
+--- linux-2.6.14-rc3-clean/mm/shmem.c	2005-10-04 22:58:34.000000000 +0100
++++ linux-2.6.14-rc3-001_antidefrag_flags/mm/shmem.c	2005-10-11 12:06:46.000000000 +0100
+@@ -908,7 +908,7 @@ shmem_alloc_page(unsigned long gfp, stru
+ 	pvma.vm_policy = mpol_shared_policy_lookup(&info->policy, idx);
+ 	pvma.vm_pgoff = idx;
+ 	pvma.vm_end = PAGE_SIZE;
+-	page = alloc_page_vma(gfp | __GFP_ZERO, &pvma, 0);
++	page = alloc_page_vma(gfp | __GFP_ZERO | __GFP_USER, &pvma, 0);
+ 	mpol_free(pvma.vm_policy);
+ 	return page;
+ }
+@@ -924,7 +924,7 @@ static inline struct page *
+ shmem_alloc_page(unsigned int __nocast gfp,struct shmem_inode_info *info,
+ 				 unsigned long idx)
+ {
+-	return alloc_page(gfp | __GFP_ZERO);
++	return alloc_page(gfp | __GFP_ZERO | __GFP_USER);
+ }
+ #endif
+ 
+diff -rup -X /usr/src/patchset-0.5/bin//dontdiff linux-2.6.14-rc3-clean/mm/swap_state.c linux-2.6.14-rc3-001_antidefrag_flags/mm/swap_state.c
+--- linux-2.6.14-rc3-clean/mm/swap_state.c	2005-10-04 22:58:34.000000000 +0100
++++ linux-2.6.14-rc3-001_antidefrag_flags/mm/swap_state.c	2005-10-11 12:06:46.000000000 +0100
+@@ -335,7 +335,8 @@ struct page *read_swap_cache_async(swp_e
+ 		 * Get a new page to read into from swap.
+ 		 */
+ 		if (!new_page) {
+-			new_page = alloc_page_vma(GFP_HIGHUSER, vma, addr);
++			new_page = alloc_page_vma(GFP_HIGHUSER | __GFP_USER,
++							vma, addr);
+ 			if (!new_page)
+ 				break;		/* Out of memory */
+ 		}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
