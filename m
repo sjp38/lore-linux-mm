@@ -1,37 +1,72 @@
-Date: Mon, 10 Oct 2005 21:04:00 -0400 (EDT)
-From: Rik van Riel <riel@redhat.com>
-Subject: Re: Benchmarks to exploit LRU deficiencies
-In-Reply-To: <200510110213.29937.ak@suse.de>
-Message-ID: <Pine.LNX.4.63.0510102102260.20944@cuia.boston.redhat.com>
-References: <20051010184636.GA15415@logos.cnet> <200510110213.29937.ak@suse.de>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Mon, 10 Oct 2005 20:10:24 -0700
+From: Andrew Morton <akpm@osdl.org>
+Subject: Re: FW: [PATCH 0/3] Demand faulting for huge pages
+Message-Id: <20051010201024.081aeff1.akpm@osdl.org>
+In-Reply-To: <1128961046.8453.11.camel@localhost.localdomain>
+References: <200510080758.j987w0g06343@unix-os.sc.intel.com>
+	<Pine.LNX.4.61.0510091306440.7878@goblin.wat.veritas.com>
+	<1128961046.8453.11.camel@localhost.localdomain>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <ak@suse.de>
-Cc: Marcelo Tosatti <marcelo.tosatti@cyclades.com>, linux-mm@kvack.org, sjiang@lanl.gov, rni@andrew.cmu.edu, a.p.zijlstra@chello.nl
+To: Adam Litke <agl@us.ibm.com>
+Cc: hugh@veritas.com, kenneth.w.chen@intel.com, rohit.seth@intel.com, wli@holomorphy.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 11 Oct 2005, Andi Kleen wrote:
+Adam Litke <agl@us.ibm.com> wrote:
+>
+>  Honestly, I think there is an even more fundamental issue at hand.  If
+>  the goal is transparent and flexible use of huge pages it seems to me
+>  that there is two ways to go:
+> 
+>  1) Continue with hugetlbfs and work to finish implementing all of the
+>  operations (that make sense) properly (like read, write, truncate, etc).
 
-> I think if you want to really see advantages you should not implement
-> the advanced algorithms for the page cache,
+hugetlbfs provides the API by which applications may obtain
+hugetlb-page-backed memory.  In fact the filesystem didn't even exist in the
+initial version of the patch - the first version used specific syscalls to
+obtain the hugepage memory.
 
-I suspect the page cache really wants it too, especially
-for database workloads.
+So.  Given that hugetlbfs is purely there as a means by which applications
+can access (and share) hugepage memory, it doesn't make sense to flesh that
+filesystem out any further.  IOW: no need for read() and write().
 
-> but for the inode/dentry cache. We seem to have far more problems in 
-> this area than with the standard page cache.
+>  2) Recognize that trying to use hugetlbfs files to transparently replace
+>  normal memory is ultimately a hack.  Normal memory is not implemented as
+>  a file system so using hugetlb pages here will always cause headaches as
+>  implemented.  So work towards removing filesystem-like behaviour and
+>  treating huge pages more like regular memory.
 
-However, I agree with you that the inode/dentry cache
-probably needs it more on file and web server workloads.
+Early Linus diktat was that we shouldn't attempt to make the core MM aware
+of multiple page sizes in the manner which you suggest.  Trying to sneak
+this in via "improved integration of hugepage support" would likely create
+a mess.
 
-The page cache getting invalidated whole inodes at a
-time, even when the inode is getting referenced frequently,
-could be a performance problem on some systems.
+The design approach for hugepage integration was that the MM would continue
+to be focussed on a fixed page size and that hugepages would be some
+non-intrusive thing off to the side - more like a mmappable device driver
+than some core part of the MM system.
 
--- 
-All Rights Reversed
+This is not all meant to say "don't do it".  But I am saying that you'll
+need to review several years worth of discussion on the topic and
+understand the downsides and objections, and be prepared for a big project.
+One which risks causing Hugh a ton of grief in ongoing core MM
+improvements.
+
+Aside: one problem with the kernel's hugepage support is that it doesn't
+have a single person who performs the overall maintenance function.  Bill
+Irwin was doing this for a while, but now seems to have gone quiet. 
+
+Consequently various people come in and attempt various
+this-is-a-change-i-need operations.  Problem is, with no single person
+keeping track of who the affected stakeholders are, and what the likely
+effects of each change upon the stakeholders will be, things proceed slowly
+and various people end up maintaining various out-of-tree things (I think).
+
+I attempt to plug the gaps, but the time interval between flurries of
+hugetlb activity are long and I forget who's doing what.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
