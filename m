@@ -1,26 +1,38 @@
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e4.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id j9BIXmDo011704
-	for <linux-mm@kvack.org>; Tue, 11 Oct 2005 14:33:48 -0400
-Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
-	by d01relay02.pok.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id j9BIXmgA108840
-	for <linux-mm@kvack.org>; Tue, 11 Oct 2005 14:33:48 -0400
-Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
-	by d01av04.pok.ibm.com (8.12.11/8.13.3) with ESMTP id j9BIXmxA010597
-	for <linux-mm@kvack.org>; Tue, 11 Oct 2005 14:33:48 -0400
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by e31.co.us.ibm.com (8.12.11/8.12.11) with ESMTP id j9BJFiv9019007
+	for <linux-mm@kvack.org>; Tue, 11 Oct 2005 15:15:44 -0400
+Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
+	by d03relay04.boulder.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id j9BJHbtu538220
+	for <linux-mm@kvack.org>; Tue, 11 Oct 2005 13:17:37 -0600
+Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av03.boulder.ibm.com (8.12.11/8.13.3) with ESMTP id j9BJGoGl019981
+	for <linux-mm@kvack.org>; Tue, 11 Oct 2005 13:16:50 -0600
 Subject: [PATCH 3/3] hugetlb: Simple overcommit check
 From: Adam Litke <agl@us.ibm.com>
-In-Reply-To: <1129055057.22182.8.camel@localhost.localdomain>
+In-Reply-To: <20051011113206.77e0fc84.akpm@osdl.org>
 References: <1129055057.22182.8.camel@localhost.localdomain>
+	 <20051011113206.77e0fc84.akpm@osdl.org>
 Content-Type: text/plain
-Date: Tue, 11 Oct 2005 13:33:44 -0500
-Message-Id: <1129055624.22182.15.camel@localhost.localdomain>
+Date: Tue, 11 Oct 2005 14:16:45 -0500
+Message-Id: <1129058206.22958.1.camel@localhost.localdomain>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: akpm@osdl.org
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, David Gibson <david@gibson.dropbear.id.au>, ak@suse.de, hugh@veritas.com, agl@us.ibm.com
+To: Andrew Morton <akpm@osdl.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, david@gibson.dropbear.id.au, ak@suse.de, hugh@veritas.com, agl@us.ibm.com
 List-ID: <linux-mm.kvack.org>
+
+On Tue, 2005-10-11 at 11:32 -0700, Andrew Morton wrote:
+> Adam Litke <agl@us.ibm.com> wrote:
+> >
+> > Andrew: Did Andi
+> >  Kleen's explanation of huge_pages_needed() satisfy?
+> 
+> Spose so.  I trust that it's adequately commented in this version..
+
+Just to be sure, added a comment block at the top of
+huge_pages_needed().
 
 Initial Post (Thu, 18 Aug 2005)
 
@@ -39,12 +51,12 @@ shmget semantics.
 
 Signed-off-by: Adam Litke <agl@us.ibm.com>
 ---
- inode.c |   65 ++++++++++++++++++++++++++++++++++++++++++++++++++++++----------
- 1 files changed, 55 insertions(+), 10 deletions(-)
+ inode.c |   73 +++++++++++++++++++++++++++++++++++++++++++++++++++++++---------
+ 1 files changed, 63 insertions(+), 10 deletions(-)
 diff -upN reference/fs/hugetlbfs/inode.c current/fs/hugetlbfs/inode.c
 --- reference/fs/hugetlbfs/inode.c
 +++ current/fs/hugetlbfs/inode.c
-@@ -45,9 +45,59 @@ static struct backing_dev_info hugetlbfs
+@@ -45,9 +45,67 @@ static struct backing_dev_info hugetlbfs
  
  int sysctl_hugetlb_shm_group;
  
@@ -58,6 +70,14 @@ diff -upN reference/fs/hugetlbfs/inode.c current/fs/hugetlbfs/inode.c
 +	pagevec_reinit(pvec);
 +}
 +
++/*
++ * huge_pages_needed tries to determine the number of new huge pages that
++ * will be required to fully populate this VMA.  This will be equal to
++ * the size of the VMA in huge pages minus the number of huge pages 
++ * (covered by this VMA) that are found in the page cache.
++ *
++ * Result is in bytes to be compatible with is_hugepage_mem_enough()
++ */
 +unsigned long
 +huge_pages_needed(struct address_space *mapping, struct vm_area_struct *vma)
 +{
@@ -104,7 +124,7 @@ diff -upN reference/fs/hugetlbfs/inode.c current/fs/hugetlbfs/inode.c
  	loff_t len, vma_len;
  	int ret;
  
-@@ -66,6 +116,10 @@ static int hugetlbfs_file_mmap(struct fi
+@@ -66,6 +124,10 @@ static int hugetlbfs_file_mmap(struct fi
  	if (vma->vm_end - vma->vm_start < HPAGE_SIZE)
  		return -EINVAL;
  
@@ -115,7 +135,7 @@ diff -upN reference/fs/hugetlbfs/inode.c current/fs/hugetlbfs/inode.c
  	vma_len = (loff_t)(vma->vm_end - vma->vm_start);
  
  	down(&inode->i_sem);
-@@ -167,16 +221,6 @@ static int hugetlbfs_commit_write(struct
+@@ -167,16 +229,6 @@ static int hugetlbfs_commit_write(struct
  	return -EINVAL;
  }
  
@@ -132,7 +152,7 @@ diff -upN reference/fs/hugetlbfs/inode.c current/fs/hugetlbfs/inode.c
  static void truncate_huge_page(struct page *page)
  {
  	clear_page_dirty(page);
-@@ -792,6 +836,7 @@ struct file *hugetlb_zero_setup(size_t s
+@@ -792,6 +844,7 @@ struct file *hugetlb_zero_setup(size_t s
  	d_instantiate(dentry, inode);
  	inode->i_size = size;
  	inode->i_nlink = 0;
@@ -140,6 +160,7 @@ diff -upN reference/fs/hugetlbfs/inode.c current/fs/hugetlbfs/inode.c
  	file->f_vfsmnt = mntget(hugetlbfs_vfsmount);
  	file->f_dentry = dentry;
  	file->f_mapping = inode->i_mapping;
+
 
 -- 
 Adam Litke - (agl at us.ibm.com)
