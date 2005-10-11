@@ -1,36 +1,34 @@
-Date: Tue, 11 Oct 2005 08:23:32 -0700 (PDT)
-From: Christoph Lameter <clameter@engr.sgi.com>
-Subject: Re: Benchmarks to exploit LRU deficiencies
-In-Reply-To: <200510110213.29937.ak@suse.de>
-Message-ID: <Pine.LNX.4.62.0510110820070.897@schroedinger.engr.sgi.com>
-References: <20051010184636.GA15415@logos.cnet> <200510110213.29937.ak@suse.de>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by e5.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id j9BIONDJ016847
+	for <linux-mm@kvack.org>; Tue, 11 Oct 2005 14:24:23 -0400
+Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
+	by d01relay02.pok.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id j9BIOMgA065120
+	for <linux-mm@kvack.org>; Tue, 11 Oct 2005 14:24:22 -0400
+Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
+	by d01av04.pok.ibm.com (8.12.11/8.13.3) with ESMTP id j9BIOM5u012240
+	for <linux-mm@kvack.org>; Tue, 11 Oct 2005 14:24:22 -0400
+Subject: [PATCH 0/3] Demand faulting for hugetlb
+From: Adam Litke <agl@us.ibm.com>
+Content-Type: text/plain
+Date: Tue, 11 Oct 2005 13:24:17 -0500
+Message-Id: <1129055057.22182.8.camel@localhost.localdomain>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <ak@suse.de>
-Cc: Marcelo Tosatti <marcelo.tosatti@cyclades.com>, linux-mm@kvack.org, sjiang@lanl.gov, rni@andrew.cmu.edu, a.p.zijlstra@chello.nl, riel@redhat.com
+To: akpm@osdl.org
+Cc: "ADAM G. LITKE [imap]" <agl@us.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, David Gibson <david@gibson.dropbear.id.au>, ak@suse.de, hugh@veritas.com
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 11 Oct 2005, Andi Kleen wrote:
-
-> I think if you want to really see advantages you should not implement
-> the advanced algorithms for the page cache, but for the inode/dentry
-> cache. We seem to have far more problems in this area than with the
-> standard page cache.
-
-We have had significant problems with the page cache for a long time. 
-Systems slow down because node memory is filled up with page cache 
-pages that are not properly reclaimed and thus off node allocation 
-occurs. The current method of freeing memory requires a scan which 
-makes this whole thing painfully slow. There are special hacks in SLES9 to 
-deal with these issues.
-
-Moreover the LRU algorithm leads to the eviction of important pages if a 
-program does a simple scan of a large file.
-
-I hope that the advanced page replacement methods address some of these 
-problems.
+Ok, here's the next iteration of these patches.  I think I've handled
+the truncate() case by comparing the hugetlbfs inode's i_size with the
+mapping offset of the requested page to make sure it hasn't been
+truncated.  Can anyone confirm or deny that I have the locking correct
+for this?  The other patches are still unchanged.  Andrew: Did Andi
+Kleen's explanation of huge_pages_needed() satisfy?
+-- 
+Adam Litke - (agl at us.ibm.com)
+IBM Linux Technology Center
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
