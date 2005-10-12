@@ -1,49 +1,54 @@
-Date: Wed, 12 Oct 2005 13:19:37 +0100 (IST)
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [Lhms-devel] [PATCH 8/8] Fragmentation Avoidance V17: 008_stats
-In-Reply-To: <1129118247.6134.54.camel@localhost>
-Message-ID: <Pine.LNX.4.58.0510121318390.25855@skynet>
-References: <20051011151221.16178.67130.sendpatchset@skynet.csn.ul.ie>
- <20051011151302.16178.46089.sendpatchset@skynet.csn.ul.ie>
- <1129118247.6134.54.camel@localhost>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e6.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id j9CGi3m4003159
+	for <linux-mm@kvack.org>; Wed, 12 Oct 2005 12:44:03 -0400
+Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
+	by d01relay04.pok.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id j9CGi2hU114606
+	for <linux-mm@kvack.org>; Wed, 12 Oct 2005 12:44:03 -0400
+Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
+	by d01av03.pok.ibm.com (8.12.11/8.13.3) with ESMTP id j9CGi2RC009349
+	for <linux-mm@kvack.org>; Wed, 12 Oct 2005 12:44:02 -0400
+Date: Wed, 12 Oct 2005 09:43:54 -0700
+From: mike kravetz <kravetz@us.ibm.com>
+Subject: Re: [PATCH 5/8] Fragmentation Avoidance V17: 005_fallback
+Message-ID: <20051012164353.GA9425@w-mikek2.ibm.com>
+References: <20051011151221.16178.67130.sendpatchset@skynet.csn.ul.ie> <20051011151246.16178.40148.sendpatchset@skynet.csn.ul.ie>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20051011151246.16178.40148.sendpatchset@skynet.csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Hansen <haveblue@us.ibm.com>
-Cc: Andrew Morton <akpm@osdl.org>, jschopp@austin.ibm.com, kravetz@us.ibm.com, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, lhms <lhms-devel@lists.sourceforge.net>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: akpm@osdl.org, jschopp@austin.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, lhms-devel@lists.sourceforge.net
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 12 Oct 2005, Dave Hansen wrote:
+On Tue, Oct 11, 2005 at 04:12:47PM +0100, Mel Gorman wrote:
+> This patch implements fallback logic. In the event there is no 2^(MAX_ORDER-1)
+> blocks of pages left, this will help the system decide what list to use. The
+> highlights of the patch are;
+> 
+> o Define a RCLM_FALLBACK type for fallbacks
+> o Use a percentage of each zone for fallbacks. When a reserved pool of pages
+>   is depleted, it will try and use RCLM_FALLBACK before using anything else.
+>   This greatly reduces the amount of fallbacks causing fragmentation without
+>   needing complex balancing algorithms
 
-> On Tue, 2005-10-11 at 16:13 +0100, Mel Gorman wrote:
-> > +#ifdef CONFIG_ALLOCSTAT
-> > +               memset((unsigned long *)zone->fallback_count, 0,
-> > +                               sizeof(zone->fallback_count));
-> > +               memset((unsigned long *)zone->alloc_count, 0,
-> > +                               sizeof(zone->alloc_count));
-> > +               memset((unsigned long *)zone->alloc_count, 0,
-> > +                               sizeof(zone->alloc_count));
-> > +               zone->kernnorclm_partial_steal=0;
-> > +               zone->kernnorclm_full_steal=0;
-> > +               zone->reserve_count[RCLM_NORCLM] =
-> > +                               realsize >> (MAX_ORDER-1);
-> > +#endif
->
-> The struct zone is part of the pgdat which is zeroed at boot-time on all
-> architectures and configuration that I have ever audited.  Re-zeroing
-> parts of it here is unnecessary.
->
-> BTW, that '=0' with no spaces is anti-CodingStyle.
->
+I'm having a little trouble seeing how adding a new type (RCLM_FALLBACK)
+helps.  Seems to me that pages put into the RCLM_FALLBACK area would have
+gone to the global free list and available to anyone.  I must be missing
+something here.
 
-Blast, true. However, the whole block of code can be simply removed which
-I prefer. I didn't like the #ifdef in the middle of the function.
+> +int fallback_allocs[RCLM_TYPES][RCLM_TYPES+1] = {
+> +	{RCLM_NORCLM,	RCLM_FALLBACK, RCLM_KERN,   RCLM_USER, RCLM_TYPES},
+> +	{RCLM_KERN,     RCLM_FALLBACK, RCLM_NORCLM, RCLM_USER, RCLM_TYPES},
+> +	{RCLM_USER,     RCLM_FALLBACK, RCLM_NORCLM, RCLM_KERN, RCLM_TYPES},
+> +	{RCLM_FALLBACK, RCLM_NORCLM,   RCLM_KERN,   RCLM_USER, RCLM_TYPES}
+
+Do you really need that last line?  Can an allocation of type RCLM_FALLBACK
+realy be made?
 
 -- 
-Mel Gorman
-Part-time Phd Student                          Java Applications Developer
-University of Limerick                         IBM Dublin Software Lab
+Mike
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
