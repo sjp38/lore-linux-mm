@@ -1,582 +1,429 @@
-Date: Wed, 12 Oct 2005 15:29:25 -0500
-From: Jack Steiner <steiner@sgi.com>
-Subject: Re: [Patch 2/2] Special Memory (mspec) driver.
-Message-ID: <20051012202925.GA23081@sgi.com>
-References: <20051012194022.GE17458@lnx-holt.americas.sgi.com> <20051012194233.GG17458@lnx-holt.americas.sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20051012194233.GG17458@lnx-holt.americas.sgi.com>
+Date: Wed, 12 Oct 2005 14:32:10 -0700 (PDT)
+From: Christoph Lameter <clameter@engr.sgi.com>
+Subject: Implement sys_* do_* layering in the memory policy layer.
+Message-ID: <Pine.LNX.4.62.0510121429240.10617@schroedinger.engr.sgi.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Robin Holt <holt@sgi.com>
-Cc: linux-ia64@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, hch@infradead.org, jgarzik@pobox.com, wli@holomorphy.com
+To: ak@suse.de
+Cc: linux-mm@kvack.org, akpm@osdl.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Oct 12, 2005 at 02:42:33PM -0500, Robin Holt wrote:
-> Introduce the special memory (mspec) driver.  This is used to allow
-> userland to map fetchop, etc pages
-> 
-> Signed-off-by: holt@sgi.com
+- Do a separation between do_xxx and sys_xxx functions. sys_xxx functions
+  take variable sized bitmaps from user space as arguments. do_xxx functions
+  take fixed sized nodemask_t as arguments and may be used from inside the
+  kernel. Doing so simplifies the initialization code. There is no
+  fs = kernel_ds assumption anymore.
 
-Robin - 
+- Split up get_nodes into get_nodes (which gets the node list) and
+  contextualize_policy which restricts the nodes to those accessible
+  to the task and updates cpusets.
 
-I think you are missing the shub2 code that is required for flushing the fetchop 
-cache. The cache is new in shub2. Take a look at the old PP4 driver - clear_mspec_page();
+- Add comments explaining limitations of bind policy
 
+Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
-> 
-> 
-> 
-> Index: linux-2.6/arch/ia64/Kconfig
-> ===================================================================
-> --- linux-2.6.orig/arch/ia64/Kconfig	2005-10-12 10:56:32.557090935 -0500
-> +++ linux-2.6/arch/ia64/Kconfig	2005-10-12 11:01:48.514666806 -0500
-> @@ -231,6 +231,16 @@ config IA64_SGI_SN_XP
->  	  this feature will allow for direct communication between SSIs
->  	  based on a network adapter and DMA messaging.
->  
-> +config MSPEC
-> +	tristate "Special Memory support"
-> +	select IA64_UNCACHED_ALLOCATOR
-> +	help
-> +	  This driver allows for cached and uncached mappings of memory
-> +	  to user processes. On SGI SN hardware it will also export the
-> +	  special fetchop memory facility.
-> +	  Fetchops are atomic memory operations that are implemented in the
-> +	  memory controller on SGI SN hardware.
-> +
->  config FORCE_MAX_ZONEORDER
->  	int
->  	default "18"
-> Index: linux-2.6/arch/ia64/kernel/Makefile
-> ===================================================================
-> --- linux-2.6.orig/arch/ia64/kernel/Makefile	2005-10-12 10:56:32.558067400 -0500
-> +++ linux-2.6/arch/ia64/kernel/Makefile	2005-10-12 11:01:48.520525594 -0500
-> @@ -23,6 +23,7 @@ obj-$(CONFIG_IA64_CYCLONE)	+= cyclone.o
->  obj-$(CONFIG_CPU_FREQ)		+= cpufreq/
->  obj-$(CONFIG_IA64_MCA_RECOVERY)	+= mca_recovery.o
->  obj-$(CONFIG_KPROBES)		+= kprobes.o jprobes.o
-> +obj-$(CONFIG_MSPEC)		+= mspec.o
->  obj-$(CONFIG_IA64_UNCACHED_ALLOCATOR)	+= uncached.o
->  mca_recovery-y			+= mca_drv.o mca_drv_asm.o
->  
-> Index: linux-2.6/arch/ia64/kernel/mspec.c
-> ===================================================================
-> --- /dev/null	1970-01-01 00:00:00.000000000 +0000
-> +++ linux-2.6/arch/ia64/kernel/mspec.c	2005-10-12 11:02:50.347333000 -0500
-> @@ -0,0 +1,498 @@
-> +/*
-> + * Copyright (C) 2001-2005 Silicon Graphics, Inc.  All rights
-> + * reserved.
-> + *
-> + * This program is free software; you can redistribute it and/or modify it
-> + * under the terms of version 2 of the GNU General Public License
-> + * as published by the Free Software Foundation.
-> + */
-> +
-> +/*
-> + * SN Platform Special Memory (mspec) Support
-> + *
-> + * This driver exports the SN special memory (mspec) facility to user processes.
-> + * There are three types of memory made available thru this driver:
-> + * fetchops, uncached and cached.
-> + *
-> + * Fetchops are atomic memory operations that are implemented in the
-> + * memory controller on SGI SN hardware.
-> + *
-> + * Uncached are used for memory write combining feature of the ia64
-> + * cpu.
-> + *
-> + * Cached are used for areas of memory that are used as cached addresses
-> + * on our partition and used as uncached addresses from other partitions.
-> + * Due to a design constraint of the SN2 Shub, you can not have processors
-> + * on the same FSB perform both a cached and uncached reference to the
-> + * same cache line.  These special memory cached regions prevent the
-> + * kernel from ever dropping in a TLB entry and therefore prevent the
-> + * processor from ever speculating a cache line from this page.
-> + */
-> +
-> +#include <linux/config.h>
-> +#include <linux/types.h>
-> +#include <linux/kernel.h>
-> +#include <linux/module.h>
-> +#include <linux/init.h>
-> +#include <linux/errno.h>
-> +#include <linux/miscdevice.h>
-> +#include <linux/spinlock.h>
-> +#include <linux/mm.h>
-> +#include <linux/proc_fs.h>
-> +#include <linux/vmalloc.h>
-> +#include <linux/bitops.h>
-> +#include <linux/string.h>
-> +#include <linux/slab.h>
-> +#include <linux/seq_file.h>
-> +#include <linux/efi.h>
-> +#include <asm/page.h>
-> +#include <asm/pal.h>
-> +#include <asm/system.h>
-> +#include <asm/pgtable.h>
-> +#include <asm/atomic.h>
-> +#include <asm/tlbflush.h>
-> +#include <asm/uncached.h>
-> +#include <asm/sn/addrs.h>
-> +#include <asm/sn/arch.h>
-> +#include <asm/sn/mspec.h>
-> +#include <asm/sn/sn_cpuid.h>
-> +#include <asm/sn/io.h>
-> +#include <asm/sn/bte.h>
-> +#include <asm/sn/shubio.h>
-> +
-> +
-> +#define FETCHOP_ID	"Fetchop,"
-> +#define CACHED_ID	"Cached,"
-> +#define UNCACHED_ID	"Uncached"
-> +#define REVISION	"3.0"
-> +#define MSPEC_BASENAME	"mspec"
-> +
-> +/*
-> + * Page types allocated by the device.
-> + */
-> +enum {
-> +	MSPEC_FETCHOP = 1,
-> +	MSPEC_CACHED,
-> +	MSPEC_UNCACHED
-> +};
-> +
-> +/*
-> + * One of these structures is allocated when an mspec region is mmaped. The
-> + * structure is pointed to by the vma->vm_private_data field in the vma struct.
-> + * This structure is used to record the addresses of the mspec pages.
-> + */
-> +struct vma_data {
-> +	atomic_t refcnt;	/* Number of vmas sharing the data. */
-> +	spinlock_t lock;	/* Serialize access to the vma. */
-> +	int count;		/* Number of pages allocated. */
-> +	int type;		/* Type of pages allocated. */
-> +	unsigned long maddr[0];	/* Array of MSPEC addresses. */
-> +};
-> +
-> +/*
-> + * Memory Special statistics.
-> + */
-> +struct mspec_stats {
-> +	atomic_t map_count;	/* Number of active mmap's */
-> +	atomic_t pages_in_use;	/* Number of mspec pages in use */
-> +	unsigned long pages_total;	/* Total number of mspec pages */
-> +};
-> +
-> +static struct mspec_stats mspec_stats;
-> +
-> +static inline int
-> +mspec_zero_block(unsigned long addr, int len)
-> +{
-> +	int status;
-> +
-> +	if (ia64_platform_is("sn2"))
-> +		status = bte_copy(0, addr & ~__IA64_UNCACHED_OFFSET, len,
-> +				  BTE_WACQUIRE | BTE_ZERO_FILL, NULL);
-> +	else {
-> +		memset((char *) addr, 0, len);
-> +		status = 0;
-> +	}
-> +	return status;
-> +}
-> +
-> +/*
-> + * mspec_open
-> + *
-> + * Called when a device mapping is created by a means other than mmap
-> + * (via fork, etc.).  Increments the reference count on the underlying
-> + * mspec data so it is not freed prematurely.
-> + */
-> +static void
-> +mspec_open(struct vm_area_struct *vma)
-> +{
-> +	struct vma_data *vdata;
-> +
-> +	vdata = vma->vm_private_data;
-> +	atomic_inc(&vdata->refcnt);
-> +}
-> +
-> +/*
-> + * mspec_close
-> + *
-> + * Called when unmapping a device mapping. Frees all mspec pages
-> + * belonging to the vma.
-> + */
-> +static void
-> +mspec_close(struct vm_area_struct *vma)
-> +{
-> +	struct vma_data *vdata;
-> +	int i, pages, result;
-> +
-> +	vdata = vma->vm_private_data;
-> +	if (atomic_dec_and_test(&vdata->refcnt)) {
-> +		pages = (vma->vm_end - vma->vm_start) >> PAGE_SHIFT;
-> +		for (i = 0; i < pages; i++) {
-> +			if (vdata->maddr[i] != 0) {
-> +				/*
-> +				 * Clear the page before sticking it back
-> +				 * into the pool.
-> +				 */
-> +				result =
-> +				    mspec_zero_block(vdata->maddr[i],
-> +						     PAGE_SIZE);
-> +				if (!result) {
-> +					uncached_free_page(vdata->
-> +							   maddr[i]);
-> +					atomic_dec(&mspec_stats.
-> +						   pages_in_use);
-> +				} else
-> +					printk(KERN_WARNING
-> +					       "mspec_close(): "
-> +					       "failed to zero page %i\n",
-> +					       result);
-> +			}
-> +		}
-> +
-> +		if (vdata->count)
-> +			atomic_dec(&mspec_stats.map_count);
-> +		vfree(vdata);
-> +	}
-> +}
-> +
-> +/*
-> + * mspec_get_one_pte
-> + *
-> + * Return the pte for a given mm and address.
-> + */
-> +static __inline__ int
-> +mspec_get_one_pte(struct mm_struct *mm, u64 address, pte_t ** page_table)
-> +{
-> +	pgd_t *pgd;
-> +	pmd_t *pmd;
-> +	pud_t *pud;
-> +
-> +	pgd = pgd_offset(mm, address);
-> +	if (pgd_present(*pgd)) {
-> +		pud = pud_offset(pgd, address);
-> +		if (pud_present(*pud)) {
-> +			pmd = pmd_offset(pud, address);
-> +			if (pmd_present(*pmd)) {
-> +				*page_table = pte_offset_map(pmd, address);
-> +				if (pte_present(**page_table)) {
-> +					return 0;
-> +				}
-> +			}
-> +		}
-> +	}
-> +
-> +	return -1;
-> +}
-> +
-> +/*
-> + * mspec_nopage
-> + *
-> + * Creates a mspec page and maps it to user space.
-> + */
-> +static struct page *
-> +mspec_nopage(struct vm_area_struct *vma,
-> +	     unsigned long address, int *unused)
-> +{
-> +	unsigned long paddr, maddr = 0;
-> +	unsigned long pfn;
-> +	int index;
-> +	pte_t *page_table, pte;
-> +	struct vma_data *vdata = vma->vm_private_data;
-> +
-> +	index = (address - vma->vm_start) >> PAGE_SHIFT;
-> +	if ((volatile unsigned long) vdata->maddr[index] == 0) {
-> +		maddr = uncached_alloc_page(numa_node_id());
-> +		if (maddr == 0)
-> +			return NOPAGE_SIGBUS;	/* NOPAGE_OOM ??? */
-> +
-> +		spin_lock(&vdata->lock);
-> +		if (vdata->maddr[index] == 0) {
-> +			atomic_inc(&mspec_stats.pages_in_use);
-> +			vdata->count++;
-> +
-> +			vdata->maddr[index] = maddr;
-> +			maddr = 0;
-> +		}
-> +		spin_unlock(&vdata->lock);
-> +
-> +		/* Release any unneeded page */
-> +		if (maddr)
-> +			uncached_free_page(maddr);
-> +	}
-> +
-> +	spin_lock(&vma->vm_mm->page_table_lock);
-> +	if (mspec_get_one_pte(vma->vm_mm, address, &page_table) != 0) {
-> +		if (vdata->type == MSPEC_FETCHOP)
-> +			paddr = TO_AMO(vdata->maddr[index]);
-> +		else
-> +			paddr = __pa(TO_CAC(vdata->maddr[index]));
-> +
-> +		pfn = paddr >> PAGE_SHIFT;
-> +		pte = pfn_pte(pfn, vma->vm_page_prot);
-> +		pte = pte_mkwrite(pte_mkdirty(pte));
-> +		set_pte(page_table, pte);
-> +	}
-> +	spin_unlock(&vma->vm_mm->page_table_lock);
-> +
-> +	return NOPAGE_FAULTED;
-> +}
-> +
-> +static struct vm_operations_struct mspec_vm_ops = {
-> +	.open mspec_open,
-> +	.close mspec_close,
-> +	.nopage mspec_nopage
-> +};
-> +
-> +/*
-> + * mspec_mmap
-> + *
-> + * Called when mmaping the device.  Initializes the vma with a fault handler
-> + * and private data structure necessary to allocate, track, and free the
-> + * underlying pages.
-> + */
-> +static int
-> +mspec_mmap(struct file *file, struct vm_area_struct *vma, int type)
-> +{
-> +	struct vma_data *vdata;
-> +	int pages;
-> +
-> +	if (vma->vm_pgoff != 0)
-> +		return -EINVAL;
-> +
-> +	if ((vma->vm_flags & VM_WRITE) == 0)
-> +		return -EPERM;
-> +
-> +	pages = (vma->vm_end - vma->vm_start) >> PAGE_SHIFT;
-> +	if (!
-> +	    (vdata =
-> +	     vmalloc(sizeof(struct vma_data) + pages * sizeof(long))))
-> +		return -ENOMEM;
-> +	memset(vdata, 0, sizeof(struct vma_data) + pages * sizeof(long));
-> +
-> +	vdata->type = type;
-> +	spin_lock_init(&vdata->lock);
-> +	vdata->refcnt = ATOMIC_INIT(1);
-> +	vma->vm_private_data = vdata;
-> +
-> +	vma->vm_flags |= (VM_IO | VM_SHM | VM_LOCKED | VM_RESERVED);
-> +	if (vdata->type == MSPEC_FETCHOP || vdata->type == MSPEC_UNCACHED)
-> +		vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
-> +	vma->vm_ops = &mspec_vm_ops;
-> +
-> +	atomic_inc(&mspec_stats.map_count);
-> +	return 0;
-> +}
-> +
-> +static int
-> +fetchop_mmap(struct file *file, struct vm_area_struct *vma)
-> +{
-> +	return mspec_mmap(file, vma, MSPEC_FETCHOP);
-> +}
-> +
-> +static int
-> +cached_mmap(struct file *file, struct vm_area_struct *vma)
-> +{
-> +	return mspec_mmap(file, vma, MSPEC_CACHED);
-> +}
-> +
-> +static int
-> +uncached_mmap(struct file *file, struct vm_area_struct *vma)
-> +{
-> +	return mspec_mmap(file, vma, MSPEC_UNCACHED);
-> +}
-> +
-> +#ifdef CONFIG_PROC_FS
-> +static void *
-> +mspec_seq_start(struct seq_file *file, loff_t * offset)
-> +{
-> +	if (*offset < MAX_NUMNODES)
-> +		return offset;
-> +	return NULL;
-> +}
-> +
-> +static void *
-> +mspec_seq_next(struct seq_file *file, void *data, loff_t * offset)
-> +{
-> +	(*offset)++;
-> +	if (*offset < MAX_NUMNODES)
-> +		return offset;
-> +	return NULL;
-> +}
-> +
-> +static void
-> +mspec_seq_stop(struct seq_file *file, void *data)
-> +{
-> +}
-> +
-> +static int
-> +mspec_seq_show(struct seq_file *file, void *data)
-> +{
-> +	int i;
-> +
-> +	i = *(loff_t *) data;
-> +
-> +	if (!i) {
-> +		seq_printf(file, "mappings               : %i\n",
-> +			   atomic_read(&mspec_stats.map_count));
-> +		seq_printf(file, "current mspec pages    : %i\n",
-> +			   atomic_read(&mspec_stats.pages_in_use));
-> +		seq_printf(file, "%4s %7s %7s\n", "node", "total", "free");
-> +	}
-> +	return 0;
-> +}
-> +
-> +static struct seq_operations mspec_seq_ops = {
-> +	.start = mspec_seq_start,
-> +	.next = mspec_seq_next,
-> +	.stop = mspec_seq_stop,
-> +	.show = mspec_seq_show
-> +};
-> +
-> +int
-> +mspec_proc_open(struct inode *inode, struct file *file)
-> +{
-> +	return seq_open(file, &mspec_seq_ops);
-> +}
-> +
-> +static struct file_operations proc_mspec_operations = {
-> +	.open = mspec_proc_open,
-> +	.read = seq_read,
-> +	.llseek = seq_lseek,
-> +	.release = seq_release,
-> +};
-> +
-> +static struct proc_dir_entry *proc_mspec;
-> +
-> +#endif	/* CONFIG_PROC_FS */
-> +
-> +static struct file_operations fetchop_fops = {
-> +	.owner THIS_MODULE,
-> +	.mmap fetchop_mmap
-> +};
-> +
-> +static struct miscdevice fetchop_miscdev = {
-> +	.minor MISC_DYNAMIC_MINOR,
-> +	.name "sgi_fetchop",
-> +	.fops & fetchop_fops
-> +};
-> +
-> +static struct file_operations cached_fops = {
-> +	.owner THIS_MODULE,
-> +	.mmap cached_mmap
-> +};
-> +
-> +static struct miscdevice cached_miscdev = {
-> +	.minor MISC_DYNAMIC_MINOR,
-> +	.name "sgi_cached",
-> +	.fops & cached_fops
-> +};
-> +
-> +static struct file_operations uncached_fops = {
-> +	.owner THIS_MODULE,
-> +	.mmap uncached_mmap
-> +};
-> +
-> +static struct miscdevice uncached_miscdev = {
-> +	.minor MISC_DYNAMIC_MINOR,
-> +	.name "sgi_uncached",
-> +	.fops & uncached_fops
-> +};
-> +
-> +/*
-> + * mspec_init
-> + *
-> + * Called at boot time to initialize the mspec facility.
-> + */
-> +static int __init
-> +mspec_init(void)
-> +{
-> +	int ret;
-> +
-> +	/*
-> +	 * The fetchop device only works on SN2 hardware, uncached and cached
-> +	 * memory drivers should both be valid on all ia64 hardware
-> +	 */
-> +	if (ia64_platform_is("sn2")) {
-> +		if ((ret = misc_register(&fetchop_miscdev))) {
-> +			printk(KERN_ERR
-> +			       "%s: failed to register device %i\n",
-> +			       FETCHOP_ID, ret);
-> +			return ret;
-> +		}
-> +	}
-> +	if ((ret = misc_register(&cached_miscdev))) {
-> +		printk(KERN_ERR "%s: failed to register device %i\n",
-> +		       CACHED_ID, ret);
-> +		misc_deregister(&fetchop_miscdev);
-> +		return ret;
-> +	}
-> +	if ((ret = misc_register(&uncached_miscdev))) {
-> +		printk(KERN_ERR "%s: failed to register device %i\n",
-> +		       UNCACHED_ID, ret);
-> +		misc_deregister(&cached_miscdev);
-> +		misc_deregister(&fetchop_miscdev);
-> +		return ret;
-> +	}
-> +
-> +	/*
-> +	 * /proc code needs to be updated to work with the new
-> +	 * allocation scheme
-> +	 */
-> +#ifdef CONFIG_PROC_FS
-> +	if (!(proc_mspec = create_proc_entry(MSPEC_BASENAME, 0444, NULL))) {
-> +		printk(KERN_ERR "%s: unable to create proc entry",
-> +		       MSPEC_BASENAME);
-> +		misc_deregister(&uncached_miscdev);
-> +		misc_deregister(&cached_miscdev);
-> +		misc_deregister(&fetchop_miscdev);
-> +		return -EINVAL;
-> +	}
-> +	proc_mspec->proc_fops = &proc_mspec_operations;
-> +#endif
-> +
-> +	printk(KERN_INFO "%s %s initialized devices: %s %s %s\n",
-> +	       MSPEC_BASENAME, REVISION,
-> +	       ia64_platform_is("sn2") ? FETCHOP_ID : "",
-> +	       CACHED_ID, UNCACHED_ID);
-> +
-> +	return 0;
-> +}
-> +
-> +static void __exit
-> +mspec_exit(void)
-> +{
-> +	WARN_ON(atomic_read(&mspec_stats.pages_in_use) > 0);
-> +
-> +#ifdef CONFIG_PROC_FS
-> +	remove_proc_entry(MSPEC_BASENAME, NULL);
-> +#endif
-> +	misc_deregister(&uncached_miscdev);
-> +	misc_deregister(&cached_miscdev);
-> +	misc_deregister(&fetchop_miscdev);
-> +}
-> +
-> +module_init(mspec_init);
-> +module_exit(mspec_exit);
-> +
-> +MODULE_AUTHOR("Silicon Graphics, Inc.");
-> +MODULE_DESCRIPTION("Driver for SGI SN special memory operations");
-> +MODULE_LICENSE("GPL");
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+---
+The patch applies on top of Andi's bitmap to nodemask conversion patch.
 
--- 
-Thanks
+mempolicy.c |  271 
++++++++++++++++++++++++++++++++++++-------------------------
+ 1 files changed, 159 insertions(+), 112 deletions(-)
 
-Jack Steiner (steiner@sgi.com)          651-683-5302
-Principal Engineer                      SGI - Silicon Graphics, Inc.
-
+Index: linux-2.6.14-rc4/mm/mempolicy.c
+===================================================================
+--- linux-2.6.14-rc4.orig/mm/mempolicy.c	2005-10-11 10:24:54.000000000 -0700
++++ linux-2.6.14-rc4/mm/mempolicy.c	2005-10-12 14:21:21.000000000 -0700
+@@ -2,6 +2,7 @@
+  * Simple NUMA memory policy for the Linux kernel.
+  *
+  * Copyright 2003,2004 Andi Kleen, SuSE Labs.
++ * (C) Copyright 2005 Christoph Lameter, Silicon Graphics, Inc.
+  * Subject to the GNU Public License, version 2.
+  *
+  * NUMA policy allows the user to give hints in which node(s) memory should
+@@ -17,13 +18,19 @@
+  *                offset into the backing object or offset into the mapping
+  *                for anonymous memory. For process policy an process counter
+  *                is used.
++ *
+  * bind           Only allocate memory on a specific set of nodes,
+  *                no fallback.
++ *                FIXME: memory is allocated starting with the first node
++ *                to the last. It would be better if bind would truly restrict
++ *                the allocation to memory nodes instead
++ *
+  * preferred       Try a specific node first before normal fallback.
+  *                As a special case node -1 here means do the allocation
+  *                on the local CPU. This is normally identical to default,
+  *                but useful to set in a VMA when you have a non default
+  *                process policy.
++ *
+  * default        Allocate on the local node first, or when on a VMA
+  *                use the process policy. This is what Linux always did
+  *		  in a NUMA aware kernel and still does by, ahem, default.
+@@ -113,56 +120,6 @@ static int mpol_check_policy(int mode, n
+ 	}
+ 	return nodes_subset(*nodes, node_online_map) ? 0 : -EINVAL;
+ }
+-
+-/* Copy a node mask from user space. */
+-static int get_nodes(nodemask_t *nodes, unsigned long __user *nmask,
+-		     unsigned long maxnode, int mode)
+-{
+-	unsigned long k;
+-	unsigned long nlongs;
+-	unsigned long endmask;
+-
+-	--maxnode;
+-	nodes_clear(*nodes);
+-	if (maxnode == 0 || !nmask)
+-		return 0;
+-
+-	nlongs = BITS_TO_LONGS(maxnode);
+-	if ((maxnode % BITS_PER_LONG) == 0)
+-		endmask = ~0UL;
+-	else
+-		endmask = (1UL << (maxnode % BITS_PER_LONG)) - 1;
+-
+-	/* When the user specified more nodes than supported just check
+-	   if the non supported part is all zero. */
+-	if (nlongs > BITS_TO_LONGS(MAX_NUMNODES)) {
+-		if (nlongs > PAGE_SIZE/sizeof(long))
+-			return -EINVAL;
+-		for (k = BITS_TO_LONGS(MAX_NUMNODES); k < nlongs; k++) {
+-			unsigned long t;
+-			if (get_user(t, nmask + k))
+-				return -EFAULT;
+-			if (k == nlongs - 1) {
+-				if (t & endmask)
+-					return -EINVAL;
+-			} else if (t)
+-				return -EINVAL;
+-		}
+-		nlongs = BITS_TO_LONGS(MAX_NUMNODES);
+-		endmask = ~0UL;
+-	}
+-
+-	if (copy_from_user(nodes_addr(*nodes), nmask, nlongs*sizeof(unsigned long)))
+-		return -EFAULT;
+-	nodes_addr(*nodes)[nlongs-1] &= endmask;
+-	/* Update current mems_allowed */
+-	cpuset_update_current_mems_allowed();
+-	/* Ignore nodes not set in current->mems_allowed */
+-	/* AK: shouldn't this error out instead? */
+-	cpuset_restrict_to_mems_allowed(nodes_addr(*nodes));
+-	return mpol_check_policy(mode, nodes);
+-}
+-
+ /* Generate a custom zonelist for the BIND policy. */
+ static struct zonelist *bind_zonelist(nodemask_t *nodes)
+ {
+@@ -379,17 +336,25 @@ static int mbind_range(struct vm_area_st
+ 	return err;
+ }
+ 
+-/* Change policy for a memory range */
+-asmlinkage long sys_mbind(unsigned long start, unsigned long len,
+-			  unsigned long mode,
+-			  unsigned long __user *nmask, unsigned long maxnode,
+-			  unsigned flags)
++static int contextualize_policy(int mode, nodemask_t *nodes)
++{
++	if (!nodes)
++		return 0;
++
++	/* Update current mems_allowed */
++	cpuset_update_current_mems_allowed();
++	/* Ignore nodes not set in current->mems_allowed */
++		cpuset_restrict_to_mems_allowed(nodes->bits);
++	return mpol_check_policy(mode, nodes);
++}
++
++long do_mbind(unsigned long start, unsigned long len,
++		unsigned long mode, nodemask_t *nmask, unsigned long flags)
+ {
+ 	struct vm_area_struct *vma;
+ 	struct mm_struct *mm = current->mm;
+ 	struct mempolicy *new;
+ 	unsigned long end;
+-	nodemask_t nodes;
+ 	int err;
+ 
+ 	if ((flags & ~(unsigned long)(MPOL_MF_STRICT)) || mode > MPOL_MAX)
+@@ -404,12 +369,9 @@ asmlinkage long sys_mbind(unsigned long 
+ 		return -EINVAL;
+ 	if (end == start)
+ 		return 0;
+-
+-	err = get_nodes(&nodes, nmask, maxnode, mode);
+-	if (err)
+-		return err;
+-
+-	new = mpol_new(mode, &nodes);
++	if (contextualize_policy(mode, nmask))
++		return -EINVAL;
++	new = mpol_new(mode, nmask);
+ 	if (IS_ERR(new))
+ 		return PTR_ERR(new);
+ 
+@@ -417,7 +379,7 @@ asmlinkage long sys_mbind(unsigned long 
+ 			mode,nodes_addr(nodes)[0]);
+ 
+ 	down_write(&mm->mmap_sem);
+-	vma = check_range(mm, start, end, &nodes, flags);
++	vma = check_range(mm, start, end, nmask, flags);
+ 	err = PTR_ERR(vma);
+ 	if (!IS_ERR(vma))
+ 		err = mbind_range(vma, start, end, new);
+@@ -427,19 +389,13 @@ asmlinkage long sys_mbind(unsigned long 
+ }
+ 
+ /* Set the process memory policy */
+-asmlinkage long sys_set_mempolicy(int mode, unsigned long __user *nmask,
+-				   unsigned long maxnode)
++long do_set_mempolicy(int mode, nodemask_t *nodes)
+ {
+-	int err;
+ 	struct mempolicy *new;
+-	nodemask_t nodes;
+ 
+-	if (mode < 0 || mode > MPOL_MAX)
++	if (contextualize_policy(mode, nodes))
+ 		return -EINVAL;
+-	err = get_nodes(&nodes, nmask, maxnode, mode);
+-	if (err)
+-		return err;
+-	new = mpol_new(mode, &nodes);
++	new = mpol_new(mode, nodes);
+ 	if (IS_ERR(new))
+ 		return PTR_ERR(new);
+ 	mpol_free(current->mempolicy);
+@@ -490,38 +446,17 @@ static int lookup_node(struct mm_struct 
+ 	return err;
+ }
+ 
+-/* Copy a kernel node mask to user space */
+-static int copy_nodes_to_user(unsigned long __user *mask, unsigned long maxnode,
+-			      nodemask_t *nodes)
+-{
+-	unsigned long copy = ALIGN(maxnode-1, 64) / 8;
+-	const int nbytes = BITS_TO_LONGS(MAX_NUMNODES) * sizeof(long);
+-
+-	if (copy > nbytes) {
+-		if (copy > PAGE_SIZE)
+-			return -EINVAL;
+-		if (clear_user((char __user *)mask + nbytes, copy - nbytes))
+-			return -EFAULT;
+-		copy = nbytes;
+-	}
+-	return copy_to_user(mask, nodes_addr(*nodes), copy) ? -EFAULT : 0;
+-}
+-
+ /* Retrieve NUMA policy */
+-asmlinkage long sys_get_mempolicy(int __user *policy,
+-				  unsigned long __user *nmask,
+-				  unsigned long maxnode,
+-				  unsigned long addr, unsigned long flags)
++long do_get_mempolicy(int *policy, nodemask_t *nmask,
++			unsigned long addr, unsigned long flags)
+ {
+-	int err, pval;
++	int err;
+ 	struct mm_struct *mm = current->mm;
+ 	struct vm_area_struct *vma = NULL;
+ 	struct mempolicy *pol = current->mempolicy;
+ 
+ 	if (flags & ~(unsigned long)(MPOL_F_NODE|MPOL_F_ADDR))
+ 		return -EINVAL;
+-	if (nmask != NULL && maxnode < MAX_NUMNODES)
+-		return -EINVAL;
+ 	if (flags & MPOL_F_ADDR) {
+ 		down_read(&mm->mmap_sem);
+ 		vma = find_vma_intersection(mm, addr, addr+1);
+@@ -544,31 +479,25 @@ asmlinkage long sys_get_mempolicy(int __
+ 			err = lookup_node(mm, addr);
+ 			if (err < 0)
+ 				goto out;
+-			pval = err;
++			*policy = err;
+ 		} else if (pol == current->mempolicy &&
+ 				pol->policy == MPOL_INTERLEAVE) {
+-			pval = current->il_next;
++			*policy = current->il_next;
+ 		} else {
+ 			err = -EINVAL;
+ 			goto out;
+ 		}
+ 	} else
+-		pval = pol->policy;
++		*policy = pol->policy;
+ 
+ 	if (vma) {
+ 		up_read(&current->mm->mmap_sem);
+ 		vma = NULL;
+ 	}
+ 
+-	if (policy && put_user(pval, policy))
+-		return -EFAULT;
+-
+ 	err = 0;
+-	if (nmask) {
+-		nodemask_t nodes;
+-		get_zonemask(pol, &nodes);
+-		err = copy_nodes_to_user(nmask, maxnode, &nodes);
+-	}
++	if (nmask)
++		get_zonemask(pol, nmask);
+ 
+  out:
+ 	if (vma)
+@@ -576,6 +505,126 @@ asmlinkage long sys_get_mempolicy(int __
+ 	return err;
+ }
+ 
++/*
++ * User space interface with variable sized bitmaps for nodelists.
++ */
++
++/* Copy a node mask from user space. */
++static int get_nodes(nodemask_t *nodes, unsigned long __user *nmask,
++		     unsigned long maxnode)
++{
++	unsigned long k;
++	unsigned long nlongs;
++	unsigned long endmask;
++
++	--maxnode;
++	nodes_clear(*nodes);
++	if (maxnode == 0 || !nmask)
++		return 0;
++
++	nlongs = BITS_TO_LONGS(maxnode);
++	if ((maxnode % BITS_PER_LONG) == 0)
++		endmask = ~0UL;
++	else
++		endmask = (1UL << (maxnode % BITS_PER_LONG)) - 1;
++
++	/* When the user specified more nodes than supported just check
++	   if the non supported part is all zero. */
++	if (nlongs > BITS_TO_LONGS(MAX_NUMNODES)) {
++		if (nlongs > PAGE_SIZE/sizeof(long))
++			return -EINVAL;
++		for (k = BITS_TO_LONGS(MAX_NUMNODES); k < nlongs; k++) {
++			unsigned long t;
++			if (get_user(t, nmask + k))
++				return -EFAULT;
++			if (k == nlongs - 1) {
++				if (t & endmask)
++					return -EINVAL;
++			} else if (t)
++				return -EINVAL;
++		}
++		nlongs = BITS_TO_LONGS(MAX_NUMNODES);
++		endmask = ~0UL;
++	}
++
++	if (copy_from_user(nodes_addr(*nodes), nmask, nlongs*sizeof(unsigned long)))
++		return -EFAULT;
++	nodes_addr(*nodes)[nlongs-1] &= endmask;
++	return 0;
++}
++
++/* Copy a kernel node mask to user space */
++static int copy_nodes_to_user(unsigned long __user *mask, unsigned long maxnode,
++			      nodemask_t *nodes)
++{
++	unsigned long copy = ALIGN(maxnode-1, 64) / 8;
++	const int nbytes = BITS_TO_LONGS(MAX_NUMNODES) * sizeof(long);
++
++	if (copy > nbytes) {
++		if (copy > PAGE_SIZE)
++			return -EINVAL;
++		if (clear_user((char __user *)mask + nbytes, copy - nbytes))
++			return -EFAULT;
++		copy = nbytes;
++	}
++	return copy_to_user(mask, nodes_addr(*nodes), copy) ? -EFAULT : 0;
++}
++
++asmlinkage long sys_mbind(unsigned long start, unsigned long len,
++			unsigned long mode,
++			unsigned long __user *nmask, unsigned long maxnode,
++			unsigned flags)
++{
++	nodemask_t nodes;
++	int err;
++
++	err = get_nodes(&nodes, nmask, maxnode);
++	if (err)
++		return err;
++	return do_mbind(start, len, mode, &nodes, flags);
++}
++
++/* Set the process memory policy */
++asmlinkage long sys_set_mempolicy(int mode, unsigned long __user *nmask,
++		unsigned long maxnode)
++{
++	int err;
++	nodemask_t nodes;
++
++	if (mode < 0 || mode > MPOL_MAX)
++		return -EINVAL;
++	err = get_nodes(&nodes, nmask, maxnode);
++	if (err)
++		return err;
++	return do_set_mempolicy(mode, &nodes);
++}
++
++/* Retrieve NUMA policy */
++asmlinkage long sys_get_mempolicy(int __user *policy,
++				unsigned long __user *nmask,
++				unsigned long maxnode,
++				unsigned long addr, unsigned long flags)
++{
++	int err, pval;
++	nodemask_t nodes;
++
++	if (nmask != NULL && maxnode < MAX_NUMNODES)
++		return -EINVAL;
++
++	err = do_get_mempolicy(&pval, &nodes, addr, flags);
++
++	if (err)
++		return err;
++
++	if (policy && put_user(pval, policy))
++        	return -EFAULT;
++
++	if (nmask)
++		err = copy_nodes_to_user(nmask, maxnode, &nodes);
++
++	return err;
++}
++
+ #ifdef CONFIG_COMPAT
+ 
+ asmlinkage long compat_sys_get_mempolicy(int __user *policy,
+@@ -1150,14 +1199,12 @@ void __init numa_policy_init(void)
+ 	/* Set interleaving policy for system init. This way not all
+ 	   the data structures allocated at system boot end up in node zero. */
+ 
+-	if (sys_set_mempolicy(MPOL_INTERLEAVE, nodes_addr(node_online_map),
+-							MAX_NUMNODES) < 0)
++	if (do_set_mempolicy(MPOL_INTERLEAVE, &node_online_map))
+ 		printk("numa_policy_init: interleaving failed\n");
+ }
+ 
+-/* Reset policy of current process to default.
+- * Assumes fs == KERNEL_DS */
++/* Reset policy of current process to default */
+ void numa_default_policy(void)
+ {
+-	sys_set_mempolicy(MPOL_DEFAULT, NULL, 0);
++	do_set_mempolicy(MPOL_DEFAULT, NULL);
+ }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
