@@ -1,189 +1,206 @@
-Message-ID: <4366D469.2010202@yahoo.com.au>
-Date: Tue, 01 Nov 2005 13:35:21 +1100
-From: Nick Piggin <nickpiggin@yahoo.com.au>
+From: Mark Nutter <mnutter@us.ibm.com>
+Subject: Re: ppc64/cell: local TLB flush with active SPEs
+Date: Wed, 12 Oct 2005 17:09:26 -0500
+Message-ID: <OF66519BDB.81F21C74-ON85257098.0078C43D-86257098.0079BEBE@us.ibm.com>
+References: <200510122003.59701.arnd@arndb.de>
+Mime-Version: 1.0
+Content-Type: multipart/mixed; boundary="===============1857875709=="
+Return-path: <linuxppc64-dev-bounces@ozlabs.org>
+In-Reply-To: <200510122003.59701.arnd@arndb.de>
+List-Unsubscribe: <https://ozlabs.org/mailman/listinfo/linuxppc64-dev>,
+	<mailto:linuxppc64-dev-request@ozlabs.org?subject=unsubscribe>
+List-Archive: <http://ozlabs.org/pipermail/linuxppc64-dev>
+List-Post: <mailto:linuxppc64-dev@ozlabs.org>
+List-Help: <mailto:linuxppc64-dev-request@ozlabs.org?subject=help>
+List-Subscribe: <https://ozlabs.org/mailman/listinfo/linuxppc64-dev>,
+	<mailto:linuxppc64-dev-request@ozlabs.org?subject=subscribe>
+Mime-version: 1.0
+Sender: linuxppc64-dev-bounces@ozlabs.org
+Errors-To: linuxppc64-dev-bounces@ozlabs.org
+To: Arnd Bergmann <arnd@arndb.de>
+Cc: linux-mm@kvack.org, Ulrich Weigand <Ulrich.Weigand@de.ibm.com>, Paul Mackerras <paulus@samba.org>, Max Aguilar <maguilar@us.ibm.com>, linuxppc64-dev@ozlabs.org, Michael Day <mnday@us.ibm.com>
+List-Id: linux-mm.kvack.org
+
+This is a multipart message in MIME format.
+--===============1857875709==
+Content-Type: multipart/alternative;
+	boundary="=_alternative 0079BEBB86257098_="
+
+This is a multipart message in MIME format.
+--=_alternative 0079BEBB86257098_=
+Content-Type: text/plain; charset="US-ASCII"
+
+For reference, the 2.6.3 bring-up kernel always issued global TLBIE.  This 
+was a hack, and we very much wanted to improve performance if possible, 
+particularly for the vast majority of PPC applications out there that 
+don't use SPEs.
+
+As long as we are thinking about a proper solution, the whole 
+mm->cpu_vm_mask thing is broken, at least as a selector for local -vs- 
+global TLBIE.  The problem, as I see it, is that memory regions can shared 
+among processes (via mmap/shmat), with each task bound to different 
+processors.  If we are to continue using a cpumask as selector for TLBIE, 
+then we really need a vma->cpu_vma_mask. 
+ 
+---
+Mark Nutter
+STI Design Center / IBM
+email: mnutter@us.ibm.com
+voice: 512-838-1612
+fax: 512-838-1927
+11400 Burnet Road
+Mail Stop 906/3003B
+Austin, TX 78758
+
+
+
+
+
+Arnd Bergmann <arnd@arndb.de>
+10/12/2005 01:03 PM
+ 
+        To:     linuxppc64-dev@ozlabs.org, linux-mm@kvack.org
+        cc:     Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul 
+Mackerras <paulus@samba.org>, Mark Nutter/Austin/IBM@IBMUS, Michael 
+Day/Austin/IBM@IBMUS, Ulrich Weigand <Ulrich.Weigand@de.ibm.com>
+        Subject:        ppc64/cell: local TLB flush with active SPEs
+
+
+I'm looking for a clean solution to detect the need for global
+TLB flush when an mm_struct is only used on one logical PowerPC
+CPU (PPE) and also mapped with the memory flow controller of an
+SPE on the Cell CPU.
+
+Normally, we set bits in mm_struct:cpu_vm_mask for each CPU that
+accesses the mm and then do global flushes instead of local flushes
+when CPUs other than the currently running one are marked as used
+in that mask. When an SPE does DMA to that mm, it also gets local
+TLB entries that are only flushed with a global tlbie broadcast.
+
+The current hack is to always set cpu_vm_mask to all bits set
+when we map an mm into an SPE to ensure receiving the broadcast,
+but that is obviously not how it's meant to be used. In particular,
+it doesn't work in UP configurations where the cpumask contains
+only one bit.
+
+One solution that might be better could be to introduce a new special
+flag in addition to cpu_vm_mask for this purpose. We already have
+a bit field in mm_struct for dumpable, so adding another bit there
+at least does not waste space for other platforms, and it's likely
+to be in the same cache line as cpu_vm_mask. However, I'm reluctant
+to add more bit fields to such a prominent place, because it might
+encourage other people to add more bit fields or thing that they
+are accepted coding practice.
+
+Another idea would be to add a new field to mm_context_t, so it stays
+in the architecture specific code. Again, adding an int here does
+not waste space because there is currently padding in that place on
+ppc64.
+
+Or maybe there is a completely different solution.
+
+Suggestions?
+
+                 Arnd <><
+
+
+--=_alternative 0079BEBB86257098_=
+Content-Type: text/html; charset="US-ASCII"
+
+
+<br><font size=2 face="sans-serif">For reference, the 2.6.3 bring-up kernel
+always issued global TLBIE. &nbsp;This was a hack, and we very much wanted
+to improve performance if possible, particularly for the vast majority
+of PPC applications out there that don't use SPEs.</font>
+<br>
+<br><font size=2 face="sans-serif">As long as we are thinking about a proper
+solution, the whole mm-&gt;cpu_vm_mask thing is broken, at least as a selector
+for local -vs- global TLBIE. &nbsp;The problem, as I see it, is that memory
+regions can shared among processes (via mmap/shmat), with each task bound
+to different processors. &nbsp;If we are to continue using a cpumask as
+selector for TLBIE, then we really need a vma-&gt;cpu_vma_mask. </font>
+<br><font size=2 face="sans-serif">&nbsp;</font>
+<br><font size=2 face="sans-serif">---<br>
+Mark Nutter<br>
+STI Design Center / IBM<br>
+email: mnutter@us.ibm.com<br>
+voice: 512-838-1612<br>
+fax: 512-838-1927<br>
+11400 Burnet Road<br>
+Mail Stop 906/3003B<br>
+Austin, TX 78758<br>
+</font>
+<br>
+<br>
+<br>
+<table width=100%>
+<tr valign=top>
+<td>
+<td><font size=1 face="sans-serif"><b>Arnd Bergmann &lt;arnd@arndb.de&gt;</b></font>
+<p><font size=1 face="sans-serif">10/12/2005 01:03 PM</font>
+<td><font size=1 face="Arial">&nbsp; &nbsp; &nbsp; &nbsp; </font>
+<br><font size=1 face="sans-serif">&nbsp; &nbsp; &nbsp; &nbsp; To:
+&nbsp; &nbsp; &nbsp; &nbsp;linuxppc64-dev@ozlabs.org, linux-mm@kvack.org</font>
+<br><font size=1 face="sans-serif">&nbsp; &nbsp; &nbsp; &nbsp; cc:
+&nbsp; &nbsp; &nbsp; &nbsp;Benjamin Herrenschmidt &lt;benh@kernel.crashing.org&gt;,
+Paul Mackerras &lt;paulus@samba.org&gt;, Mark Nutter/Austin/IBM@IBMUS,
+Michael Day/Austin/IBM@IBMUS, Ulrich Weigand &lt;Ulrich.Weigand@de.ibm.com&gt;</font>
+<br><font size=1 face="sans-serif">&nbsp; &nbsp; &nbsp; &nbsp; Subject:
+&nbsp; &nbsp; &nbsp; &nbsp;ppc64/cell: local TLB flush with active
+SPEs</font></table>
+<br>
+<br>
+<br><font size=2><tt>I'm looking for a clean solution to detect the need
+for global<br>
+TLB flush when an mm_struct is only used on one logical PowerPC<br>
+CPU (PPE) and also mapped with the memory flow controller of an<br>
+SPE on the Cell CPU.<br>
+<br>
+Normally, we set bits in mm_struct:cpu_vm_mask for each CPU that<br>
+accesses the mm and then do global flushes instead of local flushes<br>
+when CPUs other than the currently running one are marked as used<br>
+in that mask. When an SPE does DMA to that mm, it also gets local<br>
+TLB entries that are only flushed with a global tlbie broadcast.<br>
+<br>
+The current hack is to always set cpu_vm_mask to all bits set<br>
+when we map an mm into an SPE to ensure receiving the broadcast,<br>
+but that is obviously not how it's meant to be used. In particular,<br>
+it doesn't work in UP configurations where the cpumask contains<br>
+only one bit.<br>
+<br>
+One solution that might be better could be to introduce a new special<br>
+flag in addition to cpu_vm_mask for this purpose. We already have<br>
+a bit field in mm_struct for dumpable, so adding another bit there<br>
+at least does not waste space for other platforms, and it's likely<br>
+to be in the same cache line as cpu_vm_mask. However, I'm reluctant<br>
+to add more bit fields to such a prominent place, because it might<br>
+encourage other people to add more bit fields or thing that they<br>
+are accepted coding practice.<br>
+<br>
+Another idea would be to add a new field to mm_context_t, so it stays<br>
+in the architecture specific code. Again, adding an int here does<br>
+not waste space because there is currently padding in that place on<br>
+ppc64.<br>
+<br>
+Or maybe there is a completely different solution.<br>
+<br>
+Suggestions?<br>
+<br>
+ &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;
+Arnd &lt;&gt;&lt;<br>
+</tt></font>
+<br>
+--=_alternative 0079BEBB86257098_=--
+
+--===============1857875709==
+Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
-Subject: Re: [Lhms-devel] [PATCH 0/7] Fragmentation Avoidance V19
-References: <20051030183354.22266.42795.sendpatchset@skynet.csn.ul.ie><20051031055725.GA3820@w-mikek2.ibm.com><4365BBC4.2090906@yahoo.com.au> <20051030235440.6938a0e9.akpm@osdl.org> <27700000.1130769270@[10.10.2.4]> <4366A8D1.7020507@yahoo.com.au> <Pine.LNX.4.58.0510312333240.29390@skynet> <4366C559.5090504@yahoo.com.au> <Pine.LNX.4.58.0511010137020.29390@skynet>
-In-Reply-To: <Pine.LNX.4.58.0511010137020.29390@skynet>
-Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: "Martin J. Bligh" <mbligh@mbligh.org>, Andrew Morton <akpm@osdl.org>, kravetz@us.ibm.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, lhms-devel@lists.sourceforge.net, Ingo Molnar <mingo@elte.hu>
-List-ID: <linux-mm.kvack.org>
+Content-Disposition: inline
 
-OK I'm starting to repeat myself a bit so after this I'll be
-quiet for a bit and let others speak :)
+_______________________________________________
+Linuxppc64-dev mailing list
+Linuxppc64-dev@ozlabs.org
+https://ozlabs.org/mailman/listinfo/linuxppc64-dev
 
-Mel Gorman wrote:
-> On Tue, 1 Nov 2005, Nick Piggin wrote:
-
-> I accept that. We should not be encouraging subsystems to use high order
-> allocations but keeping the system in a fragmented state to force the
-> issue is hardly the correct thing to do either.
-> 
-
-But you don't seem to actually "fix" anything. It is slightly improved,
-but for cases where higher order GFP_ATOMIC and GFP_KERNEL allocations
-fail (ie. anything other than memory hotplug or hugepages) you still
-seem to have all the same failure cases.
-
-Transient higher order allocations mean we don't fragment much, you say?
-Well that is true, but it is true for how the system currently works.
-My desktop has been up for a day or two, and it has 4444K free, and it
-has 295 order-3 pages available - it can run a GigE and all its trasient
-allocations no problem.
-
-In the cases were we *do* actually get those failures from eg. networking,
-I'd say your patch probably will end up having problems too. The way to
-fix it is to not use higher order allocations.
-
->>But complexity. More bugs, code harder to understand and maintain, more
->>cache and memory footprint, more branches and instructions.
->>
-> 
-> 
-> The patches have gone through a large number of revisions, have been
-> heavily tested and reviewed by a few people. The memory footprint of this
-> approach is smaller than introducing new zones. If the cache footprint,
-> increased branches and instructions were a problem, I would expect them to
-> show up in the aim9 benchmark or the benchmark that ran ghostscript
-> multiple times on a large file.
-> 
-
-I appreciate that a lot of work has gone into them. You must appreciate
-that they add a reasonable amount of complexity and a non-zero perormance
-cost to the page allocator.
-
-However I think something must be broken if the footprint of adding a new
-zone is higher?
-
->>The easy-to-reclaim stuff doesn't need higher order allocations anyway, so
->>there is no point in being happy about large contiguous regions for these
->>guys.
->>
-> 
-> 
-> The will need high order allocations if we want to provide HugeTLB pages
-> to userspace on-demand rather than reserving at boot-time. This is a
-> future problem, but it's one that is not worth tackling until the
-> fragmentation problem is fixed first.
-> 
-
-Sure. In what form, we haven't agreed. I vote zones! :)
-
-> 
->>The only thing that seems to need it is memory hot unplug, which should rather
->>use another zone.
->>
-> 
-> 
-> Work from 2004 in memory hotplug was trying to use additional zones. I am
-> hoping that someone more involved with memory hotplug will tell us what
-> problems they ran into. If they ran into no problems, they might explain
-> why it was never included in the mainline.
-> 
-
-That would be good.
-
->>OK, for hot unplug you may want that, or for hugepages. However, in those
->>cases it should be done with zones AFAIKS.
->>
-> 
-> 
-> And then we are back to what size to make the zones. This set of patches
-> will largely manage themselves without requiring a sysadmin to intervene.
-> 
-
-Either you need to guarantee some hugepage allocation / hot unplug
-capability or you don't. Placing a bit of burden on admins of these
-huge servers or mainframes sounds like a fine idea to me.
-
-Seriously nobody else will want this, no embedded, no desktops, no
-small servers.
-
-> 
->>>>IMO in order to make Linux bulletproof, just have fallbacks for anything
->>>>greater than about order 2 allocations.
->>>>
->>>
->>>
->>>What sort of fallbacks? Private pools of pages of the larger order for
->>>subsystems that need large pages is hardly desirable.
->>>
->>
->>Mechanisms to continue to run without contiguous memory would be best.
->>Small private pools aren't particularly undesirable - we do that everywhere
->>anyway. Your fragmentation patches essentially do that.
->>
-> 
-> 
-> The main difference been that when a subsystem has small private pools, it
-> is possible for anyone else to use them and shrinking mechanisms are
-> required. My fragmentation patches has subpools, but they are always
-> available.
-> 
-
-True, but we're talking about the need to guarantee an allocation. In
-that case, mempools are required anyway and neither the current nor your
-modified page allocator will help.
-
-In the case were there is no need for a guarantee, there is presumably
-some other fallback.
-
-> 
->>>>From what I have seen, by far our biggest problems in the mm are due to
->>>>page reclaim, and these patches will make our reclaim behaviour more
->>>>complex I think.
->>>>
->>>
->>>
->>>This patchset does not touch reclaim at all. The lists that this patch
->>>really affects is the zone freelists, not the LRU lists that page reclaim
->>>are dealing with. It is only later when we want to try and guarantee
->>>large-order allocations that we will have to change page reclaim.
->>>
->>
->>But it affects things in the allocation path which in turn affects the
->>reclaim path.
-> 
-> 
-> Maybe it's because it's late, but I don't see how these patches currently
-> hit the reclaim path. The reclaim path deals with LRU lists, this set of
-> patches deals with the freelists.
-> 
-
-You don't "hit" the reclaim path, but by making the allocation path
-more complex makes reclaim behaviour harder to analyse.
-
-> 
->>You're doing various balancing and fallbacks and it is
->>simply complicated behaviour in terms of trying to analyse a working
->>system.
->>
-> 
-> 
-> Someone performing such an analysis of the system will only hit problems
-> with these patches if they are performing a deep analysis of the page
-> allocator. Other analysis such as the page reclaim should not even notice
-> that the page allocator has changed.
-> 
-
-Let me think what a nasty one we had was? Oh yeah, the reclaim
-priority would "wind up" because concurrent allocations were keeping
-free pages below watermarks.
-
-I don't know, that's just an example but there are others. The two
-are fundamentally tied together.
-
--- 
-SUSE Labs, Novell Inc.
-
-Send instant messages to your online friends http://au.messenger.yahoo.com 
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+--===============1857875709==--
