@@ -1,54 +1,53 @@
-From: Arnd Bergmann <arnd@arndb.de>
-Subject: ppc64/cell: local TLB flush with active SPEs
-Date: Wed, 12 Oct 2005 20:03:58 +0200
-MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
+Date: Wed, 12 Oct 2005 14:40:22 -0500
+From: Robin Holt <holt@sgi.com>
+Subject: [Patch 0/2] SGI Altix and ia64 special memory support.
+Message-ID: <20051012194022.GE17458@lnx-holt.americas.sgi.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Message-Id: <200510122003.59701.arnd@arndb.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linuxppc64-dev@ozlabs.org, linux-mm@kvack.org
-Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Mark Nutter <mnutter@us.ibm.com>, Mike Day <mnday@us.ibm.com>, Ulrich Weigand <Ulrich.Weigand@de.ibm.com>
+To: linux-ia64@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, hch@infradead.org, jgarzik@pobox.com, wli@holomorphy.com
 List-ID: <linux-mm.kvack.org>
 
-I'm looking for a clean solution to detect the need for global
-TLB flush when an mm_struct is only used on one logical PowerPC
-CPU (PPE) and also mapped with the memory flow controller of an
-SPE on the Cell CPU.
+SGI hardware supports a special type of memory called fetchop or atomic
+memory. This memory does atomic operations at the memory controller
+instead of using the processor.
 
-Normally, we set bits in mm_struct:cpu_vm_mask for each CPU that
-accesses the mm and then do global flushes instead of local flushes
-when CPUs other than the currently running one are marked as used
-in that mask. When an SPE does DMA to that mm, it also gets local
-TLB entries that are only flushed with a global tlbie broadcast.
+This patch set introduces a driver so user land can map the devices and
+fault pages of the appropriate type.  Pages are inserted on first touch.
+The reason for that was hashed out earlier on the lists, but can be
+distilled to node locality, node resource limitation, and application
+performance.
 
-The current hack is to always set cpu_vm_mask to all bits set
-when we map an mm into an SPE to ensure receiving the broadcast,
-but that is obviously not how it's meant to be used. In particular,
-it doesn't work in UP configurations where the cpumask contains
-only one bit.
+Since a typical ia64 uncached page does not have a page struct backing it,
+we first modify do_no_page to handle a new return type of NOPAGE_FAULTED.
+This indicates to the nopage handler that the desired operation is
+complete and should be treated as a minor fault.  This is a result of a
+discussion which Jes Sorenson started on the the ia64 mailing list and
+Christoph Hellwig carried over to the linux-mm mailing list.
 
-One solution that might be better could be to introduce a new special
-flag in addition to cpu_vm_mask for this purpose. We already have
-a bit field in mm_struct for dumpable, so adding another bit there
-at least does not waste space for other platforms, and it's likely
-to be in the same cache line as cpu_vm_mask. However, I'm reluctant
-to add more bit fields to such a prominent place, because it might
-encourage other people to add more bit fields or thing that they
-are accepted coding practice.
+The second patch introduces the mspec driver.
 
-Another idea would be to add a new field to mm_context_t, so it stays
-in the architecture specific code. Again, adding an int here does
-not waste space because there is currently padding in that place on
-ppc64.
+I am reposting these today.  The last version went out in a rush last
+night and I did not take the time to notify the people that were part
+of the earlier discussion.
 
-Or maybe there is a completely different solution.
+Additionally, the version which Jes posted last April was using
+remap_pfn_range().  This version uses set_pte().  I realize that is
+probably the wrong thing to do.  Unfortunately, we need this to be
+thread-safe.  With remap_pfn_range() there is a BUG_ON(!pte_none(*pte));
+in remap_pte_range() which would trip if there were multiple threads
+faulting at the same time.  To work around that, I started looking at
+breaking remap_pfn_range() into an _remap_pfn_range() which assumed
+the locks were already held.  At that point, it became apparent I
+was stretching the use of remap_pfn_range beyond its original intent.
+For this driver, we are inserting a single pte, the page tables have
+already been put in place by the caller's chain, why not just insert
+the pte directly.  That is what I finally did.
 
-Suggestions?
-
-	Arnd <><
+Thanks,
+Robin Holt
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
