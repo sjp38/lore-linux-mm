@@ -1,99 +1,105 @@
-Date: Thu, 13 Oct 2005 15:35:11 +0100 (IST)
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 2/8] Fragmentation Avoidance V17: 002_usemap
-In-Reply-To: <1129213109.7780.18.camel@localhost>
-Message-ID: <Pine.LNX.4.58.0510131532540.7570@skynet>
-References: <20051011151221.16178.67130.sendpatchset@skynet.csn.ul.ie>
- <20051011151231.16178.58396.sendpatchset@skynet.csn.ul.ie>
- <1129211783.7780.7.camel@localhost>  <Pine.LNX.4.58.0510131500020.7570@skynet>
- <1129213109.7780.18.camel@localhost>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e1.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id j9DFnVRh015459
+	for <linux-mm@kvack.org>; Thu, 13 Oct 2005 11:49:31 -0400
+Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
+	by d01relay04.pok.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id j9DFnVFx115246
+	for <linux-mm@kvack.org>; Thu, 13 Oct 2005 11:49:31 -0400
+Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
+	by d01av01.pok.ibm.com (8.12.11/8.13.3) with ESMTP id j9DFnVBq012362
+	for <linux-mm@kvack.org>; Thu, 13 Oct 2005 11:49:31 -0400
+Subject: Re: [PATCH 2/3] hugetlb: Demand fault handler
+From: Adam Litke <agl@us.ibm.com>
+In-Reply-To: <20051012060934.GA14943@localhost.localdomain>
+References: <1129055057.22182.8.camel@localhost.localdomain>
+	 <1129055559.22182.12.camel@localhost.localdomain>
+	 <20051012060934.GA14943@localhost.localdomain>
+Content-Type: text/plain
+Date: Thu, 13 Oct 2005 10:49:28 -0500
+Message-Id: <1129218568.8797.7.camel@localhost.localdomain>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Hansen <haveblue@us.ibm.com>
-Cc: Andrew Morton <akpm@osdl.org>, jschopp@austin.ibm.com, kravetz@us.ibm.com, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, lhms <lhms-devel@lists.sourceforge.net>
+To: David Gibson <david@gibson.dropbear.id.au>
+Cc: akpm@osdl.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, ak@suse.de, hugh@veritas.com
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 13 Oct 2005, Dave Hansen wrote:
+Thanks for the review and comments...
 
-> On Thu, 2005-10-13 at 15:10 +0100, Mel Gorman wrote:
-> > On Thu, 13 Oct 2005, Dave Hansen wrote:
-> > > > +static inline int pfn_to_bitidx(struct zone *zone, unsigned long pfn)
-> > > > +{
-> > > > +	pfn &= (PAGES_PER_SECTION-1);
-> > > > +	return (int)((pfn >> (MAX_ORDER-1)) * BITS_PER_RCLM_TYPE);
-> > > > +}
-> > >
-> > > Why does that return int?  Should it be "unsigned long", maybe?  Also,
-> > > that cast is implicit in the return and shouldn't be needed.
-> > >
-> >
-> > It returns int because the bit functions like assign_bit() expect an int
-> > for the bit index, not an unsigned long or anything else.
->
-> You don't need to explicitly cast between int and unsigned long.  It'll
-> probably hide more bugs than it reveals.
->
+On Wed, 2005-10-12 at 16:09 +1000, David Gibson wrote:
+> On Tue, Oct 11, 2005 at 01:32:38PM -0500, Adam Litke wrote:
+> > Version 5 (Tue, 11 Oct 2005)
+> > 	Deal with hugetlbfs file truncation in find_get_huge_page()
+> > Version 4 (Mon, 03 Oct 2005)
+> > 	Make find_get_huge_page bale properly when add_to_page_cache fails
+> > 	  due to OOM conditions
+> > Version 3 (Thu, 08 Sep 2005)
+> >         Organized logic in hugetlb_pte_fault() by breaking out
+> >           find_get_page/alloc_huge_page logic into separate function
+> >         Removed a few more paranoid checks  ( Thanks       )
+> >         Fixed tlb flushing in a race case   ( Yanmin Zhang )
+> > 
+> > Version 2 (Wed, 17 Aug 2005)
+> >         Removed spurious WARN_ON()
+> >     Patches added earlier in the series (now in mainline):
+> >         Check for p?d_none() in arch/i386/mm/hugetlbpage.c:huge_pte_offset()
+> >         Move i386 stale pte check into huge_pte_alloc()
+> 
+> I'm not sure this does fully deal with truncation, I'm afraid - it
+> will deal with a truncation well before the fault, but not a
+> concurrent truncate().  We'll need the truncate_count/retry logic from
+> do_no_page, I think.  Andi/Hugh, can you confirm that's correct?
 
-Ok
+Ok.  I can see why we need that.
 
-> > > >  /*
-> > > > + * RCLM_SHIFT is the number of bits that a gfp_mask has to be shifted right
-> > > > + * to have just the __GFP_USER and __GFP_KERNRCLM bits. The static check is
-> > > > + * made afterwards in case the GFP flags are not updated without updating
-> > > > + * this number
-> > > > + */
-> > > > +#define RCLM_SHIFT 19
-> > > > +#if (__GFP_USER >> RCLM_SHIFT) != RCLM_USER
-> > > > +#error __GFP_USER not mapping to RCLM_USER
-> > > > +#endif
-> > > > +#if (__GFP_KERNRCLM >> RCLM_SHIFT) != RCLM_KERN
-> > > > +#error __GFP_KERNRCLM not mapping to RCLM_KERN
-> > > > +#endif
-> > >
-> > > Should this really be in page_alloc.c, or should it be close to the
-> > > RCLM_* definitions?
-> >
-> > I can't test it right now, but I think the reason it is here is because
-> > RCLM_* and __GFP_* are in different headers that are not aware of each
-> > other. This is the place a static compile-time check can be made.
->
-> Well, they're pretty intricately linked, so maybe they should go in the
-> same header, no?
->
+> > Initial Post (Fri, 05 Aug 2005)
+> > 
+> > Below is a patch to implement demand faulting for huge pages.  The main
+> > motivation for changing from prefaulting to demand faulting is so that
+> > huge page memory areas can be allocated according to NUMA policy.
+> > 
+> > Thanks to consolidated hugetlb code, switching the behavior requires changing
+> > only one fault handler.  The bulk of the patch just moves the logic from 
+> > hugelb_prefault() to hugetlb_pte_fault() and find_get_huge_page().
+> 
+> While we're at it - it's a minor nit, but I find the distinction
+> between hugetlb_pte_fault() and hugetlb_fault() confusing.  A better
+> name for the former would be hugetlb_no_page(), in which case we
+> should probably also move the border between it and
+> hugetlb_find_get_page() to match the boundary between do_no_page() and
+> mapping->nopage.
+> 
+> How about this, for example:
 
-Will investigate. I can't at the moment.
+Yeah, I suppose that division makes more sense when comparing to the
+normal fault handler code.
 
-> > It was pointed out that type used for use with the bit functions should
-> > all be unsigned long, not int as they were previously. However, I found if
-> > I used unsigned long throughout the code, including for array operations,
-> > there was a 10-12% slowdown in AIM9. These casts were the compromise.
-> > alloctype is unsigned long when used with the functions like assign_bit()
-> > but int every other time.
->
-> Why does it slow down?  Do you have any detailed profiles?
->
+> @@ -338,57 +337,128 @@
+>  	spin_unlock(&mm->page_table_lock);
+>  }
+>  
+> -int hugetlb_prefault(struct address_space *mapping, struct vm_area_struct *vma)
+> +static struct page *hugetlbfs_nopage(struct vm_area_struct *vma,
 
-I have no idea, it made no sense to me at all. I did find that it was
-only in the pcpu code that really suffered but I didn't figure out why.
-Next time I am testing (probably Monday), I'll gather the profiles.
+<snip>
 
-> > In this case, there is an implicit cast so the cast is redundent if that
-> > is the problem you are pointing out. I can remove the explicit casts that
-> > are dotted around the place.
->
-> There needs to be a reason for the casts.  They certainly don't help
-> readability or correctness, so there needs to be some justification.  If
-> there are performance reasons somehow, they need to be analyzed as well.
->
+> +	/* Check to make sure the mapping hasn't been truncated */
+> +	size = i_size_read(inode) >> HPAGE_SHIFT;
+> +	if (pgoff >= size)
+> +		return NULL;
+> +
+> + retry:
+> +	page = find_get_page(mapping, pgoff);
+> +	if (page)
+> +		/* Another thread won the race */
+> +		return page;
 
-I'll recheck it.
+Both of those returns could be changed to goto out so that the function
+has only one exit path.  Isn't that what we want?
 
 -- 
-Mel Gorman
-Part-time Phd Student                          Java Applications Developer
-University of Limerick                         IBM Dublin Software Lab
+Adam Litke - (agl at us.ibm.com)
+IBM Linux Technology Center
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
