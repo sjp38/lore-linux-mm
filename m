@@ -1,81 +1,58 @@
-Message-ID: <434EA6E8.30603@programming.kicks-ass.net>
-Date: Thu, 13 Oct 2005 20:26:48 +0200
-From: Peter Zijlstra <peter@programming.kicks-ass.net>
+Date: Thu, 13 Oct 2005 11:49:40 -0700 (PDT)
+From: Christoph Lameter <clameter@engr.sgi.com>
+Subject: [PATCH] Remove policy contextualization from mbind
+Message-ID: <Pine.LNX.4.62.0510131146580.16263@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
-Subject: Another Clock-pro approx
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: riel@redhat.com, sjiang@lanl.gov
-Cc: linux-mm@kvack.org
+To: ak@suse.de
+Cc: linux-mm@kvack.org, akpm@osdl.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+Policy contextualization is only useful for task based policies and not for vma based
+policies. It may be useful to define allowed nodes that are not accessible from this
+thread because other threads may have access to these nodes. Without 
+this patch strange memory policy situations may cause an application to 
+fail with out of memory.
 
-I've been thinking on another clock-pro approximation.
+Example:
 
-Each page has 3 bits: hot/cold, test and referenced.
-Say we have 3 lists: T1, T2 and T3.
-and variable: s
+Lets say we have two threads A and B that share the same address
+space and a huge array computational array X.
 
-T1 will have hot and cold pages, T2 will only have cold pages and T3
-will have the non-resident pages.
-c will be the total number of resident pages; |T1| + |T2| + |T3| = 2c.
+Thread A is restricted by its cpuset to nodes 0 and 1 and thread B
+is restricted by its cpuset to nodes 2 and 3.
 
+Thread A now wants to restrict allocations to the first node and thus
+applies a BIND policy on X to node 0 and 2. The cpuset limits this to node
+0. Thus pages for X must be allocated on node 0 now.
 
-T1-rotation:
+Thread B now touches a page that has never been used in X and faults in a
+page. According to the BIND policy of the vma for X the page must be
+allocated on page 0. However, the cpuset of B does not allow allocation
+on 0 and 1. Now the application fails in alloc_pages with out of memory.
 
-h/c   test   ref          action
- 0       0       0           T2-000
- 0       0       1           T2-001
- 0       1       0           T2-000
- 0       1       1           T1-100
- 1       0       0           T2-001
- 1       0       1           T1-100
- 1       1       0           <cannot happen>
- 1       1       1           <cannot happen>
+Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
+---
 
-T2-rotation:
+Patch is based on the memory policy layering patch that I posted 
+yesterday.
 
-h/c   test   ref          action
- 0       0       0           <remove page from list>
- 0       0       1           T1-000
- 0       1       0           T3-010
- 0       1       1           T1-100
-
-
-T3-rotation: frees up non-resident slots
-
-So, on fault we rotate T2, unless empty then we start by rotating T1
-until T2 contains at least 1 cold page.
-If a T2 rotation creates a hot page, we rotate T1 to degrade a hot
-page to a cold page in order to keep the cold page target m_c.
-Every T1 rotation adds |T1| to s. While s > c, we subtract c from s and
-turn T3 for each subtraction.
-
-Compare to clock-pro:
-  T1-rotation <-> Hand_hot
-  T2-rotation <-> Hand_cold
-  T3-rotation <-> Hand_test
-
-The normal m_c adaption rules can be applied.
-
-Zoned edition:
-This can be done per zone by having:
-T1_i, T2_i, T3_j, s, t, u_j
-where _i is the zone index and _j the non-resident bucket index.
-
-Then each T1_i turn will add |T1_i| to s, each c in s will increment t by 1.
-On each non-resident bucket access we increment u_j until it equals t
-and for each increment we rotate the bucket.
-
-
-
-Kind regards,
-
-Peter Zijlstra
+Index: linux-2.6.14-rc4/mm/mempolicy.c
+===================================================================
+--- linux-2.6.14-rc4.orig/mm/mempolicy.c	2005-10-12 14:21:21.000000000 -0700
++++ linux-2.6.14-rc4/mm/mempolicy.c	2005-10-12 18:20:05.000000000 -0700
+@@ -369,7 +369,7 @@ long do_mbind(unsigned long start, unsig
+ 		return -EINVAL;
+ 	if (end == start)
+ 		return 0;
+-	if (contextualize_policy(mode, nmask))
++	if (mpol_check_policy(mode, nmask))
+ 		return -EINVAL;
+ 	new = mpol_new(mode, nmask);
+ 	if (IS_ERR(new))
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
