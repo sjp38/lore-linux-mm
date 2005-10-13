@@ -1,59 +1,55 @@
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e1.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id j9DMQNlx015333
-	for <linux-mm@kvack.org>; Thu, 13 Oct 2005 18:26:23 -0400
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay02.pok.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id j9DMQM1a052074
-	for <linux-mm@kvack.org>; Thu, 13 Oct 2005 18:26:23 -0400
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.12.11/8.13.3) with ESMTP id j9DMQMdV026540
-	for <linux-mm@kvack.org>; Thu, 13 Oct 2005 18:26:22 -0400
-Received: from austin.ibm.com (netmail2.austin.ibm.com [9.41.248.176])
-	by d01av02.pok.ibm.com (8.12.11/8.12.11) with ESMTP id j9DMQMaK026535
-	for <linux-mm@kvack.org>; Thu, 13 Oct 2005 18:26:22 -0400
-Received: from [127.0.0.1] (sig-9-65-8-84.mts.ibm.com [9.65.8.84])
-	by austin.ibm.com (8.12.10/8.12.10) with ESMTP id j9DMQKuM039004
-	for <linux-mm@kvack.org>; Thu, 13 Oct 2005 17:26:21 -0500
-Message-ID: <434EDF0C.7060109@austin.ibm.com>
-Date: Thu, 13 Oct 2005 17:26:20 -0500
+Received: from hastur.corp.sgi.com (hastur.corp.sgi.com [198.149.32.33])
+	by omx1.americas.sgi.com (8.12.10/8.12.9/linux-outbound_gateway-1.1) with ESMTP id j9DMcbxT028635
+	for <linux-mm@kvack.org>; Thu, 13 Oct 2005 17:38:38 -0500
+Received: from spindle.corp.sgi.com (spindle.corp.sgi.com [198.29.75.13])
+	by hastur.corp.sgi.com (8.12.9/8.12.10/SGI_generic_relay-1.2) with ESMTP id j9DMcCeS202766246
+	for <linux-mm@kvack.org>; Thu, 13 Oct 2005 15:38:12 -0700 (PDT)
+Received: from schroedinger.engr.sgi.com (schroedinger.engr.sgi.com [163.154.5.55])
+	by spindle.corp.sgi.com (SGI-8.12.5/8.12.9/generic_config-1.2) with ESMTP id j9DMcasT95548564
+	for <linux-mm@kvack.org>; Thu, 13 Oct 2005 15:38:36 -0700 (PDT)
+Message-ID: <434EDDCA.9010001@austin.ibm.com>
+Date: Thu, 13 Oct 2005 17:20:58 -0500
 From: Joel Schopp <jschopp@austin.ibm.com>
 Reply-To: jschopp@austin.ibm.com
 MIME-Version: 1.0
-Subject: Re: [PATCH] Page eviction support in vmscan.c
+Subject: Re: [Lhms-devel] [PATCH] Page eviction support in vmscan.c
+References: <Pine.LNX.4.62.0510131109210.14810@schroedinger.engr.sgi.com>
+In-Reply-To: <Pine.LNX.4.62.0510131109210.14810@schroedinger.engr.sgi.com>
 Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
+ReSent-To: linux-mm@kvack.org
+ReSent-Message-ID: <Pine.LNX.4.62.0510131538290.17853@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm <linux-mm@kvack.org>
+To: Christoph Lameter <clameter@engr.sgi.com>
+Cc: lhms-devel@lists.sourceforge.net, linux-mm@vger.kernel.org, akpm@osdl.org
 List-ID: <linux-mm.kvack.org>
-
-Christoph sent this to @vger.kernel.org instead of @kvack.org.  I assume 
-he'll resend the original to this list.  Sorry if this messes up threading.
 
 > This patch adds functions that allow the eviction of pages to swap space.
 > Page eviction may be useful to migrate pages, suspend programs or for
 > ummapping single pages (useful for faulty pages or pages with soft ECC
 > failures)
 
-I'm curious what use motivated you to write it.  I think for migration
-it would usually make more sense to let the swapper free up LRU memory
-and then do a memory to memory migration.  But I'm not really a
+I'm curious what use motivated you to write it.  I think for migration 
+it would usually make more sense to let the swapper free up LRU memory 
+and then do a memory to memory migration.  But I'm not really a 
 migration expert
 
 
 > swapout_pages does its best to swapout the pages and does multiple passes over the list.
 > However, swapout_pages may not be able to evict all pages for a variety of reasons.
 
-Have you thought about using this in combination with the fragmentation
-avoidance patches Mel has been posting?  __GFP_USER flag that adds would
-go a long way toward determining what can and can't be swapped out.  We
-use that for migration with great success.  I'd assume the criteria for
+Have you thought about using this in combination with the fragmentation 
+avoidance patches Mel has been posting?  __GFP_USER flag that adds would 
+go a long way toward determining what can and can't be swapped out.  We 
+use that for migration with great success.  I'd assume the criteria for 
 swapout and migration are pretty similar.
 
 >  /*
 > + * Swapout evicts the pages on the list to swap space.
 > + * This is essentially a dumbed down version of shrink_list
 
-Have you thought about reusing code from shrink list without duplicating
+Have you thought about reusing code from shrink list without duplicating 
 it?  That is a whole lot of duplicated code to maintain twice.
 
 > +		if (PageDirty(page)) {
@@ -78,8 +74,6 @@ Tabs vs spaces?
 > +                continue;
 
 Tabs vs spaces?
-
-
 
 
 
