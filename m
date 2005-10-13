@@ -1,81 +1,87 @@
 Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e6.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id j9DJ77MC013789
-	for <linux-mm@kvack.org>; Thu, 13 Oct 2005 15:07:07 -0400
-Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
-	by d01relay02.pok.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id j9DJ771a107546
-	for <linux-mm@kvack.org>; Thu, 13 Oct 2005 15:07:07 -0400
-Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
-	by d01av04.pok.ibm.com (8.12.11/8.13.3) with ESMTP id j9DJ77Yr000764
-	for <linux-mm@kvack.org>; Thu, 13 Oct 2005 15:07:07 -0400
-Message-ID: <434EB058.8090809@austin.ibm.com>
-Date: Thu, 13 Oct 2005 14:07:04 -0500
+	by e1.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id j9DMQNlx015333
+	for <linux-mm@kvack.org>; Thu, 13 Oct 2005 18:26:23 -0400
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay02.pok.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id j9DMQM1a052074
+	for <linux-mm@kvack.org>; Thu, 13 Oct 2005 18:26:23 -0400
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.12.11/8.13.3) with ESMTP id j9DMQMdV026540
+	for <linux-mm@kvack.org>; Thu, 13 Oct 2005 18:26:22 -0400
+Received: from austin.ibm.com (netmail2.austin.ibm.com [9.41.248.176])
+	by d01av02.pok.ibm.com (8.12.11/8.12.11) with ESMTP id j9DMQMaK026535
+	for <linux-mm@kvack.org>; Thu, 13 Oct 2005 18:26:22 -0400
+Received: from [127.0.0.1] (sig-9-65-8-84.mts.ibm.com [9.65.8.84])
+	by austin.ibm.com (8.12.10/8.12.10) with ESMTP id j9DMQKuM039004
+	for <linux-mm@kvack.org>; Thu, 13 Oct 2005 17:26:21 -0500
+Message-ID: <434EDF0C.7060109@austin.ibm.com>
+Date: Thu, 13 Oct 2005 17:26:20 -0500
 From: Joel Schopp <jschopp@austin.ibm.com>
+Reply-To: jschopp@austin.ibm.com
 MIME-Version: 1.0
-Subject: Re: [PATCH 6/8] Fragmentation Avoidance V17: 006_largealloc_tryharder
-References: <20051011151221.16178.67130.sendpatchset@skynet.csn.ul.ie> <20051011151251.16178.24064.sendpatchset@skynet.csn.ul.ie>
-In-Reply-To: <20051011151251.16178.24064.sendpatchset@skynet.csn.ul.ie>
+Subject: Re: [PATCH] Page eviction support in vmscan.c
 Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: akpm@osdl.org, kravetz@us.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, lhms-devel@lists.sourceforge.net
+To: linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-This is version 17, plus several versions I did while Mel was preoccupied with 
-his day job, makes well over 20 times this has been posted to the mailing lists 
-that are lkml, linux-mm, and memory hotplug.
+Christoph sent this to @vger.kernel.org instead of @kvack.org.  I assume 
+he'll resend the original to this list.  Sorry if this messes up threading.
 
-All objections/feedback/suggestions that have been brought up on the lists are 
-fixed in the following version.  It's starting to become almost silent when a 
-new version gets posted, possibly because everybody accepts the code as perfect, 
-possibly because they have grown bored with it.  Probably a combination of both.
+> This patch adds functions that allow the eviction of pages to swap space.
+> Page eviction may be useful to migrate pages, suspend programs or for
+> ummapping single pages (useful for faulty pages or pages with soft ECC
+> failures)
 
-I'm guessing the reason this code hasn't been merged yet is because nobody has 
-really enumerated the benefits in awhile.  Here's my try at it
+I'm curious what use motivated you to write it.  I think for migration
+it would usually make more sense to let the swapper free up LRU memory
+and then do a memory to memory migration.  But I'm not really a
+migration expert
 
-Benefits of merging:
-1. Reduced Fragmentation
-2. Better able to fulfill large allocations (see 1)
-3. Less out of memory conditions (see 1)
-3. Prereq for memory hotplug remove
-4. Would be helpful for future development of active defragmentation
-5. Also helpful for future development of demand fault allocating large pages
 
-Downsides of merging:
-It's been well tested on multiple architectures in multiple configurations, but 
-non-trivial changes to core subsystems should not be done lightly.
+> swapout_pages does its best to swapout the pages and does multiple passes over the list.
+> However, swapout_pages may not be able to evict all pages for a variety of reasons.
 
-> @@ -1203,8 +1204,19 @@ rebalance:
->  				goto got_pg;
->  		}
->  
-> -		out_of_memory(gfp_mask, order);
-> +		if (order < MAX_ORDER / 2)
-> +			out_of_memory(gfp_mask, order);
-> +		
-> +		/*
-> +		 * Due to low fragmentation efforts, we try a little
-> +		 * harder to satisfy high order allocations and only
-> +		 * go OOM for low-order allocations
-> +		 */
-> +		if (order >= MAX_ORDER/2 && --highorder_retry > 0)
-> +				goto rebalance;
+Have you thought about using this in combination with the fragmentation
+avoidance patches Mel has been posting?  __GFP_USER flag that adds would
+go a long way toward determining what can and can't be swapped out.  We
+use that for migration with great success.  I'd assume the criteria for
+swapout and migration are pretty similar.
+
+>  /*
+> + * Swapout evicts the pages on the list to swap space.
+> + * This is essentially a dumbed down version of shrink_list
+
+Have you thought about reusing code from shrink list without duplicating
+it?  That is a whole lot of duplicated code to maintain twice.
+
+> +		if (PageDirty(page)) {
+> +			/* Page is dirty, try to write it out here */
+> +			switch(pageout(page, mapping)) {
+> +			case PAGE_KEEP:
+> +			case PAGE_ACTIVATE:
+> +				goto retry_later_locked;
+> +			case PAGE_SUCCESS:
+> +				goto retry_later;
+> +			case PAGE_CLEAN:
+> +				; /* try to free the page below */
+> +			}
+> +                }
+
+Tabs vs spaces?
+
 > +
->  		goto restart;
-> +
->  	}
+> +		list_del(&page->lru);
+> +                unlock_page(page);
+> +		put_page(page);
+> +                continue;
 
-If order >= MAX_ORDER/2 it doesn't call out_of_memory().  The logic behind it is 
-that we shouldn't go OOM for large-order allocations, because we aren't really 
-OOM.  And if we can't satisfy these large allocations then killing processes 
-should have little chance of helping.  Mel and I had discussed this privately, 
-agreed, and it is reflected in the comment.
+Tabs vs spaces?
 
-But it's a bit of a behavior change and I didn't want it to go unnoticed.  I 
-guess the question is, should existing behavior of going OOM even for large 
-order allocations be maintained?  Or is this change a better way, especially in 
-light of the lower fragmentation and increased attempts, like we think it is?
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
