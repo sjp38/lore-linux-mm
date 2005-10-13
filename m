@@ -1,105 +1,84 @@
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by e1.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id j9DFnVRh015459
-	for <linux-mm@kvack.org>; Thu, 13 Oct 2005 11:49:31 -0400
-Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
-	by d01relay04.pok.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id j9DFnVFx115246
-	for <linux-mm@kvack.org>; Thu, 13 Oct 2005 11:49:31 -0400
-Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
-	by d01av01.pok.ibm.com (8.12.11/8.13.3) with ESMTP id j9DFnVBq012362
-	for <linux-mm@kvack.org>; Thu, 13 Oct 2005 11:49:31 -0400
-Subject: Re: [PATCH 2/3] hugetlb: Demand fault handler
-From: Adam Litke <agl@us.ibm.com>
-In-Reply-To: <20051012060934.GA14943@localhost.localdomain>
-References: <1129055057.22182.8.camel@localhost.localdomain>
-	 <1129055559.22182.12.camel@localhost.localdomain>
-	 <20051012060934.GA14943@localhost.localdomain>
-Content-Type: text/plain
-Date: Thu, 13 Oct 2005 10:49:28 -0500
-Message-Id: <1129218568.8797.7.camel@localhost.localdomain>
-Mime-Version: 1.0
+Received: from westrelay02.boulder.ibm.com (westrelay02.boulder.ibm.com [9.17.195.11])
+	by e34.co.us.ibm.com (8.12.11/8.12.11) with ESMTP id j9DGVtHn014414
+	for <linux-mm@kvack.org>; Thu, 13 Oct 2005 12:31:55 -0400
+Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
+	by westrelay02.boulder.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id j9DGXwK3423320
+	for <linux-mm@kvack.org>; Thu, 13 Oct 2005 10:33:58 -0600
+Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av04.boulder.ibm.com (8.12.11/8.13.3) with ESMTP id j9DGXwBj031251
+	for <linux-mm@kvack.org>; Thu, 13 Oct 2005 10:33:58 -0600
+Message-ID: <434E8C72.5000909@austin.ibm.com>
+Date: Thu, 13 Oct 2005 11:33:54 -0500
+From: Joel Schopp <jschopp@austin.ibm.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH 2/8] Fragmentation Avoidance V17: 002_usemap
+References: <20051011151221.16178.67130.sendpatchset@skynet.csn.ul.ie>  <20051011151231.16178.58396.sendpatchset@skynet.csn.ul.ie> <1129211783.7780.7.camel@localhost> <Pine.LNX.4.58.0510131500020.7570@skynet>
+In-Reply-To: <Pine.LNX.4.58.0510131500020.7570@skynet>
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: David Gibson <david@gibson.dropbear.id.au>
-Cc: akpm@osdl.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, ak@suse.de, hugh@veritas.com
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Dave Hansen <haveblue@us.ibm.com>, Andrew Morton <akpm@osdl.org>, kravetz@us.ibm.com, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, lhms <lhms-devel@lists.sourceforge.net>
 List-ID: <linux-mm.kvack.org>
 
-Thanks for the review and comments...
-
-On Wed, 2005-10-12 at 16:09 +1000, David Gibson wrote:
-> On Tue, Oct 11, 2005 at 01:32:38PM -0500, Adam Litke wrote:
-> > Version 5 (Tue, 11 Oct 2005)
-> > 	Deal with hugetlbfs file truncation in find_get_huge_page()
-> > Version 4 (Mon, 03 Oct 2005)
-> > 	Make find_get_huge_page bale properly when add_to_page_cache fails
-> > 	  due to OOM conditions
-> > Version 3 (Thu, 08 Sep 2005)
-> >         Organized logic in hugetlb_pte_fault() by breaking out
-> >           find_get_page/alloc_huge_page logic into separate function
-> >         Removed a few more paranoid checks  ( Thanks       )
-> >         Fixed tlb flushing in a race case   ( Yanmin Zhang )
-> > 
-> > Version 2 (Wed, 17 Aug 2005)
-> >         Removed spurious WARN_ON()
-> >     Patches added earlier in the series (now in mainline):
-> >         Check for p?d_none() in arch/i386/mm/hugetlbpage.c:huge_pte_offset()
-> >         Move i386 stale pte check into huge_pte_alloc()
+>>>@@ -473,6 +491,15 @@ extern struct pglist_data contig_page_da
+>>> #if (MAX_ORDER - 1 + PAGE_SHIFT) > SECTION_SIZE_BITS
+>>> #error Allocator MAX_ORDER exceeds SECTION_SIZE
+>>> #endif
+>>>+#if ((SECTION_SIZE_BITS - MAX_ORDER) * BITS_PER_RCLM_TYPE) > 64
+>>>+#error free_area_usemap is not big enough
+>>>+#endif
+>>
+>>Every time I look at these patches, I see this #if, and I don't remember
+>>what that '64' means.  Can it please get a real name?
+>>
 > 
-> I'm not sure this does fully deal with truncation, I'm afraid - it
-> will deal with a truncation well before the fault, but not a
-> concurrent truncate().  We'll need the truncate_count/retry logic from
-> do_no_page, I think.  Andi/Hugh, can you confirm that's correct?
-
-Ok.  I can see why we need that.
-
-> > Initial Post (Fri, 05 Aug 2005)
-> > 
-> > Below is a patch to implement demand faulting for huge pages.  The main
-> > motivation for changing from prefaulting to demand faulting is so that
-> > huge page memory areas can be allocated according to NUMA policy.
-> > 
-> > Thanks to consolidated hugetlb code, switching the behavior requires changing
-> > only one fault handler.  The bulk of the patch just moves the logic from 
-> > hugelb_prefault() to hugetlb_pte_fault() and find_get_huge_page().
 > 
-> While we're at it - it's a minor nit, but I find the distinction
-> between hugetlb_pte_fault() and hugetlb_fault() confusing.  A better
-> name for the former would be hugetlb_no_page(), in which case we
-> should probably also move the border between it and
-> hugetlb_find_get_page() to match the boundary between do_no_page() and
-> mapping->nopage.
+> Joel, suggestions?
+
+Oh yeah, blame it on me just because I wrote that bit of code.  How about
+#define FREE_AREA_USEMAP_SIZE 64
+
 > 
-> How about this, for example:
+> 
+>>>+/* Usemap initialisation */
+>>>+#ifdef CONFIG_SPARSEMEM
+>>>+static inline void setup_usemap(struct pglist_data *pgdat,
+>>>+				struct zone *zone, unsigned long zonesize) {}
+>>>+#endif /* CONFIG_SPARSEMEM */
+>>>
+>>> struct page;
+>>> struct mem_section {
+>>>@@ -485,6 +512,7 @@ struct mem_section {
+>>> 	 * before using it wrong.
+>>> 	 */
+>>> 	unsigned long section_mem_map;
+>>>+	DECLARE_BITMAP(free_area_usemap,64);
+>>> };
+>>
+>>There's that '64' again!  You need a space after the comma, too.
 
-Yeah, I suppose that division makes more sense when comparing to the
-normal fault handler code.
+Ditto.
 
-> @@ -338,57 +337,128 @@
->  	spin_unlock(&mm->page_table_lock);
->  }
->  
-> -int hugetlb_prefault(struct address_space *mapping, struct vm_area_struct *vma)
-> +static struct page *hugetlbfs_nopage(struct vm_area_struct *vma,
+>>>+ * RCLM_SHIFT is the number of bits that a gfp_mask has to be shifted right
+>>>+ * to have just the __GFP_USER and __GFP_KERNRCLM bits. The static check is
+>>>+ * made afterwards in case the GFP flags are not updated without updating
+>>>+ * this number
+>>>+ */
+>>>+#define RCLM_SHIFT 19
+>>>+#if (__GFP_USER >> RCLM_SHIFT) != RCLM_USER
+>>>+#error __GFP_USER not mapping to RCLM_USER
+>>>+#endif
+>>>+#if (__GFP_KERNRCLM >> RCLM_SHIFT) != RCLM_KERN
+>>>+#error __GFP_KERNRCLM not mapping to RCLM_KERN
+>>>+#endif
+>>
+>>Should this really be in page_alloc.c, or should it be close to the
+>>RCLM_* definitions?
 
-<snip>
-
-> +	/* Check to make sure the mapping hasn't been truncated */
-> +	size = i_size_read(inode) >> HPAGE_SHIFT;
-> +	if (pgoff >= size)
-> +		return NULL;
-> +
-> + retry:
-> +	page = find_get_page(mapping, pgoff);
-> +	if (page)
-> +		/* Another thread won the race */
-> +		return page;
-
-Both of those returns could be changed to goto out so that the function
-has only one exit path.  Isn't that what we want?
-
--- 
-Adam Litke - (agl at us.ibm.com)
-IBM Linux Technology Center
+I had the same first impression, but concluded this was the best place.  The 
+compile time checks should keep things from getting out of sync.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
