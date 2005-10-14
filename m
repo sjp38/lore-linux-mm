@@ -1,128 +1,45 @@
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e4.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id j9E5CMwU001359
-	for <linux-mm@kvack.org>; Fri, 14 Oct 2005 01:12:22 -0400
-Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
-	by d01relay02.pok.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id j9E5CM1a076668
-	for <linux-mm@kvack.org>; Fri, 14 Oct 2005 01:12:22 -0400
-Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
-	by d01av03.pok.ibm.com (8.12.11/8.13.3) with ESMTP id j9E5CMqb010142
-	for <linux-mm@kvack.org>; Fri, 14 Oct 2005 01:12:22 -0400
-Subject: Re: [Patch 2/2] Special Memory (mspec) driver.
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by e35.co.us.ibm.com (8.12.11/8.12.11) with ESMTP id j9E5XaXv025691
+	for <linux-mm@kvack.org>; Fri, 14 Oct 2005 01:33:36 -0400
+Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
+	by d03relay04.boulder.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id j9E5bZau547900
+	for <linux-mm@kvack.org>; Thu, 13 Oct 2005 23:37:35 -0600
+Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av04.boulder.ibm.com (8.12.11/8.13.3) with ESMTP id j9E5aj3u013015
+	for <linux-mm@kvack.org>; Thu, 13 Oct 2005 23:36:45 -0600
+Subject: Re: [PATCH 6/8] Fragmentation Avoidance V17:
+	006_largealloc_tryharder
 From: Dave Hansen <haveblue@us.ibm.com>
-In-Reply-To: <20051012194233.GG17458@lnx-holt.americas.sgi.com>
-References: <20051012194022.GE17458@lnx-holt.americas.sgi.com>
-	 <20051012194233.GG17458@lnx-holt.americas.sgi.com>
+In-Reply-To: <434EB058.8090809@austin.ibm.com>
+References: <20051011151221.16178.67130.sendpatchset@skynet.csn.ul.ie>
+	 <20051011151251.16178.24064.sendpatchset@skynet.csn.ul.ie>
+	 <434EB058.8090809@austin.ibm.com>
 Content-Type: text/plain
-Date: Thu, 13 Oct 2005 22:12:05 -0700
-Message-Id: <1129266725.22903.25.camel@localhost>
+Date: Thu, 13 Oct 2005 22:36:27 -0700
+Message-Id: <1129268188.22903.34.camel@localhost>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Robin Holt <holt@sgi.com>
-Cc: ia64 list <linux-ia64@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, hch@infradead.org, jgarzik@pobox.com, William Lee Irwin III <wli@holomorphy.com>
+To: Joel Schopp <jschopp@austin.ibm.com>
+Cc: Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@osdl.org>, kravetz@us.ibm.com, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, lhms <lhms-devel@lists.sourceforge.net>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2005-10-12 at 14:42 -0500, Robin Holt wrote:
-> +static void
-> +mspec_close(struct vm_area_struct *vma)
-> +{
-> +	struct vma_data *vdata;
-> +	int i, pages, result;
-> +
-> +	vdata = vma->vm_private_data;
-> +	if (atomic_dec_and_test(&vdata->refcnt)) {
-> +		pages = (vma->vm_end - vma->vm_start) >> PAGE_SHIFT;
-...
+On Thu, 2005-10-13 at 14:07 -0500, Joel Schopp wrote:
+> This is version 17, plus several versions I did while Mel was preoccupied with 
+> his day job, makes well over 20 times this has been posted to the mailing lists 
+> that are lkml, linux-mm, and memory hotplug.
+> 
+> All objections/feedback/suggestions that have been brought up on the lists are 
+> fixed in the following version.  It's starting to become almost silent when a 
+> new version gets posted, possibly because everybody accepts the code as perfect, 
+> possibly because they have grown bored with it.  Probably a combination of both.
 
-Looks like you could un-indent almost the entire function of you just
-did this instead:
-
-	if (!atomic_dec_and_test(&vdata->refcnt))
-		return;
-
-> +static __inline__ int
-> +mspec_get_one_pte(struct mm_struct *mm, u64 address, pte_t ** page_table)
-> +{
-> +	pgd_t *pgd;
-> +	pmd_t *pmd;
-> +	pud_t *pud;
-> +
-> +	pgd = pgd_offset(mm, address);
-> +	if (pgd_present(*pgd)) {
-> +		pud = pud_offset(pgd, address);
-> +		if (pud_present(*pud)) {
-> +			pmd = pmd_offset(pud, address);
-> +			if (pmd_present(*pmd)) {
-> +				*page_table = pte_offset_map(pmd, address);
-> +				if (pte_present(**page_table)) {
-> +					return 0;
-> +				}
-> +			}
-> +		}
-> +	}
-> +
-> +	return -1;
-> +}
-
-This looks pretty similar to get_one_pte_map().  Is there enough
-commonality to use it?
-
-> +static int
-> +mspec_mmap(struct file *file, struct vm_area_struct *vma, int type)
-> +{
-> +	struct vma_data *vdata;
-> +	int pages;
-> +
-> +	if (vma->vm_pgoff != 0)
-> +		return -EINVAL;
-> +
-> +	if ((vma->vm_flags & VM_WRITE) == 0)
-> +		return -EPERM;
-> +
-> +	pages = (vma->vm_end - vma->vm_start) >> PAGE_SHIFT;
-> +	if (!
-> +	    (vdata =
-> +	     vmalloc(sizeof(struct vma_data) + pages * sizeof(long))))
-> +		return -ENOMEM;
-
-How about:
-
-	vdata = vmalloc(sizeof(struct vma_data) + pages * sizeof(long));
-	if (!vdata)
-		return -ENOMEM;
-
-> +#ifdef CONFIG_PROC_FS
-> +static void *
-> +mspec_seq_start(struct seq_file *file, loff_t * offset)
-> +{
-> +	if (*offset < MAX_NUMNODES)
-> +		return offset;
-> +	return NULL;
-> +}
-
-This whole thing really is a driver for a piece of arch-specific
-hardware, right?  Does it really belong in /proc?  You already have a
-misc device, so you already have some area in sysfs.  Would that make a
-better place for it?
-
-> +static int __init
-> +mspec_init(void)
-> +{
-> +	if ((ret = misc_register(&cached_miscdev))) {
-> +		printk(KERN_ERR "%s: failed to register device %i\n",
-> +		       CACHED_ID, ret);
-> +		misc_deregister(&fetchop_miscdev);
-> +		return ret;
-> +	}
-
-Isn't the general kernel style for these to keep the action out of the
-if() condition?
-
-	ret = misc_register(&cached_miscdev);
-	if (ret) {
-		...
-	}
+I don't think it's shown signs of stabilizing quite yet.  Each revision
+has new code that needs to be cleaned up, and new obvious CodingStyle
+issues.  Let's see a couple of incrementally cleaner releases go by,
+which don't have renewed old issues, and then we can think about asking
+to get it merged elsewhere.
 
 -- Dave
 
