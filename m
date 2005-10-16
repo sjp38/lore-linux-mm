@@ -1,183 +1,170 @@
-Subject: Re: Another Clock-pro approx
-From: Peter Zijlstra <peter@programming.kicks-ass.net>
-In-Reply-To: <1129440868.3637.492.camel@moon.c3.lanl.gov>
-References: <434EA6E8.30603@programming.kicks-ass.net>
-	 <1129272286.3637.186.camel@moon.c3.lanl.gov>
-	 <1129275512.7845.47.camel@twins>
-	 <1129347305.3637.310.camel@moon.c3.lanl.gov>
-	 <1129349427.7845.117.camel@twins>
-	 <1129440868.3637.492.camel@moon.c3.lanl.gov>
-Content-Type: text/plain
-Date: Sun, 16 Oct 2005 10:37:27 +0200
-Message-Id: <1129451847.7845.161.camel@twins>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from Relay2.suse.de (mail2.suse.de [195.135.221.8])
+	(using TLSv1 with cipher DHE-RSA-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx2.suse.de (Postfix) with ESMTP id D95441D1E5
+	for <linux-mm@kvack.org>; Sun, 16 Oct 2005 10:55:31 +0200 (CEST)
+From: Andi Kleen <ak@suse.de>
+Subject: Re: [PATCH] Add page migration support via swap to the NUMA policy layer
+Date: Sun, 16 Oct 2005 10:56:06 +0200
+MIME-Version: 1.0
+Content-Type: Multipart/Mixed;
+  boundary="Boundary-00=_nWhUD13y+u4+gSe"
+Message-Id: <200510161056.07050.ak@suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Song Jiang <sjiang@lanl.gov>
-Cc: riel@redhat.com, linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 2005-10-15 at 23:34 -0600, Song Jiang wrote:
-> On Fri, 2005-10-14 at 22:10, Peter Zijlstra wrote:
-> > On Fri, 2005-10-14 at 21:35 -0600, Song Jiang wrote:
-> > > Peter,
-> > > 
-> > > Two obvious issues in the actions are 
-> > > (1) test bits have never been set; 
-> > > (2) pages in T3 have never been promoted into T1/T2.
-> > 
-> > Drad, more missing information:
-> > On fault the new page is searched for in T3, if present T1-100 otherwise
-> > T1-010.
-> > 
+--Boundary-00=_nWhUD13y+u4+gSe
+Content-Type: text/plain;
+  charset="us-ascii"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+
+
+[original mail had a mistyped linux-mm address]
+
+
+--Boundary-00=_nWhUD13y+u4+gSe
+Content-Type: message/rfc822;
+  name="forwarded message"
+Content-Transfer-Encoding: 7bit
+Content-Description: Mail Delivery System <MAILER-DAEMON@suse.de>: Undelivered Mail Returned to Sender
+Content-Disposition: inline
+
+Return-Path: <>
+Received: from imap.suse.de ([unix socket])
+	by imap-dhs (Cyrus v2.1.16) with LMTP; Sun, 16 Oct 2005 10:44:52 +0200
+X-Sieve: CMU Sieve 2.2
+Received: from Relay2.suse.de (relay2.suse.de [149.44.160.89])
+	(using TLSv1 with cipher EDH-RSA-DES-CBC3-SHA (168/168 bits))
+	(Client CN "relay.suse.de", Issuer "SuSE Linux AG internal IMAP-Server CA" (verified OK))
+	by imap.suse.de (Postfix) with ESMTP id E0C282D55F6
+	for <ak@imap-dhs.suse.de>; Sun, 16 Oct 2005 10:44:52 +0200 (CEST)
+Received: by Relay2.suse.de (Postfix)
+	id D2C9223DB3; Sun, 16 Oct 2005 10:44:52 +0200 (CEST)
+Received: from Relay2.suse.de (localhost [127.0.0.1])
+	by Relay2.suse.de (Postfix) with ESMTP id C709F23CE1
+	for <ak@suse.de>; Sun, 16 Oct 2005 10:44:52 +0200 (CEST)
+Received: from Relay2.suse.de ([127.0.0.1])
+ by Relay2.suse.de (Relay2 [127.0.0.1]) (amavisd-new, port 10026) with ESMTP
+ id 28000-13 for <ak@suse.de>; Sun, 16 Oct 2005 10:44:52 +0200 (CEST)
+Received: from mx2.suse.de (ns2.suse.de [195.135.220.15])
+	(using TLSv1 with cipher DHE-RSA-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by Relay2.suse.de (Postfix) with ESMTP id 7D1311AB45
+	for <ak@suse.de>; Sun, 16 Oct 2005 10:44:52 +0200 (CEST)
+Received: by mx2.suse.de (Postfix)
+	id 4F86A1CA66; Sun, 16 Oct 2005 10:44:52 +0200 (CEST)
+Date: Sun, 16 Oct 2005 10:44:52 +0200 (CEST)
+From: MAILER-DAEMON@suse.de (Mail Delivery System)
+Subject: Undelivered Mail Returned to Sender
+To: ak@suse.de
+MIME-Version: 1.0
+Content-Type: multipart/report;
+  report-type=delivery-status;
+  boundary="3FEF21CA39.1129452292/mx2.suse.de"
+Message-Id: <20051016084452.4F86A1CA66@mx2.suse.de>
+X-Virus-Scanned: by amavisd-new at Relay2.suse.de
+X-Spam-Status: No, hits=-3.6 tagged_above=-20.0 required=5.0 tests=BAYES_00,
+ MY_LINUX
+X-Spam-Level: 
+X-UID: 70378
+X-Length: 5130
+
+This is a MIME-encapsulated message.
+
+--3FEF21CA39.1129452292/mx2.suse.de
+Content-Description: Notification
+Content-Type: text/plain
+
+This is the Postfix program at host mx2.suse.de.
+
+I'm sorry to have to inform you that your message could not be
+be delivered to one or more recipients. It's attached below.
+
+For further assistance, please send mail to <postmaster>
+
+If you do so, please include this problem report. You can
+delete your own text from the attached returned message.
+
+			The Postfix program
+
+<linux-mm@vger.kernel.org>: host vger.kernel.org[209.132.176.167] said: 554
+    5.0.0 Hi [195.135.220.15], unresolvable address:
+    <linux-mm@vger.kernel.org>; nosuchuser; linux-mm@vger.kernel.org (in reply
+    to RCPT TO command)
+
+--3FEF21CA39.1129452292/mx2.suse.de
+Content-Description: Delivery report
+Content-Type: message/delivery-status
+
+Reporting-MTA: dns; mx2.suse.de
+X-Postfix-Queue-ID: 3FEF21CA39
+X-Postfix-Sender: rfc822; ak@suse.de
+Arrival-Date: Sun, 16 Oct 2005 10:44:39 +0200 (CEST)
+
+Final-Recipient: rfc822; linux-mm@vger.kernel.org
+Action: failed
+Status: 5.0.0
+Diagnostic-Code: X-Postfix; host vger.kernel.org[209.132.176.167] said: 554
+    5.0.0 Hi [195.135.220.15], unresolvable address:
+    <linux-mm@vger.kernel.org>; nosuchuser; linux-mm@vger.kernel.org (in reply
+    to RCPT TO command)
+
+--3FEF21CA39.1129452292/mx2.suse.de
+Content-Description: Undelivered Message
+Content-Type: message/rfc822
+
+Received: from Relay2.suse.de (mail2.suse.de [195.135.221.8])
+	(using TLSv1 with cipher DHE-RSA-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx2.suse.de (Postfix) with ESMTP id 3FEF21CA39;
+	Sun, 16 Oct 2005 10:44:39 +0200 (CEST)
+From: Andi Kleen <ak@suse.de>
+To: Christoph Lameter <clameter@engr.sgi.com>
+Subject: Re: [PATCH] Add page migration support via swap to the NUMA policy layer
+Date: Thu, 13 Oct 2005 20:47:03 +0200
+User-Agent: KMail/1.8.2
+Cc: lhms-devel@lists.sourceforge.net,
+ linux-mm@vger.kernel.org
+References: <Pine.LNX.4.62.0510131114140.14810@schroedinger.engr.sgi.com>
+In-Reply-To: <Pine.LNX.4.62.0510131114140.14810@schroedinger.engr.sgi.com>
+MIME-Version: 1.0
+Content-Type: text/plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200510132047.03892.ak@suse.de>
+
+On Thursday 13 October 2005 20:15, Christoph Lameter wrote:
+> This patch adds page migration support to the NUMA policy layer. An additional
+> flag MPOL_MF_MOVE is introduced for mbind. If MPOL_MF_MOVE is specified then
+> pages that do not conform to the memory policy will be evicted from memory.
+> When they get pages back in new pages will be allocated following the numa policy.
+
+That part looks ok.
+
 > 
-> I am interested in rethinking the mechanism of clock-pro under your 
-> 3-digit code abstraction.
+> In addition this also adds a move_pages function that may be used from outside
+> of the policy layer to move pages between nodes (needed by the cpuset support
+> and the /proc interface). The design is intended to support future direct page
+> migration without going through swap space.
 
-Great, thanks for the help and trust in my idea.
+Please split that out and resubmit if there are really other users
 
-> I put my comments in pairs of brackets.
-> 
-> (Please confirm: all T1 and T2 pages are resident.)
+(what /proc support?) 
 
-Ack.
+> +				WARN_ON(isolate_lru_page(page, pagelist) == 0);
 
-> 
-> T1-rotation:
-> 
-> h/c   test   ref          action
->  0       0       0           T2-000
+WARN_ONs are not supposed to have side effects.
 
-We could even remove this page here and be done with it.
-Ok, that was before I reached the end of the email, with the current set
-of actions this one is also a <cannot happen>. As would the next be.
-
->  
->  0       0       1           T2-001 
-> 
->  0       1       0           T2-000 
->  0       1       1           T1-100
->  1       0       0           T2-001 [T1-010 because I don't see why 
->  we can artificially give it a ref. But we can give it a second
-> chance to test its next reuse in T1]
-
-Yes, my mistake, T1-010 was intended.
-
->  1       0       1           T1-100
->  1       1       0           <cannot happen>
->  1       1       1           <cannot happen>
-> 
-> 
-> T2-rotation:
-> 
-> h/c   test   ref          action
->  0       0       0           <remove page from list>
->  0       0       1           T1-000  [T1-010 to test its next reuse]
-
-Ah, reset test period. Good, good.
-
->  0       1       0           T3-010 
->  0       1       1           T1-100
-> 
-> 
-> T3-rotation: 
->     present:       T1-100
->     not present:  T1-010
-
-Almost, T3 is not actually rotated on fault time, it is searched for the
-faulting page; then on presence the faulting page will become hot (and
-removed from T3), otherwise cold-test. (Think of T3 as a
-threaded-hash-table.)
-
-The T3-rotation which is initiated from a T1-rotation (of a hot page)
-will just remove the tail page on T3. 
-
-This action is designed so that when the largest hot page is made cold
-this change in test period is also reflected on the non-resident list.
-
-> 
-> My obsevations: 
-> 
-> (1) The test bits of all T1 cold pages are 1 
-> (test bit is irrelevant to hot pages),
-> because once a T1 page with test bit 1 has its
-> test bit cleared, it either leaves T1 or
-> becomes a hot page.
-> So that in T1-rotation, the cases of 000, 001 
-> cannot happen.
-> 
-> (2)  The test bits of all T2 cold pages are 0,
-> because all T2 pages are from T1, and there are 
-> no T1 actions generating a test bit.
-> So that in T2-rotation, the cases of 010, 011 
-> cannot happen.
-> 
-> (3) The test bits of all T3 pages are designed
-> to be 1. (I will keep thinking how to really 
-> achieve the design goal).
-> 
-> Considering the above, there is no need to
-> explictly use a test bit.
-> 
-
-Hmm, nice. Good property.
+-Andi
 
 
-> > > 
-> > > 
-> > > HAND-cold --> last resident cold page (== bottom of stack
-> > > Q) where a victim page is going to be searched.
-> > 
-> > Do you imply here that HAND-cold pushes HAND-hot? If so, then it is
-> 
->    HAND-hot pushes HAND-test, but not necessarily HAND-cold,
-> because a cold page that is turned from a hot page can stay 
-> below the HAND-hot in the LIRS stack.
+--3FEF21CA39.1129452292/mx2.suse.de--
 
-Yes, I was afraid this might be the case. We'll have to see how good the
-below approx works in that case.
-
-> > possible to write this 2-hand clock as 2 lists, where the top one will
-> > always push its tail into the head of the botton, and the botton will
-> > puth into the head of the top one on reference.
-> > This is exactly what I have done.
-> 
-> I have no issue with this.
-> 
-> > > If we use separate lists for h/c pages (like active/inactive
-> > > lists), we lose the chance for the comparison, and major 
-> > > performance advantages of clock-pro are lost.  
-> > 
-> > Neither my proposal nor CART have h/c separarted lists. CARTs T1 list
-> > can contain both hot and cold pages as can mine.
-> > 
-> My fault in expressing. I actually mean multiple lists,
-> not necessarily hot and cold pages have to be in seperate 
-> lists. To effectively set the test bits, I wonder we might 
-> have to put non-resident pages with resident pages
-> in the same list. But I will keep thinking how to 
-> make them seperate without compromising the role
-> of test period.   
-
-I hoped that the coupling between T1 and T3 might achieve this.
-
-> > > 
-> > > Let me know if the single list suggestion is feasible
-> > > in the Linux kernel. 
-> > 
-> > Single list should not be a problem. However I still have some trouble
-> > with placing the page meta-data of non-resident pages on those lists.
-> > 
->     We should have a way out on this.
-
-Lets see what happens.
-
-I actually started coding up this thing, so we can do some tests. Like a
-lot of ppl say, numbers talk ;-)
-
-Kind regards,
-Peter
+--Boundary-00=_nWhUD13y+u4+gSe--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
