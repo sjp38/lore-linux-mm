@@ -1,276 +1,54 @@
-Subject: Re: Another Clock-pro approx
-From: Peter Zijlstra <peter@programming.kicks-ass.net>
-In-Reply-To: <1129347305.3637.310.camel@moon.c3.lanl.gov>
-References: <434EA6E8.30603@programming.kicks-ass.net>
-	 <1129272286.3637.186.camel@moon.c3.lanl.gov>
-	 <1129275512.7845.47.camel@twins>
-	 <1129347305.3637.310.camel@moon.c3.lanl.gov>
-Content-Type: text/plain
-Date: Sat, 15 Oct 2005 06:10:27 +0200
-Message-Id: <1129349427.7845.117.camel@twins>
+Date: Sat, 15 Oct 2005 19:52:13 -0700
+From: Paul Jackson <pj@sgi.com>
+Subject: Re: [PATCH 0/8] Fragmentation Avoidance V17
+Message-Id: <20051015195213.44e0dabb.pj@sgi.com>
+In-Reply-To: <20051011151221.16178.67130.sendpatchset@skynet.csn.ul.ie>
+References: <20051011151221.16178.67130.sendpatchset@skynet.csn.ul.ie>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Song Jiang <sjiang@lanl.gov>
-Cc: riel@redhat.com, linux-mm@kvack.org
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: akpm@osdl.org, jschopp@austin.ibm.com, kravetz@us.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, lhms-devel@lists.sourceforge.net
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2005-10-14 at 21:35 -0600, Song Jiang wrote:
-> Peter,
-> 
-> Two obvious issues in the actions are 
-> (1) test bits have never been set; 
-> (2) pages in T3 have never been promoted into T1/T2.
+Mel wrote:
+> +#define __GFP_USER       0x80000u  /* User and other easily reclaimed pages */
+> +#define __GFP_KERNRCLM   0x100000u /* Kernel page that is reclaimable */
 
-Drad, more missing information:
-On fault the new page is searched for in T3, if present T1-100 otherwise
-T1-010.
+Sorry, but that __GFP_USER name is still sticking in my craw.
 
-> I might have to take the responsibility for all
-> the confusion in the understanding of why clock-pro
-> works. (e.g. clock-pro can deal with access-once, loop
-> accesses effectively).  I should have put a pseudo code
-> in the clock-pro paper.  However, even with a pseudo
-> code, the description of clock-pro would seem much more
-> complicated than the idea behind it actually is. To
-> get its idea without being bothered by all the details
-> involved in the clock-pro description, my suggestion
-> is that let's base our discussion/design on the original
-> LIRS algorithm.   
-> (see section 3 of the following paper
-> http://www.cs.wm.edu/hpcs/WWW/HTML/publications/papers/TR-05-11.pdf)
-> 
-> In the context of the LIRS algorithm, compare to clock-pro,
-> 
-> cold <--> HIR 
-> hot <--> LIR
-> 
-> HAND_hot --> bottom of the LIRS stack (= last resident hot
-> page). This is the most critical position in the stack,
-> which serves as a criterion of hot/cold.  A reference
-> to a page above it (if the stack is vertically viewed)
-> makes the page a hot one, otherwise, the page remains as
-> a cold one. This is also the place where a hot page is
-> demoted to a cold one.
-> 
-> 
-> HAND-cold --> last resident cold page (== bottom of stack
-> Q) where a victim page is going to be searched.
+I won't try to reopen my quest to get it named __GFP_REALLY_REALLY_EASY_RCLM
+or whatever it was, but instead will venture on a new quest.
 
-Do you imply here that HAND-cold pushes HAND-hot? If so, then it is
-possible to write this 2-hand clock as 2 lists, where the top one will
-always push its tail into the head of the botton, and the botton will
-puth into the head of the top one on reference.
-This is exactly what I have done.
+Can we get the 'RCLM' in there.  Especially since this term appears
+naked in such code as:
 
-> If we allow an unlimited number of non-resident stay in
-> the stack, there is no need for a HAND_test. Actually
-> HAND_hot serves the purpose.  If we have a limit on that
-> (say the memory size c), then the HAND-test points to the
-> last non-resident cold page or last hot page, whichever
-> is higher.
+> -				page = alloc_page(GFP_HIGHUSER);
+> +				page = alloc_page(GFP_HIGHUSER|__GFP_USER);
 
-Hmm, need to think on this.
+where it is not at all obvious to the reader of this file (fs/exec.c)
+that the __GFP_USER term is commenting on the reclaim behaviour of
+the page to be allocated.
 
-> If we use separate lists for h/c pages (like active/inactive
-> lists), we lose the chance for the comparison, and major 
-> performance advantages of clock-pro are lost.  
+I'd be happier with:
 
-Neither my proposal nor CART have h/c separarted lists. CARTs T1 list
-can contain both hot and cold pages as can mine.
+> +#define __GFP_USERRCLM    0x80000u /* User and other easily reclaimed pages */
+> +#define __GFP_KERNRCLM   0x100000u /* Kernel page that is reclaimable */
 
-> Actually 
-> CAR/CART have been shown in the aforementioned paper 
-> not be able to deal with loop access problem of LRU, 
-> and that is the reason.
+and:
 
-I fixed that:
-  http://programming.kicks-ass.net/kernel-patches/cart/cart-cart-r.patch
-That solution seems to behave properly, although more rigourous testing
-would be nice.
+> -				page = alloc_page(GFP_HIGHUSER);
+> +				page = alloc_page(GFP_HIGHUSER|__GFP_USERRCLM);
 
-> It is fine to have a common non-resident page pool for 
-> the zoned memory, if we can also set their corresponding
-> place-holders in a single list for each zone.
-> 
-> Let me know if the single list suggestion is feasible
-> in the Linux kernel. 
+Also the bold assymetry of these two #defines seems to be without motivation,
+one with the 'RCLM', and the other with '    ' four spaces.
 
-Single list should not be a problem. However I still have some trouble
-with placing the page meta-data of non-resident pages on those lists.
-
-
-> On Fri, 2005-10-14 at 01:38, Peter Zijlstra wrote:
-> > On Fri, 2005-10-14 at 00:44 -0600, Song Jiang wrote:
-> > > Hi, Peter,
-> > > 
-> > >     I didn't see your explanation of the actions such as T2-000.
-> > > So I put my understanding at the below. 
-> > 
-> > My bad, I keep forgetting to write half the stuff down, often the most
-> > important pieces appear missing ;-(
-> > 
-> > As I told Rik yesterday on IRC, the main idea behind it was to make T1 +
-> > T2 behave like 1 big SC-list and superimpose T3 thereon by coupling the
-> > rotation speed. And thus creating 1 virtual wheel as clock-pro has. The
-> > split in T1 and T2 acts as the hot hand and determines the length of the
-> > test period.
-> > 
-> > |T1| + |T2| <= c
-> > |T1| + |T2| + |T3| <= 2c
-> > 
-> > Resident:
-> > T1 can contain pages marked as both hot and cold.
-> > T2 can only contain cold pages.
-> > 
-> > Non-resident:
-> > T3 can only contain non-resident cold pages in their test period.
-> > 
-> > The actions presented like Tn-abc are to be read as: place page on the
-> > head of list Tn with the hot/cold bit set to a, the test bit set to b
-> > and the referenced bit set to c.
-> > 
-> > > While setting three lists, do you indicate that a page 
-> > > can have 3 set of pointers, each for the links in one list?
-> > 
-> > No, a page can only be on 1 list at a time.
-> > 
-> > > If we don't restrict ourselves to the current active and inactive
-> > > list data structure, can you point to us what major approximations
-> > > we have to make on the original clock-pro policy so that the policy 
-> > > becomes acceptable in the kernel? (I understand that zoned data
-> > > structure is one of the required adaptations.) The reason I'm asking 
-> > > the question is that I didn't see some major changes here in your
-> > > approxiamtion? Once I understand the kernel required adaptations, 
-> > > I can work with you for a clock-pro approximation.
-> > 
-> > Yes the zoned data structure is the most difficult. It gives rise to the
-> > fact that we have to split the resident from the non-resident page
-> > management. Each zone will have a resident part and all zones will share
-> > the non-resident part. This because a page leaving zone 1 could be
-> > faulted back in zone 2.
-> > 
-> > Another is that the pageout operation is async, ie. we start writeback
-> > against a page but until it is finished the page has to stay on the
-> > resident lists but as soon as writeback finishes and we have not yet had
-> > another reference we need to reclaim the page asap.
-> > 
-> > The last one, and I'm not quite sure on this one (Rik?), is that when we
-> > insert a page we're sure it is going to be referenced right after the
-> > context switch to userspace. Hence we effectively insert referenced
-> > pages.
-> > 
-> > Rik, any things missing here?
-> > 
-> > > I have a clock-pro simulator in C code and powerpoint presentation 
-> > > slides explaining clock-pro operations. If you are interested in
-> > > any of them, let me know.
-> > > 
-> > > Thanks.
-> > > 
-> > >    Song
-> > > 
-> > >  
-> > > 
-> > > On Thu, 2005-10-13 at 12:26, Peter Zijlstra wrote:
-> > > > Hi,
-> > > > 
-> > > > I've been thinking on another clock-pro approximation.
-> > > > 
-> > > > Each page has 3 bits: hot/cold, test and referenced.
-> > > > Say we have 3 lists: T1, T2 and T3.
-> > > > and variable: s
-> > > > 
-> > > > T1 will have hot and cold pages, T2 will only have cold pages and T3
-> > > > will have the non-resident pages.
-> > > > c will be the total number of resident pages; |T1| + |T2| + |T3| = 2c.
-> > >                                                 Do you mean |T1 U T2 U
-> > > T3| = 2c ?
-> > 
-> > See above.
-> > 
-> > New and improved actions:
-> > 
-> > > > T1-rotation:
-> > > > 
-> > > > h/c   test   ref       action
-> > > >  0      0     0        T2-000   page is passed on to T2
-> > > >  0      0     1        T2-001   page is passed on to T2
-> > > >  0      1     0        T2-000   page to T2, clear test bit
-> > > >  0      1     1        T1-100   make it hot
-> > > >  1      0     0        T2-010   turn into cold page, start test period
-> > > >  1      0     1        T1-100   keep it hot, clear ref bit
-> > > >  1      1     0        <cannot happen>
-> > > >  1      1     1        <cannot happen>
-> > > > 
-> > > > 
-> > > > T2-rotation:
-> > > > 
-> > > > h/c   test   ref       action
-> > > >  0      0     0        <remove page from list>
-> > > >  0      0     1        T1-000  keep it cold, keep it resident.
-> > > >  0      1     0        T3-010  make it non-resident
-> > > >  0      1     1        T1-100  make it hot
-> > > > 
-> > > > 
-> > > > T3-rotation: remove from non-resident list.
-> > 
-> > A fault will check the non-resident list and also remove the page if
-> > found.
-> > 
-> > > > So, on fault we rotate T2, unless empty then we start by rotating T1
-> > > > until T2 contains at least 1 cold page.
-> > > > If a T2 rotation creates a hot page, we rotate T1 to degrade a hot
-> > > > page to a cold page in order to keep the cold page target m_c.
-> > > > Every T1 rotation adds |T1| to s. While s > c, we subtract c from s and
-> > 
-> > >        Does |T1| mean the total size if T1? 
-> > 
-> > Yes, |T1| is the size of T1. 
-> > 
-> > > Can you explain why in more
-> > > detail?
-> > > 
-> > 
-> > This because the hot hand pushes the test hand.
-> > 
-> > Hmmm, maybe it should not be every T1 rotation, but only rotations on
-> > hot pages that get accounted. Because at that point the hot page with
-> > the largest inter reference period will disappear and the test period
-> > changes.
-> > 
-> > So the idea is to couple to rotation speed of T3 to T1 and scale the
-> > respective sizes. 
-> > 
-> > > > turn T3 for each subtraction.
-> > > > 
-> > > > Compare to clock-pro:
-> > > >   T1-rotation <-> Hand_hot
-> > > >   T2-rotation <-> Hand_cold
-> > > >   T3-rotation <-> Hand_test
-> > > > 
-> > > > The normal m_c adaption rules can be applied.
-> > > > 
-> > > > Zoned edition:
-> > > > This can be done per zone by having:
-> > > > T1_i, T2_i, T3_j, s, t, u_j
-> > > > where _i is the zone index and _j the non-resident bucket index.
-> > > > 
-> > > > Then each T1_i turn will add |T1_i| to s, each c in s will increment t by 1.
-> > > > On each non-resident bucket access we increment u_j until it equals t
-> > > > and for each increment we rotate the bucket.
-> > > > 
-> > 
-> > More thoughts, it should probably be: u_j = t/J. Where J is the total
-> > number of buckets.
-> > 
-> > 
-> > Kind regards,
-> > 
-> > Peter Zijlstra
-> > 
-> 
+-- 
+                  I won't rest till it's the best ...
+                  Programmer, Linux Scalability
+                  Paul Jackson <pj@sgi.com> 1.925.600.0401
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
