@@ -1,76 +1,30 @@
-Date: Sun, 16 Oct 2005 12:59:53 +0100 (IST)
-From: Mel Gorman <mel@csn.ul.ie>
+Date: Sun, 16 Oct 2005 10:53:46 -0700
+From: Paul Jackson <pj@sgi.com>
 Subject: Re: [PATCH 0/8] Fragmentation Avoidance V17
-In-Reply-To: <20051015195213.44e0dabb.pj@sgi.com>
-Message-ID: <Pine.LNX.4.58.0510161255570.32005@skynet>
+Message-Id: <20051016105346.01c79929.pj@sgi.com>
+In-Reply-To: <Pine.LNX.4.58.0510161255570.32005@skynet>
 References: <20051011151221.16178.67130.sendpatchset@skynet.csn.ul.ie>
- <20051015195213.44e0dabb.pj@sgi.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+	<20051015195213.44e0dabb.pj@sgi.com>
+	<Pine.LNX.4.58.0510161255570.32005@skynet>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Paul Jackson <pj@sgi.com>
-Cc: akpm@osdl.org, jschopp@austin.ibm.com, kravetz@us.ibm.com, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, lhms-devel@lists.sourceforge.net
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: akpm@osdl.org, jschopp@austin.ibm.com, kravetz@us.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, lhms-devel@lists.sourceforge.net
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 15 Oct 2005, Paul Jackson wrote:
+Mel wrote:
+> I would be happy with __GFP_USERRCLM but __GFP_EASYRCLM may be more
+> obvious?
 
-> Mel wrote:
-> > +#define __GFP_USER       0x80000u  /* User and other easily reclaimed pages */
-> > +#define __GFP_KERNRCLM   0x100000u /* Kernel page that is reclaimable */
->
-> Sorry, but that __GFP_USER name is still sticking in my craw.
->
-> I won't try to reopen my quest to get it named __GFP_REALLY_REALLY_EASY_RCLM
-> or whatever it was, but instead will venture on a new quest.
->
-> Can we get the 'RCLM' in there.  Especially since this term appears
-> naked in such code as:
->
-
-__GFP_USERRCLM is the original name and the motivation for changing it to
-__GFP_USER no longer exists. However, __GFP_EASYRCLM would also make sense
-as it flags pages that are (surprise surprise) easily reclaimed. Would
-__GFP_EASYRCLM be the best choice? __GFP_USERRCLM may imply to some
-readers that it is reclaimed by the user somehow. The flags would then be;
-
-__GFP_EASYRCLM - Allocations for pages that are easily reclaimed such as
-userspace and buffer pages
-
-__GFP_KERNRCLM - Allocations for pages that may be reclaimed by the kernel
-such as caches
-
-No flag - Page cannot be easily reclaimed by any mechanism.
-
-I would be happy with __GFP_USERRCLM but __GFP_EASYRCLM may be more
-obvious?
-
-> > -				page = alloc_page(GFP_HIGHUSER);
-> > +				page = alloc_page(GFP_HIGHUSER|__GFP_USER);
->
-> where it is not at all obvious to the reader of this file (fs/exec.c)
-> that the __GFP_USER term is commenting on the reclaim behaviour of
-> the page to be allocated.
->
-> I'd be happier with:
->
-> > +#define __GFP_USERRCLM    0x80000u /* User and other easily reclaimed pages */
-> > +#define __GFP_KERNRCLM   0x100000u /* Kernel page that is reclaimable */
->
-> and:
->
-> > -				page = alloc_page(GFP_HIGHUSER);
-> > +				page = alloc_page(GFP_HIGHUSER|__GFP_USERRCLM);
->
-> Also the bold assymetry of these two #defines seems to be without motivation,
-> one with the 'RCLM', and the other with '    ' four spaces.
->
->
+I would be delighted with either one.  Yes, __GFP_EASYRCLM is more obvious.
 
 -- 
-Mel Gorman
-Part-time Phd Student                          Java Applications Developer
-University of Limerick                         IBM Dublin Software Lab
+                  I won't rest till it's the best ...
+                  Programmer, Linux Scalability
+                  Paul Jackson <pj@sgi.com> 1.925.600.0401
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
