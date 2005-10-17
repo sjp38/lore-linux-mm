@@ -1,66 +1,31 @@
-Date: Mon, 17 Oct 2005 19:25:33 +0100 (BST)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: [RFC] OVERCOMMIT_ALWAYS extension
-In-Reply-To: <Pine.LNX.4.61.0510171904040.6406@goblin.wat.veritas.com>
-Message-ID: <Pine.LNX.4.61.0510171919150.6548@goblin.wat.veritas.com>
-References: <1129570219.23632.34.camel@localhost.localdomain>
- <Pine.LNX.4.61.0510171904040.6406@goblin.wat.veritas.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Mon, 17 Oct 2005 15:25:01 -0500
+From: Robin Holt <holt@sgi.com>
+Subject: Re: [Patch 2/3] Export get_one_pte_map.
+Message-ID: <20051017202501.GB15670@lnx-holt.americas.sgi.com>
+References: <20051014192111.GB14418@lnx-holt.americas.sgi.com> <20051014192225.GD14418@lnx-holt.americas.sgi.com> <20051014213038.GA7450@kroah.com> <20051017113131.GA30898@lnx-holt.americas.sgi.com> <1129549312.32658.32.camel@localhost> <20051017114730.GC30898@lnx-holt.americas.sgi.com> <Pine.LNX.4.61.0510171331090.2993@goblin.wat.veritas.com> <20051017151430.GA2564@lnx-holt.americas.sgi.com> <Pine.LNX.4.61.0510171644220.4773@goblin.wat.veritas.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.61.0510171644220.4773@goblin.wat.veritas.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Badari Pulavarty <pbadari@us.ibm.com>
-Cc: Chris Wright <chrisw@osdl.org>, linux-mm <linux-mm@kvack.org>
+To: Hugh Dickins <hugh@veritas.com>
+Cc: Robin Holt <holt@sgi.com>, Andrew Morton <akpm@osdl.org>, Dave Hansen <haveblue@us.ibm.com>, Greg KH <greg@kroah.com>, ia64 list <linux-ia64@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, hch@infradead.org, jgarzik@pobox.com, William Lee Irwin III <wli@holomorphy.com>, Nick Piggin <nickpiggin@yahoo.com.au>, Carsten Otte <cotte@de.ibm.com>, Jack Steiner <steiner@americas.sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 17 Oct 2005, Hugh Dickins wrote:
-> On Mon, 17 Oct 2005, Badari Pulavarty wrote:
-> > 
-> > I have been looking at possible ways to extend OVERCOMMIT_ALWAYS
-> > to avoid its abuse.
-> > 
-> > Few of the applications (database) would like to overcommit
-> > memory (by creating shared memory segments more than RAM+swap),
-> > but use only portion of it at any given time and get rid
-> > of portions of them through madvise(DONTNEED), when needed. 
-> > They want this, especially to handle hotplug memory situations 
-> > (where apps may not have clear idea on how much memory they have 
-> > in the system at the time of shared memory create). Currently, 
-> > they are using OVERCOMMIT_ALWAYS system wide to do this - but 
-> > they are affecting every other application on the system.
-> > 
-> > I am wondering, if there is a better way to do this. Simple solution
-> > would be to add IPC_OVERCOMMIT flag or add CAP_SYS_ADMIN to
-> > do the overcommit. This way only specific applications, requesting
-> > this would be able to overcommit. I am worried about, the over
-> > all affects it has on the system. But again, this can't be worse
-> > than system wide  OVERCOMMIT_ALWAYS. Isn't it ?
-> 
-> mmap has MAP_NORESERVE, without CAP_SYS_ADMIN or other restriction,
-> which exempts that mmap from security_vm_enough_memory checking -
-> unless current setting is OVERCOMMIT_NEVER, in which case
-> MAP_NORESERVE is ignored.
+On Mon, Oct 17, 2005 at 04:59:20PM +0100, Hugh Dickins wrote:
+> Repeating a technical question (sorry, that now seems off-topic!):
+> what do you expect to happen with PROT_WRITE, MAP_PRIVATE?
 
-Having written that, it does seem rather odd that we have a flag
-anyone can set to evade that security_ checking.  It was okay when
-it was just vm_enough_memory, but now it's security_vm_enough_memory,
-I wonder if this is a significant oversight, and some CAP required.
-Might break things though.  CC'ed Chris.
+That would end up with a MAP_PRIVATE, PROT_WRITE, VM_RESERVED
+mapping.  That does not make sense for this device, so I added
+the following check to mspec_mmap()
 
-Ah, there's a security_file_mmap earlier, which could reject the
-MAP_NORESERVE flag if it feels so inclined.  Perhaps you'll need
-to allow a similar opportunity for rejection in your approach.
+        if ((vma->vm_flags & VM_SHARED) == 0)
+                return -EINVAL;
 
-Hugh
-
-> So if you're content to move to the OVERCOMMIT_GUESS world, I
-> don't think you could be blamed for adding an IPC_NORESERVE which
-> behaves in the same way, without CAP_SYS_ADMIN restriction.
-> 
-> But if you want to move to OVERCOMMIT_NEVER, yet have a flag which
-> says overcommit now, you'll get into a tussle with NEVER-adherents.
-> 
-> Hugh
+Thanks,
+Robin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
