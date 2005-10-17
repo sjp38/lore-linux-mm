@@ -1,50 +1,53 @@
-Date: Mon, 17 Oct 2005 17:14:38 +0100 (BST)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: [Patch 2/3] Export get_one_pte_map.
-In-Reply-To: <20051017155605.GB2564@lnx-holt.americas.sgi.com>
-Message-ID: <Pine.LNX.4.61.0510171700150.4934@goblin.wat.veritas.com>
-References: <20051014192111.GB14418@lnx-holt.americas.sgi.com>
- <20051014192225.GD14418@lnx-holt.americas.sgi.com> <20051014213038.GA7450@kroah.com>
- <20051017113131.GA30898@lnx-holt.americas.sgi.com> <1129549312.32658.32.camel@localhost>
- <20051017114730.GC30898@lnx-holt.americas.sgi.com>
- <Pine.LNX.4.61.0510171331090.2993@goblin.wat.veritas.com>
- <20051017151430.GA2564@lnx-holt.americas.sgi.com> <20051017152034.GA32286@kroah.com>
- <20051017155605.GB2564@lnx-holt.americas.sgi.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by e31.co.us.ibm.com (8.12.11/8.12.11) with ESMTP id j9HHTZI2021126
+	for <linux-mm@kvack.org>; Mon, 17 Oct 2005 13:29:35 -0400
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d03relay04.boulder.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id j9HHVkTB525674
+	for <linux-mm@kvack.org>; Mon, 17 Oct 2005 11:31:46 -0600
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.12.11/8.13.3) with ESMTP id j9HHUsRO004160
+	for <linux-mm@kvack.org>; Mon, 17 Oct 2005 11:30:54 -0600
+Received: from dyn9047017102.beaverton.ibm.com (dyn9047017102.beaverton.ibm.com [9.47.17.102])
+	by d03av02.boulder.ibm.com (8.12.11/8.12.11) with ESMTP id j9HHUrPC004116
+	for <linux-mm@kvack.org>; Mon, 17 Oct 2005 11:30:53 -0600
+Subject: [RFC] OVERCOMMIT_ALWAYS extension
+From: Badari Pulavarty <pbadari@us.ibm.com>
+Content-Type: text/plain
+Date: Mon, 17 Oct 2005 10:30:19 -0700
+Message-Id: <1129570219.23632.34.camel@localhost.localdomain>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Robin Holt <holt@sgi.com>
-Cc: Andrew Morton <akpm@osdl.org>, Greg KH <greg@kroah.com>, Dave Hansen <haveblue@us.ibm.com>, ia64 list <linux-ia64@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, hch@infradead.org, jgarzik@pobox.com, William Lee Irwin III <wli@holomorphy.com>, Nick Piggin <nickpiggin@yahoo.com.au>, Carsten Otte <cotte@de.ibm.com>, Jack Steiner <steiner@americas.sgi.com>
+To: linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 17 Oct 2005, Robin Holt wrote:
-> On Mon, Oct 17, 2005 at 08:20:34AM -0700, Greg KH wrote:
-> > 
-> > The stuff in -mm is what is going to be in .15, so you have to work off
-> > of that patchset if you wish to have something for .15.
+Hi MM-experts,
 
-The stuff in -mm is a best guess at what's going to be in 2.6.15,
-but it's far from exact and certain.
+I have been looking at possible ways to extend OVERCOMMIT_ALWAYS
+to avoid its abuse.
 
-> Is everything in the mm/ directory from the -mm tree going into .15 or
-> is there a planned subset?  What should I develop against to help ensure
-> I match up with the community?
+Few of the applications (database) would like to overcommit
+memory (by creating shared memory segments more than RAM+swap),
+but use only portion of it at any given time and get rid
+of portions of them through madvise(DONTNEED), when needed. 
+They want this, especially to handle hotplug memory situations 
+(where apps may not have clear idea on how much memory they have 
+in the system at the time of shared memory create). Currently, 
+they are using OVERCOMMIT_ALWAYS system wide to do this - but 
+they are affecting every other application on the system.
 
-That's a question for Andrew (added to CC in case he's not receiving
-enough copies of this mail ;-), and it's too soon to tell - changes
-which have only just been exposed in 2.6.14-rc4-mm1 are not yet
-mature enough for a judgement.
+I am wondering, if there is a better way to do this. Simple solution
+would be to add IPC_OVERCOMMIT flag or add CAP_SYS_ADMIN to
+do the overcommit. This way only specific applications, requesting
+this would be able to overcommit. I am worried about, the over
+all affects it has on the system. But again, this can't be worse
+than system wide  OVERCOMMIT_ALWAYS. Isn't it ?
 
-I've still got stuff to come, to make full sense of what's already in:
-if I were Andrew, given the faster releases we're going for now, I'd
-currently be in some doubt about whether to push that for 2.6.15.
+Ideas ?
 
-Perhaps he'll be more comfortable with yours, feel it's the right
-way to go, and want to put it ahead of what's presently in -mm.
-Or perhaps not.
-
-Hugh
+Thanks,
+Badari
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
