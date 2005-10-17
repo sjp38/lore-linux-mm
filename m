@@ -1,19 +1,37 @@
-Date: Mon, 17 Oct 2005 09:05:59 -0700
-From: Greg KH <greg@kroah.com>
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by e31.co.us.ibm.com (8.12.11/8.12.11) with ESMTP id j9HG8mi6022050
+	for <linux-mm@kvack.org>; Mon, 17 Oct 2005 12:08:48 -0400
+Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
+	by d03relay04.boulder.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id j9HGAxTB544370
+	for <linux-mm@kvack.org>; Mon, 17 Oct 2005 10:10:59 -0600
+Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av03.boulder.ibm.com (8.12.11/8.13.3) with ESMTP id j9HGA6qZ001472
+	for <linux-mm@kvack.org>; Mon, 17 Oct 2005 10:10:07 -0600
 Subject: Re: [Patch 2/3] Export get_one_pte_map.
-Message-ID: <20051017160559.GA315@kroah.com>
-References: <20051014192111.GB14418@lnx-holt.americas.sgi.com> <20051014192225.GD14418@lnx-holt.americas.sgi.com> <20051014213038.GA7450@kroah.com> <20051017113131.GA30898@lnx-holt.americas.sgi.com> <1129549312.32658.32.camel@localhost> <20051017114730.GC30898@lnx-holt.americas.sgi.com> <Pine.LNX.4.61.0510171331090.2993@goblin.wat.veritas.com> <20051017151430.GA2564@lnx-holt.americas.sgi.com> <20051017152034.GA32286@kroah.com> <20051017155605.GB2564@lnx-holt.americas.sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+From: Dave Hansen <haveblue@us.ibm.com>
 In-Reply-To: <20051017155605.GB2564@lnx-holt.americas.sgi.com>
+References: <20051014192111.GB14418@lnx-holt.americas.sgi.com>
+	 <20051014192225.GD14418@lnx-holt.americas.sgi.com>
+	 <20051014213038.GA7450@kroah.com>
+	 <20051017113131.GA30898@lnx-holt.americas.sgi.com>
+	 <1129549312.32658.32.camel@localhost>
+	 <20051017114730.GC30898@lnx-holt.americas.sgi.com>
+	 <Pine.LNX.4.61.0510171331090.2993@goblin.wat.veritas.com>
+	 <20051017151430.GA2564@lnx-holt.americas.sgi.com>
+	 <20051017152034.GA32286@kroah.com>
+	 <20051017155605.GB2564@lnx-holt.americas.sgi.com>
+Content-Type: text/plain
+Date: Mon, 17 Oct 2005 18:09:39 +0200
+Message-Id: <1129565379.9839.42.camel@localhost>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Robin Holt <holt@sgi.com>
-Cc: Hugh Dickins <hugh@veritas.com>, Dave Hansen <haveblue@us.ibm.com>, ia64 list <linux-ia64@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, hch@infradead.org, jgarzik@pobox.com, William Lee Irwin III <wli@holomorphy.com>, Nick Piggin <nickpiggin@yahoo.com.au>, Carsten Otte <cotte@de.ibm.com>, Jack Steiner <steiner@americas.sgi.com>
+Cc: Greg KH <greg@kroah.com>, Hugh Dickins <hugh@veritas.com>, ia64 list <linux-ia64@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, hch@infradead.org, jgarzik@pobox.com, William Lee Irwin III <wli@holomorphy.com>, Nick Piggin <nickpiggin@yahoo.com.au>, Carsten Otte <cotte@de.ibm.com>, Jack Steiner <steiner@americas.sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Oct 17, 2005 at 10:56:05AM -0500, Robin Holt wrote:
+On Mon, 2005-10-17 at 10:56 -0500, Robin Holt wrote:
 > On Mon, Oct 17, 2005 at 08:20:34AM -0700, Greg KH wrote:
 > > > Would it be reasonable to ask that the current patch be included and
 > > > then I work up another patch which introduces a ->nopfn type change
@@ -26,15 +44,12 @@ On Mon, Oct 17, 2005 at 10:56:05AM -0500, Robin Holt wrote:
 > is there a planned subset?  What should I develop against to help ensure
 > I match up with the community?
 
--mm is "the community" :)
+I'd just work on top of the entire -mm tree for now.  Or, check out the
+patch-series file and the broken-out/ directory in the tree's directory
+on kernel.org.  You can apply only the patches that are in the mm
+section (it's commented), they're just about first after the -git trees.
 
-But Hugh would have the best answer for this, as he knows what he will
-be sending in for .15, so at the least, work off of his patches in
-there.
-
-Good luck,
-
-greg k-h
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
