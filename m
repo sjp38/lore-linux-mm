@@ -1,39 +1,53 @@
-Date: Mon, 17 Oct 2005 06:39:04 -0500
-From: Robin Holt <holt@sgi.com>
+Received: from westrelay02.boulder.ibm.com (westrelay02.boulder.ibm.com [9.17.195.11])
+	by e36.co.us.ibm.com (8.12.11/8.12.11) with ESMTP id j9HBec2X007659
+	for <linux-mm@kvack.org>; Mon, 17 Oct 2005 07:40:38 -0400
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by westrelay02.boulder.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id j9HBgJeo415952
+	for <linux-mm@kvack.org>; Mon, 17 Oct 2005 05:42:19 -0600
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.12.11/8.13.3) with ESMTP id j9HBgJUx007897
+	for <linux-mm@kvack.org>; Mon, 17 Oct 2005 05:42:19 -0600
 Subject: Re: [Patch 2/3] Export get_one_pte_map.
-Message-ID: <20051017113904.GB30898@lnx-holt.americas.sgi.com>
-References: <20051014192111.GB14418@lnx-holt.americas.sgi.com> <20051014192225.GD14418@lnx-holt.americas.sgi.com> <20051014213038.GA7450@kroah.com> <20051017113131.GA30898@lnx-holt.americas.sgi.com> <20051017113601.GA25434@infradead.org>
+From: Dave Hansen <haveblue@us.ibm.com>
+In-Reply-To: <20051017113131.GA30898@lnx-holt.americas.sgi.com>
+References: <20051014192111.GB14418@lnx-holt.americas.sgi.com>
+	 <20051014192225.GD14418@lnx-holt.americas.sgi.com>
+	 <20051014213038.GA7450@kroah.com>
+	 <20051017113131.GA30898@lnx-holt.americas.sgi.com>
+Content-Type: text/plain
+Date: Mon, 17 Oct 2005 13:41:52 +0200
+Message-Id: <1129549312.32658.32.camel@localhost>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20051017113601.GA25434@infradead.org>
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Hellwig <hch@infradead.org>, Robin Holt <holt@sgi.com>, Greg KH <greg@kroah.com>, linux-ia64@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, jgarzik@pobox.com, wli@holomorphy.com, Dave Hansen <haveblue@us.ibm.com>, Jack Steiner <steiner@americas.sgi.com>
+To: Robin Holt <holt@sgi.com>
+Cc: Greg KH <greg@kroah.com>, ia64 list <linux-ia64@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, hch@infradead.org, jgarzik@pobox.com, William Lee Irwin III <wli@holomorphy.com>, Jack Steiner <steiner@americas.sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Oct 17, 2005 at 12:36:01PM +0100, Christoph Hellwig wrote:
-> On Mon, Oct 17, 2005 at 06:31:31AM -0500, Robin Holt wrote:
-> > On Fri, Oct 14, 2005 at 02:30:38PM -0700, Greg KH wrote:
-> > > On Fri, Oct 14, 2005 at 02:22:25PM -0500, Robin Holt wrote:
-> > > > +EXPORT_SYMBOL(get_one_pte_map);
-> > > 
-> > > EXPORT_SYMBOL_GPL() ?
+On Mon, 2005-10-17 at 06:31 -0500, Robin Holt wrote:
+> On Fri, Oct 14, 2005 at 02:30:38PM -0700, Greg KH wrote:
+> > On Fri, Oct 14, 2005 at 02:22:25PM -0500, Robin Holt wrote:
+> > > +EXPORT_SYMBOL(get_one_pte_map);
 > > 
-> > Not sure why it would fall that way.  Looking at the directory,
-> > I get:
+> > EXPORT_SYMBOL_GPL() ?
 > 
-> This is a very lowlevel export for things that poke deep into VM
-> internals, so _GPL makes sense.  In fact not allowing modular builds
-> of the mspec driver might make even more sense.
+> Not sure why it would fall that way.  Looking at the directory,
+> I get:
 
-That would be acceptable as well.  I was just looking for a way to
-minimize kernel sizes for ia64 machines that don't need these
-devices and therefore would not load the module.  Just looking at
-it from a distro perspective.  What is the concensus?
+Most of the VM stuff in those directories that you're referring to are
+old, crusty exports, from the days before _GPL.  We've left them to be
+polite, but if many of them were recreated today, they'd certainly be
+_GPL.
 
-Thanks,
-Robin
+We do not want random external modules poking at PTEs, nor should a
+module need to know such kernel internals as the semantics of
+PTE_HIGHMEM.  I think it needs _GPL.
+
+BTW, your new patches look much nicer than the last set.  Thanks for
+making the changes I suggested.
+
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
