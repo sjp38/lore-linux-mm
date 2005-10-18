@@ -1,38 +1,36 @@
-Date: Tue, 18 Oct 2005 09:50:45 -0700 (PDT)
+Date: Tue, 18 Oct 2005 09:54:02 -0700 (PDT)
 From: Christoph Lameter <clameter@engr.sgi.com>
 Subject: Re: [PATCH 0/2] Page migration via Swap V2: Overview
-In-Reply-To: <43549815.9090001@jp.fujitsu.com>
-Message-ID: <Pine.LNX.4.62.0510180948490.7911@schroedinger.engr.sgi.com>
+In-Reply-To: <20051018121642.GA13963@logos.cnet>
+Message-ID: <Pine.LNX.4.62.0510180951050.7911@schroedinger.engr.sgi.com>
 References: <20051018004932.3191.30603.sendpatchset@schroedinger.engr.sgi.com>
- <43549815.9090001@jp.fujitsu.com>
+ <20051018121642.GA13963@logos.cnet>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: linux-mm@kvack.org, lhms-devel@lists.sourceforge.net, jschopp@austin.ibm.com, Andrew Morton <akpm@osdl.org>
+To: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
+Cc: akpm@osdl.org, linux-mm@kvack.org, ak@suse.de, lhms-devel@lists.sourceforge.net
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 18 Oct 2005, KAMEZAWA Hiroyuki wrote:
+On Tue, 18 Oct 2005, Marcelo Tosatti wrote:
 
-> Because sys_mbind() acquires mm->mmap_sem, once page is unmapped,
-> all accesses to the page are blocked.
-> 
-> So, even if the range contains hot pages, there will not be
-> hard-to-be-swapped-out pages. right ?
+> Having a duplicate implementation is somewhat disappointing - why not fix the problems
+> with real page migration?
 
-There may be locked pages and maybe pages that are continually busy.
- 
-> sys_mbind() can aquire mm->mmap_sem for migrating *a process's page*,
-> but memory-hotplug cannot aquire the lock for migrating a chunk of pages.
+There are problems on a variety of levels. Its just too complicated to 
+work them out in one go. I think we would need much more support from the 
+larger developer community to get there. With a simple working migration 
+approach we can simultaneously:
 
-I did mbind first because it is the less invasive. The primary reason to 
-acquire mmap_sem is to be able to walk the vma areas.
+1. Explore solutions to the lower level migration code
 
-> I think we'll need radix_tree_replace for migating arbitrary chunk of pages,
-> anyway.
+2. Deal with the memory policy issues arising in hotplug and in memory 
+migration. These are masked by the swap based migration because swapin 
+guarantees the correct use of memory policies and cpuset restrictions.
 
-Likely. Ultimately I would like to see the direct migration work.
+3. Implement appropriate higher level control of page migration via a 
+variety of methods and develop the necessary user land support structures.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
