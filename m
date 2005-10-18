@@ -1,31 +1,48 @@
-Date: Mon, 17 Oct 2005 18:04:51 -0700
-From: Andrew Morton <akpm@osdl.org>
-Subject: Re: [PATCH 1/2] Page migration via Swap V2: Page Eviction
-Message-Id: <20051017180451.358f9dcc.akpm@osdl.org>
-In-Reply-To: <20051018004937.3191.42181.sendpatchset@schroedinger.engr.sgi.com>
+Message-ID: <4354696D.4050101@jp.fujitsu.com>
+Date: Tue, 18 Oct 2005 12:18:05 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH 0/2] Page migration via Swap V2: Overview
 References: <20051018004932.3191.30603.sendpatchset@schroedinger.engr.sgi.com>
-	<20051018004937.3191.42181.sendpatchset@schroedinger.engr.sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+In-Reply-To: <20051018004932.3191.30603.sendpatchset@schroedinger.engr.sgi.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Christoph Lameter <clameter@sgi.com>
-Cc: linux-mm@kvack.org, lhms-devel@lists.sourceforge.net, ak@suse.de
+Cc: akpm@osdl.org, linux-mm@kvack.org, ak@suse.de, lhms-devel@lists.sourceforge.net
 List-ID: <linux-mm.kvack.org>
 
-Christoph Lameter <clameter@sgi.com> wrote:
->
-> +		write_lock_irq(&mapping->tree_lock);
->  +
->  +		if (page_count(page) != 2 || PageDirty(page)) {
->  +			write_unlock_irq(&mapping->tree_lock);
->  +			goto retry_later_locked;
->  +		}
+Hi,
 
-This needs the (uncommented (grr)) smp_rmb() copied-and-pasted as well.
+Christoph Lameter wrote:
 
-It's a shame about the copy-and-pasting :(   Is it unavoidable?
+> The disadvantage over direct page migration are:
+> 
+> A. Performance: Having to go through swap is slower.
+> 
+> B. The need for swap space: The area to be migrated must fit into swap.
+> 
+I think migration cache will work well for A & B :)
+migraction cache is virtual swap, just unmap a page and modifies it as a swap cache.
+
+> C. Placement of pages at swapin is done under the memory policy in
+>    effect at that time. This may destroy nodeset relative positioning.
+> 
+How about this ?
+==
+1. do_mbind()
+2. unmap and moves to migraction cache
+3. touch all pages
+==
+For 3., 2. should gather all present virtual address list...
+
+D. We need another page-cache migration functions for moving page-cache :(
+    Moving just anon is not for memory-hotplug.
+    (BTW, how should pages in page cache be affected by memory location control ??
+     I think some people discussed about that...)
+
+-- Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
