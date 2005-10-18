@@ -1,40 +1,40 @@
-Date: Tue, 18 Oct 2005 09:43:39 -0700 (PDT)
+Date: Tue, 18 Oct 2005 09:46:09 -0700 (PDT)
 From: Christoph Lameter <clameter@engr.sgi.com>
-Subject: Re: [PATCH 1/2] Page migration via Swap V2: Page Eviction
-In-Reply-To: <aec7e5c30510180134of0b129au3f1a1b61cf822b53@mail.gmail.com>
-Message-ID: <Pine.LNX.4.62.0510180938430.7911@schroedinger.engr.sgi.com>
+Subject: Re: [PATCH 2/2] Page migration via Swap V2: MPOL_MF_MOVE interface
+In-Reply-To: <aec7e5c30510180305q43488fcdq601045baa6ecb409@mail.gmail.com>
+Message-ID: <Pine.LNX.4.62.0510180943460.7911@schroedinger.engr.sgi.com>
 References: <20051018004932.3191.30603.sendpatchset@schroedinger.engr.sgi.com>
-  <20051018004937.3191.42181.sendpatchset@schroedinger.engr.sgi.com>
- <aec7e5c30510180134of0b129au3f1a1b61cf822b53@mail.gmail.com>
+  <20051018004942.3191.44835.sendpatchset@schroedinger.engr.sgi.com>
+ <aec7e5c30510180305q43488fcdq601045baa6ecb409@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Magnus Damm <magnus.damm@gmail.com>
-Cc: akpm@osdl.org, linux-mm@kvack.org, lhms-devel@lists.sourceforge.net, ak@suse.de
+Cc: akpm@osdl.org, linux-mm@kvack.org, ak@suse.de, lhms-devel@lists.sourceforge.net
 List-ID: <linux-mm.kvack.org>
 
 On Tue, 18 Oct 2005, Magnus Damm wrote:
 
-> This function is very similar to isolate_lru_pages(), except that it
-> operates on one page at a time and drains the lru if needed. Maybe
-> isolate_lru_pages() could use this function (inline) if the spinlock
-> and drain code was moved out?
+> isolate_lru_page() calls get_page_testone(), and swapout_pages() seems
+> to call __put_page(). But who decrements page->_count in the case of
+> putback_lru_pages()?
 
-isolate_lru_pages operates on batches of pages from the same zone and is 
-very efficient by only taking a single lock. It also does not drain other 
-processors LRUs.
+Right. Here is a patch that does a put_page in putback_lru_pages():
 
-> I'm also curios why you choose to always use list_del() and move back
-> the page if freed elsewhere, instead of using
-> del_page_from_[in]active_list(). I guess because of performance. But
-> if that is the case, wouldn't it make sense to do as little as
-> possible with the spinlock held, ie move list_add() (when rc == 1) out
-> of the function?
-
-I tried to follow isolate_lru_pages as closely as possible. list_add() is 
-a simple operation and so I left it inside following some earlier code 
-from the hotplug project.
+Index: linux-2.6.14-rc4-mm1/mm/vmscan.c
+===================================================================
+--- linux-2.6.14-rc4-mm1.orig/mm/vmscan.c	2005-10-17 16:19:21.000000000 -0700
++++ linux-2.6.14-rc4-mm1/mm/vmscan.c	2005-10-18 09:36:36.000000000 -0700
+@@ -894,6 +894,8 @@ int putback_lru_pages(struct list_head *
+ 			count++;
+ 		}
+ 		spin_unlock_irq(&zone->lru_lock);
++		/* Undo the get from isolate_lru_page */
++		put_page(page);
+ 	}
+ 	return count;
+ }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
