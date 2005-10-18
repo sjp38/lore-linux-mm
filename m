@@ -1,98 +1,138 @@
-Subject: Re: [Lhms-devel] Re: [PATCH 0/2] Page migration via Swap V2:
-	Overview
-From: Lee Schermerhorn <lee.schermerhorn@hp.com>
-Reply-To: lee.schermerhorn@hp.com
-In-Reply-To: <4354696D.4050101@jp.fujitsu.com>
-References: <20051018004932.3191.30603.sendpatchset@schroedinger.engr.sgi.com>
-	 <4354696D.4050101@jp.fujitsu.com>
-Content-Type: text/plain
-Date: Tue, 18 Oct 2005 10:27:34 -0400
-Message-Id: <1129645654.5146.28.camel@localhost.localdomain>
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by e36.co.us.ibm.com (8.12.11/8.12.11) with ESMTP id j9IG3shm014066
+	for <linux-mm@kvack.org>; Tue, 18 Oct 2005 12:03:54 -0400
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d03relay04.boulder.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id j9IG6UP5508972
+	for <linux-mm@kvack.org>; Tue, 18 Oct 2005 10:06:30 -0600
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.12.11/8.13.3) with ESMTP id j9IG5bPG019744
+	for <linux-mm@kvack.org>; Tue, 18 Oct 2005 10:05:37 -0600
+Subject: [RFC][PATCH] OVERCOMMIT_ALWAYS extension
+From: Badari Pulavarty <pbadari@us.ibm.com>
+In-Reply-To: <Pine.LNX.4.61.0510171919150.6548@goblin.wat.veritas.com>
+References: <1129570219.23632.34.camel@localhost.localdomain>
+	 <Pine.LNX.4.61.0510171904040.6406@goblin.wat.veritas.com>
+	 <Pine.LNX.4.61.0510171919150.6548@goblin.wat.veritas.com>
+Content-Type: multipart/mixed; boundary="=-HE9fpKEKoZB/XK3fpDEB"
+Date: Tue, 18 Oct 2005 09:05:02 -0700
+Message-Id: <1129651502.23632.63.camel@localhost.localdomain>
 Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Christoph Lameter <clameter@sgi.com>, akpm@osdl.org, linux-mm@kvack.org, ak@suse.de, lhms-devel@lists.sourceforge.net, "Avelino F. Zorzo" <zorzo@inf.pucrs.br>
+To: Hugh Dickins <hugh@veritas.com>
+Cc: Chris Wright <chrisw@osdl.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2005-10-18 at 12:18 +0900, KAMEZAWA Hiroyuki wrote:
-> Hi,
-> 
-> Christoph Lameter wrote:
-> 
-> > The disadvantage over direct page migration are:
+--=-HE9fpKEKoZB/XK3fpDEB
+Content-Type: text/plain
+Content-Transfer-Encoding: 7bit
+
+On Mon, 2005-10-17 at 19:25 +0100, Hugh Dickins wrote:
+> On Mon, 17 Oct 2005, Hugh Dickins wrote:
+> > On Mon, 17 Oct 2005, Badari Pulavarty wrote:
+> > > 
+> > > I have been looking at possible ways to extend OVERCOMMIT_ALWAYS
+> > > to avoid its abuse.
+> > > 
+> > > Few of the applications (database) would like to overcommit
+> > > memory (by creating shared memory segments more than RAM+swap),
+> > > but use only portion of it at any given time and get rid
+> > > of portions of them through madvise(DONTNEED), when needed. 
+> > > They want this, especially to handle hotplug memory situations 
+> > > (where apps may not have clear idea on how much memory they have 
+> > > in the system at the time of shared memory create). Currently, 
+> > > they are using OVERCOMMIT_ALWAYS system wide to do this - but 
+> > > they are affecting every other application on the system.
+> > > 
+> > > I am wondering, if there is a better way to do this. Simple solution
+> > > would be to add IPC_OVERCOMMIT flag or add CAP_SYS_ADMIN to
+> > > do the overcommit. This way only specific applications, requesting
+> > > this would be able to overcommit. I am worried about, the over
+> > > all affects it has on the system. But again, this can't be worse
+> > > than system wide  OVERCOMMIT_ALWAYS. Isn't it ?
 > > 
-> > A. Performance: Having to go through swap is slower.
-> > 
-> > B. The need for swap space: The area to be migrated must fit into swap.
-> > 
-> I think migration cache will work well for A & B :)
-> migraction cache is virtual swap, just unmap a page and modifies it as a swap cache.
-
-I submitted a "reworked" migration cache patch back on 20sep:
-
-http://marc.theaimsgroup.com/?l=lhms-devel&m=112724852823727&w=4
-
-The "rework", based on a conversation with Marcello, attempts to hide
-most of the migration cache behind the swap interface.  Of course, the
-decision to add a page to the swap cache vs the migration cache must be
-explicit, but once added to either cache a page can be manipulated
-almost entirely via [slightly modified] swap APIs to limit propagation
-of changes to other parts of vm.
-
-I have used this version of the migration cache successfully with Ray
-Bryant's manual page migration [based on a 2.6.13-rc3-git7-mhp2 tree]
-and with a prototype "lazy page migration" patch [work in progress] that
-works similar to Christoph's current patch under discussion.
-
+> > mmap has MAP_NORESERVE, without CAP_SYS_ADMIN or other restriction,
+> > which exempts that mmap from security_vm_enough_memory checking -
+> > unless current setting is OVERCOMMIT_NEVER, in which case
+> > MAP_NORESERVE is ignored.
 > 
-> > C. Placement of pages at swapin is done under the memory policy in
-> >    effect at that time. This may destroy nodeset relative positioning.
-> > 
-> How about this ?
-> ==
-> 1. do_mbind()
-> 2. unmap and moves to migraction cache
-> 3. touch all pages
-
-Touching all pages could be optional [an additional flag to mbind()].
-Then a process only migrates pages as they are used.  Maybe not all of
-the pages marked for migration will actually be used by the process
-before one decides to migrate it again.  However, then we'd need a way
-to find pages in the migration cache and move them to the swap cache for
-page out under memory pressure.  Marcello mentioned this way back when
-he first proposed the migration cache.  I'm thinking that shrink_list()
-could probably do this when it finds an anon page in the "swap cache"--
-i.e., check if it's really in the migration cache and if may_swap, move
-it to the swap cache.
-
-> ==
-> For 3., 2. should gather all present virtual address list...
+> Having written that, it does seem rather odd that we have a flag
+> anyone can set to evade that security_ checking.  It was okay when
+> it was just vm_enough_memory, but now it's security_vm_enough_memory,
+> I wonder if this is a significant oversight, and some CAP required.
+> Might break things though.  CC'ed Chris.
 > 
-> D. We need another page-cache migration functions for moving page-cache :(
->     Moving just anon is not for memory-hotplug.
->     (BTW, how should pages in page cache be affected by memory location control ??
->      I think some people discussed about that...)
+> Ah, there's a security_file_mmap earlier, which could reject the
+> MAP_NORESERVE flag if it feels so inclined.  Perhaps you'll need
+> to allow a similar opportunity for rejection in your approach.
+> 
+> Hugh
+> 
+> > So if you're content to move to the OVERCOMMIT_GUESS world, I
+> > don't think you could be blamed for adding an IPC_NORESERVE which
+> > behaves in the same way, without CAP_SYS_ADMIN restriction.
+> > 
+> > But if you want to move to OVERCOMMIT_NEVER, yet have a flag which
+> > says overcommit now, you'll get into a tussle with NEVER-adherents.
+> > 
+> > Hugh
+> 
 
-If when scanning a range of virtual addresses [from mbind()], one
-encounters non-anon pages and unmaps them [e.g., via page_migratable()-
->try_to_unmap()], they can be refaulted from the cache or backing store
-on next touch.  Of course, they won't have been migrated yet.  We'd need
-to mark the pages to be tested for migration in the fault path.  I've
-used a "PageCheckPolicy" flag [yet another page flag :-(] to indicate
-that the page location must be checked against the policy at fault time.
-This is less expensive than querying the policy for the 'correct'
-location on each fault.  Note that pages in the migration must also be
-so marked because they aren't swapped out.  Similar for pages in the
-swap cache if they aren't actually swapped out.  We'd need to clear this
-flag when the pages are freed if they haven't been migrated yet [flag is
-tested/cleared in fault path].
+Hugh,
+
+As you suggested, here is the patch to add SHM_NORESERVE which does 
+same thing as MAP_NORESERVE. This flag is ignored for OVERCOMMIT_NEVER.
+I decided to do SHM_NORESERVE instead of IPC_NORESERVE - just to limit
+its scope.
+
+BTW, there is a call to security_shm_alloc() earlier, which could
+be modified to reject shmget() if it needs to.
+
+Is this reasonable ? Please review.
+
+Thanks,
+Badari
 
 
-Regards,
-Lee
 
+--=-HE9fpKEKoZB/XK3fpDEB
+Content-Disposition: attachment; filename=shm-noreserve.patch
+Content-Type: text/x-patch; name=shm-noreserve.patch; charset=UTF-8
+Content-Transfer-Encoding: 7bit
+
+Signed-off-by: Badari Pulavarty <pbadari@us.ibm.com>
+--- linux-2.6.14-rc3.org/include/linux/shm.h	2005-10-18 08:44:28.000000000 -0700
++++ linux-2.6.14-rc3/include/linux/shm.h	2005-10-18 08:46:03.000000000 -0700
+@@ -92,6 +92,7 @@ struct shmid_kernel /* private to the ke
+ #define	SHM_DEST	01000	/* segment will be destroyed on last detach */
+ #define SHM_LOCKED      02000   /* segment will not be swapped */
+ #define SHM_HUGETLB     04000   /* segment will use huge TLB pages */
++#define SHM_NORESERVE   010000  /* don't check for reservations */
+ 
+ #ifdef CONFIG_SYSVIPC
+ long do_shmat(int shmid, char __user *shmaddr, int shmflg, unsigned long *addr);
+--- linux-2.6.14-rc3.org/ipc/shm.c	2005-10-17 16:57:40.000000000 -0700
++++ linux-2.6.14-rc3/ipc/shm.c	2005-10-18 08:55:50.000000000 -0700
+@@ -212,8 +212,16 @@ static int newseg (key_t key, int shmflg
+ 		file = hugetlb_zero_setup(size);
+ 		shp->mlock_user = current->user;
+ 	} else {
++		int acctflag = VM_ACCOUNT;
++		/*
++		 * Do not allow no accouting for OVERCOMMIT_NEVER, even
++	 	 * its asked for.
++		 */
++		if  ((shmflg & SHM_NORESERVE) && 
++		     sysctl_overcommit_memory != OVERCOMMIT_NEVER)
++			acctflag = 0;
+ 		sprintf (name, "SYSV%08x", key);
+-		file = shmem_file_setup(name, size, VM_ACCOUNT);
++		file = shmem_file_setup(name, size, acctflag);
+ 	}
+ 	error = PTR_ERR(file);
+ 	if (IS_ERR(file))
+
+--=-HE9fpKEKoZB/XK3fpDEB--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
