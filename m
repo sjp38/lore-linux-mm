@@ -1,94 +1,98 @@
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e4.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id j9IDkeUD031462
-	for <linux-mm@kvack.org>; Tue, 18 Oct 2005 09:46:40 -0400
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay02.pok.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id j9IDkea2081554
-	for <linux-mm@kvack.org>; Tue, 18 Oct 2005 09:46:40 -0400
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.12.11/8.13.3) with ESMTP id j9IDkeZJ030086
-	for <linux-mm@kvack.org>; Tue, 18 Oct 2005 09:46:40 -0400
-Message-ID: <4354FCCB.8080207@de.ibm.com>
-Date: Tue, 18 Oct 2005 15:46:51 +0200
-From: Carsten Otte <cotte@de.ibm.com>
-Reply-To: carsteno@de.ibm.com
-MIME-Version: 1.0
-Subject: Re: What were your needs for do_no_page calling a driver for a pfn?
-References: <20051018114506.GB20231@lnx-holt.americas.sgi.com>
-In-Reply-To: <20051018114506.GB20231@lnx-holt.americas.sgi.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [Lhms-devel] Re: [PATCH 0/2] Page migration via Swap V2:
+	Overview
+From: Lee Schermerhorn <lee.schermerhorn@hp.com>
+Reply-To: lee.schermerhorn@hp.com
+In-Reply-To: <4354696D.4050101@jp.fujitsu.com>
+References: <20051018004932.3191.30603.sendpatchset@schroedinger.engr.sgi.com>
+	 <4354696D.4050101@jp.fujitsu.com>
+Content-Type: text/plain
+Date: Tue, 18 Oct 2005 10:27:34 -0400
+Message-Id: <1129645654.5146.28.camel@localhost.localdomain>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Robin Holt <holt@sgi.com>
-Cc: linux-mm@kvack.org, Hugh Dickins <hugh@veritas.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Nick Piggin <nickpiggin@yahoo.com.au>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Christoph Lameter <clameter@sgi.com>, akpm@osdl.org, linux-mm@kvack.org, ak@suse.de, lhms-devel@lists.sourceforge.net, "Avelino F. Zorzo" <zorzo@inf.pucrs.br>
 List-ID: <linux-mm.kvack.org>
 
-Robin Holt wrote:
-> Can you give me a heads up on your need?
-The idea originated from Hugh Dickins. Nick Piggin
-and Hugh ran into my xip code [see mm/filemap_xip.c
-and fs/ext2/xip.*] because it does use PG_RESERVED
-at the moment. While the xip code now works fine
-even without PG_RESERVED, Hugh inspired me to think
-about getting rid of [struct page] entries in
-mem_map for my DCSS segments, because the new core
-memory management leaves the mem_map entries alone
-once VM_RESERVED is set for the VMA.
-During my analysis, I ran into various issues that
-I need to solve in order to do that:
-- nopage() does return a struct page. It needs to
-  be replaced by a new aop that returns a page frame
-  number (nopfn).
-- flush_dcache_page() takes struct page as argument.
-  For the nine architectures that have it, I need to
-  create a replacement (flush_dcache_pfn).
-  Given that flush_dcache_page is used in many device
-  drivers and filesystems, and because
-  flush_dcache_page does avoid cache flushes with a
-  page flag indicating that subject page needs to be
-  flushed from cache once it is accessible to userland
-  again, I do think that flush_dcache_page should not
-  be replaced - flush_dcache_pfn would be an
-  alternative function for situations where you don't
-  have struct page.
-- the filemap actors do use struct page as argument.
-  I need to rework that to have actors take a page
-  frame number as argument instead.
-- my get_xip_page aop needs to be replaced by one
-  that does deliver a page frame number
-- last but not least, I do need Hugh's
-  implementation of copy-on-write for VM_RESERVED
-  VMAs (do_wp_reserved). That one does not need the
-  struct page entry in order to do C-O-W.
+On Tue, 2005-10-18 at 12:18 +0900, KAMEZAWA Hiroyuki wrote:
+> Hi,
+> 
+> Christoph Lameter wrote:
+> 
+> > The disadvantage over direct page migration are:
+> > 
+> > A. Performance: Having to go through swap is slower.
+> > 
+> > B. The need for swap space: The area to be migrated must fit into swap.
+> > 
+> I think migration cache will work well for A & B :)
+> migraction cache is virtual swap, just unmap a page and modifies it as a swap cache.
 
-Above does provide a major benefit for many small
-servers on z/VM:
-When all (userland) libraries and binaries reside in
-an execute in place filesystem, and the kernel binary
-is shared xip, then each server has quite small
-memory requirement. But with an entire server distro
-on that xip filesystem, the mem_map array for the
-filesystem really occupies about 30% of the general
-purpose memory.
-Thus we could run about 30% more servers when
-getting rid of the struct page.
+I submitted a "reworked" migration cache patch back on 20sep:
 
-The shiny new memory management in -mm really is a
-major step that gets us closer to that goal. As of
-today, Hugh dislikes his proof-of-concept
-do_wp_reserved. He wants things to settle down and
-integrate things into mainline rather then
-introduce more features for now. I respect that
-and don't push to get do_wp_reserved.
+http://marc.theaimsgroup.com/?l=lhms-devel&m=112724852823727&w=4
 
-If we are lucky, other uses for do_wp_reserved will
-come up. If that happens, I will be happy to work on
-the other issues in above list.
---
+The "rework", based on a conversation with Marcello, attempts to hide
+most of the migration cache behind the swap interface.  Of course, the
+decision to add a page to the swap cache vs the migration cache must be
+explicit, but once added to either cache a page can be manipulated
+almost entirely via [slightly modified] swap APIs to limit propagation
+of changes to other parts of vm.
 
-Carsten Otte
-IBM Linux technology center
-ARCH=s390
+I have used this version of the migration cache successfully with Ray
+Bryant's manual page migration [based on a 2.6.13-rc3-git7-mhp2 tree]
+and with a prototype "lazy page migration" patch [work in progress] that
+works similar to Christoph's current patch under discussion.
+
+> 
+> > C. Placement of pages at swapin is done under the memory policy in
+> >    effect at that time. This may destroy nodeset relative positioning.
+> > 
+> How about this ?
+> ==
+> 1. do_mbind()
+> 2. unmap and moves to migraction cache
+> 3. touch all pages
+
+Touching all pages could be optional [an additional flag to mbind()].
+Then a process only migrates pages as they are used.  Maybe not all of
+the pages marked for migration will actually be used by the process
+before one decides to migrate it again.  However, then we'd need a way
+to find pages in the migration cache and move them to the swap cache for
+page out under memory pressure.  Marcello mentioned this way back when
+he first proposed the migration cache.  I'm thinking that shrink_list()
+could probably do this when it finds an anon page in the "swap cache"--
+i.e., check if it's really in the migration cache and if may_swap, move
+it to the swap cache.
+
+> ==
+> For 3., 2. should gather all present virtual address list...
+> 
+> D. We need another page-cache migration functions for moving page-cache :(
+>     Moving just anon is not for memory-hotplug.
+>     (BTW, how should pages in page cache be affected by memory location control ??
+>      I think some people discussed about that...)
+
+If when scanning a range of virtual addresses [from mbind()], one
+encounters non-anon pages and unmaps them [e.g., via page_migratable()-
+>try_to_unmap()], they can be refaulted from the cache or backing store
+on next touch.  Of course, they won't have been migrated yet.  We'd need
+to mark the pages to be tested for migration in the fault path.  I've
+used a "PageCheckPolicy" flag [yet another page flag :-(] to indicate
+that the page location must be checked against the policy at fault time.
+This is less expensive than querying the policy for the 'correct'
+location on each fault.  Note that pages in the migration must also be
+so marked because they aren't swapped out.  Similar for pages in the
+swap cache if they aren't actually swapped out.  We'd need to clear this
+flag when the pages are freed if they haven't been migrated yet [flag is
+tested/cleared in fault path].
+
+
+Regards,
+Lee
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
