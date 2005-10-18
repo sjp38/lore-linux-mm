@@ -1,5 +1,5 @@
-Message-ID: <4354696D.4050101@jp.fujitsu.com>
-Date: Tue, 18 Oct 2005 12:18:05 +0900
+Message-ID: <43549815.9090001@jp.fujitsu.com>
+Date: Tue, 18 Oct 2005 15:37:09 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
 Subject: Re: [PATCH 0/2] Page migration via Swap V2: Overview
@@ -10,38 +10,38 @@ Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Christoph Lameter <clameter@sgi.com>
-Cc: akpm@osdl.org, linux-mm@kvack.org, ak@suse.de, lhms-devel@lists.sourceforge.net
+Cc: linux-mm@kvack.org, lhms-devel@lists.sourceforge.net, jschopp@austin.ibm.com, Andrew Morton <akpm@osdl.org>
 List-ID: <linux-mm.kvack.org>
 
 Hi,
-
 Christoph Lameter wrote:
-
-> The disadvantage over direct page migration are:
+> The patchset consists of two patches:
 > 
-> A. Performance: Having to go through swap is slower.
+> 1. Page eviction patch
 > 
-> B. The need for swap space: The area to be migrated must fit into swap.
+> Modifies mm/vmscan.c to add functions to isolate pages from the LRU lists,
+> swapout lists of pages and return pages to the LRU lists.
 > 
-I think migration cache will work well for A & B :)
-migraction cache is virtual swap, just unmap a page and modifies it as a swap cache.
-
-> C. Placement of pages at swapin is done under the memory policy in
->    effect at that time. This may destroy nodeset relative positioning.
+> 2. MPOL_MF_MOVE flag for memory policies.
 > 
-How about this ?
-==
-1. do_mbind()
-2. unmap and moves to migraction cache
-3. touch all pages
-==
-For 3., 2. should gather all present virtual address list...
+> This implements MPOL_MF_MOVE in addition to MPOL_MF_STRICT. MPOL_MF_STRICT
+> allows the checking if all pages in a memory area obey the memory policies.
+> MPOL_MF_MOVE will evict all pages that do not conform to the memory policy.
+> The system will allocate pages conforming to the policy on swap in.
+> 
 
-D. We need another page-cache migration functions for moving page-cache :(
-    Moving just anon is not for memory-hotplug.
-    (BTW, how should pages in page cache be affected by memory location control ??
-     I think some people discussed about that...)
+Because sys_mbind() acquires mm->mmap_sem, once page is unmapped,
+all accesses to the page are blocked.
 
+So, even if the range contains hot pages, there will not be
+hard-to-be-swapped-out pages. right ?
+
+sys_mbind() can aquire mm->mmap_sem for migrating *a process's page*,
+but memory-hotplug cannot aquire the lock for migrating a chunk of pages.
+
+I think we'll need radix_tree_replace for migating arbitrary chunk of pages, anyway.
+
+Thanks,
 -- Kame
 
 --
