@@ -1,138 +1,146 @@
-Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
-	by e36.co.us.ibm.com (8.12.11/8.12.11) with ESMTP id j9IG3shm014066
-	for <linux-mm@kvack.org>; Tue, 18 Oct 2005 12:03:54 -0400
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by d03relay04.boulder.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id j9IG6UP5508972
-	for <linux-mm@kvack.org>; Tue, 18 Oct 2005 10:06:30 -0600
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.12.11/8.13.3) with ESMTP id j9IG5bPG019744
-	for <linux-mm@kvack.org>; Tue, 18 Oct 2005 10:05:37 -0600
-Subject: [RFC][PATCH] OVERCOMMIT_ALWAYS extension
-From: Badari Pulavarty <pbadari@us.ibm.com>
-In-Reply-To: <Pine.LNX.4.61.0510171919150.6548@goblin.wat.veritas.com>
-References: <1129570219.23632.34.camel@localhost.localdomain>
-	 <Pine.LNX.4.61.0510171904040.6406@goblin.wat.veritas.com>
-	 <Pine.LNX.4.61.0510171919150.6548@goblin.wat.veritas.com>
-Content-Type: multipart/mixed; boundary="=-HE9fpKEKoZB/XK3fpDEB"
-Date: Tue, 18 Oct 2005 09:05:02 -0700
-Message-Id: <1129651502.23632.63.camel@localhost.localdomain>
-Mime-Version: 1.0
+Date: Tue, 18 Oct 2005 09:38:24 -0700 (PDT)
+From: Christoph Lameter <clameter@engr.sgi.com>
+Subject: Re: [PATCH 1/2] Page migration via Swap V2: Page Eviction
+In-Reply-To: <20051017180451.358f9dcc.akpm@osdl.org>
+Message-ID: <Pine.LNX.4.62.0510180937020.7911@schroedinger.engr.sgi.com>
+References: <20051018004932.3191.30603.sendpatchset@schroedinger.engr.sgi.com>
+ <20051018004937.3191.42181.sendpatchset@schroedinger.engr.sgi.com>
+ <20051017180451.358f9dcc.akpm@osdl.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: Chris Wright <chrisw@osdl.org>, linux-mm <linux-mm@kvack.org>
+To: Andrew Morton <akpm@osdl.org>
+Cc: linux-mm@kvack.org, lhms-devel@lists.sourceforge.net, ak@suse.de, nickpiggin@yahoo.com.au
 List-ID: <linux-mm.kvack.org>
 
---=-HE9fpKEKoZB/XK3fpDEB
-Content-Type: text/plain
-Content-Transfer-Encoding: 7bit
+On Mon, 17 Oct 2005, Andrew Morton wrote:
 
-On Mon, 2005-10-17 at 19:25 +0100, Hugh Dickins wrote:
-> On Mon, 17 Oct 2005, Hugh Dickins wrote:
-> > On Mon, 17 Oct 2005, Badari Pulavarty wrote:
-> > > 
-> > > I have been looking at possible ways to extend OVERCOMMIT_ALWAYS
-> > > to avoid its abuse.
-> > > 
-> > > Few of the applications (database) would like to overcommit
-> > > memory (by creating shared memory segments more than RAM+swap),
-> > > but use only portion of it at any given time and get rid
-> > > of portions of them through madvise(DONTNEED), when needed. 
-> > > They want this, especially to handle hotplug memory situations 
-> > > (where apps may not have clear idea on how much memory they have 
-> > > in the system at the time of shared memory create). Currently, 
-> > > they are using OVERCOMMIT_ALWAYS system wide to do this - but 
-> > > they are affecting every other application on the system.
-> > > 
-> > > I am wondering, if there is a better way to do this. Simple solution
-> > > would be to add IPC_OVERCOMMIT flag or add CAP_SYS_ADMIN to
-> > > do the overcommit. This way only specific applications, requesting
-> > > this would be able to overcommit. I am worried about, the over
-> > > all affects it has on the system. But again, this can't be worse
-> > > than system wide  OVERCOMMIT_ALWAYS. Isn't it ?
-> > 
-> > mmap has MAP_NORESERVE, without CAP_SYS_ADMIN or other restriction,
-> > which exempts that mmap from security_vm_enough_memory checking -
-> > unless current setting is OVERCOMMIT_NEVER, in which case
-> > MAP_NORESERVE is ignored.
+> This needs the (uncommented (grr)) smp_rmb() copied-and-pasted as well.
 > 
-> Having written that, it does seem rather odd that we have a flag
-> anyone can set to evade that security_ checking.  It was okay when
-> it was just vm_enough_memory, but now it's security_vm_enough_memory,
-> I wonder if this is a significant oversight, and some CAP required.
-> Might break things though.  CC'ed Chris.
-> 
-> Ah, there's a security_file_mmap earlier, which could reject the
-> MAP_NORESERVE flag if it feels so inclined.  Perhaps you'll need
-> to allow a similar opportunity for rejection in your approach.
-> 
-> Hugh
-> 
-> > So if you're content to move to the OVERCOMMIT_GUESS world, I
-> > don't think you could be blamed for adding an IPC_NORESERVE which
-> > behaves in the same way, without CAP_SYS_ADMIN restriction.
-> > 
-> > But if you want to move to OVERCOMMIT_NEVER, yet have a flag which
-> > says overcommit now, you'll get into a tussle with NEVER-adherents.
-> > 
-> > Hugh
-> 
+> It's a shame about the copy-and-pasting :(   Is it unavoidable?
 
-Hugh,
+Well there is a way at least to extract a major section from it that 
+includes the smb_rmb().
 
-As you suggested, here is the patch to add SHM_NORESERVE which does 
-same thing as MAP_NORESERVE. This flag is ignored for OVERCOMMIT_NEVER.
-I decided to do SHM_NORESERVE instead of IPC_NORESERVE - just to limit
-its scope.
-
-BTW, there is a call to security_shm_alloc() earlier, which could
-be modified to reject shmget() if it needs to.
-
-Is this reasonable ? Please review.
-
-Thanks,
-Badari
-
-
-
---=-HE9fpKEKoZB/XK3fpDEB
-Content-Disposition: attachment; filename=shm-noreserve.patch
-Content-Type: text/x-patch; name=shm-noreserve.patch; charset=UTF-8
-Content-Transfer-Encoding: 7bit
-
-Signed-off-by: Badari Pulavarty <pbadari@us.ibm.com>
---- linux-2.6.14-rc3.org/include/linux/shm.h	2005-10-18 08:44:28.000000000 -0700
-+++ linux-2.6.14-rc3/include/linux/shm.h	2005-10-18 08:46:03.000000000 -0700
-@@ -92,6 +92,7 @@ struct shmid_kernel /* private to the ke
- #define	SHM_DEST	01000	/* segment will be destroyed on last detach */
- #define SHM_LOCKED      02000   /* segment will not be swapped */
- #define SHM_HUGETLB     04000   /* segment will use huge TLB pages */
-+#define SHM_NORESERVE   010000  /* don't check for reservations */
+Index: linux-2.6.14-rc4-mm1/mm/vmscan.c
+===================================================================
+--- linux-2.6.14-rc4-mm1.orig/mm/vmscan.c	2005-10-18 09:36:36.000000000 -0700
++++ linux-2.6.14-rc4-mm1/mm/vmscan.c	2005-10-18 09:36:42.000000000 -0700
+@@ -370,6 +370,42 @@ static pageout_t pageout(struct page *pa
+ 	return PAGE_CLEAN;
+ }
  
- #ifdef CONFIG_SYSVIPC
- long do_shmat(int shmid, char __user *shmaddr, int shmflg, unsigned long *addr);
---- linux-2.6.14-rc3.org/ipc/shm.c	2005-10-17 16:57:40.000000000 -0700
-+++ linux-2.6.14-rc3/ipc/shm.c	2005-10-18 08:55:50.000000000 -0700
-@@ -212,8 +212,16 @@ static int newseg (key_t key, int shmflg
- 		file = hugetlb_zero_setup(size);
- 		shp->mlock_user = current->user;
- 	} else {
-+		int acctflag = VM_ACCOUNT;
-+		/*
-+		 * Do not allow no accouting for OVERCOMMIT_NEVER, even
-+	 	 * its asked for.
-+		 */
-+		if  ((shmflg & SHM_NORESERVE) && 
-+		     sysctl_overcommit_memory != OVERCOMMIT_NEVER)
-+			acctflag = 0;
- 		sprintf (name, "SYSV%08x", key);
--		file = shmem_file_setup(name, size, VM_ACCOUNT);
-+		file = shmem_file_setup(name, size, acctflag);
- 	}
- 	error = PTR_ERR(file);
- 	if (IS_ERR(file))
-
---=-HE9fpKEKoZB/XK3fpDEB--
++static inline int remove_mapping(struct address_space *mapping,
++				struct page *page)
++{
++	if (!mapping)
++		return 0;		/* truncate got there first */
++
++	write_lock_irq(&mapping->tree_lock);
++
++	/*
++	 * The non-racy check for busy page.  It is critical to check
++	 * PageDirty _after_ making sure that the page is freeable and
++	 * not in use by anybody. 	(pagecache + us == 2)
++	 */
++	if (page_count(page) != 2 || PageDirty(page)) {
++		write_unlock_irq(&mapping->tree_lock);
++		return 0;
++	}
++
++#ifdef CONFIG_SWAP
++	if (PageSwapCache(page)) {
++		swp_entry_t swap = { .val = page->private };
++		add_to_swapped_list(swap.val);
++		__delete_from_swap_cache(page);
++		write_unlock_irq(&mapping->tree_lock);
++		swap_free(swap);
++		__put_page(page);	/* The pagecache ref */
++		return 1;
++	}
++#endif /* CONFIG_SWAP */
++
++	__remove_from_page_cache(page);
++	write_unlock_irq(&mapping->tree_lock);
++	__put_page(page);
++	return 1;
++}
++
+ /*
+  * shrink_list adds the number of reclaimed pages to sc->nr_reclaimed
+  */
+@@ -508,36 +544,8 @@ static int shrink_list(struct list_head 
+ 				goto free_it;
+ 		}
+ 
+-		if (!mapping)
+-			goto keep_locked;	/* truncate got there first */
+-
+-		write_lock_irq(&mapping->tree_lock);
+-
+-		/*
+-		 * The non-racy check for busy page.  It is critical to check
+-		 * PageDirty _after_ making sure that the page is freeable and
+-		 * not in use by anybody. 	(pagecache + us == 2)
+-		 */
+-		if (page_count(page) != 2 || PageDirty(page)) {
+-			write_unlock_irq(&mapping->tree_lock);
++		if (!remove_mapping(mapping, page))
+ 			goto keep_locked;
+-		}
+-
+-#ifdef CONFIG_SWAP
+-		if (PageSwapCache(page)) {
+-			swp_entry_t swap = { .val = page->private };
+-			add_to_swapped_list(swap.val);
+-			__delete_from_swap_cache(page);
+-			write_unlock_irq(&mapping->tree_lock);
+-			swap_free(swap);
+-			__put_page(page);	/* The pagecache ref */
+-			goto free_it;
+-		}
+-#endif /* CONFIG_SWAP */
+-
+-		__remove_from_page_cache(page);
+-		write_unlock_irq(&mapping->tree_lock);
+-		__put_page(page);
+ 
+ free_it:
+ 		unlock_page(page);
+@@ -646,31 +654,9 @@ redo:
+ 				goto free_it;
+ 		}
+ 
+-		if (!mapping)
++		if (!remove_mapping(mapping, page))
+ 			goto retry_later_locked;       /* truncate got there first */
+ 
+-		write_lock_irq(&mapping->tree_lock);
+-
+-		if (page_count(page) != 2 || PageDirty(page)) {
+-			write_unlock_irq(&mapping->tree_lock);
+-			goto retry_later_locked;
+-		}
+-
+-#ifdef CONFIG_SWAP
+-		if (PageSwapCache(page)) {
+-			swp_entry_t swap = { .val = page->private };
+-			__delete_from_swap_cache(page);
+-			write_unlock_irq(&mapping->tree_lock);
+-			swap_free(swap);
+-			__put_page(page);       /* The pagecache ref */
+-			goto free_it;
+-		}
+-#endif /* CONFIG_SWAP */
+-
+-		__remove_from_page_cache(page);
+-		write_unlock_irq(&mapping->tree_lock);
+-		__put_page(page);
+-
+ free_it:
+ 		/*
+ 		 * We may free pages that were taken off the active list
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
