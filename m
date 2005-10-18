@@ -1,87 +1,234 @@
-Date: Mon, 17 Oct 2005 17:49:32 -0700 (PDT)
+Date: Mon, 17 Oct 2005 17:49:42 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Message-Id: <20051018004932.3191.30603.sendpatchset@schroedinger.engr.sgi.com>
-Subject: [PATCH 0/2] Page migration via Swap V2: Overview
+Message-Id: <20051018004942.3191.44835.sendpatchset@schroedinger.engr.sgi.com>
+In-Reply-To: <20051018004932.3191.30603.sendpatchset@schroedinger.engr.sgi.com>
+References: <20051018004932.3191.30603.sendpatchset@schroedinger.engr.sgi.com>
+Subject: [PATCH 2/2] Page migration via Swap V2: MPOL_MF_MOVE interface
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@osdl.org
 Cc: linux-mm@kvack.org, ak@suse.de, Christoph Lameter <clameter@sgi.com>, lhms-devel@lists.sourceforge.net
 List-ID: <linux-mm.kvack.org>
 
-In a NUMA system it is often beneficial to be able to move the memory
-in use by a process to different nodes in order to enhance performance.
-Currently Linux simply does not support this facility.
+This patch adds page migration support to the NUMA policy layer. An additional
+flag MPOL_MF_MOVE is introduced for mbind. If MPOL_MF_MOVE is specified then
+pages that do not conform to the memory policy will be evicted from memory.
+When they get pages back in new pages will be allocated following the numa policy.
 
-Page migration is also useful for other purposes:
+Version 2
+- Add vma_migratable() function for future enhancements.
+- Remove function with side effects from WARN_ON
+- Remove move_pages
+- Make patch fit 2.6.14-rc4-mm1
 
-1. Memory hotplug. Migrating processes off a memory node that is going
-   to be disconnected.
+Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
-2. Remapping of bad pages. These could be detected through soft ECC errors
-   and other mechanisms.
-
-Work on page migration has been done in the context of the memory hotplug project
-(see https://lists.sourceforge.net/lists/listinfo/lhms-devel). Ray Bryant
-has also posted a series of manual page migration patchsets. However, the patches
-are complex, and may have impacts on the VM in various places, there are unresolved
-issues regarding memory placement during direct migration and thus the functionality
-may not be available for some time.
-
-This patchset was done in awareness of the work done there and realizes page
-migration via swap. Pages are not directly moved to their target
-location but simply swapped out. If the application touches the page later then
-a new page is allocated in the desired location.
-
-The advantage of page based swapping is that the necessary changes to the kernel
-are minimal. With a fully functional but minimal page migration capability we
-will be able to enhance low level code and higher level APIs at the same time.
-This will hopefully decrease the time needed to get the code for direct page
-migration working and into the kernel trees.
-
-The disadvantage over direct page migration are:
-
-A. Performance: Having to go through swap is slower.
-
-B. The need for swap space: The area to be migrated must fit into swap.
-
-C. Placement of pages at swapin is done under the memory policy in
-   effect at that time. This may destroy nodeset relative positioning.
-
-The advantages over direct page migration:
-
-A. More general and less of an impact on the system
-
-B. Uses the proven swap code. No new page behavior that
-   may have to be considered in other places of the VM.
-
-C. May be used for additional purposes like suspending an application
-   by swapping it out.
-
-The patchset consists of two patches:
-
-1. Page eviction patch
-
-Modifies mm/vmscan.c to add functions to isolate pages from the LRU lists,
-swapout lists of pages and return pages to the LRU lists.
-
-2. MPOL_MF_MOVE flag for memory policies.
-
-This implements MPOL_MF_MOVE in addition to MPOL_MF_STRICT. MPOL_MF_STRICT
-allows the checking if all pages in a memory area obey the memory policies.
-MPOL_MF_MOVE will evict all pages that do not conform to the memory policy.
-The system will allocate pages conforming to the policy on swap in.
-
-URLs referring to the discussion regarding the initial version of these
-patches.
-
-Page eviction: http://marc.theaimsgroup.com/?l=linux-mm&m=112922756730989&w=2
-Numa policy  : http://marc.theaimsgroup.com/?l=linux-mm&m=112922756724715&w=2
-
-Changes from V1:
-- Patch against 2.6.14-rc4-mm1
-- Remove move_pages() function
-- Code cleanup to make it less invasive.
-- Fix missing lru_add_drain() invocation from isolate_lru_page()
+Index: linux-2.6.14-rc4-mm1/mm/mempolicy.c
+===================================================================
+--- linux-2.6.14-rc4-mm1.orig/mm/mempolicy.c	2005-10-17 10:24:16.000000000 -0700
++++ linux-2.6.14-rc4-mm1/mm/mempolicy.c	2005-10-17 17:37:39.000000000 -0700
+@@ -83,6 +83,7 @@
+ #include <linux/init.h>
+ #include <linux/compat.h>
+ #include <linux/mempolicy.h>
++#include <linux/swap.h>
+ #include <asm/tlbflush.h>
+ #include <asm/uaccess.h>
+ 
+@@ -181,7 +182,8 @@ static struct mempolicy *mpol_new(int mo
+ 
+ /* Ensure all existing pages follow the policy. */
+ static int check_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
+-		unsigned long addr, unsigned long end, nodemask_t *nodes)
++		unsigned long addr, unsigned long end,
++		nodemask_t *nodes, struct list_head *pagelist)
+ {
+ 	pte_t *orig_pte;
+ 	pte_t *pte;
+@@ -200,15 +202,28 @@ static int check_pte_range(struct vm_are
+ 			continue;
+ 		}
+ 		nid = pfn_to_nid(pfn);
+-		if (!node_isset(nid, *nodes))
+-			break;
++		if (!node_isset(nid, *nodes)) {
++			if (pagelist) {
++				struct page *page = pfn_to_page(pfn);
++				int rc = isolate_lru_page(page, pagelist);
++
++				/*
++				 * If the isolate attempt was not successful
++				 * then we just encountered an unswappable
++				 * page. Something must be wrong.
++			 	 */
++				WARN_ON(rc == 0);
++			} else
++				break;
++		}
+ 	} while (pte++, addr += PAGE_SIZE, addr != end);
+ 	pte_unmap_unlock(orig_pte, ptl);
+ 	return addr != end;
+ }
+ 
+ static inline int check_pmd_range(struct vm_area_struct *vma, pud_t *pud,
+-		unsigned long addr, unsigned long end, nodemask_t *nodes)
++		unsigned long addr, unsigned long end,
++		nodemask_t *nodes, struct list_head *pagelist)
+ {
+ 	pmd_t *pmd;
+ 	unsigned long next;
+@@ -218,14 +233,15 @@ static inline int check_pmd_range(struct
+ 		next = pmd_addr_end(addr, end);
+ 		if (pmd_none_or_clear_bad(pmd))
+ 			continue;
+-		if (check_pte_range(vma, pmd, addr, next, nodes))
++		if (check_pte_range(vma, pmd, addr, next, nodes, pagelist))
+ 			return -EIO;
+ 	} while (pmd++, addr = next, addr != end);
+ 	return 0;
+ }
+ 
+ static inline int check_pud_range(struct vm_area_struct *vma, pgd_t *pgd,
+-		unsigned long addr, unsigned long end, nodemask_t *nodes)
++		unsigned long addr, unsigned long end,
++		nodemask_t *nodes, struct list_head *pagelist)
+ {
+ 	pud_t *pud;
+ 	unsigned long next;
+@@ -235,14 +251,15 @@ static inline int check_pud_range(struct
+ 		next = pud_addr_end(addr, end);
+ 		if (pud_none_or_clear_bad(pud))
+ 			continue;
+-		if (check_pmd_range(vma, pud, addr, next, nodes))
++		if (check_pmd_range(vma, pud, addr, next, nodes, pagelist))
+ 			return -EIO;
+ 	} while (pud++, addr = next, addr != end);
+ 	return 0;
+ }
+ 
+ static inline int check_pgd_range(struct vm_area_struct *vma,
+-		unsigned long addr, unsigned long end, nodemask_t *nodes)
++		unsigned long addr, unsigned long end,
++		nodemask_t *nodes, struct list_head *pagelist)
+ {
+ 	pgd_t *pgd;
+ 	unsigned long next;
+@@ -252,16 +269,30 @@ static inline int check_pgd_range(struct
+ 		next = pgd_addr_end(addr, end);
+ 		if (pgd_none_or_clear_bad(pgd))
+ 			continue;
+-		if (check_pud_range(vma, pgd, addr, next, nodes))
++		if (check_pud_range(vma, pgd, addr, next, nodes, pagelist))
+ 			return -EIO;
+ 	} while (pgd++, addr = next, addr != end);
+ 	return 0;
+ }
+ 
++/* Check if a vma is migratable */
++static inline int vma_migratable(struct vm_area_struct *vma)
++{
++	if (vma->vm_flags & (
++			VM_LOCKED |
++			VM_IO |
++			VM_RESERVED |
++			VM_DENYWRITE |
++			VM_SHM
++	   ))
++		return 0;
++	return 1;
++}
++
+ /* Step 1: check the range */
+ static struct vm_area_struct *
+ check_range(struct mm_struct *mm, unsigned long start, unsigned long end,
+-	    nodemask_t *nodes, unsigned long flags)
++	    nodemask_t *nodes, unsigned long flags, struct list_head *pagelist)
+ {
+ 	int err;
+ 	struct vm_area_struct *first, *vma, *prev;
+@@ -277,13 +308,16 @@ check_range(struct mm_struct *mm, unsign
+ 			return ERR_PTR(-EFAULT);
+ 		if (prev && prev->vm_end < vma->vm_start)
+ 			return ERR_PTR(-EFAULT);
+-		if ((flags & MPOL_MF_STRICT) && !is_vm_hugetlb_page(vma)) {
++		if (!is_vm_hugetlb_page(vma) &&
++		    ((flags & MPOL_MF_STRICT) ||
++		     ((flags & MPOL_MF_MOVE) && vma_migratable(vma))
++		   )) {
+ 			unsigned long endvma = vma->vm_end;
+ 			if (endvma > end)
+ 				endvma = end;
+ 			if (vma->vm_start > start)
+ 				start = vma->vm_start;
+-			err = check_pgd_range(vma, start, endvma, nodes);
++			err = check_pgd_range(vma, start, endvma, nodes, pagelist);
+ 			if (err) {
+ 				first = ERR_PTR(err);
+ 				break;
+@@ -357,21 +391,28 @@ long do_mbind(unsigned long start, unsig
+ 	struct mempolicy *new;
+ 	unsigned long end;
+ 	int err;
++	LIST_HEAD(pagelist);
+ 
+-	if ((flags & ~(unsigned long)(MPOL_MF_STRICT)) || mode > MPOL_MAX)
++	if ((flags & ~(unsigned long)(MPOL_MF_STRICT | MPOL_MF_MOVE))
++	    || mode > MPOL_MAX)
+ 		return -EINVAL;
+ 	if (start & ~PAGE_MASK)
+ 		return -EINVAL;
++
+ 	if (mode == MPOL_DEFAULT)
+ 		flags &= ~MPOL_MF_STRICT;
++
+ 	len = (len + PAGE_SIZE - 1) & PAGE_MASK;
+ 	end = start + len;
++
+ 	if (end < start)
+ 		return -EINVAL;
+ 	if (end == start)
+ 		return 0;
++
+ 	if (mpol_check_policy(mode, nmask))
+ 		return -EINVAL;
++
+ 	new = mpol_new(mode, nmask);
+ 	if (IS_ERR(new))
+ 		return PTR_ERR(new);
+@@ -380,10 +421,19 @@ long do_mbind(unsigned long start, unsig
+ 			mode,nodes_addr(nodes)[0]);
+ 
+ 	down_write(&mm->mmap_sem);
+-	vma = check_range(mm, start, end, nmask, flags);
++	vma = check_range(mm, start, end, nmask, flags,
++			  (flags & MPOL_MF_MOVE) ? &pagelist : NULL);
+ 	err = PTR_ERR(vma);
+-	if (!IS_ERR(vma))
++	if (!IS_ERR(vma)) {
+ 		err = mbind_range(vma, start, end, new);
++		if (!list_empty(&pagelist))
++			swapout_pages(&pagelist);
++		if (!err  && !list_empty(&pagelist) && (flags & MPOL_MF_STRICT))
++				err = -EIO;
++	}
++	if (!list_empty(&pagelist))
++		putback_lru_pages(&pagelist);
++
+ 	up_write(&mm->mmap_sem);
+ 	mpol_free(new);
+ 	return err;
+Index: linux-2.6.14-rc4-mm1/include/linux/mempolicy.h
+===================================================================
+--- linux-2.6.14-rc4-mm1.orig/include/linux/mempolicy.h	2005-10-17 10:24:13.000000000 -0700
++++ linux-2.6.14-rc4-mm1/include/linux/mempolicy.h	2005-10-17 17:33:34.000000000 -0700
+@@ -22,6 +22,7 @@
+ 
+ /* Flags for mbind */
+ #define MPOL_MF_STRICT	(1<<0)	/* Verify existing pages in the mapping */
++#define MPOL_MF_MOVE	(1<<1)	/* Move pages to conform to mapping */
+ 
+ #ifdef __KERNEL__
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
