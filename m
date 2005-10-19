@@ -1,38 +1,40 @@
-From: Andi Kleen <ak@suse.de>
-Subject: Re: [PATCH] Allow outside read access to a tasks memory policy
-Date: Wed, 19 Oct 2005 15:34:29 +0200
-References: <Pine.LNX.4.62.0510181126280.8305@schroedinger.engr.sgi.com>
-In-Reply-To: <Pine.LNX.4.62.0510181126280.8305@schroedinger.engr.sgi.com>
+Date: Wed, 19 Oct 2005 08:29:37 -0700 (PDT)
+From: Christoph Lameter <clameter@engr.sgi.com>
+Subject: Re: [PATCH 1/2] Page migration via Swap V2: Page Eviction
+In-Reply-To: <aec7e5c30510190304y3a1935e5k57ddd8912b4e411a@mail.gmail.com>
+Message-ID: <Pine.LNX.4.62.0510190826210.12887@schroedinger.engr.sgi.com>
+References: <20051018004932.3191.30603.sendpatchset@schroedinger.engr.sgi.com>
+  <20051018004937.3191.42181.sendpatchset@schroedinger.engr.sgi.com>
+ <aec7e5c30510180134of0b129au3f1a1b61cf822b53@mail.gmail.com>
+ <Pine.LNX.4.62.0510180938430.7911@schroedinger.engr.sgi.com>
+ <aec7e5c30510190304y3a1935e5k57ddd8912b4e411a@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200510191534.29538.ak@suse.de>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@engr.sgi.com>
-Cc: akpm@osdl.org, linux-mm@kvack.org, lhms-devel@lists.sourceforge.net
+To: Magnus Damm <magnus.damm@gmail.com>
+Cc: akpm@osdl.org, linux-mm@kvack.org, lhms-devel@lists.sourceforge.net, ak@suse.de
 List-ID: <linux-mm.kvack.org>
 
-On Tuesday 18 October 2005 20:30, Christoph Lameter wrote:
-> Currently access to the memory policy of a task from outside of a task is
-> not possible since there are no locking conventions. A task must always be
-> able to access its memory policy without the necessity to take a lock in
-> order to allow alloc_pages to operate efficiently.
+On Wed, 19 Oct 2005, Magnus Damm wrote:
 
-While you could probably make it work for vma policy, it's impossible or hard 
-to do the same thing for process policy, which is strictly thread local.
+> I'm trying to figure out if this code works in all cases:
+> 
+> +               spin_lock_irq(&zone->lru_lock);
+> +               list_del(&page->lru);
+> +               if (!TestSetPageLRU(page)) {
+> +                       if (PageActive(page))
+> +                               add_page_to_active_list(zone, page);
+> +                       else
+> +                               add_page_to_inactive_list(zone, page);
+> +                       count++;
+> +               }
+> +               spin_unlock_irq(&zone->lru_lock);
+> 
+> Why not use if (TestSetPageLRU(page)) BUG()?
 
->> Access to the tasks memory policy from the outside is likely going to be
-> needed for page migration. In case of an ECC failure or a memory unplug
-> operation, new memory needs to be allocated for a task following its memory
-> policy. However, that operation is done from outside of the task itself.
-
-Should we perhaps wait with this until the understanding of this is clearer
-(e.g. more than "likely")?
-
--Andi
+That is probably right.
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
