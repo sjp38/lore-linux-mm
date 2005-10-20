@@ -1,44 +1,57 @@
-Date: Wed, 19 Oct 2005 16:47:32 -0400
-From: Jeff Dike <jdike@addtoit.com>
-Subject: Re: [RFC][PATCH] OVERCOMMIT_ALWAYS extension
-Message-ID: <20051019204732.GA9922@localhost.localdomain>
-References: <1129570219.23632.34.camel@localhost.localdomain> <Pine.LNX.4.61.0510171904040.6406@goblin.wat.veritas.com> <Pine.LNX.4.61.0510171919150.6548@goblin.wat.veritas.com> <1129651502.23632.63.camel@localhost.localdomain> <Pine.LNX.4.61.0510191826280.8674@goblin.wat.veritas.com> <1129747855.8716.12.camel@localhost.localdomain>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1129747855.8716.12.camel@localhost.localdomain>
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: Badari Pulavarty <pbadari@us.ibm.com>
-Cc: Hugh Dickins <hugh@veritas.com>, Chris Wright <chrisw@osdl.org>, linux-mm <linux-mm@kvack.org>, dvhltc@us.ibm.com
+Message-ID: <4291692454.19863@dyn-htl-12908.dyn.columbia.edu>
+From: "Rosetta Clement" <ANRLKZWT@apex.net>
+Date: Thu, 20 Oct 2005 14:59:36 -0100
+Subject: Have more intense orgasms!
+MIME-Version: 1.0
+Content-Type: multipart/mixed;
+	boundary="-----=277_3895_6H829J23.52DI385D"
+Return-Path: <IQRVZMWANOWHK@usit.net>
+To: linux-aio@kvack.org, linux-mm-archive@kvack.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Oct 19, 2005 at 11:50:55AM -0700, Badari Pulavarty wrote:
-> Darren Hart is working on patch to add madvise(DISCARD) to extend
-> the functionality of madvise(DONTNEED) to really drop those pages.
-> I was going to ask your opinion on that approach :) 
-> 
-> shmget(SHM_NORESERVE) + madvise(DISCARD) should do what I was
-> hoping for. (BTW, none of this has been tested with database stuff -
-> I am just concentrating on reasonable extensions.
+X-Priority: 3
+X-MSMail-Priority: Normal
 
-madvise(DISCARD) has a promising name, but the implementation seems to be
-very differant from what the name says.
+-------=277_3895_6H829J23.52DI385D
+Content-Type: text/html;
+Content-Transfer-Encoding: quoted-printable
 
-This would seem to throw out all pages in the file after offset, which
-makes the end parameter kind of pointless:
+<html><head><style>body{font-family:verdana}</style></head>
+<body bgcolor=3D"white" text=3D"brown" leftmargin=3D"10" topmargin=3D"10" =
+marginwidth=3D"10" marginheight=3D"10">
+<font size=3D1 style=3D"font-size:1px">"The Diamond Jubilee, it was," said=
+ Warming; "the second one."=20</font>
+<h1>Make your girl<small>(s)</small> sutisfied with your sizes!</h1>
+<blockquote><h2>Gain 3 inches in the height, gain 20% in the width!</h2>
+<blockquote><b style=3D"color:#038">male pill &laquo;<b style=3D"color:f01=
+">MORE-SIZE</b>&raquo; already has sutisfied</b>
+<h2 style=3D"color:#f01">MORE THAN 1,000,000 MANS ALL OVER THE WORLD...</h=
+2>
+<h3 style=3D"color:#f01">AND SUTISFIED MUCH MORE THAN 1,000,000 GIRLS...</=
+h3>
+</blockquote>
+<b>what does it do?<blockquote><a href=3D"http://fluted.net/ms/?cid"style=3D=
+"text-decoration:underline; color:#038"target=3D"_blank">read here!</a></b=
+lockquote>
+and remember:<br><br><blockquote>75% OF WOMAN UNSATISFIED WITH THEIR PARTN=
+ERS DIMENSIONS,<br><a href=3D"http://fluted.net/ms/?cid" style=3D"text-dec=
+oration:underline; color:#038" target=3D"_blank">so order here right now!<=
+/a></blockquote>make your sexual equipment bigger!</b></blockquote>
+<ul><li>no prescriptions required,</li><li>shipped worldwide with fedex/dh=
+l,</li><li>fully descreet/anonymous!</li></ul>
+<br>
+<font size=3D1 style=3D"font-size:1px">"Yes. Six dozen, Sire. Of course th=
+ings, even these little things, have altered. You lived in the days of the=
+ decimal system, the Arab system--tens, and little hundreds and thousands.=
+ We have eleven numerals now. We have single figures for both ten and elev=
+en, two figures for a dozen, and a dozen dozen makes a gross, a great hund=
+red, you know, a dozen gross a dozand, and a dozand dozand a myriad. Very =
+simple?"=20</font>
+</body></html>
 
-+               down(i_sem);
-+               truncate_inode_pages(vma->vm_file->f_mapping, offset);
-+               up(i_sem);
+-------=277_3895_6H829J23.52DI385D
+Content-Type: text/plain;
+Content-Transfer-Encoding: quoted-printable
 
-It will also fully truncate files which you have only partially
-mapped, which is somewhat counterintuitive.
 
-				Jeff
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+-------=277_3895_6H829J23.52DI385D--
