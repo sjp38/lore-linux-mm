@@ -1,415 +1,289 @@
-Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
-	by e32.co.us.ibm.com (8.12.11/8.12.11) with ESMTP id j9KMc4JR020853
-	for <linux-mm@kvack.org>; Thu, 20 Oct 2005 18:38:04 -0400
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by d03relay04.boulder.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id j9KMcttE544718
-	for <linux-mm@kvack.org>; Thu, 20 Oct 2005 16:38:58 -0600
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.12.11/8.13.3) with ESMTP id j9KMc0s2002494
-	for <linux-mm@kvack.org>; Thu, 20 Oct 2005 16:38:00 -0600
-Subject: Re: [RFC][PATCH] OVERCOMMIT_ALWAYS extension
-From: Badari Pulavarty <pbadari@us.ibm.com>
-In-Reply-To: <20051020172757.GB6590@localhost.localdomain>
-References: <1129570219.23632.34.camel@localhost.localdomain>
-	 <Pine.LNX.4.61.0510171904040.6406@goblin.wat.veritas.com>
-	 <Pine.LNX.4.61.0510171919150.6548@goblin.wat.veritas.com>
-	 <1129651502.23632.63.camel@localhost.localdomain>
-	 <Pine.LNX.4.61.0510191826280.8674@goblin.wat.veritas.com>
-	 <1129747855.8716.12.camel@localhost.localdomain>
-	 <20051019204732.GA9922@localhost.localdomain>
-	 <1129821065.16301.5.camel@localhost.localdomain>
-	 <20051020172757.GB6590@localhost.localdomain>
-Content-Type: multipart/mixed; boundary="=-i8zX5acH7HOEbQGV9pUM"
-Date: Thu, 20 Oct 2005 15:37:24 -0700
-Message-Id: <1129847844.16301.37.camel@localhost.localdomain>
-Mime-Version: 1.0
+Date: Thu, 20 Oct 2005 15:59:40 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Message-Id: <20051020225940.19761.93396.sendpatchset@schroedinger.engr.sgi.com>
+In-Reply-To: <20051020225935.19761.57434.sendpatchset@schroedinger.engr.sgi.com>
+References: <20051020225935.19761.57434.sendpatchset@schroedinger.engr.sgi.com>
+Subject: [PATCH 1/4] Swap migration V3: LRU operations
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jeff Dike <jdike@addtoit.com>
-Cc: Hugh Dickins <hugh@veritas.com>, linux-mm <linux-mm@kvack.org>, dvhltc@us.ibm.com
+To: akpm@osdl.org
+Cc: Mike Kravetz <kravetz@us.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Christoph Lameter <clameter@sgi.com>, Magnus Damm <magnus.damm@gmail.com>, Marcelo Tosatti <marcelo.tosatti@cyclades.com>
 List-ID: <linux-mm.kvack.org>
 
---=-i8zX5acH7HOEbQGV9pUM
-Content-Type: text/plain
-Content-Transfer-Encoding: 7bit
+Implement functions to isolate pages from the LRU and put them back later.
 
-On Thu, 2005-10-20 at 13:27 -0400, Jeff Dike wrote:
-> On Thu, Oct 20, 2005 at 08:11:05AM -0700, Badari Pulavarty wrote:
-> > Initial plan was to use invalidate_inode_pages2_range(). But it didn't
-> > really do what we wanted. So we ended up using truncate_inode_pages().
-> > If it really works, then I plan to add truncate_inode_pages2_range()
-> > to which works on a range of pages, instead of the whole file.
-> > madvise(DONTNEED) followed by madvise(DISCARD) should be able to drop
-> > all the pages in the given range.
-> > 
-> > Does this make sense ? Does this seem like right approach ?
-> 
-> Works for me.  I obviously have no idea about the wider vm implications of 
-> this - that would be Hugh's territory :-)
+>From Magnus:
 
-Here is the latest version of madvise(DISCARD) I cooked up after 
-talking to Darren.
+This patch for 2.6.14-rc4-mm1 breaks out isolate_lru_page() and
+putpack_lru_page() and makes them inline. I'd like to build my code on
+top of this patch, and I think your page eviction code could be built
+on top of this patch too - without introducing too much duplicated
+code.
 
-Changes from previous:
+Signed-off-by: Magnus Damm <magnus.damm@gmail.com>
+Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
-1) madvise(DISCARD) - zaps the range and discards the pages. So, no
-need to call madvise(DONTNEED) before.
-
-2) I added truncate_inode_pages2_range() to just discard only the
-range of pages - not the whole file.
-
-Hugh, when you get a chance could you review this instead ?
-
-Thanks,
-Badari
-
-
-
---=-i8zX5acH7HOEbQGV9pUM
-Content-Disposition: attachment; filename=madvise-discard2.patch
-Content-Type: text/x-patch; name=madvise-discard2.patch; charset=utf-8
-Content-Transfer-Encoding: 7bit
-
-diff -Naurp -X dontdiff linux-2.6.14-rc3/include/asm-alpha/mman.h linux-2.6.14-rc3.db2/include/asm-alpha/mman.h
---- linux-2.6.14-rc3/include/asm-alpha/mman.h	2005-09-30 14:17:35.000000000 -0700
-+++ linux-2.6.14-rc3.db2/include/asm-alpha/mman.h	2005-10-20 10:52:37.000000000 -0700
-@@ -42,6 +42,7 @@
- #define MADV_WILLNEED	3		/* will need these pages */
- #define	MADV_SPACEAVAIL	5		/* ensure resources are available */
- #define MADV_DONTNEED	6		/* don't need these pages */
-+#define MADV_DISCARD    7               /* discard pages right now */
- 
- /* compatibility flags */
- #define MAP_ANON	MAP_ANONYMOUS
-diff -Naurp -X dontdiff linux-2.6.14-rc3/include/asm-arm/mman.h linux-2.6.14-rc3.db2/include/asm-arm/mman.h
---- linux-2.6.14-rc3/include/asm-arm/mman.h	2005-09-30 14:17:35.000000000 -0700
-+++ linux-2.6.14-rc3.db2/include/asm-arm/mman.h	2005-10-20 10:52:37.000000000 -0700
-@@ -35,6 +35,7 @@
- #define MADV_SEQUENTIAL	0x2		/* read-ahead aggressively */
- #define MADV_WILLNEED	0x3		/* pre-fault pages */
- #define MADV_DONTNEED	0x4		/* discard these pages */
-+#define MADV_DISCARD    0x5             /* discard pages right now */
- 
- /* compatibility flags */
- #define MAP_ANON	MAP_ANONYMOUS
-diff -Naurp -X dontdiff linux-2.6.14-rc3/include/asm-arm26/mman.h linux-2.6.14-rc3.db2/include/asm-arm26/mman.h
---- linux-2.6.14-rc3/include/asm-arm26/mman.h	2005-09-30 14:17:35.000000000 -0700
-+++ linux-2.6.14-rc3.db2/include/asm-arm26/mman.h	2005-10-20 10:52:37.000000000 -0700
-@@ -35,6 +35,7 @@
- #define MADV_SEQUENTIAL	0x2		/* read-ahead aggressively */
- #define MADV_WILLNEED	0x3		/* pre-fault pages */
- #define MADV_DONTNEED	0x4		/* discard these pages */
-+#define MADV_DISCARD    0x5             /* discard pages right now */
- 
- /* compatibility flags */
- #define MAP_ANON	MAP_ANONYMOUS
-diff -Naurp -X dontdiff linux-2.6.14-rc3/include/asm-cris/mman.h linux-2.6.14-rc3.db2/include/asm-cris/mman.h
---- linux-2.6.14-rc3/include/asm-cris/mman.h	2005-09-30 14:17:35.000000000 -0700
-+++ linux-2.6.14-rc3.db2/include/asm-cris/mman.h	2005-10-20 10:52:37.000000000 -0700
-@@ -37,6 +37,7 @@
- #define MADV_SEQUENTIAL	0x2		/* read-ahead aggressively */
- #define MADV_WILLNEED	0x3		/* pre-fault pages */
- #define MADV_DONTNEED	0x4		/* discard these pages */
-+#define MADV_DISCARD    0x5             /* discard pages right now */
- 
- /* compatibility flags */
- #define MAP_ANON	MAP_ANONYMOUS
-diff -Naurp -X dontdiff linux-2.6.14-rc3/include/asm-frv/mman.h linux-2.6.14-rc3.db2/include/asm-frv/mman.h
---- linux-2.6.14-rc3/include/asm-frv/mman.h	2005-09-30 14:17:35.000000000 -0700
-+++ linux-2.6.14-rc3.db2/include/asm-frv/mman.h	2005-10-20 10:52:37.000000000 -0700
-@@ -35,6 +35,7 @@
- #define MADV_SEQUENTIAL	0x2		/* read-ahead aggressively */
- #define MADV_WILLNEED	0x3		/* pre-fault pages */
- #define MADV_DONTNEED	0x4		/* discard these pages */
-+#define MADV_DISCARD    0x5             /* discard pages right now */
- 
- /* compatibility flags */
- #define MAP_ANON	MAP_ANONYMOUS
-diff -Naurp -X dontdiff linux-2.6.14-rc3/include/asm-h8300/mman.h linux-2.6.14-rc3.db2/include/asm-h8300/mman.h
---- linux-2.6.14-rc3/include/asm-h8300/mman.h	2005-09-30 14:17:35.000000000 -0700
-+++ linux-2.6.14-rc3.db2/include/asm-h8300/mman.h	2005-10-20 10:52:37.000000000 -0700
-@@ -35,6 +35,7 @@
- #define MADV_SEQUENTIAL	0x2		/* read-ahead aggressively */
- #define MADV_WILLNEED	0x3		/* pre-fault pages */
- #define MADV_DONTNEED	0x4		/* discard these pages */
-+#define MADV_DISCARD    0x5             /* discard pages right now */
- 
- /* compatibility flags */
- #define MAP_ANON	MAP_ANONYMOUS
-diff -Naurp -X dontdiff linux-2.6.14-rc3/include/asm-i386/mman.h linux-2.6.14-rc3.db2/include/asm-i386/mman.h
---- linux-2.6.14-rc3/include/asm-i386/mman.h	2005-09-30 14:17:35.000000000 -0700
-+++ linux-2.6.14-rc3.db2/include/asm-i386/mman.h	2005-10-20 10:52:37.000000000 -0700
-@@ -35,6 +35,7 @@
- #define MADV_SEQUENTIAL	0x2		/* read-ahead aggressively */
- #define MADV_WILLNEED	0x3		/* pre-fault pages */
- #define MADV_DONTNEED	0x4		/* discard these pages */
-+#define MADV_DISCARD    0x5             /* discard pages right now */
- 
- /* compatibility flags */
- #define MAP_ANON	MAP_ANONYMOUS
-diff -Naurp -X dontdiff linux-2.6.14-rc3/include/asm-ia64/mman.h linux-2.6.14-rc3.db2/include/asm-ia64/mman.h
---- linux-2.6.14-rc3/include/asm-ia64/mman.h	2005-09-30 14:17:35.000000000 -0700
-+++ linux-2.6.14-rc3.db2/include/asm-ia64/mman.h	2005-10-20 10:52:37.000000000 -0700
-@@ -43,6 +43,7 @@
- #define MADV_SEQUENTIAL	0x2		/* read-ahead aggressively */
- #define MADV_WILLNEED	0x3		/* pre-fault pages */
- #define MADV_DONTNEED	0x4		/* discard these pages */
-+#define MADV_DISCARD    0x5             /* discard pages right now */
- 
- /* compatibility flags */
- #define MAP_ANON	MAP_ANONYMOUS
-diff -Naurp -X dontdiff linux-2.6.14-rc3/include/asm-m32r/mman.h linux-2.6.14-rc3.db2/include/asm-m32r/mman.h
---- linux-2.6.14-rc3/include/asm-m32r/mman.h	2005-09-30 14:17:35.000000000 -0700
-+++ linux-2.6.14-rc3.db2/include/asm-m32r/mman.h	2005-10-20 10:52:37.000000000 -0700
-@@ -37,6 +37,7 @@
- #define MADV_SEQUENTIAL	0x2		/* read-ahead aggressively */
- #define MADV_WILLNEED	0x3		/* pre-fault pages */
- #define MADV_DONTNEED	0x4		/* discard these pages */
-+#define MADV_DISCARD    0x5             /* discard pages right now */
- 
- /* compatibility flags */
- #define MAP_ANON	MAP_ANONYMOUS
-diff -Naurp -X dontdiff linux-2.6.14-rc3/include/asm-m68k/mman.h linux-2.6.14-rc3.db2/include/asm-m68k/mman.h
---- linux-2.6.14-rc3/include/asm-m68k/mman.h	2005-09-30 14:17:35.000000000 -0700
-+++ linux-2.6.14-rc3.db2/include/asm-m68k/mman.h	2005-10-20 10:52:37.000000000 -0700
-@@ -35,6 +35,7 @@
- #define MADV_SEQUENTIAL	0x2		/* read-ahead aggressively */
- #define MADV_WILLNEED	0x3		/* pre-fault pages */
- #define MADV_DONTNEED	0x4		/* discard these pages */
-+#define MADV_DISCARD    0x5             /* discard pages right now */
- 
- /* compatibility flags */
- #define MAP_ANON	MAP_ANONYMOUS
-diff -Naurp -X dontdiff linux-2.6.14-rc3/include/asm-mips/mman.h linux-2.6.14-rc3.db2/include/asm-mips/mman.h
---- linux-2.6.14-rc3/include/asm-mips/mman.h	2005-09-30 14:17:35.000000000 -0700
-+++ linux-2.6.14-rc3.db2/include/asm-mips/mman.h	2005-10-20 10:52:37.000000000 -0700
-@@ -65,6 +65,7 @@
- #define MADV_SEQUENTIAL	0x2		/* read-ahead aggressively */
- #define MADV_WILLNEED	0x3		/* pre-fault pages */
- #define MADV_DONTNEED	0x4		/* discard these pages */
-+#define MADV_DISCARD    0x5             /* discard pages right now */
- 
- /* compatibility flags */
- #define MAP_ANON       MAP_ANONYMOUS
-diff -Naurp -X dontdiff linux-2.6.14-rc3/include/asm-parisc/mman.h linux-2.6.14-rc3.db2/include/asm-parisc/mman.h
---- linux-2.6.14-rc3/include/asm-parisc/mman.h	2005-09-30 14:17:35.000000000 -0700
-+++ linux-2.6.14-rc3.db2/include/asm-parisc/mman.h	2005-10-20 10:52:37.000000000 -0700
-@@ -38,6 +38,7 @@
- #define MADV_SPACEAVAIL 5               /* insure that resources are reserved */
- #define MADV_VPS_PURGE  6               /* Purge pages from VM page cache */
- #define MADV_VPS_INHERIT 7              /* Inherit parents page size */
-+#define MADV_DISCARD    8               /* discard pages right now */
- 
- /* The range 12-64 is reserved for page size specification. */
- #define MADV_4K_PAGES   12              /* Use 4K pages  */
-diff -Naurp -X dontdiff linux-2.6.14-rc3/include/asm-powerpc/mman.h linux-2.6.14-rc3.db2/include/asm-powerpc/mman.h
---- linux-2.6.14-rc3/include/asm-powerpc/mman.h	2005-09-30 14:17:35.000000000 -0700
-+++ linux-2.6.14-rc3.db2/include/asm-powerpc/mman.h	2005-10-20 13:55:18.000000000 -0700
-@@ -44,6 +44,7 @@
- #define MADV_SEQUENTIAL	0x2		/* read-ahead aggressively */
- #define MADV_WILLNEED	0x3		/* pre-fault pages */
- #define MADV_DONTNEED	0x4		/* discard these pages */
-+#define MADV_DISCARD	0x5		/* discard pages right now */
- 
- /* compatibility flags */
- #define MAP_ANON	MAP_ANONYMOUS
-diff -Naurp -X dontdiff linux-2.6.14-rc3/include/asm-s390/mman.h linux-2.6.14-rc3.db2/include/asm-s390/mman.h
---- linux-2.6.14-rc3/include/asm-s390/mman.h	2005-09-30 14:17:35.000000000 -0700
-+++ linux-2.6.14-rc3.db2/include/asm-s390/mman.h	2005-10-20 10:52:37.000000000 -0700
-@@ -43,6 +43,7 @@
- #define MADV_SEQUENTIAL        0x2             /* read-ahead aggressively */
- #define MADV_WILLNEED  0x3              /* pre-fault pages */
- #define MADV_DONTNEED  0x4              /* discard these pages */
-+#define MADV_DISCARD   0x5             /* discard pages right now */
- 
- /* compatibility flags */
- #define MAP_ANON	MAP_ANONYMOUS
-diff -Naurp -X dontdiff linux-2.6.14-rc3/include/asm-sh/mman.h linux-2.6.14-rc3.db2/include/asm-sh/mman.h
---- linux-2.6.14-rc3/include/asm-sh/mman.h	2005-09-30 14:17:35.000000000 -0700
-+++ linux-2.6.14-rc3.db2/include/asm-sh/mman.h	2005-10-20 10:52:37.000000000 -0700
-@@ -35,6 +35,7 @@
- #define MADV_SEQUENTIAL	0x2		/* read-ahead aggressively */
- #define MADV_WILLNEED	0x3		/* pre-fault pages */
- #define MADV_DONTNEED	0x4		/* discard these pages */
-+#define MADV_DISCARD    0x5             /* discard pages right now */
- 
- /* compatibility flags */
- #define MAP_ANON	MAP_ANONYMOUS
-diff -Naurp -X dontdiff linux-2.6.14-rc3/include/asm-sparc/mman.h linux-2.6.14-rc3.db2/include/asm-sparc/mman.h
---- linux-2.6.14-rc3/include/asm-sparc/mman.h	2005-09-30 14:17:35.000000000 -0700
-+++ linux-2.6.14-rc3.db2/include/asm-sparc/mman.h	2005-10-20 10:52:37.000000000 -0700
-@@ -54,6 +54,7 @@
- #define MADV_WILLNEED	0x3		/* pre-fault pages */
- #define MADV_DONTNEED	0x4		/* discard these pages */
- #define MADV_FREE	0x5		/* (Solaris) contents can be freed */
-+#define MADV_DISCARD    0x6             /* discard pages right now */
- 
- /* compatibility flags */
- #define MAP_ANON	MAP_ANONYMOUS
-diff -Naurp -X dontdiff linux-2.6.14-rc3/include/asm-sparc64/mman.h linux-2.6.14-rc3.db2/include/asm-sparc64/mman.h
---- linux-2.6.14-rc3/include/asm-sparc64/mman.h	2005-09-30 14:17:35.000000000 -0700
-+++ linux-2.6.14-rc3.db2/include/asm-sparc64/mman.h	2005-10-20 10:52:37.000000000 -0700
-@@ -54,6 +54,7 @@
- #define MADV_WILLNEED	0x3		/* pre-fault pages */
- #define MADV_DONTNEED	0x4		/* discard these pages */
- #define MADV_FREE	0x5		/* (Solaris) contents can be freed */
-+#define MADV_DISCARD    0x6             /* discard pages right now */
- 
- /* compatibility flags */
- #define MAP_ANON	MAP_ANONYMOUS
-diff -Naurp -X dontdiff linux-2.6.14-rc3/include/asm-v850/mman.h linux-2.6.14-rc3.db2/include/asm-v850/mman.h
---- linux-2.6.14-rc3/include/asm-v850/mman.h	2005-09-30 14:17:35.000000000 -0700
-+++ linux-2.6.14-rc3.db2/include/asm-v850/mman.h	2005-10-20 10:52:37.000000000 -0700
-@@ -32,6 +32,7 @@
- #define MADV_SEQUENTIAL	0x2		/* read-ahead aggressively */
- #define MADV_WILLNEED	0x3		/* pre-fault pages */
- #define MADV_DONTNEED	0x4		/* discard these pages */
-+#define MADV_DISCARD    0x5             /* discard pages right now */
- 
- /* compatibility flags */
- #define MAP_ANON	MAP_ANONYMOUS
-diff -Naurp -X dontdiff linux-2.6.14-rc3/include/asm-x86_64/mman.h linux-2.6.14-rc3.db2/include/asm-x86_64/mman.h
---- linux-2.6.14-rc3/include/asm-x86_64/mman.h	2005-09-30 14:17:35.000000000 -0700
-+++ linux-2.6.14-rc3.db2/include/asm-x86_64/mman.h	2005-10-20 10:52:37.000000000 -0700
-@@ -36,6 +36,7 @@
- #define MADV_SEQUENTIAL	0x2		/* read-ahead aggressively */
- #define MADV_WILLNEED	0x3		/* pre-fault pages */
- #define MADV_DONTNEED	0x4		/* discard these pages */
-+#define MADV_DISCARD    0x5             /* discard pages right now */
- 
- /* compatibility flags */
- #define MAP_ANON	MAP_ANONYMOUS
-diff -Naurp -X dontdiff linux-2.6.14-rc3/include/asm-xtensa/mman.h linux-2.6.14-rc3.db2/include/asm-xtensa/mman.h
---- linux-2.6.14-rc3/include/asm-xtensa/mman.h	2005-09-30 14:17:35.000000000 -0700
-+++ linux-2.6.14-rc3.db2/include/asm-xtensa/mman.h	2005-10-20 13:56:45.000000000 -0700
-@@ -72,6 +72,7 @@
- #define MADV_SEQUENTIAL	0x2		/* read-ahead aggressively */
- #define MADV_WILLNEED	0x3		/* pre-fault pages */
- #define MADV_DONTNEED	0x4		/* discard these pages */
-+#define MADV_DISCARD	0x5		/* discard pages right now */
- 
- /* compatibility flags */
- #define MAP_ANON       MAP_ANONYMOUS
-diff -Naurp -X dontdiff linux-2.6.14-rc3/include/linux/mm.h linux-2.6.14-rc3.db2/include/linux/mm.h
---- linux-2.6.14-rc3/include/linux/mm.h	2005-09-30 14:17:35.000000000 -0700
-+++ linux-2.6.14-rc3.db2/include/linux/mm.h	2005-10-20 13:41:57.000000000 -0700
-@@ -865,6 +865,7 @@ extern unsigned long do_brk(unsigned lon
- /* filemap.c */
- extern unsigned long page_unuse(struct page *);
- extern void truncate_inode_pages(struct address_space *, loff_t);
-+extern void truncate_inode_pages2_range(struct address_space *, loff_t, loff_t);
- 
- /* generic vm_area_ops exported for stackable file systems */
- extern struct page *filemap_nopage(struct vm_area_struct *, unsigned long, int *);
-diff -Naurp -X dontdiff linux-2.6.14-rc3/mm/madvise.c linux-2.6.14-rc3.db2/mm/madvise.c
---- linux-2.6.14-rc3/mm/madvise.c	2005-09-30 14:17:35.000000000 -0700
-+++ linux-2.6.14-rc3.db2/mm/madvise.c	2005-10-20 13:37:41.000000000 -0700
-@@ -137,6 +137,40 @@ static long madvise_dontneed(struct vm_a
- 	return 0;
+Index: linux-2.6.14-rc4-mm1/include/linux/mm_inline.h
+===================================================================
+--- linux-2.6.14-rc4-mm1.orig/include/linux/mm_inline.h	2005-10-10 18:19:19.000000000 -0700
++++ linux-2.6.14-rc4-mm1/include/linux/mm_inline.h	2005-10-20 10:45:40.000000000 -0700
+@@ -38,3 +38,55 @@ del_page_from_lru(struct zone *zone, str
+ 		zone->nr_inactive--;
+ 	}
  }
- 
-+static long madvise_discard(struct vm_area_struct * vma,
-+			     struct vm_area_struct ** prev,
-+			     unsigned long start, unsigned long end)
++
++/*
++ * Isolate one page from the LRU lists.
++ *
++ * - zone->lru_lock must be held
++ *
++ * Result:
++ *  0 = page not on LRU list
++ *  1 = page removed from LRU list
++ * -1 = page is being freed elsewhere.
++ */
++static inline int
++__isolate_lru_page(struct zone *zone, struct page *page)
 +{
-+	struct address_space *mapping;
-+        loff_t offset, endoff;
-+	int error = 0;
-+
-+	if (!vma->vm_file || !vma->vm_file->f_mapping 
-+		|| !vma->vm_file->f_mapping->host) {
-+			return -EINVAL;
++	if (TestClearPageLRU(page)) {
++		if (get_page_testone(page)) {
++			/*
++			 * It is being freed elsewhere
++			 */
++			__put_page(page);
++			SetPageLRU(page);
++			return -1;
++		} else {
++			if (PageActive(page))
++				del_page_from_active_list(zone, page);
++			else
++				del_page_from_inactive_list(zone, page);
++			return 1;
++		}
 +	}
 +
-+	mapping = vma->vm_file->f_mapping;
-+	if (mapping == &swapper_space) {
-+		return -EINVAL;
-+	}
-+
-+	error = madvise_dontneed(vma, prev, start, end);
-+	if (error)
-+		return error;
-+
-+	/* looks good, try and rip it out of page cache */
-+	printk("%s: trying to rip shm vma (%p) inode from page cache\n", __FUNCTION__, vma);
-+	offset = (loff_t)(start - vma->vm_start);
-+	endoff = (loff_t)(end - vma->vm_start);
-+	printk("call truncate_inode_pages(%p, %x %x)\n", mapping, 
-+			(unsigned int)offset, (unsigned int)endoff);
-+	down(&mapping->host->i_sem);
-+	truncate_inode_pages2_range(mapping, offset, endoff);
-+	up(&mapping->host->i_sem);
 +	return 0;
 +}
 +
- static long
- madvise_vma(struct vm_area_struct *vma, struct vm_area_struct **prev,
- 		unsigned long start, unsigned long end, int behavior)
-@@ -153,6 +187,9 @@ madvise_vma(struct vm_area_struct *vma, 
- 	case MADV_RANDOM:
- 		error = madvise_behavior(vma, prev, start, end, behavior);
- 		break;
-+	case MADV_DISCARD:
-+		error = madvise_discard(vma, prev, start, end);
-+		break;
- 
- 	case MADV_WILLNEED:
- 		error = madvise_willneed(vma, prev, start, end);
-diff -Naurp -X dontdiff linux-2.6.14-rc3/mm/truncate.c linux-2.6.14-rc3.db2/mm/truncate.c
---- linux-2.6.14-rc3/mm/truncate.c	2005-09-30 14:17:35.000000000 -0700
-+++ linux-2.6.14-rc3.db2/mm/truncate.c	2005-10-20 13:59:20.000000000 -0700
-@@ -113,7 +113,8 @@ invalidate_complete_page(struct address_
-  *
-  * Called under (and serialised by) inode->i_sem.
-  */
--void truncate_inode_pages(struct address_space *mapping, loff_t lstart)
-+void truncate_inode_pages2_range(struct address_space *mapping, loff_t lstart,
-+		loff_t end)
- {
- 	const pgoff_t start = (lstart + PAGE_CACHE_SIZE-1) >> PAGE_CACHE_SHIFT;
- 	const unsigned partial = lstart & (PAGE_CACHE_SIZE - 1);
-@@ -126,7 +127,8 @@ void truncate_inode_pages(struct address
- 
- 	pagevec_init(&pvec, 0);
- 	next = start;
--	while (pagevec_lookup(&pvec, mapping, next, PAGEVEC_SIZE)) {
-+	while (next <= end &&
-+			pagevec_lookup(&pvec, mapping, next, PAGEVEC_SIZE)) {
- 		for (i = 0; i < pagevec_count(&pvec); i++) {
- 			struct page *page = pvec.pages[i];
- 			pgoff_t page_index = page->index;
-@@ -142,6 +144,8 @@ void truncate_inode_pages(struct address
- 			}
- 			truncate_complete_page(mapping, page);
- 			unlock_page(page);
-+			if (next > end)
-+				break;
- 		}
- 		pagevec_release(&pvec);
- 		cond_resched();
-@@ -176,12 +180,20 @@ void truncate_inode_pages(struct address
- 			next++;
- 			truncate_complete_page(mapping, page);
- 			unlock_page(page);
-+			if (next > end)
-+				break;
- 		}
- 		pagevec_release(&pvec);
- 	}
- }
- 
-+void truncate_inode_pages(struct address_space *mapping, loff_t lstart)
++/*
++ * Add isolated page back on the LRU lists
++ *
++ * - zone->lru_lock must be held
++ * - page must already be removed from other list
++ * - additional call to put_page() is needed
++ */
++static inline void
++__putback_lru_page(struct zone *zone, struct page *page)
 +{
-+	return truncate_inode_pages2_range(mapping, lstart, ~0UL);
++	if (TestSetPageLRU(page))
++		BUG();
++
++	if (PageActive(page))
++		add_page_to_active_list(zone, page);
++	else
++		add_page_to_inactive_list(zone, page);
++}
+Index: linux-2.6.14-rc4-mm1/mm/vmscan.c
+===================================================================
+--- linux-2.6.14-rc4-mm1.orig/mm/vmscan.c	2005-10-17 10:24:30.000000000 -0700
++++ linux-2.6.14-rc4-mm1/mm/vmscan.c	2005-10-20 13:18:05.000000000 -0700
+@@ -573,43 +573,75 @@ keep:
+  *
+  * Appropriate locks must be held before calling this function.
+  *
++ * @zone:	The zone where lru_lock is held.
+  * @nr_to_scan:	The number of pages to look through on the list.
+  * @src:	The LRU list to pull pages off.
+  * @dst:	The temp list to put pages on to.
+- * @scanned:	The number of pages that were scanned.
+  *
+- * returns how many pages were moved onto *@dst.
++ * returns the number of pages that were scanned.
+  */
+-static int isolate_lru_pages(int nr_to_scan, struct list_head *src,
+-			     struct list_head *dst, int *scanned)
++static int isolate_lru_pages(struct zone *zone, int nr_to_scan,
++			     struct list_head *src, struct list_head *dst)
+ {
+-	int nr_taken = 0;
+ 	struct page *page;
+-	int scan = 0;
++	int scanned = 0;
++	int rc;
+ 
+-	while (scan++ < nr_to_scan && !list_empty(src)) {
++	while (scanned++ < nr_to_scan && !list_empty(src)) {
+ 		page = lru_to_page(src);
+ 		prefetchw_prev_lru_page(page, src, flags);
+ 
+-		if (!TestClearPageLRU(page))
+-			BUG();
+-		list_del(&page->lru);
+-		if (get_page_testone(page)) {
+-			/*
+-			 * It is being freed elsewhere
+-			 */
+-			__put_page(page);
+-			SetPageLRU(page);
+-			list_add(&page->lru, src);
+-			continue;
+-		} else {
++		rc = __isolate_lru_page(zone, page);
++
++		BUG_ON(rc == 0); /* PageLRU(page) must be true */
++
++		if (rc == 1)     /* Succeeded to isolate page */
+ 			list_add(&page->lru, dst);
+-			nr_taken++;
++
++		if (rc == -1) {  /* Not possible to isolate */
++			list_del(&page->lru);
++			list_add(&page->lru, src);
+ 		}
+ 	}
+ 
+-	*scanned = scan;
+-	return nr_taken;
++	return scanned;
 +}
 +
- EXPORT_SYMBOL(truncate_inode_pages);
-+EXPORT_SYMBOL(truncate_inode_pages2_range);
++static void lru_add_drain_per_cpu(void *dummy)
++{
++	lru_add_drain();
++}
++
++/*
++ * Isolate one page from the LRU lists and put it on the
++ * indicated list. Do necessary cache draining if the
++ * page is not on the LRU lists yet.
++ *
++ * Result:
++ *  0 = page not on LRU list
++ *  1 = page removed from LRU list and added to the specified list.
++ * -1 = page is being freed elsewhere.
++ */
++int isolate_lru_page(struct page *page, struct list_head *l)
++{
++	int rc = 0;
++	struct zone *zone = page_zone(page);
++
++redo:
++	spin_lock_irq(&zone->lru_lock);
++	rc = __isolate_lru_page(zone, page);
++	spin_unlock_irq(&zone->lru_lock);
++	if (rc == 0) {
++		/*
++		 * Maybe this page is still waiting for a cpu to drain it
++		 * from one of the lru lists?
++		 */
++		smp_call_function(&lru_add_drain_per_cpu, NULL, 0 , 1);
++		lru_add_drain();
++		if (PageLRU(page))
++			goto redo;
++	}
++	return rc;
+ }
  
- /**
-  * invalidate_mapping_pages - Invalidate all the unlocked pages of one inode
-
---=-i8zX5acH7HOEbQGV9pUM--
+ /*
+@@ -627,18 +659,15 @@ static void shrink_cache(struct zone *zo
+ 	spin_lock_irq(&zone->lru_lock);
+ 	while (max_scan > 0) {
+ 		struct page *page;
+-		int nr_taken;
+ 		int nr_scan;
+ 		int nr_freed;
+ 
+-		nr_taken = isolate_lru_pages(sc->swap_cluster_max,
+-					     &zone->inactive_list,
+-					     &page_list, &nr_scan);
+-		zone->nr_inactive -= nr_taken;
++		nr_scan = isolate_lru_pages(zone, sc->swap_cluster_max,
++					    &zone->inactive_list, &page_list);
+ 		zone->pages_scanned += nr_scan;
+ 		spin_unlock_irq(&zone->lru_lock);
+ 
+-		if (nr_taken == 0)
++		if (list_empty(&page_list))
+ 			goto done;
+ 
+ 		max_scan -= nr_scan;
+@@ -658,13 +687,9 @@ static void shrink_cache(struct zone *zo
+ 		 */
+ 		while (!list_empty(&page_list)) {
+ 			page = lru_to_page(&page_list);
+-			if (TestSetPageLRU(page))
+-				BUG();
+ 			list_del(&page->lru);
+-			if (PageActive(page))
+-				add_page_to_active_list(zone, page);
+-			else
+-				add_page_to_inactive_list(zone, page);
++			__putback_lru_page(zone, page);
++
+ 			if (!pagevec_add(&pvec, page)) {
+ 				spin_unlock_irq(&zone->lru_lock);
+ 				__pagevec_release(&pvec);
+@@ -678,6 +703,33 @@ done:
+ }
+ 
+ /*
++ * Add isolated pages on the list back to the LRU
++ * Determines the zone for each pages and takes
++ * the necessary lru lock for each page.
++ *
++ * returns the number of pages put back.
++ */
++int putback_lru_pages(struct list_head *l)
++{
++	struct page * page;
++	struct page * page2;
++	int count = 0;
++
++	list_for_each_entry_safe(page, page2, l, lru) {
++		struct zone *zone = page_zone(page);
++
++		list_del(&page->lru);
++		spin_lock_irq(&zone->lru_lock);
++		__putback_lru_page(zone, page);
++		spin_unlock_irq(&zone->lru_lock);
++		count++;
++		/* Undo the get from isolate_lru_page */
++		put_page(page);
++	}
++	return count;
++}
++
++/*
+  * This moves pages from the active list to the inactive list.
+  *
+  * We move them the other way if the page is referenced by one or more
+@@ -713,10 +765,9 @@ refill_inactive_zone(struct zone *zone, 
+ 
+ 	lru_add_drain();
+ 	spin_lock_irq(&zone->lru_lock);
+-	pgmoved = isolate_lru_pages(nr_pages, &zone->active_list,
+-				    &l_hold, &pgscanned);
++	pgscanned = isolate_lru_pages(zone, nr_pages,
++				      &zone->active_list, &l_hold);
+ 	zone->pages_scanned += pgscanned;
+-	zone->nr_active -= pgmoved;
+ 	spin_unlock_irq(&zone->lru_lock);
+ 
+ 	/*
+Index: linux-2.6.14-rc4-mm1/include/linux/swap.h
+===================================================================
+--- linux-2.6.14-rc4-mm1.orig/include/linux/swap.h	2005-10-17 10:24:16.000000000 -0700
++++ linux-2.6.14-rc4-mm1/include/linux/swap.h	2005-10-20 13:13:24.000000000 -0700
+@@ -176,6 +176,9 @@ extern int zone_reclaim(struct zone *, u
+ extern int shrink_all_memory(int);
+ extern int vm_swappiness;
+ 
++extern int isolate_lru_page(struct page *p, struct list_head *l);
++extern int putback_lru_pages(struct list_head *l);
++
+ #ifdef CONFIG_MMU
+ /* linux/mm/shmem.c */
+ extern int shmem_unuse(swp_entry_t entry, struct page *page);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
