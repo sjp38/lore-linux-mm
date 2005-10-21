@@ -1,57 +1,53 @@
-Date: Fri, 21 Oct 2005 08:54:52 -0700 (PDT)
-From: Christoph Lameter <clameter@engr.sgi.com>
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by e6.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id j9LG13tP027922
+	for <linux-mm@kvack.org>; Fri, 21 Oct 2005 12:01:03 -0400
+Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
+	by d01relay02.pok.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id j9LG13gZ046776
+	for <linux-mm@kvack.org>; Fri, 21 Oct 2005 12:01:03 -0400
+Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
+	by d01av04.pok.ibm.com (8.12.11/8.13.3) with ESMTP id j9LG12Yv009939
+	for <linux-mm@kvack.org>; Fri, 21 Oct 2005 12:01:03 -0400
+Date: Fri, 21 Oct 2005 09:00:56 -0700
+From: mike kravetz <kravetz@us.ibm.com>
 Subject: Re: [PATCH 0/4] Swap migration V3: Overview
-In-Reply-To: <20051020160638.58b4d08d.akpm@osdl.org>
-Message-ID: <Pine.LNX.4.62.0510210850520.23212@schroedinger.engr.sgi.com>
-References: <20051020225935.19761.57434.sendpatchset@schroedinger.engr.sgi.com>
- <20051020160638.58b4d08d.akpm@osdl.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Message-ID: <20051021160056.GA32741@w-mikek2.ibm.com>
+References: <20051020225935.19761.57434.sendpatchset@schroedinger.engr.sgi.com> <20051020160638.58b4d08d.akpm@osdl.org> <20051020234621.GL5490@w-mikek2.ibm.com> <20051021082849.45dafd27.pj@sgi.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20051021082849.45dafd27.pj@sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: kravetz@us.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, magnus.damm@gmail.com, marcelo.tosatti@cyclades.com
+To: Paul Jackson <pj@sgi.com>
+Cc: akpm@osdl.org, clameter@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, magnus.damm@gmail.com, marcelo.tosatti@cyclades.com
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 20 Oct 2005, Andrew Morton wrote:
-
-> Christoph Lameter <clameter@sgi.com> wrote:
-> >
-> > Page migration is also useful for other purposes:
-> > 
-> >  1. Memory hotplug. Migrating processes off a memory node that is going
-> >     to be disconnected.
-> > 
-> >  2. Remapping of bad pages. These could be detected through soft ECC errors
-> >     and other mechanisms.
+On Fri, Oct 21, 2005 at 08:28:49AM -0700, Paul Jackson wrote:
+> Mike wrote:
+> > Just to be clear, there are at least two distinct requirements for hotplug.
+> > One only wants to remove a quantity of memory (location unimportant). 
 > 
-> It's only useful for these things if it works with close-to-100% reliability.
+> Could you describe this case a little more?  I wasn't aware
+> of this hotplug requirement, until I saw you comment just now.
 
-I think we need to gradually get there. There are other measures 
-implemented by the hotplug that can work in conjunction with these patches 
-to increase the likelyhood of successful migration.
+Think of a system running multiple OS's on top of a hypervisor, where
+each OS is given some memory for exclusive use.  For multiple reasons
+(one being workload management) it is desirable to move resources from
+one OS to another.  For example, take memory away from an underutilized
+OS and give it to an over utilized OS.
 
-Pages that are not on the LRU are very difficult to move and the hotplug 
-project addresses that by not allowing allocation in areas that may be 
-removed etc.
+This describes the environment on IBM's mid to upper level POWER systems.
+Currently, there is OS support to dynamically move/reassign CPUs and
+adapters between different OSs on these systems.
 
-> And there are are all sorts of things which will prevent that - mlock,
-> ongoing direct-io, hugepages, whatever.
+My knowledge of Xen is limited, but this might also apply to that
+environment also.  An interesting question comes up if Xen or some
+other hypervisor starts vitrtualizing memory.  In such cases, would
+it make more sense to allow the hypervisor do all resizing or do
+we also need hotplug support in the OS for optimal performance?
 
-Right. But these are not a problem for the page migration of processes in 
-order to optimize performance. The hotplug and the remapping of bad pages 
-will require additional effort to get done right. Nevertheless, the 
-material presented here can be used as a basis.
- 
-> So before we can commit ourselves to the initial parts of this path we'd
-> need some reassurance that the overall scheme addresses these things and
-> that the end result has a high probability of supporting hot unplug and
-> remapping sufficiently well.
-
-I think we have that assurance. The hotplug project has worked on these 
-patches for a long time and what we need is a way to gradually put these 
-things into the kernel. We are trying to facilitate that with these 
-patches.
+-- 
+Mike
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
