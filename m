@@ -1,33 +1,31 @@
-Date: Fri, 21 Oct 2005 08:22:45 -0700
+Date: Fri, 21 Oct 2005 08:28:49 -0700
 From: Paul Jackson <pj@sgi.com>
-Subject: Re: [PATCH 4/4] Swap migration V3: sys_migrate_pages interface
-Message-Id: <20051021082245.5c540dca.pj@sgi.com>
-In-Reply-To: <Pine.LNX.4.61.0510210927140.17098@openx3.frec.bull.fr>
+Subject: Re: [PATCH 0/4] Swap migration V3: Overview
+Message-Id: <20051021082849.45dafd27.pj@sgi.com>
+In-Reply-To: <20051020234621.GL5490@w-mikek2.ibm.com>
 References: <20051020225935.19761.57434.sendpatchset@schroedinger.engr.sgi.com>
-	<20051020225955.19761.53060.sendpatchset@schroedinger.engr.sgi.com>
-	<4358588D.1080307@jp.fujitsu.com>
-	<Pine.LNX.4.61.0510210901380.17098@openx3.frec.bull.fr>
-	<435896CA.1000101@jp.fujitsu.com>
-	<Pine.LNX.4.61.0510210927140.17098@openx3.frec.bull.fr>
+	<20051020160638.58b4d08d.akpm@osdl.org>
+	<20051020234621.GL5490@w-mikek2.ibm.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Simon Derr <Simon.Derr@bull.net>
-Cc: kamezawa.hiroyu@jp.fujitsu.com, clameter@sgi.com, akpm@osdl.org, kravetz@us.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, magnus.damm@gmail.com, marcelo.tosatti@cyclades.com
+To: mike kravetz <kravetz@us.ibm.com>
+Cc: akpm@osdl.org, clameter@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, magnus.damm@gmail.com, marcelo.tosatti@cyclades.com
 List-ID: <linux-mm.kvack.org>
 
-Simon wrote:
-> Maybe sometimes the user would be interested in migrating all the 
-> existing pages of a process, but not change the policy for the future ?
+Mike wrote:
+> Just to be clear, there are at least two distinct requirements for hotplug.
+> One only wants to remove a quantity of memory (location unimportant). 
 
-So long as the user has some reasonable right to change the affected
-tasks memory layout, and so long as they are moving memory within the
-cpuset constraints (if any) of the affected task, or as close to that
-as practical (such as with ECC soft error avoidance), then yes, it would
-seem that this sys_migrate_pages() lets existing pages be moved without
-changing the cpuset policy for the future.
+Could you describe this case a little more?  I wasn't aware
+of this hotplug requirement, until I saw you comment just now.
+
+The three reasons I knew of for wanting to move memory pages were:
+ - offload some physical ram or node (avoid or unplug bad hardware)
+ - task migration to another cpuset or moving an existing cpuset
+ - various testing and performance motivations to optimize page location
 
 -- 
                   I won't rest till it's the best ...
