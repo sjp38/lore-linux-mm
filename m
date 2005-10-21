@@ -1,55 +1,56 @@
-Message-ID: <435878E2.20506@jp.fujitsu.com>
-Date: Fri, 21 Oct 2005 14:13:06 +0900
+Message-ID: <435883B2.2090400@jp.fujitsu.com>
+Date: Fri, 21 Oct 2005 14:59:14 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
 Subject: Re: [PATCH 0/4] Swap migration V3: Overview
-References: <20051020225935.19761.57434.sendpatchset@schroedinger.engr.sgi.com> <20051020160638.58b4d08d.akpm@osdl.org> <20051020234621.GL5490@w-mikek2.ibm.com> <43585EDE.3090704@jp.fujitsu.com> <20051021033223.GC6846@w-mikek2.ibm.com> <435866E0.8080305@jp.fujitsu.com> <20051021042207.GD6846@w-mikek2.ibm.com>
-In-Reply-To: <20051021042207.GD6846@w-mikek2.ibm.com>
+References: <20051020225935.19761.57434.sendpatchset@schroedinger.engr.sgi.com> <20051020160638.58b4d08d.akpm@osdl.org>
+In-Reply-To: <20051020160638.58b4d08d.akpm@osdl.org>
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: mike kravetz <kravetz@us.ibm.com>
-Cc: Andrew Morton <akpm@osdl.org>, Christoph Lameter <clameter@sgi.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, magnus.damm@gmail.com, marcelo.tosatti@cyclades.com
+To: Andrew Morton <akpm@osdl.org>
+Cc: Christoph Lameter <clameter@sgi.com>, kravetz@us.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, magnus.damm@gmail.com, marcelo.tosatti@cyclades.com
 List-ID: <linux-mm.kvack.org>
 
-mike kravetz wrote:
->>yea, looks nice :)
->>But such pages are already shown as hotpluggable, I think.
->>ACPI/SRAT will define the range, in ia64.
+Andrew Morton wrote:
+> Christoph Lameter <clameter@sgi.com> wrote:
+> 
+>>Page migration is also useful for other purposes:
+>>
+>> 1. Memory hotplug. Migrating processes off a memory node that is going
+>>    to be disconnected.
+>>
+>> 2. Remapping of bad pages. These could be detected through soft ECC errors
+>>    and other mechanisms.
 > 
 > 
-> I haven't taken a close look at that code, but don't those just give
-> you physical ranges that can 'possibly' be removed? 
-
-It just represents pages are physically hotpluggable or not.
-
-> So, isn't it
-> possible for hotpluggable ranges to contain pages allocated for kernel
-> data structures which would be almost impossible to offline?
+> It's only useful for these things if it works with close-to-100% reliability.
 > 
-The range which contains kernel data isn't hot-pluggable.
-So such range shouldn't contain the kernel pages.
-
-As you say, it's very helpful to show how section is used.
-But I think showing hotpluggable-or-not looks enough.(KERN mem is not hotpluggable)
-Once a section turned to be KERN section, it's never be USER section, I think.
-
->>The difficulty is how to find hard-to-migrate pages, as Andrew pointed out.
+> And there are are all sorts of things which will prevent that - mlock,
+> ongoing direct-io, hugepages, whatever.
 > 
-> 
-> By examining the fragmentation usemaps, we have a pretty good idea about
-> how the blocks are being used.  If a block is flagged as 'User Pages' then
-> there is a good chance that it can be offlined.  
-yes.
+In lhms tree, current status is below: (If I'm wrong, plz fix)
+==
+For mlock, direct page migration will work fine. try_to_unmap_one()
+in -mhp tree has an argument *force* and ignore VM_LOCKED, it's for this.
 
-But 'search and find on demand' approach  is not good for the system admin
-who makes system resizing plan.
-Do you consider some guarantees to keep quantity or location of not-hottpluggable
-memory section ?
+For direct-io, we have to wait for completion.
+The end of I/O is not notified and memory_migrate() is just polling pages.
+
+For hugepages, we'll need hugepage demand paging and more work, I think.
+==
+
+When a process migrates to other nodes by hand, it can cooperate with migration
+subsystem. So we don't have to be afraid of some special using of memory, in many case.
+I think Christoph's approach will work fine.
+
+When it comes to memory-hotplug, arbitrary processes are affected.
+It's more difficult.
+
+We should focus on 'process migraion on demand', in this thread.
 
 -- Kame
-
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
