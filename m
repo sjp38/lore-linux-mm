@@ -1,281 +1,376 @@
 From: Mel Gorman <mel@csn.ul.ie>
-Message-Id: <20051021095658.14409.26527.sendpatchset@skynet.csn.ul.ie>
-Subject: [PATCH 0/8] Fragmentation Avoidance V18
-Date: Fri, 21 Oct 2005 10:56:59 +0100 (IST)
+Message-Id: <20051021095708.14409.7628.sendpatchset@skynet.csn.ul.ie>
+In-Reply-To: <20051021095658.14409.26527.sendpatchset@skynet.csn.ul.ie>
+References: <20051021095658.14409.26527.sendpatchset@skynet.csn.ul.ie>
+Subject: [PATCH 2/8] Fragmentation Avoidance V18: 002_usemap
+Date: Fri, 21 Oct 2005 10:57:09 +0100 (IST)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org, lhms-devel@lists.sourceforge.net
 Cc: Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-Changelog since v17
-o Update to 2.6.14-rc4-mm1
-o Remove explicit casts where implicit casts were in place
-o Change __GFP_USER to __GFP_EASYRCLM, RCLM_USER to RCLM_EASY and PCPU_USER to
-  PCPU_EASY
-o Print a warning and return NULL if both RCLM flags are set in the GFP flags
-o Reduce size of fallback_allocs
-o Change magic number 64 to FREE_AREA_USEMAP_SIZE
-o CodingStyle regressions cleanup
-o Move sparsemen setup_usemap() out of header
-o Changed fallback_balance to a mechanism that depended on zone->present_pages
-  to avoid hotplug problems later
-o Many superflous parenthesis removed
+This patch adds a "usemap" to the allocator. When a PAGE_PER_MAXORDER block
+of pages (i.e. 2^(MAX_ORDER-1)) is split, the usemap is updated with the
+type of allocation when splitting. This information is used in an 
+anti-fragmentation patch to group related allocation types together.
 
-Changlog since v16
-o Variables using bit operations now are unsigned long. Note that when used
-  as indices, they are integers and cast to unsigned long when necessary.
-  This is because aim9 shows regressions when used as unsigned longs 
-  throughout (~10% slowdown)
-o 004_showfree added to provide more debugging information
-o 008_stats dropped. Even with CONFIG_ALLOCSTATS disabled, it is causing 
-  severe performance regressions. No explanation as to why
-o for_each_rclmtype_order moved to header
-o More coding style cleanups
+The __GFP_EASYRCLM and __GFP_KERNRCLM bits are used to enumerate three allocation
+types;
 
-Changelog since V14 (V15 not released)
-o Update against 2.6.14-rc3
-o Resync with Joel's work. All suggestions made on fix-ups to his last
-  set of patches should also be in here. e.g. __GFP_USER is still __GFP_USER
-  but is better commented.
-o Large amount of CodingStyle, readability cleanups and corrections pointed
-  out by Dave Hansen.
-o Fix CONFIG_NUMA error that corrupted per-cpu lists
-o Patches broken out to have one-feature-per-patch rather than
-  more-code-per-patch
-o Fix fallback bug where pages for RCLM_NORCLM end up on random other
-  free lists.
+RCLM_NORLM:	These are kernel allocations that cannot be reclaimed
+		on demand.
+RCLM_EASY:	These are pages allocated with __GFP_EASYRCLM flag set. They are
+		considered to be user and other easily reclaimed pages such
+		as buffers
+RCLM_KERN:	Allocated for the kernel but for caches that can be reclaimed
+		on demand.
 
-Changelog since V13
-o Patches are now broken out
-o Added per-cpu draining of userrclm pages
-o Brought the patch more in line with memory hotplug work
-o Fine-grained use of the __GFP_USER and __GFP_KERNRCLM flags
-o Many coding-style corrections
-o Many whitespace-damage corrections
+gfpflags_to_rclmtype() converts gfp_flags to their corresponding RCLM_TYPE
+by masking out irrelevant bits and shifting the result right by RCLM_SHIFT.
+Compile-time checks are made on RCLM_SHIFT to ensure gfpflags_to_rclmtype()
+keeps working. ffz() could be used to avoid static checks, but it would be
+runtime overhead for a compile-time constant.
 
-Changelog since V12
-o Minor whitespace damage fixed as pointed by Joel Schopp
-
-Changelog since V11
-o Mainly a redefiff against 2.6.12-rc5
-o Use #defines for indexing into pcpu lists
-o Fix rounding error in the size of usemap
-
-Changelog since V10
-o All allocation types now use per-cpu caches like the standard allocator
-o Removed all the additional buddy allocator statistic code
-o Elimated three zone fields that can be lived without
-o Simplified some loops
-o Removed many unnecessary calculations
-
-Changelog since V9
-o Tightened what pools are used for fallbacks, less likely to fragment
-o Many micro-optimisations to have the same performance as the standard 
-  allocator. Modified allocator now faster than standard allocator using
-  gcc 3.3.5
-o Add counter for splits/coalescing
-
-Changelog since V8
-o rmqueue_bulk() allocates pages in large blocks and breaks it up into the
-  requested size. Reduces the number of calls to __rmqueue()
-o Beancounters are now a configurable option under "Kernel Hacking"
-o Broke out some code into inline functions to be more Hotplug-friendly
-o Increased the size of reserve for fallbacks from 10% to 12.5%. 
-
-Changelog since V7
-o Updated to 2.6.11-rc4
-o Lots of cleanups, mainly related to beancounters
-o Fixed up a miscalculation in the bitmap size as pointed out by Mike Kravetz
-  (thanks Mike)
-o Introduced a 10% reserve for fallbacks. Drastically reduces the number of
-  kernnorclm allocations that go to the wrong places
-o Don't trigger OOM when large allocations are involved
-
-Changelog since V6
-o Updated to 2.6.11-rc2
-o Minor change to allow prezeroing to be a cleaner looking patch
-
-Changelog since V5
-o Fixed up gcc-2.95 errors
-o Fixed up whitespace damage
-
-Changelog since V4
-o No changes. Applies cleanly against 2.6.11-rc1 and 2.6.11-rc1-bk6. Applies
-  with offsets to 2.6.11-rc1-mm1
-
-Changelog since V3
-o inlined get_pageblock_type() and set_pageblock_type()
-o set_pageblock_type() now takes a zone parameter to avoid a call to page_zone()
-o When taking from the global pool, do not scan all the low-order lists
-
-Changelog since V2
-o Do not to interfere with the "min" decay
-o Update the __GFP_BITS_SHIFT properly. Old value broke fsync and probably
-  anything to do with asynchronous IO
-  
-Changelog since V1
-o Update patch to 2.6.11-rc1
-o Cleaned up bug where memory was wasted on a large bitmap
-o Remove code that needed the binary buddy bitmaps
-o Update flags to avoid colliding with __GFP_ZERO changes
-o Extended fallback_count bean counters to show the fallback count for each
-  allocation type
-o In-code documentation
-
-Version 1
-o Initial release against 2.6.9
-
-This patch is designed to reduce fragmentation in the standard buddy allocator
-without impairing the performance of the allocator. High fragmentation in
-the standard binary buddy allocator means that high-order allocations can
-rarely be serviced. This patch works by dividing allocations into three
-different types of allocations;
-
-UserReclaimable - These are userspace pages that are easily reclaimable. This
-	flag is set when it is known that the pages will be trivially reclaimed
-	by writing the page out to swap or syncing with backing storage
-
-KernelReclaimable - These are pages allocated by the kernel that are easily
-	reclaimed. This is stuff like inode caches, dcache, buffer_heads etc.
-	These type of pages potentially could be reclaimed by dumping the
-	caches and reaping the slabs
-
-KernelNonReclaimable - These are pages that are allocated by the kernel that
-	are not trivially reclaimed. For example, the memory allocated for a
-	loaded module would be in this category. By default, allocations are
-	considered to be of this type
-
-Instead of having one global MAX_ORDER-sized array of free lists,
-there are four, one for each type of allocation and another reserve for
-fallbacks. 
-
-Once a 2^MAX_ORDER block of pages it split for a type of allocation, it is
-added to the free-lists for that type, in effect reserving it. Hence, over
-time, pages of the different types can be clustered together. This means that
-if 2^MAX_ORDER number of pages were required, the system could linearly scan
-a block of pages allocated for UserReclaimable and page each of them out.
-
-Fallback is used when there are no 2^MAX_ORDER pages available and there
-are no free pages of the desired type. The fallback lists were chosen in a
-way that keeps the most easily reclaimable pages together.
-
-Three benchmark results are included all based on a 2.6.14-rc3 kernel
-compiled with gcc 3.4 (it is known that gcc 2.95 produces different results).
-The first is the output of portions of AIM9 for the vanilla allocator and
-the modified one;
-
-(Tests run with bench-aim9.sh from VMRegress 0.17)
-2.6.14-rc4-mm1-clean
-------------------------------------------------------------------------------------------------------------
- Test        Test        Elapsed  Iteration    Iteration          Operation
-Number       Name      Time (sec)   Count   Rate (loops/sec)    Rate (ops/sec)
-------------------------------------------------------------------------------------------------------------
-     1 creat-clo           60.03        963   16.04198        16041.98 File Creations and Closes/second
-     2 page_test           60.02       4239   70.62646       120064.98 System Allocations & Pages/second
-     3 brk_test            60.02       1560   25.99134       441852.72 System Memory Allocations/second
-     4 jmp_test            60.01     251354 4188.53524      4188535.24 Non-local gotos/second
-     5 signal_test         60.01       5091   84.83586        84835.86 Signal Traps/second
-     6 exec_test           60.07        758   12.61861           63.09 Program Loads/second
-     7 fork_test           60.05        814   13.55537         1355.54 Task Creations/second
-     8 link_test           60.02       5326   88.73709         5590.44 Link/Unlink Pairs/second
-
-2.6.14-rc3-mbuddy-v18
-------------------------------------------------------------------------------------------------------------
- Test        Test        Elapsed  Iteration    Iteration          Operation
-Number       Name      Time (sec)   Count   Rate (loops/sec)    Rate (ops/sec)
-------------------------------------------------------------------------------------------------------------
-     1 creat-clo           60.05        959   15.97002        15970.02 File Creations and Closes/second
-     2 page_test           60.02       4239   70.62646       120064.98 System Allocations & Pages/second
-     3 brk_test            60.03       1552   25.85374       439513.58 System Memory Allocations/second
-     4 jmp_test            60.01     250647 4176.75387      4176753.87 Non-local gotos/second
-     5 signal_test         60.02       4967   82.75575        82755.75 Signal Traps/second
-     6 exec_test           60.03        747   12.44378           62.22 Program Loads/second
-     7 fork_test           60.02        818   13.62879         1362.88 Task Creations/second
-     8 link_test           60.00       5255   87.58333         5517.75 Link/Unlink Pairs/second
-
-Difference in performance operations report generated by diff-aim9.sh
-                   Clean   mbuddy-v18
-                ---------- ----------
- 1 creat-clo      15828.06   15970.02     141.96  0.90% File Creations and Closes/second
- 2 page_test     120339.94  120064.98    -274.96 -0.23% System Allocations & Pages/second
- 3 brk_test      427053.14  439513.58   12460.44  2.92% System Memory Allocations/second
- 4 jmp_test     4183169.47 4176753.87   -6415.60 -0.15% Non-local gotos/second
- 5 signal_test    84171.94   82755.75   -1416.19 -1.68% Signal Traps/second
- 6 exec_test         61.64      62.22       0.58  0.94% Program Loads/second
- 7 fork_test       1360.76    1362.88       2.12  0.16% Task Creations/second
- 8 link_test       5509.48    5517.75       8.27  0.15% Link/Unlink Pairs/second
-
-In this test, there were small regressions in the page_test. However, it
-is known that different kernel configurations, compilers and even different
-runs show similar varianes of +/- 3% .
-
-The second benchmark tested the CPU cache usage to make sure it was not
-getting clobbered. The test was to repeatedly render a large postscript file
-10 times and get the average. The result is;
-
-2.6.14-rc4-mm1-clean:      Average: 43.098 real, 40.188 user, 0.03 sys
-2.6.14-rc4-mm1-mbuddy-v18: Average: 43.218 real, 40.478 user, 0.05 sys
-
-So there are no adverse cache effects. The last test is to show that the
-allocator can satisfy more high-order allocations, especially under load,
-than the standard allocator. The test performs the following;
-
-1. Start updatedb running in the background
-2. Load kernel modules that tries to allocate high-order blocks on demand
-3. Clean a kernel tree
-4. Make 6 copies of the tree. As each copy finishes, a compile starts at -j2
-5. Start compiling the primary tree
-6. Sleep 1 minute while the 7 trees are being compiled
-7. Use the kernel module to attempt 160 times to allocate a 2^10 block of pages
-    - note, it only attempts 160 times, no matter how often it succeeds
-    - An allocation is attempted every 1/10th of a second
-    - Performance will get badly shot as it forces considerable amounts of
-      pageout
-
-The result of the allocations under load (load averaging 18) were;
-
-2.6.14-rc4-mm1 Clean
-Order:                 10
-Allocation type:       HighMem
-Attempted allocations: 160
-Success allocs:        22
-Failed allocs:         138
-DMA zone allocs:       1
-Normal zone allocs:    5
-HighMem zone allocs:   16
-% Success:            13
-
-2.6.14-rc4-mm1 MBuddy V18
-Order:                 10
-Allocation type:       HighMem
-Attempted allocations: 160
-Success allocs:        41
-Failed allocs:         119
-DMA zone allocs:       0
-Normal zone allocs:    5
-HighMem zone allocs:   36
-% Success:            25
-
-One thing that had to be changed in the 2.6.14-rc4--mm1 clean test was to
-disable the OOM killer. During one test, the OOM killer had better results
-but invoked the OOM killer a very large number of times to achieve it. The
-patch with the placement policy never invoked the OOM killer.
-
-The above results are not very dramatic but the affect is very noticeable when
-the system is at rest after the test completes. After the test, the standard
-allocator was able to allocate 42 order-10 pages and the modified allocator
-allocated 152. The ability to allocate large pages under load depend heavily
-on the decisions of kswapd so there can be large variances in results but
-that is a separate problem.
-
-The results show that the modified allocator has comparable speed, has no
-adverse cache effects but is far less fragmented and in a better position
-to satisfy high-order allocations.
--- 
-Mel Gorman
-Part-time Phd Student                          Java Applications Developer
-University of Limerick                         IBM Dublin Software Lab
+Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+Signed-off-by: Mike Kravetz <kravetz@us.ibm.com>
+Signed-off-by: Joel Schopp <jschopp@austin.ibm.com>
+diff -rup -X /usr/src/patchset-0.5/bin//dontdiff linux-2.6.14-rc4-mm1-001_antidefrag_flags/include/linux/mm.h linux-2.6.14-rc4-mm1-002_usemap/include/linux/mm.h
+--- linux-2.6.14-rc4-mm1-001_antidefrag_flags/include/linux/mm.h	2005-10-18 23:26:37.000000000 +0100
++++ linux-2.6.14-rc4-mm1-002_usemap/include/linux/mm.h	2005-10-19 22:10:06.000000000 +0100
+@@ -521,6 +521,12 @@ static inline void set_page_links(struct
+ extern struct page *mem_map;
+ #endif
+ 
++/*
++ * Return what type of page this 2^(MAX_ORDER-1) block of pages is being
++ * used for. Return value is one of the RCLM_X types
++ */
++extern int get_pageblock_type(struct zone *zone, struct page *page);
++
+ static inline void *lowmem_page_address(struct page *page)
+ {
+ 	return __va(page_to_pfn(page) << PAGE_SHIFT);
+diff -rup -X /usr/src/patchset-0.5/bin//dontdiff linux-2.6.14-rc4-mm1-001_antidefrag_flags/include/linux/mmzone.h linux-2.6.14-rc4-mm1-002_usemap/include/linux/mmzone.h
+--- linux-2.6.14-rc4-mm1-001_antidefrag_flags/include/linux/mmzone.h	2005-10-18 23:26:37.000000000 +0100
++++ linux-2.6.14-rc4-mm1-002_usemap/include/linux/mmzone.h	2005-10-19 22:10:06.000000000 +0100
+@@ -21,6 +21,17 @@
+ #else
+ #define MAX_ORDER CONFIG_FORCE_MAX_ZONEORDER
+ #endif
++#define PAGES_PER_MAXORDER (1 << (MAX_ORDER-1))
++
++/*
++ * The two bit field __GFP_RECLAIMBITS enumerates the following types of
++ * page reclaimability.
++ */
++#define RCLM_NORCLM   0
++#define RCLM_EASY     1
++#define RCLM_KERN     2
++#define RCLM_TYPES    3
++#define BITS_PER_RCLM_TYPE 2
+ 
+ struct free_area {
+ 	struct list_head	free_list;
+@@ -146,6 +157,13 @@ struct zone {
+ #endif
+ 	struct free_area	free_area[MAX_ORDER];
+ 
++#ifndef CONFIG_SPARSEMEM
++	/*
++	 * The map tracks what each 2^MAX_ORDER-1 sized block is being used for.
++	 * Each PAGES_PER_MAXORDER block of pages use BITS_PER_RCLM_TYPE bits
++	 */
++	unsigned long		*free_area_usemap;
++#endif
+ 
+ 	ZONE_PADDING(_pad1_)
+ 
+@@ -501,9 +519,14 @@ extern struct pglist_data contig_page_da
+ #define PAGES_PER_SECTION       (1UL << PFN_SECTION_SHIFT)
+ #define PAGE_SECTION_MASK	(~(PAGES_PER_SECTION-1))
+ 
++#define FREE_AREA_BITS		64
++
+ #if (MAX_ORDER - 1 + PAGE_SHIFT) > SECTION_SIZE_BITS
+ #error Allocator MAX_ORDER exceeds SECTION_SIZE
+ #endif
++#if ((SECTION_SIZE_BITS - MAX_ORDER) * BITS_PER_RCLM_TYPE) > FREE_AREA_BITS
++#error free_area_usemap is not big enough
++#endif
+ 
+ struct page;
+ struct mem_section {
+@@ -516,6 +539,7 @@ struct mem_section {
+ 	 * before using it wrong.
+ 	 */
+ 	unsigned long section_mem_map;
++	DECLARE_BITMAP(free_area_usemap, FREE_AREA_BITS);
+ };
+ 
+ #ifdef CONFIG_SPARSEMEM_EXTREME
+@@ -584,6 +608,18 @@ static inline struct mem_section *__pfn_
+ 	return __nr_to_section(pfn_to_section_nr(pfn));
+ }
+ 
++static inline unsigned long *pfn_to_usemap(struct zone *zone,
++						unsigned long pfn)
++{
++	return &__pfn_to_section(pfn)->free_area_usemap[0];
++}
++
++static inline int pfn_to_bitidx(struct zone *zone, unsigned long pfn)
++{
++	pfn &= (PAGES_PER_SECTION-1);
++	return (pfn >> (MAX_ORDER-1)) * BITS_PER_RCLM_TYPE;
++}
++
+ #define pfn_to_page(pfn) 						\
+ ({ 									\
+ 	unsigned long __pfn = (pfn);					\
+@@ -621,6 +657,17 @@ void sparse_init(void);
+ #else
+ #define sparse_init()	do {} while (0)
+ #define sparse_index_init(_sec, _nid)  do {} while (0)
++static inline unsigned long *pfn_to_usemap(struct zone *zone,
++						unsigned long pfn)
++{
++	return zone->free_area_usemap;
++}
++
++static inline int pfn_to_bitidx(struct zone *zone, unsigned long pfn)
++{
++	pfn = pfn - zone->zone_start_pfn;
++	return (pfn >> (MAX_ORDER-1)) * BITS_PER_RCLM_TYPE;
++}
+ #endif /* CONFIG_SPARSEMEM */
+ 
+ #ifdef CONFIG_NODES_SPAN_OTHER_NODES
+diff -rup -X /usr/src/patchset-0.5/bin//dontdiff linux-2.6.14-rc4-mm1-001_antidefrag_flags/mm/page_alloc.c linux-2.6.14-rc4-mm1-002_usemap/mm/page_alloc.c
+--- linux-2.6.14-rc4-mm1-001_antidefrag_flags/mm/page_alloc.c	2005-10-18 23:26:38.000000000 +0100
++++ linux-2.6.14-rc4-mm1-002_usemap/mm/page_alloc.c	2005-10-19 22:10:06.000000000 +0100
+@@ -69,6 +69,99 @@ int sysctl_lowmem_reserve_ratio[MAX_NR_Z
+ EXPORT_SYMBOL(totalram_pages);
+ 
+ /*
++ * RCLM_SHIFT is the number of bits that a gfp_mask has to be shifted right
++ * to have just the __GFP_EASYRCLM and __GFP_KERNRCLM bits. The static check
++ * is made afterwards in case the GFP flags are not updated without updating
++ * this number
++ */
++#define RCLM_SHIFT 19
++#if (__GFP_EASYRCLM >> RCLM_SHIFT) != RCLM_EASY
++#error __GFP_EASYRCLM not mapping to RCLM_EASY
++#endif
++#if (__GFP_KERNRCLM >> RCLM_SHIFT) != RCLM_KERN
++#error __GFP_KERNRCLM not mapping to RCLM_KERN
++#endif
++
++/*
++ * This function maps gfpflags to their RCLM_TYPE. It makes assumptions
++ * on the location of the GFP flags.
++ */
++static inline int gfpflags_to_rclmtype(gfp_t gfp_flags)
++{
++	unsigned long rclmbits = gfp_flags & __GFP_RCLM_BITS;
++
++	/* Specifying both RCLM flags makes no sense */
++	if (unlikely(rclmbits == __GFP_RCLM_BITS)) {
++		printk(KERN_WARNING "Multiple RCLM GFP flags specified\n");
++		dump_stack();
++		return RCLM_TYPES;
++	}
++
++	return rclmbits >> RCLM_SHIFT;
++}
++
++/*
++ * copy_bits - Copy bits between bitmaps
++ * @dstaddr: The destination bitmap to copy to
++ * @srcaddr: The source bitmap to copy from
++ * @sindex_dst: The start bit index within the destination map to copy to
++ * @sindex_src: The start bit index within the source map to copy from
++ * @nr: The number of bits to copy
++ *
++ * Note that this method is slow and makes no guarantees for atomicity.
++ * It depends on being called with the zone spinlock held to ensure data
++ * safety
++ */
++static inline void copy_bits(unsigned long *dstaddr,
++		unsigned long *srcaddr,
++		int sindex_dst,
++		int sindex_src,
++		int nr)
++{
++	/*
++	 * Written like this to take advantage of arch-specific
++	 * set_bit() and clear_bit() functions
++	 */
++	for (nr = nr - 1; nr >= 0; nr--) {
++		int bit = test_bit(sindex_src + nr, srcaddr);
++		if (bit)
++			set_bit(sindex_dst + nr, dstaddr);
++		else
++			clear_bit(sindex_dst + nr, dstaddr);
++	}
++}
++
++int get_pageblock_type(struct zone *zone, struct page *page)
++{
++	unsigned long pfn = page_to_pfn(page);
++	unsigned long type = 0;
++	unsigned long *usemap;
++	int bitidx;
++
++	bitidx = pfn_to_bitidx(zone, pfn);
++	usemap = pfn_to_usemap(zone, pfn);
++
++	copy_bits(&type, usemap, 0, bitidx, BITS_PER_RCLM_TYPE);
++
++	return type;
++}
++
++/* Reserve a block of pages for an allocation type */
++static inline void set_pageblock_type(struct zone *zone, struct page *page,
++					int type)
++{
++	unsigned long pfn = page_to_pfn(page);
++	unsigned long *usemap;
++	unsigned long ltype = type;
++	int bitidx;
++
++	bitidx = pfn_to_bitidx(zone, pfn);
++	usemap = pfn_to_usemap(zone, pfn);
++
++	copy_bits(usemap, &ltype, bitidx, 0, BITS_PER_RCLM_TYPE);
++}
++
++/*
+  * Used by page_zone() to look up the address of the struct zone whose
+  * id is encoded in the upper bits of page->flags
+  */
+@@ -498,7 +591,8 @@ static void prep_new_page(struct page *p
+  * Do the hard work of removing an element from the buddy allocator.
+  * Call me with the zone->lock already held.
+  */
+-static struct page *__rmqueue(struct zone *zone, unsigned int order)
++static struct page *__rmqueue(struct zone *zone, unsigned int order,
++					int alloctype)
+ {
+ 	struct free_area * area;
+ 	unsigned int current_order;
+@@ -514,6 +608,14 @@ static struct page *__rmqueue(struct zon
+ 		rmv_page_order(page);
+ 		area->nr_free--;
+ 		zone->free_pages -= 1UL << order;
++
++		/*
++		 * If splitting a large block, record what the block is being
++		 * used for in the usemap
++		 */
++		if (current_order == MAX_ORDER-1)
++			set_pageblock_type(zone, page, alloctype);
++
+ 		return expand(zone, page, order, current_order, area);
+ 	}
+ 
+@@ -526,7 +628,8 @@ static struct page *__rmqueue(struct zon
+  * Returns the number of new pages which were placed at *list.
+  */
+ static int rmqueue_bulk(struct zone *zone, unsigned int order, 
+-			unsigned long count, struct list_head *list)
++			unsigned long count, struct list_head *list,
++			int alloctype)
+ {
+ 	unsigned long flags;
+ 	int i;
+@@ -535,7 +638,7 @@ static int rmqueue_bulk(struct zone *zon
+ 	
+ 	spin_lock_irqsave(&zone->lock, flags);
+ 	for (i = 0; i < count; ++i) {
+-		page = __rmqueue(zone, order);
++		page = __rmqueue(zone, order, alloctype);
+ 		if (page == NULL)
+ 			break;
+ 		allocated++;
+@@ -719,6 +822,11 @@ buffered_rmqueue(struct zone *zone, int 
+ 	unsigned long flags;
+ 	struct page *page = NULL;
+ 	int cold = !!(gfp_flags & __GFP_COLD);
++	int alloctype = gfpflags_to_rclmtype(gfp_flags);
++
++	/* If the alloctype is RCLM_TYPES, the gfp_flags make no sense */
++	if (alloctype == RCLM_TYPES)
++		return NULL;
+ 
+ 	if (order == 0) {
+ 		struct per_cpu_pages *pcp;
+@@ -727,7 +835,8 @@ buffered_rmqueue(struct zone *zone, int 
+ 		local_irq_save(flags);
+ 		if (pcp->count <= pcp->low)
+ 			pcp->count += rmqueue_bulk(zone, 0,
+-						pcp->batch, &pcp->list);
++						pcp->batch, &pcp->list,
++						alloctype);
+ 		if (pcp->count) {
+ 			page = list_entry(pcp->list.next, struct page, lru);
+ 			list_del(&page->lru);
+@@ -739,7 +848,7 @@ buffered_rmqueue(struct zone *zone, int 
+ 
+ 	if (page == NULL) {
+ 		spin_lock_irqsave(&zone->lock, flags);
+-		page = __rmqueue(zone, order);
++		page = __rmqueue(zone, order, alloctype);
+ 		spin_unlock_irqrestore(&zone->lock, flags);
+ 	}
+ 
+@@ -1869,6 +1978,38 @@ inline void setup_pageset(struct per_cpu
+ 	INIT_LIST_HEAD(&pcp->list);
+ }
+ 
++#ifndef CONFIG_SPARSEMEM
++#define roundup(x, y) ((((x)+((y)-1))/(y))*(y))
++/*
++ * Calculate the size of the zone->usemap in bytes rounded to an unsigned long
++ * Start by making sure zonesize is a multiple of MAX_ORDER-1 by rounding up
++ * Then figure 1 RCLM_TYPE worth of bits per MAX_ORDER-1, finally round up
++ * what is now in bits to nearest long in bits, then return it in bytes.
++ */
++static unsigned long __init usemap_size(unsigned long zonesize)
++{
++	unsigned long usemapsize;
++
++	usemapsize = roundup(zonesize, PAGES_PER_MAXORDER);
++	usemapsize = usemapsize >> (MAX_ORDER-1);
++	usemapsize *= BITS_PER_RCLM_TYPE;
++	usemapsize = roundup(usemapsize, 8 * sizeof(unsigned long));
++
++	return usemapsize / 8;
++}
++
++static void __init setup_usemap(struct pglist_data *pgdat,
++				struct zone *zone, unsigned long zonesize)
++{
++	unsigned long usemapsize = usemap_size(zonesize);
++	zone->free_area_usemap = alloc_bootmem_node(pgdat, usemapsize);
++	memset(zone->free_area_usemap, RCLM_NORCLM, usemapsize);
++}
++#else
++static void inline setup_usemap(struct pglist_data *pgdat,
++				struct zone *zone, unsigned long zonesize) {}
++#endif /* CONFIG_SPARSEMEM */
++
+ #ifdef CONFIG_NUMA
+ /*
+  * Boot pageset table. One per cpu which is going to be used for all
+@@ -2082,6 +2223,7 @@ static void __init free_area_init_core(s
+ 		zonetable_add(zone, nid, j, zone_start_pfn, size);
+ 		init_currently_empty_zone(zone, zone_start_pfn, size);
+ 		zone_start_pfn += size;
++		setup_usemap(pgdat, zone, size);
+ 	}
+ }
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
