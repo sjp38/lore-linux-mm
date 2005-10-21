@@ -1,46 +1,57 @@
-From: Nikita Danilov <nikita@clusterfs.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Message-ID: <17240.54704.515573.252722@gargle.gargle.HOWL>
-Date: Fri, 21 Oct 2005 15:49:04 +0400
-Subject: Re: [PATCH 1/4] Swap migration V3: LRU operations
-In-Reply-To: <1129874762.26533.5.camel@localhost>
+Date: Fri, 21 Oct 2005 08:54:52 -0700 (PDT)
+From: Christoph Lameter <clameter@engr.sgi.com>
+Subject: Re: [PATCH 0/4] Swap migration V3: Overview
+In-Reply-To: <20051020160638.58b4d08d.akpm@osdl.org>
+Message-ID: <Pine.LNX.4.62.0510210850520.23212@schroedinger.engr.sgi.com>
 References: <20051020225935.19761.57434.sendpatchset@schroedinger.engr.sgi.com>
-	<20051020225940.19761.93396.sendpatchset@schroedinger.engr.sgi.com>
-	<1129874762.26533.5.camel@localhost>
+ <20051020160638.58b4d08d.akpm@osdl.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Hansen <haveblue@us.ibm.com>
-Cc: Andrew Morton <akpm@osdl.org>, Mike Kravetz <kravetz@us.ibm.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Magnus Damm <magnus.damm@gmail.com>, Marcelo Tosatti <marcelo.tosatti@cyclades.com>
+To: Andrew Morton <akpm@osdl.org>
+Cc: kravetz@us.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, magnus.damm@gmail.com, marcelo.tosatti@cyclades.com
 List-ID: <linux-mm.kvack.org>
 
-Dave Hansen writes:
+On Thu, 20 Oct 2005, Andrew Morton wrote:
 
-[...]
+> Christoph Lameter <clameter@sgi.com> wrote:
+> >
+> > Page migration is also useful for other purposes:
+> > 
+> >  1. Memory hotplug. Migrating processes off a memory node that is going
+> >     to be disconnected.
+> > 
+> >  2. Remapping of bad pages. These could be detected through soft ECC errors
+> >     and other mechanisms.
+> 
+> It's only useful for these things if it works with close-to-100% reliability.
 
- > 
- > It makes much more sense to have something like:
- > 
- >         if (ret == ISOLATION_IMPOSSIBLE) {
- >         	 list_del(&page->lru);
- >          	 list_add(&page->lru, src);
- >         }
- > 
- > than
- > 
- > +               if (rc == -1) {  /* Not possible to isolate */
- > +                       list_del(&page->lru);
- > +                       list_add(&page->lru, src);
- > +                } if 
+I think we need to gradually get there. There are other measures 
+implemented by the hotplug that can work in conjunction with these patches 
+to increase the likelyhood of successful migration.
 
-And
-         if (ret == ISOLATION_IMPOSSIBLE)
-          	 list_move(&page->lru, src);
+Pages that are not on the LRU are very difficult to move and the hotplug 
+project addresses that by not allowing allocation in areas that may be 
+removed etc.
 
-is even better.
+> And there are are all sorts of things which will prevent that - mlock,
+> ongoing direct-io, hugepages, whatever.
 
-Nikita.
+Right. But these are not a problem for the page migration of processes in 
+order to optimize performance. The hotplug and the remapping of bad pages 
+will require additional effort to get done right. Nevertheless, the 
+material presented here can be used as a basis.
+ 
+> So before we can commit ourselves to the initial parts of this path we'd
+> need some reassurance that the overall scheme addresses these things and
+> that the end result has a high probability of supporting hot unplug and
+> remapping sufficiently well.
+
+I think we have that assurance. The hotplug project has worked on these 
+patches for a long time and what we need is a way to gradually put these 
+things into the kernel. We are trying to facilitate that with these 
+patches.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
