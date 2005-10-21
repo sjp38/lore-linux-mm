@@ -1,64 +1,54 @@
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e1.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id j9KNkWZF025797
-	for <linux-mm@kvack.org>; Thu, 20 Oct 2005 19:46:32 -0400
-Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
-	by d01relay02.pok.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id j9KNkSq8109864
-	for <linux-mm@kvack.org>; Thu, 20 Oct 2005 19:46:32 -0400
-Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
-	by d01av04.pok.ibm.com (8.12.11/8.13.3) with ESMTP id j9KNkSRl001458
-	for <linux-mm@kvack.org>; Thu, 20 Oct 2005 19:46:28 -0400
-Date: Thu, 20 Oct 2005 16:46:21 -0700
-From: mike kravetz <kravetz@us.ibm.com>
+Received: by zproxy.gmail.com with SMTP id k1so316775nzf
+        for <linux-mm@kvack.org>; Thu, 20 Oct 2005 18:57:02 -0700 (PDT)
+Message-ID: <aec7e5c30510201857r7cf9d337wce9a4017064adcf@mail.gmail.com>
+Date: Fri, 21 Oct 2005 10:57:02 +0900
+From: Magnus Damm <magnus.damm@gmail.com>
 Subject: Re: [PATCH 0/4] Swap migration V3: Overview
-Message-ID: <20051020234621.GL5490@w-mikek2.ibm.com>
-References: <20051020225935.19761.57434.sendpatchset@schroedinger.engr.sgi.com> <20051020160638.58b4d08d.akpm@osdl.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+In-Reply-To: <20051020225935.19761.57434.sendpatchset@schroedinger.engr.sgi.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 8BIT
 Content-Disposition: inline
-In-Reply-To: <20051020160638.58b4d08d.akpm@osdl.org>
+References: <20051020225935.19761.57434.sendpatchset@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: Christoph Lameter <clameter@sgi.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, magnus.damm@gmail.com, marcelo.tosatti@cyclades.com
+To: Christoph Lameter <clameter@sgi.com>
+Cc: akpm@osdl.org, Mike Kravetz <kravetz@us.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Marcelo Tosatti <marcelo.tosatti@cyclades.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Oct 20, 2005 at 04:06:38PM -0700, Andrew Morton wrote:
-> Christoph Lameter <clameter@sgi.com> wrote:
-> >
-> > Page migration is also useful for other purposes:
-> > 
-> >  1. Memory hotplug. Migrating processes off a memory node that is going
-> >     to be disconnected.
-> > 
-> >  2. Remapping of bad pages. These could be detected through soft ECC errors
-> >     and other mechanisms.
-> 
-> It's only useful for these things if it works with close-to-100% reliability.
-> 
-> And there are are all sorts of things which will prevent that - mlock,
-> ongoing direct-io, hugepages, whatever.
+On 10/21/05, Christoph Lameter <clameter@sgi.com> wrote:
+> Page migration is also useful for other purposes:
+>
+> 1. Memory hotplug. Migrating processes off a memory node that is going
+>    to be disconnected.
+>
+> 2. Remapping of bad pages. These could be detected through soft ECC errors
+>    and other mechanisms.
 
-Since soft errors could happen almost anywhere, you are not going to get
-close to 100% there.  'General purpose' memory hotplug is going to need
-some type of page/memory grouping like Mel Gorman's fragmentation avoidance
-patches.  Using such groupings, you can almost always find 'some' section
-that can be offlined.  It is not close to 100%, but without it your chances
-of finding a section are closer to 0%.  For applications of hotplug where
-the only requirement is to remove a quantity of memory (and we are not
-concerned about specific physical sections of memory) this appears to be
-a viable approach.  Once you start talking about removing specific pieces
-of memory, I think the only granularity that makes sense at this time is
-an entire NUMA node.  Here, I 'think' you could limit the type of allocations
-made on the node to something like highmem.  But, I haven't been looking
-into the offlining of specific sections.  Only the offlining of any section.
+3. Migrating between zones.
 
-Just to be clear, there are at least two distinct requirements for hotplug.
-One only wants to remove a quantity of memory (location unimportant).  The
-other wants to remove a specific section of memory (location specific).  I
-think the first is easier to address.
+The current per-zone LRU design might have some drawbacks. I would
+prefer a per-node LRU to avoid that certain zones needs to shrink more
+often than others. But maybe that is not the case, please let me know
+if I'm wrong.
 
--- 
-Mike
+If you think about it, say that a certain user space page happens to
+be allocated from the DMA zone, and for some reason this DMA zone is
+very popular because you have crappy hardware, then it might be more
+probable that this page is paged out before some other much older/less
+used page in another (larger) zone. And I guess the same applies to
+small HIGHMEM zones.
+
+This could very well be related to the "1 GB Memory is bad for you"
+problem described briefly here: http://kerneltrap.org/node/2450
+
+Maybe it is possible to have a per-node LRU and always page out the
+least recently used page in the entire node, and then migrate pages to
+solve specific "within N bits of address space" requirements.
+
+But I'm probably underestimating the cost of page migration...
+
+/ magnus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
