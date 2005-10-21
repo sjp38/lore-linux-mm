@@ -1,36 +1,29 @@
-Date: Fri, 21 Oct 2005 08:28:49 -0700
-From: Paul Jackson <pj@sgi.com>
-Subject: Re: [PATCH 0/4] Swap migration V3: Overview
-Message-Id: <20051021082849.45dafd27.pj@sgi.com>
-In-Reply-To: <20051020234621.GL5490@w-mikek2.ibm.com>
+Date: Fri, 21 Oct 2005 08:42:33 -0700 (PDT)
+From: Christoph Lameter <clameter@engr.sgi.com>
+Subject: Re: [PATCH 1/4] Swap migration V3: LRU operations
+In-Reply-To: <1129877795.26533.12.camel@localhost>
+Message-ID: <Pine.LNX.4.62.0510210841160.23212@schroedinger.engr.sgi.com>
 References: <20051020225935.19761.57434.sendpatchset@schroedinger.engr.sgi.com>
-	<20051020160638.58b4d08d.akpm@osdl.org>
-	<20051020234621.GL5490@w-mikek2.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+  <20051020225940.19761.93396.sendpatchset@schroedinger.engr.sgi.com>
+ <1129874762.26533.5.camel@localhost>  <aec7e5c30510202327l7ce5a89ax7620241ba57a4efa@mail.gmail.com>
+ <1129877795.26533.12.camel@localhost>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: mike kravetz <kravetz@us.ibm.com>
-Cc: akpm@osdl.org, clameter@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, magnus.damm@gmail.com, marcelo.tosatti@cyclades.com
+To: Dave Hansen <haveblue@us.ibm.com>
+Cc: Magnus Damm <magnus.damm@gmail.com>, Andrew Morton <akpm@osdl.org>, Mike Kravetz <kravetz@us.ibm.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Marcelo Tosatti <marcelo.tosatti@cyclades.com>
 List-ID: <linux-mm.kvack.org>
 
-Mike wrote:
-> Just to be clear, there are at least two distinct requirements for hotplug.
-> One only wants to remove a quantity of memory (location unimportant). 
+On Fri, 21 Oct 2005, Dave Hansen wrote:
 
-Could you describe this case a little more?  I wasn't aware
-of this hotplug requirement, until I saw you comment just now.
+> Hirokazu's page migration patches have some functions called the exact
+> same things: __putback_page_to_lru, etc... although they are simpler.
+> Not my code, but it would be nice to acknowledge if ideas were coming
+> from there.
 
-The three reasons I knew of for wanting to move memory pages were:
- - offload some physical ram or node (avoid or unplug bad hardware)
- - task migration to another cpuset or moving an existing cpuset
- - various testing and performance motivations to optimize page location
-
--- 
-                  I won't rest till it's the best ...
-                  Programmer, Linux Scalability
-                  Paul Jackson <pj@sgi.com> 1.925.600.0401
+Ok, I will add note to that effect. The basic idea is 
+already inherent in the shrink_list logic, so I thought it would be okay.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
