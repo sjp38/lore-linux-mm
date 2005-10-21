@@ -1,29 +1,35 @@
-Date: Fri, 21 Oct 2005 08:42:33 -0700 (PDT)
+Date: Fri, 21 Oct 2005 08:47:42 -0700 (PDT)
 From: Christoph Lameter <clameter@engr.sgi.com>
-Subject: Re: [PATCH 1/4] Swap migration V3: LRU operations
-In-Reply-To: <1129877795.26533.12.camel@localhost>
-Message-ID: <Pine.LNX.4.62.0510210841160.23212@schroedinger.engr.sgi.com>
+Subject: Re: [PATCH 4/4] Swap migration V3: sys_migrate_pages interface
+In-Reply-To: <20051021081553.50716b97.pj@sgi.com>
+Message-ID: <Pine.LNX.4.62.0510210845140.23212@schroedinger.engr.sgi.com>
 References: <20051020225935.19761.57434.sendpatchset@schroedinger.engr.sgi.com>
-  <20051020225940.19761.93396.sendpatchset@schroedinger.engr.sgi.com>
- <1129874762.26533.5.camel@localhost>  <aec7e5c30510202327l7ce5a89ax7620241ba57a4efa@mail.gmail.com>
- <1129877795.26533.12.camel@localhost>
+ <20051020225955.19761.53060.sendpatchset@schroedinger.engr.sgi.com>
+ <4358588D.1080307@jp.fujitsu.com> <Pine.LNX.4.61.0510210901380.17098@openx3.frec.bull.fr>
+ <435896CA.1000101@jp.fujitsu.com> <20051021081553.50716b97.pj@sgi.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Hansen <haveblue@us.ibm.com>
-Cc: Magnus Damm <magnus.damm@gmail.com>, Andrew Morton <akpm@osdl.org>, Mike Kravetz <kravetz@us.ibm.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Marcelo Tosatti <marcelo.tosatti@cyclades.com>
+To: Paul Jackson <pj@sgi.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Simon.Derr@bull.net, akpm@osdl.org, kravetz@us.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, magnus.damm@gmail.com, marcelo.tosatti@cyclades.com
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 21 Oct 2005, Dave Hansen wrote:
+On Fri, 21 Oct 2005, Paul Jackson wrote:
 
-> Hirokazu's page migration patches have some functions called the exact
-> same things: __putback_page_to_lru, etc... although they are simpler.
-> Not my code, but it would be nice to acknowledge if ideas were coming
-> from there.
+>  * Christoph - what is the permissions check on sys_migrate_pages()?
+>    It would seem inappropriate for 'guest' to be able to move the
+>    memory of 'root'.
 
-Ok, I will add note to that effect. The basic idea is 
-already inherent in the shrink_list logic, so I thought it would be okay.
+The check is missing. 
+
+Maybe we could add:
+
+ if (!capable(CAP_SYS_RESOURCE))
+                return -EPERM;
+
+Then we may also decide that root can move any process anywhere and drop 
+the retrieval of the mems_allowed from the other task.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
