@@ -1,76 +1,50 @@
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by e5.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id j9L6wXUe011881
-	for <linux-mm@kvack.org>; Fri, 21 Oct 2005 02:58:33 -0400
-Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
-	by d01relay04.pok.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id j9L6wXiT104716
-	for <linux-mm@kvack.org>; Fri, 21 Oct 2005 02:58:33 -0400
-Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
-	by d01av03.pok.ibm.com (8.12.11/8.13.3) with ESMTP id j9L6wWec022281
-	for <linux-mm@kvack.org>; Fri, 21 Oct 2005 02:58:33 -0400
-Subject: Re: [PATCH 1/4] Swap migration V3: LRU operations
-From: Dave Hansen <haveblue@us.ibm.com>
-In-Reply-To: <aec7e5c30510202327l7ce5a89ax7620241ba57a4efa@mail.gmail.com>
+Date: Fri, 21 Oct 2005 09:07:04 +0200 (CEST)
+From: Simon Derr <Simon.Derr@bull.net>
+Subject: Re: [PATCH 4/4] Swap migration V3: sys_migrate_pages interface
+In-Reply-To: <4358588D.1080307@jp.fujitsu.com>
+Message-ID: <Pine.LNX.4.61.0510210901380.17098@openx3.frec.bull.fr>
 References: <20051020225935.19761.57434.sendpatchset@schroedinger.engr.sgi.com>
-	 <20051020225940.19761.93396.sendpatchset@schroedinger.engr.sgi.com>
-	 <1129874762.26533.5.camel@localhost>
-	 <aec7e5c30510202327l7ce5a89ax7620241ba57a4efa@mail.gmail.com>
-Content-Type: text/plain
-Date: Fri, 21 Oct 2005 08:56:34 +0200
-Message-Id: <1129877795.26533.12.camel@localhost>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+ <20051020225955.19761.53060.sendpatchset@schroedinger.engr.sgi.com>
+ <4358588D.1080307@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Magnus Damm <magnus.damm@gmail.com>
-Cc: Christoph Lameter <clameter@sgi.com>, Andrew Morton <akpm@osdl.org>, Mike Kravetz <kravetz@us.ibm.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Marcelo Tosatti <marcelo.tosatti@cyclades.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Christoph Lameter <clameter@sgi.com>, Andrew Morton <akpm@osdl.org>, Mike Kravetz <kravetz@us.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Magnus Damm <magnus.damm@gmail.com>, Marcelo Tosatti <marcelo.tosatti@cyclades.com>, Paul Jackson <pj@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2005-10-21 at 15:27 +0900, Magnus Damm wrote:
-> On 10/21/05, Dave Hansen <haveblue@us.ibm.com> wrote:
-> > On Thu, 2005-10-20 at 15:59 -0700, Christoph Lameter wrote:
-> > > + *  0 = page not on LRU list
-> > > + *  1 = page removed from LRU list
-> > > + * -1 = page is being freed elsewhere.
-> > > + */
-> >
-> > Can these return values please get some real names?  I just hate when
-> > things have more than just fail and success as return codes.
-> >
-> > It makes much more sense to have something like:
-> >
-> >         if (ret == ISOLATION_IMPOSSIBLE) {
+On Fri, 21 Oct 2005, KAMEZAWA Hiroyuki wrote:
+
 > 
-> Absolutely. But this involves figuring out nice names that everyone
-> likes and that does not pollute the name space too much.
-
-So, your excuse for bad code is that you want to avoid a discussion?
-Are you new here? ;)
-
-> Any suggestions?
-
-I'd start with the comment, and work from there.  
-
-ISOLATE_PAGE_NOT_LRU
-ISOLATE_PAGE_REMOVED_FROM_LRU
-ISOLATE_PAGE_FREEING_ELSEWHERE
-
-Not my best names in history, but probably a place to start.  It keeps
-the author from having to add bad comments explaining what the code
-does.
-
-> > BTW, it would probably be nice to say where these patches came from
-> > before Magnus. :)
+> Christoph Lameter wrote:
+> > +	/* Is the user allowed to access the target nodes? */
+> > +	if (!nodes_subset(new, cpuset_mems_allowed(task)))
+> > +		return -EPERM;
+> > +
+> How about this ?
+> +cpuset_update_task_mems_allowed(task, new);    (this isn't implemented now)
 > 
-> Uh? Yesterday I broke out code from isolate_lru_pages() and
-> shrink_cache() and emailed Christoph privately. Do you have similar
-> code in your tree?
+> > +	err = do_migrate_pages(mm, &old, &new, MPOL_MF_MOVE);
+> > +
+> 
+> or it's user's responsibility  to updates his mempolicy before
+> calling sys_migrage_pages() ?
+> 
 
-Hirokazu's page migration patches have some functions called the exact
-same things: __putback_page_to_lru, etc... although they are simpler.
-Not my code, but it would be nice to acknowledge if ideas were coming
-from there.
+The user cannot always add a memory node to a cpuset, for example if this 
+cpuset is inside another cpuset that is owned by another user. (i.e the 
+case where the administrator wants to dedicate a part of the machine to a 
+user).
 
--- Dave
+The kernel checks for these permission issues, conflicts with other 
+mem_exclusive cpusets, etc... when you write in the 'mems' file.
+
+Automatically updating the ->mems_allowed field as you suggest would 
+require that the kernel do the same checks in sys_migrage_pages(). Sounds 
+not as a very good idea to me.
+
+	Simon.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
