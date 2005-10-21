@@ -1,56 +1,106 @@
-Message-ID: <435883B2.2090400@jp.fujitsu.com>
-Date: Fri, 21 Oct 2005 14:59:14 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH 0/4] Swap migration V3: Overview
-References: <20051020225935.19761.57434.sendpatchset@schroedinger.engr.sgi.com> <20051020160638.58b4d08d.akpm@osdl.org>
-In-Reply-To: <20051020160638.58b4d08d.akpm@osdl.org>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by e2.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id j9L66eIR004378
+	for <linux-mm@kvack.org>; Fri, 21 Oct 2005 02:06:40 -0400
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay02.pok.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id j9L66eq8108774
+	for <linux-mm@kvack.org>; Fri, 21 Oct 2005 02:06:40 -0400
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.12.11/8.13.3) with ESMTP id j9L66esj027893
+	for <linux-mm@kvack.org>; Fri, 21 Oct 2005 02:06:40 -0400
+Subject: Re: [PATCH 1/4] Swap migration V3: LRU operations
+From: Dave Hansen <haveblue@us.ibm.com>
+In-Reply-To: <20051020225940.19761.93396.sendpatchset@schroedinger.engr.sgi.com>
+References: <20051020225935.19761.57434.sendpatchset@schroedinger.engr.sgi.com>
+	 <20051020225940.19761.93396.sendpatchset@schroedinger.engr.sgi.com>
+Content-Type: text/plain
+Date: Fri, 21 Oct 2005 08:06:02 +0200
+Message-Id: <1129874762.26533.5.camel@localhost>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: Christoph Lameter <clameter@sgi.com>, kravetz@us.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, magnus.damm@gmail.com, marcelo.tosatti@cyclades.com
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Andrew Morton <akpm@osdl.org>, Mike Kravetz <kravetz@us.ibm.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Magnus Damm <magnus.damm@gmail.com>, Marcelo Tosatti <marcelo.tosatti@cyclades.com>
 List-ID: <linux-mm.kvack.org>
 
-Andrew Morton wrote:
-> Christoph Lameter <clameter@sgi.com> wrote:
-> 
->>Page migration is also useful for other purposes:
->>
->> 1. Memory hotplug. Migrating processes off a memory node that is going
->>    to be disconnected.
->>
->> 2. Remapping of bad pages. These could be detected through soft ECC errors
->>    and other mechanisms.
-> 
-> 
-> It's only useful for these things if it works with close-to-100% reliability.
-> 
-> And there are are all sorts of things which will prevent that - mlock,
-> ongoing direct-io, hugepages, whatever.
-> 
-In lhms tree, current status is below: (If I'm wrong, plz fix)
-==
-For mlock, direct page migration will work fine. try_to_unmap_one()
-in -mhp tree has an argument *force* and ignore VM_LOCKED, it's for this.
+On Thu, 2005-10-20 at 15:59 -0700, Christoph Lameter wrote:
 
-For direct-io, we have to wait for completion.
-The end of I/O is not notified and memory_migrate() is just polling pages.
+> +/*
+> + * Isolate one page from the LRU lists.
+> + *
+> + * - zone->lru_lock must be held
+> + *
+> + * Result:
+> + *  0 = page not on LRU list
+> + *  1 = page removed from LRU list
+> + * -1 = page is being freed elsewhere.
+> + */
 
-For hugepages, we'll need hugepage demand paging and more work, I think.
-==
+Can these return values please get some real names?  I just hate when
+things have more than just fail and success as return codes.
 
-When a process migrates to other nodes by hand, it can cooperate with migration
-subsystem. So we don't have to be afraid of some special using of memory, in many case.
-I think Christoph's approach will work fine.
+It makes much more sense to have something like:
 
-When it comes to memory-hotplug, arbitrary processes are affected.
-It's more difficult.
+        if (ret == ISOLATION_IMPOSSIBLE) {
+        	 list_del(&page->lru);
+         	 list_add(&page->lru, src);
+        }
 
-We should focus on 'process migraion on demand', in this thread.
+than
 
--- Kame
++               if (rc == -1) {  /* Not possible to isolate */
++                       list_del(&page->lru);
++                       list_add(&page->lru, src);
++                } if 
+
+The comment just makes the code harder to read.
+
+> +static inline int
+> +__isolate_lru_page(struct zone *zone, struct page *page)
+> +{
+> +	if (TestClearPageLRU(page)) {
+> +		if (get_page_testone(page)) {
+> +			/*
+> +			 * It is being freed elsewhere
+> +			 */
+> +			__put_page(page);
+> +			SetPageLRU(page);
+> +			return -1;
+> +		} else {
+> +			if (PageActive(page))
+> +				del_page_from_active_list(zone, page);
+> +			else
+> +				del_page_from_inactive_list(zone, page);
+> +			return 1;
+> +		}
+> +	}
+> +
+> +	return 0;
+> +}
+
+How about 
+
++static inline int 
+> +__isolate_lru_page(struct zone *zone, struct page *page)
+> +{
+	int ret = 0;
+
+	if (!TestClearPageLRU(page))
+		return ret;
+
+
+Then, the rest of the thing doesn't need to be indented.
+
+> +static inline void
+> +__putback_lru_page(struct zone *zone, struct page *page)
+> +{
+
+__put_back_lru_page?
+
+BTW, it would probably be nice to say where these patches came from
+before Magnus. :)
+
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
