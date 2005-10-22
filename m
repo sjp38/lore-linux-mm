@@ -1,43 +1,32 @@
-Date: Sat, 22 Oct 2005 11:21:13 +0200
-From: Arjan van de Ven <arjanv@redhat.com>
-Subject: Re: [PATCH] per-page SLAB freeing (only dcache for now)
-Message-ID: <20051022092113.GA25265@devserv.devel.redhat.com>
-References: <20050930193754.GB16812@xeon.cnet> <Pine.LNX.4.62.0509301934390.31011@schroedinger.engr.sgi.com> <20051001215254.GA19736@xeon.cnet> <Pine.LNX.4.62.0510030823420.7812@schroedinger.engr.sgi.com> <43419686.60600@colorfullife.com> <20051003221743.GB29091@logos.cnet> <4342B623.3060007@colorfullife.com> <20051006160115.GA30677@logos.cnet> <20051022013001.GE27317@logos.cnet> <20051021233111.58706a2e.akpm@osdl.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Received: by zproxy.gmail.com with SMTP id k1so536543nzf
+        for <linux-mm@kvack.org>; Sat, 22 Oct 2005 09:09:44 -0700 (PDT)
+Message-ID: <f68e01850510220909wad86b06wadc620fb5f807b5d@mail.gmail.com>
+Date: Sat, 22 Oct 2005 21:39:43 +0530
+From: Nitin Gupta <nitingupta.mail@gmail.com>
+Subject: a basic question
+MIME-Version: 1.0
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 8BIT
 Content-Disposition: inline
-In-Reply-To: <20051021233111.58706a2e.akpm@osdl.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: Marcelo Tosatti <marcelo.tosatti@cyclades.com>, manfred@colorfullife.com, clameter@engr.sgi.com, linux-mm@kvack.org, dgc@sgi.com, dipankar@in.ibm.com, mbligh@mbligh.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Oct 21, 2005 at 11:31:11PM -0700, Andrew Morton wrote:
-> Marcelo Tosatti <marcelo.tosatti@cyclades.com> wrote:
-> >
-> > ...
-> > +unsigned long long slab_free_status(kmem_cache_t *cachep, struct slab *slabp)
-> > +{
-> > +	unsigned long long bitmap = 0;
-> > +	int i;
-> > +
-> > +	if (cachep->num > sizeof(unsigned long long)*8)
-> > +		BUG();
-> > +
-> > +	spin_lock_irq(&cachep->spinlock);
-> > +	for(i=0; i < cachep->num ; i++) {
-> > +		if (slab_bufctl(slabp)[i] == BUFCTL_INUSE)
-> > +			set_bit(i, (unsigned long *)&bitmap);
-> > +	}
-> > +	spin_unlock_irq(&cachep->spinlock);
-> > +
-> > +	return bitmap;
-> > +}
-> 
-> What if there are more than 64 objects per page?
+Hi,
+    These are the questions that have been troubling me for long time.
+I'm beginning to work on a vmm project, so kindly spare a min to
+answer these:
 
-the bitops usually work on bigger than wordsize things though..
+- How does processor know that 3GB-4GB is mapped linearly on first 1GB
+of memory. Is there a pagetable for this segment mapping it linearly?
+
+- Why isn't it like this  - userspace tasks have 4GB virtual address
+space and for kernel also a 4GB virtual address space that is linearly
+mapped to fist 4GB of memory.
+
+
+Thanks
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
