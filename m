@@ -1,34 +1,41 @@
-Date: Sun, 23 Oct 2005 23:32:37 -0700
-From: Paul Jackson <pj@sgi.com>
+Date: Sun, 23 Oct 2005 23:40:32 -0700
+From: Andrew Morton <akpm@osdl.org>
 Subject: Re: [PATCH] cpuset confine pdflush to its cpuset
-Message-Id: <20051023233237.0982b54b.pj@sgi.com>
-In-Reply-To: <20051024.145258.98349934.taka@valinux.co.jp>
+Message-Id: <20051023234032.5e926336.akpm@osdl.org>
+In-Reply-To: <20051023233237.0982b54b.pj@sgi.com>
 References: <20051024001913.7030.71597.sendpatchset@jackhammer.engr.sgi.com>
 	<20051024.145258.98349934.taka@valinux.co.jp>
+	<20051023233237.0982b54b.pj@sgi.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hirokazu Takahashi <taka@valinux.co.jp>
-Cc: akpm@osdl.org, Simon.Derr@bull.net, linux-kernel@vger.kernel.org, clameter@sgi.com, torvalds@osdl.org, linux-mm@kvack.org
+To: Paul Jackson <pj@sgi.com>
+Cc: taka@valinux.co.jp, Simon.Derr@bull.net, linux-kernel@vger.kernel.org, clameter@sgi.com, torvalds@osdl.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Takahashi-san wrote:
-> I realized CPUSETS has another problem around pdflush.
+Paul Jackson <pj@sgi.com> wrote:
+>
+> Takahashi-san wrote:
+> > I realized CPUSETS has another problem around pdflush.
+> 
+> Excellent observation.  I had not realized this.
+> 
+> Thank-you for pointing it out.
+> 
+> I don't have plans.  Do you have any suggestions?
 
-Excellent observation.  I had not realized this.
+Per-zone dirty thresholds (quite messy), per-zone writeback (horrific,
+linear searches or data structure proliferation everywhere).
 
-Thank-you for pointing it out.
+Let's see a (serious) worload/testcase first, hey?  vmscan.c writeback off
+the LRU is a bit slow, but we should be able to make it suffice.
 
-I don't have plans.  Do you have any suggestions?
+>   ( Anyone know what the "pd" stands for in pdflush ?? )
 
-  ( Anyone know what the "pd" stands for in pdflush ?? )
-
--- 
-                  I won't rest till it's the best ...
-                  Programmer, Linux Scalability
-                  Paul Jackson <pj@sgi.com> 1.925.600.0401
+"page dirty"?  It's what bdflush became when writeback went from
+being block-based to being page-based.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
