@@ -1,128 +1,115 @@
-Date: Mon, 24 Oct 2005 05:44:18 -0200
-From: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
-Subject: Re: [PATCH 0/4] Swap migration V3: Overview
-Message-ID: <20051024074418.GC2016@logos.cnet>
-References: <20051020225935.19761.57434.sendpatchset@schroedinger.engr.sgi.com> <aec7e5c30510201857r7cf9d337wce9a4017064adcf@mail.gmail.com> <20051022005050.GA27317@logos.cnet> <aec7e5c30510230550j66d6e37fg505fd6041dca9bee@mail.gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <aec7e5c30510230550j66d6e37fg505fd6041dca9bee@mail.gmail.com>
+Date: Mon, 24 Oct 2005 21:04:59 +0100 (BST)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: Re: [RFC][PATCH] OVERCOMMIT_ALWAYS extension
+In-Reply-To: <1129847844.16301.37.camel@localhost.localdomain>
+Message-ID: <Pine.LNX.4.61.0510242027001.6509@goblin.wat.veritas.com>
+References: <1129570219.23632.34.camel@localhost.localdomain>
+ <Pine.LNX.4.61.0510171904040.6406@goblin.wat.veritas.com>
+ <Pine.LNX.4.61.0510171919150.6548@goblin.wat.veritas.com>
+ <1129651502.23632.63.camel@localhost.localdomain>
+ <Pine.LNX.4.61.0510191826280.8674@goblin.wat.veritas.com>
+ <1129747855.8716.12.camel@localhost.localdomain>  <20051019204732.GA9922@localhost.localdomain>
+  <1129821065.16301.5.camel@localhost.localdomain>  <20051020172757.GB6590@localhost.localdomain>
+ <1129847844.16301.37.camel@localhost.localdomain>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Magnus Damm <magnus.damm@gmail.com>
-Cc: Christoph Lameter <clameter@sgi.com>, akpm@osdl.org, Mike Kravetz <kravetz@us.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Badari Pulavarty <pbadari@us.ibm.com>
+Cc: Jeff Dike <jdike@addtoit.com>, linux-mm <linux-mm@kvack.org>, dvhltc@us.ibm.com
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Oct 23, 2005 at 09:50:18PM +0900, Magnus Damm wrote:
-> On 10/22/05, Marcelo Tosatti <marcelo.tosatti@cyclades.com> wrote:
-> > On Fri, Oct 21, 2005 at 10:57:02AM +0900, Magnus Damm wrote:
-> > > On 10/21/05, Christoph Lameter <clameter@sgi.com> wrote:
-> > > > Page migration is also useful for other purposes:
-> > > >
-> > > > 1. Memory hotplug. Migrating processes off a memory node that is going
-> > > >    to be disconnected.
-> > > >
-> > > > 2. Remapping of bad pages. These could be detected through soft ECC errors
-> > > >    and other mechanisms.
-> > >
-> > > 3. Migrating between zones.
-> > >
-> > > The current per-zone LRU design might have some drawbacks. I would
-> > > prefer a per-node LRU to avoid that certain zones needs to shrink more
-> > > often than others. But maybe that is not the case, please let me know
-> > > if I'm wrong.
-> > >
-> > > If you think about it, say that a certain user space page happens to
-> > > be allocated from the DMA zone, and for some reason this DMA zone is
-> > > very popular because you have crappy hardware, then it might be more
-> > > probable that this page is paged out before some other much older/less
-> > > used page in another (larger) zone. And I guess the same applies to
-> > > small HIGHMEM zones.
-> >
-> > User pages (accessed through their virtual pte mapping) can be moved
-> > around zones freely - user pages do not suffer from zone requirements.
-> > So you can just migrate a user page in DMA zone to another node's
-> > highmem zone.
+On Thu, 20 Oct 2005, Badari Pulavarty wrote:
 > 
-> Exactly. If I'm not mistaken only anonymous pages and page cache are
-> present on the LRU lists. And like you say, these pages do not really
-> suffer from zone requirements. So to me, the only reason to have one
-> LRU per zone is to be able to shrink the amount of LRU pages per zone
-> if pages are allocated with specific zone requirements and the
-> watermarks are reached.
+> Changes from previous:
 > 
-> > Pages with zone requirements (DMA pages for driver buffers or user mmap()
-> > on crappy hardware, lowmem restricted kernel pages (SLAB caches), etc.
-> > can't be migrated easily (and no one attempted to do that yet AFAIK).
+> 1) madvise(DISCARD) - zaps the range and discards the pages. So, no
+> need to call madvise(DONTNEED) before.
 > 
-> I suspected so. But such pages are never included on the LRU lists, right?
+> 2) I added truncate_inode_pages2_range() to just discard only the
+> range of pages - not the whole file.
 > 
-> > > This could very well be related to the "1 GB Memory is bad for you"
-> > > problem described briefly here: http://kerneltrap.org/node/2450
-> > >
-> > > Maybe it is possible to have a per-node LRU and always page out the
-> > > least recently used page in the entire node, and then migrate pages to
-> > > solve specific "within N bits of address space" requirements.
-> >
-> > Pages with "N bits of address space" requirement pages can't be migrated
-> > at the moment (on the hardware requirement it would be necessary to have
-> > synchronization with driver operation, shutdown it down, and restartup
-> > it up...)
-> 
-> That's what I thought. But the point I was trying to make was probably
-> not very clear... Let me clarify a bit.
-> 
-> Today there is a small chance that a user space page might be
-> allocated from a zone that has very few pages compared to other zones,
-> and this might lead to that page gets paged out earlier than if the
-> page would have been allocated from another larger zone.
-> 
-> I propose to have one LRU per node instead of one per zone. When the
-> kernel then needs to allocate a page with certain requirements
-> ("within N bits of address space") and that zone has too few free
-> pages, instead of shrinking the per-zone LRU we use page migration.
-> 
-> So, first we check if the requested amount of pages is available in
-> any zone in the node. If not we shrink the per-node LRU to free up
-> some pages. Then we somehow locate any unlocked pages in the zone that
-> is low on pages (no LRU here). These pages are then migrated to free
-> pages from any other zone. And this migration gives us free pages in
-> the requested zone.
+> Hugh, when you get a chance could you review this instead ?
 
-Ah OK, I see what you mean.
+I haven't had time to go through it thoroughly, and will have no time
+the next couple of days, but here are some remarks.
 
-Its a possibility indeed. 
+--- linux-2.6.14-rc3/include/asm-alpha/mman.h	2005-09-30 14:17:35.000000000 -0700
++++ linux-2.6.14-rc3.db2/include/asm-alpha/mman.h	2005-10-20 10:52:37.000000000 -0700
+@@ -42,6 +42,7 @@
+ #define MADV_WILLNEED	3		/* will need these pages */
+ #define	MADV_SPACEAVAIL	5		/* ensure resources are available */
+ #define MADV_DONTNEED	6		/* don't need these pages */
++#define MADV_DISCARD    7               /* discard pages right now */
 
-> > For SLAB there is no solution as far as I know (except an indirection
-> > level in memory access to these pages, as discussed in this years
-> > memory hotplug presentation by Dave Hansen).
-> 
-> Maybe SLAB defragmentation code is suitable for page migration too?
+Throughout the patch there's lots of spaces where there should be tabs.
+But I'm glad you've put a space after the "#define" here, unlike in that
+MADV_SPACEAVAIL higher up!  Not so glad at your spaces to the right of it.
 
-Free dentries are possible to migrate, but not referenced ones.
+Are we free to define MADV_DISCARD, coming after the others, in each of
+the architectures?  In general, I think mman.h reflects definitions made
+by native Operating Systems of the architectures in question, and they
+might have added a few since.
 
-How are you going to inform users that the address of a dentry has
-changed?
+--- linux-2.6.14-rc3/include/linux/mm.h	2005-09-30 14:17:35.000000000 -0700
++++ linux-2.6.14-rc3.db2/include/linux/mm.h	2005-10-20 13:41:57.000000000 -0700
+@@ -865,6 +865,7 @@ extern unsigned long do_brk(unsigned lon
+ /* filemap.c */
+ extern unsigned long page_unuse(struct page *);
+ extern void truncate_inode_pages(struct address_space *, loff_t);
++extern void truncate_inode_pages2_range(struct address_space *, loff_t, loff_t);
 
-> > > But I'm probably underestimating the cost of page migration...
-> >
-> > The zone balancing issue you describe might be an issue once zone
-> > said pages can be migrated :)
-> 
-> My main concern is that we use one LRU per zone, and I suspect that
-> this design might be suboptimal if the sizes of the zones differs
-> much. But I have no numbers.
+Personally, I have an aversion to sticking a "2" in there.  I know you're
+just following the convention established by invalidate_inode_pages2, but..
 
-Migrating user pages from lowmem to highmem under situations with
-intense low memory pressure (due to certain important allocations 
-which are restricted to lowmem) might be very useful.
+Hold on, -mm already contains reiser4-truncate_inode_pages_range.patch,
+you should be working with that.  Doesn't it do just what you need,
+even without a "2" :-?
+ 
+--- linux-2.6.14-rc3/mm/madvise.c	2005-09-30 14:17:35.000000000 -0700
++++ linux-2.6.14-rc3.db2/mm/madvise.c	2005-10-20 13:37:41.000000000 -0700
+@@ -137,6 +137,40 @@ static long madvise_dontneed(struct vm_a
+ 	return 0;
+ }
+ 
++static long madvise_discard(struct vm_area_struct * vma,
++			     struct vm_area_struct ** prev,
++			     unsigned long start, unsigned long end)
++{
+....
++	error = madvise_dontneed(vma, prev, start, end);
++	if (error)
++		return error;
++
++	/* looks good, try and rip it out of page cache */
++	printk("%s: trying to rip shm vma (%p) inode from page cache\n", __FUNCTION__, vma);
++	offset = (loff_t)(start - vma->vm_start);
++	endoff = (loff_t)(end - vma->vm_start);
++	printk("call truncate_inode_pages(%p, %x %x)\n", mapping, 
++			(unsigned int)offset, (unsigned int)endoff);
++	down(&mapping->host->i_sem);
++	truncate_inode_pages2_range(mapping, offset, endoff);
++	up(&mapping->host->i_sem);
++	return 0;
++}
 
-> There are probably not that many drivers using the DMA zone on a
-> modern PC, so instead of bringing performance penalty on the entire
-> system I think it would be nicer to punish the evil hardware instead.
+Hmm.  I don't think it's consistent to zap the pages from a single mm,
+then remove them from the page cache, while leaving the pages mapped into
+other mms.  Just what would those pages then be?  they're not file pages,
+they're not anonymous pages, such pages have given trouble in the past.
 
-Agreed - the 16MB DMA zone is silly. Would love to see it go away...
+I think you'll need to follow vmtruncate much more closely - and the
+unmap_mapping_range code already allows for a range, shouldn't need
+much change - going through all the vmas before truncating the range.
 
+Which makes it feel more like sys_fpunch than an madvise.
+
+You of course need write access to the underlying file, is that checked?
+
+What should it be doing to anonymous COWed pages?  Not clear whether
+it should be following truncate in discarding those too, or not.
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
