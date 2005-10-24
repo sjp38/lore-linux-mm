@@ -1,50 +1,45 @@
-Date: Sun, 23 Oct 2005 16:41:03 -0200
-From: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
-Subject: Re: [PATCH] per-page SLAB freeing (only dcache for now)
-Message-ID: <20051023184103.GA7796@logos.cnet>
-References: <20051001215254.GA19736@xeon.cnet> <Pine.LNX.4.62.0510030823420.7812@schroedinger.engr.sgi.com> <43419686.60600@colorfullife.com> <20051003221743.GB29091@logos.cnet> <4342B623.3060007@colorfullife.com> <20051006160115.GA30677@logos.cnet> <20051022013001.GE27317@logos.cnet> <20051021233111.58706a2e.akpm@osdl.org> <Pine.LNX.4.62.0510221002020.27511@schroedinger.engr.sgi.com> <435A81ED.4040505@colorfullife.com>
+Date: Mon, 24 Oct 2005 14:52:58 +0900 (JST)
+Message-Id: <20051024.145258.98349934.taka@valinux.co.jp>
+Subject: Re: [PATCH] cpuset confine pdflush to its cpuset
+From: Hirokazu Takahashi <taka@valinux.co.jp>
+In-Reply-To: <20051024001913.7030.71597.sendpatchset@jackhammer.engr.sgi.com>
+References: <20051024001913.7030.71597.sendpatchset@jackhammer.engr.sgi.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <435A81ED.4040505@colorfullife.com>
+Content-Type: Text/Plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Manfred Spraul <manfred@colorfullife.com>
-Cc: Christoph Lameter <clameter@engr.sgi.com>, Andrew Morton <akpm@osdl.org>, linux-mm@kvack.org, dgc@sgi.com, dipankar@in.ibm.com, mbligh@mbligh.org, arjanv@redhat.com
+To: pj@sgi.com
+Cc: akpm@osdl.org, Simon.Derr@bull.net, linux-kernel@vger.kernel.org, clameter@sgi.com, torvalds@osdl.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, Oct 22, 2005 at 08:16:13PM +0200, Manfred Spraul wrote:
-> Christoph Lameter wrote:
+Hi Paul,
+
+I realized CPUSETS has another problem around pdflush.
+
+Some cpuset may make most of pages in it dirty, while the others don't.
+In this case, pdflush may not start since the ratio of the dirty pages
+in the box may be less than the watermark, which is defined globally.
+This may probably make it hard to allocate pages from the cpuset
+or the nodes it depends on. This wouldn't be good for NUMA machine
+without cpusets either.
+
+Do you have any plans about it?
+
+> This patch keeps pdflush daemons on the same cpuset as their
+> parent, the kthread daemon.
 > 
-> >The current worst case is 16k pagesize (IA64) and one cacheline sized 
-> >objects (128 bytes) (hmm.. could even be smaller if the arch does 
-> >overrride SLAB_HWCACHE_ALIGN) yielding a maximum of 128 entries per page. 
-> >
-> > 
-> >
-> What about biovec-1? On i386 and 2.6.13 from Fedora, it contains 226 
-> entries. And revoke_table contains 290 entries.
-
-Neither are reclaimable however, right:
-
-[marcelo@logos linux-2.6.13]$ find . -type f -exec grep -l set_shrinker {} \;
-./fs/dcache.c
-./fs/dquot.c
-./fs/inode.c
-./fs/mbcache.c
-./fs/xfs/linux-2.6/kmem.h
-
-If the size of the bitmap for caching the slabbufctl data (which
-contains dead/alive information) ends up being a problem, its possible
-to:
-
-- increase the bitmap size somehow
-- drop the bitmap, acquiring the cache's spinlock and checking directly
-
-Or as a last resort drop the slabbufctl optimization completly, using
-cache internal information to obtain dead/alive status.
+> Some large NUMA configurations put as much as they can of
+> kernel threads and other classic Unix load in what's called a
+> bootcpuset, keeping the rest of the system free for dedicated
+> jobs.
+> 
+> This effort is thwarted by pdflush, which dynamically destroys
+> and recreates pdflush daemons depending on load.
 
 
+Thanks,
+Hirokazu Takahashi.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
