@@ -1,52 +1,52 @@
-Received: from westrelay02.boulder.ibm.com (westrelay02.boulder.ibm.com [9.17.195.11])
-	by e33.co.us.ibm.com (8.12.11/8.12.11) with ESMTP id j9OKMJj8013291
-	for <linux-mm@kvack.org>; Mon, 24 Oct 2005 16:22:19 -0400
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by e36.co.us.ibm.com (8.12.11/8.12.11) with ESMTP id j9OKOihu006218
+	for <linux-mm@kvack.org>; Mon, 24 Oct 2005 16:24:44 -0400
 Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by westrelay02.boulder.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id j9OKMJdH522728
-	for <linux-mm@kvack.org>; Mon, 24 Oct 2005 14:22:19 -0600
+	by d03relay04.boulder.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id j9OKPfNM544672
+	for <linux-mm@kvack.org>; Mon, 24 Oct 2005 14:25:41 -0600
 Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.12.11/8.13.3) with ESMTP id j9OKMIkK024408
-	for <linux-mm@kvack.org>; Mon, 24 Oct 2005 14:22:19 -0600
-Message-ID: <435D426A.6070007@us.ibm.com>
-Date: Mon, 24 Oct 2005 13:22:02 -0700
-From: Darren Hart <dvhltc@us.ibm.com>
-MIME-Version: 1.0
+	by d03av02.boulder.ibm.com (8.12.11/8.13.3) with ESMTP id j9OKOhf0031513
+	for <linux-mm@kvack.org>; Mon, 24 Oct 2005 14:24:43 -0600
 Subject: Re: [RFC][PATCH] OVERCOMMIT_ALWAYS extension
-References: <1129570219.23632.34.camel@localhost.localdomain>  <Pine.LNX.4.61.0510171904040.6406@goblin.wat.veritas.com>  <Pine.LNX.4.61.0510171919150.6548@goblin.wat.veritas.com>  <1129651502.23632.63.camel@localhost.localdomain>  <Pine.LNX.4.61.0510191826280.8674@goblin.wat.veritas.com>  <1129747855.8716.12.camel@localhost.localdomain>  <20051019204732.GA9922@localhost.localdomain>  <1129821065.16301.5.camel@localhost.localdomain>  <20051020172757.GB6590@localhost.localdomain> <1129847844.16301.37.camel@localhost.localdomain> <Pine.LNX.4.61.0510242027001.6509@goblin.wat.veritas.com>
+From: Badari Pulavarty <pbadari@us.ibm.com>
 In-Reply-To: <Pine.LNX.4.61.0510242027001.6509@goblin.wat.veritas.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+References: <1129570219.23632.34.camel@localhost.localdomain>
+	 <Pine.LNX.4.61.0510171904040.6406@goblin.wat.veritas.com>
+	 <Pine.LNX.4.61.0510171919150.6548@goblin.wat.veritas.com>
+	 <1129651502.23632.63.camel@localhost.localdomain>
+	 <Pine.LNX.4.61.0510191826280.8674@goblin.wat.veritas.com>
+	 <1129747855.8716.12.camel@localhost.localdomain>
+	 <20051019204732.GA9922@localhost.localdomain>
+	 <1129821065.16301.5.camel@localhost.localdomain>
+	 <20051020172757.GB6590@localhost.localdomain>
+	 <1129847844.16301.37.camel@localhost.localdomain>
+	 <Pine.LNX.4.61.0510242027001.6509@goblin.wat.veritas.com>
+Content-Type: text/plain
+Date: Mon, 24 Oct 2005 13:24:08 -0700
+Message-Id: <1130185448.6831.20.camel@localhost.localdomain>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Hugh Dickins <hugh@veritas.com>
-Cc: Badari Pulavarty <pbadari@us.ibm.com>, Jeff Dike <jdike@addtoit.com>, linux-mm <linux-mm@kvack.org>
+Cc: Jeff Dike <jdike@addtoit.com>, linux-mm <linux-mm@kvack.org>, dvhltc@us.ibm.com
 List-ID: <linux-mm.kvack.org>
 
-Hugh Dickins wrote:
+On Mon, 2005-10-24 at 21:04 +0100, Hugh Dickins wrote:
 > On Thu, 20 Oct 2005, Badari Pulavarty wrote:
-> 
->>Changes from previous:
->>
->>1) madvise(DISCARD) - zaps the range and discards the pages. So, no
->>need to call madvise(DONTNEED) before.
->>
->>2) I added truncate_inode_pages2_range() to just discard only the
->>range of pages - not the whole file.
->>
->>Hugh, when you get a chance could you review this instead ?
-> 
+> > 
+> > Changes from previous:
+> > 
+> > 1) madvise(DISCARD) - zaps the range and discards the pages. So, no
+> > need to call madvise(DONTNEED) before.
+> > 
+> > 2) I added truncate_inode_pages2_range() to just discard only the
+> > range of pages - not the whole file.
+> > 
+> > Hugh, when you get a chance could you review this instead ?
 > 
 > I haven't had time to go through it thoroughly, and will have no time
 > the next couple of days, but here are some remarks.
-
-Excellent points all, I'll take some time here in the next couple days and work 
-up a response to each and an updated patch.  Regarding the spaces... I must have 
-  used the wrong vi wrapper to edit the patch - apologies, will be fixed in next 
-rev.
-
---Darren
-
-
 > 
 > --- linux-2.6.14-rc3/include/asm-alpha/mman.h	2005-09-30 14:17:35.000000000 -0700
 > +++ linux-2.6.14-rc3.db2/include/asm-alpha/mman.h	2005-10-20 10:52:37.000000000 -0700
@@ -59,12 +59,21 @@ rev.
 > Throughout the patch there's lots of spaces where there should be tabs.
 > But I'm glad you've put a space after the "#define" here, unlike in that
 > MADV_SPACEAVAIL higher up!  Not so glad at your spaces to the right of it.
+
+
+Sorry about that. I was working with Darren's old patch and didn't
+bother cleaning up the white spaces. 
+
 > 
 > Are we free to define MADV_DISCARD, coming after the others, in each of
 > the architectures?  In general, I think mman.h reflects definitions made
 > by native Operating Systems of the architectures in question, and they
 > might have added a few since.
-> 
+
+I looked at all architectures. No matter what their header file says,
+none of them actually implemented anything other than the standard ones
+(documented in the manpages).
+
 > --- linux-2.6.14-rc3/include/linux/mm.h	2005-09-30 14:17:35.000000000 -0700
 > +++ linux-2.6.14-rc3.db2/include/linux/mm.h	2005-10-20 13:41:57.000000000 -0700
 > @@ -865,6 +865,7 @@ extern unsigned long do_brk(unsigned lon
@@ -79,6 +88,9 @@ rev.
 > Hold on, -mm already contains reiser4-truncate_inode_pages_range.patch,
 > you should be working with that.  Doesn't it do just what you need,
 > even without a "2" :-?
+
+Yes. Thats exactly what I did also. One less thing to worry for me :)
+
 >  
 > --- linux-2.6.14-rc3/mm/madvise.c	2005-09-30 14:17:35.000000000 -0700
 > +++ linux-2.6.14-rc3.db2/mm/madvise.c	2005-10-20 13:37:41.000000000 -0700
@@ -122,17 +134,18 @@ rev.
 > 
 > What should it be doing to anonymous COWed pages?  Not clear whether
 > it should be following truncate in discarding those too, or not.
-> 
-> Hugh
-> 
 
+You are right. What we have here is a kludge - pointed out by Andrea
+also (in a private e-mail). He recommended that I should look at
+doing "real" MADV_TRUNCATE and add filesystem hooks to make it
+sure its not limited to only "shmfs". 
 
--- 
-Darren Hart
-IBM Linux Technology Center
-Linux Kernel Team
-Phone: 503 578 3185
-   T/L: 775 3185
+I am re-doing it again. I am scared to touch this part of VM code,
+thats why I was trying to get away with smallest possible thing.
+I guess its time to sit and do it for real.
+
+Thanks,
+Badari
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
