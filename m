@@ -1,259 +1,152 @@
-Date: Tue, 25 Oct 2005 12:30:49 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Message-Id: <20051025193049.6828.57842.sendpatchset@schroedinger.engr.sgi.com>
-In-Reply-To: <20051025193023.6828.89649.sendpatchset@schroedinger.engr.sgi.com>
-References: <20051025193023.6828.89649.sendpatchset@schroedinger.engr.sgi.com>
-Subject: [PATCH 5/5] Swap Migration V4: sys_migrate_pages interface
+Date: Tue, 25 Oct 2005 12:37:41 -0200
+From: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
+Subject: Re: [PATCH 0/4] Swap migration V3: Overview
+Message-ID: <20051025143741.GA6604@logos.cnet>
+References: <20051020225935.19761.57434.sendpatchset@schroedinger.engr.sgi.com> <aec7e5c30510201857r7cf9d337wce9a4017064adcf@mail.gmail.com> <20051022005050.GA27317@logos.cnet> <aec7e5c30510230550j66d6e37fg505fd6041dca9bee@mail.gmail.com> <20051024074418.GC2016@logos.cnet> <aec7e5c30510250437h6c300066s14e39a0c91be772c@mail.gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <aec7e5c30510250437h6c300066s14e39a0c91be772c@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: akpm@osdl.org
-Cc: Marcelo Tosatti <marcelo.tosatti@cyclades.com>, Mike Kravetz <kravetz@us.ibm.com>, Ray Bryant <raybry@mpdtxmail.amd.com>, Lee Schermerhorn <lee.schermerhorn@hp.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Christoph Lameter <clameter@sgi.com>, Magnus Damm <magnus.damm@gmail.com>, Paul Jackson <pj@sgi.com>, Dave Hansen <haveblue@us.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Magnus Damm <magnus.damm@gmail.com>
+Cc: Christoph Lameter <clameter@sgi.com>, akpm@osdl.org, Mike Kravetz <kravetz@us.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-sys_migrate_pages implementation using swap based page migration
+Hi Magnus,
 
-This is the original API proposed by Ray Bryant in his posts during the
-first half of 2005 on linux-mm@kvack.org and linux-kernel@vger.kernel.org.
+On Tue, Oct 25, 2005 at 08:37:52PM +0900, Magnus Damm wrote:
+> On 10/24/05, Marcelo Tosatti <marcelo.tosatti@cyclades.com> wrote:
+> > On Sun, Oct 23, 2005 at 09:50:18PM +0900, Magnus Damm wrote:
+> > > Maybe SLAB defragmentation code is suitable for page migration too?
+> >
+> > Free dentries are possible to migrate, but not referenced ones.
+> >
+> > How are you going to inform users that the address of a dentry has
+> > changed?
+> 
+> Um, not sure, but the idea of defragmenting SLAB entries might be
+> similar to moving them, ie migration. But how to solve the per-SLAB
+> referencing is another story... =)
+> 
+> > > > > But I'm probably underestimating the cost of page migration...
+> > > >
+> > > > The zone balancing issue you describe might be an issue once zone
+> > > > said pages can be migrated :)
+> > >
+> > > My main concern is that we use one LRU per zone, and I suspect that
+> > > this design might be suboptimal if the sizes of the zones differs
+> > > much. But I have no numbers.
+> >
+> > Migrating user pages from lowmem to highmem under situations with
+> > intense low memory pressure (due to certain important allocations
+> > which are restricted to lowmem) might be very useful.
+> 
+> I patched the kernel on my desktop machine to provide some numbers.
+> The zoneinfo file and a small patch is attached.
+> 
+> $ uname -r
+> 2.6.14-rc5-git3
+> 
+> $ uptime
+>  20:27:47 up 1 day,  6:27, 18 users,  load average: 0.01, 0.13, 0.15
+> 
+> $ cat /proc/zoneinfo | grep present
+>         present  4096
+>         present  225280
+>         present  30342
+> 
+> $ cat /proc/zoneinfo | grep tscanned
+>         tscanned 151352
+>         tscanned 3480599
+>         tscanned 541466
+> 
+> "tscanned" counts how many pages that has been scanned in each zone
+> since power on. Executive summary assuming that only LRU pages exist
+> in the zone:
+> 
+> DMA: each page has been scanned ~37 times
+> Normal: each page has been scanned ~15 times
+> HighMem: each page has been scanned ~18 times
+> 
+> So if your user space page happens to be allocated from the DMA zone,
+> it looks like it is more probable that it will be paged out sooner
+> than if it was allocated from another zone. And this is on a half year
+> old P4 system.
 
-The intend of sys_migrate is to migrate memory of a process. A process may have
-migrated to another node. Memory was allocated optimally for the prior context.
-sys_migrate_pages allows to shift the memory to the new node.
+Well the higher relative pressure on a specific zone is a fact you have
+to live with.
 
-sys_migrate_pages is also useful if the processes available memory nodes have
-changed through cpuset operations to manually move the processes memory. Paul
-Jackson is working on an automated mechanism that will allow an automatic
-migration if the cpuset of a process is changed. However, a user may decide
-to manually control the migration.
+Even with a global LRU you're going to suffer from the same issue once
+you've got different relative pressure on different zones.
 
-This implementation is put into the policy layer since it uses concepts and
-functions that are also needed for mbind and friends. The patch also provides
-a do_migrate_pages function that may be useful for cpusets to automatically move
-memory. sys_migrate_pages does not modify policies in contrast to Ray's implementation.
+Thats the reason for the mechanisms which attempt to avoid allocating
+from the lower precious zones (lowmem_reserve and the allocation
+fallback logic).
 
-The current code here is based on the swap based page migration capability and thus
-not able to preserve the physical layout relative to it containing nodeset (which
-may be a cpuset). When direct page migration becomes available then the
-implementation needs to be changed to do a isomorphic move of pages between different
-nodesets. The current implementation simply evicts all pages in source
-nodeset that are not in the target nodeset.
+> > > There are probably not that many drivers using the DMA zone on a
+> > > modern PC, so instead of bringing performance penalty on the entire
+> > > system I think it would be nicer to punish the evil hardware instead.
+> >
+> > Agreed - the 16MB DMA zone is silly. Would love to see it go away...
+> 
+> But is the DMA zone itself evil, or just that we have one LRU per zone...?
 
-Patch supports ia64, i386, x86_64 and ppc64. Patch not tested on ppc64.
+I agree that per-zone LRU complicates global page aging (you simply don't have 
+global aging).
 
-Changes V3->V4:
-- Add Ray's permissions check based on check_kill_permission().
+But how to deal with restricted allocation requirements otherwise?
+Scanning several GB's worth of pages looking for pages in a specific
+small range can't be very promising.
 
-Signed-off-by: Christoph Lameter <clameter@sgi.com>
+Hope to be useful comments.
 
-Index: linux-2.6.14-rc5-mm1/mm/mempolicy.c
-===================================================================
---- linux-2.6.14-rc5-mm1.orig/mm/mempolicy.c	2005-10-25 09:09:54.000000000 -0700
-+++ linux-2.6.14-rc5-mm1/mm/mempolicy.c	2005-10-25 09:29:13.000000000 -0700
-@@ -631,6 +631,36 @@ long do_get_mempolicy(int *policy, nodem
- }
- 
- /*
-+ * For now migrate_pages simply swaps out the pages from nodes that are in
-+ * the source set but not in the target set. In the future, we would
-+ * want a function that moves pages between the two nodesets in such
-+ * a way as to preserve the physical layout as much as possible.
-+ *
-+ * Returns the number of page that could not be moved.
-+ */
-+int do_migrate_pages(struct mm_struct *mm,
-+	nodemask_t *from_nodes, nodemask_t *to_nodes, int flags)
-+{
-+	LIST_HEAD(pagelist);
-+	int count = 0;
-+	nodemask_t nodes;
-+
-+	nodes_andnot(nodes, *from_nodes, *to_nodes);
-+	nodes_complement(nodes, nodes);
-+
-+	down_read(&mm->mmap_sem);
-+	check_range(mm, mm->mmap->vm_start, TASK_SIZE, &nodes,
-+			flags | MPOL_MF_DISCONTIG_OK, &pagelist);
-+	if (!list_empty(&pagelist)) {
-+		swapout_pages(&pagelist);
-+		if (!list_empty(&pagelist))
-+			count = putback_lru_pages(&pagelist);
-+	}
-+	up_read(&mm->mmap_sem);
-+	return count;
-+}
-+
-+/*
-  * User space interface with variable sized bitmaps for nodelists.
-  */
- 
-@@ -724,6 +754,65 @@ asmlinkage long sys_set_mempolicy(int mo
- 	return do_set_mempolicy(mode, &nodes);
- }
- 
-+/* Macro needed until Paul implements this function in kernel/cpusets.c */
-+#define cpuset_mems_allowed(task) node_online_map
-+
-+asmlinkage long sys_migrate_pages(pid_t pid, unsigned long maxnode,
-+		unsigned long __user *old_nodes,
-+		unsigned long __user *new_nodes)
-+{
-+	struct mm_struct *mm;
-+	struct task_struct *task;
-+	nodemask_t old;
-+	nodemask_t new;
-+	int err;
-+
-+	err = get_nodes(&old, old_nodes, maxnode);
-+	if (err)
-+		return err;
-+
-+	err = get_nodes(&new, new_nodes, maxnode);
-+	if (err)
-+		return err;
-+
-+	/* Find the mm_struct */
-+	read_lock(&tasklist_lock);
-+	task = pid ? find_task_by_pid(pid) : current;
-+	if (!task) {
-+		read_unlock(&tasklist_lock);
-+		return -ESRCH;
-+	}
-+	mm = get_task_mm(task);
-+	read_unlock(&tasklist_lock);
-+
-+	if (!mm)
-+		return -EINVAL;
-+
-+	/*
-+	 * Permissions check like for signals.
-+	 * See check_kill_permission()
-+	 */
-+	if ((current->euid ^ task->suid) && (current->euid ^ task->uid) &&
-+	    (current->uid ^ task->suid) && (current->uid ^ task->uid) &&
-+	    !capable(CAP_SYS_ADMIN)) {
-+		err = -EPERM;
-+		goto out;
-+	}
-+
-+	/* Is the user allowed to access the target nodes? */
-+	if (!nodes_subset(new, cpuset_mems_allowed(task)) &&
-+	    !capable(CAP_SYS_ADMIN)) {
-+		err= -EPERM;
-+		goto out;
-+	}
-+
-+	err = do_migrate_pages(mm, &old, &new, MPOL_MF_MOVE);
-+out:
-+	mmput(mm);
-+	return err;
-+}
-+
-+
- /* Retrieve NUMA policy */
- asmlinkage long sys_get_mempolicy(int __user *policy,
- 				unsigned long __user *nmask,
-Index: linux-2.6.14-rc5-mm1/kernel/sys_ni.c
-===================================================================
---- linux-2.6.14-rc5-mm1.orig/kernel/sys_ni.c	2005-10-19 23:23:05.000000000 -0700
-+++ linux-2.6.14-rc5-mm1/kernel/sys_ni.c	2005-10-25 09:29:13.000000000 -0700
-@@ -82,6 +82,7 @@ cond_syscall(compat_sys_socketcall);
- cond_syscall(sys_inotify_init);
- cond_syscall(sys_inotify_add_watch);
- cond_syscall(sys_inotify_rm_watch);
-+cond_syscall(sys_migrate_pages);
- 
- /* arch-specific weak syscall entries */
- cond_syscall(sys_pciconfig_read);
-Index: linux-2.6.14-rc5-mm1/arch/ia64/kernel/entry.S
-===================================================================
---- linux-2.6.14-rc5-mm1.orig/arch/ia64/kernel/entry.S	2005-10-19 23:23:05.000000000 -0700
-+++ linux-2.6.14-rc5-mm1/arch/ia64/kernel/entry.S	2005-10-25 09:29:13.000000000 -0700
-@@ -1600,5 +1600,6 @@ sys_call_table:
- 	data8 sys_inotify_init
- 	data8 sys_inotify_add_watch
- 	data8 sys_inotify_rm_watch
-+	data8 sys_migrate_pages
- 
- 	.org sys_call_table + 8*NR_syscalls	// guard against failures to increase NR_syscalls
-Index: linux-2.6.14-rc5-mm1/include/asm-ia64/unistd.h
-===================================================================
---- linux-2.6.14-rc5-mm1.orig/include/asm-ia64/unistd.h	2005-10-24 10:27:21.000000000 -0700
-+++ linux-2.6.14-rc5-mm1/include/asm-ia64/unistd.h	2005-10-25 09:29:13.000000000 -0700
-@@ -269,12 +269,12 @@
- #define __NR_inotify_init		1277
- #define __NR_inotify_add_watch		1278
- #define __NR_inotify_rm_watch		1279
--
-+#define __NR_migrate_pages		1280
- #ifdef __KERNEL__
- 
- #include <linux/config.h>
- 
--#define NR_syscalls			256 /* length of syscall table */
-+#define NR_syscalls			257 /* length of syscall table */
- 
- #define __ARCH_WANT_SYS_RT_SIGACTION
- 
-Index: linux-2.6.14-rc5-mm1/arch/ppc64/kernel/misc.S
-===================================================================
---- linux-2.6.14-rc5-mm1.orig/arch/ppc64/kernel/misc.S	2005-10-24 10:27:15.000000000 -0700
-+++ linux-2.6.14-rc5-mm1/arch/ppc64/kernel/misc.S	2005-10-25 09:29:13.000000000 -0700
-@@ -1581,3 +1581,4 @@ _GLOBAL(sys_call_table)
- 	.llong .sys_inotify_init	/* 275 */
- 	.llong .sys_inotify_add_watch
- 	.llong .sys_inotify_rm_watch
-+	.llong .sys_migrate_pages
-Index: linux-2.6.14-rc5-mm1/arch/i386/kernel/syscall_table.S
-===================================================================
---- linux-2.6.14-rc5-mm1.orig/arch/i386/kernel/syscall_table.S	2005-10-19 23:23:05.000000000 -0700
-+++ linux-2.6.14-rc5-mm1/arch/i386/kernel/syscall_table.S	2005-10-25 09:29:13.000000000 -0700
-@@ -294,3 +294,5 @@ ENTRY(sys_call_table)
- 	.long sys_inotify_init
- 	.long sys_inotify_add_watch
- 	.long sys_inotify_rm_watch
-+	.long sys_migrate_pages
-+
-Index: linux-2.6.14-rc5-mm1/include/asm-x86_64/unistd.h
-===================================================================
---- linux-2.6.14-rc5-mm1.orig/include/asm-x86_64/unistd.h	2005-10-24 10:27:21.000000000 -0700
-+++ linux-2.6.14-rc5-mm1/include/asm-x86_64/unistd.h	2005-10-25 09:29:13.000000000 -0700
-@@ -571,8 +571,10 @@ __SYSCALL(__NR_inotify_init, sys_inotify
- __SYSCALL(__NR_inotify_add_watch, sys_inotify_add_watch)
- #define __NR_inotify_rm_watch	255
- __SYSCALL(__NR_inotify_rm_watch, sys_inotify_rm_watch)
-+#define __NR_migrate_pages	256
-+__SYSCALL(__NR_migrate_pages, sys_migrate_pages)
- 
--#define __NR_syscall_max __NR_inotify_rm_watch
-+#define __NR_syscall_max __NR_migrate_pages
- #ifndef __NO_STUBS
- 
- /* user-visible error numbers are in the range -1 - -4095 */
-Index: linux-2.6.14-rc5-mm1/include/linux/syscalls.h
-===================================================================
---- linux-2.6.14-rc5-mm1.orig/include/linux/syscalls.h	2005-10-24 10:27:21.000000000 -0700
-+++ linux-2.6.14-rc5-mm1/include/linux/syscalls.h	2005-10-25 09:29:13.000000000 -0700
-@@ -511,5 +511,7 @@ asmlinkage long sys_ioprio_set(int which
- asmlinkage long sys_ioprio_get(int which, int who);
- asmlinkage long sys_set_mempolicy(int mode, unsigned long __user *nmask,
- 					unsigned long maxnode);
-+asmlinkage long sys_migrate_pages(pid_t pid, unsigned long maxnode,
-+			unsigned long __user *from, unsigned long __user *to);
- 
- #endif
-Index: linux-2.6.14-rc5-mm1/include/linux/mempolicy.h
-===================================================================
---- linux-2.6.14-rc5-mm1.orig/include/linux/mempolicy.h	2005-10-25 09:09:34.000000000 -0700
-+++ linux-2.6.14-rc5-mm1/include/linux/mempolicy.h	2005-10-25 09:29:13.000000000 -0700
-@@ -158,6 +158,9 @@ extern void numa_default_policy(void);
- extern void numa_policy_init(void);
- extern struct mempolicy default_policy;
- 
-+int do_migrate_pages(struct mm_struct *mm,
-+	nodemask_t *from_nodes, nodemask_t *to_nodes, int flags);
-+
- #else
- 
- struct mempolicy {};
+> --- from-0002/include/linux/mmzone.h
+> +++ to-work/include/linux/mmzone.h	2005-10-24 10:43:13.000000000 +0900
+> @@ -151,6 +151,7 @@ struct zone {
+>  	unsigned long		nr_active;
+>  	unsigned long		nr_inactive;
+>  	unsigned long		pages_scanned;	   /* since last reclaim */
+> +	unsigned long		pages_scanned_total;
+>  	int			all_unreclaimable; /* All pages pinned */
+>  
+>  	/*
+> --- from-0002/mm/page_alloc.c
+> +++ to-work/mm/page_alloc.c	2005-10-24 10:51:05.000000000 +0900
+> @@ -2101,6 +2101,7 @@ static int zoneinfo_show(struct seq_file
+>  			   "\n        active   %lu"
+>  			   "\n        inactive %lu"
+>  			   "\n        scanned  %lu (a: %lu i: %lu)"
+> +			   "\n        tscanned %lu"
+>  			   "\n        spanned  %lu"
+>  			   "\n        present  %lu",
+>  			   zone->free_pages,
+> @@ -2111,6 +2112,7 @@ static int zoneinfo_show(struct seq_file
+>  			   zone->nr_inactive,
+>  			   zone->pages_scanned,
+>  			   zone->nr_scan_active, zone->nr_scan_inactive,
+> +			   zone->pages_scanned_total,
+>  			   zone->spanned_pages,
+>  			   zone->present_pages);
+>  		seq_printf(m,
+> --- from-0002/mm/vmscan.c
+> +++ to-work/mm/vmscan.c	2005-10-24 10:44:09.000000000 +0900
+> @@ -633,6 +633,7 @@ static void shrink_cache(struct zone *zo
+>  					     &page_list, &nr_scan);
+>  		zone->nr_inactive -= nr_taken;
+>  		zone->pages_scanned += nr_scan;
+> +		zone->pages_scanned_total += nr_scan;
+>  		spin_unlock_irq(&zone->lru_lock);
+>  
+>  		if (nr_taken == 0)
+> @@ -713,6 +714,7 @@ refill_inactive_zone(struct zone *zone, 
+>  	pgmoved = isolate_lru_pages(nr_pages, &zone->active_list,
+>  				    &l_hold, &pgscanned);
+>  	zone->pages_scanned += pgscanned;
+> +	zone->pages_scanned_total += pgscanned;
+>  	zone->nr_active -= pgmoved;
+>  	spin_unlock_irq(&zone->lru_lock);
+>  
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
