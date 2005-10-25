@@ -1,75 +1,118 @@
-Received: by qproxy.gmail.com with SMTP id q11so570256qbq
-        for <linux-mm@kvack.org>; Tue, 25 Oct 2005 11:27:49 -0700 (PDT)
-Subject: Re: [Bug 5494] New: OOM killer kills process on kernel boot up and
-	system performance is very low
-From: Badari Pulavarty <pbadari@gmail.com>
-In-Reply-To: <20051025104516.4bd3798c.akpm@osdl.org>
-References: <200510251218.j9PCIOoo027509@fire-1.osdl.org>
-	 <20051025104516.4bd3798c.akpm@osdl.org>
-Content-Type: text/plain
-Date: Tue, 25 Oct 2005 11:27:13 -0700
-Message-Id: <1130264833.6831.77.camel@localhost.localdomain>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Date: Tue, 25 Oct 2005 12:30:23 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Message-Id: <20051025193023.6828.89649.sendpatchset@schroedinger.engr.sgi.com>
+Subject: [PATCH 0/5] Swap Migration V4: Overview
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: sharyathi@in.ibm.com, linux-mm <linux-mm@kvack.org>
+To: akpm@osdl.org
+Cc: Mike Kravetz <kravetz@us.ibm.com>, Ray Bryant <raybry@mpdtxmail.amd.com>, linux-kernel@vger.kernel.org, Lee Schermerhorn <lee.schermerhorn@hp.com>, Dave Hansen <haveblue@us.ibm.com>, linux-mm@kvack.org, Christoph Lameter <clameter@sgi.com>, Magnus Damm <magnus.damm@gmail.com>, Paul Jackson <pj@sgi.com>, Marcelo Tosatti <marcelo.tosatti@cyclades.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2005-10-25 at 10:45 -0700, Andrew Morton wrote:
-> bugme-daemon@kernel-bugs.osdl.org wrote:
-> >
-> >  http://bugzilla.kernel.org/show_bug.cgi?id=5494
-> > 
-> >             Summary: OOM killer kills process on kernel boot up and system
-> >                      performance is very low
-> >      Kernel Version: 2.6.14-rc4
-> 
-> You have an enormous memory leak.
-> 
-> 
-> Active:1452 inactive:929 dirty:3 writeback:717 unstable:0 free:7065 slab:2779 mapped:1356 pagetables:464
-> DMA free:6160kB min:68kB low:84kB high:100kB active:0kB inactive:2348kB present:16384kB pages_scanned:1o
-> lowmem_reserve[]: 0 880 1519
-> Normal free:21604kB min:3756kB low:4692kB high:5632kB active:276kB inactive:188kB present:901120kB pages
-> lowmem_reserve[]: 0 0 5119
-> HighMem free:496kB min:512kB low:640kB high:768kB active:5532kB inactive:1052kB present:655296kB pages_s
-> lowmem_reserve[]: 0 0 0
-> DMA: 2*4kB 3*8kB 1*16kB 1*32kB 1*64kB 1*128kB 1*256kB 1*512kB 1*1024kB 0*2048kB 1*4096kB = 6160kB
-> Normal: 1*4kB 20*8kB 36*16kB 10*32kB 3*64kB 1*128kB 1*256kB 1*512kB 1*1024kB 1*2048kB 4*4096kB = 21604kB
-> HighMem: 0*4kB 0*8kB 1*16kB 1*32kB 1*64kB 1*128kB 1*256kB 0*512kB 0*1024kB 0*2048kB 0*4096kB = 496kB
-> Swap cache: add 51244, delete 50404, find 25442/32337, race 0+13
-> 
-> And it's leaking highmem too, so it has to be user memory: pagecache or
-> anoymous RAM.
-> 
-> I'm not too sure what to do really - something odd is happening because if
-> this was happening generally then everyone in the world would be reporting
-> it.
-> 
-> I'd suggest you try switching compiler versions, try disabling unneeded
-> features in .config, see if you can identify any one which causes the leak.
-> Ideally, use `git bisect' to identify when the problem started occurring. 
-> 
-> All very strange.
-> 
-> btw, what is this:
-> 
-> Starting readahead:  [  OK  ]
+This is a patchset intended to introduce page migration into the kernel
+through a simple implementation of swap based page migration.
+The aim is to be minimally intrusive in order to have some hopes for inclusion
+into 2.6.15. A separate direct page migration patch is being developed that
+applies on top of this patch. The direct migration patch is being discussed on
+<lhms-devel@lists.sourceforge.net>.
 
-"readahead" is a init script in RedHat distro which does
+Much of the code is based on code that the memory hotplug project and Ray Bryant
+have been working on for a long time. See http://sourceforge.net/projects/lhms/
 
-    /usr/sbin/readahead `cat /etc/readahead.files` &
+Changes from V3 to V4:
+- patch against 2.6.14-rc5-mm1.
+- Correctly gather pages in migrate_add_page()
+- Restructure swapout code for easy later application of the direct migration
+  patches. Rename swapout() to migrate_pages().
+- Add PF_SWAPWRITE support to allow write to swap from a process. Save
+  and restore earlier state to allow nesting of the use of PF_SWAPWRITE.
+- Fix sys_migrate_pages permission check (thanks Ray).
 
-I guess it reads the files into pagecache.
+Changes from V2 to V3:
+- Break out common code for page eviction (Thanks to a patch by Magnus Damm)
+- Add check to avoid MPOL_MF_MOVE moving pages that are also accessed from
+  another address space. Add support for MPOL_MF_MOVE_ALL to override this
+  (requires superuser priviledges).
+- Update overview regarding direct page migration patchset following soon and
+  cut longwinded explanations.
+- Add sys_migrate patchset
+- Check cpuset restrictions on sys_migrate.
 
-(readahead(2)  -  Read  in advance one or more pages of a file
-       within a page cache)
+Changes from V1 to V2:
+- Patch against 2.6.14-rc4-mm1
+- Remove move_pages() function
+- Code cleanup to make it less invasive.
+- Fix missing lru_add_drain() invocation from isolate_lru_page()
+
+In a NUMA system it is often beneficial to be able to move the memory
+in use by a process to different nodes in order to enhance performance.
+Currently Linux simply does not support this facility. This patchset
+implements page migration via a new syscall sys_migrate_pages and via
+the memory policy layer with the MPOL_MF_MOVE and MPOL_MF_MOVE_ALL
+flags.
+
+Page migration is also useful for other purposes:
+
+1. Memory hotplug. Migrating processes off a memory node that is going
+   to be disconnected.
+
+2. Remapping of bad pages. These could be detected through soft ECC errors
+   and other mechanisms.
+
+migrate_pages() can only migrate pages under certain conditions. These other
+uses may require additional measures to ensure that pages are migratable. The
+hotplug project f.e. restricts allocations to removable memory.
 
 
-Thanks,
-Badari
+The patchset consists of five patches:
+
+1. LRU operations
+
+Add basic operations to remove pages from the LRU lists and return
+them back to it.
+
+2. PF_WRITESWAP
+
+Allow a process to set PF_WRITESWAP in its flags in order to be allowed
+to write pages to swap space.
+
+3. migrate_pages() implementation
+
+Adds a function to mm/vmscan.c called migrate_pages(). The functionality
+of that function is restricted to swapping out pages. An additional patch
+is necessary for direct page migration.
+
+4. MPOL_MF_MOVE flag for memory policies.
+
+This implements MPOL_MF_MOVE in addition to MPOL_MF_STRICT. MPOL_MF_STRICT
+allows the checking if all pages in a memory area obey the memory policies.
+MPOL_MF_MOVE will migrate all pages that do not conform to the memory policy.
+If pages are evicted then the system will allocate pages conforming to the
+policy on swap in.
+
+5. sys_migrate_pages system call and cpuset API
+
+Adds a new function call
+
+sys_migrate_pages(pid, maxnode, from_nodes, to_nodes)
+
+to migrate pages of a process to a different node and also a function
+for the use of the migration mechanism in cpusets
+
+do_migrate_pages(struct mm_struct *, from_nodes, to_nodes, move_flags).
+
+=====
+
+URLs referring to the discussion regarding the initial version of these
+patches.
+
+Page eviction: http://marc.theaimsgroup.com/?l=linux-mm&m=112922756730989&w=2
+Numa policy  : http://marc.theaimsgroup.com/?l=linux-mm&m=112922756724715&w=2
+
+Discussion of V2 of the patchset:
+http://marc.theaimsgroup.com/?t=112959680300007&r=1&w=2
+
+Discussion of V3:
+http://marc.theaimsgroup.com/?t=112984939600003&r=1&w=2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
