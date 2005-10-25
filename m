@@ -1,340 +1,301 @@
-Date: Tue, 25 Oct 2005 12:30:44 -0700 (PDT)
+Date: Tue, 25 Oct 2005 12:30:28 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Message-Id: <20051025193044.6828.24142.sendpatchset@schroedinger.engr.sgi.com>
+Message-Id: <20051025193028.6828.27929.sendpatchset@schroedinger.engr.sgi.com>
 In-Reply-To: <20051025193023.6828.89649.sendpatchset@schroedinger.engr.sgi.com>
 References: <20051025193023.6828.89649.sendpatchset@schroedinger.engr.sgi.com>
-Subject: [PATCH 4/5] Swap Migration V4: MPOL_MF_MOVE interface
+Subject: [PATCH 1/5] Swap Migration V4: LRU operations
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@osdl.org
-Cc: Mike Kravetz <kravetz@us.ibm.com>, Ray Bryant <raybry@mpdtxmail.amd.com>, Dave Hansen <haveblue@us.ibm.com>, Lee Schermerhorn <lee.schermerhorn@hp.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Christoph Lameter <clameter@sgi.com>, Magnus Damm <magnus.damm@gmail.com>, Paul Jackson <pj@sgi.com>, Marcelo Tosatti <marcelo.tosatti@cyclades.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Marcelo Tosatti <marcelo.tosatti@cyclades.com>, Mike Kravetz <kravetz@us.ibm.com>, Ray Bryant <raybry@mpdtxmail.amd.com>, Lee Schermerhorn <lee.schermerhorn@hp.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Christoph Lameter <clameter@sgi.com>, Magnus Damm <magnus.damm@gmail.com>, Paul Jackson <pj@sgi.com>, Dave Hansen <haveblue@us.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-Add page migration support via swap to the NUMA policy layer
+isolation of pages from LRU
 
-This patch adds page migration support to the NUMA policy layer. An additional
-flag MPOL_MF_MOVE is introduced for mbind. If MPOL_MF_MOVE is specified then
-pages that do not conform to the memory policy will be evicted from memory.
-When they get pages back in new pages will be allocated following the numa policy.
+Implement functions to isolate pages from the LRU and put them back later.
 
-Changes V3->V4
-- migrate_page_add: Do pagelist processing directly instead
-  of doing it via isolate_lru_page().
-- Use the migrate_pages() to evict the pages.
+An earlier implementation was provided by
+Hirokazu Takahashi <taka@valinux.co.jp> and
+IWAMOTO Toshihiro <iwamoto@valinux.co.jp> for the memory
+hotplug project.
 
-Changes V2->V3
-- Add check to not migrate pages shared with other processes (but allow
-  migration of memory shared between threads having a common mm_struct)
-- MPOL_MF_MOVE_ALL to override and move even pages shared with other
-  processes. This only works if the process issuing this call has
-  CAP_SYS_RESOURCE because this enables the moving of pages owned
-  by other processes.
-- MPOL_MF_DISCONTIG_OK (internal use only) to not check for continuous VMAs.
-  Enable MPOL_MF_DISCONTIG_OK if policy to be set is NULL (default policy).
+>From Magnus:
 
-Changes V1->V2
-- Add vma_migratable() function for future enhancements.
-- No side effects on WARN_ON
-- Remove move_pages for now
-- Make patch fit 2.6.14-rc4-mm1
+This patch for 2.6.14-rc4-mm1 breaks out isolate_lru_page() and
+putpack_lru_page() and makes them inline. I'd like to build my code on
+top of this patch, and I think your page eviction code could be built
+on top of this patch too - without introducing too much duplicated
+code.
 
+Changes V3-V4:
+
+- Remove obsolete second parameter from isolate_lru_page
+- Mention the original authors
+
+Signed-off-by: Magnus Damm <magnus.damm@gmail.com>
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
-Index: linux-2.6.14-rc5-mm1/mm/mempolicy.c
+Index: linux-2.6.14-rc5-mm1/include/linux/mm_inline.h
 ===================================================================
---- linux-2.6.14-rc5-mm1.orig/mm/mempolicy.c	2005-10-24 10:27:13.000000000 -0700
-+++ linux-2.6.14-rc5-mm1/mm/mempolicy.c	2005-10-25 09:09:54.000000000 -0700
-@@ -83,9 +83,13 @@
- #include <linux/init.h>
- #include <linux/compat.h>
- #include <linux/mempolicy.h>
-+#include <linux/swap.h>
- #include <asm/tlbflush.h>
- #include <asm/uaccess.h>
- 
-+/* Internal MPOL_MF_xxx flags */
-+#define MPOL_MF_DISCONTIG_OK (1<<20)	/* Skip checks for continuous vmas */
-+
- static kmem_cache_t *policy_cache;
- static kmem_cache_t *sn_cache;
- 
-@@ -179,9 +183,62 @@ static struct mempolicy *mpol_new(int mo
- 	return policy;
+--- linux-2.6.14-rc5-mm1.orig/include/linux/mm_inline.h	2005-10-19 23:23:05.000000000 -0700
++++ linux-2.6.14-rc5-mm1/include/linux/mm_inline.h	2005-10-25 08:09:52.000000000 -0700
+@@ -38,3 +38,55 @@ del_page_from_lru(struct zone *zone, str
+ 		zone->nr_inactive--;
+ 	}
  }
- 
-+/* Check if we are the only process mapping the page in question */
-+static inline int single_mm_mapping(struct mm_struct *mm,
-+			struct address_space *mapping)
-+{
-+	struct vm_area_struct *vma;
-+	struct prio_tree_iter iter;
-+	int rc = 1;
 +
-+	spin_lock(&mapping->i_mmap_lock);
-+	vma_prio_tree_foreach(vma, &iter, &mapping->i_mmap, 0, ULONG_MAX)
-+		if (mm != vma->vm_mm) {
-+			rc = 0;
-+			goto out;
++/*
++ * Isolate one page from the LRU lists.
++ *
++ * - zone->lru_lock must be held
++ *
++ * Result:
++ *  0 = page not on LRU list
++ *  1 = page removed from LRU list
++ * -1 = page is being freed elsewhere.
++ */
++static inline int
++__isolate_lru_page(struct zone *zone, struct page *page)
++{
++	if (TestClearPageLRU(page)) {
++		if (get_page_testone(page)) {
++			/*
++			 * It is being freed elsewhere
++			 */
++			__put_page(page);
++			SetPageLRU(page);
++			return -1;
++		} else {
++			if (PageActive(page))
++				del_page_from_active_list(zone, page);
++			else
++				del_page_from_inactive_list(zone, page);
++			return 1;
 +		}
-+	list_for_each_entry(vma, &mapping->i_mmap_nonlinear, shared.vm_set.list)
-+		if (mm != vma->vm_mm) {
-+			rc = 0;
-+			goto out;
-+		}
-+out:
-+	spin_unlock(&mapping->i_mmap_lock);
-+	return rc;
++	}
++
++	return 0;
 +}
 +
 +/*
-+ * Add a page to be migrated to the pagelist
++ * Add isolated page back on the LRU lists
++ *
++ * - zone->lru_lock must be held
++ * - page must already be removed from other list
++ * - additional call to put_page() is needed
 + */
-+static void migrate_page_add(struct vm_area_struct *vma,
-+	struct page *page, struct list_head *pagelist, unsigned long flags)
++static inline void
++__putback_lru_page(struct zone *zone, struct page *page)
 +{
-+	/*
-+	 * Avoid migrating a page that is shared by others and not writable.
-+	 */
-+	if ((flags & MPOL_MF_MOVE_ALL) ||
-+	    PageAnon(page) ||
-+	    mapping_writably_mapped(page->mapping) ||
-+	    single_mm_mapping(vma->vm_mm, page->mapping)
-+	   ) {
-+		int rc = isolate_lru_page(page);
++	if (TestSetPageLRU(page))
++		BUG();
 +
-+		if (rc == 1)
-+			list_add(&page->lru, pagelist);
-+		/*
-+		 * If the isolate attempt was not successful
-+		 * then we just encountered an unswappable
-+		 * page. Something must be wrong.
-+	 	 */
-+		WARN_ON(rc == 0);
-+	}
++	if (PageActive(page))
++		add_page_to_active_list(zone, page);
++	else
++		add_page_to_inactive_list(zone, page);
 +}
-+
- /* Ensure all existing pages follow the policy. */
- static int check_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
--		unsigned long addr, unsigned long end, nodemask_t *nodes)
-+		unsigned long addr, unsigned long end,
-+		nodemask_t *nodes, unsigned long flags,
-+		struct list_head *pagelist)
+Index: linux-2.6.14-rc5-mm1/mm/vmscan.c
+===================================================================
+--- linux-2.6.14-rc5-mm1.orig/mm/vmscan.c	2005-10-24 10:27:30.000000000 -0700
++++ linux-2.6.14-rc5-mm1/mm/vmscan.c	2005-10-25 08:09:52.000000000 -0700
+@@ -578,43 +578,75 @@ keep:
+  *
+  * Appropriate locks must be held before calling this function.
+  *
++ * @zone:	The zone where lru_lock is held.
+  * @nr_to_scan:	The number of pages to look through on the list.
+  * @src:	The LRU list to pull pages off.
+  * @dst:	The temp list to put pages on to.
+- * @scanned:	The number of pages that were scanned.
+  *
+- * returns how many pages were moved onto *@dst.
++ * returns the number of pages that were scanned.
+  */
+-static int isolate_lru_pages(int nr_to_scan, struct list_head *src,
+-			     struct list_head *dst, int *scanned)
++static int isolate_lru_pages(struct zone *zone, int nr_to_scan,
++			     struct list_head *src, struct list_head *dst)
  {
- 	pte_t *orig_pte;
- 	pte_t *pte;
-@@ -200,15 +257,23 @@ static int check_pte_range(struct vm_are
- 			continue;
+-	int nr_taken = 0;
+ 	struct page *page;
+-	int scan = 0;
++	int scanned = 0;
++	int rc;
+ 
+-	while (scan++ < nr_to_scan && !list_empty(src)) {
++	while (scanned++ < nr_to_scan && !list_empty(src)) {
+ 		page = lru_to_page(src);
+ 		prefetchw_prev_lru_page(page, src, flags);
+ 
+-		if (!TestClearPageLRU(page))
+-			BUG();
+-		list_del(&page->lru);
+-		if (get_page_testone(page)) {
+-			/*
+-			 * It is being freed elsewhere
+-			 */
+-			__put_page(page);
+-			SetPageLRU(page);
+-			list_add(&page->lru, src);
+-			continue;
+-		} else {
++		rc = __isolate_lru_page(zone, page);
++
++		BUG_ON(rc == 0); /* PageLRU(page) must be true */
++
++		if (rc == 1)     /* Succeeded to isolate page */
+ 			list_add(&page->lru, dst);
+-			nr_taken++;
++
++		if (rc == -1) {  /* Not possible to isolate */
++			list_del(&page->lru);
++			list_add(&page->lru, src);
  		}
- 		nid = pfn_to_nid(pfn);
--		if (!node_isset(nid, *nodes))
--			break;
-+		if (!node_isset(nid, *nodes)) {
-+			if (pagelist) {
-+				struct page *page = pfn_to_page(pfn);
+ 	}
+ 
+-	*scanned = scan;
+-	return nr_taken;
++	return scanned;
++}
 +
-+				migrate_page_add(vma, page, pagelist, flags);
-+			} else
-+				break;
-+		}
- 	} while (pte++, addr += PAGE_SIZE, addr != end);
- 	pte_unmap_unlock(orig_pte, ptl);
- 	return addr != end;
- }
- 
- static inline int check_pmd_range(struct vm_area_struct *vma, pud_t *pud,
--		unsigned long addr, unsigned long end, nodemask_t *nodes)
-+		unsigned long addr, unsigned long end,
-+		nodemask_t *nodes, unsigned long flags,
-+		struct list_head *pagelist)
- {
- 	pmd_t *pmd;
- 	unsigned long next;
-@@ -218,14 +283,17 @@ static inline int check_pmd_range(struct
- 		next = pmd_addr_end(addr, end);
- 		if (pmd_none_or_clear_bad(pmd))
- 			continue;
--		if (check_pte_range(vma, pmd, addr, next, nodes))
-+		if (check_pte_range(vma, pmd, addr, next, nodes,
-+				    flags, pagelist))
- 			return -EIO;
- 	} while (pmd++, addr = next, addr != end);
- 	return 0;
- }
- 
- static inline int check_pud_range(struct vm_area_struct *vma, pgd_t *pgd,
--		unsigned long addr, unsigned long end, nodemask_t *nodes)
-+		unsigned long addr, unsigned long end,
-+		nodemask_t *nodes, unsigned long flags,
-+		struct list_head *pagelist)
- {
- 	pud_t *pud;
- 	unsigned long next;
-@@ -235,14 +303,17 @@ static inline int check_pud_range(struct
- 		next = pud_addr_end(addr, end);
- 		if (pud_none_or_clear_bad(pud))
- 			continue;
--		if (check_pmd_range(vma, pud, addr, next, nodes))
-+		if (check_pmd_range(vma, pud, addr, next, nodes,
-+				    flags, pagelist))
- 			return -EIO;
- 	} while (pud++, addr = next, addr != end);
- 	return 0;
- }
- 
- static inline int check_pgd_range(struct vm_area_struct *vma,
--		unsigned long addr, unsigned long end, nodemask_t *nodes)
-+		unsigned long addr, unsigned long end,
-+		nodemask_t *nodes, unsigned long flags,
-+		struct list_head *pagelist)
- {
- 	pgd_t *pgd;
- 	unsigned long next;
-@@ -252,16 +323,35 @@ static inline int check_pgd_range(struct
- 		next = pgd_addr_end(addr, end);
- 		if (pgd_none_or_clear_bad(pgd))
- 			continue;
--		if (check_pud_range(vma, pgd, addr, next, nodes))
-+		if (check_pud_range(vma, pgd, addr, next, nodes,
-+				    flags, pagelist))
- 			return -EIO;
- 	} while (pgd++, addr = next, addr != end);
- 	return 0;
- }
- 
--/* Step 1: check the range */
-+/* Check if a vma is migratable */
-+static inline int vma_migratable(struct vm_area_struct *vma)
++static void lru_add_drain_per_cpu(void *dummy)
 +{
-+	if (vma->vm_flags & (
-+			VM_LOCKED |
-+			VM_IO |
-+			VM_RESERVED |
-+			VM_DENYWRITE |
-+			VM_SHM
-+	   ))
-+		return 0;
-+	return 1;
++	lru_add_drain();
 +}
 +
 +/*
-+ * Check if all pages in a range are on a set of nodes.
-+ * If pagelist != NULL then isolate pages from the LRU and
-+ * put them on the pagelist.
++ * Isolate one page from the LRU lists and put it on the
++ * indicated list. Do necessary cache draining if the
++ * page is not on the LRU lists yet.
++ *
++ * Result:
++ *  0 = page not on LRU list
++ *  1 = page removed from LRU list and added to the specified list.
++ * -1 = page is being freed elsewhere.
 + */
- static struct vm_area_struct *
- check_range(struct mm_struct *mm, unsigned long start, unsigned long end,
--	    nodemask_t *nodes, unsigned long flags)
-+	    nodemask_t *nodes, unsigned long flags, struct list_head *pagelist)
- {
- 	int err;
- 	struct vm_area_struct *first, *vma, *prev;
-@@ -273,17 +363,24 @@ check_range(struct mm_struct *mm, unsign
- 		return ERR_PTR(-EACCES);
- 	prev = NULL;
- 	for (vma = first; vma && vma->vm_start < end; vma = vma->vm_next) {
--		if (!vma->vm_next && vma->vm_end < end)
--			return ERR_PTR(-EFAULT);
--		if (prev && prev->vm_end < vma->vm_start)
--			return ERR_PTR(-EFAULT);
--		if ((flags & MPOL_MF_STRICT) && !is_vm_hugetlb_page(vma)) {
-+		if (!(flags & MPOL_MF_DISCONTIG_OK)) {
-+			if (!vma->vm_next && vma->vm_end < end)
-+				return ERR_PTR(-EFAULT);
-+			if (prev && prev->vm_end < vma->vm_start)
-+				return ERR_PTR(-EFAULT);
-+		}
-+		if (!is_vm_hugetlb_page(vma) &&
-+		    ((flags & MPOL_MF_STRICT) ||
-+		     ((flags & (MPOL_MF_MOVE | MPOL_MF_MOVE_ALL)) &&
-+		      vma_migratable(vma)
-+		   ))) {
- 			unsigned long endvma = vma->vm_end;
- 			if (endvma > end)
- 				endvma = end;
- 			if (vma->vm_start > start)
- 				start = vma->vm_start;
--			err = check_pgd_range(vma, start, endvma, nodes);
-+			err = check_pgd_range(vma, start, endvma, nodes,
-+						flags, pagelist);
- 			if (err) {
- 				first = ERR_PTR(err);
- 				break;
-@@ -357,33 +454,59 @@ long do_mbind(unsigned long start, unsig
- 	struct mempolicy *new;
- 	unsigned long end;
- 	int err;
-+	LIST_HEAD(pagelist);
- 
--	if ((flags & ~(unsigned long)(MPOL_MF_STRICT)) || mode > MPOL_MAX)
-+	if ((flags & ~(unsigned long)(MPOL_MF_STRICT | MPOL_MF_MOVE | MPOL_MF_MOVE_ALL))
-+	    || mode > MPOL_MAX)
- 		return -EINVAL;
-+	if ((flags & MPOL_MF_MOVE_ALL) && !capable(CAP_SYS_RESOURCE))
-+		return -EPERM;
++int isolate_lru_page(struct page *page)
++{
++	int rc = 0;
++	struct zone *zone = page_zone(page);
 +
- 	if (start & ~PAGE_MASK)
- 		return -EINVAL;
-+
- 	if (mode == MPOL_DEFAULT)
- 		flags &= ~MPOL_MF_STRICT;
-+
- 	len = (len + PAGE_SIZE - 1) & PAGE_MASK;
- 	end = start + len;
-+
- 	if (end < start)
- 		return -EINVAL;
- 	if (end == start)
- 		return 0;
-+
- 	if (mpol_check_policy(mode, nmask))
- 		return -EINVAL;
-+
- 	new = mpol_new(mode, nmask);
- 	if (IS_ERR(new))
- 		return PTR_ERR(new);
- 
-+	/*
-+	 * If we are using the default policy then operation
-+	 * on discontinuous address spaces is okay after all
-+	 */
-+	if (!new)
-+		flags |= MPOL_MF_DISCONTIG_OK;
-+
- 	PDprintk("mbind %lx-%lx mode:%ld nodes:%lx\n",start,start+len,
- 			mode,nodes_addr(nodes)[0]);
- 
- 	down_write(&mm->mmap_sem);
--	vma = check_range(mm, start, end, nmask, flags);
-+	vma = check_range(mm, start, end, nmask, flags,
-+	      (flags & (MPOL_MF_MOVE | MPOL_MF_MOVE_ALL)) ? &pagelist : NULL);
- 	err = PTR_ERR(vma);
--	if (!IS_ERR(vma))
-+	if (!IS_ERR(vma)) {
- 		err = mbind_range(vma, start, end, new);
-+		if (!list_empty(&pagelist))
-+			migrate_pages(&pagelist, NULL);
-+		if (!err  && !list_empty(&pagelist) && (flags & MPOL_MF_STRICT))
-+				err = -EIO;
++redo:
++	spin_lock_irq(&zone->lru_lock);
++	rc = __isolate_lru_page(zone, page);
++	spin_unlock_irq(&zone->lru_lock);
++	if (rc == 0) {
++		/*
++		 * Maybe this page is still waiting for a cpu to drain it
++		 * from one of the lru lists?
++		 */
++		smp_call_function(&lru_add_drain_per_cpu, NULL, 0 , 1);
++		lru_add_drain();
++		if (PageLRU(page))
++			goto redo;
 +	}
-+	if (!list_empty(&pagelist))
-+		putback_lru_pages(&pagelist);
++	return rc;
+ }
+ 
+ /*
+@@ -632,18 +664,15 @@ static void shrink_cache(struct zone *zo
+ 	spin_lock_irq(&zone->lru_lock);
+ 	while (max_scan > 0) {
+ 		struct page *page;
+-		int nr_taken;
+ 		int nr_scan;
+ 		int nr_freed;
+ 
+-		nr_taken = isolate_lru_pages(sc->swap_cluster_max,
+-					     &zone->inactive_list,
+-					     &page_list, &nr_scan);
+-		zone->nr_inactive -= nr_taken;
++		nr_scan = isolate_lru_pages(zone, sc->swap_cluster_max,
++					    &zone->inactive_list, &page_list);
+ 		zone->pages_scanned += nr_scan;
+ 		spin_unlock_irq(&zone->lru_lock);
+ 
+-		if (nr_taken == 0)
++		if (list_empty(&page_list))
+ 			goto done;
+ 
+ 		max_scan -= nr_scan;
+@@ -663,13 +692,9 @@ static void shrink_cache(struct zone *zo
+ 		 */
+ 		while (!list_empty(&page_list)) {
+ 			page = lru_to_page(&page_list);
+-			if (TestSetPageLRU(page))
+-				BUG();
+ 			list_del(&page->lru);
+-			if (PageActive(page))
+-				add_page_to_active_list(zone, page);
+-			else
+-				add_page_to_inactive_list(zone, page);
++			__putback_lru_page(zone, page);
 +
- 	up_write(&mm->mmap_sem);
- 	mpol_free(new);
- 	return err;
-Index: linux-2.6.14-rc5-mm1/include/linux/mempolicy.h
+ 			if (!pagevec_add(&pvec, page)) {
+ 				spin_unlock_irq(&zone->lru_lock);
+ 				__pagevec_release(&pvec);
+@@ -683,6 +708,33 @@ done:
+ }
+ 
+ /*
++ * Add isolated pages on the list back to the LRU
++ * Determines the zone for each pages and takes
++ * the necessary lru lock for each page.
++ *
++ * returns the number of pages put back.
++ */
++int putback_lru_pages(struct list_head *l)
++{
++	struct page * page;
++	struct page * page2;
++	int count = 0;
++
++	list_for_each_entry_safe(page, page2, l, lru) {
++		struct zone *zone = page_zone(page);
++
++		list_del(&page->lru);
++		spin_lock_irq(&zone->lru_lock);
++		__putback_lru_page(zone, page);
++		spin_unlock_irq(&zone->lru_lock);
++		count++;
++		/* Undo the get from isolate_lru_page */
++		put_page(page);
++	}
++	return count;
++}
++
++/*
+  * This moves pages from the active list to the inactive list.
+  *
+  * We move them the other way if the page is referenced by one or more
+@@ -718,10 +770,9 @@ refill_inactive_zone(struct zone *zone, 
+ 
+ 	lru_add_drain();
+ 	spin_lock_irq(&zone->lru_lock);
+-	pgmoved = isolate_lru_pages(nr_pages, &zone->active_list,
+-				    &l_hold, &pgscanned);
++	pgscanned = isolate_lru_pages(zone, nr_pages,
++				      &zone->active_list, &l_hold);
+ 	zone->pages_scanned += pgscanned;
+-	zone->nr_active -= pgmoved;
+ 	spin_unlock_irq(&zone->lru_lock);
+ 
+ 	/*
+Index: linux-2.6.14-rc5-mm1/include/linux/swap.h
 ===================================================================
---- linux-2.6.14-rc5-mm1.orig/include/linux/mempolicy.h	2005-10-24 10:27:12.000000000 -0700
-+++ linux-2.6.14-rc5-mm1/include/linux/mempolicy.h	2005-10-25 09:09:34.000000000 -0700
-@@ -22,6 +22,8 @@
+--- linux-2.6.14-rc5-mm1.orig/include/linux/swap.h	2005-10-24 10:27:13.000000000 -0700
++++ linux-2.6.14-rc5-mm1/include/linux/swap.h	2005-10-25 08:09:52.000000000 -0700
+@@ -176,6 +176,9 @@ extern int zone_reclaim(struct zone *, u
+ extern int shrink_all_memory(int);
+ extern int vm_swappiness;
  
- /* Flags for mbind */
- #define MPOL_MF_STRICT	(1<<0)	/* Verify existing pages in the mapping */
-+#define MPOL_MF_MOVE	(1<<1)	/* Move pages owned by this process to conform to mapping */
-+#define MPOL_MF_MOVE_ALL (1<<2)	/* Move every page to conform to mapping */
- 
- #ifdef __KERNEL__
- 
++extern int isolate_lru_page(struct page *p);
++extern int putback_lru_pages(struct list_head *l);
++
+ #ifdef CONFIG_MMU
+ /* linux/mm/shmem.c */
+ extern int shmem_unuse(swp_entry_t entry, struct page *page);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
