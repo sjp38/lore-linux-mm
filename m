@@ -1,19 +1,23 @@
-Date: Wed, 26 Oct 2005 12:00:55 +1000
+Date: Wed, 26 Oct 2005 12:48:31 +1000
 From: David Gibson <david@gibson.dropbear.id.au>
-Subject: RFC: Cleanup / small fixes to hugetlb fault handling
-Message-ID: <20051026020055.GA17191@localhost.localdomain>
+Subject: Re: RFC: Cleanup / small fixes to hugetlb fault handling
+Message-ID: <20051026024831.GB17191@localhost.localdomain>
+References: <20051026020055.GA17191@localhost.localdomain>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <20051026020055.GA17191@localhost.localdomain>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Adam Litke <agl@us.ibm.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, hugh@veritas.com, William Irwin <wli@holomorphy.com>
+To: Adam Litke <agl@us.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, hugh@veritas.com, William Irwin <wli@holomorphy.com>
 List-ID: <linux-mm.kvack.org>
 
-Hi, Adam, Bill, Hugh,
+On Wed, Oct 26, 2005 at 12:00:55PM +1000, David Gibson wrote:
+> Hi, Adam, Bill, Hugh,
+> 
+> Does this look like a reasonable patch to send to akpm for -mm.
 
-Does this look like a reasonable patch to send to akpm for -mm.
+Ahem.  Or rather this version, which actually compiles.
 
 This patch makes some slight tweaks / cleanups to the fault handling
 path for huge pages in -mm.  My main motivation is to make it simpler
@@ -38,8 +42,8 @@ Signed-off-by: David Gibson <david@gibson.dropbear.id.au>
 Index: working-2.6/mm/hugetlb.c
 ===================================================================
 --- working-2.6.orig/mm/hugetlb.c	2005-10-26 11:18:39.000000000 +1000
-+++ working-2.6/mm/hugetlb.c	2005-10-26 11:34:32.000000000 +1000
-@@ -336,8 +336,8 @@
++++ working-2.6/mm/hugetlb.c	2005-10-26 12:46:29.000000000 +1000
+@@ -336,32 +336,28 @@
  	flush_tlb_range(vma, start, end);
  }
  
@@ -50,7 +54,9 @@ Index: working-2.6/mm/hugetlb.c
  {
  	struct page *page;
  	int err;
-@@ -347,21 +347,19 @@
+-	struct inode *inode = mapping->host;
+-	unsigned long size;
+ 
  retry:
  	page = find_lock_page(mapping, idx);
  	if (page)
@@ -78,7 +84,7 @@ Index: working-2.6/mm/hugetlb.c
  	err = add_to_page_cache(page, mapping, idx, GFP_KERNEL);
  	if (err) {
  		put_page(page);
-@@ -370,50 +368,49 @@
+@@ -370,50 +366,49 @@
  			goto retry;
  		page = NULL;
  	}
@@ -90,7 +96,7 @@ Index: working-2.6/mm/hugetlb.c
 -int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
 -			unsigned long address, int write_access)
 +int hugetlb_no_page(struct mm_struct *mm, struct vm_area_struct *vma,
-+		    unsigned long address, int write_access, pte_t *ptep)
++		    unsigned long address, pte_t *ptep)
  {
 -	int ret = VM_FAULT_SIGBUS;
 +	int ret;
@@ -129,13 +135,15 @@ Index: working-2.6/mm/hugetlb.c
  		goto backout;
  
  	ret = VM_FAULT_MINOR;
+-	if (!pte_none(*pte))
 +
- 	if (!pte_none(*pte))
++	if (!pte_none(*ptep))
 +		/* oops, someone instantiated this PTE before us */
  		goto backout;
  
  	add_mm_counter(mm, file_rss, HPAGE_SIZE / PAGE_SIZE);
- 	set_huge_pte_at(mm, address, pte, make_huge_pte(vma, page));
+-	set_huge_pte_at(mm, address, pte, make_huge_pte(vma, page));
++	set_huge_pte_at(mm, address, ptep, make_huge_pte(vma, page));
 +
  	spin_unlock(&mm->page_table_lock);
  	unlock_page(page);
@@ -144,7 +152,7 @@ Index: working-2.6/mm/hugetlb.c
  	return ret;
  
  backout:
-@@ -421,7 +418,29 @@
+@@ -421,7 +416,30 @@
  	hugetlb_put_quota(mapping);
  	unlock_page(page);
  	put_page(page);
@@ -161,7 +169,8 @@ Index: working-2.6/mm/hugetlb.c
 +
 +	ptep = huge_pte_alloc(mm, address);
 +	if (! ptep)
-+		goto out;
++		/* OOM */
++		return VM_FAULT_SIGBUS;
 +
 +	entry = *ptep;
 +
