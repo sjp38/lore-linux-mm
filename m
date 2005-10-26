@@ -1,46 +1,46 @@
-Date: Wed, 26 Oct 2005 09:48:32 -0700 (PDT)
-From: Christoph Lameter <clameter@engr.sgi.com>
-Subject: Re: [PATCH 3/5] Swap Migration V4: migrate_pages() function
-In-Reply-To: <1130310934.1226.29.camel@localhost>
-Message-ID: <Pine.LNX.4.62.0510260948060.12433@schroedinger.engr.sgi.com>
-References: <20051025193023.6828.89649.sendpatchset@schroedinger.engr.sgi.com>
-  <20051025193039.6828.74991.sendpatchset@schroedinger.engr.sgi.com>
- <1130310934.1226.29.camel@localhost>
+Message-Id: <200510261844.j9QIiqg22461@unix-os.sc.intel.com>
+From: "Chen, Kenneth W" <kenneth.w.chen@intel.com>
+Subject: RE: RFC: Cleanup / small fixes to hugetlb fault handling
+Date: Wed, 26 Oct 2005 11:44:52 -0700
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain;
+	charset="us-ascii"
+Content-Transfer-Encoding: 7bit
+In-Reply-To: <20051026024831.GB17191@localhost.localdomain>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Hansen <haveblue@us.ibm.com>
-Cc: Andrew Morton <akpm@osdl.org>, Marcelo Tosatti <marcelo.tosatti@cyclades.com>, Mike Kravetz <kravetz@us.ibm.com>, Ray Bryant <raybry@mpdtxmail.amd.com>, Lee Schermerhorn <lee.schermerhorn@hp.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Magnus Damm <magnus.damm@gmail.com>, Paul Jackson <pj@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: 'David Gibson' <david@gibson.dropbear.id.au>, Adam Litke <agl@us.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, hugh@veritas.com, William Irwin <wli@holomorphy.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 26 Oct 2005, Dave Hansen wrote:
+David Gibson wrote on Tuesday, October 25, 2005 7:49 PM
+> +int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+> +		  unsigned long address, int write_access)
+> +{
+> +	pte_t *ptep;
+> +	pte_t entry;
+> +
+> +	ptep = huge_pte_alloc(mm, address);
+> +	if (! ptep)
+> +		/* OOM */
+> +		return VM_FAULT_SIGBUS;
+> +
+> +	entry = *ptep;
+> +
+> +	if (pte_none(entry))
+> +		return hugetlb_no_page(mm, vma, address, ptep);
+> +
+> +	/* we could get here if another thread instantiated the pte
+> +	 * before the test above */
+> +
+> +	return VM_FAULT_SIGBUS;
+>  }
 
-> Why is this #ifdef needed?  PageSwapCache() is #defined to 0 when !
-> CONFIG_SWAP.
+Are you sure about the last return?  Looks like a typo to me, if *ptep
+is present, it should return VM_FAULT_MINOR.
 
-Right.
+But the bigger question is: don't you need some lock when checking *ptep?
 
-Index: linux-2.6.14-rc5-mm1/mm/vmscan.c
-===================================================================
---- linux-2.6.14-rc5-mm1.orig/mm/vmscan.c	2005-10-26 09:46:20.000000000 -0700
-+++ linux-2.6.14-rc5-mm1/mm/vmscan.c	2005-10-26 09:47:33.000000000 -0700
-@@ -387,7 +387,6 @@ static inline int remove_mapping(struct 
- 	if (unlikely(PageDirty(page)))
- 		goto cannot_free;
- 
--#ifdef CONFIG_SWAP
- 	if (PageSwapCache(page)) {
- 		swp_entry_t swap = { .val = page_private(page) };
- 		add_to_swapped_list(swap.val);
-@@ -397,7 +396,6 @@ static inline int remove_mapping(struct 
- 		__put_page(page);	/* The pagecache ref */
- 		return 1;
- 	}
--#endif /* CONFIG_SWAP */
- 
- 	__remove_from_page_cache(page);
- 	write_unlock_irq(&mapping->tree_lock);
+- Ken
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
