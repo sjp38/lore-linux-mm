@@ -1,70 +1,46 @@
-Date: Wed, 26 Oct 2005 09:44:58 -0700 (PDT)
+Date: Wed, 26 Oct 2005 09:48:32 -0700 (PDT)
 From: Christoph Lameter <clameter@engr.sgi.com>
-Subject: Re: [PATCH 1/5] Swap Migration V4: LRU operations
-In-Reply-To: <1130319083.17653.37.camel@localhost.localdomain>
-Message-ID: <Pine.LNX.4.62.0510260943330.12433@schroedinger.engr.sgi.com>
+Subject: Re: [PATCH 3/5] Swap Migration V4: migrate_pages() function
+In-Reply-To: <1130310934.1226.29.camel@localhost>
+Message-ID: <Pine.LNX.4.62.0510260948060.12433@schroedinger.engr.sgi.com>
 References: <20051025193023.6828.89649.sendpatchset@schroedinger.engr.sgi.com>
-  <20051025193028.6828.27929.sendpatchset@schroedinger.engr.sgi.com>
- <1130319083.17653.37.camel@localhost.localdomain>
+  <20051025193039.6828.74991.sendpatchset@schroedinger.engr.sgi.com>
+ <1130310934.1226.29.camel@localhost>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Peter Zijlstra <peter@programming.kicks-ass.net>
-Cc: akpm@osdl.org, Marcelo Tosatti <marcelo.tosatti@cyclades.com>, Mike Kravetz <kravetz@us.ibm.com>, Ray Bryant <raybry@mpdtxmail.amd.com>, Lee Schermerhorn <lee.schermerhorn@hp.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Magnus Damm <magnus.damm@gmail.com>, Paul Jackson <pj@sgi.com>, Dave Hansen <haveblue@us.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Dave Hansen <haveblue@us.ibm.com>
+Cc: Andrew Morton <akpm@osdl.org>, Marcelo Tosatti <marcelo.tosatti@cyclades.com>, Mike Kravetz <kravetz@us.ibm.com>, Ray Bryant <raybry@mpdtxmail.amd.com>, Lee Schermerhorn <lee.schermerhorn@hp.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Magnus Damm <magnus.damm@gmail.com>, Paul Jackson <pj@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 26 Oct 2005, Peter Zijlstra wrote:
+On Wed, 26 Oct 2005, Dave Hansen wrote:
 
-> On Tue, 2005-10-25 at 12:30 -0700, Christoph Lameter wrote:
-> 
-> > +		if (rc == -1) {  /* Not possible to isolate */
-> > +			list_del(&page->lru);
-> > +			list_add(&page->lru, src);
-> >  		}
-> 
-> Would the usage of list_move() not be simpler?
+> Why is this #ifdef needed?  PageSwapCache() is #defined to 0 when !
+> CONFIG_SWAP.
 
-Hmmm. yes the whole section is a bit weird there (sorry Magnus). How 
-about this additional patch:
+Right.
 
 Index: linux-2.6.14-rc5-mm1/mm/vmscan.c
 ===================================================================
---- linux-2.6.14-rc5-mm1.orig/mm/vmscan.c	2005-10-25 08:09:52.000000000 -0700
-+++ linux-2.6.14-rc5-mm1/mm/vmscan.c	2005-10-26 09:42:34.000000000 -0700
-@@ -590,22 +590,22 @@ static int isolate_lru_pages(struct zone
- {
- 	struct page *page;
- 	int scanned = 0;
--	int rc;
+--- linux-2.6.14-rc5-mm1.orig/mm/vmscan.c	2005-10-26 09:46:20.000000000 -0700
++++ linux-2.6.14-rc5-mm1/mm/vmscan.c	2005-10-26 09:47:33.000000000 -0700
+@@ -387,7 +387,6 @@ static inline int remove_mapping(struct 
+ 	if (unlikely(PageDirty(page)))
+ 		goto cannot_free;
  
- 	while (scanned++ < nr_to_scan && !list_empty(src)) {
- 		page = lru_to_page(src);
- 		prefetchw_prev_lru_page(page, src, flags);
- 
--		rc = __isolate_lru_page(zone, page);
--
--		BUG_ON(rc == 0); /* PageLRU(page) must be true */
--
--		if (rc == 1)     /* Succeeded to isolate page */
-+		switch (__isolate_lru_page(zone, page)) {
-+		case 1:
-+			/* Succeeded to isolate page */
- 			list_add(&page->lru, dst);
--
--		if (rc == -1) {  /* Not possible to isolate */
--			list_del(&page->lru);
--			list_add(&page->lru, src);
-+			break;
-+		case -1:
-+			/* Not possible to isolate */
-+			list_move(&page->lru, src);
-+			break;
-+		default:
-+			BUG();
- 		}
+-#ifdef CONFIG_SWAP
+ 	if (PageSwapCache(page)) {
+ 		swp_entry_t swap = { .val = page_private(page) };
+ 		add_to_swapped_list(swap.val);
+@@ -397,7 +396,6 @@ static inline int remove_mapping(struct 
+ 		__put_page(page);	/* The pagecache ref */
+ 		return 1;
  	}
+-#endif /* CONFIG_SWAP */
  
+ 	__remove_from_page_cache(page);
+ 	write_unlock_irq(&mapping->tree_lock);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
