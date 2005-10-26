@@ -1,196 +1,61 @@
-Date: Wed, 26 Oct 2005 12:48:31 +1000
-From: David Gibson <david@gibson.dropbear.id.au>
-Subject: Re: RFC: Cleanup / small fixes to hugetlb fault handling
-Message-ID: <20051026024831.GB17191@localhost.localdomain>
-References: <20051026020055.GA17191@localhost.localdomain>
+Date: Tue, 25 Oct 2005 21:52:29 -0700
+From: Andrew Morton <akpm@osdl.org>
+Subject: Re: [Bug 5493] New: mprotect usage causing slow system performance
+ and freezing
+Message-Id: <20051025215229.3e8e3f57.akpm@osdl.org>
+In-Reply-To: <200510251108.j9PB8EZJ025221@fire-1.osdl.org>
+References: <200510251108.j9PB8EZJ025221@fire-1.osdl.org>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20051026020055.GA17191@localhost.localdomain>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Adam Litke <agl@us.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, hugh@veritas.com, William Irwin <wli@holomorphy.com>
+To: linux-mm@kvack.org
+Cc: "bugme-daemon@kernel-bugs.osdl.org" <bugme-daemon@kernel-bugs.osdl.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Oct 26, 2005 at 12:00:55PM +1000, David Gibson wrote:
-> Hi, Adam, Bill, Hugh,
-> 
-> Does this look like a reasonable patch to send to akpm for -mm.
+ http://bugzilla.kernel.org/show_bug.cgi?id=5493
 
-Ahem.  Or rather this version, which actually compiles.
+This real-world application is failing due to the new rmap code.  There are
+a large number of vmas and the linear searches in rmap.c are completely
+killing us.
 
-This patch makes some slight tweaks / cleanups to the fault handling
-path for huge pages in -mm.  My main motivation is to make it simpler
-to fit COW in, but along the way it addresses a few minor problems
-with the existing code:
+Profile:
 
-- The check against i_size was duplicated: once in
-  find_lock_huge_page() and again in hugetlb_fault() after taking the
-  page_table_lock.  We only really need the locked one, so remove the
-  other.
-
-- find_lock_huge_page() didn't, in fact, lock the page if it newly
-  allocated one, rather than finding it in the page cache already.  As
-  far as I can tell this is a bug, so the patch corrects it.
-
-- find_lock_huge_page() isn't a great name, since it does extra things
-  not analagous to find_lock_page().  Rename it
-  find_or_alloc_huge_page() which is closer to the mark.
-
-Signed-off-by: David Gibson <david@gibson.dropbear.id.au>
-
-Index: working-2.6/mm/hugetlb.c
-===================================================================
---- working-2.6.orig/mm/hugetlb.c	2005-10-26 11:18:39.000000000 +1000
-+++ working-2.6/mm/hugetlb.c	2005-10-26 12:46:29.000000000 +1000
-@@ -336,32 +336,28 @@
- 	flush_tlb_range(vma, start, end);
- }
- 
--static struct page *find_lock_huge_page(struct address_space *mapping,
--			unsigned long idx)
-+static struct page *find_or_alloc_huge_page(struct address_space *mapping,
-+					    unsigned long idx)
- {
- 	struct page *page;
- 	int err;
--	struct inode *inode = mapping->host;
--	unsigned long size;
- 
- retry:
- 	page = find_lock_page(mapping, idx);
- 	if (page)
--		goto out;
--
--	/* Check to make sure the mapping hasn't been truncated */
--	size = i_size_read(inode) >> HPAGE_SHIFT;
--	if (idx >= size)
--		goto out;
-+		return page;
- 
- 	if (hugetlb_get_quota(mapping))
--		goto out;
-+		return NULL;
-+
- 	page = alloc_huge_page();
- 	if (!page) {
- 		hugetlb_put_quota(mapping);
--		goto out;
-+		return NULL;
- 	}
- 
-+	lock_page(page);
-+
- 	err = add_to_page_cache(page, mapping, idx, GFP_KERNEL);
- 	if (err) {
- 		put_page(page);
-@@ -370,50 +366,49 @@
- 			goto retry;
- 		page = NULL;
- 	}
--out:
-+
- 	return page;
- }
- 
--int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
--			unsigned long address, int write_access)
-+int hugetlb_no_page(struct mm_struct *mm, struct vm_area_struct *vma,
-+		    unsigned long address, pte_t *ptep)
- {
--	int ret = VM_FAULT_SIGBUS;
-+	int ret;
- 	unsigned long idx;
- 	unsigned long size;
--	pte_t *pte;
- 	struct page *page;
- 	struct address_space *mapping;
- 
--	pte = huge_pte_alloc(mm, address);
--	if (!pte)
--		goto out;
--
- 	mapping = vma->vm_file->f_mapping;
- 	idx = ((address - vma->vm_start) >> HPAGE_SHIFT)
- 		+ (vma->vm_pgoff >> (HPAGE_SHIFT - PAGE_SHIFT));
- 
--	/*
--	 * Use page lock to guard against racing truncation
--	 * before we get page_table_lock.
--	 */
--	page = find_lock_huge_page(mapping, idx);
-+	/* This returns a locked page, which keeps us safe in the
-+	 * event of a race with truncate() */
-+	page = find_or_alloc_huge_page(mapping, idx);
- 	if (!page)
--		goto out;
-+		return VM_FAULT_SIGBUS;
- 
- 	spin_lock(&mm->page_table_lock);
-+
-+	ret = VM_FAULT_SIGBUS;
-+
- 	size = i_size_read(mapping->host) >> HPAGE_SHIFT;
- 	if (idx >= size)
- 		goto backout;
- 
- 	ret = VM_FAULT_MINOR;
--	if (!pte_none(*pte))
-+
-+	if (!pte_none(*ptep))
-+		/* oops, someone instantiated this PTE before us */
- 		goto backout;
- 
- 	add_mm_counter(mm, file_rss, HPAGE_SIZE / PAGE_SIZE);
--	set_huge_pte_at(mm, address, pte, make_huge_pte(vma, page));
-+	set_huge_pte_at(mm, address, ptep, make_huge_pte(vma, page));
-+
- 	spin_unlock(&mm->page_table_lock);
- 	unlock_page(page);
--out:
-+
- 	return ret;
- 
- backout:
-@@ -421,7 +416,30 @@
- 	hugetlb_put_quota(mapping);
- 	unlock_page(page);
- 	put_page(page);
--	goto out;
-+
-+	return ret;
-+}
-+
-+int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
-+		  unsigned long address, int write_access)
-+{
-+	pte_t *ptep;
-+	pte_t entry;
-+
-+	ptep = huge_pte_alloc(mm, address);
-+	if (! ptep)
-+		/* OOM */
-+		return VM_FAULT_SIGBUS;
-+
-+	entry = *ptep;
-+
-+	if (pte_none(entry))
-+		return hugetlb_no_page(mm, vma, address, ptep);
-+
-+	/* we could get here if another thread instantiated the pte
-+	 * before the test above */
-+
-+	return VM_FAULT_SIGBUS;
- }
- 
- int follow_hugetlb_page(struct mm_struct *mm, struct vm_area_struct *vma,
-
-
--- 
-David Gibson			| I'll have my music baroque, and my code
-david AT gibson.dropbear.id.au	| minimalist, thank you.  NOT _the_ _other_
-				| _way_ _around_!
-http://www.ozlabs.org/people/dgibson
+c01608f0 __link_path_walk                              1   0.0003
+c016ace8 __d_lookup                                    1   0.0036
+c0191b70 gcc2_compiled.                                1   0.0071
+c023a368 _raw_spin_unlock                              1   0.0078
+c02fe410 ide_inb                                       1   0.0625
+c0117580 write_profile                                 2   0.0377
+c013da20 kmem_flagcheck                                2   0.0385
+c013e4c8 kmem_cache_alloc                              2   0.0143
+c01406d4 shrink_list                                   2   0.0020
+c0143a10 zap_pte_range                                 2   0.0032
+c014ba50 get_swap_page                                 2   0.0032
+c0236634 radix_tree_preload                            2   0.0179
+c02da3e0 generic_make_request                          2   0.0044
+c02fe468 ide_outb                                      2   0.1250
+c041f47c _write_unlock_irqrestore                      2   0.0833
+c01395c0 __alloc_pages                                 3   0.0031
+c0139ccc __mod_page_state                              3   0.1250
+c013e150 cache_alloc_debugcheck_after                  3   0.0112
+c0144910 do_wp_page                                    3   0.0037
+c0149ec0 page_referenced                               3   0.0197
+c014bcbc swap_info_get                                 3   0.0197
+c015807c bio_alloc                                     3   0.0750
+c041f494 _write_unlock_irq                             4   0.2000
+c013cac4 check_poison_obj                              5   0.0137
+c0142bd0 page_address                                  9   0.0625
+c041f890 do_page_fault                                 9   0.0054
+c0149bbc page_check_address                           11   0.0573
+c041f40c _spin_unlock_irq                             18   0.9000
+c0139380 buffered_rmqueue                             32   0.0748
+c014a024 try_to_unmap_one                            782   1.7455
+c014a400 try_to_unmap_anon                          1511  11.1103
+c0149c7c page_referenced_one                        4169  17.0861
+c0149d70 page_referenced_anon                       8498  62.4853
+00000000 total                                     15109   0.0046
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
