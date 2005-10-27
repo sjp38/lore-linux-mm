@@ -1,53 +1,45 @@
-Date: Thu, 27 Oct 2005 11:20:54 -0700
-From: Andrew Morton <akpm@osdl.org>
-Subject: Re: [RFC] madvise(MADV_TRUNCATE)
-Message-Id: <20051027112054.10e945ae.akpm@osdl.org>
-In-Reply-To: <20051027151123.GO5091@opteron.random>
-References: <1130366995.23729.38.camel@localhost.localdomain>
-	<200510271038.52277.ak@suse.de>
-	<20051027131725.GI5091@opteron.random>
-	<1130425212.23729.55.camel@localhost.localdomain>
-	<20051027151123.GO5091@opteron.random>
+Date: Thu, 27 Oct 2005 13:31:04 -0500
+From: Dean Roe <roe@sgi.com>
+Subject: Re: [ PATCH ] - Avoid slow TLB purges on SGI Altix systems
+Message-ID: <20051027183104.GA12888@sgi.com>
+References: <B8E391BBE9FE384DAA4C5C003888BE6F04C8CF40@scsmsx401.amr.corp.intel.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <B8E391BBE9FE384DAA4C5C003888BE6F04C8CF40@scsmsx401.amr.corp.intel.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrea Arcangeli <andrea@suse.de>
-Cc: pbadari@us.ibm.com, ak@suse.de, hugh@veritas.com, jdike@addtoit.com, dvhltc@us.ibm.com, linux-mm@kvack.org
+To: "Luck, Tony" <tony.luck@intel.com>
+Cc: Dean Roe <roe@sgi.com>, linux-ia64@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-err, guys.
-
-Andrea Arcangeli <andrea@suse.de> wrote:
->
-> ...
->
-> tmpfs (the short term big need of this feature).
+On Thu, Oct 27, 2005 at 09:01:53AM -0700, Luck, Tony wrote:
+> -	if (mm != current->active_mm) {
+> -		/* this does happen, but perhaps it's not worth optimizing for? */
+> -#ifdef CONFIG_SMP
+> -		flush_tlb_all();
+> -#else
+> -		mm->context = 0;
+> -#endif
+> -		return;
+> -	}
 > 
-> ...
->
-> Freeing swap entries is the most important thing and at the same time
-> the most complex in the patch (that's why the previous MADV_DISCARD was
-> so simple ;).
+> Your patch moves this secion of code up to ia64_global_tlb_purge(),
+> but the new code that is added there doesn't include the UP case
+> where mm->context is set to zero.
+> 
+> -Tony
 > 
 
-I think there's something you're not telling us!
+flush_tlb_range() only calls platform_global_tlb_purge() for CONFIG_SMP,
+so there's no point in having that code in ia64_global_tlb_purge().
 
-googling MADV_DISCARD comes up with basically nothing.  MADV_TRUNCATE comes
-up with precisely nothing.
+Dean
 
-Why does tmpfs need this feature?  What's the requirement here?  Please
-spill the beans ;)
-
-
-Comment on the patch: doing it via madvise sneakily gets around the
-problems with partial-page truncation (we don't currently have a way to
-release anything but the the tail-end of a page's blocks).
-
-But if we start adding infrastructure of this sort people are, reasonably,
-going to want to add sys_holepunch(fd, start, len) and it's going to get
-complexer.
+-- 
+Dean Roe
+Silicon Graphics, Inc.
+roe@sgi.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
