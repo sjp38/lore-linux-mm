@@ -1,54 +1,46 @@
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by e5.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id j9RNLMBw019090
-	for <linux-mm@kvack.org>; Thu, 27 Oct 2005 19:21:22 -0400
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay04.pok.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id j9RNLLl1110102
-	for <linux-mm@kvack.org>; Thu, 27 Oct 2005 19:21:21 -0400
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.12.11/8.13.3) with ESMTP id j9RNLLt0000876
-	for <linux-mm@kvack.org>; Thu, 27 Oct 2005 19:21:21 -0400
-Message-ID: <436160F0.8050609@us.ibm.com>
-Date: Thu, 27 Oct 2005 16:21:20 -0700
-From: Darren Hart <dvhltc@us.ibm.com>
 MIME-Version: 1.0
-Subject: Re: [RFC] madvise(MADV_TRUNCATE)
-References: <E1EVDbZ-0004fp-00@w-gerrit.beaverton.ibm.com> <200510272156.03276.ak@suse.de>
-In-Reply-To: <200510272156.03276.ak@suse.de>
-Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
+Message-ID: <17249.25225.582755.489919@wombat.chubb.wattle.id.au>
+Date: Fri, 28 Oct 2005 09:28:09 +1000
+From: Peter Chubb <peterc@gelato.unsw.edu.au>
+Subject: Re: [RFC] madvise(MADV_TRUNCATE)
+In-Reply-To: <20051027200434.GT5091@opteron.random>
+References: <1130366995.23729.38.camel@localhost.localdomain>
+	<200510271038.52277.ak@suse.de>
+	<20051027131725.GI5091@opteron.random>
+	<1130425212.23729.55.camel@localhost.localdomain>
+	<20051027151123.GO5091@opteron.random>
+	<20051027112054.10e945ae.akpm@osdl.org>
+	<20051027200434.GT5091@opteron.random>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <ak@suse.de>
-Cc: Gerrit Huizenga <gh@us.ibm.com>, Andrew Morton <akpm@osdl.org>, Badari Pulavarty <pbadari@us.ibm.com>, andrea@suse.de, hugh@veritas.com, jdike@addtoit.com, linux-mm@kvack.org
+To: Andrea Arcangeli <andrea@suse.de>
+Cc: Andrew Morton <akpm@osdl.org>, pbadari@us.ibm.com, ak@suse.de, hugh@veritas.com, jdike@addtoit.com, dvhltc@us.ibm.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Andi Kleen wrote:
-> On Thursday 27 October 2005 21:40, Gerrit Huizenga wrote:
-> 
-> 
->> I believe Java uses mmap() today for this; DB2 probably uses both mmap()
->> and shm*().
-> 
-> 
-> In the java case the memory should be anonymous, no? This means just plain
-> munmap would work. Or do I miss something?
+>>>>> "Andrea" == Andrea Arcangeli <andrea@suse.de> writes:
 
-I believe it was mentioned earlier (Andrea in reply to Ted) that 
-madvise(MADV_DONTNEED) would work in the anonymous case.
+Andrea> On Thu, Oct 27, 2005 at 11:20:54AM -0700, Andrew Morton wrote:
 
-> 
-> -Andi
-> 
->  
-> 
+Andrea> The idea is to implement a sys_truncate_range, but using the
+Andrea> mappings so the user doesn't need to keep track of which parts
+Andrea> of the file have to be truncated, and it only needs to know
+Andrea> which part of the address space is obsolete. This will be the
+Andrea> first API that allows to re-create holes in files.
+
+The preexisting art is for the SysVr4 fcntl(fd, F_FREESP, &lk);
+which frees space in the file covered by the struct flock * third
+argument.   Depending on the fileystem, this may or may not work in
+the middle of a file: it does for XFS, and could for tmpfs.  It always
+works at the end of a file.  So that should be `first API in Linux'
+
+Peter C
 
 
 -- 
-Darren Hart
-IBM Linux Technology Center
-Linux Kernel Team
-Phone: 503 578 3185
-   T/L: 775 3185
+Dr Peter Chubb  http://www.gelato.unsw.edu.au  peterc AT gelato.unsw.edu.au
+The technical we do immediately,  the political takes *forever*
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
