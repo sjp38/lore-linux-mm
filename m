@@ -1,54 +1,41 @@
-Date: Thu, 27 Oct 2005 16:49:59 -0700
-From: Andrew Morton <akpm@osdl.org>
+Date: Fri, 28 Oct 2005 09:56:00 +1000
+From: Nathan Scott <nathans@sgi.com>
 Subject: Re: [RFC] madvise(MADV_TRUNCATE)
-Message-Id: <20051027164959.61d04327.akpm@osdl.org>
-In-Reply-To: <17249.25225.582755.489919@wombat.chubb.wattle.id.au>
-References: <1130366995.23729.38.camel@localhost.localdomain>
-	<200510271038.52277.ak@suse.de>
-	<20051027131725.GI5091@opteron.random>
-	<1130425212.23729.55.camel@localhost.localdomain>
-	<20051027151123.GO5091@opteron.random>
-	<20051027112054.10e945ae.akpm@osdl.org>
-	<20051027200434.GT5091@opteron.random>
-	<17249.25225.582755.489919@wombat.chubb.wattle.id.au>
+Message-ID: <20051028095600.Y6002974@wobbly.melbourne.sgi.com>
+References: <1130366995.23729.38.camel@localhost.localdomain> <200510271038.52277.ak@suse.de> <20051027131725.GI5091@opteron.random> <1130425212.23729.55.camel@localhost.localdomain> <20051027151123.GO5091@opteron.random> <20051027112054.10e945ae.akpm@osdl.org> <20051027200434.GT5091@opteron.random> <17249.25225.582755.489919@wombat.chubb.wattle.id.au> <20051027164959.61d04327.akpm@osdl.org>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20051027164959.61d04327.akpm@osdl.org>; from akpm@osdl.org on Thu, Oct 27, 2005 at 04:49:59PM -0700
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Peter Chubb <peterc@gelato.unsw.edu.au>
-Cc: andrea@suse.de, pbadari@us.ibm.com, ak@suse.de, hugh@veritas.com, jdike@addtoit.com, dvhltc@us.ibm.com, linux-mm@kvack.org
+To: Andrew Morton <akpm@osdl.org>
+Cc: Peter Chubb <peterc@gelato.unsw.edu.au>, andrea@suse.de, pbadari@us.ibm.com, ak@suse.de, hugh@veritas.com, jdike@addtoit.com, dvhltc@us.ibm.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Peter Chubb <peterc@gelato.unsw.edu.au> wrote:
->
-> >>>>> "Andrea" == Andrea Arcangeli <andrea@suse.de> writes:
+On Thu, Oct 27, 2005 at 04:49:59PM -0700, Andrew Morton wrote:
+> Peter Chubb <peterc@gelato.unsw.edu.au> wrote:
+> > The preexisting art is for the SysVr4 fcntl(fd, F_FREESP, &lk);
+> > which frees space in the file covered by the struct flock * third
+> > argument.
 > 
-> Andrea> On Thu, Oct 27, 2005 at 11:20:54AM -0700, Andrew Morton wrote:
+> Thanks.  That's a rather klunky API but it'd be straightforward enough to
+> implement.
 > 
-> Andrea> The idea is to implement a sys_truncate_range, but using the
-> Andrea> mappings so the user doesn't need to keep track of which parts
-> Andrea> of the file have to be truncated, and it only needs to know
-> Andrea> which part of the address space is obsolete. This will be the
-> Andrea> first API that allows to re-create holes in files.
-> 
-> The preexisting art is for the SysVr4 fcntl(fd, F_FREESP, &lk);
-> which frees space in the file covered by the struct flock * third
-> argument.
+> However if we did this we'd need to do a 64-bit version as well, using
+> flock64.  Which means we really needn't bother with the 32-bit version,
+> which means we're not svr4-compatible, unless svr4 also has a 64-bit
+> version??
 
-Thanks.  That's a rather klunky API but it'd be straightforward enough to
-implement.
+There is, at least on IRIX (F_FREESP64).  Agreed on the API klunkiness
+though ... its really not pretty. :|  Personally, I'd recommend going
+with a sane API, and perhaps emulating the other on top of it if need
+be.
 
-However if we did this we'd need to do a 64-bit version as well, using
-flock64.  Which means we really needn't bother with the 32-bit version,
-which means we're not svr4-compatible, unless svr4 also has a 64-bit
-version??
+cheers.
 
->   Depending on the fileystem, this may or may not work in
-> the middle of a file: it does for XFS, and could for tmpfs.  It always
-> works at the end of a file.  So that should be `first API in Linux'
-
-Sounds sane.
+-- 
+Nathan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
