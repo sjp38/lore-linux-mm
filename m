@@ -1,11 +1,11 @@
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
-Message-ID: <17249.25225.582755.489919@wombat.chubb.wattle.id.au>
-Date: Fri, 28 Oct 2005 09:28:09 +1000
+Message-ID: <17249.25537.622745.577885@wombat.chubb.wattle.id.au>
+Date: Fri, 28 Oct 2005 09:33:21 +1000
 From: Peter Chubb <peterc@gelato.unsw.edu.au>
 Subject: Re: [RFC] madvise(MADV_TRUNCATE)
-In-Reply-To: <20051027200434.GT5091@opteron.random>
+In-Reply-To: <20051027161602.38a4051b.akpm@osdl.org>
 References: <1130366995.23729.38.camel@localhost.localdomain>
 	<200510271038.52277.ak@suse.de>
 	<20051027131725.GI5091@opteron.random>
@@ -13,29 +13,26 @@ References: <1130366995.23729.38.camel@localhost.localdomain>
 	<20051027151123.GO5091@opteron.random>
 	<20051027112054.10e945ae.akpm@osdl.org>
 	<20051027200434.GT5091@opteron.random>
+	<20051027135058.2f72e706.akpm@osdl.org>
+	<20051027213721.GX5091@opteron.random>
+	<20051027152340.5e3ae2c6.akpm@osdl.org>
+	<1130454352.23729.134.camel@localhost.localdomain>
+	<20051027161602.38a4051b.akpm@osdl.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrea Arcangeli <andrea@suse.de>
-Cc: Andrew Morton <akpm@osdl.org>, pbadari@us.ibm.com, ak@suse.de, hugh@veritas.com, jdike@addtoit.com, dvhltc@us.ibm.com, linux-mm@kvack.org
+To: Andrew Morton <akpm@osdl.org>
+Cc: Badari Pulavarty <pbadari@us.ibm.com>, andrea@suse.de, ak@suse.de, hugh@veritas.com, jdike@addtoit.com, dvhltc@us.ibm.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
->>>>> "Andrea" == Andrea Arcangeli <andrea@suse.de> writes:
+>>>>> "Andrew" == Andrew Morton <akpm@osdl.org> writes:
 
-Andrea> On Thu, Oct 27, 2005 at 11:20:54AM -0700, Andrew Morton wrote:
 
-Andrea> The idea is to implement a sys_truncate_range, but using the
-Andrea> mappings so the user doesn't need to keep track of which parts
-Andrea> of the file have to be truncated, and it only needs to know
-Andrea> which part of the address space is obsolete. This will be the
-Andrea> first API that allows to re-create holes in files.
+Andrew> Can we do sys_fholepunch(int fd, loff_t offset, loff_t
+Andrew> length)?  That requires that your applications know both the
+Andrew> fd and the file offset.
 
-The preexisting art is for the SysVr4 fcntl(fd, F_FREESP, &lk);
-which frees space in the file covered by the struct flock * third
-argument.   Depending on the fileystem, this may or may not work in
-the middle of a file: it does for XFS, and could for tmpfs.  It always
-works at the end of a file.  So that should be `first API in Linux'
-
-Peter C
+Can we copy the SvR4 fcntl(int fd, F_FREESP, struct flock *lkp) ??
+It'd ease the  porting burden for some things.
 
 
 -- 
