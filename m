@@ -1,44 +1,71 @@
-Date: Thu, 27 Oct 2005 19:00:11 -0700
-From: Andrew Morton <akpm@osdl.org>
-Subject: Re: [RFC] madvise(MADV_TRUNCATE)
-Message-Id: <20051027190011.5503a297.akpm@osdl.org>
-In-Reply-To: <43617E87.4040605@us.ibm.com>
-References: <1130366995.23729.38.camel@localhost.localdomain>
-	<200510271038.52277.ak@suse.de>
-	<20051027131725.GI5091@opteron.random>
-	<1130425212.23729.55.camel@localhost.localdomain>
-	<20051027151123.GO5091@opteron.random>
-	<20051027112054.10e945ae.akpm@osdl.org>
-	<20051027200434.GT5091@opteron.random>
-	<20051027135058.2f72e706.akpm@osdl.org>
-	<20051027213721.GX5091@opteron.random>
-	<20051027152340.5e3ae2c6.akpm@osdl.org>
-	<20051028002231.GC5091@opteron.random>
-	<20051027173243.41ecd335.akpm@osdl.org>
-	<43617E87.4040605@us.ibm.com>
+Date: Thu, 27 Oct 2005 19:35:48 -0200
+From: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
+Subject: Re: [PATCH 0/4] Swap migration V3: Overview
+Message-ID: <20051027213548.GB8128@logos.cnet>
+References: <20051020225935.19761.57434.sendpatchset@schroedinger.engr.sgi.com> <aec7e5c30510201857r7cf9d337wce9a4017064adcf@mail.gmail.com> <20051022005050.GA27317@logos.cnet> <aec7e5c30510230550j66d6e37fg505fd6041dca9bee@mail.gmail.com> <20051024074418.GC2016@logos.cnet> <aec7e5c30510250437h6c300066s14e39a0c91be772c@mail.gmail.com> <20051025143741.GA6604@logos.cnet> <aec7e5c30510260004p5a3b07a9v28ae67b2982f1945@mail.gmail.com> <20051027150142.GE13500@logos.cnet> <20051027134347.56d29cfa.akpm@osdl.org>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20051027134347.56d29cfa.akpm@osdl.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Badari Pulavarty <pbadari@us.ibm.com>
-Cc: andrea@suse.de, ak@suse.de, hugh@veritas.com, jdike@addtoit.com, dvhltc@us.ibm.com, linux-mm@kvack.org
+To: Andrew Morton <akpm@osdl.org>
+Cc: magnus.damm@gmail.com, clameter@sgi.com, kravetz@us.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Badari Pulavarty <pbadari@us.ibm.com> wrote:
->
-> I am still not clear on the consensus here - the plan is go forward
->  with the patch (ofcourse, naming changes) and may be later add
->  (fd, offset, len) version of it through sys_holepunch ?
+Hi Andrew!
 
-Spose so.  <mutter>.
+On Thu, Oct 27, 2005 at 01:43:47PM -0700, Andrew Morton wrote:
+> Marcelo Tosatti <marcelo.tosatti@cyclades.com> wrote:
+> >
+> > The fair approach would be to have the
+> >  number of pages to reclaim also relative to zone size.
+> >
+> >  sc->nr_to_reclaim = (zone->present_pages * sc->swap_cluster_max) /
+> >                                  total_memory;
+> 
+> You can try it, but that shouldn't matter.  SWAP_CLUSTER_MAX is just a
+> batching factor used to reduce CPU consumption.  If you make it twice as
+> bug, we run DMA-zone reclaim half as often - it should balance out.
 
-Please ensure that the changlog captures everything which we've discussed.
+But you're not taking the relationship between DMA and NORMAL zone 
+into account?
 
->  If so, I can quickly redo my patch + I need to work out bugs in
->  shm_truncate_range().
+I suppose that a side effect of such change is that more allocations
+will become serviced from the NORMAL/HIGHMEM zones ("more intensively
+reclaimed") while less allocations will become serviced by the DMA zone
+(whose scan/reclaim progress should now be _much_ lighter than that of
+the NORMAL zone). ie DMA zone will be much less often "available" for
+GFP_HIGHMEM/GFP_KERNEL allocations, which are the vast majority.
 
-Don't forget VM_NONLINEAR.   And VM_HUGETLB, VM_IO, VM_whatever come to that.
+Might be talking BS though.
+
+What else could explain this numbers from Magnus, taking into account
+that a large number of pages in the DMA zone are used for kernel text,
+etc. These unbalancing seems to be potentially suboptimal (and result
+in unpredictable behaviour depending from which zone pages becomes
+allocated from):
+
+"$ cat /proc/zoneinfo | grep present
+        present  4096
+        present  225280
+        present  30342
+                                                                                                                                              
+$ cat /proc/zoneinfo | grep tscanned
+        tscanned 151352
+        tscanned 3480599
+        tscanned 541466
+                                                                                                                                              
+"tscanned" counts how many pages that has been scanned in each zone
+since power on. Executive summary assuming that only LRU pages exist
+in the zone:
+                                                                                                                                              
+DMA: each page has been scanned ~37 times
+Normal: each page has been scanned ~15 times
+HighMem: each page has been scanned ~18 times"
+
+I feel that I'm reaching the point where things should be confirmed
+instead of guessed (on my part!).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
