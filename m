@@ -1,37 +1,69 @@
-Date: Thu, 27 Oct 2005 13:43:47 -0700
+Date: Thu, 27 Oct 2005 13:50:58 -0700
 From: Andrew Morton <akpm@osdl.org>
-Subject: Re: [PATCH 0/4] Swap migration V3: Overview
-Message-Id: <20051027134347.56d29cfa.akpm@osdl.org>
-In-Reply-To: <20051027150142.GE13500@logos.cnet>
-References: <20051020225935.19761.57434.sendpatchset@schroedinger.engr.sgi.com>
-	<aec7e5c30510201857r7cf9d337wce9a4017064adcf@mail.gmail.com>
-	<20051022005050.GA27317@logos.cnet>
-	<aec7e5c30510230550j66d6e37fg505fd6041dca9bee@mail.gmail.com>
-	<20051024074418.GC2016@logos.cnet>
-	<aec7e5c30510250437h6c300066s14e39a0c91be772c@mail.gmail.com>
-	<20051025143741.GA6604@logos.cnet>
-	<aec7e5c30510260004p5a3b07a9v28ae67b2982f1945@mail.gmail.com>
-	<20051027150142.GE13500@logos.cnet>
+Subject: Re: [RFC] madvise(MADV_TRUNCATE)
+Message-Id: <20051027135058.2f72e706.akpm@osdl.org>
+In-Reply-To: <20051027200434.GT5091@opteron.random>
+References: <1130366995.23729.38.camel@localhost.localdomain>
+	<200510271038.52277.ak@suse.de>
+	<20051027131725.GI5091@opteron.random>
+	<1130425212.23729.55.camel@localhost.localdomain>
+	<20051027151123.GO5091@opteron.random>
+	<20051027112054.10e945ae.akpm@osdl.org>
+	<20051027200434.GT5091@opteron.random>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
-Cc: magnus.damm@gmail.com, clameter@sgi.com, kravetz@us.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrea Arcangeli <andrea@suse.de>
+Cc: pbadari@us.ibm.com, ak@suse.de, hugh@veritas.com, jdike@addtoit.com, dvhltc@us.ibm.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Marcelo Tosatti <marcelo.tosatti@cyclades.com> wrote:
+Andrea Arcangeli <andrea@suse.de> wrote:
 >
-> The fair approach would be to have the
->  number of pages to reclaim also relative to zone size.
+> On Thu, Oct 27, 2005 at 11:20:54AM -0700, Andrew Morton wrote:
+> > googling MADV_DISCARD comes up with basically nothing.  MADV_TRUNCATE comes
+> > up with precisely nothing.
+> > 
+> > Why does tmpfs need this feature?  What's the requirement here?  Please
+> > spill the beans ;)
 > 
->  sc->nr_to_reclaim = (zone->present_pages * sc->swap_cluster_max) /
->                                  total_memory;
+> MADV_TRUNCATE is a name I made up myself last month.
 
-You can try it, but that shouldn't matter.  SWAP_CLUSTER_MAX is just a
-batching factor used to reduce CPU consumption.  If you make it twice as
-bug, we run DMA-zone reclaim half as often - it should balance out.  
+You misunderstand.  I'm unconcerned about the names.  My reasons for
+googling was to wonder "wtf is this feature for?".  And it came up blank.
+
+> ...
+> but the partner only needs MADV_TRUNCATE and they don't care about the
+> sys_truncate_range, so it got higher prio.
+
+This is what I'm asking about.  What's the requirement?  What's the
+application?  What's the workload?  What's the testcase?  All that old
+stuff.  This should have been the very, very first thing which Badari
+presented to us.
+
+> I think
+> the MADV_TRUNCATE API is cleaner for the long term than a tmpfs specific
+> hack.
+
+Why?
+
+If we do it this way then we should do it for other filesystems.  And then
+we should do it for files which _aren't_ mmapped.  And then we should do it
+on a finer-than-PAGE_SIZE granularity.
+
+IOW: we're unlikely to implement MADV_TRUNCATE for anything other than
+tmpfs, in which case MADV_TRUNCATE will remain a tmpfs specific hack, no?
+
+> Some app allocates large tmpfs files, then when some task quits and some
+> client disconnect, some memory can be released. However the only way to
+> release tmpfs-swap is to MADV_TRUNCATE.
+
+Or to swap it out.
+
+
+I think we need to restart this discussion.  Can we please have a
+*detailed* description of the problem?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
