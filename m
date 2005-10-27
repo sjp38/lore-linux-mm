@@ -1,31 +1,38 @@
-From: Andi Kleen <ak@suse.de>
+Date: Thu, 27 Oct 2005 15:17:25 +0200
+From: Andrea Arcangeli <andrea@suse.de>
 Subject: Re: [RFC] madvise(MADV_TRUNCATE)
-Date: Thu, 27 Oct 2005 10:38:51 +0200
-References: <1130366995.23729.38.camel@localhost.localdomain>
-In-Reply-To: <1130366995.23729.38.camel@localhost.localdomain>
-MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="utf-8"
-Content-Transfer-Encoding: 7bit
+Message-ID: <20051027131725.GI5091@opteron.random>
+References: <1130366995.23729.38.camel@localhost.localdomain> <200510271038.52277.ak@suse.de>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Message-Id: <200510271038.52277.ak@suse.de>
+In-Reply-To: <200510271038.52277.ak@suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Badari Pulavarty <pbadari@us.ibm.com>
-Cc: Hugh Dickins <hugh@veritas.com>, akpm@osdl.org, andrea@suse.de, Jeff Dike <jdike@addtoit.com>, dvhltc@us.ibm.com, linux-mm <linux-mm@kvack.org>
+To: Andi Kleen <ak@suse.de>
+Cc: Badari Pulavarty <pbadari@us.ibm.com>, Hugh Dickins <hugh@veritas.com>, akpm@osdl.org, Jeff Dike <jdike@addtoit.com>, dvhltc@us.ibm.com, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thursday 27 October 2005 00:49, Badari Pulavarty wrote:
+On Thu, Oct 27, 2005 at 10:38:51AM +0200, Andi Kleen wrote:
+> On Thursday 27 October 2005 00:49, Badari Pulavarty wrote:
+> 
+> >
+> > I would really appreciate your comments on my approach.
+> 
+> (from a high level point of view) It sounds very scary. Traditionally
+> a lot of code had special case handling to avoid truncate
+> races, and it might need a lot of auditing to make sure
+> everybode else can handle arbitary punch hole too.
 
->
-> I would really appreciate your comments on my approach.
+-ENOSYS is returned for all fs but tmpfs (the short term big need of
+this feature). so as long as tmpfs works and -ENOSYS is returned to the
+other fs, complexity should remain reasonably low, and for the long term
+the API sounds nicer than a local tmpfs hack like MADV_DISCARD.
 
-(from a high level point of view) It sounds very scary. Traditionally
-a lot of code had special case handling to avoid truncate
-races, and it might need a lot of auditing to make sure
-everybode else can handle arbitary punch hole too.
+Patch looks good to me, thanks Baudari for taking care of this!
 
--Andi
+I'll try to give it some testing and I'll let you know if I run into
+troubles.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
