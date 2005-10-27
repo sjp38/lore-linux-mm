@@ -1,64 +1,60 @@
-Date: Thu, 27 Oct 2005 22:04:34 +0200
-From: Andrea Arcangeli <andrea@suse.de>
+Date: Thu, 27 Oct 2005 16:05:15 -0400
+From: Theodore Ts'o <tytso@mit.edu>
 Subject: Re: [RFC] madvise(MADV_TRUNCATE)
-Message-ID: <20051027200434.GT5091@opteron.random>
-References: <1130366995.23729.38.camel@localhost.localdomain> <200510271038.52277.ak@suse.de> <20051027131725.GI5091@opteron.random> <1130425212.23729.55.camel@localhost.localdomain> <20051027151123.GO5091@opteron.random> <20051027112054.10e945ae.akpm@osdl.org>
-Mime-Version: 1.0
+Message-ID: <20051027200515.GB12407@thunk.org>
+References: <1130366995.23729.38.camel@localhost.localdomain> <200510271038.52277.ak@suse.de> <20051027131725.GI5091@opteron.random> <1130425212.23729.55.camel@localhost.localdomain> <20051027151123.GO5091@opteron.random> <20051027112054.10e945ae.akpm@osdl.org> <1130438135.23729.111.camel@localhost.localdomain> <20051027115050.7f5a6fb7.akpm@osdl.org>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20051027112054.10e945ae.akpm@osdl.org>
+In-Reply-To: <20051027115050.7f5a6fb7.akpm@osdl.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@osdl.org>
-Cc: pbadari@us.ibm.com, ak@suse.de, hugh@veritas.com, jdike@addtoit.com, dvhltc@us.ibm.com, linux-mm@kvack.org
+Cc: Badari Pulavarty <pbadari@us.ibm.com>, andrea@suse.de, ak@suse.de, hugh@veritas.com, jdike@addtoit.com, dvhltc@us.ibm.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Oct 27, 2005 at 11:20:54AM -0700, Andrew Morton wrote:
-> googling MADV_DISCARD comes up with basically nothing.  MADV_TRUNCATE comes
-> up with precisely nothing.
-> 
-> Why does tmpfs need this feature?  What's the requirement here?  Please
-> spill the beans ;)
+This is somewhat related to something which the JVM folks have been
+pestering us (i.e., anyone within the LTC who will listen :-) for a
+while now, which is a way to very _quickly_ (i.e., faster than munmap)
+tell the kernel that a certain range of pages are not used any more by
+the JVM, because the garbage collector has finished, and the indicated
+region of memory is unused "oldspace".  
 
-MADV_TRUNCATE is a name I made up myself last month. During a
-presentation at suse labs conf some people at SUSE even complained that
-it may not be the right name (they intended the word truncate as
-reducing the i_size), but it made sense to me since internally
-what it does is a truncate_range (plus truncate also increases the size,
-it's not only a "truncate" anyway).
+If those pages are needed the kernel is free to grab them for an other
+purpose without writing them back to swap, and any attempt to read
+from said memory afterwards should result in undefined behaviour.  In
+practice, the JVM should never (absent bugs) try to read or write from
+such pages before it tells the kernel that it cares about a region of
+memory again (i.e., when the garbage collector runs again and needs to
+use that section of memory for memory allocations, at which point it
+won't care what the old memory values).
 
-The idea is to implement a sys_truncate_range, but using the mappings so
-the user doesn't need to keep track of which parts of the file have to
-be truncated, and it only needs to know which part of the address space
-is obsolete. This will be the first API that allows to re-create holes
-in files.
+The JVM folks have tried using munmap, but it's too slow and if the
+system isn't under memory pressure (as would be the case when an
+application is correctly tuned for the machine and in benchmark
+situations :-), completely unnecessary, since the pages will have to
+mmaped back in after the next GC anyway.  So currently today, the JVM
+folks simply do not release oldspace memory back to the system at all
+after a GC.
 
-I'm not a buzzword(tm) producer, so if you don't like the name feel free
-to rename it, I don't actually care about names. For now MADV_TRUNCATE
-is a placeholder name, which quite clearly explains what the syscall
-does.
+What would be nice would be there is some way that an VMA could be
+marked, "contents are unimportant", so that if there is a need for any
+pages, the pages can be assumed to be clean and can simply be reused
+for another purpose once they are deactivated without needing to waste
+any swap bandwidth writing out pages whose contents are unimportant
+and not in use by the JVM.  Then when the region is marked as being in
+use again, and when it is touched, we simply map in the zero page COW.
 
-> Comment on the patch: doing it via madvise sneakily gets around the
-> problems with partial-page truncation (we don't currently have a way to
-> release anything but the the tail-end of a page's blocks).
-> 
-> But if we start adding infrastructure of this sort people are, reasonably,
-> going to want to add sys_holepunch(fd, start, len) and it's going to get
-> complexer.
+That way, if the system is operating with plenty of memory, the
+performance is minimal (simply setting and clearing a bit in the VMA).
+But if the system is under memory pressure, the JVM is being a good
+citizen and allowing its memory pages to be used for other purposes.
 
-Yes, I also wanted to add both a sys_truncate_range and a MADV_TRUNCATE,
-but the partner only needs MADV_TRUNCATE and they don't care about the
-sys_truncate_range, so it got higher prio.
+Does this sound like an idea that would be workable?  I'm not a VM
+expert, but it doesn't sound like it's that hard, and I don't see any
+obvious flaws with this plan.
 
-When I received MADV_DISCARD patch I suggested Badari to actually
-implement the MADV_TRUNCATE, in the short term we only care about tmpfs
-of course (the same would apply to a sys_truncate_range), but I think
-the MADV_TRUNCATE API is cleaner for the long term than a tmpfs specific
-hack.
-
-Some app allocates large tmpfs files, then when some task quits and some
-client disconnect, some memory can be released. However the only way to
-release tmpfs-swap is to MADV_TRUNCATE.
+						- Ted
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
