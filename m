@@ -1,58 +1,54 @@
-Date: Thu, 27 Oct 2005 16:16:02 -0700
-From: Andrew Morton <akpm@osdl.org>
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e5.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id j9RNLMBw019090
+	for <linux-mm@kvack.org>; Thu, 27 Oct 2005 19:21:22 -0400
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay04.pok.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id j9RNLLl1110102
+	for <linux-mm@kvack.org>; Thu, 27 Oct 2005 19:21:21 -0400
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.12.11/8.13.3) with ESMTP id j9RNLLt0000876
+	for <linux-mm@kvack.org>; Thu, 27 Oct 2005 19:21:21 -0400
+Message-ID: <436160F0.8050609@us.ibm.com>
+Date: Thu, 27 Oct 2005 16:21:20 -0700
+From: Darren Hart <dvhltc@us.ibm.com>
+MIME-Version: 1.0
 Subject: Re: [RFC] madvise(MADV_TRUNCATE)
-Message-Id: <20051027161602.38a4051b.akpm@osdl.org>
-In-Reply-To: <1130454352.23729.134.camel@localhost.localdomain>
-References: <1130366995.23729.38.camel@localhost.localdomain>
-	<200510271038.52277.ak@suse.de>
-	<20051027131725.GI5091@opteron.random>
-	<1130425212.23729.55.camel@localhost.localdomain>
-	<20051027151123.GO5091@opteron.random>
-	<20051027112054.10e945ae.akpm@osdl.org>
-	<20051027200434.GT5091@opteron.random>
-	<20051027135058.2f72e706.akpm@osdl.org>
-	<20051027213721.GX5091@opteron.random>
-	<20051027152340.5e3ae2c6.akpm@osdl.org>
-	<1130454352.23729.134.camel@localhost.localdomain>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+References: <E1EVDbZ-0004fp-00@w-gerrit.beaverton.ibm.com> <200510272156.03276.ak@suse.de>
+In-Reply-To: <200510272156.03276.ak@suse.de>
+Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Badari Pulavarty <pbadari@us.ibm.com>
-Cc: andrea@suse.de, ak@suse.de, hugh@veritas.com, jdike@addtoit.com, dvhltc@us.ibm.com, linux-mm@kvack.org
+To: Andi Kleen <ak@suse.de>
+Cc: Gerrit Huizenga <gh@us.ibm.com>, Andrew Morton <akpm@osdl.org>, Badari Pulavarty <pbadari@us.ibm.com>, andrea@suse.de, hugh@veritas.com, jdike@addtoit.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Badari Pulavarty <pbadari@us.ibm.com> wrote:
->
-> On Thu, 2005-10-27 at 15:23 -0700, Andrew Morton wrote:
+Andi Kleen wrote:
+> On Thursday 27 October 2005 21:40, Gerrit Huizenga wrote:
 > 
-> > 
-> > hm.   Tossing ideas out here:
-> > 
-> > - Implement the internal infrastructure as you have it
-> > 
-> > - View it as a filesystem operation which has MM side-effects.
-> > 
-> > - Initially access it via sys_ipc()  (or madvise, I guess.  Both are a bit odd)
-> > 
-> > - Later access it via sys_[hole]punch()
 > 
-> Thats exactly what my patch provides. Do you really want to see this
-> through sys_ipc() or shmctl() ? I personally think madvise() or
-> sys_holepunch are the closest (since they work on a range).
+>> I believe Java uses mmap() today for this; DB2 probably uses both mmap()
+>> and shm*().
+> 
+> 
+> In the java case the memory should be anonymous, no? This means just plain
+> munmap would work. Or do I miss something?
 
-Well I do think mdavise() is an unnatural interface to what is mainly a
-filesystem operation.
+I believe it was mentioned earlier (Andrea in reply to Ted) that 
+madvise(MADV_DONTNEED) would work in the anonymous case.
 
-It's just that this initial requirement is actually a need for the
-operation's MM side-effects, so we're incorrectly thinking of it as an MM
-operation.  I think.
+> 
+> -Andi
+> 
+>  
+> 
 
-> What else I need to do to make it more palatable ?
 
-Can we do sys_fholepunch(int fd, loff_t offset, loff_t length)?  That
-requires that your applications know both the fd and the file offset.  
+-- 
+Darren Hart
+IBM Linux Technology Center
+Linux Kernel Team
+Phone: 503 578 3185
+   T/L: 775 3185
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
