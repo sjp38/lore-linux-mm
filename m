@@ -1,239 +1,94 @@
-Message-ID: <43620138.6060707@yahoo.com.au>
-Date: Fri, 28 Oct 2005 20:45:12 +1000
-From: Nick Piggin <nickpiggin@yahoo.com.au>
+From: Blaisorblade <blaisorblade@yahoo.it>
+Subject: Re: [RFC] madvise(MADV_TRUNCATE)
+Date: Fri, 28 Oct 2005 13:03:56 +0200
+References: <1130366995.23729.38.camel@localhost.localdomain> <20051028034616.GA14511@ccure.user-mode-linux.org>
+In-Reply-To: <20051028034616.GA14511@ccure.user-mode-linux.org>
 MIME-Version: 1.0
-Subject: Re: munmap extremely slow even with untouched mapping.
-References: <20051028013738.GA19727@attica.americas.sgi.com>
-In-Reply-To: <20051028013738.GA19727@attica.americas.sgi.com>
-Content-Type: multipart/mixed;
- boundary="------------020706010701010408040706"
+Content-Type: text/plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200510281303.56688.blaisorblade@yahoo.it>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Robin Holt <holt@sgi.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Hugh Dickins <hugh@veritas.com>
+To: Jeff Dike <jdike@addtoit.com>
+Cc: Badari Pulavarty <pbadari@us.ibm.com>, Hugh Dickins <hugh@veritas.com>, akpm@osdl.org, andrea@suse.de, dvhltc@us.ibm.com, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-This is a multi-part message in MIME format.
---------------020706010701010408040706
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+On Friday 28 October 2005 05:46, Jeff Dike wrote:
+> On Wed, Oct 26, 2005 at 03:49:55PM -0700, Badari Pulavarty wrote:
+> > Basically, I added "truncate_range" inode operation to provide
+> > opportunity for the filesystem to zero the blocks and/or free
+> > them up.
+> >
+> > I also attempted to implement shmem_truncate_range() which
+> > needs lots of testing before I work out bugs :(
+>
+> I added memory hotplug to UML to check this out.  It seems to be freeing
+> pages that are outside the desired range.  I'm doing the simplest possible
+> thing - grabbing a bunch of pages that are most likely not dirty yet,
+> and MADV_TRUNCATEing them one at a time.  Everything in UML goes harwire
+> after that, and the cases that I've looked at involve pages being suddenly
+> zero.
 
-Robin Holt wrote:
-> This is going out without any testing.  I got it to compile but never
-> even booted the kernel.
-> 
-> I noticed that on ia64, the following simple program would take 24
-> seconds to complete.  Profiling revealed I was spending all that time
-> in unmap_vmas.  Looking over the function, I noticed that I would only
-> attempt 8 pages at a time (CONFIG_PREMPT).  I then thought through this
-> some more.  My particular application had one large mapping which was
-> never touched after being mmaped.
-> 
-> Without this patch, we would iterate numerous times (256) to get past
-> a region of memory that had an empty pmd, 524,288 times to get past an
-> empty pud, and 1,073,741,824 to get past an empty pgd.  I had a 4-level
-> page table directory patch applied at the time.
-> 
+Thanks for CC'ing me, Jeff.
 
-Ouch. I wonder why nobody's noticed this before. It really is
-horribly inefficient on sparse mappings, as you've noticed :(
+I've just read the whole thread, and I'd thank you for this effort. I've also 
+found a couple of bugs I think (see below).
 
-I guess I prefer the following (compiled, untested) slight
-variant of your patch. Measuring work in terms of address range
-is fairly vague.... however, it may be the case that some
-architectures take a long time to flush a large range of TLBs?
+It seems you completely missed the purpose of vma->vm_pgoff.
 
-I don't see how the patch can be made too much cleaner... I guess
-the rescheduling could be pushed down, like the copy_ case,
-however that isn't particularly brilliant either. What's more, it
-would probably get uglier due to the mmu_gather tricks...
+Jeff, I think this is enough to explain the problem in UML. See below.
 
-Nick
+On the plan, however, I have a concern: VM_NONLINEAR.
 
+For now it can be ok to leave madvise(REMOVE) unimplemented for that, but if 
+and when I'll get the time to finish the remap_file_pages changes* for UML to 
+use it, UML will _require_ this to be implemented too.
+
+However, looking at the patch, the implementation would boil down to something 
+like
+
+for each page in range {
+	start = page->index;
+	end = start + PAGE_SIZE;
+	call truncate_inode_pages_range(mapping, offset, end);
+	inode->i_op->truncate_range(inode, offset, end);
+}
+
+unmap_mapping_range() should be done at once for the whole range.
+
+While looking at these, here's what I'd call "strange" in the patch:
+
+Also, why is unmap_mapping_range done with the inode semaphore held? I don't 
+remember locking rule but conceptually this has no point, IMHO.
+
+Btw, why I don't see vm_pgoff mentioned in these lines of the patch (nor 
+anywhere else in the patch)?
+
+You call truncate_inode_pages_range(mapping, offset, endoff), so I think 
+you're really burned here.
+
++offset = (loff_t)(start - vma->vm_start);
++endoff = (loff_t)(end - vma->vm_start);
+
+* UML uses mmap()/munmap()/mprotect() to implement the virtual "hardware MMU", 
+which means we have one vma per page usually and that we can call hundred of 
+unmaps on process exit. Ingo Molnar implemented time ago remap_file_pages() 
+prot support (see around 2.6.4/2.6.5 -mm trees) and I recovered and completed 
+it (and posted for review) during last summer.
 -- 
-SUSE Labs, Novell Inc.
+Inform me of my mistakes, so I can keep imitating Homer Simpson's "Doh!".
+Paolo Giarrusso, aka Blaisorblade (Skype ID "PaoloGiarrusso", ICQ 215621894)
+http://www.user-mode-linux.org/~blaisorblade
 
+	
 
---------------020706010701010408040706
-Content-Type: text/plain;
- name="mm-zap_block-redundant-fix.patch"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline;
- filename="mm-zap_block-redundant-fix.patch"
-
-Index: linux-2.6/mm/memory.c
-===================================================================
---- linux-2.6.orig/mm/memory.c
-+++ linux-2.6/mm/memory.c
-@@ -525,20 +525,25 @@ int copy_page_range(struct mm_struct *ds
- 	return 0;
- }
- 
--static void zap_pte_range(struct mmu_gather *tlb, pmd_t *pmd,
--				unsigned long addr, unsigned long end,
--				struct zap_details *details)
-+static unsigned long zap_pte_range(struct mmu_gather *tlb, pmd_t *pmd,
-+			unsigned long addr, unsigned long end,
-+			unsigned long *zap_work, struct zap_details *details)
- {
- 	pte_t *pte;
- 
- 	pte = pte_offset_map(pmd, addr);
- 	do {
- 		pte_t ptent = *pte;
--		if (pte_none(ptent))
-+		if (pte_none(ptent)) {
-+			(*zap_work)--;
- 			continue;
-+		}
- 		if (pte_present(ptent)) {
- 			struct page *page = NULL;
- 			unsigned long pfn = pte_pfn(ptent);
-+
-+			(*zap_work) -= PAGE_SIZE;
-+
- 			if (pfn_valid(pfn)) {
- 				page = pfn_to_page(pfn);
- 				if (PageReserved(page))
-@@ -592,13 +597,15 @@ static void zap_pte_range(struct mmu_gat
- 		if (!pte_file(ptent))
- 			free_swap_and_cache(pte_to_swp_entry(ptent));
- 		pte_clear_full(tlb->mm, addr, pte, tlb->fullmm);
--	} while (pte++, addr += PAGE_SIZE, addr != end);
-+	} while (pte++, addr += PAGE_SIZE, (addr != end && (long)*zap_work >0));
- 	pte_unmap(pte - 1);
-+
-+	return addr;
- }
- 
--static inline void zap_pmd_range(struct mmu_gather *tlb, pud_t *pud,
--				unsigned long addr, unsigned long end,
--				struct zap_details *details)
-+static inline unsigned long zap_pmd_range(struct mmu_gather *tlb, pud_t *pud,
-+			unsigned long addr, unsigned long end,
-+			unsigned long *zap_work, struct zap_details *details)
- {
- 	pmd_t *pmd;
- 	unsigned long next;
-@@ -606,15 +613,19 @@ static inline void zap_pmd_range(struct 
- 	pmd = pmd_offset(pud, addr);
- 	do {
- 		next = pmd_addr_end(addr, end);
--		if (pmd_none_or_clear_bad(pmd))
-+		if (pmd_none_or_clear_bad(pmd)) {
-+			(*zap_work)--;
- 			continue;
--		zap_pte_range(tlb, pmd, addr, next, details);
--	} while (pmd++, addr = next, addr != end);
-+		}
-+		next = zap_pte_range(tlb, pmd, addr, next, zap_work, details);
-+	} while (pmd++, addr = next, (addr != end && (long)*zap_work > 0));
-+
-+	return addr;
- }
- 
--static inline void zap_pud_range(struct mmu_gather *tlb, pgd_t *pgd,
--				unsigned long addr, unsigned long end,
--				struct zap_details *details)
-+static inline unsigned long zap_pud_range(struct mmu_gather *tlb, pgd_t *pgd,
-+			unsigned long addr, unsigned long end,
-+			unsigned long *zap_work, struct zap_details *details)
- {
- 	pud_t *pud;
- 	unsigned long next;
-@@ -622,14 +633,17 @@ static inline void zap_pud_range(struct 
- 	pud = pud_offset(pgd, addr);
- 	do {
- 		next = pud_addr_end(addr, end);
--		if (pud_none_or_clear_bad(pud))
-+		if (pud_none_or_clear_bad(pud)) {
-+			(*zap_work)--;
- 			continue;
--		zap_pmd_range(tlb, pud, addr, next, details);
--	} while (pud++, addr = next, addr != end);
-+		}
-+		next = zap_pmd_range(tlb, pud, addr, next, zap_work, details);
-+	} while (pud++, addr = next, (addr != end && (long)*zap_work > 0));
- }
- 
--static void unmap_page_range(struct mmu_gather *tlb, struct vm_area_struct *vma,
--				unsigned long addr, unsigned long end,
-+static unsigned long unmap_page_range(struct mmu_gather *tlb,
-+			struct vm_area_struct *vma, unsigned long addr,
-+			unsigned long end, unsigned long *zap_work,
- 				struct zap_details *details)
- {
- 	pgd_t *pgd;
-@@ -643,10 +657,12 @@ static void unmap_page_range(struct mmu_
- 	pgd = pgd_offset(vma->vm_mm, addr);
- 	do {
- 		next = pgd_addr_end(addr, end);
--		if (pgd_none_or_clear_bad(pgd))
-+		if (pgd_none_or_clear_bad(pgd)) {
-+			(*zap_work)--;
- 			continue;
--		zap_pud_range(tlb, pgd, addr, next, details);
--	} while (pgd++, addr = next, addr != end);
-+		}
-+		next = zap_pud_range(tlb, pgd, addr, next, zap_work, details);
-+	} while (pgd++, addr = next, (addr != end && (long)*zap_work > 0));
- 	tlb_end_vma(tlb, vma);
- }
- 
-@@ -689,7 +705,7 @@ unsigned long unmap_vmas(struct mmu_gath
- 		unsigned long end_addr, unsigned long *nr_accounted,
- 		struct zap_details *details)
- {
--	unsigned long zap_bytes = ZAP_BLOCK_SIZE;
-+	unsigned long zap_work = ZAP_BLOCK_SIZE;
- 	unsigned long tlb_start = 0;	/* For tlb_finish_mmu */
- 	int tlb_start_valid = 0;
- 	unsigned long start = start_addr;
-@@ -710,25 +726,20 @@ unsigned long unmap_vmas(struct mmu_gath
- 			*nr_accounted += (end - start) >> PAGE_SHIFT;
- 
- 		while (start != end) {
--			unsigned long block;
--
- 			if (!tlb_start_valid) {
- 				tlb_start = start;
- 				tlb_start_valid = 1;
- 			}
- 
--			if (is_vm_hugetlb_page(vma)) {
--				block = end - start;
-+			if (unlikely(is_vm_hugetlb_page(vma))) {
- 				unmap_hugepage_range(vma, start, end);
--			} else {
--				block = min(zap_bytes, end - start);
--				unmap_page_range(*tlbp, vma, start,
--						start + block, details);
--			}
-+				zap_work -= (end - start) /
-+						(HPAGE_SIZE / PAGE_SIZE);
-+			} else
-+				start += unmap_page_range(*tlbp, vma,
-+						start, end, &zap_work, details);
- 
--			start += block;
--			zap_bytes -= block;
--			if ((long)zap_bytes > 0)
-+			if ((long)zap_work > 0)
- 				continue;
- 
- 			tlb_finish_mmu(*tlbp, tlb_start, start);
-@@ -748,7 +759,7 @@ unsigned long unmap_vmas(struct mmu_gath
- 
- 			*tlbp = tlb_gather_mmu(mm, fullmm);
- 			tlb_start_valid = 0;
--			zap_bytes = ZAP_BLOCK_SIZE;
-+			zap_work = ZAP_BLOCK_SIZE;
- 		}
- 	}
- out:
-
---------------020706010701010408040706--
-Send instant messages to your online friends http://au.messenger.yahoo.com 
+	
+		
+___________________________________ 
+Yahoo! Mail: gratis 1GB per i messaggi e allegati da 10MB 
+http://mail.yahoo.it
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
