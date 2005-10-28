@@ -1,61 +1,144 @@
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e1.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id j9S1ReBN014698
-	for <linux-mm@kvack.org>; Thu, 27 Oct 2005 21:27:40 -0400
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay02.pok.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id j9S1RdOO056630
-	for <linux-mm@kvack.org>; Thu, 27 Oct 2005 21:27:40 -0400
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.12.11/8.13.3) with ESMTP id j9S1RdIY022295
-	for <linux-mm@kvack.org>; Thu, 27 Oct 2005 21:27:39 -0400
-Message-ID: <43617E87.4040605@us.ibm.com>
-Date: Thu, 27 Oct 2005 18:27:35 -0700
-From: Badari Pulavarty <pbadari@us.ibm.com>
-MIME-Version: 1.0
-Subject: Re: [RFC] madvise(MADV_TRUNCATE)
-References: <1130366995.23729.38.camel@localhost.localdomain>	<200510271038.52277.ak@suse.de>	<20051027131725.GI5091@opteron.random>	<1130425212.23729.55.camel@localhost.localdomain>	<20051027151123.GO5091@opteron.random>	<20051027112054.10e945ae.akpm@osdl.org>	<20051027200434.GT5091@opteron.random>	<20051027135058.2f72e706.akpm@osdl.org>	<20051027213721.GX5091@opteron.random>	<20051027152340.5e3ae2c6.akpm@osdl.org>	<20051028002231.GC5091@opteron.random> <20051027173243.41ecd335.akpm@osdl.org>
-In-Reply-To: <20051027173243.41ecd335.akpm@osdl.org>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+Date: Thu, 27 Oct 2005 20:37:38 -0500
+From: Robin Holt <holt@sgi.com>
+Subject: munmap extremely slow even with untouched mapping.
+Message-ID: <20051028013738.GA19727@attica.americas.sgi.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: Andrea Arcangeli <andrea@suse.de>, ak@suse.de, hugh@veritas.com, jdike@addtoit.com, dvhltc@us.ibm.com, linux-mm@kvack.org
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Andrew Morton wrote:
-> Andrea Arcangeli <andrea@suse.de> wrote:
-> 
->>>- View it as a filesystem operation which has MM side-effects.
->>
->> I suggested the fs operation too but then it's more efficient to have it
->> as a mm operation with fs side effects, because they don't immediatly
->> know fd and physical offset of the range. It's possible to fixup in
->> userland and to use the fs operation but it's more expensive, the vmas
->> are already in the kernel and we can use them.
-> 
-> 
-> hm, so we have a somewhat awkward interface to a very specific thing to
-> benefit a closed-source app.  That'll go down well ;)
-> 
+This is going out without any testing.  I got it to compile but never
+even booted the kernel.
 
-I am not sure how apps can work out (fd, phys off, len) for a given
-shared memory segment range easily.
+I noticed that on ia64, the following simple program would take 24
+seconds to complete.  Profiling revealed I was spending all that time
+in unmap_vmas.  Looking over the function, I noticed that I would only
+attempt 8 pages at a time (CONFIG_PREMPT).  I then thought through this
+some more.  My particular application had one large mapping which was
+never touched after being mmaped.
 
-> ho-hum.  Can we think of a better name than MADV_TRUNCATE please?  Dunno
-> what - MADV_REMOVE?
+Without this patch, we would iterate numerous times (256) to get past
+a region of memory that had an empty pmd, 524,288 times to get past an
+empty pud, and 1,073,741,824 to get past an empty pgd.  I had a 4-level
+page table directory patch applied at the time.
 
-how about - MADV_DISCARD :) Just kidding - MADV_REMOVE is a good
-name.
+Here is the test program:
 
-I am still not clear on the consensus here - the plan is go forward
-with the patch (ofcourse, naming changes) and may be later add
-(fd, offset, len) version of it through sys_holepunch ?
+#include <fcntl.h>
+#include <unistd.h>
+#include <sys/mman.h>
+#include <stdlib.h>
+#include <stdio.h>
 
-If so, I can quickly redo my patch + I need to work out bugs in
-shm_truncate_range().
+#define TMPFILE "/tmp/holt-dummy-mmap"
 
-Thanks,
-Badari
+int main(int argc, char **argv)
+{
+	int fd;
+	char *memmap_base;
+
+	fd = open(TMPFILE, O_RDWR | O_CREAT | O_EXCL, 0600);
+	if (fd < 0) {
+		printf("Error opening " TMPFILE "\n");
+		exit(1);
+	}
+	unlink(TMPFILE);
+
+	memmap_base = (char *) mmap(NULL, 17592182882304,
+				    PROT_READ | PROT_WRITE,
+				    MAP_SHARED, fd,
+				    (off_t) 0);
+
+	if ((void *) memmap_base != MAP_FAILED)
+		munmap(memmap_base, 17592182882304);
+	return 0;
+}
+
+
+Index: linux-2.6/mm/memory.c
+===================================================================
+--- linux-2.6.orig/mm/memory.c	2005-10-27 20:06:45.671491763 -0500
++++ linux-2.6/mm/memory.c	2005-10-27 20:22:04.287665340 -0500
+@@ -596,8 +596,9 @@ static void zap_pte_range(struct mmu_gat
+ 	pte_unmap(pte - 1);
+ }
+ 
+-static inline void zap_pmd_range(struct mmu_gather *tlb, pud_t *pud,
++static inline unsigned long zap_pmd_range(struct mmu_gather *tlb, pud_t *pud,
+ 				unsigned long addr, unsigned long end,
++				unsigned long stop_at,
+ 				struct zap_details *details)
+ {
+ 	pmd_t *pmd;
+@@ -608,12 +609,15 @@ static inline void zap_pmd_range(struct 
+ 		next = pmd_addr_end(addr, end);
+ 		if (pmd_none_or_clear_bad(pmd))
+ 			continue;
++		next = stop_at;
+ 		zap_pte_range(tlb, pmd, addr, next, details);
+-	} while (pmd++, addr = next, addr != end);
++	} while (pmd++, addr = next, addr < stop_at);
++	return addr;
+ }
+ 
+-static inline void zap_pud_range(struct mmu_gather *tlb, pgd_t *pgd,
++static inline unsigned long zap_pud_range(struct mmu_gather *tlb, pgd_t *pgd,
+ 				unsigned long addr, unsigned long end,
++				unsigned long stop_at,
+ 				struct zap_details *details)
+ {
+ 	pud_t *pud;
+@@ -624,16 +628,20 @@ static inline void zap_pud_range(struct 
+ 		next = pud_addr_end(addr, end);
+ 		if (pud_none_or_clear_bad(pud))
+ 			continue;
+-		zap_pmd_range(tlb, pud, addr, next, details);
+-	} while (pud++, addr = next, addr != end);
++		next = zap_pmd_range(tlb, pud, addr, next, stop_at, details);
++	} while (pud++, addr = next, addr < stop_at);
++	return addr;
+ }
+ 
+-static void unmap_page_range(struct mmu_gather *tlb, struct vm_area_struct *vma,
++static unsigned long unmap_page_range(struct mmu_gather *tlb,
++				struct vm_area_struct *vma,
+ 				unsigned long addr, unsigned long end,
++				unsigned long stop_at,
+ 				struct zap_details *details)
+ {
+ 	pgd_t *pgd;
+ 	unsigned long next;
++	unsigned long start_addr = addr;
+ 
+ 	if (details && !details->check_mapping && !details->nonlinear_vma)
+ 		details = NULL;
+@@ -645,9 +653,10 @@ static void unmap_page_range(struct mmu_
+ 		next = pgd_addr_end(addr, end);
+ 		if (pgd_none_or_clear_bad(pgd))
+ 			continue;
+-		zap_pud_range(tlb, pgd, addr, next, details);
+-	} while (pgd++, addr = next, addr != end);
++		next = zap_pud_range(tlb, pgd, addr, next, stop_at, details);
++	} while (pgd++, addr = next, addr < stop_at);
+ 	tlb_end_vma(tlb, vma);
++	return (addr - start_addr);
+ }
+ 
+ #ifdef CONFIG_PREEMPT
+@@ -722,8 +731,8 @@ unsigned long unmap_vmas(struct mmu_gath
+ 				unmap_hugepage_range(vma, start, end);
+ 			} else {
+ 				block = min(zap_bytes, end - start);
+-				unmap_page_range(*tlbp, vma, start,
+-						start + block, details);
++				block = unmap_page_range(*tlbp, vma, start,
++						end, start + block, details);
+ 			}
+ 
+ 			start += block;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
