@@ -1,144 +1,80 @@
-Date: Thu, 27 Oct 2005 20:37:38 -0500
-From: Robin Holt <holt@sgi.com>
-Subject: munmap extremely slow even with untouched mapping.
-Message-ID: <20051028013738.GA19727@attica.americas.sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e1.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id j9S1geTN022121
+	for <linux-mm@kvack.org>; Thu, 27 Oct 2005 21:42:40 -0400
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay04.pok.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id j9S1gel1111226
+	for <linux-mm@kvack.org>; Thu, 27 Oct 2005 21:42:40 -0400
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.12.11/8.13.3) with ESMTP id j9S1geCE010316
+	for <linux-mm@kvack.org>; Thu, 27 Oct 2005 21:42:40 -0400
+Message-ID: <4361820C.7070607@us.ibm.com>
+Date: Thu, 27 Oct 2005 18:42:36 -0700
+From: Badari Pulavarty <pbadari@us.ibm.com>
+MIME-Version: 1.0
+Subject: Re: [RFC] madvise(MADV_TRUNCATE)
+References: <1130366995.23729.38.camel@localhost.localdomain> <200510271038.52277.ak@suse.de> <20051027131725.GI5091@opteron.random> <1130425212.23729.55.camel@localhost.localdomain> <20051027151123.GO5091@opteron.random> <20051027112054.10e945ae.akpm@osdl.org> <1130438135.23729.111.camel@localhost.localdomain> <20051027115050.7f5a6fb7.akpm@osdl.org> <20051027200515.GB12407@thunk.org>
+In-Reply-To: <20051027200515.GB12407@thunk.org>
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Theodore Ts'o <tytso@mit.edu>
+Cc: Andrew Morton <akpm@osdl.org>, andrea@suse.de, ak@suse.de, hugh@veritas.com, jdike@addtoit.com, dvhltc@us.ibm.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This is going out without any testing.  I got it to compile but never
-even booted the kernel.
+Theodore Ts'o wrote:
 
-I noticed that on ia64, the following simple program would take 24
-seconds to complete.  Profiling revealed I was spending all that time
-in unmap_vmas.  Looking over the function, I noticed that I would only
-attempt 8 pages at a time (CONFIG_PREMPT).  I then thought through this
-some more.  My particular application had one large mapping which was
-never touched after being mmaped.
+> This is somewhat related to something which the JVM folks have been
+> pestering us (i.e., anyone within the LTC who will listen :-) for a
+> while now, which is a way to very _quickly_ (i.e., faster than munmap)
+> tell the kernel that a certain range of pages are not used any more by
+> the JVM, because the garbage collector has finished, and the indicated
+> region of memory is unused "oldspace".  
+> 
+> If those pages are needed the kernel is free to grab them for an other
+> purpose without writing them back to swap, and any attempt to read
+> from said memory afterwards should result in undefined behaviour.  In
+> practice, the JVM should never (absent bugs) try to read or write from
+> such pages before it tells the kernel that it cares about a region of
+> memory again (i.e., when the garbage collector runs again and needs to
+> use that section of memory for memory allocations, at which point it
+> won't care what the old memory values).
+> 
+> The JVM folks have tried using munmap, but it's too slow and if the
+> system isn't under memory pressure (as would be the case when an
+> application is correctly tuned for the machine and in benchmark
+> situations :-), completely unnecessary, since the pages will have to
+> mmaped back in after the next GC anyway.  So currently today, the JVM
+> folks simply do not release oldspace memory back to the system at all
+> after a GC.
+> 
+> What would be nice would be there is some way that an VMA could be
+> marked, "contents are unimportant", so that if there is a need for any
+> pages, the pages can be assumed to be clean and can simply be reused
+> for another purpose once they are deactivated without needing to waste
+> any swap bandwidth writing out pages whose contents are unimportant
+> and not in use by the JVM.  Then when the region is marked as being in
+> use again, and when it is touched, we simply map in the zero page COW.
+> 
+> That way, if the system is operating with plenty of memory, the
+> performance is minimal (simply setting and clearing a bit in the VMA).
+> But if the system is under memory pressure, the JVM is being a good
+> citizen and allowing its memory pages to be used for other purposes.
+> 
+> Does this sound like an idea that would be workable?  I'm not a VM
+> expert, but it doesn't sound like it's that hard, and I don't see any
+> obvious flaws with this plan.
 
-Without this patch, we would iterate numerous times (256) to get past
-a region of memory that had an empty pmd, 524,288 times to get past an
-empty pud, and 1,073,741,824 to get past an empty pgd.  I had a 4-level
-page table directory patch applied at the time.
+Ted,
 
-Here is the test program:
+Like Andrea mentioned MADV_DONTNEED should be able to do what JVM
+folks want. If they want more than that, get in touch with me.
+While doing MADV_REMOVE, I will see if I can satsify their needs also.
 
-#include <fcntl.h>
-#include <unistd.h>
-#include <sys/mman.h>
-#include <stdlib.h>
-#include <stdio.h>
-
-#define TMPFILE "/tmp/holt-dummy-mmap"
-
-int main(int argc, char **argv)
-{
-	int fd;
-	char *memmap_base;
-
-	fd = open(TMPFILE, O_RDWR | O_CREAT | O_EXCL, 0600);
-	if (fd < 0) {
-		printf("Error opening " TMPFILE "\n");
-		exit(1);
-	}
-	unlink(TMPFILE);
-
-	memmap_base = (char *) mmap(NULL, 17592182882304,
-				    PROT_READ | PROT_WRITE,
-				    MAP_SHARED, fd,
-				    (off_t) 0);
-
-	if ((void *) memmap_base != MAP_FAILED)
-		munmap(memmap_base, 17592182882304);
-	return 0;
-}
+Thanks,
+Badari
 
 
-Index: linux-2.6/mm/memory.c
-===================================================================
---- linux-2.6.orig/mm/memory.c	2005-10-27 20:06:45.671491763 -0500
-+++ linux-2.6/mm/memory.c	2005-10-27 20:22:04.287665340 -0500
-@@ -596,8 +596,9 @@ static void zap_pte_range(struct mmu_gat
- 	pte_unmap(pte - 1);
- }
- 
--static inline void zap_pmd_range(struct mmu_gather *tlb, pud_t *pud,
-+static inline unsigned long zap_pmd_range(struct mmu_gather *tlb, pud_t *pud,
- 				unsigned long addr, unsigned long end,
-+				unsigned long stop_at,
- 				struct zap_details *details)
- {
- 	pmd_t *pmd;
-@@ -608,12 +609,15 @@ static inline void zap_pmd_range(struct 
- 		next = pmd_addr_end(addr, end);
- 		if (pmd_none_or_clear_bad(pmd))
- 			continue;
-+		next = stop_at;
- 		zap_pte_range(tlb, pmd, addr, next, details);
--	} while (pmd++, addr = next, addr != end);
-+	} while (pmd++, addr = next, addr < stop_at);
-+	return addr;
- }
- 
--static inline void zap_pud_range(struct mmu_gather *tlb, pgd_t *pgd,
-+static inline unsigned long zap_pud_range(struct mmu_gather *tlb, pgd_t *pgd,
- 				unsigned long addr, unsigned long end,
-+				unsigned long stop_at,
- 				struct zap_details *details)
- {
- 	pud_t *pud;
-@@ -624,16 +628,20 @@ static inline void zap_pud_range(struct 
- 		next = pud_addr_end(addr, end);
- 		if (pud_none_or_clear_bad(pud))
- 			continue;
--		zap_pmd_range(tlb, pud, addr, next, details);
--	} while (pud++, addr = next, addr != end);
-+		next = zap_pmd_range(tlb, pud, addr, next, stop_at, details);
-+	} while (pud++, addr = next, addr < stop_at);
-+	return addr;
- }
- 
--static void unmap_page_range(struct mmu_gather *tlb, struct vm_area_struct *vma,
-+static unsigned long unmap_page_range(struct mmu_gather *tlb,
-+				struct vm_area_struct *vma,
- 				unsigned long addr, unsigned long end,
-+				unsigned long stop_at,
- 				struct zap_details *details)
- {
- 	pgd_t *pgd;
- 	unsigned long next;
-+	unsigned long start_addr = addr;
- 
- 	if (details && !details->check_mapping && !details->nonlinear_vma)
- 		details = NULL;
-@@ -645,9 +653,10 @@ static void unmap_page_range(struct mmu_
- 		next = pgd_addr_end(addr, end);
- 		if (pgd_none_or_clear_bad(pgd))
- 			continue;
--		zap_pud_range(tlb, pgd, addr, next, details);
--	} while (pgd++, addr = next, addr != end);
-+		next = zap_pud_range(tlb, pgd, addr, next, stop_at, details);
-+	} while (pgd++, addr = next, addr < stop_at);
- 	tlb_end_vma(tlb, vma);
-+	return (addr - start_addr);
- }
- 
- #ifdef CONFIG_PREEMPT
-@@ -722,8 +731,8 @@ unsigned long unmap_vmas(struct mmu_gath
- 				unmap_hugepage_range(vma, start, end);
- 			} else {
- 				block = min(zap_bytes, end - start);
--				unmap_page_range(*tlbp, vma, start,
--						start + block, details);
-+				block = unmap_page_range(*tlbp, vma, start,
-+						end, start + block, details);
- 			}
- 
- 			start += block;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
