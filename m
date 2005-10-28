@@ -1,94 +1,69 @@
-From: Blaisorblade <blaisorblade@yahoo.it>
-Subject: Re: [RFC] madvise(MADV_TRUNCATE)
-Date: Fri, 28 Oct 2005 13:03:56 +0200
-References: <1130366995.23729.38.camel@localhost.localdomain> <20051028034616.GA14511@ccure.user-mode-linux.org>
-In-Reply-To: <20051028034616.GA14511@ccure.user-mode-linux.org>
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by e1.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id j9SChTh8024770
+	for <linux-mm@kvack.org>; Fri, 28 Oct 2005 08:43:29 -0400
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay02.pok.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id j9SChTuX120752
+	for <linux-mm@kvack.org>; Fri, 28 Oct 2005 08:43:29 -0400
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.12.11/8.13.3) with ESMTP id j9SChS9M013696
+	for <linux-mm@kvack.org>; Fri, 28 Oct 2005 08:43:29 -0400
+Message-ID: <43621CFE.5080900@de.ibm.com>
+Date: Fri, 28 Oct 2005 14:43:42 +0200
+From: Carsten Otte <cotte@de.ibm.com>
+Reply-To: carsteno@de.ibm.com
 MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
+Subject: Re: Fwd: Re: VM_XIP Request for comments
+References: <200510281155.03466.christian@borntraeger.net>
+In-Reply-To: <200510281155.03466.christian@borntraeger.net>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200510281303.56688.blaisorblade@yahoo.it>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jeff Dike <jdike@addtoit.com>
-Cc: Badari Pulavarty <pbadari@us.ibm.com>, Hugh Dickins <hugh@veritas.com>, akpm@osdl.org, andrea@suse.de, dvhltc@us.ibm.com, linux-mm <linux-mm@kvack.org>
+To: Jared Hulbert <jaredeh@gmail.com>
+Cc: Christoph Hellwig <hch@infradead.org>, linux-mm@kvack.org, cotte@de.ibm.com
 List-ID: <linux-mm.kvack.org>
 
-On Friday 28 October 2005 05:46, Jeff Dike wrote:
-> On Wed, Oct 26, 2005 at 03:49:55PM -0700, Badari Pulavarty wrote:
-> > Basically, I added "truncate_range" inode operation to provide
-> > opportunity for the filesystem to zero the blocks and/or free
-> > them up.
-> >
-> > I also attempted to implement shmem_truncate_range() which
-> > needs lots of testing before I work out bugs :(
->
-> I added memory hotplug to UML to check this out.  It seems to be freeing
-> pages that are outside the desired range.  I'm doing the simplest possible
-> thing - grabbing a bunch of pages that are most likely not dirty yet,
-> and MADV_TRUNCATEing them one at a time.  Everything in UML goes harwire
-> after that, and the cases that I've looked at involve pages being suddenly
-> zero.
+> I can't find CONFIG_XIP.  But I assume you are talking about
+> filemap_xip.c and Documentation/filesystems/xip.txt.
+Actually the thing consists of three parts:
+- a block device that does implement the direct_access method. so far
+  the only driver that does that is drivers/s390/block/dcssblk.c. We
+  are aware that this one needs cleanup ;-).
+- extension to good old ext2 filesystem that does implement get_xip_page
+  address space operation. Uses direct_access block device operation.
+- the stuff in mm/filemap_xip.c which actually does the job (read,write,
+  mmap etc.) by calling get_xip_page address space operation.
 
-Thanks for CC'ing me, Jeff.
+> I don't know. The code and discussions about it looked very big-iron
+> DSCC specific but now on second pass it was meant to more generic.  If
+> I can learn this infrastructure then maybe this will work.
+The only part that is architecture specific is the block device driver.
+Both the ext2 extensions and filemap_xip are architecture independent.
 
-I've just read the whole thread, and I'd thank you for this effort. I've also 
-found a couple of bugs I think (see below).
+> So I'm supposed to create a function in the target fs that gets
+> plugged into get_xip_page().  Then I call that function to create an
+> proper XIP'ed page in my mmap() and fread() calls.  I could use the
+> first arg of get_xip_page() to pass in the start address of the cramfs
+> volume and the second the offset of the page in the file I want to
+> map.
+> 
+> Is that about right?
+The first step would be to write a block device driver that allows to
+mount your memory backed storage thing [flash chip?]. The block device
+driver needs to implement the direct_access method. Now you can mount
+ext2 filesystems with -o xip.
 
-It seems you completely missed the purpose of vma->vm_pgoff.
-
-Jeff, I think this is enough to explain the problem in UML. See below.
-
-On the plan, however, I have a concern: VM_NONLINEAR.
-
-For now it can be ok to leave madvise(REMOVE) unimplemented for that, but if 
-and when I'll get the time to finish the remap_file_pages changes* for UML to 
-use it, UML will _require_ this to be implemented too.
-
-However, looking at the patch, the implementation would boil down to something 
-like
-
-for each page in range {
-	start = page->index;
-	end = start + PAGE_SIZE;
-	call truncate_inode_pages_range(mapping, offset, end);
-	inode->i_op->truncate_range(inode, offset, end);
-}
-
-unmap_mapping_range() should be done at once for the whole range.
-
-While looking at these, here's what I'd call "strange" in the patch:
-
-Also, why is unmap_mapping_range done with the inode semaphore held? I don't 
-remember locking rule but conceptually this has no point, IMHO.
-
-Btw, why I don't see vm_pgoff mentioned in these lines of the patch (nor 
-anywhere else in the patch)?
-
-You call truncate_inode_pages_range(mapping, offset, endoff), so I think 
-you're really burned here.
-
-+offset = (loff_t)(start - vma->vm_start);
-+endoff = (loff_t)(end - vma->vm_start);
-
-* UML uses mmap()/munmap()/mprotect() to implement the virtual "hardware MMU", 
-which means we have one vma per page usually and that we can call hundred of 
-unmaps on process exit. Ingo Molnar implemented time ago remap_file_pages() 
-prot support (see around 2.6.4/2.6.5 -mm trees) and I recovered and completed 
-it (and posted for review) during last summer.
+Ext2 does not support compression, and all files are xip once you
+select -o xip. Would be interresting to have a filesystem that can do
+both xip and compression on a per-file basis, but as far as I can tell
+the basic layering should also work fine with such filesystem: should
+work with any block device, file operations in filemap_xip.c can be
+used for those files that are xip [and not compressed].
 -- 
-Inform me of my mistakes, so I can keep imitating Homer Simpson's "Doh!".
-Paolo Giarrusso, aka Blaisorblade (Skype ID "PaoloGiarrusso", ICQ 215621894)
-http://www.user-mode-linux.org/~blaisorblade
 
-	
-
-	
-		
-___________________________________ 
-Yahoo! Mail: gratis 1GB per i messaggi e allegati da 10MB 
-http://mail.yahoo.it
+Carsten Otte
+IBM Linux technology center
+ARCH=s390
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
