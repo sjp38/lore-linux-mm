@@ -1,60 +1,31 @@
-Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
-	by e34.co.us.ibm.com (8.12.11/8.12.11) with ESMTP id j9SGJHJE014261
-	for <linux-mm@kvack.org>; Fri, 28 Oct 2005 12:19:17 -0400
-Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
-	by d03relay04.boulder.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id j9SGKHEf531782
-	for <linux-mm@kvack.org>; Fri, 28 Oct 2005 10:20:17 -0600
-Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av01.boulder.ibm.com (8.12.11/8.13.3) with ESMTP id j9SGJGGF008608
-	for <linux-mm@kvack.org>; Fri, 28 Oct 2005 10:19:17 -0600
-Message-ID: <43624F82.6080003@us.ibm.com>
-Date: Fri, 28 Oct 2005 09:19:14 -0700
-From: Badari Pulavarty <pbadari@us.ibm.com>
-MIME-Version: 1.0
+Date: Fri, 28 Oct 2005 12:33:08 -0400
+From: Theodore Ts'o <tytso@mit.edu>
 Subject: Re: [RFC] madvise(MADV_TRUNCATE)
-References: <1130366995.23729.38.camel@localhost.localdomain> <20051028034616.GA14511@ccure.user-mode-linux.org>
-In-Reply-To: <20051028034616.GA14511@ccure.user-mode-linux.org>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+Message-ID: <20051028163308.GA17407@thunk.org>
+References: <1130366995.23729.38.camel@localhost.localdomain> <200510271038.52277.ak@suse.de> <20051027131725.GI5091@opteron.random> <1130425212.23729.55.camel@localhost.localdomain> <20051027151123.GO5091@opteron.random> <20051027112054.10e945ae.akpm@osdl.org> <1130438135.23729.111.camel@localhost.localdomain> <20051027115050.7f5a6fb7.akpm@osdl.org> <20051027200515.GB12407@thunk.org> <4361820C.7070607@us.ibm.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4361820C.7070607@us.ibm.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jeff Dike <jdike@addtoit.com>
-Cc: Hugh Dickins <hugh@veritas.com>, akpm@osdl.org, andrea@suse.de, dvhltc@us.ibm.com, linux-mm <linux-mm@kvack.org>, Blaisorblade <blaisorblade@yahoo.it>
+To: Badari Pulavarty <pbadari@us.ibm.com>
+Cc: Andrew Morton <akpm@osdl.org>, andrea@suse.de, ak@suse.de, hugh@veritas.com, jdike@addtoit.com, dvhltc@us.ibm.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Jeff Dike wrote:
+On Thu, Oct 27, 2005 at 06:42:36PM -0700, Badari Pulavarty wrote:
+> Like Andrea mentioned MADV_DONTNEED should be able to do what JVM
+> folks want. If they want more than that, get in touch with me.
+> While doing MADV_REMOVE, I will see if I can satsify their needs also.
 
-> On Wed, Oct 26, 2005 at 03:49:55PM -0700, Badari Pulavarty wrote:
-> 
->>Basically, I added "truncate_range" inode operation to provide
->>opportunity for the filesystem to zero the blocks and/or free
->>them up. 
->>
->>I also attempted to implement shmem_truncate_range() which 
->>needs lots of testing before I work out bugs :(
-> 
-> 
-> I added memory hotplug to UML to check this out.  It seems to be freeing
-> pages that are outside the desired range.  I'm doing the simplest possible
-> thing - grabbing a bunch of pages that are most likely not dirty yet, 
-> and MADV_TRUNCATEing them one at a time.  Everything in UML goes harwire
-> after that, and the cases that I've looked at involve pages being suddenly
-> zero.
-> 
-> UML isn't exactly a minimal test case, but I'll give you what you need
-> to reproduce this if you want.
-> 
+Well, I asked if what he wanted was simply walking all of the page
+tables and marking the indicated pages as "clean", but he claimed that
+anything that involved walking the pages tables would be too slow.
+But it may be that he was assuming this would be as painful as
+munmap(), when of course it wouldn't be.  I don't know if they've
+actually benchmarked MADV_DONTNEED or not.
 
-I cut-n-pasted shmem_truncate_range() from shmem_truncate() and fixed
-few obvious things. Its very likely that, I missed whole bunch of changes.
-
-My touch tests so far, doesn't really verify data after freeing. I was
-thinking about writing cases. If I can use UML to do it, please send it
-to me. I would rather test with real world case :)
-
-Thanks,
-Badari
-
+						- Ted
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
