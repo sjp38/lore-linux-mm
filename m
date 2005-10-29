@@ -1,100 +1,33 @@
-Message-ID: <4362DF80.3060802@yahoo.com.au>
-Date: Sat, 29 Oct 2005 12:33:36 +1000
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-MIME-Version: 1.0
-Subject: Re: [PATCH]: Clean up of __alloc_pages
-References: <20051028183326.A28611@unix-os.sc.intel.com>
-In-Reply-To: <20051028183326.A28611@unix-os.sc.intel.com>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+Date: Fri, 28 Oct 2005 22:51:19 -0400
+From: Jeff Dike <jdike@addtoit.com>
+Subject: Re: [RFC] madvise(MADV_TRUNCATE)
+Message-ID: <20051029025119.GA14998@ccure.user-mode-linux.org>
+References: <1130366995.23729.38.camel@localhost.localdomain> <20051028034616.GA14511@ccure.user-mode-linux.org> <43624F82.6080003@us.ibm.com> <20051028184235.GC8514@ccure.user-mode-linux.org> <1130544201.23729.167.camel@localhost.localdomain>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1130544201.23729.167.camel@localhost.localdomain>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Rohit, Seth" <rohit.seth@intel.com>
-Cc: akpm@osdl.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Badari Pulavarty <pbadari@us.ibm.com>
+Cc: Hugh Dickins <hugh@veritas.com>, akpm@osdl.org, andrea@suse.de, dvhltc@us.ibm.com, linux-mm <linux-mm@kvack.org>, Blaisorblade <blaisorblade@yahoo.it>
 List-ID: <linux-mm.kvack.org>
 
-Rohit, Seth wrote:
-> the only changes in this clean up are:
+On Fri, Oct 28, 2005 at 05:03:21PM -0700, Badari Pulavarty wrote:
+> Here is the update on the patch.
 > 
-
-Looking good. I imagine it must be good for icache.
-Man, the page allocator somehow turned unreadable since I last
-looked at it! We will want this patch.
-
-> 	1- remove the initial direct reclaim logic
-> 	2- GFP_HIGH pages are allowed to go little below low watermark sooner
-
-I don't think #2 is any good. The reason we don't check GFP_HIGH on
-the first time round is because we simply want to kick kswapd at its
-normal watermark - ie. it doesn't matter what kind of allocation this
-is, kswapd should start at the same time no matter what.
-
-If you don't do this, then a GFP_HIGH allocator can allocate right
-down to its limit before it kicks kswapd, then it either will fail or
-will have to do direct reclaim.
-
-I would be inclined to simply add a int gfp_high argument to
-get_page_from_freelist, which would also somewhat match zone_watermark_ok.
-
-> 	3- Search for free pages unconditionally after direct reclaim
+> I found few bugs in my shmem_truncate_range() (surprise!!)
+> 	- BUG_ON(subdir->nr_swapped > offset);
+> 	- freeing up the "subdir" while it has some more entries
+> 	swapped.
 > 
-> I've not added the logic of looking into PCPs first in this rev of patch.  I will send a
-> seperate patch for adding that support (needing extra logic for NUMA).
-> 
-> 	Signed-off-by: Rohit Seth <rohit.seth@intel.com>
-> 
+> I wrote some tests to force swapping and working out the bugs.
+> I haven't tried your test yet, since its kind of intimidating :(
 
-One other comment below:
+Well, then send me the patch since I don't find this the least bit 
+intimidating :-)
 
-> +
-> +static struct page *
-> +get_page_from_freelist(unsigned int __nocast gfp_mask, unsigned int order, 
-> +			struct zone **zones, int can_try_harder)
-> +{
-> +	struct zone *z;
-> +	struct page *page = NULL;
-> +	int classzone_idx = zone_idx(zones[0]);
-> +	int i;
-> +
-> +	/*
-> +	 * Go through the zonelist once, looking for a zone with enough free.
-> +	 * See also cpuset_zone_allowed() comment in kernel/cpuset.c.
-> +	 */
-> +	for (i = 0; (z = zones[i]) != NULL; i++) {
-> +		if (!cpuset_zone_allowed(z, gfp_mask))
-> +			continue;
-> +
-> +		if ((can_try_harder >= 0) && 
-> +			(!zone_watermark_ok(z, order, z->pages_low,
-> +				       classzone_idx, can_try_harder, 
-> +				       gfp_mask & __GFP_HIGH)))
-> +			continue;
-> +
-> +		page = buffered_rmqueue(z, order, gfp_mask, 1);
-> +		if (page) 
-> +			break;
-> +	}
-> +	return page;
-> +}
-
-[snip]
-
-> @@ -968,7 +931,7 @@
->  	}
->  	return NULL;
->  got_pg:
-> -	zone_statistics(zonelist, z);
-> +	zone_statistics(zonelist, page_zone(page));
->  	return page;
-
-How about moving the zone_statistics up into the 'if (page)'
-test of get_page_from_freelist? This way we don't have to
-evaluate page_zone().
-
--- 
-SUSE Labs, Novell Inc.
-
-Send instant messages to your online friends http://au.messenger.yahoo.com 
+				Jeff
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
