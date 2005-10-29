@@ -1,50 +1,50 @@
-Received: from westrelay02.boulder.ibm.com (westrelay02.boulder.ibm.com [9.17.195.11])
-	by e36.co.us.ibm.com (8.12.11/8.12.11) with ESMTP id j9T03pvi030447
-	for <linux-mm@kvack.org>; Fri, 28 Oct 2005 20:03:51 -0400
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by e33.co.us.ibm.com (8.12.11/8.12.11) with ESMTP id j9T0aFGl030816
+	for <linux-mm@kvack.org>; Fri, 28 Oct 2005 20:36:15 -0400
 Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by westrelay02.boulder.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id j9T03pk9204464
-	for <linux-mm@kvack.org>; Fri, 28 Oct 2005 18:03:51 -0600
+	by d03relay04.boulder.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id j9T0bFEf536708
+	for <linux-mm@kvack.org>; Fri, 28 Oct 2005 18:37:15 -0600
 Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.12.11/8.13.3) with ESMTP id j9T03oIF002691
-	for <linux-mm@kvack.org>; Fri, 28 Oct 2005 18:03:51 -0600
+	by d03av02.boulder.ibm.com (8.12.11/8.13.3) with ESMTP id j9T0aEOf012310
+	for <linux-mm@kvack.org>; Fri, 28 Oct 2005 18:36:14 -0600
 Subject: Re: [RFC] madvise(MADV_TRUNCATE)
 From: Badari Pulavarty <pbadari@us.ibm.com>
-In-Reply-To: <20051028184235.GC8514@ccure.user-mode-linux.org>
+In-Reply-To: <200510282040.29856.blaisorblade@yahoo.it>
 References: <1130366995.23729.38.camel@localhost.localdomain>
-	 <20051028034616.GA14511@ccure.user-mode-linux.org>
-	 <43624F82.6080003@us.ibm.com>
-	 <20051028184235.GC8514@ccure.user-mode-linux.org>
+	 <200510281303.56688.blaisorblade@yahoo.it> <43624EE6.8000605@us.ibm.com>
+	 <200510282040.29856.blaisorblade@yahoo.it>
 Content-Type: text/plain
-Date: Fri, 28 Oct 2005 17:03:21 -0700
-Message-Id: <1130544201.23729.167.camel@localhost.localdomain>
+Date: Fri, 28 Oct 2005 17:35:45 -0700
+Message-Id: <1130546145.23729.170.camel@localhost.localdomain>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jeff Dike <jdike@addtoit.com>
-Cc: Hugh Dickins <hugh@veritas.com>, akpm@osdl.org, andrea@suse.de, dvhltc@us.ibm.com, linux-mm <linux-mm@kvack.org>, Blaisorblade <blaisorblade@yahoo.it>
+To: Blaisorblade <blaisorblade@yahoo.it>
+Cc: Jeff Dike <jdike@addtoit.com>, Hugh Dickins <hugh@veritas.com>, akpm@osdl.org, andrea@suse.de, dvhltc@us.ibm.com, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2005-10-28 at 14:42 -0400, Jeff Dike wrote:
-> On Fri, Oct 28, 2005 at 09:19:14AM -0700, Badari Pulavarty wrote:
-> > My touch tests so far, doesn't really verify data after freeing. I was
-> > thinking about writing cases. If I can use UML to do it, please send it
-> > to me. I would rather test with real world case :)
+On Fri, 2005-10-28 at 20:40 +0200, Blaisorblade wrote:
+
 > 
-> Grab and unpack http://www.user-mode-linux.org/~jdike/truncate.tar.bz2
+> All ok for that, I was complaining about not using ->vm_pgoff.
+> 
+> I had the doubt that vm_pgoff entered the picture later, but I'm sure 
+> truncate_inode_pages{_range} wants file offsets, so it wasn't something I was 
+> missing.
 
-Here is the update on the patch.
+Yep. You are right on -- Jeff's UML problem is due to not handling
+vm_pgoff correctly. I was able to reproduce the problem 
+(Thank you Jeff for the testcase with instructions).
 
-I found few bugs in my shmem_truncate_range() (surprise!!)
-	- BUG_ON(subdir->nr_swapped > offset);
-	- freeing up the "subdir" while it has some more entries
-	swapped.
+call vmtruncate_range(ffff81011fec0ff8, a7e3000 a7e4000) pgoff:259
 
-I wrote some tests to force swapping and working out the bugs.
-I haven't tried your test yet, since its kind of intimidating :(
+I need to think what I need to do with ->vm_pgoff, before I hack
+up something.
 
 Thanks,
 Badari
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
