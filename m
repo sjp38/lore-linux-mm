@@ -1,42 +1,50 @@
-Date: Fri, 28 Oct 2005 17:23:34 -0400
-From: Theodore Ts'o <tytso@mit.edu>
+Received: from westrelay02.boulder.ibm.com (westrelay02.boulder.ibm.com [9.17.195.11])
+	by e36.co.us.ibm.com (8.12.11/8.12.11) with ESMTP id j9T03pvi030447
+	for <linux-mm@kvack.org>; Fri, 28 Oct 2005 20:03:51 -0400
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by westrelay02.boulder.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id j9T03pk9204464
+	for <linux-mm@kvack.org>; Fri, 28 Oct 2005 18:03:51 -0600
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.12.11/8.13.3) with ESMTP id j9T03oIF002691
+	for <linux-mm@kvack.org>; Fri, 28 Oct 2005 18:03:51 -0600
 Subject: Re: [RFC] madvise(MADV_TRUNCATE)
-Message-ID: <20051028212334.GA17846@thunk.org>
-References: <1130366995.23729.38.camel@localhost.localdomain> <20051028034616.GA14511@ccure.user-mode-linux.org> <200510281955.09615.blaisorblade@yahoo.it>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <200510281955.09615.blaisorblade@yahoo.it>
+From: Badari Pulavarty <pbadari@us.ibm.com>
+In-Reply-To: <20051028184235.GC8514@ccure.user-mode-linux.org>
+References: <1130366995.23729.38.camel@localhost.localdomain>
+	 <20051028034616.GA14511@ccure.user-mode-linux.org>
+	 <43624F82.6080003@us.ibm.com>
+	 <20051028184235.GC8514@ccure.user-mode-linux.org>
+Content-Type: text/plain
+Date: Fri, 28 Oct 2005 17:03:21 -0700
+Message-Id: <1130544201.23729.167.camel@localhost.localdomain>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Blaisorblade <blaisorblade@yahoo.it>
-Cc: Badari Pulavarty <pbadari@us.ibm.com>, Jeff Dike <jdike@addtoit.com>, Hugh Dickins <hugh@veritas.com>, akpm@osdl.org, andrea@suse.de, dvhltc@us.ibm.com, linux-mm <linux-mm@kvack.org>
+To: Jeff Dike <jdike@addtoit.com>
+Cc: Hugh Dickins <hugh@veritas.com>, akpm@osdl.org, andrea@suse.de, dvhltc@us.ibm.com, linux-mm <linux-mm@kvack.org>, Blaisorblade <blaisorblade@yahoo.it>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Oct 28, 2005 at 07:55:09PM +0200, Blaisorblade wrote:
-> > On Thu, Oct 27, 2005 at 06:42:36PM -0700, Badari Pulavarty wrote:
-> > > Like Andrea mentioned MADV_DONTNEED should be able to do what JVM
-> > > folks want. If they want more than that, get in touch with me.
-> > > While doing MADV_REMOVE, I will see if I can satsify their needs also.
+On Fri, 2005-10-28 at 14:42 -0400, Jeff Dike wrote:
+> On Fri, Oct 28, 2005 at 09:19:14AM -0700, Badari Pulavarty wrote:
+> > My touch tests so far, doesn't really verify data after freeing. I was
+> > thinking about writing cases. If I can use UML to do it, please send it
+> > to me. I would rather test with real world case :)
 > 
-> > Well, I asked if what he wanted was simply walking all of the page
-> > tables and marking the indicated pages as "clean",
-> This idea sounds interesting and kludgy enough :-) .
-> > but he claimed that 
-> > anything that involved walking the pages tables would be too slow.
-> > But it may be that he was assuming this would be as painful as
-> > munmap(), when of course it wouldn't be.
-> 
-> I am curious which is the difference between the two. I know that we must also 
-> walk the vma tree, and that since we bundle the pointers in the vma the 
-> spatial locality is very poor, but I still don't get this huge loss.
+> Grab and unpack http://www.user-mode-linux.org/~jdike/truncate.tar.bz2
 
-Because if we do an munmap, we're removing entries from the page table
-entries, which means we have to do cross-CPU IPI's to flush TLB's on
-all of the CPU's.  That wouldn't be necessary if we're just marking
-the pages clean.
+Here is the update on the patch.
 
-						- Ted
+I found few bugs in my shmem_truncate_range() (surprise!!)
+	- BUG_ON(subdir->nr_swapped > offset);
+	- freeing up the "subdir" while it has some more entries
+	swapped.
+
+I wrote some tests to force swapping and working out the bugs.
+I haven't tried your test yet, since its kind of intimidating :(
+
+Thanks,
+Badari
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
