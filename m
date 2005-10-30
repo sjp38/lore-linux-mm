@@ -1,33 +1,102 @@
-Date: Fri, 28 Oct 2005 22:51:19 -0400
-From: Jeff Dike <jdike@addtoit.com>
-Subject: Re: [RFC] madvise(MADV_TRUNCATE)
-Message-ID: <20051029025119.GA14998@ccure.user-mode-linux.org>
-References: <1130366995.23729.38.camel@localhost.localdomain> <20051028034616.GA14511@ccure.user-mode-linux.org> <43624F82.6080003@us.ibm.com> <20051028184235.GC8514@ccure.user-mode-linux.org> <1130544201.23729.167.camel@localhost.localdomain>
+Date: Sat, 29 Oct 2005 17:16:30 -0700
+From: Paul Jackson <pj@sgi.com>
+Subject: Re: [PATCH]: Clean up of __alloc_pages
+Message-Id: <20051029171630.04a69660.pj@sgi.com>
+In-Reply-To: <20051028183326.A28611@unix-os.sc.intel.com>
+References: <20051028183326.A28611@unix-os.sc.intel.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1130544201.23729.167.camel@localhost.localdomain>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Badari Pulavarty <pbadari@us.ibm.com>
-Cc: Hugh Dickins <hugh@veritas.com>, akpm@osdl.org, andrea@suse.de, dvhltc@us.ibm.com, linux-mm <linux-mm@kvack.org>, Blaisorblade <blaisorblade@yahoo.it>
+To: "Rohit, Seth" <rohit.seth@intel.com>
+Cc: akpm@osdl.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Oct 28, 2005 at 05:03:21PM -0700, Badari Pulavarty wrote:
-> Here is the update on the patch.
-> 
-> I found few bugs in my shmem_truncate_range() (surprise!!)
-> 	- BUG_ON(subdir->nr_swapped > offset);
-> 	- freeing up the "subdir" while it has some more entries
-> 	swapped.
-> 
-> I wrote some tests to force swapping and working out the bugs.
-> I haven't tried your test yet, since its kind of intimidating :(
+Seth wroteL
+> @@ -851,19 +853,11 @@
+>  	 * Ignore cpuset if GFP_ATOMIC (!wait) rather than fail alloc.
+>  	 * See also cpuset_zone_allowed() comment in kernel/cpuset.c.
+>  	 */
+> -	for (i = 0; (z = zones[i]) != NULL; i++) {
+> -		if (!zone_watermark_ok(z, order, z->pages_min,
+> -				       classzone_idx, can_try_harder,
+> -				       gfp_mask & __GFP_HIGH))
+> -			continue;
+> -
+> -		if (wait && !cpuset_zone_allowed(z, gfp_mask))
+> -			continue;
+> -
+> -		page = buffered_rmqueue(z, order, gfp_mask);
+> -		if (page)
+> -			goto got_pg;
+> -	}
+> +	if (!wait)
+> +		page = get_page_from_freelist(gfp_mask, order, zones, 
+> +						can_try_harder);
 
-Well, then send me the patch since I don't find this the least bit 
-intimidating :-)
+Thanks for the clean-up work.  Good stuff.
 
-				Jeff
+I think you've changed the affect that the cpuset check has on the
+above pass.
+
+As you know, the above is the last chance we have for GFP_ATOMIC (can't
+wait) allocations before getting into the oom_kill code.  The code had
+been written to ignore cpuset constraints for GFP_ATOMIC (that is,
+"!wait") allocations.  The intent is to allow taking GFP_ATOMIC memory
+from any damn node we can find it on, rather than start killing.
+
+Your change will call into get_page_from_freelist() in such cases,
+where the cpuset check is still done.
+
+I would be tempted instead to:
+ 1) pass 'can_try_harder' value of -1, instead of the the local value
+    of 1 (which it certainly is, since we are in !wait code).
+ 2) condition the cpuset check in get_page_from_freelist() on
+    can_try_harder being not equal to -1.
+
+The item (2) -does- change the existing cpuset conditions as well,
+allowing cpuset boundaries to be violated for the cases that would
+"allow future memory freeing" (such as GFP_MEMALLOC or TIF_MEMDIE),
+whereas until now, we did not allow violating cpuset conditions
+for this.  But that is arguably a good change.
+
+The following patch, on top of yours, shows what I have in mind here:
+
+--- 2.6.14-rc5-mm1.orig/mm/page_alloc.c	2005-10-29 14:45:07.000000000 -0700
++++ 2.6.14-rc5-mm1/mm/page_alloc.c	2005-10-29 16:35:55.000000000 -0700
+@@ -777,7 +777,7 @@ get_page_from_freelist(unsigned int __no
+ 	 * See also cpuset_zone_allowed() comment in kernel/cpuset.c.
+ 	 */
+ 	for (i = 0; (z = zones[i]) != NULL; i++) {
+-		if (!cpuset_zone_allowed(z, gfp_mask))
++		if (can_try_harder != -1 && !cpuset_zone_allowed(z, gfp_mask))
+ 			continue;
+ 
+ 		if ((can_try_harder >= 0) && 
+@@ -940,8 +940,7 @@ restart:
+ 	 * See also cpuset_zone_allowed() comment in kernel/cpuset.c.
+ 	 */
+ 	if (!wait)
+-		page = get_page_from_freelist(gfp_mask, order, zones, 
+-						can_try_harder);
++		page = get_page_from_freelist(gfp_mask, order, zones, -1);
+ 	if (page)
+ 		goto got_pg;
+ 
+
+However ...
+ 1) The above also would change __GFP_HIGH and rt allocations to also
+    ignore mins entirely, instead of just going deeper into reserves,
+    on this pass.  That is likely not good.
+ 2) I can't get my head wrapped around Nick's reply to this patch.
+
+So my above patch is no doubt flawed in one or more ways.
+
+-- 
+                  I won't rest till it's the best ...
+                  Programmer, Linux Scalability
+                  Paul Jackson <pj@sgi.com> 1.925.600.0401
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
