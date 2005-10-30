@@ -1,217 +1,253 @@
 From: Mel Gorman <mel@csn.ul.ie>
-Message-Id: <20051030183414.22266.34302.sendpatchset@skynet.csn.ul.ie>
+Message-Id: <20051030183424.22266.13396.sendpatchset@skynet.csn.ul.ie>
 In-Reply-To: <20051030183354.22266.42795.sendpatchset@skynet.csn.ul.ie>
 References: <20051030183354.22266.42795.sendpatchset@skynet.csn.ul.ie>
-Subject: [PATCH 4/7] Fragmentation Avoidance V19: 004_fallback
-Date: Sun, 30 Oct 2005 18:34:15 +0000 (GMT)
+Subject: [PATCH 6/7] Fragmentation Avoidance V19: 006_percpu
+Date: Sun, 30 Oct 2005 18:34:25 +0000 (GMT)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@osdl.org
 Cc: linux-mm@kvack.org, Mel Gorman <mel@csn.ul.ie>, linux-kernel@vger.kernel.org, lhms-devel@lists.sourceforge.net
 List-ID: <linux-mm.kvack.org>
 
-This patch implements fallback logic. In the event there is no 2^(MAX_ORDER-1)
-blocks of pages left, this will help the system decide what list to use. The
-highlights of the patch are;
+The freelists for each allocation type can slowly become corrupted due to
+the per-cpu list. Consider what happens when the following happens
 
-o Define a RCLM_FALLBACK type for fallbacks
-o Use a percentage of each zone for fallbacks. When a reserved pool of pages
-  is depleted, it will try and use RCLM_FALLBACK before using anything else.
-  This greatly reduces the amount of fallbacks causing fragmentation without
-  needing complex balancing algorithms
-o Add a fallback_reserve that records how much of the zone is currently used
-  for allocations falling back to RCLM_FALLBACK
-o Adds a fallback_allocs[] array that determines the order of freelists are
-  used for each allocation type
+1. A 2^(MAX_ORDER-1) list is reserved for __GFP_EASYRCLM pages
+2. An order-0 page is allocated from the newly reserved block
+3. The page is freed and placed on the per-cpu list
+4. alloc_page() is called with GFP_KERNEL as the gfp_mask
+5. The per-cpu list is used to satisfy the allocation
+
+Now, a kernel page is in the middle of a __GFP_EASYRCLM page. This means
+that over long periods of the time, the anti-fragmentation scheme slowly
+degrades to the standard allocator.
+
+This patch divides the per-cpu lists into Kernel and User lists. RCLM_NORCLM
+and RCLM_KERN use the Kernel list and RCLM_EASY uses the user list. Strictly
+speaking, there should be three lists but as little effort is made to reclaim
+RCLM_KERN pages, it is not worth the overhead *yet*.
 
 Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-Signed-off-by: Mike Kravetz <kravetz@us.ibm.com>
-Signed-off-by: Joel Schopp <jschopp@austin.ibm.com>
-diff -rup -X /usr/src/patchset-0.5/bin//dontdiff linux-2.6.14-rc5-mm1-003_fragcore/include/linux/mmzone.h linux-2.6.14-rc5-mm1-004_fallback/include/linux/mmzone.h
---- linux-2.6.14-rc5-mm1-003_fragcore/include/linux/mmzone.h	2005-10-30 13:36:16.000000000 +0000
-+++ linux-2.6.14-rc5-mm1-004_fallback/include/linux/mmzone.h	2005-10-30 13:36:56.000000000 +0000
-@@ -30,7 +30,8 @@
- #define RCLM_NORCLM   0
- #define RCLM_EASY     1
- #define RCLM_KERN     2
--#define RCLM_TYPES    3
-+#define RCLM_FALLBACK 3
-+#define RCLM_TYPES    4
- #define BITS_PER_RCLM_TYPE 2
- 
- #define for_each_rclmtype_order(type, order) \
-@@ -168,8 +169,17 @@ struct zone {
- 	unsigned long		*free_area_usemap;
+diff -rup -X /usr/src/patchset-0.5/bin//dontdiff linux-2.6.14-rc5-mm1-005_largealloc_tryharder/include/linux/mmzone.h linux-2.6.14-rc5-mm1-006_percpu/include/linux/mmzone.h
+--- linux-2.6.14-rc5-mm1-005_largealloc_tryharder/include/linux/mmzone.h	2005-10-30 13:36:56.000000000 +0000
++++ linux-2.6.14-rc5-mm1-006_percpu/include/linux/mmzone.h	2005-10-30 13:38:14.000000000 +0000
+@@ -60,12 +60,21 @@ struct zone_padding {
+ #define ZONE_PADDING(name)
  #endif
  
-+	/*
-+	 * With allocation fallbacks, the nr_free count for each RCLM_TYPE must
-+	 * be added together to get the correct count of free pages for a given
-+	 * order. Individually, the nr_free count in a free_area may not match
-+	 * the number of pages in the free_list.
-+	 */
- 	struct free_area	free_area_lists[RCLM_TYPES][MAX_ORDER];
- 
-+	/* Number of pages currently used for RCLM_FALLBACK */
-+	unsigned long		fallback_reserve;
++/*
++ * Indices into pcpu_list
++ * PCPU_KERNEL: For RCLM_NORCLM and RCLM_KERN allocations
++ * PCPU_EASY:   For RCLM_EASY allocations
++ */
++#define PCPU_KERNEL 0
++#define PCPU_EASY   1
++#define PCPU_TYPES  2
 +
- 	ZONE_PADDING(_pad1_)
- 
- 	/* Fields commonly accessed by the page reclaim scanner */
-@@ -292,6 +302,17 @@ struct zonelist {
- 	struct zone *zones[MAX_NUMNODES * MAX_NR_ZONES + 1]; // NULL delimited
+ struct per_cpu_pages {
+-	int count;		/* number of pages in the list */
++	int count[PCPU_TYPES];  /* Number of pages on each list */
+ 	int low;		/* low watermark, refill needed */
+ 	int high;		/* high watermark, emptying needed */
+ 	int batch;		/* chunk size for buddy add/remove */
+-	struct list_head list;	/* the list of pages */
++	struct list_head list[PCPU_TYPES]; /* the lists of pages */
  };
  
-+static inline void inc_reserve_count(struct zone *zone, int type)
-+{
-+	if (type == RCLM_FALLBACK)
-+		zone->fallback_reserve += PAGES_PER_MAXORDER;
-+}
-+
-+static inline void dec_reserve_count(struct zone *zone, int type)
-+{
-+	if (type == RCLM_FALLBACK && zone->fallback_reserve)
-+		zone->fallback_reserve -= PAGES_PER_MAXORDER;
-+}
+ struct per_cpu_pageset {
+@@ -80,6 +89,10 @@ struct per_cpu_pageset {
+ #endif
+ } ____cacheline_aligned_in_smp;
  
- /*
-  * The pg_data_t structure is used in machines with CONFIG_DISCONTIGMEM
-diff -rup -X /usr/src/patchset-0.5/bin//dontdiff linux-2.6.14-rc5-mm1-003_fragcore/mm/page_alloc.c linux-2.6.14-rc5-mm1-004_fallback/mm/page_alloc.c
---- linux-2.6.14-rc5-mm1-003_fragcore/mm/page_alloc.c	2005-10-30 13:36:16.000000000 +0000
-+++ linux-2.6.14-rc5-mm1-004_fallback/mm/page_alloc.c	2005-10-30 13:36:56.000000000 +0000
-@@ -54,6 +54,22 @@ unsigned long totalhigh_pages __read_mos
- long nr_swap_pages;
++/* Helpers for per_cpu_pages */
++#define pset_count(pset) (pset.count[PCPU_KERNEL] + pset.count[PCPU_EASY])
++#define for_each_pcputype(pindex) \
++	for (pindex = 0; pindex < PCPU_TYPES; pindex++)
+ #ifdef CONFIG_NUMA
+ #define zone_pcp(__z, __cpu) ((__z)->pageset[(__cpu)])
+ #else
+diff -rup -X /usr/src/patchset-0.5/bin//dontdiff linux-2.6.14-rc5-mm1-005_largealloc_tryharder/mm/page_alloc.c linux-2.6.14-rc5-mm1-006_percpu/mm/page_alloc.c
+--- linux-2.6.14-rc5-mm1-005_largealloc_tryharder/mm/page_alloc.c	2005-10-30 13:37:34.000000000 +0000
++++ linux-2.6.14-rc5-mm1-006_percpu/mm/page_alloc.c	2005-10-30 13:38:14.000000000 +0000
+@@ -792,7 +792,7 @@ static int rmqueue_bulk(struct zone *zon
+ void drain_remote_pages(void)
+ {
+ 	struct zone *zone;
+-	int i;
++	int i, pindex;
+ 	unsigned long flags;
  
- /*
-+ * fallback_allocs contains the fallback types for low memory conditions
-+ * where the preferred alloction type if not available.
-+ */
-+int fallback_allocs[RCLM_TYPES-1][RCLM_TYPES+1] = {
-+	{RCLM_NORCLM,	RCLM_FALLBACK, RCLM_KERN,   RCLM_EASY, RCLM_TYPES},
-+	{RCLM_EASY,     RCLM_FALLBACK, RCLM_NORCLM, RCLM_KERN, RCLM_TYPES},
-+	{RCLM_KERN,     RCLM_FALLBACK, RCLM_NORCLM, RCLM_EASY, RCLM_TYPES}
-+};
-+
-+/* Returns 1 if the needed percentage of the zone is reserved for fallbacks */
-+static inline int min_fallback_reserved(struct zone *zone)
-+{
-+	return zone->fallback_reserve >= zone->present_pages >> 3;
-+}
-+
-+/*
-  * results with 256, 32 in the lowmem_reserve sysctl:
-  *	1G machine -> (16M dma, 800M-16M normal, 1G-800M high)
-  *	1G machine -> (16M dma, 784M normal, 224M high)
-@@ -623,7 +639,12 @@ struct page *steal_maxorder_block(struct
- 	page = list_entry(area->free_list.next, struct page, lru);
- 	area->nr_free--;
+ 	local_irq_save(flags);
+@@ -808,9 +808,16 @@ void drain_remote_pages(void)
+ 			struct per_cpu_pages *pcp;
  
-+	if (!min_fallback_reserved(zone))
-+		alloctype = RCLM_FALLBACK;
+ 			pcp = &pset->pcp[i];
+-			if (pcp->count)
+-				pcp->count -= free_pages_bulk(zone, pcp->count,
+-						&pcp->list, 0);
++			for_each_pcputype(pindex) {
++				if (!pcp->count[pindex])
++					continue;
 +
- 	set_pageblock_type(zone, page, alloctype);
-+	dec_reserve_count(zone, i);
-+	inc_reserve_count(zone, alloctype);
++				/* Try remove all pages from the pcpu list */
++				pcp->count[pindex] -=
++					free_pages_bulk(zone,
++						pcp->count[pindex],
++						&pcp->list[pindex], 0);
++			}
+ 		}
+ 	}
+ 	local_irq_restore(flags);
+@@ -821,7 +828,7 @@ void drain_remote_pages(void)
+ static void __drain_pages(unsigned int cpu)
+ {
+ 	struct zone *zone;
+-	int i;
++	int i, pindex;
  
- 	return page;
+ 	for_each_zone(zone) {
+ 		struct per_cpu_pageset *pset;
+@@ -831,8 +838,16 @@ static void __drain_pages(unsigned int c
+ 			struct per_cpu_pages *pcp;
+ 
+ 			pcp = &pset->pcp[i];
+-			pcp->count -= free_pages_bulk(zone, pcp->count,
+-						&pcp->list, 0);
++			for_each_pcputype(pindex) {
++				if (!pcp->count[pindex])
++					continue;
++
++				/* Try remove all pages from the pcpu list */
++				pcp->count[pindex] -=
++					free_pages_bulk(zone,
++						pcp->count[pindex],
++						&pcp->list[pindex], 0);
++			}
+ 		}
+ 	}
  }
-@@ -638,6 +659,78 @@ remove_page(struct zone *zone, struct pa
- 	return expand(zone, page, order, current_order, area);
- }
+@@ -911,6 +926,7 @@ static void fastcall free_hot_cold_page(
+ 	struct zone *zone = page_zone(page);
+ 	struct per_cpu_pages *pcp;
+ 	unsigned long flags;
++	int pindex;
  
-+/*
-+ * If we are falling back, and the allocation is KERNNORCLM,
-+ * then reserve any buddies for the KERNNORCLM pool. These
-+ * allocations fragment the worst so this helps keep them
-+ * in the one place
-+ */
-+static inline struct free_area *
-+fallback_buddy_reserve(int start_alloctype, struct zone *zone,
-+			unsigned int current_order, struct page *page,
-+			struct free_area *area)
-+{
-+	if (start_alloctype != RCLM_NORCLM)
-+		return area;
-+
-+	area = &zone->free_area_lists[RCLM_NORCLM][current_order];
-+
-+	/* Reserve the whole block if this is a large split */
-+	if (current_order >= MAX_ORDER / 2) {
-+		int reserve_type = RCLM_NORCLM;
-+		if (!min_fallback_reserved(zone))
-+			reserve_type = RCLM_FALLBACK;
-+
-+		dec_reserve_count(zone, get_pageblock_type(zone,page));
-+		set_pageblock_type(zone, page, reserve_type);
-+		inc_reserve_count(zone, reserve_type);
-+	}
-+	return area;
-+}
-+
-+static struct page *
-+fallback_alloc(int alloctype, struct zone *zone, unsigned int order)
-+{
-+	int *fallback_list;
-+	int start_alloctype = alloctype;
-+	struct free_area *area;
-+	unsigned int current_order;
-+	struct page *page;
-+	int i;
-+
-+	/* Ok, pick the fallback order based on the type */
-+	BUG_ON(alloctype >= RCLM_TYPES);
-+	fallback_list = fallback_allocs[alloctype];
+ 	arch_free_page(page, 0);
+ 
+@@ -920,11 +936,21 @@ static void fastcall free_hot_cold_page(
+ 		page->mapping = NULL;
+ 	free_pages_check(__FUNCTION__, page);
+ 	pcp = &zone_pcp(zone, get_cpu())->pcp[cold];
 +
 +	/*
-+	 * Here, the alloc type lists has been depleted as well as the global
-+	 * pool, so fallback. When falling back, the largest possible block
-+	 * will be taken to keep the fallbacks clustered if possible
++	 * Strictly speaking, we should not be accessing the zone information
++	 * here. In this case, it does not matter if the read is incorrect
 +	 */
-+	for (i = 0; fallback_list[i] != RCLM_TYPES; i++) {
-+		alloctype = fallback_list[i];
-+
-+		/* Find a block to allocate */
-+		area = &zone->free_area_lists[alloctype][MAX_ORDER-1];
-+		for (current_order = MAX_ORDER - 1; current_order > order;
-+				current_order--, area--) {
-+			if (list_empty(&area->free_list))
-+				continue;
-+
-+			page = list_entry(area->free_list.next,
-+						struct page, lru);
-+			area->nr_free--;
-+			area = fallback_buddy_reserve(start_alloctype, zone,
-+					current_order, page, area);
-+			return remove_page(zone, page, order,
-+					current_order, area);
-+
-+		}
-+	}
-+
-+	return NULL;
-+}
-+
- /* 
-  * Do the hard work of removing an element from the buddy allocator.
-  * Call me with the zone->lock already held.
-@@ -664,7 +757,8 @@ static struct page *__rmqueue(struct zon
- 	if (page != NULL)
- 		return remove_page(zone, page, order, MAX_ORDER-1, area);
++	if (get_pageblock_type(zone, page) == RCLM_EASY)
++		pindex = PCPU_EASY;
++	else
++		pindex = PCPU_KERNEL;
+ 	local_irq_save(flags);
+-	list_add(&page->lru, &pcp->list);
+-	pcp->count++;
+-	if (pcp->count >= pcp->high)
+-		pcp->count -= free_pages_bulk(zone, pcp->batch, &pcp->list, 0);
++	list_add(&page->lru, &pcp->list[pindex]);
++	pcp->count[pindex]++;
++	if (pcp->count[pindex] >= pcp->high)
++		pcp->count[pindex] -= free_pages_bulk(zone, pcp->batch,
++				&pcp->list[pindex], 0);
+ 	local_irq_restore(flags);
+ 	put_cpu();
+ }
+@@ -967,17 +993,23 @@ buffered_rmqueue(struct zone *zone, int 
  
--	return NULL;
-+	/* Try falling back */
-+	return fallback_alloc(alloctype, zone, order);
+ 	if (order == 0) {
+ 		struct per_cpu_pages *pcp;
++		int pindex = PCPU_KERNEL;
++		if (alloctype == RCLM_EASY)
++			pindex = PCPU_EASY;
+ 
+ 		pcp = &zone_pcp(zone, get_cpu())->pcp[cold];
+ 		local_irq_save(flags);
+-		if (pcp->count <= pcp->low)
+-			pcp->count += rmqueue_bulk(zone, 0,
+-						pcp->batch, &pcp->list,
+-						alloctype);
+-		if (pcp->count) {
+-			page = list_entry(pcp->list.next, struct page, lru);
++		if (pcp->count[pindex] <= pcp->low)
++			pcp->count[pindex] += rmqueue_bulk(zone,
++					0, pcp->batch,
++					&(pcp->list[pindex]),
++					alloctype);
++
++		if (pcp->count[pindex]) {
++			page = list_entry(pcp->list[pindex].next,
++					struct page, lru);
+ 			list_del(&page->lru);
+-			pcp->count--;
++			pcp->count[pindex]--;
+ 		}
+ 		local_irq_restore(flags);
+ 		put_cpu();
+@@ -1678,7 +1710,7 @@ void show_free_areas(void)
+ 					pageset->pcp[temperature].low,
+ 					pageset->pcp[temperature].high,
+ 					pageset->pcp[temperature].batch,
+-					pageset->pcp[temperature].count);
++					pset_count(pageset->pcp[temperature]));
+ 		}
+ 	}
+ 
+@@ -2135,18 +2167,22 @@ inline void setup_pageset(struct per_cpu
+ 	struct per_cpu_pages *pcp;
+ 
+ 	pcp = &p->pcp[0];		/* hot */
+-	pcp->count = 0;
++	pcp->count[PCPU_KERNEL] = 0;
++	pcp->count[PCPU_EASY] = 0;
+ 	pcp->low = 0;
+-	pcp->high = 6 * batch;
++	pcp->high = 3 * batch;
+ 	pcp->batch = max(1UL, 1 * batch);
+-	INIT_LIST_HEAD(&pcp->list);
++	INIT_LIST_HEAD(&pcp->list[PCPU_KERNEL]);
++	INIT_LIST_HEAD(&pcp->list[PCPU_EASY]);
+ 
+ 	pcp = &p->pcp[1];		/* cold*/
+-	pcp->count = 0;
++	pcp->count[PCPU_KERNEL] = 0;
++	pcp->count[PCPU_EASY] = 0;
+ 	pcp->low = 0;
+-	pcp->high = 2 * batch;
++	pcp->high = batch;
+ 	pcp->batch = max(1UL, batch/2);
+-	INIT_LIST_HEAD(&pcp->list);
++	INIT_LIST_HEAD(&pcp->list[PCPU_KERNEL]);
++	INIT_LIST_HEAD(&pcp->list[PCPU_EASY]);
  }
  
- /* 
-@@ -2270,6 +2364,7 @@ static void __init free_area_init_core(s
- 		zone_seqlock_init(zone);
- 		zone->zone_pgdat = pgdat;
- 		zone->free_pages = 0;
-+		zone->fallback_reserve = 0;
+ #ifndef CONFIG_SPARSEMEM
+@@ -2574,7 +2610,7 @@ static int zoneinfo_show(struct seq_file
  
- 		zone->temp_priority = zone->prev_priority = DEF_PRIORITY;
- 
+ 			pageset = zone_pcp(zone, i);
+ 			for (j = 0; j < ARRAY_SIZE(pageset->pcp); j++) {
+-				if (pageset->pcp[j].count)
++				if (pset_count(pageset->pcp[j]))
+ 					break;
+ 			}
+ 			if (j == ARRAY_SIZE(pageset->pcp))
+@@ -2587,7 +2623,7 @@ static int zoneinfo_show(struct seq_file
+ 					   "\n              high:  %i"
+ 					   "\n              batch: %i",
+ 					   i, j,
+-					   pageset->pcp[j].count,
++					   pset_count(pageset->pcp[j]),
+ 					   pageset->pcp[j].low,
+ 					   pageset->pcp[j].high,
+ 					   pageset->pcp[j].batch);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
