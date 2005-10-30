@@ -1,102 +1,52 @@
-Date: Sat, 29 Oct 2005 17:16:30 -0700
-From: Paul Jackson <pj@sgi.com>
-Subject: Re: [PATCH]: Clean up of __alloc_pages
-Message-Id: <20051029171630.04a69660.pj@sgi.com>
-In-Reply-To: <20051028183326.A28611@unix-os.sc.intel.com>
-References: <20051028183326.A28611@unix-os.sc.intel.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Message-Id: <200510300116.j9U1GJVf006402@shell0.pdx.osdl.net>
+Subject: [patch 07/86] mm: set per-cpu-pages lower threshold to zero
+From: akpm@osdl.org
+Date: Sat, 29 Oct 2005 18:15:48 -0700
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Rohit, Seth" <rohit.seth@intel.com>
-Cc: akpm@osdl.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: torvalds@osdl.org
+Cc: akpm@osdl.org, rohit.seth@intel.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Seth wroteL
-> @@ -851,19 +853,11 @@
->  	 * Ignore cpuset if GFP_ATOMIC (!wait) rather than fail alloc.
->  	 * See also cpuset_zone_allowed() comment in kernel/cpuset.c.
->  	 */
-> -	for (i = 0; (z = zones[i]) != NULL; i++) {
-> -		if (!zone_watermark_ok(z, order, z->pages_min,
-> -				       classzone_idx, can_try_harder,
-> -				       gfp_mask & __GFP_HIGH))
-> -			continue;
-> -
-> -		if (wait && !cpuset_zone_allowed(z, gfp_mask))
-> -			continue;
-> -
-> -		page = buffered_rmqueue(z, order, gfp_mask);
-> -		if (page)
-> -			goto got_pg;
-> -	}
-> +	if (!wait)
-> +		page = get_page_from_freelist(gfp_mask, order, zones, 
-> +						can_try_harder);
+From: "Seth, Rohit" <rohit.seth@intel.com>
 
-Thanks for the clean-up work.  Good stuff.
+Set the low water mark for hot pages in pcp to zero.
 
-I think you've changed the affect that the cpuset check has on the
-above pass.
+(akpm: for the life of me I cannot remember why we created pcp->low.  Neither
+can Martin and the changelog is silent.  Maybe it was just a brainfart, but I
+have this feeling that there was a reason.  If not, we should remove the
+fields completely.  We'll see.)
 
-As you know, the above is the last chance we have for GFP_ATOMIC (can't
-wait) allocations before getting into the oom_kill code.  The code had
-been written to ignore cpuset constraints for GFP_ATOMIC (that is,
-"!wait") allocations.  The intent is to allow taking GFP_ATOMIC memory
-from any damn node we can find it on, rather than start killing.
+Signed-off-by: Rohit Seth <rohit.seth@intel.com>
+Cc: <linux-mm@kvack.org>
+Signed-off-by: Andrew Morton <akpm@osdl.org>
+---
 
-Your change will call into get_page_from_freelist() in such cases,
-where the cpuset check is still done.
+ mm/page_alloc.c |    4 ++--
+ 1 files changed, 2 insertions(+), 2 deletions(-)
 
-I would be tempted instead to:
- 1) pass 'can_try_harder' value of -1, instead of the the local value
-    of 1 (which it certainly is, since we are in !wait code).
- 2) condition the cpuset check in get_page_from_freelist() on
-    can_try_harder being not equal to -1.
-
-The item (2) -does- change the existing cpuset conditions as well,
-allowing cpuset boundaries to be violated for the cases that would
-"allow future memory freeing" (such as GFP_MEMALLOC or TIF_MEMDIE),
-whereas until now, we did not allow violating cpuset conditions
-for this.  But that is arguably a good change.
-
-The following patch, on top of yours, shows what I have in mind here:
-
---- 2.6.14-rc5-mm1.orig/mm/page_alloc.c	2005-10-29 14:45:07.000000000 -0700
-+++ 2.6.14-rc5-mm1/mm/page_alloc.c	2005-10-29 16:35:55.000000000 -0700
-@@ -777,7 +777,7 @@ get_page_from_freelist(unsigned int __no
- 	 * See also cpuset_zone_allowed() comment in kernel/cpuset.c.
- 	 */
- 	for (i = 0; (z = zones[i]) != NULL; i++) {
--		if (!cpuset_zone_allowed(z, gfp_mask))
-+		if (can_try_harder != -1 && !cpuset_zone_allowed(z, gfp_mask))
- 			continue;
+diff -puN mm/page_alloc.c~mm-set-per-cpu-pages-lower-threshold-to-zero mm/page_alloc.c
+--- devel/mm/page_alloc.c~mm-set-per-cpu-pages-lower-threshold-to-zero	2005-10-29 17:37:00.000000000 -0700
++++ devel-akpm/mm/page_alloc.c	2005-10-29 18:15:18.000000000 -0700
+@@ -1755,7 +1755,7 @@ inline void setup_pageset(struct per_cpu
  
- 		if ((can_try_harder >= 0) && 
-@@ -940,8 +940,7 @@ restart:
- 	 * See also cpuset_zone_allowed() comment in kernel/cpuset.c.
- 	 */
- 	if (!wait)
--		page = get_page_from_freelist(gfp_mask, order, zones, 
--						can_try_harder);
-+		page = get_page_from_freelist(gfp_mask, order, zones, -1);
- 	if (page)
- 		goto got_pg;
+ 	pcp = &p->pcp[0];		/* hot */
+ 	pcp->count = 0;
+-	pcp->low = 2 * batch;
++	pcp->low = 0;
+ 	pcp->high = 6 * batch;
+ 	pcp->batch = max(1UL, 1 * batch);
+ 	INIT_LIST_HEAD(&pcp->list);
+@@ -1764,7 +1764,7 @@ inline void setup_pageset(struct per_cpu
+ 	pcp->count = 0;
+ 	pcp->low = 0;
+ 	pcp->high = 2 * batch;
+-	pcp->batch = max(1UL, 1 * batch);
++	pcp->batch = max(1UL, batch/2);
+ 	INIT_LIST_HEAD(&pcp->list);
+ }
  
-
-However ...
- 1) The above also would change __GFP_HIGH and rt allocations to also
-    ignore mins entirely, instead of just going deeper into reserves,
-    on this pass.  That is likely not good.
- 2) I can't get my head wrapped around Nick's reply to this patch.
-
-So my above patch is no doubt flawed in one or more ways.
-
--- 
-                  I won't rest till it's the best ...
-                  Programmer, Linux Scalability
-                  Paul Jackson <pj@sgi.com> 1.925.600.0401
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
