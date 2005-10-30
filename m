@@ -1,10 +1,10 @@
-Message-ID: <436443A0.1000508@yahoo.com.au>
-Date: Sun, 30 Oct 2005 14:53:04 +1100
+Message-ID: <4364442C.1070209@yahoo.com.au>
+Date: Sun, 30 Oct 2005 14:55:24 +1100
 From: Nick Piggin <nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
 Subject: Re: [PATCH]: Clean up of __alloc_pages
-References: <20051028183326.A28611@unix-os.sc.intel.com>	<20051029184728.100e3058.pj@sgi.com>	<4364296E.1080905@yahoo.com.au>	<20051029191946.1832adaf.pj@sgi.com>	<436430BA.4010606@yahoo.com.au> <20051029200634.778a57d6.pj@sgi.com>
-In-Reply-To: <20051029200634.778a57d6.pj@sgi.com>
+References: <20051028183326.A28611@unix-os.sc.intel.com>	<20051029184728.100e3058.pj@sgi.com>	<4364296E.1080905@yahoo.com.au>	<20051029192611.79b9c5e7.pj@sgi.com>	<43643195.9040600@yahoo.com.au> <20051029200916.61a32331.pj@sgi.com>
+In-Reply-To: <20051029200916.61a32331.pj@sgi.com>
 Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -14,25 +14,24 @@ Cc: rohit.seth@intel.com, akpm@osdl.org, linux-mm@kvack.org, linux-kernel@vger.k
 List-ID: <linux-mm.kvack.org>
 
 Paul Jackson wrote:
-> Nick, replying to pj:
+> Nick wrote:
+> 
+>>See how can_try_harder and gfp_high is used currently. 
+> 
+> 
+> Ah - by "current" you meant in Linus's or Andrew's tree,
+> not as in Seth's current patch.  Since they are booleans,
+> rather than tri-values, using an enum is overkill.  Ok.
 > 
 
->>Hmm, where is the other callsite? 
-> 
-> 
-> The other callsite is mm/swap_prefetch.c:prefetch_get_page(), from Con
-> Kolivas's mm-implement-swap-prefetching.patch patch in *-mm, dated
-> about six days ago.
+Yup.
+
+> Now I'm one less clue short of understanding.  Thanks.
 > 
 
-OK, I haven't looked at those patches really. I think some of that
-stuff should go into page_alloc.c and I'd prefer to keep
-buffered_rmqueue static.
-
-But no matter for the cleanup patch at hand: let's leave the inline
-off, and the compiler will do the right thing if it is static and
-there is just a single call site (and I think newer gccs will do
-function versioning if there are constant arguments).
+I'll be more constructive next time round, and provide an
+actual patch to address any of my remaining concerns after
+this latest round of feedback.
 
 -- 
 SUSE Labs, Novell Inc.
