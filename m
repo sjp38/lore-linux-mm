@@ -1,47 +1,77 @@
-Message-ID: <4364296E.1080905@yahoo.com.au>
-Date: Sun, 30 Oct 2005 13:01:18 +1100
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-MIME-Version: 1.0
+Date: Sat, 29 Oct 2005 19:19:46 -0700
+From: Paul Jackson <pj@sgi.com>
 Subject: Re: [PATCH]: Clean up of __alloc_pages
-References: <20051028183326.A28611@unix-os.sc.intel.com> <20051029184728.100e3058.pj@sgi.com>
-In-Reply-To: <20051029184728.100e3058.pj@sgi.com>
-Content-Type: text/plain; charset=us-ascii; format=flowed
+Message-Id: <20051029191946.1832adaf.pj@sgi.com>
+In-Reply-To: <4364296E.1080905@yahoo.com.au>
+References: <20051028183326.A28611@unix-os.sc.intel.com>
+	<20051029184728.100e3058.pj@sgi.com>
+	<4364296E.1080905@yahoo.com.au>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Paul Jackson <pj@sgi.com>
-Cc: "Rohit, Seth" <rohit.seth@intel.com>, akpm@osdl.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: rohit.seth@intel.com, akpm@osdl.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Paul Jackson wrote:
-> A couple more items:
->  1) Lets try for a consistent use of type "gfp_t" for gfp_mask.
->  2) The can_try_harder flag values were driving me nuts.
-
-Please instead use a second argument 'gfp_high', which will nicely
-match zone_watermark_ok, and use that consistently when converting
-__alloc_pages code to use get_page_from_freelist. Ie. keep current
-behaviour.
-
-That would solve my issues with the patch.
-
->  3) The "inline" you added to buffered_rmqueue() blew up my compile.
-
-How? Why? This should be solved because a future possible feature
-(early allocation from pcp lists) will want inlining in order to
-propogate the constant 'replenish' argument.
-
->  4) The return from try_to_free_pages() was put in "i" for no evident reason.
->  5) I have no clue what the replenish flag you added to buffered_rmqueue does.
+Nick, replying to pj:
+> >  3) The "inline" you added to buffered_rmqueue() blew up my compile.
 > 
+> How? Why? This should be solved because a future possible feature
+> (early allocation from pcp lists) will want inlining in order to
+> propogate the constant 'replenish' argument.
 
-Slight patch mis-split I guess. For the cleanup patch, you're right,
-this should be removed.
+If I make the following change to a copy of mm/page_alloc.c:
+
+=================================
+--- 2.6.14-rc5-mm1-cpuset-patches.orig/mm/page_alloc.c  2005-10-29 19:04:13.745641793 -0700
++++ 2.6.14-rc5-mm1-cpuset-patches/mm/page_alloc.c       2005-10-29 19:04:03.085367810 -0700
+@@ -713,7 +713,7 @@ static inline void prep_zero_page(struct
+  * we cheat by calling it from here, in the order > 0 path.  Saves a branch
+  * or two.
+  */
+-struct page *
++struct inline page *
+ buffered_rmqueue(struct zone *zone, int order, gfp_t gfp_flags)
+ {
+ 	unsigned long flags;
+=================================
+
+Then it goes from compiling ok, to failing with 61 lines of
+error output, beginning with:
+
+mm/page_alloc.c:716: error: parse error before "inline"
+mm/page_alloc.c:721: error: `gfp_flags' undeclared here (not in a function)
+mm/page_alloc.c:723: error: parse error before "if"
+mm/page_alloc.c:726: warning: type defaults to `int' in declaration of `pcp'
+mm/page_alloc.c:726: error: `zone' undeclared here (not in a function)
+mm/page_alloc.c:726: error: braced-group within expression allowed only inside a function
+mm/page_alloc.c:726: warning: data definition has no type or storage class
+mm/page_alloc.c:726: warning: type defaults to `int' in declaration of `debug_smp_processor_id'
+mm/page_alloc.c:726: warning: function declaration isn't a prototype
+mm/page_alloc.c:726: error: conflicting types for `debug_smp_processor_id'
+include/linux/smp.h:131: error: previous declaration of `debug_smp_processor_id'          
+
+This is gcc 3.3.3, compiling sn2_defconfig on and for an SN2.
+
+Perhaps "inline struct page *" would work better than "struct inline page *" ?
+... yes ... that fixes my compiler complaints.
+
+Also ... buffered_rmqueue() is a rather large function to be inlining.
+And if it is inlined, then are you expecting to also have an out of
+line copy, for use by the call to it from mm/swap_prefetch.c
+prefetch_get_page()?
+
+Adding the 'inline' keyword increases my kernel text size by
+1448 bytes, for the extra copy of this code used inline from
+the call to it from mm/page_alloc.c:get_page_from_freelist().
+Is that really worth it?
 
 -- 
-SUSE Labs, Novell Inc.
-
-Send instant messages to your online friends http://au.messenger.yahoo.com 
+                  I won't rest till it's the best ...
+                  Programmer, Linux Scalability
+                  Paul Jackson <pj@sgi.com> 1.925.600.0401
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
