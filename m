@@ -1,46 +1,64 @@
-Date: Sat, 29 Oct 2005 19:26:11 -0700
-From: Paul Jackson <pj@sgi.com>
+Message-ID: <436430BA.4010606@yahoo.com.au>
+Date: Sun, 30 Oct 2005 13:32:26 +1100
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+MIME-Version: 1.0
 Subject: Re: [PATCH]: Clean up of __alloc_pages
-Message-Id: <20051029192611.79b9c5e7.pj@sgi.com>
-In-Reply-To: <4364296E.1080905@yahoo.com.au>
-References: <20051028183326.A28611@unix-os.sc.intel.com>
-	<20051029184728.100e3058.pj@sgi.com>
-	<4364296E.1080905@yahoo.com.au>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+References: <20051028183326.A28611@unix-os.sc.intel.com>	<20051029184728.100e3058.pj@sgi.com>	<4364296E.1080905@yahoo.com.au> <20051029191946.1832adaf.pj@sgi.com>
+In-Reply-To: <20051029191946.1832adaf.pj@sgi.com>
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
+To: Paul Jackson <pj@sgi.com>
 Cc: rohit.seth@intel.com, akpm@osdl.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-> >  2) The can_try_harder flag values were driving me nuts.
+Paul Jackson wrote:
+> Nick, replying to pj:
 > 
-> Please instead use a second argument 'gfp_high', which will nicely
-> match zone_watermark_ok, and use that consistently when converting
-> __alloc_pages code to use get_page_from_freelist. Ie. keep current
-> behaviour.
+>>> 3) The "inline" you added to buffered_rmqueue() blew up my compile.
+>>
+>>How? Why? This should be solved because a future possible feature
+>>(early allocation from pcp lists) will want inlining in order to
+>>propogate the constant 'replenish' argument.
+> 
+> 
+> 
+> Perhaps "inline struct page *" would work better than "struct inline page *" ?
+> ... yes ... that fixes my compiler complaints.
+> 
 
-Well ... I still don't understand what you're suggesting, so I
-guess I will have to wait for an actual patch incorporating it.
+Ah, yep.
 
-Are you also objecting to converting "can_try_harder" to an
-enum, and getting the values in order of desperation?  If so,
-I don't why you object.
+> Also ... buffered_rmqueue() is a rather large function to be inlining.
 
-And there is still the issue that I don't think cpuset constraints
-should be applied in the last attempt before oom_killing for
-GFP_ATOMIC requests.
+It is, however there would only be 2 calls, and one I think would
+also have a constant 0 for "order".
 
-I will await the next version of the patch, and see if it meets
-my concerns.  I am missing a couple too many clues to add more
-at this point.
+Though yeah, it may be better split another way. For this patch,
+it shouldn't matter because it is static and will only have one
+callsite so should be inlined anyway.
+
+> And if it is inlined, then are you expecting to also have an out of
+> line copy, for use by the call to it from mm/swap_prefetch.c
+> prefetch_get_page()?
+> 
+
+No, that shouldn't be there though.
+
+> Adding the 'inline' keyword increases my kernel text size by
+> 1448 bytes, for the extra copy of this code used inline from
+> the call to it from mm/page_alloc.c:get_page_from_freelist().
+> Is that really worth it?
+> 
+
+Hmm, where is the other callsite? (sorry I don't have a copy
+of -mm handy so I'm just looking at 2.6).
 
 -- 
-                  I won't rest till it's the best ...
-                  Programmer, Linux Scalability
-                  Paul Jackson <pj@sgi.com> 1.925.600.0401
+SUSE Labs, Novell Inc.
+
+Send instant messages to your online friends http://au.messenger.yahoo.com 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
