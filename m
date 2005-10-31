@@ -1,47 +1,38 @@
-Received: from westrelay02.boulder.ibm.com (westrelay02.boulder.ibm.com [9.17.195.11])
-	by e34.co.us.ibm.com (8.12.11/8.12.11) with ESMTP id j9VJG6Av001845
-	for <linux-mm@kvack.org>; Mon, 31 Oct 2005 14:16:06 -0500
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by westrelay02.boulder.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id j9VJG6fJ505746
-	for <linux-mm@kvack.org>; Mon, 31 Oct 2005 12:16:06 -0700
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.12.11/8.13.3) with ESMTP id j9VJG5dF023269
-	for <linux-mm@kvack.org>; Mon, 31 Oct 2005 12:16:06 -0700
-Subject: Re: [RFC] madvise(MADV_TRUNCATE)
-From: Badari Pulavarty <pbadari@us.ibm.com>
-In-Reply-To: <20051029025119.GA14998@ccure.user-mode-linux.org>
-References: <1130366995.23729.38.camel@localhost.localdomain>
-	 <20051028034616.GA14511@ccure.user-mode-linux.org>
-	 <43624F82.6080003@us.ibm.com>
-	 <20051028184235.GC8514@ccure.user-mode-linux.org>
-	 <1130544201.23729.167.camel@localhost.localdomain>
-	 <20051029025119.GA14998@ccure.user-mode-linux.org>
-Content-Type: text/plain
-Date: Mon, 31 Oct 2005 11:15:40 -0800
-Message-Id: <1130786140.24503.13.camel@localhost.localdomain>
+Date: Mon, 31 Oct 2005 11:24:09 -0800
+From: Andrew Morton <akpm@osdl.org>
+Subject: Re: [Lhms-devel] [PATCH 0/7] Fragmentation Avoidance V19
+Message-Id: <20051031112409.153e7048.akpm@osdl.org>
+In-Reply-To: <27700000.1130769270@[10.10.2.4]>
+References: <20051030183354.22266.42795.sendpatchset@skynet.csn.ul.ie>
+	<20051031055725.GA3820@w-mikek2.ibm.com>
+	<4365BBC4.2090906@yahoo.com.au>
+	<20051030235440.6938a0e9.akpm@osdl.org>
+	<27700000.1130769270@[10.10.2.4]>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jeff Dike <jdike@addtoit.com>
-Cc: Hugh Dickins <hugh@veritas.com>, akpm@osdl.org, andrea@suse.de, dvhltc@us.ibm.com, linux-mm <linux-mm@kvack.org>, Blaisorblade <blaisorblade@yahoo.it>
+To: "Martin J. Bligh" <mbligh@mbligh.org>
+Cc: nickpiggin@yahoo.com.au, kravetz@us.ibm.com, mel@csn.ul.ie, linux-mm@kvack.org, linux-kernel@vger.kernel.org, lhms-devel@lists.sourceforge.net
 List-ID: <linux-mm.kvack.org>
 
-Hi Jeff,
+"Martin J. Bligh" <mbligh@mbligh.org> wrote:
+>
+> To me, the question is "do we support higher order allocations, or not?".
+>  Pretending we do, making a half-assed job of it, and then it not working
+>  well under pressure is not helping anyone. I'm told, for instance, that
+>  AMD64 requires > 4K stacks - that's pretty fundamental, as just one 
+>  instance. I'd rather make Linux pretty bulletproof - the added feature
+>  stuff is just a bonus that comes for free with that.
 
-Okay. Here is the latest.
+Well...  stacks are allocated with GFP_KERNEL, so we're reliable there.
 
-Please ignore my previous mail. I found few issues in my code
-where by, truncating one more page than what I need to. 
-(off by 1 byte error). Took long time for me to figure out.
+It's the GFP_ATOMIC higher-order allocations which fail, and networking
+copes with that.
 
-UML testcase is working fine. I will send out the patch
-after a little cleanup.
-
-Thanks for your help with *real* testcase :)
-
-Thanks,
-Badari
+I suspect this would all be a non-issue if the net drivers were using
+__GFP_NOWARN ;)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
