@@ -1,164 +1,119 @@
-Date: Mon, 31 Oct 2005 16:19:18 +0000 (GMT)
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [Lhms-devel] [PATCH 0/7] Fragmentation Avoidance V19
-In-Reply-To: <4365C39F.2080006@yahoo.com.au>
-Message-ID: <Pine.LNX.4.58.0510311250170.29390@skynet>
-References: <20051030183354.22266.42795.sendpatchset@skynet.csn.ul.ie>
- <20051031055725.GA3820@w-mikek2.ibm.com> <4365BBC4.2090906@yahoo.com.au>
- <20051030235440.6938a0e9.akpm@osdl.org> <4365C39F.2080006@yahoo.com.au>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from westrelay02.boulder.ibm.com (westrelay02.boulder.ibm.com [9.17.195.11])
+	by e31.co.us.ibm.com (8.12.11/8.12.11) with ESMTP id j9VGZ6OR005230
+	for <linux-mm@kvack.org>; Mon, 31 Oct 2005 11:35:06 -0500
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by westrelay02.boulder.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id j9VGZ6fJ483744
+	for <linux-mm@kvack.org>; Mon, 31 Oct 2005 09:35:06 -0700
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.12.11/8.13.3) with ESMTP id j9VGZ5wq015858
+	for <linux-mm@kvack.org>; Mon, 31 Oct 2005 09:35:06 -0700
+Subject: Re: [RFC] madvise(MADV_TRUNCATE)
+From: Badari Pulavarty <pbadari@us.ibm.com>
+In-Reply-To: <20051029025119.GA14998@ccure.user-mode-linux.org>
+References: <1130366995.23729.38.camel@localhost.localdomain>
+	 <20051028034616.GA14511@ccure.user-mode-linux.org>
+	 <43624F82.6080003@us.ibm.com>
+	 <20051028184235.GC8514@ccure.user-mode-linux.org>
+	 <1130544201.23729.167.camel@localhost.localdomain>
+	 <20051029025119.GA14998@ccure.user-mode-linux.org>
+Content-Type: text/plain
+Date: Mon, 31 Oct 2005 08:34:39 -0800
+Message-Id: <1130776479.24503.3.camel@localhost.localdomain>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Andrew Morton <akpm@osdl.org>, kravetz@us.ibm.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, lhms-devel@lists.sourceforge.net
+To: Jeff Dike <jdike@addtoit.com>
+Cc: Hugh Dickins <hugh@veritas.com>, akpm@osdl.org, andrea@suse.de, dvhltc@us.ibm.com, linux-mm <linux-mm@kvack.org>, Blaisorblade <blaisorblade@yahoo.it>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 31 Oct 2005, Nick Piggin wrote:
+On Fri, 2005-10-28 at 22:51 -0400, Jeff Dike wrote:
+> On Fri, Oct 28, 2005 at 05:03:21PM -0700, Badari Pulavarty wrote:
+> > Here is the update on the patch.
+> > 
+> > I found few bugs in my shmem_truncate_range() (surprise!!)
+> > 	- BUG_ON(subdir->nr_swapped > offset);
+> > 	- freeing up the "subdir" while it has some more entries
+> > 	swapped.
+> > 
+> > I wrote some tests to force swapping and working out the bugs.
+> > I haven't tried your test yet, since its kind of intimidating :(
+> 
+> Well, then send me the patch since I don't find this the least bit 
+> intimidating :-)
 
-> Andrew Morton wrote:
-> > Nick Piggin <nickpiggin@yahoo.com.au> wrote:
->
-> > > Despite what people were trying to tell me at Ottawa, this patch
-> > > set really does add quite a lot of complexity to the page
-> > > allocator, and it seems to be increasingly only of benefit to
-> > > dynamically allocating hugepages and memory hot unplug.
-> >
-> >
-> > Remember that Rohit is seeing ~10% variation between runs of scientific
-> > software, and that his patch to use higher-order pages to preload the
-> > percpu-pages magazines fixed that up.  I assume this means that it provided
-> > up to 10% speedup, which is a lot.
-> >
->
-> OK, I wasn't aware of this. I wonder what other approaches we could
-> try to add a bit of colour to our pages? I bet something simple like
-> trying to hand out alternate odd/even pages per task might help.
->
+Jeff,
 
-Reading through the kernel archives, it appears that any page colouring
-scheme was getting rejected because it slowed up workloads like kernel
-compilers that were not very cache sensitive. Where an approach didn't
-suffer from that problem, there was disagreement over whether there was a
-general performance improvement or not.
+I tried your testcase again (tried to remove 8K). I see nothing
+wrong from madvise() side - but after removing all commands
+hang in UML. Few uml processes keep spinning. Does these mean
+anything to you. I can't seem to find out what wrong with my
+code.
 
-I recall Rohit's patch from an earlier -mm. Without knowing anything about
-his test, I am guessing he is getting cheap page colouring by preloading
-the per-cpu cache with contiguous pages and his workload is faulting in
-the batch of pages immediately by doing something like linearly reading a
-large array. Hence, the mappings of his workload are getting the right
-colour pages. This makes his workload a "lucky"  workload. The general
-benefit of preloading the percpu magazines is that there is a chance the
-allocator only has to be called once, not pcp->batch times.
+(BTW, I wrote a testcase to release few pages and then go back
+and touch those pages again - I don't see any problem).
 
-An odd/even allocation scheme could be provided by having two free_lists
-in a free_area. One list for the "left buddy" and the other list for the
-"right buddy". However, at best, that would provide two colours. I'm not
-sure how much benefit it would give for the cost of more linked lists.
+Please let me know.
 
-> > gigE Tx buffer allocation failures, so I dropped it.
-> >
-> > We think that Mel's patches will allow us to reintroduce Rohit's
-> > optimisation.
-> >
-> >
-> > > If that is the case, do we really want to make such sacrifices
-> > > for the huge machines that want these things? What about just
-> > > making an extra zone for easy-to-reclaim things to live in?
-> > >
-> > > This could possibly even be resized at runtime according to
-> > > demand with the memory hotplug stuff (though I haven't been
-> > > following that).
-> > >
-> > > Don't take this as criticism of the actual implementation or its
-> > > effectiveness.
-> > >
-> >
-> >
-> > But yes, adding additional complexity is a black mark, and these patches
-> > add quite a bit.  (Ditto the fine-looking adaptive readahead patches, btw).
-> >
->
-> They do look quite fine. They seem to get their claws pretty deep
-> into page reclaim, but I guess that is to be expected if we want
-> to increase readahead smarts much more.
->
-> However, I'm hoping bits of that can be merged at a time, and
-> interfaces and page reclaim stuff can be discussed and the best
-> option taken. No such luck with these patches AFAIKS - simply
-> adding another level of page groups, and another level of
-> heuristics to the page allocator is going to hurt. By definition.
-> I do wonder why zones can't be used... though I'm sure there are
-> good reasons.
->
+Thanks,
+Badari
 
-Granted, the patch set does add complexity even though I tried to keep it
-as simple as possible. Benchmarks were posted with each patchset to show
-that it was not suffering in real performance even if the code is a bit
-less approachable.
 
-Doing something similar with zones is an old idea and brought up
-specifically for memory hotplug. In implementations, the zone was called
-ZONE_HOTREMOVABLE or something similar. In my opinion, replicating the
-effect of this set of patches with zones introduces it's own set of
-headaches and ends up being far more complicated. Hopefully, someone will
-point out if I am missing historical context here, am rehashing old
-arguments or am just plain wrong :)
+top - 03:36:09 up 8 min,  3 users,  load average: 1.26, 0.70, 0.33
+Tasks:  70 total,   3 running,  57 sleeping,  10 stopped,   0 zombie
+Cpu(s):  8.8% us, 41.2% sy,  0.0% ni, 49.9% id,  0.0% wa,  0.0% hi,
+0.0% si
+Mem:   4042308k total,   283296k used,  3759012k free,     9728k buffers
+Swap:  1052648k total,        0k used,  1052648k free,   149052k cached
 
-To replicate the functionality of these patches with zones would require
-two additional zones for NormalEasy and HighmemEasy (I suck at naming
-things).  The plus side is that once the zone fallback lists are updated,
-the page allocator remains more or less the same as it is today. Then the
-headaches start.
+  PID USER      PR  NI  VIRT  RES  SHR S %CPU %MEM    TIME+  COMMAND
+11826 root      16   0  193m  51m  51m R 62.6  1.3   1:01.44 linux
+11834 root      15   0   504  456  440 R 37.3  0.0   0:35.70 linux
+    1 root      16   0   720  260  216 S  0.0  0.0   0:00.57 init
+    2 root      RT   0     0    0    0 S  0.0  0.0   0:00.00 migration/0
 
-Problem 1: Zone fallback lists are "one-way" and per-node. Lets assume a
-fallback list of HighMemEasy, HighMem, NormalEasy, Normal, DMA. Assuming
-we are allocating PTEs from high memory, we could fallback to the Normal
-zone even if highmem pages are available because the HighMem zone was out
-of pages. It will require very different fallback logic to say that
-HighMem allocations can also use HighMemEasy rather than falling back to
-Normal.
+sysrq-t output:
 
-Problem 2: Setting the zone size will be a very difficult tunable to get
-right.  Right off, we are are introducing a tunable which will make
-foreheads furrow. If the tunable is set wrong, system performance will
-suffer and we could see situations where kernel allocations fail because
-it's zone got depleted.
+linux         S 0000000000000001     0 11826  10995 11832
+(NOTLB)
+0000000000000001 0000000000000000 0000000000000001 0000000000000006
+       ffffffff8062e480 ffffffffffffffef ffffffff80404544
+0000000000000010
+       0000000000000202 ffff810111e8dd48
+Call Trace:<ffffffff80404544>{_write_lock_irqsave+132}
+<ffffffff80404599>{_write_lock_irq+9}
+       <ffffffff8013a522>{do_wait+610}
+<ffffffff80132430>{default_wake_function+0}
+       <ffffffff80132430>{default_wake_function+0}
+<ffffffff8013241b>{try_to_wake_up+1083}
+       <ffffffff8013b05a>{sys_wait4+42}
+<ffffffff80159771>{compat_sys_wait4+49}
+       <ffffffff80132460>{wake_up_process+16}
+<ffffffff80111a05>{sys_ptrace+2261}
+       <ffffffff8012ea5f>{sys32_ptrace+111}
+<ffffffff80124efb>{sys32_waitpid+11}
+       <ffffffff801235eb>{sysenter_do_call+27}
 
-Problem 3: To get rid of the tunable, we could try resizing the zones
-dynamically but that will be hard. Obviously, the zones are going to be
-physically adjacent to each other. To resize the zone, the pages at one
-end of the zone will need to be free. Shrinking the NormalEasy zone would
-be easy enough, but shrinking the Normal zone with kernel pages in it
-would be considerably harder, if not outright impossible. One page in the
-wrong place will mean the zone cannot be resized
+linux         t ffff810120ee0100     0 11834  11826               12082
+(NOTLB)
+ffff810109fdbdb8 0000000000000082 0000000000000001 0000000000000046
+       ffff810109fdbd08 ffffffff801331e2 0000000000000000
+ffff81011b01a600
+       ffff81011b01ae08 ffff8101234a0ec0
+Call Trace:<ffffffff801331e2>{__wake_up_sync+98}
+<ffffffff801422f2>{recalc_sigpending+18}
+<ffffffff801433a5>{__dequeue_signal+501} <ffffffff80144939>{ptrace_stop
++313}
+       <ffffffff80145997>{get_signal_to_deliver+407}
+<ffffffff8010d21d>{do_signal+125}
+       <ffffffff80406480>{do_page_fault+2176}
+<ffffffff8012e2eb>{restore_i387_ia32+75}
+       <ffffffff80129ba1>{ia32_restore_sigcontext+129}
+<ffffffff80129cd1>{ia32_restore_sigcontext+433}
+       <ffffffff8010d890>{do_notify_resume+48}
+<ffffffff8010e036>{int_signal+18}
 
-Problem 4: Page reclaim would have two new zones to deal with bringing
-with it a new set of zone balancing problems. That brings it's own special
-brand of fun.
 
-There may be more problems but these 4 are fairly important. This patchset
-does not suffer from the same problems.
-
-Problem 1: This patchset has a fallback list for each allocation type. So
-EasyRclm allocations can just as easily use an area reserved for kernel
-allocations and vice versa. Obviously we don't like when this happens, but
-when it does, things start fragmenting rather than breaking.
-
-Problem 2: The number of pages that get reserved for each type grows and
-shrinks on demand. There is no tunable and no need for one.
-
-Problem 3: Problem doesn't exist for this patchset
-
-Problem 4: Problem doesn't exist for this patchset.
-
-Bottom line, using zones will be more complex than this set of patches and
-bring a lot of tricky issues with it.
-
--- 
-Mel Gorman
-Part-time Phd Student                          Java Applications Developer
-University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
