@@ -1,60 +1,47 @@
-Subject: Re: [PATCH]: Clean up of __alloc_pages
-From: Rohit Seth <rohit.seth@intel.com>
-In-Reply-To: <20051029171630.04a69660.pj@sgi.com>
-References: <20051028183326.A28611@unix-os.sc.intel.com>
-	 <20051029171630.04a69660.pj@sgi.com>
+Received: from westrelay02.boulder.ibm.com (westrelay02.boulder.ibm.com [9.17.195.11])
+	by e34.co.us.ibm.com (8.12.11/8.12.11) with ESMTP id j9VJG6Av001845
+	for <linux-mm@kvack.org>; Mon, 31 Oct 2005 14:16:06 -0500
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by westrelay02.boulder.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id j9VJG6fJ505746
+	for <linux-mm@kvack.org>; Mon, 31 Oct 2005 12:16:06 -0700
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.12.11/8.13.3) with ESMTP id j9VJG5dF023269
+	for <linux-mm@kvack.org>; Mon, 31 Oct 2005 12:16:06 -0700
+Subject: Re: [RFC] madvise(MADV_TRUNCATE)
+From: Badari Pulavarty <pbadari@us.ibm.com>
+In-Reply-To: <20051029025119.GA14998@ccure.user-mode-linux.org>
+References: <1130366995.23729.38.camel@localhost.localdomain>
+	 <20051028034616.GA14511@ccure.user-mode-linux.org>
+	 <43624F82.6080003@us.ibm.com>
+	 <20051028184235.GC8514@ccure.user-mode-linux.org>
+	 <1130544201.23729.167.camel@localhost.localdomain>
+	 <20051029025119.GA14998@ccure.user-mode-linux.org>
 Content-Type: text/plain
-Date: Mon, 31 Oct 2005 11:09:39 -0800
-Message-Id: <1130785780.4853.5.camel@akash.sc.intel.com>
+Date: Mon, 31 Oct 2005 11:15:40 -0800
+Message-Id: <1130786140.24503.13.camel@localhost.localdomain>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Paul Jackson <pj@sgi.com>
-Cc: akpm@osdl.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Jeff Dike <jdike@addtoit.com>
+Cc: Hugh Dickins <hugh@veritas.com>, akpm@osdl.org, andrea@suse.de, dvhltc@us.ibm.com, linux-mm <linux-mm@kvack.org>, Blaisorblade <blaisorblade@yahoo.it>
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 2005-10-29 at 17:16 -0700, Paul Jackson wrote:
-> Seth wroteL
-> > @@ -851,19 +853,11 @@
-> >  	 * Ignore cpuset if GFP_ATOMIC (!wait) rather than fail alloc.
-> >  	 * See also cpuset_zone_allowed() comment in kernel/cpuset.c.
-> >  	 */
-> > -	for (i = 0; (z = zones[i]) != NULL; i++) {
-> > -		if (!zone_watermark_ok(z, order, z->pages_min,
-> > -				       classzone_idx, can_try_harder,
-> > -				       gfp_mask & __GFP_HIGH))
-> > -			continue;
-> > -
-> > -		if (wait && !cpuset_zone_allowed(z, gfp_mask))
-> > -			continue;
-> > -
-> > -		page = buffered_rmqueue(z, order, gfp_mask);
-> > -		if (page)
-> > -			goto got_pg;
-> > -	}
-> > +	if (!wait)
-> > +		page = get_page_from_freelist(gfp_mask, order, zones, 
-> > +						can_try_harder);
-> 
-> Thanks for the clean-up work.  Good stuff.
-> 
-> I think you've changed the affect that the cpuset check has on the
-> above pass.
-> 
-> As you know, the above is the last chance we have for GFP_ATOMIC (can't
-> wait) allocations before getting into the oom_kill code.  The code had
-> been written to ignore cpuset constraints for GFP_ATOMIC (that is,
-> "!wait") allocations.  The intent is to allow taking GFP_ATOMIC memory
-> from any damn node we can find it on, rather than start killing.
-> 
-> Your change will call into get_page_from_freelist() in such cases,
-> where the cpuset check is still done.
+Hi Jeff,
 
+Okay. Here is the latest.
 
-Shooo....I will fix it.
+Please ignore my previous mail. I found few issues in my code
+where by, truncating one more page than what I need to. 
+(off by 1 byte error). Took long time for me to figure out.
 
--rohit
+UML testcase is working fine. I will send out the patch
+after a little cleanup.
+
+Thanks for your help with *real* testcase :)
+
+Thanks,
+Badari
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
