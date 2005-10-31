@@ -1,67 +1,76 @@
 Subject: Re: [PATCH]: Clean up of __alloc_pages
 From: Rohit Seth <rohit.seth@intel.com>
-In-Reply-To: <4362DF80.3060802@yahoo.com.au>
+In-Reply-To: <20051029184728.100e3058.pj@sgi.com>
 References: <20051028183326.A28611@unix-os.sc.intel.com>
-	 <4362DF80.3060802@yahoo.com.au>
+	 <20051029184728.100e3058.pj@sgi.com>
 Content-Type: text/plain
-Date: Mon, 31 Oct 2005 12:55:07 -0800
-Message-Id: <1130792107.4853.24.camel@akash.sc.intel.com>
+Date: Mon, 31 Oct 2005 13:20:54 -0800
+Message-Id: <1130793655.4853.41.camel@akash.sc.intel.com>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
+To: Paul Jackson <pj@sgi.com>
 Cc: akpm@osdl.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 2005-10-29 at 12:33 +1000, Nick Piggin wrote:
+On Sat, 2005-10-29 at 18:47 -0700, Paul Jackson wrote:
+> A couple more items:
+>  1) Lets try for a consistent use of type "gfp_t" for gfp_mask.
+>  2) The can_try_harder flag values were driving me nuts.
 
-> Rohit, Seth wrote:
-> > the only changes in this clean up are:
-> > 
-> 
-> Looking good. I imagine it must be good for icache.
-> Man, the page allocator somehow turned unreadable since I last
-> looked at it! We will want this patch.
-> 
+Not sure why?  Let me see if some new values could better articulate the
+meaning.  Currently if value is < 0 then don't check the watermarks.
+When we do check for watermarks, then the value of 1 indicates that it
+could go below minimum value.
 
-Thanks for your comments.
+>  3) The "inline" you added to buffered_rmqueue() blew up my compile.
 
-> > 	1- remove the initial direct reclaim logic
-> > 	2- GFP_HIGH pages are allowed to go little below low watermark sooner
-> 
-> I don't think #2 is any good. The reason we don't check GFP_HIGH on
-> the first time round is because we simply want to kick kswapd at its
-> normal watermark - ie. it doesn't matter what kind of allocation this
-> is, kswapd should start at the same time no matter what.
-> 
-> If you don't do this, then a GFP_HIGH allocator can allocate right
-> down to its limit before it kicks kswapd, then it either will fail or
-> will have to do direct reclaim.
-> 
+I will remove the inline based on your and Nick emails.  Though my patch
+had inline before the struct....
 
-You are right if there are only GFP_HIGH requests coming in then the
-allocation will go down to (min - min/2) before kicking in kswapd.
-Though if the requester is not ready to wait, there is another good shot
-at allocation succeed before we get into direct reclaim (and this is
-happening based on can_try_harder flag).
+-static struct page *
+-buffered_rmqueue(struct zone *zone, int order, gfp_t gfp_flags)
++static inline struct page *
++buffered_rmqueue(struct zone *zone, int order, gfp_t gfp_flags, int
+replenish)
 
-> >
-> >  got_pg:
-> > -	zone_statistics(zonelist, z);
-> > +	zone_statistics(zonelist, page_zone(page));
-> >  	return page;
-> 
-> How about moving the zone_statistics up into the 'if (page)'
-> test of get_page_from_freelist? This way we don't have to
-> evaluate page_zone().
+...so that shouldn't have caused any problem.
+
+>  4) The return from try_to_free_pages() was put in "i" for no evident reason.
+
+Will be fixed.
+
+>  5) I have no clue what the replenish flag you added to buffered_rmqueue does.
 > 
 
-Let us keep this as is for now.  Will revisit once after the
-pcp_prefer_allocation patches get in place. 
+A bit futuristic.  Will need it when pcp allocations gets checked first
+(as Nick also mentioned).  Will remove it for now.
 
-Thanks,
--rohit
+> You patch has:
+> > can_try_harder can have following 
+> >  * values:
+> >  * -1 => No need to check for the watermarks.
+> >  *  0 => Don't go too low down in deeps below the low watermark (GFP_HIGH)
+> >  *  1 => Go far below the low watermark.  See zone_watermark_ok (RT TASK)
+> 
+> Later on, you have an inequality test on this value:
+> 	if ((can_try_harder >= 0)
+> and a non-zero test:
+> 	if (can_try_harder)
+
+The last line is from zone_watermark_ok.  The first check is in
+get_page_from_freelist.  There is no (can_try_harder) check for this
+flag in that function.
+
+> 
+> That's three magic values, not even in increasing order of "how hard
+> one should try", tested a couple of different ways that requires
+> absorbing the complete details of the three values and their ordering
+> before one can read the code.
+> 
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
