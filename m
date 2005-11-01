@@ -1,128 +1,75 @@
-Message-ID: <4366C559.5090504@yahoo.com.au>
-Date: Tue, 01 Nov 2005 12:31:05 +1100
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-MIME-Version: 1.0
+Date: Tue, 1 Nov 2005 01:36:56 +0000 (GMT)
+From: Mel Gorman <mel@csn.ul.ie>
 Subject: Re: [Lhms-devel] [PATCH 0/7] Fragmentation Avoidance V19
-References: <20051030183354.22266.42795.sendpatchset@skynet.csn.ul.ie><20051031055725.GA3820@w-mikek2.ibm.com><4365BBC4.2090906@yahoo.com.au> <20051030235440.6938a0e9.akpm@osdl.org> <27700000.1130769270@[10.10.2.4]> <4366A8D1.7020507@yahoo.com.au> <Pine.LNX.4.58.0510312333240.29390@skynet>
-In-Reply-To: <Pine.LNX.4.58.0510312333240.29390@skynet>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <4366AFC7.3060505@yahoo.com.au>
+Message-ID: <Pine.LNX.4.58.0511010128190.29390@skynet>
+References: <20051030183354.22266.42795.sendpatchset@skynet.csn.ul.ie><20051031055725.GA3820@w-mikek2.ibm.com><4365BBC4.2090906@yahoo.com.au><20051030235440.6938a0e9.akpm@osdl.org><27700000.1130769270@[10.10.2.4]>
+ <20051031112409.153e7048.akpm@osdl.org> <3660000.1130787652@flay>
+ <4366AFC7.3060505@yahoo.com.au>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: "Martin J. Bligh" <mbligh@mbligh.org>, Andrew Morton <akpm@osdl.org>, kravetz@us.ibm.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, lhms-devel@lists.sourceforge.net, Ingo Molnar <mingo@elte.hu>
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: "Martin J. Bligh" <mbligh@mbligh.org>, Andrew Morton <akpm@osdl.org>, kravetz@us.ibm.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, lhms-devel@lists.sourceforge.net
 List-ID: <linux-mm.kvack.org>
 
-Mel Gorman wrote:
-> On Tue, 1 Nov 2005, Nick Piggin wrote:
+On Tue, 1 Nov 2005, Nick Piggin wrote:
 
->>But it doesn't seem to be a great problem right now, apart from hotplug
->>and hugepages. Some jumbo GigE drivers use higher order allocations, but
->>I think there are moves to get away from that (e1000, for example).
->>
-> 
-> 
-> GigE drivers and any other subsystem will not use higher order allocations
-> if they know the underlying allocator is not going to satisfy the
-> request. These patches are the starting point for properly supporting
-> large allocations. I will admit that this set of patches is not going to
-> solve the whole problem, but it is a start that can be built upon.
-> 
+> Martin J. Bligh wrote:
+> > --On Monday, October 31, 2005 11:24:09 -0800 Andrew Morton <akpm@osdl.org>
+> > wrote:
+>
+> > > I suspect this would all be a non-issue if the net drivers were using
+> > > __GFP_NOWARN ;)
+> >
+> >
+> > We still need to allocate them, even if it's GFP_KERNEL. As memory gets
+> > larger and larger, and we have no targetted reclaim, we'll have to blow
+> > away more and more stuff at random before we happen to get contiguous
+> > free areas. Just statistics aren't in your favour ... Getting 4 contig
+> > pages on a 1GB desktop is much harder than on a 128MB machine.
+>
+> However, these allocations are not of the "easy to reclaim" type, in
+> which case they just use the regular fragmented-to-shit areas. If no
+> contiguous pages are available from there, then an easy-reclaim area
+> needs to be stolen, right?
+>
 
-I really don't think we *want* to say we support higher order allocations
-absolutely robustly, nor do we want people using them if possible. Because
-we don't. Even with your patches.
+Right.
 
-Ingo also brought up this point at Ottawa.
+> In which case I don't see why these patches don't have similar long
+> term failure cases if there is strong demand for higher order
+> allocations. Prolong things a bit, perhaps, but...
+>
 
->>But this doesn't exactly make Linux bulletproof, AFAIKS it doesn't work
->>well on small memory systems, and it can still get fragmented and not work.
-> 
-> 
-> Small memory systems are unlikely to care about satisfying large
-> allocations. These patches should not be adversely affecting small memory
-> systems but it is likely that a smaller value of MAX_ORDER would have to
-> be used to help with fragmentation.
-> 
+It hinges all on how long the high order kernel allocation is. If it's
+short-lived, it will get freed back to the easyrclm free lists and we
+don't fragment. If it turns out to be long lived, then we are in trouble.
+If this turns out to be the case, a possibility would be to use the
+__GFP_KERNRCLM flag for high order, short lived allocations. This would
+tend to group large free areas in the same place. It would only be worth
+investigating if we found that memory still got fragmented over very long
+periods of time.
 
-But complexity. More bugs, code harder to understand and maintain, more
-cache and memory footprint, more branches and instructions.
+> > Is not going to get better as time goes on ;-) Yeah, yeah, I know, you
+> > want recreates, numbers, etc. Not the easiest thing to reproduce in a
+> > short-term consistent manner though.
+> >
+>
+> Regardless, I think we need to continue our steady move away from
+> higher order allocation requirements.
+>
 
-> You are right that we can still get fragmented. To prevent all
-> fragmentation would require more work but these patches would still be the
-> starting point. It makes sense to start with this patchset now and move on
-> the the more complex stuff later. If these patches are in, we could later
-> do stuff like;
-> 
-> o Configurable option that controls how strict fallback is. In a situation
->   where we absolutely do not want to fragment, do not allow kernel
->   allocations to fallback to EasyRclm zones. Instead, teach kswapd to
->   reclaim pages from the Fallback and KernNoRclm areas.
-> 
-
-In which case someone like GigE is not going to be able to access unfragmented
-memory anyway. This is my point. The patch still has the same long term failure
-cases that we appear to only be able to sanely solve by avoiding higher order
-allocations.
-
-The easy-to-reclaim stuff doesn't need higher order allocations anyway, so
-there is no point in being happy about large contiguous regions for these
-guys.
-
-The only thing that seems to need it is memory hot unplug, which should rather
-use another zone.
-
-
-> All these ideas need a mechanism like this set of patches to group related
-> pages together. This set of patches still help fragmentation now, although
-> not in a 100% reliable fashion. My desktop which is running a kernel
-> patched with these patches has been running for 33 hours and managed to
-> allocate 80 order-10 blocks from ZONE_NORMAL which is about 42% of the
-> zone while xmms, X, konqueror and a pile of terminals were running. That
-> is pretty decent, even if it's not perfect.
-> 
-
-But nobody does that. Why should we care? And in the case you *really* need
-to do that, your system likely to fail at some point anyway.
-
-OK, for hot unplug you may want that, or for hugepages. However, in those
-cases it should be done with zones AFAIKS.
-
->>IMO in order to make Linux bulletproof, just have fallbacks for anything
->>greater than about order 2 allocations.
->>
-> 
-> 
-> What sort of fallbacks? Private pools of pages of the larger order for
-> subsystems that need large pages is hardly desirable.
-> 
-
-Mechanisms to continue to run without contiguous memory would be best.
-Small private pools aren't particularly undesirable - we do that everywhere
-anyway. Your fragmentation patches essentially do that.
-
-> 
->>From what I have seen, by far our biggest problems in the mm are due to
->>page reclaim, and these patches will make our reclaim behaviour more
->>complex I think.
->>
-> 
-> 
-> This patchset does not touch reclaim at all. The lists that this patch
-> really affects is the zone freelists, not the LRU lists that page reclaim
-> are dealing with. It is only later when we want to try and guarantee
-> large-order allocations that we will have to change page reclaim.
-> 
-
-But it affects things in the allocation path which in turn affects the
-reclaim path. You're doing various balancing and fallbacks and it is
-simply complicated behaviour in terms of trying to analyse a working
-system.
+No arguement with you there. My actual aim is to guarantee HugeTLB
+allocations for userspace which we currently have to reserve at boot time.
+Stuff like memory hotplug remove and high order kernel allocations are
+benefits that would be nice to pick up on the way.
 
 -- 
-SUSE Labs, Novell Inc.
-
-Send instant messages to your online friends http://au.messenger.yahoo.com 
+Mel Gorman
+Part-time Phd Student                          Java Applications Developer
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
