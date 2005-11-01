@@ -1,38 +1,74 @@
-Date: Tue, 1 Nov 2005 14:56:51 +0100
-From: Ingo Molnar <mingo@elte.hu>
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by e1.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id jA1EAZ0T030634
+	for <linux-mm@kvack.org>; Tue, 1 Nov 2005 09:10:35 -0500
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay02.pok.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id jA1EAZ5c123290
+	for <linux-mm@kvack.org>; Tue, 1 Nov 2005 09:10:35 -0500
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.12.11/8.13.3) with ESMTP id jA1EAY2r023006
+	for <linux-mm@kvack.org>; Tue, 1 Nov 2005 09:10:35 -0500
 Subject: Re: [Lhms-devel] [PATCH 0/7] Fragmentation Avoidance V19
-Message-ID: <20051101135651.GA8502@elte.hu>
-References: <20051030235440.6938a0e9.akpm@osdl.org> <27700000.1130769270@[10.10.2.4]> <4366A8D1.7020507@yahoo.com.au> <Pine.LNX.4.58.0510312333240.29390@skynet> <4366C559.5090504@yahoo.com.au> <Pine.LNX.4.58.0511010137020.29390@skynet> <4366D469.2010202@yahoo.com.au> <Pine.LNX.4.58.0511011014060.14884@skynet>
+From: Dave Hansen <haveblue@us.ibm.com>
+In-Reply-To: <20051101135651.GA8502@elte.hu>
+References: <20051030235440.6938a0e9.akpm@osdl.org>
+	 <27700000.1130769270@[10.10.2.4]> <4366A8D1.7020507@yahoo.com.au>
+	 <Pine.LNX.4.58.0510312333240.29390@skynet> <4366C559.5090504@yahoo.com.au>
+	 <Pine.LNX.4.58.0511010137020.29390@skynet> <4366D469.2010202@yahoo.com.au>
+	 <Pine.LNX.4.58.0511011014060.14884@skynet>  <20051101135651.GA8502@elte.hu>
+Content-Type: text/plain
+Date: Tue, 01 Nov 2005 15:10:23 +0100
+Message-Id: <1130854224.14475.60.camel@localhost>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.58.0511011014060.14884@skynet>
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Nick Piggin <nickpiggin@yahoo.com.au>, "Martin J. Bligh" <mbligh@mbligh.org>, Andrew Morton <akpm@osdl.org>, kravetz@us.ibm.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, lhms-devel@lists.sourceforge.net
+To: Ingo Molnar <mingo@elte.hu>
+Cc: Mel Gorman <mel@csn.ul.ie>, Nick Piggin <nickpiggin@yahoo.com.au>, "Martin J. Bligh" <mbligh@mbligh.org>, Andrew Morton <akpm@osdl.org>, kravetz@us.ibm.com, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, lhms <lhms-devel@lists.sourceforge.net>
 List-ID: <linux-mm.kvack.org>
 
-* Mel Gorman <mel@csn.ul.ie> wrote:
+On Tue, 2005-11-01 at 14:56 +0100, Ingo Molnar wrote:
+> * Mel Gorman <mel@csn.ul.ie> wrote:
+> 
+> > The set of patches do fix a lot and make a strong start at addressing 
+> > the fragmentation problem, just not 100% of the way. [...]
+> 
+> do you have an expectation to be able to solve the 'fragmentation 
+> problem', all the time, in a 100% way, now or in the future?
 
-> The set of patches do fix a lot and make a strong start at addressing 
-> the fragmentation problem, just not 100% of the way. [...]
+In a word, yes.
 
-do you have an expectation to be able to solve the 'fragmentation 
-problem', all the time, in a 100% way, now or in the future?
+The current allocator has no design for measuring or reducing
+fragmentation.  These patches provide the framework for at least
+measuring fragmentation.
 
-> So, with this set of patches, how fragmented you get is dependant on 
-> the workload and it may still break down and high order allocations 
-> will fail. But the current situation is that it will defiantly break 
-> down. The fact is that it has been reported that memory hotplug remove 
-> works with these patches and doesn't without them. Granted, this is 
-> just one feature on a high-end machine, but it is one solid operation 
-> we can perform with the patches and cannot without them. [...]
+The patches can not do anything magical and there will be a point where
+the system has to make a choice: fragment, or fail an allocation when
+there _is_ free memory.
 
-can you always, under any circumstance hot unplug RAM with these patches 
-applied? If not, do you have any expectation to reach 100%?
+These patches take us in a direction where we are capable of making such
+a decision.
 
-	Ingo
+> > So, with this set of patches, how fragmented you get is dependant on 
+> > the workload and it may still break down and high order allocations 
+> > will fail. But the current situation is that it will defiantly break 
+> > down. The fact is that it has been reported that memory hotplug remove 
+> > works with these patches and doesn't without them. Granted, this is 
+> > just one feature on a high-end machine, but it is one solid operation 
+> > we can perform with the patches and cannot without them. [...]
+> 
+> can you always, under any circumstance hot unplug RAM with these patches 
+> applied? If not, do you have any expectation to reach 100%?
+
+With these patches, no.  There are currently some very nice,
+pathological workloads which will still cause fragmentation.  But, in
+the interest of incremental feature introduction, I think they're a fine
+first step.  We can effectively reach toward a more comprehensive
+solution on top of these patches.
+
+Reaching truly 100% will require some other changes such as being able
+to virtually remap things like kernel text.
+
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
