@@ -1,32 +1,27 @@
-Date: Mon, 31 Oct 2005 13:28:20 -0800
-From: Paul Jackson <pj@sgi.com>
-Subject: Re: [PATCH]: Clean up of __alloc_pages
-Message-Id: <20051031132820.62a18822.pj@sgi.com>
-In-Reply-To: <1130793655.4853.41.camel@akash.sc.intel.com>
-References: <20051028183326.A28611@unix-os.sc.intel.com>
-	<20051029184728.100e3058.pj@sgi.com>
-	<1130793655.4853.41.camel@akash.sc.intel.com>
+Date: Mon, 31 Oct 2005 19:05:09 -0500
+From: Jeff Dike <jdike@addtoit.com>
+Subject: Re: [RFC][PATCH] madvise(MADV_TRUNCATE)
+Message-ID: <20051101000509.GA11847@ccure.user-mode-linux.org>
+References: <1130366995.23729.38.camel@localhost.localdomain> <20051028034616.GA14511@ccure.user-mode-linux.org> <43624F82.6080003@us.ibm.com> <20051028184235.GC8514@ccure.user-mode-linux.org> <1130544201.23729.167.camel@localhost.localdomain> <20051029025119.GA14998@ccure.user-mode-linux.org> <1130788176.24503.19.camel@localhost.localdomain>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1130788176.24503.19.camel@localhost.localdomain>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rohit Seth <rohit.seth@intel.com>
-Cc: akpm@osdl.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Nick Piggin <nickpiggin@yahoo.com.au>
+To: Badari Pulavarty <pbadari@us.ibm.com>
+Cc: Hugh Dickins <hugh@veritas.com>, akpm@osdl.org, andrea@suse.de, dvhltc@us.ibm.com, linux-mm <linux-mm@kvack.org>, Blaisorblade <blaisorblade@yahoo.it>
 List-ID: <linux-mm.kvack.org>
 
-Rohit wrote:
-> Not sure why?  Let me see if some new values could better articulate the
-> meaning. 
+On Mon, Oct 31, 2005 at 11:49:36AM -0800, Badari Pulavarty wrote:
+> Here is the latest patch. Still not cleaned up - but I thought I would
+> get more feedback & testing while I finish cleanups (since they are all
+> cosmetic).
 
-See also Nick's comments, before going too far.  He was advocating
-just using binary flags and adding a gfp_high flag, or something
-like that.
+This one looks a lot better.  I've been playing with it some, and no
+unexpected behavior.
 
--- 
-                  I won't rest till it's the best ...
-                  Programmer, Linux Scalability
-                  Paul Jackson <pj@sgi.com> 1.925.600.0401
+				Jeff
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
