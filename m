@@ -1,55 +1,56 @@
-Received: from westrelay02.boulder.ibm.com (westrelay02.boulder.ibm.com [9.17.195.11])
-	by e36.co.us.ibm.com (8.12.11/8.12.11) with ESMTP id jA1FXOkE021960
-	for <linux-mm@kvack.org>; Tue, 1 Nov 2005 10:33:24 -0500
-Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
-	by westrelay02.boulder.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id jA1FXOXg407508
-	for <linux-mm@kvack.org>; Tue, 1 Nov 2005 08:33:24 -0700
-Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av04.boulder.ibm.com (8.12.11/8.13.3) with ESMTP id jA1FXON0030134
-	for <linux-mm@kvack.org>; Tue, 1 Nov 2005 08:33:24 -0700
+Message-ID: <43679C69.6050107@jp.fujitsu.com>
+Date: Wed, 02 Nov 2005 01:48:41 +0900
+From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+MIME-Version: 1.0
 Subject: Re: [Lhms-devel] [PATCH 0/7] Fragmentation Avoidance V19
-From: Dave Hansen <haveblue@us.ibm.com>
-In-Reply-To: <45430000.1130858744@[10.10.2.4]>
-References: <20051030183354.22266.42795.sendpatchset@skynet.csn.ul.ie>
-	 <20051031055725.GA3820@w-mikek2.ibm.com><4365BBC4.2090906@yahoo.com.au>
-	 <20051030235440.6938a0e9.akpm@osdl.org> <27700000.1130769270@[10.10.2.4]>
-	 <4366A8D1.7020507@yahoo.com.au> <Pine.LNX.4.58.0510312333240.29390@skynet>
-	 <4366C559.5090504@yahoo.com.au>  <45430000.1130858744@[10.10.2.4]>
-Content-Type: text/plain
-Date: Tue, 01 Nov 2005 16:33:13 +0100
-Message-Id: <1130859193.14475.104.camel@localhost>
-Mime-Version: 1.0
+References: <4366A8D1.7020507@yahoo.com.au> <Pine.LNX.4.58.0510312333240.29390@skynet> <4366C559.5090504@yahoo.com.au> <Pine.LNX.4.58.0511010137020.29390@skynet> <4366D469.2010202@yahoo.com.au> <Pine.LNX.4.58.0511011014060.14884@skynet> <20051101135651.GA8502@elte.hu> <1130854224.14475.60.camel@localhost> <20051101142959.GA9272@elte.hu> <1130856555.14475.77.camel@localhost> <20051101150142.GA10636@elte.hu>
+In-Reply-To: <20051101150142.GA10636@elte.hu>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Martin J. Bligh" <mbligh@mbligh.org>
-Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@osdl.org>, kravetz@us.ibm.com, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, lhms <lhms-devel@lists.sourceforge.net>, Ingo Molnar <mingo@elte.hu>
+To: Ingo Molnar <mingo@elte.hu>
+Cc: Dave Hansen <haveblue@us.ibm.com>, Mel Gorman <mel@csn.ul.ie>, Nick Piggin <nickpiggin@yahoo.com.au>, "Martin J. Bligh" <mbligh@mbligh.org>, Andrew Morton <akpm@osdl.org>, kravetz@us.ibm.com, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, lhms <lhms-devel@lists.sourceforge.net>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2005-11-01 at 07:25 -0800, Martin J. Bligh wrote:
-> > I really don't think we *want* to say we support higher order allocations
-> > absolutely robustly, nor do we want people using them if possible. Because
-> > we don't. Even with your patches.
-> > 
-> > Ingo also brought up this point at Ottawa.
+Ingo Molnar wrote:
+> so it's all about expectations: _could_ you reasonably remove a piece of 
+> RAM? Customer will say: "I have stopped all nonessential services, and 
+> free RAM is at 90%, still I cannot remove that piece of faulty RAM, fix 
+> the kernel!". No reasonable customer will say: "True, I have all RAM 
+> used up in mlock()ed sections, but i want to remove some RAM 
+> nevertheless".
 > 
-> Some of the driver issues can be fixed by scatter-gather DMA *if* the 
-> h/w supports it. But what exactly do you propose to do about kernel
-> stacks, etc? By the time you've fixed all the individual usages of it,
-> frankly, it would be easier to provide a generic mechanism to fix the 
-> problem ...
+Hi, I'm one of men in -lhms
 
-That generic mechanism is the kernel virtual remapping.  However, it has
-a runtime performance cost, which is increased TLB footprint inside the
-kernel, and a more costly implementation of __pa() and __va().
+In my understanding...
+- Memory Hotremove on IBM's LPAR? approach is
+   [remove some amount of memory from somewhere.]
+   For this approach, Mel's patch will work well.
+   But this will not guaranntee a user can remove specified range of
+   memory at any time because how memory range is used is not defined by an admin
+   but by the kernel automatically. But to extract some amount of memory,
+   Mel's patch is very important and they need this.
 
-I'll admit, I'm biased toward partial solutions without runtime cost
-before we start incurring constant cost across the entire kernel,
-especially when those partial solutions have other potential in-kernel
-users.
+My own target is NUMA node hotplug, what NUMA node hotplug want is
+- [remove the range of memory] For this approach, admin should define
+   *core* node and removable node. Memory on removable node is removable.
+   Dividing area into removable and not-removable is needed, because
+   we cannot allocate any kernel's object on removable area.
+   Removable area should be 100% removable. Customer can know the limitation before using.
 
--- Dave
+What I'm considering now is this:
+- removable area is hot-added area
+- not-removable area is memory which is visible to kernel at boot time.
+(I'd like to achieve this by the limitation : hot-added node goes into only ZONE_HIGHMEM)
+A customer can hot add their extra memory after boot. This is very easy to understand.
+Peformance problem is trade-off.(I'm afraid of this ;)
 
+If a cutomer wants to guarantee some memory areas should be hot-removable,
+he will hot-add them.
+I don't think adding memory for the kernel by hot-add is wanted by a customer.
+
+-- Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
