@@ -1,172 +1,181 @@
-Message-ID: <4366C7FD.1080602@yahoo.com.au>
-Date: Tue, 01 Nov 2005 12:42:21 +1100
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-MIME-Version: 1.0
+Date: Tue, 1 Nov 2005 02:07:42 +0000 (GMT)
+From: Mel Gorman <mel@csn.ul.ie>
 Subject: Re: [Lhms-devel] [PATCH 0/7] Fragmentation Avoidance V19
-References: <20051030183354.22266.42795.sendpatchset@skynet.csn.ul.ie> <20051031055725.GA3820@w-mikek2.ibm.com> <4365BBC4.2090906@yahoo.com.au> <20051030235440.6938a0e9.akpm@osdl.org> <4365C39F.2080006@yahoo.com.au> <Pine.LNX.4.58.0510311250170.29390@skynet> <4366AE98.7000100@yahoo.com.au> <Pine.LNX.4.58.0511010017170.29390@skynet>
-In-Reply-To: <Pine.LNX.4.58.0511010017170.29390@skynet>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <4366C559.5090504@yahoo.com.au>
+Message-ID: <Pine.LNX.4.58.0511010137020.29390@skynet>
+References: <20051030183354.22266.42795.sendpatchset@skynet.csn.ul.ie><20051031055725.GA3820@w-mikek2.ibm.com><4365BBC4.2090906@yahoo.com.au>
+ <20051030235440.6938a0e9.akpm@osdl.org> <27700000.1130769270@[10.10.2.4]>
+ <4366A8D1.7020507@yahoo.com.au> <Pine.LNX.4.58.0510312333240.29390@skynet>
+ <4366C559.5090504@yahoo.com.au>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Andrew Morton <akpm@osdl.org>, kravetz@us.ibm.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, lhms-devel@lists.sourceforge.net
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: "Martin J. Bligh" <mbligh@mbligh.org>, Andrew Morton <akpm@osdl.org>, kravetz@us.ibm.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, lhms-devel@lists.sourceforge.net, Ingo Molnar <mingo@elte.hu>
 List-ID: <linux-mm.kvack.org>
 
-Mel Gorman wrote:
-> On Tue, 1 Nov 2005, Nick Piggin wrote:
+On Tue, 1 Nov 2005, Nick Piggin wrote:
 
-> Ok, but the page colours would also need to be in the per-cpu lists this
-> new api that supplies vaddrs always takes the spinlock for the free lists.
-> I don't believe it would be cheaper and any benefit would only show up on
-> benchmarks that are cache sensitive. Judging by previous discussions on
-> page colouring in the mail archives, Linus will happily kick the approach
-> full of holes.
-> 
+> Mel Gorman wrote:
+> > On Tue, 1 Nov 2005, Nick Piggin wrote:
+>
+> > > But it doesn't seem to be a great problem right now, apart from hotplug
+> > > and hugepages. Some jumbo GigE drivers use higher order allocations, but
+> > > I think there are moves to get away from that (e1000, for example).
+> > >
+> >
+> >
+> > GigE drivers and any other subsystem will not use higher order allocations
+> > if they know the underlying allocator is not going to satisfy the
+> > request. These patches are the starting point for properly supporting
+> > large allocations. I will admit that this set of patches is not going to
+> > solve the whole problem, but it is a start that can be built upon.
+> >
+>
+> I really don't think we *want* to say we support higher order allocations
+> absolutely robustly, nor do we want people using them if possible. Because
+> we don't. Even with your patches.
+>
 
-OK, but I'm just pointing out that improving page colouring doesn't
-require contiguous pages.
+I accept that. We should not be encouraging subsystems to use high order
+allocations but keeping the system in a fragmented state to force the
+issue is hardly the correct thing to do either.
 
-> As for current performance, the Aim9 benchmarks show that the
-> fragmentation avoidance does not have a major performance penalty. A run
-> of the patches in the -mm tree should find out if there are performance
-> regressions on other machine types.
-> 
+> Ingo also brought up this point at Ottawa.
+>
+> > > But this doesn't exactly make Linux bulletproof, AFAIKS it doesn't work
+> > > well on small memory systems, and it can still get fragmented and not
+> > > work.
+> >
+> >
+> > Small memory systems are unlikely to care about satisfying large
+> > allocations. These patches should not be adversely affecting small memory
+> > systems but it is likely that a smaller value of MAX_ORDER would have to
+> > be used to help with fragmentation.
+> >
+>
+> But complexity. More bugs, code harder to understand and maintain, more
+> cache and memory footprint, more branches and instructions.
+>
 
-But I can see that there will be penalties. Cache misses, branches,
-etc. Obviously any new feature or more sophisticated behaviour is
-going to require that but they obviously need good justification.
+The patches have gone through a large number of revisions, have been
+heavily tested and reviewed by a few people. The memory footprint of this
+approach is smaller than introducing new zones. If the cache footprint,
+increased branches and instructions were a problem, I would expect them to
+show up in the aim9 benchmark or the benchmark that ran ghostscript
+multiple times on a large file.
 
->>Just be a different set of GFP flags. Your patches obviously also have
->>some ordering imposed.... pagecache would want HighMemEasy, HighMem,
->>NormalEasy, Normal, DMA; ptes will want HighMem, Normal, DMA.
->>
-> 
-> 
-> As well as a different set of GFP flags, we would also need new zone
-> fallback logic which will hit the __alloc_pages() path. It will be adding
-> more complexity to the allocator and we're replacing one type of
-> complexity with another.
-> 
+> > You are right that we can still get fragmented. To prevent all
+> > fragmentation would require more work but these patches would still be the
+> > starting point. It makes sense to start with this patchset now and move on
+> > the the more complex stuff later. If these patches are in, we could later
+> > do stuff like;
+> >
+> > o Configurable option that controls how strict fallback is. In a situation
+> >   where we absolutely do not want to fragment, do not allow kernel
+> >   allocations to fallback to EasyRclm zones. Instead, teach kswapd to
+> >   reclaim pages from the Fallback and KernNoRclm areas.
+> >
+>
+> In which case someone like GigE is not going to be able to access unfragmented
+> memory anyway. This is my point. The patch still has the same long term
+> failure
+> cases that we appear to only be able to sanely solve by avoiding higher order
+> allocations.
+>
+> The easy-to-reclaim stuff doesn't need higher order allocations anyway, so
+> there is no point in being happy about large contiguous regions for these
+> guys.
+>
 
-It is complexity that is mostly already handled for us with the zones
-logic. Picking out a couple of small points that zones don't get exactly
-right isn't a good basis to come up with a completely new zoneing layer.
+The will need high order allocations if we want to provide HugeTLB pages
+to userspace on-demand rather than reserving at boot-time. This is a
+future problem, but it's one that is not worth tackling until the
+fragmentation problem is fixed first.
 
-> 
->>Note that if you do need to make some changes to the zone allocator, then
->>IMO that is far preferable to add a new layer of things-that-are-blocks-of-
->>-memory-but-not-zones, complete with their own balancing and other heuristics.
->>
-> 
-> 
-> Thing is, with my approach, the very worst that happens is that it
-> fragments just as bad as the normal allocator. With a zone-based approach,
-> the worst that happens is that the kernel zone is too small, kernel caches
-> do not grow to a suitable size and overall system performance degrades.
-> 
+> The only thing that seems to need it is memory hot unplug, which should rather
+> use another zone.
+>
 
-If you don't need to guarantee higher order allocations, then there is
-no problem with our current approach. If you do then you simply need to
-make a sacrifice.
+Work from 2004 in memory hotplug was trying to use additional zones. I am
+hoping that someone more involved with memory hotplug will tell us what
+problems they ran into. If they ran into no problems, they might explain
+why it was never included in the mainline.
 
-> 
->>>Problem 2: Setting the zone size will be a very difficult tunable to get
->>>right.  Right off, we are are introducing a tunable which will make
->>>foreheads furrow. If the tunable is set wrong, system performance will
->>>suffer and we could see situations where kernel allocations fail because
->>>it's zone got depleted.
->>>
->>
->>But even so, when you do automatic resizing, you seem to be adding a
->>fundamental weak point in fragmentation avoidance.
->>
-> 
-> 
-> The sizing I do is when a large block is split. Then the region is just
-> marked for a particular allocation type. This is very simple. The second
-> resizing that occurs is when a kernel allocation "steal" easyrclm pages. I
-> do not like the fact that we steal in this fashion but the alternative is
-> to teach kswapd how to reclaim easyrclm pages from other areas. I view
-> this as "future work" but if it was done, the "steal" mechanism would go
-> away.
-> 
+>
+> > All these ideas need a mechanism like this set of patches to group related
+> > pages together. This set of patches still help fragmentation now, although
+> > not in a 100% reliable fashion. My desktop which is running a kernel
+> > patched with these patches has been running for 33 hours and managed to
+> > allocate 80 order-10 blocks from ZONE_NORMAL which is about 42% of the
+> > zone while xmms, X, konqueror and a pile of terminals were running. That
+> > is pretty decent, even if it's not perfect.
+> >
+>
+> But nobody does that. Why should we care? And in the case you *really* need
+> to do that, your system likely to fail at some point anyway.
+>
+> OK, for hot unplug you may want that, or for hugepages. However, in those
+> cases it should be done with zones AFAIKS.
+>
 
-Weak point, as in: gets fragmented.
+And then we are back to what size to make the zones. This set of patches
+will largely manage themselves without requiring a sysadmin to intervene.
 
-> 
->>>Problem 3: To get rid of the tunable, we could try resizing the zones
->>>dynamically but that will be hard. Obviously, the zones are going to be
->>>physically adjacent to each other. To resize the zone, the pages at one
->>>end of the zone will need to be free. Shrinking the NormalEasy zone would
->>>be easy enough, but shrinking the Normal zone with kernel pages in it
->>>would be considerably harder, if not outright impossible. One page in the
->>>wrong place will mean the zone cannot be resized
->>>
->>
->>OK, maybe it is hard ;) Do they really need to be resized, then?
->>
-> 
-> 
-> I think we would need to, yes. If the size of the region is wrong, bad
-> things are likely to happen. If the kernel page zone is too small, it'll
-> be under pressure even though there is memory available elsewhere. If it's
-> too large, then it will get fragmented and high order allocations will
-> fail.
-> 
+> > > IMO in order to make Linux bulletproof, just have fallbacks for anything
+> > > greater than about order 2 allocations.
+> > >
+> >
+> >
+> > What sort of fallbacks? Private pools of pages of the larger order for
+> > subsystems that need large pages is hardly desirable.
+> >
+>
+> Mechanisms to continue to run without contiguous memory would be best.
+> Small private pools aren't particularly undesirable - we do that everywhere
+> anyway. Your fragmentation patches essentially do that.
+>
 
-But people will just have to get it right then. If they want to be able
-to hot unplug 10G of memory, or allocate 4G of hugepages on demand, then
-they simply need to specify their requirements. Not too difficult? It is
-really nice to be able to place some burden on huge servers and mainframes,
-because they have people administering and tuning them full-time. It
-allows us to not penalise small servers and desktops.
+The main difference been that when a subsystem has small private pools, it
+is possible for anyone else to use them and shrinking mechanisms are
+required. My fragmentation patches has subpools, but they are always
+available.
 
-> 
->>Isn't the big memory hotunplug push aimed at virtual machines and
->>hypervisors anyway? In which case one would presumably have some
->>memory that "must" be reclaimable, in which case we can't expand
->>non-Easy zones into that memory anyway.
->>
-> 
-> 
-> I believe that is the case for hotplug all right, but not the case where
-> we just want to satisfy high order allocations in a reasonably reliable
-> fashion. In that case, it would be nice to reclaim an easyrclm region.
-> 
+> >
+> > > From what I have seen, by far our biggest problems in the mm are due to
+> > > page reclaim, and these patches will make our reclaim behaviour more
+> > > complex I think.
+> > >
+> >
+> >
+> > This patchset does not touch reclaim at all. The lists that this patch
+> > really affects is the zone freelists, not the LRU lists that page reclaim
+> > are dealing with. It is only later when we want to try and guarantee
+> > large-order allocations that we will have to change page reclaim.
+> >
+>
+> But it affects things in the allocation path which in turn affects the
+> reclaim path.
 
-As I've said before, I think this is a false hope and we need to
-move away from higher order allocations.
+Maybe it's because it's late, but I don't see how these patches currently
+hit the reclaim path. The reclaim path deals with LRU lists, this set of
+patches deals with the freelists.
 
-> It has already been reported by Mike Kravetz that memory remove works a
-> whole lot better on PPC64 with this patch than without it. Memory hotplug
-> remove was not the problem I was trying to solve, but I consider the fact
-> that it is helped to be a big plus. So, even though it is possible that
-> this approach still gets fragmented under some workloads, we know that, in
-> general, it does a pretty good job.
-> 
+> You're doing various balancing and fallbacks and it is
+> simply complicated behaviour in terms of trying to analyse a working
+> system.
+>
 
-Sure, but using zones would work too, and on the plus side you would
-be able to specify exactly how much removable memory to be.
-
->>
->>Maybe zones don't do exactly what you need, but I think they're better
->>than you think ;)
->>
-> 
-> 
-> You may be right, but I still think that my approach is simpler and less
-> likely to introduce horrible balancing problems.
-> 
-
-Simpler? We already have zones though. They are a complexity we need to
-deal with already. I really can't see how you can use the simpler argument
-in favour of your patches ;)
+Someone performing such an analysis of the system will only hit problems
+with these patches if they are performing a deep analysis of the page
+allocator. Other analysis such as the page reclaim should not even notice
+that the page allocator has changed.
 
 -- 
-SUSE Labs, Novell Inc.
-
-Send instant messages to your online friends http://au.messenger.yahoo.com 
+Mel Gorman
+Part-time Phd Student                          Java Applications Developer
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
