@@ -1,30 +1,52 @@
 From: Rob Landley <rob@landley.net>
 Subject: Re: [Lhms-devel] [PATCH 0/7] Fragmentation Avoidance V19
-Date: Tue, 1 Nov 2005 12:33:35 -0600
-References: <20051030235440.6938a0e9.akpm@osdl.org> <Pine.LNX.4.58.0511011358520.14884@skynet> <20051101144622.GC9911@elte.hu>
-In-Reply-To: <20051101144622.GC9911@elte.hu>
+Date: Tue, 1 Nov 2005 12:58:04 -0600
+References: <20051030183354.22266.42795.sendpatchset@skynet.csn.ul.ie> <45430000.1130858744@[10.10.2.4]> <1130859193.14475.104.camel@localhost>
+In-Reply-To: <1130859193.14475.104.camel@localhost>
 MIME-Version: 1.0
 Content-Type: text/plain;
-  charset="iso-8859-1"
+  charset="utf-8"
 Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-Message-Id: <200511011233.36713.rob@landley.net>
+Message-Id: <200511011258.06059.rob@landley.net>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ingo Molnar <mingo@elte.hu>
-Cc: Mel Gorman <mel@csn.ul.ie>, Nick Piggin <nickpiggin@yahoo.com.au>, "Martin J. Bligh" <mbligh@mbligh.org>, Andrew Morton <akpm@osdl.org>, kravetz@us.ibm.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, lhms-devel@lists.sourceforge.net
+To: Dave Hansen <haveblue@us.ibm.com>
+Cc: "Martin J. Bligh" <mbligh@mbligh.org>, Nick Piggin <nickpiggin@yahoo.com.au>, Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@osdl.org>, kravetz@us.ibm.com, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, lhms <lhms-devel@lists.sourceforge.net>, Ingo Molnar <mingo@elte.hu>
 List-ID: <linux-mm.kvack.org>
 
-On Tuesday 01 November 2005 08:46, Ingo Molnar wrote:
-> how will the 100% solution handle a simple kmalloc()-ed kernel buffer,
-> that is pinned down, and to/from which live pointers may exist? That
-> alone can prevent RAM from being removable.
+On Tuesday 01 November 2005 09:33, Dave Hansen wrote:
+> On Tue, 2005-11-01 at 07:25 -0800, Martin J. Bligh wrote:
+> > > I really don't think we *want* to say we support higher order
+> > > allocations absolutely robustly, nor do we want people using them if
+> > > possible. Because we don't. Even with your patches.
+> > >
+> > > Ingo also brought up this point at Ottawa.
+> >
+> > Some of the driver issues can be fixed by scatter-gather DMA *if* the
+> > h/w supports it. But what exactly do you propose to do about kernel
+> > stacks, etc? By the time you've fixed all the individual usages of it,
+> > frankly, it would be easier to provide a generic mechanism to fix the
+> > problem ...
+>
+> That generic mechanism is the kernel virtual remapping.  However, it has
+> a runtime performance cost, which is increased TLB footprint inside the
+> kernel, and a more costly implementation of __pa() and __va().
 
-Would you like to apply your "100% or nothing" argument to the virtual memory 
-management subsystem and see how it sounds in that context?  (As an argument 
-that we shouldn't _have_ one?)
+Ok, right now the kernel _has_ a virtual mapping, it's just a 1:1 with the 
+physical mapping, right?
 
->  Ingo
+In theory, if you restrict all kernel unmovable mappings to a physically 
+contiguous address range (something like ZONE_DMA) that's at the start of the 
+physical address space, then what you could do is have a two-kernel-monte 
+like situation where if you _NEED_ to move the kernel you quiesce the system 
+(as if you're going to swsusp), figure out where the new start of physical 
+memory will be when this bank goes bye-bye, memcpy the whole mess to the new 
+location, adjust your one VMA, and then call the swsusp unfreeze stuff.
+
+This is ugly, and a huge latency spike, but why wouldn't it work?  The problem 
+now becomes finding some NEW physically contiguous range to shoehorn the 
+kernel into, and that's a problem that Mel's already addressing...
 
 Rob
 
