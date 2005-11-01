@@ -1,142 +1,97 @@
-Received: by zproxy.gmail.com with SMTP id k1so629860nzf
-        for <linux-mm@kvack.org>; Tue, 01 Nov 2005 12:07:54 -0800 (PST)
-Message-ID: <4367CB17.6050200@gmail.com>
-Date: Tue, 01 Nov 2005 13:07:51 -0700
-From: Jim Cromie <jim.cromie@gmail.com>
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by e35.co.us.ibm.com (8.12.11/8.12.11) with ESMTP id jA1KVmuW002594
+	for <linux-mm@kvack.org>; Tue, 1 Nov 2005 15:31:48 -0500
+Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
+	by d03relay04.boulder.ibm.com (8.12.10/NCO/VERS6.8) with ESMTP id jA1KWpDC527962
+	for <linux-mm@kvack.org>; Tue, 1 Nov 2005 13:32:51 -0700
+Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av04.boulder.ibm.com (8.12.11/8.13.3) with ESMTP id jA1KVlPY016654
+	for <linux-mm@kvack.org>; Tue, 1 Nov 2005 13:31:48 -0700
+Message-ID: <4367D0AD.3070900@austin.ibm.com>
+Date: Tue, 01 Nov 2005 14:31:41 -0600
+From: Joel Schopp <jschopp@austin.ibm.com>
 MIME-Version: 1.0
-Subject: X86_CONFIG overrides X86_L1_CACHE_SHIFT default for each CPU model.
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Subject: Re: [Lhms-devel] [PATCH 0/7] Fragmentation Avoidance V19
+References: <20051030235440.6938a0e9.akpm@osdl.org> <Pine.LNX.4.58.0511011014060.14884@skynet> <20051101135651.GA8502@elte.hu> <200511011223.43841.rob@landley.net>
+In-Reply-To: <200511011223.43841.rob@landley.net>
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Rob Landley <rob@landley.net>
+Cc: Ingo Molnar <mingo@elte.hu>, Mel Gorman <mel@csn.ul.ie>, Nick Piggin <nickpiggin@yahoo.com.au>, "Martin J. Bligh" <mbligh@mbligh.org>, Andrew Morton <akpm@osdl.org>, kravetz@us.ibm.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, lhms-devel@lists.sourceforge.net
 List-ID: <linux-mm.kvack.org>
 
-folks,
+>>>The set of patches do fix a lot and make a strong start at addressing
+>>>the fragmentation problem, just not 100% of the way. [...]
+>>
+>>do you have an expectation to be able to solve the 'fragmentation
+>>problem', all the time, in a 100% way, now or in the future?
+> 
+> 
+> Considering anybody can allocate memory and never release it, _any_ 100% 
+> solution is going to require migrating existing pages, regardless of 
+> allocation strategy.
+> 
 
-in arch/i386/Kconfig, it seems (to me) that X86_GENERIC has undue influence
-on X86_L1_CACHE_SHIFT;
+Three issues here.  Fragmentation of memory in general, fragmentation of usage, 
+and being able to have 100% success rate at removing memory.
 
-config X86_L1_CACHE_SHIFT
-      int
-      default "7" if MPENTIUM4 || X86_GENERIC
-      default "4" if X86_ELAN || M486 || M386
-      default "5" if MWINCHIP3D || MWINCHIP2 || MWINCHIPC6 || MCRUSOE || 
-MEFFICEON || MCYRIXIII || MK6 || MPENTIUMIII || MPENTIUMII || M686 || 
-M586MMX || M586TSC || M586 || MVIAC3_2 || MGEODEGX1
-      default "6" if MK7 || MK8 || MPENTIUMM
+We will never be able to have 100% contiguous memory with no fragmentation. 
+Ever.  Certainly not while we have non-movable pieces of memory.  Even if we 
+could move every piece of memory it would be impractical.  What these patches do 
+for general fragmentation is to keep the allocations that never will get freed 
+away from the rest of memory, so that memory has a chance to form larger 
+contiguous ranges when it is freed.
 
-that is, when X86_GENERIC == true --> default = 7,
-ignoring the platform choice *made* by the user-builder.
-On my geode box, it would be 5 wo GENERIC.
+By separating memory based on usage there is another side effect.  It also makes 
+possible some more active defragmentation methods on easier memory, because it 
+doesn't have annoying hard memory scattered throughout.  Suddenly we can talk 
+about being able to do memory hotplug remove on significant portions of memory. 
+    Or allocating these hugepages after boot.  Or doing active defragmentation. 
+  Or modules being able to be modules because they don't have to preallocate big 
+pieces of contiguous memory.
 
-so I built 2 kernels, and ran lmbench on both.
-Results were somewhat inconclusive to me, but the non-generic is 
-distinctly faster
-in some of the lmbench results:
+Some people will argue that we need 100% separation of usage or no separation at 
+all.  Well, change the array of fallback to not allow kernel non-reclaimable to 
+fallback and we are done.  4 line change, 100% separation.  But the tradeoff is 
+that under memory pressure we might fail allocations when we still have free 
+memory.  There are other options for fallback of course, the fallback_alloc() 
+function is easily replaceable if somebody wants to.  Many of these options get 
+easier once memory migration is in.  The way fallback is done in the current 
+patches is to maintain current behavior as much as possible, satisfy 
+allocations, and not affect performance.
 
+As to the 100% success at removing memory, this set of patches doesn't solve 
+that.  But it solves the 80% problem quite nicely (when combined with the memory 
+migration patches).  80% is great for virtualized systems where the OS has some 
+choice over which memory to remove, but not the quantity to remove.  It is also 
+a good start to 100%, because we can separate and identify the easy memory from 
+the hard memory.  Dave Hansen has outlined in separate posts how we can get to 
+100%, including hard memory.
 
-< [lmbench3.0 results for Linux soekris 2.6.13-ski2-cache-v1 #3 Fri Sep 
-23 13:14:30 MDT 2005 i586 GNU/Linux]
----
- > [lmbench3.0 results for Linux soekris 2.6.13-ski2-v1 #1 Fri Sep 23 
-13:24:45 MDT 2005 i586 GNU/Linux]
+>>can you always, under any circumstance hot unplug RAM with these patches
+>>applied? If not, do you have any expectation to reach 100%?
+> 
+> 
+> You're asking intentionally leading questions, aren't you?  Without on-demand 
+> page migration a given area of physical memory would only ever be free by 
+> sheer coincidence.  Less fragmented page allocation doesn't address _where_ 
+> the free areas are, it just tries to make them contiguous.
+> 
+> A page migration strategy would have to do less work if there's less 
+> fragmention, and it also allows you to cluster the "difficult" cases (such as 
+> kernel structures that just ain't moving) so you can much more easily 
+> hot-unplug everything else.  It also makes larger order allocations easier to 
+> do so drivers needing that can load as modules after boot, and it also means 
+> hugetlb comes a lot closer to general purpose infrastructure rather than a 
+> funky boot-time reservation thing.  Plus page prezeroing approaches get to 
+> work on larger chunks, and so on.
+> 
+> But any strategy to demand that "this physical memory range must be freed up 
+> now" will by definition require moving pages...
 
-RX bytes:2844 (2.7 KiB)  TX bytes:2844 (2.7 KiB)]
-86,107c86,107
-< Simple syscall: 1.6462 microseconds
-< Simple read: 5.3041 microseconds
-< Simple write: 4.6366 microseconds
-< Simple stat: 223.7200 microseconds
-< Simple fstat: 8.6939 microseconds
-< Simple open/close: 2535.0000 microseconds
-< Select on 10 fd's: 13.8254 microseconds
-< Select on 100 fd's: 110.5490 microseconds
-< Select on 250 fd's: 231.7619 microseconds
-< Select on 500 fd's: 550.9000 microseconds
-< Select on 10 tcp fd's: 15.3956 microseconds
-< Select on 100 tcp fd's: 145.9211 microseconds
-< Select on 250 tcp fd's: 371.5714 microseconds
-< Select on 500 tcp fd's: 746.0000 microseconds
-< Signal handler installation: 9.3942 microseconds
-< Signal handler overhead: 35.6667 microseconds
-< Protection fault: 1.9708 microseconds
-< Pipe latency: 129.5962 microseconds
-< AF_UNIX sock stream latency: 267.0952 microseconds
-< Process fork+exit: 3620.0000 microseconds
-< Process fork+execve: 16960.0000 microseconds
-< Process fork+/bin/sh -c: 61487.0000 microseconds
----
- > Simple syscall: 1.8362 microseconds
- > Simple read: 8.4718 microseconds
- > Simple write: 7.2812 microseconds
- > Simple stat: 210.5769 microseconds
- > Simple fstat: 10.1660 microseconds
- > Simple open/close: 2549.3333 microseconds
- > Select on 10 fd's: 13.8471 microseconds
- > Select on 100 fd's: 111.6400 microseconds
- > Select on 250 fd's: 232.0000 microseconds
- > Select on 500 fd's: 551.7000 microseconds
- > Select on 10 tcp fd's: 14.3761 microseconds
- > Select on 100 tcp fd's: 149.2162 microseconds
- > Select on 250 tcp fd's: 370.3571 microseconds
- > Select on 500 tcp fd's: 722.3750 microseconds
- > Signal handler installation: 9.8043 microseconds
- > Signal handler overhead: 34.1729 microseconds
- > Protection fault: 6.8015 microseconds
- > Pipe latency: 132.9220 microseconds
- > AF_UNIX sock stream latency: 272.5789 microseconds
- > Process fork+exit: 3501.0000 microseconds
- > Process fork+execve: 16546.0000 microseconds
- > Process fork+/bin/sh -c: 54099.0000 microseconds
-
-
-Ill spare you my half-baked theories about the cause of these results,
-in the hopes that the following patch 'correct-by-inspection', or that 
-somebody
-is willing to clarify the purposes of X86_GENERIC.
-
-An 'incorrect' guess at cache-line-size doesnt break the kernel;
-is the number used to optimize the cache operation in a way
-thats consistent with the above results ?
-
-Interestingly, the biggest relative diff is in Protection fault.
-This is more closely MM related than the other measures,
-suggesting that cache-line-size is the reason.
-
-
-tia
-jimc.
-
-The patch will apparently wrap, but this is my 1st send here,
-and Im avoiding the MIME attach that thunderbird does.
-I can resend with a script, but it cant do the proper SSL auth to
-send via gmail, so it must send direct to kvack.org, and will probly 
-look like spam. 
-
-Signed-by:  Jim Cromie <jim.cromie@gmail.com>
-
-
-[jimc@harpo generic]$ more cache-shift-default-under-x86_generic.patch
---- linux-2.6.13-ipipe-sk/arch/i386/Kconfig     2005-09-13 
-15:46:55.000000000 -0600
-+++ linux-2.6.13-ipipe4-sk/arch/i386/Kconfig    2005-09-23 
-11:04:16.000000000 -0600
-@@ -363,10 +363,10 @@
-
- config X86_L1_CACHE_SHIFT
-        int
--       default "7" if MPENTIUM4 || X86_GENERIC
-        default "4" if X86_ELAN || M486 || M386
-        default "5" if MWINCHIP3D || MWINCHIP2 || MWINCHIPC6 || MCRUSOE 
-|| MEFFICEON || MCYRIXIII || MK6 || MPENTIUMIII || MPENTIUMII || M686 || 
-M586MMX || M586TSC || M586 || MVIAC3_2 || MGEODEGX1
-        default "6" if MK7 || MK8 || MPENTIUMM
-+       default "7" if MPENTIUM4 || X86_GENERIC
-
- config RWSEM_GENERIC_SPINLOCK
-        bool
-
+Perfectly stated.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
