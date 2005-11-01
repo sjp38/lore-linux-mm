@@ -1,88 +1,96 @@
-Date: Tue, 1 Nov 2005 17:00:05 +0000 (GMT)
+Date: Tue, 1 Nov 2005 17:19:35 +0000 (GMT)
 From: Mel Gorman <mel@csn.ul.ie>
 Subject: Re: [Lhms-devel] [PATCH 0/7] Fragmentation Avoidance V19
-In-Reply-To: <Pine.LNX.4.58.0511011641100.14884@skynet>
-Message-ID: <Pine.LNX.4.58.0511011658200.14884@skynet>
-References: <20051030183354.22266.42795.sendpatchset@skynet.csn.ul.ie>
- <20051031055725.GA3820@w-mikek2.ibm.com><4365BBC4.2090906@yahoo.com.au>
- <20051030235440.6938a0e9.akpm@osdl.org> <27700000.1130769270@[10.10.2.4]>
- <4366A8D1.7020507@yahoo.com.au> <Pine.LNX.4.58.0510312333240.29390@skynet>
-  <4366C559.5090504@yahoo.com.au>  <45430000.1130858744@[10.10.2.4]>
- <1130859193.14475.104.camel@localhost> <Pine.LNX.4.58.0511011641100.14884@skynet>
+In-Reply-To: <43679C69.6050107@jp.fujitsu.com>
+Message-ID: <Pine.LNX.4.58.0511011708000.14884@skynet>
+References: <4366A8D1.7020507@yahoo.com.au> <Pine.LNX.4.58.0510312333240.29390@skynet>
+ <4366C559.5090504@yahoo.com.au> <Pine.LNX.4.58.0511010137020.29390@skynet>
+ <4366D469.2010202@yahoo.com.au> <Pine.LNX.4.58.0511011014060.14884@skynet>
+ <20051101135651.GA8502@elte.hu> <1130854224.14475.60.camel@localhost>
+ <20051101142959.GA9272@elte.hu> <1130856555.14475.77.camel@localhost>
+ <20051101150142.GA10636@elte.hu> <43679C69.6050107@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Hansen <haveblue@us.ibm.com>
-Cc: "Martin J. Bligh" <mbligh@mbligh.org>, Nick Piggin <nickpiggin@yahoo.com.au>, Andrew Morton <akpm@osdl.org>, kravetz@us.ibm.com, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, lhms <lhms-devel@lists.sourceforge.net>, Ingo Molnar <mingo@elte.hu>
+To: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Ingo Molnar <mingo@elte.hu>, Dave Hansen <haveblue@us.ibm.com>, Nick Piggin <nickpiggin@yahoo.com.au>, "Martin J. Bligh" <mbligh@mbligh.org>, Andrew Morton <akpm@osdl.org>, kravetz@us.ibm.com, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, lhms <lhms-devel@lists.sourceforge.net>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 1 Nov 2005, Mel Gorman wrote:
+On Wed, 2 Nov 2005, Kamezawa Hiroyuki wrote:
 
-> On Tue, 1 Nov 2005, Dave Hansen wrote:
->
-> > On Tue, 2005-11-01 at 07:25 -0800, Martin J. Bligh wrote:
-> > > > I really don't think we *want* to say we support higher order allocations
-> > > > absolutely robustly, nor do we want people using them if possible. Because
-> > > > we don't. Even with your patches.
-> > > >
-> > > > Ingo also brought up this point at Ottawa.
-> > >
-> > > Some of the driver issues can be fixed by scatter-gather DMA *if* the
-> > > h/w supports it. But what exactly do you propose to do about kernel
-> > > stacks, etc? By the time you've fixed all the individual usages of it,
-> > > frankly, it would be easier to provide a generic mechanism to fix the
-> > > problem ...
+> Ingo Molnar wrote:
+> > so it's all about expectations: _could_ you reasonably remove a piece of
+> > RAM? Customer will say: "I have stopped all nonessential services, and free
+> > RAM is at 90%, still I cannot remove that piece of faulty RAM, fix the
+> > kernel!". No reasonable customer will say: "True, I have all RAM used up in
+> > mlock()ed sections, but i want to remove some RAM nevertheless".
 > >
-> > That generic mechanism is the kernel virtual remapping.  However, it has
-> > a runtime performance cost, which is increased TLB footprint inside the
-> > kernel, and a more costly implementation of __pa() and __va().
-> >
-> > I'll admit, I'm biased toward partial solutions without runtime cost
-> > before we start incurring constant cost across the entire kernel,
-> > especially when those partial solutions have other potential in-kernel
-> > users.
+> Hi, I'm one of men in -lhms
 >
-> To give an idea of the increased TLB footprint, I ran an aim9 test with
-> cpu_has_pse disabled in include/arch-i386/cpufeature.h to force the use
-> of small pages for the physical memory mappings.
+> In my understanding...
+> - Memory Hotremove on IBM's LPAR? approach is
+>   [remove some amount of memory from somewhere.]
+>   For this approach, Mel's patch will work well.
+>   But this will not guaranntee a user can remove specified range of
+>   memory at any time because how memory range is used is not defined by an
+> admin
+>   but by the kernel automatically. But to extract some amount of memory,
+>   Mel's patch is very important and they need this.
 >
-> This is the -clean results
->
->                     clean  clean-nopse
->  1 creat-clo      16006.00   15294.90    -711.10 -4.44% File Creations and Closes/second
->  2 page_test     117515.83  118677.11    1161.28  0.99% System Allocations & Pages/second
->  3 brk_test      440289.81  436042.64   -4247.17 -0.96% System Memory Allocations/second
->  4 jmp_test     4179466.67 4173266.67   -6200.00 -0.15% Non-local gotos/second
->  5 signal_test    80803.20   78286.95   -2516.25 -3.11% Signal Traps/second
->  6 exec_test         61.75      60.45      -1.30 -2.11% Program Loads/second
->  7 fork_test       1327.01    1318.11      -8.90 -0.67% Task Creations/second
->  8 link_test       5531.53    5406.60    -124.93 -2.26% Link/Unlink Pairs/second
->
-> This is what mbuddy-v19 with and without pse looks like
->
->                  mbuddy-v19 mbuddy-v19-nopse
->  1 creat-clo      15889.41   15328.22    -561.19 -3.53% File Creations and Closes/second
->  2 page_test     117082.15  116892.70    -189.45 -0.16% System Allocations & Pages/second
->  3 brk_test      437887.37  432716.97   -5170.40 -1.18% System Memory Allocations/second
->  4 jmp_test     4179950.00 4176087.32   -3862.68 -0.09% Non-local gotos/second
->  5 signal_test    85335.78   78553.57   -6782.21 -7.95% Signal Traps/second
->  6 exec_test         61.92      60.61      -1.31 -2.12% Program Loads/second
->  7 fork_test       1342.21    1292.26     -49.95 -3.72% Task Creations/second
->  8 link_test       5555.55    5412.90    -142.65 -2.57% Link/Unlink Pairs/second
+> My own target is NUMA node hotplug, what NUMA node hotplug want is
+> - [remove the range of memory] For this approach, admin should define
+>   *core* node and removable node. Memory on removable node is removable.
+>   Dividing area into removable and not-removable is needed, because
+>   we cannot allocate any kernel's object on removable area.
+>   Removable area should be 100% removable. Customer can know the limitation
+> before using.
 >
 
-I forgot to include the comparison between -clean and -mbuddy-v19-nopse
+In this case, we would want some mechanism that says "don't put awkward
+pages in this NUMA node" in a clear way. One way we could do this is;
 
-                  clean     mbuddy-v19-nopse
- 1 creat-clo      16006.00   15328.22    -677.78 -4.23% File Creations and Closes/second
- 2 page_test     117515.83  116892.70    -623.13 -0.53% System Allocations & Pages/second
- 3 brk_test      440289.81  432716.97   -7572.84 -1.72% System Memory Allocations/second
- 4 jmp_test     4179466.67 4176087.32   -3379.35 -0.08% Non-local gotos/second
- 5 signal_test    80803.20   78553.57   -2249.63 -2.78% Signal Traps/second
- 6 exec_test         61.75      60.61      -1.14 -1.85% Program Loads/second
- 7 fork_test       1327.01    1292.26     -34.75 -2.62% Task Creations/second
- 8 link_test       5531.53    5412.90    -118.63 -2.14% Link/Unlink Pairs/second
+1. Move fallback_allocs to be per-node. fallback_allocs is currently
+defined as
+int fallback_allocs[RCLM_TYPES-1][RCLM_TYPES+1] = {
+        {RCLM_NORCLM,   RCLM_FALLBACK, RCLM_KERN,   RCLM_EASY, RCLM_TYPES},
+        {RCLM_EASY,     RCLM_FALLBACK, RCLM_NORCLM, RCLM_KERN, RCLM_TYPES},
+        {RCLM_KERN,     RCLM_FALLBACK, RCLM_NORCLM, RCLM_EASY, RCLM_TYPES}
+};
+
+  The effect is that a RCLM_NORCLM allocation, falls back to
+  RCLM_FALLBACK, RCLM_KERN, RCLM_EASY and then gives up.
+
+2. Architectures would need to provide a function that allocates and
+populates a fallback_allocs[][] array. If they do not provide one, a
+generic function uses array like the one above
+
+3. When adding a node that must be removable, make the array look like
+this
+
+int fallback_allocs[RCLM_TYPES-1][RCLM_TYPES+1] = {
+        {RCLM_NORCLM,   RCLM_TYPES,    RCLM_TYPES,  RCLM_TYPES, RCLM_TYPES},
+        {RCLM_EASY,     RCLM_FALLBACK, RCLM_NORCLM, RCLM_KERN, RCLM_TYPES},
+        {RCLM_KERN,     RCLM_TYPES,    RCLM_TYPES,  RCLM_TYPES, RCLM_TYPES},
+};
+
+The effect of this is only allocations that are easily reclaimable will
+end up in this node. This would be a straight-forward addition to build
+upon this set of patches. The difference would only be visible to
+architectures that cared.
+
+> What I'm considering now is this:
+> - removable area is hot-added area
+> - not-removable area is memory which is visible to kernel at boot time.
+> (I'd like to achieve this by the limitation : hot-added node goes into only
+> ZONE_HIGHMEM)
+
+
+ZONE_HIGHMEM can still end up with PTE pages if allocating PTE pages from
+highmem is configured. This is bad. With the above approach, nodes that
+are not hot-added that have a ZONE_HIGHMEM will be able to use it for PTEs
+as well. But when a node is hot-added, it will have a ZONE_HIGHMEM that is
+not used for PTE allocations because they are not RCLM_EASY allocations.
 
 -- 
 Mel Gorman
