@@ -1,43 +1,78 @@
-Date: Tue, 1 Nov 2005 15:46:22 +0100
-From: Ingo Molnar <mingo@elte.hu>
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by e4.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id jA1EnQ6D016456
+	for <linux-mm@kvack.org>; Tue, 1 Nov 2005 09:49:26 -0500
+Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
+	by d01relay02.pok.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id jA1EnQ5c117298
+	for <linux-mm@kvack.org>; Tue, 1 Nov 2005 09:49:26 -0500
+Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
+	by d01av01.pok.ibm.com (8.12.11/8.13.3) with ESMTP id jA1EnPTc000835
+	for <linux-mm@kvack.org>; Tue, 1 Nov 2005 09:49:25 -0500
 Subject: Re: [Lhms-devel] [PATCH 0/7] Fragmentation Avoidance V19
-Message-ID: <20051101144622.GC9911@elte.hu>
-References: <20051030235440.6938a0e9.akpm@osdl.org> <27700000.1130769270@[10.10.2.4]> <4366A8D1.7020507@yahoo.com.au> <Pine.LNX.4.58.0510312333240.29390@skynet> <4366C559.5090504@yahoo.com.au> <Pine.LNX.4.58.0511010137020.29390@skynet> <4366D469.2010202@yahoo.com.au> <Pine.LNX.4.58.0511011014060.14884@skynet> <20051101135651.GA8502@elte.hu> <Pine.LNX.4.58.0511011358520.14884@skynet>
+From: Dave Hansen <haveblue@us.ibm.com>
+In-Reply-To: <20051101142959.GA9272@elte.hu>
+References: <20051030235440.6938a0e9.akpm@osdl.org>
+	 <27700000.1130769270@[10.10.2.4]> <4366A8D1.7020507@yahoo.com.au>
+	 <Pine.LNX.4.58.0510312333240.29390@skynet> <4366C559.5090504@yahoo.com.au>
+	 <Pine.LNX.4.58.0511010137020.29390@skynet> <4366D469.2010202@yahoo.com.au>
+	 <Pine.LNX.4.58.0511011014060.14884@skynet> <20051101135651.GA8502@elte.hu>
+	 <1130854224.14475.60.camel@localhost>  <20051101142959.GA9272@elte.hu>
+Content-Type: text/plain
+Date: Tue, 01 Nov 2005 15:49:15 +0100
+Message-Id: <1130856555.14475.77.camel@localhost>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.58.0511011358520.14884@skynet>
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Nick Piggin <nickpiggin@yahoo.com.au>, "Martin J. Bligh" <mbligh@mbligh.org>, Andrew Morton <akpm@osdl.org>, kravetz@us.ibm.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, lhms-devel@lists.sourceforge.net
+To: Ingo Molnar <mingo@elte.hu>
+Cc: Mel Gorman <mel@csn.ul.ie>, Nick Piggin <nickpiggin@yahoo.com.au>, "Martin J. Bligh" <mbligh@mbligh.org>, Andrew Morton <akpm@osdl.org>, kravetz@us.ibm.com, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, lhms <lhms-devel@lists.sourceforge.net>
 List-ID: <linux-mm.kvack.org>
 
-* Mel Gorman <mel@csn.ul.ie> wrote:
-
-> [...] The full 100% solution would be a large set of far reaching 
-> patches that would touch a lot of the memory manager. This would get 
-> rejected because the patches should have have arrived piecemeal. These 
-> patches are one piece. To reach 100%, other mechanisms are also needed 
-> such as;
+On Tue, 2005-11-01 at 15:29 +0100, Ingo Molnar wrote:
+> * Dave Hansen <haveblue@us.ibm.com> wrote:
+> > > can you always, under any circumstance hot unplug RAM with these patches 
+> > > applied? If not, do you have any expectation to reach 100%?
+> > 
+> > With these patches, no.  There are currently some very nice, 
+> > pathological workloads which will still cause fragmentation.  But, in 
+> > the interest of incremental feature introduction, I think they're a 
+> > fine first step.  We can effectively reach toward a more comprehensive 
+> > solution on top of these patches.
+> > 
+> > Reaching truly 100% will require some other changes such as being able 
+> > to virtually remap things like kernel text.
 > 
-> o Page migration to move unreclaimable pages like mlock()ed pages or
->   kernel pages that had fallen back into easy-reclaim areas. A mechanism
->   would also be needed to move things like kernel text. I think the memory
->   hotplug tree has done a lot of work here
-> o Mechanism for taking regions of memory offline. Again, I think the
->   memory hotplug crowd have something for this. If they don't, one of them
->   will chime in.
-> o linear page reclaim that linearly scans a region of memory reclaims or
->   moves all the pages it. I have a proof-of-concept patch that does the
->   linear scan and reclaim but it's currently ugly and depends on this set
->   of patches been applied.
+> then we need to see that 100% solution first - at least in terms of 
+> conceptual steps.
 
-how will the 100% solution handle a simple kmalloc()-ed kernel buffer, 
-that is pinned down, and to/from which live pointers may exist? That 
-alone can prevent RAM from being removable.
+I don't think saying "truly 100%" really even makes sense.  There will
+always be restrictions of some kind.  For instance, with a 10MB kernel
+image, should you be able to shrink the memory in the system below
+10MB? ;)  
 
-	Ingo
+There is also no precedent in existing UNIXes for a 100% solution.  From
+http://publib.boulder.ibm.com/infocenter/pseries/index.jsp?topic=/com.ibm.aix.doc/aixbman/prftungd/dlpar.htm , a seemingly arbitrary restriction:
+
+	A memory region that contains a large page cannot be removed.
+
+What the fragmentation patches _can_ give us is the ability to have 100%
+success in removing certain areas: the "user-reclaimable" areas
+referenced in the patch.  This gives a customer at least the ability to
+plan for how dynamically reconfigurable a system should be.
+
+After these patches, the next logical steps are to increase the
+knowledge that the slabs have about fragmentation, and to teach some of
+the shrinkers about fragmentation.
+
+After that, we'll need some kind of virtual remapping, breaking the 1:1
+kernel virtual mapping, so that the most problematic pages can be
+remapped.  These pages would retain their virtual address, but getting a
+new physical.  However, this is quite far down the road and will require
+some serious evaluation because it impacts how normal devices are able
+to to DMA.  The ppc64 proprietary hypervisor has features to work around
+these issues, and any new hypervisors wishing to support partition
+memory hotplug would likely have to follow suit.
+
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
