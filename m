@@ -1,62 +1,51 @@
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by e1.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id jA2B4bau022115
-	for <linux-mm@kvack.org>; Wed, 2 Nov 2005 06:04:37 -0500
-Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
-	by d01relay04.pok.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id jA2B4bbn079376
-	for <linux-mm@kvack.org>; Wed, 2 Nov 2005 06:04:37 -0500
-Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
-	by d01av03.pok.ibm.com (8.12.11/8.13.3) with ESMTP id jA2B4adn014278
-	for <linux-mm@kvack.org>; Wed, 2 Nov 2005 06:04:37 -0500
-Reply-To: Gerrit Huizenga <gh@us.ibm.com>
-From: Gerrit Huizenga <gh@us.ibm.com>
-Subject: Re: [Lhms-devel] [PATCH 0/7] Fragmentation Avoidance V19 
-In-reply-to: Your message of Wed, 02 Nov 2005 11:41:31 +0100.
-             <20051102104131.GA7780@elte.hu>
-Date: Wed, 02 Nov 2005 03:04:28 -0800
-Message-Id: <E1EXGPs-0006JA-00@w-gerrit.beaverton.ibm.com>
+Date: Wed, 2 Nov 2005 11:22:06 +0000 (GMT)
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [Lhms-devel] [PATCH 0/7] Fragmentation Avoidance V19
+In-Reply-To: <43680923.1040007@jp.fujitsu.com>
+Message-ID: <Pine.LNX.4.58.0511021121220.5235@skynet>
+References: <4366A8D1.7020507@yahoo.com.au> <Pine.LNX.4.58.0510312333240.29390@skynet>
+ <4366C559.5090504@yahoo.com.au> <Pine.LNX.4.58.0511010137020.29390@skynet>
+ <4366D469.2010202@yahoo.com.au> <Pine.LNX.4.58.0511011014060.14884@skynet>
+ <20051101135651.GA8502@elte.hu> <1130854224.14475.60.camel@localhost>
+ <20051101142959.GA9272@elte.hu> <1130856555.14475.77.camel@localhost>
+ <20051101150142.GA10636@elte.hu> <43679C69.6050107@jp.fujitsu.com>
+ <Pine.LNX.4.58.0511011708000.14884@skynet> <43680923.1040007@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ingo Molnar <mingo@elte.hu>
-Cc: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Dave Hansen <haveblue@us.ibm.com>, Mel Gorman <mel@csn.ul.ie>, Nick Piggin <nickpiggin@yahoo.com.au>, "Martin J. Bligh" <mbligh@mbligh.org>, Andrew Morton <akpm@osdl.org>, kravetz@us.ibm.com, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, lhms <lhms-devel@lists.sourceforge.net>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Ingo Molnar <mingo@elte.hu>, Dave Hansen <haveblue@us.ibm.com>, Nick Piggin <nickpiggin@yahoo.com.au>, "Martin J. Bligh" <mbligh@mbligh.org>, Andrew Morton <akpm@osdl.org>, kravetz@us.ibm.com, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, lhms <lhms-devel@lists.sourceforge.net>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 02 Nov 2005 11:41:31 +0100, Ingo Molnar wrote:
-> 
-> * Gerrit Huizenga <gh@us.ibm.com> wrote:
-> 
-> > > generic unpluggable kernel RAM _will not work_.
-> > 
-> > Actually, it will.  Well, depending on terminology.
-> 
-> 'generic unpluggable kernel RAM' means what it says: any RAM seen by the 
-> kernel can be unplugged, always. (as long as the unplug request is 
-> reasonable and there is enough free space to migrate in-use pages to).
- 
- Okay, I understand your terminology.  Yes, I can not point to any
- particular piece of memory and say "I want *that* one" and have that
- request succeed.  However, I can say "find me 50 chunks of memory
- of your choosing" and have a very good chance of finding enough
- memory to satisfy my request.
+On Wed, 2 Nov 2005, KAMEZAWA Hiroyuki wrote:
 
-> > There are two usage models here - those which intend to remove 
-> > physical elements and those where the kernel returnss management of 
-> > its virtualized "physical" memory to a hypervisor.  In the latter 
-> > case, a hypervisor already maintains a virtual map of the memory and 
-> > the OS needs to release virtualized "physical" memory.  I think you 
-> > are referring to RAM here as the physical component; however these 
-> > same defrag patches help where a hypervisor is maintaining the real 
-> > physical memory below the operating system and the OS is managing a 
-> > virtualized "physical" memory.
-> 
-> reliable unmapping of "generic kernel RAM" is not possible even in a 
-> virtualized environment. Think of the 'live pointers' problem i outlined 
-> in an earlier mail in this thread today.
+> Mel Gorman wrote:
+> > 3. When adding a node that must be removable, make the array look like
+> > this
+> >
+> > int fallback_allocs[RCLM_TYPES-1][RCLM_TYPES+1] = {
+> >         {RCLM_NORCLM,   RCLM_TYPES,    RCLM_TYPES,  RCLM_TYPES, RCLM_TYPES},
+> >         {RCLM_EASY,     RCLM_FALLBACK, RCLM_NORCLM, RCLM_KERN, RCLM_TYPES},
+> >         {RCLM_KERN,     RCLM_TYPES,    RCLM_TYPES,  RCLM_TYPES, RCLM_TYPES},
+> > };
+> >
+> > The effect of this is only allocations that are easily reclaimable will
+> > end up in this node. This would be a straight-forward addition to build
+> > upon this set of patches. The difference would only be visible to
+> > architectures that cared.
+> >
+> Thank you for illustration.
+> maybe fallback_list per pgdat/zone is what I need with your patch.  right ?
+>
 
- Yeah - and that isn't what is being proposed here.  The goal is to ask
- the kernel to identify some memory which can be legitimately freed and
- hasten the freeing of that memory.
+With my patch, yes. With zones, you need to change how zonelists are built
+for each node.
 
-gerrit
+-- 
+Mel Gorman
+Part-time Phd Student                          Java Applications Developer
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
