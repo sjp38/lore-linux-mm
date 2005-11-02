@@ -1,137 +1,61 @@
-Date: Wed, 02 Nov 2005 16:19:18 +0900
-From: Yasunori Goto <y-goto@jp.fujitsu.com>
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e1.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id jA27gTtS017740
+	for <linux-mm@kvack.org>; Wed, 2 Nov 2005 02:42:29 -0500
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay04.pok.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id jA27gTbn118496
+	for <linux-mm@kvack.org>; Wed, 2 Nov 2005 02:42:29 -0500
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.12.11/8.13.3) with ESMTP id jA27gSxP016136
+	for <linux-mm@kvack.org>; Wed, 2 Nov 2005 02:42:29 -0500
 Subject: Re: [Lhms-devel] [PATCH 0/7] Fragmentation Avoidance V19
-In-Reply-To: <43682940.3020200@yahoo.com.au>
-References: <216280000.1130898244@[10.10.2.4]> <43682940.3020200@yahoo.com.au>
-Message-Id: <20051102121733.9E74.Y-GOTO@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+From: Dave Hansen <haveblue@us.ibm.com>
+In-Reply-To: <43680D8C.5080500@yahoo.com.au>
+References: <20051030235440.6938a0e9.akpm@osdl.org>
+	 <27700000.1130769270@[10.10.2.4]> <4366A8D1.7020507@yahoo.com.au>
+	 <Pine.LNX.4.58.0510312333240.29390@skynet> <4366C559.5090504@yahoo.com.au>
+	 <Pine.LNX.4.58.0511010137020.29390@skynet> <4366D469.2010202@yahoo.com.au>
+	 <Pine.LNX.4.58.0511011014060.14884@skynet> <20051101135651.GA8502@elte.hu>
+	 <1130854224.14475.60.camel@localhost>  <20051101142959.GA9272@elte.hu>
+	 <1130856555.14475.77.camel@localhost>  <43680D8C.5080500@yahoo.com.au>
+Content-Type: text/plain
+Date: Wed, 02 Nov 2005 08:42:18 +0100
+Message-Id: <1130917338.14475.133.camel@localhost>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: "Martin J. Bligh" <mbligh@mbligh.org>, Joel Schopp <jschopp@austin.ibm.com>, Andrew Morton <akpm@osdl.org>, kravetz@us.ibm.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, lhms-devel@lists.sourceforge.net, Ingo Molnar <mingo@elte.hu>, Mel Gorman <mel@csn.ul.ie>
+Cc: Ingo Molnar <mingo@elte.hu>, Mel Gorman <mel@csn.ul.ie>, "Martin J. Bligh" <mbligh@mbligh.org>, Andrew Morton <akpm@osdl.org>, kravetz@us.ibm.com, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, lhms <lhms-devel@lists.sourceforge.net>
 List-ID: <linux-mm.kvack.org>
 
-Hello.
-Nick-san.
+On Wed, 2005-11-02 at 11:51 +1100, Nick Piggin wrote:
+> Look: if you have to guarantee memory can be shrunk, set aside a zone
+> for it (that only fills with user reclaimable areas). This is better
+> than the current frag patches because it will give you the 100%
+> guarantee that you need (provided we have page migration to move mlocked
+> pages).
 
-I posted patches to make ZONE_REMOVABLE to LHMS.
-I don't say they are better than Mel-san's patch.
-I hope this will be base of good discussion.
+With Mel's patches, you can easily add the same guarantee.  Look at the
+code in  fallback_alloc() (patch 5/8).  It would be quite easy to modify
+the fallback lists to disallow fallbacks into areas from which we would
+like to remove memory.  That was left out for simplicity.  As you say,
+they're quite complex as it is.  Would you be interested in seeing a
+patch to provide those kinds of guarantees?
 
+We've had a bit of experience with a hotpluggable zone approach  before.
+Just like the current topic patches, you're right, that approach can
+also provide strong guarantees.  However, the issue comes if the system
+ever needs to move memory between such zones, such as if a user ever
+decides that they'd prefer to break hotplug guarantees rather than OOM.
 
-There were 2 types.
-One was just add ZONE_REMOVABLE.
-This patch came from early implementation of memory hotplug VA-Linux
-team. 
-http://sourceforge.net/mailarchive/forum.php?thread_id=5969508&forum_id=223
+Do you think changing what a particular area of memory is being used for
+would ever be needed?
 
-ZONE_HIGHMEM is used for this purpose at early implementation.
-We thought ZONE_HIGHMEM is easier removing than other zone.
-But some of archtecture don't use it. That is why ZONE_REMOVABLE
-was born.
-(And I remember that ZONE_DMA32 was defined after this patch.
- So, number of zone became 5, and one more bit was necessary in
- page->flags. (I don't know recent progress of ZONE_DMA32)).
+One other thing, if we decide to take the zones approach, it would have
+no other side benefits for the kernel.  It would be for hotplug only and
+I don't think even the large page users would get much benefit.  
 
-
-Another one was a bit similar than Mel-san's one.
-One of motivation of this patch was to create orthogonal relationship
-between Removable and DMA/Normal/Highmem. I thought it is desirable.
-Because, ppc64 can treat that all of memory is same (DMA) zone.
-I thought that new zone spoiled its good feature.
-
-http://sourceforge.net/mailarchive/forum.php?thread_id=5345977&forum_id=223
-http://sourceforge.net/mailarchive/forum.php?thread_id=5345978&forum_id=223
-http://sourceforge.net/mailarchive/forum.php?thread_id=5345979&forum_id=223
-http://sourceforge.net/mailarchive/forum.php?thread_id=5345980&forum_id=223
-
-
-Thanks.
-
-P.S. to Mel-san.
- I'm sorry for late writing of this. This threads was mail bomb for me
- to read with my poor English skill. :-(
-
-
-> Martin J. Bligh wrote:
-> 
-> >>But let's move this to another thread if it is going to continue. I
-> >>would be happy to discuss scheduler problems.
-> > 
-> > 
-> > My point was that most things we do add complexity to the codebase,
-> > including the things you do yourself ... I'm not saying the we're worse
-> > off for the changes you've made, by any means - I think they've been
-> > mostly beneficial.
-> 
-> Heh - I like the "mostly" ;)
-> 
-> > I'm just pointing out that we ALL do it, so let us
-> > not be too quick to judge when others propose adding something that does ;-)
-> > 
-> 
-> What I'm getting worried about is the marked increase in the
-> rate of features and complexity going in.
-> 
-> I am almost certainly never going to use memory hotplug or
-> demand paging of hugepages. I am pretty likely going to have
-> to wade through this code at some point in the future if it
-> is merged.
-> 
-> It is also going to slow down my kernel by maybe 1% when
-> doing kbuilds, but hey let's not worry about that until we've
-> merged 10 more such slowdowns (ok that wasn't aimed at you or
-> Mel, but my perception of the status quo).
-> 
-> > 
-> >>You can't what? What doesn't work? If you have no hard limits set,
-> >>then the frag patches can't guarantee anything either.
-> >>
-> >>You can't have it both ways. Either you have limits for things or
-> >>you don't need any guarantees. Zones handle the former case nicely,
-> >>and we currently do the latter case just fine (along with the frag
-> >>patches).
-> > 
-> > 
-> > I'll go look through Mel's current patchset again. I was under the
-> > impression it didn't suffer from this problem, at least not as much
-> > as zones did.
-> > 
-> 
-> Over time, I don't think it can offer any stronger a guarantee
-> than what we currently have. I'm not even sure that it would be
-> any better at all for problematic workloads as time -> infinity.
-> 
-> > Nothing is guaranteed. You can shag the whole machine and/or VM in
-> > any number of ways ... if we can significantly improve the probability 
-> > of existing higher order allocs working, and new functionality has
-> > an excellent probability of success, that's as good as you're going to 
-> > get. Have a free "perfect is the enemy of good" Linus quote, on me ;-)
-> > 
-> 
-> I think it falls down if these higher order allocations actually
-> get *used* for anything. You'll simply be going through the process
-> of replacing your contiguous, easy-to-reclaim memory with pinned
-> kernel memory.
-> 
-> However, for the purpose of memory hot unplug, a new zone *will*
-> guarantee memory can be reclaimed and unplugged.
-> 
-> -- 
-> SUSE Labs, Novell Inc.
-> 
-> Send instant messages to your online friends http://au.messenger.yahoo.com 
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-
--- 
-Yasunori Goto 
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
