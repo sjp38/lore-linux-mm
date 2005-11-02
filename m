@@ -1,44 +1,34 @@
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e4.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id jA2Ch32q003291
-	for <linux-mm@kvack.org>; Wed, 2 Nov 2005 07:43:03 -0500
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay02.pok.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id jA2Ch3Vi116996
-	for <linux-mm@kvack.org>; Wed, 2 Nov 2005 07:43:03 -0500
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.12.11/8.13.3) with ESMTP id jA2Ch2SO006613
-	for <linux-mm@kvack.org>; Wed, 2 Nov 2005 07:43:03 -0500
+Date: Wed, 02 Nov 2005 06:51:37 -0800
+From: "Martin J. Bligh" <mbligh@mbligh.org>
+Reply-To: "Martin J. Bligh" <mbligh@mbligh.org>
 Subject: Re: [Lhms-devel] [PATCH 0/7] Fragmentation Avoidance V19
-From: Dave Hansen <haveblue@us.ibm.com>
-In-Reply-To: <20051102120048.GA10081@elte.hu>
-References: <20051102104131.GA7780@elte.hu>
-	 <E1EXGPs-0006JA-00@w-gerrit.beaverton.ibm.com>
-	 <20051102120048.GA10081@elte.hu>
-Content-Type: text/plain
-Date: Wed, 02 Nov 2005 13:42:49 +0100
-Message-Id: <1130935369.15627.37.camel@localhost>
-Mime-Version: 1.0
+Message-ID: <253150000.1130943095@[10.10.2.4]>
+In-Reply-To: <43687C3D.7060706@yahoo.com.au>
+References: <1130917338.14475.133.camel@localhost> <436877DB.7020808@yahoo.com.au> <20051102172729.9E7C.Y-GOTO@jp.fujitsu.com> <43687C3D.7060706@yahoo.com.au>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ingo Molnar <mingo@elte.hu>
-Cc: Gerrit Huizenga <gh@us.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Nick Piggin <nickpiggin@yahoo.com.au>, "Martin J. Bligh" <mbligh@mbligh.org>, Andrew Morton <akpm@osdl.org>, kravetz@us.ibm.com, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, lhms <lhms-devel@lists.sourceforge.net>
+To: Nick Piggin <nickpiggin@yahoo.com.au>, Yasunori Goto <y-goto@jp.fujitsu.com>
+Cc: Dave Hansen <haveblue@us.ibm.com>, Ingo Molnar <mingo@elte.hu>, Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@osdl.org>, kravetz@us.ibm.com, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, lhms <lhms-devel@lists.sourceforge.net>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2005-11-02 at 13:00 +0100, Ingo Molnar wrote:
+> Well I think it can satisfy hugepage allocations simply because
+> we can be reasonably sure of being able to free contiguous regions.
+> Of course it will be memory no longer easily reclaimable, same as
+> the case for the frag patches. Nor would be name ZONE_REMOVABLE any
+> longer be the most appropriate!
 > 
-> >  Yeah - and that isn't what is being proposed here.  The goal is to 
-> >  ask the kernel to identify some memory which can be legitimately 
-> >  freed and hasten the freeing of that memory.
-> 
-> but that's very easy to identify: check the free list or the clean 
-> list(s). No defragmentation necessary. [unless the unit of RAM mapping 
-> between hypervisor and guest is too coarse (i.e. not 4K pages).]
+> But my point is, the basic mechanism is there and is workable.
+> Hugepages and memory unplug are the two main reasons for IBM to be
+> pushing this AFAIKS.
 
-It needs to be that coarse in cases where HugeTLB is desired for use.
-I'm not sure I could convince the DB guys to give up large pages,
-they're pretty hooked on them. ;)
-
--- Dave
+No, that's not true - those are just the "exciting" features that go 
+on the back of it. Look back in this email thread - there's lots of
+other reasons to fix fragmentation. I don't believe you can eliminate
+all the order > 0 allocations in the kernel.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
