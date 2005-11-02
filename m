@@ -1,44 +1,54 @@
-Message-ID: <43685B63.7020701@jp.fujitsu.com>
-Date: Wed, 02 Nov 2005 15:23:31 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-MIME-Version: 1.0
+Date: Wed, 2 Nov 2005 08:19:43 +0100
+From: Ingo Molnar <mingo@elte.hu>
 Subject: Re: [Lhms-devel] [PATCH 0/7] Fragmentation Avoidance V19
-References: <20051030183354.22266.42795.sendpatchset@skynet.csn.ul.ie><20051031055725.GA3820@w-mikek2.ibm.com><4365BBC4.2090906@yahoo.com.au> <20051030235440.6938a0e9.akpm@osdl.org> <27700000.1130769270@[10.10.2.4]> <4366A8D1.7020507@yahoo.com.au> <Pine.LNX.4.58.0510312333240.29390@skynet> <4366C559.5090504@yahoo.com.au> <Pine.LNX.4.58.0511010137020.29390@skynet> <4366D469.2010202@yahoo.com.au> <4367D71A.1030208@austin.ibm.com> <43681100.1000603@yahoo.com.au> <214340000.1130895665@[10.10.2.4]> <43681E89.8070905@yahoo.com.au> <216280000.1130898244@[10.10.2.4]> <43682940.3020200@yahoo.com.au> <217570000.1130906356@[10.10.2.4]> <43684A16.70401@yahoo.com.au> <231260000.1130908490@[10.10.2.4]>
-In-Reply-To: <231260000.1130908490@[10.10.2.4]>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Message-ID: <20051102071943.GA1574@elte.hu>
+References: <4366C559.5090504@yahoo.com.au> <Pine.LNX.4.58.0511010137020.29390@skynet> <4366D469.2010202@yahoo.com.au> <Pine.LNX.4.58.0511011014060.14884@skynet> <20051101135651.GA8502@elte.hu> <1130854224.14475.60.camel@localhost> <20051101142959.GA9272@elte.hu> <1130856555.14475.77.camel@localhost> <20051101150142.GA10636@elte.hu> <43679C69.6050107@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <43679C69.6050107@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Martin J. Bligh" <mbligh@mbligh.org>
-Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Joel Schopp <jschopp@austin.ibm.com>, Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@osdl.org>, kravetz@us.ibm.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, lhms-devel@lists.sourceforge.net, Ingo Molnar <mingo@elte.hu>
+To: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Dave Hansen <haveblue@us.ibm.com>, Mel Gorman <mel@csn.ul.ie>, Nick Piggin <nickpiggin@yahoo.com.au>, "Martin J. Bligh" <mbligh@mbligh.org>, Andrew Morton <akpm@osdl.org>, kravetz@us.ibm.com, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, lhms <lhms-devel@lists.sourceforge.net>
 List-ID: <linux-mm.kvack.org>
 
-Martin J. Bligh wrote:
->>True, but we don't seem to have huge problems with other things. The
->>main ones that have come up on lkml are e1000 which is getting fixed,
->>and maybe XFS which I think there are also moves to improve.
-> 
-> 
-> It should be fairly easy to trawl through the list of all allocations 
-> and pull out all the higher order ones from the whole source tree. I
-> suspect there's a lot ... maybe I'll play with it later on.
-> 
+* Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
 
-please check kmalloc(32k,64k)
+> My own target is NUMA node hotplug, what NUMA node hotplug want is
+> - [remove the range of memory] For this approach, admin should define
+>   *core* node and removable node. Memory on removable node is removable.
+>   Dividing area into removable and not-removable is needed, because
+>   we cannot allocate any kernel's object on removable area.
+>   Removable area should be 100% removable. Customer can know the limitation 
+>   before using.
 
-For example, loopback device's default MTU=16436 means order=3 and
-maybe there are other high MTU device.
+that's a perfectly fine method, and is quite similar to the 'separate 
+zone' approach Nick mentioned too. It is also easily understandable for 
+users/customers.
 
-I suspect skb_makewritable()/skb_copy()/skb_linearize() function can be
-sufferd from fragmentation when MTU is big. They allocs large skb by
-gathering fragmented skbs.When these skb_* funcs failed, the packet
-is silently discarded by netfilter. If fragmentation is heavy, packets
-(especialy TCP) uses large MTU never reachs its end, even if loopback.
+under such an approach, things become easier as well: if you have zones 
+you can to restrict (no kernel pinned-down allocations, no mlock-ed 
+pages, etc.), there's no need for any 'fragmentation avoidance' patches!  
+Basically all of that RAM becomes instantly removable (with some small 
+complications). That's the beauty of the separate-zones approach. It is 
+also a limitation: no kernel allocations, so all the highmem-alike 
+restrictions apply to it too.
 
-Honestly, I'm not familiar with network code, could anyone comment this ?
+but what is a dangerous fallacy is that we will be able to support hot 
+memory unplug of generic kernel RAM in any reliable way!
 
--- Kame
+you really have to look at this from the conceptual angle: 'can an 
+approach ever lead to a satisfactory result'? If the answer is 'no', 
+then we _must not_ add a 90% solution that we _know_ will never be a 
+100% solution.
 
+for the separate-removable-zones approach we see the end of the tunnel.  
+Separate zones are well-understood.
+
+generic unpluggable kernel RAM _will not work_.
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
