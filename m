@@ -1,52 +1,48 @@
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by e1.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id jA27khJk019677
-	for <linux-mm@kvack.org>; Wed, 2 Nov 2005 02:46:43 -0500
-Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
-	by d01relay04.pok.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id jA27khbn093950
-	for <linux-mm@kvack.org>; Wed, 2 Nov 2005 02:46:43 -0500
-Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
-	by d01av04.pok.ibm.com (8.12.11/8.13.3) with ESMTP id jA27kgc6005351
-	for <linux-mm@kvack.org>; Wed, 2 Nov 2005 02:46:43 -0500
-Reply-To: Gerrit Huizenga <gh@us.ibm.com>
-From: Gerrit Huizenga <gh@us.ibm.com>
-Subject: Re: [Lhms-devel] [PATCH 0/7] Fragmentation Avoidance V19 
-In-reply-to: Your message of Wed, 02 Nov 2005 08:19:43 +0100.
-             <20051102071943.GA1574@elte.hu>
-Date: Tue, 01 Nov 2005 23:46:35 -0800
-Message-Id: <E1EXDKN-0004b9-00@w-gerrit.beaverton.ibm.com>
+Message-ID: <43687173.5020702@yahoo.com.au>
+Date: Wed, 02 Nov 2005 18:57:39 +1100
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+MIME-Version: 1.0
+Subject: Re: [Lhms-devel] [PATCH 0/7] Fragmentation Avoidance V19
+References: <4366C559.5090504@yahoo.com.au> <Pine.LNX.4.58.0511010137020.29390@skynet> <4366D469.2010202@yahoo.com.au> <Pine.LNX.4.58.0511011014060.14884@skynet> <20051101135651.GA8502@elte.hu> <1130854224.14475.60.camel@localhost> <20051101142959.GA9272@elte.hu> <1130856555.14475.77.camel@localhost> <20051101150142.GA10636@elte.hu> <43679C69.6050107@jp.fujitsu.com> <20051102071943.GA1574@elte.hu>
+In-Reply-To: <20051102071943.GA1574@elte.hu>
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Ingo Molnar <mingo@elte.hu>
-Cc: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Dave Hansen <haveblue@us.ibm.com>, Mel Gorman <mel@csn.ul.ie>, Nick Piggin <nickpiggin@yahoo.com.au>, "Martin J. Bligh" <mbligh@mbligh.org>, Andrew Morton <akpm@osdl.org>, kravetz@us.ibm.com, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, lhms <lhms-devel@lists.sourceforge.net>
+Cc: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Dave Hansen <haveblue@us.ibm.com>, Mel Gorman <mel@csn.ul.ie>, "Martin J. Bligh" <mbligh@mbligh.org>, Andrew Morton <akpm@osdl.org>, kravetz@us.ibm.com, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, lhms <lhms-devel@lists.sourceforge.net>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 02 Nov 2005 08:19:43 +0100, Ingo Molnar wrote:
-> 
+Ingo Molnar wrote:
 > * Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
 > 
-> > My own target is NUMA node hotplug, what NUMA node hotplug want is
-> > - [remove the range of memory] For this approach, admin should define
-> >   *core* node and removable node. Memory on removable node is removable.
-> >   Dividing area into removable and not-removable is needed, because
-> >   we cannot allocate any kernel's object on removable area.
-> >   Removable area should be 100% removable. Customer can know the limitation 
-> >   before using.
+> 
+>>My own target is NUMA node hotplug, what NUMA node hotplug want is
+>>- [remove the range of memory] For this approach, admin should define
+>>  *core* node and removable node. Memory on removable node is removable.
+>>  Dividing area into removable and not-removable is needed, because
+>>  we cannot allocate any kernel's object on removable area.
+>>  Removable area should be 100% removable. Customer can know the limitation 
+>>  before using.
+> 
 > 
 > that's a perfectly fine method, and is quite similar to the 'separate 
 > zone' approach Nick mentioned too. It is also easily understandable for 
 > users/customers.
 > 
-> under such an approach, things become easier as well: if you have zones 
-> you can to restrict (no kernel pinned-down allocations, no mlock-ed 
-> pages, etc.), there's no need for any 'fragmentation avoidance' patches!  
-> Basically all of that RAM becomes instantly removable (with some small 
-> complications). That's the beauty of the separate-zones approach. It is 
-> also a limitation: no kernel allocations, so all the highmem-alike 
-> restrictions apply to it too.
+
+I agree - and I think it should be easy to configure out of the
+kernel for those that don't want the functionality, and should
+at very little complexity to core code (all without looking at
+the patches so I could be very wrong!).
+
 > 
 > but what is a dangerous fallacy is that we will be able to support hot 
 > memory unplug of generic kernel RAM in any reliable way!
 > 
+
+Very true.
+
 > you really have to look at this from the conceptual angle: 'can an 
 > approach ever lead to a satisfactory result'? If the answer is 'no', 
 > then we _must not_ add a 90% solution that we _know_ will never be a 
@@ -55,42 +51,14 @@ On Wed, 02 Nov 2005 08:19:43 +0100, Ingo Molnar wrote:
 > for the separate-removable-zones approach we see the end of the tunnel.  
 > Separate zones are well-understood.
 > 
-> generic unpluggable kernel RAM _will not work_.
 
-Actually, it will.  Well, depending on terminology.
+Yep, I don't see why this doesn't cover all the needs that the frag
+patches attempt (hot unplug, hugepage dynamic reserves).
 
-There are two usage models here - those which intend to remove physical
-elements and those where the kernel returnss management of its virtualized
-"physical" memory to a hypervisor.  In the latter case, a hypervisor
-already maintains a virtual map of the memory and the OS needs to release
-virtualized "physical" memory.  I think you are referring to RAM here as
-the physical component; however these same defrag patches help where a
-hypervisor is maintaining the real physical memory below the operating
-system and the OS is managing a virtualized "physical" memory.
+-- 
+SUSE Labs, Novell Inc.
 
-On pSeries hardware or with Xen, a client OS can return chunks of memory
-to the hypervisor.  That memory needs to be returned in chunks of the
-size that the hypervisor normally manages/maintains.  But long ranges
-of physical contiguity are not required.  Just shorter ranges, depending
-on what the hypervisor maintains, need to be returned from the OS to
-the hypervisor.
-
-In other words, if we can return 1 MB chunks, the hypervisor can hand
-out those 1 MB chunks to other domains/partitions.  So, if we can return
-500 1 MB chunks from a 2 GB OS instance, we can add 500 MB dyanamically
-to another OS image.
-
-This happens to be a *very* satisfactory answer for virtualized environments.
-
-The other answer, which is harder, is to return (free) entire large physical
-chunks, e.g. the size of the full memory of a node, allowing a node to be
-dynamically removed (or a DIMM/SIMM/etc.).
-
-So, people are working towards two distinct solutions, both of which
-require us to do a better job of defragmenting memory (or avoiding
-fragementation in the first place).
-
-gerrit
+Send instant messages to your online friends http://au.messenger.yahoo.com 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
