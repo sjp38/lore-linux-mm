@@ -1,51 +1,67 @@
-Date: Wed, 2 Nov 2005 10:17:39 +0100
-From: Ingo Molnar <mingo@elte.hu>
+Received: from westrelay02.boulder.ibm.com (westrelay02.boulder.ibm.com [9.17.195.11])
+	by e34.co.us.ibm.com (8.12.11/8.12.11) with ESMTP id jA29X8eH015986
+	for <linux-mm@kvack.org>; Wed, 2 Nov 2005 04:33:08 -0500
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by westrelay02.boulder.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id jA29X6Xg525988
+	for <linux-mm@kvack.org>; Wed, 2 Nov 2005 02:33:08 -0700
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.12.11/8.13.3) with ESMTP id jA29X51b003277
+	for <linux-mm@kvack.org>; Wed, 2 Nov 2005 02:33:05 -0700
 Subject: Re: [Lhms-devel] [PATCH 0/7] Fragmentation Avoidance V19
-Message-ID: <20051102091739.GA4856@elte.hu>
-References: <4366D469.2010202@yahoo.com.au> <Pine.LNX.4.58.0511011014060.14884@skynet> <20051101135651.GA8502@elte.hu> <1130854224.14475.60.camel@localhost> <20051101142959.GA9272@elte.hu> <1130856555.14475.77.camel@localhost> <20051101150142.GA10636@elte.hu> <1130858580.14475.98.camel@localhost> <20051102084946.GA3930@elte.hu> <436880B8.1050207@yahoo.com.au>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+From: Dave Hansen <haveblue@us.ibm.com>
 In-Reply-To: <436880B8.1050207@yahoo.com.au>
+References: <4366C559.5090504@yahoo.com.au>
+	 <Pine.LNX.4.58.0511010137020.29390@skynet> <4366D469.2010202@yahoo.com.au>
+	 <Pine.LNX.4.58.0511011014060.14884@skynet> <20051101135651.GA8502@elte.hu>
+	 <1130854224.14475.60.camel@localhost> <20051101142959.GA9272@elte.hu>
+	 <1130856555.14475.77.camel@localhost> <20051101150142.GA10636@elte.hu>
+	 <1130858580.14475.98.camel@localhost> <20051102084946.GA3930@elte.hu>
+	 <436880B8.1050207@yahoo.com.au>
+Content-Type: text/plain
+Date: Wed, 02 Nov 2005 10:32:49 +0100
+Message-Id: <1130923969.15627.11.camel@localhost>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Dave Hansen <haveblue@us.ibm.com>, Mel Gorman <mel@csn.ul.ie>, "Martin J. Bligh" <mbligh@mbligh.org>, Andrew Morton <akpm@osdl.org>, Linus Torvalds <torvalds@osdl.org>, kravetz@us.ibm.com, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, lhms <lhms-devel@lists.sourceforge.net>, Arjan van de Ven <arjanv@infradead.org>
+Cc: Ingo Molnar <mingo@elte.hu>, Mel Gorman <mel@csn.ul.ie>, "Martin J. Bligh" <mbligh@mbligh.org>, Andrew Morton <akpm@osdl.org>, Linus Torvalds <torvalds@osdl.org>, kravetz@us.ibm.com, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, lhms <lhms-devel@lists.sourceforge.net>, Arjan van de Ven <arjanv@infradead.org>
 List-ID: <linux-mm.kvack.org>
 
-* Nick Piggin <nickpiggin@yahoo.com.au> wrote:
-
-> Ingo Molnar wrote:
-> 
-> >really, once you accept that, the path out of this mess becomes 'easy': 
-> >we _have to_ compromise on the feature side! And the moment we give up 
-> >the notion of 'generic kernel RAM' and focus on the hot-removability of 
-> >a limited-functionality zone, the complexity of the solution becomes 
-> >three orders of magnitude smaller. No fragmentation avoidance necessary.  
-> >No 'have to handle dozens of very hard problems to become 99% 
-> >functional' issues. Once you make that zone an opt-in thing, it becomes 
-> >much better from a development dynamics point of view as well.
-> >
-> 
-> I agree. Especially considering that all this memory hotplug usage for 
-> hypervisors etc. is a relatively new thing with few of our userbase 
-> actually using it. I think a simple zones solution is the right way to 
+On Wed, 2005-11-02 at 20:02 +1100, Nick Piggin wrote:
+> I agree. Especially considering that all this memory hotplug usage for
+> hypervisors etc. is a relatively new thing with few of our userbase
+> actually using it. I think a simple zones solution is the right way to
 > go for now.
 
-btw., virtualization is pretty much a red herring here. Xen already has 
-a 'balooning driver', where a guest OS can give back unused RAM on a 
-page-granular basis. This is an advantage of having a fully virtualized 
-guest OS. That covers 99% of the 'remove RAM' needs. So i believe the 
-real target audience of hot-unplug is mostly limited to hardware-level 
-RAM unplug.
+I agree enough on concept that I think we can go implement at least a
+demonstration of how easy it is to perform.
 
-[ Xen also offers other features like migration of live images to
-  another piece of hardware, which further dampen the cost of
-  virtualization (mapping overhead, etc.). With hot-remove you dont get
-  such compound benefits of a conceptually more robust and thus more
-  pervasive approach. ]
+There are a couple of implementation details that will require some
+changes to the current zone model, however.  Perhaps you have some
+suggestions on those.
 
-	Ingo
+In which zone do we place hot-added RAM?  I don't think answer can
+simply be the HOTPLUGGABLE zone.  If you start with sufficiently small
+of a machine, you'll degrade into the same horrible HIGHMEM behavior
+that a 64GB ia32 machine has today, despite your architecture.  Think of
+a machine that starts out with a size of 256MB and grows to 1TB.
+
+So, if you have to add to NORMAL/DMA on the fly, how do you handle a
+case where the new NORMAL/DMA ram is physically above
+HIGHMEM/HOTPLUGGABLE?  Is there any other course than to make a zone
+required to be able to span other zones, and be noncontiguous?  Would
+that represent too much of a change to the current model?
+
+>From where do we perform reclaim when we run out of a particular zone?
+Getting reclaim rates of the HIGHMEM and NORMAL zones balanced has been
+hard, and I worry that we never got it quite.  Introducing yet another
+zone makes this harder.
+
+Should we allow allocations for NORMAL to fall back into HOTPLUGGABLE in
+any case?
+
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
