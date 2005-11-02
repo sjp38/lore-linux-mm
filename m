@@ -1,44 +1,93 @@
-Message-ID: <436891AE.1040709@yahoo.com.au>
-Date: Wed, 02 Nov 2005 21:15:10 +1100
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-MIME-Version: 1.0
-Subject: Re: [Lhms-devel] [PATCH 0/7] Fragmentation Avoidance V19
-References: <20051030183354.22266.42795.sendpatchset@skynet.csn.ul.ie><20051031055725.GA3820@w-mikek2.ibm.com><4365BBC4.2090906@yahoo.com.au> <20051030235440.6938a0e9.akpm@osdl.org> <27700000.1130769270@[10.10.2.4]> <4366A8D1.7020507@yahoo.com.au> <Pine.LNX.4.58.0510312333240.29390@skynet> <4366C559.5090504@yahoo.com.au> <Pine.LNX.4.58.0511010137020.29390@skynet> <4366D469.2010202@yahoo.com.au> <4367D71A.1030208@austin.ibm.com> <43681100.1000603@yahoo.com.au> <214340000.1130895665@[10.10.2.4]> <43681E89.8070905@yahoo.com.au> <216280000.1130898244@[10.10.2.4]> <43682940.3020200@yahoo.com.au> <217570000.1130906356@[10.10.2.4]> <43684A16.70401@yahoo.com.au> <231260000.1130908490@[10.10.2.4]> <43685B63.7020701@jp.fujitsu.com>
-In-Reply-To: <43685B63.7020701@jp.fujitsu.com>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by e6.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id jA2AIQDw002604
+	for <linux-mm@kvack.org>; Wed, 2 Nov 2005 05:18:26 -0500
+Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
+	by d01relay02.pok.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id jA2AIQ5c121772
+	for <linux-mm@kvack.org>; Wed, 2 Nov 2005 05:18:26 -0500
+Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
+	by d01av04.pok.ibm.com (8.12.11/8.13.3) with ESMTP id jA2AIFOQ003540
+	for <linux-mm@kvack.org>; Wed, 2 Nov 2005 05:18:16 -0500
+Reply-To: Gerrit Huizenga <gh@us.ibm.com>
+From: Gerrit Huizenga <gh@us.ibm.com>
+Subject: Re: [Lhms-devel] [PATCH 0/7] Fragmentation Avoidance V19 
+In-reply-to: Your message of Wed, 02 Nov 2005 20:37:43 +1100.
+             <436888E7.1060609@yahoo.com.au>
+Date: Wed, 02 Nov 2005 02:17:58 -0800
+Message-Id: <E1EXFgs-0005tq-00@w-gerrit.beaverton.ibm.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "Martin J. Bligh" <mbligh@mbligh.org>, Joel Schopp <jschopp@austin.ibm.com>, Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@osdl.org>, kravetz@us.ibm.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, lhms-devel@lists.sourceforge.net, Ingo Molnar <mingo@elte.hu>
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Ingo Molnar <mingo@elte.hu>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Dave Hansen <haveblue@us.ibm.com>, Mel Gorman <mel@csn.ul.ie>, "Martin J. Bligh" <mbligh@mbligh.org>, Andrew Morton <akpm@osdl.org>, kravetz@us.ibm.com, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, lhms <lhms-devel@lists.sourceforge.net>
 List-ID: <linux-mm.kvack.org>
 
-KAMEZAWA Hiroyuki wrote:
-> Martin J. Bligh wrote:
+On Wed, 02 Nov 2005 20:37:43 +1100, Nick Piggin wrote:
+> Gerrit Huizenga wrote:
+> > On Wed, 02 Nov 2005 19:50:15 +1100, Nick Piggin wrote:
 > 
+> >>Isn't the solution for your hypervisor problem to dish out pages of
+> >>the same size that are used by the virtual machines. Doesn't this
+> >>provide you with a nice, 100% solution that doesn't add complexity
+> >>where it isn't needed?
+> > 
+> > 
+> > So do you see the problem with fragementation if the hypervisor is
+> > handing out, say, 1 MB pages?  Or, more likely, something like 64 MB
+> > pages?  What are the chances that an entire 64 MB page can be freed
+> > on a large system that has been up a while?
+>
+> I see the problem, but if you want to be able to shrink memory to a
+> given size, then you must either introduce a hard limit somewhere, or
+> have the hypervisor hand out guest sized pages. Use zones, or Xen?
+ 
+ So why do you believe there must be a hard limit?
+ 
+ Any reduction in memory usage is going to be workload related.
+ If the workload is consuming less memory than is available, memory
+ reclaim is easy (e.g. handle fragmentation, find nice sized chunks).
+ The workload determines how much the administrator can free.  If
+ the workload is using all of the resources available (e.g. lots of
+ associated kernel memory locked down, locked user pages, etc.)
+ then the administrator will logically be able to reduce less memory
+ from the machine.
 
-> please check kmalloc(32k,64k)
-> 
-> For example, loopback device's default MTU=16436 means order=3 and
-> maybe there are other high MTU device.
-> 
-> I suspect skb_makewritable()/skb_copy()/skb_linearize() function can be
-> sufferd from fragmentation when MTU is big. They allocs large skb by
-> gathering fragmented skbs.When these skb_* funcs failed, the packet
-> is silently discarded by netfilter. If fragmentation is heavy, packets
-> (especialy TCP) uses large MTU never reachs its end, even if loopback.
-> 
-> Honestly, I'm not familiar with network code, could anyone comment this ?
-> 
+ The amount of memory to be freed up is not determined by some pre-defined
+ machine constraints but based on the actual workload's use of the machine.
 
-I'd be interested to know, actually. I was hoping loopback should always
-use order-0 allocations, because the loopback driver is SG, FRAGLIST,
-and HIGHDMA capable. However I'm likewise not familiar with network code.
+ In other words, who really cares if there is some hard limit?  The
+ only limit should be the number of pages not currently needed by
+ a given workload, not some arbitrary zone size.
 
--- 
-SUSE Labs, Novell Inc.
+> > And, if you create zones, you run into all of the zone rebalancing
+> > problems of ZONE_DMA, ZONE_NORMAL, ZONE_HIGHMEM.  In that case, on
+> > any long running system, ZONE_HOTPLUGGABLE has been overwhelmed with
+> > random allocations, making almost none of it available.
+> 
+> If there are zone rebalancing problems[*], then it would be great to
+> have more users of zones because then they will be more likely to get
+> fixed.
+> 
+> [*] and there are, sadly enough - see the recent patches I posted to
+>      lkml for example. But I'm fairly confident that once the particularly
+>      silly ones have been fixed, zone balancing will no longer be a
+>      derogatory term as has been thrown around (maybe rightly) in this
+>      thread!
 
-Send instant messages to your online friends http://au.messenger.yahoo.com 
+ You are more optimistic here than I.  You might have improved the
+ problem but I think that any zone rebalancing problem is intrinsicly
+ hard given the way those zones are used and the fact that we sort
+ of want them to be dynamic and yet physically contiguous.  Those two
+ core constraints seem to be relatively at odds with each other.
+
+ I'm not a huge fan of dividing memory up into different types which
+ are all special purposed.  Everything that becomes special purposed
+ over time limits its use and brings up questions on what special purpose
+ bucket each allocation should use (e.g. ZONE_NORMAL or ZONE_HIGHMEM
+ or ZONE_DMA or ZONE_HOTPLUGGABLE).  And then, when you run out of
+ ZONE_HIGHMEM and have to reach into ZONE_HOTPLUGGABLE for some pinned
+ memory allocation, it seems the whole concept leads to a messy
+ train wreck.
+
+gerrit
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
