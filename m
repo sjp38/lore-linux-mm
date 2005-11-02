@@ -1,59 +1,51 @@
-Received: from westrelay02.boulder.ibm.com (westrelay02.boulder.ibm.com [9.17.195.11])
-	by e36.co.us.ibm.com (8.12.11/8.12.11) with ESMTP id jA29Cbus026694
-	for <linux-mm@kvack.org>; Wed, 2 Nov 2005 04:12:38 -0500
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by westrelay02.boulder.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id jA29CbXg505894
-	for <linux-mm@kvack.org>; Wed, 2 Nov 2005 02:12:37 -0700
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.12.11/8.13.3) with ESMTP id jA29CbDG032514
-	for <linux-mm@kvack.org>; Wed, 2 Nov 2005 02:12:37 -0700
-Reply-To: Gerrit Huizenga <gh@us.ibm.com>
-From: Gerrit Huizenga <gh@us.ibm.com>
-Subject: Re: [Lhms-devel] [PATCH 0/7] Fragmentation Avoidance V19 
-In-reply-to: Your message of Wed, 02 Nov 2005 19:50:15 +1100.
-             <43687DC7.3060904@yahoo.com.au>
-Date: Wed, 02 Nov 2005 01:12:30 -0800
-Message-Id: <E1EXEfW-0005ON-00@w-gerrit.beaverton.ibm.com>
+Date: Wed, 2 Nov 2005 10:17:39 +0100
+From: Ingo Molnar <mingo@elte.hu>
+Subject: Re: [Lhms-devel] [PATCH 0/7] Fragmentation Avoidance V19
+Message-ID: <20051102091739.GA4856@elte.hu>
+References: <4366D469.2010202@yahoo.com.au> <Pine.LNX.4.58.0511011014060.14884@skynet> <20051101135651.GA8502@elte.hu> <1130854224.14475.60.camel@localhost> <20051101142959.GA9272@elte.hu> <1130856555.14475.77.camel@localhost> <20051101150142.GA10636@elte.hu> <1130858580.14475.98.camel@localhost> <20051102084946.GA3930@elte.hu> <436880B8.1050207@yahoo.com.au>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <436880B8.1050207@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Ingo Molnar <mingo@elte.hu>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Dave Hansen <haveblue@us.ibm.com>, Mel Gorman <mel@csn.ul.ie>, "Martin J. Bligh" <mbligh@mbligh.org>, Andrew Morton <akpm@osdl.org>, kravetz@us.ibm.com, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, lhms <lhms-devel@lists.sourceforge.net>
+Cc: Dave Hansen <haveblue@us.ibm.com>, Mel Gorman <mel@csn.ul.ie>, "Martin J. Bligh" <mbligh@mbligh.org>, Andrew Morton <akpm@osdl.org>, Linus Torvalds <torvalds@osdl.org>, kravetz@us.ibm.com, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, lhms <lhms-devel@lists.sourceforge.net>, Arjan van de Ven <arjanv@infradead.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 02 Nov 2005 19:50:15 +1100, Nick Piggin wrote:
-> Gerrit Huizenga wrote:
+* Nick Piggin <nickpiggin@yahoo.com.au> wrote:
+
+> Ingo Molnar wrote:
 > 
-> > So, people are working towards two distinct solutions, both of which
-> > require us to do a better job of defragmenting memory (or avoiding
-> > fragementation in the first place).
-> > 
+> >really, once you accept that, the path out of this mess becomes 'easy': 
+> >we _have to_ compromise on the feature side! And the moment we give up 
+> >the notion of 'generic kernel RAM' and focus on the hot-removability of 
+> >a limited-functionality zone, the complexity of the solution becomes 
+> >three orders of magnitude smaller. No fragmentation avoidance necessary.  
+> >No 'have to handle dozens of very hard problems to become 99% 
+> >functional' issues. Once you make that zone an opt-in thing, it becomes 
+> >much better from a development dynamics point of view as well.
+> >
 > 
-> This is just going around in circles. Even with your fragmentation
-> avoidance and memory defragmentation, there are still going to be
-> cases where memory does get fragmented and can't be defragmented.
-> This is Ingo's point, I believe.
-> 
-> Isn't the solution for your hypervisor problem to dish out pages of
-> the same size that are used by the virtual machines. Doesn't this
-> provide you with a nice, 100% solution that doesn't add complexity
-> where it isn't needed?
+> I agree. Especially considering that all this memory hotplug usage for 
+> hypervisors etc. is a relatively new thing with few of our userbase 
+> actually using it. I think a simple zones solution is the right way to 
+> go for now.
 
-So do you see the problem with fragementation if the hypervisor is
-handing out, say, 1 MB pages?  Or, more likely, something like 64 MB
-pages?  What are the chances that an entire 64 MB page can be freed
-on a large system that has been up a while?
+btw., virtualization is pretty much a red herring here. Xen already has 
+a 'balooning driver', where a guest OS can give back unused RAM on a 
+page-granular basis. This is an advantage of having a fully virtualized 
+guest OS. That covers 99% of the 'remove RAM' needs. So i believe the 
+real target audience of hot-unplug is mostly limited to hardware-level 
+RAM unplug.
 
-And, if you create zones, you run into all of the zone rebalancing
-problems of ZONE_DMA, ZONE_NORMAL, ZONE_HIGHMEM.  In that case, on
-any long running system, ZONE_HOTPLUGGABLE has been overwhelmed with
-random allocations, making almost none of it available.
+[ Xen also offers other features like migration of live images to
+  another piece of hardware, which further dampen the cost of
+  virtualization (mapping overhead, etc.). With hot-remove you dont get
+  such compound benefits of a conceptually more robust and thus more
+  pervasive approach. ]
 
-However, with reasonable defragmentation or fragmentation avoidance,
-we have some potential to make large chunks available for return to
-the hypervisor.  And, that same capability continues to help those
-who want to remove fixed ranges of physical memory.
-
-gerrit
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
