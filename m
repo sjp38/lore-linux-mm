@@ -1,67 +1,57 @@
-Received: from westrelay02.boulder.ibm.com (westrelay02.boulder.ibm.com [9.17.195.11])
-	by e34.co.us.ibm.com (8.12.11/8.12.11) with ESMTP id jA29X8eH015986
-	for <linux-mm@kvack.org>; Wed, 2 Nov 2005 04:33:08 -0500
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by westrelay02.boulder.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id jA29X6Xg525988
-	for <linux-mm@kvack.org>; Wed, 2 Nov 2005 02:33:08 -0700
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.12.11/8.13.3) with ESMTP id jA29X51b003277
-	for <linux-mm@kvack.org>; Wed, 2 Nov 2005 02:33:05 -0700
+Message-ID: <436888E7.1060609@yahoo.com.au>
+Date: Wed, 02 Nov 2005 20:37:43 +1100
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+MIME-Version: 1.0
 Subject: Re: [Lhms-devel] [PATCH 0/7] Fragmentation Avoidance V19
-From: Dave Hansen <haveblue@us.ibm.com>
-In-Reply-To: <436880B8.1050207@yahoo.com.au>
-References: <4366C559.5090504@yahoo.com.au>
-	 <Pine.LNX.4.58.0511010137020.29390@skynet> <4366D469.2010202@yahoo.com.au>
-	 <Pine.LNX.4.58.0511011014060.14884@skynet> <20051101135651.GA8502@elte.hu>
-	 <1130854224.14475.60.camel@localhost> <20051101142959.GA9272@elte.hu>
-	 <1130856555.14475.77.camel@localhost> <20051101150142.GA10636@elte.hu>
-	 <1130858580.14475.98.camel@localhost> <20051102084946.GA3930@elte.hu>
-	 <436880B8.1050207@yahoo.com.au>
-Content-Type: text/plain
-Date: Wed, 02 Nov 2005 10:32:49 +0100
-Message-Id: <1130923969.15627.11.camel@localhost>
-Mime-Version: 1.0
+References: <E1EXEfW-0005ON-00@w-gerrit.beaverton.ibm.com>
+In-Reply-To: <E1EXEfW-0005ON-00@w-gerrit.beaverton.ibm.com>
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Ingo Molnar <mingo@elte.hu>, Mel Gorman <mel@csn.ul.ie>, "Martin J. Bligh" <mbligh@mbligh.org>, Andrew Morton <akpm@osdl.org>, Linus Torvalds <torvalds@osdl.org>, kravetz@us.ibm.com, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, lhms <lhms-devel@lists.sourceforge.net>, Arjan van de Ven <arjanv@infradead.org>
+To: Gerrit Huizenga <gh@us.ibm.com>
+Cc: Ingo Molnar <mingo@elte.hu>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Dave Hansen <haveblue@us.ibm.com>, Mel Gorman <mel@csn.ul.ie>, "Martin J. Bligh" <mbligh@mbligh.org>, Andrew Morton <akpm@osdl.org>, kravetz@us.ibm.com, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, lhms <lhms-devel@lists.sourceforge.net>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2005-11-02 at 20:02 +1100, Nick Piggin wrote:
-> I agree. Especially considering that all this memory hotplug usage for
-> hypervisors etc. is a relatively new thing with few of our userbase
-> actually using it. I think a simple zones solution is the right way to
-> go for now.
+Gerrit Huizenga wrote:
+> On Wed, 02 Nov 2005 19:50:15 +1100, Nick Piggin wrote:
 
-I agree enough on concept that I think we can go implement at least a
-demonstration of how easy it is to perform.
+>>Isn't the solution for your hypervisor problem to dish out pages of
+>>the same size that are used by the virtual machines. Doesn't this
+>>provide you with a nice, 100% solution that doesn't add complexity
+>>where it isn't needed?
+> 
+> 
+> So do you see the problem with fragementation if the hypervisor is
+> handing out, say, 1 MB pages?  Or, more likely, something like 64 MB
+> pages?  What are the chances that an entire 64 MB page can be freed
+> on a large system that has been up a while?
+> 
 
-There are a couple of implementation details that will require some
-changes to the current zone model, however.  Perhaps you have some
-suggestions on those.
+I see the problem, but if you want to be able to shrink memory to a
+given size, then you must either introduce a hard limit somewhere, or
+have the hypervisor hand out guest sized pages. Use zones, or Xen?
 
-In which zone do we place hot-added RAM?  I don't think answer can
-simply be the HOTPLUGGABLE zone.  If you start with sufficiently small
-of a machine, you'll degrade into the same horrible HIGHMEM behavior
-that a 64GB ia32 machine has today, despite your architecture.  Think of
-a machine that starts out with a size of 256MB and grows to 1TB.
+> And, if you create zones, you run into all of the zone rebalancing
+> problems of ZONE_DMA, ZONE_NORMAL, ZONE_HIGHMEM.  In that case, on
+> any long running system, ZONE_HOTPLUGGABLE has been overwhelmed with
+> random allocations, making almost none of it available.
+> 
 
-So, if you have to add to NORMAL/DMA on the fly, how do you handle a
-case where the new NORMAL/DMA ram is physically above
-HIGHMEM/HOTPLUGGABLE?  Is there any other course than to make a zone
-required to be able to span other zones, and be noncontiguous?  Would
-that represent too much of a change to the current model?
+If there are zone rebalancing problems[*], then it would be great to
+have more users of zones because then they will be more likely to get
+fixed.
 
->From where do we perform reclaim when we run out of a particular zone?
-Getting reclaim rates of the HIGHMEM and NORMAL zones balanced has been
-hard, and I worry that we never got it quite.  Introducing yet another
-zone makes this harder.
+[*] and there are, sadly enough - see the recent patches I posted to
+     lkml for example. But I'm fairly confident that once the particularly
+     silly ones have been fixed, zone balancing will no longer be a
+     derogatory term as has been thrown around (maybe rightly) in this
+     thread!
 
-Should we allow allocations for NORMAL to fall back into HOTPLUGGABLE in
-any case?
+-- 
+SUSE Labs, Novell Inc.
 
--- Dave
+Send instant messages to your online friends http://au.messenger.yahoo.com 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
