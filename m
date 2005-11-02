@@ -1,73 +1,71 @@
-Received: from westrelay02.boulder.ibm.com (westrelay02.boulder.ibm.com [9.17.195.11])
-	by e31.co.us.ibm.com (8.12.11/8.12.11) with ESMTP id jA2M2vcN014998
-	for <linux-mm@kvack.org>; Wed, 2 Nov 2005 17:02:57 -0500
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by westrelay02.boulder.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id jA2M2vrq501030
-	for <linux-mm@kvack.org>; Wed, 2 Nov 2005 15:02:57 -0700
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.12.11/8.13.3) with ESMTP id jA2M2uUB031193
-	for <linux-mm@kvack.org>; Wed, 2 Nov 2005 15:02:57 -0700
-Subject: Re: New bug in patch and existing Linux code - race with
-	install_page() (was: Re: [PATCH] 2.6.14 patch for supporting
-	madvise(MADV_REMOVE))
-From: Badari Pulavarty <pbadari@us.ibm.com>
-In-Reply-To: <Pine.LNX.4.61.0511022145450.18444@goblin.wat.veritas.com>
-References: <1130366995.23729.38.camel@localhost.localdomain>
-	 <20051102014321.GG24051@opteron.random>
-	 <1130947957.24503.70.camel@localhost.localdomain>
-	 <200511022054.15119.blaisorblade@yahoo.it>
-	 <1130967383.24503.112.camel@localhost.localdomain>
-	 <Pine.LNX.4.61.0511022145450.18444@goblin.wat.veritas.com>
-Content-Type: text/plain
-Date: Wed, 02 Nov 2005 14:02:33 -0800
-Message-Id: <1130968953.24503.122.camel@localhost.localdomain>
-Mime-Version: 1.0
+From: Rob Landley <rob@landley.net>
+Subject: Re: [Lhms-devel] [PATCH 0/7] Fragmentation Avoidance V19
+Date: Wed, 2 Nov 2005 17:47:44 -0600
+References: <E1EXEfW-0005ON-00@w-gerrit.beaverton.ibm.com> <436888E7.1060609@yahoo.com.au>
+In-Reply-To: <436888E7.1060609@yahoo.com.au>
+MIME-Version: 1.0
+Content-Type: text/plain;
+  charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200511021747.45599.rob@landley.net>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: Blaisorblade <blaisorblade@yahoo.it>, Andrea Arcangeli <andrea@suse.de>, lkml <linux-kernel@vger.kernel.org>, akpm@osdl.org, dvhltc@us.ibm.com, linux-mm <linux-mm@kvack.org>, Jeff Dike <jdike@addtoit.com>
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Gerrit Huizenga <gh@us.ibm.com>, Ingo Molnar <mingo@elte.hu>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Dave Hansen <haveblue@us.ibm.com>, Mel Gorman <mel@csn.ul.ie>, "Martin J. Bligh" <mbligh@mbligh.org>, Andrew Morton <akpm@osdl.org>, kravetz@us.ibm.com, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, lhms <lhms-devel@lists.sourceforge.net>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2005-11-02 at 21:55 +0000, Hugh Dickins wrote:
-> On Wed, 2 Nov 2005, Badari Pulavarty wrote:
-> > On Wed, 2005-11-02 at 20:54 +0100, Blaisorblade wrote:
-> > > > +       /* XXX - Do we need both i_sem and i_allocsem all the way ? */
-> > > > +       down(&inode->i_sem);
-> > > > +       down_write(&inode->i_alloc_sem);
-> > > > +       unmap_mapping_range(mapping, offset, (end - offset), 1);
-> > > In my opinion, as already said, unmap_mapping_range can be called without 
-> > > these two locks, as it operates only on mappings for the file.
-> > > 
-> > > However currently it's called with these locks held in vmtruncate, but I think 
-> > > the locks are held in that case only because we need to truncate the file, 
-> > > and are hold in excess also across this call.
-> > 
-> > I agree, I can push down the locking only for ->truncate_range - if
-> > no one has objections. (But again, it so special case - no one really
-> > cares about the performance of this interface ?).
-> 
-> I can't remember why i_alloc_sem got introduced, and don't have time to
-> work it out: something to do with direct I/O races, perhaps?  Someone
-> else must advise, perhaps you will be able to drop that one.
+On Wednesday 02 November 2005 03:37, Nick Piggin wrote:
+> > So do you see the problem with fragementation if the hypervisor is
+> > handing out, say, 1 MB pages?  Or, more likely, something like 64 MB
+> > pages?  What are the chances that an entire 64 MB page can be freed
+> > on a large system that has been up a while?
+>
+> I see the problem, but if you want to be able to shrink memory to a
+> given size, then you must either introduce a hard limit somewhere, or
+> have the hypervisor hand out guest sized pages. Use zones, or Xen?
 
-Yep. i_alloc_sem is supposed to protect DIO races with truncate.
+In the UML case, I want the system to automatically be able to hand back any 
+sufficiently large chunks of memory it currently isn't using.
 
-> But I think you'd be very unwise to drop i_sem too.  i_mmap_lock gets
-> dropped whenever preemption demands here, i_sem is what's preventing
-> someone else coming along and doing a concurrent truncate or remove.
-> You don't want that.
-> 
-> Sorry, I've not yet had time to study your patch: I do intend to,
-> but cannot promise when.  I fear it won't be as easy as making
-> these occasional responses.
+What does this have to do with specifying hard limits of anything?  What's to 
+specify?  Workloads vary.  Deal with it.
 
-Thanks Hugh. For now, I will leave those locks alone. We can re-visit
-later, if we really care about the performance of this interface.
-Better be safe than sorry.
+> If there are zone rebalancing problems[*], then it would be great to
+> have more users of zones because then they will be more likely to get
+> fixed.
 
-Thanks,
-Badari
+Ok, so you want to artificially turn this into a zone balancing issue in hopes 
+of giving that area of the code more testing when, if zones weren't involved, 
+there would be no need for balancing at all?
+
+How does that make sense?
+
+> [*] and there are, sadly enough - see the recent patches I posted to
+>      lkml for example.
+
+I was under the impression that zone balancing is, conceptually speaking, a 
+difficult problem.
+
+>      But I'm fairly confident that once the particularly 
+>      silly ones have been fixed,
+
+Great, you're advocating migrating the fragmentation patches to an area of 
+code that has known problems you yourself describe as "particularly silly".  
+A ringing endorsement, that.
+
+The fact that the migrated version wouldn't even address fragmentation 
+avoidance at all (the topic of this thread!) is apparently a side issue.
+
+>      zone balancing will no longer be a 
+>      derogatory term as has been thrown around (maybe rightly) in this
+>      thread!
+
+If I'm not mistaken, you introduced zones into this thread, you are the 
+primary (possibly only) proponent of them.  Yes, zones are a way of 
+categorizing memory.  They're not a way of defragmenting it.
+
+Rob
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
