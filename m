@@ -1,43 +1,54 @@
-Date: Wed, 2 Nov 2005 11:41:31 +0100
-From: Ingo Molnar <mingo@elte.hu>
+Received: from westrelay02.boulder.ibm.com (westrelay02.boulder.ibm.com [9.17.195.11])
+	by e35.co.us.ibm.com (8.12.11/8.12.11) with ESMTP id jA2AsnqA024941
+	for <linux-mm@kvack.org>; Wed, 2 Nov 2005 05:54:49 -0500
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by westrelay02.boulder.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id jA2AsnXg516968
+	for <linux-mm@kvack.org>; Wed, 2 Nov 2005 03:54:49 -0700
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.12.11/8.13.3) with ESMTP id jA2AsmuI006087
+	for <linux-mm@kvack.org>; Wed, 2 Nov 2005 03:54:49 -0700
 Subject: Re: [Lhms-devel] [PATCH 0/7] Fragmentation Avoidance V19
-Message-ID: <20051102104131.GA7780@elte.hu>
-References: <20051102071943.GA1574@elte.hu> <E1EXDKN-0004b9-00@w-gerrit.beaverton.ibm.com>
+From: Dave Hansen <haveblue@us.ibm.com>
+In-Reply-To: <43688B74.20002@yahoo.com.au>
+References: <4366C559.5090504@yahoo.com.au>
+	 <Pine.LNX.4.58.0511010137020.29390@skynet> <4366D469.2010202@yahoo.com.au>
+	 <Pine.LNX.4.58.0511011014060.14884@skynet> <20051101135651.GA8502@elte.hu>
+	 <1130854224.14475.60.camel@localhost> <20051101142959.GA9272@elte.hu>
+	 <1130856555.14475.77.camel@localhost> <20051101150142.GA10636@elte.hu>
+	 <1130858580.14475.98.camel@localhost> <20051102084946.GA3930@elte.hu>
+	 <436880B8.1050207@yahoo.com.au> <1130923969.15627.11.camel@localhost>
+	 <43688B74.20002@yahoo.com.au>
+Content-Type: text/plain
+Date: Wed, 02 Nov 2005 11:54:35 +0100
+Message-Id: <1130928875.15627.24.camel@localhost>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <E1EXDKN-0004b9-00@w-gerrit.beaverton.ibm.com>
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Gerrit Huizenga <gh@us.ibm.com>
-Cc: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Dave Hansen <haveblue@us.ibm.com>, Mel Gorman <mel@csn.ul.ie>, Nick Piggin <nickpiggin@yahoo.com.au>, "Martin J. Bligh" <mbligh@mbligh.org>, Andrew Morton <akpm@osdl.org>, kravetz@us.ibm.com, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, lhms <lhms-devel@lists.sourceforge.net>
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Ingo Molnar <mingo@elte.hu>, Mel Gorman <mel@csn.ul.ie>, "Martin J. Bligh" <mbligh@mbligh.org>, Andrew Morton <akpm@osdl.org>, Linus Torvalds <torvalds@osdl.org>, kravetz@us.ibm.com, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, lhms <lhms-devel@lists.sourceforge.net>, Arjan van de Ven <arjanv@infradead.org>
 List-ID: <linux-mm.kvack.org>
 
-* Gerrit Huizenga <gh@us.ibm.com> wrote:
-
-> > generic unpluggable kernel RAM _will not work_.
+On Wed, 2005-11-02 at 20:48 +1100, Nick Piggin wrote:
+> > So, if you have to add to NORMAL/DMA on the fly, how do you handle a
+> > case where the new NORMAL/DMA ram is physically above
+> > HIGHMEM/HOTPLUGGABLE?  Is there any other course than to make a zone
+> > required to be able to span other zones, and be noncontiguous?  Would
+> > that represent too much of a change to the current model?
+> > 
 > 
-> Actually, it will.  Well, depending on terminology.
+> Perhaps. Perhaps it wouldn't be required to get a solution that is
+> "good enough" though.
+> 
+> But if you can reclaim your ZONE_RECLAIMABLE, then you could reclaim
+> it all and expand your normal zones into it, bottom up.
 
-'generic unpluggable kernel RAM' means what it says: any RAM seen by the 
-kernel can be unplugged, always. (as long as the unplug request is 
-reasonable and there is enough free space to migrate in-use pages to).
+That's a good point.  It would be slow, because you have to wait on page
+reclaim, but it would work.  I do worry a bit that this might make
+adding memory to slow of an operation to be useful for short periods,
+but we'll see how it actually behaves.
 
-> There are two usage models here - those which intend to remove 
-> physical elements and those where the kernel returnss management of 
-> its virtualized "physical" memory to a hypervisor.  In the latter 
-> case, a hypervisor already maintains a virtual map of the memory and 
-> the OS needs to release virtualized "physical" memory.  I think you 
-> are referring to RAM here as the physical component; however these 
-> same defrag patches help where a hypervisor is maintaining the real 
-> physical memory below the operating system and the OS is managing a 
-> virtualized "physical" memory.
-
-reliable unmapping of "generic kernel RAM" is not possible even in a 
-virtualized environment. Think of the 'live pointers' problem i outlined 
-in an earlier mail in this thread today.
-
-	Ingo
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
