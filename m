@@ -1,67 +1,74 @@
+Received: by wproxy.gmail.com with SMTP id 70so220020wra
+        for <linux-mm@kvack.org>; Thu, 03 Nov 2005 08:23:50 -0800 (PST)
 Subject: Re: [Lhms-devel] [PATCH 0/7] Fragmentation Avoidance V19
-From: Arjan van de Ven <arjan@infradead.org>
-In-Reply-To: <Pine.LNX.4.64.0511030747450.27915@g5.osdl.org>
-References: <4366C559.5090504@yahoo.com.au>
-	 <Pine.LNX.4.58.0511010137020.29390@skynet> <4366D469.2010202@yahoo.com.au>
-	 <Pine.LNX.4.58.0511011014060.14884@skynet> <20051101135651.GA8502@elte.hu>
-	 <1130854224.14475.60.camel@localhost> <20051101142959.GA9272@elte.hu>
-	 <1130856555.14475.77.camel@localhost> <20051101150142.GA10636@elte.hu>
-	 <1130858580.14475.98.camel@localhost> <20051102084946.GA3930@elte.hu>
-	 <436880B8.1050207@yahoo.com.au> <1130923969.15627.11.camel@localhost>
-	 <43688B74.20002@yahoo.com.au> <255360000.1130943722@[10.10.2.4]>
-	 <4369824E.2020407@yahoo.com.au>  <306020000.1131032193@[10.10.2.4]>
-	 <1131032422.2839.8.camel@laptopd505.fenrus.org>
-	 <Pine.LNX.4.64.0511030747450.27915@g5.osdl.org>
+From: Badari Pulavarty <pbadari@gmail.com>
+In-Reply-To: <20051103163555.GA4174@ccure.user-mode-linux.org>
+References: <E1EXEfW-0005ON-00@w-gerrit.beaverton.ibm.com>
+	 <200511021747.45599.rob@landley.net> <43699573.4070301@yahoo.com.au>
+	 <200511030007.34285.rob@landley.net>
+	 <20051103163555.GA4174@ccure.user-mode-linux.org>
 Content-Type: text/plain
-Date: Thu, 03 Nov 2005 17:20:32 +0100
-Message-Id: <1131034832.2839.13.camel@laptopd505.fenrus.org>
+Date: Thu, 03 Nov 2005 08:23:20 -0800
+Message-Id: <1131035000.24503.135.camel@localhost.localdomain>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@osdl.org>
-Cc: "Martin J. Bligh" <mbligh@mbligh.org>, Nick Piggin <nickpiggin@yahoo.com.au>, Dave Hansen <haveblue@us.ibm.com>, Ingo Molnar <mingo@elte.hu>, Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@osdl.org>, kravetz@us.ibm.com, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, lhms <lhms-devel@lists.sourceforge.net>, Arjan van de Ven <arjanv@infradead.org>
+To: Jeff Dike <jdike@addtoit.com>
+Cc: Rob Landley <rob@landley.net>, Nick Piggin <nickpiggin@yahoo.com.au>, Gerrit Huizenga <gh@us.ibm.com>, Ingo Molnar <mingo@elte.hu>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Dave Hansen <haveblue@us.ibm.com>, Mel Gorman <mel@csn.ul.ie>, "Martin J. Bligh" <mbligh@mbligh.org>, Andrew Morton <akpm@osdl.org>, kravetz@us.ibm.com, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, lhms <lhms-devel@lists.sourceforge.net>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2005-11-03 at 07:51 -0800, Linus Torvalds wrote:
+On Thu, 2005-11-03 at 11:35 -0500, Jeff Dike wrote:
+> On Thu, Nov 03, 2005 at 12:07:33AM -0600, Rob Landley wrote:
+> > I want UML to 
+> > be able to hand back however much memory it's not using, but handing back 
+> > individual pages as we free them and inserting a syscall overhead for every 
+> > page freed and allocated is just nuts.  (Plus, at page size, the OS isn't 
+> > likely to zero them much faster than we can ourselves even without the 
+> > syscall overhead.)  Defragmentation means we can batch this into a 
+> > granularity that makes it worth it.
 > 
-> On Thu, 3 Nov 2005, Arjan van de Ven wrote:
+> I don't think that freeing pages back to the host in free_pages is the
+> way to go.  The normal behavior for a Linux system, virtual or
+> physical, is to use all the memory it has.  So, any memory that's
+> freed is pretty likely to be reused for something else, wasting any
+> effort that's made to free pages back to the host.
 > 
-> > On Thu, 2005-11-03 at 07:36 -0800, Martin J. Bligh wrote:
-> > > >> Can we quit coming up with specialist hacks for hotplug, and try to solve
-> > > >> the generic problem please? hotplug is NOT the only issue here. Fragmentation
-> > > >> in general is.
-> > > >> 
-> > > > 
-> > > > Not really it isn't. There have been a few cases (e1000 being the main
-> > > > one, and is fixed upstream) where fragmentation in general is a problem.
-> > > > But mostly it is not.
-> > > 
-> > > Sigh. OK, tell me how you're going to fix kernel stacks > 4K please. 
-> > 
-> > with CONFIG_4KSTACKS :)
+> The one counter-example I can think of is when a large process with a
+> lot of data exits.  Then its data pages will be freed and they may
+> stay free for a while until the system finds other data to fill them
+> with.
 > 
-> 2-page allocations are _not_ a problem.
+> Also, it's not the virtual machine's job to know how to make the host
+> perform optimally.  It doesn't have the information to do it.  It's
+> perfectly OK for a UML to hang on to memory if the host has plenty
+> free.  So, it's the host's job to make sure that its memory pressure
+> is reflected to the UMLs.
+> 
+> My current thinking is that you'll have a daemon on the host keeping
+> track of memory pressure on the host and the UMLs, plugging and
+> unplugging memory in order to keep the busy machines, including the
+> host, supplied with memory, and periodically pushing down the memory
+> of idle UMLs in order to force them to GC their page caches.
+> 
+> With Badari's patch and UML memory hotplug, the infrastructure is
+> there to make this work.  The one thing I'm puzzling over right now is
+> how to measure memory pressure.
 
-agreed for the general case. There are some corner cases that you can
-trigger deliberate in an artifical setting with lots of java threads
-(esp on x86 on a 32Gb box; the lowmem zone works as a lever here leading
-to "hyperfragmentation"; otoh on x86 you can do 4k stacks and it's gone
-mostly)
+Yep. This is the exactly the issue other product groups normally raise
+on Linux. How do we measure memory pressure in linux ? Some of our
+software products want to grow or shrink their memory usage depending
+on the memory pressure in the system. Since most memory is used for
+cache, "free" really doesn't indicate anything -they are monitoring
+info in /proc/meminfo and swapping rates to "guess" on the memory
+pressure. They want a clear way of finding out "how badly" system
+is under memory pressure. (As a starting point, they want to find out
+out of "cached" memory - how much is really easily "reclaimable" 
+under memory pressure - without swapping). I know this is kind of 
+crazy, but interesting to think about :)
 
-
-> Fragmentation means that it gets _exponentially_ more unlikely that you 
-> can allocate big contiguous areas. But contiguous areas of order 1 are 
-> very very likely indeed. It's only the _big_ areas that aren't going to 
-> happen.
-
-yup. only possible exception is the leveraged scenario .. thank god for
-64 bit x86-64.
-
-
-
-(and in the leveraged scenario I don't think active defragmentation will
-buy you much over the long term at all)
+Thanks,
+Badari
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
