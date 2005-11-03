@@ -1,83 +1,98 @@
-Date: Thu, 3 Nov 2005 10:44:14 -0800 (PST)
-From: Linus Torvalds <torvalds@osdl.org>
+Date: Thu, 03 Nov 2005 10:48:56 -0800
+From: "Martin J. Bligh" <mbligh@mbligh.org>
+Reply-To: "Martin J. Bligh" <mbligh@mbligh.org>
 Subject: Re: [Lhms-devel] [PATCH 0/7] Fragmentation Avoidance V19
-In-Reply-To: <312300000.1131041824@[10.10.2.4]>
-Message-ID: <Pine.LNX.4.64.0511031029090.27915@g5.osdl.org>
-References: <4366C559.5090504@yahoo.com.au>
- <Pine.LNX.4.58.0511011014060.14884@skynet><20051101135651.GA8502@elte.hu>
- <1130854224.14475.60.camel@localhost><20051101142959.GA9272@elte.hu>
- <1130856555.14475.77.camel@localhost><20051101150142.GA10636@elte.hu>
- <1130858580.14475.98.camel@localhost><20051102084946.GA3930@elte.hu>
- <436880B8.1050207@yahoo.com.au><1130923969.15627.11.camel@localhost>
- <43688B74.20002@yahoo.com.au><255360000.1130943722@[10.10.2.4]>
- <4369824E.2020407@yahoo.com.au> <306020000.1131032193@[10.10.2.4]>
- <1131032422.2839.8.camel@laptopd505.fenrus.org>  <Pine.LNX.4.64.0511030747450.27915@g5.osdl.org>
- <Pine.LNX.4.58.0511031613560.3571@skynet>  <Pine.LNX.4.64.0511030842050.27915@g5.osdl.org>
- <309420000.1131036740@[10.10.2.4]>  <Pine.LNX.4.64.0511030918110.27915@g5.osdl.org>
- <311050000.1131040276@[10.10.2.4]> <1131040786.2839.18.camel@laptopd505.fenrus.org>
- <Pine.LNX.4.64.0511031006550.27915@g5.osdl.org> <312300000.1131041824@[10.10.2.4]>
+Message-ID: <314040000.1131043735@[10.10.2.4]>
+In-Reply-To: <311050000.1131040276@[10.10.2.4]>
+References: <4366C559.5090504@yahoo.com.au> <Pine.LNX.4.58.0511010137020.29390@skynet><4366D469.2010202@yahoo.com.au> <Pine.LNX.4.58.0511011014060.14884@skynet><20051101135651.GA8502@elte.hu> <1130854224.14475.60.camel@localhost><20051101142959.GA9272@elte.hu> <1130856555.14475.77.camel@localhost><20051101150142.GA10636@elte.hu> <1130858580.14475.98.camel@localhost><20051102084946.GA3930@elte.hu> <436880B8.1050207@yahoo.com.au><1130923969.15627.11.camel@localhost> <43688B74.20002@yahoo.com.au><255360000.1130943722@[10.10.2.4]> <4369824E.2020407@yahoo.com.au>
+ <306020000.1131032193@[10.10.2.4]><1131032422.2839.8.camel@laptopd505.fenrus.org><Pine.LNX.4.64.0511030747450.27915@g5.osdl.org><Pine.LNX.4.58.0511031613560.3571@skynet><Pine.LNX.4.64.0511030842050.27915@g5.osdl.org><309420000.1131036740@[10.10.2.4]> <Pine.LNX.4.64.0511030918110.27915@g5.osdl.org> <311050000.1131040276@[10.10.2.4]>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Martin J. Bligh" <mbligh@mbligh.org>
-Cc: Arjan van de Ven <arjan@infradead.org>, Mel Gorman <mel@csn.ul.ie>, Nick Piggin <nickpiggin@yahoo.com.au>, Dave Hansen <haveblue@us.ibm.com>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@osdl.org>, kravetz@us.ibm.com, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, lhms <lhms-devel@lists.sourceforge.net>, Arjan van de Ven <arjanv@infradead.org>
+To: Linus Torvalds <torvalds@osdl.org>
+Cc: Mel Gorman <mel@csn.ul.ie>, Arjan van de Ven <arjan@infradead.org>, Nick Piggin <nickpiggin@yahoo.com.au>, Dave Hansen <haveblue@us.ibm.com>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@osdl.org>, kravetz@us.ibm.com, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, lhms <lhms-devel@lists.sourceforge.net>, Arjan van de Ven <arjanv@infradead.org>
 List-ID: <linux-mm.kvack.org>
 
-
-On Thu, 3 Nov 2005, Martin J. Bligh wrote:
-> > 
-> > These days we have things like per-cpu lists in front of the buddy 
-> > allocator that will make fragmentation somewhat higher, but it's still 
-> > absolutely true that the page allocation layout is _not_ random.
+> For amusement, let me put in some tritely oversimplified math. For the
+> sake of arguement, assume the free watermarks are 8MB or so. Let's assume
+> a clean 64-bit system with no zone issues, etc (ie all one zone). 4K pages.
+> I'm going to assume random distribution of free pages, which is 
+> oversimplified, but I'm trying to demonstrate a general premise, not get
+> accurate numbers.
 > 
-> OK, well I'll quit torturing you with incorrect math if you'll concede
-> that the situation gets much much worse as memory sizes get larger ;-)
+> 8MB = 2048 pages.
+> 
+> On a 64MB system, we have 16384 pages, 2048 free. Very rougly speaking, for
+> each free page, chance of it's buddy being free is 2048/16384. So in 
+> grossly-oversimplified stats-land, if I can remember anything at all,
+> chance of finding one page with a free buddy is 1-(1-2048/16384)^2048, 
+> which is, for all intents and purposes ... 1.
+> 
+> 1 GB. system, 262144 pages 1-(1-2048/16384)^2048 = 0.9999989
+> 
+> 128GB system. 33554432 pages. 0.1175 probability
+> 
+> yes, yes, my math sucks and I'm a simpleton. The point is that as memory
+> gets bigger, the odds suck for getting contiguous pages. And would also
+> explain why you think there's no problem, and I do ;-) And bear in mind
+> that's just for order 1 allocs. For bigger stuff, it REALLY sucks - I'll
+> spare you more wild attempts at foully-approximated math.
+> 
+> Hmmm. If we keep 128MB free, that totally kills off the above calculation
+> I think I'll just tweak it so the limit is not so hard on really big 
+> systems. Will send you a patch. However ... larger allocs will still 
+> suck ... I guess I'd better gross you out with more incorrect math after
+> all ...
 
-I don't remember the specifics (I did the stats several years ago), but if 
-I recall correctly, the low-order allocations actually got _better_ with 
-more memory, assuming you kept a fixed percentage of memory free. So you 
-actually needed _less_ memory free (in percentages) to get low-order 
-allocations reliably.
+Ha. Just because I don't think I made you puke hard enough already with
+foul approximations ... for order 2, I think it's
 
-But the higher orders didn't much matter. Basically, it gets exponentially 
-more difficult to keep higher-order allocations, and it doesn't help one 
-whit if there's a linear improvement from having more memory available or 
-something like that.
+1-(1-(free_pool/total)^3)^free_pool 
 
-So it doesn't get _harder_ with lots of memory, but
+because all 3 of his buddies have to be free as well.
+(and generically ... 2^order - 1)
 
- - you need to keep the "minimum free" watermarks growing at the same rate 
-   the memory sizes grow (and on x86, I don't think we do: at least at 
-   some point, the HIGHMEM zone had a much lower low-water-mark because it 
-   made the balancing behaviour much nicer. But I didn't check that).
+ORDER: 1
 
- - with lots of memory, you tend to want to get higher-order pages, and 
-   that gets harder much much faster than your memory size grows. So 
-   _effectively_, the kinds of allocations you care about are much harder 
-   to get.
+1024MB system, 8MB pool = 1.000000
+131072MB system, 8MB pool = 0.117506
+1024MB system, 128MB pool = 1.000000
+131072MB system, 128MB pool = 1.000000
 
-If you look at get_free_pages(), you will note that we actyally 
-_guarantee_ memory allocations up to order-3:
+ORDER: 2
 
-	...
-        if (!(gfp_mask & __GFP_NORETRY)) {
-                if ((order <= 3) || (gfp_mask & __GFP_REPEAT))
-                        do_retry = 1;
-	...
+1024MB system, 8MB pool = 0.000976
+131072MB system, 8MB pool = 0.000000
+1024MB system, 128MB pool = 1.000000
+131072MB system, 128MB pool = 0.000031
 
-and nobody has ever even noticed. In other words, low-order allocations 
-really _are_ dependable. It's just that the kinds of orders you want for 
-memory hotplug or hugetlb (ie not orders <=3, but >=10) are not, and never 
-will be.
+ORDER: 3
 
-(Btw, my statistics did depend on that fact that the _usage_ was an even 
-higher exponential, ie you had many many more order-0 allocations than you 
-had order-1). You can always run out of order-n (n != 0) pages if you just 
-allocate enough of them. The buddy thing works well statistically, but it 
-obviously can't do wonders).
+1024MB system, 8MB pool = 0.000000
+131072MB system, 8MB pool = 0.000000
+1024MB system, 128MB pool = 0.015504
+131072MB system, 128MB pool = 0.000000
 
-			Linus
+ORDER: 4
+
+1024MB system, 8MB pool = 0.000000
+131072MB system, 8MB pool = 0.000000
+1024MB system, 128MB pool = 0.000000
+131072MB system, 128MB pool = 0.000000
+
+
+------------------------
+
+I really should learn not to post my rusty math in such public places ...
+but I still think the point is correct. Anyway, I'm sure somewhere in
+the resultant flamewar, someone will come up with some better approx ;-)
+
+And yes, I appreciate the random distribution thing is wrong. But it's
+still not going to work for bigger allocs. Fixing the free watermarks
+will help us a bit though.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
