@@ -1,41 +1,55 @@
-Date: Thu, 3 Nov 2005 09:19:35 -0800 (PST)
-From: Linus Torvalds <torvalds@osdl.org>
+Date: Thu, 3 Nov 2005 13:27:34 -0500
+From: Jeff Dike <jdike@addtoit.com>
 Subject: Re: [Lhms-devel] [PATCH 0/7] Fragmentation Avoidance V19
-In-Reply-To: <309420000.1131036740@[10.10.2.4]>
-Message-ID: <Pine.LNX.4.64.0511030918110.27915@g5.osdl.org>
-References: <4366C559.5090504@yahoo.com.au>
- <Pine.LNX.4.58.0511010137020.29390@skynet><4366D469.2010202@yahoo.com.au>
- <Pine.LNX.4.58.0511011014060.14884@skynet><20051101135651.GA8502@elte.hu>
- <1130854224.14475.60.camel@localhost><20051101142959.GA9272@elte.hu>
- <1130856555.14475.77.camel@localhost><20051101150142.GA10636@elte.hu>
- <1130858580.14475.98.camel@localhost><20051102084946.GA3930@elte.hu>
- <436880B8.1050207@yahoo.com.au><1130923969.15627.11.camel@localhost>
- <43688B74.20002@yahoo.com.au><255360000.1130943722@[10.10.2.4]>
- <4369824E.2020407@yahoo.com.au> <306020000.1131032193@[10.10.2.4]>
- <1131032422.2839.8.camel@laptopd505.fenrus.org><Pine.LNX.4.64.0511030747450.27915@g5.osdl.org>
- <Pine.LNX.4.58.0511031613560.3571@skynet> <Pine.LNX.4.64.0511030842050.27915@g5.osdl.org>
- <309420000.1131036740@[10.10.2.4]>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Message-ID: <20051103182734.GA6639@ccure.user-mode-linux.org>
+References: <E1EXEfW-0005ON-00@w-gerrit.beaverton.ibm.com> <200511021747.45599.rob@landley.net> <43699573.4070301@yahoo.com.au> <200511030007.34285.rob@landley.net> <20051103163555.GA4174@ccure.user-mode-linux.org> <1131035000.24503.135.camel@localhost.localdomain>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1131035000.24503.135.camel@localhost.localdomain>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Martin J. Bligh" <mbligh@mbligh.org>
-Cc: Mel Gorman <mel@csn.ul.ie>, Arjan van de Ven <arjan@infradead.org>, Nick Piggin <nickpiggin@yahoo.com.au>, Dave Hansen <haveblue@us.ibm.com>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@osdl.org>, kravetz@us.ibm.com, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, lhms <lhms-devel@lists.sourceforge.net>, Arjan van de Ven <arjanv@infradead.org>
+To: Badari Pulavarty <pbadari@gmail.com>
+Cc: Rob Landley <rob@landley.net>, Nick Piggin <nickpiggin@yahoo.com.au>, Gerrit Huizenga <gh@us.ibm.com>, Ingo Molnar <mingo@elte.hu>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Dave Hansen <haveblue@us.ibm.com>, Mel Gorman <mel@csn.ul.ie>, "Martin J. Bligh" <mbligh@mbligh.org>, Andrew Morton <akpm@osdl.org>, kravetz@us.ibm.com, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, lhms <lhms-devel@lists.sourceforge.net>
 List-ID: <linux-mm.kvack.org>
 
+On Thu, Nov 03, 2005 at 08:23:20AM -0800, Badari Pulavarty wrote:
+> Yep. This is the exactly the issue other product groups normally raise
+> on Linux. How do we measure memory pressure in linux ? Some of our
+> software products want to grow or shrink their memory usage depending
+> on the memory pressure in the system.
 
-On Thu, 3 Nov 2005, Martin J. Bligh wrote:
-> 
-> The problem is how these zones get resized. Can we hotplug memory between 
-> them, with some sparsemem like indirection layer?
+I think this is wrong.  Applications shouldn't be measuring host
+memory pressure and trying to react to it.
 
-I think you should be able to add them. You can remove them. But you can't 
-resize them.
+This gives you no way to implement a global memory use policy - you
+can't say "App X is the most important thing on the system and must
+have all the memory it needs in order run as quickly as possible".
 
-And I suspect that by default, there should be zero of them. Ie you'd have 
-to set them up the same way you now set up a hugetlb area.
+You can't establish any sort of priority between apps when it comes to
+memory use, or change those priorities.
 
-		Linus
+And how does this work when the system can change the amount of memory
+that it has, such as when the app is inside a UML?
+
+I think the right way to go is for willing apps to have an interface
+through which they can be told "change your memory consumption by +-X"
+and have a single daemon on the host tracking memory use and memory
+pressure, and shuffling memory between the apps.
+
+This allows the admin to set memory use priorities between the apps
+and to exempt important ones from having memory pulled.
+
+Measuring at the bottom and pushing memory pressure upwards also works
+naturally for virtual machines and the apps running inside them.  The
+host will push memory pressure at the virtual machines, which in turn
+will push that pressure at their apps.
+
+With UML, I have an interface where a daemon on the host can add or
+remove memory from an instance.  I think the apps that are willing to
+adjust should implement something similar.
+
+				Jeff
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
