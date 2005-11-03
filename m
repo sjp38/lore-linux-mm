@@ -1,108 +1,54 @@
-Message-ID: <43699573.4070301@yahoo.com.au>
-Date: Thu, 03 Nov 2005 15:43:31 +1100
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-MIME-Version: 1.0
+From: Rob Landley <rob@landley.net>
 Subject: Re: [Lhms-devel] [PATCH 0/7] Fragmentation Avoidance V19
-References: <E1EXEfW-0005ON-00@w-gerrit.beaverton.ibm.com> <436888E7.1060609@yahoo.com.au> <200511021747.45599.rob@landley.net>
-In-Reply-To: <200511021747.45599.rob@landley.net>
-Content-Type: text/plain; charset=us-ascii; format=flowed
+Date: Wed, 2 Nov 2005 23:41:49 -0600
+References: <1130917338.14475.133.camel@localhost> <200511021728.36745.rob@landley.net> <20051103052649.GA16508@ccure.user-mode-linux.org>
+In-Reply-To: <20051103052649.GA16508@ccure.user-mode-linux.org>
+MIME-Version: 1.0
+Content-Type: text/plain;
+  charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200511022341.50524.rob@landley.net>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rob Landley <rob@landley.net>
-Cc: Gerrit Huizenga <gh@us.ibm.com>, Ingo Molnar <mingo@elte.hu>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Dave Hansen <haveblue@us.ibm.com>, Mel Gorman <mel@csn.ul.ie>, "Martin J. Bligh" <mbligh@mbligh.org>, Andrew Morton <akpm@osdl.org>, kravetz@us.ibm.com, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, lhms <lhms-devel@lists.sourceforge.net>
+To: Jeff Dike <jdike@addtoit.com>
+Cc: Nick Piggin <nickpiggin@yahoo.com.au>, user-mode-linux-devel@lists.sourceforge.net, Yasunori Goto <y-goto@jp.fujitsu.com>, Dave Hansen <haveblue@us.ibm.com>, Ingo Molnar <mingo@elte.hu>, Mel Gorman <mel@csn.ul.ie>, "Martin J. Bligh" <mbligh@mbligh.org>, Andrew Morton <akpm@osdl.org>, kravetz@us.ibm.com, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, lhms <lhms-devel@lists.sourceforge.net>
 List-ID: <linux-mm.kvack.org>
 
-Rob Landley wrote:
+On Wednesday 02 November 2005 23:26, Jeff Dike wrote:
+> On Wed, Nov 02, 2005 at 05:28:35PM -0600, Rob Landley wrote:
+> > With fragmentation reduction and prezeroing, UML suddenly gains the
+> > option of calling madvise(DONT_NEED) on sufficiently large blocks as A) a
+> > fast way of prezeroing, B) a way of giving memory back to the host OS
+> > when it's not in use.
+>
+> DONT_NEED is insufficient.  It doesn't discard the data in dirty
+> file-backed pages.
 
-> In the UML case, I want the system to automatically be able to hand back any 
-> sufficiently large chunks of memory it currently isn't using.
-> 
+I thought DONT_NEED would discard the page cache, and punch was only needed to 
+free up the disk space.
 
-I'd just be happy with UML handing back page sized chunks of memory that
-it isn't currently using. How does contiguous memory (in either the host
-or the guest) help this?
+I was hoping that since the file was deleted from disk and is already getting 
+_some_ special treatment (since it's a longstanding "poor man's shared 
+memory" hack), that madvise wouldn't flush the data to disk, but would just 
+zero it out.  A bit optimistic on my part, I know. :)
 
-> What does this have to do with specifying hard limits of anything?  What's to 
-> specify?  Workloads vary.  Deal with it.
-> 
+> Badari Pulavarty has a test patch (google for madvise(MADV_REMOVE))
+> which does do the trick, and I have a UML patch which adds memory
+> hotplug.  This combination does free memory back to the host.
 
-Umm, if you hadn't bothered to read the thread then I won't go through
-it all again. The short of it is that if you want guaranteed unfragmented
-memory you have to specify a limit.
+I saw it wander by, and am all for it.  If it goes in, it's obviously the 
+right thing to use.  You may remember I asked about this two years ago:
+http://seclists.org/lists/linux-kernel/2003/Dec/0919.html
 
-> 
->>If there are zone rebalancing problems[*], then it would be great to
->>have more users of zones because then they will be more likely to get
->>fixed.
-> 
-> 
-> Ok, so you want to artificially turn this into a zone balancing issue in hopes 
-> of giving that area of the code more testing when, if zones weren't involved, 
-> there would be no need for balancing at all?
-> 
-> How does that make sense?
-> 
+And a reply indicated that SVr4 had it, but we don't.  I assume the "naming 
+discussion" mentioned in the recent thread already scrubbed through this old 
+thread to determine that the SVr4 API was icky.
+http://seclists.org/lists/linux-kernel/2003/Dec/0955.html
 
-Have you looked at the frag patches? Do you realise that they have to
-balance between the different types of memory blocks? Duplicating the
-same or similar infrastructure (in this case, a memory zoning facility)
-is a bad thing in general.
+>     Jeff
 
-> 
->>[*] and there are, sadly enough - see the recent patches I posted to
->>     lkml for example.
-> 
-> 
-> I was under the impression that zone balancing is, conceptually speaking, a 
-> difficult problem.
-> 
-
-I am under the impression that you think proper fragmentation avoidance
-is easier.
-
-> 
->>     But I'm fairly confident that once the particularly 
->>     silly ones have been fixed,
-> 
-> 
-> Great, you're advocating migrating the fragmentation patches to an area of 
-> code that has known problems you yourself describe as "particularly silly".  
-> A ringing endorsement, that.
-> 
-
-Err, the point is so we don't now have 2 layers doing very similar things,
-at least one of which has "particularly silly" bugs in it.
-
-> The fact that the migrated version wouldn't even address fragmentation 
-> avoidance at all (the topic of this thread!) is apparently a side issue.
-> 
-
-Zones can be used to guaranteee physically contiguous regions with exactly
-the same effectiveness as the frag patches.
-
-> 
->>     zone balancing will no longer be a 
->>     derogatory term as has been thrown around (maybe rightly) in this
->>     thread!
-> 
-> 
-> If I'm not mistaken, you introduced zones into this thread, you are the 
-> primary (possibly only) proponent of them.
-
-So you didn't look at Yasunori Goto's patch from last year that implements
-exactly what I described, then?
-
-> Yes, zones are a way of categorizing memory.
-
-Yes, have you read Mel's patches? Guess what they do?
-
-> They're not a way of defragmenting it. 
-
-Guess what they don't?
-
-
-Send instant messages to your online friends http://au.messenger.yahoo.com 
+Rob
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
