@@ -1,71 +1,176 @@
-From: Rob Landley <rob@landley.net>
-Subject: Re: [Lhms-devel] [PATCH 0/7] Fragmentation Avoidance V19
-Date: Wed, 2 Nov 2005 17:28:35 -0600
-References: <1130917338.14475.133.camel@localhost> <20051102172729.9E7C.Y-GOTO@jp.fujitsu.com> <43687C3D.7060706@yahoo.com.au>
-In-Reply-To: <43687C3D.7060706@yahoo.com.au>
+Message-ID: <43698080.3040800@yahoo.com.au>
+Date: Thu, 03 Nov 2005 14:14:08 +1100
+From: Nick Piggin <nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
+Subject: Re: [Lhms-devel] [PATCH 0/7] Fragmentation Avoidance V19 - Summary
+References: <20051030235440.6938a0e9.akpm@osdl.org>  <27700000.1130769270@[10.10.2.4]> <4366A8D1.7020507@yahoo.com.au>  <Pine.LNX.4.58.0510312333240.29390@skynet> <4366C559.5090504@yahoo.com.au>  <Pine.LNX.4.58.0511010137020.29390@skynet> <4366D469.2010202@yahoo.com.au>  <Pine.LNX.4.58.0511011014060.14884@skynet> <20051101135651.GA8502@elte.hu>  <1130854224.14475.60.camel@localhost>  <20051101142959.GA9272@elte.hu> <1130856555.14475.77.camel@localhost> <43680D8C.5080500@yahoo.com.au> <Pine.LNX.4.58.0511021231440.5235@skynet>
+In-Reply-To: <Pine.LNX.4.58.0511021231440.5235@skynet>
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200511021728.36745.rob@landley.net>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>, user-mode-linux-devel@lists.sourceforge.net
-Cc: Yasunori Goto <y-goto@jp.fujitsu.com>, Dave Hansen <haveblue@us.ibm.com>, Ingo Molnar <mingo@elte.hu>, Mel Gorman <mel@csn.ul.ie>, "Martin J. Bligh" <mbligh@mbligh.org>, Andrew Morton <akpm@osdl.org>, kravetz@us.ibm.com, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, lhms <lhms-devel@lists.sourceforge.net>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Dave Hansen <haveblue@us.ibm.com>, Ingo Molnar <mingo@elte.hu>, "Martin J. Bligh" <mbligh@mbligh.org>, Andrew Morton <akpm@osdl.org>, kravetz@us.ibm.com, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, lhms <lhms-devel@lists.sourceforge.net>
 List-ID: <linux-mm.kvack.org>
 
-On Wednesday 02 November 2005 02:43, Nick Piggin wrote:
+Mel Gorman wrote:
 
-> > Hmmm. I don't see at this point.
-> > Why do you think ZONE_REMOVABLE can satisfy for hugepage.
-> > At leaset, my ZONE_REMOVABLE patch doesn't any concern about
-> > fragmentation.
->
-> Well I think it can satisfy hugepage allocations simply because
-> we can be reasonably sure of being able to free contiguous regions.
-> Of course it will be memory no longer easily reclaimable, same as
-> the case for the frag patches. Nor would be name ZONE_REMOVABLE any
-> longer be the most appropriate!
->
-> But my point is, the basic mechanism is there and is workable.
-> Hugepages and memory unplug are the two main reasons for IBM to be
-> pushing this AFAIKS.
+> 
+> Ok. To me, the rest of the thread are beating around the same points and
+> no one is giving ground. The points are made so lets summarise. Apologies
+> if anything is missing.
+> 
 
-Who cares what IBM is pushing?  I'm interested in fragmentation avoidance for 
-User Mode Linux.
+Thanks for attempting a summary of a difficult topic. I have a couple
+of suggestions.
 
-I use User Mode Linux to virtualize a system build, and one problem I 
-currently have is that some workloads temporarily use a lot of memory.  For 
-example, I can run a complete system build in about 48 megs of ram: except 
-for building GCC.  That spikes to a couple hundred megabytes.  If I allocate 
-256 megabytes of memory to UML, that's half the memory on my laptop and UML 
-will just use it for redundant cacheing and such while desktop performance 
-gets a bit unhappy with the build going.
+> Who cares
+> =========
+>   Physical hotplug remove: Vendors of the hardware that support this -
+> 	Fujitsu, HP (I think), IBM etc
+> 
+>   Virtualization hotplug remove: Sellers of virtualization software, some
+> 	hardware like any IBM machine that lists LPAR in it's list of
+> 	features.  Probably software solutions like Xen are also affected
+> 	if they want to be able to grow and shrink the virtual machines on
+> 	demand
+> 
 
-UML gets an instance's "physical memory" by allocating a temporary file, 
-mmapping it, and deleting it (which signals to the vfs that flushing this 
-data to backing store should only be done under memory pressure from the rest 
-of the OS, because the file's going away when it's closed so there's no 
+Ingo said that Xen is fine with per page granular freeing - this covers
+embedded, desktop and small server users of VMs into the future I'd say.
 
-With fragmentation reduction and prezeroing, UML suddenly gains the option of 
-calling madvise(DONT_NEED) on sufficiently large blocks as A) a fast way of 
-prezeroing, B) a way of giving memory back to the host OS when it's not in 
-use.
+>   High order allocations: Ultimately, hugepage users. Today, that is a
+> 	feature only big server users like Oracle care about. In the
+> 	future I reckon applications will be able to use them for things
+> 	like backing the heap by huge pages. Other users like GigE,
+> 	loopback devices with large MTUs, some filesystem like CIFS are
+> 	all interested although they are also been told use use smaller
+> 	pages.
+> 
 
-This has _nothing_ to do with IBM.  Or large systems.  This is some random 
-developer trying to run a virtualized system build on his laptop.
+I think that saying its now OK to use higher order allocations is wrong
+because as I said even with your patches they are going to run into
+problems.
 
-(The reason I need to use UML is that I build uClibc with the newest 2.6 
-kernel headers I can, link apps against it, and then running many of those 
-apps during later stages of the build.  If the kernel headers used to build 
-libc are sufficiently newer than the kernel the build is running under, I get 
-segfaults because the new libc tries use kernel features that aren't there on 
-the host system, but will be in the final system.  I also get the ability to 
-mknod/chown/chroot without needing root access on the host system for 
-free...)
+Actually I think one reason your patches may perform so well is because
+there aren't actually a lot of higher order allocations in the kernel.
 
-Rob
+I think that probably leaves us realistically with demand hugepages,
+hot unplug memory, and IBM lpars?
+
+
+> Pros/Cons of Solutions
+> ======================
+> 
+> Anti-defrag Pros
+>   o Aim9 shows no significant regressions (.37% on page_test). On some
+>     tests, it shows performance gains (> 5% on fork_test)
+>   o Stress tests show that it manages to keep fragmentation down to a far
+>     lower level even without teaching kswapd how to linear reclaim
+
+This sounds like a kind of funny test to me if nobody is actually
+using higher order allocations.
+
+When a higher order allocation is attempted, either you will satisfy
+it from the kernel region, in which case the vanilla kernel would
+have done the same. Or you satisfy it from an easy-reclaim contiguous
+region, in which case it is no longer an easy-reclaim contiguous
+region.
+
+>   o Stress tests with a linear reclaim experimental patch shows that it
+>     can successfully find large contiguous chunks of memory
+>   o It is known to help hotplug on PPC64
+>   o No tunables. The approach tries to manage itself as much as possible
+
+But it has more dreaded heuristics :P
+
+>   o It exists, heavily tested, and synced against the latest -mm1
+>   o Can be compiled away be redefining the RCLM_* macros and the
+>     __GFP_*RCLM flags
+> 
+> Anti-defrag Cons
+>   o More complexity within the page allocator
+>   o Adds a new layer onto the allocator that effectively creates subzones
+>   o Adding a new concept that maintainers have to work with
+>   o Depending on the workload, it fragments anyway
+> 
+> New Zone Pros
+>   o Zones are a well known and understood concept
+>   o For people that do not care about hotplug, they can easily get rid of it
+>   o Provides reliable areas of contiguous groups that can be freed for
+>     HugeTLB pages going to userspace
+>   o Uses existing zone infrastructure for balancing
+> 
+> New Zone Cons
+>   o Zones historically have introduced balancing problems
+>   o Been tried for hotplug and dropped because of being awkward to work with
+>   o It only helps hotplug and potentially HugeTLB pages for userspace
+>   o Tunable required. If you get it wrong, the system suffers a lot
+
+Pro: it keeps IBM mainframe and pseries sysadmins in a job ;) Let
+them get it right.
+
+>   o Needs to be planned for and developed
+> 
+
+Yasunori Goto had patches around from last year. Not sure what sort
+of shape they're in now but I'd think most of the hard work is done.
+
+> Scenarios
+> =========
+> 
+> Lets outline some situations then or workloads that can occur
+> 
+> 1. Heavy job running that consumes 75% of physical memory. Like a kernel
+>    build
+> 
+>   Anti-defrag: It will not fragment as it will never have to fallback.High
+> 	order allocations will be possible in the remaining 25%.
+>   Zone-based: After been tuned to a kernel build load, it will not
+> 	fragment. Get the tuning wrong, performance suffers or workload
+> 	fails. High order allocations will be possible in the remaining 25%.
+> 
+
+You don't need to continually tune things for each and every possible
+workload under the sun. It is like how we currently drive 16GB highmem
+systems quite nicely under most workloads with 1GB of normal memory.
+Make that an 8:1 ratio if you're worried.
+
+[snip]
+
+> 
+> I've tried to be as objective as possible with the summary.
+> 
+>>From the points above though, I think that anti-defrag gets us a lot of
+> the way, with the complexity isolated in one place. It's downside is that
+> it can still break down and future work is needed to stop it degrading
+> (kswapd cleaning UserRclm areas and page migration when we get really
+> stuck). Zone-based is more reliable but only addresses a limited
+> situation, principally hotplug and it does not even go 100% of the way for
+> hotplug. 
+
+To me it seems like it solves the hotplug, lpar hotplug, and hugepages
+problems which seem to be the main ones.
+
+ > It also depends on a tunable which is not cool and it is static.
+
+I think it is very cool because it means the tiny minority of Linux
+users who want this can do so without impacting the rest of the code
+or users. This is how Linux has been traditionally run and I still
+have a tiny bit of faith left :)
+
+> If we make the zones growable+shrinkable, we run into all the same
+> problems that anti-defrag has today.
+> 
+
+But we don't have the extra zones layer that anti defrag has today.
+
+And anti defrag needs limits if it is to be reliable anyway.
+
+-- 
+SUSE Labs, Novell Inc.
+
+Send instant messages to your online friends http://au.messenger.yahoo.com 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
