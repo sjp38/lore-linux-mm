@@ -1,57 +1,29 @@
-Date: Thu, 3 Nov 2005 11:08:01 -0800 (PST)
-From: Linus Torvalds <torvalds@osdl.org>
+Date: Thu, 3 Nov 2005 15:13:17 -0500
+From: Jeff Dike <jdike@addtoit.com>
 Subject: Re: [Lhms-devel] [PATCH 0/7] Fragmentation Avoidance V19
-In-Reply-To: <314040000.1131043735@[10.10.2.4]>
-Message-ID: <Pine.LNX.4.64.0511031102590.27915@g5.osdl.org>
-References: <4366C559.5090504@yahoo.com.au>
- <Pine.LNX.4.58.0511010137020.29390@skynet><4366D469.2010202@yahoo.com.au>
- <Pine.LNX.4.58.0511011014060.14884@skynet><20051101135651.GA8502@elte.hu>
- <1130854224.14475.60.camel@localhost><20051101142959.GA9272@elte.hu>
- <1130856555.14475.77.camel@localhost><20051101150142.GA10636@elte.hu>
- <1130858580.14475.98.camel@localhost><20051102084946.GA3930@elte.hu>
- <436880B8.1050207@yahoo.com.au><1130923969.15627.11.camel@localhost>
- <43688B74.20002@yahoo.com.au><255360000.1130943722@[10.10.2.4]>
- <4369824E.2020407@yahoo.com.au>
- <306020000.1131032193@[10.10.2.4]><1131032422.2839.8.camel@laptopd505.fenrus.org><Pine.LNX.4.64.0511030747450.27915@g5.osdl.org><Pine.LNX.4.58.0511031613560.3571@skynet><Pine.LNX.4.64.0511030842050.27915@g5.osdl.org><309420000.1131036740@[10.10.2.4]>
- <Pine.LNX.4.64.0511030918110.27915@g5.osdl.org> <311050000.1131040276@[10.10.2.4]>
- <314040000.1131043735@[10.10.2.4]>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Message-ID: <20051103201317.GA8341@ccure.user-mode-linux.org>
+References: <E1EXEfW-0005ON-00@w-gerrit.beaverton.ibm.com> <200511030007.34285.rob@landley.net> <4369BD7D.6050507@yahoo.com.au> <200511031154.11219.rob@landley.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <200511031154.11219.rob@landley.net>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Martin J. Bligh" <mbligh@mbligh.org>
-Cc: Mel Gorman <mel@csn.ul.ie>, Arjan van de Ven <arjan@infradead.org>, Nick Piggin <nickpiggin@yahoo.com.au>, Dave Hansen <haveblue@us.ibm.com>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@osdl.org>, kravetz@us.ibm.com, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, lhms <lhms-devel@lists.sourceforge.net>, Arjan van de Ven <arjanv@infradead.org>
+To: Rob Landley <rob@landley.net>
+Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Gerrit Huizenga <gh@us.ibm.com>, Ingo Molnar <mingo@elte.hu>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Dave Hansen <haveblue@us.ibm.com>, Mel Gorman <mel@csn.ul.ie>, "Martin J. Bligh" <mbligh@mbligh.org>, Andrew Morton <akpm@osdl.org>, kravetz@us.ibm.com, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, lhms <lhms-devel@lists.sourceforge.net>
 List-ID: <linux-mm.kvack.org>
 
-
-On Thu, 3 Nov 2005, Martin J. Bligh wrote:
+On Thu, Nov 03, 2005 at 11:54:10AM -0600, Rob Landley wrote:
+> Lots of work has gone into batching up syscalls and making as few of them as 
+> possible because they are a performance bottleneck.  You want to introduce a 
+> syscall for every single individual page of memory allocated or freed.
 > 
-> Ha. Just because I don't think I made you puke hard enough already with
-> foul approximations ... for order 2, I think it's
+> That's stupid.
 
-Your basic fault is in believing that the free watermark would stay 
-constant.
+I think what I'm optimizing is TLB flushes, not system calls.  With
+mmap et al, they are effectively the same thing though.
 
-That's insane.
-
-Would you keep 8MB free on a 64MB system?
-
-Would you keep 8MB free on a 8GB system?
-
-The point being, that if you start with insane assumptions, you'll get 
-insane answers.
-
-The _correct_ assumption is that you aim to keep some fixed percentage of 
-memory free. With that assumption and your math, finding higher-order 
-pages is equally hard regardless of amount of memory. 
-
-Now, your math then doesn't allow for the fact that buddy automatically 
-coalesces for you, so in fact things get _easier_ with more memory, but 
-hey, that needs more math than I can come up with (I never did it as math, 
-only as simulations with allocation patterns - "smart people use math, 
-plodding people just try to simulate an estimate" ;)
-
-		Linus
+				Jeff
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
