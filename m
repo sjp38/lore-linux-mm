@@ -1,95 +1,62 @@
-Date: Thu, 3 Nov 2005 21:11:00 +0000 (GMT)
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [Lhms-devel] [PATCH 0/7] Fragmentation Avoidance V19
-In-Reply-To: <Pine.LNX.4.64.0511031006550.27915@g5.osdl.org>
-Message-ID: <Pine.LNX.4.58.0511032047210.9172@skynet>
-References: <4366C559.5090504@yahoo.com.au>
- <Pine.LNX.4.58.0511010137020.29390@skynet><4366D469.2010202@yahoo.com.au>
- <Pine.LNX.4.58.0511011014060.14884@skynet><20051101135651.GA8502@elte.hu>
- <1130854224.14475.60.camel@localhost><20051101142959.GA9272@elte.hu>
- <1130856555.14475.77.camel@localhost><20051101150142.GA10636@elte.hu>
- <1130858580.14475.98.camel@localhost><20051102084946.GA3930@elte.hu>
- <436880B8.1050207@yahoo.com.au><1130923969.15627.11.camel@localhost>
- <43688B74.20002@yahoo.com.au><255360000.1130943722@[10.10.2.4]>
- <4369824E.2020407@yahoo.com.au> <1131040786.2839.18.camel@laptopd505.fenrus.org>
- <Pine.LNX.4.64.0511031006550.27915@g5.osdl.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Clock-Pro
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Content-Type: text/plain
+Date: Thu, 03 Nov 2005 23:15:22 +0100
+Message-Id: <1131056122.18825.173.camel@twins>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@osdl.org>
-Cc: Arjan van de Ven <arjan@infradead.org>, "Martin J. Bligh" <mbligh@mbligh.org>, Nick Piggin <nickpiggin@yahoo.com.au>, Dave Hansen <haveblue@us.ibm.com>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@osdl.org>, kravetz@us.ibm.com, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, lhms <lhms-devel@lists.sourceforge.net>, Arjan van de Ven <arjanv@infradead.org>
+To: Song Jiang <sjiang@lanl.gov>
+Cc: Rik van Riel <riel@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 3 Nov 2005, Linus Torvalds wrote:
+Hi Song Jiang,
 
-> On Thu, 3 Nov 2005, Arjan van de Ven wrote:
->
-> > On Thu, 2005-11-03 at 09:51 -0800, Martin J. Bligh wrote:
-> >
-> > > For amusement, let me put in some tritely oversimplified math. For the
-> > > sake of arguement, assume the free watermarks are 8MB or so. Let's assume
-> > > a clean 64-bit system with no zone issues, etc (ie all one zone). 4K pages.
-> > > I'm going to assume random distribution of free pages, which is
-> > > oversimplified, but I'm trying to demonstrate a general premise, not get
-> > > accurate numbers.
-> >
-> > that is VERY over simplified though, given the anti-fragmentation
-> > property of buddy algorithm
->
 
-The statistical properties of the buddy system are a nightmare. There is a
-paper called "Statistical Properties of the Buddy System" which is a whole
-pile of no fun to read. It's because of the difficulty to analyse
-fragmentation offline that bench-stresshighalloc was written to see how
-well anti-defrag would do.
+I implemented the things I talked about, they can be found here:
+  http://programming.kicks-ass.net/kernel-patches/clockpro/
 
-> Indeed. I write a program at one time doing random allocation and
-> de-allocation and looking at what the output was, and buddy is very good
-> at avoiding fragmentation.
->
+However I have the strong feeling I messed up the approximation, hence I
+have tried to extract a state table for the original algorithm from the
+paper but I find some things not quite obvious. Could you help me
+complete this thing:
 
-The worse cause of fragmentation I found were kernel caches that were long
-lived.  How fragmenting the workload is depended heavily on whether things
-like updatedb happened which is why bench-stresshighalloc deliberately ran
-it. It's also why anti-defrag tries to group inodes and buffer_heads into
-the same areas in memory separate from other
-persumed-to-be-even-longer-lived kernel allocations. The assumption is if
-the buffer, inode and dcaches are all shrunk, contiguous blocks will
-appear.
 
-You're also right on the size of the watermarks for zones and how it
-affects fragmentation. A serious problem I had with anti-defrag was when
-87.5% of memory is in use. At this point, a "fallback" area is used by any
-allocation type that has no pages of it's own. When it is depleted, real
-fragmentation starts happening and it's also about here that the high
-watermark for reclaiming starts. I wanted to increase the watermarks up to
-start reclaiming pages when the "fallback" area started getting used but
-didn't think I would get away with adjusting those figures. I could have
-cheated and set it via /proc before benchmarks but didn't to avoid "magic
-test system" syndrome.
+res | h/c | tst | ref || Hcold | Hhot | Htst || Flt
+----+-----+-----+-----++-------+------+------++-----
+ 0  |  0  |  0  |  1  ||       |      |      || 1010
+ 0  |  0  |  1  |  0  ||=0010  |  X   |  X   || 
+ 0  |  0  |  1  |  1  ||       |      |      || 1100
+ 1  |  0  |  0  |  0  ||  X    |  X   |=1000 ||
+ 1  |  0  |  0  |  1  || 1000  | 100? | 100? ||
+ 1  |  0  |  1  |  0  ||=1010  | 0010 | 1000 ||
+ 1  |  0  |  1  |  1  || 1100  | 101? | 100? ||
+ 1  |  1  |  0  |  0  ||=1100  | 10?0 |=1100 || 
+ 1  |  1  |  0  |  1  || 110?  | 1100 | 110? || 
 
-> These days we have things like per-cpu lists in front of the buddy
-> allocator that will make fragmentation somewhat higher, but it's still
-> absolutely true that the page allocation layout is _not_ random.
->
 
-It's worse than somewhat higher for the per-cpu pages. Using another set
-of patches on top of an earlier version of anti-defrag, I was about to
-allocate about 75% of physical memory in pinned 4MiB chunks of memory
-under loads of 15-20 (kernel builds). To get there, per-cpu pages had to
-be drained using an IPI call because for some perverse reason, there were
-always 2 or 3 free per-cpu pages in the middle of a 1024 block of pages.
+res := resident
+h/c := hot/cold
+tst := test period
+ref := referenced
 
-Basically, I don't we have to live with fragmentation in the page
-allocator. I think it can be pushed down a whole lot without taking a
-performance hit for the 99.99% of users that don't care about this sort of
-thing.
+H* := resulting state after specified hand passed,
+      where prefix '=' designated no change and
+      'X' designates remove from list.
+
+      '?' are uncertain, please help.
+
+Flt := pagefault column; nonresident and referenced.
+       state after fault.
+
+
+Kind regards,
+
+Peter Zijlstra
 
 -- 
-Mel Gorman
-Part-time Phd Student                          Java Applications Developer
-University of Limerick                         IBM Dublin Software Lab
+Peter Zijlstra <a.p.zijlstra@chello.nl>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
