@@ -1,46 +1,57 @@
-Date: Thu, 03 Nov 2005 10:51:14 -0800
-From: "Martin J. Bligh" <mbligh@mbligh.org>
-Reply-To: "Martin J. Bligh" <mbligh@mbligh.org>
+Date: Thu, 3 Nov 2005 11:08:01 -0800 (PST)
+From: Linus Torvalds <torvalds@osdl.org>
 Subject: Re: [Lhms-devel] [PATCH 0/7] Fragmentation Avoidance V19
-Message-ID: <314480000.1131043874@[10.10.2.4]>
-In-Reply-To: <Pine.LNX.4.64.0511031029090.27915@g5.osdl.org>
-References: <4366C559.5090504@yahoo.com.au><Pine.LNX.4.58.0511011014060.14884@skynet><20051101135651.GA8502@elte.hu><1130854224.14475.60.camel@localhost><20051101142959.GA9272@elte.hu><1130856555.14475.77.camel@localhost><20051101150142.GA10636@elte.hu><1130858580.14475.98.camel@localhost><20051102084946.GA3930@elte.hu><436880B8.1050207@yahoo.com.au><1130923969.15627.11.camel@localhost><43688B74.20002@yahoo.com.au><255360000.1130943722@[10.10.2.4]><4369824E.2020407@yahoo.com.au> <306020000.1131032193@[10.10.2.4]><1131032422.2839.8.camel@laptopd505.fenrus.org>  <Pine.LNX.4.64.0511030747450.27915@g5.osdl.org><Pine.LNX.4.58.0511031613560.3571@skynet>  <Pine.LNX.4.64.0511030842050.27915@g5.osdl.org><309420000.1131036740@[10.10.2.4]>
- <Pine.LNX.4.64.0511030918110.27915@g5.osdl.org><311050000.1131040276@[10.10.2.4]> <1131040786.2839.18.camel@laptopd505.fenrus.org><Pine.LNX.4.64.0511031006550.27915@g5.osdl.org> <312300000.1131041824@[10.10.2.4]> <Pine.LNX.4.64.0511031029090.27915@g5.osdl.org>
+In-Reply-To: <314040000.1131043735@[10.10.2.4]>
+Message-ID: <Pine.LNX.4.64.0511031102590.27915@g5.osdl.org>
+References: <4366C559.5090504@yahoo.com.au>
+ <Pine.LNX.4.58.0511010137020.29390@skynet><4366D469.2010202@yahoo.com.au>
+ <Pine.LNX.4.58.0511011014060.14884@skynet><20051101135651.GA8502@elte.hu>
+ <1130854224.14475.60.camel@localhost><20051101142959.GA9272@elte.hu>
+ <1130856555.14475.77.camel@localhost><20051101150142.GA10636@elte.hu>
+ <1130858580.14475.98.camel@localhost><20051102084946.GA3930@elte.hu>
+ <436880B8.1050207@yahoo.com.au><1130923969.15627.11.camel@localhost>
+ <43688B74.20002@yahoo.com.au><255360000.1130943722@[10.10.2.4]>
+ <4369824E.2020407@yahoo.com.au>
+ <306020000.1131032193@[10.10.2.4]><1131032422.2839.8.camel@laptopd505.fenrus.org><Pine.LNX.4.64.0511030747450.27915@g5.osdl.org><Pine.LNX.4.58.0511031613560.3571@skynet><Pine.LNX.4.64.0511030842050.27915@g5.osdl.org><309420000.1131036740@[10.10.2.4]>
+ <Pine.LNX.4.64.0511030918110.27915@g5.osdl.org> <311050000.1131040276@[10.10.2.4]>
+ <314040000.1131043735@[10.10.2.4]>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@osdl.org>
-Cc: Arjan van de Ven <arjan@infradead.org>, Mel Gorman <mel@csn.ul.ie>, Nick Piggin <nickpiggin@yahoo.com.au>, Dave Hansen <haveblue@us.ibm.com>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@osdl.org>, kravetz@us.ibm.com, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, lhms <lhms-devel@lists.sourceforge.net>, Arjan van de Ven <arjanv@infradead.org>
+To: "Martin J. Bligh" <mbligh@mbligh.org>
+Cc: Mel Gorman <mel@csn.ul.ie>, Arjan van de Ven <arjan@infradead.org>, Nick Piggin <nickpiggin@yahoo.com.au>, Dave Hansen <haveblue@us.ibm.com>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@osdl.org>, kravetz@us.ibm.com, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, lhms <lhms-devel@lists.sourceforge.net>, Arjan van de Ven <arjanv@infradead.org>
 List-ID: <linux-mm.kvack.org>
 
 
---Linus Torvalds <torvalds@osdl.org> wrote (on Thursday, November 03, 2005 10:44:14 -0800):
-
+On Thu, 3 Nov 2005, Martin J. Bligh wrote:
 > 
-> 
-> On Thu, 3 Nov 2005, Martin J. Bligh wrote:
->> > 
->> > These days we have things like per-cpu lists in front of the buddy 
->> > allocator that will make fragmentation somewhat higher, but it's still 
->> > absolutely true that the page allocation layout is _not_ random.
->> 
->> OK, well I'll quit torturing you with incorrect math if you'll concede
->> that the situation gets much much worse as memory sizes get larger ;-)
-> 
-> I don't remember the specifics (I did the stats several years ago), but if 
-> I recall correctly, the low-order allocations actually got _better_ with 
-> more memory, assuming you kept a fixed percentage of memory free. So you 
-> actually needed _less_ memory free (in percentages) to get low-order 
-> allocations reliably.
+> Ha. Just because I don't think I made you puke hard enough already with
+> foul approximations ... for order 2, I think it's
 
-Possibly, I can redo the calculations easily enough (have to go for now,
-but I just sent the other ones). But we don't keep a fixed percentage of
-memory free - we cap it ... perhaps we should though?
+Your basic fault is in believing that the free watermark would stay 
+constant.
 
-M.
+That's insane.
+
+Would you keep 8MB free on a 64MB system?
+
+Would you keep 8MB free on a 8GB system?
+
+The point being, that if you start with insane assumptions, you'll get 
+insane answers.
+
+The _correct_ assumption is that you aim to keep some fixed percentage of 
+memory free. With that assumption and your math, finding higher-order 
+pages is equally hard regardless of amount of memory. 
+
+Now, your math then doesn't allow for the fact that buddy automatically 
+coalesces for you, so in fact things get _easier_ with more memory, but 
+hey, that needs more math than I can come up with (I never did it as math, 
+only as simulations with allocation patterns - "smart people use math, 
+plodding people just try to simulate an estimate" ;)
+
+		Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
