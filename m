@@ -1,8 +1,8 @@
-Date: Thu, 3 Nov 2005 20:46:06 +0000 (GMT)
+Date: Thu, 3 Nov 2005 21:11:00 +0000 (GMT)
 From: Mel Gorman <mel@csn.ul.ie>
 Subject: Re: [Lhms-devel] [PATCH 0/7] Fragmentation Avoidance V19
-In-Reply-To: <Pine.LNX.4.64.0511030955110.27915@g5.osdl.org>
-Message-ID: <Pine.LNX.4.58.0511032016050.9172@skynet>
+In-Reply-To: <Pine.LNX.4.64.0511031006550.27915@g5.osdl.org>
+Message-ID: <Pine.LNX.4.58.0511032047210.9172@skynet>
 References: <4366C559.5090504@yahoo.com.au>
  <Pine.LNX.4.58.0511010137020.29390@skynet><4366D469.2010202@yahoo.com.au>
  <Pine.LNX.4.58.0511011014060.14884@skynet><20051101135651.GA8502@elte.hu>
@@ -11,117 +11,80 @@ References: <4366C559.5090504@yahoo.com.au>
  <1130858580.14475.98.camel@localhost><20051102084946.GA3930@elte.hu>
  <436880B8.1050207@yahoo.com.au><1130923969.15627.11.camel@localhost>
  <43688B74.20002@yahoo.com.au><255360000.1130943722@[10.10.2.4]>
- <4369824E.2020407@yahoo.com.au>
- <306020000.1131032193@[10.10.2.4]><1131032422.2839.8.camel@laptopd505.fenrus.org><Pine.LNX.4.64.0511030747450.27915@g5.osdl.org><Pine.LNX.4.58.0511031613560.3571@skynet>
- <Pine.LNX.4.64.0511030842050.27915@g5.osdl.org><309420000.1131036740@[10.10.2.4]>
- <Pine.LNX.4.64.0511030918110.27915@g5.osdl.org> <311050000.1131040276@[10.10.2.4]>
- <Pine.LNX.4.64.0511030955110.27915@g5.osdl.org>
+ <4369824E.2020407@yahoo.com.au> <1131040786.2839.18.camel@laptopd505.fenrus.org>
+ <Pine.LNX.4.64.0511031006550.27915@g5.osdl.org>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Linus Torvalds <torvalds@osdl.org>
-Cc: "Martin J. Bligh" <mbligh@mbligh.org>, Arjan van de Ven <arjan@infradead.org>, Nick Piggin <nickpiggin@yahoo.com.au>, Dave Hansen <haveblue@us.ibm.com>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@osdl.org>, kravetz@us.ibm.com, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, lhms <lhms-devel@lists.sourceforge.net>, Arjan van de Ven <arjanv@infradead.org>
+Cc: Arjan van de Ven <arjan@infradead.org>, "Martin J. Bligh" <mbligh@mbligh.org>, Nick Piggin <nickpiggin@yahoo.com.au>, Dave Hansen <haveblue@us.ibm.com>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@osdl.org>, kravetz@us.ibm.com, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, lhms <lhms-devel@lists.sourceforge.net>, Arjan van de Ven <arjanv@infradead.org>
 List-ID: <linux-mm.kvack.org>
 
 On Thu, 3 Nov 2005, Linus Torvalds wrote:
 
+> On Thu, 3 Nov 2005, Arjan van de Ven wrote:
 >
->
-> On Thu, 3 Nov 2005, Martin J. Bligh wrote:
-> > > And I suspect that by default, there should be zero of them. Ie you'd have
-> > > to set them up the same way you now set up a hugetlb area.
+> > On Thu, 2005-11-03 at 09:51 -0800, Martin J. Bligh wrote:
 > >
-> > So ... if there are 0 by default, and I run for a while and dirty up
-> > memory, how do I free any pages up to put into them? Not sure how that
-> > works.
->
-> You don't.
->
-> Just face it - people who want memory hotplug had better know that
-> beforehand (and let's be honest - in practice it's only going to work in
-> virtualized environments or in environments where you can insert the new
-> bank of memory and copy it over and remove the old one with hw support).
->
-> Same as hugetlb.
+> > > For amusement, let me put in some tritely oversimplified math. For the
+> > > sake of arguement, assume the free watermarks are 8MB or so. Let's assume
+> > > a clean 64-bit system with no zone issues, etc (ie all one zone). 4K pages.
+> > > I'm going to assume random distribution of free pages, which is
+> > > oversimplified, but I'm trying to demonstrate a general premise, not get
+> > > accurate numbers.
+> >
+> > that is VERY over simplified though, given the anti-fragmentation
+> > property of buddy algorithm
 >
 
-For HugeTLB, there are cases were the sysadmin won't configure the server
-because it's a tunable that can badly affect the machine if they get it
-wrong. In those cases, the users just get small pages, the performance
-penalty and are told to like it.
+The statistical properties of the buddy system are a nightmare. There is a
+paper called "Statistical Properties of the Buddy System" which is a whole
+pile of no fun to read. It's because of the difficulty to analyse
+fragmentation offline that bench-stresshighalloc was written to see how
+well anti-defrag would do.
 
-> Nobody sane _cares_. Nobody sane is asking for these things. Only people
-> with special needs are asking for it, and they know their needs.
->
-> You have to realize that the first rule of engineering is to work out the
-> balances. The undeniable fact is, that 99.99% of all users will never care
-> one whit, and memory management is complex and fragile. End result: the
-> 0.01% of users will have to do some manual configuration to keep things
-> simpler for the cases that really matter.
+> Indeed. I write a program at one time doing random allocation and
+> de-allocation and looking at what the output was, and buddy is very good
+> at avoiding fragmentation.
 >
 
-Ok, so lets consider the 99.99% of users then. One two machines, aim9
-benchmarks posted during this thread show some improvements on page_test,
-fork_test and brk_test, the paths you would expect to be hit by these
-patches. They are very minor improvements but 99.99% of users benefit from
-this. Aim9 might be considered artifical so somewhere in that 99.99% of
-users are kernel developers who care about kbuild so here are the timings
-of "kernel untar ; make defconfig ; make"
+The worse cause of fragmentation I found were kernel caches that were long
+lived.  How fragmenting the workload is depended heavily on whether things
+like updatedb happened which is why bench-stresshighalloc deliberately ran
+it. It's also why anti-defrag tries to group inodes and buffer_heads into
+the same areas in memory separate from other
+persumed-to-be-even-longer-lived kernel allocations. The assumption is if
+the buffer, inode and dcaches are all shrunk, contiguous blocks will
+appear.
 
-2.6.14-rc5-mm1:				1093 seconds
-2.6.14-rc5-mm1-mbuddy-v19-withoutdefrag 1089 seconds
-2.6.14-rc5-mm1-mbuddy-v19-withdefrag::  1086 seconds
+You're also right on the size of the watermarks for zones and how it
+affects fragmentation. A serious problem I had with anti-defrag was when
+87.5% of memory is in use. At this point, a "fallback" area is used by any
+allocation type that has no pages of it's own. When it is depleted, real
+fragmentation starts happening and it's also about here that the high
+watermark for reclaiming starts. I wanted to increase the watermarks up to
+start reclaiming pages when the "fallback" area started getting used but
+didn't think I would get away with adjusting those figures. I could have
+cheated and set it via /proc before benchmarks but didn't to avoid "magic
+test system" syndrome.
 
-The withoutdefrag mark is with the core of anti-defrag disabled via a
-configure option. The option to disable was a separate patch produced
-during this thread. To be really honest, I don't think a configurable page
-allocator is a great idea.
+> These days we have things like per-cpu lists in front of the buddy
+> allocator that will make fragmentation somewhat higher, but it's still
+> absolutely true that the page allocation layout is _not_ random.
+>
 
-Building kernels is faster with this set of patches which a few people on
-this list care about. aim9 shows very minor improvements which benefit a
-very large number of people and 0.01% of people who care about
-fragmentation get lower fragmentation.
+It's worse than somewhat higher for the per-cpu pages. Using another set
+of patches on top of an earlier version of anti-defrag, I was about to
+allocate about 75% of physical memory in pinned 4MiB chunks of memory
+under loads of 15-20 (kernel builds). To get there, per-cpu pages had to
+be drained using an IPI call because for some perverse reason, there were
+always 2 or 3 free per-cpu pages in the middle of a 1024 block of pages.
 
-Of course, maybe there is something magic with my test machines (or maybe
-I am willing it faster) so figures from other people wouldn't hurt whether
-they show gains or regressions. On my machine at least, 99.99% of people
-are still benefitting.
-
-I am going to wait to see if people post figures that show regressions
-before asking "are you still saying no?" to this set of patches
-
-> Because the case that really matters is the sane case. The one where we
->  - don't change memory (normal)
->  - only add memory (easy)
->  - only switch out memory with hardware support (ie the _hardware_
->    supports parallel memory, and you can switch out a DIMM without
->    software ever really even noticing)
->  - have system maintainers that do strange things, but _know_ that.
->
-> We simply DO NOT CARE about some theoretical "general case", because the
-> general case is (a) insane and (b) impossible to cater to without
-> excessive complexity.
->
-> Guys, a kernel developer needs to know when to say NO.
->
-> And we say NO, HELL NO!! to generic software-only memory hotplug.
->
-> If you are running a DB that needs to benchmark well, you damn well KNOW
-> IT IN ADVANCE, AND YOU TUNE FOR IT.
->
-> Nobody takes a random machine and says "ok, we'll now put our most
-> performance-critical database on this machine, and oh, btw, you can't
-> reboot it and tune for it beforehand". And if you have such a person, you
-> need to learn to IGNORE THE CRAZY PEOPLE.
->
-> When you hear voices in your head that tell you to shoot the pope, do you
-> do what they say? Same thing goes for customers and managers. They are the
-> crazy voices in your head, and you need to set them right, not just
-> blindly do what they ask for.
->
-> 		Linus
->
+Basically, I don't we have to live with fragmentation in the page
+allocator. I think it can be pushed down a whole lot without taking a
+performance hit for the 99.99% of users that don't care about this sort of
+thing.
 
 -- 
 Mel Gorman
