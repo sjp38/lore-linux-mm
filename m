@@ -1,66 +1,32 @@
-Message-ID: <4369824E.2020407@yahoo.com.au>
-Date: Thu, 03 Nov 2005 14:21:50 +1100
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-MIME-Version: 1.0
+Date: Thu, 3 Nov 2005 00:26:49 -0500
+From: Jeff Dike <jdike@addtoit.com>
 Subject: Re: [Lhms-devel] [PATCH 0/7] Fragmentation Avoidance V19
-References: <4366C559.5090504@yahoo.com.au>	 <Pine.LNX.4.58.0511010137020.29390@skynet> <4366D469.2010202@yahoo.com.au>	 <Pine.LNX.4.58.0511011014060.14884@skynet> <20051101135651.GA8502@elte.hu>	 <1130854224.14475.60.camel@localhost> <20051101142959.GA9272@elte.hu>	 <1130856555.14475.77.camel@localhost> <20051101150142.GA10636@elte.hu>	 <1130858580.14475.98.camel@localhost> <20051102084946.GA3930@elte.hu>	 <436880B8.1050207@yahoo.com.au> <1130923969.15627.11.camel@localhost> <43688B74.20002@yahoo.com.au> <255360000.1130943722@[10.10.2.4]>
-In-Reply-To: <255360000.1130943722@[10.10.2.4]>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+Message-ID: <20051103052649.GA16508@ccure.user-mode-linux.org>
+References: <1130917338.14475.133.camel@localhost> <20051102172729.9E7C.Y-GOTO@jp.fujitsu.com> <43687C3D.7060706@yahoo.com.au> <200511021728.36745.rob@landley.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <200511021728.36745.rob@landley.net>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Martin J. Bligh" <mbligh@mbligh.org>
-Cc: Dave Hansen <haveblue@us.ibm.com>, Ingo Molnar <mingo@elte.hu>, Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@osdl.org>, Linus Torvalds <torvalds@osdl.org>, kravetz@us.ibm.com, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, lhms <lhms-devel@lists.sourceforge.net>, Arjan van de Ven <arjanv@infradead.org>
+To: Rob Landley <rob@landley.net>
+Cc: Nick Piggin <nickpiggin@yahoo.com.au>, user-mode-linux-devel@lists.sourceforge.net, Yasunori Goto <y-goto@jp.fujitsu.com>, Dave Hansen <haveblue@us.ibm.com>, Ingo Molnar <mingo@elte.hu>, Mel Gorman <mel@csn.ul.ie>, "Martin J. Bligh" <mbligh@mbligh.org>, Andrew Morton <akpm@osdl.org>, kravetz@us.ibm.com, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, lhms <lhms-devel@lists.sourceforge.net>
 List-ID: <linux-mm.kvack.org>
 
-Martin J. Bligh wrote:
+On Wed, Nov 02, 2005 at 05:28:35PM -0600, Rob Landley wrote:
+> With fragmentation reduction and prezeroing, UML suddenly gains the option of 
+> calling madvise(DONT_NEED) on sufficiently large blocks as A) a fast way of 
+> prezeroing, B) a way of giving memory back to the host OS when it's not in 
+> use.
 
->>What can we do reasonably sanely? I think we can drive about 16GB of
->>highmem per 1GB of normal fairly well. So on your 1TB system, you
->>should be able to unplug 960GB RAM.
-> 
-> 
-> I think you need to talk to some more users trying to run 16GB ia32
-> systems. Feel the pain.
->  
+DONT_NEED is insufficient.  It doesn't discard the data in dirty
+file-backed pages.
 
-OK, make it 8GB then.
+Badari Pulavarty has a test patch (google for madvise(MADV_REMOVE))
+which does do the trick, and I have a UML patch which adds memory
+hotplug.  This combination does free memory back to the host.
 
-And as a bonus we get all you IBM guys back on the case again
-to finish the job that was started on highmem :)
-
-And as another bonus, you actually *have* the capability to unplug
-memory or use hugepages exactly the size you require, which is not the
-case with the frag patches.
-
->>But if you can reclaim your ZONE_RECLAIMABLE, then you could reclaim
->>it all and expand your normal zones into it, bottom up.
-> 
-> 
-> Can we quit coming up with specialist hacks for hotplug, and try to solve
-> the generic problem please? hotplug is NOT the only issue here. Fragmentation
-> in general is.
-> 
-
-Not really it isn't. There have been a few cases (e1000 being the main
-one, and is fixed upstream) where fragmentation in general is a problem.
-But mostly it is not.
-
-Anyone who thinks they can start using higher order allocations willy
-nilly after Mel's patch, I'm fairly sure they're wrong because they are
-just going to be using up the contiguous regions.
-
-Trust me, if the frag patches were a general solution that solved the
-generic fragmentation problem I would be a lot less concerned about the
-complexity they introduce. But even then it only seems to be a problem
-that a very small number of users care about.
-
-Anyway I keep saying the same things (sorry) so I'll stop now.
-
--- 
-SUSE Labs, Novell Inc.
-
-Send instant messages to your online friends http://au.messenger.yahoo.com 
+				Jeff
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
