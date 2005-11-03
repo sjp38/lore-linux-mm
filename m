@@ -1,179 +1,374 @@
-Message-ID: <4369BD7D.6050507@yahoo.com.au>
-Date: Thu, 03 Nov 2005 18:34:21 +1100
-From: Nick Piggin <nickpiggin@yahoo.com.au>
+Date: Thu, 3 Nov 2005 12:19:24 +0000 (GMT)
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [Lhms-devel] [PATCH 0/7] Fragmentation Avoidance V19 - Summary
+In-Reply-To: <43698080.3040800@yahoo.com.au>
+Message-ID: <Pine.LNX.4.58.0511031034150.26959@skynet>
+References: <20051030235440.6938a0e9.akpm@osdl.org>  <27700000.1130769270@[10.10.2.4]>
+ <4366A8D1.7020507@yahoo.com.au>  <Pine.LNX.4.58.0510312333240.29390@skynet>
+ <4366C559.5090504@yahoo.com.au>  <Pine.LNX.4.58.0511010137020.29390@skynet>
+ <4366D469.2010202@yahoo.com.au>  <Pine.LNX.4.58.0511011014060.14884@skynet>
+ <20051101135651.GA8502@elte.hu>  <1130854224.14475.60.camel@localhost>
+ <20051101142959.GA9272@elte.hu> <1130856555.14475.77.camel@localhost>
+ <43680D8C.5080500@yahoo.com.au> <Pine.LNX.4.58.0511021231440.5235@skynet>
+ <43698080.3040800@yahoo.com.au>
 MIME-Version: 1.0
-Subject: Re: [Lhms-devel] [PATCH 0/7] Fragmentation Avoidance V19
-References: <E1EXEfW-0005ON-00@w-gerrit.beaverton.ibm.com> <200511021747.45599.rob@landley.net> <43699573.4070301@yahoo.com.au> <200511030007.34285.rob@landley.net>
-In-Reply-To: <200511030007.34285.rob@landley.net>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rob Landley <rob@landley.net>
-Cc: Gerrit Huizenga <gh@us.ibm.com>, Ingo Molnar <mingo@elte.hu>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Dave Hansen <haveblue@us.ibm.com>, Mel Gorman <mel@csn.ul.ie>, "Martin J. Bligh" <mbligh@mbligh.org>, Andrew Morton <akpm@osdl.org>, kravetz@us.ibm.com, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, lhms <lhms-devel@lists.sourceforge.net>
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Dave Hansen <haveblue@us.ibm.com>, Ingo Molnar <mingo@elte.hu>, "Martin J. Bligh" <mbligh@mbligh.org>, Andrew Morton <akpm@osdl.org>, kravetz@us.ibm.com, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, lhms <lhms-devel@lists.sourceforge.net>
 List-ID: <linux-mm.kvack.org>
 
-Rob Landley wrote:
-> On Wednesday 02 November 2005 22:43, Nick Piggin wrote:
-> 
+On Thu, 3 Nov 2005, Nick Piggin wrote:
 
->>I'd just be happy with UML handing back page sized chunks of memory that
->>it isn't currently using. How does contiguous memory (in either the host
->>or the guest) help this?
-> 
-> 
-> Smaller chunks of memory are likely to be reclaimed really soon, and adding in 
-> the syscall overhead working with individual pages of memory is almost 
-> guaranteed to slow us down.
+> Mel Gorman wrote:
+>
+> >
+> > Ok. To me, the rest of the thread are beating around the same points and
+> > no one is giving ground. The points are made so lets summarise. Apologies
+> > if anything is missing.
+> >
+>
+> Thanks for attempting a summary of a difficult topic. I have a couple
+> of suggestions.
+>
+> > Who cares
+> > =========
+> >   Physical hotplug remove: Vendors of the hardware that support this -
+> >      Fujitsu, HP (I think), IBM etc
+> >
+> >   Virtualization hotplug remove: Sellers of virtualization software, some
+> >      hardware like any IBM machine that lists LPAR in it's list of
+> >      features.  Probably software solutions like Xen are also affected
+> >      if they want to be able to grow and shrink the virtual machines on
+> >      demand
+> >
+>
+> Ingo said that Xen is fine with per page granular freeing - this covers
+> embedded, desktop and small server users of VMs into the future I'd say.
+>
 
-Because UML doesn't already make a syscall per individual page of
-memory freed? (If I read correctly)
+Ok, hard to argue with that.
 
->  Plus with punch, we'd be fragmenting the heck 
-> out of the underlying file.
-> 
+> >   High order allocations: Ultimately, hugepage users. Today, that is a
+> >      feature only big server users like Oracle care about. In the
+> >      future I reckon applications will be able to use them for things
+> >      like backing the heap by huge pages. Other users like GigE,
+> >      loopback devices with large MTUs, some filesystem like CIFS are
+> >      all interested although they are also been told use use smaller
+> >      pages.
+> >
+>
+> I think that saying its now OK to use higher order allocations is wrong
+> because as I said even with your patches they are going to run into
+> problems.
+>
 
-Why? No you wouldn't.
+Ok, I have not denied that they will run into problems. I have asserted
+that, with more work built upon these patches, we can grant large pages
+with a good degree of reliability. Subsystems should still use small
+orders whenever possible and at the very least, large orders should be
+short-lived.
 
-> 
->>>What does this have to do with specifying hard limits of anything? 
->>>What's to specify?  Workloads vary.  Deal with it.
->>
->>Umm, if you hadn't bothered to read the thread then I won't go through
->>it all again. The short of it is that if you want guaranteed unfragmented
->>memory you have to specify a limit.
-> 
-> 
-> I read it.  It just didn't contain an answer the the question.  I want UML to 
-> be able to hand back however much memory it's not using, but handing back 
-> individual pages as we free them and inserting a syscall overhead for every 
-> page freed and allocated is just nuts.  (Plus, at page size, the OS isn't 
-> likely to zero them much faster than we can ourselves even without the 
-> syscall overhead.)  Defragmentation means we can batch this into a 
-> granularity that makes it worth it.
-> 
+For userspace users, I would like to move towards better availibility of
+huge page without requiring boot-time tunables which are required today.
+Do we agree that this would be useful at least for a few different users?
 
-Oh you have measured it and found out that "defragmentation" makes
-it worthwhile?
+HugeTLB user 1: Todays users of hugetlbfs like big databases etc
+HugeTLB user 2: HPC jobs that run with sparse data sets
+HugeTLB user 3: Desktop applications that use large amounts of address space.
 
-> This has nothing to do with hard limits on anything.
-> 
+I got a mail from a user of category 2. He said I can quote his email, but
+he didn't say I could quote his name which is inconvenient but I'm sure he
+has good reasons.
 
-You said:
+To him, low fragmentation is "critical, at least in HPC environments".
+Here is the core of his issue;
 
-   "What does this have to do with specifying hard limits of
-    anything? What's to specify?  Workloads vary.  Deal with it."
+--- excerpt ---
+Take the scenario that you have a large machine that is
+used by multiple users, and the usage is regulated by a batch
+scheduler. Loadleveler on ibm's for example. PBS on many
+others. Both appear to be available in linux environments.
 
-And I was answering your very polite questions.
+In the case of my codes, I find that having large pages is
+extremely beneficial to my run times. As in factors of several,
+modulo things that I've coded in by hand to try and avoid the
+issues. I don't think my code is in any way unusual in this
+magnitude of improvement.
+--- excerpt ---
 
-> 
->>Have you looked at the frag patches?
-> 
-> 
-> I've read Mel's various descriptions, and tried to stay more or less up to 
-> date ever since LWN brought it to my attention.  But I can't say I'm a linux 
-> VM system expert.  (The last time I felt I had a really firm grasp on it was 
-> before Andrea and Rik started arguing circa 2.4 and Andrea spent six months 
-> just assuming everybody already knew what a classzone was.  I've had other 
-> things to do since then...)
-> 
+ok, so we have two potential solutions, anti-defrag and zones. We don't
+need to rehash the pro's and cons. With zones, we just say "just reclaim
+the easy reclaim zone, alloc your pages and away we go".
 
-Maybe you have better things to do now as well?
+Now, his problem is that the server is not restarted between job times and
+jobs takes days and weeks to complete. The system administrators will not
+restart the machine so getting it to a prestine state is a difficulty. The
+state he gets the system in is the state he works with and with
+fragmentation, he doesn't get large pages unless he is lucky enough to be
+the first user of the machine
 
->>Duplicating the 
->>same or similar infrastructure (in this case, a memory zoning facility)
->>is a bad thing in general.
-> 
-> 
-> Even when they keep track of very different things?  The memory zoning thing 
-> is about where stuff is in physical memory, and it exists because various 
-> hardware that wants to access memory (24 bit DMA, 32 bit DMA, and PAE) is 
-> evil and crippled and we have to humor it by not asking it to do stuff it 
-> can't.
-> 
+With the zone approach, we would just be saying "tune it". Here is what he
+says about that
 
-No, the buddy allocator is and always has been what tracks the "long
-contiguous runs of free memory". Both zones and Mels patches classify
-blocks of memory according to some criteria. They're not exactly the
-same obviously, but they're equivalent in terms of capability to
-guarantee contiguous freeable regions.
+--- excerpt ---
+I specifically *don't* want things that I have to beg sysadmins to
+tune correctly. They won't get it right because there is no `right'
+that is right for everyone. They won't want to change it and it
+won't work besides. Been there, done that. My experience is that
+with linux so far, and some other non-linux machines too, they
+always turn all the page stuff off because it breaks the machine.
+--- excerpt ---
 
-> 
-> I was under the impression it was orthogonal to figuring out whether or not a 
-> given bank of physical memory is accessable to your sound blaster without an 
-> IOMMU.
-> 
+This is an example of a real user that "tune the size of your zone
+correctly" is just not good enough. He makes a novel suggestion on how
+anti-defrag + hotplug could be used.
 
-Huh?
+--- excerpt ---
+In the context of hotplug stuff and fragmentation avoidance,
+this sort of reset would be implemented by performing the
+the first step in the hot unplug, to migrate everything off
+of that memory, including whatever kernel pages that exist
+there, but not the second step. Just leave that memory plugged
+in and reset the memory to a sane initial state. Essentially
+this would be some sort of pseudo hotunplug followed by a pseudo
+hotplug of that memory.
+--- excerpt ---
 
->>Err, the point is so we don't now have 2 layers doing very similar things,
->>at least one of which has "particularly silly" bugs in it.
-> 
-> 
-> Similar is not identical.  You seem to be implying that the IO elevator and 
-> the network stack queueing should be merged because they do similar things.
-> 
+I'm pretty sure this is not what hotplug was aimed at but it would get him
+what he wants, large pages to echo BigNumber > nr_hugepages at the least.
+It also needs hotplug remove to be working for some banks and regions of
+memory although not the 100% case.
 
-No I don't.
+Ok, this is one example of a user for scientific workloads that "tune the
+size of the zone" just is not good enough. The admins won't do it for him
+because it'll just break for the next scheduled job.
 
-> 
-> If you'd like to write a counter-patch to Mel's to prove it...
-> 
+> Actually I think one reason your patches may perform so well is because
+> there aren't actually a lot of higher order allocations in the kernel.
+>
+> I think that probably leaves us realistically with demand hugepages,
+> hot unplug memory, and IBM lpars?
+>
 
-It has already been written as you have been told numerous times.
 
-Now if you'd like to actually learn about what you're commenting on,
-that would be really good too.
+>
+> > Pros/Cons of Solutions
+> > ======================
+> >
+> > Anti-defrag Pros
+> >   o Aim9 shows no significant regressions (.37% on page_test). On some
+> >     tests, it shows performance gains (> 5% on fork_test)
+> >   o Stress tests show that it manages to keep fragmentation down to a far
+> >     lower level even without teaching kswapd how to linear reclaim
+>
+> This sounds like a kind of funny test to me if nobody is actually
+> using higher order allocations.
+>
 
->>So you didn't look at Yasunori Goto's patch from last year that implements
->>exactly what I described, then?
-> 
-> 
-> I saw the patch he just posted, if that's what you mean.  By his own 
-> admission, it doesn't address fragmentation at all.
-> 
+No one uses them because they always fail. This is a chicken and egg
+problem.
 
-It seems to be that it provides exactly the same (actually stronger)
-guarantees than the current frag patches do. Or were you going to point
-out a bug in the implementation?
+> When a higher order allocation is attempted, either you will satisfy
+> it from the kernel region, in which case the vanilla kernel would
+> have done the same. Or you satisfy it from an easy-reclaim contiguous
+> region, in which case it is no longer an easy-reclaim contiguous
+> region.
+>
 
-> 
->>>Yes, zones are a way of categorizing memory.
->>
->>Yes, have you read Mel's patches? Guess what they do?
-> 
-> 
-> The swap file is a way of storing data on disk.  So is ext3.  Obviously, one 
-> is a trivial extension of the other and there's no reason to have both.
-> 
+Right, but right now, we say "don't use high order allocations ever". With
+work, we'll be saying "ok, use high order allocations but they should be
+short lived or you won't be allocating them for long"
 
-Don't try to bullshit your way around with stupid analogies please, it
-is an utter waste of time.
+> >   o Stress tests with a linear reclaim experimental patch shows that it
+> >     can successfully find large contiguous chunks of memory
+> >   o It is known to help hotplug on PPC64
+> >   o No tunables. The approach tries to manage itself as much as possible
+>
+> But it has more dreaded heuristics :P
+>
 
-> 
->>>They're not a way of defragmenting it.
->>
->>Guess what they don't?
-> 
-> 
-> I have no idea what you intended to mean by that.  Mel posted a set of patches 
+Yeah, but if it gets them wrong, the system chugs along anyway, just
+fragmented like it is today. If the zone-based approach gets it wrong, the
+system goes down the tubes.
 
-What I mean is that Mel's patches aren't a way of defragmenting memory either.
-They fit exactly the description you gave for zones (ie. a way of categorizing,
-not defragmenting).
+At very worst, the patches give a kernel allocator that is as good as
+todays. At very worst, the zone-based approach makes an unusable system.
+The performance of the patches is another story. I've been posting aim9
+figures based on my test machine. I'm trying to kick an ancient PowerPC
+43P Model 150 machine into working.  This machine is a different
+architecture and ancient (I found it on the way to a skip) so should give
+different figures.
 
-> in a thread titled "fragmentation avoidance", and you've been arguing about 
-> hotplug, and pointing to a set of patches from Goto that do not address 
-> fragmentation at all.  This confuses me.
-> 
+> >   o It exists, heavily tested, and synced against the latest -mm1
+> >   o Can be compiled away be redefining the RCLM_* macros and the
+> >     __GFP_*RCLM flags
+> >
+> > Anti-defrag Cons
+> >   o More complexity within the page allocator
+> >   o Adds a new layer onto the allocator that effectively creates subzones
+> >   o Adding a new concept that maintainers have to work with
+> >   o Depending on the workload, it fragments anyway
+> >
+> > New Zone Pros
+> >   o Zones are a well known and understood concept
+> >   o For people that do not care about hotplug, they can easily get rid of it
+> >   o Provides reliable areas of contiguous groups that can be freed for
+> >     HugeTLB pages going to userspace
+> >   o Uses existing zone infrastructure for balancing
+> >
+> > New Zone Cons
+> >   o Zones historically have introduced balancing problems
+> >   o Been tried for hotplug and dropped because of being awkward to work with
+> >   o It only helps hotplug and potentially HugeTLB pages for userspace
+> >   o Tunable required. If you get it wrong, the system suffers a lot
+>
+> Pro: it keeps IBM mainframe and pseries sysadmins in a job ;) Let
+> them get it right.
+>
 
-Yeah it does seem like you are confused.
+Unless you work in a place where they sysadmins will tell you to go away
+such as the HPC user above. I'm not a sysadmin, but I'm pretty sure they
+have better things to do than twiddle a tunable all day.
 
-Now let's finish up this subthread and try to keep the SN ratio up, please?
-I'm sure Jeff or someone knowledgeable in the area can chime in if there are
-concerns about UML.
+> >   o Needs to be planned for and developed
+> >
+>
+> Yasunori Goto had patches around from last year. Not sure what sort
+> of shape they're in now but I'd think most of the hard work is done.
+>
 
-Send instant messages to your online friends http://au.messenger.yahoo.com 
+But Yasunori (thanks for sending the links ) himself says when he posted.
+
+--- excerpt ---
+Another one was a bit similar than Mel-san's one.
+One of motivation of this patch was to create orthogonal relationship
+between Removable and DMA/Normal/Highmem. I thought it is desirable.
+Because, ppc64 can treat that all of memory is same (DMA) zone.
+I thought that new zone spoiled its good feature.
+--- excerpt ---
+
+He thought that the new zone removed the ability of some architectures to
+treat all memory the same. My patches give some of the benefits of using
+another zone while still preserving an architectures ability to
+treat all memory the same.
+
+> > Scenarios
+> > =========
+> >
+> > Lets outline some situations then or workloads that can occur
+> >
+> > 1. Heavy job running that consumes 75% of physical memory. Like a kernel
+> >    build
+> >
+> >   Anti-defrag: It will not fragment as it will never have to fallback.High
+> >      order allocations will be possible in the remaining 25%.
+> >   Zone-based: After been tuned to a kernel build load, it will not
+> >      fragment. Get the tuning wrong, performance suffers or workload
+> >      fails. High order allocations will be possible in the remaining 25%.
+> >
+>
+> You don't need to continually tune things for each and every possible
+> workload under the sun. It is like how we currently drive 16GB highmem
+> systems quite nicely under most workloads with 1GB of normal memory.
+> Make that an 8:1 ratio if you're worried.
+>
+> [snip]
+>
+> >
+> > I've tried to be as objective as possible with the summary.
+> >
+> > > From the points above though, I think that anti-defrag gets us a lot of
+> > the way, with the complexity isolated in one place. It's downside is that
+> > it can still break down and future work is needed to stop it degrading
+> > (kswapd cleaning UserRclm areas and page migration when we get really
+> > stuck). Zone-based is more reliable but only addresses a limited
+> > situation, principally hotplug and it does not even go 100% of the way for
+> > hotplug.
+>
+> To me it seems like it solves the hotplug, lpar hotplug, and hugepages
+> problems which seem to be the main ones.
+>
+> > It also depends on a tunable which is not cool and it is static.
+>
+> I think it is very cool because it means the tiny minority of Linux
+> users who want this can do so without impacting the rest of the code
+> or users. This is how Linux has been traditionally run and I still
+> have a tiny bit of faith left :)
+>
+
+The impact of the code and users will depend on benchmarks. I've posted
+benchmarks that show there are either very small regressions or else there
+are performance gains. As I write this, some of the aim9 benchmarks
+completed on the PowerPC.
+
+This is a comparison between 2.6.14-rc5-mm1 and
+2.6.14-rc5-mm1-mbuddy-v19-defragDisabledViaConfig
+
+ 1 creat-clo      73500.00   72504.58    -995.42 -1.35% File Creations and Closes/second
+ 2 page_test      30806.13   31076.49     270.36  0.88% System Allocations & Pages/second
+ 3 brk_test      335299.02  341926.35    6627.33  1.98% System Memory Allocations/second
+ 4 jmp_test     1641733.33 1644566.67    2833.34  0.17% Non-local gotos/second
+ 5 signal_test   100883.19   98900.18   -1983.01 -1.97% Signal Traps/second
+ 6 exec_test        116.53     118.44       1.91  1.64% Program Loads/second
+ 7 fork_test        751.70     746.84      -4.86 -0.65% Task Creations/second
+ 8 link_test      30217.11   30463.82     246.71  0.82% Link/Unlink Pairs/second
+
+Performance gains on page_test, brk_test and exec_test. Even with
+variances between tests, we are looking at "more or less the same", not
+regressions. No user impact there.
+
+This is a comparison between 2.6.14-rc5-mm1 and
+2.6.14-rc5-mm1-mbuddy-v19-withantidefrag
+
+ 1 creat-clo      73500.00   71188.14   -2311.86 -3.15% File Creations and Closes/second
+ 2 page_test      30806.13   31060.96     254.83  0.83% System Allocations & Pages/second
+ 3 brk_test      335299.02  344361.15    9062.13  2.70% System Memory Allocations/second
+ 4 jmp_test     1641733.33 1627228.80  -14504.53 -0.88% Non-local gotos/second
+ 5 signal_test   100883.19  100233.33    -649.86 -0.64% Signal Traps/second
+ 6 exec_test        116.53     117.63       1.10  0.94% Program Loads/second
+ 7 fork_test        751.70     763.73      12.03  1.60% Task Creations/second
+ 8 link_test      30217.11   30322.10     104.99  0.35% Link/Unlink Pairs/second
+
+Performance gains on page_test, brk_test, exec_test and fork_test. Not bad
+going for complex overhead. create-clo took a beating, but what workload
+opens and closes files at that rate?
+
+This is an old, small machine. If I hotplug this, I'll be lucky if it ever
+turns on again. The aim9 benchmarks on two machines show that there is
+similar and, in some cases better, performance with these patches. If a
+workload does suffer badly, an additional patch has been supplied that
+disables anti-defrag. A run in -mm will tell us if this is the general
+case for machines or are my two test boxes running on magic beans.
+
+So, the small number of users that want this, get this. The rest of the
+users who just run the code, should not notice or care. This brings us
+back to the main stickler, code complexity. I think that the code has been
+very well isolated from the code allocator code and people looking at the
+allocator could avoid it if they really wanted while stilling knowing what
+the buddy allocator was doing.
+
+> > If we make the zones growable+shrinkable, we run into all the same
+> > problems that anti-defrag has today.
+> >
+>
+> But we don't have the extra zones layer that anti defrag has today.
+>
+
+So, we just have an extra layer on the side that has to be configured. All
+of the problems with all of the configuration.
+
+> And anti defrag needs limits if it is to be reliable anyway.
+>
+
+I'm confident given time that I can make this manage itself with a very
+good degree of reliability.
+
+-- 
+Mel Gorman
+Part-time Phd Student                          Java Applications Developer
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
