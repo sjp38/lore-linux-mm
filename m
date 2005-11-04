@@ -1,8 +1,8 @@
-Date: Thu, 3 Nov 2005 22:42:39 -0800
-From: Paul Jackson <pj@sgi.com>
+Date: Thu, 3 Nov 2005 23:10:19 -0800
+From: Andrew Morton <akpm@osdl.org>
 Subject: Re: [Lhms-devel] [PATCH 0/7] Fragmentation Avoidance V19
-Message-Id: <20051103224239.7a9aee29.pj@sgi.com>
-In-Reply-To: <20051103214807.68a3063c.akpm@osdl.org>
+Message-Id: <20051103231019.488127a6.akpm@osdl.org>
+In-Reply-To: <20051103224239.7a9aee29.pj@sgi.com>
 References: <E1EXEfW-0005ON-00@w-gerrit.beaverton.ibm.com>
 	<200511021747.45599.rob@landley.net>
 	<43699573.4070301@yahoo.com.au>
@@ -12,61 +12,57 @@ References: <E1EXEfW-0005ON-00@w-gerrit.beaverton.ibm.com>
 	<20051103205202.4417acf4.akpm@osdl.org>
 	<20051103213538.7f037b3a.pj@sgi.com>
 	<20051103214807.68a3063c.akpm@osdl.org>
+	<20051103224239.7a9aee29.pj@sgi.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
+To: Paul Jackson <pj@sgi.com>
 Cc: bron@bronze.corp.sgi.com, pbadari@gmail.com, jdike@addtoit.com, rob@landley.net, nickpiggin@yahoo.com.au, gh@us.ibm.com, mingo@elte.hu, kamezawa.hiroyu@jp.fujitsu.com, haveblue@us.ibm.com, mel@csn.ul.ie, mbligh@mbligh.org, kravetz@us.ibm.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, lhms-devel@lists.sourceforge.net
 List-ID: <linux-mm.kvack.org>
 
-Andrew wrote:
-> uh, OK.  If that patch is merged, does that make Bron happy, so I don't
-> have to reply to his plaintive email?
+Paul Jackson <pj@sgi.com> wrote:
+>
+>  > I was kind of thinking that the stats should be per-process (actually
+>  > per-mm) rather than bound to cpusets.  /proc/<pid>/pageout-stats or something.
+> 
+>  There may well be a market for these too.  But such stats sound like
+>  more work, and the market isn't one that's paying my salary.
 
-In theory yes, that should do it.  I will ack again, by early next
-week, after I have verified this further.
+But I have to care for all users.
 
-And it should also handle some other folks who have plaintive emails
-in my inbox, that haven't gotten bold enough to pester you, yet.
+>  So I will leave that challenge on the table for someone else.
 
-It really is, for the users who know my email address (*), job based
-memory pressure, not task based, that matters.  Sticking it in a
-cpuset, which is the natural job container, is easier, more natural,
-and more efficient for all concerned.
-
-It's jobs that are being run in cpusets with dedicated (not shared)
-CPUs and Memory Nodes that care about this, so far as I know.
-
-When running a system in a more typical sharing mode, with multiple
-jobs and applications competing for the same resources, then the kernel
-needs to be master of processor scheduling and memory allocation.
-
-When running jobs in cpusets with dedicated CPUs and Memory Nodes,
-then less is being asked of the kernel, and some per-job controls
-from userspace make more sense.  This is where a simple hook like
-this reclaim rate meter comes into play - passing up to user space
-another clue to help it do its job.
+And I won't merge your patch ;)
 
 
-> I was kind of thinking that the stats should be per-process (actually
-> per-mm) rather than bound to cpusets.  /proc/<pid>/pageout-stats or something.
-
-There may well be a market for these too.  But such stats sound like
-more work, and the market isn't one that's paying my salary.
-
-So I will leave that challenge on the table for someone else.
+Seriously, it does appear that doing it per-task is adequate for your
+needs, and it is certainly more general.
 
 
- (*) Of course, there is some self selection going on here.
-     Folks not doing cpuset-based jobs are far less likely
-     to know my email address ;).
 
--- 
-                  I won't rest till it's the best ...
-                  Programmer, Linux Scalability
-                  Paul Jackson <pj@sgi.com> 1.925.600.0401
+I cannot understand why you decided to count only the number of
+direct-reclaim events, via a "digitally filtered, constant time based,
+event frequency meter".
+
+a) It loses information.  If we were to export the number of pages
+   reclaimed from the mm, filtering can be done in userspace.
+
+b) It omits reclaim performed by kswapd and by other tasks (ok, it's
+   very cpuset-specific).
+
+c) It only counts synchronous try_to_free_pages() attempts.  What if an
+   attempt only freed pagecache, or didbn't manage to free anything?
+
+d) It doesn't notice if kswapd is swapping the heck out of your
+   not-allocating-any-memory-now process.
+
+
+I think all the above can be addressed by exporting per-task (actually
+per-mm) reclaim info.  (I haven't put much though into what info that
+should be - page reclaim attempts, mmapped reclaims, swapcache reclaims,
+etc)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
