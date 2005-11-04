@@ -1,45 +1,37 @@
-Date: Fri, 4 Nov 2005 13:39:06 -0800 (PST)
-From: Linus Torvalds <torvalds@osdl.org>
-Subject: Re: [Lhms-devel] [PATCH 0/7] Fragmentation Avoidance V19
-In-Reply-To: <Pine.LNX.4.64.0511041310130.28804@g5.osdl.org>
-Message-ID: <Pine.LNX.4.64.0511041333560.28804@g5.osdl.org>
-References: <20051104210418.BC56F184739@thermo.lanl.gov>
- <Pine.LNX.4.64.0511041310130.28804@g5.osdl.org>
+From: Arnd Bergmann <arnd@arndb.de>
+Subject: Re: [PATCH] powerpc: mem_init crash for sparsemem
+Date: Fri, 4 Nov 2005 22:43:48 +0100
+References: <200511041631.17237.arnd@arndb.de> <436BC20B.9070704@shadowen.org>
+In-Reply-To: <436BC20B.9070704@shadowen.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 8bit
+Content-Disposition: inline
+Message-Id: <200511042243.49661.arnd@arndb.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andy Nelson <andy@thermo.lanl.gov>
-Cc: mingo@elte.hu, akpm@osdl.org, arjan@infradead.org, arjanv@infradead.org, haveblue@us.ibm.com, kravetz@us.ibm.com, lhms-devel@lists.sourceforge.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mbligh@mbligh.org, mel@csn.ul.ie, nickpiggin@yahoo.com.au
+To: Andy Whitcroft <apw@shadowen.org>
+Cc: linuxppc64-dev@ozlabs.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-
-On Fri, 4 Nov 2005, Linus Torvalds wrote:
+On Freedag 04 November 2005 21:18, Andy Whitcroft wrote:
+> Would it not make sense to use pfn_valid(), as that is not sparsemem
+> specific?  Not looked at the code in question specifically, but if you
+> can use section_has_mem_map() it should be equivalent:
 > 
-> But the hint can be pretty friendly. Especially if it's an option to just 
-> load a lot of memory into the boxes, and none of the loads are expected to 
-> want to really be excessively close to memory limits (ie you could just 
-> buy an extra 16GB to allow for "slop").
+>         if (!pfn_valid(pgdat->node_start_pfn + i))
+>                 continue;
+> 
+> Want to spin us a patch and I'll give it some general testing.
 
-One of the issues _will_ be how to allocate things on NUMA. Right now 
-"hugetlb" only allows us to say "this much memory for hugetlb", and it 
-probably needs to be per-zone. 
+Yes, I guess pfn_valid() is the function I was looking for, thanks
+for pointing that out.
 
-Some uses might want to allocate all of the local memory on one node to 
-huge-page usage (and specialized programs would then also like to run 
-pinned to that node), others migth want to spread it out. So the 
-maintenance would need to decide that.
+Unfortunately, I don't have access to the machine over the weekend,
+so I won't be able to test that until Monday.
 
-The good news is that you can boot up with almost all zones being "big 
-page" zones, and you could turn them into "normal zones" dynamically. It's 
-only going the other way that is hard.
-
-So from a maintenance standpoint if you manage lots of machines, you could 
-have them all uniformly boot up with lots of memory set aside for large 
-pages, and then use user-space tools to individually turn the zones into 
-regular allocation zones.
-
-		Linus
+	Arnd <><
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
