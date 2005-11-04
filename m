@@ -1,100 +1,91 @@
-Date: Fri, 4 Nov 2005 15:37:22 -0800 (PST)
+Date: Fri, 4 Nov 2005 15:37:17 -0800 (PST)
 From: Christoph Lameter <clameter@sgi.com>
-Message-Id: <20051104233722.5459.68575.sendpatchset@schroedinger.engr.sgi.com>
+Message-Id: <20051104233717.5459.52323.sendpatchset@schroedinger.engr.sgi.com>
 In-Reply-To: <20051104233712.5459.94627.sendpatchset@schroedinger.engr.sgi.com>
 References: <20051104233712.5459.94627.sendpatchset@schroedinger.engr.sgi.com>
-Subject: [PATCH 2/7] Direct Migration V1: PageSwapCache checks
+Subject: [PATCH 1/7] Direct Migration V1: CONFIG_MIGRATION for swap migration
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@osdl.org
-Cc: Hugh Dickins <hugh@veritas.com>, Mike Kravetz <kravetz@us.ibm.com>, linux-kernel@vger.kernel.org, Dave Hansen <haveblue@us.ibm.com>, linux-mm@kvack.org, torvalds@osdl.org, Christoph Lameter <clameter@sgi.com>, Hirokazu Takahashi <taka@valinux.co.jp>, Magnus Damm <magnus.damm@gmail.com>, Paul Jackson <pj@sgi.com>, Marcelo Tosatti <marcelo.tosatti@cyclades.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Hugh Dickins <hugh@veritas.com>, Mike Kravetz <kravetz@us.ibm.com>, linux-kernel@vger.kernel.org, Marcelo Tosatti <marcelo.tosatti@cyclades.com>, linux-mm@kvack.org, torvalds@osdl.org, Christoph Lameter <clameter@sgi.com>, Hirokazu Takahashi <taka@valinux.co.jp>, Magnus Damm <magnus.damm@gmail.com>, Paul Jackson <pj@sgi.com>, Dave Hansen <haveblue@us.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-Check for PageSwapCache after looking up and locking a swap page.
+Add CONFIG_MIGRATION for page migration support
 
-The page migration code may change a swap pte to point to a different page
-under lock_page().
+Include page migration if the system is NUMA or having a memory model
+that allows distinct areas of memory (SPARSEMEM, DISCONTIGMEM).
 
-If that happens then the vm must retry the lookup operation in the swap
-space to find the correct page number. There are a couple of locations
-in the VM where a lock_page() is done on a swap page. In these locations
-we need to check afterwards if the page was migrated. If the page was migrated
-then the old page that was looked up before was freed and no longer has the
-PageSwapCache bit set.
+And:
+- Only include lru_add_drain_per_cpu if building for an SMP system.
 
-Signed-off-by: Hirokazu Takahashi <taka@valinux.co.jp>
-Signed-off-by: Dave Hansen <haveblue@us.ibm.com>
-Signed-off-by: Christoph Lameter <clameter@@sgi.com>
+This patch is independent of the rest of the direct migration patchset
+and is also needed to complete the swap migration patchset.
 
-Index: linux-2.6.14-rc5-mm1/mm/memory.c
+Signed-off-by: Christoph Lameter <clameter@sgi.com>
+
+Index: linux-2.6.14-rc5-mm1/include/linux/swap.h
 ===================================================================
---- linux-2.6.14-rc5-mm1.orig/mm/memory.c	2005-10-24 10:27:12.000000000 -0700
-+++ linux-2.6.14-rc5-mm1/mm/memory.c	2005-10-28 16:09:11.000000000 -0700
-@@ -1665,6 +1665,7 @@ static int do_swap_page(struct mm_struct
- 		goto out;
+--- linux-2.6.14-rc5-mm1.orig/include/linux/swap.h	2005-11-02 11:39:01.000000000 -0800
++++ linux-2.6.14-rc5-mm1/include/linux/swap.h	2005-11-02 11:42:00.000000000 -0800
+@@ -179,7 +179,9 @@ extern int vm_swappiness;
+ extern int isolate_lru_page(struct page *p);
+ extern int putback_lru_pages(struct list_head *l);
  
- 	entry = pte_to_swp_entry(orig_pte);
-+again:
- 	page = lookup_swap_cache(entry);
- 	if (!page) {
-  		swapin_readahead(entry, address, vma);
-@@ -1688,6 +1689,12 @@ static int do_swap_page(struct mm_struct
++#ifdef CONFIG_MIGRATION
+ extern int migrate_pages(struct list_head *l, struct list_head *t);
++#endif
  
- 	mark_page_accessed(page);
- 	lock_page(page);
-+	if (!PageSwapCache(page)) {
-+		/* Page migration has occured */
-+		unlock_page(page);
-+		page_cache_release(page);
-+		goto again;
-+	}
- 
- 	/*
- 	 * Back out if somebody else already faulted in this pte.
-Index: linux-2.6.14-rc5-mm1/mm/shmem.c
+ #ifdef CONFIG_MMU
+ /* linux/mm/shmem.c */
+Index: linux-2.6.14-rc5-mm1/mm/Kconfig
 ===================================================================
---- linux-2.6.14-rc5-mm1.orig/mm/shmem.c	2005-10-24 10:27:12.000000000 -0700
-+++ linux-2.6.14-rc5-mm1/mm/shmem.c	2005-10-28 16:08:20.000000000 -0700
-@@ -1013,6 +1013,14 @@ repeat:
- 			page_cache_release(swappage);
- 			goto repeat;
- 		}
-+		if (!PageSwapCache(swappage)) {
-+			/* Page migration has occured */
-+			shmem_swp_unmap(entry);
-+			spin_unlock(&info->lock);
-+			unlock_page(swappage);
-+			page_cache_release(swappage);
-+			goto repeat;
-+		}
- 		if (PageWriteback(swappage)) {
- 			shmem_swp_unmap(entry);
- 			spin_unlock(&info->lock);
-Index: linux-2.6.14-rc5-mm1/mm/swapfile.c
+--- linux-2.6.14-rc5-mm1.orig/mm/Kconfig	2005-10-31 14:10:53.000000000 -0800
++++ linux-2.6.14-rc5-mm1/mm/Kconfig	2005-11-02 11:44:57.000000000 -0800
+@@ -132,3 +132,11 @@ config SPLIT_PTLOCK_CPUS
+ 	default "4096" if ARM && !CPU_CACHE_VIPT
+ 	default "4096" if PARISC && DEBUG_SPINLOCK && !64BIT
+ 	default "4"
++
++#
++# support for page migration
++#
++config MIGRATION
++	def_bool y if NUMA || SPARSEMEM || DISCONTIGMEM
++
++
+Index: linux-2.6.14-rc5-mm1/mm/vmscan.c
 ===================================================================
---- linux-2.6.14-rc5-mm1.orig/mm/swapfile.c	2005-10-24 10:27:36.000000000 -0700
-+++ linux-2.6.14-rc5-mm1/mm/swapfile.c	2005-10-28 16:08:20.000000000 -0700
-@@ -624,6 +624,7 @@ static int try_to_unuse(unsigned int typ
- 		 */
- 		swap_map = &si->swap_map[i];
- 		entry = swp_entry(type, i);
-+again:
- 		page = read_swap_cache_async(entry, NULL, 0);
- 		if (!page) {
- 			/*
-@@ -658,6 +659,12 @@ static int try_to_unuse(unsigned int typ
- 		wait_on_page_locked(page);
- 		wait_on_page_writeback(page);
- 		lock_page(page);
-+		if (!PageSwapCache(page)) {
-+			/* Page migration has occured */
-+			unlock_page(page);
-+			page_cache_release(page);
-+			goto again;
-+		}
- 		wait_on_page_writeback(page);
+--- linux-2.6.14-rc5-mm1.orig/mm/vmscan.c	2005-11-02 11:39:01.000000000 -0800
++++ linux-2.6.14-rc5-mm1/mm/vmscan.c	2005-11-02 11:54:00.000000000 -0800
+@@ -572,6 +572,7 @@ keep:
+ 	return reclaimed;
+ }
  
- 		/*
++#ifdef CONFIG_MIGRATION
+ /*
+  * swapout a single page
+  * page is locked upon entry, unlocked on exit
+@@ -721,6 +722,7 @@ retry_later:
+ 
+ 	return nr_failed + retry;
+ }
++#endif
+ 
+ /*
+  * zone->lru_lock is heavily contended.  Some of the functions that
+@@ -766,10 +768,12 @@ static int isolate_lru_pages(struct zone
+ 	return scanned;
+ }
+ 
++#ifdef CONFIG_SMP
+ static void lru_add_drain_per_cpu(void *dummy)
+ {
+ 	lru_add_drain();
+ }
++#endif
+ 
+ /*
+  * Isolate one page from the LRU lists and put it on the
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
