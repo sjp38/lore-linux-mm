@@ -1,57 +1,59 @@
-Subject: Re: [PATCH]: Clean up of __alloc_pages
-From: Rohit Seth <rohit.seth@intel.com>
-In-Reply-To: <4366C188.5090607@yahoo.com.au>
-References: <20051028183326.A28611@unix-os.sc.intel.com>
-	 <4362DF80.3060802@yahoo.com.au>
-	 <1130792107.4853.24.camel@akash.sc.intel.com>
-	 <4366C188.5090607@yahoo.com.au>
-Content-Type: text/plain
-Date: Fri, 04 Nov 2005 10:15:08 -0800
-Message-Id: <1131128108.27563.11.camel@akash.sc.intel.com>
+Date: Fri, 4 Nov 2005 21:12:48 +0100
+From: Ingo Molnar <mingo@elte.hu>
+Subject: Re: [Lhms-devel] [PATCH 0/7] Fragmentation Avoidance V19
+Message-ID: <20051104201248.GA14201@elte.hu>
+References: <20051104170359.80947184684@thermo.lanl.gov>
 Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20051104170359.80947184684@thermo.lanl.gov>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: akpm@osdl.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andy Nelson <andy@thermo.lanl.gov>
+Cc: torvalds@osdl.org, akpm@osdl.org, arjan@infradead.org, arjanv@infradead.org, haveblue@us.ibm.com, kravetz@us.ibm.com, lhms-devel@lists.sourceforge.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mbligh@mbligh.org, mel@csn.ul.ie, nickpiggin@yahoo.com.au
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2005-11-01 at 12:14 +1100, Nick Piggin wrote:
-> Rohit Seth wrote:
-> > On Sat, 2005-10-29 at 12:33 +1000, Nick Piggin wrote:
-> 
-> >>If you don't do this, then a GFP_HIGH allocator can allocate right
-> >>down to its limit before it kicks kswapd, then it either will fail or
-> >>will have to do direct reclaim.
-> >>
-> > 
-> > 
-> > You are right if there are only GFP_HIGH requests coming in then the
-> > allocation will go down to (min - min/2) before kicking in kswapd.
-> > Though if the requester is not ready to wait, there is another good shot
-> > at allocation succeed before we get into direct reclaim (and this is
-> > happening based on can_try_harder flag).
-> > 
-> 
-> Still, it is a change in behaviour that I would rather not introduce
-> with a cleanup patch (and is something we don't want to introduce anyway).
-> 
-> So if you could fix that up it would be good.
-> 
+* Andy Nelson <andy@thermo.lanl.gov> wrote:
 
-Nick, sorry for not responding earlier.  
+> The problem is a different configuration of particles, and about 2 
+> times bigger (7Million) than the one in comp.arch (3million I think). 
+> I would estimate that the data set in this test spans something like 
+> 2-2.5GB or so.
+> 
+> Here are the results:
+> 
+> cpus    4k pages   16m pages
+> 1       4888.74s   2399.36s
+> 2       2447.68s   1202.71s
+> 4       1225.98s    617.23s
+> 6        790.05s    418.46s
+> 8        592.26s    310.03s
+> 12       398.46s    210.62s
+> 16       296.19s    161.96s
 
-I agree that it is slight change in behavior from original.  I doubt
-though it will impact any one in any negative way (may be for some
-higher order allocations if at all). On a little positive side, less
-frequent calls to kswapd for some cases and clear up the code a little
-bit.
+interesting, and thanks for the numbers. Even if hugetlbs were only 
+showing a 'mere' 5% improvement, a 5% _user-space improvement_ is still 
+a considerable improvement that we should try to achieve, if possible 
+cheaply.
 
-But I really don't want to get stuck here. The pcp traversal and
-flushing is where I want to go next.  
+the 'separate hugetlb zone' solution is cheap and simple, and i believe 
+it should cover your needs of mixed hugetlb and smallpages workloads.
 
-Thanks,
--rohit
+it would work like this: unlike the current hugepages=<nr> boot 
+parameter, this zone would be useful for other (4K sized) allocations 
+too. If an app requests a hugepage then we have the chance to allocate 
+it from the hugetlb zone, in a guaranteed way [up to the point where the 
+whole zone consists of hugepages only].
+
+the architectural appeal in this solution is that no additional 
+"fragmentation prevention" has to be done on this zone, because we only 
+allow content into it that is "easy" to flush - this means that there is 
+no complexity drag on the generic kernel VM.
+
+can you think of any reason why the boot-time-configured hugetlb zone 
+would be inadequate for your needs?
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
