@@ -1,46 +1,53 @@
-From: Arnd Bergmann <arnd@arndb.de>
-Subject: [PATCH] powerpc: mem_init crash for sparsemem
-Date: Fri, 4 Nov 2005 16:31:16 +0100
+Date: Fri, 4 Nov 2005 07:31:48 -0800 (PST)
+From: Linus Torvalds <torvalds@osdl.org>
+Subject: Re: [Lhms-devel] [PATCH 0/7] Fragmentation Avoidance V19
+In-Reply-To: <20051104063820.GA19505@elte.hu>
+Message-ID: <Pine.LNX.4.64.0511040725090.27915@g5.osdl.org>
+References: <20051104010021.4180A184531@thermo.lanl.gov>
+ <Pine.LNX.4.64.0511032105110.27915@g5.osdl.org> <20051103221037.33ae0f53.pj@sgi.com>
+ <20051104063820.GA19505@elte.hu>
 MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200511041631.17237.arnd@arndb.de>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linuxppc64-dev@ozlabs.org
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Ingo Molnar <mingo@elte.hu>
+Cc: Paul Jackson <pj@sgi.com>, andy@thermo.lanl.gov, mbligh@mbligh.org, akpm@osdl.org, arjan@infradead.org, arjanv@infradead.org, haveblue@us.ibm.com, kravetz@us.ibm.com, lhms-devel@lists.sourceforge.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mel@csn.ul.ie, nickpiggin@yahoo.com.au
 List-ID: <linux-mm.kvack.org>
 
-I have a Cell blade with some broken memory in the middle of the
-physical address space and this is correctly detected by the
-firmware, but not relocated. When I enable CONFIG_SPARSEMEM,
-the memsections for the nonexistant address space do not
-get struct page entries allocated, as expected.
 
-However, mem_init for the non-NUMA configuration tries to
-access these pages without first looking if they are there.
-I'm currently using the hack below to work around that, but
-I have the feeling that there should be a cleaner solution
-for this.
+On Fri, 4 Nov 2005, Ingo Molnar wrote:
+> 
+> just to make sure i didnt get it wrong, wouldnt we get most of the 
+> benefits Andy is seeking by having a: boot-time option which sets aside 
+> a "hugetlb zone", with an additional sysctl to grow (or shrink) the pool 
+> - with the growing happening on a best-effort basis, without guarantees?
 
-Please comment.
+Boot-time option to set the hugetlb zone, yes.
 
-Signed-off-by: Arnd Bergmann <arndb@de.ibm.com>
+Grow-or-shrink, probably not. Not in practice after bootup on any machine 
+that is less than idle.
 
---- linux-2.6.15-rc.orig/arch/powerpc/mm/mem.c
-+++ linux-2.6.15-rc/arch/powerpc/mm/mem.c
-@@ -348,6 +348,9 @@ void __init mem_init(void)
- #endif
- 	for_each_pgdat(pgdat) {
- 		for (i = 0; i < pgdat->node_spanned_pages; i++) {
-+			if (!section_has_mem_map(__pfn_to_section
-+					(pgdat->node_start_pfn + i)))
-+				continue;
- 			page = pgdat_page_nr(pgdat, i);
- 			if (PageReserved(page))
- 				reservedpages++;
+The zones have to be pretty big to make any sense. You don't just grow 
+them or shrink them - they'd be on the order of tens of megabytes to 
+gigabytes. In other words, sized big enough that you will _not_ be able to 
+create them on demand, except perhaps right after boot.
+
+Growing these things later simply isn't reasonable. I can pretty much 
+guarantee that any kernel I maintain will never have dynamic kernel 
+pointers: when some memory has been allocated with kmalloc() (or 
+equivalent routines - pretty much _any_ kernel allocation), it stays put. 
+Which means that if there is a _single_ kernel alloc in such a zone, it 
+won't ever be then usable for hugetlb stuff.
+
+And I don't want excessive complexity. We can have things like "turn off 
+kernel allocations from this zone", and then wait a day or two, and hope 
+that there aren't long-term allocs. It might even work occasionally. But 
+the fact is, a number of kernel allocations _are_ long-term (superblocks, 
+root dentries, "struct thread_struct" for long-running user daemons), and 
+it's simply not going to work well in practice unless you have set aside 
+the "no kernel alloc" zone pretty early on.
+
+		Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
