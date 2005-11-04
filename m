@@ -1,55 +1,118 @@
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e3.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id jA4Kw1fR011995
-	for <linux-mm@kvack.org>; Fri, 4 Nov 2005 15:58:01 -0500
-Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
-	by d01relay02.pok.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id jA4Kw1Bu102472
-	for <linux-mm@kvack.org>; Fri, 4 Nov 2005 15:58:01 -0500
-Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
-	by d01av03.pok.ibm.com (8.12.11/8.13.3) with ESMTP id jA4Kw16p021409
-	for <linux-mm@kvack.org>; Fri, 4 Nov 2005 15:58:01 -0500
-Date: Fri, 4 Nov 2005 12:57:58 -0800
-From: Mike Kravetz <kravetz@us.ibm.com>
-Subject: Re: [PATCH] powerpc: mem_init crash for sparsemem
-Message-ID: <20051104205758.GA5397@w-mikek2.ibm.com>
-References: <200511041631.17237.arnd@arndb.de> <436BC20B.9070704@shadowen.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <436BC20B.9070704@shadowen.org>
+Received: from thermo.lanl.gov (thermo.lanl.gov [128.165.59.202])
+	by mailwasher-b.lanl.gov (8.12.11/8.12.11/(ccn-5)) with SMTP id jA4L4MVr012154
+	for <linux-mm@kvack.org>; Fri, 4 Nov 2005 14:04:23 -0700
+Subject: Re: [Lhms-devel] [PATCH 0/7] Fragmentation Avoidance V19
+In-Reply-To: <20051104201248.GA14201@elte.hu>
+Message-Id: <20051104210418.BC56F184739@thermo.lanl.gov>
+Date: Fri,  4 Nov 2005 14:04:18 -0700 (MST)
+From: andy@thermo.lanl.gov (Andy Nelson)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andy Whitcroft <apw@shadowen.org>
-Cc: Arnd Bergmann <arnd@arndb.de>, linuxppc64-dev@ozlabs.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: andy@thermo.lanl.gov, mingo@elte.hu
+Cc: akpm@osdl.org, arjan@infradead.org, arjanv@infradead.org, haveblue@us.ibm.com, kravetz@us.ibm.com, lhms-devel@lists.sourceforge.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mbligh@mbligh.org, mel@csn.ul.ie, nickpiggin@yahoo.com.au, torvalds@osdl.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Nov 04, 2005 at 08:18:19PM +0000, Andy Whitcroft wrote:
-> Arnd Bergmann wrote:
-> > I have a Cell blade with some broken memory in the middle of the
-> > physical address space and this is correctly detected by the
-> > firmware, but not relocated. When I enable CONFIG_SPARSEMEM,
-> > the memsections for the nonexistant address space do not
-> > get struct page entries allocated, as expected.
-> > 
-> > However, mem_init for the non-NUMA configuration tries to
-> > access these pages without first looking if they are there.
+Hi,
 
-This earlier statement in mem_init (or at least the comment),
+>can you think of any reason why the boot-time-configured hugetlb zone 
+>would be inadequate for your needs?
 
-num_physpages = max_pfn;        /* RAM is assumed contiguous */
+I am not enough of a kernel level person or sysadmin to know for certain,
+but I have still big worries about consecutive jobs that run on the
+same resources, but want extremely different page behavior. If what
+you are suggesting can cause all previous history on those resources
+to be forgotten and then reset to whatever it is that I want when I
+start my run, then yes. It would be fine for me. In some sense, this is
+perhaps what I was asking for in my original message when I was talking
+about using batch schedulers, cpusets and friends to encapsulate 
+regions of resources, that could be reset to nice states at user
+specified intervals, like when the batch scheduler releases one job
+and another job starts.
 
-may be a cause for concern.  I'm pretty sure max_pfn has previously
-been set based on the value of lmb_end_of_DRAM().  My guess is that we
-are going to report the system as having more memory that it actually
-does (will not account for the hole(s)).
 
-That being said, the pfn_valid() check is still needed here.  But,
-it looks like that code was originally written under the assumption
-that there were no holes.
+The issues that I can still think of that hpc people will need are 
+(some points here are clearly related to each other, but anyway).
 
-Can someone 'more in the know' of ppc architecture comment on the
-ram is contiguous assumption?  Is this no longer the case?
--- 
-Mike
+
+  1) how do zones play with numa? Does setting up resource management this 
+     way mean that various kernel things that help me access my memory
+     (hellifino what I'm talking about here--things like tables and lists
+     of pages that I own and how to access them etc I suppose--whatever
+     it is that kernels don't get rid of when someone else's job ends and
+     before mine starts) actually get allocated in some other zone half
+     way across the machine? This is going to kill me on latency grounds.
+     Can it be set up so that this reserved special kernel zone is somewhere
+     close by? If it is bigger than the next guy to get my resources wants, 
+     can it be deleted and reset once my job is finished, so his job can run?
+     This is what I would hope for and expect that something like 
+     cpuset/memsets would help to do.
+
+  2) How do zones play with merging small pages into big pages, splitting
+     big pages into small, or deleting whatever page environment was there
+     in favor of a reset of those resources to some initial state? If
+     someone runs a small page job right after my big page job, will
+     they get big pages? If I run a big page job right after their small
+     page job, will I get small pages? 
+     
+     In each case, will it simply say 'no can do' and die? If this setup
+     just means that some jobs can't be run or can't be run after
+     something else, it will not fly.
+
+  3) How does any sort of fall back scheme work? If I can't have all of my
+     big pages, maybe I'll settle for some small ones and some big ones.
+     Can I have them? If I can't have them and die instead, zones like
+     this will not fly. 
+
+     Points 2 and 3 have mostly to do with the question Does the system
+     performance degrade over time for different constituencies of users
+     or can it stay up stably, serving everyone equally and well for a
+     long time? 
+
+  4) How does any of this stuff play with interactive management? It is
+     not going to fly if sysadmins have to get involved on a
+     daily/regular basis, or even at much more than a cursory level of 
+     turning something on once when the machine is purchased.
+
+  5) How does any of this stuff play with me having to rewrite my code to
+     use nonstandard language features? If I can't run using standard 
+     fortran, standard C and maybe for some folks standard C++ or Java,
+     it won't fly. 
+
+  6) what about text vs data pages. I'm talking here about executable
+     code vs whatever that code operates on. Do they get to have different
+     sized pages? Do they get allocated from sensible places on the
+     machine, as in reasonably separate from each other but not in some
+     far away zone over the rainbow?  
+
+  7) If OS's/HW ever get decent support for lots and lots of page sizes 
+     (like mips and sparc now) rather than a couple , will the 
+     infrastructure be able to give me whichever size I ask for, or will 
+     I only get to choose between a couple, even if perhaps settable at 
+     boot time? Extensibility like this will be a requirement long term 
+     of course.
+
+  8) What if I want 32 cpus and 64GB of memory on a machine, get it,
+     finish using it, and then the next jobs in line request say 8 cpus
+     and 16GB of memory, 4cpus and 16GB of memory, 20 cpus and 4GB
+     of memory? Will the zone system be able to handle such dynamically
+     changing things?
+
+
+What I would need to see is that these sorts of issues can be handled
+gracefully by the OS, perhaps with the help of some user land or
+priveleged userland hints that would come from things like the batch 
+scheduler or an env variable to set my prefered page size or other 
+things about memory policy.
+
+
+Thanks,
+
+Andy
+
+PS to Linus: I have secured access to an dual cpu dual core amd box. 
+I have to talk to someone who is not here today to see about turning
+on large pages. We'll see how that goes probably some time next week. 
+If it is possible, you'll see some benchmarks then.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
