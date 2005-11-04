@@ -1,49 +1,40 @@
-Date: Thu, 3 Nov 2005 23:26:49 -0800
-From: Paul Jackson <pj@sgi.com>
-Subject: Re: [Lhms-devel] [PATCH 0/7] Fragmentation Avoidance V19
-Message-Id: <20051103232649.12e58615.pj@sgi.com>
-In-Reply-To: <20051104063820.GA19505@elte.hu>
-References: <20051104010021.4180A184531@thermo.lanl.gov>
-	<Pine.LNX.4.64.0511032105110.27915@g5.osdl.org>
-	<20051103221037.33ae0f53.pj@sgi.com>
-	<20051104063820.GA19505@elte.hu>
+Date: Thu, 3 Nov 2005 23:36:28 -0800
+From: Andrew Morton <akpm@osdl.org>
+Subject: Re: [patch] swapin rlimit
+Message-Id: <20051103233628.12ed1eee.akpm@osdl.org>
+In-Reply-To: <20051104072628.GA20108@elte.hu>
+References: <E1EXEfW-0005ON-00@w-gerrit.beaverton.ibm.com>
+	<200511021747.45599.rob@landley.net>
+	<43699573.4070301@yahoo.com.au>
+	<200511030007.34285.rob@landley.net>
+	<20051103163555.GA4174@ccure.user-mode-linux.org>
+	<1131035000.24503.135.camel@localhost.localdomain>
+	<20051103205202.4417acf4.akpm@osdl.org>
+	<20051104072628.GA20108@elte.hu>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Ingo Molnar <mingo@elte.hu>
-Cc: torvalds@osdl.org, andy@thermo.lanl.gov, mbligh@mbligh.org, akpm@osdl.org, arjan@infradead.org, arjanv@infradead.org, haveblue@us.ibm.com, kravetz@us.ibm.com, lhms-devel@lists.sourceforge.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mel@csn.ul.ie, nickpiggin@yahoo.com.au
+Cc: pbadari@gmail.com, torvalds@osdl.org, jdike@addtoit.com, rob@landley.net, nickpiggin@yahoo.com.au, gh@us.ibm.com, kamezawa.hiroyu@jp.fujitsu.com, haveblue@us.ibm.com, mel@csn.ul.ie, mbligh@mbligh.org, kravetz@us.ibm.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, lhms-devel@lists.sourceforge.net
 List-ID: <linux-mm.kvack.org>
 
-Ingo wrote:
-> to clearly stress the 'might easily fail' restriction. But if userspace 
-> is well-behaved on Andy's systems (which it seems to be), then in 
-> practice it should be resizable. 
+Ingo Molnar <mingo@elte.hu> wrote:
+>
+> * Andrew Morton <akpm@osdl.org> wrote:
+> 
+>  > Similarly, that SGI patch which was rejected 6-12 months ago to kill 
+>  > off processes once they started swapping.  We thought that it could be 
+>  > done from userspace, but we need a way for userspace to detect when a 
+>  > task is being swapped on a per-task basis.
+> 
+>  wouldnt the clean solution here be a "swap ulimit"?
 
-At first glance, this is the sticky point that jumps out at me.
+Well it's _a_ solution, but it's terribly specific.
 
-Andy wrote:
->    My experience is that after some days or weeks of running have gone
->    by, there is no possible way short of a reboot to get pages merged
->    effectively back to any pristine state with the infrastructure that 
->    exists there.
-
-I take it, from what Andy writes, and from my other experience with
-similar customers, that his workload is not "well-behaved" in the
-sense you hoped for.
-
-After several diverse jobs are run, we cannot, so far as I know,
-merge small pages back to big pages.
-
-I have not played with Mel Gorman's Fragmentation Avoidance patches,
-so don't know if they would provide a substantial improvement here.
-They well might.
-
--- 
-                  I won't rest till it's the best ...
-                  Programmer, Linux Scalability
-                  Paul Jackson <pj@sgi.com> 1.925.600.0401
+How hard is it to read /proc/<pid>/nr_swapped_in_pages and if that's
+non-zero, kill <pid>?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
