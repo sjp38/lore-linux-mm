@@ -1,66 +1,62 @@
-Received: from thermo.lanl.gov (thermo.lanl.gov [128.165.59.202])
-	by mailwasher-b.lanl.gov (8.12.11/8.12.11/(ccn-5)) with SMTP id jA4Hi1vK017279
-	for <linux-mm@kvack.org>; Fri, 4 Nov 2005 10:44:01 -0700
-Subject: Re: [Lhms-devel] [PATCH 0/7] Fragmentation Avoidance V19
-In-Reply-To: <Pine.LNX.4.64.0511040900160.27915@g5.osdl.org>
-Message-Id: <20051104174356.B1B851846C2@thermo.lanl.gov>
-Date: Fri,  4 Nov 2005 10:43:56 -0700 (MST)
-From: andy@thermo.lanl.gov (Andy Nelson)
+From: Rob Landley <rob@landley.net>
+Subject: Re: [uml-devel] Re: [Lhms-devel] [PATCH 0/7] Fragmentation Avoidance V19
+Date: Fri, 4 Nov 2005 11:44:26 -0600
+References: <1130917338.14475.133.camel@localhost> <200511040950.59942.rob@landley.net> <200511041818.04397.blaisorblade@yahoo.it>
+In-Reply-To: <200511041818.04397.blaisorblade@yahoo.it>
+MIME-Version: 1.0
+Content-Type: text/plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200511041144.27762.rob@landley.net>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: mingo@elte.hu, torvalds@osdl.org
-Cc: akpm@osdl.org, andy@thermo.lanl.gov, arjan@infradead.org, arjanv@infradead.org, haveblue@us.ibm.com, kravetz@us.ibm.com, lhms-devel@lists.sourceforge.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mbligh@mbligh.org, mel@csn.ul.ie, nickpiggin@yahoo.com.au, pj@sgi.com
+To: Blaisorblade <blaisorblade@yahoo.it>
+Cc: user-mode-linux-devel@lists.sourceforge.net, Jeff Dike <jdike@addtoit.com>, Nick Piggin <nickpiggin@yahoo.com.au>, Yasunori Goto <y-goto@jp.fujitsu.com>, Dave Hansen <haveblue@us.ibm.com>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, lhms <lhms-devel@lists.sourceforge.net>
 List-ID: <linux-mm.kvack.org>
 
+On Friday 04 November 2005 11:18, Blaisorblade wrote:
+> > Oh well, bench it when it happens.  (And in any case, it needs a tunable
+> > to beat the page cache into submission or there's no free memory to give
+> > back.
+>
+> I couldn't parse your sentence. The allocation will free memory like when
+> memory is needed.
 
+If you've got a daemon running in the virtual system to hand back memory to 
+the host, then you don't need a tuneable.
 
-Linus,
+What I was thinking is that if we get prezeroing infrastructure that can use 
+various prezeroing accelerators (as has been discussed but I don't believe 
+merged), then a logical prezeroing accelerator for UML would be calling 
+madvise on the host system.  This has the advantage of automatically giving 
+back to the host system any memory that's not in use, but would require some 
+way to tell kswapd or some such that keeping around lots of prezeroed memory 
+is preferable to keeping around lots of page cache.
 
-Please stop focussing on mips as the bad boy. Mips is dead. It
-has been for years and everyone knows it unless they are embedded. 
-I wrote several times that I had tested other arches and every 
-time you deleted those comments.  Not to mention that in the few
-anecdotal (read no records were kept) tests I've done on with intel 
-vs mips on more than one code, mips doesn't come out nearly as bad 
-as you seem to believe. Maybe that is tlb related maybe it is other
-issue related. The fact remains.
+In my case, I have a workload that can mostly work with 32-48 megs of ram, but 
+it spikes up to 256 at one point.  Right now, I'm telling UML mem=64 megs and 
+the feeding it a 256 swap file on ubd, but this is hideously inefficient when 
+it actually tries to use this swap file.  (And since the host system is 
+running a 2.6.10 kernel, there's a five minute period during each build where 
+things on my desktop actually freeze for 15-30 seconds at a time.  And this 
+is on a laptop with 512 megs of ram.  I think it's because the disk is so 
+overwhelmed, and some things (like vim's .swp file, and something similar in 
+kmail's composer) do a gratuitous fsync...
 
-Later on after your posts I also posted numbers for power 5. Haven't
-seen a response to that yet. Maybe you're digesting.
+> However look at /proc/sys/vm/swappiness
 
-> let's just take Ingo's numbers, measured on modern hardware.
+Setting swappiness to 0 triggers the OOM killer on 2.6.14 for a load that 
+completes with swappiness at 60.  I mentioned this on the list a little while 
+ago and some people asked for copies of my test script...
 
-Ingo's numbers calculate 95% tlb misses. I will likely have 100% tlb
-misses over most of this code. Read my discussion of what it does
-and you'll see why. Capsule form: Every tree node results in several 
-thousand nodes that are acceptable. You need to examine several times 
-that to get the acceptable ones. Several thousand memory reads from
-several thousand different pages means 100% TLB misses. This is by no
-means a pathological case. Other codes will have such effects too, as
-I noted in my first very long rant.
+> or use Con Kolivas's patches to find new tunable and policies.
 
-I may have misread it, but that last bit of difference between 95% 
-and 100% tlb misses will be a pretty big factor in speed differences. 
-So your 20-40% goes right back up.
+The daemon you mentioned is an alternative, but I'm not quite sure how rapid 
+the daemon's reaction is going to be to potential OOM situations when 
+something suddenly wants an extra 200 megs...
 
-Ok, so there is some minimal in my case fp overlap, but a factor 2 
-speed difference certainly still exists in the power5 arch numbers I 
-quoted. 
-
-I have a special case version of this code that does cache blocking
-on the gravity calculation. As a special case version, it is not
-effective for the general case. There are 0 TLB misses and 0 L1 misses
-for this part of the code. The tree traversal cannot be similarly
-cache blocked and keeps all the tlb and cache misses it always had.
-
-For that version, I can get down to 20% speed up, because overall the
-traversal only takes 20% or so of the total time. That is the absolute
-best I can do, and I've been tuning this code alone for close to a
-decade.
-
-
-
-Andy
+Rob
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
