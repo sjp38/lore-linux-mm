@@ -1,50 +1,39 @@
-Date: Fri, 4 Nov 2005 08:07:47 -0800 (PST)
-From: Linus Torvalds <torvalds@osdl.org>
+Date: Fri, 04 Nov 2005 08:13:28 -0800
+From: "Martin J. Bligh" <mbligh@mbligh.org>
+Reply-To: "Martin J. Bligh" <mbligh@mbligh.org>
 Subject: Re: [Lhms-devel] [PATCH 0/7] Fragmentation Avoidance V19
-In-Reply-To: <20051104153903.E5D561845FF@thermo.lanl.gov>
-Message-ID: <Pine.LNX.4.64.0511040801450.27915@g5.osdl.org>
-References: <20051104153903.E5D561845FF@thermo.lanl.gov>
+Message-ID: <331390000.1131120808@[10.10.2.4]>
+In-Reply-To: <Pine.LNX.4.64.0511040738540.27915@g5.osdl.org>
+References: <20051104145628.90DC71845CE@thermo.lanl.gov> <Pine.LNX.4.64.0511040738540.27915@g5.osdl.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andy Nelson <andy@thermo.lanl.gov>
-Cc: mingo@elte.hu, akpm@osdl.org, arjan@infradead.org, arjanv@infradead.org, haveblue@us.ibm.com, kravetz@us.ibm.com, lhms-devel@lists.sourceforge.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mbligh@mbligh.org, mel@csn.ul.ie, nickpiggin@yahoo.com.au, pj@sgi.com
+To: Linus Torvalds <torvalds@osdl.org>, Andy Nelson <andy@thermo.lanl.gov>
+Cc: akpm@osdl.org, arjan@infradead.org, arjanv@infradead.org, haveblue@us.ibm.com, kravetz@us.ibm.com, lhms-devel@lists.sourceforge.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mel@csn.ul.ie, mingo@elte.hu, nickpiggin@yahoo.com.au
 List-ID: <linux-mm.kvack.org>
 
+> So I suspect Martin's 25% is a lot more accurate on modern hardware (which 
+> means x86, possibly Power. Nothing else much matters).
 
-On Fri, 4 Nov 2005, Andy Nelson wrote:
+It was PPC64, if that helps.
+ 
+>> If your and other kernel developer's (<<0.01% of the universe) kernel
+>> builds slow down by 5% and my and other people's simulations (perhaps 
+>> 0.01% of the universe) speed up by a factor up to 3 or 4, who wins? 
 > 
-> AFAIK, mips chips have a software TLB refill that takes 1000
-> cycles more or less. I could be wrong.
+> First off, you won't speed up by a factor of three or four. Not even 
+> _close_. 
 
-You're not far off.
+Well, I think it depends on the workload a lot. However fast your TLB is,
+if we move from "every cacheline read requires is a TLB miss" to "every
+cacheline read is a TLB hit" that can be a huge performance knee however
+fast your TLB is. Depends heavily on the locality of reference and size
+of data set of the application, I suspect.
 
-Time it on a real machine some day. On a modern x86, you will fill a TLB 
-entry in anything from 1-8 cycles if it's in L1, and add a couple of dozen 
-cycles for L2.
-
-In fact, the L1 TLB miss can often be hidden by the OoO engine.
-
-Now, do the math. Your "3-4 time slowdown" with several hundred cycle TLB 
-miss just GOES AWAY with real hardware. Yes, you'll still see slowdowns, 
-but they won't be nearly as noticeable. And having a simpler and more 
-efficient kernel will actually make _up_ for them in many cases. For 
-example, you can do all your calculations on idle workstations that don't 
-mysteriously just crash because somebody was also doing something else on 
-them.
-
-Face it. MIPS sucks. It was clean, but it didn't perform very well. SGI 
-doesn't sell those things very actively these days, do they?
-
-So don't blame Linux. Don't make sweeping statements based on hardware 
-situations that just aren't relevant any more. 
-
-If you ever see a machine again that has a huge TLB slowdown, let the 
-machine vendor know, and then SWITCH VENDORS. Linux will work on sane 
-machines too.
-
-		Linus
+M.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
