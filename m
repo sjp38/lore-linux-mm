@@ -1,68 +1,44 @@
-Date: Thu, 3 Nov 2005 21:14:59 -0800 (PST)
-From: Linus Torvalds <torvalds@osdl.org>
+Date: Thu, 3 Nov 2005 21:35:38 -0800
+From: Paul Jackson <pj@sgi.com>
 Subject: Re: [Lhms-devel] [PATCH 0/7] Fragmentation Avoidance V19
-In-Reply-To: <20051104010021.4180A184531@thermo.lanl.gov>
-Message-ID: <Pine.LNX.4.64.0511032105110.27915@g5.osdl.org>
-References: <20051104010021.4180A184531@thermo.lanl.gov>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Message-Id: <20051103213538.7f037b3a.pj@sgi.com>
+In-Reply-To: <20051103205202.4417acf4.akpm@osdl.org>
+References: <E1EXEfW-0005ON-00@w-gerrit.beaverton.ibm.com>
+	<200511021747.45599.rob@landley.net>
+	<43699573.4070301@yahoo.com.au>
+	<200511030007.34285.rob@landley.net>
+	<20051103163555.GA4174@ccure.user-mode-linux.org>
+	<1131035000.24503.135.camel@localhost.localdomain>
+	<20051103205202.4417acf4.akpm@osdl.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andy Nelson <andy@thermo.lanl.gov>
-Cc: mbligh@mbligh.org, akpm@osdl.org, arjan@infradead.org, arjanv@infradead.org, haveblue@us.ibm.com, kravetz@us.ibm.com, lhms-devel@lists.sourceforge.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mel@csn.ul.ie, mingo@elte.hu, nickpiggin@yahoo.com.au
+To: Andrew Morton <akpm@osdl.org>
+Cc: pbadari@gmail.com, jdike@addtoit.com, rob@landley.net, nickpiggin@yahoo.com.au, gh@us.ibm.com, mingo@elte.hu, kamezawa.hiroyu@jp.fujitsu.com, haveblue@us.ibm.com, mel@csn.ul.ie, mbligh@mbligh.org, kravetz@us.ibm.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, lhms-devel@lists.sourceforge.net
 List-ID: <linux-mm.kvack.org>
 
-
-On Thu, 3 Nov 2005, Andy Nelson wrote:
+> Similarly, that SGI patch which was rejected 6-12 months ago to kill off
+> processes once they started swapping.  We thought that it could be done
+> from userspace, but we need a way for userspace to detect when a task is
+> being swapped on a per-task basis.
 > 
-> I have done high performance computing in astrophysics for nearly two
-> decades now. It gives me a perspective that kernel developers usually
-> don't have, but sometimes need. For my part, I promise that I specifically
-> do *not* have the perspective of a kernel developer. I don't even speak C.
+> I'm thinking a few numbers in the mm_struct, incremented in the pageout
+> code, reported via /proc/stat.
 
-Hey, cool. You're a physicist, and you'd like to get closer to 100% 
-efficiency out of your computer.
+I just sent in a proposed patch for this - one more per-cpuset
+number, tracking the recent rate of calls into the synchronous
+(direct) page reclaim by tasks in the cpuset.
 
-And that's really nice, because maybe we can strike a deal.
+See the message sent a few minutes ago, with subject:
 
-Because I also have a problem with my computer, and a physicist might just 
-help _me_ get closer to 100% efficiency out of _my_ computer.
+  [PATCH 5/5] cpuset: memory reclaim rate meter
 
-Let me explain.
-
-I've got a laptop that takes about 45W, maybe 60W under load.
-
-And it has a battery that weighs about 350 grams.
-
-Now, I know that if I were to get 100% energy efficiency out of that 
-battery, a trivial physics calculations tells me that e=mc^2, and that my 
-battery _should_ have a hell of a lot of energy in it. In fact, according 
-to my simplistic calculations, it turns out that my laptop _should_ have a 
-battery life that is only a few times the lifetime of the universe.
-
-It turns out that isn't really the case in practice, but I'm hoping you 
-can help me out. I obviously don't need it to be really 100% efficient, 
-but on the other hand, I'd also like the battery to be slightly lighter, 
-so if you could just make sure that it's at least _slightly_ closer to the 
-theoretical values I should be getting out of it, maybe I wouldn't need to 
-find one of those nasty electrical outlets every few hours.
-
-Do we have a deal? After all, you only need to improve my battery 
-efficiency by a really _tiny_ amount, and I'll never need to recharge it 
-again. And I'll improve your problem.
-
-Or are you maybe willing to make a few compromises in the name of being 
-realistic, and living with something less than the theoretical peak 
-performance of what you're doing?
-
-I'm willing on compromising to using only the chemical energy of the 
-processes involved, and not even a hundred percent efficiency at that. 
-Maybe you'd be willing on compromising by using a few kernel boot-time 
-command line options for your not-very-common load.
-
-Ok?
-
-			Linus
+-- 
+                  I won't rest till it's the best ...
+                  Programmer, Linux Scalability
+                  Paul Jackson <pj@sgi.com> 1.925.600.0401
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
