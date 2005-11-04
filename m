@@ -1,93 +1,64 @@
-Date: Fri, 4 Nov 2005 09:22:43 -0800 (PST)
-From: Linus Torvalds <torvalds@osdl.org>
+Date: Fri, 4 Nov 2005 09:38:33 -0800
+From: Andrew Morton <akpm@osdl.org>
 Subject: Re: [Lhms-devel] [PATCH 0/7] Fragmentation Avoidance V19
-In-Reply-To: <20051104164020.GA9028@elte.hu>
-Message-ID: <Pine.LNX.4.64.0511040900160.27915@g5.osdl.org>
-References: <20051104153903.E5D561845FF@thermo.lanl.gov>
- <Pine.LNX.4.64.0511040801450.27915@g5.osdl.org> <20051104164020.GA9028@elte.hu>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Message-Id: <20051104093833.0db634f0.akpm@osdl.org>
+In-Reply-To: <325200000.1131117596@[10.10.2.4]>
+References: <E1EXEfW-0005ON-00@w-gerrit.beaverton.ibm.com>
+	<200511021747.45599.rob@landley.net>
+	<43699573.4070301@yahoo.com.au>
+	<200511030007.34285.rob@landley.net>
+	<20051103163555.GA4174@ccure.user-mode-linux.org>
+	<1131035000.24503.135.camel@localhost.localdomain>
+	<20051103205202.4417acf4.akpm@osdl.org>
+	<20051103213538.7f037b3a.pj@sgi.com>
+	<20051103214807.68a3063c.akpm@osdl.org>
+	<20051103224239.7a9aee29.pj@sgi.com>
+	<20051103231019.488127a6.akpm@osdl.org>
+	<325200000.1131117596@[10.10.2.4]>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ingo Molnar <mingo@elte.hu>
-Cc: Andy Nelson <andy@thermo.lanl.gov>, akpm@osdl.org, arjan@infradead.org, arjanv@infradead.org, haveblue@us.ibm.com, kravetz@us.ibm.com, lhms-devel@lists.sourceforge.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mbligh@mbligh.org, mel@csn.ul.ie, nickpiggin@yahoo.com.au, pj@sgi.com
+To: "Martin J. Bligh" <mbligh@mbligh.org>
+Cc: pj@sgi.com, bron@bronze.corp.sgi.com, pbadari@gmail.com, jdike@addtoit.com, rob@landley.net, nickpiggin@yahoo.com.au, gh@us.ibm.com, mingo@elte.hu, kamezawa.hiroyu@jp.fujitsu.com, haveblue@us.ibm.com, mel@csn.ul.ie, kravetz@us.ibm.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, lhms-devel@lists.sourceforge.net
 List-ID: <linux-mm.kvack.org>
 
-Andy,
- let's just take Ingo's numbers, measured on modern hardware.
-
-On Fri, 4 Nov 2005, Ingo Molnar wrote:
+"Martin J. Bligh" <mbligh@mbligh.org> wrote:
+>
+> > Seriously, it does appear that doing it per-task is adequate for your
+> > needs, and it is certainly more general.
+> > 
+> > 
+> > 
+> > I cannot understand why you decided to count only the number of
+> > direct-reclaim events, via a "digitally filtered, constant time based,
+> > event frequency meter".
+> > 
+> > a) It loses information.  If we were to export the number of pages
+> >    reclaimed from the mm, filtering can be done in userspace.
+> > 
+> > b) It omits reclaim performed by kswapd and by other tasks (ok, it's
+> >    very cpuset-specific).
+> > 
+> > c) It only counts synchronous try_to_free_pages() attempts.  What if an
+> >    attempt only freed pagecache, or didbn't manage to free anything?
+> > 
+> > d) It doesn't notice if kswapd is swapping the heck out of your
+> >    not-allocating-any-memory-now process.
+> > 
+> > 
+> > I think all the above can be addressed by exporting per-task (actually
+> > per-mm) reclaim info.  (I haven't put much though into what info that
+> > should be - page reclaim attempts, mmapped reclaims, swapcache reclaims,
+> > etc)
 > 
->   32768 randomly accessed pages, 13 cycles avg, 73.751831% TLB misses.
->   32768 linearly accessed pages,  0 cycles avg,  0.259399% TLB misses.
->  131072 randomly accessed pages, 75 cycles avg, 94.162750% TLB misses.
+> I've been looking at similar things. When we page out / free something from 
+> a shared library that 10 tasks have mapped, who does that count against
+> for pressure?
 
-NOTE! It's hard to decide what OoO does - Ingo's load doesn't allow for a 
-whole lot of overlapping stuff, so Ingo's numbers are fairly close to 
-worst case, but on the other hand, that serialization can probably be 
-honestly said to hide a couple of cycles, so let's say that _real_ worst 
-case is five more cycles than the ones quoted. It doesn't change the math, 
-and quite frankly, that way we're really anal about it.
-
-In real life, under real load (especially with Fp operations going on at 
-the same time), OoO might make the cost a few cycles _less_, not more, but 
-hey, lt's not count that.
-
-So in the absolute worst case, with 95% TLB miss ratio, the TLB cost was 
-an average 75 cycles. Let's be _really_ nice to MIPS, and say that this is 
-only five times faster than the MIPS case you tested (in reality, it's 
-probably over ten).
-
-That's the WORST CASE. Realize that MIPS doesn't get better: it will 
-_always_ have a latency of several hundred cycles when the TLB misses. It 
-has absolutely zero OoO activity to hide a TLB miss (a software miss 
-totally serializes the pipeline), and it has zero "code caching", so even 
-with a perfect I$ (which it certainly didn't have), the cost of actually 
-running the TLB miss handler doesn't go down.
-
-In contrast, the x86 hw miss gets better when there is some more locality 
-and the page tables are cached. Much better. Ingo's worst-case example is 
-not realistic (no locality at all in half a gigabyte or totally random 
-examples), yet even for that worst case, modern CPU's beat the MIPS by 
-that big factor. 
-
-So let's say that the 75% miss ratio was more likely (that's still a high 
-TLB miss ratio). So in the _likely_ case, a P4 did the miss in an average 
-of 13 cycles. The MIPS miss cost won't have come down at all - in fact, it 
-possibly went _up_, since the miss handler now might be getting more I$ 
-misses since it's not called all the time (I don't know if the MIPS miss 
-handler used non-caching loads or not - the positive D$ effects on the 
-page tables from slightly denser TLB behaviour might help some to offset 
-this factor).
-
-That's a likely factor of fifty speedup. But let's be pessimistic again, 
-and say that the P4 number beat the MIPS TLB miss by "only" a factor of 
-twenty. That means that your worst case totally untuned argument (30 times 
-slowdown from TLB misses) on a P4 is only a 120% slowdown. Not a factor of 
-three.
-
-But clearly you could tune your code too, and did. To the point that you 
-had a factor of 3.4 on MIPS. Now, let's say that the tuning didn't work as 
-well on P4 (remember, we're still being pessimistic), and you'd only get 
-half of that.
-
-End result? If the slowdown was entirely due to TLB miss costs, your 
-likely slowdown is in the 20-40% range. Pessimistically.
-
-Now, switching to x86 may have _other_ issues. Maybe other things might 
-get slower. [ Mmwwhahahahhahaaa. I crack myself up. x86 slower than MIPS? 
-I'm such a joker. ]
-
-Anyway. The point stands. This is something where hardware really rules, 
-and software can't do a lot of sane stuff. 20-40% may sound like a big 
-number, and it is, but this is all stuff where Moore's Law says that 
-we shouldn't spend software effort.
-
-We'll likely be better off with a smaller, simpler kernel in the future. I 
-hope. And the numbers above back me up. Software complexity for something 
-like this just kills.
-
-		Linus
+Count pte unmappings and minor faults and account them against the
+mm_struct, I guess.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
