@@ -1,193 +1,192 @@
-Date: Fri, 4 Nov 2005 16:22:39 +0000 (GMT)
-From: Mel Gorman <mel@csn.ul.ie>
+Date: Fri, 4 Nov 2005 17:40:20 +0100
+From: Ingo Molnar <mingo@elte.hu>
 Subject: Re: [Lhms-devel] [PATCH 0/7] Fragmentation Avoidance V19
-In-Reply-To: <Pine.LNX.4.64.0511031102590.27915@g5.osdl.org>
-Message-ID: <Pine.LNX.4.58.0511041553590.22563@skynet>
-References: <4366C559.5090504@yahoo.com.au>
- <Pine.LNX.4.58.0511010137020.29390@skynet><4366D469.2010202@yahoo.com.au>
- <Pine.LNX.4.58.0511011014060.14884@skynet><20051101135651.GA8502@elte.hu>
- <1130854224.14475.60.camel@localhost><20051101142959.GA9272@elte.hu>
- <1130856555.14475.77.camel@localhost><20051101150142.GA10636@elte.hu>
- <1130858580.14475.98.camel@localhost><20051102084946.GA3930@elte.hu>
- <436880B8.1050207@yahoo.com.au><1130923969.15627.11.camel@localhost>
- <43688B74.20002@yahoo.com.au><255360000.1130943722@[10.10.2.4]>
- <4369824E.2020407@yahoo.com.au>
- <306020000.1131032193@[10.10.2.4]><1131032422.2839.8.camel@laptopd505.fenrus.org><Pine.LNX.4.64.0511030747450.27915@g5.osdl.org><Pine.LNX.4.58.0511031613560.3571@skynet><Pine.LNX.4.64.0511030842050.27915@g5.osdl.org><309420000.1131036740@[10.10.2.4]>
- <Pine.LNX.4.64.0511030918110.27915@g5.osdl.org> <311050000.1131040276@[10.10.2.4]>
- <314040000.1131043735@[10.10.2.4]> <Pine.LNX.4.64.0511031102590.27915@g5.osdl.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Message-ID: <20051104164020.GA9028@elte.hu>
+References: <20051104153903.E5D561845FF@thermo.lanl.gov> <Pine.LNX.4.64.0511040801450.27915@g5.osdl.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.64.0511040801450.27915@g5.osdl.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Linus Torvalds <torvalds@osdl.org>
-Cc: "Martin J. Bligh" <mbligh@mbligh.org>, Arjan van de Ven <arjan@infradead.org>, Nick Piggin <nickpiggin@yahoo.com.au>, Dave Hansen <haveblue@us.ibm.com>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@osdl.org>, kravetz@us.ibm.com, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, lhms <lhms-devel@lists.sourceforge.net>, Arjan van de Ven <arjanv@infradead.org>
+Cc: Andy Nelson <andy@thermo.lanl.gov>, akpm@osdl.org, arjan@infradead.org, arjanv@infradead.org, haveblue@us.ibm.com, kravetz@us.ibm.com, lhms-devel@lists.sourceforge.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mbligh@mbligh.org, mel@csn.ul.ie, nickpiggin@yahoo.com.au, pj@sgi.com
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 3 Nov 2005, Linus Torvalds wrote:
+* Linus Torvalds <torvalds@osdl.org> wrote:
 
->
->
-> On Thu, 3 Nov 2005, Martin J. Bligh wrote:
-> >
-> > Ha. Just because I don't think I made you puke hard enough already with
-> > foul approximations ... for order 2, I think it's
->
-> Your basic fault is in believing that the free watermark would stay
-> constant.
->
-> That's insane.
->
-> Would you keep 8MB free on a 64MB system?
->
-> Would you keep 8MB free on a 8GB system?
->
-> The point being, that if you start with insane assumptions, you'll get
-> insane answers.
->
-> The _correct_ assumption is that you aim to keep some fixed percentage of
-> memory free. With that assumption and your math, finding higher-order
-> pages is equally hard regardless of amount of memory.
->
-> Now, your math then doesn't allow for the fact that buddy automatically
-> coalesces for you, so in fact things get _easier_ with more memory, but
-> hey, that needs more math than I can come up with (I never did it as math,
-> only as simulations with allocation patterns - "smart people use math,
-> plodding people just try to simulate an estimate" ;)
->
+> Time it on a real machine some day. On a modern x86, you will fill a 
+> TLB entry in anything from 1-8 cycles if it's in L1, and add a couple 
+> of dozen cycles for L2.
 
-My math is not that great either, so here is a simulation.
+below is my (x86-only) testcode that accurately measures TLB miss costs 
+in cycles. (Has to be run as root, because it uses 'cli' as the 
+serializing instruction.)
 
-Setup: Reboot the machine which is a quad xeon xSeries 350 with 1.5GiB of
-RAM. Configure /proc/sys/vm/min_free_kbytes to try and keep 1/8th of
-physical memory free. This is to keep in line with your suggestion that
-fragmentation is low when there is a higher percentage of memory free.
+here's the output from the default 128MB (32768 4K pages) random access 
+pattern workload, on a 2 GHz P4 (which has 64 dTLBs):
 
-Load: Run a load - 7 kernels compiling simultaneously at -j2 which gives
-loads between 10-14. Try and get 50% worth of physical memory in 4MiB
-pages (1024 contiguous pages) while compiling. When the test ends and the
-system is quiet, try again. 4MiB in this case is a single HugeTLB page.
+  0 24 24 24 12 12 0 0 16 0 24 24 24 12 0 12 0 12
 
-Here are the results;
+  32768 randomly accessed pages, 13 cycles avg, 73.751831% TLB misses.
 
-2.6.14-rc5-mm1-clean (OOM killer disabled) Allocating Under Load
-Order:                 10
-Allocation type:       HighMem
-Attempted allocations: 160
-Success allocs:        24
-Failed allocs:         136
-DMA zone allocs:       0
-Normal zone allocs:    16
-HighMem zone allocs:   8
-% Success:            15
+i.e. really cheap TLB misses even in this very bad and TLB-trashing 
+scenario: there are only 64 dTLBs and we have 32768 pages - so they are 
+outnumbered by a factor of 1:512! Still the CPU gets it right.
 
-2.6.14-rc5-mm1-mbuddy-v19 Allocating Under Load
-Order:                 10
-Allocation type:       HighMem
-Attempted allocations: 160
-Success allocs:        24
-Failed allocs:         136
-DMA zone allocs:       0
-Normal zone allocs:    11
-HighMem zone allocs:   13
-% Success:            15
+setting LINEAR to 1 gives an embarrasing:
 
-Not a lot of difference there and the success rate is not great.
-mbuddy-v19 is a bit better at the normal zone and that's about it. These
-results are not surprising as kswapd is making no effort to get contiguous
-pages. Under a load of 7 kernel compiles, kswapd will not free pages fast
-enough.
+ 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
 
-When the test ends and the system is quiet, try and get 80% of physical
-memory in large pages. 4 attempts are made to satisfy the requests to give
-kswapd lots of time.
+ 32768 linearly accessed pages, 0 cycles avg, 0.259399% TLB misses.
 
-2.6.14-rc5-mm1-clean (OOM killer disabled) Allocating while rested
-Order:                 10
-Allocation type:       HighMem
-Attempted allocations: 300
-Success allocs:        159
-Failed allocs:         141
-DMA zone allocs:       0
-Normal zone allocs:    46
-HighMem zone allocs:   113
-% Success:            53
+showing that the pagetable got fully cached (probably in L1) and that 
+has _zero_ overhead. Truly remarkable.
 
-Mainly highmem there.
+lowering the size to 16 MB (still 1:64 TLB-to-working-set-size ratio!) 
+gives:
 
-2.6.14-rc5-mm1-mbuddy-v19 Allocating while rested
-Order:                 10
-Allocation type:       HighMem
-Attempted allocations: 300
-Success allocs:        212
-Failed allocs:         88
-DMA zone allocs:       0
-Normal zone allocs:    102
-HighMem zone allocs:   110
-% Success:            70
+ 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
 
-Look at the big difference in the number of successful allocations in
-ZONE_NORMAL because the kernel allocations were kept together. Experience
-has shown me that failure to get higher success rates depended on per-cpu
-pages and the number of kernel pages that leaked to other areas (56 over
-the course of this test). Kernel pages leaking was helped a lot by setting
-min_free_kbytes higher than the default.
+ 4096 randomly accessed pages, 0 cycles avg, 5.859375% TLB misses.
 
-I then ported forward the linear scanner and ran the tests again. The
-linear scanner does two things - finds linear reclaimable pages using
-information provided by anti-defrag and drains the per-cpu caches. I'll
-post the linear scanner code if people want to look at it but it's really
-crap. It's slow, works too hard and doesn't try to hold on to the pages
-for the process reclaiming the pages are just some of it's problems. I
-need to rewrite it almost from scratch and avoid all the mistakes but it's
-a path that is hit *only* if you are allocating high orders.
+so near-zero TLB overhead.
 
-2.6.14-rc5-mm1-mbuddy-v19-lnscan Allocating under load
-Order:                 10
-Allocation type:       HighMem
-Attempted allocations: 160
-Success allocs:        155
-Failed allocs:         0
-DMA zone allocs:       0
-Normal zone allocs:    12
-HighMem zone allocs:   143
-% Success:            96
+increasing BYTES to half a gigabyte gives:
 
-Mainly got it's pages back from highmem which is always easier as long as
-PTE pages are not in the way.
+ 2 0 12 12 24 12 24 264 24 12 24 24 0 0 24 12 24 24 24 24 24 24 24 24 12 
+ 12 24 24 24 36 24 24 0 24 24 0 24 24 288 24 24 0 228 24 24 0 0 
 
-2.6.14-rc5-mm1-mbuddy-v19-lnscan Allocating while rested
-Order:                 10
-Allocation type:       HighMem
-Attempted allocations: 300
-Success allocs:        275
-Failed allocs:         0
-DMA zone allocs:       0
-Normal zone allocs:    133
-HighMem zone allocs:   142
-% Success:            91
+ 131072 randomly accessed pages, 75 cycles avg, 94.162750% TLB misses.
 
-That is 71% of physical memory available in contiguous blocks with the
-linear scanner but that code is not ready. anti-defrag on it's own as it
-is today was able to get 55% of physical memory in 4MiB chunks.
+so an occasional ~220 cycles (~== 100 nsec - DRAM latency) cachemiss, 
+but still the average is 75 cycles, or 37 nsecs - which is still only 
+~37% of the DRAM latency.
 
-This is provided without performance regressions in the normal case
-everyone cares about. In my tests, there are minor improvements on aim9
-which is artificial, and gained a few seconds on kernel build tests which
-people do care about.
+(NOTE: the test eliminates most data cachemisses, by using zero-mapped 
+anonymous memory, so only a single data page exists. So the costs seen 
+here are mostly TLB misses.)
 
-Does these patches still make no sense to you? Lower fragmentation that
-does not impact the cases everyone cares about? If so, why?
+	Ingo
 
-To get the best possibly results, a zone approach could still be built on
-top of this and it seems as if it's worth developing. At the cost of some
-configuration, the zone would give *hard* guarantees on the available
-number of large pages and anti-defrag would give best effort everywhere
-else. By default without configuration, you would get best-effort.
+---------------
+/*
+ * TLB miss measurement on PII CPUs.
+ *
+ * Copyright (C) 1999, Ingo Molnar <mingo@redhat.com>
+ */
+#include <stdio.h>
+#include <stdlib.h>
+#include <signal.h>
+#include <sys/wait.h>
+#include <sys/mman.h>
 
--- 
-Mel Gorman
-Part-time Phd Student                          Java Applications Developer
-University of Limerick                         IBM Dublin Software Lab
+#define BYTES (128*1024*1024)
+#define PAGES (BYTES/4096)
+
+/* This define turns on the linear mode.. */
+#define LINEAR 0
+
+#if 1
+# define BARRIER "cli"
+#else
+# define BARRIER "lock ; addl $0,0(%%esp)"
+#endif
+
+int do_test (char * addr)
+{
+	unsigned long start, end;
+	/*
+	 * 'cli' is used as a serializing instruction to
+	 * isolate the benchmarked instruction from rdtsc.
+	 */
+	__asm__ (
+		"jmp 1f; 1: .align 128;\
+"BARRIER";				\
+		rdtsc;			\
+		movl %0, %1;		\
+"BARRIER";				\
+		movl (%%esi), %%eax;	\
+"BARRIER";				\
+		rdtsc;			\
+"BARRIER";				\
+		"
+
+		:"=a" (end), "=c" (start)
+		:"S" (addr)
+		:"dx","memory");
+	return end - start;
+}
+
+extern int iopl(int);
+
+int main (void)
+{
+	unsigned long overhead, sum;
+	int j, k, c, hit;
+	int matrix [PAGES];
+	int delta [PAGES];
+	char *buffer = mmap(NULL, BYTES, PROT_READ, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+
+	iopl(3);
+	/*
+	 * first generate a random access pattern.
+	 */
+	for (j = 0; j < PAGES; j++) {
+		unsigned long val;
+#if LINEAR
+		val = ((j*8) % PAGES) * 4096;
+		val = j*2048;
+#else
+		val = (random() % PAGES) * 4096;
+#endif
+		matrix[j] = val;
+	}
+
+	/*
+	 * Calculate the overhead
+	 */
+	overhead = ~0UL;
+	for (j = 0; j < 100; j++) {
+		unsigned int diff = do_test(buffer);
+		if (diff < overhead)
+			overhead = diff;
+	}
+	printf("Overhead = %ld cycles\n", overhead);
+
+	/*
+	 * 10 warmup loops, the last one is printed.
+	 */
+	for (k = 0; k < 10; k++) {
+		c = 0;
+		for (j = 0; j < PAGES; j++) {
+			char * addr;
+			addr = buffer + matrix[j];
+			delta[c++] = do_test(addr);
+		}
+	}
+	hit = 0;
+	sum = 0;
+	for (j = 0; j < PAGES; j++) {
+		unsigned long d = delta[j] - overhead;
+		printf("%ld ", d);
+		if (d <= 1)
+			hit++;
+		sum += d;
+	}
+	printf("\n");
+	printf("%d %s accessed pages, %d cycles avg, %f%% TLB misses.\n",
+		PAGES,
+#if LINEAR
+		"linearly",
+#else
+		"randomly",
+#endif
+		sum/PAGES,
+		100.0*((double)PAGES-(double)hit)/(double)PAGES);
+
+	return 0;
+}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
