@@ -1,62 +1,44 @@
-From: Rob Landley <rob@landley.net>
-Subject: Re: [uml-devel] Re: [Lhms-devel] [PATCH 0/7] Fragmentation Avoidance V19
-Date: Fri, 4 Nov 2005 11:44:26 -0600
-References: <1130917338.14475.133.camel@localhost> <200511040950.59942.rob@landley.net> <200511041818.04397.blaisorblade@yahoo.it>
-In-Reply-To: <200511041818.04397.blaisorblade@yahoo.it>
+Date: Fri, 4 Nov 2005 09:49:33 -0800 (PST)
+From: Linus Torvalds <torvalds@osdl.org>
+Subject: Re: [Lhms-devel] [PATCH 0/7] Fragmentation Avoidance V19
+In-Reply-To: <20051104170359.80947184684@thermo.lanl.gov>
+Message-ID: <Pine.LNX.4.64.0511040943130.27921@g5.osdl.org>
+References: <20051104170359.80947184684@thermo.lanl.gov>
 MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200511041144.27762.rob@landley.net>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Blaisorblade <blaisorblade@yahoo.it>
-Cc: user-mode-linux-devel@lists.sourceforge.net, Jeff Dike <jdike@addtoit.com>, Nick Piggin <nickpiggin@yahoo.com.au>, Yasunori Goto <y-goto@jp.fujitsu.com>, Dave Hansen <haveblue@us.ibm.com>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, lhms <lhms-devel@lists.sourceforge.net>
+To: Andy Nelson <andy@thermo.lanl.gov>
+Cc: akpm@osdl.org, arjan@infradead.org, arjanv@infradead.org, haveblue@us.ibm.com, kravetz@us.ibm.com, lhms-devel@lists.sourceforge.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mbligh@mbligh.org, mel@csn.ul.ie, mingo@elte.hu, nickpiggin@yahoo.com.au
 List-ID: <linux-mm.kvack.org>
 
-On Friday 04 November 2005 11:18, Blaisorblade wrote:
-> > Oh well, bench it when it happens.  (And in any case, it needs a tunable
-> > to beat the page cache into submission or there's no free memory to give
-> > back.
->
-> I couldn't parse your sentence. The allocation will free memory like when
-> memory is needed.
 
-If you've got a daemon running in the virtual system to hand back memory to 
-the host, then you don't need a tuneable.
+On Fri, 4 Nov 2005, Andy Nelson wrote:
+> 
+> Ok. In other posts you have skeptically accepted Power as a
+> `modern' architecture.
 
-What I was thinking is that if we get prezeroing infrastructure that can use 
-various prezeroing accelerators (as has been discussed but I don't believe 
-merged), then a logical prezeroing accelerator for UML would be calling 
-madvise on the host system.  This has the advantage of automatically giving 
-back to the host system any memory that's not in use, but would require some 
-way to tell kswapd or some such that keeping around lots of prezeroed memory 
-is preferable to keeping around lots of page cache.
+Yes, sceptically.
 
-In my case, I have a workload that can mostly work with 32-48 megs of ram, but 
-it spikes up to 256 at one point.  Right now, I'm telling UML mem=64 megs and 
-the feeding it a 256 swap file on ubd, but this is hideously inefficient when 
-it actually tries to use this swap file.  (And since the host system is 
-running a 2.6.10 kernel, there's a five minute period during each build where 
-things on my desktop actually freeze for 15-30 seconds at a time.  And this 
-is on a laptop with 512 megs of ram.  I think it's because the disk is so 
-overwhelmed, and some things (like vim's .swp file, and something similar in 
-kmail's composer) do a gratuitous fsync...
+I'd really like to hear what your numbers are on a modern x86. Any x86-64 
+is interesting, and I can't imagine that with a LANL address you can't 
+find any.
 
-> However look at /proc/sys/vm/swappiness
+I do believe that Power is within one order of magnitude of a modern x86 
+when it comes to TLB fill performance. That's much better than many 
+others, but whether "almost as good" is within the error range, or whether 
+it's "only five times worse", I don't know.
 
-Setting swappiness to 0 triggers the OOM killer on 2.6.14 for a load that 
-completes with swappiness at 60.  I mentioned this on the list a little while 
-ago and some people asked for copies of my test script...
+The thing is, there's a reason x86 machines kick ass. They are cheap, and 
+they really _do_ outperform pretty much everything else out there.
 
-> or use Con Kolivas's patches to find new tunable and policies.
+Power 5 has a wonderful memory architecture, and those L3 caches kick ass. 
+They probably don't help you as much as they help databases, though, and 
+it's entirely possible that a small cheap Opteron with its integrated 
+memory controller will outperform them on your load if you really don't 
+have a lot of locality.
 
-The daemon you mentioned is an alternative, but I'm not quite sure how rapid 
-the daemon's reaction is going to be to potential OOM situations when 
-something suddenly wants an extra 200 megs...
-
-Rob
+			Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
