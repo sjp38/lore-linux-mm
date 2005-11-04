@@ -1,38 +1,45 @@
-Received: by xproxy.gmail.com with SMTP id h31so576624wxd
-        for <linux-mm@kvack.org>; Fri, 04 Nov 2005 13:31:23 -0800 (PST)
-Message-ID: <e692861c0511041331ge5dd1abq57b6c513540fa200@mail.gmail.com>
-Date: Fri, 4 Nov 2005 16:31:23 -0500
-From: Gregory Maxwell <gmaxwell@gmail.com>
+Date: Fri, 4 Nov 2005 13:39:06 -0800 (PST)
+From: Linus Torvalds <torvalds@osdl.org>
 Subject: Re: [Lhms-devel] [PATCH 0/7] Fragmentation Avoidance V19
-In-Reply-To: <20051104210418.BC56F184739@thermo.lanl.gov>
+In-Reply-To: <Pine.LNX.4.64.0511041310130.28804@g5.osdl.org>
+Message-ID: <Pine.LNX.4.64.0511041333560.28804@g5.osdl.org>
+References: <20051104210418.BC56F184739@thermo.lanl.gov>
+ <Pine.LNX.4.64.0511041310130.28804@g5.osdl.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 8BIT
-Content-Disposition: inline
-References: <20051104201248.GA14201@elte.hu>
-	 <20051104210418.BC56F184739@thermo.lanl.gov>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andy Nelson <andy@thermo.lanl.gov>
-Cc: mingo@elte.hu, akpm@osdl.org, arjan@infradead.org, arjanv@infradead.org, haveblue@us.ibm.com, kravetz@us.ibm.com, lhms-devel@lists.sourceforge.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mbligh@mbligh.org, mel@csn.ul.ie, nickpiggin@yahoo.com.au, torvalds@osdl.org
+Cc: mingo@elte.hu, akpm@osdl.org, arjan@infradead.org, arjanv@infradead.org, haveblue@us.ibm.com, kravetz@us.ibm.com, lhms-devel@lists.sourceforge.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mbligh@mbligh.org, mel@csn.ul.ie, nickpiggin@yahoo.com.au
 List-ID: <linux-mm.kvack.org>
 
-On 11/4/05, Andy Nelson <andy@thermo.lanl.gov> wrote:
-> I am not enough of a kernel level person or sysadmin to know for certain,
-> but I have still big worries about consecutive jobs that run on the
-> same resources, but want extremely different page behavior. I
 
-Thats the idea. The 'hugetlb zone' will only be usable for allocations
-which are guaranteed reclaimable.  Reclaimable includes userspace
-usage (since at worst an in use userspace page can be swapped out then
-paged back into another physical location).
+On Fri, 4 Nov 2005, Linus Torvalds wrote:
+> 
+> But the hint can be pretty friendly. Especially if it's an option to just 
+> load a lot of memory into the boxes, and none of the loads are expected to 
+> want to really be excessively close to memory limits (ie you could just 
+> buy an extra 16GB to allow for "slop").
 
-For your sort of mixed use this should be a fine solution. However
-there are mixed use cases that that this will not solve, for example
-if the system usage is split between HPC uses and kernel allocation
-heavy workloads (say forking 10quintillion java processes) then the
-hugetlb zone will need to be made small to keep the kernel allocation
-heavy workload happy.
+One of the issues _will_ be how to allocate things on NUMA. Right now 
+"hugetlb" only allows us to say "this much memory for hugetlb", and it 
+probably needs to be per-zone. 
+
+Some uses might want to allocate all of the local memory on one node to 
+huge-page usage (and specialized programs would then also like to run 
+pinned to that node), others migth want to spread it out. So the 
+maintenance would need to decide that.
+
+The good news is that you can boot up with almost all zones being "big 
+page" zones, and you could turn them into "normal zones" dynamically. It's 
+only going the other way that is hard.
+
+So from a maintenance standpoint if you manage lots of machines, you could 
+have them all uniformly boot up with lots of memory set aside for large 
+pages, and then use user-space tools to individually turn the zones into 
+regular allocation zones.
+
+		Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
