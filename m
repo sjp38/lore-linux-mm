@@ -1,49 +1,44 @@
-Date: Thu, 3 Nov 2005 21:48:07 -0800
-From: Andrew Morton <akpm@osdl.org>
+Date: Thu, 3 Nov 2005 22:10:37 -0800
+From: Paul Jackson <pj@sgi.com>
 Subject: Re: [Lhms-devel] [PATCH 0/7] Fragmentation Avoidance V19
-Message-Id: <20051103214807.68a3063c.akpm@osdl.org>
-In-Reply-To: <20051103213538.7f037b3a.pj@sgi.com>
-References: <E1EXEfW-0005ON-00@w-gerrit.beaverton.ibm.com>
-	<200511021747.45599.rob@landley.net>
-	<43699573.4070301@yahoo.com.au>
-	<200511030007.34285.rob@landley.net>
-	<20051103163555.GA4174@ccure.user-mode-linux.org>
-	<1131035000.24503.135.camel@localhost.localdomain>
-	<20051103205202.4417acf4.akpm@osdl.org>
-	<20051103213538.7f037b3a.pj@sgi.com>
+Message-Id: <20051103221037.33ae0f53.pj@sgi.com>
+In-Reply-To: <Pine.LNX.4.64.0511032105110.27915@g5.osdl.org>
+References: <20051104010021.4180A184531@thermo.lanl.gov>
+	<Pine.LNX.4.64.0511032105110.27915@g5.osdl.org>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Paul Jackson <pj@sgi.com>, Bron Nelson <bron@bronze.corp.sgi.com>
-Cc: pbadari@gmail.com, jdike@addtoit.com, rob@landley.net, nickpiggin@yahoo.com.au, gh@us.ibm.com, mingo@elte.hu, kamezawa.hiroyu@jp.fujitsu.com, haveblue@us.ibm.com, mel@csn.ul.ie, mbligh@mbligh.org, kravetz@us.ibm.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, lhms-devel@lists.sourceforge.net
+To: Linus Torvalds <torvalds@osdl.org>
+Cc: andy@thermo.lanl.gov, mbligh@mbligh.org, akpm@osdl.org, arjan@infradead.org, arjanv@infradead.org, haveblue@us.ibm.com, kravetz@us.ibm.com, lhms-devel@lists.sourceforge.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mel@csn.ul.ie, mingo@elte.hu, nickpiggin@yahoo.com.au
 List-ID: <linux-mm.kvack.org>
 
-Paul Jackson <pj@sgi.com> wrote:
->
-> > Similarly, that SGI patch which was rejected 6-12 months ago to kill off
-> > processes once they started swapping.  We thought that it could be done
-> > from userspace, but we need a way for userspace to detect when a task is
-> > being swapped on a per-task basis.
-> > 
-> > I'm thinking a few numbers in the mm_struct, incremented in the pageout
-> > code, reported via /proc/stat.
-> 
-> I just sent in a proposed patch for this - one more per-cpuset
-> number, tracking the recent rate of calls into the synchronous
-> (direct) page reclaim by tasks in the cpuset.
-> 
-> See the message sent a few minutes ago, with subject:
-> 
->   [PATCH 5/5] cpuset: memory reclaim rate meter
-> 
+Linus wrote:
+> Maybe you'd be willing on compromising by using a few kernel boot-time 
+> command line options for your not-very-common load.
 
-uh, OK.  If that patch is merged, does that make Bron happy, so I don't
-have to reply to his plaintive email?
+If we were only a few options away from running Andy's varying load
+mix with something close to ideal performance, we'd be in fat city,
+and Andy would never have been driven to write that rant.
 
-I was kind of thinking that the stats should be per-process (actually
-per-mm) rather than bound to cpusets.  /proc/<pid>/pageout-stats or something.
+There's more to it than that, but it is not as impossible as a battery
+with the efficiencies you (and the rest of us) dream of.
+
+Andy has used systems that resemble what he is seeking.  So he is not
+asking for something clearly impossible.  Though it might not yet be
+possible, in ways that contribute to a continuing healthy kernel code
+base.
+
+It's an interesting challenge - finding ways to improve the kernel's
+performance on such high end loads, that are also suitable and
+desirable (or at least innocent enough) for inclusion in a kernel far
+more widely used in embeddeds, desktops and ordinary servers.
+
+-- 
+                  I won't rest till it's the best ...
+                  Programmer, Linux Scalability
+                  Paul Jackson <pj@sgi.com> 1.925.600.0401
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
