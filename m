@@ -1,192 +1,87 @@
-Date: Fri, 4 Nov 2005 17:40:20 +0100
-From: Ingo Molnar <mingo@elte.hu>
+Date: Fri, 4 Nov 2005 08:40:52 -0800 (PST)
+From: Linus Torvalds <torvalds@osdl.org>
 Subject: Re: [Lhms-devel] [PATCH 0/7] Fragmentation Avoidance V19
-Message-ID: <20051104164020.GA9028@elte.hu>
-References: <20051104153903.E5D561845FF@thermo.lanl.gov> <Pine.LNX.4.64.0511040801450.27915@g5.osdl.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0511040801450.27915@g5.osdl.org>
+In-Reply-To: <331390000.1131120808@[10.10.2.4]>
+Message-ID: <Pine.LNX.4.64.0511040814530.27915@g5.osdl.org>
+References: <20051104145628.90DC71845CE@thermo.lanl.gov>
+ <Pine.LNX.4.64.0511040738540.27915@g5.osdl.org> <331390000.1131120808@[10.10.2.4]>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@osdl.org>
-Cc: Andy Nelson <andy@thermo.lanl.gov>, akpm@osdl.org, arjan@infradead.org, arjanv@infradead.org, haveblue@us.ibm.com, kravetz@us.ibm.com, lhms-devel@lists.sourceforge.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mbligh@mbligh.org, mel@csn.ul.ie, nickpiggin@yahoo.com.au, pj@sgi.com
+To: "Martin J. Bligh" <mbligh@mbligh.org>
+Cc: Andy Nelson <andy@thermo.lanl.gov>, akpm@osdl.org, arjan@infradead.org, arjanv@infradead.org, haveblue@us.ibm.com, kravetz@us.ibm.com, lhms-devel@lists.sourceforge.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mel@csn.ul.ie, mingo@elte.hu, nickpiggin@yahoo.com.au
 List-ID: <linux-mm.kvack.org>
 
-* Linus Torvalds <torvalds@osdl.org> wrote:
 
-> Time it on a real machine some day. On a modern x86, you will fill a 
-> TLB entry in anything from 1-8 cycles if it's in L1, and add a couple 
-> of dozen cycles for L2.
+On Fri, 4 Nov 2005, Martin J. Bligh wrote:
+> 
+> > So I suspect Martin's 25% is a lot more accurate on modern hardware (which 
+> > means x86, possibly Power. Nothing else much matters).
+> 
+> It was PPC64, if that helps.
 
-below is my (x86-only) testcode that accurately measures TLB miss costs 
-in cycles. (Has to be run as root, because it uses 'cli' as the 
-serializing instruction.)
+Ok. I bet x86 is even better, but Power (and possibly itanium) is the only 
+other architecture that comes close.
 
-here's the output from the default 128MB (32768 4K pages) random access 
-pattern workload, on a 2 GHz P4 (which has 64 dTLBs):
+I don't like the horrible POWER hash-tables, but for static workloads they 
+should perform almost as well as a sane page table (I say "almost", 
+because I bet that the high-performance x86 vendors have spent a lot more 
+time on tlb latency than even IBM has). My dislike for them comes from the 
+fact that they are really only optimized for static behaviour.
 
-  0 24 24 24 12 12 0 0 16 0 24 24 24 12 0 12 0 12
+(And HPC is almost always static wrt TLB stuff - big, long-running 
+processes).
 
-  32768 randomly accessed pages, 13 cycles avg, 73.751831% TLB misses.
+> Well, I think it depends on the workload a lot. However fast your TLB is,
+> if we move from "every cacheline read requires is a TLB miss" to "every
+> cacheline read is a TLB hit" that can be a huge performance knee however
+> fast your TLB is. Depends heavily on the locality of reference and size
+> of data set of the application, I suspect.
 
-i.e. really cheap TLB misses even in this very bad and TLB-trashing 
-scenario: there are only 64 dTLBs and we have 32768 pages - so they are 
-outnumbered by a factor of 1:512! Still the CPU gets it right.
+I'm sure there are really pathological examples, but the thing is, they 
+won't be on reasonable code.
 
-setting LINEAR to 1 gives an embarrasing:
+Some modern CPU's have TLB's that can span the whole cache. In other 
+words, if your data is in _any_ level of caches, the TLB will be big 
+enough to find it.
 
- 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+Yes, that's not universally true, and when it's true, the TLB is two-level 
+and you can have loads where it will usually miss in the first level, but 
+we're now talking about loads where the _data_ will then always miss in 
+the first level cache too. So the TLB miss cost will always be _lower_ 
+than the data miss cost.
 
- 32768 linearly accessed pages, 0 cycles avg, 0.259399% TLB misses.
+Right now, you should buy Opteron if you want that kind of large TLB. I 
+_think_ Intel still has "small" TLB's (the cpuid information only goes up 
+to 128 entries, I think), but at least Intel has a really good fill. And I 
+would bet (but have no first-hand information) that next generation 
+processors will only get bigger TLB's. These things don't tend to shrink.
 
-showing that the pagetable got fully cached (probably in L1) and that 
-has _zero_ overhead. Truly remarkable.
+(Itanium also has a two-level TLB, but it's absolutely pitiful in size).
 
-lowering the size to 16 MB (still 1:64 TLB-to-working-set-size ratio!) 
-gives:
+NOTE! It is absolutely true that for a few years we had regular caches 
+growing much faster than TLB's. So there are unquestionably unbalanced 
+machines out there. But it seems that CPU designers started noticing, and 
+every indication is that TLB's are catching up.
 
- 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+In other words, adding lots of kernel complexity is the wrong thing in the 
+long run. This is not a long-term problem, and even in the short term you 
+can fix it by just selecting the right hardware.
 
- 4096 randomly accessed pages, 0 cycles avg, 5.859375% TLB misses.
+In todays world, AMD leads with bug TLB's (1024-entry L2 TLB), but Intel 
+has slightly faster fill and the AMD TLB filtering is sadly turned off on 
+SMP right now, so you might not always get the full effect of the large 
+TLB (but in HPC you probably won't have task switching blowing your TLB 
+away very often).
 
-so near-zero TLB overhead.
+PPC64 has the huge hashed page tables that work well enough for HPC. 
 
-increasing BYTES to half a gigabyte gives:
+Itanium has a pitifully small TLB, and an in-order CPU, so it will take a 
+noticeably bigger hit on TLB's than x86 will. But even Itanium will be a 
+_lot_ better than MIPS was.
 
- 2 0 12 12 24 12 24 264 24 12 24 24 0 0 24 12 24 24 24 24 24 24 24 24 12 
- 12 24 24 24 36 24 24 0 24 24 0 24 24 288 24 24 0 228 24 24 0 0 
-
- 131072 randomly accessed pages, 75 cycles avg, 94.162750% TLB misses.
-
-so an occasional ~220 cycles (~== 100 nsec - DRAM latency) cachemiss, 
-but still the average is 75 cycles, or 37 nsecs - which is still only 
-~37% of the DRAM latency.
-
-(NOTE: the test eliminates most data cachemisses, by using zero-mapped 
-anonymous memory, so only a single data page exists. So the costs seen 
-here are mostly TLB misses.)
-
-	Ingo
-
----------------
-/*
- * TLB miss measurement on PII CPUs.
- *
- * Copyright (C) 1999, Ingo Molnar <mingo@redhat.com>
- */
-#include <stdio.h>
-#include <stdlib.h>
-#include <signal.h>
-#include <sys/wait.h>
-#include <sys/mman.h>
-
-#define BYTES (128*1024*1024)
-#define PAGES (BYTES/4096)
-
-/* This define turns on the linear mode.. */
-#define LINEAR 0
-
-#if 1
-# define BARRIER "cli"
-#else
-# define BARRIER "lock ; addl $0,0(%%esp)"
-#endif
-
-int do_test (char * addr)
-{
-	unsigned long start, end;
-	/*
-	 * 'cli' is used as a serializing instruction to
-	 * isolate the benchmarked instruction from rdtsc.
-	 */
-	__asm__ (
-		"jmp 1f; 1: .align 128;\
-"BARRIER";				\
-		rdtsc;			\
-		movl %0, %1;		\
-"BARRIER";				\
-		movl (%%esi), %%eax;	\
-"BARRIER";				\
-		rdtsc;			\
-"BARRIER";				\
-		"
-
-		:"=a" (end), "=c" (start)
-		:"S" (addr)
-		:"dx","memory");
-	return end - start;
-}
-
-extern int iopl(int);
-
-int main (void)
-{
-	unsigned long overhead, sum;
-	int j, k, c, hit;
-	int matrix [PAGES];
-	int delta [PAGES];
-	char *buffer = mmap(NULL, BYTES, PROT_READ, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-
-	iopl(3);
-	/*
-	 * first generate a random access pattern.
-	 */
-	for (j = 0; j < PAGES; j++) {
-		unsigned long val;
-#if LINEAR
-		val = ((j*8) % PAGES) * 4096;
-		val = j*2048;
-#else
-		val = (random() % PAGES) * 4096;
-#endif
-		matrix[j] = val;
-	}
-
-	/*
-	 * Calculate the overhead
-	 */
-	overhead = ~0UL;
-	for (j = 0; j < 100; j++) {
-		unsigned int diff = do_test(buffer);
-		if (diff < overhead)
-			overhead = diff;
-	}
-	printf("Overhead = %ld cycles\n", overhead);
-
-	/*
-	 * 10 warmup loops, the last one is printed.
-	 */
-	for (k = 0; k < 10; k++) {
-		c = 0;
-		for (j = 0; j < PAGES; j++) {
-			char * addr;
-			addr = buffer + matrix[j];
-			delta[c++] = do_test(addr);
-		}
-	}
-	hit = 0;
-	sum = 0;
-	for (j = 0; j < PAGES; j++) {
-		unsigned long d = delta[j] - overhead;
-		printf("%ld ", d);
-		if (d <= 1)
-			hit++;
-		sum += d;
-	}
-	printf("\n");
-	printf("%d %s accessed pages, %d cycles avg, %f%% TLB misses.\n",
-		PAGES,
-#if LINEAR
-		"linearly",
-#else
-		"randomly",
-#endif
-		sum/PAGES,
-		100.0*((double)PAGES-(double)hit)/(double)PAGES);
-
-	return 0;
-}
+			Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
