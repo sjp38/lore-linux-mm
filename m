@@ -1,40 +1,53 @@
-Date: Thu, 3 Nov 2005 23:36:28 -0800
-From: Andrew Morton <akpm@osdl.org>
-Subject: Re: [patch] swapin rlimit
-Message-Id: <20051103233628.12ed1eee.akpm@osdl.org>
-In-Reply-To: <20051104072628.GA20108@elte.hu>
-References: <E1EXEfW-0005ON-00@w-gerrit.beaverton.ibm.com>
-	<200511021747.45599.rob@landley.net>
-	<43699573.4070301@yahoo.com.au>
-	<200511030007.34285.rob@landley.net>
-	<20051103163555.GA4174@ccure.user-mode-linux.org>
-	<1131035000.24503.135.camel@localhost.localdomain>
-	<20051103205202.4417acf4.akpm@osdl.org>
-	<20051104072628.GA20108@elte.hu>
+Date: Fri, 4 Nov 2005 08:37:50 +0100
+From: Ingo Molnar <mingo@elte.hu>
+Subject: Re: [Lhms-devel] [PATCH 0/7] Fragmentation Avoidance V19
+Message-ID: <20051104073750.GA21321@elte.hu>
+References: <20051104010021.4180A184531@thermo.lanl.gov> <Pine.LNX.4.64.0511032105110.27915@g5.osdl.org> <20051103221037.33ae0f53.pj@sgi.com> <20051104063820.GA19505@elte.hu> <20051103232649.12e58615.pj@sgi.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20051103232649.12e58615.pj@sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ingo Molnar <mingo@elte.hu>
-Cc: pbadari@gmail.com, torvalds@osdl.org, jdike@addtoit.com, rob@landley.net, nickpiggin@yahoo.com.au, gh@us.ibm.com, kamezawa.hiroyu@jp.fujitsu.com, haveblue@us.ibm.com, mel@csn.ul.ie, mbligh@mbligh.org, kravetz@us.ibm.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, lhms-devel@lists.sourceforge.net
+To: Paul Jackson <pj@sgi.com>
+Cc: torvalds@osdl.org, andy@thermo.lanl.gov, mbligh@mbligh.org, akpm@osdl.org, arjan@infradead.org, arjanv@infradead.org, haveblue@us.ibm.com, kravetz@us.ibm.com, lhms-devel@lists.sourceforge.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mel@csn.ul.ie, nickpiggin@yahoo.com.au
 List-ID: <linux-mm.kvack.org>
 
-Ingo Molnar <mingo@elte.hu> wrote:
->
-> * Andrew Morton <akpm@osdl.org> wrote:
-> 
->  > Similarly, that SGI patch which was rejected 6-12 months ago to kill 
->  > off processes once they started swapping.  We thought that it could be 
->  > done from userspace, but we need a way for userspace to detect when a 
->  > task is being swapped on a per-task basis.
-> 
->  wouldnt the clean solution here be a "swap ulimit"?
+* Paul Jackson <pj@sgi.com> wrote:
 
-Well it's _a_ solution, but it's terribly specific.
+> At first glance, this is the sticky point that jumps out at me.
+> 
+> Andy wrote:
+> >    My experience is that after some days or weeks of running have gone
+> >    by, there is no possible way short of a reboot to get pages merged
+> >    effectively back to any pristine state with the infrastructure that 
+> >    exists there.
+> 
+> I take it, from what Andy writes, and from my other experience with 
+> similar customers, that his workload is not "well-behaved" in the 
+> sense you hoped for.
+> 
+> After several diverse jobs are run, we cannot, so far as I know, merge 
+> small pages back to big pages.
 
-How hard is it to read /proc/<pid>/nr_swapped_in_pages and if that's
-non-zero, kill <pid>?
+ok, so the zone solution it has to be. I.e. the moment it's a separate 
+special zone, you can boot with most of the RAM being in that zone, and 
+you are all set. It can be used both for hugetlb allocations, and for 
+other PAGE_SIZE allocations as well, in a highmem-fashion. These HPC 
+setups are rarely kernel-intense.
+
+Thus the only dynamic sizing decision that has to be taken is to 
+determine the amount of 'generic kernel RAM' that is needed in the 
+worst-case. To give an example: say on a 256 GB box, set aside 8 GB for 
+generic kernel needs, and have 248 GB in the hugemem zone. This leaves 
+us with the following scenario: apps can use up to 97% of all RAM for 
+hugemem, and they can use up to 100% of all RAM for PAGE_SIZE 
+allocations. 3% of RAM can be used by generic kernel needs. Sounds 
+pretty reasonable and straightforward from a system management point of 
+view. No runtime resizing, but it wouldnt be needed, unless kernel 
+activity needs more than 8GB of RAM.
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
