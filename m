@@ -1,103 +1,57 @@
-Date: Fri, 4 Nov 2005 08:00:53 -0800 (PST)
-From: Linus Torvalds <torvalds@osdl.org>
-Subject: Re: [Lhms-devel] [PATCH 0/7] Fragmentation Avoidance V19
-In-Reply-To: <20051104145628.90DC71845CE@thermo.lanl.gov>
-Message-ID: <Pine.LNX.4.64.0511040738540.27915@g5.osdl.org>
-References: <20051104145628.90DC71845CE@thermo.lanl.gov>
+From: Rob Landley <rob@landley.net>
+Subject: Re: [uml-devel] Re: [Lhms-devel] [PATCH 0/7] Fragmentation Avoidance V19
+Date: Fri, 4 Nov 2005 09:50:58 -0600
+References: <1130917338.14475.133.camel@localhost> <200511022341.50524.rob@landley.net> <200511040426.47043.blaisorblade@yahoo.it>
+In-Reply-To: <200511040426.47043.blaisorblade@yahoo.it>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200511040950.59942.rob@landley.net>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andy Nelson <andy@thermo.lanl.gov>
-Cc: akpm@osdl.org, arjan@infradead.org, arjanv@infradead.org, haveblue@us.ibm.com, kravetz@us.ibm.com, lhms-devel@lists.sourceforge.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mbligh@mbligh.org, mel@csn.ul.ie, mingo@elte.hu, nickpiggin@yahoo.com.au
+To: user-mode-linux-devel@lists.sourceforge.net
+Cc: Blaisorblade <blaisorblade@yahoo.it>, Jeff Dike <jdike@addtoit.com>, Nick Piggin <nickpiggin@yahoo.com.au>, Yasunori Goto <y-goto@jp.fujitsu.com>, Dave Hansen <haveblue@us.ibm.com>, Ingo Molnar <mingo@elte.hu>, Mel Gorman <mel@csn.ul.ie>, "Martin J. Bligh" <mbligh@mbligh.org>, Andrew Morton <akpm@osdl.org>, kravetz@us.ibm.com, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, lhms <lhms-devel@lists.sourceforge.net>
 List-ID: <linux-mm.kvack.org>
 
-
-On Fri, 4 Nov 2005, Andy Nelson wrote:
+On Thursday 03 November 2005 21:26, Blaisorblade wrote:
+> > I was hoping that since the file was deleted from disk and is already
+> > getting _some_ special treatment (since it's a longstanding "poor man's
+> > shared memory" hack), that madvise wouldn't flush the data to disk, but
+> > would just zero it out.  A bit optimistic on my part, I know. :)
 >
-> Big pages don't work now, and zones do not help because the
-> load is too unpredictable. Sysadmins *always* turn them
-> off, for very good reasons. They cripple the machine.
+> I read at some time that this optimization existed but was deemed obsolete
+> and removed.
+>
+> Why obsolete? Because... we have tmpfs! And that's the point. With
+> DONTNEED, we detach references from page tables, but the content is still
+> pinned: it _is_ the "disk"! (And you have TMPDIR on tmpfs, right?)
 
-They do. Guess why? It's complicated.
+If I had that kind of control over environment my build would always be 
+deployed in (including root access), I wouldn't need UML. :)
 
-SGI used to do things like that in Irix. They had the flakiest Unix kernel 
-out there. There's a reason people use Linux, and it's not all price. A 
-lot of it is development speed, and that in turn comes very much from not 
-making insane decisions that aren't maintainable in the long run.
+(P.S. The default for Ubuntu "Horny Hedgehog" is no.  The only tmpfs mount 
+is /dev/shm, and /tmp is on / which is ext3.  Yeah, I need to upgrade my 
+laptop...)
 
-Trust me. We can make things _better_, by having zones that you can't do 
-kernel allocations from. But you'll never get everything you want, without 
-turning the kernel into an unmaintainable mess. 
+> I guess you refer to using frag. avoidance on the guest
 
-> I think it was Martin Bligh who wrote that his customer gets
-> 25% speedups with big pages. That is peanuts compared to my
-> factor 3.4 (search comp.arch for John Mashey's and my name
-> at the University of Edinburgh in Jan/Feb 2003 for a conversation
-> that includes detailed data about this), but proves the point that 
-> it is far more than just me that wants big pages. 
+Yes.  Moot point since Linus doesn't want it.
 
-I didn't find your post on google, but I assume that a large portion on 
-your 3.4 factor was hardware.
+> (if it matters for 
+> the host, let me know). When it will be present using it will be nice, but
+> currently we'd do madvise() on a page-per-page basis, and we'd do it on
+> non-consecutive pages (basically, free pages we either find or free or
+> purpose).
 
-The fact is, there are tons of architectures that suck at TLB handling. 
-They have small TLB's, and they fill slowly.
+Might be a performance issue if that gets introduced with per-page 
+granularity, and how do you avoid giving back pages we're about to re-use?  
+Oh well, bench it when it happens.  (And in any case, it needs a tunable to 
+beat the page cache into submission or there's no free memory to give back.  
+If there's already such a tuneable, I haven't found it yet.)
 
-x86 is actually one of the best ones out there. It has a hw TLB fill, and 
-the page tables are cached, with real-life TLB fill times in the single 
-cycles (a P4 can almost be seen as effectively having 32kB pages because 
-it fills it's TLB entries to fast when they are next to each other in the 
-page tables). Even when you have lots of other cache pressure, the page 
-tables are at least in the L2 (or L3) caches, and you effectively have a 
-really huge TLB.
-
-In contrast, a lot of other machines will use non-temporal loads to load 
-the TLB entries, forcing them to _always_ go to memory, and use software 
-fills, causing the whole machine to stall. To make matters worse, many of 
-them use hashed page tables, so that even if they could (or do) cache 
-them, the caching just doesn't work very well.
-
-(I used to be a big proponent of software fill - it's very flexible. It's 
-also very slow. I've changed my mind after doing timing on x86)
-
-Basically, any machine that gets more than twice the slowdown is _broken_. 
-If the memory access is cached, then so should be page table entry be 
-(page tables are _much_ smaller than the pages themselves), so even if you 
-take a TLB fault on every single access, you shouldn't see a 3.4 factor.
-
-So without finding your post, my guess is that you were on a broken 
-machine. MIPS or alpha do really well when things generally fit in the 
-TLB, but break down completely when they don't due to their sw fill (alpha 
-could have fixed it, it had _archtiecturally_ sane page tables that it 
-could have walked in hw, but never got the chance. May it rest in peace).
-
-If I remember correctly, ia64 used to suck horribly because Linux had to 
-use a mode where the hw page table walker didn't work well (maybe it was 
-just an itanium 1 bug), but should be better now. But x86 probably kicks 
-its butt.
-
-The reason x86 does pretty well is that it's got one of the few sane page 
-table setups out there (oh, page table trees are old-fashioned and simple, 
-but they are dense and cache well), and the microarchitecture is largely 
-optimized for TLB faults. Not having ASI's and having to work with an OS 
-that invalidated the TLB about every couple of thousand memory accesses 
-does that to you - it puts the pressure to do things right.
-
-So I suspect Martin's 25% is a lot more accurate on modern hardware (which 
-means x86, possibly Power. Nothing else much matters).
-
-> If your and other kernel developer's (<<0.01% of the universe) kernel
-> builds slow down by 5% and my and other people's simulations (perhaps 
-> 0.01% of the universe) speed up by a factor up to 3 or 4, who wins? 
-
-First off, you won't speed up by a factor of three or four. Not even 
-_close_. 
-
-Second, it's not about performance. It's about maintainability. It's about 
-having a system that we can use and understand 10 years down the line. And 
-the VM is a big part of that.
-
-			Linus
+Rob
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
