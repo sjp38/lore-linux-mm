@@ -1,35 +1,68 @@
-Date: Thu, 3 Nov 2005 22:16:09 -0800
-From: bron@bronze.corp.sgi.com (Bron Nelson)
-Message-Id: <200511040616.WAA21225@bronze.corp.sgi.com>
+Date: Fri, 4 Nov 2005 07:38:20 +0100
+From: Ingo Molnar <mingo@elte.hu>
 Subject: Re: [Lhms-devel] [PATCH 0/7] Fragmentation Avoidance V19
-References: <E1EXEfW-0005ON-00@w-gerrit.beaverton.ibm.com>
-    <200511021747.45599.rob@landley.net> <43699573.4070301@yahoo.com.au>
-    <200511030007.34285.rob@landley.net>
-    <20051103163555.GA4174@ccure.user-mode-linux.org>
-    <1131035000.24503.135.camel@localhost.localdomain>
-    <20051103205202.4417acf4.akpm@osdl.org> <20051103213538.7f037b3a.pj@sgi.com>
+Message-ID: <20051104063820.GA19505@elte.hu>
+References: <20051104010021.4180A184531@thermo.lanl.gov> <Pine.LNX.4.64.0511032105110.27915@g5.osdl.org> <20051103221037.33ae0f53.pj@sgi.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20051103221037.33ae0f53.pj@sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Paul Jackson <pj@sgi.com>, Andrew Morton <akpm@osdl.org>
-Cc: lhms-devel@lists.sourceforge.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kravetz@us.ibm.com, mbligh@mbligh.org, mel@csn.ul.ie, haveblue@us.ibm.com, kamezawa.hiroyu@jp.fujitsu.com, mingo@elte.hu, gh@us.ibm.com, nickpiggin@yahoo.com.au, rob@landley.net, jdike@addtoit.com, pbadari@gmail.com
+To: Paul Jackson <pj@sgi.com>
+Cc: Linus Torvalds <torvalds@osdl.org>, andy@thermo.lanl.gov, mbligh@mbligh.org, akpm@osdl.org, arjan@infradead.org, arjanv@infradead.org, haveblue@us.ibm.com, kravetz@us.ibm.com, lhms-devel@lists.sourceforge.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mel@csn.ul.ie, nickpiggin@yahoo.com.au
 List-ID: <linux-mm.kvack.org>
 
-> I was kind of thinking that the stats should be per-process (actually
-> per-mm) rather than bound to cpusets.  /proc/<pid>/pageout-stats or something.
+* Paul Jackson <pj@sgi.com> wrote:
 
-The particular people that I deal with care about constraining things
-on a per-cpuset basis, so that is the information that I personally am
-looking for.  But it is simple enough to map tasks to cpusets and vice-versa,
-so this is not really a serious consideration.  I would generically be in
-favor of the per-process stats (even though the application at hand is
-actually interested in the cpuset aggregate stats), because we can always
-produce an aggregate from the detailed, but not vice-versa.  And no doubt
-some future as-yet-unimagined application will want per-process info.
+> Linus wrote:
+> > Maybe you'd be willing on compromising by using a few kernel boot-time 
+> > command line options for your not-very-common load.
+> 
+> If we were only a few options away from running Andy's varying load 
+> mix with something close to ideal performance, we'd be in fat city, 
+> and Andy would never have been driven to write that rant.
+> 
+> There's more to it than that, but it is not as impossible as a battery 
+> with the efficiencies you (and the rest of us) dream of.
 
+just to make sure i didnt get it wrong, wouldnt we get most of the 
+benefits Andy is seeking by having a: boot-time option which sets aside 
+a "hugetlb zone", with an additional sysctl to grow (or shrink) the pool 
+- with the growing happening on a best-effort basis, without guarantees?
 
---
-Bron Campbell Nelson      bron@sgi.com
-These statements are my own, not those of Silicon Graphics.
+i have implemented precisely such a scheme for 'bigpages' years ago, and 
+it worked reasonably well. (i was lazy and didnt implement it as a 
+resizable zone, but as a list of large pages taken straight off the 
+buddy allocator. This made dynamic resizing really easy and i didnt have 
+to muck with the buddy and mem_map[] data structures that zone-resizing 
+forces us to do. It had the disadvantage of those pages skewing the 
+memory balance of the affected zone.)
+
+my quick solution was good enough that on a test-system i could resize 
+the pool across Oracle test-runs, when the box was otherwise quiet. I'd 
+expect a well-controlled HPC system to be equally resizable.
+
+what we cannot offer is a guarantee to be able to grow the pool. Hence 
+the /proc mechanism would be called:
+
+	/proc/sys/vm/try_to_grow_hugemem_pool
+
+to clearly stress the 'might easily fail' restriction. But if userspace 
+is well-behaved on Andy's systems (which it seems to be), then in 
+practice it should be resizable. On a generic system, only the boot-time 
+option is guaranteed to allocate as much RAM as possible. And once this 
+functionality has been clearly communicated and separated, the 'try to 
+alloc a large page' thing could become more agressive: it could attempt 
+to construct large pages if it can.
+
+i dont think we object to such a capability, as long as the restrictions 
+are clearly communicated. (and no, that doesnt mean some obscure 
+Documentation/ entry - the restrictions have to be obvious from the 
+primary way of usage. I.e. no /proc/sys/vm/hugemem_pool_size thing where 
+growing could fail.)
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
