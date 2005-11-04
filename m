@@ -1,40 +1,116 @@
-From: Andi Kleen <ak@suse.de>
-Subject: Re: [Lhms-devel] [PATCH 0/7] Fragmentation Avoidance V19
-Date: Fri, 4 Nov 2005 23:43:27 +0100
-References: <20051104201248.GA14201@elte.hu> <20051104210418.BC56F184739@thermo.lanl.gov> <e692861c0511041331ge5dd1abq57b6c513540fa200@mail.gmail.com>
-In-Reply-To: <e692861c0511041331ge5dd1abq57b6c513540fa200@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200511042343.27832.ak@suse.de>
+Date: Fri, 4 Nov 2005 15:37:12 -0800 (PST)
+From: Christoph Lameter <clameter@sgi.com>
+Message-Id: <20051104233712.5459.94627.sendpatchset@schroedinger.engr.sgi.com>
+Subject: [PATCH 0/7] Direct Migration V1: Overview
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Gregory Maxwell <gmaxwell@gmail.com>
-Cc: Andy Nelson <andy@thermo.lanl.gov>, mingo@elte.hu, akpm@osdl.org, arjan@infradead.org, arjanv@infradead.org, haveblue@us.ibm.com, kravetz@us.ibm.com, lhms-devel@lists.sourceforge.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mbligh@mbligh.org, mel@csn.ul.ie, nickpiggin@yahoo.com.au, torvalds@osdl.org
+To: akpm@osdl.org
+Cc: Hugh Dickins <hugh@veritas.com>, Mike Kravetz <kravetz@us.ibm.com>, linux-kernel@vger.kernel.org, Dave Hansen <haveblue@us.ibm.com>, linux-mm@kvack.org, torvalds@osdl.org, Christoph Lameter <clameter@sgi.com>, Hirokazu Takahashi <taka@valinux.co.jp>, Magnus Damm <magnus.damm@gmail.com>, Paul Jackson <pj@sgi.com>, Marcelo Tosatti <marcelo.tosatti@cyclades.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Friday 04 November 2005 22:31, Gregory Maxwell wrote:
-> On 11/4/05, Andy Nelson <andy@thermo.lanl.gov> wrote:
-> > I am not enough of a kernel level person or sysadmin to know for certain,
-> > but I have still big worries about consecutive jobs that run on the
-> > same resources, but want extremely different page behavior. I
->
-> Thats the idea. The 'hugetlb zone' will only be usable for allocations
-> which are guaranteed reclaimable.  Reclaimable includes userspace
-> usage (since at worst an in use userspace page can be swapped out then
-> paged back into another physical location).
+Direct Page Migration
 
-I don't like it very much. You have two choices if a workload runs
-out of the kernel allocatable pages. Either you spill into the reclaimable
-zone or you fail the allocation. The first means that the huge pages
-thing is unreliable, the second would mean that all the many problems
-of limited lowmem would be back.
+This patchset applies on top of the swap based page migration patchset
+V5 and implements direct page migration.
 
-None of this is very attractive.
+Note that the page migration here is different from the one of the memory
+hotplug project. Pages are migrated in order to improve performance.
+A best effort is made to migrate all pages that are in use by user space
+and that are swappable. If a couple of pages are not moved then the
+performance of a process will not increase as much as wanted but the
+application will continue to function properly.
 
--Andi
+Much of the ideas for this code were originally developed in the memory
+hotplug project and we hope that this code also will allow the hotplug
+project to build on this patch in order to get to their goals. We also
+would like to be able to move bad memory at SGI which is likely something
+that will also be based on this patchset.
+
+I am very thankful for the support of the hotplug developers for bringing
+this patchset about. The migration of kernel pages, slab pages and
+other unswappable pages that is also needed by the hotplug project
+and for the remapping of bad memory is likely to require a significant
+amount of additional changes to the Linux kernel beyond the scope of
+this page migration endeavor.
+
+Page migration can be triggered via:
+
+A. Specifying MPOL_MF_MOVE(_ALL) when setting a new policy
+   for a range of addresses of a process.
+
+B. Calling sys_migrate_pages() to control the location of the pages of
+   another process. Pages may migrate back through swapping if memory
+   policies, cpuset nodes and the node on which the process is executing
+   are not changed by other means.
+   sys_migrate_pages() may be particularly useful to move the pages of
+   a process if the scheduler has shifted the execution of a process
+   to a different node.
+
+C. Changing the cpuset of a task (moving tasks to another cpuset or modifying
+   its set of allowed nodes) if a special option is set in the cpuset. The
+   cpuset code will call into the page migration layer in order to move the
+   process to its new environment. This is the preferred and easiest method
+   to use page migration. Thanks to Paul Jackson for realizing this
+   functionality.
+
+Requirements to apply this patch:
+- 2.6.14-rc5-mm1
+- swap migration patchset V5
+- Paul Jackson's newest cpuset patches.
+
+The patchset consists of seven patches (only the first three are necessary to
+have basic direct migration support):
+
+1. CONFIG_MIGRATION patch
+
+   Make page migration configurable and insures that the page migration code
+   is not included in a simple memory configurations.
+
+2. SwapCache patch
+
+   SwapCache pages may have changed their type after lock_page().
+   Check for this and retry lookup if the page is no longer a SwapCache
+   page.
+
+3. migrate_pages()
+
+   Basic direct migration with fallback to swap if all other attempts
+   fail.
+
+4. remove_from_swap()
+
+   Page migration installs swap ptes for anonymous pages in order to
+   preserve the information contained in the page tables. This patch
+   removes the swap ptes and replaces them with real ones after migration.
+
+5. upgrade of MPOL_MF_MOVE and sys_migrate_pages()
+
+   Add logic to mm/mempolicy.c to allow the policy layer to control
+   direct page migration. Thanks to Paul Jackson for the interative
+   logic to move between sets of nodes.
+
+
+6. buffer_migrate_pages() patch
+
+   Allow migration without writing back dirty pages. Add filesystem dependent
+   migration support for ext2/ext3 and xfs. Use swapper space to define a special
+   method to migrate anonymous pages without writeback.
+
+7. add_to_swap with gfp mask
+
+   The default of add_to_swap is to use GFP_ATOMIC for necessary allocations.
+   This may cause out of memory situations during page migration. This patch
+   adds an additional parameter to add_to_swap to allow GFP_KERNEL allocations.
+
+Credits (also in mm/vsmscan.c):
+
+The idea for this scheme of page migration was first developed in the context
+of the memory hotplug project. The main authors of the migration code from
+the memory hotplug project are:
+
+IWAMOTO Toshihiro <iwamoto@valinux.co.jp>
+Hirokazu Takahashi <taka@valinux.co.jp>
+Dave Hansen <haveblue@us.ibm.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
