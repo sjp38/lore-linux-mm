@@ -1,116 +1,467 @@
-Date: Fri, 4 Nov 2005 15:37:12 -0800 (PST)
+Date: Fri, 4 Nov 2005 15:37:27 -0800 (PST)
 From: Christoph Lameter <clameter@sgi.com>
-Message-Id: <20051104233712.5459.94627.sendpatchset@schroedinger.engr.sgi.com>
-Subject: [PATCH 0/7] Direct Migration V1: Overview
+Message-Id: <20051104233727.5459.51093.sendpatchset@schroedinger.engr.sgi.com>
+In-Reply-To: <20051104233712.5459.94627.sendpatchset@schroedinger.engr.sgi.com>
+References: <20051104233712.5459.94627.sendpatchset@schroedinger.engr.sgi.com>
+Subject: [PATCH 3/7] Direct Migration V1: migrate_pages() extension for direct migration
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@osdl.org
-Cc: Hugh Dickins <hugh@veritas.com>, Mike Kravetz <kravetz@us.ibm.com>, linux-kernel@vger.kernel.org, Dave Hansen <haveblue@us.ibm.com>, linux-mm@kvack.org, torvalds@osdl.org, Christoph Lameter <clameter@sgi.com>, Hirokazu Takahashi <taka@valinux.co.jp>, Magnus Damm <magnus.damm@gmail.com>, Paul Jackson <pj@sgi.com>, Marcelo Tosatti <marcelo.tosatti@cyclades.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Hugh Dickins <hugh@veritas.com>, Mike Kravetz <kravetz@us.ibm.com>, linux-kernel@vger.kernel.org, Marcelo Tosatti <marcelo.tosatti@cyclades.com>, linux-mm@kvack.org, torvalds@osdl.org, Christoph Lameter <clameter@sgi.com>, Hirokazu Takahashi <taka@valinux.co.jp>, Magnus Damm <magnus.damm@gmail.com>, Paul Jackson <pj@sgi.com>, Dave Hansen <haveblue@us.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-Direct Page Migration
+Add direct migration support with fall back to swap.
 
-This patchset applies on top of the swap based page migration patchset
-V5 and implements direct page migration.
+Direct migration support on top of the swap based page migration facility.
 
-Note that the page migration here is different from the one of the memory
-hotplug project. Pages are migrated in order to improve performance.
-A best effort is made to migrate all pages that are in use by user space
-and that are swappable. If a couple of pages are not moved then the
-performance of a process will not increase as much as wanted but the
-application will continue to function properly.
+This allows the direct migration of anonymous pages and the migration of
+file backed pages by dropping the associated buffers (requires writeout).
 
-Much of the ideas for this code were originally developed in the memory
-hotplug project and we hope that this code also will allow the hotplug
-project to build on this patch in order to get to their goals. We also
-would like to be able to move bad memory at SGI which is likely something
-that will also be based on this patchset.
+Fall back to swap out if necessary.
 
-I am very thankful for the support of the hotplug developers for bringing
-this patchset about. The migration of kernel pages, slab pages and
-other unswappable pages that is also needed by the hotplug project
-and for the remapping of bad memory is likely to require a significant
-amount of additional changes to the Linux kernel beyond the scope of
-this page migration endeavor.
+The patch is based on lots of patches from the hotplug project but the code
+was restructured, documented and simplified as much as possible.
 
-Page migration can be triggered via:
+Note that an additional patch that defines the migrate_page() method
+for filesystems is necessary in order to avoid writeback for anonymous
+and file backed pages.
 
-A. Specifying MPOL_MF_MOVE(_ALL) when setting a new policy
-   for a range of addresses of a process.
+Signed-off-by: Mike Kravetz <kravetz@us.ibm.com>
+Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
-B. Calling sys_migrate_pages() to control the location of the pages of
-   another process. Pages may migrate back through swapping if memory
-   policies, cpuset nodes and the node on which the process is executing
-   are not changed by other means.
-   sys_migrate_pages() may be particularly useful to move the pages of
-   a process if the scheduler has shifted the execution of a process
-   to a different node.
-
-C. Changing the cpuset of a task (moving tasks to another cpuset or modifying
-   its set of allowed nodes) if a special option is set in the cpuset. The
-   cpuset code will call into the page migration layer in order to move the
-   process to its new environment. This is the preferred and easiest method
-   to use page migration. Thanks to Paul Jackson for realizing this
-   functionality.
-
-Requirements to apply this patch:
-- 2.6.14-rc5-mm1
-- swap migration patchset V5
-- Paul Jackson's newest cpuset patches.
-
-The patchset consists of seven patches (only the first three are necessary to
-have basic direct migration support):
-
-1. CONFIG_MIGRATION patch
-
-   Make page migration configurable and insures that the page migration code
-   is not included in a simple memory configurations.
-
-2. SwapCache patch
-
-   SwapCache pages may have changed their type after lock_page().
-   Check for this and retry lookup if the page is no longer a SwapCache
-   page.
-
-3. migrate_pages()
-
-   Basic direct migration with fallback to swap if all other attempts
-   fail.
-
-4. remove_from_swap()
-
-   Page migration installs swap ptes for anonymous pages in order to
-   preserve the information contained in the page tables. This patch
-   removes the swap ptes and replaces them with real ones after migration.
-
-5. upgrade of MPOL_MF_MOVE and sys_migrate_pages()
-
-   Add logic to mm/mempolicy.c to allow the policy layer to control
-   direct page migration. Thanks to Paul Jackson for the interative
-   logic to move between sets of nodes.
-
-
-6. buffer_migrate_pages() patch
-
-   Allow migration without writing back dirty pages. Add filesystem dependent
-   migration support for ext2/ext3 and xfs. Use swapper space to define a special
-   method to migrate anonymous pages without writeback.
-
-7. add_to_swap with gfp mask
-
-   The default of add_to_swap is to use GFP_ATOMIC for necessary allocations.
-   This may cause out of memory situations during page migration. This patch
-   adds an additional parameter to add_to_swap to allow GFP_KERNEL allocations.
-
-Credits (also in mm/vsmscan.c):
-
-The idea for this scheme of page migration was first developed in the context
-of the memory hotplug project. The main authors of the migration code from
-the memory hotplug project are:
-
-IWAMOTO Toshihiro <iwamoto@valinux.co.jp>
-Hirokazu Takahashi <taka@valinux.co.jp>
-Dave Hansen <haveblue@us.ibm.com>
+Index: linux-2.6.14-rc5-mm1/mm/vmscan.c
+===================================================================
+--- linux-2.6.14-rc5-mm1.orig/mm/vmscan.c	2005-11-04 09:53:30.000000000 -0800
++++ linux-2.6.14-rc5-mm1/mm/vmscan.c	2005-11-04 10:23:58.000000000 -0800
+@@ -576,10 +576,6 @@ keep:
+ /*
+  * swapout a single page
+  * page is locked upon entry, unlocked on exit
+- *
+- * return codes:
+- *	0 = complete
+- *	1 = retry
+  */
+ static int swap_page(struct page *page)
+ {
+@@ -595,42 +591,201 @@ static int swap_page(struct page *page)
+ 		case PAGE_KEEP:
+ 		case PAGE_ACTIVATE:
+ 			goto unlock_retry;
++
+ 		case PAGE_SUCCESS:
+-			goto retry;
++			return -EAGAIN;
++
+ 		case PAGE_CLEAN:
+ 			; /* try to free the page below */
+ 		}
+ 	}
+ 
+ 	if (PagePrivate(page)) {
+-		if (!try_to_release_page(page, GFP_KERNEL))
++		if (!try_to_release_page(page, GFP_KERNEL) ||
++		    (!mapping && page_count(page) == 1))
+ 			goto unlock_retry;
+-		if (!mapping && page_count(page) == 1)
+-			goto free_it;
+ 	}
+ 
+-	if (!remove_mapping(mapping, page))
+-		goto unlock_retry;		/* truncate got there first */
++	if (remove_mapping(mapping, page)) {
++		unlock_page(page);
++		return 0;
++	}
++
++unlock_retry:
++	unlock_page(page);
++
++	return -EAGAIN;
++}
++
++static inline void move_to_lru(struct page *page)
++{
++	list_del(&page->lru);
++	if (PageActive(page)) {
++		/*
++		 * lru_cache_add_active checks that
++		 * the PG_active bit is off.
++		 */
++		ClearPageActive(page);
++		lru_cache_add_active(page);
++	} else
++		lru_cache_add(page);
++	put_page(page);
++}
++
++/*
++ * Page migration was developed in the context of the memory hotplug project.
++ * The main authors of the migration code are:
++ *
++ * IWAMOTO Toshihiro <iwamoto@valinux.co.jp>
++ * Hirokazu Takahashi <taka@valinux.co.jp>
++ * Dave Hansen <haveblue@us.ibm.com>
++ * Christoph Lameter <clameter@sgi.com>
++ */
++
++/*
++ * Remove references for a page and establish the new page with the correct
++ * basic settings to be able to stop accesses to the page.
++ */
++int migrate_page_remove_references(struct page *newpage, struct page *page, int nr_refs)
++{
++	struct address_space *mapping = page_mapping(page);
++	struct page **radix_pointer;
++
++	/* Must have added this page to swap so mapping must exist */
++	BUG_ON(!mapping);
++
++	/* Bail out if there are other users of the page */
++	if (page_mapcount(page) + nr_refs != page_count(page))
++		return 1;
++
++	read_lock_irq(&mapping->tree_lock);
++
++	radix_pointer = (struct page **)radix_tree_lookup_slot(
++						&mapping->page_tree,
++						page_index(page));
++	if (*radix_pointer != page) {
++		/*
++		 * Someone else modified the radix tree
++		 */
++		read_unlock_irq(&mapping->tree_lock);
++		return 1;
++	}
++
++	/*
++	 * Certain minimal information about a page must be available
++	 * in order for other subsystems to properly handle the page if they
++	 * find it through some of the links that we soon may establish.
++	 */
++	get_page(newpage);
++	newpage->index = page_index(page);
++	if (PageSwapCache(page)) {
++		SetPageSwapCache(newpage);
++		set_page_private(newpage, page_private(page));
++	} else
++		newpage->mapping = page->mapping;
++
++	*radix_pointer = newpage;
++	read_unlock_irq(&mapping->tree_lock);
++
++	/*
++	 * We are now in the critical section where there is no easy way
++	 * out since other processes accessing newpage may have followed
++	 * the mapping that we have exstablished above. We need to succeed!
++	 */
++	while (page_mapped(page)) {
++		int rc = try_to_unmap(page);
++
++		if (rc == SWAP_SUCCESS)
++			break;
++		/*
++		 * If there are other runnable processes then running
++		 * them may make it possible to unmap the page
++		 */
++		schedule();
++
++		/*
++		 * A really unswappable page should not occur here
++		 * since we should have checked for the page
++		 * not being in a vma that is unswappable
++		 * before entering this function.
++		 *
++		 * Currently we will simply hang if such a page
++		 * is encountered here.
++		 */
++	}
++
++	__put_page(page);		/* mapping removed from page */
++
++	return 0;
++}
++
++/*
++ * Copy the page to its new location
++ */
++void migrate_page_copy(struct page *newpage, struct page *page)
++{
++
++	copy_highpage(newpage, page);
++
++	if (PageError(page))
++		SetPageError(newpage);
++	if (PageReferenced(page))
++		SetPageReferenced(newpage);
++	if (PageUptodate(page))
++		SetPageUptodate(newpage);
++	if (PageActive(page))
++		SetPageActive(newpage);
++	if (PageChecked(page))
++		SetPageChecked(newpage);
++	if (PageMappedToDisk(page))
++		SetPageMappedToDisk(newpage);
++
++	if (PageDirty(page)) {
++		clear_page_dirty_for_io(page);
++		set_page_dirty(newpage);
++	}
+ 
+-free_it:
+ 	/*
+-	 * We may free pages that were taken off the active list
+-	 * by isolate_lru_page. However, free_hot_cold_page will check
+-	 * if the active bit is set. So clear it.
++	 * Make the old page a zombie page
+ 	 */
++	ClearPageSwapCache(page);
+ 	ClearPageActive(page);
++	ClearPagePrivate(page);
++	set_page_private(page, 0);
++	page->mapping = NULL;
+ 
+-	list_del(&page->lru);
+-	unlock_page(page);
+-	put_page(page);
+- 	return 0;
++	/*
++	 * If any waiters have accumulated on the new page then
++	 * wake them up.
++	 */
++	if (PageWriteback(newpage))
++		end_page_writeback(newpage);
++}
+ 
+-unlock_retry:
+-	unlock_page(page);
++/*
++ * Common logic to directly migrate a single page suitable for
++ * pages that do not use PagePrivate.
++ *
++ * Pages are locked upon entry and exit.
++ *
++ * It has been verified that the page is not
++ *  1. Undergoing writeback.
++ *  2. Having any additional references besides the radix tree,
++ *     page tables and the reference from isolate_lru_page().
++ *  3. Part of a vma that is not swappable
++ */
++int migrate_page(struct page *newpage, struct page *page)
++{
++	BUG_ON(PageWriteback(page));	/* Writeback must be complete */
++
++	if (migrate_page_remove_references(newpage, page, 2))
++		return -EAGAIN;
+ 
+-retry:
+-       return 1;
++	migrate_page_copy(newpage, page);
++
++	return 0;
+ }
++
+ /*
+  * migrate_pages
+  *
+@@ -644,10 +799,7 @@ retry:
+  * are movable anymore because t has become empty
+  * or no retryable pages exist anymore.
+  *
+- * SIMPLIFIED VERSION: This implementation of migrate_pages
+- * is only swapping out pages and never touches the second
+- * list. The direct migration patchset
+- * extends this function to avoid the use of swap.
++ * Return: Number of pages not migrated when t ran empty.
+  */
+ int migrate_pages(struct list_head *l, struct list_head *t)
+ {
+@@ -658,6 +810,7 @@ int migrate_pages(struct list_head *l, s
+ 	struct page *page;
+ 	struct page *page2;
+ 	int swapwrite = current->flags & PF_SWAPWRITE;
++	int rc = 0;
+ 
+ 	if (!swapwrite)
+ 		current->flags |= PF_SWAPWRITE;
+@@ -666,32 +819,48 @@ redo:
+ 	retry = 0;
+ 
+ 	list_for_each_entry_safe(page, page2, l, lru) {
++		struct page *newpage = NULL;
++		struct address_space *mapping;
++
+ 		cond_resched();
+ 
++		if (t && list_empty(t))
++			break;
++
++		if (page_count(page) == 1) {
++			/* page was freed from under us */
++			move_to_lru(page);
++			continue;
++		}
+ 		/*
+ 		 * Skip locked pages during the first two passes to give the
+-		 * functions holding the lock time to release the page. Later we use
+-		 * lock_page to have a higher chance of acquiring the lock.
++		 * functions holding the lock time to release the page.
++		 * Later we use lock_page() to have a higher chance of
++		 * acquiring the lock.
+ 		 */
++		rc = -EAGAIN;
+ 		if (pass > 2)
+ 			lock_page(page);
+ 		else
+ 			if (TestSetPageLocked(page))
+-				goto retry_later;
++				goto next;
+ 
+ 		/*
+-		 * Only wait on writeback if we have already done a pass where
+-		 * we we may have triggered writeouts for lots of pages.
++		 * Only wait on writeback if we have already done a pass
++		 * where we we may have triggered writeouts.
+ 		 */
+ 		if (pass > 0)
+ 			wait_on_page_writeback(page);
+ 		else
+-			if (PageWriteback(page)) {
+-				unlock_page(page);
+-				goto retry_later;
+-			}
++			if (PageWriteback(page))
++				goto unlock_page;
+ 
+ #ifdef CONFIG_SWAP
++		/*
++		 * Anonymous pages must have swap cache references otherwise
++		 * the information contained in the page maps cannot be
++		 * preserved.
++		 */
+ 		if (PageAnon(page) && !PageSwapCache(page)) {
+ 			if (!add_to_swap(page)) {
+ 				unlock_page(page);
+@@ -702,13 +871,80 @@ redo:
+ 		}
+ #endif /* CONFIG_SWAP */
+ 
++		if (!t) {
++			rc = swap_page(page);
++			goto next;
++		}
++
++		newpage = lru_to_page(t);
++		lock_page(newpage);
++
+ 		/*
+ 		 * Page is properly locked and writeback is complete.
+ 		 * Try to migrate the page.
+ 		 */
+-		if (swap_page(page)) {
+-retry_later:
++		mapping = page_mapping(page);
++
++		/*
++		 * Trigger writeout if page is dirty
++		 */
++		if (PageDirty(page)) {
++			switch (pageout(page, mapping)) {
++			case PAGE_KEEP:
++			case PAGE_ACTIVATE:
++				goto unlock_both;
++
++			case PAGE_SUCCESS:
++				unlock_page(newpage);
++				goto next;
++
++			case PAGE_CLEAN:
++				; /* try to migrate the page below */
++			}
++		}
++
++		/*
++		 * If we have no buffer or can release the buffers
++		 * then do a simple migration.
++		 */
++		if (!page_has_buffers(page) ||
++		    try_to_release_page(page, GFP_KERNEL)) {
++			rc = migrate_page(newpage, page);
++			goto unlock_both;
++		}
++
++		/*
++		 * On early passes with mapped pages simply
++		 * retry. There may be a lock held for some
++		 * buffers that may go away later. Later
++		 * swap them out.
++		 */
++		if (pass > 2) {
++			unlock_page(newpage);
++			newpage = NULL;
++			rc = swap_page(page);
++			goto next;
++		}
++
++unlock_both:
++		unlock_page(newpage);
++
++unlock_page:
++		unlock_page(page);
++
++next:
++		if (rc == -EAGAIN)
++			/* Page should be retried later */
+ 			retry++;
++
++		else if (rc) {
++			/* Permanent failure to migrate the page */
++			list_move(&page->lru, &failed);
++			nr_failed++;
++		}
++		else if (newpage) {
++			/* Successful migration. Return page to LRU */
++			move_to_lru(newpage);
+ 		}
+ 	}
+ 	if (retry && pass++ < 10)
+@@ -869,21 +1105,6 @@ done:
+ 	pagevec_release(&pvec);
+ }
+ 
+-static inline void move_to_lru(struct page *page)
+-{
+-	list_del(&page->lru);
+-	if (PageActive(page)) {
+-		/*
+-		 * lru_cache_add_active checks that
+-		 * the PG_active bit is off.
+-		 */
+-		ClearPageActive(page);
+-		lru_cache_add_active(page);
+-	} else 
+-		lru_cache_add(page);
+-	put_page(page);
+-}
+-
+ /*
+  * Add isolated pages on the list back to the LRU
+  *
+Index: linux-2.6.14-rc5-mm1/include/linux/swap.h
+===================================================================
+--- linux-2.6.14-rc5-mm1.orig/include/linux/swap.h	2005-11-04 09:53:30.000000000 -0800
++++ linux-2.6.14-rc5-mm1/include/linux/swap.h	2005-11-04 10:04:46.000000000 -0800
+@@ -181,6 +181,10 @@ extern int putback_lru_pages(struct list
+ 
+ #ifdef CONFIG_MIGRATION
+ extern int migrate_pages(struct list_head *l, struct list_head *t);
++
++extern int migrate_page(struct page *, struct page *);
++extern int migrate_page_remove_references(struct page *, struct page *, int);
++extern void migrate_page_copy(struct page *, struct page *);
+ #endif
+ 
+ #ifdef CONFIG_MMU
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
