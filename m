@@ -1,10 +1,9 @@
-Date: Fri, 4 Nov 2005 01:26:51 +0000 (GMT)
+Date: Fri, 4 Nov 2005 01:48:11 +0000 (GMT)
 From: Mel Gorman <mel@csn.ul.ie>
 Subject: Re: [Lhms-devel] [PATCH 0/7] Fragmentation Avoidance V19
-In-Reply-To: <Pine.LNX.4.64.0511031704590.27915@g5.osdl.org>
-Message-ID: <Pine.LNX.4.58.0511040112590.9172@skynet>
+In-Reply-To: <436AB7CA.6060603@yahoo.com.au>
+Message-ID: <Pine.LNX.4.58.0511040134460.9172@skynet>
 References: <4366C559.5090504@yahoo.com.au>
- <1130854224.14475.60.camel@localhost><20051101142959.GA9272@elte.hu>
  <1130856555.14475.77.camel@localhost><20051101150142.GA10636@elte.hu>
  <1130858580.14475.98.camel@localhost><20051102084946.GA3930@elte.hu>
  <436880B8.1050207@yahoo.com.au><1130923969.15627.11.camel@localhost>
@@ -16,55 +15,83 @@ References: <4366C559.5090504@yahoo.com.au>
  <311050000.1131040276@[10.10.2.4]> <1131040786.2839.18.camel@laptopd505.fenrus.org>
  <Pine.LNX.4.64.0511031006550.27915@g5.osdl.org> <312300000.1131041824@[10.1!
  0.2.4]> <436AB241.2030403@yahoo.com.au> <Pine.LNX.4.64.0511031704590.27915@g5.osdl.org>
+ <436AB7CA.6060603@yahoo.com.au>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@osdl.org>
-Cc: Nick Piggin <nickpiggin@yahoo.com.au>, "Martin J. Bligh" <mbligh@mbligh.org>, Arjan van de Ven <arjan@infradead.org>, Dave Hansen <haveblue@us.ibm.com>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@osdl.org>, kravetz@us.ibm.com, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, lhms <lhms-devel@lists.sourceforge.net>, Arjan van de Ven <arjanv@infradead.org>
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Linus Torvalds <torvalds@osdl.org>, "Martin J. Bligh" <mbligh@mbligh.org>, Arjan van de Ven <arjan@infradead.org>, Dave Hansen <haveblue@us.ibm.com>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@osdl.org>, kravetz@us.ibm.com, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, lhms <lhms-devel@lists.sourceforge.net>, Arjan van de Ven <arjanv@infradead.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 3 Nov 2005, Linus Torvalds wrote:
+On Fri, 4 Nov 2005, Nick Piggin wrote:
 
->
->
-> On Fri, 4 Nov 2005, Nick Piggin wrote:
+> Linus Torvalds wrote:
 > >
-> > Looks like ppc64 is getting 64K page support, at which point higher
-> > order allocations (eg. for stacks) basically disappear don't they?
+> > On Fri, 4 Nov 2005, Nick Piggin wrote:
+> >
+> > > Looks like ppc64 is getting 64K page support, at which point higher
+> > > order allocations (eg. for stacks) basically disappear don't they?
+> >
+> >
+> > Yes and no, HOWEVER, nobody sane will ever use 64kB pages on a
+> > general-purpose machine.
+> >
+> > 64kB pages are _only_ usable for databases, nothing else.
+> >
+> > Why? Do the math. Try to cache the whole kernel source tree in 4kB pages vs
+> > 64kB pages. See how the memory usage goes up by a factor of _four_.
+> >
 >
-> Yes and no, HOWEVER, nobody sane will ever use 64kB pages on a
-> general-purpose machine.
->
-> 64kB pages are _only_ usable for databases, nothing else.
+> Yeah that's true. But Martin's worried about future machines
+> with massive memories - so maybe it is safe to assume those will
+> be using big pages, I don't know.
 >
 
-Very well, but if the infrastructure required to help get 64kB pages still
-performs the same, or better, than the current infrastructure that gives
-4kB pages, then why not? I am biased obviously and probably optimistic but
-I am hoping we have a case here where we get our cake and eat it twice.
+Todays massive machines are tomorrows desktop. Weak comment, I know, but
+it's happened before.
 
-> Why? Do the math. Try to cache the whole kernel source tree in 4kB pages
-> vs 64kB pages. See how the memory usage goes up by a factor of _four_.
+> Maybe the solution is to bloat the kernel sources enough to make
+> 64KB pages worthwhile?
 >
 
-I don't know, but I doubt they would use 64kB pages as the default size
-unless it is a specialised machine. I could be wrong, I don't have a ppc64
-machine, I don't work on a ppc64 machine, I haven't read the architectures
-documentation and I didn't write this code for a ppc64 machine. If the
-machine here in question it's a specialised machine, they go into the
-0.01% category of people, but it's a group that we can still help without
-introducing static zones they have to configure.
+root@monocle:/boot# ls -l vmlinuz-2.6.14-rc5-mm1-clean
+-rw-r--r--  1 root root 1718063 2005-11-01 16:17
+vmlinuz-2.6.14-rc5-mm1-clean
+root@monocle:/boot# ls -l vmlinuz-2.6.14-rc5-mm1-mbuddy-v19
+-rw-r--r--  1 root root 1722102 2005-11-02 14:56
+vmlinuz-2.6.14-rc5-mm1-mbuddy-v19
+root@monocle:/boot# dc
+1722102
+1718063
+- p
+4039
 
-I'm still waiting on figures that say the approach proposed here is
-actually really slow, rather than makes people unhappy slow. If this is
-proved to be slow, then I'll admit there is a problem and put more effort
-into the plans to use zones instead. I just haven't found a problem on the
-machines I have available to me, be it aim9, bench-stresshighalloc or
-building kernels (which I think is important considering how often I build
-test kernels). If it's a documentation problem with these patches, I'll
-write up VM docs on the allocator and submit it as a patch, complete with
-downsides and caveats to be fair.
+root@monocle:/boot# ls -l vmlinux-2.6.14-rc5-mm1-clean
+-rwxr-xr-x  1 root root 31518866 2005-11-01 16:17
+vmlinux-2.6.14-rc5-mm1-clean
+root@monocle:/boot# ls -l vmlinux-2.6.14-rc5-mm1-mbuddy-v19
+-rwxr-xr-x  1 root root 31585714 2005-11-02 14:56
+vmlinux-2.6.14-rc5-mm1-mbuddy-v19
+
+mel@joshua:/usr/src/patchset-0.5/kernels/linux-2.6.14-rc5-mm1-nooom$ wc -l mm/page_alloc.c
+2689 mm/page_alloc.c
+mel@joshua:/usr/src/patchset-0.5/kernels/linux-2.6.14-rc5-mm1-mbuddy-v19-withdefrag$  wc -l mm/page_alloc.c
+3188 mm/page_alloc.c
+
+0.23% increase in size of bzImage, 0.21% increase in the size of vmlinux
+and the major increase in code size is in one file, *one* file, all of
+which does it's best to impact the flow of the well-understood code. We're
+seeing bigger differences in performance than we are in the size of the
+kernel. I'd understand if I was the first person to ever introduce
+complexity to the VM.
+
+If the size of the image for really small systems is the issue, what if I
+say I'll add in another patch that optionally compiles away as much of
+anti-defrag as possible without making the code a mess of #defines .  Are
+we still going to hear "no, I don't like looking at this". The current
+patch to compile it away deliberately choose the smallest part to take
+away to restore the allocator to todays behavior.
 
 -- 
 Mel Gorman
