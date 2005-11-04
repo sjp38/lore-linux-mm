@@ -1,46 +1,46 @@
-Date: Thu, 03 Nov 2005 17:16:55 -0800
-From: "Martin J. Bligh" <mbligh@mbligh.org>
-Reply-To: "Martin J. Bligh" <mbligh@mbligh.org>
-Subject: Re: [Lhms-devel] [PATCH 0/7] Fragmentation Avoidance V19
-Message-ID: <58210000.1131067015@flay>
-In-Reply-To: <20051104010021.4180A184531@thermo.lanl.gov>
-References: <20051104010021.4180A184531@thermo.lanl.gov>
+Message-ID: <436AB7CA.6060603@yahoo.com.au>
+Date: Fri, 04 Nov 2005 12:22:18 +1100
+From: Nick Piggin <nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Subject: Re: [Lhms-devel] [PATCH 0/7] Fragmentation Avoidance V19
+References: <4366C559.5090504@yahoo.com.au> <1130854224.14475.60.camel@localhost><20051101142959.GA9272@elte.hu> <1130856555.14475.77.camel@localhost><20051101150142.GA10636@elte.hu> <1130858580.14475.98.camel@localhost><20051102084946.GA3930@elte.hu> <436880B8.1050207@yahoo.com.au><1130923969.15627.11.camel@localhost> <43688B74.20002@yahoo.com.au><255360000.1130943722@[10.10.2.4]> <4369824E.2020407@yahoo.com.au> <306020000.1131032193@[10.10.2.4]> <1131032422.2839.8.camel@laptopd505.fenrus.org>  <Pine.LNX.4.64.0511030747450.27915@g5.osdl.org> <Pine.LNX.4.58.0511031613560.3571@skynet>  <Pine.LNX.4.64.0511030842050.27915@g5.osdl.org> <309420000.1131036740@[10.10.2.4]>  <Pine.LNX.4.64.0511030918110.27915@g5.osdl.org> <311050000.1131040276@[10.10.2.4]> <1131040786.2839.18.camel@laptopd505.fenrus.org> <Pine.LNX.4.64.0511031006550.27915@g5.osdl.org> <312300000.1131041824@[10.1! 0.2.4]> <436AB241.2030403@yahoo.com.au> <Pine.LNX.4.64.0511031704590.27915@g5.osdl.org>
+In-Reply-To: <Pine.LNX.4.64.0511031704590.27915@g5.osdl.org>
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andy Nelson <andy@thermo.lanl.gov>, torvalds@osdl.org
-Cc: akpm@osdl.org, arjan@infradead.org, arjanv@infradead.org, haveblue@us.ibm.com, kravetz@us.ibm.com, lhms-devel@lists.sourceforge.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mel@csn.ul.ie, mingo@elte.hu, nickpiggin@yahoo.com.au
+To: Linus Torvalds <torvalds@osdl.org>
+Cc: "Martin J. Bligh" <mbligh@mbligh.org>, Arjan van de Ven <arjan@infradead.org>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <haveblue@us.ibm.com>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@osdl.org>, kravetz@us.ibm.com, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, lhms <lhms-devel@lists.sourceforge.net>, Arjan van de Ven <arjanv@infradead.org>
 List-ID: <linux-mm.kvack.org>
 
-> Linus writes:
+Linus Torvalds wrote:
 > 
->> Just face it - people who want memory hotplug had better know that 
->> beforehand (and let's be honest - in practice it's only going to work in 
->> virtualized environments or in environments where you can insert the new 
->> bank of memory and copy it over and remove the old one with hw support).
->> 
->> Same as hugetlb.
->> 
->> Nobody sane _cares_. Nobody sane is asking for these things. Only people 
->> with special needs are asking for it, and they know their needs.
+> On Fri, 4 Nov 2005, Nick Piggin wrote:
+> 
+>>Looks like ppc64 is getting 64K page support, at which point higher
+>>order allocations (eg. for stacks) basically disappear don't they?
 > 
 > 
-> Hello, my name is Andy. I am insane. I am one of the CRAZY PEOPLE you wrote
-> about.
+> Yes and no, HOWEVER, nobody sane will ever use 64kB pages on a 
+> general-purpose machine.
+> 
+> 64kB pages are _only_ usable for databases, nothing else.
+> 
+> Why? Do the math. Try to cache the whole kernel source tree in 4kB pages 
+> vs 64kB pages. See how the memory usage goes up by a factor of _four_.
+> 
 
-To provide a slightly shorter version ... we had one customer running
-similarly large number crunching things in Fortran. Their app ran 25%
-faster with large pages (not a typo). Because they ran a variety of
-jobs in batch mode, they need large pages sometimes, and small pages
-at others - hence they need to dynamically resize the pool. 
+Yeah that's true. But Martin's worried about future machines
+with massive memories - so maybe it is safe to assume those will
+be using big pages, I don't know.
 
-That's the sort of thing we were trying to fix with dynamically sized
-hugepage pools. It does make a huge difference to real-world customers.
+Maybe the solution is to bloat the kernel sources enough to make
+64KB pages worthwhile?
 
-M.
+-- 
+SUSE Labs, Novell Inc.
+
+Send instant messages to your online friends http://au.messenger.yahoo.com 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
