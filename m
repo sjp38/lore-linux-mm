@@ -1,8 +1,8 @@
-Date: Fri, 4 Nov 2005 01:52:50 -0800
+Date: Fri, 4 Nov 2005 02:04:29 -0800
 From: Paul Jackson <pj@sgi.com>
-Subject: Re: [Lhms-devel] [PATCH 0/7] Fragmentation Avoidance V19
-Message-Id: <20051104015250.42364430.pj@sgi.com>
-In-Reply-To: <20051104000212.2e0e92bd.akpm@osdl.org>
+Subject: Re: [patch] swapin rlimit
+Message-Id: <20051104020429.104c27b3.pj@sgi.com>
+In-Reply-To: <1131092322.2799.3.camel@laptopd505.fenrus.org>
 References: <E1EXEfW-0005ON-00@w-gerrit.beaverton.ibm.com>
 	<200511021747.45599.rob@landley.net>
 	<43699573.4070301@yahoo.com.au>
@@ -10,75 +10,29 @@ References: <E1EXEfW-0005ON-00@w-gerrit.beaverton.ibm.com>
 	<20051103163555.GA4174@ccure.user-mode-linux.org>
 	<1131035000.24503.135.camel@localhost.localdomain>
 	<20051103205202.4417acf4.akpm@osdl.org>
-	<20051103213538.7f037b3a.pj@sgi.com>
-	<20051103214807.68a3063c.akpm@osdl.org>
-	<20051103224239.7a9aee29.pj@sgi.com>
-	<20051103231019.488127a6.akpm@osdl.org>
-	<20051103234530.5fcb2825.pj@sgi.com>
-	<20051104000212.2e0e92bd.akpm@osdl.org>
+	<20051104072628.GA20108@elte.hu>
+	<20051103233628.12ed1eee.akpm@osdl.org>
+	<1131092322.2799.3.camel@laptopd505.fenrus.org>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: bron@bronze.corp.sgi.com, pbadari@gmail.com, jdike@addtoit.com, rob@landley.net, nickpiggin@yahoo.com.au, gh@us.ibm.com, mingo@elte.hu, kamezawa.hiroyu@jp.fujitsu.com, haveblue@us.ibm.com, mel@csn.ul.ie, mbligh@mbligh.org, kravetz@us.ibm.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, lhms-devel@lists.sourceforge.net
+To: Arjan van de Ven <arjan@infradead.org>
+Cc: akpm@osdl.org, mingo@elte.hu, pbadari@gmail.com, torvalds@osdl.org, jdike@addtoit.com, rob@landley.net, nickpiggin@yahoo.com.au, gh@us.ibm.com, kamezawa.hiroyu@jp.fujitsu.com, haveblue@us.ibm.com, mel@csn.ul.ie, mbligh@mbligh.org, kravetz@us.ibm.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, lhms-devel@lists.sourceforge.net
 List-ID: <linux-mm.kvack.org>
 
-> > A per-task stat requires walking the tasklist, to build a list of the
-> > tasks to query.
-> 
-> Nope, just task->mm->whatever.
+Arjan wrote:
+> doing this from userspace is tricky; what if the task dies of natural
+> causes and the pid gets reused, between the time the userspace app reads
+> the value and the time it decides the time is up and time for a kill....
+> (and on a busy server that can be quite a bit of time)
 
-Nope.
-
-Agreed - once you have the task, then sure, that's enough.
-
-However - a batch scheduler will end up having to figure out what tasks
-there are to inquire, by either listing the tasks in a cpuset, or
-by listing /proc.  Either way, that's a tasklist scan.  And it will
-have to do that pretty much every iteration of polling, since it has
-no a priori knowledge of what tasks a job is firing up.
-
-
-> Well no.  Because the filtered-whatsit takes two spinlocks and does a bunch
-> of arith for each and every task, each time it calls try_to_free_pages(). 
-
-Neither spinlock is global - the task and a lock in its cpuset.
-
-I see a fair number of existing locks and semaphores, some global
-and some in loops, that look to be in the code invoked by
-try_to_free_pages(). And far more arithmetic than in that little
-filter.
-
-Granted, its cost seen by all, for the benefit of few.  But other sorts
-of per-task or per-mm stats are not going to be free either.  I would
-have figured that doing something per-page, even the most trivial
-"counter++" (better have that mm locked) will likely cost more than
-doing something per try_to_free_pages() call.
-
-
-> The frequency of that could be very high indeed, even when nobody is
-> interested in the metric which is being maintained(!)
-
-When I have a task start allocating memory as fast it can, it is only
-able to call try_to_free_pages() about 10 times a second on an idle
-ia64 SN2 system, with a single thread, or about 20 times a second
-running several threads at once allocating memory.
-
-  That's not "very high" in my book.
-
-What sort of load would hit this much more often?  
-
-
-If more folks need these detailed stats, then that's how it should be.
-
-But I am no fan of exposing more than the minimum kernel vm details for
-use by production software.
-
-We agree that my per-cpuset memory_reclaim_rate meter certainly hides
-more detail than the sorts of stats you are suggesting.  I thought that
-was good, so long as what was needed was still present.
+If pids are being reused within seconds of their being freed up,
+then the batch managers running on the big HPC systems I care
+about are so screwed it isn't even funny.  They depend heavily
+on being able to identify the task pids in a job and then doing
+something to those tasks (suspend, kill, gather stats, ...).
 
 -- 
                   I won't rest till it's the best ...
