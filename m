@@ -1,56 +1,58 @@
-From: Arnd Bergmann <arnd@arndb.de>
-Subject: Re: [PATCH] powerpc: mem_init crash for sparsemem
-Date: Fri, 4 Nov 2005 22:59:33 +0100
-References: <200511041631.17237.arnd@arndb.de> <436BC20B.9070704@shadowen.org> <20051104205758.GA5397@w-mikek2.ibm.com>
-In-Reply-To: <20051104205758.GA5397@w-mikek2.ibm.com>
+From: Andi Kleen <ak@suse.de>
+Subject: Re: X86_CONFIG overrides X86_L1_CACHE_SHIFT default for each CPU model.
+Date: Fri, 4 Nov 2005 23:39:57 +0100
+References: <4367CB17.6050200@gmail.com>
+In-Reply-To: <4367CB17.6050200@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain;
   charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-Message-Id: <200511042259.33880.arnd@arndb.de>
+Message-Id: <200511042339.57785.ak@suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mike Kravetz <kravetz@us.ibm.com>
-Cc: Andy Whitcroft <apw@shadowen.org>, linuxppc64-dev@ozlabs.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Jim Cromie <jim.cromie@gmail.com>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Freedag 04 November 2005 21:57, Mike Kravetz wrote:
+On Tuesday 01 November 2005 21:07, Jim Cromie wrote:
+> folks,
+>
+> in arch/i386/Kconfig, it seems (to me) that X86_GENERIC has undue influence
+> on X86_L1_CACHE_SHIFT;
+>
+> config X86_L1_CACHE_SHIFT
+>       int
+>       default "7" if MPENTIUM4 || X86_GENERIC
+>       default "4" if X86_ELAN || M486 || M386
+>       default "5" if MWINCHIP3D || MWINCHIP2 || MWINCHIPC6 || MCRUSOE ||
+> MEFFICEON || MCYRIXIII || MK6 || MPENTIUMIII || MPENTIUMII || M686 ||
+> M586MMX || M586TSC || M586 || MVIAC3_2 || MGEODEGX1
+>       default "6" if MK7 || MK8 || MPENTIUMM
+>
+> that is, when X86_GENERIC == true --> default = 7,
+> ignoring the platform choice *made* by the user-builder.
+> On my geode box, it would be 5 wo GENERIC.
 
-> This earlier statement in mem_init (or at least the comment),
-> 
-> num_physpages = max_pfn;        /* RAM is assumed contiguous */
-> 
-> may be a cause for concern.  I'm pretty sure max_pfn has previously
-> been set based on the value of lmb_end_of_DRAM().  My guess is that we
-> are going to report the system as having more memory that it actually
-> does (will not account for the hole(s)).
+The whole point of GENERIC is to set the cache line size to the worst case
+(which is 128 bytes)  so that the kernel will run reasonably well on all 
+systems.
 
-Yes, that's likely to cause trouble later. Unfortunately, there are still
-multiple places that determine the memory size by different means
-and save the result in a global variable, so it's hard to get them
-all right.
 
-I'll probably move Cell to use NUMA mode for setups with multiple CPUs
-(each of which is already SMT), which means we can use the code that
-we already know handles this correctly, in addtition to the option
-of using NUMA aware memory allocation and scheduling for the SPUs.
+> Ill spare you my half-baked theories about the cause of these results,
+> in the hopes that the following patch 'correct-by-inspection', or that
+> somebody
+> is willing to clarify the purposes of X86_GENERIC.
 
-> That being said, the pfn_valid() check is still needed here.  But,
-> it looks like that code was originally written under the assumption
-> that there were no holes.
-> 
-> Can someone 'more in the know' of ppc architecture comment on the
-> ram is contiguous assumption?  Is this no longer the case?
+Your patch is wrong.
 
-For all I know, the firmware interface can legally declare noncontiguous
-memory, but that is not done on product level hardware except NUMA.
-The configuration for SPARSEMEM without NUMA is normally not possible
-on ppc64, I had to hack Kconfig to allow this in the first place.
-Without SPARSEMEM, the noncontiguous memory seems to be handled well
-except for the size detection.
+> An 'incorrect' guess at cache-line-size doesnt break the kernel;
+> is the number used to optimize the cache operation in a way
+> thats consistent with the above results ?
 
-	Arnd <><
+It only causes some more padding, which is normally performance neutral.
+
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
