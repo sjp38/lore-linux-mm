@@ -1,90 +1,90 @@
-Date: Fri, 4 Nov 2005 02:35:09 +0000 (GMT)
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [Lhms-devel] [PATCH 0/7] Fragmentation Avoidance V19
-In-Reply-To: <436AC07D.2070602@yahoo.com.au>
-Message-ID: <Pine.LNX.4.58.0511040214460.9172@skynet>
-References: <4366C559.5090504@yahoo.com.au>
- <1130858580.14475.98.camel@localhost><20051102084946.GA3930@elte.hu>
- <436880B8.1050207@yahoo.com.au><1130923969.15627.11.camel@localhost>
- <43688B74.20002@yahoo.com.au><255360000.1130943722@[10.10.2.4]>
- <4369824E.2020407@yahoo.com.au> <306020000.1131032193@[10.10.2.4]>
- <1131032422.2839.8.camel@laptopd505.fenrus.org>  <Pine.LNX.4.64.0511030747450.27915@g5.osdl.org>
- <Pine.LNX.4.58.0511031613560.3571@skynet>  <Pine.LNX.4.64.0511030842050.27915@g5.osdl.org>
- <309420000.1131036740@[10.10.2.4]>  <Pine.LNX.4.64.0511030918110.27915@g5.osdl.org>
- <311050000.1131040276@[10.10.2.4]> <1131040786.2839.18.camel@laptopd505.fenrus.org>
- <Pine.LNX.4.64.0511031006550.27915@g5.osdl.org> <312300000.1131041824@[10.1!
- 0.2.4]> <436AB241.2030403@yahoo.com.au> <Pine.LNX.4.64.0511031704590.27915@g5.osdl.org>
- <436AB7CA.6060603@yahoo.com.au> <Pine.LNX.4.58.0511040134460.9172@skynet>
- <436AC07D.2070602@yahoo.com.au>
+From: Blaisorblade <blaisorblade@yahoo.it>
+Subject: Re: [uml-devel] Re: [Lhms-devel] [PATCH 0/7] Fragmentation Avoidance V19
+Date: Fri, 4 Nov 2005 04:26:45 +0100
+References: <1130917338.14475.133.camel@localhost> <20051103052649.GA16508@ccure.user-mode-linux.org> <200511022341.50524.rob@landley.net>
+In-Reply-To: <200511022341.50524.rob@landley.net>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200511040426.47043.blaisorblade@yahoo.it>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Linus Torvalds <torvalds@osdl.org>, "Martin J. Bligh" <mbligh@mbligh.org>, Arjan van de Ven <arjan@infradead.org>, Dave Hansen <haveblue@us.ibm.com>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@osdl.org>, kravetz@us.ibm.com, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, lhms <lhms-devel@lists.sourceforge.net>, Arjan van de Ven <arjanv@infradead.org>
+To: user-mode-linux-devel@lists.sourceforge.net
+Cc: Rob Landley <rob@landley.net>, Jeff Dike <jdike@addtoit.com>, Nick Piggin <nickpiggin@yahoo.com.au>, Yasunori Goto <y-goto@jp.fujitsu.com>, Dave Hansen <haveblue@us.ibm.com>, Ingo Molnar <mingo@elte.hu>, Mel Gorman <mel@csn.ul.ie>, "Martin J. Bligh" <mbligh@mbligh.org>, Andrew Morton <akpm@osdl.org>, kravetz@us.ibm.com, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, lhms <lhms-devel@lists.sourceforge.net>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 4 Nov 2005, Nick Piggin wrote:
+On Thursday 03 November 2005 06:41, Rob Landley wrote:
+> On Wednesday 02 November 2005 23:26, Jeff Dike wrote:
+> > On Wed, Nov 02, 2005 at 05:28:35PM -0600, Rob Landley wrote:
+> > > With fragmentation reduction and prezeroing, UML suddenly gains the
+> > > option of calling madvise(DONT_NEED) on sufficiently large blocks as A)
+> > > a fast way of prezeroing, B) a way of giving memory back to the host OS
+> > > when it's not in use.
 
-> Mel Gorman wrote:
-> > On Fri, 4 Nov 2005, Nick Piggin wrote:
-> >
-> > Todays massive machines are tomorrows desktop. Weak comment, I know, but
-> > it's happened before.
-> >
->
-> Oh I wouldn't bet against it. And if desktops of the future are using
-> 100s of GB then they probably would be happy to use 64K pages as well.
->
+> > DONT_NEED is insufficient.  It doesn't discard the data in dirty
+> > file-backed pages.
 
-And would it not be nice to be ready when it happens, before it happens
-even?
+> I thought DONT_NEED would discard the page cache, and punch was only needed
+> to free up the disk space.
+This is correct, but...
 
-> >
-> > > Maybe the solution is to bloat the kernel sources enough to make
-> > > 64KB pages worthwhile?
-> > >
-> >
->
-> Sorry this wasn't meant to be a dig at your patches - I guess it turned
-> out that way though :\
->
+> I was hoping that since the file was deleted from disk and is already
+> getting _some_ special treatment (since it's a longstanding "poor man's
+> shared memory" hack), that madvise wouldn't flush the data to disk, but
+> would just zero it out.  A bit optimistic on my part, I know. :)
 
-Oh, I'll live. If I was going to take it personally and go into a big
-sulk, I wouldn't be here.  This is linux-kernel, not the super-friends
-club.
+I read at some time that this optimization existed but was deemed obsolete and 
+removed.
 
-> But yes, if anybody is adding complexity or size to core code it
-> obviously does need to be justified -- and by no means does this only
-> apply to you.
->
+Why obsolete? Because... we have tmpfs! And that's the point. With DONTNEED, 
+we detach references from page tables, but the content is still pinned: it 
+_is_ the "disk"! (And you have TMPDIR on tmpfs, right?)
 
-I've tried to justify it with benchmarks that came with each release and
-code reviews, particularly by Dave Hansen, showed that earlier versions
-had significant problems that needed to be ironed out. I don't want to
-hurt the normal case, because the fact of the matter is, my desktop
-machine (which runs with these patches to see if there are any bugs)
-runs the normal case and it will until we get much further because I'm not
-configuring my machine for HugeTLB when it boots. If I'm hurting the
-normal case, that's more time switching windows to see if the next test
-kernel has built yet.
+> > Badari Pulavarty has a test patch (google for madvise(MADV_REMOVE))
+> > which does do the trick, and I have a UML patch which adds memory
+> > hotplug.  This combination does free memory back to the host.
 
-If we can do this and not regress in the standard case, then what is
-wrong? I'm still waiting for figures that say this approach is slow and I
-can only assume someone is trying considering the length of this thread.
-If and when those figures show up, I'll put on the thinking hat and see
-where I went wrong because regression performance is wrong. There is a
-win-win solution somewhere, how hard could it possibly be :) ?
+> I saw it wander by, and am all for it.  If it goes in, it's obviously the
+> right thing to use.
+Btw, on this side of the picture, I think fragmentation avoidance is not 
+needed for that.
 
-I'm looking at the zone approach. I want to see if it can work in a nice
-fashion, not in a "if the sysadm can see the future and configure
-correctly, it'll work just fine" fashion. I'm not confident, but it might
-be bias.
+I guess you refer to using frag. avoidance on the guest (if it matters for the 
+host, let me know). When it will be present using it will be nice, but 
+currently we'd do madvise() on a page-per-page basis, and we'd do it on 
+non-consecutive pages (basically, free pages we either find or free or 
+purpose).
 
+> You may remember I asked about this two years ago: 
+> http://seclists.org/lists/linux-kernel/2003/Dec/0919.html
+
+> And a reply indicated that SVr4 had it, but we don't.  I assume the "naming
+> discussion" mentioned in the recent thread already scrubbed through this
+> old thread to determine that the SVr4 API was icky.
+> http://seclists.org/lists/linux-kernel/2003/Dec/0955.html
+
+I assume not everybody did (even if somebody pointed out the existance of the 
+SVr4 API), but there was the need, in at least one usage, for a virtual 
+address-based API rather than a file offset based one, like the SVr4 one - 
+that user would need implementing backward mapping in userspace only for this 
+purpose, while we already have it in the kernel.
+
+Anyway, the sys_punch() API will follow later - customers need mainly 
+madvise() for now.
 -- 
-Mel Gorman
-Part-time Phd Student                          Java Applications Developer
-University of Limerick                         IBM Dublin Software Lab
+Inform me of my mistakes, so I can keep imitating Homer Simpson's "Doh!".
+Paolo Giarrusso, aka Blaisorblade (Skype ID "PaoloGiarrusso", ICQ 215621894)
+http://www.user-mode-linux.org/~blaisorblade
+
+	
+
+	
+		
+___________________________________ 
+Yahoo! Mail: gratis 1GB per i messaggi e allegati da 10MB 
+http://mail.yahoo.it
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
