@@ -1,29 +1,46 @@
-Date: Fri, 04 Nov 2005 07:27:01 -0800
-From: "Martin J. Bligh" <mbligh@mbligh.org>
-Reply-To: "Martin J. Bligh" <mbligh@mbligh.org>
-Subject: Re: [Lhms-devel] [PATCH 0/7] Fragmentation Avoidance V19
-Message-ID: <326590000.1131118021@[10.10.2.4]>
-In-Reply-To: <20051104015250.42364430.pj@sgi.com>
-References: <E1EXEfW-0005ON-00@w-gerrit.beaverton.ibm.com><200511021747.45599.rob@landley.net><43699573.4070301@yahoo.com.au><200511030007.34285.rob@landley.net><20051103163555.GA4174@ccure.user-mode-linux.org><1131035000.24503.135.camel@localhost.localdomain><20051103205202.4417acf4.akpm@osdl.org><20051103213538.7f037b3a.pj@sgi.com><20051103214807.68a3063c.akpm@osdl.org><20051103224239.7a9aee29.pj@sgi.com><20051103231019.488127a6.akpm@osdl.org><20051103234530.5fcb2825.pj@sgi.com><20051104000212.2e0e92bd.akpm@osdl.org> <20051104015250.42364430.pj@sgi.com>
+From: Arnd Bergmann <arnd@arndb.de>
+Subject: [PATCH] powerpc: mem_init crash for sparsemem
+Date: Fri, 4 Nov 2005 16:31:16 +0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain;
+  charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
+Message-Id: <200511041631.17237.arnd@arndb.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Paul Jackson <pj@sgi.com>, Andrew Morton <akpm@osdl.org>
-Cc: bron@bronze.corp.sgi.com, pbadari@gmail.com, jdike@addtoit.com, rob@landley.net, nickpiggin@yahoo.com.au, gh@us.ibm.com, mingo@elte.hu, kamezawa.hiroyu@jp.fujitsu.com, haveblue@us.ibm.com, mel@csn.ul.ie, kravetz@us.ibm.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, lhms-devel@lists.sourceforge.net
+To: linuxppc64-dev@ozlabs.org
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+I have a Cell blade with some broken memory in the middle of the
+physical address space and this is correctly detected by the
+firmware, but not relocated. When I enable CONFIG_SPARSEMEM,
+the memsections for the nonexistant address space do not
+get struct page entries allocated, as expected.
 
-> We agree that my per-cpuset memory_reclaim_rate meter certainly hides
-> more detail than the sorts of stats you are suggesting.  I thought that
-> was good, so long as what was needed was still present.
+However, mem_init for the non-NUMA configuration tries to
+access these pages without first looking if they are there.
+I'm currently using the hack below to work around that, but
+I have the feeling that there should be a cleaner solution
+for this.
 
-But it's horribly specific to cpusets. If you want something multi-task,
-would be better if it worked by more generic task groupings. 
+Please comment.
 
-M.
+Signed-off-by: Arnd Bergmann <arndb@de.ibm.com>
+
+--- linux-2.6.15-rc.orig/arch/powerpc/mm/mem.c
++++ linux-2.6.15-rc/arch/powerpc/mm/mem.c
+@@ -348,6 +348,9 @@ void __init mem_init(void)
+ #endif
+ 	for_each_pgdat(pgdat) {
+ 		for (i = 0; i < pgdat->node_spanned_pages; i++) {
++			if (!section_has_mem_map(__pfn_to_section
++					(pgdat->node_start_pfn + i)))
++				continue;
+ 			page = pgdat_page_nr(pgdat, i);
+ 			if (PageReserved(page))
+ 				reservedpages++;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
