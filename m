@@ -1,59 +1,58 @@
-Date: Fri, 4 Nov 2005 21:12:48 +0100
-From: Ingo Molnar <mingo@elte.hu>
-Subject: Re: [Lhms-devel] [PATCH 0/7] Fragmentation Avoidance V19
-Message-ID: <20051104201248.GA14201@elte.hu>
-References: <20051104170359.80947184684@thermo.lanl.gov>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20051104170359.80947184684@thermo.lanl.gov>
+Message-ID: <436BC20B.9070704@shadowen.org>
+Date: Fri, 04 Nov 2005 20:18:19 +0000
+From: Andy Whitcroft <apw@shadowen.org>
+MIME-Version: 1.0
+Subject: Re: [PATCH] powerpc: mem_init crash for sparsemem
+References: <200511041631.17237.arnd@arndb.de>
+In-Reply-To: <200511041631.17237.arnd@arndb.de>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andy Nelson <andy@thermo.lanl.gov>
-Cc: torvalds@osdl.org, akpm@osdl.org, arjan@infradead.org, arjanv@infradead.org, haveblue@us.ibm.com, kravetz@us.ibm.com, lhms-devel@lists.sourceforge.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mbligh@mbligh.org, mel@csn.ul.ie, nickpiggin@yahoo.com.au
+To: Arnd Bergmann <arnd@arndb.de>
+Cc: linuxppc64-dev@ozlabs.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-* Andy Nelson <andy@thermo.lanl.gov> wrote:
-
-> The problem is a different configuration of particles, and about 2 
-> times bigger (7Million) than the one in comp.arch (3million I think). 
-> I would estimate that the data set in this test spans something like 
-> 2-2.5GB or so.
+Arnd Bergmann wrote:
+> I have a Cell blade with some broken memory in the middle of the
+> physical address space and this is correctly detected by the
+> firmware, but not relocated. When I enable CONFIG_SPARSEMEM,
+> the memsections for the nonexistant address space do not
+> get struct page entries allocated, as expected.
 > 
-> Here are the results:
+> However, mem_init for the non-NUMA configuration tries to
+> access these pages without first looking if they are there.
+> I'm currently using the hack below to work around that, but
+> I have the feeling that there should be a cleaner solution
+> for this.
 > 
-> cpus    4k pages   16m pages
-> 1       4888.74s   2399.36s
-> 2       2447.68s   1202.71s
-> 4       1225.98s    617.23s
-> 6        790.05s    418.46s
-> 8        592.26s    310.03s
-> 12       398.46s    210.62s
-> 16       296.19s    161.96s
+> Please comment.
+> 
+> Signed-off-by: Arnd Bergmann <arndb@de.ibm.com>
+> 
+> --- linux-2.6.15-rc.orig/arch/powerpc/mm/mem.c
+> +++ linux-2.6.15-rc/arch/powerpc/mm/mem.c
+> @@ -348,6 +348,9 @@ void __init mem_init(void)
+>  #endif
+>  	for_each_pgdat(pgdat) {
+>  		for (i = 0; i < pgdat->node_spanned_pages; i++) {
+> +			if (!section_has_mem_map(__pfn_to_section
+> +					(pgdat->node_start_pfn + i)))
+> +				continue;
+>  			page = pgdat_page_nr(pgdat, i);
+>  			if (PageReserved(page))
+>  				reservedpages++;
 
-interesting, and thanks for the numbers. Even if hugetlbs were only 
-showing a 'mere' 5% improvement, a 5% _user-space improvement_ is still 
-a considerable improvement that we should try to achieve, if possible 
-cheaply.
+Would it not make sense to use pfn_valid(), as that is not sparsemem
+specific?  Not looked at the code in question specifically, but if you
+can use section_has_mem_map() it should be equivalent:
 
-the 'separate hugetlb zone' solution is cheap and simple, and i believe 
-it should cover your needs of mixed hugetlb and smallpages workloads.
+	if (!pfn_valid(pgdat->node_start_pfn + i))
+		continue;
 
-it would work like this: unlike the current hugepages=<nr> boot 
-parameter, this zone would be useful for other (4K sized) allocations 
-too. If an app requests a hugepage then we have the chance to allocate 
-it from the hugetlb zone, in a guaranteed way [up to the point where the 
-whole zone consists of hugepages only].
+Want to spin us a patch and I'll give it some general testing.
 
-the architectural appeal in this solution is that no additional 
-"fragmentation prevention" has to be done on this zone, because we only 
-allow content into it that is "easy" to flush - this means that there is 
-no complexity drag on the generic kernel VM.
-
-can you think of any reason why the boot-time-configured hugetlb zone 
-would be inadequate for your needs?
-
-	Ingo
+-apw
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
