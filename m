@@ -1,64 +1,48 @@
-Date: Fri, 04 Nov 2005 07:39:33 -0800
-From: "Martin J. Bligh" <mbligh@mbligh.org>
-Reply-To: "Martin J. Bligh" <mbligh@mbligh.org>
+Date: Fri, 4 Nov 2005 16:53:17 +0100
+From: Ingo Molnar <mingo@elte.hu>
 Subject: Re: [Lhms-devel] [PATCH 0/7] Fragmentation Avoidance V19
-Message-ID: <328940000.1131118773@[10.10.2.4]>
-In-Reply-To: <Pine.LNX.4.64.0511040725090.27915@g5.osdl.org>
-References: <20051104010021.4180A184531@thermo.lanl.gov><Pine.LNX.4.64.0511032105110.27915@g5.osdl.org> <20051103221037.33ae0f53.pj@sgi.com><20051104063820.GA19505@elte.hu> <Pine.LNX.4.64.0511040725090.27915@g5.osdl.org>
-MIME-Version: 1.0
+Message-ID: <20051104155317.GA7281@elte.hu>
+References: <20051104010021.4180A184531@thermo.lanl.gov> <Pine.LNX.4.64.0511032105110.27915@g5.osdl.org> <20051103221037.33ae0f53.pj@sgi.com> <20051104063820.GA19505@elte.hu> <Pine.LNX.4.64.0511040725090.27915@g5.osdl.org>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.64.0511040725090.27915@g5.osdl.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@osdl.org>, Ingo Molnar <mingo@elte.hu>
-Cc: Paul Jackson <pj@sgi.com>, andy@thermo.lanl.gov, akpm@osdl.org, arjan@infradead.org, arjanv@infradead.org, haveblue@us.ibm.com, kravetz@us.ibm.com, lhms-devel@lists.sourceforge.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mel@csn.ul.ie, nickpiggin@yahoo.com.au
+To: Linus Torvalds <torvalds@osdl.org>
+Cc: Paul Jackson <pj@sgi.com>, andy@thermo.lanl.gov, mbligh@mbligh.org, akpm@osdl.org, arjan@infradead.org, arjanv@infradead.org, haveblue@us.ibm.com, kravetz@us.ibm.com, lhms-devel@lists.sourceforge.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mel@csn.ul.ie, nickpiggin@yahoo.com.au
 List-ID: <linux-mm.kvack.org>
 
->> just to make sure i didnt get it wrong, wouldnt we get most of the 
->> benefits Andy is seeking by having a: boot-time option which sets aside 
->> a "hugetlb zone", with an additional sysctl to grow (or shrink) the pool 
->> - with the growing happening on a best-effort basis, without guarantees?
-> 
+* Linus Torvalds <torvalds@osdl.org> wrote:
+
 > Boot-time option to set the hugetlb zone, yes.
 > 
-> Grow-or-shrink, probably not. Not in practice after bootup on any machine 
-> that is less than idle.
+> Grow-or-shrink, probably not. Not in practice after bootup on any 
+> machine that is less than idle.
 > 
 > The zones have to be pretty big to make any sense. You don't just grow 
 > them or shrink them - they'd be on the order of tens of megabytes to 
-> gigabytes. In other words, sized big enough that you will _not_ be able to 
-> create them on demand, except perhaps right after boot.
-> 
-> Growing these things later simply isn't reasonable. I can pretty much 
-> guarantee that any kernel I maintain will never have dynamic kernel 
-> pointers: when some memory has been allocated with kmalloc() (or 
-> equivalent routines - pretty much _any_ kernel allocation), it stays put. 
-> Which means that if there is a _single_ kernel alloc in such a zone, it 
-> won't ever be then usable for hugetlb stuff.
-> 
-> And I don't want excessive complexity. We can have things like "turn off 
-> kernel allocations from this zone", and then wait a day or two, and hope 
-> that there aren't long-term allocs. It might even work occasionally. But 
-> the fact is, a number of kernel allocations _are_ long-term (superblocks, 
-> root dentries, "struct thread_struct" for long-running user daemons), and 
-> it's simply not going to work well in practice unless you have set aside 
-> the "no kernel alloc" zone pretty early on.
+> gigabytes. In other words, sized big enough that you will _not_ be 
+> able to create them on demand, except perhaps right after boot.
 
-Exactly. But that's what all the anti-fragmentation stuff was about - trying
-to pack unfreeable stuff together. 
+i think the current hugepages=<N> boot option could transparently be 
+morphed into a 'separate zone' approach, and /proc/sys/vm/nr_hugepages 
+would just refuse to change (or would go away altogether). Dynamically 
+growing zones seem like a lot of trouble, without much gain. [ OTOH 
+hugepages= parameter unit should be changed from the current 'number of 
+hugepages' to plain RAM metrics - megabytes/gigabytes. ]
 
-I don't think anyone is proposing dynamic kernel pointers inside Linux,
-except in that we could possibly change the P-V mapping underneath from
-the hypervisor, so that the phys address would change, but you wouldn't
-see it. Trouble is, that's mostly done on a larger-than-page size
-granularity, so we need SOME larger chunk to switch out (preferably at
-least a large-paged size, so we can continue to use large TLB entries for
-the kernel mapping).
+that would solve two problems: any 'zone VM statistics skewing effect' 
+of the current hugetlbs (which is a preallocated list of really large 
+pages) would go away, and the hugetlb zone could potentially be utilized 
+for easily freeable objects.
 
-However, the statically sized option is hugely problematic too.
+this would already be alot more flexible that what we have: the hugetlb 
+area would not be 'lost' altogether, like now. Once we are at this stage 
+we can see how usable it is in practice. I strongly suspect it will 
+cover most of the HPC uses.
 
-M.
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
