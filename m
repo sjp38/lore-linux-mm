@@ -1,40 +1,37 @@
-Received: from thermo.lanl.gov (thermo.lanl.gov [128.165.59.202])
-	by mailwasher-b.lanl.gov (8.12.11/8.12.11/(ccn-5)) with SMTP id jA4FJfoP024135
-	for <linux-mm@kvack.org>; Fri, 4 Nov 2005 08:19:41 -0700
-Subject: Re: [Lhms-devel] [PATCH 0/7] Fragmentation Avoidance V19
-Message-Id: <20051104151937.C88561845E1@thermo.lanl.gov>
-Date: Fri,  4 Nov 2005 08:19:37 -0700 (MST)
-From: andy@thermo.lanl.gov (Andy Nelson)
+Date: Fri, 04 Nov 2005 07:24:04 -0800
+From: "Martin J. Bligh" <mbligh@mbligh.org>
+Reply-To: "Martin J. Bligh" <mbligh@mbligh.org>
+Subject: Re: [patch] swapin rlimit
+Message-ID: <325850000.1131117844@[10.10.2.4]>
+In-Reply-To: <20051104080731.GB21321@elte.hu>
+References: <E1EXEfW-0005ON-00@w-gerrit.beaverton.ibm.com> <200511021747.45599.rob@landley.net> <43699573.4070301@yahoo.com.au> <200511030007.34285.rob@landley.net> <20051103163555.GA4174@ccure.user-mode-linux.org> <1131035000.24503.135.camel@localhost.localdomain> <20051103205202.4417acf4.akpm@osdl.org> <20051104072628.GA20108@elte.hu> <20051103233628.12ed1eee.akpm@osdl.org> <20051104080731.GB21321@elte.hu>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: torvalds@osdl.org
-Cc: akpm@osdl.org, arjan@infradead.org, arjanv@infradead.org, haveblue@us.ibm.com, kravetz@us.ibm.com, lhms-devel@lists.sourceforge.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mbligh@mbligh.org, mel@csn.ul.ie, mingo@elte.hu, nickpiggin@yahoo.com.au
+To: Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@osdl.org>
+Cc: pbadari@gmail.com, torvalds@osdl.org, jdike@addtoit.com, rob@landley.net, nickpiggin@yahoo.com.au, gh@us.ibm.com, kamezawa.hiroyu@jp.fujitsu.com, haveblue@us.ibm.com, mel@csn.ul.ie, kravetz@us.ibm.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, lhms-devel@lists.sourceforge.net
 List-ID: <linux-mm.kvack.org>
 
+> System instrumentation people are already complaining about how costly 
+> /proc parsing is. If you have to get some nontrivial stat from all 
+> threads in the system, and if Linux doesnt offer that counter or summary 
+> by default, it gets pretty expensive.
+> 
+> One solution i can think of would be to make a binary representation of 
+> /proc/<pid>/stats readonly-mmap-able. This would add a 4K page to every 
+> task tracked that way, and stats updates would have to update this page 
+> too - but it would make instrumentation of running apps really 
+> unintrusive and scalable.
 
-
-Nick Piggin wrote:
->Mel Gorman wrote:
->> On Fri, 4 Nov 2005, Nick Piggin wrote:
->>
->> Todays massive machiens are tomorrows desktop. Weak comment, I know, but
->> it's happened before.
->>
-
->Oh I wouldn't bet against it. And if desktops of the future are using
->100s of GB then they probably would be happy to use 64K pages as well.
-
-Just a note. The data I referenced in my other post that can be found
-on comp.arch uses 64k pages as the smallest page size in the study.
-Pages sized 1M and 16M were the other two.
-
-As I understand it, only a few arch's have hw support for more than 2
-page sizes, but my response is that they will eventually need them. 
-The larger the memory, the larger the possible page size needs to be
-too. Otherwise you are just pushing out the problem for a few years.
-
-Andy
-
+That would be awesome - the current methods we have are mostly crap. There
+are some atomicity issues though. Plus when I suggested this 2 years ago,
+everyone told me to piss off, but I'm not bitter ;-) Seriously, we do
+need a fast communication mechanism.
+ 
+M.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
