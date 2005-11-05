@@ -3,35 +3,27 @@ MIME-Version: 1.0
 Content-Type: text/plain;
 	charset="us-ascii"
 Content-Transfer-Encoding: 8BIT
-Subject: RE: [Lhms-devel] [PATCH 0/7] Fragmentation Avoidance V19
-Date: Fri, 4 Nov 2005 17:52:29 -0800
-Message-ID: <01EF044AAEE12F4BAAD955CB75064943051354DA@scsmsx401.amr.corp.intel.com>
+Subject: RE: [PATCH]: Clean up of __alloc_pages
+Date: Fri, 4 Nov 2005 17:57:18 -0800
+Message-ID: <01EF044AAEE12F4BAAD955CB75064943051354E2@scsmsx401.amr.corp.intel.com>
 From: "Seth, Rohit" <rohit.seth@intel.com>
 Sender: owner-linux-mm@kvack.org
-From: Linus Torvalds Sent: Friday, November 04, 2005 8:01 AM
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@osdl.org>, Andy Nelson <andy@thermo.lanl.gov>
-Cc: akpm@osdl.org, arjan@infradead.org, arjanv@infradead.org, haveblue@us.ibm.com, kravetz@us.ibm.com, lhms-devel@lists.sourceforge.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mbligh@mbligh.org, mel@csn.ul.ie, mingo@elte.hu, nickpiggin@yahoo.com.au
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: akpm@osdl.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-
->If I remember correctly, ia64 used to suck horribly because Linux had
-to 
->use a mode where the hw page table walker didn't work well (maybe it
-was 
->just an itanium 1 bug), but should be better now. But x86 probably
-kicks 
->its butt.
-
-I don't remember a difference of more than (roughly) 30 percentage
-points even on first generation Itaniums (using hugetlb vs normal
-pages). And few more percentage points when walker was disabled. Over
-time the page table walker on IA-64 has gotten more aggressive.
+From: Nick Piggin [mailto:nickpiggin@yahoo.com.au] 
 
 
-...though I believe that 30% is a lot of performance.
+>I really don't want a change of behaviour going in with this,
+>especially not one which I would want to revert anyway. But
+>don't get hung up with it - when you post your latest patch
+>I will make a patch for the changes I would like to see for it
+>and synch things up.
 
--rohit
+
+Well, those reverts are what I'm trying to avoid ;-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
