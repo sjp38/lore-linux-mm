@@ -1,44 +1,44 @@
-Message-ID: <436BF606.3020805@yahoo.com.au>
-Date: Sat, 05 Nov 2005 11:00:06 +1100
+Message-ID: <436BF7D3.1090200@yahoo.com.au>
+Date: Sat, 05 Nov 2005 11:07:47 +1100
 From: Nick Piggin <nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
-Subject: Re: [PATCH]: Clean up of __alloc_pages
-References: <20051028183326.A28611@unix-os.sc.intel.com>	 <4362DF80.3060802@yahoo.com.au>	 <1130792107.4853.24.camel@akash.sc.intel.com>	 <4366C188.5090607@yahoo.com.au> <1131128108.27563.11.camel@akash.sc.intel.com>
-In-Reply-To: <1131128108.27563.11.camel@akash.sc.intel.com>
+Subject: Re: [Lhms-devel] [PATCH 0/7] Fragmentation Avoidance V19
+References: <20051104201248.GA14201@elte.hu> <20051104210418.BC56F184739@thermo.lanl.gov> <e692861c0511041331ge5dd1abq57b6c513540fa200@mail.gmail.com> <200511042343.27832.ak@suse.de>
+In-Reply-To: <200511042343.27832.ak@suse.de>
 Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rohit Seth <rohit.seth@intel.com>
-Cc: akpm@osdl.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andi Kleen <ak@suse.de>
+Cc: Gregory Maxwell <gmaxwell@gmail.com>, Andy Nelson <andy@thermo.lanl.gov>, mingo@elte.hu, akpm@osdl.org, arjan@infradead.org, arjanv@infradead.org, haveblue@us.ibm.com, kravetz@us.ibm.com, lhms-devel@lists.sourceforge.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mbligh@mbligh.org, mel@csn.ul.ie, torvalds@osdl.org
 List-ID: <linux-mm.kvack.org>
 
-Rohit Seth wrote:
-
+Andi Kleen wrote:
+> On Friday 04 November 2005 22:31, Gregory Maxwell wrote:
 > 
-> Nick, sorry for not responding earlier.  
+>>
+>>Thats the idea. The 'hugetlb zone' will only be usable for allocations
+>>which are guaranteed reclaimable.  Reclaimable includes userspace
+>>usage (since at worst an in use userspace page can be swapped out then
+>>paged back into another physical location).
 > 
-
-That's OK.
-
-> I agree that it is slight change in behavior from original.  I doubt
-> though it will impact any one in any negative way (may be for some
-> higher order allocations if at all). On a little positive side, less
-> frequent calls to kswapd for some cases and clear up the code a little
-> bit.
 > 
-
-I really don't want a change of behaviour going in with this,
-especially not one which I would want to revert anyway. But
-don't get hung up with it - when you post your latest patch
-I will make a patch for the changes I would like to see for it
-and synch things up.
-
-> But I really don't want to get stuck here. The pcp traversal and
-> flushing is where I want to go next.  
+> I don't like it very much. You have two choices if a workload runs
+> out of the kernel allocatable pages. Either you spill into the reclaimable
+> zone or you fail the allocation. The first means that the huge pages
+> thing is unreliable, the second would mean that all the many problems
+> of limited lowmem would be back.
 > 
 
-Sure, hope it goes well!
+These are essentially the same problems that the frag patches face as
+well.
+
+> None of this is very attractive.
+> 
+
+Though it is simple and I expect it should actually do a really good
+job for the non-kernel-intensive HPC group, and the highly tuned
+database group.
 
 Nick
 
