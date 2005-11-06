@@ -1,66 +1,59 @@
-Date: Sun, 6 Nov 2005 02:59:47 -0800
-From: Paul Jackson <pj@sgi.com>
+Date: Sun, 6 Nov 2005 07:55:39 -0800 (PST)
+From: Linus Torvalds <torvalds@osdl.org>
 Subject: Re: [Lhms-devel] [PATCH 0/7] Fragmentation Avoidance V19
-Message-Id: <20051106025947.2c84d5dd.pj@sgi.com>
-In-Reply-To: <Pine.LNX.4.64.0511041310130.28804@g5.osdl.org>
-References: <20051104210418.BC56F184739@thermo.lanl.gov>
-	<Pine.LNX.4.64.0511041310130.28804@g5.osdl.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20051105233408.3037a6fe.pj@sgi.com>
+Message-ID: <Pine.LNX.4.64.0511060746170.3316@g5.osdl.org>
+References: <20051104010021.4180A184531@thermo.lanl.gov>
+ <Pine.LNX.4.64.0511032105110.27915@g5.osdl.org> <20051103221037.33ae0f53.pj@sgi.com>
+ <20051104063820.GA19505@elte.hu> <Pine.LNX.4.64.0511040725090.27915@g5.osdl.org>
+ <20051104155317.GA7281@elte.hu> <20051105233408.3037a6fe.pj@sgi.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@osdl.org>
-Cc: andy@thermo.lanl.gov, mingo@elte.hu, akpm@osdl.org, arjan@infradead.org, arjanv@infradead.org, haveblue@us.ibm.com, kravetz@us.ibm.com, lhms-devel@lists.sourceforge.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mbligh@mbligh.org, mel@csn.ul.ie, nickpiggin@yahoo.com.au
+To: Paul Jackson <pj@sgi.com>
+Cc: Ingo Molnar <mingo@elte.hu>, andy@thermo.lanl.gov, mbligh@mbligh.org, akpm@osdl.org, arjan@infradead.org, arjanv@infradead.org, haveblue@us.ibm.com, kravetz@us.ibm.com, lhms-devel@lists.sourceforge.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mel@csn.ul.ie, nickpiggin@yahoo.com.au
 List-ID: <linux-mm.kvack.org>
 
-How would this hugetlb zone be placed - on which nodes in a NUMA
-system?
 
-My understanding is that you are thinking to specify it as a proportion
-or amount of total memory, with no particular placement.
+On Sat, 5 Nov 2005, Paul Jackson wrote:
+> 
+> It seems to me this is making it harder than it should be.  You're
+> trying to create a zone that is 100% cleanable, whereas the HPC folks
+> only desire 99.8% cleanable.
 
-I'd rather see it as a subset of the nodes on a system being marked
-for use, as much as practical, for easily reclaimed memory (page
-cache and user).
+Well, 99.8% is pretty borderline.
 
-My HPC customers normally try to isolate the 'classic Unix load' on
-a few nodes that they call the bootcpuset, and keep the other nodes
-as unused as practical, except when allocated for dedicated use by a
-particular job.  These other nodes need to run with a maximum amount of
-easily reclaimed memory, while the bootcpuset nodes have no such need.
+> Unlike the hot(un)plug folks, the HPC folks don't mind a few pages of
+> Linus's unmoveable kmalloc memory in their way.  They rather expect
+> that some modest percentage of each node will have some 'kernel stuff'
+> on it that refuses to move.
 
-They don't just want easily reclaimable memory in order to get
-hugetlb pages.  They also want it so that the memory available for
-use as ordinary sized pages by one job will not be unduly reduced by
-the hard to reclaim pages left over from some previous job.
+The thing is, if 99.8% of memory is cleanable, the 0.2% is still enough to 
+make pretty much _every_ hugepage in the system pinned down.
 
-This would be easy to do with cpusets, adding a second per-cpuset
-nodemask that specified where not easily reclaimed kernel allocations
-should come from.  The typical HPC user would set that second mask to
-their bootcpuset.  The few kmalloc calls in the kernel (page cache and
-user space) deemed to be easily reclaimable would have a __GFP_EASYRCLM
-flag added, and the cpuset hook in the __alloc_pages code path would
-put requests -not- marked __GFP_EASYRCLM on this second set of nodes.
+Besides, right now, it's not 99.8% anyway. Not even close. It's more like 
+60%, and then horribly horribly ugly hacks that try to do something about 
+the remaining 40% and usually fail (the hacks might get it closer to 99%, 
+but they are fragile, expensive, and ugly as hell).
 
-No changes to hugetlbs or to the kernel code that runs at boot,
-prior to starting init, would be required at all.  The bootcpuset
-stuff is setup by a pre-init program (specified using the kernels
-"init=..." boot option.)  This makes all the configuration of this
-entirely a user space problem.
+It used to be that HIGHMEM pages were always cleanable on x86, but even 
+that isn't true any more, since now at least pipe buffers can be there 
+too.
 
-Cpuset nodes, not zone sizes, are the proper way to manage this,
-in my view.
+I agree that HPC people are usually a bit less up-tight about things than 
+database people tend to be, and many of them won't care at all, but if you 
+want hugetlb, you'll need big areas.
 
-If you ask what this means for small (1 or 2 node) systems, then
-I would first ask you what we are trying to do on those systems.
-I suspect that that would involve other classes of users, with
-different needs, than what Andy or I can speak to.
+Side note: the exact size of hugetlb is obviously architecture-specific, 
+and the size matters a lot. On x86, for example, hugetlb pages are either 
+2MB or 4MB in size (and apparently 2GB may be coming). I assume that's 
+where you got the 99.8% from (4kB out of 2M).
 
--- 
-                  I won't rest till it's the best ...
-                  Programmer, Linux Scalability
-                  Paul Jackson <pj@sgi.com> 1.925.600.0401
+Other platforms have more flexibility, but sometimes want bigger areas 
+still. 
+
+		Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
