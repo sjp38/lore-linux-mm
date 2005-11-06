@@ -1,68 +1,90 @@
-Date: Sun, 6 Nov 2005 10:18:32 -0800
+Date: Sun, 6 Nov 2005 12:49:44 -0800
 From: Paul Jackson <pj@sgi.com>
-Subject: Re: [Lhms-devel] [PATCH 0/7] Fragmentation Avoidance V19
-Message-Id: <20051106101832.510b0245.pj@sgi.com>
-In-Reply-To: <Pine.LNX.4.64.0511060746170.3316@g5.osdl.org>
-References: <20051104010021.4180A184531@thermo.lanl.gov>
-	<Pine.LNX.4.64.0511032105110.27915@g5.osdl.org>
-	<20051103221037.33ae0f53.pj@sgi.com>
-	<20051104063820.GA19505@elte.hu>
-	<Pine.LNX.4.64.0511040725090.27915@g5.osdl.org>
-	<20051104155317.GA7281@elte.hu>
-	<20051105233408.3037a6fe.pj@sgi.com>
-	<Pine.LNX.4.64.0511060746170.3316@g5.osdl.org>
+Subject: Re: [PATCH]: Clean up of __alloc_pages
+Message-Id: <20051106124944.0b2ccca1.pj@sgi.com>
+In-Reply-To: <200511061835.53575.ak@suse.de>
+References: <20051028183326.A28611@unix-os.sc.intel.com>
+	<p73oe4z2f9h.fsf@verdi.suse.de>
+	<20051105201841.2591bacc.pj@sgi.com>
+	<200511061835.53575.ak@suse.de>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@osdl.org>
-Cc: mingo@elte.hu, andy@thermo.lanl.gov, mbligh@mbligh.org, akpm@osdl.org, arjan@infradead.org, arjanv@infradead.org, haveblue@us.ibm.com, kravetz@us.ibm.com, lhms-devel@lists.sourceforge.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mel@csn.ul.ie, nickpiggin@yahoo.com.au
+To: Andi Kleen <ak@suse.de>
+Cc: akpm@osdl.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Linus wrote:
-> The thing is, if 99.8% of memory is cleanable, the 0.2% is still enough to 
-> make pretty much _every_ hugepage in the system pinned down.
+Andi wrote:
+> > The current code in the kernel does the following:
+> >   1) The cpuset_update_current_mems_allowed() calls in the
+> >      various alloc_page*() paths in mm/mempolicy.c:
+> > 	* take the task_lock spinlock on the current task
+> 
+> That needs to go imho.
 
-Agreed.
+The comment for refresh_mems(), where this is happening, explains
+why this lock is needed:
 
-I realized after writing this that I wasn't clear on something.
+ * The task_lock() is required to dereference current->cpuset safely.
+ * Without it, we could pick up the pointer value of current->cpuset
+ * in one instruction, and then attach_task could give us a different
+ * cpuset, and then the cpuset we had could be removed and freed,
+ * and then on our next instruction, we could dereference a no longer
+ * valid cpuset pointer to get its mems_generation field.
 
-I wasn't focused the subject of this thread, adding hugetlb pages after
-the system has been up a while.
+Hmmm ... on second thought ... damn ... you're right.
 
-I was focusing on a related subject - freeing up most of the ordinary
-size pages on the dedicated application nodes between jobs on a large
-system using
- * a bootcpuset (for the classic Unix load) and
- * dedicated nodes (for the HPC apps).
+I can just flat out remove that task_lock - without penalty.
 
-I am looking to provide the combination of:
- 1) specifying some hugetlb pages at system boot, plus
- 2) the ability to clean off most of the ordinary sized pages
-    from the application nodes between jobs.
+It's *OK* if I dereference a no longer valid cpuset pointer to get
+its (used to be) mems_generation field.  Either that field will have
+already changed, or it won't.
 
-Perhaps Andy or some of my HPC customers wish I was also looking
-to provide:
- 3) the ability to add lots of hugetlb pages on the application
-    nodes after the system has run a while.
-But if they are, then they have some more educatin' to do on me.
+    If it has changed to some other value (doesn't matter what value)
+    I will realize (quite correctly) that my cpuset has changed out
+    from under me, and go into the slow path code to lock things down
+    and update things as need be.
 
-For now, I am sympathetic to your concerns with code and locking
-complexity.  Freeing up great globs of hugetlb sized contiguous chunks
-of memory after a system has run a while would be hard.
+    If it has not changed yet (far the more likely case) then I will
+    have just missed by the skin of my teeth catching this cpuset
+    change this time around.  Which is just fine.  I will catch it next
+    time this task allocates memory, for sure, as I will be using the
+    new cpuset pointer value the next time, for sure.
 
-We have to be careful which hard problems we decide to take on.
+Patch coming soon to remove that task_lock/task_unlock.
 
-We can't take on too many, and we have to pick ones that will provide
-a major long term advantage to Linux, over the forseeable changes in
-system hardware and architecture.
+Thanks.
 
-Even if most of the processors that Andy has tested against would
-benefit from dynamically added hugetlb pages, if we can anticipate
-that this will not be a substained opportunity for Linux (and looking
-at current x86 chips doesn't require much anticipating) then that
-might not be the place to invest our precious core complexity dollars.
+
+> At least for the common "cpusets compiled in, but not 
+> used" case.
+
+Hmmm ... that comment got me to thinking too.  I could have a global
+kernel flag "cpusets_have_been_used", initialized to zero (0), set to
+one (1) anytime someone creates or modifies a cpuset.  Then most of my
+hooks, in places like fork and exit, could collapse to really trivial
+inline lockless code if cpusets have not been used yet since the system
+booted.
+
+Would you be interested in seeing such a patch?
+
+This should even apply to the more interesting case of
+cpuset_zone_allowed(), which is called for each iteration of each
+zone loop in __alloc_pages().  That would be a nice win for those
+systems making no active use of cpusets.
+
+===
+
+What about the other part of your initial question - replacing the
+cpuset_zone_allowed() hooks in __alloc_pages() with code to build
+custom zonelists?
+
+I did my best in my previous reply to spell out the pluses and minuses
+of that change and what work would be involved.
+
+What's your recommendation on whether to do that or not?
 
 -- 
                   I won't rest till it's the best ...
