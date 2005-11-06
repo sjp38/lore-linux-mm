@@ -1,12 +1,12 @@
-Date: Sun, 6 Nov 2005 08:12:13 -0800 (PST)
+Date: Sun, 6 Nov 2005 09:00:42 -0800 (PST)
 From: Linus Torvalds <torvalds@osdl.org>
 Subject: Re: [Lhms-devel] [PATCH 0/7] Fragmentation Avoidance V19
-In-Reply-To: <796B585C-CB1C-4EBA-9EF4-C11996BC9C8B@mac.com>
-Message-ID: <Pine.LNX.4.64.0511060756010.3316@g5.osdl.org>
+In-Reply-To: <Pine.LNX.4.64.0511060756010.3316@g5.osdl.org>
+Message-ID: <Pine.LNX.4.64.0511060848010.3316@g5.osdl.org>
 References: <20051104010021.4180A184531@thermo.lanl.gov>
  <Pine.LNX.4.64.0511032105110.27915@g5.osdl.org> <20051103221037.33ae0f53.pj@sgi.com>
  <20051104063820.GA19505@elte.hu> <Pine.LNX.4.64.0511040725090.27915@g5.osdl.org>
- <796B585C-CB1C-4EBA-9EF4-C11996BC9C8B@mac.com>
+ <796B585C-CB1C-4EBA-9EF4-C11996BC9C8B@mac.com> <Pine.LNX.4.64.0511060756010.3316@g5.osdl.org>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -16,50 +16,52 @@ Cc: Ingo Molnar <mingo@elte.hu>, Paul Jackson <pj@sgi.com>, andy@thermo.lanl.gov
 List-ID: <linux-mm.kvack.org>
 
 
-On Sun, 6 Nov 2005, Kyle Moffett wrote:
+On Sun, 6 Nov 2005, Linus Torvalds wrote:
 > 
-> Hmm, this brings up something that I haven't seen discussed on this list
-> (maybe a long time ago, but perhaps it should be brought up again?).  What are
-> the pros/cons to having a non-physically-linear kernel virtual memory space?
+> And no standard hardware allows you to do that in hw, so we'd end up doing 
+> a software page table walk for it (or, more likely, we'd have to make 
+> "struct page" bigger).
+> 
+> You could do it today, although at a pretty high cost. And you'd have to 
+> forget about supporting any hardware that really wants contiguous memory 
+> for DMA (sound cards etc). It just isn't worth it.
 
-Well, we _do_ actually have that, and we use it quite a bit. Both 
-vmalloc() and HIGHMEM work that way.
+Btw, in case it wasn't clear: the cost of these kinds of things in the 
+kernel is usually not so much the actual "lookup" (whether with hw assist 
+or with another field in the "struct page").
 
-The biggest problem with vmalloc() is that the virtual space is often as 
-constrained as the physical one (ie on old x86-32, the virtual address 
-space is the bigger problem - you may have 36 bits of physical memory, but 
-the kernel has only 30 bits of virtual). But it's quite commonly used for 
-stuff that wants big linear areas.
+The biggest cost of almost everything in the kernel these days is the 
+extra code-footprint of yet another abstraction, and the locking cost. 
 
-The HIGHMEM approach works fine, but the overhead of essentially doing a 
-software TLB is quite high, and if we never ever have to do it again on 
-any architecture, I suspect everybody will be pretty happy.
+For example, the real cost of the highmem mapping seems to be almost _all_ 
+in the locking. It also makes some code-paths more complex, so it's yet 
+another I$ fill for the kernel.
 
-> Would it be theoretically possible to allow some kind of dynamic kernel page
-> swapping, such that the _same_ kernel-virtual pointer goes to a different
-> physical memory page?  That would definitely satisfy the memory hotplug
-> people, but I don't know what the tradeoffs would be for normal boxen.
+So a remappable kernel tends to be different from a remappable user 
+application. A user application _only_ ever sees the actual cost of the 
+TLB walk (which hardware can do quite efficiently and is very amenable 
+indeed to a lot of optimization like OoO and speculative prefetching), but 
+on the kernel level, the remapping itself is the cheapest part.
 
-Any virtualization will try to do that, but they _all_ prefer huge pages 
-if they care at all about performance.
+(Yes, user apps can see some of the costs indirectly: they can see the 
+synchronization costs if they do lots of mmap/munmap's, especially if they 
+are threaded. But they really have to work at it to see it, and I doubt 
+the TLB synchronization issues tend to be even on the radar for any user 
+space performance analysis).
 
-If you thought the database people wanted big pages, the kernel is worse. 
-Unlike databases or HPC, the kernel actually wants to use the physical 
-page address quite often, notably for IO (but also for just mapping them 
-into some other virtual address - the users).
+You could probably do a remappable kernel (modulo the problems with 
+specific devices that want bigger physically contiguous areas than one 
+page) reasonably cheaply on UP. It gets more complex on SMP and with full 
+device access.
 
-And no standard hardware allows you to do that in hw, so we'd end up doing 
-a software page table walk for it (or, more likely, we'd have to make 
-"struct page" bigger).
+In fact, I suspect you can ask any Xen developer what their performance 
+problems and worries are. I suspect they much prefer UP clients over SMP 
+ones, and _much_ prefer paravirtualization over running unmodified 
+kernels.
 
-You could do it today, although at a pretty high cost. And you'd have to 
-forget about supporting any hardware that really wants contiguous memory 
-for DMA (sound cards etc). It just isn't worth it.
-
-Real memory hotplug needs hardware support anyway (if only buffering the 
-memory at least electrically). At which point you're much better off 
-supporting some remapping in the buffering too, I'm convinced. There's no 
-_need_ to do these things in software.
+So remappable kernels are certainly doable, they just have more 
+fundamental problems than remappable user space _ever_ has. Both from a 
+performance and from a complexity angle.
 
 			Linus
 
