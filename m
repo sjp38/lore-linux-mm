@@ -1,64 +1,66 @@
-In-Reply-To: <Pine.LNX.4.64.0511040725090.27915@g5.osdl.org>
-References: <20051104010021.4180A184531@thermo.lanl.gov> <Pine.LNX.4.64.0511032105110.27915@g5.osdl.org> <20051103221037.33ae0f53.pj@sgi.com> <20051104063820.GA19505@elte.hu> <Pine.LNX.4.64.0511040725090.27915@g5.osdl.org>
-Mime-Version: 1.0 (Apple Message framework v734)
-Content-Type: text/plain; charset=US-ASCII; delsp=yes; format=flowed
-Message-Id: <796B585C-CB1C-4EBA-9EF4-C11996BC9C8B@mac.com>
-Content-Transfer-Encoding: 7bit
-From: Kyle Moffett <mrmacman_g4@mac.com>
+Date: Sun, 6 Nov 2005 02:59:47 -0800
+From: Paul Jackson <pj@sgi.com>
 Subject: Re: [Lhms-devel] [PATCH 0/7] Fragmentation Avoidance V19
-Date: Sun, 6 Nov 2005 03:44:48 -0500
+Message-Id: <20051106025947.2c84d5dd.pj@sgi.com>
+In-Reply-To: <Pine.LNX.4.64.0511041310130.28804@g5.osdl.org>
+References: <20051104210418.BC56F184739@thermo.lanl.gov>
+	<Pine.LNX.4.64.0511041310130.28804@g5.osdl.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Linus Torvalds <torvalds@osdl.org>
-Cc: Ingo Molnar <mingo@elte.hu>, Paul Jackson <pj@sgi.com>, andy@thermo.lanl.gov, mbligh@mbligh.org, akpm@osdl.org, arjan@infradead.org, arjanv@infradead.org, haveblue@us.ibm.com, kravetz@us.ibm.com, lhms-devel@lists.sourceforge.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mel@csn.ul.ie, nickpiggin@yahoo.com.au
+Cc: andy@thermo.lanl.gov, mingo@elte.hu, akpm@osdl.org, arjan@infradead.org, arjanv@infradead.org, haveblue@us.ibm.com, kravetz@us.ibm.com, lhms-devel@lists.sourceforge.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mbligh@mbligh.org, mel@csn.ul.ie, nickpiggin@yahoo.com.au
 List-ID: <linux-mm.kvack.org>
 
-On Nov 4, 2005, at 10:31:48, Linus Torvalds wrote:
-> I can pretty much guarantee that any kernel I maintain will never  
-> have dynamic kernel pointers: when some memory has been allocated  
-> with kmalloc() (or equivalent routines - pretty much _any_ kernel  
-> allocation), it stays put.
+How would this hugetlb zone be placed - on which nodes in a NUMA
+system?
 
-Hmm, this brings up something that I haven't seen discussed on this  
-list (maybe a long time ago, but perhaps it should be brought up  
-again?).  What are the pros/cons to having a non-physically-linear  
-kernel virtual memory space?  Would it be theoretically possible to  
-allow some kind of dynamic kernel page swapping, such that the _same_  
-kernel-virtual pointer goes to a different physical memory page?   
-That would definitely satisfy the memory hotplug people, but I don't  
-know what the tradeoffs would be for normal boxen.
+My understanding is that you are thinking to specify it as a proportion
+or amount of total memory, with no particular placement.
 
-It seems like the trick would be to make sure that page accesses  
-_during_ the swap are correctly handled.  If the page-swapper  
-included code in the kernel fault handler to notice that a page was  
-in the process of being swapped out/in by another CPU, it could just  
-wait for swap-in to finish and then resume from the new page.  This  
-would get messy with DMA and non-cpu memory accessors and such, which  
-are what I assume the reasons for not implementing this in the past  
-have been.
+I'd rather see it as a subset of the nodes on a system being marked
+for use, as much as practical, for easily reclaimed memory (page
+cache and user).
 
- From what I can see, the really dumb-obvious-slow method would be to  
-call the first and last parts of software-suspend.  As memory hotplug  
-is a relatively rare event, this would probably work well enough  
-given the requirements:
-     1)  Run software suspend pre-memory-dump code
-     2)  Move pages off the to-be-removed node, remapping the kernel  
-space to the new locations.
-     3)  Mark the node so that new pages don't end up on it
-     4)  Run software suspend post-memory-reload code
+My HPC customers normally try to isolate the 'classic Unix load' on
+a few nodes that they call the bootcpuset, and keep the other nodes
+as unused as practical, except when allocated for dedicated use by a
+particular job.  These other nodes need to run with a maximum amount of
+easily reclaimed memory, while the bootcpuset nodes have no such need.
 
-<random-guessing>
-Perhaps the non-contiguous memory support would be of some help here?
-</random-guessing>
+They don't just want easily reclaimable memory in order to get
+hugetlb pages.  They also want it so that the memory available for
+use as ordinary sized pages by one job will not be unduly reduced by
+the hard to reclaim pages left over from some previous job.
 
-Cheers,
-Kyle Moffett
+This would be easy to do with cpusets, adding a second per-cpuset
+nodemask that specified where not easily reclaimed kernel allocations
+should come from.  The typical HPC user would set that second mask to
+their bootcpuset.  The few kmalloc calls in the kernel (page cache and
+user space) deemed to be easily reclaimable would have a __GFP_EASYRCLM
+flag added, and the cpuset hook in the __alloc_pages code path would
+put requests -not- marked __GFP_EASYRCLM on this second set of nodes.
 
---
-Simple things should be simple and complex things should be possible
-   -- Alan Kay
+No changes to hugetlbs or to the kernel code that runs at boot,
+prior to starting init, would be required at all.  The bootcpuset
+stuff is setup by a pre-init program (specified using the kernels
+"init=..." boot option.)  This makes all the configuration of this
+entirely a user space problem.
 
+Cpuset nodes, not zone sizes, are the proper way to manage this,
+in my view.
 
+If you ask what this means for small (1 or 2 node) systems, then
+I would first ask you what we are trying to do on those systems.
+I suspect that that would involve other classes of users, with
+different needs, than what Andy or I can speak to.
+
+-- 
+                  I won't rest till it's the best ...
+                  Programmer, Linux Scalability
+                  Paul Jackson <pj@sgi.com> 1.925.600.0401
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
