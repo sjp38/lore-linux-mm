@@ -1,67 +1,73 @@
-From: Andi Kleen <ak@suse.de>
-Subject: Re: [PATCH]: Clean up of __alloc_pages
-Date: Sun, 6 Nov 2005 18:35:53 +0100
-References: <20051028183326.A28611@unix-os.sc.intel.com> <p73oe4z2f9h.fsf@verdi.suse.de> <20051105201841.2591bacc.pj@sgi.com>
-In-Reply-To: <20051105201841.2591bacc.pj@sgi.com>
-MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
+Date: Sun, 6 Nov 2005 10:18:32 -0800
+From: Paul Jackson <pj@sgi.com>
+Subject: Re: [Lhms-devel] [PATCH 0/7] Fragmentation Avoidance V19
+Message-Id: <20051106101832.510b0245.pj@sgi.com>
+In-Reply-To: <Pine.LNX.4.64.0511060746170.3316@g5.osdl.org>
+References: <20051104010021.4180A184531@thermo.lanl.gov>
+	<Pine.LNX.4.64.0511032105110.27915@g5.osdl.org>
+	<20051103221037.33ae0f53.pj@sgi.com>
+	<20051104063820.GA19505@elte.hu>
+	<Pine.LNX.4.64.0511040725090.27915@g5.osdl.org>
+	<20051104155317.GA7281@elte.hu>
+	<20051105233408.3037a6fe.pj@sgi.com>
+	<Pine.LNX.4.64.0511060746170.3316@g5.osdl.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200511061835.53575.ak@suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Paul Jackson <pj@sgi.com>
-Cc: akpm@osdl.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Linus Torvalds <torvalds@osdl.org>
+Cc: mingo@elte.hu, andy@thermo.lanl.gov, mbligh@mbligh.org, akpm@osdl.org, arjan@infradead.org, arjanv@infradead.org, haveblue@us.ibm.com, kravetz@us.ibm.com, lhms-devel@lists.sourceforge.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mel@csn.ul.ie, nickpiggin@yahoo.com.au
 List-ID: <linux-mm.kvack.org>
 
-On Sunday 06 November 2005 05:18, Paul Jackson wrote:
+Linus wrote:
+> The thing is, if 99.8% of memory is cleanable, the 0.2% is still enough to 
+> make pretty much _every_ hugepage in the system pinned down.
 
-> The current code in the kernel does the following:
->   1) The cpuset_update_current_mems_allowed() calls in the
->      various alloc_page*() paths in mm/mempolicy.c:
-> 	* take the task_lock spinlock on the current task
+Agreed.
 
-That needs to go imho. At least for the common "cpusets compiled in, but not 
-used" case. We already have too many locks. Even with cpusets - why
-can't you test that generation lockless?
+I realized after writing this that I wasn't clear on something.
 
-> 	* compare the tasks mems_generation to that in its cpuset
+I wasn't focused the subject of this thread, adding hugetlb pages after
+the system has been up a while.
 
->   2) The first cpuset_zone_allowed() call or two, near the top
->      of mm/page_alloc.c:__alloc_pages():
-> 	* check in_interrupt()
-> 	* check if the zone's node is set in task->mems_allowed
+I was focusing on a related subject - freeing up most of the ordinary
+size pages on the dedicated application nodes between jobs on a large
+system using
+ * a bootcpuset (for the classic Unix load) and
+ * dedicated nodes (for the HPC apps).
 
-It's also too slow for the common "compiled in but not used" case.
+I am looking to provide the combination of:
+ 1) specifying some hugetlb pages at system boot, plus
+ 2) the ability to clean off most of the ordinary sized pages
+    from the application nodes between jobs.
 
-I did a simple patch for that - at least skip all the loops when there
-is no cpuset - but it got lost in a disk crash.
+Perhaps Andy or some of my HPC customers wish I was also looking
+to provide:
+ 3) the ability to add lots of hugetlb pages on the application
+    nodes after the system has run a while.
+But if they are, then they have some more educatin' to do on me.
 
-> This task_lock spinlock, or some performance equivalent, is, I think,
-> unavoidable.
+For now, I am sympathetic to your concerns with code and locking
+complexity.  Freeing up great globs of hugetlb sized contiguous chunks
+of memory after a system has run a while would be hard.
 
-why?
+We have to be careful which hard problems we decide to take on.
 
->
-> An essential difference between mempolicy and cpusets is that cpusets
-> supports outside manipulation of a tasks memory placement.  
+We can't take on too many, and we have to pick ones that will provide
+a major long term advantage to Linux, over the forseeable changes in
+system hardware and architecture.
 
-Yes, that is their big problem (there is a reason I'm always complaining
-about attempts to change mempolicy externally) 
+Even if most of the processors that Andy has tested against would
+benefit from dynamically added hugetlb pages, if we can anticipate
+that this will not be a substained opportunity for Linux (and looking
+at current x86 chips doesn't require much anticipating) then that
+might not be the place to invest our precious core complexity dollars.
 
-But actually some mempolicy can be already changed outside the task - 
-using VMA policy.
-
-> Sooner or 
-> later, the task has to synchronize with these outside changes, and a
-> task_lock(current) in the path to __alloc_pages() is the lowest cost
-> way I could find to do this.
-
-Why can't it just test that generation number lockless after testing
-if there is a cpuset at all?
-
--Andi
+-- 
+                  I won't rest till it's the best ...
+                  Programmer, Linux Scalability
+                  Paul Jackson <pj@sgi.com> 1.925.600.0401
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
