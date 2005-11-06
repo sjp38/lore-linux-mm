@@ -1,31 +1,40 @@
-Message-ID: <436D5CCD.3050901@acm.org>
-Date: Sat, 05 Nov 2005 18:30:53 -0700
-From: Zan Lynx <zlynx@acm.org>
-MIME-Version: 1.0
+From: Rob Landley <rob@landley.net>
 Subject: Re: [Lhms-devel] [PATCH 0/7] Fragmentation Avoidance V19
-References: <20051104201248.GA14201@elte.hu> <20051104210418.BC56F184739@thermo.lanl.gov> <e692861c0511041331ge5dd1abq57b6c513540fa200@mail.gmail.com> <200511042343.27832.ak@suse.de>
-In-Reply-To: <200511042343.27832.ak@suse.de>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Date: Sat, 5 Nov 2005 20:25:47 -0600
+References: <20051104201248.GA14201@elte.hu> <200511042343.27832.ak@suse.de> <436D5CCD.3050901@acm.org>
+In-Reply-To: <436D5CCD.3050901@acm.org>
+MIME-Version: 1.0
+Content-Type: text/plain;
+  charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200511052025.48976.rob@landley.net>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <ak@suse.de>
-Cc: Gregory Maxwell <gmaxwell@gmail.com>, Andy Nelson <andy@thermo.lanl.gov>, mingo@elte.hu, akpm@osdl.org, arjan@infradead.org, arjanv@infradead.org, haveblue@us.ibm.com, kravetz@us.ibm.com, lhms-devel@lists.sourceforge.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mbligh@mbligh.org, mel@csn.ul.ie, nickpiggin@yahoo.com.au, torvalds@osdl.org
+To: Zan Lynx <zlynx@acm.org>
+Cc: Andi Kleen <ak@suse.de>, Gregory Maxwell <gmaxwell@gmail.com>, Andy Nelson <andy@thermo.lanl.gov>, mingo@elte.hu, akpm@osdl.org, arjan@infradead.org, arjanv@infradead.org, haveblue@us.ibm.com, kravetz@us.ibm.com, lhms-devel@lists.sourceforge.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mbligh@mbligh.org, mel@csn.ul.ie, nickpiggin@yahoo.com.au, torvalds@osdl.org
 List-ID: <linux-mm.kvack.org>
 
-Andi Kleen wrote:
-> I don't like it very much. You have two choices if a workload runs
-> out of the kernel allocatable pages. Either you spill into the reclaimable
-> zone or you fail the allocation. The first means that the huge pages
-> thing is unreliable, the second would mean that all the many problems
-> of limited lowmem would be back.
+On Saturday 05 November 2005 19:30, Zan Lynx wrote:
+> > None of this is very attractive.
 >
-> None of this is very attractive.
->   
-You could allow the 'hugetlb zone' to shrink, allowing more kernel 
-allocations.  User pages at the boundary would be moved to make room.
+> You could allow the 'hugetlb zone' to shrink, allowing more kernel
+> allocations.  User pages at the boundary would be moved to make room.
 
-This would at least keep the 'hugetlb zone' pure and not create holes in it.
+Please make that optional if you do.  In my potential use case, an OOM kill 
+lets the administrator know they've got things configure wrong so they can 
+can fix it and try again.  Containing and viciously reaping things like 
+dentries is the behavior I want out of it.
+
+Also, if you do shrink the hugetlb zone it might be possible to 
+opportunistically expand it back to its original size.  There's no guarantee 
+that a given kernel allocation will ever go away, but if it _does_ go away 
+then the hugetlb zone should be able to expand to the next blocking 
+allocation or the maximum size, whichever comes first.  (Given that my 
+understanding of the layout may not match reality at all; don't ask me how 
+the discontiguous memory stuff would work in here...)
+
+Rob
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
