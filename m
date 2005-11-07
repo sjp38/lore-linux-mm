@@ -1,54 +1,42 @@
+Received: from thermo.lanl.gov (thermo.lanl.gov [128.165.59.202])
+	by mailwasher-b.lanl.gov (8.12.11/8.12.11/(ccn-5)) with SMTP id jA7KtWcr028964
+	for <linux-mm@kvack.org>; Mon, 7 Nov 2005 13:55:33 -0700
 Subject: RE: [Lhms-devel] [PATCH 0/7] Fragmentation Avoidance V19
-From: Rohit Seth <rohit.seth@intel.com>
-In-Reply-To: <1131389934.25133.69.camel@localhost.localdomain>
-References: <20051107003452.3A0B41855A0@thermo.lanl.gov>
-	 <1131389934.25133.69.camel@localhost.localdomain>
-Content-Type: text/plain
-Date: Mon, 07 Nov 2005 12:51:01 -0800
-Message-Id: <1131396662.18176.41.camel@akash.sc.intel.com>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <1131396662.18176.41.camel@akash.sc.intel.com>
+Message-Id: <20051107205532.CF888185988@thermo.lanl.gov>
+Date: Mon,  7 Nov 2005 13:55:32 -0700 (MST)
+From: andy@thermo.lanl.gov (Andy Nelson)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Adam Litke <agl@us.ibm.com>
-Cc: Andy Nelson <andy@thermo.lanl.gov>, ak@suse.de, nickpiggin@yahoo.com.au, akpm@osdl.org, arjan@infradead.org, arjanv@infradead.org, gmaxwell@gmail.com, haveblue@us.ibm.com, kravetz@us.ibm.com, lhms-devel@lists.sourceforge.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mbligh@mbligh.org, mel@csn.ul.ie, mingo@elte.hu, torvalds@osdl.org
+To: agl@us.ibm.com, rohit.seth@intel.com
+Cc: ak@suse.de, akpm@osdl.org, andy@thermo.lanl.gov, arjan@infradead.org, arjanv@infradead.org, gmaxwell@gmail.com, haveblue@us.ibm.com, kravetz@us.ibm.com, lhms-devel@lists.sourceforge.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mbligh@mbligh.org, mel@csn.ul.ie, mingo@elte.hu, nickpiggin@yahoo.com.au, torvalds@osdl.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2005-11-07 at 12:58 -0600, Adam Litke wrote:
+Hi,
 
-> I am currently working on an new approach to what you tried.  It
-> requires fewer changes to the kernel and implements the special large
-> page usage entirely in an LD_PRELOAD library.  And on newer kernels,
-> programs linked with the .x ldscript you mention above can run using all
-> small pages if not enough large pages are available.
-> 
+>Isn't it true that most of the times we'll need to be worrying about
+>run-time allocation of memory (using malloc or such) as compared to
+>static.
 
-Isn't it true that most of the times we'll need to be worrying about
-run-time allocation of memory (using malloc or such) as compared to
-static.
+Perhaps for C. Not neccessarily true for Fortran. I don't know
+anything about how memory allocations proceed there, but there
+are no `malloc' calls (at least with that spelling) in the language 
+itself, and I don't know what it does for either static or dynamic 
+allocations under the hood. It could be malloc like or whatever
+else. In the language itself, there are language features for
+allocating and deallocating memory and I've seen code that 
+uses them, but haven't played with it myself, since my codes 
+need pretty much all the various pieces memory all the time, 
+and so are simply statically defined.
 
-> For the curious, here's how this all works:
-> 1) Link the unmodified application source with a custom linker script which
-> does the following:
->   - Align elf segments to large page boundaries
->   - Assert a non-standard Elf program header flag (PF_LINUX_HTLB)
->     to signal something (see below) to use large pages.
-
-We'll need a similar flag for even code pages to start using hugetlb
-pages. In this case to keep the kernel changes to minimum, RTLD will
-need to modified.
-
-> 2) Boot a kernel that supports copy-on-write for PRIVATE hugetlb pages
-> 3) Use an LD_PRELOAD library which reloads the PF_LINUX_HTLB segments into
-> large pages and transfers control back to the application.
-> 
-
-COW, swap etc. are all very nice (little!) features that make hugetlb to
-get used more transparently.
-
--rohit
+If you call something like malloc yourself, you risk portability 
+problems in Fortran. Fortran 2003 supposedly addresses some of
+this with some C interop features, but only got approved within 
+the last year, and no compilers really exist for it yet, let
+alone having code written.
 
 
+Andy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
