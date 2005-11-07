@@ -1,57 +1,88 @@
 Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by e6.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id jA7GheRI031199
-	for <linux-mm@kvack.org>; Mon, 7 Nov 2005 11:43:40 -0500
+	by e6.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id jA7IxpS6026361
+	for <linux-mm@kvack.org>; Mon, 7 Nov 2005 13:59:51 -0500
 Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
-	by d01relay04.pok.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id jA7Ghequ055510
-	for <linux-mm@kvack.org>; Mon, 7 Nov 2005 11:43:40 -0500
+	by d01relay04.pok.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id jA7Ixnqu105526
+	for <linux-mm@kvack.org>; Mon, 7 Nov 2005 13:59:51 -0500
 Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
-	by d01av04.pok.ibm.com (8.12.11/8.13.3) with ESMTP id jA7Ghd0P023629
-	for <linux-mm@kvack.org>; Mon, 7 Nov 2005 11:43:40 -0500
-Subject: Re: [Lhms-devel] [PATCH 0/7] Fragmentation Avoidance V19
+	by d01av04.pok.ibm.com (8.12.11/8.13.3) with ESMTP id jA7IxmHb014943
+	for <linux-mm@kvack.org>; Mon, 7 Nov 2005 13:59:48 -0500
+Subject: RE: [Lhms-devel] [PATCH 0/7] Fragmentation Avoidance V19
 From: Adam Litke <agl@us.ibm.com>
-In-Reply-To: <436B1150.2010001@cosmosbay.com>
-References: <20051104010021.4180A184531@thermo.lanl.gov>
-	 <Pine.LNX.4.64.0511032105110.27915@g5.osdl.org>
-	 <20051103221037.33ae0f53.pj@sgi.com>  <436B1150.2010001@cosmosbay.com>
-Content-Type: text/plain; charset=ISO-8859-15
-Date: Mon, 07 Nov 2005 10:42:54 -0600
-Message-Id: <1131381774.25133.45.camel@localhost.localdomain>
+In-Reply-To: <20051107003452.3A0B41855A0@thermo.lanl.gov>
+References: <20051107003452.3A0B41855A0@thermo.lanl.gov>
+Content-Type: text/plain
+Date: Mon, 07 Nov 2005 12:58:53 -0600
+Message-Id: <1131389934.25133.69.camel@localhost.localdomain>
 Mime-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Eric Dumazet <dada1@cosmosbay.com>
-Cc: Paul Jackson <pj@sgi.com>, Linus Torvalds <torvalds@osdl.org>, andy@thermo.lanl.gov, mbligh@mbligh.org, akpm@osdl.org, arjan@infradead.org, arjanv@infradead.org, haveblue@us.ibm.com, kravetz@us.ibm.com, lhms-devel@lists.sourceforge.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mel@csn.ul.ie, mingo@elte.hu, nickpiggin@yahoo.com.au
+To: Andy Nelson <andy@thermo.lanl.gov>
+Cc: ak@suse.de, nickpiggin@yahoo.com.au, rohit.seth@intel.com, akpm@osdl.org, arjan@infradead.org, arjanv@infradead.org, gmaxwell@gmail.com, haveblue@us.ibm.com, kravetz@us.ibm.com, lhms-devel@lists.sourceforge.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mbligh@mbligh.org, mel@csn.ul.ie, mingo@elte.hu, torvalds@osdl.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2005-11-04 at 08:44 +0100, Eric Dumazet wrote:
-> Paul Jackson a ecrit :
-> > Linus wrote:
-> > 
-> >>Maybe you'd be willing on compromising by using a few kernel boot-time 
-> >>command line options for your not-very-common load.
-> > 
-> > 
-> > If we were only a few options away from running Andy's varying load
-> > mix with something close to ideal performance, we'd be in fat city,
-> > and Andy would never have been driven to write that rant.
+On Sun, 2005-11-06 at 17:34 -0700, Andy Nelson wrote:
+> Hi folks,
 > 
-> I found hugetlb support in linux not very practical/usable on NUMA machines, 
-> boot-time parameters or /proc/sys/vm/nr_hugepages.
+> >Not sure how applications seamlessly can use the proposed hugetlb zone
+> >based on hugetlbfs.  Depending on the programming language, it might
+> >actually need changes in libs/tools etc.
 > 
-> With this single integer parameter, you cannot allocate 1000 4MB pages on one 
-> specific node, letting small pages on another node.
+> This is my biggest worry as well. I can't recall the details
+> right now, but I have some memories of people telling me, for
+> example, that large pages on linux were not now available to 
+> fortran programs period, due to lack of toolchain/lib stuff, 
+> just as you note. What the reasons were/are I have no idea. I 
+> do know that the Power 5 numbers I quoted a couple of days ago
+> required that the sysadmin apply some special patches to linux
+> and linking to extra library. I don't know what patches (they
+> came from ibm), but for xlf95 on Power5, the library I had to 
+> link with was this one:  
 > 
-> I'm not an astrophysician, nor a DB admin, I'm only trying to partition a dual 
-> node machine between one (numa aware) memory intensive job and all others 
-> (system, network, shells).
-> At least I can reboot it if needed, but I feel Andy pain.
+>     -T /usr/local/lib64/elf64ppc.lbss.x
 > 
-> There is a /proc/buddyinfo file, maybe we need a /proc/sys/vm/node_hugepages 
-> with a list of integers (one per node) ?
+> 
+> No changes were required to my code, which is what I need,
+> but codes that did not link to this library would not run on 
+> a kernel that had the patches installed, and code that did 
+> link with this library would not run on a kernel that didn't 
+> have those patches. 
+> 
+> I don't know what library this is or what was in it, but I 
+> cant imagine it would have been something very standard or
+> mainline, with that sort of drastic behavior. Maybe the ibm
+> folk can explain what this was about.
 
-Or perhaps /sys/devices/system/node/nodeX/nr_hugepages triggers that
-work like the current /proc trigger but on a per node basis?
+Wow.  It's amazing how these things spread from my little corner of the
+universe ;)  What you speak of sounds dangerously close to what I've
+been working on lately.  Indeed it is not standard at all yet.  
+
+I am currently working on an new approach to what you tried.  It
+requires fewer changes to the kernel and implements the special large
+page usage entirely in an LD_PRELOAD library.  And on newer kernels,
+programs linked with the .x ldscript you mention above can run using all
+small pages if not enough large pages are available.
+
+For the curious, here's how this all works:
+1) Link the unmodified application source with a custom linker script which
+does the following:
+  - Align elf segments to large page boundaries
+  - Assert a non-standard Elf program header flag (PF_LINUX_HTLB)
+    to signal something (see below) to use large pages.
+2) Boot a kernel that supports copy-on-write for PRIVATE hugetlb pages
+3) Use an LD_PRELOAD library which reloads the PF_LINUX_HTLB segments into
+large pages and transfers control back to the application.
+
+> I will ask some folks here who should know how it may work
+> on intel/amd machines about how large pages can be used 
+> this coming week, when I attempt to do page size speed 
+> testing for my code, as I promised before, as I promised
+> before, as I promised before. 
+
+I have used this method on ppc64, x86, and x86_64 machines successfully.
+I'd love to see how my system works for a real-world user so if you're
+interested in trying it out I can send you the current version.
 
 -- 
 Adam Litke - (agl at us.ibm.com)
