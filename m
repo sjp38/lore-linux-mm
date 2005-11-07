@@ -1,40 +1,64 @@
-Date: Mon, 7 Nov 2005 15:35:38 -0800
-From: William Lee Irwin III <wli@holomorphy.com>
-Subject: Re: [RFC 2/2] Hugetlb COW
-Message-ID: <20051107233538.GH29402@holomorphy.com>
-References: <1131397841.25133.90.camel@localhost.localdomain> <1131399533.25133.104.camel@localhost.localdomain>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1131399533.25133.104.camel@localhost.localdomain>
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e3.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id jA7NcH7O029268
+	for <linux-mm@kvack.org>; Mon, 7 Nov 2005 18:38:17 -0500
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay04.pok.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id jA7NcHqu118326
+	for <linux-mm@kvack.org>; Mon, 7 Nov 2005 18:38:17 -0500
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.12.11/8.13.3) with ESMTP id jA7NcGsw028499
+	for <linux-mm@kvack.org>; Mon, 7 Nov 2005 18:38:17 -0500
+Message-ID: <436FE561.7080703@austin.ibm.com>
+Date: Mon, 07 Nov 2005 17:38:09 -0600
+From: Joel Schopp <jschopp@austin.ibm.com>
+MIME-Version: 1.0
+Subject: Re: [Lhms-devel] [PATCH 0/7] Fragmentation Avoidance V19
+References: <20051104010021.4180A184531@thermo.lanl.gov>	 <Pine.LNX.4.64.0511032105110.27915@g5.osdl.org>	 <20051103221037.33ae0f53.pj@sgi.com> <20051104063820.GA19505@elte.hu>	 <Pine.LNX.4.64.0511040725090.27915@g5.osdl.org>	 <796B585C-CB1C-4EBA-9EF4-C11996BC9C8B@mac.com>	 <Pine.LNX.4.64.0511060756010.3316@g5.osdl.org>	 <Pine.LNX.4.64.0511060848010.3316@g5.osdl.org>	 <20051107080042.GA29961@elte.hu> <1131361258.5976.53.camel@localhost>	 <20051107122009.GD3609@elte.hu> <1131392070.14381.133.camel@localhost.localdomain>
+In-Reply-To: <1131392070.14381.133.camel@localhost.localdomain>
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Adam Litke <agl@us.ibm.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, David Gibson <david@gibson.dropbear.id.au>, hugh@veritas.com, rohit.seth@intel.com, "Chen, Kenneth W" <kenneth.w.chen@intel.com>, akpm@osdl.org
+To: Steven Rostedt <rostedt@goodmis.org>
+Cc: Ingo Molnar <mingo@elte.hu>, Nick Piggin <nickpiggin@yahoo.com.au>, mel@csn.ul.ie, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, lhms <lhms-devel@lists.sourceforge.net>, kravetz@us.ibm.com, arjanv@infradead.org, arjan@infradead.org, Andrew Morton <akpm@osdl.org>, mbligh@mbligh.org, andy@thermo.lanl.gov, Paul Jackson <pj@sgi.com>, Kyle Moffett <mrmacman_g4@mac.com>, Linus Torvalds <torvalds@osdl.org>, Dave Hansen <haveblue@us.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Nov 07, 2005 at 03:38:53PM -0600, Adam Litke wrote:
-> [RFC] COW for hugepages
-> (Patch originally from David Gibson <dwg@au1.ibm.com>)
-> This patch implements copy-on-write for hugepages, hence allowing
-> MAP_PRIVATE mappings of hugetlbfs.
-> This is chiefly useful for cases where we want to use hugepages
-> "automatically" - that is to map hugepages without the knowledge of
-> the code in the final application (either via kernel hooks, or with
-> LD_PRELOAD).  We can use various heuristics to determine when
-> hugepages might be a good idea, but changing the semantics of
-> anonymous memory from MAP_PRIVATE to MAP_SHARED without the app's
-> knowledge is clearly wrong.
+>>RAM removal, not RAM replacement. I explained all the variants in an 
+>>earlier email in this thread. "extending RAM" is relatively easy.  
+>>"replacing RAM" while doable, is probably undesirable. "removing RAM" 
+>>impossible.
+> 
+<snip>
+> BTW, I'm not suggesting any of this is a good idea, I just like to
+> understand why something _cant_ be done.
+> 
 
-I'll go check for architectures where page protections may be encoded
-differently depending on the size of the translation, or whose code is
-otherwise unprepared to cope with protection bits.
+I'm also of the opinion that if we make the kernel remap that we can "remove 
+RAM".  Now, we've had enough people weigh in on this being a bad idea I'm not 
+going to try it.  After all it is fairly complex, quite a bit more so than Mel's 
+reasonable patches.  But I think it is possible.  The steps would look like this:
 
-If you've done such checking already, I'd be much obliged to hear of it
-(in fact, I'd much prefer you to have done so).
+Method A:
+1. Find some unused RAM (or free some up)
+2. Reserve that RAM
+3. Copy the active data from the soon to be removed RAM to the reserved RAM
+4. Remap the addresses
+5. Remove the RAM
 
+This of course requires step 3 & 4 take place under something like 
+stop_machine_run() to keep the data from changing.
 
--- wli
+Alternately you could do it like this:
+
+Method B:
+1. Find some unused RAM (or free some up)
+2. Reserve that RAM
+3. Unmap the addresses on the soon to be removed RAM
+4. Copy the active data from the soon to be removed RAM to the reserved RAM
+5. Remap the addresses
+6. Remove the RAM
+
+Which would save you the stop_machine_run(), but which adds the complication of 
+dealing with faults on pinned memory during the migration.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
