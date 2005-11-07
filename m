@@ -1,113 +1,132 @@
-Message-ID: <436EEF43.2050403@yahoo.com.au>
-Date: Mon, 07 Nov 2005 17:08:03 +1100
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-MIME-Version: 1.0
-Subject: Re: [PATCH]: Clean up of __alloc_pages
-References: <20051028183326.A28611@unix-os.sc.intel.com>	<20051106124944.0b2ccca1.pj@sgi.com>	<436EC2AF.4020202@yahoo.com.au>	<200511070442.58876.ak@suse.de> <20051106203717.58c3eed0.pj@sgi.com>
-In-Reply-To: <20051106203717.58c3eed0.pj@sgi.com>
-Content-Type: text/plain; charset=us-ascii; format=flowed
+Received: from ccs-mail.lanl.gov (ccs-mail.lanl.gov [128.165.4.126])
+	by mailwasher-b.lanl.gov (8.12.11/8.12.11/(ccn-5)) with ESMTP id jA76drRH028579
+	for <linux-mm@kvack.org>; Sun, 6 Nov 2005 23:39:53 -0700
+Subject: Re: Clock-Pro
+From: Song Jiang <sjiang@lanl.gov>
+In-Reply-To: <1131056122.18825.173.camel@twins>
+References: <1131056122.18825.173.camel@twins>
+Content-Type: text/plain
+Message-Id: <1131349185.4389.1122.camel@moon.c3.lanl.gov>
+Mime-Version: 1.0
+Date: Mon, 07 Nov 2005 00:39:45 -0700
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Paul Jackson <pj@sgi.com>
-Cc: Andi Kleen <ak@suse.de>, akpm@osdl.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Rik van Riel <riel@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Paul Jackson wrote:
-> Nick wrote:
+The following is the table as well as some comments:
+
+  Song
+
+==================================== 
+
+res | h/c | tst | ref || Hcold | Hhot | Htst || Flt
+----+-----+-----+-----++-------+------+------++-----
+ 0  |  0  |  0    |  0   ||         |        |       || 1010
+ 0  |  0  |  1    |  0   ||  N/A   |X0000 |X0000 || 1100
+
+ 1  |  0  |  0    |  0   || X0000 |=1000 |=1000 ||
+ 1  |  0  |  0    |  1   || 1010  |=1001 |=1001 ||
+ 1  |  0  |  1    |  0   || X0010 | 1000 | 1000 ||
+ 1  |  0  |  1    |  1   || 1100  | 1001 | 1001 ||
+ 1  |  1  |  0    |  0   ||=1100  | 1000 |=1100 || 
+ 1  |  1  |  0    |  1   ||=1101  | 1100 |=1101 || 
+
+Comments for each state line (res, h/c, tst, ref)
+
+0000: a new state for blocks not in list;
+
+0001: invalid state. If this type of page existed, Hcold must 
+      have passed it because its residency has been changed 
+      to 0 by Hcold. (Note that all pages that are placed at 
+      the list head are resident.). Without its test == 1, 
+      the page must have been removed from the LIST besides
+      from memory by Hcold.
+
+0010: As stated above, Hcold only sees resident pages. 
+      So Hcold + 0010 is N/A. Flt + 0010 -> 1100 
+      due to its test == 1.    
+
+0011: invalid state because a non-resident page cannot 
+      have its ref == 1.
+
+1000: both Hhot and Htst do not replace pages, which is 
+      the task of Tcold.
+
+1001: Hcold + 1001 -> 1010 because a detection of ref == 1 
+      means a new access, so test period should be restarted. 
+      Hhot(Htst) + 1001 -> =1001 because for COLD pages 
+      Hcold is supposed to behave like the clock hand in the 
+      traditional CLOCK policy, which is responsible to 
+      clear ref bits. Hhot and Htst just leave the ref bits 
+      untouched.
+
+1010: Hcold + 1010 -> X0010 because cold page without ref 
+      should be replaced. The page remains in the list 
+      because of its tst == 1. Hhot + 1010 -> 1000 
+      because Hhot does the task on behalf of Htst.
+
+1011: Hhot(Htst) + 1011 -> 1001 because both hands work as Htst.
+
+1100: Hhot + 1100 -> 1000 because the demoted hot page 
+      does not have a new access (its ref == 0). Test period 
+      is for test reuse distance. Without an access, a new 
+      reuse test should not be restarted.
+
+1101: Hhot + 1101 -> =1100 because for HOT pages their ref 
+      bits are used to keep their hot status. Once the ref 
+      bits have served the purpose, Hhot should clear it.
+      Htst + 1101 -> =1101 because Htst should only care 
+      about tst bits and removing non-resient blocks out of list.
+
+
+
+On Thu, 2005-11-03 at 15:15, Peter Zijlstra wrote:
+> Hi Song Jiang,
 > 
->>Anyway, I think the first problem is a showstopper. I'd look into
->>Hugh's SLAB_DESTROY_BY_RCU for this ...
+> 
+> I implemented the things I talked about, they can be found here:
+>   http://programming.kicks-ass.net/kernel-patches/clockpro/
+> 
+> However I have the strong feeling I messed up the approximation, hence I
+> have tried to extract a state table for the original algorithm from the
+> paper but I find some things not quite obvious. Could you help me
+> complete this thing:
 > 
 > 
-> Andi wrote:
+> res | h/c | tst | ref || Hcold | Hhot | Htst || Flt
+> ----+-----+-----+-----++-------+------+------++-----
+>  0  |  0  |  0  |  1  ||       |      |      || 1010
+>  0  |  0  |  1  |  0  ||=0010  |  X   |  X   || 
+>  0  |  0  |  1  |  1  ||       |      |      || 1100
+>  1  |  0  |  0  |  0  ||  X    |  X   |=1000 ||
+>  1  |  0  |  0  |  1  || 1000  | 100? | 100? ||
+>  1  |  0  |  1  |  0  ||=1010  | 0010 | 1000 ||
+>  1  |  0  |  1  |  1  || 1100  | 101? | 100? ||
+>  1  |  1  |  0  |  0  ||=1100  | 10?0 |=1100 || 
+>  1  |  1  |  0  |  1  || 110?  | 1100 | 110? || 
 > 
->>RCU could be used to avoid that. Just only free it in a RCU callback.
+> 
+> res := resident
+> h/c := hot/cold
+> tst := test period
+> ref := referenced
+> 
+> H* := resulting state after specified hand passed,
+>       where prefix '=' designated no change and
+>       'X' designates remove from list.
+> 
+>       '?' are uncertain, please help.
+> 
+> Flt := pagefault column; nonresident and referenced.
+>        state after fault.
 > 
 > 
+> Kind regards,
 > 
-> ... looking at mm/slab.h and rcupdate.h for the first time ... 
-> 
-
-Yeah, take a look at rmap.c as well, and some of the comments in
-changelogs if you need a better feel for it.
-
-Basically SLAB_DESTROY_BY_RCU will allow the entries to be freed
-back to the slab for reuse, but will not allow the slab caches to
-be freed back to the page allocator inside rcu readside.
-
-So your cpusets may be reused, but only as new cpusets. This should
-be no problem at all for you.
-
-> Would this mean that I had to put the cpuset structures on their own
-> slab cache, marked SLAB_DESTROY_BY_RCU?
-> 
-> And is the pair of operators:
->   task_lock(current), task_unlock(current)
-> really that much worse than the pair of operatots
->   rcu_read_lock, rcu_read_unlock
-> which apparently reduce to:
->   preempt_disable, preempt_enable
-> 
-
-You may also have to be careful about memory ordering when setting
-a pointer which may be concurrently dereferenced by another CPU so
-that stale data doesn't get picked up.
-
-The set side needs an rcu_assign_pointer, and the dereference side
-needs rcu_dereference. Unless you either don't care about races, or
-already have the correct barriers in place. But it is better to be
-safe.
-
-> Would this work something like the following?  Say task A, on processor
-> AP, is trying to dereference its cpuset pointer, while task B, on
-> processor BP, is trying hard to destroy that cpuset. Then if task A
-> wraps its reference in <rcu_read_lock, rcu_read_unlock>, this will keep
-> the RCU freeing of that memory from completing, until interrupts on AP
-> are re-enabled.
-> 
-
-Sounds like it should work.
-
-> For that matter, if I just put cpuset structs in their own slab
-> cache, would that be sufficient.
-> 
-
-No, because the slab caches can get freed back into the general
-page allocator at any time.
-
->   Nick - Does use-after-free debugging even catch use of objects
-> 	 returned to their slab cache?
-> 
-
-Yes (slab debugging catches write-after-free at least, I believe),
-however there are exceptions made for RCU freed slab caches. That
-is: it is acceptable to access a freed RCU slab object, especially
-if you only read it (writes need to be more careful, but they're
-possible in some situations).
-
-> What about the other suggestions, Andi:
->  1) subset zonelists (which you asked to reconsider)
->  2) a kernel flag "cpusets_have_been_used" flag to short circuit
->     cpuset logic on systems not using cpusets.
-> 
-
-Not too sure at present. I think #1 might be a good idea though
-it would be a bigger change. #2 again might be a good hack for
-the time being, although it would be nice to try to get the same
-performance from the normal cpuset fastpath.
-
-My RCU suggestion was mainly an idea to get around your immediate
-problem with a lockless fastpath, rather than advocating it over
-any of the alternatives.
-
-Thanks,
-Nick
-
--- 
-SUSE Labs, Novell Inc.
-
-Send instant messages to your online friends http://au.messenger.yahoo.com 
+> Peter Zijlstra
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
