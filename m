@@ -1,57 +1,53 @@
-Subject: Re: [Lhms-devel] [PATCH 0/7] Fragmentation Avoidance V19
-From: Steven Rostedt <rostedt@goodmis.org>
-In-Reply-To: <20051107122009.GD3609@elte.hu>
-References: <20051104010021.4180A184531@thermo.lanl.gov>
-	 <Pine.LNX.4.64.0511032105110.27915@g5.osdl.org>
-	 <20051103221037.33ae0f53.pj@sgi.com> <20051104063820.GA19505@elte.hu>
-	 <Pine.LNX.4.64.0511040725090.27915@g5.osdl.org>
-	 <796B585C-CB1C-4EBA-9EF4-C11996BC9C8B@mac.com>
-	 <Pine.LNX.4.64.0511060756010.3316@g5.osdl.org>
-	 <Pine.LNX.4.64.0511060848010.3316@g5.osdl.org>
-	 <20051107080042.GA29961@elte.hu> <1131361258.5976.53.camel@localhost>
-	 <20051107122009.GD3609@elte.hu>
+Subject: RE: [Lhms-devel] [PATCH 0/7] Fragmentation Avoidance V19
+From: Rohit Seth <rohit.seth@intel.com>
+In-Reply-To: <1131389934.25133.69.camel@localhost.localdomain>
+References: <20051107003452.3A0B41855A0@thermo.lanl.gov>
+	 <1131389934.25133.69.camel@localhost.localdomain>
 Content-Type: text/plain
-Date: Mon, 07 Nov 2005 14:34:30 -0500
-Message-Id: <1131392070.14381.133.camel@localhost.localdomain>
+Date: Mon, 07 Nov 2005 12:51:01 -0800
+Message-Id: <1131396662.18176.41.camel@akash.sc.intel.com>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ingo Molnar <mingo@elte.hu>
-Cc: Nick Piggin <nickpiggin@yahoo.com.au>, mel@csn.ul.ie, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, lhms <lhms-devel@lists.sourceforge.net>, kravetz@us.ibm.com, arjanv@infradead.org, arjan@infradead.org, Andrew Morton <akpm@osdl.org>, mbligh@mbligh.org, andy@thermo.lanl.gov, Paul Jackson <pj@sgi.com>, Kyle Moffett <mrmacman_g4@mac.com>, Linus Torvalds <torvalds@osdl.org>, Dave Hansen <haveblue@us.ibm.com>
+To: Adam Litke <agl@us.ibm.com>
+Cc: Andy Nelson <andy@thermo.lanl.gov>, ak@suse.de, nickpiggin@yahoo.com.au, akpm@osdl.org, arjan@infradead.org, arjanv@infradead.org, gmaxwell@gmail.com, haveblue@us.ibm.com, kravetz@us.ibm.com, lhms-devel@lists.sourceforge.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mbligh@mbligh.org, mel@csn.ul.ie, mingo@elte.hu, torvalds@osdl.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2005-11-07 at 13:20 +0100, Ingo Molnar wrote:
+On Mon, 2005-11-07 at 12:58 -0600, Adam Litke wrote:
 
+> I am currently working on an new approach to what you tried.  It
+> requires fewer changes to the kernel and implements the special large
+> page usage entirely in an LD_PRELOAD library.  And on newer kernels,
+> programs linked with the .x ldscript you mention above can run using all
+> small pages if not enough large pages are available.
 > 
-> RAM removal, not RAM replacement. I explained all the variants in an 
-> earlier email in this thread. "extending RAM" is relatively easy.  
-> "replacing RAM" while doable, is probably undesirable. "removing RAM" 
-> impossible.
 
-Hi Ingo,
+Isn't it true that most of the times we'll need to be worrying about
+run-time allocation of memory (using malloc or such) as compared to
+static.
 
-I'm usually amused when someone says something is impossible, so I'm
-wondering exactly "why"?
+> For the curious, here's how this all works:
+> 1) Link the unmodified application source with a custom linker script which
+> does the following:
+>   - Align elf segments to large page boundaries
+>   - Assert a non-standard Elf program header flag (PF_LINUX_HTLB)
+>     to signal something (see below) to use large pages.
 
-If the one requirement is that there must be enough free memory
-available to remove, then what's the problem for a fully mapped kernel?
-Is it the GPT?  Or if there's drivers that physical memory mapped?  
+We'll need a similar flag for even code pages to start using hugetlb
+pages. In this case to keep the kernel changes to minimum, RTLD will
+need to modified.
 
-I'm not sure of the best way to solve the GPT being in the RAM that is
-to be removed, but there might be a way. Basically stop all activities
-and update all the tasks->mm.
+> 2) Boot a kernel that supports copy-on-write for PRIVATE hugetlb pages
+> 3) Use an LD_PRELOAD library which reloads the PF_LINUX_HTLB segments into
+> large pages and transfers control back to the application.
+> 
 
-As for the drivers, one could have a accounting for all physical memory
-mapped, and disable the driver if it is using the memory that is to be
-removed.
+COW, swap etc. are all very nice (little!) features that make hugetlb to
+get used more transparently.
 
-But other then these, what exactly is the problem with removing RAM?
+-rohit
 
-BTW, I'm not suggesting any of this is a good idea, I just like to
-understand why something _cant_ be done.
-
--- Steve
 
 
 --
