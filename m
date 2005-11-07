@@ -1,38 +1,80 @@
-Date: Mon, 7 Nov 2005 09:00:42 +0100
-From: Ingo Molnar <mingo@elte.hu>
-Subject: Re: [Lhms-devel] [PATCH 0/7] Fragmentation Avoidance V19
-Message-ID: <20051107080042.GA29961@elte.hu>
-References: <20051104010021.4180A184531@thermo.lanl.gov> <Pine.LNX.4.64.0511032105110.27915@g5.osdl.org> <20051103221037.33ae0f53.pj@sgi.com> <20051104063820.GA19505@elte.hu> <Pine.LNX.4.64.0511040725090.27915@g5.osdl.org> <796B585C-CB1C-4EBA-9EF4-C11996BC9C8B@mac.com> <Pine.LNX.4.64.0511060756010.3316@g5.osdl.org> <Pine.LNX.4.64.0511060848010.3316@g5.osdl.org>
+Date: Mon, 7 Nov 2005 01:46:59 -0800
+From: Paul Jackson <pj@sgi.com>
+Subject: Re: [PATCH]: Clean up of __alloc_pages
+Message-Id: <20051107014659.14c2631b.pj@sgi.com>
+In-Reply-To: <436EEF43.2050403@yahoo.com.au>
+References: <20051028183326.A28611@unix-os.sc.intel.com>
+	<20051106124944.0b2ccca1.pj@sgi.com>
+	<436EC2AF.4020202@yahoo.com.au>
+	<200511070442.58876.ak@suse.de>
+	<20051106203717.58c3eed0.pj@sgi.com>
+	<436EEF43.2050403@yahoo.com.au>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0511060848010.3316@g5.osdl.org>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@osdl.org>
-Cc: Kyle Moffett <mrmacman_g4@mac.com>, Paul Jackson <pj@sgi.com>, andy@thermo.lanl.gov, mbligh@mbligh.org, akpm@osdl.org, arjan@infradead.org, arjanv@infradead.org, haveblue@us.ibm.com, kravetz@us.ibm.com, lhms-devel@lists.sourceforge.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mel@csn.ul.ie, nickpiggin@yahoo.com.au
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: ak@suse.de, akpm@osdl.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-* Linus Torvalds <torvalds@osdl.org> wrote:
+Nick wrote:
+> Yeah, take a look at rmap.c as well, and some of the comments in
+> changelogs if you need a better feel for it.
 
-> > You could do it today, although at a pretty high cost. And you'd have to 
-> > forget about supporting any hardware that really wants contiguous memory 
-> > for DMA (sound cards etc). It just isn't worth it.
+Ok - thanks.
+
+
+> So your cpusets may be reused, but only as new cpusets. This should
+> be no problem at all for you.
+
+Correct - should be no problem.
+
+
+> > And is the pair of operators:
+> >   task_lock(current), task_unlock(current)
+> > really that much worse than the pair of operators
+> >   ...
+> >   preempt_disable, preempt_enable
+
+That part still surprises me a little.  Is there enough difference in
+the performance between:
+
+  1) task_lock, which is a spinlock on current->alloc_lock and
+  2) rcu_read_lock, which is .preempt_count++; barrier()
+
+to justify a separate slab cache for cpusets and a little more code?
+
+For all I know (not much) the task_lock might actually be cheaper ;).
+
+
+> You may also have to be careful about memory ordering when setting
+> a pointer which may be concurrently dereferenced by another CPU so
+> that stale data doesn't get picked up.
 > 
-> Btw, in case it wasn't clear: the cost of these kinds of things in the 
-> kernel is usually not so much the actual "lookup" (whether with hw 
-> assist or with another field in the "struct page").
-[...]
+> The set side needs an rcu_assign_pointer, and the dereference side
+> needs rcu_dereference. Unless you either don't care about races,
 
-> So remappable kernels are certainly doable, they just have more 
-> fundamental problems than remappable user space _ever_ has. Both from 
-> a performance and from a complexity angle.
+I don't think I care ...  I'm just sampling task->cpuset->mems_generation,
+looking for it to change.  Sooner or later, after it changes, I will get
+an accurate read of it, realized it changed, and immediately down a
+cpuset semaphore and reread all values of interest.
 
-furthermore, it doesnt bring us any closer to removable RAM. The problem 
-is still unsolvable (due to the 'how to do you find live pointers to fix 
-up' issue), even if the full kernel VM is 'mapped' at 4K granularity.
+The semaphore down means doing an atomic_dec_return(), which imposes
+a memory barrier, right?
 
-	Ingo
+
+> My RCU suggestion was mainly an idea to get around your immediate
+> problem with a lockless fastpath, rather than advocating it over
+> any of the alternatives.
+
+Understood.  Thanks for your comments on the alternatives - they
+seem reasonable.
+
+-- 
+                  I won't rest till it's the best ...
+                  Programmer, Linux Scalability
+                  Paul Jackson <pj@sgi.com> 1.925.600.0401
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
