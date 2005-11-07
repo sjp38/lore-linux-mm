@@ -1,30 +1,63 @@
-From: Andi Kleen <ak@suse.de>
+Date: Sun, 6 Nov 2005 19:44:25 -0800
+From: Paul Jackson <pj@sgi.com>
 Subject: Re: [PATCH]: Clean up of __alloc_pages
-Date: Mon, 7 Nov 2005 04:42:58 +0100
-References: <20051028183326.A28611@unix-os.sc.intel.com> <20051106124944.0b2ccca1.pj@sgi.com> <436EC2AF.4020202@yahoo.com.au>
+Message-Id: <20051106194425.1f728fbf.pj@sgi.com>
 In-Reply-To: <436EC2AF.4020202@yahoo.com.au>
-MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
+References: <20051028183326.A28611@unix-os.sc.intel.com>
+	<p73oe4z2f9h.fsf@verdi.suse.de>
+	<20051105201841.2591bacc.pj@sgi.com>
+	<200511061835.53575.ak@suse.de>
+	<20051106124944.0b2ccca1.pj@sgi.com>
+	<436EC2AF.4020202@yahoo.com.au>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200511070442.58876.ak@suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Paul Jackson <pj@sgi.com>, akpm@osdl.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: ak@suse.de, akpm@osdl.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Monday 07 November 2005 03:57, Nick Piggin wrote:
-
->
+Nick wrote:
 > I don't think so because if the cpuset can be freed, then its page
 > might be unmapped from the kernel address space if use-after-free
 > debugging is turned on. And this is a use after free :)
 
-RCU could be used to avoid that. Just only free it in a RCU callback.
+Yup - that is a showstopper.  If dereferencing a stale pointer, even if
+one doesn't really care what is read, is a no-no, then this is a no-no.
 
--Andi
+Thanks, Nick, for catching this.
+
+This puts more value on the other idea I had -  a global kernel flag
+"cpusets_have_been_used", that could be used to short circuit all the
+cpuset hooks on systems that never mucked with cpusets.
+
+For any lurkers wondering why I am chasing stale pointers when I don't
+care what I read, it's like this.  Essentially, the task doing this
+read is looking for an asychronous incoming level triggered signal
+(going from the two mems_generations being equal to them being unequal),
+that in this case is coming in at about the same time we are sampling
+for it.  Whether we realize this time that the signal came in, or
+don't realize it until the next time we sample, doesn't really matter
+to us.  One way or the other, we'll see it, for sure the next sample if
+not this one.  So the details of what happened on this read (so long as
+no one got annoyed that we tried to chase a stale pointer) don't really
+matter.  Unfortunately, Nick reminds us that someone will get annoyed.
+Oh well.
+
+> Also, it may be reused for something else far into the future without
+> having its value changed - is this OK?
+
+That part would be ok.  If I failed to realize that the underlying
+cpuset had changed this time through __alloc_pages(), I would see it
+next time, when I picked up a fresh and useful copy of my task->cpuset
+pointer, having long forgotten my stale copy.  My stale cpuset pointer
+only had a lifetime of a couple machine instructions.
+
+-- 
+                  I won't rest till it's the best ...
+                  Programmer, Linux Scalability
+                  Paul Jackson <pj@sgi.com> 1.925.600.0401
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
