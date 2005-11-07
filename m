@@ -1,39 +1,32 @@
-Date: Mon, 07 Nov 2005 12:58:38 -0800
-From: "Martin J. Bligh" <mbligh@mbligh.org>
-Reply-To: "Martin J. Bligh" <mbligh@mbligh.org>
-Subject: RE: [Lhms-devel] [PATCH 0/7] Fragmentation Avoidance V19
-Message-ID: <93700000.1131397118@flay>
-In-Reply-To: <20051107205532.CF888185988@thermo.lanl.gov>
-References: <20051107205532.CF888185988@thermo.lanl.gov>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e6.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id jA7LBRDh017474
+	for <linux-mm@kvack.org>; Mon, 7 Nov 2005 16:11:27 -0500
+Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
+	by d01relay04.pok.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id jA7LBRqu118382
+	for <linux-mm@kvack.org>; Mon, 7 Nov 2005 16:11:27 -0500
+Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
+	by d01av01.pok.ibm.com (8.12.11/8.13.3) with ESMTP id jA7LBRDO002776
+	for <linux-mm@kvack.org>; Mon, 7 Nov 2005 16:11:27 -0500
+Subject: [RFC 0/2] Copy on write for hugetlbfs
+From: Adam Litke <agl@us.ibm.com>
+Content-Type: text/plain
+Date: Mon, 07 Nov 2005 15:10:41 -0600
+Message-Id: <1131397841.25133.90.camel@localhost.localdomain>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andy Nelson <andy@thermo.lanl.gov>, agl@us.ibm.com, rohit.seth@intel.com
-Cc: ak@suse.de, akpm@osdl.org, arjan@infradead.org, arjanv@infradead.org, gmaxwell@gmail.com, haveblue@us.ibm.com, kravetz@us.ibm.com, lhms-devel@lists.sourceforge.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mel@csn.ul.ie, mingo@elte.hu, nickpiggin@yahoo.com.au, torvalds@osdl.org
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, David Gibson <david@gibson.dropbear.id.au>, hugh@veritas.com, rohit.seth@intel.com, "Chen, Kenneth W" <kenneth.w.chen@intel.com>, akpm@osdl.org
 List-ID: <linux-mm.kvack.org>
 
->> Isn't it true that most of the times we'll need to be worrying about
->> run-time allocation of memory (using malloc or such) as compared to
->> static.
-> 
-> Perhaps for C. Not neccessarily true for Fortran. I don't know
-> anything about how memory allocations proceed there, but there
-> are no `malloc' calls (at least with that spelling) in the language 
-> itself, and I don't know what it does for either static or dynamic 
-> allocations under the hood. It could be malloc like or whatever
-> else. In the language itself, there are language features for
-> allocating and deallocating memory and I've seen code that 
-> uses them, but haven't played with it myself, since my codes 
-> need pretty much all the various pieces memory all the time, 
-> and so are simply statically defined.
-
-Doesn't fortran shove everything in BSS to make some truly monsterous
-segment?
- 
-M.
+The following two patches implement copy-on-write for hugetlbfs (thus
+enabling MAP_PRIVATE mappings).  Patch 1/2 (previously posted by David
+Gibson) contains a couple small fixes to the demand fault handler and
+makes COW fit in nicely.  Patch 2/2 is the cow changes.  Comments?
+-- 
+Adam Litke - (agl at us.ibm.com)
+IBM Linux Technology Center
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
