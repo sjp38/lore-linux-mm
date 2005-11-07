@@ -1,80 +1,53 @@
-Date: Mon, 7 Nov 2005 01:46:59 -0800
-From: Paul Jackson <pj@sgi.com>
+Message-ID: <436F29BF.3010804@yahoo.com.au>
+Date: Mon, 07 Nov 2005 21:17:35 +1100
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+MIME-Version: 1.0
 Subject: Re: [PATCH]: Clean up of __alloc_pages
-Message-Id: <20051107014659.14c2631b.pj@sgi.com>
-In-Reply-To: <436EEF43.2050403@yahoo.com.au>
-References: <20051028183326.A28611@unix-os.sc.intel.com>
-	<20051106124944.0b2ccca1.pj@sgi.com>
-	<436EC2AF.4020202@yahoo.com.au>
-	<200511070442.58876.ak@suse.de>
-	<20051106203717.58c3eed0.pj@sgi.com>
-	<436EEF43.2050403@yahoo.com.au>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+References: <20051028183326.A28611@unix-os.sc.intel.com>	<20051106124944.0b2ccca1.pj@sgi.com>	<436EC2AF.4020202@yahoo.com.au>	<200511070442.58876.ak@suse.de>	<20051106203717.58c3eed0.pj@sgi.com>	<436EEF43.2050403@yahoo.com.au> <20051107014659.14c2631b.pj@sgi.com>
+In-Reply-To: <20051107014659.14c2631b.pj@sgi.com>
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
+To: Paul Jackson <pj@sgi.com>
 Cc: ak@suse.de, akpm@osdl.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Nick wrote:
-> Yeah, take a look at rmap.c as well, and some of the comments in
-> changelogs if you need a better feel for it.
+Paul Jackson wrote:
+> Nick wrote:
 
-Ok - thanks.
-
-
-> So your cpusets may be reused, but only as new cpusets. This should
-> be no problem at all for you.
-
-Correct - should be no problem.
-
-
-> > And is the pair of operators:
-> >   task_lock(current), task_unlock(current)
-> > really that much worse than the pair of operators
-> >   ...
-> >   preempt_disable, preempt_enable
-
-That part still surprises me a little.  Is there enough difference in
-the performance between:
-
-  1) task_lock, which is a spinlock on current->alloc_lock and
-  2) rcu_read_lock, which is .preempt_count++; barrier()
-
-to justify a separate slab cache for cpusets and a little more code?
-
-For all I know (not much) the task_lock might actually be cheaper ;).
-
-
-> You may also have to be careful about memory ordering when setting
-> a pointer which may be concurrently dereferenced by another CPU so
-> that stale data doesn't get picked up.
+>>>And is the pair of operators:
+>>>  task_lock(current), task_unlock(current)
+>>>really that much worse than the pair of operators
+>>>  ...
+>>>  preempt_disable, preempt_enable
 > 
-> The set side needs an rcu_assign_pointer, and the dereference side
-> needs rcu_dereference. Unless you either don't care about races,
+> 
+> That part still surprises me a little.  Is there enough difference in
+> the performance between:
+> 
+>   1) task_lock, which is a spinlock on current->alloc_lock and
+>   2) rcu_read_lock, which is .preempt_count++; barrier()
+> 
+> to justify a separate slab cache for cpusets and a little more code?
+> 
+> For all I know (not much) the task_lock might actually be cheaper ;).
+> 
 
-I don't think I care ...  I'm just sampling task->cpuset->mems_generation,
-looking for it to change.  Sooner or later, after it changes, I will get
-an accurate read of it, realized it changed, and immediately down a
-cpuset semaphore and reread all values of interest.
+But on a preempt kernel the spinlock must disable preempt as well!
 
-The semaphore down means doing an atomic_dec_return(), which imposes
-a memory barrier, right?
+Not to mention that a spinlock is an atomic op (though that is getting
+cheaper these days) + 2 memory barriers (getting more expensive).
 
+> The semaphore down means doing an atomic_dec_return(), which imposes
+> a memory barrier, right?
+> 
 
-> My RCU suggestion was mainly an idea to get around your immediate
-> problem with a lockless fastpath, rather than advocating it over
-> any of the alternatives.
-
-Understood.  Thanks for your comments on the alternatives - they
-seem reasonable.
+Yep.
 
 -- 
-                  I won't rest till it's the best ...
-                  Programmer, Linux Scalability
-                  Paul Jackson <pj@sgi.com> 1.925.600.0401
+SUSE Labs, Novell Inc.
+Send instant messages to your online friends http://au.messenger.yahoo.com 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
