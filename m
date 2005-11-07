@@ -1,53 +1,49 @@
-Message-ID: <436F29BF.3010804@yahoo.com.au>
-Date: Mon, 07 Nov 2005 21:17:35 +1100
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-MIME-Version: 1.0
-Subject: Re: [PATCH]: Clean up of __alloc_pages
-References: <20051028183326.A28611@unix-os.sc.intel.com>	<20051106124944.0b2ccca1.pj@sgi.com>	<436EC2AF.4020202@yahoo.com.au>	<200511070442.58876.ak@suse.de>	<20051106203717.58c3eed0.pj@sgi.com>	<436EEF43.2050403@yahoo.com.au> <20051107014659.14c2631b.pj@sgi.com>
-In-Reply-To: <20051107014659.14c2631b.pj@sgi.com>
-Content-Type: text/plain; charset=us-ascii; format=flowed
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by e3.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id jA7B150d030193
+	for <linux-mm@kvack.org>; Mon, 7 Nov 2005 06:01:05 -0500
+Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
+	by d01relay02.pok.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id jA7B151m121356
+	for <linux-mm@kvack.org>; Mon, 7 Nov 2005 06:01:05 -0500
+Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
+	by d01av04.pok.ibm.com (8.12.11/8.13.3) with ESMTP id jA7B15VM009210
+	for <linux-mm@kvack.org>; Mon, 7 Nov 2005 06:01:05 -0500
+Subject: Re: [Lhms-devel] [PATCH 0/7] Fragmentation Avoidance V19
+From: Dave Hansen <haveblue@us.ibm.com>
+In-Reply-To: <20051107080042.GA29961@elte.hu>
+References: <20051104010021.4180A184531@thermo.lanl.gov>
+	 <Pine.LNX.4.64.0511032105110.27915@g5.osdl.org>
+	 <20051103221037.33ae0f53.pj@sgi.com> <20051104063820.GA19505@elte.hu>
+	 <Pine.LNX.4.64.0511040725090.27915@g5.osdl.org>
+	 <796B585C-CB1C-4EBA-9EF4-C11996BC9C8B@mac.com>
+	 <Pine.LNX.4.64.0511060756010.3316@g5.osdl.org>
+	 <Pine.LNX.4.64.0511060848010.3316@g5.osdl.org>
+	 <20051107080042.GA29961@elte.hu>
+Content-Type: text/plain
+Date: Mon, 07 Nov 2005 12:00:58 +0100
+Message-Id: <1131361258.5976.53.camel@localhost>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Paul Jackson <pj@sgi.com>
-Cc: ak@suse.de, akpm@osdl.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Ingo Molnar <mingo@elte.hu>
+Cc: Linus Torvalds <torvalds@osdl.org>, Kyle Moffett <mrmacman_g4@mac.com>, Paul Jackson <pj@sgi.com>, andy@thermo.lanl.gov, mbligh@mbligh.org, Andrew Morton <akpm@osdl.org>, arjan@infradead.org, arjanv@infradead.org, kravetz@us.ibm.com, lhms <lhms-devel@lists.sourceforge.net>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, mel@csn.ul.ie, Nick Piggin <nickpiggin@yahoo.com.au>
 List-ID: <linux-mm.kvack.org>
 
-Paul Jackson wrote:
-> Nick wrote:
+On Mon, 2005-11-07 at 09:00 +0100, Ingo Molnar wrote:
+> * Linus Torvalds <torvalds@osdl.org> wrote:
+> > So remappable kernels are certainly doable, they just have more 
+> > fundamental problems than remappable user space _ever_ has. Both from 
+> > a performance and from a complexity angle.
+> 
+> furthermore, it doesnt bring us any closer to removable RAM. The problem 
+> is still unsolvable (due to the 'how to do you find live pointers to fix 
+> up' issue), even if the full kernel VM is 'mapped' at 4K granularity.
 
->>>And is the pair of operators:
->>>  task_lock(current), task_unlock(current)
->>>really that much worse than the pair of operators
->>>  ...
->>>  preempt_disable, preempt_enable
-> 
-> 
-> That part still surprises me a little.  Is there enough difference in
-> the performance between:
-> 
->   1) task_lock, which is a spinlock on current->alloc_lock and
->   2) rcu_read_lock, which is .preempt_count++; barrier()
-> 
-> to justify a separate slab cache for cpusets and a little more code?
-> 
-> For all I know (not much) the task_lock might actually be cheaper ;).
-> 
+I'm not sure I understand.  If you're remapping, why do you have to find
+live and fix up live pointers?  Are you talking about things that
+require fixed _physical_ addresses?
 
-But on a preempt kernel the spinlock must disable preempt as well!
-
-Not to mention that a spinlock is an atomic op (though that is getting
-cheaper these days) + 2 memory barriers (getting more expensive).
-
-> The semaphore down means doing an atomic_dec_return(), which imposes
-> a memory barrier, right?
-> 
-
-Yep.
-
--- 
-SUSE Labs, Novell Inc.
-Send instant messages to your online friends http://au.messenger.yahoo.com 
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
