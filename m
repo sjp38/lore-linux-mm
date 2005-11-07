@@ -1,50 +1,41 @@
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e1.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id jA7LmfT2026183
-	for <linux-mm@kvack.org>; Mon, 7 Nov 2005 16:48:41 -0500
-Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
-	by d01relay02.pok.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id jA7LmfMf123048
-	for <linux-mm@kvack.org>; Mon, 7 Nov 2005 16:48:41 -0500
-Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
-	by d01av04.pok.ibm.com (8.12.11/8.13.3) with ESMTP id jA7Lmeo3001606
-	for <linux-mm@kvack.org>; Mon, 7 Nov 2005 16:48:41 -0500
-Subject: Re: [RFC 2/2] Hugetlb COW
-From: Adam Litke <agl@us.ibm.com>
-In-Reply-To: <1131399533.25133.104.camel@localhost.localdomain>
-References: <1131397841.25133.90.camel@localhost.localdomain>
-	 <1131399533.25133.104.camel@localhost.localdomain>
-Content-Type: text/plain
-Date: Mon, 07 Nov 2005 15:47:55 -0600
-Message-Id: <1131400076.25133.110.camel@localhost.localdomain>
+Date: Mon, 7 Nov 2005 15:30:53 -0800
+From: William Lee Irwin III <wli@holomorphy.com>
+Subject: Re: [RFC 1/2] Hugetlb fault fixes and reorg
+Message-ID: <20051107233053.GG29402@holomorphy.com>
+References: <1131397841.25133.90.camel@localhost.localdomain> <1131399496.25133.103.camel@localhost.localdomain>
 Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1131399496.25133.103.camel@localhost.localdomain>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, David Gibson <david@gibson.dropbear.id.au>, hugh@veritas.com, rohit.seth@intel.com, "Chen, Kenneth W" <kenneth.w.chen@intel.com>, akpm@osdl.org
+To: Adam Litke <agl@us.ibm.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, David Gibson <david@gibson.dropbear.id.au>, hugh@veritas.com, rohit.seth@intel.com, "Chen, Kenneth W" <kenneth.w.chen@intel.com>, akpm@osdl.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2005-11-07 at 15:38 -0600, Adam Litke wrote:
-> [RFC] COW for hugepages
-> (Patch originally from David Gibson <dwg@au1.ibm.com>)
-> 
-> This patch implements copy-on-write for hugepages, hence allowing
-> MAP_PRIVATE mappings of hugetlbfs.
-> 
-> This is chiefly useful for cases where we want to use hugepages
-> "automatically" - that is to map hugepages without the knowledge of
-> the code in the final application (either via kernel hooks, or with
-> LD_PRELOAD).  We can use various heuristics to determine when
-> hugepages might be a good idea, but changing the semantics of
-> anonymous memory from MAP_PRIVATE to MAP_SHARED without the app's
-> knowledge is clearly wrong.
+On Mon, Nov 07, 2005 at 03:38:16PM -0600, Adam Litke wrote:
+> (Patch originally from David Gibson <david@gibson.dropbear.id.au>)
+> Initial Post: Tue. 25 Oct 2005
+> -static struct page *find_lock_huge_page(struct address_space *mapping,
+> -			unsigned long idx)
+> +static struct page *find_or_alloc_huge_page(struct address_space *mapping,
+> +					    unsigned long idx)
+>  {
+>  	struct page *page;
+>  	int err;
+> -	struct inode *inode = mapping->host;
+> -	unsigned long size;
 
-I forgot to mention in the original post that this patch is currently
-broken on ppc64 due to a problem with update_mmu_cache().  The proper
-fix is understood but backed up behind the powerpc merge activity.  
+This patch is a combination of function renaming, variable
+initialization/assignment and return path/etc. oddities, plus some
+functional changes (did I catch them all?) which apparently took a bit
+of effort to get to after sifting through the rest of that.
 
--- 
-Adam Litke - (agl at us.ibm.com)
-IBM Linux Technology Center
+Dump the parallel cleanups or split them into pure cleanup and pure
+functional patches. I don't mind the cleanups, I mind the mixing.
+
+
+-- wli
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
