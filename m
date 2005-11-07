@@ -1,58 +1,191 @@
 Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e1.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id jA7LXnuF015575
-	for <linux-mm@kvack.org>; Mon, 7 Nov 2005 16:33:49 -0500
-Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
-	by d01relay02.pok.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id jA7LXnMf071994
-	for <linux-mm@kvack.org>; Mon, 7 Nov 2005 16:33:49 -0500
-Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
-	by d01av03.pok.ibm.com (8.12.11/8.13.3) with ESMTP id jA7LXmv3020135
-	for <linux-mm@kvack.org>; Mon, 7 Nov 2005 16:33:49 -0500
-Subject: RE: [Lhms-devel] [PATCH 0/7] Fragmentation Avoidance V19
+	by e1.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id jA7Ld2kO019221
+	for <linux-mm@kvack.org>; Mon, 7 Nov 2005 16:39:02 -0500
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay02.pok.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id jA7Ld2Mf121218
+	for <linux-mm@kvack.org>; Mon, 7 Nov 2005 16:39:02 -0500
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.12.11/8.13.3) with ESMTP id jA7Ld1jU016452
+	for <linux-mm@kvack.org>; Mon, 7 Nov 2005 16:39:01 -0500
+Subject: [RFC 1/2] Hugetlb fault fixes and reorg
 From: Adam Litke <agl@us.ibm.com>
-In-Reply-To: <1131398415.18176.50.camel@akash.sc.intel.com>
-References: <20051107205532.CF888185988@thermo.lanl.gov>
-	 <93700000.1131397118@flay>  <1131398415.18176.50.camel@akash.sc.intel.com>
+In-Reply-To: <1131397841.25133.90.camel@localhost.localdomain>
+References: <1131397841.25133.90.camel@localhost.localdomain>
 Content-Type: text/plain
-Date: Mon, 07 Nov 2005 15:33:03 -0600
-Message-Id: <1131399183.25133.99.camel@localhost.localdomain>
+Date: Mon, 07 Nov 2005 15:38:16 -0600
+Message-Id: <1131399496.25133.103.camel@localhost.localdomain>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rohit Seth <rohit.seth@intel.com>
-Cc: "Martin J. Bligh" <mbligh@mbligh.org>, Andy Nelson <andy@thermo.lanl.gov>, ak@suse.de, akpm@osdl.org, arjan@infradead.org, arjanv@infradead.org, gmaxwell@gmail.com, haveblue@us.ibm.com, kravetz@us.ibm.com, lhms-devel@lists.sourceforge.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mel@csn.ul.ie, mingo@elte.hu, nickpiggin@yahoo.com.au, torvalds@osdl.org
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, David Gibson <david@gibson.dropbear.id.au>, hugh@veritas.com, rohit.seth@intel.com, "Chen, Kenneth W" <kenneth.w.chen@intel.com>, akpm@osdl.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2005-11-07 at 13:20 -0800, Rohit Seth wrote:
-> On Mon, 2005-11-07 at 12:58 -0800, Martin J. Bligh wrote:
-> > >> Isn't it true that most of the times we'll need to be worrying about
-> > >> run-time allocation of memory (using malloc or such) as compared to
-> > >> static.
-> > > 
-> > > Perhaps for C. Not neccessarily true for Fortran. I don't know
-> > > anything about how memory allocations proceed there, but there
-> > > are no `malloc' calls (at least with that spelling) in the language 
-> > > itself, and I don't know what it does for either static or dynamic 
-> > > allocations under the hood. It could be malloc like or whatever
-> > > else. In the language itself, there are language features for
-> > > allocating and deallocating memory and I've seen code that 
-> > > uses them, but haven't played with it myself, since my codes 
-> > > need pretty much all the various pieces memory all the time, 
-> > > and so are simply statically defined.
-> > 
-> > Doesn't fortran shove everything in BSS to make some truly monsterous
-> > segment?
-> >  
-> 
-> hmmm....that would be strange.  So, if an app is using TB of data, then
-> a TB space on disk ...then read in at the load time (or may be some
-> optimization in the RTLD knows that this is BSS and does not need to get
-> loaded but then a TB of disk space is a waster).
+[RFC] Cleanup / small fixes to hugetlb fault handling
+(Patch originally from David Gibson <david@gibson.dropbear.id.au>)
+Initial Post: Tue. 25 Oct 2005
 
-Nope, the bss is defined as the difference in file size (on disk) and
-the memory size (as specified in the ELF program header for the data
-segment).  So the kernel loads the pre-initialized data from disk and
-extends the mapping to include room for the bss. 
+On Thu, 2005-10-27 at 16:37 +1000, 'David Gibson' wrote:
+> This patch makes some slight tweaks / cleanups to the fault handling
+> path for huge pages in -mm.  My main motivation is to make it simpler
+> to fit COW in, but along the way it addresses a few minor problems
+> with the existing code:
+> 
+> - The check against i_size was duplicated: once in
+>   find_lock_huge_page() and again in hugetlb_fault() after taking the
+>   page_table_lock.  We only really need the locked one, so remove the
+>   other.
+> 
+> - find_lock_huge_page() isn't a great name, since it does extra things
+>   not analagous to find_lock_page().  Rename it
+>   find_or_alloc_huge_page() which is closer to the mark.
+> 
+> Signed-off-by: David Gibson <david@gibson.dropbear.id.au>
+Acked-by: Adam Litke <agl@us.ibm.com>
+
+---
+ hugetlb.c |   77 +++++++++++++++++++++++++++++++++++++-------------------------
+ 1 files changed, 46 insertions(+), 31 deletions(-)
+diff -upN reference/mm/hugetlb.c current/mm/hugetlb.c
+--- reference/mm/hugetlb.c
++++ current/mm/hugetlb.c
+@@ -339,30 +339,24 @@ void unmap_hugepage_range(struct vm_area
+ 	flush_tlb_range(vma, start, end);
+ }
+ 
+-static struct page *find_lock_huge_page(struct address_space *mapping,
+-			unsigned long idx)
++static struct page *find_or_alloc_huge_page(struct address_space *mapping,
++					    unsigned long idx)
+ {
+ 	struct page *page;
+ 	int err;
+-	struct inode *inode = mapping->host;
+-	unsigned long size;
+ 
+ retry:
+ 	page = find_lock_page(mapping, idx);
+ 	if (page)
+-		goto out;
+-
+-	/* Check to make sure the mapping hasn't been truncated */
+-	size = i_size_read(inode) >> HPAGE_SHIFT;
+-	if (idx >= size)
+-		goto out;
++		return page;
+ 
+ 	if (hugetlb_get_quota(mapping))
+-		goto out;
++		return NULL;
++
+ 	page = alloc_huge_page();
+ 	if (!page) {
+ 		hugetlb_put_quota(mapping);
+-		goto out;
++		return NULL;
+ 	}
+ 
+ 	err = add_to_page_cache(page, mapping, idx, GFP_KERNEL);
+@@ -373,50 +367,49 @@ retry:
+ 			goto retry;
+ 		page = NULL;
+ 	}
+-out:
++
+ 	return page;
+ }
+ 
+-int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+-			unsigned long address, int write_access)
++int hugetlb_no_page(struct mm_struct *mm, struct vm_area_struct *vma,
++		    unsigned long address, pte_t *ptep)
+ {
+-	int ret = VM_FAULT_SIGBUS;
++	int ret;
+ 	unsigned long idx;
+ 	unsigned long size;
+-	pte_t *pte;
+ 	struct page *page;
+ 	struct address_space *mapping;
+ 
+-	pte = huge_pte_alloc(mm, address);
+-	if (!pte)
+-		goto out;
+-
+ 	mapping = vma->vm_file->f_mapping;
+ 	idx = ((address - vma->vm_start) >> HPAGE_SHIFT)
+ 		+ (vma->vm_pgoff >> (HPAGE_SHIFT - PAGE_SHIFT));
+ 
+-	/*
+-	 * Use page lock to guard against racing truncation
+-	 * before we get page_table_lock.
+-	 */
+-	page = find_lock_huge_page(mapping, idx);
++	/* This returns a locked page, which keeps us safe in the
++	 * event of a race with truncate() */
++	page = find_or_alloc_huge_page(mapping, idx);
+ 	if (!page)
+-		goto out;
++		return VM_FAULT_SIGBUS;
+ 
+ 	spin_lock(&mm->page_table_lock);
++
++	ret = VM_FAULT_SIGBUS;
++
+ 	size = i_size_read(mapping->host) >> HPAGE_SHIFT;
+ 	if (idx >= size)
+ 		goto backout;
+ 
+ 	ret = VM_FAULT_MINOR;
+-	if (!pte_none(*pte))
++
++	if (!pte_none(*ptep))
++		/* oops, someone instantiated this PTE before us */
+ 		goto backout;
+ 
+ 	add_mm_counter(mm, file_rss, HPAGE_SIZE / PAGE_SIZE);
+-	set_huge_pte_at(mm, address, pte, make_huge_pte(vma, page));
++	set_huge_pte_at(mm, address, ptep, make_huge_pte(vma, page));
++
+ 	spin_unlock(&mm->page_table_lock);
+ 	unlock_page(page);
+-out:
++
+ 	return ret;
+ 
+ backout:
+@@ -424,7 +417,29 @@ backout:
+ 	hugetlb_put_quota(mapping);
+ 	unlock_page(page);
+ 	put_page(page);
+-	goto out;
++
++	return ret;
++}
++
++int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
++		  unsigned long address, int write_access)
++{
++	pte_t *ptep;
++	pte_t entry;
++
++	ptep = huge_pte_alloc(mm, address);
++	if (! ptep)
++		return VM_FAULT_OOM;
++
++	entry = *ptep;
++
++	if (pte_none(entry))
++		return hugetlb_no_page(mm, vma, address, ptep);
++
++	/* we could get here if another thread instantiated the pte
++	 * before the test above */
++
++	return VM_FAULT_MINOR;
+ }
+ 
+ int follow_hugetlb_page(struct mm_struct *mm, struct vm_area_struct *vma,
 
 -- 
 Adam Litke - (agl at us.ibm.com)
