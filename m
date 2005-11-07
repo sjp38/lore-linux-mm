@@ -1,58 +1,60 @@
-Date: Sun, 6 Nov 2005 19:44:25 -0800
+Date: Sun, 6 Nov 2005 20:37:17 -0800
 From: Paul Jackson <pj@sgi.com>
 Subject: Re: [PATCH]: Clean up of __alloc_pages
-Message-Id: <20051106194425.1f728fbf.pj@sgi.com>
-In-Reply-To: <436EC2AF.4020202@yahoo.com.au>
+Message-Id: <20051106203717.58c3eed0.pj@sgi.com>
+In-Reply-To: <200511070442.58876.ak@suse.de>
 References: <20051028183326.A28611@unix-os.sc.intel.com>
-	<p73oe4z2f9h.fsf@verdi.suse.de>
-	<20051105201841.2591bacc.pj@sgi.com>
-	<200511061835.53575.ak@suse.de>
 	<20051106124944.0b2ccca1.pj@sgi.com>
 	<436EC2AF.4020202@yahoo.com.au>
+	<200511070442.58876.ak@suse.de>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: ak@suse.de, akpm@osdl.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andi Kleen <ak@suse.de>
+Cc: nickpiggin@yahoo.com.au, akpm@osdl.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
 Nick wrote:
-> I don't think so because if the cpuset can be freed, then its page
-> might be unmapped from the kernel address space if use-after-free
-> debugging is turned on. And this is a use after free :)
+> Anyway, I think the first problem is a showstopper. I'd look into
+> Hugh's SLAB_DESTROY_BY_RCU for this ...
 
-Yup - that is a showstopper.  If dereferencing a stale pointer, even if
-one doesn't really care what is read, is a no-no, then this is a no-no.
+Andi wrote:
+> RCU could be used to avoid that. Just only free it in a RCU callback.
 
-Thanks, Nick, for catching this.
 
-This puts more value on the other idea I had -  a global kernel flag
-"cpusets_have_been_used", that could be used to short circuit all the
-cpuset hooks on systems that never mucked with cpusets.
+... looking at mm/slab.h and rcupdate.h for the first time ... 
 
-For any lurkers wondering why I am chasing stale pointers when I don't
-care what I read, it's like this.  Essentially, the task doing this
-read is looking for an asychronous incoming level triggered signal
-(going from the two mems_generations being equal to them being unequal),
-that in this case is coming in at about the same time we are sampling
-for it.  Whether we realize this time that the signal came in, or
-don't realize it until the next time we sample, doesn't really matter
-to us.  One way or the other, we'll see it, for sure the next sample if
-not this one.  So the details of what happened on this read (so long as
-no one got annoyed that we tried to chase a stale pointer) don't really
-matter.  Unfortunately, Nick reminds us that someone will get annoyed.
-Oh well.
+Would this mean that I had to put the cpuset structures on their own
+slab cache, marked SLAB_DESTROY_BY_RCU?
 
-> Also, it may be reused for something else far into the future without
-> having its value changed - is this OK?
+And is the pair of operators:
+  task_lock(current), task_unlock(current)
+really that much worse than the pair of operatots
+  rcu_read_lock, rcu_read_unlock
+which apparently reduce to:
+  preempt_disable, preempt_enable
 
-That part would be ok.  If I failed to realize that the underlying
-cpuset had changed this time through __alloc_pages(), I would see it
-next time, when I picked up a fresh and useful copy of my task->cpuset
-pointer, having long forgotten my stale copy.  My stale cpuset pointer
-only had a lifetime of a couple machine instructions.
+Would this work something like the following?  Say task A, on processor
+AP, is trying to dereference its cpuset pointer, while task B, on
+processor BP, is trying hard to destroy that cpuset. Then if task A
+wraps its reference in <rcu_read_lock, rcu_read_unlock>, this will keep
+the RCU freeing of that memory from completing, until interrupts on AP
+are re-enabled.
+
+For that matter, if I just put cpuset structs in their own slab
+cache, would that be sufficient.
+
+  Nick - Does use-after-free debugging even catch use of objects
+	 returned to their slab cache?
+
+What about the other suggestions, Andi:
+ 1) subset zonelists (which you asked to reconsider)
+ 2) a kernel flag "cpusets_have_been_used" flag to short circuit
+    cpuset logic on systems not using cpusets.
+
+
 
 -- 
                   I won't rest till it's the best ...
