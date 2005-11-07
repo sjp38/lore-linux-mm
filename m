@@ -1,57 +1,64 @@
-Received: from thermo.lanl.gov (thermo.lanl.gov [128.165.59.202])
-	by mailwasher-b.lanl.gov (8.12.11/8.12.11/(ccn-5)) with SMTP id jA70Yv7d021298
-	for <linux-mm@kvack.org>; Sun, 6 Nov 2005 17:34:58 -0700
-Subject: RE: [Lhms-devel] [PATCH 0/7] Fragmentation Avoidance V19
-In-Reply-To: <01EF044AAEE12F4BAAD955CB75064943051354C4@scsmsx401.amr.corp.intel.com>
-Message-Id: <20051107003452.3A0B41855A0@thermo.lanl.gov>
-Date: Sun,  6 Nov 2005 17:34:52 -0700 (MST)
-From: andy@thermo.lanl.gov (Andy Nelson)
+Message-ID: <436EC2AF.4020202@yahoo.com.au>
+Date: Mon, 07 Nov 2005 13:57:51 +1100
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+MIME-Version: 1.0
+Subject: Re: [PATCH]: Clean up of __alloc_pages
+References: <20051028183326.A28611@unix-os.sc.intel.com>	<p73oe4z2f9h.fsf@verdi.suse.de>	<20051105201841.2591bacc.pj@sgi.com>	<200511061835.53575.ak@suse.de> <20051106124944.0b2ccca1.pj@sgi.com>
+In-Reply-To: <20051106124944.0b2ccca1.pj@sgi.com>
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: ak@suse.de, nickpiggin@yahoo.com.au, rohit.seth@intel.com
-Cc: akpm@osdl.org, andy@thermo.lanl.gov, arjan@infradead.org, arjanv@infradead.org, gmaxwell@gmail.com, haveblue@us.ibm.com, kravetz@us.ibm.com, lhms-devel@lists.sourceforge.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mbligh@mbligh.org, mel@csn.ul.ie, mingo@elte.hu, torvalds@osdl.org
+To: Paul Jackson <pj@sgi.com>
+Cc: Andi Kleen <ak@suse.de>, akpm@osdl.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Hi folks,
+Paul Jackson wrote:
+> Andi wrote:
+> 
+>>>The current code in the kernel does the following:
+>>>  1) The cpuset_update_current_mems_allowed() calls in the
+>>>     various alloc_page*() paths in mm/mempolicy.c:
+>>>	* take the task_lock spinlock on the current task
+>>
+>>That needs to go imho.
+> 
+> 
+> The comment for refresh_mems(), where this is happening, explains
+> why this lock is needed:
+> 
+>  * The task_lock() is required to dereference current->cpuset safely.
+>  * Without it, we could pick up the pointer value of current->cpuset
+>  * in one instruction, and then attach_task could give us a different
+>  * cpuset, and then the cpuset we had could be removed and freed,
+>  * and then on our next instruction, we could dereference a no longer
+>  * valid cpuset pointer to get its mems_generation field.
+> 
+> Hmmm ... on second thought ... damn ... you're right.
+> 
+> I can just flat out remove that task_lock - without penalty.
+> 
+> It's *OK* if I dereference a no longer valid cpuset pointer to get
+> its (used to be) mems_generation field.  Either that field will have
+> already changed, or it won't.
+> 
 
->Not sure how applications seamlessly can use the proposed hugetlb zone
->based on hugetlbfs.  Depending on the programming language, it might
->actually need changes in libs/tools etc.
+I don't think so because if the cpuset can be freed, then its page
+might be unmapped from the kernel address space if use-after-free
+debugging is turned on. And this is a use after free :)
 
-This is my biggest worry as well. I can't recall the details
-right now, but I have some memories of people telling me, for
-example, that large pages on linux were not now available to 
-fortran programs period, due to lack of toolchain/lib stuff, 
-just as you note. What the reasons were/are I have no idea. I 
-do know that the Power 5 numbers I quoted a couple of days ago
-required that the sysadmin apply some special patches to linux
-and linking to extra library. I don't know what patches (they
-came from ibm), but for xlf95 on Power5, the library I had to 
-link with was this one:  
+Also, it may be reused for something else far into the future without
+having its value changed - is this OK?
 
-    -T /usr/local/lib64/elf64ppc.lbss.x
+Anyway, I think the first problem is a showstopper. I'd look into
+Hugh's SLAB_DESTROY_BY_RCU for this, which sounds like a good fit
+if you need to go down this path (although I only had a quick skim
+over the cpusets code).
 
+-- 
+SUSE Labs, Novell Inc.
 
-No changes were required to my code, which is what I need,
-but codes that did not link to this library would not run on 
-a kernel that had the patches installed, and code that did 
-link with this library would not run on a kernel that didn't 
-have those patches. 
-
-I don't know what library this is or what was in it, but I 
-cant imagine it would have been something very standard or
-mainline, with that sort of drastic behavior. Maybe the ibm
-folk can explain what this was about.
-
-
-I will ask some folks here who should know how it may work
-on intel/amd machines about how large pages can be used 
-this coming week, when I attempt to do page size speed 
-testing for my code, as I promised before, as I promised
-before, as I promised before. 
-
-Andy
-
+Send instant messages to your online friends http://au.messenger.yahoo.com 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
