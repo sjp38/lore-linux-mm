@@ -1,64 +1,47 @@
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by e3.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id jA7NcH7O029268
-	for <linux-mm@kvack.org>; Mon, 7 Nov 2005 18:38:17 -0500
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay04.pok.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id jA7NcHqu118326
-	for <linux-mm@kvack.org>; Mon, 7 Nov 2005 18:38:17 -0500
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.12.11/8.13.3) with ESMTP id jA7NcGsw028499
-	for <linux-mm@kvack.org>; Mon, 7 Nov 2005 18:38:17 -0500
-Message-ID: <436FE561.7080703@austin.ibm.com>
-Date: Mon, 07 Nov 2005 17:38:09 -0600
-From: Joel Schopp <jschopp@austin.ibm.com>
-MIME-Version: 1.0
-Subject: Re: [Lhms-devel] [PATCH 0/7] Fragmentation Avoidance V19
-References: <20051104010021.4180A184531@thermo.lanl.gov>	 <Pine.LNX.4.64.0511032105110.27915@g5.osdl.org>	 <20051103221037.33ae0f53.pj@sgi.com> <20051104063820.GA19505@elte.hu>	 <Pine.LNX.4.64.0511040725090.27915@g5.osdl.org>	 <796B585C-CB1C-4EBA-9EF4-C11996BC9C8B@mac.com>	 <Pine.LNX.4.64.0511060756010.3316@g5.osdl.org>	 <Pine.LNX.4.64.0511060848010.3316@g5.osdl.org>	 <20051107080042.GA29961@elte.hu> <1131361258.5976.53.camel@localhost>	 <20051107122009.GD3609@elte.hu> <1131392070.14381.133.camel@localhost.localdomain>
-In-Reply-To: <1131392070.14381.133.camel@localhost.localdomain>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+Date: Tue, 8 Nov 2005 12:21:38 +1100
+From: David Gibson <david@gibson.dropbear.id.au>
+Subject: Re: [RFC 1/2] Hugetlb fault fixes and reorg
+Message-ID: <20051108012138.GA10769@localhost.localdomain>
+References: <1131397841.25133.90.camel@localhost.localdomain> <1131399496.25133.103.camel@localhost.localdomain> <20051107233053.GG29402@holomorphy.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20051107233053.GG29402@holomorphy.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Steven Rostedt <rostedt@goodmis.org>
-Cc: Ingo Molnar <mingo@elte.hu>, Nick Piggin <nickpiggin@yahoo.com.au>, mel@csn.ul.ie, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, lhms <lhms-devel@lists.sourceforge.net>, kravetz@us.ibm.com, arjanv@infradead.org, arjan@infradead.org, Andrew Morton <akpm@osdl.org>, mbligh@mbligh.org, andy@thermo.lanl.gov, Paul Jackson <pj@sgi.com>, Kyle Moffett <mrmacman_g4@mac.com>, Linus Torvalds <torvalds@osdl.org>, Dave Hansen <haveblue@us.ibm.com>
+To: William Lee Irwin III <wli@holomorphy.com>
+Cc: Adam Litke <agl@us.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, hugh@veritas.com, rohit.seth@intel.com, "Chen, Kenneth W" <kenneth.w.chen@intel.com>, akpm@osdl.org
 List-ID: <linux-mm.kvack.org>
 
->>RAM removal, not RAM replacement. I explained all the variants in an 
->>earlier email in this thread. "extending RAM" is relatively easy.  
->>"replacing RAM" while doable, is probably undesirable. "removing RAM" 
->>impossible.
+On Mon, Nov 07, 2005 at 03:30:53PM -0800, William Lee Irwin wrote:
+> On Mon, Nov 07, 2005 at 03:38:16PM -0600, Adam Litke wrote:
+> > (Patch originally from David Gibson <david@gibson.dropbear.id.au>)
+> > Initial Post: Tue. 25 Oct 2005
+> > -static struct page *find_lock_huge_page(struct address_space *mapping,
+> > -			unsigned long idx)
+> > +static struct page *find_or_alloc_huge_page(struct address_space *mapping,
+> > +					    unsigned long idx)
+> >  {
+> >  	struct page *page;
+> >  	int err;
+> > -	struct inode *inode = mapping->host;
+> > -	unsigned long size;
 > 
-<snip>
-> BTW, I'm not suggesting any of this is a good idea, I just like to
-> understand why something _cant_ be done.
-> 
+> This patch is a combination of function renaming, variable
+> initialization/assignment and return path/etc. oddities, plus some
+> functional changes (did I catch them all?) which apparently took a bit
+> of effort to get to after sifting through the rest of that.
 
-I'm also of the opinion that if we make the kernel remap that we can "remove 
-RAM".  Now, we've had enough people weigh in on this being a bad idea I'm not 
-going to try it.  After all it is fairly complex, quite a bit more so than Mel's 
-reasonable patches.  But I think it is possible.  The steps would look like this:
+Functional changes?   There shouldn't be...
 
-Method A:
-1. Find some unused RAM (or free some up)
-2. Reserve that RAM
-3. Copy the active data from the soon to be removed RAM to the reserved RAM
-4. Remap the addresses
-5. Remove the RAM
+> Dump the parallel cleanups or split them into pure cleanup and pure
+> functional patches. I don't mind the cleanups, I mind the mixing.
 
-This of course requires step 3 & 4 take place under something like 
-stop_machine_run() to keep the data from changing.
-
-Alternately you could do it like this:
-
-Method B:
-1. Find some unused RAM (or free some up)
-2. Reserve that RAM
-3. Unmap the addresses on the soon to be removed RAM
-4. Copy the active data from the soon to be removed RAM to the reserved RAM
-5. Remap the addresses
-6. Remove the RAM
-
-Which would save you the stop_machine_run(), but which adds the complication of 
-dealing with faults on pinned memory during the migration.
+-- 
+David Gibson			| I'll have my music baroque, and my code
+david AT gibson.dropbear.id.au	| minimalist, thank you.  NOT _the_ _other_
+				| _way_ _around_!
+http://www.ozlabs.org/~dgibson
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
