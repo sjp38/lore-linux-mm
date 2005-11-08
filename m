@@ -1,83 +1,121 @@
-Date: Tue, 8 Nov 2005 13:04:42 -0800 (PST)
+Date: Tue, 8 Nov 2005 13:04:58 -0800 (PST)
 From: Christoph Lameter <clameter@sgi.com>
-Message-Id: <20051108210432.31330.8927.sendpatchset@schroedinger.engr.sgi.com>
+Message-Id: <20051108210447.31330.42320.sendpatchset@schroedinger.engr.sgi.com>
 In-Reply-To: <20051108210246.31330.61756.sendpatchset@schroedinger.engr.sgi.com>
 References: <20051108210246.31330.61756.sendpatchset@schroedinger.engr.sgi.com>
-Subject: [PATCH 7/8] Direct Migration V2: add_to_swap() with additional gfp_t parameter
+Subject: [PATCH 8/8] Direct Migration V2: SWAP_REFERENCE for try_to_unmap()
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@osdl.org
-Cc: Mike Kravetz <kravetz@us.ibm.com>, linux-kernel@vger.kernel.org, Marcelo Tosatti <marcelo.tosatti@cyclades.com>, Nick Piggin <nickpiggin@yahoo.com.au>, linux-mm@kvack.org, torvalds@osdl.org, Christoph Lameter <clameter@sgi.com>, Hirokazu Takahashi <taka@valinux.co.jp>, Andi Kleen <ak@suse.de>, Magnus Damm <magnus.damm@gmail.com>, Paul Jackson <pj@sgi.com>, Dave Hansen <haveblue@us.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Mike Kravetz <kravetz@us.ibm.com>, linux-kernel@vger.kernel.org, Dave Hansen <haveblue@us.ibm.com>, Nick Piggin <nickpiggin@yahoo.com.au>, linux-mm@kvack.org, torvalds@osdl.org, Christoph Lameter <clameter@sgi.com>, Hirokazu Takahashi <taka@valinux.co.jp>, Magnus Damm <magnus.damm@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Paul Jackson <pj@sgi.com>, Marcelo Tosatti <marcelo.tosatti@cyclades.com>, Andi Kleen <ak@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-Add gfp_mask to add_to_swap
+Distinguish in try_to_umap_one between the case when the page is truly
+unswappable from the case when the page was recently referenced.
 
-The migration code calls the function with GFP_KERNEL
-while the swap code calls it with GFP_ATOMIC, because
-the migration code can ask the swap code to free some pages
-when we're in a low memory situation.
+The page migration code uses try_to_unmap_one and can avoid calling
+try_to_unmap again if there was a persistent failure.
 
-Signed-off-by: Hirokazu Takahashi <taka@valinux.co.jp>
-Signed-off-by: Dave Hansen <haveblue@us.ibm.com>
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
-Index: linux-2.6.14-mm1/include/linux/swap.h
+Index: linux-2.6.14-mm1/include/linux/rmap.h
 ===================================================================
---- linux-2.6.14-mm1.orig/include/linux/swap.h	2005-11-07 18:35:40.000000000 -0800
-+++ linux-2.6.14-mm1/include/linux/swap.h	2005-11-07 18:38:59.000000000 -0800
-@@ -242,7 +242,7 @@ extern int rw_swap_page_sync(int, swp_en
- extern struct address_space swapper_space;
- #define total_swapcache_pages  swapper_space.nrpages
- extern void show_swap_cache_info(void);
--extern int add_to_swap(struct page *);
-+extern int add_to_swap(struct page *, gfp_t);
- extern void __delete_from_swap_cache(struct page *);
- extern void delete_from_swap_cache(struct page *);
- extern int move_to_swap_cache(struct page *, swp_entry_t);
-Index: linux-2.6.14-mm1/mm/swap_state.c
-===================================================================
---- linux-2.6.14-mm1.orig/mm/swap_state.c	2005-11-07 18:35:40.000000000 -0800
-+++ linux-2.6.14-mm1/mm/swap_state.c	2005-11-07 18:38:59.000000000 -0800
-@@ -143,7 +143,7 @@ void __delete_from_swap_cache(struct pag
-  * Allocate swap space for the page and add the page to the
-  * swap cache.  Caller needs to hold the page lock. 
+--- linux-2.6.14-mm1.orig/include/linux/rmap.h	2005-11-07 18:18:14.000000000 -0800
++++ linux-2.6.14-mm1/include/linux/rmap.h	2005-11-07 18:48:11.000000000 -0800
+@@ -120,6 +120,7 @@ unsigned long page_address_in_vma(struct
   */
--int add_to_swap(struct page * page)
-+int add_to_swap(struct page * page, gfp_t gfp_mask)
- {
- 	swp_entry_t entry;
- 	int err;
-@@ -171,7 +171,7 @@ int add_to_swap(struct page * page)
- 		 * Add it to the swap cache and mark it dirty
- 		 */
- 		err = __add_to_swap_cache(page, entry,
--				GFP_ATOMIC|__GFP_NOMEMALLOC|__GFP_NOWARN);
-+				gfp_mask|__GFP_NOMEMALLOC|__GFP_NOWARN);
+ #define SWAP_SUCCESS	0
+ #define SWAP_AGAIN	1
+-#define SWAP_FAIL	2
++#define SWAP_REFERENCE	2
++#define SWAP_FAIL	3
  
- 		switch (err) {
- 		case 0:				/* Success */
+ #endif	/* _LINUX_RMAP_H */
+Index: linux-2.6.14-mm1/mm/rmap.c
+===================================================================
+--- linux-2.6.14-mm1.orig/mm/rmap.c	2005-11-07 18:18:14.000000000 -0800
++++ linux-2.6.14-mm1/mm/rmap.c	2005-11-07 18:48:11.000000000 -0800
+@@ -546,16 +546,20 @@ static int try_to_unmap_one(struct page 
+ 
+ 	/*
+ 	 * If the page is mlock()d, we cannot swap it out.
+-	 * If it's recently referenced (perhaps page_referenced
+-	 * skipped over this mm) then we should reactivate it.
+-	 *
+ 	 * Pages belonging to VM_RESERVED regions should not happen here.
+ 	 */
+-	if ((vma->vm_flags & (VM_LOCKED|VM_RESERVED)) ||
+-			ptep_clear_flush_young(vma, address, pte)) {
++	if (vma->vm_flags & (VM_LOCKED|VM_RESERVED)) {
+ 		ret = SWAP_FAIL;
+ 		goto out_unmap;
+ 	}
++	/*
++	 * If the page is recently referenced (perhaps page_referenced
++	 * skipped over this mm) then we may want to reactivate it.
++	 */
++	if (ptep_clear_flush_young(vma, address, pte)) {
++		ret = SWAP_REFERENCE;
++		goto out_unmap;
++	}
+ 
+ 	/* Nuke the page table entry. */
+ 	flush_cache_page(vma, address, page_to_pfn(page));
+@@ -706,7 +710,9 @@ static int try_to_unmap_anon(struct page
+ 
+ 	list_for_each_entry(vma, &anon_vma->head, anon_vma_node) {
+ 		ret = try_to_unmap_one(page, vma);
+-		if (ret == SWAP_FAIL || !page_mapped(page))
++		if (ret == SWAP_FAIL ||
++		    ret == SWAP_REFERENCE ||
++		    !page_mapped(page))
+ 			break;
+ 	}
+ 	spin_unlock(&anon_vma->lock);
+@@ -737,7 +743,9 @@ static int try_to_unmap_file(struct page
+ 	spin_lock(&mapping->i_mmap_lock);
+ 	vma_prio_tree_foreach(vma, &iter, &mapping->i_mmap, pgoff, pgoff) {
+ 		ret = try_to_unmap_one(page, vma);
+-		if (ret == SWAP_FAIL || !page_mapped(page))
++		if (ret == SWAP_FAIL ||
++		    ret == SWAP_REFERENCE ||
++		    !page_mapped(page))
+ 			goto out;
+ 	}
+ 
+@@ -822,7 +830,9 @@ out:
+  *
+  * SWAP_SUCCESS	- we succeeded in removing all mappings
+  * SWAP_AGAIN	- we missed a mapping, try again later
++ * SWAP_REFERENCE - the page was recently referenced
+  * SWAP_FAIL	- the page is unswappable
++ *
+  */
+ int try_to_unmap(struct page *page)
+ {
 Index: linux-2.6.14-mm1/mm/vmscan.c
 ===================================================================
---- linux-2.6.14-mm1.orig/mm/vmscan.c	2005-11-07 18:35:40.000000000 -0800
-+++ linux-2.6.14-mm1/mm/vmscan.c	2005-11-07 18:38:59.000000000 -0800
-@@ -456,7 +456,7 @@ static int shrink_list(struct list_head 
- 		if (PageAnon(page) && !PageSwapCache(page)) {
- 			if (!sc->may_swap)
- 				goto keep_locked;
--			if (!add_to_swap(page))
-+			if (!add_to_swap(page, GFP_ATOMIC))
- 				goto activate_locked;
- 		}
- #endif /* CONFIG_SWAP */
-@@ -889,7 +889,7 @@ redo:
- 		 * preserved.
+--- linux-2.6.14-mm1.orig/mm/vmscan.c	2005-11-07 18:38:59.000000000 -0800
++++ linux-2.6.14-mm1/mm/vmscan.c	2005-11-07 18:51:25.000000000 -0800
+@@ -471,6 +471,7 @@ static int shrink_list(struct list_head 
  		 */
- 		if (PageAnon(page) && !PageSwapCache(page)) {
--			if (!add_to_swap(page)) {
-+			if (!add_to_swap(page, GFP_KERNEL)) {
- 				unlock_page(page);
- 				list_move(&page->lru, failed);
- 				nr_failed++;
+ 		if (page_mapped(page) && mapping) {
+ 			switch (try_to_unmap(page)) {
++			case SWAP_REFERENCE:
+ 			case SWAP_FAIL:
+ 				goto activate_locked;
+ 			case SWAP_AGAIN:
+@@ -689,8 +690,9 @@ int migrate_page_remove_references(struc
+ 	for(i = 0; i < 10 && page_mapped(page); i++) {
+ 		int rc = try_to_unmap(page);
+ 
+-		if (rc == SWAP_SUCCESS)
++		if (rc == SWAP_SUCCESS || rc == SWAP_FAIL)
+ 			break;
++
+ 		/*
+ 		 * If there are other runnable processes then running
+ 		 * them may make it possible to unmap the page
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
