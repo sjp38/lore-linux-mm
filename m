@@ -1,99 +1,100 @@
-Date: Tue, 8 Nov 2005 13:03:11 -0800 (PST)
+Date: Tue, 8 Nov 2005 13:03:26 -0800 (PST)
 From: Christoph Lameter <clameter@sgi.com>
-Message-Id: <20051108210301.31330.5501.sendpatchset@schroedinger.engr.sgi.com>
+Message-Id: <20051108210316.31330.32255.sendpatchset@schroedinger.engr.sgi.com>
 In-Reply-To: <20051108210246.31330.61756.sendpatchset@schroedinger.engr.sgi.com>
 References: <20051108210246.31330.61756.sendpatchset@schroedinger.engr.sgi.com>
-Subject: [PATCH 1/8] Direct Migration V2: Swap migration patchset fixes
+Subject: [PATCH 2/8] Direct Migration V2: PageSwapCache checks
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@osdl.org
-Cc: Mike Kravetz <kravetz@us.ibm.com>, linux-kernel@vger.kernel.org, Marcelo Tosatti <marcelo.tosatti@cyclades.com>, Nick Piggin <nickpiggin@yahoo.com.au>, linux-mm@kvack.org, torvalds@osdl.org, Christoph Lameter <clameter@sgi.com>, Hirokazu Takahashi <taka@valinux.co.jp>, Andi Kleen <ak@suse.de>, Magnus Damm <magnus.damm@gmail.com>, Paul Jackson <pj@sgi.com>, Dave Hansen <haveblue@us.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Mike Kravetz <kravetz@us.ibm.com>, linux-kernel@vger.kernel.org, Dave Hansen <haveblue@us.ibm.com>, Nick Piggin <nickpiggin@yahoo.com.au>, linux-mm@kvack.org, torvalds@osdl.org, Christoph Lameter <clameter@sgi.com>, Hirokazu Takahashi <taka@valinux.co.jp>, Magnus Damm <magnus.damm@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Paul Jackson <pj@sgi.com>, Marcelo Tosatti <marcelo.tosatti@cyclades.com>, Andi Kleen <ak@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-Fixes to swap migration patch V5 (may already be in mm)
+Check for PageSwapCache after looking up and locking a swap page.
 
-- Fix comment for isolate_lru_page() and the check for the result
-  of __isolate_lru_page in isolate_lru_pages()
+The page migration code may change a swap pte to point to a different page
+under lock_page().
 
-- migrate_page_add: check for mapping == NULL
+If that happens then the vm must retry the lookup operation in the swap
+space to find the correct page number. There are a couple of locations
+in the VM where a lock_page() is done on a swap page. In these locations
+we need to check afterwards if the page was migrated. If the page was migrated
+then the old page that was looked up before was freed and no longer has the
+PageSwapCache bit set.
 
-- check_range: Its okay if the first vma has the flag VM_RESERVED set if the
-  MPOL_MF_DISCONTIG_OK flag was specified by the caller.
+Signed-off-by: Hirokazu Takahashi <taka@valinux.co.jp>
+Signed-off-by: Dave Hansen <haveblue@us.ibm.com>
+Signed-off-by: Christoph Lameter <clameter@@sgi.com>
 
-- Change the permission check to use comparisons instead of XORs.
-  Revise the comments.
-
-Signed-off-by: Christoph Lameter <clameter@sgi.com>
-
-Index: linux-2.6.14-mm1/mm/vmscan.c
+Index: linux-2.6.14-mm1/mm/memory.c
 ===================================================================
---- linux-2.6.14-mm1.orig/mm/vmscan.c	2005-11-07 11:48:47.000000000 -0800
-+++ linux-2.6.14-mm1/mm/vmscan.c	2005-11-08 11:17:13.000000000 -0800
-@@ -755,7 +755,7 @@ static int isolate_lru_pages(struct zone
- 			/* Succeeded to isolate page */
- 			list_add(&page->lru, dst);
- 			break;
--		case -1:
-+		case -ENOENT:
- 			/* Not possible to isolate */
- 			list_move(&page->lru, src);
- 			break;
-@@ -782,7 +782,7 @@ static void lru_add_drain_per_cpu(void *
-  * Result:
-  *  0 = page not on LRU list
-  *  1 = page removed from LRU list and added to the specified list.
-- * -1 = page is being freed elsewhere.
-+ * -ENOENT = page is being freed elsewhere.
-  */
- int isolate_lru_page(struct page *page)
- {
-Index: linux-2.6.14-mm1/mm/mempolicy.c
-===================================================================
---- linux-2.6.14-mm1.orig/mm/mempolicy.c	2005-11-07 11:48:26.000000000 -0800
-+++ linux-2.6.14-mm1/mm/mempolicy.c	2005-11-08 11:16:42.000000000 -0800
-@@ -217,6 +217,7 @@ static void migrate_page_add(struct vm_a
- 	 * Avoid migrating a page that is shared by others and not writable.
- 	 */
- 	if ((flags & MPOL_MF_MOVE_ALL) ||
-+	    !page->mapping ||
- 	    PageAnon(page) ||
- 	    mapping_writably_mapped(page->mapping) ||
- 	    single_mm_mapping(vma->vm_mm, page->mapping)
-@@ -359,7 +360,8 @@ check_range(struct mm_struct *mm, unsign
- 	first = find_vma(mm, start);
- 	if (!first)
- 		return ERR_PTR(-EFAULT);
--	if (first->vm_flags & VM_RESERVED)
-+	if (first->vm_flags & VM_RESERVED &&
-+	    !(flags & MPOL_MF_DISCONTIG_OK))
- 		return ERR_PTR(-EACCES);
- 	prev = NULL;
- 	for (vma = first; vma && vma->vm_start < end; vma = vma->vm_next) {
-@@ -790,18 +792,13 @@ asmlinkage long sys_migrate_pages(pid_t 
- 		return -EINVAL;
+--- linux-2.6.14-mm1.orig/mm/memory.c	2005-11-07 11:48:19.000000000 -0800
++++ linux-2.6.14-mm1/mm/memory.c	2005-11-07 11:55:08.000000000 -0800
+@@ -1720,6 +1720,7 @@ static int do_swap_page(struct mm_struct
+ 		goto out;
+ 
+ 	entry = pte_to_swp_entry(orig_pte);
++again:
+ 	page = lookup_swap_cache(entry);
+ 	if (!page) {
+  		swapin_readahead(entry, address, vma);
+@@ -1743,6 +1744,12 @@ static int do_swap_page(struct mm_struct
+ 
+ 	mark_page_accessed(page);
+ 	lock_page(page);
++	if (!PageSwapCache(page)) {
++		/* Page migration has occured */
++		unlock_page(page);
++		page_cache_release(page);
++		goto again;
++	}
  
  	/*
--	 * We only allow a process to move the pages of another
--	 * if the process issuing sys_migrate has the right to send a kill
--	 * signal to the process to be moved. Moving another processes
--	 * memory may impact the performance of that process. If the
--	 * process issuing sys_migrate_pages has the right to kill the
--	 * target process then obviously that process has the right to
--	 * impact the performance of the target process.
--	 *
--	 * The permission check was taken from  check_kill_permission()
-+	 * Check if this process has the right to modify the specified
-+	 * process. The right exists if the process has administrative
-+	 * capabilities, superuser priviledges or the same
-+	 * userid as the target process.
- 	 */
--	if ((current->euid ^ task->suid) && (current->euid ^ task->uid) &&
--	    (current->uid ^ task->suid) && (current->uid ^ task->uid) &&
-+	if ((current->euid != task->suid) && (current->euid != task->uid) &&
-+	    (current->uid != task->suid) && (current->uid != task->uid) &&
- 	    !capable(CAP_SYS_ADMIN)) {
- 		err = -EPERM;
- 		goto out;
+ 	 * Back out if somebody else already faulted in this pte.
+Index: linux-2.6.14-mm1/mm/shmem.c
+===================================================================
+--- linux-2.6.14-mm1.orig/mm/shmem.c	2005-11-07 11:48:08.000000000 -0800
++++ linux-2.6.14-mm1/mm/shmem.c	2005-11-07 11:55:08.000000000 -0800
+@@ -1013,6 +1013,14 @@ repeat:
+ 			page_cache_release(swappage);
+ 			goto repeat;
+ 		}
++		if (!PageSwapCache(swappage)) {
++			/* Page migration has occured */
++			shmem_swp_unmap(entry);
++			spin_unlock(&info->lock);
++			unlock_page(swappage);
++			page_cache_release(swappage);
++			goto repeat;
++		}
+ 		if (PageWriteback(swappage)) {
+ 			shmem_swp_unmap(entry);
+ 			spin_unlock(&info->lock);
+Index: linux-2.6.14-mm1/mm/swapfile.c
+===================================================================
+--- linux-2.6.14-mm1.orig/mm/swapfile.c	2005-11-07 11:48:49.000000000 -0800
++++ linux-2.6.14-mm1/mm/swapfile.c	2005-11-07 11:55:08.000000000 -0800
+@@ -624,6 +624,7 @@ static int try_to_unuse(unsigned int typ
+ 		 */
+ 		swap_map = &si->swap_map[i];
+ 		entry = swp_entry(type, i);
++again:
+ 		page = read_swap_cache_async(entry, NULL, 0);
+ 		if (!page) {
+ 			/*
+@@ -658,6 +659,12 @@ static int try_to_unuse(unsigned int typ
+ 		wait_on_page_locked(page);
+ 		wait_on_page_writeback(page);
+ 		lock_page(page);
++		if (!PageSwapCache(page)) {
++			/* Page migration has occured */
++			unlock_page(page);
++			page_cache_release(page);
++			goto again;
++		}
+ 		wait_on_page_writeback(page);
+ 
+ 		/*
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
