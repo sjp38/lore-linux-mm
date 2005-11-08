@@ -1,49 +1,63 @@
-Date: Tue, 8 Nov 2005 13:53:25 +1100
-From: David Gibson <david@gibson.dropbear.id.au>
-Subject: Re: [RFC 2/2] Hugetlb COW
-Message-ID: <20051108025325.GC10769@localhost.localdomain>
-References: <1131397841.25133.90.camel@localhost.localdomain> <1131399533.25133.104.camel@localhost.localdomain> <20051107233538.GH29402@holomorphy.com>
+Date: Mon, 7 Nov 2005 19:07:15 -0800
+From: Paul Jackson <pj@sgi.com>
+Subject: Re: [PATCH]: Cleanup of __alloc_pages
+Message-Id: <20051107190715.4d7b0f71.pj@sgi.com>
+In-Reply-To: <20051107174349.A8018@unix-os.sc.intel.com>
+References: <20051107174349.A8018@unix-os.sc.intel.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20051107233538.GH29402@holomorphy.com>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: William Lee Irwin III <wli@holomorphy.com>
-Cc: Adam Litke <agl@us.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, hugh@veritas.com, rohit.seth@intel.com, "Chen, Kenneth W" <kenneth.w.chen@intel.com>, akpm@osdl.org
+To: "Rohit, Seth" <rohit.seth@intel.com>
+Cc: akpm@osdl.org, torvalds@osdl.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Nov 07, 2005 at 03:35:38PM -0800, William Lee Irwin wrote:
-> On Mon, Nov 07, 2005 at 03:38:53PM -0600, Adam Litke wrote:
-> > [RFC] COW for hugepages
-> > (Patch originally from David Gibson <dwg@au1.ibm.com>)
-> > This patch implements copy-on-write for hugepages, hence allowing
-> > MAP_PRIVATE mappings of hugetlbfs.
-> > This is chiefly useful for cases where we want to use hugepages
-> > "automatically" - that is to map hugepages without the knowledge of
-> > the code in the final application (either via kernel hooks, or with
-> > LD_PRELOAD).  We can use various heuristics to determine when
-> > hugepages might be a good idea, but changing the semantics of
-> > anonymous memory from MAP_PRIVATE to MAP_SHARED without the app's
-> > knowledge is clearly wrong.
-> 
-> I'll go check for architectures where page protections may be encoded
-> differently depending on the size of the translation, or whose code is
-> otherwise unprepared to cope with protection bits.
-> 
-> If you've done such checking already, I'd be much obliged to hear of it
-> (in fact, I'd much prefer you to have done so).
+Seth wrote:
+> +/* get_page_from_freeliest loops through all the possible zones
+> + * to find out if it can allocate a page.  can_try_harder can have following
+> + * values:
+> + * -1 => No need to check for the watermarks.
+> + *  0 => Don't go too low down in deeps below the low watermark (GFP_HIGH)
+> + *  1 => Go far below the low watermark.  See zone_watermark_ok (RT TASK)
 
-I can't see how the COW catch could be any more broken in this regard
-than we are already:  make_huge_pte() in mm/hugetlb.c already assumes
-that pte_mkwrite() and pte_wrprotect() will work properly on hugepage
-PTEs.  COW doesn't use anything more.
+Argh.
+
+These magic numbers, where in terms of how hard to try, 0 is less than
+1 is less than -1, but where the order -does- matter for parsing such
+tests as "if ((can_try_harder >= 0)" and where one has to read the
+entire code to guess that, continue to give me conniptions.
+
+I thought Nick had an alternative proposal, involving just boolean
+flags.  Why didn't you ever consider that?
+
+
+> + * cpuset check is not performed when the skip_cpuset_chk flag is set.
+> + */
+> +
+> +static struct page *
+> +get_page_from_freelist(gfp_t gfp_mask, unsigned int order, struct zone **zones, 
+> +			int can_try_harder, int skip_cpuset_chk)
+
+Well - thanks for thinking of me ;).  Though, as I suggested in my
+reply last time, including a pseudo patch, I thought that the existing
+flags such as can_try_harder had enough information to determine when
+to do the cpuset check, without yet another flag for that.  Having now
+two magic 1's and 0's at the end of the calling argument lists is even
+less readable.
+
+
+Seth wrote in a later message, responding to Andrew:
+> I think it will be easier to do this change as a follow on patch as that
+> will change the header file, function definition and such.  Can we defer
+> this to separate follow on patch.
+
+I have no clue what patch you have in mind here.  Guess I'd have to see it.
 
 -- 
-David Gibson			| I'll have my music baroque, and my code
-david AT gibson.dropbear.id.au	| minimalist, thank you.  NOT _the_ _other_
-				| _way_ _around_!
-http://www.ozlabs.org/~dgibson
+                  I won't rest till it's the best ...
+                  Programmer, Linux Scalability
+                  Paul Jackson <pj@sgi.com> 1.925.600.0401
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
