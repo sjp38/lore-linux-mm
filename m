@@ -1,48 +1,34 @@
+Date: Tue, 8 Nov 2005 11:54:50 -0800
+From: Paul Jackson <pj@sgi.com>
 Subject: Re: [PATCH]: Cleanup of __alloc_pages
-From: Rohit Seth <rohit.seth@intel.com>
-In-Reply-To: <43703EFB.1010103@yahoo.com.au>
+Message-Id: <20051108115450.0fd3c619.pj@sgi.com>
+In-Reply-To: <1131473876.2400.9.camel@akash.sc.intel.com>
 References: <20051107174349.A8018@unix-os.sc.intel.com>
-	 <20051107175358.62c484a3.akpm@osdl.org>
-	 <1131416195.20471.31.camel@akash.sc.intel.com>
-	 <43701FC6.5050104@yahoo.com.au> <20051107214420.6d0f6ec4.pj@sgi.com>
-	 <43703EFB.1010103@yahoo.com.au>
-Content-Type: text/plain
-Date: Tue, 08 Nov 2005 10:17:56 -0800
-Message-Id: <1131473876.2400.9.camel@akash.sc.intel.com>
+	<20051107175358.62c484a3.akpm@osdl.org>
+	<1131416195.20471.31.camel@akash.sc.intel.com>
+	<43701FC6.5050104@yahoo.com.au>
+	<20051107214420.6d0f6ec4.pj@sgi.com>
+	<43703EFB.1010103@yahoo.com.au>
+	<1131473876.2400.9.camel@akash.sc.intel.com>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Paul Jackson <pj@sgi.com>, akpm@osdl.org, torvalds@osdl.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Rohit Seth <rohit.seth@intel.com>
+Cc: nickpiggin@yahoo.com.au, akpm@osdl.org, torvalds@osdl.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2005-11-08 at 17:00 +1100, Nick Piggin wrote:
+Rohit wrote:
+> Paul, sorry for troubling you with those magic numbers again in the
+> original patch...
 
-> 
-> > However, I appreciate your preference to separate cleanup from semantic
-> > change.  Perhaps this means leaving the ALLOC_CPUSET flag in your
-> > cleanup patch, then one of us following on top of that with a patch to
-> > simplify and fix the cpuset invocation semantics and a second cleanup
-> > patch to remove ALLOC_CPUSET as a separate flag.
-> > 
-> 
-> That would be good. I'll send off a fresh patch with the
-> ALLOC_WATERMARKS fixed after Rohit gets around to looking over
-> it.
-> 
+That's no problem.  I enjoyed the opportunity to protest it again ;).
 
-Nick, your changes have really come out good.  Thanks.  I think it is
-definitely a good starting point as it maintains all of existing
-behavior.
-
-I guess now I can argue about why we should keep the watermark low for
-GFP_HIGH ;-)
-
-Paul, sorry for troubling you with those magic numbers again in the
-original patch...
-
--rohit
+-- 
+                  I won't rest till it's the best ...
+                  Programmer, Linux Scalability
+                  Paul Jackson <pj@sgi.com> 1.925.600.0401
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
