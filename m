@@ -1,72 +1,50 @@
-From: Nikita Danilov <nikita@clusterfs.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Message-ID: <17265.55057.438316.467289@gargle.gargle.HOWL>
-Date: Wed, 9 Nov 2005 14:01:37 +0300
-Subject: Re: [PATCH 6/8] Direct Migration V2: Avoid writeback / page_migrate() method
-In-Reply-To: <20051108210417.31330.72381.sendpatchset@schroedinger.engr.sgi.com>
+Date: Wed, 9 Nov 2005 08:50:12 -0800 (PST)
+From: Christoph Lameter <clameter@engr.sgi.com>
+Subject: Re: [PATCH 5/8] Direct Migration V2: upgrade MPOL_MF_MOVE and
+ sys_migrate_pages()
+In-Reply-To: <43717426.3050002@jp.fujitsu.com>
+Message-ID: <Pine.LNX.4.62.0511090847270.3607@schroedinger.engr.sgi.com>
 References: <20051108210246.31330.61756.sendpatchset@schroedinger.engr.sgi.com>
-	<20051108210417.31330.72381.sendpatchset@schroedinger.engr.sgi.com>
+ <20051108210402.31330.19167.sendpatchset@schroedinger.engr.sgi.com>
+ <43715266.5080900@jp.fujitsu.com> <Pine.LNX.4.62.0511081922260.582@schroedinger.engr.sgi.com>
+ <43717426.3050002@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Mike Kravetz <kravetz@us.ibm.com>, linux-kernel@vger.kernel.org, Dave Hansen <haveblue@us.ibm.com>, Nick Piggin <nickpiggin@yahoo.com.au>, linux-mm@kvack.org, torvalds@osdl.org, Hirokazu Takahashi <taka@valinux.co.jp>, Magnus Damm <magnus.damm@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Paul Jackson <pj@sgi.com>, Marcelo Tosatti <marcelo.tosatti@cyclades.com>, Andi Kleen <ak@suse.de>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: akpm@osdl.org, Mike Kravetz <kravetz@us.ibm.com>, linux-kernel@vger.kernel.org, Marcelo Tosatti <marcelo.tosatti@cyclades.com>, Nick Piggin <nickpiggin@yahoo.com.au>, linux-mm@kvack.org, torvalds@osdl.org, Hirokazu Takahashi <taka@valinux.co.jp>, Andi Kleen <ak@suse.de>, Magnus Damm <magnus.damm@gmail.com>, Paul Jackson <pj@sgi.com>, Dave Hansen <haveblue@us.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-Christoph Lameter writes:
- > Migrate a page with buffers without requiring writeback
- > 
- > This introduces a new address space operation migrate_page() that
- > may be used by a filesystem to implement its own version of page migration.
- > 
- > A version is provided that migrates buffers attached to pages. Some
- > filesystems (ext2, ext3, xfs) are modified to utilize this feature.
- > 
- > The swapper address space operation are modified so that a regular
- > migrate_pages() will occur for anonymous pages without writeback
- > (migrate_pages forces every anonymous page to have a swap entry).
- > 
- > V1->V2:
- > - Fix CONFIG_MIGRATION handling
- > 
- > Signed-off-by: Mike Kravetz <kravetz@us.ibm.com>
- > Signed-off-by: Christoph Lameter <clameter@sgi.com>
- > 
- > Index: linux-2.6.14-mm1/include/linux/fs.h
- > ===================================================================
- > --- linux-2.6.14-mm1.orig/include/linux/fs.h	2005-11-07 11:48:46.000000000 -0800
- > +++ linux-2.6.14-mm1/include/linux/fs.h	2005-11-08 10:18:51.000000000 -0800
- > @@ -332,6 +332,8 @@ struct address_space_operations {
- >  			loff_t offset, unsigned long nr_segs);
- >  	struct page* (*get_xip_page)(struct address_space *, sector_t,
- >  			int);
- > +	/* migrate the contents of a page to the specified target */
- > +	int (*migrate_page) (struct page *, struct page *);
- >  };
- >  
- >  struct backing_dev_info;
- > @@ -1679,6 +1681,12 @@ extern void simple_release_fs(struct vfs
- >  
- >  extern ssize_t simple_read_from_buffer(void __user *, size_t, loff_t *, const void *, size_t);
- >  
- > +#ifdef CONFIG_MIGRATION
- > +extern int buffer_migrate_page(struct page *, struct page *);
- > +#else
- > +#define buffer_migrate_page(a,b) NULL
- > +#endif
+On Wed, 9 Nov 2005, KAMEZAWA Hiroyuki wrote:
 
-Depending on the CONFIG_MIGRATION, the type of buffer_migrate_page(a,b)
-expansion is either int or void *, which doesn't look right.
+> > We only allocate 256 pages which are on the newlist. If the newlist is empty
+> > but there are still pages that could be migrated (!list_empty(pagelist))
+> > then we need to allocate more pages and call migrate_pages() again.
+> Ah, Okay.
+> 
+> confirmation:
+> 1. Because mm->sem is held, there is no page-is-truncated/freed case.
 
-Moreover below you have initializations
+The page is truncated/freed case is handled by migrate_pages(). The page 
+is moved to the "moved" lists and then returned to the LRU. The functions 
+putting a page back to the LRU will check the refcount and discard the 
+page.
 
-        .migrate_page		= buffer_migrate_page,
+> 2. Because pages in pagelist are removed from zone's lru, kswapd and others
+> will not
+>    find and unmap them. There is no page-is-swapedout-by-others case.
 
-that wouldn't compile when CONFIG_MIGRATION is not defined (as macro
-requires two arguments).
+Right.
+ 
+> So if all target pages are successfuly remvoed from pagelist, newlist must be
+> empty.
+> Right ?
 
-Nikita.
+It could be empty but there could be new pages left over because some 
+pages were freed before we could move them or we were unable to migrate a 
+page and fell back to swap for a particular page. We need to free the 
+leftover pages then.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
