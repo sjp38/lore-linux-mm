@@ -1,32 +1,46 @@
-Message-ID: <43715266.5080900@jp.fujitsu.com>
-Date: Wed, 09 Nov 2005 10:35:34 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Message-ID: <43716476.1030306@yahoo.com.au>
+Date: Wed, 09 Nov 2005 13:52:38 +1100
+From: Nick Piggin <nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
-Subject: Re: [PATCH 5/8] Direct Migration V2: upgrade MPOL_MF_MOVE and sys_migrate_pages()
-References: <20051108210246.31330.61756.sendpatchset@schroedinger.engr.sgi.com> <20051108210402.31330.19167.sendpatchset@schroedinger.engr.sgi.com>
-In-Reply-To: <20051108210402.31330.19167.sendpatchset@schroedinger.engr.sgi.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Subject: Re: [PATCH]: Cleanup of __alloc_pages
+References: <20051107174349.A8018@unix-os.sc.intel.com>	 <20051107175358.62c484a3.akpm@osdl.org>	 <1131416195.20471.31.camel@akash.sc.intel.com>	 <43701FC6.5050104@yahoo.com.au> <20051107214420.6d0f6ec4.pj@sgi.com>	 <43703EFB.1010103@yahoo.com.au> <1131473876.2400.9.camel@akash.sc.intel.com>
+In-Reply-To: <1131473876.2400.9.camel@akash.sc.intel.com>
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: akpm@osdl.org, Mike Kravetz <kravetz@us.ibm.com>, linux-kernel@vger.kernel.org, Marcelo Tosatti <marcelo.tosatti@cyclades.com>, Nick Piggin <nickpiggin@yahoo.com.au>, linux-mm@kvack.org, torvalds@osdl.org, Hirokazu Takahashi <taka@valinux.co.jp>, Andi Kleen <ak@suse.de>, Magnus Damm <magnus.damm@gmail.com>, Paul Jackson <pj@sgi.com>, Dave Hansen <haveblue@us.ibm.com>
+To: Rohit Seth <rohit.seth@intel.com>
+Cc: Paul Jackson <pj@sgi.com>, akpm@osdl.org, torvalds@osdl.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Christoph Lameter wrote:
-> +	err = migrate_pages(pagelist, &newlist, &moved, &failed);
-> +
-> +	putback_lru_pages(&moved);	/* Call release pages instead ?? */
-> +
-> +	if (err >= 0 && list_empty(&newlist) && !list_empty(pagelist))
-> +		goto redo;
+Rohit Seth wrote:
+
+>On Tue, 2005-11-08 at 17:00 +1100, Nick Piggin wrote:
+>
+>
+>>That would be good. I'll send off a fresh patch with the
+>>ALLOC_WATERMARKS fixed after Rohit gets around to looking over
+>>it.
+>>
+>>
+>
+>Nick, your changes have really come out good.  Thanks.  I think it is
+>definitely a good starting point as it maintains all of existing
+>behavior.
+>
+>
+
+Great, glad you agree. I'll send the revised copy upstream.
+
+>I guess now I can argue about why we should keep the watermark low for
+>GFP_HIGH ;-)
+>
+>
+
+Yep, I would be happy to discuss this with you and linux-mm :)
 
 
-Here, list_empty(&newlist) is needed ?
-For checking permanent failure case, list_empty(&failed) looks better.
-
--- Kame
-
+Send instant messages to your online friends http://au.messenger.yahoo.com 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
