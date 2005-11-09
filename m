@@ -1,27 +1,32 @@
-Date: Tue, 8 Nov 2005 16:17:33 -0800
-From: Paul Jackson <pj@sgi.com>
-Subject: Re: [PATCH]: Cleanup of __alloc_pages
-Message-Id: <20051108161733.0814c12b.pj@sgi.com>
-In-Reply-To: <20051107174349.A8018@unix-os.sc.intel.com>
-References: <20051107174349.A8018@unix-os.sc.intel.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Message-ID: <43715266.5080900@jp.fujitsu.com>
+Date: Wed, 09 Nov 2005 10:35:34 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH 5/8] Direct Migration V2: upgrade MPOL_MF_MOVE and sys_migrate_pages()
+References: <20051108210246.31330.61756.sendpatchset@schroedinger.engr.sgi.com> <20051108210402.31330.19167.sendpatchset@schroedinger.engr.sgi.com>
+In-Reply-To: <20051108210402.31330.19167.sendpatchset@schroedinger.engr.sgi.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Rohit, Seth" <rohit.seth@intel.com>
-Cc: akpm@osdl.org, torvalds@osdl.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: akpm@osdl.org, Mike Kravetz <kravetz@us.ibm.com>, linux-kernel@vger.kernel.org, Marcelo Tosatti <marcelo.tosatti@cyclades.com>, Nick Piggin <nickpiggin@yahoo.com.au>, linux-mm@kvack.org, torvalds@osdl.org, Hirokazu Takahashi <taka@valinux.co.jp>, Andi Kleen <ak@suse.de>, Magnus Damm <magnus.damm@gmail.com>, Paul Jackson <pj@sgi.com>, Dave Hansen <haveblue@us.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-If you're going to remove the early reclaim logic, then
-lets also nuke the related apparatus: should_reclaim_zone()
-and __GFP_NORECLAIM (which is used in a couple of pagemap.h
-macros as well)?
+Christoph Lameter wrote:
+> +	err = migrate_pages(pagelist, &newlist, &moved, &failed);
+> +
+> +	putback_lru_pages(&moved);	/* Call release pages instead ?? */
+> +
+> +	if (err >= 0 && list_empty(&newlist) && !list_empty(pagelist))
+> +		goto redo;
 
--- 
-                  I won't rest till it's the best ...
-                  Programmer, Linux Scalability
-                  Paul Jackson <pj@sgi.com> 1.925.600.0401
+
+Here, list_empty(&newlist) is needed ?
+For checking permanent failure case, list_empty(&failed) looks better.
+
+-- Kame
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
