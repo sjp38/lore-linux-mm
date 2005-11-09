@@ -1,19 +1,20 @@
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e5.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id jA9NbfVw027988
-	for <linux-mm@kvack.org>; Wed, 9 Nov 2005 18:37:41 -0500
-Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
-	by d01relay02.pok.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id jA9NbfCV120176
-	for <linux-mm@kvack.org>; Wed, 9 Nov 2005 18:37:41 -0500
-Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
-	by d01av03.pok.ibm.com (8.12.11/8.13.3) with ESMTP id jA9Nbef5029718
-	for <linux-mm@kvack.org>; Wed, 9 Nov 2005 18:37:40 -0500
-Subject: [PATCH 1/4] Hugetlb: Remove duplicate i_size check
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e2.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id jA9Nchea010487
+	for <linux-mm@kvack.org>; Wed, 9 Nov 2005 18:38:43 -0500
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay04.pok.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id jA9Nchh4087334
+	for <linux-mm@kvack.org>; Wed, 9 Nov 2005 18:38:43 -0500
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.12.11/8.13.3) with ESMTP id jA9NcgGJ021972
+	for <linux-mm@kvack.org>; Wed, 9 Nov 2005 18:38:43 -0500
+Subject: [PATCH 2/4] Hugetlb: Rename find_lock_page to
+	find_or_alloc_huge_page
 From: Adam Litke <agl@us.ibm.com>
 In-Reply-To: <1131578925.28383.9.camel@localhost.localdomain>
 References: <1131578925.28383.9.camel@localhost.localdomain>
 Content-Type: text/plain
-Date: Wed, 09 Nov 2005 17:36:49 -0600
-Message-Id: <1131579410.28383.19.camel@localhost.localdomain>
+Date: Wed, 09 Nov 2005 17:37:52 -0600
+Message-Id: <1131579472.28383.20.camel@localhost.localdomain>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -23,44 +24,43 @@ Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, David Gibson <david@gibson
 List-ID: <linux-mm.kvack.org>
 
 On Wed, 2005-10-26 at 12:00 +1000, David Gibson wrote:
-> - The check against i_size was duplicated: once in
->   find_lock_huge_page() and again in hugetlb_fault() after taking the
->   page_table_lock.  We only really need the locked one, so remove the
->   other.
+- find_lock_huge_page() isn't a great name, since it does extra things
+  not analagous to find_lock_page().  Rename it
+  find_or_alloc_huge_page() which is closer to the mark.
 
 Original post by David Gibson <david@gibson.dropbear.id.au>
 
 Version 2: Wed 9 Nov 2005
-	Split this cleanup out into a standalone patch
+	Split into a separate patch
 
 Signed-off-by: David Gibson <david@gibson.dropbear.id.au>
 Signed-off-by: Adam Litke <agl@us.ibm.com>
 ---
- hugetlb.c |    7 -------
- 1 files changed, 7 deletions(-)
+ hugetlb.c |    6 +++---
+ 1 files changed, 3 insertions(+), 3 deletions(-)
 diff -upN reference/mm/hugetlb.c current/mm/hugetlb.c
 --- reference/mm/hugetlb.c
 +++ current/mm/hugetlb.c
-@@ -344,19 +344,12 @@ static struct page *find_lock_huge_page(
+@@ -339,8 +339,8 @@ void unmap_hugepage_range(struct vm_area
+ 	flush_tlb_range(vma, start, end);
+ }
+ 
+-static struct page *find_lock_huge_page(struct address_space *mapping,
+-			unsigned long idx)
++static struct page *find_or_alloc_huge_page(struct address_space *mapping,
++						unsigned long idx)
  {
  	struct page *page;
  	int err;
--	struct inode *inode = mapping->host;
--	unsigned long size;
- 
- retry:
- 	page = find_lock_page(mapping, idx);
- 	if (page)
+@@ -392,7 +392,7 @@ int hugetlb_fault(struct mm_struct *mm, 
+ 	 * Use page lock to guard against racing truncation
+ 	 * before we get page_table_lock.
+ 	 */
+-	page = find_lock_huge_page(mapping, idx);
++	page = find_or_alloc_huge_page(mapping, idx);
+ 	if (!page)
  		goto out;
  
--	/* Check to make sure the mapping hasn't been truncated */
--	size = i_size_read(inode) >> HPAGE_SHIFT;
--	if (idx >= size)
--		goto out;
--
- 	if (hugetlb_get_quota(mapping))
- 		goto out;
- 	page = alloc_huge_page();
 
 -- 
 Adam Litke - (agl at us.ibm.com)
