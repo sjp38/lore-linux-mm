@@ -1,19 +1,19 @@
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by e5.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id jAAHa3qK002276
-	for <linux-mm@kvack.org>; Thu, 10 Nov 2005 12:36:03 -0500
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay04.pok.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id jAAHa2vh088762
-	for <linux-mm@kvack.org>; Thu, 10 Nov 2005 12:36:03 -0500
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.12.11/8.13.3) with ESMTP id jAAHa2Ol028188
-	for <linux-mm@kvack.org>; Thu, 10 Nov 2005 12:36:02 -0500
-Message-ID: <437384FB.1050804@austin.ibm.com>
-Date: Thu, 10 Nov 2005 11:35:55 -0600
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by e32.co.us.ibm.com (8.12.11/8.12.11) with ESMTP id jAAHleGJ004701
+	for <linux-mm@kvack.org>; Thu, 10 Nov 2005 12:47:40 -0500
+Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
+	by d03relay04.boulder.ibm.com (8.12.10/NCO/VERS6.8) with ESMTP id jAAHmqlu067026
+	for <linux-mm@kvack.org>; Thu, 10 Nov 2005 10:48:52 -0700
+Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av03.boulder.ibm.com (8.12.11/8.13.3) with ESMTP id jAAHle8a028211
+	for <linux-mm@kvack.org>; Thu, 10 Nov 2005 10:47:40 -0700
+Message-ID: <437387B5.2000205@austin.ibm.com>
+Date: Thu, 10 Nov 2005 11:47:33 -0600
 From: Joel Schopp <jschopp@austin.ibm.com>
 MIME-Version: 1.0
-Subject: Re: [Lhms-devel] [Patch:RFC] New zone ZONE_EASY_RECLAIM[4/5]
-References: <20051110190053.0236.Y-GOTO@jp.fujitsu.com>
-In-Reply-To: <20051110190053.0236.Y-GOTO@jp.fujitsu.com>
+Subject: Re: [Lhms-devel] [Patch:RFC] New zone ZONE_EASY_RECLAIM[0/5]
+References: <20051110185754.0230.Y-GOTO@jp.fujitsu.com>
+In-Reply-To: <20051110185754.0230.Y-GOTO@jp.fujitsu.com>
 Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -23,22 +23,13 @@ Cc: linux-mm <linux-mm@kvack.org>, Linux Hotplug Memory Support <lhms-devel@list
 List-ID: <linux-mm.kvack.org>
 
 Yasunori Goto wrote:
->
-> ===================================================================
-> --- new_zone.orig/include/linux/mmzone.h	2005-11-08 17:27:30.000000000 +0900
-> +++ new_zone/include/linux/mmzone.h	2005-11-08 17:27:37.000000000 +0900
-> @@ -92,6 +92,7 @@ struct per_cpu_pageset {
->   * combinations of zone modifiers in "zone modifier space".
->   */
->  #define GFP_ZONEMASK	0x07
-> +
->  /*
->   * As an optimisation any zone modifier bits which are only valid when
->   * no other zone modifier bits are set (loners) should be placed in
-> Index: new_zone/mm/mempolicy.c
-> ===================================================================
+> Hello.
+> 
+> I rewrote patches to create new zone as ZONE_EASY_RECLAIM.
 
-It looks like the only thing this patch changes in this file is whitespace
+Just to be clear.  These patches create the new zone, but they don't seem to 
+actually use it to separate out removable memory, or to do memory remove.  I 
+assume those patches will come later?  In any case this is a good start.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
