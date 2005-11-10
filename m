@@ -1,57 +1,84 @@
-Date: Thu, 10 Nov 2005 19:41:01 +0900
+Date: Thu, 10 Nov 2005 19:41:10 +0900
 From: Yasunori Goto <y-goto@jp.fujitsu.com>
-Subject: [Patch:RFC] New zone ZONE_EASY_RECLAIM[2/5]
-Message-Id: <20051110185812.0232.Y-GOTO@jp.fujitsu.com>
+Subject: [Patch:RFC] New zone ZONE_EASY_RECLAIM[3/5]
+Message-Id: <20051110190126.0238.Y-GOTO@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm <linux-mm@kvack.org>, Linux Hotplug Memory Support <lhms-devel@lists.sourceforge.net>
-Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Mel Gorman <mel@csn.ul.ie>
+To: Linux Hotplug Memory Support <lhms-devel@lists.sourceforge.net>, linux-mm <linux-mm@kvack.org>
+Cc: Mel Gorman <mel@csn.ul.ie>, Nick Piggin <nickpiggin@yahoo.com.au>
 List-ID: <linux-mm.kvack.org>
 
-This defines new zone ZONE_EASY_RECLAIM.
-
-Note:
-  I found DMA32_ZONE is included in -mm tree.
-  If one more new zone is created before/after my patch, 
-  the zone number field in page->flags is not enough.
-  My patch doesn't care about it yet.
-
+This is changing build_zonelists for new zone.
 
 Signed-off-by: Yasunori Goto <y-goto@jp.fujitsu.com>
 
 ---
 
-Index: new_zone/include/linux/mmzone.h
-===================================================================
---- new_zone.orig/include/linux/mmzone.h	2005-11-07 19:28:25.000000000 +0900
-+++ new_zone/include/linux/mmzone.h	2005-11-07 19:30:07.000000000 +0900
-@@ -72,8 +72,9 @@ struct per_cpu_pageset {
- #define ZONE_DMA		0
- #define ZONE_NORMAL		1
- #define ZONE_HIGHMEM		2
-+#define ZONE_EASY_RECLAIM	3
- 
--#define MAX_NR_ZONES		3	/* Sync this with ZONES_SHIFT */
-+#define MAX_NR_ZONES		4	/* Sync this with ZONES_SHIFT */
- #define ZONES_SHIFT		2	/* ceil(log2(MAX_NR_ZONES)) */
- 
- 
 Index: new_zone/mm/page_alloc.c
 ===================================================================
---- new_zone.orig/mm/page_alloc.c	2005-11-07 19:28:31.000000000 +0900
-+++ new_zone/mm/page_alloc.c	2005-11-07 19:29:17.000000000 +0900
-@@ -72,7 +72,7 @@ EXPORT_SYMBOL(nr_swap_pages);
- struct zone *zone_table[1 << ZONETABLE_SHIFT] __read_mostly;
- EXPORT_SYMBOL(zone_table);
+--- new_zone.orig/mm/page_alloc.c	2005-11-08 17:23:24.000000000 +0900
++++ new_zone/mm/page_alloc.c	2005-11-08 17:27:26.000000000 +0900
+@@ -1407,6 +1407,10 @@ static int __init build_zonelists_node(p
+ 		struct zone *zone;
+ 	default:
+ 		BUG();
++	case ZONE_EASY_RECLAIM:
++		zone = pgdat->node_zones + ZONE_EASY_RECLAIM;
++		if (zone->present_pages)
++			zonelist->zones[j++] = zone;
+ 	case ZONE_HIGHMEM:
+ 		zone = pgdat->node_zones + ZONE_HIGHMEM;
+ 		if (zone->present_pages) {
+@@ -1428,6 +1432,20 @@ static int __init build_zonelists_node(p
+ 	return j;
+ }
  
--static char *zone_names[MAX_NR_ZONES] = { "DMA", "Normal", "HighMem" };
-+static char *zone_names[MAX_NR_ZONES] = { "DMA", "Normal", "HighMem", "Easy Reclaim" };
- int min_free_kbytes = 1024;
++static inline int highest_zone(int i)
++{
++	int res = ZONE_NORMAL;
++
++	if (i == fls(__GFP_EASY_RECLAIM))
++		res = ZONE_EASY_RECLAIM;
++	else if(i == fls(__GFP_HIGHMEM))
++		res = ZONE_HIGHMEM;
++	else if(i == fls(__GFP_DMA))
++		res = ZONE_DMA;
++
++	return res;
++}
++
+ #ifdef CONFIG_NUMA
+ #define MAX_NODE_LOAD (num_online_nodes())
+ static int __initdata node_load[MAX_NUMNODES];
+@@ -1524,11 +1542,7 @@ static void __init build_zonelists(pg_da
+ 			zonelist = pgdat->node_zonelists + i;
+ 			for (j = 0; zonelist->zones[j] != NULL; j++);
  
- unsigned long __initdata nr_kernel_pages;
+-			k = ZONE_NORMAL;
+-			if (i & __GFP_HIGHMEM)
+-				k = ZONE_HIGHMEM;
+-			if (i & __GFP_DMA)
+-				k = ZONE_DMA;
++			k = highest_zone(i);
+ 
+ 	 		j = build_zonelists_node(NODE_DATA(node), zonelist, j, k);
+ 			zonelist->zones[j] = NULL;
+@@ -1549,11 +1563,7 @@ static void __init build_zonelists(pg_da
+ 		zonelist = pgdat->node_zonelists + i;
+ 
+ 		j = 0;
+-		k = ZONE_NORMAL;
+-		if (i & __GFP_HIGHMEM)
+-			k = ZONE_HIGHMEM;
+-		if (i & __GFP_DMA)
+-			k = ZONE_DMA;
++		k = highest_zone(i);
+ 
+  		j = build_zonelists_node(pgdat, zonelist, j, k);
+  		/*
 
 -- 
 Yasunori Goto 
