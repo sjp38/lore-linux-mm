@@ -1,84 +1,121 @@
-Date: Thu, 10 Nov 2005 19:41:10 +0900
+Date: Thu, 10 Nov 2005 19:41:18 +0900
 From: Yasunori Goto <y-goto@jp.fujitsu.com>
-Subject: [Patch:RFC] New zone ZONE_EASY_RECLAIM[3/5]
-Message-Id: <20051110190126.0238.Y-GOTO@jp.fujitsu.com>
+Subject: [Patch:RFC] New zone ZONE_EASY_RECLAIM[4/5]
+Message-Id: <20051110190053.0236.Y-GOTO@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linux Hotplug Memory Support <lhms-devel@lists.sourceforge.net>, linux-mm <linux-mm@kvack.org>
-Cc: Mel Gorman <mel@csn.ul.ie>, Nick Piggin <nickpiggin@yahoo.com.au>
+To: linux-mm <linux-mm@kvack.org>, Linux Hotplug Memory Support <lhms-devel@lists.sourceforge.net>
+Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-This is changing build_zonelists for new zone.
+__GFP_xxxs are flag for requires of page allocation which zone
+is prefered. But, it is used as an index number for zonelists[] too.
+But after my patch, __GFP_xxx might be set at same time. So,
+last set bit number of __GFP is recognized for zonelists' index
+by this patch.
+
+
 
 Signed-off-by: Yasunori Goto <y-goto@jp.fujitsu.com>
 
 ---
 
-Index: new_zone/mm/page_alloc.c
+Index: new_zone/fs/buffer.c
 ===================================================================
---- new_zone.orig/mm/page_alloc.c	2005-11-08 17:23:24.000000000 +0900
-+++ new_zone/mm/page_alloc.c	2005-11-08 17:27:26.000000000 +0900
-@@ -1407,6 +1407,10 @@ static int __init build_zonelists_node(p
- 		struct zone *zone;
- 	default:
- 		BUG();
-+	case ZONE_EASY_RECLAIM:
-+		zone = pgdat->node_zones + ZONE_EASY_RECLAIM;
-+		if (zone->present_pages)
-+			zonelist->zones[j++] = zone;
- 	case ZONE_HIGHMEM:
- 		zone = pgdat->node_zones + ZONE_HIGHMEM;
- 		if (zone->present_pages) {
-@@ -1428,6 +1432,20 @@ static int __init build_zonelists_node(p
- 	return j;
+--- new_zone.orig/fs/buffer.c	2005-11-08 17:23:22.000000000 +0900
++++ new_zone/fs/buffer.c	2005-11-08 17:27:37.000000000 +0900
+@@ -502,7 +502,7 @@ static void free_more_memory(void)
+ 	yield();
+ 
+ 	for_each_pgdat(pgdat) {
+-		zones = pgdat->node_zonelists[GFP_NOFS&GFP_ZONEMASK].zones;
++		zones = pgdat->node_zonelists[gfp_zone(GFP_NOFS)].zones;
+ 		if (*zones)
+ 			try_to_free_pages(zones, GFP_NOFS);
+ 	}
+Index: new_zone/include/linux/gfp.h
+===================================================================
+--- new_zone.orig/include/linux/gfp.h	2005-11-08 17:26:12.000000000 +0900
++++ new_zone/include/linux/gfp.h	2005-11-09 15:43:25.000000000 +0900
+@@ -65,6 +65,10 @@ struct vm_area_struct;
+ 
+ #define GFP_DMA		__GFP_DMA
+ 
++static inline unsigned int gfp_zone(unsigned int mask)
++{
++	return fls(mask & GFP_ZONEMASK);
++}
+ 
+ /*
+  * There is only one page-allocator function, and two main namespaces to
+@@ -95,7 +99,7 @@ static inline struct page *alloc_pages_n
+ 		return NULL;
+ 
+ 	return __alloc_pages(gfp_mask, order,
+-		NODE_DATA(nid)->node_zonelists + (gfp_mask & GFP_ZONEMASK));
++		NODE_DATA(nid)->node_zonelists + gfp_zone(gfp_mask));
  }
  
-+static inline int highest_zone(int i)
-+{
-+	int res = ZONE_NORMAL;
-+
-+	if (i == fls(__GFP_EASY_RECLAIM))
-+		res = ZONE_EASY_RECLAIM;
-+	else if(i == fls(__GFP_HIGHMEM))
-+		res = ZONE_HIGHMEM;
-+	else if(i == fls(__GFP_DMA))
-+		res = ZONE_DMA;
-+
-+	return res;
-+}
-+
  #ifdef CONFIG_NUMA
- #define MAX_NODE_LOAD (num_online_nodes())
- static int __initdata node_load[MAX_NUMNODES];
-@@ -1524,11 +1542,7 @@ static void __init build_zonelists(pg_da
- 			zonelist = pgdat->node_zonelists + i;
- 			for (j = 0; zonelist->zones[j] != NULL; j++);
+Index: new_zone/include/linux/mmzone.h
+===================================================================
+--- new_zone.orig/include/linux/mmzone.h	2005-11-08 17:27:30.000000000 +0900
++++ new_zone/include/linux/mmzone.h	2005-11-08 17:27:37.000000000 +0900
+@@ -92,6 +92,7 @@ struct per_cpu_pageset {
+  * combinations of zone modifiers in "zone modifier space".
+  */
+ #define GFP_ZONEMASK	0x07
++
+ /*
+  * As an optimisation any zone modifier bits which are only valid when
+  * no other zone modifier bits are set (loners) should be placed in
+Index: new_zone/mm/mempolicy.c
+===================================================================
+--- new_zone.orig/mm/mempolicy.c	2005-11-08 17:23:22.000000000 +0900
++++ new_zone/mm/mempolicy.c	2005-11-08 17:27:37.000000000 +0900
+@@ -712,7 +712,7 @@ static struct zonelist *zonelist_policy(
+ 		nd = 0;
+ 		BUG();
+ 	}
+-	return NODE_DATA(nd)->node_zonelists + (gfp & GFP_ZONEMASK);
++	return NODE_DATA(nd)->node_zonelists + gfp_zone(gfp);
+ }
  
--			k = ZONE_NORMAL;
--			if (i & __GFP_HIGHMEM)
--				k = ZONE_HIGHMEM;
--			if (i & __GFP_DMA)
--				k = ZONE_DMA;
-+			k = highest_zone(i);
+ /* Do dynamic interleaving for a process */
+@@ -757,7 +757,7 @@ static struct page *alloc_page_interleav
+ 	struct page *page;
  
- 	 		j = build_zonelists_node(NODE_DATA(node), zonelist, j, k);
- 			zonelist->zones[j] = NULL;
-@@ -1549,11 +1563,7 @@ static void __init build_zonelists(pg_da
- 		zonelist = pgdat->node_zonelists + i;
+ 	BUG_ON(!node_online(nid));
+-	zl = NODE_DATA(nid)->node_zonelists + (gfp & GFP_ZONEMASK);
++	zl = NODE_DATA(nid)->node_zonelists + gfp_zone(gfp);
+ 	page = __alloc_pages(gfp, order, zl);
+ 	if (page && page_zone(page) == zl->zones[0]) {
+ 		zone_pcp(zl->zones[0],get_cpu())->interleave_hit++;
+Index: new_zone/mm/page_alloc.c
+===================================================================
+--- new_zone.orig/mm/page_alloc.c	2005-11-08 17:27:30.000000000 +0900
++++ new_zone/mm/page_alloc.c	2005-11-08 17:27:37.000000000 +0900
+@@ -1089,7 +1089,7 @@ static unsigned int nr_free_zone_pages(i
+  */
+ unsigned int nr_free_buffer_pages(void)
+ {
+-	return nr_free_zone_pages(GFP_USER & GFP_ZONEMASK);
++	return nr_free_zone_pages(gfp_zone(GFP_USER));
+ }
  
- 		j = 0;
--		k = ZONE_NORMAL;
--		if (i & __GFP_HIGHMEM)
--			k = ZONE_HIGHMEM;
--		if (i & __GFP_DMA)
--			k = ZONE_DMA;
-+		k = highest_zone(i);
+ /*
+@@ -1097,7 +1097,7 @@ unsigned int nr_free_buffer_pages(void)
+  */
+ unsigned int nr_free_pagecache_pages(void)
+ {
+-	return nr_free_zone_pages(GFP_HIGHUSER & GFP_ZONEMASK);
++	return nr_free_zone_pages(gfp_zone(GFP_HIGHUSER));
+ }
  
-  		j = build_zonelists_node(pgdat, zonelist, j, k);
-  		/*
+ #ifdef CONFIG_HIGHMEM
 
 -- 
 Yasunori Goto 
