@@ -1,38 +1,60 @@
-From: Magnus Damm <magnus@valinux.co.jp>
-Message-Id: <20051110090941.8083.93120.sendpatchset@cherry.local>
-In-Reply-To: <20051110090920.8083.54147.sendpatchset@cherry.local>
-References: <20051110090920.8083.54147.sendpatchset@cherry.local>
-Subject: [PATCH 04/05] x86_64: NUMA without SMP
-Date: Thu, 10 Nov 2005 18:08:23 +0900 (JST)
+Date: Thu, 10 Nov 2005 19:40:48 +0900
+From: Yasunori Goto <y-goto@jp.fujitsu.com>
+Subject: [Patch:RFC] New zone ZONE_EASY_RECLAIM[1/5]
+Message-Id: <20051110185836.0234.Y-GOTO@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: Magnus Damm <magnus@valinux.co.jp>, pj@sgi.com, ak@suse.de
+To: Linux Hotplug Memory Support <lhms-devel@lists.sourceforge.net>, linux-mm <linux-mm@kvack.org>
+Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-Remove the SMP dependency from NUMA on x86_64.
+This defines __GFP flag for new zone.
 
-This simple change is boot tested on real x86_64 NUMA hardware and in QEMU. 
-Works with CONFIG_NUMA_EMU, CONFIG_K8_NUMA and CONFIG_ACPI_NUMA. This change
-has earlier been discussed with Andi Kleen and rejected, but it is included
-in this patch set for completeness.
+Signed-off-by: Yasunori Goto <y-goto@jp.fujitsu.com>
 
-Signed-off-by: Magnus Damm <magnus@valinux.co.jp>
 ---
 
- Kconfig |    1 -
- 1 files changed, 1 deletion(-)
-
---- from-0002/arch/x86_64/Kconfig
-+++ to-0005/arch/x86_64/Kconfig	2005-11-08 21:26:03.000000000 +0900
-@@ -228,7 +228,6 @@ source "kernel/Kconfig.preempt"
+Index: new_zone/include/linux/gfp.h
+===================================================================
+--- new_zone.orig/include/linux/gfp.h	2005-11-08 14:17:57.000000000 +0900
++++ new_zone/include/linux/gfp.h	2005-11-08 17:24:20.000000000 +0900
+@@ -14,6 +14,7 @@ struct vm_area_struct;
+ /* Zone modifiers in GFP_ZONEMASK (see linux/mmzone.h - low two bits) */
+ #define __GFP_DMA	0x01u
+ #define __GFP_HIGHMEM	0x02u
++#define __GFP_EASY_RECLAIM 0x04u
  
- config NUMA
-        bool "Non Uniform Memory Access (NUMA) Support"
--       depends on SMP
-        help
- 	 Enable NUMA (Non Uniform Memory Access) support. The kernel 
- 	 will try to allocate memory used by a CPU on the local memory 
+ /*
+  * Action modifiers - doesn't change the zoning
+@@ -57,7 +58,7 @@ struct vm_area_struct;
+ #define GFP_KERNEL	(__GFP_WAIT | __GFP_IO | __GFP_FS)
+ #define GFP_USER	(__GFP_WAIT | __GFP_IO | __GFP_FS | __GFP_HARDWALL)
+ #define GFP_HIGHUSER	(__GFP_WAIT | __GFP_IO | __GFP_FS | __GFP_HARDWALL | \
+-			 __GFP_HIGHMEM)
++			 __GFP_HIGHMEM | __GFP_EASY_RECLAIM)
+ 
+ /* Flag - indicates that the buffer will be suitable for DMA.  Ignored on some
+    platforms, used as appropriate on others */
+Index: new_zone/include/linux/mmzone.h
+===================================================================
+--- new_zone.orig/include/linux/mmzone.h	2005-11-08 14:17:57.000000000 +0900
++++ new_zone/include/linux/mmzone.h	2005-11-08 17:23:23.000000000 +0900
+@@ -90,7 +90,7 @@ struct per_cpu_pageset {
+  * be 8 (2 ** 3) zonelists.  GFP_ZONETYPES defines the number of possible
+  * combinations of zone modifiers in "zone modifier space".
+  */
+-#define GFP_ZONEMASK	0x03
++#define GFP_ZONEMASK	0x07
+ /*
+  * As an optimisation any zone modifier bits which are only valid when
+  * no other zone modifier bits are set (loners) should be placed in
+
+-- 
+Yasunori Goto 
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
