@@ -1,36 +1,38 @@
-Date: Wed, 9 Nov 2005 16:56:33 -0800
-From: William Lee Irwin III <wli@holomorphy.com>
 Subject: Re: [PATCH 4/4] Hugetlb: Copy on Write support
-Message-ID: <20051110005633.GO29402@holomorphy.com>
-References: <1131578925.28383.9.camel@localhost.localdomain> <1131579596.28383.25.camel@localhost.localdomain> <20051110001534.GN29402@holomorphy.com> <20051110004907.GA17840@localhost.localdomain>
+From: Rohit Seth <rohit.seth@intel.com>
+In-Reply-To: <1131579596.28383.25.camel@localhost.localdomain>
+References: <1131578925.28383.9.camel@localhost.localdomain>
+	 <1131579596.28383.25.camel@localhost.localdomain>
+Content-Type: text/plain
+Date: Wed, 09 Nov 2005 17:52:44 -0800
+Message-Id: <1131587564.16514.53.camel@akash.sc.intel.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20051110004907.GA17840@localhost.localdomain>
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: David Gibson <david@gibson.dropbear.id.au>
-Cc: Adam Litke <agl@us.ibm.com>, akpm@osdl.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, hugh@veritas.com, rohit.seth@intel.com, kenneth.w.chen@intel.com
+To: Adam Litke <agl@us.ibm.com>
+Cc: akpm@osdl.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, David Gibson <david@gibson.dropbear.id.au>, wli@holomorphy.com, hugh@veritas.com, kenneth.w.chen@intel.com
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Nov 09, 2005 at 04:15:34PM -0800, William Lee Irwin wrote:
->> Did you do the audit of pte protection bits I asked about? If not, I'll
->> dredge them up and check to make sure.
+On Wed, 2005-11-09 at 17:39 -0600, Adam Litke wrote:
 
-On Thu, Nov 10, 2005 at 11:49:07AM +1100, David Gibson wrote:
-> I still don't know what you're talking about here - you never
-> responded to my mail asking for clarification.  The hugepage code
-> already relies on pte_mkwrite() and pte_wrprotect() working correctly,
-> I don't see that COW makes any difference.
+>  
+> +#define huge_ptep_set_wrprotect(mm, addr, ptep) \
+> +	ptep_set_wrprotect(mm, addr, ptep)
+> +static inline void set_huge_ptep_writable(struct vm_area_struct *vma,
+> +		unsigned long address, pte_t *ptep)
+> +{
+> +	pte_t entry;
+> +
+> +	entry = pte_mkwrite(pte_mkdirty(*ptep));
+> +	ptep_set_access_flags(vma, address, ptep, entry, 1);
+> +	update_mmu_cache(vma, address, entry);
+> +}
 
-You appear to have a good idea of what's going on given that you've
-reminded me of that reliance. It looks like I dropped that email packet
-for some reason, sorry about that.
+lazy_mmu_prot_update will need to called here to make caches coherent
+for some archs.
 
-Acked-by: William Irwin <wli@holomorphy.com>
-
-
--- wli
+-rohit
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
