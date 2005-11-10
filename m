@@ -1,260 +1,228 @@
 From: Magnus Damm <magnus@valinux.co.jp>
-Message-Id: <20051110090931.8083.50519.sendpatchset@cherry.local>
+Message-Id: <20051110090925.8083.45887.sendpatchset@cherry.local>
 In-Reply-To: <20051110090920.8083.54147.sendpatchset@cherry.local>
 References: <20051110090920.8083.54147.sendpatchset@cherry.local>
-Subject: [PATCH 02/05] x86_64: NUMA cleanup
-Date: Thu, 10 Nov 2005 18:08:13 +0900 (JST)
+Subject: [PATCH 01/05] NUMA: Generic code
+Date: Thu, 10 Nov 2005 18:08:08 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 Cc: Magnus Damm <magnus@valinux.co.jp>, pj@sgi.com, ak@suse.de
 List-ID: <linux-mm.kvack.org>
 
-Rearrange the x86_64 NUMA code to make room for the new NUMA emulation code.
+Generic CONFIG_NUMA_EMU code.
 
-This patch rearranges the code and cleans it up a bit by moving duplicated
-common code from srat.c and k8topology.c into numa.c.
+This patch adds generic NUMA emulation code to the kernel. The code provides 
+the architectures with functions that calculate the size of emulated nodes,
+together with configuration stuff such as Kconfig and kernel command line code.
 
 Signed-off-by: Magnus Damm <magnus@valinux.co.jp>
 ---
 
- arch/x86_64/kernel/setup.c  |    7 ------
- arch/x86_64/mm/k8topology.c |   13 -----------
- arch/x86_64/mm/numa.c       |   51 +++++++++++++++++++++++++++++++-------------
- arch/x86_64/mm/srat.c       |   14 +-----------
- include/asm-x86_64/mmzone.h |    1
- 5 files changed, 41 insertions(+), 45 deletions(-)
+ include/linux/numa.h  |   25 +++++++++-
+ mm/Kconfig            |   17 +++++++
+ mm/Makefile           |    1
+ mm/numa_emu.c         |  118 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 159 insertions(+), 2 deletions(-)
 
---- from-0002/arch/x86_64/kernel/setup.c
-+++ to-work/arch/x86_64/kernel/setup.c	2005-11-08 21:33:12.000000000 +0900
-@@ -581,13 +581,6 @@ void __init setup_arch(char **cmdline_p)
- 	acpi_boot_table_init();
+--- from-0001/include/linux/numa.h
++++ to-work/include/linux/numa.h	2005-11-09 11:50:03.000000000 +0900
+@@ -2,15 +2,36 @@
+ #define _LINUX_NUMA_H
+ 
+ #include <linux/config.h>
++#include <linux/init.h>
+ 
+ #ifndef CONFIG_FLATMEM
+ #include <asm/numnodes.h>
  #endif
  
--#ifdef CONFIG_ACPI_NUMA
--	/*
--	 * Parse SRAT to discover nodes.
--	 */
--	acpi_numa_init();
--#endif
--
- #ifdef CONFIG_NUMA
- 	numa_initmem_init(0, end_pfn); 
- #else
---- from-0002/arch/x86_64/mm/k8topology.c
-+++ to-work/arch/x86_64/mm/k8topology.c	2005-11-08 21:33:12.000000000 +0900
-@@ -43,7 +43,6 @@ static __init int find_northbridge(void)
- int __init k8_scan_nodes(unsigned long start, unsigned long end)
- { 
- 	unsigned long prevbase;
--	struct node nodes[8];
- 	int nodeid, i, nb; 
- 	unsigned char nodeids[8];
- 	int found = 0;
-@@ -65,7 +64,6 @@ int __init k8_scan_nodes(unsigned long s
- 
- 	printk(KERN_INFO "Number of nodes %d\n", numnodes);
- 
--	memset(&nodes,0,sizeof(nodes)); 
- 	prevbase = 0;
- 	for (i = 0; i < 8; i++) { 
- 		unsigned long base,limit; 
-@@ -155,22 +153,13 @@ int __init k8_scan_nodes(unsigned long s
- 	if (!found)
- 		return -1; 
- 
--	memnode_shift = compute_hash_shift(nodes, numnodes);
--	if (memnode_shift < 0) { 
--		printk(KERN_ERR "No NUMA node hash function found. Contact maintainer\n"); 
--		return -1; 
--	} 
--	printk(KERN_INFO "Using node hash shift of %d\n", memnode_shift); 
--
- 	for (i = 0; i < 8; i++) {
- 		if (nodes[i].start != nodes[i].end) { 
- 			nodeid = nodeids[i];
- 			apicid_to_node[nodeid << dualcore] = i;
- 			apicid_to_node[(nodeid << dualcore) + dualcore] = i;
--			setup_node_bootmem(i, nodes[i].start, nodes[i].end); 
-+			node_set_online(i);
- 		} 
- 	}
--
--	numa_init_array();
- 	return 0;
- } 
---- from-0002/arch/x86_64/mm/numa.c
-+++ to-work/arch/x86_64/mm/numa.c	2005-11-08 21:37:37.000000000 +0900
-@@ -11,6 +11,7 @@
- #include <linux/ctype.h>
- #include <linux/module.h>
- #include <linux/nodemask.h>
-+#include <linux/acpi.h>
- 
- #include <asm/e820.h>
- #include <asm/proto.h>
-@@ -25,6 +26,7 @@
- struct pglist_data *node_data[MAX_NUMNODES] __read_mostly;
- bootmem_data_t plat_node_bdata[MAX_NUMNODES];
- 
-+struct node nodes[MAX_NUMNODES] __initdata;
- int memnode_shift;
- u8  memnodemap[NODEMAPSIZE];
- 
-@@ -190,7 +192,6 @@ int numa_fake __initdata = 0;
- static int numa_emulation(unsigned long start_pfn, unsigned long end_pfn)
- {
-  	int i;
-- 	struct node nodes[MAX_NUMNODES];
-  	unsigned long sz = ((end_pfn - start_pfn)<<PAGE_SHIFT) / numa_fake;
- 
-  	/* Kludge needed for the hash function */
-@@ -203,7 +204,6 @@ static int numa_emulation(unsigned long 
-  		sz = x;
-  	}
- 
-- 	memset(&nodes,0,sizeof(nodes));
-  	for (i = 0; i < numa_fake; i++) {
-  		nodes[i].start = (start_pfn<<PAGE_SHIFT) + i*sz;
-  		if (i == numa_fake-1)
-@@ -215,38 +215,43 @@ static int numa_emulation(unsigned long 
-  		       (nodes[i].end - nodes[i].start) >> 20);
- 		node_set_online(i);
-  	}
-- 	memnode_shift = compute_hash_shift(nodes, numa_fake);
-- 	if (memnode_shift < 0) {
-- 		memnode_shift = 0;
-- 		printk(KERN_ERR "No NUMA hash function found. Emulation disabled.\n");
-- 		return -1;
-- 	}
-- 	for_each_online_node(i)
-- 		setup_node_bootmem(i, nodes[i].start, nodes[i].end);
-- 	numa_init_array();
-  	return 0;
- }
+-#ifndef NODES_SHIFT
+-#define NODES_SHIFT     0
++#ifndef NODES_SHIFT_HW
++#define NODES_SHIFT_HW     0
  #endif
  
--void __init numa_initmem_init(unsigned long start_pfn, unsigned long end_pfn)
-+void __init numa_initmem_doinit(unsigned long start_pfn, unsigned long end_pfn)
- { 
- 	int i;
++#ifdef CONFIG_NUMA_EMU
++#define NODES_SHIFT_EMU CONFIG_NUMA_EMU_SHIFT
++/* in mm/numa_emu.c */
++void numa_emu_setup(char *opt);
++int __init numa_emu_new(int nid, 
++			unsigned long real_start, unsigned long real_end, 
++			unsigned long *emu_start, unsigned long *emu_end);
++int __init numa_emu_shrink(int nid, int new_nodes, 
++			   unsigned long real_start, unsigned long real_end,
++			   unsigned long *emu_start, unsigned long *emu_end);
++/* arch-specific */
++void __init numa_emu_setup_nid(int real_nid);
++#else
++#define NODES_SHIFT_EMU 0
++static inline void numa_emu_setup_nid(int real_nid) {}
++static inline void numa_emu_setup(char *opt) {}
++#endif
++
++#define NODES_SHIFT     (NODES_SHIFT_HW + NODES_SHIFT_EMU)
++
+ #define MAX_NUMNODES    (1 << NODES_SHIFT)
  
-+	memset(&nodes,0,sizeof(nodes)); 
-+
- #ifdef CONFIG_NUMA_EMU
- 	if (numa_fake && !numa_emulation(start_pfn, end_pfn))
-  		return;
- #endif
+ #endif /* _LINUX_NUMA_H */
+--- from-0002/mm/Kconfig
++++ to-work/mm/Kconfig	2005-11-09 11:50:03.000000000 +0900
+@@ -77,6 +77,23 @@ config FLAT_NODE_MEM_MAP
+ 	def_bool y
+ 	depends on !SPARSEMEM
  
-+	memset(&nodes,0,sizeof(nodes)); 
++config NUMA_EMU
++	bool "NUMA Memory Nodes Emulation"
++	select NUMA
++	depends on ARCH_NUMA_EMU_ENABLE
++	default n
++	help
++	  Enable NUMA emulation. Each node will be split into several virtual
++	  nodes when booted with "numa=fake=N", where N is the number of nodes.
 +
- #ifdef CONFIG_ACPI_NUMA
-+	/*
-+	 * Parse SRAT to discover nodes.
-+	 */
-+	acpi_numa_init();
++config NUMA_EMU_SHIFT
++	int "Maximum shift number of emulated nodes, per real node (1-8)"
++	range 1 8
++	depends on NUMA_EMU
++	default "3"
++	help
++	  This value controls the maximum number of emulated NUMA nodes.
 +
- 	if (!numa_off && !acpi_scan_nodes(start_pfn << PAGE_SHIFT,
- 					  end_pfn << PAGE_SHIFT))
-  		return;
- #endif
- 
-+	memset(&nodes,0,sizeof(nodes)); 
+ #
+ # Both the NUMA code and DISCONTIGMEM use arrays of pg_data_t's
+ # to represent different areas of memory.  This variable allows
+--- from-0002/mm/Makefile
++++ to-work/mm/Makefile	2005-11-09 11:50:03.000000000 +0900
+@@ -16,6 +16,7 @@ obj-$(CONFIG_SWAP)	+= page_io.o swap_sta
+ obj-$(CONFIG_SWAP_PREFETCH) += swap_prefetch.o
+ obj-$(CONFIG_HUGETLBFS)	+= hugetlb.o
+ obj-$(CONFIG_NUMA) 	+= mempolicy.o
++obj-$(CONFIG_NUMA_EMU) 	+= numa_emu.o
+ obj-$(CONFIG_SPARSEMEM)	+= sparse.o
+ obj-$(CONFIG_SHMEM) += shmem.o
+ obj-$(CONFIG_TINY_SHMEM) += tiny-shmem.o
+--- /dev/null
++++ to-work/mm/numa_emu.c	2005-11-09 11:50:04.000000000 +0900
+@@ -0,0 +1,118 @@
++#include <linux/config.h>
++#include <linux/kernel.h>
++#include <linux/init.h>
++#include <linux/cache.h>
++#include <linux/mm.h>
++#include <linux/numa.h>
++#include <linux/nodemask.h>
 +
- #ifdef CONFIG_K8_NUMA
- 	if (!numa_off && !k8_scan_nodes(start_pfn<<PAGE_SHIFT, end_pfn<<PAGE_SHIFT))
- 		return;
- #endif
++extern unsigned long node_start_pfn[MAX_NUMNODES] __read_mostly;
++extern unsigned long node_end_pfn[MAX_NUMNODES] __read_mostly;
 +
-+	memset(&nodes,0,sizeof(nodes)); 
++int numa_fake __initdata = 0;
 +
- 	printk(KERN_INFO "%s\n",
- 	       numa_off ? "NUMA turned off" : "No NUMA configuration found");
- 
-@@ -254,14 +259,32 @@ void __init numa_initmem_init(unsigned l
- 	       start_pfn << PAGE_SHIFT,
- 	       end_pfn << PAGE_SHIFT); 
- 		/* setup dummy node covering all memory */ 
--	memnode_shift = 63; 
- 	memnodemap[0] = 0;
- 	nodes_clear(node_online_map);
- 	node_set_online(0);
- 	for (i = 0; i < NR_CPUS; i++)
- 		numa_set_node(i, 0);
- 	node_to_cpumask[0] = cpumask_of_cpu(0);
--	setup_node_bootmem(0, start_pfn << PAGE_SHIFT, end_pfn << PAGE_SHIFT);
-+	nodes[0].start = start_pfn << PAGE_SHIFT;
-+	nodes[0].end = end_pfn << PAGE_SHIFT;
++void __init numa_emu_setup(char *opt)
++{
++	int max_emu = 1 << CONFIG_NUMA_EMU_SHIFT;
++
++	if (!memcmp(opt, "fake=", 5) && (*(opt + 5))) {
++		numa_fake = simple_strtoul(opt + 5, NULL, 0);
++		numa_fake = min(numa_fake, max_emu);
++		printk("fake numa nodes = %d/%d\n", numa_fake, max_emu);
++       }
 +}
 +
-+void __init numa_initmem_init(unsigned long start_pfn, unsigned long end_pfn)
-+{ 
-+	int i;
++unsigned long __init numa_emu_node_size(unsigned long real_size, int last)
++{
++	unsigned long node_size;
++	unsigned long shift;
 +
-+	numa_initmem_doinit(start_pfn, end_pfn);
++	if (numa_fake == 0)
++		return 0;
 +
-+	memnode_shift = compute_hash_shift(nodes, num_online_nodes());
-+	if (memnode_shift < 0) { 
-+		printk(KERN_ERR "No NUMA node hash function found. Contact maintainer\n"); 
-+		return; 
-+	} 
-+	printk(KERN_INFO "Using node hash shift of %d\n", memnode_shift); 
++	node_size = real_size / numa_fake;
 +
-+ 	for_each_online_node(i)
-+ 		setup_node_bootmem(i, nodes[i].start, nodes[i].end);
-+ 	numa_init_array();
- }
- 
- __cpuinit void numa_add_cpu(int cpu)
---- from-0002/arch/x86_64/mm/srat.c
-+++ to-work/arch/x86_64/mm/srat.c	2005-11-08 21:35:35.000000000 +0900
-@@ -22,7 +22,6 @@ static struct acpi_table_slit *acpi_slit
- 
- static nodemask_t nodes_parsed __initdata;
- static nodemask_t nodes_found __initdata;
--static struct node nodes[MAX_NUMNODES] __initdata;
- static __u8  pxm2node[256] = { [0 ... 255] = 0xff };
- 
- static int node_to_pxm(int n);
-@@ -182,26 +181,17 @@ int __init acpi_scan_nodes(unsigned long
- 		cutoff_node(i, start, end);
- 		if (nodes[i].start == nodes[i].end)
- 			node_clear(i, nodes_parsed);
--	}
--
--	memnode_shift = compute_hash_shift(nodes, nodes_weight(nodes_parsed));
--	if (memnode_shift < 0) {
--		printk(KERN_ERR
--		     "SRAT: No NUMA node hash function found. Contact maintainer\n");
--		bad_srat();
--		return -1;
-+		else
-+			node_set_online(i);
- 	}
- 
- 	/* Finally register nodes */
--	for_each_node_mask(i, nodes_parsed)
--		setup_node_bootmem(i, nodes[i].start, nodes[i].end);
- 	for (i = 0; i < NR_CPUS; i++) { 
- 		if (cpu_to_node[i] == NUMA_NO_NODE)
- 			continue;
- 		if (!node_isset(cpu_to_node[i], nodes_parsed))
- 			numa_set_node(i, NUMA_NO_NODE);
- 	}
--	numa_init_array();
- 	return 0;
- }
- 
---- from-0002/include/asm-x86_64/mmzone.h
-+++ to-work/include/asm-x86_64/mmzone.h	2005-11-08 21:33:34.000000000 +0900
-@@ -17,6 +17,7 @@
- /* Simple perfect hash to map physical addresses to node numbers */
- extern int memnode_shift; 
- extern u8  memnodemap[NODEMAPSIZE]; 
-+extern struct node nodes[MAX_NUMNODES] __initdata;
- 
- extern struct pglist_data *node_data[];
- 
++	if (node_size == 0)
++		return 0;
++
++	shift = 1;
++	while ((1 << shift) <= node_size)
++		shift++;
++
++	shift--;
++
++	node_size = 1 << shift;
++
++#ifdef CONFIG_SPARSEMEM
++	if (node_size * PAGE_SIZE < (1UL << SECTION_SIZE_BITS))
++		return 0;
++#else
++#warning FIXME: Perform similar check for non-sparsemem!
++#endif
++
++	if (last)
++		node_size = real_size - (node_size * (numa_fake - 1));
++
++	return node_size;
++}
++
++int __init numa_emu_new(int nid, 
++			unsigned long real_start, unsigned long real_end, 
++			unsigned long *emu_start, unsigned long *emu_end)
++{
++	int fake_nr = nid >> NODES_SHIFT_HW;
++	unsigned long node_size;
++
++	/* only setup amount of nodes passed on cmdline */
++
++	if (fake_nr >= numa_fake) 
++		return -1;
++
++	node_size = numa_emu_node_size(real_end - real_start, 0);
++
++	if (!node_size)
++		return -1;
++
++	*emu_start = real_start + (fake_nr * node_size);
++
++	if (fake_nr == (numa_fake - 1)) {
++		node_size = numa_emu_node_size(real_end - real_start, 1);
++
++		if (!node_size)
++			return -1;
++
++	}
++
++	*emu_end = *emu_start + node_size;
++	
++	printk("configuring fake node nr %u: pfn %lu - %lu\n", 
++	       nid, *emu_start, *emu_end);
++
++	return 0;
++}
++
++int __init numa_emu_shrink(int nid, int new_nodes, 
++			   unsigned long real_start, unsigned long real_end,
++			   unsigned long *emu_start, unsigned long *emu_end)
++{
++	unsigned long node_size;
++
++	if (numa_fake != (new_nodes + 1))  
++		return -1;
++
++	node_size = numa_emu_node_size(real_end - real_start, 0);
++
++	if (!node_size)
++		return -1;
++
++	*emu_start = real_start;
++	*emu_end = real_start + node_size;
++	
++	printk("configuring real node nr %u: pfn %lu - %lu\n", 
++	       nid, *emu_start, *emu_end);
++
++	printk("NUMA - emulation, adding %u emulated node(s) to node %u\n",
++	       new_nodes, nid);
++
++	return 0;
++}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
