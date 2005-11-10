@@ -1,381 +1,189 @@
-Message-ID: <437395AC.2080204@xfs.org>
-Date: Thu, 10 Nov 2005 12:47:08 -0600
-From: Steve Lord <lord@xfs.org>
+Date: Thu, 10 Nov 2005 13:55:01 -0800 (PST)
+From: Christoph Lameter <clameter@engr.sgi.com>
+Subject: [RFC, PATCH] Slab counter troubles with swap prefetch?
+Message-ID: <Pine.LNX.4.62.0511101351120.16380@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
-Subject: Re: [Lhms-devel] [PATCH 0/7] Fragmentation Avoidance V19 - Summary
-References: <20051030235440.6938a0e9.akpm@osdl.org>  <27700000.1130769270@[10.10.2.4]> <4366A8D1.7020507@yahoo.com.au>  <Pine.LNX.4.58.0510312333240.29390@skynet> <4366C559.5090504@yahoo.com.au>  <Pine.LNX.4.58.0511010137020.29390@skynet> <4366D469.2010202@yahoo.com.au>  <Pine.LNX.4.58.0511011014060.14884@skynet> <20051101135651.GA8502@elte.hu>  <1130854224.14475.60.camel@localhost>  <20051101142959.GA9272@elte.hu> <1130856555.14475.77.camel@localhost> <43680D8C.5080500@yahoo.com.au> <Pine.LNX.4.58.0511021231440.5235@skynet> <43698080.3040800@yahoo.com.au> <Pine.LNX.4.58.0511031034150.26959@skynet>
-In-Reply-To: <Pine.LNX.4.58.0511031034150.26959@skynet>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Dave Hansen <haveblue@us.ibm.com>, Ingo Molnar <mingo@elte.hu>, "Martin J. Bligh" <mbligh@mbligh.org>, Andrew Morton <akpm@osdl.org>, kravetz@us.ibm.com, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, lhms <lhms-devel@lists.sourceforge.net>
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Con Kolivas <kernel@kolivas.org>, alokk@calsoftinc.com
 List-ID: <linux-mm.kvack.org>
 
-Flogging a dead horse here maybe, I missed this whole thread when it was
-live, and someone may already have covered this.
+Currently the slab allocator uses a page_state counter called nr_slab.
+The VM swap prefetch code assumes that this describes the number of pages
+used on a node by the slab allocator. However, that is not really true.
 
-Another reason for avoiding memory fragmentation, which may have been lost
-in the discussion, is avoiding scatter/gather in I/O. The block layer now
-has the smarts to join together physically contiguous pages into a single
-scatter/gather element. It always had the smarts to deal with I/O from lots
-of small chunks of memory, and let the hardware do the work of reassembling
-it. This does not come for free though.
+Currently nr_slab is the number of total pages allocated which may
+be local or remote pages. Remote allocations may artificially inflate
+nr_slab and therefore disable swap prefetching.
 
-I have come across situations where a raid controller gets cpu bound dealing
-with I/O from Linux, but not from Windows. The reason being that Windows seems
-to manage to present the same amount of memory in less scatter gather entries.
-Because the number of DMA elements is another limiting factor, Windows also
-managed to submit larger individual requests. Once Linux reaches steady state,
-it ends up submitting one page per scatter gather entry.
+This patch splits the counter into the nr_local_slab which reflects
+slab pages allocated from the local zones (and this number is useful
+at least as a guidance for the VM) and the remotely allocated pages. 
 
-OK, if you are going via the page cache, then this is not going to mean anything
-unless the idea of having PAGE_CACHE_SIZE > PAGE_SIZE gets dusted off. However,
-for direct userspace <-> disk direct I/O, having the address space of a process
-be more physically contiguous could help here. Specifically allocated huge pages
-is another way to achieve this, but it does require special coding in an app
-to do it.
+However, there is currently no counter reflecting the number of pages
+used in a zone/node for the slab although the proc statistics give
+an impression otherwise.
 
-I'll go back to my day job now ;-)
+We cannot update counters from other nodes since these counters are per cpu.
+A counter could be put into struct zone however that would require to
+take a spinlock for each update.
 
-Steve
+Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
-
-
-Mel Gorman wrote:
-> On Thu, 3 Nov 2005, Nick Piggin wrote:
-> 
->> Mel Gorman wrote:
->>
->>> Ok. To me, the rest of the thread are beating around the same points and
->>> no one is giving ground. The points are made so lets summarise. Apologies
->>> if anything is missing.
->>>
->> Thanks for attempting a summary of a difficult topic. I have a couple
->> of suggestions.
->>
->>> Who cares
->>> =========
->>>   Physical hotplug remove: Vendors of the hardware that support this -
->>>      Fujitsu, HP (I think), IBM etc
->>>
->>>   Virtualization hotplug remove: Sellers of virtualization software, some
->>>      hardware like any IBM machine that lists LPAR in it's list of
->>>      features.  Probably software solutions like Xen are also affected
->>>      if they want to be able to grow and shrink the virtual machines on
->>>      demand
->>>
->> Ingo said that Xen is fine with per page granular freeing - this covers
->> embedded, desktop and small server users of VMs into the future I'd say.
->>
-> 
-> Ok, hard to argue with that.
-> 
->>>   High order allocations: Ultimately, hugepage users. Today, that is a
->>>      feature only big server users like Oracle care about. In the
->>>      future I reckon applications will be able to use them for things
->>>      like backing the heap by huge pages. Other users like GigE,
->>>      loopback devices with large MTUs, some filesystem like CIFS are
->>>      all interested although they are also been told use use smaller
->>>      pages.
->>>
->> I think that saying its now OK to use higher order allocations is wrong
->> because as I said even with your patches they are going to run into
->> problems.
->>
-> 
-> Ok, I have not denied that they will run into problems. I have asserted
-> that, with more work built upon these patches, we can grant large pages
-> with a good degree of reliability. Subsystems should still use small
-> orders whenever possible and at the very least, large orders should be
-> short-lived.
-> 
-> For userspace users, I would like to move towards better availibility of
-> huge page without requiring boot-time tunables which are required today.
-> Do we agree that this would be useful at least for a few different users?
-> 
-> HugeTLB user 1: Todays users of hugetlbfs like big databases etc
-> HugeTLB user 2: HPC jobs that run with sparse data sets
-> HugeTLB user 3: Desktop applications that use large amounts of address space.
-> 
-> I got a mail from a user of category 2. He said I can quote his email, but
-> he didn't say I could quote his name which is inconvenient but I'm sure he
-> has good reasons.
-> 
-> To him, low fragmentation is "critical, at least in HPC environments".
-> Here is the core of his issue;
-> 
-> --- excerpt ---
-> Take the scenario that you have a large machine that is
-> used by multiple users, and the usage is regulated by a batch
-> scheduler. Loadleveler on ibm's for example. PBS on many
-> others. Both appear to be available in linux environments.
-> 
-> In the case of my codes, I find that having large pages is
-> extremely beneficial to my run times. As in factors of several,
-> modulo things that I've coded in by hand to try and avoid the
-> issues. I don't think my code is in any way unusual in this
-> magnitude of improvement.
-> --- excerpt ---
-> 
-> ok, so we have two potential solutions, anti-defrag and zones. We don't
-> need to rehash the pro's and cons. With zones, we just say "just reclaim
-> the easy reclaim zone, alloc your pages and away we go".
-> 
-> Now, his problem is that the server is not restarted between job times and
-> jobs takes days and weeks to complete. The system administrators will not
-> restart the machine so getting it to a prestine state is a difficulty. The
-> state he gets the system in is the state he works with and with
-> fragmentation, he doesn't get large pages unless he is lucky enough to be
-> the first user of the machine
-> 
-> With the zone approach, we would just be saying "tune it". Here is what he
-> says about that
-> 
-> --- excerpt ---
-> I specifically *don't* want things that I have to beg sysadmins to
-> tune correctly. They won't get it right because there is no `right'
-> that is right for everyone. They won't want to change it and it
-> won't work besides. Been there, done that. My experience is that
-> with linux so far, and some other non-linux machines too, they
-> always turn all the page stuff off because it breaks the machine.
-> --- excerpt ---
-> 
-> This is an example of a real user that "tune the size of your zone
-> correctly" is just not good enough. He makes a novel suggestion on how
-> anti-defrag + hotplug could be used.
-> 
-> --- excerpt ---
-> In the context of hotplug stuff and fragmentation avoidance,
-> this sort of reset would be implemented by performing the
-> the first step in the hot unplug, to migrate everything off
-> of that memory, including whatever kernel pages that exist
-> there, but not the second step. Just leave that memory plugged
-> in and reset the memory to a sane initial state. Essentially
-> this would be some sort of pseudo hotunplug followed by a pseudo
-> hotplug of that memory.
-> --- excerpt ---
-> 
-> I'm pretty sure this is not what hotplug was aimed at but it would get him
-> what he wants, large pages to echo BigNumber > nr_hugepages at the least.
-> It also needs hotplug remove to be working for some banks and regions of
-> memory although not the 100% case.
-> 
-> Ok, this is one example of a user for scientific workloads that "tune the
-> size of the zone" just is not good enough. The admins won't do it for him
-> because it'll just break for the next scheduled job.
-> 
->> Actually I think one reason your patches may perform so well is because
->> there aren't actually a lot of higher order allocations in the kernel.
->>
->> I think that probably leaves us realistically with demand hugepages,
->> hot unplug memory, and IBM lpars?
->>
-> 
-> 
->>> Pros/Cons of Solutions
->>> ======================
->>>
->>> Anti-defrag Pros
->>>   o Aim9 shows no significant regressions (.37% on page_test). On some
->>>     tests, it shows performance gains (> 5% on fork_test)
->>>   o Stress tests show that it manages to keep fragmentation down to a far
->>>     lower level even without teaching kswapd how to linear reclaim
->> This sounds like a kind of funny test to me if nobody is actually
->> using higher order allocations.
->>
-> 
-> No one uses them because they always fail. This is a chicken and egg
-> problem.
-> 
->> When a higher order allocation is attempted, either you will satisfy
->> it from the kernel region, in which case the vanilla kernel would
->> have done the same. Or you satisfy it from an easy-reclaim contiguous
->> region, in which case it is no longer an easy-reclaim contiguous
->> region.
->>
-> 
-> Right, but right now, we say "don't use high order allocations ever". With
-> work, we'll be saying "ok, use high order allocations but they should be
-> short lived or you won't be allocating them for long"
-> 
->>>   o Stress tests with a linear reclaim experimental patch shows that it
->>>     can successfully find large contiguous chunks of memory
->>>   o It is known to help hotplug on PPC64
->>>   o No tunables. The approach tries to manage itself as much as possible
->> But it has more dreaded heuristics :P
->>
-> 
-> Yeah, but if it gets them wrong, the system chugs along anyway, just
-> fragmented like it is today. If the zone-based approach gets it wrong, the
-> system goes down the tubes.
-> 
-> At very worst, the patches give a kernel allocator that is as good as
-> todays. At very worst, the zone-based approach makes an unusable system.
-> The performance of the patches is another story. I've been posting aim9
-> figures based on my test machine. I'm trying to kick an ancient PowerPC
-> 43P Model 150 machine into working.  This machine is a different
-> architecture and ancient (I found it on the way to a skip) so should give
-> different figures.
-> 
->>>   o It exists, heavily tested, and synced against the latest -mm1
->>>   o Can be compiled away be redefining the RCLM_* macros and the
->>>     __GFP_*RCLM flags
->>>
->>> Anti-defrag Cons
->>>   o More complexity within the page allocator
->>>   o Adds a new layer onto the allocator that effectively creates subzones
->>>   o Adding a new concept that maintainers have to work with
->>>   o Depending on the workload, it fragments anyway
->>>
->>> New Zone Pros
->>>   o Zones are a well known and understood concept
->>>   o For people that do not care about hotplug, they can easily get rid of it
->>>   o Provides reliable areas of contiguous groups that can be freed for
->>>     HugeTLB pages going to userspace
->>>   o Uses existing zone infrastructure for balancing
->>>
->>> New Zone Cons
->>>   o Zones historically have introduced balancing problems
->>>   o Been tried for hotplug and dropped because of being awkward to work with
->>>   o It only helps hotplug and potentially HugeTLB pages for userspace
->>>   o Tunable required. If you get it wrong, the system suffers a lot
->> Pro: it keeps IBM mainframe and pseries sysadmins in a job ;) Let
->> them get it right.
->>
-> 
-> Unless you work in a place where they sysadmins will tell you to go away
-> such as the HPC user above. I'm not a sysadmin, but I'm pretty sure they
-> have better things to do than twiddle a tunable all day.
-> 
->>>   o Needs to be planned for and developed
->>>
->> Yasunori Goto had patches around from last year. Not sure what sort
->> of shape they're in now but I'd think most of the hard work is done.
->>
-> 
-> But Yasunori (thanks for sending the links ) himself says when he posted.
-> 
-> --- excerpt ---
-> Another one was a bit similar than Mel-san's one.
-> One of motivation of this patch was to create orthogonal relationship
-> between Removable and DMA/Normal/Highmem. I thought it is desirable.
-> Because, ppc64 can treat that all of memory is same (DMA) zone.
-> I thought that new zone spoiled its good feature.
-> --- excerpt ---
-> 
-> He thought that the new zone removed the ability of some architectures to
-> treat all memory the same. My patches give some of the benefits of using
-> another zone while still preserving an architectures ability to
-> treat all memory the same.
-> 
->>> Scenarios
->>> =========
->>>
->>> Lets outline some situations then or workloads that can occur
->>>
->>> 1. Heavy job running that consumes 75% of physical memory. Like a kernel
->>>    build
->>>
->>>   Anti-defrag: It will not fragment as it will never have to fallback.High
->>>      order allocations will be possible in the remaining 25%.
->>>   Zone-based: After been tuned to a kernel build load, it will not
->>>      fragment. Get the tuning wrong, performance suffers or workload
->>>      fails. High order allocations will be possible in the remaining 25%.
->>>
->> You don't need to continually tune things for each and every possible
->> workload under the sun. It is like how we currently drive 16GB highmem
->> systems quite nicely under most workloads with 1GB of normal memory.
->> Make that an 8:1 ratio if you're worried.
->>
->> [snip]
->>
->>> I've tried to be as objective as possible with the summary.
->>>
->>>> From the points above though, I think that anti-defrag gets us a lot of
->>> the way, with the complexity isolated in one place. It's downside is that
->>> it can still break down and future work is needed to stop it degrading
->>> (kswapd cleaning UserRclm areas and page migration when we get really
->>> stuck). Zone-based is more reliable but only addresses a limited
->>> situation, principally hotplug and it does not even go 100% of the way for
->>> hotplug.
->> To me it seems like it solves the hotplug, lpar hotplug, and hugepages
->> problems which seem to be the main ones.
->>
->>> It also depends on a tunable which is not cool and it is static.
->> I think it is very cool because it means the tiny minority of Linux
->> users who want this can do so without impacting the rest of the code
->> or users. This is how Linux has been traditionally run and I still
->> have a tiny bit of faith left :)
->>
-> 
-> The impact of the code and users will depend on benchmarks. I've posted
-> benchmarks that show there are either very small regressions or else there
-> are performance gains. As I write this, some of the aim9 benchmarks
-> completed on the PowerPC.
-> 
-> This is a comparison between 2.6.14-rc5-mm1 and
-> 2.6.14-rc5-mm1-mbuddy-v19-defragDisabledViaConfig
-> 
->  1 creat-clo      73500.00   72504.58    -995.42 -1.35% File Creations and Closes/second
->  2 page_test      30806.13   31076.49     270.36  0.88% System Allocations & Pages/second
->  3 brk_test      335299.02  341926.35    6627.33  1.98% System Memory Allocations/second
->  4 jmp_test     1641733.33 1644566.67    2833.34  0.17% Non-local gotos/second
->  5 signal_test   100883.19   98900.18   -1983.01 -1.97% Signal Traps/second
->  6 exec_test        116.53     118.44       1.91  1.64% Program Loads/second
->  7 fork_test        751.70     746.84      -4.86 -0.65% Task Creations/second
->  8 link_test      30217.11   30463.82     246.71  0.82% Link/Unlink Pairs/second
-> 
-> Performance gains on page_test, brk_test and exec_test. Even with
-> variances between tests, we are looking at "more or less the same", not
-> regressions. No user impact there.
-> 
-> This is a comparison between 2.6.14-rc5-mm1 and
-> 2.6.14-rc5-mm1-mbuddy-v19-withantidefrag
-> 
->  1 creat-clo      73500.00   71188.14   -2311.86 -3.15% File Creations and Closes/second
->  2 page_test      30806.13   31060.96     254.83  0.83% System Allocations & Pages/second
->  3 brk_test      335299.02  344361.15    9062.13  2.70% System Memory Allocations/second
->  4 jmp_test     1641733.33 1627228.80  -14504.53 -0.88% Non-local gotos/second
->  5 signal_test   100883.19  100233.33    -649.86 -0.64% Signal Traps/second
->  6 exec_test        116.53     117.63       1.10  0.94% Program Loads/second
->  7 fork_test        751.70     763.73      12.03  1.60% Task Creations/second
->  8 link_test      30217.11   30322.10     104.99  0.35% Link/Unlink Pairs/second
-> 
-> Performance gains on page_test, brk_test, exec_test and fork_test. Not bad
-> going for complex overhead. create-clo took a beating, but what workload
-> opens and closes files at that rate?
-> 
-> This is an old, small machine. If I hotplug this, I'll be lucky if it ever
-> turns on again. The aim9 benchmarks on two machines show that there is
-> similar and, in some cases better, performance with these patches. If a
-> workload does suffer badly, an additional patch has been supplied that
-> disables anti-defrag. A run in -mm will tell us if this is the general
-> case for machines or are my two test boxes running on magic beans.
-> 
-> So, the small number of users that want this, get this. The rest of the
-> users who just run the code, should not notice or care. This brings us
-> back to the main stickler, code complexity. I think that the code has been
-> very well isolated from the code allocator code and people looking at the
-> allocator could avoid it if they really wanted while stilling knowing what
-> the buddy allocator was doing.
-> 
->>> If we make the zones growable+shrinkable, we run into all the same
->>> problems that anti-defrag has today.
->>>
->> But we don't have the extra zones layer that anti defrag has today.
->>
-> 
-> So, we just have an extra layer on the side that has to be configured. All
-> of the problems with all of the configuration.
-> 
->> And anti defrag needs limits if it is to be reliable anyway.
->>
-> 
-> I'm confident given time that I can make this manage itself with a very
-> good degree of reliability.
-> 
+Index: linux-2.6.14-mm1/mm/slab.c
+===================================================================
+--- linux-2.6.14-mm1.orig/mm/slab.c	2005-11-10 12:59:49.000000000 -0800
++++ linux-2.6.14-mm1/mm/slab.c	2005-11-10 13:00:11.000000000 -0800
+@@ -1201,7 +1201,12 @@ static void *kmem_getpages(kmem_cache_t 
+ 	i = (1 << cachep->gfporder);
+ 	if (cachep->flags & SLAB_RECLAIM_ACCOUNT)
+ 		atomic_add(i, &slab_reclaim_pages);
+-	add_page_state(nr_slab, i);
++
++	if (page_to_nid(page) == numa_node_id())
++		add_page_state(nr_local_slab, i);
++	else
++		add_page_state(nr_remote_slab, i);
++
+ 	while (i--) {
+ 		SetPageSlab(page);
+ 		page++;
+@@ -1223,7 +1228,10 @@ static void kmem_freepages(kmem_cache_t 
+ 			BUG();
+ 		page++;
+ 	}
+-	sub_page_state(nr_slab, nr_freed);
++	if (page_to_nid(page) == numa_node_id())
++		sub_page_state(nr_local_slab, nr_freed);
++	else
++		sub_page_state(nr_remote_slab, nr_freed);
+ 	if (current->reclaim_state)
+ 		current->reclaim_state->reclaimed_slab += nr_freed;
+ 	free_pages((unsigned long)addr, cachep->gfporder);
+Index: linux-2.6.14-mm1/drivers/base/node.c
+===================================================================
+--- linux-2.6.14-mm1.orig/drivers/base/node.c	2005-10-27 17:02:08.000000000 -0700
++++ linux-2.6.14-mm1/drivers/base/node.c	2005-11-10 13:00:11.000000000 -0800
+@@ -55,8 +55,10 @@ static ssize_t node_read_meminfo(struct 
+ 		ps.nr_writeback = 0;
+ 	if ((long)ps.nr_mapped < 0)
+ 		ps.nr_mapped = 0;
+-	if ((long)ps.nr_slab < 0)
+-		ps.nr_slab = 0;
++	if ((long)ps.nr_local_slab < 0)
++		ps.nr_local_slab = 0;
++	if ((long)ps.nr_remote_slab < 0)
++		ps.nr_remote_slab = 0;
+ 
+ 	n = sprintf(buf, "\n"
+ 		       "Node %d MemTotal:     %8lu kB\n"
+@@ -71,7 +73,8 @@ static ssize_t node_read_meminfo(struct 
+ 		       "Node %d Dirty:        %8lu kB\n"
+ 		       "Node %d Writeback:    %8lu kB\n"
+ 		       "Node %d Mapped:       %8lu kB\n"
+-		       "Node %d Slab:         %8lu kB\n",
++		       "Node %d LocalSlab:    %8lu kB\n"
++		       "Node %d RemoteSlab:   %8lu kB\n",
+ 		       nid, K(i.totalram),
+ 		       nid, K(i.freeram),
+ 		       nid, K(i.totalram - i.freeram),
+@@ -84,7 +87,8 @@ static ssize_t node_read_meminfo(struct 
+ 		       nid, K(ps.nr_dirty),
+ 		       nid, K(ps.nr_writeback),
+ 		       nid, K(ps.nr_mapped),
+-		       nid, K(ps.nr_slab));
++		       nid, K(ps.nr_local_slab),
++		       nid, K(ps.nr_remote_slab));
+ 	n += hugetlb_report_node_meminfo(nid, buf + n);
+ 	return n;
+ }
+Index: linux-2.6.14-mm1/fs/proc/proc_misc.c
+===================================================================
+--- linux-2.6.14-mm1.orig/fs/proc/proc_misc.c	2005-11-09 10:47:35.000000000 -0800
++++ linux-2.6.14-mm1/fs/proc/proc_misc.c	2005-11-10 13:00:11.000000000 -0800
+@@ -168,7 +168,8 @@ static int meminfo_read_proc(char *page,
+ 		"Dirty:        %8lu kB\n"
+ 		"Writeback:    %8lu kB\n"
+ 		"Mapped:       %8lu kB\n"
+-		"Slab:         %8lu kB\n"
++		"LocalSlab:    %8lu kB\n"
++		"RemoteSlab:   %8lu kB\n"
+ 		"CommitLimit:  %8lu kB\n"
+ 		"Committed_AS: %8lu kB\n"
+ 		"PageTables:   %8lu kB\n"
+@@ -191,7 +192,8 @@ static int meminfo_read_proc(char *page,
+ 		K(ps.nr_dirty),
+ 		K(ps.nr_writeback),
+ 		K(ps.nr_mapped),
+-		K(ps.nr_slab),
++		K(ps.nr_local_slab),
++		K(ps.nr_remote_slab),
+ 		K(allowed),
+ 		K(committed),
+ 		K(ps.nr_page_table_pages),
+Index: linux-2.6.14-mm1/mm/swap_prefetch.c
+===================================================================
+--- linux-2.6.14-mm1.orig/mm/swap_prefetch.c	2005-11-10 11:33:03.000000000 -0800
++++ linux-2.6.14-mm1/mm/swap_prefetch.c	2005-11-10 13:00:11.000000000 -0800
+@@ -327,7 +327,7 @@ static int prefetch_suitable(void)
+ 	 * >2/3 of the ram is mapped or swapcache, we need some free for
+ 	 * pagecache
+ 	 */
+-	limit = ps.nr_mapped + ps.nr_slab + pending_writes +
++	limit = ps.nr_mapped + ps.nr_local_slab + pending_writes +
+ 		total_swapcache_pages;
+ 	if (limit > mapped_limit)
+ 		goto out;
+Index: linux-2.6.14-mm1/mm/page_alloc.c
+===================================================================
+--- linux-2.6.14-mm1.orig/mm/page_alloc.c	2005-11-09 10:47:37.000000000 -0800
++++ linux-2.6.14-mm1/mm/page_alloc.c	2005-11-10 13:00:11.000000000 -0800
+@@ -1423,14 +1423,15 @@ void show_free_areas(void)
+ 		K(nr_free_highpages()));
+ 
+ 	printk("Active:%lu inactive:%lu dirty:%lu writeback:%lu "
+-		"unstable:%lu free:%u slab:%lu mapped:%lu pagetables:%lu\n",
++		"unstable:%lu free:%u localslab:%lu remoteslab:%lu mapped:%lu pagetables:%lu\n",
+ 		active,
+ 		inactive,
+ 		ps.nr_dirty,
+ 		ps.nr_writeback,
+ 		ps.nr_unstable,
+ 		nr_free_pages(),
+-		ps.nr_slab,
++		ps.nr_local_slab,
++		ps.nr_remote_slab,
+ 		ps.nr_mapped,
+ 		ps.nr_page_table_pages);
+ 
+@@ -2312,7 +2313,8 @@ static char *vmstat_text[] = {
+ 	"nr_unstable",
+ 	"nr_page_table_pages",
+ 	"nr_mapped",
+-	"nr_slab",
++	"nr_local_slab",
++	"nr_remote_slab",
+ 
+ 	"pgpgin",
+ 	"pgpgout",
+Index: linux-2.6.14-mm1/include/linux/page-flags.h
+===================================================================
+--- linux-2.6.14-mm1.orig/include/linux/page-flags.h	2005-11-09 10:47:29.000000000 -0800
++++ linux-2.6.14-mm1/include/linux/page-flags.h	2005-11-10 13:00:11.000000000 -0800
+@@ -87,8 +87,9 @@ struct page_state {
+ 	unsigned long nr_unstable;	/* NFS unstable pages */
+ 	unsigned long nr_page_table_pages;/* Pages used for pagetables */
+ 	unsigned long nr_mapped;	/* mapped into pagetables */
+-	unsigned long nr_slab;		/* In slab */
+-#define GET_PAGE_STATE_LAST nr_slab
++	unsigned long nr_local_slab;	/* local slab pages */
++	unsigned long nr_remote_slab;	/* remote slab pages */
++#define GET_PAGE_STATE_LAST nr_remote_slab
+ 
+ 	/*
+ 	 * The below are zeroed by get_page_state().  Use get_full_page_state()
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
