@@ -1,35 +1,46 @@
-Date: Wed, 9 Nov 2005 20:20:20 -0800
-From: William Lee Irwin III <wli@holomorphy.com>
-Subject: Re: [PATCH 4/4] Hugetlb: Copy on Write support
-Message-ID: <20051110042020.GP29402@holomorphy.com>
-References: <1131578925.28383.9.camel@localhost.localdomain> <1131579596.28383.25.camel@localhost.localdomain> <1131587564.16514.53.camel@akash.sc.intel.com> <20051110035403.GM17840@localhost.localdomain>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20051110035403.GM17840@localhost.localdomain>
+From: Magnus Damm <magnus@valinux.co.jp>
+Message-Id: <20051110090920.8083.54147.sendpatchset@cherry.local>
+Subject: [PATCH 00/05][RFC] NUMA emulation update
+Date: Thu, 10 Nov 2005 18:08:03 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: David Gibson <david@gibson.dropbear.id.au>
-Cc: Rohit Seth <rohit.seth@intel.com>, Adam Litke <agl@us.ibm.com>, akpm@osdl.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, hugh@veritas.com, kenneth.w.chen@intel.com
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Magnus Damm <magnus@valinux.co.jp>, pj@sgi.com, ak@suse.de
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Nov 09, 2005 at 05:52:44PM -0800, Rohit Seth wrote:
->> lazy_mmu_prot_update will need to called here to make caches coherent
->> for some archs.
+CONFIG_NUMA_EMU - new and improved!
 
-On Thu, Nov 10, 2005 at 02:54:03PM +1100, David Gibson wrote:
-> Ah, yes indeed.  Revised version below.  While I was at it, I moved
-> set_huge_ptep_writable() into mm/hugetlb.c, since there's no actual
-> need for it to be in the .h, and abolished huge_ptep_set_wrprotect()
-> since there's no need for the macro at all.
-> Hugetlb: Copy on Write support
+These patches update the current x86_64 NUMA emulation code by adding support
+for dividing real NUMA nodes into several smaller emulated nodes. The good old
+x86_64 implementation of NUMA emulation written by Andi Kleen has worked well
+since 2.6.9, but it lacks support for dividing multiple real NUMA nodes.
 
-Re-acking. Good catch, thanks Rohit.
+The patches also break out the NUMA emulation code into some simple generic 
+functions that could be used by several platforms. Only x86_64 gets modified
+by this patch set, but I've planned to convert my i386 NUMA emulation code to
+use these generic functions later on. I know that some kind of NUMA emulation
+code also exists for ia64, and maybe it is possible to build that code on top
+of the generic functions too.
 
-Acked-by: William Irwin <wli@holomorphy.com>
+Patches on top of 2.6.14-mm1:
 
+[PATCH 01/05] NUMA: Generic code
+[PATCH 02/05] x86_64: NUMA cleanup
+[PATCH 03/05] x86_64: NUMA emulation
+[PATCH 04/05] x86_64: NUMA without SMP
+[PATCH 05/05] NUMA: find_next_best_node fix
 
--- wli
+About NUMA emulation:
+
+NUMA emulation could be used to provide coarse-grained memory resource control
+using CPUSETS. Another use is as a test environment for NUMA memory code or
+CPUSETS using an system emulator such as QEMU.
+
+Feedback is very appreciated.
+
+Thanks,
+
+/ magnus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
