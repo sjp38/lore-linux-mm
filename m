@@ -1,33 +1,34 @@
-Date: Thu, 10 Nov 2005 15:32:54 -0800
-From: Andrew Morton <akpm@osdl.org>
-Subject: Re: [RFC] sys_punchhole()
-Message-Id: <20051110153254.5dde61c5.akpm@osdl.org>
-In-Reply-To: <1131664994.25354.36.camel@localhost.localdomain>
-References: <1131664994.25354.36.camel@localhost.localdomain>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Message-Id: <200511102334.jAANY1g21612@unix-os.sc.intel.com>
+From: "Chen, Kenneth W" <kenneth.w.chen@intel.com>
+Subject: RE: [PATCH] dequeue a huge page near to this node
+Date: Thu, 10 Nov 2005 15:34:01 -0800
+MIME-Version: 1.0
+Content-Type: text/plain;
+	charset="us-ascii"
 Content-Transfer-Encoding: 7bit
+In-Reply-To: <Pine.LNX.4.62.0511101521180.16770@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Badari Pulavarty <pbadari@us.ibm.com>
-Cc: andrea@suse.de, hugh@veritas.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: 'Christoph Lameter' <clameter@engr.sgi.com>, Adam Litke <agl@us.ibm.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@osdl.org
 List-ID: <linux-mm.kvack.org>
 
-Badari Pulavarty <pbadari@us.ibm.com> wrote:
->
-> We discussed this in madvise(REMOVE) thread - to add support 
-> for sys_punchhole(fd, offset, len) to complete the functionality
-> (in the future).
+Christoph Lameter wrote on Thursday, November 10, 2005 3:27 PM
+> The following patch changes the dequeueing to select a huge page near
+> the node executing instead of always beginning to check for free 
+> nodes from node 0. This will result in a placement of the huge pages near
+> the executing processor improving performance.
 > 
-> http://marc.theaimsgroup.com/?l=linux-mm&m=113036713810002&w=2
-> 
-> What I am wondering is, should I invest time now to do it ?
+> The existing implementation can place the huge pages far away from 
+> the executing processor causing significant degradation of performance.
+> The search starting from zero also means that the lower zones quickly 
+> run out of memory. Selecting a huge page near the process distributed the 
+> huge pages better.
 
-I haven't even heard anyone mention a need for this in the past 1-2 years.
 
-> Or wait till need arises ? 
+Looks great!
 
-A long wait, I suspect..
+- Ken
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
