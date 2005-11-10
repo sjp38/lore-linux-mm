@@ -1,7 +1,7 @@
-Date: Thu, 10 Nov 2005 19:40:39 +0900
+Date: Thu, 10 Nov 2005 19:41:01 +0900
 From: Yasunori Goto <y-goto@jp.fujitsu.com>
-Subject: [Patch:RFC] New zone ZONE_EASY_RECLAIM[0/5]
-Message-Id: <20051110185754.0230.Y-GOTO@jp.fujitsu.com>
+Subject: [Patch:RFC] New zone ZONE_EASY_RECLAIM[2/5]
+Message-Id: <20051110185812.0232.Y-GOTO@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
@@ -11,39 +11,47 @@ To: linux-mm <linux-mm@kvack.org>, Linux Hotplug Memory Support <lhms-devel@list
 Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-Hello.
+This defines new zone ZONE_EASY_RECLAIM.
 
-I rewrote patches to create new zone as ZONE_EASY_RECLAIM.
+Note:
+  I found DMA32_ZONE is included in -mm tree.
+  If one more new zone is created before/after my patch, 
+  the zone number field in page->flags is not enough.
+  My patch doesn't care about it yet.
 
-Probably, many guys of here remember the discussion about
-Mel-san's "fragmentation avoidance" patch in the last week.
-In the discussion, another way was creating new zone like these patch
-which I posted one years ago. 
 
-http://sourceforge.net/mailarchive/forum.php?thread_id=5969508&forum_id=223
+Signed-off-by: Yasunori Goto <y-goto@jp.fujitsu.com>
 
-My motivation of creating new zone was for memory hotplug.
-(Previous name of the zone was ZONE_REMOVABLE.)
-It aimed to collect the page which was difficult for removing on few nodes,
-and it made other nodes this zone to be removed easier.
+---
 
-But, I thought Mell-san's patch is also useful for this purpose.
-So, I stopped my work about it after his patch was introduced.
-Howerver unfortunately, Linus-san didn't agree his patches at last week.
-So, I felt my old work should be restarted.
-
-Frankly, I don't see that my patch set is/will be the best way
-for others. My patch didn't concern about fragmentation.
-And this patch has pros and cons as Mel-san said.
-But I realize each persons are expecting against new zone for each reason.
-So, I changed the name of new zone as ZONE_EASY_RECLAIM.
-I wish this become good start point for them to be able to be happy.
-
-This patch is for 2.6.14.
-
-Please comment.
-
-Thanks.
+Index: new_zone/include/linux/mmzone.h
+===================================================================
+--- new_zone.orig/include/linux/mmzone.h	2005-11-07 19:28:25.000000000 +0900
++++ new_zone/include/linux/mmzone.h	2005-11-07 19:30:07.000000000 +0900
+@@ -72,8 +72,9 @@ struct per_cpu_pageset {
+ #define ZONE_DMA		0
+ #define ZONE_NORMAL		1
+ #define ZONE_HIGHMEM		2
++#define ZONE_EASY_RECLAIM	3
+ 
+-#define MAX_NR_ZONES		3	/* Sync this with ZONES_SHIFT */
++#define MAX_NR_ZONES		4	/* Sync this with ZONES_SHIFT */
+ #define ZONES_SHIFT		2	/* ceil(log2(MAX_NR_ZONES)) */
+ 
+ 
+Index: new_zone/mm/page_alloc.c
+===================================================================
+--- new_zone.orig/mm/page_alloc.c	2005-11-07 19:28:31.000000000 +0900
++++ new_zone/mm/page_alloc.c	2005-11-07 19:29:17.000000000 +0900
+@@ -72,7 +72,7 @@ EXPORT_SYMBOL(nr_swap_pages);
+ struct zone *zone_table[1 << ZONETABLE_SHIFT] __read_mostly;
+ EXPORT_SYMBOL(zone_table);
+ 
+-static char *zone_names[MAX_NR_ZONES] = { "DMA", "Normal", "HighMem" };
++static char *zone_names[MAX_NR_ZONES] = { "DMA", "Normal", "HighMem", "Easy Reclaim" };
+ int min_free_kbytes = 1024;
+ 
+ unsigned long __initdata nr_kernel_pages;
 
 -- 
 Yasunori Goto 
