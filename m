@@ -1,119 +1,86 @@
-Date: Thu, 10 Nov 2005 14:04:46 -0800 (PST)
-From: Christoph Lameter <clameter@engr.sgi.com>
-Subject: [RFC] Make the slab allocator observe NUMA policies
-Message-ID: <Pine.LNX.4.62.0511101401390.16481@schroedinger.engr.sgi.com>
+From: Con Kolivas <kernel@kolivas.org>
+Subject: Re: [RFC, PATCH] Slab counter troubles with swap prefetch?
+Date: Fri, 11 Nov 2005 10:07:10 +1100
+References: <Pine.LNX.4.62.0511101351120.16380@schroedinger.engr.sgi.com>
+In-Reply-To: <Pine.LNX.4.62.0511101351120.16380@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: multipart/signed;
+  boundary="nextPart8791064.sHTDJVpIcL";
+  protocol="application/pgp-signature";
+  micalg=pgp-sha1
+Content-Transfer-Encoding: 7bit
+Message-Id: <200511111007.12872.kernel@kolivas.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: ak@suse.de, steiner@sgi.com, linux-mm@kvack.org, alokk@calsoftinc.com
+To: Christoph Lameter <clameter@engr.sgi.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, alokk@calsoftinc.com
 List-ID: <linux-mm.kvack.org>
 
-Currently the slab allocator simply allocates slabs from the current node
-or from the node indicated in kmalloc_node().
+--nextPart8791064.sHTDJVpIcL
+Content-Type: text/plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: quoted-printable
+Content-Disposition: inline
 
-This change came about with the NUMA slab allocator changes in 2.6.14.
-Before 2.6.14 the slab allocator was obeying memory policies in the sense
-that the pages were allocated in the policy context of the currently executing
-process (which could allocate a page according to MPOL_INTERLEAVE for one
-process and then use the free entries in that page for another process
-that did not have this policy set).
+Hi Christoph
 
-The following patch adds NUMA memory policy support. This means that the
-slab entries (and therefore also the pages containing them) will be allocated
-according to memory policy.
+On Fri, 11 Nov 2005 08:55, Christoph Lameter wrote:
+> Currently the slab allocator uses a page_state counter called nr_slab.
+> The VM swap prefetch code assumes that this describes the number of pages
+> used on a node by the slab allocator. However, that is not really true.
+>
+> Currently nr_slab is the number of total pages allocated which may
+> be local or remote pages. Remote allocations may artificially inflate
+> nr_slab and therefore disable swap prefetching.
 
-This is in particular of importance during bootup when the default 
-memory policy is set to MPOL_INTERLEAVE. For 2.6.13 and earlier this meant 
-that the slab allocator got its pages from all nodes. 2.6.14 will 
-allocate only from the boot node causing an unbalanced memory setup when 
-bootup is complete.
+Thanks for pointing this out.
 
-Signed-off-by: Christoph Lameter <clameter@sgi.com>
+> This patch splits the counter into the nr_local_slab which reflects
+> slab pages allocated from the local zones (and this number is useful
+> at least as a guidance for the VM) and the remotely allocated pages.
 
-Index: linux-2.6.14-mm1/mm/slab.c
-===================================================================
---- linux-2.6.14-mm1.orig/mm/slab.c	2005-11-10 13:00:11.000000000 -0800
-+++ linux-2.6.14-mm1/mm/slab.c	2005-11-10 13:01:55.000000000 -0800
-@@ -103,6 +103,7 @@
- #include	<linux/rcupdate.h>
- #include	<linux/string.h>
- #include	<linux/nodemask.h>
-+#include	<linux/mempolicy.h>
- 
- #include	<asm/uaccess.h>
- #include	<asm/cacheflush.h>
-@@ -2526,11 +2527,22 @@ cache_alloc_debugcheck_after(kmem_cache_
- #define cache_alloc_debugcheck_after(a,b,objp,d) (objp)
- #endif
- 
-+static void *__cache_alloc_node(kmem_cache_t *, gfp_t, int);
-+
- static inline void *____cache_alloc(kmem_cache_t *cachep, gfp_t flags)
- {
- 	void* objp;
- 	struct array_cache *ac;
- 
-+#ifdef CONFIG_NUMA
-+	if (current->mempolicy) {
-+		int nid = next_slab_node(current->mempolicy);
-+
-+		if (nid != numa_node_id())
-+			return __cache_alloc_node(cachep, flags, nid);
-+	}
-+#endif
-+
- 	check_irq_off();
- 	ac = ac_data(cachep);
- 	if (likely(ac->avail)) {
-Index: linux-2.6.14-mm1/mm/mempolicy.c
-===================================================================
---- linux-2.6.14-mm1.orig/mm/mempolicy.c	2005-11-09 10:47:15.000000000 -0800
-+++ linux-2.6.14-mm1/mm/mempolicy.c	2005-11-10 13:01:55.000000000 -0800
-@@ -988,6 +988,31 @@ static unsigned interleave_nodes(struct 
- 	return nid;
- }
- 
-+/*
-+ * Depending on the memory policy provide a node from which to allocate the
-+ * next slab entry.
-+ */
-+unsigned next_slab_node(struct mempolicy *policy)
-+{
-+	switch (policy->policy) {
-+	case MPOL_INTERLEAVE:
-+		return interleave_nodes(policy);
-+
-+	case MPOL_BIND:
-+		/*
-+		 * Follow bind policy behavior and start allocation at the
-+		 * first node.
-+		 */
-+		return policy->v.zonelist->zones[0]->zone_pgdat->node_id;
-+
-+	case MPOL_PREFERRED:
-+		return policy->v.preferred_node;
-+
-+	default:
-+		return numa_node_id();
-+	}
-+}
-+
- /* Do static interleaving for a VMA with known offset. */
- static unsigned offset_il_node(struct mempolicy *pol,
- 		struct vm_area_struct *vma, unsigned long off)
-Index: linux-2.6.14-mm1/include/linux/mempolicy.h
-===================================================================
---- linux-2.6.14-mm1.orig/include/linux/mempolicy.h	2005-11-09 10:47:09.000000000 -0800
-+++ linux-2.6.14-mm1/include/linux/mempolicy.h	2005-11-10 13:01:55.000000000 -0800
-@@ -158,6 +158,7 @@ extern void numa_default_policy(void);
- extern void numa_policy_init(void);
- extern void numa_policy_rebind(const nodemask_t *old, const nodemask_t *new);
- extern struct mempolicy default_policy;
-+extern unsigned next_slab_node(struct mempolicy *policy);
- 
- int do_migrate_pages(struct mm_struct *mm,
- 	const nodemask_t *from_nodes, const nodemask_t *to_nodes, int flags);
+How large a contribution is the remote slab size likely to be? Would this=20
+information be useful to anyone potentially in future code besides swap=20
+prefetch? The nature of prefetch is that this is only a fairly coarse measu=
+re=20
+of how full the vm is with data we don't want to displace. Thus it is also=
+=20
+not important that it is very accurate.=20
+
+Unless the remote slab size can be a very large contribution, or having loc=
+al=20
+and remote slab sizes is useful potentially to some other code I'm inclined=
+=20
+to say this is unnecessary. A simple comment saying something like "the=20
+nr_slab estimation is artificially elevated by remote slab pages on numa,=20
+however this contribution is not important to the accuracy of this=20
+algorithm". Of course it is nice to be more accurate and if you think=20
+worthwhile then we can do this - I'll be happy to be guided by your=20
+judgement.
+
+As a side note I doubt any serious size numa hardware will ever be idle eno=
+ugh=20
+by swap prefetch standards to even start prefetching swap pages. If you thi=
+nk=20
+hardware of this sort is likely to benefit from swap prefetch then perhaps =
+we=20
+should look at relaxing the conditions under which prefetching occurs.
+
+Cheers,
+Con
+
+--nextPart8791064.sHTDJVpIcL
+Content-Type: application/pgp-signature
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.1 (GNU/Linux)
+
+iD8DBQBDc9KgZUg7+tp6mRURAjHTAJ9cGt52v2y+xo3GJ3D/k/cGa/yMEQCghWem
+fDtuFSUieo8ZJnAcNd4i53w=
+=BmLf
+-----END PGP SIGNATURE-----
+
+--nextPart8791064.sHTDJVpIcL--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
