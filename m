@@ -1,46 +1,55 @@
-Received: from westrelay02.boulder.ibm.com (westrelay02.boulder.ibm.com [9.17.195.11])
-	by e32.co.us.ibm.com (8.12.11/8.12.11) with ESMTP id jAANNSpp025756
-	for <linux-mm@kvack.org>; Thu, 10 Nov 2005 18:23:28 -0500
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by westrelay02.boulder.ibm.com (8.12.10/NCO/VERS6.8) with ESMTP id jAANNMhE057206
-	for <linux-mm@kvack.org>; Thu, 10 Nov 2005 16:23:22 -0700
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.12.11/8.13.3) with ESMTP id jAANNR0r027079
-	for <linux-mm@kvack.org>; Thu, 10 Nov 2005 16:23:27 -0700
-Subject: [RFC] sys_punchhole()
-From: Badari Pulavarty <pbadari@us.ibm.com>
-Content-Type: text/plain
-Date: Thu, 10 Nov 2005 15:23:14 -0800
-Message-Id: <1131664994.25354.36.camel@localhost.localdomain>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Date: Thu, 10 Nov 2005 15:27:12 -0800 (PST)
+From: Christoph Lameter <clameter@engr.sgi.com>
+Subject: [PATCH] dequeue a huge page near to this node
+Message-ID: <Pine.LNX.4.62.0511101521180.16770@schroedinger.engr.sgi.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: akpm@osdl.org, andrea@suse.de, hugh@veritas.com
-Cc: lkml <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: Adam Litke <agl@us.ibm.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kenneth.w.chen@intel.com, akpm@osdl.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Andrew,
+The following patch changes the dequeueing to select a huge page near
+the node executing instead of always beginning to check for free 
+nodes from node 0. This will result in a placement of the huge pages near
+the executing processor improving performance.
 
-We discussed this in madvise(REMOVE) thread - to add support 
-for sys_punchhole(fd, offset, len) to complete the functionality
-(in the future).
+The existing implementation can place the huge pages far away from 
+the executing processor causing significant degradation of performance.
+The search starting from zero also means that the lower zones quickly 
+run out of memory. Selecting a huge page near the process distributed the 
+huge pages better.
 
-http://marc.theaimsgroup.com/?l=linux-mm&m=113036713810002&w=2
+Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
-What I am wondering is, should I invest time now to do it ?
-Or wait till need arises ? 
-
-My thought line is, I would add a generic_zeroblocks_range() 
-function which would zero out the given range of pages and 
-flush to disk.  Use this as a default operation, if the 
-filesystems doesn't provide a specific function to free up
-the blocks. Would this work ?
-
-Suggestions ?
-
-Thanks,
-Badari
+Index: linux-2.6.14-mm1/mm/hugetlb.c
+===================================================================
+--- linux-2.6.14-mm1.orig/mm/hugetlb.c	2005-11-09 10:47:37.000000000 -0800
++++ linux-2.6.14-mm1/mm/hugetlb.c	2005-11-10 15:02:05.000000000 -0800
+@@ -36,14 +36,16 @@ static struct page *dequeue_huge_page(vo
+ {
+ 	int nid = numa_node_id();
+ 	struct page *page = NULL;
++	struct zonelist *zonelist = NODE_DATA(nid)->node_zonelists;
++	struct zone **z;
+ 
+-	if (list_empty(&hugepage_freelists[nid])) {
+-		for (nid = 0; nid < MAX_NUMNODES; ++nid)
+-			if (!list_empty(&hugepage_freelists[nid]))
+-				break;
++	for (z = zonelist->zones; *z; z++) {
++		nid = (*z)->zone_pgdat->node_id;
++		if (!list_empty(&hugepage_freelists[nid]))
++			break;
+ 	}
+-	if (nid >= 0 && nid < MAX_NUMNODES &&
+-	    !list_empty(&hugepage_freelists[nid])) {
++
++	if (z) {
+ 		page = list_entry(hugepage_freelists[nid].next,
+ 				  struct page, lru);
+ 		list_del(&page->lru);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
