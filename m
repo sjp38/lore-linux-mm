@@ -1,36 +1,29 @@
-From: Andi Kleen <ak@suse.de>
-Subject: Re: [PATCH 01/05] NUMA: Generic code
-Date: Fri, 11 Nov 2005 05:16:35 +0100
-References: <20051110090920.8083.54147.sendpatchset@cherry.local> <20051110090925.8083.45887.sendpatchset@cherry.local>
-In-Reply-To: <20051110090925.8083.45887.sendpatchset@cherry.local>
-MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="utf-8"
+Subject: Re: [RFC] sys_punchhole()
+From: Arjan van de Ven <arjan@infradead.org>
+In-Reply-To: <1131664994.25354.36.camel@localhost.localdomain>
+References: <1131664994.25354.36.camel@localhost.localdomain>
+Content-Type: text/plain
+Date: Fri, 11 Nov 2005 06:18:33 +0100
+Message-Id: <1131686314.2833.0.camel@laptopd505.fenrus.org>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200511110516.37980.ak@suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Magnus Damm <magnus@valinux.co.jp>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, pj@sgi.com
+To: Badari Pulavarty <pbadari@us.ibm.com>
+Cc: akpm@osdl.org, andrea@suse.de, hugh@veritas.com, lkml <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thursday 10 November 2005 10:08, Magnus Damm wrote:
-> Generic CONFIG_NUMA_EMU code.
->
-> This patch adds generic NUMA emulation code to the kernel. The code
-> provides the architectures with functions that calculate the size of
-> emulated nodes, together with configuration stuff such as Kconfig and
-> kernel command line code.
+On Thu, 2005-11-10 at 15:23 -0800, Badari Pulavarty wrote:
+> 
+> We discussed this in madvise(REMOVE) thread - to add support 
+> for sys_punchhole(fd, offset, len) to complete the functionality
+> (in the future).
 
-IMHO making it generic and bloated like this is total overkill
-for this simple debugginghack. I think it is better to keep 
-it simple and hiden it in a architecture specific dark corners, not expose it 
-like this.
+in the past always this was said to be "really hard" in linux locking
+wise, esp. the locking with respect to truncate...
 
-I think the patch shouldn't be applied.
-
--Andi
+did you find a solution to this problem ?
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
