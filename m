@@ -1,52 +1,36 @@
-From: Con Kolivas <kernel@kolivas.org>
-Subject: Re: [RFC, PATCH] Slab counter troubles with swap prefetch?
-Date: Fri, 11 Nov 2005 14:50:07 +1100
-References: <Pine.LNX.4.62.0511101351120.16380@schroedinger.engr.sgi.com> <200511111007.12872.kernel@kolivas.org> <Pine.LNX.4.62.0511101510240.16588@schroedinger.engr.sgi.com>
-In-Reply-To: <Pine.LNX.4.62.0511101510240.16588@schroedinger.engr.sgi.com>
+From: Andi Kleen <ak@suse.de>
+Subject: Re: [PATCH 01/05] NUMA: Generic code
+Date: Fri, 11 Nov 2005 05:16:35 +0100
+References: <20051110090920.8083.54147.sendpatchset@cherry.local> <20051110090925.8083.45887.sendpatchset@cherry.local>
+In-Reply-To: <20051110090925.8083.45887.sendpatchset@cherry.local>
 MIME-Version: 1.0
 Content-Type: text/plain;
-  charset="iso-8859-1"
+  charset="utf-8"
 Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-Message-Id: <200511111450.07396.kernel@kolivas.org>
+Message-Id: <200511110516.37980.ak@suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@engr.sgi.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, alokk@calsoftinc.com
+To: Magnus Damm <magnus@valinux.co.jp>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, pj@sgi.com
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 11 Nov 2005 10:13 am, Christoph Lameter wrote:
-> On Fri, 11 Nov 2005, Con Kolivas wrote:
-> > > This patch splits the counter into the nr_local_slab which reflects
-> > > slab pages allocated from the local zones (and this number is useful
-> > > at least as a guidance for the VM) and the remotely allocated pages.
-> >
-> > How large a contribution is the remote slab size likely to be? Would this
-> > information be useful to anyone potentially in future code besides swap
-> > prefetch? The nature of prefetch is that this is only a fairly coarse
-> > measure of how full the vm is with data we don't want to displace. Thus
-> > it is also not important that it is very accurate.
+On Thursday 10 November 2005 10:08, Magnus Damm wrote:
+> Generic CONFIG_NUMA_EMU code.
 >
-> The size of the remote cache depends on many factors. The application can
-> influence that by setting memory policies.
->
-> > Unless the remote slab size can be a very large contribution, or having
-> > local
->
-> Yes it can be quite large. On some of my tests with applications these are
-> 100%. This is typical if the application sets the policy in such a way
-> that all allocations are off node or if the kernel has to allocate memory
-> on a certain node for a device.
+> This patch adds generic NUMA emulation code to the kernel. The code
+> provides the architectures with functions that calculate the size of
+> emulated nodes, together with configuration stuff such as Kconfig and
+> kernel command line code.
 
-One last thing. Swap prefetch works off the accounting of total memory and is 
-only a single kernel thread rather than a thread per cpu or per pgdat unlike 
-kswapd. Currently it just cares about total slab data and total ram. 
-Depending on where this thread is scheduled (which node) your accounting 
-change will alter the behaviour of it. Does this affect the relevance of this 
-patch to you?
+IMHO making it generic and bloated like this is total overkill
+for this simple debugginghack. I think it is better to keep 
+it simple and hiden it in a architecture specific dark corners, not expose it 
+like this.
 
-Cheers,
-Con
+I think the patch shouldn't be applied.
+
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
