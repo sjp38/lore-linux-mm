@@ -1,42 +1,52 @@
-From: Andi Kleen <ak@suse.de>
-Subject: Re: [RFC] Make the slab allocator observe NUMA policies
-Date: Fri, 11 Nov 2005 04:06:23 +0100
-References: <Pine.LNX.4.62.0511101401390.16481@schroedinger.engr.sgi.com>
-In-Reply-To: <Pine.LNX.4.62.0511101401390.16481@schroedinger.engr.sgi.com>
+From: Con Kolivas <kernel@kolivas.org>
+Subject: Re: [RFC, PATCH] Slab counter troubles with swap prefetch?
+Date: Fri, 11 Nov 2005 14:50:07 +1100
+References: <Pine.LNX.4.62.0511101351120.16380@schroedinger.engr.sgi.com> <200511111007.12872.kernel@kolivas.org> <Pine.LNX.4.62.0511101510240.16588@schroedinger.engr.sgi.com>
+In-Reply-To: <Pine.LNX.4.62.0511101510240.16588@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
 Content-Type: text/plain;
   charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-Message-Id: <200511110406.24838.ak@suse.de>
+Message-Id: <200511111450.07396.kernel@kolivas.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Christoph Lameter <clameter@engr.sgi.com>
-Cc: steiner@sgi.com, linux-mm@kvack.org, alokk@calsoftinc.com
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, alokk@calsoftinc.com
 List-ID: <linux-mm.kvack.org>
 
-On Thursday 10 November 2005 23:04, Christoph Lameter wrote:
-> Currently the slab allocator simply allocates slabs from the current node
-> or from the node indicated in kmalloc_node().
+On Fri, 11 Nov 2005 10:13 am, Christoph Lameter wrote:
+> On Fri, 11 Nov 2005, Con Kolivas wrote:
+> > > This patch splits the counter into the nr_local_slab which reflects
+> > > slab pages allocated from the local zones (and this number is useful
+> > > at least as a guidance for the VM) and the remotely allocated pages.
+> >
+> > How large a contribution is the remote slab size likely to be? Would this
+> > information be useful to anyone potentially in future code besides swap
+> > prefetch? The nature of prefetch is that this is only a fairly coarse
+> > measure of how full the vm is with data we don't want to displace. Thus
+> > it is also not important that it is very accurate.
 >
-> This change came about with the NUMA slab allocator changes in 2.6.14.
-> Before 2.6.14 the slab allocator was obeying memory policies in the sense
-> that the pages were allocated in the policy context of the currently
-> executing process (which could allocate a page according to MPOL_INTERLEAVE
-> for one process and then use the free entries in that page for another
-> process that did not have this policy set).
+> The size of the remote cache depends on many factors. The application can
+> influence that by setting memory policies.
 >
-> The following patch adds NUMA memory policy support. This means that the
-> slab entries (and therefore also the pages containing them) will be
-> allocated according to memory policy.
+> > Unless the remote slab size can be a very large contribution, or having
+> > local
+>
+> Yes it can be quite large. On some of my tests with applications these are
+> 100%. This is typical if the application sets the policy in such a way
+> that all allocations are off node or if the kernel has to allocate memory
+> on a certain node for a device.
 
-You're adding a check and potential cache line miss to a really really hot 
-path. I would prefer  it to do the policy check only in the slower path of 
-slab that gets memory from the backing page allocator. While not 100% exact 
-this should be  good enough for just spreading memory around during 
-initialization. And I cannot really think of any other uses of this.
+One last thing. Swap prefetch works off the accounting of total memory and is 
+only a single kernel thread rather than a thread per cpu or per pgdat unlike 
+kswapd. Currently it just cares about total slab data and total ram. 
+Depending on where this thread is scheduled (which node) your accounting 
+change will alter the behaviour of it. Does this affect the relevance of this 
+patch to you?
 
--Andi
+Cheers,
+Con
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
