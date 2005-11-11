@@ -1,71 +1,46 @@
-From: Ingo Oeser <ioe-lkml@rameria.de>
-Subject: Re: [RFC] sys_punchhole()
-Date: Fri, 11 Nov 2005 09:25:41 +0100
-References: <1131664994.25354.36.camel@localhost.localdomain> <20051110153254.5dde61c5.akpm@osdl.org>
-In-Reply-To: <20051110153254.5dde61c5.akpm@osdl.org>
-MIME-Version: 1.0
-Content-Type: multipart/signed;
-  boundary="nextPart2834990.SANAYd45pA";
-  protocol="application/pgp-signature";
-  micalg=pgp-sha1
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by e3.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id jABEKK7Y025414
+	for <linux-mm@kvack.org>; Fri, 11 Nov 2005 09:20:20 -0500
+Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
+	by d01relay02.pok.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id jABEKKPu114118
+	for <linux-mm@kvack.org>; Fri, 11 Nov 2005 09:20:20 -0500
+Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
+	by d01av04.pok.ibm.com (8.12.11/8.13.3) with ESMTP id jABEKJE4013865
+	for <linux-mm@kvack.org>; Fri, 11 Nov 2005 09:20:20 -0500
+Subject: Re: [PATCH] dequeue a huge page near to this node
+From: Adam Litke <agl@us.ibm.com>
+In-Reply-To: <Pine.LNX.4.62.0511101521180.16770@schroedinger.engr.sgi.com>
+References: <Pine.LNX.4.62.0511101521180.16770@schroedinger.engr.sgi.com>
+Content-Type: text/plain
+Date: Fri, 11 Nov 2005 08:19:25 -0600
+Message-Id: <1131718765.13502.8.camel@localhost.localdomain>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Message-Id: <200511110925.48259.ioe-lkml@rameria.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: Andrew Morton <akpm@osdl.org>, Badari Pulavarty <pbadari@us.ibm.com>, andrea@suse.de, hugh@veritas.com, linux-mm@kvack.org
+To: Christoph Lameter <clameter@engr.sgi.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kenneth.w.chen@intel.com, akpm@osdl.org
 List-ID: <linux-mm.kvack.org>
 
---nextPart2834990.SANAYd45pA
-Content-Type: text/plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: quoted-printable
-Content-Disposition: inline
+On Thu, 2005-11-10 at 15:27 -0800, Christoph Lameter wrote:
+> The following patch changes the dequeueing to select a huge page near
+> the node executing instead of always beginning to check for free 
+> nodes from node 0. This will result in a placement of the huge pages near
+> the executing processor improving performance.
+> 
+> The existing implementation can place the huge pages far away from 
+> the executing processor causing significant degradation of performance.
+> The search starting from zero also means that the lower zones quickly 
+> run out of memory. Selecting a huge page near the process distributed the 
+> huge pages better.
+> 
+> Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
-Hi,
+I'll add my voice to the chorus of aye's.
 
-On Friday 11 November 2005 00:32, Andrew Morton wrote:
-> Badari Pulavarty <pbadari@us.ibm.com> wrote:
-> >
-> > We discussed this in madvise(REMOVE) thread - to add support=20
-> > for sys_punchhole(fd, offset, len) to complete the functionality
-> > (in the future).
-> >=20
-> > http://marc.theaimsgroup.com/?l=3Dlinux-mm&m=3D113036713810002&w=3D2
-> >=20
-> > What I am wondering is, should I invest time now to do it ?
->=20
-> I haven't even heard anyone mention a need for this in the past 1-2 years.
-
-Because the people need it are usally at the application level.
-It would be useful with hard disk editing.
-
-But this would need a move_blocks within the filesystem, which
-could attach a given list of blocks to another file.
-
-E.g. mremap() for files :-)
-
-Both together would make harddisk video editing with linux quite
-performant and less error prone.
-
-
-Regards
-
-Ingo Oeser
-
-
---nextPart2834990.SANAYd45pA
-Content-Type: application/pgp-signature
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.1 (GNU/Linux)
-
-iD8DBQBDdFWMU56oYWuOrkARAs5bAKCUWeuUxd7AWdVsC4jDANe0KvlQRwCdHnBz
-shv9TBiCqFQ2+WQTas5FK6w=
-=2JyA
------END PGP SIGNATURE-----
-
---nextPart2834990.SANAYd45pA--
+-- 
+Adam Litke - (agl at us.ibm.com)
+IBM Linux Technology Center
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
