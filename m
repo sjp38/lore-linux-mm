@@ -1,64 +1,59 @@
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by e1.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id jAC4fAfM009379
-	for <linux-mm@kvack.org>; Fri, 11 Nov 2005 23:41:10 -0500
-Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
-	by d01relay04.pok.ibm.com (8.12.10/NCO/VERS6.7) with ESMTP id jAC4fAZl112272
-	for <linux-mm@kvack.org>; Fri, 11 Nov 2005 23:41:10 -0500
-Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
-	by d01av01.pok.ibm.com (8.12.11/8.13.3) with ESMTP id jAC4fAGR003488
-	for <linux-mm@kvack.org>; Fri, 11 Nov 2005 23:41:10 -0500
-Message-ID: <43757263.2030401@us.ibm.com>
-Date: Fri, 11 Nov 2005 20:41:07 -0800
-From: Badari Pulavarty <pbadari@us.ibm.com>
+Date: Sat, 12 Nov 2005 14:31:08 +0900
+From: Yasunori Goto <y-goto@jp.fujitsu.com>
+Subject: Re: [Lhms-devel] [Patch:RFC] New zone ZONE_EASY_RECLAIM[0/5]
+In-Reply-To: <437387B5.2000205@austin.ibm.com>
+References: <20051110185754.0230.Y-GOTO@jp.fujitsu.com> <437387B5.2000205@austin.ibm.com>
+Message-Id: <20051112135956.0663.Y-GOTO@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] 2.6.14 patch for supporting madvise(MADV_REMOVE)
-References: <1130366995.23729.38.camel@localhost.localdomain>	<20051028034616.GA14511@ccure.user-mode-linux.org>	<43624F82.6080003@us.ibm.com>	<20051028184235.GC8514@ccure.user-mode-linux.org>	<1130544201.23729.167.camel@localhost.localdomain>	<20051029025119.GA14998@ccure.user-mode-linux.org>	<1130788176.24503.19.camel@localhost.localdomain>	<20051101000509.GA11847@ccure.user-mode-linux.org>	<1130894101.24503.64.camel@localhost.localdomain>	<20051102014321.GG24051@opteron.random>	<1130947957.24503.70.camel@localhost.localdomain>	<20051111162511.57ee1af3.akpm@osdl.org>	<1131755660.25354.81.camel@localhost.localdomain> <20051111174309.5d544de4.akpm@osdl.org>
-In-Reply-To: <20051111174309.5d544de4.akpm@osdl.org>
-Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: andrea@suse.de, linux-kernel@vger.kernel.org, hugh@veritas.com, dvhltc@us.ibm.com, linux-mm@kvack.org, blaisorblade@yahoo.it, jdike@addtoit.com
+To: Joel Schopp <jschopp@austin.ibm.com>
+Cc: linux-mm <linux-mm@kvack.org>, Linux Hotplug Memory Support <lhms-devel@lists.sourceforge.net>, Nick Piggin <nickpiggin@yahoo.com.au>, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-Andrew Morton wrote:
-> Badari Pulavarty <pbadari@us.ibm.com> wrote:
-> 
->>>Why does madvise_remove() have an explicit check for swapper_space?
->>
->>I really don't remember (I yanked code from some other kernel routine
->>vmtruncate()).
-> 
-> 
-> I don't see such a thing anywhere.  vmtruncate() has the IS_SWAPFILE()
-> test, which I guess vmtruncate_range() ought to have too, for
-> future-safety.
 
-Yep. That was the check. Since I don't have inode and have mapping
-handy anyway, check was made using that. I could change it, if you wish.
+> > I rewrote patches to create new zone as ZONE_EASY_RECLAIM.
+> 
+> Just to be clear.  These patches create the new zone, but they don't seem to 
+> actually use it to separate out removable memory, or to do memory remove.  I 
+> assume those patches will come later?  In any case this is a good start.
 
-> 
-> Logically, vmtruncate() should just be a special case of vmtruncate_range().
-> But it's not - ugly, but hard to do anything about (need to implement
-> ->truncate_range in all filesystems, but "know" which ones only support
-> ->truncate_range() at eof).
-> 
-> 
->>>In your testing, how are you determining that the code is successfully
->>>removing the correct number of pages, from the correct file offset?
->>
->>I verified with test programs, added debug printk + looked through live
->>"crash" session + verified with UML testcases.
-> 
-> 
-> OK, well please be sure to test it on 32-bit and 64-bit, operating in three
-> ranges of the file: <2G, 2G-4G amd >4G.
-> 
-Will do.
+Yes.
 
-Thanks,
-Badari
+Following patch is just to test the new zone on my ia64 box.
+In this case, all nodes which doesn't have ZONE_DMA will be
+ZONE_EASY_RECLAIM.
+But, this should be more considered. At least, it should
+check hotplug flag in SRAT table on ia64 (and x86-64?). 
+Of course, the way of new zone has a issue of tuning among zones.
+"Which area should be ZONE_EASY_RECLAIM" should be specified at boottime.
+I'll try it next time.
+
+Thanks.
+
+Index: new_zone/arch/ia64/mm/discontig.c
+===================================================================
+--- new_zone.orig/arch/ia64/mm/discontig.c	2005-10-28 12:00:11.000000000 +0900
++++ new_zone/arch/ia64/mm/discontig.c	2005-11-07 20:10:25.000000000 +0900
+@@ -663,9 +663,9 @@ void __init paging_init(void)
+ 
+ 		if (mem_data[node].min_pfn >= max_dma) {
+ 			/* All of this node's memory is above ZONE_DMA */
+-			zones_size[ZONE_NORMAL] = mem_data[node].max_pfn -
++			zones_size[ZONE_EASY_RECLAIM] = mem_data[node].max_pfn -
+ 				mem_data[node].min_pfn;
+-			zholes_size[ZONE_NORMAL] = mem_data[node].max_pfn -
++			zholes_size[ZONE_EASY_RECLAIM] = mem_data[node].max_pfn -
+ 				mem_data[node].min_pfn -
+ 				mem_data[node].num_physpages;
+ 		} else if (mem_data[node].max_pfn < max_dma) {
+
+
+-- 
+Yasunori Goto 
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
