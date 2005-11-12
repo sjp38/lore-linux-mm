@@ -1,79 +1,55 @@
-Date: Fri, 11 Nov 2005 20:30:54 -0500
-From: Martin Hicks <mort@sgi.com>
-Subject: Re: [PATCH] mm gfp_noreclaim cleanup
-Message-ID: <20051112013054.GN30857@bork.org>
-References: <20051112004322.30442.14753.sendpatchset@jackhammer.engr.sgi.com>
+Date: Fri, 11 Nov 2005 17:43:09 -0800
+From: Andrew Morton <akpm@osdl.org>
+Subject: Re: [PATCH] 2.6.14 patch for supporting madvise(MADV_REMOVE)
+Message-Id: <20051111174309.5d544de4.akpm@osdl.org>
+In-Reply-To: <1131755660.25354.81.camel@localhost.localdomain>
+References: <1130366995.23729.38.camel@localhost.localdomain>
+	<20051028034616.GA14511@ccure.user-mode-linux.org>
+	<43624F82.6080003@us.ibm.com>
+	<20051028184235.GC8514@ccure.user-mode-linux.org>
+	<1130544201.23729.167.camel@localhost.localdomain>
+	<20051029025119.GA14998@ccure.user-mode-linux.org>
+	<1130788176.24503.19.camel@localhost.localdomain>
+	<20051101000509.GA11847@ccure.user-mode-linux.org>
+	<1130894101.24503.64.camel@localhost.localdomain>
+	<20051102014321.GG24051@opteron.random>
+	<1130947957.24503.70.camel@localhost.localdomain>
+	<20051111162511.57ee1af3.akpm@osdl.org>
+	<1131755660.25354.81.camel@localhost.localdomain>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20051112004322.30442.14753.sendpatchset@jackhammer.engr.sgi.com>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Paul Jackson <pj@sgi.com>
-Cc: akpm@osdl.org, linux-kernel@vger.kernel.org, Martin Hicks <mort@sgi.com>, Ray Bryant <raybry@mpdtxmail.amd.com>, Nick Piggin <nickpiggin@yahoo.com.au>, linux-mm@kvack.org, Christoph Lameter <clameter@sgi.com>, "Rohit, Seth" <rohit.seth@intel.com>, Andi Kleen <ak@suse.de>
+To: Badari Pulavarty <pbadari@us.ibm.com>
+Cc: andrea@suse.de, linux-kernel@vger.kernel.org, hugh@veritas.com, dvhltc@us.ibm.com, linux-mm@kvack.org, blaisorblade@yahoo.it, jdike@addtoit.com
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Nov 11, 2005 at 04:43:22PM -0800, Paul Jackson wrote:
-> Remove last remnant of the defunct early reclaim page logic,
-> the no longer used __GFP_NORECLAIM flag bit.
+Badari Pulavarty <pbadari@us.ibm.com> wrote:
+>
+> > Why does madvise_remove() have an explicit check for swapper_space?
 > 
-> Signed-off-by: Paul Jackson <pj@sgi.com>
+> I really don't remember (I yanked code from some other kernel routine
+> vmtruncate()).
 
-Acked-by:  Martin Hicks <mort@bork.org>
+I don't see such a thing anywhere.  vmtruncate() has the IS_SWAPFILE()
+test, which I guess vmtruncate_range() ought to have too, for
+future-safety.
+
+Logically, vmtruncate() should just be a special case of vmtruncate_range().
+But it's not - ugly, but hard to do anything about (need to implement
+->truncate_range in all filesystems, but "know" which ones only support
+->truncate_range() at eof).
 
 > 
-> ---
+> > In your testing, how are you determining that the code is successfully
+> > removing the correct number of pages, from the correct file offset?
 > 
->  include/linux/gfp.h     |    5 ++---
->  include/linux/pagemap.h |    4 ++--
->  2 files changed, 4 insertions(+), 5 deletions(-)
-> 
-> --- 2.6.14-mm2.orig/include/linux/gfp.h	2005-11-10 21:27:25.788622408 -0800
-> +++ 2.6.14-mm2/include/linux/gfp.h	2005-11-11 15:21:43.780529152 -0800
-> @@ -46,8 +46,7 @@ struct vm_area_struct;
->  #define __GFP_COMP	((__force gfp_t)0x4000u)/* Add compound page metadata */
->  #define __GFP_ZERO	((__force gfp_t)0x8000u)/* Return zeroed page on success */
->  #define __GFP_NOMEMALLOC ((__force gfp_t)0x10000u) /* Don't use emergency reserves */
-> -#define __GFP_NORECLAIM  ((__force gfp_t)0x20000u) /* No realy zone reclaim during allocation */
-> -#define __GFP_HARDWALL   ((__force gfp_t)0x40000u) /* Enforce hardwall cpuset memory allocs */
-> +#define __GFP_HARDWALL   ((__force gfp_t)0x20000u) /* Enforce hardwall cpuset memory allocs */
->  #define __GFP_VALID	((__force gfp_t)0x80000000u) /* valid GFP flags */
->  
->  #define __GFP_BITS_SHIFT 20	/* Room for 20 __GFP_FOO bits */
-> @@ -57,7 +56,7 @@ struct vm_area_struct;
->  #define GFP_LEVEL_MASK (__GFP_WAIT|__GFP_HIGH|__GFP_IO|__GFP_FS| \
->  			__GFP_COLD|__GFP_NOWARN|__GFP_REPEAT| \
->  			__GFP_NOFAIL|__GFP_NORETRY|__GFP_NO_GROW|__GFP_COMP| \
-> -			__GFP_NOMEMALLOC|__GFP_NORECLAIM|__GFP_HARDWALL)
-> +			__GFP_NOMEMALLOC|__GFP_HARDWALL)
->  
->  #define GFP_ATOMIC	(__GFP_VALID | __GFP_HIGH)
->  #define GFP_NOIO	(__GFP_VALID | __GFP_WAIT)
-> --- 2.6.14-mm2.orig/include/linux/pagemap.h	2005-11-10 21:27:07.994469549 -0800
-> +++ 2.6.14-mm2/include/linux/pagemap.h	2005-11-11 15:24:00.719478936 -0800
-> @@ -53,12 +53,12 @@ void release_pages(struct page **pages, 
->  
->  static inline struct page *page_cache_alloc(struct address_space *x)
->  {
-> -	return alloc_pages(mapping_gfp_mask(x)|__GFP_NORECLAIM, 0);
-> +	return alloc_pages(mapping_gfp_mask(x), 0);
->  }
->  
->  static inline struct page *page_cache_alloc_cold(struct address_space *x)
->  {
-> -	return alloc_pages(mapping_gfp_mask(x)|__GFP_COLD|__GFP_NORECLAIM, 0);
-> +	return alloc_pages(mapping_gfp_mask(x)|__GFP_COLD, 0);
->  }
->  
->  typedef int filler_t(void *, struct page *);
-> 
-> -- 
->                           I won't rest till it's the best ...
->                           Programmer, Linux Scalability
->                           Paul Jackson <pj@sgi.com> 1.650.933.1373
+> I verified with test programs, added debug printk + looked through live
+> "crash" session + verified with UML testcases.
 
--- 
-Martin Hicks   ||   Silicon Graphics Inc.   ||   mort@sgi.com
+OK, well please be sure to test it on 32-bit and 64-bit, operating in three
+ranges of the file: <2G, 2G-4G amd >4G.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
