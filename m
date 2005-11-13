@@ -1,145 +1,63 @@
-Date: Sat, 12 Nov 2005 14:27:20 -0200
-From: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
-Subject: vmtrace v0.0
-Message-ID: <20051112162720.GA20166@logos.cnet>
+Date: Sat, 12 Nov 2005 21:09:13 -0800
+From: Paul Jackson <pj@sgi.com>
+Subject: Re: [PATCH]: Cleanup of __alloc_pages
+Message-Id: <20051112210913.0b365815.pj@sgi.com>
+In-Reply-To: <43716476.1030306@yahoo.com.au>
+References: <20051107174349.A8018@unix-os.sc.intel.com>
+	<20051107175358.62c484a3.akpm@osdl.org>
+	<1131416195.20471.31.camel@akash.sc.intel.com>
+	<43701FC6.5050104@yahoo.com.au>
+	<20051107214420.6d0f6ec4.pj@sgi.com>
+	<43703EFB.1010103@yahoo.com.au>
+	<1131473876.2400.9.camel@akash.sc.intel.com>
+	<43716476.1030306@yahoo.com.au>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: rohit.seth@intel.com, akpm@osdl.org, torvalds@osdl.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+The __GFP_HIGH, GFP_ATOMIC, __GFP_WAIT flags are still driving me bonkers.
 
-I've been working on updating the vmtrace patch to current 2.6-git along
-with some post-processing utilities.
+It seems to me that:
+ 1) __GFP_WAIT is supposed to mean can wait, and __alloc_pages()
+    keys off that bit to set its "wait" variable.  Good so far.
+ 2) __GFP_HIGH is supposed to mean can access emergency pools
+    (use lower watermarks), and __alloc_pages() does that.  Also
+    good so far.
+ 3) But gfp.h defines GFP_ATOMIC to be an alias for __GFP_HIGH,
+    and many callers through out the kernel use GFP_ATOMIC to mean
+    "can't sleep" or "can't wait" or some such.  These folks are
+    not getting the service they expect - they are asking for the
+    most aggressive form of allocation (short perhaps of the
+    special case for allocations that will net free more memory
+    than they require, such as exiting), and they get the half way
+    improvement instead, with the possibility of sleeping (!).
 
->From the previous email to linux-mm:
-"The sequence of pages which a given process or workload accesses during
-its lifetime, a.k.a. "reference trace", is very important information.
-It has been used in the past for comparison of page replacement
-algorithms and other optimizations. We've been talking on IRC on how to
-generate reference traces for memory accesses, and a suggestion came
-up to periodically unmap all present pte's of a given process. The
-following patch implements a "kptecleaner" thread which is woken at a
-certain interval (hardcoded to HZ/2 at present)."
+The confusion even extends to the comments in __alloc_pages(),
+such as in the lines:
 
-At the moment the most interesting tool is average IRF calculation,
-which can be used to identify workloads in which LRU policy
-underperforms due to lack of frequency information.
+	/* Atomic allocations - we can't balance anything */
+	if (!wait)
+		goto nopage;
 
-The tarball can be found at 
+The "!wait" condition is --not-- GFP_ATOMIC, which is what
+one might think was meant by "Atomic allocations", and likely
+what the many users of GFP_ATOMIC were expecting - a nopage
+response in such cases.
 
-http://hera.kernel.org/~marcelo/mm/vmtrace/vmtrace-0.0.tar.gz 
+Perhaps GFP_ATOMIC should be its own __GFP_ATOMIC bit, with a BUG_ON
+if both __GFP_ATOMIC and __GFP_WAIT are set at the same time,
+leaving __GFP_HIGH for the few uses where people were just asking
+to go a bit lower in the reserves.
 
-Thanks to Peter Zijlstra and Rik van Riel for comments and incentive.
-
->From README:
-
-* Capture daemon *
-
-vmtrace-capture.c:
-Captures data from relayfs channel and writes it into a file. To be used
-at workload execution.
-
-* Post processing tools *
-
-vmtrace-print.c:
-Example to iterate over all trace entries.
-
-vmtrace-reorder.c:
-Makes sure the trace is ordered by sequence number.
-
-vmtrace-split.c: 
-Splits a single vmtrace entry into per-mapping entries.
-
-vmtrace-irp.c:
-Calculates Inter Reference Period between accesses to a mapping's pages.
-
-This data is used to calculate per-page "average IRF" (Inter Reference
-Frequency), as follows:
-
-page-avg-IRF = (sum d(i, i+1))	<i=1...i=nr_accesses>
-               ---------------
-                nr_accesses
-
-where d(i, i+1) is the inverse of the delta between the current access
-and the next access to the page.
-
-and average IRF of the entire mapping:
-
-mapping-avg-IRF = sum (i's avg.irf)	<i=1...i=nr_pages>
-                  -----------------
-                     nr_pages
-
-vmtrace-relation.c:
-Calculates the numerical relation between accesses to two different
-mappings. This is an attempt to estimate how interleaved the accesses
-are.
-
->From EXAMPLE:
-
-Example of parsing mdb randomic query bench trace (test explained in
-more detail at http://www.linux-mm.org/PageReplacementTesting):
-
-# file captured with "vmtrace-capture":
-$ ls -la /tmp/vmt.txt
--rwxrwxrwT  1 root root 1338372 2005-12-12 18:29 /tmp/vmt.txt
-
-# split it into per-mapping traces
-$ ./vmtrace-split /tmp/vmt.txt /tmp/mdb-rand/
-
-# format is <inode_nr,bdev>
-$ ls /tmp/mdb-rand/
-0-0      65c72-0  7ec2-0   aa54c-0  d9fd7-0
-65c71-0  65c75-0  aa527-0  aaaf9-0  e5d01-0
-
-$ for i in /tmp/mdb-rand/* ; do ./vmtrace-irp $i ; done | grep IRF
-/tmp/mdb-rand/0-0: avg. IRF of all reaccessed pages(33): 12.949683
-/tmp/mdb-rand/65c71-0: avg. IRF of all reaccessed pages(1808): 0.011185
-/tmp/mdb-rand/65c72-0: avg. IRF of all reaccessed pages(176): 0.092401
-/tmp/mdb-rand/65c75-0: avg. IRF of all reaccessed pages(16): 1.171296
-/tmp/mdb-rand/7ec2-0: avg. IRF of all reaccessed pages(1): 0.000079
-/tmp/mdb-rand/aa527-0: avg. IRF of all reaccessed pages(65): 0.038615
-/tmp/mdb-rand/e5d01-0: avg. IRF of all reaccessed pages(6): 0.878549
-
-The most interesting numbers here are:
-
-65c71 is largedb.dat (7440358 bytes)
-65c72 is largedb.idx (720896 bytes)
-/tmp/mdb-rand/65c71-0: avg. IRF of all reaccessed pages(1808): 0.011185
-/tmp/mdb-rand/65c72-0: avg. IRF of all reaccessed pages(176): 0.092401 
-
-Which means that the index file is accessed about 9 times more frequently
-than the data file itself.
-
-The text mapping of the "mdb" binary (at address 0) is much more
-frequently accessed than both database files:
-
-/tmp/mdb-rand/0-0: avg. IRF of all reaccessed pages(33): 12.949683
-
->From TODO:
-
-* Create a Makefile! 
-
-* Add versioning to "struct vm_trace_entry"!
-
-* Use dcache cookies to transform inode+bdev into path (much easier
-to work with). At the moment, if files get deleted during the workload
-you're doomed, having no way to identify deleted inode numbers.
-
-* vmtrace-split currently splits in per "inode+bdev" type only, should
-work on uid, pid, pwd, etc, etc. 
-
-* vmtrace-split opens an unlimited amount of files, it should cap 
-at 1024 open fd's and reuse those on demand.
-
-* vmtrace-phase: recognize and classify common access patterns.
-
-* Generate visual information such as avg.IRF histograms, address versus
-time graphs, etc, etc.
+-- 
+                  I won't rest till it's the best ...
+                  Programmer, Linux Scalability
+                  Paul Jackson <pj@sgi.com> 1.925.600.0401
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
