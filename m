@@ -1,66 +1,42 @@
-Date: Sat, 12 Nov 2005 23:47:10 -0800
-From: Paul Jackson <pj@sgi.com>
-Subject: Re: [PATCH]: Cleanup of __alloc_pages
-Message-Id: <20051112234710.3d567e21.pj@sgi.com>
-In-Reply-To: <20051112231211.372be3a9.akpm@osdl.org>
-References: <20051107174349.A8018@unix-os.sc.intel.com>
-	<20051107175358.62c484a3.akpm@osdl.org>
-	<1131416195.20471.31.camel@akash.sc.intel.com>
-	<43701FC6.5050104@yahoo.com.au>
-	<20051107214420.6d0f6ec4.pj@sgi.com>
-	<43703EFB.1010103@yahoo.com.au>
-	<1131473876.2400.9.camel@akash.sc.intel.com>
-	<43716476.1030306@yahoo.com.au>
-	<20051112210913.0b365815.pj@sgi.com>
-	<20051112211429.294b3783.pj@sgi.com>
-	<20051112231211.372be3a9.akpm@osdl.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+From: Andi Kleen <ak@suse.de>
+Subject: Re: [RFC] Make the slab allocator observe NUMA policies
+Date: Sun, 13 Nov 2005 12:22:48 +0100
+References: <Pine.LNX.4.62.0511101401390.16481@schroedinger.engr.sgi.com> <200511110406.24838.ak@suse.de> <Pine.LNX.4.62.0511110934110.20360@schroedinger.engr.sgi.com>
+In-Reply-To: <Pine.LNX.4.62.0511110934110.20360@schroedinger.engr.sgi.com>
+MIME-Version: 1.0
+Content-Type: text/plain;
+  charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200511131222.48690.ak@suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: nickpiggin@yahoo.com.au, rohit.seth@intel.com, torvalds@osdl.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Christoph Lameter <clameter@engr.sgi.com>
+Cc: steiner@sgi.com, linux-mm@kvack.org, alokk@calsoftinc.com
 List-ID: <linux-mm.kvack.org>
 
-> Yes, the fact that GFP_ATOMIC also implies "use the emergency pool" is
-> unfortunate, and perhaps the two should always have been separated out, at
-> least to make the programmer think about whether the code really needs
-> access to the emergency pools.   Usually it does.
+On Friday 11 November 2005 18:40, Christoph Lameter wrote:
 
-Ah - now it makes more sense.
+> Hmm. Thats not easy to do since the slab allocator is managing the pages 
+> in terms of the nodes where they are located. The whole thing is geared to 
+> first inspect the lists for one node and then expand if no page is 
+> available.
 
-The key invisible fact in the gfp.h line:
+Yes, that's fine - as long as it doesn't allocate too many 
+pages at one go (which it doesn't) then the interleaving should
+even the allocations out at page level.
 
-  #define GFP_ATOMIC      (__GFP_VALID | __GFP_HIGH)
+> The cacheline already in use by the page allocator, the page allocator 
+> will continually reference current->mempolicy. See alloc_page_vma and 
+> alloc_pages_current. So its likely that the cacheline is already active 
+> and the impact on the hot code patch is likely negligible.
 
-is that __GFP_WAIT is *not* set (making it mean don't sleep).
-All the other commonly used GFP_* flags do have __GFP_WAIT.
-
-I have no issue with ATOMIC also meaning "use emergency pool".
-That's an appropriate simplication, that fits the usage well.
-
-I just had a mental block on the invisible unset __GFP_WAIT bit.
-
-Would you look kindly on a patch that did:
-
-
---- 2.6.14-mm2.orig/include/linux/gfp.h	2005-11-12 23:36:57.258103418 -0800
-+++ 2.6.14-mm2/include/linux/gfp.h	2005-11-12 23:42:35.287219455 -0800
-@@ -58,6 +58,7 @@ struct vm_area_struct;
- 			__GFP_NOFAIL|__GFP_NORETRY|__GFP_NO_GROW|__GFP_COMP| \
- 			__GFP_NOMEMALLOC|__GFP_HARDWALL)
+I don't think that's likely - frequent users of kmem_cache_alloc don't
+call alloc_pages. That is why we have slow and fast paths for this ...
+But if we keep adding all the features of slow paths to fast paths
+then the fast paths will be eventually not be fast anymore.
  
-+/* GFP_ATOMIC means both !wait (__GFP_WAIT not set) and use emergency pool */
- #define GFP_ATOMIC	(__GFP_VALID | __GFP_HIGH)
- #define GFP_NOIO	(__GFP_VALID | __GFP_WAIT)
- #define GFP_NOFS	(__GFP_VALID | __GFP_WAIT | __GFP_IO)
-
-
--- 
-                  I won't rest till it's the best ...
-                  Programmer, Linux Scalability
-                  Paul Jackson <pj@sgi.com> 1.925.600.0401
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
