@@ -1,42 +1,32 @@
-From: Andi Kleen <ak@suse.de>
-Subject: Re: [RFC] Make the slab allocator observe NUMA policies
-Date: Sun, 13 Nov 2005 12:22:48 +0100
-References: <Pine.LNX.4.62.0511101401390.16481@schroedinger.engr.sgi.com> <200511110406.24838.ak@suse.de> <Pine.LNX.4.62.0511110934110.20360@schroedinger.engr.sgi.com>
-In-Reply-To: <Pine.LNX.4.62.0511110934110.20360@schroedinger.engr.sgi.com>
+Received: by zproxy.gmail.com with SMTP id n1so1101410nzf
+        for <linux-mm@kvack.org>; Sun, 13 Nov 2005 10:35:58 -0800 (PST)
+Message-ID: <f68e01850511131035l3f0530aft6076f156d4f62171@mail.gmail.com>
+Date: Mon, 14 Nov 2005 00:05:58 +0530
+From: Nitin Gupta <nitingupta.mail@gmail.com>
+Subject: why its dead now?
 MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 8BIT
 Content-Disposition: inline
-Message-Id: <200511131222.48690.ak@suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@engr.sgi.com>
-Cc: steiner@sgi.com, linux-mm@kvack.org, alokk@calsoftinc.com
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Friday 11 November 2005 18:40, Christoph Lameter wrote:
+Hi,
+    I've been working on 'compressed cache' feature
+(http://linuxcompressed.sourceforge.net/) for some time now. I'm
+basically porting it to 2.6 kernel series as it has already been
+developed for 2.4.x kernels.
+   I'm wondering why this project is dead even when it showed great
+performance improvement when system is under memory pressure.
 
-> Hmm. Thats not easy to do since the slab allocator is managing the pages 
-> in terms of the nodes where they are located. The whole thing is geared to 
-> first inspect the lists for one node and then expand if no page is 
-> available.
+Are there any serious drawbacks to this?
+Do you think it will be of any use if ported to 2.6 kernel?
 
-Yes, that's fine - as long as it doesn't allocate too many 
-pages at one go (which it doesn't) then the interleaving should
-even the allocations out at page level.
+Your feedback will be really helpful.
 
-> The cacheline already in use by the page allocator, the page allocator 
-> will continually reference current->mempolicy. See alloc_page_vma and 
-> alloc_pages_current. So its likely that the cacheline is already active 
-> and the impact on the hot code patch is likely negligible.
-
-I don't think that's likely - frequent users of kmem_cache_alloc don't
-call alloc_pages. That is why we have slow and fast paths for this ...
-But if we keep adding all the features of slow paths to fast paths
-then the fast paths will be eventually not be fast anymore.
- 
--Andi
+Thanks
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
