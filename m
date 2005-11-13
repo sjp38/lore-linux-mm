@@ -1,45 +1,35 @@
-Date: Wed, 16 Nov 2005 10:21:07 -0800 (PST)
-From: Christoph Lameter <clameter@engr.sgi.com>
-Subject: Re: [PATCH 2/2] Fold numa_maps into mempolicy.c
-In-Reply-To: <20051115231051.5437e25b.pj@sgi.com>
-Message-ID: <Pine.LNX.4.62.0511161017010.15723@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.62.0511081520540.32262@schroedinger.engr.sgi.com>
- <Pine.LNX.4.62.0511081524570.32262@schroedinger.engr.sgi.com>
- <20051115231051.5437e25b.pj@sgi.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Sun, 13 Nov 2005 15:09:06 +0000
+From: Pavel Machek <pavel@suse.cz>
+Subject: Re: [RFC] sys_punchhole()
+Message-ID: <20051113150906.GA2193@spitz.ucw.cz>
+References: <1131664994.25354.36.camel@localhost.localdomain> <20051110153254.5dde61c5.akpm@osdl.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20051110153254.5dde61c5.akpm@osdl.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Paul Jackson <pj@sgi.com>
-Cc: ak@suse.de, linux-mm@kvack.org
+To: Andrew Morton <akpm@osdl.org>
+Cc: Badari Pulavarty <pbadari@us.ibm.com>, andrea@suse.de, hugh@veritas.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 15 Nov 2005, Paul Jackson wrote:
+Hi!
 
-> Christoph wrote:
-> > + * Must hold mmap_sem until memory pointer is no longer in use
-> > + * or be called from the current task.
-> > + */
-> > +struct mempolicy *get_vma_policy(struct task_struct *task,
+> > We discussed this in madvise(REMOVE) thread - to add support 
+> > for sys_punchhole(fd, offset, len) to complete the functionality
+> > (in the future).
+> > 
+> > http://marc.theaimsgroup.com/?l=linux-mm&m=113036713810002&w=2
+> > 
+> > What I am wondering is, should I invest time now to do it ?
 > 
-> Twenty (well, four) questions time.
-> 
-> Hmmm ... is that true - that get_vma_policy() can be called for the
-> current task w/o holding mmap_sem?
+> I haven't even heard anyone mention a need for this in the past 1-2 years.
 
-Hmm. You are right. The current task must be holding map_sem in order to 
-have the vma not vanish under it. So mmap_sem must be held 
-unconditionally to use this function.
+Some database people wanted it maybe month ago. It was replaced by some 
+madvise hack...
 
-> Except for /proc output, is there any call to get_vma_policy made on any
-> task other than current?
-
-There is currently no use except by /proc/<pid>/numa_stats.
- 
-> What does "until memory pointer is no longer in use" mean?
-
-There will be no references to struct mempolicy * after unlock 
-mmap_sem.
+-- 
+64 bytes from 195.113.31.123: icmp_seq=28 ttl=51 time=448769.1 ms         
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
