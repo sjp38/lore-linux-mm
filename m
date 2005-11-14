@@ -1,54 +1,199 @@
-Date: Sun, 13 Nov 2005 20:04:15 -0800 (PST)
-From: Paul Jackson <pj@sgi.com>
-Message-Id: <20051114040415.13951.86293.sendpatchset@jackhammer.engr.sgi.com>
-In-Reply-To: <20051114040329.13951.39891.sendpatchset@jackhammer.engr.sgi.com>
-References: <20051114040329.13951.39891.sendpatchset@jackhammer.engr.sgi.com>
-Subject: [PATCH 05/05] mm GFP_ATOMIC comment
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e3.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id jAEF7v6K010205
+	for <linux-mm@kvack.org>; Mon, 14 Nov 2005 10:07:57 -0500
+Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
+	by d01relay04.pok.ibm.com (8.12.10/NCO/VERS6.8) with ESMTP id jAEF7v4S095746
+	for <linux-mm@kvack.org>; Mon, 14 Nov 2005 10:07:57 -0500
+Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
+	by d01av04.pok.ibm.com (8.12.11/8.13.3) with ESMTP id jAEF7uFb009029
+	for <linux-mm@kvack.org>; Mon, 14 Nov 2005 10:07:57 -0500
+Subject: Re: [RFC] NUMA memory policy support for HUGE pages
+From: Adam Litke <agl@us.ibm.com>
+In-Reply-To: <Pine.LNX.4.62.0511111225100.21071@schroedinger.engr.sgi.com>
+References: <Pine.LNX.4.62.0511111051080.20589@schroedinger.engr.sgi.com>
+	 <Pine.LNX.4.62.0511111225100.21071@schroedinger.engr.sgi.com>
+Content-Type: text/plain
+Date: Mon, 14 Nov 2005 09:06:53 -0600
+Message-Id: <1131980814.13502.12.camel@localhost.localdomain>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: akpm@osdl.org, linux-kernel@vger.kernel.org
-Cc: Nick Piggin <nickpiggin@yahoo.com.au>, linux-mm@kvack.org, Simon Derr <Simon.Derr@bull.net>, Christoph Lameter <clameter@sgi.com>, "Rohit, Seth" <rohit.seth@intel.com>, Paul Jackson <pj@sgi.com>
+To: Christoph Lameter <clameter@engr.sgi.com>
+Cc: linux-mm@kvack.org, ak@suse.de, linux-kernel@vger.kernel.org, kenneth.w.chen@intel.com, wli@holomorphy.com
 List-ID: <linux-mm.kvack.org>
 
-Clarify in comments that GFP_ATOMIC means both "don't sleep"
-and "use emergency pools", hence both ALLOC_DIP_ALOT and
-ALLOC_DIP_SOME.
+On Fri, 2005-11-11 at 12:28 -0800, Christoph Lameter wrote:
+> I just saw that mm2 is out. This is the same patch against mm2 with 
+> hugetlb COW support.
 
-Signed-off-by: Paul Jackson <pj@sgi.com>
+This all seems reasonable to me.  Were you planning to send out a
+separate patch to support MPOL_BIND?
 
----
+> Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
- include/linux/gfp.h |    1 +
- mm/page_alloc.c     |    3 ++-
- 2 files changed, 3 insertions(+), 1 deletion(-)
+Acked-By: Adam Litke <agl@us.ibm.com>
 
---- 2.6.14-mm2.orig/include/linux/gfp.h	2005-11-13 09:57:03.317369370 -0800
-+++ 2.6.14-mm2/include/linux/gfp.h	2005-11-13 10:31:05.590802684 -0800
-@@ -58,6 +58,7 @@ struct vm_area_struct;
- 			__GFP_NOFAIL|__GFP_NORETRY|__GFP_NO_GROW|__GFP_COMP| \
- 			__GFP_NOMEMALLOC|__GFP_HARDWALL)
- 
-+/* GFP_ATOMIC means both !wait (__GFP_WAIT not set) and use emergency pool */
- #define GFP_ATOMIC	(__GFP_VALID | __GFP_HIGH)
- #define GFP_NOIO	(__GFP_VALID | __GFP_WAIT)
- #define GFP_NOFS	(__GFP_VALID | __GFP_WAIT | __GFP_IO)
---- 2.6.14-mm2.orig/mm/page_alloc.c	2005-11-13 10:21:13.804965981 -0800
-+++ 2.6.14-mm2/mm/page_alloc.c	2005-11-13 10:32:33.090792563 -0800
-@@ -926,7 +926,8 @@ restart:
- 	 *
- 	 * The caller may dip into page reserves a bit more if the caller
- 	 * cannot run direct reclaim, or if the caller has realtime scheduling
--	 * policy or is asking for __GFP_HIGH memory.
-+	 * policy or is asking for __GFP_HIGH memory.  GFP_ATOMIC requests will
-+	 * set both ALLOC_DIP_ALOT (!wait) and ALLOC_DIP_SOME (__GFP_HIGH).
- 	 */
- 	alloc_flags = 0;
- 	if ((unlikely(rt_task(p)) && !in_interrupt()) || !wait)
-
+> Index: linux-2.6.14-mm2/mm/mempolicy.c
+> ===================================================================
+> --- linux-2.6.14-mm2.orig/mm/mempolicy.c	2005-11-11 12:10:19.000000000 -0800
+> +++ linux-2.6.14-mm2/mm/mempolicy.c	2005-11-11 12:11:01.000000000 -0800
+> @@ -1179,6 +1179,24 @@ static unsigned offset_il_node(struct me
+>  	return nid;
+>  }
+>  
+> +/* Return a zonelist suitable for a huge page allocation. */
+> +struct zonelist *huge_zonelist(struct vm_area_struct *vma, unsigned long addr)
+> +{
+> +	struct mempolicy *pol = get_vma_policy(current, vma, addr);
+> +
+> +	if (pol->policy == MPOL_INTERLEAVE) {
+> +		unsigned nid;
+> +		unsigned long off;
+> +
+> +		off = vma->vm_pgoff;
+> +		off += (addr - vma->vm_start) >> HPAGE_SHIFT;
+> +		nid = offset_il_node(pol, vma, off);
+> +
+> +		return NODE_DATA(nid)->node_zonelists + gfp_zone(GFP_HIGHUSER);
+> +	}
+> +	return zonelist_policy(GFP_HIGHUSER, pol);
+> +}
+> +
+>  /* Allocate a page in interleaved policy.
+>     Own path because it needs to do special accounting. */
+>  static struct page *alloc_page_interleave(gfp_t gfp, unsigned order,
+> Index: linux-2.6.14-mm2/mm/hugetlb.c
+> ===================================================================
+> --- linux-2.6.14-mm2.orig/mm/hugetlb.c	2005-11-11 12:10:48.000000000 -0800
+> +++ linux-2.6.14-mm2/mm/hugetlb.c	2005-11-11 12:23:14.000000000 -0800
+> @@ -33,11 +33,12 @@ static void enqueue_huge_page(struct pag
+>  	free_huge_pages_node[nid]++;
+>  }
+>  
+> -static struct page *dequeue_huge_page(void)
+> +static struct page *dequeue_huge_page(struct vm_area_struct *vma,
+> +				unsigned long address)
+>  {
+>  	int nid = numa_node_id();
+>  	struct page *page = NULL;
+> -	struct zonelist *zonelist = NODE_DATA(nid)->node_zonelists;
+> +	struct zonelist *zonelist = huge_zonelist(vma, address);
+>  	struct zone **z;
+>  
+>  	for (z = zonelist->zones; *z; z++) {
+> @@ -83,13 +84,13 @@ void free_huge_page(struct page *page)
+>  	spin_unlock(&hugetlb_lock);
+>  }
+>  
+> -struct page *alloc_huge_page(void)
+> +struct page *alloc_huge_page(struct vm_area_struct *vma, unsigned long addr)
+>  {
+>  	struct page *page;
+>  	int i;
+>  
+>  	spin_lock(&hugetlb_lock);
+> -	page = dequeue_huge_page();
+> +	page = dequeue_huge_page(vma, addr);
+>  	if (!page) {
+>  		spin_unlock(&hugetlb_lock);
+>  		return NULL;
+> @@ -192,7 +193,7 @@ static unsigned long set_max_huge_pages(
+>  	spin_lock(&hugetlb_lock);
+>  	try_to_free_low(count);
+>  	while (count < nr_huge_pages) {
+> -		struct page *page = dequeue_huge_page();
+> +		struct page *page = dequeue_huge_page(NULL, 0);
+>  		if (!page)
+>  			break;
+>  		update_and_free_page(page);
+> @@ -361,8 +362,8 @@ void unmap_hugepage_range(struct vm_area
+>  	flush_tlb_range(vma, start, end);
+>  }
+>  
+> -static struct page *find_or_alloc_huge_page(struct address_space *mapping,
+> -				unsigned long idx, int shared)
+> +static struct page *find_or_alloc_huge_page(struct vm_area_struct *vma, unsigned long addr,
+> +			struct address_space *mapping, unsigned long idx)
+>  {
+>  	struct page *page;
+>  	int err;
+> @@ -374,13 +375,13 @@ retry:
+>  
+>  	if (hugetlb_get_quota(mapping))
+>  		goto out;
+> -	page = alloc_huge_page();
+> +	page = alloc_huge_page(vma, addr);
+>  	if (!page) {
+>  		hugetlb_put_quota(mapping);
+>  		goto out;
+>  	}
+>  
+> -	if (shared) {
+> +	if (vma->vm_flags & VM_SHARED) {
+>  		err = add_to_page_cache(page, mapping, idx, GFP_KERNEL);
+>  		if (err) {
+>  			put_page(page);
+> @@ -414,7 +415,7 @@ static int hugetlb_cow(struct mm_struct 
+>  	}
+>  
+>  	page_cache_get(old_page);
+> -	new_page = alloc_huge_page();
+> +	new_page = alloc_huge_page(vma, address);
+>  
+>  	if (!new_page) {
+>  		page_cache_release(old_page);
+> @@ -463,8 +464,7 @@ int hugetlb_no_page(struct mm_struct *mm
+>  	 * Use page lock to guard against racing truncation
+>  	 * before we get page_table_lock.
+>  	 */
+> -	page = find_or_alloc_huge_page(mapping, idx,
+> -			vma->vm_flags & VM_SHARED);
+> +	page = find_or_alloc_huge_page(vma, address, mapping, idx);			;
+>  	if (!page)
+>  		goto out;
+>  
+> Index: linux-2.6.14-mm2/include/linux/mempolicy.h
+> ===================================================================
+> --- linux-2.6.14-mm2.orig/include/linux/mempolicy.h	2005-11-11 12:08:24.000000000 -0800
+> +++ linux-2.6.14-mm2/include/linux/mempolicy.h	2005-11-11 12:11:01.000000000 -0800
+> @@ -159,6 +159,8 @@ extern void numa_policy_init(void);
+>  extern void numa_policy_rebind(const nodemask_t *old, const nodemask_t *new);
+>  extern struct mempolicy default_policy;
+>  extern unsigned next_slab_node(struct mempolicy *policy);
+> +extern struct zonelist *huge_zonelist(struct vm_area_struct *vma,
+> +				unsigned long addr);
+>  
+>  int do_migrate_pages(struct mm_struct *mm,
+>  	const nodemask_t *from_nodes, const nodemask_t *to_nodes, int flags);
+> Index: linux-2.6.14-mm2/include/linux/hugetlb.h
+> ===================================================================
+> --- linux-2.6.14-mm2.orig/include/linux/hugetlb.h	2005-11-11 12:04:14.000000000 -0800
+> +++ linux-2.6.14-mm2/include/linux/hugetlb.h	2005-11-11 12:11:01.000000000 -0800
+> @@ -22,7 +22,7 @@ int hugetlb_report_meminfo(char *);
+>  int hugetlb_report_node_meminfo(int, char *);
+>  int is_hugepage_mem_enough(size_t);
+>  unsigned long hugetlb_total_pages(void);
+> -struct page *alloc_huge_page(void);
+> +struct page *alloc_huge_page(struct vm_area_struct *, unsigned long);
+>  void free_huge_page(struct page *);
+>  int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+>  			unsigned long address, int write_access);
+> @@ -97,7 +97,7 @@ static inline unsigned long hugetlb_tota
+>  #define is_hugepage_only_range(mm, addr, len)	0
+>  #define hugetlb_free_pgd_range(tlb, addr, end, floor, ceiling) \
+>  						do { } while (0)
+> -#define alloc_huge_page()			({ NULL; })
+> +#define alloc_huge_page(vma, addr)		({ NULL; })
+>  #define free_huge_page(p)			({ (void)(p); BUG(); })
+>  #define hugetlb_fault(mm, vma, addr, write)	({ BUG(); 0; })
+>  
+> 
+> 
+> 
 -- 
-                          I won't rest till it's the best ...
-                          Programmer, Linux Scalability
-                          Paul Jackson <pj@sgi.com> 1.650.933.1373
+Adam Litke - (agl at us.ibm.com)
+IBM Linux Technology Center
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
