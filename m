@@ -1,32 +1,81 @@
-Received: by zproxy.gmail.com with SMTP id n1so1101410nzf
-        for <linux-mm@kvack.org>; Sun, 13 Nov 2005 10:35:58 -0800 (PST)
-Message-ID: <f68e01850511131035l3f0530aft6076f156d4f62171@mail.gmail.com>
-Date: Mon, 14 Nov 2005 00:05:58 +0530
-From: Nitin Gupta <nitingupta.mail@gmail.com>
-Subject: why its dead now?
-MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 8BIT
-Content-Disposition: inline
+Date: Sun, 13 Nov 2005 20:03:41 -0800 (PST)
+From: Paul Jackson <pj@sgi.com>
+Message-Id: <20051114040341.13951.18900.sendpatchset@jackhammer.engr.sgi.com>
+In-Reply-To: <20051114040329.13951.39891.sendpatchset@jackhammer.engr.sgi.com>
+References: <20051114040329.13951.39891.sendpatchset@jackhammer.engr.sgi.com>
+Subject: [PATCH 02/05] mm simplify __alloc_pages cpuset ALLOC_* flags
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: akpm@osdl.org, linux-kernel@vger.kernel.org
+Cc: Nick Piggin <nickpiggin@yahoo.com.au>, linux-mm@kvack.org, Simon Derr <Simon.Derr@bull.net>, Christoph Lameter <clameter@sgi.com>, "Rohit, Seth" <rohit.seth@intel.com>, Paul Jackson <pj@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-Hi,
-    I've been working on 'compressed cache' feature
-(http://linuxcompressed.sourceforge.net/) for some time now. I'm
-basically porting it to 2.6 kernel series as it has already been
-developed for 2.4.x kernels.
-   I'm wondering why this project is dead even when it showed great
-performance improvement when system is under memory pressure.
+Remove ALLOC_CPUSET flag from mm/page_alloc.c:__alloc_pages().
+Thanks to the previous patch, it is equivalent to the setting
+of !ALLOC_NO_WATERMARKS, so redundant.
 
-Are there any serious drawbacks to this?
-Do you think it will be of any use if ported to 2.6 kernel?
+Signed-off-by: Paul Jackson <pj@sgi.com>
 
-Your feedback will be really helpful.
+---
 
-Thanks
+ mm/page_alloc.c |   12 ++++--------
+ 1 files changed, 4 insertions(+), 8 deletions(-)
+
+--- 2.6.14-mm2.orig/mm/page_alloc.c	2005-11-12 22:27:30.519813285 -0800
++++ 2.6.14-mm2/mm/page_alloc.c	2005-11-12 22:28:35.792016688 -0800
+@@ -758,7 +758,6 @@ buffered_rmqueue(struct zone *zone, int 
+ #define ALLOC_NO_WATERMARKS	0x01 /* don't check watermarks at all */
+ #define ALLOC_HARDER		0x02 /* try to alloc harder */
+ #define ALLOC_HIGH		0x04 /* __GFP_HIGH set */
+-#define ALLOC_CPUSET		0x08 /* check for correct cpuset */
+ 
+ /*
+  * Return 1 if free pages are above 'mark'. This takes into account the order
+@@ -814,11 +813,9 @@ get_page_from_freelist(gfp_t gfp_mask, u
+ 	 * See also cpuset_zone_allowed() comment in kernel/cpuset.c.
+ 	 */
+ 	do {
+-		if ((alloc_flags & ALLOC_CPUSET) &&
+-				!cpuset_zone_allowed(*z, gfp_mask))
+-			continue;
+-
+ 		if (!(alloc_flags & ALLOC_NO_WATERMARKS)) {
++			if (!cpuset_zone_allowed(*z, gfp_mask))
++				continue;
+ 			if (!zone_watermark_ok(*z, order, (*z)->pages_low,
+ 				    classzone_idx, alloc_flags))
+ 				continue;
+@@ -911,7 +908,7 @@ __alloc_pages(gfp_t gfp_mask, unsigned i
+ 	}
+ restart:
+ 	page = get_page_from_freelist(gfp_mask|__GFP_HARDWALL, order,
+-				zonelist, ALLOC_CPUSET);
++				zonelist, 0);
+ 	if (page)
+ 		goto got_pg;
+ 
+@@ -933,7 +930,6 @@ restart:
+ 		alloc_flags |= ALLOC_HARDER;
+ 	if (gfp_mask & __GFP_HIGH)
+ 		alloc_flags |= ALLOC_HIGH;
+-	alloc_flags |= ALLOC_CPUSET;
+ 
+ 	/*
+ 	 * Go through the zonelist again. Let __GFP_HIGH and allocations
+@@ -999,7 +995,7 @@ rebalance:
+ 		 * under heavy pressure.
+ 		 */
+ 		page = get_page_from_freelist(gfp_mask|__GFP_HARDWALL, order,
+-						zonelist, ALLOC_CPUSET);
++						zonelist, 0);
+ 		if (page)
+ 			goto got_pg;
+ 
+
+-- 
+                          I won't rest till it's the best ...
+                          Programmer, Linux Scalability
+                          Paul Jackson <pj@sgi.com> 1.650.933.1373
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
