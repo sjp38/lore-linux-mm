@@ -1,79 +1,258 @@
-From: Rodrigo S de Castro <rodsc@terra.com.br>
-Subject: Re: why its dead now?
-Date: Mon, 14 Nov 2005 17:58:52 -0200
-References: <f68e01850511131035l3f0530aft6076f156d4f62171@mail.gmail.com>
-In-Reply-To: <f68e01850511131035l3f0530aft6076f156d4f62171@mail.gmail.com>
+Date: Mon, 14 Nov 2005 13:46:50 -0800 (PST)
+From: Christoph Lameter <clameter@engr.sgi.com>
+Subject: Re: [RFC] NUMA memory policy support for HUGE pages
+In-Reply-To: <1131980814.13502.12.camel@localhost.localdomain>
+Message-ID: <Pine.LNX.4.62.0511141340160.4663@schroedinger.engr.sgi.com>
+References: <Pine.LNX.4.62.0511111051080.20589@schroedinger.engr.sgi.com>
+ <Pine.LNX.4.62.0511111225100.21071@schroedinger.engr.sgi.com>
+ <1131980814.13502.12.camel@localhost.localdomain>
 MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200511141758.52171.rodsc@terra.com.br>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nitin Gupta <nitingupta.mail@gmail.com>
-Cc: linux-mm@kvack.org
+To: Adam Litke <agl@us.ibm.com>
+Cc: linux-mm@kvack.org, ak@suse.de, linux-kernel@vger.kernel.org, kenneth.w.chen@intel.com, wli@holomorphy.com
 List-ID: <linux-mm.kvack.org>
 
-Hi Nitin,
+This is V2 of the patch.
 
-I didn't know you were working on a port of it to 2.6 version. 
+Changes:
 
-The project has been dead because I didn't have time to work on it after I 
-finished my Master's degree and also because nobody showed interest and had 
-enough time to port it to 2.6. Although it was not completely stable, it has 
-been used in many patchsets (ck, wolk) and I had really good feedbacks from 
-its users, in particular desktop users about smoother system degradations 
-when under memory pressure. It has never been officialy announced since there 
-is still a good deal of work to make it work with high memory systems, to 
-make it thread safe and probably some more testing and adjustments. With 2.6, 
-we still have rmap implementation that may help us improving the dynamic 
-adaptivity heuristic. 
+- Cleaned up by folding find_or_alloc() into hugetlb_no_page().
 
-Answering your questions, from my experience developing the 2.4 version, it 
-doesn't seem to have any serious drawbacks, but it has not yet been 
-extensively tested to prove to be a valid idea (although our benchmarks show 
-to be) and it didn't reach an implementation level where it could be 
-considered to be possibly a configuration option, at least. I think it may be 
-really useful to port it to 2.6, for various reasons, such as:
+- Consolidate common code in the memory policy layer by creating a new 
+  function interleave_nid().
 
-- better change to prove this concept, 
-- it may turn out to be a good option for embedded systems, 
-- chance to improve the adaptivity heuristic (with rmap and maybe with other 
-2.6 mm updates, besides some ideas I have)
-- with a thread safe, see how well it works with SMP systems.
+Patch on top of allocation patch and the cpuset patch that Andrew already 
+accepted.
 
-I am interested in porting it to 2.6 and it's possible, although not yet sure, 
-that I get back to working on this project in the next weeks. Let's discuss 
-the status of your port and how we could work together to make it happen (we 
-could discuss further on the lc-devel list).
+Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
-Best regards,
-
-Rodrigo
-
-
-On Sunday 13 November 2005 16:35, Nitin Gupta wrote:
-> Hi,
->     I've been working on 'compressed cache' feature
-> (http://linuxcompressed.sourceforge.net/) for some time now. I'm
-> basically porting it to 2.6 kernel series as it has already been
-> developed for 2.4.x kernels.
->    I'm wondering why this project is dead even when it showed great
-> performance improvement when system is under memory pressure.
->
-> Are there any serious drawbacks to this?
-> Do you think it will be of any use if ported to 2.6 kernel?
->
-> Your feedback will be really helpful.
->
-> Thanks
->
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Index: linux-2.6.14-mm2/mm/mempolicy.c
+===================================================================
+--- linux-2.6.14-mm2.orig/mm/mempolicy.c	2005-11-14 12:51:23.000000000 -0800
++++ linux-2.6.14-mm2/mm/mempolicy.c	2005-11-14 13:16:51.000000000 -0800
+@@ -1181,6 +1181,34 @@ static unsigned offset_il_node(struct me
+ 	return nid;
+ }
+ 
++/* Caculate a node number for interleave */
++static inline unsigned interleave_nid(struct mempolicy *pol,
++		 struct vm_area_struct *vma, unsigned long addr, int shift)
++{
++	if (vma) {
++		unsigned long off;
++
++		off = vma->vm_pgoff;
++		off += (addr - vma->vm_start) >> shift;
++		return offset_il_node(pol, vma, off);
++	} else
++		return interleave_nodes(pol);
++}
++
++/* Return a zonelist suitable for a huge page allocation. */
++struct zonelist *huge_zonelist(struct vm_area_struct *vma, unsigned long addr)
++{
++	struct mempolicy *pol = get_vma_policy(current, vma, addr);
++
++	if (pol->policy == MPOL_INTERLEAVE) {
++		unsigned nid;
++
++		nid = interleave_nid(pol, vma, addr, HPAGE_SHIFT);
++		return NODE_DATA(nid)->node_zonelists + gfp_zone(GFP_HIGHUSER);
++	}
++	return zonelist_policy(GFP_HIGHUSER, pol);
++}
++
+ /* Allocate a page in interleaved policy.
+    Own path because it needs to do special accounting. */
+ static struct page *alloc_page_interleave(gfp_t gfp, unsigned order,
+@@ -1229,15 +1257,8 @@ alloc_page_vma(gfp_t gfp, struct vm_area
+ 
+ 	if (unlikely(pol->policy == MPOL_INTERLEAVE)) {
+ 		unsigned nid;
+-		if (vma) {
+-			unsigned long off;
+-			off = vma->vm_pgoff;
+-			off += (addr - vma->vm_start) >> PAGE_SHIFT;
+-			nid = offset_il_node(pol, vma, off);
+-		} else {
+-			/* fall back to process interleaving */
+-			nid = interleave_nodes(pol);
+-		}
++
++		nid = interleave_nid(pol, vma, addr, PAGE_SHIFT);
+ 		return alloc_page_interleave(gfp, 0, nid);
+ 	}
+ 	return __alloc_pages(gfp, 0, zonelist_policy(gfp, pol));
+Index: linux-2.6.14-mm2/mm/hugetlb.c
+===================================================================
+--- linux-2.6.14-mm2.orig/mm/hugetlb.c	2005-11-14 12:51:23.000000000 -0800
++++ linux-2.6.14-mm2/mm/hugetlb.c	2005-11-14 13:37:16.000000000 -0800
+@@ -33,11 +33,12 @@ static void enqueue_huge_page(struct pag
+ 	free_huge_pages_node[nid]++;
+ }
+ 
+-static struct page *dequeue_huge_page(void)
++static struct page *dequeue_huge_page(struct vm_area_struct *vma,
++				unsigned long address)
+ {
+ 	int nid = numa_node_id();
+ 	struct page *page = NULL;
+-	struct zonelist *zonelist = NODE_DATA(nid)->node_zonelists;
++	struct zonelist *zonelist = huge_zonelist(vma, address);
+ 	struct zone **z;
+ 
+ 	for (z = zonelist->zones; *z; z++) {
+@@ -83,13 +84,13 @@ void free_huge_page(struct page *page)
+ 	spin_unlock(&hugetlb_lock);
+ }
+ 
+-struct page *alloc_huge_page(void)
++struct page *alloc_huge_page(struct vm_area_struct *vma, unsigned long addr)
+ {
+ 	struct page *page;
+ 	int i;
+ 
+ 	spin_lock(&hugetlb_lock);
+-	page = dequeue_huge_page();
++	page = dequeue_huge_page(vma, addr);
+ 	if (!page) {
+ 		spin_unlock(&hugetlb_lock);
+ 		return NULL;
+@@ -192,7 +193,7 @@ static unsigned long set_max_huge_pages(
+ 	spin_lock(&hugetlb_lock);
+ 	try_to_free_low(count);
+ 	while (count < nr_huge_pages) {
+-		struct page *page = dequeue_huge_page();
++		struct page *page = dequeue_huge_page(NULL, 0);
+ 		if (!page)
+ 			break;
+ 		update_and_free_page(page);
+@@ -361,42 +362,6 @@ void unmap_hugepage_range(struct vm_area
+ 	flush_tlb_range(vma, start, end);
+ }
+ 
+-static struct page *find_or_alloc_huge_page(struct address_space *mapping,
+-				unsigned long idx, int shared)
+-{
+-	struct page *page;
+-	int err;
+-
+-retry:
+-	page = find_lock_page(mapping, idx);
+-	if (page)
+-		goto out;
+-
+-	if (hugetlb_get_quota(mapping))
+-		goto out;
+-	page = alloc_huge_page();
+-	if (!page) {
+-		hugetlb_put_quota(mapping);
+-		goto out;
+-	}
+-
+-	if (shared) {
+-		err = add_to_page_cache(page, mapping, idx, GFP_KERNEL);
+-		if (err) {
+-			put_page(page);
+-			hugetlb_put_quota(mapping);
+-			if (err == -EEXIST)
+-				goto retry;
+-			page = NULL;
+-		}
+-	} else {
+-		/* Caller expects a locked page */
+-		lock_page(page);
+-	}
+-out:
+-	return page;
+-}
+-
+ static int hugetlb_cow(struct mm_struct *mm, struct vm_area_struct *vma,
+ 			unsigned long address, pte_t *ptep, pte_t pte)
+ {
+@@ -414,7 +379,7 @@ static int hugetlb_cow(struct mm_struct 
+ 	}
+ 
+ 	page_cache_get(old_page);
+-	new_page = alloc_huge_page();
++	new_page = alloc_huge_page(vma, address);
+ 
+ 	if (!new_page) {
+ 		page_cache_release(old_page);
+@@ -463,10 +428,32 @@ int hugetlb_no_page(struct mm_struct *mm
+ 	 * Use page lock to guard against racing truncation
+ 	 * before we get page_table_lock.
+ 	 */
+-	page = find_or_alloc_huge_page(mapping, idx,
+-			vma->vm_flags & VM_SHARED);
+-	if (!page)
+-		goto out;
++retry:
++	page = find_lock_page(mapping, idx);
++	if (!page) {
++		if (hugetlb_get_quota(mapping))
++			goto out;
++
++		page = alloc_huge_page(vma, address);
++		if (!page) {
++			hugetlb_put_quota(mapping);
++			goto out;
++		}
++
++		if (vma->vm_flags & VM_SHARED) {
++			int err;
++
++			err = add_to_page_cache(page, mapping, idx, GFP_KERNEL);
++			if (err) {
++				put_page(page);
++				hugetlb_put_quota(mapping);
++				if (err == -EEXIST)
++					goto retry;
++				goto out;
++			}
++		}
++		lock_page(page);
++	}
+ 
+ 	BUG_ON(!PageLocked(page));
+ 
+Index: linux-2.6.14-mm2/include/linux/mempolicy.h
+===================================================================
+--- linux-2.6.14-mm2.orig/include/linux/mempolicy.h	2005-11-14 12:51:22.000000000 -0800
++++ linux-2.6.14-mm2/include/linux/mempolicy.h	2005-11-14 12:51:23.000000000 -0800
+@@ -159,6 +159,8 @@ extern void numa_policy_init(void);
+ extern void numa_policy_rebind(const nodemask_t *old, const nodemask_t *new);
+ extern struct mempolicy default_policy;
+ extern unsigned next_slab_node(struct mempolicy *policy);
++extern struct zonelist *huge_zonelist(struct vm_area_struct *vma,
++				unsigned long addr);
+ 
+ int do_migrate_pages(struct mm_struct *mm,
+ 	const nodemask_t *from_nodes, const nodemask_t *to_nodes, int flags);
+Index: linux-2.6.14-mm2/include/linux/hugetlb.h
+===================================================================
+--- linux-2.6.14-mm2.orig/include/linux/hugetlb.h	2005-11-14 12:51:17.000000000 -0800
++++ linux-2.6.14-mm2/include/linux/hugetlb.h	2005-11-14 12:51:23.000000000 -0800
+@@ -22,7 +22,7 @@ int hugetlb_report_meminfo(char *);
+ int hugetlb_report_node_meminfo(int, char *);
+ int is_hugepage_mem_enough(size_t);
+ unsigned long hugetlb_total_pages(void);
+-struct page *alloc_huge_page(void);
++struct page *alloc_huge_page(struct vm_area_struct *, unsigned long);
+ void free_huge_page(struct page *);
+ int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+ 			unsigned long address, int write_access);
+@@ -97,7 +97,7 @@ static inline unsigned long hugetlb_tota
+ #define is_hugepage_only_range(mm, addr, len)	0
+ #define hugetlb_free_pgd_range(tlb, addr, end, floor, ceiling) \
+ 						do { } while (0)
+-#define alloc_huge_page()			({ NULL; })
++#define alloc_huge_page(vma, addr)		({ NULL; })
+ #define free_huge_page(p)			({ (void)(p); BUG(); })
+ #define hugetlb_fault(mm, vma, addr, write)	({ BUG(); 0; })
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
