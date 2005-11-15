@@ -1,41 +1,27 @@
-Date: Tue, 15 Nov 2005 14:29:54 -0800 (PST)
-From: Christoph Lameter <clameter@engr.sgi.com>
-Subject: Re: [PATCH] Add NUMA policy support for huge pages.
-In-Reply-To: <eada2a070511151419j5d94ec55xb36c6ae7d17ea30a@mail.gmail.com>
-Message-ID: <Pine.LNX.4.62.0511151429260.11270@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.62.0511151342310.10995@schroedinger.engr.sgi.com>
- <eada2a070511151419j5d94ec55xb36c6ae7d17ea30a@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Tue, 15 Nov 2005 14:54:51 -0800
+From: Paul Jackson <pj@sgi.com>
+Subject: Re: [PATCH 0/5] Light Fragmentation Avoidance V20
+Message-Id: <20051115145451.671a29ec.pj@sgi.com>
+In-Reply-To: <20051115164946.21980.2026.sendpatchset@skynet.csn.ul.ie>
+References: <20051115164946.21980.2026.sendpatchset@skynet.csn.ul.ie>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Tim Pepper <lnxninja@us.ibm.com>
-Cc: akpm@osdl.org, Adam Litke <agl@us.ibm.com>, linux-mm@kvack.org, ak@suse.de, linux-kernel@vger.kernel.org, kenneth.w.chen@intel.com, wli@holomorphy.com
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: linux-mm@kvack.org, mingo@elte.hu, lhms-devel@lists.sourceforge.net, linux-kernel@vger.kernel.org, nickpiggin@yahoo.com.au
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 15 Nov 2005, Tim Pepper wrote:
+I'm sure you've stated this before, but could you repeat it?
 
-> On 11/15/05, Christoph Lameter <clameter@engr.sgi.com> wrote:
-> > +/* Caculate a node number for interleave */
->       ^^^^^
-> Calculate even...
+What's the driving motivation for this, and what's the essential
+capability required?
 
-Fix:
-
-
-Index: linux-2.6.14-mm2/mm/mempolicy.c
-===================================================================
---- linux-2.6.14-mm2.orig/mm/mempolicy.c	2005-11-15 14:27:49.000000000 -0800
-+++ linux-2.6.14-mm2/mm/mempolicy.c	2005-11-15 14:28:32.000000000 -0800
-@@ -1005,7 +1005,7 @@ static unsigned offset_il_node(struct me
- 	return nid;
- }
- 
--/* Caculate a node number for interleave */
-+/* Determine a node number for interleave */
- static inline unsigned interleave_nid(struct mempolicy *pol,
- 		 struct vm_area_struct *vma, unsigned long addr, int shift)
- {
+-- 
+                  I won't rest till it's the best ...
+                  Programmer, Linux Scalability
+                  Paul Jackson <pj@sgi.com> 1.925.600.0401
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
