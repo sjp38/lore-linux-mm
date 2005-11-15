@@ -1,34 +1,40 @@
-From: Andi Kleen <ak@suse.de>
-Subject: Re: [PATCH 01/05] NUMA: Generic code
-Date: Tue, 15 Nov 2005 15:15:04 +0100
-References: <20051110090920.8083.54147.sendpatchset@cherry.local> <200511110516.37980.ak@suse.de> <aec7e5c30511150034t5ff9e362jb3261e2e23479b31@mail.gmail.com>
-In-Reply-To: <aec7e5c30511150034t5ff9e362jb3261e2e23479b31@mail.gmail.com>
+Date: Tue, 15 Nov 2005 08:43:26 -0800 (PST)
+From: Christoph Lameter <clameter@engr.sgi.com>
+Subject: Re: [RFC] Make the slab allocator observe NUMA policies
+In-Reply-To: <200511150434.15094.ak@suse.de>
+Message-ID: <Pine.LNX.4.62.0511150841150.9258@schroedinger.engr.sgi.com>
+References: <Pine.LNX.4.62.0511101401390.16481@schroedinger.engr.sgi.com>
+ <200511141944.33478.ak@suse.de> <Pine.LNX.4.62.0511141055560.1222@schroedinger.engr.sgi.com>
+ <200511150434.15094.ak@suse.de>
 MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200511151515.05201.ak@suse.de>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Magnus Damm <magnus.damm@gmail.com>
-Cc: Magnus Damm <magnus@valinux.co.jp>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, pj@sgi.com
+To: Andi Kleen <ak@suse.de>
+Cc: steiner@sgi.com, linux-mm@kvack.org, alokk@calsoftinc.com
 List-ID: <linux-mm.kvack.org>
 
-On Tuesday 15 November 2005 09:34, Magnus Damm wrote:
+On Tue, 15 Nov 2005, Andi Kleen wrote:
 
+> On Monday 14 November 2005 20:08, Christoph Lameter wrote:
+> > I have thought about various ways to modify kmem_getpages() but these do 
+> > not fit into the basic current concept of the slab allocator. The 
+> > proposed method is the cleanest approach that I can think of. I'd be glad 
+> > if you could come up with something different but AFAIK simply moving the 
+> > policy application down in the slab allocator does not work.
 > 
-> My plan with breaking out the NUMA emulation code was to merge my i386
-> stuff with the x86_64 code, but as you say - it might be overkill.
-> 
-> What do you think about the fact that real NUMA nodes now can be
-> divided into several smaller nodes?
+> I haven't checked all the details, but why can't it be done at the cache_grow
+> layer? (that's already a slow path)
 
-Is it really needed? I never needed it.  Normally numa emulation 
-is just for basic numa testing, and for that just an independent
-split is good enough.
+cache_grow is called only after the lists have been checked. Its the same
+scenario as I described.
 
--Andi
+> If it's not possible to do it in the slow path I would say the design is 
+> incompatible with interleaving then. Better not do it then than doing it wrong.
+
+If MPOL_INTERLEAVE  is set then multiple kmalloc() invocations will 
+allocate each item round robin on each node. That is the intended function 
+of MPOL_INTERLEAVE right?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
