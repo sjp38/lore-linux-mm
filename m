@@ -1,31 +1,44 @@
-Date: Mon, 14 Nov 2005 22:28:46 -0500 (EST)
-From: Rik van Riel <riel@redhat.com>
-Subject: Re: why its dead now?
-In-Reply-To: <f68e01850511131035l3f0530aft6076f156d4f62171@mail.gmail.com>
-Message-ID: <Pine.LNX.4.63.0511142227540.15035@cuia.boston.redhat.com>
-References: <f68e01850511131035l3f0530aft6076f156d4f62171@mail.gmail.com>
+Received: by zproxy.gmail.com with SMTP id n1so1530194nzf
+        for <linux-mm@kvack.org>; Tue, 15 Nov 2005 00:34:16 -0800 (PST)
+Message-ID: <aec7e5c30511150034t5ff9e362jb3261e2e23479b31@mail.gmail.com>
+Date: Tue, 15 Nov 2005 17:34:16 +0900
+From: Magnus Damm <magnus.damm@gmail.com>
+Subject: Re: [PATCH 01/05] NUMA: Generic code
+In-Reply-To: <200511110516.37980.ak@suse.de>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 8BIT
+Content-Disposition: inline
+References: <20051110090920.8083.54147.sendpatchset@cherry.local>
+	 <20051110090925.8083.45887.sendpatchset@cherry.local>
+	 <200511110516.37980.ak@suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nitin Gupta <nitingupta.mail@gmail.com>
-Cc: linux-mm@kvack.org
+To: Andi Kleen <ak@suse.de>
+Cc: Magnus Damm <magnus@valinux.co.jp>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, pj@sgi.com
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 14 Nov 2005, Nitin Gupta wrote:
+On 11/11/05, Andi Kleen <ak@suse.de> wrote:
+> On Thursday 10 November 2005 10:08, Magnus Damm wrote:
+> > Generic CONFIG_NUMA_EMU code.
+> >
+> > This patch adds generic NUMA emulation code to the kernel. The code
+> > provides the architectures with functions that calculate the size of
+> > emulated nodes, together with configuration stuff such as Kconfig and
+> > kernel command line code.
+>
+> IMHO making it generic and bloated like this is total overkill
+> for this simple debugginghack. I think it is better to keep
+> it simple and hiden it in a architecture specific dark corners, not expose it
+> like this.
 
-> Are there any serious drawbacks to this?
+My plan with breaking out the NUMA emulation code was to merge my i386
+stuff with the x86_64 code, but as you say - it might be overkill.
 
-Compressed caching may be hard to tune right for some workloads.
-I cannot see any other drawbacks - certainly nothing that should
-keep you from working on it...
+What do you think about the fact that real NUMA nodes now can be
+divided into several smaller nodes?
 
-> Do you think it will be of any use if ported to 2.6 kernel?
-
-It has the potential to be very useful.
-
--- 
-All Rights Reversed
+/ magnus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
