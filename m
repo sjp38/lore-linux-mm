@@ -1,178 +1,247 @@
 From: Mel Gorman <mel@csn.ul.ie>
-Message-Id: <20051115164952.21980.3852.sendpatchset@skynet.csn.ul.ie>
+Message-Id: <20051115165007.21980.37336.sendpatchset@skynet.csn.ul.ie>
 In-Reply-To: <20051115164946.21980.2026.sendpatchset@skynet.csn.ul.ie>
 References: <20051115164946.21980.2026.sendpatchset@skynet.csn.ul.ie>
-Subject: [PATCH 1/5] Light Fragmentation Avoidance V20: 001_antidefrag_flags
-Date: Tue, 15 Nov 2005 16:49:54 +0000 (GMT)
+Subject: [PATCH 4/5] Light Fragmentation Avoidance V20: 004_percpu
+Date: Tue, 15 Nov 2005 16:50:09 +0000 (GMT)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
-Cc: Mel Gorman <mel@csn.ul.ie>, mingo@elte.hu, linux-kernel@vger.kernel.org, nickpiggin@yahoo.com.au, lhms-devel@lists.sourceforge.net
+Cc: Mel Gorman <mel@csn.ul.ie>, mingo@elte.hu, lhms-devel@lists.sourceforge.net, linux-kernel@vger.kernel.org, nickpiggin@yahoo.com.au
 List-ID: <linux-mm.kvack.org>
 
-This patch adds a flag __GFP_EASYRCLM.  Allocations using the __GFP_EASYRCLM
-flag are expected to be easily reclaimed by syncing with backing storage (be
-it a file or swap) or cleaning the buffers and discarding.
+The freelists for each allocation type can slowly become corrupted due to
+the per-cpu list. Consider what happens when the following happens
+
+1. A 2^(MAX_ORDER-1) list is reserved for __GFP_EASYRCLM pages
+2. An order-0 page is allocated from the newly reserved block
+3. The page is freed and placed on the per-cpu list
+4. alloc_page() is called with GFP_KERNEL as the gfp_mask
+5. The per-cpu list is used to satisfy the allocation
+
+This results in a kernel page is in the middle of a RCLM_EASY region. This
+means that over long periods of the time, the anti-fragmentation scheme
+slowly degrades to the standard allocator.
+
+This patch divides the per-cpu lists into RCLM_TYPES number of lists.
 
 Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-diff -rup -X /usr/src/patchset-0.5/bin//dontdiff linux-2.6.14-mm2-clean/fs/buffer.c linux-2.6.14-mm2-001_antidefrag_flags/fs/buffer.c
---- linux-2.6.14-mm2-clean/fs/buffer.c	2005-11-13 21:22:24.000000000 +0000
-+++ linux-2.6.14-mm2-001_antidefrag_flags/fs/buffer.c	2005-11-15 12:40:42.000000000 +0000
-@@ -1113,7 +1113,8 @@ grow_dev_page(struct block_device *bdev,
- 	struct page *page;
- 	struct buffer_head *bh;
- 
--	page = find_or_create_page(inode->i_mapping, index, GFP_NOFS);
-+	page = find_or_create_page(inode->i_mapping, index,
-+				   GFP_NOFS|__GFP_EASYRCLM);
- 	if (!page)
- 		return NULL;
- 
-diff -rup -X /usr/src/patchset-0.5/bin//dontdiff linux-2.6.14-mm2-clean/fs/compat.c linux-2.6.14-mm2-001_antidefrag_flags/fs/compat.c
---- linux-2.6.14-mm2-clean/fs/compat.c	2005-11-13 21:22:24.000000000 +0000
-+++ linux-2.6.14-mm2-001_antidefrag_flags/fs/compat.c	2005-11-15 12:40:42.000000000 +0000
-@@ -1345,7 +1345,7 @@ static int compat_copy_strings(int argc,
- 			page = bprm->page[i];
- 			new = 0;
- 			if (!page) {
--				page = alloc_page(GFP_HIGHUSER);
-+				page = alloc_page(GFP_HIGHUSER|__GFP_EASYRCLM);
- 				bprm->page[i] = page;
- 				if (!page) {
- 					ret = -ENOMEM;
-diff -rup -X /usr/src/patchset-0.5/bin//dontdiff linux-2.6.14-mm2-clean/fs/exec.c linux-2.6.14-mm2-001_antidefrag_flags/fs/exec.c
---- linux-2.6.14-mm2-clean/fs/exec.c	2005-11-13 21:22:24.000000000 +0000
-+++ linux-2.6.14-mm2-001_antidefrag_flags/fs/exec.c	2005-11-15 12:40:42.000000000 +0000
-@@ -238,7 +238,7 @@ static int copy_strings(int argc, char _
- 			page = bprm->page[i];
- 			new = 0;
- 			if (!page) {
--				page = alloc_page(GFP_HIGHUSER);
-+				page = alloc_page(GFP_HIGHUSER|__GFP_EASYRCLM);
- 				bprm->page[i] = page;
- 				if (!page) {
- 					ret = -ENOMEM;
-diff -rup -X /usr/src/patchset-0.5/bin//dontdiff linux-2.6.14-mm2-clean/fs/inode.c linux-2.6.14-mm2-001_antidefrag_flags/fs/inode.c
---- linux-2.6.14-mm2-clean/fs/inode.c	2005-11-13 21:22:24.000000000 +0000
-+++ linux-2.6.14-mm2-001_antidefrag_flags/fs/inode.c	2005-11-15 12:40:42.000000000 +0000
-@@ -146,7 +146,7 @@ static struct inode *alloc_inode(struct 
- 		mapping->a_ops = &empty_aops;
-  		mapping->host = inode;
- 		mapping->flags = 0;
--		mapping_set_gfp_mask(mapping, GFP_HIGHUSER);
-+		mapping_set_gfp_mask(mapping, GFP_HIGHUSER|__GFP_EASYRCLM);
- 		mapping->assoc_mapping = NULL;
- 		mapping->backing_dev_info = &default_backing_dev_info;
- 
-diff -rup -X /usr/src/patchset-0.5/bin//dontdiff linux-2.6.14-mm2-clean/include/asm-i386/page.h linux-2.6.14-mm2-001_antidefrag_flags/include/asm-i386/page.h
---- linux-2.6.14-mm2-clean/include/asm-i386/page.h	2005-10-28 01:02:08.000000000 +0100
-+++ linux-2.6.14-mm2-001_antidefrag_flags/include/asm-i386/page.h	2005-11-15 12:40:42.000000000 +0000
-@@ -36,7 +36,8 @@
- #define clear_user_page(page, vaddr, pg)	clear_page(page)
- #define copy_user_page(to, from, vaddr, pg)	copy_page(to, from)
- 
--#define alloc_zeroed_user_highpage(vma, vaddr) alloc_page_vma(GFP_HIGHUSER | __GFP_ZERO, vma, vaddr)
-+#define alloc_zeroed_user_highpage(vma, vaddr) \
-+	alloc_page_vma(GFP_HIGHUSER | __GFP_ZERO | __GFP_EASYRCLM, vma, vaddr)
- #define __HAVE_ARCH_ALLOC_ZEROED_USER_HIGHPAGE
- 
- /*
-diff -rup -X /usr/src/patchset-0.5/bin//dontdiff linux-2.6.14-mm2-clean/include/linux/gfp.h linux-2.6.14-mm2-001_antidefrag_flags/include/linux/gfp.h
---- linux-2.6.14-mm2-clean/include/linux/gfp.h	2005-11-13 21:22:26.000000000 +0000
-+++ linux-2.6.14-mm2-001_antidefrag_flags/include/linux/gfp.h	2005-11-15 12:40:42.000000000 +0000
-@@ -50,6 +50,12 @@ struct vm_area_struct;
- #define __GFP_HARDWALL   ((__force gfp_t)0x40000u) /* Enforce hardwall cpuset memory allocs */
- #define __GFP_VALID	((__force gfp_t)0x80000000u) /* valid GFP flags */
- 
-+/*
-+ * Allocation type modifier
-+ * __GFP_EASYRCLM: Easily reclaimed pages like userspace or buffer pages
-+ */
-+#define __GFP_EASYRCLM   0x80000u  /* User and other easily reclaimed pages */
-+
- #define __GFP_BITS_SHIFT 20	/* Room for 20 __GFP_FOO bits */
- #define __GFP_BITS_MASK ((__force gfp_t)((1 << __GFP_BITS_SHIFT) - 1))
- 
-@@ -57,7 +63,8 @@ struct vm_area_struct;
- #define GFP_LEVEL_MASK (__GFP_WAIT|__GFP_HIGH|__GFP_IO|__GFP_FS| \
- 			__GFP_COLD|__GFP_NOWARN|__GFP_REPEAT| \
- 			__GFP_NOFAIL|__GFP_NORETRY|__GFP_NO_GROW|__GFP_COMP| \
--			__GFP_NOMEMALLOC|__GFP_NORECLAIM|__GFP_HARDWALL)
-+			__GFP_NOMEMALLOC|__GFP_NORECLAIM|__GFP_HARDWALL| \
-+			__GFP_EASYRCLM)
- 
- #define GFP_ATOMIC	(__GFP_VALID | __GFP_HIGH)
- #define GFP_NOIO	(__GFP_VALID | __GFP_WAIT)
-diff -rup -X /usr/src/patchset-0.5/bin//dontdiff linux-2.6.14-mm2-clean/include/linux/highmem.h linux-2.6.14-mm2-001_antidefrag_flags/include/linux/highmem.h
---- linux-2.6.14-mm2-clean/include/linux/highmem.h	2005-10-28 01:02:08.000000000 +0100
-+++ linux-2.6.14-mm2-001_antidefrag_flags/include/linux/highmem.h	2005-11-15 12:40:42.000000000 +0000
-@@ -47,7 +47,8 @@ static inline void clear_user_highpage(s
- static inline struct page *
- alloc_zeroed_user_highpage(struct vm_area_struct *vma, unsigned long vaddr)
- {
--	struct page *page = alloc_page_vma(GFP_HIGHUSER, vma, vaddr);
-+	struct page *page = alloc_page_vma(GFP_HIGHUSER|__GFP_EASYRCLM,
-+							vma, vaddr);
- 
- 	if (page)
- 		clear_user_highpage(page, vaddr);
-diff -rup -X /usr/src/patchset-0.5/bin//dontdiff linux-2.6.14-mm2-clean/mm/memory.c linux-2.6.14-mm2-001_antidefrag_flags/mm/memory.c
---- linux-2.6.14-mm2-clean/mm/memory.c	2005-11-13 21:22:26.000000000 +0000
-+++ linux-2.6.14-mm2-001_antidefrag_flags/mm/memory.c	2005-11-15 12:40:42.000000000 +0000
-@@ -1346,7 +1346,8 @@ static int do_wp_page(struct mm_struct *
- 		if (!new_page)
- 			goto oom;
- 	} else {
--		new_page = alloc_page_vma(GFP_HIGHUSER, vma, address);
-+		new_page = alloc_page_vma(GFP_HIGHUSER|__GFP_EASYRCLM,
-+							vma, address);
- 		if (!new_page)
- 			goto oom;
- 		copy_user_highpage(new_page, old_page, address);
-@@ -1914,7 +1915,8 @@ retry:
- 
- 			if (unlikely(anon_vma_prepare(vma)))
- 				goto oom;
--			page = alloc_page_vma(GFP_HIGHUSER, vma, address);
-+			page = alloc_page_vma(GFP_HIGHUSER|__GFP_EASYRCLM,
-+								vma, address);
- 			if (!page)
- 				goto oom;
- 			copy_user_highpage(page, new_page, address);
-diff -rup -X /usr/src/patchset-0.5/bin//dontdiff linux-2.6.14-mm2-clean/mm/shmem.c linux-2.6.14-mm2-001_antidefrag_flags/mm/shmem.c
---- linux-2.6.14-mm2-clean/mm/shmem.c	2005-11-13 21:22:27.000000000 +0000
-+++ linux-2.6.14-mm2-001_antidefrag_flags/mm/shmem.c	2005-11-15 12:40:42.000000000 +0000
-@@ -906,7 +906,7 @@ shmem_alloc_page(gfp_t gfp, struct shmem
- 	pvma.vm_policy = mpol_shared_policy_lookup(&info->policy, idx);
- 	pvma.vm_pgoff = idx;
- 	pvma.vm_end = PAGE_SIZE;
--	page = alloc_page_vma(gfp | __GFP_ZERO, &pvma, 0);
-+	page = alloc_page_vma(gfp | __GFP_ZERO | __GFP_EASYRCLM, &pvma, 0);
- 	mpol_free(pvma.vm_policy);
- 	return page;
- }
-@@ -921,7 +921,7 @@ shmem_swapin(struct shmem_inode_info *in
- static inline struct page *
- shmem_alloc_page(gfp_t gfp,struct shmem_inode_info *info, unsigned long idx)
- {
--	return alloc_page(gfp | __GFP_ZERO);
-+	return alloc_page(gfp | __GFP_ZERO | __GFP_EASYRCLM);
- }
+diff -rup -X /usr/src/patchset-0.5/bin//dontdiff linux-2.6.14-mm2-003_fragcore/include/linux/mmzone.h linux-2.6.14-mm2-004_percpu/include/linux/mmzone.h
+--- linux-2.6.14-mm2-003_fragcore/include/linux/mmzone.h	2005-11-15 12:43:41.000000000 +0000
++++ linux-2.6.14-mm2-004_percpu/include/linux/mmzone.h	2005-11-15 12:44:23.000000000 +0000
+@@ -56,11 +56,11 @@ struct zone_padding {
  #endif
  
-diff -rup -X /usr/src/patchset-0.5/bin//dontdiff linux-2.6.14-mm2-clean/mm/swap_state.c linux-2.6.14-mm2-001_antidefrag_flags/mm/swap_state.c
---- linux-2.6.14-mm2-clean/mm/swap_state.c	2005-11-13 21:22:27.000000000 +0000
-+++ linux-2.6.14-mm2-001_antidefrag_flags/mm/swap_state.c	2005-11-15 12:40:42.000000000 +0000
-@@ -341,7 +341,8 @@ struct page *read_swap_cache_async(swp_e
- 		 * Get a new page to read into from swap.
- 		 */
- 		if (!new_page) {
--			new_page = alloc_page_vma(GFP_HIGHUSER, vma, addr);
-+			new_page = alloc_page_vma(GFP_HIGHUSER|__GFP_EASYRCLM,
-+							vma, addr);
- 			if (!new_page)
- 				break;		/* Out of memory */
+ struct per_cpu_pages {
+-	int count;		/* number of pages in the list */
++	int count[RCLM_TYPES];	/* Number of pages on the lists */
+ 	int low;		/* low watermark, refill needed */
+ 	int high;		/* high watermark, emptying needed */
+ 	int batch;		/* chunk size for buddy add/remove */
+-	struct list_head list;	/* the list of pages */
++	struct list_head list[RCLM_TYPES]; /* the lists of pages */
+ };
+ 
+ struct per_cpu_pageset {
+@@ -75,6 +75,9 @@ struct per_cpu_pageset {
+ #endif
+ } ____cacheline_aligned_in_smp;
+ 
++/* Helpers for per_cpu_pages */
++#define pcp_count(pcp) (pcp.count[RCLM_NORCLM] + pcp.count[RCLM_EASY])
++
+ #ifdef CONFIG_NUMA
+ #define zone_pcp(__z, __cpu) ((__z)->pageset[(__cpu)])
+ #else
+diff -rup -X /usr/src/patchset-0.5/bin//dontdiff linux-2.6.14-mm2-003_fragcore/mm/page_alloc.c linux-2.6.14-mm2-004_percpu/mm/page_alloc.c
+--- linux-2.6.14-mm2-003_fragcore/mm/page_alloc.c	2005-11-15 12:44:27.000000000 +0000
++++ linux-2.6.14-mm2-004_percpu/mm/page_alloc.c	2005-11-15 12:44:23.000000000 +0000
+@@ -623,7 +623,7 @@ static int rmqueue_bulk(struct zone *zon
+ void drain_remote_pages(void)
+ {
+ 	struct zone *zone;
+-	int i;
++	int i, pindex;
+ 	unsigned long flags;
+ 
+ 	local_irq_save(flags);
+@@ -639,9 +639,16 @@ void drain_remote_pages(void)
+ 			struct per_cpu_pages *pcp;
+ 
+ 			pcp = &pset->pcp[i];
+-			if (pcp->count)
+-				pcp->count -= free_pages_bulk(zone, pcp->count,
+-						&pcp->list, 0);
++			for_each_rclmtype(pindex) {
++				if (!pcp->count[pindex])
++					continue;
++
++				/* Try remove all pages from the pcpu list */
++				pcp->count[pindex] -=
++					free_pages_bulk(zone,
++						pcp->count[pindex],
++						&pcp->list[pindex], 0);
++			}
  		}
+ 	}
+ 	local_irq_restore(flags);
+@@ -652,7 +659,7 @@ void drain_remote_pages(void)
+ static void __drain_pages(unsigned int cpu)
+ {
+ 	struct zone *zone;
+-	int i;
++	int i, pindex;
+ 
+ 	for_each_zone(zone) {
+ 		struct per_cpu_pageset *pset;
+@@ -662,8 +669,16 @@ static void __drain_pages(unsigned int c
+ 			struct per_cpu_pages *pcp;
+ 
+ 			pcp = &pset->pcp[i];
+-			pcp->count -= free_pages_bulk(zone, pcp->count,
+-						&pcp->list, 0);
++			for_each_rclmtype(pindex) {
++				if (!pcp->count[pindex])
++					continue;
++
++				/* Try remove all pages from the pcpu list */
++				pcp->count[pindex] -=
++					free_pages_bulk(zone,
++						pcp->count[pindex],
++						&pcp->list[pindex], 0);
++			}
+ 		}
+ 	}
+ }
+@@ -743,6 +758,7 @@ static void fastcall free_hot_cold_page(
+ 	struct zone *zone = page_zone(page);
+ 	struct per_cpu_pages *pcp;
+ 	unsigned long flags;
++	int pindex;
+ 
+ 	arch_free_page(page, 0);
+ 
+@@ -752,11 +768,14 @@ static void fastcall free_hot_cold_page(
+ 		page->mapping = NULL;
+ 	free_pages_check(__FUNCTION__, page);
+ 	pcp = &zone_pcp(zone, get_cpu())->pcp[cold];
++
+ 	local_irq_save(flags);
+-	list_add(&page->lru, &pcp->list);
+-	pcp->count++;
+-	if (pcp->count >= pcp->high)
+-		pcp->count -= free_pages_bulk(zone, pcp->batch, &pcp->list, 0);
++	pindex = get_pageblock_type(zone, page);
++	list_add(&page->lru, &pcp->list[pindex]);
++	pcp->count[pindex]++;
++	if (pcp->count[pindex] >= pcp->high)
++		pcp->count[pindex] -= free_pages_bulk(zone, pcp->batch,
++				&pcp->list[pindex], 0);
+ 	local_irq_restore(flags);
+ 	put_cpu();
+ }
+@@ -798,14 +817,16 @@ buffered_rmqueue(struct zone *zone, int 
+ 
+ 		pcp = &zone_pcp(zone, get_cpu())->pcp[cold];
+ 		local_irq_save(flags);
+-		if (pcp->count <= pcp->low)
+-			pcp->count += rmqueue_bulk(zone, 0,
+-						pcp->batch, &pcp->list,
++		if (pcp->count[alloctype] <= pcp->low)
++			pcp->count[alloctype] += rmqueue_bulk(zone, 0,
++						pcp->batch,
++						&pcp->list[alloctype],
+ 						alloctype);
+-		if (pcp->count) {
+-			page = list_entry(pcp->list.next, struct page, lru);
++		if (pcp->count[alloctype]) {
++			page = list_entry(pcp->list[alloctype].next,
++					struct page, lru);
+ 			list_del(&page->lru);
+-			pcp->count--;
++			pcp->count[alloctype]--;
+ 		}
+ 		local_irq_restore(flags);
+ 		put_cpu();
+@@ -847,9 +868,9 @@ int zone_watermark_ok(struct zone *z, in
+ 	int o,t;
+ 
+ 	if (alloc_flags & ALLOC_HIGH)
+-		mark -= mark / 2;
++		mark /= 2;
+ 	if (alloc_flags & ALLOC_HARDER)
+-		mark -= mark / 4;
++		mark /= 4;
+ 
+ 	if (free_pages <= mark + z->lowmem_reserve[classzone_idx])
+ 		goto out_failed;
+@@ -861,13 +882,13 @@ int zone_watermark_ok(struct zone *z, in
+ 			 * unavailable
+ 			 */
+ 			free_pages -= z->free_area_lists[t][o].nr_free << o;
++		}
+ 
+-			/* Require fewer higher order pages to be free */
+-			min >>= 1;
++		/* Require fewer higher order pages to be free */
++		min >>= 1;
+ 
+-			if (free_pages <= min)
+-				goto out_failed;
+-			}
++		if (free_pages <= min)
++			goto out_failed;
+ 	}
+ 
+ 	return 1;
+@@ -1472,7 +1493,7 @@ void show_free_areas(void)
+ 					pageset->pcp[temperature].low,
+ 					pageset->pcp[temperature].high,
+ 					pageset->pcp[temperature].batch,
+-					pageset->pcp[temperature].count);
++					pcp_count(pageset->pcp[temperature]));
+ 		}
+ 	}
+ 
+@@ -1930,18 +1951,23 @@ inline void setup_pageset(struct per_cpu
+ 	memset(p, 0, sizeof(*p));
+ 
+ 	pcp = &p->pcp[0];		/* hot */
+-	pcp->count = 0;
++	pcp->count[RCLM_NORCLM] = 0;
++	pcp->count[RCLM_EASY] = 0;
+ 	pcp->low = 0;
+-	pcp->high = 6 * batch;
++	pcp->high = 3 * batch;
+ 	pcp->batch = max(1UL, 1 * batch);
+-	INIT_LIST_HEAD(&pcp->list);
++	INIT_LIST_HEAD(&pcp->list[RCLM_NORCLM]);
++	INIT_LIST_HEAD(&pcp->list[RCLM_EASY]);
+ 
+ 	pcp = &p->pcp[1];		/* cold*/
+-	pcp->count = 0;
++
++	pcp->count[RCLM_NORCLM] = 0;
++	pcp->count[RCLM_EASY] = 0;
+ 	pcp->low = 0;
+-	pcp->high = 2 * batch;
++	pcp->high = batch;
+ 	pcp->batch = max(1UL, batch/2);
+-	INIT_LIST_HEAD(&pcp->list);
++	INIT_LIST_HEAD(&pcp->list[RCLM_NORCLM]);
++	INIT_LIST_HEAD(&pcp->list[RCLM_EASY]);
+ }
+ 
+ #ifndef CONFIG_SPARSEMEM
+@@ -2381,7 +2407,7 @@ static int zoneinfo_show(struct seq_file
+ 					   "\n              high:  %i"
+ 					   "\n              batch: %i",
+ 					   i, j,
+-					   pageset->pcp[j].count,
++					   pcp_count(pageset->pcp[j]),
+ 					   pageset->pcp[j].low,
+ 					   pageset->pcp[j].high,
+ 					   pageset->pcp[j].batch);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
