@@ -1,46 +1,34 @@
-Date: Tue, 15 Nov 2005 08:55:52 -0800 (PST)
-From: Christoph Lameter <clameter@engr.sgi.com>
-Subject: Re: [RFC] Make the slab allocator observe NUMA policies
-In-Reply-To: <200511151751.40035.ak@suse.de>
-Message-ID: <Pine.LNX.4.62.0511150853010.9797@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.62.0511101401390.16481@schroedinger.engr.sgi.com>
- <200511150434.15094.ak@suse.de> <Pine.LNX.4.62.0511150841150.9258@schroedinger.engr.sgi.com>
- <200511151751.40035.ak@suse.de>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Tue, 15 Nov 2005 11:20:42 -0800
+From: Paul Jackson <pj@sgi.com>
+Subject: Re: [PATCH 03/05] mm rationalize __alloc_pages ALLOC_* flag names
+Message-Id: <20051115112042.253ca3cf.pj@sgi.com>
+In-Reply-To: <4379B0A7.3090803@yahoo.com.au>
+References: <20051114040329.13951.39891.sendpatchset@jackhammer.engr.sgi.com>
+	<20051114040353.13951.82602.sendpatchset@jackhammer.engr.sgi.com>
+	<4379A399.1080407@yahoo.com.au>
+	<20051115010303.6bc04222.akpm@osdl.org>
+	<4379B0A7.3090803@yahoo.com.au>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <ak@suse.de>
-Cc: steiner@sgi.com, linux-mm@kvack.org, alokk@calsoftinc.com, akpm@osdl.org
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: akpm@osdl.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Simon.Derr@bull.net, clameter@sgi.com, rohit.seth@intel.com
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 15 Nov 2005, Andi Kleen wrote:
+Nick suggested:
+> ALLOC_DIP_NONE
+> ALLOC_DIP_LESS
+> ALLOC_DIP_MORE
+> ALLOC_DIP_FULL
 
-> > > I haven't checked all the details, but why can't it be done at the
-> > > cache_grow layer? (that's already a slow path)
-> >
-> > cache_grow is called only after the lists have been checked. Its the same
-> > scenario as I described.
-> 
-> So retry the check?
+Sweet.  PATCH coming soon.
 
-The checks are quit extensive there is locking going on etc. No easy way 
-back. And this is easily going to offset what you see as negative in the 
-proposed patch.
-
-> > > If it's not possible to do it in the slow path I would say the design is
-> > > incompatible with interleaving then. Better not do it then than doing it
-> > > wrong.
-> >
-> > If MPOL_INTERLEAVE  is set then multiple kmalloc() invocations will
-> > allocate each item round robin on each node. That is the intended function
-> > of MPOL_INTERLEAVE right?
-> 
-> memory policy was always only designed to work on pages, not on smaller
-> objects. So no.
-
-memory policy works on huge pages in SLES9, so it already works on larger 
-objects. Why should it not also work on smaller objects?
+-- 
+                  I won't rest till it's the best ...
+                  Programmer, Linux Scalability
+                  Paul Jackson <pj@sgi.com> 1.925.600.0401
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
