@@ -1,116 +1,43 @@
-Date: Tue, 15 Nov 2005 13:47:16 -0800 (PST)
-From: Christoph Lameter <clameter@engr.sgi.com>
-Subject: [PATCH] hugepages: fold find_or_alloc_pages into huge_no_page()
-Message-ID: <Pine.LNX.4.62.0511151345470.11011@schroedinger.engr.sgi.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e4.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id jAFM0Wcq016710
+	for <linux-mm@kvack.org>; Tue, 15 Nov 2005 17:00:32 -0500
+Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
+	by d01relay04.pok.ibm.com (8.12.10/NCO/VERS6.8) with ESMTP id jAFM0W4F121500
+	for <linux-mm@kvack.org>; Tue, 15 Nov 2005 17:00:32 -0500
+Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
+	by d01av01.pok.ibm.com (8.12.11/8.13.3) with ESMTP id jAFM0Vm0007339
+	for <linux-mm@kvack.org>; Tue, 15 Nov 2005 17:00:31 -0500
+Subject: Re: [PATCH] Add NUMA policy support for huge pages.
+From: Adam Litke <agl@us.ibm.com>
+In-Reply-To: <Pine.LNX.4.62.0511151342310.10995@schroedinger.engr.sgi.com>
+References: <Pine.LNX.4.62.0511151342310.10995@schroedinger.engr.sgi.com>
+Content-Type: text/plain
+Date: Tue, 15 Nov 2005 15:59:26 -0600
+Message-Id: <1132091966.22243.9.camel@localhost.localdomain>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Adam Litke <agl@us.ibm.com>
-Cc: linux-mm@kvack.org, ak@suse.de, linux-kernel@vger.kernel.org, kenneth.w.chen@intel.com, wli@holomorphy.com, akpm@osdl.org
+To: Christoph Lameter <clameter@engr.sgi.com>
+Cc: akpm@osdl.org, linux-mm@kvack.org, ak@suse.de, linux-kernel@vger.kernel.org, kenneth.w.chen@intel.com, wli@holomorphy.com
 List-ID: <linux-mm.kvack.org>
 
-The number of parameters for find_or_alloc_page increases significantly after
-policy support is added to huge pages. Simplify the code by folding
-find_or_alloc_huge_page() into hugetlb_no_page().
+On Tue, 2005-11-15 at 13:44 -0800, Christoph Lameter wrote:
+> The huge_zonelist() function in the memory policy layer
+> provides an list of zones ordered by NUMA distance. The hugetlb
+> layer will walk that list looking for a zone that has available huge pages
+> but is also in the nodeset of the current cpuset.
+> 
+> This patch does not contain the folding of find_or_alloc_huge_page() that
+> was controversial in the earlier discussion.
 
-Adam Litke objected to this piece in an earlier patch but I think this is a
-good simplification. Diffstat shows that we can get rid of almost half of the
-lines of find_or_alloc_page(). If we can find no consensus then lets simply drop
-this patch.
+Yep, I still agree with this part.
 
-Signed-off-by: Christoph Lameter <clameter@sgi.com>
+> Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
-----
-
- hugetlb.c |   67 +++++++++++++++++++++++---------------------------------------
- 1 files changed, 25 insertions(+), 42 deletions(-)
-
-Index: linux-2.6.14-mm2/mm/hugetlb.c
-===================================================================
---- linux-2.6.14-mm2.orig/mm/hugetlb.c	2005-11-15 13:12:33.000000000 -0800
-+++ linux-2.6.14-mm2/mm/hugetlb.c	2005-11-15 13:29:37.000000000 -0800
-@@ -379,43 +379,6 @@ void unmap_hugepage_range(struct vm_area
- 	flush_tlb_range(vma, start, end);
- }
- 
--static struct page *find_or_alloc_huge_page(struct vm_area_struct *vma,
--			unsigned long addr, struct address_space *mapping,
--			unsigned long idx, int shared)
--{
--	struct page *page;
--	int err;
--
--retry:
--	page = find_lock_page(mapping, idx);
--	if (page)
--		goto out;
--
--	if (hugetlb_get_quota(mapping))
--		goto out;
--	page = alloc_huge_page(vma, addr);
--	if (!page) {
--		hugetlb_put_quota(mapping);
--		goto out;
--	}
--
--	if (shared) {
--		err = add_to_page_cache(page, mapping, idx, GFP_KERNEL);
--		if (err) {
--			put_page(page);
--			hugetlb_put_quota(mapping);
--			if (err == -EEXIST)
--				goto retry;
--			page = NULL;
--		}
--	} else {
--		/* Caller expects a locked page */
--		lock_page(page);
--	}
--out:
--	return page;
--}
--
- static int hugetlb_cow(struct mm_struct *mm, struct vm_area_struct *vma,
- 			unsigned long address, pte_t *ptep, pte_t pte)
- {
-@@ -482,12 +445,31 @@ int hugetlb_no_page(struct mm_struct *mm
- 	 * Use page lock to guard against racing truncation
- 	 * before we get page_table_lock.
- 	 */
--	page = find_or_alloc_huge_page(vma, address, mapping, idx,
--			vma->vm_flags & VM_SHARED);
--	if (!page)
--		goto out;
-+retry:
-+	page = find_lock_page(mapping, idx);
-+	if (!page) {
-+		if (hugetlb_get_quota(mapping))
-+			goto out;
-+		page = alloc_huge_page(vma, address);
-+		if (!page) {
-+			hugetlb_put_quota(mapping);
-+			goto out;
-+		}
- 
--	BUG_ON(!PageLocked(page));
-+		if (vma->vm_flags & VM_SHARED) {
-+			int err;
-+
-+			err = add_to_page_cache(page, mapping, idx, GFP_KERNEL);
-+			if (err) {
-+				put_page(page);
-+				hugetlb_put_quota(mapping);
-+				if (err == -EEXIST)
-+					goto retry;
-+				goto out;
-+			}
-+		} else
-+			lock_page(page);
-+	}
- 
- 	spin_lock(&mm->page_table_lock);
- 	size = i_size_read(mapping->host) >> HPAGE_SHIFT;
+-- 
+Adam Litke - (agl at us.ibm.com)
+IBM Linux Technology Center
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
