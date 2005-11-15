@@ -1,57 +1,39 @@
-Subject: Re: [PATCH 03/05] mm rationalize __alloc_pages ALLOC_* flag names
-From: Arjan van de Ven <arjan@infradead.org>
-In-Reply-To: <20051115010303.6bc04222.akpm@osdl.org>
-References: <20051114040329.13951.39891.sendpatchset@jackhammer.engr.sgi.com>
-	 <20051114040353.13951.82602.sendpatchset@jackhammer.engr.sgi.com>
-	 <4379A399.1080407@yahoo.com.au>  <20051115010303.6bc04222.akpm@osdl.org>
-Content-Type: text/plain
-Date: Tue, 15 Nov 2005 10:59:57 +0100
-Message-Id: <1132048798.2822.15.camel@laptopd505.fenrus.org>
+Date: Tue, 15 Nov 2005 04:18:22 -0800
+From: William Lee Irwin III <wli@holomorphy.com>
+Subject: Re: [RFC] NUMA memory policy support for HUGE pages
+Message-ID: <20051115121822.GB6916@holomorphy.com>
+References: <Pine.LNX.4.62.0511111051080.20589@schroedinger.engr.sgi.com> <Pine.LNX.4.62.0511111225100.21071@schroedinger.engr.sgi.com> <1131980814.13502.12.camel@localhost.localdomain> <Pine.LNX.4.62.0511141340160.4663@schroedinger.engr.sgi.com> <1132007410.13502.35.camel@localhost.localdomain> <Pine.LNX.4.62.0511141523100.4676@schroedinger.engr.sgi.com>
 Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.62.0511141523100.4676@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: Nick Piggin <nickpiggin@yahoo.com.au>, pj@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Simon.Derr@bull.net, clameter@sgi.com, rohit.seth@intel.com
+To: Christoph Lameter <clameter@engr.sgi.com>
+Cc: Adam Litke <agl@us.ibm.com>, linux-mm@kvack.org, ak@suse.de, linux-kernel@vger.kernel.org, kenneth.w.chen@intel.com
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2005-11-15 at 01:03 -0800, Andrew Morton wrote:
-> Nick Piggin <nickpiggin@yahoo.com.au> wrote:
-> >
-> > Paul Jackson wrote:
-> > > Rationalize mm/page_alloc.c:__alloc_pages() ALLOC flag names.
-> > > 
-> > 
-> > I don't really see the need for this. The names aren't
-> > clearly better, and the downside is that they move away
-> > from the terminlogy we've been using in the page allocator
-> > for the past few years.
-> 
-> I thought they were heaps better, actually.
-> 
-> -#define ALLOC_NO_WATERMARKS	0x01 /* don't check watermarks at all */
-> -#define ALLOC_HARDER		0x02 /* try to alloc harder */
-> -#define ALLOC_HIGH		0x04 /* __GFP_HIGH set */
-> +#define ALLOC_DONT_DIP	0x01 	/* don't dip into memory reserves */
-> +#define ALLOC_DIP_SOME	0x02 	/* dip into reserves some */
-> +#define ALLOC_DIP_ALOT	0x04 	/* dip into reserves further */
-> +#define ALLOC_MUSTHAVE	0x08 	/* ignore all constraints */
-> 
-> very explicit.
+On Mon, 14 Nov 2005, Adam Litke wrote:
+>> IMHO this is not really a cleanup.  When the demand fault patch stack
+>> was first accepted, we decided to separate out find_or_alloc_huge_page()
+>> because it has the page_cache retry loop with several exit conditions.
+>> no_page() has its own backout logic and mixing the two makes for a
+>> tangled mess.  Can we leave that hunk out please?
 
-maybe. 
-however... if names get changed anyway, maybe name them based on intent?
+On Mon, Nov 14, 2005 at 03:25:00PM -0800, Christoph Lameter wrote:
+> It seemed to me that find_or_alloc_huge_pages has a pretty simple backout 
+> logic that folds nicely into no_page(). Both functions share a lot of 
+> variables and putting them together not only increases the readability of 
+> the code but also makes the function smaller and execution more efficient.
 
-ALLOC_NORMAL  
-ALLOC_KERNELTHREAD
-ALLOC_VMCAUSED
-ALLOC_WOULDDEADLOCK 
+Looks like this is on the road to inclusion and so on. I'm not picky
+about either approach wrt. nopage/etc. and find_or_alloc_huge_page()
+affairs. Just get a consensus together and send it in.
 
-or something.. yes these are lame
+Thanks.
 
-perhaps both are needed.. bitflags for the implementation, and defines
-based on usage that are compounded bitflags..
 
+-- wli
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
