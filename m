@@ -1,46 +1,74 @@
-From: Andi Kleen <ak@suse.de>
-Subject: Re: [RFC] Make the slab allocator observe NUMA policies
-Date: Tue, 15 Nov 2005 04:34:14 +0100
-References: <Pine.LNX.4.62.0511101401390.16481@schroedinger.engr.sgi.com> <200511141944.33478.ak@suse.de> <Pine.LNX.4.62.0511141055560.1222@schroedinger.engr.sgi.com>
-In-Reply-To: <Pine.LNX.4.62.0511141055560.1222@schroedinger.engr.sgi.com>
-MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
+Date: Tue, 15 Nov 2005 09:27:02 -0500
+From: "Scott F. H. Kaplan" <sfkaplan@cs.amherst.edu>
+Subject: Re: why its dead now?
+Message-ID: <20051115142702.GC31096@sirius.cs.amherst.edu>
+References: <f68e01850511131035l3f0530aft6076f156d4f62171@mail.gmail.com>
+Mime-Version: 1.0
+Content-Type: multipart/signed; micalg=pgp-sha1;
+	protocol="application/pgp-signature"; boundary="wxDdMuZNg1r63Hyj"
 Content-Disposition: inline
-Message-Id: <200511150434.15094.ak@suse.de>
+In-Reply-To: <f68e01850511131035l3f0530aft6076f156d4f62171@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@engr.sgi.com>
-Cc: steiner@sgi.com, linux-mm@kvack.org, alokk@calsoftinc.com
+To: Nitin Gupta <nitingupta.mail@gmail.com>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Monday 14 November 2005 20:08, Christoph Lameter wrote:
+--wxDdMuZNg1r63Hyj
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 
-> The slab allocator is designed in such a way that it needs to know the 
-> node for the allocation before it does its work. This is because the 
-> nodelists are per node since 2.6.14. You wanted to do the policy 
-> application on the back end so after all the work is done (presumably 
-> for the current node) and after the node specific lists have been 
-> examined. Policy application at that point may find that another
-> node than the current node was desired and the whole thing has to be 
-> redone for the other node. This will significantly negatively impact
-> the performance of the slab allocator in particular if the current node
-> is is unlikely to be chosen for the memory policy.
-> 
-> I have thought about various ways to modify kmem_getpages() but these do 
-> not fit into the basic current concept of the slab allocator. The 
-> proposed method is the cleanest approach that I can think of. I'd be glad 
-> if you could come up with something different but AFAIK simply moving the 
-> policy application down in the slab allocator does not work.
+On Mon, Nov 14, 2005 at 12:05:58AM +0530, Nitin Gupta wrote:
 
-I haven't checked all the details, but why can't it be done at the cache_grow
-layer? (that's already a slow path)
+> I'm wondering why this project is dead even when it showed great
+> performance improvement when system is under memory pressure.
 
-If it's not possible to do it in the slow path I would say the design is 
-incompatible with interleaving then. Better not do it then than doing it wrong.
+As he stated himself, the primary reason is that its primary
+maintainer (Rodrigo) can no longer dedicate time to it.
 
--Andi
+> Are there any serious drawbacks to this?
+
+As Rik pointed out, the main complication is adapting the compressed
+cache size which can be trickier for some workloads than others.  The
+original, 2.4.x-line of linuxcompressed used a method of adaptivity
+developed by those working on that project.  It seemed to work for
+many cases, but also could suffer performance degredation for some
+workloads.
+
+There is also the possibility of the adaptive method about which I
+wrote in my dissertation and in a USENIX 1999 paper (see the
+linuxcompressed page -- I believe it has links for these).  This
+adaptive method is much less likely to adapt badly for some workloads,
+but it also requires more extensive changes to the way in which the
+kernel stores referencing history.
+
+For completely different purposes, we have a 2.4.x kernel that
+maintains this history efficiently.  If you (or anyone else) are
+interested at some point in porting this reference-pattern-gathering
+code forward to the 2.6.x line, then you could easily apply this other
+adaptive mechanism to compressed caching.
+
+> Do you think it will be of any use if ported to 2.6 kernel?
+
+Sure.  I think that the potential for compressed caching to ease the
+performance degredation under memory pressure is only getting better
+as hardware continues to evolve.
+
+Scott
+
+--wxDdMuZNg1r63Hyj
+Content-Type: application/pgp-signature
+Content-Disposition: inline
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.2.1 (GNU/Linux)
+
+iD8DBQFDefA28eFdWQtoOmgRAhHQAJ4oMEgHnvu/q0If854DMvrGXKrbZgCgn8M5
+0/VLRcbq72tIc/7E5HRpDps=
+=zTMe
+-----END PGP SIGNATURE-----
+
+--wxDdMuZNg1r63Hyj--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
