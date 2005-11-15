@@ -1,44 +1,47 @@
-Received: by zproxy.gmail.com with SMTP id n1so1530194nzf
-        for <linux-mm@kvack.org>; Tue, 15 Nov 2005 00:34:16 -0800 (PST)
-Message-ID: <aec7e5c30511150034t5ff9e362jb3261e2e23479b31@mail.gmail.com>
-Date: Tue, 15 Nov 2005 17:34:16 +0900
-From: Magnus Damm <magnus.damm@gmail.com>
-Subject: Re: [PATCH 01/05] NUMA: Generic code
-In-Reply-To: <200511110516.37980.ak@suse.de>
+Message-ID: <4379A1C4.509@yahoo.com.au>
+Date: Tue, 15 Nov 2005 19:52:20 +1100
+From: Nick Piggin <nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 8BIT
-Content-Disposition: inline
-References: <20051110090920.8083.54147.sendpatchset@cherry.local>
-	 <20051110090925.8083.45887.sendpatchset@cherry.local>
-	 <200511110516.37980.ak@suse.de>
+Subject: Re: [PATCH 01/05] mm fix __alloc_pages cpuset ALLOC_* flags
+References: <20051114040329.13951.39891.sendpatchset@jackhammer.engr.sgi.com>
+In-Reply-To: <20051114040329.13951.39891.sendpatchset@jackhammer.engr.sgi.com>
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <ak@suse.de>
-Cc: Magnus Damm <magnus@valinux.co.jp>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, pj@sgi.com
+To: Paul Jackson <pj@sgi.com>
+Cc: akpm@osdl.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Simon Derr <Simon.Derr@bull.net>, Christoph Lameter <clameter@sgi.com>, "Rohit, Seth" <rohit.seth@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-On 11/11/05, Andi Kleen <ak@suse.de> wrote:
-> On Thursday 10 November 2005 10:08, Magnus Damm wrote:
-> > Generic CONFIG_NUMA_EMU code.
-> >
-> > This patch adds generic NUMA emulation code to the kernel. The code
-> > provides the architectures with functions that calculate the size of
-> > emulated nodes, together with configuration stuff such as Kconfig and
-> > kernel command line code.
->
-> IMHO making it generic and bloated like this is total overkill
-> for this simple debugginghack. I think it is better to keep
-> it simple and hiden it in a architecture specific dark corners, not expose it
-> like this.
+Paul Jackson wrote:
+> Two changes to the setting of the ALLOC_CPUSET flag in
+> mm/page_alloc.c:__alloc_pages()
+> 
+>  1) A bug fix - the "ignoring mins" case should not be honoring
+>     ALLOC_CPUSET.  This case of all cases, since it is handling a
+>     request that will free up more memory than is asked for (exiting
+>     tasks, e.g.) should be allowed to escape cpuset constraints
+>     when memory is tight.
+> 
+>  2) A logic change to make it simpler.  Honor cpusets even on
+>     GFP_ATOMIC (!wait) requests.  With this, cpuset confinement
+>     applies to all requests except ALLOC_NO_WATERMARKS, so that
+>     in a subsequent cleanup patch, I can remove the ALLOC_CPUSET
+>     flag entirely.  Since I don't know any real reason this
+>     logic has to be either way, I am choosing the path of the
+>     simplest code.
+> 
 
-My plan with breaking out the NUMA emulation code was to merge my i386
-stuff with the x86_64 code, but as you say - it might be overkill.
+Hi,
 
-What do you think about the fact that real NUMA nodes now can be
-divided into several smaller nodes?
+I think #1 is OK, however I was under the impression that you
+introduced the exception reverted in #2 due to seeing atomic
+allocation failures?!
 
-/ magnus
+-- 
+SUSE Labs, Novell Inc.
+
+Send instant messages to your online friends http://au.messenger.yahoo.com 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
