@@ -1,39 +1,46 @@
-Date: Tue, 15 Nov 2005 04:18:22 -0800
-From: William Lee Irwin III <wli@holomorphy.com>
-Subject: Re: [RFC] NUMA memory policy support for HUGE pages
-Message-ID: <20051115121822.GB6916@holomorphy.com>
-References: <Pine.LNX.4.62.0511111051080.20589@schroedinger.engr.sgi.com> <Pine.LNX.4.62.0511111225100.21071@schroedinger.engr.sgi.com> <1131980814.13502.12.camel@localhost.localdomain> <Pine.LNX.4.62.0511141340160.4663@schroedinger.engr.sgi.com> <1132007410.13502.35.camel@localhost.localdomain> <Pine.LNX.4.62.0511141523100.4676@schroedinger.engr.sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+From: Andi Kleen <ak@suse.de>
+Subject: Re: [RFC] Make the slab allocator observe NUMA policies
+Date: Tue, 15 Nov 2005 04:34:14 +0100
+References: <Pine.LNX.4.62.0511101401390.16481@schroedinger.engr.sgi.com> <200511141944.33478.ak@suse.de> <Pine.LNX.4.62.0511141055560.1222@schroedinger.engr.sgi.com>
+In-Reply-To: <Pine.LNX.4.62.0511141055560.1222@schroedinger.engr.sgi.com>
+MIME-Version: 1.0
+Content-Type: text/plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.62.0511141523100.4676@schroedinger.engr.sgi.com>
+Message-Id: <200511150434.15094.ak@suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Christoph Lameter <clameter@engr.sgi.com>
-Cc: Adam Litke <agl@us.ibm.com>, linux-mm@kvack.org, ak@suse.de, linux-kernel@vger.kernel.org, kenneth.w.chen@intel.com
+Cc: steiner@sgi.com, linux-mm@kvack.org, alokk@calsoftinc.com
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 14 Nov 2005, Adam Litke wrote:
->> IMHO this is not really a cleanup.  When the demand fault patch stack
->> was first accepted, we decided to separate out find_or_alloc_huge_page()
->> because it has the page_cache retry loop with several exit conditions.
->> no_page() has its own backout logic and mixing the two makes for a
->> tangled mess.  Can we leave that hunk out please?
+On Monday 14 November 2005 20:08, Christoph Lameter wrote:
 
-On Mon, Nov 14, 2005 at 03:25:00PM -0800, Christoph Lameter wrote:
-> It seemed to me that find_or_alloc_huge_pages has a pretty simple backout 
-> logic that folds nicely into no_page(). Both functions share a lot of 
-> variables and putting them together not only increases the readability of 
-> the code but also makes the function smaller and execution more efficient.
+> The slab allocator is designed in such a way that it needs to know the 
+> node for the allocation before it does its work. This is because the 
+> nodelists are per node since 2.6.14. You wanted to do the policy 
+> application on the back end so after all the work is done (presumably 
+> for the current node) and after the node specific lists have been 
+> examined. Policy application at that point may find that another
+> node than the current node was desired and the whole thing has to be 
+> redone for the other node. This will significantly negatively impact
+> the performance of the slab allocator in particular if the current node
+> is is unlikely to be chosen for the memory policy.
+> 
+> I have thought about various ways to modify kmem_getpages() but these do 
+> not fit into the basic current concept of the slab allocator. The 
+> proposed method is the cleanest approach that I can think of. I'd be glad 
+> if you could come up with something different but AFAIK simply moving the 
+> policy application down in the slab allocator does not work.
 
-Looks like this is on the road to inclusion and so on. I'm not picky
-about either approach wrt. nopage/etc. and find_or_alloc_huge_page()
-affairs. Just get a consensus together and send it in.
+I haven't checked all the details, but why can't it be done at the cache_grow
+layer? (that's already a slow path)
 
-Thanks.
+If it's not possible to do it in the slow path I would say the design is 
+incompatible with interleaving then. Better not do it then than doing it wrong.
 
-
--- wli
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
