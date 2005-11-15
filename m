@@ -1,51 +1,54 @@
-Date: Tue, 15 Nov 2005 01:50:08 -0800
-From: Paul Jackson <pj@sgi.com>
-Subject: Re: [PATCH 01/05] mm fix __alloc_pages cpuset ALLOC_* flags
-Message-Id: <20051115015008.55d5a25e.pj@sgi.com>
-In-Reply-To: <4379A1C4.509@yahoo.com.au>
-References: <20051114040329.13951.39891.sendpatchset@jackhammer.engr.sgi.com>
-	<4379A1C4.509@yahoo.com.au>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Message-ID: <4379B0A7.3090803@yahoo.com.au>
+Date: Tue, 15 Nov 2005 20:55:51 +1100
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+MIME-Version: 1.0
+Subject: Re: [PATCH 03/05] mm rationalize __alloc_pages ALLOC_* flag names
+References: <20051114040329.13951.39891.sendpatchset@jackhammer.engr.sgi.com>	<20051114040353.13951.82602.sendpatchset@jackhammer.engr.sgi.com>	<4379A399.1080407@yahoo.com.au> <20051115010303.6bc04222.akpm@osdl.org>
+In-Reply-To: <20051115010303.6bc04222.akpm@osdl.org>
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: akpm@osdl.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Simon.Derr@bull.net, clameter@sgi.com, rohit.seth@intel.com
+To: Andrew Morton <akpm@osdl.org>
+Cc: pj@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Simon.Derr@bull.net, clameter@sgi.com, rohit.seth@intel.com
 List-ID: <linux-mm.kvack.org>
 
-Nick wrote:
-> I was under the impression that you
-> introduced the exception reverted in #2 due to seeing atomic
-> allocation failures?!
+Andrew Morton wrote:
+> Nick Piggin <nickpiggin@yahoo.com.au> wrote:
+> 
+>>Paul Jackson wrote:
+>>
+>>>Rationalize mm/page_alloc.c:__alloc_pages() ALLOC flag names.
+>>>
+>>
+>>I don't really see the need for this. The names aren't
+>>clearly better, and the downside is that they move away
+>>from the terminlogy we've been using in the page allocator
+>>for the past few years.
+> 
+> 
+> I thought they were heaps better, actually.
+> 
 
-For the record, the discussion Nick is recalling starts here:
+Some? Alot? Musthave?
 
-  http://www.ussg.iu.edu/hypermail/linux/kernel/0503.3/0763.html
+To me it just changed the manner in which the hands are waving.
+Actually, I like the current names because ALLOC_HIGH explicitly
+is used for __GFP_HIGH allocations, and MUSTHAVE is not really
+an improvement on NO_WATERMARKS.
 
-My motivation for letting GFP_ATOMIC requests escape cpuset confinement
-was not based on seeing real world events, but based on code reading.
+However if you'd really like to change the names, I'd prefer them
+to be more consistent, eg:
 
-If some GFP_ATOMIC requests fail, the system can panic.  Apparently
-these allocations are in init and setup code, where only a really
-sick system could fail a kmalloc() anyway.  But, back then in March
-2005, I concluded that GFP_ATOMIC requests were the absolute most
-essential allocations to satisfy, at all costs, cpusets be damned.
-
-This time around, when reading __alloc_pages() again, I realized that
-GFP_ATOMIC requests did not get the highest priority in setting
-watermarks.  Even they had to leave some reserves behind.  The only
-allocations allowed to ignore all mins were the special case of
-allocations that promised to free more memory than they were consuming,
-really soon now (such as an exiting task).
-
-I figured this time that what's good for watermark setting is good for
-cpuset setting.
+ALLOC_DIP_NONE
+ALLOC_DIP_LESS
+ALLOC_DIP_MORE
+ALLOC_DIP_FULL
 
 -- 
-                  I won't rest till it's the best ...
-                  Programmer, Linux Scalability
-                  Paul Jackson <pj@sgi.com> 1.925.600.0401
+SUSE Labs, Novell Inc.
+
+Send instant messages to your online friends http://au.messenger.yahoo.com 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
