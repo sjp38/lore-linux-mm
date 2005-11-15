@@ -1,43 +1,50 @@
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by e4.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id jAFM0Wcq016710
-	for <linux-mm@kvack.org>; Tue, 15 Nov 2005 17:00:32 -0500
-Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
-	by d01relay04.pok.ibm.com (8.12.10/NCO/VERS6.8) with ESMTP id jAFM0W4F121500
-	for <linux-mm@kvack.org>; Tue, 15 Nov 2005 17:00:32 -0500
-Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
-	by d01av01.pok.ibm.com (8.12.11/8.13.3) with ESMTP id jAFM0Vm0007339
-	for <linux-mm@kvack.org>; Tue, 15 Nov 2005 17:00:31 -0500
-Subject: Re: [PATCH] Add NUMA policy support for huge pages.
-From: Adam Litke <agl@us.ibm.com>
-In-Reply-To: <Pine.LNX.4.62.0511151342310.10995@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.62.0511151342310.10995@schroedinger.engr.sgi.com>
-Content-Type: text/plain
-Date: Tue, 15 Nov 2005 15:59:26 -0600
-Message-Id: <1132091966.22243.9.camel@localhost.localdomain>
+Received: from westrelay02.boulder.ibm.com (westrelay02.boulder.ibm.com [9.17.195.11])
+	by e35.co.us.ibm.com (8.12.11/8.12.11) with ESMTP id jAFMA6Uw001147
+	for <linux-mm@kvack.org>; Tue, 15 Nov 2005 17:10:06 -0500
+Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
+	by westrelay02.boulder.ibm.com (8.12.10/NCO/VERS6.8) with ESMTP id jAFM9r7i061596
+	for <linux-mm@kvack.org>; Tue, 15 Nov 2005 15:09:53 -0700
+Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av04.boulder.ibm.com (8.12.11/8.13.3) with ESMTP id jAFMA50g002672
+	for <linux-mm@kvack.org>; Tue, 15 Nov 2005 15:10:06 -0700
+Date: Tue, 15 Nov 2005 14:10:03 -0800
+From: Mike Kravetz <kravetz@us.ibm.com>
+Subject: pfn_to_nid under CONFIG_SPARSEMEM and CONFIG_NUMA
+Message-ID: <20051115221003.GA2160@w-mikek2.ibm.com>
 Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@engr.sgi.com>
-Cc: akpm@osdl.org, linux-mm@kvack.org, ak@suse.de, linux-kernel@vger.kernel.org, kenneth.w.chen@intel.com, wli@holomorphy.com
+To: linux-mm@kvack.org
+Cc: Andy Whitcroft <apw@shadowen.org>, Anton Blanchard <anton@samba.org>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2005-11-15 at 13:44 -0800, Christoph Lameter wrote:
-> The huge_zonelist() function in the memory policy layer
-> provides an list of zones ordered by NUMA distance. The hugetlb
-> layer will walk that list looking for a zone that has available huge pages
-> but is also in the nodeset of the current cpuset.
-> 
-> This patch does not contain the folding of find_or_alloc_huge_page() that
-> was controversial in the earlier discussion.
+The following code/comment is in <linux/mmzone.h> if SPARSEMEM
+and NUMA are configured.
 
-Yep, I still agree with this part.
+/*
+ * These are _only_ used during initialisation, therefore they
+ * can use __initdata ...  They could have names to indicate
+ * this restriction.
+ */
+#ifdef CONFIG_NUMA
+#define pfn_to_nid              early_pfn_to_nid
+#endif
 
-> Signed-off-by: Christoph Lameter <clameter@sgi.com>
+However, pfn_to_nid is certainly used in check_pte_range() mm/mempolicy.c.
+I wouldn't be surprised to find more non init time uses if you follow all
+the call chains.
+
+On ppc64, early_pfn_to_nid now only uses __initdata.  So, I would expect
+policy code that calls check_pte_range to cause serious problems on ppc64.
+
+Any suggestions on how this should really be structured?  I'm thinking
+of removing the above definition of pfn_to_nid to force each architecture
+to provide a (non init only) version.
 
 -- 
-Adam Litke - (agl at us.ibm.com)
-IBM Linux Technology Center
+Mike
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
