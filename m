@@ -1,51 +1,29 @@
 From: Andi Kleen <ak@suse.de>
-Subject: Re: [PATCH 2/2] Fold numa_maps into mempolicy.c
-Date: Wed, 16 Nov 2005 09:36:04 +0100
-References: <Pine.LNX.4.62.0511081520540.32262@schroedinger.engr.sgi.com> <Pine.LNX.4.62.0511081524570.32262@schroedinger.engr.sgi.com> <20051115231051.5437e25b.pj@sgi.com>
-In-Reply-To: <20051115231051.5437e25b.pj@sgi.com>
+Subject: Re: [PATCH 01/05] NUMA: Generic code
+Date: Wed, 16 Nov 2005 09:38:14 +0100
+References: <20051110090920.8083.54147.sendpatchset@cherry.local> <p73sltxowx4.fsf@verdi.suse.de> <aec7e5c30511152357g560127c6n88d0bce3b5a2f4e@mail.gmail.com>
+In-Reply-To: <aec7e5c30511152357g560127c6n88d0bce3b5a2f4e@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain;
   charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-Message-Id: <200511160936.04721.ak@suse.de>
+Message-Id: <200511160938.14992.ak@suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Paul Jackson <pj@sgi.com>
-Cc: Christoph Lameter <clameter@engr.sgi.com>, linux-mm@kvack.org
+To: Magnus Damm <magnus.damm@gmail.com>
+Cc: Magnus Damm <magnus@valinux.co.jp>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, pj@sgi.com, werner@almesberger.net
 List-ID: <linux-mm.kvack.org>
 
-On Wednesday 16 November 2005 08:10, Paul Jackson wrote:
-> Christoph wrote:
-> > + * Must hold mmap_sem until memory pointer is no longer in use
-> > + * or be called from the current task.
-> > + */
-> > +struct mempolicy *get_vma_policy(struct task_struct *task,
+On Wednesday 16 November 2005 08:57, Magnus Damm wrote:
+
 > 
-> Twenty (well, four) questions time.
-> 
-> Hmmm ... is that true - that get_vma_policy() can be called for the
-> current task w/o holding mmap_sem?
+> Sorry, but which one did not work very well? CKRM memory controller or
+> NUMA emulation + CPUSETS?
 
-Yes, e.g. when vma is NULL.
-
-> Is there any call to get_vma_policy() made that isn't holding mmap_sem?
-
-There are some callers of alloc_page_vma with NULL vma yes
-
-> Except for /proc output, is there any call to get_vma_policy made on any
-> task other than current?
-
-In the original version there wasn't any. I still think it's a mistake
-to allow it for /proc, unfortunately the patch went in.
-
-> What does "until memory pointer is no longer in use" mean?
-
-mempolicy is no longer in use or you took a reference.
-
+Using simulated nodes for controlling memory.
 
 -Andi
- 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
