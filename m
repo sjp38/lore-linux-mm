@@ -1,65 +1,57 @@
-Date: Wed, 16 Nov 2005 10:42:31 +0000 (GMT)
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 3/5] Light Fragmentation Avoidance V20: 003_fragcore
-In-Reply-To: <437A9AE5.8070001@jp.fujitsu.com>
-Message-ID: <Pine.LNX.4.58.0511161035010.29156@skynet>
-References: <20051115164946.21980.2026.sendpatchset@skynet.csn.ul.ie>
- <20051115165002.21980.14423.sendpatchset@skynet.csn.ul.ie>
- <437A9AE5.8070001@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Wed, 16 Nov 2005 08:31:51 -0300
+From: Werner Almesberger <werner@almesberger.net>
+Subject: Re: [PATCH 01/05] NUMA: Generic code
+Message-ID: <20051116083151.B1163@almesberger.net>
+References: <20051110090920.8083.54147.sendpatchset@cherry.local> <200511110516.37980.ak@suse.de> <aec7e5c30511150034t5ff9e362jb3261e2e23479b31@mail.gmail.com> <200511151515.05201.ak@suse.de> <aec7e5c30511152122w70703fbfl98bd377fb6fb9af4@mail.gmail.com> <p73sltxowx4.fsf@verdi.suse.de> <aec7e5c30511152357g560127c6n88d0bce3b5a2f4e@mail.gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <aec7e5c30511152357g560127c6n88d0bce3b5a2f4e@mail.gmail.com>; from magnus.damm@gmail.com on Wed, Nov 16, 2005 at 04:57:59PM +0900
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: linux-mm@kvack.org, mingo@elte.hu, linux-kernel@vger.kernel.org, nickpiggin@yahoo.com.au, lhms-devel@lists.sourceforge.net
+To: Magnus Damm <magnus.damm@gmail.com>
+Cc: Andi Kleen <ak@suse.de>, Magnus Damm <magnus@valinux.co.jp>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, pj@sgi.com
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 16 Nov 2005, KAMEZAWA Hiroyuki wrote:
+Magnus Damm wrote:
+> Sorry, but which one did not work very well? CKRM memory controller or
+> NUMA emulation + CPUSETS?
 
-> > +/* Remove an element from the buddy allocator from the fallback list */
-> > +static struct page *__rmqueue_fallback(struct zone *zone, int order,
-> > +    int alloctype)
->
-> Should we avoid this fallback as much as possible ?
+We tried to partition our memory using the NUMA emulation, such that
+timing-critical processes would allocate from one node, while all
+the rest of the system would allocate from the other node.
 
-Avoiding fallback as much as possible is something I would push into a
-zone approach that can be developer separetly to this. I want to give hard
-guarantees in special zones about fallbacks and best effort everywhere
-else with this. Taking complex steps to avoid tough fallbacks here hurts
-the general path on a typical machine.
+The idea was that the timing-critical processes, with a fairly
+"calm" allocation behaviour (read file data into the page cache,
+then evict it again), would never or almost never trigger memory
+reclaim this way, and thus have better worst-case latency.
 
-> I think this is a weak point of this approach.
->
-> > +    /*
-> > +     * If breaking a large block of pages, place the buddies
-> > +     * on the preferred allocation list
-> > +     */
-> > +    if (unlikely(current_order >= MAX_ORDER / 2)) {
-> > +    alloctype = !alloctype;
-> > +    change_pageblock_type(zone, page);
-> > +    area = &zone->free_area_lists[alloctype][current_order];
-> > +    }
-> Changing RCLM_NORCLM to RLCM_EASY is okay ??
+Unfortunately, our benchmarks didn't show any improvements in
+latency. In fact, the results were slightly worse, perhaps because
+of processes on the "regular" node holding shared resources while
+in memory reclaim.
 
-Yes. If anything, it's the other way around one would be concerned about.
-The anti-defrag approach just groups related allocations together as much
-as possible. If the grouping is not possible without taking expensive
-steps like balancing or reclaiming, it tries to steal the largest
-possible block from the other list to reduce the chances that fallbacks
-will occur in the near future.
+I'm not entirely sure why this didn't work better. At least in
+theory, it should have.
 
-> If so, I think adding similar code to free_pages_bulk() is better.
->
+We did this in the ABISS project, about one year ago in response
+to quite nasty reclaim latency suddenly appearing in an earlier
+2.6 kernel. When we asked various MM developers, but none of them
+was aware of any change that would make reclaims all of a sudden
+very intrusive, and they attributed it to the "butterfly effect".
+After a while (i.e., in later kernels), the butterflies must have
+chosen a different victim, and the latency got better on its own.
 
-It's at allocation time if you know whether fallbacks are needed or not.
-To do something similar at free, you are entering the realm of watermarks,
-balances and tunables. As it is, the usemap tells __free_pages_bulk() what
-free list pages should be going back to.
+So, in the end, we didn't need that NUMA hack to control reclaims.
+But if they should rear their ugly heads again, it may be worth
+having a second look.
+
+- Werner
 
 -- 
-Mel Gorman
-Part-time Phd Student                          Java Applications Developer
-University of Limerick                         IBM Dublin Software Lab
+  _________________________________________________________________________
+ / Werner Almesberger, Buenos Aires, Argentina     werner@almesberger.net /
+/_http://www.almesberger.net/____________________________________________/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
