@@ -1,52 +1,46 @@
-Date: Wed, 16 Nov 2005 01:37:47 +0000 (GMT)
+Date: Wed, 16 Nov 2005 01:43:25 +0000 (GMT)
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 4/5] Light Fragmentation Avoidance V20: 004_percpu
-In-Reply-To: <20051115152414.568dc3a8.pj@sgi.com>
-Message-ID: <Pine.LNX.4.58.0511160137030.8470@skynet>
+Subject: Re: [PATCH 2/5] Light Fragmentation Avoidance V20: 002_usemap
+In-Reply-To: <200511160036.54461.ak@suse.de>
+Message-ID: <Pine.LNX.4.58.0511160137540.8470@skynet>
 References: <20051115164946.21980.2026.sendpatchset@skynet.csn.ul.ie>
- <20051115165007.21980.37336.sendpatchset@skynet.csn.ul.ie>
- <20051115152414.568dc3a8.pj@sgi.com>
+ <20051115164957.21980.8731.sendpatchset@skynet.csn.ul.ie> <200511160036.54461.ak@suse.de>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Paul Jackson <pj@sgi.com>
+To: Andi Kleen <ak@suse.de>
 Cc: linux-mm@kvack.org, mingo@elte.hu, lhms-devel@lists.sourceforge.net, linux-kernel@vger.kernel.org, nickpiggin@yahoo.com.au
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 15 Nov 2005, Paul Jackson wrote:
+On Wed, 16 Nov 2005, Andi Kleen wrote:
 
-> Mel wrote:
-> > -		mark -= mark / 2;			[A]
-> > +		mark /= 2;				[B]
-> >  	if (alloc_flags & ALLOC_HARDER)
-> > -		mark -= mark / 4;			[C]
-> > +		mark /= 4;				[D]
+> On Tuesday 15 November 2005 17:49, Mel Gorman wrote:
+> > This patch adds a "usemap" to the allocator. Each bit in the usemap indicates
+> > whether a block of 2^(MAX_ORDER-1) pages are being used for kernel or
+> > easily-reclaimed allocations. This enumerates two types of allocations;
 >
-> Why these changes?  For each of [A] - [D] above, if I start with a
-> value of mark == 33 and recycle that same mark through the above
-> transformation 16 times, I get the following sequence of values:
-
-
-This change by me is totally totally wrong. I shouldn't have modified how
-the calculation is made at all. Fix made.
-
->  A:  33  17   9   5   3   2   1   1   1   1   1   1   1   1   1   1
->  B:  33  16   8   4   2   1   0   0   0   0   0   0   0   0   0   0
->  C:  33  25  19  15  12   9   7   6   5   4   3   3   3   3   3   3
->  D:  33   8   2   0   0   0   0   0   0   0   0   0   0   0   0   0
->
-> Comparing [A] to [B], observe that [A] converges to 1, but [B] to 0,
-> due to handling the underflow differently.
->
-> Comparing [C] to [D], observe that [D] converges to 0, due to the
-> different underflow, and converges much faster, since it is taking off
-> 3/4's instead of 1/4 each iteration.
->
-> I doubt you want this change.
+> This will increase cache line footprint, which is costly.
+> Why can't this be done in the page flags?
 >
 
-And you'd be right.
+I actually did a version of these patches using page flags which are
+sitting in a temporary directory. For allocation, it derived the type it
+was reserved for by the list it was on and on free, it used the flags to
+determine what free list it should go back to. There were a few reasons
+why I didn't submit it
+
+1. I was using a page flag, valuable commodity, thought I would get kicked
+   for it. Usemap uses 1 bit per 2^(MAX_ORDER-1) pages. Page flags uses
+   2^(MAX_ORDER-1) bits at worse case.
+2. Fragmentation avoidance tended to break down, very fast.
+3. When changing a block of pages from one type to another, there was no
+   fast way to make sure all pages currently allocation would end up on
+   the correct free list
+4. Using page flags performed slower than using a usemap, at least with
+   aim9. As using the usemap did not regress loads like kernel compiles,
+   aim9 or anything else I thought to test, I figured it was not a
+   problem.
 
 -- 
 Mel Gorman
