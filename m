@@ -1,41 +1,63 @@
-Message-ID: <437A9AE5.8070001@jp.fujitsu.com>
-Date: Wed, 16 Nov 2005 11:35:17 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Date: Wed, 16 Nov 2005 12:14:18 +0900
+From: Yasunori Goto <y-goto@jp.fujitsu.com>
+Subject: Re: pfn_to_nid under CONFIG_SPARSEMEM and CONFIG_NUMA
+In-Reply-To: <20051115221003.GA2160@w-mikek2.ibm.com>
+References: <20051115221003.GA2160@w-mikek2.ibm.com>
+Message-Id: <20051116115548.EE18.Y-GOTO@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 3/5] Light Fragmentation Avoidance V20: 003_fragcore
-References: <20051115164946.21980.2026.sendpatchset@skynet.csn.ul.ie> <20051115165002.21980.14423.sendpatchset@skynet.csn.ul.ie>
-In-Reply-To: <20051115165002.21980.14423.sendpatchset@skynet.csn.ul.ie>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: linux-mm@kvack.org, mingo@elte.hu, linux-kernel@vger.kernel.org, nickpiggin@yahoo.com.au, lhms-devel@lists.sourceforge.net
+To: Mike Kravetz <kravetz@us.ibm.com>
+Cc: linux-mm@kvack.org, Andy Whitcroft <apw@shadowen.org>, Anton Blanchard <anton@samba.org>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+On Tue, 15 Nov 2005 14:10:03 -0800
+Mike Kravetz <kravetz@us.ibm.com> wrote:
 
-> +/* Remove an element from the buddy allocator from the fallback list */
-> +static struct page *__rmqueue_fallback(struct zone *zone, int order,
-> +							int alloctype)
+> The following code/comment is in <linux/mmzone.h> if SPARSEMEM
+> and NUMA are configured.
+> 
+> /*
+>  * These are _only_ used during initialisation, therefore they
+>  * can use __initdata ...  They could have names to indicate
+>  * this restriction.
+>  */
+> #ifdef CONFIG_NUMA
+> #define pfn_to_nid              early_pfn_to_nid
+> #endif
+> 
+> However, pfn_to_nid is certainly used in check_pte_range() mm/mempolicy.c.
+> I wouldn't be surprised to find more non init time uses if you follow all
+> the call chains.
+> 
+> On ppc64, early_pfn_to_nid now only uses __initdata.  So, I would expect
+> policy code that calls check_pte_range to cause serious problems on ppc64.
+> 
+> Any suggestions on how this should really be structured?  I'm thinking
+> of removing the above definition of pfn_to_nid to force each architecture
+> to provide a (non init only) version.
 
-Should we avoid this fallback as much as possible ?
-I think this is a weak point of this approach.
+Yes! I worried about same things.
+How is this?
+
+static inline int pfn_to_nid(unsigned long pfn)
+{
+	return page_to_nid(pfn_to_page(pfn));
+}
+
+page_to_nid() and pfn_to_page() is well defined.
+Probably, this will work on all architecture.
+So, just we should check this should be used after that memmap
+is initialized.
 
 
-> +		/*
-> +		 * If breaking a large block of pages, place the buddies
-> +		 * on the preferred allocation list
-> +		 */
-> +		if (unlikely(current_order >= MAX_ORDER / 2)) {
-> +			alloctype = !alloctype;
-> +			change_pageblock_type(zone, page);
-> +			area = &zone->free_area_lists[alloctype][current_order];
-> +		}
-Changing RCLM_NORCLM to RLCM_EASY is okay ??
-If so, I think adding similar code to free_pages_bulk() is better.
+Bye.
 
--- Kame
+-- 
+Yasunori Goto 
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
