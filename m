@@ -1,41 +1,37 @@
-Message-ID: <437B3349.8050308@shadowen.org>
-Date: Wed, 16 Nov 2005 13:25:29 +0000
-From: Andy Whitcroft <apw@shadowen.org>
+Message-ID: <437B4EB0.3080908@kolumbus.fi>
+Date: Wed, 16 Nov 2005 17:22:24 +0200
+From: =?ISO-8859-15?Q?Mika_Penttil=E4?= <mika.penttila@kolumbus.fi>
 MIME-Version: 1.0
-Subject: Re: pfn_to_nid under CONFIG_SPARSEMEM and CONFIG_NUMA
-References: <20051115221003.GA2160@w-mikek2.ibm.com>
-In-Reply-To: <20051115221003.GA2160@w-mikek2.ibm.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: DMA32 zone unusable
 Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=ISO-8859-15; format=flowed
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mike Kravetz <kravetz@us.ibm.com>
-Cc: linux-mm@kvack.org, Anton Blanchard <anton@samba.org>, linux-kernel@vger.kernel.org
+To: linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>, Andi Kleen <ak@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-Mike Kravetz wrote:
-> The following code/comment is in <linux/mmzone.h> if SPARSEMEM
-> and NUMA are configured.
-> 
-> /*
->  * These are _only_ used during initialisation, therefore they
->  * can use __initdata ...  They could have names to indicate
->  * this restriction.
->  */
-> #ifdef CONFIG_NUMA
-> #define pfn_to_nid              early_pfn_to_nid
-> #endif
+The new DMA32 zone (which at least x86-64 has) is quite "interesting" :
 
-Ok.  This was a ploy to avoid lots of code churn which has bitten us.
-The separation here is to indicate that pfn_to_nid isn't necessarily
-safe until after the memory model is init'd.  When the code was
-initially implmented we only used pfn_to_nid in init code so it wasn't
-an issue.  What we need to do here is break this link and make sure each
-user is using the right version.
+#define __GFP_DMA32    ((__force gfp_t)0x04) <-----!!!!!  
 
-I'll go and put together something now.
+#define GFP_ZONEMASK    0x03   <------!!!!!
 
--apw
+#define gfp_zone(mask) ((__force int)((mask) & (__force gfp_t)GFP_ZONEMASK))
+
+static inline struct page *alloc_pages_node(int nid, gfp_t gfp_mask,
+                        unsigned int order)
+{
+    if (unlikely(order >= MAX_ORDER))
+        return NULL;
+
+    return __alloc_pages(gfp_mask, order,
+        NODE_DATA(nid)->node_zonelists + gfp_zone(gfp_mask));
+}
+
+
+So with GFP_DMA32 you never get those pages (but DMA instead).
+
+--Mika
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
