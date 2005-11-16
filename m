@@ -1,49 +1,41 @@
-Received: by zproxy.gmail.com with SMTP id l8so1782749nzf
-        for <linux-mm@kvack.org>; Tue, 15 Nov 2005 21:22:31 -0800 (PST)
-Message-ID: <aec7e5c30511152122w70703fbfl98bd377fb6fb9af4@mail.gmail.com>
-Date: Wed, 16 Nov 2005 14:22:31 +0900
-From: Magnus Damm <magnus.damm@gmail.com>
-Subject: Re: [PATCH 01/05] NUMA: Generic code
-In-Reply-To: <200511151515.05201.ak@suse.de>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 8BIT
-Content-Disposition: inline
-References: <20051110090920.8083.54147.sendpatchset@cherry.local>
-	 <200511110516.37980.ak@suse.de>
-	 <aec7e5c30511150034t5ff9e362jb3261e2e23479b31@mail.gmail.com>
-	 <200511151515.05201.ak@suse.de>
+Date: Tue, 15 Nov 2005 23:10:51 -0800
+From: Paul Jackson <pj@sgi.com>
+Subject: Re: [PATCH 2/2] Fold numa_maps into mempolicy.c
+Message-Id: <20051115231051.5437e25b.pj@sgi.com>
+In-Reply-To: <Pine.LNX.4.62.0511081524570.32262@schroedinger.engr.sgi.com>
+References: <Pine.LNX.4.62.0511081520540.32262@schroedinger.engr.sgi.com>
+	<Pine.LNX.4.62.0511081524570.32262@schroedinger.engr.sgi.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <ak@suse.de>
-Cc: Magnus Damm <magnus@valinux.co.jp>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, pj@sgi.com
+To: Christoph Lameter <clameter@engr.sgi.com>
+Cc: ak@suse.de, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 11/15/05, Andi Kleen <ak@suse.de> wrote:
-> On Tuesday 15 November 2005 09:34, Magnus Damm wrote:
->
-> >
-> > My plan with breaking out the NUMA emulation code was to merge my i386
-> > stuff with the x86_64 code, but as you say - it might be overkill.
-> >
-> > What do you think about the fact that real NUMA nodes now can be
-> > divided into several smaller nodes?
->
-> Is it really needed? I never needed it.  Normally numa emulation
-> is just for basic numa testing, and for that just an independent
-> split is good enough.
+Christoph wrote:
+> + * Must hold mmap_sem until memory pointer is no longer in use
+> + * or be called from the current task.
+> + */
+> +struct mempolicy *get_vma_policy(struct task_struct *task,
 
-For testing, your NUMA emulation code is perfect IMO. But for memory
-resource control your NUMA emulation code may be too simple.
+Twenty (well, four) questions time.
 
-With my patch, CONFIG_NUMA_EMU provides a way to partition a machine
-into several smaller nodes, regardless if the machine is using NUMA or
-not.
+Hmmm ... is that true - that get_vma_policy() can be called for the
+current task w/o holding mmap_sem?
 
-This NUMA emulation code together with CPUSETS could be seen as a
-simple alternative to the memory resource control provided by CKRM.
+Is there any call to get_vma_policy() made that isn't holding mmap_sem?
 
-/ magnus
+Except for /proc output, is there any call to get_vma_policy made on any
+task other than current?
+
+What does "until memory pointer is no longer in use" mean?
+
+-- 
+                  I won't rest till it's the best ...
+                  Programmer, Linux Scalability
+                  Paul Jackson <pj@sgi.com> 1.925.600.0401
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
