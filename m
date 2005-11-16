@@ -1,49 +1,51 @@
-Received: by zproxy.gmail.com with SMTP id z6so1703923nzd
-        for <linux-mm@kvack.org>; Tue, 15 Nov 2005 23:57:59 -0800 (PST)
-Message-ID: <aec7e5c30511152357g560127c6n88d0bce3b5a2f4e@mail.gmail.com>
-Date: Wed, 16 Nov 2005 16:57:59 +0900
-From: Magnus Damm <magnus.damm@gmail.com>
-Subject: Re: [PATCH 01/05] NUMA: Generic code
-In-Reply-To: <p73sltxowx4.fsf@verdi.suse.de>
+From: Andi Kleen <ak@suse.de>
+Subject: Re: [PATCH 2/2] Fold numa_maps into mempolicy.c
+Date: Wed, 16 Nov 2005 09:36:04 +0100
+References: <Pine.LNX.4.62.0511081520540.32262@schroedinger.engr.sgi.com> <Pine.LNX.4.62.0511081524570.32262@schroedinger.engr.sgi.com> <20051115231051.5437e25b.pj@sgi.com>
+In-Reply-To: <20051115231051.5437e25b.pj@sgi.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 8BIT
+Content-Type: text/plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-References: <20051110090920.8083.54147.sendpatchset@cherry.local>
-	 <200511110516.37980.ak@suse.de>
-	 <aec7e5c30511150034t5ff9e362jb3261e2e23479b31@mail.gmail.com>
-	 <200511151515.05201.ak@suse.de>
-	 <aec7e5c30511152122w70703fbfl98bd377fb6fb9af4@mail.gmail.com>
-	 <p73sltxowx4.fsf@verdi.suse.de>
+Message-Id: <200511160936.04721.ak@suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <ak@suse.de>
-Cc: Magnus Damm <magnus@valinux.co.jp>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, pj@sgi.com, werner@almesberger.net
+To: Paul Jackson <pj@sgi.com>
+Cc: Christoph Lameter <clameter@engr.sgi.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 16 Nov 2005 08:48:39 +0100, Andi Kleen <ak@suse.de> wrote:
-> Magnus Damm <magnus.damm@gmail.com> writes:
-> >
-> > For testing, your NUMA emulation code is perfect IMO. But for memory
-> > resource control your NUMA emulation code may be too simple.
-> >
-> > With my patch, CONFIG_NUMA_EMU provides a way to partition a machine
-> > into several smaller nodes, regardless if the machine is using NUMA or
-> > not.
-> >
-> > This NUMA emulation code together with CPUSETS could be seen as a
-> > simple alternative to the memory resource control provided by CKRM.
->
-> I believe Werner tried to use it at some point for that and it just
-> didn't work very well. So it doesn't seem to be very useful for
-> that usecase.
+On Wednesday 16 November 2005 08:10, Paul Jackson wrote:
+> Christoph wrote:
+> > + * Must hold mmap_sem until memory pointer is no longer in use
+> > + * or be called from the current task.
+> > + */
+> > +struct mempolicy *get_vma_policy(struct task_struct *task,
+> 
+> Twenty (well, four) questions time.
+> 
+> Hmmm ... is that true - that get_vma_policy() can be called for the
+> current task w/o holding mmap_sem?
 
-Sorry, but which one did not work very well? CKRM memory controller or
-NUMA emulation + CPUSETS?
+Yes, e.g. when vma is NULL.
 
-Thanks,
+> Is there any call to get_vma_policy() made that isn't holding mmap_sem?
 
-/ magnus
+There are some callers of alloc_page_vma with NULL vma yes
+
+> Except for /proc output, is there any call to get_vma_policy made on any
+> task other than current?
+
+In the original version there wasn't any. I still think it's a mistake
+to allow it for /proc, unfortunately the patch went in.
+
+> What does "until memory pointer is no longer in use" mean?
+
+mempolicy is no longer in use or you took a reference.
+
+
+-Andi
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
