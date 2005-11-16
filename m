@@ -1,63 +1,41 @@
-Date: Wed, 16 Nov 2005 02:07:17 +0000 (GMT)
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 2/5] Light Fragmentation Avoidance V20: 002_usemap
-In-Reply-To: <200511160252.05494.ak@suse.de>
-Message-ID: <Pine.LNX.4.58.0511160200530.8470@skynet>
-References: <20051115164946.21980.2026.sendpatchset@skynet.csn.ul.ie>
- <200511160036.54461.ak@suse.de> <Pine.LNX.4.58.0511160137540.8470@skynet>
- <200511160252.05494.ak@suse.de>
+Message-ID: <437A9AE5.8070001@jp.fujitsu.com>
+Date: Wed, 16 Nov 2005 11:35:17 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH 3/5] Light Fragmentation Avoidance V20: 003_fragcore
+References: <20051115164946.21980.2026.sendpatchset@skynet.csn.ul.ie> <20051115165002.21980.14423.sendpatchset@skynet.csn.ul.ie>
+In-Reply-To: <20051115165002.21980.14423.sendpatchset@skynet.csn.ul.ie>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <ak@suse.de>
-Cc: linux-mm@kvack.org, mingo@elte.hu, lhms-devel@lists.sourceforge.net, linux-kernel@vger.kernel.org, nickpiggin@yahoo.com.au
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: linux-mm@kvack.org, mingo@elte.hu, linux-kernel@vger.kernel.org, nickpiggin@yahoo.com.au, lhms-devel@lists.sourceforge.net
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 16 Nov 2005, Andi Kleen wrote:
+Hi,
 
-> On Wednesday 16 November 2005 02:43, Mel Gorman wrote:
->
-> > 1. I was using a page flag, valuable commodity, thought I would get kicked
-> >    for it. Usemap uses 1 bit per 2^(MAX_ORDER-1) pages. Page flags uses
-> >    2^(MAX_ORDER-1) bits at worse case.
->
-> Why does it need multiple bits? A page can only be in one order at a
-> time, can't it?
->
+> +/* Remove an element from the buddy allocator from the fallback list */
+> +static struct page *__rmqueue_fallback(struct zone *zone, int order,
+> +							int alloctype)
 
-Yes, but 1024 pages in one block is one bit per page. Usemap uses 1 page
-for all 1024.
+Should we avoid this fallback as much as possible ?
+I think this is a weak point of this approach.
 
-> > 2. Fragmentation avoidance tended to break down, very fast.
->
-> Why? The algorithm should the same, no?
->
 
-That's what I thought when I wrote it first but it broke down fast
-according to bench-stresshighalloc. I'll need to re-examine the patches
-and see where I went wrong.
+> +		/*
+> +		 * If breaking a large block of pages, place the buddies
+> +		 * on the preferred allocation list
+> +		 */
+> +		if (unlikely(current_order >= MAX_ORDER / 2)) {
+> +			alloctype = !alloctype;
+> +			change_pageblock_type(zone, page);
+> +			area = &zone->free_area_lists[alloctype][current_order];
+> +		}
+Changing RCLM_NORCLM to RLCM_EASY is okay ??
+If so, I think adding similar code to free_pages_bulk() is better.
 
-> > 3. When changing a block of pages from one type to another, there was no
-> >    fast way to make sure all pages currently allocation would end up on
-> >    the correct free list
->
-> If you can change the bitmap you can change as well mem_map
->
-
-That's iterating through, potentially, 1024 pages which I considered too
-expensive. In terms of code complexity, the page-flags patch adds 237
-which is not much of a saving in comparison to 275 that the usemap
-approach uses.
-
-Again, I can revisit the page-flag approach if I thought that something
-like this would get merged and people would not choke on another page flag
-being consumed.
-
--- 
-Mel Gorman
-Part-time Phd Student                          Java Applications Developer
-University of Limerick                         IBM Dublin Software Lab
+-- Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
