@@ -1,7 +1,7 @@
-Date: Wed, 16 Nov 2005 22:59:53 +0000
-Subject: [PATCH 0/3] SPARSEMEM: pfn_to_nid implementation
-Message-ID: <exportbomb.1132181992@pinky>
-References: <20051115221003.GA2160@w-mikek2.ibm.com>
+Date: Wed, 16 Nov 2005 23:00:03 +0000
+Subject: [PATCH 1/3] kvaddr_to_nid not used in common code
+Message-ID: <20051116230003.GA16467@shadowen.org>
+References: <exportbomb.1132181992@pinky>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
@@ -12,28 +12,46 @@ To: Mike Kravetz <kravetz@us.ibm.com>
 Cc: Andy Whitcroft <apw@shadowen.org>, Anton Blanchard <anton@samba.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-I have reviewed the uses of pfn_to_nid() in 2.6.14-mm2.  The only
-user of the non-init pfn_to_nid is the one in check_pte_range().
-So we simply need to profide a non-early pfn_to_nid() implementation
-for SPARSEMEM.  Whilst reviewing these interfaces I found two
-alternative dependant interfaces which are not used.
+kvaddr_to_nid not used in common code
 
-Following this message are three patches:
+kvaddr_to_nid() isn't used in common code nor in i386 code.
+Remove these definitions.
 
-kvaddr_to_nid-not-used-in-common-code: removes the unused interface
-kvaddr_to_nid().
-
-pfn_to_pgdat-not-used-in-common-code: removes the unused interface
-pfn_to_pgdat().
-
-sparse-provide-pfn_to_nid: provides pfn_to_nid() for SPARSEMEM.
-Note that this implmentation assumes the pfn has been validated
-prior to use.  The only intree user of this call does this.
-We perhaps need to make this part of the signature for this function.
-
-Mike, how does this look to you?
-
--apw
+Signed-off-by: Andy Whitcroft <apw@shadowen.org>
+---
+ asm-i386/mmzone.h |    5 -----
+ linux/mmzone.h    |    5 -----
+ 2 files changed, 10 deletions(-)
+diff -upN reference/include/asm-i386/mmzone.h current/include/asm-i386/mmzone.h
+--- reference/include/asm-i386/mmzone.h
++++ current/include/asm-i386/mmzone.h
+@@ -76,11 +76,6 @@ static inline int pfn_to_nid(unsigned lo
+  * Following are macros that each numa implmentation must define.
+  */
+ 
+-/*
+- * Given a kernel address, find the home node of the underlying memory.
+- */
+-#define kvaddr_to_nid(kaddr)	pfn_to_nid(__pa(kaddr) >> PAGE_SHIFT)
+-
+ #define node_start_pfn(nid)	(NODE_DATA(nid)->node_start_pfn)
+ #define node_end_pfn(nid)						\
+ ({									\
+diff -upN reference/include/linux/mmzone.h current/include/linux/mmzone.h
+--- reference/include/linux/mmzone.h
++++ current/include/linux/mmzone.h
+@@ -575,11 +575,6 @@ static inline int valid_section_nr(unsig
+ 	return valid_section(__nr_to_section(nr));
+ }
+ 
+-/*
+- * Given a kernel address, find the home node of the underlying memory.
+- */
+-#define kvaddr_to_nid(kaddr)	pfn_to_nid(__pa(kaddr) >> PAGE_SHIFT)
+-
+ static inline struct mem_section *__pfn_to_section(unsigned long pfn)
+ {
+ 	return __nr_to_section(pfn_to_section_nr(pfn));
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
