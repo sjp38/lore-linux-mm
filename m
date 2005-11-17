@@ -1,37 +1,35 @@
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by e4.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id jAHEFkRL009038
-	for <linux-mm@kvack.org>; Thu, 17 Nov 2005 09:15:46 -0500
-Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
-	by d01relay04.pok.ibm.com (8.12.10/NCO/VERS6.8) with ESMTP id jAHEFkCc101710
-	for <linux-mm@kvack.org>; Thu, 17 Nov 2005 09:15:46 -0500
-Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
-	by d01av04.pok.ibm.com (8.12.11/8.13.3) with ESMTP id jAHEFjLw028556
-	for <linux-mm@kvack.org>; Thu, 17 Nov 2005 09:15:46 -0500
+From: Con Kolivas <kernel@kolivas.org>
 Subject: Re: [PATCH] mm: is_dma_zone
-From: Dave Hansen <haveblue@us.ibm.com>
-In-Reply-To: <200511180059.51211.kernel@kolivas.org>
-References: <200511180059.51211.kernel@kolivas.org>
-Content-Type: text/plain
-Date: Thu, 17 Nov 2005 15:15:43 +0100
-Message-Id: <1132236943.5834.70.camel@localhost>
-Mime-Version: 1.0
+Date: Fri, 18 Nov 2005 01:19:00 +1100
+References: <200511180059.51211.kernel@kolivas.org> <1132236943.5834.70.camel@localhost>
+In-Reply-To: <1132236943.5834.70.camel@localhost>
+MIME-Version: 1.0
+Content-Type: text/plain;
+  charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200511180119.01250.kernel@kolivas.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Con Kolivas <kernel@kolivas.org>
+To: Dave Hansen <haveblue@us.ibm.com>
 Cc: linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@osdl.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2005-11-18 at 00:59 +1100, Con Kolivas wrote:
-> +static inline int is_dma(struct zone *zone)
-> +{
-> +       return zone == zone->zone_pgdat->node_zones + ZONE_DMA;
-> +}
+On Fri, 18 Nov 2005 01:15, Dave Hansen wrote:
+> On Fri, 2005-11-18 at 00:59 +1100, Con Kolivas wrote:
+> > +static inline int is_dma(struct zone *zone)
+> > +{
+> > +       return zone == zone->zone_pgdat->node_zones + ZONE_DMA;
+> > +}
+>
+> Any reason you can't just use 'zone_idx(z) == ZONE_DMA' here, just like
+> the code you replaced?
 
-Any reason you can't just use 'zone_idx(z) == ZONE_DMA' here, just like
-the code you replaced?
+I was just following the style of the is_highmem and is_normal immediately 
+preceeding this. No strong reason otherwise.
 
--- Dave
+Cheers,
+Con
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
