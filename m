@@ -1,46 +1,159 @@
-Message-ID: <438E617F.4020005@gmail.com>
-Date: Wed, 30 Nov 2005 20:35:43 -0600
-From: Hareesh Nagarajan <hnagar2@gmail.com>
-MIME-Version: 1.0
-Subject: Re: Better pagecache statistics ?
-References: <1133377029.27824.90.camel@localhost.localdomain>
-In-Reply-To: <1133377029.27824.90.camel@localhost.localdomain>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: Badari Pulavarty <pbadari@us.ibm.com>
-Cc: linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>
-List-ID: <linux-mm.kvack.org>
+From: Magnus Damm <magnus@valinux.co.jp>
+Subject: [PATCH] Protect zone->nr_active and zone->nr_inactive
+Date: Thu, 17 Nov 2005 15:37:22 +0900 (JST)
+Message-ID: <20051117063903.11259.68372.sendpatchset@cherry.local>
+Return-path: <linux-kernel-owner+glk-linux-kernel-3=40m.gmane.org-S1161148AbVKQGh1@vger.kernel.org>
+Sender: linux-kernel-owner@vger.kernel.org
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: akpm@osdl.org, Magnus Damm <magnus@valinux.co.jp>
+List-Id: linux-mm.kvack.org
 
-Hi,
+Protect read access to zone->nr_active and zone->nr_inactive.
 
-Badari Pulavarty wrote:
-> - How much is just file system cache (regular file data) ?
+There are places in the mm code where nr_active and nr_inactive are read from
+struct zone without spinlock protection. I ran across this when working on 
+improving the LRU code, but I have not been able to trigger this in real life
+without my patches. The symptom for my code was that shrink_zone() read out
+half-updated incorrect values from the zone struct which resulted in that the
+amount of pages to scan became very very high, which in turn resulted in a
+hang or almost infinite loop. In theory at least one race condition should 
+exist between activate_page() and shrink_zone() on standard kernels.
 
-This is just a thought of mine:
-/proc/slabinfo?
+Signed-off-by: Magnus Damm <magnus@valinux.co.jp>
+---
 
-> - How much is shared memory pages ?
-> - How much is mmaped() stuff ?
+Applies to: 2.6.15-rc1, 2.6.14 (and probably earlier kernels too)
 
-cat /proc/vmstat | grep nr_mapped
-nr_mapped 77105
+ page_alloc.c |    8 +++++++-
+ vmscan.c     |   19 +++++++++++++++++--
+ 2 files changed, 24 insertions(+), 3 deletions(-)
 
-But yes, this doesn't give you a detailed account.
-
-> - How much is for text, data, bss, heap, malloc ?
-
-Again, this is just a thought of mine: Couldn't you get this information 
-from /proc/<pid>/maps or from the nicer and easier to parse procps 
-application: pmap <pid>?
-
-Thanks,
-
-Hareesh
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+--- from-0002/mm/page_alloc.c
++++ to-work/mm/page_alloc.c	2005-11-17 14:55:19.000000000 +0900
+@@ -1244,15 +1244,18 @@ void __get_zone_counts(unsigned long *ac
+ 			unsigned long *free, struct pglist_data *pgdat)
+ {
+ 	struct zone *zones = pgdat->node_zones;
++	unsigned long flags;
+ 	int i;
+ 
+ 	*active = 0;
+ 	*inactive = 0;
+ 	*free = 0;
+ 	for (i = 0; i < MAX_NR_ZONES; i++) {
++		spin_lock_irqsave(&zones[i].lru_lock, flags);
+ 		*active += zones[i].nr_active;
+ 		*inactive += zones[i].nr_inactive;
+ 		*free += zones[i].free_pages;
++		spin_unlock_irqrestore(&zones[i].lru_lock, flags);
+ 	}
+ }
+ 
+@@ -1318,6 +1321,7 @@ void show_free_areas(void)
+ 	unsigned long active;
+ 	unsigned long inactive;
+ 	unsigned long free;
++	unsigned long flags;
+ 	struct zone *zone;
+ 
+ 	for_each_zone(zone) {
+@@ -1369,6 +1373,7 @@ void show_free_areas(void)
+ 		int i;
+ 
+ 		show_node(zone);
++		spin_lock_irqsave(&zone->lock, flags);
+ 		printk("%s"
+ 			" free:%lukB"
+ 			" min:%lukB"
+@@ -1394,11 +1399,12 @@ void show_free_areas(void)
+ 		printk("lowmem_reserve[]:");
+ 		for (i = 0; i < MAX_NR_ZONES; i++)
+ 			printk(" %lu", zone->lowmem_reserve[i]);
++		spin_unlock_irqrestore(&zone->lock, flags);
+ 		printk("\n");
+ 	}
+ 
+ 	for_each_zone(zone) {
+- 		unsigned long nr, flags, order, total = 0;
++ 		unsigned long nr, order, total = 0;
+ 
+ 		show_node(zone);
+ 		printk("%s: ", zone->name);
+--- from-0002/mm/vmscan.c
++++ to-work/mm/vmscan.c	2005-11-17 14:53:05.000000000 +0900
+@@ -831,18 +831,23 @@ shrink_zone(struct zone *zone, struct sc
+ 
+ 	atomic_inc(&zone->reclaim_in_progress);
+ 
++	spin_lock_irq(&zone->lru_lock);
++	nr_active = zone->nr_active;
++	nr_inactive = zone->nr_inactive;
++	spin_unlock_irq(&zone->lru_lock);
++
+ 	/*
+ 	 * Add one to `nr_to_scan' just to make sure that the kernel will
+ 	 * slowly sift through the active list.
+ 	 */
+-	zone->nr_scan_active += (zone->nr_active >> sc->priority) + 1;
++	zone->nr_scan_active += (nr_active >> sc->priority) + 1;
+ 	nr_active = zone->nr_scan_active;
+ 	if (nr_active >= sc->swap_cluster_max)
+ 		zone->nr_scan_active = 0;
+ 	else
+ 		nr_active = 0;
+ 
+-	zone->nr_scan_inactive += (zone->nr_inactive >> sc->priority) + 1;
++	zone->nr_scan_inactive += (nr_inactive >> sc->priority) + 1;
+ 	nr_inactive = zone->nr_scan_inactive;
+ 	if (nr_inactive >= sc->swap_cluster_max)
+ 		zone->nr_scan_inactive = 0;
+@@ -935,6 +940,7 @@ int try_to_free_pages(struct zone **zone
+ 	int total_scanned = 0, total_reclaimed = 0;
+ 	struct reclaim_state *reclaim_state = current->reclaim_state;
+ 	struct scan_control sc;
++	unsigned long flags;
+ 	unsigned long lru_pages = 0;
+ 	int i;
+ 
+@@ -951,7 +957,10 @@ int try_to_free_pages(struct zone **zone
+ 			continue;
+ 
+ 		zone->temp_priority = DEF_PRIORITY;
++
++		spin_lock_irqsave(&zone->lru_lock, flags);
+ 		lru_pages += zone->nr_active + zone->nr_inactive;
++		spin_unlock_irqrestore(&zone->lru_lock, flags);
+ 	}
+ 
+ 	for (priority = DEF_PRIORITY; priority >= 0; priority--) {
+@@ -1033,6 +1042,7 @@ static int balance_pgdat(pg_data_t *pgda
+ 	int priority;
+ 	int i;
+ 	int total_scanned, total_reclaimed;
++	unsigned long flags;
+ 	struct reclaim_state *reclaim_state = current->reclaim_state;
+ 	struct scan_control sc;
+ 
+@@ -1087,7 +1097,9 @@ scan:
+ 		for (i = 0; i <= end_zone; i++) {
+ 			struct zone *zone = pgdat->node_zones + i;
+ 
++			spin_lock_irqsave(&zone->lru_lock, flags);
+ 			lru_pages += zone->nr_active + zone->nr_inactive;
++			spin_unlock_irqrestore(&zone->lru_lock, flags);
+ 		}
+ 
+ 		/*
+@@ -1132,9 +1144,12 @@ scan:
+ 			total_scanned += sc.nr_scanned;
+ 			if (zone->all_unreclaimable)
+ 				continue;
++
++			spin_lock_irqsave(&zone->lru_lock, flags);
+ 			if (nr_slab == 0 && zone->pages_scanned >=
+ 				    (zone->nr_active + zone->nr_inactive) * 4)
+ 				zone->all_unreclaimable = 1;
++			spin_unlock_irqrestore(&zone->lru_lock, flags);
+ 			/*
+ 			 * If we've done a decent amount of scanning and
+ 			 * the reclaim ratio is low, start doing writepage
