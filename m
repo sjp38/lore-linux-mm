@@ -1,69 +1,48 @@
-Message-ID: <437BC2D7.3080003@emc.com>
-Date: Wed, 16 Nov 2005 18:37:59 -0500
-From: Ric Wheeler <ric@emc.com>
-MIME-Version: 1.0
-Subject: Re: [RFC] sys_punchhole()
-References: <1131664994.25354.36.camel@localhost.localdomain>	 <20051110153254.5dde61c5.akpm@osdl.org>	 <20051113150906.GA2193@spitz.ucw.cz> <1132178470.24066.85.camel@localhost.localdomain>
-In-Reply-To: <1132178470.24066.85.camel@localhost.localdomain>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by e34.co.us.ibm.com (8.12.11/8.12.11) with ESMTP id jAH06kYg023743
+	for <linux-mm@kvack.org>; Wed, 16 Nov 2005 19:06:46 -0500
+Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
+	by d03relay04.boulder.ibm.com (8.12.10/NCO/VERS6.8) with ESMTP id jAH080ie065076
+	for <linux-mm@kvack.org>; Wed, 16 Nov 2005 17:08:03 -0700
+Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av01.boulder.ibm.com (8.12.11/8.13.3) with ESMTP id jAH06htw006012
+	for <linux-mm@kvack.org>; Wed, 16 Nov 2005 17:06:43 -0700
+Date: Wed, 16 Nov 2005 16:06:26 -0800
+From: Mike Kravetz <kravetz@us.ibm.com>
+Subject: Re: [PATCH 0/3] SPARSEMEM: pfn_to_nid implementation
+Message-ID: <20051117000626.GD5628@w-mikek2.ibm.com>
+References: <20051115221003.GA2160@w-mikek2.ibm.com> <exportbomb.1132181992@pinky>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <exportbomb.1132181992@pinky>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Badari Pulavarty <pbadari@us.ibm.com>
-Cc: Pavel Machek <pavel@suse.cz>, Andrew Morton <akpm@osdl.org>, andrea@suse.de, hugh@veritas.com, lkml <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: Andy Whitcroft <apw@shadowen.org>
+Cc: Anton Blanchard <anton@samba.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Badari Pulavarty wrote:
+On Wed, Nov 16, 2005 at 10:59:53PM +0000, Andy Whitcroft wrote:
+> Following this message are three patches:
+> 
+> kvaddr_to_nid-not-used-in-common-code: removes the unused interface
+> kvaddr_to_nid().
+> 
+> pfn_to_pgdat-not-used-in-common-code: removes the unused interface
+> pfn_to_pgdat().
+> 
+> sparse-provide-pfn_to_nid: provides pfn_to_nid() for SPARSEMEM.
+> Note that this implmentation assumes the pfn has been validated
+> prior to use.  The only intree user of this call does this.
+> We perhaps need to make this part of the signature for this function.
+> 
+> Mike, how does this look to you?
 
->On Sun, 2005-11-13 at 15:09 +0000, Pavel Machek wrote:
->  
->
->>Hi!
->>
->>    
->>
->>>>We discussed this in madvise(REMOVE) thread - to add support 
->>>>for sys_punchhole(fd, offset, len) to complete the functionality
->>>>(in the future).
->>>>
->>>>http://marc.theaimsgroup.com/?l=linux-mm&m=113036713810002&w=2
->>>>
->>>>What I am wondering is, should I invest time now to do it ?
->>>>        
->>>>
->>>I haven't even heard anyone mention a need for this in the past 1-2 years.
->>>      
->>>
->>Some database people wanted it maybe month ago. It was replaced by some 
->>madvise hack...
->>    
->>
->
->Hmm. Someone other than me asking for it ? 
->
->I did the madvise() hack and asking to see if any one really needs
->sys_punchole().
->
->Thanks,
->Badari
->
->
->  
->
-I think that sys_punchole() would be useful for some object based 
-storage systems.
+I like the idea of getting rid of unused interfaces as well as getting
+the node information from the page structs.  It works for me on powerpc.
 
-Specifically, when you have a box that is trying to store potentially a 
-billion objects on one file system, pushing several objects into a file 
-("container") can be useful to keep the object count down.  The punch 
-hole would be useful in reclaiming space in this type of scheme.
-
-On the other side of the argument, you can argue that file systems that 
-support large file counts and really big directories should perform well 
-enough to make this use case less important.
-
-ric
-
+-- 
+Mike
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
