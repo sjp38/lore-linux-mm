@@ -1,31 +1,43 @@
-From: Andi Kleen <ak@suse.de>
-Subject: Re: [PATCH] NUMA policies in the slab allocator V2
-Date: Fri, 18 Nov 2005 05:31:47 +0100
-References: <Pine.LNX.4.62.0511171745410.22486@schroedinger.engr.sgi.com> <200511180359.17598.ak@suse.de> <Pine.LNX.4.62.0511171925090.22785@schroedinger.engr.sgi.com>
-In-Reply-To: <Pine.LNX.4.62.0511171925090.22785@schroedinger.engr.sgi.com>
-MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
+Date: Fri, 18 Nov 2005 17:42:27 +0100
+From: Ragnar =?iso-8859-15?Q?Kj=F8rstad?= <kernel@ragnark.vestdata.no>
+Subject: Re: [RFC] sys_punchhole()
+Message-ID: <20051118164227.GA14697@vestdata.no>
+References: <1131664994.25354.36.camel@localhost.localdomain> <20051110153254.5dde61c5.akpm@osdl.org> <20051113150906.GA2193@spitz.ucw.cz>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-Message-Id: <200511180531.47764.ak@suse.de>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20051113150906.GA2193@spitz.ucw.cz>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@engr.sgi.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@osdl.org
+To: Pavel Machek <pavel@suse.cz>
+Cc: Andrew Morton <akpm@osdl.org>, Badari Pulavarty <pbadari@us.ibm.com>, andrea@suse.de, hugh@veritas.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Friday 18 November 2005 04:38, Christoph Lameter wrote:
-> You really want to run the useless fastpath? Examine lists etc for
-> the local node despite the policy telling you to get off node?
+On Sun, Nov 13, 2005 at 03:09:06PM +0000, Pavel Machek wrote:
+> > > We discussed this in madvise(REMOVE) thread - to add support 
+> > > for sys_punchhole(fd, offset, len) to complete the functionality
+> > > (in the future).
+> > > 
+> > > http://marc.theaimsgroup.com/?l=linux-mm&m=113036713810002&w=2
+> > > 
+> > > What I am wondering is, should I invest time now to do it ?
+> > 
+> > I haven't even heard anyone mention a need for this in the past 1-2 years.
+> 
+> Some database people wanted it maybe month ago. It was replaced by some 
+> madvise hack...
 
-Yes.
 
-> Hmm. Is a hugepage ever allocated from interrupt context?
+sys_punchhole is also potentially very useful for Hirarchial Storage
+Management. (Holes are typically used for data that have been migrated
+to tape).
 
-They aren't.
 
--Andi
+
+
+-- 
+Ragnar Kjorstad
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
