@@ -1,56 +1,261 @@
-Message-ID: <437E2F22.6000809@argo.co.il>
-Date: Fri, 18 Nov 2005 21:44:34 +0200
-From: Avi Kivity <avi@argo.co.il>
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by e2.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id jAIJjsoi003735
+	for <linux-mm@kvack.org>; Fri, 18 Nov 2005 14:45:54 -0500
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay02.pok.ibm.com (8.12.10/NCO/VERS6.8) with ESMTP id jAIJjsma117246
+	for <linux-mm@kvack.org>; Fri, 18 Nov 2005 14:45:54 -0500
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.12.11/8.13.3) with ESMTP id jAIJjs1j026108
+	for <linux-mm@kvack.org>; Fri, 18 Nov 2005 14:45:54 -0500
+Message-ID: <437E2F6F.4010509@us.ibm.com>
+Date: Fri, 18 Nov 2005 11:45:51 -0800
+From: Matthew Dobson <colpatch@us.ibm.com>
 MIME-Version: 1.0
-Subject: Re: [RFC][PATCH 0/8] Critical Page Pool
+Subject: [RFC][PATCH 7/8] __cache_grow()
 References: <437E2C69.4000708@us.ibm.com>
 In-Reply-To: <437E2C69.4000708@us.ibm.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: multipart/mixed;
+ boundary="------------090408010301040100020904"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Matthew Dobson <colpatch@us.ibm.com>
-Cc: linux-kernel@vger.kernel.org, Linux Memory Management <linux-mm@kvack.org>
+To: linux-kernel@vger.kernel.org
+Cc: Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Matthew Dobson wrote:
+This is a multi-part message in MIME format.
+--------------090408010301040100020904
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 
->We have a clustering product that needs to be able to guarantee that the
->networking system won't stop functioning in the case of OOM/low memory
->condition.  The current mempool system is inadequate because to keep the
->whole networking stack functioning, we need more than 1 or 2 slab caches to
->be guaranteed.  We need to guarantee that any request made with a specific
->flag will succeed, assuming of course that you've made your "critical page
->pool" big enough.
->
->The following patch series implements such a critical page pool.  It
->creates 2 userspace triggers:
->
->/proc/sys/vm/critical_pages: write the number of pages you want to reserve
->for the critical pool into this file
->
->/proc/sys/vm/in_emergency: write a non-zero value to tell the kernel that
->the system is in an emergency state and authorize the kernel to dip into
->the critical pool to satisfy critical allocations.
->
->We mark critical allocations with the __GFP_CRITICAL flag, and when the
->system is in an emergency state, we are allowed to delve into this pool to
->satisfy __GFP_CRITICAL allocations that cannot be satisfied through the
->normal means.
->
->  
->
-1. If you have two subsystems which allocate critical pages, how do you 
-protect against the condition where one subsystem allocates all the 
-critical memory, causing the second to oom?
+Create a helper for cache_grow() that handles doing the cache coloring and
+allocating & initializing the struct slab.
 
-2. There already exists a critical pool: ordinary allocations fail if 
-free memory is below some limit, but special processes (kswapd) can 
-allocate that memory by setting PF_MEMALLOC. Perhaps this should be 
-extended, possibly with a per-process threshold.
+-Matt
 
--- 
-Do not meddle in the internals of kernels, for they are subtle and quick to panic.
+--------------090408010301040100020904
+Content-Type: text/x-patch;
+ name="slab_prep-__cache_grow.patch"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline;
+ filename="slab_prep-__cache_grow.patch"
+
+Create a helper function, __cache_grow(), called by cache_grow().  This allows
+us to move the cache coloring and struct slab allocation & initialization to
+its own discrete function.
+
+Also, move both functions below some debugging function definitions, so they can be used
+in these functions by the next patch without needing forward declarations.
+
+Signed-off-by: Matthew Dobson <colpatch@us.ibm.com>
+
+Index: linux-2.6.15-rc1+critical_pool/mm/slab.c
+===================================================================
+--- linux-2.6.15-rc1+critical_pool.orig/mm/slab.c	2005-11-17 16:45:09.979876248 -0800
++++ linux-2.6.15-rc1+critical_pool/mm/slab.c	2005-11-17 16:49:45.118048888 -0800
+@@ -2209,95 +2209,6 @@ static void set_slab_attr(kmem_cache_t *
+ 	}
+ }
+ 
+-/*
+- * Grow (by 1) the number of slabs within a cache.  This is called by
+- * kmem_cache_alloc() when there are no active objs left in a cache.
+- */
+-static int cache_grow(kmem_cache_t *cachep, gfp_t flags, int nid)
+-{
+-	struct slab *slabp;
+-	void *objp;
+-	size_t offset;
+-	gfp_t local_flags;
+-	unsigned long ctor_flags;
+-	struct kmem_list3 *l3;
+-
+-	/*
+-	 * Be lazy and only check for valid flags here,
+-	 * keeping it out of the critical path in kmem_cache_alloc().
+-	 */
+-	if (flags & ~(SLAB_DMA|SLAB_LEVEL_MASK|SLAB_NO_GROW))
+-		BUG();
+-	if (flags & SLAB_NO_GROW)
+-		return 0;
+-
+-	ctor_flags = SLAB_CTOR_CONSTRUCTOR;
+-	local_flags = (flags & SLAB_LEVEL_MASK);
+-	if (!(local_flags & __GFP_WAIT))
+-		/*
+-		 * Not allowed to sleep.  Need to tell a constructor about
+-		 * this - it might need to know...
+-		 */
+-		ctor_flags |= SLAB_CTOR_ATOMIC;
+-
+-	/* About to mess with non-constant members - lock. */
+-	check_irq_off();
+-	spin_lock(&cachep->spinlock);
+-
+-	/* Get colour for the slab, and cal the next value. */
+-	offset = cachep->colour_next;
+-	cachep->colour_next++;
+-	if (cachep->colour_next >= cachep->colour)
+-		cachep->colour_next = 0;
+-	offset *= cachep->colour_off;
+-
+-	spin_unlock(&cachep->spinlock);
+-
+-	check_irq_off();
+-	if (local_flags & __GFP_WAIT)
+-		local_irq_enable();
+-
+-	/*
+-	 * Ensure caller isn't asking for DMA memory if the slab wasn't created
+-	 * with the SLAB_DMA flag.
+-	 * Also ensure the caller *is* asking for DMA memory if the slab was
+-	 * created with the SLAB_DMA flag.
+-	 */
+-	kmem_flagcheck(cachep, flags);
+-
+-	/* Get mem for the objects by allocating a physical page from 'nid' */
+-	if (!(objp = kmem_getpages(cachep, flags, nid)))
+-		goto out_nomem;
+-
+-	/* Get slab management. */
+-	if (!(slabp = alloc_slabmgmt(cachep, objp, offset, local_flags)))
+-		goto out_freepages;
+-
+-	slabp->nid = nid;
+-	set_slab_attr(cachep, slabp, objp);
+-
+-	cache_init_objs(cachep, slabp, ctor_flags);
+-
+-	if (local_flags & __GFP_WAIT)
+-		local_irq_disable();
+-	check_irq_off();
+-	l3 = cachep->nodelists[nid];
+-	spin_lock(&l3->list_lock);
+-
+-	/* Make slab active. */
+-	list_add_tail(&slabp->list, &(l3->slabs_free));
+-	STATS_INC_GROWN(cachep);
+-	l3->free_objects += cachep->num;
+-	spin_unlock(&l3->list_lock);
+-	return 1;
+-out_freepages:
+-	kmem_freepages(cachep, objp);
+-out_nomem:
+-	if (local_flags & __GFP_WAIT)
+-		local_irq_disable();
+-	return 0;
+-}
+-
+ #if DEBUG
+ /*
+  * Perform extra freeing checks:
+@@ -2430,6 +2341,105 @@ bad:
+ #define check_slabp(x,y)			do { } while(0)
+ #endif
+ 
++/**
++ * Helper function for cache_grow().  Handle cache coloring, allocating a
++ * struct slab and initializing the slab.
++ */
++static struct slab *__cache_grow(kmem_cache_t *cachep, void *objp, gfp_t flags)
++{
++	struct slab *slabp;
++	size_t offset;
++	unsigned int local_flags;
++	unsigned long ctor_flags;
++
++	ctor_flags = SLAB_CTOR_CONSTRUCTOR;
++	local_flags = (flags & SLAB_LEVEL_MASK);
++	if (!(local_flags & __GFP_WAIT))
++		/*
++		 * Not allowed to sleep.  Need to tell a constructor about
++		 * this - it might need to know...
++		 */
++		ctor_flags |= SLAB_CTOR_ATOMIC;
++
++	/* About to mess with non-constant members - lock. */
++	check_irq_off();
++	spin_lock(&cachep->spinlock);
++
++	/* Get colour for the slab, and cal the next value. */
++	offset = cachep->colour_next;
++	cachep->colour_next++;
++	if (cachep->colour_next >= cachep->colour)
++		cachep->colour_next = 0;
++	offset *= cachep->colour_off;
++
++	spin_unlock(&cachep->spinlock);
++
++	check_irq_off();
++	if (local_flags & __GFP_WAIT)
++		local_irq_enable();
++
++	/* Get slab management. */
++	if (!(slabp = alloc_slabmgmt(cachep, objp, offset, local_flags)))
++		goto out;
++
++	set_slab_attr(cachep, slabp, objp);
++	cache_init_objs(cachep, slabp, ctor_flags);
++
++out:
++	if (local_flags & __GFP_WAIT)
++		local_irq_disable();
++	check_irq_off();
++	return slabp;
++}
++
++/**
++ * Grow (by 1) the number of slabs within a cache.  This is called by
++ * kmem_cache_alloc() when there are no active objs left in a cache.
++ */
++static int cache_grow(kmem_cache_t *cachep, gfp_t flags, int nid)
++{
++	struct slab *slabp = NULL;
++	void *objp = NULL;
++
++	/*
++	 * Be lazy and only check for valid flags here,
++ 	 * keeping it out of the critical path in kmem_cache_alloc().
++	 */
++	if (flags & ~(SLAB_DMA|SLAB_LEVEL_MASK|SLAB_NO_GROW))
++		BUG();
++	if (flags & SLAB_NO_GROW)
++		goto out;
++
++	/*
++	 * Ensure caller isn't asking for DMA memory if the slab wasn't created
++	 * with the SLAB_DMA flag.
++	 * Also ensure the caller *is* asking for DMA memory if the slab was
++	 * created with the SLAB_DMA flag.
++	 */
++	kmem_flagcheck(cachep, flags);
++
++	/* Get mem for the objects by allocating a physical page from 'nid' */
++	if ((objp = kmem_getpages(cachep, flags, nid))) {
++		struct kmem_list3 *l3 = cachep->nodelists[nid];
++
++		if (!(slabp = __cache_grow(cachep, objp, flags))) {
++			kmem_freepages(cachep, objp);
++			objp = NULL;
++			goto out;
++		}
++		slabp->nid = nid;
++
++		STATS_INC_GROWN(cachep);
++		/* Make slab active. */
++		spin_lock(&l3->list_lock);
++		list_add_tail(&slabp->list, &l3->slabs_free);
++		l3->free_objects += cachep->num;
++		spin_unlock(&l3->list_lock);
++	}
++out:
++	return objp != NULL;
++}
++
+ static void *cache_alloc_refill(kmem_cache_t *cachep, gfp_t flags)
+ {
+ 	int batchcount;
+
+--------------090408010301040100020904--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
