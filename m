@@ -1,110 +1,56 @@
-Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
-	by e35.co.us.ibm.com (8.12.11/8.12.11) with ESMTP id jAIJiYJe018909
-	for <linux-mm@kvack.org>; Fri, 18 Nov 2005 14:44:34 -0500
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by d03relay04.boulder.ibm.com (8.12.10/NCO/VERS6.8) with ESMTP id jAIJjqLY071262
-	for <linux-mm@kvack.org>; Fri, 18 Nov 2005 12:45:53 -0700
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.12.11/8.13.3) with ESMTP id jAIJiY3W029493
-	for <linux-mm@kvack.org>; Fri, 18 Nov 2005 12:44:34 -0700
-Message-ID: <437E2F20.9090302@us.ibm.com>
-Date: Fri, 18 Nov 2005 11:44:32 -0800
-From: Matthew Dobson <colpatch@us.ibm.com>
+Message-ID: <437E2F22.6000809@argo.co.il>
+Date: Fri, 18 Nov 2005 21:44:34 +0200
+From: Avi Kivity <avi@argo.co.il>
 MIME-Version: 1.0
-Subject: [RFC][PATCH 6/8] slab_destruct
+Subject: Re: [RFC][PATCH 0/8] Critical Page Pool
 References: <437E2C69.4000708@us.ibm.com>
 In-Reply-To: <437E2C69.4000708@us.ibm.com>
-Content-Type: multipart/mixed;
- boundary="------------090902050305040107070309"
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: Linux Memory Management <linux-mm@kvack.org>
+To: Matthew Dobson <colpatch@us.ibm.com>
+Cc: linux-kernel@vger.kernel.org, Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-This is a multi-part message in MIME format.
---------------090902050305040107070309
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Matthew Dobson wrote:
 
-Break the current slab_destroy() into 2 functions: slab_destroy and
-slab_destruct.  slab_destruct calls the destructor code and any necessary
-debug code.
+>We have a clustering product that needs to be able to guarantee that the
+>networking system won't stop functioning in the case of OOM/low memory
+>condition.  The current mempool system is inadequate because to keep the
+>whole networking stack functioning, we need more than 1 or 2 slab caches to
+>be guaranteed.  We need to guarantee that any request made with a specific
+>flag will succeed, assuming of course that you've made your "critical page
+>pool" big enough.
+>
+>The following patch series implements such a critical page pool.  It
+>creates 2 userspace triggers:
+>
+>/proc/sys/vm/critical_pages: write the number of pages you want to reserve
+>for the critical pool into this file
+>
+>/proc/sys/vm/in_emergency: write a non-zero value to tell the kernel that
+>the system is in an emergency state and authorize the kernel to dip into
+>the critical pool to satisfy critical allocations.
+>
+>We mark critical allocations with the __GFP_CRITICAL flag, and when the
+>system is in an emergency state, we are allowed to delve into this pool to
+>satisfy __GFP_CRITICAL allocations that cannot be satisfied through the
+>normal means.
+>
+>  
+>
+1. If you have two subsystems which allocate critical pages, how do you 
+protect against the condition where one subsystem allocates all the 
+critical memory, causing the second to oom?
 
--Matt
+2. There already exists a critical pool: ordinary allocations fail if 
+free memory is below some limit, but special processes (kswapd) can 
+allocate that memory by setting PF_MEMALLOC. Perhaps this should be 
+extended, possibly with a per-process threshold.
 
---------------090902050305040107070309
-Content-Type: text/x-patch;
- name="slab_prep-slab_destruct.patch"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline;
- filename="slab_prep-slab_destruct.patch"
-
-Create a helper function, slab_destruct(), called from slab_destroy().  This
-makes slab_destroy() smaller and more readable, and moves ifdefs outside the
-function body.
-
-Signed-off-by: Matthew Dobson <colpatch@us.ibm.com>
-
-Index: linux-2.6.14+critical_pool/mm/slab.c
-===================================================================
---- linux-2.6.14+critical_pool.orig/mm/slab.c	2005-11-14 10:52:22.427207392 -0800
-+++ linux-2.6.14+critical_pool/mm/slab.c	2005-11-14 10:52:27.514434016 -0800
-@@ -1388,16 +1388,13 @@ static void check_poison_obj(kmem_cache_
- }
- #endif
- 
--/*
-- * Destroy all the objs in a slab, and release the mem back to the system.
-- * Before calling the slab must have been unlinked from the cache.
-- * The cache-lock is not held/needed.
-+#if DEBUG
-+/**
-+ * slab_destruct - call the registered destructor for each object in
-+ *      a slab that is to be destroyed.
-  */
--static void slab_destroy(kmem_cache_t *cachep, struct slab *slabp)
-+static void slab_destruct(kmem_cache_t *cachep, struct slab *slabp)
- {
--	void *addr = slabp->s_mem - slabp->colouroff;
--
--#if DEBUG
- 	int i;
- 	for (i = 0; i < cachep->num; i++) {
- 		void *objp = slabp->s_mem + cachep->objsize * i;
-@@ -1425,7 +1422,10 @@ static void slab_destroy(kmem_cache_t *c
- 		if (cachep->dtor && !(cachep->flags & SLAB_POISON))
- 			(cachep->dtor)(objp + obj_dbghead(cachep), cachep, 0);
- 	}
-+}
- #else
-+static void slab_destruct(kmem_cache_t *cachep, struct slab *slabp)
-+{
- 	if (cachep->dtor) {
- 		int i;
- 		for (i = 0; i < cachep->num; i++) {
-@@ -1433,8 +1433,19 @@ static void slab_destroy(kmem_cache_t *c
- 			(cachep->dtor)(objp, cachep, 0);
- 		}
- 	}
-+}
- #endif
- 
-+/**
-+ * Destroy all the objs in a slab, and release the mem back to the system.
-+ * Before calling the slab must have been unlinked from the cache.
-+ * The cache-lock is not held/needed.
-+ */
-+static void slab_destroy(kmem_cache_t *cachep, struct slab *slabp)
-+{
-+	void *addr = slabp->s_mem - slabp->colouroff;
-+
-+	slab_destruct(cachep, slabp);
- 	if (unlikely(cachep->flags & SLAB_DESTROY_BY_RCU)) {
- 		struct slab_rcu *slab_rcu;
- 
-
---------------090902050305040107070309--
+-- 
+Do not meddle in the internals of kernels, for they are subtle and quick to panic.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
