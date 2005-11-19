@@ -1,28 +1,31 @@
-Date: Fri, 18 Nov 2005 16:10:34 -0800
+Date: Fri, 18 Nov 2005 16:21:12 -0800
 From: Paul Jackson <pj@sgi.com>
-Subject: Re: [RFC][PATCH 0/8] Critical Page Pool
-Message-Id: <20051118161034.4ea38a09.pj@sgi.com>
-In-Reply-To: <437E3CC2.6000003@argo.co.il>
+Subject: Re: [RFC][PATCH 2/8] Create emergency trigger
+Message-Id: <20051118162112.7bf21df5.pj@sgi.com>
+In-Reply-To: <437E2D57.9050304@us.ibm.com>
 References: <437E2C69.4000708@us.ibm.com>
-	<437E2F22.6000809@argo.co.il>
-	<437E30A8.1040307@us.ibm.com>
-	<437E3CC2.6000003@argo.co.il>
+	<437E2D57.9050304@us.ibm.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Avi Kivity <avi@argo.co.il>
-Cc: colpatch@us.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Matthew Dobson <colpatch@us.ibm.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Avi wrote:
-> This may not be possible. What if subsystem A depends on subsystem B to 
-> do its work, both are critical, and subsystem A allocated all the memory 
-> reserve?
+> @@ -876,6 +879,16 @@ __alloc_pages(gfp_t gfp_mask, unsigned i
+>  	int can_try_harder;
+>  	int did_some_progress;
+>  
+> +	if (is_emergency_alloc(gfp_mask)) {
 
-Apparently Matthew's subsystems have some knowable upper limits on
-their critical memory needs, so that your scenario can be avoided.
+Can this check for is_emergency_alloc be moved lower in __alloc_pages?
+
+I don't see any reason why most __alloc_pages() calls, that succeed
+easily in the first loop over the zonelist, have to make this check.
+This would save one conditional test and jump on the most heavily
+used code path in __alloc_pages().
 
 -- 
                   I won't rest till it's the best ...
