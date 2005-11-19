@@ -1,46 +1,31 @@
-Received: by xproxy.gmail.com with SMTP id h31so392478wxd
-        for <linux-mm@kvack.org>; Sat, 19 Nov 2005 10:57:19 -0800 (PST)
-Message-ID: <1e62d1370511191057i5ab0b4b3ve3c8a2a3dcabe6fe@mail.gmail.com>
-Date: Sat, 19 Nov 2005 23:57:19 +0500
-From: Fawad Lateef <fawadlateef@gmail.com>
-Subject: Re: Kernel tempory memory alloc
-In-Reply-To: <437F1E7F.40504@superbug.demon.co.uk>
+Date: Sat, 19 Nov 2005 18:30:01 -0500 (EST)
+From: Rik van Riel <riel@redhat.com>
+Subject: Re: why its dead now?
+In-Reply-To: <20051115142702.GC31096@sirius.cs.amherst.edu>
+Message-ID: <Pine.LNX.4.63.0511191829100.13937@cuia.boston.redhat.com>
+References: <f68e01850511131035l3f0530aft6076f156d4f62171@mail.gmail.com>
+ <20051115142702.GC31096@sirius.cs.amherst.edu>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 8BIT
-Content-Disposition: inline
-References: <437F1E7F.40504@superbug.demon.co.uk>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: James Courtier-Dutton <James@superbug.demon.co.uk>
-Cc: linux-mm@kvack.org
+To: "Scott F. H. Kaplan" <sfkaplan@cs.amherst.edu>
+Cc: Nitin Gupta <nitingupta.mail@gmail.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 11/19/05, James Courtier-Dutton <James@superbug.demon.co.uk> wrote:
->
-> The IOCTL will be a simple request/response type, so the memory
-> allocation will be for a very short time. Which is the correct memory
-> api to use when allocating short term temporary memory in the kernel.
+On Tue, 15 Nov 2005, Scott F. H. Kaplan wrote:
 
-I mostly/vastly used and saw memory allocation API "kmalloc" for small
-memory allocations. And for short-term and fast memory allocation use
-GFP_ATOMIC flag with memory allocation functions!
+> For completely different purposes, we have a 2.4.x kernel that
+> maintains this history efficiently.  If you (or anyone else) are
+> interested at some point in porting this reference-pattern-gathering
+> code forward to the 2.6.x line,
 
-> Alternatively, is there a way to handle this by simply moving a page
-> from user space to kernel space and then back to user space again?
-> Thus reducing the amount of memcpy.
->
+Marcelo already did some work on that:
 
-I think memcpy is not a big-overhead as compare to temporary mapping a
-page from user space to kernel space and then unmapping it each time
-an ioctl is called, so you might try to constantly share a buffer
-between user/kernel space through which you can access data directly
-from both spaces (for mapping user page in kernel you can see
-get_user_pages) !
+	http://linux-mm.org/PageTrace
 
-
---
-Fawad Lateef
+-- 
+All Rights Reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
