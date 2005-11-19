@@ -1,25 +1,28 @@
-Date: Fri, 18 Nov 2005 16:08:55 -0800
+Date: Fri, 18 Nov 2005 16:10:34 -0800
 From: Paul Jackson <pj@sgi.com>
-Subject: Re: [RFC][PATCH 1/8] Create Critical Page Pool
-Message-Id: <20051118160855.1ea249c8.pj@sgi.com>
-In-Reply-To: <437E2D23.10109@us.ibm.com>
+Subject: Re: [RFC][PATCH 0/8] Critical Page Pool
+Message-Id: <20051118161034.4ea38a09.pj@sgi.com>
+In-Reply-To: <437E3CC2.6000003@argo.co.il>
 References: <437E2C69.4000708@us.ibm.com>
-	<437E2D23.10109@us.ibm.com>
+	<437E2F22.6000809@argo.co.il>
+	<437E30A8.1040307@us.ibm.com>
+	<437E3CC2.6000003@argo.co.il>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Matthew Dobson <colpatch@us.ibm.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Avi Kivity <avi@argo.co.il>
+Cc: colpatch@us.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Total nit:
+Avi wrote:
+> This may not be possible. What if subsystem A depends on subsystem B to 
+> do its work, both are critical, and subsystem A allocated all the memory 
+> reserve?
 
- #define __GFP_HARDWALL   ((__force gfp_t)0x40000u) /* Enforce hardwall cpuset memory allocs */
-+#define __GFP_CRITICAL	((__force gfp_t)0x80000u) /* Critical allocation. MUST succeed! */
-
-Looks like you used a space instead of a tab.
+Apparently Matthew's subsystems have some knowable upper limits on
+their critical memory needs, so that your scenario can be avoided.
 
 -- 
                   I won't rest till it's the best ...
