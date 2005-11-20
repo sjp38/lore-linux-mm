@@ -1,69 +1,86 @@
-Date: Sat, 19 Nov 2005 21:24:10 -0500
-From: "Scott F. H. Kaplan" <sfkaplan@cs.amherst.edu>
-Subject: Re: why its dead now?
-Message-ID: <20051120022410.GA5999@sirius.cs.amherst.edu>
-References: <f68e01850511131035l3f0530aft6076f156d4f62171@mail.gmail.com> <20051115142702.GC31096@sirius.cs.amherst.edu> <Pine.LNX.4.63.0511191829100.13937@cuia.boston.redhat.com>
+Date: Sat, 19 Nov 2005 23:31:51 -0800
+From: Andrew Morton <akpm@osdl.org>
+Subject: Re: [PATCH 3/3] sparse provide pfn_to_nid
+Message-Id: <20051119233151.01ce6c50.akpm@osdl.org>
+In-Reply-To: <20051116230023.GA16493@shadowen.org>
+References: <exportbomb.1132181992@pinky>
+	<20051116230023.GA16493@shadowen.org>
 Mime-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="sm4nu43k4a2Rpi4c"
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.63.0511191829100.13937@cuia.boston.redhat.com>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: Nitin Gupta <nitingupta.mail@gmail.com>, linux-mm@kvack.org
+To: Andy Whitcroft <apw@shadowen.org>
+Cc: kravetz@us.ibm.com, anton@samba.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
---sm4nu43k4a2Rpi4c
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+Andy Whitcroft <apw@shadowen.org> wrote:
+>
+> sparsemem: provide pfn_to_nid
+> 
+> Before SPARSEMEM is initialised we cannot provide an efficient
+> pfn_to_nid() implmentation; before initialisation is complete we use
+> early_pfn_to_nid() to provide location information.  Until recently
+> there was no non-init user of this functionality.  Provide a post
+> init pfn_to_nid() implementation.
+> 
+> Note that this implmentation assumes that the pfn passed has
+> been validated with pfn_valid().  The current single user of this
+> function already has this check.
+> 
+> Signed-off-by: Andy Whitcroft <apw@shadowen.org>
+> ---
+>  mmzone.h |   13 +++++--------
+>  1 file changed, 5 insertions(+), 8 deletions(-)
+> diff -upN reference/include/linux/mmzone.h current/include/linux/mmzone.h
+> --- reference/include/linux/mmzone.h
+> +++ current/include/linux/mmzone.h
+> @@ -598,14 +598,11 @@ static inline int pfn_valid(unsigned lon
+>  	return valid_section(__nr_to_section(pfn_to_section_nr(pfn)));
+>  }
+>  
+> -/*
+> - * These are _only_ used during initialisation, therefore they
+> - * can use __initdata ...  They could have names to indicate
+> - * this restriction.
+> - */
+> -#ifdef CONFIG_NUMA
+> -#define pfn_to_nid		early_pfn_to_nid
+> -#endif
+> +#define pfn_to_nid(pfn)							\
+> +({									\
+> + 	unsigned long __pfn = (pfn);                                    \
+> +	page_to_nid(pfn_to_page(pfn));					\
+> +})
+>  
+>  #define early_pfn_valid(pfn)	pfn_valid(pfn)
+>  void sparse_init(void);
 
-Rik,
+This causes a problem because we already have a definition of pfn_to_nid()
+in include/linux/mmzone.h.  Effectively:
 
-On Sat, Nov 19, 2005 at 06:30:01PM -0500, Rik van Riel wrote:
-> On Tue, 15 Nov 2005, Scott F. H. Kaplan wrote:
->=20
-> > For completely different purposes, we have a 2.4.x kernel that
-> > maintains this history efficiently.  If you (or anyone else) are
-> > interested at some point in porting this reference-pattern-gathering
-> > code forward to the 2.6.x line,
->=20
-> Marcelo already did some work on that:
->=20
-> 	http://linux-mm.org/PageTrace
+#ifndef CONFIG_NEED_MULTIPLE_NODES
 
-Nope.  Marcelo's work on reference trace collection overlaps with
-other work I've done (kVMTrace), but I'm referring to something
-completely different.
+#define pfn_to_nid(pfn)		(0)
 
-Specifically, I'm talking about gathering LRU miss histograms
-(A.K.A. ``miss rate curves'') online in the kernel.  A paper in ASPLOS
-2004 presented this idea, as did we in an ISMM 2004 paper on
-automatically resizing garbage collectors.  We have a kernel with much
-lower overhead than the ASPLOS paper presents.
+#else /* CONFIG_NEED_MULTIPLE_NODES */
 
-These histograms can be used to perform various kinds of cost/benefit
-calculations for current reference patterns.  In this case, it could
-be used to implement the method I presented in a USENIX 1999 paper for
-dynamically adaptic compressed cache sizes.  It's a mechanism that
-would be difficult to trick into maladaptivity.
+#include <asm/mmzone.h>
 
-Scott
+#endif /* !CONFIG_NEED_MULTIPLE_NODES */
 
---sm4nu43k4a2Rpi4c
-Content-Type: application/pgp-signature
-Content-Disposition: inline
 
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.2.1 (GNU/Linux)
+If someone does !CONFIG_NEED_MULTIPLE_NODES, pfn_to_nid() gets a duplicate
+definition (from inspection).
 
-iD8DBQFDf95K8eFdWQtoOmgRAhorAKCoHtnNgCiQ6RqPcBSFD1zWLz6lpwCeIMjq
-PISTxGWfsXu4fVK6wzS9SAI=
-=0ieF
------END PGP SIGNATURE-----
+If someone does CONFIG_NEED_MULTIPLE_NODES && CONFIG_DISCONTIGMEM we get
+duplicate definitions of pfn_to_nid(): one in include/linux/mmzone.h and
+one in include/asm/mmzone.h.
 
---sm4nu43k4a2Rpi4c--
+It's a big mess - can someone please fix it up?  The maze of config options
+is just over the top.
+
+Meanwhile, I'll drop this patch.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
