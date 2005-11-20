@@ -1,28 +1,41 @@
-Message-ID: <43806A4E.1070401@shadowen.org>
-Date: Sun, 20 Nov 2005 12:21:34 +0000
-From: Andy Whitcroft <apw@shadowen.org>
-MIME-Version: 1.0
-Subject: Re: [PATCH 3/3] sparse provide pfn_to_nid
-References: <exportbomb.1132181992@pinky>	<20051116230023.GA16493@shadowen.org> <20051119233151.01ce6c50.akpm@osdl.org>
-In-Reply-To: <20051119233151.01ce6c50.akpm@osdl.org>
-Content-Type: text/plain; charset=ISO-8859-1
+Date: Sun, 20 Nov 2005 06:45:31 -0800
+From: Paul Jackson <pj@sgi.com>
+Subject: Re: [Lhms-devel] Re: [PATCH 1/5] Light Fragmentation Avoidance V20:
+ 001_antidefrag_flags
+Message-Id: <20051120064531.7e7b4771.pj@sgi.com>
+In-Reply-To: <Pine.LNX.4.58.0511160135080.8470@skynet>
+References: <20051115164946.21980.2026.sendpatchset@skynet.csn.ul.ie>
+	<20051115164952.21980.3852.sendpatchset@skynet.csn.ul.ie>
+	<20051115150054.606ce0df.pj@sgi.com>
+	<Pine.LNX.4.58.0511160135080.8470@skynet>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: kravetz@us.ibm.com, anton@samba.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: linux-mm@kvack.org, mingo@elte.hu, linux-kernel@vger.kernel.org, nickpiggin@yahoo.com.au, lhms-devel@lists.sourceforge.net
 List-ID: <linux-mm.kvack.org>
 
-Andrew Morton wrote:
-
-> It's a big mess - can someone please fix it up?  The maze of config options
-> is just over the top.
+Mel wrote:
+> +#define __GFP_EASYRCLM   ((__force gfp_t)0x80000u)
 > 
-> Meanwhile, I'll drop this patch.
+> Comment to right removed because the comment above the declaration covers
+> everything.
 
-Gack, agreed this is all a mess.  I'll take care of it.
+(repeating myself) 
+> How about fitting the style (casts, just one line) of the other flags,
+> so that these added six lines become instead just the one line:
 
--apw
+There is a consistent layout, one-per-line, to the other __GFP_*
+flags.  The information content of the extra five lines you use for
+the __GFP_EASYRCLM flag does not warrant upsetting that layout, in
+my view.
+
+-- 
+                  I won't rest till it's the best ...
+                  Programmer, Linux Scalability
+                  Paul Jackson <pj@sgi.com> 1.925.600.0401
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
