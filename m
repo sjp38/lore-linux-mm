@@ -1,41 +1,48 @@
-Date: Sun, 20 Nov 2005 06:45:31 -0800
-From: Paul Jackson <pj@sgi.com>
-Subject: Re: [Lhms-devel] Re: [PATCH 1/5] Light Fragmentation Avoidance V20:
- 001_antidefrag_flags
-Message-Id: <20051120064531.7e7b4771.pj@sgi.com>
-In-Reply-To: <Pine.LNX.4.58.0511160135080.8470@skynet>
-References: <20051115164946.21980.2026.sendpatchset@skynet.csn.ul.ie>
-	<20051115164952.21980.3852.sendpatchset@skynet.csn.ul.ie>
-	<20051115150054.606ce0df.pj@sgi.com>
-	<Pine.LNX.4.58.0511160135080.8470@skynet>
+Date: Sun, 20 Nov 2005 23:04:57 +0000
+From: Pavel Machek <pavel@suse.cz>
+Subject: Re: [RFC][PATCH 0/8] Critical Page Pool
+Message-ID: <20051120230456.GE2556@spitz.ucw.cz>
+References: <437E2C69.4000708@us.ibm.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <437E2C69.4000708@us.ibm.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: linux-mm@kvack.org, mingo@elte.hu, linux-kernel@vger.kernel.org, nickpiggin@yahoo.com.au, lhms-devel@lists.sourceforge.net
+To: Matthew Dobson <colpatch@us.ibm.com>
+Cc: linux-kernel@vger.kernel.org, Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Mel wrote:
-> +#define __GFP_EASYRCLM   ((__force gfp_t)0x80000u)
+On Fri 18-11-05 11:32:57, Matthew Dobson wrote:
+> We have a clustering product that needs to be able to guarantee that the
+> networking system won't stop functioning in the case of OOM/low memory
+> condition.  The current mempool system is inadequate because to keep the
+> whole networking stack functioning, we need more than 1 or 2 slab caches to
+> be guaranteed.  We need to guarantee that any request made with a specific
+> flag will succeed, assuming of course that you've made your "critical page
+> pool" big enough.
 > 
-> Comment to right removed because the comment above the declaration covers
-> everything.
+> The following patch series implements such a critical page pool.  It
+> creates 2 userspace triggers:
+> 
+> /proc/sys/vm/critical_pages: write the number of pages you want to reserve
+> for the critical pool into this file
+> 
+> /proc/sys/vm/in_emergency: write a non-zero value to tell the kernel that
+> the system is in an emergency state and authorize the kernel to dip into
+> the critical pool to satisfy critical allocations.
+> 
+> We mark critical allocations with the __GFP_CRITICAL flag, and when the
+> system is in an emergency state, we are allowed to delve into this pool to
+> satisfy __GFP_CRITICAL allocations that cannot be satisfied through the
+> normal means.
 
-(repeating myself) 
-> How about fitting the style (casts, just one line) of the other flags,
-> so that these added six lines become instead just the one line:
-
-There is a consistent layout, one-per-line, to the other __GFP_*
-flags.  The information content of the extra five lines you use for
-the __GFP_EASYRCLM flag does not warrant upsetting that layout, in
-my view.
-
+Ugh, relying on userspace to tell you that you need to dip into emergency
+pool seems to be racy and unreliable. How can you guarantee that userspace
+is scheduled soon enough in case of OOM?
+							Pavel
 -- 
-                  I won't rest till it's the best ...
-                  Programmer, Linux Scalability
-                  Paul Jackson <pj@sgi.com> 1.925.600.0401
+64 bytes from 195.113.31.123: icmp_seq=28 ttl=51 time=448769.1 ms         
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
