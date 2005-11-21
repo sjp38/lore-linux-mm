@@ -1,99 +1,95 @@
-Date: Mon, 21 Nov 2005 12:00:38 -0200
-From: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
-Subject: [PATCH] properly account readahead file major faults
-Message-ID: <20051121140038.GA27349@logos.cnet>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Date: Mon, 21 Nov 2005 13:27:07 -0800 (PST)
+From: Christoph Lameter <clameter@engr.sgi.com>
+Subject: [PATCH] Move policy_zone determination to the page allocator
+ initialization?
+Message-ID: <Pine.LNX.4.62.0511211325450.10768@schroedinger.engr.sgi.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: akpm@osdl.org, linux-mm@kvack.org
-Cc: Wu Fengguang <wfg@mail.ustc.edu.cn>, linux-kernel@vger.kernel.org
+To: ak@suse.de
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+Currently the function to build a zonelist for a BIND policy has the side effect to
+set the policy_zone. This seems to be a bit strange. policy_zone seems to 
+not be initialized elsewhere and therefore 0. Do we police ZONE_DMA if no 
+bind policy has been used yetp?
 
-The fault accounting of filemap_dopage() is currently unable to account
-for readahead pages as major faults.
+This patch moves the determination of the zone to apply policies to into the
+page allocator. We determine the zone while building the zonelist for nodes.
+The default is to policy ZONE_NORMAL. If there are any populated HIGHMEM
+segments then switch to ZONE_HIGHMEM.
 
-Which means that getrusage's major fault reporting is pretty useless.
+Not sure if this is right since I am not aware of the history of this issue.
+Any particular reason the policy_zone determination is in bind_zonelist?
 
-Fix that by using the PageReferenced and PageActive bits: allows
-differentiation between newly accessed pages and reaccessed pages.
+Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
-Follows the output of "/usr/bin/time -v"  of an app which reads
-10MB through a mapping on cold pagecache.
-
-BEFORE PATCH:
-Size: 10MB
-Loops: 10
-opening ./scan-testfile
-reading scan-testfile, length = 10MB
-	Command being timed: "./scan-shared 10 10"
-<snip>
-	Major (requiring I/O) page faults: 225
-	Minor (reclaiming a frame) page faults: 2437
-
-AFTER PATCH:
-Size: 10MB
-Loops: 10
-opening ./scan-testfile
-reading scan-testfile, length = 10MB
-	Command being timed: "./scan-shared 10 10"
-<>snip>
-	Major (requiring I/O) page faults: 2562
-	Minor (reclaiming a frame) page faults: 101
-
-
-
-Signed-off-by: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
-
-diff --git a/mm/filemap.c b/mm/filemap.c
-index 5d6e4c2..8655443 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -1237,14 +1237,6 @@ retry_find:
- 		if (ra->mmap_miss > ra->mmap_hit + MMAP_LOTSAMISS)
- 			goto no_cached_page;
+Index: linux-2.6.15-rc1-mm2/mm/mempolicy.c
+===================================================================
+--- linux-2.6.15-rc1-mm2.orig/mm/mempolicy.c	2005-11-21 13:17:59.000000000 -0800
++++ linux-2.6.15-rc1-mm2/mm/mempolicy.c	2005-11-21 13:19:15.000000000 -0800
+@@ -102,7 +102,7 @@ static kmem_cache_t *sn_cache;
  
--		/*
--		 * To keep the pgmajfault counter straight, we need to
--		 * check did_readaround, as this is an inner loop.
--		 */
--		if (!did_readaround) {
--			majmin = VM_FAULT_MAJOR;
--			inc_page_state(pgmajfault);
+ /* Highest zone. An specific allocation for a zone below that is not
+    policied. */
+-static int policy_zone;
++int policy_zone;
+ 
+ struct mempolicy default_policy = {
+ 	.refcnt = ATOMIC_INIT(1), /* never free it */
+@@ -140,17 +140,9 @@ static struct zonelist *bind_zonelist(no
+ 	if (!zl)
+ 		return NULL;
+ 	num = 0;
+-	for_each_node_mask(nd, *nodes) {
+-		int k;
+-		for (k = MAX_NR_ZONES-1; k >= 0; k--) {
+-			struct zone *z = &NODE_DATA(nd)->node_zones[k];
+-			if (!populated_zone(z))
+-				continue;
+-			zl->zones[num++] = z;
+-			if (k > policy_zone)
+-				policy_zone = k;
 -		}
- 		did_readaround = 1;
- 		ra_pages = max_sane_readahead(file->f_ra.ra_pages);
- 		if (ra_pages) {
-@@ -1273,6 +1265,15 @@ success:
- 	/*
- 	 * Found the page and have a reference on it.
- 	 */
-+	if (PageActive(page) && !PageReferenced(page)) {
-+  		/* only account active pages as major faults, since inactive
-+		 * pages might have their referenced bit cleaned by 
-+		 * memory scanning.
-+		 */
-+		majmin = VM_FAULT_MAJOR;
-+		inc_page_state(pgmajfault);
-+	}
-+
- 	mark_page_accessed(page);
- 	if (type)
- 		*type = majmin;
-@@ -1312,10 +1313,6 @@ no_cached_page:
- 	return NULL;
- 
- page_not_uptodate:
--	if (!did_readaround) {
--		majmin = VM_FAULT_MAJOR;
--		inc_page_state(pgmajfault);
 -	}
- 	lock_page(page);
++	for_each_node_mask(nd, *nodes)
++		zl->zones[num++] = &NODE_DATA(nd)->node_zones[policy_zone];
++
+ 	zl->zones[num] = NULL;
+ 	return zl;
+ }
+Index: linux-2.6.15-rc1-mm2/mm/page_alloc.c
+===================================================================
+--- linux-2.6.15-rc1-mm2.orig/mm/page_alloc.c	2005-11-21 13:19:13.000000000 -0800
++++ linux-2.6.15-rc1-mm2/mm/page_alloc.c	2005-11-21 13:19:19.000000000 -0800
+@@ -1491,6 +1491,9 @@ void show_free_areas(void)
+ 	show_swap_cache_info();
+ }
  
- 	/* Did it get unhashed while we waited for it? */
++/* Used in mempolicy.c */
++extern int policy_zone;
++
+ /*
+  * Builds allocation fallback zone lists.
+  */
+@@ -1507,6 +1510,7 @@ static int __init build_zonelists_node(p
+ 			BUG();
+ #endif
+ 			zonelist->zones[j++] = zone;
++			policy_zone = ZONE_HIGHMEM;
+ 		}
+ 	case ZONE_NORMAL:
+ 		zone = pgdat->node_zones + ZONE_NORMAL;
+@@ -1607,6 +1611,7 @@ static void __init build_zonelists(pg_da
+ 	struct zonelist *zonelist;
+ 	nodemask_t used_mask;
+ 
++	policy_zone = ZONE_NORMAL;
+ 	/* initialize zonelists */
+ 	for (i = 0; i < GFP_ZONETYPES; i++) {
+ 		zonelist = pgdat->node_zonelists + i;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
