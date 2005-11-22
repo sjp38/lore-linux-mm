@@ -1,67 +1,48 @@
 Content-class: urn:content-classes:message
-Subject: RE: [patch] vmsig: notify user applications of virtual memory events via real-time signals
 MIME-Version: 1.0
 Content-Type: text/plain;
-	charset="US-ASCII"
+	charset="us-ascii"
 Content-Transfer-Encoding: 8BIT
-Date: Tue, 22 Nov 2005 16:53:22 -0500
-Message-ID: <B061F5ED2860D9439AE34EE5C141938C090CDE@zor.ads.cs.umass.edu>
-From: "Emery Berger" <emery@cs.umass.edu>
+Subject: RE: [PATCH 5/5] Light fragmentation avoidance without usemap: 005_drainpercpu
+Date: Tue, 22 Nov 2005 15:43:33 -0800
+Message-ID: <01EF044AAEE12F4BAAD955CB75064943053DF65D@scsmsx401.amr.corp.intel.com>
+From: "Seth, Rohit" <rohit.seth@intel.com>
 Sender: owner-linux-mm@kvack.org
+From: Mel Gorman Sent: Tuesday, November 22, 2005 11:18 AM
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@redhat.com>, Yi Feng <yifeng@cs.umass.edu>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@osdl.org>, Matthew Hertz <hertzm@canisius.edu>
+To: Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org
+Cc: nickpiggin@yahoo.com.au, ak@suse.de, linux-kernel@vger.kernel.org, lhms-devel@lists.sourceforge.net, mingo@elte.hu
 List-ID: <linux-mm.kvack.org>
 
-> That seems pretty high overhead.  I wonder if it wouldn't work
-> similarly well for the kernel to simply notify the registrered
-> apps that memory is running low and they should garbage collect
-> _something_, without caring which pages.
+>Per-cpu pages can accidentally cause fragmentation because they are
+free, >but
+>pinned pages in an otherwise contiguous block.  When this patch is
+applied,
+>the per-cpu caches are drained after the direct-reclaim is entered if
+the
 
-Actually, it's quite important that the application know exactly which
-page is being evicted, in order that it be "bookmarked". We found that
-this particular aspect of the garbage collection algorithm was crucial
-(it's in the paper).
+I don't think this is the right place to drain the pcp.  Since direct
+reclaim is already done, so it is possible that allocator can service
+the request without draining the pcps. 
 
-Best,
--- emery
 
---
-Emery Berger
-Assistant Professor
-Dept. of Computer Science
-University of Massachusetts, Amherst
-www.cs.umass.edu/~emery
- 
+>requested order is greater than 3. 
 
-> -----Original Message-----
-> From: Rik van Riel [mailto:riel@redhat.com]
-> Sent: Tuesday, November 22, 2005 4:45 PM
-> To: Yi Feng
-> Cc: linux-mm@kvack.org; 'Andrew Morton'; Emery Berger; 'Matthew Hertz'
-> Subject: Re: [patch] vmsig: notify user applications of virtual memory
-> events via real-time signals
-> 
-> On Tue, 22 Nov 2005, Yi Feng wrote:
-> 
-> > The user application can therefore maintain the residence
-information of
-> > all its pages and cooperate with the kernel under memory pressure.
-> 
-> That seems pretty high overhead.  I wonder if it wouldn't work
-> similarly well for the kernel to simply notify the registrered
-> apps that memory is running low and they should garbage collect
-> _something_, without caring which pages.
-> 
-> Then the apps can "shoot holes" in their memory use by calling
-> madvise with MADV_DONTNEED on the pages the application judges
-> to be the least likely ones to be used again.
-> 
-> OTOH, maybe keeping state for each page is low enough overhead.
-> I will have to read your patch to figure out the details ;)
-> 
-> --
-> All Rights Reversed
+Why this order limit.  Most of the previous failures seen (because of my
+
+earlier patches of bigger and more physical contiguous chunks for pcps) 
+were with order 1 allocation.
+
+>It simply reuses the code used by suspend
+>and hotplug and only is triggered when anti-defragmentation is enabled.
+>
+That code has issues with pre-emptible kernel.
+
+I will be shortly sending the patch to free pages from pcp when higher
+order
+allocation is not able to get serviced from global list.
+
+-rohi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
