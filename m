@@ -1,54 +1,74 @@
-Date: Tue, 22 Nov 2005 06:08:56 -0200
-From: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
+Received: by zproxy.gmail.com with SMTP id l1so1090090nzf
+        for <linux-mm@kvack.org>; Tue, 22 Nov 2005 08:05:00 -0800 (PST)
+Message-ID: <5ad478c0511220805i2fa37ebdi88f64125a549fa9c@mail.gmail.com>
+Date: Tue, 22 Nov 2005 10:05:00 -0600
+From: Charles Ballowe <cballowe@gmail.com>
 Subject: Re: [PATCH] properly account readahead file major faults
-Message-ID: <20051122080856.GA30761@logos.cnet>
-References: <20051121140038.GA27349@logos.cnet> <20051122042443.GA4588@mail.ustc.edu.cn> <20051122062321.GA30413@logos.cnet> <Pine.LNX.4.61.0511221249470.24803@goblin.wat.veritas.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+In-Reply-To: <20051122080856.GA30761@logos.cnet>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 8BIT
 Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.61.0511221249470.24803@goblin.wat.veritas.com>
+References: <20051121140038.GA27349@logos.cnet>
+	 <20051122042443.GA4588@mail.ustc.edu.cn>
+	 <20051122062321.GA30413@logos.cnet>
+	 <Pine.LNX.4.61.0511221249470.24803@goblin.wat.veritas.com>
+	 <20051122080856.GA30761@logos.cnet>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: Wu Fengguang <wfg@mail.ustc.edu.cn>, akpm@osdl.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
+Cc: Hugh Dickins <hugh@veritas.com>, Wu Fengguang <wfg@mail.ustc.edu.cn>, akpm@osdl.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Hugh!
+On 11/22/05, Marcelo Tosatti <marcelo.tosatti@cyclades.com> wrote:
+> Hi Hugh!
+>
+> On Tue, Nov 22, 2005 at 12:55:02PM +0000, Hugh Dickins wrote:
+> > On Tue, 22 Nov 2005, Marcelo Tosatti wrote:
+> > >
+> > > Pages which hit the first time in cache due to readahead _have_ caused
+> > > IO, and as such they should be counted as major faults.
+> >
+> > Have caused IO, or have benefitted from IO which was done earlier?
+>
+> Which caused IO, either synchronously or via (previously read)
+> readahead.
+>
+> > It sounds debatable, each will have their own idea of what's major.
+>
+> I see your point... and I much prefer the "majflt means IO performed"
+> definition :)
+>
+> As a user I want to know how many pages have been read in from disk to
+> service my application requests.
 
-On Tue, Nov 22, 2005 at 12:55:02PM +0000, Hugh Dickins wrote:
-> On Tue, 22 Nov 2005, Marcelo Tosatti wrote:
-> > 
-> > Pages which hit the first time in cache due to readahead _have_ caused
-> > IO, and as such they should be counted as major faults.
-> 
-> Have caused IO, or have benefitted from IO which was done earlier?
+This is a dangerous line of thought. While the number of pages read in
+does have some meaning, in many cases, fetching one page vs. 1MB worth
+of pages takes about the same time to service. If the page read-ahead
+manages to do larger multi-block reads, then there is only 1 I/O for
+the fault, regardless of the number of pages that are read in by that
+operation.
 
-Which caused IO, either synchronously or via (previously read)
-readahead.
+> From the "time" manpage:
+>
+> F      Number of major, or I/O-requiring, page faults  that  oc-
+>        curred  while  the process was running.  These are faults
+>        where the page has actually migrated out of primary memo-
+>        ry.
+>
+> > Maybe PageUptodate at the time the entry is found in the page cache
+> > should come into it?  !PageUptodate implying that we'll be waiting
+> > for read to complete.
+>
+> Hum, I still strongly feel that users care about IO performed and not
+> readahead effectiveness (which could be separate information).
 
-> It sounds debatable, each will have their own idea of what's major.
+>From a user perspective, I'm far more interested in number of I/O
+operations performed rather than pages read. The first has a far
+larger effect on time spent waiting than the second.
 
-I see your point... and I much prefer the "majflt means IO performed"
-definition :)
-
-As a user I want to know how many pages have been read in from disk to
-service my application requests.
-
->From the "time" manpage:
-
-F      Number of major, or I/O-requiring, page faults  that  oc-
-       curred  while  the process was running.  These are faults
-       where the page has actually migrated out of primary memo-
-       ry.
-
-> Maybe PageUptodate at the time the entry is found in the page cache
-> should come into it?  !PageUptodate implying that we'll be waiting
-> for read to complete.
-
-Hum, I still strongly feel that users care about IO performed and not
-readahead effectiveness (which could be separate information).
-
-I don't think the semantics are precisely defined anywhere are they?
+Just my opinons,
+-Charlie
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
