@@ -1,95 +1,48 @@
-Date: Mon, 21 Nov 2005 13:27:07 -0800 (PST)
-From: Christoph Lameter <clameter@engr.sgi.com>
-Subject: [PATCH] Move policy_zone determination to the page allocator
- initialization?
-Message-ID: <Pine.LNX.4.62.0511211325450.10768@schroedinger.engr.sgi.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Tue, 22 Nov 2005 12:24:43 +0800
+From: Wu Fengguang <wfg@mail.ustc.edu.cn>
+Subject: Re: [PATCH] properly account readahead file major faults
+Message-ID: <20051122042443.GA4588@mail.ustc.edu.cn>
+References: <20051121140038.GA27349@logos.cnet>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20051121140038.GA27349@logos.cnet>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: ak@suse.de
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
+Cc: akpm@osdl.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Currently the function to build a zonelist for a BIND policy has the side effect to
-set the policy_zone. This seems to be a bit strange. policy_zone seems to 
-not be initialized elsewhere and therefore 0. Do we police ZONE_DMA if no 
-bind policy has been used yetp?
+Hi,
 
-This patch moves the determination of the zone to apply policies to into the
-page allocator. We determine the zone while building the zonelist for nodes.
-The default is to policy ZONE_NORMAL. If there are any populated HIGHMEM
-segments then switch to ZONE_HIGHMEM.
+On Mon, Nov 21, 2005 at 12:00:38PM -0200, Marcelo Tosatti wrote:
+> Hi,
+> 
+> The fault accounting of filemap_dopage() is currently unable to account
+> for readahead pages as major faults.
 
-Not sure if this is right since I am not aware of the history of this issue.
-Any particular reason the policy_zone determination is in bind_zonelist?
+Sorry, I don't know much about the definition of major/minor page faults.
+So I googled one that explains the old behavior:
 
-Signed-off-by: Christoph Lameter <clameter@sgi.com>
+--> Page Faults <--
+These come in two varieties. Minor and Major faults. A Major fault results
+when an application tries to access a memory page that has been swapped out to
+disk. The page must be swapped back in. A Minor fault results when an
+application tries to access a memory page that is still in memory, but the
+physical location of which is not immediately known. The address must be
+looked up.
 
-Index: linux-2.6.15-rc1-mm2/mm/mempolicy.c
-===================================================================
---- linux-2.6.15-rc1-mm2.orig/mm/mempolicy.c	2005-11-21 13:17:59.000000000 -0800
-+++ linux-2.6.15-rc1-mm2/mm/mempolicy.c	2005-11-21 13:19:15.000000000 -0800
-@@ -102,7 +102,7 @@ static kmem_cache_t *sn_cache;
- 
- /* Highest zone. An specific allocation for a zone below that is not
-    policied. */
--static int policy_zone;
-+int policy_zone;
- 
- struct mempolicy default_policy = {
- 	.refcnt = ATOMIC_INIT(1), /* never free it */
-@@ -140,17 +140,9 @@ static struct zonelist *bind_zonelist(no
- 	if (!zl)
- 		return NULL;
- 	num = 0;
--	for_each_node_mask(nd, *nodes) {
--		int k;
--		for (k = MAX_NR_ZONES-1; k >= 0; k--) {
--			struct zone *z = &NODE_DATA(nd)->node_zones[k];
--			if (!populated_zone(z))
--				continue;
--			zl->zones[num++] = z;
--			if (k > policy_zone)
--				policy_zone = k;
--		}
--	}
-+	for_each_node_mask(nd, *nodes)
-+		zl->zones[num++] = &NODE_DATA(nd)->node_zones[policy_zone];
-+
- 	zl->zones[num] = NULL;
- 	return zl;
- }
-Index: linux-2.6.15-rc1-mm2/mm/page_alloc.c
-===================================================================
---- linux-2.6.15-rc1-mm2.orig/mm/page_alloc.c	2005-11-21 13:19:13.000000000 -0800
-+++ linux-2.6.15-rc1-mm2/mm/page_alloc.c	2005-11-21 13:19:19.000000000 -0800
-@@ -1491,6 +1491,9 @@ void show_free_areas(void)
- 	show_swap_cache_info();
- }
- 
-+/* Used in mempolicy.c */
-+extern int policy_zone;
-+
- /*
-  * Builds allocation fallback zone lists.
-  */
-@@ -1507,6 +1510,7 @@ static int __init build_zonelists_node(p
- 			BUG();
- #endif
- 			zonelist->zones[j++] = zone;
-+			policy_zone = ZONE_HIGHMEM;
- 		}
- 	case ZONE_NORMAL:
- 		zone = pgdat->node_zones + ZONE_NORMAL;
-@@ -1607,6 +1611,7 @@ static void __init build_zonelists(pg_da
- 	struct zonelist *zonelist;
- 	nodemask_t used_mask;
- 
-+	policy_zone = ZONE_NORMAL;
- 	/* initialize zonelists */
- 	for (i = 0; i < GFP_ZONETYPES; i++) {
- 		zonelist = pgdat->node_zonelists + i;
+With the current accounting logic:
+- major faults reflect the times one has to wait for real I/O.
+- the more success read-ahead, the less major faults.
+- anyway, major+minor faults remain the same for the same benchmark.
+
+With your patch:
+- major faults are expected to remain the same with whatever read-ahead.
+- but what's the new meaning of minor faults?
+
+Thanks,
+Wu
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
