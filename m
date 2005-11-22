@@ -1,57 +1,72 @@
-Date: Tue, 22 Nov 2005 19:40:04 +0000 (GMT)
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 2/5] Light Fragmentation Avoidance V20: 002_usemap
-In-Reply-To: <4382F765.4020707@jp.fujitsu.com>
-Message-ID: <Pine.LNX.4.58.0511221937290.2476@skynet>
-References: <20051115164946.21980.2026.sendpatchset@skynet.csn.ul.ie>
- <200511160036.54461.ak@suse.de> <Pine.LNX.4.58.0511160137540.8470@skynet>
- <200511160252.05494.ak@suse.de> <Pine.LNX.4.58.0511160200530.8470@skynet>
- <4382EF48.1050107@shadowen.org> <20051122102237.GK20775@brahms.suse.de>
- <Pine.LNX.4.58.0511221026200.31192@skynet> <4382F765.4020707@jp.fujitsu.com>
+From: "Yi Feng" <yifeng@cs.umass.edu>
+Subject: [patch] vmsig: notify user applications of virtual memory events via real-time signals
+Date: Tue, 22 Nov 2005 15:54:51 -0500
+Message-ID: <000001c5efa6$ff513990$9728010a@redmond.corp.microsoft.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain;
+	charset="us-ascii"
+Content-Transfer-Encoding: 8BIT
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Andi Kleen <ak@suse.de>, Andy Whitcroft <apw@shadowen.org>, linux-mm@kvack.org, mingo@elte.hu, lhms-devel@lists.sourceforge.net, linux-kernel@vger.kernel.org, nickpiggin@yahoo.com.au
+To: linux-mm@kvack.org
+Cc: 'Andrew Morton' <akpm@osdl.org>, 'Emery Berger' <emery@cs.umass.edu>, 'Matthew Hertz' <hertzm@canisius.edu>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 22 Nov 2005, KAMEZAWA Hiroyuki wrote:
+Linux-mm community:
 
-> Mel Gorman wrote:
-> > On Tue, 22 Nov 2005, Andi Kleen wrote:
-> >
-> >
-> > > > All of that said, I am not even sure we have a bit left in the page
-> > > > flags on smaller architectures :/.
-> > >
-> > > How about
-> > >
-> > > #define PG_checked               8      /* kill me in 2.5.<early>. */
-> > >
-> > > ?
-> > >
-> > > At least PG_uncached isn't used on many architectures too, so could
-> > > be reused. I don't know why those that use it don't check VMAs instead.
-> > >
-> >
-> >
-> > PG_unchecked appears to be totally unused. It's only users are the macros
-> > that manipulate the bit and mm/page_alloc.c . It appears it has been a
-> > long time since it was used to it is a canditate for reuse.
-> >
-> Considering memory hotplug, I don't want to resize bitmaps at hot-add/remove.
-> no bitmap is welcome :)
->
+I apologize for this long email. I'm presenting a kernel patch that the
+community might be interested in.
 
-Version has now been posted that has no usemap with the subject "Light
-fragmentation avoidance without usemap". Details on implementation and
-benchmarks are included.
+We are a computer science research group at University of Massachusetts
+Amherst, focusing on cooperative memory management across the OS kernel and
+the user applications (particular the Java ones). We have developed a patch,
+"vmsig", for the Linux kernel that enables kernel-to-user communication on
+the virtual memory events. Currently our communication method is through an
+unused real-time signal.
 
--- 
-Mel Gorman
-Part-time Phd Student                          Java Applications Developer
-University of Limerick                         IBM Dublin Software Lab
+By using this patch, a user application can register with the kernel (via a
+new system call vmsig_register) to receive RT signals on VM events on its
+memory pages. There are 5 types of VM events as listed below:
+
+VM_EVICTING_CLEAN: the page will soon be swapped out as a clean page
+VM_EVICTING_DIRTY: the page will soon be swapped out as a dirty page
+VM_SWAPPED_OUT: the page has been swapped out
+VM_FAULTED_IN: the page has been faulted in by the application
+VM_PREFETCHED: the page has been brought into the swap cache by the VM
+prefetcher
+
+The user application can therefore maintain the residence information of all
+its pages and cooperate with the kernel under memory pressure. For example,
+upon receiving the VM_EVICTING_* signals, the user application can
+intelligently process the page, and optionally call madvise(MADV_DONTNEED)
+to discard the page if it's no longer useful, or call madvise with our new
+flag, MADV_RELIQUISH, to schedule the page to be swapped out (thus its
+content will be saved on disk).
+
+We have already developed a new garbage collector for Java based on this
+kernel patch and published our work "Garbage Collection without Paging" on
+PLDI 2005 (http://www.cs.umass.edu/~emery/pubs/f034-hertz.pdf). We would
+expect more research work on this kind of cooperative memory management if
+this patch can be merged into the main kernel.
+
+Regarding the implementation details of the patch, we have included a brief
+description in Documentation/vm/vmsig in the patch itself. The core part of
+the patch is to maintain the ownership information of swapped-out pages as
+well as resident pages. We naturally extended the existing rmap to swap
+pages. This patch also complements mincore to work on anonymous pages.
+
+The vmsig patch for Linux 2.6.14 is available at
+http://www.cs.umass.edu/~yifeng/kernel/linux-2.6.14-vmsig.patch. It's fairly
+large so it's probably not appropriate to include it in the body of this
+email. Also because of the size of the patch, there are many details that I
+didn't cover in this email. If this is the case, please send me email. I
+will try to answer all your questions and clear the confusions.
+
+Thanks and your comments and suggestions are welcome!
+
+
+Yi Feng
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
