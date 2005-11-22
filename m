@@ -1,97 +1,116 @@
 From: Mel Gorman <mel@csn.ul.ie>
-Message-Id: <20051122191735.21757.48973.sendpatchset@skynet.csn.ul.ie>
+Message-Id: <20051122191730.21757.34503.sendpatchset@skynet.csn.ul.ie>
 In-Reply-To: <20051122191710.21757.67440.sendpatchset@skynet.csn.ul.ie>
 References: <20051122191710.21757.67440.sendpatchset@skynet.csn.ul.ie>
-Subject: [PATCH 5/5] Light fragmentation avoidance without usemap: 005_drainpercpu
-Date: Tue, 22 Nov 2005 19:17:38 +0000 (GMT)
+Subject: [PATCH 4/5] Light fragmentation avoidance without usemap: 004_configurable
+Date: Tue, 22 Nov 2005 19:17:33 +0000 (GMT)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 Cc: Mel Gorman <mel@csn.ul.ie>, nickpiggin@yahoo.com.au, ak@suse.de, linux-kernel@vger.kernel.org, lhms-devel@lists.sourceforge.net, mingo@elte.hu
 List-ID: <linux-mm.kvack.org>
 
-Per-cpu pages can accidentally cause fragmentation because they are free, but
-pinned pages in an otherwise contiguous block.  When this patch is applied,
-the per-cpu caches are drained after the direct-reclaim is entered if the
-requested order is greater than 3. It simply reuses the code used by suspend
-and hotplug and only is triggered when anti-defragmentation is enabled.
+The anti-defragmentation strategy has memory overhead. This patch allows
+the strategy to be disabled for small memory systems or if it is known the
+workload is suffering because of the strategy. It also acts to show where
+the anti-defrag strategy interacts with the standard buddy allocator.
+
 Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-diff -rup -X /usr/src/patchset-0.5/bin//dontdiff linux-2.6.15-rc1-mm2-004_configurable/mm/page_alloc.c linux-2.6.15-rc1-mm2-005_drainpercpu/mm/page_alloc.c
---- linux-2.6.15-rc1-mm2-004_configurable/mm/page_alloc.c	2005-11-22 16:53:03.000000000 +0000
-+++ linux-2.6.15-rc1-mm2-005_drainpercpu/mm/page_alloc.c	2005-11-22 16:53:45.000000000 +0000
-@@ -689,7 +689,9 @@ void drain_remote_pages(void)
- }
+Signed-off-by: Joel Schopp <jschopp@austin.ibm.com>
+diff -rup -X /usr/src/patchset-0.5/bin//dontdiff linux-2.6.15-rc1-mm2-003_percpu/include/linux/mmzone.h linux-2.6.15-rc1-mm2-004_configurable/include/linux/mmzone.h
+--- linux-2.6.15-rc1-mm2-003_percpu/include/linux/mmzone.h	2005-11-22 16:52:10.000000000 +0000
++++ linux-2.6.15-rc1-mm2-004_configurable/include/linux/mmzone.h	2005-11-22 16:53:03.000000000 +0000
+@@ -74,10 +74,17 @@ struct per_cpu_pageset {
  #endif
+ } ____cacheline_aligned_in_smp;
  
--#if defined(CONFIG_PM) || defined(CONFIG_HOTPLUG_CPU)
-+#if defined(CONFIG_PM) || \
-+	defined(CONFIG_HOTPLUG_CPU) || \
-+	defined(CONFIG_PAGEALLOC_ANTIDEFRAG)
- static void __drain_pages(unsigned int cpu)
++#ifdef CONFIG_PAGEALLOC_ANTIDEFRAG
+ static inline int pcp_count(struct per_cpu_pages *pcp)
  {
- 	struct zone *zone;
-@@ -716,10 +718,9 @@ static void __drain_pages(unsigned int c
- 		}
- 	}
+ 	return pcp->count[RCLM_NORCLM] + pcp->count[RCLM_EASY];
  }
--#endif /* CONFIG_PM || CONFIG_HOTPLUG_CPU */
-+#endif /* CONFIG_PM || CONFIG_HOTPLUG_CPU || CONFIG_PAGEALLOC_ANTIDEFRAG */
- 
- #ifdef CONFIG_PM
--
- void mark_free_pages(struct zone *zone)
- {
- 	unsigned long zone_pfn, flags;
-@@ -746,7 +747,9 @@ void mark_free_pages(struct zone *zone)
- 	}
- 	spin_unlock_irqrestore(&zone->lock, flags);
- }
-+#endif /* CONFIG_PM */
- 
-+#if defined(CONFIG_PM) || defined(CONFIG_PAGEALLOC_ANTIDEFRAG)
- /*
-  * Spill all of this CPU's per-cpu pages back into the buddy allocator.
-  */
-@@ -758,7 +761,28 @@ void drain_local_pages(void)
- 	__drain_pages(smp_processor_id());
- 	local_irq_restore(flags);	
- }
--#endif /* CONFIG_PM */
-+
-+void smp_drain_local_pages(void *arg)
-+{
-+	drain_local_pages();
-+}
-+
-+/*
-+ * Spill all the per-cpu pages from all CPUs back into the buddy allocator
-+ */
-+void drain_all_local_pages(void)
-+{
-+	unsigned long flags;
-+
-+	local_irq_save(flags);
-+	__drain_pages(smp_processor_id());
-+	local_irq_restore(flags);
-+
-+	smp_call_function(smp_drain_local_pages, NULL, 0, 1);
-+}
 +#else
-+void drain_all_local_pages(void) {}
++static inline int pcp_count(struct per_cpu_pages *pcp)
++{
++	return pcp->count[RCLM_NORCLM];
++}
 +#endif /* CONFIG_PAGEALLOC_ANTIDEFRAG */
  
- void zone_statistics(struct zonelist *zonelist, struct zone *z)
- {
-@@ -1109,6 +1133,9 @@ rebalance:
+ #ifdef CONFIG_NUMA
+ #define zone_pcp(__z, __cpu) ((__z)->pageset[(__cpu)])
+diff -rup -X /usr/src/patchset-0.5/bin//dontdiff linux-2.6.15-rc1-mm2-003_percpu/init/Kconfig linux-2.6.15-rc1-mm2-004_configurable/init/Kconfig
+--- linux-2.6.15-rc1-mm2-003_percpu/init/Kconfig	2005-11-21 19:44:33.000000000 +0000
++++ linux-2.6.15-rc1-mm2-004_configurable/init/Kconfig	2005-11-22 16:53:03.000000000 +0000
+@@ -396,6 +396,18 @@ config CC_ALIGN_FUNCTIONS
+ 	  32-byte boundary only if this can be done by skipping 23 bytes or less.
+ 	  Zero means use compiler's default.
  
- 	did_some_progress = try_to_free_pages(zonelist->zones, gfp_mask);
- 
-+	if (order > 3)
-+		drain_all_local_pages();
++config PAGEALLOC_ANTIDEFRAG
++	bool "Avoid fragmentation in the page allocator"
++	def_bool n
++	help
++	  The standard allocator will fragment memory over time which means that
++	  high order allocations will fail even if kswapd is running. If this
++	  option is set, the allocator will try and group page types into
++	  two groups, kernel and easy reclaimable. The gain is a best effort
++	  attempt at lowering fragmentation which a few workloads care about.
++	  The loss is a more complex allocactor that performs slower.
++	  If unsure, say N
 +
- 	p->reclaim_state = NULL;
- 	p->flags &= ~PF_MEMALLOC;
+ config CC_ALIGN_LABELS
+ 	int "Label alignment" if EMBEDDED
+ 	default 0
+diff -rup -X /usr/src/patchset-0.5/bin//dontdiff linux-2.6.15-rc1-mm2-003_percpu/mm/page_alloc.c linux-2.6.15-rc1-mm2-004_configurable/mm/page_alloc.c
+--- linux-2.6.15-rc1-mm2-003_percpu/mm/page_alloc.c	2005-11-22 16:52:10.000000000 +0000
++++ linux-2.6.15-rc1-mm2-004_configurable/mm/page_alloc.c	2005-11-22 16:53:03.000000000 +0000
+@@ -68,6 +68,7 @@ int sysctl_lowmem_reserve_ratio[MAX_NR_Z
  
+ EXPORT_SYMBOL(totalram_pages);
+ 
++#ifdef CONFIG_PAGEALLOC_ANTIDEFRAG
+ static inline int get_pageblock_type(struct page *page)
+ {
+ 	return (PageEasyRclm(page) != 0);
+@@ -77,6 +78,17 @@ static inline int gfpflags_to_alloctype(
+ {
+ 	return ((gfp_flags & __GFP_EASYRCLM) != 0);
+ }
++#else
++static inline int get_pageblock_type(struct page *page)
++{
++	return RCLM_NORCLM;
++}
++
++static inline int gfpflags_to_alloctype(unsigned long gfp_flags)
++{
++	return RCLM_NORCLM;
++}
++#endif /* CONFIG_PAGEALLOC_ANTIDEFRAG */
+ 
+ /*
+  * Used by page_zone() to look up the address of the struct zone whose
+@@ -531,6 +543,7 @@ static int prep_new_page(struct page *pa
+ 	return 0;
+ }
+ 
++#ifdef CONFIG_PAGEALLOC_ANTIDEFRAG
+ /* Remove an element from the buddy allocator from the fallback list */
+ static struct page *__rmqueue_fallback(struct zone *zone, int order,
+ 							int alloctype)
+@@ -568,6 +581,13 @@ static struct page *__rmqueue_fallback(s
+ 
+ 	return NULL;
+ }
++#else
++static struct page *__rmqueue_fallback(struct zone *zone, unsigned int order,
++							int alloctype)
++{
++	return NULL;
++}
++#endif /* CONFIG_PAGEALLOC_ANTIDEFRAG */
+ 
+ /* 
+  * Do the hard work of removing an element from the buddy allocator.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
