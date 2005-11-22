@@ -1,37 +1,67 @@
-Date: Tue, 22 Nov 2005 16:45:16 -0500 (EST)
-From: Rik van Riel <riel@redhat.com>
-Subject: Re: [patch] vmsig: notify user applications of virtual memory events
- via real-time signals
-In-Reply-To: <000001c5efa6$ff513990$9728010a@redmond.corp.microsoft.com>
-Message-ID: <Pine.LNX.4.63.0511221643000.14848@cuia.boston.redhat.com>
-References: <000001c5efa6$ff513990$9728010a@redmond.corp.microsoft.com>
+Content-class: urn:content-classes:message
+Subject: RE: [patch] vmsig: notify user applications of virtual memory events via real-time signals
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain;
+	charset="US-ASCII"
+Content-Transfer-Encoding: 8BIT
+Date: Tue, 22 Nov 2005 16:53:22 -0500
+Message-ID: <B061F5ED2860D9439AE34EE5C141938C090CDE@zor.ads.cs.umass.edu>
+From: "Emery Berger" <emery@cs.umass.edu>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Yi Feng <yifeng@cs.umass.edu>
-Cc: linux-mm@kvack.org, 'Andrew Morton' <akpm@osdl.org>, 'Emery Berger' <emery@cs.umass.edu>, 'Matthew Hertz' <hertzm@canisius.edu>
+To: Rik van Riel <riel@redhat.com>, Yi Feng <yifeng@cs.umass.edu>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@osdl.org>, Matthew Hertz <hertzm@canisius.edu>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 22 Nov 2005, Yi Feng wrote:
+> That seems pretty high overhead.  I wonder if it wouldn't work
+> similarly well for the kernel to simply notify the registrered
+> apps that memory is running low and they should garbage collect
+> _something_, without caring which pages.
 
-> The user application can therefore maintain the residence information of 
-> all its pages and cooperate with the kernel under memory pressure.
+Actually, it's quite important that the application know exactly which
+page is being evicted, in order that it be "bookmarked". We found that
+this particular aspect of the garbage collection algorithm was crucial
+(it's in the paper).
 
-That seems pretty high overhead.  I wonder if it wouldn't work
-similarly well for the kernel to simply notify the registrered
-apps that memory is running low and they should garbage collect
-_something_, without caring which pages.
+Best,
+-- emery
 
-Then the apps can "shoot holes" in their memory use by calling
-madvise with MADV_DONTNEED on the pages the application judges
-to be the least likely ones to be used again.
+--
+Emery Berger
+Assistant Professor
+Dept. of Computer Science
+University of Massachusetts, Amherst
+www.cs.umass.edu/~emery
+ 
 
-OTOH, maybe keeping state for each page is low enough overhead.
-I will have to read your patch to figure out the details ;)
-
--- 
-All Rights Reversed
+> -----Original Message-----
+> From: Rik van Riel [mailto:riel@redhat.com]
+> Sent: Tuesday, November 22, 2005 4:45 PM
+> To: Yi Feng
+> Cc: linux-mm@kvack.org; 'Andrew Morton'; Emery Berger; 'Matthew Hertz'
+> Subject: Re: [patch] vmsig: notify user applications of virtual memory
+> events via real-time signals
+> 
+> On Tue, 22 Nov 2005, Yi Feng wrote:
+> 
+> > The user application can therefore maintain the residence
+information of
+> > all its pages and cooperate with the kernel under memory pressure.
+> 
+> That seems pretty high overhead.  I wonder if it wouldn't work
+> similarly well for the kernel to simply notify the registrered
+> apps that memory is running low and they should garbage collect
+> _something_, without caring which pages.
+> 
+> Then the apps can "shoot holes" in their memory use by calling
+> madvise with MADV_DONTNEED on the pages the application judges
+> to be the least likely ones to be used again.
+> 
+> OTOH, maybe keeping state for each page is low enough overhead.
+> I will have to read your patch to figure out the details ;)
+> 
+> --
+> All Rights Reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
