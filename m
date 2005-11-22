@@ -1,116 +1,57 @@
+Date: Tue, 22 Nov 2005 19:40:04 +0000 (GMT)
 From: Mel Gorman <mel@csn.ul.ie>
-Message-Id: <20051122191730.21757.34503.sendpatchset@skynet.csn.ul.ie>
-In-Reply-To: <20051122191710.21757.67440.sendpatchset@skynet.csn.ul.ie>
-References: <20051122191710.21757.67440.sendpatchset@skynet.csn.ul.ie>
-Subject: [PATCH 4/5] Light fragmentation avoidance without usemap: 004_configurable
-Date: Tue, 22 Nov 2005 19:17:33 +0000 (GMT)
+Subject: Re: [PATCH 2/5] Light Fragmentation Avoidance V20: 002_usemap
+In-Reply-To: <4382F765.4020707@jp.fujitsu.com>
+Message-ID: <Pine.LNX.4.58.0511221937290.2476@skynet>
+References: <20051115164946.21980.2026.sendpatchset@skynet.csn.ul.ie>
+ <200511160036.54461.ak@suse.de> <Pine.LNX.4.58.0511160137540.8470@skynet>
+ <200511160252.05494.ak@suse.de> <Pine.LNX.4.58.0511160200530.8470@skynet>
+ <4382EF48.1050107@shadowen.org> <20051122102237.GK20775@brahms.suse.de>
+ <Pine.LNX.4.58.0511221026200.31192@skynet> <4382F765.4020707@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
-Cc: Mel Gorman <mel@csn.ul.ie>, nickpiggin@yahoo.com.au, ak@suse.de, linux-kernel@vger.kernel.org, lhms-devel@lists.sourceforge.net, mingo@elte.hu
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Andi Kleen <ak@suse.de>, Andy Whitcroft <apw@shadowen.org>, linux-mm@kvack.org, mingo@elte.hu, lhms-devel@lists.sourceforge.net, linux-kernel@vger.kernel.org, nickpiggin@yahoo.com.au
 List-ID: <linux-mm.kvack.org>
 
-The anti-defragmentation strategy has memory overhead. This patch allows
-the strategy to be disabled for small memory systems or if it is known the
-workload is suffering because of the strategy. It also acts to show where
-the anti-defrag strategy interacts with the standard buddy allocator.
+On Tue, 22 Nov 2005, KAMEZAWA Hiroyuki wrote:
 
-Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-Signed-off-by: Joel Schopp <jschopp@austin.ibm.com>
-diff -rup -X /usr/src/patchset-0.5/bin//dontdiff linux-2.6.15-rc1-mm2-003_percpu/include/linux/mmzone.h linux-2.6.15-rc1-mm2-004_configurable/include/linux/mmzone.h
---- linux-2.6.15-rc1-mm2-003_percpu/include/linux/mmzone.h	2005-11-22 16:52:10.000000000 +0000
-+++ linux-2.6.15-rc1-mm2-004_configurable/include/linux/mmzone.h	2005-11-22 16:53:03.000000000 +0000
-@@ -74,10 +74,17 @@ struct per_cpu_pageset {
- #endif
- } ____cacheline_aligned_in_smp;
- 
-+#ifdef CONFIG_PAGEALLOC_ANTIDEFRAG
- static inline int pcp_count(struct per_cpu_pages *pcp)
- {
- 	return pcp->count[RCLM_NORCLM] + pcp->count[RCLM_EASY];
- }
-+#else
-+static inline int pcp_count(struct per_cpu_pages *pcp)
-+{
-+	return pcp->count[RCLM_NORCLM];
-+}
-+#endif /* CONFIG_PAGEALLOC_ANTIDEFRAG */
- 
- #ifdef CONFIG_NUMA
- #define zone_pcp(__z, __cpu) ((__z)->pageset[(__cpu)])
-diff -rup -X /usr/src/patchset-0.5/bin//dontdiff linux-2.6.15-rc1-mm2-003_percpu/init/Kconfig linux-2.6.15-rc1-mm2-004_configurable/init/Kconfig
---- linux-2.6.15-rc1-mm2-003_percpu/init/Kconfig	2005-11-21 19:44:33.000000000 +0000
-+++ linux-2.6.15-rc1-mm2-004_configurable/init/Kconfig	2005-11-22 16:53:03.000000000 +0000
-@@ -396,6 +396,18 @@ config CC_ALIGN_FUNCTIONS
- 	  32-byte boundary only if this can be done by skipping 23 bytes or less.
- 	  Zero means use compiler's default.
- 
-+config PAGEALLOC_ANTIDEFRAG
-+	bool "Avoid fragmentation in the page allocator"
-+	def_bool n
-+	help
-+	  The standard allocator will fragment memory over time which means that
-+	  high order allocations will fail even if kswapd is running. If this
-+	  option is set, the allocator will try and group page types into
-+	  two groups, kernel and easy reclaimable. The gain is a best effort
-+	  attempt at lowering fragmentation which a few workloads care about.
-+	  The loss is a more complex allocactor that performs slower.
-+	  If unsure, say N
-+
- config CC_ALIGN_LABELS
- 	int "Label alignment" if EMBEDDED
- 	default 0
-diff -rup -X /usr/src/patchset-0.5/bin//dontdiff linux-2.6.15-rc1-mm2-003_percpu/mm/page_alloc.c linux-2.6.15-rc1-mm2-004_configurable/mm/page_alloc.c
---- linux-2.6.15-rc1-mm2-003_percpu/mm/page_alloc.c	2005-11-22 16:52:10.000000000 +0000
-+++ linux-2.6.15-rc1-mm2-004_configurable/mm/page_alloc.c	2005-11-22 16:53:03.000000000 +0000
-@@ -68,6 +68,7 @@ int sysctl_lowmem_reserve_ratio[MAX_NR_Z
- 
- EXPORT_SYMBOL(totalram_pages);
- 
-+#ifdef CONFIG_PAGEALLOC_ANTIDEFRAG
- static inline int get_pageblock_type(struct page *page)
- {
- 	return (PageEasyRclm(page) != 0);
-@@ -77,6 +78,17 @@ static inline int gfpflags_to_alloctype(
- {
- 	return ((gfp_flags & __GFP_EASYRCLM) != 0);
- }
-+#else
-+static inline int get_pageblock_type(struct page *page)
-+{
-+	return RCLM_NORCLM;
-+}
-+
-+static inline int gfpflags_to_alloctype(unsigned long gfp_flags)
-+{
-+	return RCLM_NORCLM;
-+}
-+#endif /* CONFIG_PAGEALLOC_ANTIDEFRAG */
- 
- /*
-  * Used by page_zone() to look up the address of the struct zone whose
-@@ -531,6 +543,7 @@ static int prep_new_page(struct page *pa
- 	return 0;
- }
- 
-+#ifdef CONFIG_PAGEALLOC_ANTIDEFRAG
- /* Remove an element from the buddy allocator from the fallback list */
- static struct page *__rmqueue_fallback(struct zone *zone, int order,
- 							int alloctype)
-@@ -568,6 +581,13 @@ static struct page *__rmqueue_fallback(s
- 
- 	return NULL;
- }
-+#else
-+static struct page *__rmqueue_fallback(struct zone *zone, unsigned int order,
-+							int alloctype)
-+{
-+	return NULL;
-+}
-+#endif /* CONFIG_PAGEALLOC_ANTIDEFRAG */
- 
- /* 
-  * Do the hard work of removing an element from the buddy allocator.
+> Mel Gorman wrote:
+> > On Tue, 22 Nov 2005, Andi Kleen wrote:
+> >
+> >
+> > > > All of that said, I am not even sure we have a bit left in the page
+> > > > flags on smaller architectures :/.
+> > >
+> > > How about
+> > >
+> > > #define PG_checked               8      /* kill me in 2.5.<early>. */
+> > >
+> > > ?
+> > >
+> > > At least PG_uncached isn't used on many architectures too, so could
+> > > be reused. I don't know why those that use it don't check VMAs instead.
+> > >
+> >
+> >
+> > PG_unchecked appears to be totally unused. It's only users are the macros
+> > that manipulate the bit and mm/page_alloc.c . It appears it has been a
+> > long time since it was used to it is a canditate for reuse.
+> >
+> Considering memory hotplug, I don't want to resize bitmaps at hot-add/remove.
+> no bitmap is welcome :)
+>
+
+Version has now been posted that has no usemap with the subject "Light
+fragmentation avoidance without usemap". Details on implementation and
+benchmarks are included.
+
+-- 
+Mel Gorman
+Part-time Phd Student                          Java Applications Developer
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
