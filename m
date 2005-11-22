@@ -1,43 +1,172 @@
-Date: Tue, 22 Nov 2005 18:07:24 +0000
-Subject: [PATCH 0/2] SPARSEMEM: pfn_to_nid implementation v2
-Message-ID: <exportbomb.1132682844@pinky>
-References: <20051119233151.01ce6c50.akpm@osdl.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-From: Andy Whitcroft <apw@shadowen.org>
+From: Mel Gorman <mel@csn.ul.ie>
+Message-Id: <20051122191715.21757.82818.sendpatchset@skynet.csn.ul.ie>
+In-Reply-To: <20051122191710.21757.67440.sendpatchset@skynet.csn.ul.ie>
+References: <20051122191710.21757.67440.sendpatchset@skynet.csn.ul.ie>
+Subject: [PATCH 1/5] Light fragmentation avoidance without usemap: 001_antidefrag_flags
+Date: Tue, 22 Nov 2005 19:17:18 +0000 (GMT)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: Andy Whitcroft <apw@shadowen.org>, kravetz@us.ibm.com, anton@samba.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: linux-mm@kvack.org
+Cc: Mel Gorman <mel@csn.ul.ie>, nickpiggin@yahoo.com.au, ak@suse.de, linux-kernel@vger.kernel.org, lhms-devel@lists.sourceforge.net, mingo@elte.hu
 List-ID: <linux-mm.kvack.org>
 
-There are three places we define pfn_to_nid().  Two in linux/mmzone.h
-and one in asm/mmzone.h.  These in essence represent the three memory
-models.  The definition in linux/mmzone.h under !NEED_MULTIPLE_NODES
-is both the FLATMEM definition and the optimisation for single
-NUMA nodes; the one under SPARSEMEM is the NUMA sparsemem one;
-the one in asm/mmzone.h under DISCONTIGMEM is the discontigmem one.
-This is not in the least bit obvious, particularly the connection
-between the non-NUMA optimisations and the memory models.
+This patch adds a flag __GFP_EASYRCLM.  Allocations using the __GFP_EASYRCLM
+flag are expected to be easily reclaimed by syncing with backing storage (be
+it a file or swap) or cleaning the buffers and discarding.
 
-Following in the email are two patches:
-
-flatmem-split-out-memory-model: simplifies the selection of
-    pfn_to_nid() implementations.  The selection is based primarily
-    off the memory model selected.  Optimisations for non-NUMA are
-    applied where needed.
-
-sparse-provide-pfn_to_nid: implement pfn_to_nid() for SPARSEMEM
-
-Boot tested on for both SPARSEMEM and DISCONTIGMEM on all my test
-boxes.  Also compile tested for FLATMEM and SPARSEMEM without NUMA.
-Against 2.6.15-rc2.
-
-Next I'll review the configuration options to see if we can simplify
-them any.
-
--apw
+Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+diff -rup -X /usr/src/patchset-0.5/bin//dontdiff linux-2.6.15-rc1-mm2-clean/fs/buffer.c linux-2.6.15-rc1-mm2-001_antidefrag_flags/fs/buffer.c
+--- linux-2.6.15-rc1-mm2-clean/fs/buffer.c	2005-11-21 19:44:32.000000000 +0000
++++ linux-2.6.15-rc1-mm2-001_antidefrag_flags/fs/buffer.c	2005-11-22 16:49:23.000000000 +0000
+@@ -1113,7 +1113,8 @@ grow_dev_page(struct block_device *bdev,
+ 	struct page *page;
+ 	struct buffer_head *bh;
+ 
+-	page = find_or_create_page(inode->i_mapping, index, GFP_NOFS);
++	page = find_or_create_page(inode->i_mapping, index,
++				   GFP_NOFS|__GFP_EASYRCLM);
+ 	if (!page)
+ 		return NULL;
+ 
+diff -rup -X /usr/src/patchset-0.5/bin//dontdiff linux-2.6.15-rc1-mm2-clean/fs/compat.c linux-2.6.15-rc1-mm2-001_antidefrag_flags/fs/compat.c
+--- linux-2.6.15-rc1-mm2-clean/fs/compat.c	2005-11-21 19:44:32.000000000 +0000
++++ linux-2.6.15-rc1-mm2-001_antidefrag_flags/fs/compat.c	2005-11-22 16:49:23.000000000 +0000
+@@ -1359,7 +1359,7 @@ static int compat_copy_strings(int argc,
+ 			page = bprm->page[i];
+ 			new = 0;
+ 			if (!page) {
+-				page = alloc_page(GFP_HIGHUSER);
++				page = alloc_page(GFP_HIGHUSER|__GFP_EASYRCLM);
+ 				bprm->page[i] = page;
+ 				if (!page) {
+ 					ret = -ENOMEM;
+diff -rup -X /usr/src/patchset-0.5/bin//dontdiff linux-2.6.15-rc1-mm2-clean/fs/exec.c linux-2.6.15-rc1-mm2-001_antidefrag_flags/fs/exec.c
+--- linux-2.6.15-rc1-mm2-clean/fs/exec.c	2005-11-21 19:44:32.000000000 +0000
++++ linux-2.6.15-rc1-mm2-001_antidefrag_flags/fs/exec.c	2005-11-22 16:49:23.000000000 +0000
+@@ -238,7 +238,7 @@ static int copy_strings(int argc, char _
+ 			page = bprm->page[i];
+ 			new = 0;
+ 			if (!page) {
+-				page = alloc_page(GFP_HIGHUSER);
++				page = alloc_page(GFP_HIGHUSER|__GFP_EASYRCLM);
+ 				bprm->page[i] = page;
+ 				if (!page) {
+ 					ret = -ENOMEM;
+diff -rup -X /usr/src/patchset-0.5/bin//dontdiff linux-2.6.15-rc1-mm2-clean/fs/inode.c linux-2.6.15-rc1-mm2-001_antidefrag_flags/fs/inode.c
+--- linux-2.6.15-rc1-mm2-clean/fs/inode.c	2005-11-21 19:44:32.000000000 +0000
++++ linux-2.6.15-rc1-mm2-001_antidefrag_flags/fs/inode.c	2005-11-22 16:49:23.000000000 +0000
+@@ -146,7 +146,7 @@ static struct inode *alloc_inode(struct 
+ 		mapping->a_ops = &empty_aops;
+  		mapping->host = inode;
+ 		mapping->flags = 0;
+-		mapping_set_gfp_mask(mapping, GFP_HIGHUSER);
++		mapping_set_gfp_mask(mapping, GFP_HIGHUSER|__GFP_EASYRCLM);
+ 		mapping->assoc_mapping = NULL;
+ 		mapping->backing_dev_info = &default_backing_dev_info;
+ 
+diff -rup -X /usr/src/patchset-0.5/bin//dontdiff linux-2.6.15-rc1-mm2-clean/include/asm-i386/page.h linux-2.6.15-rc1-mm2-001_antidefrag_flags/include/asm-i386/page.h
+--- linux-2.6.15-rc1-mm2-clean/include/asm-i386/page.h	2005-10-28 01:02:08.000000000 +0100
++++ linux-2.6.15-rc1-mm2-001_antidefrag_flags/include/asm-i386/page.h	2005-11-22 16:49:23.000000000 +0000
+@@ -36,7 +36,8 @@
+ #define clear_user_page(page, vaddr, pg)	clear_page(page)
+ #define copy_user_page(to, from, vaddr, pg)	copy_page(to, from)
+ 
+-#define alloc_zeroed_user_highpage(vma, vaddr) alloc_page_vma(GFP_HIGHUSER | __GFP_ZERO, vma, vaddr)
++#define alloc_zeroed_user_highpage(vma, vaddr) \
++	alloc_page_vma(GFP_HIGHUSER | __GFP_ZERO | __GFP_EASYRCLM, vma, vaddr)
+ #define __HAVE_ARCH_ALLOC_ZEROED_USER_HIGHPAGE
+ 
+ /*
+diff -rup -X /usr/src/patchset-0.5/bin//dontdiff linux-2.6.15-rc1-mm2-clean/include/linux/gfp.h linux-2.6.15-rc1-mm2-001_antidefrag_flags/include/linux/gfp.h
+--- linux-2.6.15-rc1-mm2-clean/include/linux/gfp.h	2005-11-21 19:44:33.000000000 +0000
++++ linux-2.6.15-rc1-mm2-001_antidefrag_flags/include/linux/gfp.h	2005-11-22 16:49:23.000000000 +0000
+@@ -47,6 +47,7 @@ struct vm_area_struct;
+ #define __GFP_ZERO	((__force gfp_t)0x8000u)/* Return zeroed page on success */
+ #define __GFP_NOMEMALLOC ((__force gfp_t)0x10000u) /* Don't use emergency reserves */
+ #define __GFP_HARDWALL   ((__force gfp_t)0x20000u) /* Enforce hardwall cpuset memory allocs */
++#define __GFP_EASYRCLM   ((__force gfp_t)0x40000u) /* Easily reclaimed page */
+ 
+ #define __GFP_BITS_SHIFT 20	/* Room for 20 __GFP_FOO bits */
+ #define __GFP_BITS_MASK ((__force gfp_t)((1 << __GFP_BITS_SHIFT) - 1))
+@@ -55,7 +56,7 @@ struct vm_area_struct;
+ #define GFP_LEVEL_MASK (__GFP_WAIT|__GFP_HIGH|__GFP_IO|__GFP_FS| \
+ 			__GFP_COLD|__GFP_NOWARN|__GFP_REPEAT| \
+ 			__GFP_NOFAIL|__GFP_NORETRY|__GFP_NO_GROW|__GFP_COMP| \
+-			__GFP_NOMEMALLOC|__GFP_HARDWALL)
++			__GFP_NOMEMALLOC|__GFP_HARDWALL|__GFP_EASYRCLM)
+ 
+ /* GFP_ATOMIC means both !wait (__GFP_WAIT not set) and use emergency pool */
+ #define GFP_ATOMIC	(__GFP_HIGH)
+diff -rup -X /usr/src/patchset-0.5/bin//dontdiff linux-2.6.15-rc1-mm2-clean/include/linux/highmem.h linux-2.6.15-rc1-mm2-001_antidefrag_flags/include/linux/highmem.h
+--- linux-2.6.15-rc1-mm2-clean/include/linux/highmem.h	2005-10-28 01:02:08.000000000 +0100
++++ linux-2.6.15-rc1-mm2-001_antidefrag_flags/include/linux/highmem.h	2005-11-22 16:49:23.000000000 +0000
+@@ -47,7 +47,8 @@ static inline void clear_user_highpage(s
+ static inline struct page *
+ alloc_zeroed_user_highpage(struct vm_area_struct *vma, unsigned long vaddr)
+ {
+-	struct page *page = alloc_page_vma(GFP_HIGHUSER, vma, vaddr);
++	struct page *page = alloc_page_vma(GFP_HIGHUSER|__GFP_EASYRCLM,
++							vma, vaddr);
+ 
+ 	if (page)
+ 		clear_user_highpage(page, vaddr);
+diff -rup -X /usr/src/patchset-0.5/bin//dontdiff linux-2.6.15-rc1-mm2-clean/mm/memory.c linux-2.6.15-rc1-mm2-001_antidefrag_flags/mm/memory.c
+--- linux-2.6.15-rc1-mm2-clean/mm/memory.c	2005-11-21 19:44:33.000000000 +0000
++++ linux-2.6.15-rc1-mm2-001_antidefrag_flags/mm/memory.c	2005-11-22 16:49:23.000000000 +0000
+@@ -1378,7 +1378,8 @@ gotten:
+ 		if (!new_page)
+ 			goto oom;
+ 	} else {
+-		new_page = alloc_page_vma(GFP_HIGHUSER, vma, address);
++		new_page = alloc_page_vma(GFP_HIGHUSER|__GFP_EASYRCLM,
++							vma, address);
+ 		if (!new_page)
+ 			goto oom;
+ 		copy_user_highpage(new_page, src_page, address);
+@@ -1985,7 +1986,8 @@ retry:
+ 
+ 			if (unlikely(anon_vma_prepare(vma)))
+ 				goto oom;
+-			page = alloc_page_vma(GFP_HIGHUSER, vma, address);
++			page = alloc_page_vma(GFP_HIGHUSER|__GFP_EASYRCLM,
++								vma, address);
+ 			if (!page)
+ 				goto oom;
+ 			copy_user_highpage(page, new_page, address);
+diff -rup -X /usr/src/patchset-0.5/bin//dontdiff linux-2.6.15-rc1-mm2-clean/mm/shmem.c linux-2.6.15-rc1-mm2-001_antidefrag_flags/mm/shmem.c
+--- linux-2.6.15-rc1-mm2-clean/mm/shmem.c	2005-11-21 19:44:33.000000000 +0000
++++ linux-2.6.15-rc1-mm2-001_antidefrag_flags/mm/shmem.c	2005-11-22 16:49:23.000000000 +0000
+@@ -921,7 +921,7 @@ shmem_alloc_page(gfp_t gfp, struct shmem
+ 	pvma.vm_policy = mpol_shared_policy_lookup(&info->policy, idx);
+ 	pvma.vm_pgoff = idx;
+ 	pvma.vm_end = PAGE_SIZE;
+-	page = alloc_page_vma(gfp | __GFP_ZERO, &pvma, 0);
++	page = alloc_page_vma(gfp | __GFP_ZERO | __GFP_EASYRCLM, &pvma, 0);
+ 	mpol_free(pvma.vm_policy);
+ 	return page;
+ }
+@@ -936,7 +936,7 @@ shmem_swapin(struct shmem_inode_info *in
+ static inline struct page *
+ shmem_alloc_page(gfp_t gfp,struct shmem_inode_info *info, unsigned long idx)
+ {
+-	return alloc_page(gfp | __GFP_ZERO);
++	return alloc_page(gfp | __GFP_ZERO | __GFP_EASYRCLM);
+ }
+ #endif
+ 
+diff -rup -X /usr/src/patchset-0.5/bin//dontdiff linux-2.6.15-rc1-mm2-clean/mm/swap_state.c linux-2.6.15-rc1-mm2-001_antidefrag_flags/mm/swap_state.c
+--- linux-2.6.15-rc1-mm2-clean/mm/swap_state.c	2005-11-21 19:44:33.000000000 +0000
++++ linux-2.6.15-rc1-mm2-001_antidefrag_flags/mm/swap_state.c	2005-11-22 16:49:23.000000000 +0000
+@@ -341,7 +341,8 @@ struct page *read_swap_cache_async(swp_e
+ 		 * Get a new page to read into from swap.
+ 		 */
+ 		if (!new_page) {
+-			new_page = alloc_page_vma(GFP_HIGHUSER, vma, addr);
++			new_page = alloc_page_vma(GFP_HIGHUSER|__GFP_EASYRCLM,
++							vma, addr);
+ 			if (!new_page)
+ 				break;		/* Out of memory */
+ 		}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
