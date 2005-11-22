@@ -1,53 +1,59 @@
-Date: Tue, 22 Nov 2005 11:35:35 +0000 (GMT)
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 2/5] Light Fragmentation Avoidance V20: 002_usemap
-In-Reply-To: <4382EF48.1050107@shadowen.org>
-Message-ID: <Pine.LNX.4.58.0511221133390.2476@skynet>
-References: <20051115164946.21980.2026.sendpatchset@skynet.csn.ul.ie>
- <200511160036.54461.ak@suse.de> <Pine.LNX.4.58.0511160137540.8470@skynet>
- <200511160252.05494.ak@suse.de> <Pine.LNX.4.58.0511160200530.8470@skynet>
- <4382EF48.1050107@shadowen.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Tue, 22 Nov 2005 04:23:21 -0200
+From: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
+Subject: Re: [PATCH] properly account readahead file major faults
+Message-ID: <20051122062321.GA30413@logos.cnet>
+References: <20051121140038.GA27349@logos.cnet> <20051122042443.GA4588@mail.ustc.edu.cn>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20051122042443.GA4588@mail.ustc.edu.cn>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andy Whitcroft <apw@shadowen.org>
-Cc: Andi Kleen <ak@suse.de>, linux-mm@kvack.org, mingo@elte.hu, lhms-devel@lists.sourceforge.net, linux-kernel@vger.kernel.org, nickpiggin@yahoo.com.au
+To: Wu Fengguang <wfg@mail.ustc.edu.cn>, akpm@osdl.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 22 Nov 2005, Andy Whitcroft wrote:
+Hi Wu!
 
-> Mel Gorman wrote:
->
-> > That's iterating through, potentially, 1024 pages which I considered too
-> > expensive. In terms of code complexity, the page-flags patch adds 237
-> > which is not much of a saving in comparison to 275 that the usemap
-> > approach uses.
->
-> Surley you would just use a single bit in the first page of a MAX_ORDER
-> block.   We guarentee that the mem_map is contigious out to MAX_ORDER
-> pages so you can simply calculate the offset.  The page free path does
-> the same thing to find the buddy pages when coallescing.
->
-> > Again, I can revisit the page-flag approach if I thought that something
-> > like this would get merged and people would not choke on another page flag
-> > being consumed.
->
-> All of that said, I am not even sure we have a bit left in the page
-> flags on smaller architectures :/.
->
+On Tue, Nov 22, 2005 at 12:24:43PM +0800, Wu Fengguang wrote:
+> Hi,
+> 
+> On Mon, Nov 21, 2005 at 12:00:38PM -0200, Marcelo Tosatti wrote:
+> > Hi,
+> > 
+> > The fault accounting of filemap_dopage() is currently unable to account
+> > for readahead pages as major faults.
+> 
+> Sorry, I don't know much about the definition of major/minor page faults.
+> So I googled one that explains the old behavior:
+> 
+> --> Page Faults <--
+> These come in two varieties. Minor and Major faults. A Major fault results
+> when an application tries to access a memory page that has been swapped out to
+> disk. The page must be swapped back in. A Minor fault results when an
+> application tries to access a memory page that is still in memory, but the
+> physical location of which is not immediately known. The address must be
+> looked up.
 
-Based on the 2.6.15-rc1-mm2, there is a macro FLAGS_RESERVED defined in
-include/linux/mmzone.h which says how many bits are served for teh
-node+zone bits in the page flags with the remainder for normal page flags.
-It's currently 9, leaving 21 bits for page flags of which 19 are used. I
-don't think using another bit will cause breakage but I imagine it will
-make eyebrows furrow.
+Yep, just that "swapped out"/"swappin in" can be though of as "read
+in/"read out".
 
--- 
-Mel Gorman
-Part-time Phd Student                          Java Applications Developer
-University of Limerick                         IBM Dublin Software Lab
+> With the current accounting logic:
+> - major faults reflect the times one has to wait for real I/O.
+> - the more success read-ahead, the less major faults.
+> - anyway, major+minor faults remain the same for the same benchmark.
+> 
+> With your patch:
+> - major faults are expected to remain the same with whatever read-ahead.
+> - but what's the new meaning of minor faults?
+
+With the patch minor faults are only those faults which can be serviced
+by the pagecache, requiring no I/O.
+
+Pages which hit the first time in cache due to readahead _have_ caused
+IO, and as such they should be counted as major faults.
+
+I suppose that if you want to count readahead hits it should be done
+separately (which is now "sort of" available with the "majflt" field).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
