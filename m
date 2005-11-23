@@ -1,52 +1,38 @@
-From: "Yi Feng" <yifeng@cs.umass.edu>
-Subject: RE: [patch] vmsig: notify user applications of virtual memory events via real-time signals
-Date: Wed, 23 Nov 2005 11:30:09 -0500
-Message-ID: <000401c5f04b$2f482d80$0b00a8c0@louise>
+Date: Wed, 23 Nov 2005 08:35:27 -0800 (PST)
+From: Linus Torvalds <torvalds@osdl.org>
+Subject: Re: [PATCH]: Free pages from local pcp lists under tight memory
+ conditions
+In-Reply-To: <Pine.LNX.4.62.0511222238530.2084@graphe.net>
+Message-ID: <Pine.LNX.4.64.0511230834160.13959@g5.osdl.org>
+References: <20051122161000.A22430@unix-os.sc.intel.com>
+ <20051122213612.4adef5d0.akpm@osdl.org> <Pine.LNX.4.62.0511222238530.2084@graphe.net>
 MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="US-ASCII"
-Content-Transfer-Encoding: 8BIT
-In-Reply-To: <Pine.LNX.4.63.0511230810380.5075@cuia.boston.redhat.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: 'Rik van Riel' <riel@redhat.com>
-Cc: 'Rohit Seth' <rohit.seth@intel.com>, 'Emery Berger' <emery@cs.umass.edu>, linux-mm@kvack.org, 'Andrew Morton' <akpm@osdl.org>, 'Matthew Hertz' <hertzm@canisius.edu>
+To: Christoph Lameter <christoph@lameter.com>
+Cc: Andrew Morton <akpm@osdl.org>, Rohit Seth <rohit.seth@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-> -----Original Message-----
-> From: Rik van Riel [mailto:riel@redhat.com]
-> Sent: Wednesday, November 23, 2005 8:11 AM
-> To: Yi Feng
-> Cc: 'Rohit Seth'; 'Emery Berger'; linux-mm@kvack.org; 'Andrew Morton';
-> 'Matthew Hertz'
-> Subject: RE: [patch] vmsig: notify user applications of virtual memory
-> events via real-time signals
-> 
-> On Wed, 23 Nov 2005, Yi Feng wrote:
-> 
-> > When the application receives this notification and starts to process
-> this
-> > page, this page will stay in core (possibly for a fairly long time)
-> because
-> > it's been touched again. That's why we also added
-> madvise(MADV_RELINQUISH)
-> > to explicitly send the page to swap after the processing.
-> 
-> Would it be better for the application to completely vacate
-> the page, so MADV_DONTNEED can be used instead, and swap IO
-> can be avoided ?
-> 
 
-If the application can make the page completely useless, then it can use
-MADV_DONTNEED. However, for some applications (e.g. our Bookmarking
-Collection) the processed page may still contain useful data and can't be
-simply discarded. And because it was chosen as an eviction victim before the
-processing, it's deemed cold by the kernel, so we send it to swap with
-MADV_RELINQUISH.
+On Tue, 22 Nov 2005, Christoph Lameter wrote:
 
+> On Tue, 22 Nov 2005, Andrew Morton wrote:
+> 
+> > +extern int drain_local_pages(void);
+> 
+> drain_cpu_pcps?
 
-Yi Feng
+Please no.
 
+If there is something I _hate_ it's bad naming. And "pcps" is a totally 
+unintelligible name.
+
+Write it out. If a function is so trivial that you can't be bothered to 
+write out what the name means, that function shouldn't exist at all. 
+Conversely, if it's worth doing, it's worth writing out a name.
+
+		Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
