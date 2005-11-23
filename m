@@ -1,113 +1,46 @@
-Date: Tue, 22 Nov 2005 21:36:12 -0800
+Date: Tue, 22 Nov 2005 21:58:38 -0800
 From: Andrew Morton <akpm@osdl.org>
 Subject: Re: [PATCH]: Free pages from local pcp lists under tight memory
  conditions
-Message-Id: <20051122213612.4adef5d0.akpm@osdl.org>
-In-Reply-To: <20051122161000.A22430@unix-os.sc.intel.com>
+Message-Id: <20051122215838.2abfdbd4.akpm@osdl.org>
+In-Reply-To: <20051122213612.4adef5d0.akpm@osdl.org>
 References: <20051122161000.A22430@unix-os.sc.intel.com>
+	<20051122213612.4adef5d0.akpm@osdl.org>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rohit Seth <rohit.seth@intel.com>
-Cc: torvalds@osdl.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Christoph Lameter <christoph@lameter.com>
+To: rohit.seth@intel.com, torvalds@osdl.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, christoph@lameter.com
 List-ID: <linux-mm.kvack.org>
 
-Rohit Seth <rohit.seth@intel.com> wrote:
+Andrew Morton <akpm@osdl.org> wrote:
 >
-> Andrew, Linus,
-> 
-> [PATCH]: This patch free pages (pcp->batch from each list at a time) from
-> local pcp lists when a higher order allocation request is not able to 
-> get serviced from global free_list.
-> 
-> This should help fix some of the earlier failures seen with order 1 allocations.
-> 
-> I will send separate patches for:
-> 
-> 1- Reducing the remote cpus pcp
-> 2- Clean up page_alloc.c for CONFIG_HOTPLUG_CPU to use this code appropiately
-> 
-> +static int
-> +reduce_cpu_pcp(void )
-> +{
-> +	struct zone *zone;
-> +	unsigned long flags;
-> +	unsigned int cpu = get_cpu();
-> +	int i, ret=0;
-> +
-> +	local_irq_save(flags);
-> +	for_each_zone(zone) {
-> +		struct per_cpu_pageset *pset;
-> +
-> +		pset = zone_pcp(zone, cpu);
-> +		for (i = 0; i < ARRAY_SIZE(pset->pcp); i++) {
-> +			struct per_cpu_pages *pcp;
-> +
-> +			pcp = &pset->pcp[i];
-> +			if (pcp->count == 0)
-> +				continue;
-> +			pcp->count -= free_pages_bulk(zone, pcp->batch,
-> +						&pcp->list, 0);
-> +			ret++;
-> +		}
-> +	}
-> +	local_irq_restore(flags);
-> +	put_cpu();
-> +	return ret;
-> +}
+> The `while' loop worries me for some reason, so I wimped out and just tried
+>  the remote drain once.
 
-This significantly duplicates the existing drain_local_pages().
+Even the `goto restart' which is in this patch worries me from a livelock
+POV.  Perhaps we should only ever run drain_all_local_pages() once per
+__alloc_pages() invokation.
 
->  
-> +	if (order > 0) 
-> +		while (reduce_cpu_pcp()) {
-> +			if (get_page_from_freelist(gfp_mask, order, zonelist, alloc_flags))
-
-This forgot to assign to local variable `page'!  It'll return NULL and will
-leak memory.
-
-The `while' loop worries me for some reason, so I wimped out and just tried
-the remote drain once.
-
-> +				goto got_pg;
-> +		}
-> +	/* FIXME: Add the support for reducing/draining the remote pcps.
-
-This is easy enough to do.
-
-I wanted to call the all-CPU drainer `drain_remote_pages' but that's
-already taken by some rather poorly-named NUMA thing which also duplicates
-most of __drain_pages().
-
-This patch is against a random selection of the enormous number of mm/
-patches in -mm.  I haven't runtime-tested it yet.
-
-We need to verify that this patch actually does something useful.
+And perhaps we should run drain_all_local_pages() for GFP_ATOMIC or
+PF_MEMALLOC attempts too.
 
 
-
- include/linux/gfp.h     |    2 +
- include/linux/suspend.h |    1 
- mm/page_alloc.c         |   85 ++++++++++++++++++++++++++++++++++++------------
- 3 files changed, 66 insertions(+), 22 deletions(-)
-
-diff -puN include/linux/gfp.h~mm-free-pages-from-local-pcp-lists-under-tight-memory-conditions include/linux/gfp.h
---- devel/include/linux/gfp.h~mm-free-pages-from-local-pcp-lists-under-tight-memory-conditions	2005-11-22 21:32:47.000000000 -0800
-+++ devel-akpm/include/linux/gfp.h	2005-11-22 21:32:47.000000000 -0800
+--- devel/include/linux/gfp.h~mm-free-pages-from-local-pcp-lists-under-tight-memory-conditions	2005-11-22 21:47:33.000000000 -0800
++++ devel-akpm/include/linux/gfp.h	2005-11-22 21:57:22.000000000 -0800
 @@ -109,6 +109,8 @@ static inline struct page *alloc_pages_n
  		NODE_DATA(nid)->node_zonelists + gfp_zone(gfp_mask));
  }
  
-+extern int drain_local_pages(void);
++extern void drain_local_pages(void);
 +
  #ifdef CONFIG_NUMA
  extern struct page *alloc_pages_current(gfp_t gfp_mask, unsigned order);
  
 diff -puN include/linux/suspend.h~mm-free-pages-from-local-pcp-lists-under-tight-memory-conditions include/linux/suspend.h
---- devel/include/linux/suspend.h~mm-free-pages-from-local-pcp-lists-under-tight-memory-conditions	2005-11-22 21:32:47.000000000 -0800
-+++ devel-akpm/include/linux/suspend.h	2005-11-22 21:32:47.000000000 -0800
+--- devel/include/linux/suspend.h~mm-free-pages-from-local-pcp-lists-under-tight-memory-conditions	2005-11-22 21:47:33.000000000 -0800
++++ devel-akpm/include/linux/suspend.h	2005-11-22 21:47:33.000000000 -0800
 @@ -40,7 +40,6 @@ extern dev_t swsusp_resume_device;
  extern int shrink_mem(void);
  
@@ -117,9 +50,9 @@ diff -puN include/linux/suspend.h~mm-free-pages-from-local-pcp-lists-under-tight
  
  #ifdef CONFIG_PM
 diff -puN mm/page_alloc.c~mm-free-pages-from-local-pcp-lists-under-tight-memory-conditions mm/page_alloc.c
---- devel/mm/page_alloc.c~mm-free-pages-from-local-pcp-lists-under-tight-memory-conditions	2005-11-22 21:32:47.000000000 -0800
-+++ devel-akpm/mm/page_alloc.c	2005-11-22 21:32:47.000000000 -0800
-@@ -578,32 +578,71 @@ void drain_remote_pages(void)
+--- devel/mm/page_alloc.c~mm-free-pages-from-local-pcp-lists-under-tight-memory-conditions	2005-11-22 21:47:33.000000000 -0800
++++ devel-akpm/mm/page_alloc.c	2005-11-22 21:58:01.000000000 -0800
+@@ -578,32 +578,65 @@ void drain_remote_pages(void)
  }
  #endif
  
@@ -162,20 +95,18 @@ diff -puN mm/page_alloc.c~mm-free-pages-from-local-pcp-lists-under-tight-memory-
 +/*
 + * Spill all of this CPU's per-cpu pages back into the buddy allocator.
 + */
-+int drain_local_pages(void)
++void drain_local_pages(void)
 +{
 +	unsigned long flags;
-+	int ret;
 +
 +	local_irq_save(flags);
-+	ret = __drain_pages(smp_processor_id());
++	__drain_pages(smp_processor_id());
 +	local_irq_restore(flags);
-+	return ret;
 +}
-+
+ 
 +static void drainer(void *p)
 +{
-+	atomic_add(drain_local_pages(), p);
++	drain_local_pages();
 +}
 +
 +/*
@@ -183,23 +114,19 @@ diff -puN mm/page_alloc.c~mm-free-pages-from-local-pcp-lists-under-tight-memory-
 + * can only drain the local CPU's pages, since cross-CPU calls are deadlocky
 + * from interrupt context.
 + */
-+static int drain_all_local_pages(void)
++static void drain_all_local_pages(void)
 +{
-+	if (in_interrupt()) {
-+		return drain_local_pages();
-+	} else {
-+		atomic_t ret = ATOMIC_INIT(0);
-+
-+		on_each_cpu(drainer, &ret, 0, 1);
-+		return atomic_read(&ret);
-+	}
++	if (in_interrupt())
++		drain_local_pages();
++	else
++		on_each_cpu(drainer, NULL, 0, 1);
 +}
- 
++
 +#ifdef CONFIG_PM
  void mark_free_pages(struct zone *zone)
  {
  	unsigned long zone_pfn, flags;
-@@ -629,17 +668,6 @@ void mark_free_pages(struct zone *zone)
+@@ -629,17 +662,6 @@ void mark_free_pages(struct zone *zone)
  	spin_unlock_irqrestore(&zone->lock, flags);
  }
  
@@ -217,39 +144,17 @@ diff -puN mm/page_alloc.c~mm-free-pages-from-local-pcp-lists-under-tight-memory-
  #endif /* CONFIG_PM */
  
  static void zone_statistics(struct zonelist *zonelist, struct zone *z)
-@@ -913,8 +941,16 @@ nofail_alloc:
- 	}
+@@ -889,6 +911,10 @@ restart:
+ 	if (gfp_mask & __GFP_HIGH)
+ 		alloc_flags |= ALLOC_DIP_LESS;
  
- 	/* Atomic allocations - we can't balance anything */
--	if (!wait)
--		goto nopage;
-+	if (!wait) {
-+		/*
-+		 * Check if there are pages available on pcp lists that can be
-+		 * moved to global page list to satisfy higher order allocations
-+		 */
-+		if (order > 0 && drain_all_local_pages())
-+			goto restart;
-+		else
-+			goto nopage;
-+	}
- 
- rebalance:
- 	cond_resched();
-@@ -952,6 +988,13 @@ rebalance:
- 		goto restart;
- 	}
- 
-+	if (order > 0 && drain_all_local_pages()) {
-+		page = get_page_from_freelist(gfp_mask, order, zonelist,
-+						alloc_flags);
-+		if (page)
-+			goto got_pg;
-+	}
++	if (order > 0 || (!wait && (gfp_mask & __GFP_HIGH)) ||
++			(p->flags & PF_MEMALLOC))
++		drain_all_local_pages();
 +
- 	/*
- 	 * Don't let big-order allocations loop unless the caller explicitly
- 	 * requests that.  Wait for some write requests to complete then retry.
+ 	page = get_page_from_freelist(gfp_mask, order, zonelist, alloc_flags);
+ 	if (page)
+ 		goto got_pg;
 _
 
 --
