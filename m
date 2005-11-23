@@ -1,88 +1,51 @@
-Date: Wed, 23 Nov 2005 00:17:05 +0000 (GMT)
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: RE: [PATCH 5/5] Light fragmentation avoidance without usemap:
- 005_drainpercpu
-In-Reply-To: <01EF044AAEE12F4BAAD955CB75064943053DF65D@scsmsx401.amr.corp.intel.com>
-Message-ID: <Pine.LNX.4.58.0511230009330.31913@skynet>
-References: <01EF044AAEE12F4BAAD955CB75064943053DF65D@scsmsx401.amr.corp.intel.com>
+Message-ID: <4383CF6C.4060001@yahoo.com.au>
+Date: Wed, 23 Nov 2005 13:09:48 +1100
+From: Nick Piggin <nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [patch 6/12] mm: remove bad_range
+References: <20051121123906.14370.3039.sendpatchset@didi.local0.net>	 <20051121124126.14370.50844.sendpatchset@didi.local0.net> <1132662725.6696.45.camel@localhost>
+In-Reply-To: <1132662725.6696.45.camel@localhost>
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Seth, Rohit" <rohit.seth@intel.com>
-Cc: linux-mm@kvack.org, nickpiggin@yahoo.com.au, ak@suse.de, linux-kernel@vger.kernel.org, lhms-devel@lists.sourceforge.net, mingo@elte.hu
+To: Dave Hansen <haveblue@us.ibm.com>
+Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@osdl.org>, Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 22 Nov 2005, Seth, Rohit wrote:
+Dave Hansen wrote:
 
-> From:  Mel Gorman Sent: Tuesday, November 22, 2005 11:18 AM
->
-> >Per-cpu pages can accidentally cause fragmentation because they are
-> free, >but
-> >pinned pages in an otherwise contiguous block.  When this patch is
-> applied,
-> >the per-cpu caches are drained after the direct-reclaim is entered if
-> the
->
-> I don't think this is the right place to drain the pcp.  Since direct
-> reclaim is already done, so it is possible that allocator can service
-> the request without draining the pcps.
->
+> 
+> I seem to also remember a case with this bad_range() check was useful
+> for zones that don't have their boundaries aligned on a MAX_ORDER
+> boundary.  Would this change break such a zone?  Do we care?
+> 
 
-ok, true. A check should be made to see if it's possible yet and if not,
-then drain. A more appropriate place might be after this block
+Hmm, I guess that would be covered by the:
 
-                if (page)
-                        goto got_pg;
+         if (page_to_pfn(page) >= zone->zone_start_pfn + zone->spanned_pages)
+                 return 1;
+         if (page_to_pfn(page) < zone->zone_start_pfn)
+                 return 1;
 
->
-> >requested order is greater than 3.
->
-> Why this order limit.  Most of the previous failures seen (because of my
-> earlier patches of bigger and more physical contiguous chunks for pcps)
-> were with order 1 allocation.
->
+checks in bad_range. ISTR some "warning: zone not aligned, kernel
+*will* crash" message got printed in that case. I always thought
+that zones were supposed to be MAX_ORDER aligned, but I can see how
+that restriction might be relaxed with these checks in place.
 
-The order 3 is because of this block;
+This commit introduced the change:
+http://www.kernel.org/git/?p=linux/kernel/git/torvalds/old-2.6-bkcvs.git;a=commitdiff;h=d60c9dbc4589766ef5fe88f082052ccd4ecaea59
 
-        if (!(gfp_mask & __GFP_NORETRY)) {
-                if ((order <= 3) || (gfp_mask & __GFP_REPEAT))
-                        do_retry = 1;
-                if (gfp_mask & __GFP_NOFAIL)
-                        do_retry = 1;
-        }
+I think this basically says that architectures who care need to define
+CONFIG_HOLES_IN_ZONE and handle this in pfn_valid.
 
-If it's less than 3, we are retrying anyway and it's something we are
-already doing. If it was felt it had a chance of working before, I felt
-that draining per-cpu caches was unnecessary.
-
-> >It simply reuses the code used by suspend
-> >and hotplug and only is triggered when anti-defragmentation is enabled.
-> >
-> That code has issues with pre-emptible kernel.
->
-
-ok... why? I thought that we could only be preempted when we were about to
-take a spinlock but I have an imperfect understanding of preempt and
-things change quickly. The path the drain_all_local_pages() enters
-disables the local IRQs before calling __drain_pages() and when
-smp_drain_local_pages()  is called, the local IRQs are disabled again
-before releasing pages. Where can we get preempted?
-
-> I will be shortly sending the patch to free pages from pcp when higher
-> order allocation is not able to get serviced from global list.
->
-
-If that works, this part of the patch can be dropped. The intention is to
-"drain the per-cpu lists by some mechanism". I am not too particular about
-how it happens. Right now, the per-cpu caches make a massive difference on
-my 4-way machine at least on whether a large number of contiguous blocks
-can be allocated or not.
+Unless this is a very common requirement and such a solution would have
+too much performance cost? Anyone?
 
 -- 
-Mel Gorman
-Part-time Phd Student                          Java Applications Developer
-University of Limerick                         IBM Dublin Software Lab
+SUSE Labs, Novell Inc.
+
+Send instant messages to your online friends http://au.messenger.yahoo.com 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
