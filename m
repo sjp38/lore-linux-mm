@@ -1,106 +1,31 @@
-Date: Wed, 23 Nov 2005 08:33:04 +0000 (GMT)
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: RE: [PATCH 5/5] Light fragmentation avoidance without usemap:
- 005_drainpercpu
-In-Reply-To: <1132708940.12204.12.camel@akash.sc.intel.com>
-Message-ID: <Pine.LNX.4.58.0511230827100.17121@skynet>
-References: <01EF044AAEE12F4BAAD955CB75064943053DF65D@scsmsx401.amr.corp.intel.com>
-  <Pine.LNX.4.58.0511230009330.31913@skynet> <1132708940.12204.12.camel@akash.sc.intel.com>
+Date: Wed, 23 Nov 2005 08:11:12 -0500 (EST)
+From: Rik van Riel <riel@redhat.com>
+Subject: RE: [patch] vmsig: notify user applications of virtual memory events
+ via real-time signals
+In-Reply-To: <000001c5efea$da132280$0b00a8c0@louise>
+Message-ID: <Pine.LNX.4.63.0511230810380.5075@cuia.boston.redhat.com>
+References: <000001c5efea$da132280$0b00a8c0@louise>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rohit Seth <rohit.seth@intel.com>
-Cc: linux-mm@kvack.org, nickpiggin@yahoo.com.au, ak@suse.de, linux-kernel@vger.kernel.org, lhms-devel@lists.sourceforge.net, mingo@elte.hu
+To: Yi Feng <yifeng@cs.umass.edu>
+Cc: 'Rohit Seth' <rohit.seth@intel.com>, 'Emery Berger' <emery@cs.umass.edu>, linux-mm@kvack.org, 'Andrew Morton' <akpm@osdl.org>, 'Matthew Hertz' <hertzm@canisius.edu>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 22 Nov 2005, Rohit Seth wrote:
+On Wed, 23 Nov 2005, Yi Feng wrote:
 
-> On Wed, 2005-11-23 at 00:17 +0000, Mel Gorman wrote:
-> > On Tue, 22 Nov 2005, Seth, Rohit wrote:
-> >
-> > >
-> > >
-> > > >requested order is greater than 3.
-> > >
-> > > Why this order limit.  Most of the previous failures seen (because of my
-> > > earlier patches of bigger and more physical contiguous chunks for pcps)
-> > > were with order 1 allocation.
-> > >
-> >
-> > The order 3 is because of this block;
-> >
-> >         if (!(gfp_mask & __GFP_NORETRY)) {
-> >                 if ((order <= 3) || (gfp_mask & __GFP_REPEAT))
-> >                         do_retry = 1;
-> >                 if (gfp_mask & __GFP_NOFAIL)
-> >                         do_retry = 1;
-> >         }
-> >
-> > If it's less than 3, we are retrying anyway and it's something we are
->
-> You are retrying (for 0<order<=3) but without draining the pcps (in your
-> patch).
->
-> > > That code has issues with pre-emptible kernel.
-> > >
-> >
-> > ok... why? I thought that we could only be preempted when we were about to
-> > take a spinlock but I have an imperfect understanding of preempt and
-> > things change quickly. The path the drain_all_local_pages() enters
-> > disables the local IRQs before calling __drain_pages() and when
-> > smp_drain_local_pages()  is called, the local IRQs are disabled again
-> > before releasing pages. Where can we get preempted?
-> >
->
-> Basically the get_cpu(), put_cpu() needs to cover the whole scope of
-> smp_processor_id usage.  (When you enable CONFIG_DEBUG_PREEMPT the
-> kernel will barf if preempt is enabled while calling smp_processor_id).
->
-> If the interrupts are disabled all the way through then you wouldn't be
-> preempted though.  But get/put_cpu is the right mechanism to ensure
-> smp_processor_id and its derived value is used on same processor.
->
+> When the application receives this notification and starts to process this
+> page, this page will stay in core (possibly for a fairly long time) because
+> it's been touched again. That's why we also added madvise(MADV_RELINQUISH)
+> to explicitly send the page to swap after the processing.
 
-That can be easily enough fixed.
-
-> > > I will be shortly sending the patch to free pages from pcp when higher
-> > > order allocation is not able to get serviced from global list.
-> > >
-> >
-> > If that works, this part of the patch can be dropped. The intention is to
-> > "drain the per-cpu lists by some mechanism". I am not too particular about
-> > how it happens. Right now, the per-cpu caches make a massive difference on
-> > my 4-way machine at least on whether a large number of contiguous blocks
-> > can be allocated or not.
-> >
->
-> Please let me know if you see any issues with the patch that I sent out
-> a bit earlier.
->
-
-I don't have access to my test environment for the rest of the week so I
-can't actually try them out.
-
-However, reading through the patches, they appear to duplicate a
-significant amount of the existing drain_local_pages() functions and they
-only drain the pages on the currently running CPU. On a system with a
-number of CPUs, you will only be improving your chances slightly.
-
-I think you would get more of what you need with this patch if;
-
-1. Removed the compile time dependency on CONFIG_PM||CONFIG_HOTPLUG
-2. Rechecked the usage of smp_processor_id() (although I don't think it's
-    wrong because it's only called with local IRQs disabled)
-3. Draining the CPUs after direct reclaim and the allocation still failing
-
-This patch does everything you need including the draining of remove
-per-cpus.
+Would it be better for the application to completely vacate
+the page, so MADV_DONTNEED can be used instead, and swap IO
+can be avoided ?
 
 -- 
-Mel Gorman
-Part-time Phd Student                          Java Applications Developer
-University of Limerick                         IBM Dublin Software Lab
+All Rights Reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
