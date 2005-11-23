@@ -1,111 +1,88 @@
-Date: Tue, 22 Nov 2005 16:10:00 -0800
-From: Rohit Seth <rohit.seth@intel.com>
-Subject: [PATCH]: Free pages from local pcp lists under tight memory conditions
-Message-ID: <20051122161000.A22430@unix-os.sc.intel.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Date: Wed, 23 Nov 2005 00:17:05 +0000 (GMT)
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: RE: [PATCH 5/5] Light fragmentation avoidance without usemap:
+ 005_drainpercpu
+In-Reply-To: <01EF044AAEE12F4BAAD955CB75064943053DF65D@scsmsx401.amr.corp.intel.com>
+Message-ID: <Pine.LNX.4.58.0511230009330.31913@skynet>
+References: <01EF044AAEE12F4BAAD955CB75064943053DF65D@scsmsx401.amr.corp.intel.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: akpm@osdl.org, torvalds@osdl.org
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: "Seth, Rohit" <rohit.seth@intel.com>
+Cc: linux-mm@kvack.org, nickpiggin@yahoo.com.au, ak@suse.de, linux-kernel@vger.kernel.org, lhms-devel@lists.sourceforge.net, mingo@elte.hu
 List-ID: <linux-mm.kvack.org>
 
-Andrew, Linus,
+On Tue, 22 Nov 2005, Seth, Rohit wrote:
 
-[PATCH]: This patch free pages (pcp->batch from each list at a time) from
-local pcp lists when a higher order allocation request is not able to 
-get serviced from global free_list.
+> From:  Mel Gorman Sent: Tuesday, November 22, 2005 11:18 AM
+>
+> >Per-cpu pages can accidentally cause fragmentation because they are
+> free, >but
+> >pinned pages in an otherwise contiguous block.  When this patch is
+> applied,
+> >the per-cpu caches are drained after the direct-reclaim is entered if
+> the
+>
+> I don't think this is the right place to drain the pcp.  Since direct
+> reclaim is already done, so it is possible that allocator can service
+> the request without draining the pcps.
+>
 
-This should help fix some of the earlier failures seen with order 1 allocations.
+ok, true. A check should be made to see if it's possible yet and if not,
+then drain. A more appropriate place might be after this block
 
-I will send separate patches for:
+                if (page)
+                        goto got_pg;
 
-1- Reducing the remote cpus pcp
-2- Clean up page_alloc.c for CONFIG_HOTPLUG_CPU to use this code appropiately
+>
+> >requested order is greater than 3.
+>
+> Why this order limit.  Most of the previous failures seen (because of my
+> earlier patches of bigger and more physical contiguous chunks for pcps)
+> were with order 1 allocation.
+>
 
-Signed-off-by: Rohit Seth <rohit.seth@intel.com>
+The order 3 is because of this block;
 
+        if (!(gfp_mask & __GFP_NORETRY)) {
+                if ((order <= 3) || (gfp_mask & __GFP_REPEAT))
+                        do_retry = 1;
+                if (gfp_mask & __GFP_NOFAIL)
+                        do_retry = 1;
+        }
 
---- a/mm/page_alloc.c	2005-11-22 07:03:40.000000000 -0800
-+++ linux-2.6.15-rc2/mm/page_alloc.c	2005-11-22 07:17:48.000000000 -0800
-@@ -827,6 +827,35 @@
- 	return page;
- }
- 
-+static int
-+reduce_cpu_pcp(void )
-+{
-+	struct zone *zone;
-+	unsigned long flags;
-+	unsigned int cpu = get_cpu();
-+	int i, ret=0;
-+
-+	local_irq_save(flags);
-+	for_each_zone(zone) {
-+		struct per_cpu_pageset *pset;
-+
-+		pset = zone_pcp(zone, cpu);
-+		for (i = 0; i < ARRAY_SIZE(pset->pcp); i++) {
-+			struct per_cpu_pages *pcp;
-+
-+			pcp = &pset->pcp[i];
-+			if (pcp->count == 0)
-+				continue;
-+			pcp->count -= free_pages_bulk(zone, pcp->batch,
-+						&pcp->list, 0);
-+			ret++;
-+		}
-+	}
-+	local_irq_restore(flags);
-+	put_cpu();
-+	return ret;
-+}
-+
- /*
-  * This is the 'heart' of the zoned buddy allocator.
-  */
-@@ -887,6 +916,7 @@
- 	 * Ignore cpuset if GFP_ATOMIC (!wait) rather than fail alloc.
- 	 * See also cpuset_zone_allowed() comment in kernel/cpuset.c.
- 	 */
-+try_again:
- 	page = get_page_from_freelist(gfp_mask, order, zonelist, alloc_flags);
- 	if (page)
- 		goto got_pg;
-@@ -911,8 +941,15 @@
- 	}
- 
- 	/* Atomic allocations - we can't balance anything */
--	if (!wait)
--		goto nopage;
-+	if (!wait) {
-+		/* Check if there are pages available on pcp lists that can be 
-+		 * moved to global page list to satisfy higher order allocations.
-+		 */
-+		if ((order > 0) && (reduce_cpu_pcp()))
-+			goto try_again;
-+		else 
-+			goto nopage;
-+	}
- 
- rebalance:
- 	cond_resched();
-@@ -950,6 +987,14 @@
- 		goto restart;
- 	}
- 
-+	if (order > 0) 
-+		while (reduce_cpu_pcp()) {
-+			if (get_page_from_freelist(gfp_mask, order, zonelist, alloc_flags))
-+				goto got_pg;
-+		}
-+	/* FIXME: Add the support for reducing/draining the remote pcps.
-+	 */
-+
- 	/*
- 	 * Don't let big-order allocations loop unless the caller explicitly
- 	 * requests that.  Wait for some write requests to complete then retry.
+If it's less than 3, we are retrying anyway and it's something we are
+already doing. If it was felt it had a chance of working before, I felt
+that draining per-cpu caches was unnecessary.
+
+> >It simply reuses the code used by suspend
+> >and hotplug and only is triggered when anti-defragmentation is enabled.
+> >
+> That code has issues with pre-emptible kernel.
+>
+
+ok... why? I thought that we could only be preempted when we were about to
+take a spinlock but I have an imperfect understanding of preempt and
+things change quickly. The path the drain_all_local_pages() enters
+disables the local IRQs before calling __drain_pages() and when
+smp_drain_local_pages()  is called, the local IRQs are disabled again
+before releasing pages. Where can we get preempted?
+
+> I will be shortly sending the patch to free pages from pcp when higher
+> order allocation is not able to get serviced from global list.
+>
+
+If that works, this part of the patch can be dropped. The intention is to
+"drain the per-cpu lists by some mechanism". I am not too particular about
+how it happens. Right now, the per-cpu caches make a massive difference on
+my 4-way machine at least on whether a large number of contiguous blocks
+can be allocated or not.
+
+-- 
+Mel Gorman
+Part-time Phd Student                          Java Applications Developer
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
