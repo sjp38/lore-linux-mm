@@ -1,53 +1,59 @@
-Received: from shark.he.net ([66.160.160.2]) by xenotime.net for <linux-mm@kvack.org>; Wed, 23 Nov 2005 15:36:52 -0800
-Date: Wed, 23 Nov 2005 15:36:51 -0800 (PST)
-From: "Randy.Dunlap" <rdunlap@xenotime.net>
-Subject: RE: Kernel BUG at mm/rmap.c:491
-In-Reply-To: <200511232333.jANNX9g23967@unix-os.sc.intel.com>
-Message-ID: <Pine.LNX.4.58.0511231535590.20189@shark.he.net>
-References: <200511232333.jANNX9g23967@unix-os.sc.intel.com>
+From: Alistair John Strachan <s0348365@sms.ed.ac.uk>
+Subject: Re: Kernel BUG at mm/rmap.c:491
+Date: Wed, 23 Nov 2005 23:38:54 +0000
+References: <200511232333.jANNX9g23967@unix-os.sc.intel.com> <cone.1132788946.360368.25446.501@kolivas.org>
+In-Reply-To: <cone.1132788946.360368.25446.501@kolivas.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200511232338.54794.s0348365@sms.ed.ac.uk>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Chen, Kenneth W" <kenneth.w.chen@intel.com>
-Cc: 'Con Kolivas' <con@kolivas.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Con Kolivas <kernel@kolivas.org>
+Cc: Kenneth W <kenneth.w.chen@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 23 Nov 2005, Chen, Kenneth W wrote:
-
-> Con Kolivas wrote on Wednesday, November 23, 2005 3:24 PM
-> > Chen, Kenneth W writes:
+On Wednesday 23 November 2005 23:35, Con Kolivas wrote:
+> Chen, Kenneth W writes:
+> > Con Kolivas wrote on Wednesday, November 23, 2005 3:24 PM
 > >
-> > > Has people seen this BUG_ON before?  On 2.6.15-rc2, x86-64.
-> > >
-> > > Pid: 16500, comm: cc1 Tainted: G    B 2.6.15-rc2 #3
-> > >
-> > > Pid: 16651, comm: sh Tainted: G    B 2.6.15-rc2 #3
+> >> Chen, Kenneth W writes:
+> >> > Has people seen this BUG_ON before?  On 2.6.15-rc2, x86-64.
+> >> >
+> >> > Pid: 16500, comm: cc1 Tainted: G    B 2.6.15-rc2 #3
+> >> >
+> >> > Pid: 16651, comm: sh Tainted: G    B 2.6.15-rc2 #3
+> >>
+> >>                        ^^^^^^^^^^
+> >>
+> >> Please try to reproduce it without proprietary binary modules linked in.
 > >
-> >                        ^^^^^^^^^^
+> > ???, I'm not using any modules at all.
 > >
-> > Please try to reproduce it without proprietary binary modules linked in.
+> > [albat]$ /sbin/lsmod
+> > Module                  Size  Used by
+> > [albat]$
+> >
+> >
+> > Also, isn't it 'P' indicate proprietary module, not 'G'?
+> > line 159: kernel/panic.c:
+> >
+> >         snprintf(buf, sizeof(buf), "Tainted: %c%c%c%c%c%c",
+> >                 tainted & TAINT_PROPRIETARY_MODULE ? 'P' : 'G',
 >
->
-> ???, I'm not using any modules at all.
->
-> [albat]$ /sbin/lsmod
-> Module                  Size  Used by
-> [albat]$
->
->
-> Also, isn't it 'P' indicate proprietary module, not 'G'?
+> Sorry it's not proprietary module indeed. But what is tainting it?
 
-Yes.  It's the 'B' that is tainting in this case:
-TAINT_BAD_PAGE is set.
-
-> line 159: kernel/panic.c:
->
->         snprintf(buf, sizeof(buf), "Tainted: %c%c%c%c%c%c",
->                 tainted & TAINT_PROPRIETARY_MODULE ? 'P' : 'G',
+Probably a prior oops or some other marked error condition.
 
 -- 
-~Randy
+Cheers,
+Alistair.
+
+'No sense being pessimistic, it probably wouldn't work anyway.'
+Third year Computer Science undergraduate.
+1F2 55 South Clerk Street, Edinburgh, UK.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
