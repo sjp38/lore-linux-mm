@@ -1,161 +1,40 @@
-Date: Tue, 22 Nov 2005 21:58:38 -0800
-From: Andrew Morton <akpm@osdl.org>
+Date: Tue, 22 Nov 2005 22:36:41 -0800 (PST)
+From: Christoph Lameter <christoph@lameter.com>
 Subject: Re: [PATCH]: Free pages from local pcp lists under tight memory
  conditions
-Message-Id: <20051122215838.2abfdbd4.akpm@osdl.org>
 In-Reply-To: <20051122213612.4adef5d0.akpm@osdl.org>
+Message-ID: <Pine.LNX.4.62.0511222231070.2084@graphe.net>
 References: <20051122161000.A22430@unix-os.sc.intel.com>
-	<20051122213612.4adef5d0.akpm@osdl.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+ <20051122213612.4adef5d0.akpm@osdl.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: rohit.seth@intel.com, torvalds@osdl.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, christoph@lameter.com
+To: Andrew Morton <akpm@osdl.org>
+Cc: Rohit Seth <rohit.seth@intel.com>, torvalds@osdl.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Andrew Morton <akpm@osdl.org> wrote:
->
-> The `while' loop worries me for some reason, so I wimped out and just tried
->  the remote drain once.
+On Tue, 22 Nov 2005, Andrew Morton wrote:
 
-Even the `goto restart' which is in this patch worries me from a livelock
-POV.  Perhaps we should only ever run drain_all_local_pages() once per
-__alloc_pages() invokation.
+> > [PATCH]: This patch free pages (pcp->batch from each list at a time) from
+> > local pcp lists when a higher order allocation request is not able to 
+> > get serviced from global free_list.
+> > 
+> > This should help fix some of the earlier failures seen with order 1 allocations.
+> > 
+> > I will send separate patches for:
+> > 
+> > 1- Reducing the remote cpus pcp
 
-And perhaps we should run drain_all_local_pages() for GFP_ATOMIC or
-PF_MEMALLOC attempts too.
+That is already partially done by drain_remote_pages(). However, that 
+draining is specific to this processors remote pagesets in remote 
+zones.
 
+> This significantly duplicates the existing drain_local_pages().
 
---- devel/include/linux/gfp.h~mm-free-pages-from-local-pcp-lists-under-tight-memory-conditions	2005-11-22 21:47:33.000000000 -0800
-+++ devel-akpm/include/linux/gfp.h	2005-11-22 21:57:22.000000000 -0800
-@@ -109,6 +109,8 @@ static inline struct page *alloc_pages_n
- 		NODE_DATA(nid)->node_zonelists + gfp_zone(gfp_mask));
- }
- 
-+extern void drain_local_pages(void);
-+
- #ifdef CONFIG_NUMA
- extern struct page *alloc_pages_current(gfp_t gfp_mask, unsigned order);
- 
-diff -puN include/linux/suspend.h~mm-free-pages-from-local-pcp-lists-under-tight-memory-conditions include/linux/suspend.h
---- devel/include/linux/suspend.h~mm-free-pages-from-local-pcp-lists-under-tight-memory-conditions	2005-11-22 21:47:33.000000000 -0800
-+++ devel-akpm/include/linux/suspend.h	2005-11-22 21:47:33.000000000 -0800
-@@ -40,7 +40,6 @@ extern dev_t swsusp_resume_device;
- extern int shrink_mem(void);
- 
- /* mm/page_alloc.c */
--extern void drain_local_pages(void);
- extern void mark_free_pages(struct zone *zone);
- 
- #ifdef CONFIG_PM
-diff -puN mm/page_alloc.c~mm-free-pages-from-local-pcp-lists-under-tight-memory-conditions mm/page_alloc.c
---- devel/mm/page_alloc.c~mm-free-pages-from-local-pcp-lists-under-tight-memory-conditions	2005-11-22 21:47:33.000000000 -0800
-+++ devel-akpm/mm/page_alloc.c	2005-11-22 21:58:01.000000000 -0800
-@@ -578,32 +578,65 @@ void drain_remote_pages(void)
- }
- #endif
- 
--#if defined(CONFIG_PM) || defined(CONFIG_HOTPLUG_CPU)
--static void __drain_pages(unsigned int cpu)
-+/*
-+ * Drain any cpu-local pages into the buddy lists.  Must be called under
-+ * local_irq_disable().
-+ */
-+static int __drain_pages(unsigned int cpu)
- {
--	unsigned long flags;
- 	struct zone *zone;
--	int i;
-+	int ret = 0;
- 
- 	for_each_zone(zone) {
- 		struct per_cpu_pageset *pset;
-+		int i;
- 
- 		pset = zone_pcp(zone, cpu);
- 		for (i = 0; i < ARRAY_SIZE(pset->pcp); i++) {
- 			struct per_cpu_pages *pcp;
- 
- 			pcp = &pset->pcp[i];
--			local_irq_save(flags);
-+			if (!pcp->count)
-+				continue;
- 			pcp->count -= free_pages_bulk(zone, pcp->count,
- 						&pcp->list, 0);
--			local_irq_restore(flags);
-+			ret++;
- 		}
- 	}
-+	return ret;
- }
--#endif /* CONFIG_PM || CONFIG_HOTPLUG_CPU */
- 
--#ifdef CONFIG_PM
-+/*
-+ * Spill all of this CPU's per-cpu pages back into the buddy allocator.
-+ */
-+void drain_local_pages(void)
-+{
-+	unsigned long flags;
-+
-+	local_irq_save(flags);
-+	__drain_pages(smp_processor_id());
-+	local_irq_restore(flags);
-+}
- 
-+static void drainer(void *p)
-+{
-+	drain_local_pages();
-+}
-+
-+/*
-+ * Drain the per-cpu pages on all CPUs.  If called from interrupt context we
-+ * can only drain the local CPU's pages, since cross-CPU calls are deadlocky
-+ * from interrupt context.
-+ */
-+static void drain_all_local_pages(void)
-+{
-+	if (in_interrupt())
-+		drain_local_pages();
-+	else
-+		on_each_cpu(drainer, NULL, 0, 1);
-+}
-+
-+#ifdef CONFIG_PM
- void mark_free_pages(struct zone *zone)
- {
- 	unsigned long zone_pfn, flags;
-@@ -629,17 +662,6 @@ void mark_free_pages(struct zone *zone)
- 	spin_unlock_irqrestore(&zone->lock, flags);
- }
- 
--/*
-- * Spill all of this CPU's per-cpu pages back into the buddy allocator.
-- */
--void drain_local_pages(void)
--{
--	unsigned long flags;
--
--	local_irq_save(flags);	
--	__drain_pages(smp_processor_id());
--	local_irq_restore(flags);	
--}
- #endif /* CONFIG_PM */
- 
- static void zone_statistics(struct zonelist *zonelist, struct zone *z)
-@@ -889,6 +911,10 @@ restart:
- 	if (gfp_mask & __GFP_HIGH)
- 		alloc_flags |= ALLOC_DIP_LESS;
- 
-+	if (order > 0 || (!wait && (gfp_mask & __GFP_HIGH)) ||
-+			(p->flags & PF_MEMALLOC))
-+		drain_all_local_pages();
-+
- 	page = get_page_from_freelist(gfp_mask, order, zonelist, alloc_flags);
- 	if (page)
- 		goto got_pg;
-_
+We need to extract __drain_pcp from all these functions and clearly 
+document how they differ. Seth probably needs to call __drain_pages for 
+each processor.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
