@@ -1,51 +1,81 @@
-Message-ID: <4383CF6C.4060001@yahoo.com.au>
-Date: Wed, 23 Nov 2005 13:09:48 +1100
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-MIME-Version: 1.0
-Subject: Re: [patch 6/12] mm: remove bad_range
-References: <20051121123906.14370.3039.sendpatchset@didi.local0.net>	 <20051121124126.14370.50844.sendpatchset@didi.local0.net> <1132662725.6696.45.camel@localhost>
-In-Reply-To: <1132662725.6696.45.camel@localhost>
-Content-Type: text/plain; charset=us-ascii; format=flowed
+Subject: RE: [PATCH 5/5] Light fragmentation avoidance without usemap:
+	005_drainpercpu
+From: Rohit Seth <rohit.seth@intel.com>
+In-Reply-To: <Pine.LNX.4.58.0511230009330.31913@skynet>
+References: <01EF044AAEE12F4BAAD955CB75064943053DF65D@scsmsx401.amr.corp.intel.com>
+	 <Pine.LNX.4.58.0511230009330.31913@skynet>
+Content-Type: text/plain
+Date: Tue, 22 Nov 2005 17:22:20 -0800
+Message-Id: <1132708940.12204.12.camel@akash.sc.intel.com>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Hansen <haveblue@us.ibm.com>
-Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@osdl.org>, Linux Memory Management <linux-mm@kvack.org>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: linux-mm@kvack.org, nickpiggin@yahoo.com.au, ak@suse.de, linux-kernel@vger.kernel.org, lhms-devel@lists.sourceforge.net, mingo@elte.hu
 List-ID: <linux-mm.kvack.org>
 
-Dave Hansen wrote:
-
+On Wed, 2005-11-23 at 00:17 +0000, Mel Gorman wrote:
+> On Tue, 22 Nov 2005, Seth, Rohit wrote:
 > 
-> I seem to also remember a case with this bad_range() check was useful
-> for zones that don't have their boundaries aligned on a MAX_ORDER
-> boundary.  Would this change break such a zone?  Do we care?
+> >
+> >
+> > >requested order is greater than 3.
+> >
+> > Why this order limit.  Most of the previous failures seen (because of my
+> > earlier patches of bigger and more physical contiguous chunks for pcps)
+> > were with order 1 allocation.
+> >
+> 
+> The order 3 is because of this block;
+> 
+>         if (!(gfp_mask & __GFP_NORETRY)) {
+>                 if ((order <= 3) || (gfp_mask & __GFP_REPEAT))
+>                         do_retry = 1;
+>                 if (gfp_mask & __GFP_NOFAIL)
+>                         do_retry = 1;
+>         }
+> 
+> If it's less than 3, we are retrying anyway and it's something we are
+
+You are retrying (for 0<order<=3) but without draining the pcps (in your
+patch).
+
+> > That code has issues with pre-emptible kernel.
+> >
+> 
+> ok... why? I thought that we could only be preempted when we were about to
+> take a spinlock but I have an imperfect understanding of preempt and
+> things change quickly. The path the drain_all_local_pages() enters
+> disables the local IRQs before calling __drain_pages() and when
+> smp_drain_local_pages()  is called, the local IRQs are disabled again
+> before releasing pages. Where can we get preempted?
 > 
 
-Hmm, I guess that would be covered by the:
+Basically the get_cpu(), put_cpu() needs to cover the whole scope of
+smp_processor_id usage.  (When you enable CONFIG_DEBUG_PREEMPT the
+kernel will barf if preempt is enabled while calling smp_processor_id).
 
-         if (page_to_pfn(page) >= zone->zone_start_pfn + zone->spanned_pages)
-                 return 1;
-         if (page_to_pfn(page) < zone->zone_start_pfn)
-                 return 1;
+If the interrupts are disabled all the way through then you wouldn't be
+preempted though.  But get/put_cpu is the right mechanism to ensure
+smp_processor_id and its derived value is used on same processor.
 
-checks in bad_range. ISTR some "warning: zone not aligned, kernel
-*will* crash" message got printed in that case. I always thought
-that zones were supposed to be MAX_ORDER aligned, but I can see how
-that restriction might be relaxed with these checks in place.
+> > I will be shortly sending the patch to free pages from pcp when higher
+> > order allocation is not able to get serviced from global list.
+> >
+> 
+> If that works, this part of the patch can be dropped. The intention is to
+> "drain the per-cpu lists by some mechanism". I am not too particular about
+> how it happens. Right now, the per-cpu caches make a massive difference on
+> my 4-way machine at least on whether a large number of contiguous blocks
+> can be allocated or not.
+> 
 
-This commit introduced the change:
-http://www.kernel.org/git/?p=linux/kernel/git/torvalds/old-2.6-bkcvs.git;a=commitdiff;h=d60c9dbc4589766ef5fe88f082052ccd4ecaea59
+Please let me know if you see any issues with the patch that I sent out
+a bit earlier.
 
-I think this basically says that architectures who care need to define
-CONFIG_HOLES_IN_ZONE and handle this in pfn_valid.
-
-Unless this is a very common requirement and such a solution would have
-too much performance cost? Anyone?
-
--- 
-SUSE Labs, Novell Inc.
-
-Send instant messages to your online friends http://au.messenger.yahoo.com 
+Thanks,
+-rohit
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
