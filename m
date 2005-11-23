@@ -1,36 +1,28 @@
+Date: Wed, 23 Nov 2005 11:30:10 -0800 (PST)
+From: Christoph Lameter <clameter@engr.sgi.com>
 Subject: Re: [PATCH]: Free pages from local pcp lists under tight memory
-	conditions
-From: Rohit Seth <rohit.seth@intel.com>
-In-Reply-To: <20051122215838.2abfdbd4.akpm@osdl.org>
+ conditions
+In-Reply-To: <20051122161000.A22430@unix-os.sc.intel.com>
+Message-ID: <Pine.LNX.4.62.0511231128090.22710@schroedinger.engr.sgi.com>
 References: <20051122161000.A22430@unix-os.sc.intel.com>
-	 <20051122213612.4adef5d0.akpm@osdl.org>
-	 <20051122215838.2abfdbd4.akpm@osdl.org>
-Content-Type: text/plain
-Date: Wed, 23 Nov 2005 10:17:00 -0800
-Message-Id: <1132769820.25086.23.camel@akash.sc.intel.com>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: torvalds@osdl.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, christoph@lameter.com
+To: Rohit Seth <rohit.seth@intel.com>
+Cc: akpm@osdl.org, torvalds@osdl.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2005-11-22 at 21:58 -0800, Andrew Morton wrote:
-> Andrew Morton <akpm@osdl.org> wrote:
-> >
-> > The `while' loop worries me for some reason, so I wimped out and just tried
-> >  the remote drain once.
-> 
-> Even the `goto restart' which is in this patch worries me from a livelock
-> POV.  Perhaps we should only ever run drain_all_local_pages() once per
-> __alloc_pages() invokation.
-> And perhaps we should run drain_all_local_pages() for GFP_ATOMIC or
-> PF_MEMALLOC attempts too.
+On Tue, 22 Nov 2005, Rohit Seth wrote:
 
-Good point for PF_MEMALLOC scenario.
+> [PATCH]: This patch free pages (pcp->batch from each list at a time) from
+> local pcp lists when a higher order allocation request is not able to 
+> get serviced from global free_list.
 
--rohit
+Ummm.. One controversial idea: How about removing the complete pcp 
+subsystem? Last time we disabled pcps we saw that the effect 
+that it had was within noise ratio on AIM7. The lru lock taken without 
+pcp is in the local zone and thus rarely contended.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
