@@ -1,72 +1,256 @@
-From: "Yi Feng" <yifeng@cs.umass.edu>
-Subject: RE: [patch] vmsig: notify user applications of virtual memory events via real-time signals
-Date: Wed, 23 Nov 2005 00:00:35 -0500
-Message-ID: <000001c5efea$da132280$0b00a8c0@louise>
-MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="us-ascii"
-Content-Transfer-Encoding: 8BIT
-In-Reply-To: <1132712991.12897.8.camel@akash.sc.intel.com>
+Date: Tue, 22 Nov 2005 21:36:12 -0800
+From: Andrew Morton <akpm@osdl.org>
+Subject: Re: [PATCH]: Free pages from local pcp lists under tight memory
+ conditions
+Message-Id: <20051122213612.4adef5d0.akpm@osdl.org>
+In-Reply-To: <20051122161000.A22430@unix-os.sc.intel.com>
+References: <20051122161000.A22430@unix-os.sc.intel.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: 'Rohit Seth' <rohit.seth@intel.com>, 'Emery Berger' <emery@cs.umass.edu>
-Cc: 'Rik van Riel' <riel@redhat.com>, linux-mm@kvack.org, 'Andrew Morton' <akpm@osdl.org>, 'Matthew Hertz' <hertzm@canisius.edu>
+To: Rohit Seth <rohit.seth@intel.com>
+Cc: torvalds@osdl.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Christoph Lameter <christoph@lameter.com>
 List-ID: <linux-mm.kvack.org>
 
-> -----Original Message-----
-> From: Rohit Seth [mailto:rohit.seth@intel.com]
-> Sent: Tuesday, November 22, 2005 9:30 PM
-> To: Emery Berger
-> Cc: Rik van Riel; Yi Feng; linux-mm@kvack.org; Andrew Morton; Matthew
-> Hertz
-> Subject: RE: [patch] vmsig: notify user applications of virtual
-> memoryevents via real-time signals
+Rohit Seth <rohit.seth@intel.com> wrote:
+>
+> Andrew, Linus,
 > 
-> On Tue, 2005-11-22 at 13:53 -0800, Emery Berger wrote:
-> > > That seems pretty high overhead.  I wonder if it wouldn't work
-> > > similarly well for the kernel to simply notify the registrered
-> > > apps that memory is running low and they should garbage collect
-> > > _something_, without caring which pages.
-> >
-
-The kernel overhead is low. The only space overhead is the rmap's we keep
-for swapped-out pages - that's 8 bytes per swapped-out page plus the
-associated radix tree structures we use for lookup. For time overhead, there
-won't be any if the kernel is not swapping at all. If the kernel is
-swapping, then we have to look at the rmap's of the involved pages and find
-the process(es) to notify. However, this overhead is well justified because
-when the system is swapping, the CPU is often under-utilized anyway.
-
-> > Actually, it's quite important that the application know exactly which
-> > page is being evicted, in order that it be "bookmarked". We found that
-> > this particular aspect of the garbage collection algorithm was crucial
-> > (it's in the paper).
-> >
-> Seems like a good idea for the notifications.
+> [PATCH]: This patch free pages (pcp->batch from each list at a time) from
+> local pcp lists when a higher order allocation request is not able to 
+> get serviced from global free_list.
 > 
-> But for it to be useful for low memory conditions, I think it will
-> better if kernel knew (at possibly direct reclaim time) to swap out the
-> specific pages...so as to make it more cooperative between user and
-> kernel.  If kernel has to first notify user app (and possibly thousands
-> of them) that it is looking for free pages then it will probably be too
-> late or too expensive before an application actually completes the
-> operation of freeing the pages.
+> This should help fix some of the earlier failures seen with order 1 allocations.
 > 
+> I will send separate patches for:
+> 
+> 1- Reducing the remote cpus pcp
+> 2- Clean up page_alloc.c for CONFIG_HOTPLUG_CPU to use this code appropiately
+> 
+> +static int
+> +reduce_cpu_pcp(void )
+> +{
+> +	struct zone *zone;
+> +	unsigned long flags;
+> +	unsigned int cpu = get_cpu();
+> +	int i, ret=0;
+> +
+> +	local_irq_save(flags);
+> +	for_each_zone(zone) {
+> +		struct per_cpu_pageset *pset;
+> +
+> +		pset = zone_pcp(zone, cpu);
+> +		for (i = 0; i < ARRAY_SIZE(pset->pcp); i++) {
+> +			struct per_cpu_pages *pcp;
+> +
+> +			pcp = &pset->pcp[i];
+> +			if (pcp->count == 0)
+> +				continue;
+> +			pcp->count -= free_pages_bulk(zone, pcp->batch,
+> +						&pcp->list, 0);
+> +			ret++;
+> +		}
+> +	}
+> +	local_irq_restore(flags);
+> +	put_cpu();
+> +	return ret;
+> +}
 
-We notify the user application of the impending eviction of a page before
-the page is actually swapped out. We keep a boundary in the inactive list,
-once a page slips behind the boundary and falls toward the end of the list,
-we notify the user applications that this page is likely to be swapped out
-soon. We made this boundary an adjustable parameter in /proc. 
+This significantly duplicates the existing drain_local_pages().
 
-When the application receives this notification and starts to process this
-page, this page will stay in core (possibly for a fairly long time) because
-it's been touched again. That's why we also added madvise(MADV_RELINQUISH)
-to explicitly send the page to swap after the processing.
+>  
+> +	if (order > 0) 
+> +		while (reduce_cpu_pcp()) {
+> +			if (get_page_from_freelist(gfp_mask, order, zonelist, alloc_flags))
+
+This forgot to assign to local variable `page'!  It'll return NULL and will
+leak memory.
+
+The `while' loop worries me for some reason, so I wimped out and just tried
+the remote drain once.
+
+> +				goto got_pg;
+> +		}
+> +	/* FIXME: Add the support for reducing/draining the remote pcps.
+
+This is easy enough to do.
+
+I wanted to call the all-CPU drainer `drain_remote_pages' but that's
+already taken by some rather poorly-named NUMA thing which also duplicates
+most of __drain_pages().
+
+This patch is against a random selection of the enormous number of mm/
+patches in -mm.  I haven't runtime-tested it yet.
+
+We need to verify that this patch actually does something useful.
 
 
-Yi Feng
 
+ include/linux/gfp.h     |    2 +
+ include/linux/suspend.h |    1 
+ mm/page_alloc.c         |   85 ++++++++++++++++++++++++++++++++++++------------
+ 3 files changed, 66 insertions(+), 22 deletions(-)
+
+diff -puN include/linux/gfp.h~mm-free-pages-from-local-pcp-lists-under-tight-memory-conditions include/linux/gfp.h
+--- devel/include/linux/gfp.h~mm-free-pages-from-local-pcp-lists-under-tight-memory-conditions	2005-11-22 21:32:47.000000000 -0800
++++ devel-akpm/include/linux/gfp.h	2005-11-22 21:32:47.000000000 -0800
+@@ -109,6 +109,8 @@ static inline struct page *alloc_pages_n
+ 		NODE_DATA(nid)->node_zonelists + gfp_zone(gfp_mask));
+ }
+ 
++extern int drain_local_pages(void);
++
+ #ifdef CONFIG_NUMA
+ extern struct page *alloc_pages_current(gfp_t gfp_mask, unsigned order);
+ 
+diff -puN include/linux/suspend.h~mm-free-pages-from-local-pcp-lists-under-tight-memory-conditions include/linux/suspend.h
+--- devel/include/linux/suspend.h~mm-free-pages-from-local-pcp-lists-under-tight-memory-conditions	2005-11-22 21:32:47.000000000 -0800
++++ devel-akpm/include/linux/suspend.h	2005-11-22 21:32:47.000000000 -0800
+@@ -40,7 +40,6 @@ extern dev_t swsusp_resume_device;
+ extern int shrink_mem(void);
+ 
+ /* mm/page_alloc.c */
+-extern void drain_local_pages(void);
+ extern void mark_free_pages(struct zone *zone);
+ 
+ #ifdef CONFIG_PM
+diff -puN mm/page_alloc.c~mm-free-pages-from-local-pcp-lists-under-tight-memory-conditions mm/page_alloc.c
+--- devel/mm/page_alloc.c~mm-free-pages-from-local-pcp-lists-under-tight-memory-conditions	2005-11-22 21:32:47.000000000 -0800
++++ devel-akpm/mm/page_alloc.c	2005-11-22 21:32:47.000000000 -0800
+@@ -578,32 +578,71 @@ void drain_remote_pages(void)
+ }
+ #endif
+ 
+-#if defined(CONFIG_PM) || defined(CONFIG_HOTPLUG_CPU)
+-static void __drain_pages(unsigned int cpu)
++/*
++ * Drain any cpu-local pages into the buddy lists.  Must be called under
++ * local_irq_disable().
++ */
++static int __drain_pages(unsigned int cpu)
+ {
+-	unsigned long flags;
+ 	struct zone *zone;
+-	int i;
++	int ret = 0;
+ 
+ 	for_each_zone(zone) {
+ 		struct per_cpu_pageset *pset;
++		int i;
+ 
+ 		pset = zone_pcp(zone, cpu);
+ 		for (i = 0; i < ARRAY_SIZE(pset->pcp); i++) {
+ 			struct per_cpu_pages *pcp;
+ 
+ 			pcp = &pset->pcp[i];
+-			local_irq_save(flags);
++			if (!pcp->count)
++				continue;
+ 			pcp->count -= free_pages_bulk(zone, pcp->count,
+ 						&pcp->list, 0);
+-			local_irq_restore(flags);
++			ret++;
+ 		}
+ 	}
++	return ret;
+ }
+-#endif /* CONFIG_PM || CONFIG_HOTPLUG_CPU */
+ 
+-#ifdef CONFIG_PM
++/*
++ * Spill all of this CPU's per-cpu pages back into the buddy allocator.
++ */
++int drain_local_pages(void)
++{
++	unsigned long flags;
++	int ret;
++
++	local_irq_save(flags);
++	ret = __drain_pages(smp_processor_id());
++	local_irq_restore(flags);
++	return ret;
++}
++
++static void drainer(void *p)
++{
++	atomic_add(drain_local_pages(), p);
++}
++
++/*
++ * Drain the per-cpu pages on all CPUs.  If called from interrupt context we
++ * can only drain the local CPU's pages, since cross-CPU calls are deadlocky
++ * from interrupt context.
++ */
++static int drain_all_local_pages(void)
++{
++	if (in_interrupt()) {
++		return drain_local_pages();
++	} else {
++		atomic_t ret = ATOMIC_INIT(0);
++
++		on_each_cpu(drainer, &ret, 0, 1);
++		return atomic_read(&ret);
++	}
++}
+ 
++#ifdef CONFIG_PM
+ void mark_free_pages(struct zone *zone)
+ {
+ 	unsigned long zone_pfn, flags;
+@@ -629,17 +668,6 @@ void mark_free_pages(struct zone *zone)
+ 	spin_unlock_irqrestore(&zone->lock, flags);
+ }
+ 
+-/*
+- * Spill all of this CPU's per-cpu pages back into the buddy allocator.
+- */
+-void drain_local_pages(void)
+-{
+-	unsigned long flags;
+-
+-	local_irq_save(flags);	
+-	__drain_pages(smp_processor_id());
+-	local_irq_restore(flags);	
+-}
+ #endif /* CONFIG_PM */
+ 
+ static void zone_statistics(struct zonelist *zonelist, struct zone *z)
+@@ -913,8 +941,16 @@ nofail_alloc:
+ 	}
+ 
+ 	/* Atomic allocations - we can't balance anything */
+-	if (!wait)
+-		goto nopage;
++	if (!wait) {
++		/*
++		 * Check if there are pages available on pcp lists that can be
++		 * moved to global page list to satisfy higher order allocations
++		 */
++		if (order > 0 && drain_all_local_pages())
++			goto restart;
++		else
++			goto nopage;
++	}
+ 
+ rebalance:
+ 	cond_resched();
+@@ -952,6 +988,13 @@ rebalance:
+ 		goto restart;
+ 	}
+ 
++	if (order > 0 && drain_all_local_pages()) {
++		page = get_page_from_freelist(gfp_mask, order, zonelist,
++						alloc_flags);
++		if (page)
++			goto got_pg;
++	}
++
+ 	/*
+ 	 * Don't let big-order allocations loop unless the caller explicitly
+ 	 * requests that.  Wait for some write requests to complete then retry.
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
