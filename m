@@ -1,28 +1,89 @@
-Date: Wed, 23 Nov 2005 11:30:10 -0800 (PST)
-From: Christoph Lameter <clameter@engr.sgi.com>
 Subject: Re: [PATCH]: Free pages from local pcp lists under tight memory
- conditions
-In-Reply-To: <20051122161000.A22430@unix-os.sc.intel.com>
-Message-ID: <Pine.LNX.4.62.0511231128090.22710@schroedinger.engr.sgi.com>
+	conditions
+From: Rohit Seth <rohit.seth@intel.com>
+In-Reply-To: <Pine.LNX.4.58.0511231754020.7045@skynet>
 References: <20051122161000.A22430@unix-os.sc.intel.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+	 <20051122213612.4adef5d0.akpm@osdl.org>
+	 <1132768482.25086.16.camel@akash.sc.intel.com>
+	 <Pine.LNX.4.58.0511231754020.7045@skynet>
+Content-Type: text/plain
+Date: Wed, 23 Nov 2005 11:41:40 -0800
+Message-Id: <1132774900.25086.49.camel@akash.sc.intel.com>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rohit Seth <rohit.seth@intel.com>
-Cc: akpm@osdl.org, torvalds@osdl.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Andrew Morton <akpm@osdl.org>, torvalds@osdl.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Christoph Lameter <christoph@lameter.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 22 Nov 2005, Rohit Seth wrote:
+On Wed, 2005-11-23 at 18:06 +0000, Mel Gorman wrote:
+> On Wed, 23 Nov 2005, Rohit Seth wrote:
+> 
+> >
+> I doubt you gain a whole lot by releasing them in batches. There is no way
+> to determine if freeing a few will result in contiguous blocks or not and
+> the overhead of been cautious will likely exceed the cost of simply
+> refilling them on the next order-0 allocation. 
 
-> [PATCH]: This patch free pages (pcp->batch from each list at a time) from
-> local pcp lists when a higher order allocation request is not able to 
-> get serviced from global free_list.
+It depends.  If most of the higher order allocations are only order 1
+(and may be order 2) then it is possible that we may gain in freeing in
+batches.  
 
-Ummm.. One controversial idea: How about removing the complete pcp 
-subsystem? Last time we disabled pcps we saw that the effect 
-that it had was within noise ratio on AIM7. The lru lock taken without 
-pcp is in the local zone and thus rarely contended.
+> Your worst case is where
+> the buddies you need are in different per-cpu caches.
+> 
+
+That is why we need another patch that tries to allocate physically
+contiguous pages in each per_cpu_pagelist.  Actually this patch used to
+be there in Andrew's tree for some time (2.6.14) before couple of corner
+cases came up failing where order 1 allocations were unsuccessful.
+
+> As it's easy to refill a per-cpu cache, it would be easier, clearer and
+> probably faster to just purge the per-cpu cache and have it refilled on
+> the next order-0 allocation. The release-in-batch approach would only be
+> worthwhile if you expect an order-1 allocation to be very rare.
+> 
+
+Well, my only fear is if this shunting happens too often...
+
+> In 005_drainpercpu.patch from the last version of the anti-defrag, I used
+> the smp_call_function() and it did not seem to slow up the system.
+> Certainly, by the time it was called, the system was already low on
+> memory and trashing a bit so it just wasn't noticable.
+> 
+
+I agree at this point in alloaction, speed probably does not matter too
+much.  I definitely want to first see for simple workloads how much (and
+how deep we have to go into deallocations) this extra logic helps.
+
+> > 2- Do we drain the whole pcp on remote processors or again follow the
+> > stepped approach (but may be with a steeper slope).
+> >
+> 
+> I would say do the same on the remote case as you do locally to keep
+> things consistent.
+> 
+
+Well, I think in bigger scope these allocations/deallocations will get
+automatically balanced.
+ 
+> >
+> > > We need to verify that this patch actually does something useful.
+> > >
+> > >
+> > I'm working on this.  Will let you know later today if I can come with
+> > some workload easily hitting this additional logic.
+> >
+> 
+> I found it hard to generate reliable workloads which hit these sort of
+> situations although a fork-heavy workload with 8k stacks will put pressure
+> on order-1 allocations. You can artifically force high order allocations
+> using vmregress by doing something like this;
+
+Need something more benign/stupid to kick into this logic.  
+
+-rohit
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
