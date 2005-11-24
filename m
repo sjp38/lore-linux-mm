@@ -1,46 +1,46 @@
-Received: from localhost (morework [127.0.0.1])
-	by morework.geizhals.at (Postfix) with ESMTP id D7D42DEC99
-	for <linux-mm@kvack.org>; Thu, 24 Nov 2005 20:52:42 +0100 (CET)
-Received: from [10.0.0.126] (unknown [10.0.0.126])
-	by morework.geizhals.at (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Thu, 24 Nov 2005 20:52:42 +0100 (CET)
-Message-ID: <43861A43.3070300@geizhals.at>
-Date: Thu, 24 Nov 2005 20:53:39 +0100
-From: Michael Renner <michael.renner@geizhals.at>
-MIME-Version: 1.0
-Subject: Problems with amd64 on "big" boxes in oom situations
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 8bit
+From: Keith Owens <kaos@ocs.com.au>
+Subject: Re: Kernel BUG at mm/rmap.c:491 
+In-reply-to: Your message of "Thu, 24 Nov 2005 07:50:49 -0000."
+             <Pine.LNX.4.61.0511240747590.5688@goblin.wat.veritas.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Date: Fri, 25 Nov 2005 10:47:41 +1100
+Message-ID: <25093.1132876061@ocs3.ocs.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Hugh Dickins <hugh@veritas.com>
+Cc: Dave Jones <davej@redhat.com>, Alistair John Strachan <s0348365@sms.ed.ac.uk>, Con Kolivas <con@kolivas.org>, Kenneth W <kenneth.w.chen@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+On Thu, 24 Nov 2005 07:50:49 +0000 (GMT), 
+Hugh Dickins <hugh@veritas.com> wrote:
+>On Wed, 23 Nov 2005, Dave Jones wrote:
+>> On Wed, Nov 23, 2005 at 11:35:15PM +0000, Alistair John Strachan wrote:
+>>  > On Wednesday 23 November 2005 23:24, Con Kolivas wrote:
+>>  > > Chen, Kenneth W writes:
+>>  > > > Has people seen this BUG_ON before?  On 2.6.15-rc2, x86-64.
+>>  > > >
+>>  > > > Pid: 16500, comm: cc1 Tainted: G    B 2.6.15-rc2 #3
+>>  > > >
+>>  > > > Pid: 16651, comm: sh Tainted: G    B 2.6.15-rc2 #3
+>>  > >
+>>  > >                        ^^^^^^^^^^
+>>  > >
+>>  > > Please try to reproduce it without proprietary binary modules linked in.
+>>  > 
+>>  > AFAIK "G" means all loaded modules are GPL, P is for proprietary modules.
+>> 
+>> The 'G' seems to confuse a hell of a lot of people.
+>> (I've been asked about it when people got machine checks a lot over
+>>  the last few months).
+>> 
+>> Would anyone object to changing it to conform to the style of
+>> the other taint flags ? Ie, change it to ' ' ?
+>
+>Please, please do: it's insane as is.  But I've CC'ed Keith,
+>we sometimes find the kernel does things so to suit ksymoops.
 
-I've got a 8x dual core opteron server with 64 gb ram which reproducible 
-locks up when it gets into an OOM situation. The traces for 2.6.14 and 
-2.6.15-rc2 can be found at: http://666kb.com/i/10yom358azw8w.jpg , 
-http://666kb.com/i/10yov42ydfdog.jpg .
-
-Used .config: http://phpfi.com/88428
-
-There were 1+16 (forked) processes, each starting with a base memory 
-usage of 3.1 gb (maybe CoW, can't say), slowly growing while they ran, 
-each utilizing a processor/core very thoroughly. Eventually the 
-available memory was used up and the machine locked up shortly afterwards.
-
-Any ideas?
-
--- 
-
-best regards,
-  Michael Renner - Network services
-
-Preisvergleich Internet Services AG
-Obere Donaustrasse 63/2, A-1020 Wien
-Tel: +43 1 5811609 80
-Fax: +43 1 5811609 55
+'G' is not one of mine, I find it annoying as well.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
