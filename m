@@ -1,49 +1,128 @@
-Date: Thu, 24 Nov 2005 08:04:39 +0000 (GMT)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: Kernel BUG at mm/rmap.c:491
-In-Reply-To: <200511232256.jANMuGg20547@unix-os.sc.intel.com>
-Message-ID: <Pine.LNX.4.61.0511240754190.5688@goblin.wat.veritas.com>
-References: <200511232256.jANMuGg20547@unix-os.sc.intel.com>
+Date: Thu, 24 Nov 2005 09:25:15 +0000 (GMT)
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH]: Free pages from local pcp lists under tight memory
+ conditions
+In-Reply-To: <1132774900.25086.49.camel@akash.sc.intel.com>
+Message-ID: <Pine.LNX.4.58.0511240913250.15203@skynet>
+References: <20051122161000.A22430@unix-os.sc.intel.com>
+ <20051122213612.4adef5d0.akpm@osdl.org>  <1132768482.25086.16.camel@akash.sc.intel.com>
+  <Pine.LNX.4.58.0511231754020.7045@skynet> <1132774900.25086.49.camel@akash.sc.intel.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Chen, Kenneth W" <kenneth.w.chen@intel.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Rohit Seth <rohit.seth@intel.com>
+Cc: Andrew Morton <akpm@osdl.org>, torvalds@osdl.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Christoph Lameter <christoph@lameter.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 23 Nov 2005, Chen, Kenneth W wrote:
-> Has people seen this BUG_ON before?  On 2.6.15-rc2, x86-64.
-> 
-> Bad page state at free_hot_cold_page (in process 'sh', page ffff81000482dde8)
-> flags:0x8000000000000000 mapping:0000000000000000 mapcount:1 count:0
-> Bad page state at free_hot_cold_page (in process 'sh', page ffff8100049d0f78)
-> flags:0x8000000000000000 mapping:0000000000000000 mapcount:1 count:0
-> Bad page state at free_hot_cold_page (in process 'sh', page ffff8100049d0f40)
-> flags:0x8000000000000004 mapping:0000000000000000 mapcount:1 count:0
-> Kernel BUG at mm/swap.c:218
-> Kernel BUG at mm/rmap.c:491
+On Wed, 23 Nov 2005, Rohit Seth wrote:
 
-Neither mm/rmap.c (page_remove_rmap) nor mm/swap.c (put_page_testzero)
-BUG is interesting in this case, they're just side-effects of trying to
-recover from the preceding "Bad page state"s.
+> On Wed, 2005-11-23 at 18:06 +0000, Mel Gorman wrote:
+> > On Wed, 23 Nov 2005, Rohit Seth wrote:
+> >
+> > >
+> > I doubt you gain a whole lot by releasing them in batches. There is no way
+> > to determine if freeing a few will result in contiguous blocks or not and
+> > the overhead of been cautious will likely exceed the cost of simply
+> > refilling them on the next order-0 allocation.
+>
+> It depends.  If most of the higher order allocations are only order 1
+> (and may be order 2) then it is possible that we may gain in freeing in
+> batches.
+>
 
-Which are interesting.  Not at all the same case as the many recently
-reported while we were fixing up PageReserved removal cases; though
-yours will probably be related.
+Possible, but if you are draining, it's just as handy to drain them all
+and avoid >0 order failures in the near future.
 
-It could conceivably be an effect of a DRM pci_alloc_consistent issue
-which Dave Airlie spotted yesterday; but not a typical case of it,
-and I'm probably only thinking of that one because it's uppermost.
+> > Your worst case is where
+> > the buddies you need are in different per-cpu caches.
+> >
+>
+> That is why we need another patch that tries to allocate physically
+> contiguous pages in each per_cpu_pagelist.
 
-Please send your .config (I hope it's tailored somewhat to your machine,
-rather than an allyesconfig or the like?) and bootup dmesg, in case they
-help to narrow the search.  You were just running straight 2.6.15-rc2,
-no additional patches?  Doing anything interesting just before this
-happened?
+That will only delay the problem. Pages end up on the per-cpu lists from
+either an allocation or a free. While the allocation would make sure the
+pages were contiguous and on the same list, the frees will not. The test
+case you are running is a tight loop of one process allocating and freeing
+order-1 pages. This is probably staying on the one CPU so draining in
+batches on just the local CPU will appear successful. On long lived loads,
+it will not be as successful. Draining all the pages on all lists would
+cover all cases while using the existing code.
 
-Thanks,
-Hugh
+When I was testing my version of drain-percpu for anti-defrag and order-10
+allocations, I found that draining just the local CPU made little
+difference but draining all of them made a massive difference. This is an
+extreme case, but it still applies to the smaller orders.
+
+> Actually this patch used to
+> be there in Andrew's tree for some time (2.6.14) before couple of corner
+> cases came up failing where order 1 allocations were unsuccessful.
+>
+> > As it's easy to refill a per-cpu cache, it would be easier, clearer and
+> > probably faster to just purge the per-cpu cache and have it refilled on
+> > the next order-0 allocation. The release-in-batch approach would only be
+> > worthwhile if you expect an order-1 allocation to be very rare.
+> >
+>
+> Well, my only fear is if this shunting happens too often...
+>
+
+Measure it by counting how often you drain the pages and add it to
+frag_show(). This is a hack obviously and not a permanent solution, but
+it's the easiest way to find out what's going on.
+
+> > In 005_drainpercpu.patch from the last version of the anti-defrag, I used
+> > the smp_call_function() and it did not seem to slow up the system.
+> > Certainly, by the time it was called, the system was already low on
+> > memory and trashing a bit so it just wasn't noticable.
+> >
+>
+> I agree at this point in alloaction, speed probably does not matter too
+> much.  I definitely want to first see for simple workloads how much (and
+> how deep we have to go into deallocations) this extra logic helps.
+>
+> > > 2- Do we drain the whole pcp on remote processors or again follow the
+> > > stepped approach (but may be with a steeper slope).
+> > >
+> >
+> > I would say do the same on the remote case as you do locally to keep
+> > things consistent.
+> >
+>
+> Well, I think in bigger scope these allocations/deallocations will get
+> automatically balanced.
+>
+
+Depends on if your workload involves one or more processes. If the load is
+multiple processes on multiple CPUs, the per-cpu pages will be spread out
+a lot.
+
+> > >
+> > > > We need to verify that this patch actually does something useful.
+> > > >
+> > > >
+> > > I'm working on this.  Will let you know later today if I can come with
+> > > some workload easily hitting this additional logic.
+> > >
+> >
+> > I found it hard to generate reliable workloads which hit these sort of
+> > situations although a fork-heavy workload with 8k stacks will put pressure
+> > on order-1 allocations. You can artifically force high order allocations
+> > using vmregress by doing something like this;
+>
+> Need something more benign/stupid to kick into this logic.
+>
+
+If CIFS still needs high order allocations, you could try -jN kernel
+compiles over the network filesystem. Network benchmarks running over a
+loopback device with a large MTU while another load consumes memory might
+also trigger it.
+
+-- 
+Mel Gorman
+Part-time Phd Student                          Java Applications Developer
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
