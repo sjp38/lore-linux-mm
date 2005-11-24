@@ -1,42 +1,67 @@
-Date: Wed, 23 Nov 2005 23:40:10 -0500
-From: Dave Jones <davej@redhat.com>
+From: Alistair John Strachan <s0348365@sms.ed.ac.uk>
 Subject: Re: Kernel BUG at mm/rmap.c:491
-Message-ID: <20051124044009.GE30849@redhat.com>
-References: <200511232256.jANMuGg20547@unix-os.sc.intel.com> <cone.1132788250.534735.25446.501@kolivas.org> <200511232335.15050.s0348365@sms.ed.ac.uk>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Date: Thu, 24 Nov 2005 06:57:11 +0000
+References: <200511232256.jANMuGg20547@unix-os.sc.intel.com> <200511232335.15050.s0348365@sms.ed.ac.uk> <20051124044009.GE30849@redhat.com>
+In-Reply-To: <20051124044009.GE30849@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <200511232335.15050.s0348365@sms.ed.ac.uk>
+Message-Id: <200511240657.11480.s0348365@sms.ed.ac.uk>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Alistair John Strachan <s0348365@sms.ed.ac.uk>
+To: Dave Jones <davej@redhat.com>
 Cc: Con Kolivas <con@kolivas.org>, Kenneth W <kenneth.w.chen@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Nov 23, 2005 at 11:35:15PM +0000, Alistair John Strachan wrote:
- > On Wednesday 23 November 2005 23:24, Con Kolivas wrote:
- > > Chen, Kenneth W writes:
- > > > Has people seen this BUG_ON before?  On 2.6.15-rc2, x86-64.
- > > >
- > > > Pid: 16500, comm: cc1 Tainted: G    B 2.6.15-rc2 #3
- > > >
- > > > Pid: 16651, comm: sh Tainted: G    B 2.6.15-rc2 #3
- > >
- > >                        ^^^^^^^^^^
- > >
- > > Please try to reproduce it without proprietary binary modules linked in.
- > 
- > AFAIK "G" means all loaded modules are GPL, P is for proprietary modules.
+On Thursday 24 November 2005 04:40, Dave Jones wrote:
+> On Wed, Nov 23, 2005 at 11:35:15PM +0000, Alistair John Strachan wrote:
+>  > On Wednesday 23 November 2005 23:24, Con Kolivas wrote:
+>  > > Chen, Kenneth W writes:
+>  > > > Has people seen this BUG_ON before?  On 2.6.15-rc2, x86-64.
+>  > > >
+>  > > > Pid: 16500, comm: cc1 Tainted: G    B 2.6.15-rc2 #3
+>  > > >
+>  > > > Pid: 16651, comm: sh Tainted: G    B 2.6.15-rc2 #3
+>  > >
+>  > >                        ^^^^^^^^^^
+>  > >
+>  > > Please try to reproduce it without proprietary binary modules linked
+>  > > in.
+>  >
+>  > AFAIK "G" means all loaded modules are GPL, P is for proprietary
+>  > modules.
+>
+> The 'G' seems to confuse a hell of a lot of people.
+> (I've been asked about it when people got machine checks a lot over
+>  the last few months).
+>
+> Would anyone object to changing it to conform to the style of
+> the other taint flags ? Ie, change it to ' ' ?
 
+I don't understand the reasons for making the tainted string all the same 
+length anyway. Why not just remove all the extra spaces?
 
-The 'G' seems to confuse a hell of a lot of people.
-(I've been asked about it when people got machine checks a lot over
- the last few months).
+Unless you know what you're looking for, I can assure you that:
 
-Would anyone object to changing it to conform to the style of
-the other taint flags ? Ie, change it to ' ' ?
+Tainted: G    B SOMEOTHERTEXT
 
-		Dave
+Is not intuitively readable (which text does B belong to?).
+
+Tainted:    B SOMEOTHERTEXT
+
+Is better, but still not very good. Why not drop the spaces?
+
+3rd party parsing purposes?
+
+-- 
+Cheers,
+Alistair.
+
+'No sense being pessimistic, it probably wouldn't work anyway.'
+Third year Computer Science undergraduate.
+1F2 55 South Clerk Street, Edinburgh, UK.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
