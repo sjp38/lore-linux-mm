@@ -1,30 +1,46 @@
-Date: Thu, 24 Nov 2005 13:59:39 -0500
-From: Dave Jones <davej@redhat.com>
-Subject: Re: Kernel BUG at mm/rmap.c:491
-Message-ID: <20051124185939.GD4638@redhat.com>
-References: <200511232256.jANMuGg20547@unix-os.sc.intel.com> <cone.1132788250.534735.25446.501@kolivas.org> <200511232335.15050.s0348365@sms.ed.ac.uk> <20051124044009.GE30849@redhat.com> <Pine.LNX.4.61.0511240747590.5688@goblin.wat.veritas.com> <1132831993.3473.20.camel@mindpipe>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1132831993.3473.20.camel@mindpipe>
+Received: from localhost (morework [127.0.0.1])
+	by morework.geizhals.at (Postfix) with ESMTP id D7D42DEC99
+	for <linux-mm@kvack.org>; Thu, 24 Nov 2005 20:52:42 +0100 (CET)
+Received: from [10.0.0.126] (unknown [10.0.0.126])
+	by morework.geizhals.at (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Thu, 24 Nov 2005 20:52:42 +0100 (CET)
+Message-ID: <43861A43.3070300@geizhals.at>
+Date: Thu, 24 Nov 2005 20:53:39 +0100
+From: Michael Renner <michael.renner@geizhals.at>
+MIME-Version: 1.0
+Subject: Problems with amd64 on "big" boxes in oom situations
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Lee Revell <rlrevell@joe-job.com>
-Cc: Hugh Dickins <hugh@veritas.com>, Alistair John Strachan <s0348365@sms.ed.ac.uk>, Con Kolivas <con@kolivas.org>, Kenneth W <kenneth.w.chen@intel.com>, Keith Owens <kaos@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Nov 24, 2005 at 06:33:12AM -0500, Lee Revell wrote:
- > On Thu, 2005-11-24 at 07:50 +0000, Hugh Dickins wrote:
- > > But I've CC'ed Keith,
- > > we sometimes find the kernel does things so to suit ksymoops. 
- > 
- > Um, unless someone has been merging Documentation patches without
- > reading them, ksymoops shouldn't be used with 2.6 anyway.
+Hi,
 
-It is occasionally still useful for decoding Code: lines back
-to assembly.
+I've got a 8x dual core opteron server with 64 gb ram which reproducible 
+locks up when it gets into an OOM situation. The traces for 2.6.14 and 
+2.6.15-rc2 can be found at: http://666kb.com/i/10yom358azw8w.jpg , 
+http://666kb.com/i/10yov42ydfdog.jpg .
 
-		Dave
+Used .config: http://phpfi.com/88428
+
+There were 1+16 (forked) processes, each starting with a base memory 
+usage of 3.1 gb (maybe CoW, can't say), slowly growing while they ran, 
+each utilizing a processor/core very thoroughly. Eventually the 
+available memory was used up and the machine locked up shortly afterwards.
+
+Any ideas?
+
+-- 
+
+best regards,
+  Michael Renner - Network services
+
+Preisvergleich Internet Services AG
+Obere Donaustrasse 63/2, A-1020 Wien
+Tel: +43 1 5811609 80
+Fax: +43 1 5811609 55
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
