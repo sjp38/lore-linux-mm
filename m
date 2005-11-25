@@ -1,58 +1,43 @@
-From: Con Kolivas <kernel@kolivas.org>
+Date: Fri, 25 Nov 2005 10:43:44 +0000 (GMT)
+From: Hugh Dickins <hugh@veritas.com>
 Subject: Re: Kernel BUG at mm/rmap.c:491
-Date: Fri, 25 Nov 2005 10:50:01 +1100
-References: <25093.1132876061@ocs3.ocs.com.au>
-In-Reply-To: <25093.1132876061@ocs3.ocs.com.au>
+In-Reply-To: <200511251050.02833.kernel@kolivas.org>
+Message-ID: <Pine.LNX.4.61.0511251040460.5479@goblin.wat.veritas.com>
+References: <25093.1132876061@ocs3.ocs.com.au> <200511251050.02833.kernel@kolivas.org>
 MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200511251050.02833.kernel@kolivas.org>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Keith Owens <kaos@ocs.com.au>
-Cc: Hugh Dickins <hugh@veritas.com>, Dave Jones <davej@redhat.com>, Alistair John Strachan <s0348365@sms.ed.ac.uk>, Kenneth W <kenneth.w.chen@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Con Kolivas <kernel@kolivas.org>
+Cc: Keith Owens <kaos@ocs.com.au>, Dave Jones <davej@redhat.com>, Alistair John Strachan <s0348365@sms.ed.ac.uk>, Kenneth W <kenneth.w.chen@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 25 Nov 2005 10:47, Keith Owens wrote:
-> On Thu, 24 Nov 2005 07:50:49 +0000 (GMT),
->
-> Hugh Dickins <hugh@veritas.com> wrote:
-> >On Wed, 23 Nov 2005, Dave Jones wrote:
-> >> On Wed, Nov 23, 2005 at 11:35:15PM +0000, Alistair John Strachan wrote:
-> >>  > On Wednesday 23 November 2005 23:24, Con Kolivas wrote:
-> >>  > > Chen, Kenneth W writes:
-> >>  > > > Has people seen this BUG_ON before?  On 2.6.15-rc2, x86-64.
-> >>  > > >
-> >>  > > > Pid: 16500, comm: cc1 Tainted: G    B 2.6.15-rc2 #3
-> >>  > > >
-> >>  > > > Pid: 16651, comm: sh Tainted: G    B 2.6.15-rc2 #3
-> >>  > >
-> >>  > >                        ^^^^^^^^^^
-> >>  > >
-> >>  > > Please try to reproduce it without proprietary binary modules
-> >>  > > linked in.
-> >>  >
-> >>  > AFAIK "G" means all loaded modules are GPL, P is for proprietary
-> >>  > modules.
-> >>
-> >> The 'G' seems to confuse a hell of a lot of people.
-> >> (I've been asked about it when people got machine checks a lot over
-> >>  the last few months).
-> >>
-> >> Would anyone object to changing it to conform to the style of
-> >> the other taint flags ? Ie, change it to ' ' ?
+On Fri, 25 Nov 2005, Con Kolivas wrote:
+> On Fri, 25 Nov 2005 10:47, Keith Owens wrote:
+> > On Thu, 24 Nov 2005 07:50:49 +0000 (GMT),
+> > Hugh Dickins <hugh@veritas.com> wrote:
+> > >On Wed, 23 Nov 2005, Dave Jones wrote:
+> > >>
+> > >> The 'G' seems to confuse a hell of a lot of people.
+> > >> (I've been asked about it when people got machine checks a lot over
+> > >>  the last few months).
+> > >>
+> > >> Would anyone object to changing it to conform to the style of
+> > >> the other taint flags ? Ie, change it to ' ' ?
+> > >
+> > >Please, please do: it's insane as is.  But I've CC'ed Keith,
+> > >we sometimes find the kernel does things so to suit ksymoops.
 > >
-> >Please, please do: it's insane as is.  But I've CC'ed Keith,
-> >we sometimes find the kernel does things so to suit ksymoops.
->
-> 'G' is not one of mine, I find it annoying as well.
+> > 'G' is not one of mine, I find it annoying as well.
+> 
+> Would anyone object to changing it so that tainted only means Proprietary 
+> taint and use a different keyword for GPL tainting such as "Corrupted"?
 
-Would anyone object to changing it so that tainted only means Proprietary 
-taint and use a different keyword for GPL tainting such as "Corrupted"?
+I don't see the point.  The system is in a dubious state, tainted is
+the word we've been using for that, the flags indicate what's suspect,
+why play with the wording further?  But replace 'G' by ' ' certainly.
 
-Con
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
