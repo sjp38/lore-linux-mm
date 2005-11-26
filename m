@@ -1,156 +1,248 @@
-Message-ID: <43884C38.6080203@gentoo.org>
-Date: Sat, 26 Nov 2005 11:51:20 +0000
-From: Daniel Drake <dsd@gentoo.org>
+Date: Sat, 26 Nov 2005 12:43:14 -0500 (EST)
+From: Rik van Riel <riel@redhat.com>
+Subject: [PATCH] temporarily disable swap token on memory pressure 
+Message-ID: <Pine.LNX.4.63.0511261241500.32217@cuia.boston.redhat.com>
 MIME-Version: 1.0
-Subject: 2.6.14 unreproducible oops in free_block
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@osdl.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, zwane@arm.linux.org.uk
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+Some users (hi Zwane) have seen a problem when running a workload
+that eats nearly all of physical memory - th system does an OOM
+kill, even when there is still a lot of swap free.
 
-A gentoo user reported an oops while compiling a package on x86.
+The problem appears to be a very big task that is holding the swap
+token, and the VM has a very hard time finding any other page in
+the system that is swappable.  
 
-This is not reproducible and the system is generally 100% stable, but I 
-thought it might be worth reporting anyway.
+Instead of ignoring the swap token when sc->priority reaches 0,
+we could simply take the swap token away from the memory hog and
+make sure we don't give it back to the memory hog for a few seconds.
 
-Unable to handle kernel paging request at virtual address 00523000
-  printing eip:
-c013e433
-*pde = 00000000
-Oops: 0002 [#1]
-PREEMPT
-CPU:    0
-EIP:    0060:[<c013e433>]    Not tainted VLI
-EFLAGS: 00010016   (2.6.14-gentoo-r2)
-EIP is at free_block+0x43/0xd0
-eax: c7b52000   ebx: c13e8000   ecx: c13e8804   edx: 00523000
-esi: c7fedd60   edi: c7fefcc0   ebp: 00000038   esp: c688bdc8
-ds: 007b   es: 007b   ss: 0068
-Process emerge (pid: 25586, threadinfo=c688a000 task=c1c25ad0)
-Stack: 0000003c c7fe9410 c7feec00 c7fefcc0 c76cc5f4 c7fe9410 c013e518 00000000
-        0000003c c7fe9400 c7fe9400 00000292 c76cc5f4 c688a000 c013e6ef c76ccac4
-        c76cc5f4 c50e9040 c014872a 00000000 ffffffff c688be28 00000000 c046ec2c
-Call Trace:
-  [<c013e518>] cache_flusharray+0x58/0x100
-  [<c013e6ef>] kmem_cache_free+0x3f/0x50
-  [<c014872a>] exit_mmap+0x11a/0x150
-  [<c0118462>] mmput+0x32/0xb0
-  [<c015e146>] exec_mmap+0xc6/0x170
-  [<c015e361>] flush_old_exec+0xe1/0x890
-  [<c012e0c0>] autoremove_wake_function+0x0/0x50
-  [<c0152cd9>] get_unused_fd+0x29/0xd0
-  [<c018078a>] load_elf_binary+0x38a/0xc60
-  [<c0139a70>] prep_new_page+0x40/0x70
-  [<c0139ff4>] buffered_rmqueue+0x104/0x1e0
-  [<c024f95a>] copy_from_user+0x3a/0x80
-  [<c0180400>] load_elf_binary+0x0/0xc60
-  [<c015ed75>] search_binary_handler+0x75/0x170
-  [<c015efb7>] do_execve+0x147/0x1d0
-  [<c0101979>] sys_execve+0x39/0x90
-  [<c0102cab>] sysenter_past_esp+0x54/0x75
-Code: 24 04 8b 15 90 d1 47 c0 8b 0c a8 8d 81 00 00 00 40 c1 e8 0c c1 e0 05 8b 5c
-10 1c 8b 44 24 1c 8b 53 04 8b 74 87 14 8b 03 89 50 04 <89> 02 31 d2 2b 4b 0c c7
-03 00 01 10 00 c7 43 04 00 02 20 00 89
-  <6>note: emerge[25586] exited with preempt_count 1
-------------[ cut here ]------------
-kernel BUG at mm/mmap.c:1965!
-invalid operand: 0000 [#2]
-PREEMPT
-CPU:    0
-EIP:    0060:[<c014874a>]    Not tainted VLI
-EFLAGS: 00010202   (2.6.14-gentoo-r2)
-EIP is at exit_mmap+0x13a/0x150
-eax: 0000004c   ebx: 00000000   ecx: c7fefcc0   edx: c487a754
-esi: 00000000   edi: 00000001   ebp: c688a000   esp: c688be60
-ds: 007b   es: 007b   ss: 0068
-Process emerge (pid: 25589, threadinfo=c688a000 task=c1c25ad0)
-Stack: 00000000 ffffffff c688be74 00000000 c046ec2c 000007fb c431adc0 c431adfc
-        00000000 0000000b c0118462 c688a000 c1c25ad0 c011cb48 0000000a 00000000
-        0000000b c688bfbc 00000001 c782b200 0000000b c688a000 c688a000 c011ce4f
-Call Trace:
-  [<c0118462>] mmput+0x32/0xb0
-  [<c011cb48>] do_exit+0xd8/0x370
-  [<c011ce4f>] do_group_exit+0x2f/0xa0
-  [<c0126026>] get_signal_to_deliver+0x1f6/0x330
-  [<c0102ac0>] do_signal+0x60/0x140
-  [<c0369080>] do_page_fault+0x0/0x5c5
-  [<c010379b>] error_code+0x4f/0x54
-  [<c0369300>] do_page_fault+0x280/0x5c5
-  [<c0369080>] do_page_fault+0x0/0x5c5
-  [<c0102bd7>] do_notify_resume+0x37/0x3c
-  [<c0102d96>] work_notifysig+0x13/0x19
-Code: 00 8b 5e 0c 89 f0 e8 d6 de ff ff 89 de 85 f6 75 f0 8b bf 8c 00 00 00 85 ff
-75 10 83 c4 18 5b 5e 5f 5d c3 0f 20 d8 0f 22 d8 eb 94 <0f> 0b ad 07 4d 43 39 c0
-eb e6 e8 27 f2 21 00 eb d1 90 8d 74 26
-  <1>Fixing recursive fault but reboot is needed!
-Unable to handle kernel paging request at virtual address ca0ff4cc
-  printing eip:
-c013e451
-*pde = 00000000
-Oops: 0002 [#3]
-PREEMPT
-CPU:    0
-EIP:    0060:[<c013e451>]    Not tainted VLI
-EFLAGS: 00010013   (2.6.14-gentoo-r2)
-EIP is at free_block+0x61/0xd0
-eax: 00ffffff   ebx: c13e8000   ecx: 02345d2c   edx: 00000018
-esi: c7fedd60   edi: c7fefcc0   ebp: 00000004   esp: c7f93edc
-ds: 007b   es: 007b   ss: 0068
-Process events/0 (pid: 3, threadinfo=c7f92000 task=c7fc9030)
-Stack: 00000018 c7fe9410 c7fe9410 c7fe9400 00000018 00000000 c013ebe3 00000000
-        c7fefcc0 c7fe0fb0 c7fedd60 00000002 c7fefcc0 c013ecb3 00000000 c7f92000
-        c7fe0fb0 c7f92000 c7f92000 c7fefd0c c7fc9158 c047d080 00000293 c047d084
-Call Trace:
-  [<c013ebe3>] drain_array_locked+0x73/0xc0
-  [<c013ecb3>] cache_reap+0x83/0x1e0
-  [<c0129f0e>] worker_thread+0x1ae/0x280
-  [<c013ec30>] cache_reap+0x0/0x1e0
-  [<c0117140>] default_wake_function+0x0/0x10
-  [<c0117140>] default_wake_function+0x0/0x10
-  [<c0129d60>] worker_thread+0x0/0x280
-  [<c012dbc5>] kthread+0x95/0xd0
-  [<c012db30>] kthread+0x0/0xd0
-  [<c0100f55>] kernel_thread_helper+0x5/0x10
-Code: 1c 8b 53 04 8b 74 87 14 8b 03 89 50 04 89 02 31 d2 2b 4b 0c c7 03 00 01 10
-00 c7 43 04 00 02 20 00 89 c8 f7 77 10 89 c1 8b 43 14 <89> 44 8b 1c ff 4b 10 89
-4b 14 8b 46 18 40 89 46 18 8b 53 10 85
-  <6>note: events/0[3] exited with preempt_count 1
-Unable to handle kernel NULL pointer dereference at virtual address 00000008
-  printing eip:
-c015483c
-*pde = 00000000
-Oops: 0000 [#4]
-PREEMPT
-CPU:    0
-EIP:    0060:[<c015483c>]    Not tainted VLI
-EFLAGS: 00010282   (2.6.14-gentoo-r2)
-EIP is at __fput+0x1c/0x150
-eax: 00000000   ebx: c7f92000   ecx: c5d7c2ac   edx: c76c7b40
-esi: c76c7b40   edi: c76c7b40   ebp: c431a040   esp: c7f93f54
-ds: 007b   es: 007b   ss: 0068
-Process cron (pid: 25590, threadinfo=c7f92000 task=c7fc9030)
-Stack: c7ac22dc 00000000 c7f92000 c5d7c284 c76c7b40 c431a040 c0146651 00000000
-        c431a040 c5d7c284 c0147f1e b7dea000 b7de9000 c01482c8 b7de9000 b7dea000
-        c76cc6a4 c431a040 c431a070 ffff0001 c7f92000 c0148370 b7de9000 80010670
-Call Trace:
-  [<c0146651>] remove_vm_struct+0x51/0x90
-  [<c0147f1e>] unmap_vma_list+0xe/0x20
-  [<c01482c8>] do_munmap+0xe8/0x150
-  [<c0148370>] sys_munmap+0x40/0x70
-  [<c0102cab>] sysenter_past_esp+0x54/0x75
-Code: d0 e9 09 00 00 00 89 f6 8d bc 27 00 00 00 00 83 ec 18 89 5c 24 08 89 74 24
-0c 89 c6 89 7c 24 10 89 6c 24 14 8b 40 08 89 44 24 04 <8b> 78 08 8b 48 20 0f b7
-46 1c 8b 6e 0c 83 e0 02 83 f8 01 0f b7
+This patch resolves the problem Zwane ran into.
 
+This patch is against yesterday's git head.
 
-Original bug report is at http://bugs.gentoo.org/113537
+Signed-off-by: Rik van Riel <riel@redhat.com>
 
-Daniel
+Index: linux-2.6-token/mm/thrash.c
+===================================================================
+--- linux-2.6-token.orig/mm/thrash.c
++++ linux-2.6-token/mm/thrash.c
+@@ -57,14 +57,17 @@ void grab_swap_token(void)
+ 	/* We have the token. Let others know we still need it. */
+ 	if (has_swap_token(current->mm)) {
+ 		current->mm->recent_pagein = 1;
++		if (unlikely(!swap_token_default_timeout))
++			disable_swap_token();
+ 		return;
+ 	}
+ 
+ 	if (time_after(jiffies, swap_token_check)) {
+ 
+-		/* Can't get swapout protection if we exceed our RSS limit. */
+-		// if (current->mm->rss > current->mm->rlimit_rss)
+-		//	return;
++		if (!swap_token_default_timeout) {
++			swap_token_check = jiffies + SWAP_TOKEN_CHECK_INTERVAL;
++			return;
++		}
+ 
+ 		/* ... or if we recently held the token. */
+ 		if (time_before(jiffies, current->mm->swap_token_time))
+@@ -95,6 +98,7 @@ void __put_swap_token(struct mm_struct *
+ {
+ 	spin_lock(&swap_token_lock);
+ 	if (likely(mm == swap_token_mm)) {
++		mm->swap_token_time = jiffies + SWAP_TOKEN_CHECK_INTERVAL;
+ 		swap_token_mm = &init_mm;
+ 		swap_token_check = jiffies;
+ 	}
+Index: linux-2.6-token/include/linux/rmap.h
+===================================================================
+--- linux-2.6-token.orig/include/linux/rmap.h
++++ linux-2.6-token/include/linux/rmap.h
+@@ -89,7 +89,7 @@ static inline void page_dup_rmap(struct 
+ /*
+  * Called from mm/vmscan.c to handle paging out
+  */
+-int page_referenced(struct page *, int is_locked, int ignore_token);
++int page_referenced(struct page *, int is_locked);
+ int try_to_unmap(struct page *);
+ 
+ /*
+@@ -109,7 +109,7 @@ unsigned long page_address_in_vma(struct
+ #define anon_vma_prepare(vma)	(0)
+ #define anon_vma_link(vma)	do {} while (0)
+ 
+-#define page_referenced(page,l,i) TestClearPageReferenced(page)
++#define page_referenced(page,l) TestClearPageReferenced(page)
+ #define try_to_unmap(page)	SWAP_FAIL
+ 
+ #endif	/* CONFIG_MMU */
+Index: linux-2.6-token/include/linux/swap.h
+===================================================================
+--- linux-2.6-token.orig/include/linux/swap.h
++++ linux-2.6-token/include/linux/swap.h
+@@ -239,6 +239,11 @@ static inline void put_swap_token(struct
+ 		__put_swap_token(mm);
+ }
+ 
++static inline void disable_swap_token(void)
++{
++	put_swap_token(swap_token_mm);
++}
++
+ #else /* CONFIG_SWAP */
+ 
+ #define total_swap_pages			0
+Index: linux-2.6-token/mm/vmscan.c
+===================================================================
+--- linux-2.6-token.orig/mm/vmscan.c
++++ linux-2.6-token/mm/vmscan.c
+@@ -407,7 +407,7 @@ static int shrink_list(struct list_head 
+ 		if (PageWriteback(page))
+ 			goto keep_locked;
+ 
+-		referenced = page_referenced(page, 1, sc->priority <= 0);
++		referenced = page_referenced(page, 1);
+ 		/* In active use or really unfreeable?  Activate it. */
+ 		if (referenced && page_mapping_inuse(page))
+ 			goto activate_locked;
+@@ -756,7 +756,7 @@ refill_inactive_zone(struct zone *zone, 
+ 		if (page_mapped(page)) {
+ 			if (!reclaim_mapped ||
+ 			    (total_swap_pages == 0 && PageAnon(page)) ||
+-			    page_referenced(page, 0, sc->priority <= 0)) {
++			    page_referenced(page, 0)) {
+ 				list_add(&page->lru, &l_active);
+ 				continue;
+ 			}
+@@ -960,6 +960,8 @@ int try_to_free_pages(struct zone **zone
+ 		sc.nr_reclaimed = 0;
+ 		sc.priority = priority;
+ 		sc.swap_cluster_max = SWAP_CLUSTER_MAX;
++		if (!priority)
++			disable_swap_token();
+ 		shrink_caches(zones, &sc);
+ 		shrink_slab(sc.nr_scanned, gfp_mask, lru_pages);
+ 		if (reclaim_state) {
+@@ -1056,6 +1058,10 @@ loop_again:
+ 		int end_zone = 0;	/* Inclusive.  0 = ZONE_DMA */
+ 		unsigned long lru_pages = 0;
+ 
++		/* The swap token gets in the way of swapout... */
++		if (!priority)
++			disable_swap_token();
++
+ 		all_zones_ok = 1;
+ 
+ 		if (nr_pages == 0) {
+@@ -1360,6 +1366,7 @@ int zone_reclaim(struct zone *zone, gfp_
+ 	sc.nr_reclaimed = 0;
+ 	/* scan at the highest priority */
+ 	sc.priority = 0;
++	disable_swap_token();
+ 
+ 	if (nr_pages > SWAP_CLUSTER_MAX)
+ 		sc.swap_cluster_max = nr_pages;
+Index: linux-2.6-token/mm/rmap.c
+===================================================================
+--- linux-2.6-token.orig/mm/rmap.c
++++ linux-2.6-token/mm/rmap.c
+@@ -292,7 +292,7 @@ pte_t *page_check_address(struct page *p
+  * repeatedly from either page_referenced_anon or page_referenced_file.
+  */
+ static int page_referenced_one(struct page *page,
+-	struct vm_area_struct *vma, unsigned int *mapcount, int ignore_token)
++	struct vm_area_struct *vma, unsigned int *mapcount)
+ {
+ 	struct mm_struct *mm = vma->vm_mm;
+ 	unsigned long address;
+@@ -313,7 +313,7 @@ static int page_referenced_one(struct pa
+ 
+ 	/* Pretend the page is referenced if the task has the
+ 	   swap token and is in the middle of a page fault. */
+-	if (mm != current->mm && !ignore_token && has_swap_token(mm) &&
++	if (mm != current->mm && has_swap_token(mm) &&
+ 			rwsem_is_locked(&mm->mmap_sem))
+ 		referenced++;
+ 
+@@ -323,7 +323,7 @@ out:
+ 	return referenced;
+ }
+ 
+-static int page_referenced_anon(struct page *page, int ignore_token)
++static int page_referenced_anon(struct page *page)
+ {
+ 	unsigned int mapcount;
+ 	struct anon_vma *anon_vma;
+@@ -336,8 +336,7 @@ static int page_referenced_anon(struct p
+ 
+ 	mapcount = page_mapcount(page);
+ 	list_for_each_entry(vma, &anon_vma->head, anon_vma_node) {
+-		referenced += page_referenced_one(page, vma, &mapcount,
+-							ignore_token);
++		referenced += page_referenced_one(page, vma, &mapcount);
+ 		if (!mapcount)
+ 			break;
+ 	}
+@@ -356,7 +355,7 @@ static int page_referenced_anon(struct p
+  *
+  * This function is only called from page_referenced for object-based pages.
+  */
+-static int page_referenced_file(struct page *page, int ignore_token)
++static int page_referenced_file(struct page *page)
+ {
+ 	unsigned int mapcount;
+ 	struct address_space *mapping = page->mapping;
+@@ -394,8 +393,7 @@ static int page_referenced_file(struct p
+ 			referenced++;
+ 			break;
+ 		}
+-		referenced += page_referenced_one(page, vma, &mapcount,
+-							ignore_token);
++		referenced += page_referenced_one(page, vma, &mapcount);
+ 		if (!mapcount)
+ 			break;
+ 	}
+@@ -412,13 +410,10 @@ static int page_referenced_file(struct p
+  * Quick test_and_clear_referenced for all mappings to a page,
+  * returns the number of ptes which referenced the page.
+  */
+-int page_referenced(struct page *page, int is_locked, int ignore_token)
++int page_referenced(struct page *page, int is_locked)
+ {
+ 	int referenced = 0;
+ 
+-	if (!swap_token_default_timeout)
+-		ignore_token = 1;
+-
+ 	if (page_test_and_clear_young(page))
+ 		referenced++;
+ 
+@@ -427,15 +422,14 @@ int page_referenced(struct page *page, i
+ 
+ 	if (page_mapped(page) && page->mapping) {
+ 		if (PageAnon(page))
+-			referenced += page_referenced_anon(page, ignore_token);
++			referenced += page_referenced_anon(page);
+ 		else if (is_locked)
+-			referenced += page_referenced_file(page, ignore_token);
++			referenced += page_referenced_file(page);
+ 		else if (TestSetPageLocked(page))
+ 			referenced++;
+ 		else {
+ 			if (page->mapping)
+-				referenced += page_referenced_file(page,
+-								ignore_token);
++				referenced += page_referenced_file(page);
+ 			unlock_page(page);
+ 		}
+ 	}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
