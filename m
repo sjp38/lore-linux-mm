@@ -1,9 +1,10 @@
-Date: Sat, 26 Nov 2005 02:37:20 -0800 (PST)
+Date: Sat, 26 Nov 2005 02:41:21 -0800 (PST)
 From: Zwane Mwaikambo <zwane@arm.linux.org.uk>
 Subject: Re: [PATCH] temporarily disable swap token on memory pressure
-In-Reply-To: <Pine.LNX.4.63.0511251733490.32217@cuia.boston.redhat.com>
-Message-ID: <Pine.LNX.4.61.0511260234550.1592@montezuma.fsmlabs.com>
+In-Reply-To: <Pine.LNX.4.61.0511260234550.1592@montezuma.fsmlabs.com>
+Message-ID: <Pine.LNX.4.61.0511260238380.1592@montezuma.fsmlabs.com>
 References: <Pine.LNX.4.63.0511251733490.32217@cuia.boston.redhat.com>
+ <Pine.LNX.4.61.0511260234550.1592@montezuma.fsmlabs.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -12,51 +13,71 @@ To: Rik van Riel <riel@redhat.com>
 Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 25 Nov 2005, Rik van Riel wrote:
+On Sat, 26 Nov 2005, Zwane Mwaikambo wrote:
 
-> Some users (hi Zwane) have seen a problem when running a workload
-> that eats nearly all of physical memory - th system does an OOM
-> kill, even when there is still a lot of swap free.
+> On Fri, 25 Nov 2005, Rik van Riel wrote:
 > 
-> I suspect the problem is that that big task is holding the swap
-> token, and the VM has a very hard time finding any other page in
-> the system that is swappable.  
+> > Some users (hi Zwane) have seen a problem when running a workload
+> > that eats nearly all of physical memory - th system does an OOM
+> > kill, even when there is still a lot of swap free.
+> > 
+> > I suspect the problem is that that big task is holding the swap
+> > token, and the VM has a very hard time finding any other page in
+> > the system that is swappable.  
+> > 
+> > Instead of ignoring the swap token when sc->priority reaches 0,
+> > we could simply take the swap token away from the memory hog and
+> > make sure we don't give it back to the memory hog for a few seconds.
+> > 
+> > This patch is untested, since I have not reproduced Zwane's problem
+> > on my system.  I would like to see test results from anybody who is
+> > running into this problem.
+> > 
+> > This patch is against today's git head.
 > 
-> Instead of ignoring the swap token when sc->priority reaches 0,
-> we could simply take the swap token away from the memory hog and
-> make sure we don't give it back to the memory hog for a few seconds.
+> Very nice! With this patch my job actually completed.
 > 
-> This patch is untested, since I have not reproduced Zwane's problem
-> on my system.  I would like to see test results from anybody who is
-> running into this problem.
-> 
-> This patch is against today's git head.
+> MemTotal:      2049180 kB
+> MemFree:         15592 kB
+> Buffers:          1516 kB
+> Cached:          62972 kB
+> SwapCached:     190512 kB
+> Active:        1626228 kB
+> Inactive:       361288 kB
+> HighTotal:           0 kB
+> HighFree:            0 kB
+> LowTotal:      2049180 kB
+> LowFree:         15592 kB
+> SwapTotal:     3228760 kB
+> SwapFree:      2555688 kB
+> Dirty:               0 kB
+> Writeback:           0 kB
+> Mapped:        1824108 kB
+> Slab:            27392 kB
+> CommitLimit:   4253348 kB
+> Committed_AS:  2472188 kB
+> PageTables:       6688 kB
+> VmallocTotal: 34359738367 kB
+> VmallocUsed:    263796 kB
+> VmallocChunk: 34359474119 kB
 
-Very nice! With this patch my job actually completed.
+Some information about the application;
 
-MemTotal:      2049180 kB
-MemFree:         15592 kB
-Buffers:          1516 kB
-Cached:          62972 kB
-SwapCached:     190512 kB
-Active:        1626228 kB
-Inactive:       361288 kB
-HighTotal:           0 kB
-HighFree:            0 kB
-LowTotal:      2049180 kB
-LowFree:         15592 kB
-SwapTotal:     3228760 kB
-SwapFree:      2555688 kB
-Dirty:               0 kB
-Writeback:           0 kB
-Mapped:        1824108 kB
-Slab:            27392 kB
-CommitLimit:   4253348 kB
-Committed_AS:  2472188 kB
-PageTables:       6688 kB
-VmallocTotal: 34359738367 kB
-VmallocUsed:    263796 kB
-VmallocChunk: 34359474119 kB
+  PID USER      PR  NI  VIRT  RES  SHR S %CPU %MEM    TIME+  COMMAND
+ 3974 root      25   0 2459m 1.7g 8588 R 99.9 88.2 118:38.43 simnow
+
+root@morocco ~ {0:0} cat /proc/3974/maps | wc -l
+73870
+
+Lots of PAGE_SIZE mappings like so;
+
+...
+401a6c0000-401a6c1000 rwxp 401a6c0000 00:00 0
+401a6c2000-401a6c3000 rwxp 401a6c2000 00:00 0
+401a6c4000-401a6c5000 rwxp 401a6c4000 00:00 0
+401a6c6000-401a6c7000 rwxp 401a6c6000 00:00 0
+401a6c8000-401a6c9000 rwxp 401a6c8000 00:00 0
+...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
