@@ -1,7 +1,7 @@
-Date: Mon, 28 Nov 2005 20:36:10 +0900
+Date: Mon, 28 Nov 2005 20:36:19 +0900
 From: Yasunori Goto <y-goto@jp.fujitsu.com>
-Subject: [Patch] New zone ZONE_EASY_RECLAIM take 2[1/5]
-Message-Id: <20051128200009.5D7A.Y-GOTO@jp.fujitsu.com>
+Subject: [Patch] New zone ZONE_EASY_RECLAIM take 2[2/5]
+Message-Id: <20051128200153.5D7C.Y-GOTO@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
@@ -11,51 +11,41 @@ To: linux-mm <linux-mm@kvack.org>, Linux Hotplug Memory Support <lhms-devel@list
 Cc: Joel Schopp <jschopp@austin.ibm.com>, linux-ia64@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-This defines __GFP flag for new zone with GFP_DMA32.
-
+This defines new zone ZONE_EASY_RECLAIM.
+ZONES_SHIFT becomes 3.
 
 Signed-off-by: Yasunori Goto <y-goto@jp.fujitsu.com>
 
-Index: new_zone_mm/include/linux/gfp.h
-===================================================================
---- new_zone_mm.orig/include/linux/gfp.h	2005-11-17 16:47:04.000000000 +0900
-+++ new_zone_mm/include/linux/gfp.h	2005-11-17 17:29:16.000000000 +0900
-@@ -16,10 +16,13 @@ struct vm_area_struct;
- #define __GFP_HIGHMEM	((__force gfp_t)0x02u)
- #ifdef CONFIG_DMA_IS_DMA32
- #define __GFP_DMA32	((__force gfp_t)0x01)	/* ZONE_DMA is ZONE_DMA32 */
-+#define __GFP_EASY_RECLAIM ((__force gfp_t)0x04u)
- #elif BITS_PER_LONG < 64
- #define __GFP_DMA32	((__force gfp_t)0x00)	/* ZONE_NORMAL is ZONE_DMA32 */
-+#define __GFP_EASY_RECLAIM ((__force gfp_t)0x04u)
- #else
- #define __GFP_DMA32	((__force gfp_t)0x04)	/* Has own ZONE_DMA32 */
-+#define __GFP_EASY_RECLAIM ((__force gfp_t)0x08u)
- #endif
- 
- /*
-@@ -66,7 +69,7 @@ struct vm_area_struct;
- #define GFP_USER	(__GFP_VALID | __GFP_WAIT | __GFP_IO | __GFP_FS | \
- 				__GFP_HARDWALL)
- #define GFP_HIGHUSER	(__GFP_VALID | __GFP_WAIT | __GFP_IO | __GFP_FS | \
--				__GFP_HIGHMEM | __GFP_HARDWALL)
-+				__GFP_HIGHMEM | __GFP_HARDWALL | __GFP_EASY_RECLAIM)
- 
- /* Flag - indicates that the buffer will be suitable for DMA.  Ignored on some
-    platforms, used as appropriate on others */
 Index: new_zone_mm/include/linux/mmzone.h
 ===================================================================
---- new_zone_mm.orig/include/linux/mmzone.h	2005-11-17 16:47:04.000000000 +0900
-+++ new_zone_mm/include/linux/mmzone.h	2005-11-17 17:29:01.000000000 +0900
-@@ -92,7 +92,7 @@ struct per_cpu_pageset {
-  * be 8 (2 ** 3) zonelists.  GFP_ZONETYPES defines the number of possible
-  * combinations of zone modifiers in "zone modifier space".
-  */
--#define GFP_ZONEMASK	0x03
-+#define GFP_ZONEMASK	0x0f
+--- new_zone_mm.orig/include/linux/mmzone.h	2005-11-17 16:57:15.000000000 +0900
++++ new_zone_mm/include/linux/mmzone.h	2005-11-17 17:07:30.000000000 +0900
+@@ -74,9 +74,10 @@ struct per_cpu_pageset {
+ #define ZONE_DMA32		1
+ #define ZONE_NORMAL		2
+ #define ZONE_HIGHMEM		3
++#define ZONE_EASY_RECLAIM	4
+ 
+-#define MAX_NR_ZONES		4	/* Sync this with ZONES_SHIFT */
+-#define ZONES_SHIFT		2	/* ceil(log2(MAX_NR_ZONES)) */
++#define MAX_NR_ZONES		5	/* Sync this with ZONES_SHIFT */
++#define ZONES_SHIFT		3	/* ceil(log2(MAX_NR_ZONES)) */
+ 
  
  /*
-  * As an optimisation any zone modifier bits which are only valid when
+Index: new_zone_mm/mm/page_alloc.c
+===================================================================
+--- new_zone_mm.orig/mm/page_alloc.c	2005-11-17 17:05:12.000000000 +0900
++++ new_zone_mm/mm/page_alloc.c	2005-11-17 17:08:17.000000000 +0900
+@@ -75,7 +75,7 @@ EXPORT_SYMBOL(totalram_pages);
+ struct zone *zone_table[1 << ZONETABLE_SHIFT] __read_mostly;
+ EXPORT_SYMBOL(zone_table);
+ 
+-static char *zone_names[MAX_NR_ZONES] = { "DMA", "DMA32", "Normal", "HighMem" };
++static char *zone_names[MAX_NR_ZONES] = { "DMA", "DMA32", "Normal", "HighMem", "Easy Reclaim"};
+ int min_free_kbytes = 1024;
+ 
+ unsigned long __initdata nr_kernel_pages;
 
 -- 
 Yasunori Goto 
