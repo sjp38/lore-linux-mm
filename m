@@ -1,7 +1,7 @@
-Date: Tue, 29 Nov 2005 00:53:18 -0800
+Date: Tue, 29 Nov 2005 00:54:56 -0800
 From: Ravikiran G Thirumalai <kiran@scalex86.org>
-Subject: Re: [patch 2/3] mm: NUMA slab -- node local memory for off slab slab descriptors
-Message-ID: <20051129085318.GB3573@localhost.localdomain>
+Subject: Re: [patch 3/3] mm: NUMA slab -- minor optimizations
+Message-ID: <20051129085456.GC3573@localhost.localdomain>
 References: <20051129085049.GA3573@localhost.localdomain>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
@@ -13,8 +13,10 @@ To: Andrew Morton <akpm@osdl.org>
 Cc: linux-mm@kvack.org, manfred@colorfullife.com, clameter@engr.sgi.com, Alok Kataria <alokk@calsoftinc.com>
 List-ID: <linux-mm.kvack.org>
 
-Off slab slab management is currently not allocated from node local
-memory.  This patch fixes that.
+Patch adds some minor optimizations:
+1. Keeps on chip interrupts enabled for a bit longer while draining cpu
+caches
+2. Calls numa_node_id once in cache_reap
 
 Signed-off-by: Alok N Kataria <alokk@calsoftinc.com>
 Signed-off-by: Ravikiran Thirumalai <kiran@scalex86.org>
@@ -22,44 +24,66 @@ Signed-off-by: Shai Fultheim <shai@scalex86.org>
 
 Index: linux-2.6.15-rc1/mm/slab.c
 ===================================================================
---- linux-2.6.15-rc1.orig/mm/slab.c	2005-11-17 21:32:37.000000000 -0800
-+++ linux-2.6.15-rc1/mm/slab.c	2005-11-17 21:32:43.000000000 -0800
-@@ -2062,13 +2062,13 @@
+--- linux-2.6.15-rc1.orig/mm/slab.c	2005-11-17 21:32:43.000000000 -0800
++++ linux-2.6.15-rc1/mm/slab.c	2005-11-17 21:32:50.000000000 -0800
+@@ -1914,18 +1914,18 @@
  
- /* Get the memory for a slab management obj. */
- static struct slab* alloc_slabmgmt(kmem_cache_t *cachep, void *objp,
--			int colour_off, gfp_t local_flags)
-+			int colour_off, gfp_t local_flags, int nodeid)
- {
- 	struct slab *slabp;
- 	
- 	if (OFF_SLAB(cachep)) {
- 		/* Slab management obj is off-slab. */
--		slabp = kmem_cache_alloc(cachep->slabp_cache, local_flags);
-+		slabp = kmem_cache_alloc_node(cachep->slabp_cache, local_flags, nodeid);
- 		if (!slabp)
- 			return NULL;
- 	} else {
-@@ -2078,6 +2078,7 @@
- 	slabp->inuse = 0;
- 	slabp->colouroff = colour_off;
- 	slabp->s_mem = objp+colour_off;
-+	slabp->nodeid = nodeid;
- 
- 	return slabp;
+ 	smp_call_function_all_cpus(do_drain, cachep);
+ 	check_irq_on();
+-	spin_lock_irq(&cachep->spinlock);
++	spin_lock(&cachep->spinlock);
+ 	for_each_online_node(node)  {
+ 		l3 = cachep->nodelists[node];
+ 		if (l3) {
+-			spin_lock(&l3->list_lock);
++			spin_lock_irq(&l3->list_lock);
+ 			drain_array_locked(cachep, l3->shared, 1, node);
+-			spin_unlock(&l3->list_lock);
++			spin_unlock_irq(&l3->list_lock);
+ 			if (l3->alien)
+ 				drain_alien_cache(cachep, l3);
+ 		}
+ 	}
+-	spin_unlock_irq(&cachep->spinlock);
++	spin_unlock(&cachep->spinlock);
  }
-@@ -2221,10 +2222,9 @@
- 		goto failed;
  
- 	/* Get slab management. */
--	if (!(slabp = alloc_slabmgmt(cachep, objp, offset, local_flags)))
-+	if (!(slabp = alloc_slabmgmt(cachep, objp, offset, local_flags, nodeid)))
- 		goto opps1;
+ static int __node_shrink(kmem_cache_t *cachep, int node)
+@@ -3304,7 +3304,7 @@
+ 	list_for_each(walk, &cache_chain) {
+ 		kmem_cache_t *searchp;
+ 		struct list_head* p;
+-		int tofree;
++		int tofree, nodeid;
+ 		struct slab *slabp;
  
--	slabp->nodeid = nodeid;
- 	set_slab_attr(cachep, slabp, objp);
+ 		searchp = list_entry(walk, kmem_cache_t, next);
+@@ -3314,13 +3314,14 @@
  
- 	cache_init_objs(cachep, slabp, ctor_flags);
+ 		check_irq_on();
+ 
+-		l3 = searchp->nodelists[numa_node_id()];
++		nodeid = numa_node_id();
++		l3 = searchp->nodelists[nodeid];
+ 		if (l3->alien)
+ 			drain_alien_cache(searchp, l3);
+ 		spin_lock_irq(&l3->list_lock);
+ 
+ 		drain_array_locked(searchp, ac_data(searchp), 0,
+-				numa_node_id());
++				nodeid);
+ 
+ 		if (time_after(l3->next_reap, jiffies))
+ 			goto next_unlock;
+@@ -3329,7 +3330,7 @@
+ 
+ 		if (l3->shared)
+ 			drain_array_locked(searchp, l3->shared, 0,
+-				numa_node_id());
++				nodeid);
+ 
+ 		if (l3->free_touched) {
+ 			l3->free_touched = 0;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
