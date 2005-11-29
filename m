@@ -1,11 +1,10 @@
-Date: Tue, 29 Nov 2005 09:48:52 -0800 (PST)
+Date: Tue, 29 Nov 2005 09:53:55 -0800 (PST)
 From: Christoph Lameter <clameter@engr.sgi.com>
-Subject: Re: [patch 2/3] mm: NUMA slab -- node local memory for off slab slab
- descriptors
-In-Reply-To: <20051129085318.GB3573@localhost.localdomain>
-Message-ID: <Pine.LNX.4.62.0511290948120.14722@schroedinger.engr.sgi.com>
+Subject: Re: [patch 3/3] mm: NUMA slab -- minor optimizations
+In-Reply-To: <20051129085456.GC3573@localhost.localdomain>
+Message-ID: <Pine.LNX.4.62.0511290953310.14722@schroedinger.engr.sgi.com>
 References: <20051129085049.GA3573@localhost.localdomain>
- <20051129085318.GB3573@localhost.localdomain>
+ <20051129085456.GC3573@localhost.localdomain>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -16,8 +15,10 @@ List-ID: <linux-mm.kvack.org>
 
 On Tue, 29 Nov 2005, Ravikiran G Thirumalai wrote:
 
-> Off slab slab management is currently not allocated from node local
-> memory.  This patch fixes that.
+> Patch adds some minor optimizations:
+> 1. Keeps on chip interrupts enabled for a bit longer while draining cpu
+> caches
+> 2. Calls numa_node_id once in cache_reap
 > 
 > Signed-off-by: Alok N Kataria <alokk@calsoftinc.com>
 > Signed-off-by: Ravikiran Thirumalai <kiran@scalex86.org>
