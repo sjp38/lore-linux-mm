@@ -1,44 +1,63 @@
-Date: Tue, 29 Nov 2005 10:49:35 -0800
-From: Ravikiran G Thirumalai <kiran@scalex86.org>
-Subject: Re: [patch 1/3] mm: NUMA slab -- add alien cache drain statistics
-Message-ID: <20051129184934.GA3697@localhost.localdomain>
-References: <20051129085049.GA3573@localhost.localdomain> <Pine.LNX.4.62.0511290954010.14722@schroedinger.engr.sgi.com>
+Subject: Re: [PATCH]: Free pages from local pcp lists under tight memory
+	conditions
+From: Rohit Seth <rohit.seth@intel.com>
+In-Reply-To: <20051123190237.3ba62bf0.pj@sgi.com>
+References: <20051122161000.A22430@unix-os.sc.intel.com>
+	 <Pine.LNX.4.62.0511231128090.22710@schroedinger.engr.sgi.com>
+	 <1132775194.25086.54.camel@akash.sc.intel.com>
+	 <20051123115545.69087adf.akpm@osdl.org>
+	 <1132779605.25086.69.camel@akash.sc.intel.com>
+	 <20051123190237.3ba62bf0.pj@sgi.com>
+Content-Type: text/plain
+Date: Tue, 29 Nov 2005 15:18:56 -0800
+Message-Id: <1133306336.24962.47.camel@akash.sc.intel.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.62.0511290954010.14722@schroedinger.engr.sgi.com>
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@engr.sgi.com>
-Cc: Andrew Morton <akpm@osdl.org>, linux-mm@kvack.org, manfred@colorfullife.com, Alok Kataria <alokk@calsoftinc.com>
+To: Paul Jackson <pj@sgi.com>
+Cc: akpm@osdl.org, clameter@engr.sgi.com, torvalds@osdl.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, steiner@sgi.com, nickpiggin@yahoo.com.au
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Nov 29, 2005 at 09:57:58AM -0800, Christoph Lameter wrote:
-> On Tue, 29 Nov 2005, Ravikiran G Thirumalai wrote:
+On Wed, 2005-11-23 at 19:02 -0800, Paul Jackson wrote:
+> Rohit wrote:
+> > I thought Nick et.al came up with some of the constant values like batch
+> > size to tackle the page coloring issue specifically. 
 > 
-> > 
-> > This will be useful when we can dynamically tune the alien cache limit.  
-> > Currently, the alien cache limit is fixed at 12.
+> I think this came about on a linux-ia64 thread started by Jack Steiner:
 > 
-> It may be best to first enable the basic manual tuning. See 
-> slabinfo_write.
-
-We already have a patch for that on our local tree.  Will send it out soon 
-after some more tests
-
+>   http://www.gelato.unsw.edu.au/archives/linux-ia64/0504/13668.html
+>   Subject: per_cpu_pagesets degrades MPI performance
+>   From: Jack Steiner <steiner_at_sgi.com>
+>   Date: 2005-04-05 05:28:27
 > 
-> How would you propose to determine the length?
->
+> Jack reported that per_cpu_pagesets were degrading some MPI benchmarks due
+> to adverse page coloring.  Nick responded, recommending a non-power of two
+> batch size.  Jack found that this helped nicely.  This thread trails off,
+> but seems to be the origins of the 2**n-1 batch size in:
+> 
+> 	mm/page_alloc.c:zone_batchsize()
+> 	 * Clamp the batch to a 2^n - 1 value. Having a power ...
+>         batch = (1 << fls(batch + batch/2)) - 1;
+> 
+> I don't see here evidence that "per_cpu_pagelist is ... one single main
+> reason the coloring effect is drastically reduced in 2.6 (over 2.4)
+> based kernels."  Rather in this case anyway a batch size not a power of
+> two was apparently needed to keep per_cpu_pagesets from hurting
+> performance due to page coloring affects on some workloads.
+> 
 
-All kmem caches won't experience remote frees. Depending on the work-load,
-some caches might experience frequent remote frees. This statistic helps us
-determine which cache is experiencing heavy remote free activity, and the
-sysadmin may tune the alien cache limit dynamically (just like the array
-cache limit) by writing to /proc/slabinfo.  There cannot be one value good
-enough for everyone so this should be a tunable.
+Well, the batch size of a list ( + the high mark) are integral part of
+per_cpu_pagelist infrastructure.  Tuning is always required.  I don't
+think though one fixed set of values is fixing all the cases.  
 
-Thanks,
-Kiran
+Can you please comment on the performance delta on the MPI workload
+because of this change in batch values.  And what were the numbers
+before per_cpu_pagelists were introduced.
+
+thanks,
+-rohit
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
