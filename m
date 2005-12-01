@@ -1,45 +1,43 @@
-Received: from westrelay02.boulder.ibm.com (westrelay02.boulder.ibm.com [9.17.195.11])
-	by e33.co.us.ibm.com (8.12.11/8.12.11) with ESMTP id jAUIv2UB027264
-	for <linux-mm@kvack.org>; Wed, 30 Nov 2005 13:57:02 -0500
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by westrelay02.boulder.ibm.com (8.12.10/NCO/VERS6.8) with ESMTP id jAUIuSGt089894
-	for <linux-mm@kvack.org>; Wed, 30 Nov 2005 11:56:30 -0700
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.12.11/8.13.3) with ESMTP id jAUIuxp2025629
-	for <linux-mm@kvack.org>; Wed, 30 Nov 2005 11:56:59 -0700
-Subject: Better pagecache statistics ?
-From: Badari Pulavarty <pbadari@us.ibm.com>
-Content-Type: text/plain
-Date: Wed, 30 Nov 2005 10:57:09 -0800
-Message-Id: <1133377029.27824.90.camel@localhost.localdomain>
-Mime-Version: 1.0
+Message-ID: <438E617F.4020005@gmail.com>
+Date: Wed, 30 Nov 2005 20:35:43 -0600
+From: Hareesh Nagarajan <hnagar2@gmail.com>
+MIME-Version: 1.0
+Subject: Re: Better pagecache statistics ?
+References: <1133377029.27824.90.camel@localhost.localdomain>
+In-Reply-To: <1133377029.27824.90.camel@localhost.localdomain>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>
+To: Badari Pulavarty <pbadari@us.ibm.com>
+Cc: linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
 Hi,
 
-Is there a effort/patches underway to provide better pagecache
-statistics ? 
+Badari Pulavarty wrote:
+> - How much is just file system cache (regular file data) ?
 
-Basically, I am interested in finding detailed break out of
-cached pages. ("Cached" in /proc/meminfo) 
+This is just a thought of mine:
+/proc/slabinfo?
 
-Out of this "cached pages"
+> - How much is shared memory pages ?
+> - How much is mmaped() stuff ?
 
-- How much is just file system cache (regular file data) ?
-- How much is shared memory pages ?
-- How much is mmaped() stuff ?
-- How much is for text, data, bss, heap, malloc ?
+cat /proc/vmstat | grep nr_mapped
+nr_mapped 77105
 
-What is the right way of getting this kind of data ? 
-I was trying to add tags when we do add_to_page_cache()
-and quickly got ugly :(
+But yes, this doesn't give you a detailed account.
+
+> - How much is for text, data, bss, heap, malloc ?
+
+Again, this is just a thought of mine: Couldn't you get this information 
+from /proc/<pid>/maps or from the nicer and easier to parse procps 
+application: pmap <pid>?
 
 Thanks,
-Badari
+
+Hareesh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
