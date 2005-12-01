@@ -1,12 +1,12 @@
-Received: from westrelay02.boulder.ibm.com (westrelay02.boulder.ibm.com [9.17.195.11])
-	by e33.co.us.ibm.com (8.12.11/8.12.11) with ESMTP id jB1IK24D029545
-	for <linux-mm@kvack.org>; Thu, 1 Dec 2005 13:20:02 -0500
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by e34.co.us.ibm.com (8.12.11/8.12.11) with ESMTP id jB1IO7uF007057
+	for <linux-mm@kvack.org>; Thu, 1 Dec 2005 13:24:07 -0500
 Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by westrelay02.boulder.ibm.com (8.12.10/NCO/VERS6.8) with ESMTP id jB1IJSSI096852
-	for <linux-mm@kvack.org>; Thu, 1 Dec 2005 11:19:28 -0700
+	by d03relay04.boulder.ibm.com (8.12.10/NCO/VERS6.8) with ESMTP id jB1IPa5F084848
+	for <linux-mm@kvack.org>; Thu, 1 Dec 2005 11:25:36 -0700
 Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.12.11/8.13.3) with ESMTP id jB1IK1Ag006970
-	for <linux-mm@kvack.org>; Thu, 1 Dec 2005 11:20:02 -0700
+	by d03av02.boulder.ibm.com (8.12.11/8.13.3) with ESMTP id jB1IO6i5021285
+	for <linux-mm@kvack.org>; Thu, 1 Dec 2005 11:24:07 -0700
 Subject: Re: Better pagecache statistics ?
 From: Badari Pulavarty <pbadari@us.ibm.com>
 In-Reply-To: <20051201175711.GA17169@dmt.cnet>
@@ -19,8 +19,8 @@ References: <1133377029.27824.90.camel@localhost.localdomain>
 	 <1133457700.2853.78.camel@laptopd505.fenrus.org>
 	 <20051201175711.GA17169@dmt.cnet>
 Content-Type: text/plain
-Date: Thu, 01 Dec 2005 10:20:12 -0800
-Message-Id: <1133461212.21429.49.camel@localhost.localdomain>
+Date: Thu, 01 Dec 2005 10:24:17 -0800
+Message-Id: <1133461457.21429.51.camel@localhost.localdomain>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -47,8 +47,8 @@ On Thu, 2005-12-01 at 15:57 -0200, Marcelo Tosatti wrote:
 > Can't you add hooks to add_to_page_cache/remove_from_page_cache 
 > to record pagecache activity ?
 
-In theory, yes. We already maintain info in "mapping->nrpages".
-Trick would be to collect all of them, send them to user space.
+BTW, the hook can't be dynamically loaded (using kprobes) - since
+we miss what happend till then. 
 
 Thanks,
 Badari
