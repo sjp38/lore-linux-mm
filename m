@@ -1,89 +1,88 @@
-Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
-	by e32.co.us.ibm.com (8.12.11/8.12.11) with ESMTP id jB1HF6Ns028765
-	for <linux-mm@kvack.org>; Thu, 1 Dec 2005 12:15:06 -0500
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by d03relay04.boulder.ibm.com (8.12.10/NCO/VERS6.8) with ESMTP id jB1HGY5F096122
-	for <linux-mm@kvack.org>; Thu, 1 Dec 2005 10:16:35 -0700
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.12.11/8.13.3) with ESMTP id jB1HF5GH030568
-	for <linux-mm@kvack.org>; Thu, 1 Dec 2005 10:15:05 -0700
+Date: Thu, 1 Dec 2005 15:19:38 -0200
+From: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
 Subject: Re: Better pagecache statistics ?
-From: Badari Pulavarty <pbadari@us.ibm.com>
-In-Reply-To: <20051201170850.GA16235@dmt.cnet>
-References: <1133377029.27824.90.camel@localhost.localdomain>
-	 <20051201152029.GA14499@dmt.cnet>
-	 <1133452790.27824.117.camel@localhost.localdomain>
-	 <1133453411.2853.67.camel@laptopd505.fenrus.org>
-	 <20051201170850.GA16235@dmt.cnet>
-Content-Type: text/plain
-Date: Thu, 01 Dec 2005 09:15:15 -0800
-Message-Id: <1133457315.21429.29.camel@localhost.localdomain>
+Message-ID: <20051201171938.GB16235@dmt.cnet>
+References: <1133377029.27824.90.camel@localhost.localdomain> <20051201152029.GA14499@dmt.cnet> <1133452790.27824.117.camel@localhost.localdomain>
 Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1133452790.27824.117.camel@localhost.localdomain>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
-Cc: Arjan van de Ven <arjan@infradead.org>, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>
+To: Badari Pulavarty <pbadari@us.ibm.com>
+Cc: linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2005-12-01 at 15:08 -0200, Marcelo Tosatti wrote:
-> On Thu, Dec 01, 2005 at 05:10:11PM +0100, Arjan van de Ven wrote:
-> > > Out of "Cached" value - to get details like
-> > > 
-> > > 	<mmap> - xxx KB
-> > > 	<shared mem> - xxx KB
-> > > 	<text, data, bss, malloc, heap, stacks> - xxx KB
-> > > 	<filecache pages total> -- xxx KB
-> > > 		(filename1 or <dev>, <ino>) -- #of pages
-> > > 		(filename2 or <dev>, <ino>) -- #of pages
-> > > 		
-> > > This would be really powerful on understanding system better.
-> > 
-> > to some extend it might be useful.
-> > I have a few concerns though
-> > 1) If we make these stats into an ABI then it becomes harder to change
-> > the architecture of the VM radically since such concepts may not even
-> > exist in the new architecture. As long as this is some sort of advisory,
-> > humans-only file I think this isn't too much of a big deal though. 
-> > 
-> > 2) not all the concepts you mention really exist as far as the kernel is
-> > concerned. I mean.. a mmap file is file cache is .. etc.
-> > malloc/heap/stacks are also not differentiated too much and are mostly
-> > userspace policy (especially thread stacks). 
-> > 
-> > A split in
-> > * non-file backed
-> >   - mapped once
-> >   - mapped more than once
-> > * file backed
-> >   - mapped at least once
-> >   - not mapped
-> > I can see as being meaningful. Assigning meaning to it beyond this is
-> > dangerous; that is more an interpretation of the policy userspace
-> > happens to use for things and I think coding that into the kernel is a
-> > mistake.
-> > 
-> > Knowing which files are in memory how much is, as debug feature,
-> > potentially quite useful for VM hackers to see how well the various VM
-> > algorithms work. I'm concerned about the performance impact (eg you can
-> > do it only once a day or so, not every 10 seconds) and about how to get
-> > this data out in a consistent way (after all, spewing this amount of
-> > debug info will in itself impact the vm balances)
+> Hi Marcelo,
 > 
-> Most of the issues you mention are null if you move the stats
-> maintenance burden to userspace. 
+> Let me give you background on why I am looking at this.
 > 
-> The performance impact is also minimized since the hooks 
-> (read: overhead) can be loaded on-demand as needed.
-> 
+> I have been involved in various database customer situations.
+> Most times, machine is either extreemly sluggish or dying.
+> Only hints we get from /proc/meminfo, /proc/slabinfo, vmstat
+> etc is - lots of stuff in "Cache" and system is heavily swapping.
+> I want to find out whats getting swapped out and whats eating up 
+> all the pagecache., whats getting into cache, whats getting out 
+> of cache etc.. I find no easy way to get this kind of information.
 
-The overhead is - going through each mapping/inode in the system
-and dumping out "nrpages" - to get per-file statistics. This is
-going to be expensive, need locking and there is no single list 
-we can traverse to get it. I am not sure how to do this.
+Someone recently wrote a patch to record such information (pagecache
+insertion/eviction, etc), don't remember who did though. Rik?
 
-Thanks,
-Badari 
+> Database folks complain that filecache causes them most trouble.
+> Even when they use DIO on their tables & stuff, random apps (ftp,
+> scp, tar etc..) bloats the pagecache and kicks out database 
+> pools, shared mem, malloc etc - causing lots of trouble for them.
+
+LRU lacks frequency information, which is crucial for avoiding 
+such kind of problems.
+
+http://www.linux-mm.org/AdvancedPageReplacement
+
+Peter Zijlstra is working on implementing CLOCK-Pro, which uses 
+inter reference distance between accesses to a page instead of "least 
+recently used" metric for page replacement decision. He just published
+results of "mdb" (mini-db) benchmark at http://www.linux-mm.org/PeterZClockPro2.
+
+Read more about the "mdb" benchmark at
+http://www.linux-mm.org/PageReplacementTesting. 
+
+But thats offtopic :)
+
+> I want to understand more before I try to fix it. First step would
+> be to get better stats from pagecache and evaluate whats happening
+> to get a better handle on the problem.
+> 
+> BTW, I am very well familiar with kprobes/jprobes & systemtap.
+> I have been playing with them for at least 8 months :) There is
+> no easy way to do this, unless stats are already in the kernel.
+
+I thought that it would be easy to use SystemTap for a such
+a purpose?
+
+The sys_read/sys_write example at 
+http://www.redhat.com/magazine/011sep05/features/systemtap/ sounds
+interesting.
+
+What I'm I missing?
+
+> My final goal is to get stats like ..
+> 
+> Out of "Cached" value - to get details like
+> 
+> 	<mmap> - xxx KB
+> 	<shared mem> - xxx KB
+> 	<text, data, bss, malloc, heap, stacks> - xxx KB
+> 	<filecache pages total> -- xxx KB
+> 		(filename1 or <dev>, <ino>) -- #of pages
+> 		(filename2 or <dev>, <ino>) -- #of pages
+> 		
+> This would be really powerful on understanding system better.
+> 
+> Don't you think ?
+
+Yep... /proc/<pid>/smaps provides that information on a per-process
+basis already.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
