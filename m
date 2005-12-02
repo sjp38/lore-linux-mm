@@ -1,41 +1,46 @@
-Received: from westrelay02.boulder.ibm.com (westrelay02.boulder.ibm.com [9.17.195.11])
-	by e36.co.us.ibm.com (8.12.11/8.12.11) with ESMTP id jB20DAKc001776
-	for <linux-mm@kvack.org>; Thu, 1 Dec 2005 19:13:10 -0500
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by westrelay02.boulder.ibm.com (8.12.10/NCO/VERS6.8) with ESMTP id jB20CaSI066506
-	for <linux-mm@kvack.org>; Thu, 1 Dec 2005 17:12:36 -0700
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.12.11/8.13.3) with ESMTP id jB20D98C009874
-	for <linux-mm@kvack.org>; Thu, 1 Dec 2005 17:13:10 -0700
-Subject: Re: Better pagecache statistics ?
-From: Badari Pulavarty <pbadari@us.ibm.com>
-In-Reply-To: <Pine.LNX.4.62.0512011310030.25135@schroedinger.engr.sgi.com>
-References: <1133377029.27824.90.camel@localhost.localdomain>
-	 <20051201152029.GA14499@dmt.cnet> <20051201160044.GB14499@dmt.cnet>
-	 <Pine.LNX.4.62.0512011310030.25135@schroedinger.engr.sgi.com>
-Content-Type: text/plain
-Date: Thu, 01 Dec 2005 16:13:20 -0800
-Message-Id: <1133482400.21429.69.camel@localhost.localdomain>
-Mime-Version: 1.0
+Message-ID: <438F961B.6060709@yahoo.com.au>
+Date: Fri, 02 Dec 2005 11:32:27 +1100
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+MIME-Version: 1.0
+Subject: Re: [PATCH]: Free pages from local pcp lists under tight memory conditions
+References: <20051122161000.A22430@unix-os.sc.intel.com>	<Pine.LNX.4.62.0511231128090.22710@schroedinger.engr.sgi.com>	<1132775194.25086.54.camel@akash.sc.intel.com>	<20051123115545.69087adf.akpm@osdl.org>	<1132779605.25086.69.camel@akash.sc.intel.com>	<20051123190237.3ba62bf0.pj@sgi.com>	<1133306336.24962.47.camel@akash.sc.intel.com> <20051201064446.c87049ad.pj@sgi.com>
+In-Reply-To: <20051201064446.c87049ad.pj@sgi.com>
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@engr.sgi.com>
-Cc: Marcelo Tosatti <marcelo.tosatti@cyclades.com>, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>
+To: Paul Jackson <pj@sgi.com>
+Cc: Rohit Seth <rohit.seth@intel.com>, akpm@osdl.org, clameter@engr.sgi.com, torvalds@osdl.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, steiner@sgi.com
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2005-12-01 at 13:16 -0800, Christoph Lameter wrote:
-> We are actually looking at have better pagecache statistics and I have 
-> been trying out a series of approaches. The direct need right now is to 
-> have some statistics on the size of the pagecache and the number of 
-> unmapped file backed pages per node.
+Paul Jackson wrote:
+> Rohit wrote:
+> 
+>>Can you please comment on the performance delta on the MPI workload
+>>because of this change in batch values. 
+> 
+> 
+> I can't -- all I know is what I read in Jack Steiner's posts
+> of April 5, 2005, referenced earlier in this thread.
 > 
 
-Cool. I would be interested in it. Where are you collecting the
-statistics ?
+It was something fairly large. Basically having a power of 2 batch size
+meant that 2 concurrent allocators (presumably setting up the working
+area) would alternately pull in power of 2 chunks of memory, which
+caused each CPU to only get pages of ~half of its cache's possible
+colours.
 
-Thanks,
-Badari
+The fix is not by any means a single value for all workloads, it simply
+avoids powers of 2 batch size. Note this will have very little effect
+on single threaded allocators and will do nothing for cache colouring
+there, however it is important for concurrent allocators.
+
+Nick
+
+-- 
+SUSE Labs, Novell Inc.
+
+Send instant messages to your online friends http://au.messenger.yahoo.com 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
