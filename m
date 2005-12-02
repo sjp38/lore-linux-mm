@@ -1,46 +1,46 @@
-Message-ID: <438F961B.6060709@yahoo.com.au>
-Date: Fri, 02 Dec 2005 11:32:27 +1100
-From: Nick Piggin <nickpiggin@yahoo.com.au>
+Subject: Re: Better pagecache statistics ?
+References: <1133377029.27824.90.camel@localhost.localdomain>
+	<20051201152029.GA14499@dmt.cnet>
+	<1133452790.27824.117.camel@localhost.localdomain>
+	<1133453411.2853.67.camel@laptopd505.fenrus.org>
+	<20051201170850.GA16235@dmt.cnet>
+	<1133457315.21429.29.camel@localhost.localdomain>
+	<1133457700.2853.78.camel@laptopd505.fenrus.org>
+	<20051201175711.GA17169@dmt.cnet>
+	<1133461212.21429.49.camel@localhost.localdomain>
+From: fche@redhat.com (Frank Ch. Eigler)
+Date: 02 Dec 2005 17:15:18 -0500
+In-Reply-To: <1133461212.21429.49.camel@localhost.localdomain>
+Message-ID: <y0md5kfxi15.fsf@tooth.toronto.redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH]: Free pages from local pcp lists under tight memory conditions
-References: <20051122161000.A22430@unix-os.sc.intel.com>	<Pine.LNX.4.62.0511231128090.22710@schroedinger.engr.sgi.com>	<1132775194.25086.54.camel@akash.sc.intel.com>	<20051123115545.69087adf.akpm@osdl.org>	<1132779605.25086.69.camel@akash.sc.intel.com>	<20051123190237.3ba62bf0.pj@sgi.com>	<1133306336.24962.47.camel@akash.sc.intel.com> <20051201064446.c87049ad.pj@sgi.com>
-In-Reply-To: <20051201064446.c87049ad.pj@sgi.com>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Paul Jackson <pj@sgi.com>
-Cc: Rohit Seth <rohit.seth@intel.com>, akpm@osdl.org, clameter@engr.sgi.com, torvalds@osdl.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, steiner@sgi.com
+To: Badari Pulavarty <pbadari@us.ibm.com>
+Cc: Marcelo Tosatti <marcelo.tosatti@cyclades.com>, Arjan van de Ven <arjan@infradead.org>, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Paul Jackson wrote:
-> Rohit wrote:
+Badari Pulavarty <pbadari@us.ibm.com> writes:
+
+> > Can't you add hooks to add_to_page_cache/remove_from_page_cache 
+> > to record pagecache activity ?
 > 
->>Can you please comment on the performance delta on the MPI workload
->>because of this change in batch values. 
-> 
-> 
-> I can't -- all I know is what I read in Jack Steiner's posts
-> of April 5, 2005, referenced earlier in this thread.
-> 
+> In theory, yes. We already maintain info in "mapping->nrpages".
+> Trick would be to collect all of them, send them to user space.
 
-It was something fairly large. Basically having a power of 2 batch size
-meant that 2 concurrent allocators (presumably setting up the working
-area) would alternately pull in power of 2 chunks of memory, which
-caused each CPU to only get pages of ~half of its cache's possible
-colours.
+If you happened to have a copy of systemtap built, you might run this
+script instead of inserting static hooks into your kernel.  (The tool
+has come some way since the OLS '2005 demo.)
 
-The fix is not by any means a single value for all workloads, it simply
-avoids powers of 2 batch size. Note this will have very little effect
-on single threaded allocators and will do nothing for cache colouring
-there, however it is important for concurrent allocators.
+#! stap
+probe kernel.function("add_to_page_cache") {
+  printf("pid %d added pages (%d)\n", pid(), $mapping->nrpages)
+}
+probe kernel.function("__remove_from_page_cache") {
+  printf("pid %d removed pages (%d)\n", pid(), $page->mapping->nrpages)
+}
 
-Nick
-
--- 
-SUSE Labs, Novell Inc.
-
-Send instant messages to your online friends http://au.messenger.yahoo.com 
+- FChE
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
