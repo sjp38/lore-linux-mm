@@ -1,144 +1,82 @@
-Received: from westrelay02.boulder.ibm.com (westrelay02.boulder.ibm.com [9.17.195.11])
-	by e34.co.us.ibm.com (8.12.11/8.12.11) with ESMTP id jB2NkZkQ004392
-	for <linux-mm@kvack.org>; Fri, 2 Dec 2005 18:46:35 -0500
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by westrelay02.boulder.ibm.com (8.12.10/NCO/VERS6.8) with ESMTP id jB2Njxf6099244
-	for <linux-mm@kvack.org>; Fri, 2 Dec 2005 16:46:00 -0700
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.12.11/8.13.3) with ESMTP id jB2NkYuF028565
-	for <linux-mm@kvack.org>; Fri, 2 Dec 2005 16:46:34 -0700
-Subject: Re: Better pagecache statistics ?
-From: Badari Pulavarty <pbadari@us.ibm.com>
-In-Reply-To: <20051202224645.GB6576@redhat.com>
-References: <20051201152029.GA14499@dmt.cnet>
-	 <1133452790.27824.117.camel@localhost.localdomain>
-	 <1133453411.2853.67.camel@laptopd505.fenrus.org>
-	 <20051201170850.GA16235@dmt.cnet>
-	 <1133457315.21429.29.camel@localhost.localdomain>
-	 <1133457700.2853.78.camel@laptopd505.fenrus.org>
-	 <20051201175711.GA17169@dmt.cnet>
-	 <1133461212.21429.49.camel@localhost.localdomain>
-	 <y0md5kfxi15.fsf@tooth.toronto.redhat.com>
-	 <1133562716.21429.103.camel@localhost.localdomain>
-	 <20051202224645.GB6576@redhat.com>
-Content-Type: multipart/mixed; boundary="=-Ue3aRS0grugHplt1kGsK"
-Date: Fri, 02 Dec 2005 15:46:46 -0800
-Message-Id: <1133567206.21429.117.camel@localhost.localdomain>
-Mime-Version: 1.0
+Content-Disposition: inline
+From: Blaisorblade <blaisorblade@yahoo.it>
+Subject: Fwd: [2.6.15-rc1+ regression] do_file_page bug introduced in recent rework
+Date: Sat, 3 Dec 2005 04:44:12 +0100
+MIME-Version: 1.0
+Content-Type: text/plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
+Message-Id: <200512030444.12359.blaisorblade@yahoo.it>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Frank Ch. Eigler" <fche@redhat.com>
-Cc: Marcelo Tosatti <marcelo.tosatti@cyclades.com>, Arjan van de Ven <arjan@infradead.org>, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
---=-Ue3aRS0grugHplt1kGsK
-Content-Type: text/plain
-Content-Transfer-Encoding: 7bit
+Fwd'ing because sent to the wrong linux-mm address.
 
-On Fri, 2005-12-02 at 17:46 -0500, Frank Ch. Eigler wrote:
-> Hi -
-> 
-> On Fri, Dec 02, 2005 at 02:31:56PM -0800, Badari Pulavarty wrote:
-> > On Fri, 2005-12-02 at 17:15 -0500, Frank Ch. Eigler wrote:
-> > [...]
-> > > #! stap
-> > > probe kernel.function("add_to_page_cache") {
-> > >   printf("pid %d added pages (%d)\n", pid(), $mapping->nrpages)
-> > > }
-> > > probe kernel.function("__remove_from_page_cache") {
-> > >   printf("pid %d removed pages (%d)\n", pid(), $page->mapping->nrpages)
-> > > }
-> >
-> > [...]  Having by "pid" basis is not good enough. I need per
-> > file/mapping basis collected and sent to user-space on-demand.
-> 
-> If you can characterize all your data needs in terms of points to
-> insert hooks (breakpoint addresses) and expressions to sample there,
-> systemtap scripts can probably track the relationships.  (We have
-> associative arrays, looping, etc.)
-> 
-> > Is systemtap hooked to relayfs to send data across to user-land ?
-> > printf() is not an option.
-> 
-> systemtap can optionally use relayfs.  The printf you see here does
-> not relate to/invoke the kernel printk, if that's what you're worried
-> about.
+----------  Forwarded Message  ----------
 
-Hmm. You are right.
+Subject: [2.6.15-rc1+ regression] do_file_page bug introduced in recent rework
+Date: Friday 02 December 2005 01:11
+From: Blaisorblade <blaisorblade@yahoo.it>
+To: Hugh Dickins <hugh@veritas.com>, Andrew Morton <akpm@osdl.org>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm@vger.kernel.org
 
-Is there a way another user-level program/utility access some of the
-data maintained in those arrays ?
+I recently found a bug introduced in your commit
+65500d234e74fc4e8f18e1a429bc24e51e75de4a, i.e. between 2.6.14 and 2.6.15-rc1,
+about do_file_page changes wrt remap_file_pages and MAP_POPULATE.
 
-> 
-> > And also, I need to have this probe, installed from the boot time
-> > and collecting all the information - so I can access it when I need
-> > it
-> 
-> We haven't done much work yet to address on-demand kind of interaction
-> with a systemtap probe session.  However, one could fake it by
-> associating data-printing operations with events that are triggered
-> purposely from userspace, like running a particular system call from a
-> particularly named process.
-> 
-> > which means this bloats kernel memory. [...]
-> 
-> The degree of bloat is under the operator's control: systemtap only
-> uses initialization-time memory allocation, so its arrays can fill up.
+Quoting from the changelog (which is wrong):
 
-Does this mean that I can do something like
+    do_file_page's fallback to do_no_page dates from a time when we were
+testing
+    pte_file by using it wherever possible: currently it's peculiar to
+nonlinear
+    vmas, so just check that.  BUG_ON if not?  Better not, it's probably page
+    table corruption, so just show the pte: hmm, there's a pte_ERROR macro,
+let's
+    use that for do_wp_page's invalid pfn too.
 
-	page_cache[0xffff8100c4c6b298] = $mapping->nrpages ?
+This is false:
 
-And this won't generate bloated arrays ?
+do_mmap_pgoff:
+        if (flags & MAP_POPULATE) {
+                up_write(&mm->mmap_sem);
+                sys_remap_file_pages(addr, len, 0,
+                                        pgoff, flags & MAP_NONBLOCK);
+                down_write(&mm->mmap_sem);
+        }
 
-Here is what I wrote earlier to capture some of the pagecache data.
-Unfortunately, I can't capture whatever happend before inserting the
-problem. So it won't give me information about all whats there in the
-pagecache.
+So, with MAP_POPULATE|MAP_NONBLOCK passed, you can get a linear PAGE_FILE pte
+in a !VM_NONLINEAR vma.
 
-BTW, if you prefer - we can move the discussion to systemtap.
-(I have few questions/issues on ret probes & accessability of
-arguments - since I want to do this on return).
+That PTE is very useless since it doesn't add any information, I know that,
+ so avoiding that possible installation is a possible fix, but for now it's
+ simpler to change the test in do_file_page(). Btw, in fact I discovered this
+ bug while I was implementing this optimization (working again on
+remap_file_pages() patches of this summer).
 
-Thanks,
-Badari
+Indeed, the condition to test (and to possibly BUG_ON/pte_ERROR) is that
+->populate must exist for the sys_remap_file_pages call to work.
+--
+Inform me of my mistakes, so I can keep imitating Homer Simpson's "Doh!".
+Paolo Giarrusso, aka Blaisorblade (Skype ID "PaoloGiarrusso", ICQ 215621894)
+http://www.user-mode-linux.org/~blaisorblade
 
+-------------------------------------------------------
 
+-- 
+Inform me of my mistakes, so I can keep imitating Homer Simpson's "Doh!".
+Paolo Giarrusso, aka Blaisorblade (Skype ID "PaoloGiarrusso", ICQ 215621894)
+http://www.user-mode-linux.org/~blaisorblade
 
+	
 
-
---=-Ue3aRS0grugHplt1kGsK
-Content-Disposition: attachment; filename=pagecache.stp
-Content-Type: text/plain; name=pagecache.stp; charset=utf-8
-Content-Transfer-Encoding: 7bit
-
-#! stap
-
-global page_cache_pages
-
-function _(n) { return string(n) } 
-
-probe kernel.function("add_to_page_cache") {
-	page_cache_pages[$mapping] = $mapping->nrpages
-}
-
-probe kernel.function("__remove_from_page_cache") {
-	page_cache_pages[$page->mapping] = $page->mapping->nrpages
-}
-
-function report () {
-  foreach (mapping in page_cache_pages) {
-	print("mapping = " . hexstring(mapping) . 
-		" nrpages = " . _(page_cache_pages[mapping]) . "\n")
-  }
-  delete page_cache_pages
-}
-
-probe end {
-  report()
-}
-
---=-Ue3aRS0grugHplt1kGsK--
+	
+		
+___________________________________ 
+Yahoo! Mail: gratis 1GB per i messaggi e allegati da 10MB 
+http://mail.yahoo.it
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
