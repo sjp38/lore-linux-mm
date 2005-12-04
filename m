@@ -1,82 +1,80 @@
-Content-Disposition: inline
-From: Blaisorblade <blaisorblade@yahoo.it>
-Subject: Fwd: [2.6.15-rc1+ regression] do_file_page bug introduced in recent rework
-Date: Sat, 3 Dec 2005 04:44:12 +0100
+Date: Sun, 04 Dec 2005 10:48:40 -0800
+From: "Martin J. Bligh" <mbligh@mbligh.org>
+Reply-To: "Martin J. Bligh" <mbligh@mbligh.org>
+Subject: Re: Better pagecache statistics ?
+Message-ID: <9360000.1133722120@[10.10.2.4]>
+In-Reply-To: <1133457315.21429.29.camel@localhost.localdomain>
+References: <1133377029.27824.90.camel@localhost.localdomain> <20051201152029.GA14499@dmt.cnet> <1133452790.27824.117.camel@localhost.localdomain> <1133453411.2853.67.camel@laptopd505.fenrus.org> <20051201170850.GA16235@dmt.cnet> <1133457315.21429.29.camel@localhost.localdomain>
 MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
+Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
-Message-Id: <200512030444.12359.blaisorblade@yahoo.it>
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Badari Pulavarty <pbadari@us.ibm.com>, Marcelo Tosatti <marcelo.tosatti@cyclades.com>
+Cc: Arjan van de Ven <arjan@infradead.org>, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Fwd'ing because sent to the wrong linux-mm address.
+>> > > Out of "Cached" value - to get details like
+>> > > 
+>> > > 	<mmap> - xxx KB
+>> > > 	<shared mem> - xxx KB
+>> > > 	<text, data, bss, malloc, heap, stacks> - xxx KB
+>> > > 	<filecache pages total> -- xxx KB
+>> > > 		(filename1 or <dev>, <ino>) -- #of pages
+>> > > 		(filename2 or <dev>, <ino>) -- #of pages
+>> > > 		
+>> > > This would be really powerful on understanding system better.
+>> > 
+>> > to some extend it might be useful.
+>> > I have a few concerns though
+>> > 1) If we make these stats into an ABI then it becomes harder to change
+>> > the architecture of the VM radically since such concepts may not even
+>> > exist in the new architecture. As long as this is some sort of advisory,
+>> > humans-only file I think this isn't too much of a big deal though. 
+>> > 
+>> > 2) not all the concepts you mention really exist as far as the kernel is
+>> > concerned. I mean.. a mmap file is file cache is .. etc.
+>> > malloc/heap/stacks are also not differentiated too much and are mostly
+>> > userspace policy (especially thread stacks). 
+>> > 
+>> > A split in
+>> > * non-file backed
+>> >   - mapped once
+>> >   - mapped more than once
+>> > * file backed
+>> >   - mapped at least once
+>> >   - not mapped
+>> > I can see as being meaningful. Assigning meaning to it beyond this is
+>> > dangerous; that is more an interpretation of the policy userspace
+>> > happens to use for things and I think coding that into the kernel is a
+>> > mistake.
+>> > 
+>> > Knowing which files are in memory how much is, as debug feature,
+>> > potentially quite useful for VM hackers to see how well the various VM
+>> > algorithms work. I'm concerned about the performance impact (eg you can
+>> > do it only once a day or so, not every 10 seconds) and about how to get
+>> > this data out in a consistent way (after all, spewing this amount of
+>> > debug info will in itself impact the vm balances)
+>> 
+>> Most of the issues you mention are null if you move the stats
+>> maintenance burden to userspace. 
+>> 
+>> The performance impact is also minimized since the hooks 
+>> (read: overhead) can be loaded on-demand as needed.
+>> 
+> 
+> The overhead is - going through each mapping/inode in the system
+> and dumping out "nrpages" - to get per-file statistics. This is
+> going to be expensive, need locking and there is no single list 
+> we can traverse to get it. I am not sure how to do this.
 
-----------  Forwarded Message  ----------
+I made something idiotic to just walk the mem_map array and gather
+stats on every page in the system. Not exactly pretty ... but useful.
+Can't lay my hands on it at the moment, but Badari can ask Janet
+for it, I think ;-)
 
-Subject: [2.6.15-rc1+ regression] do_file_page bug introduced in recent rework
-Date: Friday 02 December 2005 01:11
-From: Blaisorblade <blaisorblade@yahoo.it>
-To: Hugh Dickins <hugh@veritas.com>, Andrew Morton <akpm@osdl.org>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm@vger.kernel.org
-
-I recently found a bug introduced in your commit
-65500d234e74fc4e8f18e1a429bc24e51e75de4a, i.e. between 2.6.14 and 2.6.15-rc1,
-about do_file_page changes wrt remap_file_pages and MAP_POPULATE.
-
-Quoting from the changelog (which is wrong):
-
-    do_file_page's fallback to do_no_page dates from a time when we were
-testing
-    pte_file by using it wherever possible: currently it's peculiar to
-nonlinear
-    vmas, so just check that.  BUG_ON if not?  Better not, it's probably page
-    table corruption, so just show the pte: hmm, there's a pte_ERROR macro,
-let's
-    use that for do_wp_page's invalid pfn too.
-
-This is false:
-
-do_mmap_pgoff:
-        if (flags & MAP_POPULATE) {
-                up_write(&mm->mmap_sem);
-                sys_remap_file_pages(addr, len, 0,
-                                        pgoff, flags & MAP_NONBLOCK);
-                down_write(&mm->mmap_sem);
-        }
-
-So, with MAP_POPULATE|MAP_NONBLOCK passed, you can get a linear PAGE_FILE pte
-in a !VM_NONLINEAR vma.
-
-That PTE is very useless since it doesn't add any information, I know that,
- so avoiding that possible installation is a possible fix, but for now it's
- simpler to change the test in do_file_page(). Btw, in fact I discovered this
- bug while I was implementing this optimization (working again on
-remap_file_pages() patches of this summer).
-
-Indeed, the condition to test (and to possibly BUG_ON/pte_ERROR) is that
-->populate must exist for the sys_remap_file_pages call to work.
---
-Inform me of my mistakes, so I can keep imitating Homer Simpson's "Doh!".
-Paolo Giarrusso, aka Blaisorblade (Skype ID "PaoloGiarrusso", ICQ 215621894)
-http://www.user-mode-linux.org/~blaisorblade
-
--------------------------------------------------------
-
--- 
-Inform me of my mistakes, so I can keep imitating Homer Simpson's "Doh!".
-Paolo Giarrusso, aka Blaisorblade (Skype ID "PaoloGiarrusso", ICQ 215621894)
-http://www.user-mode-linux.org/~blaisorblade
-
-	
-
-	
-		
-___________________________________ 
-Yahoo! Mail: gratis 1GB per i messaggi e allegati da 10MB 
-http://mail.yahoo.it
+M.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
