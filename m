@@ -1,80 +1,130 @@
-Date: Sun, 04 Dec 2005 10:48:40 -0800
-From: "Martin J. Bligh" <mbligh@mbligh.org>
-Reply-To: "Martin J. Bligh" <mbligh@mbligh.org>
-Subject: Re: Better pagecache statistics ?
-Message-ID: <9360000.1133722120@[10.10.2.4]>
-In-Reply-To: <1133457315.21429.29.camel@localhost.localdomain>
-References: <1133377029.27824.90.camel@localhost.localdomain> <20051201152029.GA14499@dmt.cnet> <1133452790.27824.117.camel@localhost.localdomain> <1133453411.2853.67.camel@laptopd505.fenrus.org> <20051201170850.GA16235@dmt.cnet> <1133457315.21429.29.camel@localhost.localdomain>
+Received: from [127.0.0.1] (localhost [127.0.0.1])
+	by petrel.telecom.mipt.ru (Postfix) with ESMTP id 728D8280002E0
+	for <linux-mm@kvack.org>; Mon,  5 Dec 2005 10:54:39 +0300 (MSK)
+Message-ID: <4393F23F.4050106@mipt.ru>
+Date: Mon, 05 Dec 2005 10:54:39 +0300
+From: Olleg Samoylov <olleg@mipt.ru>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
+Subject: graphs and memory
+Content-Type: multipart/signed; protocol="application/x-pkcs7-signature"; micalg=sha1; boundary="------------ms070608020007090202090008"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Badari Pulavarty <pbadari@us.ibm.com>, Marcelo Tosatti <marcelo.tosatti@cyclades.com>
-Cc: Arjan van de Ven <arjan@infradead.org>, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
->> > > Out of "Cached" value - to get details like
->> > > 
->> > > 	<mmap> - xxx KB
->> > > 	<shared mem> - xxx KB
->> > > 	<text, data, bss, malloc, heap, stacks> - xxx KB
->> > > 	<filecache pages total> -- xxx KB
->> > > 		(filename1 or <dev>, <ino>) -- #of pages
->> > > 		(filename2 or <dev>, <ino>) -- #of pages
->> > > 		
->> > > This would be really powerful on understanding system better.
->> > 
->> > to some extend it might be useful.
->> > I have a few concerns though
->> > 1) If we make these stats into an ABI then it becomes harder to change
->> > the architecture of the VM radically since such concepts may not even
->> > exist in the new architecture. As long as this is some sort of advisory,
->> > humans-only file I think this isn't too much of a big deal though. 
->> > 
->> > 2) not all the concepts you mention really exist as far as the kernel is
->> > concerned. I mean.. a mmap file is file cache is .. etc.
->> > malloc/heap/stacks are also not differentiated too much and are mostly
->> > userspace policy (especially thread stacks). 
->> > 
->> > A split in
->> > * non-file backed
->> >   - mapped once
->> >   - mapped more than once
->> > * file backed
->> >   - mapped at least once
->> >   - not mapped
->> > I can see as being meaningful. Assigning meaning to it beyond this is
->> > dangerous; that is more an interpretation of the policy userspace
->> > happens to use for things and I think coding that into the kernel is a
->> > mistake.
->> > 
->> > Knowing which files are in memory how much is, as debug feature,
->> > potentially quite useful for VM hackers to see how well the various VM
->> > algorithms work. I'm concerned about the performance impact (eg you can
->> > do it only once a day or so, not every 10 seconds) and about how to get
->> > this data out in a consistent way (after all, spewing this amount of
->> > debug info will in itself impact the vm balances)
->> 
->> Most of the issues you mention are null if you move the stats
->> maintenance burden to userspace. 
->> 
->> The performance impact is also minimized since the hooks 
->> (read: overhead) can be loaded on-demand as needed.
->> 
-> 
-> The overhead is - going through each mapping/inode in the system
-> and dumping out "nrpages" - to get per-file statistics. This is
-> going to be expensive, need locking and there is no single list 
-> we can traverse to get it. I am not sure how to do this.
+This is a cryptographically signed message in MIME format.
 
-I made something idiotic to just walk the mem_map array and gather
-stats on every page in the system. Not exactly pretty ... but useful.
-Can't lay my hands on it at the moment, but Badari can ask Janet
-for it, I think ;-)
+--------------ms070608020007090202090008
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 
-M.
+Hi all.
+
+This is old question, but I didn't see clear answer yet.
+I try to draw memory usage graph in rrd tools. My server without swap 
+(4Gb is enough, IMHO).
+
+First graph of physical memory. In kernel 2.6.14 Looked like:
+Cached+MemFree+Mapped+Slab=TotalMemory
+But is not exactly equal. For instance now 
+Cached+MemFree+Mapped+Slab-TotalMemory=22680
+This means I use 22Mb more memory, then I have total.
+Is this correct? What do I need add or subtract to get total memory?
+
+Second graph is cache memory. For early kernels looked like:
+Active+Inactive=Cached
+But this is not true now, 2.6.14 for instance.
+Active+Inactive-Cached=157044 (153Mb)
+What do I need add or substract to get full picture?
+
+May be some kernel guru know answers?
+-- 
+Olleg Samoylov
+
+--------------ms070608020007090202090008
+Content-Type: application/x-pkcs7-signature; name="smime.p7s"
+Content-Transfer-Encoding: base64
+Content-Disposition: attachment; filename="smime.p7s"
+Content-Description: S/MIME Cryptographic Signature
+
+MIAGCSqGSIb3DQEHAqCAMIACAQExCzAJBgUrDgMCGgUAMIAGCSqGSIb3DQEHAQAAoIILHDCC
+BYowggRyoAMCAQICAQkwDQYJKoZIhvcNAQEEBQAwgeMxCzAJBgNVBAYTAlJVMRYwFAYDVQQI
+Ew1Nb3Njb3cgcmVnaW9uMRQwEgYDVQQHEwtEb2xnb3BydWRueTFGMEQGA1UEChM9TW9zY293
+IEluc3RpdHV0ZSBvZiBQaHlzaWNzIGFuZCBUZWNobm9sb2d5IChTdGF0ZSBVbml2ZXJzaXR5
+KTEQMA4GA1UECxMHVGVsZWNvbTEdMBsGA1UEAxMUTUlQVCBUZWxlY29tIFJvb3QgQ0ExLTAr
+BgkqhkiG9w0BCQEWHk1JUFQgVGVsZWNvbSA8dGVsZWNvbUBtaXB0LnJ1PjAeFw0wNTA1MjMw
+NzQ1MDlaFw0wNjA2MjcwNzQ1MDlaMIG2MQswCQYDVQQGEwJSVTEWMBQGA1UECBMNTW9zY293
+IHJlZ2lvbjFGMEQGA1UEChM9TW9zY293IEluc3RpdHV0ZSBvZiBQaHlzaWNzIGFuZCBUZWNo
+bm9sb2d5IChTdGF0ZSBVbml2ZXJzaXR5KTEQMA4GA1UECxMHVGVsZWNvbTEXMBUGA1UEAxMO
+T2xsZWcgU2Ftb3lsb3YxHDAaBgkqhkiG9w0BCQEWDW9sbGVnQG1pcHQucnUwggEiMA0GCSqG
+SIb3DQEBAQUAA4IBDwAwggEKAoIBAQC0KQ5jnmerWUyHmUpK0AyF0wTM63jUBtjeu7CJnRiD
+y/aMGaaZrFb7ARZ1Pa1BplUCYU/y5KkM+WaYvvUTNETTJxYgTLGW+HFoXLKT+iAW/xTGIt8X
+e9q7+C6R7+P7ffyc8TwdPkZWpXN5gylIbfCjvzcBB9d8TqXQWG93NtJvut1uQmLg37kKpHDv
+z3+d9OJ6+X3mlNOgm32NuSXNqXkahHSofqMbQosltijBnn5n7VGY68NOrNENwv5L6Fr5PWfs
+IF0ckRS1gkPfpSezT27GdQwVuYKkqGLNTSM+KkdWeY0iDYy7M8BhBn+PPpUbRE//8dJVIxRg
+pmiJcE+4J6G9AgMBAAGjggFyMIIBbjAJBgNVHRMEAjAAMCwGCWCGSAGG+EIBDQQfFh1PcGVu
+U1NMIEdlbmVyYXRlZCBDZXJ0aWZpY2F0ZTAdBgNVHQ4EFgQUbwmSSHp4RwoImbeQupkzlrWN
+gZwwggESBgNVHSMEggEJMIIBBYAUGU8ELdohM+B3QiqpwBIAzdB/hbGhgemkgeYwgeMxCzAJ
+BgNVBAYTAlJVMRYwFAYDVQQIEw1Nb3Njb3cgcmVnaW9uMRQwEgYDVQQHEwtEb2xnb3BydWRu
+eTFGMEQGA1UEChM9TW9zY293IEluc3RpdHV0ZSBvZiBQaHlzaWNzIGFuZCBUZWNobm9sb2d5
+IChTdGF0ZSBVbml2ZXJzaXR5KTEQMA4GA1UECxMHVGVsZWNvbTEdMBsGA1UEAxMUTUlQVCBU
+ZWxlY29tIFJvb3QgQ0ExLTArBgkqhkiG9w0BCQEWHk1JUFQgVGVsZWNvbSA8dGVsZWNvbUBt
+aXB0LnJ1PoIBADANBgkqhkiG9w0BAQQFAAOCAQEAbhaKnrrcOmEH+dh7F4S3GYxvNe5Gjju/
+X4lCE6sGIi/05EdsgsGW4mAIhYjuFOaACCvDbbbB22zJJUHx+45y5Yo2/xqY3bRnpM1IQRYS
+p2jMpr/W8ryU7jgsgcWFVbMnYPWdeQg2QuzQb1OmcvuyXxX8pYaAGYWfyQFrVl9WN55sib+g
+D1HHQK2sD5kG6p2KH/Zo+Zt2P8tGJq8OsOttmuGC0kVgsN++4XdUGyB9RzbmSgkgJVFRjlXr
+VshAMYzK9SUe/oBDi6EgiI8Qv3KliMUGZm3meJIzrulH1erC7i+Kb0eX2nSPv5k5vN/UXNko
+zI3c+dMCQZmsD6lhWPAJwTCCBYowggRyoAMCAQICAQkwDQYJKoZIhvcNAQEEBQAwgeMxCzAJ
+BgNVBAYTAlJVMRYwFAYDVQQIEw1Nb3Njb3cgcmVnaW9uMRQwEgYDVQQHEwtEb2xnb3BydWRu
+eTFGMEQGA1UEChM9TW9zY293IEluc3RpdHV0ZSBvZiBQaHlzaWNzIGFuZCBUZWNobm9sb2d5
+IChTdGF0ZSBVbml2ZXJzaXR5KTEQMA4GA1UECxMHVGVsZWNvbTEdMBsGA1UEAxMUTUlQVCBU
+ZWxlY29tIFJvb3QgQ0ExLTArBgkqhkiG9w0BCQEWHk1JUFQgVGVsZWNvbSA8dGVsZWNvbUBt
+aXB0LnJ1PjAeFw0wNTA1MjMwNzQ1MDlaFw0wNjA2MjcwNzQ1MDlaMIG2MQswCQYDVQQGEwJS
+VTEWMBQGA1UECBMNTW9zY293IHJlZ2lvbjFGMEQGA1UEChM9TW9zY293IEluc3RpdHV0ZSBv
+ZiBQaHlzaWNzIGFuZCBUZWNobm9sb2d5IChTdGF0ZSBVbml2ZXJzaXR5KTEQMA4GA1UECxMH
+VGVsZWNvbTEXMBUGA1UEAxMOT2xsZWcgU2Ftb3lsb3YxHDAaBgkqhkiG9w0BCQEWDW9sbGVn
+QG1pcHQucnUwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQC0KQ5jnmerWUyHmUpK
+0AyF0wTM63jUBtjeu7CJnRiDy/aMGaaZrFb7ARZ1Pa1BplUCYU/y5KkM+WaYvvUTNETTJxYg
+TLGW+HFoXLKT+iAW/xTGIt8Xe9q7+C6R7+P7ffyc8TwdPkZWpXN5gylIbfCjvzcBB9d8TqXQ
+WG93NtJvut1uQmLg37kKpHDvz3+d9OJ6+X3mlNOgm32NuSXNqXkahHSofqMbQosltijBnn5n
+7VGY68NOrNENwv5L6Fr5PWfsIF0ckRS1gkPfpSezT27GdQwVuYKkqGLNTSM+KkdWeY0iDYy7
+M8BhBn+PPpUbRE//8dJVIxRgpmiJcE+4J6G9AgMBAAGjggFyMIIBbjAJBgNVHRMEAjAAMCwG
+CWCGSAGG+EIBDQQfFh1PcGVuU1NMIEdlbmVyYXRlZCBDZXJ0aWZpY2F0ZTAdBgNVHQ4EFgQU
+bwmSSHp4RwoImbeQupkzlrWNgZwwggESBgNVHSMEggEJMIIBBYAUGU8ELdohM+B3QiqpwBIA
+zdB/hbGhgemkgeYwgeMxCzAJBgNVBAYTAlJVMRYwFAYDVQQIEw1Nb3Njb3cgcmVnaW9uMRQw
+EgYDVQQHEwtEb2xnb3BydWRueTFGMEQGA1UEChM9TW9zY293IEluc3RpdHV0ZSBvZiBQaHlz
+aWNzIGFuZCBUZWNobm9sb2d5IChTdGF0ZSBVbml2ZXJzaXR5KTEQMA4GA1UECxMHVGVsZWNv
+bTEdMBsGA1UEAxMUTUlQVCBUZWxlY29tIFJvb3QgQ0ExLTArBgkqhkiG9w0BCQEWHk1JUFQg
+VGVsZWNvbSA8dGVsZWNvbUBtaXB0LnJ1PoIBADANBgkqhkiG9w0BAQQFAAOCAQEAbhaKnrrc
+OmEH+dh7F4S3GYxvNe5Gjju/X4lCE6sGIi/05EdsgsGW4mAIhYjuFOaACCvDbbbB22zJJUHx
++45y5Yo2/xqY3bRnpM1IQRYSp2jMpr/W8ryU7jgsgcWFVbMnYPWdeQg2QuzQb1OmcvuyXxX8
+pYaAGYWfyQFrVl9WN55sib+gD1HHQK2sD5kG6p2KH/Zo+Zt2P8tGJq8OsOttmuGC0kVgsN++
+4XdUGyB9RzbmSgkgJVFRjlXrVshAMYzK9SUe/oBDi6EgiI8Qv3KliMUGZm3meJIzrulH1erC
+7i+Kb0eX2nSPv5k5vN/UXNkozI3c+dMCQZmsD6lhWPAJwTGCBMIwggS+AgEBMIHpMIHjMQsw
+CQYDVQQGEwJSVTEWMBQGA1UECBMNTW9zY293IHJlZ2lvbjEUMBIGA1UEBxMLRG9sZ29wcnVk
+bnkxRjBEBgNVBAoTPU1vc2NvdyBJbnN0aXR1dGUgb2YgUGh5c2ljcyBhbmQgVGVjaG5vbG9n
+eSAoU3RhdGUgVW5pdmVyc2l0eSkxEDAOBgNVBAsTB1RlbGVjb20xHTAbBgNVBAMTFE1JUFQg
+VGVsZWNvbSBSb290IENBMS0wKwYJKoZIhvcNAQkBFh5NSVBUIFRlbGVjb20gPHRlbGVjb21A
+bWlwdC5ydT4CAQkwCQYFKw4DAhoFAKCCAq0wGAYJKoZIhvcNAQkDMQsGCSqGSIb3DQEHATAc
+BgkqhkiG9w0BCQUxDxcNMDUxMjA1MDc1NDM5WjAjBgkqhkiG9w0BCQQxFgQUXQX/88dQ08iW
+V2JRZq6PhfaQDwgwUgYJKoZIhvcNAQkPMUUwQzAKBggqhkiG9w0DBzAOBggqhkiG9w0DAgIC
+AIAwDQYIKoZIhvcNAwICAUAwBwYFKw4DAgcwDQYIKoZIhvcNAwICASgwgfoGCSsGAQQBgjcQ
+BDGB7DCB6TCB4zELMAkGA1UEBhMCUlUxFjAUBgNVBAgTDU1vc2NvdyByZWdpb24xFDASBgNV
+BAcTC0RvbGdvcHJ1ZG55MUYwRAYDVQQKEz1Nb3Njb3cgSW5zdGl0dXRlIG9mIFBoeXNpY3Mg
+YW5kIFRlY2hub2xvZ3kgKFN0YXRlIFVuaXZlcnNpdHkpMRAwDgYDVQQLEwdUZWxlY29tMR0w
+GwYDVQQDExRNSVBUIFRlbGVjb20gUm9vdCBDQTEtMCsGCSqGSIb3DQEJARYeTUlQVCBUZWxl
+Y29tIDx0ZWxlY29tQG1pcHQucnU+AgEJMIH8BgsqhkiG9w0BCRACCzGB7KCB6TCB4zELMAkG
+A1UEBhMCUlUxFjAUBgNVBAgTDU1vc2NvdyByZWdpb24xFDASBgNVBAcTC0RvbGdvcHJ1ZG55
+MUYwRAYDVQQKEz1Nb3Njb3cgSW5zdGl0dXRlIG9mIFBoeXNpY3MgYW5kIFRlY2hub2xvZ3kg
+KFN0YXRlIFVuaXZlcnNpdHkpMRAwDgYDVQQLEwdUZWxlY29tMR0wGwYDVQQDExRNSVBUIFRl
+bGVjb20gUm9vdCBDQTEtMCsGCSqGSIb3DQEJARYeTUlQVCBUZWxlY29tIDx0ZWxlY29tQG1p
+cHQucnU+AgEJMA0GCSqGSIb3DQEBAQUABIIBAJIfKTfNM4zQp8SRBBU9bPEASDBoAvckg9v2
+B/h9usGhQByz17akCTq25kshnlLy1ATeFKgfe6m6iH6lNv11EXbpkuWTgJIfu/7Zpu8coA1T
+nPtuMYnmGC32gxGI5k8YyLP43hFuMRP1oZM4pCavuspH5gY+0diCfTnqtsN2FnjvN25grS6j
+6DdwTYIcSG2CEb2qreh9ocYtA/fbD+7Y7ImtGRXzL7gp78cE+msXA+6wzd22fA2sWvde8IvG
+YH2JM2WMzdLFO9e1Jb6/GGjStrb2/zXR43bQV/CkxHRTrIgsSl/2s94+LZ5S4wVjpzXMwe7s
+We/QDoCJAO28hJC7s+0AAAAAAAA=
+--------------ms070608020007090202090008--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
