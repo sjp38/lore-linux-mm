@@ -1,71 +1,115 @@
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e2.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id jB6Msnbc007298
-	for <linux-mm@kvack.org>; Tue, 6 Dec 2005 17:54:49 -0500
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay02.pok.ibm.com (8.12.10/NCO/VERS6.8) with ESMTP id jB6MsneZ122874
-	for <linux-mm@kvack.org>; Tue, 6 Dec 2005 17:54:49 -0500
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.12.11/8.13.3) with ESMTP id jB6MsnLQ025861
-	for <linux-mm@kvack.org>; Tue, 6 Dec 2005 17:54:49 -0500
-Message-ID: <439616B6.1020308@us.ibm.com>
-Date: Tue, 06 Dec 2005 14:54:46 -0800
-From: Matthew Dobson <colpatch@us.ibm.com>
+Message-ID: <43961949.8070900@yahoo.com.au>
+Date: Wed, 07 Dec 2005 10:05:45 +1100
+From: Nick Piggin <nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
-Subject: Re: [RFC][PATCH 0/8] Critical Page Pool
-References: <437E2C69.4000708@us.ibm.com> <20051118195657.GI7991@shell0.pdx.osdl.net> <43815F64.4070502@us.ibm.com> <20051121132910.GA1971@elf.ucw.cz>
-In-Reply-To: <20051121132910.GA1971@elf.ucw.cz>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [RFC 2/3] Make nr_mapped a per node counter
+References: <20051206182843.19188.82045.sendpatchset@schroedinger.engr.sgi.com> <20051206182848.19188.12787.sendpatchset@schroedinger.engr.sgi.com>
+In-Reply-To: <20051206182848.19188.12787.sendpatchset@schroedinger.engr.sgi.com>
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Pavel Machek <pavel@ucw.cz>
-Cc: Chris Wright <chrisw@osdl.org>, linux-kernel@vger.kernel.org, Linux Memory Management <linux-mm@kvack.org>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: linux-kernel@vger.kernel.org, Hugh Dickins <hugh@veritas.com>, linux-mm@kvack.org, Andi Kleen <ak@suse.de>, Marcelo Tosatti <marcelo.tosatti@cyclades.com>
 List-ID: <linux-mm.kvack.org>
 
-Pavel Machek wrote:
-> Hi!
+Christoph Lameter wrote:
+> Make nr_mapped a per node counter
 > 
+> The per cpu nr_mapped counter is important because it allows a determination
+> how many pages of a node are not mapped, which would allow a more effiecient
+> means of determining when a node should reclaim memory.
 > 
->>>* Matthew Dobson (colpatch@us.ibm.com) wrote:
->>>
->>>
->>>>/proc/sys/vm/critical_pages: write the number of pages you want to reserve
->>>>for the critical pool into this file
->>>
->>>
->>>How do you size this pool?
->>
->>Trial and error.  If you want networking to survive with no memory other
->>than the critical pool for 2 minutes, for example, you pick a random value,
->>block all other allocations (I have a test patch to do this), and send a
->>boatload of packets at the box.  If it OOMs, you need a bigger pool.
->>Lather, rinse, repeat.
+> Signed-off-by: Christoph Lameter <clameter@sgi.com>
 > 
-> 
-> ...and then you find out that your test was not "bad enough" or that
-> it needs more memory on different machines. It may be good enough hack
-> for your usage, but I do not think it belongs in mainline.
-> 								Pavel
+> Index: linux-2.6.15-rc3/include/linux/page-flags.h
+> ===================================================================
+> --- linux-2.6.15-rc3.orig/include/linux/page-flags.h	2005-12-01 00:35:38.000000000 -0800
+> +++ linux-2.6.15-rc3/include/linux/page-flags.h	2005-12-01 00:35:49.000000000 -0800
+> @@ -85,7 +85,6 @@ struct page_state {
+>  	unsigned long nr_writeback;	/* Pages under writeback */
+>  	unsigned long nr_unstable;	/* NFS unstable pages */
+>  	unsigned long nr_page_table_pages;/* Pages used for pagetables */
+> -	unsigned long nr_mapped;	/* mapped into pagetables */
+>  	unsigned long nr_slab;		/* In slab */
+>  #define GET_PAGE_STATE_LAST nr_slab
+>  
+> @@ -165,8 +164,8 @@ extern void __mod_page_state(unsigned lo
+>  /*
+>   * Node based accounting with per cpu differentials.
+>   */
+> -enum node_stat_item { };
+> -#define NR_STAT_ITEMS 0
+> +enum node_stat_item { NR_MAPPED };
+> +#define NR_STAT_ITEMS 1
+>  
+>  extern unsigned long vm_stat_global[NR_STAT_ITEMS];
+>  extern unsigned long vm_stat_node[MAX_NUMNODES][NR_STAT_ITEMS];
+> Index: linux-2.6.15-rc3/drivers/base/node.c
+> ===================================================================
+> --- linux-2.6.15-rc3.orig/drivers/base/node.c	2005-11-28 19:51:27.000000000 -0800
+> +++ linux-2.6.15-rc3/drivers/base/node.c	2005-12-01 00:35:49.000000000 -0800
+> @@ -53,8 +53,6 @@ static ssize_t node_read_meminfo(struct 
+>  		ps.nr_dirty = 0;
+>  	if ((long)ps.nr_writeback < 0)
+>  		ps.nr_writeback = 0;
+> -	if ((long)ps.nr_mapped < 0)
+> -		ps.nr_mapped = 0;
+>  	if ((long)ps.nr_slab < 0)
+>  		ps.nr_slab = 0;
+>  
+> @@ -83,7 +81,7 @@ static ssize_t node_read_meminfo(struct 
+>  		       nid, K(i.freeram - i.freehigh),
+>  		       nid, K(ps.nr_dirty),
+>  		       nid, K(ps.nr_writeback),
+> -		       nid, K(ps.nr_mapped),
+> +		       nid, K(vm_stat_node[nid][NR_MAPPED]),
+>  		       nid, K(ps.nr_slab));
+>  	n += hugetlb_report_node_meminfo(nid, buf + n);
+>  	return n;
+> Index: linux-2.6.15-rc3/fs/proc/proc_misc.c
+> ===================================================================
+> --- linux-2.6.15-rc3.orig/fs/proc/proc_misc.c	2005-11-28 19:51:27.000000000 -0800
+> +++ linux-2.6.15-rc3/fs/proc/proc_misc.c	2005-12-01 00:35:49.000000000 -0800
+> @@ -190,7 +190,7 @@ static int meminfo_read_proc(char *page,
+>  		K(i.freeswap),
+>  		K(ps.nr_dirty),
+>  		K(ps.nr_writeback),
+> -		K(ps.nr_mapped),
+> +		K(vm_stat_global[NR_MAPPED]),
+>  		K(ps.nr_slab),
+>  		K(allowed),
+>  		K(committed),
+> Index: linux-2.6.15-rc3/mm/vmscan.c
+> ===================================================================
+> --- linux-2.6.15-rc3.orig/mm/vmscan.c	2005-11-28 19:51:27.000000000 -0800
+> +++ linux-2.6.15-rc3/mm/vmscan.c	2005-12-01 00:35:49.000000000 -0800
+> @@ -967,7 +967,7 @@ int try_to_free_pages(struct zone **zone
+>  	}
+>  
+>  	for (priority = DEF_PRIORITY; priority >= 0; priority--) {
+> -		sc.nr_mapped = read_page_state(nr_mapped);
+> +		sc.nr_mapped = vm_stat_global[NR_MAPPED];
+>  		sc.nr_scanned = 0;
+>  		sc.nr_reclaimed = 0;
+>  		sc.priority = priority;
+> @@ -1056,7 +1056,7 @@ loop_again:
+>  	sc.gfp_mask = GFP_KERNEL;
+>  	sc.may_writepage = 0;
+>  	sc.may_swap = 1;
+> -	sc.nr_mapped = read_page_state(nr_mapped);
+> +	sc.nr_mapped = vm_stat_global[NR_MAPPED];
+>  
 
-Way late in responding to this, but...
+Any chance you can wrap these in macros? (something like read_page_node_state())
 
-Apropriate sizing of this pool is a known issue.  For example, we want to
-use it to keep the networking stack alive during extreme memory pressure
-situations.  The only way to size the pool so as to *guarantee* that it
-will not be exhausted during the 2 minute window we need would be to ensure
-that the pool has at least (TOTAL_BANDWITH_OF_ALL_NICS * 120 seconds) bytes
-available.  In the case of a simple system with a single GigE adapter we'd
-need (1 gigbit/sec * 120 sec) = 120 gigabits = 15 gigabytes of reserve
-pool.  That is obviously completely impractical, considering many boxes
-have multiple GigE adapters or even 10 GigE adapters.  It is also
-incredibly unlikely that the NIC will be hit with a continuous stream of
-packets at a level that would completely saturate the link.  Starting with
-an educated guess and some test runs with a reasonble workload should give
-you a good idea of how much space you'd *realistically* need to reserve.
-Given any reserve size less than the theoretical maximum you obviously
-can't *guarantee* the pool won't be exhausted, but you can be pretty confident.
+I gather Andrew did this so that they can easily be defined out for things
+that don't want them (maybe, embedded systems).
 
--Matt
+-- 
+SUSE Labs, Novell Inc.
+
+Send instant messages to your online friends http://au.messenger.yahoo.com 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
