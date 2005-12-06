@@ -1,130 +1,350 @@
-Received: from [127.0.0.1] (localhost [127.0.0.1])
-	by petrel.telecom.mipt.ru (Postfix) with ESMTP id 728D8280002E0
-	for <linux-mm@kvack.org>; Mon,  5 Dec 2005 10:54:39 +0300 (MSK)
-Message-ID: <4393F23F.4050106@mipt.ru>
-Date: Mon, 05 Dec 2005 10:54:39 +0300
-From: Olleg Samoylov <olleg@mipt.ru>
+Message-ID: <4394EC28.8050304@yahoo.com.au>
+Date: Tue, 06 Dec 2005 12:40:56 +1100
+From: Nick Piggin <nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
-Subject: graphs and memory
-Content-Type: multipart/signed; protocol="application/x-pkcs7-signature"; micalg=sha1; boundary="------------ms070608020007090202090008"
+Subject: [RFC] lockless radix tree readside
+Content-Type: multipart/mixed;
+ boundary="------------000302020504040305060906"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Linux Kernel Mailing List <Linux-Kernel@Vger.Kernel.ORG>, Linux Memory Management <linux-mm@kvack.org>, Paul McKenney <paul.mckenney@us.ibm.com>, WU Fengguang <wfg@mail.ustc.edu.cn>
 List-ID: <linux-mm.kvack.org>
 
-This is a cryptographically signed message in MIME format.
-
---------------ms070608020007090202090008
-Content-Type: text/plain; charset=UTF-8; format=flowed
+This is a multi-part message in MIME format.
+--------------000302020504040305060906
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 
-Hi all.
+The following patch against recent -mm kernels implements lockless
+radix tree lookups using RCU. No users of this new facility yet,
+but it is a requirement for lockless pagecache.
 
-This is old question, but I didn't see clear answer yet.
-I try to draw memory usage graph in rrd tools. My server without swap 
-(4Gb is enough, IMHO).
+I have recently added (what I think are) the missing rcu_dereference
+calls needed on Alpha, and the implementation now has no known bugs.
+(actually that's wrong: the new capabilities in the lookup APIs need
+commenting)
 
-First graph of physical memory. In kernel 2.6.14 Looked like:
-Cached+MemFree+Mapped+Slab=TotalMemory
-But is not exactly equal. For instance now 
-Cached+MemFree+Mapped+Slab-TotalMemory=22680
-This means I use 22Mb more memory, then I have total.
-Is this correct? What do I need add or subtract to get total memory?
+I realise that radix-tree.c isn't a trivial bit of code so I don't
+expect reviews to be forthcoming, but if anyone had some spare time
+to glance over it that would be great.
 
-Second graph is cache memory. For early kernels looked like:
-Active+Inactive=Cached
-But this is not true now, 2.6.14 for instance.
-Active+Inactive-Cached=157044 (153Mb)
-What do I need add or substract to get full picture?
+Is my given detail of the implementation clear? Sufficient? Would
+diagrams be helpful?
 
-May be some kernel guru know answers?
+Thanks,
+Nick
+
 -- 
-Olleg Samoylov
+SUSE Labs, Novell Inc.
 
---------------ms070608020007090202090008
-Content-Type: application/x-pkcs7-signature; name="smime.p7s"
-Content-Transfer-Encoding: base64
-Content-Disposition: attachment; filename="smime.p7s"
-Content-Description: S/MIME Cryptographic Signature
 
-MIAGCSqGSIb3DQEHAqCAMIACAQExCzAJBgUrDgMCGgUAMIAGCSqGSIb3DQEHAQAAoIILHDCC
-BYowggRyoAMCAQICAQkwDQYJKoZIhvcNAQEEBQAwgeMxCzAJBgNVBAYTAlJVMRYwFAYDVQQI
-Ew1Nb3Njb3cgcmVnaW9uMRQwEgYDVQQHEwtEb2xnb3BydWRueTFGMEQGA1UEChM9TW9zY293
-IEluc3RpdHV0ZSBvZiBQaHlzaWNzIGFuZCBUZWNobm9sb2d5IChTdGF0ZSBVbml2ZXJzaXR5
-KTEQMA4GA1UECxMHVGVsZWNvbTEdMBsGA1UEAxMUTUlQVCBUZWxlY29tIFJvb3QgQ0ExLTAr
-BgkqhkiG9w0BCQEWHk1JUFQgVGVsZWNvbSA8dGVsZWNvbUBtaXB0LnJ1PjAeFw0wNTA1MjMw
-NzQ1MDlaFw0wNjA2MjcwNzQ1MDlaMIG2MQswCQYDVQQGEwJSVTEWMBQGA1UECBMNTW9zY293
-IHJlZ2lvbjFGMEQGA1UEChM9TW9zY293IEluc3RpdHV0ZSBvZiBQaHlzaWNzIGFuZCBUZWNo
-bm9sb2d5IChTdGF0ZSBVbml2ZXJzaXR5KTEQMA4GA1UECxMHVGVsZWNvbTEXMBUGA1UEAxMO
-T2xsZWcgU2Ftb3lsb3YxHDAaBgkqhkiG9w0BCQEWDW9sbGVnQG1pcHQucnUwggEiMA0GCSqG
-SIb3DQEBAQUAA4IBDwAwggEKAoIBAQC0KQ5jnmerWUyHmUpK0AyF0wTM63jUBtjeu7CJnRiD
-y/aMGaaZrFb7ARZ1Pa1BplUCYU/y5KkM+WaYvvUTNETTJxYgTLGW+HFoXLKT+iAW/xTGIt8X
-e9q7+C6R7+P7ffyc8TwdPkZWpXN5gylIbfCjvzcBB9d8TqXQWG93NtJvut1uQmLg37kKpHDv
-z3+d9OJ6+X3mlNOgm32NuSXNqXkahHSofqMbQosltijBnn5n7VGY68NOrNENwv5L6Fr5PWfs
-IF0ckRS1gkPfpSezT27GdQwVuYKkqGLNTSM+KkdWeY0iDYy7M8BhBn+PPpUbRE//8dJVIxRg
-pmiJcE+4J6G9AgMBAAGjggFyMIIBbjAJBgNVHRMEAjAAMCwGCWCGSAGG+EIBDQQfFh1PcGVu
-U1NMIEdlbmVyYXRlZCBDZXJ0aWZpY2F0ZTAdBgNVHQ4EFgQUbwmSSHp4RwoImbeQupkzlrWN
-gZwwggESBgNVHSMEggEJMIIBBYAUGU8ELdohM+B3QiqpwBIAzdB/hbGhgemkgeYwgeMxCzAJ
-BgNVBAYTAlJVMRYwFAYDVQQIEw1Nb3Njb3cgcmVnaW9uMRQwEgYDVQQHEwtEb2xnb3BydWRu
-eTFGMEQGA1UEChM9TW9zY293IEluc3RpdHV0ZSBvZiBQaHlzaWNzIGFuZCBUZWNobm9sb2d5
-IChTdGF0ZSBVbml2ZXJzaXR5KTEQMA4GA1UECxMHVGVsZWNvbTEdMBsGA1UEAxMUTUlQVCBU
-ZWxlY29tIFJvb3QgQ0ExLTArBgkqhkiG9w0BCQEWHk1JUFQgVGVsZWNvbSA8dGVsZWNvbUBt
-aXB0LnJ1PoIBADANBgkqhkiG9w0BAQQFAAOCAQEAbhaKnrrcOmEH+dh7F4S3GYxvNe5Gjju/
-X4lCE6sGIi/05EdsgsGW4mAIhYjuFOaACCvDbbbB22zJJUHx+45y5Yo2/xqY3bRnpM1IQRYS
-p2jMpr/W8ryU7jgsgcWFVbMnYPWdeQg2QuzQb1OmcvuyXxX8pYaAGYWfyQFrVl9WN55sib+g
-D1HHQK2sD5kG6p2KH/Zo+Zt2P8tGJq8OsOttmuGC0kVgsN++4XdUGyB9RzbmSgkgJVFRjlXr
-VshAMYzK9SUe/oBDi6EgiI8Qv3KliMUGZm3meJIzrulH1erC7i+Kb0eX2nSPv5k5vN/UXNko
-zI3c+dMCQZmsD6lhWPAJwTCCBYowggRyoAMCAQICAQkwDQYJKoZIhvcNAQEEBQAwgeMxCzAJ
-BgNVBAYTAlJVMRYwFAYDVQQIEw1Nb3Njb3cgcmVnaW9uMRQwEgYDVQQHEwtEb2xnb3BydWRu
-eTFGMEQGA1UEChM9TW9zY293IEluc3RpdHV0ZSBvZiBQaHlzaWNzIGFuZCBUZWNobm9sb2d5
-IChTdGF0ZSBVbml2ZXJzaXR5KTEQMA4GA1UECxMHVGVsZWNvbTEdMBsGA1UEAxMUTUlQVCBU
-ZWxlY29tIFJvb3QgQ0ExLTArBgkqhkiG9w0BCQEWHk1JUFQgVGVsZWNvbSA8dGVsZWNvbUBt
-aXB0LnJ1PjAeFw0wNTA1MjMwNzQ1MDlaFw0wNjA2MjcwNzQ1MDlaMIG2MQswCQYDVQQGEwJS
-VTEWMBQGA1UECBMNTW9zY293IHJlZ2lvbjFGMEQGA1UEChM9TW9zY293IEluc3RpdHV0ZSBv
-ZiBQaHlzaWNzIGFuZCBUZWNobm9sb2d5IChTdGF0ZSBVbml2ZXJzaXR5KTEQMA4GA1UECxMH
-VGVsZWNvbTEXMBUGA1UEAxMOT2xsZWcgU2Ftb3lsb3YxHDAaBgkqhkiG9w0BCQEWDW9sbGVn
-QG1pcHQucnUwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQC0KQ5jnmerWUyHmUpK
-0AyF0wTM63jUBtjeu7CJnRiDy/aMGaaZrFb7ARZ1Pa1BplUCYU/y5KkM+WaYvvUTNETTJxYg
-TLGW+HFoXLKT+iAW/xTGIt8Xe9q7+C6R7+P7ffyc8TwdPkZWpXN5gylIbfCjvzcBB9d8TqXQ
-WG93NtJvut1uQmLg37kKpHDvz3+d9OJ6+X3mlNOgm32NuSXNqXkahHSofqMbQosltijBnn5n
-7VGY68NOrNENwv5L6Fr5PWfsIF0ckRS1gkPfpSezT27GdQwVuYKkqGLNTSM+KkdWeY0iDYy7
-M8BhBn+PPpUbRE//8dJVIxRgpmiJcE+4J6G9AgMBAAGjggFyMIIBbjAJBgNVHRMEAjAAMCwG
-CWCGSAGG+EIBDQQfFh1PcGVuU1NMIEdlbmVyYXRlZCBDZXJ0aWZpY2F0ZTAdBgNVHQ4EFgQU
-bwmSSHp4RwoImbeQupkzlrWNgZwwggESBgNVHSMEggEJMIIBBYAUGU8ELdohM+B3QiqpwBIA
-zdB/hbGhgemkgeYwgeMxCzAJBgNVBAYTAlJVMRYwFAYDVQQIEw1Nb3Njb3cgcmVnaW9uMRQw
-EgYDVQQHEwtEb2xnb3BydWRueTFGMEQGA1UEChM9TW9zY293IEluc3RpdHV0ZSBvZiBQaHlz
-aWNzIGFuZCBUZWNobm9sb2d5IChTdGF0ZSBVbml2ZXJzaXR5KTEQMA4GA1UECxMHVGVsZWNv
-bTEdMBsGA1UEAxMUTUlQVCBUZWxlY29tIFJvb3QgQ0ExLTArBgkqhkiG9w0BCQEWHk1JUFQg
-VGVsZWNvbSA8dGVsZWNvbUBtaXB0LnJ1PoIBADANBgkqhkiG9w0BAQQFAAOCAQEAbhaKnrrc
-OmEH+dh7F4S3GYxvNe5Gjju/X4lCE6sGIi/05EdsgsGW4mAIhYjuFOaACCvDbbbB22zJJUHx
-+45y5Yo2/xqY3bRnpM1IQRYSp2jMpr/W8ryU7jgsgcWFVbMnYPWdeQg2QuzQb1OmcvuyXxX8
-pYaAGYWfyQFrVl9WN55sib+gD1HHQK2sD5kG6p2KH/Zo+Zt2P8tGJq8OsOttmuGC0kVgsN++
-4XdUGyB9RzbmSgkgJVFRjlXrVshAMYzK9SUe/oBDi6EgiI8Qv3KliMUGZm3meJIzrulH1erC
-7i+Kb0eX2nSPv5k5vN/UXNkozI3c+dMCQZmsD6lhWPAJwTGCBMIwggS+AgEBMIHpMIHjMQsw
-CQYDVQQGEwJSVTEWMBQGA1UECBMNTW9zY293IHJlZ2lvbjEUMBIGA1UEBxMLRG9sZ29wcnVk
-bnkxRjBEBgNVBAoTPU1vc2NvdyBJbnN0aXR1dGUgb2YgUGh5c2ljcyBhbmQgVGVjaG5vbG9n
-eSAoU3RhdGUgVW5pdmVyc2l0eSkxEDAOBgNVBAsTB1RlbGVjb20xHTAbBgNVBAMTFE1JUFQg
-VGVsZWNvbSBSb290IENBMS0wKwYJKoZIhvcNAQkBFh5NSVBUIFRlbGVjb20gPHRlbGVjb21A
-bWlwdC5ydT4CAQkwCQYFKw4DAhoFAKCCAq0wGAYJKoZIhvcNAQkDMQsGCSqGSIb3DQEHATAc
-BgkqhkiG9w0BCQUxDxcNMDUxMjA1MDc1NDM5WjAjBgkqhkiG9w0BCQQxFgQUXQX/88dQ08iW
-V2JRZq6PhfaQDwgwUgYJKoZIhvcNAQkPMUUwQzAKBggqhkiG9w0DBzAOBggqhkiG9w0DAgIC
-AIAwDQYIKoZIhvcNAwICAUAwBwYFKw4DAgcwDQYIKoZIhvcNAwICASgwgfoGCSsGAQQBgjcQ
-BDGB7DCB6TCB4zELMAkGA1UEBhMCUlUxFjAUBgNVBAgTDU1vc2NvdyByZWdpb24xFDASBgNV
-BAcTC0RvbGdvcHJ1ZG55MUYwRAYDVQQKEz1Nb3Njb3cgSW5zdGl0dXRlIG9mIFBoeXNpY3Mg
-YW5kIFRlY2hub2xvZ3kgKFN0YXRlIFVuaXZlcnNpdHkpMRAwDgYDVQQLEwdUZWxlY29tMR0w
-GwYDVQQDExRNSVBUIFRlbGVjb20gUm9vdCBDQTEtMCsGCSqGSIb3DQEJARYeTUlQVCBUZWxl
-Y29tIDx0ZWxlY29tQG1pcHQucnU+AgEJMIH8BgsqhkiG9w0BCRACCzGB7KCB6TCB4zELMAkG
-A1UEBhMCUlUxFjAUBgNVBAgTDU1vc2NvdyByZWdpb24xFDASBgNVBAcTC0RvbGdvcHJ1ZG55
-MUYwRAYDVQQKEz1Nb3Njb3cgSW5zdGl0dXRlIG9mIFBoeXNpY3MgYW5kIFRlY2hub2xvZ3kg
-KFN0YXRlIFVuaXZlcnNpdHkpMRAwDgYDVQQLEwdUZWxlY29tMR0wGwYDVQQDExRNSVBUIFRl
-bGVjb20gUm9vdCBDQTEtMCsGCSqGSIb3DQEJARYeTUlQVCBUZWxlY29tIDx0ZWxlY29tQG1p
-cHQucnU+AgEJMA0GCSqGSIb3DQEBAQUABIIBAJIfKTfNM4zQp8SRBBU9bPEASDBoAvckg9v2
-B/h9usGhQByz17akCTq25kshnlLy1ATeFKgfe6m6iH6lNv11EXbpkuWTgJIfu/7Zpu8coA1T
-nPtuMYnmGC32gxGI5k8YyLP43hFuMRP1oZM4pCavuspH5gY+0diCfTnqtsN2FnjvN25grS6j
-6DdwTYIcSG2CEb2qreh9ocYtA/fbD+7Y7ImtGRXzL7gp78cE+msXA+6wzd22fA2sWvde8IvG
-YH2JM2WMzdLFO9e1Jb6/GGjStrb2/zXR43bQV/CkxHRTrIgsSl/2s94+LZ5S4wVjpzXMwe7s
-We/QDoCJAO28hJC7s+0AAAAAAAA=
---------------ms070608020007090202090008--
+--------------000302020504040305060906
+Content-Type: text/plain;
+ name="radix-tree-lockless-readside.patch"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline;
+ filename="radix-tree-lockless-readside.patch"
+
+Make radix tree lookups safe to be performed without locks. Readers
+are protected against nodes being deleted by using RCU based freeing.
+Readers are protected against new node insertion by using memory
+barriers to ensure the node itself will be properly written before it
+is visible in the radix tree.
+
+Each radix tree node keeps a record of their height (above leaf
+nodes). This height does not change after insertion -- when the radix
+tree is extended, higher nodes are only inserted in the top. So a
+lookup can take the pointer to what is *now* the root node, and
+traverse down it even if the tree is concurrently extended and this
+node becomes a subtree of a new root.
+
+When a reader wants to traverse the next branch, they will take a
+copy of the pointer. This pointer will be either NULL (and the branch
+is empty) or non-NULL (and will point to a valid node).
+
+Also introduce a lockfree gang_lookup_slot which will be used by a
+future patch.
+
+Signed-off-by: Nick Piggin <npiggin@suse.de>
+
+Index: linux-2.6/lib/radix-tree.c
+===================================================================
+--- linux-2.6.orig/lib/radix-tree.c
++++ linux-2.6/lib/radix-tree.c
+@@ -30,6 +30,7 @@
+ #include <linux/gfp.h>
+ #include <linux/string.h>
+ #include <linux/bitops.h>
++#include <linux/rcupdate.h>
+ 
+ 
+ #ifdef __KERNEL__
+@@ -46,7 +47,9 @@
+ 	((RADIX_TREE_MAP_SIZE + BITS_PER_LONG - 1) / BITS_PER_LONG)
+ 
+ struct radix_tree_node {
++	unsigned int	height;		/* Height from the bottom */
+ 	unsigned int	count;
++	struct rcu_head	rcu_head;
+ 	void		*slots[RADIX_TREE_MAP_SIZE];
+ 	unsigned long	tags[RADIX_TREE_TAGS][RADIX_TREE_TAG_LONGS];
+ };
+@@ -98,10 +101,17 @@ radix_tree_node_alloc(struct radix_tree_
+ 	return ret;
+ }
+ 
++static void radix_tree_node_rcu_free(struct rcu_head *head)
++{
++	struct radix_tree_node *node =
++			container_of(head, struct radix_tree_node, rcu_head);
++	kmem_cache_free(radix_tree_node_cachep, node);
++}
++
+ static inline void
+ radix_tree_node_free(struct radix_tree_node *node)
+ {
+-	kmem_cache_free(radix_tree_node_cachep, node);
++	call_rcu(&node->rcu_head, radix_tree_node_rcu_free);
+ }
+ 
+ /*
+@@ -204,6 +214,7 @@ static int radix_tree_extend(struct radi
+ 	}
+ 
+ 	do {
++		unsigned int newheight;
+ 		if (!(node = radix_tree_node_alloc(root)))
+ 			return -ENOMEM;
+ 
+@@ -216,9 +227,11 @@ static int radix_tree_extend(struct radi
+ 				tag_set(node, tag, 0);
+ 		}
+ 
++		newheight = root->height+1;
++		node->height = newheight;
+ 		node->count = 1;
+-		root->rnode = node;
+-		root->height++;
++		rcu_assign_pointer(root->rnode, node);
++		root->height = newheight;
+ 	} while (height > root->height);
+ out:
+ 	return 0;
+@@ -258,11 +271,12 @@ int radix_tree_insert(struct radix_tree_
+ 			/* Have to add a child node.  */
+ 			if (!(slot = radix_tree_node_alloc(root)))
+ 				return -ENOMEM;
++			slot->height = height;
+ 			if (node) {
+-				node->slots[offset] = slot;
++				rcu_assign_pointer(node->slots[offset], slot);
+ 				node->count++;
+ 			} else
+-				root->rnode = slot;
++				rcu_assign_pointer(root->rnode, slot);
+ 		}
+ 
+ 		/* Go a level down */
+@@ -278,7 +292,7 @@ int radix_tree_insert(struct radix_tree_
+ 
+ 	BUG_ON(!node);
+ 	node->count++;
+-	node->slots[offset] = item;
++	rcu_assign_pointer(node->slots[offset], item);
+ 	BUG_ON(tag_get(node, 0, offset));
+ 	BUG_ON(tag_get(node, 1, offset));
+ 
+@@ -290,25 +304,29 @@ static inline void **__lookup_slot(struc
+ 				   unsigned long index)
+ {
+ 	unsigned int height, shift;
+-	struct radix_tree_node **slot;
++	struct radix_tree_node *node, **slot;
+ 
+-	height = root->height;
++	/* Must take a copy now because root->rnode may change */
++	node = rcu_dereference(root->rnode);
++	if (node == NULL)
++		return NULL;
++
++	height = node->height;
+ 	if (index > radix_tree_maxindex(height))
+ 		return NULL;
+ 
+ 	shift = (height-1) * RADIX_TREE_MAP_SHIFT;
+-	slot = &root->rnode;
+ 
+-	while (height > 0) {
+-		if (*slot == NULL)
++	do {
++		slot = (struct radix_tree_node **)
++			(node->slots + ((index>>shift) & RADIX_TREE_MAP_MASK));
++		node = rcu_dereference(*slot);
++		if (node == NULL)
+ 			return NULL;
+ 
+-		slot = (struct radix_tree_node **)
+-			((*slot)->slots +
+-				((index >> shift) & RADIX_TREE_MAP_MASK));
+ 		shift -= RADIX_TREE_MAP_SHIFT;
+ 		height--;
+-	}
++	} while (height > 0);
+ 
+ 	return (void **)slot;
+ }
+@@ -339,7 +357,7 @@ void *radix_tree_lookup(struct radix_tre
+ 	void **slot;
+ 
+ 	slot = __lookup_slot(root, index);
+-	return slot != NULL ? *slot : NULL;
++	return slot != NULL ? rcu_dereference(*slot) : NULL;
+ }
+ EXPORT_SYMBOL(radix_tree_lookup);
+ 
+@@ -501,26 +519,27 @@ EXPORT_SYMBOL(radix_tree_tag_get);
+ #endif
+ 
+ static unsigned int
+-__lookup(struct radix_tree_root *root, void **results, unsigned long index,
++__lookup(struct radix_tree_root *root, void ***results, unsigned long index,
+ 	unsigned int max_items, unsigned long *next_index)
+ {
+ 	unsigned int nr_found = 0;
+ 	unsigned int shift, height;
+-	struct radix_tree_node *slot;
++	struct radix_tree_node *slot, *__s;
+ 	unsigned long i;
+ 
+-	height = root->height;
+-	if (height == 0)
++	slot = rcu_dereference(root->rnode);
++	if (!slot || slot->height == 0)
+ 		goto out;
+ 
++	height = slot->height;
+ 	shift = (height-1) * RADIX_TREE_MAP_SHIFT;
+-	slot = root->rnode;
+ 
+ 	for ( ; height > 1; height--) {
+ 
+ 		for (i = (index >> shift) & RADIX_TREE_MAP_MASK ;
+ 				i < RADIX_TREE_MAP_SIZE; i++) {
+-			if (slot->slots[i] != NULL)
++			__s = rcu_dereference(slot->slots[i]);
++			if (__s != NULL)
+ 				break;
+ 			index &= ~((1UL << shift) - 1);
+ 			index += 1UL << shift;
+@@ -531,14 +550,14 @@ __lookup(struct radix_tree_root *root, v
+ 			goto out;
+ 
+ 		shift -= RADIX_TREE_MAP_SHIFT;
+-		slot = slot->slots[i];
++		slot = __s;
+ 	}
+ 
+ 	/* Bottom level: grab some items */
+ 	for (i = index & RADIX_TREE_MAP_MASK; i < RADIX_TREE_MAP_SIZE; i++) {
+ 		index++;
+ 		if (slot->slots[i]) {
+-			results[nr_found++] = slot->slots[i];
++			results[nr_found++] = &slot->slots[i];
+ 			if (nr_found == max_items)
+ 				goto out;
+ 		}
+@@ -570,6 +589,43 @@ radix_tree_gang_lookup(struct radix_tree
+ 	unsigned int ret = 0;
+ 
+ 	while (ret < max_items) {
++		unsigned int nr_found, i;
++		unsigned long next_index;	/* Index of next search */
++
++		if (cur_index > max_index)
++			break;
++		nr_found = __lookup(root, (void ***)results + ret, cur_index,
++					max_items - ret, &next_index);
++		for (i = 0; i < nr_found; i++)
++			results[ret + i] = *(((void ***)results)[ret + i]);
++		ret += nr_found;
++		if (next_index == 0)
++			break;
++		cur_index = next_index;
++	}
++	return ret;
++}
++EXPORT_SYMBOL(radix_tree_gang_lookup);
++
++/**
++ *	radix_tree_gang_lookup_slot - perform multiple lookup on a radix tree
++ *	@root:		radix tree root
++ *	@results:	where the results of the lookup are placed
++ *	@first_index:	start the lookup from this key
++ *	@max_items:	place up to this many items at *results
++ *
++ *	Same as radix_tree_gang_lookup, but returns an array of pointers
++ *	(slots) to the stored items instead of the items themselves.
++ */
++unsigned int
++radix_tree_gang_lookup_slot(struct radix_tree_root *root, void ***results,
++			unsigned long first_index, unsigned int max_items)
++{
++	const unsigned long max_index = radix_tree_maxindex(root->height);
++	unsigned long cur_index = first_index;
++	unsigned int ret = 0;
++
++	while (ret < max_items) {
+ 		unsigned int nr_found;
+ 		unsigned long next_index;	/* Index of next search */
+ 
+@@ -584,7 +640,8 @@ radix_tree_gang_lookup(struct radix_tree
+ 	}
+ 	return ret;
+ }
+-EXPORT_SYMBOL(radix_tree_gang_lookup);
++EXPORT_SYMBOL(radix_tree_gang_lookup_slot);
++
+ 
+ /*
+  * FIXME: the two tag_get()s here should use find_next_bit() instead of
+@@ -689,6 +746,11 @@ static inline void radix_tree_shrink(str
+ 			root->rnode->slots[0]) {
+ 		struct radix_tree_node *to_free = root->rnode;
+ 
++		/*
++		 * this doesn't need an rcu_assign_pointer, because
++		 * we aren't touching the object that to_free->slots[0]
++		 * points to.
++		 */
+ 		root->rnode = to_free->slots[0];
+ 		root->height--;
+ 		/* must only free zeroed nodes into the slab */
+@@ -802,7 +864,7 @@ EXPORT_SYMBOL(radix_tree_delete);
+ int radix_tree_tagged(struct radix_tree_root *root, int tag)
+ {
+   	struct radix_tree_node *rnode;
+-  	rnode = root->rnode;
++  	rnode = rcu_dereference(root->rnode);
+   	if (!rnode)
+   		return 0;
+ 	return tag_get_any_node(rnode, tag);
+Index: linux-2.6/include/linux/radix-tree.h
+===================================================================
+--- linux-2.6.orig/include/linux/radix-tree.h
++++ linux-2.6/include/linux/radix-tree.h
+@@ -51,6 +51,9 @@ void *radix_tree_delete(struct radix_tre
+ unsigned int
+ radix_tree_gang_lookup(struct radix_tree_root *root, void **results,
+ 			unsigned long first_index, unsigned int max_items);
++unsigned int
++radix_tree_gang_lookup_slot(struct radix_tree_root *root, void ***results,
++			unsigned long first_index, unsigned int max_items);
+ int radix_tree_preload(gfp_t gfp_mask);
+ void radix_tree_init(void);
+ void *radix_tree_tag_set(struct radix_tree_root *root,
+
+--------------000302020504040305060906--
+Send instant messages to your online friends http://au.messenger.yahoo.com 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
