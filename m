@@ -1,23 +1,37 @@
-From: Keith Owens <kaos@sgi.com>
-Subject: Re: [RFC 1/3] Framework for accurate node based statistics 
-In-reply-to: Your message of "Tue, 06 Dec 2005 14:52:33 -0800."
-             <Pine.LNX.4.62.0512061447590.20377@schroedinger.engr.sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Date: Wed, 07 Dec 2005 16:50:52 +1100
-Message-ID: <9353.1133934652@kao2.melbourne.sgi.com>
+Message-ID: <439684C0.9090107@yahoo.com.au>
+Date: Wed, 07 Dec 2005 17:44:16 +1100
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+MIME-Version: 1.0
+Subject: Re: [RFC 1/3] Framework for accurate node based statistics
+References: <20051206182843.19188.82045.sendpatchset@schroedinger.engr.sgi.com> <439619F9.4030905@yahoo.com.au> <Pine.LNX.4.62.0512061536001.20580@schroedinger.engr.sgi.com>
+In-Reply-To: <Pine.LNX.4.62.0512061536001.20580@schroedinger.engr.sgi.com>
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Christoph Lameter <clameter@engr.sgi.com>
-Cc: Andi Kleen <ak@suse.de>, linux-kernel@vger.kernel.org, Hugh Dickins <hugh@veritas.com>, Nick Piggin <nickpiggin@yahoo.com.au>, linux-mm@kvack.org, linux-ia64@vger.kernel.org, Marcelo Tosatti <marcelo.tosatti@cyclades.com>
+Cc: linux-kernel@vger.kernel.org, Hugh Dickins <hugh@veritas.com>, linux-mm@kvack.org, Andi Kleen <ak@suse.de>, Marcelo Tosatti <marcelo.tosatti@cyclades.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 6 Dec 2005 14:52:33 -0800 (PST), 
-Christoph Lameter <clameter@engr.sgi.com> wrote:
->+DEFINE_PER_CPU(local_t [MAX_NUMNODES][NR_STAT_ITEMS], vm_stat_diff);
+Christoph Lameter wrote:
+> On Wed, 7 Dec 2005, Nick Piggin wrote:
+> 
+> 
+>>Why not have per-node * per-cpu counters?
+> 
+> 
+> Yes, that is exactly what this patch implements.
+>  
 
-How big is that array going to get?  The total per cpu data area is
-limited to 64K on IA64 and we already use at least 34K.
+Sorry, I think I meant: why don't you just use the "add all counters
+from all per-cpu of the node" in order to find the node-statistic?
+
+Ie. like the node based page_state statistics that we already have.
+
+-- 
+SUSE Labs, Novell Inc.
+
+Send instant messages to your online friends http://au.messenger.yahoo.com 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
