@@ -1,67 +1,84 @@
 From: Magnus Damm <magnus@valinux.co.jp>
-Message-Id: <20051208113005.6309.22155.sendpatchset@cherry.local>
+Message-Id: <20051208113010.6309.65348.sendpatchset@cherry.local>
 In-Reply-To: <20051208112940.6309.39428.sendpatchset@cherry.local>
 References: <20051208112940.6309.39428.sendpatchset@cherry.local>
-Subject: [PATCH 05/07] Remove reset_page_mapcount
-Date: Thu,  8 Dec 2005 20:27:20 +0900 (JST)
+Subject: [PATCH 06/07] Remove page_remove_rmap
+Date: Thu,  8 Dec 2005 20:27:25 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 Cc: Magnus Damm <magnus@valinux.co.jp>, andrea@suse.de
 List-ID: <linux-mm.kvack.org>
 
-Remove reset_page_mapcount.
+Remove page_remove_rmap.
 
-This patch simply removes reset_page_mapcount(). It is not needed anymore.
+This patch simply removes page_remove_rmap(). It is not needed anymore.
 
 Signed-off-by: Magnus Damm <magnus@valinux.co.jp>
 ---
 
- include/linux/mm.h |   10 ----------
- mm/page_alloc.c    |    5 ++---
- 2 files changed, 2 insertions(+), 13 deletions(-)
+ include/linux/rmap.h |    1 -
+ mm/fremap.c          |    1 -
+ mm/memory.c          |    2 --
+ mm/rmap.c            |    2 --
+ 4 files changed, 6 deletions(-)
 
---- from-0006/include/linux/mm.h
-+++ to-work/include/linux/mm.h	2005-12-08 18:03:42.000000000 +0900
-@@ -573,16 +573,6 @@ static inline pgoff_t page_index(struct 
- }
+--- from-0006/include/linux/rmap.h
++++ to-work/include/linux/rmap.h	2005-12-08 18:09:00.000000000 +0900
+@@ -75,7 +75,6 @@ void __anon_vma_link(struct vm_area_stru
+ void page_add_anon_rmap(struct page *, struct vm_area_struct *, unsigned long);
+ void page_add_file_rmap(struct page *);
  
- /*
-- * The atomic page->_mapcount, like _count, starts from -1:
-- * so that transitions both from it and to it can be tracked,
-- * using atomic_inc_and_test and atomic_add_negative(-1).
-- */
--static inline void reset_page_mapcount(struct page *page)
--{
--	ClearPageMapped(page);
--}
--
--/*
-  * Return true if this page is mapped into pagetables.
-  */
- static inline int page_mapped(struct page *page)
---- from-0005/mm/page_alloc.c
-+++ to-work/mm/page_alloc.c	2005-12-08 18:06:43.000000000 +0900
-@@ -141,9 +141,9 @@ static void bad_page(const char *functio
- 			1 << PG_reclaim |
- 			1 << PG_slab    |
- 			1 << PG_swapcache |
--			1 << PG_writeback );
-+			1 << PG_writeback |
-+			1 << PG_mapped );
- 	set_page_count(page, 0);
--	reset_page_mapcount(page);
- 	page->mapping = NULL;
- 	add_taint(TAINT_BAD_PAGE);
- }
-@@ -1716,7 +1716,6 @@ void __devinit memmap_init_zone(unsigned
- 		page = pfn_to_page(pfn);
- 		set_page_links(page, zone, nid, pfn);
- 		set_page_count(page, 1);
--		reset_page_mapcount(page);
- 		SetPageReserved(page);
- 		INIT_LIST_HEAD(&page->lru);
- #ifdef WANT_PAGE_VIRTUAL
+-static inline void page_remove_rmap(struct page *page) {}
+ static inline void page_dup_rmap(struct page *page) {}
+ 
+ int update_page_mapped(struct page *);
+--- from-0006/mm/fremap.c
++++ to-work/mm/fremap.c	2005-12-08 18:10:07.000000000 +0900
+@@ -33,7 +33,6 @@ static int zap_pte(struct mm_struct *mm,
+ 		if (page) {
+ 			if (pte_dirty(pte))
+ 				set_page_dirty(page);
+-			page_remove_rmap(page);
+ 			page_cache_release(page);
+ 		}
+ 	} else {
+--- from-0002/mm/memory.c
++++ to-work/mm/memory.c	2005-12-08 18:10:17.000000000 +0900
+@@ -649,7 +649,6 @@ static unsigned long zap_pte_range(struc
+ 					mark_page_accessed(page);
+ 				file_rss--;
+ 			}
+-			page_remove_rmap(page);
+ 			tlb_remove_page(tlb, page);
+ 			continue;
+ 		}
+@@ -1514,7 +1513,6 @@ gotten:
+ 	page_table = pte_offset_map_lock(mm, pmd, address, &ptl);
+ 	if (likely(pte_same(*page_table, orig_pte))) {
+ 		if (old_page) {
+-			page_remove_rmap(old_page);
+ 			if (!PageAnon(old_page)) {
+ 				dec_mm_counter(mm, file_rss);
+ 				inc_mm_counter(mm, anon_rss);
+--- from-0006/mm/rmap.c
++++ to-work/mm/rmap.c	2005-12-08 18:10:28.000000000 +0900
+@@ -640,7 +640,6 @@ static int try_to_unmap_one(struct page 
+ 	} else
+ 		dec_mm_counter(mm, file_rss);
+ 
+-	page_remove_rmap(page);
+ 	page_cache_release(page);
+ 
+ out_unmap:
+@@ -730,7 +729,6 @@ static void try_to_unmap_cluster(unsigne
+ 		if (pte_dirty(pteval))
+ 			set_page_dirty(page);
+ 
+-		page_remove_rmap(page);
+ 		page_cache_release(page);
+ 		dec_mm_counter(mm, file_rss);
+ 	}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
