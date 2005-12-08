@@ -1,33 +1,48 @@
-Received: by nproxy.gmail.com with SMTP id l23so189642nfc
-        for <linux-mm@kvack.org>; Thu, 08 Dec 2005 05:58:46 -0800 (PST)
-Message-ID: <84144f020512080558tb9bb6bbjf91e72ad3d9ccaa6@mail.gmail.com>
-Date: Thu, 8 Dec 2005 15:58:46 +0200
-From: Pekka Enberg <penberg@cs.helsinki.fi>
-Subject: Re: allowed pages in the block later, was Re: [Ext2-devel] [PATCH] ext3: avoid sending down non-refcounted pages
-In-Reply-To: <20051208134239.GA13376@infradead.org>
+Date: Thu, 8 Dec 2005 14:16:11 +0000 (GMT)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: Re: [PATCH 00/07][RFC] Remove mapcount from struct page
+In-Reply-To: <20051208112940.6309.39428.sendpatchset@cherry.local>
+Message-ID: <Pine.LNX.4.61.0512081352530.8950@goblin.wat.veritas.com>
+References: <20051208112940.6309.39428.sendpatchset@cherry.local>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 8BIT
-Content-Disposition: inline
-References: <20051208180900T.fujita.tomonori@lab.ntt.co.jp>
-	 <20051208101833.GM14509@schatzie.adilger.int>
-	 <20051208134239.GA13376@infradead.org>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Hellwig <hch@infradead.org>, FUJITA Tomonori <fujita.tomonori@lab.ntt.co.jp>, michaelc@cs.wisc.edu, linux-fsdevel@vger.kernel.org, ext2-devel@lists.sourceforge.net, open-iscsi@googlegroups.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Magnus Damm <magnus@valinux.co.jp>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, andrea@suse.de
 List-ID: <linux-mm.kvack.org>
 
-Hi Christoph,
+On Thu, 8 Dec 2005, Magnus Damm wrote:
+> This patchset tries to remove page->_mapcount.
 
-On 12/8/05, Christoph Hellwig <hch@infradead.org> wrote:
-> One way to work around that would be to detect kmalloced pages and use
-> a slowpath for that.  The major issues with that is that we don't have a
-> reliable way to detect if a given struct page comes from the slab allocator
-> or not.
+Interesting.  I share your feeling that it ought to be possible to
+get along without page->_mapcount, but I've not succeeded yet.  And
+perhaps the system without page->_mapcount would perform worse.
 
-Why doesn't PageSlab work for you?
+Unfortunately, I don't have time to study your patches at the moment,
+nor get into a discussion on them.  Sorry if that sounds dismissive:
+not my intention, I hope others will take up the discussion instead.
 
-                                                          Pekka
+But it looked to me as if you've done the easy part without doing the
+hard part yet: vmscanning can get along very well with an approximate
+idea of page_mapped, but can_share_swap_page really needs to know.
+
+At present you're just saying "no" there, which appears safe but
+slow; but there's a get_user_pages fork case where it's very bad
+for it to say "no" when it should say "yes".  See try_to_unmap_one
+comment on get_user_pages in 2.6.12 mm/rmap.c.
+
+It looked as if you were doing a separate scan to update PG_mapped,
+which would better be incorporated in the page_referenced scan.
+I found locking to be a problem.  lock_page is held at many of
+the right points, but not all, and may be bad to extend its use.
+
+Your patches looked over-split to me (a rare criticism!): you don't
+need a separate patch to delete each little thing that's no longer
+used, nor a separate patch to introduce each new definition before
+it's used.
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
