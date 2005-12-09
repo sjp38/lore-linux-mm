@@ -1,82 +1,176 @@
-Subject: Re: [PATCH 00/07][RFC] Remove mapcount from struct page
-From: Magnus Damm <magnus@valinux.co.jp>
-In-Reply-To: <Pine.LNX.4.61.0512081352530.8950@goblin.wat.veritas.com>
-References: <20051208112940.6309.39428.sendpatchset@cherry.local>
-	 <Pine.LNX.4.61.0512081352530.8950@goblin.wat.veritas.com>
-Content-Type: text/plain
-Date: Fri, 09 Dec 2005 11:48:44 +0900
-Message-Id: <1134096525.9588.96.camel@localhost>
+Date: Thu, 8 Dec 2005 19:00:16 -0800
+From: Rohit Seth <rohit.seth@intel.com>
+Subject: [PATCH]: Making high and batch sizes of per_cpu_pagelists configurable
+Message-ID: <20051208190016.A3975@unix-os.sc.intel.com>
 Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, andrea@suse.de
+To: akpm@osdl.org, torvalds@osdl.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2005-12-08 at 14:16 +0000, Hugh Dickins wrote:
-> On Thu, 8 Dec 2005, Magnus Damm wrote:
-> > This patchset tries to remove page->_mapcount.
-> 
-> Interesting.  I share your feeling that it ought to be possible to
-> get along without page->_mapcount, but I've not succeeded yet.  And
-> perhaps the system without page->_mapcount would perform worse.
-> 
-> Unfortunately, I don't have time to study your patches at the moment,
-> nor get into a discussion on them.  Sorry if that sounds dismissive:
-> not my intention, I hope others will take up the discussion instead.
+As recently there has been lot of traffic on the right values for 
+batch and high water marks for per_cpu_pagelists. This patch makes 
+these two variables configurable through /proc interface.
 
-Your comments so far are very valuable to me. Thank you.
+A new tunable /proc/sys/vm/percpu_pagelist_fraction is added.  This 
+entry controls the fraction of pages at most in each zone that are 
+allocated for each per cpu page list.  The min value for this is 8. 
+It means that we don't allow more than 1/8th of pages in each zone 
+to be allocated in any single per_cpu_pagelist.
 
-> But it looked to me as if you've done the easy part without doing the
-> hard part yet: vmscanning can get along very well with an approximate
-> idea of page_mapped, but can_share_swap_page really needs to know.
-> 
-> At present you're just saying "no" there, which appears safe but
-> slow; but there's a get_user_pages fork case where it's very bad
-> for it to say "no" when it should say "yes".  See try_to_unmap_one
-> comment on get_user_pages in 2.6.12 mm/rmap.c.
+The batch value of each per cpu pagelist is also updated as a
+result.  It is set to pcp->high/4.  The upper limit of batch
+is (PAGE_SHIFT * 8)
 
-Ah, I thought it was safe to always say no. ATM I have no good idea how
-to solve the get_user_pages() fork case in a good way, so any
-suggestions are very welcome. =)
 
-> It looked as if you were doing a separate scan to update PG_mapped,
-> which would better be incorporated in the page_referenced scan.
+Thanks to Andrew for providing early feedback.
 
-My first non public version did just that. But then I decided to
-implement the scan separately. Mainly because the anonymous
-page_referenced() scan could be done without PG_locked held, but in my
-case the page locking is always needed to protect us from a racing
-page_add_*_rmap(). And I could not find any reason to actually count the
-number of pages mapped, except for can_share_swap_page() that I thought
-was safe to change into the constant 0, so the idea was to improve
-performance by returning when the first mapping was found.
+Signed-off-by: Rohit Seth <rohit.seth@intel.com>
 
-> I found locking to be a problem.  lock_page is held at many of
-> the right points, but not all, and may be bad to extend its use.
-
-Yes. Locking is tricky. I studied where page_add_*_rmap() was called and
-figured out that only one extra PG_locked was needed. In all other cases
-the page was either newly allocated, the zero page or already locked.
-
-This extra lock probably result in worse scalability for large machines.
-But OTOH the patch will save memory, and for smaller systems such as
-laptops the scalability might not be such a big issue.
-
-> Your patches looked over-split to me (a rare criticism!): you don't
-> need a separate patch to delete each little thing that's no longer
-> used, nor a separate patch to introduce each new definition before
-> it's used.
-
-Indeed. Looking at them today and I totally agree with you. My plan was
-to be able to test each broken out patch separately to be able to locate
-bugs and performance bottle necks. But I could still do that and reduce
-the number of patches to 4 or so.
-
-Many thanks,
-
-/ magnus
+--- a/Documentation/sysctl/vm.txt	2005-12-08 10:44:12.000000000 -0800
++++ linux-2.6.15-rc5-mm1/Documentation/sysctl/vm.txt	2005-12-08 10:23:42.000000000 -0800
+@@ -27,6 +27,7 @@
+ - laptop_mode
+ - block_dump
+ - swap_prefetch
++- percpu_pagelist_fraction
+ 
+ ==============================================================
+ 
+@@ -114,3 +115,22 @@
+ Setting it to 0 disables prefetching entirely.
+ 
+ The default value is dependant on ramsize.
++
++==============================================================
++
++percpu_pagelist_fraction
++
++This is fraction of pages at most (high mark pcp->high) in each zone
++that are allocated for each per cpu page list.  The min value for this 
++is 8. It means that we don't allow more than 1/8th of pages in each zone 
++to be allocated in any single per_cpu_pagelist.  This entry only 
++changes the value of hot per cpu pagelists.  User can specify a number 
++like 100 to allocate 1/100th of each zone to each per cpu page list.
++
++The batch value of each per cpu pagelist is also updated as a 
++result.  It is set to pcp->high/4.  The upper limit of batch 
++is (PAGE_SHIFT * 8)
++
++The initial value is zero.  Kernel does not use this value at boot time
++to set the high water marks for each per cpu page list.
++
+--- a/include/linux/mmzone.h	2005-12-08 10:44:49.000000000 -0800
++++ linux-2.6.15-rc5-mm1/include/linux/mmzone.h	2005-12-08 09:49:48.000000000 -0800
+@@ -437,6 +437,8 @@
+ extern int sysctl_lowmem_reserve_ratio[MAX_NR_ZONES-1];
+ int lowmem_reserve_ratio_sysctl_handler(struct ctl_table *, int, struct file *,
+ 					void __user *, size_t *, loff_t *);
++int percpu_pagelist_fraction_sysctl_handler(struct ctl_table *, int, struct file *,
++					void __user *, size_t *, loff_t *);
+ 
+ #include <linux/topology.h>
+ /* Returns the number of the current Node. */
+--- a/include/linux/sysctl.h	2005-12-08 10:45:04.000000000 -0800
++++ linux-2.6.15-rc5-mm1/include/linux/sysctl.h	2005-12-08 09:50:08.000000000 -0800
+@@ -183,6 +183,7 @@
+ 	VM_SWAP_TOKEN_TIMEOUT=28, /* default time for token time out */
+ 	VM_DROP_PAGECACHE=29,	/* int: nuke lots of pagecache */
+ 	VM_SWAP_PREFETCH=30,	/* int: amount to swap prefetch */
++	VM_PERCPU_PAGELIST_FRACTION=31,/* int: fraction of pages in each percpu_pagelist */
+ };
+ 
+ 
+--- a/kernel/sysctl.c	2005-12-08 10:45:44.000000000 -0800
++++ linux-2.6.15-rc5-mm1/kernel/sysctl.c	2005-12-08 10:29:40.000000000 -0800
+@@ -68,6 +68,7 @@
+ extern int printk_ratelimit_jiffies;
+ extern int printk_ratelimit_burst;
+ extern int pid_max_min, pid_max_max;
++extern int percpu_pagelist_fraction;
+ 
+ #if defined(CONFIG_X86_LOCAL_APIC) && defined(CONFIG_X86)
+ int unknown_nmi_panic;
+@@ -78,6 +79,7 @@
+ /* this is needed for the proc_dointvec_minmax for [fs_]overflow UID and GID */
+ static int maxolduid = 65535;
+ static int minolduid;
++static int min_percpu_pagelist_fract = 8;
+ 
+ static int ngroups_max = NGROUPS_MAX;
+ 
+@@ -801,6 +803,16 @@
+ 		.strategy	= &sysctl_intvec,
+ 		.extra1		= &zero,
+ 	},
++	{
++		.ctl_name	= VM_PERCPU_PAGELIST_FRACTION,
++		.procname	= "percpu_pagelist_fraction",
++		.data		= &percpu_pagelist_fraction,
++		.maxlen		= sizeof(percpu_pagelist_fraction),
++		.mode		= 0644,
++		.proc_handler	= &percpu_pagelist_fraction_sysctl_handler,
++		.strategy	= &sysctl_intvec,
++		.extra1		= &min_percpu_pagelist_fract,
++	},
+ #ifdef CONFIG_MMU
+ 	{
+ 		.ctl_name	= VM_MAX_MAP_COUNT,
+--- a/mm/page_alloc.c	2005-12-08 10:45:30.000000000 -0800
++++ linux-2.6.15-rc5-mm1/mm/page_alloc.c	2005-12-08 10:39:29.000000000 -0800
+@@ -2676,6 +2676,49 @@
+ 	return 0;
+ }
+ 
++int percpu_pagelist_fraction;
++
++/* setup_pagelist_highmark sets the high water mark for hot per_cpu_pagelist
++ * to the value high for the pagesrt p.
++ */
++
++static inline void setup_pagelist_highmark(struct per_cpu_pageset *p, unsigned long high)
++{
++	struct per_cpu_pages *pcp;
++	
++	pcp = &p->pcp[0]; /* hot list */
++	pcp->high = high;
++	pcp->batch = max(1UL, high/4);
++	if ((high/4) > (PAGE_SHIFT * 8))
++		pcp->batch = PAGE_SHIFT * 8;
++}
++
++/*
++ * percpu_pagelist_fraction - changes the pcp->high for each zone on each
++ * cpu.  It is the fraction of total pages in each zone that a hot per cpu pagelist
++ * can have before it gets flushed back to buddy allocator.
++ */
++
++int percpu_pagelist_fraction_sysctl_handler(ctl_table *table, int write,
++	struct file *file, void __user *buffer, size_t *length, loff_t *ppos)
++{
++	struct zone *zone;
++	unsigned int cpu;
++	int ret;
++
++	ret = proc_dointvec_minmax(table, write, file, buffer, length, ppos);
++	if (!write || (ret == -EINVAL))
++		return ret;
++	for_each_zone(zone) {
++		for_each_online_cpu(cpu) {
++			unsigned long  high;
++			high = zone->present_pages / percpu_pagelist_fraction;
++			setup_pagelist_highmark(zone_pcp(zone, cpu), high);
++		}
++	}
++	return 0;
++}
++
+ __initdata int hashdist = HASHDIST_DEFAULT;
+ 
+ #ifdef CONFIG_NUMA
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
