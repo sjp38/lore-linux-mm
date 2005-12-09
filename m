@@ -1,68 +1,82 @@
-Received: by nproxy.gmail.com with SMTP id l23so218022nfc
-        for <linux-mm@kvack.org>; Thu, 08 Dec 2005 11:20:33 -0800 (PST)
-Message-ID: <84144f020512081120u428ebd6eud0566a7d57a7726a@mail.gmail.com>
-Date: Thu, 8 Dec 2005 21:20:33 +0200
-From: Pekka Enberg <penberg@cs.helsinki.fi>
-Subject: Re: allowed pages in the block later, was Re: [Ext2-devel] [PATCH] ext3: avoid sending down non-refcounted pages
-In-Reply-To: <439879ED.5050706@cs.wisc.edu>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 8BIT
-Content-Disposition: inline
-References: <20051208180900T.fujita.tomonori@lab.ntt.co.jp>
-	 <20051208101833.GM14509@schatzie.adilger.int>
-	 <20051208134239.GA13376@infradead.org> <439878E4.6060505@cs.wisc.edu>
-	 <439879ED.5050706@cs.wisc.edu>
+Subject: Re: [PATCH 00/07][RFC] Remove mapcount from struct page
+From: Magnus Damm <magnus@valinux.co.jp>
+In-Reply-To: <Pine.LNX.4.61.0512081352530.8950@goblin.wat.veritas.com>
+References: <20051208112940.6309.39428.sendpatchset@cherry.local>
+	 <Pine.LNX.4.61.0512081352530.8950@goblin.wat.veritas.com>
+Content-Type: text/plain
+Date: Fri, 09 Dec 2005 11:48:44 +0900
+Message-Id: <1134096525.9588.96.camel@localhost>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mike Christie <michaelc@cs.wisc.edu>
-Cc: open-iscsi@googlegroups.com, Christoph Hellwig <hch@infradead.org>, FUJITA Tomonori <fujita.tomonori@lab.ntt.co.jp>, linux-fsdevel@vger.kernel.org, ext2-devel@lists.sourceforge.net, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Hugh Dickins <hugh@veritas.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, andrea@suse.de
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+On Thu, 2005-12-08 at 14:16 +0000, Hugh Dickins wrote:
+> On Thu, 8 Dec 2005, Magnus Damm wrote:
+> > This patchset tries to remove page->_mapcount.
+> 
+> Interesting.  I share your feeling that it ought to be possible to
+> get along without page->_mapcount, but I've not succeeded yet.  And
+> perhaps the system without page->_mapcount would perform worse.
+> 
+> Unfortunately, I don't have time to study your patches at the moment,
+> nor get into a discussion on them.  Sorry if that sounds dismissive:
+> not my intention, I hope others will take up the discussion instead.
 
-On 12/8/05, Mike Christie <michaelc@cs.wisc.edu> wrote:
-> Or there is not a way to do kmalloc(GFP_BLK) that gives us the right
-> type of memory is there?
+Your comments so far are very valuable to me. Thank you.
 
-The slab allocator uses page->lru for special purposes. See
-page_{set|get}_{cache|slab} in mm/slab.c. They are used by kfree(),
-ksize() and slab debugging code to lookup the cache and slab an void
-pointer belongs to.
+> But it looked to me as if you've done the easy part without doing the
+> hard part yet: vmscanning can get along very well with an approximate
+> idea of page_mapped, but can_share_swap_page really needs to know.
+> 
+> At present you're just saying "no" there, which appears safe but
+> slow; but there's a get_user_pages fork case where it's very bad
+> for it to say "no" when it should say "yes".  See try_to_unmap_one
+> comment on get_user_pages in 2.6.12 mm/rmap.c.
 
-But, if you just need put_page and get_page, couldn't you do something
-like the following?
+Ah, I thought it was safe to always say no. ATM I have no good idea how
+to solve the get_user_pages() fork case in a good way, so any
+suggestions are very welcome. =)
 
-                                       Pekka
+> It looked as if you were doing a separate scan to update PG_mapped,
+> which would better be incorporated in the page_referenced scan.
 
-Index: 2.6/mm/swap.c
-===================================================================
---- 2.6.orig/mm/swap.c
-+++ 2.6/mm/swap.c
-@@ -36,6 +36,9 @@ int page_cluster;
+My first non public version did just that. But then I decided to
+implement the scan separately. Mainly because the anonymous
+page_referenced() scan could be done without PG_locked held, but in my
+case the page locking is always needed to protect us from a racing
+page_add_*_rmap(). And I could not find any reason to actually count the
+number of pages mapped, except for can_share_swap_page() that I thought
+was safe to change into the constant 0, so the idea was to improve
+performance by returning when the first mapping was found.
 
- void put_page(struct page *page)
- {
-+	if (unlikely(PageSlab(page)))
-+		return;
-+
- 	if (unlikely(PageCompound(page))) {
- 		page = (struct page *)page_private(page);
- 		if (put_page_testzero(page)) {
-Index: 2.6/include/linux/mm.h
-===================================================================
---- 2.6.orig/include/linux/mm.h
-+++ 2.6/include/linux/mm.h
-@@ -322,6 +322,9 @@ static inline int page_count(struct page
+> I found locking to be a problem.  lock_page is held at many of
+> the right points, but not all, and may be bad to extend its use.
 
- static inline void get_page(struct page *page)
- {
-+	if (unlikely(PageSlab(page)))
-+		return;
-+
- 	if (unlikely(PageCompound(page)))
- 		page = (struct page *)page_private(page);
- 	atomic_inc(&page->_count);
+Yes. Locking is tricky. I studied where page_add_*_rmap() was called and
+figured out that only one extra PG_locked was needed. In all other cases
+the page was either newly allocated, the zero page or already locked.
+
+This extra lock probably result in worse scalability for large machines.
+But OTOH the patch will save memory, and for smaller systems such as
+laptops the scalability might not be such a big issue.
+
+> Your patches looked over-split to me (a rare criticism!): you don't
+> need a separate patch to delete each little thing that's no longer
+> used, nor a separate patch to introduce each new definition before
+> it's used.
+
+Indeed. Looking at them today and I totally agree with you. My plan was
+to be able to test each broken out patch separately to be able to locate
+bugs and performance bottle necks. But I could still do that and reduce
+the number of patches to 4 or so.
+
+Many thanks,
+
+/ magnus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
