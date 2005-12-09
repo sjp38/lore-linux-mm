@@ -1,36 +1,53 @@
-Date: Fri, 9 Dec 2005 11:47:41 -0800
-From: Rohit Seth <rohit.seth@intel.com>
-Subject: [PATCH]: gets a new online cpu to use percpu_pagelist_fraction
-Message-ID: <20051209114740.A557@unix-os.sc.intel.com>
-Mime-Version: 1.0
+Date: Fri, 9 Dec 2005 21:11:28 +0100
+From: Adrian Bunk <bunk@stusta.de>
+Subject: Re: [RFC] Introduce atomic_long_t
+Message-ID: <20051209201127.GE23349@stusta.de>
+References: <Pine.LNX.4.62.0512091053260.2656@schroedinger.engr.sgi.com>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.62.0512091053260.2656@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: akpm@osdl.org
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Christoph Lameter <clameter@engr.sgi.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-ia64@ver.kernel.org, ak@suse.de
 List-ID: <linux-mm.kvack.org>
 
-If percpu_pagelist_fraction tunable is set then this patch allows a newly
-brought online cpu to use new settings for high and batch values in its 
-per cpu pagelists.
+On Fri, Dec 09, 2005 at 10:58:40AM -0800, Christoph Lameter wrote:
 
-Signed-off-by: Rohit Seth <rohit.seth@intel.com>
+> Several counters already have the need to use 64 atomic variables on 64
+> bit platforms (see mm_counter_t in sched.h). We have to do ugly ifdefs to
+> fall back to 32 bit atomic on 32 bit platforms.
+> 
+> The VM statistics patch that I am working on will also need to make more 
+> extensive use of 64 bit counters when available.
+> 
+> This patch introduces a new type atomic_long_t that works similar to the c
+> "long" type. Its 32 bits on 32 bit platforms and 64 bits on 64 bit platforms.
+> 
+> The patch uses atomic_long_t to clean up the mess in include/linux/sched.h.
+> Implementations for all arches provided but only tested on ia64.
+>...
 
+The idea looks good, but the amount of code duplication is ugly.
 
---- c/mm/page_alloc.c	2005-12-09 03:43:22.000000000 -0800
-+++ linux-2.6.15-rc5-mm1/mm/page_alloc.c	2005-12-09 03:45:28.000000000 -0800
-@@ -1977,6 +1977,10 @@
- 			goto bad;
- 
- 		setup_pageset(zone->pageset[cpu], zone_batchsize(zone));
-+
-+		if (percpu_pagelist_fraction) 
-+			setup_pagelist_highmark(zone_pcp(zone, cpu), 
-+			 	(zone->present_pages / percpu_pagelist_fraction));
- 	}
- 
- 	return 0;
+What about creating an include/linux/atomic.h [1] that contains both 
+this new code and other common code like the atomic_t typedef (unless 
+there's a good reason why counter isn't volatile on h8300 and v850...).
+
+cu
+Adrian
+
+[1] include/asm-generic/atomic.h would be another solution, but for
+    an API that should be available on all architectures, include/linux/
+    seems to be the more logical place
+
+-- 
+
+       "Is there not promise of rain?" Ling Tan asked suddenly out
+        of the darkness. There had been need of rain for many days.
+       "Only a promise," Lao Er said.
+                                       Pearl S. Buck - Dragon Seed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
