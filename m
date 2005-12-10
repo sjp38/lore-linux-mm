@@ -1,85 +1,48 @@
-Date: Sat, 10 Dec 2005 20:02:54 +0900
+Date: Sat, 10 Dec 2005 20:05:16 +0900
 From: Yasunori Goto <y-goto@jp.fujitsu.com>
-Subject: [Patch] New zone ZONE_EASY_RECLAIM take 3. (change build_zonelists)[3/5]
-Message-Id: <20051210194021.482A.Y-GOTO@jp.fujitsu.com>
+Subject: [patch] Fix Kconfig of DMA32 for ia64
+Message-Id: <20051210194521.4832.Y-GOTO@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linux Hotplug Memory Support <lhms-devel@lists.sourceforge.net>, linux-mm <linux-mm@kvack.org>
-Cc: Joel Schopp <jschopp@austin.ibm.com>
+To: Andrew Morton <akpm@osdl.org>, linux-mm <linux-mm@kvack.org>
+Cc: "Luck, Tony" <tony.luck@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-This is changing build_zonelists for new zone.
+Andew-san.
 
-__GFP_xxxs are flag for requires of page allocation which zone
-is prefered. But, it is used as an index number for zonelists[] too.
-But after my patch, __GFP_xxx might be set at same time. So,
-last set bit number of __GFP is recognized for zonelists' index
-by this patch.
+I realized ZONE_DMA32 on -mm has a trivial bug at Kconfig for ia64.
+In include/linux/gfp.h on 2.6.15-rc5-mm1, CONFIG is define like
+followings.
 
-Note:
- This patch is modified take 3 to avoid panic on i386.
- __GFP_DMA32 is 0 for i386. So, ZONE_DMA32 is selected 
- if zone_bits is 0 which means Zone_normal. 
- Zone_DMA32 is not allocated on i386, so kernel paniced 
- by no normal memory.
- In this patch, even if zone_bits is 0 adn __GFP_DMA32 is 0,
- Zone_Normal is selected.
+#ifdef CONFIG_DMA_IS_DMA32
+#define __GFP_DMA32	((__force gfp_t)0x01)	/* ZONE_DMA is ZONE_DMA32
+*/
+       :
+       :
 
+So, CONFIG_"ZONE"_DMA_IS_DMA32 is clearly wrong.
+This is patch for it.
+
+Thanks.
 
 Signed-off-by: Yasunori Goto <y-goto@jp.fujitsu.com>
 
-Index: zone_reclaim/mm/page_alloc.c
+Index: zone_reclaim/arch/ia64/Kconfig
 ===================================================================
---- zone_reclaim.orig/mm/page_alloc.c	2005-12-06 14:11:20.000000000 +0900
-+++ zone_reclaim/mm/page_alloc.c	2005-12-06 15:41:50.000000000 +0900
-@@ -1574,6 +1574,10 @@ static int __init build_zonelists_node(p
- 		struct zone *zone;
- 	default:
- 		BUG();
-+	case ZONE_EASY_RECLAIM:
-+		zone = pgdat->node_zones + ZONE_EASY_RECLAIM;
-+		if (zone->present_pages)
-+			zonelist->zones[j++] = zone;
- 	case ZONE_HIGHMEM:
- 		zone = pgdat->node_zones + ZONE_HIGHMEM;
- 		if (populated_zone(zone)) {
-@@ -1602,12 +1606,16 @@ static int __init build_zonelists_node(p
- static inline int highest_zone(int zone_bits)
- {
- 	int res = ZONE_NORMAL;
--	if (zone_bits & (__force int)__GFP_HIGHMEM)
--		res = ZONE_HIGHMEM;
--	if (zone_bits & (__force int)__GFP_DMA32)
--		res = ZONE_DMA32;
-+
- 	if (zone_bits & (__force int)__GFP_DMA)
- 		res = ZONE_DMA;
-+	if (zone_bits & (__force int)__GFP_DMA32)
-+		res = ZONE_DMA32;
-+	if (zone_bits & (__force int)__GFP_HIGHMEM)
-+		res = ZONE_HIGHMEM;
-+	if (zone_bits & (__force int)__GFP_EASY_RECLAIM)
-+		res = ZONE_EASY_RECLAIM;
-+
- 	return res;
- }
+--- zone_reclaim.orig/arch/ia64/Kconfig	2005-12-06 13:48:35.000000000 +0900
++++ zone_reclaim/arch/ia64/Kconfig	2005-12-06 14:52:39.000000000 +0900
+@@ -58,7 +58,7 @@ config IA64_UNCACHED_ALLOCATOR
+ 	bool
+ 	select GENERIC_ALLOCATOR
  
-Index: zone_reclaim/include/linux/gfp.h
-===================================================================
---- zone_reclaim.orig/include/linux/gfp.h	2005-12-06 14:12:43.000000000 +0900
-+++ zone_reclaim/include/linux/gfp.h	2005-12-06 14:12:44.000000000 +0900
-@@ -80,7 +80,7 @@ struct vm_area_struct;
+-config ZONE_DMA_IS_DMA32
++config DMA_IS_DMA32
+ 	bool
+ 	default y
  
- static inline int gfp_zone(gfp_t gfp)
- {
--	int zone = GFP_ZONEMASK & (__force int) gfp;
-+	int zone = fls(GFP_ZONEMASK & (__force int) gfp);
- 	BUG_ON(zone >= GFP_ZONETYPES);
- 	return zone;
- }
 
 -- 
 Yasunori Goto 
