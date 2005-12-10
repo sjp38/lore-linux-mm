@@ -1,36 +1,41 @@
-Date: Sat, 10 Dec 2005 04:32:35 +0100
-From: Andi Kleen <ak@suse.de>
-Subject: Re: [RFC 1/6] Framework
-Message-ID: <20051210033235.GP11190@wotan.suse.de>
-References: <20051210005440.3887.34478.sendpatchset@schroedinger.engr.sgi.com> <20051210005445.3887.94119.sendpatchset@schroedinger.engr.sgi.com>
+Date: Sat, 10 Dec 2005 08:39:15 +0000
+From: Pavel Machek <pavel@ucw.cz>
+Subject: Re: [RFC][PATCH 0/8] Critical Page Pool
+Message-ID: <20051210083915.GB2833@ucw.cz>
+References: <437E2C69.4000708@us.ibm.com> <20051118195657.GI7991@shell0.pdx.osdl.net> <43815F64.4070502@us.ibm.com> <20051121132910.GA1971@elf.ucw.cz> <439616B6.1020308@us.ibm.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20051210005445.3887.94119.sendpatchset@schroedinger.engr.sgi.com>
+In-Reply-To: <439616B6.1020308@us.ibm.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: linux-kernel@vger.kernel.org, Hugh Dickins <hugh@veritas.com>, Nick Piggin <nickpiggin@yahoo.com.au>, linux-mm@kvack.org, Andi Kleen <ak@suse.de>, Marcelo Tosatti <marcelo.tosatti@cyclades.com>
+To: Matthew Dobson <colpatch@us.ibm.com>
+Cc: Chris Wright <chrisw@osdl.org>, linux-kernel@vger.kernel.org, Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-> +#define global_page_state(__x) atomic_long_read(&vm_stat[__x])
-> +#define zone_page_state(__z,__x) atomic_long_read(&(__z)->vm_stat[__x])
-> +extern unsigned long node_page_state(int node, enum zone_stat_item);
-> +
-> +/*
-> + * For use when we know that interrupts are disabled.
+Hi!
 
-Why do you need to disable interupts for atomic_t ? 
-If you just want to prevent switching CPUs that could be 
-done with get_cpu(), but alternatively you could just ignore
-that race (it wouldn't be a big issue to still increment
-the counter on the old CPU)
+> > ...and then you find out that your test was not "bad enough" or that
+> > it needs more memory on different machines. It may be good enough hack
+> > for your usage, but I do not think it belongs in mainline.
+> > 								Pavel
+> 
+> Way late in responding to this, but...
+> 
+> Apropriate sizing of this pool is a known issue.  For example, we want to
+> use it to keep the networking stack alive during extreme memory pressure
+> situations.  The only way to size the pool so as to *guarantee* that it
+> will not be exhausted during the 2 minute window we need would be to ensure
+> that the pool has at least (TOTAL_BANDWITH_OF_ALL_NICS * 120 seconds) bytes
+> available.  In the case of a simple system with a single GigE adapter we'd
+> need (1 gigbit/sec * 120 sec) = 120 gigabits = 15 gigabytes of reserve
+> pool.  That is obviously completely impractical, considering many boxes
 
-And why atomic and not just local_t?  On x86/x86-64 local_t
-would be much cheaper at least. It's not long, but that could
-be as well added.
-
--Andi
+And it is not enough... If someone hits you with small packets,
+allocation overhead is going to be high.
+							Pavel
+-- 
+Thanks, Sharp!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
