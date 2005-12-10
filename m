@@ -1,7 +1,7 @@
-Date: Sat, 10 Dec 2005 20:02:47 +0900
+Date: Sat, 10 Dec 2005 20:03:01 +0900
 From: Yasunori Goto <y-goto@jp.fujitsu.com>
-Subject: [Patch] New zone ZONE_EASY_RECLAIM take 3. (define ZONE_EASY_RECLAIM)[2/5]
-Message-Id: <20051210193849.4828.Y-GOTO@jp.fujitsu.com>
+Subject: [Patch] New zone ZONE_EASY_RECLAIM take 3. (is_easy_reclaim func)[4/5]
+Message-Id: <20051210194128.482C.Y-GOTO@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
@@ -11,51 +11,71 @@ To: linux-mm <linux-mm@kvack.org>, Linux Hotplug Memory Support <lhms-devel@list
 Cc: Joel Schopp <jschopp@austin.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-This defines new zone ZONE_EASY_RECLAIM.
-ZONES_SHIFT becomes 3.
-And this patch add member of sysctl_lowmem_reserve_ratio[].
+This is for calculation of the watermark zone->pages_min/low/high.
+And it defines is_higher_zone().
 
 Signed-off-by: Yasunori Goto <y-goto@jp.fujitsu.com>
 
 Index: zone_reclaim/include/linux/mmzone.h
 ===================================================================
---- zone_reclaim.orig/include/linux/mmzone.h	2005-12-10 17:12:58.000000000 +0900
-+++ zone_reclaim/include/linux/mmzone.h	2005-12-10 17:13:16.000000000 +0900
-@@ -73,9 +73,10 @@ struct per_cpu_pageset {
- #define ZONE_DMA32		1
- #define ZONE_NORMAL		2
- #define ZONE_HIGHMEM		3
-+#define ZONE_EASY_RECLAIM	4
+--- zone_reclaim.orig/include/linux/mmzone.h	2005-12-10 17:13:16.000000000 +0900
++++ zone_reclaim/include/linux/mmzone.h	2005-12-10 17:39:57.000000000 +0900
+@@ -394,6 +394,11 @@ static inline int populated_zone(struct 
+ 	return (!!zone->present_pages);
+ }
  
--#define MAX_NR_ZONES		4	/* Sync this with ZONES_SHIFT */
--#define ZONES_SHIFT		2	/* ceil(log2(MAX_NR_ZONES)) */
-+#define MAX_NR_ZONES		5	/* Sync this with ZONES_SHIFT */
-+#define ZONES_SHIFT		3	/* ceil(log2(MAX_NR_ZONES)) */
++static inline int is_easy_reclaim_idx(int idx)
++{
++	return (idx == ZONE_EASY_RECLAIM);
++}
++
+ static inline int is_highmem_idx(int idx)
+ {
+ 	return (idx == ZONE_HIGHMEM);
+@@ -410,11 +415,21 @@ static inline int is_normal_idx(int idx)
+  *              to ZONE_{DMA/NORMAL/HIGHMEM/etc} in general code to a minimum.
+  * @zone - pointer to struct zone variable
+  */
++static inline int is_easy_reclaim(struct zone *zone)
++{
++	return zone == zone->zone_pgdat->node_zones + ZONE_EASY_RECLAIM;
++}
++
+ static inline int is_highmem(struct zone *zone)
+ {
+ 	return zone == zone->zone_pgdat->node_zones + ZONE_HIGHMEM;
+ }
  
- 
- /*
++static inline int is_higher_zone(struct zone *zone)
++{
++	return (is_highmem(zone) || is_easy_reclaim(zone));
++}
++
+ static inline int is_normal(struct zone *zone)
+ {
+ 	return zone == zone->zone_pgdat->node_zones + ZONE_NORMAL;
 Index: zone_reclaim/mm/page_alloc.c
 ===================================================================
---- zone_reclaim.orig/mm/page_alloc.c	2005-12-10 17:13:15.000000000 +0900
-+++ zone_reclaim/mm/page_alloc.c	2005-12-10 17:15:10.000000000 +0900
-@@ -66,7 +66,7 @@ static void fastcall free_hot_cold_page(
-  * TBD: should special case ZONE_DMA32 machines here - in those we normally
-  * don't need any ZONE_NORMAL reservation
-  */
--int sysctl_lowmem_reserve_ratio[MAX_NR_ZONES-1] = { 256, 256, 32 };
-+int sysctl_lowmem_reserve_ratio[MAX_NR_ZONES-1] = { 256, 256, 256, 32 ,32};
+--- zone_reclaim.orig/mm/page_alloc.c	2005-12-10 17:15:10.000000000 +0900
++++ zone_reclaim/mm/page_alloc.c	2005-12-10 17:40:59.000000000 +0900
+@@ -2573,7 +2573,7 @@ void setup_per_zone_pages_min(void)
  
- EXPORT_SYMBOL(totalram_pages);
+ 	/* Calculate total number of !ZONE_HIGHMEM pages */
+ 	for_each_zone(zone) {
+-		if (!is_highmem(zone))
++		if (!is_higher_zone(zone))
+ 			lowmem_pages += zone->present_pages;
+ 	}
  
-@@ -77,7 +77,7 @@ EXPORT_SYMBOL(totalram_pages);
- struct zone *zone_table[1 << ZONETABLE_SHIFT] __read_mostly;
- EXPORT_SYMBOL(zone_table);
- 
--static char *zone_names[MAX_NR_ZONES] = { "DMA", "DMA32", "Normal", "HighMem" };
-+static char *zone_names[MAX_NR_ZONES] = { "DMA", "DMA32", "Normal", "HighMem", "Easy Reclaim"};
- int min_free_kbytes = 1024;
- 
- unsigned long __initdata nr_kernel_pages;
+@@ -2581,7 +2581,7 @@ void setup_per_zone_pages_min(void)
+ 		unsigned long tmp;
+ 		spin_lock_irqsave(&zone->lru_lock, flags);
+ 		tmp = (pages_min * zone->present_pages) / lowmem_pages;
+-		if (is_highmem(zone)) {
++		if (is_higher_zone(zone)) {
+ 			/*
+ 			 * __GFP_HIGH and PF_MEMALLOC allocations usually don't
+ 			 * need highmem pages, so cap pages_min to a small
 
 -- 
 Yasunori Goto 
