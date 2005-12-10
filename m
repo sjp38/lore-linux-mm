@@ -1,43 +1,40 @@
-Date: Sat, 10 Dec 2005 20:02:36 +0900
+Date: Sat, 10 Dec 2005 20:03:08 +0900
 From: Yasunori Goto <y-goto@jp.fujitsu.com>
-Subject: [Patch] New zone ZONE_EASY_RECLAIM take 3[0/5]
-Message-Id: <20051210193610.4824.Y-GOTO@jp.fujitsu.com>
+Subject: [Patch] New zone ZONE_EASY_RECLAIM take 3. (disable gfp_easy_reclaim bit)[5/5]
+Message-Id: <20051210194245.4830.Y-GOTO@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm <linux-mm@kvack.org>, Linux Hotplug Memory Support <lhms-devel@lists.sourceforge.net>
+To: Linux Hotplug Memory Support <lhms-devel@lists.sourceforge.net>, linux-mm <linux-mm@kvack.org>
 Cc: Joel Schopp <jschopp@austin.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-Hello.
+This is to disable __GFP_EASY_RECLAIM flag at add_to_page_cache().
+If this patch is not applied, cache_grow() checks and call BUG(),
+at here. 
 
-I updated ZONE_EASY_RECLAIM patches.
+	if (flags & ~(SLAB_DMA|SLAB_LEVEL_MASK|SLAB_NO_GROW))
+		BUG();
 
-ZONE_EASY_RECLAIM is made for memory hotplug.
-It aims to collect the page which is difficult for removing on a some 
-areas like a few nodes, and it makes other areas this zone to be
-removed easier.
+This patch is to solve it.
 
-Update points are followings.
+Signed-off-by: Yasunori Goto <y-goto@jp.fujitsu.com>
 
-Please comment.
-
-----------------------------
-
-Changes take 2-> take 3
-  - Update patches for 2.6.15-rc5-mm1.
-  - modify highest_zone() to avoid panic on i386. 
-  - fix value of sysctl_lowmem_reserve_ratio[]
-  - define is_higher_zone(). it can be used on other place.
-
-
-Changes take 1-> take 2
-  - In -mm tree, ZONE_DMA32 is already included. So, I recreate 
-    ZONE_EASY_RECLAIM as 5th zone against 2.6.14-mm1. It is difference of
-    previous one.
-
+Index: zone_reclaim/mm/filemap.c
+===================================================================
+--- zone_reclaim.orig/mm/filemap.c	2005-12-10 17:12:57.000000000 +0900
++++ zone_reclaim/mm/filemap.c	2005-12-10 17:18:57.000000000 +0900
+@@ -395,7 +395,7 @@ int filemap_write_and_wait_range(struct 
+ int add_to_page_cache(struct page *page, struct address_space *mapping,
+ 		pgoff_t offset, gfp_t gfp_mask)
+ {
+-	int error = radix_tree_preload(gfp_mask & ~__GFP_HIGHMEM);
++	int error = radix_tree_preload(gfp_mask & ~(__GFP_HIGHMEM | __GFP_EASY_RECLAIM));
+ 
+ 	if (error == 0) {
+ 		write_lock_irq(&mapping->tree_lock);
 
 -- 
 Yasunori Goto 
