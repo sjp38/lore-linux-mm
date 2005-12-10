@@ -1,40 +1,61 @@
-Date: Sat, 10 Dec 2005 20:03:08 +0900
+Date: Sat, 10 Dec 2005 20:02:47 +0900
 From: Yasunori Goto <y-goto@jp.fujitsu.com>
-Subject: [Patch] New zone ZONE_EASY_RECLAIM take 3. (disable gfp_easy_reclaim bit)[5/5]
-Message-Id: <20051210194245.4830.Y-GOTO@jp.fujitsu.com>
+Subject: [Patch] New zone ZONE_EASY_RECLAIM take 3. (define ZONE_EASY_RECLAIM)[2/5]
+Message-Id: <20051210193849.4828.Y-GOTO@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linux Hotplug Memory Support <lhms-devel@lists.sourceforge.net>, linux-mm <linux-mm@kvack.org>
+To: linux-mm <linux-mm@kvack.org>, Linux Hotplug Memory Support <lhms-devel@lists.sourceforge.net>
 Cc: Joel Schopp <jschopp@austin.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-This is to disable __GFP_EASY_RECLAIM flag at add_to_page_cache().
-If this patch is not applied, cache_grow() checks and call BUG(),
-at here. 
-
-	if (flags & ~(SLAB_DMA|SLAB_LEVEL_MASK|SLAB_NO_GROW))
-		BUG();
-
-This patch is to solve it.
+This defines new zone ZONE_EASY_RECLAIM.
+ZONES_SHIFT becomes 3.
+And this patch add member of sysctl_lowmem_reserve_ratio[].
 
 Signed-off-by: Yasunori Goto <y-goto@jp.fujitsu.com>
 
-Index: zone_reclaim/mm/filemap.c
+Index: zone_reclaim/include/linux/mmzone.h
 ===================================================================
---- zone_reclaim.orig/mm/filemap.c	2005-12-10 17:12:57.000000000 +0900
-+++ zone_reclaim/mm/filemap.c	2005-12-10 17:18:57.000000000 +0900
-@@ -395,7 +395,7 @@ int filemap_write_and_wait_range(struct 
- int add_to_page_cache(struct page *page, struct address_space *mapping,
- 		pgoff_t offset, gfp_t gfp_mask)
- {
--	int error = radix_tree_preload(gfp_mask & ~__GFP_HIGHMEM);
-+	int error = radix_tree_preload(gfp_mask & ~(__GFP_HIGHMEM | __GFP_EASY_RECLAIM));
+--- zone_reclaim.orig/include/linux/mmzone.h	2005-12-10 17:12:58.000000000 +0900
++++ zone_reclaim/include/linux/mmzone.h	2005-12-10 17:13:16.000000000 +0900
+@@ -73,9 +73,10 @@ struct per_cpu_pageset {
+ #define ZONE_DMA32		1
+ #define ZONE_NORMAL		2
+ #define ZONE_HIGHMEM		3
++#define ZONE_EASY_RECLAIM	4
  
- 	if (error == 0) {
- 		write_lock_irq(&mapping->tree_lock);
+-#define MAX_NR_ZONES		4	/* Sync this with ZONES_SHIFT */
+-#define ZONES_SHIFT		2	/* ceil(log2(MAX_NR_ZONES)) */
++#define MAX_NR_ZONES		5	/* Sync this with ZONES_SHIFT */
++#define ZONES_SHIFT		3	/* ceil(log2(MAX_NR_ZONES)) */
+ 
+ 
+ /*
+Index: zone_reclaim/mm/page_alloc.c
+===================================================================
+--- zone_reclaim.orig/mm/page_alloc.c	2005-12-10 17:13:15.000000000 +0900
++++ zone_reclaim/mm/page_alloc.c	2005-12-10 17:15:10.000000000 +0900
+@@ -66,7 +66,7 @@ static void fastcall free_hot_cold_page(
+  * TBD: should special case ZONE_DMA32 machines here - in those we normally
+  * don't need any ZONE_NORMAL reservation
+  */
+-int sysctl_lowmem_reserve_ratio[MAX_NR_ZONES-1] = { 256, 256, 32 };
++int sysctl_lowmem_reserve_ratio[MAX_NR_ZONES-1] = { 256, 256, 256, 32 ,32};
+ 
+ EXPORT_SYMBOL(totalram_pages);
+ 
+@@ -77,7 +77,7 @@ EXPORT_SYMBOL(totalram_pages);
+ struct zone *zone_table[1 << ZONETABLE_SHIFT] __read_mostly;
+ EXPORT_SYMBOL(zone_table);
+ 
+-static char *zone_names[MAX_NR_ZONES] = { "DMA", "DMA32", "Normal", "HighMem" };
++static char *zone_names[MAX_NR_ZONES] = { "DMA", "DMA32", "Normal", "HighMem", "Easy Reclaim"};
+ int min_free_kbytes = 1024;
+ 
+ unsigned long __initdata nr_kernel_pages;
 
 -- 
 Yasunori Goto 
