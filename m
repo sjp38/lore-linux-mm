@@ -1,81 +1,85 @@
-Date: Sat, 10 Dec 2005 20:03:01 +0900
+Date: Sat, 10 Dec 2005 20:02:54 +0900
 From: Yasunori Goto <y-goto@jp.fujitsu.com>
-Subject: [Patch] New zone ZONE_EASY_RECLAIM take 3. (is_easy_reclaim func)[4/5]
-Message-Id: <20051210194128.482C.Y-GOTO@jp.fujitsu.com>
+Subject: [Patch] New zone ZONE_EASY_RECLAIM take 3. (change build_zonelists)[3/5]
+Message-Id: <20051210194021.482A.Y-GOTO@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm <linux-mm@kvack.org>, Linux Hotplug Memory Support <lhms-devel@lists.sourceforge.net>
+To: Linux Hotplug Memory Support <lhms-devel@lists.sourceforge.net>, linux-mm <linux-mm@kvack.org>
 Cc: Joel Schopp <jschopp@austin.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-This is for calculation of the watermark zone->pages_min/low/high.
-And it defines is_higher_zone().
+This is changing build_zonelists for new zone.
+
+__GFP_xxxs are flag for requires of page allocation which zone
+is prefered. But, it is used as an index number for zonelists[] too.
+But after my patch, __GFP_xxx might be set at same time. So,
+last set bit number of __GFP is recognized for zonelists' index
+by this patch.
+
+Note:
+ This patch is modified take 3 to avoid panic on i386.
+ __GFP_DMA32 is 0 for i386. So, ZONE_DMA32 is selected 
+ if zone_bits is 0 which means Zone_normal. 
+ Zone_DMA32 is not allocated on i386, so kernel paniced 
+ by no normal memory.
+ In this patch, even if zone_bits is 0 adn __GFP_DMA32 is 0,
+ Zone_Normal is selected.
+
 
 Signed-off-by: Yasunori Goto <y-goto@jp.fujitsu.com>
 
-Index: zone_reclaim/include/linux/mmzone.h
-===================================================================
---- zone_reclaim.orig/include/linux/mmzone.h	2005-12-10 17:13:16.000000000 +0900
-+++ zone_reclaim/include/linux/mmzone.h	2005-12-10 17:39:57.000000000 +0900
-@@ -394,6 +394,11 @@ static inline int populated_zone(struct 
- 	return (!!zone->present_pages);
- }
- 
-+static inline int is_easy_reclaim_idx(int idx)
-+{
-+	return (idx == ZONE_EASY_RECLAIM);
-+}
-+
- static inline int is_highmem_idx(int idx)
- {
- 	return (idx == ZONE_HIGHMEM);
-@@ -410,11 +415,21 @@ static inline int is_normal_idx(int idx)
-  *              to ZONE_{DMA/NORMAL/HIGHMEM/etc} in general code to a minimum.
-  * @zone - pointer to struct zone variable
-  */
-+static inline int is_easy_reclaim(struct zone *zone)
-+{
-+	return zone == zone->zone_pgdat->node_zones + ZONE_EASY_RECLAIM;
-+}
-+
- static inline int is_highmem(struct zone *zone)
- {
- 	return zone == zone->zone_pgdat->node_zones + ZONE_HIGHMEM;
- }
- 
-+static inline int is_higher_zone(struct zone *zone)
-+{
-+	return (is_highmem(zone) || is_easy_reclaim(zone));
-+}
-+
- static inline int is_normal(struct zone *zone)
- {
- 	return zone == zone->zone_pgdat->node_zones + ZONE_NORMAL;
 Index: zone_reclaim/mm/page_alloc.c
 ===================================================================
---- zone_reclaim.orig/mm/page_alloc.c	2005-12-10 17:15:10.000000000 +0900
-+++ zone_reclaim/mm/page_alloc.c	2005-12-10 17:40:59.000000000 +0900
-@@ -2573,7 +2573,7 @@ void setup_per_zone_pages_min(void)
+--- zone_reclaim.orig/mm/page_alloc.c	2005-12-06 14:11:20.000000000 +0900
++++ zone_reclaim/mm/page_alloc.c	2005-12-06 15:41:50.000000000 +0900
+@@ -1574,6 +1574,10 @@ static int __init build_zonelists_node(p
+ 		struct zone *zone;
+ 	default:
+ 		BUG();
++	case ZONE_EASY_RECLAIM:
++		zone = pgdat->node_zones + ZONE_EASY_RECLAIM;
++		if (zone->present_pages)
++			zonelist->zones[j++] = zone;
+ 	case ZONE_HIGHMEM:
+ 		zone = pgdat->node_zones + ZONE_HIGHMEM;
+ 		if (populated_zone(zone)) {
+@@ -1602,12 +1606,16 @@ static int __init build_zonelists_node(p
+ static inline int highest_zone(int zone_bits)
+ {
+ 	int res = ZONE_NORMAL;
+-	if (zone_bits & (__force int)__GFP_HIGHMEM)
+-		res = ZONE_HIGHMEM;
+-	if (zone_bits & (__force int)__GFP_DMA32)
+-		res = ZONE_DMA32;
++
+ 	if (zone_bits & (__force int)__GFP_DMA)
+ 		res = ZONE_DMA;
++	if (zone_bits & (__force int)__GFP_DMA32)
++		res = ZONE_DMA32;
++	if (zone_bits & (__force int)__GFP_HIGHMEM)
++		res = ZONE_HIGHMEM;
++	if (zone_bits & (__force int)__GFP_EASY_RECLAIM)
++		res = ZONE_EASY_RECLAIM;
++
+ 	return res;
+ }
  
- 	/* Calculate total number of !ZONE_HIGHMEM pages */
- 	for_each_zone(zone) {
--		if (!is_highmem(zone))
-+		if (!is_higher_zone(zone))
- 			lowmem_pages += zone->present_pages;
- 	}
+Index: zone_reclaim/include/linux/gfp.h
+===================================================================
+--- zone_reclaim.orig/include/linux/gfp.h	2005-12-06 14:12:43.000000000 +0900
++++ zone_reclaim/include/linux/gfp.h	2005-12-06 14:12:44.000000000 +0900
+@@ -80,7 +80,7 @@ struct vm_area_struct;
  
-@@ -2581,7 +2581,7 @@ void setup_per_zone_pages_min(void)
- 		unsigned long tmp;
- 		spin_lock_irqsave(&zone->lru_lock, flags);
- 		tmp = (pages_min * zone->present_pages) / lowmem_pages;
--		if (is_highmem(zone)) {
-+		if (is_higher_zone(zone)) {
- 			/*
- 			 * __GFP_HIGH and PF_MEMALLOC allocations usually don't
- 			 * need highmem pages, so cap pages_min to a small
+ static inline int gfp_zone(gfp_t gfp)
+ {
+-	int zone = GFP_ZONEMASK & (__force int) gfp;
++	int zone = fls(GFP_ZONEMASK & (__force int) gfp);
+ 	BUG_ON(zone >= GFP_ZONETYPES);
+ 	return zone;
+ }
 
 -- 
 Yasunori Goto 
