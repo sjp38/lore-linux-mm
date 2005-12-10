@@ -1,41 +1,65 @@
-Date: Sat, 10 Dec 2005 08:39:15 +0000
-From: Pavel Machek <pavel@ucw.cz>
-Subject: Re: [RFC][PATCH 0/8] Critical Page Pool
-Message-ID: <20051210083915.GB2833@ucw.cz>
-References: <437E2C69.4000708@us.ibm.com> <20051118195657.GI7991@shell0.pdx.osdl.net> <43815F64.4070502@us.ibm.com> <20051121132910.GA1971@elf.ucw.cz> <439616B6.1020308@us.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <439616B6.1020308@us.ibm.com>
+Date: Sat, 10 Dec 2005 20:02:42 +0900
+From: Yasunori Goto <y-goto@jp.fujitsu.com>
+Subject: [Patch] New zone ZONE_EASY_RECLAIM take 3. (define gfp_easy_relcaim)[1/5]
+Message-Id: <20051210193701.4826.Y-GOTO@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Matthew Dobson <colpatch@us.ibm.com>
-Cc: Chris Wright <chrisw@osdl.org>, linux-kernel@vger.kernel.org, Linux Memory Management <linux-mm@kvack.org>
+To: Linux Hotplug Memory Support <lhms-devel@lists.sourceforge.net>, linux-mm <linux-mm@kvack.org>
+Cc: Joel Schopp <jschopp@austin.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-Hi!
+This defines __GFP flag for new zone with GFP_DMA32.
 
-> > ...and then you find out that your test was not "bad enough" or that
-> > it needs more memory on different machines. It may be good enough hack
-> > for your usage, but I do not think it belongs in mainline.
-> > 								Pavel
-> 
-> Way late in responding to this, but...
-> 
-> Apropriate sizing of this pool is a known issue.  For example, we want to
-> use it to keep the networking stack alive during extreme memory pressure
-> situations.  The only way to size the pool so as to *guarantee* that it
-> will not be exhausted during the 2 minute window we need would be to ensure
-> that the pool has at least (TOTAL_BANDWITH_OF_ALL_NICS * 120 seconds) bytes
-> available.  In the case of a simple system with a single GigE adapter we'd
-> need (1 gigbit/sec * 120 sec) = 120 gigabits = 15 gigabytes of reserve
-> pool.  That is obviously completely impractical, considering many boxes
 
-And it is not enough... If someone hits you with small packets,
-allocation overhead is going to be high.
-							Pavel
+Signed-off-by: Yasunori Goto <y-goto@jp.fujitsu.com>
+
+Index: zone_reclaim/include/linux/gfp.h
+===================================================================
+--- zone_reclaim.orig/include/linux/gfp.h	2005-12-06 12:07:33.000000000 +0900
++++ zone_reclaim/include/linux/gfp.h	2005-12-06 13:51:33.000000000 +0900
+@@ -16,10 +16,13 @@ struct vm_area_struct;
+ #define __GFP_HIGHMEM	((__force gfp_t)0x02u)
+ #ifdef CONFIG_DMA_IS_DMA32
+ #define __GFP_DMA32	((__force gfp_t)0x01)	/* ZONE_DMA is ZONE_DMA32 */
++#define __GFP_EASY_RECLAIM ((__force gfp_t)0x04u)
+ #elif BITS_PER_LONG < 64
+ #define __GFP_DMA32	((__force gfp_t)0x00)	/* ZONE_NORMAL is ZONE_DMA32 */
++#define __GFP_EASY_RECLAIM ((__force gfp_t)0x04u)
+ #else
+ #define __GFP_DMA32	((__force gfp_t)0x04)	/* Has own ZONE_DMA32 */
++#define __GFP_EASY_RECLAIM ((__force gfp_t)0x08u)
+ #endif
+ 
+ /*
+@@ -64,7 +67,7 @@ struct vm_area_struct;
+ #define GFP_KERNEL	(__GFP_WAIT | __GFP_IO | __GFP_FS)
+ #define GFP_USER	(__GFP_WAIT | __GFP_IO | __GFP_FS | __GFP_HARDWALL)
+ #define GFP_HIGHUSER	(__GFP_WAIT | __GFP_IO | __GFP_FS | __GFP_HARDWALL | \
+-			 __GFP_HIGHMEM)
++			 __GFP_HIGHMEM | __GFP_EASY_RECLAIM)
+ 
+ /* Flag - indicates that the buffer will be suitable for DMA.  Ignored on some
+    platforms, used as appropriate on others */
+Index: zone_reclaim/include/linux/mmzone.h
+===================================================================
+--- zone_reclaim.orig/include/linux/mmzone.h	2005-12-06 12:07:34.000000000 +0900
++++ zone_reclaim/include/linux/mmzone.h	2005-12-06 13:52:04.000000000 +0900
+@@ -93,7 +93,7 @@ struct per_cpu_pageset {
+  *
+  * NOTE! Make sure this matches the zones in <linux/gfp.h>
+  */
+-#define GFP_ZONEMASK	0x07
++#define GFP_ZONEMASK	0x0f
+ #define GFP_ZONETYPES	5
+ 
+ /*
+
 -- 
-Thanks, Sharp!
+Yasunori Goto 
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
