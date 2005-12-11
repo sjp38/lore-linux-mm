@@ -1,36 +1,41 @@
-Date: Sun, 11 Dec 2005 15:05:54 +0000
-From: Christoph Hellwig <hch@infradead.org>
-Subject: Re: [patch] Fix Kconfig of DMA32 for ia64
-Message-ID: <20051211150554.GA25645@infradead.org>
-References: <20051210194521.4832.Y-GOTO@jp.fujitsu.com>
+Date: Sun, 11 Dec 2005 16:32:41 -0200
+From: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
+Subject: Re: [RFC 3/6] Make nr_pagecache a per zone counter
+Message-ID: <20051211183241.GD4267@dmt.cnet>
+References: <20051210005440.3887.34478.sendpatchset@schroedinger.engr.sgi.com> <20051210005456.3887.94412.sendpatchset@schroedinger.engr.sgi.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20051210194521.4832.Y-GOTO@jp.fujitsu.com>
+In-Reply-To: <20051210005456.3887.94412.sendpatchset@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Yasunori Goto <y-goto@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@osdl.org>, linux-mm <linux-mm@kvack.org>, "Luck, Tony" <tony.luck@intel.com>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: linux-kernel@vger.kernel.org, Hugh Dickins <hugh@veritas.com>, Nick Piggin <nickpiggin@yahoo.com.au>, linux-mm@kvack.org, Andi Kleen <ak@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-On Sat, Dec 10, 2005 at 08:05:16PM +0900, Yasunori Goto wrote:
-> Andew-san.
+On Fri, Dec 09, 2005 at 04:54:56PM -0800, Christoph Lameter wrote:
+> Make nr_pagecache a per node variable
 > 
-> I realized ZONE_DMA32 on -mm has a trivial bug at Kconfig for ia64.
-> In include/linux/gfp.h on 2.6.15-rc5-mm1, CONFIG is define like
-> followings.
+> Currently a single atomic variable is used to establish the size of the page cache
+> in the whole machine. The zoned VM counters have the same method of implementation
+> as the nr_pagecache code. Remove the special implementation for nr_pagecache and make
+> it a zoned counter. We will then be able to figure out how much of the memory in a
+> zone is used by the pagecache.
 > 
-> #ifdef CONFIG_DMA_IS_DMA32
-> #define __GFP_DMA32	((__force gfp_t)0x01)	/* ZONE_DMA is ZONE_DMA32
-> */
->        :
->        :
-> 
-> So, CONFIG_"ZONE"_DMA_IS_DMA32 is clearly wrong.
-> This is patch for it.
+> Updates of the page cache counters are always performed with interrupts off.
+> We can therefore use the __ variant here.
 
-Given that apparently no one cared we should just kill it and give ia64
-a proper ZONE_DMA32 post 2.6.15.  No one else tried to use it anyway.
+By the way, why does nr_pagecache needs to be an atomic variable on UP systems?
+
+#ifdef CONFIG_SMP
+...
+#else
+
+static inline void pagecache_acct(int count)
+{
+        atomic_add(count, &nr_pagecache);
+}
+#endif
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
