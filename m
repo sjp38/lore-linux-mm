@@ -1,39 +1,36 @@
-Subject: Re: allowed pages in the block later, was Re: [Ext2-devel] [PATCH]
-	ext3: avoid sending down non-refcounted pages
-From: Arjan van de Ven <arjan@infradead.org>
-In-Reply-To: <20051210164736.6e4eaa3f.akpm@osdl.org>
-References: <20051208180900T.fujita.tomonori@lab.ntt.co.jp>
-	 <20051208101833.GM14509@schatzie.adilger.int>
-	 <20051208134239.GA13376@infradead.org>
-	 <20051210164736.6e4eaa3f.akpm@osdl.org>
-Content-Type: text/plain
-Date: Sun, 11 Dec 2005 09:44:04 +0100
-Message-Id: <1134290645.2878.4.camel@laptopd505.fenrus.org>
+Date: Sun, 11 Dec 2005 15:05:54 +0000
+From: Christoph Hellwig <hch@infradead.org>
+Subject: Re: [patch] Fix Kconfig of DMA32 for ia64
+Message-ID: <20051211150554.GA25645@infradead.org>
+References: <20051210194521.4832.Y-GOTO@jp.fujitsu.com>
 Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20051210194521.4832.Y-GOTO@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, open-iscsi@googlegroups.com, ext2-devel@lists.sourceforge.net, linux-fsdevel@vger.kernel.org, michaelc@cs.wisc.edu, fujita.tomonori@lab.ntt.co.jp, Christoph Hellwig <hch@infradead.org>
+To: Yasunori Goto <y-goto@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@osdl.org>, linux-mm <linux-mm@kvack.org>, "Luck, Tony" <tony.luck@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 2005-12-10 at 16:47 -0800, Andrew Morton wrote:
-> Christoph Hellwig <hch@infradead.org> wrote:
-> >
-> > The problem we're trying to solve here is how do implement network block
-> >  devices (nbd, iscsi) efficiently.  The zero copy codepath in the networking
-> >  layer does need to grab additional references to pages.  So to use sendpage
-> >  we need a refcountable page.  pages used by the slab allocator are not
-> >  normally refcounted so try to do get_page/pub_page on them will break.
+On Sat, Dec 10, 2005 at 08:05:16PM +0900, Yasunori Goto wrote:
+> Andew-san.
 > 
-> I don't get it.  Doing get_page/put_page on a slab-allocated page should do
-> the right thing?
+> I realized ZONE_DMA32 on -mm has a trivial bug at Kconfig for ia64.
+> In include/linux/gfp.h on 2.6.15-rc5-mm1, CONFIG is define like
+> followings.
+> 
+> #ifdef CONFIG_DMA_IS_DMA32
+> #define __GFP_DMA32	((__force gfp_t)0x01)	/* ZONE_DMA is ZONE_DMA32
+> */
+>        :
+>        :
+> 
+> So, CONFIG_"ZONE"_DMA_IS_DMA32 is clearly wrong.
+> This is patch for it.
 
-but it doesn't stop the kfree from freeing the memory; zero copy needs
-the content of the memory to stay around afterwards, eg it wants to
-delay the kfree until the data is over the wire, which is an
-asynchronous event versus the actual send command in a zero-copy
-situation. 
+Given that apparently no one cared we should just kill it and give ia64
+a proper ZONE_DMA32 post 2.6.15.  No one else tried to use it anyway.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
