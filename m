@@ -1,56 +1,60 @@
-Message-ID: <439CF93D.5090207@yahoo.com.au>
-Date: Mon, 12 Dec 2005 15:14:53 +1100
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-MIME-Version: 1.0
+Date: Mon, 12 Dec 2005 05:21:42 +0100
+From: Andi Kleen <ak@suse.de>
 Subject: Re: [RFC 1/6] Framework
-References: <20051210005440.3887.34478.sendpatchset@schroedinger.engr.sgi.com> <20051210005445.3887.94119.sendpatchset@schroedinger.engr.sgi.com> <439CF2A2.60105@yahoo.com.au> <20051212035631.GX11190@wotan.suse.de>
-In-Reply-To: <20051212035631.GX11190@wotan.suse.de>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+Message-ID: <20051212042142.GZ11190@wotan.suse.de>
+References: <20051210005440.3887.34478.sendpatchset@schroedinger.engr.sgi.com> <20051210005445.3887.94119.sendpatchset@schroedinger.engr.sgi.com> <439CF2A2.60105@yahoo.com.au> <20051212035631.GX11190@wotan.suse.de> <439CF93D.5090207@yahoo.com.au>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <439CF93D.5090207@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <ak@suse.de>
-Cc: Christoph Lameter <clameter@sgi.com>, linux-kernel@vger.kernel.org, Hugh Dickins <hugh@veritas.com>, linux-mm@kvack.org, Marcelo Tosatti <marcelo.tosatti@cyclades.com>
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Andi Kleen <ak@suse.de>, Christoph Lameter <clameter@sgi.com>, linux-kernel@vger.kernel.org, Hugh Dickins <hugh@veritas.com>, linux-mm@kvack.org, Marcelo Tosatti <marcelo.tosatti@cyclades.com>
 List-ID: <linux-mm.kvack.org>
 
-Andi Kleen wrote:
-> On Mon, Dec 12, 2005 at 02:46:42PM +1100, Nick Piggin wrote:
+On Mon, Dec 12, 2005 at 03:14:53PM +1100, Nick Piggin wrote:
+> Andi Kleen wrote:
+> >On Mon, Dec 12, 2005 at 02:46:42PM +1100, Nick Piggin wrote:
+> >
+> >>Christoph Lameter wrote:
+> >>
+> >>
+> >>>+/*
+> >>>+ * For use when we know that interrupts are disabled.
+> >>>+ */
+> >>>+static inline void __mod_zone_page_state(struct zone *zone, enum 
+> >>>zone_stat_item item, int delta)
+> >>>+{
+> >>
+> >>Before this goes through, I have a full patch to do similar for the
+> >>rest of the statistics, and which will make names consistent with what
+> >>you have (shouldn't be a lot of clashes though).
+> >
+> >
+> >I also have a patch to change them all to local_t, greatly simplifying
+> >it (e.g. the counters can be done inline then) 
+> >
 > 
->>Christoph Lameter wrote:
->>
->>
->>>+/*
->>>+ * For use when we know that interrupts are disabled.
->>>+ */
->>>+static inline void __mod_zone_page_state(struct zone *zone, enum 
->>>zone_stat_item item, int delta)
->>>+{
->>
->>Before this goes through, I have a full patch to do similar for the
->>rest of the statistics, and which will make names consistent with what
->>you have (shouldn't be a lot of clashes though).
-> 
-> 
-> I also have a patch to change them all to local_t, greatly simplifying
-> it (e.g. the counters can be done inline then) 
-> 
+> Cool. That is a patch that should go on top of mine, because most of
+> my patch is aimed at moving modifications under interrupts-off sections,
 
-Cool. That is a patch that should go on top of mine, because most of
-my patch is aimed at moving modifications under interrupts-off sections,
-so you would then be able to use __local_xxx operations very easily for
-most of the counters here.
+That's obsolete then. With local_t you don't need to turn off interrupts
+anymore.
 
-However I'm still worried about the use of locals tripling the cacheline
-size of a hot-path structure on some 64-bit architectures. Probably we
-should get them to try to move to the atomic64 scheme before using
-local_t here.
+> However I'm still worried about the use of locals tripling the cacheline
+> size of a hot-path structure on some 64-bit architectures. Probably we
+> should get them to try to move to the atomic64 scheme before using
+> local_t here.
 
-Nick
+I think the right fix for those is to just change the fallback local_t
+to disable interrupts again - that should be a better tradeoff and
+when they have a better alternative they can implement it in the arch.
 
--- 
-SUSE Labs, Novell Inc.
+(in fact i did a patch for that too, but considered throwing it away
+again because I don't have a good way to test it) 
 
-Send instant messages to your online friends http://au.messenger.yahoo.com 
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
