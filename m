@@ -1,60 +1,64 @@
-Date: Mon, 12 Dec 2005 05:21:42 +0100
-From: Andi Kleen <ak@suse.de>
+Message-ID: <439CFC67.4030107@yahoo.com.au>
+Date: Mon, 12 Dec 2005 15:28:23 +1100
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+MIME-Version: 1.0
 Subject: Re: [RFC 1/6] Framework
-Message-ID: <20051212042142.GZ11190@wotan.suse.de>
-References: <20051210005440.3887.34478.sendpatchset@schroedinger.engr.sgi.com> <20051210005445.3887.94119.sendpatchset@schroedinger.engr.sgi.com> <439CF2A2.60105@yahoo.com.au> <20051212035631.GX11190@wotan.suse.de> <439CF93D.5090207@yahoo.com.au>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <439CF93D.5090207@yahoo.com.au>
+References: <20051210005440.3887.34478.sendpatchset@schroedinger.engr.sgi.com> <20051210005445.3887.94119.sendpatchset@schroedinger.engr.sgi.com> <439CF2A2.60105@yahoo.com.au> <20051212035631.GX11190@wotan.suse.de> <439CF93D.5090207@yahoo.com.au> <20051212042142.GZ11190@wotan.suse.de>
+In-Reply-To: <20051212042142.GZ11190@wotan.suse.de>
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Andi Kleen <ak@suse.de>, Christoph Lameter <clameter@sgi.com>, linux-kernel@vger.kernel.org, Hugh Dickins <hugh@veritas.com>, linux-mm@kvack.org, Marcelo Tosatti <marcelo.tosatti@cyclades.com>
+To: Andi Kleen <ak@suse.de>
+Cc: Christoph Lameter <clameter@sgi.com>, linux-kernel@vger.kernel.org, Hugh Dickins <hugh@veritas.com>, linux-mm@kvack.org, Marcelo Tosatti <marcelo.tosatti@cyclades.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Dec 12, 2005 at 03:14:53PM +1100, Nick Piggin wrote:
-> Andi Kleen wrote:
-> >On Mon, Dec 12, 2005 at 02:46:42PM +1100, Nick Piggin wrote:
-> >
-> >>Christoph Lameter wrote:
-> >>
-> >>
-> >>>+/*
-> >>>+ * For use when we know that interrupts are disabled.
-> >>>+ */
-> >>>+static inline void __mod_zone_page_state(struct zone *zone, enum 
-> >>>zone_stat_item item, int delta)
-> >>>+{
-> >>
-> >>Before this goes through, I have a full patch to do similar for the
-> >>rest of the statistics, and which will make names consistent with what
-> >>you have (shouldn't be a lot of clashes though).
-> >
-> >
-> >I also have a patch to change them all to local_t, greatly simplifying
-> >it (e.g. the counters can be done inline then) 
-> >
+Andi Kleen wrote:
+> On Mon, Dec 12, 2005 at 03:14:53PM +1100, Nick Piggin wrote:
+
+>>Cool. That is a patch that should go on top of mine, because most of
+>>my patch is aimed at moving modifications under interrupts-off sections,
 > 
-> Cool. That is a patch that should go on top of mine, because most of
-> my patch is aimed at moving modifications under interrupts-off sections,
+> 
+> That's obsolete then.
 
-That's obsolete then. With local_t you don't need to turn off interrupts
-anymore.
+No it isn't.
 
-> However I'm still worried about the use of locals tripling the cacheline
-> size of a hot-path structure on some 64-bit architectures. Probably we
-> should get them to try to move to the atomic64 scheme before using
-> local_t here.
+> With local_t you don't need to turn off interrupts
+> anymore.
+> 
 
-I think the right fix for those is to just change the fallback local_t
-to disable interrupts again - that should be a better tradeoff and
-when they have a better alternative they can implement it in the arch.
+Then you can't use __local_xxx, and so many architectures will use
+atomic instructions (the ones who don't are the ones with tripled
+cacheline footprint of this structure).
 
-(in fact i did a patch for that too, but considered throwing it away
-again because I don't have a good way to test it) 
+Sure i386 and x86-64 are happy, but this would probably slow down
+most other architectures.
 
--Andi
+> 
+>>However I'm still worried about the use of locals tripling the cacheline
+>>size of a hot-path structure on some 64-bit architectures. Probably we
+>>should get them to try to move to the atomic64 scheme before using
+>>local_t here.
+> 
+> 
+> I think the right fix for those is to just change the fallback local_t
+> to disable interrupts again - that should be a better tradeoff and
+> when they have a better alternative they can implement it in the arch.
+> 
+
+Probably right.
+
+> (in fact i did a patch for that too, but considered throwing it away
+> again because I don't have a good way to test it) 
+> 
+
+Yep, it will be difficult to test.
+
+-- 
+SUSE Labs, Novell Inc.
+
+Send instant messages to your online friends http://au.messenger.yahoo.com 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
