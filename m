@@ -1,48 +1,46 @@
-Date: Mon, 12 Dec 2005 12:12:08 -0800
-From: Andrew Morton <akpm@osdl.org>
-Subject: Re: allowed pages in the block later, was Re: [Ext2-devel] [PATCH]
- ext3: avoid sending down non-refcounted pages
-Message-Id: <20051212121208.4c7421ce.akpm@osdl.org>
-In-Reply-To: <20051212172552.GA28652@infradead.org>
-References: <20051208180900T.fujita.tomonori@lab.ntt.co.jp>
-	<20051208101833.GM14509@schatzie.adilger.int>
-	<20051208134239.GA13376@infradead.org>
-	<20051210164736.6e4eaa3f.akpm@osdl.org>
-	<20051212172552.GA28652@infradead.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Date: Tue, 13 Dec 2005 22:20:35 +0900
+From: Yasunori Goto <y-goto@jp.fujitsu.com>
+Subject: [Patch] Fix calculation of grow_pgdat_span() in mm/memory_hotplug.c
+Message-Id: <20051213220842.9C02.Y-GOTO@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Hellwig <hch@infradead.org>
-Cc: fujita.tomonori@lab.ntt.co.jp, michaelc@cs.wisc.edu, linux-fsdevel@vger.kernel.org, ext2-devel@lists.sourceforge.net, open-iscsi@googlegroups.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Dave Hansen <haveblue@us.ibm.com>
+Cc: Andrew Morton <akpm@osdl.org>, linux-mm <linux-mm@kvack.org>, Linux Hotplug Memory Support <lhms-devel@lists.sourceforge.net>, Linux Kernel ML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Christoph Hellwig <hch@infradead.org> wrote:
->
-> On Sat, Dec 10, 2005 at 04:47:36PM -0800, Andrew Morton wrote:
-> > Christoph Hellwig <hch@infradead.org> wrote:
-> > >
-> > > The problem we're trying to solve here is how do implement network block
-> > >  devices (nbd, iscsi) efficiently.  The zero copy codepath in the networking
-> > >  layer does need to grab additional references to pages.  So to use sendpage
-> > >  we need a refcountable page.  pages used by the slab allocator are not
-> > >  normally refcounted so try to do get_page/pub_page on them will break.
-> > 
-> > I don't get it.  Doing get_page/put_page on a slab-allocated page should do
-> > the right thing?
-> 
-> As Arjan mentioned, what would be the right thing?  Delaying returning the
-> page to the page pool and disallow reuse until page count reaches zero?
+Dave-san.
+CC: Andrew-san.
 
-Yes, that's what'll happen.  slab will put its final ref to the page, so
-whoever did that intervening get_page() ends up owning the page.
+I realized 2.6.15-rc5 still has a bug for memory hotplug.
+The calculation for node_spanned_pages at grow_pgdat_span() is
+clearly wrong. This is patch for it.
 
-> All this seems highly impractical.
+(Please see grow_zone_span() to compare. It is correct.)
 
-Well, as Arjan points out, doing get_page() won't prevent slab from
-"freeing" a part of the page and reusing it for another object of the same
-type.
+Thanks.
+
+Signed-off-by: Yasunori Goto <y-goto@jp.fujitsu.com>
+
+Index: zone_reclaim/mm/memory_hotplug.c
+===================================================================
+--- zone_reclaim.orig/mm/memory_hotplug.c	2005-12-13 21:38:16.000000000 +0900
++++ zone_reclaim/mm/memory_hotplug.c	2005-12-13 21:39:14.000000000 +0900
+@@ -104,7 +104,7 @@ static void grow_pgdat_span(struct pglis
+ 		pgdat->node_start_pfn = start_pfn;
+ 
+ 	if (end_pfn > old_pgdat_end_pfn)
+-		pgdat->node_spanned_pages = end_pfn - pgdat->node_spanned_pages;
++		pgdat->node_spanned_pages = end_pfn - pgdat->node_start_pfn;
+ }
+ 
+ int online_pages(unsigned long pfn, unsigned long nr_pages)
+
+-- 
+Yasunori Goto 
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
