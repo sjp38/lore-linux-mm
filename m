@@ -1,19 +1,19 @@
-Received: from westrelay02.boulder.ibm.com (westrelay02.boulder.ibm.com [9.17.195.11])
-	by e34.co.us.ibm.com (8.12.11/8.12.11) with ESMTP id jBEGQj6k005583
-	for <linux-mm@kvack.org>; Wed, 14 Dec 2005 11:26:45 -0500
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by e35.co.us.ibm.com (8.12.11/8.12.11) with ESMTP id jBEGUT4u025811
+	for <linux-mm@kvack.org>; Wed, 14 Dec 2005 11:30:29 -0500
 Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by westrelay02.boulder.ibm.com (8.12.10/NCO/VERS6.8) with ESMTP id jBEGPsp9118722
-	for <linux-mm@kvack.org>; Wed, 14 Dec 2005 09:25:54 -0700
+	by d03relay04.boulder.ibm.com (8.12.10/NCO/VERS6.8) with ESMTP id jBEGW8GC037438
+	for <linux-mm@kvack.org>; Wed, 14 Dec 2005 09:32:08 -0700
 Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.12.11/8.13.3) with ESMTP id jBEGQi86003066
-	for <linux-mm@kvack.org>; Wed, 14 Dec 2005 09:26:44 -0700
-Message-ID: <43A047C3.9060201@us.ibm.com>
-Date: Wed, 14 Dec 2005 08:26:43 -0800
+	by d03av02.boulder.ibm.com (8.12.11/8.13.3) with ESMTP id jBEGUSj2015042
+	for <linux-mm@kvack.org>; Wed, 14 Dec 2005 09:30:28 -0700
+Message-ID: <43A048A1.6050705@us.ibm.com>
+Date: Wed, 14 Dec 2005 08:30:25 -0800
 From: Matthew Dobson <colpatch@us.ibm.com>
 MIME-Version: 1.0
-Subject: Re: [RFC][PATCH 3/6] Slab Prep: get/return_object
-References: <439FCECA.3060909@us.ibm.com> <439FD031.1040608@us.ibm.com> <84144f020512140019h1390c9eayf8b4b0dd03d8be1c@mail.gmail.com>
-In-Reply-To: <84144f020512140019h1390c9eayf8b4b0dd03d8be1c@mail.gmail.com>
+Subject: Re: [RFC][PATCH 4/6] Slab Prep: slab_destruct()
+References: <439FCECA.3060909@us.ibm.com> <439FD08E.3020401@us.ibm.com> <84144f020512140037k5d687c66x35e3e29519764fb7@mail.gmail.com>
+In-Reply-To: <84144f020512140037k5d687c66x35e3e29519764fb7@mail.gmail.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -23,20 +23,22 @@ Cc: linux-kernel@vger.kernel.org, andrea@suse.de, Sridhar Samudrala <sri@us.ibm.
 List-ID: <linux-mm.kvack.org>
 
 Pekka Enberg wrote:
-> Hi Matt,
-> 
 > On 12/14/05, Matthew Dobson <colpatch@us.ibm.com> wrote:
 > 
->>Create 2 helper functions in mm/slab.c: get_object() and return_object().
->>These functions reduce some existing duplicated code in the slab allocator
->>and will be used when adding Critical Page Pool support to the slab allocator.
+>>Create a helper function for slab_destroy() called slab_destruct().  Remove
+>>some ifdefs inside functions and generally make the slab destroying code
+>>more readable prior to slab support for the Critical Page Pool.
 > 
 > 
-> May I suggest different naming, slab_get_obj and slab_put_obj ?
+> Looks good. How about calling it slab_destroy_objs instead?
 > 
->                                             Pekka
+>                           Pekka
 
-Sure.  Those sound much better than mine. :)
+I called it slab_destruct() because it's the part of the old slab_destroy()
+that called the slab destructor to destroy the slab's objects.
+slab_destroy_objs() is reasonable as well, though, and I can live with that.
+
+Thanks!
 
 -Matt
 
