@@ -1,29 +1,60 @@
-Received: by nproxy.gmail.com with SMTP id l23so17903nfc
-        for <linux-mm@kvack.org>; Wed, 14 Dec 2005 00:37:40 -0800 (PST)
-Message-ID: <84144f020512140037k5d687c66x35e3e29519764fb7@mail.gmail.com>
-Date: Wed, 14 Dec 2005 10:37:39 +0200
-From: Pekka Enberg <penberg@cs.helsinki.fi>
-Subject: Re: [RFC][PATCH 4/6] Slab Prep: slab_destruct()
-In-Reply-To: <439FD08E.3020401@us.ibm.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 8BIT
+Date: Wed, 14 Dec 2005 11:48:39 +0100
+From: Andrea Arcangeli <andrea@suse.de>
+Subject: Re: [RFC][PATCH 1/6] Create Critical Page Pool
+Message-ID: <20051214104839.GJ23878@opteron.random>
+References: <439FCECA.3060909@us.ibm.com> <439FCF4E.3090202@us.ibm.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-References: <439FCECA.3060909@us.ibm.com> <439FD08E.3020401@us.ibm.com>
+In-Reply-To: <439FCF4E.3090202@us.ibm.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Matthew Dobson <colpatch@us.ibm.com>
-Cc: linux-kernel@vger.kernel.org, andrea@suse.de, Sridhar Samudrala <sri@us.ibm.com>, pavel@suse.cz, Andrew Morton <akpm@osdl.org>, Linux Memory Management <linux-mm@kvack.org>
+Cc: linux-kernel@vger.kernel.org, Sridhar Samudrala <sri@us.ibm.com>, pavel@suse.cz, Andrew Morton <akpm@osdl.org>, Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On 12/14/05, Matthew Dobson <colpatch@us.ibm.com> wrote:
-> Create a helper function for slab_destroy() called slab_destruct().  Remove
-> some ifdefs inside functions and generally make the slab destroying code
-> more readable prior to slab support for the Critical Page Pool.
+Hi Matthew,
 
-Looks good. How about calling it slab_destroy_objs instead?
+On Tue, Dec 13, 2005 at 11:52:46PM -0800, Matthew Dobson wrote:
+> Create the basic Critical Page Pool.  Any allocation specifying
+> __GFP_CRITICAL will, as a last resort before failing the allocation, try to
+> get a page from the critical pool.  For now, only singleton (order 0) pages
+> are supported.
 
-                          Pekka
+Hmm sorry, but this design looks wrong to me. Since the caller has to
+use __GFP_CRITICAL anyway, why don't you build this critical pool
+_outside_ the page allocator exactly like the mempool does?
+
+Then you will also get an huge advantage, that is allowing to create
+more than one critical pool without having to add a __GFP_CRITICAL2 next
+month.
+
+So IMHO if something you should create something like a mempool (if the
+mempool isn't good enough already for your usage), so more subsystems
+can register their critical pools. Call it criticalpool.c or similar but
+I wouldn't mess with __GFP_* and page_alloc.c, and the sysctl should be
+in the user subsystem, not global.
+
+Or perhaps you can share the mempool code and extend the mempool API to
+refill itself internally automatically as soon as pages are being
+released.
+
+You may still need a single hook in the __free_pages path, to refill
+pools transparently from any freeing (not only the freeing of your
+subsystem) but such an hook is acceptable. You may need to set
+priorities in the criticalpool.c api as well to choose which pool to
+refill first, or if to refill them in round robin when they've the same
+priority.
+
+I would touch page_alloc.c only with regard of the prioritized pool
+refilling with a registration hook and I would definitely not use a
+global pool and I wouldn't use __GFP_ bitflag for it.
+
+Then each slab will be allowed to have its criticalpool too, then, not
+a global one. A global one driven by the __GFP_CRITICAL flag will
+quickly become useless as soon as you've more than one subsystem using
+it, plus it unnecessairly mess with page_alloc.c APIs where the only
+thing you care about is to catch the freeing operation with a hook.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
