@@ -1,34 +1,33 @@
-Subject: Re: [RFC][PATCH 0/6] Critical Page Pool
-From: Alan Cox <alan@lxorguk.ukuu.org.uk>
-In-Reply-To: <20051214120152.GB5270@opteron.random>
-References: <439FCECA.3060909@us.ibm.com>
-	 <20051214100841.GA18381@elf.ucw.cz>  <20051214120152.GB5270@opteron.random>
-Content-Type: text/plain
-Content-Transfer-Encoding: 7bit
-Date: Wed, 14 Dec 2005 13:03:56 +0000
-Message-Id: <1134565436.25663.24.camel@localhost.localdomain>
-Mime-Version: 1.0
+Date: Wed, 14 Dec 2005 08:30:28 -0500 (EST)
+From: Rik van Riel <riel@redhat.com>
+Subject: Re: [RFC][PATCH 1/6] Create Critical Page Pool
+In-Reply-To: <439FCF4E.3090202@us.ibm.com>
+Message-ID: <Pine.LNX.4.63.0512140829410.2723@cuia.boston.redhat.com>
+References: <439FCECA.3060909@us.ibm.com> <439FCF4E.3090202@us.ibm.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; CHARSET=US-ASCII
+Content-ID: <Pine.LNX.4.63.0512140829412.2723@cuia.boston.redhat.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrea Arcangeli <andrea@suse.de>
-Cc: Pavel Machek <pavel@suse.cz>, Matthew Dobson <colpatch@us.ibm.com>, linux-kernel@vger.kernel.org, Sridhar Samudrala <sri@us.ibm.com>, Andrew Morton <akpm@osdl.org>, Linux Memory Management <linux-mm@kvack.org>
+To: Matthew Dobson <colpatch@us.ibm.com>
+Cc: linux-kernel@vger.kernel.org, andrea@suse.de, Sridhar Samudrala <sri@us.ibm.com>, pavel@suse.cz, Andrew Morton <akpm@osdl.org>, Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mer, 2005-12-14 at 13:01 +0100, Andrea Arcangeli wrote:
-> On Wed, Dec 14, 2005 at 11:08:41AM +0100, Pavel Machek wrote:
-> > because reserved memory pool would have to be "sum of all network
-> > interface bandwidths * ammount of time expected to survive without
-> > network" which is way too much.
-> 
-> Yes, a global pool isn't really useful. A per-subsystem pool would be
-> more reasonable...
+On Tue, 13 Dec 2005, Matthew Dobson wrote:
 
+> Create the basic Critical Page Pool.  Any allocation specifying 
+> __GFP_CRITICAL will, as a last resort before failing the allocation, try 
+> to get a page from the critical pool.  For now, only singleton (order 0) 
+> pages are supported.
 
-The whole extra critical level seems dubious in itself. In 2.0/2.2 days
-there were a set of patches that just dropped incoming memory on sockets
-when the memory was tight unless they were marked as critical (ie NFS
-swap). It worked rather well. The rest of the changes beyond that seem
-excessive.
+How are you going to limit the number of GFP_CRITICAL
+allocations to something smaller than the number of
+pages in the pool ?
+
+Unless you can do that, all guarantees are off...
+
+-- 
+All Rights Reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
