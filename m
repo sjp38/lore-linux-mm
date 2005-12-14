@@ -1,61 +1,56 @@
-Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
-	by e34.co.us.ibm.com (8.12.11/8.12.11) with ESMTP id jBEG3Dkx014261
-	for <linux-mm@kvack.org>; Wed, 14 Dec 2005 11:03:13 -0500
+Received: from westrelay02.boulder.ibm.com (westrelay02.boulder.ibm.com [9.17.195.11])
+	by e34.co.us.ibm.com (8.12.11/8.12.11) with ESMTP id jBEGQCgS005212
+	for <linux-mm@kvack.org>; Wed, 14 Dec 2005 11:26:12 -0500
 Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by d03relay04.boulder.ibm.com (8.12.10/NCO/VERS6.8) with ESMTP id jBEG4rGC087922
-	for <linux-mm@kvack.org>; Wed, 14 Dec 2005 09:04:53 -0700
+	by westrelay02.boulder.ibm.com (8.12.10/NCO/VERS6.8) with ESMTP id jBEGPLp9122842
+	for <linux-mm@kvack.org>; Wed, 14 Dec 2005 09:25:21 -0700
 Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.12.11/8.13.3) with ESMTP id jBEG3Cch011730
-	for <linux-mm@kvack.org>; Wed, 14 Dec 2005 09:03:12 -0700
-Message-ID: <43A0423E.60104@us.ibm.com>
-Date: Wed, 14 Dec 2005 08:03:10 -0800
+	by d03av02.boulder.ibm.com (8.12.11/8.13.3) with ESMTP id jBEGQCkx001014
+	for <linux-mm@kvack.org>; Wed, 14 Dec 2005 09:26:12 -0700
+Message-ID: <43A047A1.9030308@us.ibm.com>
+Date: Wed, 14 Dec 2005 08:26:09 -0800
 From: Matthew Dobson <colpatch@us.ibm.com>
 MIME-Version: 1.0
-Subject: Re: [RFC][PATCH 0/6] Critical Page Pool
-References: <439FCECA.3060909@us.ibm.com> <20051214100841.GA18381@elf.ucw.cz> <20051214120152.GB5270@opteron.random>
-In-Reply-To: <20051214120152.GB5270@opteron.random>
+Subject: Re: [RFC][PATCH 1/6] Create Critical Page Pool
+References: <439FCECA.3060909@us.ibm.com> <439FCF4E.3090202@us.ibm.com> <Pine.LNX.4.63.0512140829410.2723@cuia.boston.redhat.com>
+In-Reply-To: <Pine.LNX.4.63.0512140829410.2723@cuia.boston.redhat.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrea Arcangeli <andrea@suse.de>
-Cc: Pavel Machek <pavel@suse.cz>, linux-kernel@vger.kernel.org, Sridhar Samudrala <sri@us.ibm.com>, Andrew Morton <akpm@osdl.org>, Linux Memory Management <linux-mm@kvack.org>
+To: Rik van Riel <riel@redhat.com>
+Cc: linux-kernel@vger.kernel.org, andrea@suse.de, Sridhar Samudrala <sri@us.ibm.com>, pavel@suse.cz, Andrew Morton <akpm@osdl.org>, Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Andrea Arcangeli wrote:
-> On Wed, Dec 14, 2005 at 11:08:41AM +0100, Pavel Machek wrote:
-> 
->>because reserved memory pool would have to be "sum of all network
->>interface bandwidths * ammount of time expected to survive without
->>network" which is way too much.
+Rik van Riel wrote:
+> On Tue, 13 Dec 2005, Matthew Dobson wrote:
 > 
 > 
-> Yes, a global pool isn't really useful. A per-subsystem pool would be
-> more reasonable...
+>>Create the basic Critical Page Pool.  Any allocation specifying 
+>>__GFP_CRITICAL will, as a last resort before failing the allocation, try 
+>>to get a page from the critical pool.  For now, only singleton (order 0) 
+>>pages are supported.
+> 
+> 
+> How are you going to limit the number of GFP_CRITICAL
+> allocations to something smaller than the number of
+> pages in the pool ?
 
-Which is an idea that I toyed with, as well.  The problem that I ran into
-is how to tag an allocation as belonging to a specific subsystem.  For
-example, in our code we need networking to use the critical pool.  How do
-we let __alloc_pages() know what allocations belong to networking?
-Networking needs named slab allocations, kmalloc allocations, and whole
-page allocations to function.  Should each subsystem get it's own GFP flag
-(GFP_NETWORKING, GFP_SCSI, GFP_SOUND, GFP_TERMINAL, ad nauseum)?  Should we
-create these pools dynamically and pass a reference to which pool each
-specific allocation uses (thus adding a parameter to all memory allocation
-functions in the kernel)?  I realize that per-subsystem pools would be
-better, but I thought about this for a while and couldn't come up with a
-reasonable way to do it.
+We can't.
 
 
->>gigabytes into your machine. But don't go introducing infrastructure
->>that _can't_ be used right.
-> 
-> 
-> Agreed, the current design of the patch can't be used right.
+> Unless you can do that, all guarantees are off...
 
-Well, it can for our use, but I recognize that isn't going to be a huge
-selling point! :)  As I mentioned in my reply to Pavel, I'd really like to
-find a way to design something that WOULD be generally useful.
+Well, I was careful not to use the word guarantee in my post. ;)  The idea
+is not to offer a 100% guarantee that the pool will never be exhausted.
+The idea is to offer a pool that, sized appropriately, offers a very good
+chance of surviving your emergency situation.  The definition of what is a
+critical allocation and what the emergency situation is left intentionally
+somewhat vague, so as to offer more flexibility.  For our use, certain
+networking allocations are critical and our emergency situation is a 2
+minute window of potential exreme memory pressure.  For others it could be
+something completely different, but the expectation is that the emergency
+situation would be of a finite time, since the pool is a fixed size.
 
 Thanks!
 
