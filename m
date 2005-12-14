@@ -1,21 +1,21 @@
 Received: from westrelay02.boulder.ibm.com (westrelay02.boulder.ibm.com [9.17.195.11])
-	by e36.co.us.ibm.com (8.12.11/8.12.11) with ESMTP id jBE7w8iH024591
-	for <linux-mm@kvack.org>; Wed, 14 Dec 2005 02:58:08 -0500
+	by e33.co.us.ibm.com (8.12.11/8.12.11) with ESMTP id jBE7xVUd002703
+	for <linux-mm@kvack.org>; Wed, 14 Dec 2005 02:59:31 -0500
 Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by westrelay02.boulder.ibm.com (8.12.10/NCO/VERS6.8) with ESMTP id jBE7vINh131288
-	for <linux-mm@kvack.org>; Wed, 14 Dec 2005 00:57:18 -0700
+	by westrelay02.boulder.ibm.com (8.12.10/NCO/VERS6.8) with ESMTP id jBE7wfNh140314
+	for <linux-mm@kvack.org>; Wed, 14 Dec 2005 00:58:41 -0700
 Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.12.11/8.13.3) with ESMTP id jBE7w8ZZ013506
-	for <linux-mm@kvack.org>; Wed, 14 Dec 2005 00:58:08 -0700
-Message-ID: <439FD08E.3020401@us.ibm.com>
-Date: Tue, 13 Dec 2005 23:58:06 -0800
+	by d03av02.boulder.ibm.com (8.12.11/8.13.3) with ESMTP id jBE7xUSr015521
+	for <linux-mm@kvack.org>; Wed, 14 Dec 2005 00:59:31 -0700
+Message-ID: <439FD0E1.2060908@us.ibm.com>
+Date: Tue, 13 Dec 2005 23:59:29 -0800
 From: Matthew Dobson <colpatch@us.ibm.com>
 MIME-Version: 1.0
-Subject: [RFC][PATCH 4/6] Slab Prep: slab_destruct()
+Subject: [RFC][PATCH 5/6] Slab Prep: Move cache_grow()
 References: <439FCECA.3060909@us.ibm.com>
 In-Reply-To: <439FCECA.3060909@us.ibm.com>
 Content-Type: multipart/mixed;
- boundary="------------030308000601030406020504"
+ boundary="------------040209050301070403090206"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-kernel@vger.kernel.org
@@ -23,87 +23,227 @@ Cc: andrea@suse.de, Sridhar Samudrala <sri@us.ibm.com>, pavel@suse.cz, Andrew Mo
 List-ID: <linux-mm.kvack.org>
 
 This is a multi-part message in MIME format.
---------------030308000601030406020504
+--------------040209050301070403090206
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 
-Create a helper function for slab_destroy() called slab_destruct().  Remove
-some ifdefs inside functions and generally make the slab destroying code
-more readable prior to slab support for the Critical Page Pool.
+Move cache_grow() a few lines further down in mm/slab.c to gain access to a
+couple debugging functions that will be used by the next patch.  Also,
+rename a goto label and fixup a couple comments.
 
 -Matt
 
---------------030308000601030406020504
+--------------040209050301070403090206
 Content-Type: text/x-patch;
- name="slab_prep-slab_destruct.patch"
+ name="slab_prep-cache_grow.patch"
 Content-Transfer-Encoding: 7bit
 Content-Disposition: inline;
- filename="slab_prep-slab_destruct.patch"
+ filename="slab_prep-cache_grow.patch"
 
-Create a helper function, slab_destruct(), called from slab_destroy().  This
-makes slab_destroy() smaller and more readable, and moves ifdefs outside the
-function body.
+Move cache_grow() below some debugging function definitions, so those debugging
+functions can be inserted into cache_grow() by the next patch without needing
+forward declarations.
+
+Also, do a few small cleanups:
+	Tidy up a few comments
+	Rename a label to something readable
 
 Signed-off-by: Matthew Dobson <colpatch@us.ibm.com>
 
 Index: linux-2.6.15-rc5+critical_pool/mm/slab.c
 ===================================================================
---- linux-2.6.15-rc5+critical_pool.orig/mm/slab.c	2005-12-05 10:20:43.886907432 -0800
-+++ linux-2.6.15-rc5+critical_pool/mm/slab.c	2005-12-05 10:20:45.289694176 -0800
-@@ -1401,15 +1401,13 @@ static void check_poison_obj(kmem_cache_
+--- linux-2.6.15-rc5+critical_pool.orig/mm/slab.c	2005-12-13 16:08:04.123634776 -0800
++++ linux-2.6.15-rc5+critical_pool/mm/slab.c	2005-12-13 16:14:25.757617592 -0800
+@@ -2203,96 +2203,6 @@ static void set_slab_attr(kmem_cache_t *
+ 	} while (--i);
  }
- #endif
  
--/* Destroy all the objs in a slab, and release the mem back to the system.
-- * Before calling the slab must have been unlinked from the cache.
-- * The cache-lock is not held/needed.
-+#if DEBUG
-+/**
-+ * slab_destruct - call the registered destructor for each object in
-+ *      a slab that is to be destroyed.
-  */
--static void slab_destroy (kmem_cache_t *cachep, struct slab *slabp)
-+static void slab_destruct(kmem_cache_t *cachep, struct slab *slabp)
- {
--	void *addr = slabp->s_mem - slabp->colouroff;
+-/*
+- * Grow (by 1) the number of slabs within a cache.  This is called by
+- * kmem_cache_alloc() when there are no active objs left in a cache.
+- */
+-static int cache_grow(kmem_cache_t *cachep, gfp_t flags, int nodeid)
+-{
+-	struct slab	*slabp;
+-	void		*objp;
+-	size_t		 offset;
+-	gfp_t	 	 local_flags;
+-	unsigned long	 ctor_flags;
+-	struct kmem_list3 *l3;
 -
--#if DEBUG
- 	int i;
- 	for (i = 0; i < cachep->num; i++) {
- 		void *objp = slabp->s_mem + cachep->objsize * i;
-@@ -1435,7 +1433,10 @@ static void slab_destroy (kmem_cache_t *
- 		if (cachep->dtor && !(cachep->flags & SLAB_POISON))
- 			(cachep->dtor)(objp+obj_dbghead(cachep), cachep, 0);
- 	}
-+}
- #else
-+static void slab_destruct(kmem_cache_t *cachep, struct slab *slabp)
-+{
- 	if (cachep->dtor) {
- 		int i;
- 		for (i = 0; i < cachep->num; i++) {
-@@ -1443,8 +1444,19 @@ static void slab_destroy (kmem_cache_t *
- 			(cachep->dtor)(objp, cachep, 0);
- 		}
- 	}
-+}
+-	/* Be lazy and only check for valid flags here,
+- 	 * keeping it out of the critical path in kmem_cache_alloc().
+-	 */
+-	if (flags & ~(SLAB_DMA|SLAB_LEVEL_MASK|SLAB_NO_GROW))
+-		BUG();
+-	if (flags & SLAB_NO_GROW)
+-		return 0;
+-
+-	ctor_flags = SLAB_CTOR_CONSTRUCTOR;
+-	local_flags = (flags & SLAB_LEVEL_MASK);
+-	if (!(local_flags & __GFP_WAIT))
+-		/*
+-		 * Not allowed to sleep.  Need to tell a constructor about
+-		 * this - it might need to know...
+-		 */
+-		ctor_flags |= SLAB_CTOR_ATOMIC;
+-
+-	/* About to mess with non-constant members - lock. */
+-	check_irq_off();
+-	spin_lock(&cachep->spinlock);
+-
+-	/* Get colour for the slab, and cal the next value. */
+-	offset = cachep->colour_next;
+-	cachep->colour_next++;
+-	if (cachep->colour_next >= cachep->colour)
+-		cachep->colour_next = 0;
+-	offset *= cachep->colour_off;
+-
+-	spin_unlock(&cachep->spinlock);
+-
+-	check_irq_off();
+-	if (local_flags & __GFP_WAIT)
+-		local_irq_enable();
+-
+-	/*
+-	 * The test for missing atomic flag is performed here, rather than
+-	 * the more obvious place, simply to reduce the critical path length
+-	 * in kmem_cache_alloc(). If a caller is seriously mis-behaving they
+-	 * will eventually be caught here (where it matters).
+-	 */
+-	kmem_flagcheck(cachep, flags);
+-
+-	/* Get mem for the objs.
+-	 * Attempt to allocate a physical page from 'nodeid',
+-	 */
+-	if (!(objp = kmem_getpages(cachep, flags, nodeid)))
+-		goto failed;
+-
+-	/* Get slab management. */
+-	if (!(slabp = alloc_slabmgmt(cachep, objp, offset, local_flags)))
+-		goto opps1;
+-
+-	slabp->nodeid = nodeid;
+-	set_slab_attr(cachep, slabp, objp);
+-
+-	cache_init_objs(cachep, slabp, ctor_flags);
+-
+-	if (local_flags & __GFP_WAIT)
+-		local_irq_disable();
+-	check_irq_off();
+-	l3 = cachep->nodelists[nodeid];
+-	spin_lock(&l3->list_lock);
+-
+-	/* Make slab active. */
+-	list_add_tail(&slabp->list, &(l3->slabs_free));
+-	STATS_INC_GROWN(cachep);
+-	l3->free_objects += cachep->num;
+-	spin_unlock(&l3->list_lock);
+-	return 1;
+-opps1:
+-	kmem_freepages(cachep, objp);
+-failed:
+-	if (local_flags & __GFP_WAIT)
+-		local_irq_disable();
+-	return 0;
+-}
+-
+ #if DEBUG
+ 
+ /*
+@@ -2414,6 +2324,90 @@ bad:
+ #define check_slabp(x,y) do { } while(0)
  #endif
  
 +/**
-+ * Destroy all the objs in a slab, and release the mem back to the system.
-+ * Before calling the slab must have been unlinked from the cache.
-+ * The cache-lock is not held/needed.
++ * Grow (by 1) the number of slabs within a cache.  This is called by
++ * kmem_cache_alloc() when there are no active objs left in a cache.
 + */
-+static void slab_destroy(kmem_cache_t *cachep, struct slab *slabp)
++static int cache_grow(kmem_cache_t *cachep, gfp_t flags, int nodeid)
 +{
-+	void *addr = slabp->s_mem - slabp->colouroff;
++	struct slab *slabp;
++	void *objp;
++	size_t offset;
++	gfp_t local_flags;
++	unsigned long ctor_flags;
++	struct kmem_list3 *l3;
 +
-+	slab_destruct(cachep, slabp);
- 	if (unlikely(cachep->flags & SLAB_DESTROY_BY_RCU)) {
- 		struct slab_rcu *slab_rcu;
- 
++	/*
++	 * Be lazy and only check for valid flags here,
++	 * keeping it out of the critical path in kmem_cache_alloc().
++	 */
++	if (flags & ~(SLAB_DMA|SLAB_LEVEL_MASK|SLAB_NO_GROW))
++		BUG();
++	if (flags & SLAB_NO_GROW)
++		return 0;
++
++	ctor_flags = SLAB_CTOR_CONSTRUCTOR;
++	local_flags = (flags & SLAB_LEVEL_MASK);
++	if (!(local_flags & __GFP_WAIT))
++		/* The constructor might need to know it can't sleep */
++		ctor_flags |= SLAB_CTOR_ATOMIC;
++
++	/* About to mess with non-constant members - lock. */
++	check_irq_off();
++	spin_lock(&cachep->spinlock);
++	/* Get colour for the slab, and calculate the next value. */
++	offset = cachep->colour_next;
++	cachep->colour_next++;
++	if (cachep->colour_next >= cachep->colour)
++		cachep->colour_next = 0;
++	offset *= cachep->colour_off;
++	/* done...  Unlock. */
++	spin_unlock(&cachep->spinlock);
++
++	check_irq_off();
++	if (local_flags & __GFP_WAIT)
++		local_irq_enable();
++
++	/*
++	 * Ensure caller isn't asking for DMA memory if the slab wasn't created
++	 * with the SLAB_DMA flag.
++	 * Also ensure the caller *is* asking for DMA memory if the slab was
++	 * created with the SLAB_DMA flag.
++	 */
++	kmem_flagcheck(cachep, flags);
++
++	/* Get memory for the objects by allocating a page from 'nodeid'. */
++	if (!(objp = kmem_getpages(cachep, flags, nodeid)))
++		goto failed;
++
++	/* Get slab management. */
++	if (!(slabp = alloc_slabmgmt(cachep, objp, offset, local_flags)))
++		goto failed_freepages;
++
++	slabp->nodeid = nodeid;
++	set_slab_attr(cachep, slabp, objp);
++	cache_init_objs(cachep, slabp, ctor_flags);
++
++	if (local_flags & __GFP_WAIT)
++		local_irq_disable();
++	check_irq_off();
++	l3 = cachep->nodelists[nodeid];
++	spin_lock(&l3->list_lock);
++
++	/* Make slab active. */
++	list_add_tail(&slabp->list, &(l3->slabs_free));
++	STATS_INC_GROWN(cachep);
++	l3->free_objects += cachep->num;
++	spin_unlock(&l3->list_lock);
++	return 1;
++failed_freepages:
++	kmem_freepages(cachep, objp);
++failed:
++	if (local_flags & __GFP_WAIT)
++		local_irq_disable();
++	return 0;
++}
++
+ static void *cache_alloc_refill(kmem_cache_t *cachep, gfp_t flags)
+ {
+ 	int batchcount;
 
---------------030308000601030406020504--
+--------------040209050301070403090206--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
