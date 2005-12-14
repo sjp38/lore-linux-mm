@@ -1,42 +1,54 @@
-Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
-	by e35.co.us.ibm.com (8.12.11/8.12.11) with ESMTP id jBEGUT4u025811
-	for <linux-mm@kvack.org>; Wed, 14 Dec 2005 11:30:29 -0500
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by d03relay04.boulder.ibm.com (8.12.10/NCO/VERS6.8) with ESMTP id jBEGW8GC037438
-	for <linux-mm@kvack.org>; Wed, 14 Dec 2005 09:32:08 -0700
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.12.11/8.13.3) with ESMTP id jBEGUSj2015042
-	for <linux-mm@kvack.org>; Wed, 14 Dec 2005 09:30:28 -0700
-Message-ID: <43A048A1.6050705@us.ibm.com>
-Date: Wed, 14 Dec 2005 08:30:25 -0800
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e2.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id jBEGbFGb018142
+	for <linux-mm@kvack.org>; Wed, 14 Dec 2005 11:37:15 -0500
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay04.pok.ibm.com (8.12.10/NCO/VERS6.8) with ESMTP id jBEGbGMh116088
+	for <linux-mm@kvack.org>; Wed, 14 Dec 2005 11:37:16 -0500
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.12.11/8.13.3) with ESMTP id jBEGbFSw004154
+	for <linux-mm@kvack.org>; Wed, 14 Dec 2005 11:37:16 -0500
+Message-ID: <43A04A38.6020403@us.ibm.com>
+Date: Wed, 14 Dec 2005 08:37:12 -0800
 From: Matthew Dobson <colpatch@us.ibm.com>
 MIME-Version: 1.0
-Subject: Re: [RFC][PATCH 4/6] Slab Prep: slab_destruct()
-References: <439FCECA.3060909@us.ibm.com> <439FD08E.3020401@us.ibm.com> <84144f020512140037k5d687c66x35e3e29519764fb7@mail.gmail.com>
-In-Reply-To: <84144f020512140037k5d687c66x35e3e29519764fb7@mail.gmail.com>
+Subject: Re: [RFC][PATCH 0/6] Critical Page Pool
+References: <439FCECA.3060909@us.ibm.com>	 <20051214100841.GA18381@elf.ucw.cz>  <20051214120152.GB5270@opteron.random> <1134565436.25663.24.camel@localhost.localdomain>
+In-Reply-To: <1134565436.25663.24.camel@localhost.localdomain>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Pekka Enberg <penberg@cs.helsinki.fi>
-Cc: linux-kernel@vger.kernel.org, andrea@suse.de, Sridhar Samudrala <sri@us.ibm.com>, pavel@suse.cz, Andrew Morton <akpm@osdl.org>, Linux Memory Management <linux-mm@kvack.org>
+To: Alan Cox <alan@lxorguk.ukuu.org.uk>
+Cc: Andrea Arcangeli <andrea@suse.de>, Pavel Machek <pavel@suse.cz>, linux-kernel@vger.kernel.org, Sridhar Samudrala <sri@us.ibm.com>, Andrew Morton <akpm@osdl.org>, Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Pekka Enberg wrote:
-> On 12/14/05, Matthew Dobson <colpatch@us.ibm.com> wrote:
+Alan Cox wrote:
+> On Mer, 2005-12-14 at 13:01 +0100, Andrea Arcangeli wrote:
 > 
->>Create a helper function for slab_destroy() called slab_destruct().  Remove
->>some ifdefs inside functions and generally make the slab destroying code
->>more readable prior to slab support for the Critical Page Pool.
+>>On Wed, Dec 14, 2005 at 11:08:41AM +0100, Pavel Machek wrote:
+>>
+>>>because reserved memory pool would have to be "sum of all network
+>>>interface bandwidths * ammount of time expected to survive without
+>>>network" which is way too much.
+>>
+>>Yes, a global pool isn't really useful. A per-subsystem pool would be
+>>more reasonable...
 > 
 > 
-> Looks good. How about calling it slab_destroy_objs instead?
 > 
->                           Pekka
+> The whole extra critical level seems dubious in itself. In 2.0/2.2 days
+> there were a set of patches that just dropped incoming memory on sockets
+> when the memory was tight unless they were marked as critical (ie NFS
+> swap). It worked rather well. The rest of the changes beyond that seem
+> excessive.
 
-I called it slab_destruct() because it's the part of the old slab_destroy()
-that called the slab destructor to destroy the slab's objects.
-slab_destroy_objs() is reasonable as well, though, and I can live with that.
+Actually, Sridhar's code (mentioned earlier in this thread) *does* drop
+incoming packets that are not 'critical', but unfortunately you need to
+completely copy the packet into kernel memory before you can do any
+processing on it to determine whether or not it's 'critical', and thus
+accept or reject it.  If network traffic is coming in at a good clip and
+the system is already under memory pressure, it's going to be difficult to
+receive all these packets, which was the inspiration for this patchset.
 
 Thanks!
 
