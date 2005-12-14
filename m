@@ -1,60 +1,48 @@
-Date: Wed, 14 Dec 2005 11:48:39 +0100
-From: Andrea Arcangeli <andrea@suse.de>
-Subject: Re: [RFC][PATCH 1/6] Create Critical Page Pool
-Message-ID: <20051214104839.GJ23878@opteron.random>
-References: <439FCECA.3060909@us.ibm.com> <439FCF4E.3090202@us.ibm.com>
+Date: Wed, 14 Dec 2005 11:08:41 +0100
+From: Pavel Machek <pavel@suse.cz>
+Subject: Re: [RFC][PATCH 0/6] Critical Page Pool
+Message-ID: <20051214100841.GA18381@elf.ucw.cz>
+References: <439FCECA.3060909@us.ibm.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <439FCF4E.3090202@us.ibm.com>
+In-Reply-To: <439FCECA.3060909@us.ibm.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Matthew Dobson <colpatch@us.ibm.com>
-Cc: linux-kernel@vger.kernel.org, Sridhar Samudrala <sri@us.ibm.com>, pavel@suse.cz, Andrew Morton <akpm@osdl.org>, Linux Memory Management <linux-mm@kvack.org>
+Cc: linux-kernel@vger.kernel.org, andrea@suse.de, Sridhar Samudrala <sri@us.ibm.com>, Andrew Morton <akpm@osdl.org>, Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi Matthew,
+Hi!
 
-On Tue, Dec 13, 2005 at 11:52:46PM -0800, Matthew Dobson wrote:
-> Create the basic Critical Page Pool.  Any allocation specifying
-> __GFP_CRITICAL will, as a last resort before failing the allocation, try to
-> get a page from the critical pool.  For now, only singleton (order 0) pages
-> are supported.
+> The overall purpose of this patch series is to all a system administrator
+> to reserve a number of pages in a 'critical pool' that is set aside for
+> situations when the system is 'in emergency'.  It is up to the individual
+> administrator to determine when his/her system is 'in emergency'.  This is
+> not meant to (necessarily) anticipate OOM situations, though that is
+> certainly one possible use.  The purpose this was originally designed for
+> is to allow the networking code to keep functioning despite the sytem
+> losing its (potentially networked) swap device, and thus temporarily
+> putting the system under exreme memory pressure.
 
-Hmm sorry, but this design looks wrong to me. Since the caller has to
-use __GFP_CRITICAL anyway, why don't you build this critical pool
-_outside_ the page allocator exactly like the mempool does?
+I don't see how this can ever work.
 
-Then you will also get an huge advantage, that is allowing to create
-more than one critical pool without having to add a __GFP_CRITICAL2 next
-month.
+How can _userspace_ know about what allocations are critical to the
+kernel?!
 
-So IMHO if something you should create something like a mempool (if the
-mempool isn't good enough already for your usage), so more subsystems
-can register their critical pools. Call it criticalpool.c or similar but
-I wouldn't mess with __GFP_* and page_alloc.c, and the sysctl should be
-in the user subsystem, not global.
+And as you noticed, it does not work for your original usage case,
+because reserved memory pool would have to be "sum of all network
+interface bandwidths * ammount of time expected to survive without
+network" which is way too much.
 
-Or perhaps you can share the mempool code and extend the mempool API to
-refill itself internally automatically as soon as pages are being
-released.
-
-You may still need a single hook in the __free_pages path, to refill
-pools transparently from any freeing (not only the freeing of your
-subsystem) but such an hook is acceptable. You may need to set
-priorities in the criticalpool.c api as well to choose which pool to
-refill first, or if to refill them in round robin when they've the same
-priority.
-
-I would touch page_alloc.c only with regard of the prioritized pool
-refilling with a registration hook and I would definitely not use a
-global pool and I wouldn't use __GFP_ bitflag for it.
-
-Then each slab will be allowed to have its criticalpool too, then, not
-a global one. A global one driven by the __GFP_CRITICAL flag will
-quickly become useless as soon as you've more than one subsystem using
-it, plus it unnecessairly mess with page_alloc.c APIs where the only
-thing you care about is to catch the freeing operation with a hook.
+If you want few emergency pages for some strange hack you are doing
+(swapping over network?), just put swap into ramdisk and swapon() it
+when you are in emergency, or use memory hotplug and plug few more
+gigabytes into your machine. But don't go introducing infrastructure
+that _can't_ be used right.
+								Pavel
+-- 
+Thanks, Sharp!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
