@@ -1,42 +1,31 @@
-Date: Thu, 15 Dec 2005 17:27:18 +0100
-From: Pavel Machek <pavel@suse.cz>
-Subject: Re: [RFC][PATCH 0/6] Critical Page Pool
-Message-ID: <20051215162717.GK2904@elf.ucw.cz>
-References: <439FCECA.3060909@us.ibm.com> <20051214100841.GA18381@elf.ucw.cz> <20051214120152.GB5270@opteron.random> <1134565436.25663.24.camel@localhost.localdomain> <43A04A38.6020403@us.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <43A04A38.6020403@us.ibm.com>
+Content-class: urn:content-classes:message
+MIME-Version: 1.0
+Content-Type: text/plain;
+	charset="iso-8859-1"
+Content-Transfer-Encoding: 8BIT
+Subject: RE: 2.6.15-rc5-mm2 can't boot on ia64 due to changing on_each_cpu().
+Date: Thu, 15 Dec 2005 09:24:03 -0800
+Message-ID: <B8E391BBE9FE384DAA4C5C003888BE6F0535A4DC@scsmsx401.amr.corp.intel.com>
+From: "Luck, Tony" <tony.luck@intel.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Matthew Dobson <colpatch@us.ibm.com>
-Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, Andrea Arcangeli <andrea@suse.de>, linux-kernel@vger.kernel.org, Sridhar Samudrala <sri@us.ibm.com>, Andrew Morton <akpm@osdl.org>, Linux Memory Management <linux-mm@kvack.org>
+To: Benjamin LaHaise <bcrl@kvack.org>, Kenji Kaneshige <kaneshige.kenji@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@osdl.org>, Yasunori Goto <y-goto@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-ia64@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi!
-
-> > The whole extra critical level seems dubious in itself. In 2.0/2.2 days
-> > there were a set of patches that just dropped incoming memory on sockets
-> > when the memory was tight unless they were marked as critical (ie NFS
-> > swap). It worked rather well. The rest of the changes beyond that seem
-> > excessive.
+> On Thu, Dec 15, 2005 at 02:24:29PM +0900, Kenji Kaneshige wrote:
+> > How about this?
 > 
-> Actually, Sridhar's code (mentioned earlier in this thread) *does* drop
-> incoming packets that are not 'critical', but unfortunately you need to
-> completely copy the packet into kernel memory before you can do any
-> processing on it to determine whether or not it's 'critical', and thus
-> accept or reject it.  If network traffic is coming in at a good clip and
-> the system is already under memory pressure, it's going to be difficult to
-> receive all these packets, which was the inspiration for this patchset.
+> Excellent!  Thanks Kenji.  Tony, are you okay with this patch going in?
 
-You should be able to do all this with single, MTU-sized buffer.
+It is a bit annoying to have to add an argument that is never
+used to local_flush_tlb_all() just to make the compiler make
+the right code when we want to use in with on_each_cpu().  But
+I don't see a better way.
 
-Receive packet into buffer. If it is nice, pass it up, otherwise drop
-it. Yes, it may drop some "important" packets, but that's okay, packet
-loss is expected on networks.
-								Pavel
--- 
-Thanks, Sharp!
+Acked-by: Tony Luck <tony.luck@intel.com>
+
+-Tony
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
