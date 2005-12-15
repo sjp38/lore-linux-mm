@@ -1,56 +1,115 @@
-Date: Thu, 15 Dec 2005 02:01:38 +0100
-From: "J.A. Magallon" <jamagallon@able.es>
-Subject: Re: [RFC3 01/14] Add some consts for inlines in mm.h
-Message-ID: <20051215020138.171e1cdd@werewolf.auna.net>
-In-Reply-To: <20051215001420.31405.76332.sendpatchset@schroedinger.engr.sgi.com>
-References: <20051215001415.31405.24898.sendpatchset@schroedinger.engr.sgi.com>
-	<20051215001420.31405.76332.sendpatchset@schroedinger.engr.sgi.com>
-Mime-Version: 1.0
-Content-Type: multipart/signed; boundary=Sig_yWhYnNVu.C8+2nxP2ljNeGa;
- protocol="application/pgp-signature"; micalg=PGP-SHA1
+Date: Thu, 15 Dec 2005 11:37:37 +0900
+From: Yasunori Goto <y-goto@jp.fujitsu.com>
+Subject: 2.6.15-rc5-mm2 can't boot on ia64 due to changing on_each_cpu().
+Message-Id: <20051215103344.241C.Y-GOTO@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: linux-kernel@vger.kernel.org, akpm@osdl.org, Hugh Dickins <hugh@veritas.com>, Nick Piggin <nickpiggin@yahoo.com.au>, linux-mm@kvack.org, Andi Kleen <ak@suse.de>, Marcelo Tosatti <marcelo.tosatti@cyclades.com>
+To: Linux Kernel ML <linux-kernel@vger.kernel.org>, linux-ia64@vger.kernel.org, linux-mm <linux-mm@kvack.org>, Benjamin LaHaise <bcrl@kvack.org>
+Cc: Andrew Morton <akpm@osdl.org>, "Luck, Tony" <tony.luck@intel.com>
 List-ID: <linux-mm.kvack.org>
 
---Sig_yWhYnNVu.C8+2nxP2ljNeGa
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: quoted-printable
+Hello.
 
-On Wed, 14 Dec 2005 16:14:20 -0800 (PST), Christoph Lameter <clameter@sgi.c=
-om> wrote:
+I met a trouble in 2.6.15-rc5-mm2 on my ia64 box. (Tiger4)
+The trouble was kernel panic at early boot time due to calling
+strange instruction "break 0" at smp_flush_tlb_all().
 
-> [PATCH] const attributes for some inlines in mm.h
->=20
-> Const attributes allow the compiler to generate more efficient code by
-> allowing callers to keep arguments of struct page in registers.
->=20
+I investigated its cause and realized that gcc warned following 
+messages.
+  "arch/ia64/kernel/smp.c:228 Warning: function called through a non-
+   compatible type"
+  "arch/ia64/kernel/smp.c:228: note: if this code is reached,
+   the program will abort"
+  "arch/ia64/kernel/smp.c:251 Warning: function called through a non-
+   compatible type"
+  "arch/ia64/kernel/smp.c:251: note: if this code is reached,
+   the program will abort"
 
-Even if it does not keep them in registers, at least it doesn't duplicate
-them...
+The line 228 and 251 are calling on_each_cpu(). And the last
+instruction of this function was "break 0" indeed.
 
---
-J.A. Magallon <jamagallon()able!es>     \               Software is like se=
-x:
-werewolf!able!es                         \         It's better when it's fr=
-ee
-Mandriva Linux release 2006.1 (Cooker) for i586
-Linux 2.6.14-jam4 (gcc 4.0.2 (4.0.2-1mdk for Mandriva Linux release 2006.1))
+void
+smp_flush_tlb_all (void)
+{
+	on_each_cpu((void (*)(void *))local_flush_tlb_all, NULL, 1, 1);
+}
 
---Sig_yWhYnNVu.C8+2nxP2ljNeGa
-Content-Type: application/pgp-signature; name=signature.asc
-Content-Disposition: attachment; filename=signature.asc
 
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.2 (GNU/Linux)
+void
+smp_flush_tlb_mm (struct mm_struct *mm)
+{
+             :
+             :
+	 */
+	on_each_cpu((void (*)(void *))local_finish_flush_tlb_mm, mm, 1, 1);
+}
 
-iD8DBQFDoMByRlIHNEGnKMMRAlY2AJ9BOfl8TiS1LFwZCEm7doFWDCl1aQCeJVNF
-53yql0dHIeSTroVD3xCRU0E=
-=re74
------END PGP SIGNATURE-----
+When I removed following patch which is in 2.6.15-rc5-mm2,
+which changes on_each_cpu() from static inline function to macro,
+then there was no warning, and kernel could boot up.
+So, I guess that gcc was not able to solve a bit messy cast
+for calling function "local_flush_tlb_all()" due to its change.
 
---Sig_yWhYnNVu.C8+2nxP2ljNeGa--
+Thanks.
+
+--------------------------------------------------------------------------
+
+From: Benjamin LaHaise <bcrl@kvack.org>
+
+An inline function in smp.h introduces messy ordering requirements on
+thread_info by way of using an inline function instead of macro.  Convert
+on_each_cpu to a macro in order to avoid a big include mess.
+
+Signed-off-by: Andrew Morton <akpm@osdl.org>
+---
+
+ include/linux/smp.h |   25 +++++++++++++------------
+ 1 files changed, 13 insertions(+), 12 deletions(-)
+
+diff -puN include/linux/smp.h~untangle-smph-vs-thread_info include/linux/smp.h
+--- 25/include/linux/smp.h~untangle-smph-vs-thread_info	Fri Dec  9 15:16:46 2005
++++ 25-akpm/include/linux/smp.h	Fri Dec  9 15:16:46 2005
+@@ -57,19 +57,20 @@ extern int smp_call_function (void (*fun
+ 			      int retry, int wait);
+ 
+ /*
+- * Call a function on all processors
++ * Call a function on all processors.
++ * This needs to be a macro to allow for arch specific dependances on
++ * sched.h in preempt_*().
+  */
+-static inline int on_each_cpu(void (*func) (void *info), void *info,
+-			      int retry, int wait)
+-{
+-	int ret = 0;
+-
+-	preempt_disable();
+-	ret = smp_call_function(func, info, retry, wait);
+-	func(info);
+-	preempt_enable();
+-	return ret;
+-}
++#define on_each_cpu(func, info, retry, wait)			\
++({								\
++	int _ret = 0;						\
++								\
++	preempt_disable();					\
++	_ret = smp_call_function(func, info, retry, wait);	\
++	(func)(info);						\
++	preempt_enable();					\
++	_ret;							\
++})
+ 
+ #define MSG_ALL_BUT_SELF	0x8000	/* Assume <32768 CPU's */
+ #define MSG_ALL			0x8001
+_
+
+-- 
+Yasunori Goto 
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
