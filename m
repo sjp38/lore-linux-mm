@@ -1,178 +1,196 @@
-Date: Wed, 14 Dec 2005 16:15:12 -0800 (PST)
+Date: Wed, 14 Dec 2005 16:15:27 -0800 (PST)
 From: Christoph Lameter <clameter@sgi.com>
-Message-Id: <20051215001512.31405.50826.sendpatchset@schroedinger.engr.sgi.com>
+Message-Id: <20051215001527.31405.47029.sendpatchset@schroedinger.engr.sgi.com>
 In-Reply-To: <20051215001415.31405.24898.sendpatchset@schroedinger.engr.sgi.com>
 References: <20051215001415.31405.24898.sendpatchset@schroedinger.engr.sgi.com>
-Subject: [RFC3 11/14] Convert nr_writeback
+Subject: [RFC3 14/14] Remove wbs
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-kernel@vger.kernel.org
 Cc: akpm@osdl.org, Hugh Dickins <hugh@veritas.com>, Nick Piggin <nickpiggin@yahoo.com.au>, linux-mm@kvack.org, Andi Kleen <ak@suse.de>, Marcelo Tosatti <marcelo.tosatti@cyclades.com>, Christoph Lameter <clameter@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-Per zone page writeback counts
+Remove writeback state
+
+We can remove some functions now that were needed to calculate the page
+state.
 
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
-Index: linux-2.6.15-rc5-mm2/drivers/base/node.c
-===================================================================
---- linux-2.6.15-rc5-mm2.orig/drivers/base/node.c	2005-12-14 15:34:57.000000000 -0800
-+++ linux-2.6.15-rc5-mm2/drivers/base/node.c	2005-12-14 15:35:38.000000000 -0800
-@@ -52,9 +52,6 @@ static ssize_t node_read_meminfo(struct 
- 	for (j = 0; j < NR_STAT_ITEMS; j++)
- 		nr[j] = node_page_state(nid, j);
- 
--	/* Check for negative values in these approximate counters */
--	if ((long)ps.nr_writeback < 0)
--		ps.nr_writeback = 0;
- 
- 	n = sprintf(buf, "\n"
- 		       "Node %d MemTotal:     %8lu kB\n"
-@@ -81,7 +78,7 @@ static ssize_t node_read_meminfo(struct 
- 		       nid, K(i.totalram - i.totalhigh),
- 		       nid, K(i.freeram - i.freehigh),
- 		       nid, K(nr[NR_DIRTY]),
--		       nid, K(ps.nr_writeback),
-+		       nid, K(nr[NR_WRITEBACK]),
- 		       nid, K(nr[NR_MAPPED]),
- 		       nid, K(nr[NR_PAGECACHE]),
- 		       nid, K(nr[NR_SLAB]));
-Index: linux-2.6.15-rc5-mm2/fs/proc/proc_misc.c
-===================================================================
---- linux-2.6.15-rc5-mm2.orig/fs/proc/proc_misc.c	2005-12-14 15:34:57.000000000 -0800
-+++ linux-2.6.15-rc5-mm2/fs/proc/proc_misc.c	2005-12-14 15:35:38.000000000 -0800
-@@ -189,7 +189,7 @@ static int meminfo_read_proc(char *page,
- 		K(i.totalswap),
- 		K(i.freeswap),
- 		K(global_page_state(NR_DIRTY)),
--		K(ps.nr_writeback),
-+		K(global_page_state(NR_WRITEBACK)),
- 		K(global_page_state(NR_MAPPED)),
- 		K(global_page_state(NR_SLAB)),
- 		K(allowed),
-Index: linux-2.6.15-rc5-mm2/arch/i386/mm/pgtable.c
-===================================================================
---- linux-2.6.15-rc5-mm2.orig/arch/i386/mm/pgtable.c	2005-12-14 15:34:57.000000000 -0800
-+++ linux-2.6.15-rc5-mm2/arch/i386/mm/pgtable.c	2005-12-14 15:35:38.000000000 -0800
-@@ -60,7 +60,7 @@ void show_mem(void)
- 
- 	get_page_state(&ps);
- 	printk(KERN_INFO "%lu pages dirty\n", global_page_state(NR_DIRTY));
--	printk(KERN_INFO "%lu pages writeback\n", ps.nr_writeback);
-+	printk(KERN_INFO "%lu pages writeback\n", global_page_state(NR_WRITEBACK));
- 	printk(KERN_INFO "%lu pages mapped\n", ps.nr_mapped);
- 	printk(KERN_INFO "%lu pages slab\n", ps.nr_slab);
- 	printk(KERN_INFO "%lu pages pagetables\n", ps.nr_page_table_pages);
-Index: linux-2.6.15-rc5-mm2/mm/swap_prefetch.c
-===================================================================
---- linux-2.6.15-rc5-mm2.orig/mm/swap_prefetch.c	2005-12-14 15:34:57.000000000 -0800
-+++ linux-2.6.15-rc5-mm2/mm/swap_prefetch.c	2005-12-14 15:35:38.000000000 -0800
-@@ -315,7 +315,7 @@ static int prefetch_suitable(void)
- 	get_page_state(&ps);
- 
- 	/* We shouldn't prefetch when we are doing writeback */
--	if (ps.nr_writeback)
-+	if (global_page_state(NR_WRITEBACK))
- 		goto out;
- 
- 	/* Delay prefetching if we have significant amounts of dirty data */
-Index: linux-2.6.15-rc5-mm2/mm/page_alloc.c
-===================================================================
---- linux-2.6.15-rc5-mm2.orig/mm/page_alloc.c	2005-12-14 15:35:34.000000000 -0800
-+++ linux-2.6.15-rc5-mm2/mm/page_alloc.c	2005-12-14 15:37:34.000000000 -0800
-@@ -597,7 +597,7 @@ static int rmqueue_bulk(struct zone *zon
- }
- 
- char *stat_item_descr[NR_STAT_ITEMS] = {
--	"mapped","pagecache", "slab", "pagetable", "dirty"
-+	"mapped","pagecache", "slab", "pagetable", "dirty", "writeback"
- };
- 
- /*
-@@ -1780,7 +1780,7 @@ void show_free_areas(void)
- 		active,
- 		inactive,
- 		global_page_state(NR_DIRTY),
--		ps.nr_writeback,
-+		global_page_state(NR_WRITEBACK),
- 		ps.nr_unstable,
- 		nr_free_pages(),
- 		global_page_state(NR_SLAB),
-Index: linux-2.6.15-rc5-mm2/include/linux/page-flags.h
-===================================================================
---- linux-2.6.15-rc5-mm2.orig/include/linux/page-flags.h	2005-12-14 15:34:57.000000000 -0800
-+++ linux-2.6.15-rc5-mm2/include/linux/page-flags.h	2005-12-14 15:35:38.000000000 -0800
-@@ -82,7 +82,6 @@
-  * allowed.
-  */
- struct page_state {
--	unsigned long nr_writeback;	/* Pages under writeback */
- 	unsigned long nr_unstable;	/* NFS unstable pages */
- #define GET_PAGE_STATE_LAST nr_unstable
- 
-@@ -291,7 +290,7 @@ void dec_zone_page_state(const struct pa
- 	do {								\
- 		if (!test_and_set_bit(PG_writeback,			\
- 				&(page)->flags))			\
--			inc_page_state(nr_writeback);			\
-+			inc_zone_page_state(page, NR_WRITEBACK);	\
- 	} while (0)
- #define TestSetPageWriteback(page)					\
- 	({								\
-@@ -299,14 +298,14 @@ void dec_zone_page_state(const struct pa
- 		ret = test_and_set_bit(PG_writeback,			\
- 					&(page)->flags);		\
- 		if (!ret)						\
--			inc_page_state(nr_writeback);			\
-+			inc_zone_page_state(page, NR_WRITEBACK);	\
- 		ret;							\
- 	})
- #define ClearPageWriteback(page)					\
- 	do {								\
- 		if (test_and_clear_bit(PG_writeback,			\
- 				&(page)->flags))			\
--			dec_page_state(nr_writeback);			\
-+			dec_zone_page_state(page, NR_WRITEBACK);	\
- 	} while (0)
- #define TestClearPageWriteback(page)					\
- 	({								\
-@@ -314,7 +313,7 @@ void dec_zone_page_state(const struct pa
- 		ret = test_and_clear_bit(PG_writeback,			\
- 				&(page)->flags);			\
- 		if (ret)						\
--			dec_page_state(nr_writeback);			\
-+			dec_zone_page_state(page, NR_WRITEBACK);	\
- 		ret;							\
- 	})
- 
 Index: linux-2.6.15-rc5-mm2/mm/page-writeback.c
 ===================================================================
---- linux-2.6.15-rc5-mm2.orig/mm/page-writeback.c	2005-12-14 15:34:57.000000000 -0800
-+++ linux-2.6.15-rc5-mm2/mm/page-writeback.c	2005-12-14 15:35:38.000000000 -0800
-@@ -112,7 +112,7 @@ static void get_writeback_state(struct w
- 	wbs->nr_dirty = global_page_state(NR_DIRTY);
- 	wbs->nr_unstable = read_page_state(nr_unstable);
- 	wbs->nr_mapped = global_page_state(NR_MAPPED);
--	wbs->nr_writeback = read_page_state(nr_writeback);
-+	wbs->nr_writeback = global_page_state(NR_WRITEBACK);
- }
+--- linux-2.6.15-rc5-mm2.orig/mm/page-writeback.c	2005-12-14 15:37:43.000000000 -0800
++++ linux-2.6.15-rc5-mm2/mm/page-writeback.c	2005-12-14 15:40:58.000000000 -0800
+@@ -99,22 +99,6 @@ EXPORT_SYMBOL(laptop_mode);
  
+ static void background_writeout(unsigned long _min_pages);
+ 
+-struct writeback_state
+-{
+-	unsigned long nr_dirty;
+-	unsigned long nr_unstable;
+-	unsigned long nr_mapped;
+-	unsigned long nr_writeback;
+-};
+-
+-static void get_writeback_state(struct writeback_state *wbs)
+-{
+-	wbs->nr_dirty = global_page_state(NR_DIRTY);
+-	wbs->nr_unstable = global_page_state(NR_UNSTABLE);
+-	wbs->nr_mapped = global_page_state(NR_MAPPED);
+-	wbs->nr_writeback = global_page_state(NR_WRITEBACK);
+-}
+-
  /*
-Index: linux-2.6.15-rc5-mm2/include/linux/mmzone.h
-===================================================================
---- linux-2.6.15-rc5-mm2.orig/include/linux/mmzone.h	2005-12-14 15:34:57.000000000 -0800
-+++ linux-2.6.15-rc5-mm2/include/linux/mmzone.h	2005-12-14 15:35:38.000000000 -0800
-@@ -44,8 +44,8 @@ struct zone_padding {
- #define ZONE_PADDING(name)
+  * Work out the current dirty-memory clamping and background writeout
+  * thresholds.
+@@ -133,8 +117,7 @@ static void get_writeback_state(struct w
+  * clamping level.
+  */
+ static void
+-get_dirty_limits(struct writeback_state *wbs, long *pbackground, long *pdirty,
+-		struct address_space *mapping)
++get_dirty_limits(long *pbackground, long *pdirty, struct address_space *mapping)
+ {
+ 	int background_ratio;		/* Percentages */
+ 	int dirty_ratio;
+@@ -144,8 +127,6 @@ get_dirty_limits(struct writeback_state 
+ 	unsigned long available_memory = total_pages;
+ 	struct task_struct *tsk;
+ 
+-	get_writeback_state(wbs);
+-
+ #ifdef CONFIG_HIGHMEM
+ 	/*
+ 	 * If this mapping can only allocate from low memory,
+@@ -156,7 +137,7 @@ get_dirty_limits(struct writeback_state 
  #endif
  
--enum zone_stat_item { NR_MAPPED, NR_PAGECACHE, NR_SLAB, NR_PAGETABLE, NR_DIRTY };
--#define NR_STAT_ITEMS 5
-+enum zone_stat_item { NR_MAPPED, NR_PAGECACHE, NR_SLAB, NR_PAGETABLE, NR_DIRTY, NR_WRITEBACK };
-+#define NR_STAT_ITEMS 6
  
- struct per_cpu_pages {
- 	int count;		/* number of pages in the list */
+-	unmapped_ratio = 100 - (wbs->nr_mapped * 100) / total_pages;
++	unmapped_ratio = 100 - (global_page_state(NR_MAPPED) * 100) / total_pages;
+ 
+ 	dirty_ratio = vm_dirty_ratio;
+ 	if (dirty_ratio > unmapped_ratio / 2)
+@@ -189,7 +170,6 @@ get_dirty_limits(struct writeback_state 
+  */
+ static void balance_dirty_pages(struct address_space *mapping)
+ {
+-	struct writeback_state wbs;
+ 	long nr_reclaimable;
+ 	long background_thresh;
+ 	long dirty_thresh;
+@@ -206,10 +186,9 @@ static void balance_dirty_pages(struct a
+ 			.nr_to_write	= write_chunk,
+ 		};
+ 
+-		get_dirty_limits(&wbs, &background_thresh,
+-					&dirty_thresh, mapping);
+-		nr_reclaimable = wbs.nr_dirty + wbs.nr_unstable;
+-		if (nr_reclaimable + wbs.nr_writeback <= dirty_thresh)
++		get_dirty_limits(&background_thresh, &dirty_thresh, mapping);
++		nr_reclaimable = global_page_state(NR_DIRTY) + global_page_state(NR_UNSTABLE);
++		if (nr_reclaimable + global_page_state(NR_WRITEBACK) <= dirty_thresh)
+ 			break;
+ 
+ 		dirty_exceeded = 1;
+@@ -222,10 +201,9 @@ static void balance_dirty_pages(struct a
+ 		 */
+ 		if (nr_reclaimable) {
+ 			writeback_inodes(&wbc);
+-			get_dirty_limits(&wbs, &background_thresh,
+-					&dirty_thresh, mapping);
+-			nr_reclaimable = wbs.nr_dirty + wbs.nr_unstable;
+-			if (nr_reclaimable + wbs.nr_writeback <= dirty_thresh)
++			get_dirty_limits(&background_thresh, &dirty_thresh, mapping);
++			nr_reclaimable = global_page_state(NR_DIRTY) + global_page_state(NR_UNSTABLE);
++			if (nr_reclaimable + global_page_state(NR_WRITEBACK) <= dirty_thresh)
+ 				break;
+ 			pages_written += write_chunk - wbc.nr_to_write;
+ 			if (pages_written >= write_chunk)
+@@ -234,7 +212,7 @@ static void balance_dirty_pages(struct a
+ 		blk_congestion_wait(WRITE, HZ/10);
+ 	}
+ 
+-	if (nr_reclaimable + wbs.nr_writeback <= dirty_thresh)
++	if (nr_reclaimable + global_page_state(NR_WRITEBACK) <= dirty_thresh)
+ 		dirty_exceeded = 0;
+ 
+ 	if (writeback_in_progress(bdi))
+@@ -291,12 +269,11 @@ EXPORT_SYMBOL(balance_dirty_pages_rateli
+ 
+ void throttle_vm_writeout(void)
+ {
+-	struct writeback_state wbs;
+ 	long background_thresh;
+ 	long dirty_thresh;
+ 
+         for ( ; ; ) {
+-		get_dirty_limits(&wbs, &background_thresh, &dirty_thresh, NULL);
++		get_dirty_limits(&background_thresh, &dirty_thresh, NULL);
+ 
+                 /*
+                  * Boost the allowable dirty threshold a bit for page
+@@ -304,7 +281,7 @@ void throttle_vm_writeout(void)
+                  */
+                 dirty_thresh += dirty_thresh / 10;      /* wheeee... */
+ 
+-                if (wbs.nr_unstable + wbs.nr_writeback <= dirty_thresh)
++                if (global_page_state(NR_UNSTABLE) + global_page_state(NR_WRITEBACK) <= dirty_thresh)
+                         break;
+                 blk_congestion_wait(WRITE, HZ/10);
+         }
+@@ -327,12 +304,11 @@ static void background_writeout(unsigned
+ 	};
+ 
+ 	for ( ; ; ) {
+-		struct writeback_state wbs;
+ 		long background_thresh;
+ 		long dirty_thresh;
+ 
+-		get_dirty_limits(&wbs, &background_thresh, &dirty_thresh, NULL);
+-		if (wbs.nr_dirty + wbs.nr_unstable < background_thresh
++		get_dirty_limits(&background_thresh, &dirty_thresh, NULL);
++		if (global_page_state(NR_DIRTY) + global_page_state(NR_UNSTABLE) < background_thresh
+ 				&& min_pages <= 0)
+ 			break;
+ 		wbc.encountered_congestion = 0;
+@@ -356,12 +332,8 @@ static void background_writeout(unsigned
+  */
+ int wakeup_pdflush(long nr_pages)
+ {
+-	if (nr_pages == 0) {
+-		struct writeback_state wbs;
+-
+-		get_writeback_state(&wbs);
+-		nr_pages = wbs.nr_dirty + wbs.nr_unstable;
+-	}
++	if (nr_pages == 0)
++		nr_pages = global_page_state(NR_DIRTY) + global_page_state(NR_UNSTABLE);
+ 	return pdflush_operation(background_writeout, nr_pages);
+ }
+ 
+@@ -392,7 +364,6 @@ static void wb_kupdate(unsigned long arg
+ 	unsigned long start_jif;
+ 	unsigned long next_jif;
+ 	long nr_to_write;
+-	struct writeback_state wbs;
+ 	struct writeback_control wbc = {
+ 		.bdi		= NULL,
+ 		.sync_mode	= WB_SYNC_NONE,
+@@ -404,11 +375,10 @@ static void wb_kupdate(unsigned long arg
+ 
+ 	sync_supers();
+ 
+-	get_writeback_state(&wbs);
+ 	oldest_jif = jiffies - (dirty_expire_centisecs * HZ) / 100;
+ 	start_jif = jiffies;
+ 	next_jif = start_jif + (dirty_writeback_centisecs * HZ) / 100;
+-	nr_to_write = wbs.nr_dirty + wbs.nr_unstable +
++	nr_to_write = global_page_state(NR_DIRTY) + global_page_state(NR_UNSTABLE) +
+ 			(inodes_stat.nr_inodes - inodes_stat.nr_unused);
+ 	while (nr_to_write > 0) {
+ 		wbc.encountered_congestion = 0;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
