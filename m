@@ -1,16 +1,16 @@
 Received: from d12nrmr1607.megacenter.de.ibm.com (d12nrmr1607.megacenter.de.ibm.com [9.149.167.49])
-	by mtagate4.de.ibm.com (8.12.10/8.12.10) with ESMTP id jBGL7dLs164216
-	for <linux-mm@kvack.org>; Fri, 16 Dec 2005 21:07:39 GMT
+	by mtagate1.de.ibm.com (8.12.10/8.12.10) with ESMTP id jBGL7rec176122
+	for <linux-mm@kvack.org>; Fri, 16 Dec 2005 21:07:53 GMT
 Received: from d12av02.megacenter.de.ibm.com (d12av02.megacenter.de.ibm.com [9.149.165.228])
-	by d12nrmr1607.megacenter.de.ibm.com (8.12.10/NCO/VERS6.8) with ESMTP id jBGL7cgi197048
-	for <linux-mm@kvack.org>; Fri, 16 Dec 2005 22:07:38 +0100
+	by d12nrmr1607.megacenter.de.ibm.com (8.12.10/NCO/VERS6.8) with ESMTP id jBGL7rgi176338
+	for <linux-mm@kvack.org>; Fri, 16 Dec 2005 22:07:53 +0100
 Received: from d12av02.megacenter.de.ibm.com (loopback [127.0.0.1])
-	by d12av02.megacenter.de.ibm.com (8.12.11/8.13.3) with ESMTP id jBGL7c9H030897
-	for <linux-mm@kvack.org>; Fri, 16 Dec 2005 22:07:38 +0100
-Date: Fri, 16 Dec 2005 22:07:41 +0100
+	by d12av02.megacenter.de.ibm.com (8.12.11/8.13.3) with ESMTP id jBGL7rJA031021
+	for <linux-mm@kvack.org>; Fri, 16 Dec 2005 22:07:53 +0100
+Date: Fri, 16 Dec 2005 22:07:56 +0100
 From: Martin Schwidefsky <schwidefsky@de.ibm.com>
-Subject: [rfc][patch 3/6] Page host virtual assist: writable ptes.
-Message-ID: <20051216210741.GD11062@skybase.boeblingen.de.ibm.com>
+Subject: [rfc][patch 4/6] Page host virtual assist: minor fault optimization.
+Message-ID: <20051216210756.GE11062@skybase.boeblingen.de.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
@@ -22,283 +22,382 @@ Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org, frankeh@watson.ibm.com, rhim@cc.gatech.edu
 List-ID: <linux-mm.kvack.org>
 
-[rfc][patch 3/6] Page host virtual assist: writable ptes.
+[rfc][patch 4/6] Page host virtual assist: minor fault optimization.
 
-The base patch for hva requires that the host system needs to be able
-to determine if a volatile page is dirty before removing it. This
-excludes almost all platforms from using hva. What is needed is a way
-to distinguish between pages that are purely read-ony and pages that
-might get written to. This allows platforms with per-pte dirty bits
-to use hva and platforms with per-page dirty bits a small optimization.
+On of the challenges of hva is the cost for the state transitions.
+If the cost gets too big the whole concept of page state information is
+in question. Therefore it is very important to avoid the state transtitions
+for minor faults. Why change the page state to stable in find_get_page and
+back in page_add_anon_rmap/page_add_file_rmap if the discarded pages can
+be handled by the discard fault handler? If the page is in page/swap cache
+just map it even if it is already discarded. The first access to the page
+will cause a discard fault which needs to be able to deal with this kind
+of situation anyway because of races in the memory management.
 
-Whenever a writable pte is created a check is added that allows to
-move the page into the correct state. This needs to be done before
-the writable pte is established. To avoid unnecessary state transitions
-and the need for a counter, a new page flag PG_writable is added. Only
-the creation of the first writable pte will do a page state change.
-Even if the all writable ptes pointing to a page are removed again,
-the page stays in the safe state until all users of the page have
-unmapped it again. Only then the PG_writable bit is reset.
+To do this we need a special variant of find_get_page, with the name
+find_get_page_nohv. That function is in fact an exact copy of the original
+find_get_page function which didn't care about page states as well.
+This new function is then used in filemap_nopage and filemap_getpage.
+After that there is only one state transition left in the minor fault.
+page_add_anon_rmap/page_add_file_rmap try to get the page into volatile
+state. If these two calls are removed we end up with almost all pages
+in stable. The reason is that if a page is not uptodate yet, there is
+an additional reference acquired from filemap_nopage. After the page
+has been brought uptodate a page_hva_make_volatile needs to be done
+with an offset of 2 (page cache reference + additional reference from
+filemap_nopage).
 
-The state a page needs to have if a writable pte is present depends
-on the platform. A platform with per-pte dirty bits probably wants
-to move the page into stable state. A platform with per-page dirty
-bits like s390 can decide to move the page into a special state that
-requires the host system to check the dirty bit before discarding a
-page. The page_hva_set_volatile primitive gets an additional "write"
-argument which lets the platform code decide what to do.
+That removes the state transitions on the minor fault path. A page that
+has been mapped will eventually be unmapped again. On the unmap() path
+each page that has been removed from the page table is freed with a call
+to page_cache_release. In general that causes an unnecessary page state
+transition from volatile to volatile. Not what we want. To get rid of
+these state transitions as well special variants of put_page_testzero/
+page_cache_release are introduced that do not try to make the page
+volatile. page_cache_release_nohv is then used in free_page_and_swap_cache
+and release_pages. This makes the unmap of ptes state transitions free.
 
 Signed-off-by: Martin Schwidefsky <schwidefsky@de.ibm.com>
 
 ---
 
- fs/exec.c                  |    6 ++++--
- include/linux/page-flags.h |    5 +++++
- include/linux/page_hva.h   |   19 +++++++++++++++++++
- mm/fremap.c                |    4 +++-
- mm/memory.c                |    5 +++++
- mm/mprotect.c              |    1 +
- mm/page_alloc.c            |    3 ++-
- mm/page_hva.c              |   42 ++++++++++++++++++++++++++++++++++++++++--
- mm/rmap.c                  |    1 +
- 9 files changed, 80 insertions(+), 6 deletions(-)
+ include/linux/mm.h      |   22 +++++++-----
+ include/linux/pagemap.h |    1 
+ include/linux/swap.h    |    2 -
+ mm/filemap.c            |   88 +++++++++++++++++++++++++++++++++++++++++++-----
+ mm/fremap.c             |    1 
+ mm/rmap.c               |    3 -
+ mm/swap.c               |   19 +++++++++-
+ mm/swap_state.c         |    2 -
+ 8 files changed, 116 insertions(+), 22 deletions(-)
 
-diff -urpN linux-2.6/fs/exec.c linux-2.6-patched/fs/exec.c
---- linux-2.6/fs/exec.c	2005-12-16 20:40:33.000000000 +0100
-+++ linux-2.6-patched/fs/exec.c	2005-12-16 20:40:51.000000000 +0100
-@@ -307,6 +307,7 @@ void install_arg_page(struct vm_area_str
- {
- 	struct mm_struct *mm = vma->vm_mm;
- 	pte_t * pte;
-+	pte_t pte_val;
- 	spinlock_t *ptl;
+diff -urpN linux-2.6/include/linux/mm.h linux-2.6-patched/include/linux/mm.h
+--- linux-2.6/include/linux/mm.h	2005-12-16 20:40:50.000000000 +0100
++++ linux-2.6-patched/include/linux/mm.h	2005-12-16 20:40:52.000000000 +0100
+@@ -304,17 +304,22 @@ struct page {
+  *
+  * put_page_testzero checks if the page can be made volatile if the page
+  * still has users and the page host virtual assist is enabled.
++ * put_page_testzero_nohv does not check the hva page state.
+  */
++#define put_page_testzero_nohv(p)			\
++	({						\
++		BUG_ON(page_count(p) == 0);		\
++		atomic_add_negative(-1, &(p)->_count);	\
++	})
  
- 	if (unlikely(anon_vma_prepare(vma)))
-@@ -322,8 +323,9 @@ void install_arg_page(struct vm_area_str
- 	}
- 	inc_mm_counter(mm, anon_rss);
- 	lru_cache_add_active(page);
--	set_pte_at(mm, address, pte, pte_mkdirty(pte_mkwrite(mk_pte(
--					page, vma->vm_page_prot))));
-+	pte_val = pte_mkdirty(pte_mkwrite(mk_pte(page, vma->vm_page_prot)));
-+	page_hva_check_write(page, pte_val);
-+	set_pte_at(mm, address, pte, pte_val);
- 	page_add_new_anon_rmap(page, vma, address);
- 	pte_unmap_unlock(pte, ptl);
+-#define put_page_testzero(p)					\
+-	({							\
+-		int ret;					\
+-		BUG_ON(page_count(p) == 0);			\
+-		ret = atomic_add_negative(-1, &(p)->_count);	\
+-		if (!ret)					\
+-			page_hva_make_volatile(p, 1);		\
+-		ret;						\
++#define put_page_testzero(p)				\
++	({						\
++		int ret = put_page_testzero_nohv(p);    \
++		if (!ret)				\
++			page_hva_make_volatile(p, 1);	\
++		ret;					\
+ 	})
++
+ /*
+  * Grab a ref, return true if the page previously had a logical refcount of
+  * zero.  ie: returns true if we just grabbed an already-deemed-to-be-free page
+@@ -341,6 +346,7 @@ static inline void get_page(struct page 
+ }
  
-diff -urpN linux-2.6/include/linux/page-flags.h linux-2.6-patched/include/linux/page-flags.h
---- linux-2.6/include/linux/page-flags.h	2005-12-16 20:40:50.000000000 +0100
-+++ linux-2.6-patched/include/linux/page-flags.h	2005-12-16 20:40:51.000000000 +0100
-@@ -79,6 +79,7 @@
- 
- #define PG_state_change	20		/* HV page state is changing. */
- #define PG_discarded		21	/* HV page has been discarded. */
-+#define PG_writable		22	/* HV page is mapped writable. */
+ void put_page(struct page *page);
++void put_page_nohv(struct page *page);
  
  /*
-  * Global page accounting.  One instance per CPU.  Only unsigned longs are
-@@ -358,6 +359,10 @@ extern void __mod_page_state_offset(unsi
- #define TestSetPageDiscarded(page) \
- 		test_and_set_bit(PG_discarded, &(page)->flags)
+  * Multiple processes may "see" the same page. E.g. for untouched
+diff -urpN linux-2.6/include/linux/pagemap.h linux-2.6-patched/include/linux/pagemap.h
+--- linux-2.6/include/linux/pagemap.h	2005-12-16 20:40:34.000000000 +0100
++++ linux-2.6-patched/include/linux/pagemap.h	2005-12-16 20:40:52.000000000 +0100
+@@ -49,6 +49,7 @@ static inline void mapping_set_gfp_mask(
  
-+#define PageWritable(page) test_bit(PG_writable, &(page)->flags)
-+#define SetPageWritable(page) set_bit(PG_writable, &(page)->flags)
-+#define ClearPageWritable(page) clear_bit(PG_writable, &(page)->flags)
-+
- struct page;	/* forward declaration */
+ #define page_cache_get(page)		get_page(page)
+ #define page_cache_release(page)	put_page(page)
++#define page_cache_release_nohv(page)	put_page_nohv(page)
+ void release_pages(struct page **pages, int nr, int cold);
  
- int test_clear_page_dirty(struct page *page);
-diff -urpN linux-2.6/include/linux/page_hva.h linux-2.6-patched/include/linux/page_hva.h
---- linux-2.6/include/linux/page_hva.h	2005-12-16 20:40:51.000000000 +0100
-+++ linux-2.6-patched/include/linux/page_hva.h	2005-12-16 20:40:51.000000000 +0100
-@@ -20,6 +20,8 @@ extern int page_hva_make_stable(struct p
- extern void page_hva_discard_page(struct page *page);
- extern void __page_hva_discard_page(struct page *page);
- extern void __page_hva_make_volatile(struct page *page, unsigned int offset);
-+extern void __page_hva_check_write(struct page *page, pte_t pte);
-+extern void __page_hva_reset_write(struct page *page);
- extern void page_hva_unmap_all(struct page *page);
+ static inline struct page *page_cache_alloc(struct address_space *x)
+diff -urpN linux-2.6/include/linux/swap.h linux-2.6-patched/include/linux/swap.h
+--- linux-2.6/include/linux/swap.h	2005-12-16 20:40:34.000000000 +0100
++++ linux-2.6-patched/include/linux/swap.h	2005-12-16 20:40:52.000000000 +0100
+@@ -260,7 +260,7 @@ static inline void disable_swap_token(vo
+ /* only sparc can not include linux/pagemap.h in this file
+  * so leave page_cache_release and release_pages undeclared... */
+ #define free_page_and_swap_cache(page) \
+-	page_cache_release(page)
++	page_cache_release_nohv(page)
+ #define free_pages_and_swap_cache(pages, nr) \
+ 	release_pages((pages), (nr), 0);
  
- static inline void page_hva_make_volatile(struct page *page,
-@@ -29,6 +31,20 @@ static inline void page_hva_make_volatil
- 		__page_hva_make_volatile(page, offset);
- }
- 
-+static inline void page_hva_check_write(struct page *page, pte_t pte)
+diff -urpN linux-2.6/mm/filemap.c linux-2.6-patched/mm/filemap.c
+--- linux-2.6/mm/filemap.c	2005-12-16 20:40:50.000000000 +0100
++++ linux-2.6-patched/mm/filemap.c	2005-12-16 20:40:52.000000000 +0100
+@@ -550,7 +550,20 @@ EXPORT_SYMBOL(end_page_fs_misc);
+  * a rather lightweight function, finding and getting a reference to a
+  * hashed page atomically.
+  */
+-struct page * find_get_page(struct address_space *mapping, unsigned long offset)
++static struct page *find_get_page_nohv(struct address_space *mapping,
++				       unsigned long offset)
 +{
-+	if (!pte_write(pte) || test_bit(PG_writable, &page->flags))
-+		return;
-+	__page_hva_check_write(page, pte);
++	struct page *page;
++
++	read_lock_irq(&mapping->tree_lock);
++	page = radix_tree_lookup(&mapping->page_tree, offset);
++	if (page)
++		page_cache_get(page);
++	read_unlock_irq(&mapping->tree_lock);
++	return page;
 +}
 +
-+static inline void page_hva_reset_write(struct page *page)
-+{
-+	if (!test_bit(PG_writable, &page->flags))
-+		return;
-+	__page_hva_reset_write(page);
-+}
-+
- #else
++struct page *find_get_page(struct address_space *mapping, unsigned long offset)
+ {
+ 	struct page *page;
  
- #define page_hva_enabled()			(0)
-@@ -41,6 +57,9 @@ static inline void page_hva_make_volatil
- #define page_hva_make_stable(_page)		(1)
- #define page_hva_make_volatile(_page,_offset)	do { } while (0)
+@@ -1317,7 +1330,14 @@ retry_all:
+ 	 * Do we have something in the page cache already?
+ 	 */
+ retry_find:
+-	page = find_get_page(mapping, pgoff);
++	/*
++	 * The find_get_page_nohv version of find_get_page will refrain from
++	 * moving the page to stable if page is found in page cache. This is
++	 * an optimization for common case where most of the page cache pages
++	 * will not be in discarded state. In case the page indeed is
++	 * discarded, the access will result in a discard fault.
++	 */
++	page = find_get_page_nohv(mapping, pgoff);
+ 	if (!page) {
+ 		unsigned long ra_pages;
  
-+#define page_hva_check_write(_page, _pte)	do { } while (0)
-+#define page_hva_reset_write(_page)		do { } while (0)
-+
- #define page_hva_discard_page(_page)		do { } while (0)
- #define __page_hva_discard_page(_page)		do { } while (0)
+@@ -1351,7 +1371,7 @@ retry_find:
+ 				start = pgoff - ra_pages / 2;
+ 			do_page_cache_readahead(mapping, file, start, ra_pages);
+ 		}
+-		page = find_get_page(mapping, pgoff);
++		page = find_get_page_nohv(mapping, pgoff);
+ 		if (!page)
+ 			goto no_cached_page;
+ 	}
+@@ -1425,14 +1445,27 @@ page_not_uptodate:
+ 	/* Did somebody else get it up-to-date? */
+ 	if (PageUptodate(page)) {
+ 		unlock_page(page);
++		/*
++		 * Because we held a reference to the page while somebody
++		 * else got it up-to-date the page could not be made volatile.
++		 * Do it now.
++		 */
++		page_hva_make_volatile(page, 2);
+ 		goto success;
+ 	}
  
+ 	error = mapping->a_ops->readpage(file, page);
+ 	if (!error) {
+ 		wait_on_page_locked(page);
+-		if (PageUptodate(page))
++		if (PageUptodate(page)) {
++			/*
++			 * Because we held an additional reference to the page
++			 * while we read it in the page could not be made
++			 * volatile. Do it now.
++			 */
++			page_hva_make_volatile(page, 2);
+ 			goto success;
++		}
+ 	} else if (error == AOP_TRUNCATED_PAGE) {
+ 		page_cache_release(page);
+ 		goto retry_find;
+@@ -1456,14 +1489,27 @@ page_not_uptodate:
+ 	/* Somebody else successfully read it in? */
+ 	if (PageUptodate(page)) {
+ 		unlock_page(page);
++		/*
++		 * Because we held a reference to the page while somebody
++		 * else read it in the page could not be made volatile.
++		 * Do it now.
++		 */
++		page_hva_make_volatile(page, 2);
+ 		goto success;
+ 	}
+ 	ClearPageError(page);
+ 	error = mapping->a_ops->readpage(file, page);
+ 	if (!error) {
+ 		wait_on_page_locked(page);
+-		if (PageUptodate(page))
++		if (PageUptodate(page)) {
++			/*
++			 * Because we held an additional reference to the page
++			 * while we read it in the page could not be made
++			 * volatile. Do it now.
++			 */
++			page_hva_make_volatile(page, 2);
+ 			goto success;
++		}
+ 	} else if (error == AOP_TRUNCATED_PAGE) {
+ 		page_cache_release(page);
+ 		goto retry_find;
+@@ -1490,7 +1536,7 @@ static struct page * filemap_getpage(str
+ 	 * Do we have something in the page cache already?
+ 	 */
+ retry_find:
+-	page = find_get_page(mapping, pgoff);
++	page = find_get_page_nohv(mapping, pgoff);
+ 	if (!page) {
+ 		if (nonblock)
+ 			return NULL;
+@@ -1546,14 +1592,27 @@ page_not_uptodate:
+ 	/* Did somebody else get it up-to-date? */
+ 	if (PageUptodate(page)) {
+ 		unlock_page(page);
++		/*
++		 * Because we held a reference to the page while somebody
++		 * else got it up-to-date the page could not be made volatile.
++		 * Do it now.
++		 */
++		page_hva_make_volatile(page, 2);
+ 		goto success;
+ 	}
+ 
+ 	error = mapping->a_ops->readpage(file, page);
+ 	if (!error) {
+ 		wait_on_page_locked(page);
+-		if (PageUptodate(page))
++		if (PageUptodate(page)) {
++			/*
++			 * Because we held an additional reference to the page
++			 * while we read it in the page could not be made
++			 * volatile. Do it now.
++			 */
++			page_hva_make_volatile(page, 2);
+ 			goto success;
++		}
+ 	} else if (error == AOP_TRUNCATED_PAGE) {
+ 		page_cache_release(page);
+ 		goto retry_find;
+@@ -1575,6 +1634,12 @@ page_not_uptodate:
+ 	/* Somebody else successfully read it in? */
+ 	if (PageUptodate(page)) {
+ 		unlock_page(page);
++		/*
++		 * Because we held a reference to the page while somebody
++		 * else got it up-to-date the page could not be made volatile.
++		 * Do it now.
++		 */
++		page_hva_make_volatile(page, 2);
+ 		goto success;
+ 	}
+ 
+@@ -1582,8 +1647,15 @@ page_not_uptodate:
+ 	error = mapping->a_ops->readpage(file, page);
+ 	if (!error) {
+ 		wait_on_page_locked(page);
+-		if (PageUptodate(page))
++		if (PageUptodate(page)) {
++			/*
++			 * Because we held an additional reference to the page
++			 * while we read it in the page could not be made
++			 * volatile. Do it now.
++			 */
++			page_hva_make_volatile(page, 2);
+ 			goto success;
++		}
+ 	} else if (error == AOP_TRUNCATED_PAGE) {
+ 		page_cache_release(page);
+ 		goto retry_find;
 diff -urpN linux-2.6/mm/fremap.c linux-2.6-patched/mm/fremap.c
---- linux-2.6/mm/fremap.c	2005-12-16 20:40:15.000000000 +0100
-+++ linux-2.6-patched/mm/fremap.c	2005-12-16 20:40:51.000000000 +0100
-@@ -79,7 +79,9 @@ int install_page(struct mm_struct *mm, s
- 		inc_mm_counter(mm, file_rss);
- 
- 	flush_icache_page(vma, page);
--	set_pte_at(mm, addr, pte, mk_pte(page, prot));
-+	pte_val = mk_pte(page, prot);
-+	page_hva_check_write(page, pte_val);
-+	set_pte_at(mm, addr, pte, pte_val);
+--- linux-2.6/mm/fremap.c	2005-12-16 20:40:52.000000000 +0100
++++ linux-2.6-patched/mm/fremap.c	2005-12-16 20:40:52.000000000 +0100
+@@ -83,6 +83,7 @@ int install_page(struct mm_struct *mm, s
+ 	page_hva_check_write(page, pte_val);
+ 	set_pte_at(mm, addr, pte, pte_val);
  	page_add_file_rmap(page);
++	page_hva_make_volatile(page, 1);
  	pte_val = *pte;
  	update_mmu_cache(vma, addr, pte_val);
-diff -urpN linux-2.6/mm/memory.c linux-2.6-patched/mm/memory.c
---- linux-2.6/mm/memory.c	2005-12-16 20:40:51.000000000 +0100
-+++ linux-2.6-patched/mm/memory.c	2005-12-16 20:40:51.000000000 +0100
-@@ -1469,6 +1469,7 @@ static int do_wp_page(struct mm_struct *
- 			flush_cache_page(vma, address, pte_pfn(orig_pte));
- 			entry = pte_mkyoung(orig_pte);
- 			entry = maybe_mkwrite(pte_mkdirty(entry), vma);
-+			page_hva_check_write(old_page, entry);
- 			ptep_set_access_flags(vma, address, page_table, entry, 1);
- 			update_mmu_cache(vma, address, entry);
- 			lazy_mmu_prot_update(entry);
-@@ -1534,6 +1535,7 @@ gotten:
- 		flush_cache_page(vma, address, pte_pfn(orig_pte));
- 		entry = mk_pte(new_page, vma->vm_page_prot);
- 		entry = maybe_mkwrite(pte_mkdirty(entry), vma);
-+		page_hva_check_write(new_page, entry);
- 		ptep_establish(vma, address, page_table, entry);
- 		update_mmu_cache(vma, address, entry);
- 		lazy_mmu_prot_update(entry);
-@@ -1957,6 +1959,7 @@ static int do_swap_page(struct mm_struct
- 	}
- 
- 	flush_icache_page(vma, page);
-+	page_hva_check_write(page, pte);
- 	set_pte_at(mm, address, page_table, pte);
- 	page_add_anon_rmap(page, vma, address);
- 
-@@ -2018,6 +2021,7 @@ static int do_anonymous_page(struct mm_s
- 
- 		entry = mk_pte(page, vma->vm_page_prot);
- 		entry = maybe_mkwrite(pte_mkdirty(entry), vma);
-+		page_hva_check_write(page, entry);
- 
- 		page_table = pte_offset_map_lock(mm, pmd, address, &ptl);
- 		if (!pte_none(*page_table))
-@@ -2157,6 +2161,7 @@ retry:
- 		entry = mk_pte(new_page, vma->vm_page_prot);
- 		if (write_access)
- 			entry = maybe_mkwrite(pte_mkdirty(entry), vma);
-+		page_hva_check_write(new_page, entry);
- 		set_pte_at(mm, address, page_table, entry);
- 		/*
- 		 * The COW page is not part of swap cache yet. No need
-diff -urpN linux-2.6/mm/mprotect.c linux-2.6-patched/mm/mprotect.c
---- linux-2.6/mm/mprotect.c	2005-12-16 20:40:15.000000000 +0100
-+++ linux-2.6-patched/mm/mprotect.c	2005-12-16 20:40:51.000000000 +0100
-@@ -41,6 +41,7 @@ static void change_pte_range(struct mm_s
- 			 * into place.
- 			 */
- 			ptent = pte_modify(ptep_get_and_clear(mm, addr, pte), newprot);
-+			page_hva_check_write(pte_page(ptent), ptent);
- 			set_pte_at(mm, addr, pte, ptent);
- 			lazy_mmu_prot_update(ptent);
- 		}
-diff -urpN linux-2.6/mm/page_alloc.c linux-2.6-patched/mm/page_alloc.c
---- linux-2.6/mm/page_alloc.c	2005-12-16 20:40:50.000000000 +0100
-+++ linux-2.6-patched/mm/page_alloc.c	2005-12-16 20:40:51.000000000 +0100
-@@ -550,7 +550,8 @@ static int prep_new_page(struct page *pa
- 
- 	page->flags &= ~(1 << PG_uptodate | 1 << PG_error |
- 			1 << PG_referenced | 1 << PG_arch_1 |
--			1 << PG_checked | 1 << PG_mappedtodisk);
-+			1 << PG_checked | 1 << PG_mappedtodisk |
-+			1 << PG_writable );
- 	set_page_private(page, 0);
- 	set_page_refs(page, order);
- 	kernel_map_pages(page, 1 << order, 1);
-diff -urpN linux-2.6/mm/page_hva.c linux-2.6-patched/mm/page_hva.c
---- linux-2.6/mm/page_hva.c	2005-12-16 20:40:51.000000000 +0100
-+++ linux-2.6-patched/mm/page_hva.c	2005-12-16 20:40:51.000000000 +0100
-@@ -77,8 +77,10 @@ void __page_hva_make_volatile(struct pag
- 	 */
- 	preempt_disable();
- 	if (!TestSetPageStateChange(page)) {
--		if (__page_hva_discardable(page, offset))
--			page_hva_set_volatile(page);
-+		if (__page_hva_discardable(page, offset)) {
-+			int write = PageWritable(page);
-+			page_hva_set_volatile(page, write);
-+		}
- 		ClearPageStateChange(page);
- 	}
- 	preempt_enable();
-@@ -110,3 +112,39 @@ int page_hva_make_stable(struct page *pa
- 	return page_hva_set_stable_if_resident(page);
- }
- EXPORT_SYMBOL(page_hva_make_stable);
-+
-+void __page_hva_check_write(struct page *page, pte_t pte)
-+{
-+	preempt_disable();
-+	while (!TestSetPageStateChange(page))
-+		cpu_relax();
-+
-+	if (!PageWritable(page)) {
-+		if (__page_hva_discardable(page, 2))
-+			page_hva_set_volatile(page, 1);
-+		else
-+			/*
-+			 * If two processes create a write mapping at the
-+			 * same time __page_hva_discardable will return
-+			 * false but the page IS in volatile state.
-+			 * We have to take care about the dirty bit so the
-+			 * only option left is to make the page stable.
-+			 */
-+			page_hva_set_stable_if_resident(page);
-+		SetPageWritable(page);
-+	}
-+	ClearPageStateChange(page);
-+	preempt_enable();
-+}
-+EXPORT_SYMBOL(__page_hva_check_write);
-+
-+void __page_hva_reset_write(struct page *page)
-+{
-+	preempt_disable();
-+	if (!TestSetPageStateChange(page)) {
-+		ClearPageWritable(page);
-+		ClearPageStateChange(page);
-+	}
-+	preempt_enable();
-+}
-+EXPORT_SYMBOL(__page_hva_reset_write);
+ 	err = 0;
 diff -urpN linux-2.6/mm/rmap.c linux-2.6-patched/mm/rmap.c
---- linux-2.6/mm/rmap.c	2005-12-16 20:40:50.000000000 +0100
-+++ linux-2.6-patched/mm/rmap.c	2005-12-16 20:40:51.000000000 +0100
-@@ -672,6 +672,7 @@ void page_remove_rmap(struct page *page)
- 		if (page_test_and_clear_dirty(page))
- 			set_page_dirty(page);
- 		__dec_page_state(nr_mapped);
-+		page_hva_reset_write(page);
- 	}
+--- linux-2.6/mm/rmap.c	2005-12-16 20:40:52.000000000 +0100
++++ linux-2.6-patched/mm/rmap.c	2005-12-16 20:40:52.000000000 +0100
+@@ -472,7 +472,6 @@ void page_add_anon_rmap(struct page *pag
+ 	if (atomic_inc_and_test(&page->_mapcount))
+ 		__page_set_anon_rmap(page, vma, address);
+ 	/* else checking page index and mapping is racy */
+-	page_hva_make_volatile(page, 1);
  }
  
+ /*
+@@ -489,7 +488,6 @@ void page_add_new_anon_rmap(struct page 
+ {
+ 	atomic_set(&page->_mapcount, 0); /* elevate count by 1 (starts at -1) */
+ 	__page_set_anon_rmap(page, vma, address);
+-	page_hva_make_volatile(page, 1);
+ }
+ 
+ /**
+@@ -505,7 +503,6 @@ void page_add_file_rmap(struct page *pag
+ 
+ 	if (atomic_inc_and_test(&page->_mapcount))
+ 		__inc_page_state(nr_mapped);
+-	page_hva_make_volatile(page, 1);
+ }
+ 
+ #if defined(CONFIG_PAGE_HVA)
+diff -urpN linux-2.6/mm/swap.c linux-2.6-patched/mm/swap.c
+--- linux-2.6/mm/swap.c	2005-12-16 20:40:35.000000000 +0100
++++ linux-2.6-patched/mm/swap.c	2005-12-16 20:40:52.000000000 +0100
+@@ -51,6 +51,23 @@ void put_page(struct page *page)
+ }
+ EXPORT_SYMBOL(put_page);
+ 
++void put_page_nohv(struct page *page)
++{
++	if (unlikely(PageCompound(page))) {
++		page = (struct page *)page_private(page);
++		if (put_page_testzero_nohv(page)) {
++			void (*dtor)(struct page *page);
++
++			dtor = (void (*)(struct page *))page[1].mapping;
++			(*dtor)(page);
++		}
++		return;
++	}
++	if (put_page_testzero_nohv(page))
++		__page_cache_release(page);
++}
++EXPORT_SYMBOL(put_page_nohv);
++
+ /*
+  * Writeback is about to end against a page which has been marked for immediate
+  * reclaim.  If it still appears to be reclaimable, move it to the tail of the
+@@ -218,7 +235,7 @@ void release_pages(struct page **pages, 
+ 		struct page *page = pages[i];
+ 		struct zone *pagezone;
+ 
+-		if (!put_page_testzero(page))
++		if (!put_page_testzero_nohv(page))
+ 			continue;
+ 
+ 		pagezone = page_zone(page);
+diff -urpN linux-2.6/mm/swap_state.c linux-2.6-patched/mm/swap_state.c
+--- linux-2.6/mm/swap_state.c	2005-12-16 20:40:35.000000000 +0100
++++ linux-2.6-patched/mm/swap_state.c	2005-12-16 20:40:52.000000000 +0100
+@@ -264,7 +264,7 @@ static inline void free_swap_cache(struc
+ void free_page_and_swap_cache(struct page *page)
+ {
+ 	free_swap_cache(page);
+-	page_cache_release(page);
++	page_cache_release_nohv(page);
+ }
+ 
+ /*
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
