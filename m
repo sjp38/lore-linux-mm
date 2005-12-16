@@ -1,39 +1,77 @@
-Date: Fri, 16 Dec 2005 09:55:24 +0900
+Date: Fri, 16 Dec 2005 11:00:03 +0900
 From: Yasunori Goto <y-goto@jp.fujitsu.com>
-Subject: Re: [Patch] New zone ZONE_EASY_RECLAIM take 3. (define ZONE_EASY_RECLAIM)[2/5]
-In-Reply-To: <43A1E704.6040106@austin.ibm.com>
-References: <20051210193849.4828.Y-GOTO@jp.fujitsu.com> <43A1E704.6040106@austin.ibm.com>
-Message-Id: <20051216095136.09EC.Y-GOTO@jp.fujitsu.com>
+Subject: Re: [Patch] New zone ZONE_EASY_RECLAIM take 3. (change build_zonelists)[3/5]
+In-Reply-To: <43A1E9B3.7050203@austin.ibm.com>
+References: <20051210194021.482A.Y-GOTO@jp.fujitsu.com> <43A1E9B3.7050203@austin.ibm.com>
+Message-Id: <20051216095705.09EE.Y-GOTO@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Joel Schopp <jschopp@austin.ibm.com>
-Cc: linux-mm <linux-mm@kvack.org>, Linux Hotplug Memory Support <lhms-devel@lists.sourceforge.net>
+Cc: Linux Hotplug Memory Support <lhms-devel@lists.sourceforge.net>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-> Sorry for the slow reply.  Hope feedback isn't too late.
-
-Not late. :-)
-
-> >  /*
-> > Index: zone_reclaim/mm/page_alloc.c
-> > ===================================================================
-> > --- zone_reclaim.orig/mm/page_alloc.c	2005-12-10 17:13:15.000000000 +0900
-> > +++ zone_reclaim/mm/page_alloc.c	2005-12-10 17:15:10.000000000 +0900
-> > @@ -66,7 +66,7 @@ static void fastcall free_hot_cold_page(
-> >   * TBD: should special case ZONE_DMA32 machines here - in those we normally
-> >   * don't need any ZONE_NORMAL reservation
-> >   */
-> > -int sysctl_lowmem_reserve_ratio[MAX_NR_ZONES-1] = { 256, 256, 32 };
-> > +int sysctl_lowmem_reserve_ratio[MAX_NR_ZONES-1] = { 256, 256, 256, 32 ,32};
+> > @@ -1602,12 +1606,16 @@ static int __init build_zonelists_node(p
+> >  static inline int highest_zone(int zone_bits)
+> >  {
+> >  	int res = ZONE_NORMAL;
+> > -	if (zone_bits & (__force int)__GFP_HIGHMEM)
+> > -		res = ZONE_HIGHMEM;
+> > -	if (zone_bits & (__force int)__GFP_DMA32)
+> > -		res = ZONE_DMA32;
+> > +
+> >  	if (zone_bits & (__force int)__GFP_DMA)
+> >  		res = ZONE_DMA;
+> > +	if (zone_bits & (__force int)__GFP_DMA32)
+> > +		res = ZONE_DMA32;
+> > +	if (zone_bits & (__force int)__GFP_HIGHMEM)
+> > +		res = ZONE_HIGHMEM;
+> > +	if (zone_bits & (__force int)__GFP_EASY_RECLAIM)
+> > +		res = ZONE_EASY_RECLAIM;
+> > +
+> >  	return res;
+> >  }
+> >  
 > 
-> This line looks wrong.  It looks you are initializing a 4 element array with 5 
-> elements.
+> These look to come in the wrong order here.  You want ZONE_EASY_RECLAIM to be 
+> the highest zone, but this puts HIGHMEM, DMA32, and DMA ahead of it.  It in fact 
+> seems to get the order exactly backward.
 
-Oops. I made a mistake. Thanks.
+I think this is correct about it.
 
+If these are used "else if", you are correct.
+But, if zone_bits is __GFP_EASY_RECLAIM, then it fall through to
+last line.
+
+> 
+> > Index: zone_reclaim/include/linux/gfp.h
+> > ===================================================================
+> > --- zone_reclaim.orig/include/linux/gfp.h	2005-12-06 14:12:43.000000000 +0900
+> > +++ zone_reclaim/include/linux/gfp.h	2005-12-06 14:12:44.000000000 +0900
+> > @@ -80,7 +80,7 @@ struct vm_area_struct;
+> >  
+> >  static inline int gfp_zone(gfp_t gfp)
+> >  {
+> > -	int zone = GFP_ZONEMASK & (__force int) gfp;
+> > +	int zone = fls(GFP_ZONEMASK & (__force int) gfp);
+> >  	BUG_ON(zone >= GFP_ZONETYPES);
+> >  	return zone;
+> >  }
+> > 
+> 
+> Does this have endian issues?  I'm not too familiar with it.
+
+I'm also not too familiar with it. But, if there is a difference.
+I suppose generic_ffs() and generic_fls() is not generic. :-P
+
+However, Kame-san tells me this patch is still wrong.
+__GFP_EASY_RECLAIM is 0x04 on i386, so fls(__GFP_EASY_RECLAIM)
+is 3. zone 3 is ZONE_HIGHMEM, not ZONE_EASY_RECLAIM.
+This patch should be more considered. Ah.... 
+
+Bye.
 
 -- 
 Yasunori Goto 
