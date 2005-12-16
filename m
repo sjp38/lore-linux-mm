@@ -1,81 +1,87 @@
-Date: Fri, 16 Dec 2005 11:00:03 +0900
-From: Yasunori Goto <y-goto@jp.fujitsu.com>
-Subject: Re: [Patch] New zone ZONE_EASY_RECLAIM take 3. (change build_zonelists)[3/5]
-In-Reply-To: <43A1E9B3.7050203@austin.ibm.com>
-References: <20051210194021.482A.Y-GOTO@jp.fujitsu.com> <43A1E9B3.7050203@austin.ibm.com>
-Message-Id: <20051216095705.09EE.Y-GOTO@jp.fujitsu.com>
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e2.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id jBG53Sqm027982
+	for <linux-mm@kvack.org>; Fri, 16 Dec 2005 00:03:28 -0500
+Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
+	by d01relay04.pok.ibm.com (8.12.10/NCO/VERS6.8) with ESMTP id jBG53QbF124510
+	for <linux-mm@kvack.org>; Fri, 16 Dec 2005 00:03:28 -0500
+Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
+	by d01av03.pok.ibm.com (8.12.11/8.13.3) with ESMTP id jBG52kfp017424
+	for <linux-mm@kvack.org>; Fri, 16 Dec 2005 00:02:46 -0500
+Message-ID: <43A24A6F.5090907@us.ibm.com>
+Date: Thu, 15 Dec 2005 21:02:39 -0800
+From: Sridhar Samudrala <sri@us.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+Subject: Re: [RFC][PATCH 0/6] Critical Page Pool
+References: <439FCECA.3060909@us.ibm.com> <20051214100841.GA18381@elf.ucw.cz> <43A0406C.8020108@us.ibm.com> <20051215162601.GJ2904@elf.ucw.cz> <43A1E551.1090403@us.ibm.com>
+In-Reply-To: <43A1E551.1090403@us.ibm.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Joel Schopp <jschopp@austin.ibm.com>
-Cc: Linux Hotplug Memory Support <lhms-devel@lists.sourceforge.net>, linux-mm <linux-mm@kvack.org>
+To: Matthew Dobson <colpatch@us.ibm.com>
+Cc: Pavel Machek <pavel@suse.cz>, linux-kernel@vger.kernel.org, andrea@suse.de, Andrew Morton <akpm@osdl.org>, Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-> > @@ -1602,12 +1606,16 @@ static int __init build_zonelists_node(p
-> >  static inline int highest_zone(int zone_bits)
-> >  {
-> >  	int res = ZONE_NORMAL;
-> > -	if (zone_bits & (__force int)__GFP_HIGHMEM)
-> > -		res = ZONE_HIGHMEM;
-> > -	if (zone_bits & (__force int)__GFP_DMA32)
-> > -		res = ZONE_DMA32;
-> > +
-> >  	if (zone_bits & (__force int)__GFP_DMA)
-> >  		res = ZONE_DMA;
-> > +	if (zone_bits & (__force int)__GFP_DMA32)
-> > +		res = ZONE_DMA32;
-> > +	if (zone_bits & (__force int)__GFP_HIGHMEM)
-> > +		res = ZONE_HIGHMEM;
-> > +	if (zone_bits & (__force int)__GFP_EASY_RECLAIM)
-> > +		res = ZONE_EASY_RECLAIM;
-> > +
-> >  	return res;
-> >  }
-> >  
-> 
-> These look to come in the wrong order here.  You want ZONE_EASY_RECLAIM to be 
-> the highest zone, but this puts HIGHMEM, DMA32, and DMA ahead of it.  It in fact 
-> seems to get the order exactly backward.
+Matthew Dobson wrote:
 
-I think this is correct about it.
-
-If these are used "else if", you are correct.
-But, if zone_bits is __GFP_EASY_RECLAIM, then it fall through to
-last line.
-
-> 
-> > Index: zone_reclaim/include/linux/gfp.h
-> > ===================================================================
-> > --- zone_reclaim.orig/include/linux/gfp.h	2005-12-06 14:12:43.000000000 +0900
-> > +++ zone_reclaim/include/linux/gfp.h	2005-12-06 14:12:44.000000000 +0900
-> > @@ -80,7 +80,7 @@ struct vm_area_struct;
-> >  
-> >  static inline int gfp_zone(gfp_t gfp)
-> >  {
-> > -	int zone = GFP_ZONEMASK & (__force int) gfp;
-> > +	int zone = fls(GFP_ZONEMASK & (__force int) gfp);
-> >  	BUG_ON(zone >= GFP_ZONETYPES);
-> >  	return zone;
-> >  }
-> > 
-> 
-> Does this have endian issues?  I'm not too familiar with it.
-
-I'm also not too familiar with it. But, if there is a difference.
-I suppose generic_ffs() and generic_fls() is not generic. :-P
-
-However, Kame-san tells me this patch is still wrong.
-__GFP_EASY_RECLAIM is 0x04 on i386, so fls(__GFP_EASY_RECLAIM)
-is 3. zone 3 is ZONE_HIGHMEM, not ZONE_EASY_RECLAIM.
-This patch should be more considered. Ah.... 
-
-Bye.
-
--- 
-Yasunori Goto 
-
+>Pavel Machek wrote:
+>  
+>
+>>>>And as you noticed, it does not work for your original usage case,
+>>>>because reserved memory pool would have to be "sum of all network
+>>>>interface bandwidths * ammount of time expected to survive without
+>>>>network" which is way too much.
+>>>>        
+>>>>
+>>>Well, I never suggested it didn't work for my original usage case.  The
+>>>discussion we had is that it would be incredibly difficult to 100%
+>>>iron-clad guarantee that the pool would NEVER run out of pages.  But we can
+>>>size the pool, especially given a decent workload approximation, so as to
+>>>make failure far less likely.
+>>>      
+>>>
+>>Perhaps you should add file in Documentation/ explaining it is not
+>>reliable?
+>>    
+>>
+>
+>That's a good suggestion.  I will rework the patch's additions to
+>Documentation/sysctl/vm.txt to be more clear about exactly what we're
+>providing.
+>
+>
+>  
+>
+>>>>If you want few emergency pages for some strange hack you are doing
+>>>>(swapping over network?), just put swap into ramdisk and swapon() it
+>>>>when you are in emergency, or use memory hotplug and plug few more
+>>>>gigabytes into your machine. But don't go introducing infrastructure
+>>>>that _can't_ be used right.
+>>>>        
+>>>>
+>>>Well, that's basically the point of posting these patches as an RFC.  I'm
+>>>not quite so delusional as to think they're going to get picked up right
+>>>now.  I was, however, hoping for feedback to figure out how to design
+>>>infrastructure that *can* be used right, as well as trying to find other
+>>>potential users of such a feature.
+>>>      
+>>>
+>>Well, we don't usually take infrastructure that has no in-kernel
+>>users, and example user would indeed be nice.
+>>							Pavel
+>>    
+>>
+>
+>Understood.  I certainly wouldn't expect otherwise.  I'll see if I can get
+>Sridhar to post his networking changes that take advantage of this.
+>  
+>
+I have posted these patches yesterday on lkml and netdev and here is a 
+link to the thread.
+    http://thread.gmane.org/gmane.linux.kernel/357835
+  
+Thanks
+Sridhar
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
