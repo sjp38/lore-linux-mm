@@ -1,87 +1,62 @@
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by e2.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id jBG53Sqm027982
-	for <linux-mm@kvack.org>; Fri, 16 Dec 2005 00:03:28 -0500
-Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
-	by d01relay04.pok.ibm.com (8.12.10/NCO/VERS6.8) with ESMTP id jBG53QbF124510
-	for <linux-mm@kvack.org>; Fri, 16 Dec 2005 00:03:28 -0500
-Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
-	by d01av03.pok.ibm.com (8.12.11/8.13.3) with ESMTP id jBG52kfp017424
-	for <linux-mm@kvack.org>; Fri, 16 Dec 2005 00:02:46 -0500
-Message-ID: <43A24A6F.5090907@us.ibm.com>
-Date: Thu, 15 Dec 2005 21:02:39 -0800
-From: Sridhar Samudrala <sri@us.ibm.com>
+Received: from d12nrmr1607.megacenter.de.ibm.com (d12nrmr1607.megacenter.de.ibm.com [9.149.167.49])
+	by mtagate1.de.ibm.com (8.12.10/8.12.10) with ESMTP id jBGL6gec209416
+	for <linux-mm@kvack.org>; Fri, 16 Dec 2005 21:06:42 GMT
+Received: from d12av02.megacenter.de.ibm.com (d12av02.megacenter.de.ibm.com [9.149.165.228])
+	by d12nrmr1607.megacenter.de.ibm.com (8.12.10/NCO/VERS6.8) with ESMTP id jBGL6fgi232964
+	for <linux-mm@kvack.org>; Fri, 16 Dec 2005 22:06:41 +0100
+Received: from d12av02.megacenter.de.ibm.com (loopback [127.0.0.1])
+	by d12av02.megacenter.de.ibm.com (8.12.11/8.13.3) with ESMTP id jBGL6fWp030526
+	for <linux-mm@kvack.org>; Fri, 16 Dec 2005 22:06:41 +0100
+Date: Fri, 16 Dec 2005 22:06:44 +0100
+From: Martin Schwidefsky <schwidefsky@de.ibm.com>
+Subject: [rfc] guest page hinting patches, take #2.
+Message-ID: <20051216210644.GA11062@skybase.boeblingen.de.ibm.com>
 MIME-Version: 1.0
-Subject: Re: [RFC][PATCH 0/6] Critical Page Pool
-References: <439FCECA.3060909@us.ibm.com> <20051214100841.GA18381@elf.ucw.cz> <43A0406C.8020108@us.ibm.com> <20051215162601.GJ2904@elf.ucw.cz> <43A1E551.1090403@us.ibm.com>
-In-Reply-To: <43A1E551.1090403@us.ibm.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Matthew Dobson <colpatch@us.ibm.com>
-Cc: Pavel Machek <pavel@suse.cz>, linux-kernel@vger.kernel.org, andrea@suse.de, Andrew Morton <akpm@osdl.org>, Linux Memory Management <linux-mm@kvack.org>
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org, frankeh@watson.ibm.com, rhim@cc.gatech.edu
 List-ID: <linux-mm.kvack.org>
 
-Matthew Dobson wrote:
+Hi folks,
+the first set of patches for the guest page hinting project went
+by more or less unnoticed. So I updated the patches against latest
+and greatest which is 2.6.15-rc5-mm3. A few bugs have been fixed and
+I keep the fingers crossed that I got the update to the -mm tree
+right without introducing too many new bugs. Runs ok on my z/VM
+system but the real test has been done with linux 2.6.13 + patches,
+latest version of the millicode and latest z/VM nucleus. In that
+combination it now runs rock solid under heavy stress, and it works
+as expected. We have a lot of volatile pages, the hypervisor removes
+them on demand and delivers the discard faults. The test with
+2.6.15-rc5-mm3 is pending but I'd say the state of affairs is good
+enough for another try to get some review. The first sniff test
+with the -mm tree showed no unpleasant surprises.
 
->Pavel Machek wrote:
->  
->
->>>>And as you noticed, it does not work for your original usage case,
->>>>because reserved memory pool would have to be "sum of all network
->>>>interface bandwidths * ammount of time expected to survive without
->>>>network" which is way too much.
->>>>        
->>>>
->>>Well, I never suggested it didn't work for my original usage case.  The
->>>discussion we had is that it would be incredibly difficult to 100%
->>>iron-clad guarantee that the pool would NEVER run out of pages.  But we can
->>>size the pool, especially given a decent workload approximation, so as to
->>>make failure far less likely.
->>>      
->>>
->>Perhaps you should add file in Documentation/ explaining it is not
->>reliable?
->>    
->>
->
->That's a good suggestion.  I will rework the patch's additions to
->Documentation/sysctl/vm.txt to be more clear about exactly what we're
->providing.
->
->
->  
->
->>>>If you want few emergency pages for some strange hack you are doing
->>>>(swapping over network?), just put swap into ramdisk and swapon() it
->>>>when you are in emergency, or use memory hotplug and plug few more
->>>>gigabytes into your machine. But don't go introducing infrastructure
->>>>that _can't_ be used right.
->>>>        
->>>>
->>>Well, that's basically the point of posting these patches as an RFC.  I'm
->>>not quite so delusional as to think they're going to get picked up right
->>>now.  I was, however, hoping for feedback to figure out how to design
->>>infrastructure that *can* be used right, as well as trying to find other
->>>potential users of such a feature.
->>>      
->>>
->>Well, we don't usually take infrastructure that has no in-kernel
->>users, and example user would indeed be nice.
->>							Pavel
->>    
->>
->
->Understood.  I certainly wouldn't expect otherwise.  I'll see if I can get
->Sridhar to post his networking changes that take advantage of this.
->  
->
-I have posted these patches yesterday on lkml and netdev and here is a 
-link to the thread.
-    http://thread.gmane.org/gmane.linux.kernel/357835
-  
-Thanks
-Sridhar
+There are again 6 patches, to reduce the complexity a bit:
+1) Base patch. Introduces most of the common code. It adds two new page
+   flags for serializing page state changes and to identify discarded
+   pages. I would like to avoid adding page flags but failed to see a
+   different solution in both cases. Another point of discussion would
+   be the page->mapping/__remove_from_page_cache hack.
+2) Mlock and friends. Adds special handling for mlocked pages. I use a
+   field in the struct address_space to identify mlocked pages. Any
+   betters ideas?
+3) Support writable ptes. Adds another page flag (this makes 3 new page
+   flags in total ..)
+4) Minor fault vs. page state changes. 
+5) Discarded page list. Ugly problem of virtual vs. absolute addresses
+   on the discard fault. We tried talking the s390 architecture folks
+   into providing virtual guest addresses but it seems that this is not
+   possible with the current hardware.
+6) s390 guest support for guest page hinting.
+
+The patches do not include support for the host side of the equation.
+For s390 this is implemented in the z/VM hypervisor. 
+
+blue skies,
+  Martin.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
