@@ -1,299 +1,232 @@
-Date: Tue, 20 Dec 2005 15:57:38 -0800 (PST)
+Date: Tue, 20 Dec 2005 15:57:44 -0800 (PST)
 From: Christoph Lameter <clameter@sgi.com>
-Message-Id: <20051220235738.30925.68405.sendpatchset@schroedinger.engr.sgi.com>
+Message-Id: <20051220235744.30925.75616.sendpatchset@schroedinger.engr.sgi.com>
 In-Reply-To: <20051220235733.30925.55642.sendpatchset@schroedinger.engr.sgi.com>
 References: <20051220235733.30925.55642.sendpatchset@schroedinger.engr.sgi.com>
-Subject: [RFC] Event counters [2/3]: Convert inc_page_state -> count_event
+Subject: [RFC] Event counters [3/3]: Convert NUMA counters to event counters
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-kernel@vger.kernel.org
-Cc: Nick Piggin <nickpiggin@yahoo.com.au>, linux-mm@kvack.org, Andi Kleen <ak@suse.de>, Marcelo Tosatti <marcelo.tosatti@cyclades.com>, Christoph Lameter <clameter@sgi.com>
+Cc: Nick Piggin <nickpiggin@yahoo.com.au>, linux-mm@kvack.org, Andi Kleen <ak@suse.de>, Christoph Lameter <clameter@sgi.com>, Marcelo Tosatti <marcelo.tosatti@cyclades.com>
 List-ID: <linux-mm.kvack.org>
 
-Convert inc/add page_state to count_event(s)
+Use event counters instead of numa statistics
 
-Convert the page_state operations to count_event() and count_zone_event()
+I am not sure if this is such a bright idea. But one could remove the
+NUMA statistics and use event counters. This patch reduces the number of
+numa counters to two. One for counting allocations that were not able to
+follow memory policy (NUMA_MISS) and one for general off node allocations
+(NUMA_OFF_NODE).
+
+This would greatly simplify numa counters handling. node/numastat would
+no longer be available (maybe one could improvise one with the stats of
+the processors on the node?)
+
+Big question: Do we really need these detailed NUMA statistics that are only
+reported via numa stats and never used in the VM?
 
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
+Index: linux-2.6.15-rc5-mm3/include/linux/mmzone.h
+===================================================================
+--- linux-2.6.15-rc5-mm3.orig/include/linux/mmzone.h	2005-12-20 13:15:44.000000000 -0800
++++ linux-2.6.15-rc5-mm3/include/linux/mmzone.h	2005-12-20 15:46:53.000000000 -0800
+@@ -79,14 +79,6 @@ struct per_cpu_pageset {
+ 	s8 vm_stat_diff[NR_STAT_ITEMS];
+ #endif
+ 
+-#ifdef CONFIG_NUMA
+-	unsigned long numa_hit;		/* allocated in intended node */
+-	unsigned long numa_miss;	/* allocated in non intended node */
+-	unsigned long numa_foreign;	/* was intended here, hit elsewhere */
+-	unsigned long interleave_hit; 	/* interleaver prefered this zone */
+-	unsigned long local_node;	/* allocation from local node */
+-	unsigned long other_node;	/* allocation from other node */
+-#endif
+ } ____cacheline_aligned_in_smp;
+ 
+ #ifdef CONFIG_NUMA
+Index: linux-2.6.15-rc5-mm3/include/linux/page-flags.h
+===================================================================
+--- linux-2.6.15-rc5-mm3.orig/include/linux/page-flags.h	2005-12-20 14:55:00.000000000 -0800
++++ linux-2.6.15-rc5-mm3/include/linux/page-flags.h	2005-12-20 15:46:53.000000000 -0800
+@@ -103,6 +103,9 @@ enum event_item { PGPGIN, PGPGOUT, PSWPI
+ 		FOR_ALL_ZONES(PGSCAN_DIRECT),
+ 		PGINODESTEAL, SLABS_SCANNED, KSWAPD_STEAL, KSWAPD_INODESTEAL,
+ 		PAGEOUTRUN, ALLOCSTALL, PGROTATED,
++#ifdef CONFIG_NUMA
++		NUMA_MISS, NUMA_OFF_NODE,
++#endif
+ 		NR_EVENT_ITEMS
+ };
+ 
+Index: linux-2.6.15-rc5-mm3/mm/mempolicy.c
+===================================================================
+--- linux-2.6.15-rc5-mm3.orig/mm/mempolicy.c	2005-12-16 11:44:09.000000000 -0800
++++ linux-2.6.15-rc5-mm3/mm/mempolicy.c	2005-12-20 15:46:53.000000000 -0800
+@@ -1072,15 +1072,9 @@ static struct page *alloc_page_interleav
+ 					unsigned nid)
+ {
+ 	struct zonelist *zl;
+-	struct page *page;
+ 
+ 	zl = NODE_DATA(nid)->node_zonelists + gfp_zone(gfp);
+-	page = __alloc_pages(gfp, order, zl);
+-	if (page && page_zone(page) == zl->zones[0]) {
+-		zone_pcp(zl->zones[0],get_cpu())->interleave_hit++;
+-		put_cpu();
+-	}
+-	return page;
++	return __alloc_pages(gfp, order, zl);
+ }
+ 
+ /**
 Index: linux-2.6.15-rc5-mm3/mm/page_alloc.c
 ===================================================================
---- linux-2.6.15-rc5-mm3.orig/mm/page_alloc.c	2005-12-20 14:30:49.000000000 -0800
-+++ linux-2.6.15-rc5-mm3/mm/page_alloc.c	2005-12-20 14:36:36.000000000 -0800
-@@ -443,7 +443,7 @@ static void __free_pages_ok(struct page 
+--- linux-2.6.15-rc5-mm3.orig/mm/page_alloc.c	2005-12-20 15:46:51.000000000 -0800
++++ linux-2.6.15-rc5-mm3/mm/page_alloc.c	2005-12-20 15:46:53.000000000 -0800
+@@ -989,24 +989,16 @@ void mark_free_pages(struct zone *zone)
  
- 	kernel_map_pages(page, 1 << order, 0);
- 	local_irq_save(flags);
--	__mod_page_state(pgfree, 1 << order);
-+	count_events(PGFREE, 1 << order);
- 	free_one_page(page_zone(page), page, order);
- 	local_irq_restore(flags);
+ #endif /* CONFIG_PM */
+ 
+-static void zone_statistics(struct zonelist *zonelist, struct zone *z, int cpu)
++static void zone_statistics(struct zonelist *zonelist, struct zone *z, int pages)
+ {
+ #ifdef CONFIG_NUMA
+ 	pg_data_t *pg = z->zone_pgdat;
+-	pg_data_t *orig = zonelist->zones[0]->zone_pgdat;
+-	struct per_cpu_pageset *p;
+ 
+-	p = zone_pcp(z, cpu);
+-	if (pg == orig) {
+-		p->numa_hit++;
+-	} else {
+-		p->numa_miss++;
+-		zone_pcp(zonelist->zones[0], cpu)->numa_foreign++;
+-	}
+-	if (pg == NODE_DATA(numa_node_id()))
+-		p->local_node++;
+-	else
+-		p->other_node++;
++	if (pg != zonelist->zones[0]->zone_pgdat)
++		count_events(NUMA_MISS, pages);
++
++	if (pg != NODE_DATA(numa_node_id()))
++		count_events(NUMA_OFF_NODE, pages);
+ #endif
  }
-@@ -473,7 +473,7 @@ void fastcall __init __free_pages_bootme
  
- 		arch_free_page(page, order);
- 
--		mod_page_state(pgfree, 1 << order);
-+		count_events(PGFREE, 1 << order);
- 
- 		list_add(&page->lru, &list);
- 		kernel_map_pages(page, 1 << order, 0);
-@@ -1030,7 +1030,7 @@ static void fastcall free_hot_cold_page(
- 
- 	pcp = &zone_pcp(zone, get_cpu())->pcp[cold];
- 	local_irq_save(flags);
--	__inc_page_state(pgfree);
-+	count_event(PGFREE);
- 	list_add(&page->lru, &pcp->list);
- 	pcp->count++;
- 	if (pcp->count >= pcp->high) {
-@@ -1097,7 +1097,7 @@ again:
- 			goto failed;
+@@ -1098,7 +1090,7 @@ again:
  	}
  
--	__mod_page_state_zone(zone, pgalloc, 1 << order);
-+	count_zone_events(PGALLOC, zone, 1 << order);
- 	zone_statistics(zonelist, zone, cpu);
+ 	count_zone_events(PGALLOC, zone, 1 << order);
+-	zone_statistics(zonelist, zone, cpu);
++	zone_statistics(zonelist, zone, 1 << order);
  	local_irq_restore(flags);
  	put_cpu();
-Index: linux-2.6.15-rc5-mm3/mm/vmscan.c
-===================================================================
---- linux-2.6.15-rc5-mm3.orig/mm/vmscan.c	2005-12-20 12:57:42.000000000 -0800
-+++ linux-2.6.15-rc5-mm3/mm/vmscan.c	2005-12-20 14:36:36.000000000 -0800
-@@ -227,7 +227,7 @@ int shrink_slab(unsigned long scanned, g
- 					(nr_before - shrink_ret));
+ 
+@@ -2586,21 +2578,6 @@ static int zoneinfo_show(struct seq_file
+ 					   pageset->pcp[j].high,
+ 					   pageset->pcp[j].batch);
  			}
- 			shrinker_stat_add(shrinker, nr_req, this_scan);
--			mod_page_state(slabs_scanned, this_scan);
-+			count_events(SLABS_SCANNED, this_scan);
- 			total_scan -= this_scan;
- 
- 			cond_resched();
-@@ -567,7 +567,7 @@ keep:
- 	list_splice(&ret_pages, page_list);
- 	if (pagevec_count(&freed_pvec))
- 		__pagevec_release_nonlru(&freed_pvec);
--	mod_page_state(pgactivate, pgactivate);
-+	count_events(PGACTIVATE, pgactivate);
- 	sc->nr_reclaimed += reclaimed;
- 	return reclaimed;
- }
-@@ -888,11 +888,11 @@ static void shrink_cache(struct zone *zo
- 
- 		local_irq_disable();
- 		if (current_is_kswapd()) {
--			__mod_page_state_zone(zone, pgscan_kswapd, nr_scan);
--			__mod_page_state(kswapd_steal, nr_freed);
-+			count_zone_events(PGSCAN_KSWAPD, zone, nr_scan);
-+			count_events(KSWAPD_STEAL, nr_freed);
- 		} else
--			__mod_page_state_zone(zone, pgscan_direct, nr_scan);
--		__mod_page_state_zone(zone, pgsteal, nr_freed);
-+			count_zone_events(PGSCAN_DIRECT, zone, nr_scan);
-+		count_events(PGACTIVATE, nr_freed);
- 
- 		spin_lock(&zone->lru_lock);
- 		/*
-@@ -1056,11 +1056,10 @@ refill_inactive_zone(struct zone *zone, 
+-#ifdef CONFIG_NUMA
+-			seq_printf(m,
+-				   "\n            numa_hit:       %lu"
+-				   "\n            numa_miss:      %lu"
+-				   "\n            numa_foreign:   %lu"
+-				   "\n            interleave_hit: %lu"
+-				   "\n            local_node:     %lu"
+-				   "\n            other_node:     %lu",
+-				   pageset->numa_hit,
+-				   pageset->numa_miss,
+-				   pageset->numa_foreign,
+-				   pageset->interleave_hit,
+-				   pageset->local_node,
+-				   pageset->other_node);
+-#endif
  		}
- 	}
- 	zone->nr_active += pgmoved;
--	spin_unlock(&zone->lru_lock);
-+	spin_unlock_irq(&zone->lru_lock);
+ 		seq_printf(m,
+ 			   "\n  all_unreclaimable: %u"
+@@ -2681,7 +2658,11 @@ static char *vmstat_text[] = {
+ 	"pageoutrun",
+ 	"allocstall",
  
--	__mod_page_state_zone(zone, pgrefill, pgscanned);
--	__mod_page_state(pgdeactivate, pgdeactivate);
--	local_irq_enable();
-+	count_zone_events(PGREFILL, zone, pgscanned);
-+	count_events(PGDEACTIVATE, pgdeactivate);
+-	"pgrotated"
++	"pgrotated",
++#ifdef CONFIG_NUMA
++	"numa_miss",
++	"off_node"
++#endif
+ #endif
+ };
  
- 	pagevec_release(&pvec);
- }
-@@ -1182,7 +1181,7 @@ int try_to_free_pages(struct zone **zone
- 	sc.gfp_mask = gfp_mask;
- 	sc.may_writepage = 0;
- 
--	inc_page_state(allocstall);
-+	count_event(ALLOCSTALL);
- 
- 	for (i = 0; zones[i] != NULL; i++) {
- 		struct zone *zone = zones[i];
-@@ -1285,7 +1284,7 @@ loop_again:
- 	sc.may_writepage = 0;
- 	sc.nr_mapped = global_page_state(NR_MAPPED);
- 
--	inc_page_state(pageoutrun);
-+	count_event(PAGEOUTRUN);
- 
- 	for (i = 0; i < pgdat->nr_zones; i++) {
- 		struct zone *zone = pgdat->node_zones + i;
-Index: linux-2.6.15-rc5-mm3/block/ll_rw_blk.c
+Index: linux-2.6.15-rc5-mm3/drivers/base/node.c
 ===================================================================
---- linux-2.6.15-rc5-mm3.orig/block/ll_rw_blk.c	2005-12-16 11:44:06.000000000 -0800
-+++ linux-2.6.15-rc5-mm3/block/ll_rw_blk.c	2005-12-20 14:36:36.000000000 -0800
-@@ -3007,9 +3007,9 @@ void submit_bio(int rw, struct bio *bio)
- 	BIO_BUG_ON(!bio->bi_io_vec);
- 	bio->bi_rw |= rw;
- 	if (rw & WRITE)
--		mod_page_state(pgpgout, count);
-+		count_events(PGPGOUT, count);
- 	else
--		mod_page_state(pgpgin, count);
-+		count_events(PGPGIN, count);
+--- linux-2.6.15-rc5-mm3.orig/drivers/base/node.c	2005-12-20 13:15:45.000000000 -0800
++++ linux-2.6.15-rc5-mm3/drivers/base/node.c	2005-12-20 15:46:53.000000000 -0800
+@@ -91,46 +91,6 @@ static ssize_t node_read_meminfo(struct 
+ #undef K
+ static SYSDEV_ATTR(meminfo, S_IRUGO, node_read_meminfo, NULL);
  
- 	if (unlikely(block_dump)) {
- 		char b[BDEVNAME_SIZE];
-Index: linux-2.6.15-rc5-mm3/mm/page_io.c
-===================================================================
---- linux-2.6.15-rc5-mm3.orig/mm/page_io.c	2005-12-03 21:10:42.000000000 -0800
-+++ linux-2.6.15-rc5-mm3/mm/page_io.c	2005-12-20 14:36:36.000000000 -0800
-@@ -101,7 +101,7 @@ int swap_writepage(struct page *page, st
- 	}
- 	if (wbc->sync_mode == WB_SYNC_ALL)
- 		rw |= (1 << BIO_RW_SYNC);
--	inc_page_state(pswpout);
-+	count_event(PSWPOUT);
- 	set_page_writeback(page);
- 	unlock_page(page);
- 	submit_bio(rw, bio);
-@@ -123,7 +123,7 @@ int swap_readpage(struct file *file, str
- 		ret = -ENOMEM;
- 		goto out;
- 	}
--	inc_page_state(pswpin);
-+	count_event(PSWPIN);
- 	submit_bio(READ, bio);
- out:
- 	return ret;
-Index: linux-2.6.15-rc5-mm3/mm/memory.c
-===================================================================
---- linux-2.6.15-rc5-mm3.orig/mm/memory.c	2005-12-20 12:58:31.000000000 -0800
-+++ linux-2.6.15-rc5-mm3/mm/memory.c	2005-12-20 14:36:36.000000000 -0800
-@@ -1887,7 +1887,7 @@ static int do_swap_page(struct mm_struct
- 
- 		/* Had to read the page from swap area: Major fault */
- 		ret = VM_FAULT_MAJOR;
--		inc_page_state(pgmajfault);
-+		count_event(PGMAJFAULT);
- 		grab_swap_token();
- 	}
- 
-@@ -2247,7 +2247,7 @@ int __handle_mm_fault(struct mm_struct *
- 
- 	__set_current_state(TASK_RUNNING);
- 
--	inc_page_state(pgfault);
-+	count_event(PGFAULT);
- 
- 	if (unlikely(is_vm_hugetlb_page(vma)))
- 		return hugetlb_fault(mm, vma, address, write_access);
-Index: linux-2.6.15-rc5-mm3/fs/inode.c
-===================================================================
---- linux-2.6.15-rc5-mm3.orig/fs/inode.c	2005-12-16 11:44:08.000000000 -0800
-+++ linux-2.6.15-rc5-mm3/fs/inode.c	2005-12-20 14:36:36.000000000 -0800
-@@ -462,9 +462,9 @@ static void prune_icache(int nr_to_scan)
- 	up(&iprune_sem);
- 
- 	if (current_is_kswapd())
--		mod_page_state(kswapd_inodesteal, reap);
-+		count_events(KSWAPD_INODESTEAL, reap);
- 	else
--		mod_page_state(pginodesteal, reap);
-+		count_events(PGINODESTEAL, reap);
- }
- 
- /*
-Index: linux-2.6.15-rc5-mm3/mm/shmem.c
-===================================================================
---- linux-2.6.15-rc5-mm3.orig/mm/shmem.c	2005-12-16 11:44:09.000000000 -0800
-+++ linux-2.6.15-rc5-mm3/mm/shmem.c	2005-12-20 14:36:36.000000000 -0800
-@@ -996,7 +996,7 @@ repeat:
- 			spin_unlock(&info->lock);
- 			/* here we actually do the io */
- 			if (type && *type == VM_FAULT_MINOR) {
--				inc_page_state(pgmajfault);
-+				count_event(PGMAJFAULT);
- 				*type = VM_FAULT_MAJOR;
- 			}
- 			swappage = shmem_swapin(info, swap, idx);
-Index: linux-2.6.15-rc5-mm3/mm/swap.c
-===================================================================
---- linux-2.6.15-rc5-mm3.orig/mm/swap.c	2005-12-16 11:44:09.000000000 -0800
-+++ linux-2.6.15-rc5-mm3/mm/swap.c	2005-12-20 14:36:36.000000000 -0800
-@@ -85,7 +85,7 @@ int rotate_reclaimable_page(struct page 
- 	if (PageLRU(page) && !PageActive(page)) {
- 		list_del(&page->lru);
- 		list_add_tail(&page->lru, &zone->inactive_list);
--		inc_page_state(pgrotated);
-+		count_event(PGROTATED);
- 	}
- 	if (!test_clear_page_writeback(page))
- 		BUG();
-@@ -105,7 +105,7 @@ void fastcall activate_page(struct page 
- 		del_page_from_inactive_list(zone, page);
- 		SetPageActive(page);
- 		add_page_to_active_list(zone, page);
--		inc_page_state(pgactivate);
-+		count_event(PGACTIVATE);
- 	}
- 	spin_unlock_irq(&zone->lru_lock);
- }
-Index: linux-2.6.15-rc5-mm3/mm/filemap.c
-===================================================================
---- linux-2.6.15-rc5-mm3.orig/mm/filemap.c	2005-12-20 12:57:55.000000000 -0800
-+++ linux-2.6.15-rc5-mm3/mm/filemap.c	2005-12-20 14:36:36.000000000 -0800
-@@ -1283,7 +1283,7 @@ retry_find:
- 		 */
- 		if (!did_readaround) {
- 			majmin = VM_FAULT_MAJOR;
--			inc_page_state(pgmajfault);
-+			count_event(PGMAJFAULT);
- 		}
- 		did_readaround = 1;
- 		ra_pages = max_sane_readahead(file->f_ra.ra_pages);
-@@ -1354,7 +1354,7 @@ no_cached_page:
- page_not_uptodate:
- 	if (!did_readaround) {
- 		majmin = VM_FAULT_MAJOR;
--		inc_page_state(pgmajfault);
-+		count_event(PGMAJFAULT);
- 	}
- 	lock_page(page);
- 
-Index: linux-2.6.15-rc5-mm3/fs/ncpfs/mmap.c
-===================================================================
---- linux-2.6.15-rc5-mm3.orig/fs/ncpfs/mmap.c	2005-12-03 21:10:42.000000000 -0800
-+++ linux-2.6.15-rc5-mm3/fs/ncpfs/mmap.c	2005-12-20 14:47:50.000000000 -0800
-@@ -93,7 +93,7 @@ static struct page* ncp_file_mmap_nopage
- 	 */
- 	if (type)
- 		*type = VM_FAULT_MAJOR;
--	inc_page_state(pgmajfault);
-+	count_event(PGMAJFAULT);
- 	return page;
- }
- 
-Index: linux-2.6.15-rc5-mm3/drivers/parisc/led.c
-===================================================================
---- linux-2.6.15-rc5-mm3.orig/drivers/parisc/led.c	2005-12-03 21:10:42.000000000 -0800
-+++ linux-2.6.15-rc5-mm3/drivers/parisc/led.c	2005-12-20 14:47:50.000000000 -0800
-@@ -410,14 +410,12 @@ static __inline__ int led_get_net_activi
- static __inline__ int led_get_diskio_activity(void)
- {	
- 	static unsigned long last_pgpgin, last_pgpgout;
--	struct page_state pgstat;
- 	int changed;
- 
--	get_full_page_state(&pgstat); /* get no of sectors in & out */
+-static ssize_t node_read_numastat(struct sys_device * dev, char * buf)
+-{
+-	unsigned long numa_hit, numa_miss, interleave_hit, numa_foreign;
+-	unsigned long local_node, other_node;
+-	int i, cpu;
+-	pg_data_t *pg = NODE_DATA(dev->id);
+-	numa_hit = 0;
+-	numa_miss = 0;
+-	interleave_hit = 0;
+-	numa_foreign = 0;
+-	local_node = 0;
+-	other_node = 0;
+-	for (i = 0; i < MAX_NR_ZONES; i++) {
+-		struct zone *z = &pg->node_zones[i];
+-		for (cpu = 0; cpu < NR_CPUS; cpu++) {
+-			struct per_cpu_pageset *ps = zone_pcp(z,cpu);
+-			numa_hit += ps->numa_hit;
+-			numa_miss += ps->numa_miss;
+-			numa_foreign += ps->numa_foreign;
+-			interleave_hit += ps->interleave_hit;
+-			local_node += ps->local_node;
+-			other_node += ps->other_node;
+-		}
+-	}
+-	return sprintf(buf,
+-		       "numa_hit %lu\n"
+-		       "numa_miss %lu\n"
+-		       "numa_foreign %lu\n"
+-		       "interleave_hit %lu\n"
+-		       "local_node %lu\n"
+-		       "other_node %lu\n",
+-		       numa_hit,
+-		       numa_miss,
+-		       numa_foreign,
+-		       interleave_hit,
+-		       local_node,
+-		       other_node);
+-}
+-static SYSDEV_ATTR(numastat, S_IRUGO, node_read_numastat, NULL);
 -
- 	/* Just use a very simple calculation here. Do not care about overflow,
- 	   since we only want to know if there was activity or not. */
--	changed = (pgstat.pgpgin != last_pgpgin) || (pgstat.pgpgout != last_pgpgout);
-+	changed = (get_global_events(PGPGIN) != last_pgpgin) ||
-+		  (get_global_events(PGPGOUT) != last_pgpgout);
- 	last_pgpgin  = pgstat.pgpgin;
- 	last_pgpgout = pgstat.pgpgout;
+ static ssize_t node_read_distance(struct sys_device * dev, char * buf)
+ {
+ 	int nid = dev->id;
+@@ -166,7 +126,6 @@ int register_node(struct node *node, int
+ 	if (!error){
+ 		sysdev_create_file(&node->sysdev, &attr_cpumap);
+ 		sysdev_create_file(&node->sysdev, &attr_meminfo);
+-		sysdev_create_file(&node->sysdev, &attr_numastat);
+ 		sysdev_create_file(&node->sysdev, &attr_distance);
+ 	}
+ 	return error;
+@@ -183,7 +142,6 @@ void unregister_node(struct node *node)
+ {
+ 	sysdev_remove_file(&node->sysdev, &attr_cpumap);
+ 	sysdev_remove_file(&node->sysdev, &attr_meminfo);
+-	sysdev_remove_file(&node->sysdev, &attr_numastat);
+ 	sysdev_remove_file(&node->sysdev, &attr_distance);
  
+ 	sysdev_unregister(&node->sysdev);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
