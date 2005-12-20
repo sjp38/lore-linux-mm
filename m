@@ -1,7 +1,7 @@
-Date: Tue, 20 Dec 2005 17:52:19 +0900
+Date: Tue, 20 Dec 2005 17:52:27 +0900
 From: Yasunori Goto <y-goto@jp.fujitsu.com>
-Subject: [Patch] New zone ZONE_EASY_RECLAIM take 4. (define ZONE_EASY_RECLAIM)[2/8]
-Message-Id: <20051220172750.1B0A.Y-GOTO@jp.fujitsu.com>
+Subject: [Patch] New zone ZONE_EASY_RECLAIM take 4. (change build_zonelists)[3/8]
+Message-Id: <20051220172910.1B0C.Y-GOTO@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
@@ -11,58 +11,89 @@ To: Linux Kernel ML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org
 Cc: Joel Schopp <jschopp@austin.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-This defines new zone ZONE_EASY_RECLAIM.
-ZONES_SHIFT becomes 3.
-And this patch add member of sysctl_lowmem_reserve_ratio[].
+This is changing build_zonelists for new zone.
 
+__GFP_xxxs are flag for requires of page allocation which zone
+is prefered. But, it is used as an index number for zonelists[] too.
+But after my patch, __GFP_xxx might be set at same time. So,
+last set bit number of __GFP is recognized for zonelists' index
+by this patch.
 
-take3 -> take 4:
-  fixed number of index of sysctl_lowmem_reserve_ratio[].
-take 2 -> take 3:
-  add sysctl_lowmem_reserve_ratio[].
+take3->take4:
+  take 3's modification was still wrong.
+  __GFP_EASY_RECLAIM is 0x04 on i386, so fls(__GFP_EASY_RECLAIM)
+  is 3. zone 3 is ZONE_HIGHMEM, not ZONE_EASY_RECLAIM.
+  So, I rearranged __GFP_XXX flags (see: define gfp_easy_relcaim patch)
+  and fls() is used at highest_zone() again.
+
+take2 -> take 3:
+ This patch is modified take 3 to avoid panic on i386.
+ __GFP_DMA32 is 0 for i386. So, ZONE_DMA32 is selected 
+ if zone_bits is 0 which means Zone_normal. 
+ Zone_DMA32 is not allocated on i386, so kernel paniced 
+ by no normal memory.
+ In this patch, even if zone_bits is 0 adn __GFP_DMA32 is 0,
+ Zone_Normal is selected.
 
 
 Signed-off-by: Yasunori Goto <y-goto@jp.fujitsu.com>
 
-Index: zone_reclaim/include/linux/mmzone.h
-===================================================================
---- zone_reclaim.orig/include/linux/mmzone.h	2005-12-16 11:28:17.000000000 +0900
-+++ zone_reclaim/include/linux/mmzone.h	2005-12-16 11:28:18.000000000 +0900
-@@ -73,9 +73,10 @@ struct per_cpu_pageset {
- #define ZONE_DMA32		1
- #define ZONE_NORMAL		2
- #define ZONE_HIGHMEM		3
-+#define ZONE_EASY_RECLAIM	4
- 
--#define MAX_NR_ZONES		4	/* Sync this with ZONES_SHIFT */
--#define ZONES_SHIFT		2	/* ceil(log2(MAX_NR_ZONES)) */
-+#define MAX_NR_ZONES		5	/* Sync this with ZONES_SHIFT */
-+#define ZONES_SHIFT		3	/* ceil(log2(MAX_NR_ZONES)) */
- 
- 
- /*
 Index: zone_reclaim/mm/page_alloc.c
 ===================================================================
---- zone_reclaim.orig/mm/page_alloc.c	2005-12-16 11:28:17.000000000 +0900
-+++ zone_reclaim/mm/page_alloc.c	2005-12-16 11:40:33.000000000 +0900
-@@ -68,7 +68,7 @@ static void fastcall free_hot_cold_page(
-  * TBD: should special case ZONE_DMA32 machines here - in those we normally
-  * don't need any ZONE_NORMAL reservation
-  */
--int sysctl_lowmem_reserve_ratio[MAX_NR_ZONES-1] = { 256, 256, 32 };
-+int sysctl_lowmem_reserve_ratio[MAX_NR_ZONES-1] = { 256, 256, 32 ,32};
+--- zone_reclaim.orig/mm/page_alloc.c	2005-12-19 20:18:29.000000000 +0900
++++ zone_reclaim/mm/page_alloc.c	2005-12-19 20:19:56.000000000 +0900
+@@ -1585,14 +1585,11 @@ static int __init build_zonelists_node(p
+ {
+ 	struct zone *zone;
  
- EXPORT_SYMBOL(totalram_pages);
+-	BUG_ON(zone_type > ZONE_HIGHMEM);
++	BUG_ON(zone_type > ZONE_EASY_RECLAIM);
  
-@@ -79,7 +79,7 @@ EXPORT_SYMBOL(totalram_pages);
- struct zone *zone_table[1 << ZONETABLE_SHIFT] __read_mostly;
- EXPORT_SYMBOL(zone_table);
+ 	do {
+ 		zone = pgdat->node_zones + zone_type;
+ 		if (populated_zone(zone)) {
+-#ifndef CONFIG_HIGHMEM
+-			BUG_ON(zone_type > ZONE_NORMAL);
+-#endif
+ 			zonelist->zones[nr_zones++] = zone;
+ 			check_highest_zone(zone_type);
+ 		}
+@@ -1605,12 +1602,17 @@ static int __init build_zonelists_node(p
+ static inline int highest_zone(int zone_bits)
+ {
+ 	int res = ZONE_NORMAL;
+-	if (zone_bits & (__force int)__GFP_HIGHMEM)
+-		res = ZONE_HIGHMEM;
+-	if (zone_bits & (__force int)__GFP_DMA32)
+-		res = ZONE_DMA32;
+-	if (zone_bits & (__force int)__GFP_DMA)
++
++	if (zone_bits == fls((__force int)__GFP_DMA))
+ 		res = ZONE_DMA;
++	if (zone_bits == fls((__force int)__GFP_DMA32) &&
++	    (__force int)__GFP_DMA32 == 0x02)
++		res = ZONE_DMA32;
++	if (zone_bits == fls((__force int)__GFP_HIGHMEM))
++		res = ZONE_HIGHMEM;
++	if (zone_bits == fls((__force int)__GFP_EASY_RECLAIM))
++		res = ZONE_EASY_RECLAIM;
++
+ 	return res;
+ }
  
--static char *zone_names[MAX_NR_ZONES] = { "DMA", "DMA32", "Normal", "HighMem" };
-+static char *zone_names[MAX_NR_ZONES] = { "DMA", "DMA32", "Normal", "HighMem", "Easy Reclaim"};
- int min_free_kbytes = 1024;
+Index: zone_reclaim/include/linux/gfp.h
+===================================================================
+--- zone_reclaim.orig/include/linux/gfp.h	2005-12-19 20:19:37.000000000 +0900
++++ zone_reclaim/include/linux/gfp.h	2005-12-19 20:19:56.000000000 +0900
+@@ -81,7 +81,7 @@ struct vm_area_struct;
  
- unsigned long __initdata nr_kernel_pages;
+ static inline int gfp_zone(gfp_t gfp)
+ {
+-	int zone = GFP_ZONEMASK & (__force int) gfp;
++	int zone = fls(GFP_ZONEMASK & (__force int) gfp);
+ 	BUG_ON(zone >= GFP_ZONETYPES);
+ 	return zone;
+ }
 
 -- 
 Yasunori Goto 
