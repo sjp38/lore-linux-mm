@@ -1,7 +1,7 @@
-Date: Tue, 20 Dec 2005 17:51:58 +0900
+Date: Tue, 20 Dec 2005 17:52:08 +0900
 From: Yasunori Goto <y-goto@jp.fujitsu.com>
-Subject: [Patch] New zone ZONE_EASY_RECLAIM take 4[0/8]
-Message-Id: <20051220172637.1B06.Y-GOTO@jp.fujitsu.com>
+Subject: [Patch] New zone ZONE_EASY_RECLAIM take 4. (define gfp_easy_relcaim)[1/8]
+Message-Id: <20051220172720.1B08.Y-GOTO@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
@@ -11,50 +11,68 @@ To: linux-mm <linux-mm@kvack.org>, Linux Kernel ML <linux-kernel@vger.kernel.org
 Cc: Joel Schopp <jschopp@austin.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-Hello.
+This defines __GFP flag for new zone (with GFP_DMA32).
 
-I rewrote ZONE_EASY_RECLAIM patches. This zone is made for memory hotplug
-as a new zone.
-It aims to collect the page which is difficult for reclaiming on a some 
-areas like a few nodes, (they become sacrifice areas for memory remove),
-and it makes other areas this easy reclaim zone to be removed easier. 
-The feature like this patch is essential for memory hotplug.
-
-This patch set doesn't include to allocate this zone.
-Because it is arch dependence how the kernel divides zones.
-But this patch set was tested by temporary test code for it.
-(ex, All highmem becomes easy reclaim on i386, or
-     Nodes other than node 0 becomes easy reclaime on ia64 with numa emulation.)
-
-Update points from take 3 are followings.
-
-Please comment.
-
-----------------------------
-
-Changes take 3-> take 4
-  - Update patches for 2.6.15-rc5-mm3.
-  - modify highest_zone() again. i386 never used easy reclaim zone
-    at take 3. and rearrange value of __GFP_DMA32, __GFP_HIGHMEM
-    and __GFP_EASY_RECLAIM.
-  - fix number of index of sysctl_lowmem_reserve_ratio[]
-  - add information for /proc/meminfo.
-  - add place which __GFP_EASY_RECLAIM is disabled for gfp_mask.
-    (shmem, pipe, and symlink)
-
-Changes take 2-> take 3
-  - Update patches for 2.6.15-rc5-mm1.
-  - modify highest_zone() to avoid panic on i386. 
-  - fix value of sysctl_lowmem_reserve_ratio[]
-  - define is_higher_zone(). it can be used on other place.
+take3 -> take 4:
+  take 3's modification was not enough. 
+  __GFP_DMA32 is moved from 0x04 to 0x02 when it has own number
+  to make it easier.
+  __GFP_HIGHMEM and __GFP_EASY_RECLAIM become fixed value.
 
 
-Changes take 1-> take 2
-  - In -mm tree, ZONE_DMA32 is already included. So, I recreate 
-    ZONE_EASY_RECLAIM as 5th zone against 2.6.14-mm1. It is difference of
-    previous one.
+Signed-off-by: Yasunori Goto <y-goto@jp.fujitsu.com>
 
-
+Index: zone_reclaim/include/linux/gfp.h
+===================================================================
+--- zone_reclaim.orig/include/linux/gfp.h	2005-12-16 11:28:15.000000000 +0900
++++ zone_reclaim/include/linux/gfp.h	2005-12-19 20:20:51.000000000 +0900
+@@ -11,17 +11,21 @@ struct vm_area_struct;
+ /*
+  * GFP bitmasks..
+  */
+-/* Zone modifiers in GFP_ZONEMASK (see linux/mmzone.h - low three bits) */
++/* Zone modifiers in GFP_ZONEMASK (see linux/mmzone.h - low four bits) */
+ #define __GFP_DMA	((__force gfp_t)0x01u)
+-#define __GFP_HIGHMEM	((__force gfp_t)0x02u)
++
+ #ifdef CONFIG_DMA_IS_DMA32
+ #define __GFP_DMA32	((__force gfp_t)0x01)	/* ZONE_DMA is ZONE_DMA32 */
+ #elif BITS_PER_LONG < 64
+ #define __GFP_DMA32	((__force gfp_t)0x00)	/* ZONE_NORMAL is ZONE_DMA32 */
+ #else
+-#define __GFP_DMA32	((__force gfp_t)0x04)	/* Has own ZONE_DMA32 */
++#define __GFP_DMA32	((__force gfp_t)0x02)	/* Has own ZONE_DMA32 */
+ #endif
+ 
++#define __GFP_HIGHMEM	((__force gfp_t)0x04u)
++#define __GFP_EASY_RECLAIM ((__force gfp_t)0x08u)
++
++
+ /*
+  * Action modifiers - doesn't change the zoning
+  *
+@@ -64,7 +68,7 @@ struct vm_area_struct;
+ #define GFP_KERNEL	(__GFP_WAIT | __GFP_IO | __GFP_FS)
+ #define GFP_USER	(__GFP_WAIT | __GFP_IO | __GFP_FS | __GFP_HARDWALL)
+ #define GFP_HIGHUSER	(__GFP_WAIT | __GFP_IO | __GFP_FS | __GFP_HARDWALL | \
+-			 __GFP_HIGHMEM)
++			 __GFP_HIGHMEM | __GFP_EASY_RECLAIM)
+ 
+ /* Flag - indicates that the buffer will be suitable for DMA.  Ignored on some
+    platforms, used as appropriate on others */
+Index: zone_reclaim/include/linux/mmzone.h
+===================================================================
+--- zone_reclaim.orig/include/linux/mmzone.h	2005-12-16 11:28:15.000000000 +0900
++++ zone_reclaim/include/linux/mmzone.h	2005-12-19 20:16:29.000000000 +0900
+@@ -93,7 +93,7 @@ struct per_cpu_pageset {
+  *
+  * NOTE! Make sure this matches the zones in <linux/gfp.h>
+  */
+-#define GFP_ZONEMASK	0x07
++#define GFP_ZONEMASK	0x0f
+ #define GFP_ZONETYPES	5
+ 
+ /*
 
 -- 
 Yasunori Goto 
