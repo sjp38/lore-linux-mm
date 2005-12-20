@@ -1,86 +1,130 @@
-Date: Tue, 20 Dec 2005 14:02:22 -0800 (PST)
+Date: Tue, 20 Dec 2005 14:02:27 -0800 (PST)
 From: Christoph Lameter <clameter@sgi.com>
-Message-Id: <20051220220222.30326.61615.sendpatchset@schroedinger.engr.sgi.com>
+Message-Id: <20051220220227.30326.11894.sendpatchset@schroedinger.engr.sgi.com>
 In-Reply-To: <20051220220151.30326.98563.sendpatchset@schroedinger.engr.sgi.com>
 References: <20051220220151.30326.98563.sendpatchset@schroedinger.engr.sgi.com>
-Subject: Zoned counters V1 [ 6/14]: Expanded node and zone statistics
+Subject: Zoned counters V1 [ 7/14]: Convert nr_slab
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-kernel@vger.kernel.org
-Cc: Nick Piggin <nickpiggin@yahoo.com.au>, linux-mm@kvack.org, Andi Kleen <ak@suse.de>, Christoph Lameter <clameter@sgi.com>, Marcelo Tosatti <marcelo.tosatti@cyclades.com>
+Cc: Nick Piggin <nickpiggin@yahoo.com.au>, linux-mm@kvack.org, Marcelo Tosatti <marcelo.tosatti@cyclades.com>, Andi Kleen <ak@suse.de>, Christoph Lameter <clameter@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-- Extend zone, node and global statistics by printing all counters from
-  the vmstats arrays.
-
-- Provide an array describing zoned VM counters
+Convert nr_slab
 
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
 Index: linux-2.6.15-rc5-mm3/drivers/base/node.c
 ===================================================================
---- linux-2.6.15-rc5-mm3.orig/drivers/base/node.c	2005-12-20 12:19:10.000000000 -0800
-+++ linux-2.6.15-rc5-mm3/drivers/base/node.c	2005-12-20 12:28:48.000000000 -0800
-@@ -43,12 +43,14 @@ static ssize_t node_read_meminfo(struct 
- 	unsigned long inactive;
- 	unsigned long active;
- 	unsigned long free;
--	unsigned long nr_mapped;
-+	int j;
-+	unsigned long nr[NR_STAT_ITEMS];
- 
- 	si_meminfo_node(&i, nid);
- 	get_page_state_node(&ps, nid);
- 	__get_zone_counts(&active, &inactive, &free, NODE_DATA(nid));
--	nr_mapped = node_page_state(nid, NR_MAPPED);
-+	for (j = 0; j < NR_STAT_ITEMS; j++)
-+		nr[j] = node_page_state(nid, j);
- 
- 	/* Check for negative values in these approximate counters */
- 	if ((long)ps.nr_dirty < 0)
-@@ -71,6 +73,7 @@ static ssize_t node_read_meminfo(struct 
- 		       "Node %d Dirty:        %8lu kB\n"
- 		       "Node %d Writeback:    %8lu kB\n"
- 		       "Node %d Mapped:       %8lu kB\n"
-+		       "Node %d Pagecache:    %8lu kB\n"
- 		       "Node %d Slab:         %8lu kB\n",
- 		       nid, K(i.totalram),
- 		       nid, K(i.freeram),
-@@ -83,7 +86,8 @@ static ssize_t node_read_meminfo(struct 
- 		       nid, K(i.freeram - i.freehigh),
- 		       nid, K(ps.nr_dirty),
+--- linux-2.6.15-rc5-mm3.orig/drivers/base/node.c	2005-12-20 12:57:57.000000000 -0800
++++ linux-2.6.15-rc5-mm3/drivers/base/node.c	2005-12-20 12:58:02.000000000 -0800
+@@ -88,7 +88,7 @@ static ssize_t node_read_meminfo(struct 
  		       nid, K(ps.nr_writeback),
--		       nid, K(nr_mapped),
-+		       nid, K(nr[NR_MAPPED]),
-+		       nid, K(nr[NR_PAGECACHE]),
- 		       nid, K(ps.nr_slab));
+ 		       nid, K(nr[NR_MAPPED]),
+ 		       nid, K(nr[NR_PAGECACHE]),
+-		       nid, K(ps.nr_slab));
++		       nid, K(nr[NR_SLAB]));
  	n += hugetlb_report_node_meminfo(nid, buf + n);
  	return n;
+ }
+Index: linux-2.6.15-rc5-mm3/fs/proc/proc_misc.c
+===================================================================
+--- linux-2.6.15-rc5-mm3.orig/fs/proc/proc_misc.c	2005-12-20 12:57:55.000000000 -0800
++++ linux-2.6.15-rc5-mm3/fs/proc/proc_misc.c	2005-12-20 12:58:02.000000000 -0800
+@@ -191,7 +191,7 @@ static int meminfo_read_proc(char *page,
+ 		K(ps.nr_dirty),
+ 		K(ps.nr_writeback),
+ 		K(global_page_state(NR_MAPPED)),
+-		K(ps.nr_slab),
++		K(global_page_state(NR_SLAB)),
+ 		K(allowed),
+ 		K(committed),
+ 		K(ps.nr_page_table_pages),
 Index: linux-2.6.15-rc5-mm3/mm/page_alloc.c
 ===================================================================
---- linux-2.6.15-rc5-mm3.orig/mm/page_alloc.c	2005-12-20 12:23:47.000000000 -0800
-+++ linux-2.6.15-rc5-mm3/mm/page_alloc.c	2005-12-20 12:28:48.000000000 -0800
-@@ -597,6 +597,8 @@ static int rmqueue_bulk(struct zone *zon
+--- linux-2.6.15-rc5-mm3.orig/mm/page_alloc.c	2005-12-20 12:57:57.000000000 -0800
++++ linux-2.6.15-rc5-mm3/mm/page_alloc.c	2005-12-20 12:58:17.000000000 -0800
+@@ -597,7 +597,7 @@ static int rmqueue_bulk(struct zone *zon
  	return i;
  }
  
-+char *stat_item_descr[NR_STAT_ITEMS] = { "mapped","pagecache" };
-+
+-char *stat_item_descr[NR_STAT_ITEMS] = { "mapped","pagecache" };
++char *stat_item_descr[NR_STAT_ITEMS] = { "mapped","pagecache", "slab" };
+ 
  /*
   * Manage combined zone based / global counters
-  */
-@@ -2597,6 +2599,11 @@ static int zoneinfo_show(struct seq_file
- 			   zone->nr_scan_active, zone->nr_scan_inactive,
- 			   zone->spanned_pages,
- 			   zone->present_pages);
-+		for(i = 0; i < NR_STAT_ITEMS; i++)
-+			seq_printf(m, "\n        %-8s %lu",
-+					stat_item_descr[i],
-+					zone_page_state(zone, i));
-+
- 		seq_printf(m,
- 			   "\n        protection: (%lu",
- 			   zone->lowmem_reserve[0]);
+@@ -1784,7 +1784,7 @@ void show_free_areas(void)
+ 		ps.nr_writeback,
+ 		ps.nr_unstable,
+ 		nr_free_pages(),
+-		ps.nr_slab,
++		global_page_state(NR_SLAB),
+ 		global_page_state(NR_MAPPED),
+ 		ps.nr_page_table_pages);
+ 
+@@ -2677,13 +2677,13 @@ static char *vmstat_text[] = {
+ 	/* Zoned VM counters */
+ 	"nr_mapped",
+ 	"nr_pagecache",
++	"nr_slab",
+ 
+ 	/* Page state */
+ 	"nr_dirty",
+ 	"nr_writeback",
+ 	"nr_unstable",
+ 	"nr_page_table_pages",
+-	"nr_slab",
+ 
+ 	"pgpgin",
+ 	"pgpgout",
+Index: linux-2.6.15-rc5-mm3/mm/slab.c
+===================================================================
+--- linux-2.6.15-rc5-mm3.orig/mm/slab.c	2005-12-20 12:57:37.000000000 -0800
++++ linux-2.6.15-rc5-mm3/mm/slab.c	2005-12-20 12:58:02.000000000 -0800
+@@ -1236,7 +1236,7 @@ static void *kmem_getpages(kmem_cache_t 
+ 	i = (1 << cachep->gfporder);
+ 	if (cachep->flags & SLAB_RECLAIM_ACCOUNT)
+ 		atomic_add(i, &slab_reclaim_pages);
+-	add_page_state(nr_slab, i);
++	add_zone_page_state(page_zone(page), NR_SLAB, i);
+ 	while (i--) {
+ 		SetPageSlab(page);
+ 		page++;
+@@ -1258,7 +1258,7 @@ static void kmem_freepages(kmem_cache_t 
+ 			BUG();
+ 		page++;
+ 	}
+-	sub_page_state(nr_slab, nr_freed);
++	sub_zone_page_state(page_zone(page), NR_SLAB, nr_freed);
+ 	if (current->reclaim_state)
+ 		current->reclaim_state->reclaimed_slab += nr_freed;
+ 	free_pages((unsigned long)addr, cachep->gfporder);
+Index: linux-2.6.15-rc5-mm3/include/linux/mmzone.h
+===================================================================
+--- linux-2.6.15-rc5-mm3.orig/include/linux/mmzone.h	2005-12-20 12:57:55.000000000 -0800
++++ linux-2.6.15-rc5-mm3/include/linux/mmzone.h	2005-12-20 12:58:02.000000000 -0800
+@@ -48,6 +48,7 @@ enum zone_stat_item {
+ 	NR_MAPPED,	/* mapped into pagetables.
+ 			   only modified from process context */
+ 	NR_PAGECACHE,	/* file backed pages */
++	NR_SLAB,	/* used by slab allocator */
+ 	NR_STAT_ITEMS };
+ 
+ #ifdef CONFIG_SMP
+Index: linux-2.6.15-rc5-mm3/include/linux/page-flags.h
+===================================================================
+--- linux-2.6.15-rc5-mm3.orig/include/linux/page-flags.h	2005-12-20 12:57:42.000000000 -0800
++++ linux-2.6.15-rc5-mm3/include/linux/page-flags.h	2005-12-20 12:58:02.000000000 -0800
+@@ -95,8 +95,7 @@ struct page_state {
+ 	unsigned long nr_writeback;	/* Pages under writeback */
+ 	unsigned long nr_unstable;	/* NFS unstable pages */
+ 	unsigned long nr_page_table_pages;/* Pages used for pagetables */
+-	unsigned long nr_slab;		/* In slab */
+-#define GET_PAGE_STATE_LAST nr_slab
++#define GET_PAGE_STATE_LAST nr_page_table_pages
+ 
+ 	/*
+ 	 * The below are zeroed by get_page_state().  Use get_full_page_state()
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
