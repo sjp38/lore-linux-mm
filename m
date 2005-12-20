@@ -1,84 +1,119 @@
-Date: Tue, 20 Dec 2005 17:53:31 +0900
-From: Yasunori Goto <y-goto@jp.fujitsu.com>
-Subject: [Patch] New zone ZONE_EASY_RECLAIM take 4. (mod_page_state info)[7/8]
-Message-Id: <20051220173120.1B16.Y-GOTO@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
+Date: Tue, 20 Dec 2005 14:01:56 -0800 (PST)
+From: Christoph Lameter <clameter@sgi.com>
+Message-Id: <20051220220156.30326.39.sendpatchset@schroedinger.engr.sgi.com>
+In-Reply-To: <20051220220151.30326.98563.sendpatchset@schroedinger.engr.sgi.com>
+References: <20051220220151.30326.98563.sendpatchset@schroedinger.engr.sgi.com>
+Subject: Zoned counters V1 [ 1/14]: Add some consts for inlines in mm.h
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm <linux-mm@kvack.org>, Linux Kernel ML <linux-kernel@vger.kernel.org>, Linux Hotplug Memory Support <lhms-devel@lists.sourceforge.net>
-Cc: Joel Schopp <jschopp@austin.ibm.com>
+To: linux-kernel@vger.kernel.org
+Cc: Nick Piggin <nickpiggin@yahoo.com.au>, linux-mm@kvack.org, Andi Kleen <ak@suse.de>, Marcelo Tosatti <marcelo.tosatti@cyclades.com>, Christoph Lameter <clameter@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-This patch is add easy reclaim zone information for mod_page_state().
+[PATCH] const attributes for some inlines in mm.h
 
-This is new patch at take 4.
+Const attributes allow the compiler to generate more efficient code by
+allowing callers to keep elements of struct page in registers [Or if
+the architecture does not have too many registers it will at least avoid
+address recalculation and allow common subexpression elimination to work.]
 
-Signed-off-by: Yasunori Goto <y-goto@jp.fujitsu.com>
+Some of the zoned vm statistics functions need to be passed a
+"struct page *". The parameter is defined const. That in turn requires
+that the inlines used by that function also take const page * parameters.
 
+Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
---
-Index: zone_reclaim/include/linux/page-flags.h
+Index: linux-2.6.15-rc5-mm3/include/linux/mm.h
 ===================================================================
---- zone_reclaim.orig/include/linux/page-flags.h	2005-12-15 19:48:30.000000000 +0900
-+++ zone_reclaim/include/linux/page-flags.h	2005-12-15 21:01:09.000000000 +0900
-@@ -109,7 +109,8 @@ struct page_state {
- 	unsigned long pswpin;		/* swap reads */
- 	unsigned long pswpout;		/* swap writes */
+--- linux-2.6.15-rc5-mm3.orig/include/linux/mm.h	2005-12-16 11:44:09.000000000 -0800
++++ linux-2.6.15-rc5-mm3/include/linux/mm.h	2005-12-20 11:54:03.000000000 -0800
+@@ -456,7 +456,7 @@ void put_page(struct page *page);
+ #define SECTIONS_MASK		((1UL << SECTIONS_WIDTH) - 1)
+ #define ZONETABLE_MASK		((1UL << ZONETABLE_SHIFT) - 1)
  
--	unsigned long pgalloc_high;	/* page allocations */
-+	unsigned long pgalloc_easy_reclaim; /* page allocations */
-+	unsigned long pgalloc_high;
- 	unsigned long pgalloc_normal;
- 	unsigned long pgalloc_dma32;
- 	unsigned long pgalloc_dma;
-@@ -121,22 +122,26 @@ struct page_state {
- 	unsigned long pgfault;		/* faults (major+minor) */
- 	unsigned long pgmajfault;	/* faults (major only) */
+-static inline unsigned long page_zonenum(struct page *page)
++static inline unsigned long page_zonenum(const struct page *page)
+ {
+ 	return (page->flags >> ZONES_PGSHIFT) & ZONES_MASK;
+ }
+@@ -464,20 +464,20 @@ static inline unsigned long page_zonenum
+ struct zone;
+ extern struct zone *zone_table[];
  
--	unsigned long pgrefill_high;	/* inspected in refill_inactive_zone */
-+	unsigned long pgrefill_easy_reclaim;/* inspected in refill_inactive_zone */
-+	unsigned long pgrefill_high;
- 	unsigned long pgrefill_normal;
- 	unsigned long pgrefill_dma32;
- 	unsigned long pgrefill_dma;
+-static inline struct zone *page_zone(struct page *page)
++static inline struct zone *page_zone(const struct page *page)
+ {
+ 	return zone_table[(page->flags >> ZONETABLE_PGSHIFT) &
+ 			ZONETABLE_MASK];
+ }
  
--	unsigned long pgsteal_high;	/* total highmem pages reclaimed */
-+	unsigned long pgsteal_easy_reclaim; /* total pages reclaimed */
-+	unsigned long pgsteal_high;
- 	unsigned long pgsteal_normal;
- 	unsigned long pgsteal_dma32;
- 	unsigned long pgsteal_dma;
+-static inline unsigned long page_to_nid(struct page *page)
++static inline unsigned long page_to_nid(const struct page *page)
+ {
+ 	if (FLAGS_HAS_NODE)
+ 		return (page->flags >> NODES_PGSHIFT) & NODES_MASK;
+ 	else
+ 		return page_zone(page)->zone_pgdat->node_id;
+ }
+-static inline unsigned long page_to_section(struct page *page)
++static inline unsigned long page_to_section(const struct page *page)
+ {
+ 	return (page->flags >> SECTIONS_PGSHIFT) & SECTIONS_MASK;
+ }
+@@ -511,7 +511,7 @@ static inline void set_page_links(struct
+ extern struct page *mem_map;
+ #endif
  
--	unsigned long pgscan_kswapd_high;/* total highmem pages scanned */
-+	unsigned long pgscan_kswapd_easy_reclaim; /* total pages scanned */
-+	unsigned long pgscan_kswapd_high;
- 	unsigned long pgscan_kswapd_normal;
- 	unsigned long pgscan_kswapd_dma32;
- 	unsigned long pgscan_kswapd_dma;
+-static inline void *lowmem_page_address(struct page *page)
++static inline void *lowmem_page_address(const struct page *page)
+ {
+ 	return __va(page_to_pfn(page) << PAGE_SHIFT);
+ }
+@@ -553,7 +553,7 @@ void page_address_init(void);
+ #define PAGE_MAPPING_ANON	1
  
--	unsigned long pgscan_direct_high;/* total highmem pages scanned */
-+	unsigned long pgscan_direct_easy_reclaim;/* total pages scanned */
-+	unsigned long pgscan_direct_high;
- 	unsigned long pgscan_direct_normal;
- 	unsigned long pgscan_direct_dma32;
- 	unsigned long pgscan_direct_dma;
-@@ -183,7 +188,9 @@ extern void __mod_page_state_offset(unsi
- #define state_zone_offset(zone, member)					\
- ({									\
- 	unsigned offset;						\
--	if (is_highmem(zone))						\
-+	if (is_easy_reclaim(zone))					\
-+		offset = offsetof(struct page_state, member##_easy_reclaim);\
-+	else if (is_highmem(zone))					\
- 		offset = offsetof(struct page_state, member##_high);	\
- 	else if (is_normal(zone))					\
- 		offset = offsetof(struct page_state, member##_normal);	\
-
--- 
-Yasunori Goto 
-
+ extern struct address_space swapper_space;
+-static inline struct address_space *page_mapping(struct page *page)
++static inline struct address_space *page_mapping(const struct page *page)
+ {
+ 	struct address_space *mapping = page->mapping;
+ 
+@@ -564,7 +564,7 @@ static inline struct address_space *page
+ 	return mapping;
+ }
+ 
+-static inline int PageAnon(struct page *page)
++static inline int PageAnon(const struct page *page)
+ {
+ 	return ((unsigned long)page->mapping & PAGE_MAPPING_ANON) != 0;
+ }
+@@ -573,7 +573,7 @@ static inline int PageAnon(struct page *
+  * Return the pagecache index of the passed page.  Regular pagecache pages
+  * use ->index whereas swapcache pages use ->private
+  */
+-static inline pgoff_t page_index(struct page *page)
++static inline pgoff_t page_index(const struct page *page)
+ {
+ 	if (unlikely(PageSwapCache(page)))
+ 		return page_private(page);
+@@ -590,7 +590,7 @@ static inline void reset_page_mapcount(s
+ 	atomic_set(&(page)->_mapcount, -1);
+ }
+ 
+-static inline int page_mapcount(struct page *page)
++static inline int page_mapcount(const struct page *page)
+ {
+ 	return atomic_read(&(page)->_mapcount) + 1;
+ }
+@@ -598,7 +598,7 @@ static inline int page_mapcount(struct p
+ /*
+  * Return true if this page is mapped into pagetables.
+  */
+-static inline int page_mapped(struct page *page)
++static inline int page_mapped(const struct page *page)
+ {
+ 	return atomic_read(&(page)->_mapcount) >= 0;
+ }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
