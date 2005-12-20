@@ -1,7 +1,7 @@
-Date: Tue, 20 Dec 2005 17:52:27 +0900
+Date: Tue, 20 Dec 2005 17:53:24 +0900
 From: Yasunori Goto <y-goto@jp.fujitsu.com>
-Subject: [Patch] New zone ZONE_EASY_RECLAIM take 4. (change build_zonelists)[3/8]
-Message-Id: <20051220172910.1B0C.Y-GOTO@jp.fujitsu.com>
+Subject: [Patch] New zone ZONE_EASY_RECLAIM take 4. (/proc/meminfo)[6/8]
+Message-Id: <20051220173049.1B14.Y-GOTO@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
@@ -11,89 +11,146 @@ To: Linux Kernel ML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org
 Cc: Joel Schopp <jschopp@austin.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-This is changing build_zonelists for new zone.
+This patch is add information of easy reclaim zone to /proc/meminfo.
 
-__GFP_xxxs are flag for requires of page allocation which zone
-is prefered. But, it is used as an index number for zonelists[] too.
-But after my patch, __GFP_xxx might be set at same time. So,
-last set bit number of __GFP is recognized for zonelists' index
-by this patch.
-
-take3->take4:
-  take 3's modification was still wrong.
-  __GFP_EASY_RECLAIM is 0x04 on i386, so fls(__GFP_EASY_RECLAIM)
-  is 3. zone 3 is ZONE_HIGHMEM, not ZONE_EASY_RECLAIM.
-  So, I rearranged __GFP_XXX flags (see: define gfp_easy_relcaim patch)
-  and fls() is used at highest_zone() again.
-
-take2 -> take 3:
- This patch is modified take 3 to avoid panic on i386.
- __GFP_DMA32 is 0 for i386. So, ZONE_DMA32 is selected 
- if zone_bits is 0 which means Zone_normal. 
- Zone_DMA32 is not allocated on i386, so kernel paniced 
- by no normal memory.
- In this patch, even if zone_bits is 0 adn __GFP_DMA32 is 0,
- Zone_Normal is selected.
-
+This is new patch at take 4.
 
 Signed-off-by: Yasunori Goto <y-goto@jp.fujitsu.com>
 
+--
+Index: zone_reclaim/fs/proc/proc_misc.c
+===================================================================
+--- zone_reclaim.orig/fs/proc/proc_misc.c	2005-12-15 19:48:29.000000000 +0900
++++ zone_reclaim/fs/proc/proc_misc.c	2005-12-15 20:43:27.000000000 +0900
+@@ -126,6 +126,7 @@ static int meminfo_read_proc(char *page,
+ 	unsigned long free;
+ 	unsigned long committed;
+ 	unsigned long allowed;
++	unsigned long totalhigh, freehigh;
+ 	struct vmalloc_info vmi;
+ 	long cached;
+ 
+@@ -147,7 +148,13 @@ static int meminfo_read_proc(char *page,
+ 		cached = 0;
+ 
+ 	get_vmalloc_info(&vmi);
+-
++	if (i.totalhigh) {
++		totalhigh = i.totalhigh - i.total_easyreclaim;
++		freehigh = i.freehigh - i.free_easyreclaim;
++	} else {
++		totalhigh = 0;
++		freehigh = 0;
++	}
+ 	/*
+ 	 * Tagged format, for easy grepping and expansion.
+ 	 */
+@@ -161,6 +168,8 @@ static int meminfo_read_proc(char *page,
+ 		"Inactive:     %8lu kB\n"
+ 		"HighTotal:    %8lu kB\n"
+ 		"HighFree:     %8lu kB\n"
++		"ReclaimTotal: %8lu kB\n"
++		"ReclaimFree:  %8lu kB\n"
+ 		"LowTotal:     %8lu kB\n"
+ 		"LowFree:      %8lu kB\n"
+ 		"SwapTotal:    %8lu kB\n"
+@@ -182,8 +191,10 @@ static int meminfo_read_proc(char *page,
+ 		K(total_swapcache_pages),
+ 		K(active),
+ 		K(inactive),
+-		K(i.totalhigh),
+-		K(i.freehigh),
++		K(totalhigh),
++		K(freehigh),
++		K(i.total_easyreclaim),
++		K(i.free_easyreclaim),
+ 		K(i.totalram-i.totalhigh),
+ 		K(i.freeram-i.freehigh),
+ 		K(i.totalswap),
+Index: zone_reclaim/include/linux/kernel.h
+===================================================================
+--- zone_reclaim.orig/include/linux/kernel.h	2005-12-15 19:48:30.000000000 +0900
++++ zone_reclaim/include/linux/kernel.h	2005-12-15 20:43:27.000000000 +0900
+@@ -303,6 +303,8 @@ struct sysinfo {
+ 	unsigned short pad;		/* explicit padding for m68k */
+ 	unsigned long totalhigh;	/* Total high memory size */
+ 	unsigned long freehigh;		/* Available high memory size */
++	unsigned long total_easyreclaim;/* Total easy reclaim size */
++	unsigned long free_easyreclaim; /* Available easy reclaim size */
+ 	unsigned int mem_unit;		/* Memory unit size in bytes */
+ 	char _f[20-2*sizeof(long)-sizeof(int)];	/* Padding: libc5 uses this.. */
+ };
 Index: zone_reclaim/mm/page_alloc.c
 ===================================================================
---- zone_reclaim.orig/mm/page_alloc.c	2005-12-19 20:18:29.000000000 +0900
-+++ zone_reclaim/mm/page_alloc.c	2005-12-19 20:19:56.000000000 +0900
-@@ -1585,14 +1585,11 @@ static int __init build_zonelists_node(p
- {
- 	struct zone *zone;
- 
--	BUG_ON(zone_type > ZONE_HIGHMEM);
-+	BUG_ON(zone_type > ZONE_EASY_RECLAIM);
- 
- 	do {
- 		zone = pgdat->node_zones + zone_type;
- 		if (populated_zone(zone)) {
--#ifndef CONFIG_HIGHMEM
--			BUG_ON(zone_type > ZONE_NORMAL);
--#endif
- 			zonelist->zones[nr_zones++] = zone;
- 			check_highest_zone(zone_type);
- 		}
-@@ -1605,12 +1602,17 @@ static int __init build_zonelists_node(p
- static inline int highest_zone(int zone_bits)
- {
- 	int res = ZONE_NORMAL;
--	if (zone_bits & (__force int)__GFP_HIGHMEM)
--		res = ZONE_HIGHMEM;
--	if (zone_bits & (__force int)__GFP_DMA32)
--		res = ZONE_DMA32;
--	if (zone_bits & (__force int)__GFP_DMA)
-+
-+	if (zone_bits == fls((__force int)__GFP_DMA))
- 		res = ZONE_DMA;
-+	if (zone_bits == fls((__force int)__GFP_DMA32) &&
-+	    (__force int)__GFP_DMA32 == 0x02)
-+		res = ZONE_DMA32;
-+	if (zone_bits == fls((__force int)__GFP_HIGHMEM))
-+		res = ZONE_HIGHMEM;
-+	if (zone_bits == fls((__force int)__GFP_EASY_RECLAIM))
-+		res = ZONE_EASY_RECLAIM;
-+
- 	return res;
+--- zone_reclaim.orig/mm/page_alloc.c	2005-12-15 20:11:43.000000000 +0900
++++ zone_reclaim/mm/page_alloc.c	2005-12-16 11:19:50.000000000 +0900
+@@ -1275,17 +1275,45 @@ unsigned int nr_free_pagecache_pages(voi
  }
  
-Index: zone_reclaim/include/linux/gfp.h
-===================================================================
---- zone_reclaim.orig/include/linux/gfp.h	2005-12-19 20:19:37.000000000 +0900
-+++ zone_reclaim/include/linux/gfp.h	2005-12-19 20:19:56.000000000 +0900
-@@ -81,7 +81,7 @@ struct vm_area_struct;
- 
- static inline int gfp_zone(gfp_t gfp)
+ #ifdef CONFIG_HIGHMEM
+-unsigned int nr_free_highpages (void)
++unsigned int nr_total_highpages (void)
  {
--	int zone = GFP_ZONEMASK & (__force int) gfp;
-+	int zone = fls(GFP_ZONEMASK & (__force int) gfp);
- 	BUG_ON(zone >= GFP_ZONETYPES);
- 	return zone;
+ 	pg_data_t *pgdat;
+ 	unsigned int pages = 0;
++	for_each_pgdat(pgdat) {
++		pages += pgdat->node_zones[ZONE_HIGHMEM].present_pages;
++	}
++	return pages;
++}
+ 
+-	for_each_pgdat(pgdat)
++unsigned int nr_free_highpages (void)
++{
++	pg_data_t *pgdat;
++	unsigned int pages = 0;
++	for_each_pgdat(pgdat) {
+ 		pages += pgdat->node_zones[ZONE_HIGHMEM].free_pages;
+-
++	}
+ 	return pages;
  }
+ #endif
++unsigned int nr_total_easyreclaim (void)
++{
++	pg_data_t *pgdat;
++	unsigned int pages = 0;
++	for_each_pgdat(pgdat) {
++		pages += pgdat->node_zones[ZONE_EASY_RECLAIM].present_pages;
++	}
++	return pages;
++}
++
++unsigned int nr_free_easyreclaim (void)
++{
++	pg_data_t *pgdat;
++	unsigned int pages = 0;
++	for_each_pgdat(pgdat) {
++		pages += pgdat->node_zones[ZONE_EASY_RECLAIM].free_pages;
++	}
++	return pages;
++}
+ 
+ #ifdef CONFIG_NUMA
+ static void show_node(struct zone *zone)
+@@ -1436,12 +1464,15 @@ void si_meminfo(struct sysinfo *val)
+ 	val->freeram = nr_free_pages();
+ 	val->bufferram = nr_blockdev_pages();
+ #ifdef CONFIG_HIGHMEM
+-	val->totalhigh = totalhigh_pages;
+-	val->freehigh = nr_free_highpages();
++	/* if highmem!=0, totalhigh includes easy reclaim pages. */
++	val->totalhigh = nr_total_highpages() + nr_total_easyreclaim();
++	val->freehigh = nr_free_highpages() + nr_free_easyreclaim();
+ #else
+ 	val->totalhigh = 0;
+ 	val->freehigh = 0;
+ #endif
++	val->total_easyreclaim = nr_total_easyreclaim();
++	val->free_easyreclaim = nr_free_easyreclaim();
+ 	val->mem_unit = PAGE_SIZE;
+ }
+ 
 
 -- 
 Yasunori Goto 
