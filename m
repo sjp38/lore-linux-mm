@@ -1,83 +1,35 @@
-Message-ID: <43AAC5EA.3090800@superbug.demon.co.uk>
-Date: Thu, 22 Dec 2005 15:27:38 +0000
-From: James Courtier-Dutton <James@superbug.demon.co.uk>
-MIME-Version: 1.0
+Date: Thu, 22 Dec 2005 09:14:03 -0800 (PST)
+From: Christoph Lameter <clameter@engr.sgi.com>
 Subject: Re: Possible cure for memory fragmentation.
-References: <43A9409D.1010904@superbug.demon.co.uk> <Pine.LNX.4.62.0512211058350.2455@schroedinger.engr.sgi.com>
-In-Reply-To: <Pine.LNX.4.62.0512211058350.2455@schroedinger.engr.sgi.com>
-Content-Type: text/plain; charset=US-ASCII; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <43AAC5EA.3090800@superbug.demon.co.uk>
+Message-ID: <Pine.LNX.4.62.0512220908120.7717@schroedinger.engr.sgi.com>
+References: <43A9409D.1010904@superbug.demon.co.uk>
+ <Pine.LNX.4.62.0512211058350.2455@schroedinger.engr.sgi.com>
+ <43AAC5EA.3090800@superbug.demon.co.uk>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@engr.sgi.com>
+To: James Courtier-Dutton <James@superbug.demon.co.uk>
 Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Christoph Lameter wrote:
-> On Wed, 21 Dec 2005, James Courtier-Dutton wrote:
-> 
-> 
->>I am suggesting we add a new memory allocation function into the kernel
->>called kremalloc().
->>
->>The purpose of any call to kremalloc() would mean that:
->>a) One really needs the memory already allocated, so don't loose it.
->>b) One does not mind if the memory location moves.
->>
->>Now, the kernel driver module that has previously allocated a memory block,
->>could at a time convenient to itself, allow the memory to be moved. It
->>would simple call kremalloc() with the same size parameter as it originally
->>called kmalloc(). The mm would then notice this, and then, if that location
->>had been tagged with (1), the mm could then happily move it, and the kernel
->>driver module would be happy. If it was not tagged with (1) the mm would
->>simply return, so very little overhead.
-> 
-> 
-> Moving regular mapped kernel memory is not trivial. See my page migration
-> patchsets.
-> 
-> Slab memory cannot be resized since the memory is managed in portions 
-> of fixed sizes. So if these size boundaries are violated then the 
-> kremalloc would degenerate into a kfree and a kmalloc. kremalloc 
-> would be:
-> 
-> void *kremalloc(void *p, int oldsize, int newsize, gfp_t f)
-> {
-> 	void *new;
-> 
-> 	if (newsize < sizeboundary)
-> 		return p;
-> 
-> 	new = kmalloc(size, f);
-> 
-> 	memcpy(new, old, oldsize);
-> 
-> 	kfree(p);
-> 
-> 	return new;
-> }
-> 
-> 
-> 
+On Thu, 22 Dec 2005, James Courtier-Dutton wrote:
 
-I think you missed the point I was trying to make.
-The driver does not call kremalloc with a different size. It calls it 
-with the SAME size. Then if the kernel thinks it would benefit from 
-moving the allocation to a different location, it can do:
+> The driver does not call kremalloc with a different size. It calls it with the
+> SAME size. Then if the kernel thinks it would benefit from moving the
 
-new = kmalloc(size, f);
-if (!new)
-	return p;
-memcpy(new, old, oldsize);
-kfree(p);
+Umm. When would the kernel do something like that? 
+Also give it different name. realloc has pretty well established 
+semantics.
 
-If the kernel does not wish to move it, kremalloc returns without having 
-done anything.
+> If the kernel does not wish to move it, kremalloc returns without having done
+> anything.
 
-This would effectively allow for dynamic recovery from a fragmented 
-memory layout.
-
-James
+What this all comes down to is to guarantee that only a known number of 
+references exist to the data element when you move it. For kremalloc these
+references must be known and all the pointers to the data element must be 
+updated if the data is moved. The basic problem is not solved.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
