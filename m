@@ -1,154 +1,82 @@
-Date: Tue, 27 Dec 2005 23:33:25 -0200
-From: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
-Subject: Re: Better pagecache statistics ?
-Message-ID: <20051228013325.GA4144@dmt.cnet>
-References: <1133377029.27824.90.camel@localhost.localdomain> <20051201152029.GA14499@dmt.cnet>
-Mime-Version: 1.0
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by e31.co.us.ibm.com (8.12.11/8.12.11) with ESMTP id jBSJ6rda027829
+	for <linux-mm@kvack.org>; Wed, 28 Dec 2005 14:06:53 -0500
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d03relay04.boulder.ibm.com (8.12.10/NCO/VERS6.8) with ESMTP id jBSJ8jKp137880
+	for <linux-mm@kvack.org>; Wed, 28 Dec 2005 12:08:45 -0700
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.12.11/8.13.3) with ESMTP id jBSJ6rWg017070
+	for <linux-mm@kvack.org>; Wed, 28 Dec 2005 12:06:53 -0700
+From: Tom Zanussi <zanussi@us.ibm.com>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20051201152029.GA14499@dmt.cnet>
+Content-Transfer-Encoding: 7bit
+Message-ID: <17330.59716.136146.729098@tut.ibm.com>
+Date: Wed, 28 Dec 2005 13:36:36 -0600
+Subject: Re: Better pagecache statistics ?
+In-Reply-To: <20051228013325.GA4144@dmt.cnet>
+References: <1133377029.27824.90.camel@localhost.localdomain>
+	<20051201152029.GA14499@dmt.cnet>
+	<20051228013325.GA4144@dmt.cnet>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Badari Pulavarty <pbadari@us.ibm.com>, fche@redhat.com
-Cc: linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>, systemtap@sources.redhat.com
+To: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
+Cc: Badari Pulavarty <pbadari@us.ibm.com>, fche@redhat.com, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>, systemtap@sources.redhat.com
 List-ID: <linux-mm.kvack.org>
 
-Badari, any improvements on the {add_to,remove_from}_page_cache hooks?
+Marcelo Tosatti writes:
 
-> I just started playing with SystemTap yesterday. First
-> thing I want to record is "what is the latency of 
-> direct reclaim".
+[...]
 
-I've come up with something which works, though pretty dumb and
-inefficient.
+ > 
+ > b) ERROR: MAXACTION exceeded near identifier 'log' at ttfp_delay.stp:49:3
+ > 
+ > The array size is capped to a maximum. Is there any way to configure
+ > SystemTap to periodically dump-and-zero the arrays? This makes lots of
+ > sense to any statistical gathering code.
+ > 
+ > c) Hash tables
+ > 
+ > It would be better to store the log entries in a hash table, the present
+ > script uses the "current" pointer as a key into a pair of arrays,
+ > incrementing the key until a free one is found (which can be very
+ > inefficient).
+ > 
+ > A hash table would be much more efficient, but allocating memory inside
+ > the scripts is tricky. A pre-allocated, pre-sized pool of memory could 
+ > work well for this purpose. The "dump-array-entries-to-userspace" action
+ > could be used to free them.
+ > 
+ > So both b) and c) could be fixed with the same logic:
+ > 
+ > - dump entries to userspace if memory pool is getting short 
+ > on free entries.
+ > - periodically dump entries to userspace (akin to "bdflush").
 
-I'm facing three problems, maybe someone has a clue on how to improve 
-the situation.
+Hi,
 
-a) nanosecond timekeeping 
+There's a sytemtap example that does something similar to what you're
+describing - see the kmalloc-stacks/kmalloc-top examples in the
+testsuite:
 
-Since the systemtap language does not support "struct" abstraction, but
-simply "long/string/array" types, there is no way to easily return more
-than one value from a function. Is it possible to pass references down
-to functions so as to return more than one value? 
+systemtap/tests/systemtap.samples/kmalloc-stacks.stp
+systemtap/tests/systemtap.samples/kmalloc-top
 
-I failed to find any way to do that.
+Basically, the kmalloc-stacks.stp script hashes data in a systemtap
+hash and periodically formats the current contents of the hash table
+into a convenient form and writes it to userspace, then clears the
+hash for the next go-round.  kmalloc-top is a companion Perl script
+'daemon' that sits around in userspace waiting for new batches of hash
+data, which it then adds to a continuously accumulating Perl hash in
+the user-side script.  There's a bit more detail about the script(s)
+here:
 
-For nanosecond timekeeping one needs second/nanosecond tuple (struct
-timespec).
+http://sourceware.org/ml/systemtap/2005-q3/msg00550.html
 
-b) ERROR: MAXACTION exceeded near identifier 'log' at ttfp_delay.stp:49:3
+HTH,
 
-The array size is capped to a maximum. Is there any way to configure
-SystemTap to periodically dump-and-zero the arrays? This makes lots of
-sense to any statistical gathering code.
+Tom
 
-c) Hash tables
-
-It would be better to store the log entries in a hash table, the present
-script uses the "current" pointer as a key into a pair of arrays,
-incrementing the key until a free one is found (which can be very
-inefficient).
-
-A hash table would be much more efficient, but allocating memory inside
-the scripts is tricky. A pre-allocated, pre-sized pool of memory could 
-work well for this purpose. The "dump-array-entries-to-userspace" action
-could be used to free them.
-
-So both b) and c) could be fixed with the same logic:
-
-- dump entries to userspace if memory pool is getting short 
-on free entries.
-- periodically dump entries to userspace (akin to "bdflush").
-
-And finally, there seems to be a bug which results in _very_ large
-(several seconds) delays - that seems unlikely to really happening.
-
-Thoughts?
-
-/* 
- * ttfp_delay - measure direct reclaim latency 
- */
-
-global count_try_to_free_pages
-global count_exit_try_to_free_pages
-
-global entry_array_us
-global exit_array_us
-
-global entry_array_ms
-global exit_array_ms
-
-function get_currentpointer:long () %{
-	THIS->__retvalue = (int) current;
-%}
-
-probe kernel.function("try_to_free_pages")
-{
-	current_p = get_currentpointer();
-	++count_try_to_free_pages;
-	while (entry_array_us[current_p])
-		++current_p;
-
-	entry_array_us[current_p] = gettimeofday_us();
-	entry_array_ms[current_p] = gettimeofday_ms();
-}
-
-probe kernel.function("try_to_free_pages").return
-{
-	current_p = get_currentpointer();
-	++count_exit_try_to_free_pages;
-	while (exit_array_us[current_p])
-		++current_p;
-
-	exit_array_us[current_p] = gettimeofday_us();
-	exit_array_ms[current_p] = gettimeofday_ms();
-}
-
-probe begin { log("starting probe") }
-
-probe end
-{
-	log("ending probe")
-	log ("calls to try_to_free_pages: " . string(count_try_to_free_pages));
-	log ("returns from try_to_free_pages: " . string(count_exit_try_to_free_pages));
-	foreach(var in entry_array_us) {
-		pos++;
-		log ("try_to_free_pages (" . string(pos) .  ") delta: " . string(exit_array_us[var] - entry_array_us[var]) . "us " .string (exit_array_ms[var] - entry_array_ms[var]) . "ms ");
-	}
-
-}
-
-
-example output, running a 800MB "dd" copy on the background.
-
-[root@dmt examples]# stap -g ttfp_delay.stp 
-starting probe
-ending probe
-calls to try_to_free_pages: 387
-returns from try_to_free_pages: 373
-try_to_free_pages (1) delta: 15028us 15ms 
-try_to_free_pages (2) delta: 47677211us 47677ms 
-try_to_free_pages (3) delta: 39us 0ms 
-try_to_free_pages (4) delta: 35us 0ms 
-try_to_free_pages (5) delta: 152us 0ms 
-try_to_free_pages (6) delta: 104us 0ms 
-try_to_free_pages (7) delta: 353us 0ms 
-try_to_free_pages (8) delta: 61us 0ms 
-try_to_free_pages (9) delta: 187us 0ms 
-try_to_free_pages (10) delta: 55us 0ms 
-try_to_free_pages (11) delta: 50us 0ms 
-try_to_free_pages (12) delta: 30us 0ms 
-try_to_free_pages (13) delta: 31us 0ms 
-try_to_free_pages (14) delta: 42us 0ms 
-try_to_free_pages (15) delta: 37us 0ms 
-try_to_free_pages (16) delta: 178us 0ms 
-try_to_free_pages (17) delta: 34us 0ms 
-try_to_free_pages (18) delta: 37us 0ms 
-try_to_free_pages (19) delta: 35us 0ms 
-try_to_free_pages (20) delta: 34us 0ms 
-try_to_free_pages (21) delta: 65us 0ms 
-...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
