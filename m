@@ -1,9 +1,9 @@
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Message-Id: <20051230224233.765.82740.sendpatchset@twins.localnet>
+Message-Id: <20051230224242.765.58222.sendpatchset@twins.localnet>
 In-Reply-To: <20051230223952.765.21096.sendpatchset@twins.localnet>
 References: <20051230223952.765.21096.sendpatchset@twins.localnet>
-Subject: [PATCH 2/9] clockpro-nonresident-del.patch
-Date: Fri, 30 Dec 2005 23:42:54 +0100
+Subject: [PATCH 3/9] clockpro-PG_test.patch
+Date: Fri, 30 Dec 2005 23:43:04 +0100
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
@@ -12,96 +12,54 @@ List-ID: <linux-mm.kvack.org>
 
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
 
-Since the coupling of the resident and nonresident clocks depend on the 
-actual number of nonresident pages present, stale entries influence the
-actual behaviour. Hence we remove the nonresident pages from the map.
+Introduce a new PG_flag, needed for the clockpro work.
 
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
- 
- mm/memory.c   |   24 ++++++++++++++++++++++++
- mm/swapfile.c |   12 ++++++++++--
- 2 files changed, 34 insertions(+), 2 deletions(-)
 
-Index: linux-2.6-git/mm/swapfile.c
+ include/linux/page-flags.h |    8 ++++++++
+ mm/page_alloc.c            |    3 ++-
+ 2 files changed, 10 insertions(+), 1 deletion(-)
+
+Index: linux-2.6-git/include/linux/page-flags.h
 ===================================================================
---- linux-2.6-git.orig/mm/swapfile.c
-+++ linux-2.6-git/mm/swapfile.c
-@@ -278,7 +278,8 @@ void swap_free(swp_entry_t entry)
+--- linux-2.6-git.orig/include/linux/page-flags.h
++++ linux-2.6-git/include/linux/page-flags.h
+@@ -76,6 +76,8 @@
+ #define PG_nosave_free		18	/* Free, should not be written */
+ #define PG_uncached		19	/* Page has been mapped as uncached */
  
- 	p = swap_info_get(entry);
- 	if (p) {
--		swap_entry_free(p, swp_offset(entry));
-+		if (!swap_entry_free(p, swp_offset(entry)))
-+			nonresident_get(&swapper_space, entry.val);
- 		spin_unlock(&swap_lock);
- 	}
- }
-@@ -375,8 +376,15 @@ void free_swap_and_cache(swp_entry_t ent
- 
- 	p = swap_info_get(entry);
- 	if (p) {
--		if (swap_entry_free(p, swp_offset(entry)) == 1)
-+		switch (swap_entry_free(p, swp_offset(entry))) {
-+		case 1:
- 			page = find_trylock_page(&swapper_space, entry.val);
-+			break;
++#define PG_test			20	/* Page is in its test period */
 +
-+		case 0:
-+			nonresident_get(&swapper_space, entry.val);
-+			break;
-+		}
- 		spin_unlock(&swap_lock);
- 	}
- 	if (page) {
-Index: linux-2.6-git/mm/memory.c
+ /*
+  * Global page accounting.  One instance per CPU.  Only unsigned longs are
+  * allowed.
+@@ -303,6 +305,12 @@ extern void __mod_page_state(unsigned lo
+ #define SetPageUncached(page)	set_bit(PG_uncached, &(page)->flags)
+ #define ClearPageUncached(page)	clear_bit(PG_uncached, &(page)->flags)
+ 
++#define PageTest(page)	test_bit(PG_test, &(page)->flags)
++#define SetPageTest(page)	set_bit(PG_test, &(page)->flags)
++#define TestSetPageTest(page) test_and_set_bit(PG_test, &(page)->flags)
++#define ClearPageTest(page)	clear_bit(PG_test, &(page)->flags)
++#define TestClearPageTest(page) test_and_clear_bit(PG_test, &(page)->flags)
++
+ struct page;	/* forward declaration */
+ 
+ int test_clear_page_dirty(struct page *page);
+Index: linux-2.6-git/mm/page_alloc.c
 ===================================================================
---- linux-2.6-git.orig/mm/memory.c
-+++ linux-2.6-git/mm/memory.c
-@@ -595,6 +595,27 @@ int copy_page_range(struct mm_struct *ds
- 	return 0;
- }
+--- linux-2.6-git.orig/mm/page_alloc.c
++++ linux-2.6-git/mm/page_alloc.c
+@@ -499,7 +499,8 @@ static int prep_new_page(struct page *pa
  
-+static void free_file(struct vm_area_struct *vma,
-+				unsigned long offset)
-+{
-+	struct address_space *mapping;
-+	struct page *page;
-+
-+	if (!vma ||
-+	    !vma->vm_file ||
-+	    !vma->vm_file->f_mapping)
-+		return;
-+
-+	mapping = vma->vm_file->f_mapping;
-+	page = find_get_page(mapping, offset);
-+	if (page) {
-+		page_cache_release(page);
-+		return;
-+	}
-+
-+	nonresident_get(mapping, offset);
-+}
-+
- static unsigned long zap_pte_range(struct mmu_gather *tlb,
- 				struct vm_area_struct *vma, pmd_t *pmd,
- 				unsigned long addr, unsigned long end,
-@@ -610,6 +631,7 @@ static unsigned long zap_pte_range(struc
- 	do {
- 		pte_t ptent = *pte;
- 		if (pte_none(ptent)) {
-+			free_file(vma, pte_to_pgoff(ptent));
- 			(*zap_work)--;
- 			continue;
- 		}
-@@ -668,6 +690,8 @@ static unsigned long zap_pte_range(struc
- 			continue;
- 		if (!pte_file(ptent))
- 			free_swap_and_cache(pte_to_swp_entry(ptent));
-+		else
-+			free_file(vma, pte_to_pgoff(ptent));
- 		pte_clear_full(mm, addr, pte, tlb->fullmm);
- 	} while (pte++, addr += PAGE_SIZE, (addr != end && *zap_work > 0));
- 
+ 	page->flags &= ~(1 << PG_uptodate | 1 << PG_error |
+ 			1 << PG_referenced | 1 << PG_arch_1 |
+-			1 << PG_checked | 1 << PG_mappedtodisk);
++			1 << PG_checked | 1 << PG_mappedtodisk |
++			1 << PG_test);
+ 	set_page_private(page, 0);
+ 	set_page_refs(page, order);
+ 	kernel_map_pages(page, 1 << order, 1);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
