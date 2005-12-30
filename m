@@ -1,170 +1,226 @@
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Message-Id: <20051230224302.765.54845.sendpatchset@twins.localnet>
+Message-Id: <20051230224252.765.39786.sendpatchset@twins.localnet>
 In-Reply-To: <20051230223952.765.21096.sendpatchset@twins.localnet>
 References: <20051230223952.765.21096.sendpatchset@twins.localnet>
-Subject: [PATCH 5/9] clockpro-ignore_token.patch
-Date: Fri, 30 Dec 2005 23:43:24 +0100
+Subject: [PATCH 4/9] clockpro-use-once.patch
+Date: Fri, 30 Dec 2005 23:43:14 +0100
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 Cc: Andrew Morton <akpm@osdl.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Christoph Lameter <christoph@lameter.com>, Wu Fengguang <wfg@mail.ustc.edu.cn>, Nick Piggin <npiggin@suse.de>, Marijn Meijles <marijn@bitpit.net>, Rik van Riel <riel@redhat.com>, Marcelo Tosatti <marcelo.tosatti@cyclades.com>
 List-ID: <linux-mm.kvack.org>
 
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+From: Rik van Riel <riel@surriel.com>
 
-Re-introduce the ignore_token argument to page_referenced(); hand hot
-rotation will make use of this feature.
+Simplify the use-once code.  I have not benchmarked this change yet,
+but I expect it to have little impact on most workloads.  It gets rid
+of some magic code though, which is nice.
+
+Modified to work with this CLOCK-Pro implementation.
 
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
- 
- include/linux/rmap.h |    4 ++--
- mm/page_replace.c    |    2 +-
- mm/rmap.c            |   26 ++++++++++++++++----------
- mm/vmscan.c          |    2 +-
- 4 files changed, 20 insertions(+), 14 deletions(-)
 
-Index: linux-2.6-git-2/include/linux/rmap.h
+ include/linux/mm_page_replace.h |   14 --------------
+ mm/filemap.c                    |   11 ++---------
+ mm/shmem.c                      |    6 +-----
+ mm/swap.c                       |   27 +--------------------------
+ mm/swapfile.c                   |    4 ++--
+ mm/vmscan.c                     |   25 ++-----------------------
+ 6 files changed, 8 insertions(+), 79 deletions(-)
+
+Index: linux-2.6-git/mm/filemap.c
 ===================================================================
---- linux-2.6-git-2.orig/include/linux/rmap.h
-+++ linux-2.6-git-2/include/linux/rmap.h
-@@ -89,7 +89,7 @@ static inline void page_dup_rmap(struct 
- /*
-  * Called from mm/vmscan.c to handle paging out
-  */
--int page_referenced(struct page *, int is_locked);
-+int page_referenced(struct page *, int is_locked, int ignore_token);
- int try_to_unmap(struct page *);
+--- linux-2.6-git.orig/mm/filemap.c
++++ linux-2.6-git/mm/filemap.c
+@@ -387,6 +387,7 @@ int add_to_page_cache(struct page *page,
+ 		if (!error) {
+ 			page_cache_get(page);
+ 			SetPageLocked(page);
++			SetPageTest(page);
+ 			page->mapping = mapping;
+ 			page->index = offset;
+ 			mapping->nrpages++;
+@@ -726,7 +727,6 @@ void do_generic_mapping_read(struct addr
+ 	unsigned long offset;
+ 	unsigned long last_index;
+ 	unsigned long next_index;
+-	unsigned long prev_index;
+ 	loff_t isize;
+ 	struct page *cached_page;
+ 	int error;
+@@ -735,7 +735,6 @@ void do_generic_mapping_read(struct addr
+ 	cached_page = NULL;
+ 	index = *ppos >> PAGE_CACHE_SHIFT;
+ 	next_index = index;
+-	prev_index = ra.prev_page;
+ 	last_index = (*ppos + desc->count + PAGE_CACHE_SIZE-1) >> PAGE_CACHE_SHIFT;
+ 	offset = *ppos & ~PAGE_CACHE_MASK;
  
- /*
-@@ -109,7 +109,7 @@ unsigned long page_address_in_vma(struct
- #define anon_vma_prepare(vma)	(0)
- #define anon_vma_link(vma)	do {} while (0)
+@@ -782,13 +781,7 @@ page_ok:
+ 		if (mapping_writably_mapped(mapping))
+ 			flush_dcache_page(page);
  
--#define page_referenced(page,l) TestClearPageReferenced(page)
-+#define page_referenced(page,l,i) TestClearPageReferenced(page)
- #define try_to_unmap(page)	SWAP_FAIL
+-		/*
+-		 * When (part of) the same page is read multiple times
+-		 * in succession, only mark it as accessed the first time.
+-		 */
+-		if (prev_index != index)
+-			mark_page_accessed(page);
+-		prev_index = index;
++		mark_page_accessed(page);
  
- #endif	/* CONFIG_MMU */
-Index: linux-2.6-git-2/mm/page_replace.c
+ 		/*
+ 		 * Ok, we have the page, and it's up-to-date, so
+Index: linux-2.6-git/mm/swap.c
 ===================================================================
---- linux-2.6-git-2.orig/mm/page_replace.c
-+++ linux-2.6-git-2/mm/page_replace.c
-@@ -232,7 +232,7 @@ static void refill_inactive_zone(struct 
- 		if (page_mapped(page)) {
- 			if (!reclaim_mapped ||
- 			    (total_swap_pages == 0 && PageAnon(page)) ||
--			    page_referenced(page, 0)) {
-+			    page_referenced(page, 0, 0)) {
- 				list_add(&page->lru, &l_active);
- 				continue;
- 			}
-Index: linux-2.6-git-2/mm/rmap.c
-===================================================================
---- linux-2.6-git-2.orig/mm/rmap.c
-+++ linux-2.6-git-2/mm/rmap.c
-@@ -290,7 +290,7 @@ pte_t *page_check_address(struct page *p
-  * repeatedly from either page_referenced_anon or page_referenced_file.
-  */
- static int page_referenced_one(struct page *page,
--	struct vm_area_struct *vma, unsigned int *mapcount)
-+	struct vm_area_struct *vma, unsigned int *mapcount, int ignore_token)
- {
- 	struct mm_struct *mm = vma->vm_mm;
- 	unsigned long address;
-@@ -311,7 +311,7 @@ static int page_referenced_one(struct pa
- 
- 	/* Pretend the page is referenced if the task has the
- 	   swap token and is in the middle of a page fault. */
--	if (mm != current->mm && has_swap_token(mm) &&
-+	if (mm != current->mm && !ignore_token && has_swap_token(mm) &&
- 			rwsem_is_locked(&mm->mmap_sem))
- 		referenced++;
- 
-@@ -321,7 +321,7 @@ out:
- 	return referenced;
+--- linux-2.6-git.orig/mm/swap.c
++++ linux-2.6-git/mm/swap.c
+@@ -90,37 +90,12 @@ int rotate_reclaimable_page(struct page 
  }
  
--static int page_referenced_anon(struct page *page)
-+static int page_referenced_anon(struct page *page, int ignore_token)
- {
- 	unsigned int mapcount;
- 	struct anon_vma *anon_vma;
-@@ -334,7 +334,8 @@ static int page_referenced_anon(struct p
- 
- 	mapcount = page_mapcount(page);
- 	list_for_each_entry(vma, &anon_vma->head, anon_vma_node) {
--		referenced += page_referenced_one(page, vma, &mapcount);
-+		referenced += page_referenced_one(page, vma, &mapcount,
-+							ignore_token);
- 		if (!mapcount)
- 			break;
- 	}
-@@ -353,7 +354,7 @@ static int page_referenced_anon(struct p
-  *
-  * This function is only called from page_referenced for object-based pages.
+ /*
+- * FIXME: speed this up?
+- */
+-void fastcall activate_page(struct page *page)
+-{
+-	struct zone *zone = page_zone(page);
+-
+-	spin_lock_irq(&zone->lru_lock);
+-	if (PageLRU(page) && !PageActive(page)) {
+-		del_page_from_inactive_list(zone, page);
+-		SetPageActive(page);
+-		add_page_to_active_list(zone, page);
+-		inc_page_state(pgactivate);
+-	}
+-	spin_unlock_irq(&zone->lru_lock);
+-}
+-
+-/*
+  * Mark a page as having seen activity.
+- *
+- * inactive,unreferenced	->	inactive,referenced
+- * inactive,referenced		->	active,unreferenced
+- * active,unreferenced		->	active,referenced
   */
--static int page_referenced_file(struct page *page)
-+static int page_referenced_file(struct page *page, int ignore_token)
+ void fastcall mark_page_accessed(struct page *page)
  {
- 	unsigned int mapcount;
- 	struct address_space *mapping = page->mapping;
-@@ -391,7 +392,8 @@ static int page_referenced_file(struct p
- 			referenced++;
- 			break;
- 		}
--		referenced += page_referenced_one(page, vma, &mapcount);
-+		referenced += page_referenced_one(page, vma, &mapcount,
-+							ignore_token);
- 		if (!mapcount)
- 			break;
- 	}
-@@ -408,10 +410,13 @@ static int page_referenced_file(struct p
-  * Quick test_and_clear_referenced for all mappings to a page,
-  * returns the number of ptes which referenced the page.
-  */
--int page_referenced(struct page *page, int is_locked)
-+int page_referenced(struct page *page, int is_locked, int ignore_token)
- {
- 	int referenced = 0;
+-	if (!PageActive(page) && PageReferenced(page) && PageLRU(page)) {
+-		activate_page(page);
+-		ClearPageReferenced(page);
+-	} else if (!PageReferenced(page)) {
++	if (!PageReferenced(page))
+ 		SetPageReferenced(page);
+-	}
+ }
  
-+	if (!swap_token_default_timeout)
-+		ignore_token = 1;
-+
- 	if (page_test_and_clear_young(page))
- 		referenced++;
- 
-@@ -420,14 +425,15 @@ int page_referenced(struct page *page, i
- 
- 	if (page_mapped(page) && page->mapping) {
- 		if (PageAnon(page))
--			referenced += page_referenced_anon(page);
-+			referenced += page_referenced_anon(page, ignore_token);
- 		else if (is_locked)
--			referenced += page_referenced_file(page);
-+			referenced += page_referenced_file(page, ignore_token);
- 		else if (TestSetPageLocked(page))
- 			referenced++;
- 		else {
- 			if (page->mapping)
--				referenced += page_referenced_file(page);
-+				referenced += page_referenced_file(page,
-+								ignore_token);
- 			unlock_page(page);
- 		}
- 	}
-Index: linux-2.6-git-2/mm/vmscan.c
+ EXPORT_SYMBOL(mark_page_accessed);
+Index: linux-2.6-git/mm/swapfile.c
 ===================================================================
---- linux-2.6-git-2.orig/mm/vmscan.c
-+++ linux-2.6-git-2/mm/vmscan.c
-@@ -352,7 +352,7 @@ static try_pageout_t try_pageout(struct 
- 	if (PageWriteback(page))
+--- linux-2.6-git.orig/mm/swapfile.c
++++ linux-2.6-git/mm/swapfile.c
+@@ -421,7 +421,7 @@ static void unuse_pte(struct vm_area_str
+ 	 * Move the page to the active list so it is not
+ 	 * immediately swapped out again after swapon.
+ 	 */
+-	activate_page(page);
++	mark_page_accessed(page);
+ }
+ 
+ static int unuse_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
+@@ -523,7 +523,7 @@ static int unuse_mm(struct mm_struct *mm
+ 		 * Activate page so shrink_cache is unlikely to unmap its
+ 		 * ptes while lock is dropped, so swapoff can make progress.
+ 		 */
+-		activate_page(page);
++		mark_page_accessed(page);
+ 		unlock_page(page);
+ 		down_read(&mm->mmap_sem);
+ 		lock_page(page);
+Index: linux-2.6-git/mm/vmscan.c
+===================================================================
+--- linux-2.6-git.orig/mm/vmscan.c
++++ linux-2.6-git/mm/vmscan.c
+@@ -219,27 +219,6 @@ static int shrink_slab(unsigned long sca
+ 	return ret;
+ }
+ 
+-/* Called without lock on whether page is mapped, so answer is unstable */
+-static inline int page_mapping_inuse(struct page *page)
+-{
+-	struct address_space *mapping;
+-
+-	/* Page is in somebody's page tables. */
+-	if (page_mapped(page))
+-		return 1;
+-
+-	/* Be more reluctant to reclaim swapcache than pagecache */
+-	if (PageSwapCache(page))
+-		return 1;
+-
+-	mapping = page_mapping(page);
+-	if (!mapping)
+-		return 0;
+-
+-	/* File is mmap'd by somebody? */
+-	return mapping_mapped(mapping);
+-}
+-
+ static inline int is_page_cache_freeable(struct page *page)
+ {
+ 	return page_count(page) - !!PagePrivate(page) == 2;
+@@ -374,8 +353,8 @@ static try_pageout_t try_pageout(struct 
  		goto keep_locked;
  
--	referenced = page_referenced(page, 1);
-+	referenced = page_referenced(page, 1, 0);
- 
- 		if (referenced)
+ 	referenced = page_referenced(page, 1);
+-	/* In active use or really unfreeable?  Activate it. */
+-	if (referenced && page_mapping_inuse(page))
++
++	if (referenced)
  		goto activate_locked;
+ 
+ #ifdef CONFIG_SWAP
+Index: linux-2.6-git/mm/shmem.c
+===================================================================
+--- linux-2.6-git.orig/mm/shmem.c
++++ linux-2.6-git/mm/shmem.c
+@@ -1499,11 +1499,7 @@ static void do_shmem_file_read(struct fi
+ 			 */
+ 			if (mapping_writably_mapped(mapping))
+ 				flush_dcache_page(page);
+-			/*
+-			 * Mark the page accessed if we read the beginning.
+-			 */
+-			if (!offset)
+-				mark_page_accessed(page);
++			mark_page_accessed(page);
+ 		} else {
+ 			page = ZERO_PAGE(0);
+ 			page_cache_get(page);
+Index: linux-2.6-git/include/linux/mm_page_replace.h
+===================================================================
+--- linux-2.6-git.orig/include/linux/mm_page_replace.h
++++ linux-2.6-git/include/linux/mm_page_replace.h
+@@ -67,20 +67,6 @@ add_page_to_active_list(struct zone *zon
+ }
+ 
+ static inline void
+-del_page_from_active_list(struct zone *zone, struct page *page)
+-{
+-	list_del(&page->lru);
+-	zone->nr_active--;
+-}
+-
+-static inline void
+-del_page_from_inactive_list(struct zone *zone, struct page *page)
+-{
+-	list_del(&page->lru);
+-	zone->nr_inactive--;
+-}
+-
+-static inline void
+ del_page_from_lru(struct zone *zone, struct page *page)
+ {
+ 	list_del(&page->lru);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
