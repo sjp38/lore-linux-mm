@@ -1,9 +1,9 @@
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Message-Id: <20051230224132.765.18970.sendpatchset@twins.localnet>
+Message-Id: <20051230224152.765.28577.sendpatchset@twins.localnet>
 In-Reply-To: <20051230223952.765.21096.sendpatchset@twins.localnet>
 References: <20051230223952.765.21096.sendpatchset@twins.localnet>
-Subject: [PATCH 10/14] page-replace-remove-mm_inline.patch
-Date: Fri, 30 Dec 2005 23:41:54 +0100
+Subject: [PATCH 12/14] page-replace-rotate.patch
+Date: Fri, 30 Dec 2005 23:42:14 +0100
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
@@ -12,148 +12,88 @@ List-ID: <linux-mm.kvack.org>
 
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
 
-Move the few mm_inline function to the new files.
+page-replace interface function:
+  __page_replace_rotate_reclaimable()
+
+This function moves the page so that it will be available to the next
+candidate scan.
+
+Removes the knowledge of the page reclaim lists from the actual function.
 
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 
- include/linux/mm_inline.h       |   40 ----------------------------------------
- include/linux/mm_page_replace.h |   33 +++++++++++++++++++++++++++++++++
- mm/page_replace.c               |    7 ++++++-
- mm/swap.c                       |    1 -
- mm/vmscan.c                     |    1 -
- 5 files changed, 39 insertions(+), 43 deletions(-)
+ include/linux/mm_page_replace.h |   15 ++++++++++++++-
+ mm/page_replace.c               |    1 -
+ mm/swap.c                       |    6 +-----
+ 3 files changed, 15 insertions(+), 7 deletions(-)
 
-Index: linux-2.6-git/include/linux/mm_inline.h
-===================================================================
---- linux-2.6-git.orig/include/linux/mm_inline.h
-+++ /dev/null
-@@ -1,40 +0,0 @@
--
--static inline void
--add_page_to_active_list(struct zone *zone, struct page *page)
--{
--	list_add(&page->lru, &zone->active_list);
--	zone->nr_active++;
--}
--
--static inline void
--add_page_to_inactive_list(struct zone *zone, struct page *page)
--{
--	list_add(&page->lru, &zone->inactive_list);
--	zone->nr_inactive++;
--}
--
--static inline void
--del_page_from_active_list(struct zone *zone, struct page *page)
--{
--	list_del(&page->lru);
--	zone->nr_active--;
--}
--
--static inline void
--del_page_from_inactive_list(struct zone *zone, struct page *page)
--{
--	list_del(&page->lru);
--	zone->nr_inactive--;
--}
--
--static inline void
--del_page_from_lru(struct zone *zone, struct page *page)
--{
--	list_del(&page->lru);
--	if (PageActive(page)) {
--		ClearPageActive(page);
--		zone->nr_active--;
--	} else {
--		zone->nr_inactive--;
--	}
--}
 Index: linux-2.6-git/include/linux/mm_page_replace.h
 ===================================================================
 --- linux-2.6-git.orig/include/linux/mm_page_replace.h
 +++ linux-2.6-git/include/linux/mm_page_replace.h
-@@ -47,5 +47,38 @@ void page_replace_reinsert(struct zone *
+@@ -6,6 +6,7 @@
+ #include <linux/mmzone.h>
+ #include <linux/mm.h>
+ #include <linux/list.h>
++#include <linux/page-flags.h>
  
- int isolate_lru_pages(int, struct list_head *, struct list_head *, int *);
+ #define lru_to_page(_head) (list_entry((_head)->prev, struct page, lru))
  
-+static inline void
-+add_page_to_active_list(struct zone *zone, struct page *page)
-+{
-+	list_add(&page->lru, &zone->active_list);
-+	zone->nr_active++;
-+}
+@@ -39,12 +40,24 @@
+ 
+ void __page_replace_insert(struct zone *, struct page *);
+ void page_replace_candidates(struct zone *, int, struct list_head *);
+-static inline void page_replace_activate(struct page *page)
 +
-+static inline void
-+del_page_from_active_list(struct zone *zone, struct page *page)
-+{
-+	list_del(&page->lru);
-+	zone->nr_active--;
-+}
++static inline
++void page_replace_activate(struct page *page)
+ {
+ 	SetPageActive(page);
+ }
 +
-+static inline void
-+del_page_from_inactive_list(struct zone *zone, struct page *page)
+ void page_replace_reinsert(struct zone *, struct list_head *);
+ 
++static inline
++void __page_replace_rotate_reclaimable(struct zone *zone, struct page *page)
 +{
-+	list_del(&page->lru);
-+	zone->nr_inactive--;
-+}
-+
-+static inline void
-+del_page_from_lru(struct zone *zone, struct page *page)
-+{
-+	list_del(&page->lru);
-+	if (PageActive(page)) {
-+		ClearPageActive(page);
-+		zone->nr_active--;
-+	} else {
-+		zone->nr_inactive--;
++	if (PageLRU(page) && !PageActive(page)) {
++		list_move_tail(&page->lru, &zone->inactive_list);
++		inc_page_state(pgrotated);
 +	}
 +}
 +
- #endif /* __KERNEL__ */
- #endif /* _LINUX_MM_PAGE_REPLACE_H */
+ static inline void
+ add_page_to_active_list(struct zone *zone, struct page *page)
+ {
 Index: linux-2.6-git/mm/page_replace.c
 ===================================================================
 --- linux-2.6-git.orig/mm/page_replace.c
 +++ linux-2.6-git/mm/page_replace.c
-@@ -1,8 +1,13 @@
+@@ -1,7 +1,6 @@
  #include <linux/mm_page_replace.h>
--#include <linux/mm_inline.h>
  #include <linux/swap.h>
  #include <linux/pagevec.h>
- 
-+static inline void
-+add_page_to_inactive_list(struct zone *zone, struct page *page)
-+{
-+	list_add(&page->lru, &zone->inactive_list);
-+	zone->nr_inactive++;
-+}
- 
- void __page_replace_insert(struct zone *zone, struct page *page)
- {
+-#include <linux/page-flags.h>
+ #include <linux/init.h>
+ #include <linux/rmap.h>
+ #include <linux/buffer_head.h>	/* for try_to_release_page(),
 Index: linux-2.6-git/mm/swap.c
 ===================================================================
 --- linux-2.6-git.orig/mm/swap.c
 +++ linux-2.6-git/mm/swap.c
-@@ -22,7 +22,6 @@
- #include <linux/pagevec.h>
- #include <linux/init.h>
- #include <linux/module.h>
--#include <linux/mm_inline.h>
- #include <linux/buffer_head.h>	/* for try_to_release_page() */
- #include <linux/module.h>
- #include <linux/percpu_counter.h>
-Index: linux-2.6-git/mm/vmscan.c
-===================================================================
---- linux-2.6-git.orig/mm/vmscan.c
-+++ linux-2.6-git/mm/vmscan.c
-@@ -24,7 +24,6 @@
- #include <linux/blkdev.h>
- #include <linux/buffer_head.h>	/* for try_to_release_page(),
- 					buffer_heads_over_limit */
--#include <linux/mm_inline.h>
- #include <linux/pagevec.h>
- #include <linux/backing-dev.h>
- #include <linux/rmap.h>
+@@ -82,11 +82,7 @@ int rotate_reclaimable_page(struct page 
+ 
+ 	zone = page_zone(page);
+ 	spin_lock_irqsave(&zone->lru_lock, flags);
+-	if (PageLRU(page) && !PageActive(page)) {
+-		list_del(&page->lru);
+-		list_add_tail(&page->lru, &zone->inactive_list);
+-		inc_page_state(pgrotated);
+-	}
++	__page_replace_rotate_reclaimable(zone, page);
+ 	if (!test_clear_page_writeback(page))
+ 		BUG();
+ 	spin_unlock_irqrestore(&zone->lru_lock, flags);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
