@@ -1,9 +1,9 @@
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Message-Id: <20051230224112.765.4023.sendpatchset@twins.localnet>
+Message-Id: <20051230224122.765.59912.sendpatchset@twins.localnet>
 In-Reply-To: <20051230223952.765.21096.sendpatchset@twins.localnet>
 References: <20051230223952.765.21096.sendpatchset@twins.localnet>
-Subject: [PATCH 08/14] page-replace-candidates.patch
-Date: Fri, 30 Dec 2005 23:41:34 +0100
+Subject: [PATCH 09/14] page-replace-reinsert.patch
+Date: Fri, 30 Dec 2005 23:41:44 +0100
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
@@ -13,106 +13,117 @@ List-ID: <linux-mm.kvack.org>
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
 
 page-replace interface function:
-  page_replace_candidates()
+  page_replace_reinsert()
 
-Abstract the taking of candidate reclaim pages and place the new function
-in page_replace.c; the place where all list manupulation happens.
+This function will reinsert those candidate pages that were not
+freed by try_pageout().
 
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 
- include/linux/mm_page_replace.h |    2 ++
- mm/page_replace.c               |   20 ++++++++++++++++++++
- mm/vmscan.c                     |   17 ++---------------
- 3 files changed, 24 insertions(+), 15 deletions(-)
+ include/linux/mm_page_replace.h |    1 +
+ mm/page_replace.c               |   29 +++++++++++++++++++++++++++++
+ mm/vmscan.c                     |   25 +------------------------
+ 3 files changed, 31 insertions(+), 24 deletions(-)
 
-Index: linux-2.6-git-2/include/linux/mm_page_replace.h
+Index: linux-2.6-git/include/linux/mm_page_replace.h
 ===================================================================
---- linux-2.6-git-2.orig/include/linux/mm_page_replace.h
-+++ linux-2.6-git-2/include/linux/mm_page_replace.h
-@@ -5,6 +5,7 @@
- 
- #include <linux/mmzone.h>
- #include <linux/mm.h>
-+#include <linux/list.h>
- 
- #define lru_to_page(_head) (list_entry((_head)->prev, struct page, lru))
- 
-@@ -37,6 +38,7 @@
- #endif
- 
- void __page_replace_insert(struct zone *, struct page *);
-+void page_replace_candidates(struct zone *, int, struct list_head *);
- static inline void page_replace_activate(struct page *page)
+--- linux-2.6-git.orig/include/linux/mm_page_replace.h
++++ linux-2.6-git/include/linux/mm_page_replace.h
+@@ -43,6 +43,7 @@ static inline void page_replace_activate
  {
  	SetPageActive(page);
-Index: linux-2.6-git-2/mm/page_replace.c
+ }
++void page_replace_reinsert(struct zone *, struct list_head *);
+ 
+ int isolate_lru_pages(int, struct list_head *, struct list_head *, int *);
+ 
+Index: linux-2.6-git/mm/page_replace.c
 ===================================================================
---- linux-2.6-git-2.orig/mm/page_replace.c
-+++ linux-2.6-git-2/mm/page_replace.c
-@@ -1,5 +1,6 @@
+--- linux-2.6-git.orig/mm/page_replace.c
++++ linux-2.6-git/mm/page_replace.c
+@@ -1,6 +1,7 @@
  #include <linux/mm_page_replace.h>
  #include <linux/mm_inline.h>
-+#include <linux/swap.h>
+ #include <linux/swap.h>
++#include <linux/pagevec.h>
  
  
  void __page_replace_insert(struct zone *zone, struct page *page)
-@@ -58,3 +59,22 @@ int isolate_lru_pages(int nr_to_scan, st
- 	*scanned = scan;
- 	return nr_taken;
+@@ -78,3 +79,31 @@ void page_replace_candidates(struct zone
+ 		mod_page_state_zone(zone, pgscan_direct, nr_scan);
  }
-+
-+void page_replace_candidates(struct zone *zone, int nr_to_scan, struct list_head *page_list)
+ 
++/*
++ * Put back any unfreeable pages.
++ */
++void page_replace_reinsert(struct zone *zone, struct list_head *page_list)
 +{
-+	int nr_taken;
-+	int nr_scan;
++	struct pagevec pvec;
 +
++	pagevec_init(&pvec, 1);
 +	spin_lock_irq(&zone->lru_lock);
-+	nr_taken = isolate_lru_pages(nr_to_scan, &zone->inactive_list,
-+				     page_list, &nr_scan);
-+	zone->nr_inactive -= nr_taken;
-+	zone->pages_scanned += nr_scan;
++	while (!list_empty(page_list)) {
++		struct page *page = lru_to_page(page_list);
++		BUG_ON(PageLRU(page));
++		SetPageLRU(page);
++		list_del(&page->lru);
++		if (PageActive(page))
++			add_page_to_active_list(zone, page);
++		else
++			add_page_to_inactive_list(zone, page);
++		if (!pagevec_add(&pvec, page)) {
++			spin_unlock_irq(&zone->lru_lock);
++			__pagevec_release(&pvec);
++			spin_lock_irq(&zone->lru_lock);
++		}
++	}
 +	spin_unlock_irq(&zone->lru_lock);
-+
-+	if (current_is_kswapd())
-+		mod_page_state_zone(zone, pgscan_kswapd, nr_scan);
-+	else
-+		mod_page_state_zone(zone, pgscan_direct, nr_scan);
++	pagevec_release(&pvec);
 +}
 +
-Index: linux-2.6-git-2/mm/vmscan.c
+Index: linux-2.6-git/mm/vmscan.c
 ===================================================================
---- linux-2.6-git-2.orig/mm/vmscan.c
-+++ linux-2.6-git-2/mm/vmscan.c
-@@ -575,27 +575,14 @@ static void shrink_cache(struct zone *zo
+--- linux-2.6-git.orig/mm/vmscan.c
++++ linux-2.6-git/mm/vmscan.c
+@@ -573,8 +573,6 @@ static int shrink_list(struct list_head 
+ static void shrink_cache(struct zone *zone, struct scan_control *sc)
+ {
  	LIST_HEAD(page_list);
- 	struct pagevec pvec;
- 	struct page *page;
--	int nr_taken;
--	int nr_scan;
+-	struct pagevec pvec;
+-	struct page *page;
  	int nr_freed;
  
  	lru_add_drain();
+@@ -589,28 +587,7 @@ static void shrink_cache(struct zone *zo
+ 	mod_page_state_zone(zone, pgsteal, nr_freed);
+ 	sc->nr_to_reclaim -= nr_freed;
  
+-	/*
+-	 * Put back any unfreeable pages.
+-	 */
+-	pagevec_init(&pvec, 1);
 -	spin_lock_irq(&zone->lru_lock);
--	nr_taken = isolate_lru_pages(sc->nr_to_scan,
--				     &zone->inactive_list,
--				     &page_list, &nr_scan);
--	zone->nr_inactive -= nr_taken;
--	zone->pages_scanned += nr_scan;
+-	while (!list_empty(&page_list)) {
+-		page = lru_to_page(&page_list);
+-		if (TestSetPageLRU(page))
+-			BUG();
+-		list_del(&page->lru);
+-		if (PageActive(page))
+-			add_page_to_active_list(zone, page);
+-		else
+-			add_page_to_inactive_list(zone, page);
+-		if (!pagevec_add(&pvec, page)) {
+-			spin_unlock_irq(&zone->lru_lock);
+-			__pagevec_release(&pvec);
+-			spin_lock_irq(&zone->lru_lock);
+-		}
+-	}
 -	spin_unlock_irq(&zone->lru_lock);
--
--	if (nr_taken == 0)
-+	page_replace_candidates(zone, sc->nr_to_scan, &page_list);
-+	if (list_empty(&page_list))
- 		return;
+-	pagevec_release(&pvec);
++	page_replace_reinsert(zone, &page_list);
+ }
  
--	if (current_is_kswapd())
--		mod_page_state_zone(zone, pgscan_kswapd, nr_scan);
--	else
--		mod_page_state_zone(zone, pgscan_direct, nr_scan);
- 	nr_freed = shrink_list(&page_list, sc);
- 	if (current_is_kswapd())
- 		mod_page_state(kswapd_steal, nr_freed);
+ /*
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
