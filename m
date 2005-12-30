@@ -1,9 +1,9 @@
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Message-Id: <20051230224032.765.94689.sendpatchset@twins.localnet>
+Message-Id: <20051230224052.765.81067.sendpatchset@twins.localnet>
 In-Reply-To: <20051230223952.765.21096.sendpatchset@twins.localnet>
 References: <20051230223952.765.21096.sendpatchset@twins.localnet>
-Subject: [PATCH 04/14] page-replace-activate_page.patch
-Date: Fri, 30 Dec 2005 23:40:54 +0100
+Subject: [PATCH 06/14] page-replace-move-macros.patch
+Date: Fri, 30 Dec 2005 23:41:14 +0100
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
@@ -12,53 +12,89 @@ List-ID: <linux-mm.kvack.org>
 
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
 
-page-replace interface function:
-  page_replace_activate()
-
-This function will modify the page state for a reference action.
+Move some utility marco's to the new common header to they can be used
+by the code moved over to page_replace.c
 
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 
- include/linux/mm_page_replace.h |    4 ++++
- mm/vmscan.c                     |    3 ++-
- 2 files changed, 6 insertions(+), 1 deletion(-)
-
-Index: linux-2.6-git/include/linux/mm_page_replace.h
-===================================================================
---- linux-2.6-git.orig/include/linux/mm_page_replace.h	2005-12-10 17:13:56.000000000 +0100
-+++ linux-2.6-git/include/linux/mm_page_replace.h	2005-12-10 18:19:30.000000000 +0100
-@@ -7,6 +7,10 @@
+--- linux-2.6-git.orig/include/linux/mm_page_replace.h	2005-12-10 20:50:44.000000000 +0100
++++ linux-2.6-git/include/linux/mm_page_replace.h	2005-12-10 20:53:12.000000000 +0100
+@@ -6,6 +6,36 @@
+ #include <linux/mmzone.h>
  #include <linux/mm.h>
  
++#define lru_to_page(_head) (list_entry((_head)->prev, struct page, lru))
++
++#ifdef ARCH_HAS_PREFETCH
++#define prefetch_prev_lru_page(_page, _base, _field)			\
++	do {								\
++		if ((_page)->lru.prev != _base) {			\
++			struct page *prev;				\
++									\
++			prev = lru_to_page(&(_page->lru));		\
++			prefetch(&prev->_field);			\
++		}							\
++	} while (0)
++#else
++#define prefetch_prev_lru_page(_page, _base, _field) do { } while (0)
++#endif
++
++#ifdef ARCH_HAS_PREFETCHW
++#define prefetchw_prev_lru_page(_page, _base, _field)			\
++	do {								\
++		if ((_page)->lru.prev != _base) {			\
++			struct page *prev;				\
++									\
++			prev = lru_to_page(&(_page->lru));		\
++			prefetchw(&prev->_field);			\
++		}							\
++	} while (0)
++#else
++#define prefetchw_prev_lru_page(_page, _base, _field) do { } while (0)
++#endif
++
  void __page_replace_insert(struct zone *, struct page *);
-+static inline void page_replace_activate(struct page *page)
-+{
-+	SetPageActive(page);
-+}
+ static inline void page_replace_activate(struct page *page)
+ {
+--- linux-2.6-git.orig/mm/vmscan.c	2005-12-10 20:50:44.000000000 +0100
++++ linux-2.6-git/mm/vmscan.c	2005-12-10 20:53:12.000000000 +0100
+@@ -104,36 +104,6 @@
+ 	long			nr;	/* objs pending delete */
+ };
  
- #endif /* __KERNEL__ */
- #endif /* _LINUX_MM_PAGE_REPLACE_H */
-Index: linux-2.6-git/mm/vmscan.c
-===================================================================
---- linux-2.6-git.orig/mm/vmscan.c	2005-12-10 17:13:57.000000000 +0100
-+++ linux-2.6-git/mm/vmscan.c	2005-12-10 18:19:34.000000000 +0100
-@@ -33,6 +33,7 @@
- #include <linux/cpuset.h>
- #include <linux/notifier.h>
- #include <linux/rwsem.h>
-+#include <linux/mm_page_replace.h>
- 
- #include <asm/tlbflush.h>
- #include <asm/div64.h>
-@@ -573,7 +574,7 @@ static int shrink_list(struct list_head 
- 
- 		switch(try_pageout(page, sc)) {
- 		case PAGEOUT_ACTIVATE:
--			SetPageActive(page);
-+			page_replace_activate(page);
- 			pgactivate++;
- 			/* fall through */
- 		case PAGEOUT_KEEP:
+-#define lru_to_page(_head) (list_entry((_head)->prev, struct page, lru))
+-
+-#ifdef ARCH_HAS_PREFETCH
+-#define prefetch_prev_lru_page(_page, _base, _field)			\
+-	do {								\
+-		if ((_page)->lru.prev != _base) {			\
+-			struct page *prev;				\
+-									\
+-			prev = lru_to_page(&(_page->lru));		\
+-			prefetch(&prev->_field);			\
+-		}							\
+-	} while (0)
+-#else
+-#define prefetch_prev_lru_page(_page, _base, _field) do { } while (0)
+-#endif
+-
+-#ifdef ARCH_HAS_PREFETCHW
+-#define prefetchw_prev_lru_page(_page, _base, _field)			\
+-	do {								\
+-		if ((_page)->lru.prev != _base) {			\
+-			struct page *prev;				\
+-									\
+-			prev = lru_to_page(&(_page->lru));		\
+-			prefetchw(&prev->_field);			\
+-		}							\
+-	} while (0)
+-#else
+-#define prefetchw_prev_lru_page(_page, _base, _field) do { } while (0)
+-#endif
+-
+ /*
+  * From 0 .. 100.  Higher means more swappy.
+  */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
