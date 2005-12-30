@@ -1,175 +1,106 @@
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Message-Id: <20051230224212.765.38527.sendpatchset@twins.localnet>
+Message-Id: <20051230224233.765.82740.sendpatchset@twins.localnet>
 In-Reply-To: <20051230223952.765.21096.sendpatchset@twins.localnet>
 References: <20051230223952.765.21096.sendpatchset@twins.localnet>
-Subject: [PATCH 14/14] page-replace-kswapd-incmin.patch
-Date: Fri, 30 Dec 2005 23:42:34 +0100
+Subject: [PATCH 2/9] clockpro-nonresident-del.patch
+Date: Fri, 30 Dec 2005 23:42:54 +0100
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 Cc: Andrew Morton <akpm@osdl.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Christoph Lameter <christoph@lameter.com>, Wu Fengguang <wfg@mail.ustc.edu.cn>, Nick Piggin <npiggin@suse.de>, Marijn Meijles <marijn@bitpit.net>, Rik van Riel <riel@redhat.com>, Marcelo Tosatti <marcelo.tosatti@cyclades.com>
 List-ID: <linux-mm.kvack.org>
 
-From: Nick Piggin <npiggin@suse.de>
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
 
-Explicitly teach kswapd about the incremental min logic instead of just scanning
-all zones under the first low zone. This should keep more even pressure applied
-on the zones.
+Since the coupling of the resident and nonresident clocks depend on the 
+actual number of nonresident pages present, stale entries influence the
+actual behaviour. Hence we remove the nonresident pages from the map.
 
-The new shrink_zone() logic exposes the very worst side of the current
-balance_pgdat() function. Without this patch reclaim is limited to ZONE_DMA.
-
-Signed-off-by: Nick Piggin <npiggin@suse.de>
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
-
  
- mm/vmscan.c |   97 +++++++++++++++++++++---------------------------------------
- 1 file changed, 34 insertions(+), 63 deletions(-)
+ mm/memory.c   |   24 ++++++++++++++++++++++++
+ mm/swapfile.c |   12 ++++++++++--
+ 2 files changed, 34 insertions(+), 2 deletions(-)
 
-Index: linux-2.6-git/mm/vmscan.c
+Index: linux-2.6-git/mm/swapfile.c
 ===================================================================
---- linux-2.6-git.orig/mm/vmscan.c
-+++ linux-2.6-git/mm/vmscan.c
-@@ -790,46 +790,18 @@ loop_again:
+--- linux-2.6-git.orig/mm/swapfile.c
++++ linux-2.6-git/mm/swapfile.c
+@@ -278,7 +278,8 @@ void swap_free(swp_entry_t entry)
+ 
+ 	p = swap_info_get(entry);
+ 	if (p) {
+-		swap_entry_free(p, swp_offset(entry));
++		if (!swap_entry_free(p, swp_offset(entry)))
++			nonresident_get(&swapper_space, entry.val);
+ 		spin_unlock(&swap_lock);
  	}
+ }
+@@ -375,8 +376,15 @@ void free_swap_and_cache(swp_entry_t ent
  
- 	for (priority = DEF_PRIORITY; priority >= 0; priority--) {
--		int end_zone = 0;	/* Inclusive.  0 = ZONE_DMA */
- 		unsigned long lru_pages = 0;
- 
-+		all_zones_ok = 1;
-+		sc.nr_scanned = 0;
-+		sc.nr_reclaimed = 0;
-+		sc.priority = priority;
-+		sc.swap_cluster_max = nr_pages ? nr_pages : SWAP_CLUSTER_MAX;
+ 	p = swap_info_get(entry);
+ 	if (p) {
+-		if (swap_entry_free(p, swp_offset(entry)) == 1)
++		switch (swap_entry_free(p, swp_offset(entry))) {
++		case 1:
+ 			page = find_trylock_page(&swapper_space, entry.val);
++			break;
 +
- 		/* The swap token gets in the way of swapout... */
- 		if (!priority)
- 			disable_swap_token();
++		case 0:
++			nonresident_get(&swapper_space, entry.val);
++			break;
++		}
+ 		spin_unlock(&swap_lock);
+ 	}
+ 	if (page) {
+Index: linux-2.6-git/mm/memory.c
+===================================================================
+--- linux-2.6-git.orig/mm/memory.c
++++ linux-2.6-git/mm/memory.c
+@@ -595,6 +595,27 @@ int copy_page_range(struct mm_struct *ds
+ 	return 0;
+ }
  
--		all_zones_ok = 1;
--
--		if (nr_pages == 0) {
--			/*
--			 * Scan in the highmem->dma direction for the highest
--			 * zone which needs scanning
--			 */
--			for (i = pgdat->nr_zones - 1; i >= 0; i--) {
--				struct zone *zone = pgdat->node_zones + i;
--
--				if (zone->present_pages == 0)
--					continue;
--
--				if (zone->all_unreclaimable &&
--						priority != DEF_PRIORITY)
--					continue;
--
--				if (!zone_watermark_ok(zone, order,
--						zone->pages_high, 0, 0)) {
--					end_zone = i;
--					goto scan;
--				}
--			}
--			goto out;
--		} else {
--			end_zone = pgdat->nr_zones - 1;
--		}
--scan:
--		for (i = 0; i <= end_zone; i++) {
--			struct zone *zone = pgdat->node_zones + i;
--
--			lru_pages += zone->nr_active + zone->nr_inactive;
--		}
- 
- 		/*
- 		 * Now scan the zone in the dma->highmem direction, stopping
-@@ -840,51 +812,51 @@ scan:
- 		 * pages behind kswapd's direction of progress, which would
- 		 * cause too much scanning of the lower zones.
- 		 */
--		for (i = 0; i <= end_zone; i++) {
-+		for (i = 0; i <= pgdat->nr_zones; i++) {
- 			struct zone *zone = pgdat->node_zones + i;
--			int nr_slab;
- 
- 			if (zone->present_pages == 0)
- 				continue;
- 
-+			if (nr_pages == 0) {	/* Not software suspend */
-+				if (zone_watermark_ok(zone, order,
-+						      zone->pages_high, 0, 0))
-+					continue;
++static void free_file(struct vm_area_struct *vma,
++				unsigned long offset)
++{
++	struct address_space *mapping;
++	struct page *page;
 +
-+				all_zones_ok = 0;
-+			}
++	if (!vma ||
++	    !vma->vm_file ||
++	    !vma->vm_file->f_mapping)
++		return;
 +
- 			if (zone->all_unreclaimable && priority != DEF_PRIORITY)
- 				continue;
- 
--			if (nr_pages == 0) {	/* Not software suspend */
--				if (!zone_watermark_ok(zone, order,
--						zone->pages_high, end_zone, 0))
--					all_zones_ok = 0;
--			}
- 			zone->temp_priority = priority;
- 			if (zone->prev_priority > priority)
- 				zone->prev_priority = priority;
--			sc.nr_scanned = 0;
--			sc.nr_reclaimed = 0;
--			sc.priority = priority;
--			sc.swap_cluster_max = nr_pages? nr_pages : SWAP_CLUSTER_MAX;
-+			lru_pages += zone->nr_active + zone->nr_inactive;
++	mapping = vma->vm_file->f_mapping;
++	page = find_get_page(mapping, offset);
++	if (page) {
++		page_cache_release(page);
++		return;
++	}
 +
- 			atomic_inc(&zone->reclaim_in_progress);
- 			shrink_zone(zone, &sc);
- 			atomic_dec(&zone->reclaim_in_progress);
--			reclaim_state->reclaimed_slab = 0;
--			nr_slab = shrink_slab(sc.nr_scanned, GFP_KERNEL,
--						lru_pages);
--			sc.nr_reclaimed += reclaim_state->reclaimed_slab;
--			total_reclaimed += sc.nr_reclaimed;
--			total_scanned += sc.nr_scanned;
--			if (zone->all_unreclaimable)
--				continue;
--			if (nr_slab == 0 && zone->pages_scanned >=
++	nonresident_get(mapping, offset);
++}
 +
-+			if (zone->pages_scanned >=
- 				    (zone->nr_active + zone->nr_inactive) * 4)
- 				zone->all_unreclaimable = 1;
--			/*
--			 * If we've done a decent amount of scanning and
--			 * the reclaim ratio is low, start doing writepage
--			 * even in laptop mode
--			 */
--			if (total_scanned > SWAP_CLUSTER_MAX * 2 &&
--			    total_scanned > total_reclaimed+total_reclaimed/2)
--				sc.may_writepage = 1;
+ static unsigned long zap_pte_range(struct mmu_gather *tlb,
+ 				struct vm_area_struct *vma, pmd_t *pmd,
+ 				unsigned long addr, unsigned long end,
+@@ -610,6 +631,7 @@ static unsigned long zap_pte_range(struc
+ 	do {
+ 		pte_t ptent = *pte;
+ 		if (pte_none(ptent)) {
++			free_file(vma, pte_to_pgoff(ptent));
+ 			(*zap_work)--;
+ 			continue;
  		}
-+		reclaim_state->reclaimed_slab = 0;
-+		shrink_slab(sc.nr_scanned, GFP_KERNEL, lru_pages);
-+		sc.nr_reclaimed += reclaim_state->reclaimed_slab;
-+		total_reclaimed += sc.nr_reclaimed;
-+		total_scanned += sc.nr_scanned;
-+
-+		/*
-+		 * If we've done a decent amount of scanning and
-+		 * the reclaim ratio is low, start doing writepage
-+		 * even in laptop mode
-+		 */
-+		if (total_scanned > SWAP_CLUSTER_MAX * 2 &&
-+		    total_scanned > total_reclaimed+total_reclaimed/2)
-+			sc.may_writepage = 1;
-+
- 		if (nr_pages && to_free > total_reclaimed)
- 			continue;	/* swsusp: need to do more work */
- 		if (all_zones_ok)
-@@ -905,7 +877,6 @@ scan:
- 		if ((total_reclaimed >= SWAP_CLUSTER_MAX) && (!nr_pages))
- 			break;
- 	}
--out:
- 	for (i = 0; i < pgdat->nr_zones; i++) {
- 		struct zone *zone = pgdat->node_zones + i;
+@@ -668,6 +690,8 @@ static unsigned long zap_pte_range(struc
+ 			continue;
+ 		if (!pte_file(ptent))
+ 			free_swap_and_cache(pte_to_swp_entry(ptent));
++		else
++			free_file(vma, pte_to_pgoff(ptent));
+ 		pte_clear_full(mm, addr, pte, tlb->fullmm);
+ 	} while (pte++, addr += PAGE_SIZE, (addr != end && *zap_work > 0));
  
 
 --
