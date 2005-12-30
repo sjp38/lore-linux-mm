@@ -1,9 +1,9 @@
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Message-Id: <20051230224102.765.75148.sendpatchset@twins.localnet>
+Message-Id: <20051230224112.765.4023.sendpatchset@twins.localnet>
 In-Reply-To: <20051230223952.765.21096.sendpatchset@twins.localnet>
 References: <20051230223952.765.21096.sendpatchset@twins.localnet>
-Subject: [PATCH 07/14] page-replace-move-isolate_lru_pages.patch
-Date: Fri, 30 Dec 2005 23:41:24 +0100
+Subject: [PATCH 08/14] page-replace-candidates.patch
+Date: Fri, 30 Dec 2005 23:41:34 +0100
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
@@ -12,132 +12,107 @@ List-ID: <linux-mm.kvack.org>
 
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
 
-Manipulation of the page lists is done exclusivly in page_replace.c.
+page-replace interface function:
+  page_replace_candidates()
+
+Abstract the taking of candidate reclaim pages and place the new function
+in page_replace.c; the place where all list manupulation happens.
 
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 
---- linux-2.6-git.orig/include/linux/mm_page_replace.h	2005-12-10 23:41:17.000000000 +0100
-+++ linux-2.6-git/include/linux/mm_page_replace.h	2005-12-11 11:27:39.000000000 +0100
-@@ -43,4 +43,6 @@
- }
+ include/linux/mm_page_replace.h |    2 ++
+ mm/page_replace.c               |   20 ++++++++++++++++++++
+ mm/vmscan.c                     |   17 ++---------------
+ 3 files changed, 24 insertions(+), 15 deletions(-)
+
+Index: linux-2.6-git-2/include/linux/mm_page_replace.h
+===================================================================
+--- linux-2.6-git-2.orig/include/linux/mm_page_replace.h
++++ linux-2.6-git-2/include/linux/mm_page_replace.h
+@@ -5,6 +5,7 @@
  
-+int isolate_lru_pages(int, struct list_head *, struct list_head *, int *);
-+
- #endif /* __KERNEL__ */
- #endif /* _LINUX_MM_PAGE_REPLACE_H */
---- linux-2.6-git.orig/mm/page_replace.c	2005-12-10 23:41:17.000000000 +0100
-+++ linux-2.6-git/mm/page_replace.c	2005-12-11 11:27:39.000000000 +0100
-@@ -9,3 +9,52 @@ void __page_replace_insert(struct zone *
- 	else
- 		add_page_to_inactive_list(zone, page);
+ #include <linux/mmzone.h>
+ #include <linux/mm.h>
++#include <linux/list.h>
+ 
+ #define lru_to_page(_head) (list_entry((_head)->prev, struct page, lru))
+ 
+@@ -37,6 +38,7 @@
+ #endif
+ 
+ void __page_replace_insert(struct zone *, struct page *);
++void page_replace_candidates(struct zone *, int, struct list_head *);
+ static inline void page_replace_activate(struct page *page)
+ {
+ 	SetPageActive(page);
+Index: linux-2.6-git-2/mm/page_replace.c
+===================================================================
+--- linux-2.6-git-2.orig/mm/page_replace.c
++++ linux-2.6-git-2/mm/page_replace.c
+@@ -1,5 +1,6 @@
+ #include <linux/mm_page_replace.h>
+ #include <linux/mm_inline.h>
++#include <linux/swap.h>
+ 
+ 
+ void __page_replace_insert(struct zone *zone, struct page *page)
+@@ -58,3 +59,22 @@ int isolate_lru_pages(int nr_to_scan, st
+ 	*scanned = scan;
+ 	return nr_taken;
  }
 +
-+/*
-+ * zone->lru_lock is heavily contended.  Some of the functions that
-+ * shrink the lists perform better by taking out a batch of pages
-+ * and working on them outside the LRU lock.
-+ *
-+ * For pagecache intensive workloads, this function is the hottest
-+ * spot in the kernel (apart from copy_*_user functions).
-+ *
-+ * Appropriate locks must be held before calling this function.
-+ *
-+ * @nr_to_scan:	The number of pages to look through on the list.
-+ * @src:	The LRU list to pull pages off.
-+ * @dst:	The temp list to put pages on to.
-+ * @scanned:	The number of pages that were scanned.
-+ *
-+ * returns how many pages were moved onto *@dst.
-+ */
-+int isolate_lru_pages(int nr_to_scan, struct list_head *src,
-+		      struct list_head *dst, int *scanned)
++void page_replace_candidates(struct zone *zone, int nr_to_scan, struct list_head *page_list)
 +{
-+	int nr_taken = 0;
-+	struct page *page;
-+	int scan = 0;
++	int nr_taken;
++	int nr_scan;
 +
-+	while (scan++ < nr_to_scan && !list_empty(src)) {
-+		page = lru_to_page(src);
-+		prefetchw_prev_lru_page(page, src, flags);
++	spin_lock_irq(&zone->lru_lock);
++	nr_taken = isolate_lru_pages(nr_to_scan, &zone->inactive_list,
++				     page_list, &nr_scan);
++	zone->nr_inactive -= nr_taken;
++	zone->pages_scanned += nr_scan;
++	spin_unlock_irq(&zone->lru_lock);
 +
-+		if (!TestClearPageLRU(page))
-+			BUG();
-+		list_del(&page->lru);
-+		if (get_page_testone(page)) {
-+			/*
-+			 * It is being freed elsewhere
-+			 */
-+			__put_page(page);
-+			SetPageLRU(page);
-+			list_add(&page->lru, src);
-+			continue;
-+		} else {
-+			list_add(&page->lru, dst);
-+			nr_taken++;
-+		}
-+	}
-+
-+	*scanned = scan;
-+	return nr_taken;
++	if (current_is_kswapd())
++		mod_page_state_zone(zone, pgscan_kswapd, nr_scan);
++	else
++		mod_page_state_zone(zone, pgscan_direct, nr_scan);
 +}
---- linux-2.6-git.orig/mm/vmscan.c	2005-12-10 23:41:17.000000000 +0100
-+++ linux-2.6-git/mm/vmscan.c	2005-12-11 11:27:39.000000000 +0100
-@@ -568,55 +568,6 @@
- }
++
+Index: linux-2.6-git-2/mm/vmscan.c
+===================================================================
+--- linux-2.6-git-2.orig/mm/vmscan.c
++++ linux-2.6-git-2/mm/vmscan.c
+@@ -575,27 +575,14 @@ static void shrink_cache(struct zone *zo
+ 	LIST_HEAD(page_list);
+ 	struct pagevec pvec;
+ 	struct page *page;
+-	int nr_taken;
+-	int nr_scan;
+ 	int nr_freed;
  
- /*
-- * zone->lru_lock is heavily contended.  Some of the functions that
-- * shrink the lists perform better by taking out a batch of pages
-- * and working on them outside the LRU lock.
-- *
-- * For pagecache intensive workloads, this function is the hottest
-- * spot in the kernel (apart from copy_*_user functions).
-- *
-- * Appropriate locks must be held before calling this function.
-- *
-- * @nr_to_scan:	The number of pages to look through on the list.
-- * @src:	The LRU list to pull pages off.
-- * @dst:	The temp list to put pages on to.
-- * @scanned:	The number of pages that were scanned.
-- *
-- * returns how many pages were moved onto *@dst.
-- */
--static int isolate_lru_pages(int nr_to_scan, struct list_head *src,
--			     struct list_head *dst, int *scanned)
--{
--	int nr_taken = 0;
--	struct page *page;
--	int scan = 0;
+ 	lru_add_drain();
+ 
+-	spin_lock_irq(&zone->lru_lock);
+-	nr_taken = isolate_lru_pages(sc->nr_to_scan,
+-				     &zone->inactive_list,
+-				     &page_list, &nr_scan);
+-	zone->nr_inactive -= nr_taken;
+-	zone->pages_scanned += nr_scan;
+-	spin_unlock_irq(&zone->lru_lock);
 -
--	while (scan++ < nr_to_scan && !list_empty(src)) {
--		page = lru_to_page(src);
--		prefetchw_prev_lru_page(page, src, flags);
--
--		if (!TestClearPageLRU(page))
--			BUG();
--		list_del(&page->lru);
--		if (get_page_testone(page)) {
--			/*
--			 * It is being freed elsewhere
--			 */
--			__put_page(page);
--			SetPageLRU(page);
--			list_add(&page->lru, src);
--			continue;
--		} else {
--			list_add(&page->lru, dst);
--			nr_taken++;
--		}
--	}
--
--	*scanned = scan;
--	return nr_taken;
--}
--
--/*
-  * shrink_cache() adds the number of pages reclaimed to sc->nr_reclaimed
-  */
- static void shrink_cache(struct zone *zone, struct scan_control *sc)
+-	if (nr_taken == 0)
++	page_replace_candidates(zone, sc->nr_to_scan, &page_list);
++	if (list_empty(&page_list))
+ 		return;
+ 
+-	if (current_is_kswapd())
+-		mod_page_state_zone(zone, pgscan_kswapd, nr_scan);
+-	else
+-		mod_page_state_zone(zone, pgscan_direct, nr_scan);
+ 	nr_freed = shrink_list(&page_list, sc);
+ 	if (current_is_kswapd())
+ 		mod_page_state(kswapd_steal, nr_freed);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
