@@ -1,58 +1,51 @@
-Message-ID: <43B63931.6000307@yahoo.com.au>
-Date: Sat, 31 Dec 2005 18:54:25 +1100
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-MIME-Version: 1.0
-Subject: Re: [RFC] Event counters [1/3]: Basic counter functionality
-References: <20051220235733.30925.55642.sendpatchset@schroedinger.engr.sgi.com> <20051231064615.GB11069@dmt.cnet>
-In-Reply-To: <20051231064615.GB11069@dmt.cnet>
-Content-Type: text/plain; charset=us-ascii; format=flowed
+Subject: Re: [PATCH 14/14] page-replace-kswapd-incmin.patch
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+In-Reply-To: <20051231011507.GC4913@dmt.cnet>
+References: <20051230223952.765.21096.sendpatchset@twins.localnet>
+	 <20051230224212.765.38527.sendpatchset@twins.localnet>
+	 <20051231011507.GC4913@dmt.cnet>
+Content-Type: text/plain
+Date: Sat, 31 Dec 2005 10:40:40 +0100
+Message-Id: <1136022040.17853.11.camel@twins>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
-Cc: Christoph Lameter <clameter@sgi.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andi Kleen <ak@suse.de>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@osdl.org>, Christoph Lameter <christoph@lameter.com>, Wu Fengguang <wfg@mail.ustc.edu.cn>, Nick Piggin <npiggin@suse.de>, Marijn Meijles <marijn@bitpit.net>, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-Marcelo Tosatti wrote:
+On Fri, 2005-12-30 at 23:15 -0200, Marcelo Tosatti wrote:
+> On Fri, Dec 30, 2005 at 11:42:34PM +0100, Peter Zijlstra wrote:
+> > 
+> > From: Nick Piggin <npiggin@suse.de>
+> > 
+> > Explicitly teach kswapd about the incremental min logic instead of just scanning
+> > all zones under the first low zone. This should keep more even pressure applied
+> > on the zones.
+> > 
+> > The new shrink_zone() logic exposes the very worst side of the current
+> > balance_pgdat() function. Without this patch reclaim is limited to ZONE_DMA.
+> 
+> Can you please describe the issue with over protection of DMA zone you experienced?
+> 
+> I'll see if I can reproduce it with Nick's standalone patch on top of vanilla, what
+> load was that?
 
-> 
-> What about this addition to the documentation above, to make it a little more 
-> verbose:
-> 
-> 	The possible race scenario is restricted to kernel preemption,
-> 	and could happen as follows:
-> 
-> 	thread A				thread B
-> a)	movl    xyz(%ebp), %eax			movl    xyz(%ebp), %eax
-> b)	incl    %eax				incl    %eax
-> c)	movl    %eax, xyz(%ebp)			movl    %eax, xyz(%ebp)
-> 
-> Thread A can be preempted in b), and thread B succesfully increments the
-> counter, writing it back to memory. Now thread A resumes execution, with
-> its stale copy of the counter, and overwrites the current counter.
-> 
-> Resulting in increments lost.
-> 
-> However that should be relatively rare condition.
-> 
+With the mdb bench the following behaviour was observed:
+(mem=128M)
 
-Hi Guys,
-
-I've been waiting for some mm/ patches to clear from -mm before commenting
-too much... however I see that this patch is actually against -mm itself,
-with my __mod_page_state stuff in it... that makes the page state accounting
-much lighter weight AND is not racy.
-
-So I'm not exactly sure why such a patch as this is wanted now? Are there
-any more xxx_page_state hotspots? (I admit to only looking at page faults,
-page allocator, and page reclaim).
-
-Thanks,
-Nick
+- PageCache would fill zone_normal
+- PageCache would fill zone_dma
+- reclaim starts
+- initially things look right
+- after a while zone_dma is reclaimed so fast that it frequently gets a
+full eviction (nr_resident == 0).
+- from this point onward zone_normal practiaclly sits idle and zone_dma
+goes wild with all the action.
 
 -- 
-SUSE Labs, Novell Inc.
-Send instant messages to your online friends http://au.messenger.yahoo.com 
+Peter Zijlstra <a.p.zijlstra@chello.nl>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
