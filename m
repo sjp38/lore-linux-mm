@@ -1,39 +1,58 @@
-Date: Sat, 31 Dec 2005 05:03:20 -0200
-From: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
-Subject: Re: [PATCH 01/14] page-replace-single-batch-insert.patch
-Message-ID: <20051231070320.GA9997@dmt.cnet>
-References: <20051230223952.765.21096.sendpatchset@twins.localnet> <20051230224002.765.28812.sendpatchset@twins.localnet>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20051230224002.765.28812.sendpatchset@twins.localnet>
+Message-ID: <43B63931.6000307@yahoo.com.au>
+Date: Sat, 31 Dec 2005 18:54:25 +1100
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+MIME-Version: 1.0
+Subject: Re: [RFC] Event counters [1/3]: Basic counter functionality
+References: <20051220235733.30925.55642.sendpatchset@schroedinger.engr.sgi.com> <20051231064615.GB11069@dmt.cnet>
+In-Reply-To: <20051231064615.GB11069@dmt.cnet>
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@osdl.org>, Christoph Lameter <christoph@lameter.com>, Wu Fengguang <wfg@mail.ustc.edu.cn>, Nick Piggin <npiggin@suse.de>, Marijn Meijles <marijn@bitpit.net>, Rik van Riel <riel@redhat.com>
+To: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
+Cc: Christoph Lameter <clameter@sgi.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andi Kleen <ak@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-Hi Peter,
+Marcelo Tosatti wrote:
 
-On Fri, Dec 30, 2005 at 11:40:24PM +0100, Peter Zijlstra wrote:
 > 
-> From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+> What about this addition to the documentation above, to make it a little more 
+> verbose:
 > 
-> page-replace interface function:
->   __page_replace_insert()
+> 	The possible race scenario is restricted to kernel preemption,
+> 	and could happen as follows:
 > 
-> This function inserts a page into the page replace data structure.
+> 	thread A				thread B
+> a)	movl    xyz(%ebp), %eax			movl    xyz(%ebp), %eax
+> b)	incl    %eax				incl    %eax
+> c)	movl    %eax, xyz(%ebp)			movl    %eax, xyz(%ebp)
 > 
-> Unify the active and inactive per cpu page lists. For now provide insertion
-> hints using the LRU specific page flags.
+> Thread A can be preempted in b), and thread B succesfully increments the
+> counter, writing it back to memory. Now thread A resumes execution, with
+> its stale copy of the counter, and overwrites the current counter.
+> 
+> Resulting in increments lost.
+> 
+> However that should be relatively rare condition.
+> 
 
-Unification of active and inactive per cpu page lists is a requirement
-for CLOCK-Pro, right? 
+Hi Guys,
 
-Would be nicer to have unchanged functionality from vanilla VM
-(including the active/inactive per cpu lists).
+I've been waiting for some mm/ patches to clear from -mm before commenting
+too much... however I see that this patch is actually against -mm itself,
+with my __mod_page_state stuff in it... that makes the page state accounting
+much lighter weight AND is not racy.
 
-Happy new year! 
+So I'm not exactly sure why such a patch as this is wanted now? Are there
+any more xxx_page_state hotspots? (I admit to only looking at page faults,
+page allocator, and page reclaim).
+
+Thanks,
+Nick
+
+-- 
+SUSE Labs, Novell Inc.
+Send instant messages to your online friends http://au.messenger.yahoo.com 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
