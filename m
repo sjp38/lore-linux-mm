@@ -1,12 +1,12 @@
-Subject: Re: [PATCH 1/9] clockpro-nonresident.patch
+Subject: Re: [PATCH 6/9] clockpro-clockpro.patch
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-In-Reply-To: <20051231011324.GB4913@dmt.cnet>
+In-Reply-To: <20051231002417.GA4913@dmt.cnet>
 References: <20051230223952.765.21096.sendpatchset@twins.localnet>
-	 <20051230224222.765.32499.sendpatchset@twins.localnet>
-	 <20051231011324.GB4913@dmt.cnet>
+	 <20051230224312.765.58575.sendpatchset@twins.localnet>
+	 <20051231002417.GA4913@dmt.cnet>
 Content-Type: text/plain
-Date: Sat, 31 Dec 2005 10:54:46 +0100
-Message-Id: <1136022886.17853.18.camel@twins>
+Date: Sat, 31 Dec 2005 11:48:37 +0100
+Message-Id: <1136026117.17853.46.camel@twins>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -15,86 +15,165 @@ To: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@osdl.org>, Christoph Lameter <christoph@lameter.com>, Wu Fengguang <wfg@mail.ustc.edu.cn>, Nick Piggin <npiggin@suse.de>, Marijn Meijles <marijn@bitpit.net>, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2005-12-30 at 23:13 -0200, Marcelo Tosatti wrote:
-> On Fri, Dec 30, 2005 at 11:42:44PM +0100, Peter Zijlstra wrote:
-> > 
-> > From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-> > 
-> > Originally started by Rik van Riel, I heavily modified the code
-> > to suit my needs.
-> > 
-> > The nonresident code approximates a clock but sacrifices precision in order
-> > to accomplish faster lookups.
-> > 
-> > The actual datastructure is a hash of small clocks, so that, assuming an 
-> > equal distribution by the hash function, each clock has comparable order.
-> > 
-> > TODO:
-> >  - remove the ARC requirements.
-> > 
-> > Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+On Fri, 2005-12-30 at 22:24 -0200, Marcelo Tosatti wrote:
+> Hi Peter,
 > 
-> <snip>
-> 
-> > + *
-> > + *
-> > + * Modified to work with ARC like algorithms who:
-> > + *  - need to balance two FIFOs; |b1| + |b2| = c,
-> > + *
-> > + * The bucket contains four single linked cyclic lists (CLOCKS) and each
-> > + * clock has a tail hand. By selecting a victim clock upon insertion it
-> > + * is possible to balance them.
-> > + *
-> > + * The first two lists are used for B1/B2 and a third for a free slot list.
-> > + * The fourth list is unused.
-> > + *
-> > + * The slot looks like this:
-> > + * struct slot_t {
-> > + *         u32 cookie : 24; // LSB
-> > + *         u32 index  :  6;
-> > + *         u32 listid :  2;
-> > + * };
-> 
-> 8 and 16 bit accesses are slower than 32 bit on i386 (Arjan pointed this out sometime ago).
-> 
-> Might be faster to load a full word and shape it as necessary, will see if I can do 
-> something instead of talking. ;)
+> _Nice_ work!
 
-everything is 32bit except for the hands, but yes, this code needs to be
-redone.
+Thanks!
+
+> IMHO you're going into the right direction, abstracting away page
+> replacement policy from page reclaim. 
+> 
+> I think that final objective should be to abstract it away completly,
+> making it possible to select between different policies, allowing
+> further experimentation and implementations such as energy efficient
+> algorithms.
+> 
+> How hard do you think would it be to enhance your patches to allow for 
+> compile-time selectable policies?
+
+Not that much more work, it would need abstracing all the usage of the
+list counters (nr_active/nr_inactive vs. nr_resident/nr_cold).
+
+> For instance, moving "page reclaim scanner" specific information into
+> its own container:
+> 
+>  @@ -140,12 +140,13 @@ struct zone {
+>   	/* Fields commonly accessed by the page reclaim scanner */
+>  -	spinlock_t		lru_lock;	
+>  -	struct list_head	active_list;
+>  -	struct list_head	inactive_list;
+>  -	unsigned long		nr_scan_active;
+>  -	unsigned long		nr_active;
+>  -	unsigned long		nr_inactive;
+>  +	spinlock_t		lru_lock;
+>  +	struct list_head	list_hand[2];
+>  +	unsigned long		nr_resident;
+>  +	unsigned long		nr_cold;
+>  +	unsigned long 		nr_cold_target;
+>  +	unsigned long		nr_nonresident_scale;
+>  +
+> 
+> Such as "struct reclaim_policy_data" or a better name.
+
+Yes, I have toyed with that idea, rik didn't like it and I didn't spend
+any effort on it, but it could very well be done.
+
+> About CLOCK-Pro itself, I think that a small document with a short
+> introduction would be very useful... explaining that it uses inter
+> reference distance instead of recency for the page replacement criteria,
+> and why this criteria is fundamentally more appropriate for a large set
+> of common access patterns aka "a resume of the CLOCK-Pro paper".
+
+Ok, I shall give this Documentation/vm/clockpro.txt thing a try.
+
+
+> > Implementation wise I use something based on Rik van Riel's nonresident code
+> > which actually aproximates a clock with reduced order. 
+> 
+> I'm curious about hash collisions, would like to know more details about
+> the hash distribution under different loads. 
+> 
+> Would be nice to measure the rate of updates on each hash bucket and
+> confirm that they are approximate.
+
+I have/had a patch that prints stats on each bucket, I did some stats a
+few months back and the deviation in bucket usage was not very high,
+which would indicate a rather good distribution.
+
+Could revive that patch so you can have a go at it if you wish.
+
+> > The resident clock with two hands is implemented using two lists which are to
+> > be seen as laid head to tail to form the clock. When one hand laps the other
+> > the lists are swapped.
+> 
+> How does that differ from the original CLOCK-Pro algorithm, and why, and what are
+> the expected outcomes? Please make it easier for others to understand why the hands 
+> swap, and when, and why.
+
+The original clockpro algorithm has one clock with 3 hands. In order to
+make it work with multiple resident zones, the non-resident pages have
+to be isolated.
+
+I did that by having two clocks, one resident with two hands (per zone)
+and one non-resident with one hand (global), where the non-resident
+clock should be viewed as an overlay on the resident one (imagine the
+single zone case).
+
+This loses some page order information, ie. the exact position of the
+non-resident pages wrt. the resident pages, however it is a good
+approximation when the rotation speeds of the respective hands are tied
+together such that:
+ when the resident hot hand has made a full revolution so too has the
+non-resident hand.
+
+> 
+> > Each page has 3 state bits:
+> > 
+> > 	hot  -> PageHot()
+> > 	test -> PageTest()
+> > 	ref  -> page_referenced()
+> > 
+> > (PG_active will be renamed to PG_hot in a following patch, since the semantics
+> >  changed also change the name in order to avoid confusion))
+> > 
+> > The HandCold rotation is driven by page reclaim needs. HandCold in turn
+> > drives HandHot, for every page HandCold promotes to hot HandHot needs to
+> > degrade one hot page to cold.
+> 
+> Why do you use only two clock hands and not three (HandHot, HandCold and HandTest)
+> as in the original paper?
+
+As explanied above, the multi-zone thing requires the non-resident pages
+to be separated.
+
+> > + * res | h/c | tst | ref || Hcold | Hhot | Htst || Flt
+> > + * ----+-----+-----+-----++-------+------+------++-----
+> > + *  1  |  1  |  0  |  1  ||=1101  | 1100 |=1101 ||
+> > + *  1  |  1  |  0  |  0  ||=1100  | 1000 |=1100 ||
+> > + * ----+-----+-----+-----++-------+------+------++-----
+> > + *  1  |  0  |  1  |  1  || 1100  | 1001 | 1001 ||
+> > + *  1  |  0  |  1  |  0  ||X0010  | 1000 | 1000 ||
+> > + *  1  |  0  |  0  |  1  || 1010  |=1001 |=1001 ||
+> > + *  1  |  0  |  0  |  0  ||X0000  |=1000 |=1000 ||
+> > + * ----+-----+-----+-----++-------+------+------++-----
+> > + * ----+-----+-----+-----++-------+------+------++-----
+> > + *  0  |  0  |  1  |  1  ||       |      |      || 1100
+> > + *  0  |  0  |  1  |  0  ||=0010  |X0000 |X0000 ||
+> > + *  0  |  0  |  0  |  1  ||       |      |      || 1010 
+> 
+> What does this mean? Can you make it easier for ignorant people like
+> myself to understand?
+
+state table, it describes how (in the original paper) the three hands
+modify the page state. Given the state in the first four columns, the
+next three columns give a new state for each hand; hand cold, hot and
+test. The last column describes the action of a pagefault.
+
+Ex. given a resident cold page in its test period that is referenced
+(1011):
+ - Hand cold will make it 1100, that is, a resident hot page;
+ - Hand hot will make it 1001, that is, a resident cold page with a
+reference; and
+ - Hand test will also make it 1001.
+
+(The prefixes '=' and 'X' are used to indicate: not changed, and remove
+from list - that can be either move from resident->non-resident or
+remove altogether).
 
 > > +/*
-> > + * For interactive workloads, we remember about as many non-resident pages
-> > + * as we have actual memory pages.  For server workloads with large inter-
-> > + * reference distances we could benefit from remembering more. 
-> > + */
+> > + * Rotate the non-resident hand; scale the rotation speed so that when all
+> > + * hot hands 
 > 
-> This comment is bogus. Interactive or server loads have nothing to do
-> with the inter reference distance. To the contrary, interactive loads
-> have a higher chance to contain large inter reference distances, and
-> many common server loads have strong locality.
-> 
-> <snip>
+> all hot hands?
 
-Happy to drop it, Rik?
+As explained, each zone has a hot and cold hand vs. the one non-resident
+hand.
 
-> > +++ linux-2.6-git/include/linux/swap.h
-> > @@ -152,6 +152,31 @@ extern void out_of_memory(gfp_t gfp_mask
-> >  /* linux/mm/memory.c */
-> >  extern void swapin_readahead(swp_entry_t, unsigned long, struct vm_area_struct *);
-> >  
-> > +/* linux/mm/nonresident.c */
-> > +#define NR_b1		0
-> > +#define NR_b2		1
-> > +#define NR_free		2
-> > +#define NR_lost		3
-> 
-> What is the meaning of "NR_lost" ? 
-
-should have read, NR_unused, it is the available fourth hand which is
-unused. I just put it there for completeness sake and remember
-struggling with the name while doing it, guess I should've taken that as
-a hint.
+> > have made one full revolution the non-resident hand will have
+> > + * too.
+> > + *
 
 -- 
 Peter Zijlstra <a.p.zijlstra@chello.nl>
