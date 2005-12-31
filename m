@@ -1,55 +1,28 @@
-Subject: Re: [PATCH 6/9] clockpro-clockpro.patch
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-In-Reply-To: <20051231002417.GA4913@dmt.cnet>
+Date: Sat, 31 Dec 2005 09:44:07 -0500 (EST)
+From: Rik van Riel <riel@redhat.com>
+Subject: Re: [PATCH 01/14] page-replace-single-batch-insert.patch
+In-Reply-To: <20051231070320.GA9997@dmt.cnet>
+Message-ID: <Pine.LNX.4.63.0512310943450.27198@cuia.boston.redhat.com>
 References: <20051230223952.765.21096.sendpatchset@twins.localnet>
-	 <20051230224312.765.58575.sendpatchset@twins.localnet>
-	 <20051231002417.GA4913@dmt.cnet>
-Content-Type: text/plain
-Date: Sat, 31 Dec 2005 12:29:06 +0100
-Message-Id: <1136028546.17853.69.camel@twins>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+ <20051230224002.765.28812.sendpatchset@twins.localnet> <20051231070320.GA9997@dmt.cnet>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@osdl.org>, Christoph Lameter <christoph@lameter.com>, Wu Fengguang <wfg@mail.ustc.edu.cn>, Nick Piggin <npiggin@suse.de>, Marijn Meijles <marijn@bitpit.net>, Rik van Riel <riel@redhat.com>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@osdl.org>, Christoph Lameter <christoph@lameter.com>, Wu Fengguang <wfg@mail.ustc.edu.cn>, Nick Piggin <npiggin@suse.de>, Marijn Meijles <marijn@bitpit.net>
 List-ID: <linux-mm.kvack.org>
 
-Forgot one in the previous mail.
+On Sat, 31 Dec 2005, Marcelo Tosatti wrote:
 
-On Fri, 2005-12-30 at 22:24 -0200, Marcelo Tosatti wrote:
-> Please make it easier for others to understand why the hands 
-> swap, and when, and why.
+> Unification of active and inactive per cpu page lists is a requirement 
+> for CLOCK-Pro, right?
 
-Its not the hands that swap, its the lists. The hands will lap each
-other, like the minute hand will lap the hour hand every ~65 minutes.
+You can approximate the functionality through use of scan
+rates.  Not quite as accurate as a unified clock, though.
 
-Let me try some ascii art.
-
-   ====
-  ^---<>---v
-       ====
-
-'='	a page
-'^---<' hand cold
-'>---v' hand hot
-
-now let hand cold move 4 pages:
-
-   
-  ^---<>---v
-   ========
-
-ie. hand hot and hand cold have the same position.
-now if we want to move hand cold one more position this happens:
-
-   =======
-  ^---<>---v
-          =
-
-see the swap?
 -- 
-Peter Zijlstra <a.p.zijlstra@chello.nl>
+All Rights Reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
