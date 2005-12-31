@@ -1,124 +1,113 @@
-Subject: Re: [PATCH 10/9] clockpro-document.patch
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-In-Reply-To: <20051230223952.765.21096.sendpatchset@twins.localnet>
-References: <20051230223952.765.21096.sendpatchset@twins.localnet>
-Content-Type: text/plain
-Date: Sat, 31 Dec 2005 19:59:18 +0100
-Message-Id: <1136055558.17853.72.camel@twins>
+Date: Sat, 31 Dec 2005 18:26:02 -0200
+From: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
+Subject: Re: [RFC] Event counters [1/3]: Basic counter functionality
+Message-ID: <20051231202602.GC3903@dmt.cnet>
+References: <20051220235733.30925.55642.sendpatchset@schroedinger.engr.sgi.com> <20051231064615.GB11069@dmt.cnet> <43B63931.6000307@yahoo.com.au>
 Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <43B63931.6000307@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, Andrew Morton <akpm@osdl.org>, Christoph Lameter <christoph@lameter.com>, Wu Fengguang <wfg@mail.ustc.edu.cn>, Nick Piggin <npiggin@suse.de>, Marijn Meijles <marijn@bitpit.net>, Rik van Riel <riel@redhat.com>, Marcelo Tosatti <marcelo.tosatti@cyclades.com>
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Christoph Lameter <clameter@sgi.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andi Kleen <ak@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-By popular request,
-I'll finish it some time next year.
+Hi Nick!
 
-Best wishes all.
+On Sat, Dec 31, 2005 at 06:54:25PM +1100, Nick Piggin wrote:
+> Marcelo Tosatti wrote:
+> 
+> >
+> >What about this addition to the documentation above, to make it a little 
+> >more verbose:
+> >
+> >	The possible race scenario is restricted to kernel preemption,
+> >	and could happen as follows:
+> >
+> >	thread A				thread B
+> >a)	movl    xyz(%ebp), %eax			movl    xyz(%ebp), %eax
+> >b)	incl    %eax				incl    %eax
+> >c)	movl    %eax, xyz(%ebp)			movl    %eax, xyz(%ebp)
+> >
+> >Thread A can be preempted in b), and thread B succesfully increments the
+> >counter, writing it back to memory. Now thread A resumes execution, with
+> >its stale copy of the counter, and overwrites the current counter.
+> >
+> >Resulting in increments lost.
+> >
+> >However that should be relatively rare condition.
+> >
+> 
+> Hi Guys,
+> 
+> I've been waiting for some mm/ patches to clear from -mm before commenting
+> too much... however I see that this patch is actually against -mm itself,
+> with my __mod_page_state stuff in it... that makes the page state accounting
+> much lighter weight AND is not racy.
 
---- /dev/null   2003-12-29 19:37:00.000000000 +0100
-+++ linux-2.6-git/Documentation/vm/clockpro.txt 2005-12-31 19:55:45.000000000 +0100
-@@ -0,0 +1,97 @@
-+This document describes the page replace algorithm as implemented in the linux
-+kernel. It is based on CLOCK-Pro, found here:
-+       http://www.cs.wm.edu/hpcs/WWW/HTML/publications/abs05-3.html
-+
-+  Base Algorithm Summary
-+
-+The algorithm is based on reuse distance as opposed to the recency familair
-+from LRU. The reuse distance is the number of pages referenced between the
-+current and previous page reference.
-+
-+It categorizes pages with a small reuse distance as hot and those with a large
-+reuse distance as cold. The threshold between hot and cold is the test period,
-+that is, if a page is referenced during its test period its reuse distance is
-+small, ie. it becomes hot. The test period is the largest reuse distance of a
-+hot page, which in turn depends on the number of resident cold pages.
-+
-+The number of resident cold pages is an adaptive target which is incremented
-+when a page is referenced in its test period and decremented when a test
-+period expires.
-+
-+Reclaim looks for unreferenced cold pages, for cold pages that are still in
-+their test period the metadata is kept until the test period expires.
-+
-+In order to be able to compare reuse distance all pages are kept on one CLOCK
-+however the management of the page state requires more than one hand.
-+CLOCK-Pro has three, the following table gives the actions of each hand:
-+
-+      res | hot | tst | ref ||  Hcold |  Hhot  |  Htst  ||  Flt
-+      ----+-----+-----+-----++--------+--------+--------++------
-+       1  |  1  |  0  |  1  || = 1101 |   1100 | = 1101 ||
-+       1  |  1  |  0  |  0  || = 1100 |   1000 | = 1100 ||
-+      ----+-----+-----+-----++--------+--------+--------++------
-+       1  |  0  |  1  |  1  ||   1100 |   1001 |   1001 ||
-+       1  |  0  |  1  |  0  || N 0010 |   1000 |   1000 ||
-+       1  |  0  |  0  |  1  ||   1010 | = 1001 | = 1001 ||
-+       1  |  0  |  0  |  0  || X 0000 | = 1000 | = 1000 ||
-+      ====+=====+=====+=====++========+========+========++======
-+       0  |  0  |  1  |  1  ||        |        |        || 1100
-+       0  |  0  |  1  |  0  || = 0010 | X 0000 | X 0000 ||
-+       0  |  0  |  0  |  1  ||        |        |        || 1010
-+
-+Where the first four columns give the page state and the next three columns
-+give the new state when the respective hand moves along. The prefixes '=', 'N'
-+and 'X' are used to indicate: state unchanged, page tracked as non-resident
-+and remove page. The last column gives the state on page fault.
-+
-+The hand dynamics is as follows, reclaim rotates the cold hand and takes
-+unreferenced cold pages. When during this rotation the actual number of cold
-+pages drops below the target number of cold pages the hot hand is rotated.
-+
-+The hot hand demotes unreferenced hot pages to cold, and terminates the test
-+period of pages is passes by. If however the total number of pages tracked
-+rises above twice the total available resident pages the test hand is rotated.
-+
-+The test hand, like the hot hand, terminates the test period of any page it
-+passes by. Remember that terminating the test period of a non-resident cold
-+page removes it altogether, thus limiting the total pages tracked.
-+
-+
-+  Implementation Notes
-+
-+Since pages reclaimed in one zone can end up being faulted back in another
-+zone it is incorrect to have per-zone non-resident page tracking. Hence the
-+resident and non-resident page tracking needs to be separated.
-+
-+In order to accomplish this the following is done; take two CLOCKs, a two
-+handed one for resident pages and a single handed one for non-resident pages.
-+The resident CLOCK's hands will reflect hand cold and the resident part of hand
-+hot, the non-resident CLOCK's hand will reflect the non-resident part of hand
-+hot. Hence the rotation speeds of the resident hand hot and non-resident hand
-+are coupled so that when one has made a full revolution so will have the
-+other.
-+
-+The functionality of hand test is accomplished by simply limiting the number
-+of entries on the non-resident clock to the number of pages on the resident
-+clock. When a new entry is added to an already full non-resident clock the
-+oldest entry will be removed; ie. its test period terminated.
-+
-+This uncoupling of non-resident and resident pages has the effect that the
-+exact position of the non-resident pages relative to the resident pages is
-+lost. This uncertainty propagates to the duration of the test period, some
-+pages will be terminated to soon, other too late. However this is a bounded
-+error with an average of 0.
-+
-+This scheme can then be extended to multiple zones by scaling the rotation
-+speed coupling between the resident hot hand and the non-resident hand to the
-+zone size. That is, when all resident hot hands have made one full revolution
-+so will the non-resident hand have.
-+
-+Demand paging introduces yet another problem, when a page is faulted into
-+memory it effectivly doesn't matter what the referenced bit is set to, it will
-+be used as soon as we finish the fault anyway. Hence the first check will
-+always activate the page even though we have only had a single use. The
-+classic use-once problem. To tackle this the pages can be inserted one state
-+lower than normal and behind hand hot instead of behind hand cold, this so
-+that hand hot cannot interfere with the lowered page state and the first
-+reference is lost quicker.
+It is racy with reference to preempt (please refer to the race condition
+described above):
 
+diff -puN mm/rmap.c~mm-page_state-opt mm/rmap.c
+--- devel/mm/rmap.c~mm-page_state-opt   2005-12-13 22:25:01.000000000 -0800
++++ devel-akpm/mm/rmap.c        2005-12-13 22:25:01.000000000 -0800
+@@ -451,7 +451,11 @@ static void __page_set_anon_rmap(struct 
+
+        page->index = linear_page_index(vma, address);
+ 
+-       inc_page_state(nr_mapped);
++       /*
++        * nr_mapped state can be updated without turning off
++        * interrupts because it is not modified via interrupt.
++        */
++       __inc_page_state(nr_mapped);
+ }
+
+And since "nr_mapped" is not a counter for debugging purposes only, you 
+can't be lazy with reference to its consistency.
+
+I would argue that you need a preempt save version for this important
+counters, surrounded by preempt_disable/preempt_enable (which vanish 
+if one selects !CONFIG_PREEMPT).
+
+As Christoph notes, debugging counter consistency can be lazy, not even
+requiring correct preempt locking (hum, this is debatable, needs careful
+verification).
+ 
+> So I'm not exactly sure why such a patch as this is wanted now? Are there
+> any more xxx_page_state hotspots? (I admit to only looking at page faults,
+> page allocator, and page reclaim).
+
+A consolidation of the good parts of both would be interesting.
+
+I don't see much point in Christoph's naming change to "event_counter", 
+why are you doing that?
+
+And follows an addition to your's mm-page_state-opt-docs.patch. Still
+need to verify "nr_dirty" and "nr_unstable".
+
+Happy new year!
+
+diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
+index 343083f..f173e0f 100644
+--- a/include/linux/page-flags.h
++++ b/include/linux/page-flags.h
+@@ -83,10 +83,14 @@
+ struct page_state {
+ 	unsigned long nr_dirty;		/* Dirty writeable pages */
+ 	unsigned long nr_writeback;	/* Pages under writeback */
++					/* also modified from IRQ context */
+ 	unsigned long nr_unstable;	/* NFS unstable pages */
+ 	unsigned long nr_page_table_pages;/* Pages used for pagetables */
++					/* only modified from process context */
+ 	unsigned long nr_mapped;	/* mapped into pagetables */
++					/* only modified from process context */
+ 	unsigned long nr_slab;		/* In slab */
++					/* also modified from IRQ context */
+ #define GET_PAGE_STATE_LAST nr_slab
+ 
+ 	/*
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
