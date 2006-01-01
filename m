@@ -1,59 +1,55 @@
-From: Joe Seigh <jseigh_02@xemaps.com>
-Subject: Re: [RFC] lockless radix tree readside
-Date: Tue, 06 Dec 2005 10:53:53 -0500
-Message-ID: <dn4c20$e7m$1@sea.gmane.org>
-References: <4394EC28.8050304@yahoo.com.au>
+Subject: Re: [PATCH 6/9] clockpro-clockpro.patch
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+In-Reply-To: <20051231224021.GA5184@dmt.cnet>
+References: <20051230223952.765.21096.sendpatchset@twins.localnet>
+	 <20051230224312.765.58575.sendpatchset@twins.localnet>
+	 <20051231224021.GA5184@dmt.cnet>
+Content-Type: text/plain
+Date: Sun, 01 Jan 2006 11:37:34 +0100
+Message-Id: <1136111854.17853.77.camel@twins>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
-Return-path: <linux-kernel-owner+glk-linux-kernel-3=40m.gmane.org-S1750809AbVLFQAJ@vger.kernel.org>
-In-Reply-To: <4394EC28.8050304@yahoo.com.au>
-Sender: linux-kernel-owner@vger.kernel.org
-To: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org
-List-Id: linux-mm.kvack.org
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@osdl.org>, Christoph Lameter <christoph@lameter.com>, Wu Fengguang <wfg@mail.ustc.edu.cn>, Nick Piggin <npiggin@suse.de>, Marijn Meijles <marijn@bitpit.net>, Rik van Riel <riel@redhat.com>
+List-ID: <linux-mm.kvack.org>
 
-Nick Piggin wrote:
-> The following patch against recent -mm kernels implements lockless
-> radix tree lookups using RCU. No users of this new facility yet,
-> but it is a requirement for lockless pagecache.
+On Sat, 2005-12-31 at 20:40 -0200, Marcelo Tosatti wrote:
+> On Fri, Dec 30, 2005 at 11:43:34PM +0100, Peter Zijlstra wrote:
+> > 
+> > From: Peter Zijlstra <a.p.zijlstra@chello.nl>
 > 
-> I have recently added (what I think are) the missing rcu_dereference
-> calls needed on Alpha, and the implementation now has no known bugs.
-> (actually that's wrong: the new capabilities in the lookup APIs need
-> commenting)
+> Peter,
 > 
-> I realise that radix-tree.c isn't a trivial bit of code so I don't
-> expect reviews to be forthcoming, but if anyone had some spare time
-> to glance over it that would be great.
+> I tried your "scan-shared.c" proggy which loops over 140M of a file
+> using mmap (on a 128MB box). The number of loops was configured to "5".
 > 
-> Is my given detail of the implementation clear? Sufficient? Would
-> diagrams be helpful?
+> The amount of major/minor pagefaults was exactly the same between
+> vanilla and clockpro, isnt the clockpro algorithm supposed to be
+> superior than LRU in such "sequential scan of MEMSIZE+1" cases?
+
+yes it should, hmm, have to look at that then.
+
+What should happen is that nr_cold_target should drop to the bare
+minimum, which effectivly pins all hot pages and only rotates the few
+cold pages.
+
+> Oh well, to be sincere, I still haven't understood what makes CLOCK-Pro
+> use inter reference distance instead of recency, given that its a simple
+> CLOCK using reference bits (but with three clocks instead of one).
 > 
+> But thats probably just my ignorance, need to study more.
 
-Well, I don't have a kernel development set up so I can't comment on
-the specific patch but I have done some minor experimentation with reader
-lock-free b-trees, specifically insert, delete, and rotate (no actual
-balancing heuristics though) so I can comment on what some of the 
-general issues are.
+The reuse distance is in PG_test. Please see the clockpro-documentation
+patch, which should explain this. If its still not clear after that let
+me know, I'll be more verbose then.
 
-You need to have a serialization point in your tree modifications so
-the change becomes atomically visible to threads reading the tree.
-This is important for the semantics of your data structure.  It's not
-good to have a node become temporarily invisible to readers if the
-tree operation involved moving a node or subtree around with more than
-a single link modification.  So you will likely find yourself needing to use
-COW (copy on write) or PCOW (partial copy on write), particularly on
-deletes of non leaf nodes. PCOW is naturally better, especially if you
-can minimize the number of nodes that have to be copied.
-
-So that's probably what you want to have in your documentation; what
-the serialization points are, your COW or PCOW mechanism, and how
-they preserve semantics.
-
-Also I assume you're returning lookups by value and not reference
-unless they're refcounted (which naturally since you're using RCU
-can be incremented safely if the refcount is not zero)
+-- 
+Peter Zijlstra <a.p.zijlstra@chello.nl>
 
 --
-Joe Seigh
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
