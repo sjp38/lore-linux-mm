@@ -1,52 +1,118 @@
-Subject: Re: [PATCH 6/9] clockpro-clockpro.patch
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-In-Reply-To: <20051231224021.GA5184@dmt.cnet>
-References: <20051230223952.765.21096.sendpatchset@twins.localnet>
-	 <20051230224312.765.58575.sendpatchset@twins.localnet>
-	 <20051231224021.GA5184@dmt.cnet>
-Content-Type: text/plain
-Date: Sun, 01 Jan 2006 11:37:34 +0100
-Message-Id: <1136111854.17853.77.camel@twins>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from 203.199.144.195 ([203.199.144.195]) by calsoftinc.com for <linux-mm@kvack.org>; Mon, 2 Jan 2006 07:30:35 -0800
+Date: Mon, 2 Jan 2006 20:57:12 +0530 (IST)
+From: Alok Kataria <alokk@calsoftinc.com>
+Subject: Re: [patch 3/3] mm: NUMA slab -- minor optimizations
+Message-ID: <Pine.LNX.4.63.0601022052040.19592@pravin.s>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@osdl.org>, Christoph Lameter <christoph@lameter.com>, Wu Fengguang <wfg@mail.ustc.edu.cn>, Nick Piggin <npiggin@suse.de>, Marijn Meijles <marijn@bitpit.net>, Rik van Riel <riel@redhat.com>
+To: clameter@engr.sgi.com
+Cc: manfred@colorfullife.com, kiran@scalemp.com, akpm@osdl.org, linux-mm@kvack.org, alokk@calsoftinc.com
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 2005-12-31 at 20:40 -0200, Marcelo Tosatti wrote:
-> On Fri, Dec 30, 2005 at 11:43:34PM +0100, Peter Zijlstra wrote:
-> > 
-> > From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+On Wed, 2005-12-28 at 02:05, Christoph Lameter wrote:
+On Tue, 27 Dec 2005, Manfred Spraul wrote:
 > 
-> Peter,
+> > Isn't that a bug? What prevents an interrupt from occuring after the
+> > spin_lock() and then causing a deadlock on cachep->spinlock?
 > 
-> I tried your "scan-shared.c" proggy which loops over 140M of a file
-> using mmap (on a 128MB box). The number of loops was configured to "5".
+> Right. cache_grow() may be called when doing slab allocations in an 
+> interrupt and it takes the lock in order to modify colour_next. 
 > 
-> The amount of major/minor pagefaults was exactly the same between
-> vanilla and clockpro, isnt the clockpro algorithm supposed to be
-> superior than LRU in such "sequential scan of MEMSIZE+1" cases?
+Yes you are right. 
+Looking at the cache_grow code again i think we can do 
+away with the cachep->spinlock in this code path.
 
-yes it should, hmm, have to look at that then.
+The colour_next variable can be made per node to give better cache 
+colouring effect.
 
-What should happen is that nr_cold_target should drop to the bare
-minimum, which effectivly pins all hot pages and only rotates the few
-cold pages.
+Then this minor optimizations patch should be alright.
 
-> Oh well, to be sincere, I still haven't understood what makes CLOCK-Pro
-> use inter reference distance instead of recency, given that its a simple
-> CLOCK using reference bits (but with three clocks instead of one).
-> 
-> But thats probably just my ignorance, need to study more.
+Comments ?
 
-The reuse distance is in PG_test. Please see the clockpro-documentation
-patch, which should explain this. If its still not clear after that let
-me know, I'll be more verbose then.
+Thanks & Regards,
+Alok.
 
--- 
-Peter Zijlstra <a.p.zijlstra@chello.nl>
+
+--
+The colour_next which is used to calculate the offset of the object in the
+slab descriptor, is incremented whenever we add a slab to any of the list3
+for a particular cache. This is done now for every list3 to give better 
+(per node) cache colouring effect.
+This also reduces thrashing on the cache_cache structure.
+
+Signed-off-by: Alok N Kataria <alokk@calsoftinc.com>
+
+Index: linux-2.6.15-rc7/mm/slab.c
+===================================================================
+--- linux-2.6.15-rc7.orig/mm/slab.c	2005-12-24 15:47:48.000000000 -0800
++++ linux-2.6.15-rc7/mm/slab.c	2006-01-02 07:00:36.000000000 -0800
+@@ -293,6 +293,7 @@ struct kmem_list3 {
+ 	unsigned long	next_reap;
+ 	int		free_touched;
+ 	unsigned int 	free_limit;
++	unsigned int    colour_next;            /* cache colouring */
+ 	spinlock_t      list_lock;
+ 	struct array_cache	*shared;	/* shared per node */
+ 	struct array_cache	**alien;	/* on other nodes */
+@@ -344,6 +345,7 @@ static inline void kmem_list3_init(struc
+ 	INIT_LIST_HEAD(&parent->slabs_free);
+ 	parent->shared = NULL;
+ 	parent->alien = NULL;
++	parent->colour_next = 0;
+ 	spin_lock_init(&parent->list_lock);
+ 	parent->free_objects = 0;
+ 	parent->free_touched = 0;
+@@ -390,7 +392,6 @@ struct kmem_cache {
+ 
+ 	size_t			colour;		/* cache colouring range */
+ 	unsigned int		colour_off;	/* colour offset */
+-	unsigned int		colour_next;	/* cache colouring */
+ 	kmem_cache_t		*slabp_cache;
+ 	unsigned int		slab_size;
+ 	unsigned int		dflags;		/* dynamic flags */
+@@ -1060,7 +1061,6 @@ void __init kmem_cache_init(void)
+ 		BUG();
+ 
+ 	cache_cache.colour = left_over/cache_cache.colour_off;
+-	cache_cache.colour_next = 0;
+ 	cache_cache.slab_size = ALIGN(cache_cache.num*sizeof(kmem_bufctl_t) +
+ 				sizeof(struct slab), cache_line_size());
+ 
+@@ -2187,16 +2187,17 @@ static int cache_grow(kmem_cache_t *cach
+ 
+ 	/* About to mess with non-constant members - lock. */
+ 	check_irq_off();
+-	spin_lock(&cachep->spinlock);
++	l3 = cachep->nodelists[nodeid];
++	spin_lock(&l3->list_lock);
+ 
+ 	/* Get colour for the slab, and cal the next value. */
+-	offset = cachep->colour_next;
+-	cachep->colour_next++;
+-	if (cachep->colour_next >= cachep->colour)
+-		cachep->colour_next = 0;
+-	offset *= cachep->colour_off;
++	offset = l3->colour_next;
++	l3->colour_next++;
++	if (l3->colour_next >= cachep->colour)
++		l3->colour_next = 0;
++	spin_unlock(&l3->list_lock);
+ 
+-	spin_unlock(&cachep->spinlock);
++	offset *= cachep->colour_off;
+ 
+ 	check_irq_off();
+ 	if (local_flags & __GFP_WAIT)
+@@ -2228,7 +2229,6 @@ static int cache_grow(kmem_cache_t *cach
+ 	if (local_flags & __GFP_WAIT)
+ 		local_irq_disable();
+ 	check_irq_off();
+-	l3 = cachep->nodelists[nodeid];
+ 	spin_lock(&l3->list_lock);
+ 
+ 	/* Make slab active. */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
