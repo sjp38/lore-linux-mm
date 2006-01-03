@@ -1,56 +1,77 @@
-Date: Tue, 3 Jan 2006 11:30:53 -0800 (PST)
-From: Christoph Lameter <clameter@engr.sgi.com>
-Subject: Re: [PATCH 6/9] clockpro-clockpro.patch
-In-Reply-To: <20051231221215.GA4024@dmt.cnet>
-Message-ID: <Pine.LNX.4.62.0601031129160.21019@schroedinger.engr.sgi.com>
-References: <20051230223952.765.21096.sendpatchset@twins.localnet>
- <20051230224312.765.58575.sendpatchset@twins.localnet> <20051231002417.GA4913@dmt.cnet>
- <1136026117.17853.46.camel@twins> <20051231221215.GA4024@dmt.cnet>
+Received: from westrelay02.boulder.ibm.com (westrelay02.boulder.ibm.com [9.17.195.11])
+	by e33.co.us.ibm.com (8.12.11/8.12.11) with ESMTP id k03LOq1C028787
+	for <linux-mm@kvack.org>; Tue, 3 Jan 2006 16:24:52 -0500
+Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
+	by westrelay02.boulder.ibm.com (8.12.10/NCO/VERS6.8) with ESMTP id k03LNZZM176204
+	for <linux-mm@kvack.org>; Tue, 3 Jan 2006 14:23:35 -0700
+Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av04.boulder.ibm.com (8.12.11/8.13.3) with ESMTP id k03LOqXB027000
+	for <linux-mm@kvack.org>; Tue, 3 Jan 2006 14:24:52 -0700
+Message-ID: <43BAEB98.8060906@austin.ibm.com>
+Date: Tue, 03 Jan 2006 15:24:40 -0600
+From: Joel Schopp <jschopp@austin.ibm.com>
+Reply-To: jschopp@austin.ibm.com
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [Patch] New zone ZONE_EASY_RECLAIM take 4. (change build_zonelists)[3/8]
+References: <20051220172910.1B0C.Y-GOTO@jp.fujitsu.com>
+In-Reply-To: <20051220172910.1B0C.Y-GOTO@jp.fujitsu.com>
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@osdl.org>, Christoph Lameter <christoph@lameter.com>, Wu Fengguang <wfg@mail.ustc.edu.cn>, Nick Piggin <npiggin@suse.de>, Marijn Meijles <marijn@bitpit.net>, Rik van Riel <riel@redhat.com>
+To: Yasunori Goto <y-goto@jp.fujitsu.com>
+Cc: Linux Kernel ML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Linux Hotplug Memory Support <lhms-devel@lists.sourceforge.net>
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 31 Dec 2005, Marcelo Tosatti wrote:
+> -	BUG_ON(zone_type > ZONE_HIGHMEM);
+> +	BUG_ON(zone_type > ZONE_EASY_RECLAIM);
 
-> > > > + * res | h/c | tst | ref || Hcold | Hhot | Htst || Flt
-> > > > + * ----+-----+-----+-----++-------+------+------++-----
-> > > > + *  1  |  1  |  0  |  1  ||=1101  | 1100 |=1101 ||
-> > > > + *  1  |  1  |  0  |  0  ||=1100  | 1000 |=1100 ||
-> > > > + * ----+-----+-----+-----++-------+------+------++-----
-> > > > + *  1  |  0  |  1  |  1  || 1100  | 1001 | 1001 ||
-> > > > + *  1  |  0  |  1  |  0  ||X0010  | 1000 | 1000 ||
-> > > > + *  1  |  0  |  0  |  1  || 1010  |=1001 |=1001 ||
-> > > > + *  1  |  0  |  0  |  0  ||X0000  |=1000 |=1000 ||
-> > > > + * ----+-----+-----+-----++-------+------+------++-----
-> > > > + * ----+-----+-----+-----++-------+------+------++-----
-> > > > + *  0  |  0  |  1  |  1  ||       |      |      || 1100
-> > > > + *  0  |  0  |  1  |  0  ||=0010  |X0000 |X0000 ||
-> > > > + *  0  |  0  |  0  |  1  ||       |      |      || 1010 
-> > state table, it describes how (in the original paper) the three hands
-> > modify the page state. Given the state in the first four columns, the
-> > next three columns give a new state for each hand; hand cold, hot and
-> > test. The last column describes the action of a pagefault.
-> > 
-> > Ex. given a resident cold page in its test period that is referenced
-> > (1011):
-> >  - Hand cold will make it 1100, that is, a resident hot page;
-> >  - Hand hot will make it 1001, that is, a resident cold page with a
-> > reference; and
-> >  - Hand test will also make it 1001.
-> > 
-> > (The prefixes '=' and 'X' are used to indicate: not changed, and remove
-> > from list - that can be either move from resident->non-resident or
-> > remove altogether).
+It might be nice to check ifndef CONFIG_HIGHMEM that the zone isn't 
+particularly ZONE_HIGHMEM.
+
+>  	int res = ZONE_NORMAL;
+> -	if (zone_bits & (__force int)__GFP_HIGHMEM)
+> -		res = ZONE_HIGHMEM;
+> -	if (zone_bits & (__force int)__GFP_DMA32)
+> -		res = ZONE_DMA32;
+> -	if (zone_bits & (__force int)__GFP_DMA)
+> +
+> +	if (zone_bits == fls((__force int)__GFP_DMA))
+>  		res = ZONE_DMA;
+> +	if (zone_bits == fls((__force int)__GFP_DMA32) &&
+> +	    (__force int)__GFP_DMA32 == 0x02)
+> +		res = ZONE_DMA32;
+> +	if (zone_bits == fls((__force int)__GFP_HIGHMEM))
+> +		res = ZONE_HIGHMEM;
+> +	if (zone_bits == fls((__force int)__GFP_EASY_RECLAIM))
+> +		res = ZONE_EASY_RECLAIM;
+> +
+>  	return res;
+>  }
+
+It is incredibly silly to check a constant for a value.  When it is zero 
+instead of 2 the first part of the statement will be false anyway.
+
+Which reminds me.  Why are we using fls again?  I don't see why we 
+aren't just (zone_bits & value) the types.  It seems much easier to 
+understand that way.
+
+>  
+> Index: zone_reclaim/include/linux/gfp.h
+> ===================================================================
+> --- zone_reclaim.orig/include/linux/gfp.h	2005-12-19 20:19:37.000000000 +0900
+> +++ zone_reclaim/include/linux/gfp.h	2005-12-19 20:19:56.000000000 +0900
+> @@ -81,7 +81,7 @@ struct vm_area_struct;
+>  
+>  static inline int gfp_zone(gfp_t gfp)
+>  {
+> -	int zone = GFP_ZONEMASK & (__force int) gfp;
+> +	int zone = fls(GFP_ZONEMASK & (__force int) gfp);
+>  	BUG_ON(zone >= GFP_ZONETYPES);
+>  	return zone;
+>  }
 > 
-> I see - can you add this info to the patch?
 
-Hmm.. This looks as if it would be better to manage the page state as 
-a bitmap rather than individual bits. Could we put this state in 
-an integer variable and do an array lookup to get to the next state? 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
