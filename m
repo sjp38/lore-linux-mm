@@ -1,12 +1,12 @@
 Subject: Re: [RFC] Event counters [1/3]: Basic counter functionality
 From: Nick Piggin <nickpiggin@yahoo.com.au>
-In-Reply-To: <20051231202602.GC3903@dmt.cnet>
+In-Reply-To: <20060102214016.GA13905@dmt.cnet>
 References: <20051220235733.30925.55642.sendpatchset@schroedinger.engr.sgi.com>
 	 <20051231064615.GB11069@dmt.cnet> <43B63931.6000307@yahoo.com.au>
-	 <20051231202602.GC3903@dmt.cnet>
+	 <20051231202602.GC3903@dmt.cnet>  <20060102214016.GA13905@dmt.cnet>
 Content-Type: text/plain
-Date: Tue, 03 Jan 2006 16:01:04 +1100
-Message-Id: <1136264464.5261.23.camel@npiggin-nld.site>
+Date: Tue, 03 Jan 2006 16:11:46 +1100
+Message-Id: <1136265106.5261.34.camel@npiggin-nld.site>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -15,75 +15,41 @@ To: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
 Cc: Christoph Lameter <clameter@sgi.com>, lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Andi Kleen <ak@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 2005-12-31 at 18:26 -0200, Marcelo Tosatti wrote:
-> Hi Nick!
+On Mon, 2006-01-02 at 19:40 -0200, Marcelo Tosatti wrote:
+
+> Nick, 
+> 
+> The following patch:
+> 
+> - Moves the lightweight "inc/dec" versions of mod_page_state variants
+> to three underscores, making those the default for locations where enough
+> locks are held.
 > 
 
-Hey Marcelo!
+I guess I was hoping to try to keep it simple, and just have two
+variants, the __ version would require the caller to do the locking.
+In cases like eg. allocstall, they should happen infrequently enough
+that the extra complexity is probably not worth worrying about.
 
-> On Sat, Dec 31, 2005 at 06:54:25PM +1100, Nick Piggin wrote:
-> > 
-> > Hi Guys,
-> > 
-> > I've been waiting for some mm/ patches to clear from -mm before commenting
-> > too much... however I see that this patch is actually against -mm itself,
-> > with my __mod_page_state stuff in it... that makes the page state accounting
-> > much lighter weight AND is not racy.
+I don't think I commented about the preempt race though (and requirement
+to have preempt off from process context), which obviously can be a
+problem as you say (though I think things are currently safe?).
+
+> - Make the two-underscore version disable and enable preemption, which 
+> is required to avoid preempt-related races which can result in missed
+> updates.
 > 
-> It is racy with reference to preempt (please refer to the race condition
-> described above):
-> 
-> diff -puN mm/rmap.c~mm-page_state-opt mm/rmap.c
-> --- devel/mm/rmap.c~mm-page_state-opt   2005-12-13 22:25:01.000000000 -0800
-> +++ devel-akpm/mm/rmap.c        2005-12-13 22:25:01.000000000 -0800
-> @@ -451,7 +451,11 @@ static void __page_set_anon_rmap(struct 
-> 
->         page->index = linear_page_index(vma, address);
->  
-> -       inc_page_state(nr_mapped);
-> +       /*
-> +        * nr_mapped state can be updated without turning off
-> +        * interrupts because it is not modified via interrupt.
-> +        */
-> +       __inc_page_state(nr_mapped);
->  }
-> 
-> And since "nr_mapped" is not a counter for debugging purposes only, you 
-> can't be lazy with reference to its consistency.
-> 
-> I would argue that you need a preempt save version for this important
-> counters, surrounded by preempt_disable/preempt_enable (which vanish 
-> if one selects !CONFIG_PREEMPT).
+> - Extends the lightweight version usage in page reclaim, 
+> pte allocation, and a few other codepaths.
 > 
 
-I think it should not be racy because the function should always be
-called with the page table lock held, which disables preempt. I guess
-the comment should be explicit about that as well.
+I guess nr_dirty looks OK in the places it can be put under tree_lock.
 
-There were some runtime warnings that come up when this patch first
-went into -mm because of a silly typo, however that should now be
-resolved too.
+nr_page_table_pages is OK because ptl should be held to prevent preempt.
 
-> As Christoph notes, debugging counter consistency can be lazy, not even
-> requiring correct preempt locking (hum, this is debatable, needs careful
-> verification).
->  
-> > So I'm not exactly sure why such a patch as this is wanted now? Are there
-> > any more xxx_page_state hotspots? (I admit to only looking at page faults,
-> > page allocator, and page reclaim).
-> 
-> A consolidation of the good parts of both would be interesting.
-> 
-> I don't see much point in Christoph's naming change to "event_counter", 
-> why are you doing that?
-> 
-> And follows an addition to your's mm-page_state-opt-docs.patch. Still
-> need to verify "nr_dirty" and "nr_unstable".
-> 
-> Happy new year!
-> 
+pgrotated and pgactivate should be good because of lru_lock.
 
-Thanks, happy new year to you too!
+Thanks for going through these!
 
 -- 
 SUSE Labs, Novell Inc.
