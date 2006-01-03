@@ -1,42 +1,52 @@
-Date: Tue, 3 Jan 2006 10:06:52 -0200
+Date: Tue, 3 Jan 2006 10:21:09 -0200
 From: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
-Subject: Re: [RFC] Event counters [1/3]: Basic counter functionality
-Message-ID: <20060103120652.GB5288@dmt.cnet>
-References: <20051220235733.30925.55642.sendpatchset@schroedinger.engr.sgi.com> <20051231064615.GB11069@dmt.cnet> <43B63931.6000307@yahoo.com.au> <20051231202602.GC3903@dmt.cnet> <20060102214016.GA13905@dmt.cnet> <1136265106.5261.34.camel@npiggin-nld.site> <20060103101106.GA3435@dmt.cnet> <43BA7A73.6070407@yahoo.com.au>
+Subject: Re: [PATCH 6/9] clockpro-clockpro.patch
+Message-ID: <20060103122109.GC5288@dmt.cnet>
+References: <20051230223952.765.21096.sendpatchset@twins.localnet> <20051230224312.765.58575.sendpatchset@twins.localnet> <20051231224021.GA5184@dmt.cnet> <1136111854.17853.77.camel@twins>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <43BA7A73.6070407@yahoo.com.au>
+In-Reply-To: <1136111854.17853.77.camel@twins>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Christoph Lameter <clameter@sgi.com>, lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Andi Kleen <ak@suse.de>
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@osdl.org>, Christoph Lameter <christoph@lameter.com>, Wu Fengguang <wfg@mail.ustc.edu.cn>, Nick Piggin <npiggin@suse.de>, Marijn Meijles <marijn@bitpit.net>, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jan 04, 2006 at 12:21:55AM +1100, Nick Piggin wrote:
-> Marcelo Tosatti wrote:
-> >On Tue, Jan 03, 2006 at 04:11:46PM +1100, Nick Piggin wrote:
-> >
+On Sun, Jan 01, 2006 at 11:37:34AM +0100, Peter Zijlstra wrote:
+> On Sat, 2005-12-31 at 20:40 -0200, Marcelo Tosatti wrote:
+> > On Fri, Dec 30, 2005 at 11:43:34PM +0100, Peter Zijlstra wrote:
+> > > 
+> > > From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+> > 
+> > Peter,
+> > 
+> > I tried your "scan-shared.c" proggy which loops over 140M of a file
+> > using mmap (on a 128MB box). The number of loops was configured to "5".
+> > 
+> > The amount of major/minor pagefaults was exactly the same between
+> > vanilla and clockpro, isnt the clockpro algorithm supposed to be
+> > superior than LRU in such "sequential scan of MEMSIZE+1" cases?
 > 
-> >>I guess I was hoping to try to keep it simple, and just have two
-> >>variants, the __ version would require the caller to do the locking.
-> >
-> >
-> >I see - one point is that the two/three underscore versions make
-> >it clear that preempt is required, though, but it might be a bit
-> >over-complicated as you say.
-> >
-> >Well, its up to you - please rearrange the patch as you wish and merge
-> >up?
-> >
+> yes it should, hmm, have to look at that then.
 > 
-> OK I will push it upstream - thanks!
-> 
-> We can revisit details again when some smoke clears from the
-> coming 2.6.16 merge cycle?
+> What should happen is that nr_cold_target should drop to the bare
+> minimum, which effectivly pins all hot pages and only rotates the few
+> cold pages.
 
-Sure - we can also go further and the optimize operations on the
-remaining counters.
+I screwed up the tests. Here are the real numbers.
+
+Test: scan 140MB file sequentially, 5 times.
+Env: 128Mb machine
+
+CLOCK-Pro:	0:49:98elapsed	18%CPU
+		7358maj+95308min
+
+vanilla:
+		1:28.05elapsed	11%CPU
+		12950maj+166374min
+
+Kicking some large arses!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
