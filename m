@@ -1,36 +1,56 @@
-Date: Tue, 3 Jan 2006 11:08:14 -0800 (PST)
+Date: Tue, 3 Jan 2006 11:30:53 -0800 (PST)
 From: Christoph Lameter <clameter@engr.sgi.com>
-Subject: Re: [RFC] Event counters [1/3]: Basic counter functionality
-In-Reply-To: <43B63931.6000307@yahoo.com.au>
-Message-ID: <Pine.LNX.4.62.0601031102560.20946@schroedinger.engr.sgi.com>
-References: <20051220235733.30925.55642.sendpatchset@schroedinger.engr.sgi.com>
- <20051231064615.GB11069@dmt.cnet> <43B63931.6000307@yahoo.com.au>
+Subject: Re: [PATCH 6/9] clockpro-clockpro.patch
+In-Reply-To: <20051231221215.GA4024@dmt.cnet>
+Message-ID: <Pine.LNX.4.62.0601031129160.21019@schroedinger.engr.sgi.com>
+References: <20051230223952.765.21096.sendpatchset@twins.localnet>
+ <20051230224312.765.58575.sendpatchset@twins.localnet> <20051231002417.GA4913@dmt.cnet>
+ <1136026117.17853.46.camel@twins> <20051231221215.GA4024@dmt.cnet>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Marcelo Tosatti <marcelo.tosatti@cyclades.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andi Kleen <ak@suse.de>
+To: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@osdl.org>, Christoph Lameter <christoph@lameter.com>, Wu Fengguang <wfg@mail.ustc.edu.cn>, Nick Piggin <npiggin@suse.de>, Marijn Meijles <marijn@bitpit.net>, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 31 Dec 2005, Nick Piggin wrote:
+On Sat, 31 Dec 2005, Marcelo Tosatti wrote:
 
-> So I'm not exactly sure why such a patch as this is wanted now? Are there
-> any more xxx_page_state hotspots? (I admit to only looking at page faults,
-> page allocator, and page reclaim).
+> > > > + * res | h/c | tst | ref || Hcold | Hhot | Htst || Flt
+> > > > + * ----+-----+-----+-----++-------+------+------++-----
+> > > > + *  1  |  1  |  0  |  1  ||=1101  | 1100 |=1101 ||
+> > > > + *  1  |  1  |  0  |  0  ||=1100  | 1000 |=1100 ||
+> > > > + * ----+-----+-----+-----++-------+------+------++-----
+> > > > + *  1  |  0  |  1  |  1  || 1100  | 1001 | 1001 ||
+> > > > + *  1  |  0  |  1  |  0  ||X0010  | 1000 | 1000 ||
+> > > > + *  1  |  0  |  0  |  1  || 1010  |=1001 |=1001 ||
+> > > > + *  1  |  0  |  0  |  0  ||X0000  |=1000 |=1000 ||
+> > > > + * ----+-----+-----+-----++-------+------+------++-----
+> > > > + * ----+-----+-----+-----++-------+------+------++-----
+> > > > + *  0  |  0  |  1  |  1  ||       |      |      || 1100
+> > > > + *  0  |  0  |  1  |  0  ||=0010  |X0000 |X0000 ||
+> > > > + *  0  |  0  |  0  |  1  ||       |      |      || 1010 
+> > state table, it describes how (in the original paper) the three hands
+> > modify the page state. Given the state in the first four columns, the
+> > next three columns give a new state for each hand; hand cold, hot and
+> > test. The last column describes the action of a pagefault.
+> > 
+> > Ex. given a resident cold page in its test period that is referenced
+> > (1011):
+> >  - Hand cold will make it 1100, that is, a resident hot page;
+> >  - Hand hot will make it 1001, that is, a resident cold page with a
+> > reference; and
+> >  - Hand test will also make it 1001.
+> > 
+> > (The prefixes '=' and 'X' are used to indicate: not changed, and remove
+> > from list - that can be either move from resident->non-resident or
+> > remove altogether).
+> 
+> I see - can you add this info to the patch?
 
-The proposed patchset is based on the zoned counter patchset. This means 
-that critical counters have been converted to use different macros. The 
-following discussion of Marcelo and Nick on nr_mapped etc is not relevant 
-to this patch since nr_mapped etc are not event counters but are handled 
-by the zoned counters.
-
-The event counters are the leftover vanity counters that are referenced 
-only for display in /proc and the proposed approach is to only allow 
-increments and allow racy updates.
-
-Then these lightweight counters are also used to optimize away the numa 
-specific counters in the per cpu structures.
+Hmm.. This looks as if it would be better to manage the page state as 
+a bitmap rather than individual bits. Could we put this state in 
+an integer variable and do an array lookup to get to the next state? 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
