@@ -1,61 +1,39 @@
-Date: Thu, 5 Jan 2006 11:23:06 +0000
-Subject: Re: [Patch] New zone ZONE_EASY_RECLAIM take 4. (disable gfp_easy_reclaim bit)[5/8]
-Message-ID: <20060105112305.GB14735@skynet.ie>
-References: <20060105144247.491D.Y-GOTO@jp.fujitsu.com> <20060105094726.GA14735@skynet.ie> <20060105194849.4929.Y-GOTO@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20060105194849.4929.Y-GOTO@jp.fujitsu.com>
-From: mel@csn.ul.ie (Mel Gorman)
+Date: Thu, 5 Jan 2006 08:32:19 -0500 (EST)
+From: Rik van Riel <riel@redhat.com>
+Subject: Re: [PATCH 6/9] clockpro-clockpro.patch
+In-Reply-To: <20060105094722.897C574030@sv1.valinux.co.jp>
+Message-ID: <Pine.LNX.4.63.0601050830530.18976@cuia.boston.redhat.com>
+References: <20051230223952.765.21096.sendpatchset@twins.localnet>
+ <20051230224312.765.58575.sendpatchset@twins.localnet> <20051231002417.GA4913@dmt.cnet>
+ <1136028546.17853.69.camel@twins> <20060105094722.897C574030@sv1.valinux.co.jp>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Yasunori Goto <y-goto@jp.fujitsu.com>
-Cc: jschopp@austin.ibm.com, Linux Kernel ML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Linux Hotplug Memory Support <lhms-devel@lists.sourceforge.net>
+To: IWAMOTO Toshihiro <iwamoto@valinux.co.jp>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Marcelo Tosatti <marcelo.tosatti@cyclades.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@osdl.org>, Christoph Lameter <christoph@lameter.com>, Wu Fengguang <wfg@mail.ustc.edu.cn>, Nick Piggin <npiggin@suse.de>, Marijn Meijles <marijn@bitpit.net>
 List-ID: <linux-mm.kvack.org>
 
-On (05/01/06 19:59), Yasunori Goto didst pronounce:
-> > On (05/01/06 14:43), Yasunori Goto didst pronounce:
-> > > > 
-> > > > > ===================================================================
-> > > > > --- zone_reclaim.orig/fs/pipe.c	2005-12-16 18:36:20.000000000 +0900
-> > > > > +++ zone_reclaim/fs/pipe.c	2005-12-16 19:15:35.000000000 +0900
-> > > > > @@ -284,7 +284,7 @@ pipe_writev(struct file *filp, const str
-> > > > >  			int error;
-> > > > >  
-> > > > >  			if (!page) {
-> > > > > -				page = alloc_page(GFP_HIGHUSER);
-> > > > > +				page = alloc_page(GFP_HIGHUSER & ~__GFP_EASY_RECLAIM);
-> > > > >  				if (unlikely(!page)) {
-> > > > >  					ret = ret ? : -ENOMEM;
-> > > > >  					break;
-> > > > 
-> > > > That is a bit hard to understand.  How about a new GFP_HIGHUSER_HARD or 
-> > > > somesuch define back in patch 1, then use it here?
-> > > 
-> > > It looks better. Thanks for your idea.
-> > > 
-> > 
-> > There are other places where GFP_HIGHUSER is used for pages that are not easily
-> > reclaimed. It is easier clearer to add __GFP_EASY_RECLAIM at the places you
-> > know pages are easily reclaimed rather than removing __GFP_EASY_RECLAIM from
-> > awkward places.
-> 
-> I thought that other pages can be migrated by Chlistoph-san's (and
-> Kame-san's) patch.
+On Thu, 5 Jan 2006, IWAMOTO Toshihiro wrote:
 
-Then the pages are not "easily reclaimed", they can just be moved by
-some other mechanism.
+> Is it okay to allow Hcold to lap Hhot?
 
-> May I ask which page should be no EASY_RECLAIM?
+I think it should be fine for Hcold to overtake Hhot, or
+the other way around.
 
-Based on http://lxr.linux.no/ident?i=GFP_HIGHUSER, examples include HugeTLB
-pages, pages allocated by the infiniband driver, pages allocated by the NFS
-driver and inode pages.
+> In my understanding of CLOCK-Pro, such lapping causes sudden increase
+> in the distance between Hhot and Hcold.  As that distance is an
+> important parameter of page aging/replacement decisions, I'm afraid
+> that such lapping would result in incorrect page aging and bad
+> performance.
+
+Hcold only manipulates cold pages, Hhot only manipulates hot
+pages and the test bit on cold pages.  Having one hand overtake
+the other should not disturb things at all, since they both do
+something different.
 
 -- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+All Rights Reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
