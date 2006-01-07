@@ -1,134 +1,45 @@
-Date: Sat, 07 Jan 2006 11:50:38 +0900
-From: Yasunori Goto <y-goto@jp.fujitsu.com>
-Subject: Re: [PATCH] Simple memory hot-add for ia64.
-In-Reply-To: <1136575296.8189.25.camel@localhost.localdomain>
-References: <20060106114249.5649.Y-GOTO@jp.fujitsu.com> <1136575296.8189.25.camel@localhost.localdomain>
-Message-Id: <20060107114233.120C.Y-GOTO@jp.fujitsu.com>
+Message-ID: <43BF2D03.2030908@yahoo.com.au>
+Date: Sat, 07 Jan 2006 13:52:51 +1100
+From: Nick Piggin <nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+Subject: Re: [PATCH] use local_t for page statistics
+References: <20060106215332.GH8979@kvack.org> <20060106163313.38c08e37.akpm@osdl.org>
+In-Reply-To: <20060106163313.38c08e37.akpm@osdl.org>
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Hansen <haveblue@us.ibm.com>, "Luck, Tony" <tony.luck@intel.com>
-Cc: Linux Hotplug Memory Support <lhms-devel@lists.sourceforge.net>, linux-ia64@vger.kernel.org, Linux Kernel ML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Bob Picco <bob.picco@hp.com>, Mike Kravetz <kravetz@us.ibm.com>
+To: Andrew Morton <akpm@osdl.org>
+Cc: Benjamin LaHaise <bcrl@kvack.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> On Fri, 2006-01-06 at 11:50 +0900, Yasunori Goto wrote:
-> > Fortunately, 2.6.15 includes memory hot-add function for i386 and ppc.
-> > So, I made a patch for ia64.
-> > This doesn't make new pgdat. All of new memory will belong to
-> > node 0 by this patch. But this is simplest first step and best start for
-> > future work.
+Andrew Morton wrote:
+> Benjamin LaHaise <bcrl@kvack.org> wrote:
 > 
-> It does look quite simple.  Nice work.
+>>The patch below converts the mm page_states counters to use local_t.  
+>>mod_page_state shows up in a few profiles on x86 and x86-64 due to the 
+>>disable/enable interrupts operations touching the flags register.  On 
+>>both my laptop (Pentium M) and P4 test box this results in about 10 
+>>additional /bin/bash -c exit 0 executions per second (P4 went from ~759/s 
+>>to ~771/s).  Tested on x86 and x86-64.  Oh, also add a pgcow statistic 
+>>for the number of COW page faults.
 > 
-> > +#ifdef CONFIG_MEMORY_HOTPLUG
-> > +void online_page(struct page *page)
-> > +{
-> > +	ClearPageReserved(page);
-> > +	set_page_count(page, 1);
-> > +	__free_page(page);
-> > +	totalram_pages++;
-> > +	num_physpages++;
-> > +}
 > 
-> You're the first one to get one of these in for an alternate
-> architecture.  We'll need to keep an eye out so that one of these
-> doesn't pop up on each of the 64-bit arches with no highmem as we add
-> support.  But, this should be just fine for now. 
+> Bah.  I think this is a better approach than the just-merged
+> mm-page_state-opt.patch, so I should revert that patch first?
 > 
-> > +int add_memory(u64 start, u64 size)
-> > +{
-> > +	pg_data_t *pgdat;
-> > +	struct zone *zone;
-> > +	unsigned long start_pfn = start >> PAGE_SHIFT;
-> > +	unsigned long nr_pages = size >> PAGE_SHIFT;
-> > +	int ret;
-> > +
-> > +	pgdat = NODE_DATA(0);
-> > +
-> > +	zone = pgdat->node_zones + ZONE_NORMAL;
-> > +	ret = __add_pages(zone, start_pfn, nr_pages);
-> > +
-> > +	if (ret)
-> > +		printk("%s: Problem encountered in __add_pages() as ret=%d\n", __func__,  ret);
-> 
-> For some reason, I thought we were officially supposed to use
-> __FUNCTION__ for stuff like this.  However, I am usually lazy in my
-> debugging patches and use __func__.  I'm a bad example.
 
-I didn't know it. Thanks!
+No. On many load/store architectures there is no good way to do local_t,
+so something like ppc32 or ia64 just uses all atomic operations for
+local_t, and ppc64 uses 3 counters per-cpu thus tripling the cache
+footprint.
 
-> This also looks a bit past 80 columns.
-
-Ok. This is newer one. :-)
-
-Bye.
-
-------------------
-
-Fortunately, 2.6.15 includes memory hot-add function for i386 and ppc.
-So, I made a patch for ia64.
-This doesn't make new pgdat. All of new memory will belong to
-node 0 by this patch. But this is simplest first step and best start for
-future work.
-
-I tested on my Tiger4. Please apply.
-
-(This patch doesn't use ZONE_EASY_RECLAIM yet, because its zone will be useful
- for just hot-remove.)
-
-Signed-off-by: Yasunori Goto <y-goto@jp.fujitsu.com>
-
-
-Index: new_feature_patch/arch/ia64/mm/init.c
-===================================================================
---- new_feature_patch.orig/arch/ia64/mm/init.c	2006-01-07 10:58:27.000000000 +0900
-+++ new_feature_patch/arch/ia64/mm/init.c	2006-01-07 10:59:52.000000000 +0900
-@@ -635,3 +635,39 @@ mem_init (void)
- 	ia32_mem_init();
- #endif
- }
-+
-+#ifdef CONFIG_MEMORY_HOTPLUG
-+void online_page(struct page *page)
-+{
-+	ClearPageReserved(page);
-+	set_page_count(page, 1);
-+	__free_page(page);
-+	totalram_pages++;
-+	num_physpages++;
-+}
-+
-+int add_memory(u64 start, u64 size)
-+{
-+	pg_data_t *pgdat;
-+	struct zone *zone;
-+	unsigned long start_pfn = start >> PAGE_SHIFT;
-+	unsigned long nr_pages = size >> PAGE_SHIFT;
-+	int ret;
-+
-+	pgdat = NODE_DATA(0);
-+
-+	zone = pgdat->node_zones + ZONE_NORMAL;
-+	ret = __add_pages(zone, start_pfn, nr_pages);
-+
-+	if (ret)
-+		printk("%s: Problem encountered in __add_pages() as ret=%d\n",
-+		       __FUNCTION__,  ret);
-+
-+	return ret;
-+}
-+
-+int remove_memory(u64 start, u64 size)
-+{
-+	return -EINVAL;
-+}
-+#endif
+Nick
 
 -- 
-Yasunori Goto 
+SUSE Labs, Novell Inc.
 
+Send instant messages to your online friends http://au.messenger.yahoo.com 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
