@@ -1,49 +1,55 @@
-Date: Fri, 6 Jan 2006 19:07:03 -0800
-From: Andrew Morton <akpm@osdl.org>
+Message-ID: <43BF3355.5060606@yahoo.com.au>
+Date: Sat, 07 Jan 2006 14:19:49 +1100
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+MIME-Version: 1.0
 Subject: Re: [PATCH] use local_t for page statistics
-Message-Id: <20060106190703.5c346c6e.akpm@osdl.org>
-In-Reply-To: <43BF2D03.2030908@yahoo.com.au>
-References: <20060106215332.GH8979@kvack.org>
-	<20060106163313.38c08e37.akpm@osdl.org>
-	<43BF2D03.2030908@yahoo.com.au>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+References: <20060106215332.GH8979@kvack.org> <20060106163313.38c08e37.akpm@osdl.org> <43BF2D03.2030908@yahoo.com.au> <200601070401.47618.ak@suse.de>
+In-Reply-To: <200601070401.47618.ak@suse.de>
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: bcrl@kvack.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andi Kleen <ak@suse.de>
+Cc: Andrew Morton <akpm@osdl.org>, Benjamin LaHaise <bcrl@kvack.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Nick Piggin <nickpiggin@yahoo.com.au> wrote:
->
-> Andrew Morton wrote:
-> > Benjamin LaHaise <bcrl@kvack.org> wrote:
-> > 
-> >>The patch below converts the mm page_states counters to use local_t.  
-> >>mod_page_state shows up in a few profiles on x86 and x86-64 due to the 
-> >>disable/enable interrupts operations touching the flags register.  On 
-> >>both my laptop (Pentium M) and P4 test box this results in about 10 
-> >>additional /bin/bash -c exit 0 executions per second (P4 went from ~759/s 
-> >>to ~771/s).  Tested on x86 and x86-64.  Oh, also add a pgcow statistic 
-> >>for the number of COW page faults.
-> > 
-> > 
-> > Bah.  I think this is a better approach than the just-merged
-> > mm-page_state-opt.patch, so I should revert that patch first?
-> > 
+Andi Kleen wrote:
+> On Saturday 07 January 2006 03:52, Nick Piggin wrote:
 > 
-> No. On many load/store architectures there is no good way to do local_t,
-> so something like ppc32 or ia64 just uses all atomic operations for
-> local_t, and ppc64 uses 3 counters per-cpu thus tripling the cache
-> footprint.
+> 
+>>No. On many load/store architectures there is no good way to do local_t,
+>>so something like ppc32 or ia64 just uses all atomic operations for
+> 
+> 
+> well, they're just broken and need to be fixed to not do that.
 > 
 
-Yes, local_t seems a bit half-assed at present.  And a bit broken with
-interrupt nesting.
+How?
 
-Surely 64-bit architectures would be better off using atomic64_t rather
-than that v[3] monstrosity.
+> Also I bet with some tricks a seqlock like setup could be made to work.
+> 
+
+I asked you how before. If you can come up with a way then it indeed
+might be a good solution... The problem I see with seqlock is that it
+is only fast in the read path. That path is not the issue here.
+
+> 
+>>local_t, and ppc64 uses 3 counters per-cpu thus tripling the cache
+>>footprint.
+> 
+> 
+> and ppc64 has big caches so this also shouldn't be a problem.
+> 
+
+Well it is even less of a problem for them now, by about 1/3.
+
+Performance-wise there is really no benefit for even i386 or x86-64
+to move to local_t now either so I don't see what the fuss is about.
+
+-- 
+SUSE Labs, Novell Inc.
+
+Send instant messages to your online friends http://au.messenger.yahoo.com 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
