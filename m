@@ -1,34 +1,58 @@
-From: Andi Kleen <ak@suse.de>
-Subject: Re: [PATCH] use local_t for page statistics
-Date: Sat, 7 Jan 2006 05:03:13 +0100
-References: <20060106215332.GH8979@kvack.org> <200601070425.24810.ak@suse.de> <43BF3A06.10502@yahoo.com.au>
-In-Reply-To: <43BF3A06.10502@yahoo.com.au>
-MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
+Received: from d12nrmr1607.megacenter.de.ibm.com (d12nrmr1607.megacenter.de.ibm.com [9.149.167.49])
+	by mtagate1.de.ibm.com (8.12.10/8.12.10) with ESMTP id k07CPag7051492
+	for <linux-mm@kvack.org>; Sat, 7 Jan 2006 12:25:36 GMT
+Received: from d12av02.megacenter.de.ibm.com (d12av02.megacenter.de.ibm.com [9.149.165.228])
+	by d12nrmr1607.megacenter.de.ibm.com (8.12.10/NCO/VERS6.8) with ESMTP id k07CPZCO232014
+	for <linux-mm@kvack.org>; Sat, 7 Jan 2006 13:25:35 +0100
+Received: from d12av02.megacenter.de.ibm.com (loopback [127.0.0.1])
+	by d12av02.megacenter.de.ibm.com (8.12.11/8.13.3) with ESMTP id k07CPZeL005602
+	for <linux-mm@kvack.org>; Sat, 7 Jan 2006 13:25:35 +0100
+Date: Sat, 7 Jan 2006 13:25:34 +0100
+From: Heiko Carstens <heiko.carstens@de.ibm.com>
+Subject: Re: [PATCH/RFC] Shared page tables
+Message-ID: <20060107122534.GA20442@osiris.boeblingen.de.ibm.com>
+References: <A6D73CCDC544257F3D97F143@[10.1.1.4]>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Message-Id: <200601070503.14336.ak@suse.de>
+In-Reply-To: <A6D73CCDC544257F3D97F143@[10.1.1.4]>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Andrew Morton <akpm@osdl.org>, Benjamin LaHaise <bcrl@kvack.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Dave McCracken <dmccr@us.ibm.com>
+Cc: Hugh Dickins <hugh@veritas.com>, Andrew Morton <akpm@osdl.org>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Saturday 07 January 2006 04:48, Nick Piggin wrote:
-
+> Here's a new version of my shared page tables patch.
 > 
-> At a 3x cache footprint cost? (and probably more than 3x for icache, though
-> I haven't checked) And I think hardware trends are against us. (Also, does
-> it have race issues with nested interrupts that Andrew noticed?)
+> The primary purpose of sharing page tables is improved performance for
+> large applications that share big memory areas between multiple processes.
+> It eliminates the redundant page tables and significantly reduces the
+> number of minor page faults.  Tests show significant performance
+> improvement for large database applications, including those using large
+> pages.  There is no measurable performance degradation for small processes.
 
-Well the alternative would be to just let them turn off interrupts.
-If that's cheap for them that's fine too. And would be equivalent
-to what the current high level code does.
+Tried to get this running with CONFIG_PTSHARE and CONFIG_PTSHARE_PTE on
+s390x. Unfortunately it crashed on boot, because pt_share_pte
+returned a broken pte pointer:
 
-If you worry about icache footprint it can be even done out of line.
+> +pte_t *pt_share_pte(struct vm_area_struct *vma, unsigned long address, pmd_t *pmd,
+> + ...
+> +	pmd_val(spmde) = 0;
+> + ...
+> +		if (pmd_present(spmde)) {
 
--Andi
+This is wrong. A pmd_val of 0 will make pmd_present return true on s390x
+which is not what you want.
+Should be pmd_clear(&spmde).
+
+> +pmd_t *pt_share_pmd(struct vm_area_struct *vma, unsigned long address, pud_t *pud,
+> + ...
+> +	pud_val(spude) = 0;
+
+Should be pud_clear, I guess :)
+
+Thanks,
+Heiko
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
