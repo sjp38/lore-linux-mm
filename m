@@ -1,57 +1,43 @@
-Date: Sat, 07 Jan 2006 12:09:29 -0600
-From: Dave McCracken <dmccr@us.ibm.com>
-Subject: Re: [PATCH/RFC] Shared page tables
-Message-ID: <2796BAF66E63B415FF1929B8@[10.1.1.4]>
-In-Reply-To: <20060107122534.GA20442@osiris.boeblingen.de.ibm.com>
-References: <A6D73CCDC544257F3D97F143@[10.1.1.4]>
- <20060107122534.GA20442@osiris.boeblingen.de.ibm.com>
-MIME-Version: 1.0
+Date: Fri, 6 Jan 2006 23:00:29 -0200
+From: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
+Subject: Re: [PATCH] use local_t for page statistics
+Message-ID: <20060107010029.GA5087@dmt.cnet>
+References: <20060106215332.GH8979@kvack.org> <20060106163313.38c08e37.akpm@osdl.org>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
+In-Reply-To: <20060106163313.38c08e37.akpm@osdl.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Heiko Carstens <heiko.carstens@de.ibm.com>
-Cc: Hugh Dickins <hugh@veritas.com>, Andrew Morton <akpm@osdl.org>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>
+To: Andrew Morton <akpm@osdl.org>
+Cc: Benjamin LaHaise <bcrl@kvack.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Nick Piggin <nickpiggin@yahoo.com.au>
 List-ID: <linux-mm.kvack.org>
 
---On Saturday, January 07, 2006 13:25:34 +0100 Heiko Carstens
-<heiko.carstens@de.ibm.com> wrote:
-
->> The primary purpose of sharing page tables is improved performance for
->> large applications that share big memory areas between multiple
->> processes. It eliminates the redundant page tables and significantly
->> reduces the number of minor page faults.  Tests show significant
->> performance improvement for large database applications, including those
->> using large pages.  There is no measurable performance degradation for
->> small processes.
+On Fri, Jan 06, 2006 at 04:33:13PM -0800, Andrew Morton wrote:
+> Benjamin LaHaise <bcrl@kvack.org> wrote:
+> >
+> > The patch below converts the mm page_states counters to use local_t.  
+> > mod_page_state shows up in a few profiles on x86 and x86-64 due to the 
+> > disable/enable interrupts operations touching the flags register.  On 
+> > both my laptop (Pentium M) and P4 test box this results in about 10 
+> > additional /bin/bash -c exit 0 executions per second (P4 went from ~759/s 
+> > to ~771/s).  Tested on x86 and x86-64.  Oh, also add a pgcow statistic 
+> > for the number of COW page faults.
 > 
-> Tried to get this running with CONFIG_PTSHARE and CONFIG_PTSHARE_PTE on
-> s390x. Unfortunately it crashed on boot, because pt_share_pte
-> returned a broken pte pointer:
+> Bah.  I think this is a better approach than the just-merged
+> mm-page_state-opt.patch, so I should revert that patch first?
 
-The patch as submitted only works on i386 and x86_64.  Sorry.
+Don't think so - local_t operations are performed atomically, which is
+not required for most hotpath page statistics operations since proper
+locks are already held.
 
->> +pte_t *pt_share_pte(struct vm_area_struct *vma, unsigned long address,
->> pmd_t *pmd, + ...
->> +	pmd_val(spmde) = 0;
->> + ...
->> +		if (pmd_present(spmde)) {
-> 
-> This is wrong. A pmd_val of 0 will make pmd_present return true on s390x
-> which is not what you want.
-> Should be pmd_clear(&spmde).
-> 
->> +pmd_t *pt_share_pmd(struct vm_area_struct *vma, unsigned long address,
->> pud_t *pud, + ...
->> +	pud_val(spude) = 0;
-> 
-> Should be pud_clear, I guess :)
+What is wanted for these cases are simple inc/dec (non-atomic)
+instructions, which is what Nick's patch does by introducing
+__mod_page_state.
 
-Yes, you're right.  pmd_clear() and pud_clear() would be more portable.
-I'll make that change.
+Ben, have you tested mm-page_state-opt.patch? It should get rid of
+most "flags" save/restore on stack.
 
-Dave McCracken
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
