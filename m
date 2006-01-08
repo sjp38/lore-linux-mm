@@ -1,43 +1,31 @@
-Date: Fri, 6 Jan 2006 23:00:29 -0200
-From: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
-Subject: Re: [PATCH] use local_t for page statistics
-Message-ID: <20060107010029.GA5087@dmt.cnet>
-References: <20060106215332.GH8979@kvack.org> <20060106163313.38c08e37.akpm@osdl.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20060106163313.38c08e37.akpm@osdl.org>
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+Message-Id: <20060108052307.2996.39444.sendpatchset@didi.local0.net>
+Subject: [patch 0/4] mm: de-skew page_count
+Date: Sun, 8 Jan 2006 00:19:27 -0500
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: Benjamin LaHaise <bcrl@kvack.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Nick Piggin <nickpiggin@yahoo.com.au>
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Andrew Morton <akpm@osdl.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Jan 06, 2006 at 04:33:13PM -0800, Andrew Morton wrote:
-> Benjamin LaHaise <bcrl@kvack.org> wrote:
-> >
-> > The patch below converts the mm page_states counters to use local_t.  
-> > mod_page_state shows up in a few profiles on x86 and x86-64 due to the 
-> > disable/enable interrupts operations touching the flags register.  On 
-> > both my laptop (Pentium M) and P4 test box this results in about 10 
-> > additional /bin/bash -c exit 0 executions per second (P4 went from ~759/s 
-> > to ~771/s).  Tested on x86 and x86-64.  Oh, also add a pgcow statistic 
-> > for the number of COW page faults.
-> 
-> Bah.  I think this is a better approach than the just-merged
-> mm-page_state-opt.patch, so I should revert that patch first?
+The following patchset (against 2.6.15-rc5ish) uses the new atomic ops to
+do away with the offset page refcounting, and simplify the race that it
+was designed to cover.
 
-Don't think so - local_t operations are performed atomically, which is
-not required for most hotpath page statistics operations since proper
-locks are already held.
+This allows some nice optimisations, and we end up saving 2 atomic ops
+including a spin_lock_irqsave in the !PageLRU case, and 1 or 2 atomic ops
+in the PageLRU case in the page-release path.
 
-What is wanted for these cases are simple inc/dec (non-atomic)
-instructions, which is what Nick's patch does by introducing
-__mod_page_state.
+It also happens to be a requirement for my lockless pagecache work, but
+stands on its own as good patches.
 
-Ben, have you tested mm-page_state-opt.patch? It should get rid of
-most "flags" save/restore on stack.
+Nick
 
+-- 
+SUSE Labs, Novell Inc.
+
+
+Send instant messages to your online friends http://au.messenger.yahoo.com 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
