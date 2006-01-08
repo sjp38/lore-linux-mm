@@ -1,73 +1,26 @@
+Message-ID: <43C0A64A.20608@yahoo.com.au>
+Date: Sun, 08 Jan 2006 16:42:34 +1100
 From: Nick Piggin <nickpiggin@yahoo.com.au>
-Message-Id: <20060108052531.2996.20958.sendpatchset@didi.local0.net>
-In-Reply-To: <20060108052307.2996.39444.sendpatchset@didi.local0.net>
+MIME-Version: 1.0
+Subject: Re: [patch 0/4] mm: de-skew page_count
 References: <20060108052307.2996.39444.sendpatchset@didi.local0.net>
-Subject: [patch 4/4] mm: less atomic ops
-Date: Sun, 8 Jan 2006 00:21:52 -0500
+In-Reply-To: <20060108052307.2996.39444.sendpatchset@didi.local0.net>
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Andrew Morton <akpm@osdl.org>
+Cc: Andrew Morton <akpm@osdl.org>
 List-ID: <linux-mm.kvack.org>
 
-In the page release paths, we can be sure that nobody will mess with our
-page->flags because the refcount has dropped to 0. So no need for atomic
-operations here.
+Nick Piggin wrote:
+> The following patchset (against 2.6.15-rc5ish)
 
-Signed-off-by: Nick Piggin <npiggin@suse.de>
+Sorry, that should read 2.6.15-git3 (latest git).
 
-Index: linux-2.6/include/linux/page-flags.h
-===================================================================
---- linux-2.6.orig/include/linux/page-flags.h
-+++ linux-2.6/include/linux/page-flags.h
-@@ -247,10 +247,12 @@ extern void __mod_page_state_offset(unsi
- #define PageLRU(page)		test_bit(PG_lru, &(page)->flags)
- #define SetPageLRU(page)	set_bit(PG_lru, &(page)->flags)
- #define ClearPageLRU(page)	clear_bit(PG_lru, &(page)->flags)
-+#define __ClearPageLRU(page)	__clear_bit(PG_lru, &(page)->flags)
- 
- #define PageActive(page)	test_bit(PG_active, &(page)->flags)
- #define SetPageActive(page)	set_bit(PG_active, &(page)->flags)
- #define ClearPageActive(page)	clear_bit(PG_active, &(page)->flags)
-+#define __ClearPageActive(page)	__clear_bit(PG_active, &(page)->flags)
- 
- #define PageSlab(page)		test_bit(PG_slab, &(page)->flags)
- #define SetPageSlab(page)	set_bit(PG_slab, &(page)->flags)
-Index: linux-2.6/mm/swap.c
-===================================================================
---- linux-2.6.orig/mm/swap.c
-+++ linux-2.6/mm/swap.c
-@@ -186,7 +186,7 @@ void fastcall __page_cache_release(struc
- 		struct zone *zone = page_zone(page);
- 		spin_lock_irqsave(&zone->lru_lock, flags);
- 		BUG_ON(!PageLRU(page));
--		ClearPageLRU(page);
-+		__ClearPageLRU(page);
- 		del_page_from_lru(zone, page);
- 		spin_unlock_irqrestore(&zone->lru_lock, flags);
- 	}
-@@ -231,7 +231,7 @@ void release_pages(struct page **pages, 
- 				spin_lock_irq(&zone->lru_lock);
- 			}
- 			BUG_ON(!PageLRU(page));
--			ClearPageLRU(page);
-+			__ClearPageLRU(page);
- 			del_page_from_lru(zone, page);
- 		}
- 		BUG_ON(page_count(page));
-Index: linux-2.6/include/linux/mm_inline.h
-===================================================================
---- linux-2.6.orig/include/linux/mm_inline.h
-+++ linux-2.6/include/linux/mm_inline.h
-@@ -32,7 +32,7 @@ del_page_from_lru(struct zone *zone, str
- {
- 	list_del(&page->lru);
- 	if (PageActive(page)) {
--		ClearPageActive(page);
-+		__ClearPageActive(page);
- 		zone->nr_active--;
- 	} else {
- 		zone->nr_inactive--;
+-- 
+SUSE Labs, Novell Inc.
+
 Send instant messages to your online friends http://au.messenger.yahoo.com 
 
 --
