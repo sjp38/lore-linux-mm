@@ -1,90 +1,43 @@
-Date: Sat, 7 Jan 2006 21:54:13 -0800
-From: Andrew Morton <akpm@osdl.org>
-Subject: Re: [patch 1/4] mm: page refcount use atomic primitives
-Message-Id: <20060107215413.560aa3a9.akpm@osdl.org>
-In-Reply-To: <20060108052342.2996.33981.sendpatchset@didi.local0.net>
-References: <20060108052307.2996.39444.sendpatchset@didi.local0.net>
-	<20060108052342.2996.33981.sendpatchset@didi.local0.net>
+Received: from d12nrmr1607.megacenter.de.ibm.com (d12nrmr1607.megacenter.de.ibm.com [9.149.167.49])
+	by mtagate4.de.ibm.com (8.12.10/8.12.10) with ESMTP id k08C9rln234656
+	for <linux-mm@kvack.org>; Sun, 8 Jan 2006 12:09:53 GMT
+Received: from d12av02.megacenter.de.ibm.com (d12av02.megacenter.de.ibm.com [9.149.165.228])
+	by d12nrmr1607.megacenter.de.ibm.com (8.12.10/NCO/VERS6.8) with ESMTP id k08C9quK082730
+	for <linux-mm@kvack.org>; Sun, 8 Jan 2006 13:09:52 +0100
+Received: from d12av02.megacenter.de.ibm.com (loopback [127.0.0.1])
+	by d12av02.megacenter.de.ibm.com (8.12.11/8.13.3) with ESMTP id k08C9qoI012128
+	for <linux-mm@kvack.org>; Sun, 8 Jan 2006 13:09:52 +0100
+Date: Sun, 8 Jan 2006 13:09:48 +0100
+From: Heiko Carstens <heiko.carstens@de.ibm.com>
+Subject: Re: [PATCH/RFC] Shared page tables
+Message-ID: <20060108120948.GA10688@osiris.ibm.com>
+References: <A6D73CCDC544257F3D97F143@[10.1.1.4]> <20060107122534.GA20442@osiris.boeblingen.de.ibm.com> <2796BAF66E63B415FF1929B8@[10.1.1.4]>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <2796BAF66E63B415FF1929B8@[10.1.1.4]>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Dave McCracken <dmccr@us.ibm.com>
+Cc: Hugh Dickins <hugh@veritas.com>, Andrew Morton <akpm@osdl.org>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Nick Piggin <nickpiggin@yahoo.com.au> wrote:
->
-> The VM has an interesting race where a page refcount can drop to zero, but
-> it is still on the LRU lists for a short time. This was solved by testing
-> a 0->1 refcount transition when picking up pages from the LRU, and dropping
-> the refcount in that case.
-
-Tell me about it...
-
-> Instead, use atomic_inc_not_zero to ensure we never pick up a 0 refcount
-> page from the LRU (ie. we guarantee the page will not be touched).
-
-atomic_inc_not_zero() looks rather bloaty, but a single call site is OK.
-
-> This ensures we can test PageLRU without taking the lru_lock,
-
-Let me write some changelog for you.
-
-isolate_lru_pages() can remove live pages from the LRU at any time and
-shrink_cache() can put them back at any time.  As we don't hold the
-zone->lock we can race against that.
-
-> void fastcall __page_cache_release(struct page *page)
-> {
-> 	if (PageLRU(page)) {
-> 		unsigned long flags;
-
-isolate_lru_pages() removes the page here.
-
-> 		struct zone *zone = page_zone(page);
-> 		spin_lock_irqsave(&zone->lru_lock, flags);
-> 		if (!TestClearPageLRU(page))
-> 			BUG();
-
-blam.
-
-> 		del_page_from_lru(zone, page);
-> 		spin_unlock_irqrestore(&zone->lru_lock, flags);
-> 	}
+> > Tried to get this running with CONFIG_PTSHARE and CONFIG_PTSHARE_PTE on
+> > s390x. Unfortunately it crashed on boot, because pt_share_pte
+> > returned a broken pte pointer:
 > 
-> 	BUG_ON(page_count(page) != 0);
-> 	free_hot_page(page);
-> }
-> 
+> The patch as submitted only works on i386 and x86_64.  Sorry.
 
-But put_page() wouldn't have entered __page_cache_release() at all, because
-isolate_lru_page() is changed by this patch to elevated the page refcount
-prior to clearing PG_lru:
+That's why I added what seems to be needed for s390. For CONFIG_PTSHARE and
+CONFIG_PTSHARE_PTE it's just a slightly modified Kconfig file.
+For CONFIG_PTSHARE_PMD it involves adding a few more pud_* defines to
+asm-generic/4level-fixup.h.
+Seems to work with the pmd/pud_clear changes as far as I can tell.
 
-		BUG_ON(!PageLRU(page));
-		list_del(&page->lru);
-		target = src;
-		if (get_page_unless_zero(page)) {
-			ClearPageLRU(page);
+Just tested this out of curiousity :)
 
-
-So no blam.
-
-That's from a two-minute-peek.  I haven't thought about this dreadfully
-hard.  But I'd like to gain some confidence that you have, please.  This
-stuff is tricky.
-
-> and allows
-> further optimisations (in later patches) -- we end up saving 2 atomic ops
-> including a spin_lock_irqsave in the !PageLRU case, and 2 or 3 atomic ops
-> in the PageLRU case.
-
-Well yeah, but you've pretty much eliminated all those nice speedups by
-adding several BUG_ON(atomic_op)s.  Everyone compiles with CONFIG_BUG.  So
-I'd suggest that such new assertions be broken out into a separate -mm-only
-patch.
+Thanks,
+Heiko
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
