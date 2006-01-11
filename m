@@ -1,38 +1,29 @@
-Date: Wed, 11 Jan 2006 15:24:56 -0800
-From: William Lee Irwin III <wli@holomorphy.com>
-Subject: Re: [PATCH 2/2] hugetlb: synchronize alloc with page cache insert
-Message-ID: <20060111232456.GF9091@holomorphy.com>
-References: <1136920951.23288.5.camel@localhost.localdomain> <1137016960.9672.5.camel@localhost.localdomain> <1137018263.9672.10.camel@localhost.localdomain> <20060111225202.GE9091@holomorphy.com> <1137020606.9672.16.camel@localhost.localdomain>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Message-Id: <200601112346.k0BNk5g02008@unix-os.sc.intel.com>
+From: "Chen, Kenneth W" <kenneth.w.chen@intel.com>
+Subject: RE: [PATCH 2/2] hugetlb: synchronize alloc with page cache insert
+Date: Wed, 11 Jan 2006 15:46:05 -0800
+MIME-Version: 1.0
+Content-Type: text/plain;
+	charset="us-ascii"
+Content-Transfer-Encoding: 7bit
 In-Reply-To: <1137020606.9672.16.camel@localhost.localdomain>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Adam Litke <agl@us.ibm.com>
+To: 'Adam Litke' <agl@us.ibm.com>, William Lee Irwin III <wli@holomorphy.com>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2006-01-11 at 14:52 -0800, William Lee Irwin III wrote:
->> ->i_lock looks rather fishy. It may have been necessary when ->i_blocks
->> was used for nefarious purposes, but without ->i_blocks fiddling, it's
->> not needed unless I somehow missed the addition of some custom fields
->> to hugetlbfs inodes and their modifications by any of these functions.
-
-On Wed, Jan 11, 2006 at 05:03:25PM -0600, Adam Litke wrote:
+Adam Litke wrote on Wednesday, January 11, 2006 3:03 PM
 > Nope, all the i_blocks stuff is gone.  I was just looking for a
 > spin_lock for serializing all allocations for a particular hugeltbfs
-> file and i_lock seemed to fit that bill.  It could be said, however,
-> that the locking strategy used in the patch protects a section of code,
-> not a data structure (which can be a bad idea).  Any thoughts on a less
-> "fishy" locking strategy for this case?
+> file and i_lock seemed to fit that bill.
 
-That's not really something that needs to be synchronized per se. hugetlb
-data structures need protection against concurrent modification, but
-they have that from the functions you're calling.
+I hope you are aware of the consequence of serializing page allocation:
+It won't scale on large numa machine.  I don't have any issue per se at
+the moment.  But in the past, SGI folks had screamed their heads off
+for people doing something like that.
 
-
--- wli
+- Ken
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
