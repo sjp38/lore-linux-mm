@@ -1,172 +1,57 @@
-Date: Fri, 13 Jan 2006 12:16:52 -0800
-From: Andrew Morton <akpm@osdl.org>
-Subject: Re: [PATCH] BUG: gfp_zone() not mapping zone modifiers correctly
- and bad ordering of fallback lists
-Message-Id: <20060113121652.114941a3.akpm@osdl.org>
-In-Reply-To: <20060113155026.GA4811@skynet.ie>
-References: <20060113155026.GA4811@skynet.ie>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+From: "Ray Bryant" <raybry@mpdtxmail.amd.com>
+Subject: Re: [PATCH/RFC] Shared page tables
+Date: Fri, 13 Jan 2006 16:34:23 -0600
+References: <A6D73CCDC544257F3D97F143@[10.1.1.4]>
+ <43C73767.5060506@us.ibm.com>
+In-Reply-To: <43C73767.5060506@us.ibm.com>
+MIME-Version: 1.0
+Message-ID: <200601131634.24913.raybry@mpdtxmail.amd.com>
+Content-Type: text/plain;
+ charset=iso-8859-1
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: lhms-devel@lists.sourceforge.net, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Dave Hansen <haveblue@us.ibm.com>, Andy Whitcroft <apw@shadowen.org>, Linus Torvalds <torvalds@osdl.org>
+To: Brian Twichell <tbrian@us.ibm.com>
+Cc: Dave McCracken <dmccr@us.ibm.com>, Hugh Dickins <hugh@veritas.com>, Andrew Morton <akpm@osdl.org>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>, slpratt@us.ibm.com
 List-ID: <linux-mm.kvack.org>
 
-mel@csn.ul.ie (Mel Gorman) wrote:
+On Thursday 12 January 2006 23:15, Brian Twichell wrote:
+
+> Hi,
 >
-> Hi Andrew,
-> 
-> This patch is divided into two parts and addresses a bug in how zone
-> fallback lists are calculated and how __GFP_* zone modifiers are mapped to
-> their equivilant ZONE_* type. It applies to 2.6.15-mm3 and has been tested
-> on x86 and ppc64. It has been reported by Yasunori Goto that it boots on
-> ia64. Details as follows;
+> We evaluated page table sharing on x86_64 and ppc64 setups, using a
+> database OLTP workload.  In both cases, 4-way systems with 64 GB of memory
+> were used.
+>
+> On the x86_64 setup, page table sharing provided a 25% increase in
+> performance,
+> when the database buffers were in small (4 KB) pages.  In this case,
+> over 14 GB
+> of memory was freed, that had previously been taken up by page tables.
+> In the
+> case that the database buffers were in huge (2 MB) pages, page table
+> sharing provided a 4% increase in performance.
+>
 
-This stuff is nasty.  It'd be nice to split the patch into two (always)
-(please).
+Brian,
 
-> build_zonelists() attempts to be smart, and uses highest_zone() so that it
-> doesn't attempt to call build_zonelists_node() for empty zones.  However,
-> build_zonelists_node() is smart enough to do the right thing by itself and
-> build_zonelists() already has the zone index that highest_zone() is meant
-> to provide. So, remove the unnecessary function highest_zone().
+Is that 25%-50% percent of overall performance (e. g. transaction throughput), 
+or is this a measurement of, say, DB process startup times, or what?   It 
+seems to me that the impact of the shared page table patch would mostly be 
+noticed at address space construction/destruction times, and for a big OLTP 
+workload, the processes are probably built once and stay around forever, no?
 
-Dave, Andy: could you please have a think about the fallback list thing?
+If the performance improvement is in overall throughput, do you understand why 
+the impact would be so large?   TLB reloads?   I don't understand why one 
+would see that kind of overall performance improvement, but I could be 
+overlooking something.   (Could very likely be overlooking something...:-) )
 
-> The helper function gfp_zone() assumes that the bits used in the zone modifier
-> of a GFP flag maps directory on to their ZONE_* equivalent and just applies a
-> mask. However, the bits do not map directly and the wrong fallback lists can
-> be used. If unluckly, the system can go OOM when plenty of suitable memory
-> is available. This patch redefines the __GFP_ zone modifier flags to allow
-> a simple mapping to their equivilant ZONE_ type.
-
-Linus, you had a look at this a few weeks ago and I think you had
-objections to the gfp-modifiers-are-bitmasks approach?
-
-> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-> diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.15-mm3-clean/include/linux/gfp.h linux-2.6.15-mm3-001_fallbacks/include/linux/gfp.h
-> --- linux-2.6.15-mm3-clean/include/linux/gfp.h	2006-01-11 14:24:18.000000000 +0000
-> +++ linux-2.6.15-mm3-001_fallbacks/include/linux/gfp.h	2006-01-13 09:18:09.000000000 +0000
-> @@ -11,15 +11,19 @@ struct vm_area_struct;
->  /*
->   * GFP bitmasks..
->   */
-> -/* Zone modifiers in GFP_ZONEMASK (see linux/mmzone.h - low three bits) */
-> -#define __GFP_DMA	((__force gfp_t)0x01u)
-> -#define __GFP_HIGHMEM	((__force gfp_t)0x02u)
-> +/*
-> + * Zone modifiers in GFP_ZONEMASK (see linux/mmzone.h - low three bits) 
-> + * The values here are mapped to their equivilant ZONE_* type by gfp_zone
-> + * which makes assumptions on the value of these bits.
-> + */
-> +#define __GFP_DMA	((__force gfp_t)0x02u)
-> +#define __GFP_HIGHMEM	((__force gfp_t)0x01u)
->  #ifdef CONFIG_DMA_IS_DMA32
-> -#define __GFP_DMA32	((__force gfp_t)0x01)	/* ZONE_DMA is ZONE_DMA32 */
-> +#define __GFP_DMA32	((__force gfp_t)0x02u)	/* ZONE_DMA is ZONE_DMA32 */
->  #elif BITS_PER_LONG < 64
-> -#define __GFP_DMA32	((__force gfp_t)0x00)	/* ZONE_NORMAL is ZONE_DMA32 */
-> +#define __GFP_DMA32	((__force gfp_t)0x00u)	/* ZONE_NORMAL is ZONE_DMA32 */
->  #else
-> -#define __GFP_DMA32	((__force gfp_t)0x04)	/* Has own ZONE_DMA32 */
-> +#define __GFP_DMA32	((__force gfp_t)0x03u)	/* Has own ZONE_DMA32 */
->  #endif
->  
->  /*
-> @@ -75,10 +79,15 @@ struct vm_area_struct;
->  #define GFP_DMA32	__GFP_DMA32
->  
->  
-> +/**
-> + * GFP zone modifiers need to be mapped to their equivilant ZONE_ value defined
-> + * in linux/mmzone.h to determine what fallback list should be used for the
-> + * allocation.
-> + */
->  static inline int gfp_zone(gfp_t gfp)
->  {
-> -	int zone = GFP_ZONEMASK & (__force int) gfp;
-> -	BUG_ON(zone >= GFP_ZONETYPES);
-> +	int zone = ((__force int) gfp & GFP_ZONEMASK) ^ 0x2;
-> +	BUG_ON(zone >= MAX_NR_ZONES);
->  	return zone;
->  }
->  
-> diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.15-mm3-clean/mm/page_alloc.c linux-2.6.15-mm3-001_fallbacks/mm/page_alloc.c
-> --- linux-2.6.15-mm3-clean/mm/page_alloc.c	2006-01-11 14:24:18.000000000 +0000
-> +++ linux-2.6.15-mm3-001_fallbacks/mm/page_alloc.c	2006-01-13 09:10:17.000000000 +0000
-> @@ -1577,18 +1577,6 @@ static int __init build_zonelists_node(p
->  	return nr_zones;
->  }
->  
-> -static inline int highest_zone(int zone_bits)
-> -{
-> -	int res = ZONE_NORMAL;
-> -	if (zone_bits & (__force int)__GFP_HIGHMEM)
-> -		res = ZONE_HIGHMEM;
-> -	if (zone_bits & (__force int)__GFP_DMA32)
-> -		res = ZONE_DMA32;
-> -	if (zone_bits & (__force int)__GFP_DMA)
-> -		res = ZONE_DMA;
-> -	return res;
-> -}
-> -
->  #ifdef CONFIG_NUMA
->  #define MAX_NODE_LOAD (num_online_nodes())
->  static int __initdata node_load[MAX_NUMNODES];
-> @@ -1690,13 +1678,11 @@ static void __init build_zonelists(pg_da
->  			node_load[node] += load;
->  		prev_node = node;
->  		load--;
-> -		for (i = 0; i < GFP_ZONETYPES; i++) {
-> +		for (i = 0; i < MAX_NR_ZONES; i++) {
->  			zonelist = pgdat->node_zonelists + i;
->  			for (j = 0; zonelist->zones[j] != NULL; j++);
->  
-> -			k = highest_zone(i);
-> -
-> -	 		j = build_zonelists_node(NODE_DATA(node), zonelist, j, k);
-> +	 		j = build_zonelists_node(NODE_DATA(node), zonelist, j, i);
->  			zonelist->zones[j] = NULL;
->  		}
->  	}
-> @@ -1706,17 +1692,16 @@ static void __init build_zonelists(pg_da
->  
->  static void __init build_zonelists(pg_data_t *pgdat)
->  {
-> -	int i, j, k, node, local_node;
-> +	int i, j, node, local_node;
->  
->  	local_node = pgdat->node_id;
-> -	for (i = 0; i < GFP_ZONETYPES; i++) {
-> +	for (i = 0; i < MAX_NR_ZONES; i++) {
->  		struct zonelist *zonelist;
->  
->  		zonelist = pgdat->node_zonelists + i;
->  
->  		j = 0;
-> -		k = highest_zone(i);
-> - 		j = build_zonelists_node(pgdat, zonelist, j, k);
-> + 		j = build_zonelists_node(pgdat, zonelist, j, i);
->   		/*
->   		 * Now we build the zonelist so that it contains the zones
->   		 * of all the other nodes.
-> @@ -1728,12 +1713,12 @@ static void __init build_zonelists(pg_da
->  		for (node = local_node + 1; node < MAX_NUMNODES; node++) {
->  			if (!node_online(node))
->  				continue;
-> -			j = build_zonelists_node(NODE_DATA(node), zonelist, j, k);
-> +			j = build_zonelists_node(NODE_DATA(node), zonelist, j, i);
->  		}
->  		for (node = 0; node < local_node; node++) {
->  			if (!node_online(node))
->  				continue;
-> -			j = build_zonelists_node(NODE_DATA(node), zonelist, j, k);
-> +			j = build_zonelists_node(NODE_DATA(node), zonelist, j, i);
->  		}
->  
->  		zonelist->zones[j] = NULL;
+Oh, and yeah, was this an AMD x86_64 box or what?
+-- 
+Ray Bryant
+AMD Performance Labs                   Austin, Tx
+512-602-0038 (o)                 512-507-7807 (c)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
