@@ -1,60 +1,31 @@
-Received: from mail.sisk.pl ([127.0.0.1])
- by localhost (grendel [127.0.0.1]) (amavisd-new, port 10024) with SMTP
- id 16120-10 for <linux-mm@kvack.org>; Sat, 13 Aug 2005 09:02:58 +0200 (CEST)
-From: "Rafael J. Wysocki" <rjw@sisk.pl>
-Subject: Re: [RFC][patch 0/2] mm: remove PageReserved
-Date: Sat, 13 Aug 2005 09:06:42 +0200
-References: <42F57FCA.9040805@yahoo.com.au> <200508130020.11864.rjw@sisk.pl> <200508130904.41438.phillips@arcor.de>
-In-Reply-To: <200508130904.41438.phillips@arcor.de>
-MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
+Received: from [80.143.25.221] (port=0192 helo=[dandy])
+    by dyni048.osnanet.de with esmtp
+    id 6357396593pares114198
+    for linux-mm@kvack.org; Sat, 14 Jan 2006 12:28:37 +0100
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200508130906.44088.rjw@sisk.pl>
+Message-Id: <6990103577.12091117160@dyni048.osnanet.de>
+Content-Type: text/plain; charset=US-ASCII; format=flowed
+From: Fidelia <instantiating@cinemind.com>
+Subject: Buy viagra from one of the cheapest phamacies online
+Date: Sat, 14 Jan 2006 12:28:36 +0100
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Daniel Phillips <phillips@arcor.de>
-Cc: linux-kernel@vger.kernel.org, "Martin J. Bligh" <mbligh@mbligh.org>, Pavel Machek <pavel@suse.cz>, Nick Piggin <nickpiggin@yahoo.com.au>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Linux Memory Management <linux-mm@kvack.org>, Hugh Dickins <hugh@veritas.com>, Linus Torvalds <torvalds@osdl.org>, Andrew Morton <akpm@osdl.org>, Andrea Arcangeli <andrea@suse.de>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Saturday, 13 of August 2005 01:04, Daniel Phillips wrote:
-> On Saturday 13 August 2005 08:20, Rafael J. Wysocki wrote:
-> > On Friday, 12 of August 2005 21:56, Daniel Phillips wrote:
-> > > I still don't see why you can't lift your flags up into the VMA.  The
-> > > rmap mechanism is there precisely to let you get from the physical page
-> > > to the users and user data, including VMAs.
-> >
-> > I'm not sure if I understand the issue, but swsusp works on a different
-> > level. It only needs to figure out which physical pages, as represented by
-> > struct page objects, should be saved to swap before suspend.  We browse all
-> > zones (once) and create a list of page frames that should be saved on the
-> > basis of the contents of the struct page objects alone.  IMHO if we needed
-> > to use any additional mechanisms here, it would be less efficient than just
-> > checking the page flags.
-> 
-> Isn't that what hash tables are for?  It seems to me obvious that you don't 
-> absolutely need to reserve page flag bits, but you think this is better, 
-> maybe enough faster to make a perceptible difference.  How about testing with 
-> a hash table?  If it dims the lights then you have all the argument you need.
-> 
-> Admittedly, page flags have not gotten really tight just yet, and this is 
-> something you can change later if they do become tight.  But it would be very 
-> nice to know just which of those page flags are really needed (like uptodate) 
-> versus which are just there for convenience.  I think yours fall in the 
-> latter category.
-
-Well, I think we can do without PG_nosave in swsusp, although it would require
-a considerable effort to remove it.
-
-Greets,
-Rafael
+We have been rated as #1 One-Stop-Shop Internet pharmacy.
+http://anemic.prlce.com/ph/lib/
 
 
--- 
-- Would you tell me, please, which way I ought to go from here?
-- That depends a good deal on where you want to get to.
-		-- Lewis Carroll "Alice's Adventures in Wonderland"
+
+
+What a beautiful fix we are in now; peace has been declared. 
+Since when was genius found respectable?       
+The public interest is best served by the free exchange of ideas. 
+If God lived on earth, people would break his windows.   
+
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
