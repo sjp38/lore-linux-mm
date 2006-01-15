@@ -1,50 +1,54 @@
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e5.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id k0EKjfsr024792
-	for <linux-mm@kvack.org>; Sat, 14 Jan 2006 15:45:41 -0500
-Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
-	by d01relay02.pok.ibm.com (8.12.10/NCO/VERS6.8) with ESMTP id k0EKjcDQ121606
-	for <linux-mm@kvack.org>; Sat, 14 Jan 2006 15:45:41 -0500
-Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
-	by d01av04.pok.ibm.com (8.12.11/8.13.3) with ESMTP id k0EKjbib024479
-	for <linux-mm@kvack.org>; Sat, 14 Jan 2006 15:45:37 -0500
-Message-ID: <43C962F0.30400@us.ibm.com>
-Date: Sat, 14 Jan 2006 14:45:36 -0600
-From: Brian Twichell <tbrian@us.ibm.com>
+Message-ID: <43C9DD98.5000506@yahoo.com.au>
+Date: Sun, 15 Jan 2006 16:28:56 +1100
+From: Nick Piggin <nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
-Subject: Re: [PATCH/RFC] Shared page tables
-References: <A6D73CCDC544257F3D97F143@[10.1.1.4]> <43C7C4C7.8050409@cfl.rr.com>
-In-Reply-To: <43C7C4C7.8050409@cfl.rr.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Subject: Re: Race in new page migration code?
+References: <20060114155517.GA30543@wotan.suse.de> <Pine.LNX.4.62.0601140955340.11378@schroedinger.engr.sgi.com> <20060114181949.GA27382@wotan.suse.de> <Pine.LNX.4.62.0601141040400.11601@schroedinger.engr.sgi.com>
+In-Reply-To: <Pine.LNX.4.62.0601141040400.11601@schroedinger.engr.sgi.com>
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Phillip Susi <psusi@cfl.rr.com>
-Cc: Dave McCracken <dmccr@us.ibm.com>, Hugh Dickins <hugh@veritas.com>, Andrew Morton <akpm@osdl.org>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>
+To: Christoph Lameter <clameter@engr.sgi.com>
+Cc: Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@osdl.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Phillip Susi wrote:
+Christoph Lameter wrote:
+> On Sat, 14 Jan 2006, Nick Piggin wrote:
+> 
+> 
+>>>We take that reference count on the page:
+>>
+>>Yes, after you have dropped all your claims to pin this page
+>>(ie. pte lock). You really can't take a refcount on a page that
+> 
+> 
+> Oh. Now I see. I screwed that up by a fix I added.... We cannot drop the 
+> ptl here. So back to the way it was before. Remove the draining from 
+> isolate_lru_page and do it before scanning for pages so that we do not
+> have to drop the ptl. 
+> 
 
-> Shouldn't those kind of applications already be using threads to share 
-> page tables rather than forking hundreds of processes that all mmap() 
-> the same file?
->
-We're talking about sharing anonymous memory here, not files.
+OK (either way is fine), but you should still drop the __isolate_lru_page
+nonsense and revert it like my patch does.
 
-The feedback we've gotten on converting from a process-based to a 
-thread-based model is that it's a major undertaking,
-when development and test expense is considered.  It's understandable if 
-one considers that they'd probably want to convert
-across on several operating systems at once to minimize the number of 
-source trees they have to maintain.
+> Also remove the WARN_ON since its now even possible that other actions of 
+> the VM move the pages into the LRU lists while we scan for pages to
+> migrate.
+> 
 
-Also, the case for conversion isn't helped by the fact that at least two 
-prominent commercial UNIX flavors either inherently
-share page tables, or provide an explicit memory allocation mechanism 
-that achieves page table sharing (e.g. Intimate Shared
-Memory).
+Well, it has always been possible since vmscan started batching scans a
+long time ago. Actually seeing as you only take a read lock on the semaphore
+it is probably also possible to have a concurrent migrate operation cause
+this as well.
 
-Cheers,
-Brian
+Thanks,
+Nick
+
+-- 
+SUSE Labs, Novell Inc.
+
+Send instant messages to your online friends http://au.messenger.yahoo.com 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
