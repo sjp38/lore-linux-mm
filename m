@@ -1,46 +1,59 @@
-Message-ID: <43CBC27B.6010405@shadowen.org>
-Date: Mon, 16 Jan 2006 15:57:47 +0000
-From: Andy Whitcroft <apw@shadowen.org>
+Message-ID: <43CBC37F.60002@FreeBSD.org>
+Date: Mon, 16 Jan 2006 08:02:07 -0800
+From: Suleiman Souhlal <ssouhlal@FreeBSD.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH] BUG: gfp_zone() not mapping zone modifiers correctly
- and bad ordering of fallback lists
-References: <20060113155026.GA4811@skynet.ie> <20060113121652.114941a3.akpm@osdl.org>
-In-Reply-To: <20060113121652.114941a3.akpm@osdl.org>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: differences between MADV_FREE and MADV_DONTNEED
+References: <20051029025119.GA14998@ccure.user-mode-linux.org> <1130788176.24503.19.camel@localhost.localdomain> <20051101000509.GA11847@ccure.user-mode-linux.org> <1130894101.24503.64.camel@localhost.localdomain> <20051102014321.GG24051@opteron.random> <1130947957.24503.70.camel@localhost.localdomain> <20051111162511.57ee1af3.akpm@osdl.org> <1131755660.25354.81.camel@localhost.localdomain> <20051111174309.5d544de4.akpm@osdl.org> <43757263.2030401@us.ibm.com> <20060116130649.GE15897@opteron.random>
+In-Reply-To: <20060116130649.GE15897@opteron.random>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Andrew Morton <akpm@osdl.org>, lhms-devel@lists.sourceforge.net, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Dave Hansen <haveblue@us.ibm.com>, Linus Torvalds <torvalds@osdl.org>
+To: Andrea Arcangeli <andrea@suse.de>
+Cc: Badari Pulavarty <pbadari@us.ibm.com>, Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, hugh@veritas.com, dvhltc@us.ibm.com, linux-mm@kvack.org, blaisorblade@yahoo.it, jdike@addtoit.com
 List-ID: <linux-mm.kvack.org>
 
-I think we need to be careful here. Although the __GFP_* modifiers
-appear to be directly convertable to ZONE_* types they don't have
-to be.  We could potentially have a new modifier which would want
-to specify a different list combination whilst not representing
-a zone in and of itself; for example __GFP_NODEONLY which might
-request use of zones which are NUMA node local.  The bits covered
-by GFP_ZONEMASK represent 'zone modifier space', those GFP bits
-which affect where we should try and get memory. The zonelists
-correspond to the lists of zones to try for that combination in
-'zone modifier space' not for a specific zone.
+Andrea Arcangeli wrote:
+> Now that MADV_REMOVE is in, should we discuss MADV_FREE?
+> 
+> MADV_FREE in Solaris is destructive and only works on anonymous memory,
+> while MADV_DONTNEED seems to never be destructive (which I assume it
+> means it's a noop on anonymous memory).
 
-Right now there is a near one-to-one correspondance between
-the __GFP_x and ZONE_x identifiers. As more zones are added we
-exponentially waste more and more 'zone modifier space' to allow
-for the possible combinations. If we are willing and able to assert
-that only one memory zone related modifier is valid at once we
-could deliberatly squash the zone number into the bottom corner of
-'zone modifier space' whilst still maintaining that space and the
-ability to allow new bits to be combined with it.
+FWIW, in FreeBSD, MADV_DONTNEED is not destructive, and just makes pages 
+(including anonymous ones) more likely to get swapped out.
 
-My feeling is that as long as we don't lose the ability to have
-modifiers combine and select separate lists and there is currently
-no use of combined zone modifiers then we can make this optimisation.
+> Our MADV_DONTNEED is destructive on anonymous memory, while it's
+> non-destructive on file mappings.
+> 
+> Perhaps we could move the destructive anonymous part of MADV_DONTNEED to
+> MADV_FREE?
 
-Comments?
+This would seem like the best way to go, since it would bring Linux's 
+behavior more in line with what other systems do.
 
--apw
+> Or we could as well go relaxed and define MADV_FREE and MADV_DONTNEED
+> the same way (that still leaves the question if we risk to break apps
+> ported from solaris where MADV_DONTNEED is apparently always not
+> destructive).
+> 
+> I only read the docs, I don't know in practice what MADV_DONTNEED does
+> on solaris (does it return -EINVAL if run on anonymous memory or not?).
+> 
+> http://docs.sun.com/app/docs/doc/816-5168/6mbb3hrgk?a=view
+> 
+> BTW, I don't know how other specifications define MADV_FREE, but besides
+> MADV_REMOVE I've also got the request to provide MADV_FREE in linux,
+> this is why I'm asking. (right now I'm telling them to use #ifdef
+> __linux__ #define MADV_FREE MADV_DONTNEED but that's quite an hack since
+> it could break if we make MADV_DONTNEED non-destructive in the future)
+
+FreeBSD's MADV_FREE only works on anonymous memory (it's a noop for 
+vnode-backed memory), and marks the pages clean before moving them to 
+the inactive queue, so that they can be freed or reused quickly, without 
+causing a pagefault.
+
+-- Suleiman
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
