@@ -1,47 +1,46 @@
-Date: Mon, 16 Jan 2006 14:06:49 +0100
-From: Andrea Arcangeli <andrea@suse.de>
-Subject: differences between MADV_FREE and MADV_DONTNEED
-Message-ID: <20060116130649.GE15897@opteron.random>
-References: <20051029025119.GA14998@ccure.user-mode-linux.org> <1130788176.24503.19.camel@localhost.localdomain> <20051101000509.GA11847@ccure.user-mode-linux.org> <1130894101.24503.64.camel@localhost.localdomain> <20051102014321.GG24051@opteron.random> <1130947957.24503.70.camel@localhost.localdomain> <20051111162511.57ee1af3.akpm@osdl.org> <1131755660.25354.81.camel@localhost.localdomain> <20051111174309.5d544de4.akpm@osdl.org> <43757263.2030401@us.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <43757263.2030401@us.ibm.com>
+Date: Mon, 16 Jan 2006 07:47:50 -0800 (PST)
+From: Christoph Lameter <clameter@engr.sgi.com>
+Subject: Re: Race in new page migration code?
+In-Reply-To: <Pine.LNX.4.61.0601161143190.7123@goblin.wat.veritas.com>
+Message-ID: <Pine.LNX.4.62.0601160739360.19188@schroedinger.engr.sgi.com>
+References: <20060114155517.GA30543@wotan.suse.de>
+ <Pine.LNX.4.62.0601140955340.11378@schroedinger.engr.sgi.com>
+ <20060114181949.GA27382@wotan.suse.de> <Pine.LNX.4.62.0601141040400.11601@schroedinger.engr.sgi.com>
+ <Pine.LNX.4.61.0601151053420.4500@goblin.wat.veritas.com>
+ <Pine.LNX.4.62.0601152251080.17034@schroedinger.engr.sgi.com>
+ <Pine.LNX.4.61.0601161143190.7123@goblin.wat.veritas.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Badari Pulavarty <pbadari@us.ibm.com>
-Cc: Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, hugh@veritas.com, dvhltc@us.ibm.com, linux-mm@kvack.org, blaisorblade@yahoo.it, jdike@addtoit.com
+To: Hugh Dickins <hugh@veritas.com>
+Cc: Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@osdl.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Now that MADV_REMOVE is in, should we discuss MADV_FREE?
+On Mon, 16 Jan 2006, Hugh Dickins wrote:
 
-MADV_FREE in Solaris is destructive and only works on anonymous memory,
-while MADV_DONTNEED seems to never be destructive (which I assume it
-means it's a noop on anonymous memory).
+> Indeed they are, at present and quite likely into posterity.  But
+> they're not a common case here, and migrate_page_add now handles them
+> silently, so why bother to complicate it with an unnecessary check?
 
-Our MADV_DONTNEED is destructive on anonymous memory, while it's
-non-destructive on file mappings.
+check_range also is used for statistics and for checking if a range is 
+policy compliant. Without that check zeropages may be counted or flagged 
+as not on the right node with MPOL_MF_STRICT.
 
-Perhaps we could move the destructive anonymous part of MADV_DONTNEED to
-MADV_FREE?
+For migrate_page_add this has now simply become an optimization since
+there is no WARN_ON occurring anymore.
 
-Or we could as well go relaxed and define MADV_FREE and MADV_DONTNEED
-the same way (that still leaves the question if we risk to break apps
-ported from solaris where MADV_DONTNEED is apparently always not
-destructive).
+> Or have you found the zero page mapcount distorting get_stats stats?
+> If that's an issue, then better add a commented test for it there.
 
-I only read the docs, I don't know in practice what MADV_DONTNEED does
-on solaris (does it return -EINVAL if run on anonymous memory or not?).
+It also applies to the policy compliance check.
 
-http://docs.sun.com/app/docs/doc/816-5168/6mbb3hrgk?a=view
+> Hmm, that battery of unusual tests at the start of migrate_page_add
+> is odd: the tests don't quite match the comment, and it isn't clear
+> what reasoning lies behind the comment anywa
 
-BTW, I don't know how other specifications define MADV_FREE, but besides
-MADV_REMOVE I've also got the request to provide MADV_FREE in linux,
-this is why I'm asking. (right now I'm telling them to use #ifdef
-__linux__ #define MADV_FREE MADV_DONTNEED but that's quite an hack since
-it could break if we make MADV_DONTNEED non-destructive in the future)
-
-Thanks.
+Hmm.... Maybe better clean up the thing a bit. Will do that when I get 
+back to work next week.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
