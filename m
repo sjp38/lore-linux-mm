@@ -1,38 +1,45 @@
-Date: Mon, 16 Jan 2006 17:28:08 +0100
-From: Andrea Arcangeli <andrea@suse.de>
-Subject: Re: differences between MADV_FREE and MADV_DONTNEED
-Message-ID: <20060116162808.GG15897@opteron.random>
-References: <20051101000509.GA11847@ccure.user-mode-linux.org> <1130894101.24503.64.camel@localhost.localdomain> <20051102014321.GG24051@opteron.random> <1130947957.24503.70.camel@localhost.localdomain> <20051111162511.57ee1af3.akpm@osdl.org> <1131755660.25354.81.camel@localhost.localdomain> <20051111174309.5d544de4.akpm@osdl.org> <43757263.2030401@us.ibm.com> <20060116130649.GE15897@opteron.random> <43CBC37F.60002@FreeBSD.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+From: Andi Kleen <ak@suse.de>
+Subject: Re: Race in new page migration code?
+Date: Mon, 16 Jan 2006 17:51:26 +0100
+References: <20060114155517.GA30543@wotan.suse.de> <Pine.LNX.4.62.0601160807580.19672@schroedinger.engr.sgi.com> <Pine.LNX.4.61.0601161620060.9395@goblin.wat.veritas.com>
+In-Reply-To: <Pine.LNX.4.61.0601161620060.9395@goblin.wat.veritas.com>
+MIME-Version: 1.0
+Content-Type: text/plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <43CBC37F.60002@FreeBSD.org>
+Message-Id: <200601161751.26991.ak@suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Suleiman Souhlal <ssouhlal@FreeBSD.org>
-Cc: Badari Pulavarty <pbadari@us.ibm.com>, Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, hugh@veritas.com, dvhltc@us.ibm.com, linux-mm@kvack.org, blaisorblade@yahoo.it, jdike@addtoit.com
+To: Hugh Dickins <hugh@veritas.com>
+Cc: Christoph Lameter <clameter@engr.sgi.com>, Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@osdl.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jan 16, 2006 at 08:02:07AM -0800, Suleiman Souhlal wrote:
-> FWIW, in FreeBSD, MADV_DONTNEED is not destructive, and just makes pages 
-> (including anonymous ones) more likely to get swapped out.
+On Monday 16 January 2006 17:28, Hugh Dickins wrote:
+> On Mon, 16 Jan 2006, Christoph Lameter wrote:
+> > On Mon, 16 Jan 2006, Hugh Dickins wrote:
+> > 
+> > > > It also applies to the policy compliance check.
+> > > 
+> > > Good point, I missed that: you've inadventently changed the behaviour
+> > > of sys_mbind when it encounters a zero page from a disallowed node.
+> > > Another reason to remove your PageReserved test.
+> > 
+> > The zero page always come from node zero on IA64. I think this is more the 
+> > inadvertent fixing of a bug. The policy compliance check currently fails 
+> > if an address range contains a zero page but node zero is not contained in 
+> > the nodelist.
+> 
+> To me it sounds more like you introduced a bug than fixed one.
+> If MPOL_MF_STRICT and the zero page is found but not in the nodelist
+> demanded, then it's right to refuse, I'd say.  If Andi shares your
+> view that the zero pages should be ignored, I won't argue; but we
+> shouldn't change behaviour by mistake, without review or comment.
 
-We can also use it for the same purpose, we could add the pages to
-swapcache mark them dirty and zap the ptes _after_ that.
+I agree with Christoph that the zero page should be ignored - old behaviour
+was really a bug.
 
-> This would seem like the best way to go, since it would bring Linux's 
-> behavior more in line with what other systems do.
-
-Agreed.
-
-> FreeBSD's MADV_FREE only works on anonymous memory (it's a noop for 
-> vnode-backed memory), and marks the pages clean before moving them to 
-> the inactive queue, so that they can be freed or reused quickly, without 
-> causing a pagefault.
-
-Well, perhaps solaris is also a noop and not necessairly a -EINVAL, all
-I know from the docs is "This value cannot be used on mappings that have
-underlying file objects.", so I expected -EINVAL but it may be a noop.
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
