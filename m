@@ -1,27 +1,47 @@
-Date: Mon, 16 Jan 2006 08:06:32 -0500 (EST)
-From: Rik van Riel <riel@redhat.com>
-Subject: Re: use-once-cleanup testing
-In-Reply-To: <20060114005117.0540675e.akpm@osdl.org>
-Message-ID: <Pine.LNX.4.63.0601160806020.10902@cuia.boston.redhat.com>
-References: <20060114000533.GA4111@dmt.cnet> <43C883AA.30101@cyberone.com.au>
- <1137228276.20950.10.camel@twins> <20060114005117.0540675e.akpm@osdl.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Mon, 16 Jan 2006 14:06:49 +0100
+From: Andrea Arcangeli <andrea@suse.de>
+Subject: differences between MADV_FREE and MADV_DONTNEED
+Message-ID: <20060116130649.GE15897@opteron.random>
+References: <20051029025119.GA14998@ccure.user-mode-linux.org> <1130788176.24503.19.camel@localhost.localdomain> <20051101000509.GA11847@ccure.user-mode-linux.org> <1130894101.24503.64.camel@localhost.localdomain> <20051102014321.GG24051@opteron.random> <1130947957.24503.70.camel@localhost.localdomain> <20051111162511.57ee1af3.akpm@osdl.org> <1131755660.25354.81.camel@localhost.localdomain> <20051111174309.5d544de4.akpm@osdl.org> <43757263.2030401@us.ibm.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <43757263.2030401@us.ibm.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: Peter Zijlstra <peter@programming.kicks-ass.net>, piggin@cyberone.com.au, marcelo.tosatti@cyclades.com, linux-mm@kvack.org, bob.picco@hp.com, clameter@engr.sgi.com
+To: Badari Pulavarty <pbadari@us.ibm.com>
+Cc: Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, hugh@veritas.com, dvhltc@us.ibm.com, linux-mm@kvack.org, blaisorblade@yahoo.it, jdike@addtoit.com
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 14 Jan 2006, Andrew Morton wrote:
+Now that MADV_REMOVE is in, should we discuss MADV_FREE?
 
-> Speedups should outweigh the slowdowns, no really bad corner cases.
+MADV_FREE in Solaris is destructive and only works on anonymous memory,
+while MADV_DONTNEED seems to never be destructive (which I assume it
+means it's a noop on anonymous memory).
 
-When it comes to corner cases, clock-pro gets my vote over
-any of the alternative algorithms.
+Our MADV_DONTNEED is destructive on anonymous memory, while it's
+non-destructive on file mappings.
 
--- 
-All Rights Reversed
+Perhaps we could move the destructive anonymous part of MADV_DONTNEED to
+MADV_FREE?
+
+Or we could as well go relaxed and define MADV_FREE and MADV_DONTNEED
+the same way (that still leaves the question if we risk to break apps
+ported from solaris where MADV_DONTNEED is apparently always not
+destructive).
+
+I only read the docs, I don't know in practice what MADV_DONTNEED does
+on solaris (does it return -EINVAL if run on anonymous memory or not?).
+
+http://docs.sun.com/app/docs/doc/816-5168/6mbb3hrgk?a=view
+
+BTW, I don't know how other specifications define MADV_FREE, but besides
+MADV_REMOVE I've also got the request to provide MADV_FREE in linux,
+this is why I'm asking. (right now I'm telling them to use #ifdef
+__linux__ #define MADV_FREE MADV_DONTNEED but that's quite an hack since
+it could break if we make MADV_DONTNEED non-destructive in the future)
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
