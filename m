@@ -1,46 +1,46 @@
-Date: Mon, 16 Jan 2006 07:47:50 -0800 (PST)
-From: Christoph Lameter <clameter@engr.sgi.com>
-Subject: Re: Race in new page migration code?
-In-Reply-To: <Pine.LNX.4.61.0601161143190.7123@goblin.wat.veritas.com>
-Message-ID: <Pine.LNX.4.62.0601160739360.19188@schroedinger.engr.sgi.com>
-References: <20060114155517.GA30543@wotan.suse.de>
- <Pine.LNX.4.62.0601140955340.11378@schroedinger.engr.sgi.com>
- <20060114181949.GA27382@wotan.suse.de> <Pine.LNX.4.62.0601141040400.11601@schroedinger.engr.sgi.com>
- <Pine.LNX.4.61.0601151053420.4500@goblin.wat.veritas.com>
- <Pine.LNX.4.62.0601152251080.17034@schroedinger.engr.sgi.com>
- <Pine.LNX.4.61.0601161143190.7123@goblin.wat.veritas.com>
+Message-ID: <43CBC27B.6010405@shadowen.org>
+Date: Mon, 16 Jan 2006 15:57:47 +0000
+From: Andy Whitcroft <apw@shadowen.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH] BUG: gfp_zone() not mapping zone modifiers correctly
+ and bad ordering of fallback lists
+References: <20060113155026.GA4811@skynet.ie> <20060113121652.114941a3.akpm@osdl.org>
+In-Reply-To: <20060113121652.114941a3.akpm@osdl.org>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@osdl.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Andrew Morton <akpm@osdl.org>, lhms-devel@lists.sourceforge.net, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Dave Hansen <haveblue@us.ibm.com>, Linus Torvalds <torvalds@osdl.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 16 Jan 2006, Hugh Dickins wrote:
+I think we need to be careful here. Although the __GFP_* modifiers
+appear to be directly convertable to ZONE_* types they don't have
+to be.  We could potentially have a new modifier which would want
+to specify a different list combination whilst not representing
+a zone in and of itself; for example __GFP_NODEONLY which might
+request use of zones which are NUMA node local.  The bits covered
+by GFP_ZONEMASK represent 'zone modifier space', those GFP bits
+which affect where we should try and get memory. The zonelists
+correspond to the lists of zones to try for that combination in
+'zone modifier space' not for a specific zone.
 
-> Indeed they are, at present and quite likely into posterity.  But
-> they're not a common case here, and migrate_page_add now handles them
-> silently, so why bother to complicate it with an unnecessary check?
+Right now there is a near one-to-one correspondance between
+the __GFP_x and ZONE_x identifiers. As more zones are added we
+exponentially waste more and more 'zone modifier space' to allow
+for the possible combinations. If we are willing and able to assert
+that only one memory zone related modifier is valid at once we
+could deliberatly squash the zone number into the bottom corner of
+'zone modifier space' whilst still maintaining that space and the
+ability to allow new bits to be combined with it.
 
-check_range also is used for statistics and for checking if a range is 
-policy compliant. Without that check zeropages may be counted or flagged 
-as not on the right node with MPOL_MF_STRICT.
+My feeling is that as long as we don't lose the ability to have
+modifiers combine and select separate lists and there is currently
+no use of combined zone modifiers then we can make this optimisation.
 
-For migrate_page_add this has now simply become an optimization since
-there is no WARN_ON occurring anymore.
+Comments?
 
-> Or have you found the zero page mapcount distorting get_stats stats?
-> If that's an issue, then better add a commented test for it there.
-
-It also applies to the policy compliance check.
-
-> Hmm, that battery of unusual tests at the start of migrate_page_add
-> is odd: the tests don't quite match the comment, and it isn't clear
-> what reasoning lies behind the comment anywa
-
-Hmm.... Maybe better clean up the thing a bit. Will do that when I get 
-back to work next week.
+-apw
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
