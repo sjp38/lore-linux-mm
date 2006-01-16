@@ -1,32 +1,27 @@
-Date: Sun, 15 Jan 2006 22:51:44 -0800 (PST)
+Date: Sun, 15 Jan 2006 22:54:31 -0800 (PST)
 From: Christoph Lameter <clameter@engr.sgi.com>
 Subject: Re: Race in new page migration code?
-In-Reply-To: <Pine.LNX.4.61.0601151053420.4500@goblin.wat.veritas.com>
-Message-ID: <Pine.LNX.4.62.0601152251080.17034@schroedinger.engr.sgi.com>
+In-Reply-To: <43C9DD98.5000506@yahoo.com.au>
+Message-ID: <Pine.LNX.4.62.0601152251550.17034@schroedinger.engr.sgi.com>
 References: <20060114155517.GA30543@wotan.suse.de>
  <Pine.LNX.4.62.0601140955340.11378@schroedinger.engr.sgi.com>
  <20060114181949.GA27382@wotan.suse.de> <Pine.LNX.4.62.0601141040400.11601@schroedinger.engr.sgi.com>
- <Pine.LNX.4.61.0601151053420.4500@goblin.wat.veritas.com>
+ <43C9DD98.5000506@yahoo.com.au>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@osdl.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: Magnus Damm <magnus.damm@gmail.com>
+Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@osdl.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 15 Jan 2006, Hugh Dickins wrote:
+On Sun, 15 Jan 2006, Nick Piggin wrote:
 
-> On Sat, 14 Jan 2006, Christoph Lameter wrote:
-> > 
-> > Also remove the WARN_ON since its now even possible that other actions of 
-> > the VM move the pages into the LRU lists while we scan for pages to
-> > migrate.
-> 
-> Good.  And whether it's your or Nick's patch that goes in, please also
-> remove that PageReserved test which you recently put in check_pte_range.
+> OK (either way is fine), but you should still drop the __isolate_lru_page
+> nonsense and revert it like my patch does.
 
-Zero pages are still marked reserved AFAIK. Why not check for it?
+Ok with me. Magnus: You needed the __isolate_lru_page for some other 
+purpose. Is that still the case?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
