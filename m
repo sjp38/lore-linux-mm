@@ -1,47 +1,73 @@
-Date: Tue, 17 Jan 2006 13:22:14 -0800
-From: Andrew Morton <akpm@osdl.org>
-Subject: Re: [PATCH] zone gfp_flags generate from ZONE_ constants
-Message-Id: <20060117132214.2db664e2.akpm@osdl.org>
-In-Reply-To: <20060117155227.GA16176@shadowen.org>
-References: <20060117155227.GA16176@shadowen.org>
+Subject: Re: differences between MADV_FREE and MADV_DONTNEED
+From: Nicholas Miell <nmiell@comcast.net>
+In-Reply-To: <m1ek36r9vq.fsf@ebiederm.dsl.xmission.com>
+References: <20051111174309.5d544de4.akpm@osdl.org>
+	 <43757263.2030401@us.ibm.com> <20060116130649.GE15897@opteron.random>
+	 <43CBC37F.60002@FreeBSD.org> <20060116162808.GG15897@opteron.random>
+	 <43CBD1C4.5020002@FreeBSD.org> <20060116172449.GL15897@opteron.random>
+	 <m1r777rgq4.fsf@ebiederm.dsl.xmission.com> <43CC3922.2070205@FreeBSD.org>
+	 <1137459847.2842.6.camel@entropy> <20060117124315.GA7754@infradead.org>
+	 <m1ek36r9vq.fsf@ebiederm.dsl.xmission.com>
+Content-Type: text/plain
+Date: Tue, 17 Jan 2006 14:55:18 -0800
+Message-Id: <1137538518.2842.9.camel@entropy>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andy Whitcroft <apw@shadowen.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: "Eric W. Biederman" <ebiederm@xmission.com>
+Cc: Christoph Hellwig <hch@infradead.org>, Suleiman Souhlal <ssouhlal@FreeBSD.org>, Ulrich Drepper <drepper@redhat.com>, Andrea Arcangeli <andrea@suse.de>, Badari Pulavarty <pbadari@us.ibm.com>, Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, hugh@veritas.com, dvhltc@us.ibm.com, linux-mm@kvack.org, blaisorblade@yahoo.it, jdike@addtoit.com
 List-ID: <linux-mm.kvack.org>
 
-Andy Whitcroft <apw@shadowen.org> wrote:
->
-> +/*
->  + * Generate the zone modifier bit.  Zone ZONE_DEFAULT doesn't require a bit
->  + * as the absence of all zone modifiers implies this zone.  Renormalise the
->  + * zone number such that ZONE_DEFAULT is at the bottom and discard it.
->  + * These must fit within the bitmask GFP_ZONEMASK defined in linux/mmzone.h.
->  + */
->  +#define __ZONE_BIT(x) (((x) ^ ZONE_DEFAULT) - 1)
->  +#define ZONE_MODIFIER(x) ((__force gfp_t)(((x) == ZONE_DEFAULT)? (0) : \
->  +							1UL << __ZONE_BIT(x)))
->  +
->  +#define __GFP_DMA	ZONE_MODIFIER(ZONE_DMA)
->  +#define __GFP_HIGHMEM	ZONE_MODIFIER(ZONE_HIGHMEM)
->   #ifdef CONFIG_DMA_IS_DMA32
->  -#define __GFP_DMA32	((__force gfp_t)0x01)	/* ZONE_DMA is ZONE_DMA32 */
->  +#define __GFP_DMA32	ZONE_MODIFIER(ZONE_DMA)	/* ZONE_DMA is ZONE_DMA32 */
->   #elif BITS_PER_LONG < 64
->  -#define __GFP_DMA32	((__force gfp_t)0x00)	/* ZONE_NORMAL is ZONE_DMA32 */
->  +#define __GFP_DMA32	ZONE_MODIFIER(ZONE_NORMAL) /* ZONE_NORMAL is ZONE_DMA32 */
->   #else
->  -#define __GFP_DMA32	((__force gfp_t)0x04)	/* Has own ZONE_DMA32 */
->  +#define __GFP_DMA32	ZONE_MODIFIER(ZONE_DMA32) /* Has own ZONE_DMA32 */
->   #endif
+On Tue, 2006-01-17 at 11:23 -0700, Eric W. Biederman wrote:
+> Christoph Hellwig <hch@infradead.org> writes:
+> > On Mon, Jan 16, 2006 at 05:04:07PM -0800, Nicholas Miell wrote:
+> >> On Mon, 2006-01-16 at 16:24 -0800, Suleiman Souhlal wrote:
+> >> > Well, imho, MADV_DONTNEED should mean "I won't need this anytime soon", 
+> >> > and MADV_FREE "I will never need this again".
+> >> > 
+> >> 
+> >> POSIX doesn't have a madvise(), but it does have a posix_madvise(), with
+> >> flags defined as follows:
+> >> 
+> >> POSIX_MADV_NORMAL
+> >>    Specifies that the application has no advice to give on its behavior
+> >> with respect to the specified range. It is the default characteristic if
+> >> no advice is given for a range of memory.
+> >> POSIX_MADV_SEQUENTIAL
+> >>    Specifies that the application expects to access the specified range
+> >> sequentially from lower addresses to higher addresses.
+> >> POSIX_MADV_RANDOM
+> >>    Specifies that the application expects to access the specified range
+> >> in a random order.
+> >> POSIX_MADV_WILLNEED
+> >>    Specifies that the application expects to access the specified range
+> >> in the near future.
+> >> POSIX_MADV_DONTNEED
+> >>    Specifies that the application expects that it will not access the
+> >> specified range in the near future.
+> >> 
+> >> Note that glibc forwards posix_madvise() directly to madvise(2), which
+> >> means that right now, POSIX conformant apps which use
+> >> posix_madvise(addr, len, POSIX_MADV_DONTNEED) are silently corrupting
+> >> data on Linux systems.
+> >
+> > Does our MAD_DONTNEED numerical value match glibc's POSIX_MADV_DONTNEED?
+> >
+> > In either case I'd say we should backout this patch for now.  We should
+> > implement a real MADV_DONTNEED and rename the current one to MADV_FREE,
+> > but that's 2.6.17 material.
+> 
+> We definitely need to check this.  I am fairly certain  I have seen this conversation
+> before.
 
-eek.  We often look at the hex value of gfp flags in debug output to work
-out what sort of allocation is being attempted.
+Yes, POSIX_MADV_* have the same values as MADV_*. And if you're trying
+to find the actual implementation of posix_madvise() to verify its
+behavior, it is generated by script from a line in
+libc/sysdeps/unix/sysv/linux/syscalls.list.
 
-I guess we could print out the values of these things at boot time..
+-- 
+Nicholas Miell <nmiell@comcast.net>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
