@@ -1,103 +1,86 @@
-Date: Tue, 17 Jan 2006 10:48:50 -0800 (PST)
-From: Christoph Lameter <clameter@engr.sgi.com>
-Subject: Re: Race in new page migration code?
-In-Reply-To: <1137523571.5245.9.camel@localhost.localdomain>
-Message-ID: <Pine.LNX.4.62.0601171047090.27764@schroedinger.engr.sgi.com>
-References: <20060114155517.GA30543@wotan.suse.de>
- <Pine.LNX.4.62.0601140955340.11378@schroedinger.engr.sgi.com>
- <20060114181949.GA27382@wotan.suse.de>  <Pine.LNX.4.62.0601141040400.11601@schroedinger.engr.sgi.com>
-  <Pine.LNX.4.61.0601151053420.4500@goblin.wat.veritas.com>
- <Pine.LNX.4.62.0601152251080.17034@schroedinger.engr.sgi.com>
- <Pine.LNX.4.61.0601161143190.7123@goblin.wat.veritas.com>
- <Pine.LNX.4.62.0601170926440.24552@schroedinger.engr.sgi.com>
- <1137523571.5245.9.camel@localhost.localdomain>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from westrelay02.boulder.ibm.com (westrelay02.boulder.ibm.com [9.17.195.11])
+	by e35.co.us.ibm.com (8.12.11/8.12.11) with ESMTP id k0HJ67OP004324
+	for <linux-mm@kvack.org>; Tue, 17 Jan 2006 14:06:07 -0500
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by westrelay02.boulder.ibm.com (8.12.10/NCO/VERS6.8) with ESMTP id k0HJ4W1s205646
+	for <linux-mm@kvack.org>; Tue, 17 Jan 2006 12:04:32 -0700
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.12.11/8.13.3) with ESMTP id k0HJ66Ah030455
+	for <linux-mm@kvack.org>; Tue, 17 Jan 2006 12:06:07 -0700
+Subject: Re: differences between MADV_FREE and MADV_DONTNEED
+From: Badari Pulavarty <pbadari@us.ibm.com>
+In-Reply-To: <20060117124315.GA7754@infradead.org>
+References: <20051111174309.5d544de4.akpm@osdl.org>
+	 <43757263.2030401@us.ibm.com> <20060116130649.GE15897@opteron.random>
+	 <43CBC37F.60002@FreeBSD.org> <20060116162808.GG15897@opteron.random>
+	 <43CBD1C4.5020002@FreeBSD.org> <20060116172449.GL15897@opteron.random>
+	 <m1r777rgq4.fsf@ebiederm.dsl.xmission.com> <43CC3922.2070205@FreeBSD.org>
+	 <1137459847.2842.6.camel@entropy>  <20060117124315.GA7754@infradead.org>
+Content-Type: text/plain
+Date: Tue, 17 Jan 2006 11:06:38 -0800
+Message-Id: <1137524799.4966.144.camel@dyn9047017102.beaverton.ibm.com>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Lee Schermerhorn <lee.schermerhorn@hp.com>
-Cc: Hugh Dickins <hugh@veritas.com>, Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@osdl.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: Christoph Hellwig <hch@infradead.org>
+Cc: Nicholas Miell <nmiell@comcast.net>, Suleiman Souhlal <ssouhlal@FreeBSD.org>, Ulrich Drepper <drepper@redhat.com>, "Eric W. Biederman" <ebiederm@xmission.com>, Andrea Arcangeli <andrea@suse.de>, Andrew Morton <akpm@osdl.org>, lkml <linux-kernel@vger.kernel.org>, hugh@veritas.com, dvhltc@us.ibm.com, linux-mm <linux-mm@kvack.org>, blaisorblade@yahoo.it, jdike@addtoit.com
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 17 Jan 2006, Lee Schermerhorn wrote:
+On Tue, 2006-01-17 at 12:43 +0000, Christoph Hellwig wrote:
+> On Mon, Jan 16, 2006 at 05:04:07PM -0800, Nicholas Miell wrote:
+> > On Mon, 2006-01-16 at 16:24 -0800, Suleiman Souhlal wrote:
+> > > Eric W. Biederman wrote:
+> > > > As I recall the logic with DONTNEED was to mark the mapping of
+> > > > the page clean so the page didn't need to be swapped out, it could
+> > > > just be dropped.
+> > > > 
+> > > > That is why they anonymous and the file backed cases differ.
+> > > > 
+> > > > Part of the point is to avoid the case of swapping the pages out if
+> > > > the application doesn't care what is on them anymore.
+> > > 
+> > > Well, imho, MADV_DONTNEED should mean "I won't need this anytime soon", 
+> > > and MADV_FREE "I will never need this again".
+> > > 
+> > 
+> > POSIX doesn't have a madvise(), but it does have a posix_madvise(), with
+> > flags defined as follows:
+> > 
+> > POSIX_MADV_NORMAL
+> >    Specifies that the application has no advice to give on its behavior
+> > with respect to the specified range. It is the default characteristic if
+> > no advice is given for a range of memory.
+> > POSIX_MADV_SEQUENTIAL
+> >    Specifies that the application expects to access the specified range
+> > sequentially from lower addresses to higher addresses.
+> > POSIX_MADV_RANDOM
+> >    Specifies that the application expects to access the specified range
+> > in a random order.
+> > POSIX_MADV_WILLNEED
+> >    Specifies that the application expects to access the specified range
+> > in the near future.
+> > POSIX_MADV_DONTNEED
+> >    Specifies that the application expects that it will not access the
+> > specified range in the near future.
+> > 
+> > Note that glibc forwards posix_madvise() directly to madvise(2), which
+> > means that right now, POSIX conformant apps which use
+> > posix_madvise(addr, len, POSIX_MADV_DONTNEED) are silently corrupting
+> > data on Linux systems.
+> 
+> Does our MAD_DONTNEED numerical value match glibc's POSIX_MADV_DONTNEED?
+> 
+> In either case I'd say we should backout this patch for now.  We should
+> implement a real MADV_DONTNEED and rename the current one to MADV_FREE,
+> but that's 2.6.17 material.
 
-> > +	if (page->mapping)
-> should this be "if (!page->mapping)" ???
+Christoph,
 
-Correct. Thanks. Fixed up patch follows:
+What patch are you recommending backing out ? 
 
-
-
-Explain the complicated check in migrate_page_add by putting the logic
-into a separate function migration_check. This way any enhancements can
-be easily added.
-
-Signed-off-by: Christoph Lameter <clameter@sgi.com>
-
-Index: linux-2.6.15/mm/mempolicy.c
-===================================================================
---- linux-2.6.15.orig/mm/mempolicy.c	2006-01-14 10:56:28.000000000 -0800
-+++ linux-2.6.15/mm/mempolicy.c	2006-01-17 10:47:48.000000000 -0800
-@@ -551,6 +551,37 @@ out:
- 	return rc;
- }
- 
-+static inline int migration_check(struct mm_struct *mm, struct page *page)
-+{
-+	/*
-+	 * If the page has no mapping then we do not track reverse mappings.
-+	 * Thus the page is not mapped by other mms, so its safe to move.
-+	 */
-+	if (!page->mapping)
-+		return 1;
-+
-+	/*
-+	 * We cannot determine "ownership" of anonymous pages.
-+	 * However, this is the primary set of pages a user would like
-+	 * to move. So move the page regardless of sharing.
-+	 */
-+	if (PageAnon(page))
-+		return 1;
-+
-+	/*
-+	 * If the mapping is writable then its reasonable to assume that
-+	 * it is okay to move the page.
-+	 */
-+	if (mapping_writably_mapped(page->mapping))
-+		return 1;
-+
-+	/*
-+	 * Its a read only file backed mapping. Only migrate the page
-+	 * if we are the only process mapping that file.
-+	 */
-+	return single_mm_mapping(mm, page->mapping);
-+}
-+
- /*
-  * Add a page to be migrated to the pagelist
-  */
-@@ -558,11 +589,17 @@ static void migrate_page_add(struct vm_a
- 	struct page *page, struct list_head *pagelist, unsigned long flags)
- {
- 	/*
--	 * Avoid migrating a page that is shared by others and not writable.
-+	 * MPOL_MF_MOVE_ALL migrates all pages. However, migrating all
-+	 * pages may also move commonly shared pages (like for example glibc
-+	 * pages referenced by all processes). If these are included in
-+	 * migration then these pages may be uselessly moved back and
-+	 * forth. Migration may also affect the performance of other
-+	 * processes.
-+	 *
-+	 * If MPOL_MF_MOVE_ALL is not set then we try to avoid migrating
-+	 * these shared pages.
- 	 */
--	if ((flags & MPOL_MF_MOVE_ALL) || !page->mapping || PageAnon(page) ||
--	    mapping_writably_mapped(page->mapping) ||
--	    single_mm_mapping(vma->vm_mm, page->mapping))
-+	if ((flags & MPOL_MF_MOVE_ALL) || migration_check(vma->vm_mm, page))
- 		if (isolate_lru_page(page) == 1)
- 			list_add(&page->lru, pagelist);
- }
+Thanks,
+Badari
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
