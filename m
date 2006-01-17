@@ -1,66 +1,64 @@
-Date: Tue, 17 Jan 2006 12:16:10 +0100
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: Race in new page migration code?
-Message-ID: <20060117111609.GA24083@wotan.suse.de>
-References: <20060114155517.GA30543@wotan.suse.de> <Pine.LNX.4.62.0601160807580.19672@schroedinger.engr.sgi.com> <Pine.LNX.4.61.0601161620060.9395@goblin.wat.veritas.com> <200601161751.26991.ak@suse.de> <20060116165618.GB21064@wotan.suse.de> <Pine.LNX.4.62.0601162104550.21654@schroedinger.engr.sgi.com>
+Date: Tue, 17 Jan 2006 12:43:15 +0000
+From: Christoph Hellwig <hch@infradead.org>
+Subject: Re: differences between MADV_FREE and MADV_DONTNEED
+Message-ID: <20060117124315.GA7754@infradead.org>
+References: <20051111174309.5d544de4.akpm@osdl.org> <43757263.2030401@us.ibm.com> <20060116130649.GE15897@opteron.random> <43CBC37F.60002@FreeBSD.org> <20060116162808.GG15897@opteron.random> <43CBD1C4.5020002@FreeBSD.org> <20060116172449.GL15897@opteron.random> <m1r777rgq4.fsf@ebiederm.dsl.xmission.com> <43CC3922.2070205@FreeBSD.org> <1137459847.2842.6.camel@entropy>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.62.0601162104550.21654@schroedinger.engr.sgi.com>
+In-Reply-To: <1137459847.2842.6.camel@entropy>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@engr.sgi.com>
-Cc: Nick Piggin <npiggin@suse.de>, Andi Kleen <ak@suse.de>, Hugh Dickins <hugh@veritas.com>, Andrew Morton <akpm@osdl.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: Nicholas Miell <nmiell@comcast.net>
+Cc: Suleiman Souhlal <ssouhlal@FreeBSD.org>, Ulrich Drepper <drepper@redhat.com>, "Eric W. Biederman" <ebiederm@xmission.com>, Andrea Arcangeli <andrea@suse.de>, Badari Pulavarty <pbadari@us.ibm.com>, Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, hugh@veritas.com, dvhltc@us.ibm.com, linux-mm@kvack.org, blaisorblade@yahoo.it, jdike@addtoit.comakpm@osdl.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jan 16, 2006 at 09:06:29PM -0800, Christoph Lameter wrote:
-> On Mon, 16 Jan 2006, Nick Piggin wrote:
-> 
-> > On Mon, Jan 16, 2006 at 05:51:26PM +0100, Andi Kleen wrote:
+On Mon, Jan 16, 2006 at 05:04:07PM -0800, Nicholas Miell wrote:
+> On Mon, 2006-01-16 at 16:24 -0800, Suleiman Souhlal wrote:
+> > Eric W. Biederman wrote:
+> > > As I recall the logic with DONTNEED was to mark the mapping of
+> > > the page clean so the page didn't need to be swapped out, it could
+> > > just be dropped.
 > > > 
-> > > I agree with Christoph that the zero page should be ignored - old behaviour
-> > > was really a bug.
+> > > That is why they anonymous and the file backed cases differ.
 > > > 
+> > > Part of the point is to avoid the case of swapping the pages out if
+> > > the application doesn't care what is on them anymore.
 > > 
-> > Fair enough. It would be nice to have a comment there has Hugh said;
-> > it is not always clear what PageReserved is intended to test for.
+> > Well, imho, MADV_DONTNEED should mean "I won't need this anytime soon", 
+> > and MADV_FREE "I will never need this again".
+> > 
 > 
-> Something like this? Are there still other uses of PageReserved than the 
-> zero page?
+> POSIX doesn't have a madvise(), but it does have a posix_madvise(), with
+> flags defined as follows:
 > 
+> POSIX_MADV_NORMAL
+>    Specifies that the application has no advice to give on its behavior
+> with respect to the specified range. It is the default characteristic if
+> no advice is given for a range of memory.
+> POSIX_MADV_SEQUENTIAL
+>    Specifies that the application expects to access the specified range
+> sequentially from lower addresses to higher addresses.
+> POSIX_MADV_RANDOM
+>    Specifies that the application expects to access the specified range
+> in a random order.
+> POSIX_MADV_WILLNEED
+>    Specifies that the application expects to access the specified range
+> in the near future.
+> POSIX_MADV_DONTNEED
+>    Specifies that the application expects that it will not access the
+> specified range in the near future.
+> 
+> Note that glibc forwards posix_madvise() directly to madvise(2), which
+> means that right now, POSIX conformant apps which use
+> posix_madvise(addr, len, POSIX_MADV_DONTNEED) are silently corrupting
+> data on Linux systems.
 
-Yes something like that would be good.
-There are other users of PageReserved, drivers, memory holes,
-kernel text, bootmem allocated memory (I think), ZERO_PAGE.
+Does our MAD_DONTNEED numerical value match glibc's POSIX_MADV_DONTNEED?
 
-
-> 
-> Explain the use of PageReserved in check_pte_range.
-> 
-> Signed-off-by: Christoph Lameter <clameter@sgi.com>
-> 
-> Index: linux-2.6.15/mm/mempolicy.c
-> ===================================================================
-> --- linux-2.6.15.orig/mm/mempolicy.c	2006-01-14 10:56:31.000000000 -0800
-> +++ linux-2.6.15/mm/mempolicy.c	2006-01-16 21:03:03.000000000 -0800
-> @@ -211,6 +211,17 @@ static int check_pte_range(struct vm_are
->  		page = vm_normal_page(vma, addr, *pte);
->  		if (!page)
->  			continue;
-> +		/*
-> +		 * The check for PageReserved here is important to avoid
-> +		 * handling zero pages and other pages that may have been
-> +		 * marked special by the system.
-> +		 *
-> +		 * If the PageReserved would not be checked here then f.e.
-> +		 * the location of the zero page could have an influence
-> +		 * on MPOL_MF_STRICT, zero pages would be counted for
-> +		 * the per node stats, and there would be useless attempts
-> +		 * to put zero pages on the migration list.
-> +		 */
->  		if (PageReserved(page))
->  			continue;
->  		nid = page_to_nid(page);
+In either case I'd say we should backout this patch for now.  We should
+implement a real MADV_DONTNEED and rename the current one to MADV_FREE,
+but that's 2.6.17 material.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
