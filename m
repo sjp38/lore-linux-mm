@@ -1,34 +1,47 @@
-Date: Tue, 17 Jan 2006 20:49:48 +0000 (GMT)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: Race in new page migration code?
-In-Reply-To: <Pine.LNX.4.62.0601171207300.28161@schroedinger.engr.sgi.com>
-Message-ID: <Pine.LNX.4.61.0601172047350.9392@goblin.wat.veritas.com>
-References: <20060114155517.GA30543@wotan.suse.de>
- <Pine.LNX.4.62.0601140955340.11378@schroedinger.engr.sgi.com>
- <20060114181949.GA27382@wotan.suse.de> <Pine.LNX.4.62.0601141040400.11601@schroedinger.engr.sgi.com>
- <Pine.LNX.4.61.0601151053420.4500@goblin.wat.veritas.com>
- <Pine.LNX.4.62.0601152251080.17034@schroedinger.engr.sgi.com>
- <Pine.LNX.4.61.0601161143190.7123@goblin.wat.veritas.com>
- <Pine.LNX.4.62.0601170926440.24552@schroedinger.engr.sgi.com>
- <Pine.LNX.4.61.0601171805430.8030@goblin.wat.veritas.com>
- <Pine.LNX.4.62.0601171207300.28161@schroedinger.engr.sgi.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Tue, 17 Jan 2006 13:22:14 -0800
+From: Andrew Morton <akpm@osdl.org>
+Subject: Re: [PATCH] zone gfp_flags generate from ZONE_ constants
+Message-Id: <20060117132214.2db664e2.akpm@osdl.org>
+In-Reply-To: <20060117155227.GA16176@shadowen.org>
+References: <20060117155227.GA16176@shadowen.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@engr.sgi.com>
-Cc: Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@osdl.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: Andy Whitcroft <apw@shadowen.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 17 Jan 2006, Christoph Lameter wrote:
-> 
-> Simplify migrate_page_add after feedback from Hugh.
-> 
-> Signed-off-by: Christoph Lameter <clameter@sgi.com>
+Andy Whitcroft <apw@shadowen.org> wrote:
+>
+> +/*
+>  + * Generate the zone modifier bit.  Zone ZONE_DEFAULT doesn't require a bit
+>  + * as the absence of all zone modifiers implies this zone.  Renormalise the
+>  + * zone number such that ZONE_DEFAULT is at the bottom and discard it.
+>  + * These must fit within the bitmask GFP_ZONEMASK defined in linux/mmzone.h.
+>  + */
+>  +#define __ZONE_BIT(x) (((x) ^ ZONE_DEFAULT) - 1)
+>  +#define ZONE_MODIFIER(x) ((__force gfp_t)(((x) == ZONE_DEFAULT)? (0) : \
+>  +							1UL << __ZONE_BIT(x)))
+>  +
+>  +#define __GFP_DMA	ZONE_MODIFIER(ZONE_DMA)
+>  +#define __GFP_HIGHMEM	ZONE_MODIFIER(ZONE_HIGHMEM)
+>   #ifdef CONFIG_DMA_IS_DMA32
+>  -#define __GFP_DMA32	((__force gfp_t)0x01)	/* ZONE_DMA is ZONE_DMA32 */
+>  +#define __GFP_DMA32	ZONE_MODIFIER(ZONE_DMA)	/* ZONE_DMA is ZONE_DMA32 */
+>   #elif BITS_PER_LONG < 64
+>  -#define __GFP_DMA32	((__force gfp_t)0x00)	/* ZONE_NORMAL is ZONE_DMA32 */
+>  +#define __GFP_DMA32	ZONE_MODIFIER(ZONE_NORMAL) /* ZONE_NORMAL is ZONE_DMA32 */
+>   #else
+>  -#define __GFP_DMA32	((__force gfp_t)0x04)	/* Has own ZONE_DMA32 */
+>  +#define __GFP_DMA32	ZONE_MODIFIER(ZONE_DMA32) /* Has own ZONE_DMA32 */
+>   #endif
 
-If you're happy with that one, yes, I certainly am too.
+eek.  We often look at the hex value of gfp flags in debug output to work
+out what sort of allocation is being attempted.
 
-Hugh
+I guess we could print out the values of these things at boot time..
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
