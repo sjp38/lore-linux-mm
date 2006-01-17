@@ -1,75 +1,104 @@
-Date: Tue, 17 Jan 2006 15:52:27 +0000
-Subject: [PATCH] zone gfp_flags generate from ZONE_ constants
-Message-ID: <20060117155227.GA16176@shadowen.org>
+Date: Tue, 17 Jan 2006 09:29:10 -0800 (PST)
+From: Christoph Lameter <clameter@engr.sgi.com>
+Subject: Re: Race in new page migration code?
+In-Reply-To: <Pine.LNX.4.61.0601161143190.7123@goblin.wat.veritas.com>
+Message-ID: <Pine.LNX.4.62.0601170926440.24552@schroedinger.engr.sgi.com>
+References: <20060114155517.GA30543@wotan.suse.de>
+ <Pine.LNX.4.62.0601140955340.11378@schroedinger.engr.sgi.com>
+ <20060114181949.GA27382@wotan.suse.de> <Pine.LNX.4.62.0601141040400.11601@schroedinger.engr.sgi.com>
+ <Pine.LNX.4.61.0601151053420.4500@goblin.wat.veritas.com>
+ <Pine.LNX.4.62.0601152251080.17034@schroedinger.engr.sgi.com>
+ <Pine.LNX.4.61.0601161143190.7123@goblin.wat.veritas.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-From: Andy Whitcroft <apw@shadowen.org>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Hugh Dickins <hugh@veritas.com>
+Cc: Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@osdl.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-zone gfp_flags generate from ZONE_ constants
+On Mon, 16 Jan 2006, Hugh Dickins wrote:
 
-Change the allocation of the __GFP_zone style zone modifiers so that
-they are generated from the values of the ZONE_zone definitions.
-Note that when no zone modifiers are specified select the default
-zone, typically ZONE_NORMAL.
+> Hmm, that battery of unusual tests at the start of migrate_page_add
+> is odd: the tests don't quite match the comment, and it isn't clear
+> what reasoning lies behind the comment anyway.
 
-Signed-off-by: Andy Whitcroft <apw@shadowen.org>
----
- gfp.h    |   22 ++++++++++++++++------
- mmzone.h |    2 ++
- 2 files changed, 18 insertions(+), 6 deletions(-)
-diff -upN reference/include/linux/gfp.h current/include/linux/gfp.h
---- reference/include/linux/gfp.h
-+++ current/include/linux/gfp.h
-@@ -11,15 +11,25 @@ struct vm_area_struct;
+Here is patch to clarify the test. I'd be glad if someone could make
+the tests more accurate. This ultimately comes down to a concept of
+ownership of page by a process / mm_struct that we have to approximate.
+
+===
+
+Explain the complicated check in migrate_page_add by putting the logic
+into a separate function migration_check. This way any enhancements can
+be easily added.
+
+Signed-off-by: Christoph Lameter <clameter@sgi.com>
+
+Index: linux-2.6.15/mm/mempolicy.c
+===================================================================
+--- linux-2.6.15.orig/mm/mempolicy.c	2006-01-14 10:56:28.000000000 -0800
++++ linux-2.6.15/mm/mempolicy.c	2006-01-17 09:24:20.000000000 -0800
+@@ -551,6 +551,37 @@ out:
+ 	return rc;
+ }
+ 
++static inline int migration_check(struct mm_struct *mm, struct page *page)
++{
++	/*
++	 * If the page has no mapping then we do not track reverse mappings.
++	 * Thus the page is not mapped by other mms, so its safe to move.
++	 */
++	if (page->mapping)
++		return 1;
++
++	/*
++	 * We cannot determine "ownership" of anonymous pages.
++	 * However, this is the primary set of pages a user would like
++	 * to move. So move the page regardless of sharing.
++	 */
++	if (PageAnon(page))
++		return 1;
++
++	/*
++	 * If the mapping is writable then its reasonable to assume that
++	 * it is okay to move the page.
++	 */
++	if (mapping_writably_mapped(page->mapping))
++		return 1;
++
++	/*
++	 * Its a read only file backed mapping. Only migrate the page
++	 * if we are the only process mapping that file.
++	 */
++	return single_mm_mapping(mm, page->mapping);
++}
++
  /*
-  * GFP bitmasks..
+  * Add a page to be migrated to the pagelist
   */
--/* Zone modifiers in GFP_ZONEMASK (see linux/mmzone.h - low three bits) */
--#define __GFP_DMA	((__force gfp_t)0x01u)
--#define __GFP_HIGHMEM	((__force gfp_t)0x02u)
-+
-+/*
-+ * Generate the zone modifier bit.  Zone ZONE_DEFAULT doesn't require a bit
-+ * as the absence of all zone modifiers implies this zone.  Renormalise the
-+ * zone number such that ZONE_DEFAULT is at the bottom and discard it.
-+ * These must fit within the bitmask GFP_ZONEMASK defined in linux/mmzone.h.
-+ */
-+#define __ZONE_BIT(x) (((x) ^ ZONE_DEFAULT) - 1)
-+#define ZONE_MODIFIER(x) ((__force gfp_t)(((x) == ZONE_DEFAULT)? (0) : \
-+							1UL << __ZONE_BIT(x)))
-+
-+#define __GFP_DMA	ZONE_MODIFIER(ZONE_DMA)
-+#define __GFP_HIGHMEM	ZONE_MODIFIER(ZONE_HIGHMEM)
- #ifdef CONFIG_DMA_IS_DMA32
--#define __GFP_DMA32	((__force gfp_t)0x01)	/* ZONE_DMA is ZONE_DMA32 */
-+#define __GFP_DMA32	ZONE_MODIFIER(ZONE_DMA)	/* ZONE_DMA is ZONE_DMA32 */
- #elif BITS_PER_LONG < 64
--#define __GFP_DMA32	((__force gfp_t)0x00)	/* ZONE_NORMAL is ZONE_DMA32 */
-+#define __GFP_DMA32	ZONE_MODIFIER(ZONE_NORMAL) /* ZONE_NORMAL is ZONE_DMA32 */
- #else
--#define __GFP_DMA32	((__force gfp_t)0x04)	/* Has own ZONE_DMA32 */
-+#define __GFP_DMA32	ZONE_MODIFIER(ZONE_DMA32) /* Has own ZONE_DMA32 */
- #endif
- 
- /*
-diff -upN reference/include/linux/mmzone.h current/include/linux/mmzone.h
---- reference/include/linux/mmzone.h
-+++ current/include/linux/mmzone.h
-@@ -77,6 +77,8 @@ struct per_cpu_pageset {
- #define MAX_NR_ZONES		4	/* Sync this with ZONES_SHIFT */
- #define ZONES_SHIFT		2	/* ceil(log2(MAX_NR_ZONES)) */
- 
-+/* Select the zone to use when no __GFP flags are selected. */
-+#define ZONE_DEFAULT           ZONE_NORMAL
- 
- /*
-  * When a memory allocation must conform to specific limitations (such
+@@ -558,11 +589,17 @@ static void migrate_page_add(struct vm_a
+ 	struct page *page, struct list_head *pagelist, unsigned long flags)
+ {
+ 	/*
+-	 * Avoid migrating a page that is shared by others and not writable.
++	 * MPOL_MF_MOVE_ALL migrates all pages. However, migrating all
++	 * pages may also move commonly shared pages (like for example glibc
++	 * pages referenced by all processes). If these are included in
++	 * migration then these pages may be uselessly moved back and
++	 * forth. Migration may also affect the performance of other
++	 * processes.
++	 *
++	 * If MPOL_MF_MOVE_ALL is not set then we try to avoid migrating
++	 * these shared pages.
+ 	 */
+-	if ((flags & MPOL_MF_MOVE_ALL) || !page->mapping || PageAnon(page) ||
+-	    mapping_writably_mapped(page->mapping) ||
+-	    single_mm_mapping(vma->vm_mm, page->mapping))
++	if ((flags & MPOL_MF_MOVE_ALL) || migration_check(vma->vm_mm, page))
+ 		if (isolate_lru_page(page) == 1)
+ 			list_add(&page->lru, pagelist);
+ }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
