@@ -1,64 +1,49 @@
-Date: Tue, 17 Jan 2006 12:43:15 +0000
-From: Christoph Hellwig <hch@infradead.org>
-Subject: Re: differences between MADV_FREE and MADV_DONTNEED
-Message-ID: <20060117124315.GA7754@infradead.org>
-References: <20051111174309.5d544de4.akpm@osdl.org> <43757263.2030401@us.ibm.com> <20060116130649.GE15897@opteron.random> <43CBC37F.60002@FreeBSD.org> <20060116162808.GG15897@opteron.random> <43CBD1C4.5020002@FreeBSD.org> <20060116172449.GL15897@opteron.random> <m1r777rgq4.fsf@ebiederm.dsl.xmission.com> <43CC3922.2070205@FreeBSD.org> <1137459847.2842.6.camel@entropy>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+From: Andi Kleen <ak@suse.de>
+Subject: Re: Question:  new bind_zonelist uses only one zone type
+Date: Tue, 17 Jan 2006 15:29:53 +0100
+References: <43CCAEEF.5000403@jp.fujitsu.com>
+In-Reply-To: <43CCAEEF.5000403@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <1137459847.2842.6.camel@entropy>
+Message-Id: <200601171529.53811.ak@suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nicholas Miell <nmiell@comcast.net>
-Cc: Suleiman Souhlal <ssouhlal@FreeBSD.org>, Ulrich Drepper <drepper@redhat.com>, "Eric W. Biederman" <ebiederm@xmission.com>, Andrea Arcangeli <andrea@suse.de>, Badari Pulavarty <pbadari@us.ibm.com>, Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, hugh@veritas.com, dvhltc@us.ibm.com, linux-mm@kvack.org, blaisorblade@yahoo.it, jdike@addtoit.comakpm@osdl.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Christoph Lameter <clameter@sgi.com>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jan 16, 2006 at 05:04:07PM -0800, Nicholas Miell wrote:
-> On Mon, 2006-01-16 at 16:24 -0800, Suleiman Souhlal wrote:
-> > Eric W. Biederman wrote:
-> > > As I recall the logic with DONTNEED was to mark the mapping of
-> > > the page clean so the page didn't need to be swapped out, it could
-> > > just be dropped.
-> > > 
-> > > That is why they anonymous and the file backed cases differ.
-> > > 
-> > > Part of the point is to avoid the case of swapping the pages out if
-> > > the application doesn't care what is on them anymore.
-> > 
-> > Well, imho, MADV_DONTNEED should mean "I won't need this anytime soon", 
-> > and MADV_FREE "I will never need this again".
-> > 
-> 
-> POSIX doesn't have a madvise(), but it does have a posix_madvise(), with
-> flags defined as follows:
-> 
-> POSIX_MADV_NORMAL
->    Specifies that the application has no advice to give on its behavior
-> with respect to the specified range. It is the default characteristic if
-> no advice is given for a range of memory.
-> POSIX_MADV_SEQUENTIAL
->    Specifies that the application expects to access the specified range
-> sequentially from lower addresses to higher addresses.
-> POSIX_MADV_RANDOM
->    Specifies that the application expects to access the specified range
-> in a random order.
-> POSIX_MADV_WILLNEED
->    Specifies that the application expects to access the specified range
-> in the near future.
-> POSIX_MADV_DONTNEED
->    Specifies that the application expects that it will not access the
-> specified range in the near future.
-> 
-> Note that glibc forwards posix_madvise() directly to madvise(2), which
-> means that right now, POSIX conformant apps which use
-> posix_madvise(addr, len, POSIX_MADV_DONTNEED) are silently corrupting
-> data on Linux systems.
+On Tuesday 17 January 2006 09:46, KAMEZAWA Hiroyuki wrote:
 
-Does our MAD_DONTNEED numerical value match glibc's POSIX_MADV_DONTNEED?
+> policy_zone is ZONE_DMA, ZONE_NORMAL, ZONE_HIGHMEM, depends on system.
+> 
+> If policy_zone is ZONE_NORMAL, returned zonelist will be
+> {Node(0)'s NORMAL, Node(1)'s NORMAL, Node(2)'s Normal.....}
+> 
+> If node0 has only DMA/DMA32 and Node1-NodeX has Normal, node0 will be ignored
+> and zonelist will include not-populated zone.
+> 
+> Is this intended ?
 
-In either case I'd say we should backout this patch for now.  We should
-implement a real MADV_DONTNEED and rename the current one to MADV_FREE,
-but that's 2.6.17 material.
+I was wondering when someone else would notice. Congratulations, you 
+are the first ;-)
+
+It was originally intended - back then either IA64 NUMA systems didn't
+have a ZONE_DMA and on x86-64 it was only 16MB and for i386 NUMA
+it was considered acceptable - and it made the  code simpler and policies 
+use less memory. But is now considered a bug because of the introduction 
+of ZONE_DMA32 on x86-64 and I gather from your report your platform
+has NUMA and a 4GB ZONE_DMA too?
+
+It is on my todo list to fix, but I haven't gotten around to it yet. 
+
+Fixing it will unfortunately increase the footprint of the policy structures, 
+so likely it would only increase to two. If someone beats me to a patch
+that would be ok too.
+
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
