@@ -1,44 +1,57 @@
-Message-ID: <43CCB262.9070304@yahoo.com.au>
-Date: Tue, 17 Jan 2006 20:01:22 +1100
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-MIME-Version: 1.0
+Received: by uproxy.gmail.com with SMTP id k40so209039ugc
+        for <linux-mm@kvack.org>; Tue, 17 Jan 2006 01:22:57 -0800 (PST)
+Message-ID: <aec7e5c30601170122o7766fd4ep6285e3651be1a81e@mail.gmail.com>
+Date: Tue, 17 Jan 2006 18:22:56 +0900
+From: Magnus Damm <magnus.damm@gmail.com>
 Subject: Re: Race in new page migration code?
-References: <20060114155517.GA30543@wotan.suse.de>	 <Pine.LNX.4.62.0601140955340.11378@schroedinger.engr.sgi.com>	 <20060114181949.GA27382@wotan.suse.de>	 <Pine.LNX.4.62.0601141040400.11601@schroedinger.engr.sgi.com>	 <43C9DD98.5000506@yahoo.com.au>	 <Pine.LNX.4.62.0601152251550.17034@schroedinger.engr.sgi.com> <aec7e5c30601170029if0ed895le2c18b26eb7c6a42@mail.gmail.com>
-In-Reply-To: <aec7e5c30601170029if0ed895le2c18b26eb7c6a42@mail.gmail.com>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <43CCB262.9070304@yahoo.com.au>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 8BIT
+Content-Disposition: inline
+References: <20060114155517.GA30543@wotan.suse.de>
+	 <Pine.LNX.4.62.0601140955340.11378@schroedinger.engr.sgi.com>
+	 <20060114181949.GA27382@wotan.suse.de>
+	 <Pine.LNX.4.62.0601141040400.11601@schroedinger.engr.sgi.com>
+	 <43C9DD98.5000506@yahoo.com.au>
+	 <Pine.LNX.4.62.0601152251550.17034@schroedinger.engr.sgi.com>
+	 <aec7e5c30601170029if0ed895le2c18b26eb7c6a42@mail.gmail.com>
+	 <43CCB262.9070304@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Magnus Damm <magnus.damm@gmail.com>
+To: Nick Piggin <nickpiggin@yahoo.com.au>
 Cc: Christoph Lameter <clameter@engr.sgi.com>, Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@osdl.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Magnus Damm wrote:
-> On 1/16/06, Christoph Lameter <clameter@engr.sgi.com> wrote:
-> 
->>On Sun, 15 Jan 2006, Nick Piggin wrote:
->>
->>
->>>OK (either way is fine), but you should still drop the __isolate_lru_page
->>>nonsense and revert it like my patch does.
->>
->>Ok with me. Magnus: You needed the __isolate_lru_page for some other
->>purpose. Is that still the case?
-> 
-> 
-> It made sense to have it broken out when it was used twice within
-> vmscan.c, but now when the patch changed a lot and the function is
-> used only once I guess the best thing is to inline it as Nick
-> suggested. I will re-add it myself later on when I need it. Thanks.
-> 
-> / magnus
-> 
+On 1/17/06, Nick Piggin <nickpiggin@yahoo.com.au> wrote:
+> Magnus Damm wrote:
+> > On 1/16/06, Christoph Lameter <clameter@engr.sgi.com> wrote:
+> >
+> >>On Sun, 15 Jan 2006, Nick Piggin wrote:
+> >>
+> >>
+> >>>OK (either way is fine), but you should still drop the __isolate_lru_page
+> >>>nonsense and revert it like my patch does.
+> >>
+> >>Ok with me. Magnus: You needed the __isolate_lru_page for some other
+> >>purpose. Is that still the case?
+> >
+> >
+> > It made sense to have it broken out when it was used twice within
+> > vmscan.c, but now when the patch changed a lot and the function is
+> > used only once I guess the best thing is to inline it as Nick
+> > suggested. I will re-add it myself later on when I need it. Thanks.
+> >
+> > / magnus
+> >
+>
+> I'm curious, what do you need it for?
 
-I'm curious, what do you need it for?
+I used that function when I worked on a memory resource control
+prototype. This prototype has been superseeded by the pzone memory
+resource controller posted on ckrm-tech recently.
 
--- 
-SUSE Labs, Novell Inc.
-Send instant messages to your online friends http://au.messenger.yahoo.com 
+/ magnus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
