@@ -1,78 +1,75 @@
-Subject: Re: differences between MADV_FREE and MADV_DONTNEED
-References: <20051111174309.5d544de4.akpm@osdl.org>
-	<43757263.2030401@us.ibm.com> <20060116130649.GE15897@opteron.random>
-	<43CBC37F.60002@FreeBSD.org> <20060116162808.GG15897@opteron.random>
-	<43CBD1C4.5020002@FreeBSD.org> <20060116172449.GL15897@opteron.random>
-	<m1r777rgq4.fsf@ebiederm.dsl.xmission.com>
-	<43CC3922.2070205@FreeBSD.org> <1137459847.2842.6.camel@entropy>
-	<20060117124315.GA7754@infradead.org>
-From: ebiederm@xmission.com (Eric W. Biederman)
-Date: Tue, 17 Jan 2006 11:23:53 -0700
-In-Reply-To: <20060117124315.GA7754@infradead.org> (Christoph Hellwig's
- message of "Tue, 17 Jan 2006 12:43:15 +0000")
-Message-ID: <m1ek36r9vq.fsf@ebiederm.dsl.xmission.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Subject: Re: Race in new page migration code?
+From: Lee Schermerhorn <lee.schermerhorn@hp.com>
+Reply-To: lee.schermerhorn@hp.com
+In-Reply-To: <Pine.LNX.4.62.0601170926440.24552@schroedinger.engr.sgi.com>
+References: <20060114155517.GA30543@wotan.suse.de>
+	 <Pine.LNX.4.62.0601140955340.11378@schroedinger.engr.sgi.com>
+	 <20060114181949.GA27382@wotan.suse.de>
+	 <Pine.LNX.4.62.0601141040400.11601@schroedinger.engr.sgi.com>
+	 <Pine.LNX.4.61.0601151053420.4500@goblin.wat.veritas.com>
+	 <Pine.LNX.4.62.0601152251080.17034@schroedinger.engr.sgi.com>
+	 <Pine.LNX.4.61.0601161143190.7123@goblin.wat.veritas.com>
+	 <Pine.LNX.4.62.0601170926440.24552@schroedinger.engr.sgi.com>
+Content-Type: text/plain
+Date: Tue, 17 Jan 2006 13:46:11 -0500
+Message-Id: <1137523571.5245.9.camel@localhost.localdomain>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Hellwig <hch@infradead.org>
-Cc: Nicholas Miell <nmiell@comcast.net>, Suleiman Souhlal <ssouhlal@FreeBSD.org>, Ulrich Drepper <drepper@redhat.com>, Andrea Arcangeli <andrea@suse.de>, Badari Pulavarty <pbadari@us.ibm.com>, Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, hugh@veritas.com, dvhltc@us.ibm.com, linux-mm@kvack.org, blaisorblade@yahoo.it, jdike@addtoit.com
+To: Christoph Lameter <clameter@engr.sgi.com>
+Cc: Hugh Dickins <hugh@veritas.com>, Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@osdl.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Christoph Hellwig <hch@infradead.org> writes:
+On Tue, 2006-01-17 at 09:29 -0800, Christoph Lameter wrote:
+> On Mon, 16 Jan 2006, Hugh Dickins wrote:
+> 
+> > Hmm, that battery of unusual tests at the start of migrate_page_add
+> > is odd: the tests don't quite match the comment, and it isn't clear
+> > what reasoning lies behind the comment anyway.
+> 
+> Here is patch to clarify the test. I'd be glad if someone could make
+> the tests more accurate. This ultimately comes down to a concept of
+> ownership of page by a process / mm_struct that we have to approximate.
+> 
+> ===
+> 
+> Explain the complicated check in migrate_page_add by putting the logic
+> into a separate function migration_check. This way any enhancements can
+> be easily added.
+> 
+> Signed-off-by: Christoph Lameter <clameter@sgi.com>
+> 
+> Index: linux-2.6.15/mm/mempolicy.c
+> ===================================================================
+> --- linux-2.6.15.orig/mm/mempolicy.c	2006-01-14 10:56:28.000000000 -0800
+> +++ linux-2.6.15/mm/mempolicy.c	2006-01-17 09:24:20.000000000 -0800
+> @@ -551,6 +551,37 @@ out:
+>  	return rc;
+>  }
+>  
+> +static inline int migration_check(struct mm_struct *mm, struct page *page)
+> +{
+> +	/*
+> +	 * If the page has no mapping then we do not track reverse mappings.
+> +	 * Thus the page is not mapped by other mms, so its safe to move.
+> +	 */
+> +	if (page->mapping)
+should this be "if (!page->mapping)" ???
+> +		return 1;
+> +
 
-> On Mon, Jan 16, 2006 at 05:04:07PM -0800, Nicholas Miell wrote:
->> On Mon, 2006-01-16 at 16:24 -0800, Suleiman Souhlal wrote:
->> > Eric W. Biederman wrote:
->> > > As I recall the logic with DONTNEED was to mark the mapping of
->> > > the page clean so the page didn't need to be swapped out, it could
->> > > just be dropped.
->> > > 
->> > > That is why they anonymous and the file backed cases differ.
->> > > 
->> > > Part of the point is to avoid the case of swapping the pages out if
->> > > the application doesn't care what is on them anymore.
->> > 
->> > Well, imho, MADV_DONTNEED should mean "I won't need this anytime soon", 
->> > and MADV_FREE "I will never need this again".
->> > 
->> 
->> POSIX doesn't have a madvise(), but it does have a posix_madvise(), with
->> flags defined as follows:
->> 
->> POSIX_MADV_NORMAL
->>    Specifies that the application has no advice to give on its behavior
->> with respect to the specified range. It is the default characteristic if
->> no advice is given for a range of memory.
->> POSIX_MADV_SEQUENTIAL
->>    Specifies that the application expects to access the specified range
->> sequentially from lower addresses to higher addresses.
->> POSIX_MADV_RANDOM
->>    Specifies that the application expects to access the specified range
->> in a random order.
->> POSIX_MADV_WILLNEED
->>    Specifies that the application expects to access the specified range
->> in the near future.
->> POSIX_MADV_DONTNEED
->>    Specifies that the application expects that it will not access the
->> specified range in the near future.
->> 
->> Note that glibc forwards posix_madvise() directly to madvise(2), which
->> means that right now, POSIX conformant apps which use
->> posix_madvise(addr, len, POSIX_MADV_DONTNEED) are silently corrupting
->> data on Linux systems.
->
-> Does our MAD_DONTNEED numerical value match glibc's POSIX_MADV_DONTNEED?
->
-> In either case I'd say we should backout this patch for now.  We should
-> implement a real MADV_DONTNEED and rename the current one to MADV_FREE,
-> but that's 2.6.17 material.
+<snip>
+> -	if ((flags & MPOL_MF_MOVE_ALL) || !page->mapping || PageAnon(page) ||
+like here ......................................^^^^^^^^^^^^^^
+> -	    mapping_writably_mapped(page->mapping) ||
+> -	    single_mm_mapping(vma->vm_mm, page->mapping))
+> +	if ((flags & MPOL_MF_MOVE_ALL) || migration_check(vma->vm_mm, page))
+>  		if (isolate_lru_page(page) == 1)
+>  			list_add(&page->lru, pagelist);
+>  }
 
-We definitely need to check this.  I am fairly certain  I have seen this conversation
-before.
-
-Eric
-
+Lee
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
