@@ -1,34 +1,47 @@
-Message-ID: <43CDBCBF.8080309@yahoo.com.au>
-Date: Wed, 18 Jan 2006 14:57:51 +1100
-From: Nick Piggin <nickpiggin@yahoo.com.au>
+Date: Wed, 18 Jan 2006 00:11:24 -0600
+From: Dave McCracken <dmccr@us.ibm.com>
+Subject: Re: [PATCH/RFC] Shared page tables
+Message-ID: <318E5C5091D3BB0EA8F0C497@[10.1.1.4]>
+In-Reply-To: <1137543450.27951.4.camel@localhost.localdomain>
+References: <A6D73CCDC544257F3D97F143@[10.1.1.4]>	
+ <20060117235302.GA22451@lnx-holt.americas.sgi.com>
+ <1137543450.27951.4.camel@localhost.localdomain>
 MIME-Version: 1.0
-Subject: Re: [RFC] Additional features for zone reclaim
-References: <Pine.LNX.4.62.0601171507580.28915@schroedinger.engr.sgi.com>
-In-Reply-To: <Pine.LNX.4.62.0601171507580.28915@schroedinger.engr.sgi.com>
-Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@engr.sgi.com>
-Cc: ak@suse.de, linux-mm@kvack.org
+To: Dave Hansen <haveblue@us.ibm.com>, Robin Holt <holt@sgi.com>
+Cc: Hugh Dickins <hugh@veritas.com>, Andrew Morton <akpm@osdl.org>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Christoph Lameter wrote:
-> This patch adds the ability to shrink the cache if a zone runs out of
-> memory or to start swapping out pages on a node. The slab shrink
-> has some issues since it is global and not related to the zone.
-> One could add support for zone specifications to the shrinker to
-> make that work. Got a patch halfway done that would modify all
-> shrinkers to take an additional zone parameters. But is that worth it?
+--On Tuesday, January 17, 2006 16:17:30 -0800 Dave Hansen
+<haveblue@us.ibm.com> wrote:
+
+> On Tue, 2006-01-17 at 17:53 -0600, Robin Holt wrote:
+>> This appears to work on ia64 with the attached patch.  Could you
+>> send me any test application you think would be helpful for me
+>> to verify it is operating correctly?  I could not get the PTSHARE_PUD
+>> to compile.  I put _NO_ effort into it.  I found the following line
+>> was invalid and quit trying.
+> ...
+>> +config PTSHARE
+>> +	bool "Share page tables"
+>> +	default y
+>> +	help
+>> +	  Turn on sharing of page tables between processes for large shared
+>> +	  memory regions.
+> ...
 > 
+> These are probably best put in mm/Kconfig, especially if you're going to
+> have verbatim copies in each architecture.
 
-I have a patch somewhere that does that. Never worked out if it
-was worth it or not.
+No, the specific variables that should be set are different per
+architecture, and some (most) architectures don't yet support shared page
+tables.  It's likely some never will.
 
--- 
-SUSE Labs, Novell Inc.
-
-Send instant messages to your online friends http://au.messenger.yahoo.com 
+Dave McCracken
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
