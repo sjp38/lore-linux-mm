@@ -1,49 +1,34 @@
-From: Andi Kleen <ak@suse.de>
-Subject: Re: Question:  new bind_zonelist uses only one zone type
-Date: Wed, 18 Jan 2006 04:49:22 +0100
-References: <43CCAEEF.5000403@jp.fujitsu.com> <200601180400.41448.ak@suse.de> <20060118034003.GA1300@sgi.com>
-In-Reply-To: <20060118034003.GA1300@sgi.com>
+Message-ID: <43CDBCBF.8080309@yahoo.com.au>
+Date: Wed, 18 Jan 2006 14:57:51 +1100
+From: Nick Piggin <nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
+Subject: Re: [RFC] Additional features for zone reclaim
+References: <Pine.LNX.4.62.0601171507580.28915@schroedinger.engr.sgi.com>
+In-Reply-To: <Pine.LNX.4.62.0601171507580.28915@schroedinger.engr.sgi.com>
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200601180449.23269.ak@suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jack Steiner <steiner@sgi.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <clameter@sgi.com>, linux-mm <linux-mm@kvack.org>
+To: Christoph Lameter <clameter@engr.sgi.com>
+Cc: ak@suse.de, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wednesday 18 January 2006 04:40, Jack Steiner wrote:
-> On Wed, Jan 18, 2006 at 04:00:41AM +0100, Andi Kleen wrote:
-> > On Wednesday 18 January 2006 00:47, KAMEZAWA Hiroyuki wrote:
-> > > Andi Kleen wrote:
-> > > > It was originally intended - back then either IA64 NUMA systems didn't
-> > > > have a ZONE_DMA and on x86-64 it was only 16MB and for i386 NUMA
-> > > > it was considered acceptable - and it made the  code simpler and policies
-> > > > use less memory. But is now considered a bug because of the introduction
-> > > > of ZONE_DMA32 on x86-64 and I gather from your report your platform
-> > > > has NUMA and a 4GB ZONE_DMA too?
-> > >
-> > > on ia64, 0-4G area is ZONE_DMA.
-> > 
-> > On IA64/SN2 ZONE_DMA is empty and at least in the part SGI was the only
-> > IA64 vendor actively interested in NUMA policy.
-> > 
+Christoph Lameter wrote:
+> This patch adds the ability to shrink the cache if a zone runs out of
+> memory or to start swapping out pages on a node. The slab shrink
+> has some issues since it is global and not related to the zone.
+> One could add support for zone specifications to the shrinker to
+> make that work. Got a patch halfway done that would modify all
+> shrinkers to take an additional zone parameters. But is that worth it?
 > 
-> On the SN systems, ALL memory is in the DMA zone. The other zones are empty.
 
-Ah sorry Jack got that wrong. Thanks for the correction. For the 
-NUMA policy makes no difference though because only the highest zone
-with pages populated counts.
- 
-> I think this is SN-specific - other IA64 platforms may be different & have memory
-> in multiple zones. 
+I have a patch somewhere that does that. Never worked out if it
+was worth it or not.
 
-Yes, it is.
+-- 
+SUSE Labs, Novell Inc.
 
--Andi 
+Send instant messages to your online friends http://au.messenger.yahoo.com 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
