@@ -1,65 +1,37 @@
-Date: Wed, 18 Jan 2006 18:05:58 +0100
-From: Nick Piggin <npiggin@suse.de>
+Date: Wed, 18 Jan 2006 11:27:13 -0800 (PST)
+From: Linus Torvalds <torvalds@osdl.org>
 Subject: Re: [patch 0/4] mm: de-skew page refcount
-Message-ID: <20060118170558.GE28418@wotan.suse.de>
-References: <20060118024106.10241.69438.sendpatchset@linux.site> <Pine.LNX.4.64.0601180830520.3240@g5.osdl.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0601180830520.3240@g5.osdl.org>
+In-Reply-To: <20060118170558.GE28418@wotan.suse.de>
+Message-ID: <Pine.LNX.4.64.0601181122120.3240@g5.osdl.org>
+References: <20060118024106.10241.69438.sendpatchset@linux.site>
+ <Pine.LNX.4.64.0601180830520.3240@g5.osdl.org> <20060118170558.GE28418@wotan.suse.de>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@osdl.org>
-Cc: Nick Piggin <npiggin@suse.de>, Linux Memory Management <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Hugh Dickins <hugh@veritas.com>, Andrew Morton <akpm@osdl.org>, Andrea Arcangeli <andrea@suse.de>, David Miller <davem@davemloft.net>
+To: Nick Piggin <npiggin@suse.de>
+Cc: Linux Memory Management <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Hugh Dickins <hugh@veritas.com>, Andrew Morton <akpm@osdl.org>, Andrea Arcangeli <andrea@suse.de>, David Miller <davem@davemloft.net>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jan 18, 2006 at 08:38:44AM -0800, Linus Torvalds wrote:
-> 
-> 
-> On Wed, 18 Jan 2006, Nick Piggin wrote:
-> >
-> > The following patchset (against 2.6.16-rc1 + migrate race fixes) uses the new
-> > atomic ops to do away with the offset page refcounting, and simplify the race
-> > that it was designed to cover.
-> > 
-> > This allows some nice optimisations
-> 
-> Why?
-> 
-> The real downside is that "atomic_inc_nonzero()" is a lot more expensive 
-> than checking for zero on x86 (and x86-64).
-> 
-> The reason it's offset is that on architectures that automatically test 
-> the _result_ of an atomic op (ie x86[-64]), it's easy to see when 
-> something _becomes_ negative or _becomes_ zero, and that's what
-> 
-> 	atomic_add_negative
-> 	atomic_inc_and_test
-> 
-> are optimized for (there's also "atomic_dec_and_test()" which reacts on 
-> the count becoming zero, but that doesn't have a pairing: there's no way 
-> to react to the count becoming one for the increment operation, so the 
-> "atomic_dec_and_test()" is used for things where zero means "free it").
-> 
-> Nothing else can be done that fast on x86. Everything else requires an 
-> insane "load, update, cmpxchg" sequence.
-> 
 
-Yes, I realise inc_not_zero isn't as fast as dec_and_test on x86(-64).
-In this case when the cacheline will already be exclusive I bet it isn't
-that much of a difference (in the noise from my testing).
-
-> So I disagree with this patch series. It has real downsides. There's a 
-> reason we have the offset.
+On Wed, 18 Jan 2006, Nick Piggin wrote:
 > 
+> > So I disagree with this patch series. It has real downsides. There's a 
+> > reason we have the offset.
+> 
+> Yes, there is a reason, I detailed it in the changelog and got rid of it.
 
-Yes, there is a reason, I detailed it in the changelog and got rid of it.
+And I'm not applying it. I'd be crazy to replace good code by code that is 
+objectively _worse_.
 
-> "nice optimizations"
+The fact that you _document_ that it's worse doesn't make it any better.
 
-They're in this patchset.
+The places that you improve (in the other patches) seem to have nothing at 
+all to do with the counter skew issue, so I don't see the point.
 
-Nick
+So let me repeat: WHY DID YOU MAKE THE CODE WORSE?
+
+		Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
