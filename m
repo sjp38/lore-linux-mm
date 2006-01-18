@@ -1,43 +1,34 @@
-Message-Id: <200601180127.k0I1R8g18386@unix-os.sc.intel.com>
-From: "Chen, Kenneth W" <kenneth.w.chen@intel.com>
-Subject: RE: [PATCH/RFC] Shared page tables
-Date: Tue, 17 Jan 2006 17:27:09 -0800
+From: Andi Kleen <ak@suse.de>
+Subject: Re: [RFC] Additional features for zone reclaim
+Date: Wed, 18 Jan 2006 03:55:54 +0100
+References: <Pine.LNX.4.62.0601171507580.28915@schroedinger.engr.sgi.com>
+In-Reply-To: <Pine.LNX.4.62.0601171507580.28915@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
 Content-Type: text/plain;
-	charset="us-ascii"
+  charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
-In-Reply-To: <20060117235302.GA22451@lnx-holt.americas.sgi.com>
+Content-Disposition: inline
+Message-Id: <200601180355.55001.ak@suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: 'Robin Holt' <holt@sgi.com>, Dave McCracken <dmccr@us.ibm.com>
-Cc: Hugh Dickins <hugh@veritas.com>, Andrew Morton <akpm@osdl.org>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>
+To: Christoph Lameter <clameter@engr.sgi.com>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Robin Holt wrote on Tuesday, January 17, 2006 3:53 PM
-> This appears to work on ia64 with the attached patch.  Could you
-> send me any test application you think would be helpful for me
-> to verify it is operating correctly?  I could not get the PTSHARE_PUD
-> to compile.  I put _NO_ effort into it.  I found the following line
-> was invalid and quit trying.
-> 
-> --- linux-2.6.orig/arch/ia64/Kconfig	2006-01-14 07:16:46.149226872 -0600
-> +++ linux-2.6/arch/ia64/Kconfig	2006-01-14 07:25:02.228853432 -0600
-> @@ -289,6 +289,38 @@ source "mm/Kconfig"
->  config ARCH_SELECT_MEMORY_MODEL
->  	def_bool y
->  
-> +
-> +config PTSHARE_HUGEPAGE
-> +	bool
-> +	depends on PTSHARE && PTSHARE_PMD
-> +	default y
-> +
+On Wednesday 18 January 2006 00:10, Christoph Lameter wrote:
+> This patch adds the ability to shrink the cache if a zone runs out of
+> memory or to start swapping out pages on a node. The slab shrink
+> has some issues since it is global and not related to the zone.
+> One could add support for zone specifications to the shrinker to
+> make that work. Got a patch halfway done that would modify all
+> shrinkers to take an additional zone parameters. But is that worth it?
 
-You need to thread carefully with hugetlb ptshare on ia64. PTE for
-hugetlb page on ia64 observe full page table levels, not like x86
-that sits in the pmd level.
+I was considering this when I was working on NUMA memory policy
+because the VM often got unhappy with MPOL_BIND under stress.
+Didn't do it to keep the patches simple, but it would be probably a good 
+thing.
 
-- Ken
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
