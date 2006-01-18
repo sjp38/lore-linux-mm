@@ -1,47 +1,43 @@
-Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
-	by e34.co.us.ibm.com (8.12.11/8.12.11) with ESMTP id k0I0HW81019708
-	for <linux-mm@kvack.org>; Tue, 17 Jan 2006 19:17:32 -0500
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by d03relay04.boulder.ibm.com (8.12.10/NCO/VERS6.8) with ESMTP id k0I0JfCS174804
-	for <linux-mm@kvack.org>; Tue, 17 Jan 2006 17:19:41 -0700
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.12.11/8.13.3) with ESMTP id k0I0HWk4021790
-	for <linux-mm@kvack.org>; Tue, 17 Jan 2006 17:17:32 -0700
-Subject: Re: [PATCH/RFC] Shared page tables
-From: Dave Hansen <haveblue@us.ibm.com>
-In-Reply-To: <20060117235302.GA22451@lnx-holt.americas.sgi.com>
-References: <A6D73CCDC544257F3D97F143@[10.1.1.4]>
-	 <20060117235302.GA22451@lnx-holt.americas.sgi.com>
-Content-Type: text/plain
-Date: Tue, 17 Jan 2006 16:17:30 -0800
-Message-Id: <1137543450.27951.4.camel@localhost.localdomain>
-Mime-Version: 1.0
+Message-Id: <200601180127.k0I1R8g18386@unix-os.sc.intel.com>
+From: "Chen, Kenneth W" <kenneth.w.chen@intel.com>
+Subject: RE: [PATCH/RFC] Shared page tables
+Date: Tue, 17 Jan 2006 17:27:09 -0800
+MIME-Version: 1.0
+Content-Type: text/plain;
+	charset="us-ascii"
 Content-Transfer-Encoding: 7bit
+In-Reply-To: <20060117235302.GA22451@lnx-holt.americas.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Robin Holt <holt@sgi.com>
-Cc: Dave McCracken <dmccr@us.ibm.com>, Hugh Dickins <hugh@veritas.com>, Andrew Morton <akpm@osdl.org>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>
+To: 'Robin Holt' <holt@sgi.com>, Dave McCracken <dmccr@us.ibm.com>
+Cc: Hugh Dickins <hugh@veritas.com>, Andrew Morton <akpm@osdl.org>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2006-01-17 at 17:53 -0600, Robin Holt wrote:
+Robin Holt wrote on Tuesday, January 17, 2006 3:53 PM
 > This appears to work on ia64 with the attached patch.  Could you
 > send me any test application you think would be helpful for me
 > to verify it is operating correctly?  I could not get the PTSHARE_PUD
 > to compile.  I put _NO_ effort into it.  I found the following line
 > was invalid and quit trying.
-...
-> +config PTSHARE
-> +	bool "Share page tables"
+> 
+> --- linux-2.6.orig/arch/ia64/Kconfig	2006-01-14 07:16:46.149226872 -0600
+> +++ linux-2.6/arch/ia64/Kconfig	2006-01-14 07:25:02.228853432 -0600
+> @@ -289,6 +289,38 @@ source "mm/Kconfig"
+>  config ARCH_SELECT_MEMORY_MODEL
+>  	def_bool y
+>  
+> +
+> +config PTSHARE_HUGEPAGE
+> +	bool
+> +	depends on PTSHARE && PTSHARE_PMD
 > +	default y
-> +	help
-> +	  Turn on sharing of page tables between processes for large shared
-> +	  memory regions.
-...
+> +
 
-These are probably best put in mm/Kconfig, especially if you're going to
-have verbatim copies in each architecture.
+You need to thread carefully with hugetlb ptshare on ia64. PTE for
+hugetlb page on ia64 observe full page table levels, not like x86
+that sits in the pmd level.
 
--- Dave
+- Ken
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
