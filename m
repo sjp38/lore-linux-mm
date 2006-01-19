@@ -1,59 +1,53 @@
-Date: Thu, 19 Jan 2006 15:00:39 +0100
+Date: Thu, 19 Jan 2006 15:50:08 +0100
 From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [patch 0/4] mm: de-skew page refcount
-Message-ID: <20060119140039.GA958@wotan.suse.de>
-References: <20060118024106.10241.69438.sendpatchset@linux.site> <Pine.LNX.4.64.0601180830520.3240@g5.osdl.org> <20060118170558.GE28418@wotan.suse.de> <Pine.LNX.4.64.0601181122120.3240@g5.osdl.org>
+Subject: Re: [patch 3/3] mm: PageActive no testset
+Message-ID: <20060119145008.GA20126@wotan.suse.de>
+References: <20060118024106.10241.69438.sendpatchset@linux.site> <20060118024139.10241.73020.sendpatchset@linux.site> <20060118141346.GB7048@dmt.cnet>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0601181122120.3240@g5.osdl.org>
+In-Reply-To: <20060118141346.GB7048@dmt.cnet>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@osdl.org>
-Cc: Nick Piggin <npiggin@suse.de>, Linux Memory Management <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Hugh Dickins <hugh@veritas.com>, Andrew Morton <akpm@osdl.org>, Andrea Arcangeli <andrea@suse.de>, David Miller <davem@davemloft.net>
+To: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
+Cc: Nick Piggin <npiggin@suse.de>, Linux Memory Management <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Hugh Dickins <hugh@veritas.com>, Andrew Morton <akpm@osdl.org>, Andrea Arcangeli <andrea@suse.de>, Linus Torvalds <torvalds@osdl.org>, David Miller <davem@davemloft.net>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jan 18, 2006 at 11:27:13AM -0800, Linus Torvalds wrote:
-> 
-> 
-> On Wed, 18 Jan 2006, Nick Piggin wrote:
-> > 
-> > > So I disagree with this patch series. It has real downsides. There's a 
-> > > reason we have the offset.
-> > 
-> > Yes, there is a reason, I detailed it in the changelog and got rid of it.
-> 
-> And I'm not applying it. I'd be crazy to replace good code by code that is 
-> objectively _worse_.
-> 
+Hi Marcelo,
 
-And you're not? Damn.
-
-> The fact that you _document_ that it's worse doesn't make it any better.
+On Wed, Jan 18, 2006 at 12:13:46PM -0200, Marcelo Tosatti wrote:
+> Hi Nick,
 > 
-> The places that you improve (in the other patches) seem to have nothing at 
-> all to do with the counter skew issue, so I don't see the point.
+> On Wed, Jan 18, 2006 at 11:40:58AM +0100, Nick Piggin wrote:
+> > PG_active is protected by zone->lru_lock, it does not need TestSet/TestClear
+> > operations.
+> 
+> page->flags bits (including PG_active and PG_lru bits) are touched by
+> several codepaths which do not hold zone->lru_lock. 
+> 
+> AFAICT zone->lru_lock guards access to the LRU list, and no more than
+> that.
 > 
 
-You know, I believe you're right. I needed the de-skewing patch for
-something unrelated and it seemed that it opened the possibility for
-the following optimisations (ie. because we no longer touch a page
-after its refcount goes to zero).
+Yep.
 
-But actually it doesn't matter that we might touch page_count, only
-that we not clear PageLRU. So the enabler is simply moving the
-TestClearPageLRU after the get_page_testone.
-
-So I'll respin the patches without the de-skewing and the series
-will become much smaller and neater.
-
-> So let me repeat: WHY DID YOU MAKE THE CODE WORSE?
+> Moreover, what about consistency of the rest of page->flags bits?
 > 
 
-You've never bothered me about that until now...
+That's OK, set_bit and clear_bit are atomic as well, they just don't
+imply memory barriers and can be implemented a bit more simply.
 
-Thanks for the feedback!
+The test-set / test-clear operations also kind of imply that it is
+being used for locking or without other synchronisation (usually).
 
+> PPC for example implements test_and_set_bit() with:
+> 
+> 	lwarx	reg, addr   (load and create reservation for 32-bit addr)
+> 	or 	reg, BITOP_MASK(nr)	
+> 	stwcx	reg, addr  (store word upon reservation validation, otherwise loop)
+> 
+
+Thanks,
 Nick
 
 --
