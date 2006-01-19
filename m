@@ -1,37 +1,59 @@
-Date: Wed, 18 Jan 2006 11:27:13 -0800 (PST)
-From: Linus Torvalds <torvalds@osdl.org>
-Subject: Re: [patch 0/4] mm: de-skew page refcount
-In-Reply-To: <20060118170558.GE28418@wotan.suse.de>
-Message-ID: <Pine.LNX.4.64.0601181122120.3240@g5.osdl.org>
-References: <20060118024106.10241.69438.sendpatchset@linux.site>
- <Pine.LNX.4.64.0601180830520.3240@g5.osdl.org> <20060118170558.GE28418@wotan.suse.de>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+From: KUROSAWA Takahiro <kurosawa@valinux.co.jp>
+Message-Id: <20060119080408.24736.13148.sendpatchset@debian>
+Subject: [PATCH 0/2] Pzone based CKRM memory resource controller
+Date: Thu, 19 Jan 2006 17:04:33 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>
-Cc: Linux Memory Management <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Hugh Dickins <hugh@veritas.com>, Andrew Morton <akpm@osdl.org>, Andrea Arcangeli <andrea@suse.de>, David Miller <davem@davemloft.net>
+To: ckrm-tech@lists.sourceforge.net
+Cc: linux-mm@kvack.org, KUROSAWA Takahiro <kurosawa@valinux.co.jp>
 List-ID: <linux-mm.kvack.org>
 
+(Changed the mail format into LKML-style and added linux-mm list to Cc:.
+ These patches are almost the same as what I sent to ckrm-tech@lists.sf.net
+ this week.)
 
-On Wed, 18 Jan 2006, Nick Piggin wrote:
-> 
-> > So I disagree with this patch series. It has real downsides. There's a 
-> > reason we have the offset.
-> 
-> Yes, there is a reason, I detailed it in the changelog and got rid of it.
+The pzone (pseudo zone) based memory resource controller is yet
+another implementation of the CKRM memory resource controller.
+The existing CKRM memory resource controller counts the number of
+pages that are allocated for tasks in a class in order to guarantee
+and limit memory resources.  This requires changes to the existing
+code for page allocation and page reclaim.
 
-And I'm not applying it. I'd be crazy to replace good code by code that is 
-objectively _worse_.
+This memory resource controller takes a different approach aiming at
+less impact to the existing Linux kernel code.  The pzone is
+introduced to reserve the specified number of pages from the existing
+zone.  The pzone uses the existing zone structure but adds several
+members.  This enables us smaller impact to the memory management
+code; our memory resource controller doesn't require special LRU lists
+of pages or addition of a member to the page structure.  Also, it
+doesn't require any changes for the algorithms in the memory
+management system.
 
-The fact that you _document_ that it's worse doesn't make it any better.
+Tasks in a class allocate pages using the zonelist that consists of
+pzones.  The memory resource guarantee is achieved by preventing tasks
+in other classes from allocating pages from the pzones.  The number of
+pages that a class holds can be achieved by limiting page allocations
+only from the pzones and disabling page allocations from conventional
+zones.
 
-The places that you improve (in the other patches) seem to have nothing at 
-all to do with the counter skew issue, so I don't see the point.
+Thus, pages are accounted for the class of tasks that call
+__alloc_pages().  Resource guarantee and limit are handled as the
+same value.  User-space daemons could be introduced in order to
+separate guarantee and limit.
 
-So let me repeat: WHY DID YOU MAKE THE CODE WORSE?
+The current implementation doesn't move resource account when the
+class of a task is changed.  Moving resource account could be
+implemented by using Christoph Lameter's page migration patches.
 
-		Linus
+The patches are against linux-2.6.15, the first patch is for
+introducing pzones and the second is for implementing memory resource
+controller using pzones.  These patches are not adequately tested yet.
+They are still under development and need further work.
+
+
+Regards,
+
+KUROSAWA, Takahiro
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
