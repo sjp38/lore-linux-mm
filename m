@@ -1,73 +1,40 @@
-From: Nick Piggin <npiggin@suse.de>
-Message-Id: <20060119192210.11913.49481.sendpatchset@linux.site>
-In-Reply-To: <20060119192131.11913.27564.sendpatchset@linux.site>
-References: <20060119192131.11913.27564.sendpatchset@linux.site>
-Subject: [patch 4/6] mm: less atomic ops
-Date: Thu, 19 Jan 2006 20:23:20 +0100 (CET)
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by e31.co.us.ibm.com (8.12.11/8.12.11) with ESMTP id k0JJOqte003410
+	for <linux-mm@kvack.org>; Thu, 19 Jan 2006 14:24:52 -0500
+Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
+	by d03relay04.boulder.ibm.com (8.12.10/NCO/VERS6.8) with ESMTP id k0JJR2Up176536
+	for <linux-mm@kvack.org>; Thu, 19 Jan 2006 12:27:02 -0700
+Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av03.boulder.ibm.com (8.12.11/8.13.3) with ESMTP id k0JJOpX9012114
+	for <linux-mm@kvack.org>; Thu, 19 Jan 2006 12:24:51 -0700
+Message-ID: <43CFE77B.3090708@austin.ibm.com>
+Date: Thu, 19 Jan 2006 13:24:43 -0600
+From: Joel Schopp <jschopp@austin.ibm.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH 0/5] Reducing fragmentation using zones
+References: <20060119190846.16909.14133.sendpatchset@skynet.csn.ul.ie>
+In-Reply-To: <20060119190846.16909.14133.sendpatchset@skynet.csn.ul.ie>
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@osdl.org>, Andrew Morton <akpm@osdl.org>
-Cc: Nick Piggin <npiggin@suse.de>, Linux Memory Management <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, lhms-devel@lists.sourceforge.net
 List-ID: <linux-mm.kvack.org>
 
-In the page release paths, we can be sure that nobody will mess with our
-page->flags because the refcount has dropped to 0. So no need for atomic
-operations here.
+> Benchmark comparison between -mm+NoOOM tree and with the new zones
 
-Signed-off-by: Nick Piggin <npiggin@suse.de>
+I know you had also previously posted a very simplified version of your real 
+fragmentation avoidance patches.  I was curious if you could repost those with 
+the other benchmarks for a 3 way comparison.  The simplified version got rid of 
+a lot of the complexity people were complaining about and in my mind still seems 
+like preferable direction.
 
-Index: linux-2.6/include/linux/page-flags.h
-===================================================================
---- linux-2.6.orig/include/linux/page-flags.h
-+++ linux-2.6/include/linux/page-flags.h
-@@ -247,10 +247,12 @@ extern void __mod_page_state_offset(unsi
- #define PageLRU(page)		test_bit(PG_lru, &(page)->flags)
- #define SetPageLRU(page)	set_bit(PG_lru, &(page)->flags)
- #define ClearPageLRU(page)	clear_bit(PG_lru, &(page)->flags)
-+#define __ClearPageLRU(page)	__clear_bit(PG_lru, &(page)->flags)
- 
- #define PageActive(page)	test_bit(PG_active, &(page)->flags)
- #define SetPageActive(page)	set_bit(PG_active, &(page)->flags)
- #define ClearPageActive(page)	clear_bit(PG_active, &(page)->flags)
-+#define __ClearPageActive(page)	__clear_bit(PG_active, &(page)->flags)
- 
- #define PageSlab(page)		test_bit(PG_slab, &(page)->flags)
- #define SetPageSlab(page)	set_bit(PG_slab, &(page)->flags)
-Index: linux-2.6/mm/swap.c
-===================================================================
---- linux-2.6.orig/mm/swap.c
-+++ linux-2.6/mm/swap.c
-@@ -212,7 +212,7 @@ void fastcall __page_cache_release(struc
- 		struct zone *zone = page_zone(page);
- 		spin_lock_irqsave(&zone->lru_lock, flags);
- 		BUG_ON(!PageLRU(page));
--		ClearPageLRU(page);
-+		__ClearPageLRU(page);
- 		del_page_from_lru(zone, page);
- 		spin_unlock_irqrestore(&zone->lru_lock, flags);
- 	}
-@@ -256,7 +256,7 @@ void release_pages(struct page **pages, 
- 				spin_lock_irq(&zone->lru_lock);
- 			}
- 			BUG_ON(!PageLRU(page));
--			ClearPageLRU(page);
-+			__ClearPageLRU(page);
- 			del_page_from_lru(zone, page);
- 		}
- 
-Index: linux-2.6/include/linux/mm_inline.h
-===================================================================
---- linux-2.6.orig/include/linux/mm_inline.h
-+++ linux-2.6/include/linux/mm_inline.h
-@@ -32,7 +32,7 @@ del_page_from_lru(struct zone *zone, str
- {
- 	list_del(&page->lru);
- 	if (PageActive(page)) {
--		ClearPageActive(page);
-+		__ClearPageActive(page);
- 		zone->nr_active--;
- 	} else {
- 		zone->nr_inactive--;
+Zone based approaches are runtime inflexible and require boot time tuning by the 
+sysadmin.  There are lots of workloads that "reasonable" defaults for a zone 
+based approach would cause the system to regress terribly.
+
+-Joel
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
