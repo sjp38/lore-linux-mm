@@ -1,102 +1,34 @@
+Date: Thu, 19 Jan 2006 21:02:26 +0100
 From: Nick Piggin <npiggin@suse.de>
-Message-Id: <20060119195355.14171.14613.sendpatchset@linux.site>
-Subject: [resend][patch 5/6] mm: simplify vmscan vs release refcounting
-Date: Thu, 19 Jan 2006 20:55:05 +0100 (CET)
+Subject: Re: [patch 3/3] mm: PageActive no testset
+Message-ID: <20060119200226.GA1756@wotan.suse.de>
+References: <20060118024106.10241.69438.sendpatchset@linux.site> <20060118024139.10241.73020.sendpatchset@linux.site> <20060118141346.GB7048@dmt.cnet> <20060119145008.GA20126@wotan.suse.de> <20060119165222.GC4418@dmt.cnet>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20060119165222.GC4418@dmt.cnet>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@osdl.org>, Andrew Morton <akpm@osdl.org>
-Cc: Nick Piggin <npiggin@suse.de>, Linux Memory Management <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
+Cc: Nick Piggin <npiggin@suse.de>, Linux Memory Management <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Hugh Dickins <hugh@veritas.com>, Andrew Morton <akpm@osdl.org>, Andrea Arcangeli <andrea@suse.de>, Linus Torvalds <torvalds@osdl.org>, David Miller <davem@davemloft.net>
 List-ID: <linux-mm.kvack.org>
 
-The VM has an interesting race where a page refcount can drop to zero, but
-it is still on the LRU lists for a short time. This was solved by testing
-a 0->1 refcount transition when picking up pages from the LRU, and dropping
-the refcount in that case.
+On Thu, Jan 19, 2006 at 02:52:22PM -0200, Marcelo Tosatti wrote:
+> On Thu, Jan 19, 2006 at 03:50:08PM +0100, Nick Piggin wrote:
+> 
+> > The test-set / test-clear operations also kind of imply that it is
+> > being used for locking or without other synchronisation (usually).
+> 
+> Non-atomic versions such as __ClearPageLRU()/__ClearPageActive() are 
+> not usable, though.
+> 
 
-Instead, use atomic_add_unless to ensure we never pick up a 0 refcount page
-from the LRU, thus a 0 refcount page will never have its refcount elevated
-until it is allocated again.
+Correct. Although I was able to use them in a couple of other places
+in a subsequent patch in the series. I trust you don't see a problem
+with those usages?
 
-Signed-off-by: Nick Piggin <npiggin@suse.de>
-
-Index: linux-2.6/include/linux/mm.h
-===================================================================
---- linux-2.6.orig/include/linux/mm.h
-+++ linux-2.6/include/linux/mm.h
-@@ -301,17 +301,20 @@ struct page {
-  * Drop a ref, return true if the logical refcount fell to zero (the page has
-  * no users)
-  */
--#define put_page_testzero(p)				\
--	({						\
--		BUG_ON(page_count(p) == 0);		\
--		atomic_add_negative(-1, &(p)->_count);	\
--	})
-+static inline int put_page_testzero(struct page *page)
-+{
-+	BUG_ON(atomic_read(&page->_count) == -1);
-+	return atomic_add_negative(-1, &page->_count);
-+}
- 
- /*
-- * Grab a ref, return true if the page previously had a logical refcount of
-- * zero.  ie: returns true if we just grabbed an already-deemed-to-be-free page
-+ * Try to grab a ref unless the page has a refcount of zero, return false if
-+ * that is the case.
-  */
--#define get_page_testone(p)	atomic_inc_and_test(&(p)->_count)
-+static inline int get_page_unless_zero(struct page *page)
-+{
-+	return atomic_add_unless(&page->_count, 1, -1);
-+}
- 
- #define set_page_count(p,v) 	atomic_set(&(p)->_count, (v) - 1)
- #define __put_page(p)		atomic_dec(&(p)->_count)
-Index: linux-2.6/mm/vmscan.c
-===================================================================
---- linux-2.6.orig/mm/vmscan.c
-+++ linux-2.6/mm/vmscan.c
-@@ -821,29 +821,26 @@ static int isolate_lru_pages(int nr_to_s
- 	int scan = 0;
- 
- 	while (scan++ < nr_to_scan && !list_empty(src)) {
-+		struct list_head *target;
- 		page = lru_to_page(src);
- 		prefetchw_prev_lru_page(page, src, flags);
- 
- 		BUG_ON(!PageLRU(page));
- 
- 		list_del(&page->lru);
--		if (unlikely(get_page_testone(page))) {
-+		target = src;
-+		if (likely(get_page_unless_zero(page))) {
- 			/*
--			 * It is being freed elsewhere
-+			 * Be careful not to clear PageLRU until after we're
-+			 * sure the page is not being freed elsewhere -- the
-+			 * page release code relies on it.
- 			 */
--			__put_page(page);
--			list_add(&page->lru, src);
--			continue;
--		}
-+			ClearPageLRU(page);
-+			target = dst;
-+			nr_taken++;
-+		} /* else it is being freed elsewhere */
- 
--		/*
--		 * Be careful not to clear PageLRU until after we're sure
--		 * the page is not being freed elsewhere -- the page release
--		 * code relies on it.
--		 */
--		ClearPageLRU(page);
--		list_add(&page->lru, dst);
--		nr_taken++;
-+		list_add(&page->lru, target);
- 	}
- 
- 	*scanned = scan;
+Thanks,
+Nick
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
