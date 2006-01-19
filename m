@@ -1,53 +1,95 @@
-Date: Thu, 19 Jan 2006 19:41:45 -0200
-From: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
-Subject: Re: [patch 3/3] mm: PageActive no testset
-Message-ID: <20060119214145.GA5115@dmt.cnet>
-References: <20060118024106.10241.69438.sendpatchset@linux.site> <20060118024139.10241.73020.sendpatchset@linux.site> <20060118141346.GB7048@dmt.cnet> <20060119145008.GA20126@wotan.suse.de> <20060119165222.GC4418@dmt.cnet> <20060119200226.GA1756@wotan.suse.de>
+Date: Fri, 20 Jan 2006 08:42:31 +0900
+From: KUROSAWA Takahiro <kurosawa@valinux.co.jp>
+Subject: Re: [PATCH 1/2] Add the pzone
+In-Reply-To: <43CFD4BB.4070704@shadowen.org>
+References: <20060119080408.24736.13148.sendpatchset@debian>
+	<20060119080413.24736.27946.sendpatchset@debian>
+	<43CFD4BB.4070704@shadowen.org>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20060119200226.GA1756@wotan.suse.de>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
+Message-Id: <20060119234257.0DB4A7402D@sv1.valinux.co.jp>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>
-Cc: Linux Memory Management <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Hugh Dickins <hugh@veritas.com>, Andrew Morton <akpm@osdl.org>, Andrea Arcangeli <andrea@suse.de>, Linus Torvalds <torvalds@osdl.org>, David Miller <davem@davemloft.net>
+To: Andy Whitcroft <apw@shadowen.org>
+Cc: ckrm-tech@lists.sourceforge.net, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jan 19, 2006 at 09:02:26PM +0100, Nick Piggin wrote:
-> On Thu, Jan 19, 2006 at 02:52:22PM -0200, Marcelo Tosatti wrote:
-> > On Thu, Jan 19, 2006 at 03:50:08PM +0100, Nick Piggin wrote:
-> > 
-> > > The test-set / test-clear operations also kind of imply that it is
-> > > being used for locking or without other synchronisation (usually).
-> > 
-> > Non-atomic versions such as __ClearPageLRU()/__ClearPageActive() are 
-> > not usable, though.
-> > 
+On Thu, 19 Jan 2006 18:04:43 +0000
+Andy Whitcroft <apw@shadowen.org> wrote:
+
+> > -/* Page flags: | [SECTION] | [NODE] | ZONE | ... | FLAGS | */
+> > -#define SECTIONS_PGOFF		((sizeof(unsigned long)*8) - SECTIONS_WIDTH)
+> > +/* Page flags: | [PZONE] | [SECTION] | [NODE] | ZONE | ... | FLAGS | */
+> > +#define PZONE_BIT_PGOFF		((sizeof(unsigned long)*8) - PZONE_BIT_WIDTH)
+> > +#define SECTIONS_PGOFF		(PZONE_BIT_PGOFF - SECTIONS_WIDTH)
+> >  #define NODES_PGOFF		(SECTIONS_PGOFF - NODES_WIDTH)
+> >  #define ZONES_PGOFF		(NODES_PGOFF - ZONES_WIDTH)
 > 
-> Correct. Although I was able to use them in a couple of other places
-> in a subsequent patch in the series. I trust you don't see a problem
-> with those usages?
+> In general this PZONE bit is really a part of the zone number.  Much of
+> the order of these bits is chosen to obtain the cheapest extraction of
+> the most used bits, particularly the node/zone conbination or section
+> number on the left.  I would say put the PZONE_BIT next to ZONE
+> probabally to the right of it?  [See below for more reasons to put it
+> there.]
 
-Indeed, sorry. Would you mind adding a comment that page->flags must be
-accessed atomically otherwise and that __ versions are special as to
-when the page cannot be referenced anymore? (its really not obvious)
+Thanks for the comments.  It looks much better to put PZONE_BIT to
+that place.
 
-Also this comments on top of page-flags.h could be updated
+> > @@ -431,6 +438,7 @@ void put_page(struct page *page);
+> >   * sections we define the shift as 0; that plus a 0 mask ensures
+> >   * the compiler will optimise away reference to them.
+> >   */
+> > +#define PZONE_BIT_PGSHIFT	(PZONE_BIT_PGOFF * (PZONE_BIT_WIDTH != 0))
+> >  #define SECTIONS_PGSHIFT	(SECTIONS_PGOFF * (SECTIONS_WIDTH != 0))
+> >  #define NODES_PGSHIFT		(NODES_PGOFF * (NODES_WIDTH != 0))
+> >  #define ZONES_PGSHIFT		(ZONES_PGOFF * (ZONES_WIDTH != 0))
+> > @@ -443,10 +451,11 @@ void put_page(struct page *page);
+> >  #endif
+> >  #define ZONETABLE_PGSHIFT	ZONES_PGSHIFT
+> >  
+> > -#if SECTIONS_WIDTH+NODES_WIDTH+ZONES_WIDTH > FLAGS_RESERVED
+> > -#error SECTIONS_WIDTH+NODES_WIDTH+ZONES_WIDTH > FLAGS_RESERVED
+> > +#if PZONE_BIT_WIDTH+SECTIONS_WIDTH+NODES_WIDTH+ZONES_WIDTH > FLAGS_RESERVED
+> > +#error PZONE_BIT_WIDTH+SECTIONS_WIDTH+NODES_WIDTH+ZONES_WIDTH > FLAGS_RESERVED
+> >  #endif
+> 
+> Do we have any bits left in the reserve on 32 bit machines?  The reserve
+> at last look was only 8 bits and there was little if any headroom in the
+> rest of the flags word to extend it; if memory serves at least 22 of the
+> 24 remaining bits was accounted for.  Has this been tested on any such
+> machines?
 
- * During disk I/O, PG_locked is used. This bit is set before I/O and
- * reset when I/O completes. page_waitqueue(page) is a wait queue of all tasks
- * waiting for the I/O on this page to complete.
+At least it does compile and work on non-NUMA i386 configuration.
+But I haven't tested with CONFIG_NUMA or CONFIG_SPARSEMEM enabled.
 
-s/PG_locked/PG_writeback/
+> > +
+> > +static inline unsigned long page_to_nid(struct page *page)
+> > +{
+> > +	return page_zone(page)->zone_pgdat->node_id;
+> > +}
+> [...]
+> > +#ifdef CONFIG_PSEUDO_ZONE
+> > +#define MAX_NR_PZONES		1024
+> 
+> You seem to be allowing for 1024 pzone's here?  But in
+> pzone_setup_page_flags() you place the pzone_idx (an offset into the
+> pzone_table) into the ZONE field of the page flags.  This field is
+> typically only two bits wide?  I don't see this being increased in this
+> patch, nor is there space for it generally to get much bigger not on 32
+> bit kernels anyhow (see comments about bits earlier)?
 
- * Note that the referenced bit, the page->lru list_head and the active,
- * inactive_dirty and inactive_clean lists are protected by the
- * zone->lru_lock, and *NOT* by the usual PG_locked bit!
+pzone_idx isn't placed on the ZONE field.  The flags field of pzone pages
+is as follows:
 
-inactive_dirty and inactive_clean do not exist anymore
+ Page flags: | [PZONE] | [pzone-idx] | ZONE | ... | FLAGS |
 
+For pzones, the node number should be obtained from parent zone.
 
+Thanks,
 
+-- 
+KUROSAWA, Takahiro
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
