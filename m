@@ -1,40 +1,43 @@
-Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
-	by e31.co.us.ibm.com (8.12.11/8.12.11) with ESMTP id k0JJOqte003410
-	for <linux-mm@kvack.org>; Thu, 19 Jan 2006 14:24:52 -0500
-Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
-	by d03relay04.boulder.ibm.com (8.12.10/NCO/VERS6.8) with ESMTP id k0JJR2Up176536
-	for <linux-mm@kvack.org>; Thu, 19 Jan 2006 12:27:02 -0700
-Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av03.boulder.ibm.com (8.12.11/8.13.3) with ESMTP id k0JJOpX9012114
-	for <linux-mm@kvack.org>; Thu, 19 Jan 2006 12:24:51 -0700
-Message-ID: <43CFE77B.3090708@austin.ibm.com>
-Date: Thu, 19 Jan 2006 13:24:43 -0600
-From: Joel Schopp <jschopp@austin.ibm.com>
+Date: Thu, 19 Jan 2006 11:35:29 -0800 (PST)
+From: Linus Torvalds <torvalds@osdl.org>
+Subject: Re: [patch 5/6] mm: simplify vmscan vs release refcounting
+In-Reply-To: <20060119192219.11913.30071.sendpatchset@linux.site>
+Message-ID: <Pine.LNX.4.64.0601191130590.3240@g5.osdl.org>
+References: <20060119192131.11913.27564.sendpatchset@linux.site>
+ <20060119192219.11913.30071.sendpatchset@linux.site>
 MIME-Version: 1.0
-Subject: Re: [PATCH 0/5] Reducing fragmentation using zones
-References: <20060119190846.16909.14133.sendpatchset@skynet.csn.ul.ie>
-In-Reply-To: <20060119190846.16909.14133.sendpatchset@skynet.csn.ul.ie>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, lhms-devel@lists.sourceforge.net
+To: Nick Piggin <npiggin@suse.de>
+Cc: Andrew Morton <akpm@osdl.org>, Linux Memory Management <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-> Benchmark comparison between -mm+NoOOM tree and with the new zones
 
-I know you had also previously posted a very simplified version of your real 
-fragmentation avoidance patches.  I was curious if you could repost those with 
-the other benchmarks for a 3 way comparison.  The simplified version got rid of 
-a lot of the complexity people were complaining about and in my mind still seems 
-like preferable direction.
+On Thu, 19 Jan 2006, Nick Piggin wrote:
+>
+> The VM has an interesting race where a page refcount can drop to zero, but
+> it is still on the LRU lists for a short time. This was solved by testing
+> a 0->1 refcount transition when picking up pages from the LRU, and dropping
+> the refcount in that case.
 
-Zone based approaches are runtime inflexible and require boot time tuning by the 
-sysadmin.  There are lots of workloads that "reasonable" defaults for a zone 
-based approach would cause the system to regress terribly.
+Heh. Now you keep the count offset, but you also end up removing all the 
+comments about it (still) being -1 for free. 
 
--Joel
+And your changelog talks about "atomic_inc_not_zero()" even though the 
+code actually does
+
+	atomic_add_unless(&page->_count, 1, -1);
+
+which makes it pretty confusing ;)
+
+I also think it's wrong - you've changed put_page_testzero() to use 
+"atomic_dec_and_test()", even though the count is based on -1.
+
+So this patch _only_ works together with the next one, and is invalid in 
+many ways on its own. You should re-split the de-skew part correctly..
+
+		Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
