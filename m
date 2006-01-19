@@ -1,45 +1,35 @@
-Date: Thu, 19 Jan 2006 21:52:36 +0000
-Subject: [PATCH 1/2] GFP_ZONETYPES add commentry on how to calculate
-Message-ID: <20060119215236.GA29614@shadowen.org>
-References: <1137205485.7130.81.camel@localhost.localdomain>
+Date: Thu, 19 Jan 2006 14:58:23 -0800 (PST)
+From: Christoph Lameter <clameter@engr.sgi.com>
+Subject: [PATCH] zone_reclaim: reclaim on memory only node support
+Message-ID: <Pine.LNX.4.62.0601191457090.13102@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-From: Andy Whitcroft <apw@shadowen.org>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: Dave Hansen <haveblue@us.ibm.com>, Mel Gorman <mel@csn.ul.ie>, lhms-devel@lists.sourceforge.net, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andy Whitcroft <apw@shadowen.org>, Linus Torvalds <torvalds@osdl.org>
+To: akpm@osdl.org
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-GFP_ZONETYPES define using GFP_ZONEMASK and add commentry
+Zone reclaim is usually only run on the local node. Headless nodes do not have
+any local processors. This patch checks for headless nodes and performs zone
+reclaim on them.
 
-Add commentry explaining the optimisation that we can apply to
-GFP_ZONETYPES when the lest most bit is a 'loaner', it can only be
-set in isolation.
+Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
-Signed-off-by: Andy Whitcroft <apw@shadowen.org>
----
- mmzone.h |    8 ++++++++
- 1 file changed, 8 insertions(+)
-diff -upN reference/include/linux/mmzone.h current/include/linux/mmzone.h
---- reference/include/linux/mmzone.h
-+++ current/include/linux/mmzone.h
-@@ -91,6 +91,14 @@ struct per_cpu_pageset {
-  * be 8 (2 ** 3) zonelists.  GFP_ZONETYPES defines the number of possible
-  * combinations of zone modifiers in "zone modifier space".
-  *
-+ * As an optimisation any zone modifier bits which are only valid when
-+ * no other zone modifier bits are set (loners) should be placed in
-+ * the highest order bits of this field.  This allows us to reduce the
-+ * extent of the zonelists thus saving space.  For example in the case
-+ * of three zone modifier bits, we could require up to eight zonelists.
-+ * If the left most zone modifier is a "loner" then the highest valid
-+ * zonelist would be four allowing us to allocate only five zonelists.
-+ *
-  * NOTE! Make sure this matches the zones in <linux/gfp.h>
-  */
- #define GFP_ZONEMASK	0x07
+Index: linux-2.6.16-rc1-mm1/mm/vmscan.c
+===================================================================
+--- linux-2.6.16-rc1-mm1.orig/mm/vmscan.c	2006-01-19 11:12:31.000000000 -0800
++++ linux-2.6.16-rc1-mm1/mm/vmscan.c	2006-01-19 11:18:37.000000000 -0800
+@@ -1842,7 +1842,8 @@ int zone_reclaim(struct zone *zone, gfp_
+ 			return 0;
+ 
+ 	if (!(gfp_mask & __GFP_WAIT) ||
+-		zone->zone_pgdat->node_id != numa_node_id() ||
++		(!cpus_empty(node_to_cpumask(zone->zone_pgdat->node_id)) &&
++			 zone->zone_pgdat->node_id != numa_node_id()) ||
+ 		zone->all_unreclaimable ||
+ 		atomic_read(&zone->reclaim_in_progress) > 0)
+ 			return 0;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
