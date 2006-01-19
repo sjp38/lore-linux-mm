@@ -1,20 +1,17 @@
 From: Nick Piggin <npiggin@suse.de>
-Message-Id: <20060119192141.11913.9056.sendpatchset@linux.site>
+Message-Id: <20060119192150.11913.81639.sendpatchset@linux.site>
 In-Reply-To: <20060119192131.11913.27564.sendpatchset@linux.site>
 References: <20060119192131.11913.27564.sendpatchset@linux.site>
-Subject: [patch 1/6] mm: never ClearPageLRU released pages
-Date: Thu, 19 Jan 2006 20:22:51 +0100 (CET)
+Subject: [patch 2/6] mm: PageLRU no testset
+Date: Thu, 19 Jan 2006 20:23:01 +0100 (CET)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Linus Torvalds <torvalds@osdl.org>, Andrew Morton <akpm@osdl.org>
 Cc: Nick Piggin <npiggin@suse.de>, Linux Memory Management <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-If vmscan finds a zero refcount page on the lru list, never ClearPageLRU it.
-This means the release code need not hold ->lru_lock to stabalise PageLRU,
-so that lock may be skipped entirely when releasing !PageLRU pages (because
-we know PageLRU won't have been temporarily cleared by vmscan, which
-was previously guaranteed by holding the lock to synchroise against vmscan).
+PG_lru is protected by zone->lru_lock. It does not need TestSet/TestClear
+operations.
 
 Signed-off-by: Nick Piggin <npiggin@suse.de>
 
@@ -22,116 +19,135 @@ Index: linux-2.6/mm/vmscan.c
 ===================================================================
 --- linux-2.6.orig/mm/vmscan.c
 +++ linux-2.6/mm/vmscan.c
-@@ -823,21 +823,25 @@ static int isolate_lru_pages(int nr_to_s
+@@ -780,9 +780,10 @@ int isolate_lru_page(struct page *page)
+ 	if (PageLRU(page)) {
+ 		struct zone *zone = page_zone(page);
+ 		spin_lock_irq(&zone->lru_lock);
+-		if (TestClearPageLRU(page)) {
++		if (PageLRU(page)) {
+ 			ret = 1;
+ 			get_page(page);
++			ClearPageLRU(page);
+ 			if (PageActive(page))
+ 				del_page_from_active_list(zone, page);
+ 			else
+@@ -823,6 +824,8 @@ static int isolate_lru_pages(int nr_to_s
  		page = lru_to_page(src);
  		prefetchw_prev_lru_page(page, src, flags);
  
++		BUG_ON(!PageLRU(page));
++
+ 		list_del(&page->lru);
+ 		if (unlikely(get_page_testone(page))) {
+ 			/*
+@@ -838,8 +841,7 @@ static int isolate_lru_pages(int nr_to_s
+ 		 * the page is not being freed elsewhere -- the page release
+ 		 * code relies on it.
+ 		 */
 -		if (!TestClearPageLRU(page))
 -			BUG();
- 		list_del(&page->lru);
--		if (get_page_testone(page)) {
-+		if (unlikely(get_page_testone(page))) {
- 			/*
- 			 * It is being freed elsewhere
- 			 */
- 			__put_page(page);
--			SetPageLRU(page);
- 			list_add(&page->lru, src);
- 			continue;
--		} else {
--			list_add(&page->lru, dst);
--			nr_taken++;
- 		}
-+
-+		/*
-+		 * Be careful not to clear PageLRU until after we're sure
-+		 * the page is not being freed elsewhere -- the page release
-+		 * code relies on it.
-+		 */
-+		if (!TestClearPageLRU(page))
-+			BUG();
-+		list_add(&page->lru, dst);
-+		nr_taken++;
++		ClearPageLRU(page);
+ 		list_add(&page->lru, dst);
+ 		nr_taken++;
  	}
- 
- 	*scanned = scan;
+@@ -894,8 +896,8 @@ static void shrink_cache(struct zone *zo
+ 		 */
+ 		while (!list_empty(&page_list)) {
+ 			page = lru_to_page(&page_list);
+-			if (TestSetPageLRU(page))
+-				BUG();
++			BUG_ON(PageLRU(page));
++			SetPageLRU(page);
+ 			list_del(&page->lru);
+ 			if (PageActive(page))
+ 				add_page_to_active_list(zone, page);
+@@ -1007,8 +1009,8 @@ refill_inactive_zone(struct zone *zone, 
+ 	while (!list_empty(&l_inactive)) {
+ 		page = lru_to_page(&l_inactive);
+ 		prefetchw_prev_lru_page(page, &l_inactive, flags);
+-		if (TestSetPageLRU(page))
+-			BUG();
++		BUG_ON(PageLRU(page));
++		SetPageLRU(page);
+ 		if (!TestClearPageActive(page))
+ 			BUG();
+ 		list_move(&page->lru, &zone->inactive_list);
+@@ -1036,8 +1038,8 @@ refill_inactive_zone(struct zone *zone, 
+ 	while (!list_empty(&l_active)) {
+ 		page = lru_to_page(&l_active);
+ 		prefetchw_prev_lru_page(page, &l_active, flags);
+-		if (TestSetPageLRU(page))
+-			BUG();
++		BUG_ON(PageLRU(page));
++		SetPageLRU(page);
+ 		BUG_ON(!PageActive(page));
+ 		list_move(&page->lru, &zone->active_list);
+ 		pgmoved++;
 Index: linux-2.6/mm/swap.c
 ===================================================================
 --- linux-2.6.orig/mm/swap.c
 +++ linux-2.6/mm/swap.c
-@@ -206,17 +206,18 @@ int lru_add_drain_all(void)
-  */
- void fastcall __page_cache_release(struct page *page)
- {
--	unsigned long flags;
--	struct zone *zone = page_zone(page);
-+	if (PageLRU(page)) {
-+		unsigned long flags;
+@@ -211,8 +211,8 @@ void fastcall __page_cache_release(struc
  
--	spin_lock_irqsave(&zone->lru_lock, flags);
--	if (TestClearPageLRU(page))
-+		struct zone *zone = page_zone(page);
-+		spin_lock_irqsave(&zone->lru_lock, flags);
-+		if (!TestClearPageLRU(page))
-+			BUG();
+ 		struct zone *zone = page_zone(page);
+ 		spin_lock_irqsave(&zone->lru_lock, flags);
+-		if (!TestClearPageLRU(page))
+-			BUG();
++		BUG_ON(!PageLRU(page));
++		ClearPageLRU(page);
  		del_page_from_lru(zone, page);
--	if (page_count(page) != 0)
--		page = NULL;
--	spin_unlock_irqrestore(&zone->lru_lock, flags);
--	if (page)
--		free_hot_page(page);
-+		spin_unlock_irqrestore(&zone->lru_lock, flags);
-+	}
-+
-+	free_hot_page(page);
- }
- 
- EXPORT_SYMBOL(__page_cache_release);
-@@ -242,27 +243,30 @@ void release_pages(struct page **pages, 
- 	pagevec_init(&pages_to_free, cold);
- 	for (i = 0; i < nr; i++) {
- 		struct page *page = pages[i];
--		struct zone *pagezone;
- 
- 		if (!put_page_testzero(page))
- 			continue;
- 
--		pagezone = page_zone(page);
--		if (pagezone != zone) {
--			if (zone)
--				spin_unlock_irq(&zone->lru_lock);
--			zone = pagezone;
--			spin_lock_irq(&zone->lru_lock);
--		}
--		if (TestClearPageLRU(page))
-+		if (PageLRU(page)) {
-+			struct zone *pagezone = page_zone(page);
-+			if (pagezone != zone) {
-+				if (zone)
-+					spin_unlock_irq(&zone->lru_lock);
-+				zone = pagezone;
-+				spin_lock_irq(&zone->lru_lock);
-+			}
-+			if (!TestClearPageLRU(page))
-+				BUG();
- 			del_page_from_lru(zone, page);
--		if (page_count(page) == 0) {
--			if (!pagevec_add(&pages_to_free, page)) {
-+		}
-+
-+		if (!pagevec_add(&pages_to_free, page)) {
-+			if (zone) {
- 				spin_unlock_irq(&zone->lru_lock);
--				__pagevec_free(&pages_to_free);
--				pagevec_reinit(&pages_to_free);
--				zone = NULL;	/* No lock is held */
-+				zone = NULL;
+ 		spin_unlock_irqrestore(&zone->lru_lock, flags);
+ 	}
+@@ -255,8 +255,8 @@ void release_pages(struct page **pages, 
+ 				zone = pagezone;
+ 				spin_lock_irq(&zone->lru_lock);
  			}
-+			__pagevec_free(&pages_to_free);
-+			pagevec_reinit(&pages_to_free);
+-			if (!TestClearPageLRU(page))
+-				BUG();
++			BUG_ON(!PageLRU(page));
++			ClearPageLRU(page);
+ 			del_page_from_lru(zone, page);
  		}
+ 
+@@ -335,8 +335,8 @@ void __pagevec_lru_add(struct pagevec *p
+ 			zone = pagezone;
+ 			spin_lock_irq(&zone->lru_lock);
+ 		}
+-		if (TestSetPageLRU(page))
+-			BUG();
++		BUG_ON(PageLRU(page));
++		SetPageLRU(page);
+ 		add_page_to_inactive_list(zone, page);
  	}
  	if (zone)
+@@ -362,8 +362,8 @@ void __pagevec_lru_add_active(struct pag
+ 			zone = pagezone;
+ 			spin_lock_irq(&zone->lru_lock);
+ 		}
+-		if (TestSetPageLRU(page))
+-			BUG();
++		BUG_ON(PageLRU(page));
++		SetPageLRU(page);
+ 		if (TestSetPageActive(page))
+ 			BUG();
+ 		add_page_to_active_list(zone, page);
+Index: linux-2.6/include/linux/page-flags.h
+===================================================================
+--- linux-2.6.orig/include/linux/page-flags.h
++++ linux-2.6/include/linux/page-flags.h
+@@ -244,10 +244,9 @@ extern void __mod_page_state_offset(unsi
+ #define __ClearPageDirty(page)	__clear_bit(PG_dirty, &(page)->flags)
+ #define TestClearPageDirty(page) test_and_clear_bit(PG_dirty, &(page)->flags)
+ 
+-#define SetPageLRU(page)	set_bit(PG_lru, &(page)->flags)
+ #define PageLRU(page)		test_bit(PG_lru, &(page)->flags)
+-#define TestSetPageLRU(page)	test_and_set_bit(PG_lru, &(page)->flags)
+-#define TestClearPageLRU(page)	test_and_clear_bit(PG_lru, &(page)->flags)
++#define SetPageLRU(page)	set_bit(PG_lru, &(page)->flags)
++#define ClearPageLRU(page)	clear_bit(PG_lru, &(page)->flags)
+ 
+ #define PageActive(page)	test_bit(PG_active, &(page)->flags)
+ #define SetPageActive(page)	set_bit(PG_active, &(page)->flags)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
