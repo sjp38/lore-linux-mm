@@ -1,40 +1,104 @@
 From: Mel Gorman <mel@csn.ul.ie>
-Message-Id: <20060119190911.16909.76842.sendpatchset@skynet.csn.ul.ie>
+Message-Id: <20060119190906.16909.60763.sendpatchset@skynet.csn.ul.ie>
 In-Reply-To: <20060119190846.16909.14133.sendpatchset@skynet.csn.ul.ie>
 References: <20060119190846.16909.14133.sendpatchset@skynet.csn.ul.ie>
-Subject: [PATCH 5/5] ForTesting - Prevent OOM killer firing for high-order allocations
-Date: Thu, 19 Jan 2006 19:09:11 +0000 (GMT)
+Subject: [PATCH 4/5] ppc64 - Specify amount of kernel memory at boot time
+Date: Thu, 19 Jan 2006 19:09:06 +0000 (GMT)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 Cc: Mel Gorman <mel@csn.ul.ie>, linux-kernel@vger.kernel.org, lhms-devel@lists.sourceforge.net
 List-ID: <linux-mm.kvack.org>
 
-Stop going OOM for high-order allocations. During testing of high order
-allocations, we do not want the OOM killing everything in sight.
+This patch adds the kernelcore= parameter for ppc64.
 
-For comparison between kernels during the high order allocatioon stress
-test, this patch is applied to both the stock -mm kernel and the kernel
-using ZONE_EASYRCLM.
+The amount of memory will requested will not be reserved in all nodes. The
+first node that is found that can accomodate the requested amount of memory
+and have remaining more for ZONE_EASYRCLM is used. If a node has memory holes,
+it also will not be used.
 
 Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-diff -rup -X /usr/src/patchset-0.5/bin//dontdiff linux-2.6.16-rc1-mm1-104_ppc64coremem/mm/page_alloc.c linux-2.6.16-rc1-mm1-902_highorderoom/mm/page_alloc.c
---- linux-2.6.16-rc1-mm1-104_ppc64coremem/mm/page_alloc.c	2006-01-19 16:43:20.000000000 +0000
-+++ linux-2.6.16-rc1-mm1-902_highorderoom/mm/page_alloc.c	2006-01-19 16:44:03.000000000 +0000
-@@ -1080,8 +1080,11 @@ rebalance:
- 		if (page)
- 			goto got_pg;
+diff -rup -X /usr/src/patchset-0.5/bin//dontdiff linux-2.6.16-rc1-mm1-103_x86coremem/arch/powerpc/mm/numa.c linux-2.6.16-rc1-mm1-104_ppc64coremem/arch/powerpc/mm/numa.c
+--- linux-2.6.16-rc1-mm1-103_x86coremem/arch/powerpc/mm/numa.c	2006-01-17 07:44:47.000000000 +0000
++++ linux-2.6.16-rc1-mm1-104_ppc64coremem/arch/powerpc/mm/numa.c	2006-01-19 11:39:36.000000000 +0000
+@@ -21,6 +21,7 @@
+ #include <asm/lmb.h>
+ #include <asm/system.h>
+ #include <asm/smp.h>
++#include <asm/machdep.h>
  
--		out_of_memory(gfp_mask, order);
--		goto restart;
-+		/* Only go OOM for low-order allocations */
-+		if (order <= 3) {
-+			out_of_memory(gfp_mask, order);
-+			goto restart;
+ static int numa_enabled = 1;
+ 
+@@ -722,20 +723,50 @@ void __init paging_init(void)
+ 	unsigned long zones_size[MAX_NR_ZONES];
+ 	unsigned long zholes_size[MAX_NR_ZONES];
+ 	int nid;
++	unsigned long core_mem_size = 0;
++	unsigned long core_mem_pfn = 0;
++	char *opt;
+ 
+ 	memset(zones_size, 0, sizeof(zones_size));
+ 	memset(zholes_size, 0, sizeof(zholes_size));
+ 
++	/* Check if ZONE_EASYRCLM should be populated */
++	opt = strstr(cmd_line, "kernelcore=");
++	if (opt) {
++		opt += 11;
++		core_mem_size = memparse(opt, &opt);
++		core_mem_pfn = core_mem_size >> PAGE_SHIFT;
++	}
++
+ 	for_each_online_node(nid) {
+ 		unsigned long start_pfn, end_pfn, pages_present;
+ 
+ 		get_region(nid, &start_pfn, &end_pfn, &pages_present);
+ 
+-		zones_size[ZONE_DMA] = end_pfn - start_pfn;
+-		zholes_size[ZONE_DMA] = zones_size[ZONE_DMA] - pages_present;
++		/*
++		 * Set up a zone for EASYRCLM as long as this node is large
++		 * enough to accomodate the requested size and that there
++		 * are no memory holes
++		 */
++		if (end_pfn - start_pfn <= core_mem_pfn ||
++				end_pfn - start_pfn != pages_present) {
++			zones_size[ZONE_DMA] = end_pfn - start_pfn;
++			zholes_size[ZONE_DMA] =
++				zones_size[ZONE_DMA] - pages_present;
++			core_mem_pfn -= (end_pfn - start_pfn);
++		} else {
++			zones_size[ZONE_DMA] = core_mem_pfn;
++			zones_size[ZONE_EASYRCLM] = end_pfn - core_mem_pfn;
++			zholes_size[ZONE_DMA] = 0;
++			zholes_size[ZONE_EASYRCLM] = 0;
++			core_mem_pfn = 0;
 +		}
- 	}
  
- 	/*
+-		dbg("free_area_init node %d %lx %lx (hole: %lx)\n", nid,
++		dbg("free_area_init DMA node %d %lx %lx (hole: %lx)\n", nid,
+ 		    zones_size[ZONE_DMA], start_pfn, zholes_size[ZONE_DMA]);
++		dbg("free_area_init EASYRCLM node %d %lx %lx (hole: %lx)\n",
++		    nid, zones_size[ZONE_EASYRCLM], start_pfn,
++		    zholes_size[ZONE_DMA]);
+ 
+ 		free_area_init_node(nid, NODE_DATA(nid), zones_size, start_pfn,
+ 				    zholes_size);
+diff -rup -X /usr/src/patchset-0.5/bin//dontdiff linux-2.6.16-rc1-mm1-103_x86coremem/mm/page_alloc.c linux-2.6.16-rc1-mm1-104_ppc64coremem/mm/page_alloc.c
+--- linux-2.6.16-rc1-mm1-103_x86coremem/mm/page_alloc.c	2006-01-19 11:37:52.000000000 +0000
++++ linux-2.6.16-rc1-mm1-104_ppc64coremem/mm/page_alloc.c	2006-01-19 11:39:36.000000000 +0000
+@@ -1568,7 +1568,11 @@ static int __init build_zonelists_node(p
+ 		zone = pgdat->node_zones + zone_type;
+ 		if (populated_zone(zone)) {
+ #ifndef CONFIG_HIGHMEM
+-			BUG_ON(zone_type > ZONE_NORMAL);
++			/*
++			 * On architectures with only ZONE_DMA, it is still
++			 * valid to have a ZONE_EASYRCLM
++			 */
++			BUG_ON(zone_type == ZONE_HIGHMEM);
+ #endif
+ 			zonelist->zones[nr_zones++] = zone;
+ 			check_highest_zone(zone_type);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
