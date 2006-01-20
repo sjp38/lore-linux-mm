@@ -1,95 +1,68 @@
-Date: Fri, 20 Jan 2006 08:42:31 +0900
-From: KUROSAWA Takahiro <kurosawa@valinux.co.jp>
-Subject: Re: [PATCH 1/2] Add the pzone
-In-Reply-To: <43CFD4BB.4070704@shadowen.org>
-References: <20060119080408.24736.13148.sendpatchset@debian>
-	<20060119080413.24736.27946.sendpatchset@debian>
-	<43CFD4BB.4070704@shadowen.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Message-ID: <43D02B3E.5030603@jp.fujitsu.com>
+Date: Fri, 20 Jan 2006 09:13:50 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+MIME-Version: 1.0
+Subject: Re: [Lhms-devel] Re: [PATCH 0/5] Reducing fragmentation using zones
+References: <20060119190846.16909.14133.sendpatchset@skynet.csn.ul.ie> <43CFE77B.3090708@austin.ibm.com>
+In-Reply-To: <43CFE77B.3090708@austin.ibm.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
-Message-Id: <20060119234257.0DB4A7402D@sv1.valinux.co.jp>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andy Whitcroft <apw@shadowen.org>
-Cc: ckrm-tech@lists.sourceforge.net, linux-mm@kvack.org
+To: Joel Schopp <jschopp@austin.ibm.com>
+Cc: Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, lhms-devel@lists.sourceforge.net
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 19 Jan 2006 18:04:43 +0000
-Andy Whitcroft <apw@shadowen.org> wrote:
-
-> > -/* Page flags: | [SECTION] | [NODE] | ZONE | ... | FLAGS | */
-> > -#define SECTIONS_PGOFF		((sizeof(unsigned long)*8) - SECTIONS_WIDTH)
-> > +/* Page flags: | [PZONE] | [SECTION] | [NODE] | ZONE | ... | FLAGS | */
-> > +#define PZONE_BIT_PGOFF		((sizeof(unsigned long)*8) - PZONE_BIT_WIDTH)
-> > +#define SECTIONS_PGOFF		(PZONE_BIT_PGOFF - SECTIONS_WIDTH)
-> >  #define NODES_PGOFF		(SECTIONS_PGOFF - NODES_WIDTH)
-> >  #define ZONES_PGOFF		(NODES_PGOFF - ZONES_WIDTH)
+Joel Schopp wrote:
+>> Benchmark comparison between -mm+NoOOM tree and with the new zones
 > 
-> In general this PZONE bit is really a part of the zone number.  Much of
-> the order of these bits is chosen to obtain the cheapest extraction of
-> the most used bits, particularly the node/zone conbination or section
-> number on the left.  I would say put the PZONE_BIT next to ZONE
-> probabally to the right of it?  [See below for more reasons to put it
-> there.]
-
-Thanks for the comments.  It looks much better to put PZONE_BIT to
-that place.
-
-> > @@ -431,6 +438,7 @@ void put_page(struct page *page);
-> >   * sections we define the shift as 0; that plus a 0 mask ensures
-> >   * the compiler will optimise away reference to them.
-> >   */
-> > +#define PZONE_BIT_PGSHIFT	(PZONE_BIT_PGOFF * (PZONE_BIT_WIDTH != 0))
-> >  #define SECTIONS_PGSHIFT	(SECTIONS_PGOFF * (SECTIONS_WIDTH != 0))
-> >  #define NODES_PGSHIFT		(NODES_PGOFF * (NODES_WIDTH != 0))
-> >  #define ZONES_PGSHIFT		(ZONES_PGOFF * (ZONES_WIDTH != 0))
-> > @@ -443,10 +451,11 @@ void put_page(struct page *page);
-> >  #endif
-> >  #define ZONETABLE_PGSHIFT	ZONES_PGSHIFT
-> >  
-> > -#if SECTIONS_WIDTH+NODES_WIDTH+ZONES_WIDTH > FLAGS_RESERVED
-> > -#error SECTIONS_WIDTH+NODES_WIDTH+ZONES_WIDTH > FLAGS_RESERVED
-> > +#if PZONE_BIT_WIDTH+SECTIONS_WIDTH+NODES_WIDTH+ZONES_WIDTH > FLAGS_RESERVED
-> > +#error PZONE_BIT_WIDTH+SECTIONS_WIDTH+NODES_WIDTH+ZONES_WIDTH > FLAGS_RESERVED
-> >  #endif
+> I know you had also previously posted a very simplified version of your 
+> real fragmentation avoidance patches.  I was curious if you could repost 
+> those with the other benchmarks for a 3 way comparison.  The simplified 
+> version got rid of a lot of the complexity people were complaining about 
+> and in my mind still seems like preferable direction.
 > 
-> Do we have any bits left in the reserve on 32 bit machines?  The reserve
-> at last look was only 8 bits and there was little if any headroom in the
-> rest of the flags word to extend it; if memory serves at least 22 of the
-> 24 remaining bits was accounted for.  Has this been tested on any such
-> machines?
+I agree. I think you should try with simplified version again.
+Then, we can discuss.
 
-At least it does compile and work on non-NUMA i386 configuration.
-But I haven't tested with CONFIG_NUMA or CONFIG_SPARSEMEM enabled.
+  I don't like using bitmap which I removed (T.T
 
-> > +
-> > +static inline unsigned long page_to_nid(struct page *page)
-> > +{
-> > +	return page_zone(page)->zone_pgdat->node_id;
-> > +}
-> [...]
-> > +#ifdef CONFIG_PSEUDO_ZONE
-> > +#define MAX_NR_PZONES		1024
+> Zone based approaches are runtime inflexible and require boot time 
+> tuning by the sysadmin.  There are lots of workloads that "reasonable" 
+> defaults for a zone based approach would cause the system to regress 
+> terribly.
 > 
-> You seem to be allowing for 1024 pzone's here?  But in
-> pzone_setup_page_flags() you place the pzone_idx (an offset into the
-> pzone_table) into the ZONE field of the page flags.  This field is
-> typically only two bits wide?  I don't see this being increased in this
-> patch, nor is there space for it generally to get much bigger not on 32
-> bit kernels anyhow (see comments about bits earlier)?
+IMHO, I don't like automatic runtime tuning, you say 'flexible' here.
+I think flexibility allows 2^(MAX_ORDER - 1) size fragmentaion.
+When SECTION_SIZE > MAX_ORDER, this is terrible.
 
-pzone_idx isn't placed on the ZONE field.  The flags field of pzone pages
-is as follows:
+I love certainty that sysadmin can grap his system at boot-time.
+And, for people who want to remove range of memory, list-based approach will
+need some other hook and its flexibility is of no use.
+(If list-based approach goes, I or someone will do.)
 
- Page flags: | [PZONE] | [pzone-idx] | ZONE | ... | FLAGS |
+I know zone->zone_start_pfn can be removed very easily.
+This means there is possiblity to reconfigure zone on demand and
+zone-based approach can be a bit more fliexible.
 
-For pzones, the node number should be obtained from parent zone.
 
-Thanks,
+- Kame
 
--- 
-KUROSAWA, Takahiro
+> -Joel
+> 
+> 
+> -------------------------------------------------------
+> This SF.net email is sponsored by: Splunk Inc. Do you grep through log 
+> files
+> for problems?  Stop!  Download the new AJAX search engine that makes
+> searching your log files as easy as surfing the  web.  DOWNLOAD SPLUNK!
+> http://sel.as-us.falkag.net/sel?cmd=lnk&kid=103432&bid=230486&dat=121642
+> _______________________________________________
+> Lhms-devel mailing list
+> Lhms-devel@lists.sourceforge.net
+> https://lists.sourceforge.net/lists/listinfo/lhms-devel
+> 
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
