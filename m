@@ -1,296 +1,95 @@
-Message-ID: <i1hl3YFLIpL45si7KMozwmaw@geldartinvestments.com>
-From: "Kate Caron" <RandiHolman@grupoletamendi.com>
-Reply-To: "Kate Caron" <RandiHolman@grupoletamendi.com>
-Subject: Acrobat Pro 7.0 $69.95 Win XP
-Date: Fri, 20 Jan 2006 11:27:06 +0100
+Date: Fri, 20 Jan 2006 22:22:46 +0900
+From: Yasunori Goto <y-goto@jp.fujitsu.com>
+Subject: Re: [Lhms-devel] Re: [PATCH 0/5] Reducing fragmentation using zones
+In-Reply-To: <Pine.LNX.4.58.0601201216280.14292@skynet>
+References: <20060120210353.1269.Y-GOTO@jp.fujitsu.com> <Pine.LNX.4.58.0601201216280.14292@skynet>
+Message-Id: <20060120222213.126F.Y-GOTO@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: multipart/mixed;  boundary="--zZLQyXtDlmAHpf7iXgT"
-Return-Path: <RandiHolman@grupoletamendi.com>
-To: owner-linux-mm@kvack.org
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Joel Schopp <jschopp@austin.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, lhms-devel@lists.sourceforge.net
 List-ID: <linux-mm.kvack.org>
 
-Vix 
+Thanks! I'll try it next week. :-)
 
-----zZLQyXtDlmAHpf7iXgT
-Content-Type: text/html;
-Content-Transfer-Encoding: quoted-printable
+> On Fri, 20 Jan 2006, Yasunori Goto wrote:
+> 
+> > > What sort of tests would you suggest? The tests I have been running to
+> > > date are
+> > >
+> > > "kbuild + aim9" for regression testing
+> > >
+> > > "updatedb + 7 -j1 kernel compiles + highorder allocation" for seeing how
+> > > easy it was to reclaim contiguous blocks
+> >
+> > BTW, is "highorder allocation test" your original test code?
+> > If so, just my curious, I would like to see it too. ;-).
+> >
+> 
+> 1. Download http://www.csn.ul.ie/~mel/projects/vmregress/vmregress-0.20.tar.gz
+> 2. Extract it to /usr/src/vmregress (i.e. there should be a
+>    /usr/src/vmregress/bin directory)
+> 3. Download linux-2.6.11.tar.gz to /usr/src
+> 4. Make a directory /usr/src/bench-stresshighalloc-test
+> 5. cd to /usr/src/vmregress and run 3. cd to the directory and run
+>    ./configure --with-linux=/path/to/running/kernel
+>    make
+> 
+> 5. Run the test
+>    bench-stresshighalloc.sh -z -k 6 --oprofile
+> 
+>    -z Will test using high memory
+>    -k 6 will build 1 kernel + 6 additional ones
+>    By default, it will try and allocate 275 order-10 pages. Specify the
+>    number of pages with -c and the order with -s
+> 
+> The paths above are default paths. They can all be overridden with command
+> line parameters like -t to specify a different kernel to use and -b to
+> specify a different path to build all the kernels in.
+> 
+> By default, the results will be logged to a directory whose name is based
+> on the kernel being tested. For example, one result directory is
+> ~/vmregressbench-2.6.16-rc1-mm1-clean/highalloc-heavy/log.txt
+> 
+> Comparisions between different runs can be analysed by using
+> diff-highalloc.sh. e.g.
+> 
+> diff-highalloc.sh vmregressbench-2.6.16-rc1-mm1-clean vmregressbench-2.6.16-rc1-mm1-mbuddy-v22
+> 
+> If you want to test just high-order allocations while some other workload
+> is running, use bench-plainhighalloc.sh. See --help for a list of
+> available options.
+> 
+> If you want to use bench-aim9.sh, download and build aim9 in /usr/src/aim9
+> and edit the s9workfile to specify the tests you are interested in. Use
+> diff-aim9.sh to compare different runs of aim9.
+> 
+> -- 
+> Mel Gorman
+> Part-time Phd Student                          Linux Technology Center
+> University of Limerick                         IBM Dublin Software Lab
+> 
+> 
+> -------------------------------------------------------
+> This SF.net email is sponsored by: Splunk Inc. Do you grep through log files
+> for problems?  Stop!  Download the new AJAX search engine that makes
+> searching your log files as easy as surfing the  web.  DOWNLOAD SPLUNK!
+> http://sel.as-us.falkag.net/sel?cmd=lnk&kid=103432&bid=230486&dat=121642
+> _______________________________________________
+> Lhms-devel mailing list
+> Lhms-devel@lists.sourceforge.net
+> https://lists.sourceforge.net/lists/listinfo/lhms-devel
 
-<html><head><style type=3Dtext/css>.eyebrow { FONT-WEIGHT: bold; FONT-SIZE=
-: 10px; TEXT-TRANSFORM: uppercase; COLOR: #ffffff; FONT-FAMILY: verdana,ar=
-ial,helvetica,sans-serif; TEXT-DECORATION: none } A.eyebrow:link { TEXT-DE=
-CORATION: none }</style><title>M</title><meta http-equiv=3DContent-Type co=
-ntent=3D"text/html; charset=3Dwindows-1252"><meta content=3DvcjC name=3DcH=
-K6><meta content=3DBzXE name=3DXR57><style type=3Dtext/css>.serif { FONT-S=
-IZE: small; FONT-FAMILY: times,serif } .sans { FONT-SIZE: small; FONT-FAMI=
-LY: verdana,arial,helvetica,sans-serif } .small { FONT-SIZE: x-small; FONT=
--FAMILY: verdana,arial,helvetica,sans-serif } .h1 { FONT-SIZE: small; COLO=
-R: #cc6600; FONT-FAMILY: verdana, arial,helvetica,sans-serif } .h3color { =
-FONT-SIZE: x-small; COLOR: #cc6600; FONT-FAMILY: verdana, arial,helvetica,=
-sans-serif } .tiny { FONT-SIZE: xx-small; FONT-FAMILY: verdana,arial,helve=
-tica, sans-serif } .listprice { FONT-SIZE: x-small; FONT-FAMILY: arial,ver=
-dana,sans-serif; TEXT-DECORATION: line-through } .price { FONT-SIZE: x-sma=
-ll; COLOR: #990000; FONT-FAMILY: verdana,arial,helvetica,sans-serif } .tin=
-yprice { FONT-SIZE: xx-small; COLOR: #990000; FONT-FAMILY: verdana,arial,h=
-elvetica,sans-serif } .attention { BACKGROUND-COLOR: #ffffd5 } .eyebrow { =
-FONT-WEIGHT: bold; FONT-SIZE: 10px; TEXT-TRANSFORM: uppercase; COLOR: #fff=
-fff; FONT-FAMILY: verdana,arial,helvetica,sans-serif; TEXT-DECORATION: non=
-e } A.eyebrow:link { TEXT-DECORATION: none }</style><meta content=3DJVf6 n=
-ame=3DpIJK></head><body text=3D#000000 vLink=3D#996633 aLink=3D#FF9933 lin=
-k=3D#003399 bgColor=3D#FFFFFF><table cellSpacing=3D0 cellPadding=3D0 width=
-=3D705 border=3D0><div align=3Dleft></table><table border=3D0 cellpadding=3D=
-0 cellspacing=3D0 style=3D"border-collapse: collapse" bordercolor=3D#11111=
-1 width=3D699 id=3DAutoNumber4 height=3D38><tr><td width=3D368 height=3D38=
-><font face=3DVerdana size=3D2>Opt-in Email Special Offer&nbsp;&nbsp;&nbsp=
-; </font><font face=3DVerdana size=3D1>&nbsp;<a href=3Dhttp://eatmoresoft.=
-com/?y>unsubscribe me</a></font></td><td width=3D331 height=3D38><a href=3D=
-http://eatmoresoft.com/?a> <img border=3D0 src=3Dhttp://g-images.amazon.co=
-m/images/G/01/nav/personalized/cartwish/right-topnav-default-2.gif align=3D=
-right width=3D300 height=3D22></a></td></tr></table></div><tbody><tr><td c=
-lass=3Dsmall align=3Dmiddle bgColor=3D#ffffdd width=3D707></td></tr></tbod=
-y></table><table cellSpacing=3D0 cellPadding=3D0 width=3D704 border=3D0><t=
-r><td vAlign=3Dtop width=3D166><table cellSpacing=3D0 cellPadding=3D0 bord=
-er=3D0><tr vAlign=3Dbottom align=3Dmiddle><td><table cellSpacing=3D0 cellP=
-adding=3D0 width=3D155 border=3D0><tr vAlign=3Dtop bgColor=3D#333399><td w=
-idth=3D5 bgcolor=3D#000080> <img src=3Dhttp://g-images.amazon.com/images/G=
-/01/icons/eyebrow-upper-left-corner.gif width=3D5 height=3D5></td><td bgco=
-lor=3D#000080><table cellSpacing=3D3 cellPadding=3D0 width=3D99=
-% border=3D0><tr><td vAlign=3Dbottom> <font face=3Dverdana,arial,helvetica=
- color=3D#ffffff size=3D1> <b>SEARCH</b></font></td></tr></table></td><td =
-align=3Dright width=3D5 bgcolor=3D#000080> <img src=3Dhttp://g-images.amaz=
-on.com/images/G/01/icons/eyebrow-upper-right-corner.gif width=3D5 height=3D=
-5></td></tr></table></td></tr><tr vAlign=3Dtop align=3Dmiddle><td><table c=
-ellSpacing=3D0 cellPadding=3D1 width=3D155 bgColor=3D#cccc99 border=3D0><t=
-r><td width=3D100%><table cellSpacing=3D0 cellPadding=3D4 width=3D100=
-% bgColor=3D#cccc99 border=3D0><tr><td vAlign=3Dtop width=3D100=
-% bgColor=3D#eeeecc> <select name=3Durl> <option selected>Software</option=
-> </select> <input size=3D13 name=3Dfield-keywords> <a href=3Dhttp://eatmo=
-resoft.com/?K> <input type=3Dimage alt=3DGo src=3Dhttp://g-images.amazon.c=
-om/images/G/01/search-browse/go-button-software.gif align=3Dmiddle value=3D=
-Go border=3D0 name=3DGo width=3D21 height=3D21></a> </form></td></tr></tab=
-le></td></tr></table></td></tr></table><br><table cellSpacing=3D0 cellPadd=
-ing=3D0 width=3D155 bgColor=3D#eeeecc border=3D0><tr vAlign=3Dbottom align=
-=3Dmiddle><td><table cellSpacing=3D0 cellPadding=3D0 width=3D156 border=3D=
-0><tr vAlign=3Dtop bgColor=3D#333399><td width=3D5 bgcolor=3D#000080><font=
- size=3D1> <img src=3Dhttp://g-images.amazon.com/images/G/01/icons/eyebrow=
--upper-left-corner.gif width=3D5 height=3D5></font></td><td bgcolor=3D#000=
-080 width=3D145><table cellSpacing=3D3 cellPadding=3D0 width=3D99=
-% border=3D0><tr><td vAlign=3Dbottom><p align=3Dcenter><b> <font face=3Dve=
-rdana,arial,helvetica size=3D1 color=3D#FFFFFF>TOP 10 NEW TITLES</font></b=
-></p></td></tr></table></td><td align=3Dright width=3D6 bgcolor=3D#000080>=
-<font size=3D1> <img src=3Dhttp://g-images.amazon.com/images/G/01/icons/ey=
-ebrow-upper-right-corner.gif width=3D5 height=3D5></font></td></tr></table=
-></td></tr><tr><td><table cellSpacing=3D0 cellPadding=3D1 width=3D100=
-% bgColor=3D#cccc99 border=3D0><tr><td width=3D100%><table cellSpacing=3D0=
- cellPadding=3D0 width=3D100% bgColor=3D#cccc99 border=3D0><tr><td vAlign=3D=
-top width=3D100% bgColor=3D#eeeecc><table cellSpacing=3D0 cellPadding=3D2 =
-width=3D156 border=3D0><tr><td width=3D144 colspan=3D3 bgcolor=3D#FFFFFF><=
-p align=3Dcenter><b> <font face=3Dverdana,arial,helvetica size=3D1 color=3D=
-#CC6600>&nbsp;ON SALE NOW!</font></b></p></td></tr><tr><td width=3D4>&nbsp=
-;</td><td width=3D8><font face=3DVerdana size=3D1>1</font></td><td width=3D=
-132> <font face=3Dverdana,arial,helvetica size=3D1> <a href=3Dhttp://eatmo=
-resoft.com/?C>Windows XP Pro SP2</a></font></td></tr><tr><td width=3D4>&nb=
-sp;</td><td width=3D8><font face=3DVerdana size=3D1>2</font></td><td width=
-=3D132><a href=3Dhttp://eatmoresoft.com/?e> <font face=3Dverdana,arial,hel=
-vetica size=3D1>Creative Suite 2</font></a></td></tr><tr><td width=3D4>&nb=
-sp;</td><td width=3D8><font face=3DVerdana size=3D1>3</font></td><td width=
-=3D132><a href=3Dhttp://eatmoresoft.com/?i> <font face=3Dverdana,arial,hel=
-vetica size=3D1>MS Office 2003 Pro</font></a></td></tr><tr><td width=3D4>&=
-nbsp;</td><td width=3D8><font face=3DVerdana size=3D1>4</font></td><td wid=
-th=3D132><a href=3Dhttp://eatmoresoft.com/?q> <font face=3Dverdana,arial,h=
-elvetica size=3D1>Adobe Acrobat 7 Pro</font></a></td></tr><tr><td width=3D=
-4>&nbsp;</td><td width=3D8><font face=3DVerdana size=3D1>5</font></td><td =
-width=3D132> <a href=3Dhttp://eatmoresoft.com/?Y> <font face=3Dverdana,ari=
-al,helvetica size=3D1>Macromedia Flash 8</font></a></td></tr><tr><td width=
-=3D4>&nbsp;</td><td width=3D8><font face=3DVerdana size=3D1>6</font></td><=
-td width=3D132> <a href=3Dhttp://eatmoresoft.com/?t> <font face=3Dverdana,=
-arial,helvetica size=3D1>Dreamweaver 8</font></a></td></tr><tr><td width=3D=
-4>&nbsp;</td><td width=3D8><font face=3DVerdana size=3D1>7</font></td><td =
-width=3D132><a href=3Dhttp://eatmoresoft.com/?F> <font face=3Dverdana,aria=
-l,helvetica size=3D1>Norton Sysworks 2005</font></a></td></tr><tr><td widt=
-h=3D4>&nbsp;</td><td width=3D8><font face=3DVerdana size=3D1>8</font></td>=
-<td width=3D132> <a href=3Dhttp://eatmoresoft.com/?G> <font face=3Dverdana=
-,arial,helvetica size=3D1>Adobe GoLive CS2</font></a></td></tr><tr><td wid=
-th=3D4>&nbsp;</td><td width=3D8><font face=3DVerdana size=3D1>9</font></td=
-><td width=3D132> <font face=3Dverdana,arial,helvetica size=3D1> <a href=3D=
-http://eatmoresoft.com/?e>Adobe Illustrator CS2</a></font></td></tr><tr><t=
-d width=3D4>&nbsp;</td><td width=3D8><font face=3DVerdana size=3D1>10</fon=
-t></td><td width=3D132> <font face=3Dverdana,arial,helvetica size=3D1> <a =
-href=3Dhttp://eatmoresoft.com/?Y>Borland Architect 2005</a></font></td></t=
-r><tr><td width=3D4>&nbsp;</td><td colSpan=3D2 width=3D144><span class=3Ds=
-mall><b> <font face=3DVerdana size=3D1>See more by this manufacturer</font=
-></b></span></td></tr><tr><td width=3D4>&nbsp;</td><td width=3D8>&nbsp;</t=
-d><td width=3D132> <font face=3Dverdana,arial,helvetica size=3D1> <a href=3D=
-http://eatmoresoft.com/?8>Microsoft</a></font></td></tr><tr><td width=3D4>=
-&nbsp;</td><td width=3D8>&nbsp;</td><td width=3D132><a href=3Dhttp://eatmo=
-resoft.com/?H> <font face=3Dverdana,arial,helvetica size=3D1>Macromedia</f=
-ont></a></td></tr><tr><td width=3D4>&nbsp;</td><td width=3D8>&nbsp;</td><t=
-d width=3D132> <font face=3Dverdana,arial,helvetica size=3D1> <a href=3Dht=
-tp://eatmoresoft.com/?8>Adobe</a></font></td></tr><tr><td width=3D4>&nbsp;=
-</td><td colSpan=3D2 width=3D144><span class=3Dsmall><b> <font face=3DVerd=
-ana size=3D1>Customers also bought</font></b></span></td></tr><tr><td widt=
-h=3D4>&nbsp;</td><td width=3D8>&nbsp;</td><td width=3D132> <font face=3Dve=
-rdana,arial,helvetica size=3D1> <a href=3Dhttp://eatmoresoft.com/?1>these =
-other items...</a></font></td></tr></table></td></tr></table></td></tr></t=
-able></td></tr></table></td><td vAlign=3Dtop align=3Dleft width=3D530><p><=
-b class=3Dsans>Microsoft Windows XP Professional *w/SP2*</b><br> <span cla=
-ss=3Dsmall><a href=3Dhttp://eatmoresoft.com/?d>Microsoft</a><img border=3D=
-0 src=3Dhttp://g-images.amazon.com/images/G/01/promotions/sticker/newest_v=
-ersion.gif width=3D82 height=3D14></span><br></p><table border=3D0><tr><td=
- noWrap><b class=3Dsmall>Choose:</b></td><td vAlign=3Dtop noWrap><table ce=
-llSpacing=3D0 cellPadding=3D0 border=3D0 width=3D170><tr><td width=3D135><=
-a href=3Dhttp://eatmoresoft.com/?c> <select name=3Dedit1> <option selected=
->View Other Titles</option> </select></a></td><td noWrap width=3D35>&nbsp;=
-<a href=3Dhttp://eatmoresoft.com/?7><input type=3Dimage alt=3DGo src=3Dhtt=
-p://g-images.amazon.com/images/G/01/search-browse/go-button-software.gif v=
-alue=3DGo border=3D0 name=3Dsubmit.display-variation width=3D21 height=3D2=
-1></a></td></tr></table></td></tr></table><p><a href=3Dhttp://eatmoresoft.=
-com/?u> <img height=3D150 src=3Dhttp://images.amazon.com/images/P/B00022PT=
-T8.01._SCMZZZZZZZ_.jpg width=3D135 align=3Dleft border=3D0 name=3Dprod_ima=
-ge hspace=3D5></a><span class=3Dsmall></p><table cellSpacing=3D0 cellPaddi=
-ng=3D0 border=3D0 height=3D21 width=3D189><tr><td class=3Dsmall vAlign=3Dt=
-op noWrap align=3Dright height=3D18 width=3D73> <b>List Price:</b></td><td=
- height=3D18 width=3D11></td><td class=3Dsmall height=3D18 width=3D105><sp=
-an class=3Dlistprice>$299.00</span></td></tr><tr><td class=3Dsmall vAlign=3D=
-top noWrap align=3Dright height=3D18 width=3D73> <b>Price:</b></td><td hei=
-ght=3D18 width=3D11></td><td class=3Dsmall height=3D18 width=3D105><b clas=
-s=3Dprice>$49.99</b></td></tr><tr><td class=3Dsmall vAlign=3Dtop noWrap al=
-ign=3Dright height=3D1 width=3D73> <b>You Save:</b></td><td height=3D1 wid=
-th=3D11></td><td class=3Dsmall height=3D1 width=3D105><span class=3Dprice>=
-$249.01 (80%)</span></td></tr></table><p><a href=3Dhttp://eatmoresoft.com/=
-?B> <img border=3D0 src=3Dhttp://g-images.amazon.com/images/G/01/buttons/a=
-dd-to-cart-yellow-short.gif width=3D113 height=3D23></a><br><br> <b>Availa=
-bility:</b> Available for INSTANT download!<br> <b>Coupon Code:</b> XZGt6M=
-<br> <b>Platform:</b> <img src=3Dhttp://g-images.amazon.com/images/G/01/vi=
-deogames/icons/browse-icon-windows.gif align=3Dtop width=3D20 height=3D20>=
- Windows XP</p><p></span><span class=3Dtiny><b>Sales Rank:</b> #1<br> </sp=
-an><span class=3Dsmall><a href=3Dhttp://eatmoresoft.com/?D>System requirem=
-ents</a>&nbsp; |&nbsp; <a href=3Dhttp://eatmoresoft.com/?l>Other Versions<=
-/a></span><span class=3Dtiny><br> <b>Date Coupon Expires:</b> December 31s=
-t, 2005<br> </span><font class=3Dtiny><b>Average Customer Review:</b><img =
-height=3D12 alt=3D"5 out of 5 stars" src=3Dhttp://g-images.amazon.com/imag=
-es/G/01/x-locale/common/customer-reviews/stars-5-0.gif width=3D64 border=3D=
-0> Based on 157317 reviews. <a href=3Dhttp://eatmoresoft.com/?3>Write a re=
-view</a>.</font></p> <hr noShade SIZE=3D1><table border=3D0 cellpadding=3D=
-0 cellspacing=3D0 style=3D"border-collapse: collapse" bordercolor=3D#11111=
-1 width=3D100% id=3DAutoNumber1 height=3D55><tr><td width=3D100=
-% height=3D55><p><b class=3Dsans>Adobe Creative Suite 2 *Premium*</b><br> =
-<span class=3Dsmall><a href=3Dhttp://eatmoresoft.com/?b>Adobe</a><img bord=
-er=3D0 src=3Dhttp://g-images.amazon.com/images/G/01/promotions/sticker/new=
-est_version.gif width=3D82 height=3D14></span><br></p><table border=3D0><t=
-r><td noWrap><b class=3Dsmall>Choose:</b></td><td vAlign=3Dtop noWrap><tab=
-le cellSpacing=3D0 cellPadding=3D0 border=3D0 width=3D164><tr><td width=3D=
-126><a href=3Dhttp://eatmoresoft.com/?i> <select name=3Dedit1> <option sel=
-ected>View Other Titles</option> </select></a></td><td noWrap width=3D38>&=
-nbsp;<a href=3Dhttp://eatmoresoft.com/?x><input type=3Dimage alt=3DGo src=3D=
-http://g-images.amazon.com/images/G/01/search-browse/go-button-software.gi=
-f value=3DGo border=3D0 name=3Dsubmit.display-variation width=3D21 height=3D=
-21></a></td></tr></table></td></tr></table><p><a href=3Dhttp://eatmoresoft=
-com/?J> <img height=3D156 src=3Dhttp://ec1.images-amazon.com/images/P/B00=
-080DPCW.01._PE7_SCMZZZZZZZ_.jpg width=3D151 align=3Dleft border=3D0 name=3D=
-prod_image></a><span class=3Dsmall></p><table cellSpacing=3D0 cellPadding=3D=
-0 border=3D0 height=3D21 width=3D193><tr><td class=3Dsmall vAlign=3Dtop no=
-Wrap align=3Dright height=3D18 width=3D73> <b>List Price:</b></td><td heig=
-ht=3D18 width=3D11></td><td class=3Dsmall height=3D18 width=3D109><span cl=
-ass=3Dlistprice>$1199.00</span></td></tr><tr><td class=3Dsmall vAlign=3Dto=
-p noWrap align=3Dright height=3D18 width=3D73> <b>Price:</b></td><td heigh=
-t=3D18 width=3D11></td><td class=3Dsmall height=3D18 width=3D109><b class=3D=
-price>$149.99</b></td></tr><tr><td class=3Dsmall vAlign=3Dtop noWrap align=
-=3Dright height=3D1 width=3D73> <b>You Save:</b></td><td height=3D1 width=3D=
-11></td><td class=3Dsmall height=3D1 width=3D109><span class=3Dprice>$1049=
-01 (95%)</span></td></tr></table><p><a href=3Dhttp://eatmoresoft.com/?T> =
-<img border=3D0 src=3Dhttp://g-images.amazon.com/images/G/01/buttons/add-t=
-o-cart-yellow-short.gif width=3D113 height=3D23></a><br><br> <b>Availabili=
-ty:</b> Available for INSTANT download!<br> <b>Coupon Code:</b> f81rU<br> =
-<b>Platform:</b> <img src=3Dhttp://g-images.amazon.com/images/G/01/videoga=
-mes/icons/browse-icon-windows.gif align=3Dtop width=3D20 height=3D20> Wind=
-ows XP</p><p></span><span class=3Dtiny><b>Sales Rank:</b> #2<br> </span><s=
-pan class=3Dsmall><a href=3Dhttp://eatmoresoft.com/?N>System requirements<=
-/a>&nbsp; |&nbsp; <a href=3Dhttp://eatmoresoft.com/?E>Other Versions</a></=
-span><span class=3Dtiny><br> <b>Date Coupon Expires:</b> December 31st, 20=
-05<br> </span><font class=3Dtiny><b>Average Customer Review:</b><img heigh=
-t=3D12 alt=3D"5 out of 5 stars" src=3Dhttp://g-images.amazon.com/images/G/=
-01/x-locale/common/customer-reviews/stars-5-0.gif width=3D64 border=3D0> B=
-ased on 191349 reviews. <a href=3Dhttp://eatmoresoft.com/?H>Write a review=
-</a>.</font></p> </font><hr noShade SIZE=3D1></td></tr><tr><td width=3D100=
-% height=3D55><p><b class=3Dsans>Microsoft Office 2003 *Professional*</b><=
-br> <span class=3Dsmall><a href=3Dhttp://eatmoresoft.com/?2>Microsoft</a><=
-img border=3D0 src=3Dhttp://g-images.amazon.com/images/G/01/promotions/sti=
-cker/newest_version.gif width=3D82 height=3D14></span><br></p><table borde=
-r=3D0><tr><td noWrap><b class=3Dsmall>Choose:</b></td><td vAlign=3Dtop noW=
-rap><table cellSpacing=3D0 cellPadding=3D0 border=3D0 width=3D164><tr><td =
-width=3D126><a href=3Dhttp://eatmoresoft.com/?q> <select name=3Dedit1> <op=
-tion selected>View Other Titles</option> </select></a></td><td noWrap widt=
-h=3D38>&nbsp;<a href=3Dhttp://eatmoresoft.com/?5><input type=3Dimage alt=3D=
-Go src=3Dhttp://g-images.amazon.com/images/G/01/search-browse/go-button-so=
-ftware.gif value=3DGo border=3D0 name=3Dsubmit.display-variation width=3D2=
-1 height=3D21></a></td></tr></table></td></tr></table><p><a href=3Dhttp://=
-eatmoresoft.com/?c> <img src=3Dhttp://images.amazon.com/images/P/B0000AZJV=
-C.01._SCMZZZZZZZ_.jpg align=3Dleft border=3D0 name=3Dprod_image width=3D11=
-7 height=3D150></a><span class=3Dsmall></p> </span><p><span class=3Dsmall>=
-</p><table cellSpacing=3D0 cellPadding=3D0 border=3D0 height=3D21 width=3D=
-189><tr><td class=3Dsmall vAlign=3Dtop noWrap align=3Dright height=3D18 wi=
-dth=3D73> <b>List Price:</b></td><td height=3D18 width=3D11></td><td class=
-=3Dsmall height=3D18 width=3D105><span class=3Dlistprice>$499.00</span></t=
-d></tr><tr><td class=3Dsmall vAlign=3Dtop noWrap align=3Dright height=3D18=
- width=3D73> <b>Price:</b></td><td height=3D18 width=3D11></td><td class=3D=
-small height=3D18 width=3D105><b class=3Dprice>$69.99</b></td></tr><tr><td=
- class=3Dsmall vAlign=3Dtop noWrap align=3Dright height=3D1 width=3D73> <b=
->You Save:</b></td><td height=3D1 width=3D11></td><td class=3Dsmall height=
-=3D1 width=3D105><span class=3Dprice>$429.01 (85%)</span></td></tr></table=
-><p><a href=3Dhttp://eatmoresoft.com/?E> <img border=3D0 src=3Dhttp://g-im=
-ages.amazon.com/images/G/01/buttons/add-to-cart-yellow-short.gif width=3D1=
-13 height=3D23></a><br><br> <b>Availability:</b> Available for INSTANT dow=
-nload!<br> <b>Coupon Code:</b> Quiuq56ru<br> <b>Platform:</b> <img src=3Dh=
-ttp://g-images.amazon.com/images/G/01/videogames/icons/browse-icon-windows=
-gif align=3Dtop width=3D20 height=3D20> Windows XP</p><p></span><span cla=
-ss=3Dtiny><b>Sales Rank:</b> #3</span><span class=3Dsmall><a href=3Dhttp:/=
-/eatmoresoft.com/?B><br> System requirements</a>&nbsp; |&nbsp; <a href=3Dh=
-ttp://eatmoresoft.com/?W>Other Versions</a></span><span class=3Dtiny><br> =
-<b>Date Coupon Expires:</b> December 31st, 2005<br> </span><font class=3Dt=
-iny><b>Average Customer Review:</b><img height=3D12 alt=3D"5 out of 5 star=
-s" src=3Dhttp://g-images.amazon.com/images/G/01/x-locale/common/customer-r=
-eviews/stars-5-0.gif width=3D64 border=3D0> Based on 1494 reviews. <a href=
-=3Dhttp://eatmoresoft.com/?I>Write a review</a>.</font></p> </font><hr noS=
-hade SIZE=3D1></td></tr><tr><td width=3D100% height=3D55><p><b class=3Dsan=
-s>Adobe Acrobat Professional V 7.0</b><br> <span class=3Dsmall><a href=3Dh=
-ttp://eatmoresoft.com/?5>Adobe</a><img border=3D0 src=3Dhttp://g-images.am=
-azon.com/images/G/01/promotions/sticker/newest_version.gif width=3D82 heig=
-ht=3D14></span><br></p><table border=3D0><tr><td noWrap><b class=3Dsmall>C=
-hoose:</b></td><td vAlign=3Dtop noWrap><table cellSpacing=3D0 cellPadding=3D=
-0 border=3D0 width=3D164><tr><td width=3D126><a href=3Dhttp://eatmoresoft.=
-com/?x> <select name=3Dedit1> <option selected>View Other Titles</option> =
-</select></a></td><td noWrap width=3D38>&nbsp;<a href=3Dhttp://eatmoresoft=
-com/?x><input type=3Dimage alt=3DGo src=3Dhttp://g-images.amazon.com/imag=
-es/G/01/search-browse/go-button-software.gif value=3DGo border=3D0 name=3D=
-submit.display-variation width=3D21 height=3D21></a></td></tr></table></td=
-></tr></table><p><a href=3Dhttp://eatmoresoft.com/?j> <img height=3D150 sr=
-c=3Dhttp://images.amazon.com/images/P/B00069E7KO.01.LZZZZZZZ.jpg width=3D1=
-75 align=3Dleft border=3D0 name=3Dprod_image></a><span class=3Dsmall></p><=
-table cellSpacing=3D0 cellPadding=3D0 border=3D0 height=3D21 width=3D189><=
-tr><td class=3Dsmall vAlign=3Dtop noWrap align=3Dright height=3D18 width=3D=
-73> <b>List Price:</b></td><td height=3D18 width=3D11></td><td class=3Dsma=
-ll height=3D18 width=3D105><span class=3Dlistprice>$499.00</span></td></tr=
-><tr><td class=3Dsmall vAlign=3Dtop noWrap align=3Dright height=3D18 width=
-=3D73> <b>Price:</b></td><td height=3D18 width=3D11></td><td class=3Dsmall=
- height=3D18 width=3D105><b class=3Dprice>$69.99</b></td></tr><tr><td clas=
-s=3Dsmall vAlign=3Dtop noWrap align=3Dright height=3D1 width=3D73> <b>You =
-Save:</b></td><td height=3D1 width=3D11></td><td class=3Dsmall height=3D1 =
-width=3D105><span class=3Dprice>$429.01 (85%)</span></td></tr></table><p><=
-a href=3Dhttp://eatmoresoft.com/?b> <img border=3D0 src=3Dhttp://g-images.=
-amazon.com/images/G/01/buttons/add-to-cart-yellow-short.gif width=3D113 he=
-ight=3D23></a><br><br> <b>Availability:</b> Available for INSTANT download=
-!<br> <b>Coupon Code:</b> Qqd5nH5<br> <b>Platform:</b> <img src=3Dhttp://g=
--images.amazon.com/images/G/01/videogames/icons/browse-icon-windows.gif al=
-ign=3Dtop width=3D20 height=3D20> Windows XP</span></p><p><span class=3Dti=
-ny><b>Sales Rank:</b> #4</span><span class=3Dsmall><a href=3Dhttp://eatmor=
-esoft.com/?0><br> System requirements</a>&nbsp; |&nbsp; <a href=3Dhttp://e=
-atmoresoft.com/?N>Other Versions</a></span><span class=3Dtiny><br> <b>Date=
- Coupon Expires:</b> December 31st, 2005<br> </span><font class=3Dtiny><b>=
-Average Customer Review:</b><img height=3D12 alt=3D"5 out of 5 stars" src=3D=
-http://g-images.amazon.com/images/G/01/x-locale/common/customer-reviews/st=
-ars-5-0.gif width=3D64 border=3D0> Based on 11755 reviews. <a href=3Dhttp:=
-//eatmoresoft.com/?b>Write a review</a>.</font></p> </font><p></p> <hr noS=
-hade SIZE=3D1></td></tr></table></td></tr></table></form></td></tr></table=
-></body></html>
+-- 
+Yasunori Goto 
 
-----zZLQyXtDlmAHpf7iXgT--
+
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
