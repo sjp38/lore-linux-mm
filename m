@@ -1,9 +1,9 @@
-Date: Fri, 20 Jan 2006 22:22:46 +0900
+Date: Fri, 20 Jan 2006 22:28:42 +0900
 From: Yasunori Goto <y-goto@jp.fujitsu.com>
 Subject: Re: [Lhms-devel] Re: [PATCH 0/5] Reducing fragmentation using zones
-In-Reply-To: <Pine.LNX.4.58.0601201216280.14292@skynet>
-References: <20060120210353.1269.Y-GOTO@jp.fujitsu.com> <Pine.LNX.4.58.0601201216280.14292@skynet>
-Message-Id: <20060120222213.126F.Y-GOTO@jp.fujitsu.com>
+In-Reply-To: <Pine.LNX.4.58.0601201154320.14292@skynet>
+References: <43D03A48.8090105@jp.fujitsu.com> <Pine.LNX.4.58.0601201154320.14292@skynet>
+Message-Id: <20060120213210.126B.Y-GOTO@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
@@ -13,75 +13,75 @@ To: Mel Gorman <mel@csn.ul.ie>
 Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Joel Schopp <jschopp@austin.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, lhms-devel@lists.sourceforge.net
 List-ID: <linux-mm.kvack.org>
 
-Thanks! I'll try it next week. :-)
+> > > So, in terms of performance on this set of tests, both approachs perform
+> > > roughly the same as the stock kernel in terms of absolute performance. In
+> > > terms of high-order allocations, zone-based appears to do better under
+> > > load. However, if you look at the zones that are used, you will see that
+> > > zone-based appears to do as well as list-based *only* because it has the
+> > > EASYRCLM zone to play with. list-based was way better at keeping the
+> > > normal zone defragmented as well as highmem which is especially obvious
+> > > when tested at rest.  list-based was able to allocate 83 huge pages from
+> > > ZONE_NORMAL at rest while zone-based only managed 8.
+> > >
+> > yes, this is intersiting point :)
+> > list-based one can defrag NORMAL zone.
+> > The point will be "does we need to defrag NORMAL ?" , I think.
+> 
+> The original intention was two fold. One, it helps HugeTLB in situations
+> where it was not configured correctly at boot-time. this is the case for a
+> number of sites running HPC-related jobs. The second objective was to help
+> high-order kernel allocations to potentially reduce things like
+> scatter-gather IO.
 
-> On Fri, 20 Jan 2006, Yasunori Goto wrote:
-> 
-> > > What sort of tests would you suggest? The tests I have been running to
-> > > date are
+Probably, Linus-san's wish is reduce high order kernel allocation
+to avoid fragment. (Did he say defragment is meaningless, right?)
+If there is a driver/kernel component which require high order
+allocation though physical contiguous memory is not necessary,
+it should be modified to collect pieces of pages.
+(I guess there is some component like it. But I'm not sure....)
+If the scatter-gather IO is cause of bad performance,
+it might be desirable that trying highorder allocation at first,
+then collect peace of pages which can be allocated. 
+
+It is just my guess.
+But, some of components might not be able to do it.
+If there are impossible components, it is good reason for
+defragment....
+
+> > > On the flip side, zone-based code changes are easier to understand than
+> > > the list-based ones (at least in terms of volume of code changes). The
+> > > zone-based gives guarantees on what will happen in the future while
+> > > list-based is best-effort.
 > > >
-> > > "kbuild + aim9" for regression testing
+> > > In terms of fragmentation, I still think that list-based is better overall
+> > > without configuration.
+> > I agree here.
+> >
+> > > The results above also represent the best possible
+> > > configuration with zone-based versus no configuration at all against
+> > > list-based. In an environment with changing workloads a constant reality,
+> > > I bet that list-based would win overall.
 > > >
-> > > "updatedb + 7 -j1 kernel compiles + highorder allocation" for seeing how
-> > > easy it was to reclaim contiguous blocks
-> >
-> > BTW, is "highorder allocation test" your original test code?
-> > If so, just my curious, I would like to see it too. ;-).
+> > On x86, NORMAL is only 896M anyway. there is no discussion.
 > >
 > 
-> 1. Download http://www.csn.ul.ie/~mel/projects/vmregress/vmregress-0.20.tar.gz
-> 2. Extract it to /usr/src/vmregress (i.e. there should be a
->    /usr/src/vmregress/bin directory)
-> 3. Download linux-2.6.11.tar.gz to /usr/src
-> 4. Make a directory /usr/src/bench-stresshighalloc-test
-> 5. cd to /usr/src/vmregress and run 3. cd to the directory and run
->    ./configure --with-linux=/path/to/running/kernel
->    make
+> There is a discussion with architecutes like ppc64 which do not have a
+> normal zone (only ZONE_DMA) and 64 bit architectures that have very large
+> normal zones.
 > 
-> 5. Run the test
->    bench-stresshighalloc.sh -z -k 6 --oprofile
-> 
->    -z Will test using high memory
->    -k 6 will build 1 kernel + 6 additional ones
->    By default, it will try and allocate 275 order-10 pages. Specify the
->    number of pages with -c and the order with -s
-> 
-> The paths above are default paths. They can all be overridden with command
-> line parameters like -t to specify a different kernel to use and -b to
-> specify a different path to build all the kernels in.
-> 
-> By default, the results will be logged to a directory whose name is based
-> on the kernel being tested. For example, one result directory is
-> ~/vmregressbench-2.6.16-rc1-mm1-clean/highalloc-heavy/log.txt
-> 
-> Comparisions between different runs can be analysed by using
-> diff-highalloc.sh. e.g.
-> 
-> diff-highalloc.sh vmregressbench-2.6.16-rc1-mm1-clean vmregressbench-2.6.16-rc1-mm1-mbuddy-v22
-> 
-> If you want to test just high-order allocations while some other workload
-> is running, use bench-plainhighalloc.sh. See --help for a list of
-> available options.
-> 
-> If you want to use bench-aim9.sh, download and build aim9 in /usr/src/aim9
-> and edit the s9workfile to specify the tests you are interested in. Use
-> diff-aim9.sh to compare different runs of aim9.
-> 
-> -- 
-> Mel Gorman
-> Part-time Phd Student                          Linux Technology Center
-> University of Limerick                         IBM Dublin Software Lab
-> 
-> 
-> -------------------------------------------------------
-> This SF.net email is sponsored by: Splunk Inc. Do you grep through log files
-> for problems?  Stop!  Download the new AJAX search engine that makes
-> searching your log files as easy as surfing the  web.  DOWNLOAD SPLUNK!
-> http://sel.as-us.falkag.net/sel?cmd=lnk&kid=103432&bid=230486&dat=121642
-> _______________________________________________
-> Lhms-devel mailing list
-> Lhms-devel@lists.sourceforge.net
-> https://lists.sourceforge.net/lists/listinfo/lhms-devel
+> Take ppc64 as an example. Today, when memory is hot-added, it is available
+> for use by the kernel and userspace applications. Right now, hot-added
+> memory goes to ZONE_DMA but it should be going to ZONE_EASYRCLM. In this
+> case, the size of the kernel at the beginning is fixed. If you allow the
+> kernel zone to grow, it cannot be shrunk again and worse, if the kernel
+> expands to take up available memory, it loses all advantages.
+
+Just for correction, ZONE_EASYRCLM is useful only hot-remove.
+So, if kernel would like to have more memory, hot-add of ZONE_DMA(If its
+address is in DMA area) Zone_NORMAL should be OK.
+Only the new memory will not be able to be removed.
+
+Thanks.
 
 -- 
 Yasunori Goto 
