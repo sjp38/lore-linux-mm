@@ -1,41 +1,51 @@
-Date: Mon, 23 Jan 2006 15:19:50 -0500
-From: Benjamin LaHaise <bcrl@kvack.org>
+From: "Ray Bryant" <raybry@mpdtxmail.amd.com>
 Subject: Re: [PATCH/RFC] Shared page tables
-Message-ID: <20060123201950.GI1008@kvack.org>
-References: <A6D73CCDC544257F3D97F143@[10.1.1.4]> <Pine.LNX.4.61.0601202020001.8821@goblin.wat.veritas.com> <6F40FCDC9FFDE7B6ACD294F5@[10.1.1.4]>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Date: Mon, 23 Jan 2006 17:58:08 -0600
+References: <A6D73CCDC544257F3D97F143@[10.1.1.4]>
+ <20060117235302.GA22451@lnx-holt.americas.sgi.com>
+In-Reply-To: <20060117235302.GA22451@lnx-holt.americas.sgi.com>
+MIME-Version: 1.0
+Message-ID: <200601231758.08397.raybry@mpdtxmail.amd.com>
+Content-Type: text/plain;
+ charset=iso-8859-1
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <6F40FCDC9FFDE7B6ACD294F5@[10.1.1.4]>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Dave McCracken <dmccr@us.ibm.com>
-Cc: Hugh Dickins <hugh@veritas.com>, Andrew Morton <akpm@osdl.org>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>
+Cc: Robin Holt <holt@sgi.com>, Hugh Dickins <hugh@veritas.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jan 23, 2006 at 11:39:07AM -0600, Dave McCracken wrote:
-> The pmd level is important for ppc because it works in segments, which are
-> 256M in size and consist of a full pmd page.  The current implementation of
-> the way ppc loads its tlb doesn't allow sharing at smaller than segment
-> size.  I currently also enable pmd sharing for x86_64, but I'm not sure how
-> much of a win it is.  I use it to share pmd pages for hugetlb, as well.
+On Tuesday 17 January 2006 17:53, Robin Holt wrote:
+> Dave,
+>
+> This appears to work on ia64 with the attached patch.  Could you
+> send me any test application you think would be helpful for me
+> to verify it is operating correctly?  
+<snip>
 
-For EM64T at least, pmd sharing is definately worthwhile.  pud sharing is 
-a bit more out there, but would still help database workloads.  In the case 
-of a thousand connections (which is not unreasonable for some users) you 
-save 4MB of memory and reduce the cache footprint of those saved 4MB of 
-pages to 4KB.  Ideally the code can be structured to compile out to nothing 
-if not needed.
+Dave,
 
-Of course, once we have shared page tables it makes great sense to try to 
-get userland to align code segments and data segments to seperate puds so 
-that we could share all the page tables for common system libraries amongst 
-processes...
+Like Robin, I would appreciate a test application, or at least a description 
+of how to write one, or some other trick to figure out if this is working.
 
-		-ben
+I scanned through this thread looking for a test application, and didn't see 
+one.   Is it sufficient just to create a large shared read-only mmap'd file 
+and share it across a bunch of process to get this code invoked?   How large 
+of a file is needed (on x86_64), assuming that we just turn on the pte level 
+of sharing?   And what kind of alignment constraints do we end up under in 
+order to make the sharing happen?   (My guess would be that there aren't any 
+such constraints (well, page alignment.. :-)  if we are just sharing pte's.)
+
+I turned on the PT_DEBUG stuff, but thus far have found no evidence of pte 
+sharing actually occurring in a normal system boot.  I'm surprised by that as 
+I (naively?) would have expected shared libraries to use shared ptes.
+
+Best Regards,
 -- 
-"Ladies and gentlemen, I'm sorry to interrupt, but the police are here 
-and they've asked us to stop the party."  Don't Email: <dont@kvack.org>.
+Ray Bryant
+AMD Performance Labs                   Austin, Tx
+512-602-0038 (o)                 512-507-7807 (c)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
