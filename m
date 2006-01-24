@@ -1,57 +1,46 @@
-From: "Ray Bryant" <raybry@mpdtxmail.amd.com>
+Date: Tue, 24 Jan 2006 17:50:07 -0600
+From: Dave McCracken <dmccr@us.ibm.com>
 Subject: Re: [PATCH/RFC] Shared page tables
-Date: Tue, 24 Jan 2006 17:43:28 -0600
+Message-ID: <07A9BE6C2CADACD27B259191@[10.1.1.4]>
+In-Reply-To: <200601241743.28889.raybry@mpdtxmail.amd.com>
 References: <A6D73CCDC544257F3D97F143@[10.1.1.4]>
  <200601231758.08397.raybry@mpdtxmail.amd.com>
  <6BC41571790505903C7D3CD6@[10.1.1.4]>
-In-Reply-To: <6BC41571790505903C7D3CD6@[10.1.1.4]>
+ <200601241743.28889.raybry@mpdtxmail.amd.com>
 MIME-Version: 1.0
-Message-ID: <200601241743.28889.raybry@mpdtxmail.amd.com>
-Content-Type: text/plain;
- charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave McCracken <dmccr@us.ibm.com>
+To: Ray Bryant <raybry@mpdtxmail.amd.com>
 Cc: Robin Holt <holt@sgi.com>, Hugh Dickins <hugh@veritas.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Monday 23 January 2006 18:19, Dave McCracken wrote:
+Those are interesting numbers.  That's pretty much the showcase for
+sharing, yeah.
 
->
-> My apologies.  I do have a small test program and intended to clean it up
-> to send to Robin, but got sidetracked (it's fugly at the moment).  I'll see
-> about getting it a bit more presentable.
->
+--On Tuesday, January 24, 2006 17:43:28 -0600 Ray Bryant
+<raybry@mpdtxmail.amd.com> wrote:
 
-I created a test case that mmaps() a 20 GB anonymous, shared region, then 
-forks off 128 child processes that touch the 20 GB region.    The results are 
-pretty dramatic:
+> Of course, it would be more dramatic with a real DB application, but that
+> is  going to take a bit longer to get running, perhaps a couple of months
+> by the  time all is said and done.
 
-                          2.6.15                            2.6.15-shpt
-                         ---------                         ----------------
-Total time:          182 s                                  12.2 s
-Fork time:             30,2 s                               10.4 s
-pte space:            5 GB                                 44 MB
+I must mention here that I think most DB performance suites do their forks
+up front, then never fork during the test, so fork performance doesn't
+really factor in as much.  There are other reasons shared page tables helps
+there, though.
 
-Here total time is the amount of time for all 128 threads to fork and touch 
-all 20 GB of data and fork time is the elapsed time for the parent to do all 
-of the forks.    pte space is the amount of space reported in /proc/meminfo 
-to hold the page tables required to run the test program.   This is on an 
-8-core, 4 socket Opteron running at 2.2 GHZ with 32 GB of RAM.
+> Now I am off to figure out how Andi's mmap() randomization patch
+> interacts  with all of this stuff.
 
-Of course, it would be more dramatic with a real DB application, but that is 
-going to take a bit longer to get running, perhaps a couple of months by the 
-time all is said and done.
+mmap() randomization doesn't affect fork at all, since by definition all
+regions are at the same address in the child as the parent (ie good for
+sharing).  The trickier case is where processes independently mmap() a
+region.
 
-Now I am off to figure out how Andi's mmap() randomization patch interacts 
-with all of this stuff.
-
--- 
-Ray Bryant
-AMD Performance Labs                   Austin, Tx
-512-602-0038 (o)                 512-507-7807 (c)
+Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
