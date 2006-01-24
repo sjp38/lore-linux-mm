@@ -1,40 +1,62 @@
-From: "Ray Bryant" <raybry@mpdtxmail.amd.com>
+Date: Mon, 23 Jan 2006 18:19:14 -0600
+From: Dave McCracken <dmccr@us.ibm.com>
 Subject: Re: [PATCH/RFC] Shared page tables
-Date: Mon, 23 Jan 2006 18:16:38 -0600
+Message-ID: <6BC41571790505903C7D3CD6@[10.1.1.4]>
+In-Reply-To: <200601231758.08397.raybry@mpdtxmail.amd.com>
 References: <A6D73CCDC544257F3D97F143@[10.1.1.4]>
  <20060117235302.GA22451@lnx-holt.americas.sgi.com>
  <200601231758.08397.raybry@mpdtxmail.amd.com>
-In-Reply-To: <200601231758.08397.raybry@mpdtxmail.amd.com>
 MIME-Version: 1.0
-Message-ID: <200601231816.38942.raybry@mpdtxmail.amd.com>
-Content-Type: text/plain;
- charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave McCracken <dmccr@us.ibm.com>
+To: Ray Bryant <raybry@mpdtxmail.amd.com>
 Cc: Robin Holt <holt@sgi.com>, Hugh Dickins <hugh@veritas.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Monday 23 January 2006 17:58, Ray Bryant wrote:
-<snip>
 
-> ... And what kind of alignment constraints do we end up
-> under in order to make the sharing happen?   (My guess would be that there
-> aren't any such constraints (well, page alignment.. :-)  if we are just
-> sharing pte's.)
->
+--On Monday, January 23, 2006 17:58:08 -0600 Ray Bryant
+<raybry@mpdtxmail.amd.com> wrote:
 
-Oh, obviously that is not right as you have to share full pte pages.   So on 
-x86_64 I'm guessing one needs 2MB alignment in order to get the sharing to
-kick in, since a pte page maps 512 pages of 4 KB each.
+> Like Robin, I would appreciate a test application, or at least a
+> description  of how to write one, or some other trick to figure out if
+> this is working.
 
-Best Regards,
--- 
-Ray Bryant
-AMD Performance Labs                   Austin, Tx
-512-602-0038 (o)                 512-507-7807 (c)
+My apologies.  I do have a small test program and intended to clean it up
+to send to Robin, but got sidetracked (it's fugly at the moment).  I'll see
+about getting it a bit more presentable.
+
+> I scanned through this thread looking for a test application, and didn't
+> see  one.   Is it sufficient just to create a large shared read-only
+> mmap'd file  and share it across a bunch of process to get this code
+> invoked?   How large  of a file is needed (on x86_64), assuming that we
+> just turn on the pte level  of sharing?   And what kind of alignment
+> constraints do we end up under in  order to make the sharing happen?
+> (My guess would be that there aren't any  such constraints (well, page
+> alignment.. :-)  if we are just sharing pte's.)
+
+The basic rule for pte sharing is that some portion of a memory region must
+span an entire pte page.  For i386 and x96_64 that would be 2 meg.  The
+region must either be read-only or marked to be shared if it is writeable.
+
+The code does opportunistically look for any pte page that is fully within
+a shareable vma, and will share if it finds one.
+
+Oh, and one more caveat.  The region must be mapped to the same address in
+each process.
+
+> I turned on the PT_DEBUG stuff, but thus far have found no evidence of
+> pte  sharing actually occurring in a normal system boot.  I'm surprised
+> by that as  I (naively?) would have expected shared libraries to use
+> shared ptes.
+
+Most system software, including the shared libraries, don't have any
+regions that are big enough for sharing (the text section for libc, for
+example, is about 1.5 meg).
+
+Dave McCracken
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
