@@ -1,63 +1,46 @@
-From: "Ray Bryant" <raybry@mpdtxmail.amd.com>
+Date: Mon, 23 Jan 2006 18:51:21 -0600
+From: Dave McCracken <dmccr@us.ibm.com>
 Subject: Re: [PATCH/RFC] Shared page tables
-Date: Mon, 23 Jan 2006 18:46:07 -0600
+Message-ID: <08A96D993E5CB2984F6F448A@[10.1.1.4]>
+In-Reply-To: <200601240139.46751.ak@suse.de>
 References: <A6D73CCDC544257F3D97F143@[10.1.1.4]>
  <200601231758.08397.raybry@mpdtxmail.amd.com>
- <6BC41571790505903C7D3CD6@[10.1.1.4]>
-In-Reply-To: <6BC41571790505903C7D3CD6@[10.1.1.4]>
+ <200601231816.38942.raybry@mpdtxmail.amd.com>
+ <200601240139.46751.ak@suse.de>
 MIME-Version: 1.0
-Message-ID: <200601231846.08594.raybry@mpdtxmail.amd.com>
-Content-Type: text/plain;
- charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave McCracken <dmccr@us.ibm.com>
+To: Andi Kleen <ak@suse.de>, Ray Bryant <raybry@mpdtxmail.amd.com>
 Cc: Robin Holt <holt@sgi.com>, Hugh Dickins <hugh@veritas.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Monday 23 January 2006 18:19, Dave McCracken wrote:
-<snip>
->
-> The basic rule for pte sharing is that some portion of a memory region must
-> span an entire pte page.  For i386 and x96_64 that would be 2 meg.  The
-> region must either be read-only or marked to be shared if it is writeable.
->
+--On Tuesday, January 24, 2006 01:39:46 +0100 Andi Kleen <ak@suse.de> wrote:
 
-Yeah, I figured that out just after hitting "send" on that first note.  :-(
+>> Oh, obviously that is not right as you have to share full pte pages.
+>> So on  x86_64 I'm guessing one needs 2MB alignment in order to get the
+>> sharing to kick in, since a pte page maps 512 pages of 4 KB each.
+> 
+> The new randomized mmaps will likely actively sabotate such alignment. I
+> just added them for x86-64.
 
-> The code does opportunistically look for any pte page that is fully within
-> a shareable vma, and will share if it finds one.
->
-> Oh, and one more caveat.  The region must be mapped to the same address in
-> each process.
->
-> > I turned on the PT_DEBUG stuff, but thus far have found no evidence of
-> > pte  sharing actually occurring in a normal system boot.  I'm surprised
-> > by that as  I (naively?) would have expected shared libraries to use
-> > shared ptes.
->
+Given that my current patch requires memory regions to be mapped at the
+same address, randomized mmaps won't really make it any worse.  It's
+unlikely mmap done independently in separate processes will land on the
+same address.  Most of the large OLTP applications use fixed address
+mapping for their large shared regions.
 
-OK, with those guidelines I can put together a test program pretty quickly.
-If you have one handy that would be fine, but don't put a lot of effort into 
-it.
+This also should mean large text regions will be shared, which should be a
+win for big programs.
 
-Thanks,
+I've been kicking around some ideas on how to allow sharing of mappings at
+different addresses as long as the alignment is the same, but don't have
+the details worked out.  I figure it's more important to get the basic part
+working first :)
 
-> Most system software, including the shared libraries, don't have any
-> regions that are big enough for sharing (the text section for libc, for
-> example, is about 1.5 meg).
->
-
-Ah, that explains that then.
-
-> Dave McCracken
-
--- 
-Ray Bryant
-AMD Performance Labs                   Austin, Tx
-512-602-0038 (o)                 512-507-7807 (c)
+Dave McCracken
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
