@@ -1,44 +1,48 @@
-Date: Tue, 24 Jan 2006 18:20:18 +0000 (GMT)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: [PATCH/RFC] Shared page tables
-In-Reply-To: <321DE6430A7C77745B5B8275@[10.1.1.4]>
-Message-ID: <Pine.LNX.4.61.0601241816430.5373@goblin.wat.veritas.com>
-References: <A6D73CCDC544257F3D97F143@[10.1.1.4]>
- <Pine.LNX.4.61.0601202020001.8821@goblin.wat.veritas.com>
- <6F40FCDC9FFDE7B6ACD294F5@[10.1.1.4]> <Pine.LNX.4.61.0601241604550.4262@goblin.wat.veritas.com>
- <321DE6430A7C77745B5B8275@[10.1.1.4]>
+Received: from internal-mail-relay1.corp.sgi.com (internal-mail-relay1.corp.sgi.com [198.149.32.52])
+	by omx2.sgi.com (8.12.11/8.12.9/linux-outbound_gateway-1.1) with ESMTP id k0OMJmCf015182
+	for <linux-mm@kvack.org>; Tue, 24 Jan 2006 14:19:48 -0800
+Received: from spindle.corp.sgi.com (spindle.corp.sgi.com [198.29.75.13])
+	by internal-mail-relay1.corp.sgi.com (8.12.9/8.12.10/SGI_generic_relay-1.2) with ESMTP id k0OKMUtD97488027
+	for <linux-mm@kvack.org>; Tue, 24 Jan 2006 12:22:30 -0800 (PST)
+Received: from schroedinger.engr.sgi.com (schroedinger.engr.sgi.com [163.154.5.55])
+	by spindle.corp.sgi.com (SGI-8.12.5/8.12.9/generic_config-1.2) with ESMTP id k0OKIjOT19908557
+	for <linux-mm@kvack.org>; Tue, 24 Jan 2006 12:18:45 -0800 (PST)
+Date: Tue, 24 Jan 2006 12:17:00 -0800 (PST)
+From: Christoph Lameter <clameter@engr.sgi.com>
+Subject: [PATCH] zone_reclaim: do not unmap file backed pages
+Message-ID: <Pine.LNX.4.62.0601241214370.4967@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
+ReSent-To: linux-mm@kvack.org
+ReSent-Message-ID: <Pine.LNX.4.62.0601241218390.4986@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave McCracken <dmccr@us.ibm.com>
-Cc: Andrew Morton <akpm@osdl.org>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>
+To: akpm@osdl.org
+Cc: linux-mm@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 24 Jan 2006, Dave McCracken wrote:
-> --On Tuesday, January 24, 2006 17:50:17 +0000 Hugh Dickins
-> <hugh@veritas.com> wrote:
-> > On Mon, 23 Jan 2006, Dave McCracken wrote:
-> > 
-> >> I needed a function that returns a struct page for pgd and pud, defined
-> >> in each architecture.  I decided the simplest way was to redefine
-> >> pgd_page and pud_page to match pmd_page and pte_page.  Both functions
-> >> are pretty much used one place per architecture, so the change is
-> >> trivial.  I could come up with new functions instead if you think it's
-> >> an issue.  I do have a bit of a fetish about symmetry across levels :)
-> > 
-> > Sounds to me like you made the right decision.
-> 
-> I had a thought... would it be preferable for me to make this change as a
-> separate patch across all archictures in the name of consistency?  Or
+zone_reclaim should leave that to the real swapper. We are only 
+interested in evicting unmapped pages.
 
-Yes - but don't expect it to be taken if your shared pagetables aren't:
-just submit it as the first(ish) patch in your shared pagetables series.
+Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
-> should I continue to roll it into the shared pagetable patch as we enable
-> each architecture?
-
-Hugh
+Index: linux-2.6.16-rc1-mm2/mm/vmscan.c
+===================================================================
+--- linux-2.6.16-rc1-mm2.orig/mm/vmscan.c	2006-01-23 10:02:23.000000000 -0800
++++ linux-2.6.16-rc1-mm2/mm/vmscan.c	2006-01-23 10:02:23.000000000 -0800
+@@ -476,6 +476,12 @@ static int shrink_list(struct list_head 
+ 		 * processes. Try to unmap it here.
+ 		 */
+ 		if (page_mapped(page) && mapping) {
++			/*
++			 * No unmapping if we do not swap
++			 */
++			if (!sc->may_swap)
++				goto keep_locked;
++
+ 			switch (try_to_unmap(page, 0)) {
+ 			case SWAP_FAIL:
+ 				goto activate_locked;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
