@@ -1,33 +1,82 @@
-Date: Wed, 25 Jan 2006 16:52:36 -0600
-From: Dave McCracken <dmccr@us.ibm.com>
-Subject: Re: [PATCH/RFC] Shared page tables
-Message-ID: <F6EF7D7093D441B7655A8755@[10.1.1.4]>
-In-Reply-To: <200601251648.58670.raybry@mpdtxmail.amd.com>
-References: <A6D73CCDC544257F3D97F143@[10.1.1.4]>
- <200601241743.28889.raybry@mpdtxmail.amd.com>
- <07A9BE6C2CADACD27B259191@[10.1.1.4]>
- <200601251648.58670.raybry@mpdtxmail.amd.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by e33.co.us.ibm.com (8.12.11/8.12.11) with ESMTP id k0PNpGmF003371
+	for <linux-mm@kvack.org>; Wed, 25 Jan 2006 18:51:16 -0500
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d03relay04.boulder.ibm.com (8.12.10/NCO/VERS6.8) with ESMTP id k0PNrVfL176178
+	for <linux-mm@kvack.org>; Wed, 25 Jan 2006 16:53:31 -0700
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.12.11/8.13.3) with ESMTP id k0PNpFMT029296
+	for <linux-mm@kvack.org>; Wed, 25 Jan 2006 16:51:15 -0700
+Subject: [patch 1/9] mempool - Add page allocator
+From: Matthew Dobson <colpatch@us.ibm.com>
+Reply-To: colpatch@us.ibm.com
+References: <20060125161321.647368000@localhost.localdomain>
+Content-Type: text/plain
+Date: Wed, 25 Jan 2006 15:51:13 -0800
+Message-Id: <1138233074.27293.0.camel@localhost.localdomain>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ray Bryant <raybry@mpdtxmail.amd.com>
-Cc: Robin Holt <holt@sgi.com>, Hugh Dickins <hugh@veritas.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>
+To: linux-kernel@vger.kernel.org
+Cc: sri@us.ibm.com, andrea@suse.de, pavel@suse.cz, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
---On Wednesday, January 25, 2006 16:48:58 -0600 Ray Bryant
-<raybry@mpdtxmail.amd.com> wrote:
+plain text document attachment (critical_mempools)
+Add another allocator to the common mempool code: a simple page allocator
 
-> Empirically, at least on Opteron, it looks like the first page of pte's
-> is  never shared, even if the alignment of the mapped region is correct
-> (i. e. a  2MB boundary for X86_64).    Is that what you expected?
+This will be used by the next patch in the series to replace duplicate
+mempool-backed page allocators in 2 places in the kernel.  It is also very
+likely that there will be more users in the future.
 
-If the region is aligned it should be shared.  I'll investigate.
+Signed-off-by: Matthew Dobson <colpatch@us.ibm.com>
 
-Thanks,
-Dave
+ include/linux/mempool.h |    6 ++++++
+ mm/mempool.c            |   17 +++++++++++++++++
+ 2 files changed, 23 insertions(+)
+
+Index: linux-2.6.16-rc1+critical_mempools/mm/mempool.c
+===================================================================
+--- linux-2.6.16-rc1+critical_mempools.orig/mm/mempool.c
++++ linux-2.6.16-rc1+critical_mempools/mm/mempool.c
+@@ -289,3 +289,20 @@ void mempool_free_slab(void *element, vo
+ 	kmem_cache_free(mem, element);
+ }
+ EXPORT_SYMBOL(mempool_free_slab);
++
++/*
++ * A simple mempool-backed page allocator
++ */
++void *mempool_alloc_pages(gfp_t gfp_mask, void *pool_data)
++{
++	int order = (int)pool_data;
++	return alloc_pages(gfp_mask, order);
++}
++EXPORT_SYMBOL(mempool_alloc_pages);
++
++void mempool_free_pages(void *element, void *pool_data)
++{
++	int order = (int)pool_data;
++	__free_pages(element, order);
++}
++EXPORT_SYMBOL(mempool_free_pages);
+Index: linux-2.6.16-rc1+critical_mempools/include/linux/mempool.h
+===================================================================
+--- linux-2.6.16-rc1+critical_mempools.orig/include/linux/mempool.h
++++ linux-2.6.16-rc1+critical_mempools/include/linux/mempool.h
+@@ -38,4 +38,10 @@ extern void mempool_free(void *element, 
+ void *mempool_alloc_slab(gfp_t gfp_mask, void *pool_data);
+ void mempool_free_slab(void *element, void *pool_data);
+ 
++/*
++ * A mempool_alloc_t and mempool_free_t for a simple page allocator
++ */
++void *mempool_alloc_pages(gfp_t gfp_mask, void *pool_data);
++void mempool_free_pages(void *element, void *pool_data);
++
+ #endif /* _LINUX_MEMPOOL_H */
+
+--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
