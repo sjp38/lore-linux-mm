@@ -1,20 +1,19 @@
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by e2.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id k0PLbD85031112
-	for <linux-mm@kvack.org>; Wed, 25 Jan 2006 16:37:13 -0500
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by e5.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id k0PLbAGH016856
+	for <linux-mm@kvack.org>; Wed, 25 Jan 2006 16:37:10 -0500
 Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay04.pok.ibm.com (8.12.10/NCO/VERS6.8) with ESMTP id k0PLbD1w142496
-	for <linux-mm@kvack.org>; Wed, 25 Jan 2006 16:37:13 -0500
+	by d01relay02.pok.ibm.com (8.12.10/NCO/VERS6.8) with ESMTP id k0PLbAvN154344
+	for <linux-mm@kvack.org>; Wed, 25 Jan 2006 16:37:10 -0500
 Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.12.11/8.13.3) with ESMTP id k0PLbCia006898
-	for <linux-mm@kvack.org>; Wed, 25 Jan 2006 16:37:12 -0500
-Subject: [patch 9/9] slab - Implement single mempool backing for slab
-	allocator
+	by d01av02.pok.ibm.com (8.12.11/8.13.3) with ESMTP id k0PLbAsW006792
+	for <linux-mm@kvack.org>; Wed, 25 Jan 2006 16:37:10 -0500
+Subject: [patch 8/9] slab - Add *_mempool slab variants
 From: Matthew Dobson <colpatch@us.ibm.com>
 Reply-To: colpatch@us.ibm.com
 References: <20060125161321.647368000@localhost.localdomain>
 Content-Type: text/plain
-Date: Wed, 25 Jan 2006 11:40:24 -0800
-Message-Id: <1138218024.2092.9.camel@localhost.localdomain>
+Date: Wed, 25 Jan 2006 11:40:20 -0800
+Message-Id: <1138218020.2092.8.camel@localhost.localdomain>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -26,214 +25,202 @@ List-ID: <linux-mm.kvack.org>
 plain text document attachment (critical_mempools)
 Support for using a single mempool as a critical pool for all slab allocations.
 
-This patch completes the actual implementation of this functionality.  What we
-do is take the mempool_t pointer, which is now passed into the slab allocator
-by all the externally callable functions (thanks to the last patch), and pass
-it all the way down through the slab allocator code.  If the slab allocator
-needs to allocate memory to satisfy a slab request, which only happens in
-kmem_getpages(), it will allocate that memory via the mempool's allocator,
-rather than calling alloc_pages_node() directly.  This allows us to use a
-single mempool to back ALL slab allocations for a single subsystem, rather than
-having to back each & every kmem_cache_alloc/kmalloc allocation that subsystem
-makes with it's own mempool.
+This patch adds *_mempool variants to the existing slab allocator API functions:
+kmalloc_mempool(), kmalloc_node_mempool(), kmem_cache_alloc_mempool() &
+kmem_cache_alloc_node_mempool().  These functions behave the same as their
+non-mempool cousins, but they take an additional mempool_t argument.
+
+This patch does not actually USE the mempool_t argument, but simply adds the
+function calls.  The next patch in the series will add code to use the
+mempools.  This patch should have no externally visible changes to existing
+users of the slab allocator.
 
 Signed-off-by: Matthew Dobson <colpatch@us.ibm.com>
 
- slab.c |   60 +++++++++++++++++++++++++++++++++++++++---------------------
- 1 files changed, 39 insertions(+), 21 deletions(-)
+ include/linux/slab.h |   38 +++++++++++++++++++++++++++++---------
+ mm/slab.c            |   39 +++++++++++++++++++++++++++++++--------
+ 2 files changed, 60 insertions(+), 17 deletions(-)
 
+Index: linux-2.6.16-rc1+critical_mempools/include/linux/slab.h
+===================================================================
+--- linux-2.6.16-rc1+critical_mempools.orig/include/linux/slab.h
++++ linux-2.6.16-rc1+critical_mempools/include/linux/slab.h
+@@ -15,6 +15,7 @@ typedef struct kmem_cache kmem_cache_t;
+ #include	<linux/gfp.h>
+ #include	<linux/init.h>
+ #include	<linux/types.h>
++#include	<linux/mempool.h>
+ #include	<asm/page.h>		/* kmalloc_sizes.h needs PAGE_SIZE */
+ #include	<asm/cache.h>		/* kmalloc_sizes.h needs L1_CACHE_BYTES */
+ 
+@@ -63,6 +64,7 @@ extern kmem_cache_t *kmem_cache_create(c
+ 				       void (*)(void *, kmem_cache_t *, unsigned long));
+ extern int kmem_cache_destroy(kmem_cache_t *);
+ extern int kmem_cache_shrink(kmem_cache_t *);
++extern void *kmem_cache_alloc_mempool(kmem_cache_t *, gfp_t, mempool_t *);
+ extern void *kmem_cache_alloc(kmem_cache_t *, gfp_t);
+ extern void kmem_cache_free(kmem_cache_t *, void *);
+ extern unsigned int kmem_cache_size(kmem_cache_t *);
+@@ -76,9 +78,9 @@ struct cache_sizes {
+ 	kmem_cache_t	*cs_dmacachep;
+ };
+ extern struct cache_sizes malloc_sizes[];
+-extern void *__kmalloc(size_t, gfp_t);
++extern void *__kmalloc(size_t, gfp_t, mempool_t *);
+ 
+-static inline void *kmalloc(size_t size, gfp_t flags)
++static inline void *kmalloc_mempool(size_t size, gfp_t flags, mempool_t *pool)
+ {
+ 	if (__builtin_constant_p(size)) {
+ 		int i = 0;
+@@ -94,11 +96,16 @@ static inline void *kmalloc(size_t size,
+ 			__you_cannot_kmalloc_that_much();
+ 		}
+ found:
+-		return kmem_cache_alloc((flags & GFP_DMA) ?
++		return kmem_cache_alloc_mempool((flags & GFP_DMA) ?
+ 			malloc_sizes[i].cs_dmacachep :
+-			malloc_sizes[i].cs_cachep, flags);
++			malloc_sizes[i].cs_cachep, flags, pool);
+ 	}
+-	return __kmalloc(size, flags);
++	return __kmalloc(size, flags, pool);
++}
++
++static inline void *kmalloc(size_t size, gfp_t flags)
++{
++	return kmalloc_mempool(size, flags, NULL);
+ }
+ 
+ extern void *kzalloc_node(size_t, gfp_t, int);
+@@ -121,14 +128,27 @@ extern void kfree(const void *);
+ extern unsigned int ksize(const void *);
+ 
+ #ifdef CONFIG_NUMA
+-extern void *kmem_cache_alloc_node(kmem_cache_t *, gfp_t flags, int node);
+-extern void *kmalloc_node(size_t size, gfp_t flags, int node);
++extern void *kmem_cache_alloc_node_mempool(kmem_cache_t *, gfp_t, int, mempool_t *);
++extern void *kmem_cache_alloc_node(kmem_cache_t *, gfp_t, int);
++extern void *kmalloc_node_mempool(size_t, gfp_t, int, mempool_t *);
++extern void *kmalloc_node(size_t, gfp_t, int);
+ #else
+-static inline void *kmem_cache_alloc_node(kmem_cache_t *cachep, gfp_t flags, int node)
++static inline void *kmem_cache_alloc_node_mempool(kmem_cache_t *cachep, gfp_t flags,
++						  int node_id, mempool_t *pool)
++{
++	return kmem_cache_alloc_mempool(cachep, flags, pool);
++}
++static inline void *kmem_cache_alloc_node(kmem_cache_t *cachep, gfp_t flags,
++					  int node_id)
+ {
+ 	return kmem_cache_alloc(cachep, flags);
+ }
+-static inline void *kmalloc_node(size_t size, gfp_t flags, int node)
++static inline void *kmalloc_node_mempool(size_t size, gfp_t flags, int node_id,
++					 mempool_t *pool)
++{
++	return kmalloc_mempool(size, flags, pool);
++}
++static inline void *kmalloc_node(size_t size, gfp_t flags, int node_id)
+ {
+ 	return kmalloc(size, flags);
+ }
 Index: linux-2.6.16-rc1+critical_mempools/mm/slab.c
 ===================================================================
 --- linux-2.6.16-rc1+critical_mempools.orig/mm/slab.c
 +++ linux-2.6.16-rc1+critical_mempools/mm/slab.c
-@@ -1209,15 +1209,26 @@ __initcall(cpucache_init);
-  * If we requested dmaable memory, we will get it. Even if we
-  * did not request dmaable memory, we might get it, but that
-  * would be relatively rare and ignorable.
-+ *
-+ * For now, we only support order-0 allocations with mempools.
-  */
--static void *kmem_getpages(kmem_cache_t *cachep, gfp_t flags, int nodeid)
-+static void *kmem_getpages(kmem_cache_t *cachep, gfp_t flags, int nodeid,
-+			   mempool_t *pool)
- {
- 	struct page *page;
- 	void *addr;
- 	int i;
- 
- 	flags |= cachep->gfpflags;
--	page = alloc_pages_node(nodeid, flags, cachep->gfporder);
-+	/*
-+	 * If this allocation request isn't backed by a memory pool, or if that
-+	 * memory pool's gfporder is not the same as the cache's gfporder, fall
-+	 * back to alloc_pages_node().
-+	 */
-+	if (!pool || cachep->gfporder != (int)pool->pool_data)
-+		page = alloc_pages_node(nodeid, flags, cachep->gfporder);
-+	else
-+		page = mempool_alloc_node(pool, flags, nodeid);
- 	if (!page)
- 		return NULL;
- 	addr = page_address(page);
-@@ -2084,13 +2095,15 @@ EXPORT_SYMBOL(kmem_cache_destroy);
- 
- /* Get the memory for a slab management obj. */
- static struct slab *alloc_slabmgmt(kmem_cache_t *cachep, void *objp,
--				   int colour_off, gfp_t local_flags)
-+				   int colour_off, gfp_t local_flags,
-+				   mempool_t *pool)
- {
- 	struct slab *slabp;
- 
- 	if (OFF_SLAB(cachep)) {
- 		/* Slab management obj is off-slab. */
--		slabp = kmem_cache_alloc(cachep->slabp_cache, local_flags);
-+		slabp = kmem_cache_alloc_mempool(cachep->slabp_cache,
-+						 local_flags, pool);
- 		if (!slabp)
- 			return NULL;
- 	} else {
-@@ -2188,7 +2201,8 @@ static void set_slab_attr(kmem_cache_t *
-  * Grow (by 1) the number of slabs within a cache.  This is called by
-  * kmem_cache_alloc() when there are no active objs left in a cache.
-  */
--static int cache_grow(kmem_cache_t *cachep, gfp_t flags, int nodeid)
-+static int cache_grow(kmem_cache_t *cachep, gfp_t flags, int nodeid,
-+		      mempool_t *pool)
- {
- 	struct slab *slabp;
- 	void *objp;
-@@ -2242,11 +2256,11 @@ static int cache_grow(kmem_cache_t *cach
- 	/* Get mem for the objs.
- 	 * Attempt to allocate a physical page from 'nodeid',
- 	 */
--	if (!(objp = kmem_getpages(cachep, flags, nodeid)))
-+	if (!(objp = kmem_getpages(cachep, flags, nodeid, pool)))
- 		goto failed;
- 
- 	/* Get slab management. */
--	if (!(slabp = alloc_slabmgmt(cachep, objp, offset, local_flags)))
-+	if (!(slabp = alloc_slabmgmt(cachep, objp, offset, local_flags, pool)))
- 		goto opps1;
- 
- 	slabp->nodeid = nodeid;
-@@ -2406,7 +2420,8 @@ static void check_slabp(kmem_cache_t *ca
- #define check_slabp(x,y) do { } while(0)
- #endif
- 
--static void *cache_alloc_refill(kmem_cache_t *cachep, gfp_t flags)
-+static void *cache_alloc_refill(kmem_cache_t *cachep, gfp_t flags,
-+				mempool_t *pool)
- {
- 	int batchcount;
- 	struct kmem_list3 *l3;
-@@ -2492,7 +2507,7 @@ static void *cache_alloc_refill(kmem_cac
- 
- 	if (unlikely(!ac->avail)) {
- 		int x;
--		x = cache_grow(cachep, flags, numa_node_id());
-+		x = cache_grow(cachep, flags, numa_node_id(), pool);
- 
- 		// cache_grow can reenable interrupts, then ac could change.
- 		ac = ac_data(cachep);
-@@ -2565,7 +2580,8 @@ static void *cache_alloc_debugcheck_afte
- #define cache_alloc_debugcheck_after(a,b,objp,d) (objp)
- #endif
- 
--static inline void *____cache_alloc(kmem_cache_t *cachep, gfp_t flags)
-+static inline void *____cache_alloc(kmem_cache_t *cachep, gfp_t flags,
-+				    mempool_t *pool)
- {
- 	void *objp;
- 	struct array_cache *ac;
-@@ -2578,12 +2594,13 @@ static inline void *____cache_alloc(kmem
- 		objp = ac->entry[--ac->avail];
- 	} else {
- 		STATS_INC_ALLOCMISS(cachep);
--		objp = cache_alloc_refill(cachep, flags);
-+		objp = cache_alloc_refill(cachep, flags, pool);
- 	}
- 	return objp;
+@@ -2837,17 +2837,25 @@ static inline void __cache_free(kmem_cac
  }
  
--static inline void *__cache_alloc(kmem_cache_t *cachep, gfp_t flags)
-+static inline void *__cache_alloc(kmem_cache_t *cachep, gfp_t flags,
-+				  mempool_t *pool)
+ /**
+- * kmem_cache_alloc - Allocate an object
++ * kmem_cache_alloc_mempool - Allocate an object
+  * @cachep: The cache to allocate from.
+  * @flags: See kmalloc().
++ * @pool: mempool to allocate pages from if we need to refill a slab
+  *
+  * Allocate an object from this cache.  The flags are only relevant
+  * if the cache has no available objects.
+  */
+-void *kmem_cache_alloc(kmem_cache_t *cachep, gfp_t flags)
++void *kmem_cache_alloc_mempool(kmem_cache_t *cachep, gfp_t flags,
++			       mempool_t *pool)
+ {
+ 	return __cache_alloc(cachep, flags);
+ }
++EXPORT_SYMBOL(kmem_cache_alloc_mempool);
++
++void *kmem_cache_alloc(kmem_cache_t *cachep, gfp_t flags)
++{
++	return kmem_cache_alloc_mempool(cachep, flags, NULL);
++}
+ EXPORT_SYMBOL(kmem_cache_alloc);
+ 
+ /**
+@@ -2894,18 +2902,20 @@ int fastcall kmem_ptr_validate(kmem_cach
+ 
+ #ifdef CONFIG_NUMA
+ /**
+- * kmem_cache_alloc_node - Allocate an object on the specified node
++ * kmem_cache_alloc_node_mempool - Allocate an object on the specified node
+  * @cachep: The cache to allocate from.
+  * @flags: See kmalloc().
+  * @nodeid: node number of the target node.
++ * @pool: mempool to allocate pages from if we need to refill a slab
+  *
+- * Identical to kmem_cache_alloc, except that this function is slow
++ * Identical to kmem_cache_alloc_mempool, except that this function is slow
+  * and can sleep. And it will allocate memory on the given node, which
+  * can improve the performance for cpu bound structures.
+  * New and improved: it will now make sure that the object gets
+  * put on the correct node list so that there is no false sharing.
+  */
+-void *kmem_cache_alloc_node(kmem_cache_t *cachep, gfp_t flags, int nodeid)
++void *kmem_cache_alloc_node_mempool(kmem_cache_t *cachep, gfp_t flags,
++				    int nodeid, mempool_t *pool)
  {
  	unsigned long save_flags;
- 	void *objp;
-@@ -2591,7 +2608,7 @@ static inline void *__cache_alloc(kmem_c
- 	cache_alloc_debugcheck_before(cachep, flags);
- 
- 	local_irq_save(save_flags);
--	objp = ____cache_alloc(cachep, flags);
-+	objp = ____cache_alloc(cachep, flags, pool);
- 	local_irq_restore(save_flags);
- 	objp = cache_alloc_debugcheck_after(cachep, flags, objp,
- 					    __builtin_return_address(0));
-@@ -2603,7 +2620,8 @@ static inline void *__cache_alloc(kmem_c
- /*
-  * A interface to enable slab creation on nodeid
-  */
--static void *__cache_alloc_node(kmem_cache_t *cachep, gfp_t flags, int nodeid)
-+static void *__cache_alloc_node(kmem_cache_t *cachep, gfp_t flags, int nodeid,
-+				mempool_t *pool)
- {
- 	struct list_head *entry;
- 	struct slab *slabp;
-@@ -2659,7 +2677,7 @@ static void *__cache_alloc_node(kmem_cac
- 
-       must_grow:
- 	spin_unlock(&l3->list_lock);
--	x = cache_grow(cachep, flags, nodeid);
-+	x = cache_grow(cachep, flags, nodeid, pool);
- 
- 	if (!x)
- 		return NULL;
-@@ -2848,7 +2866,7 @@ static inline void __cache_free(kmem_cac
- void *kmem_cache_alloc_mempool(kmem_cache_t *cachep, gfp_t flags,
- 			       mempool_t *pool)
- {
--	return __cache_alloc(cachep, flags);
-+	return __cache_alloc(cachep, flags, pool);
- }
- EXPORT_SYMBOL(kmem_cache_alloc_mempool);
- 
-@@ -2921,22 +2939,22 @@ void *kmem_cache_alloc_node_mempool(kmem
  	void *ptr;
+@@ -2934,16 +2944,29 @@ void *kmem_cache_alloc_node(kmem_cache_t
  
- 	if (nodeid == -1)
--		return __cache_alloc(cachep, flags);
-+		return __cache_alloc(cachep, flags, pool);
+ 	return ptr;
+ }
++EXPORT_SYMBOL(kmem_cache_alloc_node_mempool);
++
++void *kmem_cache_alloc_node(kmem_cache_t *cachep, gfp_t flags, int nodeid)
++{
++	return kmem_cache_alloc_node_mempool(cachep, flags, nodeid, NULL);
++}
+ EXPORT_SYMBOL(kmem_cache_alloc_node);
  
- 	if (unlikely(!cachep->nodelists[nodeid])) {
- 		/* Fall back to __cache_alloc if we run into trouble */
- 		printk(KERN_WARNING
- 		       "slab: not allocating in inactive node %d for cache %s\n",
- 		       nodeid, cachep->name);
--		return __cache_alloc(cachep, flags);
-+		return __cache_alloc(cachep, flags, pool);
- 	}
+-void *kmalloc_node(size_t size, gfp_t flags, int node)
++void *kmalloc_node_mempool(size_t size, gfp_t flags, int nodeid,
++			   mempool_t *pool)
+ {
+ 	kmem_cache_t *cachep;
  
- 	cache_alloc_debugcheck_before(cachep, flags);
- 	local_irq_save(save_flags);
- 	if (nodeid == numa_node_id())
--		ptr = ____cache_alloc(cachep, flags);
-+		ptr = ____cache_alloc(cachep, flags, pool);
- 	else
--		ptr = __cache_alloc_node(cachep, flags, nodeid);
-+		ptr = __cache_alloc_node(cachep, flags, nodeid, pool);
- 	local_irq_restore(save_flags);
- 	ptr =
- 	    cache_alloc_debugcheck_after(cachep, flags, ptr,
-@@ -3004,7 +3022,7 @@ void *__kmalloc(size_t size, gfp_t flags
- 	cachep = __find_general_cachep(size, flags);
+ 	cachep = kmem_find_general_cachep(size, flags);
  	if (unlikely(cachep == NULL))
  		return NULL;
--	return __cache_alloc(cachep, flags);
-+	return __cache_alloc(cachep, flags, pool);
+-	return kmem_cache_alloc_node(cachep, flags, node);
++	return kmem_cache_alloc_node_mempool(cachep, flags, nodeid, pool);
++}
++EXPORT_SYMBOL(kmalloc_node_mempool);
++
++void *kmalloc_node(size_t size, gfp_t flags, int nodeid)
++{
++	return kmalloc_node_mempool(size, flags, nodeid, NULL);
  }
- EXPORT_SYMBOL(__kmalloc);
+ EXPORT_SYMBOL(kmalloc_node);
+ #endif
+@@ -2969,7 +2992,7 @@ EXPORT_SYMBOL(kmalloc_node);
+  * platforms.  For example, on i386, it means that the memory must come
+  * from the first 16MB.
+  */
+-void *__kmalloc(size_t size, gfp_t flags)
++void *__kmalloc(size_t size, gfp_t flags, mempool_t *pool)
+ {
+ 	kmem_cache_t *cachep;
  
 
 --
