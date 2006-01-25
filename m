@@ -1,35 +1,31 @@
-Received: by uproxy.gmail.com with SMTP id k40so127492ugc
-        for <linux-mm@kvack.org>; Wed, 25 Jan 2006 03:19:36 -0800 (PST)
-Message-ID: <84144f020601250319o71e34376hcd7a964f2eb21961@mail.gmail.com>
-Date: Wed, 25 Jan 2006 13:19:36 +0200
-From: Pekka Enberg <penberg@cs.helsinki.fi>
-Subject: Re: [RFC] non-refcounted pages, application to slab?
-In-Reply-To: <20060125110031.GC30421@wotan.suse.de>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 8BIT
+Date: Wed, 25 Jan 2006 14:13:56 +0000
+From: Christoph Hellwig <hch@infradead.org>
+Subject: Re: nommu use compound pages?
+Message-ID: <20060125141356.GA2133@infradead.org>
+References: <20060125091509.GB32653@wotan.suse.de>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-References: <20060125093909.GE32653@wotan.suse.de>
-	 <84144f020601250230s2d5da5d9jf11f754f184d495b@mail.gmail.com>
-	 <20060125110031.GC30421@wotan.suse.de>
+In-Reply-To: <20060125091509.GB32653@wotan.suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Nick Piggin <npiggin@suse.de>
-Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
+Cc: David Howells <dhowells@redhat.com>, Andrew Morton <akpm@osdl.org>, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jan 25, 2006 at 12:30:03PM +0200, Pekka Enberg wrote:
-> > we want to keep the reference counting for slab pages so that we can
-> > use kmalloc'd memory in the block layer.
+On Wed, Jan 25, 2006 at 10:15:09AM +0100, Nick Piggin wrote:
+> Hi,
+> 
+> This topic came up about a year ago but I couldn't work out why it never
+> happened. Possibly because compound pages wheren't always enabled.
+> 
+> Now that they are, can we have another shot? It would be great to
+> unify all this stuff finally. I must admit I'm not too familiar with
+> the nommu code, but I couldn't find a fundamental problem from the
+> archives.
 
-On 1/25/06, Nick Piggin <npiggin@suse.de> wrote:
-> Does that happen now? Where is it needed (nbd or something I guess?)
-
-See the following thread:
-http://thread.gmane.org/gmane.comp.file-systems.ext2.devel/2981. I
-think we're using them in quite a few places.
-
-                             Pekka
+I still don't know why nommu uses these at all.  Cc'in the uclinux maintainer
+and list owuld be helpfull if you'd like to find out though.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
