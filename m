@@ -1,74 +1,97 @@
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e2.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id k0P4EHZW001656
-	for <linux-mm@kvack.org>; Tue, 24 Jan 2006 23:14:17 -0500
-Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
-	by d01relay02.pok.ibm.com (8.12.10/NCO/VERS6.8) with ESMTP id k0P4EHG4148832
-	for <linux-mm@kvack.org>; Tue, 24 Jan 2006 23:14:17 -0500
-Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
-	by d01av03.pok.ibm.com (8.12.11/8.13.3) with ESMTP id k0P4EHP7014412
-	for <linux-mm@kvack.org>; Tue, 24 Jan 2006 23:14:17 -0500
-Message-ID: <43D6FB12.9080805@us.ibm.com>
-Date: Tue, 24 Jan 2006 22:14:10 -0600
-From: Brian Twichell <tbrian@us.ibm.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH/RFC] Shared page tables
-References: <A6D73CCDC544257F3D97F143@[10.1.1.4]> <43C73767.5060506@us.ibm.com>
-In-Reply-To: <43C73767.5060506@us.ibm.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Subject: Re: [PATCH 6/9] clockpro-clockpro.patch
+From: Peter Zijlstra <peter@programming.kicks-ass.net>
+In-Reply-To: <20060124072503.BAF6A7402F@sv1.valinux.co.jp>
+References: <20051230223952.765.21096.sendpatchset@twins.localnet>
+	 <20051230224312.765.58575.sendpatchset@twins.localnet>
+	 <20051231002417.GA4913@dmt.cnet> <1136028546.17853.69.camel@twins>
+	 <20060105094722.897C574030@sv1.valinux.co.jp>
+	 <Pine.LNX.4.63.0601050830530.18976@cuia.boston.redhat.com>
+	 <20060106090135.3525D74031@sv1.valinux.co.jp>
+	 <20060124063010.B85C77402D@sv1.valinux.co.jp>
+	 <20060124072503.BAF6A7402F@sv1.valinux.co.jp>
+Content-Type: text/plain
+Date: Wed, 25 Jan 2006 09:00:59 +0100
+Message-Id: <1138176059.4656.8.camel@localhost.localdomain>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linux Kernel <linux-kernel@vger.kernel.org>
-Cc: Dave McCracken <dmccr@us.ibm.com>, Andrew Morton <akpm@osdl.org>, Linux Memory Management <linux-mm@kvack.org>, Hugh Dickens <hugh@veritas.com>, slpratt@us.ibm.com
+To: IWAMOTO Toshihiro <iwamoto@valinux.co.jp>
+Cc: Rik van Riel <riel@redhat.com>, Marcelo Tosatti <marcelo.tosatti@cyclades.com>, linux-mm@kvack.org, Andrew Morton <akpm@osdl.org>, Christoph Lameter <christoph@lameter.com>, Wu Fengguang <wfg@mail.ustc.edu.cn>, Nick Piggin <npiggin@suse.de>, Marijn Meijles <marijn@bitpit.net>
 List-ID: <linux-mm.kvack.org>
 
-Brian Twichell wrote:
+Iwamoto-San,
 
->
-> We evaluated page table sharing on x86_64 and ppc64 setups, using a 
-> database
-> OLTP workload.  In both cases, 4-way systems with 64 GB of memory were 
-> used.
->
-> On the x86_64 setup, page table sharing provided a 25% increase in 
-> performance,
-> when the database buffers were in small (4 KB) pages.  In this case, 
-> over 14 GB
-> of memory was freed, that had previously been taken up by page 
-> tables.  In the
-> case that the database buffers were in huge (2 MB) pages, page table 
-> sharing
-> provided a 4% increase in performance.
->
-> Our ppc64 experiments used an earlier version of Dave's patch, along with
-> ppc64-specific code for sharing of ppc64 segments.  On this setup, page
-> table sharing provided a 49% increase in performance, when the database
-> buffers were in small (4 KB) pages.  Over 10 GB of memory was freed, that
-> had previously been taken up by page tables.  In the case that the 
-> database
-> buffers were in huge (16 MB) pages, page table sharing provided a 3% 
-> increase
-> in performance.
->
-Hi,
+On Tue, 2006-01-24 at 16:25 +0900, IWAMOTO Toshihiro wrote: 
+> (Removed linux-kernel@ from Cc:)
+> 
+> At Tue, 24 Jan 2006 15:30:10 +0900,
+> IWAMOTO Toshihiro wrote:
+> > I thought this situation means that page access frequencies cannot be
+> > correctly compared and leads to suboptimal performance, but I couldn't
+> > prove that.  However, I've managed to create an example workload where
+> > clockpro performs worse.  I'm not sure if the example is related to
+> > this hand problem.  I'll describe it in the next mail.
+> 
+> Environment: Dell 1850 4GB EM64T CPUx2 HT disabled, x86_64 kernel
+> Kernel 1: linux-2.6.15-rc5
+> Kernel 2: linux-2.6.15-rc5 + clockpro patch posted in 2005/12/31
+> Kernel 3: linux-2.6.15-rc5 + clockpro patch posted in 2005/12/31 +
+> 	  modification to disable page cache usage from ZONE_DMA
+> 	  (to rule out possible zone balancing related problem)
+> Kernel 1 and 2 were booted with "mem=1008m", Kernel 3 was booted with
+> "mem=1024m".
+> 
+> The test program: 2read.c (attached below)
+> 	2read.c repeatedly reads from two files zero and zero2.
+> 	Command line arguments specify the ranges to be read. (See the
+> 	code for detail)
+> 	It prints the number of read operations/2 every 5 seconds and
+> 	terminates in 5 minutes.
+> 
+> $ cc -O 2read.c
+> $ ls -l zero*
+> -rw-r--r--  1 toshii users 1073741824 2006-01-13 17:27 zero
+> -rw-r--r--  1 toshii users 1572864000 2006-01-20 18:20 zero2
+> 
+> (with Kernel 1)
+> $ for n in 100 200 300 400 500; do
+> > ./a.out -n $n $((1100-$n)) > /tmp/2d.$n ; done
+> (with Kernel 2)
+> $ for n in 100 200 300 400 500; do
+> > ./a.out -n $n $((1100-$n)) > /tmp/2d.c.$n ; done
+> (with Kernel 3)
+> $ for n in 100 200 300 400 500; do
+> > ./a.out -n $n $((1100-$n)) > /tmp/2d.c.nodma.$n ; done
+> 
+> The table below is the last numbers printed by the test program
+> ((number of reads)/2 in 5 minutes).  Clockpro (with or without the
+> ZONE_DMA modification) is always slower with one exception, and
+> the slowdown can be as large as 42-54%.
+> 
+> I've put the complete data and some generated figures at
+> http://people.valinux.co.jp/~iwamoto/clockpro-20051231/
+> 
+>  n     Kernel 1    Kernel 2   Kernel 3
+> ======================================
+> 100    373600      298720     395818
+> 200    385639	   272749     272166
+> 300    371047	   243734     262370
+> 400    367691	   213974     169714
+> 500    147130	   126284     103038
 
-Just wanted to dispel any notion that may be out there that
-the improvements we've seen are peculiar to an IBM product
-stack.
+Great test case, I'll run this on my latest code and look into this.
+Thanks for the effort.
 
-The 49% improvement observed using small pages on ppc64 used
-Oracle as the DBMS.  The other results used DB2 as the DBMS.
+As for the lapping of the hands, I'll have to get back to you on that
+one. The way I understood the algorithm it is perfectly fine for the
+hands to lap. I'll try and express my understanding in a later mail.
 
-So, the improvements not peculiar to an IBM product stack,
-and moreover the largest improvement was seen with a non-IBM
-DBMS.
 
-Note, the relative improvement observed on each platform/pagesize
-combination cannot be used to infer relative performance between
-DBMS's or platforms.
+Kind regards,
+Peter
 
-Cheers,
-Brian
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
