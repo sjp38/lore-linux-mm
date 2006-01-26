@@ -1,50 +1,113 @@
-Date: Thu, 26 Jan 2006 15:19:55 +0100
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [patch] hugepage allocator cleanup
-Message-ID: <20060126141955.GB6940@wotan.suse.de>
-References: <20060125091103.GA32653@wotan.suse.de> <20060125150513.GF7655@holomorphy.com> <20060125151846.GB25666@wotan.suse.de> <20060125163243.GG7655@holomorphy.com> <20060125165208.GC25666@wotan.suse.de> <20060126030424.GH7655@holomorphy.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20060126030424.GH7655@holomorphy.com>
+Date: Thu, 26 Jan 2006 15:55:13 +0000 (GMT)
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 2/4] Split the free lists into kernel and user parts
+In-Reply-To: <20060123191341.GA4892@dmt.cnet>
+Message-ID: <Pine.LNX.4.58.0601261548190.3279@skynet>
+References: <20060120115415.16475.8529.sendpatchset@skynet.csn.ul.ie>
+ <20060120115455.16475.93688.sendpatchset@skynet.csn.ul.ie>
+ <20060122133147.GA4186@dmt.cnet> <Pine.LNX.4.58.0601230937200.11319@skynet>
+ <20060123191341.GA4892@dmt.cnet>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: William Lee Irwin III <wli@holomorphy.com>
-Cc: Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@osdl.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
+Cc: linux-mm@kvack.org, jschopp@austin.ibm.com, linux-kernel@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, lhms-devel@lists.sourceforge.net
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jan 25, 2006 at 07:04:24PM -0800, William Lee Irwin III wrote:
-> On Wed, Jan 25, 2006 at 08:32:43AM -0800, William Lee Irwin III wrote:
-> >> Just yanking the page refcount affairs out of update_and_free_page()
-> >> should suffice. Could I get things trimmed down to that?
-> >> 
-> 
-> On Wed, Jan 25, 2006 at 05:52:08PM +0100, Nick Piggin wrote:
-> > I could remove the first set_page_count, and make the second conditional
-> > on the page having a zero refcount... for a 3-liner. But that's kind of
-> > ugly (if less intrusive), and it is adds seemingly nonsense code if one
-> > doesn't have the context of my out-of-tree patches.
-> > Hmm... it's obviously not 2.6.16 material so there is no rush to think
-> > it over. It is even simple enough that I don't mind carrying with my
-> > patchset indefinitely.
-> 
-> After I thought about it, alloc_fresh_huge_page() does enqueue pages
-> with refcounts of 1, where free_huge_page() (called from the freeing
-> hook in page[1].mapping) enqueues pages with refcounts of 0, so it
+On Mon, 23 Jan 2006, Marcelo Tosatti wrote:
 
-Yep.
+> On Mon, Jan 23, 2006 at 09:39:16AM +0000, Mel Gorman wrote:
+> > On Sun, 22 Jan 2006, Marcelo Tosatti wrote:
+> >
+> > > Hi Mel,
+> > >
+> > > On Fri, Jan 20, 2006 at 11:54:55AM +0000, Mel Gorman wrote:
+> > > >
+> > > > This patch adds the core of the anti-fragmentation strategy. It works by
+> > > > grouping related allocation types together. The idea is that large groups of
+> > > > pages that may be reclaimed are placed near each other. The zone->free_area
+> > > > list is broken into RCLM_TYPES number of lists.
+> > > >
+> > > > Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+> > > > Signed-off-by: Joel Schopp <jschopp@austin.ibm.com>
+> > > > diff -rup -X /usr/src/patchset-0.5/bin//dontdiff linux-2.6.16-rc1-mm1-001_antifrag_flags/include/linux/mmzone.h linux-2.6.16-rc1-mm1-002_fragcore/include/linux/mmzone.h
+> > > > --- linux-2.6.16-rc1-mm1-001_antifrag_flags/include/linux/mmzone.h	2006-01-19 11:21:59.000000000 +0000
+> > > > +++ linux-2.6.16-rc1-mm1-002_fragcore/include/linux/mmzone.h	2006-01-19 21:51:05.000000000 +0000
+> > > > @@ -22,8 +22,16 @@
+> > > >  #define MAX_ORDER CONFIG_FORCE_MAX_ZONEORDER
+> > > >  #endif
+> > > >
+> > > > +#define RCLM_NORCLM 0
+> > > > +#define RCLM_EASY   1
+> > > > +#define RCLM_TYPES  2
+> > > > +
+> > > > +#define for_each_rclmtype_order(type, order) \
+> > > > +	for (order = 0; order < MAX_ORDER; order++) \
+> > > > +		for (type = 0; type < RCLM_TYPES; type++)
+> > > > +
+> > > >  struct free_area {
+> > > > -	struct list_head	free_list;
+> > > > +	struct list_head	free_list[RCLM_TYPES];
+> > > >  	unsigned long		nr_free;
+> > > >  };
+> > > >
+> > > > diff -rup -X /usr/src/patchset-0.5/bin//dontdiff linux-2.6.16-rc1-mm1-001_antifrag_flags/include/linux/page-flags.h linux-2.6.16-rc1-mm1-002_fragcore/include/linux/page-flags.h
+> > > > --- linux-2.6.16-rc1-mm1-001_antifrag_flags/include/linux/page-flags.h	2006-01-19 11:21:59.000000000 +0000
+> > > > +++ linux-2.6.16-rc1-mm1-002_fragcore/include/linux/page-flags.h	2006-01-19 21:51:05.000000000 +0000
+> > > > @@ -76,6 +76,7 @@
+> > > >  #define PG_reclaim		17	/* To be reclaimed asap */
+> > > >  #define PG_nosave_free		18	/* Free, should not be written */
+> > > >  #define PG_uncached		19	/* Page has been mapped as uncached */
+> > > > +#define PG_easyrclm		20	/* Page is in an easy reclaim block */
+> > > >
+> > > >  /*
+> > > >   * Global page accounting.  One instance per CPU.  Only unsigned longs are
+> > > > @@ -345,6 +346,12 @@ extern void __mod_page_state_offset(unsi
+> > > >  #define SetPageUncached(page)	set_bit(PG_uncached, &(page)->flags)
+> > > >  #define ClearPageUncached(page)	clear_bit(PG_uncached, &(page)->flags)
+> > > >
+> > > > +#define PageEasyRclm(page)	test_bit(PG_easyrclm, &(page)->flags)
+> > > > +#define SetPageEasyRclm(page)	set_bit(PG_easyrclm, &(page)->flags)
+> > > > +#define ClearPageEasyRclm(page)	clear_bit(PG_easyrclm, &(page)->flags)
+> > > > +#define __SetPageEasyRclm(page)	__set_bit(PG_easyrclm, &(page)->flags)
+> > > > +#define __ClearPageEasyRclm(page) __clear_bit(PG_easyrclm, &(page)->flags)
+> > > > +
+> > >
+> > > You can't read/write to page->flags non-atomically, except when you
+> > > guarantee that the page is not visible to other CPU's (eg at the very
+> > > end of the page freeing code).
+> > >
+> >
+> > The helper PageEasyRclm is only used when either the spinlock is held or a
+> > per-cpu page is being released so it should be safe. The Set and Clear
+> > helpers are only used with a spinlock held.
+>
+> Mel,
+>
+> Other codepaths which touch page->flags do not hold any lock, so you
+> really must use atomic operations, except when you've guarantee that the
+> page is being freed and won't be reused.
+>
 
-> would actually make sense (and possibly prevent leaks) to take the
-> whole patch as-is.
-> 
-> 
+Understood, so I took another look to be sure;
 
-Yeah, you could add a bad_page-like check to verify the refcount
-hasn't been mucked with... and of course the regular allocator can
-now verify refcounts are alright when update_and_free_page returns
-them.
+PageEasyRclm() is used on pages that are about to be freed to the main
+or per-cpu allocator so it should be safe.
 
-Nick
+__SetPageEasyRclm is called when the page is about to be freed. It should
+be safe from concurrent access.
+
+__ClearPageEasyRclm is called when the page is about to be allocated. It
+should be safe.
+
+I think it is guaranteed that there are on concurrent accessing of the
+page flags. Is there something I have missed?
+
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
