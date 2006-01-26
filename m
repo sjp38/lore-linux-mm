@@ -1,41 +1,32 @@
-Date: Wed, 25 Jan 2006 19:09:16 -0800
-From: William Lee Irwin III <wli@holomorphy.com>
-Subject: Re: [patch] hugepage allocator cleanup
-Message-ID: <20060126030916.GI7655@holomorphy.com>
-References: <20060125091103.GA32653@wotan.suse.de>
+Date: Wed, 25 Jan 2006 22:06:58 -0600
+From: Robin Holt <holt@sgi.com>
+Subject: Re: [PATCH/RFC] Shared page tables
+Message-ID: <20060126040658.GB30374@lnx-holt.americas.sgi.com>
+References: <A6D73CCDC544257F3D97F143@[10.1.1.4]> <200601251648.58670.raybry@mpdtxmail.amd.com> <F6EF7D7093D441B7655A8755@[10.1.1.4]> <200601251858.11167.raybry@mpdtxmail.amd.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20060125091103.GA32653@wotan.suse.de>
+In-Reply-To: <200601251858.11167.raybry@mpdtxmail.amd.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>
-Cc: Andrew Morton <akpm@osdl.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: Ray Bryant <raybry@mpdtxmail.amd.com>
+Cc: Dave McCracken <dmccr@us.ibm.com>, Robin Holt <holt@sgi.com>, Hugh Dickins <hugh@veritas.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jan 25, 2006 at 10:11:03AM +0100, Nick Piggin wrote:
-> This is a slight rework of the mechanism for allocating "fresh" hugepages.
-> Comments?
-> --
-> Insert "fresh" huge pages into the hugepage allocator by the same
-> means as they are freed back into it. This reduces code size and
-> allows enqueue_huge_page to be inlined into the hugepage free
-> fastpath.
-> Eliminate occurances of hugepages on the free list with non-zero
-> refcount. This can allow stricter refcount checks in future. Also
-> required for lockless pagecache.
-> Signed-off-by: Nick Piggin <npiggin@suse.de>
+On Wed, Jan 25, 2006 at 06:58:10PM -0600, Ray Bryant wrote:
+> Dave,
+> 
+> Hmph.... further analysis shows that the situation is a more complicated than 
+> described in my last note, lets compare notes off-list and see what 
+> conclusions, if any, we can come to.
 
-This patch also eliminates a leak "cleaned up" by re-clobbering the
-refcount on every allocation from the hugepage freelists. With respect to
-the lockless pagecache, the crucial aspect is to eliminate unconditional
-set_page_count() to 0 on pages with potentially nonzero refcounts, though
-closer inspection suggests the assignments removed are entirely spurious.
+Why off-list.  I think the munmap() or mmap() in the middle cases are
+interesting.  I was hoping Dave's test program has those cases in
+there as well as mapping of hugetlbfs files.  If you do take this off-list,
+I would like to ride along ;)
 
-Acked-by: William Irwin <wli@holomorphy.com>
-
-
--- wli
+Thanks,
+Robin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
