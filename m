@@ -1,47 +1,52 @@
-Received: by nproxy.gmail.com with SMTP id l35so53794nfa
-        for <linux-mm@kvack.org>; Wed, 25 Jan 2006 23:41:28 -0800 (PST)
-Message-ID: <84144f020601252341k62c0c6fck57f3baa290f4430@mail.gmail.com>
-Date: Thu, 26 Jan 2006 09:41:27 +0200
+Received: by nproxy.gmail.com with SMTP id l35so56662nfa
+        for <linux-mm@kvack.org>; Thu, 26 Jan 2006 00:11:22 -0800 (PST)
+Message-ID: <84144f020601260011p1e2f883fp8058eb0e2edee99f@mail.gmail.com>
+Date: Thu, 26 Jan 2006 10:11:21 +0200
 From: Pekka Enberg <penberg@cs.helsinki.fi>
-Subject: Re: [patch 8/9] slab - Add *_mempool slab variants
-In-Reply-To: <1138218020.2092.8.camel@localhost.localdomain>
+Subject: Re: [patch 9/9] slab - Implement single mempool backing for slab allocator
+In-Reply-To: <1138218024.2092.9.camel@localhost.localdomain>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 8BIT
 Content-Disposition: inline
 References: <20060125161321.647368000@localhost.localdomain>
-	 <1138218020.2092.8.camel@localhost.localdomain>
+	 <1138218024.2092.9.camel@localhost.localdomain>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: colpatch@us.ibm.com
 Cc: linux-kernel@vger.kernel.org, sri@us.ibm.com, andrea@suse.de, pavel@suse.cz, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Matthew,
+Hi,
 
 On 1/25/06, Matthew Dobson <colpatch@us.ibm.com> wrote:
-> +extern void *__kmalloc(size_t, gfp_t, mempool_t *);
+> -static void *kmem_getpages(kmem_cache_t *cachep, gfp_t flags, int nodeid)
+> +static void *kmem_getpages(kmem_cache_t *cachep, gfp_t flags, int nodeid,
+> +                          mempool_t *pool)
+>  {
+>         struct page *page;
+>         void *addr;
+>         int i;
+>
+>         flags |= cachep->gfpflags;
+> -       page = alloc_pages_node(nodeid, flags, cachep->gfporder);
+> +       /*
+> +        * If this allocation request isn't backed by a memory pool, or if that
+> +        * memory pool's gfporder is not the same as the cache's gfporder, fall
+> +        * back to alloc_pages_node().
+> +        */
+> +       if (!pool || cachep->gfporder != (int)pool->pool_data)
+> +               page = alloc_pages_node(nodeid, flags, cachep->gfporder);
+> +       else
+> +               page = mempool_alloc_node(pool, flags, nodeid);
 
-If you really need to do this, please ntoe that you're adding an extra
-parameter push for the nominal case where mempool is not required. The
-compiler is unable to optimize it away. It's better that you create a
-new entry point for the mempool case in mm/slab.c rather than
-overloading __kmalloc() et al. See the following patch that does that
-sort of thing:
+You're not returning any pages to the pool, so the it will run out
+pages at some point, no? Also, there's no guarantee the slab allocator
+will give back the critical page any time soon either because it will
+use it for non-critical allocations as well as soon as it becomes part
+of the object cache slab lists.
 
-http://www.kernel.org/pub/linux/kernel/people/akpm/patches/2.6/2.6.16-rc1/2.6.16-rc1-mm3/broken-out/slab-fix-kzalloc-and-kstrdup-caller-report-for-config_debug_slab.patch
-
-Now as for the rest of the patch, are you sure you want to reserve
-whole pages for each critical allocation that cannot be satisfied by
-the slab allocator? Wouldn't it be better to use something like the
-slob allocator to allocate from the mempool pages? That way you
-wouldn't have to make the slab allocator mempool aware at all, simply
-make your kmalloc_mempool first try the slab allocator and if it
-returns NULL, go for the critical pool. All this in preferably
-separate file so you don't make mm/slab.c any more complex than it is
-now.
-
-                                            Pekka
+                                     Pekka
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
