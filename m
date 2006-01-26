@@ -1,32 +1,38 @@
-Date: Wed, 25 Jan 2006 22:06:58 -0600
-From: Robin Holt <holt@sgi.com>
-Subject: Re: [PATCH/RFC] Shared page tables
-Message-ID: <20060126040658.GB30374@lnx-holt.americas.sgi.com>
-References: <A6D73CCDC544257F3D97F143@[10.1.1.4]> <200601251648.58670.raybry@mpdtxmail.amd.com> <F6EF7D7093D441B7655A8755@[10.1.1.4]> <200601251858.11167.raybry@mpdtxmail.amd.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Received: by nproxy.gmail.com with SMTP id l35so52797nfa
+        for <linux-mm@kvack.org>; Wed, 25 Jan 2006 23:30:16 -0800 (PST)
+Message-ID: <84144f020601252330k61789482m25a4316c2c254065@mail.gmail.com>
+Date: Thu, 26 Jan 2006 09:30:16 +0200
+From: Pekka Enberg <penberg@cs.helsinki.fi>
+Subject: Re: [patch 6/9] mempool - Update kzalloc mempool users
+In-Reply-To: <1138218014.2092.6.camel@localhost.localdomain>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 8BIT
 Content-Disposition: inline
-In-Reply-To: <200601251858.11167.raybry@mpdtxmail.amd.com>
+References: <20060125161321.647368000@localhost.localdomain>
+	 <1138218014.2092.6.camel@localhost.localdomain>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ray Bryant <raybry@mpdtxmail.amd.com>
-Cc: Dave McCracken <dmccr@us.ibm.com>, Robin Holt <holt@sgi.com>, Hugh Dickins <hugh@veritas.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>
+To: colpatch@us.ibm.com
+Cc: linux-kernel@vger.kernel.org, sri@us.ibm.com, andrea@suse.de, pavel@suse.cz, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jan 25, 2006 at 06:58:10PM -0600, Ray Bryant wrote:
-> Dave,
-> 
-> Hmph.... further analysis shows that the situation is a more complicated than 
-> described in my last note, lets compare notes off-list and see what 
-> conclusions, if any, we can come to.
+Hi,
 
-Why off-list.  I think the munmap() or mmap() in the middle cases are
-interesting.  I was hoping Dave's test program has those cases in
-there as well as mapping of hugetlbfs files.  If you do take this off-list,
-I would like to ride along ;)
+On 1/25/06, Matthew Dobson <colpatch@us.ibm.com> wrote:
+> plain text document attachment (critical_mempools)
+> Fixup existing mempool users to use the new mempool API, part 3.
+>
+> This mempool users which are basically just wrappers around kzalloc().  To do
+> this we create a new function, kzalloc_node() and change all the old mempool
+> allocators which were calling kzalloc() to now call kzalloc_node().
 
-Thanks,
-Robin
+The slab bits look good to me. You might have some rediffing to do
+because -mm has quite a bit of slab patches in it.
+
+Acked-by: Pekka Enberg <penberg@cs.helsinki.fi>
+
+                               Pekka
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
