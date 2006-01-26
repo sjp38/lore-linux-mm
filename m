@@ -1,73 +1,56 @@
-From: Mel Gorman <mel@csn.ul.ie>
-Message-Id: <20060126184605.8550.1746.sendpatchset@skynet.csn.ul.ie>
-In-Reply-To: <20060126184305.8550.94358.sendpatchset@skynet.csn.ul.ie>
-References: <20060126184305.8550.94358.sendpatchset@skynet.csn.ul.ie>
-Subject: [PATCH 9/9] ForTesting - Drain the per-cpu caches with high order allocations fail
-Date: Thu, 26 Jan 2006 18:46:05 +0000 (GMT)
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by e32.co.us.ibm.com (8.12.11/8.12.11) with ESMTP id k0QM35V7004249
+	for <linux-mm@kvack.org>; Thu, 26 Jan 2006 17:03:05 -0500
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d03relay04.boulder.ibm.com (8.12.10/NCO/VERS6.8) with ESMTP id k0QM5KUO137516
+	for <linux-mm@kvack.org>; Thu, 26 Jan 2006 15:05:20 -0700
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.12.11/8.13.3) with ESMTP id k0QM333A000352
+	for <linux-mm@kvack.org>; Thu, 26 Jan 2006 15:03:03 -0700
+Message-ID: <43D94714.2030506@us.ibm.com>
+Date: Thu, 26 Jan 2006 14:03:00 -0800
+From: Matthew Dobson <colpatch@us.ibm.com>
+MIME-Version: 1.0
+Subject: Re: [patch 6/9] mempool - Update kzalloc mempool users
+References: <20060125161321.647368000@localhost.localdomain>	 <1138218014.2092.6.camel@localhost.localdomain> <84144f020601252330k61789482m25a4316c2c254065@mail.gmail.com>
+In-Reply-To: <84144f020601252330k61789482m25a4316c2c254065@mail.gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
-Cc: Mel Gorman <mel@csn.ul.ie>, linux-kernel@vger.kernel.org, lhms-devel@lists.sourceforge.net
+To: Pekka Enberg <penberg@cs.helsinki.fi>
+Cc: linux-kernel@vger.kernel.org, sri@us.ibm.com, andrea@suse.de, pavel@suse.cz, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-The presense of free per-cpu pages appear to cause fragmentation because
-contiguous free blocks do not merge with their buddies. This can skew the
-results between runs a lot because how many HugeTLB pages there are available
-depends on luck. This patch was applied to both stock and anti-frag kernels
-to give more consistant results.
+Pekka Enberg wrote:
+> Hi,
+> 
+> On 1/25/06, Matthew Dobson <colpatch@us.ibm.com> wrote:
+> 
+>>plain text document attachment (critical_mempools)
+>>Fixup existing mempool users to use the new mempool API, part 3.
+>>
+>>This mempool users which are basically just wrappers around kzalloc().  To do
+>>this we create a new function, kzalloc_node() and change all the old mempool
+>>allocators which were calling kzalloc() to now call kzalloc_node().
+> 
+> 
+> The slab bits look good to me. You might have some rediffing to do
+> because -mm has quite a bit of slab patches in it.
+> 
+> Acked-by: Pekka Enberg <penberg@cs.helsinki.fi>
+> 
+>                                Pekka
 
-Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.16-rc1-mm3-902_highorderoom/mm/page_alloc.c linux-2.6.16-rc1-mm3-903_drainpercpu/mm/page_alloc.c
---- linux-2.6.16-rc1-mm3-902_highorderoom/mm/page_alloc.c	2006-01-26 18:15:07.000000000 +0000
-+++ linux-2.6.16-rc1-mm3-903_drainpercpu/mm/page_alloc.c	2006-01-26 18:15:49.000000000 +0000
-@@ -623,7 +623,8 @@ void drain_remote_pages(void)
- }
- #endif
- 
--#if defined(CONFIG_PM) || defined(CONFIG_HOTPLUG_CPU)
-+#if defined(CONFIG_PM) || \
-+	defined(CONFIG_HOTPLUG_CPU)
- static void __drain_pages(unsigned int cpu)
- {
- 	unsigned long flags;
-@@ -685,6 +686,27 @@ void drain_local_pages(void)
- 	__drain_pages(smp_processor_id());
- 	local_irq_restore(flags);	
- }
-+
-+void smp_drain_local_pages(void *arg)
-+{
-+	drain_local_pages();
-+}
-+
-+/*
-+ * Spill all the per-cpu pages from all CPUs back into the buddy allocator
-+ */
-+void drain_all_local_pages(void)
-+{
-+	unsigned long flags;
-+
-+	local_irq_save(flags);
-+	__drain_pages(smp_processor_id());
-+	local_irq_restore(flags);
-+
-+	smp_call_function(smp_drain_local_pages, NULL, 0, 1);
-+}
-+#else
-+void drain_all_local_pages(void) {}
- #endif /* CONFIG_PM */
- 
- static void zone_statistics(struct zonelist *zonelist, struct zone *z, int cpu)
-@@ -1073,6 +1095,9 @@ rebalance:
- 
- 	did_some_progress = try_to_free_pages(zonelist->zones, gfp_mask);
- 
-+	if (order > 3)
-+		drain_all_local_pages();
-+
- 	p->reclaim_state = NULL;
- 	p->flags &= ~PF_MEMALLOC;
- 
+Good to hear.  I expect there to be plenty of differences.  Some pieces of
+this are ready to be pushed now, but most of it is still very much in
+planning/design stage.  My hopes (which I probably should have made more
+clear in the introductory email) are just to get feedback on the general
+approach to the problem that I'm pursuing.
+
+Thanks!
+
+-Matt
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
