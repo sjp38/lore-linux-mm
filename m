@@ -1,10 +1,9 @@
-Date: Thu, 26 Jan 2006 09:54:47 -0800 (PST)
+Date: Thu, 26 Jan 2006 09:57:45 -0800 (PST)
 From: Christoph Lameter <clameter@engr.sgi.com>
-Subject: Re: [patch 3/9] mempool - Make mempools NUMA aware
-In-Reply-To: <1138233093.27293.1.camel@localhost.localdomain>
-Message-ID: <Pine.LNX.4.62.0601260953200.15128@schroedinger.engr.sgi.com>
-References: <20060125161321.647368000@localhost.localdomain>
- <1138233093.27293.1.camel@localhost.localdomain>
+Subject: Re: [patch 0/9] Critical Mempools
+In-Reply-To: <1138217992.2092.0.camel@localhost.localdomain>
+Message-ID: <Pine.LNX.4.62.0601260954540.15128@schroedinger.engr.sgi.com>
+References: <1138217992.2092.0.camel@localhost.localdomain>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -15,14 +14,18 @@ List-ID: <linux-mm.kvack.org>
 
 On Wed, 25 Jan 2006, Matthew Dobson wrote:
 
-> plain text document attachment (critical_mempools)
-> Add NUMA-awareness to the mempool code.  This involves several changes:
+> Using this new approach, a subsystem can create a mempool and then pass a
+> pointer to this mempool on to all its slab allocations.  Anytime one of its
+> slab allocations needs to allocate memory that memory will be allocated
+> through the specified mempool, rather than through alloc_pages_node() directly.
 
-I am not quite sure why you would need numa awareness in an emergency 
-memory pool. Presumably the effectiveness of the accesses do not matter. 
-You only want to be sure that there is some memory available right?
+All subsystems will now get more complicated by having to add this 
+emergency functionality?
 
-You do not need this.... 
+> Feedback on these patches (against 2.6.16-rc1) would be greatly appreciated.
+
+There surely must be a better way than revising all subsystems for 
+critical allocations.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
