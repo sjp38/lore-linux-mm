@@ -1,12 +1,12 @@
 From: "Ray Bryant" <raybry@mpdtxmail.amd.com>
 Subject: Re: [PATCH/RFC] Shared page tables
-Date: Wed, 25 Jan 2006 18:16:14 -0600
+Date: Wed, 25 Jan 2006 18:58:10 -0600
 References: <A6D73CCDC544257F3D97F143@[10.1.1.4]>
  <200601251648.58670.raybry@mpdtxmail.amd.com>
  <F6EF7D7093D441B7655A8755@[10.1.1.4]>
 In-Reply-To: <F6EF7D7093D441B7655A8755@[10.1.1.4]>
 MIME-Version: 1.0
-Message-ID: <200601251816.15037.raybry@mpdtxmail.amd.com>
+Message-ID: <200601251858.11167.raybry@mpdtxmail.amd.com>
 Content-Type: text/plain;
  charset=iso-8859-1
 Content-Transfer-Encoding: 7bit
@@ -19,26 +19,11 @@ List-ID: <linux-mm.kvack.org>
 
 Dave,
 
-Here's another one to keep you awake at night:
+Hmph.... further analysis shows that the situation is a more complicated than 
+described in my last note, lets compare notes off-list and see what 
+conclusions, if any, we can come to.
 
-mmap a shared, anonymous region of 8MB (2MB aligned), and fork off some 
-children (4 is good enough for me).    In each child, munmap() a 2 MB portion 
-of the shared region (starting at offset 2MB in the shared region) and then 
-mmap() a private, anonymous region in its place.   Have each child store some 
-unique data in that region, sleep for a bit and then go look to see if its 
-data is still there.
-
-Under 2.6.15, this works just fine.   Under 2.6.15 + shpt patch, each child 
-still points at the shared region and steps on the data of the other 
-children.
-
-I imagine the above gets even more interesting if the offset or length of the 
-unmapped region is not a multiple of the 2MB alignment.
-
-All of these test cases are for Opteron.   Your alignment may vary.
-
-(Sorry about this... )
-
+Thanks,
 -- 
 Ray Bryant
 AMD Performance Labs                   Austin, Tx
