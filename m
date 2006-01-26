@@ -1,52 +1,50 @@
-Received: by nproxy.gmail.com with SMTP id l35so56662nfa
-        for <linux-mm@kvack.org>; Thu, 26 Jan 2006 00:11:22 -0800 (PST)
-Message-ID: <84144f020601260011p1e2f883fp8058eb0e2edee99f@mail.gmail.com>
-Date: Thu, 26 Jan 2006 10:11:21 +0200
-From: Pekka Enberg <penberg@cs.helsinki.fi>
-Subject: Re: [patch 9/9] slab - Implement single mempool backing for slab allocator
-In-Reply-To: <1138218024.2092.9.camel@localhost.localdomain>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 8BIT
+Date: Thu, 26 Jan 2006 15:19:55 +0100
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: [patch] hugepage allocator cleanup
+Message-ID: <20060126141955.GB6940@wotan.suse.de>
+References: <20060125091103.GA32653@wotan.suse.de> <20060125150513.GF7655@holomorphy.com> <20060125151846.GB25666@wotan.suse.de> <20060125163243.GG7655@holomorphy.com> <20060125165208.GC25666@wotan.suse.de> <20060126030424.GH7655@holomorphy.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-References: <20060125161321.647368000@localhost.localdomain>
-	 <1138218024.2092.9.camel@localhost.localdomain>
+In-Reply-To: <20060126030424.GH7655@holomorphy.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: colpatch@us.ibm.com
-Cc: linux-kernel@vger.kernel.org, sri@us.ibm.com, andrea@suse.de, pavel@suse.cz, linux-mm@kvack.org
+To: William Lee Irwin III <wli@holomorphy.com>
+Cc: Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@osdl.org>, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+On Wed, Jan 25, 2006 at 07:04:24PM -0800, William Lee Irwin III wrote:
+> On Wed, Jan 25, 2006 at 08:32:43AM -0800, William Lee Irwin III wrote:
+> >> Just yanking the page refcount affairs out of update_and_free_page()
+> >> should suffice. Could I get things trimmed down to that?
+> >> 
+> 
+> On Wed, Jan 25, 2006 at 05:52:08PM +0100, Nick Piggin wrote:
+> > I could remove the first set_page_count, and make the second conditional
+> > on the page having a zero refcount... for a 3-liner. But that's kind of
+> > ugly (if less intrusive), and it is adds seemingly nonsense code if one
+> > doesn't have the context of my out-of-tree patches.
+> > Hmm... it's obviously not 2.6.16 material so there is no rush to think
+> > it over. It is even simple enough that I don't mind carrying with my
+> > patchset indefinitely.
+> 
+> After I thought about it, alloc_fresh_huge_page() does enqueue pages
+> with refcounts of 1, where free_huge_page() (called from the freeing
+> hook in page[1].mapping) enqueues pages with refcounts of 0, so it
 
-On 1/25/06, Matthew Dobson <colpatch@us.ibm.com> wrote:
-> -static void *kmem_getpages(kmem_cache_t *cachep, gfp_t flags, int nodeid)
-> +static void *kmem_getpages(kmem_cache_t *cachep, gfp_t flags, int nodeid,
-> +                          mempool_t *pool)
->  {
->         struct page *page;
->         void *addr;
->         int i;
->
->         flags |= cachep->gfpflags;
-> -       page = alloc_pages_node(nodeid, flags, cachep->gfporder);
-> +       /*
-> +        * If this allocation request isn't backed by a memory pool, or if that
-> +        * memory pool's gfporder is not the same as the cache's gfporder, fall
-> +        * back to alloc_pages_node().
-> +        */
-> +       if (!pool || cachep->gfporder != (int)pool->pool_data)
-> +               page = alloc_pages_node(nodeid, flags, cachep->gfporder);
-> +       else
-> +               page = mempool_alloc_node(pool, flags, nodeid);
+Yep.
 
-You're not returning any pages to the pool, so the it will run out
-pages at some point, no? Also, there's no guarantee the slab allocator
-will give back the critical page any time soon either because it will
-use it for non-critical allocations as well as soon as it becomes part
-of the object cache slab lists.
+> would actually make sense (and possibly prevent leaks) to take the
+> whole patch as-is.
+> 
+> 
 
-                                     Pekka
+Yeah, you could add a bad_page-like check to verify the refcount
+hasn't been mucked with... and of course the regular allocator can
+now verify refcounts are alright when update_and_free_page returns
+them.
+
+Nick
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
