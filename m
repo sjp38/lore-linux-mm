@@ -1,37 +1,38 @@
-Date: Wed, 25 Jan 2006 19:04:24 -0800
+Date: Wed, 25 Jan 2006 19:09:16 -0800
 From: William Lee Irwin III <wli@holomorphy.com>
 Subject: Re: [patch] hugepage allocator cleanup
-Message-ID: <20060126030424.GH7655@holomorphy.com>
-References: <20060125091103.GA32653@wotan.suse.de> <20060125150513.GF7655@holomorphy.com> <20060125151846.GB25666@wotan.suse.de> <20060125163243.GG7655@holomorphy.com> <20060125165208.GC25666@wotan.suse.de>
+Message-ID: <20060126030916.GI7655@holomorphy.com>
+References: <20060125091103.GA32653@wotan.suse.de>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20060125165208.GC25666@wotan.suse.de>
+In-Reply-To: <20060125091103.GA32653@wotan.suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Nick Piggin <npiggin@suse.de>
 Cc: Andrew Morton <akpm@osdl.org>, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jan 25, 2006 at 08:32:43AM -0800, William Lee Irwin III wrote:
->> Just yanking the page refcount affairs out of update_and_free_page()
->> should suffice. Could I get things trimmed down to that?
->> 
+On Wed, Jan 25, 2006 at 10:11:03AM +0100, Nick Piggin wrote:
+> This is a slight rework of the mechanism for allocating "fresh" hugepages.
+> Comments?
+> --
+> Insert "fresh" huge pages into the hugepage allocator by the same
+> means as they are freed back into it. This reduces code size and
+> allows enqueue_huge_page to be inlined into the hugepage free
+> fastpath.
+> Eliminate occurances of hugepages on the free list with non-zero
+> refcount. This can allow stricter refcount checks in future. Also
+> required for lockless pagecache.
+> Signed-off-by: Nick Piggin <npiggin@suse.de>
 
-On Wed, Jan 25, 2006 at 05:52:08PM +0100, Nick Piggin wrote:
-> I could remove the first set_page_count, and make the second conditional
-> on the page having a zero refcount... for a 3-liner. But that's kind of
-> ugly (if less intrusive), and it is adds seemingly nonsense code if one
-> doesn't have the context of my out-of-tree patches.
-> Hmm... it's obviously not 2.6.16 material so there is no rush to think
-> it over. It is even simple enough that I don't mind carrying with my
-> patchset indefinitely.
+This patch also eliminates a leak "cleaned up" by re-clobbering the
+refcount on every allocation from the hugepage freelists. With respect to
+the lockless pagecache, the crucial aspect is to eliminate unconditional
+set_page_count() to 0 on pages with potentially nonzero refcounts, though
+closer inspection suggests the assignments removed are entirely spurious.
 
-After I thought about it, alloc_fresh_huge_page() does enqueue pages
-with refcounts of 1, where free_huge_page() (called from the freeing
-hook in page[1].mapping) enqueues pages with refcounts of 0, so it
-would actually make sense (and possibly prevent leaks) to take the
-whole patch as-is.
+Acked-by: William Irwin <wli@holomorphy.com>
 
 
 -- wli
