@@ -1,97 +1,57 @@
-Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
-	by e36.co.us.ibm.com (8.12.11/8.12.11) with ESMTP id k0R8To2M024391
-	for <linux-mm@kvack.org>; Fri, 27 Jan 2006 03:29:50 -0500
-Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
-	by d03relay04.boulder.ibm.com (8.12.10/NCO/VERS6.8) with ESMTP id k0R8W6UO132998
-	for <linux-mm@kvack.org>; Fri, 27 Jan 2006 01:32:06 -0700
-Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av03.boulder.ibm.com (8.12.11/8.13.3) with ESMTP id k0R8TnJA021642
-	for <linux-mm@kvack.org>; Fri, 27 Jan 2006 01:29:49 -0700
-Message-ID: <43D9D9FB.8070903@us.ibm.com>
-Date: Fri, 27 Jan 2006 00:29:47 -0800
+Message-ID: <43D9DB12.20706@us.ibm.com>
+Date: Fri, 27 Jan 2006 00:34:26 -0800
 From: Sridhar Samudrala <sri@us.ibm.com>
 MIME-Version: 1.0
 Subject: Re: [patch 0/9] Critical Mempools
-References: <1138217992.2092.0.camel@localhost.localdomain> <Pine.LNX.4.62.0601260954540.15128@schroedinger.engr.sgi.com> <43D954D8.2050305@us.ibm.com> <Pine.LNX.4.62.0601261516160.18716@schroedinger.engr.sgi.com> <43D95BFE.4010705@us.ibm.com>
-In-Reply-To: <43D95BFE.4010705@us.ibm.com>
+References: <1138217992.2092.0.camel@localhost.localdomain> <Pine.LNX.4.62.0601260954540.15128@schroedinger.engr.sgi.com> <43D954D8.2050305@us.ibm.com> <Pine.LNX.4.62.0601261516160.18716@schroedinger.engr.sgi.com> <43D95BFE.4010705@us.ibm.com> <20060127000304.GG10409@kvack.org>
+In-Reply-To: <20060127000304.GG10409@kvack.org>
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Matthew Dobson <colpatch@us.ibm.com>
-Cc: Christoph Lameter <clameter@engr.sgi.com>, linux-kernel@vger.kernel.org, andrea@suse.de, pavel@suse.cz, linux-mm@kvack.org
+To: Benjamin LaHaise <bcrl@kvack.org>
+Cc: Matthew Dobson <colpatch@us.ibm.com>, Christoph Lameter <clameter@engr.sgi.com>, linux-kernel@vger.kernel.org, andrea@suse.de, pavel@suse.cz, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Matthew Dobson wrote:
-> Christoph Lameter wrote:
+Benjamin LaHaise wrote:
+> On Thu, Jan 26, 2006 at 03:32:14PM -0800, Matthew Dobson wrote:
 >   
->> On Thu, 26 Jan 2006, Matthew Dobson wrote:
->>
->>
->>     
->>>> All subsystems will now get more complicated by having to add this 
->>>> emergency functionality?
->>>>         
->>> Certainly not.  Only subsystems that want to use emergency pools will get
->>> more complicated.  If you have a suggestion as to how to implement a
->>> similar feature that is completely transparent to its users, I would *love*
+>>> I thought the earlier __GFP_CRITICAL was a good idea.
 >>>       
->> I thought the earlier __GFP_CRITICAL was a good idea.
+>> Well, I certainly could have used that feedback a month ago! ;)  The
+>> general response to that patchset was overwhelmingly negative.  Yours is
+>> the first vote in favor of that approach, that I'm aware of.
 >>     
 >
-> Well, I certainly could have used that feedback a month ago! ;)  The
-> general response to that patchset was overwhelmingly negative.  Yours is
-> the first vote in favor of that approach, that I'm aware of.
->
+> Personally, I'm more in favour of a proper reservation system.  mempools 
+> are pretty inefficient.  Reservations have useful properties, too -- one 
+> could reserve memory for a critical process to use, but allow the system 
+> to use that memory for easy to reclaim caches or to help with memory 
+> defragmentation (more free pages really helps the buddy allocator).
 >
 >   
->>> to hear it.  I have tried to keep the changes to implement this
->>> functionality to a minimum.  As the patches currently stand, existing slab
->>> allocator and mempool users can continue using these subsystems without
->>> modification.
+>>> Gfp flag? Better memory reclaim functionality?
 >>>       
->> The patches are extensive and the required changes to subsystems in order 
->> to use these pools are also extensive.
+>> Well, I've got patches that implement the GFP flag approach, but as I
+>> mentioned above, that was poorly received.  Better memory reclaim is a
+>> broad and general approach that I agree is useful, but will not necessarily
+>> solve the same set of problems (though it would likely lessen the severity
+>> somewhat).
 >>     
 >
-> I can't really argue with your first point, but the changes required to use
-> the pools should actually be quite small.  Sridhar (cc'd on this thread) is
-> working on the changes required for the networking subsystem to use these
-> pools, and it looks like the patches will be no larger than the ones from
-> the last attempt.
+> Which areas are the priorities for getting this functionality into?  
+> Networking over particular sockets?  A GFP_ flag would plug into the current 
+> network stack trivially, as sockets already have a field to store the memory 
+> allocation flags.
 >   
-I would say that the patches to support critical sockets will be 
-slightly more complex with mempools
-than the earlier patches that used the global critical page pool with a 
-new GFP_CRITICAL flag.
-
-Basically we need a facility to mark an allocation request as critical 
-and satisfy this request without
-any blocking in an emergency situation.
+Yes, i have posted patches that use this exact approach last month that 
+use a critical page pool with
+GFP_CRITICAL flag.
+      http://lkml.org/lkml/2005/12/14/65
+      http://lkml.org/lkml/2005/12/14/66
 
 Thanks
 Sridhar
->
->   
->>>> There surely must be a better way than revising all subsystems for 
->>>> critical allocations.
->>>>         
->>> Again, I could not find any way to implement this functionality without
->>> forcing the users of the functionality to make some, albeit very minor,
->>> changes.  Specific suggestions are more than welcome! :)
->>>       
->> Gfp flag? Better memory reclaim functionality?
->>     
->
-> Well, I've got patches that implement the GFP flag approach, but as I
-> mentioned above, that was poorly received.  Better memory reclaim is a
-> broad and general approach that I agree is useful, but will not necessarily
-> solve the same set of problems (though it would likely lessen the severity
-> somewhat).
->
-> -Matt
->   
-
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
