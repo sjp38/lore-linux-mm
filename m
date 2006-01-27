@@ -1,67 +1,52 @@
-Date: Fri, 27 Jan 2006 02:51:26 -0800
-From: Paul Jackson <pj@sgi.com>
-Subject: Re: [patch 3/9] mempool - Make mempools NUMA aware
-Message-Id: <20060127025126.c95f8002.pj@sgi.com>
-In-Reply-To: <43D96A93.9000600@us.ibm.com>
-References: <20060125161321.647368000@localhost.localdomain>
-	<1138233093.27293.1.camel@localhost.localdomain>
-	<Pine.LNX.4.62.0601260953200.15128@schroedinger.engr.sgi.com>
-	<43D953C4.5020205@us.ibm.com>
-	<Pine.LNX.4.62.0601261511520.18716@schroedinger.engr.sgi.com>
-	<43D95A2E.4020002@us.ibm.com>
-	<Pine.LNX.4.62.0601261525570.18810@schroedinger.engr.sgi.com>
-	<43D96633.4080900@us.ibm.com>
-	<Pine.LNX.4.62.0601261619030.19029@schroedinger.engr.sgi.com>
-	<43D96A93.9000600@us.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: by uproxy.gmail.com with SMTP id k40so105002ugc
+        for <linux-mm@kvack.org>; Fri, 27 Jan 2006 03:07:54 -0800 (PST)
+Message-ID: <84144f020601270307t7266a4ccs5071d4b288a9257f@mail.gmail.com>
+Date: Fri, 27 Jan 2006 13:07:54 +0200
+From: Pekka Enberg <penberg@cs.helsinki.fi>
+Subject: Re: [patch 0/9] Critical Mempools
+In-Reply-To: <20060127021050.f50d358d.pj@sgi.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 8BIT
+Content-Disposition: inline
+References: <1138217992.2092.0.camel@localhost.localdomain>
+	 <Pine.LNX.4.62.0601260954540.15128@schroedinger.engr.sgi.com>
+	 <43D954D8.2050305@us.ibm.com>
+	 <Pine.LNX.4.62.0601261516160.18716@schroedinger.engr.sgi.com>
+	 <43D95BFE.4010705@us.ibm.com> <20060127000304.GG10409@kvack.org>
+	 <43D968E4.5020300@us.ibm.com>
+	 <84144f020601262335g49c21b62qaa729732e9275c0@mail.gmail.com>
+	 <20060127021050.f50d358d.pj@sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Matthew Dobson <colpatch@us.ibm.com>
-Cc: clameter@engr.sgi.com, linux-kernel@vger.kernel.org, sri@us.ibm.com, andrea@suse.de, pavel@suse.cz, linux-mm@kvack.org
+To: Paul Jackson <pj@sgi.com>
+Cc: colpatch@us.ibm.com, bcrl@kvack.org, clameter@engr.sgi.com, linux-kernel@vger.kernel.org, sri@us.ibm.com, andrea@suse.de, pavel@suse.cz, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Matthew wrote:
-> I'm glad we're on the same page now. :)  And yes, adding four "duplicate"
-> *_mempool allocators was not my first choice, but I couldn't easily see a
-> better way.
+Hi,
 
-I hope the following comments aren't too far off target.
+Pekka wrote:
+> > As as side note, we already have __GFP_NOFAIL. How is it different
+> > from GFP_CRITICAL and why aren't we improving that?
 
-I too am inclined to prefer the __GFP_CRITICAL approach over this.
-That or Andrea's suggestion, which except for a free hook, was entirely
-outside of the page_alloc.c code paths.  Or Alan's suggested revival
-of the old code to drop non-critical network patches in duress.
+On 1/27/06, Paul Jackson <pj@sgi.com> wrote:
+> Don't these two flags invoke two different mechanisms.
+>   __GFP_NOFAIL can sleep for HZ/50 then retry, rather than return failure.
+>   __GFP_CRITICAL can steal from the emergency pool rather than fail.
+>
+> I would favor renaming at least the __GFP_CRITICAL to something
+> like __GFP_EMERGPOOL, to highlight the relevant distinction.
 
-I am tempted to think you've taken an approach that raised some
-substantial looking issues:
+Yeah you're right. __GFP_NOFAIL guarantees to never fail but it
+doesn't guarantee to actually succeed either. I think the suggested
+semantics for __GFP_EMERGPOOL are that while it can fail, it tries to
+avoid that by dipping into page reserves. However, I do still think
+it's a bad idea to allow the slab allocator to steal whole pages for
+critical allocations because in low-memory condition, it should be
+fairly easy to exhaust the reserves and waste most of that memory at
+the same time.
 
- * how to tell the system when to use the emergency pool
- * this doesn't really solve the problem (network can still starve)
- * it wastes memory most of the time
- * it doesn't really improve on GFP_ATOMIC
-
-and just added another substantial looking issue:
-
- * it entwines another thread of complexity and performance costs
-   into the important memory allocation code path.
-
-Progress in the wrong direction ;).
-
-> With large machines, especially as
-> those large machines' workloads are more and more likely to be partitioned
-> with something like cpusets, you want to be able to specify where you want
-> your reserve pool to come from.
-
-Cpusets is about performance, not correctness.  Anytime I get cornered
-in the cpuset code, I prefer violating the cpuset containment, over
-serious system failure.
-
--- 
-                  I won't rest till it's the best ...
-                  Programmer, Linux Scalability
-                  Paul Jackson <pj@sgi.com> 1.925.600.0401
+                            Pekka
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
