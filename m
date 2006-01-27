@@ -1,37 +1,67 @@
-Date: Fri, 27 Jan 2006 10:29:22 +0000 (GMT)
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [Lhms-devel] Re: [PATCH 0/9] Reducing fragmentation using zones
- v4
-In-Reply-To: <43D96C41.6020103@jp.fujitsu.com>
-Message-ID: <Pine.LNX.4.58.0601271027560.25836@skynet>
-References: <20060126184305.8550.94358.sendpatchset@skynet.csn.ul.ie>
- <43D96987.8090608@jp.fujitsu.com> <43D96C41.6020103@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Fri, 27 Jan 2006 02:51:26 -0800
+From: Paul Jackson <pj@sgi.com>
+Subject: Re: [patch 3/9] mempool - Make mempools NUMA aware
+Message-Id: <20060127025126.c95f8002.pj@sgi.com>
+In-Reply-To: <43D96A93.9000600@us.ibm.com>
+References: <20060125161321.647368000@localhost.localdomain>
+	<1138233093.27293.1.camel@localhost.localdomain>
+	<Pine.LNX.4.62.0601260953200.15128@schroedinger.engr.sgi.com>
+	<43D953C4.5020205@us.ibm.com>
+	<Pine.LNX.4.62.0601261511520.18716@schroedinger.engr.sgi.com>
+	<43D95A2E.4020002@us.ibm.com>
+	<Pine.LNX.4.62.0601261525570.18810@schroedinger.engr.sgi.com>
+	<43D96633.4080900@us.ibm.com>
+	<Pine.LNX.4.62.0601261619030.19029@schroedinger.engr.sgi.com>
+	<43D96A93.9000600@us.ibm.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, lhms-devel@lists.sourceforge.net
+To: Matthew Dobson <colpatch@us.ibm.com>
+Cc: clameter@engr.sgi.com, linux-kernel@vger.kernel.org, sri@us.ibm.com, andrea@suse.de, pavel@suse.cz, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 27 Jan 2006, KAMEZAWA Hiroyuki wrote:
+Matthew wrote:
+> I'm glad we're on the same page now. :)  And yes, adding four "duplicate"
+> *_mempool allocators was not my first choice, but I couldn't easily see a
+> better way.
 
-> KAMEZAWA Hiroyuki wrote:
-> > Could you add this patch to your set ?
-> > This was needed to boot my x86 machine without HIGHMEM.
-> >
-> Sorry, I sent a wrong patch..
-> This is correct one.
+I hope the following comments aren't too far off target.
 
-I can add it although I would like to know more about the problem. I tried
-booting with and without CONFIG_HIGHMEM both stock kernels and with
-anti-frag and they all boot fine. What causes your machine to die? Does it
-occur with stock -mm or just with anti-frag?
+I too am inclined to prefer the __GFP_CRITICAL approach over this.
+That or Andrea's suggestion, which except for a free hook, was entirely
+outside of the page_alloc.c code paths.  Or Alan's suggested revival
+of the old code to drop non-critical network patches in duress.
+
+I am tempted to think you've taken an approach that raised some
+substantial looking issues:
+
+ * how to tell the system when to use the emergency pool
+ * this doesn't really solve the problem (network can still starve)
+ * it wastes memory most of the time
+ * it doesn't really improve on GFP_ATOMIC
+
+and just added another substantial looking issue:
+
+ * it entwines another thread of complexity and performance costs
+   into the important memory allocation code path.
+
+Progress in the wrong direction ;).
+
+> With large machines, especially as
+> those large machines' workloads are more and more likely to be partitioned
+> with something like cpusets, you want to be able to specify where you want
+> your reserve pool to come from.
+
+Cpusets is about performance, not correctness.  Anytime I get cornered
+in the cpuset code, I prefer violating the cpuset containment, over
+serious system failure.
 
 -- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+                  I won't rest till it's the best ...
+                  Programmer, Linux Scalability
+                  Paul Jackson <pj@sgi.com> 1.925.600.0401
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
