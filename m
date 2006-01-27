@@ -1,43 +1,53 @@
-Message-ID: <43D96C41.6020103@jp.fujitsu.com>
-Date: Fri, 27 Jan 2006 09:41:37 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by e35.co.us.ibm.com (8.12.11/8.12.11) with ESMTP id k0R0ixQl001781
+	for <linux-mm@kvack.org>; Thu, 26 Jan 2006 19:44:59 -0500
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d03relay04.boulder.ibm.com (8.12.10/NCO/VERS6.8) with ESMTP id k0R0lGUO142850
+	for <linux-mm@kvack.org>; Thu, 26 Jan 2006 17:47:16 -0700
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.12.11/8.13.3) with ESMTP id k0R0ixEa009374
+	for <linux-mm@kvack.org>; Thu, 26 Jan 2006 17:44:59 -0700
+Message-ID: <43D96D08.6050200@us.ibm.com>
+Date: Thu, 26 Jan 2006 16:44:56 -0800
+From: Matthew Dobson <colpatch@us.ibm.com>
 MIME-Version: 1.0
-Subject: Re: [Lhms-devel] Re: [PATCH 0/9] Reducing fragmentation using zones
- v4
-References: <20060126184305.8550.94358.sendpatchset@skynet.csn.ul.ie> <43D96987.8090608@jp.fujitsu.com>
-In-Reply-To: <43D96987.8090608@jp.fujitsu.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Subject: Re: [patch 3/9] mempool - Make mempools NUMA aware
+References: <20060125161321.647368000@localhost.localdomain> <1138233093.27293.1.camel@localhost.localdomain> <Pine.LNX.4.62.0601260953200.15128@schroedinger.engr.sgi.com> <43D953C4.5020205@us.ibm.com> <Pine.LNX.4.62.0601261511520.18716@schroedinger.engr.sgi.com> <43D95A2E.4020002@us.ibm.com> <Pine.LNX.4.62.0601261525570.18810@schroedinger.engr.sgi.com> <43D96633.4080900@us.ibm.com> <Pine.LNX.4.62.0601261619030.19029@schroedinger.engr.sgi.com> <43D96A93.9000600@us.ibm.com> <Pine.LNX.4.62.0601261638210.19078@schroedinger.engr.sgi.com>
+In-Reply-To: <Pine.LNX.4.62.0601261638210.19078@schroedinger.engr.sgi.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, lhms-devel@lists.sourceforge.net
+To: Christoph Lameter <clameter@engr.sgi.com>
+Cc: linux-kernel@vger.kernel.org, sri@us.ibm.com, andrea@suse.de, pavel@suse.cz, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-KAMEZAWA Hiroyuki wrote:
-> Could you add this patch to your set ?
-> This was needed to boot my x86 machine without HIGHMEM.
+Christoph Lameter wrote:
+> On Thu, 26 Jan 2006, Matthew Dobson wrote:
 > 
-Sorry, I sent a wrong patch..
-This is correct one.
--- Kame
+> 
+>>That seems a bit beyond the scope of what I'd hoped for this patch series,
+>>but if an approach like this is believed to be generally useful, it's
+>>something I'm more than willing to work on...
+> 
+> 
+> We need this for other issues as well. f.e. to establish memory allocation 
+> policies for the page cache, tmpfs and various other needs. Look at 
+> mempolicy.h which defines a subset of what we need. Currently there is no 
+> way to specify a policy when invoking the page allocator or slab 
+> allocator. The policy is implicily fetched from the current task structure 
+> which is not optimal.
 
-Index: linux-2.6.16-rc1-mm3/mm/highmem.c
-===================================================================
---- linux-2.6.16-rc1-mm3.orig/mm/highmem.c
-+++ linux-2.6.16-rc1-mm3/mm/highmem.c
-@@ -225,9 +225,6 @@ static __init int init_emergency_pool(vo
-  	struct sysinfo i;
-  	si_meminfo(&i);
-  	si_swapinfo(&i);
--
--	if (!i.totalhigh)
--		return 0;
-
-  	page_pool = mempool_create(POOL_SIZE, page_pool_alloc, page_pool_free, NULL);
-  	if (!page_pool)
+I agree that the current, task-based policies are subobtimal.  Having to
+allocate and fill in even a small structure for each allocation is going to
+be a tough sell, though.  I suppose most allocations could get by with a
+small handfull of static generic "policy structures"...  This seems like it
+will turn into a signifcant rework of all the kernel's allocation routines,
+no small task.  Certainly not something that I'd even start without
+response from some other major players in the VM area...  Anyone?
 
 
+-Matt
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
