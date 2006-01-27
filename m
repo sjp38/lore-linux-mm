@@ -1,53 +1,97 @@
-Received: by uproxy.gmail.com with SMTP id k40so44069ugc
-        for <linux-mm@kvack.org>; Thu, 26 Jan 2006 23:35:49 -0800 (PST)
-Message-ID: <84144f020601262335g49c21b62qaa729732e9275c0@mail.gmail.com>
-Date: Fri, 27 Jan 2006 09:35:49 +0200
-From: Pekka Enberg <penberg@cs.helsinki.fi>
-Subject: Re: [patch 0/9] Critical Mempools
-In-Reply-To: <43D968E4.5020300@us.ibm.com>
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by e36.co.us.ibm.com (8.12.11/8.12.11) with ESMTP id k0R8To2M024391
+	for <linux-mm@kvack.org>; Fri, 27 Jan 2006 03:29:50 -0500
+Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
+	by d03relay04.boulder.ibm.com (8.12.10/NCO/VERS6.8) with ESMTP id k0R8W6UO132998
+	for <linux-mm@kvack.org>; Fri, 27 Jan 2006 01:32:06 -0700
+Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av03.boulder.ibm.com (8.12.11/8.13.3) with ESMTP id k0R8TnJA021642
+	for <linux-mm@kvack.org>; Fri, 27 Jan 2006 01:29:49 -0700
+Message-ID: <43D9D9FB.8070903@us.ibm.com>
+Date: Fri, 27 Jan 2006 00:29:47 -0800
+From: Sridhar Samudrala <sri@us.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 8BIT
-Content-Disposition: inline
-References: <1138217992.2092.0.camel@localhost.localdomain>
-	 <Pine.LNX.4.62.0601260954540.15128@schroedinger.engr.sgi.com>
-	 <43D954D8.2050305@us.ibm.com>
-	 <Pine.LNX.4.62.0601261516160.18716@schroedinger.engr.sgi.com>
-	 <43D95BFE.4010705@us.ibm.com> <20060127000304.GG10409@kvack.org>
-	 <43D968E4.5020300@us.ibm.com>
+Subject: Re: [patch 0/9] Critical Mempools
+References: <1138217992.2092.0.camel@localhost.localdomain> <Pine.LNX.4.62.0601260954540.15128@schroedinger.engr.sgi.com> <43D954D8.2050305@us.ibm.com> <Pine.LNX.4.62.0601261516160.18716@schroedinger.engr.sgi.com> <43D95BFE.4010705@us.ibm.com>
+In-Reply-To: <43D95BFE.4010705@us.ibm.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Matthew Dobson <colpatch@us.ibm.com>
-Cc: Benjamin LaHaise <bcrl@kvack.org>, Christoph Lameter <clameter@engr.sgi.com>, linux-kernel@vger.kernel.org, sri@us.ibm.com, andrea@suse.de, pavel@suse.cz, linux-mm@kvack.org
+Cc: Christoph Lameter <clameter@engr.sgi.com>, linux-kernel@vger.kernel.org, andrea@suse.de, pavel@suse.cz, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+Matthew Dobson wrote:
+> Christoph Lameter wrote:
+>   
+>> On Thu, 26 Jan 2006, Matthew Dobson wrote:
+>>
+>>
+>>     
+>>>> All subsystems will now get more complicated by having to add this 
+>>>> emergency functionality?
+>>>>         
+>>> Certainly not.  Only subsystems that want to use emergency pools will get
+>>> more complicated.  If you have a suggestion as to how to implement a
+>>> similar feature that is completely transparent to its users, I would *love*
+>>>       
+>> I thought the earlier __GFP_CRITICAL was a good idea.
+>>     
+>
+> Well, I certainly could have used that feedback a month ago! ;)  The
+> general response to that patchset was overwhelmingly negative.  Yours is
+> the first vote in favor of that approach, that I'm aware of.
+>
+>
+>   
+>>> to hear it.  I have tried to keep the changes to implement this
+>>> functionality to a minimum.  As the patches currently stand, existing slab
+>>> allocator and mempool users can continue using these subsystems without
+>>> modification.
+>>>       
+>> The patches are extensive and the required changes to subsystems in order 
+>> to use these pools are also extensive.
+>>     
+>
+> I can't really argue with your first point, but the changes required to use
+> the pools should actually be quite small.  Sridhar (cc'd on this thread) is
+> working on the changes required for the networking subsystem to use these
+> pools, and it looks like the patches will be no larger than the ones from
+> the last attempt.
+>   
+I would say that the patches to support critical sockets will be 
+slightly more complex with mempools
+than the earlier patches that used the global critical page pool with a 
+new GFP_CRITICAL flag.
 
-Benjamin LaHaise wrote:
-> > Personally, I'm more in favour of a proper reservation system.  mempools
-> > are pretty inefficient.  Reservations have useful properties, too -- one
-> > could reserve memory for a critical process to use, but allow the system
-> > to use that memory for easy to reclaim caches or to help with memory
-> > defragmentation (more free pages really helps the buddy allocator).
+Basically we need a facility to mark an allocation request as critical 
+and satisfy this request without
+any blocking in an emergency situation.
 
-On 1/27/06, Matthew Dobson <colpatch@us.ibm.com> wrote:
-> That's an interesting idea...  Keep track of the number of pages "reserved"
-> but allow them to be used something like read-only pagecache...  Something
-> along those lines would most certainly be easier on the page allocator,
-> since it wouldn't have chunks of pages "missing" for long periods of time.
+Thanks
+Sridhar
+>
+>   
+>>>> There surely must be a better way than revising all subsystems for 
+>>>> critical allocations.
+>>>>         
+>>> Again, I could not find any way to implement this functionality without
+>>> forcing the users of the functionality to make some, albeit very minor,
+>>> changes.  Specific suggestions are more than welcome! :)
+>>>       
+>> Gfp flag? Better memory reclaim functionality?
+>>     
+>
+> Well, I've got patches that implement the GFP flag approach, but as I
+> mentioned above, that was poorly received.  Better memory reclaim is a
+> broad and general approach that I agree is useful, but will not necessarily
+> solve the same set of problems (though it would likely lessen the severity
+> somewhat).
+>
+> -Matt
+>   
 
-Any thoughts on what kind of allocation patterns do we have for those
-critical callers? The worst case is of course that for just one 32
-byte critical allocation we steal away a complete page from the
-reserves which doesn't sound like a good idea under extreme VM
-pressure. For a general solution, I don't think it's enough that you
-simply flag an allocation GFP_CRITICAL and let the page allocator do
-the allocation.
-
-As as side note, we already have __GFP_NOFAIL. How is it different
-from GFP_CRITICAL and why aren't we improving that?
-
-                                  Pekka
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
