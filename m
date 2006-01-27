@@ -1,40 +1,34 @@
-Date: Fri, 27 Jan 2006 02:10:50 -0800
-From: Paul Jackson <pj@sgi.com>
-Subject: Re: [patch 0/9] Critical Mempools
-Message-Id: <20060127021050.f50d358d.pj@sgi.com>
-In-Reply-To: <84144f020601262335g49c21b62qaa729732e9275c0@mail.gmail.com>
-References: <1138217992.2092.0.camel@localhost.localdomain>
-	<Pine.LNX.4.62.0601260954540.15128@schroedinger.engr.sgi.com>
-	<43D954D8.2050305@us.ibm.com>
-	<Pine.LNX.4.62.0601261516160.18716@schroedinger.engr.sgi.com>
-	<43D95BFE.4010705@us.ibm.com>
-	<20060127000304.GG10409@kvack.org>
-	<43D968E4.5020300@us.ibm.com>
-	<84144f020601262335g49c21b62qaa729732e9275c0@mail.gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Date: Fri, 27 Jan 2006 10:17:49 +0000 (GMT)
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: [PATCH] Compile error on x86 with hotplug but no highmem
+Message-ID: <Pine.LNX.4.58.0601271014090.25836@skynet>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Pekka Enberg <penberg@cs.helsinki.fi>
-Cc: colpatch@us.ibm.com, bcrl@kvack.org, clameter@engr.sgi.com, linux-kernel@vger.kernel.org, sri@us.ibm.com, andrea@suse.de, pavel@suse.cz, linux-mm@kvack.org
+To: akpm@osdl.org
+Cc: Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Pekka wrote:
-> As as side note, we already have __GFP_NOFAIL. How is it different
-> from GFP_CRITICAL and why aren't we improving that?
+Memory hotplug without highmem is meaningless but it is still an allowed
+configuration. This is one possible fix. Another is to not allow memory
+hotplug without high memory being available. Another is to take
+online_page() outside of the #ifdef CONFIG_HIGHMEM block in init.c .
 
-Don't these two flags invoke two different mechanisms.
-  __GFP_NOFAIL can sleep for HZ/50 then retry, rather than return failure.
-  __GFP_CRITICAL can steal from the emergency pool rather than fail.
 
-I would favor renaming at least the __GFP_CRITICAL to something
-like __GFP_EMERGPOOL, to highlight the relevant distinction.
+Signed-off-by: Mel Gorman <mel@csn.ul.ie>
 
--- 
-                  I won't rest till it's the best ...
-                  Programmer, Linux Scalability
-                  Paul Jackson <pj@sgi.com> 1.925.600.0401
+diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.16-rc1-mm3-clean/arch/i386/mm/init.c linux-2.6.16-rc1-mm3-nohighmemhotplug/arch/i386/mm/init.c
+--- linux-2.6.16-rc1-mm3-clean/arch/i386/mm/init.c	2006-01-25 13:42:41.000000000 +0000
++++ linux-2.6.16-rc1-mm3-nohighmemhotplug/arch/i386/mm/init.c	2006-01-27 10:10:26.000000000 +0000
+@@ -324,6 +324,7 @@ static void __init set_highmem_pages_ini
+ #define kmap_init() do { } while (0)
+ #define permanent_kmaps_init(pgd_base) do { } while (0)
+ #define set_highmem_pages_init(bad_ppro) do { } while (0)
++void online_page(struct page *page) {}
+ #endif /* CONFIG_HIGHMEM */
+
+ unsigned long long __PAGE_KERNEL = _PAGE_KERNEL;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
