@@ -1,57 +1,40 @@
-Message-ID: <43D9DB12.20706@us.ibm.com>
-Date: Fri, 27 Jan 2006 00:34:26 -0800
-From: Sridhar Samudrala <sri@us.ibm.com>
-MIME-Version: 1.0
+Date: Fri, 27 Jan 2006 02:10:50 -0800
+From: Paul Jackson <pj@sgi.com>
 Subject: Re: [patch 0/9] Critical Mempools
-References: <1138217992.2092.0.camel@localhost.localdomain> <Pine.LNX.4.62.0601260954540.15128@schroedinger.engr.sgi.com> <43D954D8.2050305@us.ibm.com> <Pine.LNX.4.62.0601261516160.18716@schroedinger.engr.sgi.com> <43D95BFE.4010705@us.ibm.com> <20060127000304.GG10409@kvack.org>
-In-Reply-To: <20060127000304.GG10409@kvack.org>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Message-Id: <20060127021050.f50d358d.pj@sgi.com>
+In-Reply-To: <84144f020601262335g49c21b62qaa729732e9275c0@mail.gmail.com>
+References: <1138217992.2092.0.camel@localhost.localdomain>
+	<Pine.LNX.4.62.0601260954540.15128@schroedinger.engr.sgi.com>
+	<43D954D8.2050305@us.ibm.com>
+	<Pine.LNX.4.62.0601261516160.18716@schroedinger.engr.sgi.com>
+	<43D95BFE.4010705@us.ibm.com>
+	<20060127000304.GG10409@kvack.org>
+	<43D968E4.5020300@us.ibm.com>
+	<84144f020601262335g49c21b62qaa729732e9275c0@mail.gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Benjamin LaHaise <bcrl@kvack.org>
-Cc: Matthew Dobson <colpatch@us.ibm.com>, Christoph Lameter <clameter@engr.sgi.com>, linux-kernel@vger.kernel.org, andrea@suse.de, pavel@suse.cz, linux-mm@kvack.org
+To: Pekka Enberg <penberg@cs.helsinki.fi>
+Cc: colpatch@us.ibm.com, bcrl@kvack.org, clameter@engr.sgi.com, linux-kernel@vger.kernel.org, sri@us.ibm.com, andrea@suse.de, pavel@suse.cz, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Benjamin LaHaise wrote:
-> On Thu, Jan 26, 2006 at 03:32:14PM -0800, Matthew Dobson wrote:
->   
->>> I thought the earlier __GFP_CRITICAL was a good idea.
->>>       
->> Well, I certainly could have used that feedback a month ago! ;)  The
->> general response to that patchset was overwhelmingly negative.  Yours is
->> the first vote in favor of that approach, that I'm aware of.
->>     
->
-> Personally, I'm more in favour of a proper reservation system.  mempools 
-> are pretty inefficient.  Reservations have useful properties, too -- one 
-> could reserve memory for a critical process to use, but allow the system 
-> to use that memory for easy to reclaim caches or to help with memory 
-> defragmentation (more free pages really helps the buddy allocator).
->
->   
->>> Gfp flag? Better memory reclaim functionality?
->>>       
->> Well, I've got patches that implement the GFP flag approach, but as I
->> mentioned above, that was poorly received.  Better memory reclaim is a
->> broad and general approach that I agree is useful, but will not necessarily
->> solve the same set of problems (though it would likely lessen the severity
->> somewhat).
->>     
->
-> Which areas are the priorities for getting this functionality into?  
-> Networking over particular sockets?  A GFP_ flag would plug into the current 
-> network stack trivially, as sockets already have a field to store the memory 
-> allocation flags.
->   
-Yes, i have posted patches that use this exact approach last month that 
-use a critical page pool with
-GFP_CRITICAL flag.
-      http://lkml.org/lkml/2005/12/14/65
-      http://lkml.org/lkml/2005/12/14/66
+Pekka wrote:
+> As as side note, we already have __GFP_NOFAIL. How is it different
+> from GFP_CRITICAL and why aren't we improving that?
 
-Thanks
-Sridhar
+Don't these two flags invoke two different mechanisms.
+  __GFP_NOFAIL can sleep for HZ/50 then retry, rather than return failure.
+  __GFP_CRITICAL can steal from the emergency pool rather than fail.
+
+I would favor renaming at least the __GFP_CRITICAL to something
+like __GFP_EMERGPOOL, to highlight the relevant distinction.
+
+-- 
+                  I won't rest till it's the best ...
+                  Programmer, Linux Scalability
+                  Paul Jackson <pj@sgi.com> 1.925.600.0401
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
