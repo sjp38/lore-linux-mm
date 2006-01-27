@@ -1,85 +1,57 @@
-Date: Fri, 27 Jan 2006 11:42:41 +0000 (GMT)
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [Lhms-devel] Re: [PATCH 0/9] Reducing fragmentation using zones
- v4
-In-Reply-To: <43DA01DD.9040808@jp.fujitsu.com>
-Message-ID: <Pine.LNX.4.58.0601271131220.26687@skynet>
-References: <20060126184305.8550.94358.sendpatchset@skynet.csn.ul.ie>
- <43D96987.8090608@jp.fujitsu.com> <43D96C41.6020103@jp.fujitsu.com>
- <Pine.LNX.4.58.0601271027560.25836@skynet> <43DA01DD.9040808@jp.fujitsu.com>
+Received: by uproxy.gmail.com with SMTP id q2so290717uge
+        for <linux-mm@kvack.org>; Fri, 27 Jan 2006 07:36:39 -0800 (PST)
+Message-ID: <58d0dbf10601270736o3381d4fbt@mail.gmail.com>
+Date: Fri, 27 Jan 2006 16:36:39 +0100
+From: Jan Kiszka <jan.kiszka@googlemail.com>
+Subject: Re: [patch 0/9] Critical Mempools
+In-Reply-To: <43D968E4.5020300@us.ibm.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 8BIT
+Content-Disposition: inline
+References: <1138217992.2092.0.camel@localhost.localdomain>
+	 <Pine.LNX.4.62.0601260954540.15128@schroedinger.engr.sgi.com>
+	 <43D954D8.2050305@us.ibm.com>
+	 <Pine.LNX.4.62.0601261516160.18716@schroedinger.engr.sgi.com>
+	 <43D95BFE.4010705@us.ibm.com> <20060127000304.GG10409@kvack.org>
+	 <43D968E4.5020300@us.ibm.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, lhms-devel@lists.sourceforge.net
+To: Matthew Dobson <colpatch@us.ibm.com>
+Cc: Benjamin LaHaise <bcrl@kvack.org>, Christoph Lameter <clameter@engr.sgi.com>, linux-kernel@vger.kernel.org, sri@us.ibm.com, andrea@suse.de, pavel@suse.cz, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 27 Jan 2006, KAMEZAWA Hiroyuki wrote:
+2006/1/27, Matthew Dobson <colpatch@us.ibm.com>:
 
-> Mel Gorman wrote:
-> > On Fri, 27 Jan 2006, KAMEZAWA Hiroyuki wrote:
-> >
-> > > KAMEZAWA Hiroyuki wrote:
-> > > > Could you add this patch to your set ?
-> > > > This was needed to boot my x86 machine without HIGHMEM.
-> > > >
-> > > Sorry, I sent a wrong patch..
-> > > This is correct one.
-> >
-> > I can add it although I would like to know more about the problem. I tried
-> > booting with and without CONFIG_HIGHMEM both stock kernels and with
-> > anti-frag and they all boot fine. What causes your machine to die? Does it
-> > occur with stock -mm or just with anti-frag?
-> >
-> Sorry, it looks there is no problem with your newest set :(
+> The impetus for this work was getting this functionality into the
+> networking stack, to keep the network alive under periods of extreme VM
+> pressure.  Keeping track of 'criticalness' on a per-socket basis is good,
+> but the problem is the receive side.  Networking packets are received and
+> put into skbuffs before there is any concept of what socket they belong to.
+>  So to really handle incoming traffic under extreme memory pressure would
+> require something beyond just a per-socket flag.
 
-Not a problem. If nothing else, testing CONFIG_HIGHMEM showed that there
-is a compile bug when memory hotplug is set but highmem is not, so some
-good came of this. At least I know you are trying the patches out :)
+Maybe as an interesting lecture you want study how we handle this in
+the deterministic network stack RTnet (www.rtnet.org): exchange full
+with empty (rt-)skbs between per-user packet pools. Every packet
+producer or consumer (socket, NIC, in-kernel networking service) has
+its own pool of pre-allocated, fixed-sized packets. Incoming packets
+are first stored at the expense of the NIC. But as soon as the real
+receiver is known, that one has to pass over an empty buffer in order
+to get the full one. Otherwise, the packet is dropped. Kind of hard
+policy, but it prevents any local user from starving the system with
+respect to skbs. Additionally for full determinism, remote users have
+to be controlled via bandwidth management (to avoid exhausting the
+NIC's pool), in our case a TDMA mechanism.
 
-> This was problem of my tree...
->
-> Sigh, I should be more carefull.
-> my note is attached.
->
-> Sorry,
+I'm not suggesting that this is something easy to adopt into a general
+purpose networking stack (this is /one/ reason why we maintain a
+separate project for it). But maybe the concept can inspire something
+in this direction. Would be funny to have "native" RTnet in the kernel
+one day :). Separate memory pools for critical allocations is an
+interesting step that may help us as well.
 
-Not to worry, thanks for the note.
-
-> -- Kame
->
-> == Note ==
->
-> I replaced si_meminfo() like following
-> ==
-> #ifdef CONFIG_HIGHMEM
->         val->totalhigh = nr_total_zonetype_pages(ZONE_HIGHMEM);
->         val->freehigh = nr_free_zonetype_pages(ZONE_HIGHMEM);
-> #else
-> ==
-> If ZONE_HIGHMEM has no pages, val->totalhigh is 0 and mempool for bounce
-> buffer
-> is not initialized.
->
-> But, now
-> ==
-> #ifdef CONFIG_HIGHMEM
->         val->totalhigh = totalhigh_pages;
->         val->freehigh = nr_free_highpages();
-> #else
-> ==
->
-> totalhigh_pages is defined by highstart_pfn and highend_pfn.
-> By Zone_EasyRclm, totalhigh_pages is not affected.
-> mempool for bounce buffer is properly initialized....
->
->
-
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+Jan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
