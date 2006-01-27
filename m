@@ -1,52 +1,67 @@
-Received: by uproxy.gmail.com with SMTP id k40so105002ugc
-        for <linux-mm@kvack.org>; Fri, 27 Jan 2006 03:07:54 -0800 (PST)
-Message-ID: <84144f020601270307t7266a4ccs5071d4b288a9257f@mail.gmail.com>
-Date: Fri, 27 Jan 2006 13:07:54 +0200
-From: Pekka Enberg <penberg@cs.helsinki.fi>
-Subject: Re: [patch 0/9] Critical Mempools
-In-Reply-To: <20060127021050.f50d358d.pj@sgi.com>
+Message-ID: <43DA01DD.9040808@jp.fujitsu.com>
+Date: Fri, 27 Jan 2006 20:19:57 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 8BIT
-Content-Disposition: inline
-References: <1138217992.2092.0.camel@localhost.localdomain>
-	 <Pine.LNX.4.62.0601260954540.15128@schroedinger.engr.sgi.com>
-	 <43D954D8.2050305@us.ibm.com>
-	 <Pine.LNX.4.62.0601261516160.18716@schroedinger.engr.sgi.com>
-	 <43D95BFE.4010705@us.ibm.com> <20060127000304.GG10409@kvack.org>
-	 <43D968E4.5020300@us.ibm.com>
-	 <84144f020601262335g49c21b62qaa729732e9275c0@mail.gmail.com>
-	 <20060127021050.f50d358d.pj@sgi.com>
+Subject: Re: [Lhms-devel] Re: [PATCH 0/9] Reducing fragmentation using zones
+ v4
+References: <20060126184305.8550.94358.sendpatchset@skynet.csn.ul.ie> <43D96987.8090608@jp.fujitsu.com> <43D96C41.6020103@jp.fujitsu.com> <Pine.LNX.4.58.0601271027560.25836@skynet>
+In-Reply-To: <Pine.LNX.4.58.0601271027560.25836@skynet>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Paul Jackson <pj@sgi.com>
-Cc: colpatch@us.ibm.com, bcrl@kvack.org, clameter@engr.sgi.com, linux-kernel@vger.kernel.org, sri@us.ibm.com, andrea@suse.de, pavel@suse.cz, linux-mm@kvack.org
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, lhms-devel@lists.sourceforge.net
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+Mel Gorman wrote:
+> On Fri, 27 Jan 2006, KAMEZAWA Hiroyuki wrote:
+> 
+>> KAMEZAWA Hiroyuki wrote:
+>>> Could you add this patch to your set ?
+>>> This was needed to boot my x86 machine without HIGHMEM.
+>>>
+>> Sorry, I sent a wrong patch..
+>> This is correct one.
+> 
+> I can add it although I would like to know more about the problem. I tried
+> booting with and without CONFIG_HIGHMEM both stock kernels and with
+> anti-frag and they all boot fine. What causes your machine to die? Does it
+> occur with stock -mm or just with anti-frag?
+> 
+Sorry, it looks there is no problem with your newest set :(
+This was problem of my tree...
 
-Pekka wrote:
-> > As as side note, we already have __GFP_NOFAIL. How is it different
-> > from GFP_CRITICAL and why aren't we improving that?
+Sigh, I should be more carefull.
+my note is attached.
 
-On 1/27/06, Paul Jackson <pj@sgi.com> wrote:
-> Don't these two flags invoke two different mechanisms.
->   __GFP_NOFAIL can sleep for HZ/50 then retry, rather than return failure.
->   __GFP_CRITICAL can steal from the emergency pool rather than fail.
->
-> I would favor renaming at least the __GFP_CRITICAL to something
-> like __GFP_EMERGPOOL, to highlight the relevant distinction.
+Sorry,
+-- Kame
 
-Yeah you're right. __GFP_NOFAIL guarantees to never fail but it
-doesn't guarantee to actually succeed either. I think the suggested
-semantics for __GFP_EMERGPOOL are that while it can fail, it tries to
-avoid that by dipping into page reserves. However, I do still think
-it's a bad idea to allow the slab allocator to steal whole pages for
-critical allocations because in low-memory condition, it should be
-fairly easy to exhaust the reserves and waste most of that memory at
-the same time.
+== Note ==
 
-                            Pekka
+I replaced si_meminfo() like following
+==
+#ifdef CONFIG_HIGHMEM
+         val->totalhigh = nr_total_zonetype_pages(ZONE_HIGHMEM);
+         val->freehigh = nr_free_zonetype_pages(ZONE_HIGHMEM);
+#else
+==
+If ZONE_HIGHMEM has no pages, val->totalhigh is 0 and mempool for bounce buffer
+is not initialized.
+
+But, now
+==
+#ifdef CONFIG_HIGHMEM
+         val->totalhigh = totalhigh_pages;
+         val->freehigh = nr_free_highpages();
+#else
+==
+
+totalhigh_pages is defined by highstart_pfn and highend_pfn.
+By Zone_EasyRclm, totalhigh_pages is not affected.
+mempool for bounce buffer is properly initialized....
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
