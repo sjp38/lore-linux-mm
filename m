@@ -1,67 +1,51 @@
-Message-ID: <43DA6369.5050108@mbligh.org>
-Date: Fri, 27 Jan 2006 10:16:09 -0800
-From: Martin Bligh <mbligh@mbligh.org>
-MIME-Version: 1.0
-Subject: Re: [PATCH/RFC] Shared page tables
-References: <A6D73CCDC544257F3D97F143@[10.1.1.4]> <200601240210.04337.ak@suse.de> <1138086398.2977.19.camel@laptopd505.fenrus.org> <200601240818.28696.ak@suse.de>
-In-Reply-To: <200601240818.28696.ak@suse.de>
-Content-Type: text/plain; charset=UTF-8; format=flowed
+Received: from westrelay02.boulder.ibm.com (westrelay02.boulder.ibm.com [9.17.195.11])
+	by e33.co.us.ibm.com (8.12.11/8.12.11) with ESMTP id k0RK2YId020158
+	for <linux-mm@kvack.org>; Fri, 27 Jan 2006 15:02:34 -0500
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by westrelay02.boulder.ibm.com (8.12.10/NCO/VERS6.8) with ESMTP id k0RK0iO9273496
+	for <linux-mm@kvack.org>; Fri, 27 Jan 2006 13:00:45 -0700
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.12.11/8.13.3) with ESMTP id k0RK2X1a031121
+	for <linux-mm@kvack.org>; Fri, 27 Jan 2006 13:02:33 -0700
+Subject: Re: [PATCH] Compile error on x86 with hotplug but no highmem
+From: Dave Hansen <haveblue@us.ibm.com>
+In-Reply-To: <Pine.LNX.4.58.0601271014090.25836@skynet>
+References: <Pine.LNX.4.58.0601271014090.25836@skynet>
+Content-Type: text/plain
+Date: Fri, 27 Jan 2006 12:02:28 -0800
+Message-Id: <1138392149.19801.53.camel@localhost.localdomain>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <ak@suse.de>
-Cc: Arjan van de Ven <arjan@infradead.org>, Ray Bryant <raybry@mpdtxmail.amd.com>, Dave McCracken <dmccr@us.ibm.com>, Robin Holt <holt@sgi.com>, Hugh Dickins <hugh@veritas.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: akpm@osdl.org, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Andi Kleen wrote:
-> On Tuesday 24 January 2006 08:06, Arjan van de Ven wrote:
-> 
->>>The randomization is not for cache coloring, but for security purposes
->>>(except for the old very small stack randomization that was used
->>>to avoid conflicts on HyperThreaded CPUs). I would be surprised if the
->>>mmap made much difference because it's page aligned and at least
->>>on x86 the L2 and larger caches are usually PI.
->>
->>randomization to a large degree is more important between machines than
->>within the same machine (except for setuid stuff but lets call that a
->>special category for now). Imo prelink is one of the better bets to get
->>"all code for a binary/lib on the same 2 mb page",
-> 
-> 
-> Probably yes.
-> 
-> 
->>all distros ship 
->>prelink nowadays anyway 
-> 
-> 
-> SUSE doesn't use it.
-> 
-> 
->>(it's too much of a win that nobody can afford 
->>to not ship it ;) 
-> 
-> 
-> KDE and some other people disagree on that. 
-> 
-> 
->>and within prelink the balance between randomization 
->>for security and 2Mb sharing can be struck best. In fact it needs know
->>about the 2Mb thing anyway to place it there properly and for all
->>binaries... the kernel just can't do that.
-> 
-> 
-> Well, we first have to figure out if the shared page tables
-> are really worth all the ugly code, nasty locking and other problems 
-> (inefficient TLB flush etc.) I personally would prefer
-> to make large pages work better before going down that path.
+On Fri, 2006-01-27 at 10:17 +0000, Mel Gorman wrote:
+> Memory hotplug without highmem is meaningless but it is still an allowed
+> configuration. This is one possible fix. Another is to not allow memory
+> hotplug without high memory being available. Another is to take
+> online_page() outside of the #ifdef CONFIG_HIGHMEM block in init.c .
 
-That needs defragmentation, etc, etc. etc. It also requires changes to 
-userspace apps. Large pages are crippled right now, and it looks like 
-they're going to stay that way. We need some sort of solution, and this 
-is pretty clean and transparent, by comparison.
+If it is meaningless, then we should probably fix it in the Kconfig
+file, not just work around it at runtime.
 
-m.
+What we really want is something to tell us that the architecture
+_supports_ highmem and isn't using it.  Maybe something like this?
+
+in mm/Kconfig:
+
+config MEMORY_HOTPLUG
+	depends on ... && !ARCH_HAS_DISABLED_HIGHMEM
+
+in arch/i386/Kconfig:
+
+config ARCH_HAS_DISABLED_HIGHMEM
+	def_bool n
+	depends on !HIGHMEM
+
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
