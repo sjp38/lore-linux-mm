@@ -1,34 +1,37 @@
-Date: Fri, 27 Jan 2006 10:17:49 +0000 (GMT)
+Date: Fri, 27 Jan 2006 10:29:22 +0000 (GMT)
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: [PATCH] Compile error on x86 with hotplug but no highmem
-Message-ID: <Pine.LNX.4.58.0601271014090.25836@skynet>
+Subject: Re: [Lhms-devel] Re: [PATCH 0/9] Reducing fragmentation using zones
+ v4
+In-Reply-To: <43D96C41.6020103@jp.fujitsu.com>
+Message-ID: <Pine.LNX.4.58.0601271027560.25836@skynet>
+References: <20060126184305.8550.94358.sendpatchset@skynet.csn.ul.ie>
+ <43D96987.8090608@jp.fujitsu.com> <43D96C41.6020103@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: akpm@osdl.org
-Cc: Linux Memory Management List <linux-mm@kvack.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, lhms-devel@lists.sourceforge.net
 List-ID: <linux-mm.kvack.org>
 
-Memory hotplug without highmem is meaningless but it is still an allowed
-configuration. This is one possible fix. Another is to not allow memory
-hotplug without high memory being available. Another is to take
-online_page() outside of the #ifdef CONFIG_HIGHMEM block in init.c .
+On Fri, 27 Jan 2006, KAMEZAWA Hiroyuki wrote:
 
+> KAMEZAWA Hiroyuki wrote:
+> > Could you add this patch to your set ?
+> > This was needed to boot my x86 machine without HIGHMEM.
+> >
+> Sorry, I sent a wrong patch..
+> This is correct one.
 
-Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+I can add it although I would like to know more about the problem. I tried
+booting with and without CONFIG_HIGHMEM both stock kernels and with
+anti-frag and they all boot fine. What causes your machine to die? Does it
+occur with stock -mm or just with anti-frag?
 
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.16-rc1-mm3-clean/arch/i386/mm/init.c linux-2.6.16-rc1-mm3-nohighmemhotplug/arch/i386/mm/init.c
---- linux-2.6.16-rc1-mm3-clean/arch/i386/mm/init.c	2006-01-25 13:42:41.000000000 +0000
-+++ linux-2.6.16-rc1-mm3-nohighmemhotplug/arch/i386/mm/init.c	2006-01-27 10:10:26.000000000 +0000
-@@ -324,6 +324,7 @@ static void __init set_highmem_pages_ini
- #define kmap_init() do { } while (0)
- #define permanent_kmaps_init(pgd_base) do { } while (0)
- #define set_highmem_pages_init(bad_ppro) do { } while (0)
-+void online_page(struct page *page) {}
- #endif /* CONFIG_HIGHMEM */
-
- unsigned long long __PAGE_KERNEL = _PAGE_KERNEL;
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
