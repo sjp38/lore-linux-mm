@@ -1,8 +1,8 @@
-Date: Fri, 27 Jan 2006 09:09:32 +0200 (EET)
+Date: Fri, 27 Jan 2006 09:10:47 +0200 (EET)
 From: Pekka J Enberg <penberg@cs.Helsinki.FI>
 Subject: Re: [patch 8/9] slab - Add *_mempool slab variants
 In-Reply-To: <43D94FC1.4050708@us.ibm.com>
-Message-ID: <Pine.LNX.4.58.0601270907310.14394@sbz-30.cs.Helsinki.FI>
+Message-ID: <Pine.LNX.4.58.0601270910000.14394@sbz-30.cs.Helsinki.FI>
 References: <20060125161321.647368000@localhost.localdomain>
  <1138218020.2092.8.camel@localhost.localdomain>
  <84144f020601252341k62c0c6fck57f3baa290f4430@mail.gmail.com>
@@ -17,11 +17,14 @@ Cc: linux-kernel@vger.kernel.org, sri@us.ibm.com, andrea@suse.de, pavel@suse.cz,
 List-ID: <linux-mm.kvack.org>
 
 On Thu, 26 Jan 2006, Matthew Dobson wrote:
-> The overhead of passing along a NULL pointer should not be too onerous.
+> I decided that using a whole page allocator would be the easiest way to
+> cover the most common uses of slab/kmalloc, but your idea is very
+> interesting.  My immediate concern would be trying to determine, at kfree()
+> time, what was allocated by the slab allocator and what was allocated by
+> the critical pool.  I will give this approach more thought, as the idea of
+> completely separating the critical pool and slab allocator is attractive.
 
-It is, the extra parameter passing will be propagated all over the kernel 
-where kmalloc() is called. Increasing kernel text for no good reason is 
-not acceptable.
+I think you can use PageSlab for that.
 
 			Pekka
 
