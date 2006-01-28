@@ -1,59 +1,50 @@
-Date: Sat, 28 Jan 2006 09:16:42 +0100
-From: Pavel Machek <pavel@suse.cz>
-Subject: Re: [patch 3/9] mempool - Make mempools NUMA aware
-Message-ID: <20060128081641.GB1605@elf.ucw.cz>
-References: <Pine.LNX.4.62.0601260953200.15128@schroedinger.engr.sgi.com> <43D953C4.5020205@us.ibm.com> <Pine.LNX.4.62.0601261511520.18716@schroedinger.engr.sgi.com> <43D95A2E.4020002@us.ibm.com> <Pine.LNX.4.62.0601261525570.18810@schroedinger.engr.sgi.com> <43D96633.4080900@us.ibm.com> <Pine.LNX.4.62.0601261619030.19029@schroedinger.engr.sgi.com> <43D96A93.9000600@us.ibm.com> <20060127025126.c95f8002.pj@sgi.com> <43DAC222.4060805@us.ibm.com>
+Subject: Re: [patch 0/9] Critical Mempools
+From: Pekka Enberg <penberg@cs.helsinki.fi>
+In-Reply-To: <43DABDBF.7010006@us.ibm.com>
+References: <1138217992.2092.0.camel@localhost.localdomain>
+	 <Pine.LNX.4.62.0601260954540.15128@schroedinger.engr.sgi.com>
+	 <43D954D8.2050305@us.ibm.com>
+	 <Pine.LNX.4.62.0601261516160.18716@schroedinger.engr.sgi.com>
+	 <43D95BFE.4010705@us.ibm.com> <20060127000304.GG10409@kvack.org>
+	 <43D968E4.5020300@us.ibm.com>
+	 <84144f020601262335g49c21b62qaa729732e9275c0@mail.gmail.com>
+	 <20060127021050.f50d358d.pj@sgi.com>
+	 <84144f020601270307t7266a4ccs5071d4b288a9257f@mail.gmail.com>
+	 <43DABDBF.7010006@us.ibm.com>
+Date: Sat, 28 Jan 2006 12:21:51 +0200
+Message-Id: <1138443711.8657.16.camel@localhost>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <43DAC222.4060805@us.ibm.com>
+Content-Type: text/plain; charset=iso-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Matthew Dobson <colpatch@us.ibm.com>
-Cc: Paul Jackson <pj@sgi.com>, clameter@engr.sgi.com, linux-kernel@vger.kernel.org, sri@us.ibm.com, andrea@suse.de, linux-mm@kvack.org
+Cc: Paul Jackson <pj@sgi.com>, bcrl@kvack.org, clameter@engr.sgi.com, linux-kernel@vger.kernel.org, sri@us.ibm.com, andrea@suse.de, pavel@suse.cz, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi!
+Hi,
 
-I'll probably regret getting into this discussion, but:
+On Fri, 2006-01-27 at 16:41 -0800, Matthew Dobson wrote:
+> Now, a few pages of memory could be incredibly crucial, since
+> we're discussing an emergency (presumably) low-mem situation, but if
+> we're going to be getting several requests for the same
+> slab/kmalloc-size then we're probably better of giving a whole page to
+> the slab allocator.  This is pure speculation, of course... :)
 
-> > Or Alan's suggested revival
-> > of the old code to drop non-critical network patches in duress.
-> 
-> Dropping non-critical packets is still in our plan, but I don't think that
-> is a FULL solution.  As we mentioned before on that topic, you can't tell
-> if a packet is critical until AFTER you receive it, by which point it has
-> already had an skbuff (hopefully) allocated for it.  If your network
-> traffic is coming in faster than you can receive, examine, and drop
-> non-critical packets you're hosed.  
+Yeah but even then there's no guarantee that the critical allocations
+will be serviced first. The slab allocator can as well be giving away
+bits of the fresh page to non-critical allocations. For the exact same
+reason, I don't think it's enough that you pass a subsystem-specific
+page pool to the slab allocator.
 
-Why? You run out of atomic memory, start dropping the packets before
-they even enter the kernel memory, and process backlog in the
-meantime. Other hosts realize you are dropping packets and slow down,
-or, if they are malicious, you just end up consistently dropping 70%
-of packets. But that's okay.
+Sorry if this has been explained before but why aren't mempools
+sufficient for your purposes? Also one more alternative would be to
+create a separate object cache for each subsystem-specific critical
+allocation and implement a internal "page pool" for the slab allocator
+so that you could specify for the number of pages an object cache
+guarantees to always hold on to.
 
-> I still think some sort of reserve pool
-> is necessary to give the networking stack a little breathing room when
-> under both memory pressure and network load.
-
-"Lets throw some memory there and hope it does some good?" Eek? What
-about auditing/fixing the networking stack, instead?
-
-> >  * this doesn't really solve the problem (network can still starve)
-> 
-> Only if the pool is not large enough.  One can argue that sizing the pool
-> appropriately is impossible (theoretical incoming traffic over a GigE card
-> or two for a minute or two is extremely large), but then I guess we
-> shouldn't even try to fix the problem...?
-
-And what problem are you trying to fix, anyway? Last time I asked I
-got reply around some strange clustering solution that absolutely has
-to survive two minutes. And no, your patches do not even solve that,
-because sizing the pool is impossible. 
-								Pavel
--- 
-Thanks, Sharp!
+				Pekka
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
