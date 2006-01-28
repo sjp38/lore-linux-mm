@@ -1,151 +1,87 @@
-Subject: [RFC/PATCH 2/2] slab: mempool-backed object caches
-From: Pekka Enberg <penberg@cs.helsinki.fi>
-Date: Sat, 28 Jan 2006 13:30:16 +0200
-Message-Id: <1138447816.8657.31.camel@localhost>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e3.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id k0SGErrS014930
+	for <linux-mm@kvack.org>; Sat, 28 Jan 2006 11:14:53 -0500
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay04.pok.ibm.com (8.12.10/NCO/VERS6.8) with ESMTP id k0SGErGc124614
+	for <linux-mm@kvack.org>; Sat, 28 Jan 2006 11:14:53 -0500
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.12.11/8.13.3) with ESMTP id k0SGErNi021252
+	for <linux-mm@kvack.org>; Sat, 28 Jan 2006 11:14:53 -0500
+Message-ID: <43DB9877.7020206@us.ibm.com>
+Date: Sat, 28 Jan 2006 08:14:47 -0800
+From: Sridhar Samudrala <sri@us.ibm.com>
+MIME-Version: 1.0
+Subject: Re: [patch 3/9] mempool - Make mempools NUMA aware
+References: <Pine.LNX.4.62.0601260953200.15128@schroedinger.engr.sgi.com> <43D953C4.5020205@us.ibm.com> <Pine.LNX.4.62.0601261511520.18716@schroedinger.engr.sgi.com> <43D95A2E.4020002@us.ibm.com> <Pine.LNX.4.62.0601261525570.18810@schroedinger.engr.sgi.com> <43D96633.4080900@us.ibm.com> <Pine.LNX.4.62.0601261619030.19029@schroedinger.engr.sgi.com> <43D96A93.9000600@us.ibm.com> <20060127025126.c95f8002.pj@sgi.com> <43DAC222.4060805@us.ibm.com> <20060128081641.GB1605@elf.ucw.cz>
+In-Reply-To: <20060128081641.GB1605@elf.ucw.cz>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Matthew Dobson <colpatch@us.ibm.com>
-Cc: Paul Jackson <pj@sgi.com>, bcrl@kvack.org, clameter@engr.sgi.com, linux-kernel@vger.kernel.org, sri@us.ibm.com, andrea@suse.de, pavel@suse.cz, linux-mm@kvack.org
+To: Pavel Machek <pavel@suse.cz>
+Cc: Matthew Dobson <colpatch@us.ibm.com>, Paul Jackson <pj@sgi.com>, clameter@engr.sgi.com, linux-kernel@vger.kernel.org, andrea@suse.de, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Matthew,
+Pavel Machek wrote:
+> Hi!
+>
+> I'll probably regret getting into this discussion, but:
+>
+>   
+>>> Or Alan's suggested revival
+>>> of the old code to drop non-critical network patches in duress.
+>>>       
+>> Dropping non-critical packets is still in our plan, but I don't think that
+>> is a FULL solution.  As we mentioned before on that topic, you can't tell
+>> if a packet is critical until AFTER you receive it, by which point it has
+>> already had an skbuff (hopefully) allocated for it.  If your network
+>> traffic is coming in faster than you can receive, examine, and drop
+>> non-critical packets you're hosed.  
+>>     
+>
+> Why? You run out of atomic memory, start dropping the packets before
+> they even enter the kernel memory, and process backlog in the
+> meantime. Other hosts realize you are dropping packets and slow down,
+> or, if they are malicious, you just end up consistently dropping 70%
+> of packets. But that's okay.
+>
+>   
+>> I still think some sort of reserve pool
+>> is necessary to give the networking stack a little breathing room when
+>> under both memory pressure and network load.
+>>     
+>
+> "Lets throw some memory there and hope it does some good?" Eek? What
+> about auditing/fixing the networking stack, instead?
+>   
+The other reason we need a separate critical pool is to satifsy critical 
+GFP_KERNEL allocations
+when we are in emergency. These are made in the send side and we cannot 
+block/sleep.
+>   
+>>>  * this doesn't really solve the problem (network can still starve)
+>>>       
+>> Only if the pool is not large enough.  One can argue that sizing the pool
+>> appropriately is impossible (theoretical incoming traffic over a GigE card
+>> or two for a minute or two is extremely large), but then I guess we
+>> shouldn't even try to fix the problem...?
+>>     
+>
+> And what problem are you trying to fix, anyway? Last time I asked I
+> got reply around some strange clustering solution that absolutely has
+> to survive two minutes. And no, your patches do not even solve that,
+> because sizing the pool is impossible. 
+>   
+Yes, it is true that sizing the critical pool may be difficult if we use 
+it for all incoming allocations.
+May be as an initial solution we could just depend on dropping 
+non-critical incoming packets
+and use the critical pool only for outgoing allocations. We could 
+definitely size the pool if we use
+it only for allocations for critical outgoing packets.
 
-This completely untested patch adds kmem_cache_create_mempool which
-creates a mempool-backed object cache. It wont work as-is (we're not
-checking page order, for example) but you should get the idea.
-
-The good part is that now you can create object caches for many critical
-allocations which can share the same subsystem-specific mempool.
-
-Signed-off-by: Pekka Enberg <penberg@cs.helsinki.fi>
----
-
- include/linux/slab.h |   15 ++++++++++++---
- mm/slab.c            |   44 ++++++++++++++++++++++++++++++++++++++++----
- 2 files changed, 52 insertions(+), 7 deletions(-)
-
-Index: 2.6-mm/include/linux/slab.h
-===================================================================
---- 2.6-mm.orig/include/linux/slab.h
-+++ 2.6-mm/include/linux/slab.h
-@@ -15,6 +15,7 @@ typedef struct kmem_cache kmem_cache_t;
- #include	<linux/gfp.h>
- #include	<linux/init.h>
- #include	<linux/types.h>
-+#include	<linux/mempool.h>
- #include	<asm/page.h>		/* kmalloc_sizes.h needs PAGE_SIZE */
- #include	<asm/cache.h>		/* kmalloc_sizes.h needs L1_CACHE_BYTES */
- 
-@@ -58,9 +59,17 @@ typedef struct kmem_cache kmem_cache_t;
- /* prototypes */
- extern void __init kmem_cache_init(void);
- 
--extern kmem_cache_t *kmem_cache_create(const char *, size_t, size_t, unsigned long,
--				       void (*)(void *, kmem_cache_t *, unsigned long),
--				       void (*)(void *, kmem_cache_t *, unsigned long));
-+typedef void (*kmem_ctor_fn)(void *, kmem_cache_t *, unsigned long);
-+typedef void (*kmem_dtor_fn)(void *, kmem_cache_t *, unsigned long);
-+
-+extern struct kmem_cache *kmem_cache_create(const char *, size_t, size_t,
-+					    unsigned long, kmem_ctor_fn,
-+					    kmem_dtor_fn);
-+
-+extern struct kmem_cache *kmem_cache_create_mempool(const char *, size_t,
-+						    size_t, unsigned long,
-+						    kmem_ctor_fn,
-+						    kmem_dtor_fn, mempool_t *);
- extern int kmem_cache_destroy(kmem_cache_t *);
- extern int kmem_cache_shrink(kmem_cache_t *);
- extern void *kmem_cache_alloc(kmem_cache_t *, gfp_t);
-Index: 2.6-mm/mm/slab.c
-===================================================================
---- 2.6-mm.orig/mm/slab.c
-+++ 2.6-mm/mm/slab.c
-@@ -406,6 +406,7 @@ struct kmem_cache {
- 	/* de-constructor func */
- 	void (*dtor) (void *, struct kmem_cache *, unsigned long);
- 
-+	mempool_t *mempool;
- 	struct kmem_cache_operations *ops;
- 
- 	/* shrinker data for this cache */
-@@ -1346,6 +1347,22 @@ static struct kmem_cache_operations page
- 	.freepages = pagealloc_freepages
- };
- 
-+static void *mempool_getpages(struct kmem_cache *cache, gfp_t flags,
-+			      int nodeid)
-+{
-+	return mempool_alloc(cache->mempool, flags);
-+}
-+
-+static void mempool_freepages(struct kmem_cache *cache, void *addr)
-+{
-+	mempool_free(addr, cache->mempool);
-+}
-+
-+static struct kmem_cache_operations mempool_ops = {
-+	.getpages = mempool_getpages,
-+	.freepages = mempool_freepages
-+};
-+
- static void kmem_rcu_free(struct rcu_head *head)
- {
- 	struct slab_rcu *slab_rcu = (struct slab_rcu *)head;
-@@ -1678,9 +1695,9 @@ static inline size_t calculate_slab_orde
-  * as davem.
-  */
- struct kmem_cache *
--kmem_cache_create (const char *name, size_t size, size_t align,
--	unsigned long flags, void (*ctor)(void*, struct kmem_cache *, unsigned long),
--	void (*dtor)(void*, struct kmem_cache *, unsigned long))
-+__kmem_cache_create(const char *name, size_t size, size_t align,
-+		    unsigned long flags, kmem_ctor_fn ctor, kmem_dtor_fn dtor,
-+		    mempool_t *mempool, struct kmem_cache_operations *ops)
- {
- 	size_t left_over, slab_size, ralign;
- 	struct kmem_cache *cachep = NULL;
-@@ -1810,7 +1827,8 @@ kmem_cache_create (const char *name, siz
- 		goto oops;
- 	memset(cachep, 0, sizeof(struct kmem_cache));
- 
--	cachep->ops = &pagealloc_ops;
-+	cachep->mempool = mempool;
-+	cachep->ops = ops;
- #if DEBUG
- 	cachep->obj_size = size;
- 
-@@ -1970,8 +1988,26 @@ kmem_cache_create (const char *name, siz
- 
- 	return cachep;
- }
-+
-+struct kmem_cache *
-+kmem_cache_create(const char *name, size_t size, size_t align,
-+		  unsigned long flags, kmem_ctor_fn ctor, kmem_dtor_fn dtor)
-+{
-+	return __kmem_cache_create(name, size, align, flags, ctor, dtor,
-+				   NULL, &pagealloc_ops);
-+}
- EXPORT_SYMBOL(kmem_cache_create);
- 
-+struct kmem_cache *
-+kmem_cache_create_mempool(const char *name, size_t size, size_t align,
-+			  unsigned long flags, kmem_ctor_fn ctor,
-+			  kmem_dtor_fn dtor, mempool_t *mempool)
-+{
-+	return __kmem_cache_create(name, size, align, flags, ctor, dtor,
-+				   mempool, &mempool_ops);
-+}
-+EXPORT_SYMBOL(kmem_cache_create_mempool);
-+
- #if DEBUG
- static void check_irq_off(void)
- {
-
+Thanks
+Sridhar
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
