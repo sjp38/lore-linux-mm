@@ -1,47 +1,47 @@
-Message-ID: <43DAC427.70801@us.ibm.com>
-Date: Fri, 27 Jan 2006 17:08:55 -0800
-From: Matthew Dobson <colpatch@us.ibm.com>
-MIME-Version: 1.0
+Date: Fri, 27 Jan 2006 21:08:10 -0800
+From: Paul Jackson <pj@sgi.com>
 Subject: Re: [patch 3/9] mempool - Make mempools NUMA aware
-References: <20060125161321.647368000@localhost.localdomain> <1138233093.27293.1.camel@localhost.localdomain> <20060127002331.GH10409@kvack.org> <43D96AEC.4030200@us.ibm.com> <20060127032307.GI10409@kvack.org>
-In-Reply-To: <20060127032307.GI10409@kvack.org>
-Content-Type: text/plain; charset=ISO-8859-1
+Message-Id: <20060127210810.54177d6d.pj@sgi.com>
+In-Reply-To: <43DAC222.4060805@us.ibm.com>
+References: <20060125161321.647368000@localhost.localdomain>
+	<1138233093.27293.1.camel@localhost.localdomain>
+	<Pine.LNX.4.62.0601260953200.15128@schroedinger.engr.sgi.com>
+	<43D953C4.5020205@us.ibm.com>
+	<Pine.LNX.4.62.0601261511520.18716@schroedinger.engr.sgi.com>
+	<43D95A2E.4020002@us.ibm.com>
+	<Pine.LNX.4.62.0601261525570.18810@schroedinger.engr.sgi.com>
+	<43D96633.4080900@us.ibm.com>
+	<Pine.LNX.4.62.0601261619030.19029@schroedinger.engr.sgi.com>
+	<43D96A93.9000600@us.ibm.com>
+	<20060127025126.c95f8002.pj@sgi.com>
+	<43DAC222.4060805@us.ibm.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Benjamin LaHaise <bcrl@kvack.org>
-Cc: linux-kernel@vger.kernel.org, sri@us.ibm.com, andrea@suse.de, pavel@suse.cz, linux-mm@kvack.org
+To: Matthew Dobson <colpatch@us.ibm.com>
+Cc: clameter@engr.sgi.com, linux-kernel@vger.kernel.org, sri@us.ibm.com, andrea@suse.de, pavel@suse.cz, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Benjamin LaHaise wrote:
-> On Thu, Jan 26, 2006 at 04:35:56PM -0800, Matthew Dobson wrote:
+Matthew wrote:
+> > I too am inclined to prefer the __GFP_CRITICAL approach over this.
 > 
->>Ummm...  ok?  But with only a simple flag, how do you know *which* mempool
->>you're trying to use?  What if you want to use a mempool for a non-slab
->>allocation?
-> 
-> 
-> Are there any?  A quick poke around has only found a couple of places 
-> that use kzalloc(), which is still quite effectively a slab allocation.  
-> There seems to be just one page user, the dm-crypt driver, which could 
-> be served by a reservation scheme.
+> OK.  Chalk one more up for that solution...
 
-A couple.  If Andrew is willing to pick up the mempool patches I posted an
-hour or so ago, there will be only 4 mempool users that aren't using a
-common mempool allocator.  Regardless of whether that happens, there are
-only a few users that aren't slab based:
-   1) mm/highmem.c - page based allocator
-   2) drivers/scsi/scsi_transport_iscsi.c - calls alloc_skb(), which does
-      eventually end up making a slab allocation
-   3) drivers/md/raid1.c & raid10.c - easily the biggest mempool_alloc
-      functions in the kernel.  Non-trivial.
-   4) drivers/md/dm-crypt.c - the driver you mentioned, also using a page
-      allocator
+I don't think my vote should count for much.  See below.
 
-So we could possibly get away with a reservation scheme, but a couple users
-would be non-trivial to fixup.
+> This is supposed to be an implementation of Andrea's suggestion.  There are
+> no hooks in ANY page_alloc.c code paths.  These patches touch mempool code
+> and some slab code, but not any page allocator code.
 
--Matt
+Yeah - you're right.  I misread your patch set.  Sorry
+for wasting your time.
+
+-- 
+                  I won't rest till it's the best ...
+                  Programmer, Linux Scalability
+                  Paul Jackson <pj@sgi.com> 1.925.600.0401
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
