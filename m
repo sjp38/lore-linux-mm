@@ -1,69 +1,116 @@
-Message-ID: <43DABDBF.7010006@us.ibm.com>
-Date: Fri, 27 Jan 2006 16:41:35 -0800
+Received: from westrelay02.boulder.ibm.com (westrelay02.boulder.ibm.com [9.17.195.11])
+	by e33.co.us.ibm.com (8.12.11/8.12.11) with ESMTP id k0S10M9n011841
+	for <linux-mm@kvack.org>; Fri, 27 Jan 2006 20:00:22 -0500
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by westrelay02.boulder.ibm.com (8.12.10/NCO/VERS6.8) with ESMTP id k0S0wWO9163080
+	for <linux-mm@kvack.org>; Fri, 27 Jan 2006 17:58:32 -0700
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.12.11/8.13.3) with ESMTP id k0S10Lgc024271
+	for <linux-mm@kvack.org>; Fri, 27 Jan 2006 18:00:21 -0700
+Message-ID: <43DAC222.4060805@us.ibm.com>
+Date: Fri, 27 Jan 2006 17:00:18 -0800
 From: Matthew Dobson <colpatch@us.ibm.com>
 MIME-Version: 1.0
-Subject: Re: [patch 0/9] Critical Mempools
-References: <1138217992.2092.0.camel@localhost.localdomain>	 <Pine.LNX.4.62.0601260954540.15128@schroedinger.engr.sgi.com>	 <43D954D8.2050305@us.ibm.com>	 <Pine.LNX.4.62.0601261516160.18716@schroedinger.engr.sgi.com>	 <43D95BFE.4010705@us.ibm.com> <20060127000304.GG10409@kvack.org>	 <43D968E4.5020300@us.ibm.com>	 <84144f020601262335g49c21b62qaa729732e9275c0@mail.gmail.com>	 <20060127021050.f50d358d.pj@sgi.com> <84144f020601270307t7266a4ccs5071d4b288a9257f@mail.gmail.com>
-In-Reply-To: <84144f020601270307t7266a4ccs5071d4b288a9257f@mail.gmail.com>
+Subject: Re: [patch 3/9] mempool - Make mempools NUMA aware
+References: <20060125161321.647368000@localhost.localdomain>	<1138233093.27293.1.camel@localhost.localdomain>	<Pine.LNX.4.62.0601260953200.15128@schroedinger.engr.sgi.com>	<43D953C4.5020205@us.ibm.com>	<Pine.LNX.4.62.0601261511520.18716@schroedinger.engr.sgi.com>	<43D95A2E.4020002@us.ibm.com>	<Pine.LNX.4.62.0601261525570.18810@schroedinger.engr.sgi.com>	<43D96633.4080900@us.ibm.com>	<Pine.LNX.4.62.0601261619030.19029@schroedinger.engr.sgi.com>	<43D96A93.9000600@us.ibm.com> <20060127025126.c95f8002.pj@sgi.com>
+In-Reply-To: <20060127025126.c95f8002.pj@sgi.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Pekka Enberg <penberg@cs.helsinki.fi>
-Cc: Paul Jackson <pj@sgi.com>, bcrl@kvack.org, clameter@engr.sgi.com, linux-kernel@vger.kernel.org, sri@us.ibm.com, andrea@suse.de, pavel@suse.cz, linux-mm@kvack.org
+To: Paul Jackson <pj@sgi.com>
+Cc: clameter@engr.sgi.com, linux-kernel@vger.kernel.org, sri@us.ibm.com, andrea@suse.de, pavel@suse.cz, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Pekka Enberg wrote:
-> Hi,
+Paul Jackson wrote:
+> Matthew wrote:
 > 
-> Pekka wrote:
-> 
->>>As as side note, we already have __GFP_NOFAIL. How is it different
->>>from GFP_CRITICAL and why aren't we improving that?
-> 
-> 
-> On 1/27/06, Paul Jackson <pj@sgi.com> wrote:
-> 
->>Don't these two flags invoke two different mechanisms.
->>  __GFP_NOFAIL can sleep for HZ/50 then retry, rather than return failure.
->>  __GFP_CRITICAL can steal from the emergency pool rather than fail.
->>
->>I would favor renaming at least the __GFP_CRITICAL to something
->>like __GFP_EMERGPOOL, to highlight the relevant distinction.
+>>I'm glad we're on the same page now. :)  And yes, adding four "duplicate"
+>>*_mempool allocators was not my first choice, but I couldn't easily see a
+>>better way.
 > 
 > 
-> Yeah you're right. __GFP_NOFAIL guarantees to never fail but it
-> doesn't guarantee to actually succeed either. I think the suggested
-> semantics for __GFP_EMERGPOOL are that while it can fail, it tries to
-> avoid that by dipping into page reserves. However, I do still think
-> it's a bad idea to allow the slab allocator to steal whole pages for
-> critical allocations because in low-memory condition, it should be
-> fairly easy to exhaust the reserves and waste most of that memory at
-> the same time.
+> I hope the following comments aren't too far off target.
+> 
+> I too am inclined to prefer the __GFP_CRITICAL approach over this.
 
-The main pushback I got on my previous attempt at somethign like
-__GFP_EMERGPOOL was that a single, system-wide pool was unacceptable.
-Determining the appropriate size for such a pool would be next to
-impossible, particularly as the number of users of __GFP_EMERGPOOL grows.
-The general concensus was that per-subsystem or dynamically created pools
-would be a more useful addition to the kernel.  Do any of you who are now
-requesting the single pool approach have any suggestions as to how to
-appropriately size a pool with potentially dozens of users so as to offer
-any kind of useful guarantee?  The less users of a single pool, obviously
-the easier it is to appropriately size that pool...
+OK.  Chalk one more up for that solution...
 
-As far as allowing the slab allocator to steal a whole page from the
-critical pool to satisfy a single slab request, I think that is ok.  The
-only other suggestion I've heard is to insert a SLOB layer between the
-critical pool's page allocator and the slab allocator, and have this SLOB
-layer chopping up pages into pieces to handle slab requests that cannot be
-satisfied through the normal slab/page allocator combo.  This involves
-adding a fair bit of code and complexity for the benefit of a few pages of
-memory.  Now, a few pages of memory could be incredibly crucial, since
-we're discussing an emergency (presumably) low-mem situation, but if we're
-going to be getting several requests for the same slab/kmalloc-size then
-we're probably better of giving a whole page to the slab allocator.  This
-is pure speculation, of course... :)
+
+> That or Andrea's suggestion, which except for a free hook, was entirely
+> outside of the page_alloc.c code paths.
+
+This is supposed to be an implementation of Andrea's suggestion.  There are
+no hooks in ANY page_alloc.c code paths.  These patches touch mempool code
+and some slab code, but not any page allocator code.
+
+
+> Or Alan's suggested revival
+> of the old code to drop non-critical network patches in duress.
+
+Dropping non-critical packets is still in our plan, but I don't think that
+is a FULL solution.  As we mentioned before on that topic, you can't tell
+if a packet is critical until AFTER you receive it, by which point it has
+already had an skbuff (hopefully) allocated for it.  If your network
+traffic is coming in faster than you can receive, examine, and drop
+non-critical packets you're hosed.  I still think some sort of reserve pool
+is necessary to give the networking stack a little breathing room when
+under both memory pressure and network load.
+
+
+> I am tempted to think you've taken an approach that raised some
+> substantial looking issues:
+> 
+>  * how to tell the system when to use the emergency pool
+
+We've dropped the whole "in_emergency" thing.  The system uses the
+emergency pool when the normal pool (ie: the buddy allocator) is out of pages.
+
+>  * this doesn't really solve the problem (network can still starve)
+
+Only if the pool is not large enough.  One can argue that sizing the pool
+appropriately is impossible (theoretical incoming traffic over a GigE card
+or two for a minute or two is extremely large), but then I guess we
+shouldn't even try to fix the problem...?
+
+>  * it wastes memory most of the time
+
+True.  Any "real" reserve system will suffer from that problem.  Ben
+LaHaise suggested a reserve system that allows the reserve pages to be used
+for trivially reclaimable allocation while not in active use.  An
+interesting idea.  Regardless, the Linux VM sorta already wastes memory by
+keeping min_free_kbytes around, no?
+
+>  * it doesn't really improve on GFP_ATOMIC
+
+I disagree.  It improves on GFP_ATOMIC by giving it a second chance.  If
+you've got a GFP_ATOMIC allocation that is particularly critical, using a
+mempool to back it means that you can keep going for a while when the rest
+of the system OOMs/goes into SWAP hell/etc.
+
+> and just added another substantial looking issue:
+> 
+>  * it entwines another thread of complexity and performance costs
+>    into the important memory allocation code path.
+
+I can't say that it doesn't add any complexity into an important memory
+allocation path, but I don't think it is a significant amount of
+complexity.  It is just a pointer check in kmem_getpages()...
+
+
+>>With large machines, especially as
+>>those large machines' workloads are more and more likely to be partitioned
+>>with something like cpusets, you want to be able to specify where you want
+>>your reserve pool to come from.
+> 
+> 
+> Cpusets is about performance, not correctness.  Anytime I get cornered
+> in the cpuset code, I prefer violating the cpuset containment, over
+> serious system failure.
+
+Fair enough.  But if we can keep the same baseline performance and add this
+new feature, I'd like to do that.  Doing our best to allocate on a
+particular node when requested to isn't too much to ask.
 
 -Matt
 
